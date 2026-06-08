@@ -93,6 +93,8 @@ Polyjuice/CCaaLF が絶対に出せないのが「なぜ」の説明。Izanagi �
 
 > 「このワークロードは write-heavy かつ中コンテンション。ベースに MOCC を選んだ理由は [CCBench I3: wait/no-wait の有効性は状況依存]。そこに Silo の invisible reads を移植したところ12%向上 (理由: read-heavy phase での cache 汚染削減、I2と整合)。一方 TicToc の timestamp 最適化は移植したが3%悪化したため不採用 (理由: MOCC の temperature tracking と timestamp 管理が二重コストになった、I5の実例)」
 
+(上の数値は narrative の例示。**実際の採否では §3.6 に従い、3% のような noise floor 以下の差は「差なし」に丸め、採否根拠にしてはいけない。** 12% のような差も中央値・CV・有意性を添えて初めて主張になる。)
+
 これは単なるオマケでなく研究としての主張そのもの。「AI が CC を合成した」だけなら半分既存研究だが、「AI が CC を合成し、その設計判断を人間が検証可能な形で説明した」は新しい。
 
 ---
@@ -146,6 +148,23 @@ Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iter
 
 これは「FlameGraph を見て many-core でヤバいか判断してほしい」という当初の直感の正式版。perf プロファイリングは有望な variant にだけ回す (二段構え: screening 通過 → profiling)。
 
+### 3.6 測定の安定性 (measurement stability)
+
+性能数値は「1 run の点」ではなく「**反復測定の分布**」として扱う。他ユーザー・他プロセス・温度スロットリング等の外乱は一晩の自動ループでは必ず混入するが、人間の「あれ?」は介在しない。だから**ばらつきの監視と再測定を実行時の気まぐれに委ねず、規律として明文化・自動化する**。これは絶対規律1 (観測者効果の分離) / §3.4 (reward hacking 対策) と同じ構造の汚染防止であり、reward hacking の鏡像 ——「**ノイズを最適化シグナルと誤認する**」—— への対策でもある。
+
+**(1) 反復と要約.** 1 measurement = N 回反復 (初期値 N=5、calibration で調整)。各 run の冒頭は warmup として破棄し定常状態のみを採る。報告は単一の throughput でなく **中央値 + 散布度 (変動係数 CV / IQR)** を必ず持つ。WAL (output/runs/) には個々の run 値も残し、後から分布を再構成できるようにする。
+
+**(2) 外れ値検出 → 自動再測定 (=「あれ?」の機械化).** 反復内の CV が閾値 (初期 5%) を超えたら「測定が外乱で歪んだ」とみなし**自動で測り直す**。再測定の前に Admission Control の静定確認 (load average 静定) を必ず通す。規定回数 (初期 3 ラウンド) 測っても CV が収束しなければ、その variant に **`unstable` フラグ**を付けて分布比較から除外し、insight に「測定不能」として記録する。沈黙して 1 点を採用してはいけない。
+
+**(3) noise floor の実測.** 「この差は信じてよいか」の下限を勘で決めない。calibration フェーズで baseline を連続 N 回測って CV を実測し、それを **noise floor** として固定する (§4)。これは環境タグ (mac-devcontainer / linux-baremetal) ごとに持つ。Mac devcontainer は VM 越しで noise floor が大きく出るはずで、その数値自体が「ここでは性能比較するな」(D10) の定量的裏付けになる。
+
+**(4) 採否は点比較でなく分布比較.** variant vs baseline の優劣判定は単一値の大小でなく**分布の比較**で行う:
+- 差が noise floor 以下なら「**差なし**」に丸める。層3 narrative の「3%悪化だから不採用」のような **noise floor 以下の差を採否根拠にしてはいけない** (3% はラップトップ/devcontainer ではほぼノイズ)
+- noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない
+- 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする
+
+**(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしない (D10) ため、(2)(4) は配線だけ用意して Linux 実機到着後に有効化する。
+
 ---
 
 ## 4. レコード数の自動キャリブレーション
@@ -167,6 +186,8 @@ Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iter
 注意: 飽和点は thread 数に依存する。探索に使う thread 数を決めたらその thread 数でキャリブレーションする。thread 数を変えたら測り直し。
 
 LLM の役割は数値を見て判断 + 説明し、`output/insights/` に妥当性を文書化すること。査読で必ず問われる「なぜそのレコード数?」に先回りで答えられる。
+
+**noise floor の実測 (§3.6 と接続).** calibrator はレコード数の飽和点に加えて、その環境の **noise floor** も実測する責務を持つ。確定した実験条件 (レコード数・thread 数) で baseline を**連続 N 回**測って throughput の CV を出し、「この差以下は信用するな」の下限として固定する。これは環境タグごと (mac-devcontainer / linux-baremetal) に持ち、§3.6(4) の分布比較が「差なし」に丸める閾値の根拠になる。Mac devcontainer で noise floor が大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる。あわせて、ベンチ前の load average 静定確認 (admission control、orchestrator-design.md) も calibrator の責務に含める。
 
 スケール感度の検出: variant 評価を単一スケールでやらず最低2点で測る (small: 4thread/100万, medium: 10thread/1000万)。「small→medium での性能の伸び方」を特徴量として LLM に渡し、small で良いのに medium で頭打ちの variant は「スケールしない疑い」とフラグを立てる。これが層3の「なぜこの variant を最終選択から外したか」に直結する。
 
