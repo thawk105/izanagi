@@ -40,6 +40,8 @@ CCBench を clone して構造を調査し、結果を `docs/ccbench-anatomy.md`
 
 ## タスク1 [Mac]: trace-hook の設計と実装 (観測者効果の分離を守る)
 
+**✅ 完了 (2026-06-17)。** `patches/trace-hook.patch` で Silo に `#if TRACE` トレースを実装。実証: trace の C 行数 = ベンチ `commit_counts_` 完全一致 (327918)、非 genesis read の 100% が producer に matchable・ORPHAN 0・版重複 0、trace-disabled build に `izanagi_trace` シンボル 0 (compile-out)、3点とも CC-native でフィールド追加なし。トレース形式と適用フローは `patches/README.md`。`-DLinux` ピンニングは別 patch (task4) に分離。
+
 CCBench に trace を吐く口を足す。**絶対規律1 (観測者効果の分離) を厳守。** 実装は **`#if TRACE`** で行う (naive な `#ifdef TRACE` + cmake `-DTRACE=0` は常真化して消えず観測者効果が漏れる → `decisions.md` D14)。既存 `ADD_ANALYSIS` が同型の完全コンパイルアウト先例 (`ccbench-anatomy.md` §5)。Silo から着手 — read-version=`expected` Tidword (`cc/silo/transaction.cc:261`)、write-value=WriteElement body (`:479/:525`)、commit-order=`maxtid` (`:511`)、**3点とも CC-native でフィールド追加不要** (§4)。`-DLinux` 未定義でスレッドピンニングが死んでいる件 (§7) も、この patch で併せて直すか別 patch にするか判断する。
 
 - [ ] trace-enabled build と trace-disabled build を分けるビルド設定を作る

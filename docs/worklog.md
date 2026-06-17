@@ -60,9 +60,18 @@ git 履歴より粗く、roadmap / decisions より具体的な「作業の物�
 `docs/ccbench-anatomy.md` / `output/insights/ccbench-protocols-doc-ycsb-mismatch.md` / 本 worklog 更新。
 + 既に保留中の commit A (submodule) / B (worklog 初版) も identity 設定後に切る。
 
+### 進捗更新 (同日, タスク1 まで完了)
+
+- ✅ doc 更新 (roadmap/CLAUDE.md/phase1/decisions D14) 適用・コミット済み
+- ✅ ccache + gcc-13 (13.4.0) 導入、その toolchain で全ビルド確認 (CI=GCC13 一致)
+- ✅ **タスク1 (trace-hook) 完了** — `patches/trace-hook.patch` で Silo に `#if TRACE` トレース。
+  実証: trace の C 行数 = `commit_counts_` (327918)、非 genesis read の 100% が producer に matchable・ORPHAN 0・版重複 0、
+  trace-disabled build に trace シンボル 0 (compile-out)、CC-native でフィールド追加なし。形式は `patches/README.md`。
+  CCBench submodule は active dev 中は patch 適用状態 (gitlink は `33d74a3` のまま、parent には未ステージ)。
+
 ### 次の一手
 
-1. (ユーザー確認後) roadmap/CLAUDE.md/phase1.md の更新: 環境=Linux 実機確保、protocol 数 7→10、タスク3 に si-positive-control、`#if TRACE` 設計判断を decisions.md へ
-2. ccache + gcc-13 導入完了後、その toolchain で再ビルド確認 (CI=GCC13 と一致)
-3. タスク1 (trace-hook): Silo に `#if TRACE` で read-version/write-value/commit-order を刺す。`patches/trace-hook.patch` 化。`-DLinux` ピンニング修正も検討
-4. タスク4 系: calibrator で `clocks_per_us` 実測 + `numactl` ピンニング方針確定 (perf は動作確認済み)
+1. **タスク2 (mini trace verifier, Python)** — trace から ww/wr/rw 辺の serialization graph を構築し G2 cycle 検出。
+   構造化フィードバックを返す (絶対規律3)。`patches/README.md` の trace 形式が入力
+2. タスク3 — `si` (SI=本物の write-skew G2) を verifier の positive control、`ermia` を negative にして検出力を実証
+3. タスク4/5b 系 (計測) — calibrator で `clocks_per_us` 実測 + `-DLinux`/`numactl` ピンニング patch + cache miss 飽和点
