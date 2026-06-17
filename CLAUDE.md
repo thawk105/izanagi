@@ -123,7 +123,7 @@ izanagi/
 ├── hooks/                     ← Python の機械的防壁
 ├── orchestrator/              ← 探索ループの中枢 (Python)。Phase進行で実装
 ├── external/ccbench/          ← submodule (タスク0で追加)
-└── output/                    ← 全成果物 (variants/runs/reports/insights)
+└── output/                    ← 全成果物。campaigns/<id>/ (入力ごと) と env/<tag>/ (calibration) の二軸 (D13)
 ```
 
 ---

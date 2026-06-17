@@ -141,6 +141,7 @@ LLM は最適化圧力の下で、書かれていない不変条件を破って�
 1. **据え置きの正しさゲート** — 壊すと即 reject。「絶対壊しちゃダメ」(serializability anomaly検査、ACID基本) と「壊れていい」(プロトコル固有テスト、variant のキャラクタライズに使う) を分ける
 2. **adversarial auditor** (Phase 3 で導入) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を見つけてテストを追加
 3. **hooks による書き込み時防壁** (Phase 1 から薄く) — 観測者効果違反・verifier 迂回を機械的に弾く
+4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。これは verifier から書き込み権限を外す出力側隔離と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
 
 ### 3.5 leading indicators (収束に必須)
 
@@ -152,7 +153,7 @@ Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iter
 
 性能数値は「1 run の点」ではなく「**反復測定の分布**」として扱う。他ユーザー・他プロセス・温度スロットリング等の外乱は一晩の自動ループでは必ず混入するが、人間の「あれ?」は介在しない。だから**ばらつきの監視と再測定を実行時の気まぐれに委ねず、規律として明文化・自動化する**。これは絶対規律1 (観測者効果の分離) / §3.4 (reward hacking 対策) と同じ構造の汚染防止であり、reward hacking の鏡像 ——「**ノイズを最適化シグナルと誤認する**」—— への対策でもある。
 
-**(1) 反復と要約.** 1 measurement = N 回反復 (初期値 N=5、calibration で調整)。各 run の冒頭は warmup として破棄し定常状態のみを採る。報告は単一の throughput でなく **中央値 + 散布度 (変動係数 CV / IQR)** を必ず持つ。WAL (output/runs/) には個々の run 値も残し、後から分布を再構成できるようにする。
+**(1) 反復と要約.** 1 measurement = N 回反復 (初期値 N=5、calibration で調整)。各 run の冒頭は warmup として破棄し定常状態のみを採る。報告は単一の throughput でなく **中央値 + 散布度 (変動係数 CV / IQR)** を必ず持つ。WAL (campaign スコープ `output/campaigns/<id>/runs/`。出力レイアウトと campaign 同一性は orchestrator-design.md / D13) には個々の run 値も残し、後から分布を再構成できるようにする。calibration/noise floor は入力非依存なので env スコープ `output/env/<env-tag>/` に置く。
 
 **(2) 外れ値検出 → 自動再測定 (=「あれ?」の機械化).** 反復内の CV が閾値 (初期 5%) を超えたら「測定が外乱で歪んだ」とみなし**自動で測り直す**。再測定の前に Admission Control の静定確認 (load average 静定) を必ず通す。規定回数 (初期 3 ラウンド) 測っても CV が収束しなければ、その variant に **`unstable` フラグ**を付けて分布比較から除外し、insight に「測定不能」として記録する。沈黙して 1 点を採用してはいけない。
 
@@ -161,7 +162,7 @@ Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iter
 **(4) 採否は点比較でなく分布比較.** variant vs baseline の優劣判定は単一値の大小でなく**分布の比較**で行う:
 - 差が noise floor 以下なら「**差なし**」に丸める。層3 narrative の「3%悪化だから不採用」のような **noise floor 以下の差を採否根拠にしてはいけない** (3% はラップトップ/devcontainer ではほぼノイズ)
 - noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない
-- 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする
+- 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする。各主張をその根拠 (WAL の run 値) まで辿れる形で紐づける構造は、ARA の forensic binding (claim→code→evidence の proof chain) と同型 (§7・D12)
 
 **(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしない (D10) ため、(2)(4) は配線だけ用意して Linux 実機到着後に有効化する。
 
@@ -238,11 +239,59 @@ KVストアをワークロード仕様から丸ごと合成。本システムの
 ### VibeServe (arXiv 2605.06068)
 LLM serving システムを deployment target ごとに bespoke 合成する agentic loop。outer loop が永続計画状態 (issues / long-term memory / git commit graph) 上で探索を計画し、inner loop の Implementer / Accuracy Judge / Performance Evaluator が候補を実装・検証・計測する。Jitskit/IDS と同系譜で、「単一汎用システム」から「ターゲット特化の自動合成」へという賭けが Izanagi と同じ。Accuracy Judge の reward-hacking 検査は Jitskit の auditor と同思想。outer loop の永続状態は orchestrator-design.md の D (durability) の先行例。
 
+### SkillOpt (arXiv 2605.23904)
+手順書 (CLAUDE.md / skill 文書のような自然言語ファイル) を「テキスト空間の学習ループ」で自動改善する。モデル本体は更新せず、実行ログをバッチ収集 → 最適化LLMが失敗/成功を分析して add/delete/replace 編集を提案 → **validation gate** で検証セットの性能向上を確認した編集だけ書き込み → **却下された編集は「やってはいけない修正の記憶」として保存し次の反省ループで活用**。深層学習の学習率/バリデーション/モメンタムをテキスト操作で再現。6ベンチ×7モデル×3環境の52セル全てで SOTA、学習済みスキルは別モデル/環境へ転用可能。
+
+借用は「思想と外部補強」(機構の実装は取り込まない):
+- **whiteboard memory の理論的裏付け**: SkillOpt の「却下編集を『やるな記憶』に保存」は Izanagi の whiteboard memory (却下した設計の蓄積、output/insights/) と構造同型。人力でやっていることの自動化版が SOTA を出した = 設計判断の正しさの外部証拠
+- **validation gate = 絶対規律2 と同型**: 「検証を通った編集だけ採用、それ以外は記憶」は「正しさゲートを壊す variant は reject、却下は whiteboard へ」と完全に同じ構造。reward hacking 対策 (§3.4) の一般形
+- **living document 運用の裏付け**: 「モデルでなく手順書を育てる」は roadmap を living document にし decisions.md に却下案を残す本プロジェクトの運用思想そのもの
+- **スコープ規律 (盛らない)**: SkillOpt の機構を「Izanagi が自分の prompt/最適化カタログを自走で改善する」形まで実装するのはスコープ膨張。関連研究としての引用と whiteboard 設計の補強に留め、自己改善機構の実装は将来予約とする
+- 系譜上の位置: Jitskit/IDS/VibeServe が「対象システム」を合成するのに対し、SkillOpt は**メタ層 (手順書) を最適化する**。Izanagi はその両方を内包する (CC を合成 + その試行知見を whiteboard に蓄積) ため、両系譜の交点に立つ
+
+### Self-Harness — Harnesses That Improve Themselves (arXiv 2606.09498)
+SkillOpt の一般化。SkillOpt が自然言語の手順書 (CLAUDE.md / skill) **だけ**を編集対象にするのに対し、Self-Harness は **harness 全体 (prompt + tool + 制御フロー) を学習可能な artifact** として扱い、改善ループをシステム内部に内在化する (外部の人手メンテに頼らず自分の run から harness を書き換える)。三段構成: Weakness Mining → Harness Proposal → Proposal Validation。採用は **validation gate** (in-sample と held-out の**両方で非悪化** かつ少なくとも一方で改善) を通った提案のみ。
+
+借用は SkillOpt と同じく「思想・外部補強」のみ (機構は実装しない):
+- **validation gate = 絶対規律2 の再確認**: 「両セットで非悪化の提案だけ採用」は「正しさゲートを壊す variant は reject」と同型。SkillOpt に続く 2 つ目の外部証拠であり、reward hacking 対策 (§3.4) の一般形を補強する
+- **verifier-grounded failure signatures = 絶対規律3 / D3 の外部 echo**: verifier が出す失敗シグネチャを次の改善の入力にする設計は、「verifier を毎 iteration 回し構造化診断を生成に還流する」規律3 / D3 とほぼ一対一
+- **スコープ規律 (盛らない)**: 自己改変ループの機構そのものは将来予約 (規律5)。特に self-editing loop は絶対規律2 (正しさゲートを弱める変異を採らない) と絶対規律1 (trace/perf ビルド分離) を**決して侵してはならない**、という制約付きでのみ系譜に乗る
+- 系譜上の位置: SkillOpt がメタ層 (手順書) を最適化するのに対し、Self-Harness は対象を harness 全体へ広げた最右翼。Izanagi の自己改善は現状この系譜に「思想として」乗るのみで、実装は Phase 3.5 以降に予約 (agent-architecture.md の instinct 的学習機構)
+
+### DecentMem — Self-Evolving Multi-Agent Systems via Decentralized Memory (arXiv 2605.22721)
+共有メモリプールはマルチエージェントを同質化させ専門性を失わせる、として各エージェントに独立メモリを与える。メモリは **二プール構成**: exploitation pool (整理済みの過去トラジェクトリ) + exploration pool (LLM 生成の候補)。stage-wise の LLM-as-a-judge フィードバックでオンライン再重み付け。理論保証として **O(log T) cumulative regret** (確率的バンディットの下界に定数倍まで一致) と解空間の global reachability を証明。実験で「最強の中央集権メモリ baseline」比 +23.8%、メモリ無し比 +52.5%、トークン最大 -49%。
+
+借用は「思想・外部補強」のみ (機構は将来予約: agent-architecture.md の instinct 的学習機構 Phase 3.5+、D7/D9):
+- **whiteboard memory の二プール構造の外部裏付け**: exploit-pool ≈ 整理済み過去試行、explore-pool ≈ 候補設計。SkillOpt に続く 2 つ目の外部データ点で、**理論保証 (O(log T) regret) 付き**で「過去試行の整理 + 候補生成の分離」が効くことを示した
+- **§10 多様性保存の外部 echo**: 「同質化を避け専門性を残す」は層3で「throughput 最強の1個でなく特性の違う variant を複数残す」方針と同方向
+- **共鳴は variant 集団レベルであって agent レベルではない (過度に関連付けない)**: Izanagi のサブエージェントは D7 で既にロール分離・コンテキスト隔離されており、DecentMem が問題にする「エージェントの同質化」は構造上ほぼ発生しない。借りるのは「メモリの二プール分割」の発想だけで、per-agent decentralized memory の機構ではない
+- online reweighting の **LLM-as-a-judge は gameable** なので、正しさ経路には決して入れない (絶対規律2)。なお論文本文で名指しされる中央集権 baseline 名は abstract で確認できないため、本ドキュメントでは特定名を記さない
+
+### ARA / The Last Human-Written Paper (arXiv 2604.24658)
+物語形式の論文 (linear narrative) は反復的研究を圧縮し「Storytelling Tax / Engineering Tax」を生んで AI による理解・再現を妨げる、として論文を機械実行可能な research artifact (ARA) に置き換える提案。構成: scientific logic 層 / 実行可能 code spec / 失敗実験も保存する exploration graph / 全主張への evidential grounding / ARA-native review / ARA Compiler。Izanagi が「論文のため」でなく「探索が正しく回るため」に既に吐く成果物と ARA の要素がほぼ 1:1 で対応する点が肝。借用:
+- **anti-fabrication isolation (採用済み, §3.4)**: ARA Level3 は検証エージェントに code kernel とアルゴリズム記述だけを渡し報告済み数値 (期待結果) を一切見せない。これを verifier の入力側隔離として採用した (§3.4-4, agent-architecture.md verifier 節)
+- **typed-DAG exploration graph (将来雛形)**: 研究 DAG を question/decision/experiment/dead_end/pivot の型付きノードで保存し、dead_end に hypothesis/failure_mode/lesson の三つ組を持たせる。これは Izanagi の whiteboard memory / WAL / 成果物「試行錯誤の記録」の共通データモデルの外部雛形になる (reject variant=node, mutation=edge, verifier の G2 cycle 診断=dead_end.failure_mode, 教訓=lesson)。特に dead_end 三つ組は絶対規律3 (なぜ壊れたかを構造化して次の生成入力にする) とほぼ一対一。**実スキーマの確定は Durability 層を作る Phase 2 以降にユーザー確認の上で行い、今は確定しない**
+- **forensic binding (思想参照, §3.6)**: 主張→code→実測値を辿れる proof chain。Izanagi の層3説明可能性 (§3.6(4)) のデータ構造と同型。なお ARA の /logic vs /evidence 分離は §3.3 の「CC本来 vs 検証専用メタデータ」二分とは**動機が異なる** (前者=捏造防止、後者=観測者効果対策) ので「同一の分離」とは書かない。「二つの異なる汚染防止を一つの binding 思想で統一的に説明できる」が正確な形
+- **対比 (反面教師)**: ARA Seal の三段階レビュー (構造健全性→ルーブリック→縮小スケール方向性検証) は Izanagi の階層化検証 (§3.1 Tier0-3) / 二相設計 (§3.2) と同型だが、ARA は**所見をループに自動還流せず著者が手動反復する**。これは絶対規律3 (verifier を毎 iteration 回し構造化診断を生成に還流) を Izanagi が ARA に対して優位に持つ点を確認させる
+- **論文執筆構想との接続**: ARA は「物語 PDF でなく機械検証可能 artifact こそ一次研究対象」と主張する。Izanagi はこの artifact (材料レポート) の生成までを担い、narrative 化・推敲は別システムに委ねる (D12)。ARA Compiler / Live Research Manager のような重機構はスコープ外 (§10)
+
+### How AI Agents Reshape Knowledge Work (Yang, Zyskowski, Yonack & Ma, arXiv 2606.07489)
+Perplexity の本番データ (Search vs Computer) で自律エージェントの経済効果を実証分析した論文。CC 合成との技術的接点は薄いが、固定費 vs 限界費の閾値モデル `s* = (f_Agent − f_Conversational)/(m_Conversational − m_Agent)` (固定費の高い処理は step 数が閾値を超えた時だけ選好する) は、Izanagi が既に持つ二段構え (§2 層2 の low-fidelity proxy / §3.1 Tier0-3 エスカレーション / §3.5 profiling を有望 variant にだけ回す) の**経済学的フレーミング・引用元**として使える。査読での「なぜ全 variant に profiling しないのか」への論拠補強。**実 gating 機構としては実装しない** (規律5)。論文のドメインは knowledge-work の interaction-mode ルーティングで、Izanagi の探索ループのエスカレーションとは異なる (一般化である旨を明記して引用する)。
+
+### 12-factor-agents (github.com/humanlayer/12-factor-agents)
+本番投入できる LLM エージェントの設計12原則 ("12-Factor Apps" の AI 版)。研究システムなので全採用はしないが、**orchestrator/サブエージェント設計の点検レンズ**として使う。既に整合している原則の確認に価値がある:
+- 「構造化した tool 出力を持て」= verifier が構造化フィードバックを返す規律 (絶対規律3) と一致
+- 「小さく焦点を絞ったエージェント」= サブエージェントの段階導入・ロール分離 (D7) と一致
+- 「実行状態を unify し復元可能にせよ」= orchestrator-design.md の WAL/クラッシュリカバリ (D) と一致
+新規に取り込む要素ではなく、設計が業界の経験則と外れていないかの sanity check として参照する。
+
 ### ECC (github.com/affaan-m/ECC)
 Claude Code の運用パターンの参考。借用は3点だけ (巨大さは反面教師):
 - agent定義に `tools` と `model` を明示。verifier には書き込み権限を与えない (見張り役をツール権限で隔離)
 - hooks で規律を機械執行 (観測者効果違反・verifier 迂回を書き込み時に弾く)
 - continuous-learning/instinct は whiteboard memory の進化形として将来予約
+
+**同種の反面教師 (盛り盛り環境):** 「27 agents / 64 skills / 33 commands / AgentShield (1,282 tests)」のような大規模 Claude Code 環境が公開され話題になるが、これらは絶対規律5 (段階導入・盛らない) と正面衝突する。Izanagi は CC 合成という単一目的に必要なロール/hook だけを Phase ごとに足す。唯一拾える原子は「hook 自体にテストを書く」発想 (本プロジェクトの 2 つの hook にも適用しうる、Phase 1 タスク1 で hook を配線するとき検討)。
 
 ---
 
@@ -292,5 +341,8 @@ Phase 3.5 (任意): Open-Ended Evolution
 - Open-Ended Evolution の完全機構 — Phase 3.5 に予約。初手で入れると失敗の切り分けができなくなる
 - ECC のような汎用ツール化・多言語・marketplace — 単一研究目的に不要
 - 層1 の凝った選定器 — 既存研究が強く、層2が吸収するため軽くて良い
+- **論文執筆・推敲そのもの (narrative 生成)** — Izanagi のスコープ外。Izanagi は材料レポート (ARA 的 artifact) の生成までを担い、自動執筆は別システムに委ねる (D12)
+- **ARA Compiler (フォーマット変換器)** — CCBench は既に構造化済みの C++ コーパスで変換対象が存在しない。取り込めば純粋なスコープ膨張 (規律5)
+- **ARA Live Research Manager (背景監視による推測的ハーベスティング)** — Izanagi の orchestrator は各 variant 評価を能動的・決定論的に WAL へ書く設計なので、自由形式セッションから研究イベントを事後収集する機構の必然性が薄い (規律5)。7種イベント taxonomy と ai-suggested の人間確認ゲート思想のみ、decisions.md / output/insights/ のエントリ構造化と roadmap 改訂セレモニーの人間確認に響く思想参照として留める (機構は実装しない)
 
 OEE について補足: 完全機構 (新規性報酬・無限走行) は Phase 3.5 に回すが、安い果実は初手から取る — (a) 多様性の保存 (層3で「throughput最強の1個」でなく特性の違う variant を複数残す)、(b) whiteboard memory (既に採用)。

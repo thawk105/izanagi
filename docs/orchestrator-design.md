@@ -17,7 +17,7 @@ Izanagi の orchestrator (探索ループの中枢) は、**DB のトランザ�
 | Consistency | CLAUDE.md の絶対規律 + hooks による enforcement |
 | Isolation | ベンチ実行の排他制御 / worktree 分離 |
 | Durability | 評価ログの先行書き込み + クラッシュリカバリ |
-| WAL | output/runs/ への逐次追記ログ |
+| WAL | output/campaigns/<id>/runs/ への逐次追記ログ |
 | ロックマネージャ | ジョブスケジューラ (ベンチ=排他、ビルド/検証=並列) |
 | Admission control | ロードアベレージによる並列度調整 |
 | Task partitioning | island model (Phase 3) |
@@ -29,7 +29,7 @@ Izanagi の orchestrator (探索ループの中枢) は、**DB のトランザ�
 探索はローカルラップトップで一晩回しっぱなしにする。途中クラッシュ (OOM・ビルド暴走・電源) は必ず起きる前提で設計する。「失敗したらゼロからやり直し」は数千 evaluation のループでは許容できない。
 
 設計:
-- 各 variant の評価をログ先行書き込みで進める。`variant X: ビルド開始 → ビルド完了(バイナリhash) → 検証完了(結果) → ベンチ完了(数値) → コミット` を output/runs/ に逐次追記する
+- 各 variant の評価をログ先行書き込みで進める。`variant X: ビルド開始 → ビルド完了(バイナリhash) → 検証完了(結果) → ベンチ完了(数値) → コミット` を output/campaigns/<id>/runs/ に逐次追記する
 - orchestrator は再起動時にログをリプレイし、「どこまで評価済みか」を復元して途中から再開する
 - 評価済み variant は再評価しない (ビルドキャッシュと同じ思想で、評価結果もキャッシュ)
 - whiteboard memory (却下した設計の蓄積) も durable log の一種として統一的に扱う
@@ -83,11 +83,71 @@ run ログ (WAL) の全レコードに**環境タグを必須フィールド**�
 - Mac devcontainer の throughput は探索ループの配線テスト (ダミー fitness) 専用。VM 上の数値は VM オーバーヘッドと PMU 非対応で信用できない (D10)
 - これは観測者効果の分離 (絶対規律1) と同じ構造の第三の汚染防止: trace の有無 / 並列実行の干渉 / **実行環境の違い**、のどれも性能比較を汚染しうる
 
+## 出力レイアウトと campaign 同一性
+
+orchestrator が書く全アーティファクトの置き場。本システムは入力ワークロードごとに特化 CC を作る (roadmap §1) ので、出力は**入力ごと**に分離する。ただし全部を入力で割るのは誤り — calibration / noise floor は (env, thread数) ごとで入力に依存しない (roadmap §4、絶対規律4)。したがって**二軸**に分ける。
+
+### 二軸レイアウト
+
+```
+output/
+  env/<env-tag>/            ← 環境スコープ (campaign 横断で共有)
+    calibration/             飽和レコード数 (env, thread数 ごと)
+    noise-floor/             §3.6(3) の信用下限
+  campaigns/<campaign-id>/  ← 入力スコープ (1 campaign = D12 射影の単位)
+    campaign.lock            同一性を決める正準 config (下記)。改竄不能な identity 源
+    spec/                    凍結した入力 spec cards (レポートを自己完結にする)
+    runs/                    この campaign の WAL (env-tag 必須フィールド)
+    variants/                variant ソース/patch とビルドキャッシュキー
+    reports/                 D12 材料レポートの射影先
+    insights/                campaign 固有の insight / whiteboard
+  insights/                 ← CCBench 還元レポート等のグローバル知見 (D6)
+  whiteboard/               ← campaign 横断で転用可能な教訓 (任意。SkillOpt の転用性)
+```
+
+ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` のキャンペーンスコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor の書き込み先は `output/env/<env-tag>/`。
+
+### campaign とは何か
+
+1回の合成パイプライン起動を、**(入力 spec, 探索 config) を固定したもの**として定義する。2つの起動が「同じ campaign (=リカバリで再開する)」であるのは (spec, 探索 config) が一致するときだけ。ablation (full探索 vs LLM誘導、OEE on/off、有効 Tier 集合) や CCBench commit、scale protocol が違えば**別 campaign** になる — roadmap が随所で要求する「足す/抜く比較」がこれで素直に並ぶ。実測値 (calibration が決めるレコード数など) は同一性の入力ではなく、campaign 内に記録される派生値。
+
+### campaign-id の決め方
+
+要件: (1) **クラッシュ/再起動を跨いで安定** — 同じ (spec, config) は同じ id に決まり、リカバリが同じディレクトリへリプレイできる (D)。(2) **人間が読める** — manifest を開かずに「read-heavy・full探索・linux」を見つけられる。(3) **衝突しない・決定論的** — 入力から純粋に導ける。
+
+**方式: 可読プレフィクス + 内容ハッシュ。** git の `main@a3f9c2d`、docker の `name:tag@sha256` と同じパターン。
+
+```
+<spec-slug>-<search-tag>-<cfg-hash8>
+   例: readheavy-locont-llmguided-9f3a1c0b
+```
+
+- `<spec-slug>`: 入力ワークロードの短い人間名 (例 `readheavy-locont`)。可読性 (要件2)
+- `<search-tag>`: ablation/探索軸 (例 `fullsearch` / `llmguided` / `llmguided-oee`)。意図的な ablation 再実行を区別 (要件3)
+- `<cfg-hash8>`: campaign を決める入力の**正準シリアライズ**を取ったハッシュ先頭 8 hex。決定論・無衝突を保証 (要件1,3)
+
+ハッシュ対象 (= `campaign.lock` の正準 pre-image): spec **の内容** (名前でなく中身) + ccbench-commit + 探索 config (ablation フラグ / Tier 集合 / scale protocol)。再起動時は orchestrator が要求された spec+config を正準化して再ハッシュ → 同じ id → ディレクトリを見つけて WAL をリプレイ。状態を保存せず入力だけから id を再現できる (D が要求する「再起動を跨ぐ安定同一性」)。
+
+**なぜ slug とハッシュの両方か:**
+- slug 単独: 無衝突でない。名前が同じで中身の違う 2 spec が黙って衝突 → 2 campaign の WAL が混ざる (致命的)
+- ハッシュ単独: 安定・無衝突だが `output/campaigns/a3f9c2d1/` は何も語らず、navigate に毎回 manifest を開く羽目になる
+- 両方: 人間に可読 + ハッシュが同一性を保証。git/docker が `name@digest` を採るのと同じ理由
+
+**ハッシュは spec の「名前」でなく「内容」を覆うこと (正直さの担保).** ワークロード spec を編集して名前を据え置くと、ハッシュが変わり**新しい campaign ディレクトリ**になる → 古い spec の WAL に新しい spec の run を黙って追記しない。spec のドリフトが自動的に新しい同一性を生む。これは §3.4 の reward-hack 対策 (改竄を識別する / 再構成不可能なエントロピー) を campaign 同一性に適用したもので、「ワークロードを弄ったのに orchestrator が古い campaign を再開して比較不能な run を混ぜた」という静かな汚染を断つ。D12 の honest-by-construction (完全・決定論的射影) の前提でもある。
+
+**意図的な再実行の表現.** 入力が完全に同一なまま別 campaign を切りたい (seed study 等) ときは config に `trial` フィールドを足す → ハッシュが変わる → 別ディレクトリ。「意図的な新規」は config フィールドで表現し、事故では起きない。再開時はハッシュ一致に加えて格納済み正準 config と現在の config を照合し、万一ハッシュ一致で中身相違なら**黙ってマージせずエラー**にする。
+
+**env は campaign 同一性に含めない.** env-tag は WAL の per-record フィールドで、性能比較は linux タグの record だけ読む (上の環境タグ節)。1 campaign は Mac (配線テスト用ダミー fitness, phase1 タスク6) と Linux (実 fitness, タスク7) の record を正当に併存させ、射影時に env でフィルタする。env は同一性キーでなく読み出しフィルタ。
+
+**date は同一性キーにしない.** 起動時刻をパスのキーにするとクラッシュ後に別時刻で再開した際に空の新ディレクトリができ、リプレイ対象が見つからず最初からやり直しになる (D 破綻)。created-at は `campaign.lock` 内の provenance として持ち、必要なら slug にソート用プレフィクスとして添えてよいが、**パーティションのルートにはしない**。
+
+---
+
 ## Phase 1 への反映
 
 orchestrator/ の実装は、最初から以下を骨格に持つ:
 
-1. **評価ログのスキーマ** (D) — どの段がいつ終わったかを追記する形式を最初に決める。**環境タグを必須フィールドに含める**
+1. **評価ログのスキーマ** (D) — どの段がいつ終わったかを追記する形式を最初に決める。**環境タグを必須フィールドに含める**。書き込み先は campaign スコープ (`output/campaigns/<id>/runs/`) なので、**WAL を開く前に campaign-id を確定する** (上の「出力レイアウトと campaign 同一性」)。リカバリは「どの campaign の WAL か」を入力から再計算して特定する
 2. **リカバリループ** (D, A) — 起動時にログをリプレイし、コミット済み variant をスキップ、未コミットを破棄
 3. **ベンチの排他実行** (I) — Phase 1 は直列実行なので自明に満たされるが、Phase 2 で並列化する際にロックを入れる前提でコードを構造化する
 4. **静定確認** (Admission) — ベンチ前に load average を確認する処理を calibrator に持たせる

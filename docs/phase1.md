@@ -84,7 +84,7 @@ cache miss 率の飽和点でレコード数を決めるロジックを実装す
 - [ ] 飽和判定ロジック: 倍々系列の miss率データから「次に倍にしても +Δ% 未満」の最小レコード数を返す
 - [ ] **モックの perf 出力データで単体テスト** (飽和が早いケース / 遅いケース / 単調でないケース)
 - [ ] スケール感度検出の枠組み (small/medium 2点の伸び方を特徴量として記録)
-- [ ] 判断と妥当性を `output/insights/` に文書化する出力部
+- [ ] 判断と妥当性を env スコープ (`output/env/<env-tag>/`) に文書化する出力部 (calibration は入力非依存なので campaign スコープに置かない、D13)
 
 **完了条件:** モックデータに対して正しい飽和点と根拠文書を返す。
 
@@ -117,7 +117,7 @@ cache miss 率の飽和点でレコード数を決めるロジックを実装す
 
 Linux 実機が届くまでの待ち時間で、Phase 2 の機能面を先行実装する。**性能数値が要らない仕事は全部ここでできる。**
 
-- [ ] orchestrator の骨格: WAL スキーマ (環境タグ必須、orchestrator-design.md 参照)、リカバリループ、評価パイプラインの atomicity、ベンチ排他ロックの構造
+- [ ] orchestrator の骨格: 出力レイアウトと campaign-id の確定 (`output/campaigns/<id>/` と `output/env/<tag>/` の二軸、campaign-id = spec+config の内容ハッシュ、D13/orchestrator-design.md)、WAL スキーマ (環境タグ必須・campaign スコープ)、リカバリループ (入力から campaign-id を再計算して WAL を特定)、評価パイプラインの atomicity、ベンチ排他ロックの構造
 - [ ] パラメータ全組み合わせの列挙器と、**全 variant のビルド通過確認** (コンパイルが通るかは正しさ仕事、Mac でできる)
 - [ ] ビルドキャッシュ (同じ最適化組み合わせを再ビルドしない)
 - [ ] 探索ループの end-to-end 配線テスト: Mac 上の throughput を**ダミー fitness** として使い、ループが回ることを確認。**この数値は env=mac-devcontainer タグ付きで記録し、性能比較には決して使わない**

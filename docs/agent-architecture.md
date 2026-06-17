@@ -31,7 +31,8 @@ Phase 2-3 のロールは、本ドキュメントに仕様を予約してある�
 - **絶対規律:**
   - anomaly を見つけたら、どの trx 間のどの依存で cycle ができたかまで構造化して返す。単なる fail を返さない (絶対規律3)
   - 正しさゲートを緩める提案をしない。性能のために検証を甘くする変異を通さない (絶対規律2の番人)
-- **なぜ書き込み権限を外すか:** 検証役が実装を勝手に直す事故を構造的に防ぐ。Jitskit が auditor を別エージェントにした「見張り役を最適化圧力から隔離する」をツール権限で実装
+  - **入力側隔離:** verifier のコンテキストに性能数値や期待 ground truth を混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を一切受け取らない。「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation。roadmap §3.4-4)
+- **なぜ書き込み権限を外すか:** 検証役が実装を勝手に直す事故を構造的に防ぐ。Jitskit が auditor を別エージェントにした「見張り役を最適化圧力から隔離する」をツール権限で実装。これは**出力側の隔離** (Edit/Write を外す) であり、上記の**入力側の隔離** (期待値を見せない) と対をなす
 
 ### calibrator (Phase 1・実体化済み)
 
@@ -74,6 +75,8 @@ Phase 2-3 のロールは、本ドキュメントに仕様を予約してある�
 - **tools:** コード読み取り、テスト追加の書き込み
 - **model:** 強いモデル (adversarial な reasoning が要る)
 - **規律:** 最適化を担当するエージェント (planner/coder) とコンテキストを分離する。見張り役が最適化圧力に毒されないため。CC 版の reward hack ギャラリー (roadmap §7, Jitskit Appendix B の CC 翻訳) を参照する
+
+> **Phase 3 設計時の参考: Google eng-practices** (github.com/google/eng-practices)。コードレビュー規範を reviewer 側と author 側の両方向で定義している。Izanagi の coder = author / auditor = reviewer に写像でき、coder の「レビューしやすい diff (EVOLVE-BLOCK を最小に、意図を明示)」と auditor の「何を見るか」のチェックリストの原料になる。**今は参照しない (Phase 3 で auditor/coder の `.md` を書くとき具体化する)。**
 
 ---
 

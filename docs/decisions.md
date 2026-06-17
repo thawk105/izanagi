@@ -134,3 +134,53 @@
 - 版歴 = 設計仮説の変遷記録 = 論文の「当初Xと考えたがYが判明しZへ転換」という方法論 narrative の原料。Izanagi の差別化 (variant の採否理由の説明可能性) と同じ原理を研究自体に適用するもの
 - 「初期版を消さず版を積む」は orchestrator-design の WAL/append-only 思想と同型 (roadmap の多版管理)
 - 憲法 (不変) / 戦略 (版管理つき可変) / 戦術 (自由) の三層は、可変性の線引きを構造で示し、絶対規律が改訂の波で侵食されるのを防ぐ
+
+---
+
+## D12. 論文執筆は Izanagi のスコープ外 — 材料レポート (ARA 的 artifact) までを担い、執筆は別システムに委ねる
+
+**決定:** Izanagi は研究成果物として **honest-by-construction な「材料レポート」(ARA 的 artifact)** の生成までを担う。論文の narrative 生成・推敲は Izanagi のスコープ外とし、別システム (ユーザーが自動執筆を試す) がそのレポートを消費する。構想メモとして本エントリを残し、実装は Phase 3.5 以降。Phase 1 では何も生成しない。
+
+**背景:** ARA (arXiv 2604.24658, roadmap §7) が「物語 PDF でなく機械検証可能 artifact こそ一次研究対象」と主張し、その 5 要素が Izanagi の既存成果物とほぼ 1:1 で対応することから、「Izanagi に論文執筆までやらせるか」を検討した。結論は「執筆は外に出し、Izanagi は材料生成に徹する」。
+
+**既存成果物 → ARA 5要素の対応 (論文のためでなく探索の正しさ・再現性・観測者効果分離のために既に必要 = スコープ追認であってスコープ拡大ではない):**
+- exploration graph ← whiteboard memory (却下設計の蓄積) + decisions.md (却下選択肢つき) + roadmap 版歴 (CLAUDE.md「過去の版は絶対に消さない」)
+- evidential grounding ← WAL (output/runs/、環境タグ必須) + noise floor 実測 + 中央値/CV/有意性 (§3.6)
+- executable code spec ← patches/ + commit hash 固定 CCBench submodule + ビルド等価性の機械検証
+- scientific logic 層 ← 層3「なぜ速いか」説明 (差別化の核心)
+- native review ← verifier (G2 cycle 検出、構造化フィードバック、書き込み権限なし)
+
+**なぜ執筆を外に出すか (採用根拠):**
+1. **自己評価ハザードの構造的回避。** 論文には (A) 機械再生成可能な事実主張 (中央値/CV/noise floor/有意性、trace #N で G2 検出) と (B) 因果・優位性の解釈主張 (なぜ速いか/新規性) がある。差別化の核心 (層3) はまさに (B) = 本人の自己解釈で、最も検証が緩く reward hacking (規律2) の最弱環になる。執筆を別システムに分離すれば、claim authoring と claim adjudication の分離をシステム境界で無料で得られる (Izanagi 内に paper-writer と隔離 paper-auditor を作り込む必要がない)
+2. **スコープが締まる (規律5)。** 「論文を書く第二の巨大システムが Izanagi の中に生える」膨張を回避
+3. **得意/不得意の正直な切り分け。** Izanagi は evaluator 駆動・硬い正しさゲートのシステム。推敲・narrative は硬いゲートが効かず LLM が最も「盛れる」領域 = 外出しが原理的に正しい
+4. **ARA 思想とより整合。** artifact が一次対象、下流が消費、という ARA の構図そのもの
+
+**死守する不変条件 (これが崩れると分離が無意味になる):**
+- **材料レポートは honest-by-construction であること。** LLM がキュレーションした「ハイライト集」でなく、**WAL + whiteboard の完全・決定論的な射影**であること。全 run 値・全 reject variant・noise floor・環境タグを漏れなく含む (生存者バイアスを残さない)。完全性こそが正直さの担保。これを守らないとチェリーピッキングが「何をレポートに載せるか」の上流に移動するだけ
+- **事実(A)は機械コンパイル**し LLM の作文を通さない。**判定(B) (成功/新規性) をレポートに事実として焼き込まない** — レポートは証拠を並べるだけで勝敗を宣告しない
+- **最上位判定** (研究として成功か / 新規性があるか / 評価器自身は信頼できるか) を**どのシステムであれ自動で閉じさせない**。評価器の妥当性を評価器の出力で論証する循環になるため、人間または独立手段に残す。CC の正しさを verifier 隔離で守った思想を、研究の正しさの判定で放棄しない
+
+**段階:** Phase 1 = 本構想メモのみ (実装禁止、データ規律を論文向けに「盛る」改造も禁止 — データ規律は探索の正しさが決め、論文都合で歪めない)。Phase 2-3 = 生成はせず「生成可能な状態の基盤」だけ整える (WAL に環境タグ・noise floor・全 run 値を残す配線=§3.6(5) で予約済み、whiteboard に失敗を改竄不能・選択不能に残す規律の厳格化)。Phase 3.5 以降 = WAL/whiteboard を ARA 的レイアウトに並べ替える**薄い rollup/レンダラ**として材料レポート生成を解禁 (新しい推論・主張生成をするサブシステムではなく、既存構造化データの並べ替えに限定)。
+
+**却下した案:** 「Izanagi が narrative 論文まで書く」案。ARA-fit が高く魅力的だが、自己解釈(B)の正しさという最弱問題を Izanagi 内部に抱え込み、評価器が固まる前 (Phase 1) に最も検証困難な層を載せることになる (D9 で OEE を後回しにしたのと同型の罠)。執筆を外に出す方が分離が clean。
+
+**位置づけ:** これは協議合意による設計判断の記録 (roadmap 改訂セレモニーの対象外。版上げ・history 凍結はしない)。verifier 隔離 (D7) の思想を研究 artifact 層へ延長したもの。
+
+---
+
+## D13. 出力レイアウト — campaign 軸 + env 軸の二分、同一性は内容ハッシュ
+
+**決定:** output/ を二軸に分ける。campaign スコープ (`output/campaigns/<campaign-id>/` = 入力 spec + 探索 config 単位、D12 射影の単位) と env スコープ (`output/env/<env-tag>/` = calibration/noise floor、入力非依存)。campaign-id は `<spec-slug>-<search-tag>-<cfg-hash8>` (可読プレフィクス + campaign を決める入力の正準シリアライズの内容ハッシュ)。詳細仕様は orchestrator-design.md「出力レイアウトと campaign 同一性」。
+
+**理由:**
+- 本システムは入力ワークロードごとに特化 CC を作る (roadmap §1) ので、出力を入力ごとに分離しないと複数 campaign の variants/runs/reports が単一グローバル名前空間で衝突する
+- ただし calibration/noise floor は (env, thread数) ごとで入力非依存 (roadmap §4)。入力ごとにネストすると campaign 毎に再 calibration になり絶対規律4 違反 → env スコープに分離
+- 内容ハッシュにより (a) クラッシュ再起動を跨いで同じ (spec,config) が同じ id に決まりリカバリが成立する (D)、(b) spec を編集して名前据え置きでも新 id になり古い WAL に比較不能な run を混ぜない (D12 honest-by-construction / §3.4 改竄識別)
+
+**却下した選択肢:**
+- **date 軸** (`output/<start_date>/...`): 起動時刻キーはクラッシュ後の別時刻再開で空ディレクトリを生みリプレイ対象を失う (D 破綻)。created-at は manifest 内 provenance に留める
+- **git ブランチで campaign 分離**: 出力は生成データ (キャッシュバイナリ/trace/perf ログ、大半 gitignore) でソースでない。WAL リプレイ・D12 の全 reject variant 横断射影はブランチ跨ぎで横断クエリできない。コード変異の隔離は別途 worktree + patches/ で済んでいる (D6, Isolation I)
+- **フラット維持** (`output/{variants,runs,...}`): campaign が世界に1個の前提。段階導入 (規律5) を理由に先送りも検討したが、campaign 同一性キーは WAL スキーマを書く Phase 1 タスク6 時点で必要 (リカバリが「どの campaign の WAL か」を要する) で、後で剥がすのが高い基盤スキーマ。キーの形だけ今正しくし、campaign GC 等の機械化は作らない (規律5 が禁じるのはコンポーネント早出しであって基盤スキーマの先送りではない)
+
+**位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外。版上げ・history 凍結はしない)。
