@@ -14,11 +14,11 @@
 
 ## 現在地
 
-**Phase 1: 評価器の構築。** まだコードは無い。
+**Phase 1: 評価器の構築。タスク0 (CCBench 解剖) 完了。** CCBench を submodule (`33d74a3`) で取得・全ビルド (34バイナリ) し、構造を `docs/ccbench-anatomy.md` に記録済み。次はタスク1 (trace-hook)。
 
-**Linux 実機は現在未調達 (近日入手予定)。** phase1.md のタスクには [Mac] / [Linux] タグが付いており、[Mac] タスク (0,1,2,3,4a,5a,6) は今の devcontainer だけで完了できる。[Linux] タスク (4b,5b,7) は実機到着後。Mac devcontainer で取った性能数値は env タグ付きで記録し、性能比較には決して使わない (orchestrator-design.md の環境タグ参照)。
+**Linux 実機 (計測層) 確保済み。** 開発・計測ともこの Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) で行う。D10 の「Mac devcontainer=開発層 / Linux=計測層」の二層は、実機がこのホストに集約されたことで開発層も Linux 実機側に寄った (devcontainer 経路は維持するが必須でない)。性能数値は env=linux-baremetal タグ付きで記録する (orchestrator-design.md の環境タグ)。phase1.md の [Mac]/[Linux] タグは「機能/性能」の区別として読み替える (どちらも本ホストで実行可能)。
 
-次にやるべきことは `docs/phase1.md` に番号付きタスクで分解されている。**タスク0 (CCBench 解剖) から順に進める。** タスク0が終わるまで、後続タスクの詳細は確定しないと明記されている — 推測でコードを書かず、まず CCBench の実物を読んで `docs/ccbench-anatomy.md` を埋めること。
+実装の進め方は `docs/phase1.md` の番号付きタスク。**設計が動いた点・実機の現状・各セッションの作業は `docs/worklog.md` に時系列で記録する** (索引兼日誌)。
 
 ---
 

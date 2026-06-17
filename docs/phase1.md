@@ -6,13 +6,15 @@
 
 **サブエージェント:** verifier, calibrator (`.claude/agents/` に定義済み)
 
-**環境の現状 (D10):** 現在 Linux 実機は未調達 (近日入手予定)。それまでは Mac devcontainer (開発層) で進められる範囲を最大化する。原則: **「機能の正しさ」は全部 Mac でできる。「信用できる性能数値」だけが Linux。** 各タスクに [Mac] / [Linux] のタグを付けてある。[Mac] タスクは Linux 無しで完了できる。
+**環境の現状 (更新 2026-06-17):** Linux 実機 (計測層) 確保済み — Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作。**開発も計測も本ホストで行える。** [Mac]/[Linux] タグは元々「機能/性能」の区別で、今はどちらも本ホストで実行可能 (タグは履歴として残す)。host-fit の詳細は `docs/ccbench-anatomy.md` §7、進捗は `docs/worklog.md`。
 
 タスクは上から順に。**タスク0 が終わるまで、タスク2以降の詳細は確定しない** — 推測でなく CCBench の実物を読んでから進める。
 
 ---
 
 ## タスク0 [Mac]: CCBench 解剖 (最優先・他の全タスクの前提)
+
+**✅ 完了 (2026-06-17)。** CCBench を submodule (`33d74a3`) で取得・全ビルド (GCC 11.4, 34バイナリ) し、6軸 + 高リスク2軸の敵対的検証で解剖して `docs/ccbench-anatomy.md` に記録。主要結論: 最適化=ビルド時 `-D` / workload=runtime gflag (全探索が現実的)、protocol 10種 (YCSB 対応 7)、Silo の trace 3点は CC-native (フィールド追加不要)、**`si`=本物の write-skew G2 = タスク3 の positive control**、`#ifdef TRACE` の罠 (→ decisions D14)、スレッドピンニング既定 OFF (→ `-DLinux`/numactl)。以下の原チェックリストは全項目充足 (記録として残す)。
 
 CCBench を clone して構造を調査し、結果を `docs/ccbench-anatomy.md` に記録する。これが終わるまで後続タスクの詳細は確定しない。
 
@@ -38,7 +40,7 @@ CCBench を clone して構造を調査し、結果を `docs/ccbench-anatomy.md`
 
 ## タスク1 [Mac]: trace-hook の設計と実装 (観測者効果の分離を守る)
 
-CCBench に trace を吐く口を `#ifdef TRACE` で足す。**絶対規律1 (観測者効果の分離) を厳守。**
+CCBench に trace を吐く口を足す。**絶対規律1 (観測者効果の分離) を厳守。** 実装は **`#if TRACE`** で行う (naive な `#ifdef TRACE` + cmake `-DTRACE=0` は常真化して消えず観測者効果が漏れる → `decisions.md` D14)。既存 `ADD_ANALYSIS` が同型の完全コンパイルアウト先例 (`ccbench-anatomy.md` §5)。Silo から着手 — read-version=`expected` Tidword (`cc/silo/transaction.cc:261`)、write-value=WriteElement body (`:479/:525`)、commit-order=`maxtid` (`:511`)、**3点とも CC-native でフィールド追加不要** (§4)。`-DLinux` 未定義でスレッドピンニングが死んでいる件 (§7) も、この patch で併せて直すか別 patch にするか判断する。
 
 - [ ] trace-enabled build と trace-disabled build を分けるビルド設定を作る
 - [ ] trace-hook を `#ifdef TRACE` で囲む。ランタイム分岐にしない
@@ -67,6 +69,8 @@ trace を読んで serializability を検査する自前 verifier を Python で
 ## タスク3 [Mac]: verifier が「赤を出せる」ことの証明 (絶対に飛ばさない)
 
 verifier が「常に緑を出すザル」でないことを証明する。**ここを飛ばすと、後で壊れた variant を正しいと誤認する地獄になる。**
+
+**有力な近道 (タスク0 で判明):** `si` は `ermia` から SSN (anti-dependency 認証) を剥がした Snapshot Isolation で、**本物の write-skew (G2) を admit する**。`ermia`(SSN on=serializable) と `si`(SSN off=SI) は同一エンジンの ablation ペアなので、`si` を **positive control** (verifier が G2 を検出せねばならない)、`ermia`/`oze` (明示的に anti-dep を実体化) を cross-check oracle にできる。「わざと壊した CC」に加えて、この CCBench 内蔵の本物の anomaly を検出力の証拠に使う (詳細 `ccbench-anatomy.md` §2)。
 
 - [ ] わざと壊した CC を作る (例: Silo の validation を抜く、版チェックを省く)
 - [ ] その壊れた CC の trace に対して verifier が anomaly を検出することを確認

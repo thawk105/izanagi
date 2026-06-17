@@ -196,7 +196,7 @@ LLM の役割は数値を見て判断 + 説明し、`output/insights/` に妥当
 
 ## 5. 計算リソースと現実
 
-初手はローカルラップトップで回しっぱなしで良い。CCBench の VLDB 論文は 1run 3秒程度。1億レコード/100thread をスケール落として 1000万レコード/10thread にすればラップトップで回る。3秒/run なら一晩 (8時間) で約1万 run。sample 効率の心配はかなり緩む。
+計算層は**専有 Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) を確保済み** (旧計画のラップトップ前提を更新)。CCBench の VLDB 論文は 1run 3秒程度。3秒/run なら一晩 (8時間) で約1万 run。sample 効率の心配はかなり緩む。スケール (レコード数・thread 数) は calibrator が cache miss 飽和点で決める。many-core (96スレ/2ソケット) では絶対規律4 (cache 競合の再現) のためスレッドピンニング (`-DLinux`/numactl) が要る — ccbench-anatomy.md §7。
 
 ただし前述の通りスケールダウンには非線形の落とし穴 (コンテンション率の変化、cache 階層の効き方) があるので、calibrator とスケール感度検出で対処する。
 
@@ -204,7 +204,7 @@ LLM の役割は数値を見て判断 + 説明し、`output/insights/` に妥当
 
 ## 6. リポジトリ構成と CCBench の扱い
 
-AI システムのリポジトリ + CCBench を submodule で参照する。**submodule は v1 (thawk105/ccbench) を使う** — VLDB 論文の実体で、7プロトコル×7最適化のコーパスが揃っているため (v2 は書き直し中で本プロジェクトの前提を満たさない)。理由:
+AI システムのリポジトリ + CCBench を submodule で参照する。**submodule は v1 (thawk105/ccbench) を使う** — VLDB 論文の実体で、最適化が交換可能単位で整理されたコーパスが揃っているため (v2 は書き直し中で本プロジェクトの前提を満たさない)。実物 (`33d74a3`, CMake 再構成版) は **10 プロトコル (YCSB 対応は 7: silo/tictoc/mocc/cicada/ermia/si/oze)** ×3カテゴリの最適化フラグ群を持つ (解剖結果は `docs/ccbench-anatomy.md`)。理由:
 - CCBench を汚さない (還元すべき差分が綺麗に切り出せる)
 - CCBench のバージョンを commit hash で固定 (再現可能)
 - CCBench への改変を「パッチ」で管理できる

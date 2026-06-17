@@ -184,3 +184,21 @@
 - **フラット維持** (`output/{variants,runs,...}`): campaign が世界に1個の前提。段階導入 (規律5) を理由に先送りも検討したが、campaign 同一性キーは WAL スキーマを書く Phase 1 タスク6 時点で必要 (リカバリが「どの campaign の WAL か」を要する) で、後で剥がすのが高い基盤スキーマ。キーの形だけ今正しくし、campaign GC 等の機械化は作らない (規律5 が禁じるのはコンポーネント早出しであって基盤スキーマの先送りではない)
 
 **位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外。版上げ・history 凍結はしない)。
+
+---
+
+## D14. trace のコンパイルアウトは `#if TRACE` で実装する (naive な `#ifdef TRACE` は観測者効果を漏らす)
+
+**決定:** 絶対規律1 が要求する「trace をコンパイル時に消す」を CCBench 上で実装するとき、コード側は **`#if TRACE`** を使う (または cmake 側で値が 0 のとき `-DTRACE` を出さない)。CLAUDE.md の表記どおりの `#ifdef TRACE` を、CCBench の cmake 規約 (フラグを常に `-D<NAME>=<value>` で定義) のまま実装すると、`-DTRACE=0` でも `#ifdef TRACE` が**常に真**になり trace コードがコンパイルアウトされず、観測者効果が漏れて絶対規律1を破る。
+
+**背景 (タスク0 解剖):** CCBench は最適化フラグを cmake CACHE 変数 → target-private `-D<NAME>=<value>` で**常に定義**する (`cmake/Options.cmake`, `ProtocolHelpers.cmake`)。既存の計測計装 `ADD_ANALYSIS` はこの規約のもと `#if ADD_ANALYSIS` (数値マクロ) として、struct フィールド・`rdtscp` 計測サイト・集計・表示の全軸を完全コンパイルアウトしており (runtime 分岐でない)、Izanagi の trace ビルドのほぼ完全な実装先例になる。ただし `ADD_ANALYSIS` が `#if` (常に定義される値) なのに対し CLAUDE.md は `#ifdef` と書いており、この差が罠。
+
+**採用する実装:**
+- コード側を **`#if TRACE`** に統一 (`ADD_ANALYSIS` と同規約)。`-DTRACE=0` が常に定義されても `#if TRACE` は偽で確実に消える。
+- cmake は `CCBENCH_TRACE 0 CACHE STRING` を足し `ccbench_universal_definitions` 経由で `-DTRACE=<v>` を流す。correctness build = `-DTRACE=1`、perf build = 既定 `-DTRACE=0`。
+- 代替: 「値 0 のとき `-D` を落とす」方式 (`INSERT_*_DELAY_MS` の空値 drop = `ccbench_normalize_options` に先例) を採れば `#ifdef` も使えるが、`#if TRACE` の方が単純で先例 (`ADD_ANALYSIS`) と一致するので推奨。
+- **TRACE は `ADD_ANALYSIS`/`DEBUG_MSG` とは別マクロ**にし、variant の性能比較 genome (`#ShowOptParameters()` 由来) に絶対含めない。
+
+**これは絶対規律1の変更ではない。** 絶対規律 (憲法) は不変。本エントリは「コンパイルアウトする」規律を CCBench のマクロ規約上で**正しく実現する手段**の確定 (実装詳細=戦術)。CLAUDE.md の `#ifdef TRACE` という語は「コンパイル時除去」の意であり、実装は `#if TRACE` で満たす。
+
+**位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。タスク1 (trace-hook) 実装の前提。
