@@ -83,6 +83,17 @@ trace を読んで serializability を検査する自前 verifier を Python で
 
 ## タスク3 [Mac]: verifier が「赤を出せる」ことの証明 (絶対に飛ばさない)
 
+**✅ 完了 (2026-06-18, Approach A)。** Silo の read-set 検証 (validationPhase 条件#1 = anti-dependency
+チェック) を macro-guard で抜いた**わざと壊した variant** (`patches/broken-silo-norw-validation.patch`,
+既定 OFF) をビルドし、高 contention YCSB (rmw, skew 0.9, 50 tuples, 4 thread) で実行 → trace に
+**1310 個の G2 cycle** が出現し verifier は **NON-SERIALIZABLE (exit 1)** を返した (witness は
+ww+wr+rw 混在の lost-update/write-skew)。**同一ワークロードで壊していない Silo は certified
+SERIALIZABLE (exit 0)** = clean ablation (差は read validation の有無のみ)。verifier が「常に緑のザル」
+でないことを実トレースで実証。なお realizable trace では全 cycle が G2 なので「ww/wr/rw それぞれの
+違反」は G2 の中で辺構成が違う形として現れる (`docs/isolation-phenomena.md`)。**Approach B (`si`=本物の
+write-skew G2 を positive control + `ermia` cross-check) は si エンジンへの trace-hook 拡張が要るため
+別増分**として `worklog.md` に feasibility を記録。
+
 verifier が「常に緑を出すザル」でないことを証明する。**ここを飛ばすと、後で壊れた variant を正しいと誤認する地獄になる。**
 
 **有力な近道 (タスク0 で判明):** `si` は `ermia` から SSN (anti-dependency 認証) を剥がした Snapshot Isolation で、**本物の write-skew (G2) を admit する**。`ermia`(SSN on=serializable) と `si`(SSN off=SI) は同一エンジンの ablation ペアなので、`si` を **positive control** (verifier が G2 を検出せねばならない)、`ermia`/`oze` (明示的に anti-dep を実体化) を cross-check oracle にできる。「わざと壊した CC」に加えて、この CCBench 内蔵の本物の anomaly を検出力の証拠に使う (詳細 `ccbench-anatomy.md` §2)。

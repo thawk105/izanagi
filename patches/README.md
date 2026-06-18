@@ -72,3 +72,37 @@ W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版 = この
 `ycsb_silo -ycsb_rmw=true -ycsb_zipf_skew=0.9 -ycsb_tuple_num=200 -thread_num=2 -extime=1`:
 - trace の C 行合計 = ベンチ報告 `commit_counts_` (327918) **完全一致** (取りこぼし・重複なし)
 - 非 genesis read の **100%** が producer の write に matchable、**ORPHAN 0**、版重複 0
+
+---
+
+## broken-silo-norw-validation.patch — verifier の検出力証明 (Phase 1 タスク3, Approach A)
+
+**わざと壊した CC** (positive control)。Silo の `validationPhase()` 条件#1 (read-set の
+tidword 再検証 = anti-dependency / stale-read チェック) を **macro `IZANAGI_BREAK_NOREAD_VALIDATION`
+で抜く**。stale read が abort されず commit するので、lost-update / write-skew の **G2 cycle が
+trace に出現**し、verifier がそれを赤と判定できることを実証する。
+
+- **既定 OFF**: macro 未定義時は `#else` で元の abort が compile-in されるので**挙動は完全に元の Silo**
+  (inert)。**正しさ/性能の baseline には絶対に混ぜない** (絶対規律2)。
+- **trace-hook patch の上に重ねて適用する** (validationPhase を触る。writePhase の trace-hook と非衝突)。
+
+```sh
+SUB=external/ccbench
+git -C "$SUB" apply ../../patches/trace-hook.patch                  # まだなら
+git -C "$SUB" apply ../../patches/broken-silo-norw-validation.patch # 壊しを重ねる
+# 壊し+trace 専用ビルド (TRACE=1 かつ break flag。別 build dir)
+cmake -S "$SUB" -B "$SUB/build-trace-broken" -DCMAKE_BUILD_TYPE=Release \
+      -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=1 \
+      -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
+      -DCMAKE_CXX_FLAGS="-DIZANAGI_BREAK_NOREAD_VALIDATION=1"
+cmake --build "$SUB/build-trace-broken" --target ycsb_silo.exe -j
+# 高 contention で走らせ verifier にかける → NON-SERIALIZABLE (exit 1) になるはず
+git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (trace-hook は別途)
+```
+
+### 実証 (2026-06-18, clean ablation)
+
+同一ワークロード `-ycsb_rmw=true -ycsb_zipf_skew=0.9 -ycsb_tuple_num=50 -ycsb_max_ope=5 -thread_num=4 -extime=1`:
+- **壊し ON**: 293,803 commit → trace に **1310 G2 cycle** → verifier **NON-SERIALIZABLE (exit 1)**
+- **壊し OFF (素の Silo)**: 285,047 commit → verifier **certified SERIALIZABLE (exit 0)**
+- 差は read validation の有無のみ → verifier は壊れた CC を赤・正しい CC を緑と判定する番人だと確認。

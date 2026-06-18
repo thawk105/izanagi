@@ -119,3 +119,38 @@ git 履歴より粗く、roadmap / decisions より具体的な「作業の物�
 1. **タスク3** — `si` (本物の write-skew G2) を positive control にして verifier の検出力を実機トレースで実証。
    現状 trace-hook は Silo のみ instrumented → `si` への trace-hook 拡張 (patch) が要る。`ermia`/`oze` を cross-check。
 2. タスク4/5b 系 (計測) — calibrator (`clocks_per_us` 実測 + `-DLinux`/`numactl` ピンニング + cache miss 飽和点)。
+
+---
+
+## 2026-06-18 (続き) — Phase 1 タスク3 Approach A 完了 (verifier の赤検出を実証)
+
+### やったこと: わざと壊した Silo で verifier が赤を出すことを実トレースで証明
+
+- **壊し方:** Silo `validationPhase()` 条件#1 (read-set tidword 再検証 = anti-dependency / stale-read
+  チェック) を macro `IZANAGI_BREAK_NOREAD_VALIDATION` で抜く。stale read が abort されず commit →
+  lost-update / write-skew の G2 が trace に出る。`patches/broken-silo-norw-validation.patch` (既定 OFF、
+  `#else` で元の abort が残る inert 設計。trace-hook patch の上に重ねる)。
+- **clean ablation** (同一ワークロード `rmw,skew0.9,tuple50,ope5,thread4,extime1`、差は read validation のみ):
+  - 壊し ON: 293,803 commit → **1310 G2 cycle** → verifier **NON-SERIALIZABLE (exit 1)**
+  - 壊し OFF: 285,047 commit → verifier **certified SERIALIZABLE (exit 0)**
+- witness は ww+wr+rw 混在の 2-cycle (lost-update)。**タスク3 完了条件「意図的なバグを verifier が
+  捕まえられる・検出力の証拠が残る」を達成。** verifier が「常に緑のザル」でないことを実証。
+- 壊しは macro-guard かつ patch 化済みなので submodule working tree は trace-hook のみのクリーン状態に復帰。
+
+### Approach B (si=本物の write-skew G2) の feasibility メモ (未実装)
+
+より強い positive control = `si`(SI、write-skew を admit)を赤・`ermia`(SSN on)を緑にする real CC ablation。
+着手前に si エンジンを scout した結果:
+- **commit 点:** `cc/si/transaction.cc::si_commit()` (470行)。`cstamp = ++Lsn` (大域単調 uint32) で
+  版スタンプ確定、各 write 版に `ver_->cstamp_` を刻む (508行)。read 版も `cstamp_` を持つ。
+- **版ID写像:** si の版ID = `cstamp` (単 uint) → trace 形式 (epoch,tid) に `(1, cstamp)` 等で写せる見込み。
+- **未解決 (実装前に要確認):** ① 初期ロード版の cstamp が何か (genesis=(1,0) 写像と衝突しないか)。
+  ② ycsb_si が write-skew を観測可能に出すか (rmw=true は read set=write set で ww 衝突 abort になり
+  write-skew が出にくい → **rmw=false で read/write を別キーにする**必要)。③ read_set_/write_set_ の構造。
+- **判断:** タスク3 完了条件は Approach A で満たした。B は si/ermia への trace-hook 拡張という別エンジン
+  instrumentation (絶対規律5: 別増分) なので、上記3点を詰めてから着手する。
+
+### 次の一手
+
+1. (任意・強化) **Approach B**: si/ermia trace-hook → `si`赤 / `ermia`緑 の real ablation。
+2. **タスク4/5b 系 (計測)** — calibrator (`clocks_per_us` 実測 + `-DLinux`/`numactl` ピンニング + cache miss 飽和点)。

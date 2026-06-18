@@ -1,0 +1,24 @@
+--- a/cc/silo/transaction.cc	2026-06-18 10:21:45.537325282 +0900
++++ b/cc/silo/transaction.cc	2026-06-18 10:21:54.077248994 +0900
+@@ -385,12 +385,21 @@
+     check.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
+     if ((*itr).get_tidword().epoch != check.epoch ||
+         (*itr).get_tidword().tid != check.tid) {
++#if IZANAGI_BREAK_NOREAD_VALIDATION
++      // izanagi Phase1 Task3 — DELIBERATELY BROKEN variant (positive control).
++      // We detect the read version changed (an anti-dependency) but do NOT
++      // abort, so a stale read commits and the resulting G2 (lost-update /
++      // write-skew) cycle lands in the trace. This is the "wrong CC" the
++      // verifier MUST flag RED. Flag defaults OFF (#else = original abort);
++      // NEVER build this into a perf or correctness baseline (絶対規律2).
++#else
+ #if ADD_ANALYSIS
+       result_->local_vali_latency_ += rdtscp() - start;
+ #endif
+       this->status_ = TransactionStatus::aborted;
+       unlockWriteSet();
+       return false;
++#endif
+     }
+     // 2
+     // if (!check.latest) return false;
