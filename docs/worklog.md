@@ -160,3 +160,54 @@ git 履歴より粗く、roadmap / decisions より具体的な「作業の物�
 
 1. (任意・強化) **ermia/oze の trace-hook** (`cstamp<<1` に注意) → `si`赤 / `ermia`緑 の同一エンジン ablation。
 2. **タスク4/5b 系 (計測)** — calibrator (`clocks_per_us` 実測 + `-DLinux`/`numactl` ピンニング + cache miss 飽和点)。
+
+---
+
+## 2026-06-18 (続き) — Phase 1 タスク4 (calibrator) 実装 + 実機 calibration
+
+### タスク4a: calibrator 純ロジック + モックテスト (機械非依存)
+
+`orchestrator/calibrator/` を verifier と同型で実装。純ロジック (machine 非依存・
+モックでテスト可): `perfparse` (perf stat CSV/人間可読/`<not counted>` → PerfCounters)、
+`benchparse` (ccbench `label:\tvalue` → throughput[tps]/maxrss/actual_extime)、
+`analyze` (飽和判定 / scale 感度 / noise floor CV)、`model`/`report` (env スコープ
+文書化用 dataclass + text/JSON)。**飽和判定は tail-flat 要求で非単調系列に頑健**
+(途中の noise dip で早すぎる plateau を誤採用しない、最終点は飽和確認不能なので除外)。
+モック単体テスト (perf 3形式・飽和 早/遅/非単調/下限割れ/退化・下限基準・scale・noise)。
+
+### タスク4b: 実機ドライバ + calibration (env=linux-baremetal)
+
+- **`-DLinux` ピンニング patch** (`patches/linux-thread-pinning.patch`): `ccbench_add_protocol`
+  が protocol target に `-DLinux` を渡さず**ワーカーが unpinned** だった (anatomy §7) のを
+  microbench 先例どおり修正。実機で各ワーカーが CPU 単一ピンを確認 (絶対規律4)。D6 通り
+  submodule に commit せず patches/ で保持。
+- **実機ドライバ**: `tsc` (rdtscp×CLOCK_MONOTONIC で TSC 実測 = **1800 MHz**。Xeon 5418N の
+  base。/proc の動的 2600 や CCBench default 2100 は誤り)、`runner` (perf stat -x, +
+  numactl interleave で 1点を反復測定、maxrss 捕捉)、`sweep`/`cli` (倍々→飽和/下限→
+  noise floor→scale を env スコープに書く)。
+- **初回タイムアウトを診断・修正**: settle() が連続 run 間で毎回 30s 待ち空費 + 重い makeDB。
+  → settle は campaign 冒頭1回のみ・閾値緩和、飽和/下限確定で**早期打ち切り**。孤児プロセス無し確認。
+
+### 実機の発見 → D15 (飽和点が無い → 下限基準 / 飽和点は skew 依存)
+
+**LLC miss 率が uniform も skew0.9 も飽和しなかった** (単調上昇)。原因は index=**masstree**:
+N増で木が深化し内部ノードの cold miss が増え続け「膝」が出ない。含意2つ: ①飽和点は
+skew (局所性) 依存 → calibration を (env, thread, **代表 workload**) でキー (D13 改訂)、
+②「飽和せず→最大点」は規律4 と逆 (最も遅い run を選ぶ)。
+
+→ **D15: 下限基準を追加**。飽和点が無ければ「working set (実測 maxrss) が L3 を K 倍
+(既定4) 超える最小 N」を採る。詳細 `output/insights/2026-06-18_calibration-no-cache-miss-saturation.md`。
+
+**確定 calibration (linux-baremetal, 48 thread, numactl interleave):**
+- **skew=0.9 (contention, タスク1-3 と同帯)**: 下限基準で **records=1,000,000** (1m で
+  maxrss 597MB = L3(90MB) の 6.6×、miss 20.4% で cache-bound)。**noise floor CV 2.28%**。
+- **uniform (skew=0, 対照)**: 同じく下限基準で 1m (miss 14.9%)。**noise floor CV 0.47%**。
+  (skew0.9 より低いのは hot key 競合の abort 揺らぎが無いため。両者とも専有機ゆえ <5%)
+- 出力は workload 署名付き `output/env/linux-baremetal/calibration/calibration_t48_skew*.{json,md}`。
+
+### 次の一手
+
+1. **タスク5a** — invisible reads on/off の正しさサニティ (両 trace 緑 + DB 状態一致)。
+2. **タスク5b** — invisible reads の性能差を実機計測し論文 I2 と整合確認 + baseline 取得
+   (確定した 1m/48thread/skew0.9 を使用)。
+3. (任意) thread 数を変えた再 calibration / 下限基準 K の感度。

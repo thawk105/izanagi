@@ -1,0 +1,150 @@
+{
+  "env_tag": "linux-baremetal",
+  "threads": 48,
+  "clocks_per_us": 1800,
+  "workload": {
+    "ycsb_zipf_skew": "0",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "0"
+  },
+  "host": {
+    "node": "cygnus",
+    "machine": "x86_64",
+    "cpu_count": "96",
+    "kernel": "5.15.0-117-generic",
+    "l3_total_bytes": "94371840"
+  },
+  "saturation": {
+    "records": 1000000,
+    "saturated": false,
+    "lower_bound_selected": true,
+    "threshold": 0.01,
+    "miss_rate_at": 0.1489457791785399,
+    "cache_floor_warning": false,
+    "l3_bytes": 94371840,
+    "l3_multiple": 4.0,
+    "working_set_ratio": 6.6383680555555555,
+    "series": [
+      {
+        "records": 1000000.0,
+        "miss_rate": 0.1489457791785399,
+        "maxrss_kb": 611792.0
+      },
+      {
+        "records": 2000000.0,
+        "miss_rate": 0.22724726848401813,
+        "maxrss_kb": 1049660.0,
+        "delta": 0.07830148930547823
+      },
+      {
+        "records": 4000000.0,
+        "miss_rate": 0.34077369307093763,
+        "maxrss_kb": 2086852.0,
+        "delta": 0.1135264245869195
+      }
+    ],
+    "notes": [
+      "miss 率が単調上昇で飽和点なし (masstree 系の木深化, D15)。下限基準を適用: working set (maxrss 597 MB) が L3 (90 MB) の 6.6 倍 (≥4×) になる最小 N=1,000,000 を採用。many-core cache 競合は再現され、かつ run コスト最小"
+    ]
+  },
+  "noise_floor": {
+    "throughputs": [
+      6400229.0,
+      6394298.0,
+      6404195.0,
+      6393445.0,
+      6452607.0,
+      6441692.0,
+      6455141.0,
+      6469493.0,
+      6438868.0,
+      6465471.0
+    ],
+    "mean": 6431543.9,
+    "median": 6440280.0,
+    "stdev": 30396.73690619512,
+    "cv": 0.004726195977018071,
+    "high_variance": false,
+    "notes": []
+  },
+  "scale_sensitivity": {
+    "small": {
+      "records": 1000000,
+      "threads": 4,
+      "llc_load_misses": 14675913,
+      "llc_loads": 77430077,
+      "llc_miss_rate": 0.18953762631541746,
+      "throughput_median_tps": 539705.0,
+      "throughputs": [
+        541914.0,
+        539665.0,
+        539705.0
+      ],
+      "walltime_s": 3.597724474966526
+    },
+    "medium": {
+      "records": 1000000,
+      "threads": 48,
+      "llc_load_misses": 130499934,
+      "llc_loads": 867811444,
+      "llc_miss_rate": 0.15037821280448568,
+      "throughput_median_tps": 6460252.0,
+      "throughputs": [
+        6435316.0,
+        6460252.0,
+        6460851.0
+      ],
+      "walltime_s": 3.6053935168311
+    },
+    "small_per_thread": 134926.25,
+    "medium_per_thread": 134588.58333333334,
+    "efficiency_ratio": 0.9974973982700427,
+    "scale_suspect": false,
+    "notes": []
+  },
+  "sweep": [
+    {
+      "records": 1000000,
+      "threads": 48,
+      "llc_load_misses": 129762039,
+      "llc_loads": 871203197,
+      "llc_miss_rate": 0.1489457791785399,
+      "throughput_median_tps": 6476322.0,
+      "throughputs": [
+        6483040.0,
+        6459535.0,
+        6476322.0
+      ],
+      "walltime_s": 3.6131461588665843
+    },
+    {
+      "records": 2000000,
+      "threads": 48,
+      "llc_load_misses": 211365595,
+      "llc_loads": 930112808,
+      "llc_miss_rate": 0.22724726848401813,
+      "throughput_median_tps": 5738718.0,
+      "throughputs": [
+        5739503.0,
+        5736953.0,
+        5738718.0
+      ],
+      "walltime_s": 4.087347744032741
+    },
+    {
+      "records": 4000000,
+      "threads": 48,
+      "llc_load_misses": 320314425,
+      "llc_loads": 939962302,
+      "llc_miss_rate": 0.34077369307093763,
+      "throughput_median_tps": 4978498.0,
+      "throughputs": [
+        4978498.0,
+        5003662.0,
+        4968277.0
+      ],
+      "walltime_s": 5.079028325155377
+    }
+  ],
+  "notes": []
+}

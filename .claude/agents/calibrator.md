@@ -15,7 +15,8 @@ CC 探索を始める前のキャリブレーションフェーズを担当す�
 1. レコード数を 1m → 2m → 4m → 8m... と倍々に上げる
 2. 各点で perf stat を使い、cache miss 率 (LLC-load-misses)、throughput、1run あたりの実時間を記録する
 3. **cache miss 率の飽和点を探す。** 見るべきは throughput でなく cache 利用率 (CCBench の insight I1: OCC の read-only 性能は cardinality 増加で急落する、L3 miss が無くても)
-4. 判定: 「次に倍にしても miss 率が +Δ% 未満しか動かない」最小レコード数を採用する。それ以上は時間を食うだけで測定値が変わらない
+4. 判定 (第一基準): 「次に倍にしても miss 率が +Δ% 未満しか動かない」最小レコード数を採用する。それ以上は時間を食うだけで測定値が変わらない
+5. 判定 (第二基準 = 下限, D15): masstree index では N増で木が深化し miss 率が飽和しないことがある (実測で uniform/skew0.9 とも飽和せず)。飽和点が範囲に無いとき最大点を採るのは規律4 と逆なので、代わりに「working set = 実測 maxrss が L3 を K 倍 (既定4) 超える最小 N」を採る。飽和/下限点は **workload の skew に依存**するので calibration は (env, thread, 代表 workload) でキーする
 
 ## 規律
 

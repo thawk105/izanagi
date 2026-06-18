@@ -175,7 +175,7 @@
 
 **理由:**
 - 本システムは入力ワークロードごとに特化 CC を作る (roadmap §1) ので、出力を入力ごとに分離しないと複数 campaign の variants/runs/reports が単一グローバル名前空間で衝突する
-- ただし calibration/noise floor は (env, thread数) ごとで入力非依存 (roadmap §4)。入力ごとにネストすると campaign 毎に再 calibration になり絶対規律4 違反 → env スコープに分離
+- ただし calibration/noise floor は (env, thread数, **代表 workload**) ごとで決まり、個々の campaign の入力には依存しない (roadmap §4)。入力ごとにネストすると campaign 毎に再 calibration になり絶対規律4 違反 → env スコープに分離。**当初は「入力完全非依存」としていたが、飽和点が skew (アクセス局所性) に依存することが実測で判明したため (D15)、env スコープ内で代表 workload 署名付きファイル名に分けて持つ**
 - 内容ハッシュにより (a) クラッシュ再起動を跨いで同じ (spec,config) が同じ id に決まりリカバリが成立する (D)、(b) spec を編集して名前据え置きでも新 id になり古い WAL に比較不能な run を混ぜない (D12 honest-by-construction / §3.4 改竄識別)
 
 **却下した選択肢:**
@@ -202,3 +202,31 @@
 **これは絶対規律1の変更ではない。** 絶対規律 (憲法) は不変。本エントリは「コンパイルアウトする」規律を CCBench のマクロ規約上で**正しく実現する手段**の確定 (実装詳細=戦術)。CLAUDE.md の `#ifdef TRACE` という語は「コンパイル時除去」の意であり、実装は `#if TRACE` で満たす。
 
 **位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。タスク1 (trace-hook) 実装の前提。
+
+---
+
+## D15. calibration: 飽和点が無い workload には下限基準を使う / 飽和点は workload (skew) 依存
+
+**決定:** calibrator のレコード数確定を 2 段にする。**第一基準 = 飽和点** (roadmap §4 のまま: miss 率が倍々で +Δ% 未満になる最小 N)。**第二基準 = 下限** (飽和点が測定範囲に無いとき): 「working set (実測 maxrss) が L3 総量を K 倍 (既定 4) 超える最小 N」を採る。あわせて、**飽和点は入力 workload の skew (アクセス局所性) に依存する**ことを認め、calibration を (env, thread, **代表 workload**) でキーする (D13 の「入力完全非依存」を改訂)。
+
+**背景 (タスク4b 実測, env=linux-baremetal, Silo/YCSB, 48 thread, R760):**
+- LLC miss 率を 1m→倍々で測ったところ、**uniform (skew=0) も skew=0.9 も飽和しなかった** (uniform 14.9%→44.4%@16m, skew0.9 19.8%→40.6%@64m、いずれも単調上昇で Δ が緩やかに減衰するのみ)。
+- 原因は CCBench の index = **masstree**。レコード数 N を増やすと木が深くなり (深さ ∝ log N)、内部ノードの cold miss が増え続けるので miss 率に明確な「膝」が出ず、漸近線に非常にゆっくり近づく。roadmap §4 が前提した「cache miss 飽和点が在る」がこの index×host では素直に成り立たない。
+- 一方 **下限**(working set が L3≈90MB を十分超え many-core cache 競合が再現される)は ~1-2m で既に満たされる (1m で miss 15-20%)。飽和点 (在るとしても ≥128m) まで N を上げるのは絶対規律4「大きすぎは時間の無駄」に反する (skew0.9 の 64m run は makeDB 込み 35s/本)。
+- throughput の向きも workload で逆: uniform は N増で低下 (cache律速)、skew0.9 は N増で上昇 (hot key の write 競合が薄まる)。noise floor CV も workload 依存 (uniform 0.12% vs skew0.9 1.37%, いずれも専有機ゆえ低い)。
+- TSC 実測 = **1800 MHz** (Xeon Gold 5418N の base。/proc/cpuinfo の動的 2600 や CCBench default 2100 は誤り。calibrator が毎 run 渡す)。
+
+**採用する実装 (`orchestrator/calibrator/`):**
+- `find_saturation` に下限フォールバックを追加。飽和点 (採用点→末尾まで平ら) が無く、かつ L3 総量 (sysfs 検出) と maxrss (ccbench `maxrss:` 出力) が在れば、`maxrss ≥ K×L3` の最小 N を `lower_bound_selected=True` で返す。**「飽和せず → 最大点」だった旧フォールバックは規律4 と逆 (最も遅い run を選ぶ) なので廃止。**
+- 第一基準を優先 (飽和点が在ればそれ。下限より小さく cache-friendly な workload に対応)。
+- スイープは下限充足で早期打ち切り (それ以上は run を遅くするだけ)。
+- 出力は env スコープ内で **workload 署名付きファイル名** (`calibration_t<threads>_skew<...>_rr<...>_rmw<...>.{json,md}`) に分け、skew ごとの差を保存する。
+- K (l3_multiple) は名前付きパラメータ (既定 4)。「working set が L3 を十分超える」の "十分" を査読で説明できる knob として明示。
+
+**却下した選択肢:**
+- **膝を追って 128m+ までスイープ**: 飽和点は出るが N が大きすぎ run が遅く (35-70s/本)、数千 run の探索に不向き。規律4 違反。
+- **per-tuple バイト数を解析的に見積もって working set 算出**: masstree + mimalloc のオーバヘッドで脆い。実測 maxrss を直接使う方が頑健 (resident footprint = working set の素直な代理)。
+- **D13 の「入力完全非依存」を維持し単一 calibration で済ませる**: 飽和点が skew 依存と実測で割れた以上、虚偽。代表 workload 署名で分けるのが honest。
+- **throughput の飽和で決める**: throughput も N で単調 (飽和せず) かつ向きが workload 依存。cache 利用率を見る roadmap §4 の方針は維持 (見方を miss率の膝→下限に補強しただけ)。
+
+**位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。roadmap §4 / calibrator.md の「飽和点を探す」記述は本エントリで「飽和点 (在れば) → 無ければ working set の下限」に補強される。絶対規律4 (レコード数を無造作に大きくしない) の具体化であって変更ではない。
