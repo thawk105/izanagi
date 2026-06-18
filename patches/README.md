@@ -106,3 +106,43 @@ git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (trace-
 - **壊し ON**: 293,803 commit → trace に **1310 G2 cycle** → verifier **NON-SERIALIZABLE (exit 1)**
 - **壊し OFF (素の Silo)**: 285,047 commit → verifier **certified SERIALIZABLE (exit 0)**
 - 差は read validation の有無のみ → verifier は壊れた CC を赤・正しい CC を緑と判定する番人だと確認。
+
+---
+
+## trace-hook-si.patch — `si` (Snapshot Isolation) の trace-hook (Phase 1 タスク3, Approach B)
+
+**本物の positive control。** 無改変の `si` は SSN を持たず write-skew (G2) を admit する。si エンジン
+(`cc/si/transaction.cc::si_commit()`) に trace 出力を足し、**実 CC が出す本物の異常**を verifier が捕まえ
+られることを示す。trace.hh / Options.cmake の TRACE 配線は全 protocol 共通なので**再利用**(この patch は
+`cc/si/transaction.cc` への include + emit のみ。trace-hook.patch の上に重ねる)。
+
+- **版ID写像:** si の版ID = `Version::cstamp_` (commit LSN、単調 uint)。これを `(epoch=1, tid=cstamp)` と
+  emit。**初期ロード版は cstamp=0** (`tuple.hh`)、実 txn は `++Lsn≥1` なので、初期版 read が `(1,0)`=genesis
+  番兵に**自然に一致**し verifier の既存モデル (FIX2 の producer-absence 含む) がそのまま効く。
+- **emit 点:** `si_commit` の write install ループ直後 (cstamp 確定・版 commit 済み・read_set_/write_set_ 健在)。
+  node-validation abort は `FINISH_SI_COMMIT` へ飛び到達しないので committed のみ emit。
+
+```sh
+SUB=external/ccbench
+git -C "$SUB" apply ../../patches/trace-hook.patch     # trace.hh + Options.cmake (まだなら)
+git -C "$SUB" apply ../../patches/trace-hook-si.patch  # si emit
+cmake --build "$SUB/build-trace" --target ycsb_si.exe -j   # build-trace は CCBENCH_TRACE=1
+IZANAGI_TRACE_DIR=out "$SUB/build-trace/cc/si/ycsb_si.exe" \
+   -ycsb_rmw=false -ycsb_rratio=50 -ycsb_zipf_skew=0.9 -ycsb_tuple_num=30 \
+   -ycsb_max_ope=10 -thread_num=8 -extime=1 -clocks_per_us=2100
+python3 ../../orchestrator/verify.py out    # NON-SERIALIZABLE (G2) になるはず
+```
+
+### 実証 (2026-06-18) — real-CC discrimination
+
+同一 workload `-ycsb_rmw=false -ycsb_rratio=50 -ycsb_zipf_skew=0.9 -ycsb_tuple_num=30 -ycsb_max_ope=10 -thread_num=8 -extime=1`:
+- **`si` (Snapshot Isolation)**: 171,037 commit → **3576 G2 cycle** → **NON-SERIALIZABLE**、integrity clean
+- **`silo` (serializable OCC)**: 208,904 commit → **certified SERIALIZABLE**
+- 差は分離レベルのみ → verifier は workload でなく**正しさそのもの**を見ている。
+
+### 将来: `ermia` cross-check の罠
+
+`ermia` (SSN on=serializable) を green の cross-check oracle にするには `cc/ermia/transaction.cc` にも
+同様の hook を足すが、**版 cstamp が `cstamp<<1` (低ビット=SSN flag, `ssn_commit:561`)** で si と違う。
+また commit 経路が `ssn_commit` / `ssn_parallel_commit` の2系統。version id 写像をこの shift に合わせないと
+全 read が orphan 化する。次の増分で対応。

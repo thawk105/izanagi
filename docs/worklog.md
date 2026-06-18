@@ -137,20 +137,26 @@ git 履歴より粗く、roadmap / decisions より具体的な「作業の物�
   捕まえられる・検出力の証拠が残る」を達成。** verifier が「常に緑のザル」でないことを実証。
 - 壊しは macro-guard かつ patch 化済みなので submodule working tree は trace-hook のみのクリーン状態に復帰。
 
-### Approach B (si=本物の write-skew G2) の feasibility メモ (未実装)
+### Approach B (si=本物の write-skew G2) 完了 — real-CC positive control
 
-より強い positive control = `si`(SI、write-skew を admit)を赤・`ermia`(SSN on)を緑にする real CC ablation。
-着手前に si エンジンを scout した結果:
-- **commit 点:** `cc/si/transaction.cc::si_commit()` (470行)。`cstamp = ++Lsn` (大域単調 uint32) で
-  版スタンプ確定、各 write 版に `ver_->cstamp_` を刻む (508行)。read 版も `cstamp_` を持つ。
-- **版ID写像:** si の版ID = `cstamp` (単 uint) → trace 形式 (epoch,tid) に `(1, cstamp)` 等で写せる見込み。
-- **未解決 (実装前に要確認):** ① 初期ロード版の cstamp が何か (genesis=(1,0) 写像と衝突しないか)。
-  ② ycsb_si が write-skew を観測可能に出すか (rmw=true は read set=write set で ww 衝突 abort になり
-  write-skew が出にくい → **rmw=false で read/write を別キーにする**必要)。③ read_set_/write_set_ の構造。
-- **判断:** タスク3 完了条件は Approach A で満たした。B は si/ermia への trace-hook 拡張という別エンジン
-  instrumentation (絶対規律5: 別増分) なので、上記3点を詰めてから着手する。
+より強い positive control = 無改変の `si` (SI、write-skew を admit) を赤にする real CC 実証。scout で
+3 点を解決して実装した:
+- **commit 点:** `cc/si/transaction.cc::si_commit()`。`cstamp = ++Lsn`、各 write 版に `ver_->cstamp_` を刻む。
+- **版ID写像:** si 版ID = `cstamp` (単 uint) → `(epoch=1, tid=cstamp)` と emit。**初期版 cstamp=0** (`tuple.hh`)、
+  実 txn は `++Lsn≥1` → 初期版 read が `(1,0)`=genesis に**自然一致** (衝突なし)。`patches/trace-hook-si.patch`。
+- **workload:** `rmw=true` は read set=write set で ww 衝突 abort になり write-skew が出にくい →
+  **`rmw=false`** で read/write を別キーに分離 + 高 contention で write-skew を誘発。
+- **結果 (real-CC discrimination):** 同一 workload `rmw=false,rratio50,skew0.9,tuple30,ope10,thread8`:
+  - `si` (SI): 171,037 commit → **3576 G2 cycle → NON-SERIALIZABLE**、integrity clean (版写像が正しい証拠)
+  - `silo` (serializable OCC): 208,904 commit → **certified SERIALIZABLE**
+  - 差は分離レベルのみ → verifier は workload や計装の副作用でなく**正しさそのもの**を見ている。
+- **ermia cross-check の罠 (将来増分):** `ermia` (SSN on=green oracle) は版 cstamp が **`cstamp<<1`**
+  (低ビット=SSN flag, `ssn_commit:561`) で si と違い、commit 経路も `ssn_commit`/`ssn_parallel_commit` の2系統。
+  version id 写像をこの shift に合わせないと全 read が orphan 化する。si trace-hook はそのままでは流用不可。
+
+タスク3 は2つの独立 ablation で実証完了: (A) 壊し Silo 赤 / 素 Silo 緑、(B) 本物 si 赤 / Silo 緑。
 
 ### 次の一手
 
-1. (任意・強化) **Approach B**: si/ermia trace-hook → `si`赤 / `ermia`緑 の real ablation。
+1. (任意・強化) **ermia/oze の trace-hook** (`cstamp<<1` に注意) → `si`赤 / `ermia`緑 の同一エンジン ablation。
 2. **タスク4/5b 系 (計測)** — calibrator (`clocks_per_us` 実測 + `-DLinux`/`numactl` ピンニング + cache miss 飽和点)。

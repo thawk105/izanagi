@@ -90,9 +90,15 @@ trace を読んで serializability を検査する自前 verifier を Python で
 ww+wr+rw 混在の lost-update/write-skew)。**同一ワークロードで壊していない Silo は certified
 SERIALIZABLE (exit 0)** = clean ablation (差は read validation の有無のみ)。verifier が「常に緑のザル」
 でないことを実トレースで実証。なお realizable trace では全 cycle が G2 なので「ww/wr/rw それぞれの
-違反」は G2 の中で辺構成が違う形として現れる (`docs/isolation-phenomena.md`)。**Approach B (`si`=本物の
-write-skew G2 を positive control + `ermia` cross-check) は si エンジンへの trace-hook 拡張が要るため
-別増分**として `worklog.md` に feasibility を記録。
+違反」は G2 の中で辺構成が違う形として現れる (`docs/isolation-phenomena.md`)。
+
+**✅ Approach B も完了 (2026-06-18)。** **本物の (無改変の) `si`=Snapshot Isolation を positive control に。**
+si エンジンに trace-hook 拡張 (`patches/trace-hook-si.patch`、版ID=`(1, cstamp)`、初期版 cstamp=0→genesis に自然一致)。
+write-skew が出る workload (`rmw=false` で read/write set を分離、高 contention) で `ycsb_si` を実行 →
+**3576 個の G2 cycle → NON-SERIALIZABLE**、integrity clean (版写像が正しい証拠)。**同一 workload で Silo
+(serializable OCC) は certified SERIALIZABLE** → verifier は workload でなく**分離レベルそのもの**を見ている
+real-CC discrimination。`ermia` (SSN on=serializable) cross-check は版 cstamp が `cstamp<<1` (低ビット=SSN flag)
+で commit 経路も2系統あり計装が繊細なため次の増分に回す (worklog に罠を記録)。
 
 verifier が「常に緑を出すザル」でないことを証明する。**ここを飛ばすと、後で壊れた variant を正しいと誤認する地獄になる。**
 

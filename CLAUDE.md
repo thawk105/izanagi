@@ -14,7 +14,7 @@
 
 ## 現在地
 
-**Phase 1: 評価器の構築。タスク0-3 完了。** CCBench を submodule (`33d74a3`) で取得・全ビルド (34バイナリ)、構造を `docs/ccbench-anatomy.md` に記録。trace-hook (タスク1, `patches/trace-hook.patch`)、mini trace verifier (タスク2, `orchestrator/verifier/`、Adya DSG で G2 cycle 検出・敵対的検証済み)、verifier の赤検出証明 (タスク3, わざと壊した Silo `patches/broken-silo-norw-validation.patch` で 1310 G2 cycle 検出 vs 素 Silo 緑の clean ablation) を実装。次はタスク4 (calibrator: cache miss 飽和点でレコード数決定 + noise floor 実測)。任意で B (`si`=本物 write-skew を positive control) を強化として残す。
+**Phase 1: 評価器の構築。タスク0-3 完了。** CCBench を submodule (`33d74a3`) で取得・全ビルド (34バイナリ)、構造を `docs/ccbench-anatomy.md` に記録。trace-hook (タスク1, `patches/trace-hook.patch`)、mini trace verifier (タスク2, `orchestrator/verifier/`、Adya DSG で G2 cycle 検出・敵対的検証済み)、verifier の赤検出証明 (タスク3) を2つの ablation で実装: (A) わざと壊した Silo `patches/broken-silo-norw-validation.patch` で 1310 G2 検出 vs 素 Silo 緑、(B) 本物の `si`=Snapshot Isolation `patches/trace-hook-si.patch` で 3576 G2 検出 vs 同一 workload の Silo 緑 (real-CC discrimination)。次はタスク4 (calibrator: cache miss 飽和点でレコード数決定 + noise floor 実測)。任意増分: `ermia` cross-check (版 cstamp が `cstamp<<1` の罠あり、worklog 参照)。
 
 **Linux 実機 (計測層) 確保済み。** 開発・計測ともこの Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) で行う。D10 の「Mac devcontainer=開発層 / Linux=計測層」の二層は、実機がこのホストに集約されたことで開発層も Linux 実機側に寄った (devcontainer 経路は維持するが必須でない)。性能数値は env=linux-baremetal タグ付きで記録する (orchestrator-design.md の環境タグ)。phase1.md の [Mac]/[Linux] タグは「機能/性能」の区別として読み替える (どちらも本ホストで実行可能)。
 
