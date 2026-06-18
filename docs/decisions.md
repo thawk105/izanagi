@@ -230,3 +230,32 @@
 - **throughput の飽和で決める**: throughput も N で単調 (飽和せず) かつ向きが workload 依存。cache 利用率を見る roadmap §4 の方針は維持 (見方を miss率の膝→下限に補強しただけ)。
 
 **位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。roadmap §4 / calibrator.md の「飽和点を探す」記述は本エントリで「飽和点 (在れば) → 無ければ working set の下限」に補強される。絶対規律4 (レコード数を無造作に大きくしない) の具体化であって変更ではない。
+
+---
+
+## D16. CCBench 改変の行き先を性質ごとに分岐する (D6「全て out-of-tree patch」を改訂)
+
+**決定:** Izanagi 由来の CCBench 改変を一律 patches/ に置く (D6) のをやめ、**改変の性質で行き先を分ける**:
+
+| 改変 | 性質 | 行き先 |
+|---|---|---|
+| スレッドピンニング (`-DLinux`) | CCBench 本物のバグ修正 (Izanagi 非依存・誰の Linux 計測にも効く) | submodule **`master`** に還元 |
+| trace-hook (Silo/si の `#if TRACE` 検証計装) | Izanagi の verifier 入力。CCBench の機能ではないが `#if TRACE` で観測者効果セーフ | submodule **`izanagi-trace`** ブランチ (submodule が pin) |
+| broken-silo (わざと壊した Silo) | verifier 赤検出用 positive control = **テスト用の意図的バグ** | **out-of-tree patch** (patches/。永久) |
+
+**背景:** タスク4b で pinning バグ (anatomy §7) を修正したのを機に「ccbench の改変をどう扱うか」を再検討。`thawk105/ccbench` は本プロジェクトの fork (origin=master、別 upstream remote なし) で改変は低摩擦。D6 は全改変を patches/ に隔離していたが、3 種の改変は性質が異なり一律扱いは最適でないと判明。
+
+**理由:**
+- **pinning は本物のバグ修正**。cmake 移植で旧 Makefile の `-D$(uname)` が落ちただけで、Izanagi と無関係に CCBench の Linux 計測を壊していた。fork の master に還元するのが筋 (計測基盤が「pin がデフォルトで正しい CCBench」になる)。全 34 binary が gcc-13+`-Werror` でクリーンビルド確認済み。
+- **trace-hook はブランチが適切**。検証計装は今後 protocol を広げると patch 管理が辛くなる (rebase 地獄)。`izanagi-trace` ブランチに commit すれば追加開発が普通の git になる。**master でなくブランチ**にするのは CCBench 本体と Izanagi 計装の境界を master で保つため。`#if TRACE` ゆえブランチに常在しても perf ビルドは観測者効果セーフ (絶対規律1 維持)。
+- **broken-silo は patch 死守**。わざと壊した CC をブランチに commit すると baseline で誤ビルドされ絶対規律2 崩壊。out-of-tree patch なら「赤検出するときだけ重ねる」inert 状態を保てる。
+- **再現性は不変**: submodule は常に特定 commit を pin する。「ブランチを指す」も結局その時点の commit を固定するので、master/branch/patch のどれでも parent gitlink の再現性は同じ。違うのは*どこに commit が溜まるか*と*境界の綺麗さ*。
+
+**採用した構造:** `master (本体+pinning) → izanagi-trace (+trace-hook) → broken-silo.patch (重ね)`。`.gitmodules` に `branch = izanagi-trace`。submodule の working-tree dirt を放置せず izanagi-trace に commit して gitlink を前進させる (D6 の「active dev 中は patch 適用状態のまま」を廃止)。
+
+**却下した選択肢:**
+- **全て master に入れる**: trace-hook と broken-silo が CCBench 本体に混ざり境界が消える。broken-silo は絶対規律2 上 commit 不可。
+- **全て izanagi-trace ブランチに入れる**: pinning は Izanagi 非依存のバグ修正なので master に還元する方が CCBench として正しく、broken-silo は inert 隔離が要る。
+- **D6 維持 (全て patch)**: trace-hook が protocol 横断で増えると patch rebase が破綻。pinning を patch に留めると計測基盤が既定で歪んだまま。
+
+**位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。D6 (submodule 固定 + patch 運用) を「broken-silo に限り維持、pinning/trace-hook は master/branch へ」と改訂する。**push は人間が行う** (CLAUDE.md「勝手に上流へ PR を出さない」の精神 + この環境に push 認証が無い)。

@@ -1,77 +1,36 @@
-# patches/ — Izanagi の CCBench 改変 (out-of-tree)
+# patches/ — Izanagi の CCBench 改変
 
-CCBench submodule (`external/ccbench`) は **commit `33d74a3` に固定し、本体は常にクリーンに保つ** (D6)。
-Izanagi による改変はすべて**このディレクトリの patch ファイル**として明示的に存在し、必要なときに適用する。
-これにより「CCBench 本体はクリーン / 改変は patches/ に追える」状態を保ち、上流還元すべき差分を綺麗に切り出せる。
+CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由来の改変は
+**性質ごとに行き先を分ける** (D16。当初は全て out-of-tree patch だった = D6):
 
-## 適用 / revert フロー (D6)
+| 改変 | 性質 | 行き先 |
+|---|---|---|
+| スレッドピンニング (`-DLinux`) | CCBench 本物のバグ修正 (Izanagi 非依存) | **submodule `master`** に還元 |
+| trace-hook (Silo/si の `#if TRACE` 検証計装) | Izanagi の verifier 入力。`#if TRACE` で観測者効果セーフ | **submodule `izanagi-trace` ブランチ** (submodule が追う) |
+| broken-silo (わざと壊した Silo) | verifier の赤検出用 positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
 
-```sh
-SUB=external/ccbench
-# 適用
-git -C "$SUB" apply ../../patches/trace-hook.patch      # (cwd=repo root なら patches/trace-hook.patch)
-# トレース有効ビルド (perf ビルドとは別ディレクトリ・別 run。絶対規律1)
-cmake -S "$SUB" -B "$SUB/build-trace" -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF \
-      -DCCBENCH_TRACE=1 -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13
-cmake --build "$SUB/build-trace" --target ycsb_silo.exe -j
-# 実行 (trace を IZANAGI_TRACE_DIR に吐く)
-IZANAGI_TRACE_DIR=/path/to/out "$SUB/build-trace/cc/silo/ycsb_silo.exe" \
-      -clocks_per_us=<MHz> -thread_num=N -extime=T -ycsb_rmw=true ...
-# クリーンに戻す (tracked 2ファイルを checkout、新規 trace.hh を削除)
-git -C "$SUB" checkout -- cmake/Options.cmake cc/silo/transaction.cc
-rm -f "$SUB/include/trace.hh"
-```
+**broken-silo を patch に隔離する理由 (絶対規律2):** 壊した CC をブランチに commit すると
+baseline として誤ビルドされる危険がある。out-of-tree patch なら「赤検出証明をするときだけ
+明示的に重ねる」inert 状態を保てる。
 
-orchestrator (Phase 1 タスク6) がこの「apply → build → run → revert」を自動化する。
-**現状 active dev 中は submodule を patch 適用状態のまま置くことがある** (build-trace バイナリと source を一致させるため)。
-その場合も **parent repo の gitlink は `33d74a3` のまま**で、submodule の working-tree dirt を parent に commit してはいけない。
-
-`git apply --check patches/trace-hook.patch` でクリーン tree への適用可否を検証できる (round-trip 済み)。
-
----
-
-## trace-hook.patch — Silo に `#if TRACE` の正しさトレースを足す (Phase 1 タスク1)
-
-3ファイル・131挿入:
-- `include/trace.hh` (新規) — `#if TRACE` で囲まれた per-thread トレース出力 (`izanagi_trace` namespace)
-- `cmake/Options.cmake` — `CCBENCH_TRACE` cache 変数 + 全 protocol への `-DTRACE=<v>` 配線
-- `cc/silo/transaction.cc` — `writePhase()` の `maxtid` 確定直後に emit フック
-
-**観測者効果の分離 (絶対規律1) の実装:**
-- コードは **`#if TRACE`** (NOT `#ifdef`)。cmake が常に `-DTRACE=0` を定義する規約のため、`#ifdef` だと perf ビルドでも真になり漏れる (→ `docs/decisions.md` D14)。`#if TRACE` なら `-DTRACE=0` (既定) で完全に消える
-- 実証済み: `TRACE=0` ビルドのバイナリに `izanagi_trace` シンボル 0 個・`IZANAGI_TRACE_DIR` 文字列 0 個 (`nm`/`strings`)
-- トレースは全て **CC-native フィールド** から取得 — tuple に検証専用フィールドを一切足していない (Tidword は元々 ReadElement にある)
-- 別ビルド・別 run: perf = `build/` (`-DTRACE=0`)、correctness = `build-trace/` (`-DTRACE=1`)
-
-**トレース取得点 (Silo, `writePhase` 内、`maxtid` 確定後):** commit した trx ごとに、commit順=`maxtid`、`read_set_` の各 read の版=`ReadElement::get_tidword()`、`write_set_` の各 write の key/op を emit。abort した trx は writePhase に到達しないので出力されない (verifier は committed のみ見る)。
-
-### トレース形式 (verifier = タスク2 の入力)
-
-per-thread ファイル `trace_<thid>.log`、1イベント1行。1 trx の records は連続 (C → その R/W 行):
+## submodule の階層
 
 ```
-C <txid> <thid> <epoch> <tid>             committed txn。<epoch>,<tid> = commit順 = この trx が産んだ版ID
-R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版 (ver_epoch,ver_tid)
-W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版 = この trx の commit (epoch,tid)
+master (CCBench 本体 + pinning 修正)
+  └─ izanagi-trace (+ trace-hook Silo/si)   ← submodule が pin する (.gitmodules の branch)
+       └─ broken-silo-norw-validation.patch  ← 赤検出 ablation のときだけ重ねる (out-of-tree)
 ```
 
-- `txid` = グローバル単調 id (TRACE ビルド限定の atomic)。1 trx の C/R/W をまとめるためだけ。Silo の (epoch,tid) は非衝突 trx 間で重複しうるので、grouping には別 id が要る
-- `key_hex` = キー生バイトの小文字 hex (YCSB は 8byte big-endian)
-- **版ID = (epoch,tid)。** 同一キー上では (epoch,tid) が producer trx を一意に決める (同キーを書くと ww 競合で tid が上がるため)。実測で版重複 0 を確認
-- **genesis 版 = (epoch=1, tid=0)** (初期 DB ロードの版、producer 無し。`Tuple::init` が epoch=1,tid=0 で初期化)
+submodule は `izanagi-trace` の特定 commit を pin する (`.gitmodules` の `branch = izanagi-trace`)。
+**parent の gitlink は常に特定 commit を固定する**ので再現性は patch 運用時と同じく保たれる。
+trace-hook の追加開発は submodule の `izanagi-trace` ブランチに直接コミットし、parent の
+gitlink を前進させる (submodule の working-tree dirt を放置しない方針に変わった = D16)。
 
-### verifier が辺を復元する方法 (タスク2 で実装)
-
-- **wr 辺** (T_w → T_r): R の (key, e, t) を、commit (e,t) でその key を書いた W の trx (= producer) に対応付け
-- **ww 辺**: 同一 key を書いた trx を (epoch,tid) 順に並べる
-- **rw 辺 (anti-dependency)**: R が版 V を読み、別 trx が同 key により新しい版を書いたら T_r → T_w
-- **G2**: rw 辺を1本以上含む cycle
-
-### 検証実績 (タスク1)
-
-`ycsb_silo -ycsb_rmw=true -ycsb_zipf_skew=0.9 -ycsb_tuple_num=200 -thread_num=2 -extime=1`:
-- trace の C 行合計 = ベンチ報告 `commit_counts_` (327918) **完全一致** (取りこぼし・重複なし)
-- 非 genesis read の **100%** が producer の write に matchable、**ORPHAN 0**、版重複 0
+ビルドモード (絶対規律1: 観測者効果分離):
+- **perf ビルド** (`build/`, 既定 `-DTRACE=0`): trace は `#if TRACE` で完全に消える。
+  pinning は master 由来で常に有効。性能計測・calibration はこれに当てる。
+- **trace ビルド** (`build-trace/`, `-DCCBENCH_TRACE=1`): trace を吐く。正しさ検証専用。
+- 実証済み: `TRACE=0` ビルドのバイナリに `izanagi_trace` シンボル 0 個 (`nm`/`strings`)。
 
 ---
 
@@ -82,22 +41,23 @@ tidword 再検証 = anti-dependency / stale-read チェック) を **macro `IZAN
 で抜く**。stale read が abort されず commit するので、lost-update / write-skew の **G2 cycle が
 trace に出現**し、verifier がそれを赤と判定できることを実証する。
 
-- **既定 OFF**: macro 未定義時は `#else` で元の abort が compile-in されるので**挙動は完全に元の Silo**
-  (inert)。**正しさ/性能の baseline には絶対に混ぜない** (絶対規律2)。
-- **trace-hook patch の上に重ねて適用する** (validationPhase を触る。writePhase の trace-hook と非衝突)。
+- **既定 OFF**: macro 未定義時は `#else` で元の abort が compile-in されるので**挙動は完全に元の
+  Silo** (inert)。**正しさ/性能の baseline には絶対に混ぜない** (絶対規律2)。
+- **`izanagi-trace` (trace-hook 入り) の上に重ねて適用する** (validationPhase を触る。trace-hook の
+  writePhase と非衝突。`git apply --check` で round-trip 確認済み)。
 
 ```sh
 SUB=external/ccbench
-git -C "$SUB" apply ../../patches/trace-hook.patch                  # まだなら
-git -C "$SUB" apply ../../patches/broken-silo-norw-validation.patch # 壊しを重ねる
-# 壊し+trace 専用ビルド (TRACE=1 かつ break flag。別 build dir)
+# submodule は既に izanagi-trace (trace-hook 入り) を pin している。壊しを重ねる:
+git -C "$SUB" apply ../../patches/broken-silo-norw-validation.patch
+# 壊し+trace 専用ビルド (別 build dir)
 cmake -S "$SUB" -B "$SUB/build-trace-broken" -DCMAKE_BUILD_TYPE=Release \
       -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=1 \
       -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
       -DCMAKE_CXX_FLAGS="-DIZANAGI_BREAK_NOREAD_VALIDATION=1"
 cmake --build "$SUB/build-trace-broken" --target ycsb_silo.exe -j
 # 高 contention で走らせ verifier にかける → NON-SERIALIZABLE (exit 1) になるはず
-git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (trace-hook は別途)
+git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (izanagi-trace に戻る)
 ```
 
 ### 実証 (2026-06-18, clean ablation)
@@ -109,73 +69,38 @@ git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (trace-
 
 ---
 
-## trace-hook-si.patch — `si` (Snapshot Isolation) の trace-hook (Phase 1 タスク3, Approach B)
+## トレース形式 (verifier = タスク2 の入力契約)
 
-**本物の positive control。** 無改変の `si` は SSN を持たず write-skew (G2) を admit する。si エンジン
-(`cc/si/transaction.cc::si_commit()`) に trace 出力を足し、**実 CC が出す本物の異常**を verifier が捕まえ
-られることを示す。trace.hh / Options.cmake の TRACE 配線は全 protocol 共通なので**再利用**(この patch は
-`cc/si/transaction.cc` への include + emit のみ。trace-hook.patch の上に重ねる)。
+trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`
+確定後、si は `si_commit` の write install 直後に emit)。出力する**形式**は verifier
+(`orchestrator/verifier/`) の入力契約なのでここに記録する。
 
-- **版ID写像:** si の版ID = `Version::cstamp_` (commit LSN、単調 uint)。これを `(epoch=1, tid=cstamp)` と
-  emit。**初期ロード版は cstamp=0** (`tuple.hh`)、実 txn は `++Lsn≥1` なので、初期版 read が `(1,0)`=genesis
-  番兵に**自然に一致**し verifier の既存モデル (FIX2 の producer-absence 含む) がそのまま効く。
-- **emit 点:** `si_commit` の write install ループ直後 (cstamp 確定・版 commit 済み・read_set_/write_set_ 健在)。
-  node-validation abort は `FINISH_SI_COMMIT` へ飛び到達しないので committed のみ emit。
+per-thread ファイル `trace_<thid>.log`、1イベント1行。1 trx の records は連続 (C → その R/W 行):
 
-```sh
-SUB=external/ccbench
-git -C "$SUB" apply ../../patches/trace-hook.patch     # trace.hh + Options.cmake (まだなら)
-git -C "$SUB" apply ../../patches/trace-hook-si.patch  # si emit
-cmake --build "$SUB/build-trace" --target ycsb_si.exe -j   # build-trace は CCBENCH_TRACE=1
-IZANAGI_TRACE_DIR=out "$SUB/build-trace/cc/si/ycsb_si.exe" \
-   -ycsb_rmw=false -ycsb_rratio=50 -ycsb_zipf_skew=0.9 -ycsb_tuple_num=30 \
-   -ycsb_max_ope=10 -thread_num=8 -extime=1 -clocks_per_us=2100
-python3 ../../orchestrator/verify.py out    # NON-SERIALIZABLE (G2) になるはず
+```
+C <txid> <thid> <epoch> <tid>             committed txn。<epoch>,<tid> = commit順 = この trx が産んだ版ID
+R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版 (ver_epoch,ver_tid)
+W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版 = この trx の commit (epoch,tid)
 ```
 
-### 実証 (2026-06-18) — real-CC discrimination
+- `txid` = グローバル単調 id (TRACE ビルド限定の atomic)。1 trx の C/R/W をまとめるためだけ。
+- `key_hex` = キー生バイトの小文字 hex (YCSB は 8byte big-endian)
+- **版ID = (epoch,tid)。** 同一キー上では producer trx を一意に決める (ww 競合で tid が単調増加)。
+- **genesis 版 = (epoch=1, tid=0)** (初期 DB ロード、producer 無し)。si は cstamp=0 がこれに自然一致。
 
-同一 workload `-ycsb_rmw=false -ycsb_rratio=50 -ycsb_zipf_skew=0.9 -ycsb_tuple_num=30 -ycsb_max_ope=10 -thread_num=8 -extime=1`:
-- **`si` (Snapshot Isolation)**: 171,037 commit → **3576 G2 cycle** → **NON-SERIALIZABLE**、integrity clean
-- **`silo` (serializable OCC)**: 208,904 commit → **certified SERIALIZABLE**
-- 差は分離レベルのみ → verifier は workload でなく**正しさそのもの**を見ている。
+### verifier が辺を復元する方法
 
-### 将来: `ermia` cross-check の罠
+- **wr 辺** (T_w → T_r): R の (key,e,t) を、commit (e,t) でその key を書いた W の trx (producer) に対応付け
+- **ww 辺**: 同一 key を書いた trx を (epoch,tid) 順に並べる
+- **rw 辺 (anti-dependency)**: R が版 V を読み、別 trx が同 key により新しい版を書いたら T_r → T_w
+- **G2**: rw 辺を1本以上含む cycle
 
-`ermia` (SSN on=serializable) を green の cross-check oracle にするには `cc/ermia/transaction.cc` にも
-同様の hook を足すが、**版 cstamp が `cstamp<<1` (低ビット=SSN flag, `ssn_commit:561`)** で si と違う。
-また commit 経路が `ssn_commit` / `ssn_parallel_commit` の2系統。version id 写像をこの shift に合わせないと
-全 read が orphan 化する。次の増分で対応。
+### trace-hook の検証実績
 
----
-
-## linux-thread-pinning.patch — protocol バイナリにスレッドピンニングを有効化 (Phase 1 タスク4)
-
-**計測層の patch (trace とは無関係)。** `cpu.hh::setThreadAffinity()` は `#ifdef Linux` で囲われて
-いるが、`ccbench_add_protocol` (`cmake/ProtocolHelpers.cmake`) は protocol target に `-DLinux` を
-**定義しない** (旧 Makefile は `-D$(uname)` で渡していた)。結果、**as-built ではワーカースレッドが
-一切ピンされず**、2ソケット機では OS スケジューラが socket 間を migrate して run が noisy になり、
-many-core の cache 競合が忠実に再現されない (絶対規律4、anatomy §7)。
-
-この patch は microbench 側の先例 (`MicrobenchHelpers.cmake:43-45`) と同じ contract を
-`ccbench_add_protocol` にも足し、`CMAKE_SYSTEM_NAME` が Linux なら全 protocol target に `Linux` を
-define する。**CC 直交** — baseline と全 variant に一律にかかるので相対比較を歪めない。
-
-- **trace-hook 系とは独立** (`cmake/ProtocolHelpers.cmake` のみ・触る場所が違う)。**性能ビルド
-  (`build/`, `-DTRACE=0`) に当てる。** trace ビルドにも一律でかけてよい (CC 直交ゆえ)。
-- 適用は reconfigure が要る (cmake 関数の変更): `cmake -S external/ccbench -B external/ccbench/build`
-  → `cmake --build ... -jN`。flags.make の `CXX_DEFINES` に `-DLinux` が乗る。
-- 検証: 4スレッド run で `/proc/<pid>/task/<tid>/status` の `Cpus_allowed_list` が各ワーカー単一CPU
-  (0,1,2,3) になる (= ピン有効)。フル `0-95` ならピン無効。
-
-```sh
-SUB=external/ccbench
-git -C "$SUB" apply ../../patches/linux-thread-pinning.patch
-cmake -S "$SUB" -B "$SUB/build"            # 関数変更の取り込みに reconfigure 必須
-cmake --build "$SUB/build" -j48
-```
-
-**NUMA 注記:** ピンは `myid % nproc` で CPU 0..n-1 に割る。本ホストの CPU 番号は偶数=node0 /
-奇数=node1 とインターリーブするので、n スレッド run は両ソケットに分散する (locality 制御なし、
-anatomy §7「NUMA 非対応」)。**再現性のためメモリ方針は `numactl` で固定する** (calibrator は既定
-`--interleave=all`)。これは calibrator runner が自動で包む。
+- タスク1 (Silo): trace の C 行合計 = ベンチ `commit_counts_` 完全一致、非 genesis read の 100% が
+  producer に matchable・ORPHAN 0・版重複 0、`TRACE=0` ビルドに trace シンボル 0。
+- タスク3B (si): si=本物の write-skew を 3576 G2 として検出、同 workload で Silo は緑 (real-CC discrimination)。
+- **ermia cross-check の罠 (将来増分):** `ermia` (SSN on=serializable) を green oracle にするには
+  `cc/ermia/transaction.cc` にも hook が要るが、版 cstamp が `cstamp<<1` (低ビット=SSN flag,
+  `ssn_commit:561`) で si と違い、commit 経路も `ssn_commit`/`ssn_parallel_commit` の2系統。
+  version id 写像をこの shift に合わせないと全 read が orphan 化する。`izanagi-trace` に追加する想定。

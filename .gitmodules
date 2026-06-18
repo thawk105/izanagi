@@ -1,3 +1,4 @@
 [submodule "external/ccbench"]
 	path = external/ccbench
 	url = https://github.com/thawk105/ccbench
+	branch = izanagi-trace

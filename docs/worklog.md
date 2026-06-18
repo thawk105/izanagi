@@ -205,9 +205,24 @@ skew (局所性) 依存 → calibration を (env, thread, **代表 workload**) �
   (skew0.9 より低いのは hot key 競合の abort 揺らぎが無いため。両者とも専有機ゆえ <5%)
 - 出力は workload 署名付き `output/env/linux-baremetal/calibration/calibration_t48_skew*.{json,md}`。
 
+### submodule 改変の整理 (D16) — patch 一律運用をやめ性質ごとに分岐
+
+calibration を機に「ccbench 改変の行き先」を再検討し、D6 (全て out-of-tree patch) を改訂:
+- **pinning バグ修正** → submodule `master` に還元 (`7e268f2`)。Izanagi 非依存の本物の修正で、
+  全 34 binary が gcc-13+`-Werror` クリーンビルド確認。`patches/linux-thread-pinning.patch` は削除。
+- **trace-hook (Silo/si)** → submodule `izanagi-trace` ブランチ (`8b82d3e` Silo, `fee622f` si)。
+  検証計装は protocol 横断で増えるので patch でなくブランチで持つ。`#if TRACE` ゆえ perf ビルドは
+  観測者効果セーフ。`patches/trace-hook*.patch` は削除。
+- **broken-silo** → `patches/` 死守 (わざと壊した CC は baseline 誤ビルド回避のため inert patch)。
+  izanagi-trace 上にクリーン適用できることを確認。
+- parent: gitlink を `fee622f` に前進、`.gitmodules` に `branch = izanagi-trace`、patches/README 全面改稿。
+- **push は人間が行う** (この環境に ccbench への push 認証が無い + CLAUDE.md「勝手に上流 PR 出さない」)。
+  要 push: `git -C external/ccbench push origin master` + `... push origin izanagi-trace`。
+
 ### 次の一手
 
-1. **タスク5a** — invisible reads on/off の正しさサニティ (両 trace 緑 + DB 状態一致)。
-2. **タスク5b** — invisible reads の性能差を実機計測し論文 I2 と整合確認 + baseline 取得
+1. **(直近) ccbench の master / izanagi-trace を push** (上記)。push 後 parent gitlink が他者にも解決可能に。
+2. **タスク5a** — invisible reads on/off の正しさサニティ (両 trace 緑 + DB 状態一致)。
+3. **タスク5b** — invisible reads の性能差を実機計測し論文 I2 と整合確認 + baseline 取得
    (確定した 1m/48thread/skew0.9 を使用)。
-3. (任意) thread 数を変えた再 calibration / 下限基準 K の感度。
+4. (任意) thread 数を変えた再 calibration / 下限基準 K の感度。
