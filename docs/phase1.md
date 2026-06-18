@@ -56,6 +56,19 @@ CCBench に trace を吐く口を足す。**絶対規律1 (観測者効果の分
 
 ## タスク2 [Mac]: mini trace verifier の実装 (Tier 1)
 
+**✅ 完了 (2026-06-18)。** `orchestrator/verifier/` に実装 (parse → DSG 構築 ww/wr/rw →
+iterative Tarjan SCC で cycle 検出 → G0/G1c/G2 分類 → 構造化 report)。実 Silo トレース
+(184k txn / 1.63M 辺) を certified serializable、手製赤フィクスチャ (write-skew/lost-update/
+3-cycle/mixed) を G2 検出。**敵対的検証 workflow (4 監査 + 6 レッドチーム, 33 フィクスチャ)
+で verdict mismatch 0 / false-red 0**: Tarjan を 6万グラフで参照実装と照合 (一致)、判定を
+独立 3-color DFS と照合 (一致)、6万トレース差分 fuzz で独立 Adya DSG と照合 (false-green/red
+ゼロ)。指摘から**絶対規律2 の硬化**を実装: integrity 不良 (orphan/version dup/重複 txid/
+番兵 (1,0) commit) の trace は serializable を主張せず **indeterminate** を返す (落ちた辺が
+real cycle を隠す false-green を防ぐ)。genesis は値 (1,0) でなく **producer 不在**で判定
+(FIX2)。**発見:** realizable trace では全 cycle が G2 (G0/G1c は構造的に出ない、定義は
+`docs/isolation-phenomena.md`)。phantom/述語異常は trace 形式の限界でスコープ外
+(`output/insights/2026-06-18_phantom-predicate-out-of-scope.md`)。単体テスト 15/15。
+
 trace を読んで serializability を検査する自前 verifier を Python で書く。**verifier サブエージェントの定義に従う。**
 
 - [ ] trace ログのパーサ

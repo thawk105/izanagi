@@ -14,7 +14,7 @@
 
 ## 現在地
 
-**Phase 1: 評価器の構築。タスク0 (CCBench 解剖) 完了。** CCBench を submodule (`33d74a3`) で取得・全ビルド (34バイナリ) し、構造を `docs/ccbench-anatomy.md` に記録済み。次はタスク1 (trace-hook)。
+**Phase 1: 評価器の構築。タスク0-2 完了。** CCBench を submodule (`33d74a3`) で取得・全ビルド (34バイナリ)、構造を `docs/ccbench-anatomy.md` に記録。trace-hook (タスク1, `patches/trace-hook.patch`) と mini trace verifier (タスク2, `orchestrator/verifier/`、Adya DSG で G2 cycle 検出・敵対的検証済み) を実装。次はタスク3 (verifier が赤を出せる証明: `si`=write-skew G2 を positive control)。
 
 **Linux 実機 (計測層) 確保済み。** 開発・計測ともこの Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) で行う。D10 の「Mac devcontainer=開発層 / Linux=計測層」の二層は、実機がこのホストに集約されたことで開発層も Linux 実機側に寄った (devcontainer 経路は維持するが必須でない)。性能数値は env=linux-baremetal タグ付きで記録する (orchestrator-design.md の環境タグ)。phase1.md の [Mac]/[Linux] タグは「機能/性能」の区別として読み替える (どちらも本ホストで実行可能)。
 

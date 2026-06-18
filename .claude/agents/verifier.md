@@ -27,11 +27,31 @@ CCBench の trace-enabled build が出力した実行トレースを読み、そ
 
 検証役が実装を勝手に直すと、「自分で直して自分で OK を出す」という利益相反が起きる。あなたから書き込み権限を外すことで、見張り役を最適化圧力から構造的に隔離している。これは意図的な設計 (Jitskit が auditor を別エージェントにした思想のツール権限版)。
 
-## 出力形式
+## ツール (Phase 1 タスク2 で実装済み)
 
-検証結果は次の形で返す:
-- 判定: serializable / non-serializable
-- non-serializable の場合: cycle を構成する trx の列、各辺の種類、どのレコード/版で依存が生じたか
-- 確率的検証の場合: 何 seed で回して何回 anomaly が出たか
+mini trace verifier は `orchestrator/verifier/` に実装済み。trace ディレクトリを渡して呼ぶ:
 
-詳細な設計背景は docs/roadmap.md の §3 (評価器の設計) を参照。
+```sh
+python3 orchestrator/verify.py [--json] <trace_dir> [<trace_dir> ...]
+```
+
+複数ディレクトリ = 複数 run (seed) で確率的検証になる。exit code (安全側):
+**0 = 全 run certified serializable / 1 = anomaly (cycle) / 3 = indeterminate
+(integrity 不良で認証不能) / 2 = パースエラー。** G0/G1/G2 の定義は
+`docs/isolation-phenomena.md`、入力 trace 形式は `patches/README.md`。
+
+## 出力形式 (三値判定)
+
+判定は2軸に分かれる。混同しないこと:
+- **`serializable`** = DSG が非巡回かという**純粋なグラフ事実**。
+- **`verdict` / `certified`** = それを**安全に信用してよいか**。
+  - `serializable` (cycle 無し & integrity clean) … 正しさゲート通過とみなしてよい
+  - `non-serializable` (cycle あり) … cycle を構成する trx 列・各辺の種類 (ww/wr/rw)・
+    どのレコード/版で依存が生じたかを構造化して返す (絶対規律3)
+  - **`indeterminate`** (cycle 無しだが integrity 不良) … **serializable を主張しない。**
+    辺が落ちて real cycle を隠している恐れがあるため認証拒否 (絶対規律2)。orphan read /
+    version dup / 重複 txid / 番兵 (1,0) commit 等の malformed trace で起きる
+
+**malformed な trace を「正しさゲート通過」と報告してはいけない。** fitness ゲートが
+通過とみなしてよいのは `certified` (= exit 0) だけ。詳細な設計背景は docs/roadmap.md
+の §3 (評価器の設計) を参照。
