@@ -146,3 +146,36 @@ python3 ../../orchestrator/verify.py out    # NON-SERIALIZABLE (G2) になるは
 同様の hook を足すが、**版 cstamp が `cstamp<<1` (低ビット=SSN flag, `ssn_commit:561`)** で si と違う。
 また commit 経路が `ssn_commit` / `ssn_parallel_commit` の2系統。version id 写像をこの shift に合わせないと
 全 read が orphan 化する。次の増分で対応。
+
+---
+
+## linux-thread-pinning.patch — protocol バイナリにスレッドピンニングを有効化 (Phase 1 タスク4)
+
+**計測層の patch (trace とは無関係)。** `cpu.hh::setThreadAffinity()` は `#ifdef Linux` で囲われて
+いるが、`ccbench_add_protocol` (`cmake/ProtocolHelpers.cmake`) は protocol target に `-DLinux` を
+**定義しない** (旧 Makefile は `-D$(uname)` で渡していた)。結果、**as-built ではワーカースレッドが
+一切ピンされず**、2ソケット機では OS スケジューラが socket 間を migrate して run が noisy になり、
+many-core の cache 競合が忠実に再現されない (絶対規律4、anatomy §7)。
+
+この patch は microbench 側の先例 (`MicrobenchHelpers.cmake:43-45`) と同じ contract を
+`ccbench_add_protocol` にも足し、`CMAKE_SYSTEM_NAME` が Linux なら全 protocol target に `Linux` を
+define する。**CC 直交** — baseline と全 variant に一律にかかるので相対比較を歪めない。
+
+- **trace-hook 系とは独立** (`cmake/ProtocolHelpers.cmake` のみ・触る場所が違う)。**性能ビルド
+  (`build/`, `-DTRACE=0`) に当てる。** trace ビルドにも一律でかけてよい (CC 直交ゆえ)。
+- 適用は reconfigure が要る (cmake 関数の変更): `cmake -S external/ccbench -B external/ccbench/build`
+  → `cmake --build ... -jN`。flags.make の `CXX_DEFINES` に `-DLinux` が乗る。
+- 検証: 4スレッド run で `/proc/<pid>/task/<tid>/status` の `Cpus_allowed_list` が各ワーカー単一CPU
+  (0,1,2,3) になる (= ピン有効)。フル `0-95` ならピン無効。
+
+```sh
+SUB=external/ccbench
+git -C "$SUB" apply ../../patches/linux-thread-pinning.patch
+cmake -S "$SUB" -B "$SUB/build"            # 関数変更の取り込みに reconfigure 必須
+cmake --build "$SUB/build" -j48
+```
+
+**NUMA 注記:** ピンは `myid % nproc` で CPU 0..n-1 に割る。本ホストの CPU 番号は偶数=node0 /
+奇数=node1 とインターリーブするので、n スレッド run は両ソケットに分散する (locality 制御なし、
+anatomy §7「NUMA 非対応」)。**再現性のためメモリ方針は `numactl` で固定する** (calibrator は既定
+`--interleave=all`)。これは calibrator runner が自動で包む。

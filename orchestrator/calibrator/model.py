@@ -57,6 +57,8 @@ class ScalePoint:
     counters: PerfCounters = field(default_factory=PerfCounters)
     throughputs: List[float] = field(default_factory=list)   # 反復 run の tps
     walltime_s: Optional[float] = None    # 1 run の実時間 (コスト指標)
+    maxrss_kb: Optional[int] = None       # 常駐メモリ (working set の実測代理。
+                                          # 下限判定 = working set vs L3 に使う)
 
     @property
     def miss_rate(self) -> Optional[float]:
@@ -84,7 +86,14 @@ class SaturationResult:
     miss_rate_at: Optional[float] = None     # 採用点の miss 率
     cache_floor_warning: bool = False        # 採用点が低 miss=working set が
                                              # cache に乗る疑い (下限割れ)
-    series: List[Dict[str, float]] = field(default_factory=list)  # 各点の (records, miss_rate, delta)
+    # 膝が無い (単調上昇) workload 向けの下限基準 (decisions D15)。飽和点が
+    # 範囲内に無いとき、上限を採る (=最も遅い run) のは規律4 と逆なので、
+    # 代わりに「working set が L3 を l3_multiple 倍超える最小 N」を採る。
+    lower_bound_selected: bool = False       # 飽和でなく下限基準で採用したか
+    l3_bytes: Optional[int] = None           # 検出した L3 総量
+    l3_multiple: Optional[float] = None       # 下限の安全係数 K
+    working_set_ratio: Optional[float] = None  # 採用点 maxrss / L3 総量
+    series: List[Dict[str, float]] = field(default_factory=list)  # 各点の (records, miss_rate, delta, maxrss)
     notes: List[str] = field(default_factory=list)
 
 

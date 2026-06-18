@@ -22,7 +22,7 @@ from calibrator.model import PerfCounters, ScalePoint                # noqa: E40
 from calibrator.perfparse import parse_perf_stat                     # noqa: E402
 
 
-def _pt(records, miss_rate, threads=8, tps=None):
+def _pt(records, miss_rate, threads=8, tps=None, maxrss_mb=None):
     """miss_rate (0..1) を持つ ScalePoint をモック。loads=1e6 固定で逆算。"""
     loads = 1_000_000
     c = PerfCounters(llc_load_misses=int(round(miss_rate * loads)),
@@ -30,7 +30,12 @@ def _pt(records, miss_rate, threads=8, tps=None):
     p = ScalePoint(records=records, threads=threads, counters=c)
     if tps is not None:
         p.throughputs = [tps]
+    if maxrss_mb is not None:
+        p.maxrss_kb = int(maxrss_mb * 1024)
     return p
+
+
+_L3 = 90 * 1024 * 1024   # 本ホストの L3 総量 (90MB) を模した値
 
 
 # ===== perfparse (実 perf CSV / 人間可読 / 欠損) =====
@@ -163,6 +168,52 @@ def test_saturation_non_monotonic():
     assert r.saturated
     assert r.records != 2_000_000         # 早すぎる plateau を採らない
     assert r.records == 16_000_000        # 後段の真の飽和点
+
+
+# ===== find_saturation: 膝なし → 下限基準 (D15) =====
+
+def test_lower_bound_when_no_plateau():
+    # miss 率が単調上昇で飽和せず + maxrss + L3 → working set≥L3×4 の最小 N を採用。
+    # L3=90MB, K=4 → need 360MB。maxrss: 1m=300MB(<360), 2m=520MB(≥360) → 2m。
+    pts = [_pt(1_000_000, 0.198, maxrss_mb=300), _pt(2_000_000, 0.231, maxrss_mb=520),
+           _pt(4_000_000, 0.287, maxrss_mb=960), _pt(8_000_000, 0.331, maxrss_mb=1840)]
+    r = find_saturation(pts, l3_bytes=_L3)
+    assert not r.saturated
+    assert r.lower_bound_selected
+    assert r.records == 2_000_000
+    assert r.working_set_ratio is not None and r.working_set_ratio > 4.0
+
+
+def test_lower_bound_unavailable_without_l3_or_maxrss():
+    # 膝なしだが L3/maxrss が無い → 従来通り最大点を暫定返し (下限基準は不発)
+    pts = [_pt(1_000_000, 0.198), _pt(2_000_000, 0.231),
+           _pt(4_000_000, 0.287), _pt(8_000_000, 0.331)]
+    r = find_saturation(pts, l3_bytes=None)
+    assert not r.saturated
+    assert not r.lower_bound_selected
+    assert r.records == 8_000_000        # 最大点 (暫定)
+    assert any("適用不能" in n for n in r.notes)
+
+
+def test_lower_bound_even_max_too_small():
+    # 全点で working set が L3×4 に届かない → 最大点 + もっと大きくせよの note
+    pts = [_pt(1_000_000, 0.05, maxrss_mb=120), _pt(2_000_000, 0.08, maxrss_mb=180),
+           _pt(4_000_000, 0.11, maxrss_mb=300)]   # 300MB < 360MB(=L3×4)
+    r = find_saturation(pts, l3_bytes=_L3)
+    assert not r.saturated
+    assert not r.lower_bound_selected
+    assert r.records == 4_000_000
+    assert any("上げる必要" in n for n in r.notes)
+
+
+def test_plateau_preferred_over_lower_bound():
+    # 飽和点があれば下限基準より優先 (第一基準)。早期に平らなら膝を採る。
+    pts = [_pt(1_000_000, 0.002, maxrss_mb=300), _pt(2_000_000, 0.015, maxrss_mb=520),
+           _pt(4_000_000, 0.018, maxrss_mb=960), _pt(8_000_000, 0.0185, maxrss_mb=1840)]
+    r = find_saturation(pts, l3_bytes=_L3)
+    assert r.saturated
+    assert not r.lower_bound_selected
+    assert r.records == 2_000_000
 
 
 # ===== find_saturation: 下限割れ (cache に乗る) =====

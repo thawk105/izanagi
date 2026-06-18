@@ -30,9 +30,13 @@ def _sat_to_dict(s: SaturationResult) -> Dict[str, Any]:
     return {
         "records": s.records,
         "saturated": s.saturated,
+        "lower_bound_selected": s.lower_bound_selected,
         "threshold": s.threshold,
         "miss_rate_at": s.miss_rate_at,
         "cache_floor_warning": s.cache_floor_warning,
+        "l3_bytes": s.l3_bytes,
+        "l3_multiple": s.l3_multiple,
+        "working_set_ratio": s.working_set_ratio,
         "series": s.series,
         "notes": s.notes,
     }
@@ -91,15 +95,25 @@ def render_text(r: CalibrationResult) -> str:
 
     if r.saturation:
         s = r.saturation
-        verdict = "SATURATED" if s.saturated else "NOT-SATURATED (暫定値)"
+        if s.saturated:
+            verdict = "SATURATED"
+        elif s.lower_bound_selected:
+            verdict = f"LOWER-BOUND (膝なし→working set≥L3×{s.l3_multiple:g})"
+        else:
+            verdict = "NOT-SATURATED (暫定値)"
         L.append("")
         L.append(f"-- saturation: {verdict} → records = {s.records:,} "
                  f"(Δ閾値 {_pct(s.threshold)}) --")
-        L.append("  records         miss_rate    Δ")
+        L.append("  records         miss_rate    Δ           maxrss")
         for pt in s.series:
             d = pt.get("delta")
             dd = "" if d is None else f"{d*100:+.3f}pp"
-            L.append(f"  {int(pt['records']):>12,}  {_pct(pt['miss_rate']):>10}  {dd}")
+            rss = pt.get("maxrss_kb")
+            rr = "" if rss is None else f"{rss/1024:>7.0f}MB"
+            L.append(f"  {int(pt['records']):>12,}  {_pct(pt['miss_rate']):>10}  "
+                     f"{dd:>10}  {rr}")
+        if s.working_set_ratio is not None:
+            L.append(f"  working set / L3 = {s.working_set_ratio:.1f}×")
         if s.cache_floor_warning:
             L.append("  ⚠ cache_floor 警告: working set が cache に乗る疑い (下限割れ)")
         for note in s.notes:

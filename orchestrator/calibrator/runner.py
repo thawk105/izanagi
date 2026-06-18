@@ -1,0 +1,142 @@
+# -*- coding: utf-8 -*-
+"""1 測定点 = (records, threads) 固定で ccbench を perf 下で回し ScalePoint を組む。
+
+絶対規律1: 性能計測は **trace-disabled build** (`build/`, `-DTRACE=0`) に当てる。
+絶対規律4: スレッドピンニング (`-DLinux`, patches/linux-thread-pinning.patch) 済みの
+binary を使い、OS スケジューラの socket 間 migration を止める。NUMA メモリ方針は
+numactl で固定して run 間で再現可能にする (anatomy §7)。
+
+measurement stability (roadmap §3.6): 1 点 = N 回反復し throughput を全部残す
+(中央値 + CV は analyze 側)。ベンチ前に load average の静定を待つ (admission
+control, calibrator.md / orchestrator-design.md)。
+"""
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import tempfile
+import time
+from typing import Dict, List, Optional, Sequence
+
+from .benchparse import _num, parse_bench_stdout, throughput_tps
+from .model import ScalePoint
+from .perfparse import parse_perf_stat
+
+
+def _maxrss_kb(metrics: Dict[str, str]):
+    """ccbench の `maxrss:\\t<N> kB` から常駐 kB を取る (working set 代理)。"""
+    v = _num(metrics.get("maxrss"))
+    return int(v) if v is not None else None
+
+# 飽和シグナルに要る最小イベント + IPC 確認用。
+PERF_EVENTS = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+
+
+def settle(threshold: float = 4.0,
+           timeout_s: float = 20.0, poll_s: float = 1.0) -> Dict[str, float]:
+    """1 分 load average が threshold を下回るまで待つ (admission control)。
+
+    目的は「直前ビルドの余熱や**他プロセス**の重い負荷が測定窓に漏れるのを防ぐ」
+    こと。**campaign の冒頭で 1 回だけ**呼ぶ — 連続 run の間で呼んではいけない。
+    自分の直前 run のスレッドは subprocess.run が join 済みで既に終了しており、
+    load average (1 分 EMA) はその残像にすぎないので、点ごとに待つと EMA が
+    下がりきらず無駄にタイムアウトを食う (それが初版の遅さの原因だった)。
+
+    閾値は「他者の重い負荷」を検出する絶対値 (既定 4.0)。タイムアウトしたら
+    現在値で諦めて進む (settled=False を notes に残す前提)。
+    """
+    deadline = time.monotonic() + timeout_s
+    while True:
+        load1 = os.getloadavg()[0]
+        if load1 <= threshold or time.monotonic() >= deadline:
+            return {"load1": load1, "threshold": threshold,
+                    "settled": load1 <= threshold}
+        time.sleep(poll_s)
+
+
+def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,
+               numactl: Optional[Sequence[str]]) -> List[str]:
+    cmd: List[str] = []
+    if numactl:
+        cmd += list(numactl)
+    cmd += ["perf", "stat", "-x,", "-o", perf_out, "-e", ",".join(PERF_EVENTS),
+            "--", binary]
+    cmd += list(gflags)
+    return cmd
+
+
+def run_once(binary: str, gflags: Sequence[str],
+             numactl: Optional[Sequence[str]] = None,
+             timeout_s: float = 120.0):
+    """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。"""
+    tmp = tempfile.mkdtemp(prefix="izanagi_run_")     # TMPDIR=/home 配下
+    try:
+        perf_out = os.path.join(tmp, "perf.csv")
+        cmd = _build_cmd(binary, gflags, perf_out, numactl)
+        t0 = time.monotonic()
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=timeout_s)
+        wall = time.monotonic() - t0
+        metrics = parse_bench_stdout(proc.stdout)
+        perf_text = ""
+        if os.path.exists(perf_out):
+            with open(perf_out) as f:
+                perf_text = f.read()
+        counters = parse_perf_stat(perf_text)
+        if not metrics:
+            # bench が何も出さなかった = 異常 (stderr を添えて上げる)
+            raise RuntimeError(
+                f"ccbench produced no metrics. rc={proc.returncode} "
+                f"stderr={proc.stderr[:400]}")
+        return metrics, counters, wall
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def measure_point(binary: str, records: int, threads: int,
+                  clocks_per_us: int, extime: int = 3, reps: int = 5,
+                  workload: Optional[Dict[str, str]] = None,
+                  numactl: Optional[Sequence[str]] = None,
+                  settle_first: bool = False) -> ScalePoint:
+    """1 測定点を reps 回反復して ScalePoint を組む。
+
+    throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
+    代表として中央 throughput の rep のものを採る (miss 率は run 間で安定)。
+
+    settle_first は既定 False。admission control の静定待ちは campaign 冒頭で
+    1 回行えば足り、点ごとに待つと load EMA の残像で無駄に時間を食う (settle の
+    docstring 参照)。冒頭の 1 回は呼び手 (calibrate) が担う。
+    """
+    if settle_first:
+        settle()
+
+    base_flags = [
+        f"-thread_num={threads}",
+        f"-ycsb_tuple_num={records}",
+        f"-extime={extime}",
+        f"-clocks_per_us={clocks_per_us}",
+    ]
+    for k, v in (workload or {}).items():
+        base_flags.append(f"-{k}={v}")
+
+    pt = ScalePoint(records=records, threads=threads)
+    rep_results = []   # (tps, counters, wall, maxrss_kb)
+    for _ in range(reps):
+        metrics, counters, wall = run_once(binary, base_flags, numactl=numactl)
+        tps = throughput_tps(metrics)
+        if tps is not None:
+            pt.throughputs.append(tps)
+        rep_results.append((tps, counters, wall, _maxrss_kb(metrics)))
+
+    # 代表値 = throughput が中央値に最も近い rep のもの (counters/wall/maxrss)。
+    valid = [r for r in rep_results if r[0] is not None]
+    if valid:
+        ts = sorted(r[0] for r in valid)
+        med = ts[len(ts) // 2]
+        rep = min(valid, key=lambda r: abs(r[0] - med))
+        pt.counters, pt.walltime_s, pt.maxrss_kb = rep[1], rep[2], rep[3]
+    elif rep_results:
+        last = rep_results[-1]
+        pt.counters, pt.walltime_s, pt.maxrss_kb = last[1], last[2], last[3]
+    return pt
