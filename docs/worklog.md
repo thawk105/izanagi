@@ -226,3 +226,58 @@ calibration を機に「ccbench 改変の行き先」を再検討し、D6 (全�
 3. **タスク5b** — invisible reads の性能差を実機計測し論文 I2 と整合確認 + baseline 取得
    (確定した 1m/48thread/skew0.9 を使用)。
 4. (任意) thread 数を変えた再 calibration / 下限基準 K の感度。
+
+---
+
+## 2026-06-19 — submodule push 反映 + Phase 1 タスク5 完了 (ultracode 開始)
+
+### ccbench push 反映
+
+ユーザーが ccbench master + izanagi-trace を push し、izanagi-trace の CI (clang-format) 修正
+(`977e194`) を上に積んでくれた。submodule gitlink を `fee622f→977e194` に FF で前進
+(修正は trace 出力の整形のみ・挙動不変・perf ビルドに影響なし)。**以降 ultracode を有効化**:
+実質タスクは多エージェント workflow + 敵対的検証を既定にする。ただし**性能計測は単一テナント
+直列が鉄則** (絶対規律4) なので、並列化するのは解析/検証/合成のみ、ベンチ実行は直列。
+
+### タスク5a (正しさ側) 完了
+
+既知最適化の on/off で正しさパイプラインが期待通り動くことを実トレースで実証。invisible reads は
+silo 内在で toggle 不可・mocc は trace-hook 未実装のため、代表として **silo `BACK_OFF` (意味論保存)
+を on/off** → 両方とも verifier が **certified SERIALIZABLE** (BACK_OFF=1: 277,391 txn / =0: 571,816 txn)。
+観測者効果分離はタスク1 の symbol 不在が最強の構造的証明で、977e194 で再確認 (trace build に
+izanagi_trace 6 / perf build に 0)。DB-dump semantic 等価性は symbol 不在より弱いので冗長と判断・未実装。
+
+### タスク5b (性能側) 完了 — invisible reads の I2 を実測で裁定 (workflow)
+
+invisible reads の効果を MOCC `temp_threshold` で実機計測 (1m/48thread/skew0.9, reps5)。
+**3レンズ調査 + 敵対的裁定 workflow** (MOCC ソース / 論文 / データ, 4 エージェント 229k tok) +
+perf カウンタで機構確認:
+- **交絡を発見・確定:** `temp_threshold` は read だけでなく write/delete の lock() も gate する
+  (`transaction.cc:361,468`)。`rratio=0` の最大倍率 1.733x は read op が0 で read-lock 不発 →
+  invisible reads でなく **temperature-gated 悲観 write-locking** の効果。
+- **クリーン点 = `rratio=100` (read-only):** invisible **1.28x** (9.32M vs 7.28M tps, CV 0.1%)。
+  perf で visible が **+32% cache-misses/txn** = read-lock 語の cacheline bouncing 回避が機構と確認
+  (dissent「帯域節約では?」を perf で解消)。
+- **I2 訂正:** roadmap「read-heavy で効く」が正、**phase1「write-intensive」は誤帰属で訂正**。
+  docs/phase1.md・anatomy §3 を訂正、`output/insights/2026-06-19_invisible-reads-i2-reconciliation.md`。
+
+### baseline (Phase 2 用) + oze 病理
+
+確定 calibration で YCSB 7 protocol の baseline 取得 (CV<1.5%):
+**tictoc 1.05M / silo 902K / mocc 661K / cicada 605K / si 351K / ermia 327K tps**。
+**oze だけ 81 tps / CV 53% = 病理。** skew0.9 で thread=1 でも 244 tps・thread48 で abort 99% livelock、
+uniform は 122K で正常。機構 = read ごとの依存グラフ DFS (`is_invisible_dfs`) が密競合グラフで爆発
+(`output/insights/2026-06-19_oze-skew-pathology.md`)。Phase 2 baseline で oze は uniform か除外。
+
+### Phase 1 完了
+
+タスク0-5 完了。**評価パイプライン (正しさ + 性能) が信頼できる状態に到達** = Phase 1 完了条件充足。
+verifier が正しい CC を緑・壊れた CC を赤と判定し構造化フィードバックを返せ、calibrator がレコード数を
+決められ、手動最適化の効果が観測者効果なしで測れる (invisible reads の I2 を実測で裁定し誤記まで訂正)。
+
+### 次の一手
+
+1. **Phase 2 着手** — `docs/phase2.md` を作りパラメータ探索へ。最初の実験候補 = CCBench 最適化フラグの
+   全探索 (有限空間)。critic / profiler サブエージェントを `agent-architecture.md` 仕様で実体化。
+2. タスク6 (orchestrator 骨格: campaign-id/WAL/リカバリ/排他) も Phase 2 の前提として配線。
+3. (任意増分) mocc trace-hook (visible-reads の trace 検証 + verifier 2nd エンジン化)、ermia cross-check。

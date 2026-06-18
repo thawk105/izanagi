@@ -115,6 +115,7 @@ YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto
 - **可視 read の対は別 protocol = MOCC。** `mocc` の `read_internal` は record 温度が `FLAGS_temp_threshold` を超えると共有 read-lock を取る (`cc/mocc/transaction.cc:198-204`)。
 - **on/off A/B のやり方:** `temp_threshold` は**ランタイム gflag** なので再ビルド不要。OFF(invisible)= `silo`、または `mocc -temp_threshold=<大>` (誰もロックせず silo 相当)。ON(visible)= `mocc -temp_threshold=0` (全 read が可視 read-lock)。
   注意: silo と mocc は read 可視性以外も異なる (mocc はロック失敗 abort/RLL) ので、性能差を invisible reads だけに帰属させない。
+  - **🔴 gflag 内交絡 (タスク5b 実測, D/insight 2026-06-19):** `temp_threshold` は read だけでなく **update (`cc/mocc/transaction.cc:361`) / delete (`:468`) の write-lock も gate する** = 温度ベースの「悲観ロック vs OCC」セレクタ。よって同一 mocc バイナリの A/B でも、`rratio<100` では write 経路 (CLL violation 検出 `:642-663` / RLL 再取得 `:736-783` / trylock 失敗 abort) の差が混入する。**`rratio=0` (write-only) の差は invisible reads ではなく [B]⑥ temperature-gated 悲観 write-locking の効果。invisible reads (read 可視性) のクリーン計測は `rratio=100` (read-only) のみ。** 実測 clean 点 ≈ **1.28x** (read-heavy で効く = 論文/roadmap と整合、phase1 の「write-intensive」は誤記訂正済み)。
 
 **VLDB「7最適化」× 3カテゴリ → 本 fork の live フラグ:**
 - **[A] CPU-cache:** ① invisible reads (Silo 内在) ② version inline/local cache (`INLINE_VERSION_OPT` + `_PROMOTION` + `REUSE_VERSION`)
