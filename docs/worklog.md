@@ -281,3 +281,56 @@ verifier が正しい CC を緑・壊れた CC を赤と判定し構造化フィ
    全探索 (有限空間)。critic / profiler サブエージェントを `agent-architecture.md` 仕様で実体化。
 2. タスク6 (orchestrator 骨格: campaign-id/WAL/リカバリ/排他) も Phase 2 の前提として配線。
 3. (任意増分) mocc trace-hook (visible-reads の trace 検証 + verifier 2nd エンジン化)、ermia cross-check。
+
+---
+
+## 2026-06-19 (続き) — タスク6 (orchestrator 骨格) STAGE2 + 敵対レビュー硬化
+
+### STAGE1 (前段, commit `6daf1a6`)
+
+orchestrator を DB トランザクション実行エンジンの原理で設計 (orchestrator-design.md)。machine 非依存の
+骨格: `model` (Genome/CampaignConfig/CampaignId/WalRecord/EvalState)、`genome` (最適化フラグ超立方体 +
+制約付き列挙、silo 2^4=16→no-wait 相互排他で 12 有効)、`ident` (campaign 同一性=内容ハッシュ、D13)、
+`layout` (出力二軸)、`wal` (追記+fsync+リプレイ+atomicity+末尾切れトレラント)、`lock` (machine-wide
+fcntl ベンチ排他)。モックテスト 15。
+
+### STAGE2 — 評価パイプライン統合 (build→verify→[bench]→commit)
+
+`buildcache` (genome→バイナリ。内容キーで trace/perf **別ビルド** 規律1、ccache warm)、`pipeline`
+(評価状態機械)、`loop` (同一性確定→リカバリ→未評価 genome 評価)、`demo` (end-to-end 配線テスト)。
+**demo を実機で完走**: silo 2 variant (BACK_OFF on/off) が build→verify→bench→commit、両 **certified
+SERIALIZABLE** (タスク5a と一致: BACK_OFF=1 で 272K txn / =0 で 571K txn)、run2 で recovery が両 skip。
+規律1 を buildcache 経路で再確認 (perf build に izanagi_trace symbol **0** / trace build に **6**、`nm`)。
+
+### 敵対レビュー (workflow 32 agent / 1.36M tok) → 規律2/A の穴を発見・硬化
+
+STAGE2 は規律1・2 を engine が自動執行する統合点。5次元 review → 各 finding を敵対検証する workflow で
+**confirmed 20**。本質クラスタ:
+- **規律2 (false-green):** `_run_trace` が trace バイナリの returncode を無視 + 空トレース (commit 0) を
+  verify に渡すと空 DSG が `serializable=True` に化け **certified**。異常終了/部分実行/空実行が「正しさ
+  ゲート通過」になっていた。trace なし (ParseError) は campaign ごとクラッシュ。
+- **A (atomicity):** bench 測定失敗 (median=None) を fitness 無しの STAGE_COMMIT で terminal 化 →
+  リカバリで永久 skip。半端な評価を採用済みにしていた。
+- **overnight 耐性:** 1 genome の評価例外が campaign 全体を停止 + abort 記録なし → 再起動で同地点再クラッシュ。
+- 防御: 偽キャッシュヒット (commit 未照合)、settle を genome ごと呼ぶ (calibrator 契約違反・規律4 の時間浪費)、
+  records 二重指定、path traversal、WAL 親 dir 未 fsync、high_variance 落とし。
+
+**硬化 (実装済み):**
+- pipeline: **正しさを確証できない全経路を abort に倒す** — verifier red だけでなく build 失敗・trace 異常
+  終了 (rc≠0)・空トレース (commit 0)・パース不能・timeout・bench 測定失敗。`_run_trace` は `(ncommit, rc)`
+  を返し呼び手が rc を必ず検査。bench 失敗は fitness 無し COMMIT を書かず abort (A)。high_variance を WAL 記録。
+- loop: per-variant 例外隔離 (例外も abort 記録で terminal 化し campaign 継続)、run 内 dedup、settle を
+  最初の実 bench の前 1 回のみ (calibrator 契約)。
+- buildcache: 宣言 ccbench_commit を submodule 実 HEAD と照合 (偽ヒット防止)。layout: campaign-id の
+  path traversal 関所。wal: 初回作成時に親 dir も fsync (D)。
+
+テスト **15→28** (規律2 の abort 自動執行を全 reject 経路で回帰テスト化、loop 例外隔離/dedup、commit 照合、
+path 防御)。硬化後の green-path を実機で再確認 (build cache hit→実 trace 272808 commit→certified)。
+verifier 15 / calibrator 23 回帰なし。
+
+### 次の一手
+
+1. **Phase 2 着手** — `docs/phase2.md` + critic/profiler 実体化。タスク6 ループを実 fitness (確定
+   calibration 1m/48thread/skew0.9) に切り替え、silo 12 genome の全探索を最初の実験に。
+2. (任意) do_bench 同一性の構造化 (現状は trial 隔離が前提・呼び手契約)、bench 失敗を terminal-abort と
+   するか retry とするかの方針確定。
