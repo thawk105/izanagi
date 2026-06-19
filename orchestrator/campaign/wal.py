@@ -42,6 +42,7 @@ def append(layout: CampaignLayout, record: WalRecord) -> None:
     """WAL に 1 レコードを追記。flush+fsync で耐久化。"""
     os.makedirs(layout.runs_dir, exist_ok=True)
     line = _record_to_line(record) + "\n"
+    new_file = not os.path.exists(layout.wal_file)
     # 'a' は O_APPEND 相当でレコード境界がアトミックに近い。fsync でディスクまで。
     fd = os.open(layout.wal_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
     try:
@@ -49,6 +50,14 @@ def append(layout: CampaignLayout, record: WalRecord) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+    if new_file:
+        # 初回作成時はディレクトリエントリも fsync し、WAL ファイルの存在自体を耐久化
+        # する (D)。これが無いとファイル作成直後のクラッシュで WAL ごと失われうる。
+        dfd = os.open(layout.runs_dir, os.O_RDONLY)
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
 
 
 def log(layout: CampaignLayout, variant: str, stage: str, env_tag: str,

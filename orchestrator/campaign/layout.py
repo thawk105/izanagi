@@ -25,9 +25,11 @@ from dataclasses import dataclass
 
 
 def repo_output_root() -> str:
-    """リポジトリ直下の output/ (orchestrator/campaign/layout.py からの相対)。"""
-    here = os.path.dirname(os.path.abspath(__file__))
-    repo = os.path.dirname(os.path.dirname(os.path.dirname(here)))
+    """リポジトリ直下の output/ (orchestrator/campaign/layout.py からの相対)。
+
+    layout.py = <repo>/orchestrator/campaign/layout.py → repo は dirname×2。"""
+    here = os.path.dirname(os.path.abspath(__file__))     # <repo>/orchestrator/campaign
+    repo = os.path.dirname(os.path.dirname(here))         # <repo>
     return os.path.join(repo, "output")
 
 
@@ -72,8 +74,14 @@ class CampaignLayout:
 
 
 def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
+    cid = str(campaign_id)
+    # campaign-id は slug (人間入力由来) を含む。パス区切り/相対参照が混じると
+    # output/campaigns/ の外へ書き出しうる → 関所で弾く (path traversal 防御)。
+    if (not cid or cid in (".", "..") or cid.startswith(".")
+            or os.sep in cid or (os.altsep and os.altsep in cid)):
+        raise ValueError(f"不正な campaign_id (パス区切り/相対参照を含む): {cid!r}")
     root = output_root or repo_output_root()
-    return CampaignLayout(root=os.path.join(root, "campaigns", str(campaign_id)))
+    return CampaignLayout(root=os.path.join(root, "campaigns", cid))
 
 
 def env_scope_dir(env_tag: str, output_root: str = "") -> str:
