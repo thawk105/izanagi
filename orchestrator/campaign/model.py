@@ -1,0 +1,115 @@
+# -*- coding: utf-8 -*-
+"""Izanagi orchestrator (campaign engine) — データモデル。
+
+orchestrator を **DB のトランザクション実行エンジンの原理**で設計する
+(orchestrator-design.md)。ここに置くのはその語彙の中間表現:
+- `Genome` — variant の遺伝子 = 最適化フラグの割り当て (ビルドキャッシュキーの素)
+- `CampaignConfig` / `CampaignId` — campaign 同一性 (内容ハッシュ、D13)
+- `WalRecord` — 評価ログ (WAL) の 1 レコード。env-tag 必須
+- `EvalState` — WAL リプレイで復元する variant ごとの評価状態 (A: atomicity)
+
+設計対応 (orchestrator-design.md):
+  Genome/評価 = トランザクション / WalRecord = WAL / EvalState = リカバリの復元単位
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
+
+# 評価パイプラインの段 (orchestrator-design.md A/D)。commit が唯一のコミットポイント。
+STAGE_BUILD_START = "build_start"
+STAGE_BUILD_DONE = "build_done"
+STAGE_VERIFY_DONE = "verify_done"
+STAGE_BENCH_DONE = "bench_done"
+STAGE_COMMIT = "commit"
+STAGE_ABORT = "abort"        # 段で失格 (verifier red 等)。commit と同じく終端だが不採用
+STAGES = (STAGE_BUILD_START, STAGE_BUILD_DONE, STAGE_VERIFY_DONE,
+          STAGE_BENCH_DONE, STAGE_COMMIT, STAGE_ABORT)
+
+
+@dataclass(frozen=True)
+class Genome:
+    """variant 一つ = (protocol, 最適化フラグ割り当て)。
+
+    フラグはビルド時 `-D` define (CCBench は最適化を cmake CACHE で受ける、anatomy §3)。
+    `canonical()` が決定論的な正準文字列 = ビルドキャッシュキー兼 provenance。
+    """
+    protocol: str
+    flags: Dict[str, int]
+
+    def canonical(self) -> str:
+        """フラグを名前順に並べた正準表現。同じ割り当ては必ず同じ文字列。"""
+        body = ",".join(f"{k}={self.flags[k]}" for k in sorted(self.flags))
+        return f"{self.protocol}|{body}"
+
+    def cmake_defines(self) -> List[str]:
+        """cmake に渡す `-DCCBENCH_<FLAG>=<v>` のリスト。"""
+        return [f"-DCCBENCH_{k}={self.flags[k]}" for k in sorted(self.flags)]
+
+
+@dataclass(frozen=True)
+class CampaignConfig:
+    """campaign 同一性を決める入力 (D13)。**env は含めない**・**date は含めない**。
+
+    ハッシュ対象 = spec の**内容** + ccbench-commit + 探索 config (ablation / Tier 集合 /
+    scale protocol) + trial。spec を編集して名前据え置きでも内容が変われば別 campaign に
+    なる (honest-by-construction, §3.4 改竄識別)。
+    """
+    spec_slug: str              # 可読プレフィクス (例 readheavy-locont)
+    search_tag: str             # ablation 軸 (例 fullsearch / llmguided)
+    spec_content: str           # 入力 spec の**中身** (名前でなく)
+    ccbench_commit: str         # 素材コーパスの版
+    search_config: Dict[str, str] = field(default_factory=dict)  # ablation/Tier/scale
+    trial: Optional[str] = None  # 入力同一でも別 campaign を切るとき (seed study 等)
+
+
+@dataclass(frozen=True)
+class CampaignId:
+    """`<spec-slug>-<search-tag>-<cfg-hash8>` (git の name@digest 型)。"""
+    slug: str
+    search_tag: str
+    cfg_hash8: str
+
+    def __str__(self) -> str:
+        return f"{self.slug}-{self.search_tag}-{self.cfg_hash8}"
+
+
+@dataclass
+class WalRecord:
+    """WAL の 1 行 (campaigns/<id>/runs/ への逐次追記)。
+
+    env-tag は**必須フィールド** (orchestrator-design.md 環境タグ節)。性能比較は
+    linux タグの record しか読まない。1 campaign が Mac (ダミー fitness) と Linux
+    (実 fitness) の record を併存させ、射影時に env でフィルタする。
+    """
+    variant: str                # Genome.canonical() のハッシュ (variant の id)
+    stage: str                  # STAGES のいずれか
+    env_tag: str                # linux-baremetal / mac-devcontainer (必須)
+    ts: float                   # 追記時刻 (provenance。同一性キーではない)
+    payload: Dict = field(default_factory=dict)  # 段ごとの内容 (binary hash / verdict / tps 等)
+
+
+@dataclass
+class EvalState:
+    """1 variant の評価状態 (WAL リプレイで復元)。
+
+    A (atomicity): commit レコードがある variant だけ「採用済み」。なければ
+    リカバリ時に破棄 (rollback)。half-evaluated を population に混ぜない。
+    """
+    variant: str
+    stages_seen: List[str] = field(default_factory=list)
+    committed: bool = False
+    aborted: bool = False
+    env_tag: Optional[str] = None
+    last: Optional[WalRecord] = None
+
+    @property
+    def terminal(self) -> bool:
+        """終端 (commit=採用 / abort=不採用) に達したか。"""
+        return self.committed or self.aborted
+
+    @property
+    def resumable(self) -> bool:
+        """未終端 = リカバリで破棄して再評価すべき (in-flight でクラッシュした)。"""
+        return not self.terminal
