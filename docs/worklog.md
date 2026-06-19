@@ -334,3 +334,52 @@ verifier 15 / calibrator 23 回帰なし。
    calibration 1m/48thread/skew0.9) に切り替え、silo 12 genome の全探索を最初の実験に。
 2. (任意) do_bench 同一性の構造化 (現状は trial 隔離が前提・呼び手契約)、bench 失敗を terminal-abort と
    するか retry とするかの方針確定。
+
+---
+
+## 2026-06-20 — Phase 2 着手 (P2-0 verifier 大規模 sanity + CCBench 隠れ前提3つを露呈)
+
+### Phase 2 設計 (`docs/phase2.md`)
+
+roadmap §9 (パラメータ探索) + 層2(a) 全探索 + §3.5 leading indicators + §3.6 測定安定性 +
+agent-architecture (critic/profiler) に基づきタスク分解。**初手は silo フラグ空間の全探索**
+(有限・ground truth) → LLM 誘導探索と比較 (論文の図)。P2-0(verifier大規模sanity)→P2-1(測定安定性)
+→P2-2(実fitness全探索)→P2-3(leading indicators+critic)→P2-4(profiler)→P2-5(LLM誘導vs全探索)。
+
+### P2-0: silo verifier 大規模 sanity = 「緑を取りこぼさない」実証
+
+パラメータ variant は CCBench 由来で理屈上全緑のはず。silo 全 genome を build(trace+perf)→verify
+→commit (do_bench=False, 計測なし) で回す。**全探索が網羅的だからこそ、普段コンパイル/実行されない
+経路の隠れた前提を3つ露呈** (roadmap §2(a) の狙い通り):
+
+1. **WAL `10^9` XOR バグ** (build-error): `ftruncate(10 ^ 9)` は XOR で 3 (意図は 1e9=1GB)。
+   gcc-13 -Werror で fail。silo/ss2pl の WAL 経路 5箇所。WAL=0 default では未コンパイルで潜伏。
+   → ユーザー判断で **izanagi-trace `6656e93`** に修正 (10^9→1000000000)。gitlink 前進。
+   master 還元用 fix ブランチ `fix/silo-wal-ftruncate-xor` を用意 (push 認証なし→人間が PR)。
+   `output/insights/2026-06-19_ccbench-silo-wal-ftruncate-xor-bug.md`。
+2. **WAL log/ 前提** (SIGABRT rc=-6): WAL の log は `<cwd>/log/log<thid>` (fileio.hh genLogFileName)。
+   log/ 不在で open 失敗 → LibcError → uncaught → terminate。CCBench バグでなく運用前提
+   (genLogFileName が mkdir しない)。→ `_run_trace` を cwd=trace_dir + log/ 用意に修正
+   (trace_dir 使い捨てで log も消える)。trace/perf 両 build で SIGABRT = WAL 全般の前提。
+3. **両 no-wait=0 ハング** (trace-timeout): wait validation の silo は high/mid/low(uniform) 全
+   contention で trace 取得 timeout (構成自体のハング、livelock 疑い)。P2-0 から除外 (sanity_silo.py)。
+   **perf build で動くか = 構成病理か trace 特有かは P2-2 で確認** (動けば探索空間に残す)。
+
+### 硬化が2回機能 (敵対レビュー硬化の実機実証)
+
+build-error と SIGABRT を `evaluate` が abort 隔離し campaign は完走 (クラッシュなし)。特に
+SIGABRT 後の部分トレースは、硬化前なら空 DSG 経由で false-green certified になっていた
+(規律2 の自動執行が `_run_trace` の rc 検査で防いだ)。STAGE2 敵対レビュー硬化の価値を実機で実証。
+
+### 結果: P2-0 PASS
+
+両 no-wait=0 除外 + WAL 修正後、**WAL=0/1 各 4 = silo 8 genome 全て certified serializable**
+(false-red ゼロ)。verifier が大量の正しい variant を緑と判定できる実証 = タスク3「赤を出せる」と
+対の「緑を取りこぼさない」を達成。テスト 28/15/23 回帰なし。
+
+### 次の一手
+
+1. **P2-1 (測定安定性 §3.6 (2)(4))** — 純ロジック (calibrator と同型、モックテスト)。
+2. **P2-2 (実 fitness 全探索)** — 確定 calibration で silo を計測 (直列)。**両 no-wait=0 が perf で
+   動くか**を最初に確認 (動けば 12 genome、動かねば genome.py に除外制約)。runner も WAL log/ 対応要。
+3. master PR (`fix/silo-wal-ftruncate-xor`) は人間が push (push 認証なし)。
