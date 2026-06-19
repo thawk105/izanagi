@@ -81,8 +81,12 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
     args = [binary] + [f"-{k}={v}" for k, v in flags.items()] \
         + [f"-clocks_per_us={clocks_per_us}"]
     env = dict(os.environ, IZANAGI_TRACE_DIR=trace_dir)
+    # WAL=1 の genome は cwd/log/log<thid> に log を書く (CCBench fileio.hh genLogFileName)。
+    # log/ が無いと open 失敗で LibcError → uncaught → SIGABRT。cwd を trace_dir にし log/ を
+    # 用意する (trace_dir は使い捨て → log も一緒に消える。trace 出力は IZANAGI_TRACE_DIR で別制御)。
+    os.makedirs(os.path.join(trace_dir, "log"), exist_ok=True)
     proc = subprocess.run(args, env=env, capture_output=True, text=True,
-                          timeout=timeout_s)
+                          timeout=timeout_s, cwd=trace_dir)
     n = 0
     if os.path.isdir(trace_dir):
         for fn in os.listdir(trace_dir):
