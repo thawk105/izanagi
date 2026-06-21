@@ -5,6 +5,7 @@
   perfparse  — perf stat 出力 → PerfCounters
   benchparse — ccbench stdout → メトリクス辞書
   analyze    — find_saturation / scale_sensitivity / noise_floor
+  stability  — remeasure_until_stable / compare / mann_whitney_u (§3.6 (2)(4))
   report     — CalibrationResult → text / dict
   model      — データモデル
 

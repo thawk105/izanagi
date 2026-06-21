@@ -217,7 +217,7 @@ def _tmp_layout():
 
 @contextlib.contextmanager
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
-                   build_raises=False, high_variance=False):
+                   build_raises=False, high_variance=False, unstable=False):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。"""
@@ -250,12 +250,21 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     patch("verify_trace_dir", lambda tdir: types.SimpleNamespace(
         verdict="serializable" if certified else "non-serializable",
         certified=certified, anomalies=[] if certified else [object()]))
+    def fake_remeasure(measure_fn, settle_fn=None, **k):
+        # 自動再測定を 1 ラウンドに畳む。measure_fn を呼ぶことで実 bench の証跡を残し、
+        # 実 noise_floor 同様 throughput が空なら median=None。median/cv/unstable は引数で操作。
+        pt = measure_fn()
+        nf = types.SimpleNamespace(
+            median=(median if pt.throughputs else None), cv=cv,
+            high_variance=high_variance)
+        return types.SimpleNamespace(point=pt, nf=nf, rounds=1,
+                                     stable=not unstable, unstable=unstable,
+                                     cv_history=[cv])
+
     patch("bench_lock", fake_lock)
     patch("settle", lambda *a, **k: None)
     patch("measure_point", fake_measure)
-    # 実 noise_floor 同様、throughput が空なら median=None を返す。
-    patch("noise_floor", lambda tps: types.SimpleNamespace(
-        median=(median if tps else None), cv=cv, high_variance=high_variance))
+    patch("remeasure_until_stable", fake_remeasure)
     try:
         yield bench_calls
     finally:
@@ -337,6 +346,21 @@ def test_pipeline_bench_no_throughput_aborts():
     assert st.aborted and not st.committed
     assert STAGE_VERIFY_DONE in st.stages_seen   # 正しさゲートは通過している
     assert STAGE_COMMIT not in st.stages_seen
+
+
+def test_pipeline_unstable_commits_but_flags_for_exclusion():
+    """§3.6(2): 規定ラウンドでも CV が収束しない測定は reject しない (正しさは通過済み) が、
+    unstable フラグを EvalResult と WAL に立てる。採否の分布比較から呼び手が除外できるように
+    する (沈黙して 1 点を採用しない)。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True, unstable=True)
+    assert r.certified and not r.aborted
+    assert r.fitness_tps == 12345.0 and r.unstable is True
+    st = wal.replay(lay)[r.variant]
+    assert st.committed and STAGE_COMMIT in st.stages_seen   # 不採用ではない
+    commit = [rec for rec in wal.read_records(lay)
+              if rec.variant == r.variant and rec.stage == STAGE_COMMIT]
+    assert commit and commit[-1].payload.get("unstable") is True
 
 
 def test_pipeline_build_error_aborts():

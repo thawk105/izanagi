@@ -24,8 +24,8 @@ import sys as _sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _sys.path.insert(0, os.path.dirname(_HERE))   # orchestrator/ を import パスに
 
-from calibrator.analyze import noise_floor                      # noqa: E402
 from calibrator.runner import measure_point, settle             # noqa: E402
+from calibrator.stability import remeasure_until_stable         # noqa: E402
 from verifier import verify_trace_dir                           # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
@@ -68,6 +68,7 @@ class EvalResult:
     aborted: bool
     fitness_tps: Optional[float] = None
     cv: Optional[float] = None
+    unstable: bool = False           # 規定ラウンドでも CV が収束しなかった (§3.6(2))
     verdict: str = ""
     notes: List[str] = field(default_factory=list)
 
@@ -180,30 +181,41 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # (入れると gflags last-wins で calibration の records を無言上書きする)。
     assert "ycsb_tuple_num" not in perf.workload, \
         "PerfConfig.workload に ycsb_tuple_num を入れない (records を上書きする)"
+
+    def _measure():
+        return measure_point(pf.binary, perf.records, perf.threads, clocks_per_us,
+                             extime=perf.extime, reps=perf.reps,
+                             workload=perf.workload, numactl=numactl)
+
+    # 外れ値 → 自動再測定 (§3.6(2)): 反復内 CV が閾値超なら静定して測り直す。規定ラウンドで
+    # 収束しなければ unstable。再測定の実走も全て bench_lock 下 = 単一テナント直列 (絶対規律4)。
     with bench_lock():
         if do_settle:
             settle()
-        pt = measure_point(pf.binary, perf.records, perf.threads, clocks_per_us,
-                           extime=perf.extime, reps=perf.reps,
-                           workload=perf.workload, numactl=numactl)
-    nf = noise_floor(pt.throughputs)
-    if nf.median is None:
+        rem = remeasure_until_stable(_measure,
+                                     settle_fn=settle if do_settle else None)
+    pt, nf = rem.point, rem.nf
+    if nf is None or nf.median is None:
         # 全 rep で throughput が取れず測定不能 → fitness 無しの COMMIT を書かない。
         # 半端な評価を terminal commit にして永久 skip させない (A: atomicity)。
         return _abort("bench-no-throughput", "bench 測定失敗 (throughput 無し) → reject",
-                      {"tps": pt.throughputs})
-    res.fitness_tps, res.cv = nf.median, nf.cv
+                      {"tps": getattr(pt, "throughputs", None), "rounds": rem.rounds})
+    res.fitness_tps, res.cv, res.unstable = nf.median, nf.cv, rem.unstable
     wal.log(layout, v, STAGE_BENCH_DONE, env_tag,
             {"median_tps": nf.median, "cv": nf.cv,
-             "high_variance": nf.high_variance, "tps": pt.throughputs,
+             "high_variance": nf.high_variance, "unstable": rem.unstable,
+             "rounds": rem.rounds, "cv_history": rem.cv_history,
+             "tps": pt.throughputs,
              "run_cmd": pt.run_cmd})              # この測定点を再現する実行コマンド
     log(f"  [eval {v}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
-        f"{' ⚠high-variance' if nf.high_variance else ''})")
+        f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
+        f"{' ⚠UNSTABLE' if rem.unstable else ''})")
 
     # --- commit (A: 全段通過した瞬間だけ) ---
-    # high_variance は外乱で歪んだ可能性のフラグ。reject はしないが provenance に残す
-    # (fitness 比較で重みを下げる/再測定する判断は呼び手・射影側に委ねる)。
+    # unstable は規定ラウンドでも CV が収束しなかった印 = この 1 点を信用するな。正しさは
+    # 通っているので reject はしないが、採否の分布比較から呼び手が除外する
+    # (§3.6(4): 沈黙して 1 点を採用しない)。high_variance は採用ラウンド自体の騒がしさ。
     wal.log(layout, v, STAGE_COMMIT, env_tag,
             {"fitness_tps": nf.median, "cv": nf.cv,
-             "high_variance": nf.high_variance})
+             "high_variance": nf.high_variance, "unstable": rem.unstable})
     return res
