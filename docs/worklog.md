@@ -452,3 +452,38 @@ calibration/WAL に **実ビルド/実行コマンド**を記録し、近似再�
 **P2-1 (測定安定性 §3.6 (2)(4))** — 純ロジック・機械非依存・モックテスト。(1)(3) (noise floor + 反復
 中央値・CV) の上に (2) 外れ値→自動再測定 + (4) 分布比較 (noise floor 以下は「差なし」、超えは
 Mann-Whitney U) + unstable 除外を積む。計測を伴わないので直列規律 (規律4) に抵触しない。
+
+---
+
+## 2026-06-21 (続き) — P2-1 完了: 測定安定性 (2)(4)
+
+(1)(3) (noise floor + 反復中央値・CV) の上に (2)(4) を積んだ。**純ロジック + callable 注入**で machine に
+触れずモックテスト (実走は pipeline が bench_lock 下=直列、絶対規律4 不変)。
+
+新規 `calibrator/stability.py`:
+
+- **(2) 外れ値→自動再測定** `remeasure_until_stable(measure_fn, settle_fn, cv_threshold=5%, max_rounds=3)`:
+  反復内 CV が閾値超なら静定して測り直し、規定ラウンドで収束しなければ `unstable`。採用は最も CV が
+  低かったラウンド (収束したらその点)。2 ラウンド目以降のみ静定 (1 回目は campaign 冒頭で済)。
+- **(4) 採否は分布比較** `compare(baseline, variant, noise_cv, alpha=0.05)`: ① noise floor 以下の中央値差は
+  「差なし」に丸める (信用してよい差の下限) → ② 超える差にだけ `mann_whitney_u` を当て有意なら
+  faster/slower。MWU は正規近似 + tie/連続補正の自前実装 (scipy 非依存 = 「重い統計機構不要」、erf のみ)。
+  **unstable variant は呼び手が比較から除外する** (沈黙して 1 点を採用しない)。
+
+pipeline.py 配線:
+
+- bench 段を単発 `measure_point` → `remeasure_until_stable` に置換 (実走は bench_lock 内のまま=直列)。
+- `EvalResult.unstable` 追加。WAL `STAGE_BENCH_DONE` に rounds/cv_history/unstable、`STAGE_COMMIT` に
+  unstable を記録 → 採否の分布比較 (P2-2) が除外判断に使える。
+- unstable でも reject しない (正しさは通過済み)。「沈黙して 1 点を採用しない」は分布比較からの除外で担保。
+
+テスト: `test_stability.py` 12 (remeasure 収束/後続収束/unstable最小CV採用/単点除外、MWU 同分布/完全分離/空、
+compare 床下/有意faster/slower/床上非有意/空) + `test_campaign` に unstable 伝播 1。**86 passed**
+(verifier15/calib23/campaign29/reports7/stability12)。
+
+### 次の一手
+
+**P2-2 (silo 全探索)** — ここから実機計測 (直列)。確定 calibration で silo 12 genome を実 fitness 評価し、
+`compare` で workload 別の最速構成を**分布比較**で特定 → D12 材料レポートに射影。**両 no-wait=0 が perf
+build で動くか** (P2-0 で trace timeout した3構成) を最初に確認 → 動けば 12、動かねば genome.py に除外制約。
+runner も WAL log/ 対応要 (P2-0 で _run_trace は対応済、perf 経路も同様に要確認)。
