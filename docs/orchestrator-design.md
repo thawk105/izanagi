@@ -107,6 +107,17 @@ output/
 
 ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` のキャンペーンスコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor の書き込み先は `output/env/<env-tag>/`。
 
+### 材料レポートの出力規約 (再現性が一級市民)
+
+`reports/` (および env スコープの `calibration/`) の各図は **3点セット + md** で残す。グラフを画像だけにせず**生成手段とデータを必ず添える** (roadmap §3.6(4)・§7 forensic binding = claim→code→evidence の proof chain):
+
+- `<name>.dat` — gnuplot 用データ。**ヘッダに provenance (env / ccbench-commit / clocks_per_us / workload) と「手打ち再現コマンド」を `#` コメントで埋める**。.dat 単体で「どの実行コマンドからこの数値が出たか」を辿れ、後で手打ち実行でも近似結果を再現できる。
+- `<name>.plt` — gnuplot スクリプト。人間が `gnuplot <name>.plt` で図を再生成できる。
+- `<name>.png` — 描画結果。`report.md` に埋め込む (人間が読みやすい)。
+- `report.md` — グラフ + 数値表 + provenance + 再現コマンドを束ねた人間可読レポート (D12)。
+
+射影器は `orchestrator/reports/` (`plot.py` = gnuplot ラッパ + `DatFile`、`calibration_report.py` が最初の実例)。throughput 等の生値を WAL に残すのと同じ anti-fabrication の思想で、「グラフは綺麗だが何から作ったか不明」という静かな汚染を断つ。**性能数値の比較に使う図は trace-disabled build の計測値のみ**から作る (絶対規律1)。
+
 ### campaign とは何か
 
 1回の合成パイプライン起動を、**(入力 spec, 探索 config) を固定したもの**として定義する。2つの起動が「同じ campaign (=リカバリで再開する)」であるのは (spec, 探索 config) が一致するときだけ。ablation (full探索 vs LLM誘導、OEE on/off、有効 Tier 集合) や CCBench commit、scale protocol が違えば**別 campaign** になる — roadmap が随所で要求する「足す/抜く比較」がこれで素直に並ぶ。実測値 (calibration が決めるレコード数など) は同一性の入力ではなく、campaign 内に記録される派生値。
