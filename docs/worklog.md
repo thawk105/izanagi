@@ -383,3 +383,33 @@ SIGABRT 後の部分トレースは、硬化前なら空 DSG 経由で false-gre
 2. **P2-2 (実 fitness 全探索)** — 確定 calibration で silo を計測 (直列)。**両 no-wait=0 が perf で
    動くか**を最初に確認 (動けば 12 genome、動かねば genome.py に除外制約)。runner も WAL log/ 対応要。
 3. master PR (`fix/silo-wal-ftruncate-xor`) は人間が push (push 認証なし)。
+
+---
+
+## 2026-06-20 (続き) — CCBench PR 還元 + 材料レポート射影器 (gnuplot + 再現性)
+
+### WAL バグ master 還元完了
+
+ユーザーが fix ブランチを push し **PR #116 を master にマージ** (origin/master `2574412`、
+`10^9`→`1000000000` が5箇所反映)。P2-0 で掘り当てた CCBench バグが上流還元された。izanagi-trace
+`6656e93` (探索用) と master の修正は同一内容。izanagi-trace の push と master 完全追従 (rebase)
+は後日 (探索は 6656e93 で問題なし)。
+
+### 材料レポート射影器 (再現性が一級市民)
+
+ユーザー要望: .dat に生成コマンドをコメントで埋め手打ち再現可能にし、報告レポートに gnuplot
+グラフを入れ人間可読にする → forensic binding (roadmap §3.6(4)/§7) の前倒し実装。
+
+`orchestrator/reports/`:
+- `plot.py` — gnuplot ラッパ。`DatFile` がヘッダに provenance + **手打ち再現コマンド**を `#`
+  コメントで埋める。`make_plot` が .dat/.plt/.png 3点セット + gnuplot 描画 (noenhanced で `_` を
+  リテラル表示)。
+- `calibration_report.py` — calibration json → .dat/.plt/.png + report.md (最初の実例)。
+  records 掃引の miss率/maxrss を 2軸グラフ + 数値表 + 再現コマンドに射影。
+- 実機 calibration (skew0.9 / uniform) を材料レポート化 (png 検証済み)。テスト 6。
+- 出力規約を orchestrator-design.md に明記 (各図 = .dat[再現コマンド]+.plt+.png+md、性能比較図は
+  trace-disabled のみ = 規律1)。
+
+**残**: runner が組み立てる実行コマンドを WAL/calibration に記録する配線 (今は reports 射影器が
+workload から再構成・binary placeholder = 近似再現)。実コマンド記録で provenance を完全化するのは
+次の改善。
