@@ -66,6 +66,16 @@ def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,
     return cmd
 
 
+def repro_command(binary: str, gflags: Sequence[str],
+                  numactl: Optional[Sequence[str]] = None) -> str:
+    """測定点を手で再現するコマンド文字列。perf の `-o` 出力先 (一時ファイル) は外す =
+    再現に無関係。実験再現用に ScalePoint.run_cmd / WAL に残す (forensic binding)。"""
+    parts = list(numactl) if numactl else []
+    parts += ["perf", "stat", "-e", ",".join(PERF_EVENTS), "--", binary]
+    parts += list(gflags)
+    return " ".join(parts)
+
+
 def run_once(binary: str, gflags: Sequence[str],
              numactl: Optional[Sequence[str]] = None,
              timeout_s: float = 120.0):
@@ -120,7 +130,8 @@ def measure_point(binary: str, records: int, threads: int,
     for k, v in (workload or {}).items():
         base_flags.append(f"-{k}={v}")
 
-    pt = ScalePoint(records=records, threads=threads)
+    pt = ScalePoint(records=records, threads=threads,
+                    run_cmd=repro_command(binary, base_flags, numactl))
     rep_results = []   # (tps, counters, wall, maxrss_kb)
     for _ in range(reps):
         metrics, counters, wall = run_once(binary, base_flags, numactl=numactl)

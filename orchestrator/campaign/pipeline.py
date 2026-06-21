@@ -130,7 +130,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         return _abort("build-error", f"ビルド失敗 → reject ({e})")
     wal.log(layout, v, STAGE_BUILD_DONE, env_tag,
             {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
-             "trace_cached": tr.cached, "perf_cached": pf.cached})
+             "trace_cached": tr.cached, "perf_cached": pf.cached,
+             # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
+             "perf_configure_cmd": pf.configure_cmd, "perf_build_cmd": pf.build_cmd})
     log(f"  [eval {v}] built trace={tr.bin_hash}{'(cache)' if tr.cached else ''} "
         f"perf={pf.bin_hash}{'(cache)' if pf.cached else ''}")
 
@@ -193,7 +195,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     res.fitness_tps, res.cv = nf.median, nf.cv
     wal.log(layout, v, STAGE_BENCH_DONE, env_tag,
             {"median_tps": nf.median, "cv": nf.cv,
-             "high_variance": nf.high_variance, "tps": pt.throughputs})
+             "high_variance": nf.high_variance, "tps": pt.throughputs,
+             "run_cmd": pt.run_cmd})              # この測定点を再現する実行コマンド
     log(f"  [eval {v}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{' ⚠high-variance' if nf.high_variance else ''})")
 

@@ -59,6 +59,7 @@ class ScalePoint:
     walltime_s: Optional[float] = None    # 1 run の実時間 (コスト指標)
     maxrss_kb: Optional[int] = None       # 常駐メモリ (working set の実測代理。
                                           # 下限判定 = working set vs L3 に使う)
+    run_cmd: str = ""                     # この測定点を再現する実行コマンド (forensic binding)
 
     @property
     def miss_rate(self) -> Optional[float]:

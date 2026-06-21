@@ -24,6 +24,20 @@ def _repro_command(threads, clk, workload: Dict[str, str],
             f"  {wl} -extime={extime} -clocks_per_us={clk}")
 
 
+def _build_command(ccbench_commit: str = "", cc: str = "g++-13") -> str:
+    """calibration バイナリを作るビルドコマンド (silo 標準 Release、最適化フラグ default)。
+
+    注: calibration は genome 非依存の baseline silo を使うので最適化 -D は付かない。
+    探索 variant のビルドコマンドは buildcache が genome ごとに正確に記録する (WAL)。"""
+    head = "# silo 標準 Release build (calibration は最適化フラグ default)"
+    if ccbench_commit:
+        head += f"; ccbench={ccbench_commit}"
+    return (f"{head}\n"
+            f"cmake -S external/ccbench -B build -DCMAKE_BUILD_TYPE=Release \\\n"
+            f"  -DENABLE_SANITIZER=OFF -DCMAKE_CXX_COMPILER={cc}\n"
+            f"cmake --build build --target ycsb_silo.exe -j")
+
+
 def calibration_report(cal_json_path: str, out_dir: str,
                        ccbench_commit: str = "", extime: int = 3) -> Dict[str, str]:
     """calibration json を読み .dat/.plt/.png + report.md を out_dir に生成しパスを返す。"""
@@ -52,13 +66,14 @@ def calibration_report(cal_json_path: str, out_dir: str,
                         else f"saturated N={sat.get('records')}"),
     }
     repro = _repro_command(threads, clk, workload, extime=extime)
+    build_cmd = _build_command(ccbench_commit)
 
     rows = [[int(s["records"]), s["miss_rate"], int(s.get("maxrss_kb", 0))]
             for s in series]
     dat = DatFile(
         title=f"calibration sweep: {env} t{threads} ({prov['workload']})",
         columns=["records", "miss_rate", "maxrss_kb"],
-        rows=rows, provenance=prov, repro_command=repro)
+        rows=rows, provenance=prov, build_command=build_cmd, repro_command=repro)
 
     spec = PlotSpec(
         title=f"Calibration sweep ({env}, {threads} threads)",
@@ -72,7 +87,7 @@ def calibration_report(cal_json_path: str, out_dir: str,
     stem = os.path.join(out_dir, base + "_sweep")
     paths = make_plot(dat, spec, stem)
 
-    md = _render_md(env, threads, prov, repro, rows, nf,
+    md = _render_md(env, threads, prov, build_cmd, repro, rows, nf,
                     os.path.basename(paths["png"]), os.path.basename(paths["dat"]),
                     os.path.basename(paths["plt"]))
     md_path = os.path.join(out_dir, base + "_report.md")
@@ -82,7 +97,7 @@ def calibration_report(cal_json_path: str, out_dir: str,
     return paths
 
 
-def _render_md(env, threads, prov, repro, rows, nf, png, dat, plt) -> str:
+def _render_md(env, threads, prov, build_cmd, repro, rows, nf, png, dat, plt) -> str:
     L = [f"# Calibration 材料レポート — {env} / {threads} threads", "",
          "> 自動生成 (orchestrator/reports)。グラフ・`.dat`・`.plt` は全て手で再生成できる "
          "(.dat ヘッダに手打ち再現コマンドを埋めてある)。", "",
@@ -97,8 +112,9 @@ def _render_md(env, threads, prov, repro, rows, nf, png, dat, plt) -> str:
         L.append(f"- **noise floor**: median {nf.get('median', 0):,.0f} tps / "
                  f"CV {nf.get('cv', 0) * 100:.2f}% / N={len(nf.get('throughputs', []))}")
         L.append("")
-    L += ["## 手打ち再現 (近似)", "",
-          "各 records 点を手で再現するコマンド (`<records>` / `<build>` を置換):", "",
+    L += ["## 実験の再現 (ビルド → 実行)", "",
+          "**1. バイナリをビルド:**", "", "```bash", build_cmd, "```", "",
+          "**2. 各 records 点を実行** (`<records>` / `<build>` を置換):", "",
           "```bash", repro, "```", "",
           f"グラフは `gnuplot {plt}` で再生成 (データ = `{dat}`、同一 provenance)。", ""]
     return "\n".join(L)

@@ -22,9 +22,18 @@
 
 - **noise floor**: median 914,883 tps / CV 2.28% / N=10
 
-## 手打ち再現 (近似)
+## 実験の再現 (ビルド → 実行)
 
-各 records 点を手で再現するコマンド (`<records>` / `<build>` を置換):
+**1. バイナリをビルド:**
+
+```bash
+# silo 標準 Release build (calibration は最適化フラグ default)
+cmake -S external/ccbench -B build -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_SANITIZER=OFF -DCMAKE_CXX_COMPILER=g++-13
+cmake --build build --target ycsb_silo.exe -j
+```
+
+**2. 各 records 点を実行** (`<records>` / `<build>` を置換):
 
 ```bash
 numactl --interleave=all perf stat -e LLC-load-misses,LLC-loads,instructions,cycles -- \

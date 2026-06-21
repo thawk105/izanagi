@@ -32,7 +32,7 @@ def test_datfile_embeds_repro_command_and_provenance():
     assert "# cal" in s
     assert "# env: linux-baremetal" in s
     assert "# clocks_per_us: 1800" in s
-    assert "手打ち再現コマンド" in s
+    assert "実行再現コマンド" in s
     assert "numactl --interleave=all perf stat" in s   # 生成コマンドが # コメントに埋まる
     assert "# records\tmiss" in s                      # 列ヘッダも # コメント
     assert "1000\t0.2" in s                            # データ行は素のまま (gnuplot が読む)
@@ -46,6 +46,19 @@ def test_datfile_repro_command_lines_are_all_commented():
         # データ行は "1" のみ。コマンド行は全て # 始まり。
         if "line" in line:
             assert line.lstrip().startswith("#")
+
+
+def test_datfile_embeds_build_and_run_commands():
+    """実験を再現する **ビルド + 実行** コマンドが両方 # コメントに入る (ユーザー要件)。"""
+    dat = DatFile(
+        title="t", columns=["a"], rows=[[1]],
+        build_command="cmake -S external/ccbench -B build -DCCBENCH_WAL=1",
+        repro_command="numactl perf stat -- ./ycsb_silo -thread_num=48")
+    s = dat.render()
+    assert "ビルド再現コマンド" in s
+    assert "cmake -S external/ccbench -B build -DCCBENCH_WAL=1" in s
+    assert "実行再現コマンド" in s
+    assert "numactl perf stat -- ./ycsb_silo" in s
 
 
 def test_datfile_float_format_6g():

@@ -40,6 +40,8 @@ class BuildResult:
     bin_hash: str           # バイナリ内容の sha256[:16] (provenance / WAL)
     build_dir: str
     cached: bool            # キャッシュヒットで再ビルドを省いたか
+    configure_cmd: str = ""  # このバイナリを作る cmake configure (実験再現用)
+    build_cmd: str = ""      # cmake --build (実験再現用)
 
 
 def _bin_hash(path: str) -> str:
@@ -62,18 +64,24 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     target = f"ycsb_{genome.protocol}.exe"
     binary = os.path.join(bdir, "cc", genome.protocol, target)
 
-    if os.path.exists(binary):
-        return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=True)
-
+    # ビルドコマンドを先に組み立てる (cache hit でも実験再現用に BuildResult へ記録する)。
     defines = genome.cmake_defines() + [f"-DCCBENCH_TRACE={int(trace)}"]
     cfg = ["cmake", "-S", sub, "-B", bdir, "-DCMAKE_BUILD_TYPE=Release",
            "-DENABLE_SANITIZER=OFF", f"-DCMAKE_C_COMPILER={cc}",
            f"-DCMAKE_CXX_COMPILER={cxx}"] + defines
+    build_cmd = ["cmake", "--build", bdir, "--target", target, "-j", str(jobs)]
+    cfg_str, build_str = " ".join(cfg), " ".join(build_cmd)
+
+    if os.path.exists(binary):
+        return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=True,
+                           configure_cmd=cfg_str, build_cmd=build_str)
+
     _run(cfg, "configure")
-    _run(["cmake", "--build", bdir, "--target", target, "-j", str(jobs)], "build")
+    _run(build_cmd, "build")
     if not os.path.exists(binary):
         raise RuntimeError(f"build succeeded but binary missing: {binary}")
-    return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=False)
+    return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=False,
+                       configure_cmd=cfg_str, build_cmd=build_str)
 
 
 def _run(cmd: List[str], what: str) -> None:

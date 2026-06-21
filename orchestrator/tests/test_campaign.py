@@ -235,13 +235,15 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     def fake_measure(*a, **k):
         bench_calls.append(1)                            # 実 bench が走った証跡
         return types.SimpleNamespace(
-            throughputs=([] if median is None else [median, median]))
+            throughputs=([] if median is None else [median, median]),
+            run_cmd="<run>")
 
     def fake_build(genome, commit, trace):
         if build_raises:
             raise RuntimeError("build boom")
         return types.SimpleNamespace(bin_hash="dead" + ("t" if trace else "p"),
-                                     binary="/nonexistent/ycsb.exe", cached=False)
+                                     binary="/nonexistent/ycsb.exe", cached=False,
+                                     configure_cmd="<cfg>", build_cmd="<build>")
 
     patch("buildcache", types.SimpleNamespace(build=fake_build))
     patch("_run_trace", lambda *a, **k: (ncommit, rc))

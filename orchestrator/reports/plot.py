@@ -28,20 +28,27 @@ def _fmt(x) -> str:
 
 @dataclass
 class DatFile:
-    """gnuplot 用データファイル。ヘッダに provenance + 手打ち再現コマンドを埋める。"""
+    """gnuplot 用データファイル。ヘッダに provenance + **実験を再現するビルド/実行コマンド**を
+    `#` コメントで埋める → .dat 単体で「どう作った数値か」を辿れ手打ち再現できる。"""
     title: str
     columns: List[str]                                  # 列名 (順序 = rows の並び)
     rows: List[Sequence]                                # データ行
     provenance: Dict[str, str] = field(default_factory=dict)   # env/commit/clk 等
-    repro_command: str = ""                             # 手打ちで近似再現するコマンド
+    build_command: str = ""                             # バイナリを作る再現コマンド (cmake)
+    repro_command: str = ""                             # 各点を回す再現コマンド (実行)
 
     def render(self) -> str:
         out = [f"# {self.title}"]
         for k, v in self.provenance.items():
             out.append(f"# {k}: {v}")
+        if self.build_command:
+            out.append("#")
+            out.append("# ビルド再現コマンド (この実験のバイナリを作る):")
+            for line in self.build_command.splitlines():
+                out.append(f"#   {line}")
         if self.repro_command:
             out.append("#")
-            out.append("# 手打ち再現コマンド (この .dat の各点を生成する; <...> は置換):")
+            out.append("# 実行再現コマンド (この .dat の各点を生成する; <...> は置換):")
             for line in self.repro_command.splitlines():
                 out.append(f"#   {line}")
         out.append("#")
