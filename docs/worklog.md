@@ -413,3 +413,42 @@ SIGABRT 後の部分トレースは、硬化前なら空 DSG 経由で false-gre
 **残**: runner が組み立てる実行コマンドを WAL/calibration に記録する配線 (今は reports 射影器が
 workload から再構成・binary placeholder = 近似再現)。実コマンド記録で provenance を完全化するのは
 次の改善。
+
+---
+
+## 2026-06-21 — forensic binding 完成 (実コマンド記録) + 別セッション injection を受けた監査
+
+### セッション再開の経緯 (プロンプトインジェクション対応)
+
+隣で並行していたセッションが激しいプロンプトインジェクションを受けたため、ユーザーがセッションを
+作り直して再開。未コミットの作業 (12ファイル) が残っていた → **素性の信頼できない作業物**として扱い、
+コミット前に **3視点の敵対的監査** (security/injection・規律 compliance・correctness/completeness) を
+並列ワークフローで実施。全視点 **clean**:
+
+- footprint は宣言された12ファイルに限局 (untracked なし、hooks/・CLAUDE.md・.claude/ 改変なし)
+- 記録されるコマンド文字列は eval/exec/subprocess に一切流れない**不活性データ** (`#` コメント描画のみ、
+  shell=True 不在)
+- 計測数値 (miss率/tps/noise floor) は byte-identical = **改竄・捏造なし** (規律4)
+- 規律1: WAL に記録されるビルドコマンドは **perf=trace-disabled build のものに限定** (trace build と
+  非混同)、run_cmd は実計測 binary を忠実再現 (差分は再現無関係な perf `-o/-x` のみ)
+- 規律2/3: verifier・正しさゲートのロジックは無改変 (diff 全体 grep で確認)
+
+→ 監査結果を信頼し、検証済みクリーンな論理単位としてコミット。
+
+### forensic binding の完成 (前回「残」の解消)
+
+calibration/WAL に **実ビルド/実行コマンド**を記録し、近似再構成を実コマンド記録に置換 (roadmap §3.6(4)/§7):
+
+- `runner.repro_command()` — 計測点を手で再現するコマンド (perf の `-o`/`-x` は再現無関係なので外す)。
+  `ScalePoint.run_cmd` に載せ、pipeline が `STAGE_BENCH_DONE` で WAL に記録。
+- `buildcache.BuildResult.configure_cmd/build_cmd` — **cache hit でも記録** (provenance 完全化)。
+  pipeline は perf (trace-disabled) build のコマンドだけを `STAGE_BUILD_DONE` で WAL に記録 (規律1)。
+- `calibration_report._build_command` + `DatFile.build_command` — .dat/report.md に「**ビルド → 実行**」
+  二段の再現コマンドを埋める。実機 calibration 2件 (skew0/skew0.9) を再生成 (数値不変)。
+- テスト: `test_reports` に build+run コマンド埋め込みテスト追加。**73 passed** (verifier15/calib23/campaign28/reports7)。
+
+### 次の一手
+
+**P2-1 (測定安定性 §3.6 (2)(4))** — 純ロジック・機械非依存・モックテスト。(1)(3) (noise floor + 反復
+中央値・CV) の上に (2) 外れ値→自動再測定 + (4) 分布比較 (noise floor 以下は「差なし」、超えは
+Mann-Whitney U) + unstable 除外を積む。計測を伴わないので直列規律 (規律4) に抵触しない。
