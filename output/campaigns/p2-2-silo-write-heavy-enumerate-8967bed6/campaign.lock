@@ -1,0 +1,1 @@
+{"ccbench_commit":"6656e93","search_config":{"records":1000000,"scale":"silo","space":"xor-8","threads":48,"workload":"write-heavy","ycsb":{"ycsb_rmw":"0","ycsb_rratio":"5","ycsb_zipf_skew":"0.9"}},"search_tag":"enumerate","spec_content":"P2-2: silo 全探索 (実 fitness) — workload=write-heavy","trial":"p2-2"}
