@@ -1,7 +1,7 @@
 # Phase 2 — パラメータ探索
 
 **目的:** CCBench の最適化フラグ空間を探索し、入力 workload に最速の CC 構成 (genome) を見つける。
-roadmap §2 層2(a) **パラメータ粒度を主軸**。空間は有限 (silo 2^4→相互排他で 12、anatomy §3) なので
+roadmap §2 層2(a) **パラメータ粒度を主軸**。空間は有限 (silo 2^4→no-wait XOR 制約で 8、anatomy §3) なので
 **初手は全探索**。全探索で得た最適を ground truth とし、LLM 誘導探索の到達速度を比較する
 (roadmap §9 / 論文の図)。
 
@@ -27,10 +27,10 @@ noise floor CV 2.28%、`output/env/linux-baremetal/calibration/`)。**性能計�
 ## P2-0: 全 silo variant のビルド + verifier 大規模 sanity (タスク6 の残り)
 
 パラメータ variant は理屈上全緑のはず = verifier の大規模 sanity。**計測なし** (do_bench=False)。
-- [ ] silo 12 genome を `genome.SILO_SPACE.enumerate()` で列挙し、loop で
+- [x] silo 8 genome を `genome.SILO_SPACE.enumerate()` で列挙し、loop で
       build(trace+perf)→verify→no-bench commit を回す
-- [ ] **12 genome 全て certified** を確認 (false-red が出たら verifier か genome 空間の不整合 →
-      `output/insights/` に記録)
+- [x] **8 genome 全て certified** を確認 (false-red が出たら verifier か genome 空間の不整合 →
+      `output/insights/` に記録)。当初 12 から no-wait XOR 制約で 8 に縮小 (両 0=livelock を除外)
 - [ ] 規律1 再確認: 全 perf build に izanagi_trace symbol 0 (`nm`)
 
 **完了条件:** silo 全 genome が certified。verifier が大量の正しい variant を緑と判定できる実証で、
@@ -49,7 +49,7 @@ Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・CV) の上に
 
 ## P2-2: silo 全探索 (最初の実探索)
 
-- [ ] loop を**実 fitness** (確定 calibration) で 12 genome 全評価 (直列・env=linux-baremetal)
+- [ ] loop を**実 fitness** (確定 calibration) で 8 genome 全評価 (直列・env=linux-baremetal)
 - [ ] 代表 workload (read-heavy / write-heavy / high-contention) ごとに最速構成を特定
 - [ ] 結果を D12 材料レポート (`campaigns/<id>/reports/`) に射影
 

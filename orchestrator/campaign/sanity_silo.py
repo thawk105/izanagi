@@ -2,7 +2,7 @@
 """P2-0: silo 全 genome の verifier 大規模 sanity (Phase 2)。
 
 パラメータ variant は CCBench 由来のフラグ組み合わせなので理屈上全部正しい。silo の有効
-genome 全 12 を build(trace+perf)→verify→no-bench commit で回し、**全て certified** を確認
+genome 全 8 を build(trace+perf)→verify→no-bench commit で回し、**全て certified** を確認
 する = verifier が大量の正しい variant を緑と判定できる実証 (Phase 1 タスク3「赤を出せる」と
 対になる「緑を取りこぼさない」の大規模版)。
 
@@ -27,16 +27,12 @@ ENV_TAG = "linux-baremetal"
 CLK = 1800
 
 
-def _trace_evaluable(g) -> bool:
-    """両 no-wait=0 (wait validation) は全 workload で trace 取得が timeout (評価不能、
-    insight 2026-06-19_ccbench-silo-wal-ftruncate-xor-bug.md 副次発見)。trace sanity から
-    外す。構成病理か trace I/O 特有かは perf build で P2-2 確認 (動けば genome 空間に残す)。"""
-    return not (g.flags["NO_WAIT_LOCKING_IN_VALIDATION"] == 0
-                and g.flags["NO_WAIT_OF_TICTOC"] == 0)
-
-
 def main() -> int:
-    genomes = [g for g in SILO_SPACE.enumerate() if _trace_evaluable(g)]
+    # 両 no-wait=0 (wait validation) は livelock で計測不能と P2-2 で確定したため、
+    # SILO_SPACE.enumerate() が no-wait XOR 制約で最初から除外する (= 8 genome)。
+    # P2-0 当時の手動除外 (_trace_evaluable) は genome.py の制約に昇格して不要になった。
+    # insight 2026-06-22_silo-both-no-wait-zero-livelock.md
+    genomes = SILO_SPACE.enumerate()
     cfg = CampaignConfig(
         spec_slug="sanity-silo", search_tag="enumerate",
         spec_content="P2-0: silo 全 genome の verifier 大規模 sanity",

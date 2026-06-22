@@ -49,14 +49,25 @@ class GenomeSpace:
 # INSERT_*_DELAY_MS) は除外 (探索しても意味が無い・perf を歪めるだけ、絶対規律4)。
 #   - BACK_OFF: abort 後の指数バックオフ (delay-on-conflict)
 #   - NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC: validation 競合の扱い。
-#     #if/#elif で相互排他 → 両 1 は無効 (constraint で除外)
+#     lockWriteSet() は #if/#elif のみで #else 句が無い (transaction.cc:153-161):
+#       (1,0) 競合で即 abort  /  (0,1) 自ロック解放して全体 retry
+#       (1,1) #elif が dead code で (1,0) と挙動同一 → 冗長
+#       (0,0) #if/#elif どちらも非展開で競合分岐が空。expected を再読みしないまま
+#             無限スピン (livelock)。thread≥2 で計測不能
+#       → 有効なのは XOR (ちょうど一方が 1) の 2 組のみ
+#       (insight 2026-06-22_silo-both-no-wait-zero-livelock.md)
 #   - WAL: commit 時 write-ahead log (durability。perf コスト)
-# 生の 2^4=16 から相互排他違反 (両 no-wait=1) を除いた 12 が silo の有効空間。
+# 生の 2^4=16 から no-wait の XOR 制約 (両 1=冗長 + 両 0=livelock を計 8 除外) で 8 が有効空間。
 
-def _no_wait_mutual_exclusion(flags: Dict[str, int]) -> bool:
-    """NO_WAIT_LOCKING_IN_VALIDATION と NO_WAIT_OF_TICTOC を同時に 1 にしない。"""
-    return not (flags.get("NO_WAIT_LOCKING_IN_VALIDATION", 0) == 1
-                and flags.get("NO_WAIT_OF_TICTOC", 0) == 1)
+def _no_wait_xor(flags: Dict[str, int]) -> bool:
+    """NO_WAIT_LOCKING_IN_VALIDATION と NO_WAIT_OF_TICTOC は XOR (ちょうど一方が 1)。
+
+    両 1 は #elif が dead code で (1,0) と挙動同一の冗長。両 0 は lockWriteSet() の
+    競合分岐が空 (#else 句が無い) になり expected を再読みしないまま無限スピンする
+    (livelock) ため thread≥2 で計測不能。どちらも探索空間から除外する。
+    """
+    return (flags.get("NO_WAIT_LOCKING_IN_VALIDATION", 0)
+            != flags.get("NO_WAIT_OF_TICTOC", 0))
 
 
 SILO_SPACE = GenomeSpace(
@@ -67,9 +78,9 @@ SILO_SPACE = GenomeSpace(
         "NO_WAIT_OF_TICTOC": [0, 1],
         "WAL": [0, 1],
     },
-    constraints=[_no_wait_mutual_exclusion],
+    constraints=[_no_wait_xor],
     notes="silo の live 最適化 (anatomy §3)。死にフラグ・計測撹乱ノブは除外。"
-          "生 2^4=16、相互排他で 12 有効。",
+          "生 2^4=16、no-wait XOR (両 1=冗長 + 両 0=livelock を除外) で 8 有効。",
 )
 
 # protocol 名 → 空間。Phase 2 で cicada/oze/... を足す (今は silo のみ = 段階導入 規律5)。

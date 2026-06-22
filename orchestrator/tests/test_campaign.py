@@ -31,11 +31,11 @@ def test_silo_space_size_and_constraint():
     gs = genome.space_for("silo")
     assert gs.raw_size() == 16              # 2^4
     genomes = gs.enumerate()
-    assert len(genomes) == 12               # 相互排他 (両 no-wait=1) を 4 除外
-    # 両 no-wait=1 は 1 個も無い
+    assert len(genomes) == 8                # no-wait XOR: 両 1 (冗長) と 両 0 (livelock) を計 8 除外
+    # no-wait はちょうど一方が 1 (両 1 も両 0 も 1 個も無い)
     for g in genomes:
-        assert not (g.flags["NO_WAIT_LOCKING_IN_VALIDATION"] == 1
-                    and g.flags["NO_WAIT_OF_TICTOC"] == 1)
+        assert (g.flags["NO_WAIT_LOCKING_IN_VALIDATION"]
+                != g.flags["NO_WAIT_OF_TICTOC"])
 
 
 def test_genome_canonical_deterministic():
