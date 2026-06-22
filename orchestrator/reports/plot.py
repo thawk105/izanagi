@@ -75,6 +75,7 @@ class PlotSpec:
     y2label: str = ""
     logscale_x: int = 0         # 0=線形、2 なら `set logscale x 2`
     size: str = "900,540"
+    extra_setup: List[str] = field(default_factory=list)  # 追加 set 文 (棒グラフの fill 等)
 
 
 def render_plt(dat_name: str, png_name: str, spec: PlotSpec) -> str:
@@ -93,6 +94,7 @@ def render_plt(dat_name: str, png_name: str, spec: PlotSpec) -> str:
         lines.append(f'set logscale x {spec.logscale_x}')
     if spec.y2label:
         lines += [f'set y2label "{_q(spec.y2label)}"', 'set y2tics', 'set ytics nomirror']
+    lines += list(spec.extra_setup)         # 棒グラフの fill/boxwidth/yrange 等
     parts = [f'"{dat_name}" using {s.using} with {s.style} axes {s.axis} '
              f'title "{_q(s.title)}"' for s in spec.series]
     lines.append("plot " + ", \\\n     ".join(parts))

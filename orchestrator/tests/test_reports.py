@@ -86,6 +86,17 @@ def test_render_plt_no_y2_when_absent():
     assert "y2tics" not in render_plt("d.dat", "d.png", spec)
 
 
+def test_render_plt_extra_setup_emitted():
+    """棒グラフ用の追加 set 文 (fill/boxwidth/yrange) が plt に出る (P2-2 材料レポート)。"""
+    spec = PlotSpec(title="t", xlabel="x", ylabel="tps",
+                    series=[Series("2:xtic(1)", "median tps", style="boxes")],
+                    extra_setup=["set style fill solid 0.6", "set yrange [0:*]"])
+    plt = render_plt("d.dat", "d.png", spec)
+    assert "set style fill solid 0.6" in plt
+    assert "set yrange [0:*]" in plt
+    assert "using 2:xtic(1) with boxes" in plt
+
+
 # ===== gnuplot 実行 (実機、無ければ skip) =====
 
 def test_make_plot_generates_valid_png():
