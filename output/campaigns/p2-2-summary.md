@@ -6,9 +6,9 @@
 
 | workload | 最速 genome | median tps | CV | 2位との差 |
 |---|---|---:|---:|---|
-| read-heavy | `B0-T-W0` (BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0) | 8,466,239 | 0.22% | 差 +0.3% は信用できる差でない (noise内/非有意) |
-| balanced | `B0-L-W0` (BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0) | 2,722,529 | 1.49% | 最速が **+6.1%** 速い (有意, p=0.012) |
-| write-heavy | `B0-L-W0` (BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0) | 1,883,017 | 1.03% | 最速が **+13.2%** 速い (有意, p=0.012) |
+| read-heavy | `B0-T-W0` (BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0) | 8,487,844 | 0.28% | 差 +0.5% は信用できる差でない (noise内/非有意) |
+| balanced | `B0-L-W0` (BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0) | 2,752,621 | 2.36% | 最速が **+7.6%** 速い (有意, p=0.012) |
+| write-heavy | `B0-L-W0` (BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0) | 1,872,376 | 0.91% | 最速が **+13.0%** 速い (有意, p=0.012) |
 
 ## 各 workload の詳細レポート
 

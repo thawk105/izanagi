@@ -16,11 +16,11 @@
 #   numactl --interleave=all perf stat -e LLC-load-misses,LLC-loads,instructions,cycles -- /home/tanab/github/izanagi/external/ccbench/build-variants/silo_8b70f2152f_t0/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=1800 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0
 #
 # genome	median_tps	cv_pct
-B0-L-W0	2722529	1.49
-B0-L-W1	2565048	0.76
-B0-T-W0	1966062	1.94
-B0-T-W1	1869991	1.35
-B1-T-W0	953263	2.5
-B1-L-W0	908260	3.42
-B1-T-W1	904126	2.82
-B1-L-W1	865702	1.91
+B0-L-W0	2752621	2.36
+B0-L-W1	2557609	0.75
+B0-T-W0	1999048	2.12
+B0-T-W1	1846802	1.89
+B1-T-W0	942022	2.27
+B1-L-W0	903117	1.56
+B1-T-W1	895173	1.7
+B1-L-W1	850862	0.99
