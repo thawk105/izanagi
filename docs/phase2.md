@@ -47,13 +47,18 @@ Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・CV) の上に
 
 **完了条件:** CV 不安定な測定が自動で再測定/除外され、採否が点比較でなく分布比較で行われる。
 
-## P2-2: silo 全探索 (最初の実探索)
+## P2-2: silo 全探索 (最初の実探索) — 完了
 
-- [ ] loop を**実 fitness** (確定 calibration) で 8 genome 全評価 (直列・env=linux-baremetal)
-- [ ] 代表 workload (read-heavy / write-heavy / high-contention) ごとに最速構成を特定
-- [ ] 結果を D12 材料レポート (`campaigns/<id>/reports/`) に射影
+- [x] loop を**実 fitness** (確定 calibration) で 8 genome 全評価 (直列・env=linux-baremetal)。
+      3 workload × 8 = 24 評価が全て certified serializable・abort 0
+- [x] 代表 workload (read-heavy=rratio95 / balanced=50 / write-heavy=5, skew0.9) ごとに最速構成を特定
+- [x] 結果を D12 材料レポート (`campaigns/<id>/reports/`) + 横断 summary に射影
 
-**完了条件:** 全探索の最適構成が WAL + レポートで再現可能に特定される (LLM 探索の比較基準)。
+**完了条件:** 達成。全探索の最適構成が WAL (生 tps + 実行コマンド) + 材料レポートで再現可能に特定。
+最速構成 = **read-heavy: B0-T-W0 / balanced・write-heavy: B0-L-W0** (B0-L-W0 が 2/3 で1位・read-heavy で
+同点1位 = 全体最強)。知見: BACK_OFF=0 が支配、no-wait は contention 域で即abort が有利。LLM 探索 (P2-5) の
+ground truth。途中で前セッションの孤児 livelock による計測汚染を検知・対処
+(insight 2026-06-22_orphan-livelock-contaminated-measurement.md)。
 
 ## P2-3: leading indicators の WAL 記録 + critic 実体化 (§3.5)
 

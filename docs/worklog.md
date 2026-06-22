@@ -526,3 +526,51 @@ runner も WAL log/ 対応要 (P2-0 で _run_trace は対応済、perf 経路も
 **P2-2 本体 (実 fitness 全探索)** — 確定 calibration (1m/48thread/skew0.9) で silo 8 genome を実機計測
 (直列・規律4)。代表 workload (read-heavy / write-heavy / high-contention) ごとに `compare` で最速構成を
 分布比較で特定 → D12 材料レポートに射影。
+
+---
+
+## 2026-06-22 (続き) — P2-2 完了 (silo 全探索) + 規律4 インシデント (孤児 livelock 汚染) 対処
+
+### runner の WAL log/ 対応 (P2-2 の前提解消)
+
+`run_once` は cwd を変えず `log/` も作らなかったため、WAL=1 genome は `<cwd>/log/` 不在で SIGABRT し
+「no metrics」abort になっていた (worklog 前回フラグ済み)。`_run_trace` と同様に使い捨て tmp 内に log/ を
+作り cwd=tmp で実行するよう修正。実機 smoke で WAL=1 silo が throughput を出すことを確認。
+
+### 🔴 規律4 インシデント: 前セッションの孤児 livelock が計測を汚染
+
+P2-2 起動直後、素性不明の `ycsb_silo` (rratio=50/rmw=false) が動いているのに気づき調査 → **PPID=1・約7時間・
+%CPU 4793% (≈48 コア占有) の孤児**。両 no-wait=0 の livelock ([[2026-06-22_silo-both-no-wait-zero-livelock]])
+で、insight を書いた前セッションが kill し損ねたもの。孤児が半機を食う中で read-heavy が 3 genome を commit
+済みになっていた (汚染。genome1 が汚染時 3.86M → クリーン時 **8.47M tps = 2.2x 差**)。対処:
+- 孤児を kill、私の P2-2 run を停止、汚染した read-heavy campaign dir を削除して再測定。
+- **競合検知ガード** `p2_2.py._assert_single_tenant()` 追加: `pgrep` で競合ベンチを直接確認 (load average は
+  1 分 EMA で laggy)、居たら PID を表に出して計測拒否 (自動 kill しない = 規律6)。
+- admission control の **fails-open ギャップ** (`settle` が quiesce できなくても進む) を含め
+  `output/insights/2026-06-22_orphan-livelock-contaminated-measurement.md` に記録 (深い修正は P2-3 以降に延期)。
+
+### P2-2 結果 (クリーン機・単一テナント直列、全 24 評価 certified・abort 0)
+
+silo 8 genome × 3 workload (skew0.9, rratio 95/50/5)。workload 別最速構成を `compare` (noise floor 2.28%
+以下は差なし + Mann-Whitney U) で特定:
+
+| workload | 最速 | median tps | 2位との差 |
+|---|---|---:|---|
+| read-heavy  | B0-T-W0 | 8,466,239 | 上位3つ noise floor 内で同点 |
+| balanced    | B0-L-W0 | 2,722,529 | +6.1% (有意) |
+| write-heavy | B0-L-W0 | 1,883,017 | +13.2% (有意) |
+
+(B=BACK_OFF, L=no-wait-locking/即abort, T=tictoc-no-wait/retry, W=WAL)。知見: **(1) BACK_OFF=0 が全 workload で
+支配** (read-heavy で BACK_OFF=1 比 ~4.3x。task5a の BACK_OFF 遅延と整合)。**(2) no-wait は workload 依存** —
+read-heavy は無差、contention 域 (balanced/write-heavy) は即abort (L) が retry (T) より速い。**(3) B0-L-W0 が
+2/3 で1位・read-heavy で同点1位 = 全体最強** → P2-5 (LLM 誘導探索) の ground truth。
+
+成果物: 各 campaign の `reports/` (.dat[再現コマンド]+.plt+.png+report.md) + `runs/wal.jsonl` (生 tps + 実行
+コマンドの proof chain) + 横断 `output/campaigns/p2-2-summary.md`。テスト 87 passed (reports に棒グラフ 1 追加)。
+
+### 次の一手
+
+1. **P2-3 (leading indicators + critic)** — perf カウンタ (lock contention / cache / allocator) を fitness と
+   一緒に WAL 記録し critic に渡す。critic.md を agent-architecture 仕様で実体化。
+2. (検討) admission control を fails-closed 化 (settle が quiesce できなければ計測中断) — 孤児汚染の根治。
+3. (任意) cicada/oze 等へ protocol を広げ genome 空間を拡大 (P2-5 比較の強化)。
