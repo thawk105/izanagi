@@ -487,3 +487,42 @@ compare 床下/有意faster/slower/床上非有意/空) + `test_campaign` に un
 `compare` で workload 別の最速構成を**分布比較**で特定 → D12 材料レポートに射影。**両 no-wait=0 が perf
 build で動くか** (P2-0 で trace timeout した3構成) を最初に確認 → 動けば 12、動かねば genome.py に除外制約。
 runner も WAL log/ 対応要 (P2-0 で _run_trace は対応済、perf 経路も同様に要確認)。
+
+---
+
+## 2026-06-22 — P2-2 着手: 両 no-wait=0 の livelock を監査・確定 → silo genome 空間を 12→8 に訂正
+
+### セッション再開時の監査 (規律6)
+
+未コミットの untracked insight (`output/insights/2026-06-22_silo-both-no-wait-zero-livelock.md`) が残って
+いた。worklog に当日の記録は無く素性が完全には追えない作業物のため、**採用前に独立監査**した:
+
+- **核心 (両 no-wait=0 livelock) を実ソースで再検証:** `cc/silo/transaction.cc:145-178 lockWriteSet()`。
+  write set 各 tuple の tidword を内側 `for(;;)` の**外**で 1 回だけ読み (`expected`, :151)、競合時の分岐は
+  `#if NO_WAIT_LOCKING_IN_VALIDATION` / `#elif NO_WAIT_OF_TICTOC` のみで **`#else` 句が無い**。両 0 のとき
+  `if (expected.lock)` の本体が空 → 他者ロック保持を観測すると expected を再読みせず永久スピン (busy
+  livelock)。thread=1 のみ完走 (競合せず) で thread≥2 は必ず hang。**機構は insight の主張どおりと確認。**
+- **「実装済み」の主張は事実と相違:** insight は「genome.py を XOR 制約に強化済み」と書くが、`git diff` は空・
+  genome.py は HEAD から無改変 (依然 `_no_wait_mutual_exclusion` = 両 1 のみ禁止 = 12 genome)。記述が実装に
+  先行していた → **記述に合わせて実装し、説明と中身を一致させた** (規律6「差異を表に出す」)。
+- injection 性なし (純粋な技術 finding + 「上流 PR は出さず insight に留める」は CLAUDE.md と整合)。
+
+### silo 有効遺伝子空間: 12 → 8 (no-wait XOR)
+
+`(NO_WAIT_LOCKING_IN_VALIDATION, NO_WAIT_OF_TICTOC)` の素性: (1,0)=競合で即 abort / (0,1)=解放して retry /
+(1,1)=`#elif` が dead code で (1,0) と挙動同一 (冗長) / (0,0)=競合分岐が空で livelock。**有効なのは XOR
+(ちょうど一方が 1) の 2 組のみ。** silo の live 空間 = `BACK_OFF[2]×WAL[2]×{(1,0),(0,1)}[2] = 8`。
+これまでの「12」は両 1 だけ除いた生の数で、縮退 (両 0) を含んでいた。
+
+実装 (テスト 86 passed, 回帰なし):
+- `genome.py`: `_no_wait_mutual_exclusion` (両 1 禁止) → `_no_wait_xor` (ちょうど一方が 1)。enumerate() が 8 を返す。
+- `test_campaign.py`: size 12→8、制約テストを XOR (両 1 も両 0 も 1 個も無い) に強化。
+- `sanity_silo.py`: P2-0 当時の手動除外 `_trace_evaluable` を撤去 (genome.py の制約に昇格して不要)。
+- `phase2.md`: P2-0/P2-2 の genome 数を 8 に、P2-0 を done に。
+- insight を committed 化。**上流 PR は出さない** (XOR 除外で探索には足り、CCBench 本体の `#else` 補完は別判断)。
+
+### 次の一手
+
+**P2-2 本体 (実 fitness 全探索)** — 確定 calibration (1m/48thread/skew0.9) で silo 8 genome を実機計測
+(直列・規律4)。代表 workload (read-heavy / write-heavy / high-contention) ごとに `compare` で最速構成を
+分布比較で特定 → D12 材料レポートに射影。
