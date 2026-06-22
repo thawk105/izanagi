@@ -574,3 +574,52 @@ read-heavy は無差、contention 域 (balanced/write-heavy) は即abort (L) が
    一緒に WAL 記録し critic に渡す。critic.md を agent-architecture 仕様で実体化。
 2. (検討) admission control を fails-closed 化 (settle が quiesce できなければ計測中断) — 孤児汚染の根治。
 3. (任意) cicada/oze 等へ protocol を広げ genome 空間を拡大 (P2-5 比較の強化)。
+
+---
+
+## 2026-06-22 (続き) — P2-3 完了 (leading indicators の WAL 記録 + critic 実体化)
+
+### leading indicators の WAL 配線
+
+throughput スカラーだけでは探索が停滞する (Jitskit §3.5)。fitness を設計選択に帰属させる先行指標を
+毎評価 WAL (STAGE_BENCH_DONE) に記録:
+- `benchparse`: abort_rate() (ccbench `abort_rate:` 優先、欠損/-nan は生カウントから再計算) + latency_ns()。
+  **abort_rate は no-wait の即abort/retry や backoff の効果が直接出る CC-native な最重要指標。**
+- `model`: PerfCounters.ipc、ScalePoint に abort_rate/latency_ns + `leading_indicators()`
+  (throughput/abort/latency/llc_miss/ipc を束ねる)。`runner.measure_point` が代表 rep (throughput 中央値)
+  の ccbench メトリクスから取り込む (perf counters と同一 run の断面)。`pipeline` が WAL に記録。
+
+### critic 実体化 (digest 機械準備 + agent)
+
+- `orchestrator/critic/digest.py`: campaign WAL の leading_indicators を **genome 別表 + フラグ軸の限界効果**
+  (BACK_OFF / no-wait L|T / WAL をフリップしたときの各指標の水準別平均、他フラグで周辺化) に構造化。
+  no-wait は XOR なので L/T の categorical 軸に畳む。`python critic/digest.py` で 3 workload digest を出力。
+- `.claude/agents/critic.md`: 帰属→次手の LLM 推論エージェント (model opus、読み取りのみ)。出力は
+  attribution/recommend/avoid/uncertainty。digest をデータ扱い (規律6)・正しさ前提 (規律2)・noise floor 尊重。
+
+### LI 付き再計測 + critic 実走
+
+LI 記録前の P2-2 commit は loop recovery で skip されるため、3 campaign dir を削除して**同一 campaign-id で
+再計測** (LI 捕捉)。fitness は元 P2-2 と再現一致 (最速構成不変・差は noise floor 内 = 再現性の裏付け)。
+全 24 commit に LI が入った。critic エージェントを実 LI に実走させ帰属を取得:
+- **BACK_OFF=1 はなぜ遅いか:** abort は減らせている (balanced 65→18%) のに throughput 半減 = **ipc 崩壊
+  (1.4-1.6→0.4-0.5)+latency 増の over-throttling** (待ちで命令を発行できない)。損は abort baseline が高いほど
+  小さい (機序の裏付け) → 全 workload で avoid。
+- **no-wait は workload で L↔T 反転:** read 無差 (noise内) / balanced=L 優位 (+19.6%, ipc で稼ぐ) /
+  write=T 優位 (+12.7%, abort+latency 同時減)。critic 無しの「全 workload で 1 構成」探索はこの反転を取りこぼす
+  (= critic の ablation 価値)。
+- **WAL は write 比率比例の純損** (abort 不変・latency/miss 増)。
+- **次手:** BACK_OFF=0/WAL=0 固定・no-wait 出し分け・**新軸「中間/適応 backoff」** (ipc を殺さず abort を
+  下げる未探索帯) を提案。uncertainty (read top2 は noise 内で順位不可・1round・限界効果は交互作用未分離・
+  中間 backoff 未測定) も honest に明示。`output/insights/2026-06-22_p2-3-critic-leading-indicator-attribution.md`。
+
+テスト 96 passed (benchparse abort/latency・ipc・leading_indicators・WAL 記録・critic digest 4 = 計9追加)。
+途中、test_campaign の一時 dir leak (257個) を atexit 後始末で解消。
+
+### 次の一手
+
+1. **P2-4 (profiler 実体化)** — screening 通過した上位 variant にだけ perf/FlameGraph を回し many-core
+   スケール懸念を診断 (二段構え、trace-disabled build=規律1)。critic の「中間 backoff」提案の検証にも使える。
+2. **P2-5 (LLM 誘導探索 vs 全探索)** — critic フィードバックで次 genome を選ぶループ。silo 8 は全探索済み
+   なので、critic 提案の新軸 (中間 backoff) や cicada/oze へ空間を広げて到達 iter を比較。
+3. (検討) admission control の fails-closed 化 (孤児汚染の根治)。

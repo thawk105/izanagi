@@ -60,16 +60,21 @@ Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・CV) の上に
 ground truth。途中で前セッションの孤児 livelock による計測汚染を検知・対処
 (insight 2026-06-22_orphan-livelock-contaminated-measurement.md)。
 
-## P2-3: leading indicators の WAL 記録 + critic 実体化 (§3.5)
+## P2-3: leading indicators の WAL 記録 + critic 実体化 (§3.5) — 完了
 
 throughput スカラーだけでは探索が 8-12 iteration で停滞する (Jitskit)。leading indicators を毎評価
 記録し critic に渡す。
-- [ ] perf カウンタ (lock contention / cache hit率 / allocator contention 等) を fitness と一緒に
-      WAL に記録 (calibrator.runner は既に perf を取れる → 評価経路に接続)
-- [ ] `critic.md` を agent-architecture 仕様で生成 (結果を読んで次の方向を指示、**書き込みなし**)
-- [ ] critic が生カウンタを組み合わせて設計選択に帰属させ、次に試す genome の方向を構造化指示で返す
+- [x] leading indicators (abort_rate / latency / llc_miss_rate / ipc) を fitness と一緒に WAL
+      (STAGE_BENCH_DONE) に記録。abort_rate は no-wait/backoff の効果が直接出る CC-native 最重要指標
+- [x] `critic.md` を agent-architecture 仕様で生成 (帰属→次手、**書き込みなし**) + 機械準備 `critic/digest.py`
+      (genome 別 LI + フラグ軸の限界効果)
+- [x] critic を実 LI に実走 → 設計選択に帰属 (BACK_OFF=1 は abort 減でも ipc 崩壊で遅い / no-wait は
+      workload で L↔T 反転 / WAL は write 比率比例の純損) + recommend/avoid/uncertainty を構造化で返した
 
-**完了条件:** critic が leading indicators から具体的な次手を出せる (ablation: critic 有/無で探索効率比較)。
+**完了条件:** 達成。critic が leading indicators (throughput 単独でない) から機序を推定し設計選択に帰属、
+具体的な次手 (BACK_OFF=0 固定・no-wait 出し分け・新軸「中間 backoff」) を出した。ablation の原理
+(L↔T 反転の見落としを critic が防ぐ) も提示。定量 ablation (critic 誘導 vs ランダムの到達 iter) は P2-5。
+insight 2026-06-22_p2-3-critic-leading-indicator-attribution.md。
 
 ## P2-4: profiler 実体化 (二段構え)
 
