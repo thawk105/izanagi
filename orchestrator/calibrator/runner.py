@@ -19,7 +19,8 @@ import tempfile
 import time
 from typing import Dict, List, Optional, Sequence
 
-from .benchparse import _num, parse_bench_stdout, throughput_tps
+from .benchparse import (_num, abort_rate as parse_abort_rate, latency_ns as
+                         parse_latency_ns, parse_bench_stdout, throughput_tps)
 from .model import ScalePoint
 from .perfparse import parse_perf_stat
 
@@ -137,22 +138,26 @@ def measure_point(binary: str, records: int, threads: int,
 
     pt = ScalePoint(records=records, threads=threads,
                     run_cmd=repro_command(binary, base_flags, numactl))
-    rep_results = []   # (tps, counters, wall, maxrss_kb)
+    rep_results = []   # (tps, counters, wall, maxrss_kb, abort_rate, latency_ns)
     for _ in range(reps):
         metrics, counters, wall = run_once(binary, base_flags, numactl=numactl)
         tps = throughput_tps(metrics)
         if tps is not None:
             pt.throughputs.append(tps)
-        rep_results.append((tps, counters, wall, _maxrss_kb(metrics)))
+        rep_results.append((tps, counters, wall, _maxrss_kb(metrics),
+                            parse_abort_rate(metrics), parse_latency_ns(metrics)))
 
-    # 代表値 = throughput が中央値に最も近い rep のもの (counters/wall/maxrss)。
+    # 代表値 = throughput が中央値に最も近い rep のもの。leading indicator (abort/
+    # latency/cache) もこの代表 rep のものに揃える (同一 run の整合した断面にする)。
     valid = [r for r in rep_results if r[0] is not None]
+    rep = None
     if valid:
         ts = sorted(r[0] for r in valid)
         med = ts[len(ts) // 2]
         rep = min(valid, key=lambda r: abs(r[0] - med))
-        pt.counters, pt.walltime_s, pt.maxrss_kb = rep[1], rep[2], rep[3]
     elif rep_results:
-        last = rep_results[-1]
-        pt.counters, pt.walltime_s, pt.maxrss_kb = last[1], last[2], last[3]
+        rep = rep_results[-1]
+    if rep is not None:
+        (pt.counters, pt.walltime_s, pt.maxrss_kb,
+         pt.abort_rate, pt.latency_ns) = rep[1], rep[2], rep[3], rep[4], rep[5]
     return pt

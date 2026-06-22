@@ -22,7 +22,7 @@ from campaign import buildcache, genome, ident, pipeline, wal    # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout      # noqa: E402
 from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
 from campaign.model import (CampaignConfig, Genome,              # noqa: E402
-                            STAGE_BUILD_DONE, STAGE_BUILD_START,
+                            STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE)
 from campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
 
@@ -244,7 +244,10 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         bench_calls.append(1)                            # 実 bench が走った証跡
         return types.SimpleNamespace(
             throughputs=([] if median is None else [median, median]),
-            run_cmd="<run>")
+            run_cmd="<run>",
+            leading_indicators=lambda: {"throughput_tps": median,
+                                        "abort_rate": 0.03, "latency_ns": 1000.0,
+                                        "llc_miss_rate": 0.2, "ipc": 1.5})
 
     def fake_build(genome, commit, trace):
         if build_raises:
@@ -298,6 +301,20 @@ def test_pipeline_green_commits_with_fitness():
     st = wal.replay(lay)[r.variant]
     assert st.committed and not st.aborted
     assert STAGE_COMMIT in st.stages_seen
+
+
+def test_pipeline_records_leading_indicators_in_wal():
+    """P2-3: bench_done に leading indicators (abort率/latency/cache/IPC) が残る (§3.5)。"""
+    lay = _tmp_layout()
+    r, _ = _eval(lay, certified=True)
+    bench = [rec for rec in wal.read_records(lay)
+             if rec.stage == STAGE_BENCH_DONE]
+    assert len(bench) == 1
+    li = bench[0].payload.get("leading_indicators")
+    assert li is not None
+    assert set(li) == {"throughput_tps", "abort_rate", "latency_ns",
+                       "llc_miss_rate", "ipc"}
+    assert li["abort_rate"] == 0.03 and li["ipc"] == 1.5
 
 
 def test_pipeline_red_aborts_without_fitness_or_bench():

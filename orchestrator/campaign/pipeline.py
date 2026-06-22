@@ -206,6 +206,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              "high_variance": nf.high_variance, "unstable": rem.unstable,
              "rounds": rem.rounds, "cv_history": rem.cv_history,
              "tps": pt.throughputs,
+             # leading indicators (§3.5): fitness を設計選択に帰属させる材料。
+             # critic が abort率/latency/cache/IPC を読んで次の genome 方向を出す。
+             "leading_indicators": pt.leading_indicators(),
              "run_cmd": pt.run_cmd})              # この測定点を再現する実行コマンド
     log(f"  [eval {v}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"

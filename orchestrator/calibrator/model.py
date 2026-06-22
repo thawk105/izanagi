@@ -43,6 +43,13 @@ class PerfCounters:
             return None
         return self.llc_load_misses / self.llc_loads
 
+    @property
+    def ipc(self) -> Optional[float]:
+        """instructions per cycle。命令効率の leading indicator (spin/stall で下がる)。"""
+        if self.instructions is None or self.cycles in (None, 0):
+            return None
+        return self.instructions / self.cycles
+
 
 @dataclass
 class ScalePoint:
@@ -60,6 +67,9 @@ class ScalePoint:
     maxrss_kb: Optional[int] = None       # 常駐メモリ (working set の実測代理。
                                           # 下限判定 = working set vs L3 に使う)
     run_cmd: str = ""                     # この測定点を再現する実行コマンド (forensic binding)
+    # CC-native な leading indicator (代表 rep の ccbench メトリクスから, roadmap §3.5)。
+    abort_rate: Optional[float] = None    # abort/(commit+abort)。競合の捌き方が直接出る
+    latency_ns: Optional[float] = None    # 平均トランザクションレイテンシ [ns]
 
     @property
     def miss_rate(self) -> Optional[float]:
@@ -71,6 +81,20 @@ class ScalePoint:
         if not self.throughputs:
             return None
         return _median(self.throughputs)
+
+    def leading_indicators(self) -> Dict[str, Optional[float]]:
+        """fitness を説明する先行指標 (roadmap §3.5)。critic が設計選択に帰属させる材料。
+
+        throughput スカラーだけでは探索が停滞する (Jitskit) ので、abort 率
+        (CC が競合をどう捌くか)・latency・cache miss 率・IPC を一緒に残す。
+        """
+        return {
+            "throughput_tps": self.throughput,
+            "abort_rate": self.abort_rate,
+            "latency_ns": self.latency_ns,
+            "llc_miss_rate": self.counters.llc_miss_rate,
+            "ipc": self.counters.ipc,
+        }
 
 
 @dataclass

@@ -130,6 +130,42 @@ def test_benchparse_nan_is_none():
     assert _num(m["batch_abort_rate"]) is None
 
 
+# ===== leading indicators (P2-3, §3.5) =====
+
+def test_benchparse_abort_rate_and_latency():
+    from calibrator.benchparse import abort_rate, latency_ns
+    # abort_rate ラベルがあればそれを優先 (生カウントより)
+    m = parse_bench_stdout("abort_rate:\t0.0260\nabort_counts_:\t999\ncommit_counts_:\t1\n")
+    assert abort_rate(m) == 0.0260
+    # _BENCH は abort_rate ラベル無し → 生カウントから再計算 (fallback)
+    m2 = parse_bench_stdout(_BENCH)
+    assert abs(abort_rate(m2) - 253 / (253 + 791069)) < 1e-12
+    assert latency_ns(m2) == 5056.4489
+
+
+def test_benchparse_abort_rate_nan_falls_back_to_counts():
+    from calibrator.benchparse import abort_rate
+    m = parse_bench_stdout("abort_rate:\t-nan\nabort_counts_:\t10\ncommit_counts_:\t90\n")
+    assert abort_rate(m) == 0.1                    # -nan ラベルは無効 → 10/(10+90)
+
+
+def test_perfcounters_ipc():
+    assert PerfCounters(instructions=300, cycles=200).ipc == 1.5
+    assert PerfCounters(instructions=300, cycles=0).ipc is None     # 0 除算回避
+    assert PerfCounters(instructions=None, cycles=200).ipc is None
+
+
+def test_scalepoint_leading_indicators():
+    pt = ScalePoint(records=1000, threads=4,
+                    counters=PerfCounters(llc_load_misses=20, llc_loads=100,
+                                          instructions=300, cycles=200),
+                    throughputs=[1000.0, 1000.0, 1000.0],
+                    abort_rate=0.05, latency_ns=1234.0)
+    li = pt.leading_indicators()
+    assert li == {"throughput_tps": 1000.0, "abort_rate": 0.05,
+                  "latency_ns": 1234.0, "llc_miss_rate": 0.2, "ipc": 1.5}
+
+
 # ===== find_saturation: 早い飽和 =====
 
 def test_saturation_fast():

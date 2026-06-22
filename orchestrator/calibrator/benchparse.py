@@ -63,6 +63,26 @@ def throughput_tps(metrics: Dict[str, str]) -> Optional[float]:
     return None
 
 
+def abort_rate(metrics: Dict[str, str]) -> Optional[float]:
+    """abort 率 (aborts / (commits+aborts))。CC が競合をどう捌くかの leading indicator
+    (no-wait の即abort vs retry、backoff の効果が直接出る、roadmap §3.5)。
+
+    ccbench は `abort_rate:` を直接出すが、欠損/`-nan` のときは生カウントから再計算する。"""
+    v = _num(metrics.get("abort_rate"))
+    if v is not None:
+        return v
+    aborts = _num(metrics.get("abort_counts_"))
+    commits = _num(metrics.get("commit_counts_"))
+    if aborts is not None and commits is not None and (aborts + commits) > 0:
+        return aborts / (aborts + commits)
+    return None
+
+
+def latency_ns(metrics: Dict[str, str]) -> Optional[float]:
+    """1 トランザクションの平均レイテンシ [ns] (ccbench `latency[ns]:`)。"""
+    return _num(metrics.get("latency[ns]"))
+
+
 def actual_extime(metrics: Dict[str, str]) -> Optional[float]:
     return _num(metrics.get("actual_extime"))
 
