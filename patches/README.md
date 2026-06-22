@@ -8,10 +8,15 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | スレッドピンニング (`-DLinux`) | CCBench 本物のバグ修正 (Izanagi 非依存) | **submodule `master`** に還元 |
 | trace-hook (Silo/si の `#if TRACE` 検証計装) | Izanagi の verifier 入力。`#if TRACE` で観測者効果セーフ | **submodule `izanagi-trace` ブランチ** (submodule が追う) |
 | broken-silo (わざと壊した Silo) | verifier の赤検出用 positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
+| 合成 variant (例: 静的 backoff `BACKOFF_FIXED`) | Izanagi がフラグ空間外に合成した**評価中の正当な variant** (D18) | **out-of-tree patch** (価値確定まで。昇格は人間判断) |
 
 **broken-silo を patch に隔離する理由 (絶対規律2):** 壊した CC をブランチに commit すると
 baseline として誤ビルドされる危険がある。out-of-tree patch なら「赤検出証明をするときだけ
 明示的に重ねる」inert 状態を保てる。
+
+**合成 variant を patch に置く理由 (D18):** フラグ空間 (CCBench 定義の最適化フラグ) の外へ
+合成した variant は、価値が確定するまで submodule 本体に焼かない。default で stock 不変 (inert)
+なので baseline を汚さず、verifier が毎回正しさを確認する。勝てば昇格、負ければ patch のまま記録。
 
 ## submodule の階層
 
@@ -66,6 +71,40 @@ git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (izanag
 - **壊し ON**: 293,803 commit → trace に **1310 G2 cycle** → verifier **NON-SERIALIZABLE (exit 1)**
 - **壊し OFF (素の Silo)**: 285,047 commit → verifier **certified SERIALIZABLE (exit 0)**
 - 差は read validation の有無のみ → verifier は壊れた CC を赤・正しい CC を緑と判定する番人だと確認。
+
+---
+
+## silo-backoff-fixed.patch — 合成 variant: 静的 backoff の量を単一軸に (P2 ケーススタディ, D18)
+
+**フラグ空間外への最初の踏み出し** (Phase 2→3 の橋渡し)。CCBench の backoff は Cicada 由来の
+**適応 backoff** (leader が throughput 勾配で global backoff 値を hill-climbing) で、それが 48thread
+高競合で throughput を殺す値に収束しているのが `BACK_OFF=1` の正体だった (critic の帰属、
+`output/insights/2026-06-22_p2-3-critic-leading-indicator-attribution.md`)。そこで backoff の*量*を
+**静的固定する新フラグ `CCBENCH_BACKOFF_FIXED`** を導入し、量を単一軸として sweep する。
+
+- 変更: `cmake/Options.cmake` (cache var + `ccbench_universal_definitions` に `BACKOFF_FIXED`) と
+  `include/backoff.hh` (`backoff()` 内で `#if BACKOFF_FIXED >= 0` なら固定値、`#else` で stock の
+  適応 `Backoff_`)。
+- **既定 -1 で inert**: preprocess 後ソースが原本と同一になる (`#else` 句を選ぶ) → stock genome は
+  cache hit で実証 (B0-L-W0 perf hash 不変)。baseline を汚さない (絶対規律2)。
+- **わざと壊したものではない**: backoff は timing のみ変え CC 論理は不変 → serializable。verifier で
+  certified を確認済み (`BACKOFF_FIXED=50` で 355,549 commit / 0 anomaly)。pipeline が毎評価ゲートする。
+- 使い方: genome に `BACKOFF_FIXED` フラグを足すと `-DCCBENCH_BACKOFF_FIXED=<us>` が渡る。
+  driver = `orchestrator/campaign/backoff_sweep.py` (BACK_OFF=1 + 量 sweep を高 abort workload で計測)。
+
+```sh
+SUB=external/ccbench
+# izanagi-trace の上に重ねる (Options.cmake / backoff.hh を触る。trace-hook と非衝突)
+git -C "$SUB" apply ../../patches/silo-backoff-fixed.patch
+# 例: 静的 backoff=50us の variant を build (BACK_OFF=1 必須)
+cmake -S "$SUB" -B "$SUB/build-bf50" -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF \
+      -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
+      -DCCBENCH_BACK_OFF=1 -DCCBENCH_BACKOFF_FIXED=50
+cmake --build "$SUB/build-bf50" --target ycsb_silo.exe -j
+```
+
+価値が確定したら (sweep で stock を上回るなら) izanagi-trace / upstream への昇格は**人間が判断**する
+(D18、CLAUDE.md「勝手に上流へ PR を出さない」)。
 
 ---
 

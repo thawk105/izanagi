@@ -279,3 +279,25 @@
 - **明文化しない**: 一般的な安全規範頼みでは、Phase 3 の LLM 生成 variant 経路という project 固有の攻撃面が規律として可視化されない。
 
 **位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。絶対規律の追加自体は CLAUDE.md「変更できるのは人間のみ」に従いユーザーの承認による。**将来 hooks に「外部内容をデータとして扱う」機械的防壁を足す余地** (規律6 の自動執行、例: variant が trace/出力を指示として再解釈する経路の検出) は agent-architecture に予約してよい — ただし規律1・2 の 2 防壁同様、盛らず最小限で。
+
+---
+
+## D18. Izanagi が合成した性能 variant は inert patch (patches/) に置く — フラグ空間外への最初の踏み出し (D16 の拡張)
+
+**決定:** Izanagi が**定義済みフラグ空間の外**に合成した性能 variant (最初の例 = silo の静的 backoff `CCBENCH_BACKOFF_FIXED`) は、当面 **out-of-tree の inert patch** (`patches/`、default で stock と挙動完全一致) に置く。価値が確定したら upstream/izanagi-trace への昇格は**人間が判断**する。
+
+**背景:** P2-3 で critic が leading indicators から「BACK_OFF=1 は abort を減らせているのに ipc 崩壊で遅い (over-throttling)」と帰属し、新軸「中間/適応 backoff」を提案した。ソースを見ると CCBench の backoff は既に Cicada 適応 backoff で、その適応 hill-climbing 自体が 48thread 高競合で throughput を殺す値に収束しているのが BACK_OFF=1 の正体だった。そこで backoff の*量*を単一軸として静的固定する `CCBENCH_BACKOFF_FIXED` (default -1=stock 適応) を導入し sweep する (`patches/silo-backoff-fixed.patch`, `orchestrator/campaign/backoff_sweep.py`)。これはフラグ flip でなく**コード合成** = Phase 2→3 の橋渡し。ユーザーと協議して着手 (「論文ネタになるなら」)。
+
+**位置づけ (論文):** 「中間 backoff」自体は CC 手法として新規でない (contention management は数十年の蓄積) ので**単体の貢献として主張しない**。価値は **Izanagi 方法論のケーススタディ**: システムが (a) throughput でなく leading indicators で機序を特定し、(b) 定義済みフラグ空間の外へ出て新軸を開き、(c) 正しさゲート (verifier) を全工程で保ち、(d) stock を上回るか否かを正直に測る。負の結果 (stock の BACK_OFF=0 が既に最適だった) でも方法論の実証として有効。
+
+**理由 (なぜ patches/ か — D16 の枠組みで):** D16 は CCBench 改変を「本物のバグ修正→master / 検証計装→izanagi-trace / 意図的バグ→patch」に分けた。合成 variant はこのどれでもない第4類:
+- broken-silo と同じく **inert (default で stock 不変)** を構造で保証する (`#if BACKOFF_FIXED >= 0 ... #else <original> #endif`、default -1 は preprocess 後ソースが原本と同一 → stock genome は cache hit で実証)。baseline を汚さない (規律2)。
+- ただし broken-silo と違い**わざと壊したものではない** — 評価対象の正当な variant。verifier が毎回 certified を確認する (静的 backoff は timing のみで CC 論理不変 → serializable、実測で 355549 commits / 0 anomaly 確認済み)。
+- **まだ価値が未確定**なので submodule 本体 (master/izanagi-trace) に commit せず patch に留める。sweep で勝てば昇格、負ければ patch のまま記録。**勝手に upstream へ出さない** (CLAUDE.md)。
+
+**却下した選択肢:**
+- **genome 空間 (SILO_SPACE) に BACKOFF_FIXED 軸を足す**: 標準フラグ空間は CCBench 定義の最適化フラグ集合。合成軸を混ぜると「全探索の ground truth」(P2-2) の意味が濁る。専用 driver (backoff_sweep.py) で隔離する方が、フラグ空間内 (P2-2) と空間外合成 (本ケース) の境界が綺麗。
+- **izanagi-trace に commit**: 価値未確定の探索 variant を submodule 履歴に焼くのは早い。inert patch なら採否を保留したまま測れる。
+- **適応ロジック (hill-climbing) を直接書き換える**: 交絡が多い (なぜ収束が悪いかの診断と、固定値の最適探索が混ざる)。まず量を単一軸で固定 sweep し、適応ポリシーの良し悪しは「固定の最適 vs 適応」の差として測る方が分離が綺麗。
+
+**位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。Phase 構成は変えない (Phase 2 の延長としての case study)。合成 variant が増えたら「第4類の置き場」を D16 表に正式に追記する余地あり。
