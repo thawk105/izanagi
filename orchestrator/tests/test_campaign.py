@@ -6,8 +6,10 @@ WAL/lock のテストは TMPDIR (=/home 配下) に一時 campaign を作る。
 """
 from __future__ import annotations
 
+import atexit
 import contextlib
 import os
+import shutil
 import sys
 import tempfile
 import types
@@ -106,9 +108,15 @@ def test_identity_mismatch_guard():
 
 # ===== WAL / recovery / atomicity (D, A) =====
 
+def _tmpdir(prefix: str) -> str:
+    """テスト用一時 dir。プロセス終了時に後始末する (TMPDIR=/home 配下に leak させない)。"""
+    d = tempfile.mkdtemp(prefix=prefix)
+    atexit.register(shutil.rmtree, d, ignore_errors=True)
+    return d
+
+
 def _layout():
-    d = tempfile.mkdtemp(prefix="izanagi_camp_")     # TMPDIR=/home 配下
-    return CampaignLayout(root=d)
+    return CampaignLayout(root=_tmpdir("izanagi_camp_"))
 
 
 def test_wal_append_replay():
@@ -167,7 +175,7 @@ def test_lock_preimage_roundtrip_and_immutable():
 # ===== bench 排他ロック (I) =====
 
 def test_bench_lock_exclusive():
-    fd_path = os.path.join(tempfile.mkdtemp(prefix="izanagi_lock_"), "bench.lock")
+    fd_path = os.path.join(_tmpdir("izanagi_lock_"), "bench.lock")
     with bench_lock(fd_path, blocking=True):
         # 保持中に非ブロッキング取得 → BenchBusy
         try:
@@ -211,7 +219,7 @@ def test_variant_id_deterministic_and_sensitive():
 # verifier の verdict だけを操作して abort/commit の分岐を検査する。
 
 def _tmp_layout():
-    root = tempfile.mkdtemp(prefix="izanagi_pipe_")
+    root = _tmpdir("izanagi_pipe_")
     return CampaignLayout(root=os.path.join(root, "campaigns", "test")).ensure()
 
 
@@ -377,7 +385,7 @@ def test_pipeline_build_error_aborts():
 def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False):
     """run_campaign を fake evaluate 下で回し (summary, layout) を返す。"""
     from campaign import loop as L
-    out_root = tempfile.mkdtemp(prefix="izanagi_loop_")
+    out_root = _tmpdir("izanagi_loop_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content=spec_content, ccbench_commit="deadbeef")
     saved = L.evaluate
