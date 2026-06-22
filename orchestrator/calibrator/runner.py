@@ -84,9 +84,14 @@ def run_once(binary: str, gflags: Sequence[str],
     try:
         perf_out = os.path.join(tmp, "perf.csv")
         cmd = _build_cmd(binary, gflags, perf_out, numactl)
+        # WAL=1 の genome は <cwd>/log/log<thid> に log を書く (CCBench fileio.hh
+        # genLogFileName)。log/ が無いと open 失敗 → LibcError → SIGABRT で計測不能。
+        # cwd を使い捨て tmp にし log/ を用意する (binary/perf_out は絶対パスなので
+        # cwd 変更に非依存、tmp は finally で rmtree → WAL log も一緒に消える)。
+        os.makedirs(os.path.join(tmp, "log"), exist_ok=True)
         t0 = time.monotonic()
         proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=timeout_s)
+                              timeout=timeout_s, cwd=tmp)
         wall = time.monotonic() - t0
         metrics = parse_bench_stdout(proc.stdout)
         perf_text = ""
