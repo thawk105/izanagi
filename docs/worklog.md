@@ -623,3 +623,51 @@ LI 記録前の P2-2 commit は loop recovery で skip されるため、3 campa
 2. **P2-5 (LLM 誘導探索 vs 全探索)** — critic フィードバックで次 genome を選ぶループ。silo 8 は全探索済み
    なので、critic 提案の新軸 (中間 backoff) や cicada/oze へ空間を広げて到達 iter を比較。
 3. (検討) admission control の fails-closed 化 (孤児汚染の根治)。
+
+---
+
+## 2026-06-22 (続き) — P2 ケーススタディ: 静的 backoff variant の合成がフラグ空間外で stock を上回る
+
+critic の「中間/適応 backoff」提案 (P2-3) をユーザー合意のもと実験 (「論文ネタになるなら」)。
+
+### 評価 (論文上の位置づけ)
+
+「中間 backoff」自体は CC 手法として新規でない (contention management は数十年の蓄積)。**単体の貢献として
+主張しない。** 価値は **Izanagi 方法論のケーススタディ**: システムが leading indicators で機序を特定し、
+定義済みフラグ空間の外へ出て新軸を開き、正しさゲートを保ち、stock を上回るか正直に測る。ソース確認で
+**CCBench の backoff は既に Cicada 適応 backoff** (leader が throughput 勾配で global 値を hill-climbing)
+で、critic が提案した「適応化」は既存 = それが BACK_OFF=1 の正体と判明。よって実験は「適応の収束が悪い」
+仮説の検証に焦点化。
+
+### 合成 variant + 実験 (D18, patches/silo-backoff-fixed.patch)
+
+backoff の*量*を静的固定する `CCBENCH_BACKOFF_FIXED` (default -1=stock 適応で inert) を導入。L-W0 base で
+無 backoff / stock 適応 / 静的 {2,5,10,25,50,100}us を高 abort workload (write-heavy/balanced) で計測
+(`backoff_sweep.py`)。全 16 (8×2) が **certified serializable・abort 0** (backoff は timing のみ→CC 論理
+不変、verifier が毎回ゲート)。inert は stock genome の cache hit で実証。
+
+### 結果 — 合成 variant が stock 最良を明確に上回る (sweet spot あり)
+
+| workload | 無 backoff | stock 適応 | 静的最良 | 無比 |
+|---|---:|---:|---:|---|
+| write-heavy | 1,882,125 | 1,052,528 | **10us = 2,603,521** | **+38.3%** |
+| balanced | 2,791,760 | 916,149 | **5us = 3,106,342** | **+11.3%** |
+
+**機序が量の関数として明瞭 (write-heavy 曲線):** backoff を増やすと abort 単調減 (82→17%)・ipc 単調減
+(1.62→0.59)、throughput は両者の積が最大の **10us でピーク**の逆U字。stock 適応はピークを越えた低 ipc 域
+(≈100us 相当, ipc 0.59) に収束 = **Cicada の hill-climbing が sweet spot を逃している**ことの直接証拠
+(critic の P2-3 帰属「適応は sweet spot を逃す/over-throttling」を実 sweep で裏付け)。最適量は workload 依存
+(write 10us / balanced 5us)。
+
+**フラグ空間 (binary BACK_OFF) は {無, 適応} しか提供せず、適応は病理・無が勝者だった。量という新軸を開いて
+初めて +11〜38% の sweet spot が見つかった** = 方法論ケーススタディの核 (システムが空間外を合成して stock 超え)。
+
+成果物: 各 sweep campaign の `reports/` (throughput vs backoff 量の曲線 .dat/.plt/.png + report.md) +
+`runs/wal.jsonl`。射影器 `backoff_sweep_report.py`。critic の締めの解釈 (ループ閉じ) は中断、後続で再実行可。
+
+### 次の一手
+
+1. (締め) critic に sweep を解釈させ「適応をやめ静的小 backoff/workload 依存量」を最終推奨として記録。
+   read-heavy でも測って「低 abort では backoff 不要」を確認 (現在は high-abort 2 workload のみ)。
+2. **P2-4 / P2-5** は上記のまま。この合成 variant は P2-5 (LLM 誘導 vs 全探索) の「空間外合成」の実例にもなる。
+3. (検討) admission control の fails-closed 化。

@@ -1,0 +1,1 @@
+{"ccbench_commit":"6656e93","search_config":{"base":"L-W0","records":1000000,"scale":"silo-backoff","sweep_us":[2,5,10,25,50,100],"threads":48,"workload":"write-heavy","ycsb":{"ycsb_rmw":"0","ycsb_rratio":"5","ycsb_zipf_skew":"0.9"}},"search_tag":"sweep","spec_content":"P2 case study: silo static-backoff sweep — workload=write-heavy","trial":"p2-backoff"}

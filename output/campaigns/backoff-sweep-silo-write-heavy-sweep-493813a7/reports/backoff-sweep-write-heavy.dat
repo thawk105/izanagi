@@ -1,0 +1,23 @@
+# backoff sweep: write-heavy (ycsb_rmw=0, ycsb_rratio=5, ycsb_zipf_skew=0.9)
+# env: linux-baremetal
+# campaign: backoff-sweep-silo-write-heavy-sweep-493813a7
+# workload: write-heavy (ycsb_rmw=0, ycsb_rratio=5, ycsb_zipf_skew=0.9)
+# base: L-W0 (no-wait-locking, WAL 無)
+# no_backoff_tps(BACK_OFF=0): 1,882,125
+# adaptive_tps(stock Cicada): 1,052,528
+# best_static: 10us = 2,603,521 tps
+# noise_floor_cv: 2.28% (skew0.9)
+#
+# ビルド再現コマンド (この実験のバイナリを作る):
+#   # patches/silo-backoff-fixed.patch を ccbench に適用 (D18)。genome に BACKOFF_FIXED=<us> + BACK_OFF=1
+#
+# 実行再現コマンド (この .dat の各点を生成する; <...> は置換):
+#   # orchestrator/campaign/backoff_sweep.py (各点の run_cmd は WAL 参照)
+#
+# backoff_us	throughput_tps	abort_pct	ipc
+2	2108543	74.24	1.617
+5	2466887	62.19	1.335
+10	2603521	49.81	1.08
+25	2458154	33.7	0.847
+50	2177407	24.13	0.712
+100	1814519	17.17	0.59
