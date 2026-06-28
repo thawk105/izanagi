@@ -12,12 +12,12 @@ Claude Code のサブエージェント (`.claude/agents/*.md`) と hooks の構
 
 ```
 Phase 1: verifier, calibrator           (実体化済み)
-Phase 2: + critic, profiler
-Phase 3: + planner, coder, auditor
+Phase 2: + critic (P2-3), profiler (P2-4) (実体化済み)
+Phase 3: + planner, coder, auditor       (仕様予約)
 Phase 3.5: (OEE。新規ロールは不要、層3の選択ロジックを格上げ)
 ```
 
-Phase 2-3 のロールは、本ドキュメントに仕様を予約してある。該当 Phase に来たとき、この仕様に従って `.claude/agents/*.md` を生成する。**今は作らない。**
+Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕様を予約してある。該当 Phase に来たとき、この仕様に従って `.claude/agents/*.md` を生成する。**今は作らない。** (Phase 1-2 のロール = verifier/calibrator/critic/profiler は実体化済み。)
 
 ---
 
@@ -41,19 +41,20 @@ Phase 2-3 のロールは、本ドキュメントに仕様を予約してある�
 - **model:** 軽量で良い
 - **規律:** 飽和点は thread 数依存。探索 thread 数を固定してから測る。判断根拠を必ず文書化する
 
-### critic (Phase 2・仕様予約)
+### critic (Phase 2・実体化済み, P2-3)
 
 - **役割:** 評価結果 (throughput + leading indicators) を読んで次の方向を示す。生のカウンタでなく組み合わせて読み、特定の設計選択に帰属させる (Jitskit の critic)
 - **tools:** 読み取り + 解析。実装の書き込みはしない
 - **model:** 推論が要るので強めのモデル
 - **規律:** 「lock contention が高くスケールしない」のような診断を、次の variant 生成への具体的指示に変換する。leading indicators を必ず参照する (これが無いと探索が停滞する、Jitskit §3.5)
 
-### profiler (Phase 2・仕様予約)
+### profiler (Phase 2・実体化済み, P2-4)
 
 - **役割:** 有望な variant に perf/FlameGraph を回し、many-core でのスケール懸念を解釈する
 - **tools:** perf 実行、FlameGraph 生成、解析
 - **model:** 解釈に推論が要るので中〜強
 - **規律:** 全 variant でなく screening を通過した上位にだけ回す (二段構え)。trace-disabled build に対して回す (絶対規律1)。「lock acquisition が42%、thread 増やすと悪化する典型」のような診断を critic/層3 に渡す
+- **実体化 (P2-4):** `.claude/agents/profiler.md`。最初の実走 = backoff ケーススタディの [P0] 機序純度。診断ノブ `BACKOFF_NOINLINE` (inert patch, D20) で spin ループを独立シンボル化し `perf record -e cycles,instructions` で **有用 IPC (= spin を除いた 1サイクルあたり命令数)** を分離 (`orchestrator/campaign/backoff_profile.py`)。perf 下 throughput は overhead 込みで headline 非使用 (絶対値は stock build, 規律4)。
 
 ### planner (Phase 3・仕様予約)
 

@@ -17,7 +17,8 @@ roadmap §2 層2(a) **パラメータ粒度を主軸**。空間は有限 (silo 2
 **サブエージェント:** + critic, profiler (`docs/agent-architecture.md` の仕様で実体化)
 
 **環境:** 計測は linux-baremetal の確定 calibration (records=1m / 48 thread / skew0.9 / reps5、
-noise floor CV 2.28%、`output/env/linux-baremetal/calibration/`)。**性能計測は単一テナント直列**
+within-run 変動係数 (CV = 標準偏差/平均) 2.28% = 1 測定の品質ゲート / 採否 floor は between-run 3.0% (A2/D19)、
+`output/env/linux-baremetal/calibration/`)。**性能計測は単一テナント直列**
 (絶対規律4)。ビルド・trace 検証は並列可 (`lock.py` の bench_lock はベンチのみ排他)。
 
 段階導入 (規律5): P2-0 から順に。各タスクの効果は ablation で測れるようにする。
@@ -36,16 +37,21 @@ noise floor CV 2.28%、`output/env/linux-baremetal/calibration/`)。**性能計�
 **完了条件:** silo 全 genome が certified。verifier が大量の正しい variant を緑と判定できる実証で、
 Phase 1 の「赤を出せる」(タスク3) と対になる「緑を取りこぼさない」の大規模実証。
 
-## P2-1: 測定安定性 (2)(4) の必須化 (§3.6)
+## P2-1: 測定安定性 (2)(4) の必須化 (§3.6) — 完了
 
-Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・CV) の上に (2)(4) を積む。
-- [ ] 外れ値→自動再測定: 反復内 CV > 閾値 (初期 5%) なら settle 後に測り直し。規定ラウンド
-      (初期 3) で収束しなければ `unstable` フラグ
-- [ ] 採否は分布比較: noise floor 以下の差は「差なし」に丸め、超える差は Mann-Whitney U で有意性判定
-      (重い統計機構は不要)
-- [ ] unstable variant は分布比較から除外し insight に「測定不能」記録 (沈黙して 1 点採用しない)
+Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・変動係数) の上に (2)(4) を積む (`orchestrator/calibrator/stability.py`)。
+- [x] 外れ値→自動再測定 (`remeasure_until_stable`): 反復内の変動係数 (CV = 標準偏差/平均) > 閾値 (既定 5%)
+      なら settle 後に測り直し。規定ラウンド (既定 3) で収束しなければ `unstable` フラグ
+- [x] 採否は分布比較 (`compare`): noise floor 以下の差は「差なし」に丸め、超える差は Mann-Whitney U 検定で
+      有意性判定 (重い統計機構は不要)
+- [x] unstable variant は分布比較から除外 (呼び手が責任)。沈黙して 1 点採用しない
+- [x] **A2 精緻化**: 採否の floor は **between-run** noise floor (別 run で測る variant/baseline の差の下限、3.0%)。
+      within-run の変動係数 (2.28%) は 1 測定の品質ゲート用で採否には使わない。Mann-Whitney U は反復数が
+      小さい (5) と完全分離で常に有意になる弱い sanity ゆえ、主防壁は between-run floor 丸め。floor 近傍
+      (floor〜1.5×floor) の faster/slower は `near_floor` フラグを立て cross-run 再現で裏取り要とする (D19)
 
-**完了条件:** CV 不安定な測定が自動で再測定/除外され、採否が点比較でなく分布比較で行われる。
+**完了条件:** 達成。変動係数が不安定な測定は自動で再測定/除外され、採否は点比較でなく分布比較 (between-run floor
+丸め + Mann-Whitney U) で行われる。テスト 109 passed。
 
 ## P2-2: silo 全探索 (最初の実探索) — 完了
 

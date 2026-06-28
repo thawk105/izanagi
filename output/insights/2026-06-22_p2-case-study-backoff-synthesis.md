@@ -5,7 +5,7 @@
 - **検証:** 解析 workflow (critic 解釈 + 5 レンズ敵対的反証 + 完全性 + 合成, 8 agent / 357k tok)。
   **fatal 反証ゼロ・中核主張は5レンズを生存。** mechanism レンズが機序の特定的分解を反証 (weakens)
 - **データ:** 3 campaign × 8 genome = 24 variant、全て certified serializable・anomalies=0。
-  records=1m/48thread/skew0.9/clk1800、noise floor CV=2.28%。BACKOFF_FIXED = patches/silo-backoff-fixed.patch
+  records=1m/48thread/skew0.9/clk1800、noise floor の変動係数 (CV = 標準偏差/平均) =2.28%。BACKOFF_FIXED = patches/silo-backoff-fixed.patch
 
 ## 確定した主張 (反証を生き残った)
 

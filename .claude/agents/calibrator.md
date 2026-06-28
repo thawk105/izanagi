@@ -1,6 +1,6 @@
 ---
 name: calibrator
-description: cache miss 率を見て実験のレコード数を決める。飽和点を探し、測定が歪まない最小レコード数を返して根拠を文書化する。環境ごとの noise floor (信用してよい性能差の下限) も実測する。Phase 1 から使用。
+description: cache miss 率を見て実験のレコード数を決める。飽和点を探し、測定が歪まない最小レコード数を返して根拠を文書化する。環境ごとの within-run noise floor (1 測定の品質ゲート用の変動係数) も実測する。Phase 1 から使用。
 tools: ["Read", "Write", "Bash"]
 model: sonnet
 ---
@@ -25,12 +25,12 @@ CC 探索を始める前のキャリブレーションフェーズを担当す�
 - **大きすぎるレコード数を避ける。** 飽和点を超えたレコード数は時間を食うだけ。これを正確に「ここから先は無駄」と判断するのがあなたの仕事
 - **判断と根拠を必ず文書化する。** 確定したレコード数は env スコープ (`output/env/<env-tag>/calibration/`) に、「なぜそのレコード数を選んだか」(各点の miss率の推移、飽和判定) は `output/env/<env-tag>/` 配下に書く。calibration は (env, thread数) ごとで入力ワークロードに依存しないので campaign スコープには置かない (D13)。査読で必ず問われる「なぜそのレコード数?」に先回りで答えるため
 
-## noise floor の実測
+## noise floor の実測 (within-run = 1 測定の品質)
 
-レコード数の飽和点に加えて、その環境の **noise floor** (信用してよい性能差の下限) も実測する。確定した実験条件 (レコード数・thread 数) で baseline を**連続 N 回**測って throughput の変動係数 (CV) を出し、noise floor として固定する。
+レコード数の飽和点に加えて、その環境の **within-run noise floor** も実測する。確定した実験条件 (レコード数・thread 数) で baseline を**連続 N 回**反復し、throughput の変動係数 (CV = 標準偏差/平均) を出して固定する。
 
-- noise floor は**環境タグごと** (mac-devcontainer / linux-baremetal) に持つ。これが後段の variant 採否で「この差以下は『差なし』に丸める」閾値の根拠になる (roadmap.md §3.6(4))
-- Mac devcontainer で noise floor が大きく出ること自体が、D10 (性能比較は Linux 実機のみ) の定量的裏付けになる
+- **用途の区別 (A2/D19)**: calibrator が出すこの within-run の変動係数 (linux-baremetal/skew0.9 で 2.28%) は **その 1 測定が外乱で歪んでいないかの品質ゲート** (CV が閾値超なら再測定/`unstable`)。**variant 採否で「この差以下は差なし」に丸める閾値はこれではない。** 採否 floor は variant と baseline を**別 run**で測る現実を反映した **between-run** noise floor (3.0%) で、別ドライバ `orchestrator/campaign/between_run_floor.py` が確定する (roadmap §3.6(3')(4))。両者を混同すると between-run ドリフト帯の差を偽 faster にする
+- within-run noise floor は**環境タグごと** (mac-devcontainer / linux-baremetal) に持つ。Mac devcontainer で大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる
 - **ベンチ前の静定確認** (load average が静定するまで待つ) もあなたの責務。直前ビルドの余熱・温度スロットリングが測定に漏れるのを防ぐ (orchestrator-design.md の Admission Control)
 
 ## スケール感度の検出

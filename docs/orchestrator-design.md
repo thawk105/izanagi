@@ -85,15 +85,15 @@ run ログ (WAL) の全レコードに**環境タグを必須フィールド**�
 
 ## 出力レイアウトと campaign 同一性
 
-orchestrator が書く全アーティファクトの置き場。本システムは入力ワークロードごとに特化 CC を作る (roadmap §1) ので、出力は**入力ごと**に分離する。ただし全部を入力で割るのは誤り — calibration / noise floor は (env, thread数) ごとで入力に依存しない (roadmap §4、絶対規律4)。したがって**二軸**に分ける。
+orchestrator が書く全アーティファクトの置き場。本システムは入力ワークロードごとに特化 CC を作る (roadmap §1) ので、出力は**入力ごと**に分離する。ただし全部を入力で割るのは誤り — calibration / noise floor / profile は (env, thread数) ごとで入力に依存しない (roadmap §4、絶対規律4)。したがって**二軸**に分ける。
 
 ### 二軸レイアウト
 
 ```
 output/
   env/<env-tag>/            ← 環境スコープ (campaign 横断で共有)
-    calibration/             飽和レコード数 (env, thread数 ごと)
-    noise-floor/             §3.6(3) の信用下限
+    calibration/             飽和レコード数 + noise floor (within-run / between-run, §3.6(3)/A2)
+    profile/                 perf 機序プロファイル (spin 分離・有用 IPC, P2-4)
   campaigns/<campaign-id>/  ← 入力スコープ (1 campaign = D12 射影の単位)
     campaign.lock            同一性を決める正準 config (下記)。改竄不能な identity 源
     spec/                    凍結した入力 spec cards (レポートを自己完結にする)
@@ -105,7 +105,7 @@ output/
   whiteboard/               ← campaign 横断で転用可能な教訓 (任意。SkillOpt の転用性)
 ```
 
-ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` のキャンペーンスコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor の書き込み先は `output/env/<env-tag>/`。
+ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` のキャンペーンスコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor/profile の書き込み先は `output/env/<env-tag>/`。
 
 ### 材料レポートの出力規約 (再現性が一級市民)
 

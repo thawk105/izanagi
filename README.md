@@ -12,13 +12,13 @@ CCBench を素材コーパスとして、入力ワークロードに最適な CC
 
 ## 現在の状態
 
-**Phase 1 (評価器の構築) に着手する段階。** まだコードは無い。設計はすべて `docs/` に文書化済み。
+**Phase 2 (パラメータ探索) 進行中。** Phase 1 (評価器の構築) は完了済み — trace verifier・calibrator が `orchestrator/` に実装され、評価パイプライン (正しさ + 性能) が信頼できる状態。Phase 2 は P2-0〜P2-4 + A2 完了 (silo 全探索、critic/profiler 実体化、backoff ケーススタディで stock 最良を contention 域で +38%/+11% 上回る合成を certified で達成)。次は P2-5 (LLM 誘導探索 vs 全探索)。詳細な現在地は `CLAUDE.md` と `docs/worklog.md` 末尾。
 
-実装を始める前に、必ず以下を順に読むこと:
+実装を読む/進める前に、必ず以下を順に読むこと:
 
 1. `CLAUDE.md` — 作業の出発点。現在地と絶対規律
 2. `docs/roadmap.md` — 全体設計とその理由 (議論の蓄積)
-3. `docs/phase1.md` — 今やるべきタスクの分解
+3. `docs/phase2.md` — 今やるべきタスクの分解 (Phase 1 は `docs/phase1.md` に完了記録)
 
 ## アーキテクチャ概要 (三層)
 

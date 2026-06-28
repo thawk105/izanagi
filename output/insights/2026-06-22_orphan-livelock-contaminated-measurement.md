@@ -29,7 +29,7 @@ P2-2 (silo 8 genome × 3 workload の実 fitness 計測) を起動した直後�
 ## 何が汚染されたか
 
 孤児が半分の機械を食う中で P2-2 read-heavy が走り、**3 genome が commit 済み**になっていた
-(bench median 3.86M / 3.49M / 3.77M tps、within-run CV 1.3–3.2%)。CV が低いのは「孤児が一定して
+(bench median 3.86M / 3.49M / 3.77M tps、within-run の変動係数 (CV = 標準偏差/平均) 1.3–3.2%)。CV が低いのは「孤児が一定して
 半機を奪う」系統誤差ゆえで、**精度は無価値** (クリーン機なら別の値)。これらは durable な WAL commit
 = リカバリで terminal skip されてしまう → **campaign ディレクトリごと破棄して再測定**した。
 genome 4 は in-flight (commit 無し) だった。

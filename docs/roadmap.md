@@ -169,7 +169,7 @@ variant と baseline は決して同一セッションで測らない (別ビル
 - noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない。**ただし反復数が小さい (reps≈5) と MWU の弁別力は弱く、完全分離は常に p≈0.012 を返す** (within-run cluster が tight なため)。よって MWU は between-run 有意性検定ではなく within-run の分布重なりを弾く弱い sanity にすぎず、**主防壁は between-run floor 丸め (上記第1項)**。floor を僅かに超える差 (floor 〜 1.5×floor) は MWU が無力な帯なので、headline にする前に cross-run 再現で裏取りする (A2: compare が `near_floor` フラグを立てる)
 - 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする。各主張をその根拠 (WAL の run 値) まで辿れる形で紐づける構造は、ARA の forensic binding (claim→code→evidence の proof chain) と同型 (§7・D12)
 
-**(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしない (D10) ため、(2)(4) は配線だけ用意して Linux 実機到着後に有効化する。
+**(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしなかった (D10) ため (2)(4) は配線のみ用意し、Linux 実機 (Dell R760) 確保後の Phase 2 (A2) で有効化した — noise floor を within-run (品質ゲート) と between-run (採否 floor) に分離した上で (§3.6(3'))。
 
 ---
 
@@ -216,7 +216,7 @@ AI システムのリポジトリ + CCBench を submodule で参照する。**su
 - CCBench のバージョンを commit hash で固定 (再現可能)
 - CCBench への改変を「パッチ」で管理できる
 
-CCBench の走らせ方: orchestrator が patches/ を適用 → cd external/ccbench && make → 走らせて output/runs/ にログ → 実験後 git checkout で ccbench をクリーンに戻す。これで「CCBench本体は常にクリーン、改変は patches/ に明示的に存在」が保てる。
+CCBench の走らせ方: orchestrator が patches/ を適用 → cd external/ccbench && make → 走らせて output/runs/ (= campaign スコープ `output/campaigns/<id>/runs/` の短縮表記、D13/orchestrator-design.md) にログ → 実験後 git checkout で ccbench をクリーンに戻す。これで「CCBench本体は常にクリーン、改変は patches/ に明示的に存在」が保てる。
 
 trace 吐く口 — ビルド時 vs ランタイム: CCBench の最適化フラグが `#define` (ビルド時) かランタイムかで探索ループの形が変わる。CCBench は性能ベンチなのでおそらく多くがビルド時 `#define`。だとするとパラメータ探索は「ビルドし直し型」になり make 時間が評価コストに乗る (緩和: 組み合わせごとにバイナリをキャッシュ)。**これは Phase 1 タスク0 で実物を読んで確認する最優先事項。**
 

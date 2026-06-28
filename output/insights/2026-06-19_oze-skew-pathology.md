@@ -8,7 +8,7 @@
 ## 観測
 
 確定 calibration (1m/48thread/skew0.9/rratio50/rmw=false) で YCSB 7 protocol の baseline を測ると、
-**oze だけ 81 tps / CV 53%** (他は 327K–1.05M tps, CV<1.5%)。約 1万分の1で実質 livelock。
+**oze だけ 81 tps / 変動係数 (CV = 標準偏差/平均) 53%** (他は 327K–1.05M tps, CV<1.5%)。約 1万分の1で実質 livelock。
 
 特性化 (oze, 1m, rratio50, rmw=false):
 

@@ -48,7 +48,7 @@ throughput だけ見ると「BACK_OFF=0 が速い、no-wait は workload 次第�
 
 - read-heavy 最速 2 構成 (8.49M vs 8.45M, 0.50%) は noise floor 内 → **順位を主張しない**。
   read の no-wait/WAL 限界効果も noise 内で符号すら不確定。
-- 各 genome は 1 round 計測 (CV は round 内分散で run 間再現性でない)。floor 近傍の差は要再測。
+- 各 genome は 1 round 計測 (変動係数 (CV = 標準偏差/平均) は round 内分散で run 間再現性でない)。floor 近傍の差は要再測。
 - 限界効果は周辺化平均で**交互作用項を分離していない**。balanced の L/T 差は tictoc validation 経路
   そのものの寄与を含み、「待ち政策の違い」だけに帰属するのは過剰単純化。
 - 中間 backoff の挙動は**完全に未測定 (外挿)**。on/off 2 点間が単調かは不明。

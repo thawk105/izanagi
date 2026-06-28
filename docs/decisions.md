@@ -243,6 +243,8 @@
 | trace-hook (Silo/si の `#if TRACE` 検証計装) | Izanagi の verifier 入力。CCBench の機能ではないが `#if TRACE` で観測者効果セーフ | submodule **`izanagi-trace`** ブランチ (submodule が pin) |
 | broken-silo (わざと壊した Silo) | verifier 赤検出用 positive control = **テスト用の意図的バグ** | **out-of-tree patch** (patches/。永久) |
 
+> **後続の拡張:** この 3 分類は後に patch 行きへ 2 類が追加された — **第4類「合成 variant」(D18、`BACKOFF_FIXED`)** と **第5類「診断計器」(D20、`BACKOFF_NOINLINE`)**。いずれも default で stock と挙動完全一致 (inert) ゆえ broken-silo と同じく patch に隔離する。
+
 **背景:** タスク4b で pinning バグ (anatomy §7) を修正したのを機に「ccbench の改変をどう扱うか」を再検討。`thawk105/ccbench` は本プロジェクトの fork (origin=master、別 upstream remote なし) で改変は低摩擦。D6 は全改変を patches/ に隔離していたが、3 種の改変は性質が異なり一律扱いは最適でないと判明。
 
 **理由:**

@@ -49,7 +49,7 @@ L3 に乗り切らず miss し続けるので、miss 率は N とともに上が
 maxrss) が L3 (本ホスト 90MB) を K 倍 (既定4) 超える最小 N」を採る。
 
 実測結果 (skew=0.9, 48 thread): 1m で maxrss=597MB = L3 の **6.6×**、miss 20.4% で
-cache-bound → **records = 1,000,000** を採用 (早期打ち切り)。noise floor CV 2.28%。
+cache-bound → **records = 1,000,000** を採用 (早期打ち切り)。noise floor の変動係数 (CV = 標準偏差/平均) 2.28%。
 
 ## 限界 (正直に記録)
 

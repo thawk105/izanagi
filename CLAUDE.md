@@ -14,7 +14,11 @@
 
 ## 現在地
 
-**Phase 1: 評価器の構築。タスク0-4 完了。** CCBench を submodule で取得・全ビルド (34バイナリ)、構造を `docs/ccbench-anatomy.md` に記録。trace-hook (タスク1)、mini trace verifier (タスク2, `orchestrator/verifier/`、Adya DSG で G2 cycle 検出・敵対的検証済み)、verifier の赤検出証明 (タスク3) を2つの ablation で実装: (A) わざと壊した Silo `patches/broken-silo-norw-validation.patch` で 1310 G2 検出 vs 素 Silo 緑、(B) 本物の `si`=Snapshot Isolation の trace-hook で 3576 G2 検出 vs 同一 workload の Silo 緑 (real-CC discrimination)。タスク4 (calibrator, `orchestrator/calibrator/`) 完了: TSC 実測 (1800MHz)・perf+numactl runner・倍々スイープ。**実機で miss 率が飽和しない発見 → D15 下限基準 (working set が L3×K 超の最小 N)**、確定 records=1m (skew0.9/48thread, noise floor CV 2.28%)。**submodule 改変は D16 で行き先を分岐**: pinning バグ修正→`master` 還元、trace-hook→`izanagi-trace` ブランチ (submodule が pin)、broken-silo のみ `patches/` (push は人間)。タスク5 完了: 5a=silo BACK_OFF on/off 両 trace 緑 (既知最適化で正しさ不変)、5b=invisible reads の効果を MOCC で実測し **I2 を裁定** (clean 点 rratio=100 で 1.28x=read-heavy で効く、phase1「write-intensive」は誤記訂正、temp_threshold が write も gate する gflag 内交絡を発見) + baseline 7 protocol 取得 (oze は skew で病理)。**Phase 1 完了 (評価パイプライン=正しさ+性能が信頼できる状態)。** 次は Phase 2 (パラメータ探索, `docs/phase2.md` 作成 + critic/profiler 実体化 + orchestrator 骨格)。任意増分: mocc trace-hook、`ermia` cross-check (版 cstamp が `cstamp<<1` の罠あり)。
+**Phase 2: パラメータ探索 — 進行中。** Phase 1 (評価器) は完了済み: CCBench を submodule で全ビルド (解剖 `docs/ccbench-anatomy.md`)、mini trace verifier (`orchestrator/verifier/`、Adya DSG で G2 検出。赤検出を broken-silo `patches/broken-silo-norw-validation.patch` と本物 `si` の 2 ablation で実証)、calibrator (`orchestrator/calibrator/`、TSC 実測 1800MHz・perf+numactl runner・倍々スイープ・**D15 下限基準**で records=1m/skew0.9/48thread 確定)。Phase 1 完了監査 (B→A) で評価パイプライン硬化済み (admission fails-closed, zero-txn ガード, trace シンボル assert)。詳細は worklog 前半。
+
+**Phase 2 (`docs/phase2.md`) は P2-0〜P2-4 + A2 完了**: silo 有効 8 genome (no-wait XOR) を実 fitness で全探索 (P2-2、workload 別最速を WAL + 材料レポートで特定)、leading indicators を WAL 記録し **critic 実体化** (P2-3)、**profiler 実体化** (P2-4、perf record で backoff の spin 命令を分離し有用 IPC を実測)。**backoff ケーススタディ**完了: critic の帰属がフラグ空間外の静的 backoff variant 合成を駆動し、certified なまま contention 域で stock 最良を **+38%/+11%** 上回る (敵対的検証 + cross-run 再現 + [P0] 機序純度=spin 希釈の分離まで)。測定安定性 (P2-1) を stability.py で実装し、**A2 で noise floor を within-run (1 測定の品質ゲート, CV 2.28%) と between-run (採否 floor, 3.0%) に分離** ([[decisions]] D19)。**次は P2-5 (LLM 誘導探索 vs 全探索、Phase 2 主実験)。** 任意増分: mocc trace-hook、`ermia` cross-check (版 cstamp が `cstamp<<1` の罠あり)。
+
+**submodule 改変は D16/D18/D20 で行き先を分岐**: 本物のバグ修正→`master` 還元 (ODR fix #118 / WAL XOR #116)、trace-hook→`izanagi-trace` (submodule pin = dff0f1e)、`patches/` 行き = 意図的バグ broken-silo / 合成 variant `BACKOFF_FIXED` (D18) / 診断計器 `BACKOFF_NOINLINE` (D20)。push は人間。
 
 **Linux 実機 (計測層) 確保済み。** 開発・計測ともこの Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) で行う。D10 の「Mac devcontainer=開発層 / Linux=計測層」の二層は、実機がこのホストに集約されたことで開発層も Linux 実機側に寄った (devcontainer 経路は維持するが必須でない)。性能数値は env=linux-baremetal タグ付きで記録する (orchestrator-design.md の環境タグ)。phase1.md の [Mac]/[Linux] タグは「機能/性能」の区別として読み替える (どちらも本ホストで実行可能)。
 
@@ -90,15 +94,16 @@ roadmap は read-only の聖書ではなく **living document**。試行錯誤�
 
 `.claude/agents/` にロール定義がある。各エージェントは独立コンテキストを持ち、`tools` で権限を絞ってある。
 
-**Phase 1 で実体化済み:**
-- `verifier` — trace を読んで serializability を検査。**書き込み系ツールを持たない** (検証役が実装を勝手に直す事故を構造的に防ぐため)。anomaly を構造化して返す
-- `calibrator` — cache miss 率を見てレコード数を決める
+**実体化済み:**
+- `verifier` (Phase 1) — trace を読んで serializability を検査。**書き込み系ツールを持たない** (検証役が実装を勝手に直す事故を構造的に防ぐため)。anomaly を構造化して返す
+- `calibrator` (Phase 1) — cache miss 率を見てレコード数を決める + noise floor (within-run = 品質ゲート) を実測する
+- `critic` (Phase 2, P2-3) — leading indicators を読んで性能差を設計選択に帰属させ次手を構造化指示で返す。書き込みなし
+- `profiler` (Phase 2, P2-4) — 上位 variant に perf を回し many-core スケール懸念 (spin/lock/NUMA/IPC) を解釈。書き込みなし
 
 **後続 Phase で足す (仕様は `docs/agent-architecture.md` に予約):**
-- `critic`, `profiler` (Phase 2)
 - `planner`, `coder`, `auditor` (Phase 3)
 
-これらの `.md` は、該当 Phase に来たとき `docs/agent-architecture.md` の仕様に従って生成する。今は作らない。
+これら Phase 3 ロールの `.md` は、該当 Phase に来たとき `docs/agent-architecture.md` の仕様に従って生成する。今は作らない。
 
 ---
 
@@ -126,19 +131,23 @@ izanagi/
 │   ├── orchestrator-design.md ← orchestrator の設計原則 (ACID/WAL/排他制御)
 │   └── ccbench-anatomy.md     ← タスク0で作る。CCBench の構造調査結果
 ├── .claude/agents/            ← サブエージェント定義
-│   ├── verifier.md
-│   └── calibrator.md
+│   ├── verifier.md            (Phase 1)
+│   ├── calibrator.md          (Phase 1)
+│   ├── critic.md              (Phase 2, P2-3)
+│   └── profiler.md            (Phase 2, P2-4)
 ├── hooks/                     ← Python の機械的防壁
 ├── orchestrator/              ← 探索ループの中枢 (Python)。Phase進行で実装
 ├── external/ccbench/          ← submodule (タスク0で追加)
-└── output/                    ← 全成果物。campaigns/<id>/ (入力ごと) と env/<tag>/ (calibration) の二軸 (D13)
+└── output/                    ← 全成果物。campaigns/<id>/ (入力依存: WAL+reports) と env/<tag>/ (入力非依存: calibration + profile) の二軸 (D13。詳細 output/README.md)
 ```
 
 ---
 
 ## 環境の二層戦略 (D10)
 
-- **開発層 = この devcontainer (Mac 上)**: CCBench のビルド・trace 検証・verifier・orchestrator 開発。Phase 1 タスク0-3 はここで完結する
+**現状 (2026-06): 開発・計測とも Linux 実機 (Dell R760) に集約済み。Mac devcontainer は維持するが必須でない (「現在地」§・line 19 参照)。以下は当初の二層設計の記録 — 「計測層で取った数値以外を性能比較に使わない」規律は不変。**
+
+- **開発層 = この devcontainer (Mac 上)**: CCBench のビルド・trace 検証・verifier・orchestrator 開発 (当初は Phase 1 タスク0-3 をここで完結とした)
 - **計測層 = Linux 実機**: 性能ベンチと calibration。**Mac 上の Docker では HW PMU が取れず perf の cache miss 計測が動かない。性能数値も VM 越しで歪むため、計測層で取った数値以外を性能比較に使ってはいけない**
 - devcontainer の構成は `.devcontainer/` にある。CCBench submodule 追加後は post-create.sh が ubuntu.deps を読んで依存を入れる
 - submodule は **thawk105/ccbench (v1)** を使う。v2 ではない (7プロトコル×7最適化のコーパスが揃うのは v1)

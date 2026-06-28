@@ -14,7 +14,7 @@
 同一 MOCC バイナリで read 比率を振って invisible vs visible の throughput を実測 (1m/48thread/
 skew0.9/rmw=false, reps=5):
 
-| rratio(読み%) | invisible tps | visible tps | inv/vis | CV |
+| rratio(読み%) | invisible tps | visible tps | inv/vis | 変動係数 (CV=標準偏差/平均) |
 |---|---|---|---|---|
 | 0   | 2,292,243 | 1,322,901 | **1.733x** | 6.6/5.3% |
 | 25  | 805,840   | 658,514   | 1.224x | — |
