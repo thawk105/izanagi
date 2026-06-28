@@ -22,7 +22,7 @@ from campaign.loop import run_campaign                          # noqa: E402
 from campaign.model import CampaignConfig                       # noqa: E402
 from campaign.pipeline import PerfConfig                        # noqa: E402
 
-CCBENCH_COMMIT = "6656e93"
+CCBENCH_COMMIT = "dff0f1e"
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 

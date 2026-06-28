@@ -29,7 +29,7 @@ from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
                            REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig                        # noqa: E402
 
-CCBENCH_COMMIT = "6656e93"
+CCBENCH_COMMIT = "dff0f1e"
 
 # 全 genome 共通の base = 高 abort 域の勝者構成 L-W0 (no-wait-locking / WAL 無)。
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}

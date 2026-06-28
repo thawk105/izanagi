@@ -30,7 +30,7 @@ from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,   # noqa: E402
                            REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig                         # noqa: E402
 
-CCBENCH_COMMIT = "6656e93"
+CCBENCH_COMMIT = "dff0f1e"
 
 # 元 sweep で確定した値 (committed)。再現の比較基準。
 ORIG = {
