@@ -14,7 +14,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from calibrator.stability import (                              # noqa: E402
-    compare, mann_whitney_u, remeasure_until_stable)
+    between_run_noise_floor, compare, mann_whitney_u, remeasure_until_stable)
 
 
 def _measure_seq(seqs):
@@ -25,6 +25,18 @@ def _measure_seq(seqs):
         i = min(box["i"], len(seqs) - 1)
         box["i"] += 1
         return types.SimpleNamespace(throughputs=list(seqs[i]))
+    fn.calls = lambda: box["i"]
+    return fn
+
+
+def _scalar_seq(values):
+    """canned な session 代表 throughput を順に返す measure_fn (None も返せる)。"""
+    box = {"i": 0}
+
+    def fn():
+        v = values[box["i"]]
+        box["i"] += 1
+        return v
     fn.calls = lambda: box["i"]
     return fn
 
@@ -72,6 +84,44 @@ def test_remeasure_single_sample_is_unstable():
     rem = remeasure_until_stable(m, settle_fn=None, max_rounds=3)
     assert rem.rounds == 3 and rem.unstable and not rem.stable
     assert rem.nf.cv is None and rem.nf.median == 100   # median はあるが CV 不能
+
+
+# ===== (3') between-run noise floor =====
+
+def test_between_run_settles_between_sessions_only():
+    """settle はセッション間のみ (初回前は呼ばない)。CV は session 列 (session-median) で算出。"""
+    settles = {"n": 0}
+    m = _scalar_seq([1000, 1000, 1000, 1000])          # 4 独立セッション, 全同値 → CV 0
+    b = between_run_noise_floor(
+        m, settle_fn=lambda: settles.__setitem__("n", settles["n"] + 1), sessions=4)
+    assert b.sessions == 4 and b.cv == 0.0 and not b.high_variance
+    assert settles["n"] == 3                            # 4 セッション → 間は 3 回だけ settle
+    assert m.calls() == 4
+    assert b.session_throughputs == [1000, 1000, 1000, 1000]
+
+
+def test_between_run_cv_over_sessions_and_high_variance():
+    """between CV = session 代表値の散らばり。閾値超で high_variance。"""
+    m = _scalar_seq([90, 100, 110])                    # mean 100, stdev 10 → cv 0.10
+    b = between_run_noise_floor(m, settle_fn=None, sessions=3, cv_threshold=0.05)
+    assert b.sessions == 3 and abs(b.cv - 0.10) < 1e-9
+    assert b.high_variance and b.median == 100
+
+
+def test_between_run_skips_unmeasurable_sessions():
+    """measure_fn が None を返した (測定不能) セッションは除外する。"""
+    m = _scalar_seq([100, None, 100, 100])             # 4 試行中 1 つ測定不能
+    b = between_run_noise_floor(m, settle_fn=None, sessions=4)
+    assert b.sessions == 3 and b.session_throughputs == [100, 100, 100]
+    assert b.cv == 0.0
+
+
+def test_between_run_single_session_cv_none():
+    """有効セッションが 2 未満なら between CV は算出不能 (最低 2 セッション)。"""
+    m = _scalar_seq([100, None])
+    b = between_run_noise_floor(m, settle_fn=None, sessions=2)
+    assert b.sessions == 1 and b.cv is None
+    assert any("2 未満" in n for n in b.notes)
 
 
 # ===== (4) 分布比較: Mann-Whitney U =====
@@ -126,6 +176,37 @@ def test_compare_above_floor_but_not_significant_is_no_difference():
 
 def test_compare_empty_is_indeterminate():
     assert compare([], [1, 2, 3]).verdict == "indeterminate"
+
+
+def test_compare_zero_baseline_is_indeterminate():
+    """baseline median が 0 だと相対差を定義できず indeterminate (faster 分岐の rel*100 で落ちない)。"""
+    c = compare([0.0, 0.0], [5.0, 5.0], noise_cv=0.03)
+    assert c.verdict == "indeterminate" and c.p is None and not c.near_floor
+
+
+# ===== (4) floor 近傍フラグ (Gate2 が無力な帯 → cross-run 再現で裏取り要) =====
+
+def test_compare_near_floor_flag_set_for_marginal_faster():
+    """floor 超だが margin (1.5×floor) 以内の faster には near_floor を立てる。"""
+    base = [100, 100.5, 101, 101.5, 102]               # median 101
+    var = [104, 104.5, 105, 105.5, 106]                # median 105, rel ~3.96% (3%<x<4.5%)
+    c = compare(base, var, noise_cv=0.03)              # floor 3%, near band (3%,4.5%]
+    assert c.verdict == "faster" and c.near_floor
+    assert "cross-run 再現" in c.reason
+
+
+def test_compare_well_above_floor_not_near():
+    """margin を超える明確な差には near_floor を立てない (headline は無印)。"""
+    base = [100, 101, 99, 102, 98]                      # median 100
+    var = [120, 121, 119, 122, 118]                     # median 120, rel 20% >> 4.5%
+    c = compare(base, var, noise_cv=0.03)
+    assert c.verdict == "faster" and not c.near_floor
+
+
+def test_compare_no_difference_not_near():
+    """floor 以下で no-difference に丸めた差は near_floor 対象外。"""
+    c = compare([1000] * 5, [1015] * 5, noise_cv=0.03)  # rel 1.5% <= 3%
+    assert c.verdict == "no-difference" and not c.near_floor
 
 
 # ---- 素の runner ----

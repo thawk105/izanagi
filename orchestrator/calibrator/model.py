@@ -159,6 +159,35 @@ class NoiseFloor:
 
 
 @dataclass
+class BetweenRunNoiseFloor:
+    """独立な測定セッション間 (= 別 run) の throughput ばらつき (roadmap §3.6(3)(4))。
+
+    `NoiseFloor` (within-run) が 1 セッション内 N rep の散らばり = **その 1 測定の品質**
+    を見る (再測定/unstable の品質ゲート) のに対し、これは N 個の**独立セッション**
+    (各 = 1 つの measure_point = rep を内包し median を返す) の session-median の散らばり
+    = **差が信用できるかの下限**を見る。variant と baseline は決して同一セッションで
+    測らない (別ビルド・campaign の別時点) ので、§3.6(4) の分布比較が『差なし』に丸める
+    閾値 (compare の noise_cv) は within-run でなく between-run であるべき。
+
+    **限界 (正直に):** fresh な back-to-back セッションは warmup/cwd のリセットは挟むが
+    settle は admission (他テナント検出) であって独立性ではない (runner.settle の docstring:
+    連続 run 間 settle は load EMA 残像でほぼ即 return)。よって cold-boot/温度/数時間
+    ドリフトは捉えない = workload-agnostic な**下限**。high-abort genome は run 間ドリフトが
+    大きい (worklog 2026-06-28: no-backoff abort 82% が最大の run 間分散源)。wired する floor は
+    cross-campaign の genuine な between データと突き合わせ保守側 (最大) に採る。
+    """
+    session_throughputs: List[float] = field(default_factory=list)  # 各セッションの代表 tps (=median)
+    sessions: int = 0                # 有効セッション数 (測定不能を除いた数)
+    cv: Optional[float] = None       # between-run CV = session 列の stdev/mean (信用できる差の下限)
+    mean: Optional[float] = None
+    median: Optional[float] = None
+    stdev: Optional[float] = None
+    high_variance: bool = False      # cv が cv_threshold を超えた (既定は汎用 5%。between 固有でなく
+                                     # 診断専用。採否 floor の確定は driver が cross-campaign と突き合わせ)
+    notes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class CalibrationResult:
     """env スコープに書き出す確定校正。
 

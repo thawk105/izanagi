@@ -7,6 +7,10 @@ Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・CV、`analyze
   測り直す。規定ラウンドで収束しなければ `unstable`。`measure_fn`/`settle_fn` を注入する
   ので、実ベンチを回さずにモックでテストできる (実走は pipeline が bench_lock 下=直列で行う、
   絶対規律4)。
+- **(3') between-run noise floor** (`between_run_noise_floor`): 独立セッション間の session-median
+  の CV = **差が信用できるかの下限** (compare の丸め閾値)。within-run noise floor (= その 1 測定の
+  品質) と用途が違う: variant と baseline は別 run で測るので採否の floor は between-run であるべき
+  (within-run を流用すると偽 faster を出す。これが A2 で塞いだ穴)。callable 注入でテスト可。
 - **(4) 採否は分布比較** (`compare`): noise floor 以下の差は「差なし」に丸め、超える差だけ
   Mann-Whitney U で有意性を判定する。scipy 等の重い統計機構は使わない (正規近似 + tie/連続補正)。
   **unstable な variant は呼び手が比較から除外する** (沈黙して 1 点を採用しない)。
@@ -19,12 +23,14 @@ from dataclasses import dataclass, field
 from typing import Callable, List, Optional, Sequence, Tuple
 
 from .analyze import DEFAULT_NOISE_CV, noise_floor
-from .model import NoiseFloor
+from .model import BetweenRunNoiseFloor, NoiseFloor
 
 
 # 既定の閾値 (全て名前付き・上書き可能 = 査読で「なぜこの値?」に答えられる)。
 DEFAULT_REMEASURE_ROUNDS = 3        # 収束しなければ unstable とするまでの最大測定回数 (§3.6(2))
 DEFAULT_ALPHA = 0.05               # 分布比較の有意水準 (§3.6(4))
+DEFAULT_BETWEEN_RUN_SESSIONS = 8    # between-run CV の推定に使う独立セッション数 (§3.6(3))
+DEFAULT_NEAR_FLOOR_MARGIN = 1.5    # 差がこの倍率×floor 以内なら floor 近傍とフラグ (§3.6(4))
 
 
 # ============================================================
@@ -82,6 +88,60 @@ def remeasure_until_stable(
               and best_nf.cv <= cv_threshold)
     return RemeasureResult(point=best_pt, nf=best_nf, rounds=rounds,
                            stable=stable, unstable=not stable, cv_history=history)
+
+
+# ============================================================
+# (3') between-run noise floor (差が信用できるかの下限)
+# ============================================================
+
+def between_run_noise_floor(
+        measure_fn: Callable[[], Optional[float]],
+        settle_fn: Optional[Callable[[], None]] = None,
+        sessions: int = DEFAULT_BETWEEN_RUN_SESSIONS,
+        cv_threshold: float = DEFAULT_NOISE_CV) -> BetweenRunNoiseFloor:
+    """独立な測定セッションを sessions 回回し、各セッションの代表 throughput の CV を出す。
+
+    within-run noise floor (`noise_floor`: 1 セッション内 N rep の散らばり=その測定の品質,
+    `remeasure_until_stable` の品質ゲート) と用途が違う: これは N 個の**独立セッション**
+    (各 = measure_fn() 1 回 = 完全な 1 測定点。reps を内包し median を返す) の session-median
+    の散らばり = **差が信用できるかの下限** (compare の丸め閾値, roadmap §3.6(4))。variant と
+    baseline は決して同一セッションで測らないので、この between-run CV が信用できる差の下限。
+
+    2 回目以降は前に settle_fn() を呼ぶ — ただしこれは **admission** (他テナント混入の検出。
+    driver は lag-free な競合検知 competing_bench_pids を注入する) であって between-run 独立性の
+    確保ではない (settle = load EMA は連続 run 間で残像でほぼ即 return し独立性を足さない)。
+    よって本関数が返すのは fresh な same-window の between-run CV = cold-boot/温度ドリフトを
+    含まない **下限** であり、wired する floor は cross-campaign の genuine な between データと
+    突き合わせ保守側に採ること (`BetweenRunNoiseFloor` の docstring・worklog 2026-06-28)。
+
+    measure_fn/settle_fn を注入するので machine に触れずモックでテストできる (実走は driver が
+    bench_lock 下=直列で行う, 絶対規律4)。measure_fn が None を返した (測定不能) セッションは除外。
+    """
+    series: List[float] = []
+    for i in range(sessions):
+        if i > 0 and settle_fn is not None:
+            settle_fn()                              # admission (独立性ではない)
+        tps = measure_fn()
+        if tps is not None:
+            series.append(tps)
+
+    nf = noise_floor(series, cv_threshold)           # session 列の分布要約を再利用
+    out = BetweenRunNoiseFloor(
+        session_throughputs=series, sessions=len(series),
+        cv=nf.cv, mean=nf.mean, median=nf.median, stdev=nf.stdev,
+        high_variance=nf.high_variance)
+    if len(series) < 2:
+        out.notes.append("独立セッションが 2 未満。between-run CV は算出不能 (最低 2 セッション)")
+    else:
+        out.notes.append(
+            f"between-run CV {nf.cv*100:.2f}% = {len(series)} 独立セッションの session-median の"
+            "散らばり。settle は admission (独立性でない) ため cold-boot/温度ドリフト未含 = 下限。"
+            "high-abort genome はこれを上回りうる → cross-campaign データと突き合わせ保守側に採れ")
+        if nf.high_variance:
+            out.notes.append(
+                f"between-run CV {nf.cv*100:.2f}% が許容上限 {cv_threshold*100:.1f}% 超。"
+                "外乱混入か独立セッション間ドリフトが大きい (動作点/genome を疑え)")
+    return out
 
 
 # ============================================================
@@ -154,17 +214,33 @@ class Comparison:
     p: Optional[float] = None             # 両側 p 値
     median_base: Optional[float] = None
     median_variant: Optional[float] = None
+    near_floor: bool = False              # faster/slower だが差が floor 近傍
+                                          # (floor < |rel| <= margin*floor) → cross-run 再現で裏取り要
     reason: str = ""
 
 
 def compare(baseline: Sequence[Optional[float]],
             variant: Sequence[Optional[float]],
             noise_cv: float = DEFAULT_NOISE_CV,
-            alpha: float = DEFAULT_ALPHA) -> Comparison:
+            alpha: float = DEFAULT_ALPHA,
+            near_floor_margin: float = DEFAULT_NEAR_FLOOR_MARGIN) -> Comparison:
     """variant の throughput 分布を baseline と比較し採否判定の材料を返す (§3.6(4))。
 
-    手順: (1) noise floor 以下の中央値差は「差なし」に丸める (信用してよい差の下限、§3.6(3))。
+    手順: (1) noise floor 以下の中央値差は「差なし」に丸める (信用してよい差の下限)。
     (2) 超える差にだけ Mann-Whitney U を当て、有意なら faster/slower、有意でなければ no-difference。
+
+    **noise_cv は between-run noise floor を渡すこと** (`between_run_noise_floor`)。variant と
+    baseline は別 run/別ビルドで測るので、信用できる差の下限は within-run でなく between-run
+    (within-run を渡すと between-run ドリフト帯の差を『超』と誤判定し偽 faster を出す — これが
+    A2 で塞いだ穴)。within-run noise floor は別関心 (1 測定の品質 = remeasure 品質ゲート)。
+
+    **Gate2 (Mann-Whitney) の弁別力は弱い**: reps が小さい (5 程度) と完全分離は常に p≈0.012 を
+    返す (正規近似)。よって Gate2 は between-run 有意性検定でも fluky-rep 対策でもなく
+    (median は外れ rep にロバスト)、within-run の分布重なり (partial overlap) を二次的に弾く
+    弱い sanity にすぎない。**主防壁は Gate1 (between-run floor 丸め)**。Gate1 を僅かに超えた
+    faster/slower は Gate2 が無力なので `near_floor` を立てる — headline にする前に cross-run
+    再現 (backoff_repro 方式) で裏取りすること (現 repro は同一 boot・対象限定なので別 boot/
+    rounds≥3 への拡張が将来必要)。
 
     **unstable な variant はこの比較に渡す前に呼び手が除外すること** (沈黙して 1 点を採用しない、
     §3.6(4))。サンプルが空なら indeterminate。
@@ -179,22 +255,35 @@ def compare(baseline: Sequence[Optional[float]],
     rel = (med_v - med_b) / med_b if med_b else None
     c = Comparison(rel_median=rel, median_base=med_b, median_variant=med_v)
 
-    # (1) noise floor 以下 → 差なしに丸める。
-    if rel is not None and abs(rel) <= noise_cv:
-        c.verdict = "no-difference"
-        c.reason = (f"中央値差 {rel * 100:+.2f}% が noise floor {noise_cv * 100:.1f}% 以下 "
-                    "→ 信用できる差ではない")
+    # baseline median が 0/欠損 → 相対差を定義できない。Gate2 に落とすと faster/slower 分岐の
+    # rel*100 が None で落ちるので、ここで indeterminate を返す (0 tps を WAL に書く crash genome 等)。
+    if rel is None:
+        c.verdict = "indeterminate"
+        c.reason = "baseline median が 0 で相対差を定義できない"
         return c
 
-    # (2) noise floor 超 → Mann-Whitney U で有意性判定。
+    # (1) between-run noise floor 以下 → 差なしに丸める (主防壁)。
+    if rel is not None and abs(rel) <= noise_cv:
+        c.verdict = "no-difference"
+        c.reason = (f"中央値差 {rel * 100:+.2f}% が between-run noise floor "
+                    f"{noise_cv * 100:.1f}% 以下 → 信用できる差ではない")
+        return c
+
+    # (2) floor 超 → Mann-Whitney U (within-run 分布の弱い sanity)。
     u, p = mann_whitney_u(xv, xb)
     c.u, c.p = u, p
     if p < alpha:
         c.verdict = "faster" if (rel or 0) > 0 else "slower"
-        c.reason = (f"中央値差 {rel * 100:+.2f}% (noise floor 超) かつ "
+        c.reason = (f"中央値差 {rel * 100:+.2f}% (floor 超) かつ "
                     f"Mann-Whitney p={p:.3f} < {alpha} で有意")
+        # floor 近傍 (Gate2 が無力な帯) → cross-run 再現で裏取り要のフラグを立てる。
+        if rel is not None and abs(rel) <= near_floor_margin * noise_cv:
+            c.near_floor = True
+            c.reason += (f" — ただし差は floor の {near_floor_margin:g} 倍 "
+                         f"({near_floor_margin * noise_cv * 100:.1f}%) 以内 (floor 近傍) "
+                         "なので cross-run 再現で裏取り要")
     else:
         c.verdict = "no-difference"
-        c.reason = (f"中央値差 {rel * 100:+.2f}% は noise floor 超だが "
+        c.reason = (f"中央値差 {rel * 100:+.2f}% は floor 超だが "
                     f"Mann-Whitney p={p:.3f} >= {alpha} で有意でない")
     return c
