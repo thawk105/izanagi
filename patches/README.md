@@ -74,7 +74,9 @@ git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (izanag
 
 ---
 
-## silo-backoff-fixed.patch — 合成 variant: 静的 backoff の量を単一軸に (P2 ケーススタディ, D18)
+## silo-backoff-fixed.patch — 静的 backoff (合成 variant, D18) + noinline (診断計器, P2-4)
+
+このパッチは izanagi の silo backoff 追加を 2 つ束ねる: **(1) `BACKOFF_FIXED`** = 量を単一軸に固定する合成 variant (D18)、**(2) `BACKOFF_NOINLINE`** = perf 帰属用の診断計器 (P2-4)。どちらも `cmake/Options.cmake` + `include/backoff.hh` を触り、既定値で inert (stock 不変)。
 
 **フラグ空間外への最初の踏み出し** (Phase 2→3 の橋渡し)。CCBench の backoff は Cicada 由来の
 **適応 backoff** (leader が throughput 勾配で global backoff 値を hill-climbing) で、それが 48thread
@@ -91,6 +93,21 @@ git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (izanag
   certified を確認済み (`BACKOFF_FIXED=50` で 355,549 commit / 0 anomaly)。pipeline が毎評価ゲートする。
 - 使い方: genome に `BACKOFF_FIXED` フラグを足すと `-DCCBENCH_BACKOFF_FIXED=<us>` が渡る。
   driver = `orchestrator/campaign/backoff_sweep.py` (BACK_OFF=1 + 量 sweep を高 abort workload で計測)。
+
+### BACKOFF_NOINLINE — perf 帰属用の診断計器 (P2-4)
+
+backoff ケーススタディ [P0] の機序純度を解くため、backoff() の `_mm_pause`+`rdtscp` busy-wait スピンを
+perf record で分離して「有用 IPC」を測る計器。`backoff()` は -O2 で `TxExecutor::abort` に inline され
+独立シンボルにならない (perf で spin を関数単位に切り出せない)。`#if BACKOFF_NOINLINE` で
+`__attribute__((noinline))` を付け、`Backoff::backoff` を独立シンボル化する。
+
+- **既定 0 で inert**: noinline を付けないので命令列・挙動とも stock 不変。観測者効果も実測で確認
+  (BACKOFF_NOINLINE=1 fix10 = 2,623,221 tps vs stock 2,603,521 = +0.76%、between-run floor 3.0% 内)。
+  → 機序分析 (spin%/有用 IPC) は noinline build で測り、headline throughput は stock build を引く。
+- 使い方: genome に `BACKOFF_NOINLINE` を足すと `-DCCBENCH_BACKOFF_NOINLINE=1`。
+  driver = `orchestrator/campaign/backoff_profile.py` (`perf record -e cycles,instructions` →
+  `Backoff::backoff` の cycle%/instruction% を分離 → 有用 IPC)。**規律1**: trace と直交 (診断専用)。
+  **規律4**: 単一テナント直列・pgrep gate。perf 下 tps は overhead 込みなので headline には使わない。
 
 ```sh
 SUB=external/ccbench

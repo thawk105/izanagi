@@ -856,3 +856,42 @@ floor 2.28%→3.0% で **P2-2 read-heavy rank3 (B0-T-W1, +2.4%) / rank4 (B0-L-W1
 1. **P2-4 (profiler 実体化)** — `perf record` で backoff スピン命令分離 = backoff ケーススタディの最後の穴 [P0]。
 2. **P2-5 (LLM 誘導探索 vs 全探索)** — Phase 2 主実験。critic の帰属で次 genome を選ぶループ。near_floor フラグが close call の裏取りに効く。
 3. **Phase 3 着手前 must** (S1/S2/S4/H3) + campaign-id drift の恒久対応は Phase 3 直前に。
+
+---
+
+## 2026-06-28 (続き) — P2-4 profiler 実体化 + backoff [P0] 機序純度を解消
+
+backoff ケーススタディの最大の穴 [P0]「なぜ速いか」(看板 write-heavy で「throughput=(1-abort)×ipc の積」が
+peak 位置を外す) を **perf record で spin 命令を分離**して解消。profiler サブエージェントを実体化 (Phase 2 deliverable)。
+
+### 手法の実機 de-risk → BACKOFF_NOINLINE 診断パッチ
+- `backoff()` の `_mm_pause`+`rdtscp` busy-wait は -O2 で `TxExecutor::abort` に inline され perf で独立シンボルに
+  ならない (fix50 で rdtscp 単体が全 cycle の 42.49% = smoking gun だが abort に溶ける)。
+- **`BACKOFF_NOINLINE` inert 診断ノブ**を patch に追加 (Options.cmake + backoff.hh の `#if`)。1 で `__attribute__((noinline))`
+  → `Backoff::backoff` を独立シンボル化。既定 0=inert (stock 命令列・挙動不変、cache hit で実証)。観測者効果も実測:
+  noinline fix10 = 2,623,221 vs stock 2,603,521 = **+0.76% (floor 3.0% 内、inert)** → 機序分析が stock に転移する。
+
+### ドライバ + 実測 (`backoff_profile.py`, 直列・pgrep gate)
+write-heavy で backoff {none,2,5,10,25,50,100us} を `perf record -e cycles,instructions` → `Backoff::backoff` の
+cycle%/instruction% を分離 → **有用 IPC = (全命令−spin命令)/(全cycle−spin cycle)**。
+
+### 結果 — [P0] 解消 (sweet-spot) + 正直な留保 + 新発見
+- **sweet-spot 域 (0-10us, ピーク帯) で有用 IPC 一定** (1.92/1.96/2.01/1.94, 散布 4.4%)。total IPC は 1.92→1.09 崩壊
+  (全域 117.7%) = **純 spin 希釈** (fix10 で cyc 48.7%/instr 8.5%)。**「なぜ fix10 が速いか」= abort 半減 (82→49%) が
+  有用 IPC 不変のまま効いた**。元の積モデルが peak を 25us に外したのは ipc 項に spin 混入の total_ipc を使ったから。
+- **正直な留保**: K_useful は一定でない (5.24M→1.47M, -72%) → 「有用 IPC で積モデルが定数 K で救われる」は**不成立**。
+  言えるのは「sweet-spot の total IPC 低下 = spin 希釈」まで。predictive な積モデルは主張しない。
+- **新発見 (第二次効果)**: over-throttle 域 (25-100us) で有用 IPC **自体**が低下 (1.94→1.47) = 待ちすぎは spin 税だけ
+  でなく有用仕事効率も削る → stock 適応 ~560us 駐車の敗因 (最悪点) を裏付け。
+- profiler.md (agent-architecture 仕様) を実体化し実データで実走 → hotspot/scale-risk/mechanism/uncertainty を構造化で返した
+  (critic の P2-3「ipc 崩壊」帰属を「sweet-spot の崩壊は有用効率でなく spin 希釈」と精緻化)。critic.md の noise floor を
+  A2 の between-run 3.0% に更新 (A2 配線漏れの修正)。
+
+詳細 insight 追記 [[2026-06-22_p2-case-study-backoff-synthesis]] / decisions D20。データ
+`output/env/linux-baremetal/profile/backoff_profile_t48_skew0p9_rr5.{json,md}`。
+
+### 次の一手
+1. **P2-5 (LLM 誘導探索 vs 全探索)** — Phase 2 主実験 (critic ablation の定量化が残る最大項目)。near_floor が close call 裏取り。
+2. (任意) backoff profile を balanced でも取る (write-heavy で [P0] は閉じたが対照として)。over-throttle 有用 IPC 低下の機序
+   (MLP 低下 vs cache 余熱) の分離。
+3. **Phase 3 着手前 must** (S1/S2/S4/H3) + campaign-id drift (C1) 恒久対応は Phase 3 直前に。

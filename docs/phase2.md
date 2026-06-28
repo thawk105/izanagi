@@ -76,13 +76,19 @@ throughput スカラーだけでは探索が 8-12 iteration で停滞する (Jit
 (L↔T 反転の見落としを critic が防ぐ) も提示。定量 ablation (critic 誘導 vs ランダムの到達 iter) は P2-5。
 insight 2026-06-22_p2-3-critic-leading-indicator-attribution.md。
 
-## P2-4: profiler 実体化 (二段構え)
+## P2-4: profiler 実体化 (二段構え) — 完了
 
-- [ ] `profiler.md` を agent-architecture 仕様で生成
-- [ ] screening 通過した上位 variant にだけ perf/FlameGraph (trace-disabled build, 規律1)
-- [ ] many-core スケール懸念 (lock acquisition %, NUMA リモートアクセス等) を診断し critic/層3 に渡す
+- [x] `profiler.md` を agent-architecture 仕様で生成 (perf 実行・spin/lock/NUMA/IPC 解釈、書き込みなし)
+- [x] screening 通過した上位 variant にだけ perf record (trace-disabled build, 規律1)。backoff ケーススタディの
+      sweet-spot variant 群を対象に `perf record -e cycles,instructions`。診断ノブ `BACKOFF_NOINLINE` (inert patch) で
+      spin を独立シンボル化し有用 IPC を分離 (`orchestrator/campaign/backoff_profile.py`)
+- [x] many-core スケール懸念を診断し critic/層3 に渡した。profiler を実データで実走し
+      hotspot/scale-risk/mechanism/uncertainty を構造化で返す ([P0] 機序純度を解消: sweet-spot で有用 IPC 一定 =
+      total IPC 崩壊は純 spin 希釈、over-throttle で有用 IPC 二次低下。decisions D20 / insight 追記)
 
-**完了条件:** profiler が上位 variant の many-core スケール懸念を解釈して返す。
+**完了条件:** 達成。profiler が backoff variant の many-core 機序 (spin 希釈・有用 IPC・over-throttle) を解釈して返し、
+backoff ケーススタディの最後の穴 [P0]「なぜ速いか」を sweet-spot 域で機序的に閉じた。perf 下 tps は overhead 込みで
+headline 非使用 (絶対値は stock build)、単一テナント直列 (規律4)。定量 ablation (profiler 有/無) は P2-5 と地続き。
 
 ## P2-5: LLM 誘導探索 vs 全探索 (Phase 2 の主実験)
 

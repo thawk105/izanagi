@@ -323,3 +323,26 @@
 - **within-run を remeasure 品質ゲートに 2.28% で配線**: 品質ゲートを 5%→2.28% に厳しくすると再測定が乱発し規律4 に触れる。within は据え置き、A2 は compare の between 置換に絞った。
 
 **位置づけ:** Claude 自律の硬化実装。roadmap 本体の設計変更でなく §3.6 への学んだ事実の反映 (軽微改訂) + 実装なので版セレモニー対象外。なお再生成で露呈した「6/28 の ODR-fix gitlink 前進 (CCBENCH_COMMIT 6656e93→dff0f1e) が content-addressed campaign-id を移動させ、歴史的 p2-2/backoff campaign の report 再生成が現 config では孤立する」issue は A2 と独立の既存問題として worklog/phase2.md に follow-up 記録 (今回は測定時 commit を供給して忠実に再生成した)。
+
+## D20. 診断計器も inert patch に置く (第5類) + backoff [P0] を perf record の有用 IPC で解消 (P2-4)
+
+**決定:** Izanagi が perf 帰属のために CCBench に足す**診断計器** (最初の例 = `BACKOFF_NOINLINE`、spin ループを noinline 化して perf record で独立シンボル化) は、合成 variant (D18) と同じく **out-of-tree の inert patch** (`patches/`、既定で stock と命令列・挙動完全一致) に置く。D16 の改変分類に**第5類「診断計器」**を足す (本物のバグ修正→master / trace 計装→izanagi-trace / 意図的バグ→patch / 合成 variant→patch (D18) / **診断計器→patch**)。
+
+**背景 ([P0] の穴):** backoff ケーススタディの敵対的検証が残した最大の穴 [P0]: 看板 write-heavy で「throughput=(1-abort)×ipc の積」が peak 位置を外す (積 25us vs throughput 10us)。残差 K が backoff 増で 15-31% 低下 = `backoff()` の `_mm_pause`+`rdtscp` busy-wait スピンが perf instructions/cycles を希釈する第三因子。total ipc は「有用な stall」と「スピン希釈」の混交で、「なぜ速いか」(最終成果物の一部) が看板例で機序的に破綻していた。
+
+**手法 (なぜ noinline 診断計器か):** spin は -O2 で `TxExecutor::abort` に inline され perf で関数単位に切り出せない (fix50 で rdtscp 単体が全 cycle の 42.49% だが abort に溶ける)。選択肢は (a) `perf annotate` で spin 命令アドレスを手で同定して合算 (fragile・ビルドごとにアドレス変動)、(b) **noinline で `Backoff::backoff` を独立シンボル化し perf report が cycle%/instruction% を直接返す** (clean・帰属が機械的)。(b) を採用。観測者効果は実測で inert を確認 (noinline fix10 = 2,623,221 vs stock 2,603,521 = +0.76%、between-run floor 3.0% 内) → 機序分析が stock build に転移する。これは ADD_ANALYSIS の `backoff_latency_rate` (spin **時間**割合は出るが spin **命令数**は出ない) では測れない「有用 IPC」を埋める。
+
+**結果 (解消した命題と正直な留保):** write-heavy で backoff {0..100us} を `perf record -e cycles,instructions` し有用 IPC を分離 (`orchestrator/campaign/backoff_profile.py`):
+- **sweet-spot 域 (0-10us, throughput ピーク帯) で有用 IPC 一定** (1.92/1.96/2.01/1.94, 散布 4.4%)。total IPC は 1.92→1.09 崩壊 (全域 117.7%) = **純 spin 希釈**。→ **「なぜ fix10 が速いか」= abort 半減 (82→49%) が有用 IPC 不変のまま効いた**。元の積モデルが peak を 25us に外したのは ipc 項に spin 混入の total_ipc を使ったため (有用 IPC では sweet-spot で減らない)。[P0] の核命題をこの帯で機序的に閉じた。
+- **正直な留保:** K_useful = tps/((1-abort)·useful_ipc) は一定でない (5.24M→1.47M, -72%) → 「有用 IPC で積モデルが定数 K で predictive になる」は**不成立**。言えるのは「sweet-spot の total IPC 低下 = spin 希釈」まで。先行 `[major 縮約]` (eff_tps トートロジー) と整合し、IPC レンズで再確認 + 「有用 IPC 一定は sweet-spot に限る」境界を足す。
+- **新発見 (第二次効果):** over-throttle 域 (25-100us) で有用 IPC 自体が低下 (1.94→1.47) = 待ちすぎは spin 税だけでなく有用仕事効率も削る → stock 適応 ~560us 駐車の敗因 (最悪点) を裏付け (560us 点は外挿)。
+
+**profiler サブエージェント実体化:** `.claude/agents/profiler.md` を agent-architecture 仕様で生成し実データで実走 (critic を P2-3 で実体化したのと同型)。critic の「ipc 崩壊」帰属を「sweet-spot の崩壊は有用効率でなく spin 希釈」と精緻化。
+
+**却下した選択肢:**
+- **annotate でアドレスベースに spin を合算**: ビルド/backoff 量ごとにアドレスが動き fragile。noinline の clean な per-symbol 帰属を採った。
+- **noinline を常時 ON / stock に焼く**: 観測者効果 (微小だが非ゼロ) を headline build に混ぜない。診断専用 inert ノブに隔離 (規律1 と同思想)。
+- **ADD_ANALYSIS の backoff_latency_rate で代用**: spin 時間割合は出るが spin 命令数が出ず「有用 IPC」を分離できない。
+- **balanced も同時に measure**: write-heavy が [P0] の看板 (積モデルが破綻した workload)。balanced は積モデルが元々合致するので [P0] の核でない → 対照として P2-5/任意に繰り延べ (規律5)。
+
+**位置づけ:** Claude 自律の P2-4 実装 (Phase 2 deliverable)。roadmap 本体は変えず insight/phase2/worklog に反映。perf 下 tps は overhead 込みで headline 非使用 (規律: 絶対 throughput は stock build)、単一テナント直列 (規律4)、診断ノブは trace 直交・既定 inert (規律1)。

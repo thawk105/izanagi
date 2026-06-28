@@ -158,3 +158,34 @@ machine の何割を backoff スピンに費やしたか) が使えるように�
 **正味:** ODR fix で [P1]「適応の駐車を外挿でなく実測」を**閉じた** (適応 ~560us / grid floor 100us / 静的 500us
 spin% の3経路一致)。[P0]「なぜ速いか」核心 (有用 IPC 分離) は **perf record = P2-4 profiler** に残る。
 測定ドライバ `orchestrator/campaign/backoff_overthrottle.py` (ADD_ANALYSIS 診断専用、正しさは AA=0 build で検証済み)。
+
+---
+
+## 追記 (2026-06-28): [P0] 機序純度を perf record で解消 (P2-4 profiler)
+
+`BACKOFF_NOINLINE=1` 診断 build (inert patch、観測者効果 +0.76% で stock 不変を実測) で `backoff()` を
+独立シンボル化し、`perf record -e cycles,instructions` で `Backoff::backoff` の cycle%/instruction% を分離 →
+**有用 IPC = (全命令−spin命令)/(全cycle−spin cycle)** を write-heavy で実測
+(`output/env/linux-baremetal/profile/backoff_profile_t48_skew0p9_rr5.{json,md}`、driver `backoff_profile.py`、
+profiler.md エージェント実走)。
+
+**解消した命題 (sweet-spot 域):** throughput ピークがある帯 (0-10us) で **有用 IPC は一定** (1.92/1.96/2.01/1.94、
+散布 4.4% = noise floor の ~2 倍内)。一方 total IPC は 1.92→1.09 と崩壊 (全域散布 117.7%)。→ **total IPC の崩壊は
+純 spin 希釈** (spin は cycle を食うが命令は少ない: fix10 で cyc 48.7%/instr 8.5%、spin IPC≈0.17)。「なぜ fix10 が
+no-backoff より速いか」= **abort 半減 (82→49%) が有用 IPC 不変のまま効いた** (待たせて効率化したのではない)。
+**元の積モデルが peak を 25us に外した理由を名指せた**: ipc 項に spin 混入の `total_ipc` を使っていたから
+(有用 IPC では sweet-spot で ipc は減らない)。
+
+**正直な留保 (over-claim を切る):** K_useful = tps/((1-abort)·useful_ipc) は **一定でない** (5.24M→1.47M, -72% 単調減)。
+よって「有用 IPC を使えば積モデルが定数 K で predictive になる」は**不成立**。言えるのは「**sweet-spot の total IPC
+低下 = spin 希釈**」まで (これが [P0] の核命題を閉じる)。残る K_useful の単調減は有効並列度低下/commit あたり命令数の
+変化等の混交で、predictive な積モデルは主張しない (先行 `[major 縮約]` eff_tps トートロジーと整合、IPC レンズで再確認)。
+
+**第二次効果 (新発見):** over-throttle 域 (25-100us) では **有用 IPC 自体が低下** (1.94→1.47、散布 20.9%) =
+待ちすぎは spin 税 (cycle 食い) だけでなく有用仕事の効率も二次的に削る。stock 適応 ~560us 駐車の敗因を裏付け
+(spin 希釈 + 有用 IPC 二次低下の両方を最大に食らう最悪点; 560us 点の有用 IPC は本 sweep ≤100us の外挿)。
+
+**規律/限界:** trace-disabled build (規律1, noinline は trace と直交・既定 inert)、単一テナント直列 (規律4)。perf 下 tps は
+sampling overhead 込みで **headline 非使用** (絶対値は stock build の committed fitness)。caveat: cycles/instructions の
+multiplex は低 IPC 域で粗い (有用 IPC 低下の**幅**は soft、方向・単調性は頑健)、48thread 単断面。**[P0] は sweet-spot で
+機序的に閉じ、over-throttle の有用 IPC 二次低下という新しい境界を足した。**
