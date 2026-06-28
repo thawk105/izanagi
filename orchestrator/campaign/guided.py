@@ -153,9 +153,9 @@ def cmd_evaluate(args) -> int:
     return 0
 
 
-def cmd_result(args) -> int:
-    """到達コスト + 軌跡 (Python/解析用。critic には公開しない指標)。"""
-    layout = _trial_layout(args.trial, args.root)
+def trial_result(trial: str, root: str = "") -> dict:
+    """1 試行の到達コスト + 軌跡 (Python/解析用。critic には公開しない指標)。"""
+    layout = _trial_layout(trial, root)
     meta = _read_meta(layout)
     tag = meta["tag"]
     landscape = replay.load_landscape(tag)
@@ -164,12 +164,15 @@ def cmd_result(args) -> int:
     traj = [replay.genome_label(replay.parse_flags(c)) for c in order]
     rc = reached_cost(order, tied)
     reached = bool(order) and order[rc - 1] in tied
-    out = {"trial": args.trial, "tag": tag, "seed": meta.get("seed"),
-           "trajectory": traj, "n_evaluated": len(order),
-           "reached_cost": rc, "reached": reached,
-           "tied_set": sorted(replay.genome_label(landscape[c].flags) for c in tied),
-           "final_pick": traj[-1] if traj else None}
-    print(json.dumps(out, ensure_ascii=False, indent=1))
+    return {"trial": trial, "tag": tag, "seed": meta.get("seed"),
+            "trajectory": traj, "n_evaluated": len(order),
+            "reached_cost": rc, "reached": reached,
+            "tied_set": sorted(replay.genome_label(landscape[c].flags) for c in tied),
+            "final_pick": traj[-1] if traj else None}
+
+
+def cmd_result(args) -> int:
+    print(json.dumps(trial_result(args.trial, args.root), ensure_ascii=False, indent=1))
     return 0
 
 
