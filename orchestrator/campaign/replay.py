@@ -30,7 +30,7 @@ from campaign import wal                                          # noqa: E402
 from campaign.genome import SILO_SPACE                            # noqa: E402
 from campaign.layout import CampaignLayout, repo_output_root      # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
-                            STAGE_COMMIT, STAGE_VERIFY_DONE)
+                            STAGE_COMMIT, STAGE_VERIFY_DONE, Genome)
 from campaign.p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
 from calibrator.stability import compare                         # noqa: E402
 
@@ -60,6 +60,28 @@ def genome_label(flags: Dict[str, int]) -> str:
     nw = "L" if flags.get("NO_WAIT_LOCKING_IN_VALIDATION") == 1 else "T"
     w = "W" + str(flags["WAL"])
     return f"{b}-{nw}-{w}"
+
+
+def genome_from_label(label: str) -> Genome:
+    """短ラベル B{0,1}-{L,T}-W{0,1} → Genome (genome_label の逆写像)。
+
+    critic が候補ラベルで次手を返すので、それを SILO_SPACE 内の Genome に戻す。
+    XOR 制約を満たさない/未知のラベルは ValueError (空間外を黙って評価しない、規律6)。"""
+    parts = label.strip().split("-")
+    if len(parts) != 3 or parts[0] not in ("B0", "B1") \
+            or parts[1] not in ("L", "T") or parts[2] not in ("W0", "W1"):
+        raise ValueError(f"不正な genome ラベル: {label!r} (期待 B{{0,1}}-{{L,T}}-W{{0,1}})")
+    flags = {
+        "BACK_OFF": int(parts[0][1]),
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1 if parts[1] == "L" else 0,
+        "NO_WAIT_OF_TICTOC": 1 if parts[1] == "T" else 0,
+        "WAL": int(parts[2][1]),
+    }
+    g = Genome("silo", flags)
+    valid = {x.canonical() for x in SILO_SPACE.enumerate()}
+    if g.canonical() not in valid:
+        raise ValueError(f"ラベル {label!r} は SILO_SPACE の有効空間外 (XOR 制約違反)")
+    return g
 
 
 def discover_p2_2_dir(tag: str, output_root: str = "") -> CampaignLayout:
