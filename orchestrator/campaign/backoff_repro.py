@@ -1,0 +1,118 @@
+# -*- coding: utf-8 -*-
+"""backoff ケーススタディの cross-run 再現性チェック ([P0], 敵対的検証 measurement レンズ)。
+
+敵対的検証は「+38.3%/+11.3% は単一 back-to-back 系列 (rounds=1, 同一 14 分窓) の産物で
+別系列再現が未確認」を最致命の穴に挙げた。そこで**勝者と参照だけ**を、
+
+  - **別 campaign** (別 spec → 別 campaign-id, recovery で skip されない)
+  - **逆順** (fix10 → fix5 → none。元 sweep は none → … → fix10 の昇順)
+  - 別の時間窓 (元 sweep の数時間後)
+
+で再測し、winner-vs-no-backoff の相対差が元の値と noise floor (2.28%) 内で一致するか見る。
+別 boot ではないが「時間窓 + run 順序」の交絡は分離できる。各 genome は pipeline で
+build(cache hit)→verify(正しさゲート)→bench。
+
+  python orchestrator/campaign/backoff_repro.py
+"""
+from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from campaign import ident, wal                                  # noqa: E402
+from campaign.backoff_sweep import _BASE                         # noqa: E402
+from campaign.layout import campaign_layout                      # noqa: E402
+from campaign.loop import run_campaign                           # noqa: E402
+from campaign.model import CampaignConfig, Genome                # noqa: E402
+from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,   # noqa: E402
+                           REPS, THREADS, _assert_single_tenant)
+from campaign.pipeline import PerfConfig                         # noqa: E402
+
+CCBENCH_COMMIT = "6656e93"
+
+# 元 sweep で確定した値 (committed)。再現の比較基準。
+ORIG = {
+    "write-heavy": {"workload": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
+                    "best_us": 10, "none": 1882125.0, "best": 2603521.0, "rel": 0.383},
+    "balanced":    {"workload": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
+                    "best_us": 5, "none": 2791760.0, "best": 3106342.0, "rel": 0.113},
+}
+NOISE_CV = 0.0228
+
+
+def _genomes_reversed(best_us: int):
+    """勝者と参照だけ、逆順 (fix<best> → fix5 → none) で。"""
+    others = {5, 10}
+    gs = [Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": best_us})]
+    for n in sorted(others - {best_us}):
+        gs.append(Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": n}))
+    gs.append(Genome("silo", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1}))   # none を最後に
+    return gs
+
+
+def _config(tag: str, workload: dict) -> CampaignConfig:
+    return CampaignConfig(
+        spec_slug=f"backoff-repro-silo-{tag}", search_tag="repro",
+        spec_content=f"P0 cross-run 再現性: backoff winner 再測 (逆順) — workload={tag}",
+        ccbench_commit=CCBENCH_COMMIT,
+        search_config={"scale": "silo-backoff-repro", "base": "L-W0",
+                       "order": "reversed", "workload": tag,
+                       "records": RECORDS, "threads": THREADS, "ycsb": workload},
+        trial="p2-backoff-repro")
+
+
+def _bench_tps(layout, genome) -> float:
+    """campaign WAL から genome の median tps を引く。"""
+    from campaign.pipeline import variant_id
+    v = variant_id(genome)
+    tps = None
+    for r in wal.read_records(layout):
+        if r.variant == v and r.stage == "bench_done":
+            tps = r.payload.get("median_tps")
+    return tps
+
+
+def run_workload(tag: str, log=print) -> dict:
+    _assert_single_tenant()
+    o = ORIG[tag]
+    gs = _genomes_reversed(o["best_us"])
+    cfg = _config(tag, o["workload"])
+    perf = PerfConfig(records=RECORDS, threads=THREADS, workload=o["workload"],
+                      extime=EXTIME, reps=REPS)
+    log(f"\n=== backoff repro  workload={tag}  逆順 {[g.flags['BACKOFF_FIXED'] for g in gs]} ===")
+    s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log)
+
+    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    none_g = Genome("silo", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1})
+    best_g = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": o["best_us"]})
+    none_tps, best_tps = _bench_tps(layout, none_g), _bench_tps(layout, best_g)
+    if none_tps is None or best_tps is None:
+        log(f"  [{tag}] 再測値が取れない → 判定不能")
+        return {"tag": tag, "ok": False}
+    rel = best_tps / none_tps - 1
+    # 再現判定: 再測の rel が元 rel と noise floor 内で一致するか。
+    rel_drift = rel - o["rel"]
+    reproduced = abs(rel_drift) <= NOISE_CV
+    log(f"  [{tag}] 再測: none={none_tps:,.0f} best({o['best_us']}us)={best_tps:,.0f} "
+        f"rel={rel*100:+.1f}% (元 {o['rel']*100:+.1f}%, drift {rel_drift*100:+.1f}%) "
+        f"→ {'✅再現' if reproduced else '⚠乖離'}")
+    return {"tag": tag, "ok": reproduced, "rel": rel, "orig_rel": o["rel"],
+            "none": none_tps, "best": best_tps, "aborted": s.aborted}
+
+
+def main() -> int:
+    results = [run_workload(t) for t in ORIG]
+    print("\n=== cross-run 再現性サマリ ===")
+    for r in results:
+        if r.get("rel") is not None:
+            print(f"  {r['tag']}: rel {r['rel']*100:+.1f}% vs 元 {r['orig_rel']*100:+.1f}% "
+                  f"→ {'再現' if r['ok'] else '乖離'}")
+    ok = all(r.get("ok") for r in results)
+    print(f"\ncross-run 再現性: {'✅ +38%/+11% は別系列・逆順で再現' if ok else '⚠ 乖離あり (要精査)'}")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

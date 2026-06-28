@@ -1,0 +1,1 @@
+{"ccbench_commit":"6656e93","search_config":{"base":"L-W0","order":"reversed","records":1000000,"scale":"silo-backoff-repro","threads":48,"workload":"write-heavy","ycsb":{"ycsb_rmw":"0","ycsb_rratio":"5","ycsb_zipf_skew":"0.9"}},"search_tag":"repro","spec_content":"P0 cross-run 再現性: backoff winner 再測 (逆順) — workload=write-heavy","trial":"p2-backoff-repro"}
