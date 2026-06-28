@@ -91,8 +91,9 @@ ERROR: AddressSanitizer: heap-buffer-overflow ... READ of size 8
 **0.7654** = 適応 backoff がスレッドサイクルの 76.5% をスピンに浪費 = over-throttling の直接実測)。default
 (ADD_ANALYSIS=0) と Release -Werror ビルドは無影響 (silo は 48thread で従来どおり完走)。
 
-**還元:** fix branch `fix/ccbench-common-universal-defines` を submodule に用意 (master ベース, +1 commit)。
-**push/PR は人間** (この環境に push 認証なし)。D16「本物のバグ修正 → master 還元」に該当。
+**還元:** **PR #118 として ccbench master にマージ済み (2026-06-28)** (`50c7946`、fix commit `ad33940` を merge
+commit で取込)。D16「本物のバグ修正 → master 還元」を完遂。WAL XOR #116 に続く Izanagi 探索由来の上流還元 2 件目。
+ssh 認証で push → `gh api` で PR 作成 (HTTPS は token 必須でこの環境に無し、ssh は git push のみ可)。
 
 ## 含意
 
