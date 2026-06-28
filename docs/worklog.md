@@ -735,3 +735,33 @@ stock 最良超え」のループが回った = **本プロジェクト中核仮
 2. **[P1] over-throttling 実測** — 上記 segfault を ASan 特定して迂回 or `Backoff_` 収束値 dump の小 patch。正しさ
    実測化 (実 perf 構成 trace verify) / base 一般性。
 3. **P2-4 (profiler)** / **P2-5 (LLM 誘導 vs 全探索, この合成例を「空間外」実例に)**。(検討) 別 boot 再現・admission fails-closed 化。
+
+---
+
+## 2026-06-28 — ADD_ANALYSIS+BACK_OFF の ODR バグを ASan で特定・修正・上流還元 + izanagi-trace 前進
+
+(注: これ以前の本セッションのエントリは作業日を 2026-06-22 と誤記している。実日付は 6/28。以降は実日付で記録する。)
+
+backoff over-throttling を `ADD_ANALYSIS` の `backoff_latency_rate` で直接実測しようとして露呈した
+segfault ([[2026-06-22_ccbench-backoff-add-analysis-segfault]]) を ASan で根本特定:
+- **ODR 違反**: `ccbench_common` (= `CCBenchResults` を確保) が universal definitions を受けずビルドされ、
+  `Result` を ADD_ANALYSIS=0 の小レイアウトで `resize`。プロトコル側 (ADD_ANALYSIS=1, 大レイアウト) の
+  `leaderBackoffWork` の range-for が大 stride で走査し buffer 末尾を越える heap-overflow。BACK_OFF=1 で
+  leaderBackoffWork が走るときだけ顕在化。
+- **修正** (2 ファイル): `CMakeLists.txt` で `ccbench_common` に `ccbench_universal_definitions()` を適用 +
+  `result.cc` の dead 変数 `num_txns` を `[[maybe_unused]]`。gcc-13 で検証 (ASan clean / Release -Werror /
+  default build 無回帰 / `backoff_latency_rate` 出力)。
+- **上流還元**: ssh push (HTTPS は token 必須でこの環境に無し) → `gh api` で PR 作成 → **ccbench master に
+  PR #118 でマージ** (`50c7946`)。WAL XOR #116 に続く Izanagi 探索由来の上流還元 2 件目。
+
+**izanagi-trace 前進**: ODR fix (`ad33940`) を izanagi-trace に cherry-pick (→ `dff0f1e`) して push、parent の
+gitlink を `6656e93 → dff0f1e` に前進。fix は ADD_ANALYSIS=0 の perf build に対し inert (default build 無回帰を
+実測確認) なので、過去の calibration/sweep 結果は新 pin でも再現可能。これで Izanagi 側でも `backoff_latency_rate`
+が使え、ケーススタディの [P1]「over-throttling を外挿でなく直接実測」が実施可能になった (ASan 確認で thread8
+適応が 76.5% スピンを実測済み、本実測は確定 calibration での sweep で裏取り予定)。
+
+### 次の一手
+
+1. **[P1] over-throttling 直接実測** — 新 pin で ADD_ANALYSIS build を作り backoff sweep の各点 (none/static/
+   adaptive) の `backoff_latency_rate` を確定 calibration で測る → 「適応が sweet spot を桁で行き過ぎ」を実測に。
+2. **[P0] 機序純度 (スピン命令分離)** = P2-4 profiler と地続き。**P2-4 / P2-5**。
