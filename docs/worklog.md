@@ -895,3 +895,40 @@ cycle%/instruction% を分離 → **有用 IPC = (全命令−spin命令)/(全cy
 2. (任意) backoff profile を balanced でも取る (write-heavy で [P0] は閉じたが対照として)。over-throttle 有用 IPC 低下の機序
    (MLP 低下 vs cache 余熱) の分離。
 3. **Phase 3 着手前 must** (S1/S2/S4/H3) + campaign-id drift (C1) 恒久対応は Phase 3 直前に。
+
+## 2026-06-29 — P2-5 着手: 設計を敵対的検証で固め、replay 基盤 + ベースラインで negative result を精密化
+
+P2-5 (LLM 誘導探索 vs 全探索) に着手。多エージェント workflow (Map6→Design→Critique3→Finalize) で設計を組み、
+敵対的妥当性検証 (リーク/小N/ベースライン公平性) にかけた結果、**silo 8 では「誘導が速い」を headline にできない**
+ことが判明 → ユーザー承認のもと **negative result + critic ablation** に枠組みを確定。
+
+### 実測値の直接検証 (P2-2 WAL から再計算)
+silo 8 genome は実質 **BACK_OFF=0 の1ビットでほぼ決まる自明空間**。winner-tied set (between-run floor 3.0% 内の
+equivalence class) = read-heavy **k=4** (空間の半分、上位4=全BACK_OFF=0 が2.57%以内→その下77%崖) /
+balanced・write-heavy **k=1** (B0-L-W0、2位が7.08%/11.49%下)。手動 python 再計算と replay.py が完全一致。
+
+### replay 基盤 + ベースライン (新規直列計測ゼロ = 規律4 コスト0)
+- `orchestrator/campaign/replay.py` — P2-2 の 3 campaign WAL を **dir 名 prefix で discover** (C1 campaign-id drift
+  回避: 現 config の id 再計算は e2e2d91e 等で既存 dir 5ffcabad 等と食い違うと実測確認) し、{canonical genome →
+  fitness/tps5/LI/certified} の landscape を構築。replay_evaluate で配る。winner_tied_set = compare の no-difference
+  連結成分。committed のみ採用 (A: atomicity)。8 genome 全 certified を assert。自己テストで手動検証と一致。
+- `orchestrator/campaign/search_baselines.py` — random (解析 P(j)=C(N-j,k-1)/C(N,k)・期待 (N+1)/(k+1) + 経験) /
+  **critic 無し貪欲** (digest.axis_effects の勾配のみ、LLM なし) / オラクル天井 (初手ランダム制約下 E=2-k/N) /
+  確率優越 P(戦略<random)。
+
+### 結果 — negative result が「空間に余地なし」でなく「機械的勾配は余地を取れない」に精密化
+| workload | k | random | critic無し貪欲 | オラクル天井 | P(貪欲<random) |
+|---|---|---|---|---|---|
+| read-heavy | 4 | 1.80 | 1.76 | 1.50 | 0.326 |
+| balanced | 1 | 4.50 | 4.23 | **1.88** | 0.471 |
+| write-heavy | 1 | 4.50 | 4.36 | **1.88** | 0.455 |
+
+read-heavy (k=4) はどの戦略にも余地なし=到達判定が情報を持たない (主張対象外)。**k=1 は完璧なオラクルなら
+2.6本削減の余地が構造的にあるが、digest の機械的貪欲はゼロしか取れない** (P(貪欲<random) 全て 0.5 未満)。
+→ 残る唯一の鋭い問い: **LLM critic の帰属知能は機械的貪欲を超えてオラクル天井 (1.9) に近づくか?** 効果量が大きい
+(貪欲4.3 vs オラクル1.9) ので小Kで判別可能。誘導アームが確認作業でなく本実験になった。
+
+### 次の一手 (続き)
+- **誘導 LLM アーム**: online_digest (評価済みのみ+実行時 assert) + critic-experiment.md (答えを物理削除した中立
+  プロンプト) + guided.py。invocation 機構 (headless `claude -p` で Python がリーク経路を物理封鎖 vs 私が少数 trial
+  駆動) を確認して決める。結果が出たら phase2.md P2-5 完了条件改訂 + decisions D + insight に実数で記録。
