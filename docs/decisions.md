@@ -365,3 +365,24 @@
 - **未到達を低コスト計上 / K を有意化まで増やす**: 早期誤収束を成功と誤計上は誘導有利の偏り → 未到達は予算上限 N 算入。後追い K 増やしは選択的報告 (D14) → 事前停止規則 (天井に埋もれるなら有意化しないと結論)。
 
 **位置づけ:** ユーザーと協議合意した枠組み定義 (roadmap 改訂セレモニー対象外)。replay は certified 済みを配るので本実験は規律4 (測定妥当性) と規律6/D14 (循環回避) のテストであって規律2/3 のテストではない (insight に明記)。
+
+---
+
+## D22. Phase 3 kickoff = 純 timing first target + EVOLVE-BLOCK 機構 + preprocess 後ハッシュ identity (lock-sort 撤回)
+
+**決定:** Phase 3 (LLM コード合成) の kickoff を最小化する (詳細 phase3.md):
+- **first target = 純 timing 変異 (静的 backoff, BACKOFF_FIXED 軸再利用)**。draft 推奨の sort-strategy (lock 獲得経路) を撤回。
+- **EVOLVE-BLOCK 機構** = P2-4 inert-patch (D18) の一般化。マーカー + `#if(coder枝)/#else(stock逐語)/#endif`、coder が触るのは #if 枝のみ、閉じた領域 (型/header 追加禁止 = observer-effect-by-data-structure 対策)。
+- **identity の honest 拡張** = source_digest を preprocess 後 (`cpp -E`) ハッシュで計算し cache_key と variant_id (WAL キー) 両方に織り込む。
+- **blocking must** = H3 hooks / cache_key+variant_id 拡張 / 観測者効果二重検査。S2/S1/C1 は純 timing kickoff では non-blocking。
+
+**理由 (なぜ sort を撤回し純 timing にしたか):** 多エージェント設計を 3 レンズ (reward-hack/スコープ過剰/正しさゲート) で敵対検証した結果、sort-strategy は全員 high severity で撤回勧告。実コードで確認: (1) verifier は lock 獲得順を一切トレースしない (commit 時 (epoch,tid) のみ, transaction.cc:517-540) → lock 経路の正しさを certify 不能 = 規律2 の穴。(2) silo は no-wait 即 abort (transaction.cc:154-157) ゆえ「sort=デッドロック回避」は誤診断で、sort が動かすのは liveness (commit 枯渇=trace-empty abort、正しさ違反と検出されない)。(3) 現 CorrectnessWorkload (tuple200/thread4) が lock 競合を踏まず certify が空振り。→ 純 timing は abort-path タイミングのみで lock/validation 論理に触れず正しさ攻撃面が構造的に最小、P2-4 で certified 実証済。新機構の束を正しさ的に枯れた足場で先に通すのが最小手 (規律5)。
+
+**識別子の穴 (なぜ preprocess 後ハッシュ + variant_id 拡張か):** (1) 生 sha256 だとマーカーコメント挿入で既存キャッシュ全 miss → D18 inert 実証の継承が破れる。preprocess 後なら #else 枝が原本と同一 digest。(2) variant_id は現状 canonical() のみ hash (pipeline.py:41) ゆえ同フラグ別 diff が WAL/critic で alias する → コード軸を identity に織り込んで端から端まで塞ぐ。
+
+**却下した選択肢:**
+- **sort-strategy を first target**: 新規価値は高いが lock 経路が verifier 不可視 + S2 同時 load-bearing + liveness が正しさゲート外。新機構の検証と新ゲートの試験を 1 手に束ねるとリスクが乗算し D7 切り分けが濁る。sort は 2 番目の変異軸へ (S2 を gate 条件に昇格してから)。
+- **kickoff で 7 項目 (S2/S4 consumer/auditor/planner 等) を全部**: 互いに直交しない load-bearing を初手で束ね規律5/D7 を放棄。1 ループに削り完了定義を「inert/純 timing variant 1 本が certified commit」の 1 点に絞る。
+- **生ソース sha256**: 実装最小だが inert 実証が偽になる (honest-by-construction を名乗れない)。
+
+**位置づけ:** ユーザーと協議合意した kickoff 設計 (roadmap 改訂セレモニー対象外、Phase 3 は既に roadmap §2 層2(b) にある)。絶対規律 1/2/3/5/6 がここで初めて load-bearing。COMMIT を書く唯一の経路は pipeline.evaluate (guided.py の replay-fake certified 経路は live variant に再利用しない)。

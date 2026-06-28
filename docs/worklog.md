@@ -973,3 +973,28 @@ STAGE_VERIFY_DONE は `anomalies: len(...)` = 件数に潰し、verify-red の `
   reason が載る、test_campaign +1) と読み出し側 (load_rejections が構造化を拾い build-error を除外、test_critic +1)
   を回帰。broken-silo end-to-end は Phase 1 確立済 + buildcache が genome キーで patch 状態と衝突する罠ゆえ
   mock/fixture で回帰 (全テスト緑: campaign34/critic6/verifier16/guided8/stability20/reports8)。
+
+## 2026-06-29 (続き) — Phase 3 (LLM コード合成) kickoff 設計確定 (ユーザー承認)
+
+Phase 2 完了 + S4 を受け、ユーザー判断で Phase 3 (合成 = 本丸) に着手。多エージェント workflow
+(Map5→Design→Critique3[reward-hack/スコープ過剰/正しさゲート]→Finalize) で kickoff を設計し敵対検証。
+**設計を提示しユーザー合意 → 実装へ** (phase3.md / decisions D22)。
+
+**敵対的検証が draft を大きく改善:**
+- **first target を sort-strategy → 純 timing (静的 backoff) へ撤回** (3 批判全員 high severity 一致)。実コード裏取り:
+  verifier は lock 獲得順を emit しない (transaction.cc:517-540) → lock 経路は certify 不能 (規律2 の穴) / silo は
+  no-wait 即 abort ゆえ「sort=デッドロック回避」は誤診断で動かすのは liveness / 現 CorrectnessWorkload は lock 競合を
+  踏まない。純 timing は abort-path タイミングのみ = 正しさ攻撃面が構造的に最小・P2-4 で certified 実証済。
+- **EVOLVE-BLOCK 機構** = P2-4 inert-patch (D18) の一般化 (マーカー + #if coder枝/#else stock逐語、coder は #if のみ、
+  型/header 追加禁止 = data-structure 観測者効果対策)。
+- **identity の穴を塞ぐ**: cache_key を preprocess 後 (cpp -E) ハッシュにし variant_id (WAL キー) にも織り込む
+  (生 sha256 だとマーカー挿入で全 miss=D18 inert 継承が破れる / variant_id は canonical() のみ hash ゆえ同フラグ別 diff が alias)。
+- **COMMIT を書く唯一の経路は pipeline.evaluate** (guided.py の replay-fake certified は live variant に再利用しない)。
+- **観測者効果二重検査** (trace/perf object diff、nm name-based の穴を埋める)。
+
+**blocking must** = H3 hooks / cache_key+variant_id 拡張 / 観測者効果二重検査。S2/S1/C1 は純 timing kickoff では
+non-blocking (S2 は sort 段で gate 条件に昇格)。**新規実体化は coder のみ** (critic/profiler 再利用、auditor/planner 後続)。
+
+### 次の一手 (実装、blocking 順)
+cache_key+variant_id honest 拡張 → EVOLVE-BLOCK template patch → H3 hooks 2本+settings.json → 観測者二重検査 →
+coder.md + 純 timing variant 1本で 1周 (まず #else 逐語複写の no-op で stock cache-hit 実証) → broken-silo 回帰。
