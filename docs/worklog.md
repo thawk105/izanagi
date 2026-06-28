@@ -928,7 +928,31 @@ read-heavy (k=4) はどの戦略にも余地なし=到達判定が情報を持�
 → 残る唯一の鋭い問い: **LLM critic の帰属知能は機械的貪欲を超えてオラクル天井 (1.9) に近づくか?** 効果量が大きい
 (貪欲4.3 vs オラクル1.9) ので小Kで判別可能。誘導アームが確認作業でなく本実験になった。
 
-### 次の一手 (続き)
-- **誘導 LLM アーム**: online_digest (評価済みのみ+実行時 assert) + critic-experiment.md (答えを物理削除した中立
-  プロンプト) + guided.py。invocation 機構 (headless `claude -p` で Python がリーク経路を物理封鎖 vs 私が少数 trial
-  駆動) を確認して決める。結果が出たら phase2.md P2-5 完了条件改訂 + decisions D + insight に実数で記録。
+### 誘導 LLM アーム実走 → P2-5 完了 (negative result 確定)
+誘導ハーネス (guided.py = critic に評価済み digest と未評価候補だけ見せ fitness/到達は伏せる + online_digest の
+実行時 assert + 検疫) と中立プロンプト critic-experiment.md (critic.md から最適解の literal を物理削除) を実装。
+headless claude CLI が無いため、各試行を fresh エージェント (本会話=答えを知っている を見ない) が guided.py を
+Bash で駆動する形に。中立 critic を **30 試行** (balanced/write-heavy 各12 + read-heavy 6) workflow で並列実走。
+
+結果 (到達本数、未到達=予算上限 N=8 算入):
+| workload | k | random | オラクル天井 | 貪欲(LLMなし) | 誘導(LLM) | P(誘導<random) | 誤収束 |
+|---|---|---|---|---|---|---|---|
+| read-heavy | 4 | 1.80 | 1.50 | 1.76 | 1.67 | 0.357 | 0/6 |
+| balanced | 1 | 4.50 | 1.88 | 4.23 | 3.75 | 0.531 | 0/12 |
+| write-heavy | 1 | 4.50 | 1.88 | 4.36 | **6.33** | 0.208 | **8/12** |
+
+- balanced (clean な BACK_OFF=0 支配): 誘導が僅かに有利だが P=0.531 で有意でなく、オラクル余地 2.62 本の 1/4 のみ。
+- **write-heavy (deceptive、BACK_OFF=1 の B1-T-W0 が実2位 −11%)**: 誘導が random/貪欲より**遅い**。誤収束 8/12 で
+  critic が BACK_OFF=1 genome 等に確信停止し winner B0-L-W0 を評価しない。clean な balanced で校正された自信ある帰属が
+  誤誘導 + 早期停止 → **critic の知能が deceptive 帯で負債**。random/貪欲は早期停止しないので必ず当てる。
+- 結論: silo 8 では誘導の価値は実証できず空間拡大が前提 = negative result。P2-4 backoff 合成 (空間外で勝つ positive) と
+  対比し「フラグ探索は自明→価値は合成にある→Phase 3」が Phase 2 の物語。
+
+成果物: insight 2026-06-29_p2-5-guided-vs-enumeration.md / decisions D21 / phase2.md P2-5 完了。集計は
+`output/campaigns/p2-5-summary.json` (per-trial 軌跡で永続化、raw 試行 WAL は軌跡を summary に取り込み削除し
+fitness は P2-2 WAL = 証拠連鎖保持)。テスト 8 追加 (test_guided、リーク assert/到達/random期待値1.80/連結成分)。
+
+### 次の一手
+- **Phase 2 完了**。残るは任意項 (空間拡大 cicada/oze = critic 価値実証の前提だが S1 trace-hook 拡張を要す) と
+  **Phase 3 着手前 must** (S1/S2/S4/H3) + campaign-id drift (C1) 恒久対応。Phase 3 (LLM が別 protocol/コードを合成) で
+  これらが load-bearing になる。critic の確信度校正 (deceptive 帯で早期停止を抑える) も Phase 3 設計教訓。

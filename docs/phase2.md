@@ -96,13 +96,27 @@ insight 2026-06-22_p2-3-critic-leading-indicator-attribution.md。
 backoff ケーススタディの最後の穴 [P0]「なぜ速いか」を sweet-spot 域で機序的に閉じた。perf 下 tps は overhead 込みで
 headline 非使用 (絶対値は stock build)、単一テナント直列 (規律4)。定量 ablation (profiler 有/無) は P2-5 と地続き。
 
-## P2-5: LLM 誘導探索 vs 全探索 (Phase 2 の主実験)
+## P2-5: LLM 誘導探索 vs 全探索 (Phase 2 の主実験) — 完了 (negative result)
 
-- [ ] critic フィードバックで次の genome を選ぶ LLM 誘導ループ (ランダム変異でなく過去結果で方向づけ)
-- [ ] 全探索の最適への到達 iteration を全探索 (12 全部) と比較
-- [ ] (任意) cicada/oze 等に protocol を広げ空間を大きくして比較を強化
+silo 8 は実質 BACK_OFF=0 の 1 ビットで決まる自明空間ゆえ「誘導が速い」は構造的に主張不能 (read-heavy は
+winner-tied set k=4=空間の半分で到達判定が無情報、k=1 でも完璧オラクル天井 = 2−k/N = 1.88 本 = 余地 2.62 本)。
+よって主成果を **negative result + critic ablation** に定めた (ユーザー承認、設計を多エージェント workflow +
+敵対的妥当性検証で固めた)。
 
-**完了条件:** 「LLM 誘導が N iter で最適到達 vs 全探索 M」の比較データ (論文の図)。
+- [x] critic-experiment エージェント (critic.md から最適解の literal を物理削除した中立版) で online 誘導ループを
+      30 試行実走 (balanced/write-heavy 各12 + read-heavy 6)。fitness は P2-2 WAL replay で配る (新規直列計測ゼロ)。
+      リーク制御 = 評価済みのみ digest + 実行時 assert + fresh context + 初手対称 (絶対規律6/D14)
+- [x] 4 系列比較: 全探索 (**8 全部 = SILO_SPACE.enumerate()**、旧記述「12 全部」は誤り) / random (解析期待
+      (N+1)/(k+1)) / critic 無し貪欲 (digest 勾配のみ、LLM なし) / 誘導 (LLM)。到達定義 = winner-tied set
+      (equivalence class + floor 3.0%) 初到達、未到達は予算上限 N に算入
+- [ ] (任意) cicada/oze 等に protocol を広げ空間拡大 — critic の価値実証の前提だが S1 (trace-hook 拡張) を要する
+      ので Phase 3 隣接で判断
+
+**完了条件:** 達成。誘導は random/貪欲を有意に上回らず (balanced は余地 2.62 本の 1/4・P(誘導<random)=0.531 で
+有意でない・誤収束 0/12、read-heavy は余地なし)、deceptive 構造 (write-heavy、BACK_OFF=1 が実2位) では誤収束
+**8/12** で random より遅い (P=0.208) = critic の「自信ある早期停止」が deceptive 帯で負債。silo 8 では誘導の価値は
+実証できず空間拡大が前提、という negative result を確率優越 + 誤収束率で定量化。P2-4 backoff 合成 (空間外で勝つ
+positive) との対比が Phase 2 の物語。insight 2026-06-29_p2-5-guided-vs-enumeration.md / decisions D21。
 
 ---
 
