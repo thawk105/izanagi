@@ -827,3 +827,32 @@ worklog/insights/decisions/memory が最新でクリーンに引き継げる。*
 4. **Phase 3 着手前 must** (上記 S1/S2/S4/H3) は Phase 3 直前に。
 - 計測は直列・単一テナント (規律4)。submodule は izanagi-trace @ dff0f1e (ODR fix 入り) を pin、working tree に
   backoff patch (patches/silo-backoff-fixed.patch) 適用済み。CCBENCH_COMMIT="dff0f1e"。
+
+---
+
+## 2026-06-28 (続き) — A2 完了 (between-run noise floor の分離・実測・配線)
+
+Phase 1 完了監査の残件 A2 を完了。設計→実装の前に **ultracode で 4 レンズの敵対的設計批評** (concept/統計/scope/wiring、4 agent / 326k tok) を回し、その収束所見で設計を絞ってから実装した。
+
+### 塞いだ穴
+`compare` (variant vs baseline の採否の材料) の丸め閾値に **within-run noise floor (2.28%)** を流用していた。variant と baseline は別 run/別ビルドで測るので、信用できる差の下限は run 間ドリフトを含む **between-run** であるべき。within-run を流用すると 2.28%〜3% 帯の差を「有意」と誤判定し**偽 faster** を出す (reward hacking の鏡像)。
+
+### 実装 (最小 honest 版, 設計批評で 6→4 成果物に削減)
+- **capability** `calibrator.stability.between_run_noise_floor` (callable 注入でテスト可) + `BetweenRunNoiseFloor` model。独立セッション (各 = measure_point = reps+median) の session-median の CV を出す。settle は admission であって独立性でない旨を docstring 明記。
+- **compare** に `near_floor` フラグ追加。Gate2 (reps=5 の MWU) は完全分離で常に p≈0.012 を返し between-run artifact を弁別できない弱い sanity と判明 → 主防壁は Gate1 (between floor 丸め)。floor〜1.5×floor の faster/slower は near_floor を立て「cross-run 再現で裏取り要」(verdict は変えない・hard margin は規律5 で却下)。docstring を正直に書き直し。
+- **独立ドライバ** `campaign/between_run_floor.py` で実機実測 (直列・pgrep gate)。
+- **配線**: 3 ファイルのハードコード 0.0228 を `p2_2.BETWEEN_RUN_CV` (=0.030) に集約 (JSON 動的 loader は data が 1 点しか無く scope creep と批評 → named const + 測定ファイル参照)。
+
+### 実測の発見 (なぜ floor=0.030 か)
+B0-L-W0 baseline を確定動作点で 8 独立セッション実測 → **write-heavy で within 2.19%→between 0.67%、balanced で within 1.07%≈between 1.07%** (back-to-back では下がりこそすれ within を上回らない)。median 集約 + 熱/周波数/cache 共有で、back-to-back セッションは真の run 間ドリフトを捉えない**楽観的下限**と実測で裏付け (設計批評 concept レンズの予言どおり。high-abort の write でのみ顕著に低下)。よって floor は fresh 値でなく**時間分離 cross-campaign の genuine データ** (no-backoff CV(n=2, sweep vs repro) = 2.09%/1.53%、high-abort within ≤2.91%) に錨を打ち、最悪 run 間分散 ~2.91% をカバーする保守値 **0.030** に確定。fresh 測定は `between_run_noise_t48_*.json` に provenance 保存 (既存 calibration JSON は不可侵)。
+
+### 帰結 (既存結論の是正・headline 不変)
+floor 2.28%→3.0% で **P2-2 read-heavy rank3 (B0-T-W1, +2.4%) / rank4 (B0-L-W1, +2.6%) が faster(有意)→no-difference に反転** = 過大主張の是正 (read-heavy の no-wait/WAL 差は P2-3 で既に「無差」裁定済みと整合)。レポート再生成済み。**headline は全て不変**: 最速構成・backoff sweet spot (+38.3/+11.3/-6.6%)・repro 判定 (write drift +3.93% は 3% でも乖離) は floor 両側で変わらない。テスト 107 passed (between_run 4 + near_floor 3 追加)。詳細 [[decisions]] D19。
+
+### 露呈した既存 issue (A2 と独立, follow-up)
+レポート再生成時、**6/28 の ODR-fix gitlink 前進で CCBENCH_COMMIT が 6656e93→dff0f1e に上がり、content-addressed campaign-id が移動して歴史的 p2-2/backoff campaign の report が現 config では孤立**することが判明 (ODR fix は ADD_ANALYSIS=0 perf build に inert なので 6/22 測定は意味的に有効)。今回は測定時 commit (6656e93) を供給して忠実に再生成した。恒久対応 (生成器が既存 dir を discover する / inert な submodule fix では campaign-id を据え置く) は phase2.md に follow-up 記録。
+
+### 次の一手
+1. **P2-4 (profiler 実体化)** — `perf record` で backoff スピン命令分離 = backoff ケーススタディの最後の穴 [P0]。
+2. **P2-5 (LLM 誘導探索 vs 全探索)** — Phase 2 主実験。critic の帰属で次 genome を選ぶループ。near_floor フラグが close call の裏取りに効く。
+3. **Phase 3 着手前 must** (S1/S2/S4/H3) + campaign-id drift の恒久対応は Phase 3 直前に。

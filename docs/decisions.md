@@ -301,3 +301,25 @@
 - **適応ロジック (hill-climbing) を直接書き換える**: 交絡が多い (なぜ収束が悪いかの診断と、固定値の最適探索が混ざる)。まず量を単一軸で固定 sweep し、適応ポリシーの良し悪しは「固定の最適 vs 適応」の差として測る方が分離が綺麗。
 
 **位置づけ:** 協議合意による設計判断の記録 (roadmap 改訂セレモニー対象外)。Phase 構成は変えない (Phase 2 の延長としての case study)。合成 variant が増えたら「第4類の置き場」を D16 表に正式に追記する余地あり。
+
+## D19. noise floor は用途で 2 種に分離する — 採否 floor は within-run でなく between-run (A2)
+
+**決定:** noise floor を用途で 2 種に分ける (roadmap §3.6(3'))。
+- **within-run** = 1 セッション内で反復 (rep) を back-to-back に取った CV = **その 1 測定の品質**。自動再測定/unstable の品質ゲートに使う (現状 5% 据え置き)。
+- **between-run** = **独立セッション** (別 run/別ビルド/campaign の別時点) の session-median 間の CV = **差が信用できるかの下限**。`compare` の丸め閾値 (`noise_cv`) はこちらを使う。`BETWEEN_RUN_CV = 0.030` (`orchestrator/campaign/p2_2.py`)。
+
+**背景 (塞いだ穴):** Phase 1 完了監査 (2026-06-28, B→A) が出した A2。compare は variant と baseline の throughput 分布を比較し採否の材料を返すが、その丸め閾値に **within-run noise floor (calibration の 2.28%)** を流用していた。variant と baseline は決して同一セッションで測らない (別ビルド・campaign の別時点) ので、within-run はセッション内の warm cache・同一熱状態・周波数定常を共有し run 間ドリフトを過小評価する。これを採否 floor に流用すると between-run ドリフト帯 (2.28%〜3%) の差を「有意」と誤判定して **偽 faster** を出す (= reward hacking の鏡像「ノイズを最適化シグナルと誤認」, §3.6)。
+
+**実測の発見 (なぜ 0.030 か):** `orchestrator/campaign/between_run_floor.py` で baseline (B0-L-W0) を確定動作点で 8 独立セッション (各 reps=5) 実測したところ、**fresh な same-window between-run CV は write-heavy で within 2.19%→between 0.67%、balanced で within 1.07%≈between 1.07% (= back-to-back では下がりこそすれ within を上回らない)** — median 集約 + 熱/周波数/cache の共有で、back-to-back セッションは真の run 間ドリフトを捉えない**楽観的下限**だと実測で判明 (設計批評の予言を裏付け。high-abort の write でのみ顕著に下がる)。よって floor は fresh 値でなく**時間分離された cross-campaign の genuine データ**に錨を打つ: 同一 genome を別 campaign (sweep vs repro, 別時間窓) で測った no-backoff の CV(n=2) = 2.09% (write) / 1.53% (balanced)、high-abort genome の within-run は ≤2.91%。観測された**最悪の run 間分散 (~2.91%) をカバーする保守値 = 0.030**。fresh 同窓測定は別ファイル (`between_run_noise_t48_*.json`) に provenance として保存 (既存 calibration JSON は不可侵)。
+
+**Gate2 (Mann-Whitney) は弱い → near_floor フラグ:** reps が小さい (5) と完全分離は常に p≈0.012 を返す (within-run cluster が tight)。よって MWU は between-run 有意性検定でも fluky-rep 対策 (median が既にロバスト) でもなく、within-run の分布重なりを弾く弱い sanity にすぎない。主防壁は Gate1 (between-run floor 丸め)。Gate1 を僅かに超えた faster/slower (floor〜1.5×floor) は MWU が無力な帯なので `Comparison.near_floor` を立て「cross-run 再現で裏取り要」とする (verdict は変えない)。
+
+**帰結 (既存結論の是正):** floor 2.28%→3.0% で P2-2 read-heavy の rank3 (B0-T-W1, +2.4%) / rank4 (B0-L-W1, +2.6%) が **faster(有意)→no-difference に反転**。これは過大主張の**是正** (read-heavy の no-wait/WAL 差は P2-3 で既に「無差」と裁定済み、整合)。**headline は全て不変**: 最速構成 (read-heavy B0-T-W0 / balanced・write-heavy B0-L-W0)、backoff sweet spot (+38.3/+11.3/-6.6%)、repro 判定 (write drift +3.93% は 3% でも乖離・winner 再現は頑健) はいずれも floor 両側で変わらない。
+
+**却下した選択肢 (設計批評 4 レンズの収束):**
+- **JSON 動的 loader を (env,threads,workload) でキー**: calibration データは rratio50/skew0.9 の 1 点しか無く read/write では必ず fallback = 「単一値の横流しを forensic binding に見せかける」scope creep (規律5)。単一 named const + 測定ファイルへのコメント参照に留めた。
+- **既存 calibration JSON に in-place マージ**: byte-identical provenance (改竄なしの根拠) を壊す。between 測定は別ファイルに書く。
+- **faster に hard margin (例 1.5×floor=4.5%) を課して verdict を潰す**: floor〜margin 帯の真の効果まで「差なし」に誤って捨てる過剰設計 (規律5)。verdict は変えず near_floor フラグで「要裏取り」を可視化し、最終判断 (cross-run 再現) に委ねる方が穏当。
+- **within-run を remeasure 品質ゲートに 2.28% で配線**: 品質ゲートを 5%→2.28% に厳しくすると再測定が乱発し規律4 に触れる。within は据え置き、A2 は compare の between 置換に絞った。
+
+**位置づけ:** Claude 自律の硬化実装。roadmap 本体の設計変更でなく §3.6 への学んだ事実の反映 (軽微改訂) + 実装なので版セレモニー対象外。なお再生成で露呈した「6/28 の ODR-fix gitlink 前進 (CCBENCH_COMMIT 6656e93→dff0f1e) が content-addressed campaign-id を移動させ、歴史的 p2-2/backoff campaign の report 再生成が現 config では孤立する」issue は A2 と独立の既存問題として worklog/phase2.md に follow-up 記録 (今回は測定時 commit を供給して忠実に再生成した)。

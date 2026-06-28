@@ -159,9 +159,14 @@ Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iter
 
 **(3) noise floor の実測.** 「この差は信じてよいか」の下限を勘で決めない。calibration フェーズで baseline を連続 N 回測って CV を実測し、それを **noise floor** として固定する (§4)。これは環境タグ (mac-devcontainer / linux-baremetal) ごとに持つ。Mac devcontainer は VM 越しで noise floor が大きく出るはずで、その数値自体が「ここでは性能比較するな」(D10) の定量的裏付けになる。
 
+**(3') noise floor は用途で 2 種に分かれる (A2 で分離).** 「N 回測った CV」には測り方が 2 つあり、用途が違うので混同してはいけない:
+- **within-run noise floor** = 1 セッション内で反復 (rep) を back-to-back に取った CV。これは「**その 1 測定の品質**」(外乱で歪んでいないか) の尺度で、(2) の自動再測定 (CV 超→測り直し→unstable) の品質ゲートに使う。
+- **between-run noise floor** = **独立したセッション** (別 run、別ビルド、campaign の別時点) の代表値 (session-median) 間の CV。これは「**差が信用できるかの下限**」で、(4) の分布比較が「差なし」に丸める閾値 (compare の floor) に使う。
+variant と baseline は決して同一セッションで測らない (別ビルド・別時点) ので、**採否の floor は within-run でなく between-run であるべき**。within-run はセッション内の warm cache・同一熱状態・同一周波数定常を共有するため run 間ドリフトを過小評価し、これを採否 floor に流用すると between-run ドリフト帯の差を「有意」と誤判定して**偽 faster** を出す。なお fresh な back-to-back セッションは cold-boot/温度/数時間ドリフトを含まない**下限**なので、確定する between-run floor は fresh 実測と cross-campaign の genuine データ (別時間窓の同一 genome 反復) を突き合わせ保守側 (最大) に採る。high-abort genome ほど run 間ドリフトが大きい (abort 率が分散源)。
+
 **(4) 採否は点比較でなく分布比較.** variant vs baseline の優劣判定は単一値の大小でなく**分布の比較**で行う:
 - 差が noise floor 以下なら「**差なし**」に丸める。層3 narrative の「3%悪化だから不採用」のような **noise floor 以下の差を採否根拠にしてはいけない** (3% はラップトップ/devcontainer ではほぼノイズ)
-- noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない
+- noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない。**ただし反復数が小さい (reps≈5) と MWU の弁別力は弱く、完全分離は常に p≈0.012 を返す** (within-run cluster が tight なため)。よって MWU は between-run 有意性検定ではなく within-run の分布重なりを弾く弱い sanity にすぎず、**主防壁は between-run floor 丸め (上記第1項)**。floor を僅かに超える差 (floor 〜 1.5×floor) は MWU が無力な帯なので、headline にする前に cross-run 再現で裏取りする (A2: compare が `near_floor` フラグを立てる)
 - 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする。各主張をその根拠 (WAL の run 値) まで辿れる形で紐づける構造は、ARA の forensic binding (claim→code→evidence の proof chain) と同型 (§7・D12)
 
 **(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしない (D10) ため、(2)(4) は配線だけ用意して Linux 実機到着後に有効化する。

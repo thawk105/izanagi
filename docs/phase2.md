@@ -107,7 +107,8 @@ P2-3 以降 (critic/profiler/LLM 誘導) は探索の骨格が回り始めてか
 ## Phase 3 着手前 must (Phase 1 完了監査 2026-06-28 が示した繰り延べ項目)
 
 Phase 1 は完了条件を満たす (blocks なし) が「完璧」でなく、4軸監査で出た穴のうち **silo 探索 (Phase 2) を
-脅かす H1 admission fails-closed / H2 between-run noise floor は対応済み** (A1/A2)。残りは **Phase 3
+脅かす H1 admission fails-closed / H2 between-run noise floor は完了** (A1 / A2 = 2026-06-28、between-run を
+実測し compare/report を配線、read-heavy rank3/4 の過大主張を是正。[[decisions]] D19)。残りは **Phase 3
 (LLM が別 protocol/コードを合成する) で初めて load-bearing になる**ので、段階導入 (規律5) として
 Phase 3 着手の直前に消化する (今やると過剰修正):
 
@@ -121,3 +122,9 @@ Phase 3 着手の直前に消化する (今やると過剰修正):
   verify + broken-silo 同一フラグ赤検出を消化 (insight の follow-up [P1])。
 - **S1 trace-hook の別 protocol 拡張**: silo+si のみ instrumented。別 protocol を探索素材に入れる Phase で同型 hook を
   追加 (ermia は cstamp<<1 の罠を worklog 記録済み)。それまでは「silo+si 以外は探索外」を維持。
+- **C1 campaign-id drift (A2 で露呈)**: 6/28 の ODR-fix gitlink 前進 (CCBENCH_COMMIT 6656e93→dff0f1e) が
+  content-addressed campaign-id (D13) を移動させ、歴史的 p2-2/backoff campaign の report が現 config では孤立した
+  (生成器が現 commit で id を再計算するため WAL を引けない)。ODR fix は ADD_ANALYSIS=0 perf build に inert なので
+  6/22 測定は意味的に有効。A2 では測定時 commit (6656e93) を供給して忠実に再生成した。**恒久対応の選択肢**:
+  (a) report 生成器が campaign dir を discover する (現 config から再計算しない)、(b) inert な submodule fix では
+  campaign-id を据え置く版マッピング、(c) 現 pin で p2-2/backoff を再 run。Phase 2 の探索を本格再開する前に決める。
