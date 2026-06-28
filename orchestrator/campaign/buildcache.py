@@ -73,6 +73,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     cfg_str, build_str = " ".join(cfg), " ".join(build_cmd)
 
     if os.path.exists(binary):
+        if not trace:
+            _assert_no_trace_symbols(binary)     # 規律1: 既存 perf binary も継続検査
         return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=True,
                            configure_cmd=cfg_str, build_cmd=build_str)
 
@@ -80,8 +82,34 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     _run(build_cmd, "build")
     if not os.path.exists(binary):
         raise RuntimeError(f"build succeeded but binary missing: {binary}")
+    if not trace:
+        _assert_no_trace_symbols(binary)         # 規律1: 新規 perf binary に trace 漏れが無いか
     return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=False,
                        configure_cmd=cfg_str, build_cmd=build_str)
+
+
+def _has_trace_symbols(nm_output: str) -> bool:
+    """nm 出力に izanagi_trace シンボルが含まれるか (perf build への trace 漏れ判定)。"""
+    return any("izanagi_trace" in ln.lower() for ln in nm_output.splitlines())
+
+
+def _assert_no_trace_symbols(binary: str) -> None:
+    """perf (trace-disabled) build に trace シンボルが 1 つも無いことを assert (絶対規律1 の継続執行)。
+
+    観測者効果分離は `#if TRACE` のソース層が一次防壁だが、誰かが `#ifdef TRACE` に書き戻す/
+    CMake が常に `-DTRACE` を出す等で**サイレントに perf build へ漏れる**回帰を、ビルドごとに
+    機械検出する (worklog の一度きり手動 nm を継続執行に格上げ)。nm が無い環境は best-effort skip。"""
+    try:
+        r = subprocess.run(["nm", "-C", binary], capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError):
+        return
+    if r.returncode != 0:
+        return
+    if _has_trace_symbols(r.stdout):
+        raise RuntimeError(
+            f"絶対規律1 違反: perf (trace-disabled) build に izanagi_trace シンボルが漏れている: "
+            f"{binary}。#if TRACE でなく #ifdef TRACE に書き戻された / CMake が -DTRACE を常に "
+            "出す等を疑え (decisions D14)。")
 
 
 def _run(cmd: List[str], what: str) -> None:

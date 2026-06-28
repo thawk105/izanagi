@@ -40,6 +40,14 @@ def test_silo_space_size_and_constraint():
                 != g.flags["NO_WAIT_OF_TICTOC"])
 
 
+def test_buildcache_detects_trace_symbol_leak():
+    """規律1: nm 出力に izanagi_trace があれば perf build への漏れと判定 (継続執行)。"""
+    clean = "0000 T main\n0000 t _ZN4silo6commitEv\n0000 T makeDB\n"
+    leaked = clean + "0000 t _ZN12izanagi_trace4emitE...\n"
+    assert not buildcache._has_trace_symbols(clean)
+    assert buildcache._has_trace_symbols(leaked)
+
+
 def test_genome_canonical_deterministic():
     g1 = Genome("silo", {"WAL": 0, "BACK_OFF": 1})
     g2 = Genome("silo", {"BACK_OFF": 1, "WAL": 0})    # 順序違い
