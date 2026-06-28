@@ -22,7 +22,6 @@ records は working set (tuple 数) 駆動なので rratio 不変 → 1m を全 
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -52,18 +51,12 @@ WORKLOADS = [
 
 
 def _competing_bench_pids() -> list:
-    """他に走っている ccbench ベンチ (build-variants 下の ycsb_*.exe) の PID 一覧。
+    """競合ベンチ検知 (canonical は calibrator.runner)。driver の pre-flight 用に再公開。
 
-    settle() の load average は 1 分 EMA で laggy (汚染が始まった直後は検知できず、
-    自分の直前 run の残像では誤検知する)。競合プロセスの直接確認はラグなしの確定信号
-    なので、計測を始める前にこれで machine が単一テナントかを確かめる (絶対規律4)。
-    pre-flight 時点で自分のベンチはまだ走っていない → 拾えるのは他者/孤児だけ。"""
-    try:
-        r = subprocess.run(["pgrep", "-af", r"build-variants/.*ycsb_.*\.exe"],
-                           capture_output=True, text=True)
-    except (OSError, subprocess.SubprocessError):
-        return []
-    return [ln for ln in r.stdout.splitlines() if ln.strip()]
+    pipeline も同じ runner.competing_bench_pids を bench 直前に呼ぶ (admission fails-closed)。
+    driver は campaign 冒頭、pipeline は genome ごと = 二段の単一テナント保証 (絶対規律4)。"""
+    from calibrator.runner import competing_bench_pids
+    return competing_bench_pids()
 
 
 def _assert_single_tenant() -> None:

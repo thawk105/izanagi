@@ -225,7 +225,8 @@ def _tmp_layout():
 
 @contextlib.contextmanager
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
-                   build_raises=False, high_variance=False, unstable=False):
+                   build_raises=False, high_variance=False, unstable=False,
+                   competing=None):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。"""
@@ -273,7 +274,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                      cv_history=[cv])
 
     patch("bench_lock", fake_lock)
-    patch("settle", lambda *a, **k: None)
+    patch("settle", lambda *a, **k: {"settled": True})
+    patch("competing_bench_pids", lambda: list(competing or []))  # 既定: 単一テナント
     patch("measure_point", fake_measure)
     patch("remeasure_until_stable", fake_remeasure)
     try:
@@ -370,6 +372,21 @@ def test_pipeline_bench_no_throughput_aborts():
     st = wal.replay(lay)[r.variant]
     assert st.aborted and not st.committed
     assert STAGE_VERIFY_DONE in st.stages_seen   # 正しさゲートは通過している
+    assert STAGE_COMMIT not in st.stages_seen
+
+
+def test_pipeline_competing_tenant_aborts_without_bench():
+    """規律4 (admission fails-closed): bench 直前に競合ベンチを検知したら計測せず abort。
+
+    certified は通過済みでも、汚染しうる環境では fitness を採らない (孤児 livelock 再発防止)。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True,
+                     competing=["999 /x/build-variants/silo_y/cc/silo/ycsb_silo.exe -t=48"])
+    assert r.aborted and r.fitness_tps is None
+    assert len(calls) == 0                       # 競合検知で実 bench を走らせない (汚染回避)
+    st = wal.replay(lay)[r.variant]
+    assert st.aborted and not st.committed
+    assert STAGE_VERIFY_DONE in st.stages_seen   # 正しさゲートは通過 (abort は計測側の理由)
     assert STAGE_COMMIT not in st.stages_seen
 
 

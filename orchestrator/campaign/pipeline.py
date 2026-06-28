@@ -24,7 +24,8 @@ import sys as _sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _sys.path.insert(0, os.path.dirname(_HERE))   # orchestrator/ を import パスに
 
-from calibrator.runner import measure_point, settle             # noqa: E402
+from calibrator.runner import (competing_bench_pids,            # noqa: E402
+                               measure_point, settle)
 from calibrator.stability import remeasure_until_stable         # noqa: E402
 from verifier import verify_trace_dir                           # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
@@ -190,8 +191,17 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # 外れ値 → 自動再測定 (§3.6(2)): 反復内 CV が閾値超なら静定して測り直す。規定ラウンドで
     # 収束しなければ unstable。再測定の実走も全て bench_lock 下 = 単一テナント直列 (絶対規律4)。
     with bench_lock():
-        if do_settle:
-            settle()
+        # admission を fails-closed に (絶対規律4): bench_lock 取得直後・自分の bench 開始前に
+        # 競合/孤児ベンチを pgrep で直接確認し、居たら**汚染計測を採用せず abort** する
+        # (settle の load EMA は laggy なので一次ゲートはこの確定信号)。孤児は規律6 に従い
+        # **自動 kill せず PID を表に出して停止** — 人間が処遇を判断する。driver の pre-flight が
+        # campaign 冒頭で 1 回見るのに対し、ここは genome ごと = campaign 途中で湧いた競合も捕える。
+        comp = competing_bench_pids()
+        if comp:
+            return _abort("bench-competing-tenant",
+                          "競合 ccbench ベンチを検知 → 汚染計測を採用せず reject (規律4)",
+                          {"competing": comp})
+        settled = settle() if do_settle else None
         rem = remeasure_until_stable(_measure,
                                      settle_fn=settle if do_settle else None)
     pt, nf = rem.point, rem.nf
@@ -206,6 +216,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              "high_variance": nf.high_variance, "unstable": rem.unstable,
              "rounds": rem.rounds, "cv_history": rem.cv_history,
              "tps": pt.throughputs,
+             # admission: load が静定したか (settle の戻り)。fails-closed の一次ゲートは
+             # competing_bench_pids だが、settled=False の測定は forensic に残す (規律4)。
+             "settled": (settled.get("settled") if settled else None),
              # leading indicators (§3.5): fitness を設計選択に帰属させる材料。
              # critic が abort率/latency/cache/IPC を読んで次の genome 方向を出す。
              "leading_indicators": pt.leading_indicators(),

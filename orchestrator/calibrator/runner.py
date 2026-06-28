@@ -56,6 +56,24 @@ def settle(threshold: float = 4.0,
         time.sleep(poll_s)
 
 
+def competing_bench_pids() -> List[str]:
+    """他に走っている ccbench ベンチ (build-variants 下の ycsb_*.exe) の PID 行。
+
+    settle() の load average は 1 分 EMA で laggy (汚染直後は検知できず、自分の直前 run の
+    残像で誤検知する)。競合プロセスの直接確認はラグなしの確定信号なので、これを計測前の
+    admission の一次ゲートにする (絶対規律4)。bench_lock は flock advisory で izanagi 自身の
+    bench 同士しか排他せず、孤児化した子・他者が手起動した ycsb はロックを触らない
+    (孤児 livelock 汚染インシデントの犯人) → pgrep で構造的に捕える。
+
+    呼ぶのは自分のベンチが走り出す前 (各測定点の手前)。拾えるのは他者/孤児だけ。"""
+    try:
+        r = subprocess.run(["pgrep", "-af", r"build-variants/.*ycsb_.*\.exe"],
+                           capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [ln for ln in r.stdout.splitlines() if ln.strip()]
+
+
 def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,
                numactl: Optional[Sequence[str]]) -> List[str]:
     cmd: List[str] = []
