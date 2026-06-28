@@ -719,9 +719,19 @@ stock 最良超え」のループが回った = **本プロジェクト中核仮
 - 含意: no-backoff (abort 82%) が最大の run 間分散源で backoff variant の方が安定、順序は勝者を偏らせない
   (後置の none が低い=warmup 人工物と逆)。**残: 別 boot / rounds≥3** (本 repro は同一 boot・別系列)。
 
+### [P1] over-throttling 直接測定を試行 → CCBench の新バグを露呈 (ADD_ANALYSIS+BACK_OFF segfault)
+
+「stock 適応の backoff スピン占有率」を既存フラグ `ADD_ANALYSIS=1` の `backoff_latency_rate` で外挿でなく実測
+しようとしたら、**BACK_OFF=1 + ADD_ANALYSIS=1 が segfault** (thread=1/4/48・適応/静的 全て、gdb で
+`TxExecutor::leaderWork()` に限局)。BACK_OFF=1 単体 (sweep 全点) と BACK_OFF=0+ADD_ANALYSIS (none) は完走
+→ 交互作用固有。**フラグ超立方体探索が露呈した CCBench 潜在バグの 3 例目** (WAL XOR #116 / 両no-wait livelock
+に続く)。`output/insights/2026-06-22_ccbench-backoff-add-analysis-segfault.md`。over-throttling は当面 ipc/latency
+からの**外挿のまま** (敵対的検証で「独立に頑健」裁定済み)。直接実測は ASan で bug 特定 or `Backoff_` dump の小 patch が要る。
+
 ### 次の一手
 
 1. **[P0] 機序純度 (スピン命令分離)** — backoff() の `_mm_pause` 命令を perf instructions から分離し「有用 ipc」で
-   残差 K が定数化するか。看板 write で積モデルが破綻 = 「なぜ速いか」の最大の穴。**P2-4 profiler と地続き。**
-2. **[P1] 適応収束値の実測・正しさ実測化・base 一般性** — `Backoff_` dump / 実 perf 構成 trace verify / 他 base 上の再現。
+   残差 K が定数化するか。看板 write で積モデルが破綻 = 「なぜ速いか」の最大の穴。**P2-4 profiler と地続き** (perf record)。
+2. **[P1] over-throttling 実測** — 上記 segfault を ASan 特定して迂回 or `Backoff_` 収束値 dump の小 patch。正しさ
+   実測化 (実 perf 構成 trace verify) / base 一般性。
 3. **P2-4 (profiler)** / **P2-5 (LLM 誘導 vs 全探索, この合成例を「空間外」実例に)**。(検討) 別 boot 再現・admission fails-closed 化。
