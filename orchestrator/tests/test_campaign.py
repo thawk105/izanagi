@@ -25,6 +25,8 @@ from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE)
 from campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
+from verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
+                            Integrity, RW, VerifyResult)
 
 
 # ===== genome 列挙 =====
@@ -231,6 +233,25 @@ def _tmp_layout():
     return CampaignLayout(root=os.path.join(root, "campaigns", "test")).ensure()
 
 
+def _green_vr():
+    """実 VerifyResult (緑): certified=True になる最小の health。"""
+    return VerifyResult(trace_dir="/tmp/ev", serializable=True, anomalies=[],
+                        integrity=Integrity(), n_txns=100, n_reads=300,
+                        n_writes=100, n_keys=50, n_edges=120)
+
+
+def _red_vr():
+    """実 VerifyResult (赤): rw を含む 2-cycle (G2) anomaly を持つ non-serializable。"""
+    edges = [CycleEdge(src=1, dst=2,
+                       reasons=[EdgeReason(etype=RW, key="aa", u_ver=(1, 1), v_ver=(1, 2))]),
+             CycleEdge(src=2, dst=1,
+                       reasons=[EdgeReason(etype=RW, key="bb", u_ver=(1, 1), v_ver=(1, 2))])]
+    a = Anomaly(cycle=[1, 2], phenomenon="G2", edges=edges)
+    return VerifyResult(trace_dir="/tmp/ev", serializable=False, anomalies=[a],
+                        integrity=Integrity(), n_txns=2, n_reads=2,
+                        n_writes=2, n_keys=2, n_edges=2)
+
+
 @contextlib.contextmanager
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    build_raises=False, high_variance=False, unstable=False,
@@ -267,9 +288,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
     patch("buildcache", types.SimpleNamespace(build=fake_build))
     patch("_run_trace", lambda *a, **k: (ncommit, rc))
-    patch("verify_trace_dir", lambda tdir: types.SimpleNamespace(
-        verdict="serializable" if certified else "non-serializable",
-        certified=certified, anomalies=[] if certified else [object()]))
+    # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
+    patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
     def fake_remeasure(measure_fn, settle_fn=None, **k):
         # 自動再測定を 1 ラウンドに畳む。measure_fn を呼ぶことで実 bench の証跡を残し、
         # 実 noise_floor 同様 throughput が空なら median=None。median/cv/unstable は引数で操作。
@@ -338,6 +358,25 @@ def test_pipeline_red_aborts_without_fitness_or_bench():
     assert st.aborted and not st.committed       # commit レコードが無い (採用されない)
     assert STAGE_ABORT in st.stages_seen
     assert STAGE_COMMIT not in st.stages_seen
+
+
+def test_pipeline_red_abort_carries_structured_anomaly():
+    """S4 (規律3 配線): verify-red の abort payload に構造化 anomaly (cycle/edge/EdgeReason) が
+    載り件数に潰れない。Phase 3 の RED variant で次手生成が『なぜ壊れたか』を読める前提。"""
+    lay = _tmp_layout()
+    r, _ = _eval(lay, certified=False)
+    aborts = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT]
+    assert len(aborts) == 1
+    verify = aborts[0].payload.get("verify")
+    assert verify is not None, "abort payload に verify 構造が無い (件数に潰れている = S4 未配線)"
+    assert verify["verdict"] == "non-serializable"
+    assert verify["anomaly_count"] == 1
+    a = verify["anomalies"][0]
+    assert a["phenomenon"] == "G2" and a["cycle"] == [1, 2]
+    edge = a["edges"][0]                          # どの依存で cycle ができたかまで残る
+    assert edge["from"] == 1 and edge["to"] == 2 and "rw" in edge["types"]
+    assert edge["reasons"][0]["key"] == "aa"
+    assert "trace_dir" not in verify              # 使い捨て tmpdir は載せない
 
 
 def test_pipeline_no_bench_commits_without_fitness():

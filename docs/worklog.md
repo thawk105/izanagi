@@ -956,3 +956,20 @@ fitness は P2-2 WAL = 証拠連鎖保持)。テスト 8 追加 (test_guided、�
 - **Phase 2 完了**。残るは任意項 (空間拡大 cicada/oze = critic 価値実証の前提だが S1 trace-hook 拡張を要す) と
   **Phase 3 着手前 must** (S1/S2/S4/H3) + campaign-id drift (C1) 恒久対応。Phase 3 (LLM が別 protocol/コードを合成) で
   これらが load-bearing になる。critic の確信度校正 (deceptive 帯で早期停止を抑える) も Phase 3 設計教訓。
+
+## 2026-06-29 (続き) — S4: 規律3 の構造化 anomaly 配線 (Phase 3 着手前 must の最重要)
+
+Phase 3 着手前 must のうち最も規律中核の S4 を消化。**問題を実コードで裏取り** (規律6): verifier は既に豊かな
+構造化 anomaly (cycle/edge/EdgeReason/integrity) を `result_to_dict` で持つが、`pipeline.py` の境界で
+STAGE_VERIFY_DONE は `anomalies: len(...)` = 件数に潰し、verify-red の `_abort` payload は `{"reason": verdict}`
+のみ = **「なぜ壊れたか」を完全に捨てていた**。Phase 2 (全緑) で無害、赤を出す Phase 3 で規律3 が死ぬ箇所。
+
+- **生産側** (`pipeline.py`): verify-red 時に `result_to_dict(vr)` (使い捨て trace_dir は除く) を abort payload の
+  `{"verify": ...}` に載せる。
+- **読み出し経路** (`critic/digest.py`): `load_rejections(layout)` = abort の verify 構造を拾い `Rejection`
+  (genome/verdict/anomalies/integrity) で返す (`load_workload` の緑読みと対をなす赤読み)。build-error 等
+  verify を持たない abort は除外。consumer (critic/planner が読んで依存を断つ variant を作る) は Phase 3 = 規律5。
+- **テスト**: mock を実 VerifyResult に差し替え (result_to_dict 経路を忠実化)、生産側 (abort payload に cycle/edge/
+  reason が載る、test_campaign +1) と読み出し側 (load_rejections が構造化を拾い build-error を除外、test_critic +1)
+  を回帰。broken-silo end-to-end は Phase 1 確立済 + buildcache が genome キーで patch 状態と衝突する罠ゆえ
+  mock/fixture で回帰 (全テスト緑: campaign34/critic6/verifier16/guided8/stability20/reports8)。

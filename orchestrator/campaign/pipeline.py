@@ -27,7 +27,7 @@ _sys.path.insert(0, os.path.dirname(_HERE))   # orchestrator/ を import パス�
 from calibrator.runner import (competing_bench_pids,            # noqa: E402
                                measure_point, settle)
 from calibrator.stability import remeasure_until_stable         # noqa: E402
-from verifier import verify_trace_dir                           # noqa: E402
+from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
 from . import buildcache, wal                                   # noqa: E402
@@ -166,7 +166,14 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             f"{len(vr.anomalies)} anomalies)")
         if not vr.certified:
             # 正しさを破る/確証できない variant は即 reject。fitness を付けない (規律2)。
-            return _abort(vr.verdict, f"正しさゲート不通過 ({vr.verdict}) → reject")
+            # 規律3 (IDS の教訓): なぜ壊れたか (どの trx 間の・どの依存 ww/wr/rw で・どの版で
+            # cycle ができたか + integrity) を構造化して abort payload に載せ、次手生成
+            # (critic/planner) が読めるようにする (digest.load_rejections が読む経路)。Phase 2 は
+            # 全緑で発火しないが、LLM が RED variant を出す Phase 3 でこれが load-bearing になる。
+            vdict = result_to_dict(vr)
+            vdict.pop("trace_dir", None)        # 使い捨て tmpdir = WAL に残す価値なし
+            return _abort(vr.verdict, f"正しさゲート不通過 ({vr.verdict}) → reject",
+                          {"verify": vdict})
         res.certified = True
     finally:
         shutil.rmtree(tdir, ignore_errors=True)

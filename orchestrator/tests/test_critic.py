@@ -17,9 +17,9 @@ sys.path.insert(0, _ORCH)
 
 from campaign import wal                                          # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
-                            STAGE_COMMIT)
-from critic.digest import build_digest, render_text               # noqa: E402
+from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
+                            STAGE_BUILD_START, STAGE_COMMIT)
+from critic.digest import build_digest, load_rejections, render_text  # noqa: E402
 
 
 def _tmp_layout():
@@ -116,6 +116,35 @@ def test_render_text_has_axes_and_indicators():
     assert "BACK_OFF" in txt and "no_wait" in txt and "WAL" in txt
     assert "throughput_tps" in txt and "abort_rate" in txt
     assert "限界効果" in txt
+
+
+def test_load_rejections_surfaces_structured_anomaly():
+    """S4 (規律3 配線): load_rejections が verify-red の構造化 anomaly を次手入力として拾い、
+    verify を持たない abort (build-error 等) は除外する。`load_workload` (緑) と対をなす。"""
+    lay = _tmp_layout()
+    red = _G.format(b=1, l=1, t=0, w=0)
+    builderr = _G.format(b=0, l=1, t=0, w=0)
+    # verify-red の variant (pipeline が書く形 = abort payload に verify 構造)
+    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red})
+    wal.log(lay, red, STAGE_ABORT, "test",
+            {"reason": "non-serializable",
+             "verify": {"verdict": "non-serializable", "anomaly_count": 1,
+                        "anomalies": [{"phenomenon": "G2", "cycle": [1, 2],
+                                       "edges": [{"from": 1, "to": 2, "types": ["rw"],
+                                                  "reasons": [{"type": "rw", "key": "aa"}]}]}],
+                        "integrity": {"clean": True}}})
+    # verify を持たない abort (build-error) は規律3 の次手入力ではない → 除外
+    wal.log(lay, builderr, STAGE_BUILD_START, "test", {"genome": builderr})
+    wal.log(lay, builderr, STAGE_ABORT, "test", {"reason": "build-error"})
+
+    rej = load_rejections(lay)
+    assert len(rej) == 1                          # build-error は除外
+    assert rej[0].genome == red
+    assert rej[0].flags["BACK_OFF"] == 1          # genome flags まで復元
+    assert rej[0].verdict == "non-serializable"
+    assert rej[0].anomalies[0]["phenomenon"] == "G2"
+    assert rej[0].anomalies[0]["edges"][0]["reasons"][0]["key"] == "aa"
+    assert rej[0].integrity == {"clean": True}
 
 
 def _run():

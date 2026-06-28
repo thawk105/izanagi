@@ -25,8 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import wal                                          # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
-                            STAGE_COMMIT)
+from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
+                            STAGE_BUILD_START, STAGE_COMMIT)
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
 INDICATORS = ["throughput_tps", "abort_rate", "latency_ns", "llc_miss_rate", "ipc"]
@@ -76,6 +76,21 @@ class WorkloadDigest:
     fastest: Optional[GenomeLI] = None
 
 
+@dataclass
+class Rejection:
+    """verify-red で reject された variant の構造化 anomaly (規律3 の次手入力)。
+
+    「なぜ壊れたか」= どの trx 間の・どの依存 (ww/wr/rw) で・どの版で cycle ができたか。
+    fitness は無い (正しさゲートで失格 = 採用しない、規律2)。次手生成はこれを読んで
+    「その依存を断つ方向」の variant を作る。Phase 3 (LLM が RED variant を出す) で
+    load-bearing になる (Phase 2 は全緑で空)。"""
+    genome: str                       # canonical
+    flags: Dict[str, int]
+    verdict: str                      # non-serializable | indeterminate
+    anomalies: List[dict] = field(default_factory=list)   # 構造化 (cycle/edges/reasons)
+    integrity: Dict = field(default_factory=dict)
+
+
 _AXES = ["BACK_OFF", "no_wait", "WAL"]
 
 
@@ -110,6 +125,34 @@ def load_workload(layout: CampaignLayout) -> List[GenomeLI]:
         out.append(GenomeLI(genome=g, flags=_parse_flags(g),
                             li={k: li.get(k) for k in INDICATORS}))
     out.sort(key=lambda x: (x.li.get("throughput_tps") or 0), reverse=True)
+    return out
+
+
+def load_rejections(layout: CampaignLayout) -> List[Rejection]:
+    """campaign WAL から verify-red で reject された variant の構造化 anomaly を読む。
+
+    規律3 (正しさシグナルを後付けにしない) の次手入力経路: verifier の構造化 anomaly が
+    pipeline で abort payload (`{"verify": result_to_dict(vr)}`) に載っているのを拾い、
+    「なぜ壊れたか」を次手生成 (critic/planner) が読める形で返す。build-error 等の verify を
+    伴わない abort は除外 (verify payload を持つ = 正しさゲート不通過のみ)。
+
+    Phase 2 (フラグ列挙 = 全 variant 緑) では空。Phase 3 (LLM が RED variant を合成) で
+    load-bearing。`load_workload` が committed (緑) を読むのと対をなす (red を読む)。"""
+    genome_of: Dict[str, str] = {}
+    out: List[Rejection] = []
+    for r in wal.read_records(layout):
+        if r.stage == STAGE_BUILD_START:
+            genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
+        elif r.stage == STAGE_ABORT:
+            v = r.payload.get("verify")
+            if v is None:                  # build-error/trace 異常等は verify を持たない
+                continue
+            g = genome_of.get(r.variant, "")
+            out.append(Rejection(
+                genome=g, flags=_parse_flags(g) if "|" in g else {},
+                verdict=v.get("verdict", r.payload.get("reason", "")),
+                anomalies=v.get("anomalies", []),
+                integrity=v.get("integrity", {})))
     return out
 
 

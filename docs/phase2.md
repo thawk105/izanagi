@@ -138,9 +138,12 @@ Phase 1 は完了条件を満たす (blocks なし) が「完璧」でなく、4
 (LLM が別 protocol/コードを合成する) で初めて load-bearing になる**ので、段階導入 (規律5) として
 Phase 3 着手の直前に消化する (今やると過剰修正):
 
-- **S4 規律3 の配線**: verifier の構造化 anomaly (cycle/edge/EdgeReason) が `pipeline.py` の境界で件数だけに
-  潰れ critic/planner に流れていない。Phase 2 (列挙=全 variant 緑) では無害だが、**赤を出す Phase 3 で規律3 が
-  死ぬ**。red 時 `result_to_dict(vr)` を WAL abort payload に載せ次手生成が読む経路を 1 本通す。
+- **S4 規律3 の配線 — 完了 (2026-06-29)**: verify-red の構造化 anomaly (cycle/edge/EdgeReason/integrity) を
+  `result_to_dict(vr)` で WAL abort payload (`{"verify": ...}`) に載せ (`pipeline.py`)、次手生成が「なぜ壊れたか」を
+  読む経路 `digest.load_rejections` を 1 本通した (件数潰しを解消)。**consumer** (critic/planner が rejection を
+  読んで『その依存を断つ』variant を作る) は赤が出る Phase 3 で実体化 = 規律5。配線は mock/fixture テストで回帰
+  (実 VerifyResult で `result_to_dict` 経路を含む、test_campaign/test_critic に各 1)。broken-silo end-to-end は
+  Phase 1 で確立済 (buildcache が genome キーゆえ patch 状態と衝突する罠があり mock/fixture で回帰する)。
 - **H3 hooks の実体化**: `hooks/` の規律1/2 機械防壁は placeholder。**LLM が C++ variant を書く瞬間**に第二防壁が
   必要 (hooks/README に明示済み)。
 - **S2 certify workload = perf workload の一致**: 検証 (tuple200/thread4) と計測 (1m/thread48) が別。合成 variant が
