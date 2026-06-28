@@ -671,3 +671,47 @@ backoff の*量*を静的固定する `CCBENCH_BACKOFF_FIXED` (default -1=stock 
    read-heavy でも測って「低 abort では backoff 不要」を確認 (現在は high-abort 2 workload のみ)。
 2. **P2-4 / P2-5** は上記のまま。この合成 variant は P2-5 (LLM 誘導 vs 全探索) の「空間外合成」の実例にもなる。
 3. (検討) admission control の fails-closed 化。
+
+---
+
+## 2026-06-22 (続き) — backoff ケーススタディの締め: read-heavy 対照 + 敵対的検証 workflow
+
+### read-heavy 対照 (機序の完全性)
+
+backoff が効くのは abort が高い時だけ、を対照で確認。read-heavy (rratio95, abort 16%): no-backoff=8,450,806 が
+最良で、backoff 量↑につれ throughput **単調減** (2us=7.89M … 100us=3.63M、適応=1.92M)。**sweet spot は
+no-backoff(0)に潰れ純損** (-6.6%)。高 abort (write 10us+38%/balanced 5us+11% で内点ピーク) と対をなす =
+合成した静的 backoff は **workload-aware** (abort が高い時のみ latency/ipc コストを上回る利得)。全 certified・abort 0。
+
+### 敵対的検証 workflow (8 agent / 357k tok) — fatal ゼロ・headline 生存
+
+計測 (直列) は完了済みなので解析のみ workflow 化 (規律4 抵触なし)。critic 解釈 → 5 レンズ敵対的反証
+(measurement/fairness/mechanism/correctness/generalization) → 完全性 → 合成。**fatal 反証ゼロ、中核主張は
+5 レンズを生存**。`output/insights/2026-06-22_p2-case-study-backoff-synthesis.md` に paper-ready 評価を記録。
+
+**生存した主張:** 合成 variant が contention 域で stock 最良を +38.3%/+11.3% 上回る (5-rep 完全非重複, MWU
+p=0.012, 差は floor の 5-17 倍)・全 certified (規律2)・patch は inert で apples-to-apples (規律6 監査)・逆U字と
+read-heavy 対照は実在。
+
+**敵対的検証が削った over-claim (paper を正直にする発見):**
+- **機序「throughput = abort×ipc の積でピーク」は看板 write-heavy で破綻** (積ピーク 25us vs throughput ピーク
+  10us)。残差は backoff() の `_mm_pause` スピン命令が perf instructions を希釈する第三因子。正しい定性は
+  「abort 減 × (ipc 減 + 純待ち latency) のトレードオフ」。latency[ns] は ccbench で tps の恒等再記述で独立情報ゼロ。
+- 勝利は **high-abort に条件付き** (3 workload 中 2 勝 1 敗) → 主張を「contention 域で」と狭める。
+- **+38% は単一 back-to-back 系列** (rounds=1) で別 boot 再現は未確認。
+- certified は機序論証依存で実 perf 構成の trace を直接検証していない (backoff が correctness-inert ゆえ堅固だが外挿)。
+
+**最致命の穴 [P0]:** (1) cross-run 再現性が未確認、(2) 機序「なぜ速いか」が看板例で破綻。安価な [P1]: 正しさ実測化・
+適応収束値の実測・base 一般性。
+
+### 方法論的含意
+
+「leading indicators の帰属が**フラグ空間外への合成**を駆動 → 正しさゲートが空間外でも機能 → certified なまま
+stock 最良超え」のループが回った = **本プロジェクト中核仮説 (AI が正しさを保ったまま既存最良を超える CC を合成)
+の限定スコープでの最初の成立例**。ただし critic ablation の定量 (有/無の探索効率比較) は未実施 = P2-5。
+
+### 次の一手
+
+1. **[P0] cross-run 再現性** — no-backoff/fix5/fix10 を別系列・rounds≥3 で再測し +38% の再現を確認 (最優先)。
+2. **[P1] 機序純度・適応収束値・正しさ実測化** — スピン命令分離 / `Backoff_` dump / 実 perf 構成 trace verify。
+3. **P2-4 (profiler)** はこの「スピン命令分離」と地続き。**P2-5 (LLM 誘導 vs 全探索)** でこの合成例を「空間外」実例に。
