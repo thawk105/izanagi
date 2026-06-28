@@ -36,11 +36,13 @@ _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
 # backoff 量の静的 sweep (us)。低域に密 (critic の「短い backoff」仮説の検証帯)。
 SWEEP_US = [2, 5, 10, 25, 50, 100]
 
-# backoff が効きうる高 abort workload に絞る (read-heavy は abort 低く backoff が
-# 純損なのは P2-3 で確定済み → 除外)。
+# backoff が効きうる高 abort workload (write-heavy/balanced) + 対照として read-heavy。
+# read-heavy は abort が低いので「sweet spot が 0 (=無 backoff) に潰れ backoff は純損」を
+# 確認する負け確の対照点 = 「backoff は abort が高い時だけ効く」の完全性 (ケーススタディの締め)。
 WORKLOADS = [
     ("write-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"}),
     ("balanced", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}),
+    ("read-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"}),
 ]
 
 
