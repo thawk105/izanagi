@@ -101,3 +101,23 @@ insight 2026-06-22_p2-3-critic-leading-indicator-attribution.md。
 3. **P2-2** (実 fitness 全探索) — ここから本格的な実機計測 (直列)。
 
 P2-3 以降 (critic/profiler/LLM 誘導) は探索の骨格が回り始めてから足す。
+
+---
+
+## Phase 3 着手前 must (Phase 1 完了監査 2026-06-28 が示した繰り延べ項目)
+
+Phase 1 は完了条件を満たす (blocks なし) が「完璧」でなく、4軸監査で出た穴のうち **silo 探索 (Phase 2) を
+脅かす H1 admission fails-closed / H2 between-run noise floor は対応済み** (A1/A2)。残りは **Phase 3
+(LLM が別 protocol/コードを合成する) で初めて load-bearing になる**ので、段階導入 (規律5) として
+Phase 3 着手の直前に消化する (今やると過剰修正):
+
+- **S4 規律3 の配線**: verifier の構造化 anomaly (cycle/edge/EdgeReason) が `pipeline.py` の境界で件数だけに
+  潰れ critic/planner に流れていない。Phase 2 (列挙=全 variant 緑) では無害だが、**赤を出す Phase 3 で規律3 が
+  死ぬ**。red 時 `result_to_dict(vr)` を WAL abort payload に載せ次手生成が読む経路を 1 本通す。
+- **H3 hooks の実体化**: `hooks/` の規律1/2 機械防壁は placeholder。**LLM が C++ variant を書く瞬間**に第二防壁が
+  必要 (hooks/README に明示済み)。
+- **S2 certify workload = perf workload の一致**: 検証 (tuple200/thread4) と計測 (1m/thread48) が別。合成 variant が
+  「小 workload では踏まないデータパス」を持つと緑 certify と赤い実行が食い違う。perf 構成 (の縮小版) でも 1 回
+  verify + broken-silo 同一フラグ赤検出を消化 (insight の follow-up [P1])。
+- **S1 trace-hook の別 protocol 拡張**: silo+si のみ instrumented。別 protocol を探索素材に入れる Phase で同型 hook を
+  追加 (ermia は cstamp<<1 の罠を worklog 記録済み)。それまでは「silo+si 以外は探索外」を維持。
