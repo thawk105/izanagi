@@ -710,8 +710,18 @@ read-heavy 対照は実在。
 stock 最良超え」のループが回った = **本プロジェクト中核仮説 (AI が正しさを保ったまま既存最良を超える CC を合成)
 の限定スコープでの最初の成立例**。ただし critic ablation の定量 (有/無の探索効率比較) は未実施 = P2-5。
 
+### cross-run 再現性 [P0] を解消 (`backoff_repro.py`)
+
+勝者と参照を別 campaign・逆順 (fix10→fix5→none) で再測 → **headline 再現確認**:
+- balanced クリーン再現 (+11.3%→+11.7%, drift +0.4%)
+- write-heavy は勝者 fix10 が完全再現 (2,603,521→2,599,032 = -0.17%)。"乖離"は no-backoff 参照が -2.9%
+  (CV 2.19%, floor 2.28% 近傍) ドリフトし比が +42.2% に動いたため。win は両系列で +38%超・頑健。
+- 含意: no-backoff (abort 82%) が最大の run 間分散源で backoff variant の方が安定、順序は勝者を偏らせない
+  (後置の none が低い=warmup 人工物と逆)。**残: 別 boot / rounds≥3** (本 repro は同一 boot・別系列)。
+
 ### 次の一手
 
-1. **[P0] cross-run 再現性** — no-backoff/fix5/fix10 を別系列・rounds≥3 で再測し +38% の再現を確認 (最優先)。
-2. **[P1] 機序純度・適応収束値・正しさ実測化** — スピン命令分離 / `Backoff_` dump / 実 perf 構成 trace verify。
-3. **P2-4 (profiler)** はこの「スピン命令分離」と地続き。**P2-5 (LLM 誘導 vs 全探索)** でこの合成例を「空間外」実例に。
+1. **[P0] 機序純度 (スピン命令分離)** — backoff() の `_mm_pause` 命令を perf instructions から分離し「有用 ipc」で
+   残差 K が定数化するか。看板 write で積モデルが破綻 = 「なぜ速いか」の最大の穴。**P2-4 profiler と地続き。**
+2. **[P1] 適応収束値の実測・正しさ実測化・base 一般性** — `Backoff_` dump / 実 perf 構成 trace verify / 他 base 上の再現。
+3. **P2-4 (profiler)** / **P2-5 (LLM 誘導 vs 全探索, この合成例を「空間外」実例に)**。(検討) 別 boot 再現・admission fails-closed 化。

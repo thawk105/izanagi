@@ -34,8 +34,12 @@
   とは書かない。なお latency[ns] は ccbench で 10^9/tps×thread の恒等再記述 (`result.cc`) = 独立情報ゼロ。
 - **[weakens 一般化] 勝利は high-abort に条件付き (3 workload 中 2 勝 1 敗).** read-heavy では負ける。主張は
   「**contention 域 (write/balanced) で**」と明示的に狭める。
-- **[weakens 再現性] +38.3%/+11.3% は単一 back-to-back 系列の産物.** 全 variant rounds=1。CV は subprocess 間
-  分散だが単一連続系列内にすぎない。内点ピークの存在は人工物説を弱めるが、別 boot・別日での再現は未確認。
+- **[再現性 — cross-run 確認済み, 別 boot のみ未]** 別 campaign・逆順 (fix10→fix5→none) で再測した結果:
+  **balanced はクリーン再現** (+11.3%→+11.7%, drift +0.4%)、**write-heavy は勝者 fix10 が完全再現**
+  (2,603,521→2,599,032 = -0.17%)。"乖離"に見えるのは no-backoff 参照が -2.9% (CV 2.19%, floor 2.28% 近傍)
+  ドリフトし比が +38.3%→+42.2% に動いたため。**win は両系列で +38%超・頑健**、精度は参照ばらつき ~3% の幅。
+  no-backoff (abort 82% で最も churn 激しい) が最大の run 間分散源で backoff variant の方が安定、順序は勝者を
+  偏らせない (fix10 は 5番目→1番目で同値)。**残: 別 boot / rounds≥3 での確認** (本 repro は同一 boot・別系列)。
 - **[soft] ピーク位置 (5 vs 10us) は soft.** 粗 grid {2,5,10,25,50,100}us の最良点。勝利の**大きさは robust、
   位置は soft**。
 - **[minor 正しさの範囲] certified は perf workload を直接検証していない.** 検証 workload (tuple200/thread4/
@@ -71,10 +75,12 @@ backoff 量↑ で **(a) abort 単調減** (無駄 retry 削減 = 正) と **(b)
 ## 次に測るべきこと (優先度順)
 
 **必須 (方法論ケーススタディとして弱い穴):**
-- **[P0] cross-run/boot 再現性.** no-backoff/fix5/fix10 を別日・逆順で reps≥5・rounds≥3 再測し rel_median が
-  ±2.28% 床内で再現するか。**+38.3% の再現保証が現状ない。**
+- **[P0 — 一部解消] cross-run 再現性.** ✅ 別 campaign・逆順で再測し headline 再現を確認 (balanced クリーン、
+  write 勝者完全再現、参照 ~3% ドリフトで比に幅)。`backoff_repro.py`。**残: 別 boot / rounds≥3** (本 repro は
+  同一 boot・別系列のみ。boot 間ドリフトは依然未拘束)。
 - **[P0] 機序の純度 (スピン命令分離).** backoff スピン命令を instructions から分離 (perf record で `backoff()`
   占有率) し「有用 ipc」で残差 K が定数化するか。**看板 workload で積モデルが破綻 = 「なぜ速いか」が最大の穴。**
+  (P2-4 profiler と地続き。)
 
 **比較的安価 (外挿を実測に):**
 - **[P1] 正しさを実測に.** 各静的 variant の trace を実 perf 構成で 1 回 verify。broken-silo を同一 backoff フラグで
@@ -89,8 +95,10 @@ backoff 量↑ で **(a) abort 単調減** (無駄 retry 削減 = 正) と **(b)
 
 ---
 
-**最も致命的な 2 つ:** (1) 再現性が単一系列のみ — +38.3% の再現保証なし [P0]。(2) 機序「積で peak 説明」が
-看板 write workload で算術的に外れる — 成果は本物だが「なぜ速いか」(最終成果物の一部) が看板例で破綻 [P0]。
+**最も致命的だった 2 つ (現状):** (1) ~~再現性が単一系列のみ~~ → **別系列・逆順で headline 再現を確認**
+(balanced クリーン / write 勝者完全再現 / 参照 ~3% ドリフト)。残るは別 boot のみ。(2) **機序「積で peak 説明」が
+看板 write workload で算術的に外れる** — 成果は本物だが「なぜ速いか」(最終成果物の一部) が看板例で破綻、依然
+最大の穴 [P0]。スピン命令分離 (P2-4 profiler) が次の鍵。
 
 **規律確認:** 全 variant certified serializable、性能帰属は certified 集合内 (規律2)、WAL/レポート内文字列に
 振る舞い誘導なし (規律6)、本評価は読み取り+解析のみ。
