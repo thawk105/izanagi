@@ -9,12 +9,12 @@
 - **campaign**: p2-2-silo-read-heavy-enumerate-5ffcabad
 - **workload**: read-heavy (ycsb_rmw=0, ycsb_rratio=95, ycsb_zipf_skew=0.9)
 - **calibration**: records=1,000,000 threads=48 clocks_per_us=1800 extime=3
-- **noise_floor_cv**: 2.28% (skew0.9)
+- **noise_floor_cv**: between-run 3.0% (within-run 2.28%, skew0.9)
 - **genome_label**: B<BACK_OFF>-<L=no-wait-locking/即abort | T=tictoc-no-wait/retry>-W<WAL>
 
 ## 最速構成: `silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0`  (B0-T-W0)
 
-**8,487,844 tps** (CV 0.28%)。差の判定は noise floor 2.28% (skew0.9) 以下を「差なし」に丸め、超える差にだけ Mann-Whitney U (α=0.05) を当てる (§3.6(4))。
+**8,487,844 tps** (CV 0.28%)。差の判定は noise floor between-run 3.0% (within-run 2.28%, skew0.9) 以下を「差なし」に丸め、超える差にだけ Mann-Whitney U (α=0.05) を当てる (§3.6(4))。
 
 ## fitness ランキング (median 降順)
 
@@ -22,8 +22,8 @@
 |---:|---|---:|---:|---|
 | 1 | `B0-T-W0` | 8,487,844 | 0.28% | **(最速)** |
 | 2 | `B0-L-W0` | 8,445,065 | 0.20% | 差 +0.5% は信用できる差でない (noise内/非有意) |
-| 3 | `B0-T-W1` | 8,287,719 | 0.11% | 最速が **+2.4%** 速い (有意, p=0.012) |
-| 4 | `B0-L-W1` | 8,269,663 | 0.29% | 最速が **+2.6%** 速い (有意, p=0.012) |
+| 3 | `B0-T-W1` | 8,287,719 | 0.11% | 差 +2.4% は信用できる差でない (noise内/非有意) |
+| 4 | `B0-L-W1` | 8,269,663 | 0.29% | 差 +2.6% は信用できる差でない (noise内/非有意) |
 | 5 | `B1-T-W0` | 1,942,378 | 1.69% | 最速が **+337.0%** 速い (有意, p=0.012) |
 | 6 | `B1-L-W1` | 1,923,730 | 0.93% | 最速が **+341.2%** 速い (有意, p=0.012) |
 | 7 | `B1-T-W1` | 1,909,806 | 1.21% | 最速が **+344.4%** 速い (有意, p=0.012) |

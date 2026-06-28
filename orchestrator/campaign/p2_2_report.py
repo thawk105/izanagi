@@ -23,12 +23,12 @@ from campaign import ident, wal                                 # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root   # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT)
-from campaign.p2_2 import (CLK, EXTIME, RECORDS, THREADS,        # noqa: E402
-                           WORKLOADS, config_for)
+from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, EXTIME, RECORDS,  # noqa: E402
+                           THREADS, WITHIN_RUN_CV, WORKLOADS, config_for)
 from reports.plot import DatFile, PlotSpec, Series, make_plot    # noqa: E402
 
-# 確定 calibration の noise floor (skew0.9, worklog 2026-06-18) = 信用してよい差の下限。
-NOISE_CV_SKEW09 = 0.0228
+# compare の採否 floor は **between-run** (別 run で測る variant/baseline の差の下限, A2)。
+# within-run (その 1 測定の品質) を流用すると偽 faster を出す (roadmap §3.6(3'))。
 
 
 def _parse_flags(canonical: str) -> dict:
@@ -120,7 +120,8 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         "workload": f"{tag} ({wl_str})",
         "calibration": f"records={RECORDS:,} threads={THREADS} clocks_per_us={CLK} "
                        f"extime={EXTIME}",
-        "noise_floor_cv": f"{NOISE_CV_SKEW09 * 100:.2f}% (skew0.9)",
+        "noise_floor_cv": f"between-run {BETWEEN_RUN_CV * 100:.1f}% "
+                          f"(within-run {WITHIN_RUN_CV * 100:.2f}%, skew0.9)",
         "genome_label": "B<BACK_OFF>-<L=no-wait-locking/即abort | T=tictoc-no-wait/retry>-W<WAL>",
     }
     dat = DatFile(
@@ -145,7 +146,7 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     for g in ranked:
         if g.variant == win.variant:
             continue
-        c = compare(baseline=g.tps_list, variant=win.tps_list, noise_cv=NOISE_CV_SKEW09)
+        c = compare(baseline=g.tps_list, variant=win.tps_list, noise_cv=BETWEEN_RUN_CV)
         verdicts[g.variant] = c
 
     md_path = os.path.join(layout.reports_dir, f"p2-2-fitness-{tag}_report.md")
@@ -158,11 +159,16 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
 
 
 def _verdict_str(c) -> str:
-    """compare(baseline=この genome, variant=最速) の結果を「最速はこの genome より…」で。"""
+    """compare(baseline=この genome, variant=最速) の結果を「最速はこの genome より…」で。
+
+    near_floor (差が floor〜1.5×floor) の faster/slower は MWU が無力な帯なので、
+    人間が読むレポートに「cross-run 再現で裏取り要」を必ず surface する (規律3: close-call
+    シグナルを後付け/沈黙にしない。A2 / [[decisions]] D19)。"""
+    near = "  ⚠floor近傍 — cross-run 再現で裏取り要" if getattr(c, "near_floor", False) else ""
     if c.verdict == "faster":
-        return f"最速が **+{c.rel_median * 100:.1f}%** 速い (有意, p={c.p:.3f})"
+        return f"最速が **+{c.rel_median * 100:.1f}%** 速い (有意, p={c.p:.3f}){near}"
     if c.verdict == "slower":   # 起こらない想定 (最速が baseline より遅い) だが念のため
-        return f"最速が {c.rel_median * 100:.1f}% 遅い (有意, p={c.p:.3f})"
+        return f"最速が {c.rel_median * 100:.1f}% 遅い (有意, p={c.p:.3f}){near}"
     if c.verdict == "no-difference":
         return f"差 {c.rel_median * 100:+.1f}% は信用できる差でない (noise内/非有意)"
     return c.reason or c.verdict
@@ -209,7 +215,8 @@ def write_summary(results: list, path: str) -> None:
          "(genome 列挙=no-wait XOR で 8、空間訂正は "
          "insight 2026-06-22_silo-both-no-wait-zero-livelock.md)。", "",
          f"- calibration: records={RECORDS:,} / threads={THREADS} / "
-         f"clocks_per_us={CLK} / skew0.9 / noise floor CV {NOISE_CV_SKEW09 * 100:.2f}%",
+         f"clocks_per_us={CLK} / skew0.9 / 採否 floor = between-run "
+         f"{BETWEEN_RUN_CV * 100:.1f}% (within-run {WITHIN_RUN_CV * 100:.2f}%)",
          "",
          "| workload | 最速 genome | median tps | CV | 2位との差 |",
          "|---|---|---:|---:|---|"]

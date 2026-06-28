@@ -8,7 +8,7 @@
   - **逆順** (fix10 → fix5 → none。元 sweep は none → … → fix10 の昇順)
   - 別の時間窓 (元 sweep の数時間後)
 
-で再測し、winner-vs-no-backoff の相対差が元の値と noise floor (2.28%) 内で一致するか見る。
+で再測し、winner-vs-no-backoff の相対差が元の値と between-run noise floor 内で一致するか見る。
 別 boot ではないが「時間窓 + run 順序」の交絡は分離できる。各 genome は pipeline で
 build(cache hit)→verify(正しさゲート)→bench。
 
@@ -26,8 +26,8 @@ from campaign.backoff_sweep import _BASE                         # noqa: E402
 from campaign.layout import campaign_layout                      # noqa: E402
 from campaign.loop import run_campaign                           # noqa: E402
 from campaign.model import CampaignConfig, Genome                # noqa: E402
-from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,   # noqa: E402
-                           REPS, THREADS, _assert_single_tenant)
+from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, ENV_TAG, EXTIME,  # noqa: E402
+                           NUMA, RECORDS, REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig                         # noqa: E402
 
 CCBENCH_COMMIT = "dff0f1e"
@@ -39,7 +39,10 @@ ORIG = {
     "balanced":    {"workload": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
                     "best_us": 5, "none": 2791760.0, "best": 3106342.0, "rel": 0.113},
 }
-NOISE_CV = 0.0228
+# 再現トレランス = between-run floor (A2)。再測 rel と元 rel は別 run の比なので between-run。
+# なお rel_drift = rel(再測) - rel(元) は **2 つの between-run 比の差** なので、単一 floor を当てる
+# のはむしろ厳しめ (保守的)。+38%/+11% の勝者再現はこの floor に鈍感 (worklog 2026-06-28)。
+NOISE_CV = BETWEEN_RUN_CV
 
 
 def _genomes_reversed(best_us: int):

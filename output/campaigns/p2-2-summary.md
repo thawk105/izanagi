@@ -2,7 +2,7 @@
 
 > 自動生成。各 workload campaign の最速 genome を横断比較 (genome 列挙=no-wait XOR で 8、空間訂正は insight 2026-06-22_silo-both-no-wait-zero-livelock.md)。
 
-- calibration: records=1,000,000 / threads=48 / clocks_per_us=1800 / skew0.9 / noise floor CV 2.28%
+- calibration: records=1,000,000 / threads=48 / clocks_per_us=1800 / skew0.9 / 採否 floor = between-run 3.0% (within-run 2.28%)
 
 | workload | 最速 genome | median tps | CV | 2位との差 |
 |---|---|---:|---:|---|

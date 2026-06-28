@@ -501,6 +501,18 @@ def test_layout_rejects_path_traversal():
     campaign_layout("readheavy-enum-abcd1234", output_root="/tmp/izanagi_x")  # 正常は通る
 
 
+# ===== レポートが close-call シグナル (near_floor) を surface するか (A2, 規律3) =====
+
+def test_report_verdict_surfaces_near_floor():
+    """compare の near_floor (floor 近傍の faster) がレポート文字列に出る (dead wiring 防止)。"""
+    from calibrator.stability import Comparison
+    from campaign.p2_2_report import _verdict_str
+    near = Comparison(verdict="faster", rel_median=0.035, p=0.012, near_floor=True)
+    far = Comparison(verdict="faster", rel_median=0.40, p=0.012, near_floor=False)
+    assert "cross-run 再現で裏取り要" in _verdict_str(near)
+    assert "cross-run 再現で裏取り要" not in _verdict_str(far)
+
+
 # ---- 素の runner ----
 
 def _run():

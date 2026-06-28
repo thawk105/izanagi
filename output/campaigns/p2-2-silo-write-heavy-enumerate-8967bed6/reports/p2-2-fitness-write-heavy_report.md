@@ -9,12 +9,12 @@
 - **campaign**: p2-2-silo-write-heavy-enumerate-8967bed6
 - **workload**: write-heavy (ycsb_rmw=0, ycsb_rratio=5, ycsb_zipf_skew=0.9)
 - **calibration**: records=1,000,000 threads=48 clocks_per_us=1800 extime=3
-- **noise_floor_cv**: 2.28% (skew0.9)
+- **noise_floor_cv**: between-run 3.0% (within-run 2.28%, skew0.9)
 - **genome_label**: B<BACK_OFF>-<L=no-wait-locking/即abort | T=tictoc-no-wait/retry>-W<WAL>
 
 ## 最速構成: `silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0`  (B0-L-W0)
 
-**1,872,376 tps** (CV 0.91%)。差の判定は noise floor 2.28% (skew0.9) 以下を「差なし」に丸め、超える差にだけ Mann-Whitney U (α=0.05) を当てる (§3.6(4))。
+**1,872,376 tps** (CV 0.91%)。差の判定は noise floor between-run 3.0% (within-run 2.28%, skew0.9) 以下を「差なし」に丸め、超える差にだけ Mann-Whitney U (α=0.05) を当てる (§3.6(4))。
 
 ## fitness ランキング (median 降順)
 

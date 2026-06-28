@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from campaign import ident                                       # noqa: E402
 from campaign.backoff_sweep import WORKLOADS, config_for         # noqa: E402
 from campaign.layout import campaign_layout                      # noqa: E402
+from campaign.p2_2 import BETWEEN_RUN_CV                          # noqa: E402
 from critic.digest import load_workload                          # noqa: E402
 from reports.plot import DatFile, PlotSpec, Series, make_plot     # noqa: E402
 
@@ -70,7 +71,7 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         "no_backoff_tps(BACK_OFF=0)": f"{none_tp:,.0f}" if none_tp else "—",
         "adaptive_tps(stock Cicada)": f"{adap_tp:,.0f}" if adap_tp else "—",
         "best_static": f"{best_amt}us = {tp(best_g):,.0f} tps",
-        "noise_floor_cv": "2.28% (skew0.9)",
+        "noise_floor_cv": f"between-run {BETWEEN_RUN_CV * 100:.1f}% (skew0.9, A2)",
     }
     dat = DatFile(
         title=f"backoff sweep: {tag} ({wl_str})",
@@ -106,8 +107,8 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
 
 
 def _verdict(none_tp, adap_tp, best_static) -> str:
-    """sweet spot 判定 (noise floor 2.28% を超えるかで)。"""
-    nf = 0.0228
+    """sweet spot 判定 (between-run noise floor を超えるかで, A2)。"""
+    nf = BETWEEN_RUN_CV
     if none_tp is None or best_static is None:
         return "判定不能 (データ欠損)"
     rel_vs_none = best_static / none_tp - 1

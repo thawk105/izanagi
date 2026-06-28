@@ -6,7 +6,7 @@
 # no_backoff_tps(BACK_OFF=0): 8,450,806
 # adaptive_tps(stock Cicada): 1,919,103
 # best_static: 2us = 7,889,420 tps
-# noise_floor_cv: 2.28% (skew0.9)
+# noise_floor_cv: between-run 3.0% (skew0.9, A2)
 #
 # ビルド再現コマンド (この実験のバイナリを作る):
 #   # patches/silo-backoff-fixed.patch を ccbench に適用 (D18)。genome に BACKOFF_FIXED=<us> + BACK_OFF=1

@@ -42,6 +42,20 @@ THREADS = 48
 EXTIME = 3
 REPS = 5
 
+# A2: noise floor は用途で 2 種 (roadmap §3.6(3'))。混同すると偽 faster を出す。
+#   within-run = その 1 測定の品質 (= remeasure 品質ゲート)。calibration noise_floor.cv = 2.28%。
+#   between-run = **差が信用できるかの下限** (= compare の丸め閾値)。variant/baseline は別 run で
+#     測るので採否 floor はこちら。
+# between_run_floor.py で B0-L-W0 baseline を確定動作点で 8 独立セッション実測した結果、fresh な
+# same-window between は write: 0.67% (within 2.19% より低) / balanced: 1.07% (within 1.07% と同値)
+# = back-to-back では下がりこそすれ within を上回らない楽観的下限と判明 (median 集約 + 熱/周波数/
+# cache 共有で真の run 間ドリフトを捉えない)。よって floor は fresh 値でなく **時間分離された
+# cross-campaign の genuine データ** に錨を打つ:
+#   no-backoff CV(n=2, sweep vs repro) = 2.09% (write) / 1.53% (balanced)、high-abort within ≤2.91%。
+# 観測された最悪の run 間分散 (~2.91%) をカバーする保守値 = 0.030。
+WITHIN_RUN_CV = 0.0228       # 旧 NOISE_CV_SKEW09。compare には使わない (within の参考/表示用)
+BETWEEN_RUN_CV = 0.030       # 採否 floor。cross-campaign genuine + high-abort within の保守側 (~3%)
+
 # 代表 workload。skew=0.9 固定で rratio を振る (rmw=0 は calibration と同じ)。
 WORKLOADS = [
     ("read-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"}),
