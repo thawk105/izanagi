@@ -102,3 +102,59 @@ backoff 量↑ で **(a) abort 単調減** (無駄 retry 削減 = 正) と **(b)
 
 **規律確認:** 全 variant certified serializable、性能帰属は certified 集合内 (規律2)、WAL/レポート内文字列に
 振る舞い誘導なし (規律6)、本評価は読み取り+解析のみ。
+
+---
+
+## 追記 (2026-06-28): over-throttling を直接実測 [P1] — 検証済み (ODR fix #118 で解禁)
+
+ccbench の ODR バグ ([[2026-06-22_ccbench-backoff-add-analysis-segfault]], PR #118 で master 還元 + izanagi-trace
+取込) を直したことで `ADD_ANALYSIS=1` の `backoff_latency_rate` (= total_backoff_latency / 全スレッドサイクル =
+machine の何割を backoff スピンに費やしたか) が使えるようになり、`backoff_overthrottle.py` で sweep 各点を
+1m/48thread/skew0.9 で実測。**3レンズ敵対的検証済み** (measurement-artifact / mechanism / overthrottle-validity)。
+
+### 実測値 (write-heavy, ADD_ANALYSIS=1)
+
+| backoff | spin% | abort% | eff_tps=tps/(1-spin) |
+|---|---:|---:|---:|
+| none | 0% | 81.8% | 1.84M |
+| fixed-10us (fitness sweet spot) | 51.8% | 50.7% | 4.97M |
+| fixed-100us | 77.6% | 18.5% | 7.32M |
+| **adaptive (stock)** | **87.3%** | 15.6% | 7.51M |
+
+(read-heavy も同形: adaptive spin 78.0%。)
+
+### 生存した主張 (検証済み)
+
+- **[S1 強化] over-throttling は実在し計装固有でない (確信度 高)。** 最大の攻撃「AA=1 が適応の収束点を動かすので
+  87% は計装固有」を、検証者が **AA=0/AA=1 両 build の Backoff_ 収束値を probe 実測**して反証: 時間加重平均保持
+  backoff = write AA=0 **559us** vs AA=1 562us (差 0.6%)、read 603 vs 593us (差 1.6%) で**統計的に区別不能**。
+  **実 fitness build (AA=0) でも適応は ~560us(write)/~600us(read) に駐車** = sweet spot 5-10us の **56-80倍**。
+  → **前回の最大の留保「収束 backoff 量は未測定・外挿」を実測に置換** ([P1] を閉じた)。
+- **[S1 構造的決定打] 適応コントローラは sweet spot に物理的に到達不能。** `backoff.hh` の grid は
+  kMinBackoff=0 / kIncrBackoff=100us。非ゼロ最小グリッド点が 100us = sweet spot (5-10us) を既に 13x 超過。
+  AA とも throughput 歪みとも無関係なコード不変条件で、桁超え over-throttling の最も強い根拠。
+- **[S2] 「abort 駆動 throughput トレードオフ分解」は生存 (中〜高)。** spin% は tps と独立計測 (transaction.cc:42-50
+  の rdtscp)。eff_tps 単調増は SMT/cache 人工物でない (それらは attempt-rate を増やす向きだが実測は減る = 交絡が
+  逆符号)。前回破綻した「(1-abort)×ipc 積の peak 不一致」を、peak を「eff_tps の伸び vs スピン税のトレードオフ」へ
+  正直に再帰属。
+
+### 削った over-claim / 残る穴
+
+- **[major 縮約] 「eff_tps が機序の穴を解決」は過大。** `tps = eff_tps×(1-spin)` は eff_tps:=tps/(1-spin) の
+  **定義的トートロジー** (再構成誤差 全点 0)。`eff_tps/(1-abort)` が平坦 (CV 5.5%) = **eff_tps 単調増は前回 C4
+  「abort が backoff 量で単調減」の再表現にすぎない** (新機序を足していない)。spin 分解は peak を tps から再構成
+  するだけで**予測しない**。「解決」でなく「破綻した積モデルを正直なトレードオフ分解に置換 (ただし peak は再構成)」と書く。
+- **[P0 核心は未解決]** 「非スピン時間あたりの**真の IPC** が backoff 量で一定/単調か」を**直接計測していない**。
+  spin% はその代理にすぎず、eff_tps/(1-abort) 平坦性は abort 曲線の再表現で IPC を分離していない。**`perf record` で
+  backoff() のスピン命令を instructions から分離し有用 ipc を測る** のが未完 = P2-4 profiler の核。
+- **[minor] AA 計装 caveat:** tps の絶対値は committed fitness と非比較。load-bearing な spin%/abort% は AA に頑健
+  (オーバーヘッドは rate の +0.02〜0.14%)。低 backoff の eff_tps 曲線は歪み tps 経由で揮発 (再測で fixed-5us −36%) →
+  低端の曲線形状は quantitative に主張しない。生存は単調性と adaptive>fixed-100us。
+- **[minor] adaptive spin% 単発の再現ばらつき ±5-7pt** (hill-climb が彷徨う)。87.3% を点推定として強く主張しない。
+  robust なのは時間加重平均保持 backoff (~560us) と grid floor 構造論証。
+- **[未測定] 低 contention で適応が 0us 近傍へ降りる可能性は未確認** (contention 域 write/read では ~560/600us)。
+  AA=0 build の spin% 絶対値も未測定 (spin counter が #if ADD_ANALYSIS ゆえ)。
+
+**正味:** ODR fix で [P1]「適応の駐車を外挿でなく実測」を**閉じた** (適応 ~560us / grid floor 100us / 静的 500us
+spin% の3経路一致)。[P0]「なぜ速いか」核心 (有用 IPC 分離) は **perf record = P2-4 profiler** に残る。
+測定ドライバ `orchestrator/campaign/backoff_overthrottle.py` (ADD_ANALYSIS 診断専用、正しさは AA=0 build で検証済み)。

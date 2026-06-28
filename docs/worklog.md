@@ -760,8 +760,19 @@ gitlink を `6656e93 → dff0f1e` に前進。fix は ADD_ANALYSIS=0 の perf bu
 が使え、ケーススタディの [P1]「over-throttling を外挿でなく直接実測」が実施可能になった (ASan 確認で thread8
 適応が 76.5% スピンを実測済み、本実測は確定 calibration での sweep で裏取り予定)。
 
+### [P1] over-throttling 直接実測 — 完了 (`backoff_overthrottle.py`, 3レンズ敵対的検証済み)
+
+新 pin で ADD_ANALYSIS=1 build を作り sweep 各点の `backoff_latency_rate` を 1m/48thread/skew0.9 で実測:
+**stock 適応は write 87.3% / read 78.0% のスレッド時間を backoff スピンに浪費**。3レンズ検証で:
+- **[強化] over-throttling は計装固有でない**: 検証者が Backoff_ 収束値を AA=0/AA=1 両 build で probe 実測 →
+  **実 fitness build でも適応は ~560us(write)/~600us(read) に駐車 = sweet spot 5-10us の 56-80倍**。前回「外挿」
+  だった穴を実測に置換。**構造的決定打**: grid が kIncrBackoff=100us 刻みで適応は 5-10us に物理的に到達不能。
+- **[縮約] eff_tps=tps/(1-spin) 機序は over-claim を削る**: 恒等式で `eff_tps/(1-abort)` 平坦 = eff_tps 単調増は
+  「abort 単調減」の再表現にすぎず新機序でない。**[P0] 核心 (有用 IPC 分離) は perf record = P2-4 待ち**。
+詳細は `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md` の追記 (2026-06-28)。
+
 ### 次の一手
 
-1. **[P1] over-throttling 直接実測** — 新 pin で ADD_ANALYSIS build を作り backoff sweep の各点 (none/static/
-   adaptive) の `backoff_latency_rate` を確定 calibration で測る → 「適応が sweet spot を桁で行き過ぎ」を実測に。
-2. **[P0] 機序純度 (スピン命令分離)** = P2-4 profiler と地続き。**P2-4 / P2-5**。
+1. **[P0] 機序純度 (スピン命令分離) = P2-4 profiler** — `perf record` で backoff() スピン命令を instructions から
+   分離し「有用 ipc」を直接計測 (eff_tps 代理でなく)。これが backoff ケーススタディの最後の穴。
+2. **P2-4 (profiler 実体化) / P2-5 (LLM 誘導 vs 全探索)**。(任意) 別 boot 再現・admission fails-closed 化。
