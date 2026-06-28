@@ -771,8 +771,59 @@ gitlink を `6656e93 → dff0f1e` に前進。fix は ADD_ANALYSIS=0 の perf bu
   「abort 単調減」の再表現にすぎず新機序でない。**[P0] 核心 (有用 IPC 分離) は perf record = P2-4 待ち**。
 詳細は `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md` の追記 (2026-06-28)。
 
-### 次の一手
+### 次の一手 (この時点)
 
 1. **[P0] 機序純度 (スピン命令分離) = P2-4 profiler** — `perf record` で backoff() スピン命令を instructions から
    分離し「有用 ipc」を直接計測 (eff_tps 代理でなく)。これが backoff ケーススタディの最後の穴。
-2. **P2-4 (profiler 実体化) / P2-5 (LLM 誘導 vs 全探索)**。(任意) 別 boot 再現・admission fails-closed 化。
+2. **P2-4 (profiler 実体化) / P2-5 (LLM 誘導 vs 全探索)**。
+
+---
+
+## 2026-06-28 (続き) — Phase 1 完了監査 (B) + 評価パイプライン硬化 (A1/A3/A4/A5、A2 は未着手)
+
+ユーザー質問「Phase 1 は完璧に終わっているか」に対し **B→A** (網羅監査 → 修正) で対応。
+
+### B: Phase 1 完了監査 (4軸 workflow, 5 agent / 355k tok)
+
+verifier / calibrator+admission / 観測者効果+hooks / pipeline 正しさゲート を各エージェントが Phase 1
+完了条件 + Phase 2 インシデントに照らして突いた。**結論: 完了条件は満たす (blocks-phase1 = 0) が「完璧」ではない。**
+hardening 9 / scope-limit 5。正しさゲートは fails-closed (6 abort 経路 + positive/negative control で版写像実証)、
+性能計測も within-run・単一テナント・確定動作点では信頼できるが、未硬化あり。
+
+### A: 修正 (手堅い順、テスト 100 passed)
+
+- **A1 [済] admission を fails-closed (最重要・実害 near-miss 根治)** — `runner.competing_bench_pids()` (pgrep で
+  競合/孤児ベンチをラグなし検知) を `pipeline.evaluate` の bench 直前に呼び、居たら `bench-competing-tenant`
+  で abort (汚染計測を不採用)。driver=campaign 冒頭 / pipeline=genome ごとの二段。孤児は規律6 で自動 kill せず
+  PID を WAL に出す。settle の settled を forensic 記録。
+- **A3 [済] zero-txn ガードを verifier 最下層へ + digest committed フィルタ** — 空トレースが certified に化ける
+  false-green (verify.py 直叩き経路) を VerifyResult.verdict/certified に n_txns==0→indeterminate を置いて封鎖。
+  critic digest は STAGE_COMMIT のある genome のみ拾う (A の漏れ窓)。
+- **A4 [済] perf build の trace シンボル不在を buildcache で継続 assert (規律1)** — `_assert_no_trace_symbols`
+  (nm -C に izanagi_trace があれば RuntimeError)。実機: perf=0個/trace=6個 で誤検知なし・検知が効く。
+- **A5 [済] hooks 未実装を明示 + Phase 3 着手前 must を phase2.md に** — hooks/ は placeholder で CLAUDE.md と
+  乖離 → README 冒頭に明示 (規律6)。実装は Phase 3 (LLM が C++ を書く瞬間に load-bearing) に繰り延べ。
+- **A2 [未着手] between-run noise floor** — within-run CV (2.28%) は between-run (~3%, repro 実測) を過小評価し
+  compare が数% flag 差で偽 faster を出しうる。capability (stability に between_run_noise_floor) + baseline 反復
+  計測 + compare/report への配線が残り。+38% の大効果は無影響。
+
+### Phase 3 着手前 must (今やると過剰修正 = 繰り延べ。phase2.md に記載)
+
+S4 規律3 配線 (verifier の構造化 anomaly を次手に流す) / H3 hooks 実体化 / S2 certify=perf workload 一致 /
+S1 trace-hook 別 protocol 拡張。**いずれも Phase 2 (silo・列挙) では無害、Phase 3 (別 protocol/コード合成) で
+初めて load-bearing。**
+
+### セッション所見 (引き継ぎ用)
+
+長セッションでコンテキスト増大。最終 commit の質は安全装置 (敵対的検証 workflow・テスト・規律) で維持できたが、
+一次ミスは増えた (**日付を 6/28→6/22 と誤記**したのが典型 = [[use-actual-current-date]] に記録)。次セッションは
+worklog/insights/decisions/memory が最新でクリーンに引き継げる。**日付は session の実 currentDate を使うこと。**
+
+### 次の一手 (次セッションの起点)
+
+1. **A2 (between-run noise floor)** を仕上げる — capability 実装 + baseline 反復計測 + compare 配線。手堅い小仕事。
+2. **P2-4 (profiler 実体化)** — `perf record` で backoff スピン命令分離 = backoff ケーススタディの最後の穴 [P0]。
+3. **P2-5 (LLM 誘導探索 vs 全探索)** — Phase 2 主実験。critic の帰属で次 genome を選ぶループ。
+4. **Phase 3 着手前 must** (上記 S1/S2/S4/H3) は Phase 3 直前に。
+- 計測は直列・単一テナント (規律4)。submodule は izanagi-trace @ dff0f1e (ODR fix 入り) を pin、working tree に
+  backoff patch (patches/silo-backoff-fixed.patch) 適用済み。CCBENCH_COMMIT="dff0f1e"。
