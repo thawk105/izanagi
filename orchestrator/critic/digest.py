@@ -25,7 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import wal                                          # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import STAGE_BENCH_DONE, STAGE_BUILD_START    # noqa: E402
+from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
+                            STAGE_COMMIT)
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
 INDICATORS = ["throughput_tps", "abort_rate", "latency_ns", "llc_miss_rate", "ipc"]
@@ -84,9 +85,14 @@ def _parse_flags(canonical: str) -> Dict[str, int]:
 
 
 def load_workload(layout: CampaignLayout) -> List[GenomeLI]:
-    """campaign WAL から committed genome の leading indicators を読む。"""
+    """campaign WAL から **committed** genome の leading indicators を読む。
+
+    bench_done だけで拾うと、bench は走ったが COMMIT 前にクラッシュした half-evaluated
+    な点 (A: atomicity の漏れ窓) を採用しうる。STAGE_COMMIT がある variant だけに絞る
+    (採用済み = 全段通過した genome のみを critic に渡す)。"""
     genome_of: Dict[str, str] = {}
     li_of: Dict[str, Dict] = {}
+    committed: set = set()
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
@@ -94,10 +100,12 @@ def load_workload(layout: CampaignLayout) -> List[GenomeLI]:
             li = r.payload.get("leading_indicators")
             if li is not None:
                 li_of[r.variant] = li
+        elif r.stage == STAGE_COMMIT:
+            committed.add(r.variant)
     out = []
     for v, li in li_of.items():
         g = genome_of.get(v, "")
-        if not g:
+        if not g or v not in committed:      # 採用済み (commit あり) のみ
             continue
         out.append(GenomeLI(genome=g, flags=_parse_flags(g),
                             li={k: li.get(k) for k in INDICATORS}))

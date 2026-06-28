@@ -146,6 +146,12 @@ class VerifyResult:
     @property
     def verdict(self) -> str:
         """三値判定。"non-serializable" | "indeterminate" | "serializable"。"""
+        if self.n_txns == 0:
+            # 空トレース = 検証すべき実行が無い。空 DSG は無条件 acyclic だが、それを
+            # serializable と認証してはいけない (絶対規律2: 空 DSG を緑と誤認しない)。
+            # この安全側不変条件は最下層 (verify_trace_dir でなく VerifyResult) に置き、
+            # CLI 直叩き経路でも pipeline 経路でも一律 indeterminate にする。
+            return "indeterminate"
         if not self.serializable:
             return "non-serializable"        # cycle あり = 確定的に異常
         if not self.integrity.clean():
@@ -155,4 +161,4 @@ class VerifyResult:
     @property
     def certified(self) -> bool:
         """「正しさゲート通過」とみなしてよい唯一の条件。"""
-        return self.serializable and self.integrity.clean()
+        return self.n_txns > 0 and self.serializable and self.integrity.clean()

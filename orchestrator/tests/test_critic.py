@@ -17,7 +17,8 @@ sys.path.insert(0, _ORCH)
 
 from campaign import wal                                          # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import STAGE_BENCH_DONE, STAGE_BUILD_START    # noqa: E402
+from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
+                            STAGE_COMMIT)
 from critic.digest import build_digest, render_text               # noqa: E402
 
 
@@ -27,9 +28,11 @@ def _tmp_layout():
     return CampaignLayout(root=d).ensure()
 
 
-def _write(lay, genome, **li):
+def _write(lay, genome, committed=True, **li):
     wal.log(lay, genome, STAGE_BUILD_START, "test", {"genome": genome})
     wal.log(lay, genome, STAGE_BENCH_DONE, "test", {"leading_indicators": li})
+    if committed:                                  # digest は committed のみ拾う
+        wal.log(lay, genome, STAGE_COMMIT, "test", {"fitness_tps": li.get("throughput_tps")})
 
 
 _G = "silo|BACK_OFF={b},NO_WAIT_LOCKING_IN_VALIDATION={l},NO_WAIT_OF_TICTOC={t},WAL={w}"
@@ -89,6 +92,19 @@ def test_marginal_averages_over_other_flags():
     wal_eff = next(e for e in d.axes if e.axis == "WAL")
     assert wal_eff.means["throughput_tps"]["0"] == 6_000_000  # (8M+4M)/2
     assert wal_eff.means["throughput_tps"]["1"] == 5_000_000  # (7M+3M)/2
+
+
+def test_uncommitted_genome_excluded():
+    """A (atomicity): bench_done はあるが COMMIT 前にクラッシュした genome は digest から除外。"""
+    lay = _tmp_layout()
+    _write(lay, _G.format(b=0, l=1, t=0, w=0), throughput_tps=8_000_000,
+           abort_rate=0.05, latency_ns=1000, llc_miss_rate=0.2, ipc=1.5)
+    _write(lay, _G.format(b=1, l=1, t=0, w=0), committed=False,  # half-evaluated
+           throughput_tps=4_000_000, abort_rate=0.05, latency_ns=2000,
+           llc_miss_rate=0.2, ipc=1.5)
+    d = build_digest("x", {}, lay)
+    assert len(d.genomes) == 1                   # 非 committed は不採用
+    assert d.genomes[0].flags["BACK_OFF"] == 0
 
 
 def test_render_text_has_axes_and_indicators():

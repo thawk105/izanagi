@@ -124,6 +124,26 @@ def test_version_dup_indeterminate():
     assert not res.certified
 
 
+def test_empty_trace_indeterminate_not_certified():
+    """規律2: 空トレース (検証すべき実行が無い) を serializable と認証しない。
+
+    空 DSG は無条件 acyclic だが certified にすると false-green。安全側不変条件を
+    最下層 (VerifyResult) に置いたので CLI 直叩き経路でも pipeline 経路でも一律
+    indeterminate。"""
+    import shutil
+    import tempfile
+    d = tempfile.mkdtemp(prefix="izanagi_emptytrace_")
+    try:
+        open(os.path.join(d, "trace_0.log"), "w").close()   # 空ファイル = 0 txn
+        res = verify_trace_dir(d)
+        assert res.n_txns == 0
+        assert res.serializable                  # 空 DSG は acyclic (純グラフ事実)
+        assert res.verdict == "indeterminate"    # だが認証しない
+        assert not res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_phantom_skew_invisible_documented_limitation():
     # スコープ限界 (output/insights/ に記録): 述語(範囲)読みはトレース形式に出ない
     # ので phantom write-skew は key 粒度では見えず serializable に見える。これは
