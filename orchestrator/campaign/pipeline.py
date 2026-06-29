@@ -30,7 +30,7 @@ from calibrator.stability import remeasure_until_stable         # noqa: E402
 from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
-from . import buildcache, wal                                   # noqa: E402
+from . import buildcache, source_digest, wal                   # noqa: E402
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
@@ -38,9 +38,13 @@ from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
                     STAGE_VERIFY_DONE)
 
 
-def variant_id(genome: Genome) -> str:
-    """genome 正準表現の安定ハッシュ = variant の id (WAL キー)。"""
-    return hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()[:12]
+def variant_id(genome: Genome, src_token: str = source_digest.STOCK) -> str:
+    """genome 正準表現 + コード差 (src_token, D23) の安定ハッシュ = variant の id (WAL キー)。
+
+    stock (working-tree==HEAD baseline) は src を省き旧 id を温存 (後方互換: silo 8 genome の
+    既存 WAL キーが不変)。coder が EVOLVE-BLOCK を書き換えた variant だけ src 込みの新 id。"""
+    src = "" if src_token == source_digest.STOCK else f"|src={src_token}"
+    return hashlib.sha256(f"{genome.canonical()}{src}".encode("utf-8")).hexdigest()[:12]
 
 
 @dataclass
@@ -112,9 +116,26 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     abort も commit も terminal だが、abort は **fitness を付けず採用しない**。
     """
     correctness = correctness or CorrectnessWorkload()
-    v = variant_id(genome)
+    # identity (D23): coder のコード差まで覆う src_token を build 前に 1 回計算し、
+    # variant_id (WAL キー) と build (cache_key) で共有する (TOCTOU 偽 hit を防ぐ)。
+    # identity を確定できない (allowlist 逸脱 / preprocess 失敗 / git show 失敗) なら
+    # fails-closed で評価しない (best-effort skip を identity 核に持ち込まない, 規律2)。
+    try:
+        source_digest.assert_worktree_within_allowlist()
+        src_tok = source_digest.src_token(genome, ccbench_commit)
+    except RuntimeError as e:
+        v0 = variant_id(genome)            # stock id で abort を記録 (WAL キーを残す)
+        wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
+        wal.log(layout, v0, STAGE_ABORT, env_tag,
+                {"reason": "identity-error", "error": str(e)})
+        log(f"  [eval {v0}] abort: identity-error ({e})")
+        r = EvalResult(genome=genome, variant=v0, certified=False, aborted=True)
+        r.notes.append(f"source_digest 確定不能 → reject ({e})")
+        return r
+    v = variant_id(genome, src_tok)
     res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
-    wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
+    wal.log(layout, v, STAGE_BUILD_START, env_tag,
+            {"genome": genome.canonical(), "src_token": src_tok})
 
     def _abort(reason: str, note: str, extra: Optional[Dict] = None) -> EvalResult:
         wal.log(layout, v, STAGE_ABORT, env_tag, {"reason": reason, **(extra or {})})
@@ -126,8 +147,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # --- build (trace + perf 別ビルド, 絶対規律1)。ビルド失敗はこの variant 固有の
     #     失敗として abort 隔離 (campaign 全体を落とさず前進, overnight 耐性) ---
     try:
-        tr = buildcache.build(genome, ccbench_commit, trace=True)
-        pf = buildcache.build(genome, ccbench_commit, trace=False)
+        tr = buildcache.build(genome, ccbench_commit, trace=True, src_token=src_tok)
+        pf = buildcache.build(genome, ccbench_commit, trace=False, src_token=src_tok)
     except (RuntimeError, subprocess.SubprocessError) as e:
         return _abort("build-error", f"ビルド失敗 → reject ({e})")
     wal.log(layout, v, STAGE_BUILD_DONE, env_tag,

@@ -386,3 +386,28 @@
 - **生ソース sha256**: 実装最小だが inert 実証が偽になる (honest-by-construction を名乗れない)。
 
 **位置づけ:** ユーザーと協議合意した kickoff 設計 (roadmap 改訂セレモニー対象外、Phase 3 は既に roadmap §2 層2(b) にある)。絶対規律 1/2/3/5/6 がここで初めて load-bearing。COMMIT を書く唯一の経路は pipeline.evaluate (guided.py の replay-fake certified 経路は live variant に再利用しない)。
+
+---
+
+## D23. source_digest (Phase 3 identity) = preprocess 後ハッシュ + 道Y (生 #if は hook 禁止で digest==実枝を構造保証)
+
+**決定:** Phase 3 kickoff タスク1 (cache_key + variant_id を「コードの差」まで覆う honest 拡張) の確定設計。多エージェント workflow で**私の提案を 3 レンズ (honest / 列挙漏れ / 最小性) で敵対レビュー**し、各レンズが実機で偽 cache hit を構築した結果を統合して固めた。
+
+**source_digest(genome) の計算 (方式 E):** 対象 EVOLVE-BLOCK ソースから `#include` 行を除去し、`g++ -E -P -undef -nostdinc -Werror=undef -D<name>=<val> -x c++ -` で preprocess (= #if/#else 解決 + コメント除去) した出力を sha256。defines = `Options.cmake` のデフォルト (`set(CCBENCH_<NAME> <v> CACHE ...)` を抽出し `CCBENCH_` 剥がし・クォート剥がし・空値 unset) を base に `genome.flags` で上書き。実機実証: inert (`BACKOFF_FIXED=-1`) の preprocess 出力は HEAD (patch 前) と**同一 sha256** (`7664020a…`)、`BACKOFF_FIXED=50`/`BACKOFF_NOINLINE=1` で digest 変化。include 展開ゼロ (84 行)・環境非依存。
+
+**最大の設計判断 = 道Y (digest を実ビルドマクロ環境で取らない代わりに、生 preprocessor 条件を hook で禁止):** `-undef -nostdinc` の cpp 環境は実ビルドのマクロ環境 (`-DLinux`/`-DNDEBUG`/builtin `__GNUC__`/TU の `#define GLOBAL_VALUE_DEFINE`) と乖離する。レンズC が `#ifdef Linux` で**枝の中身だけ違う 2 variant が同一 digest になる偽 hit を実構築**した。これを「digest を実ビルドと同じマクロ環境で取る (道X)」で塞ぐと、builtin `__DATE__`/`__TIME__` が非決定 digest を生む + compile_commands.json は configure 後 = cache_key (configure 前に build dir 名が要る) と鶏卵。→ **道Y を採用**: EVOLVE-BLOCK 内の生 `#if/#ifdef/#ifndef/#elif` と非決定 builtin (`__DATE__` 等) を **hook (タスク3) で機械禁止**し、領域内で枝を決めるのは template patch が用意した骨格 `#if CCBENCH_<AXIS>` の既知マクロ (genome/Options から供給) だけにする。これで「digest が見る枝 = 実ビルドがコンパイルする枝」が構造保証される。phase3.md の「閉じた領域制約」(#include/型/マクロ定義の追加禁止) の自然な延長。
+
+**TOCTOU の構造的解消:** 旧 build() は cache_key と無関係に共有 working-tree を素でコンパイルしていた (identity と materialization の分離)。**cache_key/variant_id の pre-image に working-tree 由来の source_digest を織り込む**ことで、working-tree が変われば key が変わる = materialization と identity が構造的に結合し偽 hit が消える (別途の照合 assert は不要、key 計算自体が working-tree を読む)。
+
+**後方互換:** stock (working-tree preprocess == HEAD baseline) のとき src トークンを `"stock"` に正規化し pre-image から省く → silo 8 genome の `variant_id` (`b971a1d9f80a` 等) / `cache_key` (`silo_24dd2f7509_t0` 等) は**不変** = 既存 P2-2 WAL / build-variants と整合。`variant_id(g, src="stock")` / `cache_key(..., src="stock")` をデフォルトにし既存呼び出しを無改修で温存。
+
+**fails-closed (identity 核に best-effort skip を持ち込まない):** g++ 不在・preprocess rc≠0・`git show <commit>:...` 失敗は全て `RuntimeError` で停止 (buildcache の commit/nm 照合は provenance 補助なので best-effort skip だが、source_digest は identity を決めるので fails-closed)。**allowlist 外の追跡ファイル改変** (template patch が touch する `{Options.cmake, backoff.hh}` を超える `transaction.cc` 等の M) があれば停止 (coder の編集面が backoff.hh に閉じている前提が破れたら即気づく)。
+
+**却下した選択肢:**
+- **compile_commands.json を defines の単一真実源 (レンズの推奨)**: protocol-specific 写像・`INLINE_VERSION_OPT` 名前空間・空値・std/版マクロが自動整合する利点はあるが、configure 後にしか無く cache_key (configure 前) と鶏卵。kickoff (silo backoff.hh は `BACKOFF_FIXED`/`BACKOFF_NOINLINE` の universal マクロのみ #if 参照) では Options デフォルト供給 + `-Werror=undef` で十分 honest。cicada/oze 拡張で protocol 写像が load-bearing になった段で CMakeLists OPTIONS パースへ格上げ。
+- **`_normalize_cmake(Options.cmake)` を digest に連結**: 値変更は defines 経由で backoff.hh の preprocess digest に既に伝播する二重計上 (規律5)。cmake の構造変更 (if 分岐等) を identity に入れる必要が出たら configure 最終 -D 集合の digest へ格上げ。
+- **#ifdef の供給完全性 static assert を kickoff で**: backoff.hh の唯一の `#ifdef` は EVOLVE-BLOCK 外・coder 不可触の `GLOBAL_VALUE_DEFINE` (TU 注入、Options/genome 非供給) で、これを必須化すると詰む。`#if/#elif` の `-Werror=undef` のみ課し、EVOLVE-BLOCK 内 `#ifdef` 禁止は hook (タスク3) へ。
+
+**kickoff non-blocking で繰延 (発火条件を明記):** `__DATE__`/`__TIME__` 非決定 → hook reject (タスク3)。空値マクロのクォート正規化・`INLINE_VERSION_OPT` 名前空間 → util.cc / cicada-oze 拡張前。動的対象集合 (EVOLVE マーカー走査) → マーカー導入 (タスク2) 後。TRACE 軸の digest 反映 → `#if TRACE` を含むソースを EVOLVE に入れる前。
+
+**位置づけ:** Claude 自律のレビュー駆動実装 (phase3.md kickoff タスク1 の戦術)。phase3.md は D22 でユーザー承認済み。本 D は実コード裏取り + 敵対レビューで固めた実装設計の記録 (roadmap 改訂セレモニー対象外)。

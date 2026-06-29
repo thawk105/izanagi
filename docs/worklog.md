@@ -998,3 +998,44 @@ non-blocking (S2 は sort 段で gate 条件に昇格)。**新規実体化は co
 ### 次の一手 (実装、blocking 順)
 cache_key+variant_id honest 拡張 → EVOLVE-BLOCK template patch → H3 hooks 2本+settings.json → 観測者二重検査 →
 coder.md + 純 timing variant 1本で 1周 (まず #else 逐語複写の no-op で stock cache-hit 実証) → broken-silo 回帰。
+
+## 2026-06-30 — Phase 3 kickoff タスク1: source_digest (identity を「コードの差」まで覆う) を敵対レビュー駆動で実装
+
+kickoff の blocking タスク1 (cache_key + variant_id の honest 拡張) を、**設計を多エージェント 3 レンズ
+(honest / 列挙漏れ / 最小性) 敵対レビューで固めてから**実装。レビューは 3 レンズとも実機で**偽 cache hit を
+構築**して設計の急所を炙り出した (例: レンズC が `#ifdef Linux` で枝の中身だけ違う 2 variant を同一 digest に
+化けさせた)。設計判断は decisions D23。
+
+### 方式 E を実機実証 (preprocess 後ハッシュ)
+backoff.hh から `#include` を除去し `g++ -E -P -undef -nostdinc -Werror=undef -D<flags>` で preprocess
+(= #if/#else 解決 + コメント除去) した出力を sha256。include 展開ゼロ (84 行)・環境非依存。
+- **(a) inert** (`BACKOFF_FIXED=-1`) の出力は HEAD (patch 前) と**同一 sha256** `7664020a` → D18 inert 実証を継承。
+- **(b)** `BACKOFF_FIXED=50`/`10` で別 digest (alias 防止)、`-1` は #else = stock。
+- defines = `Options.cmake` の `set(CCBENCH_<NAME> <v> CACHE ...)` 既定 (CCBENCH_ 剥がし・クォート剥がし・
+  空値 unset) を base に `genome.flags` で上書き。未定義マクロ 0 扱い穴を base が塞ぐ。
+
+### 設計の急所と対策 (D23)
+- **道Y (digest==実枝を構造保証):** `-undef` cpp 環境は実ビルドのマクロ環境 (-DLinux/-DNDEBUG/builtin/TU の
+  GLOBAL_VALUE_DEFINE) と乖離する。digest を実ビルド環境で取る (道X) と builtin `__DATE__` が非決定 + compile_
+  commands は configure 後で cache_key と鶏卵。→ EVOLVE-BLOCK 内の生 #if/builtin を **hook (タスク3) で禁止**し
+  骨格 #if の既知マクロだけが枝を決める設計に倒す。digest 側の防壁は `-Werror=undef` (#if/#elif の供給漏れを fails-closed)。
+- **TOCTOU:** 旧 build() は cache_key と無関係に working-tree を素でコンパイルしていた。cache_key/variant_id に
+  **working-tree 由来 src_token を織り込む**ことで materialization と identity を構造結合 (working-tree が変われば
+  key が変わる)。
+- **後方互換:** stock (working-tree==HEAD baseline) は src を `"stock"` に正規化し pre-image から省く → silo 8
+  genome の vid (`b971a1d9f80a` 等) / ck (`silo_24dd2f7509_t0` 等) は不変 = 既存 P2-2 WAL/build-variants と整合。
+- **fails-closed:** g++/git 失敗・供給漏れ・**allowlist 外改変** (template patch の touch 集合 `{Options.cmake,
+  backoff.hh}` を超える transaction.cc 等の M) は停止 (identity 核に best-effort skip を持ち込まない)。
+
+### 実装
+- `orchestrator/campaign/source_digest.py` 新規 (parse_options_defaults / _cpp_normalize / compute / baseline /
+  src_token / assert_worktree_within_allowlist)。`buildcache.cache_key`+`build()` と `pipeline.variant_id`+`evaluate`
+  に src_token を織り込み (evaluate は build 前に 1 回計算し trace/perf で共有、identity-error は fails-closed abort)。
+- テスト 7 追加 (test_campaign 34→41、全 126 緑): 後方互換 golden / Options パース / stock roundtrip / FIXED 別 id /
+  供給漏れ fails-closed / コメント不感・挙動敏感 / allowlist。source_digest は実 g++/git に依存するので段階遷移
+  テスト (`_mock_pipeline`) では mock し、source_digest 自体は専用テストで実機検証。
+
+### 次の一手
+タスク2 (EVOLVE-BLOCK template patch: backoff.hh の BACKOFF_FIXED 周辺にマーカー骨格 + #if coder枝/#else stock逐語)。
+既存 silo-backoff-fixed.patch が #if/#else を既に持つので、`// EVOLVE-BLOCK-BEGIN/END` マーカーを足し inert が
+preprocess 後同一 digest であることを再確認する。blocking 順で H3 hooks (道Y の機械執行) → 観測者二重検査 → 配線 1 周。

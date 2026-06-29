@@ -16,6 +16,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import List, Optional
 
+from . import source_digest
 from .model import Genome
 
 
@@ -26,8 +27,13 @@ def _ccbench_dir() -> str:
     return os.path.join(repo, "external", "ccbench")
 
 
-def cache_key(genome: Genome, ccbench_commit: str, trace: bool) -> str:
-    raw = f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}"
+def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
+              src_token: str = source_digest.STOCK) -> str:
+    """内容キー。Phase 3 で coder がコードを書き換えるので src_token (preprocess 後
+    ハッシュ, D23) を pre-image に織り込み、同 genome 別ソースの偽 hit を防ぐ。
+    stock (working-tree==HEAD) は src を省き旧キーを温存 (後方互換)。"""
+    src = "" if src_token == source_digest.STOCK else f"|src={src_token}"
+    raw = f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}{src}"
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
     return f"{genome.protocol}_{h}_t{int(trace)}"
 
@@ -54,12 +60,20 @@ def _bin_hash(path: str) -> str:
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,
           cache_root: str = "", cc: str = "gcc-13", cxx: str = "g++-13",
-          jobs: int = 16, ccbench_dir: str = "") -> BuildResult:
-    """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。"""
+          jobs: int = 16, ccbench_dir: str = "",
+          src_token: Optional[str] = None) -> BuildResult:
+    """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
+
+    src_token=None なら working-tree から計算する (D23: identity と materialization を
+    結合し TOCTOU 偽 hit を防ぐ — working-tree が変われば cache_key が変わる)。呼び手
+    (pipeline.evaluate) は trace/perf で同一値を共有するため事前計算して渡してよい。"""
     sub = ccbench_dir or _ccbench_dir()
     _verify_ccbench_commit(sub, ccbench_commit)        # 偽キャッシュヒット防止 (honest)
+    source_digest.assert_worktree_within_allowlist(sub)  # coder の編集面が EVOLVE-BLOCK 内か (D23)
+    if src_token is None:
+        src_token = source_digest.src_token(genome, ccbench_commit, sub, cxx)
     root = cache_root or os.path.join(sub, "build-variants")
-    key = cache_key(genome, ccbench_commit, trace)
+    key = cache_key(genome, ccbench_commit, trace, src_token)
     bdir = os.path.join(root, key)
     target = f"ycsb_{genome.protocol}.exe"
     binary = os.path.join(bdir, "cc", genome.protocol, target)

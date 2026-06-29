@@ -10,6 +10,7 @@ import atexit
 import contextlib
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -18,7 +19,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import buildcache, genome, ident, pipeline, wal    # noqa: E402
+from campaign import (buildcache, genome, ident, pipeline,       # noqa: E402
+                      source_digest, wal)
 from campaign.layout import CampaignLayout, campaign_layout      # noqa: E402
 from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
 from campaign.model import (CampaignConfig, Genome,              # noqa: E402
@@ -279,7 +281,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                         "abort_rate": 0.03, "latency_ns": 1000.0,
                                         "llc_miss_rate": 0.2, "ipc": 1.5})
 
-    def fake_build(genome, commit, trace):
+    def fake_build(genome, commit, trace, src_token=None):
         if build_raises:
             raise RuntimeError("build boom")
         return types.SimpleNamespace(bin_hash="dead" + ("t" if trace else "p"),
@@ -287,6 +289,12 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
     patch("buildcache", types.SimpleNamespace(build=fake_build))
+    # source_digest は identity 核 (実 git/g++ 依存)。pipeline の段階遷移テストでは
+    # mock し stock 固定 (source_digest 自体は専用テストで実機検証する)。
+    patch("source_digest", types.SimpleNamespace(
+        STOCK="stock",
+        assert_worktree_within_allowlist=lambda *a, **k: None,
+        src_token=lambda *a, **k: "stock"))
     patch("_run_trace", lambda *a, **k: (ncommit, rc))
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
@@ -553,6 +561,141 @@ def test_report_verdict_surfaces_near_floor():
 
 
 # ---- 素の runner ----
+
+# ===== STAGE3 (Phase 3 identity): source_digest (D23) =====
+#
+# coder のコード差まで identity を覆う preprocess 後ハッシュ。実 g++/git に依存するので
+# submodule 未 init / commit ずれ / working-tree が inert でない場合はスキップする。
+
+# 後方互換 golden: silo 8 genome の variant_id (リファクタ前 = canonical のみハッシュ)。
+# これが不変 = 既存 P2-2 WAL / build-variants と整合 (D23)。
+_GOLDEN_VID = {
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "b971a1d9f80a",
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=1": "cea1bcd0fddf",
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0": "5185ee5e6094",
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=1": "e290fc7a3795",
+    "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "2092e34725c1",
+    "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=1": "04c75d95b332",
+    "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0": "db4764543546",
+    "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=1": "55af140d2cc6",
+}
+_GOLDEN_CK0 = {  # cache_key (trace=False) の後方互換 golden (1 例)
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_24dd2f7509_t0",
+}
+
+
+def _ccbench_head_or_skip():
+    """submodule HEAD を返す。未 init なら None (テストをスキップ)。"""
+    sub = buildcache._ccbench_dir()
+    if not os.path.exists(os.path.join(sub, ".git")):
+        return None
+    r = subprocess.run(["git", "-C", sub, "rev-parse", "HEAD"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def test_source_digest_silo8_id_backward_compatible():
+    """silo 8 genome の variant_id/cache_key がリファクタ後も不変 (既存 WAL/cache 整合)。
+    デフォルト src='stock' は canonical のみハッシュ = 旧値 (実機非依存)。"""
+    for g in genome.SILO_SPACE.enumerate():
+        assert pipeline.variant_id(g) == _GOLDEN_VID[g.canonical()], g.canonical()
+    head = _ccbench_head_or_skip()
+    if head:
+        g0 = Genome("silo", {"BACK_OFF": 0, "NO_WAIT_LOCKING_IN_VALIDATION": 0,
+                             "NO_WAIT_OF_TICTOC": 1, "WAL": 0})
+        assert buildcache.cache_key(g0, head, False) == _GOLDEN_CK0[g0.canonical()]
+
+
+def test_source_digest_parse_options_defaults():
+    """Options パース: 既定値・クォート剥がし・空値 unset (D23 finding 対策)。"""
+    sub = buildcache._ccbench_dir()
+    with open(os.path.join(sub, "cmake/Options.cmake"), encoding="utf-8") as f:
+        d = source_digest.parse_options_defaults(f.read())
+    assert d["BACKOFF_FIXED"] == "-1" and d["BACK_OFF"] == "1"
+    assert "INSERT_READ_DELAY_MS" not in d        # 空値 ("") は除外
+
+
+def test_source_digest_stock_roundtrip():
+    """実 working-tree (inert) で silo 8 genome は src_token='stock' = 旧 id 不変 (後方互換)。"""
+    head = _ccbench_head_or_skip()
+    if head is None:
+        return
+    for g in genome.SILO_SPACE.enumerate():
+        st = source_digest.src_token(g, head)
+        assert st == source_digest.STOCK, g.canonical()
+        assert pipeline.variant_id(g, st) == pipeline.variant_id(g)
+
+
+def test_source_digest_fixed_variant_distinct():
+    """BACKOFF_FIXED 枝は stock と別 id・値違いも別 id (alias 防止)。-1 は #else=stock。"""
+    head = _ccbench_head_or_skip()
+    if head is None:
+        return
+    base = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
+    g50 = Genome("silo", {**base, "BACKOFF_FIXED": 50})
+    g10 = Genome("silo", {**base, "BACKOFF_FIXED": 10})
+    gm1 = Genome("silo", {**base, "BACKOFF_FIXED": -1})
+    t50, t10, tm1 = (source_digest.src_token(x, head) for x in (g50, g10, gm1))
+    assert tm1 == source_digest.STOCK             # -1 は #else = stock 枝に正規化
+    assert t50 != source_digest.STOCK and t10 != source_digest.STOCK and t50 != t10
+    assert pipeline.variant_id(g50, t50) != pipeline.variant_id(g50)
+    assert (buildcache.cache_key(g50, head, False, t50)
+            != buildcache.cache_key(g50, head, False))
+
+
+def test_source_digest_failsclosed_on_missing_define():
+    """#if 参照マクロの供給漏れは -Werror=undef で fails-closed (規律6/2)。"""
+    sub = buildcache._ccbench_dir()
+    with open(os.path.join(sub, "include/backoff.hh"), encoding="utf-8") as f:
+        src = f.read()
+    try:
+        source_digest._cpp_normalize(src, {"BACKOFF_NOINLINE": "0"}, "g++-13")  # FIXED 欠落
+        assert False, "供給漏れで停止すべき (-Werror=undef)"
+    except RuntimeError:
+        pass
+
+
+def test_source_digest_semantic_comment_vs_behavior():
+    """コメントのみ変更は同 digest (cpp -P 除去)、挙動変更 (memory_order) は別 digest。"""
+    sub = buildcache._ccbench_dir()
+    with open(os.path.join(sub, "cmake/Options.cmake"), encoding="utf-8") as f:
+        defines = source_digest._merge_defines(
+            source_digest.parse_options_defaults(f.read()), {})
+    with open(os.path.join(sub, "include/backoff.hh"), encoding="utf-8") as f:
+        src = f.read()
+    base = source_digest._cpp_normalize(src, defines, "g++-13")
+    commented = source_digest._cpp_normalize(src + "\n// trailing comment\n", defines, "g++-13")
+    behaved = source_digest._cpp_normalize(
+        src.replace("memory_order_acquire", "memory_order_relaxed"), defines, "g++-13")
+    assert base == commented              # コメント不感 (honest: 挙動不変なら同 id)
+    assert base != behaved                # 挙動変更は検出
+
+
+def test_source_digest_allowlist():
+    """allowlist 内 (Options.cmake/backoff.hh) は通過、外 (transaction.cc) は fails-closed。"""
+    saved = source_digest.subprocess
+    try:
+        # 異常系: git status を fake し transaction.cc の tracked 改変を注入
+        source_digest.subprocess = types.SimpleNamespace(
+            run=lambda *a, **k: types.SimpleNamespace(
+                returncode=0, stdout=" M cc/silo/transaction.cc\n M include/backoff.hh\n"),
+            SubprocessError=Exception)
+        try:
+            source_digest.assert_worktree_within_allowlist("/x")
+            assert False, "allowlist 外改変で停止すべき"
+        except RuntimeError:
+            pass
+        # 正常系: allowlist 内 + untracked (build 生成物) は無視
+        source_digest.subprocess = types.SimpleNamespace(
+            run=lambda *a, **k: types.SimpleNamespace(
+                returncode=0,
+                stdout=" M cmake/Options.cmake\n M include/backoff.hh\n?? build-variants/x\n"),
+            SubprocessError=Exception)
+        source_digest.assert_worktree_within_allowlist("/x")   # 例外なし = OK
+    finally:
+        source_digest.subprocess = saved
+
 
 def _run():
     fns = [v for k, v in sorted(globals().items())
