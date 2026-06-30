@@ -157,13 +157,31 @@ def measure_point(binary: str, records: int, threads: int,
     pt = ScalePoint(records=records, threads=threads,
                     run_cmd=repro_command(binary, base_flags, numactl))
     rep_results = []   # (tps, counters, wall, maxrss_kb, abort_rate, latency_ns)
-    for _ in range(reps):
-        metrics, counters, wall = run_once(binary, base_flags, numactl=numactl)
+    n_exec_fail = 0
+    for i in range(reps):
+        # 規律3: 1 rep の run_once 失敗 (RuntimeError=metrics 空 / TimeoutExpired) で測定点
+        # 全体を捨てず、握り潰さず notes に構造化記録して残り rep で median を取る
+        # (reps>=2 の冗長性を活かす)。except: pass にはしない (沈黙させない)。
+        try:
+            metrics, counters, wall = run_once(binary, base_flags, numactl=numactl)
+        except (RuntimeError, subprocess.TimeoutExpired) as e:
+            n_exec_fail += 1
+            pt.notes.append(f"rep{i} failed: {type(e).__name__}: {str(e)[:200]}")
+            continue
         tps = throughput_tps(metrics)
         if tps is not None:
             pt.throughputs.append(tps)
         rep_results.append((tps, counters, wall, _maxrss_kb(metrics),
                             parse_abort_rate(metrics), parse_latency_ns(metrics)))
+    if n_exec_fail:
+        pt.notes.append(f"{n_exec_fail}/{reps} reps failed to execute")
+    if not rep_results:
+        # 全 rep が run_once 例外 = この測定点は本当に測れない。一部でも成功すれば上で
+        # rep_results に積まれ median が取れる。全滅時のみ原因を集約して fail-closed
+        # (規律3: 沈黙させず原因を添えて上げる)。
+        raise RuntimeError(
+            f"all {reps} reps failed at records={records} threads={threads}: "
+            + " | ".join(pt.notes))
 
     # 代表値 = throughput が中央値に最も近い rep のもの。leading indicator (abort/
     # latency/cache) もこの代表 rep のものに揃える (同一 run の整合した断面にする)。

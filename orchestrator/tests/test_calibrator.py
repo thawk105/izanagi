@@ -319,6 +319,59 @@ def test_noise_floor_single_sample():
     assert any("1 点" in note for note in n.notes)
 
 
+# ===== measure_point: rep 失敗の握り (規律3) =====
+
+def test_measure_point_survives_partial_rep_failure():
+    """一部 rep が run_once 例外でも、残り rep で median を取り notes に構造化記録する。
+
+    倍々スイープ末尾で 1 rep がコケても測定点全体を捨てない (reps>=2 の冗長性を活かす)。
+    握り潰さず notes に残す (規律3: 沈黙させない)。"""
+    from calibrator import runner
+    calls = {"n": 0}
+    good = ({"throughput[tps]": "1000", "maxrss": "100 kB"},
+            PerfCounters(llc_load_misses=10, llc_loads=100), 0.5)
+
+    def fake_run_once(binary, gflags, numactl=None, timeout_s=120.0):
+        calls["n"] += 1
+        if calls["n"] == 2:                    # 2 回目 (rep1) だけ失敗
+            raise RuntimeError("ccbench produced no metrics (injected)")
+        return good
+
+    orig = runner.run_once
+    runner.run_once = fake_run_once
+    try:
+        pt = runner.measure_point("dummy", records=1000, threads=4,
+                                  clocks_per_us=1800, reps=3)
+    finally:
+        runner.run_once = orig
+    assert len(pt.throughputs) == 2            # 3 rep 中 1 失敗 → 2 成功で median
+    assert pt.throughput == 1000.0
+    assert any("rep1 failed" in n for n in pt.notes)
+    assert any("1/3 reps failed" in n for n in pt.notes)
+
+
+def test_measure_point_all_reps_fail_raises():
+    """全 rep が run_once 例外なら集約 RuntimeError (測定不能を沈黙で None 化しない)。"""
+    from calibrator import runner
+
+    def fake_run_once(binary, gflags, numactl=None, timeout_s=120.0):
+        raise RuntimeError("ccbench produced no metrics (injected)")
+
+    orig = runner.run_once
+    runner.run_once = fake_run_once
+    try:
+        raised = False
+        try:
+            runner.measure_point("dummy", records=1000, threads=4,
+                                 clocks_per_us=1800, reps=3)
+        except RuntimeError as e:
+            raised = True
+            assert "all 3 reps failed" in str(e)
+        assert raised, "全 rep 失敗で RuntimeError が出るべき"
+    finally:
+        runner.run_once = orig
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():

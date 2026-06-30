@@ -70,6 +70,7 @@ class ScalePoint:
     # CC-native な leading indicator (代表 rep の ccbench メトリクスから, roadmap §3.5)。
     abort_rate: Optional[float] = None    # abort/(commit+abort)。競合の捌き方が直接出る
     latency_ns: Optional[float] = None    # 平均トランザクションレイテンシ [ns]
+    notes: List[str] = field(default_factory=list)   # rep 失敗等の構造化記録 (規律3)
 
     @property
     def miss_rate(self) -> Optional[float]:
