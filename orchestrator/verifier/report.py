@@ -57,6 +57,7 @@ def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
             "orphan_reads": res.integrity.orphan_reads,
             "version_dups": res.integrity.version_dups,
             "dup_txids": res.integrity.dup_txids,
+            "genesis_commits": res.integrity.genesis_commits,
             "notes": res.integrity.notes,
         },
         "anomaly_count": len(res.anomalies),
