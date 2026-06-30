@@ -107,7 +107,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              clocks_per_us: int, numactl: Optional[Sequence[str]] = None,
              correctness: Optional[CorrectnessWorkload] = None,
              do_bench: bool = True, do_settle: bool = True,
-             log=print) -> EvalResult:
+             src_token: Optional[str] = None, log=print) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     **正しさを確証できない variant は全て abort (fitness なし)** — verifier red だけで
@@ -116,22 +116,26 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     abort も commit も terminal だが、abort は **fitness を付けず採用しない**。
     """
     correctness = correctness or CorrectnessWorkload()
-    # identity (D23): coder のコード差まで覆う src_token を build 前に 1 回計算し、
-    # variant_id (WAL キー) と build (cache_key) で共有する (TOCTOU 偽 hit を防ぐ)。
-    # identity を確定できない (allowlist 逸脱 / preprocess 失敗 / git show 失敗) なら
-    # fails-closed で評価しない (best-effort skip を identity 核に持ち込まない, 規律2)。
-    try:
-        source_digest.assert_worktree_within_allowlist()
-        src_tok = source_digest.src_token(genome, ccbench_commit)
-    except RuntimeError as e:
-        v0 = variant_id(genome)            # stock id で abort を記録 (WAL キーを残す)
-        wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
-        wal.log(layout, v0, STAGE_ABORT, env_tag,
-                {"reason": "identity-error", "error": str(e)})
-        log(f"  [eval {v0}] abort: identity-error ({e})")
-        r = EvalResult(genome=genome, variant=v0, certified=False, aborted=True)
-        r.notes.append(f"source_digest 確定不能 → reject ({e})")
-        return r
+    # identity (D23): coder のコード差まで覆う src_token を build 前に確定し、variant_id
+    # (WAL キー) と build (cache_key) で共有する (TOCTOU 偽 hit を防ぐ)。loop は skip/abort
+    # キーを同じ id に揃えるため src_token を確定済みで渡す (id 確定点の単一化, D24)。直接
+    # caller (src_token=None) は自己計算し、identity を確定できない (allowlist 逸脱 /
+    # preprocess 失敗 / git show 失敗) なら fails-closed で評価しない (best-effort skip を
+    # identity 核に持ち込まない, 規律2)。
+    if src_token is None:
+        try:
+            src_tok = source_digest.resolve(genome, ccbench_commit)
+        except RuntimeError as e:
+            v0 = variant_id(genome)        # stock id で abort を記録 (WAL キーを残す)
+            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
+            wal.log(layout, v0, STAGE_ABORT, env_tag,
+                    {"reason": "identity-error", "error": str(e)})
+            log(f"  [eval {v0}] abort: identity-error ({e})")
+            r = EvalResult(genome=genome, variant=v0, certified=False, aborted=True)
+            r.notes.append(f"source_digest 確定不能 → reject ({e})")
+            return r
+    else:
+        src_tok = src_token
     v = variant_id(genome, src_tok)
     res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
     wal.log(layout, v, STAGE_BUILD_START, env_tag,

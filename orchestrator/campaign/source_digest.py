@@ -207,3 +207,15 @@ def assert_worktree_within_allowlist(ccbench_dir: str = "") -> None:
             "source_digest: ALLOWLIST 外の tracked 改変を検知 → 偽 cache hit を防ぐため "
             f"停止 (coder の編集面が EVOLVE-BLOCK を逸脱)。allowlist={sorted(ALLOWLIST)} "
             f"外={sorted(extra)} (D23)")
+
+
+def resolve(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
+            cxx: str = "g++-13") -> str:
+    """variant の identity (src_token) を確定する単一窓口 = allowlist 検査 + src_token。
+
+    **WAL は書かない** (呼び手が skip 判定・abort 記録を担う) ので、loop (評価前に skip キーを
+    決める) と pipeline.evaluate (直接 caller の自己計算) の両方が同じ計算を共有でき、id 確定点が
+    二重化しない (D23/D24: identity を消費側まで一致させる)。**fails-closed**: allowlist 逸脱・
+    preprocess 失敗・git show 失敗は RuntimeError (best-effort skip を identity 核に持ち込まない)。"""
+    assert_worktree_within_allowlist(ccbench_dir)
+    return src_token(genome, ccbench_commit, ccbench_dir, cxx)

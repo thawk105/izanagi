@@ -294,7 +294,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     patch("source_digest", types.SimpleNamespace(
         STOCK="stock",
         assert_worktree_within_allowlist=lambda *a, **k: None,
-        src_token=lambda *a, **k: "stock"))
+        src_token=lambda *a, **k: "stock",
+        resolve=lambda *a, **k: "stock"))
     patch("_run_trace", lambda *a, **k: (ncommit, rc))
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
@@ -469,22 +470,58 @@ def test_pipeline_build_error_aborts():
     assert st.aborted and STAGE_BUILD_DONE not in st.stages_seen
 
 
+def test_pipeline_self_compute_identity_error_aborts_under_stock_id():
+    """直接 caller (src_token=None) で source_digest.resolve が確定不能なら stock id で abort
+    (fails-closed, 規律2)。loop は src_token を渡すので通らないが、直接 caller 用の防壁を回帰する
+    (D24: loop の identity-error 経路と構造対称な pipeline 側の枝)。"""
+    lay = _tmp_layout()
+    g = Genome("silo", {"BACK_OFF": 1})
+    saved = pipeline.source_digest
+    pipeline.source_digest = _sd_mock(RuntimeError("g++ 不在"))
+    try:
+        r = pipeline.evaluate(g, lay, "test-env", "deadbeef",
+                              PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                              do_bench=False, log=lambda *a: None)
+    finally:
+        pipeline.source_digest = saved
+    assert r.aborted and not r.certified
+    assert r.variant == pipeline.variant_id(g)        # identity 不明 → stock id (canonical のみ)
+    assert wal.replay(lay)[r.variant].aborted
+
+
 # ===== STAGE2: campaign ループの堅牢性 (例外隔離 / run 内 dedup) =====
 
-def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False):
-    """run_campaign を fake evaluate 下で回し (summary, layout) を返す。"""
+def _sd_mock(src_token):
+    """loop の source_digest を差し替える mock。src_token が Exception なら resolve が raise
+    (identity-error 経路)、それ以外はその文字列を返す (identity 核は実 g++/git 依存ゆえ mock)。"""
+    if isinstance(src_token, Exception):
+        def _resolve(*a, **k):
+            raise src_token
+    else:
+        def _resolve(*a, **k):
+            return src_token
+    return types.SimpleNamespace(STOCK="stock", resolve=_resolve)
+
+
+def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
+                         src_token="stock"):
+    """run_campaign を fake evaluate 下で回し (summary, layout) を返す。
+
+    loop は src_token id で skip/abort キーを揃える (D24)。identity 核 (source_digest) は実
+    g++/git 依存ゆえ mock し、src_token を制御する (Exception なら identity-error 経路)。"""
     from campaign import loop as L
     out_root = _tmpdir("izanagi_loop_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content=spec_content, ccbench_commit="deadbeef")
-    saved = L.evaluate
+    saved, saved_sd = L.evaluate, L.source_digest
     L.evaluate = fake_eval
+    L.source_digest = _sd_mock(src_token)
     try:
         s = L.run_campaign(cfg, genomes, PerfConfig(records=1, threads=1),
                            "test-env", 1800, do_bench=do_bench,
                            output_root=out_root, log=lambda *a: None)
     finally:
-        L.evaluate = saved
+        L.evaluate, L.source_digest = saved, saved_sd
     lay = campaign_layout(str(ident.campaign_id(cfg)), out_root)
     return s, lay
 
@@ -521,6 +558,73 @@ def test_loop_dedup_identical_genome_in_one_run():
     genomes = [Genome("silo", {"BACK_OFF": 1}), Genome("silo", {"BACK_OFF": 1})]
     s, _ = _loop_with_fake_eval(fake_eval, genomes, "dedup")
     assert len(seen) == 1 and s.skipped == 1 and s.committed == 1
+
+
+def test_loop_dedup_uses_src_token_id():
+    """coder variant (src_token != stock) で 1run dedup が起き src_token が evaluate に渡る (D24)。
+    注: 同一 genome 2 本は stock id でも src_token id でも単一キーに潰れるためこのテストは skip
+    キーのスキームを区別しない (dedup が起きる + src_token 伝播のみ確認)。skip キーが src_token id
+    であること自体の load-bearing 検査は test_loop_recovery_skips_committed_src_token_variant
+    (WAL の src_token id terminal で skip = 旧 stock-id 判定なら fail) が担う。"""
+    seen = []
+
+    def fake_eval(g, *a, src_token=None, **kw):
+        seen.append(src_token)
+        return EvalResult(genome=g, variant=pipeline.variant_id(g, src_token),
+                          certified=True, aborted=False, fitness_tps=100.0)
+
+    genomes = [Genome("silo", {"BACK_OFF": 1}), Genome("silo", {"BACK_OFF": 1})]
+    s, _ = _loop_with_fake_eval(fake_eval, genomes, "srctok-dedup", src_token="codediff")
+    assert len(seen) == 1 and seen[0] == "codediff"      # 1 回評価 + src_token が evaluate へ
+    assert s.skipped == 1 and s.committed == 1
+
+
+def test_loop_recovery_skips_committed_src_token_variant():
+    """WAL に src_token id で commit 済みの variant は再起動で skip する (リカバリ冪等 D, [HIGH])。
+    旧実装は loop が stock id で skip 判定し WAL の src_token id terminal と一致せず再評価していた。
+    fake_eval は commit WAL を書かないので、前回 run の成果を WAL に直接 seed して模す。"""
+    from campaign import loop as L
+    out_root = _tmpdir("izanagi_loop_recov_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="recov", ccbench_commit="deadbeef")
+    g = Genome("silo", {"BACK_OFF": 1})
+    src_id = pipeline.variant_id(g, "codediff")
+    assert src_id != pipeline.variant_id(g)              # src_token id ≠ stock id
+    # 前回 run の成果を WAL に seed: src_token id で commit 済み (terminal)
+    lay = campaign_layout(str(ident.campaign_id(cfg)), out_root).ensure()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.log(lay, src_id, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
+    wal.log(lay, src_id, STAGE_COMMIT, "test-env", {"fitness_tps": 100.0})
+
+    calls = []
+
+    def fake_eval(g, *a, **kw):
+        calls.append(g)
+        return EvalResult(genome=g, variant=src_id, certified=True, aborted=False)
+
+    saved, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("codediff")
+    try:
+        s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
+                           1800, do_bench=False, output_root=out_root, log=lambda *a: None)
+    finally:
+        L.evaluate, L.source_digest = saved, saved_sd
+    assert len(calls) == 0 and s.skipped == 1            # src_token id terminal → 再評価しない
+
+
+def test_loop_isolates_identity_error():
+    """source_digest.resolve が確定不能 (RuntimeError) なら loop が stock id で abort 隔離し継続。"""
+    def fake_eval(g, *a, **kw):
+        raise AssertionError("identity-error 時は evaluate を呼ばない")
+
+    genomes = [Genome("silo", {"BACK_OFF": 0}), Genome("silo", {"BACK_OFF": 1})]
+    s, lay = _loop_with_fake_eval(fake_eval, genomes, "id-err",
+                                  src_token=RuntimeError("g++ 不在"))
+    assert s.aborted == 2 and s.committed == 0 and s.evaluated == 2
+    st = wal.replay(lay)
+    for g in genomes:
+        assert st[pipeline.variant_id(g)].aborted        # identity 不明ゆえ stock id で abort
 
 
 # ===== STAGE2: provenance / path 防御 =====

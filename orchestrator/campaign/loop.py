@@ -14,9 +14,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
 
-from . import ident, wal
+from . import ident, source_digest, wal
 from .layout import CampaignLayout, campaign_layout
-from .model import CampaignConfig, Genome, STAGE_ABORT
+from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import EvalResult, PerfConfig, evaluate, variant_id
 
 
@@ -60,7 +60,29 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     done = set(terminal)        # terminal を seed して 1 run 内の二重評価も防ぐ (U1)
     first_bench = True          # settle は最初の実 bench の前に 1 回だけ (calibrator 契約)
     for g in genomes:
-        v = variant_id(g)
+        # identity (D23/D24): skip/abort キーを src_token id に揃える (coder variant の
+        # リカバリ冪等性 D・例外 abort の整合 A)。pipeline.evaluate と同じ確定窓口
+        # (source_digest.resolve) を使い、確定済み src_token を渡して id 確定点を単一化する。
+        # 確定不能は stock id で fails-closed abort (best-effort skip を持ち込まない, 規律2)。
+        try:
+            src_tok = source_digest.resolve(g, cfg.ccbench_commit)
+        except RuntimeError as e:
+            v0 = variant_id(g)              # identity 不明ゆえ canonical のみの stock id
+            if v0 in done:
+                s.skipped += 1
+                continue
+            done.add(v0)
+            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
+            wal.log(layout, v0, STAGE_ABORT, env_tag,
+                    {"reason": "identity-error", "error": str(e)})
+            log(f"[campaign] {v0} identity 確定不能 → abort 隔離して継続: {e}")
+            s.results.append(EvalResult(genome=g, variant=v0, certified=False,
+                                        aborted=True,
+                                        notes=[f"source_digest 確定不能 → reject ({e})"]))
+            s.evaluated += 1
+            s.aborted += 1
+            continue
+        v = variant_id(g, src_tok)
         if v in done:
             s.skipped += 1
             continue
@@ -69,7 +91,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         try:
             r = evaluate(g, layout, env_tag, cfg.ccbench_commit, perf,
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
-                         do_settle=(do_bench and first_bench), log=log)
+                         do_settle=(do_bench and first_bench),
+                         src_token=src_tok, log=log)
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。
