@@ -1111,3 +1111,16 @@ Phase 3 タスク3 着手前に、別セッションの全体監査 `docs/audit-
 - **identity-error poison (medium, 既存)** の恒久対処 (identity-error abort を retryable にマーク) は別タスクで
   検討 (ユーザー判断)。`docs/audit-2026-06-30.md` の残り (online_digest assert 恒真 [MED] 等) も別セッション成果
   として要確認。
+
+## 2026-06-30 (続き) — identity-error poison を retryable で解消 (D25 の繰延項を前倒し)
+
+ユーザー「保守的に進めるなら」の判断で、D25 で繰延した identity-error poison (medium) を前倒し解消。transient
+infra 失敗 (g++ 一時不在等) で identity-error abort になった stock genome が環境修復後も永久 skip され stock
+baseline を silently drop する穴 (HEAD でも同一挙動の既存の terminal-abort 設計限界、fails-closed)。loop の
+recovery seed で `reason="identity-error"` の abort を permanent-skip から外し再評価 (genome-intrinsic な失敗とは
+区別、commit 済みは除外)。overnight 耐性は不変 (永続エラーは abort 隔離でクラッシュループにならない)。回帰テスト
+`test_loop_identity_error_is_retryable_after_repair` (run1 abort → run2 修復で再評価)。132 passed。D25 更新。
+
+### 次の一手
+- **Phase 3 タスク3 (H3 hooks)** に戻る (本来の blocking 順)。`docs/audit-2026-06-30.md` の残り ([MED]
+  online_digest assert 恒真 等) は別セッション成果として要確認。

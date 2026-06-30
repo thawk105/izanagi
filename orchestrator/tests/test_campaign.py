@@ -627,6 +627,38 @@ def test_loop_isolates_identity_error():
         assert st[pipeline.variant_id(g)].aborted        # identity 不明ゆえ stock id で abort
 
 
+def test_loop_identity_error_is_retryable_after_repair():
+    """identity-error abort (transient) は permanent skip でなく環境修復後に再評価される (D25)。
+    旧挙動は stock id terminal abort → 永久 skip で stock baseline を silently drop していた。"""
+    from campaign import loop as L
+    out_root = _tmpdir("izanagi_loop_iderr_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="id-retry", ccbench_commit="deadbeef")
+    g = Genome("silo", {"BACK_OFF": 1})
+    calls = []
+
+    def fake_eval(g, *a, **kw):
+        calls.append(g)
+        return EvalResult(genome=g, variant=pipeline.variant_id(g, kw.get("src_token")),
+                          certified=True, aborted=False, fitness_tps=100.0)
+
+    saved, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = fake_eval
+    try:
+        # run1: resolve が RuntimeError (g++ 一時不在) → identity-error abort (evaluate 呼ばれず)
+        L.source_digest = _sd_mock(RuntimeError("g++ 一時不在"))
+        s1 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
+                            1800, do_bench=False, output_root=out_root, log=lambda *a: None)
+        assert s1.aborted == 1 and len(calls) == 0
+        # run2: 環境修復 (resolve 成功 → stock) → 永久 skip でなく再評価・commit
+        L.source_digest = _sd_mock("stock")
+        s2 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
+                            1800, do_bench=False, output_root=out_root, log=lambda *a: None)
+    finally:
+        L.evaluate, L.source_digest = saved, saved_sd
+    assert len(calls) == 1 and s2.committed == 1 and s2.skipped == 0   # 修復後に再評価
+
+
 # ===== STAGE2: provenance / path 防御 =====
 
 def test_buildcache_rejects_commit_mismatch():

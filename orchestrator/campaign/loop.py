@@ -52,8 +52,19 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     # リカバリ: terminal な variant はスキップ
     states = wal.replay(layout)
     terminal = wal.terminal_variants(states)
+    # identity-error abort は transient infra 失敗 (g++ 一時不在 / git 一時失敗等) でも起きうる。
+    # genome-intrinsic な失敗 (verifier-red / build-error / eval-exception) と違い環境修復で解消し
+    # うるので permanent skip にせず再評価する (D25: terminal-abort が transient を誤分類して
+    # stock baseline を silently drop する穴を塞ぐ)。永続エラーなら再 resolve で同じ identity-error
+    # に倒れ abort 記録するのでクラッシュループにはならない (commit 済みは除外して再評価しない)。
+    retryable = {v for v, st in states.items()
+                 if st.aborted and not st.committed and st.last is not None
+                 and st.last.payload.get("reason") == "identity-error"}
+    terminal = terminal - retryable
     if terminal:
         log(f"[campaign] リカバリ: {len(terminal)} variant は評価済み → スキップ")
+    if retryable:
+        log(f"[campaign] リカバリ: {len(retryable)} variant は identity-error (transient) → 再評価")
 
     s = CampaignSummary(campaign_id=str(cid), layout_root=layout.root,
                         total=len(genomes))

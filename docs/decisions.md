@@ -470,14 +470,17 @@ backoff.hh 非参照かつ genome.flags 非 pin の `VAL_SIZE`/`KEY_SIZE`/`MASST
   `run_campaign` の `EvalResult.variant` (確定済み src_token id) から引くよう修正 (identity を再計算しない
   consumer パターン)。
 
-**identity-error poison stock id ([medium]、繰延):** `resolve` が transient 失敗 (g++ 一時不在 / git 一時失敗)
-すると stock id (`variant_id(g)`) で terminal abort → 修復後も `variant_id(g,"stock")` が同じ stock id ゆえ
-**stock genome が永久 skip**。検証は「fix が再導入」と裁定したが `git show HEAD` で **修正前も同一挙動** (evaluate
-が stock id で identity-error abort、loop が stock id で skip 判定) を確認 — 私の修正は変えていない。これは
-既存の terminal-abort 設計が transient infra 失敗を genome-intrinsic 失敗と同じ permanent skip に誤分類している
-限界。fails-closed (false-green でない、規律2 不変、害は genome の silent drop)。**恒久対処 = identity-error
-abort を retryable にマークし recovery で再評価**は terminal-abort の overnight 耐性とのトレードオフ設計が要る
-ため別タスクに繰延。
+**identity-error poison stock id ([medium]、当初繰延 → 同セッションで解消):** `resolve` が transient 失敗
+(g++ 一時不在 / git 一時失敗) すると stock id (`variant_id(g)`) で terminal abort → 修復後も
+`variant_id(g,"stock")` が同じ stock id ゆえ **stock genome が永久 skip**。検証は「fix が再導入」と裁定したが
+`git show HEAD` で **修正前も同一挙動** を確認 — loop 修正は変えていない既存の terminal-abort 設計限界
+(transient infra 失敗を genome-intrinsic 失敗と同じ permanent skip に誤分類)。fails-closed (false-green でない、
+規律2 不変、害は stock baseline の silent drop)。当初は overnight 耐性とのトレードオフを理由に繰延としたが、
+**ユーザー「保守的に進めるなら」指示で前倒し解消**: loop の recovery seed で `reason="identity-error"` の abort を
+permanent-skip から外し再評価する (genome-intrinsic な失敗 verifier-red/build-error/eval-exception とは区別、
+commit 済みは除外して再評価しない)。overnight 耐性は不変 — 永続エラーなら再 resolve で同じ identity-error に
+倒れ abort 隔離されクラッシュループにならない。回帰テスト `test_loop_identity_error_is_retryable_after_repair`
+(run1 abort → run2 修復で再評価・commit、旧挙動なら永久 skip)。
 
 **検証で確認した健全性:** 後方互換 (silo 8 golden が実 loop 経路 resolve→variant_id でも不変)、allowlist
 fails-closed、recovery テストが旧 stock-id 判定を genuine に捕える (buggy loop で fail を確認)。dedup テストが
