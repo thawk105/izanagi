@@ -12,13 +12,13 @@ CCBench を素材コーパスとして、入力ワークロードに最適な CC
 
 ## 現在の状態
 
-**Phase 2 (パラメータ探索) 進行中。** Phase 1 (評価器の構築) は完了済み — trace verifier・calibrator が `orchestrator/` に実装され、評価パイプライン (正しさ + 性能) が信頼できる状態。Phase 2 は P2-0〜P2-4 + A2 完了 (silo 全探索、critic/profiler 実体化、backoff ケーススタディで stock 最良を contention 域で +38%/+11% 上回る合成を certified で達成)。次は P2-5 (LLM 誘導探索 vs 全探索)。詳細な現在地は `CLAUDE.md` と `docs/worklog.md` 末尾。
+**Phase 2 (パラメータ探索) 完了。次は Phase 3 (合成) 着手。** Phase 1 (評価器の構築) は完了済み — trace verifier・calibrator が `orchestrator/` に実装され、評価パイプライン (正しさ + 性能) が信頼できる状態。Phase 2 は P2-0〜P2-5 + A2 完了 (silo 全探索、critic/profiler 実体化、backoff ケーススタディで stock 最良を contention 域で +38%/+11% 上回る合成を certified で達成)。主実験 P2-5 は negative result (フラグ探索は実質 1 ビットの自明空間ゆえ「誘導が速い」は構造的に主張不能 → 価値は空間外の合成にある、D21)。S4 (規律3 配線) 完了済み。次は Phase 3 (LLM が CC コードを合成: planner/coder/auditor)。詳細な現在地は `CLAUDE.md` と `docs/worklog.md` 末尾。
 
 実装を読む/進める前に、必ず以下を順に読むこと:
 
 1. `CLAUDE.md` — 作業の出発点。現在地と絶対規律
 2. `docs/roadmap.md` — 全体設計とその理由 (議論の蓄積)
-3. `docs/phase2.md` — 今やるべきタスクの分解 (Phase 1 は `docs/phase1.md` に完了記録)
+3. `docs/phase3.md` — 今やるべきタスクの分解 (Phase 1/2 は `docs/phase1.md` / `docs/phase2.md` に完了記録)
 
 ## アーキテクチャ概要 (三層)
 

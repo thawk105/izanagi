@@ -51,14 +51,14 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
 
 ## kickoff タスク (blocking 順)
 
-- [ ] **(blocking) cache_key + variant_id の honest 拡張**: source_digest を **preprocess 後 (`cpp -E`)
+- [x] **(blocking) cache_key + variant_id の honest 拡張**: source_digest を **preprocess 後 (`cpp -E`)
       正規化出力の sha256** で計算し、buildcache の cache_key (buildcache.py) と **variant_id (WAL キー,
       pipeline.py:41)** 両方の pre-image に織り込む。マーカーコメント挿入は生バイトを変えるが preprocess 後は
       #else 枝が原本と同一 → inert template が真に同一 digest (D18 inert 実証を継承、生 sha256 だと全 miss)。
       variant_id が現状 canonical() のみ hash ゆえ**同フラグ別 diff が WAL/critic で alias する穴**を identity
       端から端まで塞ぐ。対象は固定集合 (EVOLVE-BLOCK ファイル + Options.cmake + CMake)。Genome.canonical 生
       表現は据え置き (後方互換)。同 campaign 内で異なる source_digest が同一 variant_id を共有しない assert。
-- [ ] **(blocking) EVOLVE-BLOCK template patch**: silo abort-path 周辺 (BACKOFF_FIXED 軸再利用) に骨格を 1 つ。
+- [x] **(blocking) EVOLVE-BLOCK template patch**: silo abort-path 周辺 (BACKOFF_FIXED 軸再利用) に骨格を 1 つ。
       既定 inert を preprocess 後ハッシュ一致 → stock genome cache-hit で実証。
 - [ ] **(blocking) H3 hooks 2 本 + .claude/settings.json**: PreToolUse で (hook1) EVOLVE-BLOCK 外 / `#ifdef
       TRACE` 外への検証専用フィールド書き込み阻止 (規律1 第二防壁) (hook2) designated patch 以外への Write 拒否

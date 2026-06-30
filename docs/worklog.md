@@ -1124,3 +1124,39 @@ recovery seed で `reason="identity-error"` の abort を permanent-skip から�
 ### 次の一手
 - **Phase 3 タスク3 (H3 hooks)** に戻る (本来の blocking 順)。`docs/audit-2026-06-30.md` の残り ([MED]
   online_digest assert 恒真 等) は別セッション成果として要確認。
+
+## 2026-06-30 (続き) — audit 全体監査の独立裏取り + 規律直結の軽量掃除
+
+別セッションの全体監査 `docs/audit-2026-06-30.md` (10 次元・57 エージェント・43 項目) のうち本セッション未対応の
+MED 以上 + 規律直結 LOW + 再現性/ドキュメント代表 11 件を、ワークフロー (11 エージェント並列・約 100 秒) で
+**実コードに当てて独立裏取り** (規律6: 素性が別セッション)。
+
+### 裏取り: real 10 / refuted 1、**Phase 3 blocker 0**
+audit の機序記述は概ね正確 (誇張は副次主張レベル: online_digest のコメント誤記主張・backoff-if の「sha256 不変」・
+phase3 の worklog 筆頭残存は誤り/誇張)。
+- **refuted:** parser が W 行版を無検証破棄 — verifier は W 版を DSG 入力に使わず (版は C 行 commit のみ)
+  false-green 不能。hardening nit であって正しさゲートの穴ではない。
+
+### 軽量掃除 (自律可・低リスク、4 コミット)
+1. **verifier genesis_commits を JSON payload に** (規律3): `result_to_dict` の integrity 4 カウンタのうち
+   genesis_commits だけ機械可読経路 (→WAL→`load_rejections`→planner) から欠けていた穴を 1 行 + テストで塞ぐ。
+2. **online_digest 二重防壁の honest 化** (D26): 「二重の関所」が同一 WAL 由来で恒真と判明 → 偽装で取り繕わず
+   docstring を実態 (配線 sanity) に正す。コードロジック不変。
+3. **calibrator rep 失敗の握り** (規律3): rep ループに try/except、1 rep 失敗で測定点全体を捨てず残りで median、
+   握り潰さず notes に構造化記録、全 rep 失敗のみ原因集約して fail-closed + テスト 2 本。
+4. **docs 鮮度**: README 現在地を Phase 2 完了/Phase 3 着手へ + 必読を phase3.md へ、phase3.md タスク1/2 を [x]。
+
+テスト 134 全緑 (calibrator +2)。
+
+### 人間判断に委ねた項目 (Claude 自律不可)
+- **backoff-if (`#if BACKOFF_FIXED >= 0` 未定義時 backoff=0)**: EVOLVE-BLOCK 内の coder 不可触骨格 #if
+  (D22 で人間専管)。`defined()` ガード追加は inert digest を変えるため source_digest baseline (7664020a) 再固定も
+  要る。off-path のみ (正規 CMake は常に `-DBACKOFF_FIXED=-1` 供給) で Phase 3 を塞がない → 人間判断待ち。
+
+### 残り backlog
+- allowlist untracked #include 抜け穴・verifier-bash 機械執行 → Phase 3 タスク3 (hooks) と同時 (coder 起動の直前防壁)。
+- c1-drift reports (replay で読める)・p2_2 records assert (値一致) → 実害ゼロで繰延。
+
+### 次の一手
+- **Phase 3 タスク3 (H3 hooks)** に着手 (本来の blocking 順)。allowlist #include reject + designated patch 以外
+  Write 拒否を同梱 (上記 backlog の編集面ギャップを塞ぐ)。
