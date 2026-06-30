@@ -697,6 +697,42 @@ def test_source_digest_allowlist():
         source_digest.subprocess = saved
 
 
+def test_evolve_block_markers_structure_and_inert():
+    """EVOLVE-BLOCK 骨格 (Phase 3 coder 編集面, D22/phase3.md) の構造と inert を検査。
+
+    (1) template patch に BEGIN/END マーカーが 1 個ずつ・id 一致で入っている (どの checkout でも)。
+    (2) working-tree に適用済みなら: マーカーが #if BACKOFF_FIXED の #if/#else/#endif を bracket し、
+        マーカー (= // コメント) が inert digest を変えない (preprocess 後 HEAD 原本と byte-identical)。
+    """
+    repo = os.path.dirname(_ORCH)
+    with open(os.path.join(repo, "patches", "silo-backoff-fixed.patch"), encoding="utf-8") as f:
+        patch = f.read()
+    mid = "silo-backoff-magnitude"
+    assert patch.count(f"EVOLVE-BLOCK-BEGIN {mid}") == 1     # 1 個・id 一致
+    assert patch.count(f"EVOLVE-BLOCK-END {mid}") == 1
+    assert patch.count("EVOLVE-BLOCK-BEGIN") == 1            # 別 id の混入なし
+    assert patch.count("EVOLVE-BLOCK-END") == 1
+
+    head = _ccbench_head_or_skip()
+    if head is None:
+        return
+    sub = buildcache._ccbench_dir()
+    wt = source_digest._read(os.path.join(sub, "include/backoff.hh"))
+    if "EVOLVE-BLOCK-BEGIN" not in wt:
+        return            # clean stock checkout (template patch 未適用) — patch 側検査で十分
+    # bracket 順序: BEGIN → #if BACKOFF_FIXED → #else → #endif → END (coder 編集面が #if/#else に閉じる)
+    i_begin = wt.index("EVOLVE-BLOCK-BEGIN")
+    i_if = wt.index("#if BACKOFF_FIXED")
+    i_else = wt.index("#else", i_if)
+    i_endif = wt.index("#endif", i_else)
+    i_end = wt.index("EVOLVE-BLOCK-END")
+    assert i_begin < i_if < i_else < i_endif < i_end
+    # マーカーは inert: 既定 -1 (#else=stock) で preprocess 後 HEAD baseline と byte-identical
+    g = Genome("silo", {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+                        "NO_WAIT_OF_TICTOC": 0, "WAL": 0, "BACKOFF_FIXED": -1})
+    assert source_digest.compute(g) == source_digest.baseline(g, head)
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]

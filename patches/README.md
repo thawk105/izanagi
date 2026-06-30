@@ -74,9 +74,29 @@ git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (izanag
 
 ---
 
-## silo-backoff-fixed.patch — 静的 backoff (合成 variant, D18) + noinline (診断計器, P2-4)
+## silo-backoff-fixed.patch — 静的 backoff (合成 variant, D18) + noinline (診断計器, P2-4) + EVOLVE-BLOCK 骨格 (Phase 3, D22)
 
-このパッチは izanagi の silo backoff 追加を 2 つ束ねる: **(1) `BACKOFF_FIXED`** = 量を単一軸に固定する合成 variant (D18)、**(2) `BACKOFF_NOINLINE`** = perf 帰属用の診断計器 (P2-4)。どちらも `cmake/Options.cmake` + `include/backoff.hh` を触り、既定値で inert (stock 不変)。
+このパッチは izanagi の silo backoff 追加を 3 つ束ねる: **(1) `BACKOFF_FIXED`** = 量を単一軸に固定する合成 variant (D18)、**(2) `BACKOFF_NOINLINE`** = perf 帰属用の診断計器 (P2-4)、**(3) `EVOLVE-BLOCK` マーカー骨格** = Phase 3 で coder (LLM) が合成する純 timing 変異の編集面 (D22)。いずれも `cmake/Options.cmake` + `include/backoff.hh` を触り、既定値で inert (stock 不変)。
+
+### EVOLVE-BLOCK マーカー — Phase 3 coder の編集面 (kickoff タスク2, D22/phase3.md)
+
+Phase 3 で coder (LLM) が CCBench コードを diff で書く領域を、`backoff()` 内の `now_backoff` 計算
+(BACKOFF_FIXED の `#if/#else/#endif`) に `// EVOLVE-BLOCK-BEGIN <id>` / `// EVOLVE-BLOCK-END <id>`
+で画定した (id=`silo-backoff-magnitude`)。**P2-4 inert-patch (D18) の一般化** — 「フラグで枝を切り替える
+inert 軸」を「coder が #if 枝の中身を合成する編集面」へ昇格させた骨格。
+
+- **領域内は二枝**: `#if BACKOFF_FIXED >= 0` = coder 合成枝 / `#else` = stock 逐語温存 / `#endif`。
+- **マーカー・#else 枝・#if/#else/#endif 骨格は人間が一度入れた不可触骨格**。coder が触るのは #if 枝の
+  中身だけ (auditor のレビュー対象を局所化)。
+- **閉じた領域制約** (D23 道Y、Phase 3 タスク3 の hook が機械執行予定): #if 枝は既存 silo API を呼ぶ
+  straight-line code のみ。`#include`・型/関数/マクロ定義の追加、生 `#if/#ifdef/#elif`、非決定 builtin
+  (`__DATE__` 等) を禁止 → 「digest が見る枝 = 実ビルドがコンパイルする枝」を構造保証する。
+- **inert は preprocess 後ハッシュで実証**: マーカーは `//` コメントゆえ `cpp -E -P` で除去される +
+  既定 `BACKOFF_FIXED=-1` は `#else`=stock を選ぶ → working-tree の preprocess 出力が HEAD 原本と
+  **byte-identical** (sha256 `7664020a…`、D23 と不変) → stock genome は cache-hit (規律2、観測者効果なし)。
+  source_digest (`orchestrator/campaign/source_digest.py`) が毎評価でこの inert/合成の identity を判定する。
+- マーカー走査による digest 対象集合の動的化は non-blocking で繰延 (現状は固定集合 `EVOLVE_BLOCK_SOURCES`、
+  D23)。マーカーは `//` コメントで digest に不感ゆえ、固定集合のままでも honest。
 
 **フラグ空間外への最初の踏み出し** (Phase 2→3 の橋渡し)。CCBench の backoff は Cicada 由来の
 **適応 backoff** (leader が throughput 勾配で global backoff 値を hill-climbing) で、それが 48thread
