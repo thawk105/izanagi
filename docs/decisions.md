@@ -488,3 +488,28 @@ skip-key スキームを区別しない弱さは docstring で正直化 (load-be
 
 **位置づけ:** Claude 自律のレビュー駆動実装 (D24 の consumer 追従完遂)。素性が別セッションの audit 指摘ゆえ
 独立裏取り + 敵対検証で担保 (規律6)。詳細は `output/insights/2026-06-30_loop-src-token-consumer-followthrough.md`。
+
+## D26. online_digest の「二重の関所」は構造的に成立せず — assert を配線 sanity に格下げし docstring を実態へ (audit 2026-06-30 裏取り)
+
+**背景:** P2-5 誘導アームのリーク制御 `critic/online_digest.py` は、評価器の中立性 (規律6/D14) を担保するため
+(a) 誘導専用 WAL 分離 + (b) `load_p2_2_digests` 非 import に加え、「digest の genome 数 ≤ 評価回数」の実行時
+assert を「WAL 分離だけに頼らない二重の関所」と謳っていた。
+
+**発見 (独立裏取り):** この assert は実 caller 経路で恒真 (no-op)。`iterations` (= `_evaluated_canon(layout)` の
+長さ = 誘導 WAL の STAGE_COMMIT 数) と `len(d.genomes)` (= `build_digest(layout)` が同じ WAL から読む committed
+数) は**同一誘導 layout の同一 STAGE_COMMIT 集合から導出**され、`load_workload` は committed ∩ bench_done に
+絞るので `d.genomes ⊆ committed` が構造的に成り立ち `n > iterations` は決して成立しない。test_guided は
+`iterations=1` を人為注入して発火を見るが、実 caller が決して作らない不整合で、機構の存在は示すが実配線での
+独立検知は示さない。
+
+**判断:** 真に独立な照合には「評価回数を WAL 外の独立カウンタから取る」必要があるが、このアーム (replay ベース、
+評価 = WAL COMMIT 書き込み) では評価という行為そのものが COMMIT と同義で構造的に分離不能。set-membership に
+変えても同一 WAL を読む限り恒真は残り見せかけの修正になる。→ **コードを偽装で取り繕うより docstring を実態に
+正す** (規律5 盛らない / 規律6 正直に報告)。assert は撤去せず `iterations` 誤計算・layout 取り違えという**配線
+ミスへの sanity** として温存し「独立な第二防壁ではない・中立性の真の担保は WAL 分離 + import 分離」と明記。
+真に独立な照合は Phase 3 で誘導ループを実コード化する際に検討する。**P2-5 は replay = 新規計測ゼロで完了済み
+(D21) ゆえ実害なし** (negative result は WAL 分離の機能に依存し恒真 assert には依存しない)。
+
+**却下した代替:** (1) `set(d.genomes) - set(evaluated)` membership 強化 → 同一 layout では構造的真ゆえ恒真。
+layout 取り違えには効くが現 caller は同一 layout を渡す構造で発火経路なし、シグネチャ変更 4 箇所のコスト > 価値。
+(2) assert 撤去 → iterations 誤渡しを捕える sanity 価値が残るので温存が優る。

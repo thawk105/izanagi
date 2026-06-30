@@ -63,19 +63,23 @@ def test_genome_from_label_rejects_invalid():
 # ---- リーク制御: online digest は評価済みしか含まない ----
 
 def test_online_digest_leakage_assert():
-    """digest の genome 数 > 評価回数 なら LeakageError (未評価リークの機械検知)。"""
+    """digest の genome 数 > iterations なら LeakageError (配線 sanity: iterations 誤計算検知)。
+
+    注: この assert は独立な第二防壁ではない — genome 数も iterations も同一誘導 WAL の
+    STAGE_COMMIT 由来ゆえ同一 layout 経路では恒真化する (D26)。中立性の真の担保は WAL 分離
+    + load_p2_2 非 import。ここで固定するのは「iterations を誤って渡した配線ミスを捕える」挙動。"""
     lay = _tmp_layout()
     for g in (_G.format(b=0, l=1, t=0, w=0), _G.format(b=1, l=1, t=0, w=0)):
         wal.log(lay, g, STAGE_BUILD_START, "test", {"genome": g})
         wal.log(lay, g, STAGE_BENCH_DONE, "test", {"leading_indicators": {"throughput_tps": 1.0}})
         wal.log(lay, g, STAGE_COMMIT, "test", {"fitness_tps": 1.0})
-    # committed 2 genome。評価回数 1 と主張したら未評価が漏れている。
+    # committed 2 genome。iterations=1 と誤計算したら sanity が発火する。
     try:
         online_digest(lay, "x", {}, iterations=1)
-        raise AssertionError("LeakageError が出なかった (リーク検知が壊れている)")
+        raise AssertionError("LeakageError が出なかった (配線 sanity が壊れている)")
     except LeakageError:
         pass
-    d = online_digest(lay, "x", {}, iterations=2)        # ちょうど → OK
+    d = online_digest(lay, "x", {}, iterations=2)        # 整合 → OK
     assert len(d.genomes) == 2
 
 
