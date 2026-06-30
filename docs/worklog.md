@@ -1039,3 +1039,43 @@ backoff.hh から `#include` を除去し `g++ -E -P -undef -nostdinc -Werror=un
 タスク2 (EVOLVE-BLOCK template patch: backoff.hh の BACKOFF_FIXED 周辺にマーカー骨格 + #if coder枝/#else stock逐語)。
 既存 silo-backoff-fixed.patch が #if/#else を既に持つので、`// EVOLVE-BLOCK-BEGIN/END` マーカーを足し inert が
 preprocess 後同一 digest であることを再確認する。blocking 順で H3 hooks (道Y の機械執行) → 観測者二重検査 → 配線 1 周。
+
+## 2026-06-30 (続き) — Phase 3 kickoff タスク2: EVOLVE-BLOCK マーカー画定 + 敵対レビュー
+
+kickoff の blocking タスク2 (EVOLVE-BLOCK template patch) を実装し、3 レンズ敵対レビューで固めた。
+
+### 実装 (マーカー骨格 = coder の編集面)
+- `backoff.hh` の `backoff()` 内 `now_backoff` 計算 (`BACKOFF_FIXED` の `#if/#else/#endif`) を
+  `// EVOLVE-BLOCK-BEGIN silo-backoff-magnitude` 〜 `END` で画定。既存コード行は **byte 不変**、説明コメントを
+  折り込んだだけ。`#if` 枝=coder 合成枝 / `#else` 枝=stock 逐語温存 / マーカー・骨格=不可触 (P2-4 inert-patch
+  D18 の一般化)。`BACKOFF_NOINLINE` の診断計器は EVOLVE-BLOCK 外に保持 (coder 不可触)。
+- **inert を preprocess 後ハッシュで実証:** マーカーは `//` コメントゆえ `cpp -E -P` で除去 + 既定
+  `BACKOFF_FIXED=-1` が `#else`=stock を選ぶ → working-tree の preprocess 出力が HEAD 原本と **byte-identical**
+  (sha256 `7664020a`、D23 と不変) → stock genome は cache-hit (規律2・観測者効果なし)。`BACKOFF_FIXED=50`/`10`
+  は別 digest (alias なし)、silo 8 golden variant_id/cache_key 不変 (後方互換)。
+- `silo-backoff-fixed.patch` をマーカー込みで再生成 (reverse-check OK = clean stock から再現可)、
+  `patches/README.md` に EVOLVE-BLOCK 節、`test_evolve_block_markers_structure_and_inert` 追加 (127 passed)。
+
+### 敵対レビュー (workflow 3 レンズ = 観測者効果 / 偽 cache hit / scope·規律、10 エージェント) → confirmed 4 / refuted 3
+- **F1 (medium) `Options.cmake` digest 被覆ギャップ:** digest 対象 `EVOLVE_BLOCK_SOURCES`=backoff.hh のみ vs
+  編集許可 `ALLOWLIST`={Options.cmake, backoff.hh} の不一致。`VAL_SIZE` 等を変えると別バイナリなのに
+  src_token/cache_key/variant_id 不変 = 偽 hit (実機 exploit 済・revert 済)。**タスク2 由来でなく source_digest
+  (タスク1/D23) の既存ギャップ。** identity 側で塞ぐと template patch の sentinel で後方互換が壊れる →
+  **タスク3 (H3 hook) で coder の編集面を `#if` 枝に絞り Options を coder 不可触にして塞ぐ** (D24)。発火経路は
+  coder 未実装ゆえ現状人間 template のみで潜在。
+- **F2 (low) `-undef` cpp が `#if` 枝内の build 時マクロ/builtin の「値」を素通し:** D23 道Y が既知の hook 執行面 →
+  タスク3 scope。
+- **F3 (nit) phase3.md の `#if <AXIS> > 0` 文言誤り** (実装は `>= 0`/sentinel=-1) → phase3.md を整合修正。
+- **F4 (nit) 説明コメント内の生プリプロセッサトークン** (`#if`/`__DATE__` 等) が hook substring 走査の誤検出罠 →
+  コメント散文化 + hook は行頭アンカー走査と phase3.md に明記。
+- **refuted 3 (設計通り):** `#else` 改変は digest 不感 (canonical に FIXED が入り衝突不能) / `#else` 不可触は
+  hook 待ち (非ブロッキング繰延) / signed 比較は cmake default + `-Werror=undef` の二重ガードで到達不能。
+
+成果物: insight `2026-06-30_phase3-task2-evolve-block-adversarial-review.md` / decisions D24 / phase3.md
+(EVOLVE-BLOCK 機構の極性整合 + タスク3 に F1/F2 取り込み + 残存リスク追記)。
+
+### 次の一手
+タスク3 (H3 hooks 2 本 + `.claude/settings.json`): (hook1) EVOLVE-BLOCK 外 / `#ifdef TRACE` 外への検証専用
+フィールド書き込み阻止 (規律1)、(hook2) coder の Write を EVOLVE-BLOCK の `#if` 枝に限定 (F1: Options を coder
+不可触に) + 領域内の生条件指令・非決定 builtin 禁止 (F2/D23 道Y、行頭アンカー走査) + Bash リダイレクト穴対策。
+盛らない (この 2 本)。blocking 順で 観測者二重検査 → coder.md + 純 timing variant 配線 1 周 → broken-silo 回帰。

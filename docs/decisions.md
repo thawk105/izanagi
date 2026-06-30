@@ -411,3 +411,42 @@
 **kickoff non-blocking で繰延 (発火条件を明記):** `__DATE__`/`__TIME__` 非決定 → hook reject (タスク3)。空値マクロのクォート正規化・`INLINE_VERSION_OPT` 名前空間 → util.cc / cicada-oze 拡張前。動的対象集合 (EVOLVE マーカー走査) → マーカー導入 (タスク2) 後。TRACE 軸の digest 反映 → `#if TRACE` を含むソースを EVOLVE に入れる前。
 
 **位置づけ:** Claude 自律のレビュー駆動実装 (phase3.md kickoff タスク1 の戦術)。phase3.md は D22 でユーザー承認済み。本 D は実コード裏取り + 敵対レビューで固めた実装設計の記録 (roadmap 改訂セレモニー対象外)。
+
+---
+
+## D24. source_digest の Options.cmake 被覆ギャップは編集面 hook (タスク3) で塞ぐ — identity 側で太らせない
+
+**決定:** Phase 3 タスク2 (EVOLVE-BLOCK template patch) の敵対レビューが実機で確認した medium finding ──
+source_digest の digest 対象集合 (`EVOLVE_BLOCK_SOURCES = include/backoff.hh のみ`) と編集許可集合
+(`ALLOWLIST = {cmake/Options.cmake, include/backoff.hh}`) の不一致による偽 cache hit ギャップ ── を、
+**source_digest (identity 側) ではなく H3 hook (編集面側、タスク3) で塞ぐ**。
+
+**finding (実機 exploit 済み):** stock silo genome に対し `Options.cmake` の `CCBENCH_VAL_SIZE` を 4→4096 に
+変えても src_token=stock / cache_key / variant_id が不変。`VAL_SIZE` は全バイナリの `-D` に出る struct layout
+駆動マクロゆえ確実に別バイナリだが identity は盲 → 偽 hit (規律2 直撃)。`Options.cmake` は ALLOWLIST 内ゆえ
+`assert_worktree_within_allowlist` も止めない。D23 の却下理由「値変更は backoff.hh の preprocess digest に
+伝播する二重計上」は、backoff.hh が `#if` 参照するマクロ (`BACKOFF_FIXED`/`BACKOFF_NOINLINE`) にしか当たらず、
+backoff.hh 非参照かつ genome.flags 非 pin の `VAL_SIZE`/`KEY_SIZE`/`MASSTREE_USE` には伝播ゼロで穴が残る。
+
+**なぜ identity 側で塞がないか:**
+- **後方互換が壊れる:** template patch が `Options.cmake` に sentinel (`BACKOFF_FIXED=-1`/`BACKOFF_NOINLINE=0`)
+  を足すため、Options 内容を素朴に digest pre-image に入れると working-tree (sentinel 込み) ≠ HEAD (sentinel
+  無し) で inert genome でも compute≠baseline になり src_token が "stock" でなくなる → silo 8 golden
+  variant_id/cache_key が動き P2-2 WAL/build-variants と不整合。sentinel 除外の正規化は軸ごとハードコードで脆い。
+- **D7 (編集面の隔離) と整合する:** coder の編集面を EVOLVE-BLOCK の `#if` 枝に絞れば `Options.cmake` は
+  人間 template 専有になり coder は触れない → ギャップの発火経路が構造的に閉じる。identity を太らせるより
+  編集面を絞る方が D7 (見張り役を最適化圧力から隔離) の思想と一致。
+- **恒久 honest 化は繰延済み:** configure 最終 `-D` 集合 (or compile_commands.json) の digest 化は D23 が
+  cicada/oze 拡張で protocol 写像が load-bearing になった段に明示繰延。kickoff で前倒さない (規律5)。
+
+**なぜ今 high でなく潜在か:** coder (タスク5) 未実装ゆえ `Options.cmake` を変える経路は人間 template patch のみ。
+発火には coder が本来触らない Options 改変が要る。タスク3 (H3 hooks) はタスク2 直後の blocking で近接。
+
+**併せて取り込んだ他の finding:** F2 (低、`-undef` digest が `#if` 枝内の build 時マクロ/builtin の「値」を
+素通し) も D23 道Y の hook 執行面でタスク3 scope。F3 (phase3.md の `> 0` 文言誤り) / F4 (説明コメント内の生
+プリプロセッサトークン文字列) はタスク2 commit で修正済。棄却 3 件 (`#else` 改変は digest 不感 = 設計通り /
+`#else` 不可触は hook 待ち = 非ブロッキング繰延 / signed 比較は二重ガードで到達不能) は設計通りと裁定。
+
+**位置づけ:** Claude 自律のレビュー駆動の設計判断記録 (roadmap 改訂セレモニー対象外)。D23 (source_digest 設計)
+の被覆境界を「Options 改変は編集面 hook で拒否」と補完する。詳細は
+`output/insights/2026-06-30_phase3-task2-evolve-block-adversarial-review.md`。

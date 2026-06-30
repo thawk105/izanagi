@@ -34,7 +34,9 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
 
 ### EVOLVE-BLOCK 機構 (P2-4 inert-patch=D18 の一般化、新構文は発明しない)
 - `// EVOLVE-BLOCK-BEGIN <id>` / `// EVOLVE-BLOCK-END <id>` で領域画定。領域内は
-  `#if CCBENCH_<AXIS> > 0` (= coder 合成枝) `#else` (= stock 逐語温存) `#endif` の二枝。
+  `#if <AXIS>` (= coder 合成枝) `#else` (= stock 逐語温存) `#endif` の二枝。軸の極性は sentinel 規約に従う
+  (kickoff の `silo-backoff-magnitude` は `#if BACKOFF_FIXED >= 0`、既定 -1=stock 適応が #else を選び、0 以上で
+  合成枝 = D18/Options.cmake の `-1=stock adaptive; >=0=fixed` 契約と一致。`> 0` ではない: 値 0 も合成枝)。
 - **マーカーと #else 枝は人間が一度入れる骨格 (template patch)。coder が触るのは #if 枝の中身だけ**
   (auditor のレビュー対象を局所化)。
 - **閉じた領域制約:** #if 枝は既存 silo API を呼ぶ straight-line code のみ。**#include 追加・新規関数/マクロ
@@ -62,6 +64,17 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
       TRACE` 外への検証専用フィールド書き込み阻止 (規律1 第二防壁) (hook2) designated patch 以外への Write 拒否
       + **Bash の WAL/build-variants/cache root 書き込み制約** (Edit/Write hook は Bash 経由の echo
       リダイレクトを発火させない穴対策)。盛らない (この 2 本だけ)。現状 settings.json absent / hooks/ は README のみ。
+      **hook2 は source_digest の 2 つの被覆ギャップを編集面側で塞ぐ責務を負う (タスク2 敵対レビュー由来)**:
+      (a) **identity 非被覆領域への coder Write 阻止** — source_digest が digest するのは EVOLVE-BLOCK ソース
+      (`backoff.hh`) のみで、ALLOWLIST に同居する `Options.cmake` は digest 対象外。`VAL_SIZE` 等の build 左右
+      マクロを coder が `Options.cmake` で変えるとバイナリは変わるのに identity 不変 = 偽 cache hit (規律2)。
+      → coder の Write を **EVOLVE-BLOCK ソースの #if 枝内**に限定し、`Options.cmake` (人間 template 専有) 等
+      他ファイルへの coder Write を拒否する (template patch が触る集合 = 「coder が触ってよい集合」ではない)。
+      (b) **領域内の生プリプロセッサ条件・非決定 builtin の禁止** (D23 道Y の機械執行) — `-undef` digest は #if 枝の
+      active straight-line code に書かれた build 時マクロ/builtin (`NDEBUG`/`__OPTIMIZE__`/`__DATE__`/`__builtin_*`)
+      を**テキストのまま素通し**し「値」を覆わない。`#if/#elif` selector 側は source_digest の `-Werror=undef` が
+      fails-closed で守るが、active 枝の値素通しは捕まらない → hook が領域内の生条件指令・非決定 builtin を禁止する。
+      **走査は行頭アンカー** (`^\s*#` でコメント除去後) で実装し、領域内 in-comment の指令文字列を誤検出しない。
 - [ ] **(blocking) 観測者効果の二重検査**: nm の name-based 検査 (buildcache._assert_no_trace_symbols) に加え、
       trace ビルドと perf ビルドが TRACE マクロ以外で差が無いことを **両ビルドの preprocess 出力 (or trace
       シンボル除外の object シンボル集合) を diff** して assert。data-structure 由来の観測者効果を捕える。
@@ -111,6 +124,10 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 
 - 純 timing first target は**新規性が薄い** (機構の配線実証が主目的、性能新規性は sort 以降)。意図的トレードオフ。
 - preprocess 後ハッシュは対象ファイル集合の列挙漏れがあれば偽キャッシュヒットが復活する。固定集合に限定しテストで固定するが
-  template patch の改訂で集合が動いたら漏れる残留リスク。
+  template patch の改訂で集合が動いたら漏れる残留リスク。**タスク2 敵対レビューで実証 (medium, D24)**: `Options.cmake` は
+  ALLOWLIST 内だが `EVOLVE_BLOCK_SOURCES` (= digest 対象) 外で、`VAL_SIZE` 等の build 左右マクロを変えると別バイナリ
+  なのに src_token/cache_key/variant_id が不変 (偽 hit)。現状は発火経路が人間 template のみ (coder 未実装) ゆえ潜在で、
+  H3 hook (上記タスク3) が coder の編集面を #if 枝に絞ることで塞ぐ。恒久 honest 化 (configure 最終 -D 集合の digest) は
+  cicada/oze 拡張で protocol 写像が load-bearing になった段へ繰延 (D23)。
 - broken-silo は clean G2 の easy case。coder が現実に出す赤の多くは integrity-class (verdict indeterminate) に
   なりうる → S4 consumer 段で integrity fixture を別途用意 (clean G2 だけで規律3 閉ループを certify しない)。
