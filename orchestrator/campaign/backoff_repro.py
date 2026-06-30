@@ -66,10 +66,8 @@ def _config(tag: str, workload: dict) -> CampaignConfig:
         trial="p2-backoff-repro")
 
 
-def _bench_tps(layout, genome) -> float:
-    """campaign WAL から genome の median tps を引く。"""
-    from campaign.pipeline import variant_id
-    v = variant_id(genome)
+def _bench_tps(layout, v: str) -> float:
+    """campaign WAL から variant id v の median tps を引く。"""
     tps = None
     for r in wal.read_records(layout):
         if r.variant == v and r.stage == "bench_done":
@@ -88,9 +86,15 @@ def run_workload(tag: str, log=print) -> dict:
     s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log)
 
     layout = campaign_layout(str(ident.campaign_id(cfg)))
+    # WAL キーは run_campaign が src_token まで確定した variant id (D24)。identity を再計算せず
+    # summary の EvalResult から引く (consumer が確定点を二重化しない — 旧実装は variant_id(genome)=
+    # stock id で引き、BACKOFF_FIXED の非 stock src_token id を取りこぼし「判定不能」に倒れていた)。
+    vid = {r.genome.canonical(): r.variant for r in s.results}
     none_g = Genome("silo", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1})
     best_g = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": o["best_us"]})
-    none_tps, best_tps = _bench_tps(layout, none_g), _bench_tps(layout, best_g)
+    none_v, best_v = vid.get(none_g.canonical()), vid.get(best_g.canonical())
+    none_tps = _bench_tps(layout, none_v) if none_v else None
+    best_tps = _bench_tps(layout, best_v) if best_v else None
     if none_tps is None or best_tps is None:
         log(f"  [{tag}] 再測値が取れない → 判定不能")
         return {"tag": tag, "ok": False}
