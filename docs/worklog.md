@@ -1079,3 +1079,35 @@ kickoff の blocking タスク2 (EVOLVE-BLOCK template patch) を実装し、3 �
 フィールド書き込み阻止 (規律1)、(hook2) coder の Write を EVOLVE-BLOCK の `#if` 枝に限定 (F1: Options を coder
 不可触に) + 領域内の生条件指令・非決定 builtin 禁止 (F2/D23 道Y、行頭アンカー走査) + Bash リダイレクト穴対策。
 盛らない (この 2 本)。blocking 順で 観測者二重検査 → coder.md + 純 timing variant 配線 1 周 → broken-silo 回帰。
+
+## 2026-06-30 (続き) — audit [HIGH] 割り込み: D23 src_token の consumer 追従を完遂 (loop + backoff_repro)
+
+Phase 3 タスク3 着手前に、別セッションの全体監査 `docs/audit-2026-06-30.md` が挙げた [HIGH] をユーザー指示で
+優先対応。素性が別セッションゆえ独立裏取り (規律6) + 敵対検証で固めた。
+
+### 裏取り + 修正
+- **[HIGH] loop が D23 src_token を消費側で追従していない:** loop の skip/abort キーが stock id、pipeline.
+  evaluate は src_token id で WAL を書く → coder variant で乖離しリカバリ冪等性 D / 例外 abort 整合 A が破綻
+  (Phase 2 は全 stock で潜伏)。`git show HEAD` で裏取り。
+- 修正: `source_digest.resolve` (allowlist 検査 + src_token の単一窓口、WAL なし、fails-closed) を新設。
+  `pipeline.evaluate` に src_token 引数 (loop が確定済みを渡す / 直接 caller は自己計算、後方互換)。loop が
+  resolve → `variant_id(g, src_tok)` で skip/dedup → evaluate に渡す。回帰テスト3本。
+
+### 敵対検証 (3 レンズ / 13 エージェント) → confirmed 8 / refuted 2
+- **[medium] backoff_repro が同類 stale consumer (新発見):** `_bench_tps` が stock id で WAL を引き
+  BACKOFF_FIXED genome を取りこぼし P2 backoff 再現 ([P0] +38%/+11%) が silently 判定不能。`run_campaign` の
+  EvalResult.variant から引くよう同時修正 (確定点を再計算しない)。
+- **[medium] identity-error poison stock id:** transient 失敗で stock id terminal abort → 修復後永久 skip。
+  **HEAD でも同一挙動** (私の修正は不変、検証の「newly creates」は誤帰属) = 既存の terminal-abort 設計限界。
+  fails-closed (規律2 不変)。恒久対処 (retryable マーク) は別タスクに繰延。
+- [low] dedup テストが skip-key を区別しない → docstring 正直化 (load-bearing は recovery テストが担う)。
+- nit: pipeline self-compute identity-error テスト追加 / DRY (production 排他) / TOCTOU (既存・worktree 隔離繰延)。
+- refuted: allowlist 3 回チェック (冪等)、silo 8 後方互換 (resolve→variant_id でも golden 不変)。
+
+成果物: insight 2026-06-30_loop-src-token-consumer-followthrough.md / decisions D25 / 全 131 passed。
+
+### 次の一手
+- **Phase 3 タスク3 (H3 hooks)** に戻る (本来の blocking 順)。
+- **identity-error poison (medium, 既存)** の恒久対処 (identity-error abort を retryable にマーク) は別タスクで
+  検討 (ユーザー判断)。`docs/audit-2026-06-30.md` の残り (online_digest assert 恒真 [MED] 等) も別セッション成果
+  として要確認。

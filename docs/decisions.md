@@ -450,3 +450,38 @@ backoff.hh 非参照かつ genome.flags 非 pin の `VAL_SIZE`/`KEY_SIZE`/`MASST
 **位置づけ:** Claude 自律のレビュー駆動の設計判断記録 (roadmap 改訂セレモニー対象外)。D23 (source_digest 設計)
 の被覆境界を「Options 改変は編集面 hook で拒否」と補完する。詳細は
 `output/insights/2026-06-30_phase3-task2-evolve-block-adversarial-review.md`。
+
+---
+
+## D25. D23 src_token の consumer 追従を完遂 (loop + backoff_repro)。identity-error poison は既存問題として繰延
+
+**決定:** `docs/audit-2026-06-30.md` (別セッションの全体監査) の **[HIGH]** = loop が D23 の src_token を消費側で
+追従していない、を独立裏取りして修正。3 レンズ敵対検証で固め、同じ「D23 で取り残された consumer」クラスの
+第二例 `backoff_repro` も同時に追従させた。検証が指摘した identity-error poison は **既存の terminal-abort 設計
+限界** (私の修正は挙動不変) として記録し、恒久対処を別タスクに繰延する。
+
+**修正 (consumer の src_token 追従):**
+- **loop** ([HIGH]): `source_digest.resolve` で src_token を確定 → `variant_id(g, src_tok)` で skip/dedup →
+  evaluate に渡す。例外 abort も src_token id。これで loop の skip/abort キーが WAL (pipeline が書く src_token id)
+  と一致し、coder variant のリカバリ冪等性 (D) と例外 abort の整合 (A) が回復。`resolve` は WAL を書かない単一
+  窓口で、loop と evaluate が id 確定点を二重化しない (TOCTOU 偽 hit を防ぐ D23 の構造結合を消費側へ延長)。
+- **backoff_repro** ([medium]、検証の新発見): `_bench_tps` が `variant_id(genome)`=stock id で WAL を引くが、
+  `BACKOFF_FIXED` genome は非 stock id で書かれ P2 backoff cross-run 再現が silently 判定不能だった。
+  `run_campaign` の `EvalResult.variant` (確定済み src_token id) から引くよう修正 (identity を再計算しない
+  consumer パターン)。
+
+**identity-error poison stock id ([medium]、繰延):** `resolve` が transient 失敗 (g++ 一時不在 / git 一時失敗)
+すると stock id (`variant_id(g)`) で terminal abort → 修復後も `variant_id(g,"stock")` が同じ stock id ゆえ
+**stock genome が永久 skip**。検証は「fix が再導入」と裁定したが `git show HEAD` で **修正前も同一挙動** (evaluate
+が stock id で identity-error abort、loop が stock id で skip 判定) を確認 — 私の修正は変えていない。これは
+既存の terminal-abort 設計が transient infra 失敗を genome-intrinsic 失敗と同じ permanent skip に誤分類している
+限界。fails-closed (false-green でない、規律2 不変、害は genome の silent drop)。**恒久対処 = identity-error
+abort を retryable にマークし recovery で再評価**は terminal-abort の overnight 耐性とのトレードオフ設計が要る
+ため別タスクに繰延。
+
+**検証で確認した健全性:** 後方互換 (silo 8 golden が実 loop 経路 resolve→variant_id でも不変)、allowlist
+fails-closed、recovery テストが旧 stock-id 判定を genuine に捕える (buggy loop で fail を確認)。dedup テストが
+skip-key スキームを区別しない弱さは docstring で正直化 (load-bearing は recovery が担う)。
+
+**位置づけ:** Claude 自律のレビュー駆動実装 (D24 の consumer 追従完遂)。素性が別セッションの audit 指摘ゆえ
+独立裏取り + 敵対検証で担保 (規律6)。詳細は `output/insights/2026-06-30_loop-src-token-consumer-followthrough.md`。
