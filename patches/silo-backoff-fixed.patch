@@ -26,10 +26,26 @@ index b9a3c74..14a06e8 100644
      MASSTREE_USE=${CCBENCH_MASSTREE_USE}
      VAL_SIZE=${CCBENCH_VAL_SIZE}
 diff --git a/include/backoff.hh b/include/backoff.hh
-index 3db8c08..6daf29b 100644
+index 3db8c08..f38233b 100644
 --- a/include/backoff.hh
 +++ b/include/backoff.hh
-@@ -91,9 +91,29 @@ public:
+@@ -11,6 +11,15 @@
+ #include "tsc.hh"
+ #include "util.hh"
+ 
++// izanagi: BACKOFF_FIXED は必ず -D で供給されること (CMake が既定 -1 を渡す)。
++// 未定義だと下の条件コンパイル分岐 (EVOLVE-BLOCK 骨格) で未定義マクロが 0 に評価され
++// 「0 >= 0 = 真」となり、stock のつもりが静的 backoff=0 (実質無効) で走る罠になる。
++// 供給漏れはどのビルド経路でもここで止める (fails-closed)。定義済みならプリプロセス
++// 出力は不変 (digest 不変)。このコメントは骨格走査の誤検出を避けるため生トークンを書かない。
++#ifndef BACKOFF_FIXED
++#error "BACKOFF_FIXED must be defined (-DBACKOFF_FIXED=-1 for stock adaptive; CMake supplies the default)"
++#endif
++
+ using namespace std;
+ 
+ class Backoff {
+@@ -91,9 +100,29 @@ public:
      Backoff_.store(new_backoff, std::memory_order_release);
    }
  
