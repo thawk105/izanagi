@@ -832,6 +832,8 @@ def test_source_digest_parse_options_defaults():
     sub = buildcache._ccbench_dir()
     with open(os.path.join(sub, "cmake/Options.cmake"), encoding="utf-8") as f:
         d = source_digest.parse_options_defaults(f.read())
+    if "BACKOFF_FIXED" not in d:
+        skip("template patch 未適用 (Options.cmake に BACKOFF_FIXED 既定なし) — 適用後のみ")
     assert d["BACKOFF_FIXED"] == "-1" and d["BACK_OFF"] == "1"
     assert "INSERT_READ_DELAY_MS" not in d        # 空値 ("") は除外
 
@@ -871,13 +873,18 @@ def test_source_digest_fixed_variant_distinct():
 
 
 def test_source_digest_failsclosed_on_missing_define():
-    """#if 参照マクロの供給漏れは -Werror=undef で fails-closed (規律6/2)。"""
+    """#if 参照マクロの供給漏れは fails-closed (規律6/2)。
+
+    template patch 適用後の骨格は #ifndef+#error (全経路停止)、-Werror=undef は
+    それ以外の未定義マクロ評価への防壁として残る。どちらも RuntimeError に落ちる。"""
     sub = buildcache._ccbench_dir()
     with open(os.path.join(sub, "include/backoff.hh"), encoding="utf-8") as f:
         src = f.read()
+    if "BACKOFF_FIXED" not in src:
+        skip("template patch 未適用 (backoff.hh に BACKOFF_FIXED 骨格なし) — 適用後のみ")
     try:
         source_digest._cpp_normalize(src, {"BACKOFF_NOINLINE": "0"}, "g++-13")  # FIXED 欠落
-        assert False, "供給漏れで停止すべき (-Werror=undef)"
+        assert False, "供給漏れで停止すべき (#error / -Werror=undef)"
     except RuntimeError:
         pass
 
