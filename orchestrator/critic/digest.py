@@ -89,6 +89,11 @@ class Rejection:
     verdict: str                      # non-serializable | indeterminate
     anomalies: List[dict] = field(default_factory=list)   # 構造化 (cycle/edges/reasons)
     integrity: Dict = field(default_factory=dict)
+    # コード軸の識別 (D23): Phase 3 では同一 genome.flags で #if 枝の中身だけ違う複数
+    # variant が生まれる。これらが両方 RED になったとき、genome/flags だけでは
+    # 「どのコード diff がどの anomaly を生んだか」を次手生成が帰属できない (alias)。
+    variant: str = ""                 # WAL キー (src_token 込みの variant id)
+    src_token: str = ""               # BUILD_START payload の src_token
 
 
 _AXES = ["BACK_OFF", "no_wait", "WAL"]
@@ -139,10 +144,12 @@ def load_rejections(layout: CampaignLayout) -> List[Rejection]:
     Phase 2 (フラグ列挙 = 全 variant 緑) では空。Phase 3 (LLM が RED variant を合成) で
     load-bearing。`load_workload` が committed (緑) を読むのと対をなす (red を読む)。"""
     genome_of: Dict[str, str] = {}
+    srctok_of: Dict[str, str] = {}
     out: List[Rejection] = []
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
+            srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
         elif r.stage == STAGE_ABORT:
             v = r.payload.get("verify")
             if v is None:                  # build-error/trace 異常等は verify を持たない
@@ -152,7 +159,8 @@ def load_rejections(layout: CampaignLayout) -> List[Rejection]:
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
                 verdict=v.get("verdict", r.payload.get("reason", "")),
                 anomalies=v.get("anomalies", []),
-                integrity=v.get("integrity", {})))
+                integrity=v.get("integrity", {}),
+                variant=r.variant, src_token=srctok_of.get(r.variant, "")))
     return out
 
 

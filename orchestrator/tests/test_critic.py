@@ -125,7 +125,7 @@ def test_load_rejections_surfaces_structured_anomaly():
     red = _G.format(b=1, l=1, t=0, w=0)
     builderr = _G.format(b=0, l=1, t=0, w=0)
     # verify-red の variant (pipeline が書く形 = abort payload に verify 構造)
-    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red})
+    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red, "src_token": "codediff1"})
     wal.log(lay, red, STAGE_ABORT, "test",
             {"reason": "non-serializable",
              "verify": {"verdict": "non-serializable", "anomaly_count": 1,
@@ -145,6 +145,10 @@ def test_load_rejections_surfaces_structured_anomaly():
     assert rej[0].anomalies[0]["phenomenon"] == "G2"
     assert rej[0].anomalies[0]["edges"][0]["reasons"][0]["key"] == "aa"
     assert rej[0].integrity == {"clean": True}
+    # コード軸の識別 (D23): 同 canonical 別コードの RED variant が alias しないよう
+    # WAL キーと src_token も次手入力に載る
+    assert rej[0].variant == red
+    assert rej[0].src_token == "codediff1"
 
 
 def _run():
