@@ -21,12 +21,14 @@ records は working set (tuple 数) 駆動なので rratio 不変 → 1m を全 
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.genome import SILO_SPACE                          # noqa: E402
+from campaign.layout import repo_output_root                    # noqa: E402
 from campaign.loop import run_campaign                          # noqa: E402
 from campaign.model import CampaignConfig                       # noqa: E402
 from campaign.pipeline import PerfConfig                        # noqa: E402
@@ -86,6 +88,28 @@ def _assert_single_tenant() -> None:
         raise RuntimeError(msg)
 
 
+def _assert_matches_calibration() -> None:
+    """RECORDS/THREADS の手書き値が確定 calibration (D15) と一致するか実行時照合する。
+
+    値は calibrator が決めた動作点の手書きコピーなので、再 calibration 後に sync を
+    漏らすと黙って古い動作点で測る (規律4 が人手同期に退化する)。commit/digest と同じ
+    honest-by-construction: JSON 不在・キー欠落・不一致は fails-closed で停止。"""
+    path = os.path.join(repo_output_root(), "env", ENV_TAG, "calibration",
+                        "calibration_t48_skew0p9_rr50_rmw0.json")
+    if not os.path.exists(path):
+        raise RuntimeError(f"確定 calibration が無い: {path} (規律4: 動作点を照合できない"
+                           "まま計測しない。calibrator を先に回すこと)")
+    with open(path, encoding="utf-8") as f:
+        cal = json.load(f)
+    cal_records = (cal.get("saturation") or {}).get("records")
+    cal_threads = cal.get("threads")
+    if cal_records != RECORDS or cal_threads != THREADS:
+        raise RuntimeError(
+            f"RECORDS/THREADS が確定 calibration とずれている: 手書き "
+            f"({RECORDS}, {THREADS}) != calibration ({cal_records}, {cal_threads})。"
+            "再 calibration 後の sync 漏れ (規律4)。p2_2.py の定数を更新すること")
+
+
 def config_for(tag: str, workload: dict) -> CampaignConfig:
     """workload タグ → CampaignConfig。レポート生成器が同じ campaign-id を再計算して
     WAL を引けるよう、campaign 同一性を決める入力をここに集約する (D13)。"""
@@ -101,6 +125,7 @@ def config_for(tag: str, workload: dict) -> CampaignConfig:
 
 def run_workload(tag: str, workload: dict, log=print):
     _assert_single_tenant()
+    _assert_matches_calibration()
     genomes = SILO_SPACE.enumerate()
     cfg = config_for(tag, workload)
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,

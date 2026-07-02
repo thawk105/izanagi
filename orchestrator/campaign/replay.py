@@ -84,18 +84,30 @@ def genome_from_label(label: str) -> Genome:
     return g
 
 
-def discover_p2_2_dir(tag: str, output_root: str = "") -> CampaignLayout:
-    """P2-2 campaign dir を slug-tag prefix で discover (C1 回避、id 再計算に依存しない)。"""
+def discover_campaign_dir(slug: str, search_tag: str,
+                          output_root: str = "") -> CampaignLayout:
+    """campaign dir を `<slug>-<search_tag>-*` の名前 prefix で discover する。
+
+    C1 回避 (phase2.md 選択肢a): campaign-id の再計算 (`ident.campaign_id(config_for(...))`)
+    は宣言 ccbench_commit が submodule pin の前進でドリフトすると on-disk id と一致しなく
+    なり、歴史的 campaign の WAL が沈黙して引けなくなる。dir 名 prefix なら id の
+    pre-image に依存しない。WAL を持つ dir がちょうど 1 つでなければ明示エラー
+    (re-run 重複を黙って選ばない)。"""
     root = output_root or repo_output_root()
-    pat = os.path.join(root, "campaigns", f"{P2_2_SLUG}-{tag}-{P2_2_SEARCH_TAG}-*")
+    pat = os.path.join(root, "campaigns", f"{slug}-{search_tag}-*")
     hits = [d for d in sorted(glob.glob(pat))
             if os.path.exists(os.path.join(d, "runs", "wal.jsonl"))]
     if len(hits) != 1:
         raise FileNotFoundError(
-            f"P2-2 campaign dir ({tag}): WAL を持つ dir がちょうど 1 つ要るが {len(hits)} 個: "
-            f"{[os.path.basename(h) for h in hits]}。"
-            "C1 回避で dir 名 prefix discover している。P2-2 re-run で重複したら明示解決せよ。")
+            f"campaign dir ({slug}-{search_tag}): WAL を持つ dir がちょうど 1 つ要るが "
+            f"{len(hits)} 個: {[os.path.basename(h) for h in hits]}。"
+            "C1 回避で dir 名 prefix discover している。re-run で重複したら明示解決せよ。")
     return CampaignLayout(root=hits[0])
+
+
+def discover_p2_2_dir(tag: str, output_root: str = "") -> CampaignLayout:
+    """P2-2 campaign dir を slug-tag prefix で discover (discover_campaign_dir の特化形)。"""
+    return discover_campaign_dir(f"{P2_2_SLUG}-{tag}", P2_2_SEARCH_TAG, output_root)
 
 
 def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:

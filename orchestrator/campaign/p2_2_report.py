@@ -19,8 +19,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from calibrator.stability import compare                        # noqa: E402
-from campaign import ident, wal                                 # noqa: E402
-from campaign.layout import campaign_layout, repo_output_root   # noqa: E402
+from campaign import replay, wal                                # noqa: E402
+from campaign.layout import repo_output_root                    # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT)
 from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, EXTIME, RECORDS,  # noqa: E402
@@ -99,11 +99,13 @@ def _winner(ranked: list):
 
 
 def report_workload(tag: str, workload: dict, log=print) -> dict:
-    cfg = config_for(tag, workload)
-    cid = ident.campaign_id(cfg)
-    layout = campaign_layout(str(cid))
-    if not os.path.exists(layout.wal_file):
-        log(f"[{tag}] WAL 無し ({layout.root}) — campaign 未実行 → skip")
+    # C1 回避: campaign-id 再計算 (宣言 ccbench_commit 依存) でなく dir 名 prefix で
+    # discover する。旧実装は submodule pin 前進で on-disk id と食い違い、歴史的
+    # campaign を沈黙 skip して exit 0 していた (phase2.md 選択肢a)。
+    try:
+        layout = replay.discover_p2_2_dir(tag)
+    except FileNotFoundError as e:
+        log(f"[{tag}] campaign dir を discover できない → skip: {e}")
         return {}
     rows = _collect(layout)
     ranked = _ranked(rows)
@@ -116,7 +118,8 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     dat_rows = [[g.label, round(g.median), round((g.cv or 0) * 100, 2)] for g in ranked]
     wl_str = ", ".join(f"{k}={v}" for k, v in sorted(workload.items()))
     prov = {
-        "env": "linux-baremetal", "campaign": str(cid),
+        # on-disk の実 campaign id (dir 名)。再計算 id は C1 drift で実体とずれうる
+        "env": "linux-baremetal", "campaign": os.path.basename(layout.root),
         "workload": f"{tag} ({wl_str})",
         "calibration": f"records={RECORDS:,} threads={THREADS} clocks_per_us={CLK} "
                        f"extime={EXTIME}",
@@ -150,11 +153,11 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         verdicts[g.variant] = c
 
     md_path = os.path.join(layout.reports_dir, f"p2-2-fitness-{tag}_report.md")
-    _write_md(md_path, tag, wl_str, str(cid), ranked, win, verdicts, prov,
+    _write_md(md_path, tag, wl_str, os.path.basename(layout.root), ranked, win, verdicts, prov,
               os.path.basename(paths["png"]), os.path.basename(paths["dat"]),
               os.path.basename(paths["plt"]))
     log(f"[{tag}] 最速={win.label} {win.median:,.0f} tps → {md_path}")
-    return {"tag": tag, "cid": str(cid), "winner": win, "ranked": ranked,
+    return {"tag": tag, "cid": os.path.basename(layout.root), "winner": win, "ranked": ranked,
             "verdicts": verdicts, "report": md_path, "png": paths["png"]}
 
 

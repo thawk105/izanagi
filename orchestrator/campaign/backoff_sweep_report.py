@@ -16,10 +16,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident                                       # noqa: E402
 from campaign.backoff_sweep import WORKLOADS, config_for         # noqa: E402
-from campaign.layout import campaign_layout                      # noqa: E402
 from campaign.p2_2 import BETWEEN_RUN_CV                          # noqa: E402
+from campaign.replay import discover_campaign_dir                 # noqa: E402
 from critic.digest import load_workload                          # noqa: E402
 from reports.plot import DatFile, PlotSpec, Series, make_plot     # noqa: E402
 
@@ -35,10 +34,12 @@ def _classify(g):
 
 def report_workload(tag: str, workload: dict, log=print) -> dict:
     cfg = config_for(tag, workload)
-    cid = ident.campaign_id(cfg)
-    layout = campaign_layout(str(cid))
-    if not os.path.exists(layout.wal_file):
-        log(f"[{tag}] WAL 無し → skip")
+    # C1 回避: campaign-id 再計算 (宣言 ccbench_commit 依存) でなく dir 名 prefix で
+    # discover する (+38%/+11% の根拠 sweep が pin 前進で沈黙 skip されていた)。
+    try:
+        layout = discover_campaign_dir(cfg.spec_slug, cfg.search_tag)
+    except FileNotFoundError as e:
+        log(f"[{tag}] campaign dir を discover できない → skip: {e}")
         return {}
     genomes = load_workload(layout)
     none_g = adaptive_g = None
@@ -66,7 +67,8 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     best_amt, best_g = max(static, key=lambda t: tp(t[1]) or 0)
     wl_str = ", ".join(f"{k}={v}" for k, v in sorted(workload.items()))
     prov = {
-        "env": "linux-baremetal", "campaign": str(cid),
+        # on-disk の実 campaign id (dir 名)。再計算 id は C1 drift で実体とずれうる
+        "env": "linux-baremetal", "campaign": os.path.basename(layout.root),
         "workload": f"{tag} ({wl_str})", "base": "L-W0 (no-wait-locking, WAL 無)",
         "no_backoff_tps(BACK_OFF=0)": f"{none_tp:,.0f}" if none_tp else "—",
         "adaptive_tps(stock Cicada)": f"{adap_tp:,.0f}" if adap_tp else "—",
@@ -93,7 +95,7 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     os.makedirs(layout.reports_dir, exist_ok=True)
     paths = make_plot(dat, spec, stem)
 
-    md = _md(tag, wl_str, str(cid), static, none_tp, adap_tp, best_amt, best_g, tp,
+    md = _md(tag, wl_str, os.path.basename(layout.root), static, none_tp, adap_tp, best_amt, best_g, tp,
              os.path.basename(paths["png"]), os.path.basename(paths["dat"]))
     md_path = os.path.join(layout.reports_dir, f"backoff-sweep-{tag}_report.md")
     with open(md_path, "w", encoding="utf-8") as f:
@@ -101,7 +103,7 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     verdict = _verdict(none_tp, adap_tp, tp(best_g))
     log(f"[{tag}] best static={best_amt}us {tp(best_g):,.0f} tps / none={none_tp:,.0f} / "
         f"adaptive={adap_tp:,.0f} → {verdict}")
-    return {"tag": tag, "cid": str(cid), "none": none_tp, "adaptive": adap_tp,
+    return {"tag": tag, "cid": os.path.basename(layout.root), "none": none_tp, "adaptive": adap_tp,
             "best_amt": best_amt, "best_tps": tp(best_g), "verdict": verdict,
             "report": md_path}
 

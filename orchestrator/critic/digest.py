@@ -213,16 +213,14 @@ def _fmt(ind: str, v: Optional[float]) -> str:
 
 
 def load_p2_2_digests() -> List[WorkloadDigest]:
-    """P2-2 の 3 workload campaign を campaign-id 再計算で引き digest を作る。"""
-    from campaign import ident
-    from campaign.layout import campaign_layout
-    from campaign.p2_2 import WORKLOADS, config_for
-    out = []
-    for tag, wl in WORKLOADS:
-        lay = campaign_layout(str(ident.campaign_id(config_for(tag, wl))))
-        if os.path.exists(lay.wal_file):
-            out.append(build_digest(tag, wl, lay))
-    return out
+    """P2-2 の 3 workload campaign を dir 名 prefix discover で引き digest を作る。
+
+    C1 回避: 旧実装の campaign-id 再計算 (宣言 ccbench_commit 依存) は submodule pin
+    前進で on-disk id と食い違い、count=0 を沈黙して返していた。discover できなければ
+    raise (critic の入力が空のまま進む方が有害、規律3)。"""
+    from campaign.p2_2 import WORKLOADS
+    from campaign.replay import discover_p2_2_dir
+    return [build_digest(tag, wl, discover_p2_2_dir(tag)) for tag, wl in WORKLOADS]
 
 
 def render_text(digests: List[WorkloadDigest]) -> str:
