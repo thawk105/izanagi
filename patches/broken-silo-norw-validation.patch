@@ -1,6 +1,8 @@
---- a/cc/silo/transaction.cc	2026-06-18 10:21:45.537325282 +0900
-+++ b/cc/silo/transaction.cc	2026-06-18 10:21:54.077248994 +0900
-@@ -385,12 +385,21 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index ec369b0..9486be2 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -385,12 +385,21 @@ bool TxExecutor::validationPhase() { // Validation Phase
      check.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
      if ((*itr).get_tidword().epoch != check.epoch ||
          (*itr).get_tidword().tid != check.tid) {
