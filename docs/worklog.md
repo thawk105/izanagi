@@ -1188,3 +1188,28 @@ roadmap §3.7 の「audit を real 10/refuted 1 で裏取り」は監査全体 4
 
 ### 次の一手
 - **Phase 3 タスク3 (H3 hooks)** に着手 (本来の blocking 順、変わらず)。
+
+## 2026-07-02 — Phase 3 着手前 引き継ぎ監査 (workflow 再監査) を audit バックログに反映
+
+新セッションでの再開に備え、リポジトリ全体を独立 workflow (8観点 × 21 エージェント、各 finding を敵対検証) で
+再監査した (roadmap §3.7 / D27 の引き継ぎ監査を発火 = Phase 境界トリガ)。**結論は 6/30 audit と一致: 致命バグ・
+false-green・規律1-3 破りゼロ。** 11 精査 → 10 REAL / 1 refuted、全件が `docs/audit-2026-06-30.md` に既出 or 追記で
+カバー。10 件は「doc 鮮度・over-claim」と「歴史的 campaign の材料レポート射影器が沈黙して空を返す C1 drift」で、
+計測データ・正しさ判定には波及しない。
+
+`docs/audit-2026-06-30.md` に反映 (新規ファイルは作らず living なバックログを差分更新、規律5):
+- 冒頭に「2026-07-02 再監査」差分サマリ (結論・優先順・未検証領域の完全性クリティック)。
+- §2 の C1 drift 項目に `critic/digest.py:215`(`load_p2_2_digests`)を 3 本目として追記、`worklog.md:596`「digest.py で
+  3 workload 出力」が現状偽 (空を返す) を明記、severity [LOW→MED]、6/30 の「exit 1」を 7/2 実測 exit 0 に訂正。
+- §5 に新規3件: `CLAUDE.md:19` 現在地 stale [MED]・`roadmap.md:231` §6 submodule 運用 D16 未追従・`guided.py:12`
+  docstring D26 未追従 (consumer 取り残し)。既存の §5/§8 項目 (roadmap §8・decisions:256・phase2:54・ロスター) も 7/2 REAL 再確認。
+
+**未検証で残した領域 (次の監査候補、完全性クリティック):** 規律1 の `#ifdef TRACE` 別ビルド分離の実挙動、verifier
+DSG/G2 検出の偽陰性、hooks 発火 (H3 未実体化)、Phase 3 EVOLVE-BLOCK/source_digest のコード裏取り、
+fitness/admission/median の数値正当性。submodule gitlink pin (dff0f1e) と patch 完全一致は前タスクで確認済み。
+
+### 次の一手 (新セッション開始点)
+1. **`CLAUDE.md:19` 現在地の更新** (audit §5 🔁 [MED]): Phase 3 kickoff タスク1/2 (source_digest/EVOLVE-BLOCK,
+   D22-D27) 完了を反映し C1 を「消化すべき残 must」から外す。次セッションの誤誘導を断つ最優先。**憲法側ゆえ人間確認。**
+2. **Phase 3 タスク3 (H3 hooks)** に着手 (本来の blocking 順)。
+3. C1 drift 恒久対応 (phase2.md:154-159 選択肢a): report/critic 3 本を `replay.discover_p2_2_dir` 方式に統一。
