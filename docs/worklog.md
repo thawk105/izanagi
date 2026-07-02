@@ -1213,3 +1213,59 @@ fitness/admission/median の数値正当性。submodule gitlink pin (dff0f1e) �
    D22-D27) 完了を反映し C1 を「消化すべき残 must」から外す。次セッションの誤誘導を断つ最優先。**憲法側ゆえ人間確認。**
 2. **Phase 3 タスク3 (H3 hooks)** に着手 (本来の blocking 順)。
 3. C1 drift 恒久対応 (phase2.md:154-159 選択肢a): report/critic 3 本を `replay.discover_p2_2_dir` 方式に統一。
+
+## 2026-07-02 (続き) — 「現状の洗練」検査: audit 台帳の全項目裏取り + 未検証領域の新規検査
+
+ユーザー指示「進捗とコードを検査して改善 (前進でなく洗練)」を受け、ultracode workflow (~80 エージェント) で
+(a) audit バックログ全項目の実態突合 (8 グループ)、(b) 7/2 再監査が「未検証」と残した領域の新規検査 (6 観点:
+規律1 TRACE 分離実挙動 / verifier DSG 偽陰性 / source_digest・EVOLVE-BLOCK 裏取り / fitness・統計の数値正当性 /
+直近修正コミット群のレビュー / 簡素化・重複)、(c) 新規 finding の敵対検証 (誤検出疑い + 再現性の 2 名投票) を実施。
+
+**backlog 裏取りの結論**: 台帳が実態より古かった — §1 HIGH loop src_token (19e0915)・§1 MED 回帰テスト (同)・
+§2 MED rep 失敗 (1e2c01c)・§2 LOW genesis_commits (835ed9b)・§5 root README・§5 phase3 タスク1 は修正済みなのに
+`[ ]` のままだった → 台帳を [x] 化 (本コミット)。残りは未対応で自律修正可 ~28 件 / 人間判断 3 件
+(§6 submodule dirty の checkout・§2 backoff-if 骨格 #if=D22 人間専管 (6/30 判断を維持)・CLAUDE.md:154 の 7x7 旧表現)。
+
+**新規 finding 36 件 (敵対検証で大半 REAL、UnicodeDecodeError 素通りの実害主張 1 件は棄却)。主要どころ:**
+- [HIGH] verifier 偽陰性 (実証済み): trace 形式に完全性情報 (R/W 件数・終端マーカー) が無く、(a) txid 欠番 =
+  trx 丸ごと欠落も (b) trx 尾部欠落 = C 行だけ残り R/W 消失も integrity に乗らず certified serializable になる —
+  `verifier/parse.py`。部分 trace への防壁ゼロ。
+- [HIGH] source_digest の盲領域: 対象ファイル内 `#ifdef GLOBAL_VALUE_DEFINE` ブロックが digest 前処理で
+  剥がされ、挙動変更が同 digest = 偽 stock / 偽 cache hit — `campaign/source_digest.py:90`
+- [HIGH/MED] D25 retryable の破れ: retryable 判定が `st.last` 依存のため、identity-error → 修復 → 再評価が
+  in-flight クラッシュすると permanent skip が復活 (2 finder が独立指摘、実 run_campaign 3-run 再現済み) — `loop.py:60`
+- [MED] calibrator CLI `--binary` に trace シンボル検査が無い (buildcache 経路のみ防壁あり) + buildcache の
+  nm 不在/失敗が silent pass — 規律1 の防壁が経路依存
+- [MED] pipeline: CV 算出不能 (nf.cv=None) が BENCH_DONE 後の log f-string で TypeError → 意図しない
+  eval-exception abort + permanent skip — `pipeline.py:258`
+- [MED] S4 consumer: `load_rejections` の Rejection が variant id / src_token を落とし、同 canonical 別コードの
+  RED variant が planner 視点で alias する — `critic/digest.py:151`
+- [MED] prob_superiority の離散 tie 校正: 同一分布でも p_lt≈0.41 (<0.5) となり、P2-5 の「誘導は勝たない」を
+  実態より強く見せる方向のバイアス — `search_baselines.py:169`。P2-5 結論への波及は要精査
+- [MED] 1e2c01c の rep 失敗 notes が calibration JSON/MD に出ずインメモリ止まり (「沈黙させない」が半分)
+- [LOW 群] W 行 (epoch,tid) 無照合 / key 形式無検証 / genesis 番兵未満の版無検査 / between_run_floor None ガード /
+  Gate1 の差分散 √2 補正漏れ / cache_key に cc・cxx 不含 / loop silent skip の WAL 痕跡ゼロ 等
+- [簡素化] WAL リーダ 4 重実装・canonical パーサ 3 重・dead import 8 件・env_scope_dir 未使用・分位計算 2 実装・
+  sys.path 汚染書法不一致 等 (大物の統合は規律5 と凍結スクリプト尊重で見送り、台帳追記に留める)
+
+**修正計画 (コミット単位、上から順に実施。本エントリはセッション引き継ぎ用スナップショット):**
+1. docs 鮮度一括 (roadmap §6 D16 相互参照 / §8 7x7→10 プロトコル / phase2:54 テスト数 / decisions:256 patch 名 /
+   agent-arch critic-experiment 注記 / patches README broken-silo 手順)
+2. コード内 docstring 鮮度 (guided.py D26 追従 / genome.py 行参照→シンボル / calibrator cli.py 出力名 /
+   buildcache 補記 / fixtures README 凡例 / orchestrator README 実構成化)
+3. agent spec 整合 (python→python3 ×4 / critic.md digest 引数 / 書き込み隔離文言の honest 化 §4 段1)
+4. テスト品質 (_skip ヘルパで return 疑似スキップ可視化 / test_critic・test_guided の except Exception 枝 / tests/README)
+5. calibrator 小修正 (clocks_per_us fallback を result に記録 / max_records 16m 統一)
+6. verifier 硬化: 部分 trace の偽陰性を integrity で塞ぐ (txid 欠番 / W 行版照合 / key 正規化 / genesis 番兵) + テスト
+7. campaign 硬化 (D25 retryable を last 履歴でなく reason 履歴で判定 / CV=None ガード / Rejection に id 追加 /
+   records assert→例外 / cli --binary trace 検査 / nm fails-closed 化)
+8. C1 drift: discover_p2_2_dir 方式を p2_2_report / backoff_sweep_report / critic digest の 3 本に統一 +
+   p2_2 RECORDS/THREADS の calibration JSON 照合
+9. rep 失敗 notes の永続化 (calibrator report の _point_to_dict に notes)
+10. 統計系 (prob_superiority tie / Gate1 √2) — 数値結論に触るため修正内容を精査してから
+11. simplify 低リスク分 (dead import 削除・env_scope_dir 整理)
+12. CLAUDE.md 現在地更新 (独立コミット・報告で明示。絶対規律セクションは不触)
+13. 台帳・worklog 最終同期 + テスト全緑確認 (ベースライン 134 passed 取得済み)
+
+**人間判断待ち (実施しない):** submodule dirty の checkout (destructive、計測時の patch 再適用運用と絡む) /
+backoff-if `#if defined()` ガード (D22 人間専管 + inert digest 再固定要、6/30 判断を維持) / CLAUDE.md:154 7x7 表現。
