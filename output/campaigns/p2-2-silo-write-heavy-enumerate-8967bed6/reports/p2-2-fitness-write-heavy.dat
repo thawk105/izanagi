@@ -12,7 +12,7 @@
 #   cmake --build /home/tanab/github/izanagi/external/ccbench/build-variants/silo_8b70f2152f_t0 --target ycsb_silo.exe -j 16
 #
 # 実行再現コマンド (この .dat の各点を生成する; <...> は置換):
-#   # 最速 B0-L-W0 の計測 (reps=3…は run_cmd 参照):
+#   # 最速 B0-L-W0 の計測 (reps=5, extime=3s — 詳細は run_cmd 参照):
 #   numactl --interleave=all perf stat -e LLC-load-misses,LLC-loads,instructions,cycles -- /home/tanab/github/izanagi/external/ccbench/build-variants/silo_8b70f2152f_t0/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=1800 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0
 #
 # genome	median_tps	cv_pct

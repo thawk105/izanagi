@@ -9,7 +9,7 @@ isolation)。verifier の入力は trace のみ。
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 # 版ID = (epoch, tid)。同一キー上ではこの組が producer trx を一意に決める
 # (ww 競合で tid が単調増加するため。trace-hook の実測で版重複 0 を確認済み)。

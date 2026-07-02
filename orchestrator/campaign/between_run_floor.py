@@ -31,7 +31,7 @@ from calibrator.analyze import noise_floor                       # noqa: E402
 from calibrator.runner import measure_point                      # noqa: E402
 from calibrator.stability import between_run_noise_floor        # noqa: E402
 from campaign import buildcache                                  # noqa: E402
-from campaign.layout import repo_output_root                     # noqa: E402
+from campaign.layout import env_scope_dir                    # noqa: E402
 from campaign.model import Genome                                # noqa: E402
 from campaign.p2_2 import (CCBENCH_COMMIT, CLK, ENV_TAG, EXTIME,  # noqa: E402
                            NUMA, RECORDS, THREADS, _assert_single_tenant)
@@ -98,7 +98,7 @@ def measure_point_floor(binary: str, workload: dict, log=print) -> dict:
 
 
 def _write_out(tag: str, workload: dict, res: dict, log=print) -> str:
-    out_dir = os.path.join(repo_output_root(), "env", ENV_TAG, "calibration")
+    out_dir = os.path.join(env_scope_dir(ENV_TAG), "calibration")
     os.makedirs(out_dir, exist_ok=True)
     stem = f"between_run_noise_t{THREADS}_{_wl_tag(workload)}"
     json_path = os.path.join(out_dir, stem + ".json")

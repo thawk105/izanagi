@@ -24,7 +24,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from calibrator.benchparse import abort_rate, parse_bench_stdout  # noqa: E402
+from calibrator.benchparse import abort_rate                     # noqa: E402
 from calibrator.runner import run_once                            # noqa: E402
 from campaign import buildcache                                   # noqa: E402
 from campaign.backoff_sweep import SWEEP_US, _BASE                # noqa: E402

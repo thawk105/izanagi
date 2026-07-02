@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from .model import Read, Txn, Version, Write
+from .model import Read, Txn, Write
 
 _KEY_RE = re.compile(r"^(?:[0-9a-f]{2})+$")   # 小文字 hex・偶数長 (trace.hh key_to_hex)
 

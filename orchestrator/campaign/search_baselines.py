@@ -25,7 +25,7 @@ import random
 import sys
 from dataclasses import dataclass, field
 from math import comb
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

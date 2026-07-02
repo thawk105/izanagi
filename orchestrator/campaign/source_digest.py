@@ -28,7 +28,7 @@ import hashlib
 import os
 import re
 import subprocess
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable
 
 from .model import Genome
 

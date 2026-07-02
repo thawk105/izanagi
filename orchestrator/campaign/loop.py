@@ -12,10 +12,10 @@ Phase 1 は探索 = 列挙 (全 genome)。Phase 2 で LLM 誘導の選択/変異
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 from . import ident, source_digest, wal
-from .layout import CampaignLayout, campaign_layout
+from .layout import campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import EvalResult, PerfConfig, evaluate, variant_id
 

@@ -24,7 +24,7 @@ from campaign.layout import repo_output_root                    # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT)
 from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, EXTIME, RECORDS,  # noqa: E402
-                           THREADS, WITHIN_RUN_CV, WORKLOADS, config_for)
+                           REPS, THREADS, WITHIN_RUN_CV, WORKLOADS)
 from reports.plot import DatFile, PlotSpec, Series, make_plot    # noqa: E402
 
 # compare の採否 floor は **between-run** (別 run で測る variant/baseline の差の下限, A2)。
@@ -132,7 +132,8 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         columns=["genome", "median_tps", "cv_pct"], rows=dat_rows,
         provenance=prov,
         build_command=f"# 最速 {win.label} のビルド:\n{win.configure_cmd}\n{win.build_cmd}",
-        repro_command=f"# 最速 {win.label} の計測 (reps={EXTIME}…は run_cmd 参照):\n{win.run_cmd}")
+        repro_command=f"# 最速 {win.label} の計測 (reps={REPS}, extime={EXTIME}s — "
+                      f"詳細は run_cmd 参照):\n{win.run_cmd}")
     spec = PlotSpec(
         title=f"P2-2 silo fitness — {tag} (skew0.9, {THREADS}t, {RECORDS:,} rec)",
         xlabel="genome (B=BACK_OFF, L/T=no-wait policy, W=WAL)",

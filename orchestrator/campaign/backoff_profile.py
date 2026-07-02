@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from calibrator.benchparse import (abort_rate as parse_abort,    # noqa: E402
                                    parse_bench_stdout, throughput_tps)
 from campaign import buildcache                                  # noqa: E402
-from campaign.layout import repo_output_root                     # noqa: E402
+from campaign.layout import env_scope_dir                    # noqa: E402
 from campaign.model import Genome                                # noqa: E402
 from campaign.p2_2 import (CCBENCH_COMMIT, CLK, ENV_TAG, EXTIME,  # noqa: E402
                            RECORDS, THREADS, _assert_single_tenant)
@@ -181,7 +181,7 @@ def profile_workload(tag, workload, log=print):
 
 
 def _write_out(tag, workload, rows, log=print):
-    out_dir = os.path.join(repo_output_root(), "env", ENV_TAG, "profile")
+    out_dir = os.path.join(env_scope_dir(ENV_TAG), "profile")
     os.makedirs(out_dir, exist_ok=True)
     wl = f"skew{workload['ycsb_zipf_skew'].replace('.', 'p')}_rr{workload['ycsb_rratio']}"
     stem = os.path.join(out_dir, f"backoff_profile_t{THREADS}_{wl}")
