@@ -9,7 +9,9 @@ fitness/LI は P2-2 WAL から replay で配る (新規 bench は走らせない
 - critic に見せるのは「評価済み genome だけ」が育つ誘導専用 WAL から作った digest と、未評価候補の
   **ラベルだけ** (fitness は伏せる)。winner-tied set への到達/未到達も **critic には伝えない**
   (実探索では「これが最適だ」と分かる手段は無い — 到達は事後に Python が軌跡から測る)。
-- `online_digest` が『digest の genome 数 ≤ 評価回数』を実行時 assert (未評価リークの機械検知)。
+- `online_digest` が『digest の genome 数 ≤ 評価回数』を実行時 assert (layout 取り違え等の配線ミスへの
+  sanity。両辺が同一誘導 WAL の STAGE_COMMIT 由来ゆえ恒真で独立防壁ではない — D26 / online_digest.py
+  docstring 参照。中立性の真の担保は WAL 分離 + import 物理分離)。
 - critic が候補外/重複/空間外 (livelock (0,0)) を指したら **検疫して拒否** (S4 配線まで止めるトリガ)。
 - 初手は critic 信号が無いので **seed 固定のランダム** (誘導も random も初手は同条件 = 公平)。
 
@@ -90,7 +92,7 @@ def _print_state(layout: CampaignLayout, tag: str, workload: dict) -> None:
     """critic に見せる状態: 評価済み digest + 未評価候補ラベル (fitness/到達は伏せる)。"""
     evaluated = _evaluated_canon(layout)
     n = len(evaluated)
-    text = online_digest_text(layout, tag, workload, n)            # リーク assert 込み
+    text = online_digest_text(layout, tag, workload, n)            # 配線 sanity assert 込み (恒真、D26)
     all_labels = [replay.genome_label(g.flags) for g in SILO_SPACE.enumerate()]
     eval_labels = {replay.genome_label(replay.parse_flags(c)) for c in evaluated}
     remaining = [lab for lab in all_labels if lab not in eval_labels]

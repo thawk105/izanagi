@@ -139,7 +139,9 @@ def _verify_ccbench_commit(sub: str, declared: str) -> None:
     cache_key は宣言文字列だけで決まる (bin_hash は provenance 専用で照合に未使用)。
     宣言が実 HEAD とずれていると、別版でビルドしたバイナリを偽キャッシュヒットさせる。
     一致しなければ即停止 (ident.IdentityMismatch と同じ関所思想)。git が無い/submodule
-    未 init なら照合不能なので best-effort で skip (実ビルドは cmake 側で失敗する)。"""
+    未 init なら照合不能なので best-effort で skip — ただし同経路では source_digest
+    (source_digest.py) が git/g++ 不在時に fails-closed で先に停止するため、この skip
+    単独で偽キャッシュヒットが通ることはない (実ビルドも cmake 側で失敗する)。"""
     if not declared:
         return
     try:

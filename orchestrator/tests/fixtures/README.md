@@ -3,6 +3,8 @@
 手製の極小トレース。各ディレクトリ = 1 run (`trace_<thid>.log`)。形式は
 `patches/README.md` / `include/trace.hh` と同一。**判定が既知**なので verifier
 の緑/赤を固定する。キー: x=`…0001`, y=`…0002`, z=`…0003`。版 `1 0` = genesis。
+(x/y/z は正準フィクスチャの慣習。`r4_mixed_cycle`・`r5_nonlatest_transitive`・`p1_phantom_skew`
+は各自の固有キーを使う — trace 本体が真実源。)
 
 判定は2軸: `serializable` (DSG 非巡回というグラフ事実) と `verdict`/`certified`
 (integrity 不良なら認証できず **indeterminate**)。詳細は `model.py` VerifyResult。

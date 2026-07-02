@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """calibrator の CLI (タスク4b 実機実行)。
 
-  python orchestrator/calibrate.py --binary <ycsb_*.exe> --env-tag linux-baremetal \\
+  python3 orchestrator/calibrate.py --binary <ycsb_*.exe> --env-tag linux-baremetal \\
       --threads 16 [--workload ycsb_zipf_skew=0,ycsb_rratio=50] [--numactl interleave=all]
 
 確定した校正を env スコープ output/env/<env-tag>/calibration/ に書く (D13):
-  - calibration_t<threads>.json … 機械可読 (全測定点・飽和推移・noise floor の生値)
-  - calibration_t<threads>.md   … 「なぜそのレコード数?」の人間可読な根拠 (査読先回り)
+  - calibration_t<threads>_<workload>.json … 機械可読 (全測定点・飽和推移・noise floor の生値)
+  - calibration_t<threads>_<workload>.md   … 「なぜそのレコード数?」の人間可読な根拠 (査読先回り)
 
 絶対規律1: --binary は trace-disabled build (`build/`, -DTRACE=0) を指すこと。
 絶対規律4: その binary は -DLinux ピンニング済み (patches/linux-thread-pinning.patch) を前提。

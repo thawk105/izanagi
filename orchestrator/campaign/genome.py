@@ -49,7 +49,8 @@ class GenomeSpace:
 # INSERT_*_DELAY_MS) は除外 (探索しても意味が無い・perf を歪めるだけ、絶対規律4)。
 #   - BACK_OFF: abort 後の指数バックオフ (delay-on-conflict)
 #   - NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC: validation 競合の扱い。
-#     lockWriteSet() は #if/#elif のみで #else 句が無い (transaction.cc:153-161):
+#     lockWriteSet() は #if/#elif のみで #else 句が無い (cc/silo/transaction.cc の
+#     lockWriteSet() 内ブロック。行番号は submodule pin 前進でずれるため記さない):
 #       (1,0) 競合で即 abort  /  (0,1) 自ロック解放して全体 retry
 #       (1,1) #elif が dead code で (1,0) と挙動同一 → 冗長
 #       (0,0) #if/#elif どちらも非展開で競合分岐が空。expected を再読みしないまま
