@@ -114,10 +114,25 @@ def run_sweep(binary: str, threads: int, clocks_per_us: int,
     return points
 
 
+MAX_RECORDS_DEFAULT = 16_000_000   # 倍々スイープ上限 (cli.py と共有。規律4: 小さい方に統一)
+
+
+def _apply_clocks_fallback(result: "CalibrationResult",
+                           clocks_per_us: Optional[int]) -> int:
+    """TSC 実測失敗 (None) 時は CCBench default 2100 を採用し、成果物 JSON/MD
+    (result.clocks_per_us) にも notes と同じ事実を記録する (semi-silent 解消、audit §2)。"""
+    if clocks_per_us is not None:
+        return clocks_per_us
+    result.notes.append("TSC 周波数を実測できず (cc 不在?)。clocks_per_us 未設定")
+    result.clocks_per_us = 2100   # CCBench default にフォールバック (anatomy §6)
+    result.notes.append("clocks_per_us を CCBench default 2100 にフォールバック")
+    return 2100
+
+
 def calibrate(binary: str, env_tag: str, threads: int,
               workload: Optional[Dict[str, str]] = None,
               start_records: int = 1_000_000,
-              max_records: int = 32_000_000,
+              max_records: int = MAX_RECORDS_DEFAULT,
               extime: int = 3, sweep_reps: int = 3,
               noise_reps: int = 10,
               numactl: Optional[Sequence[str]] = None,
@@ -136,10 +151,7 @@ def calibrate(binary: str, env_tag: str, threads: int,
     result = CalibrationResult(
         env_tag=env_tag, threads=threads, clocks_per_us=clocks_per_us,
         workload=workload, host=_host_info())
-    if clocks_per_us is None:
-        result.notes.append("TSC 周波数を実測できず (cc 不在?)。clocks_per_us 未設定")
-        clocks_per_us = 2100   # CCBench default にフォールバック (anatomy §6)
-        result.notes.append("clocks_per_us を CCBench default 2100 にフォールバック")
+    clocks_per_us = _apply_clocks_fallback(result, clocks_per_us)
 
     # (1) admission control: campaign 冒頭で 1 回だけ静定を待つ (calibrator.md)。
     # 点ごとには待たない (settle の docstring 参照)。

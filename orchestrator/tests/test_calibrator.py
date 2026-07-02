@@ -372,6 +372,23 @@ def test_measure_point_all_reps_fail_raises():
         runner.run_once = orig
 
 
+# ===== calibrate: clocks_per_us フォールバックの成果物記録 =====
+
+def test_clocks_fallback_recorded_in_result():
+    """TSC 実測失敗時のフォールバック 2100 が result.clocks_per_us (成果物 JSON/MD)
+    にも記録される (notes だけの semi-silent を解消、audit §2)。"""
+    from calibrator import sweep
+    from calibrator.model import CalibrationResult
+    res = CalibrationResult(env_tag="t", threads=1, clocks_per_us=None)
+    assert sweep._apply_clocks_fallback(res, None) == 2100
+    assert res.clocks_per_us == 2100
+    assert any("フォールバック" in n for n in res.notes)
+    # 実測できた場合は素通り (result は不変)
+    res2 = CalibrationResult(env_tag="t", threads=1, clocks_per_us=1800)
+    assert sweep._apply_clocks_fallback(res2, 1800) == 1800
+    assert res2.clocks_per_us == 1800 and res2.notes == []
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():

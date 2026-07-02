@@ -20,7 +20,7 @@ import sys
 from typing import Dict, List, Optional
 
 from .report import render_text, result_to_dict
-from .sweep import calibrate
+from .sweep import MAX_RECORDS_DEFAULT, calibrate
 
 
 def _parse_kv(s: Optional[str]) -> Dict[str, str]:
@@ -62,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--workload", default="",
                    help="ycsb gflag の k=v をカンマ区切り (例 ycsb_zipf_skew=0,ycsb_rratio=50)")
     p.add_argument("--start-records", type=int, default=1_000_000)
-    p.add_argument("--max-records", type=int, default=16_000_000,
+    p.add_argument("--max-records", type=int, default=MAX_RECORDS_DEFAULT,
                    help="倍々スイープの上限。飽和を確認したら早期打ち切り (既定 16m)")
     p.add_argument("--extime", type=int, default=3)
     p.add_argument("--sweep-reps", type=int, default=3)
