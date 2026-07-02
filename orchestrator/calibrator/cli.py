@@ -102,12 +102,37 @@ def _output_root(explicit: Optional[str]) -> str:
     return os.path.join(repo, "output")
 
 
+def _assert_trace_disabled_binary(binary: str) -> None:
+    """--binary が trace-disabled build であることを nm で検査する (絶対規律1)。
+
+    calibration は入力非依存の計測基盤 (以後の全 campaign の動作点) なので、trace-enabled
+    バイナリで校正すると観測者効果が基盤全体へ静かに伝播する。buildcache.build() 経路の
+    継続検査と同じ判定を、手渡し binary の入口にも置く (docstring の規約だけでは防壁が
+    人間の注意力頼みになる)。nm 不在/失敗も fails-closed で停止する。
+    ※ campaign.buildcache._assert_no_trace_symbols と同型の小検査。calibrator は campaign
+    に依存しない層のため、import せず局所実装で重複させている (層の分離 > DRY)。"""
+    import subprocess
+    try:
+        r = subprocess.run(["nm", "-C", binary], capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise SystemExit(f"規律1 検査不能: nm を起動できない ({e})。trace シンボル漏れを"
+                         f"検査できない環境で calibration しない (fails-closed)")
+    if r.returncode != 0:
+        raise SystemExit(f"規律1 検査不能: nm が失敗 (rc={r.returncode}): "
+                         f"{r.stderr[-200:]} (fails-closed で停止)")
+    if any("izanagi_trace" in ln.lower() for ln in r.stdout.splitlines()):
+        raise SystemExit(
+            f"絶対規律1 違反: {binary} は trace-enabled build (izanagi_trace シンボル検出)。"
+            f"calibration は trace-disabled build (build/, -DCCBENCH_TRACE=0) で行うこと")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
 
     if not os.path.exists(args.binary):
         print(f"binary not found: {args.binary}", file=sys.stderr)
         return 2
+    _assert_trace_disabled_binary(os.path.abspath(args.binary))
 
     result = calibrate(
         binary=os.path.abspath(args.binary),
