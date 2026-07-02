@@ -253,7 +253,7 @@
 - **broken-silo は patch 死守**。わざと壊した CC をブランチに commit すると baseline で誤ビルドされ絶対規律2 崩壊。out-of-tree patch なら「赤検出するときだけ重ねる」inert 状態を保てる。
 - **再現性は不変**: submodule は常に特定 commit を pin する。「ブランチを指す」も結局その時点の commit を固定するので、master/branch/patch のどれでも parent gitlink の再現性は同じ。違うのは*どこに commit が溜まるか*と*境界の綺麗さ*。
 
-**採用した構造:** `master (本体+pinning) → izanagi-trace (+trace-hook) → broken-silo.patch (重ね)`。`.gitmodules` に `branch = izanagi-trace`。submodule の working-tree dirt を放置せず izanagi-trace に commit して gitlink を前進させる (D6 の「active dev 中は patch 適用状態のまま」を廃止)。
+**採用した構造:** `master (本体+pinning) → izanagi-trace (+trace-hook) → broken-silo-norw-validation.patch (重ね)`。`.gitmodules` に `branch = izanagi-trace`。submodule の working-tree dirt を放置せず izanagi-trace に commit して gitlink を前進させる (D6 の「active dev 中は patch 適用状態のまま」を廃止)。
 
 **却下した選択肢:**
 - **全て master に入れる**: trace-hook と broken-silo が CCBench 本体に混ざり境界が消える。broken-silo は絶対規律2 上 commit 不可。

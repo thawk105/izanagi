@@ -47,6 +47,7 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 - **tools:** 読み取り + 解析。実装の書き込みはしない
 - **model:** 推論が要るので強めのモデル
 - **規律:** 「lock contention が高くスケールしない」のような診断を、次の variant 生成への具体的指示に変換する。leading indicators を必ず参照する (これが無いと探索が停滞する、Jitskit §3.5)
+- **派生:** ablation 用の中立版 `critic-experiment` (P2-5 誘導アーム専用。リーク制御のため最適解の literal な事前知識を物理削除した版) は P2-5 限定で使用した。D21 参照
 
 ### profiler (Phase 2・実体化済み, P2-4)
 

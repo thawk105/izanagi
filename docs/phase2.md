@@ -51,7 +51,7 @@ Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・変動係数)
       (floor〜1.5×floor) の faster/slower は `near_floor` フラグを立て cross-run 再現で裏取り要とする (D19)
 
 **完了条件:** 達成。変動係数が不安定な測定は自動で再測定/除外され、採否は点比較でなく分布比較 (between-run floor
-丸め + Mann-Whitney U) で行われる。テスト 109 passed。
+丸め + Mann-Whitney U) で行われる。回帰テストは suite 全緑で担保 (本数はスナップショットで腐るため記載しない。最新は worklog 参照)。
 
 ## P2-2: silo 全探索 (最初の実探索) — 完了
 

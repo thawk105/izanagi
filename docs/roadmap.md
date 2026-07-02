@@ -228,7 +228,7 @@ AI システムのリポジトリ + CCBench を submodule で参照する。**su
 - CCBench のバージョンを commit hash で固定 (再現可能)
 - CCBench への改変を「パッチ」で管理できる
 
-CCBench の走らせ方: orchestrator が patches/ を適用 → cd external/ccbench && make → 走らせて output/runs/ (= campaign スコープ `output/campaigns/<id>/runs/` の短縮表記、D13/orchestrator-design.md) にログ → 実験後 git checkout で ccbench をクリーンに戻す。これで「CCBench本体は常にクリーン、改変は patches/ に明示的に存在」が保てる。
+CCBench の走らせ方: orchestrator が patches/ を適用 → cd external/ccbench && make → 走らせて output/runs/ (= campaign スコープ `output/campaigns/<id>/runs/` の短縮表記、D13/orchestrator-design.md) にログ → 実験後 git checkout で ccbench をクリーンに戻す。これで「CCBench本体は常にクリーン、改変は patches/ に明示的に存在」が保てる。※この「全改変を patches/ で」は D16 で三分岐に改訂済み: 本物のバグ修正は上流 master へ還元、trace-hook は `izanagi-trace` ブランチ (submodule pin)、patches/ 行きは意図的バグ (broken-silo)・合成 variant (D18)・診断計器 (D20) のみ (decisions.md D16 参照)。
 
 trace 吐く口 — ビルド時 vs ランタイム: CCBench の最適化フラグが `#define` (ビルド時) かランタイムかで探索ループの形が変わる。CCBench は性能ベンチなのでおそらく多くがビルド時 `#define`。だとするとパラメータ探索は「ビルドし直し型」になり make 時間が評価コストに乗る (緩和: 組み合わせごとにバイナリをキャッシュ)。**これは Phase 1 タスク0 で実物を読んで確認する最優先事項。**
 
@@ -318,7 +318,7 @@ Claude Code の運用パターンの参考。借用は3点だけ (巨大さは�
 
 - Jitskit は KVストア、IDS は分散KVの consistency。**誰も single-node の CC protocol の serializability を対象にしていない**
 - 両者とも「ゼロから合成」か「証明付き合成」。Izanagi の「既存 CC (CCBench) を解析して最適化を移植する」コーパス駆動の合成は空きポジション
-- CCBench という「7プロトコル×7最適化が交換可能単位で整理された資産」を使う点が独自
+- CCBench という「10 プロトコル (YCSB 対応は 7: silo/tictoc/mocc/cicada/ermia/si/oze) × 最適化フラグ群が交換可能単位で整理された資産」を使う点が独自 (§6 の実体調査に一致)
 
 ポジション: **Jitskit/IDS のループ方法論を継承しつつ、対象を CC の serializability にし、合成方式を CCBench 資産からの最適化移植にする。** 系譜の3本目として乗れる。
 

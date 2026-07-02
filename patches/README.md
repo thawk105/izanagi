@@ -63,6 +63,9 @@ cmake -S "$SUB" -B "$SUB/build-trace-broken" -DCMAKE_BUILD_TYPE=Release \
 cmake --build "$SUB/build-trace-broken" --target ycsb_silo.exe -j
 # 高 contention で走らせ verifier にかける → NON-SERIALIZABLE (exit 1) になるはず
 git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (izanagi-trace に戻る)
+# silo-backoff-fixed.patch も併用していて working-tree 全体を戻す場合は
+#   git -C "$SUB" checkout -- .
+# (transaction.cc だけの revert では backoff 差分が残り、剥がし忘れた静的 backoff が baseline を汚す)
 ```
 
 ### 実証 (2026-06-18, clean ablation)
