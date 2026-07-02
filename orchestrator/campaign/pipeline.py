@@ -244,7 +244,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         # 全 rep で throughput が取れず測定不能 → fitness 無しの COMMIT を書かない。
         # 半端な評価を terminal commit にして永久 skip させない (A: atomicity)。
         return _abort("bench-no-throughput", "bench 測定失敗 (throughput 無し) → reject",
-                      {"tps": getattr(pt, "throughputs", None), "rounds": rem.rounds})
+                      {"tps": getattr(pt, "throughputs", None), "rounds": rem.rounds,
+                       "rep_notes": getattr(pt, "notes", [])})
     if nf.cv is None:
         # 有効 rep が 1 点のみ (残りは rep 失敗) / 全 rep tps=0 だと CV が定義できず、
         # within-run 品質ゲート (P2-1) を通せない → fitness として採用しない (規律4)。
@@ -252,7 +253,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         # 意図しない eval-exception abort (permanent skip) になっていた (洗練検査 MED)。
         return _abort("bench-cv-undefined",
                       f"CV 算出不能 (有効 rep {len(pt.throughputs)} 点) → reject",
-                      {"tps": pt.throughputs, "rounds": rem.rounds})
+                      {"tps": pt.throughputs, "rounds": rem.rounds,
+                       "rep_notes": getattr(pt, "notes", [])})
     res.fitness_tps, res.cv, res.unstable = nf.median, nf.cv, rem.unstable
     wal.log(layout, v, STAGE_BENCH_DONE, env_tag,
             {"median_tps": nf.median, "cv": nf.cv,
@@ -265,6 +267,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              # leading indicators (§3.5): fitness を設計選択に帰属させる材料。
              # critic が abort率/latency/cache/IPC を読んで次の genome 方向を出す。
              "leading_indicators": pt.leading_indicators(),
+             # rep 単位の失敗記録 (1e2c01c, 規律3)。部分失敗 (例 2/5 rep timeout) は
+             # fitness が残り rep の median で成立するため、ここに載せないと「なぜ標本が
+             # 痩せたか」が WAL の機械可読経路から消える (洗練検査 MED)
+             "rep_notes": getattr(pt, "notes", []),
              "run_cmd": pt.run_cmd})              # この測定点を再現する実行コマンド
     log(f"  [eval {v}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"

@@ -23,6 +23,9 @@ def _point_to_dict(p: ScalePoint) -> Dict[str, Any]:
         "throughput_median_tps": p.throughput,
         "throughputs": p.throughputs,
         "walltime_s": p.walltime_s,
+        # rep 失敗の構造化記録 (1e2c01c, 規律3)。インメモリ止まりだと「なぜ標本が
+        # 痩せたか」が provenance JSON に残らない (genesis_commits と同型の非対称)
+        "notes": p.notes,
     }
 
 

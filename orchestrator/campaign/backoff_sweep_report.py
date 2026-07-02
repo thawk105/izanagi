@@ -109,7 +109,12 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
 
 
 def _verdict(none_tp, adap_tp, best_static) -> str:
-    """sweet spot 判定 (between-run noise floor を超えるかで, A2)。"""
+    """sweet spot 判定 (between-run noise floor を超えるかで, A2)。
+
+    注意 (洗練検査 2026-07-02): best_static は 6 静的点の argmax なので、この判定は
+    選択バイアス無補正の単一閾値比較。sweep 再利用時はこの行だけを信用せず cross-run
+    再現 (backoff_repro 方式) で裏取りすること (+38%/+11% は裏取り済み)。また本レポート
+    経路 (digest.load_workload) には unstable 情報が届かないため除外もできていない。"""
     nf = BETWEEN_RUN_CV
     if none_tp is None or best_static is None:
         return "判定不能 (データ欠損)"

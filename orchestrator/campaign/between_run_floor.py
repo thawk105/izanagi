@@ -67,7 +67,8 @@ def measure_point_floor(binary: str, workload: dict, log=print) -> dict:
     w_pt = measure_point(binary, RECORDS, THREADS, CLK, extime=EXTIME,
                          reps=WITHIN_REPS, workload=workload, numactl=NUMA)
     within = noise_floor(w_pt.throughputs)
-    log(f"  [within] CV={within.cv*100:.2f}% (median {within.median:,.0f}, "
+    log(f"  [within] CV={'n/a' if within.cv is None else f'{within.cv*100:.2f}%'} "
+        f"(median {'n/a' if within.median is None else f'{within.median:,.0f}'}, "
         f"abort {(w_pt.abort_rate or 0)*100:.0f}%)")
 
     # between-run floor (独立 8 セッションの session-median の CV)。セッション間の admission は

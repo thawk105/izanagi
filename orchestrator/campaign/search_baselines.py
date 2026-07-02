@@ -167,17 +167,22 @@ def oracle_ceiling(n: int, k: int) -> float:
 
 def prob_superiority(strategy_costs: List[int],
                      random_dist: Dict[int, float]) -> Dict[str, float]:
-    """P(戦略 < random) と P(戦略 <= random) を解析 random 分布に対して計算。
+    """戦略コストの random 分布に対する確率優越を計算。
 
-    戦略の各 trial コスト c に対し P(random > c) と P(random >= c) を解析分布から取り平均。
-    0.5 が『差なし』。0.5 を有意に超えて初めて『戦略が速い』と言える。"""
+    到達コストは N=8 の離散分布で tie 確率が大きく、p_lt (tie を勝ちに数えない strict <)
+    は完全同分布でも 0.5 を下回る (例: 主張対象 workload の k=1 で null p_lt=0.4375 =
+    6.25pt の系統バイアス)。「0.5 = 差なし」の校正が成り立つ主指標は **tie を半分に
+    数える確率優越 a = P(<) + 0.5·P(=)** (common-language effect size。同分布で厳密に
+    0.500)。p_lt / p_le はその下限/上限 bracket として併記する。
+    ※ 判定・永続化で p_lt 単独を 0.5 基準で読まない (negative result を実態より強く
+    見せる方向のバイアス、洗練検査 2026-07-02 MED)。p_le は表示専用の歴史的経緯あり。"""
     if not strategy_costs:
-        return {"p_lt": float("nan"), "p_le": float("nan")}
+        return {"p_lt": float("nan"), "p_le": float("nan"), "a": float("nan")}
     p_gt = lambda c: sum(p for j, p in random_dist.items() if j > c)   # noqa: E731
     p_ge = lambda c: sum(p for j, p in random_dist.items() if j >= c)  # noqa: E731
     lt = sum(p_gt(c) for c in strategy_costs) / len(strategy_costs)
     le = sum(p_ge(c) for c in strategy_costs) / len(strategy_costs)
-    return {"p_lt": lt, "p_le": le}
+    return {"p_lt": lt, "p_le": le, "a": (lt + le) / 2}
 
 
 def _summ(costs: List[int]) -> Dict[str, float]:

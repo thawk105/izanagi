@@ -130,8 +130,9 @@ def between_run_noise_floor(
         session_throughputs=series, sessions=len(series),
         cv=nf.cv, mean=nf.mean, median=nf.median, stdev=nf.stdev,
         high_variance=nf.high_variance)
-    if len(series) < 2:
-        out.notes.append("独立セッションが 2 未満。between-run CV は算出不能 (最低 2 セッション)")
+    if len(series) < 2 or nf.cv is None:
+        out.notes.append("独立セッションが 2 未満か CV 算出不能 (mean=0 等)。"
+                         "between-run CV は使えない (最低 2 セッション + 非ゼロ tps)")
     else:
         out.notes.append(
             f"between-run CV {nf.cv*100:.2f}% = {len(series)} 独立セッションの session-median の"
@@ -233,6 +234,14 @@ def compare(baseline: Sequence[Optional[float]],
     baseline は別 run/別ビルドで測るので、信用できる差の下限は within-run でなく between-run
     (within-run を渡すと between-run ドリフト帯の差を『超』と誤判定し偽 faster を出す — これが
     A2 で塞いだ穴)。within-run noise floor は別関心 (1 測定の品質 = remeasure 品質ゲート)。
+
+    **統計的な意味の注意 (洗練検査 2026-07-02):** CV は 1 測定 (session-median) の散らばりで
+    あり、独立 2 測定の**差**の標準偏差は √2×CV。よって Gate1 の |rel| <= noise_cv は差分布の
+    約 0.71σ でしか丸めておらず、「floor 超 = 信用できる差」は √2 分過小な謳い (真に差が
+    なくても floor を超える確率が残る)。wired 3.0% は観測最悪 2.91% への保守丸めで write-heavy
+    帯では偶然ほぼ 1σ_Δ 相当になっており、P2-2 の実データには √2 補正で verdict が変わる比較は
+    存在しない (既存結論は不変)。Phase 3 で閾値意味論を √2 補正するかは設計判断として保留 —
+    それまで near_floor 帯 (floor〜1.5×floor) の faster/slower を headline にしない運用を厳守。
 
     **Gate2 (Mann-Whitney) の弁別力は弱い**: reps が小さい (5 程度) と完全分離は常に p≈0.012 を
     返す (正規近似)。よって Gate2 は between-run 有意性検定でも fluky-rep 対策でもなく

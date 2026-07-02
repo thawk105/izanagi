@@ -83,7 +83,8 @@ def run_workload(tag: str, workload: dict, log=print):
         bf = r.genome.flags.get("BACKOFF_FIXED")
         tag_bf = "adaptive" if (r.genome.flags["BACK_OFF"] == 1 and bf == -1) else \
                  ("none" if r.genome.flags["BACK_OFF"] == 0 else f"fixed={bf}us")
-        log(f"    {tps:>12,.0f} tps  CV {r.cv * 100:4.2f}%  backoff={tag_bf}")
+        log(f"    {tps:>12,.0f} tps  CV {r.cv * 100:4.2f}%"
+            f"{'  ⚠UNSTABLE' if r.unstable else ''}  backoff={tag_bf}")
     for r in (r for r in s.results if r.aborted):
         log(f"    ✗ ABORT {r.genome.canonical()}: {r.verdict} / {r.notes}")
     return s
