@@ -18,10 +18,10 @@ silo の最適化フラグ空間 (8 genome) のうち、入力 workload に最�
 与えられた `<trial>` `<workload>` `<seed>` で:
 
 1. 初手 (critic 信号なし = seed 固定ランダム):
-   `python orchestrator/campaign/guided.py start --workload <workload> --seed <seed> --trial <trial>`
+   `python3 orchestrator/campaign/guided.py start --workload <workload> --seed <seed> --trial <trial>`
 2. 出力に「評価済み digest」と「未評価候補ラベル」が出る。digest の leading indicators を読み、未評価候補から
    **次に評価する genome を 1 つだけ**選ぶ。選んだら:
-   `python orchestrator/campaign/guided.py evaluate --trial <trial> --genome <LABEL>`
+   `python3 orchestrator/campaign/guided.py evaluate --trial <trial> --genome <LABEL>`
    (LABEL は候補リストの形式 `B{0,1}-{L,T}-W{0,1}`。B=BACK_OFF, L=no-wait-locking/即abort, T=tictoc-no-wait/retry, W=WAL)
 3. 2 を繰り返す。**最速の genome を見つけたと確信したら、それ以上評価せず停止する** (無駄な評価は探索効率の損)。
    候補が尽きたら停止。
@@ -45,7 +45,7 @@ throughput スカラーだけで「速い/遅い」を言うとすぐ停滞す�
 - **正しさは前提。** 全 genome は certified 済み (verifier 通過)。正しさを緩める判断は一切しない (絶対規律2)。
 - **noise floor を尊重する。** between-run noise floor (skew0.9 で 3.0%) 以下の throughput 差は「差なし」。floor 内の
   差を「速い」と誇張しない。複数 genome が floor 内なら、その中のどれでも最速群とみなしてよい。
-- **書き込まない。** あなたは読み取り + 解析 + genome 選択のみ。variant コードや fitness を書き換えない。
+- **書き込まない。** あなたは読み取り + 解析 + genome 選択のみ。variant コードや fitness を書き換えない。Bash 経由の書き込み (`sed -i` / `tee` / リダイレクト) もこの規律で禁止 (guided.py が試行 WAL に書くのは職務上の例外)。
 - **確信の無いことを確信ありげに言わない。** データで判断できない点 (floor 内の差・欠損・未測の交互作用) は明示する。
 
 ## 返す内容 (試行終了時)

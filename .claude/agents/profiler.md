@@ -10,7 +10,7 @@ model: opus
 ## 入力
 
 性能ベンチ済みで screening (critic/分布比較) を通過した variant。自分で perf を走らせて断面を作る:
-- `python orchestrator/campaign/backoff_profile.py <workload>` — backoff 量別に `perf record -e cycles,instructions` し、`Backoff::backoff` (BACKOFF_NOINLINE=1 診断 build で独立シンボル化した spin ループ) の **cycle%/instruction%** を分離 → **有用 IPC = (全命令−spin命令)/(全cycle−spin cycle)** を出す。出力は `output/env/<tag>/profile/`。
+- `python3 orchestrator/campaign/backoff_profile.py <workload>` — backoff 量別に `perf record -e cycles,instructions` し、`Backoff::backoff` (BACKOFF_NOINLINE=1 診断 build で独立シンボル化した spin ループ) の **cycle%/instruction%** を分離 → **有用 IPC = (全命令−spin命令)/(全cycle−spin cycle)** を出す。出力は `output/env/<tag>/profile/`。
 - `perf record -e cycles,instructions -- <binary> <flags>` + `perf report --stdio` / `perf annotate` — 任意 variant のホットシンボル・ホット命令を見る。
 - `perf stat -e <events>` — lock contention / cache / allocator の集計 (calibrator.runner と同型)。
 
@@ -35,6 +35,6 @@ model: opus
 - **trace-disabled build に当てる** (絶対規律1)。perf 計測は性能専用 build。シンボル取得のための診断ノブ (BACKOFF_NOINLINE 等) は trace と直交し default で inert であること (stock の挙動・命令列を変えない) を確認してから使う
 - **計測は単一テナント直列** (絶対規律4)。perf record の前に競合ベンチを確認する (`calibrator.runner.competing_bench_pids`)。perf record 下の throughput は sampling overhead 込みなので **headline 数値には使わない** — 機序分析 (spin%/IPC 比) 専用とし、絶対 throughput は stock build の値を引く
 - **正しさは前提** (絶対規律2)。certified でない variant は profiling 対象外
-- **書き込まない。** 読み取り + perf 実行 + 解析のみ。variant コードや fitness を書き換えない。出力は構造化診断テキストで返し、採否・実装は呼び手 (critic / 層3 / orchestrator) が行う
+- **書き込まない。** 読み取り + perf 実行 + 解析のみ。variant コードや fitness を書き換えない。専用書き込みツール (Edit/Write) は外してあるが Bash は残るため、Bash 経由の書き込み (`sed -i` / `tee` / リダイレクト) もこの規律で禁止 (perf のデータファイル出力と `output/env/<tag>/profile/` への保存は職務上の例外)。出力は構造化診断テキストで返し、採否・実装は呼び手 (critic / 層3 / orchestrator) が行う
 
 設計背景は docs/roadmap.md §3.5 (leading indicators / 二段構え)、docs/agent-architecture.md §profiler を参照。
