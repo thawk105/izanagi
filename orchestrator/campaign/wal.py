@@ -106,8 +106,10 @@ def replay(layout: CampaignLayout) -> Dict[str, EvalState]:
         st.last = r
         if r.stage == STAGE_COMMIT:
             st.committed = True
+            st.last_terminal = r
         elif r.stage == STAGE_ABORT:
             st.aborted = True
+            st.last_terminal = r
     return states
 
 

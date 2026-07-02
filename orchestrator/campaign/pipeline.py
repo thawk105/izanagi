@@ -212,8 +212,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # --- bench (排他 + 静定, I/Admission) ---
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
     # (入れると gflags last-wins で calibration の records を無言上書きする)。
-    assert "ycsb_tuple_num" not in perf.workload, \
-        "PerfConfig.workload に ycsb_tuple_num を入れない (records を上書きする)"
+    if "ycsb_tuple_num" in perf.workload:
+        # assert だと python -O で消える。calibration の records を gflags last-wins で
+        # 無言上書きする事故 (規律4 の動作点破壊) への唯一の防壁なので例外文にする。
+        raise ValueError(
+            "PerfConfig.workload に ycsb_tuple_num を入れない (records を上書きする)")
 
     def _measure():
         return measure_point(pf.binary, perf.records, perf.threads, clocks_per_us,
@@ -242,6 +245,14 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         # 半端な評価を terminal commit にして永久 skip させない (A: atomicity)。
         return _abort("bench-no-throughput", "bench 測定失敗 (throughput 無し) → reject",
                       {"tps": getattr(pt, "throughputs", None), "rounds": rem.rounds})
+    if nf.cv is None:
+        # 有効 rep が 1 点のみ (残りは rep 失敗) / 全 rep tps=0 だと CV が定義できず、
+        # within-run 品質ゲート (P2-1) を通せない → fitness として採用しない (規律4)。
+        # 旧実装はここを素通りし直後の log f-string の nf.cv*100 で TypeError →
+        # 意図しない eval-exception abort (permanent skip) になっていた (洗練検査 MED)。
+        return _abort("bench-cv-undefined",
+                      f"CV 算出不能 (有効 rep {len(pt.throughputs)} 点) → reject",
+                      {"tps": pt.throughputs, "rounds": rem.rounds})
     res.fitness_tps, res.cv, res.unstable = nf.median, nf.cv, rem.unstable
     wal.log(layout, v, STAGE_BENCH_DONE, env_tag,
             {"median_tps": nf.median, "cv": nf.cv,

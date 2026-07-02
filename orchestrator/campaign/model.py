@@ -38,6 +38,13 @@ class Genome:
     protocol: str
     flags: Dict[str, int]
 
+    def __post_init__(self):
+        if "TRACE" in self.flags:
+            # trace 有無は buildcache.build() の trace 引数が唯一の決定点 (規律1)。
+            # flags 経由の TRACE は CMake の -DCCBENCH_TRACE 後勝ちで実体に効かず、
+            # variant_id/cache_key だけが分裂して同一バイナリを重複評価する (identity 汚染)。
+            raise ValueError("genome.flags に 'TRACE' は入れられない (予約名)")
+
     def canonical(self) -> str:
         """フラグを名前順に並べた正準表現。同じ割り当ては必ず同じ文字列。"""
         body = ",".join(f"{k}={self.flags[k]}" for k in sorted(self.flags))
@@ -103,6 +110,10 @@ class EvalState:
     aborted: bool = False
     env_tag: Optional[str] = None
     last: Optional[WalRecord] = None
+    # 最後の terminal (commit/abort) レコード。retryable 判定はこれを基準にする —
+    # last (最終レコード全般) 基準だと「abort → 修復後の再評価が in-flight クラッシュ
+    # (BUILD_START が最後)」で判定から漏れ、permanent skip が復活する (D25 の破れ)。
+    last_terminal: Optional[WalRecord] = None
 
     @property
     def terminal(self) -> bool:

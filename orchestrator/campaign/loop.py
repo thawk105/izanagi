@@ -26,6 +26,7 @@ class CampaignSummary:
     layout_root: str
     total: int = 0
     skipped: int = 0           # リカバリでスキップ (既に terminal)
+    identity_skipped: int = 0  # identity 確定不能かつ stock id が terminal 済みで今 run 未評価
     evaluated: int = 0
     committed: int = 0
     aborted: int = 0
@@ -57,9 +58,12 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     # うるので permanent skip にせず再評価する (D25: terminal-abort が transient を誤分類して
     # stock baseline を silently drop する穴を塞ぐ)。永続エラーなら再 resolve で同じ identity-error
     # に倒れ abort 記録するのでクラッシュループにはならない (commit 済みは除外して再評価しない)。
+    # 判定は last_terminal (最後の commit/abort) 基準 — last (最終レコード全般) 基準だと
+    # 「identity-error abort → 修復後の再評価が BUILD_START を書いた直後にクラッシュ」で
+    # 判定から漏れ、aborted の粘着により permanent skip が復活する (洗練検査 2026-07-02 HIGH)。
     retryable = {v for v, st in states.items()
-                 if st.aborted and not st.committed and st.last is not None
-                 and st.last.payload.get("reason") == "identity-error"}
+                 if st.aborted and not st.committed and st.last_terminal is not None
+                 and st.last_terminal.payload.get("reason") == "identity-error"}
     terminal = terminal - retryable
     if terminal:
         log(f"[campaign] リカバリ: {len(terminal)} variant は評価済み → スキップ")
@@ -80,7 +84,14 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         except RuntimeError as e:
             v0 = variant_id(g)              # identity 不明ゆえ canonical のみの stock id
             if v0 in done:
+                # stock id が terminal 済み → この run では評価も abort 記録もできない。
+                # 沈黙させず可視化する (規律3): 永久 drop ではない (次 run で resolve が
+                # 直れば正しい src_token id で評価される) が、summary 上「リカバリ skip」
+                # と区別が付かないと成果物からの欠落が読めない。
                 s.skipped += 1
+                s.identity_skipped += 1
+                log(f"[campaign] {g.canonical()} identity 確定不能かつ stock id は "
+                    f"terminal 済み → この run はスキップ (環境修復後の次 run で再評価): {e}")
                 continue
             done.add(v0)
             wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})

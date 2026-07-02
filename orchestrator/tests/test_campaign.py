@@ -432,6 +432,21 @@ def test_pipeline_bench_no_throughput_aborts():
     assert STAGE_COMMIT not in st.stages_seen
 
 
+def test_pipeline_bench_cv_undefined_aborts():
+    """有効 rep 不足 (1 点のみ) 等で CV が定義できない測定は fitness として採用しない
+    (規律4: within-run 品質ゲートを通せない測定を通さない)。旧実装は素通りし
+    bench_done 後の log f-string (nf.cv*100) で TypeError → 意図しない eval-exception
+    abort として permanent skip になっていた (洗練検査 2026-07-02 MED)。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True, cv=None)
+    assert r.aborted and r.fitness_tps is None
+    assert len(calls) == 1                       # bench は走った (が CV 不定)
+    st = wal.replay(lay)[r.variant]
+    assert st.aborted and not st.committed
+    assert st.last_terminal.payload.get("reason") == "bench-cv-undefined"  # 明示 admission
+    assert STAGE_COMMIT not in st.stages_seen
+
+
 def test_pipeline_competing_tenant_aborts_without_bench():
     """規律4 (admission fails-closed): bench 直前に競合ベンチを検知したら計測せず abort。
 
@@ -660,6 +675,75 @@ def test_loop_identity_error_is_retryable_after_repair():
     assert len(calls) == 1 and s2.committed == 1 and s2.skipped == 0   # 修復後に再評価
 
 
+def test_loop_identity_error_retryable_survives_inflight_crash():
+    """identity-error abort → 修復後の再評価が in-flight クラッシュ (BUILD_START のみで
+    途切れ) しても、次 run で再評価される (D25 の保証がクラッシュ 1 回で破れない)。
+
+    旧実装は retryable 判定が st.last (最終レコード) 依存だったため、BUILD_START が
+    最後になると判定から漏れ、aborted の粘着により permanent skip が復活していた
+    (洗練検査 2026-07-02 HIGH)。overnight クラッシュ→再起動は WAL の設計前提。"""
+    from campaign import loop as L
+    out_root = _tmpdir("izanagi_loop_iderr_crash_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="id-retry-crash", ccbench_commit="deadbeef")
+    g = Genome("silo", {"BACK_OFF": 1})
+    v_stock = pipeline.variant_id(g)
+    lay = campaign_layout(str(ident.campaign_id(cfg)), out_root).ensure()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    # run1: identity-error abort (stock id)
+    wal.log(lay, v_stock, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
+    wal.log(lay, v_stock, STAGE_ABORT, "test-env",
+            {"reason": "identity-error", "error": "g++ 一時不在"})
+    # run2: 修復後の再評価が BUILD_START を書いた直後にクラッシュ (COMMIT/ABORT なし)
+    wal.log(lay, v_stock, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
+
+    calls = []
+
+    def fake_eval(g, *a, **kw):
+        calls.append(g)
+        return EvalResult(genome=g, variant=pipeline.variant_id(g, kw.get("src_token")),
+                          certified=True, aborted=False, fitness_tps=100.0)
+
+    saved, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    try:
+        # run3: 環境修復済み → retryable 判定は last_terminal (identity-error abort) 基準
+        # なので再評価される (旧実装は evaluated=0 / skipped=1 で永久 skip)
+        s3 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
+                            1800, do_bench=False, output_root=out_root,
+                            log=lambda *a: None)
+    finally:
+        L.evaluate, L.source_digest = saved, saved_sd
+    assert len(calls) == 1 and s3.committed == 1 and s3.skipped == 0
+
+
+def test_loop_identity_skip_is_visible_when_stock_id_terminal():
+    """identity 確定不能かつ stock id が terminal 済みのときの skip は identity_skipped
+    として summary に分離カウントされる (規律3: 成果物からの欠落を沈黙させない)。"""
+    from campaign import loop as L
+    out_root = _tmpdir("izanagi_loop_idskip_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="id-skip-vis", ccbench_commit="deadbeef")
+    g = Genome("silo", {"BACK_OFF": 1})
+    v_stock = pipeline.variant_id(g)
+    lay = campaign_layout(str(ident.campaign_id(cfg)), out_root).ensure()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    # 過去 run で stock id が commit 済み (coder variant の working-tree で再開する状況)
+    wal.log(lay, v_stock, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
+    wal.log(lay, v_stock, STAGE_COMMIT, "test-env", {"fitness_tps": 100.0})
+
+    saved_sd = L.source_digest
+    L.source_digest = _sd_mock(RuntimeError("git 一時故障"))
+    try:
+        s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
+                           1800, do_bench=False, output_root=out_root,
+                           log=lambda *a: None)
+    finally:
+        L.source_digest = saved_sd
+    assert s.skipped == 1 and s.identity_skipped == 1 and s.evaluated == 0
+
+
 # ===== STAGE2: provenance / path 防御 =====
 
 def test_buildcache_rejects_commit_mismatch():
@@ -768,6 +852,11 @@ def test_source_digest_fixed_variant_distinct():
     head = _ccbench_head_or_skip()
     if head is None:
         skip("submodule 未 init — BACKOFF_FIXED digest 分離は実 working-tree が要る")
+    wt = source_digest._read(os.path.join(buildcache._ccbench_dir(), "include/backoff.hh"))
+    if "#if BACKOFF_FIXED" not in wt:
+        # clean stock checkout (template patch 未適用) では BACKOFF_FIXED が参照されず
+        # digest が分離しない (assert が偽 fail する)。適用済み working-tree 前提を明示。
+        skip("template patch 未適用 (backoff.hh に #if BACKOFF_FIXED 無し) — digest 分離は適用後のみ")
     base = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
             "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
     g50 = Genome("silo", {**base, "BACKOFF_FIXED": 50})
@@ -857,6 +946,10 @@ def test_evolve_block_markers_structure_and_inert():
     wt = source_digest._read(os.path.join(sub, "include/backoff.hh"))
     if "EVOLVE-BLOCK-BEGIN" not in wt:
         return            # clean stock checkout (template patch 未適用) — patch 側検査で十分
+    # working-tree 側もマーカーが 1 個ずつ (H3 hook がマーカー走査で編集面を画定する前提。
+    # 偽マーカー対・別 id ブロックの混入は digest では分かれるが構造検査でも弾く)
+    assert wt.count("EVOLVE-BLOCK-BEGIN") == 1
+    assert wt.count("EVOLVE-BLOCK-END") == 1
     # bracket 順序: BEGIN → #if BACKOFF_FIXED → #else → #endif → END (coder 編集面が #if/#else に閉じる)
     i_begin = wt.index("EVOLVE-BLOCK-BEGIN")
     i_if = wt.index("#if BACKOFF_FIXED")
