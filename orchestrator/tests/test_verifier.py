@@ -13,6 +13,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
+from skiputil import Skip, skip                               # noqa: E402
 from verifier import verify_trace_dir, result_to_dict        # noqa: E402
 from verifier.dsg import DSG                                  # noqa: E402
 from verifier.model import (CycleEdge, EdgeReason, RW, WR, WW)  # noqa: E402
@@ -201,8 +202,7 @@ def test_structured_report_has_edge_detail():
 
 def test_real_silo_serializable():
     if not os.path.isdir(SILO_SAMPLE):
-        print(f"  (skip) no real Silo sample at {SILO_SAMPLE}")
-        return
+        skip(f"no real Silo sample at {SILO_SAMPLE} — 再生成手順は tests/README.md")
     res = verify_trace_dir(SILO_SAMPLE)
     assert res.serializable, (
         f"real Silo trace MUST be serializable but got "
@@ -216,19 +216,22 @@ def test_real_silo_serializable():
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
-    passed = failed = 0
+    passed = failed = skipped = 0
     for fn in fns:
         try:
             fn()
             print(f"PASS {fn.__name__}")
             passed += 1
+        except Skip as e:
+            print(f"SKIP {fn.__name__}: {e}")
+            skipped += 1
         except AssertionError as e:
             print(f"FAIL {fn.__name__}: {e}")
             failed += 1
         except Exception as e:  # noqa: BLE001
             print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
             failed += 1
-    print(f"\n{passed} passed, {failed} failed")
+    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
 
 

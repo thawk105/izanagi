@@ -156,6 +156,8 @@ def _run():
             fn(); print(f"PASS {fn.__name__}"); passed += 1
         except AssertionError as e:
             print(f"FAIL {fn.__name__}: {e}"); failed += 1
+        except Exception as e:  # noqa: BLE001
+            print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}"); failed += 1
     print(f"\n{passed} passed, {failed} failed")
     return 1 if failed else 0
 

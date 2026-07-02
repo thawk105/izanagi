@@ -17,6 +17,7 @@ sys.path.insert(0, _ORCH)
 
 from reports.plot import (DatFile, PlotSpec, Series,            # noqa: E402
                           make_plot, render_plt)
+from skiputil import Skip, skip                                 # noqa: E402
 
 _HAS_GNUPLOT = shutil.which("gnuplot") is not None
 
@@ -101,8 +102,7 @@ def test_render_plt_extra_setup_emitted():
 
 def test_make_plot_generates_valid_png():
     if not _HAS_GNUPLOT:
-        print("(gnuplot 無し → skip)")
-        return
+        skip("gnuplot 無し")
     tmp = tempfile.mkdtemp(prefix="izanagi_plot_")
     try:
         dat = DatFile(title="t", columns=["x", "y"], rows=[[1, 1], [2, 4], [3, 9]])
@@ -122,19 +122,22 @@ def test_make_plot_generates_valid_png():
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
-    passed = failed = 0
+    passed = failed = skipped = 0
     for fn in fns:
         try:
             fn()
             print(f"PASS {fn.__name__}")
             passed += 1
+        except Skip as e:
+            print(f"SKIP {fn.__name__}: {e}")
+            skipped += 1
         except AssertionError as e:
             print(f"FAIL {fn.__name__}: {e}")
             failed += 1
         except Exception as e:  # noqa: BLE001
             print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
             failed += 1
-    print(f"\n{passed} passed, {failed} failed")
+    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
 
 

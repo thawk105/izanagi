@@ -27,6 +27,7 @@ from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE)
 from campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
+from skiputil import Skip, skip                                  # noqa: E402
 from verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
                             Integrity, RW, VerifyResult)
 
@@ -665,7 +666,7 @@ def test_buildcache_rejects_commit_mismatch():
     """宣言 ccbench_commit が submodule 実 HEAD とずれたら停止 (偽キャッシュヒット防止)。"""
     sub = buildcache._ccbench_dir()
     if not os.path.exists(os.path.join(sub, ".git")):
-        return                                   # submodule 未 init ならスキップ
+        skip("submodule 未 init")
     try:
         buildcache._verify_ccbench_commit(sub, "0000000deadbeef")
         assert False, "誤 commit 文字列で停止すべき"
@@ -755,7 +756,7 @@ def test_source_digest_stock_roundtrip():
     """実 working-tree (inert) で silo 8 genome は src_token='stock' = 旧 id 不変 (後方互換)。"""
     head = _ccbench_head_or_skip()
     if head is None:
-        return
+        skip("submodule 未 init — src_token roundtrip は実 working-tree が要る")
     for g in genome.SILO_SPACE.enumerate():
         st = source_digest.src_token(g, head)
         assert st == source_digest.STOCK, g.canonical()
@@ -766,7 +767,7 @@ def test_source_digest_fixed_variant_distinct():
     """BACKOFF_FIXED 枝は stock と別 id・値違いも別 id (alias 防止)。-1 は #else=stock。"""
     head = _ccbench_head_or_skip()
     if head is None:
-        return
+        skip("submodule 未 init — BACKOFF_FIXED digest 分離は実 working-tree が要る")
     base = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
             "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
     g50 = Genome("silo", {**base, "BACKOFF_FIXED": 50})
@@ -872,19 +873,22 @@ def test_evolve_block_markers_structure_and_inert():
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
-    passed = failed = 0
+    passed = failed = skipped = 0
     for fn in fns:
         try:
             fn()
             print(f"PASS {fn.__name__}")
             passed += 1
+        except Skip as e:
+            print(f"SKIP {fn.__name__}: {e}")
+            skipped += 1
         except AssertionError as e:
             print(f"FAIL {fn.__name__}: {e}")
             failed += 1
         except Exception as e:  # noqa: BLE001
             print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
             failed += 1
-    print(f"\n{passed} passed, {failed} failed")
+    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
 
 
