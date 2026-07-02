@@ -2,8 +2,10 @@
 """P2-5 ベースライン: ランダム探索 (解析+経験) / critic 無し貪欲 / オラクル天井。
 
 LLM を一切呼ばず、replay (P2-2 WAL の記録値) の上で「最適到達までの評価本数」を測る。
-P2-5 の negative result の主柱: silo 8 のような 1 ビットで割れる小空間では、逐次帰属に
-到達速度の優位はほぼ無いことを、LLM の揺れを挟まずに確定させる。
+P2-5 の negative result の主柱: silo 8 のような 1 ビットで割れる小空間では、LLM 誘導は
+機械的勾配 (critic-free greedy) で達成できる水準を超えないことを、LLM の揺れを挟まずに
+確定させる (D29: 貪欲自体は balanced で random より有意に速い — 「逐次帰属に優位が無い」
+のではなく「LLM 固有の付加が貪欲から分離できない」が正確な主張)。
 
 系列:
 - **random** — 8 genome をランダム順に 1 本ずつ。winner-tied set 初到達位置の分布。
@@ -16,7 +18,9 @@ P2-5 の negative result の主柱: silo 8 のような 1 ビットで割れる�
   tied に当てる完全知 = E[到達]=2-k/N。「どんなに賢い critic でも初手ランダム制約下で
   これ以上速くならない」上限。実 critic/greedy がこの天井のどこに落ちるかで over-claim を防ぐ。
 
-主指標は生の到達本数でなく **確率優越** P(戦略 < random) + 効果量 (本数差)。
+主指標は生の到達本数でなく **確率優越 a = P(戦略<random) + 0.5·P(=)** (tie 半加算、
+同分布で厳密 0.500) + 効果量 (本数差)。p_lt (strict) は同分布でも 0.5 を下回る系統
+バイアス (k=1 で null 0.4375) があり下限 bracket に格下げ (D29、prob_superiority docstring)。
 """
 from __future__ import annotations
 
@@ -185,6 +189,24 @@ def prob_superiority(strategy_costs: List[int],
     return {"p_lt": lt, "p_le": le, "a": (lt + le) / 2}
 
 
+def prob_superiority_two_sample(xs: List[int], ys: List[int]) -> float:
+    """A = P(x < y) + 0.5·P(x = y) — 到達コスト標本同士の直接確率優越 (小さい方が速い)。
+
+    誘導 vs 貪欲のように「どちらも経験標本」の比較に使う (解析分布に対する
+    prob_superiority と対)。同分布なら 0.5。有意性の主張には正規近似 z でなく
+    permutation 検定を使うこと (D29: 離散 tie が多く z は保守/楽観どちらにも振れる)。"""
+    if not xs or not ys:
+        return float("nan")
+    wins = ties = 0
+    for x in xs:
+        for y in ys:
+            if x < y:
+                wins += 1
+            elif x == y:
+                ties += 1
+    return (wins + 0.5 * ties) / (len(xs) * len(ys))
+
+
 def _summ(costs: List[int]) -> Dict[str, float]:
     import statistics
     cs = sorted(costs)
@@ -239,8 +261,8 @@ def main(argv) -> int:
         print(f"  oracle 天井 : E={b.oracle_E:.2f} 本 (初手ランダム制約下の理論下限)")
         print(f"  greedy      : 中央値={gs['median']:.0f} 平均={gs['mean']:.2f} "
               f"IQR=[{gs['iqr_lo']:.0f},{gs['iqr_hi']:.0f}] min={gs['min']} max={gs['max']}")
-        print(f"  P(greedy<random)={ps['p_lt']:.3f}  P(greedy<=random)={ps['p_le']:.3f}  "
-              f"(0.5=差なし)")
+        print(f"  優越 a={ps['a']:.3f} (0.5=差なし; bracket: strict {ps['p_lt']:.3f} / "
+              f"<= {ps['p_le']:.3f})")
         adv = b.random_E - gs['mean']
         print(f"  → greedy の平均削減 = {adv:+.2f} 本 / oracle 天井の削減 = "
               f"{b.random_E - b.oracle_E:+.2f} 本\n")

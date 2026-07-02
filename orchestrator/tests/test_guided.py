@@ -22,6 +22,8 @@ from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
                             STAGE_COMMIT)
 from campaign.search_baselines import (expectation, oracle_ceiling,  # noqa: E402
+                                       prob_superiority,
+                                       prob_superiority_two_sample,
                                        random_reach_distribution, reached_cost)
 from critic.online_digest import LeakageError, online_digest      # noqa: E402
 
@@ -104,6 +106,35 @@ def test_random_distribution_sums_and_expectation():
 def test_oracle_ceiling():
     assert abs(oracle_ceiling(8, 4) - 1.5) < 1e-9
     assert abs(oracle_ceiling(8, 1) - 1.875) < 1e-9
+
+
+# ---- 確率優越 a の校正 (D29: 同分布で厳密 0.500、p_lt は系統バイアス) ----
+
+def test_prob_superiority_a_calibrated_at_null():
+    """戦略が random と完全同分布なら a = 0.500 (厳密)。p_lt は 0.5 を下回る
+    系統バイアスを持つ (k=1 で 0.4375、k=4 で <0.4) ことも回帰固定する —
+    p_lt を 0.5 基準で読むと negative result を実態より強く見せる (D29)。"""
+    for n, k in [(8, 1), (8, 4), (8, 2)]:
+        d = random_reach_distribution(n, k)
+        # 「戦略のコスト標本 = random 分布そのもの」を重み付きで再現
+        # (各コスト j を確率質量ぶんだけ並べる代わりに、期待値として直接計算)
+        ps = prob_superiority(list(d.keys()), d)
+        a_null = sum(p * (sum(q for j, q in d.items() if j > c) +
+                          0.5 * sum(q for j, q in d.items() if j == c))
+                     for c, p in d.items())
+        assert abs(a_null - 0.5) < 1e-9, (n, k, a_null)          # a は厳密に校正
+        p_lt_null = sum(p * sum(q for j, q in d.items() if j > c)
+                        for c, p in d.items())
+        assert p_lt_null < 0.5 - 1e-9, (n, k, p_lt_null)          # p_lt は系統的に下方
+        assert ps["a"] == (ps["p_lt"] + ps["p_le"]) / 2           # 定義の整合
+
+
+def test_prob_superiority_two_sample_null_and_direction():
+    """二標本 A: 同一標本同士は 0.5、一様に速い/遅い標本は 1.0/0.0。"""
+    xs = [1, 2, 3, 4]
+    assert abs(prob_superiority_two_sample(xs, xs) - 0.5) < 1e-9
+    assert prob_superiority_two_sample([1, 1], [5, 6]) == 1.0
+    assert prob_superiority_two_sample([7, 8], [1, 2]) == 0.0
 
 
 # ---- winner-tied set = no-difference 連結成分 (winner pivot 非依存) ----

@@ -522,5 +522,38 @@
     }
    ]
   }
- ]
+ ],
+ "recalibration_2026_07_02": {
+  "reason": "主指標 p_lt = P(戦略<random) は tie を勝ちに数えないため、戦略が random と完全同分布でも 0.5 を下回る系統バイアスを持つ (null: k=1 で 0.4375、k=4 で 0.3222)。0.5 基準の読みは negative result を実態より強く見せる方向だった。tie 半加算の確率優越 a = P(<) + 0.5·P(=) (同分布で厳密 0.500) に再校正 (decisions.md D29)。",
+  "provenance": "rows[*].guided_costs (本ファイルに凍結、raw 試行 WAL は削除済み) と search_baselines.run_workload(tag, k_trials=500, seed0=0) (P2-2 WAL replay、決定論) から再計算。凍結済み p_lt と再計算 p_lt の byte 一致で再現性を確認済み。独立 2 エージェントによる敵対検証済み (検算全一致)。新規計測ゼロ。",
+  "methods": {
+   "a_vs_random": "各試行コスト c の a(c)=P(random>c)+0.5·P(random=c) の標本平均",
+   "significance": "a は到達本数の線形変換のため、有意主張は t 検定でなく同分布帰無の exact 検定 (12 iid の畳み込み) / permutation を使う。t は分散縮小(大外れ回避) を『速さ』として過大評価しうる",
+   "multiplicity": "informative 2 workload × 3 比較 = 6 検定の Holm 補正",
+   "censoring": "未到達 = 予算上限 N=8 算入 (事前登録)。感度分析: 停止尊重 / 予算まで継続の両仮想"
+  },
+  "results": {
+   "balanced": {
+    "guided_a": 0.5938,
+    "greedy_a": 0.5333,
+    "guided_vs_greedy_A": 0.5813,
+    "greedy_vs_random": "有意に速い (exact p≈0.005, n=500)。ただし平均削減 0.27 本 = オラクル天井の削減余地 2.6 本の約 1 割",
+    "guided_vs_random": "優越方向だが有意と主張しない: 実体は平均短縮でなく大外れ回避 (12 試行中 10 が 4 本以内, max 5) の分散縮小。同分布帰無の exact 検定 p≈0.144、Holm 補正でも非有意 (素 t p=0.016 は分散縮小由来で不採用)",
+    "guided_vs_greedy": "有意差なし (A=0.5813, tie 補正 z≈+0.98, p≈0.16)"
+   },
+   "write_heavy": {
+    "guided_a": 0.2708,
+    "greedy_a": 0.5172,
+    "guided_vs_greedy_A": 0.2304,
+    "guided_vs_greedy": "誘導は貪欲より有意に有害 (permutation p<1e-4。打ち切り感度・Holm に頑健)。機序は探索順序でなく自信ある早期停止の負債 (誤収束 8/12。到達した 4 試行のコスト [1,3,4,4] は貪欲と遜色ない)",
+    "guided_vs_random": "a=0.2708 は未到達=8 算入の処理依存 (感度幅 0.23-0.39、予算まで継続の反実仮想では非有意化) — 単体で headline にしない"
+   },
+   "read_heavy": {
+    "guided_a": 0.5476,
+    "greedy_a": 0.5059,
+    "note": "informative=False (k=4、到達判定が情報を持たない)。null p_lt=0.3222 (k=1 の 0.4375 と異なる) — 旧表を 0.5 基準で読む一般化は k=4 で特に誤り"
+   }
+  },
+  "conclusion": "D21 の総合結論 (LLM 誘導固有の価値は主張不能・deceptive 構造では有害・価値は空間外の合成にある) は不変、むしろ強化。旧表現『誘導は random を有意に上回らない』は p_lt バイアス込みの記述で、正確には『誘導は機械的勾配 (貪欲) で達成できる水準を超えず (A=0.58 有意差なし)、deceptive では貪欲より有意に有害 (A=0.23)。貪欲自体は balanced で random より有意に速い (ただし天井の 1 割)』。negative 結論の支柱は vs random から vs 貪欲 (D21 が設計段階で入れた ablation) に移った。"
+ }
 }
