@@ -538,3 +538,22 @@ Phase 完了監査)。穴は「捕まえる手段」でなく「**回す契機**
 
 **残るトレードオフ:** 推奨であって必須でないため発火条件の閉じ込めリスク (「列挙外は監査不要」と誤読) → 文言に
 「疑いがあれば常に回してよい」で緩和。監査者 AI 自身の劣化は本質的に未解決。同一セッション内の緩やかな劣化は前向き層に委ねる。
+
+## D28. warmup 破棄は意図的非対応 — ccbench の extime 一括計測に従属し、D15 下限基準が影響を実質無効化
+
+**背景:** roadmap §3.6(1) は「各 run の冒頭は warmup として破棄し定常状態のみを採る」を要求するが、
+測定経路 (calibrator/runner.run_once → ccbench `common/runner.hh` の extime ループ) に warmup
+分離は実装されていない (audit 2026-06-30 §2)。ccbench 自体に warmup 機構が無く、calibrator は
+その出力 (extime 全体の集計 throughput) をそのまま採る従属側。
+
+**判断 (意図的非対応):** 実装しない。理由:
+1. **飽和判定への影響は D15 (下限基準) で実質無効化済み** — records の確定は「working set ≥ L3×倍率」
+   の下限基準が主で、ramp-up を含む throughput の細部に依存しない。
+2. ccbench 側の改変 (extime ループの分割) は計測条件の変更 = 既存の全数値との比較可能性を失う。
+   extime 伸長 (ramp-up 比率の希釈) も計測コスト増で規律4 に反する。
+3. run 間の系統誤差は within-run/between-run noise floor (A2, D19) が経験的に吸収している —
+   CV 2.28%/3.0% は ramp-up 込みの実測値であり、採否判定はこの floor で丸められる。
+
+**発火条件 (再検討トリガ):** extime を変える・別 protocol で ramp-up が長い挙動を見た・
+throughput の時系列が取れる計測手段を導入した、のいずれかで再評価する。roadmap §3.6(1) の
+要求文言は「現実装は ccbench 制約により warmup 分離なし (D28)」の注記で実態に一致させた。

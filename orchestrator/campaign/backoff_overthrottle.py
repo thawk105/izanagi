@@ -97,9 +97,12 @@ def main(argv) -> int:
             # 適応のスピン占有率を超える最小の静的点 = 適応が「どの量に駐車しているか」の下限
             over = [r for r in statics if r["spin_rate"] <= adaptive["spin_rate"]]
             parked = max((r["backoff_us"] for r in over), default=None)
+            # over-throttling 判定 = 「sweet spot 上限 (fitness 実測 5-10us) を超えて駐車」。
+            # 閾値はハードコード 25 でなく sweet spot 上限から導出 (grid 変更で暗黙にずれない)
+            sweet_spot_max_us = 10
             print(f"\n[{tag}] 適応の backoff スピン占有率 = {adaptive['spin_rate']*100:.1f}% "
-                  f"→ 静的 {parked}us 以上に相当 (sweet spot は別途 fitness で 5-10us)。"
-                  f"{'適応は sweet spot を超えて駐車 = over-throttling を実測' if (parked or 0) >= 25 else ''}")
+                  f"→ 静的 {parked}us 以上に相当 (sweet spot は別途 fitness で 5-{sweet_spot_max_us}us)。"
+                  f"{'適応は sweet spot を超えて駐車 = over-throttling を実測' if (parked or 0) > sweet_spot_max_us else ''}")
     return 0
 
 
