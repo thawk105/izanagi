@@ -49,13 +49,15 @@ class DSG:
     def _build(self) -> None:
         per_key: Dict[str, List[Version]] = defaultdict(list)
         for t in self.txns:
-            # commit が genesis 番兵 (1,0) と衝突する trx は非物理 (Silo の tid は 1 始まり)。
-            # この版を産むと「genesis 読み」と区別できず wr 辺が落ちるため integrity 違反として弾く
-            # (= verdict は indeterminate になる)。FIX2 と対で安全側に倒す。
-            if t.commit == GENESIS:
+            # commit が genesis 番兵 (1,0) 以下の trx は非物理 (Silo の epoch/tid は 1 始まり)。
+            # ちょうど (1,0) は「genesis 読み」と区別できず wr 辺が落ち、(1,0) 未満 (epoch=0 等)
+            # は genesis 読みの直後版判定 (bisect) の並びを狂わせるため、どちらも integrity 違反
+            # として弾く (= verdict は indeterminate になる)。FIX2 と対で安全側に倒す。
+            if t.commit <= GENESIS:
                 self.integrity.genesis_commits += 1
                 self.integrity.notes.append(
-                    f"txid {t.txid} commits at genesis sentinel (1,0) (non-physical)")
+                    f"txid {t.txid} commits at or below genesis sentinel (1,0): "
+                    f"{t.commit} (non-physical)")
             for w in t.writes:
                 kv = (w.key, t.commit)
                 if kv in self.producer and self.producer[kv] != t.txid:

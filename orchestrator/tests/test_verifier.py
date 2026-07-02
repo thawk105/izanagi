@@ -17,7 +17,7 @@ from skiputil import Skip, skip                               # noqa: E402
 from verifier import verify_trace_dir, result_to_dict        # noqa: E402
 from verifier.dsg import DSG                                  # noqa: E402
 from verifier.model import (CycleEdge, EdgeReason, RW, WR, WW)  # noqa: E402
-from verifier.parse import parse_trace_dir                    # noqa: E402
+from verifier.parse import ParseError, parse_trace_dir        # noqa: E402
 
 FIX = os.path.join(_HERE, "fixtures")
 # repo ルート相対で実 Silo トレース (生成済みなら)
@@ -160,12 +160,113 @@ def test_phantom_skew_invisible_documented_limitation():
 # ---- パーサ ----
 
 def test_parser_groups_by_txid_across_files():
-    txns, dups = parse_trace_dir(os.path.join(FIX, "g3_readonly"))
-    assert dups == []
+    txns, issues = parse_trace_dir(os.path.join(FIX, "g3_readonly"))
+    assert issues.dup_txids == []
+    assert issues.missing_txids == 0
+    assert issues.write_version_mismatches == []
+    assert issues.malformed_keys == 0
     assert len(txns) == 2
     by = {t.txid: t for t in txns}
     assert by[0].commit == (1, 1) and len(by[0].writes) == 1
     assert by[1].commit == (1, 2) and len(by[1].reads) == 2 and by[1].thid == 1
+
+
+# ---- 部分 trace / 整合破れの偽陰性ガード (audit 2026-07-02 洗練検査で追加) ----
+#
+# trace-hook が構造的に保証する不変条件 (txid 密連番・W 版 ≡ C commit・小文字 hex key)
+# の破れは「trx や辺が黙って落ちて cycle を隠す」経路。落ちた結果のグラフは非巡回に
+# なりがちなので、certified でなく indeterminate に倒すことが規律2 の要。
+
+def _tmp_trace(*files: str) -> str:
+    """一時 trace dir を作る。files[i] が trace_<i>.log の中身になる。"""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="izanagi_trace_")
+    for i, content in enumerate(files):
+        with open(os.path.join(d, f"trace_{i}.log"), "w") as f:
+            f.write(content)
+    return d
+
+
+def test_missing_txid_gap_indeterminate():
+    """txid 欠番 = trx 丸ごと欠落 (thread の trace ファイル欠落等) は認証しない。
+
+    write-skew の片側 trace ファイルを丸ごと除去すると cycle が消えて serializable に
+    見える (実証済み偽陰性)。txid 密連番保証の破れとして indeterminate に倒す。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nW 0 aa U 1 1\n",
+                   "C 2 1 1 2\nW 2 bb U 1 2\n")     # txid 1 が欠番
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.missing_txids == 1
+        assert not res.integrity.clean()
+        assert res.verdict == "indeterminate"
+        assert not res.certified
+        assert result_to_dict(res)["integrity"]["missing_txids"] == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_write_version_mismatch_indeterminate():
+    """W 行の版 != C 行 commit は trace 口の整合破れとして認証しない。
+
+    blind write の ww 順序ずれは orphan_reads に乗らないため、この照合が無いと
+    cycle を見逃しうる (Phase 3 の合成 CC の trace 口への防壁)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nW 0 aa U 999 888\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.write_version_mismatch == 1
+        assert res.verdict == "indeterminate"
+        assert not res.certified
+        assert result_to_dict(res)["integrity"]["write_version_mismatch"] == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_malformed_key_indeterminate():
+    """key の表現揺れ (大文字 hex 等) は同一キーを別キーに見せ競合辺を黙って消すため
+    認証しない (片側 key を AA にすると辺 0 本で緑になる実証済み偽陰性)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nW 0 AA U 1 1\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.malformed_keys == 1
+        assert res.verdict == "indeterminate"
+        assert not res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_commit_below_genesis_indeterminate():
+    """genesis 番兵 (1,0) 未満の commit (epoch=0 等) も非物理として認証しない
+    (ちょうど (1,0) だけでなく辞書順で下も弾く)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 0 5\nW 0 aa U 0 5\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.genesis_commits == 1
+        assert res.verdict == "indeterminate"
+        assert not res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_nonascii_wrapped_as_parse_error():
+    """バイナリごみ (非 ASCII) は生 UnicodeDecodeError でなく ParseError で返す
+    (pipeline の variant 単位 abort 隔離・exit code 2 の意味を保つ)。"""
+    import shutil
+    import tempfile
+    d = tempfile.mkdtemp(prefix="izanagi_trace_")
+    with open(os.path.join(d, "trace_0.log"), "wb") as f:
+        f.write(b"C 0 0 1 1\n\xff\xfe garbage\n")
+    try:
+        try:
+            verify_trace_dir(d)
+            assert False, "ParseError を期待"
+        except ParseError as e:
+            assert "non-ASCII" in str(e)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 # ---- 分類器の枝 (G0/G1c は well-formed trace では出ないので合成辺で直接) ----

@@ -58,6 +58,9 @@ def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
             "version_dups": res.integrity.version_dups,
             "dup_txids": res.integrity.dup_txids,
             "genesis_commits": res.integrity.genesis_commits,
+            "missing_txids": res.integrity.missing_txids,
+            "write_version_mismatch": res.integrity.write_version_mismatch,
+            "malformed_keys": res.integrity.malformed_keys,
             "notes": res.integrity.notes,
         },
         "anomaly_count": len(res.anomalies),
@@ -94,7 +97,10 @@ def render_text(res: VerifyResult) -> str:
         lines.append(
             f"  ! integrity UNCLEAN -> cannot certify serializable: "
             f"orphan_reads={ig.orphan_reads} version_dups={ig.version_dups} "
-            f"dup_txids={ig.dup_txids} genesis_commits={ig.genesis_commits}")
+            f"dup_txids={ig.dup_txids} genesis_commits={ig.genesis_commits} "
+            f"missing_txids={ig.missing_txids} "
+            f"write_version_mismatch={ig.write_version_mismatch} "
+            f"malformed_keys={ig.malformed_keys}")
     for note in ig.notes:
         lines.append(f"  · {note}")
     if not res.serializable:

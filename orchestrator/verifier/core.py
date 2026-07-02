@@ -16,12 +16,29 @@ from .parse import parse_trace_dir
 
 def verify_trace_dir(trace_dir: str, max_report: Optional[int] = 20) -> VerifyResult:
     """1 run (= 1 trace ディレクトリ) を検証する。"""
-    txns, dup_txids = parse_trace_dir(trace_dir)
+    txns, issues = parse_trace_dir(trace_dir)
     dsg = DSG(txns)
-    dsg.integrity.dup_txids = len(dup_txids)
-    if dup_txids:
-        sample = ", ".join(str(x) for x in dup_txids[:5])
+    dsg.integrity.dup_txids = len(issues.dup_txids)
+    if issues.dup_txids:
+        sample = ", ".join(str(x) for x in issues.dup_txids[:5])
         dsg.integrity.notes.append(f"duplicate txid C-lines: {sample} ...")
+    dsg.integrity.missing_txids = issues.missing_txids
+    if issues.missing_txids:
+        sample = ", ".join(str(x) for x in issues.missing_sample)
+        dsg.integrity.notes.append(
+            f"{issues.missing_txids} txid gap(s) — trace-hook guarantees dense txids, "
+            f"gaps mean whole txns are missing (e.g. {sample})")
+    dsg.integrity.write_version_mismatch = len(issues.write_version_mismatches)
+    if issues.write_version_mismatches:
+        sample = ", ".join(str(x) for x in issues.write_version_mismatches[:5])
+        dsg.integrity.notes.append(
+            f"W-line version != C-line commit in txids: {sample} ...")
+    dsg.integrity.malformed_keys = issues.malformed_keys
+    if issues.malformed_keys:
+        sample = ", ".join(issues.malformed_key_sample)
+        dsg.integrity.notes.append(
+            f"{issues.malformed_keys} malformed key token(s) (expect lowercase even-length "
+            f"hex; case/format drift silently splits conflict edges): {sample}")
 
     anomalies, total = dsg.anomalies(max_report=max_report)
     if total > len(anomalies):

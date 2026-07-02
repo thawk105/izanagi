@@ -111,12 +111,17 @@ class Integrity:
     orphan_reads: int = 0       # 非 genesis なのに producer の write が無い read
     version_dups: int = 0       # 同一 (key, ver) を異なる trx が産んだ
     dup_txids: int = 0          # 同一 txid が複数の C 行を持つ
-    genesis_commits: int = 0    # commit が genesis 番兵 (1,0) と衝突する trx (非物理)
+    genesis_commits: int = 0    # commit が genesis 番兵 (1,0) 以下の trx (非物理)
+    missing_txids: int = 0      # txid の欠番 (密連番保証の破れ = trx 丸ごと欠落)
+    write_version_mismatch: int = 0  # W 行の版が C 行 commit と不一致の trx
+    malformed_keys: int = 0     # key が小文字 hex 形式でない (表現揺れは競合辺を消す)
     notes: List[str] = field(default_factory=list)
 
     def clean(self) -> bool:
         return (self.orphan_reads == 0 and self.version_dups == 0
-                and self.dup_txids == 0 and self.genesis_commits == 0)
+                and self.dup_txids == 0 and self.genesis_commits == 0
+                and self.missing_txids == 0 and self.write_version_mismatch == 0
+                and self.malformed_keys == 0)
 
 
 @dataclass
