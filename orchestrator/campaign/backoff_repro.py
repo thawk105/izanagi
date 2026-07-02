@@ -21,14 +21,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, wal                                  # noqa: E402
+from campaign import ident, source_digest, wal                   # noqa: E402
 from campaign.backoff_sweep import _BASE                         # noqa: E402
 from campaign.layout import campaign_layout                      # noqa: E402
 from campaign.loop import run_campaign                           # noqa: E402
 from campaign.model import CampaignConfig, Genome                # noqa: E402
 from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, ENV_TAG, EXTIME,  # noqa: E402
                            NUMA, RECORDS, REPS, THREADS, _assert_single_tenant)
-from campaign.pipeline import PerfConfig                         # noqa: E402
+from campaign.pipeline import PerfConfig, variant_id             # noqa: E402
 
 CCBENCH_COMMIT = "dff0f1e"
 
@@ -89,10 +89,23 @@ def run_workload(tag: str, log=print) -> dict:
     # WAL キーは run_campaign が src_token まで確定した variant id (D24)。identity を再計算せず
     # summary の EvalResult から引く (consumer が確定点を二重化しない — 旧実装は variant_id(genome)=
     # stock id で引き、BACKOFF_FIXED の非 stock src_token id を取りこぼし「判定不能」に倒れていた)。
+    # ただし recovery skip された variant は s.results に載らない (中断→再開・完走後の再実行)。
+    # その場合のみ loop と同一の確定窓口 (source_digest.resolve) で id を計算して WAL から引く
+    # (resume 耐性 — WAL に bench_done が揃っているのに判定不能へ倒れない、洗練検査 MED)。
     vid = {r.genome.canonical(): r.variant for r in s.results}
+
+    def _vid_of(g: Genome):
+        v = vid.get(g.canonical())
+        if v is not None:
+            return v
+        try:
+            return variant_id(g, source_digest.resolve(g, CCBENCH_COMMIT))
+        except RuntimeError:
+            return None          # 確定不能 → 従来どおり判定不能に倒す (fails-closed)
+
     none_g = Genome("silo", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1})
     best_g = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": o["best_us"]})
-    none_v, best_v = vid.get(none_g.canonical()), vid.get(best_g.canonical())
+    none_v, best_v = _vid_of(none_g), _vid_of(best_g)
     none_tps = _bench_tps(layout, none_v) if none_v else None
     best_tps = _bench_tps(layout, best_v) if best_v else None
     if none_tps is None or best_tps is None:
