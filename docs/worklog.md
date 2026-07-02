@@ -1269,3 +1269,47 @@ fitness/admission/median の数値正当性。submodule gitlink pin (dff0f1e) �
 
 **人間判断待ち (実施しない):** submodule dirty の checkout (destructive、計測時の patch 再適用運用と絡む) /
 backoff-if `#if defined()` ガード (D22 人間専管 + inert digest 再固定要、6/30 判断を維持) / CLAUDE.md:154 7x7 表現。
+
+## 2026-07-02 (続き2) — 洗練セッション完了: 15 コミットで backlog + 新規 finding を消化
+
+冒頭エントリ (「現状の洗練」検査) の修正計画を完遂した。テストは 134 → **143 全緑** (+9)、
+bare runner 5 本 OK。コミット系列 (54aa6ec 引き継ぎ〜):
+
+1. **docs/spec 鮮度** (d16f7dc, 8e06a37, a1661d2): roadmap §6/§8・phase2・decisions・agent-arch・
+   patches README・guided/genome/cli/buildcache docstring・orchestrator README 実構成化・
+   agent spec python3 + 書き込み隔離宣言の honest 化 (§4 段1)。
+2. **テスト品質** (d96264f): skiputil で return 疑似スキップを両 runner とも SKIP 可視化、
+   except Exception 枝、tests/README 新設。
+3. **calibrator** (4d1f25f): clocks_per_us フォールバックの成果物記録 + max_records 16m 統一。
+4. **verifier 硬化** (36a1193): 部分 trace / 整合破れの偽陰性 4 種を integrity で遮断 —
+   [HIGH] txid 欠番 (trx 丸ごと欠落が certified になる実証済み偽陰性)・W 行版照合・key 形式・
+   genesis 番兵未満 + UnicodeDecodeError の ParseError 化。手製フィクスチャ p1 の txid を実仕様
+   (0 始まり) に追従。実 Silo 184k txn で誤発火なし。
+5. **campaign 硬化** (02b08eb, 9cde781, ec5aaaf, a649fe7): [HIGH] D25 retryable の破れ
+   (last→last_terminal 基準化、in-flight クラッシュで permanent skip が復活する穴)・identity skip
+   可視化・CV=None admission・records assert→例外・TRACE 予約名 reject・規律1 防壁 fails-closed 化
+   (calibrator CLI 入口 nm 検査新設 / buildcache nm silent pass 廃止)・cache_key に cc/cxx・
+   S4 Rejection にコード軸 id (variant/src_token)・backoff_repro の resume 耐性。
+6. **C1 drift 恒久対応** (065593a): discover_campaign_dir 統一で report/critic 3 本が歴史的
+   campaign を再出力 (+38.3%/+11.3% の根拠 sweet spot 復活、再生成物は既存とバイト一致 =
+   決定的再現の証明)。p2_2 に calibration 実行時照合。
+7. **統計/可視性** (cf62e81): rep 失敗 notes の永続化 (JSON + WAL)・確率優越 a (tie 半加算) 追加・
+   Gate1 √2 の統計的意味を docstring 化・between_run_floor None ガード。
+8. **simplify** (f8f423a): dead import 6 件・repro_command 誤記 (reps=3→5) + .dat 再生成・
+   env_scope_dir 集約。大物統合 (WAL リーダ 4 重等) は規律5 で見送り、台帳に方針記録。
+9. **CLAUDE.md 現在地** (608a72b、独立コミット・人間レビュー用) + **D28** (warmup 意図的非対応,
+   39a607e) + 台帳・worklog 同期 (本コミット)。
+
+**人間判断待ち (実施していない):** (1) submodule dirty の checkout 戻し (destructive)、
+(2) backoff-if `#if defined()` ガード (D22 人間専管 + inert digest 再固定)、(3) patches フォーマット
+統一 (broken-silo 再生成 = 規律2 positive control の byte 一致検証を伴う)、(4) **P2-5 の主指標を
+p_lt→a に置換 + p2-5-summary 再生成 + D21 結論文の再解釈** — p_lt の 0.5 基準は同分布でも 0.4375 と
+出る系統バイアスで negative result を強める方向だった。a への置換で「誘導は有意に上回らず」の一部
+(balanced) が変わる可能性があり、主張に触るため人間の指示で行う。
+
+**持ち越し (台帳「2026-07-02 洗練検査」§参照):** trx 尾部欠落 (trace 形式拡張 = S1 と同時)、
+build-error retryable 非対称 (Phase 3 abort payload 設計と同時)、digest への unstable 伝搬、
+Gate1 √2 の閾値意味論 (Phase 3 設計判断)。
+
+### 次の一手 (変わらず)
+- **Phase 3 タスク3 (H3 hooks 実体化)** — §1 残り 2 項目 (allowlist untracked / hooks) を同梱。
