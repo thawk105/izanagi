@@ -12,7 +12,7 @@ CCBench を素材コーパスとして、入力ワークロードに最適な CC
 
 ## 現在の状態
 
-**Phase 2 (パラメータ探索) 完了。次は Phase 3 (合成) 着手。** Phase 1 (評価器の構築) は完了済み — trace verifier・calibrator が `orchestrator/` に実装され、評価パイプライン (正しさ + 性能) が信頼できる状態。Phase 2 は P2-0〜P2-5 + A2 完了 (silo 全探索、critic/profiler 実体化、backoff ケーススタディで stock 最良を contention 域で +38%/+11% 上回る合成を certified で達成)。主実験 P2-5 は negative result (フラグ探索は実質 1 ビットの自明空間ゆえ「誘導が速い」は構造的に主張不能 → 価値は空間外の合成にある、D21)。S4 (規律3 配線) 完了済み。次は Phase 3 (LLM が CC コードを合成: planner/coder/auditor)。詳細な現在地は `CLAUDE.md` と `docs/worklog.md` 末尾。
+**Phase 2 (パラメータ探索) 完了。次は Phase 3 (合成) 着手。** Phase 1 (評価器の構築) は完了済み — trace verifier・calibrator が `orchestrator/` に実装され、評価パイプライン (正しさ + 性能) が信頼できる状態。Phase 2 は P2-0〜P2-5 + A2 完了 (silo 全探索、critic/profiler 実体化、backoff ケーススタディで stock 最良を contention 域で +38%/+11% 上回る合成を certified で達成)。主実験 P2-5 は negative result (LLM 誘導は機械的勾配で達成できる水準を超えず、deceptive 構造では有意に有害 → 価値は空間外の合成にある、D21/D29)。S4 (規律3 配線) 完了済み。次は Phase 3 (LLM が CC コードを合成: planner/coder/auditor)。詳細な現在地は `CLAUDE.md` と `docs/worklog.md` 末尾。
 
 実装を読む/進める前に、必ず以下を順に読むこと:
 

@@ -925,6 +925,8 @@ balanced・write-heavy **k=1** (B0-L-W0、2位が7.08%/11.49%下)。手動 pytho
 
 read-heavy (k=4) はどの戦略にも余地なし=到達判定が情報を持たない (主張対象外)。**k=1 は完璧なオラクルなら
 2.6本削減の余地が構造的にあるが、digest の機械的貪欲はゼロしか取れない** (P(貪欲<random) 全て 0.5 未満)。
+(※2026-07-02 D29 で撤回: この P 列 = p_lt は同分布でも 0.5 を下回る系統バイアスを持ち、確率優越 a への
+再校正後は貪欲は balanced で random より有意に速い (a=0.533, exact p≈0.005)。同日エントリ参照。)
 → 残る唯一の鋭い問い: **LLM critic の帰属知能は機械的貪欲を超えてオラクル天井 (1.9) に近づくか?** 効果量が大きい
 (貪欲4.3 vs オラクル1.9) ので小Kで判別可能。誘導アームが確認作業でなく本実験になった。
 
@@ -942,6 +944,8 @@ Bash で駆動する形に。中立 critic を **30 試行** (balanced/write-hea
 | write-heavy | 1 | 4.50 | 1.88 | 4.36 | **6.33** | 0.208 | **8/12** |
 
 - balanced (clean な BACK_OFF=0 支配): 誘導が僅かに有利だが P=0.531 で有意でなく、オラクル余地 2.62 本の 1/4 のみ。
+  (※2026-07-02 D29 で再校正: この表の P 列 = p_lt は系統バイアス込み。a 基準の正確な読みは同日エントリと
+  insight 追記参照 — 総合結論は不変、支柱は「vs 貪欲 無優位 + deceptive で貪欲比有意に有害」へ。)
 - **write-heavy (deceptive、BACK_OFF=1 の B1-T-W0 が実2位 −11%)**: 誘導が random/貪欲より**遅い**。誤収束 8/12 で
   critic が BACK_OFF=1 genome 等に確信停止し winner B0-L-W0 を評価しない。clean な balanced で校正された自信ある帰属が
   誤誘導 + 早期停止 → **critic の知能が deceptive 帯で負債**。random/貪欲は早期停止しないので必ず当てる。
@@ -1313,3 +1317,31 @@ Gate1 √2 の閾値意味論 (Phase 3 設計判断)。
 
 ### 次の一手 (変わらず)
 - **Phase 3 タスク3 (H3 hooks 実体化)** — §1 残り 2 項目 (allowlist untracked / hooks) を同梱。
+
+## 2026-07-02 (続き3) — 人間判断待ち 4 件をユーザー承認のもと消化 (P2-5 再校正 D29 / backoff #error / patches 統一 / submodule clean)
+
+ユーザー「その4件は対応した方が良さそうだよね?」の承認を受け、洗練セッションで人間判断待ちと
+した 4 件を全て対応した。
+
+1. **P2-5 指標再校正 (D29、39c44cc)** — 最重要。p_lt の系統バイアス (同分布 null=0.4375) を
+   確率優越 a に置換。**敵対検証が機能した**: 当初解釈「balanced では誘導も random より有意に速い
+   (t p=0.016)」を独立統計検証が exact 検定 (p=0.144)・Holm 補正・分散縮小 (大外れ回避) の指摘で
+   棄却。確定した再解釈 =「貪欲は balanced で有意に速い (a=0.533, exact p≈0.005、旧『ゼロしか
+   取れない』を撤回)。誘導は貪欲を超えず (A=0.581 有意差なし)、deceptive では貪欲より有意に有害
+   (A=0.230, permutation p<10⁻⁴、打ち切り感度に頑健。機序 = 自信ある早期停止の負債)」。
+   **D21 総合結論は不変・むしろ強化** (支柱が vs random から vs 貪欲 ablation へ移動)。
+   成果物: p2-5-summary.json に recalibration 追記 (既存キー不変・再実行で消えないマージ保持) /
+   insight 追記 / p2_5・search_baselines の a 主指標化 + null 校正テスト / D21 へのポインタ /
+   phase2・README・CLAUDE.md の文言更新 / 本 worklog 過去 2 エントリに撤回・再校正の注記。
+2. **backoff.hh 骨格に #ifndef+#error (4f7bb3c)** — audit 案の defined() ガードは実測で「gcc が
+   短絡し -Werror=undef が発火しない = source_digest の fails-closed が黙って stock 縮退に弱まる」
+   トレードオフが判明、より強い #error (全経路コンパイル停止) を採用。inert digest 7664020a /
+   variant digest とも byte 一致を実測 (audit が懸念した baseline 再固定は不要)。round-trip 検証済み。
+3. **patches フォーマット統一 (92e1cd8)** — broken-silo を git diff 形式に再生成。clean checkout に
+   新旧 patch を適用した transaction.cc の byte 一致で規律2 positive control の不変を証明。
+4. **submodule clean 戻し (d6bc750 で test 追従)** — dirty が silo-backoff-fixed.patch と完全一致
+   (逆適用成功) を確認して checkout。gitlink dff0f1e 不変。patch 適用前提のテスト 3 本は skip として
+   可視化される (140 passed + 3 skipped)。次回計測/Phase 3 ビルド時は patch を再適用する。
+
+### 次の一手 (変わらず)
+- **Phase 3 タスク3 (H3 hooks 実体化)**。

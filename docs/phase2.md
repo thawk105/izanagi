@@ -112,11 +112,14 @@ winner-tied set k=4=空間の半分で到達判定が無情報、k=1 でも完�
 - [ ] (任意) cicada/oze 等に protocol を広げ空間拡大 — critic の価値実証の前提だが S1 (trace-hook 拡張) を要する
       ので Phase 3 隣接で判断
 
-**完了条件:** 達成。誘導は random/貪欲を有意に上回らず (balanced は余地 2.62 本の 1/4・P(誘導<random)=0.531 で
-有意でない・誤収束 0/12、read-heavy は余地なし)、deceptive 構造 (write-heavy、BACK_OFF=1 が実2位) では誤収束
-**8/12** で random より遅い (P=0.208) = critic の「自信ある早期停止」が deceptive 帯で負債。silo 8 では誘導の価値は
-実証できず空間拡大が前提、という negative result を確率優越 + 誤収束率で定量化。P2-4 backoff 合成 (空間外で勝つ
-positive) との対比が Phase 2 の物語。insight 2026-06-29_p2-5-guided-vs-enumeration.md / decisions D21。
+**完了条件:** 達成。誘導 (LLM) は機械的勾配 (critic 無し貪欲) で達成できる水準を超えず (balanced で
+誘導 vs 貪欲 A=0.581・有意差なし)、deceptive 構造 (write-heavy、BACK_OFF=1 が実2位) では誤収束 **8/12**
+で貪欲より有意に有害 (A=0.230, permutation p<10⁻⁴) = critic の「自信ある早期停止」が deceptive 帯で負債。
+貪欲自体は balanced で random より有意に速い (a=0.533、ただし余地の 1 割) ので、「空間に余地が無い」の
+でなく「LLM 固有の付加が貪欲から分離できない」が正確な主張。silo 8 では誘導の価値は実証できず空間拡大が
+前提、という negative result を確率優越 a (D29 再校正済み — 旧 p_lt は系統バイアス) + 誤収束率で定量化。
+P2-4 backoff 合成 (空間外で勝つ positive) との対比が Phase 2 の物語。
+insight 2026-06-29_p2-5-guided-vs-enumeration.md (再校正追記あり) / decisions D21・D29。
 
 ---
 
