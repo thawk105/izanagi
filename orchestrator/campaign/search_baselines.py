@@ -207,6 +207,72 @@ def prob_superiority_two_sample(xs: List[int], ys: List[int]) -> float:
     return (wins + 0.5 * ties) / (len(xs) * len(ys))
 
 
+def exact_perm_pvalue_A(xs: List[int], ys: List[int],
+                        alternative: str = "less") -> Dict[str, float]:
+    """A = P(x<y) + 0.5·P(x=y) の permutation 検定を厳密に計算する (Monte Carlo でない)。
+
+    帰無 = 交換可能性 (pooled xs+ys から len(xs) 本を非復元で選ぶどの分割も等確率)。
+    到達コストは離散小値域 (1..N) なので、選抜側の値別本数ベクトル (多変量超幾何) の
+    全構成を列挙すれば厳密な片側 p が得られる: alternative="less" は P(A ≤ A_obs)
+    (xs が大きい = 遅い/有害方向の検定)、"greater" は P(A ≥ A_obs)。境界の同値判定は
+    整数統計量 T = 2·wins + ties (= A·2·m·(n−m)) で行い浮動小数誤差を排除する。
+
+    D29「有意主張は permutation で」の実体をコードとして固定するもの。P2-5 write-heavy
+    誘導 vs 貪欲の p = 2.52×10⁻⁴ はこの関数の出力 (旧記録の「p<1e-4」は方式未記録の
+    過大表示 → p2-5-summary.json correction_2026_07_03 で訂正)。値域が広い標本に使うと
+    構成列挙が組合せ爆発するので、到達コストのような小値域専用。"""
+    if alternative not in ("less", "greater"):
+        raise ValueError(f"alternative={alternative!r} は less / greater のみ")
+    if not xs or not ys:
+        raise ValueError("xs / ys は空にできない")
+    m = len(xs)
+    pooled: Dict[int, int] = {}
+    for v in list(xs) + list(ys):
+        pooled[v] = pooled.get(v, 0) + 1
+    vals = sorted(pooled)
+    counts = [pooled[v] for v in vals]
+    n = sum(counts)
+
+    def t_of(cx: List[int]) -> int:
+        cy = [c - x for c, x in zip(counts, cx)]
+        wins = sum(cx[i] * cy[j] for i in range(len(vals)) for j in range(len(vals))
+                   if vals[i] < vals[j])
+        ties = sum(cx[i] * cy[i] for i in range(len(vals)))
+        return 2 * wins + ties
+
+    xcnt: Dict[int, int] = {}
+    for v in xs:
+        xcnt[v] = xcnt.get(v, 0) + 1
+    t_obs = t_of([xcnt.get(v, 0) for v in vals])
+
+    suffix = [0] * (len(vals) + 1)
+    for i in range(len(vals) - 1, -1, -1):
+        suffix[i] = suffix[i + 1] + counts[i]
+
+    hit = 0
+    n_configs = 0
+    cx = [0] * len(vals)
+
+    def rec(i: int, remaining: int, weight: int) -> None:
+        nonlocal hit, n_configs
+        if i == len(vals):
+            n_configs += 1
+            t = t_of(cx)
+            if (t <= t_obs) if alternative == "less" else (t >= t_obs):
+                hit += weight
+            return
+        lo = max(0, remaining - suffix[i + 1])
+        hi = min(counts[i], remaining)
+        for c in range(lo, hi + 1):
+            cx[i] = c
+            rec(i + 1, remaining - c, weight * comb(counts[i], c))
+        cx[i] = 0
+
+    rec(0, m, 1)
+    return {"p": hit / comb(n, m), "A": t_obs / (2 * m * (n - m)),
+            "n_configs": n_configs}
+
+
 def _summ(costs: List[int]) -> Dict[str, float]:
     import statistics
     cs = sorted(costs)

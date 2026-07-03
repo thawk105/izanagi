@@ -1329,6 +1329,8 @@ Gate1 √2 の閾値意味論 (Phase 3 設計判断)。
    棄却。確定した再解釈 =「貪欲は balanced で有意に速い (a=0.533, exact p≈0.005、旧『ゼロしか
    取れない』を撤回)。誘導は貪欲を超えず (A=0.581 有意差なし)、deceptive では貪欲より有意に有害
    (A=0.230, permutation p<10⁻⁴、打ち切り感度に頑健。機序 = 自信ある早期停止の負債)」。
+   *(訂正 2026-07-03: 「p<10⁻⁴」は方式未記録の過大表示 — 厳密 permutation で p=2.52×10⁻⁴。
+   Holm ×6 でも有意で結論不変。summary.json `correction_2026_07_03` / D29 末尾の訂正注記参照)*
    **D21 総合結論は不変・むしろ強化** (支柱が vs random から vs 貪欲 ablation へ移動)。
    成果物: p2-5-summary.json に recalibration 追記 (既存キー不変・再実行で消えないマージ保持) /
    insight 追記 / p2_5・search_baselines の a 主指標化 + null 校正テスト / D21 へのポインタ /

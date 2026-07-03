@@ -546,7 +546,8 @@
     "greedy_a": 0.5172,
     "guided_vs_greedy_A": 0.2304,
     "guided_vs_greedy": "誘導は貪欲より有意に有害 (permutation p<1e-4。打ち切り感度・Holm に頑健)。機序は探索順序でなく自信ある早期停止の負債 (誤収束 8/12。到達した 4 試行のコスト [1,3,4,4] は貪欲と遜色ない)",
-    "guided_vs_random": "a=0.2708 は未到達=8 算入の処理依存 (感度幅 0.23-0.39、予算まで継続の反実仮想では非有意化) — 単体で headline にしない"
+    "guided_vs_random": "a=0.2708 は未到達=8 算入の処理依存 (感度幅 0.23-0.39、予算まで継続の反実仮想では非有意化) — 単体で headline にしない",
+    "correction": "guided_vs_greedy の「permutation p<1e-4」は過大表示 — 厳密値 p=2.52e-4 (correction_2026_07_03 参照。結論不変)"
    },
    "read_heavy": {
     "guided_a": 0.5476,
@@ -555,5 +556,17 @@
    }
   },
   "conclusion": "D21 の総合結論 (LLM 誘導固有の価値は主張不能・deceptive 構造では有害・価値は空間外の合成にある) は不変、むしろ強化。旧表現『誘導は random を有意に上回らない』は p_lt バイアス込みの記述で、正確には『誘導は機械的勾配 (貪欲) で達成できる水準を超えず (A=0.58 有意差なし)、deceptive では貪欲より有意に有害 (A=0.23)。貪欲自体は balanced で random より有意に速い (ただし天井の 1 割)』。negative 結論の支柱は vs random から vs 貪欲 (D21 が設計段階で入れた ablation) に移った。"
+ },
+ "correction_2026_07_03": {
+  "target": "recalibration_2026_07_02.results.write_heavy.guided_vs_greedy の「permutation p<1e-4」(および同旨の docs 4 箇所: phase2.md / decisions.md D29 / insight 2026-06-29 追記表 / worklog 2026-07-02)",
+  "reason": "方式・反復数が未記録の Monte Carlo 由来の過大表示 (超過 0 件を桁で「<1e-4」と表記した類)。Phase 2 完了監査 (2026-07-03) の敵対検証が独立再計算で指摘し、本セッションの自前再計算でも確定。",
+  "method": "厳密 permutation: 帰無 = 交換可能性 (pooled 512 本 = guided 12 + greedy 500 から 12 本を非復元抽出するどの分割も等確率)。到達コストは離散小値域なので選抜側の値別本数ベクトル (多変量超幾何) の全 50268 構成を列挙し P(A <= A_obs) を厳密計算 (片側 less = 有害方向)。境界は整数統計量 T = 2*wins + ties で判定し浮動小数誤差を排除。search_baselines.exact_perm_pvalue_A としてコード化し、test_guided.py::test_exact_perm_pvalue_frozen_write_heavy が入力度数分布ごと凍結回帰。",
+  "inputs": "rows[write-heavy].guided_costs = [1,3,4,4,8*8] (本ファイル凍結) + search_baselines.run_workload('write-heavy', k_trials=500, seed0=0) の決定論 replay (greedy 度数 {1:62,2:66,3:67,4:35,5:31,6:182,7:57}。凍結 greedy_p_lt=0.45475 との byte 一致で同一性確認)。新規計測ゼロ。",
+  "value": {
+   "write_heavy_guided_vs_greedy_exact_p": 0.0002521080185096,
+   "A_recomputed": 0.2304166666666667,
+   "n_configs": 50268
+  },
+  "conclusion_unchanged": "Holm x6 でも p≈1.5e-3 < 0.05 なので「誘導は貪欲より有意に有害」・A=0.230 は不変。balanced の guided_vs_greedy p≈0.16 は上側裾 (greater) の厳密再計算と整合し訂正不要。recalibration_2026_07_02 節は 07-02 の記録として原文のまま保持 (本節が訂正を上書き適用する)。"
  }
 }

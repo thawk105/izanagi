@@ -114,7 +114,9 @@ winner-tied set k=4=空間の半分で到達判定が無情報、k=1 でも完�
 
 **完了条件:** 達成。誘導 (LLM) は機械的勾配 (critic 無し貪欲) で達成できる水準を超えず (balanced で
 誘導 vs 貪欲 A=0.581・有意差なし)、deceptive 構造 (write-heavy、BACK_OFF=1 が実2位) では誤収束 **8/12**
-で貪欲より有意に有害 (A=0.230, permutation p<10⁻⁴) = critic の「自信ある早期停止」が deceptive 帯で負債。
+で貪欲より有意に有害 (A=0.230, exact permutation p=2.5×10⁻⁴ — 初出の「p<10⁻⁴」は方式未記録の
+過大表示で 2026-07-03 に厳密計算へ訂正、`search_baselines.exact_perm_pvalue_A`。Holm ×6 でも
+有意で結論不変) = critic の「自信ある早期停止」が deceptive 帯で負債。
 貪欲自体は balanced で random より有意に速い (a=0.533、ただし余地の 1 割) ので、「空間に余地が無い」の
 でなく「LLM 固有の付加が貪欲から分離できない」が正確な主張。silo 8 では誘導の価値は実証できず空間拡大が
 前提、という negative result を確率優越 a (D29 再校正済み — 旧 p_lt は系統バイアス) + 誤収束率で定量化。

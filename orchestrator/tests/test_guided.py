@@ -21,7 +21,8 @@ from campaign.genome import SILO_SPACE                            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
                             STAGE_COMMIT)
-from campaign.search_baselines import (expectation, oracle_ceiling,  # noqa: E402
+from campaign.search_baselines import (exact_perm_pvalue_A,       # noqa: E402
+                                       expectation, oracle_ceiling,
                                        prob_superiority,
                                        prob_superiority_two_sample,
                                        random_reach_distribution, reached_cost)
@@ -135,6 +136,50 @@ def test_prob_superiority_two_sample_null_and_direction():
     assert abs(prob_superiority_two_sample(xs, xs) - 0.5) < 1e-9
     assert prob_superiority_two_sample([1, 1], [5, 6]) == 1.0
     assert prob_superiority_two_sample([7, 8], [1, 2]) == 0.0
+
+
+def test_exact_perm_pvalue_hand_calculated():
+    """厳密 permutation の校正: 分割を手で列挙できる小ケースと突合。
+
+    xs=[1,2] vs ys=[1,3]: pooled {1:2,2:1,3:1} から 2 本選ぶ C(4,2)=6 分割は
+    構成 (A値, 重み) = (1.0,1)/(0.625,2)/(0.375,2)/(0.0,1)。観測 A=0.625 なので
+    less: P(A≤0.625)=5/6、greater: P(A≥0.625)=3/6。"""
+    res = exact_perm_pvalue_A([1, 2], [1, 3], "less")
+    assert abs(res["p"] - 5 / 6) < 1e-12
+    assert abs(res["A"] - 0.625) < 1e-12
+    assert res["A"] == prob_superiority_two_sample([1, 2], [1, 3])  # A の定義一致
+    assert abs(exact_perm_pvalue_A([1, 2], [1, 3], "greater")["p"] - 0.5) < 1e-12
+    # 2 標本 1 本ずつ: 選抜 2 通りのみ
+    assert exact_perm_pvalue_A([1], [2], "less")["p"] == 1.0
+    assert exact_perm_pvalue_A([2], [1], "less")["p"] == 0.5
+    # 同一多重集合同士は対称: A=0.5 で less/greater とも中央値を含み ≥0.5
+    sym = exact_perm_pvalue_A([1, 2, 3], [1, 2, 3], "less")
+    assert abs(sym["A"] - 0.5) < 1e-12 and sym["p"] >= 0.5
+    try:
+        exact_perm_pvalue_A([1], [2], "two-sided")
+        raise AssertionError("alternative='two-sided' が ValueError にならなかった")
+    except ValueError:
+        pass
+
+
+def test_exact_perm_pvalue_frozen_write_heavy():
+    """P2-5 write-heavy 誘導 vs 貪欲の p の凍結回帰 (correction_2026_07_03)。
+
+    guided_costs は p2-5-summary.json 凍結値、greedy 500 本は
+    run_workload('write-heavy', k_trials=500, seed0=0) の決定論 replay の度数分布
+    (凍結 greedy_p_lt=0.45475 と byte 一致することは summary.json provenance で確認済み)。
+    旧記録「permutation p<1e-4」は方式未記録の Monte Carlo による過大表示で、
+    厳密値は 2.52×10⁻⁴ (Holm ×6 でも <0.05 なので「有意に有害」の結論は不変)。"""
+    guided = [1, 3, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8]
+    greedy_hist = {1: 62, 2: 66, 3: 67, 4: 35, 5: 31, 6: 182, 7: 57}
+    greedy = [v for v, c in greedy_hist.items() for _ in range(c)]
+    assert len(greedy) == 500
+    res = exact_perm_pvalue_A(guided, greedy, "less")
+    assert abs(res["p"] - 2.521080185096e-04) < 1e-12
+    assert abs(res["A"] - 0.230416666667) < 1e-9   # 凍結 guided_vs_greedy_A=0.2304
+    assert res["n_configs"] == 50268
+    assert 1e-4 < res["p"] < 3e-4                  # 「p<1e-4」が過大表示だったことの固定
+    assert res["p"] * 6 < 0.05                     # Holm ×6 でも有意 = 結論不変
 
 
 # ---- winner-tied set = no-difference 連結成分 (winner pivot 非依存) ----
