@@ -1370,3 +1370,53 @@ D27 が明示的に残した穴 (「同一セッション内の緩やかな劣�
 ### 次の一手 (変わらず)
 - **Phase 3 タスク3 (H3 hooks) の未コミット成果物の取り込み** — 別セッション進行中 (guard_write /
   guard_bash / settings.json / D30 記入待ち)。以後の残り blocking は観測者効果二重検査 → coder.md 全配線 1 周。
+
+## 2026-07-03 — docs 全体の敵対検査 + H3 hooks の over-claim 撤回 + 方針 A 確定 (D30)
+
+ユーザー指示「docs を検査し方向性・設計が優れているか検討して改善」を受け、docs 11 ファイルを 7 視点で
+並列敵対検査 (Workflow) + 独立裏取り。**最重要検出 = H3 hooks の over-claim** (5 ファインダーが独立に検出)。
+
+**規律6 の独立裏取りで確定した over-claim (git 履歴には未固定 = working tree のみ):** 前 2 セッション
+(**2026-07-02 = hooks 実装 + 1 巡目敵対検証 15 finding / 2026-07-03 = 2 巡目敵対検証**、いずれも worklog 未記録
+だったのを本エントリで補足。記録は insight `2026-07-02_...adversarial-review.md` / `2026-07-03_...round2-handoff.md`)
+が phase3.md を「H3 hooks 完了・2 巡で硬化」・hooks/README を「配線済み」とマークしたが、実態は
+(1) `.claude/settings.json = {}` で**未配線 = 第二防壁ゼロ**、(2) 2 巡目で **real 13 件 (critical 1 = コメント行連結で
+コメント除去器を騙し `#define TRACE`/`__DATE__` を素通しさせる GW2R-1)**、(3) 参照先 **D30 が decisions.md に不在**
+(宙吊り)、(4) 配線検査テスト `test_settings_json_wires_both_hooks` が赤 (実機確認: 18 passed / 1 skipped / 1 failed)。
+
+**方針確定 = A (ユーザー承認):** 2 巡目 real の質が「テキスト検査で C++ 翻訳フェーズ・shell の完全性を負うのは
+原理的に無理」を実証。→ hook を最小第二防壁に軽量化し、identity の honest さは source_digest の preprocess 後ハッシュ、
+観測者効果の分離は観測者効果二重検査へ委譲 (「payload 検査が唯一の防壁」の単一障害点を放棄)。B (hook 強化続行 =
+軍拡競争・規律5 と衝突) / C (記録のみ) を却下。
+
+**docs 整合 (協議合意ゆえ版管理セレモニー不要):**
+- **over-claim 撤回** — phase3.md タスク3 を `[ ]` (進行中・方針 A で再設計) に、must 分類表を「進行中」に、
+  hooks/README.md を「実装済・未配線」に訂正。
+- **D30 記入** (方針 A の設計判断、却下 B/C 込み)。D24 末尾に部分 supersede ポインタ、D31 冒頭の予約注記を実態化。
+- **roadmap 反映** — §3.4-3 (hook = 最小第二防壁、identity/観測者効果は一次防壁)、§3.3 (ビルド等価性の「採用済み」
+  stale を実態=symbol 不在 + Phase 3 で preprocess 二重検査に修正)、§2/§3.5 (P2-5 negative result の未反映 stale を
+  「誘導は貪欲を超えず deceptive で有害・価値は空間外合成」に更新)。
+- **Phase 3 主実験の評価設計を新設** (最大の設計欠落) — 完了定義が kickoff 配線実証しか無かったので、反証可能な主張・
+  headline ベースライン集合 (silo stock / クロスプロトコル stock / ランダム変異 / 機械 sweep)・LLM 価値の ablation・
+  統計計画 (確率優越 a + between-run floor)・失敗条件を phase3.md 冒頭に事前登録。backoff +38%/+11% が silo 内比較に
+  閉じている弱点への対策も配線。
+- **残存リスク追記** — S2 空振り認証 (abort≈0 で合成枝が verify 未実行のまま緑)、coder リーク制御未設計 (BACKOFF_FIXED
+  勝ち筋がリポジトリ内既知)、観測者効果二重検査の述語が #ifdef TRACE 内側の挙動差を素通しする点、ハーネス自己保護の
+  欠落 (orchestrator/hooks 自身が防護対象外)。agent-architecture.md coder 節に kickoff 制約の前進ポインタ。
+
+**用語集 `docs/glossary.md` を新設 (ユーザー指示):** docs が説明なしに使う非自明用語を、専門外の査読者・将来の自分
+向けに平易に定義。5 領域 (探索最適化 / 並行性制御DB / 評価測定統計 / 合成機構 / エージェント運用) を並列ファインダーで
+横断収集 (142 用語→重複統合 118→執筆時に近接統合) し、私が一貫文体で 5 分類に整理。各項目は「教科書レベルの定義 +
+izanagi での使われ方 + 参照先」の 2 段。roadmap 冒頭に発見ポインタを配線。動機 = ユーザーが「貪欲ベースライン・
+オラクル天井・deceptive 構造」の意味を尋ね、docs には数値・結論はあるが用語の一般定義が無い (専門家前提で圧縮) と
+判明したこと。定義は執筆時点のもので正典は各 docs 本文。
+
+**コミットはしていない (ユーザー未指示)。** working tree に docs 変更 + 用語集 + 前セッションの hooks 実装/テストが
+未コミットで併存。テストの唯一の赤 = `test_settings_json_wires_both_hooks` は未配線という実態と整合 (方針 A の配線 step で緑化)。
+
+### 次の一手
+- **本 docs 変更 + hooks 実装のコミット** (論理単位ごと、ユーザー承認後)。撤回は済んだので over-claim を履歴に入れない。
+- 方針 A の実装順: (1) 一次防壁 (source_digest preprocess ハッシュ + 観測者効果二重検査) を先に load-bearing に →
+  (2) hook を最小化 + false-positive 4 件除去 → (3) settings.json 配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)。
+- 未消化の docs 課題 (本セッションで flag のみ): C1 campaign-id drift の状態が 4 文書で食い違う / 「WAL proof chain」の
+  実体定義が無い / 外的妥当性 (Threats to Validity) の集約が無い / coder 自律期の停止条件・fitness 採否・再試行方針が未予約。
