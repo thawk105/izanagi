@@ -1473,3 +1473,67 @@ bench_lock の排他が pipeline 外計測スクリプトを覆わない (pgrep 
 - **Phase 3 タスク3 (H3 hooks 方針 A の実装)** — 順序: 一次防壁 → hook 最小化 → settings.json 配線。
 - 未消化の docs 課題 (残り): 「WAL proof chain」の実体定義 / 外的妥当性の集約 / coder 自律期の
   停止条件・fitness 採否・再試行方針の予約。
+
+## 2026-07-03 — Phase 3 計画の多視点敵対検査 + 検出 30 件のうち計画欠陥系を phase3.md に反映
+
+ユーザー指示「phase3 と roadmap を検査して phase3 の計画を練る (問題・改善点)」。6 視点 (内部整合 /
+roadmap・規律整合 / 実装実態との突合 / 実験設計・統計 / 規律突破面の残穴 / 運用・段取り) の並列
+ファインダー → 指摘ごとの独立裁定 (real/refuted/known) の 38 エージェント構成 (読み取りのみ・新規計測ゼロ)。
+**裁定 = real 30 (high 11 / medium 16 / low 3)・refuted 2・既知重複 0**。全指摘の証拠付き裁定はセッション
+成果物として保持、構造的欠陥はユーザー承認のもと phase3.md に反映済み (下記)。
+
+**検出した構造的欠陥 3 つ (いずれも複数ファインダーが独立検出):**
+1. **主実験に到達する道が計画に無い** — 事前登録した headline 4 対照 + LLM ablation を実行する段が
+   後続段 1-5 に不在。特に headline 2 (クロスプロトコル stock 最良) は trace-hook が silo/si にしか無く
+   pipeline.evaluate (verify 必須) では COMMIT 不能 = S1 が前提なのに、must 表の S1 発火条件が主実験を
+   数えていなかった。「sort 段以降の主張は従う」の文言も段 4 (coder 自律期、sort より前) を拘束できず。
+2. **kickoff 完了条件が検査不能かつ自己矛盾** — abort>0 確認が 2 箇所で「完了条件に追加」と宣言され
+   ながら本文未反映、かつ WAL に abort 数が記録されておらず (STAGE_VERIFY_DONE payload は 4 項のみ・
+   _run_trace は stdout を捨てる) 確認自体が実行不能。「純 timing (or inert no-op) が stock cache-hit で
+   commit」は選言で no-op 単独完了を許し、「純 timing が cache-hit」は identity 設計の故障状態を合格と
+   読める。apply/revert 駆動部 (機構節が約束する pinned-clean assert 込み) も未実装・タスク無所属。
+3. **一次防壁の穴 (方針 A の実効性)** — (i) 観測者効果二重検査 (blocking) の旧述語「両ビルドの
+   preprocess 出力を diff」は成立しない (TRACE ガード領域で正当に食い違う)。(ii) source_digest は
+   #include 行を digest 前に無条件除去 (`_INCLUDE_RE`) するため、coder の #include 追加はバイナリが
+   変わるのに identity 不変 = stock と alias → 既存バイナリ cache hit で変更が一度もコンパイルされない
+   まま certified 記録。防壁は道Y の hook 禁止のみ = 未配線で、方針 A が消したはずの単一障害点が復活。
+   (iii) resolve→build 間の TOCTOU: 共有 working-tree に排他が無く、汚染が campaign 非依存の共有
+   ビルドキャッシュに永続。
+
+**phase3.md への反映 (修正 1-4、ユーザー指示):**
+- **完了条件を 2 項に分離** (identity 後方互換 = no-op stock cache-hit / 合成枝 1 周 = 純 timing
+  cache-miss 新規ビルド + **verify abort>0 の WAL 確認**)。「純 timing が cache-hit = 一次防壁の故障」と明記。
+- **blocking タスク 4 本追加**: verify abort 数の WAL 記録 (ccbench stdout `abort_counts_:` パース) /
+  apply-revert ハーネス (順序 = apply→resolve→build→revert 固定) / build 後 digest 再照合 (TOCTOU 遮断、
+  worktree 隔離 = 段 5 までの最小防壁) / #include 死角の identity 核での閉塞。
+- **観測者効果二重検査を「述語仕様の確定が先」に書き直し** — 候補述語 = **diff-of-diffs** (variant の
+  TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と一致)。旧残存リスク「#ifdef TRACE 内側に
+  挙動差を隠す攻撃を素通し」もこの述語で D_variant≠D_stock として捕える (残存リスク節を更新)。保証しない
+  こと (両ビルド共通の常駐メタデータは機械判定不能 = fitness 自己ペナルティ + auditor 領域) を明記。
+- **主実験の実行を後続段 6 として新設** (gate = headline 候補 + S2 gate + auditor live。前提タスク (a)-(g):
+  S1 or stock 専用計測経路の設計判断 / SPACES 拡張 + protocol 別 calibration + floor 対象別再実測 /
+  ランダム変異生成器 / 機械 sweep 軸命名手順 / リーク制御実体化 / 検証相 (seed×N) / サンプル設計数値確定)。
+  must 表 S1 行に主実験発火を追記。評価設計の拘束範囲を「coder が性能主張を生む段 (段 4 以降) すべて」に明確化。
+- **統計計画の補完**: floor 流用禁止 (3.0% は stock silo 実測値、対象ごとに再実測) / サンプル設計 4 点
+  (系列数・検定単位=系列・検定力・総予算。P2-5 は replay だったが Phase 3 は直列実計測 — 検定力不足由来の
+  偽 negative を「LLM に価値なし」と誤読させない) / Holm 補正 / 天井の不在の明示と代替天井 (機械 sweep
+  漸近 = 経験的天井、BACKOFF_FIXED grid = 局所天井) / deceptive 相当の検証 / 検証相の配線。
+- **失敗条件 (e) 追加**: workload 過適合は退行込みで全 workload 報告 (選択的報告の禁止)。
+- ベースライン 3/4 の操作的定義の最低要件 (Tier0 通過変異のみ・通過率報告 / 軸命名は coder 出力を見る前に
+  固定し情報源を記録)。文言修正: 「Write hook で強制」→ 配線後に機械強制 (現在形の保証ではない) /
+  coder.md タスクに前提 gate (hooks 配線 = `test_settings_json_wires_both_hooks` 緑を機械確認)。
+
+**協議の決着 = a' (折衷、ユーザー承認):** roadmap §2 層2(b) の本丸「他 CC の最適化移植 + カタログ化」が
+Phase 3 計画に不在という乖離は、**移植を拡張予約に降格**して解消 (D32) — 層2(b) の内側を b1 (空間外合成、
+P2-4 で実証済み) / b2 (移植、未検証仮説) に分節し、主実験は b1 で行い、b2 + カタログ化は phase3.md
+後続段 7 に予約 (一歩目 = カタログ化試作 1 枚、本格投資はその結果で判断)。roadmap は軽微改訂 (層2 名称を
+「最適化合成ループ」に・粒度節 b1/b2・§8 コーパス駆動の再定義・§9 実態一致。協議合意ゆえ版管理セレモニー
+不要)。README 三層図も追従。refuted 2 件 (変異軸順序の自己矛盾疑い / リーク制御と CLAUDE.md 自動ロードの
+非両立疑い) は蒸し返さない。**コミット 3 件** (441a50b 検査反映 / f9fa80a a'+D32 / 本 worklog)。
+
+### 次の一手
+- kickoff 残り blocking の実装順 (phase3.md タスクリスト順): abort 数 WAL 記録 → apply/revert ハーネス →
+  digest 再照合 → #include 閉塞 → hook 最小化 + 配線 → 観測者効果二重検査 (述語 = diff-of-diffs 確定) →
+  coder.md + 全配線 1 周。
+- 未消化の docs 課題 (残り、変わらず): 「WAL proof chain」の実体定義 / 外的妥当性の集約 / coder 自律期の
+  停止条件・fitness 採否・再試行方針の予約。
