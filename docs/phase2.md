@@ -25,14 +25,20 @@ within-run 変動係数 (CV = 標準偏差/平均) 2.28% = 1 測定の品質ゲ�
 
 ---
 
-## P2-0: 全 silo variant のビルド + verifier 大規模 sanity (タスク6 の残り)
+## P2-0: 全 silo variant のビルド + verifier 大規模 sanity (タスク6 の残り) — 完了
 
 パラメータ variant は理屈上全緑のはず = verifier の大規模 sanity。**計測なし** (do_bench=False)。
 - [x] silo 8 genome を `genome.SILO_SPACE.enumerate()` で列挙し、loop で
       build(trace+perf)→verify→no-bench commit を回す
 - [x] **8 genome 全て certified** を確認 (false-red が出たら verifier か genome 空間の不整合 →
-      `output/insights/` に記録)。当初 12 から no-wait XOR 制約で 8 に縮小 (両 0=livelock を除外)
-- [ ] 規律1 再確認: 全 perf build に izanagi_trace symbol 0 (`nm`)
+      `output/insights/` に記録)。当初 12 から no-wait XOR 制約で 8 に縮小 (両 0=livelock を除外)。
+      ※ P2-0 実行時 (2026-06-20) の sanity campaign WAL は成果物として未保存 (当時の一次記録は
+      worklog と commit 15ec702)。同一 8 genome 空間の certified は P2-2 の WAL が on-disk で
+      再証拠化している (Phase 2 完了監査 2026-07-03 で確認)
+- [x] 規律1 再確認: 全 perf build に izanagi_trace symbol 0 (`nm`) — 一度きりの手動確認は
+      Phase 1 完了監査 A4 で `buildcache._assert_no_trace_symbols` (新規/キャッシュヒット両経路の
+      継続 assert、nm 不能時 fails-closed) に格上げされ吸収済み。完了監査 2026-07-03 が全 perf
+      build 46 個の nm 走査 (漏れ 0、trace build では 6 シンボル = 検査の弁別力確認) で再裏取り
 
 **完了条件:** silo 全 genome が certified。verifier が大量の正しい variant を緑と判定できる実証で、
 Phase 1 の「赤を出せる」(タスク3) と対になる「緑を取りこぼさない」の大規模実証。
@@ -56,7 +62,9 @@ Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・変動係数)
 ## P2-2: silo 全探索 (最初の実探索) — 完了
 
 - [x] loop を**実 fitness** (確定 calibration) で 8 genome 全評価 (直列・env=linux-baremetal)。
-      3 workload × 8 = 24 評価が全て certified serializable・abort 0
+      3 workload × 8 = 24 評価が全て certified serializable・パイプライン abort (STAGE_ABORT) 0 件
+      (トランザクション abort_rate は別物で、contention 域では当然非ゼロ — 例: write-heavy 勝者
+      B0-L-W0 で 0.82。leading indicators として WAL に記録される正常な値)
 - [x] 代表 workload (read-heavy=rratio95 / balanced=50 / write-heavy=5, skew0.9) ごとに最速構成を特定
 - [x] 結果を D12 材料レポート (`campaigns/<id>/reports/`) + 横断 summary に射影
 
@@ -156,9 +164,13 @@ Phase 3 着手の直前に消化する (今やると過剰修正):
   verify + broken-silo 同一フラグ赤検出を消化 (insight の follow-up [P1])。
 - **S1 trace-hook の別 protocol 拡張**: silo+si のみ instrumented。別 protocol を探索素材に入れる Phase で同型 hook を
   追加 (ermia は cstamp<<1 の罠を worklog 記録済み)。それまでは「silo+si 以外は探索外」を維持。
-- **C1 campaign-id drift (A2 で露呈)**: 6/28 の ODR-fix gitlink 前進 (CCBENCH_COMMIT 6656e93→dff0f1e) が
-  content-addressed campaign-id (D13) を移動させ、歴史的 p2-2/backoff campaign の report が現 config では孤立した
-  (生成器が現 commit で id を再計算するため WAL を引けない)。ODR fix は ADD_ANALYSIS=0 perf build に inert なので
-  6/22 測定は意味的に有効。A2 では測定時 commit (6656e93) を供給して忠実に再生成した。**恒久対応の選択肢**:
-  (a) report 生成器が campaign dir を discover する (現 config から再計算しない)、(b) inert な submodule fix では
-  campaign-id を据え置く版マッピング、(c) 現 pin で p2-2/backoff を再 run。Phase 2 の探索を本格再開する前に決める。
+- **C1 campaign-id drift (A2 で露呈) — 解消済み (2026-07-02、選択肢 a を採用)**: 6/28 の ODR-fix
+  gitlink 前進 (CCBENCH_COMMIT 6656e93→dff0f1e) が content-addressed campaign-id (D13) を移動させ、
+  歴史的 p2-2/backoff campaign の report が現 config では孤立した (生成器が現 commit で id を再計算する
+  ため WAL を引けない)。ODR fix は ADD_ANALYSIS=0 perf build に inert なので 6/22 測定は意味的に有効。
+  恒久対応は **(a) report 生成器が campaign dir を discover する** を採用 (065593a):
+  `replay.discover_campaign_dir` (dir 名 prefix + WAL 実在で解決、0/複数一致は明示エラー) に読み手
+  3 本 (p2_2_report / backoff_sweep_report / critic digest) を統一し、campaign-id の再計算に依存しない。
+  却下: (b) 版マッピング = inert 判定の維持コスト、(c) 再 run = 計測資源の浪費 (規律4)。
+  残課題 (audit §C1 が部分対応として記録): driver の宣言値は現 pin dff0f1e のまま (歴史的 campaign の
+  lock は 6656e93) で、`backoff_repro.py` の自 run layout 解決だけ現宣言値の campaign_id を使う。
