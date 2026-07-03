@@ -453,6 +453,12 @@ backoff.hh 非参照かつ genome.flags 非 pin の `VAL_SIZE`/`KEY_SIZE`/`MASST
 の被覆境界を「Options 改変は編集面 hook で拒否」と補完する。詳細は
 `output/insights/2026-06-30_phase3-task2-evolve-block-adversarial-review.md`。
 
+**→ D30 で塞ぎ方を再配置 (部分 supersede):** 本 D24 は「identity 非被覆ギャップを編集面 hook で塞ぐ」としたが、
+2 巡目敵対検証 (SPEC-2) が Bash 経路の `sed -i .../Options.cmake` で編集面 hook を丸ごと迂回できることを示した。
+方針 A (D30) は identity の honest さを **hook 非依存の一次防壁 (source_digest 側)** に移す。編集面 hook の
+ファイル面パス検査 (backoff.hh 以外への Edit/Write 拒否) は最小第二防壁として残るが、「唯一の防壁」ではなくなった。
+恒久解 (configure 最終 -D 集合 / Options.cmake の digest 織り込み) の前倒し検討は D30 に引き継ぐ。
+
 ---
 
 ## D25. D23 src_token の consumer 追従を完遂 (loop + backoff_repro)。identity-error poison は既存問題として繰延
@@ -597,9 +603,55 @@ permutation で行う — a は到達本数の線形変換ゆえ、t は分散�
 p2_5.py の再実行が追記キーを消さないマージ保持も実装)。insight 2026-06-29 に追記セクション (旧数値
 保持)。p2_5/search_baselines を a 主指標化 + a の null=0.500 回帰テスト。D21 本文は不可侵 (末尾ポインタのみ)。
 
+## D30. H3 hooks の責務を一次防壁へ委譲する — テキスト検査 hook を「唯一の防壁」にしない (方針 A)
+
+**背景:** Phase 3 タスク3 の H3 hooks (`hooks/guard_write.py` / `hooks/guard_bash.py`) は 2 巡の敵対検証
+(2026-07-02 / 2026-07-03) を経た。1 巡目で 15 件、2 巡目で **real 13 件 (critical 1・high 6・medium 6)** を
+摘出。critical GW2R-1 = コメント行連結 (backslash-newline splice) でコメント除去の状態機械を騙し、g++ が
+active 化する `#define TRACE`/`__DATE__`/`#include` を hook の payload 検査から消す迂回 (Fable が独立 repro で
+確認)。SPEC-2 = Bash 経路の `sed -i .../Options.cmake` が編集面 hook を丸ごと迂回。2 巡目 real の質が
+**「テキスト検査で C++ 翻訳フェーズ (行連結・単独 CR 正規化) と shell (glob/here-string/pipe) を完全再現するのは
+原理的に無理」**を実証した。前セッションは phase3.md を「H3 hooks 完了・2 巡で硬化」、hooks/README.md を
+「配線済み」とマークしたが、実態は `.claude/settings.json = {}` で**未配線 = 第二防壁ゼロ**の over-claim だった
+(規律6 の裏取りで検出。git 履歴には未固定のまま撤回)。
+
+**決定 (方針 A — ユーザー承認 2026-07-03):** hook を「うっかり直接書き込み」だけ止める**最小の第二防壁**に
+軽量化し、正しさ・identity・観測者効果の担保を**一次防壁に移す**。
+- **identity の honest さ (偽 cache hit / `#ifdef` / build 時マクロ由来のバイナリ差)** → `source_digest` の
+  **preprocess 後ハッシュ** (D22/D23)。coder が `Options.cmake` や #if 枝内でバイナリを動かせば digest が変わり
+  cache_key/variant_id が動くので、テキスト検査の完全性に依存しない。恒久 honest 化 (configure 最終 -D 集合の
+  digest) は D23/D24 の繰延先を前倒し検討する (Options.cmake の非被覆ギャップを identity 側で塞ぐ)。
+- **観測者効果の分離 (TRACE の perf ビルド混入)** → **観測者効果の二重検査** (phase3.md の blocking タスク、
+  trace/perf 両ビルドの preprocess 出力を diff)。data-structure 由来も捕える。
+- **hook に残る責務**は WAL/lock/build-variants/campaign dir への直接書き込みと designated ソース外への Write の
+  拒否 (規律2 の verifier 迂回阻止) だけ。**「payload 検査が `#ifdef` の唯一の防壁」という単一障害点設計は放棄**。
+
+**なぜ B (hook 強化続行) でなく A か:** 2 巡目 real が示したのは「hook が賢さ不足」ではなく「テキスト検査に
+C++/shell の完全性を負わせた責務配置の誤り」。B は C++ レキサ/shell を完全再現する軍拡競争に入り、3 巡目でまた
+新種が出る (規律5「盛らない/ECC 化しない」と正面衝突)。A なら hook は堅牢なパス検査 (ファイル面) に責務を絞り、
+壊れやすいトークン検査 (payload) を identity=preprocess ハッシュに委ねられる。
+
+**却下した選択肢:**
+- **B. hook 強化を続行**: 13 real を修正して 3 巡目。テキスト検査の完全性という原理的に到達不能な目標に投資する
+  軍拡競争。規律5 と緊張。
+- **C. 記録のみで先送り**: over-claim だけ撤回し設計判断を保留。hooks 未配線ゆえ実害ゼロで安全だが、単一障害点
+  という設計の芯の問題を放置し、次に配線を戻すときに同じ判断を再度迫られる。
+- **憲法 (CLAUDE.md「## hooks」節) は不変**: 「`#ifdef TRACE` 外への書き込みを警告」「verifier 迂回を止める」は
+  方針 A でも成立する (hook は警告し、保証は一次防壁が持つ)。CLAUDE.md は編集しない。
+
+**実施 (ユーザーと協議合意した改訂ゆえ版管理セレモニー不要 = 版数据え置き・history 凍結なし。設計判断として D を残す):**
+phase3.md タスク3 と must 分類表・残存リスク節、hooks/README.md を実態 (未配線・real 13 件・方針 A) に訂正。
+roadmap §3.4 の reward hacking 対策層に hook の位置づけ (最小第二防壁、identity/観測者効果は一次防壁) を反映。
+配線を戻す順序 = (1) 一次防壁を先に load-bearing に、(2) hook を最小化 + false-positive 除去、(3) settings.json 配線。
+
+**位置づけ:** Claude 自律のレビュー駆動 + ユーザー承認の方針転換。素性が別セッションの作業物ゆえ規律6 の独立裏取りで
+担保。詳細は `output/insights/2026-07-02_phase3-task3-h3-hooks-adversarial-review.md` /
+`2026-07-03_phase3-task3-h3-hooks-round2-handoff.md`。
+
 ## D31. セッション運用ルール (同一セッション内のコンテキスト劣化への前向き対策) を roadmap §3.8 として明文化 — 新機構は足さない
 
-(D30 は H3 hooks の判断記録として別セッションが予約済み — phase3.md 参照。番号を跨いで追記する)
+(D31 は D30 = H3 hooks の判断が別セッションで確定する前に番号を予約して先に記録された。D30 は 2026-07-03 に
+方針 A として上に記入済み — 番号順 D29→D30→D31 で整合。)
 
 **背景:** ユーザーから「仕事を投げて一定時間経つと Claude のコンテキストが膨れ上がって質が低下する。
 どう対策すればいいか」と問題提起 (2026-07-03)。D27 は遡及層 (Phase 完了監査・引き継ぎ監査) を固定した際、
