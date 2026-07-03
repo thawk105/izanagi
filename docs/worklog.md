@@ -1429,3 +1429,47 @@ izanagi での使われ方 + 参照先」の 2 段。roadmap 冒頭に発見ポ�
   (2) hook を最小化 + false-positive 4 件除去 → (3) settings.json 配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)。
 - 未消化の docs 課題 (本セッションで flag のみ): C1 campaign-id drift の状態が 4 文書で食い違う / 「WAL proof chain」の
   実体定義が無い / 外的妥当性 (Threats to Validity) の集約が無い / coder 自律期の停止条件・fitness 採否・再試行方針が未予約。
+
+## 2026-07-03 — Phase 2 完了監査 (実態突合) + 検出事項の修正
+
+ユーザー指示「docs を調査し phase2 までの仕事がちゃんとできているか検査」。同日の docs 敵対検査
+(前エントリ、設計・方向性が対象) と軸を変え、**完了主張 vs 実態 (成果物・数値の一次データ・規律遵守)
+の突合**として実施。7 視点 (P2-0/1・P2-2・P2-3/4・P2-5・規律1/2・規律3/4/6・docs 整合) の並列
+ファインダー → 重複統合 → 敵対検証 (severity 高は 3 票制) の 23 エージェント構成 (新規計測ゼロ・
+読み取りのみ)。
+
+**総合判定: Phase 2 までの仕事は実態が伴い健全。完了主張の虚偽・絶対規律違反は 0 件 (critical/high 0)。**
+裏取り済み 78 件の主要な柱: P2-2 の 24 評価 WAL から最速構成を独立再計算で一致 / backoff headline
++38.33%/+11.27% と cross-run 再現を WAL 生データから復元 / P2-5 の全統計量 (A・a・null・誤収束 8/12・
+exact p 2 件) を独立再計算で一致、凍結値は決定論 replay で byte 一致 / critic-experiment.md に答え
+literal 不在 (critic.md には現存 = 物理削除の主張どおり) / 全 perf build 46 個の nm 走査で trace
+シンボル漏れ 0 (trace build は 6 件 = 検査の弁別力確認)・計測に使われた build 16 種すべて trace 無効 /
+全 8 WAL で「verify 赤なのに commit」0 件・fails-closed 経路網羅 / D1〜D31 連番欠番なし・主要数値の
+文書間一致。検出は real_new 10 (medium 1 + low 9)・既知管理済み 4・refuted 1。監査の完全な結果
+(全 finding の証拠と判定理由) はセッション成果物として保持、要点は以下の修正コミットに反映。
+
+**唯一の medium = write-heavy「permutation p<10⁻⁴」の過大表示 → 訂正 (9c9d144):** 旧記録は方式・
+反復数が未記録の Monte Carlo 由来で as-stated 再現不能。厳密 permutation (pooled 512 から 12 本の
+多変量超幾何・全 50268 構成列挙、整数統計量で境界厳密) を `search_baselines.exact_perm_pvalue_A` に
+コード化し (手計算校正 + 凍結度数分布の回帰テスト付き)、監査エージェントと本セッションの独立 2 系統で
+**p=2.52×10⁻⁴** 一致を確認して確定。Holm ×6 でも <0.05 で「誘導は貪欲より有意に有害」・A=0.230 は
+不変。伝播 5 箇所 (phase2 / D29 末尾訂正注記 / 本 worklog 過去エントリ注記 / insight 追記表 /
+summary.json `correction_2026_07_03` 節 — recalibration 節は 07-02 の記録として原文保持) を訂正。
+
+**low の消化 (7ea7cb4 / acdfece / 32e0f57):** phase2.md の P2-0 完了表記取り残し (実態は A4 の
+buildcache 継続 assert に吸収済み) + sanity WAL 未保存の注記 + 「abort 0」の多義性明確化 (STAGE_ABORT
+0 件 ≠ tx abort_rate) + C1 節を「解消済み (選択肢 a、065593a)」に更新 (前エントリ flag「4 文書の
+食い違い」の phase2.md 側を消化) / calibrator 2 ファイルの削除済み pinning patch 参照 +
+test_verifier の「4 カウンタ」ハードコードを修正 / insight に D26 恒真注記・per_step 証拠連鎖の範囲
+注記、audit C1 の理由付け訂正、本 worklog 過去 2 箇所に前方注記 (P2-2 初回テーブルは再計測で置換済み /
+「3構成」は 4 構成との揺れ)。
+
+**対応せず記録のみ (既知管理済みと確認):** H3 hooks 未配線 (方針 A 進行中、テストは条件付き skip で
+可視) / critic・profiler の「書き込みなし」が Bash 残存で規律ベース (agent 定義自身が開示済み) /
+bench_lock の排他が pipeline 外計測スクリプトを覆わない (pgrep admission のみ)。監査 finding の
+1 件「suite 全緑主張 vs 1 failed」は実測 (160→162 passed + 5 skipped) で現に全緑のため非成立と裁定。
+
+### 次の一手 (変わらず)
+- **Phase 3 タスク3 (H3 hooks 方針 A の実装)** — 順序: 一次防壁 → hook 最小化 → settings.json 配線。
+- 未消化の docs 課題 (残り): 「WAL proof chain」の実体定義 / 外的妥当性の集約 / coder 自律期の
+  停止条件・fitness 採否・再試行方針の予約。
