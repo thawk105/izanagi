@@ -4,6 +4,8 @@
 
 このドキュメントは、本システムの設計のすべてとその理由を記録する。次の作業者 (人間または Claude) が、設計に至った議論を見ていなくても「なぜこうなっているか」を完全に追えることを目的とする。
 
+**専門用語につまずいたら `docs/glossary.md` (用語集) を引く。** docs は並行性制御・探索理論・統計・本プロジェクト固有の機構にまたがる用語を、多くは説明なしに使う。用語集はそれらを専門外の読み手向けに平易に定義する。
+
 ---
 
 ## 1. 究極のゴール
@@ -65,7 +67,7 @@ LLM を使うなら「選定ロジック」ではなく「なぜこの workload 
 
 (a) を選ぶ利点 (本プロジェクトの状況で特に効く):
 - パラメータ粒度なら生成 variant は「CCBench が元々持つ最適化フラグの組み合わせ」だから理屈上は全部正しいはず。これは trace verifier を検証するのに最高の環境 (Phase 1 のゴールと噛み合う)
-- 探索空間が有限 (CCBench の最適化が主に on/off なら高々 2^7=128 + 連続パラメータ数個)。**初手は全探索すら可能**。全探索の最適と LLM 探索の到達速度を比較でき、論文の図になる
+- 探索空間が有限 (CCBench の最適化が主に on/off なら高々 2^7=128 + 連続パラメータ数個)。**初手は全探索すら可能**。全探索の最適と LLM 探索の到達速度を比較でき、論文の図になる (**この比較は P2-5 で実施済み = negative result。silo 8 の自明空間では誘導は機械的勾配 (貪欲) を超えず、deceptive 構造では貪欲より有意に有害。D21/D29。よって「論文の図」は『誘導が速い』ではなく『小空間ではフラグ探索が自明で価値は空間外の合成にある』という物語に転じた**)
 - (a)→(b) の移行が自然。パラメータ探索で「invisible reads を on にすると効く」が分かった後、コード移植で「その実装そのものを別 CC 文脈に移植できるか」に進む
 
 #### 移植可能性の判定 (CCBench insight I5 への対策)
@@ -85,7 +87,7 @@ CCBench の著者は「異なる実装の混合は深い分析には不適切」
 
 AlphaEvolve/CodeEvolve の island-based GA を借りるのが堅い。ただし CC は評価が高コスト (1 variant = 数十秒のベンチ)。緩和策:
 - **low-fidelity proxy**: 本ベンチ前に短時間 (1-2秒) の軽量ベンチでスクリーニング
-- **LLM に次の一手を考えさせる**: ランダム変異でなく、過去の試行結果を context に入れて「このワークロードでは delay-on-conflict 系が効いているから次は wait-die 系を試せ」と方向づけさせる。これが LLM-evolution の最大の強みで、ただの GA より遥かに少ない試行で収束しうる
+- **LLM に次の一手を考えさせる**: ランダム変異でなく、過去の試行結果を context に入れて「このワークロードでは delay-on-conflict 系が効いているから次は wait-die 系を試せ」と方向づけさせる。これが LLM-evolution の最大の強みで、ただの GA より遥かに少ない試行で収束しうる (**仮説。P2-5/D29 で列挙可能なフラグ空間では反証された** — leading indicators を機械集約した digest 勾配で回す貪欲が同水準に到達し、LLM 固有の付加は貪欲から統計的に分離できず、deceptive 構造では『自信ある早期停止』が負債になった。**LLM 誘導の実証済み価値は「少ない試行で収束」ではなく、指標を機序に帰属させフラグ空間の外に新しい変異軸を合成すること** = P2-4 backoff。空間を広げる (cicada/oze) までは誘導の優位を主張しない)
 
 ### 層3 — variant 比較・選択 + 説明生成 (差別化の決定打)
 
@@ -128,7 +130,7 @@ evaluator が本システムの成否を分ける。AlphaEvolve/Jitskit/IDS す�
 - 性能比較は variant も baseline も trace-disabled で揃える
 - メタデータは「CC本来 (アルゴリズムが要求する。性能比較に含める)」と「検証専用 (verifier にトレースを渡すためだけ。`#ifdef TRACE` で消す)」を区別。この2つを混ぜない
 - perf は trace-disabled build に当てる
-- (採用済み) ビルド等価性の機械検証: trace-enabled と trace-disabled を同じ workload・同じ seed で走らせ、最終 DB 状態 (全レコードの値) が一致するか比較。一致すれば「トレース有無で CC の意味論は変わっていない」の傍証
+- ビルド等価性の機械検証: trace-enabled と trace-disabled でトレース有無が CC の意味論を変えていないことを機械確認する。**実装は当初案 (最終 DB 状態の一致比較) から変更**: Phase 1 タスク1 の **symbol 不在検査 (perf binary に trace コードが 1 byte も無い、`nm`)** の方が DB 状態一致より強い証明なので、DB-dump 計装は冗長と判断し未実装 (phase1.md:141)。Phase 3 では方針 A (D30) により、この機械確認が観測者効果分離の**一次防壁に昇格**し、symbol 不在に加えて **trace/perf 両ビルドの preprocess 出力 diff** (data-structure 由来の差も捕える「観測者効果の二重検査」, phase3.md の blocking タスク) へ拡張する
 
 ### 3.4 reward hacking 対策 (Jitskit §3.2, Appendix B より)
 
@@ -140,12 +142,14 @@ LLM は最適化圧力の下で、書かれていない不変条件を破って�
 これらに対し:
 1. **据え置きの正しさゲート** — 壊すと即 reject。「絶対壊しちゃダメ」(serializability anomaly検査、ACID基本) と「壊れていい」(プロトコル固有テスト、variant のキャラクタライズに使う) を分ける
 2. **adversarial auditor** (Phase 3 で導入) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を見つけてテストを追加
-3. **hooks による書き込み時防壁** (Phase 1 から薄く) — 観測者効果違反・verifier 迂回を機械的に弾く
+3. **hooks による書き込み時防壁** (Phase 1 から薄く) — verifier 迂回・成果物への直接書き込みを機械的に弾く**最小の第二防壁**。**方針 A (D30) 以降、hooks は「唯一の防壁」ではない**: identity の honest さ (偽 cache hit / `#ifdef`) は source_digest の preprocess 後ハッシュ、観測者効果の分離は trace/perf 両ビルドの preprocess 二重検査が**一次防壁**として担い、hook はテキスト検査の完全性に依存しない範囲 (堅牢なパス検査) に責務を絞る。2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証したため (規律5 と両立させる責務再配置)
 4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。これは verifier から書き込み権限を外す出力側隔離と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
 
 ### 3.5 leading indicators (収束に必須)
 
 Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iteration で停滞しランダム化する。leading indicator (lock contention / cache hit率 / I/O / memory帯域) を毎 iteration LLM に渡すことが収束に必須。「write-only は allocator contention で診断、read-heavy は cache hit率で診断」のように、どの指標が効くかは workload による。
+
+**P2-5 の含意 (D29):** 指標が収束に必須であることは変わらないが、silo 8 の小空間では**指標を機械集約した digest 勾配 (貪欲、LLM なし) だけで同水準の収束に届いた**。つまり「指標を LLM に渡すこと」の価値と「指標を LLM に解釈させること」の価値は分けて考える必要がある — 前者は必須、後者 (LLM 固有の付加) は小空間では貪欲から分離できなかった。LLM 解釈の価値は、指標を**機序に帰属**させフラグ空間の外に新軸を合成する局面 (P2-4 backoff) で現れる。空間を広げる (cicada/oze) までは LLM 解釈の優位を主張しない。
 
 これは「FlameGraph を見て many-core でヤバいか判断してほしい」という当初の直感の正式版。perf プロファイリングは有望な variant にだけ回す (二段構え: screening 通過 → profiling)。
 
