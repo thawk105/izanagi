@@ -9,7 +9,8 @@
   - calibration_t<threads>_<workload>.md   … 「なぜそのレコード数?」の人間可読な根拠 (査読先回り)
 
 絶対規律1: --binary は trace-disabled build (`build/`, -DTRACE=0) を指すこと。
-絶対規律4: その binary は -DLinux ピンニング済み (patches/linux-thread-pinning.patch) を前提。
+絶対規律4: その binary は -DLinux スレッドピンニング済みを前提 (submodule master に還元済みで
+常に有効 — cpu.hh setThreadAffinity。旧 patches/linux-thread-pinning.patch は D16 で還元後に削除)。
 """
 from __future__ import annotations
 

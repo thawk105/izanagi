@@ -2,7 +2,8 @@
 """1 測定点 = (records, threads) 固定で ccbench を perf 下で回し ScalePoint を組む。
 
 絶対規律1: 性能計測は **trace-disabled build** (`build/`, `-DTRACE=0`) に当てる。
-絶対規律4: スレッドピンニング (`-DLinux`, patches/linux-thread-pinning.patch) 済みの
+絶対規律4: スレッドピンニング (`-DLinux`、submodule master に還元済みで常に有効 —
+cpu.hh setThreadAffinity) 済みの
 binary を使い、OS スケジューラの socket 間 migration を止める。NUMA メモリ方針は
 numactl で固定して run 間で再現可能にする (anatomy §7)。
 

@@ -116,7 +116,8 @@ def test_commit_at_genesis_indeterminate_and_wr_edge_kept():
     assert not res.certified
     assert res.n_edges == 1                   # wr 辺が落ちていない (旧コードは 0 だった)
     # 規律3: 構造化 payload (Phase 3 で planner が原因軸を読む唯一の機械可読経路) にも
-    # genesis_commits が出る。integrity 4 カウンタの 1 つだけ欠けると原因軸が機械可読に落ちる
+    # genesis_commits が出る。integrity カウンタ (Integrity dataclass の全フィールド) の
+    # 1 つだけ欠けると原因軸が機械可読に落ちる
     assert result_to_dict(res)["integrity"]["genesis_commits"] == 1
 
 
