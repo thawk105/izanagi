@@ -34,12 +34,12 @@ P2-5 当初の問い = 「critic (leading indicators の帰属) で次の genome
 
 ### リーク制御 (絶対規律6/D14 — 出来レース化を物理的に塞ぐ)
 
-- **online 非開示**: critic に渡す digest は誘導専用 WAL (評価済みだけが育つ) から作る。`online_digest` が『digest の genome 数 ≤ 評価回数』を実行時 assert (`LeakageError`)。未評価の fitness・到達判定・tied set は critic に**一切渡さない** (実探索では「これが最適」と分かる手段は無い。到達は事後に Python が軌跡から測る)。
+- **online 非開示**: critic に渡す digest は誘導専用 WAL (評価済みだけが育つ) から作る。`online_digest` が『digest の genome 数 ≤ 評価回数』を実行時 assert (`LeakageError`)。未評価の fitness・到達判定・tied set は critic に**一切渡さない** (実探索では「これが最適」と分かる手段は無い。到達は事後に Python が軌跡から測る)。*(注 2026-07-03: この assert は「同一 layout から iterations と digest の両方を導出する」実 caller 経路では恒真で、独立した第二防壁ではない — D26 で honest 化済み。online 非開示の実担保は WAL 分離 = `build_digest` が誘導専用 layout のみを読み `load_p2_2_digests` を import しない構造)*
 - **答えの物理削除**: `critic.md` には最適解が literal で埋め込まれていた (「BACK_OFF=0 に固定、contention 域は L 優先」「BACK_OFF=1 は全 workload で latency 律速、再訪不要」)。実験用 `critic-experiment.md` ではこれを**物理削除**し、「結論を先取りせず観測データから帰属せよ」に絞った。
 - **fresh context**: 各試行は新規エージェント = 本セッションの会話 (最適解を知っている) を見ない。エージェントには guided.py 以外のファイル (raw WAL) を覗くことを禁じた。
 - **初手対称**: 誘導も random も初手は seed 固定ランダム (critic 信号は 2 手目以降)。
 
-帰属が本物だった証拠: 例えば balanced-s2 の critic は B0-T-W0 から BACK_OFF 軸を分離 (B1 で throughput −53%・ipc 1.05→0.38・latency 倍 = spin 希釈と帰属)、次に no_wait 軸を WAL=0 固定で清浄比較し L>T を発見、WAL 軸も統制した。**no_wait の L↔T 符号反転 (B1 では T 有利・B0 では L 有利) を自力で発見**した試行も複数あった。覗かずに leading indicators から機序を組み上げている。
+帰属が本物だった証拠: 例えば balanced-s2 の critic は B0-T-W0 から BACK_OFF 軸を分離 (B1 で throughput −53%・ipc 1.05→0.38・latency 倍 = spin 希釈と帰属)、次に no_wait 軸を WAL=0 固定で清浄比較し L>T を発見、WAL 軸も統制した。**no_wait の L↔T 符号反転 (B1 では T 有利・B0 では L 有利) を自力で発見**した試行も複数あった。覗かずに leading indicators から機序を組み上げている。*(注 2026-07-03: この段落の質的主張の一次資料は critic の per_step 帰属 = raw 試行 WAL で、provenance 記載のとおり削除済みのため現存成果物からは再検証できない。定量主張 (到達本数・誤収束・軌跡・final_pick) はすべて `p2-5-summary.json` の `guided_trials` から再検証可能 — Phase 2 完了監査 2026-07-03 で全数再検証済み)*
 
 ## 結果
 

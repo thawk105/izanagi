@@ -485,7 +485,9 @@ compare 床下/有意faster/slower/床上非有意/空) + `test_campaign` に un
 
 **P2-2 (silo 全探索)** — ここから実機計測 (直列)。確定 calibration で silo 12 genome を実 fitness 評価し、
 `compare` で workload 別の最速構成を**分布比較**で特定 → D12 材料レポートに射影。**両 no-wait=0 が perf
-build で動くか** (P2-0 で trace timeout した3構成) を最初に確認 → 動けば 12、動かねば genome.py に除外制約。
+build で動くか** (P2-0 で trace timeout した3構成) *(注 2026-07-03: 最終的な除外は両 no-wait=0 の
+4 構成 = 12−8。「3構成」は当時の記録の揺れで、P2-0 の sanity WAL が未保存のため原記録での確定は
+不能 — 2026-06-22 エントリの 12→8 敵対監査参照)* を最初に確認 → 動けば 12、動かねば genome.py に除外制約。
 runner も WAL log/ 対応要 (P2-0 で _run_trace は対応済、perf 経路も同様に要確認)。
 
 ---
@@ -550,6 +552,11 @@ P2-2 起動直後、素性不明の `ycsb_silo` (rratio=50/rmw=false) が動い�
   `output/insights/2026-06-22_orphan-livelock-contaminated-measurement.md` に記録 (深い修正は P2-3 以降に延期)。
 
 ### P2-2 結果 (クリーン機・単一テナント直列、全 24 評価 certified・abort 0)
+
+*(注 2026-07-03: 下表の数値は初回計測のもの。P2-3 で leading indicators 捕捉のため同一 campaign-id で
+再計測しており (2026-06-22 P2-3 エントリ参照)、現存 WAL / p2-2-summary.md の数値は再計測値
+(read-heavy 8,487,844 / balanced 2,752,621 / write-heavy 1,872,376、2位差 +7.6%/+13.0%)。
+差は floor 内で最速構成・結論は不変。現 WAL から下表は再現できない点に注意)*
 
 silo 8 genome × 3 workload (skew0.9, rratio 95/50/5)。workload 別最速構成を `compare` (noise floor 2.28%
 以下は差なし + Mann-Whitney U) で特定:
