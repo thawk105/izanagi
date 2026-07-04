@@ -1646,3 +1646,71 @@ detached checkout で全 suite 緑と確認。submodule pin (dff0f1e) 不動・c
   静的 backoff 値 1 つの純 timing variant を Tier0→pipeline.evaluate→verify→bench→WAL で 1 周。
 - 未消化の docs 課題 (変わらず): 「WAL proof chain」の実体定義 / 外的妥当性の集約 / coder 自律期の停止条件・
   fitness 採否・再試行方針の予約。
+
+## 2026-07-05 — docs 横断監査 (real 39/refuted 4) の修理 + 文書一貫性の恒久対応 (正本一元化・handoff・lint)
+
+**前夜セッションの救出:** 7/4 夜の監査セッション (ea4e70b7) がワークフロー完走・報告済みの状態で突然死し、
+ユーザーの追加コメントが未処理のまま残った。生ログ (`~/.claude/projects/.../ea4e70b7*.jsonl`) と成果物
+(`tasks/wesxvpwx6.output`) の採掘で全結果を無損失回収し本セッションが引き継いだ — この救出実費 (grep 探索 +
+数千トークン) が下記 handoff 導入の直接の動機。
+
+**監査結果 (izanagi-docs-audit, 7 レンズ 54 エージェント・302 万トークン・敵対検証つき):** 確定矛盾 **real 39
+(重大 8/中 23/軽微 8) / refuted 4** ≒ 根本原因約 10 個。一次資料をリポジトリに凍結 =
+`docs/audit-2026-07-04-docs-consistency.json` (39 件の A/B 引用・why_real・修正案 + 論文評価 4 レンズ全文)。
+論文評価は 4 レンズ一致で promising-with-gaps (核心 = 空間外合成の証拠が n=1、Phase 3 主実験に全面依存。
+安価な補強 = S2 前倒し・別 boot 再現・critic 再現率測定・Threats to Validity 集約)。
+
+**観測された非対称 (論文素材、paper-story §4 に追記):** 衝突した全ケースで「作業と同時に書く記録
+(worklog + git)」が正、「状態の再掲 (CLAUDE.md 現在地・roadmap 現況主張・phase2 must 写し)」が誤。
+状態の再掲 = 陳腐化するキャッシュ。D34 (偽 cache hit 封鎖) と同型の失敗が自分の文書運用に居座っていた。
+
+**恒久対応 (ユーザー協議・承認済み):**
+1. **可変状態の正本一元化** — 正本 = worklog 末尾「次の一手」+ 現行 phase doc のチェックリスト/must 表。
+   CLAUDE.md「現在地」は 3 行のポインタに縮退 (Phase 段落の歴史語りを全削除。監査の根本原因 1 = 現在地 stale
+   7 件はこれで構造的に消滅)。roadmap は現況を主張しない。phase2 の must 一覧は凍結スナップショット化。
+2. **`docs/handoff/` = セッションの WAL** — セッションごと 1 ファイル (日付+タスク短名、40 行上書き、
+   節目ごと更新、正常終了時に worklog へ吸収して削除 = ディレクトリ空が健全状態)。並行セッションの宣言板を
+   兼ねる (監査は基準コミット、計測は「計測中」を宣言)。運用は handoff/README.md、CLAUDE.md 作業の進め方 7。
+3. **`tools/check_docs.py` = 決定的文書 lint** — living docs の行番号参照・現況再掲・「次 =」再掲、handoff の
+   行数超過/stale を禁止パターンで検査。セッション締めに実行 (CLAUDE.md 作業の進め方 6)。
+4. **ルール明文化** (CLAUDE.md 作業の進め方 6) — 再掲禁止 / docs 間行番号参照禁止 / タスク完了と同一コミットに
+   チェックボックス反映 / セッション末 worklog 必須。
+
+**39 件の修理 (新構造前提で適用):** phase3.md (観測者効果二重検査を [x] 化 = 実装は 14d64e6 で完了済みだった・
+「hook 未配線」の現在形主張 (指摘 3 件、実 1 箇所)・削除済み payload 検査への現在形参照 (指摘 2 件、実 1 箇所) を
+D33/D34 実態へ・must 表 2 行・C1 の語の揺れ)、CLAUDE.md (hooks 節を方針 A 実態へ・verifier/critic/profiler の
+「書き込みなし」を audit-2026-06-30 §4 の裁定へ honest 化)、roadmap (§3.3 旧述語→diff-of-diffs 済み・§9 現況主張
+削除・§7 ツール隔離表現)、phase2 (H3 完了追記・2.28% は floor 実測値でありゲート閾値 5% と区別 (D19)・冒頭に
+P2-5 転回注記)、phase1 (タスク 4a/4b/6/7 の ✅ 追記)、D14→D12 誤参照 7 箇所 (リーク制御/循環回避/選択的報告の
+文脈。decisions D21×3+D26・phase2・phase3・glossary。源流の insight 2026-06-29 の 4 箇所は凍結記録ゆえ訂正注記で
+対応)。機械修理の一部は並行サブエージェント 2 本に委任し、規律6 に従い差分を監査して取り込み。
+
+**敵対検証 (規律6: 並行エージェント差分の取り込み監査 + 一括修理の裏取り):** 9 検証官 (ファイル別 6 +
+CLAUDE.md 縮退の情報損失検査 + 新規物検査 + 残骸掃引、約 78 万トークン) が指摘 19 件 (medium 5/low 14、重複統合で
+実質 12) — 全消化。主な収穫: 修理の取り残し 3 面 (glossary の D14・agent-architecture hooks 節が方針 A 未追従の
+まま CLAUDE.md から「詳細」として参照されていた・roadmap §3.4-3/§3.4-4/§7 の旧表現 3 箇所)、並行エージェントが
+導入した節参照誤り (DB-dump 判断の所在 = タスク5b→正しくはタスク5a)、本セッション自身の number-mismatch
+(監査レンズ数「6」→実データは 7。number-mismatch を修理するセッションが自ら再生産しかけた)、paper-story 追記の
+全称の過大一般化 (worklog 自身の記録欠落という反例を併記する形に限定)、handoff「計測中」宣言と lint の stale
+判定の不整合 (状態: 行 3 値に統一)、phase1 タスク6 の経路変更 (Mac ダミー fitness→実機 demo) の注記欠落。
+CLAUDE.md 縮退による情報の孤児化はゼロ (V7)、絶対規律セクションの無変更も機械確認 (V1)。
+
+**worklog 追補 (07-04 記録の欠落訂正):** 監査 real 3 件 (worklog-vs-phase / worklog-vs-current / numbers の
+3 レンズが重複検出) の指摘どおり、**コミット 14d64e6
+(07-04 19:56「source_digest+buildcache: 観測者効果の二重検査 (diff-of-diffs) を実体化」+204 行)** は 07-04 (1)
+エントリのコミット 5 本にも (2) エントリの「コミット 4 本」にも帰属していなかった。実施経緯: (1) エントリ記録後・
+(2) エントリの hook 作業より前に同日セッション帯で実装されたもの。述語 3 面 (diff-of-diffs / buildcache.build
+出口 hit+fresh / fails-closed 破棄) + 変異検査 3/3・stock 通過 27ms はコミットメッセージと test_campaign.py を
+一次記録とする。既存エントリは改竄せず本追補を正とする。
+
+**成果物:** コミット 8 本 (handoff+lint 基盤 / 監査 JSON 凍結 / CLAUDE.md 縮退 / phase3 / roadmap+agent-architecture /
+phase2+decisions+glossary+insights / phase1 / worklog+paper-story)。check_docs lint 緑。本セッションの handoff は
+本エントリに吸収して削除 (ディレクトリ空 = 全セッション健全終了、が新しい定常状態)。
+
+### 次の一手
+- **kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周** (07-04 (2) から変わらず。一次防壁 +
+  hook 配線済み、gate = `test_settings_json_wires_both_hooks` 緑)。
+- 論文系の安価な補強 (監査 actionable より、着手順の推奨): S2 前倒し → +38%/+11% の別 boot 再現 →
+  critic 軸提案の再現率測定 (replay、新規計測ゼロ) → Threats to Validity 集約文書。
+- 未消化の docs 課題 (変わらず): 「WAL proof chain」の実体定義 / coder 自律期の停止条件・fitness 採否・
+  再試行方針の予約 (外的妥当性の集約は上記 Threats to Validity に統合)。
