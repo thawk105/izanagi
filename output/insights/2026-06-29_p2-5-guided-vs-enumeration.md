@@ -4,6 +4,8 @@
 **status:** 完了 (Phase 2 主実験)。還元判断: 不要 (CCBench のバグでなく Izanagi 手法の評価結果)。
 **データ:** `output/campaigns/p2-5-summary.json` (per-trial 軌跡)、replay 元 = P2-2 WAL (`output/campaigns/p2-2-silo-*-enumerate-*/runs/wal.jsonl`)。
 
+**訂正 (2026-07-05):** 本文中の循環回避・リーク制御・選択的報告の文脈にある「D14」参照 (4 箇所) は **D12 の誤記** (D14 = #if TRACE 実装で無関係)。7/4 の docs 横断監査 (`docs/audit-2026-07-04-docs-consistency.json`) が特定。本文は凍結記録のため据え置き、伝播先 (decisions D21/D26・phase2・phase3・glossary) は 2026-07-05 に D12 へ修正済み。
+
 ## 問い (と、なぜ negative result に枠組みを定めたか)
 
 P2-5 当初の問い = 「critic (leading indicators の帰属) で次の genome を選ぶ誘導探索は、ランダム/全探索より少ない評価回数で最適に到達するか」。

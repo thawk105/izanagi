@@ -3,7 +3,9 @@
 **目的:** CCBench の最適化フラグ空間を探索し、入力 workload に最速の CC 構成 (genome) を見つける。
 roadmap §2 層2(a) **パラメータ粒度を主軸**。空間は有限 (silo 2^4→no-wait XOR 制約で 8、anatomy §3) なので
 **初手は全探索**。全探索で得た最適を ground truth とし、LLM 誘導探索の到達速度を比較する
-(roadmap §9 / 論文の図)。
+(roadmap §9 / 論文の図)。**この比較は P2-5 で実施済み = negative result: 誘導は機械的勾配 (貪欲) を超えず、
+「論文の図」は「小空間ではフラグ探索が自明で価値は空間外の合成にある」の物語に転じた (P2-5 節・D21。
+roadmap §2 に同旨の注記あり)**。
 
 **副産物:** パラメータ variant は CCBench 由来のフラグ組み合わせなので理屈上**全部正しい** →
 **verifier の大規模 sanity check** (Phase 1 verifier 信頼性の総仕上げ)。
@@ -17,7 +19,8 @@ roadmap §2 層2(a) **パラメータ粒度を主軸**。空間は有限 (silo 2
 **サブエージェント:** + critic, profiler (`docs/agent-architecture.md` の仕様で実体化)
 
 **環境:** 計測は linux-baremetal の確定 calibration (records=1m / 48 thread / skew0.9 / reps5、
-within-run 変動係数 (CV = 標準偏差/平均) 2.28% = 1 測定の品質ゲート / 採否 floor は between-run 3.0% (A2/D19)、
+within-run 変動係数 (CV = 標準偏差/平均) の実測 noise floor 2.28% = 1 測定の品質の目安 (remeasure/unstable
+品質ゲートの発火閾値は 5% 据え置き = D19) / 採否 floor は between-run 3.0% (A2/D19)、
 `output/env/linux-baremetal/calibration/`)。**性能計測は単一テナント直列**
 (絶対規律4)。ビルド・trace 検証は並列可 (`lock.py` の bench_lock はベンチのみ排他)。
 
@@ -52,7 +55,8 @@ Phase 1 で配線済みの (1)(3) (noise floor + 反復中央値・変動係数)
       有意性判定 (重い統計機構は不要)
 - [x] unstable variant は分布比較から除外 (呼び手が責任)。沈黙して 1 点採用しない
 - [x] **A2 精緻化**: 採否の floor は **between-run** noise floor (別 run で測る variant/baseline の差の下限、3.0%)。
-      within-run の変動係数 (2.28%) は 1 測定の品質ゲート用で採否には使わない。Mann-Whitney U は反復数が
+      within-run の変動係数の実測 noise floor (2.28%) は 1 測定の品質の目安で採否には使わない
+      (remeasure/unstable 品質ゲートの発火閾値は 5% 据え置き = D19)。Mann-Whitney U は反復数が
       小さい (5) と完全分離で常に有意になる弱い sanity ゆえ、主防壁は between-run floor 丸め。floor 近傍
       (floor〜1.5×floor) の faster/slower は `near_floor` フラグを立て cross-run 再現で裏取り要とする (D19)
 
@@ -113,7 +117,7 @@ winner-tied set k=4=空間の半分で到達判定が無情報、k=1 でも完�
 
 - [x] critic-experiment エージェント (critic.md から最適解の literal を物理削除した中立版) で online 誘導ループを
       30 試行実走 (balanced/write-heavy 各12 + read-heavy 6)。fitness は P2-2 WAL replay で配る (新規直列計測ゼロ)。
-      リーク制御 = 評価済みのみ digest + 実行時 assert + fresh context + 初手対称 (絶対規律6/D14)
+      リーク制御 = 評価済みのみ digest + 実行時 assert + fresh context + 初手対称 (絶対規律6/D12)
 - [x] 4 系列比較: 全探索 (**8 全部 = SILO_SPACE.enumerate()**、旧記述「12 全部」は誤り) / random (解析期待
       (N+1)/(k+1)) / critic 無し貪欲 (digest 勾配のみ、LLM なし) / 誘導 (LLM)。到達定義 = winner-tied set
       (equivalence class + floor 3.0%) 初到達、未到達は予算上限 N に算入
@@ -145,6 +149,9 @@ P2-3 以降 (critic/profiler/LLM 誘導) は探索の骨格が回り始めてか
 
 ## Phase 3 着手前 must (Phase 1 完了監査 2026-06-28 が示した繰り延べ項目)
 
+※ この一覧は Phase 3 引き継ぎ時点のスナップショット。消化状況の正本は phase3.md の must 表であり、
+以後この一覧のステータスは更新しない (2026-07-05 の文書一貫性恒久対応)。
+
 Phase 1 は完了条件を満たす (blocks なし) が「完璧」でなく、4軸監査で出た穴のうち **silo 探索 (Phase 2) を
 脅かす H1 admission fails-closed / H2 between-run noise floor は完了** (A1 / A2 = 2026-06-28、between-run を
 実測し compare/report を配線、read-heavy rank3/4 の過大主張を是正。[[decisions]] D19)。残りは **Phase 3
@@ -157,8 +164,10 @@ Phase 3 着手の直前に消化する (今やると過剰修正):
   読んで『その依存を断つ』variant を作る) は赤が出る Phase 3 で実体化 = 規律5。配線は mock/fixture テストで回帰
   (実 VerifyResult で `result_to_dict` 経路を含む、test_campaign/test_critic に各 1)。broken-silo end-to-end は
   Phase 1 で確立済 (buildcache が genome キーゆえ patch 状態と衝突する罠があり mock/fixture で回帰する)。
-- **H3 hooks の実体化**: `hooks/` の規律1/2 機械防壁は placeholder。**LLM が C++ variant を書く瞬間**に第二防壁が
-  必要 (hooks/README に明示済み)。
+- **H3 hooks の実体化 — 完了 (2026-07-04、方針 A)**: `hooks/` の規律1/2 機械防壁は placeholder だった。
+  **LLM が C++ variant を書く瞬間**に第二防壁が必要 (hooks/README に明示済み)。guard_write/guard_bash の
+  最小第二防壁を `.claude/settings.json` の PreToolUse に配線 (D30/D33)。3 巡目敵対検証 (real 9/known 6) の
+  修正と D34 (source_digest の -undef 廃止) まで消化。詳細は phase3.md の must 表。
 - **S2 certify workload = perf workload の一致**: 検証 (tuple200/thread4) と計測 (1m/thread48) が別。合成 variant が
   「小 workload では踏まないデータパス」を持つと緑 certify と赤い実行が食い違う。perf 構成 (の縮小版) でも 1 回
   verify + broken-silo 同一フラグ赤検出を消化 (insight の follow-up [P1])。

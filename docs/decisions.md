@@ -355,16 +355,16 @@
 
 **決定:** Phase 2 主実験 P2-5 (LLM 誘導探索 vs 全探索) を「誘導が速いか」でなく **negative result + critic ablation** として実施する。silo 8 の全 fitness は P2-2 で実測済みゆえ **P2-2 WAL の replay で完結** (新規直列計測ゼロ、絶対規律4)。到達定義は winner-tied set (no-difference 連結成分 = equivalence class + between-run floor 3.0%) 初到達。critic の知能を機械的勾配から分離するため critic 抜きの貪欲 (digest.axis_effects のみ、LLM なし) を ablation 系列に加える。リーク制御は critic-experiment.md (`critic.md` から最適解の literal を物理削除した中立版) + online 非開示 + 実行時 assert (`online_digest`) + fresh context + 初手対称。
 
-**背景 (なぜ negative result か):** silo 有効空間は 8 genome で実質 BACK_OFF=0 の 1 ビットで決まる。read-heavy は winner-tied set k=4 = 空間の半分 (到達判定が無情報)、k=1 でも完璧オラクル天井 = 2−k/N = 1.88 本 = ランダム 4.50 から 2.62 本削減が構造的上限。このまま「誘導が速い」を主張すると評価器の優位を評価器の定義で論証する循環 (D14・絶対規律6)。設計を多エージェント workflow + 敵対的妥当性検証 (リーク/小N/ベースライン公平性) で固めた段階で判明し、ユーザー承認のもと枠組みを定めた (phase2.md 完了条件を改訂)。
+**背景 (なぜ negative result か):** silo 有効空間は 8 genome で実質 BACK_OFF=0 の 1 ビットで決まる。read-heavy は winner-tied set k=4 = 空間の半分 (到達判定が無情報)、k=1 でも完璧オラクル天井 = 2−k/N = 1.88 本 = ランダム 4.50 から 2.62 本削減が構造的上限。このまま「誘導が速い」を主張すると評価器の優位を評価器の定義で論証する循環 (D12・絶対規律6)。設計を多エージェント workflow + 敵対的妥当性検証 (リーク/小N/ベースライン公平性) で固めた段階で判明し、ユーザー承認のもと枠組みを定めた (phase2.md 完了条件を改訂)。
 
 **結果:** 誘導 (LLM critic 30試行) は random/貪欲を有意に上回らない (balanced は余地 2.62 本の 1/4・P(誘導<random)=0.531 で有意でない・誤収束 0/12)。**deceptive 構造 (write-heavy、BACK_OFF=1 が実 2 位 −11%) では誤収束 8/12 で random より遅い (P=0.208)** — clean な balanced で校正された「自信ある帰属」が write-heavy で誤誘導され、critic が確信して早期停止し winner を評価しない。random/貪欲は早期停止しないので必ず最後に当てる → **critic の自信ある早期停止が deceptive 帯で負債**。silo 8 では誘導の価値は実証できず空間拡大 (cicada/oze、S1 trace-hook 拡張を要す) が前提、という negative result。insight 2026-06-29_p2-5-guided-vs-enumeration.md。
 
 **却下した選択肢:**
 - **空間拡大して「誘導が速い」を主張**: 新規計測 + S1 先食い + ermia cstamp 罠。silo replay で negative を成立させてから拡大の要否をユーザー判断に委ねる方が段階的 (規律5)。
 - **到達定義を単一 genome 一致**: read-heavy 4-way tie で到達不能 + reps5 ノイズで argmax が揺れる循環。equivalence class で pivot 非依存に。
-- **未到達を低コスト計上 / K を有意化まで増やす**: 早期誤収束を成功と誤計上は誘導有利の偏り → 未到達は予算上限 N 算入。後追い K 増やしは選択的報告 (D14) → 事前停止規則 (天井に埋もれるなら有意化しないと結論)。
+- **未到達を低コスト計上 / K を有意化まで増やす**: 早期誤収束を成功と誤計上は誘導有利の偏り → 未到達は予算上限 N 算入。後追い K 増やしは選択的報告 (D12) → 事前停止規則 (天井に埋もれるなら有意化しないと結論)。
 
-**位置づけ:** ユーザーと協議合意した枠組み定義 (roadmap 改訂セレモニー対象外)。replay は certified 済みを配るので本実験は規律4 (測定妥当性) と規律6/D14 (循環回避) のテストであって規律2/3 のテストではない (insight に明記)。
+**位置づけ:** ユーザーと協議合意した枠組み定義 (roadmap 改訂セレモニー対象外)。replay は certified 済みを配るので本実験は規律4 (測定妥当性) と規律6/D12 (循環回避) のテストであって規律2/3 のテストではない (insight に明記)。
 
 ※ 2026-07-02 指標再校正 (D29): 上記「結果」の P(誘導<random) 数値は p_lt の系統バイアス (同分布でも null=0.4375) を含む。確率優越 a への再校正後の正確な表現は「誘導は機械的勾配 (貪欲) を超えず、deceptive では貪欲より有意に有害」— 総合結論は不変。D29 参照。
 
@@ -499,7 +499,7 @@ skip-key スキームを区別しない弱さは docstring で正直化 (load-be
 
 ## D26. online_digest の「二重の関所」は構造的に成立せず — assert を配線 sanity に格下げし docstring を実態へ (audit 2026-06-30 裏取り)
 
-**背景:** P2-5 誘導アームのリーク制御 `critic/online_digest.py` は、評価器の中立性 (規律6/D14) を担保するため
+**背景:** P2-5 誘導アームのリーク制御 `critic/online_digest.py` は、評価器の中立性 (規律6/D12) を担保するため
 (a) 誘導専用 WAL 分離 + (b) `load_p2_2_digests` 非 import に加え、「digest の genome 数 ≤ 評価回数」の実行時
 assert を「WAL 分離だけに頼らない二重の関所」と謳っていた。
 
