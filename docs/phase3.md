@@ -116,8 +116,9 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
   coder.md タスクの前提 gate 参照。hook は未配線 = 現在形の保証ではない, D30)。
 - **適用の隔離:** patch は submodule working-tree への out-of-band 適用 (HEAD は dff0f1e pin 不動 →
   campaign-id 不変)。1 variant 評価ごとに clean→apply→build→revert。apply 前に対象が pinned-clean か
-  assert (汚れていたら fails-closed abort)。**この駆動部 (apply/revert ハーネス) は現状記述のみで実装が無い
-  (歴代の patch 適用は手動) — 下の blocking タスクで実装する。**
+  assert (汚れていたら fails-closed abort)。駆動部 = `campaign/patchharness.py` の `applied()` context
+  manager (blocking タスクで実装済み: enter = flock 排他 + pinned-clean assert + apply、exit = revert +
+  clean assert。順序固定 apply→resolve→build→revert は context manager の形状で担保)。
 
 ---
 
@@ -132,28 +133,43 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
       表現は据え置き (後方互換)。同 campaign 内で異なる source_digest が同一 variant_id を共有しない assert。
 - [x] **(blocking) EVOLVE-BLOCK template patch**: silo abort-path 周辺 (BACKOFF_FIXED 軸再利用) に骨格を 1 つ。
       既定 inert を preprocess 後ハッシュ一致 → stock genome cache-hit で実証。
-- [ ] **(blocking) verify の abort 数を WAL に記録**: 現配線は abort 数をどこにも記録しない — `_run_trace` は
-      `(ncommit, rc)` のみ返し ccbench stdout を捨て (pipeline.py:94-102)、STAGE_VERIFY_DONE payload は
-      verdict/certified/commits/anomalies の 4 項のみ (pipeline.py:187-189)、trace レコードも C/R/W の 3 種で
-      abort イベントを持たない。よって完了条件 2 の「abort > 0 確認」が**検査不能**。ccbench stdout の
-      `abort_counts_:` (common/result.cc:34) をパースして STAGE_VERIFY_DONE payload に `aborts` として記録する。
-- [ ] **(blocking) apply/revert ハーネス**: 「1 variant 評価ごとに clean→apply→build→revert」(上の機構節) の
-      駆動部を実装する。apply 前の pinned-clean assert + revert 後の `git status --porcelain` 空 assert を
-      fails-closed で持ち、順序を **apply → resolve(src_token) → build → revert** に固定する (resolve より後に
-      tree を動かさない)。
-- [ ] **(blocking) build 後の digest 再照合 (TOCTOU 遮断)**: resolve→build 間に working-tree が動くと、digest と
+- [x] **(blocking) verify の abort 数を WAL に記録**: 旧配線は abort 数をどこにも記録しなかった — `_run_trace` は
+      `(ncommit, rc)` のみ返し ccbench stdout を捨て、STAGE_VERIFY_DONE payload は
+      verdict/certified/commits/anomalies の 4 項のみ、trace レコードも C/R/W の 3 種で
+      abort イベントを持たない = 完了条件 2 の「abort > 0 確認」が**検査不能**だった。実装: ccbench stdout の
+      `abort_counts_:` (common/result.cc:34) をパース (`pipeline._parse_abort_counts`、`^` アンカーで
+      `batch_abort_counts_` を誤マッチしない) し STAGE_VERIFY_DONE payload に `aborts` として記録。**集計行が
+      読めない run は fails-closed reject** (`trace-no-abort-counts`) — 空振り認証の検査可能性を落としたまま
+      緑を出さない (規律3: 計器の故障を沈黙させない)。
+- [x] **(blocking) apply/revert ハーネス**: 「1 variant 評価ごとに clean→apply→build→revert」(上の機構節) の
+      駆動部 = `campaign/patchharness.py`。apply 前の pinned-clean assert (HEAD==pin (7 桁下限、startswith 弱照合
+      対策) + tracked 改変ゼロ) + revert 後の tracked-clean + patch 由来新規ファイル残骸ゼロ assert を fails-closed
+      で持ち、順序 **apply → resolve(src_token) → build → revert** は `applied()` context manager の形状で担保
+      (resolve より後に tree を動かさない)。全 git 呼び出しに `-c core.quotepath=false` (非 ASCII パスの C-style
+      quote で残骸削除/leftovers 検査が素通りする穴の対策)。**区間全体を flock (`_tree_lock`) で直列化** — 共有
+      working-tree への並走 apply の ABA は TOCTOU 再照合 (両端一致) では原理的に見えない (2026-07-03 敵対検証
+      high)。revert 後 assert はタスク定義の「porcelain 空」より弱い (残存リスク節) — 恒久解は段 5 の git
+      worktree 隔離。
+- [x] **(blocking) build 後の digest 再照合 (TOCTOU 遮断)**: resolve→build 間に working-tree が動くと、digest と
       実バイナリが食い違ったまま**共有ビルドキャッシュ (campaign 非依存) に永続**し以後 cache hit で沈黙再利用される
       (偽 cache hit = 規律2 直撃)。bench_lock はベンチのみ排他・campaign.lock は記録ファイルで mutex ではなく、
-      複数セッション並走は現に運用実態。build 完了直後に src_token を再計算して resolve 時の値と照合し、不一致は
-      build dir を破棄して fails-closed abort する (再計算は数十 ms で規律4 に反しない。git worktree 隔離 =
-      後続段 5 までの最小防壁)。
-- [ ] **(blocking) source_digest の #include 死角の閉塞**: digest は preprocess 前に `#include` 行を無条件除去する
-      (source_digest.py `_INCLUDE_RE`) ため、coder が EVOLVE-BLOCK ファイルに #include を追加/差し替えすると
-      **バイナリが変わるのに identity 不変** = stock と alias → 既存バイナリの cache hit で**変更が一度も
-      コンパイルされないまま certified 記録**になる。現状この経路の防壁は道Y の hook 禁止 (D23) だけで hook は
-      未配線 — 方針 A が消したはずの単一障害点がこのベクタで復活している。identity 核で塞ぐ:
-      EVOLVE_BLOCK_SOURCES の #include 行集合が HEAD と異なれば fails-closed abort (最小)、または #include
-      行集合の生ハッシュを src_token の pre-image に織り込む (恒久。stock 正規化との後方互換に注意)。
+      複数セッション並走は現に運用実態。実装: `buildcache._recheck_src_token` — build 完了直後に
+      source_digest.resolve で src_token を再計算・照合し、不一致は build dir ごと破棄 (`_discard_build_dir`、
+      破棄失敗は明示例外 = 消し残り汚染バイナリの沈黙再利用を防ぐ) して fails-closed abort (再計算は数十 ms で
+      規律4 に反しない)。**cache hit 側も再照合** (resolve→hit 判定間の窓。hit の不一致は既存の正当な成果物
+      なので破棄せず停止のみ)。resolve の transient 失敗でも新規ビルドは破棄する (D25 と非対称だが意図的 —
+      残存リスク節)。git worktree 隔離 = 後続段 5 までの最小防壁。
+- [x] **(blocking) source_digest の #include 死角の閉塞 — 最小案採用**: digest は preprocess 前に `#include` 行を
+      無条件除去する (source_digest.py `_INCLUDE_RE`) ため、coder が EVOLVE-BLOCK ファイルに #include を追加/
+      差し替えすると**バイナリが変わるのに identity 不変** = stock と alias → 既存バイナリの cache hit で**変更が
+      一度もコンパイルされないまま certified 記録**になる。旧状この経路の防壁は道Y の hook 禁止 (D23) だけで hook は
+      未配線 — 方針 A が消したはずの単一障害点がこのベクタで復活していた。実装 = **最小案**:
+      `assert_includes_match_head` (resolve が駆動) — EVOLVE_BLOCK_SOURCES の #include 行集合 (順序込み) が HEAD
+      baseline と 1 行でも違えば fails-closed abort。**恒久案 (行集合を src_token pre-image に織り込んで追加を許す)
+      は敵対検証で却下** (2026-07-03 high): include **先ファイルの中身**は identity に乗らず、中身違いの新規 header
+      で variant 間 alias が残る (実機 probe で偽 cache hit 再現)。行集合を HEAD 固定にすれば include 追加自体を
+      止めるので穴ごと消える (coder の #include 追加は閉じた領域制約で元々禁止)。`__has_include` / #define 経由の
+      computed include は #include 行に現れず残る → 残存リスク節 (道Y 一般問題)。
 - [ ] **(進行中・方針 A で再設計) H3 hooks = 明白な直接書き込みを止める最小の第二防壁** (実装済・**未配線**, D30):
       `guard_write.py` / `guard_bash.py` は実装済みだが、**2 巡目敵対検証で real 13 件 (critical 1 = コメント行連結
       (backslash-newline splice) でコメント除去器を騙し `#define TRACE`/`__DATE__` を素通しさせる GW2R-1) が残存**し、
@@ -295,3 +311,17 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
   残る限界 (タスク定義に明記): 検証専用メタデータが #ifdef の外 = 両ビルド共通に常駐するケースは機械判定不能
   (fitness の自己ペナルティで false-green にはならないが、意味判定は auditor / 人間レビュー領域)。仕様確定時に
   この述語で確定するまで blocking 完了としない。
+- **#include 死角の残り (道Y 一般問題)**: identity 核の閉塞 (`assert_includes_match_head`) が捕えるのは literal な
+  `#include` 行のみ。`#if __has_include(...)` (preprocess 環境と実ビルドで評価が分岐しうる) や #define 経由の
+  computed include は #include 行に現れず素通りする。identity 核だけでは完了条件 1 (骨格の #if 指令は inert) と
+  両立して塞げない (骨格 #if と payload #if の区別に skeleton 抽出が要る) → guard_write の payload 検査 (方針 A の
+  第二防壁) + auditor 領域。kickoff (no-op / 人間が値を与える純 timing) では coder が #if/#include/#define を
+  発明しないので潜在 — **後続段 4 (coder 自律期) で skeleton 検査として load-bearing にする**。
+- **共有 working-tree の並走 (ABA) は flock 緩和のみ**: patchharness の `_tree_lock` は単一 tree 上の並走
+  apply/build/revert を直列化する最小防壁。恒久解は段 5 の git worktree 隔離 (variant ごとに独立 tree)。revert 後の
+  残骸検査も tracked 改変 + patch touch 集合のみでタスク定義の「porcelain 空」より弱い (body 中の事故で作られた
+  patch 外 untracked 残骸は捕えない) — worktree 隔離で tree ごと使い捨てにして解消する。
+- **_recheck の transient 失敗破棄は D25 と非対称 (意図的)**: build 後再照合 (`_recheck_src_token`) で resolve が
+  transient に失敗した場合も新規ビルド成果を破棄する。D25 (identity-error abort は retryable) と層が違う — WAL
+  terminal の可否ではなく共有キャッシュの清潔性の問題で、identity 不明のバイナリを残す方が害が大きい (偽 hit 防止 >
+  再ビルドコスト)。cache_key で次 run が再ビルドするので D25 の再評価可能性は保たれる。
