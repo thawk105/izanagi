@@ -83,19 +83,18 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 
 ---
 
-## hooks (Phase 1 から薄く・Python)
+## hooks (方針 A の最小第二防壁・Python)
 
-ECC のように大量に持たない。絶対規律1・2 の機械的執行のための2つだけ。auditor の事後監査に加えた「書き込み時点の第二防壁」。
+ECC のように大量に持たない。`.claude/settings.json` の PreToolUse に配線済みの 2 つだけ (D30/D33)。auditor の事後監査に加えた「書き込み時点の第二防壁」であり、**テキスト内容の検査には完全性を負わせない** (2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証済み — 責務再配置の経緯は D30/D33)。
 
-### hook 1: 観測者効果違反の検出 (PreToolUse / PostToolUse)
-- variant コードが `#ifdef TRACE` の外に検証専用メタデータを書こうとしたら警告
-- CC のデータ構造に trace 専用フィールドが常駐しようとしていないかチェック
+### guard_write (PreToolUse: Write|Edit|MultiEdit|NotebookEdit)
+- proof-chain 成果物 (WAL / campaign.lock / build-variants 等) への直接書き込みを拒否 (規律2 = verifier 迂回の阻止)
+- variant の編集面を EVOLVE-BLOCK の designated ソースに限定 (D24)
 
-### hook 2: verifier 迂回の阻止 (PreToolUse)
-- verifier を経由せずに性能数値だけを更新しようとしたら止める
-- 正しさゲートを通さずに variant を「採用」状態にしようとしたら止める
+### guard_bash (PreToolUse: Bash)
+- 同等の書き込みを Bash 経由で行う経路を遮断
 
-実装は `hooks/` に Python で。Claude Code の hook 設定 (`hooks.json` 相当) で PreToolUse/PostToolUse に紐付ける。具体的な配線方法は Phase 1 タスク1 以降、CCBench のビルド構成が固まってから詰める。
+旧設計の hook 1 (「`#ifdef TRACE` の外への検証専用メタデータ書き込みを警告」= payload テキスト検査) は **D33 で物理削除した**。規律1 (観測者効果) の内容検査は一次防壁 (source_digest の preprocess 後ハッシュ・#include HEAD 固定・diff-of-diffs) が担う。実装と known-limitation は `hooks/README.md`、経緯は phase3.md タスク3 (H3) と D30/D33/D34。
 
 ---
 

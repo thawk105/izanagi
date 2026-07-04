@@ -132,7 +132,7 @@ evaluator が本システムの成否を分ける。AlphaEvolve/Jitskit/IDS す�
 - 性能比較は variant も baseline も trace-disabled で揃える
 - メタデータは「CC本来 (アルゴリズムが要求する。性能比較に含める)」と「検証専用 (verifier にトレースを渡すためだけ。`#ifdef TRACE` で消す)」を区別。この2つを混ぜない
 - perf は trace-disabled build に当てる
-- ビルド等価性の機械検証: trace-enabled と trace-disabled でトレース有無が CC の意味論を変えていないことを機械確認する。**実装は当初案 (最終 DB 状態の一致比較) から変更**: Phase 1 タスク1 の **symbol 不在検査 (perf binary に trace コードが 1 byte も無い、`nm`)** の方が DB 状態一致より強い証明なので、DB-dump 計装は冗長と判断し未実装 (phase1.md:141)。Phase 3 では方針 A (D30) により、この機械確認が観測者効果分離の**一次防壁に昇格**し、symbol 不在に加えて **trace/perf 両ビルドの preprocess 出力 diff** (data-structure 由来の差も捕える「観測者効果の二重検査」, phase3.md の blocking タスク) へ拡張する
+- ビルド等価性の機械検証: trace-enabled と trace-disabled でトレース有無が CC の意味論を変えていないことを機械確認する。**実装は当初案 (最終 DB 状態の一致比較) から変更**: Phase 1 タスク1 の **symbol 不在検査 (perf binary に trace コードが 1 byte も無い、`nm`)** の方が DB 状態一致より強い証明なので、DB-dump 計装は冗長と判断し未実装 (phase1.md タスク5a 節の判断記録参照)。Phase 3 では方針 A (D30) により、この機械確認が観測者効果分離の**一次防壁に昇格**し、symbol 不在に加えて **diff-of-diffs** (variant の TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と一致することを assert する「観測者効果の二重検査」。素の出力 diff は `#if TRACE` ガード領域で正当に食い違うため不成立と敵対検証で裁定済み) へ拡張済み (2026-07-04 実体化。`source_digest.assert_trace_diff_matches_head` を `buildcache.build` 出口の hit/fresh 両経路で発火、fails-closed)
 
 ### 3.4 reward hacking 対策 (Jitskit §3.2, Appendix B より)
 
@@ -144,8 +144,8 @@ LLM は最適化圧力の下で、書かれていない不変条件を破って�
 これらに対し:
 1. **据え置きの正しさゲート** — 壊すと即 reject。「絶対壊しちゃダメ」(serializability anomaly検査、ACID基本) と「壊れていい」(プロトコル固有テスト、variant のキャラクタライズに使う) を分ける
 2. **adversarial auditor** (Phase 3 で導入) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を見つけてテストを追加
-3. **hooks による書き込み時防壁** (Phase 1 から薄く) — verifier 迂回・成果物への直接書き込みを機械的に弾く**最小の第二防壁**。**方針 A (D30) 以降、hooks は「唯一の防壁」ではない**: identity の honest さ (偽 cache hit / `#ifdef`) は source_digest の preprocess 後ハッシュ、観測者効果の分離は trace/perf 両ビルドの preprocess 二重検査が**一次防壁**として担い、hook はテキスト検査の完全性に依存しない範囲 (堅牢なパス検査) に責務を絞る。2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証したため (規律5 と両立させる責務再配置)
-4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。これは verifier から書き込み権限を外す出力側隔離と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
+3. **hooks による書き込み時防壁** (Phase 1 から薄く) — verifier 迂回・成果物への直接書き込みを機械的に弾く**最小の第二防壁**。**方針 A (D30) 以降、hooks は「唯一の防壁」ではない**: identity の honest さ (偽 cache hit / `#ifdef`) は source_digest の preprocess 後ハッシュ、観測者効果の分離は観測者効果の二重検査 (diff-of-diffs、§3.3) が**一次防壁**として担い、hook はテキスト検査の完全性に依存しない範囲 (堅牢なパス検査) に責務を絞る。2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証したため (規律5 と両立させる責務再配置)
+4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。これは verifier に専用書き込みツール (Edit/Write) を与えない出力側隔離 (Bash 経由は prompt 規律で禁止 — 完全なツール権限隔離ではない、audit-2026-06-30 §4) と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
 
 ### 3.5 leading indicators (収束に必須)
 
@@ -333,11 +333,11 @@ Perplexity の本番データ (Search vs Computer) で自律エージェント�
 
 ### ECC (github.com/affaan-m/ECC)
 Claude Code の運用パターンの参考。借用は3点だけ (巨大さは反面教師):
-- agent定義に `tools` と `model` を明示。verifier には書き込み権限を与えない (見張り役をツール権限で隔離)
-- hooks で規律を機械執行 (観測者効果違反・verifier 迂回を書き込み時に弾く)
+- agent定義に `tools` と `model` を明示。verifier には専用書き込みツール (Edit/Write) を与えず、Bash 経由の書き込みは prompt 規律で禁止 (完全なツール権限レベルの隔離ではない — audit-2026-06-30 §4 の裁定)
+- hooks で規律を機械執行 (verifier 迂回・成果物への直接書き込みを弾く第二防壁。観測者効果の内容検査は方針 A (D33) で一次防壁 = source_digest 系へ委譲)
 - continuous-learning/instinct は whiteboard memory の進化形として将来予約
 
-**同種の反面教師 (盛り盛り環境):** 「27 agents / 64 skills / 33 commands / AgentShield (1,282 tests)」のような大規模 Claude Code 環境が公開され話題になるが、これらは絶対規律5 (段階導入・盛らない) と正面衝突する。Izanagi は CC 合成という単一目的に必要なロール/hook だけを Phase ごとに足す。唯一拾える原子は「hook 自体にテストを書く」発想 (本プロジェクトの 2 つの hook にも適用しうる、Phase 1 タスク1 で hook を配線するとき検討)。
+**同種の反面教師 (盛り盛り環境):** 「27 agents / 64 skills / 33 commands / AgentShield (1,282 tests)」のような大規模 Claude Code 環境が公開され話題になるが、これらは絶対規律5 (段階導入・盛らない) と正面衝突する。Izanagi は CC 合成という単一目的に必要なロール/hook だけを Phase ごとに足す。唯一拾える原子は「hook 自体にテストを書く」発想 (適用済み — 両 hook に回帰テスト群があり、3 巡の敵対検証の fix は変異検査で固定。hooks/README.md 参照)。
 
 ---
 
@@ -378,7 +378,7 @@ Phase 3.5 (任意): Open-Ended Evolution
   - ablation で OEE 有り/無しの探索効率を比較
 ```
 
-各 Phase の詳細タスクは該当する docs/phaseN.md に。現在は Phase 1 = `docs/phase1.md`。
+各 Phase の詳細タスクは該当する docs/phaseN.md に。現在どの Phase かの正本は CLAUDE.md「現在地」が指す worklog 末尾と現行 phase doc (roadmap は現況を主張しない)。
 
 ---
 
