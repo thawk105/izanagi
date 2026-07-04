@@ -1595,3 +1595,54 @@ include 行集合 HEAD 固定) / b059a70 (buildcache: 出口 + cache-hit 再照�
   coder.md + 純 timing variant 1 本で全配線 1 周**。
 - 未消化の docs 課題 (残り、変わらず): 「WAL proof chain」の実体定義 / 外的妥当性の集約 / coder 自律期の
   停止条件・fitness 採否・再試行方針の予約。
+
+## 2026-07-04 (2) — H3 hooks 方針 A 完了: payload 検査削除 + 3 巡目敵対検証 (real 9) 修正 + 配線 + source_digest -undef 廃止 (D33/D34)
+
+前セッションが未コミットで残した方針 A の hook 最小化差分 (guard_write の payload 検査削除・guard_bash の
+2 巡目 fix) を、規律6 (別セッション作業物の取り込み監査) に従い commit 前に監査し、3 巡目敵対検証を経て配線まで
+完了した。上エントリの「次の一手」= hook 最小化 + 配線を達成。
+
+**監査 (取り込み前):** 差分は D30 (方針 A) の設計どおり。guard_write は proof-chain 拒否 + designated ソース面
+限定だけに最小化 (内容検査削除)。削除した payload 検査の責務は、実際に発火しテストもある一次防壁
+(`assert_includes_match_head` / `assert_trace_diff_matches_head` の diff-of-diffs / `_recheck_src_token` の TOCTOU)
+に確かに移っていることを test_campaign.py で確認。旧 payload 検査テスト 6 本が旧挙動を固定したまま赤 → 方針 A の
+「内容非検査」テストに置換し一次防壁テストへ相互参照。guard_bash の 2 巡目 fix の回帰テストを追加、SPEC-3 の
+恒真寄り matcher 検査を 4 tool 全要求に修正。`.claude/settings.json` に両 hook を配線。全緑 173。
+
+**3 巡目敵対検証 (規律6 の取り込み裏取り + Phase 境界、ultracode):** 配線前に Opus 赤チーム 4 系統
+(bash 新種 bypass / write bypass / 一次防壁の委譲穴 / 過剰拒否) の finder → 各指摘を独立スケプティックが実 repro で
+real/refuted 裁定 → Fable 最終裁定 (19 エージェント・約 93 万トークン)。**real 9 / known-limitation 6 / refuted 0。**
+
+**最重要 (critical) = 方針 A の前提破れ:** source_digest の digest は `g++ -E -undef` で builtin (__x86_64__ 等) を
+全消しするため、EVOLVE-BLOCK に `#ifdef __x86_64__ / 別挙動 / #else / stock / #endif` と書くと digest 環境では
+stock 枝に落ち src_token='stock' に化け、実ビルドでは別枝がコンパイルされる = 偽 cache hit (別挙動の variant が
+verify 素通りで stock の certified を継承 = 規律2 直撃)。source_digest の docstring 自身 (道Y) が「-undef の乖離が
+あるから生 #ifdef を hook で禁止する」ことを前提にしていたが、方針 A で hook payload 検査を削除したため前提が
+崩れていた (coder 未実体化ゆえ未 live だが投入前に塞ぐべき kickoff-blocking の穴)。**ユーザーに報告し、案 A
+(`-undef` 廃止 = 実 builtin を digest に反映) の承認を得て封鎖** (D34)。実 g++-13 で -undef あり=stock枝(偽hit)・
+なし=実枝(999、実ビルド一致)、-Werror=undef の骨格 #if 供給漏れ検出維持、stock digest 2 回同一 (後方互換保持) を
+検証。回帰 `test_source_digest_builtin_ifdef_not_aliased_to_stock` + 変異検査 (-undef を戻すと赤) で固定。
+
+**hook 実装バグ 8 件 (bypass 5 + 過剰拒否 3) を自律修正:** 絶対パス/~ の rm の防護ツリー素通り (repo_root で
+相対化)・改行がセグメント境界にならず先頭 read-only head が後続 writer 隠蔽 (改行を `;` 正規化)・heredoc `<<` の
+bare interpreter (`<<` を opaque 化)・symlink root-output の fail-open (camp_root/sub を realpath 化)・NotebookEdit
+decoy (notebook_path 優先)、nm/objdump/du の純読み拒否 (allowlist 追加)・tar/rsync backup の拒否 (read/write 判別)。
+known-limitation 6 (変数展開・部分 glob・computed include・末端 tar backup 等) は docstring 明示の限界として据え置き。
+全 fix を変異検査 3 本 (案A + heredoc + 絶対パス) で「fix を戻すと該当テスト赤・復元で緑」を機械実証。
+
+**モデル分業 (メモリ [[model-downgrade-fable5-classifier]]):** 攻撃 probe (bypass 探索・repro) は Opus サブ
+エージェント (workflow)、設計・裁定・修正・docs・commit は Fable メインループ。ユーザーの「fable でがんばれ」に
+沿い、攻撃要約を読む turn の降格は気にせず Fable で進めた。
+
+**成果物:** 全緑 176 passed / 4 skipped。docs 反映 = phase3.md (H3 hooks [x] 化・must 表)・decisions D33 (方針A
+実装 + 3 巡目 fix + 配線)/D34 (source_digest -undef 廃止)・hooks/README.md (配線済・3 巡検証・payload 検査削除)・
+本 worklog。**コミット 4 本** (source_digest 案A / hooks+tests / 配線+README / docs)。各中間コミット tree を
+detached checkout で全 suite 緑と確認。submodule pin (dff0f1e) 不動・clean。
+
+### 次の一手
+- **kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周** (一次防壁 = preprocess ハッシュ・
+  #include HEAD 固定・diff-of-diffs・TOCTOU 再照合・**D34 builtin definedness**、hook 第二防壁 = 配線済で
+  gate `test_settings_json_wires_both_hooks` 緑を達成)。まず no-op variant (#else 逐語複写) で stock cache-hit 実証 →
+  静的 backoff 値 1 つの純 timing variant を Tier0→pipeline.evaluate→verify→bench→WAL で 1 周。
+- 未消化の docs 課題 (変わらず): 「WAL proof chain」の実体定義 / 外的妥当性の集約 / coder 自律期の停止条件・
+  fitness 採否・再試行方針の予約。

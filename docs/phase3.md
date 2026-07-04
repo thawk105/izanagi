@@ -170,26 +170,22 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
       で variant 間 alias が残る (実機 probe で偽 cache hit 再現)。行集合を HEAD 固定にすれば include 追加自体を
       止めるので穴ごと消える (coder の #include 追加は閉じた領域制約で元々禁止)。`__has_include` / #define 経由の
       computed include は #include 行に現れず残る → 残存リスク節 (道Y 一般問題)。
-- [ ] **(進行中・方針 A で再設計) H3 hooks = 明白な直接書き込みを止める最小の第二防壁** (実装済・**未配線**, D30):
-      `guard_write.py` / `guard_bash.py` は実装済みだが、**2 巡目敵対検証で real 13 件 (critical 1 = コメント行連結
-      (backslash-newline splice) でコメント除去器を騙し `#define TRACE`/`__DATE__` を素通しさせる GW2R-1) が残存**し、
-      `.claude/settings.json = {}` で**未配線 = 第二防壁は現状ゼロ** (insight `2026-07-03_phase3-task3-h3-hooks-round2-handoff.md`)。
-      2 巡目 real の質が「テキスト検査で C++ 翻訳フェーズ (行連結・単独 CR 正規化) や shell (glob/here-string/pipe) を
-      完全再現するのは原理的に無理」を実証したため、**方針 A (ユーザー承認 2026-07-03) = hook の責務を一次防壁へ委譲**する:
-      - **identity の honest さ (偽 cache hit / `#ifdef` / build 時マクロ由来のバイナリ差)** → **source_digest の
-        preprocess 後ハッシュ** (上の「cache_key+variant_id 拡張」タスク、完了済) が一次防壁。coder が `Options.cmake` や #if 枝内で
-        バイナリを動かせば digest が変わり cache_key/variant_id が動く = テキスト検査の完全性に依存しない
-        (#include 死角は上の blocking タスクで閉塞)。
-      - **観測者効果の分離 (TRACE の perf ビルド混入)** → **観測者効果の二重検査** (下の blocking タスク、述語 =
-        diff-of-diffs) が一次防壁。data-structure 由来も含めて捕える。
-      - **hook (第二防壁) に残る責務は「明白な直接書き込み」だけ**: WAL/lock/build-variants/campaign dir への
-        Bash/Edit 直接書き込みと designated ソース外への Write を拒否 (規律2 の verifier 迂回阻止)。
-        **「payload 検査が `#ifdef` の唯一の防壁」という旧設計 (単一障害点) は放棄** — GW2R-1/SPEC-2 が反証した。
-        盛らない (この 2 本だけ)。
-      配線を戻す前に、方針 A の順で消化する: (1) 一次防壁 (preprocess ハッシュ・観測者効果二重検査) を先に
-      load-bearing にする、(2) hook を最小防壁へ軽量化 + false-positive (計測層の過剰拒否 4 件) を除去する、
-      (3) settings.json 配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)。実装・2 巡の検証の詳細は
-      insight `2026-07-02_...adversarial-review.md` / `2026-07-03_...round2-handoff.md`。
+- [x] **(完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小の第二防壁** (配線済, D30/D33/D34):
+      `guard_write.py` / `guard_bash.py` を方針 A で最小化し `.claude/settings.json` に配線
+      (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)。guard_write は payload テキスト検査を物理削除
+      (D33) — proof-chain 拒否と designated ソース面の限定だけを担い、identity/観測者効果は一次防壁へ委譲する
+      (旧「payload 検査が `#ifdef` の唯一の防壁」= 単一障害点は放棄。GW2R-1/SPEC-2 が反証)。
+      配線前に **3 巡目敵対検証 (2026-07-04, Opus 赤チーム 4 系統 19 エージェント・約 93 万トークン)** を回し
+      real 9 / known-limitation 6 / refuted 0 を摘出:
+      - **critical = source_digest の builtin definedness (`#ifdef __x86_64__`) 偽 cache hit** = 方針 A の委譲先自身の
+        穴 (道Y が前提にした「生 #ifdef を hook で禁止」が payload 検査削除で消えた帰結)。**D34 (-undef 廃止) で
+        封鎖** = 下記順序 (1) 一次防壁健全化の完遂。
+      - hook の bypass 5 (絶対パス/~ の rm/改行がセグメント境界にならず先頭 read-only head が後続 writer 隠蔽/
+        heredoc `<<`/symlink root-output fail-open/NotebookEdit decoy) + 過剰拒否 3 (nm/du の純読み・tar/rsync backup)
+        を修正。known-limitation 6 (変数展開・部分 glob・computed include・末端 tar backup 等 docstring 明示の限界) 据え置き。
+      全 fix は変異検査 (fix を戻すと該当テスト赤・復元で緑) で機械実証。**D30 の順序 = (1) 一次防壁を load-bearing に
+      (preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合・**D34 builtin definedness**) →
+      (2) hook 最小化 + 過剰拒否除去 → (3) settings.json 配線、を完了。** 詳細は worklog 2026-07-04。
 - [ ] **(blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装**: nm の name-based 検査
       (buildcache._assert_no_trace_symbols) を補完する一次防壁 (D30)。ただし旧仕様の「両ビルドの preprocess 出力を
       diff」という素朴な述語は**成立しない** — trace ビルド (TRACE=1) と perf ビルド (TRACE=0) の preprocess 出力は
@@ -234,7 +230,7 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 
 | must | kickoff | 根拠 |
 |---|---|---|
-| **H3 hooks** | 進行中 (方針 A) | 実装済だが 2 巡目で real 13 件・**未配線**・最小第二防壁へ再設計中 (D30)。identity/観測者効果の担保は下 2 行の一次防壁へ委譲したので、kickoff の唯一の防壁ではなくなった |
+| **H3 hooks** | **完了 (方針 A)** | 最小第二防壁を配線 (D30/D33)。3 巡目検証で real 9/known 6 摘出・全修正 (変異検査済)、critical (source_digest builtin definedness 偽 cache hit) は D34 で封鎖。identity/観測者効果の担保は下 2 行の一次防壁が担う |
 | **cache_key+variant_id 拡張** | **blocking** | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
 | **観測者効果二重検査** | **blocking** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない) |
 | **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。consumer 実体化は後続 |

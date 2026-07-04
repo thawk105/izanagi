@@ -723,3 +723,73 @@ roadmap §2 層2(b) の当初の本丸「他 CC の最適化を CCBench コー�
 **位置づけ:** ユーザーと協議合意した改訂ゆえ版管理セレモニー不要 (版数据え置き・history 凍結なし)。
 設計判断の記録として D を残す。どちらでも kickoff〜後続段 5 の作業は不変 — 違いが効くのは主実験の定義
 (headline に移植 variant を含めるか)・論文の新規性主張の軸・S1/カタログ化への投資時期の 3 点のみ。
+
+## D33. guard_write の payload テキスト検査を物理削除 — 方針 A (D30) の実装 + hook 配線 + 3 巡目 fix
+
+**背景:** D30 (方針 A) で「hook を最小の第二防壁にし、identity/観測者効果の担保を一次防壁へ委譲する」と
+決めた。本 D は D30 の**実装**と、配線を戻す前の 3 巡目敵対検証 (2026-07-04) で摘出した real の修正を記録する。
+
+**実施 1 — guard_write の payload 検査を物理削除:** EVOLVE-BLOCK 領域検査 (payload/skeleton のテキスト検査 =
+`_parse_regions` / `_check_evolve_edit` / `_strip_comments` / `_payload_violations` / `_apply_edits`) を削除。
+削除後の guard_write の管轄は 2 面のみ: (1) proof-chain 成果物 (WAL/campaign.lock/build-variants) への
+Edit/Write 拒否 (規律2)、(2) designated ソース (`EVOLVE_BLOCK_SOURCES` = include/backoff.hh) 以外への Write 拒否
+(D24)。designated ソース内の**内容は検査しない**。削除が規律2「正しさゲートを緩めない」と両立する根拠 =
+旧 payload 検査が守った各ベクタ (#include 追加 / #if TRACE 混入 / 偽 cache hit / build 時マクロ) は方針 A で
+一次防壁 (source_digest) に移り、いずれも load-bearing かつ test_campaign.py で固定済み
+(`assert_includes_match_head` / `assert_trace_diff_matches_head` の diff-of-diffs / `_recheck_src_token` の
+TOCTOU)。テキスト検査は C++ 翻訳フェーズ (GW2R-1 の backslash-newline splice) を完全再現できず原理的に破れるが、
+preprocess 後ハッシュは g++ 自身に preprocess させるので同じ回避が効かない。
+
+**実施 2 — guard_bash の 3 巡目 fix (real 9):** 配線を戻す前に方針 A 版 hook を Opus 赤チームで再検証し real 9 を
+摘出・修正。bypass 5: 絶対パス/~ の rm が防護ツリーを素通り (repo_root で相対化)、改行がセグメント境界に
+ならず先頭 read-only head が後続 writer を隠蔽 (改行を `;` 正規化)、here-doc `<<` の bare interpreter 取り残し
+(`<<` を opaque 化)、symlink root/output の fail-open (camp_root/sub を realpath 化)、NotebookEdit decoy
+(notebook_path 優先)。過剰拒否 3: nm/objdump/du の純読み拒否 (allowlist 追加)、tar/rsync の backup 拒否
+(read/write 判別)。known-limitation 6 (変数展開・部分 glob・computed include・末端 tar backup 等 docstring 明示の
+限界) は据え置き。critical 1 (source_digest builtin definedness) は D34 で別途封鎖。
+
+**実施 3 — 配線:** `.claude/settings.json` の PreToolUse に両 hook を配線 (matcher = `Write|Edit|MultiEdit|
+NotebookEdit` / `Bash`)。SPEC-3 (matcher の恒真寄り検査) を 4 tool 全要求に修正。D30 の順序 (1) 一次防壁を
+load-bearing に → (2) hook 最小化 + 過剰拒否除去 → (3) 配線 が完了 ((1) の未完部分 = builtin definedness は D34)。
+
+**独立裏取り (規律6):** 別セッションの未コミット差分の取り込みゆえ、配線前に 3 巡目敵対検証 (Opus 赤チーム
+4 系統 19 エージェント・約 93 万トークン: bash 新種 bypass / write bypass / 一次防壁の委譲穴 / 過剰拒否 → 各指摘を
+独立スケプティックが実 repro で real/refuted 裁定 → Fable 最終裁定) を回した。全 fix は変異検査 (fix を戻すと
+該当テスト赤・復元で緑) で機械実証。over-claim の前歴 (SPEC-1) を踏まえ「硬化済み」は検証完了後に記録。
+
+**位置づけ:** D30 (ユーザー承認済み方針) の実装ゆえ版管理セレモニー不要。設計判断の記録として D を残す。
+詳細は worklog 2026-07-04。
+
+## D34. source_digest の -undef を廃止 — builtin definedness (#ifdef __x86_64__) の偽 cache hit を封鎖 (方針 A の一次防壁健全化)
+
+**背景 (3 巡目敵対検証の critical):** 方針 A (D30/D33) は guard_write から payload 検査を削除し、identity の
+正直さ (偽 cache hit 防止) を source_digest の preprocess 後ハッシュに委譲した。ところが 3 巡目検証で、その
+委譲先自身が偽 cache hit を許すことが実 g++ ビルドで実証された。source_digest の digest は `g++ -E -undef` で
+builtin (__x86_64__ 等) を全消しするため、EVOLVE-BLOCK に `#ifdef __x86_64__ / 別挙動 / #else / stock / #endif`
+と書くと、digest 環境では stock 枝に落ち preprocess 出力が baseline と byte 一致 → src_token='stock' に化け、
+別挙動の variant が verify を素通りして stock の certified 結果を継承する (規律2 直撃)。`#if __x86_64__` (値参照)
+は -Werror=undef が捕えるが、`#ifdef`/`#ifndef`/`defined()` (definedness テスト) は -Wundef を発火させず素通る。
+source_digest の docstring 自身 (道Y) が「-undef の乖離があるから EVOLVE-BLOCK 内の生 #ifdef を hook で禁止する」
+ことを前提にしていたが、方針 A でその hook 検査を削除したため前提が崩れ、責務が一次防壁に移植されないまま宙に
+浮いていた (coder 未実体化ゆえ攻撃は未 live だが、coder 投入前に塞ぐべき kickoff-blocking の穴)。
+
+**決定 (案 A、ユーザー承認 2026-07-04):** `_cpp_normalize` の g++ フラグから `-undef` を外し、組込 builtin を
+**実ビルドと同じく定義済みのまま** preprocess する。`-nostdinc` (系ヘッダ遮断) は維持。これで `#ifdef`/`defined()`
+が digest に正直に反映され、別挙動の variant は別 digest = 別 cache_key = cache-miss で正しくビルド+verify される。
+実 g++-13 で検証: `#ifdef __x86_64__` は -undef あり=stock枝(偽hit)・-undef なし=実枝(999、実ビルド一致)。
+-Werror=undef の骨格 #if 供給漏れ検出は維持され、条件指令なしの stock digest は 2 回実行で同一 (STOCK 後方
+互換保持)。回帰 `test_source_digest_builtin_ifdef_not_aliased_to_stock` + 変異検査 (-undef を戻すと赤) で固定。
+
+**trade-off と却下案:**
+- 代償 = digest 値が cxx/環境に依存する (別環境で別値) が、cache は env/<tag> 軸で環境別 (D13) ゆえ実害なし。
+  計測層は単一実機に集約済み。非決定 builtin (__DATE__ 等) は churn するが偽 hit しない (毎回 cache-miss =
+  新規ビルド+verify、正しさ不変)。旧 payload 検査が __DATE__ を禁じていた理由 (-undef 下の digest 非被覆) は
+  -undef 廃止で消える (churn に格下げ)。
+- 却下: 案 C (-dM で実 builtin を明示注入、-undef 維持) は環境非依存を保つが実装が重く規律5 と緊張。
+  案 B (payload の生 #ifdef を検出 abort) は骨格 #if と payload #if の区別に skeleton 抽出が要り完了条件 1
+  (inert=stock) と両立せず (docstring L34 が既に難しいと明言)。
+- 残る穴: computed include (`#if __has_include`) は #include 行に現れず -nostdinc で dead 化 = 依然 identity に
+  乗らない (known-limitation、auditor + 規律6 監査領域、恒久 fix は skeleton 抽出が要り却下済み)。
+
+**位置づけ:** D30 順序 (1) 一次防壁の健全化の完遂。D23 (source_digest の -undef 選択) を変える設計判断ゆえ
+ユーザー承認を取った。方式 E の「環境非依存」性質を一部手放し「実ビルドとの identity 整合」を優先した記録。
