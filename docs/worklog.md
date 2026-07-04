@@ -529,3 +529,28 @@ phase2+decisions+glossary+insights / phase1 / worklog+paper-story)。check_docs 
   critic 軸提案の再現率測定 (replay、新規計測ゼロ) → Threats to Validity 集約文書。
 - 未消化の docs 課題 (変わらず): 「WAL proof chain」の実体定義 / coder 自律期の停止条件・fitness 採否・
   再試行方針の予約 (外的妥当性の集約は上記 Threats to Validity に統合)。
+
+## 2026-07-05 (2) — ブート/常駐コンテキスト衛生 (D35): 全文必読の廃止・分離・worklog ローテーション
+
+**トリガ:** ユーザーの戦略相談「セッション 1 メッセージ目の定型指示 (仕事を進めて/検査して) のトークン費用と、
+worklog の存在価値はどうか」。5 視点の並列調査 (worklog 解剖 / ブート追跡 / 参照パターン / CLAUDE.md 常駐 /
+git 重複、5 エージェント 36 万トークン) で実測 → 提案一式 + 論文素材化をユーザーが承認。
+
+素材: **実測の要点 (運用方法論):** 定常ブート 4.6 万トークン中、当日の作業に必要なのは約 8% — §3.8 の
+コンテキスト衛生がブート自身に未適用という再帰的欠落。worklog は分量の約 4 割がコミット本文の再掲
+(二重帳簿)、git が原理的に運べない情報 (撤回劇・refuted・協議・工数・一括コミット下の実時系列) が価値の
+5〜6 割。健全なブート予算 = 窓の 10〜15%。決定 6 点・却下 3 案 (current-state 静的キャッシュ = D34 同型の
+再生産で却下、git log 置換 = 不成立、コミット body 薄化 = 逆方向) の正本は **D35**。
+
+**成果:** commits f3e4d0a..02a42c0 + 本 worklog コミット (8 本、詳細は各 body)。骨子 = 昇格 4 件を先行
+(ermia 罠 / baseline / headless 制約 / 見送り台帳) → worklog ローテーション (Phase 1〜2 分 1,189 行 →
+worklog-phase1-2.md 凍結) → roadmap §7 分離 (related-work.md) + 読み方指定 → phase3 減量 39→27KB
+(主実験 = phase3-main-experiment.md) → CLAUDE.md 18→14.7KB (絶対規律 bit-exact を git show 照合) →
+phase1/2 凍結宣言 + check_docs 追従 + glossary 行番号参照 52 件の節名化 (サブエージェント委任、
+規律6 の差分監査済 — 元の行番号は大半が既にずれており節名化の正しさを裏付け) → D35 + paper-story §4 追補。
+
+**worklog の書式は本エントリから D35 適用** (CLAUDE.md 作業の進め方 7)。
+
+### 次の一手
+- **kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周** (変わらず、前エントリ参照)。
+- 論文系の安価な補強・未消化の docs 課題も変わらず (前エントリ参照)。
