@@ -1220,6 +1220,109 @@ def test_build_cache_miss_wires_recheck():
         buildcache.source_digest, buildcache._run = saved_sd, saved_run
 
 
+def test_patchharness_apply_revert_roundtrip():
+    """apply/revert ハーネス (phase3.md blocking): pinned-clean → apply → body →
+    revert で working-tree が完全に戻る。patch が新規作成したファイル (checkout では
+    消えない untracked 残骸) も除去される。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    newf = os.path.join(sub, "include", "synth_new.hh")
+    # patch を作る: 既存ファイル変更 + 新規ファイル追加 → reset --hard で元に戻す
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace("return 1;", "return 2;"))
+    with open(newf, "w", encoding="utf-8") as f:
+        f.write("int synth;\n")
+    git("add", "-A")
+    patch_text = git("diff", "--cached")
+    git("reset", "-q", "--hard", "HEAD")
+    patch_path = os.path.join(_tmpdir("izanagi_patch_"), "variant.patch")
+    with open(patch_path, "w", encoding="utf-8") as f:
+        f.write(patch_text)
+
+    with patchharness.applied(patch_path, head[:12], sub) as files:
+        assert sorted(files) == ["include/backoff.hh", "include/synth_new.hh"]
+        with open(hh, encoding="utf-8") as f:
+            assert "return 2;" in f.read()           # 適用されている
+        assert os.path.exists(newf)
+    with open(hh, encoding="utf-8") as f:
+        assert f.read() == _FAKE_BACKOFF_HH          # 逐語で戻る
+    assert not os.path.exists(newf)                  # 新規ファイル残骸も消える
+    assert git("status", "--porcelain") == ""        # clean
+    # body が例外でも revert される (finally)
+    try:
+        with patchharness.applied(patch_path, head[:12], sub):
+            raise ValueError("body boom")
+    except ValueError:
+        pass
+    with open(hh, encoding="utf-8") as f:
+        assert f.read() == _FAKE_BACKOFF_HH
+    assert not os.path.exists(newf)
+
+
+def test_patchharness_fails_closed_on_dirty_or_unpinned_tree():
+    """apply 前の pinned-clean assert: tracked 改変が残る tree / pin 不一致 / 空 pin には
+    patch を当てない (前 variant の revert 漏れ・別セッション残骸との合成を防ぐ)。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    # pin 不一致・空 pin
+    for bad_pin in ("0000000", ""):
+        try:
+            patchharness.assert_pinned_clean(sub, bad_pin)
+            assert False, f"pin={bad_pin!r} で停止すべき"
+        except RuntimeError:
+            pass
+    patchharness.assert_pinned_clean(sub, head[:7])      # 正常は通る
+    # dirty tree
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH + "// dirt\n")
+    try:
+        patchharness.assert_pinned_clean(sub, head[:7])
+        assert False, "dirty tree で停止すべき"
+    except RuntimeError:
+        pass
+    # untracked (ビルド生成物相当) は無視される
+    git("checkout", "--", ".")
+    with open(os.path.join(sub, "untracked_artifact"), "w") as f:
+        f.write("x")
+    patchharness.assert_pinned_clean(sub, head[:7])
+
+
+def test_patchharness_applied_rejects_dirty_tree():
+    """回帰 (駆動検査): applied() の enter が pinned-clean assert を駆動する。dirty tree には
+    patch を当てず body にも入らない。assert_pinned_clean 単体が正しくても applied() が
+    呼ばなければ防壁にならない — 駆動を消しても全緑のままだった
+    (2026-07-03 敵対検証 medium: テスト正直さ)。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    # 有効な patch を用意 (enter 内の順序が変わっても patch 読み込み失敗を dirty 拒否と
+    # 誤認しないよう、patch 自体は常に読める状態にしておく)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace("return 1;", "return 2;"))
+    git("add", "-A")
+    patch_text = git("diff", "--cached")
+    git("reset", "-q", "--hard", "HEAD")
+    patch_path = os.path.join(_tmpdir("izanagi_patch_dirty_"), "variant.patch")
+    with open(patch_path, "w", encoding="utf-8") as f:
+        f.write(patch_text)
+    # tree を dirty 化 (前 variant の revert 漏れ相当)
+    dirt = _FAKE_BACKOFF_HH + "// leftover dirt\n"
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(dirt)
+    entered = []
+    try:
+        with patchharness.applied(patch_path, head[:12], sub):
+            entered.append(True)
+        assert False, "dirty tree では applied() の enter が停止すべき"
+    except RuntimeError as e:
+        assert "clean でない" in str(e)
+    assert not entered                       # body に入っていない
+    with open(hh, encoding="utf-8") as f:
+        assert f.read() == dirt              # patch は当たっていない (dirt が原文のまま)
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
