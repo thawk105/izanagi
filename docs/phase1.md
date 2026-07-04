@@ -114,21 +114,25 @@ verifier が「常に緑を出すザル」でないことを証明する。**こ
 
 ## タスク4a [Mac]: calibrator の実装とモック検証
 
+**✅ 完了 (2026-06-18)。** `orchestrator/calibrator/` に純ロジック (perf/bench パース → 飽和判定 → scale 感度 → noise floor → env スコープ文書化) + モックテストを実装。飽和判定は tail-flat 要求で非単調系列に頑健。一次記録は worklog 2026-06-18。
+
 cache miss 率の飽和点でレコード数を決めるロジックを実装する。**calibrator サブエージェントの定義に従う。** 実機実行はタスク4b。
 
-- [ ] perf stat の出力 (LLC-load-misses 等) をパースする仕組み
-- [ ] 飽和判定ロジック: 倍々系列の miss率データから「次に倍にしても +Δ% 未満」の最小レコード数を返す
-- [ ] **モックの perf 出力データで単体テスト** (飽和が早いケース / 遅いケース / 単調でないケース)
-- [ ] スケール感度検出の枠組み (small/medium 2点の伸び方を特徴量として記録)
-- [ ] 判断と妥当性を env スコープ (`output/env/<env-tag>/`) に文書化する出力部 (calibration は入力非依存なので campaign スコープに置かない、D13)
+- [x] perf stat の出力 (LLC-load-misses 等) をパースする仕組み
+- [x] 飽和判定ロジック: 倍々系列の miss率データから「次に倍にしても +Δ% 未満」の最小レコード数を返す
+- [x] **モックの perf 出力データで単体テスト** (飽和が早いケース / 遅いケース / 単調でないケース)
+- [x] スケール感度検出の枠組み (small/medium 2点の伸び方を特徴量として記録)
+- [x] 判断と妥当性を env スコープ (`output/env/<env-tag>/`) に文書化する出力部 (calibration は入力非依存なので campaign スコープに置かない、D13)
 
 **完了条件:** モックデータに対して正しい飽和点と根拠文書を返す。
 
 ## タスク4b [Linux]: calibration の実機実行
 
-- [ ] Linux 実機で perf stat が HW カウンタを取れることを確認
-- [ ] 1m → 2m → 4m → 8m... の実キャリブレーションを実行し、探索用レコード数を確定
-- [ ] thread 数を固定して実施 (飽和点は thread 数依存)
+**✅ 完了 (2026-06-18, env=linux-baremetal)。** cache-miss は倍々スイープで飽和せず (index=masstree の木深化で「膝」が出ない)、D15 の下限基準に転換し、**records=1m / 48thread / skew0.9** で確定 (within-run noise floor CV 2.28% も実測)。一次記録は worklog 2026-06-18。
+
+- [x] Linux 実機で perf stat が HW カウンタを取れることを確認
+- [x] 1m → 2m → 4m → 8m... の実キャリブレーションを実行し、探索用レコード数を確定
+- [x] thread 数を固定して実施 (飽和点は thread 数依存)
 
 ---
 
@@ -144,7 +148,7 @@ cache miss 率の飽和点でレコード数を決めるロジックを実装す
 
 ## タスク5b [Linux]: 手動移植のサニティチェック (性能側)
 
-**✅ 完了 (2026-06-19, env=linux-baremetal)。** invisible reads の効果を MOCC `temp_threshold` で実機計測。**訂正:** I2 は「invisible reads は **read-heavy** で効く」が正しい (roadmap.md:94「read-heavy phase での cache 汚染削減」が論文に忠実、当初ここに書いた「write-intensive」は誤帰属)。クリーン点 = `rratio=100` (read-only) で **invisible 1.28x** (9.32M vs 7.28M tps, CV 0.1%)、perf で visible が +32% cache-misses/txn = read-lock の cacheline bouncing 回避が機構と確認。baseline は YCSB 7 protocol 取得 (silo 902K / tictoc 1.05M / mocc 661K / cicada 605K / si 351K / ermia 327K tps、oze は skew0.9 で病理=別 insight)。詳細 `output/insights/2026-06-19_invisible-reads-i2-reconciliation.md`。
+**✅ 完了 (2026-06-19, env=linux-baremetal)。** invisible reads の効果を MOCC `temp_threshold` で実機計測。**訂正:** I2 は「invisible reads は **read-heavy** で効く」が正しい (roadmap.md §層3 の narrative 例示 (「read-heavy phase での cache 汚染削減」) が論文に忠実、当初ここに書いた「write-intensive」は誤帰属)。クリーン点 = `rratio=100` (read-only) で **invisible 1.28x** (9.32M vs 7.28M tps, CV 0.1%)、perf で visible が +32% cache-misses/txn = read-lock の cacheline bouncing 回避が機構と確認。baseline は YCSB 7 protocol 取得 (silo 902K / tictoc 1.05M / mocc 661K / cicada 605K / si 351K / ermia 327K tps、oze は skew0.9 で病理=別 insight)。詳細 `output/insights/2026-06-19_invisible-reads-i2-reconciliation.md`。
 
 - [x] trace-disabled build で invisible reads on/off の性能を実機計測し、論文 insight I2 と整合確認。**⚠ 計測の罠 (実測で判明):** `temp_threshold` は read 経路だけでなく **write/delete の lock() も gate する** (`cc/mocc/transaction.cc:361,468`)。よって `rratio=0` (write-only) の差 (1.733x) は invisible reads でなく temperature-gated 悲観 write-locking の効果。**invisible reads の計測には `rratio=100` (read-only) のみを使う** (rratio 0/25/50/75 は read/write lock 混線で off-mechanism)。anatomy §3:117 の「mocc は read 可視性以外も異なる」の同一バイナリ gflag 内版。
 - [x] Phase 2 で使う baseline 性能 (素の各プロトコル) を実機で取得 (上記。oze は skew 病理を `output/insights/2026-06-19_oze-skew-pathology.md` に記録)
@@ -155,23 +159,27 @@ cache miss 率の飽和点でレコード数を決めるロジックを実装す
 
 ## タスク6 [Mac]: Phase 2 の前倒し (Linux 待ちの間に積めるもの)
 
+**✅ 完了 (2026-06-19)。** orchestrator 骨格 (STAGE2) の評価パイプライン統合まで実装 (model/genome/ident/layout/wal/lock + buildcache/pipeline/loop、敵対レビューで規律2/atomicity を硬化)。残り (全 variant ビルド通過確認 + verifier 一括実行) は Phase 2 の P2-0 (2026-06-20) で消化 — `docs/phase2.md` P2-0 参照。一次記録は worklog 2026-06-19 (続き)。なお end-to-end 配線テストは下記の「Mac ダミー fitness」経路でなく実機 demo (build→verify→bench→commit 完走、env=linux-baremetal) で消化した — 実機集約 (D10) により Mac 経路は不要化し、mac-devcontainer タグの計測記録は存在しない。
+
 Linux 実機が届くまでの待ち時間で、Phase 2 の機能面を先行実装する。**性能数値が要らない仕事は全部ここでできる。**
 
-- [ ] orchestrator の骨格: 出力レイアウトと campaign-id の確定 (`output/campaigns/<id>/` と `output/env/<tag>/` の二軸、campaign-id = spec+config の内容ハッシュ、D13/orchestrator-design.md)、WAL スキーマ (環境タグ必須・campaign スコープ)、リカバリループ (入力から campaign-id を再計算して WAL を特定)、評価パイプラインの atomicity、ベンチ排他ロックの構造
-- [ ] パラメータ全組み合わせの列挙器と、**全 variant のビルド通過確認** (コンパイルが通るかは正しさ仕事、Mac でできる)
-- [ ] ビルドキャッシュ (同じ最適化組み合わせを再ビルドしない)
-- [ ] 探索ループの end-to-end 配線テスト: Mac 上の throughput を**ダミー fitness** として使い、ループが回ることを確認。**この数値は env=mac-devcontainer タグ付きで記録し、性能比較には決して使わない**
-- [ ] 全組み合わせ variant に対する verifier 一括実行 (パラメータ粒度 variant は理屈上全部緑のはず = verifier の大規模 sanity check)
+- [x] orchestrator の骨格: 出力レイアウトと campaign-id の確定 (`output/campaigns/<id>/` と `output/env/<tag>/` の二軸、campaign-id = spec+config の内容ハッシュ、D13/orchestrator-design.md)、WAL スキーマ (環境タグ必須・campaign スコープ)、リカバリループ (入力から campaign-id を再計算して WAL を特定)、評価パイプラインの atomicity、ベンチ排他ロックの構造
+- [x] パラメータ全組み合わせの列挙器と、**全 variant のビルド通過確認** (コンパイルが通るかは正しさ仕事、Mac でできる)
+- [x] ビルドキャッシュ (同じ最適化組み合わせを再ビルドしない)
+- [x] 探索ループの end-to-end 配線テスト: Mac 上の throughput を**ダミー fitness** として使い、ループが回ることを確認。**この数値は env=mac-devcontainer タグ付きで記録し、性能比較には決して使わない**
+- [x] 全組み合わせ variant に対する verifier 一括実行 (パラメータ粒度 variant は理屈上全部緑のはず = verifier の大規模 sanity check)
 
 **完了条件:** Linux が届いた時点で「実機で回すだけ」の状態になっている。
 
 ## タスク7 [Linux]: Linux 実機到着日のチェックリスト
 
-- [ ] リポジトリを clone し、devcontainer ではなくネイティブでセットアップ (ubuntu.deps)
-- [ ] perf の動作確認 (HW カウンタが取れること)
-- [ ] タスク4b (実機 calibration)
-- [ ] タスク5b (性能側サニティチェック + baseline 取得)
-- [ ] タスク6 の探索ループを実 fitness (env=linux タグ) に切り替えて Phase 2 開始
+**✅ 完了。** 子項目は全て消化済み (タスク4b/5b は本文書の各節で完了宣言済み。実 fitness への切り替えは Phase 2 の P2-2 で実施)。
+
+- [x] リポジトリを clone し、devcontainer ではなくネイティブでセットアップ (ubuntu.deps)
+- [x] perf の動作確認 (HW カウンタが取れること)
+- [x] タスク4b (実機 calibration)
+- [x] タスク5b (性能側サニティチェック + baseline 取得)
+- [x] タスク6 の探索ループを実 fitness (env=linux タグ) に切り替えて Phase 2 開始
 
 ## Phase 1 が終わったら
 
