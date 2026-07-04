@@ -1112,6 +1112,114 @@ def test_source_digest_include_change_rejected_by_resolve():
         pass
 
 
+def test_buildcache_recheck_detects_toctou():
+    """build 出口の identity 再照合 (phase3.md blocking): resolve 時の src_token と
+    再計算値が食い違えば fails-closed。新規ビルドは build dir ごと破棄する (汚染
+    バイナリを campaign 非依存の共有キャッシュに永続させない)。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    saved = buildcache.source_digest
+    bdir = _tmpdir("izanagi_toctou_")
+    assert os.path.isdir(bdir)
+    buildcache.source_digest = types.SimpleNamespace(
+        STOCK="stock", resolve=lambda *a, **k: "mutated123")
+    try:
+        try:
+            buildcache._recheck_src_token(g, "deadbeef", "/x", "g++-13",
+                                          expected="stock", bdir=bdir,
+                                          built_fresh=True)
+            assert False, "src_token 不一致で停止すべき"
+        except RuntimeError as e:
+            assert "TOCTOU" in str(e)
+        assert not os.path.exists(bdir)              # 新規ビルドは破棄
+        # 一致なら通過 (正常経路)
+        buildcache.source_digest = types.SimpleNamespace(
+            STOCK="stock", resolve=lambda *a, **k: "stock")
+        buildcache._recheck_src_token(g, "deadbeef", "/x", "g++-13",
+                                      expected="stock", bdir="/nonexistent",
+                                      built_fresh=False)
+    finally:
+        buildcache.source_digest = saved
+
+
+def test_buildcache_cache_hit_rechecks_identity():
+    """cache hit 経路でも identity 再照合が走る (resolve→hit 判定間の TOCTOU も遮断)。
+    hit の不一致は既存 (過去の正当な) 成果物なので破棄せず停止のみ。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    root = _tmpdir("izanagi_bc_root_")
+    key = buildcache.cache_key(g, head, trace=True, src_token="stock")
+    bindir = os.path.join(root, key, "cc", "silo")
+    os.makedirs(bindir)
+    binary = os.path.join(bindir, "ycsb_silo.exe")
+    with open(binary, "w") as f:
+        f.write("fake-binary")
+    saved = buildcache.source_digest
+
+    def _sd(resolved):
+        return types.SimpleNamespace(
+            STOCK="stock",
+            assert_worktree_within_allowlist=lambda *a, **k: None,
+            resolve=lambda *a, **k: resolved)
+
+    try:
+        buildcache.source_digest = _sd("mutated456")
+        try:
+            buildcache.build(g, head, trace=True, cache_root=root,
+                             ccbench_dir=sub, src_token="stock")
+            assert False, "cache hit でも TOCTOU 不一致で停止すべき"
+        except RuntimeError as e:
+            assert "TOCTOU" in str(e)
+        assert os.path.exists(binary)                # hit 側は破棄しない
+        buildcache.source_digest = _sd("stock")
+        br = buildcache.build(g, head, trace=True, cache_root=root,
+                              ccbench_dir=sub, src_token="stock")
+        assert br.cached and br.binary == binary     # 一致すれば hit が返る
+    finally:
+        buildcache.source_digest = saved
+
+
+def test_build_cache_miss_wires_recheck():
+    """回帰 (結線検査): build() の cache-miss 経路が build 完了直後に _recheck_src_token を
+    駆動し、不一致なら build dir ごと破棄して停止する。単体テスト
+    (test_buildcache_recheck_detects_toctou) は関数を直接呼ぶため、build() 側の呼び出しを
+    消しても全緑のまま = 結線の消失を検出できない (2026-07-03 敵対検証 medium)。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    root = _tmpdir("izanagi_bc_miss_")
+    key = buildcache.cache_key(g, head, trace=True, src_token="stock")
+    binary = os.path.join(root, key, "cc", "silo", "ycsb_silo.exe")
+
+    def fake_run(cmd, what):                 # configure/build を no-op 化し binary だけ置く
+        if what == "build":
+            os.makedirs(os.path.dirname(binary), exist_ok=True)
+            with open(binary, "w") as f:
+                f.write("fake-binary")
+
+    def _sd(resolved):
+        return types.SimpleNamespace(
+            STOCK="stock",
+            assert_worktree_within_allowlist=lambda *a, **k: None,
+            resolve=lambda *a, **k: resolved)
+
+    saved_sd, saved_run = buildcache.source_digest, buildcache._run
+    try:
+        buildcache._run = fake_run
+        buildcache.source_digest = _sd("mutated789")
+        try:
+            buildcache.build(g, head, trace=True, cache_root=root,
+                             ccbench_dir=sub, src_token="stock")
+            assert False, "cache-miss 側でも build 直後の recheck で停止すべき"
+        except RuntimeError as e:
+            assert "TOCTOU" in str(e)
+        assert not os.path.exists(os.path.join(root, key))   # 新規ビルドは dir ごと破棄
+        buildcache.source_digest = _sd("stock")
+        br = buildcache.build(g, head, trace=True, cache_root=root,
+                              ccbench_dir=sub, src_token="stock")
+        assert not br.cached and os.path.exists(br.binary)   # 一致なら新規ビルドが返る
+    finally:
+        buildcache.source_digest, buildcache._run = saved_sd, saved_run
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]

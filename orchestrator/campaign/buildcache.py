@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import List, Optional
@@ -96,6 +97,10 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     cfg_str, build_str = " ".join(cfg), " ".join(build_cmd)
 
     if os.path.exists(binary):
+        # cache hit でも identity を再照合する: resolve→hit 判定の間に working-tree が
+        # 動いていると「今の tree と食い違うバイナリ」を今の key で返してしまう。
+        _recheck_src_token(genome, ccbench_commit, sub, cxx, src_token,
+                           bdir, built_fresh=False)
         if not trace:
             _assert_no_trace_symbols(binary)     # 規律1: 既存 perf binary も継続検査
         return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=True,
@@ -105,10 +110,61 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     _run(build_cmd, "build")
     if not os.path.exists(binary):
         raise RuntimeError(f"build succeeded but binary missing: {binary}")
+    # TOCTOU 遮断 (phase3.md blocking / D30): resolve→build 間に working-tree が動くと
+    # digest と実バイナリが食い違ったまま**共有ビルドキャッシュ (campaign 非依存) に永続**し、
+    # 以後 cache hit で沈黙再利用される (偽 cache hit = 規律2 直撃)。build 完了直後に
+    # src_token を再計算して照合し、不一致は build dir ごと破棄して fails-closed。
+    _recheck_src_token(genome, ccbench_commit, sub, cxx, src_token,
+                       bdir, built_fresh=True)
     if not trace:
         _assert_no_trace_symbols(binary)         # 規律1: 新規 perf binary に trace 漏れが無いか
     return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=False,
                        configure_cmd=cfg_str, build_cmd=build_str)
+
+
+def _recheck_src_token(genome: Genome, ccbench_commit: str, sub: str, cxx: str,
+                       expected: str, bdir: str, built_fresh: bool) -> None:
+    """build 出口の identity 再照合 (TOCTOU 遮断)。resolve 時の src_token と、いま現在の
+    working-tree から再計算した src_token が一致することを assert する (fails-closed)。
+
+    再計算は resolve と同じ単一窓口 (source_digest.resolve = allowlist 検査 + src_token) —
+    tree が動いて allowlist 外改変が入ったケースも同時に捕える。数十 ms で規律4 に反しない
+    (phase3.md タスク定義)。新規ビルドの不一致は汚染バイナリの永続を防ぐため build dir を
+    破棄する。cache hit の不一致は既存 (過去の正当な) 成果物なので破棄せず停止のみ。"""
+    try:
+        actual = source_digest.resolve(genome, ccbench_commit, sub, cxx)
+    except RuntimeError:
+        # resolve 自体の失敗 (TOCTOU 汚染 / git・g++ の transient 障害を区別できない)。
+        # identity 不明のバイナリは共有キャッシュに残さない (偽 hit 防止 > 再ビルドコスト) —
+        # cache_key で次 run が再ビルドするので D25 の再評価可能性は保たれる (transient でも
+        # 消すのは意図的な非対称)。破棄の成否まで確認する (下の _discard)。
+        if built_fresh:
+            _discard_build_dir(bdir)
+        raise
+    if actual != expected:
+        if built_fresh:
+            _discard_build_dir(bdir)
+        raise RuntimeError(
+            f"TOCTOU 検知: build {'後' if built_fresh else '(cache hit)'} の src_token "
+            f"再計算 ({actual[:16]}) が resolve 時 ({expected[:16]}) と不一致 — "
+            "resolve→build 間に working-tree が動いた。汚染バイナリを共有キャッシュに"
+            f"永続させないため{'破棄して' if built_fresh else ''}停止する "
+            "(fails-closed, phase3.md blocking / D30)")
+
+
+def _discard_build_dir(bdir: str) -> None:
+    """汚染 build dir を破棄し、消し残しを検査する (fails-closed)。
+
+    rmtree(ignore_errors=True) の沈黙 (権限・使用中で消せない) を放置すると、残った汚染
+    バイナリが**次 run の cache hit で再照合されず再利用**される (再照合は『今の tree の
+    resolve == expected』のみで残存バイナリの由来を見ない, 2026-07-03 敵対検証 low)。破棄
+    失敗を明示例外にし、汚染の永続を沈黙させない。"""
+    shutil.rmtree(bdir, ignore_errors=True)
+    if os.path.exists(bdir):
+        raise RuntimeError(
+            f"汚染 build dir を破棄できなかった ({bdir}) — 権限/使用中を疑え。残存すると "
+            "次 run の cache hit で汚染バイナリが再利用される。手動で削除してから再実行すること "
+            "(fails-closed)")
 
 
 def _has_trace_symbols(nm_output: str) -> bool:
