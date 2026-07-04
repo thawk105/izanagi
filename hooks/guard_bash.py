@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""H3 hook: Bash 経由の成果物書き込み防壁 (規律2 第二防壁, phase3.md タスク3)。
+"""H3 hook: Bash 経由の成果物書き込み防壁 (規律2 第二防壁, phase3.md タスク3 / 方針 A)。
 
 guard_write.py (Edit/Write hook) は Bash の `echo >> wal.jsonl` を見ない — その穴を
 塞ぐ。PreToolUse (Bash) で発火し、コマンドが防護対象を**書く/消す/動かす**兆候を
@@ -15,23 +15,29 @@ guard_write.py (Edit/Write hook) は Bash の `echo >> wal.jsonl` を見ない �
 closed で拒否)。** これで新種の writer は列挙せずとも自動的に落ちる。
 
 判定 (shlex でクォートを解決してからトークン単位で見る):
-1. 防護対象 (末端 = WAL/campaign.lock/runs/build-variants、祖先 = campaign dir /
-   ccbench root) がコマンドに現れない → 即許可 (fast path、通常作業を妨げない)。
-2. 不透明構文 ($()/バッククォート/プロセス置換/eval/xargs) が防護対象と同居 →
-   分類不能 = fails-closed で拒否。
+1. 防護対象 (末端 = WAL/campaign.lock/runs/build-variants、ツリー = output/campaigns /
+   external/ccbench) がコマンドに現れない → 即許可 (fast path、通常作業を妨げない)。
+2. 末端/防護ツリーの**パス字面**と不透明構文 ($()/バッククォート/プロセス置換/<<<
+   /eval/xargs) が同居 → 分類不能 = fails-closed で拒否 (パス字面が無ければ通す —
+   `--output=/tmp/x $(nproc)` のような無関係コマンドを巻き込まない, F-FP-4)。
 3. shlex (punctuation_chars) でクォート aware にトークン化し演算子でセグメント分割。
    - リダイレクト (>, >>, >&, &>) の先が末端防護対象なら head 不問で拒否。
-   - **末端**に触れるセグメント: head が read-only allowlist に無ければ拒否。
-   - **祖先**にのみ触れるセグメント: head が破壊系 (rm/mv/find -delete/git clean 等)
-     なら拒否 (祖先 dir 丸ごとの削除・移動で proof chain が消える = 規律2)。read や
-     reports/insights への書き込みは通す。
+   - **末端**に引数で触れるセグメント: head が read-only allowlist に無ければ拒否。
+     例外 (F-FP-1): head 自身が build-variants 配下のバイナリ = **実行** (計測の正道)
+     は書き込みでないので通す。cmake/make/ninja (ビルドシステム) の build-variants
+     生成も正当経路 (`cmake -E` の任意コピーは除く)。perf は `perf <sub> [opts] --
+     <cmd>` の明示形なら子コマンドを実 head として検査する。
+   - **防護ツリー破壊**: external/ccbench は全域 (祖先/自身/子孫)、output/campaigns は
+     祖先・自身・campaign dir 単位の削除/移動を拒否。campaign dir 配下の reports/ 等
+     proof-chain でない子孫の mv/rm は通す (F-FP-2、末端はどの深さでも拒否)。glob
+     (`output/*`) はメタ文字前の prefix で重なり判定 (リテラル prefix のみ, GB2-1)。
+   - **bare/stdin インタプリタ** (`... | python3` / `python3 -`) が防護対象パス字面と
+     同居 → コードの中身を追えないので fails-closed (GB2-3)。
 
 限界 (正直に): テキスト検査の第二防壁であり sandbox ではない。変数展開でパスを
-組み立てる・スクリプトファイル越し・python スクリプト内での書き込みは見えない
-(スクリプトファイルは監査可能な作業物として許可する)。`git commit -m "$(...)"` の
-heredoc はメッセージに防護トークンが入ると opaque 判定で拒否される — 単一行 -m か
-`git commit -F <file>` で回避する。一次防壁は pipeline.evaluate の fails-closed 設計と
-WAL の proof chain、事後は規律6 の監査。
+組み立てる・スクリプトファイル越し・`rm -rf out*` のような部分 glob は見えない
+(スクリプトファイルは監査可能な作業物として許可する)。実効保証は一次防壁 =
+pipeline.evaluate の fails-closed 設計と WAL の proof chain、事後は規律6 の監査。
 """
 from __future__ import annotations
 
@@ -41,6 +47,12 @@ import re
 import shlex
 import sys
 
+
+def _repo_root() -> str:
+    # hooks/guard_bash.py = <repo>/hooks/guard_bash.py
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 # ---- 防護対象 (トークン単位で判定) ----
 # 末端: 中身の改変も削除も規律2 違反 (WAL 偽造 / proof chain 破壊)。
 _LEAF_RE = re.compile(
@@ -48,18 +60,25 @@ _LEAF_RE = re.compile(
     r"|(?:^|/)campaign\.lock(?:$|[/?])"
     r"|output/campaigns/[^\s]*?/runs(?:/|$)"
     r"|build-variants")
+# 防護ツリーのパス字面 (opaque 同居・bare interpreter 判定の精密トリガ)。
+_TREE_LITERAL_RE = re.compile(r"output/campaigns|external/ccbench")
 # fast path トリガ (広い): これが現れなければ即許可。祖先の祖先 (rm -rf output)
 # まで精査に載せるため、防護ツリーの構成語を広く含める。精査自体はトークン単位の
-# 厳密パターン (_LEAF_RE / _overlaps_protected_tree) が担うので、広い分は read で落ちる。
+# 厳密パターン (_LEAF_RE / _tree_violation) が担うので、広い分は read で落ちる。
+# 裸単語は直前が `-`/単語構成字なら除外 (`--output=` フラグ等の誤爆防止, F-FP-4)。
 _MENTION_RE = re.compile(
     r"wal\.jsonl|campaign\.lock|build-variants"
     r"|output/campaigns|external/ccbench"
-    r"|\boutput\b|\bexternal\b|\bccbench\b|\bcampaigns\b")
-# proof chain を配下に持つツリー root (削除・移動・展開で丸ごと消える対象)。
-_PROTECTED_TREES = ("output/campaigns", "external/ccbench")
+    r"|(?<![-\w])(?:output|external|ccbench|campaigns)\b")
+# proof chain を配下に持つツリー root。
+_CCBENCH_TREE = "external/ccbench"     # 全域防護 (submodule working-tree = identity の実体)
+_CAMPAIGN_TREE = "output/campaigns"    # 祖先/自身/campaign dir 単位で防護 (子孫は末端のみ)
 
-# 不透明構文: 中で何が起きるかテキストから追えない。防護対象と同居したら拒否。
-_OPAQUE_RE = re.compile(r"\$\(|`|<\(|>\(|\beval\b|\bxargs\b")
+# 不透明構文: 中で何が起きるかテキストから追えない。防護対象パス字面と同居したら拒否。
+# `<<` は here-doc (本文コードが追えない) と here-string `<<<` を両方捕える
+# (2026-07-04 敵対検証: GB2-2 の `<<<` fix が `<<` 綴りを取り残し heredoc 経由の bare
+# interpreter で防護対象を書けた)。
+_OPAQUE_RE = re.compile(r"\$\(|`|<<|<\(|>\(|\beval\b|\bxargs\b")
 
 # リダイレクト演算子トークン (shlex punctuation_chars 後)。>& は fd 複製 (2>&1) と
 # file 版 (>&file) 両用なので、次トークンが数値でなければ file とみなす。
@@ -72,6 +91,10 @@ _SHELL_WORDS = frozenset({
     "case", "esac", "select", "function", "!", "[[", "]]", "time", "coproc"})
 _WRAPPERS = frozenset({"sudo", "env", "nohup", "time", "nice", "ionice", "stdbuf",
                        "timeout", "numactl", "taskset", "setsid", "command", "exec"})
+# wrapper のオプション値として読み飛ばす形: timeout の期間・taskset/numactl の
+# CPU リスト (0-47 / 0,2,4-6) と 16 進マスク (0xff) (F-FP-3)。
+_WRAPPER_VAL_RE = re.compile(r"\d+[smhd]?|\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*"
+                             r"|0[xX][0-9a-fA-F]+")
 
 # ---- 読み取り専用 allowlist (末端に触れてよい head) ----
 _PURE_READERS = frozenset({
@@ -81,21 +104,31 @@ _PURE_READERS = frozenset({
     "comm", "column", "fold", "fmt", "rev", "paste", "join", "expand", "unexpand",
     "md5sum", "sha1sum", "sha256sum", "sha512sum", "cksum", "b2sum",
     "basename", "dirname", "realpath", "readlink", "echo", "printf", "true",
-    "false", "test", "pwd", "date", "seq", "cd", "pushd", "popd", "which", "type"})
+    "false", "test", "pwd", "date", "seq", "cd", "pushd", "popd", "which", "type",
+    # バイナリ/シンボル検査 (規律1 の nm 観測者効果検証を手でも回せるように。書き込み
+    # 不能ツールなので規律2 を弱めない, 2026-07-04 敵対検証 false-positive):
+    "nm", "objdump", "readelf", "ldd", "size", "addr2line", "c++filt",
+    # ディスク使用量・圧縮読み (純読み取り, 同上):
+    "du", "zcat", "zless", "zmore", "zdiff"})
 # git の読み取り/proof-chain 非破壊サブコマンド (checkout/restore/clean/rm/reset/
 # stash/mv は含めない → それらは head=git でも read-only 判定 False = 拒否)。
+# config も含めない: `git config -f <protected>` は書き込み invocation (GB2-4)。
 _GIT_READ_SUBS = frozenset({
     "log", "diff", "show", "status", "ls-files", "ls-tree", "blame", "cat-file",
     "rev-parse", "rev-list", "describe", "shortlog", "reflog", "grep", "add",
-    "commit", "config", "remote", "branch", "tag", "fetch", "whatchanged"})
-# inline コードを取るインタプリタ (スクリプトファイル実行のみ許可、-c/-e/-i は拒否)。
+    "commit", "remote", "branch", "tag", "fetch", "whatchanged"})
+# inline コードを取るインタプリタ (スクリプトファイル実行のみ許可、-c/-e/-i/
+# bare stdin 実行は拒否)。
 _INTERP = frozenset({"python", "python2", "python3", "perl", "ruby", "node",
                      "bash", "sh", "zsh", "dash", "ksh"})
+# ビルドシステム (build-variants を生成/更新する正当経路。cmake -E の任意コピーは除外)。
+_BUILDERS = frozenset({"cmake", "make", "ninja"})
 # 防護ツリーを丸ごと削除/移動/展開する head (祖先層)。ファイル単位で書く
 # cp/tee/sed/dd 等はここに含めない — それらが末端に触れれば末端層 (read-only 判定)
 # が捕える。祖先層は「dir ごと消す/動かす」= 末端まとめて破壊する head に絞る。
-_TREE_MUTATORS = frozenset({"rm", "rmdir", "shred", "unlink", "mv", "tar", "rsync",
-                            "install", "mkfs"})
+# tar/rsync は _destroys_protected_tree で read/write を個別判別する (backup=読みは通す、
+# 展開/mirror INTO=書きは拒否, 2026-07-04 敵対検証 F-FP)。ここには「常に破壊」の head だけ。
+_TREE_MUTATORS = frozenset({"rm", "rmdir", "shred", "unlink", "mv", "install", "mkfs"})
 _GIT_DESTROY_SUBS = frozenset({"clean", "rm", "checkout", "restore", "reset",
                                "stash", "mv"})
 
@@ -107,7 +140,15 @@ def _normalize_redirs(command: str) -> str:
 
 
 def _tokenize(command: str):
-    """shlex (punctuation_chars) でクォート aware にトークン化。ValueError は None。"""
+    """shlex (punctuation_chars) でクォート aware にトークン化。ValueError は None。
+
+    改行はセグメント境界にする (2026-07-04 敵対検証: shlex(whitespace_split) は改行を
+    whitespace として食うため改行トークンが出ず、複数行コマンドが 1 セグメントに潰れて
+    先頭行の read-only head が後続行の writer を隠蔽していた)。行継続 (バックスラッシュ+
+    改行) は先に splice し、残る (クォート外の) 改行を `;` に正規化する。クォート内の改行は
+    shlex がトークン内文字として保持するので `;` はセグメント境界にならない (影響しない)。"""
+    command = re.sub(r"\\\n", "", command)          # 行継続 splice (翻訳フェーズ2 相当)
+    command = command.replace("\n", " ; ")          # 残る改行 = セグメント境界
     lx = shlex.shlex(_normalize_redirs(command), posix=True,
                      punctuation_chars=";()<>|&")
     lx.whitespace_split = True
@@ -146,14 +187,22 @@ def _head_and_args(seg):
             continue
         if base in _WRAPPERS:
             i += 1
-            # timeout の期間引数・wrapper 自身のフラグを飛ばす
+            # wrapper 自身のフラグ・オプション値 (期間 / CPU リスト / 16 進マスク) を飛ばす
             while i < len(seg) and (seg[i].startswith("-")
-                                    or re.fullmatch(r"\d+[smhd]?", seg[i])
-                                    or seg[i] in ("-c",)):
+                                    or _WRAPPER_VAL_RE.fullmatch(seg[i])):
                 i += 1
             continue
         return base, seg[i + 1:]
     return "", []
+
+
+def _stdin_script(head: str, args) -> bool:
+    """interpreter がスクリプトファイル無しで stdin/pipe のコードを実行する形か。"""
+    if head not in _INTERP:
+        return False
+    if "-" in args:
+        return True                               # 明示 stdin 実行
+    return not any(not a.startswith("-") for a in args)   # 非フラグ引数ゼロ = bare
 
 
 def _is_read_only(head: str, args) -> bool:
@@ -178,29 +227,67 @@ def _is_read_only(head: str, args) -> bool:
         sub = next((a for a in args if not a.startswith("-")), "")
         return sub in _GIT_READ_SUBS
     if head in _INTERP:
-        # inline コード (-c/-e) や in-place (-i/-pe/-ne 等 perl/ruby) は拒否。
+        # inline コード (-c/-e)・in-place (-i/-pe/-ne 等)・bare/stdin 実行は拒否。
         # 素の `python3 script.py wal.jsonl` (レポート生成) だけ許可。
         for a in args:
             if a in ("-c", "-e"):
                 return False
-            if a.startswith("-") and ("e" in a[1:] or "i" in a[1:]):
+            if a.startswith("-") and a != "-" and ("e" in a[1:] or "i" in a[1:]):
                 return False   # perl -pe / -i / -ne / ruby -i 等
-        return True
+        return not _stdin_script(head, args)
     return False                                  # 未知 head = fails-closed
 
 
-def _overlaps_protected_tree(token: str) -> bool:
-    """token が防護ツリー (campaign dir / ccbench root) と祖先-子孫いずれかで重なるか。
+def _glob_prefix(token: str) -> str:
+    """glob メタ文字 (*?[) より前のリテラル prefix (GB2-1: `output/*` の重なり判定用)。"""
+    return re.split(r"[*?\[]", token, maxsplit=1)[0]
 
-    - `output` は `output/campaigns` の祖先 → 削除で防護対象が消える。
-    - `output/campaigns/c` は子孫 → 配下に runs (末端) を持つ。
-    セパレータ境界で判定 (`output/campaignsX` の誤爆を避ける)。末端も直接拾う。"""
+
+def _repo_relative(token: str, repo_root: str) -> str:
+    """glob prefix (~ 展開済) を repo_root 相対に正規化して返す。
+
+    2026-07-04 敵対検証: 絶対パス (`/home/.../output/campaigns/c`)・`~/…` は、strip 後
+    `home/…` 前置ゆえ相対リテラル `output/campaigns` を prefix に持たず、防護ツリー破壊
+    (`rm -rf <abs>/output/campaigns/c`) が素通りしていた。repo_root で相対化してから既存の
+    厳密照合に載せる。repo 外絶対 (`/tmp/output/campaigns`) は相対化せず素通り = 防護外
+    (正しい)。`$VAR` 展開はシェルの実行時展開ゆえ hook からは追えない (docstring の限界)。"""
+    raw = os.path.expanduser(_glob_prefix(token))
+    if os.path.isabs(raw):
+        ap = os.path.normpath(raw)
+        root = os.path.normpath(repo_root) if repo_root else ""
+        if root and (ap == root or ap.startswith(root + os.sep)):
+            return os.path.relpath(ap, root)      # repo 内絶対 → 相対
+        return ap.strip("/")                       # repo 外絶対 → 照合で外れる
+    return os.path.normpath(raw).strip("/")        # 相対 → そのまま
+
+
+def _tree_violation(token: str, repo_root: str = "") -> bool:
+    """token の削除/移動/展開が proof chain を壊すか。
+
+    - 末端 (_LEAF_RE) はどの深さでも壊す。
+    - external/ccbench は全域 (祖先/自身/子孫) — submodule working-tree は identity の
+      実体で、部分破壊も評価を汚す。
+    - output/campaigns は祖先・自身・campaign dir 単位 (`output/campaigns/<id>`) まで。
+      それより深い proof-chain でない子孫 (reports/ 等) は末端に触れない限り通す
+      (F-FP-2: 散文・プロットの mv/rm を巻き込まない)。
+    絶対パス・`~` は repo_root で相対化してから照合する (2026-07-04 敵対検証)。glob は
+    メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
+    ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
     if _LEAF_RE.search(token):
         return True
-    p = os.path.normpath(token).strip("/")
-    for tree in _PROTECTED_TREES:
-        if p == tree or tree.startswith(p + "/") or p.startswith(tree + "/"):
-            return True
+    p = _repo_relative(token, repo_root)
+    if not p or p == ".":
+        return False
+    t = _CCBENCH_TREE
+    if p == t or t.startswith(p + "/") or p.startswith(t + "/"):
+        return True
+    t = _CAMPAIGN_TREE
+    if p == t or t.startswith(p + "/"):
+        return True                               # 祖先 or 自身
+    if p.startswith(t + "/"):
+        rel = p[len(t) + 1:]
+        if "/" not in rel:
+            return True                           # campaign dir 丸ごと (runs を内包)
     return False
 
 
@@ -209,20 +296,53 @@ def _path_args(args):
     return [a for a in args if not a.startswith("-") and a != "--"]
 
 
-def _destroys_protected_tree(head: str, args) -> bool:
+def _tar_creates(args) -> bool:
+    """tar が作成モード (-c / --create、backup = 防護ツリーを**読む**方向) か。
+
+    展開 (-x / --extract、防護ツリー内に**書く**方向) は False。判別不能も False = 安全側
+    (書き扱いで tree_violation 検査に載せる)。`tar czf b.tgz output/campaigns/c` の backup は
+    通し、`tar xzf b.tgz -C output/campaigns` の展開は拒否する (2026-07-04 敵対検証 F-FP)。"""
+    for a in args:
+        if a.startswith("--"):
+            if a == "--create":
+                return True
+            if a in ("--extract", "--get"):
+                return False
+            continue
+        # tar のモード文字列はハイフン有無両様 (`tar czf` / `tar -czf`)。パス様は除外。
+        flags = a.lstrip("-")
+        if not flags or "/" in a or a.startswith("."):
+            continue
+        if "x" in flags:
+            return False
+        if "c" in flags:
+            return True
+    return False
+
+
+def _destroys_protected_tree(head: str, args, repo_root: str = "") -> bool:
     """head が防護ツリーを丸ごと削除/移動/展開する操作か。"""
     if head == "git":
         if "clean" in args:                       # cwd 再帰で untracked WAL を消す
             return True
         if any(a in _GIT_DESTROY_SUBS for a in args):
-            return any(_overlaps_protected_tree(t) for t in _path_args(args))
+            return any(_tree_violation(t, repo_root) for t in _path_args(args))
         return False
     if head == "find":
         if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for a in args):
-            return any(_overlaps_protected_tree(t) for t in _path_args(args))
+            return any(_tree_violation(t, repo_root) for t in _path_args(args))
         return False
+    if head == "tar":
+        if _tar_creates(args):                    # backup (読み) は通す
+            return False
+        return any(_tree_violation(t, repo_root) for t in _path_args(args))
+    if head == "rsync":
+        # DEST (最後の path 引数) が防護ツリーなら mirror INTO (書き) = 拒否。
+        # SRC だけが防護対象 (backup 元) の読みは通す。
+        paths = _path_args(args)
+        return bool(paths) and _tree_violation(paths[-1], repo_root)
     if head in _TREE_MUTATORS:
-        return any(_overlaps_protected_tree(t) for t in _path_args(args))
+        return any(_tree_violation(t, repo_root) for t in _path_args(args))
     return False
 
 
@@ -238,34 +358,69 @@ def _redirect_hits_leaf(seg) -> bool:
     return False
 
 
-def decide(command: str) -> tuple:
+def decide(command: str, repo_root: str = "") -> tuple:
     """(allow: bool, reason: str)。reason は拒否時のみ。"""
+    # 絶対パス・`~` を repo 相対化するため root を realpath で確定 (2026-07-04 敵対検証)。
+    root = os.path.realpath(repo_root or _repo_root())
     if not _MENTION_RE.search(command):
         return True, ""                            # fast path
 
-    if _OPAQUE_RE.search(command):
-        return False, ("防護対象 (WAL/campaign.lock/build-variants/campaign dir) と"
-                       "不透明構文 ($()/` `/プロセス置換/eval/xargs) の同居は分類不能 "
-                       "= fails-closed。読むだけなら cat/grep/jq で、正規の書き込みは "
-                       "pipeline.evaluate() で、コミットは単一行 -m か -F <file> で")
+    # 「防護対象パスの字面が実在するか」— opaque 同居と bare interpreter の発火条件。
+    # 裸単語 mention (散文の 'output' 等) では発火させない (F-FP-4 の虚偽拒否防止)。
+    hot = bool(_LEAF_RE.search(command) or _TREE_LITERAL_RE.search(command))
+
+    if hot and _OPAQUE_RE.search(command):
+        return False, ("末端/防護ツリーのパス (WAL/campaign.lock/build-variants/"
+                       "output/campaigns/external/ccbench) と不透明構文 ($()/` `/"
+                       "プロセス置換/<<</eval/xargs) の同居は分類不能 = fails-closed。"
+                       "読むだけなら cat/grep/jq で、正規の書き込みは pipeline.evaluate() "
+                       "で、コミットは単一行 -m か -F <file> で")
 
     tokens = _tokenize(command)
     if tokens is None:
         if _LEAF_RE.search(command) or any(
-                _overlaps_protected_tree(w) for w in command.split()):
+                _tree_violation(w, root) for w in command.split()):
             return False, ("防護対象を含むコマンドを解析できない (クォート不整合等) — "
                            "fails-closed で拒否")
         return True, ""                            # 防護対象に触れない解析不能は素通し
 
     for seg in _segments(tokens):
-        head, args = _head_and_args(seg)
         if _redirect_hits_leaf(seg):
             return False, ("リダイレクト先が末端防護対象。WAL/campaign.lock/build-cache "
                            "を書く唯一の経路は pipeline.evaluate() (規律2)")
-        if _destroys_protected_tree(head, args):
+        head, args = _head_and_args(seg)
+        if head == "perf":
+            # perf の自前出力先 (-o/--output) が防護対象なら拒否
+            for i, a in enumerate(args):
+                if ((a in ("-o", "--output") and i + 1 < len(args)
+                     and _LEAF_RE.search(args[i + 1]))
+                        or (a.startswith("--output=") and _LEAF_RE.search(a))):
+                    return False, "perf の出力先 (-o/--output) が末端防護対象 (規律2)"
+            if "--" in args:
+                # 明示形 `perf <sub> [opts] -- <cmd>`: 子コマンドを実 head として続検査
+                # (build-variants バイナリの計測 = 正道を通しつつ、子が writer なら落とす)
+                head, args = _head_and_args(args[args.index("--") + 1:])
+            elif any(_LEAF_RE.search(t) or _tree_violation(t, root) for t in args):
+                return False, ("perf と防護対象の同居は `perf <サブコマンド> [opts] -- "
+                               "<コマンド>` の明示形のみ許可 (子コマンドを検査するため)。"
+                               "防護対象に触れない計測は自由 (F-FP-1)")
+            else:
+                continue
+        if _destroys_protected_tree(head, args, root):
             return False, (f"campaign dir / ccbench root を破壊する操作 ({head})。"
                            "proof chain を配下ごと削除/移動/展開するのは不可 (規律2)")
-        if any(_LEAF_RE.search(t) for t in seg) and not _is_read_only(head, args):
+        if hot and _stdin_script(head, args):
+            return False, ("防護対象パスを含むコマンドでの bare/stdin インタプリタ実行 "
+                           "(pipe や here-string でコードを流し込む形) は中身を追えない "
+                           "= fails-closed (GB2-3)。スクリプトはファイルに置いて実行する")
+        leaf_hits = [t for t in args if _LEAF_RE.search(t)]
+        if leaf_hits and not _is_read_only(head, args):
+            # ビルドシステムによる build-variants の生成/更新は正当経路
+            # (cmake -E の任意ファイル操作は除く)。head 自身が build-variants 配下の
+            # バイナリである「実行」は leaf_hits (args のみ) に乗らず素通り (F-FP-1)。
+            if (head in _BUILDERS and not (head == "cmake" and "-E" in args)
+                    and all("build-variants" in t for t in leaf_hits)):
+                continue
             return False, (f"末端防護対象に触れる非読み取りコマンド ({head or '?'})。"
                            "WAL/campaign.lock/build-cache の書き換え・削除・移動は不可 "
                            "(規律2)。読み取りは cat/grep/jq/head/tail 等で")

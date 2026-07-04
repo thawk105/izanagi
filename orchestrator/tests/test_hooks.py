@@ -144,134 +144,89 @@ def test_symlinked_evolve_source_denied():
         shutil.rmtree(root)
 
 
-# ---------- guard_write: EVOLVE-BLOCK 領域検査 ----------
+def test_symlinked_output_tree_still_protects():
+    """3 巡目 (2026-07-04) write-bypass: output/ が別ボリュームへの symlink でも WAL・
+    campaign.lock への直接 Write を拒否する (root/camp_root を realpath で揃え fail-open を塞ぐ)。
+    root FS 逼迫でデータを別ボリュームへ逃がす運用 (memory: scratch on /home) で現実的トリガ。"""
+    root = _mk_fixture_repo()
+    real_out = tempfile.mkdtemp(prefix="izanagi-realout-")
+    try:
+        os.symlink(real_out, os.path.join(root, "output"))    # output/ を symlink 化
+        for rel in ("output/campaigns/c/runs/wal.jsonl",
+                    "output/campaigns/c/campaign.lock"):
+            ok, why = GW.decide("Write", {"file_path": os.path.join(root, rel),
+                                          "content": "x"}, repo_root=root)
+            assert not ok, f"output/ symlink 経由でも {rel} は拒否 (#5 fail-open): {why}"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(real_out, ignore_errors=True)
 
-def test_payload_edit_allowed():
+
+def test_notebookedit_decoy_file_path_denied():
+    """3 巡目 (2026-07-04) write-bypass: NotebookEdit は notebook_path に書くので、良性 file_path
+    decoy を添えても notebook_path 側 (ccbench/WAL) の管轄判定を回避できない (notebook_path 優先)。"""
     root = _mk_fixture_repo()
     try:
-        ok, why = _edit(root, "external/ccbench/include/backoff.hh",
-                        _PAYLOAD_OLD, "    double now_backoff = 10.0;\n")
-        assert ok, f"payload のみの変更は許可されるべき: {why}"
-        # Write (全文) でも payload だけの差なら許可
-        new_full = _SKELETON.replace(_PAYLOAD_OLD, "    double now_backoff = 5.0;\n")
-        ok, why = GW.decide("Write", {"file_path": os.path.join(
-            root, "external/ccbench/include/backoff.hh"), "content": new_full},
-            repo_root=root)
-        assert ok, f"payload のみ差し替えの Write は許可されるべき: {why}"
+        for nb in ("external/ccbench/evil.ipynb",
+                   "external/ccbench/include/backoff.hh",       # designated だが NotebookEdit 不可
+                   "output/campaigns/c/runs/wal.jsonl"):
+            ok, _ = GW.decide("NotebookEdit", {
+                "notebook_path": os.path.join(root, nb),
+                "file_path": "/tmp/decoy.txt"}, repo_root=root)
+            assert not ok, f"NotebookEdit decoy で {nb} への書込が通った (#7)"
     finally:
         shutil.rmtree(root)
 
 
-def test_outside_region_and_skeleton_edits_denied():
+# ---------- guard_write: designated ソースは内容非検査 (方針 A, D30/D33) ----------
+# 旧 EVOLVE-BLOCK 領域検査 (payload/skeleton のテキスト検査) は方針 A で hook から
+# 削除された。#ifdef TRACE 混入・生指令・#include 追加・偽 cache hit の担保は、
+# テキスト検査の完全性 (GW2R-1 の backslash-newline splice が原理的限界を実証) ではなく
+# 一次防壁 = source_digest に委譲された。その一次防壁の網羅は test_campaign.py が固定する:
+#   - #include 追加/差し替え       → test_source_digest_* の assert_includes_match_head 系
+#   - #if TRACE の挙動差混入 (GW2R-1) → test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit
+#   - TRACE 条件付きコードの追加     → test_trace_diff_of_diffs_predicate
+#   - resolve→build 間の TOCTOU 汚染 → test_buildcache_recheck_detects_toctou
+# hook 側 (下記) が担うのは「designated ソースかどうか」の面 (surface) 判定のみ。
+
+def test_designated_source_edits_allowed_content_not_inspected():
+    """方針 A: designated ソース (EVOLVE_BLOCK_SOURCES) 内の Edit/Write は内容を検査せず許可。
+
+    旧設計 (方針 B) で payload 外・骨格・マーカー削除・生指令・TRACE 混入・markerless として
+    拒否していたケースは、いずれも hook では止めない (identity の正直さと観測者効果は
+    source_digest の一次防壁が build/resolve 出口で捕える。上のコメント参照)。hook が
+    これらを再び拒否し始めたら、方針 A で放棄した単一障害点 (payload テキスト検査) の
+    復活 = 回帰なので固定する。"""
     root = _mk_fixture_repo()
+    hh = "external/ccbench/include/backoff.hh"
     try:
-        cases = [
-            # 領域外 (spin loop)
+        # payload のみ (旧 test_payload_edit_allowed)
+        ok, why = _edit(root, hh, _PAYLOAD_OLD, "    double now_backoff = 10.0;\n")
+        assert ok, f"payload の変更は許可されるべき: {why}"
+        new_full = _SKELETON.replace(_PAYLOAD_OLD, "    double now_backoff = 5.0;\n")
+        ok, why = GW.decide("Write", {"file_path": os.path.join(root, hh),
+                                      "content": new_full}, repo_root=root)
+        assert ok, f"payload 差し替えの Write は許可されるべき: {why}"
+        # 旧 method で拒否していた内容も、方針 A では hook を通す (一次防壁に委譲)。
+        for old, new in [
+            # 領域外 (spin loop) — 意味的逸脱は auditor/人間レビュー領域
             ("while (stop - start < clocks_per_us * now_backoff) stop = rdtscp();",
              "for (;;) {}"),
-            # stock 枝 (#else) は不可触
+            # stock 枝 (#else)
             ("Backoff_.load(std::memory_order_acquire)", "0.0"),
-            # 骨格 #if 行の改変
+            # 骨格 #if 行 — 変えれば preprocess が動き src_token が変わる (偽 hit しない)
             ("#if BACKOFF_FIXED >= 0", "#if BACKOFF_FIXED >= 1"),
-            # マーカー行の削除
-            ("    // EVOLVE-BLOCK-END silo-backoff-magnitude\n", ""),
-        ]
-        for old, new in cases:
-            ok, _ = _edit(root, "external/ccbench/include/backoff.hh", old, new)
-            assert not ok, f"payload 外の変更は拒否されるべき: {old[:40]!r}"
-    finally:
-        shutil.rmtree(root)
-
-
-def test_payload_bans_directives_builtins_trace():
-    root = _mk_fixture_repo()
-    try:
-        bad_payloads = [
-            "#ifdef NDEBUG\n    double now_backoff = 1.0;\n#endif\n",   # 生指令 (F2)
-            "    double now_backoff = __LINE__;\n",                     # 予約識別子
-            "    double now_backoff = __builtin_expect(1, 1);\n",
-            "    double now_backoff = NDEBUG ? 1.0 : 2.0;\n",
-            "    double now_backoff = 1.0; izanagi_trace::emit();\n",   # 規律1
-            "    double now_backoff = 1.0; // ok\n#include <ctime>\n",
-            "    // EVOLVE-BLOCK-END silo-backoff-magnitude\n    double now_backoff = 1.0;\n",
-        ]
-        for p in bad_payloads:
-            ok, _ = _edit(root, "external/ccbench/include/backoff.hh",
-                          _PAYLOAD_OLD, p)
-            assert not ok, f"禁止 payload が通った: {p[:50]!r}"
-        # コメント内の散文 (生トークン無し) は許可される (F4: 行頭アンカー走査)
-        ok, why = _edit(root, "external/ccbench/include/backoff.hh", _PAYLOAD_OLD,
-                        "    // 条件指令 (if 系) は禁止、という説明コメント\n"
-                        "    double now_backoff = 2.5;\n")
-        assert ok, f"コメント散文だけの payload が誤検出された: {why}"
-    finally:
-        shutil.rmtree(root)
-
-
-def test_payload_comment_hiding_denied():
-    """GW-1 回帰: `// ... /*` の陰に実コードを隠す攻撃。左優先 tokenizer で防ぐ。"""
-    root = _mk_fixture_repo()
-    try:
-        # // 行コメント内の /* は C++ では inert。次の */ (別 // 行に隠す) までの
-        # 実コードを「ブロックコメント」と誤認させ検査から消そうとする攻撃。
-        attacks = [
-            "    double x = 1.0; // open /*\n"
-            "#include <ctime>\n"
-            "    double now_backoff = 2.0;\n"
-            "    // close */\n",
-            "    double x = 1.0; // /*\n"
-            "    double now_backoff = __DATE__[0];\n"
-            "    // */\n",
-            "    double x = 1.0; // /*\n"
-            "#define TRACE 1\n"
-            "    double now_backoff = 2.0; // */\n",
-        ]
-        for p in attacks:
-            ok, _ = _edit(root, "external/ccbench/include/backoff.hh", _PAYLOAD_OLD, p)
-            assert not ok, f"コメント隠蔽攻撃が通った (GW-1): {p[:60]!r}"
-        # 文字列リテラル内の // は誤ってコメント開始扱いしない (tokenizer 健全性)
-        ok, why = _edit(root, "external/ccbench/include/backoff.hh", _PAYLOAD_OLD,
-                        '    const char* s = "a//b"; double now_backoff = 3.0;\n')
-        assert ok, f"文字列内 // で誤検出 (GW-1 tokenizer): {why}"
-    finally:
-        shutil.rmtree(root)
-
-
-def test_payload_digraph_directive_denied():
-    """F1 回帰: C++ digraph `%:` は g++ が # と解釈する。行頭走査で捕える。"""
-    root = _mk_fixture_repo()
-    try:
-        for p in ("%:ifdef Linux\n    double now_backoff = 5.0;\n%:else\n"
-                  "    double now_backoff = 500.0;\n%:endif\n",
-                  "%:include <ctime>\n    double now_backoff = 1.0;\n",
-                  "%:define EVIL 7\n    double now_backoff = 1.0;\n"):
-            ok, _ = _edit(root, "external/ccbench/include/backoff.hh", _PAYLOAD_OLD, p)
-            assert not ok, f"digraph 指令が通った (F1): {p[:40]!r}"
-    finally:
-        shutil.rmtree(root)
-
-
-def test_markerless_file_denies_all_edits():
-    root = _mk_fixture_repo()
-    try:
-        hh = os.path.join(root, "external/ccbench/include/backoff.hh")
-        with open(hh, "w", encoding="utf-8") as f:
-            f.write("class Backoff { /* stock, template 未適用 */ };\n")
-        ok, _ = _edit(root, "external/ccbench/include/backoff.hh", "stock", "hacked")
-        assert not ok, "マーカー無し (patch 未適用) の EVOLVE ソースは全編集拒否"
-    finally:
-        shutil.rmtree(root)
-
-
-def test_unresolvable_edit_fails_closed():
-    root = _mk_fixture_repo()
-    try:
-        ok, _ = _edit(root, "external/ccbench/include/backoff.hh",
-                      "そんな文字列は無い", "x")
-        assert not ok, "old_string 不一致は fails-closed で拒否"
-        ok, _ = _edit(root, "external/ccbench/include/backoff.hh",
-                      "double now_backoff", "x")           # 2 箇所に出現・replace_all 無し
-        assert not ok, "old_string 非一意は fails-closed で拒否"
+            # 生指令・予約識別子・TRACE — diff-of-diffs / preprocess ハッシュが build 出口で捕える
+            (_PAYLOAD_OLD, "#include <ctime>\n    double now_backoff = __DATE__[0];\n"),
+            (_PAYLOAD_OLD, "    double now_backoff = 1.0; // TRACE\n#define TRACE 1\n"),
+        ]:
+            ok, why = _edit(root, hh, old, new)
+            assert ok, f"designated ソース内は hook を通すべき (方針 A): {old[:40]!r} ({why})"
+        # markerless (template 未適用) でも designated ソースなら hook は通す
+        with open(os.path.join(root, hh), "w", encoding="utf-8") as f:
+            f.write("class Backoff { /* stock */ };\n")
+        ok, why = _edit(root, hh, "stock", "hacked")
+        assert ok, f"markerless の designated ソースも hook は通す (方針 A): {why}"
     finally:
         shutil.rmtree(root)
 
@@ -436,6 +391,86 @@ def test_bash_finding_bypasses_all_denied():
         assert not ok, f"確定 bypass finding が再発した [{label}]: {cmd!r}"
 
 
+def test_bash_round2_bypasses_denied():
+    """2 巡目敵対検証 (2026-07-03) の bypass finding GB2-1〜4 を回帰固定する。"""
+    _BVBIN = f"{_BV}/silo_x_t0/ycsb_silo.exe"
+    cases = {
+        # GB2-1: 防護ツリー root 以上への glob 削除 (リテラル prefix で重なり判定)
+        "GB2-1 rm campaigns/*": "rm -rf output/campaigns/*",
+        "GB2-1 rm output/*": "rm -rf output/*",
+        "GB2-1 mv campaigns glob": "mv output/campaigns/* /tmp/",
+        # GB2-2: here-string で inline 実行 (opaque = fails-closed)
+        "GB2-2 bash <<<": "bash <<< 'rm -rf output/campaigns'",
+        "GB2-2 python3 - <<<": f"python3 - <<< 'open(\"{_WAL}\").read()'",
+        # GB2-3: pipe 終端の bare interpreter で leaf を洗浄する
+        "GB2-3 echo|python3": f"echo 'open(\"{_WAL}\",\"a\").write(\"x\")' | python3",
+        "GB2-3 cat|bash": f"cat {_WAL} | bash",
+        # GB2-4: git config -f <protected> は書き込み invocation
+        "GB2-4 git config -f lock": f"git config -f {_LOCK} k v",
+        "GB2-4 git config --file wal": f"git config --file {_WAL} a.b c",
+        # 3 巡目 (2026-07-04) real: 絶対パス/~ の rm が防護ツリーを素通り
+        "abs rm campaigns": f"rm -rf {_REPO}/output/campaigns/c",
+        "abs rm ccbench": f"rm -rf {_REPO}/external/ccbench",
+        "abs mv campaigns": f"mv {_REPO}/output/campaigns/c /tmp/",
+        # 3 巡目 real: 改行がセグメント境界にならず先頭 read-only head が後続 writer を隠蔽
+        "newline cat->cp": f"cat {_WAL}\ncp /tmp/evil {_WAL}",
+        "newline ls->rm": f"ls\nrm -rf {_BV}",
+        "newline true->tee": f"true\ntee {_WAL}",
+        "newline echo->sh": f"echo start\nsh -c 'rm {_WAL}'",
+        # 3 巡目 real: heredoc << 経由の bare interpreter (GB2-2 の << 綴り取り残し)
+        "heredoc python": f"python3 <<EOF\nopen('{_WAL}','a').write('x')\nEOF",
+        "heredoc bash rm": f"bash <<EOF\nrm -rf {_BV}\nEOF",
+        "heredoc perl": f"perl <<EOF\nunlink '{_WAL}'\nEOF",
+    }
+    for label, cmd in cases.items():
+        ok, _ = GB.decide(cmd)
+        assert not ok, f"2/3 巡目 bypass が再発した [{label}]: {cmd!r}"
+
+
+def test_bash_false_positive_fixes_allowed():
+    """2 巡目の過剰拒否 F-FP-1〜4 の解消を固定する (計測層を巻き込まない)。"""
+    _BVBIN = f"{_BV}/silo_x_t0/ycsb_silo.exe"
+    for cmd in (
+        # F-FP-1: build-variants 配下バイナリの実行 (書き込みでない = 計測の正道)
+        f"{_BVBIN} -w YCSB",
+        f"perf stat -- {_BVBIN} -w YCSB",
+        f"perf stat -e cycles -- numactl -N 0 {_BVBIN}",
+        f"numactl -N 0 taskset -c 0-47 {_BVBIN}",
+        f"cmake --build {_BV}/silo_x_t0",              # ビルドシステムの生成は正当
+        f"make -C {_BV}/silo_x_t0",
+        # F-FP-2: campaign dir 配下の proof-chain でない reports/ の mv/rm
+        "mv output/campaigns/c/reports/a.png output/campaigns/c/reports/b.png",
+        "rm output/campaigns/c/reports/old.png",
+        "rm -rf output/campaigns/c/reports/tmp",
+        # F-FP-3: taskset/numactl の CPU リスト・マスクを skip して実 head を見る
+        f"taskset -c 0-47 cat {_WAL}",
+        f"numactl -C 0,2,4-6 grep COMMIT {_WAL}",
+        f"taskset 0xff grep -c ABORT {_WAL}",
+        # F-FP-4: 防護対象パス字面なしの mention 語 + 不透明構文は拒否しない
+        "perf stat --output=/tmp/o.txt -- true",
+        "cmake -DCCBENCH_BUILD=ON /tmp/src && echo done",
+        "echo external deps: $(nproc) cores",
+        # 3 巡目 (2026-07-04) false-positive: バイナリ/シンボル検査 (規律1 の nm 手検証)
+        f"nm -C {_BVBIN}",
+        f"objdump -d {_BVBIN}",
+        f"readelf -a {_BVBIN}",
+        f"ldd {_BVBIN}",
+        f"size {_BVBIN}",
+        # 3 巡目 false-positive: du (ディスク使用量) の純読み
+        f"du -sh {_WAL}",
+        f"du -sh {_BV}",
+        "du -sh output/campaigns/c/runs",
+        # 3 巡目 false-positive: tar/rsync の backup (防護ツリーを読む方向) は通す。
+        # ただし末端 (build-variants/WAL) を tar が触る形は archive 上書きリスクゆえ末端層で
+        # 拒否したまま (cp -r/nm で代替) — ここで通すのは campaign dir/reports 等ツリーの backup。
+        "tar czf /tmp/backup.tgz output/campaigns/c",
+        "tar -czf /tmp/r.tgz output/campaigns/c/reports",
+        "rsync -a output/campaigns/c /tmp/backup/",
+    ):
+        ok, why = GB.decide(cmd)
+        assert ok, f"計測層の正当コマンドが誤拒否された (F-FP): {cmd!r} ({why})"
+
+
 # ---------- 配線 (settings.json) と hook 実行体 ----------
 
 def test_settings_json_wires_both_hooks():
@@ -449,7 +484,12 @@ def test_settings_json_wires_both_hooks():
     cmds = " ".join(h["command"] for e in pre for h in e["hooks"])
     matchers = [e["matcher"] for e in pre]
     assert "guard_write.py" in cmds and "guard_bash.py" in cmds
-    assert any("Write" in m and "Edit" in m for m in matchers)
+    # SPEC-3 (2026-07-03): substring 'Write'+'Edit' だけでは MultiEdit/NotebookEdit 欠落を
+    # 見逃す (恒真寄り)。guard_write.decide は 4 tool すべてを管轄するので、matcher が
+    # 4 tool 全部を含むことを要求する (config 一致だけでは足りない = 実配線を gate)。
+    write_toks = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+    assert any(write_toks <= set(m.split("|")) for m in matchers), \
+        f"Write matcher は {write_toks} を全て含むべき (SPEC-3): {matchers}"
     assert any(m == "Bash" for m in matchers)
 
 
