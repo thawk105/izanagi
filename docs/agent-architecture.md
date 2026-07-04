@@ -71,6 +71,7 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 - **model:** 強いモデル
 - **規律:** 検証用情報を出すときは `#ifdef TRACE` に隔離する。CC のデータ構造に検証専用フィールドを常駐させない (絶対規律1)。移植時は最適化カタログ (前提/効果/競合) を参照して前提条件を満たすか確認する
 - **⚠ kickoff の確定制約は本節でなく `docs/phase3.md` + D22/D23/D24/D30 を正典とする** (本節は Phase 3 着手前の予約仕様で、kickoff 設計を反映していない)。coder.md を生成するときは最低限: (1) 編集面は EVOLVE-BLOCK の `#if` 枝内の straight-line code のみ (#include/型/マクロ定義の追加禁止、閉じた領域制約)、(2) COMMIT を書く唯一の経路は `pipeline.evaluate()`、(3) 勝ち筋値・機序説明のリーク制御 (P2-5/D21 の Phase 3 版、phase3.md 残存リスク)、(4) hooks は方針 A で最小第二防壁 = 正しさ/identity の担保は一次防壁 (source_digest / 観測者効果二重検査) にある、を織り込む
+- **駆動方式の環境制約 (worklog 2026-06-29 から昇格):** この環境には **headless の claude CLI が無い**。roadmap §3.8 の「ループ主導権は orchestrator、LLM は iteration 単位で fresh に呼ぶ」を実装するとき、orchestrator が CLI を子プロセスとして呼ぶ形は取れない。P2-5 誘導アームは「各試行を fresh サブエージェント (本会話を見ない) が `guided.py` を Bash で駆動する」形で迂回した — coder ループも同系の駆動 (fresh サブエージェント + Python ハーネスの Bash 駆動) を前提に設計する。
 
 ### auditor (Phase 3・仕様予約)
 

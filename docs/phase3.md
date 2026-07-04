@@ -275,6 +275,20 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 
 ---
 
+## 見送り台帳 (旧「次の一手」の任意項 — 意図的な見送りとして明示)
+
+worklog の過去エントリの「次の一手」に載ったまま現行正本 (worklog 末尾・本文書) に引き継がれなかった任意項。
+worklog 全読しないと発掘できない状態を解消するためここに台帳化する (2026-07-05)。**着手義務はない** —
+拾うときは該当タスクに昇格させ、捨てるときは理由をここに書く:
+
+- **balanced での backoff profile 対照** (worklog 2026-06-28) — write-heavy の [P0] は閉じたが balanced の対照 profile は未取得。
+- **over-throttle 有用 IPC 低下の機序分離** (同上) — MLP 低下 vs cache 余熱のどちらかは未分離。
+- **mocc trace-hook** (worklog 2026-06-19) — visible reads の trace 検証 + verifier 2nd エンジン化。S1 発火時に吸収するのが自然。
+- **ermia cross-check** (worklog 2026-06-18) — si 赤 / ermia 緑 の同一エンジン ablation。同上 (版 ID 写像の罠は ccbench-anatomy.md §8 に昇格済み)。
+- **calibration の K 感度・thread 数変更時の再 calibration** (worklog 2026-06-18) — 後続段 6 前提タスク (b) の protocol 別 calibration が部分吸収する。
+
+---
+
 ## 残存リスク
 
 - 純 timing first target は**新規性が薄い** (機構の配線実証が主目的、性能新規性は sort 以降)。意図的トレードオフ。
