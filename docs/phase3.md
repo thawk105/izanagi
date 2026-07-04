@@ -13,72 +13,13 @@ diff で書き、フラグ空間の外に最適化 variant を合成する。P2-
 
 ---
 
-## Phase 3 全体の完了定義と主実験の評価設計 (kickoff の先)
+## Phase 3 全体の完了定義と主実験の評価設計 — `docs/phase3-main-experiment.md` へ分離 (2026-07-05, D35)
 
-**なぜこの節が要るか:** 下の kickoff 完了条件は「純 timing variant 1 本が certified commit し全配線が 1 周」= 機構の
-配線実証にすぎない。Phase 2 は主実験込みの「Phase 2 完了の定義」(phase2.md 冒頭) を持っていたが、Phase 3 全体で
-**「AI が合成した CC が優れている」を何と比較し・どう検定すれば主張できるか**が未定義だった。P2-5 で高い代償を払って
-得た方法論 (機械ベースライン ablation・オラクル天井・deceptive 構造での検証・between-run floor 採否) の Phase 3 版を
-事前登録する。ここは kickoff とは別スコープ (kickoff は本節を満たさなくてよい) だが、**coder が性能主張を生む段
-(後続段 4 以降) の主張はすべて**この設計に従う (「sort 段以降」だと sort より前に来る coder 自律期 = 段 4 が拘束から
-漏れる)。主実験そのものの実行は**後続段 6** に割り付ける (段 4/5 の中間結果は本設計に従った暫定として報告する)。
-
-**主張 (反証可能な形で事前登録):** *coder が合成した variant が、certified serializable を保ったまま、フラグ空間最適
-(P2-2 の silo 全探索 ground truth) を **between-run noise floor 超**で上回り、cross-run 再現と機序帰属
-(profiler) が付く。かつその利得が **非 LLM ベースラインでは到達できない**。* (floor は比較対象ごとに再実測する —
-統計計画「floor の流用禁止」参照。silo stock の実測値 3.0% を他対象に固定流用しない。)
-
-**headline 比較対象の集合 (backoff ケーススタディの弱点への対策):** P2-4 の +38%/+11% は **silo 内 stock 最良との
-比較に閉じている** (他プロトコルとも、grid 定数を調整した適応 backoff とも未比較)。Phase 3 主実験では最低限:
-1. **silo stock 最良** (P2-2、同一 workload/skew/thread)。
-2. **クロスプロトコル stock 最良** (mocc/tictoc/cicada 等の同一 workload 最良) — roadmap 層1 の「workload→ベース CC
-   選定」を初めて実走する。mocc が write-heavy で silo+static-backoff を上回る可能性は現状未検証。
-3. **ランダム EVOLVE-BLOCK 変異** (同じ編集面をランダムに埋めた対照)。
-4. **「人間が変異軸を命名し機械 sweep」ベースライン** (LLM なしで軸だけ与えて grid 探索) — 利得が機械 sweep で
-   再現できるなら LLM は不要という帰無仮説。
-
-**ベースライン 3/4 の操作的定義 (最低要件を先に固定、数値詳細は後続段 6 の設計タスクで本節に追記):**
-- ランダム変異 (3) は **coder と同じ編集面・同じ試行予算**で生成し、**Tier0 (コンパイル+スモーク) を通過した変異のみ**を
-  比較対象に数える (通過率も報告)。コンパイル不能変異で埋めた対照は案山子であり、失敗条件 (c) の帰無仮説判定に使えない。
-- 機械 sweep (4) の**変異軸の命名は coder の出力を見る前に固定**し、命名の情報源 (リポジトリ内の既知知見のどこまでを
-  見たか) を記録する — 軸の**発見**自体が LLM の実証済み価値 (P2-4) なので、命名手順が曖昧だと (c) の判定がどちらにも
-  倒せてしまう。coder 側のリーク制御 (残存リスク節) と対で事前登録する。
-
-**LLM の価値の ablation:** coder に critic の機序帰属を入力する系列と、しない系列 (指標素通し) を比較する。P2-5 が
-「指標を渡すこと」と「指標を LLM に解釈させること」を分けたのと同じ切り分けを合成側で行う。
-
-**統計計画 (P2-5/D29 を継承):** 採否は点比較でなく分布比較。差が between-run floor 以下は「差なし」に丸め、
-floor〜1.5×floor は `near_floor` として cross-run 再現で裏取り。優劣は確率優越 a (同分布で 0.500) + exact/permutation
-検定。headline は必ず「中央値・変動係数・floor・有意か否か・機序帰属」を添える (層3 説明可能性の統計的裏打ち)。
-- **floor の流用禁止:** 3.0% は **stock silo で実測した** between-run floor (D19)。クロスプロトコル比較 (headline 2) と
-  high-abort 域の合成 variant には流用しない — roadmap §3.6(3') 自身が「high-abort genome ほど run 間ドリフトが大きい」と
-  明記している。headline 比較に使う floor は**比較対象のプロトコル / contention 域ごとに再実測** (between_run_floor.py)
-  し、保守側 (最大) を採る (後続段 6 の前提タスク)。
-- **サンプル設計 (実行前に数値を確定して本節に追記):** P2-5 の統計 (n=12 系列, exact permutation) は replay = 新規計測
-  ゼロで成立した。Phase 3 は全試行が**直列実計測** (規律4) なので、(i) アームあたり系列数と 1 系列の試行予算、(ii) 検定
-  単位 = **系列** (P2-5 と同じ。試行は path-dependent で独立でない)、(iii) その n で exact/permutation の最小可能 p が
-  有意水準を下回るかの検定力概算、(iv) 実計測の総予算上限、の 4 点を実行前に確定する。予算上 n を確保できない比較は
-  「記述統計に留め有意性を主張しない」と先に宣言する (検定力不足由来の偽 negative を「LLM に価値なし」と誤読させない)。
-- **多重比較:** headline の有意主張は比較族 (ベースライン × workload) で Holm 補正する (P2-5 では Holm が実際に有意主張を
-  1 つ落とした。D29)。
-- **天井の不在を明示:** コード空間は列挙不能なので、P2-5 のオラクル天井に相当する真の天井は**原理的に得られない** —
-  効果量は「削減余地の何割」でなく絶対差でしか語れない。代替として (i) 高試行予算の機械 sweep (ベースライン 4) の
-  漸近最良値 = **経験的天井**、(ii) 既知軸 (BACKOFF_FIXED grid) の最良 = **局所天井**、を併記して効果量を規格化する。
-- **deceptive 相当の検証:** P2-5 の最大の発見 (自信ある早期停止の負債、誤収束 8/12) を合成側でも検査する — リポジトリ内の
-  既知勝ち筋がそのまま最適にならない workload / contention 域を主実験に最低 1 つ含め、誤収束率を報告する。含められない
-  場合は「早期停止の負債は本実験では検出できない」を限界として明記する。
-- **検証相 (roadmap §3.2) の配線:** headline に載せる最終候補は、開発相の 1 run 短 trace 検証だけでなく**検証相 (seed を
-  変えた N 回反復 + 長 extime の trace、信頼度 1-εⁿ)** を通過していること。LLM が任意コードを書く Phase 3 でこそ「検証用
-  trace が見ていないアクセスパターンでだけ正しい CC」(roadmap §3.4 の reward hack 第 1 項) が現実の脅威になる。実装は
-  後続段 6 のタスク。
-
-**失敗条件 (何が出たら negative か、正直に):** (a) 合成が certified を破る → その variant は無価値 (規律2)。
-(b) 利得が between-run floor 以下 → 「差なし」。(c) 利得が機械 sweep / ランダム変異で同等に再現できる → LLM 合成
-固有の価値は示せず (P2-5 と同じ negative の形)。(d) silo 内では勝つがクロスプロトコル stock 最良に負ける → 「ベース
-選定を誤っただけ」で合成の価値でない。(e) target workload では勝つが**他の workload で floor 超の退行**がある →
-「workload 特化」として退行込みで全 workload の結果を報告する (勝った workload だけを headline 化する選択的報告の禁止。
-特化はそれ自体が本システムの目的なので負けではないが、隠すと over-claim になる)。これらを事前に失敗と定義することで
-over-claim を構造的に防ぐ。
+主実験 (後続段 6) の事前登録 = 反証可能な主張・headline 比較 4 対照 (silo stock 最良 / クロスプロトコル
+stock 最良 / ランダム変異 / 機械 sweep) とその操作的定義・LLM ablation・統計計画 (floor 流用禁止・
+サンプル設計・Holm 補正・天井の不在・deceptive 相当の検証・検証相の配線)・失敗条件 (a)〜(e) は
+`docs/phase3-main-experiment.md` に事前登録してある。**coder が性能主張を生む段 (後続段 4 以降) の主張は
+すべて同設計に従う。** kickoff は同設計を満たさなくてよい (別スコープ) — 読むのは後続段 4 に入るとき。
 
 ---
 
@@ -126,86 +67,35 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
 
 ## kickoff タスク (blocking 順)
 
-- [x] **(blocking) cache_key + variant_id の honest 拡張**: source_digest を **preprocess 後 (`cpp -E`)
-      正規化出力の sha256** で計算し、buildcache の cache_key (buildcache.py) と **variant_id (WAL キー,
-      pipeline.py:41)** 両方の pre-image に織り込む。マーカーコメント挿入は生バイトを変えるが preprocess 後は
-      #else 枝が原本と同一 → inert template が真に同一 digest (D18 inert 実証を継承、生 sha256 だと全 miss)。
-      variant_id が現状 canonical() のみ hash ゆえ**同フラグ別 diff が WAL/critic で alias する穴**を identity
-      端から端まで塞ぐ。対象は固定集合 (EVOLVE-BLOCK ファイル + Options.cmake + CMake)。Genome.canonical 生
-      表現は据え置き (後方互換)。同 campaign 内で異なる source_digest が同一 variant_id を共有しない assert。
-- [x] **(blocking) EVOLVE-BLOCK template patch**: silo abort-path 周辺 (BACKOFF_FIXED 軸再利用) に骨格を 1 つ。
+- [x] **(blocking) cache_key + variant_id の honest 拡張** — source_digest (preprocess 後 `cpp -E` 出力の
+      sha256) を cache_key と variant_id (WAL キー) 両方の pre-image に織り込み、同フラグ別 diff の alias を封鎖
+      (identity honest の一次防壁、方針 A)。inert template は #else 枝が原本と同一 → stock と同一 digest (D18 継承)。
+      詳細 = 当該コミット本文・D23/D24・worklog 2026-07-03。
+- [x] **(blocking) EVOLVE-BLOCK template patch** — silo abort-path (BACKOFF_FIXED 軸再利用) に骨格 1 つ。
       既定 inert を preprocess 後ハッシュ一致 → stock genome cache-hit で実証。
-- [x] **(blocking) verify の abort 数を WAL に記録**: 旧配線は abort 数をどこにも記録しなかった — `_run_trace` は
-      `(ncommit, rc)` のみ返し ccbench stdout を捨て、STAGE_VERIFY_DONE payload は
-      verdict/certified/commits/anomalies の 4 項のみ、trace レコードも C/R/W の 3 種で
-      abort イベントを持たない = 完了条件 2 の「abort > 0 確認」が**検査不能**だった。実装: ccbench stdout の
-      `abort_counts_:` (common/result.cc:34) をパース (`pipeline._parse_abort_counts`、`^` アンカーで
-      `batch_abort_counts_` を誤マッチしない) し STAGE_VERIFY_DONE payload に `aborts` として記録。**集計行が
-      読めない run は fails-closed reject** (`trace-no-abort-counts`) — 空振り認証の検査可能性を落としたまま
-      緑を出さない (規律3: 計器の故障を沈黙させない)。
-- [x] **(blocking) apply/revert ハーネス**: 「1 variant 評価ごとに clean→apply→build→revert」(上の機構節) の
-      駆動部 = `campaign/patchharness.py`。apply 前の pinned-clean assert (HEAD==pin (7 桁下限、startswith 弱照合
-      対策) + tracked 改変ゼロ) + revert 後の tracked-clean + patch 由来新規ファイル残骸ゼロ assert を fails-closed
-      で持ち、順序 **apply → resolve(src_token) → build → revert** は `applied()` context manager の形状で担保
-      (resolve より後に tree を動かさない)。全 git 呼び出しに `-c core.quotepath=false` (非 ASCII パスの C-style
-      quote で残骸削除/leftovers 検査が素通りする穴の対策)。**区間全体を flock (`_tree_lock`) で直列化** — 共有
-      working-tree への並走 apply の ABA は TOCTOU 再照合 (両端一致) では原理的に見えない (2026-07-03 敵対検証
-      high)。revert 後 assert はタスク定義の「porcelain 空」より弱い (残存リスク節) — 恒久解は段 5 の git
-      worktree 隔離。
-- [x] **(blocking) build 後の digest 再照合 (TOCTOU 遮断)**: resolve→build 間に working-tree が動くと、digest と
-      実バイナリが食い違ったまま**共有ビルドキャッシュ (campaign 非依存) に永続**し以後 cache hit で沈黙再利用される
-      (偽 cache hit = 規律2 直撃)。bench_lock はベンチのみ排他・campaign.lock は記録ファイルで mutex ではなく、
-      複数セッション並走は現に運用実態。実装: `buildcache._recheck_src_token` — build 完了直後に
-      source_digest.resolve で src_token を再計算・照合し、不一致は build dir ごと破棄 (`_discard_build_dir`、
-      破棄失敗は明示例外 = 消し残り汚染バイナリの沈黙再利用を防ぐ) して fails-closed abort (再計算は数十 ms で
-      規律4 に反しない)。**cache hit 側も再照合** (resolve→hit 判定間の窓。hit の不一致は既存の正当な成果物
-      なので破棄せず停止のみ)。resolve の transient 失敗でも新規ビルドは破棄する (D25 と非対称だが意図的 —
-      残存リスク節)。git worktree 隔離 = 後続段 5 までの最小防壁。
-- [x] **(blocking) source_digest の #include 死角の閉塞 — 最小案採用**: digest は preprocess 前に `#include` 行を
-      無条件除去する (source_digest.py `_INCLUDE_RE`) ため、coder が EVOLVE-BLOCK ファイルに #include を追加/
-      差し替えすると**バイナリが変わるのに identity 不変** = stock と alias → 既存バイナリの cache hit で**変更が
-      一度もコンパイルされないまま certified 記録**になる。旧状この経路の防壁は道Y の hook 禁止 (D23) だけで hook は
-      未配線 — 方針 A が消したはずの単一障害点がこのベクタで復活していた。実装 = **最小案**:
-      `assert_includes_match_head` (resolve が駆動) — EVOLVE_BLOCK_SOURCES の #include 行集合 (順序込み) が HEAD
-      baseline と 1 行でも違えば fails-closed abort。**恒久案 (行集合を src_token pre-image に織り込んで追加を許す)
-      は敵対検証で却下** (2026-07-03 high): include **先ファイルの中身**は identity に乗らず、中身違いの新規 header
-      で variant 間 alias が残る (実機 probe で偽 cache hit 再現)。行集合を HEAD 固定にすれば include 追加自体を
-      止めるので穴ごと消える (coder の #include 追加は閉じた領域制約で元々禁止)。`__has_include` / #define 経由の
-      computed include は #include 行に現れず残る → 残存リスク節 (道Y 一般問題)。
-- [x] **(完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小の第二防壁** (配線済, D30/D33/D34):
-      `guard_write.py` / `guard_bash.py` を方針 A で最小化し `.claude/settings.json` に配線
-      (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)。guard_write は payload テキスト検査を物理削除
-      (D33) — proof-chain 拒否と designated ソース面の限定だけを担い、identity/観測者効果は一次防壁へ委譲する
-      (旧「payload 検査が `#ifdef` の唯一の防壁」= 単一障害点は放棄。GW2R-1/SPEC-2 が反証)。
-      配線前に **3 巡目敵対検証 (2026-07-04, Opus 赤チーム 4 系統 19 エージェント・約 93 万トークン)** を回し
-      real 9 / known-limitation 6 / refuted 0 を摘出:
-      - **critical = source_digest の builtin definedness (`#ifdef __x86_64__`) 偽 cache hit** = 方針 A の委譲先自身の
-        穴 (道Y が前提にした「生 #ifdef を hook で禁止」が payload 検査削除で消えた帰結)。**D34 (-undef 廃止) で
-        封鎖** = 下記順序 (1) 一次防壁健全化の完遂。
-      - hook の bypass 5 (絶対パス/~ の rm/改行がセグメント境界にならず先頭 read-only head が後続 writer 隠蔽/
-        heredoc `<<`/symlink root-output fail-open/NotebookEdit decoy) + 過剰拒否 3 (nm/du の純読み・tar/rsync backup)
-        を修正。known-limitation 6 (変数展開・部分 glob・computed include・末端 tar backup 等 docstring 明示の限界) 据え置き。
-      全 fix は変異検査 (fix を戻すと該当テスト赤・復元で緑) で機械実証。**D30 の順序 = (1) 一次防壁を load-bearing に
-      (preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合・**D34 builtin definedness**) →
-      (2) hook 最小化 + 過剰拒否除去 → (3) settings.json 配線、を完了。** 詳細は worklog 2026-07-04。
-- [x] **(完了) 観測者効果の二重検査 — 述語 = diff-of-diffs で確定・実装済み (commit 14d64e6, 2026-07-04)**: nm の
-      name-based 検査 (buildcache._assert_no_trace_symbols) を補完する一次防壁 (D30)。旧仕様の「両ビルドの
-      preprocess 出力を diff」という素朴な述語は**成立しない** — trace ビルド (TRACE=1) と perf ビルド (TRACE=0) の
-      preprocess 出力は `#if TRACE` ガード領域で**正当に**食い違うため、素の diff は必ず大量差分を出す (敵対検証で棄却)。
-      確定・実装した述語:
-      - **diff-of-diffs**: 同一 working-tree の preprocess(TRACE=1) − preprocess(TRACE=0) の差分
-        `D_variant` を取り、pinned HEAD (izanagi-trace baseline) から同様に取った `D_stock` と**一致**することを
-        assert する。「variant が TRACE 条件付きコードを追加/改変していない = trace/perf の差は stock の trace-hook
-        由来のみ」を機械保証し、残存リスク節の「#ifdef TRACE の内側に挙動差を隠す攻撃」も D_variant≠D_stock で捕える。
-      - **発火単位** = 毎 variant の trace/perf ビルド直後 (buildcache.build の出口。hit/fresh 両経路)。
-      - **fails-closed** = diff 不一致・preprocess 取得不能のいずれも abort (警告に格下げしない)。不一致の新規ビルドは
-        build dir ごと破棄。
-      - **保証しないこと (正直に)**: 検証専用メタデータが #ifdef の**外** (両ビルド共通) に常駐するケースは
-        この述語では判定不能 (機械には CC 本来か検証専用か区別できない)。ただしその場合コストは perf ビルドにも
-        乗って fitness が自己ペナルティを受けるため false-green にはならず、意味判定は auditor / 人間レビュー領域。
-      実装 = `source_digest.assert_trace_diff_matches_head` (述語 3 面 + 上記限界を docstring に明記) を
-      `buildcache.build` 出口で駆動。述語 + 結線を変異検査 3/3 で実証、実 submodule stock 通過 27ms (規律4 に反しない)。
-      実施記録は worklog 2026-07-04 の両エントリから漏れていた — worklog 2026-07-05 の追補を参照。
+- [x] **(blocking) verify の abort 数を WAL に記録** — ccbench stdout の `abort_counts_:` をパースし
+      STAGE_VERIFY_DONE payload に `aborts` として記録。集計行が読めない run は fails-closed reject
+      (`trace-no-abort-counts`) — 完了条件 2 の「abort > 0」の検査可能性を機械で担保 (規律3)。詳細 = 当該コミット本文。
+- [x] **(blocking) apply/revert ハーネス** — `campaign/patchharness.py` の `applied()` context manager。
+      flock 直列化 (並走 apply の ABA 対策)・pinned-clean assert・順序固定 apply→resolve→build→revert・
+      fails-closed。revert 後 assert は「porcelain 空」より弱く恒久解は段 5 の worktree 隔離 (残存リスク節)。
+      詳細 = 当該コミット本文・worklog 2026-07-04。
+- [x] **(blocking) build 後の digest 再照合 (TOCTOU 遮断)** — `buildcache._recheck_src_token`。resolve→build 間の
+      tree 変動による偽 cache hit (共有ビルドキャッシュへの永続 = 規律2 直撃) を封鎖。不一致は build dir ごと破棄、
+      cache hit 側も再照合、transient 失敗でも新規ビルドは破棄 (D25 と意図的非対称 — 残存リスク節)。詳細 = 当該コミット本文。
+- [x] **(blocking) source_digest の #include 死角の閉塞 (最小案)** — `assert_includes_match_head`:
+      EVOLVE_BLOCK_SOURCES の #include 行集合 (順序込み) を HEAD 固定し、1 行でも違えば fails-closed abort。
+      恒久案 (行集合の pre-image 織り込み) は敵対検証で却下 — include 先ファイルの中身が identity に乗らず
+      variant 間 alias が残るため。computed include (`__has_include`/#define 経由) は残存リスク節。詳細 = 当該コミット本文。
+- [x] **(完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小第二防壁 (配線済)** — guard_write / guard_bash を
+      最小化し `.claude/settings.json` に配線。payload テキスト検査は物理削除 (D33)、identity/観測者効果は
+      一次防壁へ委譲、critical (builtin definedness 偽 cache hit) は D34 で封鎖。3 巡目敵対検証
+      (real 9/known-limitation 6/refuted 0) の fix は変異検査で固定。詳細 = D30/D33/D34・hooks/README.md・worklog 2026-07-04。
+- [x] **(完了) 観測者効果の二重検査 = diff-of-diffs (commit 14d64e6)** — variant の preprocess(TRACE=1)−(TRACE=0)
+      差分が pinned HEAD の同差分と一致することを `source_digest.assert_trace_diff_matches_head` で assert
+      (buildcache.build 出口、hit/fresh 両経路、fails-closed)。素の出力 diff は #if TRACE 領域で正当に食い違うため
+      述語として不成立 (敵対検証で棄却済)。#ifdef 外の共通常駐メタデータは機械判定不能 = auditor/人間レビュー領域
+      (残存リスク節)。詳細 = コミット 14d64e6 本文・worklog 2026-07-05 追補。
 - [ ] **coder.md 生成 + 純 timing variant 1 本で全配線 1 周**: coder.md を critic/profiler 体裁で生成
       (agent-architecture.md の coder 仕様予約節 — kickoff の確定制約は同節の ⚠ 注記どおり本文書 + D22/D23/D24/D30 が正典)。**前提 gate: H3 hook (方針 A 最小化版) の settings.json 配線が完了している
       こと** — 未配線の間に coder を実走させない。配線状態は `test_settings_json_wires_both_hooks` の緑で機械確認
