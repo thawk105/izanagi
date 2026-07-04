@@ -1,0 +1,629 @@
+{
+ "meta": {
+  "date": "2026-07-04",
+  "kind": "docs 横断一貫性監査 (敵対検証つき) + 論文評価 4 レンズ",
+  "harness": "multi-agent workflow izanagi-docs-audit",
+  "agents": 54,
+  "total_tokens": 3024774,
+  "note": "7 レンズ (roadmap-vs-phase/worklog-vs-phase/worklog-vs-current/numbers/decisions-refs/phase-internal/narrative) で検出→独立敵対検証で real/refuted 裁定。修理は 2026-07-05 セッション (worklog 参照)"
+ },
+ "result": {
+  "confirmed_contradictions": [
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md「現在地」は『次 = Phase 3 タスク3 (H3 hooks 実体化)』と主張するが、phase3.md と worklog 最新エントリ (2026-07-04 (2)) では H3 hooks は方針 A で完了・settings.json 配線済み。commit a97c0f3 で phase3.md は [x] 化されたのに CLAUDE.md 現在地が更新されておらず、次セッションが完了済みタスクを次の一手と誤認する。実際の次の一手は worklog 末尾の『coder.md 生成 + 純 timing variant 1 本で全配線 1 周』。",
+    "a": "CLAUDE.md (21 (現在地セクション)): 次 = Phase 3 タスク3 (H3 hooks 実体化) — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)",
+    "b": "docs/phase3.md (173-188 / 233 (must 表)): (完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小の第二防壁 (配線済, D30/D33/D34) … `.claude/settings.json` に配線",
+    "why_real": "実在する stale-status と確認。(1) CLAUDE.md 行 21 は「**次 = Phase 3 タスク3 (H3 hooks 実体化)**」と現在の次アクションとして主張。(2) しかし phase3.md 行 173 は「- [x] **(完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小の第二防壁** (配線済, D30/D33/D34)」、同 233 行の must 表も「**完了 (方針 A)**」。(3) worklog 最新エントリ 行 1599「2026-07-04 (2) — H3 hooks 方針 A 完了」、行 1642-1646「次の一手 = kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周」。(4) git 履歴でも裏取り: CLAUDE.md の最終更新は 8f1543f (2026-07-03) で、H3 完了を docs に反映した a97c0f3 (2026-07-04) は phase3.md/decisions.md/worklog.md のみ変更し CLAUDE.md を更新していない。CLAUDE.md「現在地」は判定基準上「現在の状態を主張する文書」であり、worklog 日誌の正当な時系列差では説明できない。CLAUDE.md はセッション開始時に最初に読まれる文書で、太字の「次 =」が完了済みタスクを指すため、次セッションが配線済みの hooks/settings.json に再着手して壊す実害経路がある。よって refute 不能、real。",
+    "fix_hint": "CLAUDE.md 行 21 (「現在地」の Phase 3 段落) を更新する: 「次 = Phase 3 タスク3 (H3 hooks 実体化)」を「H3 hooks 方針 A 完了 (payload 検査削除・3 巡目敵対検証 real 9 修正・settings.json 配線・D33/D34)」の実績記述に置き換え、次の一手を worklog 行 1643-1646 どおり「coder.md 生成 + 純 timing variant 1 本 (no-op → 静的 backoff) で Tier0→pipeline.evaluate→verify→bench→WAL の全配線 1 周」に差し替える。あわせて「残り must は S2/S1」の部分も phase3.md の must 表 (行 231-239: cache_key+variant_id 拡張・観測者効果二重検査の blocking 2 行を含む) の現状と整合させる。",
+    "found_by": [
+     "roadmap-vs-phase"
+    ]
+   },
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "phase3.md の kickoff blocking タスク『観測者効果の二重検査』は未チェック [ ]・must 表でも blocking のままだが、実装は完了済み (commit 14d64e6、orchestrator/campaign/source_digest.py:234 の assert_trace_diff_matches_head を buildcache.py:159 が build 出口で駆動、test_campaign.py に変異検査あり)。worklog 2026-07-04 (2) も『実際に発火しテストもある一次防壁』『kickoff 残り = coder.md 生成のみ』と完了扱い。blocking 未完と誤読すると kickoff 残作業の判断を誤る (再実装リスク)。",
+    "a": "docs/phase3.md (189-202 (blocking タスク) / 235 (must 表)): - [ ] **(blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装** … 確定するまで blocking 完了としない",
+    "b": "docs/worklog.md (1606-1607 / 1643-1644 (2026-07-04 (2) エントリ)): 実際に発火しテストもある一次防壁 (`assert_includes_match_head` / `assert_trace_diff_matches_head` の diff-of-diffs / `_recheck_src_token` の TOCTOU) に確かに移っていることを test_campaign.py で確認 … 一次防壁 = preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合・D34",
+    "why_real": "実装は commit 14d64e6 (メッセージ自体が「観測者効果の二重検査 (diff-of-diffs) を実体化 (kickoff blocking)」) で完了済み — source_digest.py:232-248 の assert_trace_diff_matches_head (タスク定義 3 点 + 限界明記を docstring で逐一実装) を buildcache.py:157-173 が build 出口 hit/fresh 両経路で駆動し、test_campaign.py:1278-1341 に変異検査込みテストが実在する。worklog.md:1606-1608 も「実際に発火しテストもある一次防壁」と確認済みを記録し、1643-1644 で kickoff 残りを「coder.md 生成 + 純 timing variant 1 本」のみとし二重検査を残作業から除外している。にもかかわらず phase3.md:189 は未チェック [ ] のまま、202 行「確定するまで blocking 完了としない」、235 行 must 表も「blocking」のまま。さらに同じ phase3.md:186-188 (H3 hooks エントリ) が「一次防壁を load-bearing に (…diff-of-diffs…) …を完了」と隣接行で完了を主張しており同一文書内の自己矛盾。phase3.md はステータス文書 (living document の時系列日誌ではない) であり、「未反映」の自己申告もない (worklog:1637 は docs 反映実施を主張したうえでこの [x] 化だけ漏れ) ため refute 不能。kickoff blocking の残作業判断を直接誤らせ再実装/仕様競合リスクがあるため high 妥当。",
+    "fix_hint": "docs/phase3.md を実態に更新する: (1) 189 行のタスクを [x] 化し、他の完了タスクの体裁に合わせて「(blocking→完了) 観測者効果の二重検査 = diff-of-diffs 実体化 (commit 14d64e6): source_digest.assert_trace_diff_matches_head (述語 3 面 + 限界明記) を buildcache.build 出口の hit/fresh 両経路で駆動、不一致の新規ビルドは build dir ごと破棄、変異検査 3/3・stock 通過 27ms」の趣旨に書き換え、202 行の「確定するまで blocking 完了としない」を完了記録に置換。(2) 235 行 must 表の「観測者効果二重検査」行を H3/S4 行の書式で「完了」に更新 (実装参照 = source_digest+buildcache, 14d64e6)。あわせて worklog.md:1639 の「コミット 4 本」に 14d64e6 が漏れている点は、過去エントリの改竄はせず次回 worklog で訂正注記するのが本プロジェクトの流儀。",
+    "found_by": [
+     "roadmap-vs-phase"
+    ]
+   },
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "phase3.md は「観測者効果の二重検査」を blocking 未完 [ ] (仕様確定が実装より先) のままとするが、worklog 最新エントリ (2026-07-04 (2)) と git 実態 (コミット 14d64e6: source_digest.assert_trace_diff_matches_head + buildcache hit/fresh 両経路配線 + 変異検査 3/3) は実装完了済みとして扱い、kickoff 残り作業からも外している。次セッションが phase3.md を読むと blocking が 1 本残ると誤読し、worklog を読むと coder.md に直行できると読む — タスク管理の根幹が食い違う",
+    "a": "docs/phase3.md (189-202 (kickoff タスクリスト)): - [ ] **(blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装** … この 3 点 + 限界の明記をタスク定義として確定するまで blocking 完了としない",
+    "b": "docs/worklog.md (1643-1645 (2026-07-04 (2) 次の一手)): kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周 (一次防壁 = preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合・D34 builtin definedness…)",
+    "why_real": "refute 不能の実在矛盾。(1) git 実態: コミット 14d64e6 (2026-07-04)「観測者効果の二重検査 (diff-of-diffs) を実体化 (kickoff blocking, D30 一次防壁)」が source_digest.py (+56)・buildcache.py (+21、hit/fresh 両経路出口)・テスト (+128) を実装し「述語 3 面 + 結線を変異検査 3/3 で実証」と明記 = 実装完了。(2) worklog.md:1607 は assert_trace_diff_matches_head の diff-of-diffs を「実際に発火しテストもある一次防壁」と参照し、行1643-1645 の次の一手は kickoff 残りを coder.md + 純 timing variant のみとし diff-of-diffs を完了済み一次防壁として列挙。(3) 一方 phase3.md:189 は「- [ ] (blocking) 観測者効果の二重検査」のまま、行202「確定するまで blocking 完了としない」、行235 の must 表も「blocking」のまま。(4) さらに phase3.md:186-188 (H3 [x] 項目内) は「一次防壁を load-bearing に (…diff-of-diffs・TOCTOU 再照合・D34…) を完了」と書いており同一ファイル内でも自己矛盾 — コミット a97c0f3 の docs 反映で H3 だけ [x] 化し、二重検査のチェックボックスと must 表を更新し忘れた stale-status。「仕様確定のみ blocking」という読みは行193-201 に 3 点 + 限界が確定記載済みで 14d64e6 がその仕様どおりの実装ゆえ成立しない。blocking 表示は「残る限り coder 実走に進めない」タスク管理の根幹で、次セッションの進行判断を直接誤らせるため high 維持。",
+    "fix_hint": "phase3.md が誤り (stale)、worklog + git 実態が正。docs/phase3.md:189 のチェックボックスを [x] 化し、実装実態を反映する: コミット 14d64e6 で source_digest に diff-of-diffs 述語 (working-tree の preprocess(TRACE=1)−preprocess(TRACE=0) 差分 D_variant が pinned HEAD の D_stock と一致、ハンクヘッダ除外、fails-closed abort、不一致新規ビルドは build dir ごと破棄) を実装し、buildcache.build の hit/fresh 両経路出口に配線、変異検査 3/3 で実証済み — と追記。あわせて行235 の must 表「観測者効果二重検査 | blocking」を「完了」に更新 (H3 行 233 と同じ体裁で D30/14d64e6 を根拠に)。行202 の「確定するまで blocking 完了としない」文は完了済みの経緯記述に書き換える。",
+    "found_by": [
+     "worklog-vs-phase"
+    ]
+   },
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md 現在地の「次 = Phase 3 タスク3 (H3 hooks 実体化)」は worklog 最新実績 (2026-07-04 に H3 hooks 方針 A 完了・settings.json 配線済み・D33/D34 記録済み) と矛盾し、次セッションの一手を誤誘導する。kickoff blocking 6 本 (verify abort WAL 記録 / patchharness / TOCTOU 再照合 / #include 閉塞 / diff-of-diffs / D34) の完了も丸ごと未反映。",
+    "a": "/home/tanab/github/izanagi/CLAUDE.md (line 21 (現在地 Phase 3 段落)): 次 = Phase 3 タスク3 (H3 hooks 実体化) — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)",
+    "b": "/home/tanab/github/izanagi/docs/worklog.md (lines 1599, 1643-1646 (2026-07-04 (2) エントリ)): H3 hooks 方針 A 完了: … 配線 … (D33/D34)。次の一手 = kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周",
+    "why_real": "CLAUDE.md line 21 は「次 = Phase 3 タスク3 (H3 hooks 実体化)」と現在形で主張するが、worklog.md line 1599 (2026-07-04 (2)) は H3 hooks 方針 A 完了 (settings.json 配線・D33/D34・3 巡目敵対検証 real 9 修正) を記録し、phase3.md line 173/233 も「[x] 完了 (方針 A)」で一致。最新コミット a97c0f3 は decisions/phase3/worklog のみ更新し CLAUDE.md を含まず (git show で確認)、CLAUDE.md 現在地は 2026-07-02 の記述で停止 — 2026-07-03 の 4 セッション (D30/D31) と 2026-07-04 の 2 セッション (kickoff blocking 4 本 + H3 完了) が丸ごと未反映。CLAUDE.md「現在地」は「現在の状態」を主張する起点文書であり、worklog の日誌性による見かけの矛盾ではない。正しい次の一手は worklog lines 1643-1646 の「kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周」であり、完了済みタスクを「次」と指定する記述は次セッションの初動を直接誤誘導する。",
+    "fix_hint": "CLAUDE.md line 21 の Phase 3 段落を更新する: (1) H3 hooks 方針 A 完了を追記 (最小第二防壁を .claude/settings.json に配線、D30/D33、3 巡目敵対検証 real 9/known 6 を修正、critical の source_digest builtin definedness 偽 cache hit は D34 の -undef 廃止で封鎖)、(2) 2026-07-03〜04 の kickoff blocking 消化 (観測者効果の diff-of-diffs 二重検査・TOCTOU 再照合ほか、worklog line 1567/1599 エントリ) を反映、(3) 「次 = Phase 3 タスク3 (H3 hooks 実体化)」を worklog lines 1643-1646 と揃えて「次 = kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周」に書き換える。残り must (S2/S1) の記述は phase3.md line 233 付近の must 表と突合して維持または更新する。worklog/phase3.md/decisions.md は正であり修正不要。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "phase3.md の blocking タスク「観測者効果の二重検査」が未完 [ ] のまま (must 表も blocking) だが、実体は 14d64e6 (2026-07-04 19:56) で diff-of-diffs としてコミット済みで、worklog 最新エントリも完了済み一次防壁として列挙し「残り = coder.md のみ」としている。次セッションが blocking 残数を誤認し既完了作業を再実装/再仕様確定に向かうリスク。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (line 189 (kickoff タスク) + line 235 (must 表)): - [ ] (blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装 / must 表: 観測者効果二重検査 | blocking",
+    "b": "/home/tanab/github/izanagi/docs/worklog.md (lines 1643-1645 (2026-07-04 (2) 次の一手)): 一次防壁 = preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合・D34 builtin definedness (完了扱い。実体 = source_digest.assert_trace_diff_matches_head + buildcache 出口配線、commit 14d64e6)",
+    "why_real": "実在する stale-status。phase3.md line 189 は「- [ ] (blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装」、line 235 must 表も「blocking」のままだが、実体は commit 14d64e6 (2026-07-04 19:56) で完了済み: source_digest.py:232 の assert_trace_diff_matches_head (docstring line 234 が「phase3.md blocking / D30 一次防壁」と自己言及) + buildcache.py:159-169 の build 出口 hit/fresh 両経路配線。コミット内容は phase3.md line 193-201 のタスク定義 3 点 (diff-of-diffs 述語 / buildcache.build 出口発火 / fails-closed abort) と限界の明記を全て満たし、line 202 の完了条件を充足。worklog 最新エントリ (line 1606-1607, 1643-1644) と decisions.md line 739 (D33) は完了済み一次防壁として扱い「kickoff 残り = coder.md のみ」と明記。発生機序も特定: 後続 docs コミット a97c0f3 (22:26) が隣接の H3 hooks (line 173) だけ [x] 化して二重検査の更新を漏らし、かつ 14d64e6 自体が worklog のどのエントリのコミット一覧にも属さない記録なしコミットのため [x] 化が落ちた。living document 構造では説明できない (phase3.md のチェックリスト・must 表は現在の状態を主張する文書)。line 189 の「まず述語仕様を確定してから実装」という文言が誤った現在形の作業指示として残っており、次セッションが仕様確定議論の再演や重複実装に向かうリスクは実在する。",
+    "fix_hint": "phase3.md の 2 箇所を更新する。(1) line 189-202 のチェックボックスを「- [x] (完了) 観測者効果の二重検査 (diff-of-diffs)」に変え、実体を注記: source_digest.assert_trace_diff_matches_head (D_variant と pinned HEAD の D_stock の一致 assert、ハンクヘッダ除外) + buildcache.build 出口の hit/fresh 両経路配線、fails-closed abort、変異検査 3/3、commit 14d64e6。タスク定義 3 点 (line 193-201) は「確定済み仕様」として本文を保持してよいが冒頭の指示文「まず述語仕様を確定してから実装」は完了形に直す。(2) line 235 must 表の「観測者効果二重検査」行を「完了」に変え、根拠欄を「source_digest.assert_trace_diff_matches_head + buildcache 出口配線 (14d64e6)。nm 補完の一次防壁として live」に書き換える。加えて、14d64e6 が worklog のどのエントリにも属さない記録なしコミットである点は、次回 worklog エントリで一行補足しておくと引き継ぎ監査 (D27) と整合する (過去エントリの改竄はしない)。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md「現在地」が「次 = Phase 3 タスク3 (H3 hooks 実体化)」と主張するが、H3 hooks は 2026-07-04 に方針 A で完了・settings.json 配線済み (D33/D34、git 最新コミット a97c0f3/16fd95e/2c1283f)。phase3.md must 表と worklog 最新エントリは「完了、次 = coder.md + 純 timing variant 1 本で全配線 1 周」。セッション開始時に必読の文書が完了済みタスクへ誤誘導する",
+    "a": "CLAUDE.md (L21 (「現在地」セクション)): **次 = Phase 3 タスク3 (H3 hooks 実体化)** — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)",
+    "b": "docs/phase3.md (L173 (must 表 L233 も同様)): - [x] **(完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小の第二防壁** (配線済, D30/D33/D34)",
+    "why_real": "CLAUDE.md L21 は「次 = Phase 3 タスク3 (H3 hooks 実体化)」と現在状態を主張するが、phase3.md L173-188 は H3 hooks を「[x] 完了・方針 A、配線済 (D30/D33/D34)」とマークし、worklog L1599-1648 (2026-07-04 (2) エントリ) も方針 A 完了・settings.json 配線・コミット 4 本 (git 最新 a97c0f3/16fd95e/2c1283f と一致) を記録、「次の一手 = coder.md 生成 + 純 timing variant 1 本で全配線 1 周」(L1642-1646) としている。CLAUDE.md「現在地」は日誌でなくステータス文書なので living document 免責は効かず、セッション開始時必読の文書が完了済みタスクへ誤誘導する真の stale-status。",
+    "fix_hint": "CLAUDE.md L21「現在地」を更新するのが正: 「タスク3 (H3 hooks) は方針 A で完了 — guard_write/guard_bash を最小化し .claude/settings.json に配線済み、3 巡目敵対検証 (real 9/known 6) の fix と D34 (source_digest -undef 廃止) を含む (D33/D34)。次 = coder.md 生成 + 純 timing variant 1 本で全配線 1 周 (前提 gate = test_settings_json_wires_both_hooks 緑)」の趣旨に書き換え、phase3.md L203-209 および worklog 2026-07-04 (2) の「次の一手」と揃える。あわせて同文の「残り must は S2/S1」も phase3.md の must 表 (L229 以降) の現状と照合して更新する。",
+    "found_by": [
+     "numbers"
+    ]
+   },
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md 現在地が「次 = Phase 3 タスク3 (H3 hooks 実体化)」と指示するが、phase3.md / worklog 2026-07-04(2) / D33 は H3 hooks を方針 A で完了・.claude/settings.json 配線済みと記録しており、実際の次タスク (coder.md 生成 + 純 timing variant 1 周) を誤認させる。CLAUDE.md は D30/D33/D34 の存在自体に未追従。",
+    "a": "/home/tanab/github/izanagi/CLAUDE.md (21 (現在地 Phase 3 段落)): **次 = Phase 3 タスク3 (H3 hooks 実体化)** — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (173 (kickoff タスク) / 233 (must 表)。同旨: worklog.md:1599-1645、decisions.md D33): [x] (完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小の第二防壁 (配線済, D30/D33/D34) … must 表「H3 hooks | 完了 (方針 A)」",
+    "why_real": "CLAUDE.md:21 は「次 = Phase 3 タスク3 (H3 hooks 実体化)、残り must は S2/S1」と現在地を主張するが、phase3.md:173 は H3 hooks を「[x] 完了・方針 A (配線済, D30/D33/D34)」、同:233 の must 表も「完了 (方針 A)」と記録し、worklog.md:1599-1646 (2026-07-04 (2)) は配線完了と「次の一手 = coder.md 生成 + 純 timing variant 1 本で全配線 1 周」を明記、decisions.md:727 (D33)/:763 (D34) も実在する。CLAUDE.md「現在地」は現在状態を主張する文書 (worklog のような日誌ではない) であり、完了済みタスクを「次」と指示する真逆の記述は表現差でも既知 TODO の自己申告でもない。CLAUDE.md はセッション開始時に最初に読まれるため、次セッションの着手判断を直接誤らせる実害がある。さらに「残り must は S2/S1」も phase3.md:237-238 の現行分類 (S2/S1 = non-blocking) とずれており、段落全体が 2026-07-03 (D30) 以降に未追従。",
+    "fix_hint": "CLAUDE.md:21 の Phase 3 段落を worklog 2026-07-03/07-04 の実績に追従させる: (1)「次 = Phase 3 タスク3 (H3 hooks 実体化)」を削除し、H3 hooks は方針 A で完了・.claude/settings.json 配線済 (D30/D33/D34、3 巡目敵対検証 real 9/known 6 修正済) と記載、(2) 次タスクを「coder.md 生成 + 純 timing variant 1 本で全配線 1 周 (phase3.md kickoff 完了条件 2 項)」に更新、(3)「残り must は S2/S1」を phase3.md:229-239 の must 表の現行分類 (S2/S1 = non-blocking、blocking の残りは kickoff タスクリスト参照) に合わせて書き直す。正は phase3.md / worklog 側 (実装・テスト・コミット a97c0f3 と一致) であり、直すのは CLAUDE.md のみ。",
+    "found_by": [
+     "decisions-refs"
+    ]
+   },
+   {
+    "severity": "high",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md「現在地」の次の一手が既に完了済みのタスクを指す: H3 hooks は phase3.md と worklog 2026-07-04 (2) で「完了 (方針 A)・settings.json 配線済」だが、CLAUDE.md は「次 = H3 hooks 実体化」のまま。セッション開始時に最初に読む文書のため誤誘導度が高い。",
+    "a": "/home/tanab/github/izanagi/CLAUDE.md (21 行 (現在地・Phase 3 段落)): 次 = Phase 3 タスク3 (H3 hooks 実体化) — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (173-188 行): - [x] (完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小の第二防壁 (配線済, D30/D33/D34) … `.claude/settings.json` に配線",
+    "why_real": "CLAUDE.md:21 は「次 = Phase 3 タスク3 (H3 hooks 実体化)」と現在形で主張するが、phase3.md:173 は「- [x] (完了・方針 A) H3 hooks … (配線済, D30/D33/D34)」、同 233 行の must 表も「完了 (方針 A)」、worklog.md:1599 (2026-07-04 (2) エントリ) は「H3 hooks 方針 A 完了 … 配線」でコミット 4 本まで達成済み。worklog:1637-1639 の docs 反映一覧 (phase3.md・decisions・hooks/README・worklog) に CLAUDE.md が含まれておらず、更新漏れであることの傍証。実際の次の一手は worklog:1643-1646 の「coder.md 生成 + 純 timing variant 1 本で全配線 1 周」であり、CLAUDE.md の指示と別物。CLAUDE.md「現在地」は現況を主張する必読文書のため living document 論理 (日誌の時系列差) では救えず、セッション開始時に完了済みタスクへ再着手を誘導する真の stale-status。",
+    "fix_hint": "CLAUDE.md:21 の Phase 3 段落末尾を更新する。「**次 = Phase 3 タスク3 (H3 hooks 実体化)**」を「タスク3 (H3 hooks) 完了 (方針 A で最小化・settings.json 配線済, D30/D33/D34。3 巡目敵対検証 real 9/known 6 修正込み)」に改め、次の一手を worklog 2026-07-04 (2) の実際の残作業「kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周」に差し替える。残り must (S2/S1) の記述は現状と整合していれば維持。",
+    "found_by": [
+     "phase-internal"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "roadmap §3.3 は観測者効果二重検査を『trace/perf 両ビルドの preprocess 出力 diff』という素朴述語の表現のまま記述するが、phase3.md はこの述語を『成立しない (TRACE ガード領域で正当に食い違い素の diff は必ず大量差分を出す)』と敵対検証で棄却し、仕様を diff-of-diffs (D_variant = D_stock の一致 assert) に確定・実装済み。roadmap だけ読むと成立しない述語を仕様と誤解する。『phase3.md の blocking タスク』という指し先も実装完了後は二重に古い。",
+    "a": "docs/roadmap.md (135 (§3.3 末尾)): symbol 不在に加えて trace/perf 両ビルドの preprocess 出力 diff (data-structure 由来の差も捕える「観測者効果の二重検査」, phase3.md の blocking タスク) へ拡張する",
+    "b": "docs/phase3.md (190-197 (blocking タスク定義)): 旧仕様の「両ビルドの preprocess 出力を diff」という素朴な述語は成立しない … 素の diff は必ず大量差分を出す。… 比較基準の候補 = diff-of-diffs",
+    "why_real": "実在する stale。(1) roadmap.md:135 は述語を「trace/perf 両ビルドの preprocess 出力 diff」と記述し「phase3.md の blocking タスクへ拡張する」と未来形だが、phase3.md:190-192 はまさにこの表現を「素朴な述語は成立しない (#if TRACE ガード領域で正当に食い違い素の diff は必ず大量差分)」と名指しで棄却し、193-196 で diff-of-diffs (D_variant == D_stock の assert) を現行仕様と確定している。(2) 実装も完了済み: orchestrator/campaign/source_digest.py:232 (assert_trace_diff_matches_head)、buildcache.py:104/120 で build 出口に配線、テスト test_campaign.py:1270/1292/1323、worklog.md:1606-1607/1643-1644 とコミット 14d64e6 が裏付ける。(3) refute 不成立: roadmap は「現在の状態」を主張する必読の戦略文書であり、「preprocess 出力 diff」と「diff-of-diffs」は表現差でなく前者が敵対検証で棄却された別述語 (worklog.md:1495-1496)。roadmap:135 に「要更新」の自己申告もない。phase3.md へのポインタは緩和要因だが roadmap 単独読者は棄却済み述語を仕様と誤解する。なお同根の stale として phase3.md:189 のチェックボックスも未チェックのまま (同187行の完了宣言・実装と自己矛盾) であることを付記する。",
+    "fix_hint": "roadmap.md:135 を現行仕様に更新する: 「trace/perf 両ビルドの preprocess 出力 diff …へ拡張する」を「diff-of-diffs (variant の TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と一致することを assert。素の出力 diff は #if TRACE ガード領域で正当に食い違うため不成立と敵対検証で実証済み) へ拡張済み (source_digest.assert_trace_diff_matches_head、buildcache.build 出口で発火)」の形に書き換える。roadmap.md:147 の「preprocess 二重検査」も「二重検査 (diff-of-diffs)」と明記するとなお良い。あわせて同根の phase3.md:189 のチェックボックスを [x] 化し、phase3.md:235 の must 表の「blocking」を「完了」に更新する (同187行の完了宣言・worklog 2026-07-04・コミット 14d64e6 と整合させる)。いずれも学んだ事実の反映 = 軽微改訂なので roadmap 版上げセレモニーは不要。",
+    "found_by": [
+     "roadmap-vs-phase"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md hooks 節は『variant コードが #ifdef TRACE の外に検証専用メタデータを書こうとしたら警告 (規律1)』を hooks の機能として謳うが、D33 (方針 A 実装) で guard_write の payload テキスト検査は物理削除され、この検査は hook には存在しない (規律1 相当は一次防壁 = diff-of-diffs 等へ委譲)。roadmap §3.4-3 は方針 A 追記済みで、CLAUDE.md hooks 節だけが旧設計のまま。hooks の守備範囲を誤認させる (117 行の規律2 側 = proof-chain 拒否は現存するので 116 行のみ stale)。",
+    "a": "CLAUDE.md (116 (hooks 節)): variant コードが `#ifdef TRACE` の外に検証専用メタデータを書こうとしたら警告 (規律1)",
+    "b": "docs/phase3.md (175-177 (H3 タスク)): guard_write は payload テキスト検査を物理削除 (D33) — proof-chain 拒否と designated ソース面の限定だけを担い、identity/観測者効果は一次防壁へ委譲する",
+    "why_real": "CLAUDE.md 116 行は hooks の現行機能として「#ifdef TRACE の外に検証専用メタデータを書こうとしたら警告 (規律1)」を現在形で主張するが、この検査は D33 (decisions.md 727 行) で guard_write から物理削除済み。実装 hooks/guard_write.py 17-23 行が「旧設計 (payload/skeleton のテキスト検査) は方針 A で削除した (D33)」と明言し、phase3.md 175-177 行 ([x] 完了記録)・roadmap.md 147 行 (方針 A の責務再配置) も一致。CLAUDE.md だけが旧設計のまま。hooks 節は日誌でなく現状主張の文書で、かつ全セッションが最初に読む入口。規律1 の委譲先 (観測者効果二重検査 = diff-of-diffs) は phase3.md 189-202 行でまだ blocking 未完 ([ ]) のため、「hook が既に守っている」という誤認は防御態勢の現状把握を実際に誤らせる。117 行 (規律2 側 = verifier 迂回阻止) は proof-chain 拒否として guard_write に現存するので、stale は 116 行のみという候補の限定も正確。living document 構造・表現差では説明できず refute 不能。",
+    "fix_hint": "CLAUDE.md hooks 節 (115-119 行) を方針 A (D30/D33) 後の実態に更新する: (1) hooks は「最小の第二防壁」で、guard_write = proof-chain (WAL/成果物) への直接書き込み拒否 + variant 編集面を designated ソース (EVOLVE-BLOCK) に限定、guard_bash = 同等の Bash 経路防壁、と書き換える。(2) 規律1 (観測者効果 / #ifdef TRACE) の機械執行は一次防壁 (source_digest の preprocess 後ハッシュ・#include HEAD 固定・buildcache の symbol 不在検査・観測者効果二重検査) へ委譲済みで、hook の payload テキスト検査は D33 で削除したことを明記する。(3) 参照先の docs/agent-architecture.md 90-91 行 (hook 1: 同じ旧記述) にも同様の追記または「D33 で置換済み、正典は phase3.md」の注記を入れる (73 行の予約仕様免責は coder 節内にあり hooks 節を明示的にカバーしていないため)。なお hooks 節は CLAUDE.md の「絶対規律」セクション外なので憲法不変条項には当たらないが、CLAUDE.md の編集はユーザー確認を取って行うのが安全。",
+    "found_by": [
+     "roadmap-vs-phase"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "narrative-inconsistency",
+    "summary": "kickoff blocking の 1 本「観測者効果二重検査 (diff-of-diffs) の実体化」= コミット 14d64e6 (07-04 19:56) を実施した記録エントリが worklog に存在しない。07-04 (1) エントリの「コミット 5 本」(9301a8c〜a5f72d0) にも 07-04 (2) エントリの「コミット 4 本」にも帰属せず、07-04 (2) が完了を無言の前提として参照している (日誌の欠落 = finding 1 の根本原因)",
+    "a": "docs/worklog.md (1594-1595 (2026-07-04 (1) 次の一手)): kickoff 残り: hook 最小化 + 配線 (H3 方針 A) → 観測者効果二重検査 (述語 = diff-of-diffs 確定) → coder.md…",
+    "b": "docs/worklog.md (1607-1608 (2026-07-04 (2) 監査節)): 実際に発火しテストもある一次防壁 (assert_includes_match_head / assert_trace_diff_matches_head の diff-of-diffs / _recheck_src_token の TOCTOU) に確かに移っていることを test_campaign.py で確認",
+    "why_real": "コミット 14d64e6 (07-04 19:56、diff-of-diffs 実体化 = kickoff blocking、+204 行) を記録する worklog エントリが存在しないことを確認。07-04 (1) の「コミット 5 本」列挙 (worklog.md:1586-1589) にも 07-04 (2) の「コミット 4 本」列挙 (worklog.md:1639) にも含まれず、(1) の次の一手 (1594-1595) では未実施予告のまま、(2) は冒頭 (1603) で hook 部分のみ達成と述べつつ 1606-1608 で assert_trace_diff_matches_head の diff-of-diffs を完了済み前提で参照 — 前エントリの「未実施」を無言で「完了済み」に反転させる形で、living document の正当な更新ではなく日誌の欠落。git log -S で assert_trace_diff_matches_head の導入が 14d64e6 のみであることも確認。実害も現存: phase3.md:186-188 は「diff-of-diffs…完了」と主張する一方、同ファイル 189-202 の blocking タスクは [ ] 未チェックのまま (202「確定するまで blocking 完了としない」) で、記録欠落が phase docs のステータス矛盾として表面化し、次セッションの再実装・再仕様化を誘発しうる。実装とテスト自体は存在するため high ではなく medium が妥当。",
+    "fix_hint": "docs/worklog.md の 07-04 (1) と (2) の間 (または (2) への訂正注記として) 14d64e6 の実施記録を追補する: 述語 = working-tree の preprocess(TRACE=1)−preprocess(TRACE=0) 差分 D_variant が pinned HEAD の D_stock と一致、発火 = buildcache.build の hit/fresh 両出口、fails-closed (不一致ビルドは dir ごと破棄)、ハンクヘッダ除外、stock 通過 27ms、述語 3 面 + 結線の変異検査 3/3 — をコミットメッセージから転記。あわせて docs/phase3.md:189 の blocking タスク「観測者効果の二重検査」を [x] 化し (行 202 の完了条件 = 述語 3 点 + 限界明記は 14d64e6 で充足済みであることを確認の上)、行 187 の「完了」主張との同一ファイル内不整合を解消する。",
+    "found_by": [
+     "worklog-vs-phase"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md「現在地」が H3 hooks 実体化を「次」のタスクと主張するが、worklog 最新実績では 07-04 に方針 A で完了・settings.json 配線済み。kickoff blocking 4 本 (abort WAL 記録 / patchharness / TOCTOU 再照合 / #include 閉塞、07-04 コミット済み) と diff-of-diffs も未反映で、次セッションが最初に読む現在地が 2 セッション分 stale",
+    "a": "CLAUDE.md (21 (現在地 Phase 3 節)): **次 = Phase 3 タスク3 (H3 hooks 実体化)** — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)",
+    "b": "docs/worklog.md (1599-1610 (2026-07-04 (2) エントリ)): H3 hooks 方針 A 完了: payload 検査削除 + 3 巡目敵対検証 (real 9) 修正 + 配線 … `.claude/settings.json` に両 hook を配線。全緑 173",
+    "why_real": "実在する stale-status と確認。(1) CLAUDE.md:21 は「**次 = Phase 3 タスク3 (H3 hooks 実体化)**」と現在の状態として主張するが、(2) worklog.md:1599-1610 (2026-07-04 (2) エントリ) は「H3 hooks 方針 A 完了 … `.claude/settings.json` に両 hook を配線。全緑 173」と完了を記録し、HEAD コミット a97c0f3 (docs(phase3): H3 hooks 方針 A 完了 + D33/D34) がそれを裏付ける。(3) phase3.md:173 も「[x] **(完了・方針 A) H3 hooks**」、同 233 行の must 表も「完了 (方針 A)」で、現状主張文書間で CLAUDE.md だけが食い違う。さらに worklog.md:1567-1591 (07-04 (1)) の kickoff blocking 4 本 (abort WAL 記録 / patchharness / TOCTOU 再照合 / #include 閉塞) と、その前提の diff-of-diffs (コミット 14d64e6) も CLAUDE.md 現在地に未反映 — git log 上、CLAUDE.md の現在地更新は 07-02 時点 (608a72b) が最後で、07-03〜07-04 の複数セッション分 stale。refute 検討: CLAUDE.md「現在地」は日誌でなく現状主張文書なので living-document 弁護は不成立、「要更新」の自己申告もなく、「次 = 実体化」と「完了・配線済」は表現差でなく正反対の主張。ただし worklog 末尾 (1642-1646) と phase3.md に正しい現状・次の一手があり、CLAUDE.md 自身が docs を読むよう指示しているため誤誘導は回復可能 — severity は申告どおり medium が妥当。",
+    "fix_hint": "CLAUDE.md:21 の Phase 3 節を更新する: 「次 = Phase 3 タスク3 (H3 hooks 実体化)」を削除し、07-03〜07-04 の実績 — diff-of-diffs 二重検査 (D30 一次防壁)、kickoff blocking 4 本 (verify-abort WAL 記録 / patchharness / TOCTOU 再照合 / #include HEAD 固定)、H3 hooks 方針 A 完了 + settings.json 配線 (D30/D33)、source_digest -undef 廃止 (D34)、3 巡目敵対検証 real 9/known 6 — を反映し、次の一手を worklog.md:1642-1646 のとおり「coder.md 生成 + 純 timing variant 1 本で全配線 1 周」に書き換える。残り must (S2 certify=perf workload / S1 trace-hook 別 protocol) の記述は維持。",
+    "found_by": [
+     "worklog-vs-phase"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "phase3.md の EVOLVE-BLOCK 機構節が「hook は未配線 = 現在形の保証ではない」と現在形で主張するが、worklog 07-04 (2) および同ファイル行 173-188 の H3 完了項 (「配線済, D30/D33/D34」) と食い違う — 同一ファイル内でも自己矛盾する更新漏れ (07-03 の文言が 07-04 の配線完了後に未更新)",
+    "a": "docs/phase3.md (115-116 (EVOLVE-BLOCK 機構・閉じた領域制約)): H3 hook 配線後に機械強制。配線までは coder diff の人間レビューが唯一の gate — … hook は未配線 = 現在形の保証ではない, D30",
+    "b": "docs/worklog.md (1610 (2026-07-04 (2))): `.claude/settings.json` に両 hook を配線。全緑 173",
+    "why_real": "phase3.md:115-116 の「hook は未配線 = 現在形の保証ではない」は現在形の状態断定だが、同一ファイル phase3.md:173-174 (H3 hooks 完了・配線済, D30/D33/D34) および行 233 の must 表 (完了 (方針 A)・最小第二防壁を配線)、worklog.md:1610 (2026-07-04 (2): settings.json に両 hook を配線・全緑 173)、さらに実態の .claude/settings.json:1-24 (guard_write/guard_bash が PreToolUse に配線済) と食い違う。phase3.md はステータス文書であり日誌ではないため living document 構造では正当化できず、07-04 の配線完了時に blocking リストと must 表は更新されたが機構節だけ取り残された同一ファイル内の自己矛盾 (更新漏れ)。なお行 115 前半「配線後に機械強制。配線までは人間レビューが唯一の gate」は条件付き記述で単独なら refute 可能だったが、末尾の断定がそれを打ち消す。行 166 の「hook は未配線」は「旧状」の過去説明で正当であり本件とは別。",
+    "fix_hint": "docs/phase3.md:115-116 の括弧内を配線完了後の現在形に書き換える。例: 「(H3 hook (方針 A) の settings.json 配線済 (D30/D33) により designated ソース面の限定は機械強制。加えて coder diff の人間レビューを併用 — coder.md タスクの前提 gate は test_settings_json_wires_both_hooks の緑で機械確認)」のように、同ファイル行 173-188 の完了項および行 233 の must 表と整合させる。worklog 側 (1610) は正しいので触らない。",
+    "found_by": [
+     "worklog-vs-phase"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "phase2.md の「Phase 3 着手前 must」リストは S4 (完了 2026-06-29)・C1 (解消済み 2026-07-02) と完了を追記してきた現況リストなのに、H3 だけ「hooks/ は placeholder」のまま残り、実装・配線済みの実態 (worklog 07-04 (2)、phase3.md must 表「完了 (方針 A)」) と食い違う",
+    "a": "docs/phase2.md (160-161 (Phase 3 着手前 must)): **H3 hooks の実体化**: `hooks/` の規律1/2 機械防壁は placeholder。**LLM が C++ variant を書く瞬間**に第二防壁が必要",
+    "b": "docs/worklog.md (1599-1640 (2026-07-04 (2) エントリ)): H3 hooks 方針 A 完了 … guard_write / guard_bash … 配線 … docs 反映 = phase3.md (H3 hooks [x] 化・must 表)・hooks/README.md (配線済・3 巡検証)",
+    "why_real": "phase2.md 146-176 行の「Phase 3 着手前 must」リストは、S4 に「完了 (2026-06-29)」(154 行)・C1 に「解消済み (2026-07-02)」(167 行) と完了を追記してきた現況追記型リストであり、「過去時点の記録」ではない。その中で H3 (160-161 行) だけが「hooks/ の規律1/2 機械防壁は placeholder」のまま残るが、実態は worklog.md 1599-1640 行 (2026-07-04 (2)) で方針 A 完了 (guard_write/guard_bash + settings.json 配線 + 3 巡目敵対検証 real 9/known 6)、phase3.md 173 行「[x] (完了・方針 A) H3 hooks」・233 行 must 表「完了 (方針 A)」と完了が確定している。同一リスト内の他項目が更新済みである以上、H3 の選択的更新漏れは living-document の正当な時系列差ではなく、読者に「H3 未完了 = coder 投入前に hooks 実装が必要」と誤解させる真の stale-status。加えて 161 行が参照する hooks/README 自体も「配線済・3 巡検証」に更新済み (worklog 1638 行) で、参照内容とも食い違う。",
+    "fix_hint": "docs/phase2.md 160-161 行の H3 項を S4/C1 と同じ追記形式に更新する: 「**H3 hooks の実体化 — 完了 (2026-07-04、方針 A)**: guard_write/guard_bash の最小第二防壁を `.claude/settings.json` PreToolUse に配線 (D30/D33)。3 巡目敵対検証 (real 9/known 6) の修正と critical (source_digest builtin definedness) の D34 封鎖まで消化。詳細は phase3.md の must 表」。あわせて CLAUDE.md「現在地」の「次 = Phase 3 タスク3 (H3 hooks 実体化)」も同様に stale なので、「H3 完了、次 = coder.md 生成 + 純 timing variant で全配線 1 周」へ更新するのが望ましい。",
+    "found_by": [
+     "worklog-vs-phase"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "narrative-inconsistency",
+    "summary": "worklog 2026-07-04 (2) は自セッションの成果を「コミット 4 本」と記録するが、同日セッション帯の実コミットは 5 本 — diff-of-diffs 実体化 (14d64e6, kickoff blocking の大物) が 07-04 の両エントリのどちらにも作業記録として帰属せず、日誌の証拠連鎖に欠落がある (同エントリ内では diff-of-diffs を既成の一次防壁として参照しており自己不整合)。",
+    "a": "/home/tanab/github/izanagi/docs/worklog.md (lines 1638-1639 (2026-07-04 (2) 成果物)): コミット 4 本 (source_digest 案A / hooks+tests / 配線+README / docs)",
+    "b": "git 履歴 (git log) (commit 14d64e6 (2026-07-04 19:56)): source_digest+buildcache: 観測者効果の二重検査 (diff-of-diffs) を実体化 (kickoff blocking, D30 一次防壁) — worklog のどのエントリにも記載なし",
+    "why_real": "refute 不能。(1) git 実態: 2026-07-04 の実コミット 11 本のうち、worklog エントリ 1 (worklog.md:1586-1589) が 5 本 + 自身の worklog コミット ac107ce を、エントリ 2 (worklog.md:1639「コミット 4 本」) が 22:26 の 4 本を説明するが、14d64e6 (19:56:58「source_digest+buildcache: 観測者効果の二重検査 (diff-of-diffs) を実体化 (kickoff blocking, D30 一次防壁)」、実装+テスト 204 行・変異検査 3/3) だけがどのエントリにも帰属しない。(2) 無言の状態遷移: エントリ 1 の次の一手 (worklog.md:1594-1595) は二重検査を未実装タスクとして列挙するのに、エントリ 2 (worklog.md:1606-1607) は同じものを「実際に発火しテストもある一次防壁」と既成参照し、次の一手 (worklog.md:1643-1644) からタスクが消えている = 「後のエントリが前のエントリの事実を無言で書き換え」に該当し、日誌の正当な時系列更新では説明できない (作業記録そのものが欠落)。decisions.md D33 (line 739) も既成参照のみで、実体化の記録はコミットメッセージ以外リポジトリのどこにもない。(3) 併発する現在状態文書の矛盾: phase3.md:186-188 は「(1) 一次防壁を load-bearing に (…diff-of-diffs…) →…を完了」と主張する一方、phase3.md:189-202 の「(blocking) 観測者効果の二重検査」タスクは `- [ ]` 未完のまま「まず述語仕様を確定してから実装」「比較基準の候補 = diff-of-diffs」「確定するまで blocking 完了としない」という実装前の文面で残り、14d64e6 の実態と食い違う。なお「コミット 4 本」の数字自体は 22:26 群 4 本と一致するため誤記とは断定できず、矛盾の本体は帰属欠落 + 無言の完了遷移 + phase3.md の [ ] 取り残しである。試行錯誤の記録自体が最終成果物であるこのプロジェクトで、kickoff blocking の大物の証拠連鎖が欠けるのは読者の理解を実際に誤らせる。",
+    "fix_hint": "2 箇所を直す。(1) worklog.md 2026-07-04 (2) エントリ: 14d64e6 の実装作業を明示的に追記する (述語 = working-tree の preprocess(TRACE=1)−preprocess(TRACE=0) 差分 D_variant が pinned HEAD の D_stock と一致 / 発火 = buildcache.build の hit・fresh 両出口 / fails-closed で不一致は build dir ごと破棄 / 変異検査 3/3 / stock 通過 27ms — コミットメッセージ 14d64e6 から転記可)。成果物のコミット列挙を「4 本」から 14d64e6 を含む実態に訂正するか、別セッション作業なら独立した帰属記述 (エントリ間の作業として) を挿入する。(2) phase3.md:189-202: 「(blocking) 観測者効果の二重検査」を [x] 化し、本文を「候補述語・確定するまで blocking 完了としない」という仕様検討文面から実装完了の実態 (述語確定済み・14d64e6 で実体化・保証しないこと 3 点はそのまま残す) に書き換え、worklog / 14d64e6 への参照を付ける。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "roadmap §3.3 は観測者効果二重検査を「trace/perf 両ビルドの preprocess 出力 diff へ拡張する (phase3.md の blocking タスク)」と将来形 + 旧述語で記述するが、その素朴な述語は 07-03 の敵対検査で「成立しない (#if TRACE 領域で正当に食い違う)」と裁定され diff-of-diffs に置換済みで、しかも 07-04 に実体化済み。roadmap が成立しない旧仕様を現行設計として提示している。",
+    "a": "/home/tanab/github/izanagi/docs/roadmap.md (line 135 (§3.3 ビルド等価性)): symbol 不在に加えて trace/perf 両ビルドの preprocess 出力 diff (…「観測者効果の二重検査」, phase3.md の blocking タスク) へ拡張する",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (lines 191-196 + 残存リスク節 lines 301-306): 旧仕様の「両ビルドの preprocess 出力を diff」という素朴な述語は成立しない … 比較基準の候補 = diff-of-diffs (D_variant と D_stock の一致を assert)",
+    "why_real": "roadmap.md:135 は「symbol 不在に加えて trace/perf 両ビルドの preprocess 出力 diff (『観測者効果の二重検査』, phase3.md の blocking タスク) へ拡張する」と、(1) 素朴述語の表現、(2) 将来形、(3) 未完 blocking タスク扱いで記述している。しかし phase3.md:190-192 は「旧仕様の『両ビルドの preprocess 出力を diff』という素朴な述語は成立しない — #if TRACE ガード領域で正当に食い違うため素の diff は必ず大量差分を出す」と明示的に棄却し (07-03 敵対検査、worklog:1495/1509)、phase3.md:301-306 残存リスク節も同旨で新述語 = diff-of-diffs (D_variant と D_stock の一致 assert) に置換済み。さらにコミット 14d64e6 (2026-07-04) で実体化済み — orchestrator/campaign/buildcache.py:159-169 に「build 出口の観測者効果二重検査 (diff-of-diffs、規律1 の一次防壁)」として source_digest.assert_trace_diff_matches_head が発火する形で実装され、worklog:1607 も「実際に発火しテストもある一次防壁」と完了扱い。roadmap はステータス文書であり、棄却済み述語を現行設計 + 将来タスクとして提示するのは living document 構造で正当化できない (参照先の phase3.md 自身が「その表現は成立しない」と書いている)。refute 不能で real。なお phase3.md:189 の blocking チェックボックスも実体化済みなのに未チェックのまま (付随 stale)。",
+    "fix_hint": "roadmap.md:135 の「trace/perf 両ビルドの preprocess 出力 diff …へ拡張する」を実態に更新する: 述語は diff-of-diffs (variant の TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と一致することを assert。素朴な両ビルド出力 diff は #if TRACE 領域で正当に食い違うため不成立と裁定済み、phase3.md 残存リスク節参照) と書き直し、「拡張する」将来形を「実体化済み (2026-07-04、buildcache.build 出口の source_digest.assert_trace_diff_matches_head、fails-closed)」に改める。あわせて phase3.md:189 の blocking タスクを [x] 化し (または実装完了の注記を付け)、phase3.md:193 の「比較基準の候補 =」という検討中表現を「確定述語 =」に更新すると整合する。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "roadmap §9 末尾が「現在は Phase 1」と現況を主張しており、CLAUDE.md 現在地 (Phase 2 完了・Phase 3 kickoff 進行中) および worklog と矛盾する。",
+    "a": "/home/tanab/github/izanagi/docs/roadmap.md (line 381 (§9 Phase 計画 末尾)): 各 Phase の詳細タスクは該当する docs/phaseN.md に。現在は Phase 1 = `docs/phase1.md`。",
+    "b": "/home/tanab/github/izanagi/CLAUDE.md (lines 17-21 (現在地)): Phase 2: パラメータ探索 — 完了。… Phase 3 (`docs/phase3.md`) kickoff 進行中",
+    "why_real": "roadmap.md line 381 は「現在は Phase 1 = docs/phase1.md」と現況を明示的に主張するが、CLAUDE.md lines 17-21 (現在地) は Phase 1/2 完了・Phase 3 kickoff 進行中と記録し、docs/phase2.md・phase3.md も実在する。refute を試みたが不成立: (1) roadmap は worklog 型の日誌ではなく「現在の状態」を主張する living document、(2) 同じ roadmap.md の他箇所 (line 63/86/135/347 の D32 反映・「P2-4 で実証済み」・phase3.md 参照) は Phase 2 完了後の内容に更新済みで、line 381 だけが v1 初期設計の残骸として取り残されている、(3) 「要更新」等の自己申告も無い。周囲が最新であるがゆえに読者がこの一文も最新と信じる構造で、§9 末尾は「今どの Phase か」を確認する場所のため真に誤誘導しうる。CLAUDE.md がエントリポイントとして正しい現在地を先に示すため実害は壊滅的ではなく、severity は申告どおり medium が妥当。",
+    "fix_hint": "docs/roadmap.md line 381 を現状に合わせて更新する。例: 「各 Phase の詳細タスクは該当する docs/phaseN.md に (phase1.md〜phase3.md が存在)。現在は Phase 3 = docs/phase3.md (kickoff 進行中)。最新の現在地は CLAUDE.md『現在地』を正とする。」— あるいは drift 再発防止として、この文から「現在は…」の現況主張を削り、現在地の正本を CLAUDE.md に一本化する形が望ましい。roadmap 側の修正のみで CLAUDE.md の変更は不要。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "factual-contradiction",
+    "summary": "CLAUDE.md hooks 節は hook の責務を「#ifdef TRACE の外への検証専用メタデータ書き込みを警告 (規律1)」と記述するが、方針 A (D30/D33、07-04 配線済み) で guard_write の payload 内容検査は物理削除され、規律1 の内容検査は一次防壁 (source_digest / diff-of-diffs) へ委譲済み。配線された実 hook の守備範囲 (proof-chain 拒否 + designated ソース面限定) と食い違い、防壁の所在を誤解させる。",
+    "a": "/home/tanab/github/izanagi/CLAUDE.md (lines 115-117 (hooks 節)): variant コードが `#ifdef TRACE` の外に検証専用メタデータを書こうとしたら警告 (規律1)",
+    "b": "/home/tanab/github/izanagi/docs/worklog.md (lines 1606-1609 (2026-07-04 (2)) + decisions.md D33 (line 727)): guard_write は proof-chain 拒否 + designated ソース面限定だけに最小化 (内容検査削除)。削除した payload 検査の責務は…一次防壁に確かに移っている",
+    "why_real": "CLAUDE.md lines 115-117 は hook の責務を「variant コードが #ifdef TRACE の外に検証専用メタデータを書こうとしたら警告 (規律1)」と現在形で記述するが、decisions.md D33 (lines 732-741)「payload テキスト検査を物理削除。guard_write の管轄は proof-chain 拒否 + designated ソース面限定の 2 面のみ。designated ソース内の内容は検査しない」および hooks/README.md lines 22-36・guard_write.py line 97 (TRACE 混入は一次防壁 preprocess 後ハッシュ/diff-of-diffs が担う)・worklog lines 1605-1610 と食い違う。CLAUDE.md が参照する agent-architecture.md も lines 90-92 で同じ旧記述、line 98 は「配線方法は Phase 1 タスク1 以降詰める」と配線完了 (2026-07-04, worklog line 1610) 後も未実装時代のまま。両文書とも「現在の状態」を主張する文書で更新漏れであり、living document の日誌性では救済されない。「目的レベルの記述」という refute も、削除された具体機能 (#ifdef TRACE 外書き込みの警告) を明言しているため成立しない。毎セッション最初に読まれる文書が防壁の所在 (hook か一次防壁か) を誤らせるため real。ただし実行時の防壁は正しく機能しており docs のみの遅れなので medium。",
+    "fix_hint": "CLAUDE.md hooks 節 (lines 113-119) を方針 A の実態に更新する: 「guard_write = proof-chain 成果物 (WAL/campaign.lock/build-variants) への書き込み拒否 (規律2) + 編集面を designated ソースに限定 (D24)。guard_bash = Bash 経由の成果物書き込み遮断。規律1 の内容検査 (#ifdef TRACE 混入・偽 cache hit) は一次防壁 (source_digest の preprocess 後ハッシュ + diff-of-diffs) が担い、hook は最小の第二防壁 (D30/D33)。配線済み。詳細は hooks/README.md」の趣旨に書き換え。あわせて参照先の docs/agent-architecture.md lines 86-98 (hook 1 の旧記述と「配線方法は Phase 1 タスク1 以降詰める」) も方針 A + 配線済みの実態に更新するか hooks/README.md への参照に置換する。hooks 節は CLAUDE.md の絶対規律セクション外なので Claude が更新可能。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "観測者効果の二重検査 (diff-of-diffs) は実装・配線・テスト済み (source_digest.py:232 assert_trace_diff_matches_head / buildcache.py:159 / commit 14d64e6, 2026-07-04) なのに、phase3.md の blocking タスクは未完 [ ] のまま「タスク定義として確定するまで blocking 完了としない」と宣言しており、同ファイル L173-188 の H3 hooks 完了記述・must 表 L235・D33・worklog 最新エントリの完了主張と矛盾する (kickoff の残り blocking が何かを誤読させる)",
+    "a": "docs/phase3.md (L189 (must 表 L235・残存リスク L301 も同状態)): - [ ] **(blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装**: … この 3 点 + 限界の明記をタスク定義として確定するまで blocking 完了としない",
+    "b": "docs/decisions.md (D33 (L738-740)): いずれも load-bearing かつ test_campaign.py で固定済み (`assert_includes_match_head` / `assert_trace_diff_matches_head` の diff-of-diffs / `_recheck_src_token` の TOCTOU)",
+    "why_real": "実在する stale-status。(1) 実装は commit 14d64e6 (07-04 19:56) で完了済み: source_digest.py:232 assert_trace_diff_matches_head (docstring が「phase3.md blocking / D30 一次防壁」と自認)、buildcache.py:159-169 の build 出口 (hit/fresh 両経路) 結線、test_campaign.py:1270/:1292 の述語テスト + :1188/:1229 の結線テスト、変異検査 3/3。(2) 完了主張: decisions.md L738-740 (D33)「load-bearing かつ test_campaign.py で固定済み」、phase3.md L186-188 (H3 [x] 内)「一次防壁を load-bearing に (…diff-of-diffs…) …を完了」、worklog.md L1642-1644 の最新「次の一手」は kickoff 残りを coder.md 配線 1 周のみとし二重検査を残りから除外。(3) 未完主張: phase3.md L189 [ ]・L193「候補 = diff-of-diffs」・L202「確定するまで blocking 完了としない」・must 表 L235「blocking」(同表 L233 H3=「完了」/L236 S4=「完了済」と更新済みなので取り残しが明確)・残存リスク節 L308-309 同宣言。refute 不能の決め手 = docs 更新 a97c0f3 (22:26) は実装 14d64e6 (19:56) より後で、同コミットが H3 行だけ更新し L189/L235/L309 を取り残した。L188 の完了主張と L189 の [ ] が同一ファイルで隣接する自己矛盾であり living document 論で救えない。severity は high でなく medium: 誤読方向が保守的 (完了済みを未完と誤認 → 無駄な再確認/再設計) で正しさゲートを緩めず、worklog/D33 との相互参照で気づけるが、phase3.md は kickoff 残り blocking を決める一次ナビゲーション文書なので low ではない。",
+    "fix_hint": "docs/phase3.md を実態 (commit 14d64e6 / D33) に合わせて更新する。(1) L189-202 のタスクを [x] 化し、L193 の「比較基準の候補」を「確定した述語」に改め、完了記述を付す (source_digest.assert_trace_diff_matches_head 実装・buildcache.build 出口 hit/fresh 両経路で発火・fails-closed・変異検査 3/3・実 submodule stock 通過 27ms、commit 14d64e6)。(2) must 表 L235 を H3 行 (L233) と同体裁の「完了」に更新 (「一次防壁として稼働、限界 = #ifdef 外の両ビルド共通常駐は auditor/人間領域」を残す)。(3) 残存リスク節 L308-309 の「仕様確定時にこの述語で確定するまで blocking 完了としない」を「述語は diff-of-diffs で確定・実装済み。残る限界 (#ifdef 外常駐の機械判定不能) は据え置き」に書き換え。(4) 同種の取り残し = must 表 L234 (cache_key+variant_id 拡張) もタスク欄 L127 は [x] 済みなのに「blocking」のままなので、同時に「完了」へ直す。",
+    "found_by": [
+     "numbers"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "narrative-inconsistency",
+    "summary": "worklog 2026-07-04 (1) の「次の一手」に残タスクとして明記された観測者効果二重検査 (述語 = diff-of-diffs 確定) が、続く (2) エントリでは実装作業の記録なしに「次の一手」から消えて一次防壁の完了済みリストに現れ、(2) の「コミット 4 本」列挙にも実装コミット 14d64e6 (同日 19:56, kickoff blocking) が含まれない — 後のエントリが前のエントリの残タスクを無言で消化済みに書き換えており、blocking 1 本の実装経緯 (いつ・どの検証を経たか) が日誌から追えない",
+    "a": "docs/worklog.md (L1594-1595 (2026-07-04 エントリ「次の一手」)): kickoff 残り: hook 最小化 + 配線 (H3 方針 A) → 観測者効果二重検査 (述語 = diff-of-diffs 確定) → coder.md + 純 timing variant 1 本で全配線 1 周",
+    "b": "docs/worklog.md (L1637-1645 (2026-07-04 (2) エントリ成果物・次の一手)): **コミット 4 本** (source_digest 案A / hooks+tests / 配線+README / docs) … kickoff 残り = coder.md 生成 + 純 timing variant 1 本で全配線 1 周 (一次防壁 = preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合…)",
+    "why_real": "real。git log で実装コミット 14d64e6 (2026-07-04 19:56, +204 行「観測者効果の二重検査 (diff-of-diffs) を実体化」) の実在を確認。これは worklog (1) エントリのコミット列挙 (L1587-1589, 19:35-19:36 の 5 本 + worklog ac107ce 19:39) の後、(2) エントリの「コミット 4 本」(L1639, 22:26 の b1224c2〜a97c0f3) の前に位置し、どちらの列挙にも含まれない。(1) の次の一手 (L1594-1595) で未着手残タスクだった二重検査が、(2) では L1607 で「実際に発火しテストもある一次防壁」と既成事実として言及され、L1643-1644 で完了済み括弧書きに入るが、実装作業の記録 (どのセッション・規律6 の取り込み監査を経たか) は worklog のどのエントリにも insights にも存在しない。living-document 論 (後のエントリが前の残タスクを正当に消化) は消化の記録がある場合のみ成立し、本件は記録自体が欠落するため refute 不能。さらに同根の帰結として phase3.md が自己矛盾: L186-188 は一次防壁 (diff-of-diffs 含む) を「完了」と記す一方、L189 の当該 blocking タスクは [ ] 未チェックのまま (L202「確定するまで blocking 完了としない」)、L235 の must 表も「観測者効果二重検査 | blocking」のまま — worklog (2) の完了扱いと現在状態文書が食い違い、次セッションの残 blocking 判断を直接誤らせる。コミットメッセージ自体が検証内容 (述語 3 面 + hit/fresh 結線の変異検査 3/3、stock 通過 27ms) を詳述するため技術的経緯は git で復元可能だが、日誌 narrative と phase docs のステータスの欠落は実在する。",
+    "fix_hint": "(a) docs/worklog.md: 既存エントリは改竄せず (insights の 07-04 訂正注記と同じ流儀)、(2) エントリ末尾または新規追記で「観測者効果二重検査 (diff-of-diffs) は 14d64e6 (07-04 19:56) として (1) エントリ記録後・(2) の 4 本より前に実装済み。述語 3 面 + hit/fresh 結線の変異検査 3/3・stock 通過 27ms はコミットメッセージ参照」と実装経緯を補記し、どのセッションの作業か・規律6 の監査を経たかを明記する。(b) docs/phase3.md: L189 の「- [ ] (blocking) 観測者効果の二重検査」を [x] 化して実装コミット 14d64e6 と検証内容を注記し、L235 must 表の「観測者効果二重検査 | blocking」を「完了」へ更新して L186-188 の「完了」記述と整合させる。",
+    "found_by": [
+     "numbers"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "観測者効果の二重検査 (diff-of-diffs) は実体化済み (source_digest.py:232 assert_trace_diff_matches_head、コミット 14d64e6、worklog 07-04(2) が「実際に発火しテストもある一次防壁」と列挙し残タスクから除外) なのに、phase3.md:189 は未完了 [ ] のまま「まず述語仕様を確定してから実装」と未着手の体で残り、同文書 186-187 行自身の「D30 の順序 (1) 一次防壁を load-bearing に (…diff-of-diffs…) を完了」と自己矛盾。roadmap.md:135 の「へ拡張する」(未来形) も同根の未追従。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (189-202 (kickoff タスク) / 301-309 (残存リスク節「この述語で確定するまで blocking 完了としない」)): - [ ] **(blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装**",
+    "b": "/home/tanab/github/izanagi/docs/worklog.md (1606-1607 / 1643-1645 (2026-07-04(2) エントリ)。実体 = orchestrator/campaign/source_digest.py:232 + コミット 14d64e6): 削除した payload 検査の責務は、実際に発火しテストもある一次防壁 (assert_includes_match_head / assert_trace_diff_matches_head の diff-of-diffs / _recheck_src_token の TOCTOU) に確かに移っている…kickoff 残り = coder.md 生成 + 純 timing variant 1 本",
+    "why_real": "実体は実装済み: orchestrator/campaign/source_digest.py:232-265 の assert_trace_diff_matches_head (コミット 14d64e6) が phase3.md:193-202 のタスク定義 3 点 (diff-of-diffs 述語 / 発火単位 = buildcache.build 出口 / fails-closed) + 限界の明記 (docstring 245-248 行「保証しないこと (正直に)」) をすべて充足し、worklog.md:1606-1607 が「実際に発火しテストもある一次防壁」と列挙、1643-1645 で kickoff 残りを「coder.md + 純 timing variant のみ」としている。にもかかわらず phase3.md:189 は「- [ ] (blocking) … まず述語仕様を確定してから実装」と未着手の体で残り、must 表 235 行も「blocking」、残存リスク節 308-309 行も「この述語で確定するまで blocking 完了としない」のまま。しかも同一文書の 186-188 行 (H3 hooks の [x] エントリ) は「D30 の順序 = (1) 一次防壁を load-bearing に (…diff-of-diffs…) → … を完了」と真逆を主張しており、同一ステータス文書内の自己矛盾。phase3.md のタスクリストは現在状態を主張する文書であり living-document 免責は効かない。roadmap.md:135 の「へ拡張する」(未来形) も同根の未追従。次セッションが 189 行を読んで既実装の blocking タスクを再着手する実害がありうる。",
+    "fix_hint": "phase3.md:189 のチェックボックスを [x] 化し見出しを完了体へ (実装 = source_digest.assert_trace_diff_matches_head、コミット 14d64e6、発火 = buildcache.build の hit/fresh 両経路出口、変異検査 3/3、限界 = #ifdef 外の常駐は判定不能で auditor 領域 — の実績を 193-202 行の仕様記述に追記)。must 表 235 行の「blocking」を「完了 (14d64e6)」へ。残存リスク節 308-309 行の「仕様確定時にこの述語で確定するまで blocking 完了としない」を「実装済み・述語はタスク定義どおり確定」へ更新。roadmap.md:135 の「へ拡張する」を「拡張済み (source_digest.assert_trace_diff_matches_head, D30 一次防壁)」の完了形に追従させる。",
+    "found_by": [
+     "decisions-refs"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "phase3.md の EVOLVE-BLOCK 機構節が「hook は未配線 = 現在形の保証ではない (D30)」と現在形で主張し続けているが、同文書 173 行と D33 は配線完了を記録 — 同一ステータス文書内の自己矛盾 (D30 時点の事実が D33 後に未更新)。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (115-116 (閉じた領域制約)): H3 hook 配線後に機械強制。配線までは coder diff の人間レビューが唯一の gate — … hook は未配線 = 現在形の保証ではない, D30",
+    "b": "/home/tanab/github/izanagi/docs/decisions.md (D33 実施 3 (751-753 行)。同旨: phase3.md:173-174): 実施 3 — 配線: `.claude/settings.json` の PreToolUse に両 hook を配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)",
+    "why_real": "phase3.md:115-116 は「hook は未配線 = 現在形の保証ではない, D30」と現在形で主張するが、同一文書の 173-175 行 (「[x] (完了・方針 A) H3 hooks … 配線済, D30/D33/D34」) と 233 行のステータス表 (「完了 (方針 A) | 最小第二防壁を配線」)、decisions.md:751-753 (D33 実施 3: settings.json PreToolUse へ両 hook 配線)、さらに実体 .claude/settings.json:3-18 (guard_write.py / guard_bash.py が現に PreToolUse に配線済み) がすべて配線完了を示す。phase3.md はステータス文書であり、同一文書内の自己矛盾 = D30 時点 (配線前) の注記が D33 後に未更新の stale-status。115 行の「配線後に機械強制/配線までは人間レビューが唯一の gate」という条件文は恒常的に正しいため表現差の refute を検討したが、末尾の「hook は未配線」は明確な現在形の事実主張で現在は偽 — refute 不能。誤解の方向は安全側だが、この節は coder 実体化タスクの前提 gate (phase3.md:204-205) を直接規定する箇所であり読者の判断を誤らせる。",
+    "fix_hint": "phase3.md:115-116 の括弧内注記を配線後の実態に更新する。「hook は未配線 = 現在形の保証ではない, D30」を削除し、「H3 hook 配線済 (D30/D33, 2026-07-04): designated ソース (EVOLVE_BLOCK_SOURCES) 外への作成/改変は guard_write/guard_bash が第二防壁として機械拒否する。ただし方針 A の最小防壁ゆえ known-limitation (変数展開等) が残り、identity/観測者効果の担保は一次防壁 (source_digest) が担うため、coder diff の人間レビューは引き続き併用」の趣旨に置換する。単純に「機械強制済」とだけ書き換えると方針 A (payload 検査削除・第二防壁への格下げ、D33) と新たに齟齬るので、第二防壁+一次防壁委譲の現行構造に合わせた表現にすること。",
+    "found_by": [
+     "decisions-refs"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "phase3.md 残存リスク節が computed include 穴の受け皿として「guard_write の payload 検査 (方針 A の第二防壁)」を現在形で挙げるが、D33 は payload テキスト検査の物理削除 (designated ソース内の内容は検査しない) を記録し、D34 も同じ穴を「auditor + 規律6 監査領域 (恒久 fix は skeleton 抽出が要り却下済み)」とする — 存在しない防壁への参照で穴の守られ方を誤認させる。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (310-315 (残存リスク節「#include 死角の残り」)): → guard_write の payload 検査 (方針 A の第二防壁) + auditor 領域",
+    "b": "/home/tanab/github/izanagi/docs/decisions.md (D33 実施 1 (732-741 行) / D34 残る穴 (791-792 行)): guard_write の payload 検査を物理削除…designated ソース内の内容は検査しない / computed include は…known-limitation、auditor + 規律6 監査領域、恒久 fix は skeleton 抽出が要り却下済み",
+    "why_real": "phase3.md 313-315 行は computed include 穴の受け皿を「guard_write の payload 検査 (方針 A の第二防壁) + auditor 領域」とし「後続段 4 で skeleton 検査として load-bearing にする」と予約するが、decisions.md D33 (732-736 行) は payload/skeleton テキスト検査の物理削除と「designated ソース内の内容は検査しない」を記録済みで、D34 (789-792 行) は skeleton 抽出を「完了条件 1 と両立せず却下」、computed include を「known-limitation、auditor + 規律6 監査領域、恒久 fix は skeleton 抽出が要り却下済み」と確定している。git blame で 310-315 行は a5f72d0 (07-04 19:36) のままで、後続 a97c0f3 (同日 22:26) が phase3.md の H3 欄 (173-188 行)・must 表 (233/235 行) だけ方針 A 後に更新し残存リスク節を取り残したことを確認。さらに 172 行が「→ 残存リスク節」とこの stale 節へ読者を誘導しており、存在しない機械的防壁への参照が現役の説明として機能する。残存リスク節は「現在の状態」を主張する文書であり、規律2 直撃ベクタの守られ方 (実態は機械的防壁なし・監査のみ) を誤認させるため living document 構造では正当化できない。",
+    "fix_hint": "phase3.md 310-315 行 (残存リスク節「#include 死角の残り」) を D33/D34 後の実態に更新する。具体的には (1) 「→ guard_write の payload 検査 (方針 A の第二防壁) + auditor 領域」を「payload 検査は D33 で物理削除済み (designated ソース内の内容は検査しない)。受け皿は auditor + 規律6 監査領域のみ。なお source_digest の -nostdinc により computed include は digest 環境で dead 化し identity に乗らない known-limitation (D34)」に差し替える。(2) 「後続段 4 で skeleton 検査として load-bearing にする」の太字予約は、D34 が skeleton 抽出を「完了条件 1 と両立せず・恒久 fix 却下済み」と確定した事実と整合させる — 予約を取り下げて監査領域に一本化するか、残すなら「D34 で却下済みの skeleton 抽出を後続段 4 (完了条件 1 が失効する coder 自律期) に再検討する」と D34 との関係を明示して黙った食い違いを解消する。decisions.md 側は判断時点の記録として正しく、直すのは phase3.md のみ。",
+    "found_by": [
+     "decisions-refs"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "broken-reference",
+    "summary": "phase2.md の P2-5 リーク制御の典拠「(絶対規律6/D14)」が decisions.md D14 の実内容 (#if TRACE によるコンパイルアウト実装) と全く一致しない。文脈 (評価器の循環回避・リーク制御) は D12 の「評価器の妥当性を評価器の出力で論証する循環を閉じさせない」に相当。decisions.md D21 本文内の「循環 (D14・絶対規律6)」「選択的報告 (D14)」という同種の誤参照から伝播したもの。",
+    "a": "/home/tanab/github/izanagi/docs/phase2.md (116 (P2-5 チェックリスト)): リーク制御 = 評価済みのみ digest + 実行時 assert + fresh context + 初手対称 (絶対規律6/D14)",
+    "b": "/home/tanab/github/izanagi/docs/decisions.md (D14 (190-204 行)): D14. trace のコンパイルアウトは `#if TRACE` で実装する (naive な `#ifdef TRACE` は観測者効果を漏らす)",
+    "why_real": "phase2.md:116 はリーク制御の典拠を「(絶対規律6/D14)」とするが、decisions.md:190-204 の D14 は「trace のコンパイルアウトは #if TRACE で実装する」であり、リーク制御・循環回避・選択的報告のいずれとも無関係。git show b8231cc:docs/decisions.md (D21 記録コミット時点) でも D14 は現在と同一内容で、番号振り直しによる歴史的正当参照の可能性は棄却。意図された典拠は D12 (decisions.md:162「評価器の妥当性を評価器の出力で論証する循環になるため…人間または独立手段に残す」、160-161 の honest-by-construction/チェリーピッキング禁止) で、D21:358 の「評価器の優位を評価器の定義で論証する循環 (D14・絶対規律6)」と論理が一致する。誤参照は insight 2026-06-29_p2-5-guided-vs-enumeration.md (21/35/83/84 行) を源流に decisions.md D21 本文 (358/365/367 行)、phase2.md:116、phase3.md:298 (Phase 3 coder リーク制御の典拠「(D14/D21)」) まで 4 文書に伝播しており、典拠追跡を実際に破壊する broken-reference。",
+    "fix_hint": "循環回避・選択的報告・リーク制御の文脈の「D14」を「D12」に修正する。対象: (1) docs/phase2.md:116「(絶対規律6/D14)」→「(絶対規律6/D12)」、(2) docs/decisions.md D21 内 3 箇所 — 358 行「循環 (D14・絶対規律6)」/ 365 行「選択的報告 (D14)」/ 367 行「規律6/D14 (循環回避)」の D14 を D12 に、(3) docs/phase3.md:298「確立した (D14/D21)」→「確立した (D12/D21)」(または D21 単独参照でも可 — リーク制御の一次定義は D21 自身)、(4) 源流の output/insights/2026-06-29_p2-5-guided-vs-enumeration.md 21/35/83/84 行も同様に修正。worklog.md:65 の D14 は trace コンパイルアウト文脈で正当なので触らない。",
+    "found_by": [
+     "decisions-refs"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "broken-reference",
+    "summary": "phase3.md 残存リスク節の「リーク制御を確立した (D14/D21)」の D14 も decisions.md D14 (#if TRACE 実装) と無関係 — phase2.md:116 / decisions.md D21 本文と同じ誤参照の伝播。D21 側の参照は正しい (リーク制御は D21 に記載)。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (294-298 (残存リスク節「coder のリーク制御が未設計」)): P2-5 は誘導アームで fresh context + 最適解 literal の物理削除 (`critic-experiment`) + 評価済みのみ digest のリーク制御を確立した (D14/D21)",
+    "b": "/home/tanab/github/izanagi/docs/decisions.md (D14 (190-204 行)): D14. trace のコンパイルアウトは `#if TRACE` で実装する — リーク制御・循環回避への言及なし",
+    "why_real": "phase3.md:298 の「リーク制御を確立した (D14/D21)」の D14 は誤参照。decisions.md:190-204 の D14 は「trace のコンパイルアウトは #if TRACE で実装する」であり、リーク制御 (fresh context / 最適解 literal 物理削除 / 評価済みのみ digest) と無関係。git 履歴で確認: D14 見出しの初出コミット 93a196f から現在まで D14 は一貫して #if TRACE であり、リナンバー起因の見かけ矛盾ではない (D21 追加コミット b8231cc 時点でも同じ番号付け)。本来意図された参照先は D12 (decisions.md:160-162): チェリーピッキング防止 (=選択的報告の禁止)・「評価器の妥当性を評価器の出力で論証する循環」の回避が明記されており、D21 本文が D14 と併記する文脈 (decisions.md:358「循環 (D14・絶対規律6)」/365「選択的報告 (D14)」/367「規律6/D14 (循環回避)」) と正確に一致する。誤参照は D21 本文を起点に phase2.md:116・phase3.md:298・decisions.md:502 (D26)・glossary.md:225・audit-2026-06-30.md:61 まで 6+ 箇所に系統的に伝播しており、読者がリーク制御/循環回避の設計判断の原典を辿ると必ず無関係な #if TRACE エントリに行き着く。living document 構造 (時系列日誌・正当な上書き) では説明できず、real と判定。D21 側の参照が正しいという発見者の付記も確認済み (D21 はリーク/小N/公平性の敵対的妥当性検証を枠組みとして定義)。",
+    "fix_hint": "「D14」→「D12」に修正する (リーク制御・循環回避・選択的報告の文脈のもののみ)。対象: docs/phase3.md:298「(D14/D21)」→「(D12/D21)」、docs/phase2.md:116「(絶対規律6/D14)」→「(絶対規律6/D12)」、docs/decisions.md:358「循環 (D14・絶対規律6)」→「(D12・絶対規律6)」、同:365「選択的報告 (D14)」→「(D12)」、同:367「規律6/D14 (循環回避)」→「規律6/D12 (循環回避)」、docs/decisions.md:502「規律6/D14」→「規律6/D12」、docs/glossary.md:225「(絶対規律6/D14)」→「(絶対規律6/D12)」。docs/audit-2026-06-30.md:61 は当時の監査記録なので据え置き可 (直すなら注記追記が無難)。#if TRACE 文脈の正しい D14 参照 (phase1.md:17/45 等) は変更しないこと。",
+    "found_by": [
+     "decisions-refs"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "phase3.md の H3 エントリは diff-of-diffs を含む一次防壁化を「完了」と宣言するが、同じ kickoff タスク一覧の「観測者効果の二重検査」(= diff-of-diffs) は未チェックの blocking のまま (実装はコミット 14d64e6 で source_digest.assert_trace_diff_matches_head として完了・テスト済みと確認)。must 表 235 行も「blocking」のままで、kickoff の残 blocking 数を誤読させる。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (186-188 行 (H3 エントリ末尾)): D30 の順序 = (1) 一次防壁を load-bearing に (preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合・D34 builtin definedness) → (2) hook 最小化 + 過剰拒否除去 → (3) settings.json 配線、を完了。",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (189-202 行 (kickoff タスク) + 235 行 (must 表)): - [ ] (blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装 … タスク定義として確定するまで blocking 完了としない",
+    "why_real": "real (stale-status)。実装は完了済み: コミット 14d64e6 が source_digest.assert_trace_diff_matches_head (source_digest.py:232) を実装し buildcache.build の hit/fresh 両出口 (buildcache.py:104,120) に配線、テスト 3 本 (test_campaign.py:1270,1292,1323) + 変異検査 3/3 で実証。実装は phase3.md 189-202 行のタスク定義 3 点 (diff-of-diffs 述語・buildcache.build 出口発火・fails-closed) を全て満たす。worklog 最新エントリ (1642-1646 行) も kickoff 残りを「coder.md + 全配線 1 周」のみとし diff-of-diffs を完了済み一次防壁に列挙。しかし phase3.md は 186-188 行で「diff-of-diffs を含む一次防壁化を完了」と宣言しながら、直後 189 行のタスクは「- [ ] (blocking)」のまま、235 行の must 表も「blocking」のまま — docs コミット a97c0f3 が H3 行だけ [x] 化し 2 箇所を取り残した更新漏れ。ステータス文書 (現在の状態を主張) の同一ファイル内自己矛盾であり living document 論で救えない。ただし severity は high→medium に降格: 誤読方向が保守側 (完了済みを未完了と誤認、残り blocking の過大評価) で正しさゲートを汚染せず、正しい状態が同ファイル 3 行上と worklog に明記されているため。",
+    "fix_hint": "docs/phase3.md を 2 箇所更新する。(1) 189 行のチェックボックスを「- [x] (完了)」に変え、実装実体を 1-2 文追記: source_digest.assert_trace_diff_matches_head (コミット 14d64e6) を buildcache.build の cache-hit/新規ビルド両出口に配線、述語 3 面 + 結線を変異検査 3/3 で実証、限界 (両ビルド共通常駐は判定不能 = fitness 自己ペナルティで false-green にならない) はタスク定義 199-201 行のとおり据え置き。(2) 235 行の must 表を「blocking」から「完了 (D30 一次防壁として実体化、14d64e6)」に更新。あわせて 234 行の「cache_key+variant_id 拡張」も D23 (source_digest) で完了済みなら同じ stale の可能性が高いので同時に点検・更新するとよい。",
+    "found_by": [
+     "phase-internal"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "factual-contradiction",
+    "summary": "phase3.md 残存リスク節が computed include (__has_include / #define 経由) の防壁として「guard_write の payload 検査 (方針 A の第二防壁)」を参照するが、同文書 H3 エントリと実装 (hooks/guard_write.py 17 行に「旧設計 (payload/skeleton のテキスト検査) は方針 A で削除した (D33)」と明記) は payload 検査を物理削除済み。存在しない防壁に依存する記述で、防壁があると誤認させる方向の食い違い。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (313-314 行 (残存リスク「#include 死角の残り」)): → guard_write の payload 検査 (方針 A の第二防壁) + auditor 領域",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (175-177 行): guard_write は payload テキスト検査を物理削除 (D33) — proof-chain 拒否と designated ソース面の限定だけを担い",
+    "why_real": "同一文書内の自己矛盾で、living document 構造では正当化できない。phase3.md 313-314 行 (残存リスク「#include 死角の残り」) は computed include の受け皿を「guard_write の payload 検査 (方針 A の第二防壁) + auditor 領域」とし、315 行で「後続段 4 で skeleton 検査として load-bearing にする」と予約する。しかし同文書 175-177 行 (H3 完了エントリ) は「guard_write は payload テキスト検査を物理削除 (D33) — proof-chain 拒否と designated ソース面の限定だけを担い」「旧『payload 検査が #ifdef の唯一の防壁』= 単一障害点は放棄。GW2R-1/SPEC-2 が反証」と明記し、実装 (hooks/guard_write.py 17-24 行 docstring と本体) も削除済み。decisions.md D33 (732-741 行) は「designated ソース内の内容は検査しない」「テキスト検査は C++ 翻訳フェーズを完全再現できず原理的に破れる」と削除理由まで記録している。git blame で残存リスク節は a5f72d0 (payload 検査削除前) 由来、H3 エントリのみ a97c0f3 で更新され、残存リスク節が更新漏れと確認。「方針 A の第二防壁」という同格表現は D33 後の方針 A の定義 (payload 検査を含まない) と正反対で、将来計画の予約という読みでも refute できない — 予約内容 (skeleton 検査を load-bearing 化) 自体が D33 の「テキスト検査は原理的に破れる」認定と衝突する。computed include は known-limitation 据え置きの実穴 (phase3.md 185 行) であり、その受け皿が存在しない防壁を指すのは読者に防壁があると誤認させ、後続段 4 の判断を誤らせる。",
+    "fix_hint": "phase3.md 310-315 行の残存リスク節「#include 死角の残り」を D33 後の実態に合わせて改訂する。(1) 「→ guard_write の payload 検査 (方針 A の第二防壁) + auditor 領域」から payload 検査への参照を削除し、受け皿を実態 (known-limitation 据え置き。意味判定は auditor / 人間レビュー領域。機械防壁を足すなら一次防壁 = source_digest 側での閉塞を検討) に書き換える。(2) 315 行の「後続段 4 で skeleton 検査として load-bearing にする」予約は、D33 が「テキスト検査は原理的に破れる (GW2R-1)」と認定して物理削除した経緯と衝突するため、guard_write のテキスト検査復活としては残さない — 後続段 4 の対応を予約するなら auditor 検査または source_digest 側の機械検査として再定義し、D33 との関係を一文で明記する。severity は medium: 防壁があると誤認させる方向だが kickoff 段 (coder が #if/#include を発明しない) では潜在で、後続段 4 着手前に修正すれば実害は防げる。",
+    "found_by": [
+     "phase-internal"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "phase3.md の EVOLVE-BLOCK 機構節 (閉じた領域制約) が「hook は未配線 = 現在形の保証ではない」と現在形で主張するが、同文書 H3 エントリは settings.json 配線済みを宣言しており、同一文書内で hook の配線状態が食い違う。",
+    "a": "/home/tanab/github/izanagi/docs/phase3.md (115-117 行 (閉じた領域制約)): H3 hook 配線後に機械強制。配線までは coder diff の人間レビューが唯一の gate … hook は未配線 = 現在形の保証ではない, D30",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (173-174 行): (完了・方針 A) H3 hooks … `.claude/settings.json` に配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)",
+    "why_real": "phase3.md 115-116 行 (EVOLVE-BLOCK 機構節) は「hook は未配線 = 現在形の保証ではない, D30」と明示的な現在形で主張するが、同文書 173-175 行の H3 エントリは「(完了・方針 A) … .claude/settings.json に配線 (配線済, D30/D33/D34)」と宣言しており、同一文書内で配線状態が食い違う。実体も確認: .claude/settings.json 3-22 行に guard_write/guard_bash の PreToolUse 配線が実在し、guard_write.py 86-95 行は external/ccbench 内の書き込みを EVOLVE_BLOCK_SOURCES のみに機械限定している (コミット 16fd95e / a97c0f3 も裏付け)。機構節は worklog のような時系列日誌ではなく Phase 3 の設計仕様を現在の状態として主張する節であり、living document の正当な時系列差では説明できない。H3 完了時に 173 行側だけ更新し 115-116 行の配線前注記を書き換え忘れた stale-status で、機構節だけ読んだ読者は「編集面の限定は今も人間レビュー頼み」と誤解する。",
+    "fix_hint": "phase3.md 115-116 行の括弧内を H3 完了後の実相に書き換える。例: 「(H3 hook 配線済 2026-07-04, D30/D33: external/ccbench への Write/Edit は guard_write が EVOLVE-BLOCK ソースのみに機械限定、Bash 経路は guard_bash。ただし方針 A の hook は編集面の限定のみを担い、payload 内容・意味的逸脱 (骨格破壊・領域外編集の意味判定) は auditor / 人間レビュー領域のまま)」。単に「未配線」を「配線済」に置換するだけでは不十分 — 方針 A で hook の保証範囲が縮小された (payload テキスト検査は D33 で物理削除、identity/観測者効果は一次防壁へ委譲) ことも併記しないと、今度は「配線後に機械強制」の過信という逆向きの誤解を生む。修正先は phase3.md のみで、173-188 行の H3 エントリと guard_write.py docstring は正しい現状を記述している。",
+    "found_by": [
+     "phase-internal"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "phase2.md「Phase 3 着手前 must」リストの H3 が「hooks/ の機械防壁は placeholder」と現在形の未完のままだが、phase3.md では H3 完了 (方針 A・配線済)。同リストは S4 (完了 2026-06-29 追記) と C1 (解消済み 2026-07-02 追記) には完了状態を追記する運用であり、H3 だけ完了 (2026-07-04) が未反映。",
+    "a": "/home/tanab/github/izanagi/docs/phase2.md (155-156 行): H3 hooks の実体化: `hooks/` の規律1/2 機械防壁は placeholder。LLM が C++ variant を書く瞬間に第二防壁が必要",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (173 行 + 233 行 (must 表)): (完了・方針 A) H3 hooks … 完了 (方針 A) | 最小第二防壁を配線 (D30/D33)",
+    "why_real": "phase2.md の「Phase 3 着手前 must」リストはステータス欄として運用されている実態がある: S4 には 154 行で「完了 (2026-06-29)」、C1 には 167 行で「解消済み (2026-07-02、選択肢 a を採用)」と完了状態が追記済み。しかし H3 は 160-161 行で「hooks/ の規律1/2 機械防壁は placeholder」と現在形の未完記述のままであり、phase3.md 173 行「(完了・方針 A) H3 hooks … (配線済, D30/D33/D34)」および 233 行の must 表「H3 hooks | 完了 (方針 A)」と食い違う。CLAUDE.md「現在地」も「残り must は S2/S1」と H3 完了を反映済み。同一リスト内の他項目に完了追記する運用がある以上、これは living document による見かけの矛盾ではなく、無言の書き換え漏れ (stale-status)。phase2.md だけ読んだ読者は「第二防壁は未実装」と誤解する。",
+    "fix_hint": "phase2.md 160-161 行の H3 項目を、同リストの S4 (154 行)・C1 (167 行) と同じ形式で完了追記に更新する。例: 「**H3 hooks の実体化 — 完了 (2026-07-04、方針 A)**: placeholder だった規律1/2 機械防壁を guard_write.py/guard_bash.py の最小第二防壁として .claude/settings.json に配線 (D30/D33/D34)。identity/観測者効果の担保は一次防壁 (source_digest 等) へ委譲。3 巡目敵対検証で real 9/known 6 を摘出・修正済み。詳細は phase3.md kickoff 節と worklog 2026-07-04」。phase3.md 側は正であり変更不要。",
+    "found_by": [
+     "phase-internal"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "stale-status",
+    "summary": "CLAUDE.md 現在地が「次 = H3 hooks 実体化」と主張するが、H3 hooks は 2026-07-04 に方針 A で完了・settings.json 配線済み (worklog / phase3.md must 表 / git HEAD a97c0f3)。現在の状態を主張する文書同士の食い違いで、次セッションが完了済みタスクを再着手しかねない。2026-07-03/04 に消化された kickoff blocking 5 本 (abort WAL 記録 / patchharness / TOCTOU 再照合 / #include 閉塞 / D34) も未反映。実際の「次」は coder.md + 純 timing variant 1 周 (worklog 1643)。",
+    "a": "CLAUDE.md (行 21 (現在地)): **次 = Phase 3 タスク3 (H3 hooks 実体化)** — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)",
+    "b": "docs/phase3.md (行 173, 233 (must 表)): **(完了・方針 A) H3 hooks** … 配線済, D30/D33/D34 / must 表「H3 hooks | **完了 (方針 A)**」",
+    "why_real": "CLAUDE.md 行 21 (「現在地」= 現在の状態を主張する文書) は「次 = Phase 3 タスク3 (H3 hooks 実体化)、残り must は S2/S1」と主張するが、docs/phase3.md 行 173 は「[x] (完了・方針 A) H3 hooks (配線済, D30/D33/D34)」、行 233 の must 表も「完了 (方針 A)」。docs/worklog.md 行 1599 (2026-07-04 エントリ) が H3 hooks 方針 A 完了を記録し、行 1642-1643 で実際の次を「coder.md 生成 + 純 timing variant 1 本で全配線 1 周」と明記。git HEAD a97c0f3 も同完了をコミット済み。worklog の日誌なら「当時の記録」で免責されるが、CLAUDE.md「現在地」は現在状態を主張する文書であり、行動指示 (次に何をやるか) が正反対に食い違うため living document 構造では refute できない。次セッションが完了済みタスクへ再着手する実害経路がある。",
+    "fix_hint": "CLAUDE.md「現在地」の Phase 3 段落 (行 21) を更新する: H3 hooks は方針 A で完了 (payload 検査削除・3 巡目敵対検証 real 9 修正・settings.json 配線, D30/D33/D34) と記載し、2026-07-03/04 に消化した kickoff blocking (abort WAL 記録・patchharness・TOCTOU 再照合・#include HEAD 固定・diff-of-diffs 実体化・D34) を反映。「次 = coder.md 生成 + 純 timing variant 1 本で全配線 1 周」(worklog 行 1643) に書き換え、残り must の記述を phase3.md 行 229-239 の must 表 (S2/S1 = non-blocking) と整合させる。",
+    "found_by": [
+     "narrative"
+    ]
+   },
+   {
+    "severity": "medium",
+    "kind": "factual-contradiction",
+    "summary": "CLAUDE.md (と roadmap §7 ECC 節 L336) が verifier を「書き込み系ツールを持たない = ツール権限レベルの構造的隔離」と現在形で主張するが、実態は verifier.md frontmatter が tools: [Read, Grep, Glob, Bash] で Bash を保持。audit-2026-06-30 §4 が「Bash を持つ以上 sed -i 等で書ける、tool レベルの隔離は不成立」と裁定し 2026-07-02 に 4 agent spec の宣言は honest 化済み (a1661d2)、paper-story §5 も「そう書かない」を恒久の表現規律に登録済み。CLAUDE.md/roadmap の記述だけが実態・監査裁定と食い違ったまま流通しており、論文執筆時にここを典拠にすると自前の監査記録と矛盾する over-claim になる。",
+    "a": "CLAUDE.md (行 101 (サブエージェント節)): `verifier` (Phase 1) — … **書き込み系ツールを持たない** (検証役が実装を勝手に直す事故を構造的に防ぐため)",
+    "b": "docs/paper-story-2026-07-03.md (行 72 (§5 チェックリスト第 2 項)): 「verifier はツール権限で書き込み隔離」と書かない — audit-2026-06-30 §4 が「Bash を持つ以上 sed -i 等で書ける、tool レベルの隔離は不成立」と裁定済み (2026-07-02 に宣言を honest 化)",
+    "why_real": "実在する矛盾。(1) CLAUDE.md L101 は verifier を「書き込み系ツールを持たない (構造的に防ぐ)」、roadmap.md L336 は「ツール権限で隔離」と現在形で主張するが、実態は .claude/agents/verifier.md L4 が tools: [Read, Grep, Glob, Bash] で Bash を保持。(2) docs/audit-2026-06-30.md L172-178 (§4) が当時の CLAUDE.md:98 を名指しで「Bash は sed -i/tee/rm で任意書き換え可能、tool レベルでは不成立」と [MED] 裁定し、2026-07-02 の a1661d2 で honest 化されたのは 4 agent spec のみ (verifier.md L24-28 に「Bash 経由の書き込みはツール権限だけでは止まらない — prompt 規律で禁止」の正確な文面あり)。(3) docs/paper-story-2026-07-03.md L72 は「そう書かない」を恒久の表現規律として登録済み。CLAUDE.md/roadmap だけが裁定前の over-claim のまま残る consumer 取り残しであり、「Edit/Write を外した」の粒度差では refute できない — audit 自身がこの表現を gap と判定している。CLAUDE.md は毎セッション読まれる最上位文書のため、誤った理解 (tool レベル隔離が成立) を再注入し続け、論文の典拠にすると自前の監査記録と矛盾する。",
+    "fix_hint": "CLAUDE.md L101 と docs/roadmap.md L336 を、paper-story-2026-07-03.md L72 が定めた正確な形「専用書き込みツール (Edit/Write) の除去 + Bash 経由の書き込みは prompt 規律で禁止 (機械執行は Phase 3 で settings.json deny/allow)」に揃えて修正する (verifier.md L24-28 の honest 化文面と同じ内容に)。あわせて CLAUDE.md L103-104 の critic/profiler の「書き込みなし」宣言も audit §4 L178 が同一 gap と指摘済みなので同じ形に直す。なお CLAUDE.md のこの節は絶対規律セクション外 (サブエージェント節) なので Claude が編集可能、roadmap 側も軽微改訂 (事実の反映) に該当し版上げセレモニー不要。",
+    "found_by": [
+     "narrative"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "stale-status",
+    "summary": "phase1.md のタスク4a/4b (calibrator) とタスク6/7 は完了マーク (✅ 見出し・[x]) が一切ないまま全チェックボックス [ ] だが、calibration は確定済み (records=1m/48thread/skew0.9、D15) で phase2.md が『確定 calibration』として全面依存し、タスク6 も P2-0 が『タスク6 の残り — 完了』として消化済み。タスク0-3/5a/5b には丁寧な ✅ 追記がある非対称ゆえ更新漏れ。CLAUDE.md 現在地の『Phase 1 完了済み』とも食い違う体裁。",
+    "a": "docs/phase1.md (115-133 (タスク4a/4b)・156-174 (タスク6/7)): ## タスク4a [Mac]: calibrator の実装とモック検証 (✅ なし、チェックボックス全て [ ])",
+    "b": "docs/phase2.md (19-21 (環境節) / 28 (P2-0 見出し)): 計測は linux-baremetal の確定 calibration (records=1m / 48 thread / skew0.9 / reps5 …) … P2-0: 全 silo variant のビルド + verifier 大規模 sanity (タスク6 の残り) — 完了",
+    "why_real": "phase1.md はタスク0 (17行)・タスク1 (43行)・タスク2 (59行)・タスク3 (86,95行)・タスク5a (137行, チェックボックスも [x] 化)・タスク5b (147行) に「✅ 完了 (日付)」を追記する運用が確立した状態文書なのに、タスク4a/4b (115-133行) とタスク6/7 (156-174行) だけ ✅ なし・全チェックボックス [ ] のまま。実際には worklog.md 166-206行 (2026-06-18 タスク4a/4b 実施、201行「確定 calibration (linux-baremetal, 48 thread…)」) と 282-334行 (タスク6 実装) で完了しており、phase2.md 19-21行が「確定 calibration (records=1m / 48 thread / skew0.9…)」として全面依存、28行が「P2-0 … (タスク6 の残り) — 完了」と明記、CLAUDE.md 現在地も「Phase 1 完了済み … records=1m/skew0.9/48thread 確定」。タスク0 のように「原チェックリストは記録として残す」と明示した上で [ ] を残す流儀ですらないため、living document 構造では説明できない同一文書内の非対称な更新漏れ。phase1.md 単独の読者は calibrator/orchestrator 骨格を未完了と誤読する。severity は low が妥当 (CLAUDE.md 現在地が正しい状態を先に伝えるため実害経路は細い)。",
+    "fix_hint": "docs/phase1.md を直す。タスク4a/4b (115-133行) に他タスクと同型の「✅ 完了 (2026-06-18)」見出しを追記し、確定 calibration (records=1m/48thread/skew0.9、D15 下限基準、出力 output/env/linux-baremetal/calibration/) を 1-2 文で要約、チェックボックスを [x] 化。タスク6 (156-166行) に「✅ 完了 (2026-06-19 骨格実装、残りは P2-0 (2026-06-20) で消化 — phase2.md P2-0 参照)」、タスク7 (168-174行) に「✅ 完了 (Linux 実機集約済み。各項目はタスク4b/5b/P2-0 で消化)」を追記して [x] 化。worklog/phase2.md 側は正しいので変更不要。",
+    "found_by": [
+     "roadmap-vs-phase"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "broken-reference",
+    "summary": "phase1.md タスク5b が引用付きで参照する『roadmap.md:94「read-heavy phase での cache 汚染削減」』は、roadmap への追記で行がずれ、現 roadmap では 94 行目は §層3 の見出し行で、引用文言は 98 行目にある。内容は近傍に実在するが行番号参照としては現に不正確。",
+    "a": "docs/phase1.md (147 (タスク5b)): (roadmap.md:94「read-heavy phase での cache 汚染削減」が論文に忠実、当初ここに書いた「write-intensive」は誤帰属)",
+    "b": "docs/roadmap.md (94 (実体は 98)): 94 行目 = 「### 層3 — variant 比較・選択 + 説明生成 (差別化の決定打)」(見出し)。「read-heavy phase での cache 汚染削減」は 98 行目",
+    "why_real": "phase1.md:147 は「roadmap.md:94」と行番号つきで引用参照するが、現 roadmap.md:94 は「### 層3 — variant 比較・選択 + 説明生成」の見出し行であり、引用文言「read-heavy phase での cache 汚染削減」は roadmap.md:98 にある。git 裏取りで、記載時点のコミット ad66b5f (2026-06-19) では文言が確かに 94 行目にあり、その後の roadmap 改訂 (c7ba439、2026-07-03 の §層2 line 92 への P2-5 追記等) で 4 行ずれたことを確認。内容の矛盾はなく実害も極小だが、行番号参照としては現に不正確な broken reference であり、living document の見かけ矛盾・表現差・読み違いのいずれにも該当しないため real (low)。",
+    "fix_hint": "docs/phase1.md:147 の「roadmap.md:94」を行番号非依存の参照に直すのが正。例:「roadmap.md §層3 の narrative 例示 (『read-heavy phase での cache 汚染削減』)」。単に 98 に更新するだけでは roadmap の次の追記で再びずれるため、セクション参照化を推奨。roadmap.md 側の修正は不要 (内容は正しい)。",
+    "found_by": [
+     "roadmap-vs-phase"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "stale-status",
+    "summary": "worklog 2026-06-18 でタスク4a/4b (calibrator 実装 + 実機 calibration 確定 records=1m・CV 2.28%)、06-19 でタスク6 (orchestrator 骨格 STAGE2) の完了が記録されているのに、phase1.md はタスク0/1/2/3/5a/5b に付く「✅ 完了」ヘッダが 4a/4b/6 に無く未完に見える (Phase 1 完了自体は他文書で宣言済みのため実害は局所的)",
+    "a": "docs/phase1.md (115, 127, 156 (タスク4a/4b/6 見出し)): ## タスク4a [Mac]: calibrator の実装とモック検証 (✅ 完了ヘッダなし、チェックボックス - [ ] のまま。タスク4b/6 も同様)",
+    "b": "docs/worklog.md (166-206 (2026-06-18 タスク4 エントリ) / 287-330 (06-19 タスク6 STAGE2)): Phase 1 タスク4 (calibrator) 実装 + 実機 calibration … 確定 calibration (linux-baremetal, 48 thread): records=1,000,000 … noise floor CV 2.28% / タスク6 STAGE2 — 評価パイプライン統合",
+    "why_real": "phase1.md は完了タスクに「✅ 完了 (日付)」ヘッダを付ける慣行を文書内で一貫して採っている (タスク0=17行, 1=43行, 2=59行, 3=86行, 5a=137行, 5b=147行) のに、タスク4a (115行)・4b (127行)・6 (156行) だけヘッダが無くチェックボックスも - [ ] のまま (119-123, 129-131, 160-164行)。一方 worklog.md 166-206行 (2026-06-18) にタスク4a/4b 完了 (確定 calibration records=1m・CV 2.28%)、287-330行 (2026-06-19) にタスク6 STAGE2 完了 (demo 実機完走 + 硬化) が明記され、CLAUDE.md「現在地」も Phase 1 完了を宣言済み。phase1.md 冒頭 (1-11行) には Phase 1 完了宣言が無いため、この文書単体では 3 タスクが未完としか読めない。タスク0 のような「チェックリストは記録として残す」運用 (17行) でもヘッダは必ず付いており、意図的残置とは解釈できない。「要更新」の自己申告も無い。よって living document 構造では説明できない stale-status の実在矛盾。ただし Phase 1 完了は他文書で宣言済み・現行作業は Phase 3 のため実害は局所的で severity=low が妥当。",
+    "fix_hint": "docs/phase1.md のタスク4a (115行)・タスク4b (127行)・タスク6 (156行) の見出し直下に、他タスク (17/43/59/86/137/147行) と同形式の「**✅ 完了 (日付)**」ヘッダを追記する。4a/4b は 2026-06-18 完了 (worklog 166-206行: calibrator 実装 + D15 下限基準で records=1m / 48thread / noise floor CV 2.28% 確定)、タスク6 は 2026-06-19 完了 (worklog 287-330行: STAGE2 評価パイプライン統合 demo 実機完走 + 敵対レビュー硬化テスト15→28)。タスク6 の「Linux 実機が届くまでの待ち時間で」(158行) は既に無効な前提なので履歴注記に改める。ついでに同種の欠落があるタスク7 (168-174行、4b/5b/Phase2 開始が全て消化済みなのに - [ ] のまま) にも完了注記を付けると一貫する。",
+    "found_by": [
+     "worklog-vs-phase"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "narrative-inconsistency",
+    "summary": "CLAUDE.md が作業指針として「docs/phase1.md の番号付きタスク」「phase1.md のタスクを上から順に潰す」を指示し続けており、同文書の現在地 (Phase 3 進行中・phase3.md 参照) と内部不整合。",
+    "a": "/home/tanab/github/izanagi/CLAUDE.md (line 27 + line 170 (作業の進め方 2)): 実装の進め方は `docs/phase1.md` の番号付きタスク / `docs/phase1.md` のタスクを上から順に潰す",
+    "b": "/home/tanab/github/izanagi/CLAUDE.md (line 21 (現在地)): Phase 3 (`docs/phase3.md`) kickoff 進行中",
+    "why_real": "CLAUDE.md は日誌でなく「セッション開始時に読む現在の指示書」(line 3) であり、living document の時系列免責は効かない。line 27「実装の進め方は docs/phase1.md の番号付きタスク」と line 170 (作業の進め方 手順2)「docs/phase1.md のタスクを上から順に潰す」は現在形の指示だが、同ファイル line 17 は「Phase 2 完了」、line 21 は「Phase 3 (docs/phase3.md) kickoff 進行中・次 = Phase 3 タスク3 (H3 hooks 実体化)」と明記しており、同一文書内で指示が食い違う。phase3.md は実在し (ls 確認)、phase1.md は全タスクに「✅ 完了」マーク済み (phase1.md line 17 等)。line 27/170 には「要更新」等の自己申告もなく、Phase が 2 段階進んだ後も無言で残った取り残し。ただし現在地セクションが明確なため実害は限定的で severity は low が妥当。",
+    "fix_hint": "CLAUDE.md を 2 箇所更新する。(1) line 27 を「実装の進め方は現行 Phase の phase doc (今は docs/phase3.md) の番号付きタスク」へ、(2) line 170 (作業の進め方 手順2) を「『現在地』が指す現行 Phase doc のタスクを上から順に潰す」へ。特定 phase 名を直書きせず「現在地」セクション参照にすると Phase 移行のたびに再発しない。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "broken-reference",
+    "summary": "CLAUDE.md 環境二層戦略の節が現在地の Linux 集約記述を「line 19 参照」と指すが、該当内容は現在 line 25 にあり行番号参照がずれている (line 19 は Phase 2 の段落)。",
+    "a": "/home/tanab/github/izanagi/CLAUDE.md (line 151 (環境の二層戦略)): (「現在地」§・line 19 参照)",
+    "b": "/home/tanab/github/izanagi/CLAUDE.md (line 25 (現在地: Linux 実機の段落)): Linux 実機 (計測層) 確保済み。… 開発層も Linux 実機側に寄った",
+    "why_real": "CLAUDE.md line 151 は Linux 集約の記述を「『現在地』§・line 19 参照」と指すが、実ファイルの line 19 は Phase 2 完了 (P2-0〜P2-5 + A2) の段落であり、Linux 実機集約の段落は line 25 にある (「Linux 実機 (計測層) 確保済み。…開発層も Linux 実機側に寄った」)。行番号参照が実際に壊れており、living document の見かけ矛盾や表現差では説明できない。ただしセクション名 (「現在地」§) が併記されているため読者は正しい段落に到達可能で、実害は小さい → severity は low が妥当。",
+    "fix_hint": "CLAUDE.md line 151 の「(「現在地」§・line 19 参照)」から行番号を削除し「(「現在地」§ の Linux 実機の段落を参照)」のようにセクション+内容参照へ直す。行番号ハードコードは文書編集で必ず腐るため、「line 25 参照」への書き換えではなく行番号レス参照にするのが正。",
+    "found_by": [
+     "worklog-vs-current"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "number-mismatch",
+    "summary": "phase2.md (と CLAUDE.md L19 の同型表現) の「within-run 変動係数 2.28% = 1 測定の品質ゲート」は 2.28% がゲート閾値と読ませるが、D19 は品質ゲート閾値を 5% 据え置きと決定し「within-run を remeasure 品質ゲートに 2.28% で配線」を明示的に却下、実装も DEFAULT_NOISE_CV=0.05 (orchestrator/calibrator/analyze.py:22)。2.28% は within-run noise floor の実測値であり remeasure/unstable 判定の発火閾値ではない — 数値の役割の取り違えを誘発する表現",
+    "a": "docs/phase2.md (L20 (環境節。CLAUDE.md L19 も同型)): within-run 変動係数 (CV = 標準偏差/平均) 2.28% = 1 測定の品質ゲート / 採否 floor は between-run 3.0% (A2/D19)",
+    "b": "docs/decisions.md (D19 (L310, 却下欄 L325)): within-run … 自動再測定/unstable の品質ゲートに使う (現状 5% 据え置き) … 却下: within-run を remeasure 品質ゲートに 2.28% で配線 — 品質ゲートを 5%→2.28% に厳しくすると再測定が乱発し規律4 に触れる",
+    "why_real": "phase2.md L20「2.28% = 1 測定の品質ゲート」(L55 も同型) と CLAUDE.md L19「(1 測定の品質ゲート, CV 2.28%)」は、対句の between-run 側「採否 floor 3.0%」が実際の発火閾値 (BETWEEN_RUN_CV=0.030 が compare に配線) であるのと対称な構文のため、2.28% を品質ゲートの発火閾値と読ませる。しかし decisions.md L310 (D19) は品質ゲート閾値を「現状 5% 据え置き」と決定し、L325 の却下欄で「within-run を remeasure 品質ゲートに 2.28% で配線」を規律4 (再測定乱発) を理由に明示却下。実装も orchestrator/calibrator/analyze.py L22 の DEFAULT_NOISE_CV=0.05 が stability.py L61 で remeasure/unstable 判定の cv_threshold として配線されており、ゲート閾値は 5%。2.28% は within-run noise floor の実測値 (calibration) であって閾値ではない。「用途カテゴリの要約」という善意の読みで refute を試みたが、対句構造の非対称 (3.0% は閾値、2.28% は実測値) を対称に見せる表現は数値の役割の取り違えを実際に誘発するため real。ただし D19 と実装は正しく、誤りは要約表現に留まるので severity は low。",
+    "fix_hint": "phase2.md L20 と L55、CLAUDE.md L19 の表現を「2.28% は within-run noise floor の実測値であり、品質ゲート (remeasure/unstable) の発火閾値は 5% 据え置き (D19)」と区別が付く形に修正する。例: phase2.md L20 を「within-run 変動係数 実測 2.28% (1 測定の品質を示す noise floor。remeasure/unstable ゲート閾値は 5% 据え置き = D19) / 採否 floor は between-run 3.0%」の趣旨に、CLAUDE.md L19 を「within-run (品質の実測 floor, CV 2.28%。ゲート閾値は 5%)」の趣旨に書き換える。D19 と実装 (DEFAULT_NOISE_CV=0.05) は正であり変更不要。",
+    "found_by": [
+     "numbers"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "stale-status",
+    "summary": "phase1.md はタスク 0/1/2/3/5a/5b に ✅ 完了宣言を付ける運用なのに、実態完了済みのタスク 4a/4b (calibration — phase2.md 19-21 行が「確定 calibration records=1m/48thread/skew0.9」として引用)・6・7 に完了マークがない。特にタスク7 の子項目「[ ] タスク5b」は同文書 147 行のタスク5b ✅ 完了宣言と同一文書内で自己矛盾。",
+    "a": "/home/tanab/github/izanagi/docs/phase1.md (127-132 行 (タスク4b) / 170-174 行 (タスク7)): - [ ] 1m → 2m → 4m → 8m... の実キャリブレーションを実行し、探索用レコード数を確定 / - [ ] タスク5b (性能側サニティチェック + baseline 取得)",
+    "b": "/home/tanab/github/izanagi/docs/phase1.md (147 行 (タスク5b)): ✅ 完了 (2026-06-19, env=linux-baremetal)。invisible reads の効果を MOCC temp_threshold で実機計測",
+    "why_real": "phase1.md はタスク見出し直下に ✅ 完了宣言を追記する運用 (タスク0=17行、1=43行、2=59行、3=86/95行、5a=137行、5b=147行) なのに、実態完了済みのタスク4a (115-125行)・4b (127-131行)・6 (156-166行)・7 (168-174行) には宣言が皆無。完了の実態は worklog 166-206 行 (2026-06-18 タスク4a/4b + 確定 calibration 1m/48thread/skew0.9)・282-334 行 (2026-06-19 タスク6) に一次記録があり、phase2.md 19-21 行が確定 calibration を現行事実として引用、28 行で「P2-0 (タスク6 の残り) — 完了」と明記。特に phase1.md 173 行「- [ ] タスク5b」は同一文書 147 行の「✅ 完了 (2026-06-19, env=linux-baremetal)」と同一文書内で自己矛盾する。phase doc は「現在の状態」を主張するステータス文書であり日誌免責は効かず、「原チェックリストは記録として残す」運用 (17行) はタスク0-3 の ✅ 宣言とセットでのみ成立するため refute 不能。ただし CLAUDE.md「現在地」が Phase 1 完了を明記しており実害は限定的。",
+    "fix_hint": "phase1.md を修正する (phase2.md/CLAUDE.md/worklog は一次記録と整合しており正)。タスク0-3 と同形式の ✅ 完了宣言を追記: タスク4a に「✅ 完了 (2026-06-18)。orchestrator/calibrator/ に純ロジック + モックテスト実装」、タスク4b に「✅ 完了 (2026-06-18, env=linux-baremetal)。cache-miss は飽和せず D15 下限基準に転換し records=1m/48thread/skew0.9 で確定」、タスク6 に「✅ 完了 (2026-06-19, STAGE2)。verifier 大規模 sanity の残りは phase2.md P2-0 で完了」、タスク7 に「✅ 完了。実機集約 (9行) により各項目は 4b/5b/P2-0 で消化済み」。タスク7 の子項目 (170-174行) は [x] にするか、タスク0 と同様「原チェックリストは記録として残す」と明示する。",
+    "found_by": [
+     "phase-internal"
+    ]
+   },
+   {
+    "severity": "low",
+    "kind": "narrative-inconsistency",
+    "summary": "C1 の「恒久対応」が指す実体が phase2/phase3 で揺れる: phase2.md は discover 統一 (065593a) を「恒久対応は (a) を採用」と完了形で書くが、phase3.md は C1 恒久対応を未了として後続段 5 に予約。phase2.md 自身も 175 行で「部分対応として記録」と認めており、「恒久対応」の語が二重に使われている。",
+    "a": "/home/tanab/github/izanagi/docs/phase2.md (170-171 行): 恒久対応は (a) report 生成器が campaign dir を discover する を採用 (065593a)",
+    "b": "/home/tanab/github/izanagi/docs/phase3.md (239 行 (must 表) + 252 行 (後続段 5)): housekeeping。並行合成/patch 常駐の段で恒久対応 / 5. sort-strategy ターゲット起動 / git worktree 隔離 / C1 恒久対応",
+    "why_real": "refute を試みたが不成立。(1) phase2.md:167-171 は「解消済み (2026-07-02、選択肢 a)」「恒久対応は (a)…を採用 (065593a)」と完了形で主張し、175 行で残課題 (driver 宣言値) を部分対応として明記。(2) phase3.md:239 (must 表) と 252 (後続段 5) は「並行合成/patch 常駐の段で恒久対応」と C1 恒久対応を未了として将来に予約。git blame で両行とも 6d81072 (2026-06-29) = 065593a (7/2) より前の記述が据え置きと確認。同じ must 表の隣接行 237/238 は 441a50b (7/3) で更新済みなのに C1 行だけ凍結。(3) worklog.md:1430 が「C1 の状態が 4 文書で食い違う」と flag し、1461 行で「phase2.md 側を消化」とだけ記録 = phase3.md 側の食い違いはプロジェクト自身が未消化と認識。(4) 「別対象を指す」という refute 筋は、worklog:1226 でプロジェクト自身が (a) discover 統一を「C1 drift 恒久対応」と呼んで実施した語法と衝突するため成立しない。phase3.md must 表は現行ステータス文書であり、読者は「C1 は未対応の housekeeping」と誤読しうる (実際は読み手 3 本の孤立は 065593a で解消済み)。living document の正当な更新ではなく、後発の完了実績が phase3.md に未反映の真の食い違い。",
+    "fix_hint": "phase3.md 側を直すのが正 (phase2.md は選択肢 b/c との対比で「恒久対応 (a)」の語が正確)。phase3.md:239 の C1 行を「読み手 3 本の discover 統一 (065593a) で歴史的 campaign の孤立は解消済み。残課題 = driver 宣言値 (phase2.md §C1) と並行合成/patch 常駐で HEAD が動く場合の id 安定化 → 段 5」の趣旨に更新し、252 行の「C1 恒久対応」を「C1 残課題 (driver 宣言値 / 並行 worktree の id 安定化)」等へ語を差し替えて、065593a で消化済みの部分と区別する。",
+    "found_by": [
+     "phase-internal"
+    ]
+   }
+  ],
+  "refuted_count": 4,
+  "refuted_summaries": [
+   "[roadmap-vs-phase] phase2.md 冒頭の目的節は『全探索を ground truth に LLM 誘導探索の到達速度を比較する (roadmap §9 / 論文の図)』という当初の期待のままだが、roadmap §2 は P2-5 の negative result を受けて『論文の図は「誘導が速い」ではなく「小空間ではフラグ探索が自明」という物語に転じた』と明示更新済み。phase2.md 自身の P2-5 節が negative result を詳述しているため実害は小さいが、冒頭だけ読むと Phase 2 の物語を旧解釈で受け取る。 → phase2.md 冒頭目的節 (行 3-6) の主張は「全探索を ground truth に LLM 誘導の到達速度を比較する」という計画であり、「誘導が速いと示す」とは書いていない。この比較は P2-5 で実際に実施済みで、目的文は今",
+   "[numbers] D15 の skew0.9 スイープ起点「19.8%@1m」が、worklog の「miss 20.4%」および確定 calibration JSON の一次データ (calibration_t48_skew0p9_rr50_rmw0.json: llc_miss_rate=20.44%@1m) と食い違う。同じ文の uniform 側 14.9% は JSON と一致しており、19.8% はおそらく打ち切り前の初回診断スイープ由来だが出典無記載のため、確定 calibration と同一の測定に見える (64m 点も確定 JSON には存在せず sweep は 4m で早期打ち切り) → refuted。D15 (decisions.md L213) の「skew0.9 19.8%→40.6%@64m」は 2026-06-18 の初回診断スイープの数値で、一次記録 output/insights/2026-06-18_cal",
+   "[narrative] backoff ケーススタディの「certified なまま +38%/+11%」が phase3.md 冒頭・CLAUDE.md 現在地・roadmap (D32 引用) では但し書きなしの無条件表現で流通する一方、paper-story §5 第 1 項と worklog (行 709「certified は機序論証依存で実 perf 構成の trace を直接検証していない = 外挿」) は「certified は検証 workload (tuple200/thread4) 上のみ、headline には必ず条件を付ける」と限定する。S2 未消化は複数文書で自己申告済みの既知 TODO なので low だが、「certified」の主張範囲の言い方が文書間で揺れている (観点 4)。 → refuted。(1) 事実の食い違いがない: 「certified なまま勝った」(phase3.md 行4-5) は verify が実行され緑だった事実で、paper-story 行71・worklog 行709 はその適用範囲 (検",
+   "[narrative] phase2.md 冒頭の目的宣言が「LLM 誘導探索の到達速度を比較する (roadmap §9 / 論文の図)」という当初の期待 (誘導が速い図が論文になる) を注記なしの現在形で残す。roadmap の同じ約束 (§2 層2(a)) には「この比較は P2-5 で実施済み = negative result …『論文の図』は物語に転じた」と転回注記が入っており、非対称。同文書内の P2-5 節 (行 107-132) が negative result を詳述するため実害は局所的だが、冒頭だけ読むと Phase 2 の結論を旧仮説の方向に誤読しうる。 → refuted。phase2.md 行 4-6 の目的宣言は「到達速度を比較する」という行為の宣言であり結果の予断ではなく、比較は実際に遂行された (事実として偽でない)。行 15 の完了定義「比較したデータが出る」も negative r"
+  ],
+  "consistency_notes": [
+   "[roadmap-vs-phase] 一貫を確認できた重要事項: (1) Phase 構成と目的定義は roadmap §9 と各 phase doc の自己定義が一致 (Phase1=評価器/Phase2=パラメータ探索/Phase3=コード粒度合成 b1 主実験 + b2 拡張予約/Phase3.5=OEE 任意)。サブエージェント段階導入 (verifier+calibrator → critic+profiler → coder→auditor→planner) も roadmap §9・phase2.md・phase3.md 後続段 1-4 で一致。(2) D32 (移植 b2 の拡張予約降格) は roadmap §2 粒度節・§8 ポジショニング・§9 Phase3 と phase3.md 後続段 7 に一貫反映済み (decisions.md D32 の指示通り)。(3) 測定安定性の数値 (within-run CV 2.28% = 品質ゲート / between-run 3.0% = 採否 floor、A2/D19) は roadmap §3.6(3')・phase2.md 環境節/P2-1・phase3.md 統計計画で完全一致。floor 流用禁止 (3.0% は stock silo 実測) も roadmap §3.6(3') の「high-abort genome ほどドリフト大」と phase3.md が整合参照。(4) 観点4 (版数): roadmap は v1 のままで正当 — 大改訂に見える追記 (D31 §3.8 / D32 b1-b2 分節) は decisions.md D31:675 行・D32:723 行がいずれも「ユーザーと協議合意した改訂ゆえ版管理セレモニー不要 (版数据え置き・history 凍結なし)」と明記しており、CLAUDE.md の改訂規律 (協議改訂は版を上げない) に合致。roadmap-history/ には v1-initial.md が実在し「過去の版は凍結保存」の記述とも整合。「改訂すべきなのにしていない」レベルの乖離ではない。(5) P2-5 negative result は roadmap §2 (70/71/92 行括弧追記)・§3.5 (D29 段落)・phase2.md P2-5・phase3.md 統計計画に矛盾なく波及済み。silo 空間 8 genome (no-wait XOR) も phase2.md 内で旧記述「12」を明示訂正済みで現状一貫。(6) Phase3 着手前 must (S1/S2/S4/C1/H3) の分類は phase2.md 146-176 行と phase3.md must 表でほぼ整合 (S4 完了・C1 解消の追記は両方にあり。唯一 H3 だけ phase2.md:162 が「placeholder」の現在形のままだが、これは finding 1 と同根の 7/4 更新漏れの波及なので個別 finding にはせず本 notes に記録)。検出した 7 件はすべて「7/4 の H3 完了セッション (a97c0f3) の docs 反映漏れ 3 件 + 行ずれ/古い目的文の低重要 4 件」に分類でき、設計本体の実矛盾 (Phase 定義・完了条件・規律参照の歪み) は無かった。",
+   "[worklog-vs-phase] 一貫性を確認できた事項 (報告の根拠): (1) phase3.md kickoff タスクの [x] 7 本 (タスク1 source_digest / タスク2 EVOLVE-BLOCK / abort 数 WAL 記録 / patchharness / TOCTOU 再照合 / #include 閉塞 / H3 hooks) は worklog 06-30・07-04 の実績と git コミット (9301a8c, e0b9b22, b059a70, 62a0db9, b1224c2, 2c1283f, 16fd95e) に一致。(2) phase2.md の P2-0〜P2-5・A2 完了マークと全数値 — floor 2.28%/3.0% (D19)、最速構成 B0-T-W0/B0-L-W0、誘導 vs 貪欲 A=0.581 無有意差、deceptive A=0.230・exact permutation p=2.52×10⁻⁴ (07-03 訂正)・誤収束 8/12、12→8 genome 訂正、sanity WAL 未保存注記、C1 解消 (065593a) — は worklog の該当エントリ・前方注記 (D29 再校正、p<10⁻⁴ 訂正、P2-2 再計測注記) と全て一致。worklog の古い数値には前方注記が付いており「無言の書き換え」は無い。(3) phase1.md タスク0/1/2/3/5a/5b の完了記述・数値 (G2 1310/3576、baseline tps 群、invisible 1.28x、I2 訂正) は worklog 06-17〜06-19 と一致。(4) S1/S2 が未消化 must である点は phase2.md・phase3.md must 表・worklog 07-04 (2)・CLAUDE.md で一貫。(5) 実装裏取り: 観測者効果二重検査は git 14d64e6 (07-04 19:56) で orchestrator/campaign/source_digest.py:232 assert_trace_diff_matches_head + buildcache.py:159 (hit/fresh 両経路) + test_campaign.py 述語テストとして実在 — finding 1/2 の「実態は完了」判定はコード・コミットで確証済み。総括: 完了主張の虚偽 (謳うが実体なし) は 0 件で、検出は全て逆向き (実態が先行し文書が未更新) — 主根は 07-04 の diff-of-diffs 実装と H3 配線完了が phase3.md タスク行・phase2.md must・CLAUDE.md 現在地へ完全伝播していないこと。",
+   "[worklog-vs-current] 一貫性を確認できた事項 (報告の根拠): (1) worklog 内「未反映 (要対応)」自己申告は全て後続エントリで解消を追跡確認 — 6/17 CLAUDE.md 環境注記→同日「✅ doc 更新適用」(worklog:65)、6/20 runner 実コマンド記録の「残」→6/21 forensic binding 完成、A2→6/28 完了 (D19)、C1 campaign-id drift→7/2 洗練セッション 065593a で恒久対応、identity-error poison 繰延→6/30 に前倒し解消、人間判断待ち 4 件 (p_lt→a / backoff-if / patches 統一 / submodule clean)→7/2 (続き3) で全消化。7/3 以降の「未消化 docs 課題 (WAL proof chain 定義・外的妥当性集約・coder 自律期方針)」は毎エントリで明示追跡中の既知 TODO で放置ではない。(2) git log と worklog の対応: 7/4 第1エントリの「コミット 5 本 + worklog」(9301a8c/e0b9b22/b059a70/62a0db9/a5f72d0 + ac107ce) は git 実績と完全一致。唯一の例外が 14d64e6 (finding 3)。(3) 数値の文書間一致: P2-5 統計 (A=0.581 / A=0.230 / 誤収束 8/12、D29 再校正、p=2.52×10⁻⁴ 訂正) は CLAUDE.md:19・worklog・phase3.md で一致。backoff headline +38.3%/+11.3%、noise floor within 2.28%/between 3.0%、silo 8 genome (no-wait XOR)、submodule pin dff0f1e、テスト数推移 134→143→162→173→176 は単調で矛盾なし。(4) D33/D34 は decisions.md 727/763 行に実在し worklog の参照は健全。(5) CLAUDE.md 現在地の Phase 1/Phase 2 完了記述・submodule 分岐 (D16/D18/D20、PR #116/#118) は worklog 実績と一致。diff-of-diffs 実装は orchestrator/campaign/source_digest.py:232 (assert_trace_diff_matches_head) + buildcache.py:159-169 で実在確認済み。なお CLAUDE.md 現在地の更新は「憲法側ゆえ人間確認」と worklog 7/2 が明記しており、finding 1 の是正はユーザー確認を要する扱いが既定。",
+   "[numbers] 一貫性を確認できた事項 (根拠): (1) 確定動作点 records=1m/skew0.9/48thread/reps5 と TSC 1800MHz は CLAUDE.md・phase2.md L19・D15・worklog・一次データ (calibration JSON: clocks_per_us=1800) で完全一致。(2) noise floor の数値自体 (within-run 2.28% / between-run 3.0%) は CLAUDE.md・phase2.md・roadmap §3.6(3')・D19・JSON (cv=0.0228) で一致 (指摘したのは「品質ゲート」の役割表現のみ)。(3) backoff headline +38%/+11% (精密値 +38.3%/+11.3%、監査精密値 +38.33%/+11.27%) は CLAUDE.md・phase2/phase3・D18/D19/D20/D32・worklog で丸め揺れのみで一致。(4) P2-5 統計 (A=0.581 有意差なし / A=0.230 / exact permutation p=2.52×10⁻⁴ / 誤収束 8/12 / 30 試行=12+12+6 / オラクル天井 1.88 本・余地 2.62 本) は phase2.md・D21/D29・worklog で一致し、「p<10⁻⁴」→2.5×10⁻⁴ の訂正は 5 箇所すべて訂正注記付きで整合 (無言の書き換えなし)。(5) silo genome 12→8 (no-wait XOR) の縮小は worklog 2026-06-22 で監査込みで記録され phase2.md/D21 と整合、P2-0 除外「3構成/4構成」の揺れは worklog L488-490 に 2026-07-03 注記済み。(6) プロトコル 10 (YCSB 7) は roadmap §6/§8・CLAUDE.md・phase1.md タスク0 冒頭・worklog で一致 — phase1.md:21 の旧「7プロトコル×7最適化」は「原チェックリストは全項目充足 (記録として残す)」と自己申告された履歴保存で矛盾ではない。(7) 34 バイナリ、commit pin 33d74a3→6656e93→dff0f1e、355549 commits (D18)、G2 検出数 1310/3576、BACK_OFF on/off txn 数 277,391/571,816、7 protocol baseline tps は文書間一致。(8) P2-2 初回表と再計測値 (8,487,844 等) の差は worklog L556-560 の前方注記で明示済み。(9) D 連番は D1-D34 で欠番なし、D24→D30 の部分 supersede・D31 の番号予約・D34 の D23 変更はいずれも明示的で無言の上書きなし。findings 1-2 は kickoff の現在状態を誤読させる真の stale (コード実態 = diff-of-diffs 実装済み・hooks 配線済みを Bash/grep/git log で裏取り済み)。",
+   "[decisions-refs] 一貫性を確認できた事項 (報告の根拠): (1) 参照される全 D 番号 (D1, D3, D6, D7, D9, D10, D12–D16, D18–D34) は decisions.md に実在し、D1〜D34 連番欠番なし (worklog 2026-07-03 監査の「D1〜D31 欠番なし」とも整合)。broken な番号 (存在しない D 番号) の参照はゼロ。(2) 主要数値は文書間で一致: between-run floor 3.0% / within-run CV 2.28% (D19 = CLAUDE.md:19 / phase2.md:20 / roadmap §3.6)、backoff +38%/+11% (D18/D20 = CLAUDE.md / phase3.md / roadmap)、P2-5 の A=0.581 / A=0.230 / 誤収束 8/12 / exact permutation p=2.5×10⁻⁴ (D29 の 2026-07-03 訂正が CLAUDE.md:19・phase2.md:123-127 に正しく伝播、旧 p<10⁻⁴ の残存なし)。(3) 上書き系の D は明示的: D15→D13 改訂・D16→D6 改訂・D19→D14 とは無関係の A2 分離・D30→D24 部分 supersede・D32→roadmap 層2 改称・D34→D23 の -undef 変更は、いずれも新旧両側に相互ポインタがあり「黙った書き換え」ではない。roadmap の D16/D28/D30/D32 反映 (258/162/135・147/57-92 行) は decisions.md と一致。(4) worklog は時系列日誌として健全 (line 65 の D14 は正しい用法、過去エントリへの訂正は注記方式で原文保持)。(5) phase3.md:160/320-323 の「D25 と非対称 (意図的)」は D25 と整合し矛盾ではない。findings 1-4 は全て「H3 hooks 完了 + diff-of-diffs 実体化 (2026-07-04, D33/D34, コミット 14d64e6〜a97c0f3)」への docs 追従漏れという同一ファミリで、修正は CLAUDE.md 現在地 1 段落 + phase3.md 3 箇所の書き換えで閉じる。findings 5-6 の D14 誤参照は decisions.md D21 本文 (356-369 行) 内の「循環 (D14・絶対規律6)」「選択的報告 (D14)」が根 — 意図された参照先は内容上 D12 (最上位判定の循環禁止・チェリーピッキング禁止) と推定される。",
+   "[phase-internal] 一貫を確認できた事項: (1) 数値の横断一貫 — silo 有効 genome 数 8 (no-wait XOR)・P2-5 誤収束 8/12・A=0.581/A=0.230・backoff +38%/+11%・within-run CV 2.28% vs between-run floor 3.0%・calibration records=1m/48thread/skew0.9 は phase1/phase2/phase3/CLAUDE.md 間で全て一致。(2) phase2 P2-5 の「12 全部」→「8 全部 = SILO_SPACE.enumerate()」および「p<10⁻⁴」→「p=2.5×10⁻⁴」は文書内で明示訂正済み (矛盾でない)。(3) phase 間受け渡しは機能している — phase2「Phase 3 着手前 must」5 項目 (S4/H3/S2/S1/C1) を phase3 の must 表が全項目受領し blocking 分類を明示的に精緻化 (S2/S1 の non-blocking 化は「kickoff では」という明示的スコープ付きで優先度ラベルの黙った揺れではない)。phase2 P2-5 の任意項目 (cicada/oze 空間拡大) は phase3 後続段 7 が S1 移植と束ねて受領。(4) phase3 の kickoff 完了条件 2 項・must 表 S2 行・残存リスク節 (abort>0 確認) は相互参照が一貫。(5) phase1 タスク0 のチェックボックス未消化は「原チェックリストは全項目充足 (記録として残す)」と自己申告済みで矛盾でない。(6) 裏取り: diff-of-diffs はコミット 14d64e6 で orchestrator/campaign/source_digest.py の assert_trace_diff_matches_head として実装・buildcache 配線・テスト済み (finding 1 は文書の stale であり実装欠落ではない)。guard_write.py 17 行が payload 検査の D33 削除を明記 (finding 3 の裏取り)。worklog 2026-07-04 (2) は「docs 反映 = phase3.md (H3 hooks [x] 化・must 表)」と主張しており H3 行自体は反映済みだが、189 行のチェックボックス・117 行の旧文・313-314 行の残存リスク・CLAUDE.md・phase2.md must リストが更新漏れとして残った形。",
+   "[narrative] 一貫性を確認できた事項 (paper-story の主張はほぼ全数値が一次資料で裏付いた): (1) Phase 2 結論の言い方は CLAUDE.md / phase2.md P2-5 / roadmap §2・§3.5 / D21+D29 / paper-story で「誘導は貪欲を超えず (balanced A=0.581 有意差なし)・deceptive では貪欲より有意に有害 (A=0.230, exact permutation p=2.52×10⁻⁴, Holm×6 有意, 誤収束 8/12)・価値は空間外合成」で一致。旧 p_lt 系統バイアスと「p<10⁻⁴」過大表示には撤回/訂正注記が worklog 過去エントリ・D21 末尾・D29・phase2.md まで全伝播先に入っており盛り/弱めなし。「貪欲は random より有意に速い (a=0.533、余地の 1 割)」の nuance も phase2.md・D29 で一致。(2) backoff +38.3%/+11.3% は全文書で「contention 域 / write-heavy・balanced」条件付き・read-heavy −6.6% 純損併記で一致。silo 内比較に閉じる限界は phase3.md headline 節が明記。~560us 駐車・grid 100us 刻み・spin 87.3% は worklog 2026-06-28 (行 773-776) で「外挿→実測に置換」済みで paper-story の「実測で特定」は裏付く (D20 の「560us 点は外挿」は有用 IPC 外挿の別主張で矛盾でない)。abort 半減 82→49%・BACKOFF_NOINLINE +0.76% floor 内・機序純度 (純 spin 希釈) も D20 と一致。(3) paper-story の素材数値は全て一次資料と一致: broken-silo 1310 G2 / si 3576 G2 (worklog 134,150)、trace 327,918 行一致 (phase1.md 43)、探索空間 ≈258 バイナリ (anatomy 126)、audit 47 提起→confirmed 34/partially 12/refuted 1・10 次元×57 エージェント (audit-2026-06-30.md 4-6,277-280。roadmap §3.7 の「11 件 real 10/refuted 1」は裏取りサブセットの別集計と worklog 1197 が明示済みで両立)、critic-experiment.md frontmatter = tools:[\"Bash\"]/model:opus。(4) CCBench バグの数え方も整合: 網羅探索が露呈した 3 件 = WAL XOR (#116) / 両 no-wait livelock / ADD_ANALYSIS+BACK_OFF segfault (根因 ODR heap-overflow, #118) で「3 件中 2 件還元」は worklog 734,748-762 と一致。(5) paper-story 第 3 幕の事前登録 (4 対照・floor 流用禁止・Holm・deceptive 相当検証) は phase3.md 冒頭節と一致し、実績にない先取りは §3 の実証状態タグと §5 チェックリストで自己抑制されている。"
+  ],
+  "paper_assessment": [
+   {
+    "verdict": "promising-with-gaps",
+    "assessment": "novel claim の候補は「(1) single-node CC の serializability を対象に、正しさゲート (trace verifier) を一度も緩めずに LLM がフラグ空間の外の変異軸を合成する『帰属駆動・コーパス駆動合成』、(2) その対として『列挙可能なフラグ空間では LLM 誘導は貪欲を超えず、deceptive 構造では有意に有害 (自信ある早期停止の負債)』という定量 negative result」の二本柱で、対象領域 (CC の serializability) と Polyjuice/CCaaLF との差別化 (アクション空間自体の拡張 + 機序の言語化) は筋が良い。しかし中核主張 (LLM が空間外の軸を開く) の現時点の証拠は P2-4 backoff の n=1 ケーススタディで、非 LLM 対照 (人間が軸を命名して機械 sweep) が無く、しかも backoff は contention management で最も自明な軸なので「人間なら 5 分で挙げる」という反論に今は答えられない — これは phase3.md がベースライン 4 として正確に事前登録済みで、論文の成否は Phase 3 主実験の完走にほぼ全面的に懸かる。negative result 単体は「8 点空間の探索が自明なのは当たり前」と一蹴されるリスクが実在するが、deceptive 構造での有意な有害性 (A=0.230, exact p=2.52×10⁻⁴, Holm 頑健) と「reward hacking の鏡像 = 評価器側の過信」という枠組みは自明でなく、統計の自己訂正履歴 (D29/D21) 込みで動機づけ章としては強く機能する。「certified なまま」の主張は、現状 correctness-inert な変異 (timing のみ) + 検証と計測の workload 不一致 (S2 未消化) の上に載っており、正しさが本当に攻撃される Phase 3 で初めて実証になる。paper-story §5 の過大主張チェックリストと事前登録された失敗条件は、この種の研究で稀に見る誠実さで、それ自体が方法論的貢献の一部になり得る。総じて「系譜 (Jitskit/IDS) の 3 本目 + DB 固有の正しさゲート設計」というポジショニングは空いているように見えるが、系譜自体が未査読 preprint 群であり、DB 分野の learned/adaptive CC に対する体系的サーベイの実施記録がリポジトリに無い点は執筆前に埋める必要がある。Phase 3 主実験 (4 対照) が成立すれば strong に昇格し、成立しなくても negative result ×2 + 方法論で誠実な論文は書けるが、その場合 headline は弱い。",
+    "strengths": [
+     "対 Polyjuice/CCaaLF の差別化が質的で明確: 事前定義アクション空間内の配合探索に対し「アクション空間自体を LLM が拡張する」(roadmap.md:269, :347) + policy table が出せない「なぜ速いか」の機序言語化 (roadmap.md:25, :96-102)。P2-4 で critic の指標帰属 (abort 減でも IPC 崩壊 = over-throttling) が実際に空間外の軸合成を駆動した実証がある (worklog.md:636-673, D18)",
+     "negative result が「当たり前」を超える部分を持つ: 単なる「小空間で誘導は無駄」ではなく、(a) 貪欲ですらオラクル余地の約 1 割しか取れない構造の定量化 (worklog.md:926-938)、(b) deceptive 構造で LLM 誘導が貪欲より有意に有害 (A=0.230, 厳密 permutation p=2.52×10⁻⁴, Holm ×6 頑健、誤収束 8/12 = 自信ある早期停止の負債, D29 decisions.md:587-590) という転移可能な失敗モードの発見、(c) reward hacking の鏡像 (評価器側の過信) という理論的フレーミング (paper-story:33)",
+     "統計主張の自己訂正が成果物に機械可読で残る誠実さ: p_lt 系統バイアスの発見→確率優越 a への再校正 (D29)、p<10⁻⁴ の過大表示→厳密 permutation p=2.52×10⁻⁴ への訂正 (decisions.md:606-610)、p2-5-summary.json の recalibration/correction キー (paper-story:62)。査読耐性と「AI 主導研究の運用方法論」貢献の一次証拠",
+     "Phase 3 主実験が反証可能な形で事前登録済み: 4 対照 (silo stock / クロスプロトコル stock / 同一編集面ランダム変異 / 人間命名軸の機械 sweep = LLM 不要帰無仮説) + LLM ablation + 失敗条件 5 項の明文化 (phase3.md:26-81)。特にベースライン 4 は中核新規性への最強の反論を正面から検定する設計",
+     "P2-4 ケーススタディの機序の閉じ方が丁寧: +38.3%/+11.3% に cross-run 再現 (worklog.md:720-727)、BACKOFF_NOINLINE による有用 IPC 分離で「純 spin 希釈の除去」まで帰属 (D20)、stock 適応の構造欠陥 (grid 100us 刻みで sweet spot 5-10us に到達不能、~560us 駐車) の実測特定 (worklog.md:770-778)、read-heavy 対照で -6.6% の純損まで報告 (worklog.md:686-691) — 選択的報告をしない規律の実例",
+     "過大主張チェックリスト (paper-story:67-82) が執筆前に主要な査読反論 (certified の但し書き、コーパス駆動の実働範囲、hooks の否定的結果、天井の不在) を自己申告済み — 論文化時の最大の防御資産"
+    ],
+    "weaknesses": [
+     "【最重要・現時点では致命的だが解消可能】中核 novel claim (LLM が空間外の軸を開く) の証拠が対照なしの n=1: P2-4 の軸「backoff 量の静的固定」は D18 自身が「contention management は数十年の蓄積、単体の貢献として主張しない」と認める最自明級の軸 (decisions.md:293)。「人間 or 単純ヒューリスティックでも同じ軸に到達した」を棄却する対照 (phase3.md ベースライン 4) は計画のみで未実施。これが埋まらない限り「AlphaEvolve の EVOLVE-BLOCK を CC に当てただけ + パラメータ 1 個の sweep」と要約されるリスクが高い。Phase 3 段 6 の完走が唯一の解",
+     "【一蹴リスクあり・ただし枠組みで緩和可能】negative result の外的妥当性が狭い: silo 8 genome (実質 1 ビット) という極小空間での結論で、「フラグ探索は自明」は CCBench の per-protocol 空間 (全体 ≈258 バイナリ, paper-story:58) にしか言えず、Polyjuice 級の組合せ爆発するアクション空間への探索一般には何も言えない。査読者が「藁人形との比較」と読む余地がある。deceptive 帯の有害性 (転移可能な発見) を前面に、「列挙可能な空間では」の限定を厳密に書けば動機づけとしては立つが、単体論文の headline にはならない",
+     "【現時点で over-claim 予備軍・限定すれば非致命】「certified なまま stock 超え」の実証強度が見かけより弱い: (a) 対象変異が timing のみで構造的に correctness-inert (正しさゲートが実質未挑戦)、(b) certify は tuple200/thread4、性能は 1m/thread48 で workload 不一致 (S2 未消化、paper-story:71 が自認)、(c) verifier の赤検出は人工 broken-silo と si での実証。正しさが本当に攻撃されるのは Phase 3 の coder からで、現段階の主張は「限定スコープの最初の成立例」(paper-story:79) 以上に書けない",
+     "【中程度・執筆前に必須】ポジショニングの外部検証が未実施: 「single-node CC の serializability を対象にした AI 合成は先行なし」(roadmap.md:346) は自己申告で、DB 分野の learned/adaptive CC (Polyjuice/CCaaLF は把握済みだが、ACC/CormCC/Tebaldi/learned CC 系や 2025-26 の LLM-for-systems 群) への体系的サーベイの実施記録がリポジトリに無い。また系譜の根拠 3 本 (Jitskit/IDS/VibeServe) が全て 2026 年 5-6 月の未査読 arXiv preprint で、同時代性ゆえ「3 本目」ポジションは競合出現で崩れうる。非致命だが、空白主張が崩れると novelty の第 1 柱が消える",
+     "【小・扱いを誤ると減点】副次的理論主張の目減り: 「realizable trace の全 cycle は必ず G2」定理 (paper-story:57) は Adya 理論と SI 研究 (Fekete らの rw-edge 定理) の近傍にある既知隣接の補題で、独立貢献として売ると突っ込まれる。trace 形式の観測限界 (G1a/G1b 不可視) の注記としてのみ使うのが安全",
+     "【構造リスク】論文の成立が Phase 3 主実験に全面依存し、その前提が重い: S1 (trace-hook 他 protocol 移植) / protocol 別 floor 再実測 / サンプル設計 4 点の数値確定 / 検証相 (seed×N) 実装 (phase3.md:253-260) が全て未消化。実計測直列 (規律4) で検定力確保も予算依存 (phase3.md:57-61 が自認)。ここで詰まると「negative result + n=1 ケーススタディ + 方法論」という headline の弱い論文しか残らない"
+    ],
+    "actionable": [
+     "Phase 3 主実験 (phase3.md 段 6) を最短経路で完走する。特にベースライン 4 (人間命名軸 + 機械 sweep) とベースライン 3 (同一編集面ランダム変異) は中核新規性の生死を決める唯一の対照 — 軸命名手順の事前固定と coder リーク制御 (BACKOFF_FIXED の勝ち筋がリポジトリ内既知、phase3.md:294-300) を先に凍結してから走らせる",
+     "S2 (certify workload = perf workload) を主実験の前に消化し、「certified なまま +38%/+11%」の但し書き (paper-story:71) を外す。正しさゲートが本当に発火する赤 variant の還流実例 (S4 consumer) を最低 1 件作り、「構造化 anomaly の自動還流」を設計から実証に格上げする (paper-story:74)",
+     "negative result の外的妥当性を安価に補強: cicada (2^6) / oze (2^7) への空間拡大で P2-5 を再演し (S1 移植と束ねる、phase2.md P2-5 の任意項)、「deceptive 帯での自信ある早期停止の負債」が silo 固有でないことを 1 protocol でも示す。再現すれば negative result は『当たり前』批判に対して転移可能な発見として立つ",
+     "関連研究の体系的サーベイを執筆前に実施し記録を残す: learned/adaptive CC (ACC, CormCC, Tebaldi, IC3, learned CC 系)、LLM-for-systems/コード進化 (AlphaEvolve, FunSearch, その 2025-26 後続)、および Jitskit/IDS/VibeServe の査読状況の追跡。「対象の空白」主張 (roadmap §8) を自己申告から検証済みに変える — 競合が出ていた場合の差別化 (正しさゲート設計 + 帰属駆動) の言語化も先回りで用意する",
+     "投稿先を早期に決めて主張の重心を最適化する: DB systems 会議 (VLDB/SIGMOD) なら成果物 (新 CC) の薄さが弱点なのでクロスプロトコル比較と絶対性能を厚く、ML/agents 系なら negative result + 方法論 (敵対的自己検証、機械可読な訂正履歴) を headline に。二兎は追わない",
+     "P2-4 の限界を honest に一文化する: 「backoff 軸は事後的には自明であり、軸発見の LLM 固有性は本ケーススタディ単体では主張しない (対照は Phase 3 ベースライン 4)」— この先手の自認が『自明な軸』批判の毒を抜く",
+     "Threats to Validity 集約文書 (worklog 2026-07-04 の未消化 docs 課題) を書く: 単一ハードウェア (Dell R760)・単一動作点 (skew0.9/48thread/1m)・YCSB のみ・単一 protocol 実働、を一箇所に集める。paper-story §5 と合わせて査読対応の骨格になる"
+    ],
+    "lens": "novelty"
+   },
+   {
+    "verdict": "promising-with-gaps",
+    "assessment": "統計手法の設計品質はシステム系論文として異例に高い。noise floor の within/between 分離 (D19) は「back-to-back は楽観的下限」を実測で示した上で保守値を採っており、p_lt の系統バイアスを Vargha-Delaney A に再校正し (D29)、さらに「p<10⁻⁴」を厳密 permutation p=2.52×10⁻⁴ に訂正した履歴が p2-5-summary.json に機械可読で残る — この自己訂正連鎖は方法論論文の一次証拠として強い。ablation 設計 (broken-silo 赤 1310 / si 赤 3576 / stock 緑の両側実証、critic 無し貪欲、オラクル天井 2−k/N) も循環を意識した良設計で、再校正後に貪欲 ablation が negative 結論の唯一の支柱として機能した事実がそれを裏づける。一方、証拠の土台は所々薄い: between-run floor 3.0% の錨は cross-campaign CV(n=2) 相当のデータ、headline +38%/+11% は reps=5・同一 boot 内 (別 boot 未確認と自認)、deceptive 有害性は単一 workload・単一構造 (n=12 系列)、そして「certified なまま +38%」の certify は性能 workload と別構成 (S2 未消化) で機序論証による外挿。verifier の偽陰性硬化 (2026-07-02) が主要 certification (6/22) より後で、trace が使い捨てゆえ旧 certification は硬化後 verifier で再検証されていない点も査読で突かれうる。ただしこれらの弱点はほぼ全てプロジェクト自身が paper-story §5 の消し込みチェックリストで特定済みであり、大半は安価な追加測定・再検証で塞げる性質のもの。統計的に「盛った」主張は現存文書にはほぼ残っておらず (MWU の無力さ・near_floor 帯・read-heavy −6.6% 純損まで自己申告)、むしろ効果量が floor の 5-17 倍という大差に依存する構図。総じて「厳密性の運用は査読耐性あり、サンプルの絶対量と certify/perf 整合が残ギャップ」で、S2 消化 + 別 boot 再現 + floor 再錨を打てば実験章は守り切れる。",
+    "strengths": [
+     "noise floor の用途別二分 (D19, decisions.md:307-327): 8 独立セッション実測で「back-to-back between-run は within-run を下回る楽観的下限」を発見し、時間分離 cross-campaign データに錨を打ち直して保守値 0.030 を採った。この floor 適用で自分の P2-2 rank3/4 の「有意」を取り下げた (過大主張の自己是正が記録に残る)",
+     "統計指標の自己訂正連鎖が機械可読: p_lt の tie バイアス (同分布 null=0.4375) を確率優越 a=P(<)+0.5P(=) に再校正 (D29)、当初の t 検定採用案を敵対検証が exact p=0.144 で棄却、「p<10⁻⁴」過大表示を厳密 permutation (全 50268 構成列挙、コード化+凍結回帰テスト) で p=2.52×10⁻⁴ に訂正。全てが p2-5-summary.json の recalibration_2026_07_02 / correction_2026_07_03 キーに残る (実ファイルで確認済み)",
+     "ablation 設計の非循環性: verifier は broken-silo 赤 1310 / 本物 si 赤 3576 / stock 緑 + 8 genome 全緑の両側で検出力を実証 (paper-story §2 第1幕)。P2-5 は critic 無し貪欲・random 解析分布・オラクル天井 2−k/N・winner-tied set (equivalence class) を全て事前設計し、再校正後「vs 貪欲」が negative 結論の主支柱に移動しても骨格が保った (D29「D21 が設計段階で貪欲 ablation を入れた判断が唯一の支柱になった」)",
+     "deceptive 構造での有害性主張は統計的に堅い: 誤収束 8/12 は penalty 非依存の頑健統計、A=0.230 は exact permutation p=2.52×10⁻⁴・打ち切り感度・Holm ×6 に頑健 (insight 2026-06-29:103-105)。Phase 2 完了監査 (worklog 2026-07-03:1443-1445) が全統計量を独立再計算で一致確認・凍結値は決定論 replay で byte 一致",
+     "観測者効果分離の実装信頼性: #if TRACE コンパイル時除去 + buildcache の nm 継続 assert (fails-closed) + 完了監査で全 perf build 46 個の漏れ 0・trace build 6 シンボル = 検査の弁別力まで確認 (phase2.md:38-42)。診断計器 BACKOFF_NOINLINE の観測者効果も +0.76% (floor 内) と実測して inert を主張 (D20)",
+     "再現性の証拠連鎖: WAL に生 tps + 実行コマンド、campaign-id は内容ハッシュ、submodule pin (dff0f1e)、C1 drift 恒久対応後に歴史的 report を再生成して既存物と byte 一致 = 決定的再現の実証 (worklog 2026-07-02:1304-1306)。P2-2 → LI 再計測の fitness 再現一致、backoff の cross-run 再現 (+11.3%→+11.7%) も実施",
+     "選択的報告の禁止が実装されている: read-heavy −6.6% 純損を headline と併記、near_floor フラグ (floor〜1.5×floor は裏取り要)、p2-2-summary の「+0.5% は信用できる差でない」、Phase 3 失敗条件 (e) で退行込み全 workload 報告を事前登録 (phase3.md:75-81)",
+     "Phase 3 主実験の事前登録 (phase3.md:26-81): 4 対照 (stock/クロスプロトコル/ランダム変異/機械 sweep)・floor 流用禁止・検定単位=系列・Holm 補正・天井の不在の明示と代替天井・失敗条件 5 種を実行前に固定。P2-5 の教訓 (検定力不足の偽 negative を誤読させない宣言まで) を制度化している"
+    ],
+    "weaknesses": [
+     "between-run floor 3.0% の実測基盤が薄い: 錨は時間分離 cross-campaign の CV(n=2) (2.09%/1.53%) + high-abort within ≤2.91% で、独立した時間分離セッションの本数が実質 2 点 (D19)。致命的でない — 保守側 (最大) を採り headline 効果は floor の 5-17 倍で頑健、かつ Phase 3 統計計画が対象別再実測を義務化済み。ただし floor 近傍の副次主張 (rank 逆転等) はこの錨に依存するため、査読で「floor 自体の信頼区間は?」と突かれると n=2 は苦しい",
+     "headline +38%/+11% の反復基盤: reps=5・cross-run 再現は同一 boot 内で「別 boot / rounds≥3 は未確認」と自認 (worklog:711,727)。MWU p=0.012 は reps=5 完全分離の最小値で検定として無力 (自認済み、D19)。致命的でない — 効果量が桁違いで方向は堅いが、5 反復・単一 boot は DB 系査読の定番の突きどころで、封鎖コストは安い (数時間の直列計測)",
+     "「certified なまま +38%」の certify が性能 workload と別構成 (tuple200/thread4 vs 1m/thread48、S2 未消化): correctness-inert は機序論証 (backoff は timing のみ) による外挿 (paper-story §5 第1項が自認)。条件付きなら致命的でないが、but 書きなしで headline 化すると自前の監査記録と矛盾する over-claim になる — 論文化前の必須消化項目",
+     "verifier の偽陰性硬化 (2026-07-02: txid 欠番・trx 尾部欠落など部分 trace 4 種、worklog:1240-1243) が主要 certification (6/22 の P2-2/backoff) より後で、trace は使い捨てゆえ旧 certification は硬化後 verifier で再検証されていない。致命的でない — 対象は全て stock 由来フラグ構成 (理屈上正しい) で、trace 行数 = commit_counts_ 完全一致という別軸検査 (phase1) が欠落を部分的に排除する。だが headline variant (BACKOFF_FIXED) の再 verify は安価なので、やらずに論文に出すのは脇が甘い",
+     "deceptive 有害性の外的妥当性が単一事例: write-heavy という 1 workload・「BACK_OFF=1 が実 2 位」という 1 構造・n=12 系列のみ (insight:84 が「実効 workload n=2、k 依存を 2 点で一般化しない」と自認)。当該比較の p 値は厳密で内的妥当性は高いが、「評価器の過信は deceptive 信号下で負債」を一般命題として書くと n=1 構造からの過剰一般化。ケーススタディとして枠づければ致命的でない — Phase 3 統計計画に deceptive 相当の検証が予約済みなのは正しい対処",
+     "LLM 誘導アームの再現性記述が不足: model=opus / tools=Bash は agent frontmatter のみで本文系文書に未記載 (paper-story §5 が自認)、単一モデル・30 試行、リーク制御のうち「fresh エージェントの raw WAL 覗き穴」は物理封鎖でなく手続き的 (insight:87)。致命的でない — リーク制御の主層 (literal 物理削除・online digest・初手対称) は健全で監査済みだが、モデル依存性は threat として明記が要る",
+     "P2-5 の結論は replay (測定ノイズゼロ) ゆえ「この固定 landscape 上の探索アルゴリズム比較」であり、実測ノイズ下の探索とは別命題。致命的でない — 設計として意図的 (規律4) で insight が明記しているが、論文では「ノイズ下では誘導/貪欲の差がさらに縮む方向か」の議論が要る",
+     "provenance の不連続が 2 箇所: P2-0 sanity campaign WAL 未保存 (P2-2 WAL で再証拠化と注記済み、phase2.md:35-37)、P2-2 初回計測表は同一 campaign-id での再計測に置換され現 WAL から再現不能 (worklog:556-559 に前方注記)。致命的でない — 差は floor 内で結論不変、注記も誠実。ただし「全主張が WAL まで辿れる」という forensic binding の主張には例外として明記が必要",
+     "Phase 3 事前登録のサンプル設計 4 点 (系列数・検定単位・検定力・総予算) が数値未確定 (phase3.md:57-61)。今は致命的でないが、数値確定前に計測を始めれば事前登録の意味が崩れる — 「実行前に確定」の自己拘束を守れるかが試金石"
+    ],
+    "actionable": [
+     "S2 を最優先で消化: certify を perf workload (の縮小版) に揃え、broken-silo 同一フラグでの赤検出も同構成で確認。同時に headline variant (BACKOFF_FIXED 5/10us) を 2026-07-02 硬化後の verifier で再 verify し trace を今度は保存する — 「certified なまま +38%」の but 書きを消す唯一の手",
+     "別 boot・時間分離の追加計測 (安価・直列数時間): (a) +38%/+11% の別 boot 再現 (rounds≥3)、(b) between-run floor の時間分離セッションを 5-10 本に増やして錨を n=2 から脱却。worklog:727 が自認するギャップの正面封鎖で、実験章の最弱点 2 つが同時に消える",
+     "deceptive 検証の第二例を確保する: cicada (2^6) / oze (2^7) への空間拡大 (S1 移植) で deceptive 構造がもう 1 つ出るか確認するか、Phase 3 主実験の deceptive 条件 (計画済み) で再現する。それまでは論文中で「単一構造での実証」と明示的に限定する",
+     "誘導アームの実験条件を本文系文書に固定: model=opus / tools=Bash / 30 試行の内訳 / リーク制御の全層と「物理封鎖でない」残穴を実験セクションに記載。可能なら第二モデルでの小規模再現 (6-12 試行) で誤収束傾向のモデル非依存性を probe する",
+     "Threats to Validity の集約文書を今書く (worklog 2026-07-03:1430 で既に欠落と flag 済み): 単一マシン・単一 protocol (silo)・単一動作点 (skew0.9/48thread/1m)・floor の錨・replay と live の区別・verifier 硬化の時系列・provenance 不連続 2 件を一箇所に。paper-story §5 チェックリストと相互参照させる",
+     "Phase 3 主実験の実行前にサンプル設計 4 点の数値を確定し、確定版を phase3.md に日付つきで追記 (事前登録の完結)。特に exact permutation の最小可能 p が Holm 後も有意水準を下回る n を先に計算し、届かない比較は「記述統計に留める」宣言を実行前に固定する",
+     "「統計的に裏打ちされた」系の表現規律を執筆時に機械チェック: paper-story §5 の恒久項 (MWU は sanity・主防壁は floor 丸め + cross-run 再現) に沿い、有意性を主張するのは exact/permutation を通した比較 (P2-5 の 2 件) のみに限定する"
+    ],
+    "lens": "rigor"
+   },
+   {
+    "verdict": "promising-with-gaps",
+    "assessment": "paper-story-2026-07-03.md の 3 幕構成 (評価器 → negative×positive の対 → 事前登録済み合成実験) は一本の筋が通っており、negative result を「なぜ合成が要るか」の要石に転化する枠組み (D21/D29) は論文構造として本物である。統計的誠実性の水準 (p_lt バイアスの自己検出と再校正、p 値の厳密化訂正、Holm で主張を自ら落とした記録) は査読耐性の面で非凡で、§5 の過大主張チェックリスト 11 項は査読者の攻撃面を著者側が先取りしている。しかし核心主張の肯定側「価値は空間外の合成にある」を支えるのは P2-4 backoff の n=1 ケーススタディのみで、silo 1 protocol × 1 軸 × 単一動作点 × contention 域 2 勝 1 敗に閉じており、「軸が与えられれば機械 sweep で同じ点に到達する」という帰無仮説 (phase3.md ベースライン 4) が P2-4 自身に遡及的に刺さる状態が最大の穴。negative 側も silo 8 genome (実質 1 ビット) での結果で、「フラグ探索は自明」の外的妥当性は cicada/oze 未検証のため狭い。Phase 3 未完の現時点で書けるのは「AI 主導 CC 探索の negative result + 空間外合成の限定的成立例 + 検証ハーネス方法論」であり、negative results / experience track や DB 系 workshop では成立するが、トップ会議のフル論文には Phase 3 段 6 の 4 対照 headline が必須。逆に Phase 3 主実験が成立すれば、P2-5/P2-4 は動機づけと方法論章として綺麗に収まる設計が既にできている。いま一番足りない証拠は (1) Phase 3 kickoff の完走 (合成→certified commit の閉ループ実証)、(2) P2-4 の「軸発見」の LLM 固有性・再現性 (fresh critic が中間 backoff 軸を何回提案するかは replay で安価に測れる)、(3) S2 消化による headline 但し書きの解消。総じて、骨格と誠実性は強いが headline 実験が未実施という「見込みは高いが未完」の典型である。",
+    "strengths": [
+     "negative×positive の対構造が自立している: P2-5 (誘導は貪欲と有意差なし A=0.581、deceptive で貪欲比有意に有害 A=0.230, exact p=2.52×10⁻⁴, Holm 頑健、誤収束 8/12) と P2-4 (空間外合成が certified のまま stock 最良 +38.3%/+11.3%) が互いを動機づける (paper-story:29-37, decisions.md:354-369/569-610, worklog:940-960)。negative result が「薄い結果」でなく Phase 3 の必然性を定量化する要石という位置づけは、査読で最も守りやすい形",
+     "統計・訂正の証拠連鎖が機械可読で残る: p_lt 系統バイアスの自己検出→確率優越 a への再校正 (D29)、p<10⁻⁴ 過大表示→厳密 permutation p=2.52×10⁻⁴ への訂正 (worklog:1451-1457)、p2-5-summary.json に recalibration/correction キーが凍結。『訂正の訂正まで成果物に残る』(paper-story:49,62) は方法論貢献 (新規性 5) の実体であり空証文でない",
+     "backoff ケーススタディの機序閉鎖が深い: cross-run 再現 (worklog:720-727)、有用 IPC 分離による spin 希釈の特定 (P2-4, phase2.md:93-105)、stock 適応の構造欠陥 (grid 100us 刻みで sweet spot 5-10us に到達不能、~560us 駐車、spin 87.3% を実測, worklog:770-778)。『なぜ速いかの説明』(差別化の核、roadmap:25) の実例として Polyjuice/CCaaLF 対比が具体的に書ける",
+     "Phase 3 主実験が事前登録形式で固定済み: 4 対照 (stock 最良/クロスプロトコル/ランダム変異/機械 sweep) + LLM ablation + 失敗条件 (a)-(e) の事前定義 + floor 流用禁止 + サンプル設計 4 点 (phase3.md:26-81)。P2-5 で高い代償を払った方法論の継承として説得力があり、over-claim を構造的に防ぐ設計",
+     "§5 過大主張チェックリスト (paper-story:67-81) が自己批判として的確・網羅的: certified の但し書き (S2)、hooks の over-claim 撤回 (D30)、anomaly 自動還流の実証ゼロ、コーパス駆動の実働範囲 (silo のみ)、run レート机上見積り等。執筆時の消し込み道具として即戦力",
+     "敵対的監査の運用実績が定量で残る: Phase 2 完了監査 (23 エージェント、裏取り 78 件、虚偽 0 件、worklog:1433-1470)、Phase 3 計画検査 (real 30 件で構造欠陥 3 つを事前検出、worklog:1477-1532)。『AI 主導研究の運用方法論』を主張する一次資料が揃っている"
+    ],
+    "weaknesses": [
+     "【最重要・現時点では致命的】核心主張の肯定側が n=1: 『価値は空間外の合成にある』を支える実証は P2-4 backoff 1 件のみで、critic の帰属が軸を開いた事象は 1 回きり。しかも +38%/+11% の到達自体は人間が駆動した grid sweep (backoff_sweep.py) であり、『軸が与えられれば機械 sweep で十分』という帰無仮説 (phase3.md:37-38 のベースライン 4) が P2-4 自身に刺さる。LLM の寄与は『軸の発見』に絞られるが、その発見の再現性・LLM 固有性は未測定。Phase 3 主実験が成立するまで、核心主張の後半は「限定スコープでの最初の成立例」(paper-story:79) 以上に言えない — これが headline を仮のままにしている根本原因",
+     "【致命的ではないが一般化を制約】negative result の外的妥当性が狭い: silo 8 genome = 実質 BACK_OFF の 1 ビット空間 (insight 2026-06-29 冒頭) での結果で、『フラグ探索は自明で LLM の出る幕がない』は silo 限定の観測。cicada 2⁶/oze 2⁷ での検証は S1 (trace-hook 移植) 未消化で不可能 (phase2.md:120-121)。deceptive 帯の有害性は n=12 系列 × 1 workload。ただし『自信ある早期停止が負債になりうる』という存在証明としては 1 例で足りるため、主張を「小空間では」と限定すれば守れる — insight 自身がそう限定しており誠実",
+     "【Phase 3 で致命化しうる】certified の但し書き (S2 未消化): +38%/+11% の certify は検証 workload (tuple200/thread4) 上で、性能 workload の trace は未検証 (paper-story:71)。backoff は timing のみゆえ機序論証で外挿可能だが、Phase 3 の合成 variant が『小 workload では踏まないデータパス』を持つと緑 certify と赤い実行が食い違う (phase2.md:162-164)。headline の脚注では済まなくなる",
+     "【致命的ではないが差別化主張を弱める】説明可能性 (新規性 3) の『生成』が自動でない: 現状の機序説明は人間主導の多エージェント敵対検証 workflow の産物で、層3 の自動レポート生成は未配線 (roadmap:94-102 は構想)。『AI が合成し説明した』と書くと実態 (AI+人間の混成、説明はセッション運用の成果) と乖離する。表現規律で回避可能だが、Polyjuice/CCaaLF への優位主張のトーンを落とす必要がある",
+     "【構造リスク】論文の焦点が二重: 新規性 5 点 (paper-story:43-49) がシステム論文 (CC 合成) と方法論論文 (AI 主導研究の運用規律) にまたがる。1 本に両方詰めると『何の論文か』が散り、査読で『どちらも中途半端』と読まれるリスク。Phase 3 成立時はシステム論文に寄せて方法論を § に格納、未成立時は方法論+negative に寄せる、の分岐を明示的に持つべき",
+     "【軽微】anomaly 自動還流 (ARA への優位) は実証ゼロ (paper-story:74): S4 配線は完了したが赤→還流→改善の実例が無く、IDS の ablation も借用のみ。規律3 を新規性として語る場合の裏付けが Phase 3 待ち — チェックリストに載っており自覚済みだが、方法論主張の柱の一本が現状空である点は venue 選定に効く"
+    ],
+    "actionable": [
+     "Phase 3 kickoff を完走する (coder.md + no-op → 純 timing variant 1 本で Tier0→verify→bench→WAL 1 周、phase3.md:203-224)。『LLM が書いたコードが correctness ゲートを通って certified commit する』閉ループの実証は、現時点の論文でも第 3 幕の実在証明として書ける最小単位であり、残り工程も少ない (blocking はほぼ消化済み、worklog 2026-07-04)",
+     "P2-4 の n=1 問題を安価に補強する: fresh context の critic を P2-3 と同じ leading indicators digest に対し複数回 (10-20 回) 独立実走させ、『中間/静的 backoff』軸を提案する再現率を測る (replay 系で新規計測ゼロ = 規律4 コスト 0)。P2-5 のリーク制御 (critic-experiment 方式) を流用すれば『答えを読んだ』批判も塞げる。これは Phase 3 主実験を待たずに『軸の発見が LLM に再現的にできる』の証拠になり、核心主張の最大の穴を直接埋める",
+     "S2 (certify=perf workload) を前倒しする: perf 構成の縮小版で 1 回 verify + broken-silo 同一フラグ赤検出 (phase2.md:162-164)。headline の但し書き (§5 第 1 項) が消え、Phase 3 の合成でも load-bearing になる二重の利得",
+     "『今書ける論文』のアウトラインを 1 枚作る: 方法論 + negative result + backoff ケーススタディの構成で、negative results track / experience paper / DB 系 workshop を退避先 venue として確定しておく。Phase 3 主実験 (段 6) は前提タスク (a)-(g) が重く遅延リスクがあるため、headline 未成立時の着地点を持つことが執筆計画のヘッジになる",
+     "Phase 3 主実験ではベースライン 4 (機械 sweep) の軸命名手順の固定 (phase3.md:43-45) を最優先で実体化する: ここが曖昧だと (c) 判定がどちらにも倒せる、と自ら書いたとおり、この 1 点が論文の headline の成否を分ける。coder リーク制御 (残存リスク節) と対で先に凍結する",
+     "空間拡大 (cicada/oze、S1 移植) は Phase 3 主実験 headline 2 と束ね、『誘導の価値は空間サイズ依存』を用量反応 (8 → 2⁶ → 2⁷) として設計する: negative result の外的妥当性の穴を、逆に「空間サイズという独立変数」に転化できる",
+     "執筆前に roadmap §7 の引用群 (Jitskit/IDS/VibeServe/SkillOpt 等の arXiv 番号) の実在・最新状態を確認し、learned CC / DB 自動チューニング系の直接競合 (Polyjuice/CCaaLF 以外) の関連研究カバレッジを一度外部調査で裏取りする — ポジショニング主張 (新規性 1『先行なし』) は悉無律なので、見落とし 1 本で崩れる"
+    ],
+    "lens": "story"
+   },
+   {
+    "verdict": "promising-with-gaps",
+    "assessment": "敵対的査読のレンズで見ると、現時点の素材のまま VLDB/SIGMOD 本会議に出せば reject が濃厚である。理由は単純で、論文の headline になるべき主実験 (Phase 3 の 4 対照比較) が未実施であり、現在実証済みなのは「silo 1 プロトコル・backoff 1 軸・単一動作点 (skew0.9/48thread/1m)・単一マシン」での 2 勝 1 敗のケーススタディと、8 点の自明空間での negative result に限られるからだ (paper-story-2026-07-03.md:79 が自ら「限定スコープでの最初の成立例まで」と認める)。一方で、このプロジェクトの査読耐性の作り込みは異例に強い: 評価器の検出力を赤 (broken-silo 1310 G2) と緑 (8 genome 全緑) の双方向で実証し、between-run floor / 確率優越 a への再校正 (D29) / exact permutation p=2.52×10⁻⁴ への訂正まで機械可読で成果物に残し、過大主張チェックリスト (paper-story §5) と Phase 3 の事前登録 (失敗条件込み、phase3.md:26-81) を持つ。つまり弱点の大半はプロジェクト自身が正確に自認・文書化しており、査読者が新たに発見できる急所はほぼ残っていない — 問題は「知らない穴」ではなく「まだ埋めていない穴」である。最も危険な攻撃は (i) 一般化可能性 (silo 単体、S1 未移植で他プロトコルは verify 不能)、(ii) 帰属の誠実さ (P2-4 の +38% は critic の軸提案をメインエージェントが人間承認下で実装したもので、リーク制御下の自律合成ではない)、(iii) 「certified なまま」の但し書き (検証 workload ≠ 計測 workload、S2 未消化)、(iv) 単一ハードウェアと Threats to Validity 節の不在 (worklog 2026-07-03 が未消化と自認)、の 4 つで、いずれも現 docs では完全には反論できない。ただし Phase 3 主実験の設計 (機械 sweep 帰無仮説 = ベースライン 4、coder リーク制御、クロスプロトコル対照、floor 流用禁止) はこれらの攻撃の大半を正面から潰す構造になっており、実行されれば評価は一変する。negative result (P2-5) は scoped で統計的に誠実だが、単一モデル・単一プロンプト・n=12 ゆえ「LLM 一般の性質」への外挿は許されず、動機づけ以上の重みを持たせると危うい。総合すると「論文の骨格と方法論は一級、実証の幅が未達」であり、Phase 3 段 6 の完遂 + S1/S2 消化を条件に強い論文になり得る。",
+    "strengths": [
+     "評価器の信頼性実証が双方向で完備: broken-silo patch で G2 赤 1310 / 本物 si で赤 3576 / 素の silo 緑 (paper-story:21)、対で 8 genome 全緑 (phase2.md P2-0)。さらに部分 trace の偽陰性 4 種を integrity で遮断 (worklog 2026-07-02, 36a1193)。「evaluator が信頼できるか」という定番攻撃に既に答えがある",
+     "測定・統計の規律が同種研究より一段深い: within/between-run noise floor の分離 (D19)、p_lt 系統バイアスの自己検出と確率優越 a への再校正 (D29)、p<10⁻⁴ 過大表示の厳密 permutation p=2.52×10⁻⁴ への訂正、Holm 補正 — しかも訂正履歴が p2-5-summary.json にトップレベルキーとして機械可読で残る (paper-story:62)。選択的報告の攻撃に対する物理的な反証材料",
+     "positive (P2-4: certified なまま stock 最良 +38.3%/+11.3%、cross-run 再現・spin 希釈の機序分離まで、worklog 2026-06-22/06-28) と negative (P2-5: 誘導は貪欲を超えず deceptive で有意に有害 A=0.230) が互いを支える物語構造。negative が「なぜコード合成か」を定量的に動機づける要石になっており、単なる失敗報告ではない",
+     "Phase 3 主実験の事前登録 (phase3.md:26-81) が査読の主要攻撃を先回りしている: 機械 sweep 帰無仮説 (ベースライン 4 =「LLM 不要」を正面から立てる)、ランダム変異対照の Tier0 通過条件、floor の対象別再実測、失敗条件 (a)-(e) の事前定義 (勝った workload だけ headline 化する選択的報告の禁止を含む)",
+     "副産物が独立に強い: 網羅探索が CCBench 本体のバグ 3 件を露呈し 2 件上流マージ (PR #116/#118)、「realizable trace の全 cycle は必ず G2」定理 (isolation-phenomena.md)、死にフラグ発見 (ccbench-anatomy.md) — 「コーパス探索はバグ発見器」という副主張が実績で裏づく",
+     "過大主張チェックリスト (paper-story §5、解消条件付き 11 項目) と敵対監査の運用記録 (audit real/refuted 選別、refuted の実例込み) の存在自体が、rebuttal で「限界は自認済み・解消計画あり」と示せる稀有な武器"
+    ],
+    "weaknesses": [
+     "【攻撃1: 一般化可能性 — 致命的 (現状最大の reject 理由)】探索・合成が実際に回ったのは silo 1 プロトコル + backoff 1 軸のみで、trace-hook は silo/si 以外に未移植 (S1) ゆえ他プロトコルは verify 自体が不能、クロスプロトコルは baseline 計測止まり (paper-story:75 が自認)。workload も YCSB の rratio スイープ 3 点・skew0.9・48thread・1m records の単一動作点 (paper-story:79)。TPC-C 級の複雑トランザクションは範囲外。「CCBench 10 プロトコルのコーパス駆動」というポジショニング (roadmap §8) と実働範囲の乖離が大きく、現 docs では反論不能 — S1 移植 + cicada/oze 実走 (解消条件も docs 自身が明記) 以外に埋める道がない",
+     "【攻撃2: 帰属の誠実さ — 致命的になり得る (headline の主語を弱める)】P2-4 の +38%/+11% の実態は「critic (LLM サブエージェント) が軸を提案 → メインエージェント (Claude) がユーザー合意のもと patch 実装と sweep grid 設計」(worklog 2026-06-22:636-649) であり、リーク制御下の自律 coder 合成ではない。『AI がワークロード特化 CC を自動合成するシステム』という一言 (paper-story:13) と現実の「人間が舵を取る AI 支援研究」のギャップは、査読者が最初に突く点。緩和材料はある (critic の軸提案は sweep 実施前 = 答えが存在しない時点だった、P2-5 では critic-experiment.md の literal 物理削除まで監査済み) が、合成の headline を張るには Phase 3 のリーク制御付き coder 実走 (phase3.md 残存リスク節が未設計と自認) が不可欠で、現時点では反論不能",
+     "【攻撃3: 「certified なまま」の但し書き — 致命的 (headline の正しさ主張を直撃) だが解消は安価】certified は検証 workload (tuple200/thread4) 上で、+38% を測った性能 workload (1m/thread48) の trace は未検証 (paper-story:71、S2 未消化)。correctness-inert は「backoff は timing のみ」という機序論証による外挿。さらに verifier の保証自体が committed-only trace の G2 検出 (G1a/G1b は原理的に観測不能、isolation-phenomena.md) + 開発相の短 trace 1 run で、検証相 (seed×N・長 extime) は未実装 (phase3.md 段 6 タスク f)。『certified serializable』という語の強さと実態の差は必ず突かれる。S2 消化 + 検証相配線で大部分反論可能になる",
+     "【攻撃4: baseline 公平性 — 中程度 (silo 内は堅牢、外は穴)】silo 内比較は floor 丸め・分布比較・cross-run 再現まで固く、「測定が雑」という攻撃には反論可能。しかし phase3.md:32-33 自身が認める通り (a) grid 定数 (kIncrBackoff=100us) を調整した適応 backoff とは未比較 —「デフォルトの下手な適応にしか勝っていない」と言われたら現 docs では返せない、(b) mocc 等クロスプロトコル stock 最良が write-heavy で silo+static-backoff を上回る可能性は未検証 (失敗条件 (d) の「ベース選定を誤っただけ」シナリオ)。また Polyjuice/CCaaLF に対し差別化を主張しながら実証比較がゼロで、性能でも説明可能性の定性比較でも並べていない",
+     "【攻撃5: negative result の解釈の飛躍 — 中程度 (scoped ゆえ致命的ではないが外挿すると危険)】P2-5 の「誘導は貪欲を超えず deceptive で有害」は単一モデル (opus)・単一プロンプト・n=12 系列・8 点空間・replay での結果。insight 自身が「実効 workload n=2、k 依存は 2 点で一般化しない」と明記しており主張は誠実に scoped されているが、論文で「評価器の過信は deceptive 信号下で負債」と一般化した瞬間に「プロンプト固有の失敗では?」の攻撃が刺さる (プロンプト/モデル変種の対照が無い)。また「フラグ探索は自明」は 8 genome という構築上自明な空間からの帰結で、査読者は「自明と分かっている空間で LLM が勝てないのは発見か?」と問う — deceptive 帯の定量 (誤収束 8/12, p=2.52×10⁻⁴) だけが非自明な部分",
+     "【攻撃6: 単一ハードウェアの外的妥当性 — 中程度 (限定主張に落とせば非致命)】全性能数値が Dell R760 1 台 (2 NUMA/96 スレ) 由来で、第二マシンでの方向再現すら無い。sweet spot (5-10us) や spin 希釈の機序は CPU 世代・NUMA 構成に依存し得る。worklog 2026-07-03:1431 が「外的妥当性 (Threats to Validity) の集約が無い」を未消化課題と自認したまま。env タグ規律 (D10) のおかげで「この環境での主張」に退却は可能だが、workload 特化を売る論文が環境特化を制御していないのは皮肉として突かれる",
+     "【攻撃7: 貢献の薄さと会議適合 — 構造的】現時点の最強の実証結果 (+38%) は D18 自身が「contention management は数十年の蓄積、単体新規性を主張しない」と線を引く backoff チューニングであり、DB 会議の読者には手法貢献に見えない。方法論 (新規性主張 5) を主貢献にすると VLDB/SIGMOD の evaluation 文化と噛み合わず、MLSys 系に持ち込むとベンチマークの狭さ (CCBench 単体・YCSB のみ) が刺さる。Phase 3 主実験が成立するまで、どの会議にも「主結果がない」状態 — paper-story 自身が headline の移動を計画上確定と書いている通り、投稿は時期尚早",
+     "【攻撃8: LLM 依存の再現性 — 軽微だが記載必須】誘導アーム・critic・coder の挙動は非決定な商用モデル依存で seed 固定不能。P2-5 のモデル素性 (opus/Bash のみ) が本文系文書に未記載 (paper-story §5 チェックリスト項目) であり、replay 基盤と WAL proof chain が計測側の再現性を担保する一方、LLM 側は「同じ実験は二度とできない」— 限界として明記する以外の対処がない"
+    ],
+    "actionable": [
+     "【最優先】Phase 3 主実験 (phase3.md 段 6) を事前登録どおり完遂する — 特にベースライン 4 (人間命名 + 機械 sweep) と coder リーク制御 (残存リスク節が未設計と自認) の実体化。これが攻撃 2 (帰属) と攻撃 7 (主結果の不在) への唯一の構造的反論であり、これ無しの投稿はしない",
+     "【安価で効果大】S2 を消化する: certify workload を perf workload の縮小版に揃え、+38%/+11% の trace を実計測構成で verify し直す。paper-story §5 チェックリスト第 1 項の解消条件そのもので、headline の『certified なまま』を但し書きなしにできる。あわせて検証相 (seed×N・長 extime) を最終候補に配線 (段 6 タスク f)",
+     "【一般化の最小反論】S1 (trace-hook の別 protocol 移植) + cicada (2⁶)/oze (2⁷) への空間拡大を実走し、(i) クロスプロトコル stock 対照 (headline 2) を成立させ、(ii) P2-5 の「空間が広ければ誘導に価値が出るか」を 1 点でも検証する。silo 単体のままでは攻撃 1 に回答がない",
+     "【baseline 補強】grid 定数を調整した適応 backoff (kIncrBackoff を 5-10us 刻みに変えた stock) を対照に追加する。「+38% は下手なデフォルトへの勝利」という攻撃を、「調整済み適応でも静的最良に届かない/届く」の実測で決着させる。phase3.md:32 が自認する穴で、sweep 1 本で埋まる",
+     "【執筆前必須】Threats to Validity 節を新設し集約する (worklog 2026-07-03 の未消化課題): 単一ハードウェア・単一動作点・YCSB のみ・単一 LLM/プロンプト・committed-only trace の観測限界 (G1a/G1b)・reps=5 の検定力。paper-story §5 の 11 項目をこの節の骨組みに流用できる",
+     "【帰属の透明化】P2-4 の寄与分解表を機械可読で固定する: 「軸の提案 = critic (LLM, 提案時点で sweep データ不在)/実装と grid 設計 = メインエージェント/承認 = 人間」。P2-5 で critic-experiment の素性 (opus/Bash のみ) を実験条件に明記するのと同列に、全ケーススタディで『誰が何をしたか』を表にする — 攻撃 2 を「隠していた」から「測って報告した」に転換できる",
+     "【negative result の頑健化】誘導アームをプロンプト変種 1 つ (最低限) で追試し、「自信ある早期停止の負債」がプロンプト固有でないことを確認する — replay 基盤があるので新規計測ゼロで安価。できなければ「単一プロンプト・単一モデルの結果」を限界節に明記し、一般化主張を落とす",
+     "【可能なら】第二ハードウェア (別世代 x86 かクラウドインスタンス) で headline の方向 (符号) のみ再現する。sweet spot の値が動いてよい —「workload 特化の最適値は環境依存であり、それを自動で見つけ直すのが本システム」という論旨にむしろ合致する",
+     "【投稿戦略】Phase 3 完了 + 空間拡大まで揃えば VLDB/SIGMOD 本会議、揃う前に外部発表が必要なら aiDM@SIGMOD / MLSys 系ワークショップで方法論 + negative result を先行させ、本会議には主実験を温存する。1 本に全部詰めず、副産物 (verifier 二重実証 + G2 定理 + CCBench バグ発見) の切り出しも検討する"
+    ],
+    "lens": "reviewer-attack"
+   }
+  ]
+ }
+}
