@@ -101,6 +101,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
         # 動いていると「今の tree と食い違うバイナリ」を今の key で返してしまう。
         _recheck_src_token(genome, ccbench_commit, sub, cxx, src_token,
                            bdir, built_fresh=False)
+        _assert_trace_diff(genome, ccbench_commit, sub, cxx, bdir, built_fresh=False)
         if not trace:
             _assert_no_trace_symbols(binary)     # 規律1: 既存 perf binary も継続検査
         return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=True,
@@ -116,6 +117,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     # src_token を再計算して照合し、不一致は build dir ごと破棄して fails-closed。
     _recheck_src_token(genome, ccbench_commit, sub, cxx, src_token,
                        bdir, built_fresh=True)
+    _assert_trace_diff(genome, ccbench_commit, sub, cxx, bdir, built_fresh=True)
     if not trace:
         _assert_no_trace_symbols(binary)         # 規律1: 新規 perf binary に trace 漏れが無いか
     return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=False,
@@ -150,6 +152,25 @@ def _recheck_src_token(genome: Genome, ccbench_commit: str, sub: str, cxx: str,
             "resolve→build 間に working-tree が動いた。汚染バイナリを共有キャッシュに"
             f"永続させないため{'破棄して' if built_fresh else ''}停止する "
             "(fails-closed, phase3.md blocking / D30)")
+
+
+def _assert_trace_diff(genome: Genome, ccbench_commit: str, sub: str, cxx: str,
+                       bdir: str, built_fresh: bool) -> None:
+    """build 出口の観測者効果二重検査 (diff-of-diffs、規律1 の一次防壁)。
+
+    発火単位 = 毎 variant の trace/perf ビルド直後 (phase3.md タスク定義)。nm の
+    name-based 検査 (_assert_no_trace_symbols) は data-structure 観測者効果と
+    #ifdef TRACE 内側への挙動差隠蔽を見逃す — その補完で、述語の実体は
+    source_digest.assert_trace_diff_matches_head。不一致・preprocess 失敗の variant
+    バイナリは規律1 違反 (検証コードが perf ビルドに混入しうる) の疑いを晴らせないので、
+    新規ビルドは build dir ごと破棄して共有キャッシュに残さない (_recheck_src_token と
+    同じ非対称: cache hit 側は既存の正当な成果物なので破棄せず停止のみ)。"""
+    try:
+        source_digest.assert_trace_diff_matches_head(genome, ccbench_commit, sub, cxx)
+    except RuntimeError:
+        if built_fresh:
+            _discard_build_dir(bdir)
+        raise
 
 
 def _discard_build_dir(bdir: str) -> None:

@@ -41,11 +41,12 @@ Phase 3 では coder (LLM) が CCBench の EVOLVE-BLOCK 領域を書き換える
 """
 from __future__ import annotations
 
+import difflib
 import hashlib
 import os
 import re
 import subprocess
-from typing import Dict, Iterable
+from typing import Dict, Iterable, List
 
 from .model import Genome
 
@@ -191,6 +192,59 @@ def assert_includes_match_head(genome: Genome, ccbench_commit: str,
                 "coder の #include 追加/差し替えは preprocess 後 digest に現れず偽 cache hit "
                 "の死角になるため停止 (phase3.md 閉じた領域制約 / 2026-07-03 敵対検証 high)。\n"
                 f"  HEAD: {base!r}\n  現在: {cur!r}")
+
+
+def _trace_pair_diff(source_text: str, defines: Dict[str, str], cxx: str) -> List[str]:
+    """TRACE=1 と TRACE=0 の正規化出力の差分**内容** (unified diff の +/- 行のみ)。
+
+    ハンクヘッダ (@@ 行番号) は比較素材から除外する — variant の正当な payload 編集
+    (TRACE 非依存) でも行数が動けばハンク位置はずれるため、位置を比較に入れると
+    偽陽性になる。差分の中身 (どの行が TRACE で増減するか) だけを見る。
+    TRACE は最後に明示上書きする (Options.cmake の CCBENCH_TRACE 既定 0 に依存しない。
+    genome.flags への TRACE 混入は model.Genome が禁止済み)。"""
+    d1 = dict(defines, TRACE="1")
+    d0 = dict(defines, TRACE="0")
+    p1 = _cpp_normalize(source_text, d1, cxx)
+    p0 = _cpp_normalize(source_text, d0, cxx)
+    diff = difflib.unified_diff(p0.splitlines(), p1.splitlines(), n=0, lineterm="")
+    return [ln for ln in diff
+            if ln[:1] in "+-" and not ln.startswith(("+++", "---"))]
+
+
+def assert_trace_diff_matches_head(genome: Genome, ccbench_commit: str,
+                                   ccbench_dir: str = "", cxx: str = "g++-13") -> None:
+    """観測者効果の二重検査 — diff-of-diffs (phase3.md blocking / D30 一次防壁)。
+
+    述語: working-tree の preprocess(TRACE=1) − preprocess(TRACE=0) の差分 D_variant が、
+    pinned HEAD から同様に取った D_stock と**一致**する。つまり「variant が TRACE 条件付き
+    コードを追加/改変していない = trace/perf ビルドの差は stock の trace-hook 由来のみ」を
+    機械保証する (規律1: 観測者効果の分離)。nm の name-based 検査 (_assert_no_trace_symbols)
+    が見逃す data-structure 観測者効果・`#ifdef TRACE` の内側に挙動差を隠す攻撃も、
+    D_variant≠D_stock として捕える。対象 = EVOLVE_BLOCK_SOURCES (coder の編集面全体。
+    それ以外の worktree 改変は assert_worktree_within_allowlist が既に遮断)。
+
+    fails-closed: diff 不一致・preprocess 取得不能 (RuntimeError 伝播) とも abort
+    (警告に格下げしない)。**保証しないこと (正直に):** 検証専用メタデータが #if TRACE の
+    **外** (両ビルド共通) に常駐するケースはこの述語では判定不能 — その場合コストは perf
+    ビルドにも乗り fitness が自己ペナルティを受けるため false-green にはならず、意味判定は
+    auditor / 人間レビュー領域 (phase3.md タスク定義)。"""
+    sub = ccbench_dir or _ccbench_dir()
+    cur_defaults = parse_options_defaults(_read(os.path.join(sub, OPTIONS_CMAKE)))
+    head_defaults = parse_options_defaults(_git_show(sub, ccbench_commit, OPTIONS_CMAKE))
+    for rel in EVOLVE_BLOCK_SOURCES:
+        d_var = _trace_pair_diff(_read(os.path.join(sub, rel)),
+                                 _merge_defines(cur_defaults, genome.flags), cxx)
+        d_stock = _trace_pair_diff(_git_show(sub, ccbench_commit, rel),
+                                   _merge_defines(head_defaults, genome.flags), cxx)
+        if d_var != d_stock:
+            raise RuntimeError(
+                f"source_digest: 観測者効果の二重検査 (diff-of-diffs) 不一致 — {rel} の "
+                "TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と食い違う。variant が "
+                "TRACE 条件付きコードを追加/改変した疑い (規律1: 検証コードの perf ビルド混入、"
+                "または #ifdef TRACE 内側への挙動差の隠蔽) → fails-closed で停止 "
+                "(phase3.md blocking / D30)。\n"
+                f"  D_stock ({len(d_stock)} 行): {d_stock[:8]!r}\n"
+                f"  D_variant ({len(d_var)} 行): {d_var[:8]!r}")
 
 
 def baseline(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",

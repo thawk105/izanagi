@@ -1159,6 +1159,7 @@ def test_buildcache_cache_hit_rechecks_identity():
         return types.SimpleNamespace(
             STOCK="stock",
             assert_worktree_within_allowlist=lambda *a, **k: None,
+            assert_trace_diff_matches_head=lambda *a, **k: None,
             resolve=lambda *a, **k: resolved)
 
     try:
@@ -1199,6 +1200,7 @@ def test_build_cache_miss_wires_recheck():
         return types.SimpleNamespace(
             STOCK="stock",
             assert_worktree_within_allowlist=lambda *a, **k: None,
+            assert_trace_diff_matches_head=lambda *a, **k: None,
             resolve=lambda *a, **k: resolved)
 
     saved_sd, saved_run = buildcache.source_digest, buildcache._run
@@ -1216,6 +1218,132 @@ def test_build_cache_miss_wires_recheck():
         br = buildcache.build(g, head, trace=True, cache_root=root,
                               ccbench_dir=sub, src_token="stock")
         assert not br.cached and os.path.exists(br.binary)   # 一致なら新規ビルドが返る
+    finally:
+        buildcache.source_digest, buildcache._run = saved_sd, saved_run
+
+
+_FAKE_BACKOFF_TRACED = (
+    '#include "tsc.hh"\n'
+    "class Backoff {\n"
+    "public:\n"
+    "  static int wait() {\n"
+    "#if TRACE\n"
+    "    int trace_hits = 1;\n"
+    "#else\n"
+    "    int trace_hits = 0;\n"
+    "#endif\n"
+    "#if BACK_OFF\n"
+    "    return 1 + trace_hits;\n"
+    "#else\n"
+    "    return trace_hits;\n"
+    "#endif\n"
+    "  }\n"
+    "};\n")
+
+
+def test_trace_diff_of_diffs_predicate():
+    """観測者効果の二重検査 (diff-of-diffs, phase3.md blocking / D30 一次防壁):
+    (a) stock は通過、(b) TRACE 非依存の payload 編集も通過 (正当な編集を巻き込まない)、
+    (c) variant が #if TRACE の挙動差を追加したら fails-closed abort — nm の name-based
+    検査では捕えない C++ ソースレベルの TRACE 混入 (規律1)。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    source_digest.assert_trace_diff_matches_head(g, head, sub)       # (a) stock 通過
+    with open(hh, "w", encoding="utf-8") as f:                       # (b) TRACE 非依存の編集
+        f.write(_FAKE_BACKOFF_HH.replace("return 1;", "return 2;"))
+    source_digest.assert_trace_diff_matches_head(g, head, sub)
+    with open(hh, "w", encoding="utf-8") as f:                       # (c) TRACE 挙動差の混入
+        f.write(_FAKE_BACKOFF_HH.replace(
+            "return 1;", "#if TRACE\n    int leak = 1;\n#endif\n    return 1;"))
+    try:
+        source_digest.assert_trace_diff_matches_head(g, head, sub)
+        assert False, "TRACE 条件付きコードの追加で abort すべき"
+    except RuntimeError as e:
+        assert "diff-of-diffs" in str(e)
+
+
+def test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit():
+    """HEAD 自体が trace-hook (#if TRACE) を持つ場合の diff-of-diffs:
+    (a) 未改変 worktree は D_variant == D_stock (両方非空) で通過 = 正当な trace-hook
+    差分は許容。(b) ガードより前への行追加も通過 — ハンク位置 (@@ 行番号) を比較に
+    入れないので、TRACE 非依存の編集で差分位置がずれても偽陽性にならない。
+    (c) #if TRACE の内側の挙動差改変は D_variant≠D_stock で abort — 旧 nm 検査が
+    素通しした「#ifdef TRACE 内側に挙動差を隠す攻撃」(GW2R-1 系) の閉塞。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, _head, git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_TRACED)
+    git("add", "-A")
+    git("commit", "-q", "-m", "traced stock")
+    head2 = git("rev-parse", "HEAD").strip()
+    source_digest.assert_trace_diff_matches_head(g, head2, sub)      # (a)
+    with open(hh, "w", encoding="utf-8") as f:                       # (b) ガード前に行追加
+        f.write(_FAKE_BACKOFF_TRACED.replace(
+            "  static int wait() {\n",
+            "  static int wait() {\n    int pad = 0; (void)pad;\n"))
+    source_digest.assert_trace_diff_matches_head(g, head2, sub)
+    with open(hh, "w", encoding="utf-8") as f:                       # (c) ガード内改変
+        f.write(_FAKE_BACKOFF_TRACED.replace("int trace_hits = 1;",
+                                             "int trace_hits = 2;"))
+    try:
+        source_digest.assert_trace_diff_matches_head(g, head2, sub)
+        assert False, "#if TRACE 内側の改変で abort すべき"
+    except RuntimeError:
+        pass
+
+
+def test_build_wires_trace_diff_check():
+    """結線検査: build() の cache-hit / fresh 両経路が観測者効果二重検査を駆動する
+    (発火単位 = 毎 variant の trace/perf ビルド直後, phase3.md)。不一致は fresh なら
+    build dir ごと破棄 (規律1 違反疑いのバイナリを共有キャッシュに残さない)、hit なら
+    破棄せず停止のみ (_recheck_src_token と同じ非対称)。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    root = _tmpdir("izanagi_dod_root_")
+    key = buildcache.cache_key(g, head, trace=True, src_token="stock")
+    binary = os.path.join(root, key, "cc", "silo", "ycsb_silo.exe")
+
+    def _sd(trace_diff_raises):
+        def _atd(*a, **k):
+            if trace_diff_raises:
+                raise RuntimeError("diff-of-diffs 不一致 (テスト注入)")
+        return types.SimpleNamespace(
+            STOCK="stock",
+            assert_worktree_within_allowlist=lambda *a, **k: None,
+            assert_trace_diff_matches_head=_atd,
+            resolve=lambda *a, **k: "stock")
+
+    def fake_run(cmd, what):
+        if what == "build":
+            os.makedirs(os.path.dirname(binary), exist_ok=True)
+            with open(binary, "w") as f:
+                f.write("fake-binary")
+
+    saved_sd, saved_run = buildcache.source_digest, buildcache._run
+    try:
+        buildcache._run = fake_run
+        buildcache.source_digest = _sd(trace_diff_raises=True)
+        try:                                     # fresh: 不一致 → 破棄 + 停止
+            buildcache.build(g, head, trace=True, cache_root=root,
+                             ccbench_dir=sub, src_token="stock")
+            assert False, "fresh build で diff-of-diffs 不一致なら停止すべき"
+        except RuntimeError as e:
+            assert "diff-of-diffs" in str(e)
+        assert not os.path.exists(os.path.join(root, key))   # fresh は dir ごと破棄
+        buildcache.source_digest = _sd(trace_diff_raises=False)
+        br = buildcache.build(g, head, trace=True, cache_root=root,
+                              ccbench_dir=sub, src_token="stock")
+        assert not br.cached                     # 通過なら新規ビルドが返る
+        buildcache.source_digest = _sd(trace_diff_raises=True)
+        try:                                     # hit: 検査は走る・破棄はしない
+            buildcache.build(g, head, trace=True, cache_root=root,
+                             ccbench_dir=sub, src_token="stock")
+            assert False, "cache hit でも diff-of-diffs 検査が走るべき"
+        except RuntimeError:
+            pass
+        assert os.path.exists(binary)            # hit 側は破棄しない
     finally:
         buildcache.source_digest, buildcache._run = saved_sd, saved_run
 
