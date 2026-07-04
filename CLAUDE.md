@@ -1,6 +1,6 @@
 # CLAUDE.md — Izanagi 作業指示書
 
-このファイルは Claude Code がセッション開始時に読む。**実装を始める前に、まずこれを読み、次に下記の docs を読むこと。**
+このファイルは Claude Code がセッション開始時に読む。**実装を始める前に、まずこれを読み、次に「現在地」が指す正本 2 つを読むこと。**
 
 ---
 
@@ -8,24 +8,24 @@
 
 **ワークロード特化の並行性制御 (CC) を AI が自動合成するシステム。** CCBench を素材コーパスとして使い、入力ワークロードに最適な CC を作る。最終成果物は「新しい CC + なぜ速いかの説明 + 試行錯誤の記録」。
 
-設計の全体像と理由は `docs/roadmap.md` にある。読まずに実装を始めてはいけない。
+設計の全体像と理由は `docs/roadmap.md`。**全文を読むのは Phase の初回セッションと roadmap 改訂時のみ** — 日常セッションでは現行タスクが参照する節だけを節名で引く (roadmap 冒頭の「読み方」、D35)。
 
 ---
 
 ## 現在地
 
-**現在 Phase 3 (合成)。** この節は状態の**ポインタ**であり、詳細な状態はここに書かない (可変状態の再掲は必ず腐る — 2026-07-05 の文書恒久対応、経緯は worklog)。**セッション開始時に必ず次の 2 つを読むこと:**
+**現在 Phase 3 (合成)。** この節は状態の**ポインタ**であり、詳細な状態はここに書かない (可変状態の再掲は必ず腐る — 2026-07-05 の文書恒久対応)。**セッション開始時に必ず次の 2 つを読むこと:**
 
-- `docs/worklog.md` の**末尾エントリ** — 直近の実績と「次の一手」。可変状態の正本
+- `docs/worklog.md` の**末尾エントリ** — 直近の実績と「次の一手」。可変状態の正本。まず `grep -n "^## \|^### 次の一手" docs/worklog.md` で末尾エントリの位置を特定して**そこだけ** offset 指定で読む。経緯・過去分は必要になったときだけ遡る (Phase 1〜2 分は `docs/worklog-phase1-2.md` にローテーション済み)
 - **現行 phase doc (`docs/phase3.md`) のチェックリストと must 表** — タスク粒度の完了状況の正本
 
-中断セッションの引き継ぎと並行セッションの宣言は `docs/handoff/` を見る (運用は同ディレクトリの README)。過去 Phase の経緯は各 phase doc の冒頭と worklog、設計判断は `docs/decisions.md` (D 番号)。
+`docs/handoff/` は ls で確認し、残ファイルがあればそれを読む (中断セッションの引き継ぎ + 並行セッションの宣言板。**空なら README を読む必要はない** — 運用は「作業の進め方 8」に要約済み)。設計判断は `docs/decisions.md` (D 番号、引き方は「主要ドキュメント」節)。
 
-**submodule 改変は D16/D18/D20 で行き先を分岐**: 本物のバグ修正→`master` 還元 (ODR fix #118 / WAL XOR #116)、trace-hook→`izanagi-trace` (submodule pin = dff0f1e)、`patches/` 行き = 意図的バグ broken-silo / 合成 variant `BACKOFF_FIXED` (D18) / 診断計器 `BACKOFF_NOINLINE` (D20)。push は人間。
+submodule 改変の行き先は D16/D18/D20 で三分岐 (本物のバグ修正 → 上流 `master` 還元 / trace-hook → `izanagi-trace` ブランチ = submodule pin / 意図的バグ・合成 variant・診断計器 → `patches/`)。push は人間。
 
-**Linux 実機 (計測層) 確保済み。** 開発・計測ともこの Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) で行う。D10 の「Mac devcontainer=開発層 / Linux=計測層」の二層は、実機がこのホストに集約されたことで開発層も Linux 実機側に寄った (devcontainer 経路は維持するが必須でない)。性能数値は env=linux-baremetal タグ付きで記録する (orchestrator-design.md の環境タグ)。phase1.md の [Mac]/[Linux] タグは「機能/性能」の区別として読み替える (どちらも本ホストで実行可能)。
+**環境:** 開発・計測とも Linux 実機 (Dell R760, bare-metal x86_64, 96スレ/2NUMA, perf HW カウンタ動作) に集約済み。**計測層で取った数値以外を性能比較に使わない** (Mac/VM 越しの数値は歪む — この規律は不変)。性能数値は env=linux-baremetal タグ付きで記録する (orchestrator-design.md の環境タグ)。submodule は **thawk105/ccbench v1** を使う (v2 ではない)。二層戦略の経緯と理由は D10。
 
-実装の進め方は現行 phase doc の番号付きタスク。**設計が動いた点・実機の現状・各セッションの作業は `docs/worklog.md` に時系列で記録する** (索引兼日誌)。
+実装の進め方は現行 phase doc の番号付きタスク。各セッションの作業は `docs/worklog.md` に時系列で記録する (書式は「作業の進め方 7」)。
 
 ---
 
@@ -73,91 +73,25 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 
 ---
 
-## roadmap の更新 — 設計を進化させる権限と規律
+## roadmap の更新 — 三層の可変性
 
-roadmap は read-only の聖書ではなく **living document**。試行錯誤から「全体の絵をこう描き直した方がいい」という発見があったら、改訂に挑戦してよい。むしろ歓迎される。設計仮説の変遷記録は、そのまま論文の方法論 narrative になる。
-
-**三層の可変性:**
 - **絶対規律 (このファイルの上記セクション) = 憲法。Claude は変更してはいけない。** 変更できるのは人間のみ。roadmap がどう進化しても、正しさゲート・観測者効果の分離などの規律は不変
-- **roadmap = 戦略。Claude が改訂できる。** ただし下記の版管理規律に従う
+- **roadmap = 戦略。Claude が改訂できる。** ただし **roadmap.md を編集する前に必ず `docs/roadmap-history/README.md` (改訂セレモニーの正本) を読む** — 自律改訂は版凍結 + decisions 記録が必須、協議改訂はセレモニー不要、大改訂はユーザー確認。改訂は歓迎される (設計仮説の変遷 = 論文の方法論 narrative)
 - **phase docs / ccbench-anatomy / insights = 戦術。自由に更新してよい**
-
-**roadmap 改訂の規律 (必須手順):**
-1. 現行の docs/roadmap.md を docs/roadmap-history/vN.md にコピーして凍結する (Nは現行版数)。**過去の版は絶対に消さない・書き換えない**
-2. roadmap.md を改訂し、冒頭の版数を上げる
-3. 改訂理由 (何を試して何が分かったから設計をどう変えたか) を docs/decisions.md に D エントリとして追記する
-4. **設計判断の変更を伴う大改訂** (Phase 構成の組み替え、粒度方針の転換、スコープ外項目の取り込み等) は、改訂案を作った段階でユーザーに提示して確認を取る。軽微な改訂 (学んだ事実の反映、見積もりの修正、関連研究の追加) は確認不要で進めてよい
-
-**版管理セレモニーの適用範囲 (上記 1-3):** 版上げ・history への凍結・decisions.md への改訂理由記録は、**Claude が自律的に改訂したものを追跡するための仕組み**。その目的は「Claude が独断で設計を動かしたら後から追える」こと。
-
-- **Claude の自律改訂** (ユーザーと相談せず Claude の判断で roadmap を改訂する場合) → 手順 1-3 をフル実行する
-- **ユーザーと協議して合意した改訂** → セレモニー (1-3) は不要。通常の編集として content だけ入れる。版番号は上げない・history に凍結しない・decisions.md への「改訂理由」記録もしない。ただし、独立した設計判断として将来の読み手に価値があるなら decisions.md に D エントリを書いてよい (これは「改訂の追跡」ではなく「設計判断の記録」として)
-- どちらの場合も手順 4 (大改訂はユーザー確認) は、協議改訂なら定義上すでに満たされている
 
 ## サブエージェント
 
-`.claude/agents/` にロール定義がある。各エージェントは独立コンテキストを持ち、`tools` で権限を絞ってある。
-
-**実体化済み:**
-- `verifier` (Phase 1) — trace を読んで serializability を検査。専用書き込みツール (Edit/Write) を持たない (検証役が実装を勝手に直す事故を防ぐため)。**ただし Bash を持つため完全なツール権限レベルの隔離ではなく、書き込み禁止は prompt 規律との併用** (audit-2026-06-30 §4 の裁定)。anomaly を構造化して返す
-- `calibrator` (Phase 1) — cache miss 率を見てレコード数を決める + noise floor (within-run = 品質ゲート) を実測する
-- `critic` (Phase 2, P2-3) — leading indicators を読んで性能差を設計選択に帰属させ次手を構造化指示で返す。Edit/Write 非付与 (書き込み禁止は verifier と同じ限定つき)
-- `profiler` (Phase 2, P2-4) — 上位 variant に perf を回し many-core スケール懸念 (spin/lock/NUMA/IPC) を解釈。Edit/Write 非付与 (同上)
-
-**後続 Phase で足す (仕様は `docs/agent-architecture.md` に予約):**
-- `planner`, `coder`, `auditor` (Phase 3)
-
-これら Phase 3 ロールの `.md` は、該当 Phase に来たとき `docs/agent-architecture.md` の仕様に従って生成する。今は作らない。
-
----
+`.claude/agents/` にロール定義 (verifier / calibrator / critic / profiler、P2-5 限定の派生 critic-experiment)。各ロールの権限・規律の正本は各 `.md` と `docs/agent-architecture.md`。Phase 3 ロール (planner / coder / auditor) は該当する段に来たとき同文書の予約仕様から生成する。検証系ロール (verifier / critic / profiler) は Edit/Write 非付与 — ただし Bash を持つため完全なツール権限隔離ではなく、書き込み禁止は prompt 規律との併用 (audit-2026-06-30 §4 の裁定)。
 
 ## hooks
 
-`hooks/` に最小限の機械的防壁を置く (Python で実装)。方針 A (D30/D33) で hook は「明白な直接書き込みを止める最小の第二防壁」に限定し、`.claude/settings.json` の PreToolUse に配線済み:
-- `guard_write` — proof-chain 成果物 (WAL / campaign.lock / build-variants 等) への直接書き込みを拒否 (規律2) + variant の編集面を EVOLVE-BLOCK の designated ソースに限定 (D24)
-- `guard_bash` — 同等の書き込みを Bash 経由で行う経路を遮断
+`hooks/` の `guard_write` / `guard_bash` = 方針 A の最小第二防壁 (proof-chain 成果物への直接書き込み拒否 + variant 編集面の EVOLVE-BLOCK designated ソース限定。`.claude/settings.json` の PreToolUse に配線済み)。規律1 の内容検査は hook では行わない — 一次防壁 (source_digest 系) が担う (D30/D33)。この 2 つ以外の hook は足さない。拒否に遭ったら `hooks/README.md` を読む。
 
-規律1 (観測者効果) の内容検査は hook では行わない — 一次防壁 (source_digest の preprocess 後ハッシュ・#include HEAD 固定・diff-of-diffs) が担う (D33 で payload テキスト検査は物理削除済み)。ECC のように大量の hook を入れない。この2つの防壁だけ。詳細は `hooks/README.md` と `docs/agent-architecture.md`。
+## 主要ドキュメント
 
----
+`docs/` — roadmap.md (設計と理由) / decisions.md (設計判断と却下案、D 番号) / phase1〜3.md (タスク分解。チェックリスト = 完了状況の正本。phase1/2 は完了・凍結) / phase3-main-experiment.md (主実験の事前登録) / worklog.md (日誌。末尾エントリ = 可変状態の正本。過去分は worklog-phase1-2.md) / handoff/ (セッションの WAL) / agent-architecture.md / orchestrator-design.md (ACID/WAL/排他) / ccbench-anatomy.md (CCBench 構造調査) / glossary.md (用語集) / related-work.md (関連研究)。成果物は `output/` (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。
 
-## リポジトリ構成
-
-```
-izanagi/
-├── CLAUDE.md                  ← このファイル
-├── README.md
-├── docs/
-│   ├── roadmap.md             ← 全設計と理由 (まず読む)
-│   ├── decisions.md           ← 個別の設計判断と却下した選択肢
-│   ├── phase1.md〜phase3.md   ← 各 Phase のタスク分解 (チェックリスト = 完了状況の正本)
-│   ├── worklog.md             ← 時系列日誌。末尾エントリ = 可変状態の正本
-│   ├── handoff/               ← セッション引き継ぎ (セッションの WAL)。運用は同 README
-│   ├── agent-architecture.md  ← サブエージェント構成と段階導入計画
-│   ├── orchestrator-design.md ← orchestrator の設計原則 (ACID/WAL/排他制御)
-│   └── ccbench-anatomy.md     ← タスク0で作る。CCBench の構造調査結果
-├── .claude/agents/            ← サブエージェント定義
-│   ├── verifier.md            (Phase 1)
-│   ├── calibrator.md          (Phase 1)
-│   ├── critic.md              (Phase 2, P2-3)
-│   └── profiler.md            (Phase 2, P2-4)
-├── hooks/                     ← Python の機械的防壁 (第二防壁。配線は .claude/settings.json)
-├── tools/                     ← 開発補助 (check_docs.py = 文書一貫性 lint)
-├── orchestrator/              ← 探索ループの中枢 (Python)。Phase進行で実装
-├── external/ccbench/          ← submodule (タスク0で追加)
-└── output/                    ← 全成果物。campaigns/<id>/ (入力依存: WAL+reports) と env/<tag>/ (入力非依存: calibration + profile) の二軸 (D13。詳細 output/README.md)
-```
-
----
-
-## 環境の二層戦略 (D10)
-
-**現状 (2026-06): 開発・計測とも Linux 実機 (Dell R760) に集約済み。Mac devcontainer は維持するが必須でない (「現在地」§の Linux 実機の段落を参照)。以下は当初の二層設計の記録 — 「計測層で取った数値以外を性能比較に使わない」規律は不変。**
-
-- **開発層 = この devcontainer (Mac 上)**: CCBench のビルド・trace 検証・verifier・orchestrator 開発 (当初は Phase 1 タスク0-3 をここで完結とした)
-- **計測層 = Linux 実機**: 性能ベンチと calibration。**Mac 上の Docker では HW PMU が取れず perf の cache miss 計測が動かない。性能数値も VM 越しで歪むため、計測層で取った数値以外を性能比較に使ってはいけない**
-- devcontainer の構成は `.devcontainer/` にある。CCBench submodule 追加後は post-create.sh が ubuntu.deps を読んで依存を入れる
-- submodule は **thawk105/ccbench (v1)** を使う。v2 ではない (10 プロトコル (YCSB 対応 7) × 最適化フラグ群のコーパスが揃うのは v1、実体調査は ccbench-anatomy.md)
+**大きい参照文書の引き方 (D35):** `decisions.md` (≈100KB) と `glossary.md` (≈39KB) は**全文 Read しない**。decisions は `grep -n "^## D" docs/decisions.md` がそのまま目次になる — 特定の D は見出し行から次見出しまでを offset 指定で部分 Read する (1 エントリ平均 23 行)。glossary も用語を grep して該当項目だけ読む。worklog 過去分・audit 系・insights も同様に grep で絞り、全読はサブエージェントに委ねて構造化された結論だけ受け取る。
 
 ## 言語方針
 
@@ -170,10 +104,11 @@ izanagi/
 
 ## 作業の進め方
 
-1. このファイルを読み、「現在地」が指す正本 (worklog 末尾エントリ・現行 phase doc) と `docs/roadmap.md` を読む
+1. このファイル → 「現在地」が指す正本 2 つ (worklog 末尾エントリ・現行 phase doc) の順に読む。roadmap は現行タスクが参照する節のみ (Phase 初回だけ全文)
 2. 現行 phase doc のタスクを上から順に潰す
-3. 設計判断で迷ったら `docs/decisions.md` を引く (なぜその選択をしたか・何を却下したかが書いてある)
+3. 設計判断で迷ったら decisions.md の該当 D だけを grep で引く (「主要ドキュメント」節の引き方)
 4. CCBench 自体のバグ等を見つけたら `output/insights/` に構造化レポートを吐き、「還元判断: ユーザー確認待ち」を付ける。勝手に上流へ PR を出さない
-5. **セッション運用 (コンテキスト劣化対策):** 自動圧縮 (auto-compact) が入ったら新しいサブタスクを始めず、区切りで worklog / handoff を書いてセッションを終える。生 trace・生ビルドログ・WAL 全文はメインコンテキストに読み込まず、サブエージェント / digest 経由で構造化された結論だけ受け取る。圧縮後に編集するファイルは必ず再読する。詳細は `docs/roadmap.md` §3.8 (D31)
+5. **セッション運用 (コンテキスト劣化対策):** 自動圧縮 (auto-compact) が入ったら新しいサブタスクを始めず、区切りで worklog / handoff を書いてセッションを終える。生 trace・生ビルドログ・WAL 全文はメインコンテキストに読み込まず、サブエージェント / digest 経由で構造化された結論だけ受け取る。圧縮後に編集するファイルは必ず再読する。詳細は roadmap §3.8 (D31)
 6. **文書一貫性の規律 (2026-07-05 恒久対応):** 可変状態 (完了状況・現在 Phase・次の一手) の正本は worklog 末尾と現行 phase doc のみ — 他文書への再掲は禁止 (参照のみ)。docs 間の行番号参照は禁止 (追記で必ずずれるため節名で参照する)。タスクを完了させる変更では、所有 phase doc のチェックボックス更新を**同じコミットに含める** (完了の定義に含む)。セッション末に worklog エントリを書き、`python3 tools/check_docs.py` (文書 lint) を実行する
-7. **セッション継続 (handoff):** 中断は同一セッションの再開を優先。新セッションは `docs/handoff/` に残っているファイルを読んでから始める。作業セッションは `docs/handoff/<日付>-<タスク短名>.md` を**節目ごとに**上書き更新し (40 行上限)、正常終了時は worklog に吸収してファイルを削除する。並行セッションの宣言板も兼ねる (監査セッションは基準コミットを、計測セッションは「計測中」を宣言)。詳細は `docs/handoff/README.md`
+7. **worklog の書式 (D35。新エントリから適用、過去エントリは凍結):** worklog には **git に入り得ない情報だけ**を本文化する — ユーザー承認・協議の決着 / 棄却された指摘 (refuted) / 未コミット事象・セッション異常と救出 / エージェント工数 / 人間判断待ち・持ち越し / 次の一手。コミット内容の再説明は書かない — コミット言及は「hash + 件名 (+位置づけ 1 行)」まで、連続コミット群は「先頭..末尾 (N 本)」の範囲表記にする (個別列挙の帰属漏れも構造的に防ぐ)。監査エントリは一次資料 (finding 全文・裁定) を insight / audit JSON に凍結し、worklog はレンズ数・real/refuted 数・最重要 1〜3 件・一次資料ポインタの 10〜15 行に留める。論文素材になる段落には行頭「素材:」を付ける (収穫セッションが grep で回収できるように)。持ち越し事項の逐語再掲は禁止 — 「変わらず (前エントリ参照)」の 1 行にする。docs(worklog) だけのコミットは本文なし (件名のみ)。Phase 境界で過去分を `worklog-<範囲>.md` へ移動する (ローテーション。アーカイブは凍結・訂正注記のみ可)
+8. **セッション継続 (handoff):** 中断は同一セッションの再開を優先。作業セッションは `docs/handoff/<日付>-<タスク短名>.md` を**節目ごとに**上書き更新し (40 行上限)、正常終了時は worklog に吸収してファイルを削除する。並行セッションの宣言板も兼ねる (監査セッションは基準コミットを、計測セッションは「計測中」を宣言)。詳細・定型は `docs/handoff/README.md`
