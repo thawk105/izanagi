@@ -78,7 +78,7 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 - **役割:** N iteration ごとに variant を監査し、verifier が見逃した不変条件違反 (reward hack) を見つけてテストを追加する (Jitskit の auditor)
 - **tools:** コード読み取り、テスト追加の書き込み
 - **model:** 強いモデル (adversarial な reasoning が要る)
-- **規律:** 最適化を担当するエージェント (planner/coder) とコンテキストを分離する。見張り役が最適化圧力に毒されないため。CC 版の reward hack ギャラリー (roadmap §7, Jitskit Appendix B の CC 翻訳) を参照する
+- **規律:** 最適化を担当するエージェント (planner/coder) とコンテキストを分離する。見張り役が最適化圧力に毒されないため。CC 版の reward hack ギャラリー (related-work.md の Jitskit 節, Appendix B の CC 翻訳) を参照する
 
 > **Phase 3 設計時の参考: Google eng-practices** (github.com/google/eng-practices)。コードレビュー規範を reviewer 側と author 側の両方向で定義している。Izanagi の coder = author / auditor = reviewer に写像でき、coder の「レビューしやすい diff (EVOLVE-BLOCK を最小に、意図を明示)」と auditor の「何を見るか」のチェックリストの原料になる。**今は参照しない (Phase 3 で auditor/coder の `.md` を書くとき具体化する)。**
 
