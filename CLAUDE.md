@@ -14,17 +14,18 @@
 
 ## 現在地
 
-**Phase 2: パラメータ探索 — 完了。次は Phase 3 (合成) 着手。** Phase 1 (評価器) は完了済み: CCBench を submodule で全ビルド (解剖 `docs/ccbench-anatomy.md`)、mini trace verifier (`orchestrator/verifier/`、Adya DSG で G2 検出。赤検出を broken-silo `patches/broken-silo-norw-validation.patch` と本物 `si` の 2 ablation で実証)、calibrator (`orchestrator/calibrator/`、TSC 実測 1800MHz・perf+numactl runner・倍々スイープ・**D15 下限基準**で records=1m/skew0.9/48thread 確定)。Phase 1 完了監査 (B→A) で評価パイプライン硬化済み (admission fails-closed, zero-txn ガード, trace シンボル assert)。詳細は worklog 前半。
+**現在 Phase 3 (合成)。** この節は状態の**ポインタ**であり、詳細な状態はここに書かない (可変状態の再掲は必ず腐る — 2026-07-05 の文書恒久対応、経緯は worklog)。**セッション開始時に必ず次の 2 つを読むこと:**
 
-**Phase 2 (`docs/phase2.md`) は P2-0〜P2-5 + A2 完了**: silo 有効 8 genome (no-wait XOR) を実 fitness で全探索 (P2-2、workload 別最速を WAL + 材料レポートで特定)、leading indicators を WAL 記録し **critic 実体化** (P2-3)、**profiler 実体化** (P2-4、perf record で backoff の spin 命令を分離し有用 IPC を実測)。**backoff ケーススタディ**完了: critic の帰属がフラグ空間外の静的 backoff variant 合成を駆動し、certified なまま contention 域で stock 最良を **+38%/+11%** 上回る (敵対的検証 + cross-run 再現 + [P0] 機序純度=spin 希釈の分離まで)。測定安定性 (P2-1) を stability.py で実装し、**A2 で noise floor を within-run (1 測定の品質ゲート, CV 2.28%) と between-run (採否 floor, 3.0%) に分離** ([[decisions]] D19)。**P2-5 (主実験) 完了 = negative result** ([[decisions]] D21、指標再校正 D29): silo 8 は実質 BACK_OFF=0 の1ビットで決まる自明空間ゆえ「誘導が速い」は構造的に主張不能。replay (新規計測ゼロ) で誘導 (LLM critic 30試行)/random/critic無し貪欲/オラクル天井を比較し、誘導は機械的勾配 (貪欲) で達成できる水準を超えず (A=0.581 有意差なし)、deceptive 構造 (write-heavy=BACK_OFF=1 が実2位) では貪欲より有意に有害 (A=0.230、誤収束 8/12 = 自信ある早期停止の負債)。「フラグ探索は自明→価値は空間外の合成 (P2-4 backoff) にある」が Phase 2 の物語。**Phase 3 着手前 must のうち最重要 S4 (規律3 配線: verify-red の構造化 anomaly を `result_to_dict`→abort payload→`digest.load_rejections` に通す) 完了。**
+- `docs/worklog.md` の**末尾エントリ** — 直近の実績と「次の一手」。可変状態の正本
+- **現行 phase doc (`docs/phase3.md`) のチェックリストと must 表** — タスク粒度の完了状況の正本
 
-**Phase 3 (`docs/phase3.md`) kickoff 進行中**: タスク1 (source_digest で identity を「コードの差」まで拡張, D23) + タスク2 (EVOLVE-BLOCK マーカーで coder 編集面を画定, D24) 完了。consumer 追従 (loop/backoff_repro の src_token 化)・identity-error abort の retryable 化 (D25)・online_digest assert の honest 化 (D26)・引き継ぎ/Phase 完了監査の方法論化 (D27) も完了。2026-07-02 の洗練セッションで **C1 campaign-id drift 解消** (report/critic 3 本を dir 名 discover に統一)・verifier 硬化 (部分 trace の偽陰性 4 種を integrity で遮断)・D25 破れ修正・S4 Rejection のコード軸 id 追加まで消化 (worklog 参照)。**次 = Phase 3 タスク3 (H3 hooks 実体化)** — 残り must は S2 (certify=perf workload) / S1 (trace-hook 別 protocol)。任意増分: 空間拡大 (cicada/oze) で critic 価値の再検証。
+中断セッションの引き継ぎと並行セッションの宣言は `docs/handoff/` を見る (運用は同ディレクトリの README)。過去 Phase の経緯は各 phase doc の冒頭と worklog、設計判断は `docs/decisions.md` (D 番号)。
 
 **submodule 改変は D16/D18/D20 で行き先を分岐**: 本物のバグ修正→`master` 還元 (ODR fix #118 / WAL XOR #116)、trace-hook→`izanagi-trace` (submodule pin = dff0f1e)、`patches/` 行き = 意図的バグ broken-silo / 合成 variant `BACKOFF_FIXED` (D18) / 診断計器 `BACKOFF_NOINLINE` (D20)。push は人間。
 
 **Linux 実機 (計測層) 確保済み。** 開発・計測ともこの Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) で行う。D10 の「Mac devcontainer=開発層 / Linux=計測層」の二層は、実機がこのホストに集約されたことで開発層も Linux 実機側に寄った (devcontainer 経路は維持するが必須でない)。性能数値は env=linux-baremetal タグ付きで記録する (orchestrator-design.md の環境タグ)。phase1.md の [Mac]/[Linux] タグは「機能/性能」の区別として読み替える (どちらも本ホストで実行可能)。
 
-実装の進め方は `docs/phase1.md` の番号付きタスク。**設計が動いた点・実機の現状・各セッションの作業は `docs/worklog.md` に時系列で記録する** (索引兼日誌)。
+実装の進め方は現行 phase doc の番号付きタスク。**設計が動いた点・実機の現状・各セッションの作業は `docs/worklog.md` に時系列で記録する** (索引兼日誌)。
 
 ---
 
@@ -98,10 +99,10 @@ roadmap は read-only の聖書ではなく **living document**。試行錯誤�
 `.claude/agents/` にロール定義がある。各エージェントは独立コンテキストを持ち、`tools` で権限を絞ってある。
 
 **実体化済み:**
-- `verifier` (Phase 1) — trace を読んで serializability を検査。**書き込み系ツールを持たない** (検証役が実装を勝手に直す事故を構造的に防ぐため)。anomaly を構造化して返す
+- `verifier` (Phase 1) — trace を読んで serializability を検査。専用書き込みツール (Edit/Write) を持たない (検証役が実装を勝手に直す事故を防ぐため)。**ただし Bash を持つため完全なツール権限レベルの隔離ではなく、書き込み禁止は prompt 規律との併用** (audit-2026-06-30 §4 の裁定)。anomaly を構造化して返す
 - `calibrator` (Phase 1) — cache miss 率を見てレコード数を決める + noise floor (within-run = 品質ゲート) を実測する
-- `critic` (Phase 2, P2-3) — leading indicators を読んで性能差を設計選択に帰属させ次手を構造化指示で返す。書き込みなし
-- `profiler` (Phase 2, P2-4) — 上位 variant に perf を回し many-core スケール懸念 (spin/lock/NUMA/IPC) を解釈。書き込みなし
+- `critic` (Phase 2, P2-3) — leading indicators を読んで性能差を設計選択に帰属させ次手を構造化指示で返す。Edit/Write 非付与 (書き込み禁止は verifier と同じ限定つき)
+- `profiler` (Phase 2, P2-4) — 上位 variant に perf を回し many-core スケール懸念 (spin/lock/NUMA/IPC) を解釈。Edit/Write 非付与 (同上)
 
 **後続 Phase で足す (仕様は `docs/agent-architecture.md` に予約):**
 - `planner`, `coder`, `auditor` (Phase 3)
@@ -112,11 +113,11 @@ roadmap は read-only の聖書ではなく **living document**。試行錯誤�
 
 ## hooks
 
-`hooks/` に最小限の機械的防壁を置く (Python で実装)。目的は絶対規律1・2の自動執行:
-- variant コードが `#ifdef TRACE` の外に検証専用メタデータを書こうとしたら警告 (規律1)
-- verifier を迂回して性能数値だけ更新しようとしたら止める (規律2)
+`hooks/` に最小限の機械的防壁を置く (Python で実装)。方針 A (D30/D33) で hook は「明白な直接書き込みを止める最小の第二防壁」に限定し、`.claude/settings.json` の PreToolUse に配線済み:
+- `guard_write` — proof-chain 成果物 (WAL / campaign.lock / build-variants 等) への直接書き込みを拒否 (規律2) + variant の編集面を EVOLVE-BLOCK の designated ソースに限定 (D24)
+- `guard_bash` — 同等の書き込みを Bash 経由で行う経路を遮断
 
-ECC のように大量の hook を入れない。この2つの防壁だけ。詳細は `docs/agent-architecture.md`。
+規律1 (観測者効果) の内容検査は hook では行わない — 一次防壁 (source_digest の preprocess 後ハッシュ・#include HEAD 固定・diff-of-diffs) が担う (D33 で payload テキスト検査は物理削除済み)。ECC のように大量の hook を入れない。この2つの防壁だけ。詳細は `hooks/README.md` と `docs/agent-architecture.md`。
 
 ---
 
@@ -129,7 +130,9 @@ izanagi/
 ├── docs/
 │   ├── roadmap.md             ← 全設計と理由 (まず読む)
 │   ├── decisions.md           ← 個別の設計判断と却下した選択肢
-│   ├── phase1.md              ← Phase 1 タスク分解 (タスク0から)
+│   ├── phase1.md〜phase3.md   ← 各 Phase のタスク分解 (チェックリスト = 完了状況の正本)
+│   ├── worklog.md             ← 時系列日誌。末尾エントリ = 可変状態の正本
+│   ├── handoff/               ← セッション引き継ぎ (セッションの WAL)。運用は同 README
 │   ├── agent-architecture.md  ← サブエージェント構成と段階導入計画
 │   ├── orchestrator-design.md ← orchestrator の設計原則 (ACID/WAL/排他制御)
 │   └── ccbench-anatomy.md     ← タスク0で作る。CCBench の構造調査結果
@@ -138,7 +141,8 @@ izanagi/
 │   ├── calibrator.md          (Phase 1)
 │   ├── critic.md              (Phase 2, P2-3)
 │   └── profiler.md            (Phase 2, P2-4)
-├── hooks/                     ← Python の機械的防壁
+├── hooks/                     ← Python の機械的防壁 (第二防壁。配線は .claude/settings.json)
+├── tools/                     ← 開発補助 (check_docs.py = 文書一貫性 lint)
 ├── orchestrator/              ← 探索ループの中枢 (Python)。Phase進行で実装
 ├── external/ccbench/          ← submodule (タスク0で追加)
 └── output/                    ← 全成果物。campaigns/<id>/ (入力依存: WAL+reports) と env/<tag>/ (入力非依存: calibration + profile) の二軸 (D13。詳細 output/README.md)
@@ -148,7 +152,7 @@ izanagi/
 
 ## 環境の二層戦略 (D10)
 
-**現状 (2026-06): 開発・計測とも Linux 実機 (Dell R760) に集約済み。Mac devcontainer は維持するが必須でない (「現在地」§・line 19 参照)。以下は当初の二層設計の記録 — 「計測層で取った数値以外を性能比較に使わない」規律は不変。**
+**現状 (2026-06): 開発・計測とも Linux 実機 (Dell R760) に集約済み。Mac devcontainer は維持するが必須でない (「現在地」§の Linux 実機の段落を参照)。以下は当初の二層設計の記録 — 「計測層で取った数値以外を性能比較に使わない」規律は不変。**
 
 - **開発層 = この devcontainer (Mac 上)**: CCBench のビルド・trace 検証・verifier・orchestrator 開発 (当初は Phase 1 タスク0-3 をここで完結とした)
 - **計測層 = Linux 実機**: 性能ベンチと calibration。**Mac 上の Docker では HW PMU が取れず perf の cache miss 計測が動かない。性能数値も VM 越しで歪むため、計測層で取った数値以外を性能比較に使ってはいけない**
@@ -166,8 +170,10 @@ izanagi/
 
 ## 作業の進め方
 
-1. このファイルと `docs/roadmap.md` を読む
-2. `docs/phase1.md` のタスクを上から順に潰す
+1. このファイルを読み、「現在地」が指す正本 (worklog 末尾エントリ・現行 phase doc) と `docs/roadmap.md` を読む
+2. 現行 phase doc のタスクを上から順に潰す
 3. 設計判断で迷ったら `docs/decisions.md` を引く (なぜその選択をしたか・何を却下したかが書いてある)
 4. CCBench 自体のバグ等を見つけたら `output/insights/` に構造化レポートを吐き、「還元判断: ユーザー確認待ち」を付ける。勝手に上流へ PR を出さない
 5. **セッション運用 (コンテキスト劣化対策):** 自動圧縮 (auto-compact) が入ったら新しいサブタスクを始めず、区切りで worklog / handoff を書いてセッションを終える。生 trace・生ビルドログ・WAL 全文はメインコンテキストに読み込まず、サブエージェント / digest 経由で構造化された結論だけ受け取る。圧縮後に編集するファイルは必ず再読する。詳細は `docs/roadmap.md` §3.8 (D31)
+6. **文書一貫性の規律 (2026-07-05 恒久対応):** 可変状態 (完了状況・現在 Phase・次の一手) の正本は worklog 末尾と現行 phase doc のみ — 他文書への再掲は禁止 (参照のみ)。docs 間の行番号参照は禁止 (追記で必ずずれるため節名で参照する)。タスクを完了させる変更では、所有 phase doc のチェックボックス更新を**同じコミットに含める** (完了の定義に含む)。セッション末に worklog エントリを書き、`python3 tools/check_docs.py` (文書 lint) を実行する
+7. **セッション継続 (handoff):** 中断は同一セッションの再開を優先。新セッションは `docs/handoff/` に残っているファイルを読んでから始める。作業セッションは `docs/handoff/<日付>-<タスク短名>.md` を**節目ごとに**上書き更新し (40 行上限)、正常終了時は worklog に吸収してファイルを削除する。並行セッションの宣言板も兼ねる (監査セッションは基準コミットを、計測セッションは「計測中」を宣言)。詳細は `docs/handoff/README.md`
