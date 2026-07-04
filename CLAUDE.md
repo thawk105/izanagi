@@ -16,7 +16,7 @@
 
 **現在 Phase 3 (合成)。** この節は状態の**ポインタ**であり、詳細な状態はここに書かない (可変状態の再掲は必ず腐る — 2026-07-05 の文書恒久対応)。**セッション開始時に必ず次の 2 つを読むこと:**
 
-- `docs/worklog.md` の**末尾エントリ** — 直近の実績と「次の一手」。可変状態の正本。まず `grep -n "^## \|^### 次の一手" docs/worklog.md` で末尾エントリの位置を特定して**そこだけ** offset 指定で読む。経緯・過去分は必要になったときだけ遡る (Phase 1〜2 分は `docs/worklog-phase1-2.md` にローテーション済み)
+- `docs/worklog.md` の**末尾エントリ** — 直近の実績と「次の一手」。可変状態の正本。まず `grep -n "^## \|^### 次の一手" docs/worklog.md` で末尾エントリの位置を特定して**そこだけ** offset 指定で読む。経緯・過去分は必要になったときだけ遡る (Phase 1〜2 分は `docs/archive/worklog-phase1-2.md` にローテーション済み)
 - **現行 phase doc (`docs/phase3.md`) のチェックリストと must 表** — タスク粒度の完了状況の正本
 
 `docs/handoff/` は ls で確認し、残ファイルがあればそれを読む (中断セッションの引き継ぎ + 並行セッションの宣言板。**空なら README を読む必要はない** — 運用は「作業の進め方 8」に要約済み)。設計判断は `docs/decisions.md` (D 番号、引き方は「主要ドキュメント」節)。
@@ -89,7 +89,7 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 
 ## 主要ドキュメント
 
-`docs/` — roadmap.md (設計と理由) / decisions.md (設計判断と却下案、D 番号) / phase1〜3.md (タスク分解。チェックリスト = 完了状況の正本。phase1/2 は完了・凍結) / phase3-main-experiment.md (主実験の事前登録) / worklog.md (日誌。末尾エントリ = 可変状態の正本。過去分は worklog-phase1-2.md) / handoff/ (セッションの WAL) / agent-architecture.md / orchestrator-design.md (ACID/WAL/排他) / ccbench-anatomy.md (CCBench 構造調査) / glossary.md (用語集) / related-work.md (関連研究)。成果物は `output/` (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。
+`docs/` — roadmap.md (設計と理由) / decisions.md (設計判断と却下案、D 番号) / phase1〜3.md (タスク分解。チェックリスト = 完了状況の正本。phase1/2 は完了・凍結) / phase3-main-experiment.md (主実験の事前登録) / worklog.md (日誌。末尾エントリ = 可変状態の正本) / handoff/ (セッションの WAL) / archive/ (凍結記録 — 監査台帳・worklog 過去分。ファイル名は移動前と不変、規約は同 README) / agent-architecture.md / orchestrator-design.md (ACID/WAL/排他) / ccbench-anatomy.md (CCBench 構造調査) / glossary.md (用語集) / related-work.md (関連研究)。成果物は `output/` (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。
 
 **大きい参照文書の引き方 (D35):** `decisions.md` (≈100KB) と `glossary.md` (≈39KB) は**全文 Read しない**。decisions は `grep -n "^## D" docs/decisions.md` がそのまま目次になる — 特定の D は見出し行から次見出しまでを offset 指定で部分 Read する (1 エントリ平均 23 行)。glossary も用語を grep して該当項目だけ読む。worklog 過去分・audit 系・insights も同様に grep で絞り、全読はサブエージェントに委ねて構造化された結論だけ受け取る。
 
@@ -110,5 +110,5 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 4. CCBench 自体のバグ等を見つけたら `output/insights/` に構造化レポートを吐き、「還元判断: ユーザー確認待ち」を付ける。勝手に上流へ PR を出さない
 5. **セッション運用 (コンテキスト劣化対策):** 自動圧縮 (auto-compact) が入ったら新しいサブタスクを始めず、区切りで worklog / handoff を書いてセッションを終える。生 trace・生ビルドログ・WAL 全文はメインコンテキストに読み込まず、サブエージェント / digest 経由で構造化された結論だけ受け取る。圧縮後に編集するファイルは必ず再読する。詳細は roadmap §3.8 (D31)
 6. **文書一貫性の規律 (2026-07-05 恒久対応):** 可変状態 (完了状況・現在 Phase・次の一手) の正本は worklog 末尾と現行 phase doc のみ — 他文書への再掲は禁止 (参照のみ)。docs 間の行番号参照は禁止 (追記で必ずずれるため節名で参照する)。タスクを完了させる変更では、所有 phase doc のチェックボックス更新を**同じコミットに含める** (完了の定義に含む)。セッション末に worklog エントリを書き、`python3 tools/check_docs.py` (文書 lint) を実行する
-7. **worklog の書式 (D35。新エントリから適用、過去エントリは凍結):** worklog には **git に入り得ない情報だけ**を本文化する — ユーザー承認・協議の決着 / 棄却された指摘 (refuted) / 未コミット事象・セッション異常と救出 / エージェント工数 / 人間判断待ち・持ち越し / 次の一手。コミット内容の再説明は書かない — コミット言及は「hash + 件名 (+位置づけ 1 行)」まで、連続コミット群は「先頭..末尾 (N 本)」の範囲表記にする (個別列挙の帰属漏れも構造的に防ぐ)。監査エントリは一次資料 (finding 全文・裁定) を insight / audit JSON に凍結し、worklog はレンズ数・real/refuted 数・最重要 1〜3 件・一次資料ポインタの 10〜15 行に留める。論文素材になる段落には行頭「素材:」を付ける (収穫セッションが grep で回収できるように)。持ち越し事項の逐語再掲は禁止 — 「変わらず (前エントリ参照)」の 1 行にする。docs(worklog) だけのコミットは本文なし (件名のみ)。Phase 境界で過去分を `worklog-<範囲>.md` へ移動する (ローテーション。アーカイブは凍結・訂正注記のみ可)
+7. **worklog の書式 (D35。新エントリから適用、過去エントリは凍結):** worklog には **git に入り得ない情報だけ**を本文化する — ユーザー承認・協議の決着 / 棄却された指摘 (refuted) / 未コミット事象・セッション異常と救出 / エージェント工数 / 人間判断待ち・持ち越し / 次の一手。コミット内容の再説明は書かない — コミット言及は「hash + 件名 (+位置づけ 1 行)」まで、連続コミット群は「先頭..末尾 (N 本)」の範囲表記にする (個別列挙の帰属漏れも構造的に防ぐ)。監査エントリは一次資料 (finding 全文・裁定) を insight / audit JSON に凍結し、worklog はレンズ数・real/refuted 数・最重要 1〜3 件・一次資料ポインタの 10〜15 行に留める。論文素材になる段落には行頭「素材:」を付ける (収穫セッションが grep で回収できるように)。持ち越し事項の逐語再掲は禁止 — 「変わらず (前エントリ参照)」の 1 行にする。docs(worklog) だけのコミットは本文なし (件名のみ)。Phase 境界で過去分を `docs/archive/worklog-<範囲>.md` へ移動する (ローテーション。アーカイブは凍結・訂正注記のみ可)
 8. **セッション継続 (handoff):** 中断は同一セッションの再開を優先。作業セッションは `docs/handoff/<日付>-<タスク短名>.md` を**節目ごとに**上書き更新し (40 行上限)、正常終了時は worklog に吸収してファイルを削除する。並行セッションの宣言板も兼ねる (監査セッションは基準コミットを、計測セッションは「計測中」を宣言)。詳細・定型は `docs/handoff/README.md`

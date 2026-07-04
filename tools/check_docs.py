@@ -19,8 +19,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 # living docs = 現在の状態・設計を主張する文書。ここに可変状態の再掲と行番号参照を禁止する。
-# 対象外 = 追記型の日誌・記録 (書いた時点で凍結): worklog (+ローテーションアーカイブ) / decisions /
-# insights / audit / paper-story、および完了 Phase の phase1/phase2 (2026-07-05 に冒頭へ凍結宣言済み)。
+# 対象外 = 追記型の日誌・記録 (書いた時点で凍結): worklog / decisions / insights / paper-story /
+# docs/archive/ 配下 (監査台帳・worklog アーカイブ等の凍結族。規約は同 README — ファイル名不変で移動)、
+# および完了 Phase の phase1/phase2 (2026-07-05 に冒頭へ凍結宣言済み)。
 LIVING_DOCS = [
     REPO / "CLAUDE.md",
     REPO / "docs" / "roadmap.md",
