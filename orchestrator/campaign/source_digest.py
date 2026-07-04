@@ -7,16 +7,21 @@ Phase 3 では coder (LLM) が CCBench の EVOLVE-BLOCK 領域を書き換える
 直接攻撃)。本モジュールはその identity 核を計算する。
 
 設計 (decisions D23、3 レンズ敵対レビューで確定):
-- **方式 E:** 対象ソースから #include を除去し `g++ -E -P -undef -nostdinc -Werror=undef
+- **方式 E:** 対象ソースから #include を除去し `g++ -E -P -nostdinc -Werror=undef
   -D...` で preprocess (= #if/#else 解決 + コメント除去) した出力を sha256。include を
-  展開しないので環境非依存・小さい。defines = Options.cmake の `set(CCBENCH_<NAME> <v>
+  展開しないので小さい。defines = Options.cmake の `set(CCBENCH_<NAME> <v>
   CACHE ...)` デフォルト (CCBENCH_ 剥がし・クォート剥がし・空値 unset) を base に
   genome.flags で上書き。
-- **道Y (digest==実枝の構造保証):** -undef cpp 環境は実ビルドのマクロ環境
-  (-DLinux/-DNDEBUG/builtin/TU の GLOBAL_VALUE_DEFINE) と乖離するので、EVOLVE-BLOCK 内の
-  生 #if/#ifdef や非決定 builtin (__DATE__ 等) を **hook (Phase3 タスク3) で禁止**し、
-  領域内で枝を決めるのは骨格 #if の既知マクロだけにする。本モジュールの -Werror=undef は
-  その #if/#elif 側の供給漏れを fails-closed で捕える防壁。
+- **道Y (digest==実枝の構造保証、D34 で -undef 廃止後):** 組込 builtin (__x86_64__ 等) を
+  **実ビルドと同じく定義済みのまま** preprocess する (-undef を外した = D34/案A)。これで
+  EVOLVE-BLOCK 内の生 `#ifdef __x86_64__`/`defined()` は digest 環境でも実枝を取り identity に
+  正直に反映される (別挙動なら digest が動く = 偽 cache hit しない)。旧設計は -undef で
+  builtin を消し「digest と実ビルドの乖離を hook が生 #ifdef 禁止で埋める」前提だったが、
+  方針 A で hook payload 検査を削除した後この前提が崩れ builtin definedness の偽 cache hit が
+  critical になった (2026-07-04 敵対検証) ため、identity 核側で実環境と揃えて根本封鎖した。
+  本モジュールの -Werror=undef は #if/#elif が未定義マクロ (骨格 BACKOFF_FIXED 等の供給漏れ)
+  を参照したら rc≠0 で捕える防壁として維持。非決定 builtin (__DATE__ 等) は churn するが
+  偽 hit しない (毎回 cache-miss、正しさ不変)。
 - **#include 死角の閉塞 (phase3.md blocking, 最小案):** preprocess 前に #include 行を
   除去する (環境非依存化) ため、正規化出力だけでは coder の #include 追加/差し替え
   (別ファイルを取り込む = バイナリが変わる) が identity 不変 = stock と alias になり、
@@ -30,10 +35,14 @@ Phase 3 では coder (LLM) が CCBench の EVOLVE-BLOCK 領域を書き換える
   そのものを止めるのでこの穴ごと消える。template patch は #include を足さない
   (silo-backoff-fixed.patch) ので inert = 完了条件 1 (inert=stock cache-hit) を壊さない。
   **残る穴 (正直に):** `#if __has_include(...)` や #define 経由の computed include は
-  #include 行に現れないので本 assert では捕えない = 道Y の一般問題 (payload 内の生指令)。
-  identity 核だけでは完了条件 1 (骨格指令は inert) と両立して塞げない (骨格 #if と payload
-  #if の区別に skeleton 抽出が要る) → guard_write の payload 検査 (方針 A の第二防壁) +
-  auditor の領域。phase3.md 残存リスクに記録。
+  #include 行に現れず、かつ -nostdinc で header 未発見なら digest 環境で __has_include=0 に
+  倒れる (実ビルドで include path 上に header があれば別バイナリ)。本 assert では捕えない =
+  道Y の一般問題 (payload 内の生指令)。identity 核だけでは完了条件 1 (骨格指令は inert) と
+  両立して塞げない (骨格 #if と payload #if の区別に skeleton 抽出が要る)。方針 A で hook の
+  payload 検査は削除したので退避先は **auditor + 規律6 の独立監査**のみ (git status に
+  `?? evil.hh` + `M backoff.hh` の __has_include として露出し、2026-07-04 敵対検証で捕捉可能
+  と実証)。phase3.md 残存リスクに記録。builtin definedness (`#ifdef __x86_64__`) の方は
+  D34/案A で digest に反映して封鎖済み — 残るのは header 存在に依存する computed include のみ。
 - **後方互換:** working-tree の preprocess が HEAD baseline と一致する (= stock/inert) なら
   src トークンを "stock" に正規化し pre-image から省く → silo 8 genome の旧 id を温存。
 - **fails-closed:** identity を決める計算は best-effort skip しない (buildcache の commit/nm
@@ -100,12 +109,21 @@ def _merge_defines(defaults: Dict[str, str], flags: Dict[str, int]) -> Dict[str,
 def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:
     """#include を除去し preprocess (#if/#else 解決 + コメント除去) した正規化出力を返す。
 
-    -undef -nostdinc で組込/系マクロを消し環境非依存に。-Werror=undef で #if/#elif の
-    未定義マクロ参照 (= defines 供給漏れ) を rc≠0 にして fails-closed (D23 / 規律6)。
-    g++ 不在・preprocess 失敗は RuntimeError (identity 核に best-effort skip を持ち込まない)。
+    -nostdinc で系ヘッダは辿らないが、**組込 builtin (__x86_64__ 等) は実ビルドと同じく
+    定義済みのままにする** (D34 / 案A)。旧 -undef は builtin を全消しして環境非依存に
+    していたが、digest 環境と実ビルドが乖離し、EVOLVE-BLOCK 内の生 `#ifdef __x86_64__` が
+    digest では stock 枝・実ビルドでは別枝を取る**偽 cache hit** を生んだ (方針 A で hook の
+    payload 検査を削除し道Y の「生 #ifdef を hook で禁止」前提が消えた後は一次防壁がこれを
+    塞げず critical、2026-07-04 敵対検証)。builtin を実環境と揃えれば `#ifdef`/`defined()` が
+    digest に正直に反映され偽 hit しない。-Werror=undef は #if/#elif の未定義マクロ参照
+    (= 骨格 BACKOFF_FIXED 等の defines 供給漏れ) を rc≠0 にして fails-closed (D23 / 規律6)。
+    代償 = digest 値が cxx/環境に依存する (別環境で別値) が、cache は env/<tag> 軸で環境別
+    (D13) ゆえ実害なし。非決定 builtin (__DATE__ 等) は churn するが偽 hit しない
+    (毎回 cache-miss = 新規ビルド+verify、正しさ不変)。g++ 不在・preprocess 失敗は
+    RuntimeError (identity 核に best-effort skip を持ち込まない)。
     """
     stripped = _INCLUDE_RE.sub("", source_text)
-    args = [cxx, "-E", "-P", "-undef", "-nostdinc", "-Werror=undef"]
+    args = [cxx, "-E", "-P", "-nostdinc", "-Werror=undef"]
     for k in sorted(defines):
         args.append(f"-D{k}={defines[k]}")
     args += ["-x", "c++", "-"]

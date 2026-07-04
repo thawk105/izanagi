@@ -1072,6 +1072,32 @@ def _fake_ccbench_repo():
     return sub, head, git
 
 
+def test_source_digest_builtin_ifdef_not_aliased_to_stock():
+    """critical (2026-07-04 敵対検証 / D34 案A): builtin definedness (`#ifdef __x86_64__` /
+    __GNUC__ 等) で digest 環境と実ビルドが乖離する偽 cache hit を封鎖する。
+
+    旧設計 (-undef) は builtin を全消しするため、EVOLVE-BLOCK に `#ifdef __x86_64__ / 別挙動 /
+    #else / stock / #endif` と書くと digest 環境では #else(stock枝) に落ち preprocess 出力が
+    baseline と byte 一致 → src_token='stock' に化け、別挙動の variant が stock の certified 結果を
+    verify 素通りで継承する (規律2 直撃)。案A (-undef 廃止) で builtin を実ビルドと揃えれば、
+    #ifdef が digest に正直に反映され STOCK に化けない = 別 cache_key で cache-miss ビルドされる。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    assert source_digest.resolve(g, head, sub) == source_digest.STOCK   # clean は STOCK
+    # payload (return 1) に builtin definedness の別枝を注入。g++ では __GNUC__ が常に定義される
+    # ので実ビルドは 999 枝、旧 -undef digest は #else で 1 (= stock と alias) になっていた。
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace(
+            "    return 1;\n",
+            "#ifdef __GNUC__\n    return 999;\n#else\n    return 1;\n#endif\n"))
+    tok = source_digest.resolve(g, head, sub)
+    assert tok != source_digest.STOCK, \
+        "builtin definedness (#ifdef __GNUC__) が STOCK に化けた — 案A (-undef 廃止) の回帰"
+    assert source_digest.compute(g, sub) != source_digest.baseline(g, head, sub), \
+        "別挙動 payload の digest が baseline と一致 (偽 cache hit)"
+
+
 def test_source_digest_include_change_rejected_by_resolve():
     """phase3.md blocking (#include 死角, 最小案): #include の追加/差し替えは preprocess 前に
     除去され digest に現れない (identity 不変の死角) → resolve が HEAD 行集合との不一致で
