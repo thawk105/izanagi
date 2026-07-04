@@ -1029,6 +1029,89 @@ def test_evolve_block_markers_structure_and_inert():
     assert source_digest.compute(g) == source_digest.baseline(g, head)
 
 
+# ===== STAGE3 (Phase 3 kickoff blocking): #include 死角 / TOCTOU 再照合 / apply-revert =====
+#
+# 実 submodule を汚さず identity 系の実験を行うため、tmpdir に最小の偽 ccbench repo
+# (git + Options.cmake + backoff.hh) を作る。EVOLVE_BLOCK_SOURCES と同じ相対パスを使う。
+
+_FAKE_BACKOFF_HH = (
+    '#include "tsc.hh"\n'
+    "class Backoff {\n"
+    "public:\n"
+    "  static int wait() {\n"
+    "#if BACK_OFF\n"
+    "    return 1;\n"
+    "#else\n"
+    "    return 0;\n"
+    "#endif\n"
+    "  }\n"
+    "};\n")
+
+
+def _fake_ccbench_repo():
+    """(sub, head, git) — git は fake repo で任意コマンドを回すヘルパー。"""
+    sub = _tmpdir("izanagi_fakecc_")
+    os.makedirs(os.path.join(sub, "cmake"))
+    os.makedirs(os.path.join(sub, "include"))
+    with open(os.path.join(sub, "cmake", "Options.cmake"), "w", encoding="utf-8") as f:
+        f.write('set(CCBENCH_BACK_OFF 1 CACHE STRING "exponential backoff")\n')
+    with open(os.path.join(sub, "include", "backoff.hh"), "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH)
+
+    def git(*args):
+        r = subprocess.run(["git", "-C", sub, *args], capture_output=True, text=True)
+        assert r.returncode == 0, f"git {args}: {r.stderr}"
+        return r.stdout
+
+    git("init", "-q")
+    git("config", "user.email", "test@example.invalid")
+    git("config", "user.name", "izanagi-test")
+    git("add", "-A")
+    git("commit", "-q", "-m", "stock")
+    head = git("rev-parse", "HEAD").strip()
+    return sub, head, git
+
+
+def test_source_digest_include_change_rejected_by_resolve():
+    """phase3.md blocking (#include 死角, 最小案): #include の追加/差し替えは preprocess 前に
+    除去され digest に現れない (identity 不変の死角) → resolve が HEAD 行集合との不一致で
+    fails-closed abort する。恒久案 (行を identity に織り込んで許す) は include 先の中身が
+    identity 外に dangling し中身違いの新規 header で variant 間 alias が残るため却下
+    (2026-07-03 敵対検証 high)。行集合を HEAD 固定にすれば include 追加自体を止め穴ごと消える。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    assert source_digest.resolve(g, head, sub) == source_digest.STOCK    # clean = stock 通過
+    hh = os.path.join(sub, "include", "backoff.hh")
+    # (a) #include の追加 → resolve が abort (行集合が HEAD と不一致)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write('#include "evil_extra.hh"\n' + _FAKE_BACKOFF_HH)
+    try:
+        source_digest.resolve(g, head, sub)
+        assert False, "#include 追加で resolve が abort すべき"
+    except RuntimeError as e:
+        assert "#include" in str(e)
+    # (b) 既存 #include の差し替え → resolve abort (中身違い header の alias を identity 核で遮断)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace('#include "tsc.hh"', '#include "hacked.hh"'))
+    try:
+        source_digest.resolve(g, head, sub)
+        assert False, "#include 差し替えで resolve が abort すべき"
+    except RuntimeError:
+        pass
+    # (c) 復元で resolve が通過に戻る (誤検出でない)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH)
+    assert source_digest.resolve(g, head, sub) == source_digest.STOCK
+    # assert_includes_match_head 単体でも同じ判定 (resolve が駆動する一次防壁)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write('#include "evil_extra.hh"\n' + _FAKE_BACKOFF_HH)
+    try:
+        source_digest.assert_includes_match_head(g, head, sub)
+        assert False, "assert_includes_match_head 単体でも abort すべき"
+    except RuntimeError:
+        pass
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
