@@ -112,8 +112,10 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
 - **閉じた領域制約:** #if 枝は既存 silo API を呼ぶ straight-line code のみ。**#include 追加・新規関数/マクロ
   定義・struct/global/型定義の追加改変を禁止** (型レイアウト変更は trace/perf 両ビルドに入り nm 検査も
   name-based hook も素通りする = observer-effect-by-data-structure 対策)。coder は対象 1 patch 以外の
-  ファイルを作成/改変しない (**H3 hook 配線後に機械強制。配線までは coder diff の人間レビューが唯一の gate** —
-  coder.md タスクの前提 gate 参照。hook は未配線 = 現在形の保証ではない, D30)。
+  ファイルを作成/改変しない (**H3 hook (方針 A) の settings.json 配線済 (2026-07-04, D30/D33) により designated
+  ソース面の限定は機械強制**。ただし方針 A の hook は編集面の限定のみを担い、designated ソース内の内容・意味的
+  逸脱の判定は auditor / coder diff の人間レビュー領域のまま — coder.md タスクの前提 gate =
+  `test_settings_json_wires_both_hooks` の緑で機械確認)。
 - **適用の隔離:** patch は submodule working-tree への out-of-band 適用 (HEAD は dff0f1e pin 不動 →
   campaign-id 不変)。1 variant 評価ごとに clean→apply→build→revert。apply 前に対象が pinned-clean か
   assert (汚れていたら fails-closed abort)。駆動部 = `campaign/patchharness.py` の `applied()` context
@@ -186,22 +188,26 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
       全 fix は変異検査 (fix を戻すと該当テスト赤・復元で緑) で機械実証。**D30 の順序 = (1) 一次防壁を load-bearing に
       (preprocess ハッシュ・#include HEAD 固定・diff-of-diffs・TOCTOU 再照合・**D34 builtin definedness**) →
       (2) hook 最小化 + 過剰拒否除去 → (3) settings.json 配線、を完了。** 詳細は worklog 2026-07-04。
-- [ ] **(blocking) 観測者効果の二重検査 — まず述語仕様を確定してから実装**: nm の name-based 検査
-      (buildcache._assert_no_trace_symbols) を補完する一次防壁 (D30)。ただし旧仕様の「両ビルドの preprocess 出力を
-      diff」という素朴な述語は**成立しない** — trace ビルド (TRACE=1) と perf ビルド (TRACE=0) の preprocess 出力は
-      `#if TRACE` ガード領域で**正当に**食い違うため、素の diff は必ず大量差分を出す。仕様確定が実装より先:
-      - **比較基準の候補 = diff-of-diffs**: 同一 working-tree の preprocess(TRACE=1) − preprocess(TRACE=0) の差分
+- [x] **(完了) 観測者効果の二重検査 — 述語 = diff-of-diffs で確定・実装済み (commit 14d64e6, 2026-07-04)**: nm の
+      name-based 検査 (buildcache._assert_no_trace_symbols) を補完する一次防壁 (D30)。旧仕様の「両ビルドの
+      preprocess 出力を diff」という素朴な述語は**成立しない** — trace ビルド (TRACE=1) と perf ビルド (TRACE=0) の
+      preprocess 出力は `#if TRACE` ガード領域で**正当に**食い違うため、素の diff は必ず大量差分を出す (敵対検証で棄却)。
+      確定・実装した述語:
+      - **diff-of-diffs**: 同一 working-tree の preprocess(TRACE=1) − preprocess(TRACE=0) の差分
         `D_variant` を取り、pinned HEAD (izanagi-trace baseline) から同様に取った `D_stock` と**一致**することを
         assert する。「variant が TRACE 条件付きコードを追加/改変していない = trace/perf の差は stock の trace-hook
         由来のみ」を機械保証し、残存リスク節の「#ifdef TRACE の内側に挙動差を隠す攻撃」も D_variant≠D_stock で捕える。
-      - **発火単位** = 毎 variant の trace/perf ビルド直後 (buildcache.build の出口)。
-      - **fails-closed** = diff 不一致・preprocess 取得不能のいずれも abort (警告に格下げしない)。
+      - **発火単位** = 毎 variant の trace/perf ビルド直後 (buildcache.build の出口。hit/fresh 両経路)。
+      - **fails-closed** = diff 不一致・preprocess 取得不能のいずれも abort (警告に格下げしない)。不一致の新規ビルドは
+        build dir ごと破棄。
       - **保証しないこと (正直に)**: 検証専用メタデータが #ifdef の**外** (両ビルド共通) に常駐するケースは
         この述語では判定不能 (機械には CC 本来か検証専用か区別できない)。ただしその場合コストは perf ビルドにも
         乗って fitness が自己ペナルティを受けるため false-green にはならず、意味判定は auditor / 人間レビュー領域。
-      この 3 点 + 限界の明記をタスク定義として確定するまで blocking 完了としない。
+      実装 = `source_digest.assert_trace_diff_matches_head` (述語 3 面 + 上記限界を docstring に明記) を
+      `buildcache.build` 出口で駆動。述語 + 結線を変異検査 3/3 で実証、実 submodule stock 通過 27ms (規律4 に反しない)。
+      実施記録は worklog 2026-07-04 の両エントリから漏れていた — worklog 2026-07-05 の追補を参照。
 - [ ] **coder.md 生成 + 純 timing variant 1 本で全配線 1 周**: coder.md を critic/profiler 体裁で生成
-      (agent-architecture.md:66-71)。**前提 gate: H3 hook (方針 A 最小化版) の settings.json 配線が完了している
+      (agent-architecture.md の coder 仕様予約節 — kickoff の確定制約は同節の ⚠ 注記どおり本文書 + D22/D23/D24/D30 が正典)。**前提 gate: H3 hook (方針 A 最小化版) の settings.json 配線が完了している
       こと** — 未配線の間に coder を実走させない。配線状態は `test_settings_json_wires_both_hooks` の緑で機械確認
       する (over-claim の前歴 = D30 があるため、宣言でなくテストを gate にする)。**まず「#else 枝を逐語複写する
       no-op variant」**を書かせ stock cache-hit で配線実証 → 次に静的 backoff 値 1 つの純 timing variant を
@@ -231,12 +237,12 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 | must | kickoff | 根拠 |
 |---|---|---|
 | **H3 hooks** | **完了 (方針 A)** | 最小第二防壁を配線 (D30/D33)。3 巡目検証で real 9/known 6 摘出・全修正 (変異検査済)、critical (source_digest builtin definedness 偽 cache hit) は D34 で封鎖。identity/観測者効果の担保は下 2 行の一次防壁が担う |
-| **cache_key+variant_id 拡張** | **blocking** | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
-| **観測者効果二重検査** | **blocking** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない) |
+| **cache_key+variant_id 拡張** | **完了** (kickoff タスク 1 で消化) | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
+| **観測者効果二重検査** | **完了 (14d64e6)** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない)。diff-of-diffs を buildcache.build 出口 (hit/fresh 両経路) で発火、fails-closed |
 | **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。consumer 実体化は後続 |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) |
 | S1 (別 protocol trace-hook) | non-blocking (kickoff) / **主実験 headline 2 で発火** | silo 内に閉じる限り不要。ただし発火条件は「別 protocol 移植」だけでなく**主実験 headline 2 (クロスプロトコル stock 最良) も含む** — trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、headline 2 までに S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかが要る (後続段 6 の前提タスク (a)) |
-| C1 (campaign-id drift) | non-blocking | apply→revert で HEAD 不動。housekeeping。並行合成/patch 常駐の段で恒久対応 |
+| C1 (campaign-id drift) | non-blocking | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。残課題 = driver 宣言値 (phase2.md §C1) と並行合成/patch 常駐で HEAD が動く場合の id 安定化 → 段 5 |
 
 ---
 
@@ -249,7 +255,7 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    control suite を own。入力隔離を構造で強制 (WAL fitness を scope に入れない)。lock 経路は auditor live を gate に。
 4. **guided 検疫層を diff 検疫へ拡張 + planner.md 生成** — coder 自律期。diff が EVOLVE-BLOCK マーカー間かつ
    #if 枝内に収まるか parse 検証。
-5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 恒久対応** — S2 gate を満たした後 + 並行合成の段。
+5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題 (driver 宣言値・並行時の id 安定化)** — S2 gate を満たした後 + 並行合成の段。
 6. **主実験の実行 (headline 比較 4 対照 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
    実走する段。**Phase 3 の headline 主張はこの段の完了をもって初めて出せる** (段 4/5 の中間結果は評価設計に
    従った暫定として報告)。gate = 変異軸 (sort or それ以降) から headline 候補が出たこと + S2 gate + auditor live。
@@ -295,24 +301,26 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
   (contention 域で stock 最良 +38%/+11%、sweet-spot 値) が docs/insights/WAL/CLAUDE.md にリポジトリ内既知として
   書かれている。coder のコンテキストにこれが混入すると「合成できた」のか「答えを読んだ」のか分離できない。P2-5 は
   誘導アームで **fresh context + 最適解 literal の物理削除 (`critic-experiment`) + 評価済みのみ digest** のリーク制御を
-  確立した (D14/D21)。Phase 3 で coder が実際に #if 枝を自律生成する段 (後続段 4) では、この Phase 3 版リーク制御
+  確立した (D12/D21)。Phase 3 で coder が実際に #if 枝を自律生成する段 (後続段 4) では、この Phase 3 版リーク制御
   (勝ち筋値・機序説明を coder の入力から遮断) を予約する。kickoff (no-op / 人間が値を与える純 timing) では coder が
   値を発明しないので潜在。
 - **観測者効果の二重検査の述語 (方針 A で一次防壁に昇格した分、重い)**: 旧仕様「TRACE マクロ以外で差が無いことを
   両ビルドの preprocess 出力で diff」には 2 つの問題があった — (1) trace/perf の preprocess 出力は `#if TRACE` 領域で
   **正当に**食い違うため素の diff は述語として成立しない、(2) coder が `#ifdef TRACE` の**内側**に挙動差を隠す攻撃
-  (2 巡目 GW2R-1 の payload が実演した形) を素通しする。**blocking タスクの新仕様 (diff-of-diffs、タスク定義参照) は
-  両方を同時に解消する**: variant の TRACE=1/TRACE=0 差分が pinned HEAD の同差分と一致することを assert するので、
-  正当な trace-hook 差分は許容され、#ifdef TRACE 内側への追加/改変は D_variant≠D_stock で fails-closed になる。
+  (2 巡目 GW2R-1 の payload が実演した形) を素通しする。**確定仕様 (diff-of-diffs、kickoff タスク参照) は
+  両方を同時に解消し、実装済み (commit 14d64e6)**: variant の TRACE=1/TRACE=0 差分が pinned HEAD の同差分と一致する
+  ことを assert するので、正当な trace-hook 差分は許容され、#ifdef TRACE 内側への追加/改変は D_variant≠D_stock で
+  fails-closed になる。
   残る限界 (タスク定義に明記): 検証専用メタデータが #ifdef の外 = 両ビルド共通に常駐するケースは機械判定不能
-  (fitness の自己ペナルティで false-green にはならないが、意味判定は auditor / 人間レビュー領域)。仕様確定時に
-  この述語で確定するまで blocking 完了としない。
+  (fitness の自己ペナルティで false-green にはならないが、意味判定は auditor / 人間レビュー領域)。
 - **#include 死角の残り (道Y 一般問題)**: identity 核の閉塞 (`assert_includes_match_head`) が捕えるのは literal な
   `#include` 行のみ。`#if __has_include(...)` (preprocess 環境と実ビルドで評価が分岐しうる) や #define 経由の
   computed include は #include 行に現れず素通りする。identity 核だけでは完了条件 1 (骨格の #if 指令は inert) と
-  両立して塞げない (骨格 #if と payload #if の区別に skeleton 抽出が要る) → guard_write の payload 検査 (方針 A の
-  第二防壁) + auditor 領域。kickoff (no-op / 人間が値を与える純 timing) では coder が #if/#include/#define を
-  発明しないので潜在 — **後続段 4 (coder 自律期) で skeleton 検査として load-bearing にする**。
+  両立して塞げない (骨格 #if と payload #if の区別には skeleton 抽出が要るが、skeleton 抽出は D34 で完了条件 1 と
+  両立しないため却下済み)。guard_write の payload テキスト検査も D33 で物理削除済み (designated ソース内の内容は
+  検査しない) — したがって受け皿は **auditor + 規律6 監査領域の known-limitation として据え置く** (機械防壁の予約
+  なし)。kickoff (no-op / 人間が値を与える純 timing) では coder が #if/#include/#define を発明しないので潜在 —
+  後続段 4 (coder 自律期) で auditor のレビュー観点に明示的に含める。
 - **共有 working-tree の並走 (ABA) は flock 緩和のみ**: patchharness の `_tree_lock` は単一 tree 上の並走
   apply/build/revert を直列化する最小防壁。恒久解は段 5 の git worktree 隔離 (variant ごとに独立 tree)。revert 後の
   残骸検査も tracked 改変 + patch touch 集合のみでタスク定義の「porcelain 空」より弱い (body 中の事故で作られた
