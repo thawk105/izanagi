@@ -19,11 +19,15 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 # living docs = 現在の状態・設計を主張する文書。ここに可変状態の再掲と行番号参照を禁止する。
-# worklog / decisions / insights / audit / paper-story は追記型の日誌・記録 (書いた時点で凍結) なので対象外。
+# 対象外 = 追記型の日誌・記録 (書いた時点で凍結): worklog (+ローテーションアーカイブ) / decisions /
+# insights / audit / paper-story、および完了 Phase の phase1/phase2 (2026-07-05 に冒頭へ凍結宣言済み)。
 LIVING_DOCS = [
     REPO / "CLAUDE.md",
     REPO / "docs" / "roadmap.md",
-    *sorted((REPO / "docs").glob("phase*.md")),
+    REPO / "docs" / "related-work.md",
+    REPO / "docs" / "phase3.md",                  # 現行 phase doc。Phase 移行時にここを差し替え、旧 doc は凍結宣言
+    REPO / "docs" / "phase3-main-experiment.md",  # 事前登録 (サンプル設計数値の確定追記が残るため living)
+    REPO / "docs" / "glossary.md",
     REPO / "docs" / "agent-architecture.md",
     REPO / "docs" / "orchestrator-design.md",
     REPO / "docs" / "ccbench-anatomy.md",
@@ -32,7 +36,7 @@ LIVING_DOCS = [
 # docs 間の行番号参照 (追記で必ずずれる)。節名参照に直すこと。
 # 対象は自リポジトリの docs のみ (pin 固定の submodule 内文書への参照は腐らないので許容)。
 # 「.md:数字」形の確実なものと「N 行」「line N 参照」形だけを違反とする (過検出を避ける)
-_OWN = r"(?:CLAUDE|README|roadmap|phase\d[\w-]*|decisions|worklog|agent-architecture|orchestrator-design|ccbench-anatomy|paper-story[\w-]*|audit[\w-]*|isolation-phenomena)"
+_OWN = r"(?:CLAUDE|README|roadmap|phase\d[\w-]*|decisions|worklog[\w-]*|agent-architecture|orchestrator-design|ccbench-anatomy|paper-story[\w-]*|audit[\w-]*|isolation-phenomena|glossary|related-work)"
 LINE_REF_STRICT = [
     re.compile(_OWN + r"\.md:\d+"),
     re.compile(_OWN + r"\.md\s*の?\s*\d+\s*行"),

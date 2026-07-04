@@ -1,5 +1,7 @@
 # Phase 2 — パラメータ探索
 
+**この Phase は完了済み (2026-07-03 の Phase 2 完了監査で確定、worklog 参照)。本文書は凍結記録 — 現行作業は CLAUDE.md「現在地」が指す phase doc を見よ。追記は訂正注記のみ。**
+
 **目的:** CCBench の最適化フラグ空間を探索し、入力 workload に最速の CC 構成 (genome) を見つける。
 roadmap §2 層2(a) **パラメータ粒度を主軸**。空間は有限 (silo 2^4→no-wait XOR 制約で 8、anatomy §3) なので
 **初手は全探索**。全探索で得た最適を ground truth とし、LLM 誘導探索の到達速度を比較する
