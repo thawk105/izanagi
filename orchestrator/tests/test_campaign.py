@@ -257,8 +257,8 @@ def _red_vr():
 
 @contextlib.contextmanager
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
-                   build_raises=False, high_variance=False, unstable=False,
-                   competing=None):
+                   aborts=7, build_raises=False, high_variance=False,
+                   unstable=False, competing=None):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。"""
@@ -297,7 +297,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         assert_worktree_within_allowlist=lambda *a, **k: None,
         src_token=lambda *a, **k: "stock",
         resolve=lambda *a, **k: "stock"))
-    patch("_run_trace", lambda *a, **k: (ncommit, rc))
+    patch("_run_trace", lambda *a, **k: (ncommit, rc, aborts))
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
     def fake_remeasure(measure_fn, settle_fn=None, **k):
@@ -387,6 +387,65 @@ def test_pipeline_red_abort_carries_structured_anomaly():
     assert edge["from"] == 1 and edge["to"] == 2 and "rw" in edge["types"]
     assert edge["reasons"][0]["key"] == "aa"
     assert "trace_dir" not in verify              # 使い捨て tmpdir は載せない
+
+
+def test_parse_abort_counts_matches_ccbench_stdout():
+    """abort_counts_ 集計のパース: 実 stdout 形式 (タブ区切り) を読み、
+    batch_abort_counts_ を誤マッチせず、行が無ければ None (呼び手が fails-closed)。"""
+    stdout = ("success_forwarding_:\t0\n"
+              "abort_counts_:\t3742\n"
+              "batch_abort_counts_:\t99\n"
+              "commit_counts_:\t81234\n")
+    assert pipeline._parse_abort_counts(stdout) == 3742
+    assert pipeline._parse_abort_counts("batch_abort_counts_:\t99\n") is None
+    assert pipeline._parse_abort_counts("") is None
+    assert pipeline._parse_abort_counts("abort_counts_:\t0\n") == 0
+
+
+def test_pipeline_verify_payload_records_aborts():
+    """phase3.md blocking: STAGE_VERIFY_DONE payload に verify run の abort 数が載る。
+    完了条件 2『abort > 0 = 合成枝 (abort-path) が verify 中に実行された証拠』を WAL で
+    機械確認する前提配線 (旧配線は abort 数をどこにも記録せず確認自体が実行不能だった)。"""
+    lay = _tmp_layout()
+    r, _ = _eval(lay, certified=True, aborts=42)
+    recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
+    assert len(recs) == 1
+    assert recs[0].payload.get("aborts") == 42
+    assert recs[0].payload.get("commits") == 100
+
+
+def test_pipeline_missing_abort_counts_rejects():
+    """abort_counts_ が stdout から読めない run は certified にしない (fails-closed)。
+    空振り認証 (abort≈0 で合成枝が未実行のまま緑) の検査可能性を落としたまま
+    緑を出さない (規律3: 計器の故障を沈黙させない)。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True, aborts=None)
+    assert r.aborted and not r.certified and len(calls) == 0
+    st = wal.replay(lay)[r.variant]
+    assert st.aborted and not st.committed
+    assert STAGE_VERIFY_DONE not in st.stages_seen        # verify 前に reject
+    assert st.last_terminal.payload.get("reason") == "trace-no-abort-counts"
+
+
+def test_run_trace_parses_abort_from_stdout():
+    """回帰 (結線検査): 実 _run_trace が ccbench stdout を _parse_abort_counts に通して
+    第 3 返り値で返す。_parse_abort_counts 単体と pipeline 層 (_run_trace ごとモック) の
+    テストだけでは、この結線を消しても (旧配線 = stdout を捨てる) 全緑のまま
+    (2026-07-03 敵対検証 medium: テスト正直さ)。"""
+    sdir = _tmpdir("izanagi_runtrace_bin_")
+    fake = os.path.join(sdir, "fake_ccbench.sh")
+    with open(fake, "w", encoding="utf-8") as f:
+        f.write("#!/bin/sh\nprintf 'abort_counts_:\\t42\\n'\n")
+    os.chmod(fake, 0o755)
+    n, rc, aborts = pipeline._run_trace(fake, _tmpdir("izanagi_runtrace_t1_"),
+                                        {"w": "1"}, 1800)
+    assert (n, rc, aborts) == (0, 0, 42)
+    fake2 = os.path.join(sdir, "fake_noabort.sh")
+    with open(fake2, "w", encoding="utf-8") as f:
+        f.write("#!/bin/sh\nprintf 'commit_counts_:\\t9\\n'\n")
+    os.chmod(fake2, 0o755)
+    _, _, aborts = pipeline._run_trace(fake2, _tmpdir("izanagi_runtrace_t2_"), {}, 1800)
+    assert aborts is None                    # 集計行なし → None (呼び手が fails-closed)
 
 
 def test_pipeline_no_bench_commits_without_fitness():

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -78,12 +79,26 @@ class EvalResult:
     notes: List[str] = field(default_factory=list)
 
 
+# ccbench 正常終了時の集計行 (common/result.cc displayAbortCounts、displayAllResult が
+# 無条件に出す)。^ アンカー必須 — batch_abort_counts_ 行を誤マッチさせない。
+_ABORT_COUNTS_RE = re.compile(r"(?m)^abort_counts_:\s*(\d+)\s*$")
+
+
+def _parse_abort_counts(stdout: str) -> Optional[int]:
+    """ccbench stdout から総 abort 数を読む。行が無ければ None (呼び手が fails-closed に倒す)。"""
+    m = _ABORT_COUNTS_RE.search(stdout or "")
+    return int(m.group(1)) if m else None
+
+
 def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
                clocks_per_us: int, timeout_s: float = 120.0):
     """trace-enabled binary を回し IZANAGI_TRACE_DIR に trace を吐く。
 
-    返り値 `(ncommit, returncode)`。**呼び手は returncode を必ず検査する** —
-    異常終了した run の部分トレースを certified にしないため (規律2)。"""
+    返り値 `(ncommit, returncode, aborts)`。**呼び手は returncode を必ず検査する** —
+    異常終了した run の部分トレースを certified にしないため (規律2)。aborts は stdout の
+    `abort_counts_:` 集計 (完了条件「verify 中に合成枝 = abort-path が実行された証拠」の
+    材料, phase3.md)。パース不能なら None — 呼び手が reject する (空振り認証の検査可能性を
+    落としたまま緑を出さない)。"""
     args = [binary] + [f"-{k}={v}" for k, v in flags.items()] \
         + [f"-clocks_per_us={clocks_per_us}"]
     env = dict(os.environ, IZANAGI_TRACE_DIR=trace_dir)
@@ -99,7 +114,7 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
             if fn.startswith("trace_") and fn.endswith(".log"):
                 with open(os.path.join(trace_dir, fn)) as f:
                     n += sum(1 for line in f if line.startswith("C "))
-    return n, proc.returncode
+    return n, proc.returncode, _parse_abort_counts(proc.stdout)
 
 
 def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
@@ -167,7 +182,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     tdir = tempfile.mkdtemp(prefix="izanagi_eval_trace_")   # TMPDIR=/home 配下
     try:
         try:
-            ncommit, rc = _run_trace(tr.binary, tdir, correctness.flags, clocks_per_us)
+            ncommit, rc, aborts = _run_trace(tr.binary, tdir, correctness.flags,
+                                             clocks_per_us)
         except subprocess.TimeoutExpired:
             return _abort("trace-timeout", "trace 取得タイムアウト → reject")
         # 異常終了・空トレースは「正しさ未確定」。verifier に渡すと空 DSG が
@@ -179,6 +195,13 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         if ncommit == 0:
             return _abort("trace-empty",
                           "空トレース (commit 0) → 検証不能 reject", {"commits": 0})
+        if aborts is None:
+            # abort 数は「合成枝 (abort-path) が verify 中に実行された証拠」(phase3.md
+            # 完了条件 2 / 残存リスク = 空振り認証)。取れない run を certified にすると
+            # その検査可能性ごと落ちる → fails-closed で reject (規律3: 計器の故障を沈黙させない)。
+            return _abort("trace-no-abort-counts",
+                          "ccbench stdout に abort_counts_ 集計が無い → 空振り認証を"
+                          "検査できず reject", {"commits": ncommit})
         try:
             vr = verify_trace_dir(tdir)
         except ParseError as e:
@@ -186,8 +209,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         res.verdict = vr.verdict
         wal.log(layout, v, STAGE_VERIFY_DONE, env_tag,
                 {"verdict": vr.verdict, "certified": vr.certified,
-                 "commits": ncommit, "anomalies": len(vr.anomalies)})
-        log(f"  [eval {v}] verify: {vr.verdict} ({ncommit} commits, "
+                 "commits": ncommit, "aborts": aborts,
+                 "anomalies": len(vr.anomalies)})
+        log(f"  [eval {v}] verify: {vr.verdict} ({ncommit} commits, {aborts} aborts, "
             f"{len(vr.anomalies)} anomalies)")
         if not vr.certified:
             # 正しさを破る/確証できない variant は即 reject。fitness を付けない (規律2)。
