@@ -1563,3 +1563,35 @@ P2-5 誘導アームのモデル素性 (critic-experiment = opus / Bash のみ) 
 ### 次の一手 (変わらず)
 - kickoff 残り blocking の実装順は前エントリのとおり。本セッションは docs 追加のみで Phase 3 タスクの
   進捗は無し。
+
+## 2026-07-04 — kickoff blocking 4 本の取り込み監査 + 欠落回帰テスト補完 + コミット確定
+
+前セッション (07-03) が未コミットのまま残した blocking 実装 4 本 (verify abort 数の WAL 記録 /
+apply-revert ハーネス `patchharness.py` / build 後 digest 再照合 = TOCTOU 遮断 / #include 死角の
+最小案閉塞) + 敵対検証 insights を、規律6 (別セッション作業物の取り込み監査) に従いコミット前に突合。
+実装本体 4 本は insights のベクタ対応表と一致したが、**記録と実体の食い違い 2 件を検出**:
+
+1. **「fixed: 回帰テスト 3 本追加」が記録のみで実体なし** — insights の F ベクタ (テスト正直さ ×3) への
+   対応として `test_build_cache_miss_wires_recheck` / `test_run_trace_parses_abort_from_stdout` /
+   `test_patchharness_applied_rejects_dirty_tree` を「追加」と記録していたが、リポジトリに存在せず
+   suite も「174 passed」でなく実測 170。**F ベクタの指摘そのもの (謳うだけで存在しない保証) を
+   監査記録自身が再演した形**。本セッションで 3 本を実装し、**変異検査 3/3** (build() の recheck 呼び出し
+   削除 / _run_trace の abort パース None 固定 / applied() の pinned-clean 駆動削除 → 各 1 本だけ赤、
+   復元で全緑) で「結線を消すと赤」を機械実証。補完後 **173 passed, 5 skipped**。
+2. **phase3.md への反映 (blocking 4 の [x] 化・#include 最小案書き換え・残存リスク 3 点追記) が未実施** —
+   insights は実施済みと主張していた。本セッションで実施 (残存リスク節: #include 死角の道Y 一般問題
+   `__has_include`/#define は段 4 で skeleton 検査として load-bearing 化 / ABA は flock 緩和のみで恒久解 =
+   段 5 git worktree 隔離 / _recheck の transient 破棄は D25 と意図的非対称)。
+
+insights には 07-04 訂正注記として両件を追記 (前セッション記録の改竄はしない)。**コミット 5 本 +
+本 worklog**: 9301a8c (pipeline: aborts→WAL + 集計行なし fails-closed) / e0b9b22 (source_digest:
+include 行集合 HEAD 固定) / b059a70 (buildcache: 出口 + cache-hit 再照合、破棄失敗も明示例外) /
+62a0db9 (patchharness: flock + pinned-clean 7 桁下限 + quotepath=false) / a5f72d0 (docs+insights)。
+テストは実装ごとに分割 stage し、**各中間コミット tree を detached checkout で全 suite 緑と確認**
+(162→166→167→170→173 passed の単調増分)。submodule pin (dff0f1e) 不動・clean。
+
+### 次の一手
+- **kickoff 残り: hook 最小化 + 配線 (H3 方針 A) → 観測者効果二重検査 (述語 = diff-of-diffs 確定) →
+  coder.md + 純 timing variant 1 本で全配線 1 周**。
+- 未消化の docs 課題 (残り、変わらず): 「WAL proof chain」の実体定義 / 外的妥当性の集約 / coder 自律期の
+  停止条件・fitness 採否・再試行方針の予約。
