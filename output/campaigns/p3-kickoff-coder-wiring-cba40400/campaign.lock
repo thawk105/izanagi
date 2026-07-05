@@ -1,0 +1,1 @@
+{"ccbench_commit":"dff0f1e","search_config":{"records":100000,"scale":"silo","threads":4,"variants":"noop+static50"},"search_tag":"coder-wiring","spec_content":"P3 kickoff: coder 全配線 1 周 — no-op (identity 後方互換) + 純 timing static50 (合成枝 cache-miss 1 周)。phase3.md 完了条件 2 項","trial":"p3-kickoff"}

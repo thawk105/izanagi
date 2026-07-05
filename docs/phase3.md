@@ -96,15 +96,21 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
       (buildcache.build 出口、hit/fresh 両経路、fails-closed)。素の出力 diff は #if TRACE 領域で正当に食い違うため
       述語として不成立 (敵対検証で棄却済)。#ifdef 外の共通常駐メタデータは機械判定不能 = auditor/人間レビュー領域
       (残存リスク節)。詳細 = コミット 14d64e6 本文・worklog 2026-07-05 追補。
-- [ ] **coder.md 生成 + 純 timing variant 1 本で全配線 1 周**: coder.md を critic/profiler 体裁で生成
+- [x] **coder.md 生成 + 純 timing variant 1 本で全配線 1 周** (2026-07-05 完了。完了条件 1/2 とも
+      WAL 機械判定 10/10 PASS — no-op が src_token=stock で seed ビルドに cache-hit certified commit /
+      static50 が別 id・cache-miss 新規ビルドで verify aborts 41,868 > 0 → bench → certified commit。
+      abort>0 が大きく成立したため S2-lite 前倒しは不要。駆動 = patches/variant-*.patch +
+      `campaign/p3_kickoff.py`。詳細 = 当該コミット本文・worklog 2026-07-05): coder.md を critic/profiler 体裁で生成
       (agent-architecture.md の coder 仕様予約節 — kickoff の確定制約は同節の ⚠ 注記どおり本文書 + D22/D23/D24/D30 が正典)。**前提 gate: H3 hook (方針 A 最小化版) の settings.json 配線が完了している
       こと** — 未配線の間に coder を実走させない。配線状態は `test_settings_json_wires_both_hooks` の緑で機械確認
       する (over-claim の前歴 = D30 があるため、宣言でなくテストを gate にする)。**まず「#else 枝を逐語複写する
       no-op variant」**を書かせ stock cache-hit で配線実証 → 次に静的 backoff 値 1 つの純 timing variant を
       Tier0→pipeline.evaluate→verify→bench→WAL で 1 周。**COMMIT を書く唯一の経路は pipeline.evaluate()**
       (guided.py の replay-fake certified 経路は live variant に絶対再利用しない)。
-- [ ] **broken-silo 回帰**: ループ前に broken-silo-norw patch で verifier が確実に G2 赤を返すことを 1 回確認
+- [x] **broken-silo 回帰**: ループ前に broken-silo-norw patch で verifier が確実に G2 赤を返すことを 1 回確認
       (赤検出力の空打ちでない実証)。clean G2 は easy case ゆえ integrity-class fixture は S4 consumer 段で追加。
+      (2026-07-05 実証: 高競合 tuple50/skew0.9/rmw/thread4 で verdict=non-serializable・anomalies 20 件
+      全て G2・exit 1。一時ビルド/trace は清掃済み。詳細 = worklog 2026-07-05)
 
 **新規実体化は coder のみ** (critic/profiler は既存再利用、auditor/planner は後続)。
 
