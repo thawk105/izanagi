@@ -568,3 +568,32 @@ phase1/2 凍結宣言 + check_docs 追従 + glossary 行番号参照 52 件の�
 
 ### 次の一手
 - 変わらず (前エントリ参照)。
+
+## 2026-07-05 (4) — Phase 3 kickoff 完了 (coder.md + 全配線 1 周 + broken-silo 回帰)
+
+成果: commit 4c167b5 (完了条件 1/2 とも WAL 機械判定 10/10 PASS。詳細は body)。以下は git に載らない分:
+
+- **敵対検証 (coder.md + 実走計画、4 レンズ 22 エージェント・132 万トークン): real 0 / refuted 14。**
+  refuted のうち「事実部は正しく安価に直せる」3 件を採用 — 最重要は **静的値 10us→50us**: 当初案 10us は
+  write-heavy sweet spot (+38.3% 勝者値) で「中立値」宣言が偽になるところだった (50 = sweep 済み非勝者点)。
+  他 2 件 = coder.md の over-claim 縮小 (「何を書いても逸脱は隠れない」→一次防壁の保証範囲に縮小 /
+  description の「機械強制」→ファイル面限定のみ hook、合成枝内への限定は規律+人間レビューと書き分け)。
+  リーク系 refuted 4 件 (patches/README・Grep 全域・設計背景ポインタ・prompt-only) は全て「後続段 4 の
+  物理分離予約が受け皿」の確認 — 段 4 着手時の入力リストとしてここに残す。
+- 素材: 敵対検証がリーク台帳の虚偽 (「中立」を名乗った値が実は勝者値) を実走前に検出した。リーク制御は
+  「coder に何を見せないか」だけでなく「orchestrator が何を中立と宣言するか」自体が検証対象という教訓。
+- **coder 駆動の迂回:** 生成した coder.md はセッション内では agent 型として未登録 (次セッション有効) →
+  general-purpose に coder.md 全文注入で fresh 駆動 (P2-5 と同型)。coder は no-op/static50 とも逸脱なし
+  (diff 監査 = 規律6。#if 枝 1 行のみ、自己申告と一致)。
+- **実測の worklog 残し分:** 完了条件 2 の verify aborts = 41,868 (commits 360,689) — 残存リスク
+  「CorrectnessWorkload は競合を踏まず空振り認証」は杞憂と判明 (no-op 側でも 7,627)。broken-silo は
+  anomalies 20 件**全て G2**・exit 1 (dsg realizability 証明の実測確認。成果物なし、一時ビルド清掃済み)。
+- guard_bash の副次観測: 実走中 3 回の正当拒否 (python3+build-variants 字面 / rm ccbench 配下 /
+  heredoc+防護パス同居)。全て hook の指示どおりスクリプトファイル化・-F 方式で正面対処 (false-positive
+  でなく設計どおりと裁定)。
+- エージェント工数: 敵対検証 132 万 + coder 2 呼び 6 万トークン。計測は直列 (wiring 規模、bench 計 4 reps)。
+
+### 次の一手
+- **後続段 1 (S2 縮小 verify 構成の確定、calibrator 実走 gate) または段 2 (S4 load_rejections consumer
+  実体化 = coder が初めて赤 variant を出す段)** — phase3.md 後続段の番号順。
+- 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
