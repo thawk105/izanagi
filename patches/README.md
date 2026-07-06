@@ -169,6 +169,26 @@ cmake --build "$SUB/build-bf50" --target ycsb_silo.exe -j
 
 ---
 
+## variant-*.patch — coder 編集の固定 (Phase 3)
+
+coder (LLM) の EVOLVE-BLOCK 編集を orchestrator が diff 監査のうえ patch 化したもの
+(silo-backoff-fixed.patch の骨格 + 合成枝の中身、を素の tree に一発で当てる合成 diff)。
+`patchharness.applied()` で apply → resolve → build → revert の順に使う。
+
+- **variant-noop-else-copy.patch** — kickoff 完了条件 1 (identity 後方互換)。合成枝 =
+  #else 枝の逐語複写。src_token=stock に解決され cache-hit することの実証用。
+- **variant-backoff-static50.patch** — kickoff 完了条件 2 (合成枝 1 周)。静的 50us
+  (sweep 済み非勝者点 — リーク制御)。certified 緑。
+- **variant-backoff-red-1e9.patch** — 後続段 2 (S4 consumer)。合成枝 = 1e9 µs (1000 秒)
+  の過大 backoff で trace-timeout (liveness-red) を**意図的に**出す赤 variant。値の根拠:
+  trace timeout 120 秒の 8 倍で決定的に発火し、driver 異常死で孤児化しても約 17 分で
+  spin を抜けて自然終了する (無限に CPU を焼かない)。**隔離規約 (broken-silo と同型):**
+  perf/correctness の baseline・正系列 campaign に決して混ぜない。専用 campaign
+  (search_tag=s4-red-consumer) でのみ評価する。buildcache に成果物は入るが cache-hit は
+  同一 src_token に限られるため正系列で再利用されることはない。
+
+---
+
 ## トレース形式 (verifier = タスク2 の入力契約)
 
 trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`

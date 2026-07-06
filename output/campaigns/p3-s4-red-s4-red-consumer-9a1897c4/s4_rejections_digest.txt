@@ -1,0 +1,18 @@
+# rejections — 正しさ/liveness ゲート不通過 (採用されず、性能数値は構造的に存在しない)
+
+## [non-serializable] variant=db4764543546 genome=silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 src_token=stock
+  cycle 全数 1 / witness 1 件を表示
+  #1 G2: T0 → T1 → T0
+      T0 → T1  [rw]  rw key=0000000000000001 read(1,0)→overwritten(1,2)
+      T1 → T0  [rw]  rw key=0000000000000002 read(1,0)→overwritten(1,1)
+
+## [indeterminate] variant=fixture-synthetic-integrity genome=silo|BACK_OFF=1,BACKOFF_FIXED=999,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 src_token=fixture
+  integrity: {'missing_txids': 3}
+  · missing txids sample: [7, 8, 9]
+
+## [liveness:trace-timeout] variant=670d57b5e838 genome=silo|BACKOFF_FIXED=1000000000,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 src_token=47dda7c09fe5b1a4f9515e73ecc6f9259715ed8076670ba2d24ff9de9a9c1549
+  timeout_s=120.0
+  読み方: 実行時間が上限を超えた — 合成枝が実行時間を爆発させた疑い (過大な待機/spin 等)
+
+# verify run の abort 統計 (シグナル — reject 理由ではない。閾値判定なし、異常かどうかは読み手が stock 対照比で判断)
+- stock: aborts=1 commits=2 rate=33.33%
