@@ -727,3 +727,39 @@ git に載る分: commit 0232101 (設計基盤 docs/phase3-s4-design-foundation.
 ### 次の一手
 - **後続段 4 の実装** — design-foundation の Open Questions 6 件を design v1 に統合 → 敵対検証 → 実装 → 実走。
 - 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
+
+## 2026-07-07 — 後続段 4: 前セッション引き継ぎ + design v1 + 敵対検証完了
+
+**作業:**
+- 前セッション (2026-07-06 深夜) 中断の復旧: handoff から Model Y 裁定 (coder fresh subagent / 出力 = structured output で提案枝コード) を復元
+- **design v1 新規作成** (`docs/phase3-s4-design-v1.md`):
+  - design-foundation (調査 5 レンズ) + handoff 記憶 (Model Y 裁定・4a-4b 密結合発見) を統合
+  - 核発見「4a と 4b は密結合」を明示化 (coder 出力 interface が diff 検疫の役割を決める)
+  - 6 つの Open Questions 敵対検証用に構体化
+- **coder input context 新規作成:**
+  - `src/coder-spec.md`: template + API + leading-indicators + baseline 値 (risk = sweet-spot 値が漏れないか)
+  - `src/coder-leakproof-context.md`: 勝ち筋値を物理削除した curated context (勝ち筋・利得・性能数値なし)
+- **敵対検証実施 (workflow wf_301ed286-5fb, 19 attack vectors × 6 OQ):**
+  - 結果: REAL 9 / CONTESTED 7 / REFUTED 3
+  - 主要 REAL findings: (1) diff-reject digest に explicit reason field 欠落 (D37 パターン未適用), (2) Bash tool で Read 削除後も cat 経路が leakage 可能, (3) whiteboard の棄却理由が structural inference 許す, (4) loop 停止条件未定義 → D39 必須
+  - 主要 contested: backoff 軸飽和への obscurity (但し P2 実績で反証), 複数マーカー拡張での complexity
+  - 結果を `docs/handoff/2026-07-07-s4-adversarial-findings.md` に凍結
+
+**素材:** 敵対検証の real 9 件が design v1 実装前の修正点を明示化。「勝ち筋値を見せない」「構造障壁を強化」「loop 条件を明文化」の 3 軸が critical。
+
+**エージェント工数:** design v1 + context 作成 0.5h、workflow (19 agents 並列) 993k tokens / 5m 23s。
+
+**追加作業 (本セッション内):**
+- design v1 敵対検証 findings 反映 (diff-reject digest に reason field / Bash leak 明文化 / loop stopping 形式化)
+- agent role 2 点作成 (coder-v4-autonomous.md / planner-v4.md、日本語版)
+- diff_quarantine.py skeleton 作成
+- handoff 2 点作成 (adversarial-findings.md / session-summary.md)
+
+**次の一手:** 
+1. Diff_quarantine.py 実装 (hunk parse + hole validation)
+2. Orchestrator loop driver 実装
+3. D39 作成 (loop criteria + baseline 4 grid)
+4. phase3-main-experiment.md update (baseline 3/4 詳細)
+5. 1 iteration 実走テスト
+
+**人間待ち:** submodule 028f34d の push (認証なし、D16)。
