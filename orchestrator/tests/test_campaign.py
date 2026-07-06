@@ -19,7 +19,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import (buildcache, genome, ident, pipeline,       # noqa: E402
+from campaign import (buildcache, genome, ident, pin, pipeline,  # noqa: E402
                       source_digest, wal)
 from campaign.layout import CampaignLayout, campaign_layout      # noqa: E402
 from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
@@ -913,11 +913,16 @@ def test_source_digest_silo8_id_backward_compatible():
     デフォルト src='stock' は canonical のみハッシュ = 旧値 (実機非依存)。"""
     for g in genome.SILO_SPACE.enumerate():
         assert pipeline.variant_id(g) == _GOLDEN_VID[g.canonical()], g.canonical()
-    head = _ccbench_head_or_skip()
-    if head:
-        g0 = Genome("silo", {"BACK_OFF": 0, "NO_WAIT_LOCKING_IN_VALIDATION": 0,
-                             "NO_WAIT_OF_TICTOC": 1, "WAL": 0})
-        assert buildcache.cache_key(g0, head, False) == _GOLDEN_CK0[g0.canonical()]
+    # cache_key は純関数 (ccbench_commit を pre-image に織り込む・working-tree 非依存)。
+    # golden は kickoff pin (dff0f1e) で計算された値なので、live HEAD ではなくその固定 pin
+    # で導出を検証する — 後続段 3 の pin 前進 (028f34d, D38) で cache_key が変わるのは
+    # 設計どおり (content-addressed identity は pin と共に動く) で、backward-compat golden は
+    # 「dff0f1e 時点の導出が安定か」を pin 非依存にテストする (裁定12/IDENT-1)。
+    g0 = Genome("silo", {"BACK_OFF": 0, "NO_WAIT_LOCKING_IN_VALIDATION": 0,
+                         "NO_WAIT_OF_TICTOC": 1, "WAL": 0})
+    # golden は full hash (旧 live HEAD) で計算された値。pin.KICKOFF_PIN_FULL で照合する。
+    assert (buildcache.cache_key(g0, pin.KICKOFF_PIN_FULL, False)
+            == _GOLDEN_CK0[g0.canonical()])
 
 
 def test_source_digest_parse_options_defaults():
@@ -1021,6 +1026,33 @@ def test_source_digest_allowlist():
         source_digest.assert_worktree_within_allowlist("/x")   # 例外なし = OK
     finally:
         source_digest.subprocess = saved
+
+
+def test_lock_path_edit_surface_requires_auditor_live():
+    """スコープ gate (後続段 3, D38, 裁定14): lock 経路 (transaction.cc) を coder の
+    編集面 (EVOLVE_BLOCK_SOURCES) に開くのは auditor live が機械的に緑になってから。
+
+    段 3 時点では transaction.cc ∉ EVOLVE_BLOCK_SOURCES ゆえ含意は vacuously true
+    (lock 経路変異は段 5)。段 5 で transaction.cc を編集面に加えたら、この含意が発火し
+    auditor live の機械 4 点 (s3_lock_coverage.json の all_pass) が緑であることを強制
+    する — 宣言でなくテストで gate する (test_settings_json_wires_both_hooks と同形式)。
+    これで「auditor 不在で lock 経路が編集可能になる窓」を sequencing 依存でなく機械で塞ぐ。"""
+    from campaign import source_digest
+    from campaign.layout import repo_output_root
+    if "cc/silo/transaction.cc" not in source_digest.EVOLVE_BLOCK_SOURCES:
+        return                              # 段 3: 編集面外ゆえ含意は空真 (発火せず)
+    # ここに来る = 段 5 で lock 経路を編集面に開いた。auditor live を要求する。
+    path = os.path.join(repo_output_root(), "env", "linux-baremetal",
+                        "calibration", "s3_lock_coverage.json")
+    assert os.path.exists(path), (
+        "transaction.cc を編集面 (EVOLVE_BLOCK_SOURCES) に加えたが auditor live の"
+        f"機械実証 {path} が無い — 先に s3_lock_coverage driver を緑にすること (D38)")
+    import json as _json
+    with open(path, encoding="utf-8") as fh:
+        data = _json.load(fh)
+    assert data.get("all_pass") is True, (
+        "s3_lock_coverage の checks が all_pass でない — lock 被覆 assert が positive "
+        "control で歯を持つ実証が緑になるまで lock 経路を編集面に開いてはいけない (D38)")
 
 
 def test_evolve_block_markers_structure_and_inert():

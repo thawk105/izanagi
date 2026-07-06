@@ -1,0 +1,20 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index b06fd4f..642b141 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -156,6 +156,15 @@ void TxExecutor::lockWriteSet() {
+       : for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+     if (itr->op_ == OpType::INSERT) continue;
+     expected.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
++#if IZANAGI_BREAK_LOCK_COVERAGE
++    // izanagi 後続段 3 — DELIBERATELY BROKEN variant (positive control, D38).
++    // Skip acquiring the write lock. writePhase then writes this tuple without
++    // lock coverage — the write_set 被覆 assert MUST flag it (X not-locked-at-entry).
++    // Flag defaults OFF (#else = original CAS lock). NEVER build this into a perf
++    // or correctness baseline (絶対規律2).
++    max_wset_ = std::max(max_wset_, expected);
++    continue;
++#endif
+     for (;;) {
+       if (expected.lock) {
+ #if NO_WAIT_LOCKING_IN_VALIDATION

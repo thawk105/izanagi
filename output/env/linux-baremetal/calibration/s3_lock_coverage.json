@@ -1,0 +1,60 @@
+{
+  "env_tag": "linux-baremetal",
+  "ccbench_commit": "028f34d",
+  "genome": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "clocks_per_us": 2100,
+  "runs": {
+    "stock_single": {
+      "exit_code": 0,
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "txns": 253598,
+      "x_reasons": {}
+    },
+    "lockskip_single": {
+      "exit_code": 3,
+      "verdict": "indeterminate",
+      "certified": false,
+      "total_cycles": 0,
+      "lock_coverage_violations": 1016002,
+      "txns": 209964,
+      "x_reasons": {
+        "not-locked-at-entry": 508001,
+        "lock-lost-before-write": 508001
+      }
+    },
+    "lockskip_high": {
+      "exit_code": 1,
+      "verdict": "non-serializable",
+      "certified": false,
+      "total_cycles": 4932,
+      "lock_coverage_violations": 1230150,
+      "txns": 254333,
+      "x_reasons": {
+        "not-locked-at-entry": 615075,
+        "lock-lost-before-write": 615075
+      }
+    },
+    "early_unlock_single": {
+      "exit_code": 3,
+      "verdict": "indeterminate",
+      "certified": false,
+      "total_cycles": 0,
+      "lock_coverage_violations": 524030,
+      "txns": 216710,
+      "x_reasons": {
+        "lock-lost-before-write": 524030
+      }
+    }
+  },
+  "checks": {
+    "stock_silent_certified": true,
+    "lockskip_characterization": true,
+    "lockskip_both_reasons": true,
+    "lockskip_high_fires": true,
+    "early_unlock_retention_only": true
+  },
+  "all_pass": true
+}

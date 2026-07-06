@@ -1,0 +1,19 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index b06fd4f..4b3fd3d 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -583,6 +583,14 @@ void TxExecutor::writePhase() {
+ 
+   // write(record, commit-tid)
+   for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
++#if IZANAGI_BREAK_EARLY_UNLOCK
++    // izanagi 後続段 3 — DELIBERATELY BROKEN variant (positive control, D38).
++    // Release the lock BEFORE writing the tuple's data, opening a torn-read
++    // window. The retention check MUST flag it (X lock-lost-before-write).
++    // NEVER build this into a perf or correctness baseline (絶対規律2).
++    if ((*itr).op_ != OpType::INSERT)
++      storeRelease((*itr).rcdptr_->tidword_.obj_, maxtid.obj_);
++#endif
+     // update and unlock
+     switch ((*itr).op_) {
+       case OpType::UPDATE: {
