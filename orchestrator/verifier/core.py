@@ -7,7 +7,7 @@ verifier の入力は **trace のみ**。性能数値 (throughput 等) をここ
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict, Optional
 
 from .dsg import DSG
 from .model import VerifyResult
@@ -39,6 +39,26 @@ def verify_trace_dir(trace_dir: str, max_report: Optional[int] = 20) -> VerifyRe
         dsg.integrity.notes.append(
             f"{issues.malformed_keys} malformed key token(s) (expect lowercase even-length "
             f"hex; case/format drift silently splits conflict edges): {sample}")
+
+    # X 行 = writePhase の lock 被覆 assert (D38)。variant が lock 被覆を破って書いた
+    # = torn read が起こりうる → trace の版 stamp が信用できず serializable を認証
+    # できない (絶対規律2、他 integrity カウンタと同じ indeterminate 帰結)。cycle は
+    # 生まないので anomalies でなくここに乗せ、critic は「機構欠落型」として読む。
+    dsg.integrity.lock_coverage_violations = len(issues.lock_coverage_violations)
+    if issues.lock_coverage_violations:
+        # (txid, key, reason) の見本。reason 別の件数も出して機構の破れ方を示す。
+        sample = "; ".join(
+            f"txn{t} key={k} ({r})"
+            for t, k, r in issues.lock_coverage_violations[:5])
+        reasons: Dict[str, int] = {}
+        for _t, _k, r in issues.lock_coverage_violations:
+            reasons[r] = reasons.get(r, 0) + 1
+        by_reason = ", ".join(f"{r}×{n}" for r, n in sorted(reasons.items()))
+        dsg.integrity.notes.append(
+            f"{len(issues.lock_coverage_violations)} lock-coverage violation(s) "
+            f"[{by_reason}] — writePhase wrote a tuple without holding its lock "
+            f"(torn-read window; variant broke lock coverage, not a trace-hook fault): "
+            f"{sample}")
 
     anomalies, total = dsg.anomalies(max_report=max_report)
     if total > len(anomalies):

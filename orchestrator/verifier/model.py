@@ -107,6 +107,15 @@ class Integrity:
     **重要 (絶対規律2):** integrity が unclean な run は、辺が落ちて real cycle を
     隠している恐れがあるため verifier は serializable を**認証できない** (= verdict
     は indeterminate)。malformed な入力を「正しさゲート通過」と報告してはいけない。
+
+    **例外 = lock_coverage_violations (後続段 3, D38):** これだけは「trace-hook の
+    問題」でなく **variant が引き起こした CC 正しさ違反** (lock 被覆を破って書いた =
+    torn read が起こりうる)。だが verdict の帰結は他カウンタと同じ indeterminate で
+    正しい — 被覆が破れると trace の版 stamp が信用できず (torn read は値が trace に
+    載らない) DSG の辺が落ちている恐れがあるため serializable を認証できない。cycle は
+    生まない (non-serializable にはならない) ので anomalies でなくこのカウンタに乗せ、
+    critic は「機構欠落型」として読む (cycle 帰属を捏造しない)。検出源は writePhase の
+    #if TRACE 被覆 assert が emit する X 行 (trace.hh emit_lock_violation)。
     """
     orphan_reads: int = 0       # 非 genesis なのに producer の write が無い read
     version_dups: int = 0       # 同一 (key, ver) を異なる trx が産んだ
@@ -115,13 +124,14 @@ class Integrity:
     missing_txids: int = 0      # txid の欠番 (密連番保証の破れ = trx 丸ごと欠落)
     write_version_mismatch: int = 0  # W 行の版が C 行 commit と不一致の trx
     malformed_keys: int = 0     # key が小文字 hex 形式でない (表現揺れは競合辺を消す)
+    lock_coverage_violations: int = 0  # X 行の件数 (writePhase で lock 被覆が破れた write。D38)
     notes: List[str] = field(default_factory=list)
 
     def clean(self) -> bool:
         return (self.orphan_reads == 0 and self.version_dups == 0
                 and self.dup_txids == 0 and self.genesis_commits == 0
                 and self.missing_txids == 0 and self.write_version_mismatch == 0
-                and self.malformed_keys == 0)
+                and self.malformed_keys == 0 and self.lock_coverage_violations == 0)
 
 
 @dataclass

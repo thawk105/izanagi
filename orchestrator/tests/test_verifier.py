@@ -283,6 +283,82 @@ def test_dup_txid_indeterminate():
         shutil.rmtree(d, ignore_errors=True)
 
 
+# ---- lock 被覆違反 (X 行) の positive control (後続段 3, D38) ----
+#
+# writePhase の #if TRACE 被覆 assert が emit する X 行を、verifier が
+# Integrity.lock_coverage_violations に配線し verdict を indeterminate に倒すことを
+# 固定する。実ビルド実走の positive control (lockskip/early-unlock) は
+# orchestrator/campaign/s3_lock_coverage.py の driver が担う (fixture はその
+# verdict 級テストの相方 = 段 2 の dup_txids / J8-B と同型)。
+
+def test_lock_coverage_violation_indeterminate():
+    """X 行 (lock 被覆違反) は verdict を indeterminate に倒す。cycle は生まないので
+    non-serializable にはならない (torn read で版 stamp が信用不能 → 辺が落ちる恐れ =
+    他 integrity カウンタと同じ indeterminate、絶対規律2)。GATE-1/CODE-1 の裁定:
+    'integrity 同型かつ non-serializable' は機構的に両立不能なので indeterminate に確定。"""
+    import shutil
+    # 1 txn が lock を持たずに key aa を書いた (それ自体は cycle を生まない serializable)。
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nX 0 aa not-locked-at-entry\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.lock_coverage_violations == 1
+        assert res.total_cycles == 0                    # cycle は無い
+        assert res.serializable                          # 純グラフ事実 = 非巡回
+        assert res.verdict == "indeterminate"            # だが認証できない (X が汚す)
+        assert res.verdict != "non-serializable"         # cycle を捏造しない (GATE-1)
+        assert not res.certified
+        assert result_to_dict(res)["integrity"]["lock_coverage_violations"] == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_lock_coverage_control_serializable():
+    """X 行の無い同じ形は serializable/certified (非恒真の基底 = assert は正しいコード
+    で沈黙する)。lockskip fixture との唯一の差が X 行であることを示す negative control。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.lock_coverage_violations == 0
+        assert res.verdict == "serializable"
+        assert res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_lock_coverage_reasons_parsed():
+    """2 reason (獲得欠落 not-locked-at-entry / 保持破れ lock-lost-before-write) が
+    parse され、件数と (txid,key,reason) 見本が issues に載る (critic の読み分け素材)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nX 0 aa not-locked-at-entry\n"
+                   "X 0 aa lock-lost-before-write\n")
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert len(issues.lock_coverage_violations) == 2
+        reasons = {r for _t, _k, r in issues.lock_coverage_violations}
+        assert reasons == {"not-locked-at-entry", "lock-lost-before-write"}
+        res = verify_trace_dir(d)
+        assert res.integrity.lock_coverage_violations == 2
+        # notes に reason 別内訳と見本が載る (render/critic が読む)
+        note = " ".join(res.integrity.notes)
+        assert "not-locked-at-entry" in note and "lock-lost-before-write" in note
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_lock_coverage_malformed_key_flagged():
+    """X 行の key も hex 形式検査を通す (表現揺れは帰属を汚すため、規律3)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nX 0 AA not-locked-at-entry\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.lock_coverage_violations == 1
+        assert res.integrity.malformed_keys == 1        # AA は大文字 = 形式違反
+        assert res.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- 既知偽陰性の characterization (現状の挙動を明示ロックする) ----
 #
 # 以下 2 テストは「現状 certified になってしまう」ことを assert する。**これは仕様の

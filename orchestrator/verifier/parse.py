@@ -6,6 +6,7 @@
     C <txid> <thid> <epoch> <tid>             committed txn。版ID=(epoch,tid)=commit順
     R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版
     W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版=この trx の commit
+    X <txid> <key_hex> <reason>               lock 被覆違反 (writePhase の #if TRACE assert。D38)
 
 1 trx の C/R/W 行は **同一ファイル内で連続** (1 worker が trx を逐次実行し、
 writePhase 内で C→R…→W… を一括 emit するため)。C 行が trx の区切り。
@@ -48,6 +49,11 @@ class ParseIssues:
     malformed_key_sample: List[str] = field(default_factory=list)      # 違反 key の見本
     missing_txids: int = 0                                    # txid 欠番の個数
     missing_sample: List[int] = field(default_factory=list)   # 欠番の見本 (先頭数個)
+    # X 行 = writePhase の lock 被覆 assert が emit した違反 (D38)。(txid, key, reason)。
+    # reason ∈ {not-locked-at-entry (獲得欠落), lock-lost-before-write (保持破れ)}。
+    # これは trace-hook の問題でなく variant の CC 正しさ違反 (torn read 窓) で、
+    # integrity.lock_coverage_violations に配線され verdict を indeterminate に倒す。
+    lock_coverage_violations: List[tuple] = field(default_factory=list)
 
 
 def _check_key(key: str, issues: ParseIssues) -> None:
@@ -102,6 +108,17 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         if (int(epoch), int(tid)) != current.commit:
                             issues.write_version_mismatches.append(current.txid)
                         current.writes.append(Write(key=key, op=op))
+                    elif tag == "X":
+                        # X <txid> <key_hex> <reason>  lock 被覆違反 (writePhase の
+                        # #if TRACE assert が emit)。同一 txn の C/R/W と連続で出る
+                        # (txid 相関を保つため writePhase の txid を共有)。key 形式も
+                        # 検査する (表現揺れは帰属を汚す)。CC 正しさ違反として
+                        # integrity.lock_coverage_violations に配線 (絶対規律2/D38)。
+                        _, txid, key, reason = f
+                        _expect(current, txid, path, lineno)
+                        _check_key(key, issues)
+                        issues.lock_coverage_violations.append(
+                            (current.txid, key, reason))
                     else:
                         raise ParseError(
                             f"{path}:{lineno}: unknown record tag {tag!r}: {line!r}")
