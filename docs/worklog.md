@@ -705,3 +705,25 @@ phase1/2 凍結宣言 + check_docs 追従 + glossary 行番号参照 52 件の�
 - **後続段 4 (guided 検疫層を diff 検疫へ拡張 + planner.md 生成 — coder 自律期)** — phase3.md 後続段の番号順。
   auditor の直接 Write (per-agent path 執行) と mutation-red 汎用ゲートもこの段 (D38 残存リスク)。
 - 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
+
+## 2026-07-06 (5) — 後続段 4 (coder 自律期) 着手: 設計基盤の調査完了・実装は繰延
+
+git に載る分: commit 0232101 (設計基盤 docs/phase3-s4-design-foundation.md)。以下は載らない分:
+
+- **後続段 4 の設計基盤を焦点調査で写像 (5 レンズ・457k トークン、wf_e2036fe9-dc2)。** 3 点セット
+  (coder.md 自律版改訂 / planner.md / diff 検疫層) + D38 残消化。骨子が一貫収束: (1) diff 検疫 = identity
+  死角のフレーム改変 (骨格/#else/マーカー) を位置/バイト同値 parse で埋める新機構 (content 検査でない、
+  D30/D33 の線引き)。(2) coder リーク制御 = filesystem browse を与えず提案枝を構造化出力で返させる物理分離
+  (critic-experiment 同型) = 主実験妥当性の急所。(3) planner.md = auditor 同型 read-only。(4) auditor 直接
+  Write は read-only 据え置きが正解 (path-scoped 執行は原理的に不能)。
+- **判断 (実装を新鮮なセッションに繰延):** 後続段 4 は coder が変異を自律生成する段で reward hacking 圧力が
+  最も高く、リーク制御が airtight でないと主実験の「合成 vs 答えを読んだ」の区別が崩れる。長いセッションの
+  末尾で実装を急ぐと主実験の妥当性を損なうため、設計基盤を de-risk して凍結・handoff する方針にした。実装
+  (敵対検証 → 4a diff 検疫 → 4b リーク制御 → 4c planner → 4d mutation-red) は次セッション。
+- 必読消化: docs/phase3-main-experiment.md (coder 性能主張の事前登録 — 段 4 の中間結果は「暫定」報告、
+  headline は段 6)。継続 WAL = docs/handoff/2026-07-06-s4-coder-autonomy.md (吸収せず残置)。
+- 持ち越し (人間判断待ち): 変わらず (07-06 (1) エントリ参照) + submodule 028f34d の push。
+
+### 次の一手
+- **後続段 4 の実装** — design-foundation の Open Questions 6 件を design v1 に統合 → 敵対検証 → 実装 → 実走。
+- 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
