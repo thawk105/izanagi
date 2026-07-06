@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import os
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -94,6 +95,42 @@ class Rejection:
     # 「どのコード diff がどの anomaly を生んだか」を次手生成が帰属できない (alias)。
     variant: str = ""                 # WAL キー (src_token 込みの variant id)
     src_token: str = ""               # BUILD_START payload の src_token
+    # D36 決定 4 (段 5 配線予定): red payload に workload タグが載る。形 (str/dict) は
+    # D36 実装時に確定するため、payload に来たら生値で保持する前方寛容フィールド。
+    workload: Dict = field(default_factory=dict)
+
+
+# liveness-red の reason 集合 (pipeline.evaluate の _abort が書く文字列と 1:1)。
+# この reason 文字列形式は WAL を介した**暗黙の API** — pipeline 側の reason を
+# 変えたらここも追随する (敵対検証 2026-07-06 の指摘を規約化)。
+LIVENESS_REASONS = frozenset([
+    "trace-timeout", "trace-empty", "trace-run-nonzero-exit",
+    "trace-no-abort-counts", "trace-parse-error",
+])
+
+
+def _normalize_reason(reason: str) -> str:
+    """reason の動的部を畳む (「eval-exception: TypeError: …」→「eval-exception」)。
+    そのまま集計すると variant ごとに文字列が異なり 1 件ずつバラけて件数の意味を失う。"""
+    return reason.split(":", 1)[0].strip()
+
+
+@dataclass
+class LivenessRejection:
+    """liveness-red (verify に到達する前に死んだ variant) の構造化次手入力 (規律3)。
+
+    verify-red (Rejection) とは**別型**: verdict/anomalies の語彙 (cycle を断つ方向)
+    に liveness を押し込むと、次手生成が「liveness 失敗なのに cycle を断つ方向」へ
+    誤誘導される。読み手の帰属枠は 3 択 — (a) commit 枯渇 (回っているが全 abort)、
+    (b) 実行不全 (そもそも回らない)、(c) trace 計器の破れ (parse-error/no-abort-counts
+    = trace 口・カウンタを壊した疑い)。"""
+    genome: str
+    flags: Dict[str, int]
+    reason: str                       # LIVENESS_REASONS のいずれか
+    extra: Dict = field(default_factory=dict)   # rc/commits/aborts(None 可)/timeout_s
+    variant: str = ""
+    src_token: str = ""
+    workload: Dict = field(default_factory=dict)   # Rejection.workload と同じ前方寛容
 
 
 _AXES = ["BACK_OFF", "no_wait", "WAL"]
@@ -160,8 +197,48 @@ def load_rejections(layout: CampaignLayout) -> List[Rejection]:
                 verdict=v.get("verdict", r.payload.get("reason", "")),
                 anomalies=v.get("anomalies", []),
                 integrity=v.get("integrity", {}),
-                variant=r.variant, src_token=srctok_of.get(r.variant, "")))
+                variant=r.variant, src_token=srctok_of.get(r.variant, ""),
+                workload=r.payload.get("workload") or {}))
     return out
+
+
+def load_liveness_rejections(
+        layout: CampaignLayout) -> Tuple[List[LivenessRejection], Dict[str, int]]:
+    """campaign WAL から liveness-red (verify に到達する前に死んだ) abort を読む。
+
+    verify payload を持つ abort (verify-red) は `load_rejections` の領分 — 本関数は
+    その補集合のうち LIVENESS_REASONS のものを構造化して返す (phase3.md 後続段 2 の
+    「liveness-red 両対応」の読み出し側)。それ以外 (build-error / bench-* /
+    identity-error / eval-exception 等の infra/bench 系) は、CC 設計と無関係な赤が
+    次手帰属を汚すため詳細は返さない — が沈黙もさせない (規律3): 正規化 reason →
+    件数の dict を第 2 返り値で返し、render が 1 行サマリとして可視化する。
+
+    fixture 由来の red を正系列 campaign の WAL に書かないこと (本関数は WAL を無差別
+    走査するため、混在すると consumer 入力が汚染される。fixture は使い捨て layout で)。"""
+    genome_of: Dict[str, str] = {}
+    srctok_of: Dict[str, str] = {}
+    out: List[LivenessRejection] = []
+    other: Counter = Counter()
+    for r in wal.read_records(layout):
+        if r.stage == STAGE_BUILD_START:
+            genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
+            srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
+        elif r.stage == STAGE_ABORT:
+            if r.payload.get("verify") is not None:
+                continue                   # verify-red は load_rejections が拾う
+            reason = r.payload.get("reason", "")
+            if reason not in LIVENESS_REASONS:
+                other[_normalize_reason(reason)] += 1
+                continue
+            g = genome_of.get(r.variant, "")
+            extra = {k: val for k, val in r.payload.items()
+                     if k not in ("reason", "workload")}
+            out.append(LivenessRejection(
+                genome=g, flags=_parse_flags(g) if "|" in g else {},
+                reason=reason, extra=extra,
+                variant=r.variant, src_token=srctok_of.get(r.variant, ""),
+                workload=r.payload.get("workload") or {}))
+    return out, dict(other)
 
 
 def _mean(xs: List[float]) -> Optional[float]:

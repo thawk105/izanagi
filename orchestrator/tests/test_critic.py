@@ -19,7 +19,8 @@ from campaign import wal                                          # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT)
-from critic.digest import build_digest, load_rejections, render_text  # noqa: E402
+from critic.digest import (build_digest, load_liveness_rejections,  # noqa: E402
+                           load_rejections, render_text)
 
 
 def _tmp_layout():
@@ -149,6 +150,63 @@ def test_load_rejections_surfaces_structured_anomaly():
     # WAL キーと src_token も次手入力に載る
     assert rej[0].variant == red
     assert rej[0].src_token == "codediff1"
+
+
+def test_load_liveness_rejections_surfaces_reason_and_extra():
+    """S4 consumer (規律3): liveness-red (verify 前に死んだ) が構造化されて次手入力に
+    届き、infra 系 (build-error/eval-exception 等) は詳細でなく正規化 reason の件数に
+    集約される (詳細は返さないが沈黙もさせない)。verify-red は混ざらない。"""
+    lay = _tmp_layout()
+    to = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, to, STAGE_BUILD_START, "test", {"genome": to, "src_token": "codediff9"})
+    wal.log(lay, to, STAGE_ABORT, "test", {"reason": "trace-timeout", "timeout_s": 120.0})
+    te = _G.format(b=0, l=1, t=0, w=0)
+    wal.log(lay, te, STAGE_BUILD_START, "test", {"genome": te})
+    wal.log(lay, te, STAGE_ABORT, "test",
+            {"reason": "trace-empty", "commits": 0, "aborts": 4321})
+    b1 = _G.format(b=0, l=0, t=1, w=0)
+    wal.log(lay, b1, STAGE_BUILD_START, "test", {"genome": b1})
+    wal.log(lay, b1, STAGE_ABORT, "test", {"reason": "build-error"})
+    b2 = _G.format(b=1, l=0, t=1, w=0)
+    wal.log(lay, b2, STAGE_BUILD_START, "test", {"genome": b2})
+    wal.log(lay, b2, STAGE_ABORT, "test",
+            {"reason": "eval-exception: TypeError: boom"})   # 動的部は正規化で畳む
+    vr = _G.format(b=1, l=1, t=0, w=1)
+    wal.log(lay, vr, STAGE_BUILD_START, "test", {"genome": vr})
+    wal.log(lay, vr, STAGE_ABORT, "test",
+            {"reason": "non-serializable",
+             "verify": {"verdict": "non-serializable"}})
+
+    lrs, other = load_liveness_rejections(lay)
+    assert {l.reason for l in lrs} == {"trace-timeout", "trace-empty"}
+    lto = next(l for l in lrs if l.reason == "trace-timeout")
+    assert lto.extra.get("timeout_s") == 120.0
+    assert lto.variant == to and lto.src_token == "codediff9"
+    assert lto.flags["BACK_OFF"] == 1
+    lte = next(l for l in lrs if l.reason == "trace-empty")
+    assert lte.extra.get("commits") == 0 and lte.extra.get("aborts") == 4321
+    assert other == {"build-error": 1, "eval-exception": 1}
+
+
+def test_rejection_types_keep_forward_workload_tag():
+    """D36 決定 4 (段 5 配線予定) への前方寛容: abort payload に workload タグが来たら
+    verify-red / liveness-red の両型が生値で保持する (形の確定は D36 実装時)。"""
+    lay = _tmp_layout()
+    red = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red})
+    wal.log(lay, red, STAGE_ABORT, "test",
+            {"reason": "non-serializable", "workload": {"tag": "s2"},
+             "verify": {"verdict": "non-serializable", "anomalies": [],
+                        "integrity": {}}})
+    lv = _G.format(b=0, l=1, t=0, w=0)
+    wal.log(lay, lv, STAGE_BUILD_START, "test", {"genome": lv})
+    wal.log(lay, lv, STAGE_ABORT, "test",
+            {"reason": "trace-timeout", "workload": {"tag": "s2"}})
+    rej = load_rejections(lay)
+    lrs, _ = load_liveness_rejections(lay)
+    assert rej[0].workload == {"tag": "s2"}
+    assert lrs[0].workload == {"tag": "s2"}
+    assert "workload" not in lrs[0].extra      # 別フィールドに分離 (extra と二重化しない)
 
 
 def _run():
