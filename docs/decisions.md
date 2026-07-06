@@ -951,3 +951,92 @@ abort の詳細描画 (帰属汚染 — 件数集約で沈黙は回避、同 ref
 **残存リスク:** fixture trace 注入の赤 2 は WAL 上 stock genome への帰属が偽 (fixture 用 campaign に隔離、
 spec_content に明記)。critic の読み分け実証は 1 呼び (n=1) — 段 4 の実運用で継続観察。abort 率シグナルの
 実データ発火は variant が verify を通る段 4 以降 (段 2 は対照付き経路をテスト固定のみ)。
+
+## D38. 後続段 3 — auditor 実体化 + write_set 被覆 assert + in-class positive control (2026-07-06)
+
+**背景:** phase3.md 後続段 3「auditor.md 生成と起動 — lock 経路変異の段」。verifier は
+commit 経路 (writePhase の C/R/W) しか trace しないため lock 獲得・被覆・torn read が
+構造的に見えない (撤回済 sort-strategy の教訓)。この死角を auditor の静的監査 + writePhase
+の被覆 assert で埋める。設計 v1 → 8 レンズ 55 エージェントの敵対検証 (real 22 / contested
+15 / refuted 10、一次資料 = output/insights/... の敵対検証出力) → v2 で確定。
+
+**決定 1 — X 行の verdict = indeterminate (non-serializable ではない):** lock 被覆違反
+(X 行) を verifier の Integrity 新カウンタ `lock_coverage_violations` に配線し clean()→
+**indeterminate** に倒す (version_dups/dup_txids と真に同型)。verdict は導出 @property で
+non-serializable は cycle (serializable=False) 専用 — lock 被覆違反は cycle を生まないので
+両立不能 (敵対検証 GATE-1/CODE-1/WIRE-1 = high)。意味的にも正しい: 被覆が破れると torn
+read で版 stamp が信用できず DSG の辺が落ちる恐れ = 他 integrity と同じ「認証不能」。cycle
+witness には混ぜず、critic は「機構欠落型」(次手 = lock 獲得順/被覆の復元、cycle 帰属を
+捏造しない) として読む。parse.py に X 行 parser、core.py に集計 + notes、report.py に
+シリアライズを追加 (v1 が parse 層を見落とし = WIRE-1)。render は既存 integrity 汎用描画枝
+が自動処理 (consumer 取り残しなし = GATE-2)。
+
+**決定 2 — 被覆 assert = izanagi-trace の #if TRACE、2 点検査、positive control 2 本:**
+trace.hh の namespace izanagi_trace に thread_local shadow set (自 worker の CAS-lock 済み
+tuple) + emit_lock_violation を置く。**namespace 内必須** — perf ビルドの nm ガード
+(`izanagi_trace` 部分文字列一致) が漏れを確定的に覆うため (OBS-1)。検査は 2 点 (両 #if
+TRACE、規律1): 入口 (獲得被覆 = 全非 INSERT が raw lock==1 かつ shadow 保持、lockskip を
+捕らえる) と各 storeRelease 直前 (保持継続 = 早期 unlock を捕らえる)。1 点検査だと不変条件
+「各 storeRelease まで保持」を過大保証する (OBS-3/GATE-4/CODE-4)。shadow は lockWriteSet
+入口 + 全 unlockWriteSet + writePhase 末尾で whole-set clear (per-txn 隔離、裁定7)。txid は
+writePhase スコープに hoist し X を同 txn の C/R/W と相関 (CODE-2)。**非恒真性の operative
+proof は positive control (lockskip/early-unlock が mutation で赤)** — 「生 lock bit は独立
+ground truth」論法は不正確 (生 bit と shadow は同一 CAS 由来で相関、stock では検査点で
+lock bit は恒真的に 1) と訂正 (OBS-6/GATE-5/CODE-5)。実走実証 (env=linux-baremetal、pin
+028f34d、s3_lock_coverage.json all_pass): stock=X0/certified、lockskip 単一スレッド=
+total_cycles==0 (verifier certify) かつ lcv>0/indeterminate (**characterization = 同一 run
+で assert が verifier の死角を決定的に検出**、裁定9)、early-unlock=保持破れのみ (2 検査点が
+別々に歯を持つ)。
+
+**決定 3 — auditor は read-only (Write なし):** ISO クラスタ (ISO-1/2/3/4) の解。guard_write
+(PreToolUse) は tool_name/tool_input のみ受け取り呼び出し元エージェントを識別できない (実機
+確認済) ため per-agent の path 制限が hook で表現不能。auditor に Write を与えると「既存
+テストを弱める書き込み」を機械的に止められない。→ auditor は tools=[Read,Grep,Glob] のみ、
+reward hack finding + 提案テストを構造化出力で返し orchestrator が人間レビュー gate 下で反映
+(段 2 の coder/critic と同型)。これで書き込み面の機械執行問題が段 3 から消える (「既存
+テストを弱める Write」が構造的に不可能)。入力隔離 (fitness を見ない) は tool 制限 (Bash
+非付与) + orchestrator の入力射影 + prompt 規律の**併用** — Read を持つため完全な構造隔離
+ではない (v1 の「Bash 非付与で構造遮断」は偽、ISO-1)。直接 Write の自律形と per-agent path
+執行は後続段 4 へ繰延 (audit-2026-06-30 §4 段 2 の部分消化)。
+
+**決定 4 — auditor live 定義 = 機械 4 点 + n=1 定性 2 点:** 機械 gate (driver bool) =
+(1) auditor.md 実体化 (2) 被覆 assert が実 variant で発火 (3) positive control suite の赤/緑
+(pytest + s3 driver all_pass) (4) 入力隔離の構造 (Read-only + 入力射影)。n=1 定性 (段 2
+critic n=1 と同扱いの素材) = (5) fresh auditor が lockskip diff を独立検出 (6) negative
+control (benign diff) を PASS する弁別 (rubber-stamp 防止、SCOPE-6)。実証 = 2026-07-06、
+A(lockskip)=reject / B(benign reorder)=pass の弁別成功 (一次資料 = output/insights/2026-
+07-06_s3-auditor-live-n1.md)。「機械確認可能」は点 1-4 に限定 (点 5-6 は n=1 主観、
+SCOPE-4/WIRE-5)。**段 6 headline gate の充足条件は機械 4 点。**
+
+**決定 5 — スコープ = レベル 2、編集面拡張は段 5、gate をテストで機械化:** 段 3 は auditor
+実体化 + assert + positive control まで。lock 経路を coder 編集面 (EVOLVE_BLOCK_SOURCES に
+transaction.cc 追加) に開くのは**段 5 に繰延** — 「lock 経路は auditor live を gate に」
+(phase3.md) を sequencing でなく機械で効かせるため、`test_lock_path_edit_surface_requires_
+auditor_live` (transaction.cc ∈ EVOLVE_BLOCK_SOURCES ⟹ s3_lock_coverage.json all_pass) を
+置いた (段 3 は vacuously true、段 5 で発火)。段 3 ablation 点 = **被覆 assert の on/off が
+lockskip 検出力に与える差** (assert 有=X 検出 / 無=verifier 単独で cycles==0 = 見逃す)。
+
+**pin bump:** 被覆 assert を izanagi-trace に足し pin が dff0f1e→028f34d に前進。`ccbench_commit`
+は campaign-id pre-image (ident) に入るので新 campaign の campaign-id が移動 (decisions.md
+:327 ODR-fix と同型の既知・正直な content-addressed 挙動)。**歴史的 driver (kickoff/s4-red
+等) は dff0f1e literal を保持** (その campaign は凍結・push 済み、再走は checkout してから) —
+一律張り替えは孤立を招くため不可 (IDENT-1)。現行 pin は campaign/pin.py に集約 (CURRENT_PIN
+= 028f34d、段 3 driver のみ使用)。cache_key backward-compat golden は live HEAD 依存をやめ
+full-hash 固定 (pin.KICKOFF_PIN_FULL) に decouple。push は人間 (D16、この環境に認証なし) —
+新 commit は push まで un-clonable。
+
+**却下案:** X→non-serializable (cycle 捏造 = 機構不能、GATE-1) / auditor に Write 付与 +
+既存テストを guard_write 保護 (全エージェントに効き過剰、caller 非識別、ISO-3/4) / 「Bash
+非付与で fitness 構造遮断」(Read で直達可、ISO-1) / 被覆検査 1 点のみ (早期 unlock を過大
+保証、OBS-3) / 編集面拡張を段 3 で束ねる (auditor live gate の骨抜き + churn 前倒し、SCOPE) /
+refuted 10 件 (敵対検証で設計が既に手当て済み or 前提誤り)。
+
+**残存リスク (known-limitation):** (a) memory-race 型 (CAS→素 store の非原子 lock) は verifier
+も被覆 assert も見逃す既知盲点 — 段 3 scope 外、characterization 台帳項 (CLASS-1)。「相補的」は
+{1,2,3 書き lock 欠落} と {4,5 読み検証弱化} に限定、{6} は両者の盲点。(b) INSERT/insert 経路
+変異はスコープ外 (段 3 は lockWriteSet の write lock 欠落 class 限定、CODE-7)。(c) tidword に
+owner フィールド無しゆえ lock stomp/二重保持は raw∧shadow を満たしスコープ外 (OBS-6)。
+(d) auditor が段 4 で自律追加する assert の mutation 非恒真性は段 3 では prompt 規律のみ —
+段 4 で「追加 positive control は対応変異を戻すと必ず赤を driver が毎回機械確認」の汎用ゲートを
+予約 (RECUR-2/WIRE-4)。(e) auditor の書き込み面 path-scoped 機械執行は段 4 (per-agent
+permission、guard_write は caller 非識別、ISO-2/3)。

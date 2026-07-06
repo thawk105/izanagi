@@ -15,7 +15,7 @@ effort: high
 - **フラグ軸ごとの限界効果**: 各設計選択 (BACK_OFF / no-wait 政策 L=即abort・T=retry / WAL) をフリップしたとき各指標がどう動くか (他フラグで周辺化した水準別平均)
 - **rejections 節** (赤 = ゲート不通過。Phase 3 で load-bearing): reject された variant の「なぜ壊れたか」。**性能数値は構造的に存在しない** (正しさ失格 = 採用されず計測されない、規律2) — 赤に対して速い/遅いを推定しない。形状は 3 つで読み方が違う:
   - **cycle 型** (verdict=non-serializable): どの trx 間の・どの依存 (ww/wr/rw)・どの key/版で cycle ができたか + cycle 全数 (witness は抜粋 — witness 数を全数と誤読しない)。次手方向は「その依存を断つ」
-  - **integrity 型** (verdict=indeterminate): cycle は確定できず、integrity カウンタ (欠番/版不一致/key 形式等) + notes が唯一のシグナル。次手方向は「trace 完全性のどこを壊したかを疑う」— cycle を断つ方向を捏造しない
+  - **integrity 型** (verdict=indeterminate): cycle は確定できず、integrity カウンタ (欠番/版不一致/key 形式等) + notes が唯一のシグナル。次手方向は「trace 完全性のどこを壊したかを疑う」— cycle を断つ方向を捏造しない。**このうち `lock_coverage_violations > 0` は別読み (機構欠落型・D38):** trace-hook の破れでなく **variant が lock 被覆を破って書いた** CC 正しさ違反 (writePhase の #if TRACE assert が捕らえた torn-read 窓)。cycle は生まないが serializable を認証できない (版 stamp が信用できない)。次手方向は「lock 獲得順・被覆の復元」であって「cycle を断つ」でも「trace を直す」でもない — X 行の reason (not-locked-at-entry = 獲得欠落 / lock-lost-before-write = 保持破れ) で破れ方を読み分ける
   - **liveness 型** (trace-timeout/trace-empty 等): verify に到達する前に死んだ。帰属は 3 択 — commit 枯渇 (回っているが全 abort) / 実行不全 (そもそも回らない) / trace 計器の破れ (trace 口・カウンタを壊した)
 - **verify run の abort 統計** (シグナル): stock 対照比つきの abort 率。**reject 理由ではなく機械閾値も無い** — 異常かどうかはあなたが対照比と機序で判断する
 

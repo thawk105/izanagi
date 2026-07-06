@@ -57,8 +57,10 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が hi
   ソース面の限定は機械強制**。ただし方針 A の hook は編集面の限定のみを担い、designated ソース内の内容・意味的
   逸脱の判定は auditor / coder diff の人間レビュー領域のまま — coder.md タスクの前提 gate =
   `test_settings_json_wires_both_hooks` の緑で機械確認)。
-- **適用の隔離:** patch は submodule working-tree への out-of-band 適用 (HEAD は dff0f1e pin 不動 →
-  campaign-id 不変)。1 variant 評価ごとに clean→apply→build→revert。apply 前に対象が pinned-clean か
+- **適用の隔離:** patch は submodule working-tree への out-of-band 適用 (kickoff/s4-red の campaign 内は
+  pin 不動 → campaign-id 不変。**現行 pin は campaign/pin.py の CURRENT_PIN = 028f34d に集約** — 後続段 3 で
+  被覆 assert を izanagi-trace に足し dff0f1e→028f34d に前進した、D38。歴史的 driver は自分の dff0f1e literal
+  を保持し再走は checkout してから)。1 variant 評価ごとに clean→apply→build→revert。apply 前に対象が pinned-clean か
   assert (汚れていたら fails-closed abort)。駆動部 = `campaign/patchharness.py` の `applied()` context
   manager (blocking タスクで実装済み: enter = flock 排他 + pinned-clean assert + apply、exit = revert +
   clean assert。順序固定 apply→resolve→build→revert は context manager の形状で担保)。
@@ -164,11 +166,25 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    取り違えなく帰属。**実証の線引き: 「赤 → 構造化 → critic が読んで方向を返す」まで — 「還流」(次
    variant 生成に使用) は段 4、「改善」は段 4〜6** (paper-story の解消条件は入口のみ部分解消)。
    ablation 点 = render_rejections の合流 1 点 (還流 on/off。reason-only 第 3 アームは段 6 で判断)。
-3. **auditor.md 生成と起動** — lock 経路変異の段。lock 獲得が write_set を被覆するか assert + in-class positive
-   control suite を own。入力隔離を構造で強制 (WAL fitness を scope に入れない)。lock 経路は auditor live を gate に。
+3. **(完了 2026-07-06) auditor.md 生成と起動 + write_set 被覆 assert + in-class positive control** — 実体 (D38):
+   auditor.md を **read-only** で生成 (Write 非付与 = guard_write が caller 非識別ゆえ「既存テストを弱める書き込み」
+   を機械で止められない → 提案テストを構造化出力で返し orchestrator が人間レビュー gate 下で反映。直接 Write は
+   段 4)。write_set 被覆 assert を izanagi-trace (028f34d) の #if TRACE に追加 (namespace izanagi_trace で nm ガード
+   被覆・2 点検査 = 入口 (獲得) + 各 storeRelease 直前 (保持)・shadow whole-set clear)。X 行 → verifier の
+   Integrity.lock_coverage_violations → **indeterminate** (cycle でない。parse/core/model/report + render 汎用描画 +
+   critic 機構欠落型 読み分け)。in-class positive control = 新 class「書き lock 欠落」の broken patch 2 本
+   (lockskip/early-unlock、実ビルド実走)。**auditor live 定義 = 機械 4 点 (auditor.md 実体化 / assert 発火 /
+   positive control suite 赤緑 / 入力隔離構造) + n=1 定性 2 点 (独立検出 / negative control 弁別)。段 6 headline
+   gate の充足条件は機械 4 点。** 実走 = `orchestrator/campaign/s3_lock_coverage.py` (all_pass、正本 =
+   `output/env/linux-baremetal/calibration/s3_lock_coverage.json`)、n=1 = output/insights/2026-07-06_s3-auditor-
+   live-n1.md。**編集面拡張 (transaction.cc を EVOLVE_BLOCK_SOURCES に) は段 5 に繰延** — 「lock 経路は auditor
+   live を gate に」を sequencing でなく機械で効かせるため `test_lock_path_edit_surface_requires_auditor_live`
+   (段 3 は vacuously true、段 5 で発火) を配線。**ablation 点 = 被覆 assert の on/off が lockskip 検出力に与える差**
+   (assert 有=X 検出 / 無=verifier 単独で cycles==0 = 見逃す)。pin 前進 (dff0f1e→028f34d) の扱いは D38・campaign/pin.py。
 4. **guided 検疫層を diff 検疫へ拡張 + planner.md 生成** — coder 自律期。diff が EVOLVE-BLOCK マーカー間かつ
    #if 枝内に収まるか parse 検証。
 5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題 (driver 宣言値・並行時の id 安定化)** — S2 gate を満たした後 + 並行合成の段。**S2 verify 2 本立ての pipeline 配線をこの段の先頭で行う (D36 決定 4 の 6 規定: campaign identity 組み込み・COMMIT タグ焼き込み・AND 共通ヘルパ・red payload の workload タグ・bench 同一排他 + numactl・IZANAGI_TRACE_DIR 対称化)。**
+   - **lock 経路 (cc/silo/transaction.cc) への編集面拡張 (段 3 から繰延、D38)** — coder が lock を変異できるようにする前提作業。survey_B の変更点: source_digest.EVOLVE_BLOCK_SOURCES + ALLOWLIST に `cc/silo/transaction.cc` 追加 + hooks/guard_write.py:37 の写し定数 + drift test + 偽 submodule fixture (test_campaign.py) に transaction.cc 生成追加 + test_source_digest_allowlist の反例差し替え (**同一コミット必須** — 定数だけ足すと fixture 群が一斉に落ちる)。**前提 gate = `test_lock_path_edit_surface_requires_auditor_live` の緑** (auditor live の機械 4 点、D38)。この拡張と auditor live を同一/後コミットに束ね、auditor 不在で lock 経路が編集可能になる窓を作らない。非 stock variant の src_token churn は許容 (再評価方向)。
 6. **主実験の実行 (headline 比較 4 対照 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
    実走する段。**Phase 3 の headline 主張はこの段の完了をもって初めて出せる** (段 4/5 の中間結果は評価設計に
    従った暫定として報告)。gate = 変異軸 (sort or それ以降) から headline 候補が出たこと + S2 gate + auditor live。
@@ -262,3 +278,10 @@ worklog 全読しないと発掘できない状態を解消するためここに
   transient に失敗した場合も新規ビルド成果を破棄する。D25 (identity-error abort は retryable) と層が違う — WAL
   terminal の可否ではなく共有キャッシュの清潔性の問題で、identity 不明のバイナリを残す方が害が大きい (偽 hit 防止 >
   再ビルドコスト)。cache_key で次 run が再ビルドするので D25 の再評価可能性は保たれる。
+- **lock 被覆 assert の既知盲点 (後続段 3、D38)**: (a) memory-race 型 (CAS→素 store の非原子 lock) は verifier も
+  被覆 assert も見逃す — 段 3 scope 外の characterization 台帳項。「相補的」は {書き lock 欠落} と {読み検証弱化}
+  に限定、この盲点は両者の外。(b) INSERT/insert 経路変異はスコープ外 (段 3 は lockWriteSet の write lock 欠落
+  class 限定)。(c) tidword に owner 無しゆえ lock stomp/二重保持は raw∧shadow を満たしスコープ外。(d) auditor が
+  段 4 で自律追加する assert の mutation 非恒真性は段 3 では prompt 規律のみ (段 4 で driver の mutation-red 汎用
+  ゲートを予約)。(e) auditor の書き込み面 path-scoped 機械執行は段 4 (guard_write は PreToolUse で caller 非識別)。
+  詳細は D38 残存リスク節。
