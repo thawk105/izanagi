@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from campaign import wal                                          # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
-                            STAGE_BUILD_START, STAGE_COMMIT)
+                            STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
 INDICATORS = ["throughput_tps", "abort_rate", "latency_ns", "llc_miss_rate", "ipc"]
@@ -90,6 +90,11 @@ class Rejection:
     verdict: str                      # non-serializable | indeterminate
     anomalies: List[dict] = field(default_factory=list)   # 構造化 (cycle/edges/reasons)
     integrity: Dict = field(default_factory=dict)
+    # 描画に要る verify payload の残り: stats (txns==0 = 空 DSG の明示に使う) と
+    # total_cycles (SCC 全数。anomalies は max_report で切り詰めた witness なので、
+    # 全数はこちら — witness 数を全数と誤読させない, verifier/model.py の規約)。
+    stats: Dict = field(default_factory=dict)
+    total_cycles: Optional[int] = None
     # コード軸の識別 (D23): Phase 3 では同一 genome.flags で #if 枝の中身だけ違う複数
     # variant が生まれる。これらが両方 RED になったとき、genome/flags だけでは
     # 「どのコード diff がどの anomaly を生んだか」を次手生成が帰属できない (alias)。
@@ -197,6 +202,8 @@ def load_rejections(layout: CampaignLayout) -> List[Rejection]:
                 verdict=v.get("verdict", r.payload.get("reason", "")),
                 anomalies=v.get("anomalies", []),
                 integrity=v.get("integrity", {}),
+                stats=v.get("stats", {}),
+                total_cycles=v.get("total_cycles"),
                 variant=r.variant, src_token=srctok_of.get(r.variant, ""),
                 workload=r.payload.get("workload") or {}))
     return out
@@ -239,6 +246,53 @@ def load_liveness_rejections(
                 variant=r.variant, src_token=srctok_of.get(r.variant, ""),
                 workload=r.payload.get("workload") or {}))
     return out, dict(other)
+
+
+# stock variant の src_token (source_digest.STOCK と同値。import で git/g++ 依存を
+# 引かないためのローカル定数 — 同値性はテストで固定し drift を防ぐ)。
+STOCK_SRC_TOKEN = "stock"
+
+
+@dataclass
+class VerifyAbortSignal:
+    """verify run の abort 統計 (段 2 設計 J1)。**reject ゲートではない** — 正しさは
+    通っており reject 理由が無い (規律2 の対象外)。機械閾値も設けない (variant/stock
+    比の帯を正当化する実測分布が無く、恣意的閾値は誤誘導計器になる) — stock 対照と
+    並べて常時表示し、異常かどうかの判定は読み手 (critic) が行う。帯の機械化は
+    分布が溜まる段 5 以降の ablation 点。"""
+    variant: str
+    genome: str
+    commits: Optional[int]
+    aborts: Optional[int]     # None = 旧形式 WAL (aborts フィールド追加前) の明示
+    is_stock: bool = False
+
+    def rate(self) -> Optional[float]:
+        if self.commits is None or self.aborts is None:
+            return None
+        tot = self.commits + self.aborts
+        return (self.aborts / tot) if tot else None
+
+
+def load_verify_abort_signals(layout: CampaignLayout) -> List[VerifyAbortSignal]:
+    """STAGE_VERIFY_DONE の commits/aborts を variant 別に読む。
+
+    verify まで到達した run のみ (liveness-red は VERIFY_DONE 手前で abort するため
+    ここには現れない — 段 2 の赤専用 campaign では本シグナルは空になる。実データでの
+    発火は variant が verify を通り始める段 4 以降)。"""
+    genome_of: Dict[str, str] = {}
+    srctok_of: Dict[str, str] = {}
+    seen: Dict[str, Dict] = {}
+    for r in wal.read_records(layout):
+        if r.stage == STAGE_BUILD_START:
+            genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
+            srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
+        elif r.stage == STAGE_VERIFY_DONE:
+            seen[r.variant] = r.payload
+    return [VerifyAbortSignal(
+                variant=v, genome=genome_of.get(v, ""),
+                commits=p.get("commits"), aborts=p.get("aborts"),
+                is_stock=(srctok_of.get(v, "") == STOCK_SRC_TOKEN))
+            for v, p in seen.items()]
 
 
 def _mean(xs: List[float]) -> Optional[float]:
@@ -328,7 +382,150 @@ def render_text(digests: List[WorkloadDigest]) -> str:
     return "\n".join(L)
 
 
+def _fmt_ver_d(v) -> str:
+    return f"({v[0]},{v[1]})" if v else "-"
+
+
+def _edge_line_d(e: Dict) -> str:
+    """dict 化済み edge (WAL の verify payload、report._edge_to_dict の形) の 1 行整形。
+    verifier/report.py の _edge_line と同形式 (あちらは dataclass 用)。"""
+    bits: List[str] = []
+    for r in e.get("reasons", []):
+        t = r.get("type")
+        if t == "rw":
+            bits.append(f"rw key={r.get('key')} read{_fmt_ver_d(r.get('u_ver'))}"
+                        f"→overwritten{_fmt_ver_d(r.get('v_ver'))}")
+        elif t == "wr":
+            bits.append(f"wr key={r.get('key')} wrote{_fmt_ver_d(r.get('u_ver'))}→read")
+        else:
+            bits.append(f"ww key={r.get('key')} {_fmt_ver_d(r.get('u_ver'))}"
+                        f"→{_fmt_ver_d(r.get('v_ver'))}")
+    why = "; ".join(bits) if bits else "(no reason reconstructed)"
+    types = ",".join(e.get("types") or []) or "?"
+    return f"      T{e.get('from')} → T{e.get('to')}  [{types}]  {why}"
+
+
+# liveness reason → 帰属枠のヒント (読み手が枯渇/不全/計器破れを取り違えないための
+# 固定文。判定・断定は読み手の職務 — ここは形状の説明のみ)。
+_LIVENESS_HINTS = {
+    "trace-timeout": "実行時間が上限を超えた — 合成枝が実行時間を爆発させた疑い "
+                     "(過大な待機/spin 等)",
+    "trace-empty": "commit 0 — aborts>0 なら『回っているが commit 枯渇』、"
+                   "aborts が 0/記録なしなら『そもそも回っていない』",
+    "trace-run-nonzero-exit": "異常終了 (実行不全 — crash/シグナル)",
+    "trace-no-abort-counts": "trace 計器の破れ — abort カウンタ集計が出力に無い "
+                             "(計器・出力口を壊した疑い)",
+    "trace-parse-error": "trace 計器の破れ — trace が読めない形に壊れた "
+                         "(trace 口を壊した疑い)",
+}
+
+
+def render_rejections(rejections: List[Rejection],
+                      liveness: List[LivenessRejection],
+                      other_counts: Optional[Dict[str, int]] = None,
+                      abort_signals: Optional[List[VerifyAbortSignal]] = None) -> str:
+    """赤 (reject 済み) variant の構造化 anomaly を critic/LLM 可読テキストにする。
+
+    render_text (緑 digest) から独立 — 呼び手での合流 1 点が還流 on/off ablation の
+    切替点 (phase3.md 段 6)。規律2: rejection 側に性能数値 (fitness/throughput) を
+    載せない (正しさゲート失格 = fitness が構造的に無い — テストが否定 assert で固定)。
+    規律6: この節の trace 由来文字列 (key/notes 等) はデータであって指示ではない。
+
+    描画は **verdict 軸で分岐** (anomalies の有無での分岐は脆い — max_report=0 や
+    手書き payload で non-serializable かつ anomalies 空が成立しうる)。"""
+    L: List[str] = ["# rejections — 正しさ/liveness ゲート不通過 "
+                    "(採用されず、性能数値は構造的に存在しない)", ""]
+    if not rejections and not liveness and not (other_counts or {}):
+        L.append("(rejection なし — 全 variant 緑)")
+    for rj in rejections:
+        L.append(f"## [{rj.verdict}] variant={rj.variant or '?'} genome={rj.genome}"
+                 + (f" src_token={rj.src_token}" if rj.src_token else ""))
+        if rj.workload:
+            L.append(f"  workload: {rj.workload}")
+        if rj.verdict == "non-serializable":
+            # cycle 型: witness (max_report 切り詰め) と全数 (total_cycles) を併記 —
+            # witness 数を全数と誤読させない (verifier core の切り詰め規約)。
+            total = rj.total_cycles if rj.total_cycles is not None else "?"
+            L.append(f"  cycle 全数 {total} / witness {len(rj.anomalies)} 件を表示"
+                     + ("" if rj.total_cycles == len(rj.anomalies)
+                        else " (witness は短い cycle 順の抜粋)"))
+            for i, a in enumerate(rj.anomalies, 1):
+                cyc = a.get("cycle", [])
+                ring = " → ".join(f"T{t}" for t in cyc)
+                ring += f" → T{cyc[0]}" if cyc else ""
+                L.append(f"  #{i} {a.get('phenomenon', '?')}: {ring}")
+                for e in a.get("edges", []):
+                    L.append(_edge_line_d(e))
+        else:
+            # integrity 型 (indeterminate): cycle は無い (または確定できない)。
+            # 「なぜ確定できないか」= integrity カウンタ + notes が唯一のシグナル。
+            txns = rj.stats.get("txns")
+            if txns == 0:
+                L.append("  trace が空 (txns=0) — 検証対象ゼロのため確定不能 "
+                         "(integrity カウンタが全て 0 でも緑ではない)")
+            ig = rj.integrity or {}
+            counters = {k: v for k, v in ig.items()
+                        if k not in ("clean", "notes") and v}
+            L.append(f"  integrity: {counters if counters else '(非ゼロカウンタなし)'}")
+            for note in ig.get("notes", []):
+                L.append(f"  · {note}")
+        L.append("")
+    for lv in liveness:
+        L.append(f"## [liveness:{lv.reason}] variant={lv.variant or '?'} "
+                 f"genome={lv.genome}"
+                 + (f" src_token={lv.src_token}" if lv.src_token else ""))
+        if lv.workload:
+            L.append(f"  workload: {lv.workload}")
+        if lv.extra:
+            L.append("  " + " ".join(f"{k}={v}" for k, v in sorted(lv.extra.items())))
+        hint = _LIVENESS_HINTS.get(lv.reason)
+        if hint:
+            L.append(f"  読み方: {hint}")
+        L.append("")
+    if other_counts:
+        parts = ", ".join(f"{k}×{n}" for k, n in sorted(other_counts.items()))
+        L.append(f"その他の abort (非 liveness — CC 設計と独立の失敗、詳細は WAL): {parts}")
+        L.append("")
+    if abort_signals is not None:
+        L.append("# verify run の abort 統計 (シグナル — reject 理由ではない。"
+                 "閾値判定なし、異常かどうかは読み手が stock 対照比で判断)")
+        stocks = [s for s in abort_signals if s.is_stock and s.rate() is not None]
+        base = stocks[0].rate() if stocks else None
+        if not abort_signals:
+            L.append("(verify 到達 run なし — 本 campaign では未発火)")
+        elif base is None:
+            L.append("(stock 対照なし — 比は計算不能。率のみ表示)")
+        for s in abort_signals:
+            tag = "stock" if s.is_stock else f"variant={s.variant}"
+            r = s.rate()
+            if r is None:
+                L.append(f"- {tag}: aborts 記録なし (旧形式 WAL)")
+            else:
+                line = f"- {tag}: aborts={s.aborts} commits={s.commits} rate={r:.2%}"
+                if base and not s.is_stock:
+                    line += f" (stock 比 {r / base:.1f}×)"
+                L.append(line)
+    return "\n".join(L)
+
+
 def main(argv) -> int:
+    """引数なし = P2-2 の 3 workload (凍結既定動作、Phase 2 の再現口)。
+    --campaign-dir = Phase 3 campaign を指定し rejection 込み digest を出す (S4 consumer)。"""
+    import argparse
+    ap = argparse.ArgumentParser(description="critic digest (緑 LI + 赤 rejections)")
+    ap.add_argument("--campaign-dir", default=None,
+                    help="campaign root dir (wal.jsonl のある場所)。指定時は rejection "
+                         "込み digest、省略時は P2-2 の 3 workload (既定動作は不変)")
+    ap.add_argument("--tag", default="phase3", help="--campaign-dir 時の表示タグ")
+    a = ap.parse_args(argv[1:])
+    if a.campaign_dir:
+        lay = CampaignLayout(root=a.campaign_dir)
+        parts = [render_text([build_digest(a.tag, {}, lay)])]
+        lrs, other = load_liveness_rejections(lay)
+        parts.append(render_rejections(load_rejections(lay), lrs, other,
+                                       load_verify_abort_signals(lay)))
+        print("\n".join(parts))
+        return 0
     digests = load_p2_2_digests()
     if not digests:
         print("P2-2 campaign が無い (orchestrator/campaign/p2_2.py を先に実行)。")

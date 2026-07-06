@@ -18,9 +18,11 @@ sys.path.insert(0, _ORCH)
 from campaign import wal                                          # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
-                            STAGE_BUILD_START, STAGE_COMMIT)
-from critic.digest import (build_digest, load_liveness_rejections,  # noqa: E402
-                           load_rejections, render_text)
+                            STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
+from critic.digest import (STOCK_SRC_TOKEN, LivenessRejection,    # noqa: E402
+                           build_digest, load_liveness_rejections,
+                           load_rejections, load_verify_abort_signals,
+                           render_rejections, render_text)
 
 
 def _tmp_layout():
@@ -207,6 +209,115 @@ def test_rejection_types_keep_forward_workload_tag():
     assert rej[0].workload == {"tag": "s2"}
     assert lrs[0].workload == {"tag": "s2"}
     assert "workload" not in lrs[0].extra      # 別フィールドに分離 (extra と二重化しない)
+
+
+def _red_verify_payload(total_cycles=1, txns=100):
+    """pipeline が書く形 (result_to_dict) の verify payload (cycle 型)。"""
+    return {"verdict": "non-serializable", "anomaly_count": 1,
+            "total_cycles": total_cycles,
+            "stats": {"txns": txns, "reads": 300, "writes": 100,
+                      "keys": 50, "edges": 120},
+            "anomalies": [{"phenomenon": "G2", "cycle": [1, 2],
+                           "edges": [{"from": 1, "to": 2, "types": ["rw"],
+                                      "reasons": [{"type": "rw", "key": "aa",
+                                                   "u_ver": [1, 1],
+                                                   "v_ver": [1, 2]}]}]}],
+            "integrity": {"clean": True, "notes": []}}
+
+
+def test_render_rejections_cycle_shape_shows_total_cycles():
+    """cycle 型 (non-serializable): witness と全数 (total_cycles) を併記し切り詰めを
+    明示する — witness 数を全数と誤読させない (S2 で total 4,053 / witness 20 の前例)。"""
+    lay = _tmp_layout()
+    red = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red, "src_token": "cd1"})
+    wal.log(lay, red, STAGE_ABORT, "test",
+            {"reason": "non-serializable",
+             "verify": _red_verify_payload(total_cycles=57)})
+    out = render_rejections(load_rejections(lay), [], {}, None)
+    assert "cycle 全数 57 / witness 1 件" in out
+    assert "抜粋" in out                                # 切り詰めの明示
+    assert "T1 → T2" in out and "rw key=aa" in out      # どの依存を断つかが読める
+
+
+def test_render_rejections_liveness_hints_and_other_counts():
+    """liveness 型: reason 別の帰属枠ヒント (枯渇/不全/計器破れ) が付き、infra 系は
+    件数 1 行サマリに集約される。"""
+    lrs = [
+        LivenessRejection(genome=_G.format(b=1, l=1, t=0, w=0),
+                          flags={"BACK_OFF": 1}, reason="trace-timeout",
+                          extra={"timeout_s": 120.0}, variant="v1"),
+        LivenessRejection(genome=_G.format(b=0, l=1, t=0, w=0),
+                          flags={"BACK_OFF": 0}, reason="trace-empty",
+                          extra={"commits": 0, "aborts": 4321}, variant="v2"),
+        LivenessRejection(genome=_G.format(b=0, l=0, t=1, w=0),
+                          flags={}, reason="trace-parse-error", variant="v3"),
+    ]
+    out = render_rejections([], lrs, {"build-error": 2, "eval-exception": 1}, None)
+    assert "[liveness:trace-timeout]" in out and "timeout_s=120.0" in out
+    assert "commit 枯渇" in out                      # trace-empty の読み方
+    assert "計器" in out                             # parse-error = 計器破れ
+    assert "build-error×2" in out and "eval-exception×1" in out
+
+
+def test_render_rejections_carries_no_perf_tokens():
+    """規律2: rejection 節に性能語彙 (fitness/throughput/tps/latency) が一切出ない —
+    「赤に fitness を付けない」を散文でなく否定 assert で固定。"""
+    lay = _tmp_layout()
+    red = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red, "src_token": "cd1"})
+    wal.log(lay, red, STAGE_ABORT, "test",
+            {"reason": "non-serializable", "verify": _red_verify_payload()})
+    lrs = [LivenessRejection(genome=red, flags={}, reason="trace-timeout",
+                             extra={"timeout_s": 120.0}, variant="v1")]
+    stock = _G.format(b=0, l=1, t=0, w=0)
+    wal.log(lay, stock, STAGE_BUILD_START, "test",
+            {"genome": stock, "src_token": STOCK_SRC_TOKEN})
+    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
+            {"verdict": "serializable", "commits": 900, "aborts": 100})
+    out = render_rejections(load_rejections(lay), lrs, {"build-error": 1},
+                            load_verify_abort_signals(lay))
+    low = out.lower()
+    for tok in ("fitness", "throughput", "tps", "latency"):
+        assert tok not in low, f"rejection 節に性能語彙 {tok} が混入"
+
+
+def test_verify_abort_signal_stock_contrast():
+    """J1 シグナル: verify run の abort 率を stock 対照比つきで表示 (閾値判定なし)。"""
+    lay = _tmp_layout()
+    stock = _G.format(b=0, l=1, t=0, w=0)
+    wal.log(lay, stock, STAGE_BUILD_START, "test",
+            {"genome": stock, "src_token": STOCK_SRC_TOKEN})
+    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
+            {"verdict": "serializable", "commits": 900, "aborts": 100})
+    var = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, var, STAGE_BUILD_START, "test", {"genome": var, "src_token": "cd2"})
+    wal.log(lay, var, STAGE_VERIFY_DONE, "test",
+            {"verdict": "serializable", "commits": 600, "aborts": 400})
+    out = render_rejections([], [], {}, load_verify_abort_signals(lay))
+    assert "rate=10.00%" in out                       # stock 100/1000
+    assert "rate=40.00%" in out and "stock 比 4.0×" in out
+
+
+def test_verify_abort_signal_no_stock_and_legacy_are_explicit():
+    """規律3 (沈黙禁止): stock 対照不在・旧形式 WAL (aborts 記録なし)・未発火の
+    3 形は明示表示 (欠落を無言で流さない)。"""
+    lay = _tmp_layout()
+    var = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, var, STAGE_BUILD_START, "test", {"genome": var, "src_token": "cd3"})
+    wal.log(lay, var, STAGE_VERIFY_DONE, "test",
+            {"verdict": "serializable", "commits": 500})     # aborts 無し = 旧形式
+    out = render_rejections([], [], {}, load_verify_abort_signals(lay))
+    assert "stock 対照なし" in out
+    assert "aborts 記録なし (旧形式 WAL)" in out
+    out2 = render_rejections([], [], {}, [])
+    assert "未発火" in out2
+
+
+def test_stock_token_matches_source_digest():
+    """STOCK_SRC_TOKEN のローカル定数が source_digest.STOCK から drift しない。"""
+    from campaign import source_digest
+    assert STOCK_SRC_TOKEN == source_digest.STOCK
 
 
 def _run():
