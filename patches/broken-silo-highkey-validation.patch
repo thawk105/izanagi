@@ -1,0 +1,39 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -385,12 +385,35 @@ bool TxExecutor::validationPhase() { // Validation Phase
+     check.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
+     if ((*itr).get_tidword().epoch != check.epoch ||
+         (*itr).get_tidword().tid != check.tid) {
++#if IZANAGI_BREAK_HIGHKEY_VALIDATION
++      // izanagi Phase3 stage-1 (S2) — DELIBERATELY BROKEN variant (ablation
++      // positive control). The read-set re-validation detected a changed
++      // tidword (an anti-dependency) but we skip the abort ONLY for keys with
++      // id >= 1000. tuple200 (the small legacy verify config) never touches
++      // such keys, so this build stays GREEN there; an S2-scale run (1m keys)
++      // commits stale reads and the G2 cycle lands in the trace = RED. This
++      // machine-proves the S2 config's added value: a violation on a data
++      // path the small config never exercises. Flag defaults OFF (#else =
++      // original abort); NEVER build into perf/correctness baselines (絶対規律2).
++      std::uint64_t izanagi_key_id = 0;
++      for (unsigned char izanagi_c : (*itr).key_)
++        izanagi_key_id = (izanagi_key_id << 8) | izanagi_c;
++      if (izanagi_key_id < 1000) {
++#if ADD_ANALYSIS
++        result_->local_vali_latency_ += rdtscp() - start;
++#endif
++        this->status_ = TransactionStatus::aborted;
++        unlockWriteSet();
++        return false;
++      }
++#else
+ #if ADD_ANALYSIS
+       result_->local_vali_latency_ += rdtscp() - start;
+ #endif
+       this->status_ = TransactionStatus::aborted;
+       unlockWriteSet();
+       return false;
++#endif
+     }
+     // 2
+     // if (!check.latest) return false;

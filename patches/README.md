@@ -77,6 +77,27 @@ git -C "$SUB" checkout -- cc/silo/transaction.cc   # 壊しだけ revert (izanag
 
 ---
 
+## broken-silo-highkey-validation.patch — S2 verify 構成の ablation positive control (Phase 3 後続段 1, D36)
+
+**わざと壊した CC** (positive control) の第 2 弾。norw と同じ `validationPhase()` 条件#1 の abort を、
+**key id ≥ 1000 のときだけ** macro `IZANAGI_BREAK_HIGHKEY_VALIDATION` で抜く。既存 CorrectnessWorkload
+(tuple200 — key id は常に < 200) では**構造的に発火せず緑**、S2 構成 (tuple 1m) でのみ stale read が
+commit して G2 が trace に出る = 「小 workload では踏まないデータパス上の違反」を再現する fixture。
+S2 verify 構成の付加価値 (規律5 の「効果を測れる ablation」) を機械実証するために存在する。
+
+- **既定 OFF** (macro 未定義 = `#else` で元の abort、完全に元の Silo)。**baseline に絶対に混ぜない** (絶対規律2)。
+- **駆動の正本は `orchestrator/campaign/s2_verify_calibration.py`** (apply → 一時 build dir → run →
+  verifier → revert を patchharness.applied() 下で機械化。build dir は TMPDIR 配下に毎回 fresh —
+  stale CMakeCache の沈黙再利用を排除)。norw の手動手順 (上) はデバッグ用の参考。
+
+### 実証 (2026-07-06, output/env/linux-baremetal/calibration/s2_verify_t48_skew0p9_rr50_rmw0.json)
+
+- **S2 構成 (1m/t48/skew0.9/rr50/rmw0/max_ope10/extime3)**: NON-SERIALIZABLE、G2 total 5 (exit 1)
+- **legacy 構成 (tuple200/t4/rmw=true)**: certified SERIALIZABLE (exit 0)
+- 同一 binary・workload 差のみ → S2 構成だけが検出する違反の実在を確認 (詳細 = D36)。
+
+---
+
 ## silo-backoff-fixed.patch — 静的 backoff (合成 variant, D18) + noinline (診断計器, P2-4) + EVOLVE-BLOCK 骨格 (Phase 3, D22)
 
 このパッチは izanagi の silo backoff 追加を 3 つ束ねる: **(1) `BACKOFF_FIXED`** = 量を単一軸に固定する合成 variant (D18)、**(2) `BACKOFF_NOINLINE`** = perf 帰属用の診断計器 (P2-4)、**(3) `EVOLVE-BLOCK` マーカー骨格** = Phase 3 で coder (LLM) が合成する純 timing 変異の編集面 (D22)。いずれも `cmake/Options.cmake` + `include/backoff.hh` を触り、既定値で inert (stock 不変)。

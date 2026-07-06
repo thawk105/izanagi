@@ -1,0 +1,206 @@
+{
+  "config_name": "s2-verify",
+  "env_tag": "linux-baremetal",
+  "ccbench_commit": "dff0f1e",
+  "clocks_per_us": 1800,
+  "genome": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "s2_flags": {
+    "ycsb_tuple_num": "1000000",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "thread_num": "48"
+  },
+  "legacy_correctness_flags": {
+    "ycsb_tuple_num": "200",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "true",
+    "ycsb_max_ope": "5",
+    "thread_num": "4",
+    "extime": "1"
+  },
+  "gate_thresholds": {
+    "gate1_ratio_band": [
+      0.5,
+      2.0
+    ],
+    "gate1_min_aborts": 10000,
+    "gate2_run_timeout_s": 120.0,
+    "gate2_verifier_wall_s": 600.0,
+    "gate2_verifier_rss_gb": 32.0
+  },
+  "free_disk_gb_at_start": 180.0,
+  "candidates": [
+    {
+      "extime": 3,
+      "control_runs": [
+        {
+          "commits": 2786459,
+          "aborts": 732420,
+          "abort_rate": 0.20814014917819,
+          "walltime_s": 3.52
+        },
+        {
+          "commits": 2772349,
+          "aborts": 710291,
+          "abort_rate": 0.2039518870741736,
+          "walltime_s": 3.5
+        },
+        {
+          "commits": 2750158,
+          "aborts": 686797,
+          "abort_rate": 0.19982717259900115,
+          "walltime_s": 3.54
+        }
+      ],
+      "trace_runs": [
+        {
+          "commits": 1548952,
+          "aborts": 544066,
+          "abort_rate": 0.2599432971909463,
+          "walltime_s": 3.53,
+          "trace_stats": {
+            "files": 48,
+            "bytes": 564796504,
+            "lines": 16931128
+          }
+        },
+        {
+          "commits": 1558297,
+          "aborts": 556483,
+          "abort_rate": 0.2631399010771806,
+          "walltime_s": 3.54,
+          "trace_stats": {
+            "files": 48,
+            "bytes": 568663259,
+            "lines": 17033055
+          }
+        },
+        {
+          "commits": 1561747,
+          "aborts": 559693,
+          "abort_rate": 0.2638269288784976,
+          "walltime_s": 3.54,
+          "trace_stats": {
+            "files": 48,
+            "bytes": 569750202,
+            "lines": 17070662
+          }
+        }
+      ],
+      "gate1": {
+        "control_abort_rate_median": 0.204,
+        "enabled_abort_rate_median": 0.2631,
+        "ratio": 1.29,
+        "enabled_aborts_median": 556483,
+        "pass": true
+      },
+      "gate2": {
+        "run_walltime_max_s": 3.54,
+        "verifier": {
+          "exit_code": 0,
+          "verdict": "serializable",
+          "certified": true,
+          "total_cycles": 0,
+          "txns": 1548952,
+          "edges": 20380559,
+          "walltime_s": 140.66,
+          "maxrss_gb": 7.68
+        },
+        "stock_certified": true,
+        "pass": true
+      }
+    }
+  ],
+  "chosen_extime": 3,
+  "gate3": {
+    "norw": {
+      "patch": "broken-silo-norw-validation.patch",
+      "define": "IZANAGI_BREAK_NOREAD_VALIDATION",
+      "runs": {
+        "s2": {
+          "run": {
+            "commits": 1581083,
+            "aborts": 497002,
+            "abort_rate": 0.2391634605899181,
+            "walltime_s": 3.53,
+            "trace_stats": {
+              "files": 48,
+              "bytes": 577091621,
+              "lines": 17281923
+            }
+          },
+          "verifier": {
+            "exit_code": 1,
+            "verdict": "non-serializable",
+            "certified": false,
+            "total_cycles": 4053,
+            "txns": 1581083,
+            "edges": 20846449,
+            "walltime_s": 127.6,
+            "maxrss_gb": 7.85
+          }
+        }
+      }
+    },
+    "highkey": {
+      "patch": "broken-silo-highkey-validation.patch",
+      "define": "IZANAGI_BREAK_HIGHKEY_VALIDATION",
+      "runs": {
+        "s2": {
+          "run": {
+            "commits": 1514042,
+            "aborts": 504051,
+            "abort_rate": 0.24976599195379004,
+            "walltime_s": 3.56,
+            "trace_stats": {
+              "files": 48,
+              "bytes": 551882595,
+              "lines": 16549098
+            }
+          },
+          "verifier": {
+            "exit_code": 1,
+            "verdict": "non-serializable",
+            "certified": false,
+            "total_cycles": 5,
+            "txns": 1514042,
+            "edges": 19880318,
+            "walltime_s": 126.16,
+            "maxrss_gb": 7.55
+          }
+        },
+        "legacy": {
+          "run": {
+            "commits": 270044,
+            "aborts": 7624,
+            "abort_rate": 0.02745725110563695,
+            "walltime_s": 1.01,
+            "trace_stats": {
+              "files": 4,
+              "bytes": 69810512,
+              "lines": 2191392
+            }
+          },
+          "verifier": {
+            "exit_code": 0,
+            "verdict": "serializable",
+            "certified": true,
+            "total_cycles": 0,
+            "txns": 270044,
+            "edges": 1810858,
+            "walltime_s": 12.32,
+            "maxrss_gb": 1.0
+          }
+        }
+      }
+    },
+    "norw_red": true,
+    "highkey_s2_red": true,
+    "highkey_legacy_green": true,
+    "pass": true
+  },
+  "all_pass": true
+}

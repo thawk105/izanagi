@@ -843,3 +843,65 @@ CLAUDE.md 常駐 ≈7.2k は別枠)。5 視点の並列調査で、うち**当�
 **位置づけ:** 計測対象システムに課してきた規律 (§3.8 コンテキスト衛生・D34 キャッシュの正直さ・D13 の
 スコープ分離) を、エージェント運用層の**ブート自身**へ再帰適用したもの。2026-07-05 の文書恒久対応
 (正本一元化・handoff・lint) の続編であり、同じ「自分の運用に自分の原理を適用する」系譜に立つ。
+
+## D36. S2 verify 構成 = perf 完全一致 (「縮小」なし) — gate 3 点の実測確定と段 5 配線規定 (2026-07-06)
+
+**背景:** S2 (certify workload = perf workload、phase2.md 着手前 must) は「検証 (tuple200/thread4) と計測
+(1m/thread48) が別構成 → 小 workload では踏まないデータパスを持つ variant が緑 certify と赤い実行で食い違う」
+リスク。phase3.md must 表が sort 段の gate に昇格 (calibrator 実測で contention 再現・trace 規模・broken-silo
+赤の 3 点)、後続段 1 = 構成の確定。設計は 4 レンズ敵対検証 (real 24/contested 2/refuted 1、一次資料 =
+worklog 2026-07-06 (2) 参照) を経て以下に確定した。
+
+**決定 1 — S2 構成は perf 代表 workload と完全同一 (縮小軸なし):** `ycsb_tuple_num=1000000 /
+ycsb_zipf_skew=0.9 / ycsb_rratio=50 / ycsb_rmw=false / ycsb_max_ope=10 / thread_num=48 / extime=3` +
+clocks_per_us=1800 + numactl interleave=all。当初案は extime のみ 3→1 の縮小だったが、敵対検証の指摘
+(verify/perf の差が extime だけなら coder が FLAGS_extime 1 つで verify 判別述語を書ける) を受けて extime=3
+を第一候補にし、gate 実測が通ったため「縮小」そのものを廃した。records=1m の正当性は既存 calibration
+(D15 下限基準、calibration_t48_skew0p9_rr50_rmw0、2026-06-18 実走) の継承 — 同一 workload 署名ゆえ再
+calibration 不要。must 表の「calibrator 実走を gate 条件に」の充足形 = **既存 calibrator 実走の継承 +
+専用ドライバ (s2_verify_calibration.py) の gate 実測**、と読み替えをここに明示裁定する (黙った読み替えを
+しない — 敵対検証 process 指摘)。
+
+**決定 2 — 既存 CorrectnessWorkload は置き換えず併存 (verify 2 本立て):** 既存 tuple200/t4/rmw=true は
+検出力担当 (同一キー衝突が濃く、rmw=true で write が read set に載り anti-dependency が構造的に生まれる)
+として維持し、S2 構成はデータパス被覆担当として追加する。phase2.md の S2 原文「perf 構成 (の縮小版)
+**でも** 1 回 verify」と整合。なお tuple200/t4 の選定自体は Phase 1 タスク 5a からの歴史的継承で明示裁定が
+なかったこと (調査 2026-07-06)、「検出力担当」は今回の後付け合理化であることを明示しておく。
+
+**決定 3 — gate 3 点の実測結果 (all_pass。正本 = output/env/linux-baremetal/calibration/s2_verify_t48_skew0p9_rr50_rmw0.json):**
+- **gate 1 (contention 再現):** 対照 = **同 genome (stock BACK_OFF=1)・同構成の trace-disabled 実測**。
+  abort 率 0.204 (対照) → 0.263 (trace-enabled)、比 1.29 ∈ [0.5, 2.0]、aborts 中央値 556,483 ≥ 10,000 →
+  PASS。歴史値 0.7047 (between_run_noise) は BACK_OFF=0 genome の実測で対照に使えない (敵対検証 wiring
+  指摘) — **gate 1 の対照は必ず同 genome・同構成で取り直す**を規定化。固定閾値案 (≥0.35 = 0.7047×0.5) は
+  1 点実測×根拠のない係数として却下。
+- **gate 2 (trace 規模):** trace run 3.5s ≤ 120s / trace 539MB・16.9M 行・48 ファイル / verifier 141s ≤
+  600s / RSS 7.7GB ≤ 32GB / stock certified (total_cycles=0) → PASS。trace の観測者効果は commits −44%
+  (2.79M→1.55M) と大きいが abort 率はオーダー一致 = 競合の質は保たれる。「S2 verify が踏む競合レートは
+  perf の約 56% 相当」は被覆の解釈限界として記録。
+- **gate 3 (赤検出力 + ablation):** (a) broken-silo norw @ S2 = 赤 (G2 total 4,053、exit 1)。(b) 新設
+  broken-silo-highkey (key id ≥ 1000 のみ read 検証を抜く) @ S2 = 赤 (total 5) **かつ** @ legacy
+  (tuple200/t4) = 緑 → 「小構成では構造的に踏めないデータパス上の違反を S2 だけが検出する」の機械実証 =
+  規律 5 の「効果を測れる ablation 点」。判定は verifier の新フィールド **total_cycles** (witness 上限
+  max_report と独立な SCC 全数) — 07-05 回帰の「G2 20 件」が witness 上限で切られた数だったことも確定。
+
+**決定 4 — pipeline 配線は段 5 (規定のみ先行):** verify 2 本立ての配線は後続段 5。その際の必須規定
+(敵対検証 real 指摘の受け皿): (1) verify 構成タグ列を CampaignConfig.search_config に必須で入れ
+campaign_id に反映 — S2 on/off ablation は別 campaign になり WAL terminal skip の汚染 (S2 素通り certified
+の恒久化) を構造的に排除。(2) STAGE_COMMIT payload に通過 verify 構成タグ列を焼き込み、読み手の AND 判定は
+wal/replay の共通ヘルパ 1 箇所に実装 — 既存読み手の「stage→payload 最後勝ち」慣行が 2 本 AND を OR に
+縮退させるため、個々の読み手に AND を再実装させない。(3) verify-red の abort payload に workload タグを
+載せる (規律 3: どの構成で壊れたかを次手生成が読める)。(4) S2 verify run (t48 フルロード) は bench と同じ
+排他下 + numactl interleave=all で回す (並行セッションの計測汚染防止)。(5) IZANAGI_TRACE_DIR を perf run
+にも対称に設定し getenv 判別子を消す。(6) 段 4 auditor のレビュー観点に FLAGS_*/getenv/環境依存分岐の参照を
+明示列挙 (coder の verify 判別述語対策の残り)。
+
+**却下案:** 固定閾値 abort 率 ≥ 0.35 (決定 3) / extime=1 縮小 (判別子を残す。実測で 3 が通り不要) /
+既存 CorrectnessWorkload の置き換え (検出力と被覆は別の仕事) / calibrator パッケージへの gate 判定追加
+(LLC miss/L3 判定と責務が別 — 専用ドライバに分離。CLI の trace-enabled 拒否 = 規律 1 検査も温存できる) /
+broken-silo 駆動の手動手順の温存 (第三の駆動経路化・二重正本化 — 機械化ドライバを正本に昇格、README の
+手動手順はデバッグ参考に降格)。
+
+**残存リスク:** highkey @ S2 の G2 total は 5 と薄い (skew0.9 の hot key は id < 1000 に集中、id ≥ 1000 は
+cold で競合が薄い)。ablation 実証には十分だが、恒常回帰として使うなら seed による 0 化がありうる —
+回帰化するときは reps を持たせるか highkey 専用に rratio/skew を調整する。FLAGS_extime 判別子は消えたが
+getenv(IZANAGI_TRACE_DIR) 判別子は段 5 規定 (5) まで残る (kickoff 同様 coder が getenv を書かない段では潜在)。

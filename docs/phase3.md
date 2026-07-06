@@ -136,7 +136,7 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 | **cache_key+variant_id 拡張** | **完了** (kickoff タスク 1 で消化) | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
 | **観測者効果二重検査** | **完了 (14d64e6)** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない)。diff-of-diffs を buildcache.build 出口 (hit/fresh 両経路) で発火、fails-closed |
 | **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。consumer 実体化は後続 |
-| S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) |
+| S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。残り = 段 5 での pipeline 配線 (D36 決定 4)** |
 | S1 (別 protocol trace-hook) | non-blocking (kickoff) / **主実験 headline 2 で発火** | silo 内に閉じる限り不要。ただし発火条件は「別 protocol 移植」だけでなく**主実験 headline 2 (クロスプロトコル stock 最良) も含む** — trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、headline 2 までに S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかが要る (後続段 6 の前提タスク (a)) |
 | C1 (campaign-id drift) | non-blocking | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。残課題 = driver 宣言値 (phase2.md §C1) と並行合成/patch 常駐で HEAD が動く場合の id 安定化 → 段 5 |
 
@@ -144,14 +144,20 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 
 ## 後続段 (各々 ablation 点を残して投入)
 
-1. **S2 縮小 verify 構成の確定** (calibrator 実走を gate 条件に) — sort 等データパス分岐変異の prep。
+1. **(完了 2026-07-06) S2 verify 構成の確定** — perf 代表 workload と**完全同一** (1m/t48/skew0.9/rr50/
+   rmw0/max_ope10/extime3。「縮小」なしで gate 実測 all_pass)。gate 3 点 = 同 genome 対照比の contention
+   再現 (abort 率比 1.29 ∈ [0.5,2]・aborts 556k)・trace 規模 (539MB/16.9M 行、verifier 141s/RSS 7.7GB)・
+   赤検出力 (norw G2 total 4,053 + 新設 highkey が S2 赤/legacy 緑 = ablation の機械実証)。正本 = D36・
+   `output/env/linux-baremetal/calibration/s2_verify_t48_skew0p9_rr50_rmw0.json`・駆動 =
+   `orchestrator/campaign/s2_verify_calibration.py`。**pipeline 配線 (verify 2 本立て) は段 5 で D36
+   決定 4 の規定 (identity 組み込み・COMMIT タグ焼き込み・AND 共通ヘルパ・排他・TRACE_DIR 対称化) に従う。**
 2. **S4 load_rejections consumer 実体化** — coder が初めて赤 variant を出す段。verify-red (cycle を断つ) と
    liveness-red (trace-empty/abort 率異常/timeout) の両対応。integrity-class fixture も positive control に追加。
 3. **auditor.md 生成と起動** — lock 経路変異の段。lock 獲得が write_set を被覆するか assert + in-class positive
    control suite を own。入力隔離を構造で強制 (WAL fitness を scope に入れない)。lock 経路は auditor live を gate に。
 4. **guided 検疫層を diff 検疫へ拡張 + planner.md 生成** — coder 自律期。diff が EVOLVE-BLOCK マーカー間かつ
    #if 枝内に収まるか parse 検証。
-5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題 (driver 宣言値・並行時の id 安定化)** — S2 gate を満たした後 + 並行合成の段。
+5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題 (driver 宣言値・並行時の id 安定化)** — S2 gate を満たした後 + 並行合成の段。**S2 verify 2 本立ての pipeline 配線をこの段の先頭で行う (D36 決定 4 の 6 規定: campaign identity 組み込み・COMMIT タグ焼き込み・AND 共通ヘルパ・red payload の workload タグ・bench 同一排他 + numactl・IZANAGI_TRACE_DIR 対称化)。**
 6. **主実験の実行 (headline 比較 4 対照 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
    実走する段。**Phase 3 の headline 主張はこの段の完了をもって初めて出せる** (段 4/5 の中間結果は評価設計に
    従った暫定として報告)。gate = 変異軸 (sort or それ以降) から headline 候補が出たこと + S2 gate + auditor live。
@@ -197,6 +203,7 @@ worklog 全読しないと発掘できない状態を解消するためここに
   記録しておらず、この確認自体が実行不能だった)。abort ≈ 0 なら S2-lite (CorrectnessWorkload の競合度を上げた縮小
   verify) を純 timing にも前倒す。timing 純度そのもの (straight-line・API 範囲) は payload 検査では機械保証されず、auditor live まで
   coder diff の人間レビューが gate (方針 A で hook が唯一防壁でなくなった帰結)。
+  **(追記 2026-07-06) S2 構成自体は後続段 1 で確定 (D36・gate 3 点 all_pass)。残りは段 5 の配線のみ。**
 - preprocess 後ハッシュは対象ファイル集合の列挙漏れがあれば偽キャッシュヒットが復活する。固定集合に限定しテストで固定するが
   template patch の改訂で集合が動いたら漏れる残留リスク。**タスク2 敵対レビューで実証 (medium, D24)**: `Options.cmake` は
   ALLOWLIST 内だが `EVOLVE_BLOCK_SOURCES` (= digest 対象) 外で、`VAL_SIZE` 等の build 左右マクロを変えると別バイナリ
