@@ -614,3 +614,26 @@ phase1/2 凍結宣言 + check_docs 追従 + glossary 行番号参照 52 件の�
 
 ### 次の一手
 - 変わらず (07-05 (4) エントリ参照)。
+
+## 2026-07-06 (2) — 後続段 1 完了: S2 verify 構成の確定 (perf 完全一致、gate 3 点 all_pass)
+
+成果: commit 7df9ac0 (verifier total_cycles) + 9606c66 (S2 確定一式、D36)。以下は git に載らない分:
+
+- **設計の敵対検証 (4 レンズ 58 エージェント・289 万トークン): real 24 / contested 2 / refuted 1。**
+  一次資料 = output/insights/2026-07-06_s2-design-adversarial-review.json に凍結。最重要 3 件 =
+  (1) WAL「最後勝ち」慣行で verify 2 本立ての AND が OR に縮退 + verify 構成の identity 不在 ×
+  terminal skip で「S2 素通り certified」が恒久化 → 配線を段 5 に先送りし D36 決定 4 の 6 規定に固定。
+  (2) gate1 対照の歴史値 0.7047 が BACK_OFF=0 genome の実測で誤校正 → 同 genome 対照の実測取り直しに
+  再設計 (実測 0.204 と大差。指摘が実害を未然に防いだ)。(3) 「verify/perf の差 = extime のみ」が coder の
+  verify 判別述語を単純化 → extime=3 を第一候補にし「縮小」自体を廃止 (実測で通った)。
+- 素材: 敵対検証が計画段階で「対照値の genome 食い違い」を検出し、gate 基準の誤校正を実測前に防いだ。
+  正しさゲート設計では閾値そのものより「対照の取り方」が攻撃面 — 07-05 の「中立値」虚偽検出と同型の教訓。
+- 素材: highkey ablation (S2 赤 G2 total 5 / legacy 緑) は「検証構成の付加価値」自体を positive control で
+  機械実証する形 — S2 構成を保持する根拠が宣言でなく実測になった (規律5 の ablation が正しさゲートにも適用可)。
+- エージェント工数: 調査 5 本 33 万 + 敵対検証 58 本 289 万トークン。計測は直列 (単一テナント確認済み、
+  実走 約 4 分 + broken build 2 面は一時 dir で清掃済み)。
+- 持ち越し (人間判断待ち): 変わらず (07-06 (1) エントリ参照)。
+
+### 次の一手
+- **後続段 2 (S4 load_rejections consumer 実体化 = coder が初めて赤 variant を出す段)** — phase3.md 後続段の番号順。
+- 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
