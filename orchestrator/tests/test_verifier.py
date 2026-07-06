@@ -266,6 +266,63 @@ def test_commit_below_genesis_indeterminate():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_dup_txid_indeterminate():
+    """同一 txid の C 行 2 回 (txid 発番の破れ) は認証しない。last-wins で最初の trx の
+    R/W が失われ、落ちた辺が cycle を隠して false-green になるため indeterminate に
+    倒す。integrity 7 条件のうち唯一 verdict 級 positive control が無かった穴を閉じる
+    (S4 consumer 段の敵対検証 fixture-1)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nW 0 aa U 1 1\nC 0 0 1 2\nW 0 aa U 1 2\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.dup_txids == 1
+        assert res.verdict == "indeterminate"
+        assert not res.certified
+        assert result_to_dict(res)["integrity"]["dup_txids"] == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+# ---- 既知偽陰性の characterization (現状の挙動を明示ロックする) ----
+#
+# 以下 2 テストは「現状 certified になってしまう」ことを assert する。**これは仕様の
+# 保証ではなく既知の限界の可視化** (規律3: 偽陰性の存在を台帳と機械テストの両方に残す)。
+# 恒久対応は trace 形式拡張 (C 行に R/W 件数・終端マーカー) = izanagi-trace ブランチ
+# 変更が必要で S1 移植と同時に行う (worklog 2026-07-02 [MED] 台帳)。
+# **このテストが FAIL したら**: 検出力が向上した合図。assert を反転して赤 (indeterminate)
+# を期待する形に書き換え、S1 送り台帳の該当項を閉じること (自動では反転しない)。
+
+def test_characterization_tail_txid_gap_is_false_green():
+    """末尾欠番 (max txid 以降の trx 欠落、例: 全ファイル尾部切り) は検出されない。
+    欠番検査は expected = max(txid)+1 で数えるため、write-skew (r1) の txid 1 側を
+    丸ごと落とすと欠番ゼロ扱い → cycle 相手が消えて certified serializable。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
+                   "W 0 0000000000000002 U 1 1\n")   # r1 から txid 1 を尾部切り
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.missing_txids == 0      # 末尾欠番は欠番に数えられない
+        assert res.certified, "偽陰性が塞がれた? → 本テストを反転し S1 台帳を閉じよ"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_characterization_txn_tail_loss_is_false_green():
+    """trx 尾部欠落 (C 行だけ残り R/W 行が消失) は検出されない。現 trace 形式は C 行に
+    R/W 件数を持たないため、R/W ゼロの trx と切り詰められた trx を区別できない —
+    write-skew (r1) の txid 1 の R/W を落とすと辺が消えて certified serializable。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
+                   "W 0 0000000000000002 U 1 1\n"
+                   "C 1 0 1 2\n")                    # txid 1 は C 行のみ (R/W 消失)
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.missing_txids == 0      # 欠番はない (txid は連続)
+        assert res.certified, "偽陰性が塞がれた? → 本テストを反転し S1 台帳を閉じよ"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_nonascii_wrapped_as_parse_error():
     """バイナリごみ (非 ASCII) は生 UnicodeDecodeError でなく ParseError で返す
     (pipeline の variant 単位 abort 隔離・exit code 2 の意味を保つ)。"""

@@ -282,6 +282,55 @@ def test_render_rejections_carries_no_perf_tokens():
         assert tok not in low, f"rejection 節に性能語彙 {tok} が混入"
 
 
+def _indeterminate_verify_payload(txns=100, missing=0, notes=None, clean=None):
+    """pipeline が書く形の verify payload (integrity 型 = indeterminate)。"""
+    if clean is None:
+        clean = (missing == 0)
+    return {"verdict": "indeterminate", "anomaly_count": 0, "total_cycles": 0,
+            "stats": {"txns": txns, "reads": 0, "writes": 0, "keys": 0, "edges": 0},
+            "anomalies": [],
+            "integrity": {"clean": clean, "orphan_reads": 0, "version_dups": 0,
+                          "dup_txids": 0, "genesis_commits": 0,
+                          "missing_txids": missing, "write_version_mismatch": 0,
+                          "malformed_keys": 0, "notes": notes or []}}
+
+
+def test_integrity_class_rejection_closes_loop():
+    """段 2 の positive control 本丸 (J8-B): integrity-class (indeterminate) の赤が
+    WAL → load_rejections → render で **cycle 型と区別して**描画される — clean G2
+    (broken-silo) だけで規律3 閉ループを certify しない (phase3.md 残存リスク節)。"""
+    lay = _tmp_layout()
+    v = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, v, STAGE_BUILD_START, "test", {"genome": v, "src_token": "cdI"})
+    wal.log(lay, v, STAGE_ABORT, "test",
+            {"reason": "indeterminate",
+             "verify": _indeterminate_verify_payload(
+                 txns=97, missing=3,
+                 notes=["missing txids sample: [7, 8, 9]"])})
+    rej = load_rejections(lay)
+    assert len(rej) == 1 and rej[0].verdict == "indeterminate"
+    assert rej[0].integrity["missing_txids"] == 3
+    out = render_rejections(rej, [], {}, None)
+    assert "missing_txids" in out                    # どのカウンタが非ゼロか
+    assert "missing txids sample" in out             # notes (欠番の見本) が届く
+    assert "cycle 全数" not in out                   # cycle 型の描画をしない (区別)
+
+
+def test_empty_dsg_rejection_renders_explicitly():
+    """J8-B 形状 (ii): integrity 全クリーンでも txns=0 (空 DSG) の indeterminate は
+    「trace が空」を明示する — 7 カウンタ全ゼロの空パネルとして沈黙しない
+    (実 run では trace-empty が手前で先取るが、verifier 単体経路では到達する形)。"""
+    lay = _tmp_layout()
+    v = _G.format(b=0, l=1, t=0, w=0)
+    wal.log(lay, v, STAGE_BUILD_START, "test", {"genome": v, "src_token": "cdE"})
+    wal.log(lay, v, STAGE_ABORT, "test",
+            {"reason": "indeterminate",
+             "verify": _indeterminate_verify_payload(txns=0, clean=True)})
+    out = render_rejections(load_rejections(lay), [], {}, None)
+    assert "trace が空 (txns=0)" in out
+    assert "緑ではない" in out                       # クリーンでも certify しない旨
+
+
 def test_verify_abort_signal_stock_contrast():
     """J1 シグナル: verify run の abort 率を stock 対照比つきで表示 (閾値判定なし)。"""
     lay = _tmp_layout()
