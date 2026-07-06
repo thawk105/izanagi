@@ -637,3 +637,35 @@ phase1/2 凍結宣言 + check_docs 追従 + glossary 行番号参照 52 件の�
 ### 次の一手
 - **後続段 2 (S4 load_rejections consumer 実体化 = coder が初めて赤 variant を出す段)** — phase3.md 後続段の番号順。
 - 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
+
+## 2026-07-06 (3) — 後続段 2 完了: S4 consumer 実体化 (赤 2 本実走 + critic 3 形状読み分け)
+
+成果: commit ce872f3..21bd67e (8 本、実装 6 + 実走成果 1 + docs 1)。位置づけ = phase3.md 後続段 2 の消化 (D37)。以下は git に載らない分:
+
+- **設計の敵対検証 (6 レンズ 52 エージェント・282 万トークン): real 13 / contested 7 / refuted 3 / low 18。**
+  一次資料 = output/insights/2026-07-06_s4-consumer-design-adversarial.json に凍結。最重要 3 件 =
+  (1) 「verify-red E2E は kickoff 済」の事実誤認を検出 — 全 campaign WAL に verify payload 付き abort が
+  0 件 (broken-silo 回帰は verifier CLI 直接で WAL 非経由) を発掘し、実走を確定タスクに昇格。(2) stock
+  判別「src_token 無し」が WAL 実態 (="stock") と逆 — 実装前に修正。(3) 赤 backoff 値 1e12µs の残骸想定が
+  経路誤認 (subprocess.run timeout は SIGKILL — 真のリスクは driver 異常死の孤児化で 11 日 CPU 焼き)
+  → 1e9µs (孤児でも約 17 分で自然終了) に変更。
+- 素材: 編集面 backoff.hh (純 timing) では verify-red (G2) が理論上出せない — backoff は abort() の状態
+  クリア後に呼ばれる純遅延で validationPhase に触れず、timing は interleaving を変えるだけ。G2 を出す
+  実証済み変異はすべて validation スキップ (broken-silo)。「coder の赤」の初期形が liveness-red になる
+  のは編集面設計の帰結 (正規経路の verify-red 初発火は編集面が validation に開く段 3 以降)。
+- 素材: buildcache allowlist が broken 変異 (transaction.cc) を正しく拒否する = 規律 2 の防壁が fixture の
+  E2E をも阻む — 防壁を緩めずに焼き込み経路を実証する形として「fixture trace 注入の半実」(モック点 =
+  trace 供給 1 点、verifier/焼き込み/WAL/load/render は実物) を採った。防壁の健全性と検証可能性の
+  トレードオフの実例。
+- 素材: fresh critic (n=1) は 3 形状 (cycle/integrity/liveness) を取り違えず、さらに「src_token=stock の
+  non-serializable は合成コード起因を排除できる分、計器/フラグ経路を疑うべき」と fixture trace 注入の
+  含意を uncertainty で表明 — 還流入口の読みが設計どおり機能した初観測。断定回避 (P2-5/D21) も維持。
+- エージェント工数: 調査 5 本 36 万 + 敵対検証 52 本 282 万 + coder 2 万 + critic 3 万トークン。
+  実走は直列 (単一テナント確認・handoff 計測中宣言・pgrep 清掃済み。実走 約 4 分、うち timeout 待ち 120 秒)。
+- スコープ外 4 件は D37 却下案・phase3.md に記載済み (bench-competing-tenant retryable 化 / build-error
+  還流 = 段 4 / abort 率機械帯 = 段 5+ / reason-only 第 3 アーム = 段 6) — 台帳の別途追記なし。
+- 持ち越し (人間判断待ち): 変わらず (07-06 (1) エントリ参照)。
+
+### 次の一手
+- **後続段 3 (auditor.md 生成と起動 — lock 経路変異の段)** — phase3.md 後続段の番号順。
+- 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
