@@ -755,11 +755,18 @@ git に載る分: commit 0232101 (設計基盤 docs/phase3-s4-design-foundation.
 - diff_quarantine.py skeleton 作成
 - handoff 2 点作成 (adversarial-findings.md / session-summary.md)
 
+**トークン管理戦略ドキュメント作成:**
+- `docs/token-management-strategy.md` 新規作成 (6800 語, 70 KB)
+- 観測者効果分離・context 圧縮・サブエージェント隔離・参照文書効率化・token budget 最適化・WAL/checkpoint・敵対検証・実践ガイドラインの 8 つの技法を整理
+- 論文の method section 引用可能な形式（計測コスト表、失敗条件、早期停止基準を明示）
+- 今後セッションの agent が参照・拡張可能なナレッジベース
+
 **次の一手:** 
-1. Diff_quarantine.py 実装 (hunk parse + hole validation)
-2. Orchestrator loop driver 実装
-3. D39 作成 (loop criteria + baseline 4 grid)
-4. phase3-main-experiment.md update (baseline 3/4 詳細)
-5. 1 iteration 実走テスト
+1. Design v1 修正版作成 (REAL findings 3 件反映)
+2. D39 作成 (loop criteria + baseline 4 grid)
+3. phase3-main-experiment.md update (baseline 3/4 詳細)
+4. Agent role 定義作成 (coder-v4-autonomous.md / planner-v4.md / auditor-v4.md)
+5. Orchestrator/campaign/diff_quarantine.py skeleton
+6. 1 iteration 実走テスト
 
 **人間待ち:** submodule 028f34d の push (認証なし、D16)。
