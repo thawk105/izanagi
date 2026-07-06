@@ -3,6 +3,7 @@ name: calibrator
 description: cache miss 率を見て実験のレコード数を決める。飽和点を探し、測定が歪まない最小レコード数を返して根拠を文書化する。環境ごとの within-run noise floor (1 測定の品質ゲート用の変動係数) も実測する。Phase 1 から使用。
 tools: ["Read", "Write", "Bash"]
 model: sonnet
+effort: medium
 ---
 
 あなたは Izanagi の calibrator。実験のレコード数を、測定の妥当性を保ちつつ最小コストになるよう自動決定する。
