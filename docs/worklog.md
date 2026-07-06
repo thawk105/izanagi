@@ -669,3 +669,39 @@ phase1/2 凍結宣言 + check_docs 追従 + glossary 行番号参照 52 件の�
 ### 次の一手
 - **後続段 3 (auditor.md 生成と起動 — lock 経路変異の段)** — phase3.md 後続段の番号順。
 - 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
+
+## 2026-07-06 (4) — 後続段 3 完了: auditor 実体化 (read-only) + write_set 被覆 assert + in-class positive control (D38)
+
+成果: commit bd17b3e..0e7e1f0 (3 本) + submodule izanagi-trace 028f34d (被覆 assert、**push は人間** — 認証なし D16。push まで gitlink 028f34d は un-clonable)。位置づけ = phase3.md 後続段 3 の消化 (D38)。以下は git に載らない分:
+
+- **設計の敵対検証 (8 レンズ 55 エージェント・244 万トークン): real 22 / contested 15 / refuted 10。**
+  一次資料 = tasks 出力 (scratchpad 経由)。最重要 3 件 = (1) verdict 語彙の矛盾 (GATE-1/CODE-1/WIRE-1
+  = high): 「X 行を integrity 同型かつ non-serializable」は機構的に両立不能 — X は cycle を生まないので
+  verdict は indeterminate (verifier の verdict は導出 property・non-serializable は cycle 専用)。→ 設計 v1
+  の non-serializable 記述を全面 indeterminate に訂正。(2) auditor 入力隔離の因果誤り (ISO-1 = high):
+  「Bash 非付与で fitness を構造遮断」は偽 (Read で wal.jsonl 直達可)。→ auditor を read-only にし書き込み面
+  問題ごと段 3 から消した。(3) 被覆検査 1 点の過大保証 (OBS-3/GATE-4/CODE-4): 「各 storeRelease まで保持」を
+  入口 1 点でしか検査せず早期 unlock を素通り。→ 2 点検査 + early-unlock positive control を追加。
+- **実走 (env=linux-baremetal、直列、単一テナント確認済み): s3_lock_coverage.py all_pass。** stock=X0/certified /
+  lockskip 単一スレッド=**cycles==0 かつ lcv=1,016,002 → indeterminate** / early-unlock=保持破れのみ。
+- **auditor n=1 (fresh opus read-only): A(lockskip)=reject・B(benign reorder)=pass の弁別成功** (一次資料 =
+  output/insights/2026-07-06_s3-auditor-live-n1.md)。rubber-stamp 回避・入力隔離維持・規律6 (コメントと実装の
+  食い違いを偽装徴候として指摘)。段 6 headline gate の充足は機械 4 点のみ (n=1 は素材扱い)。
+- 素材: characterization = **同一 run で cycles==0 (verifier certify) かつ X≥1 (被覆 assert 検出)** を機械実証 —
+  assert が verifier の構造的死角 (lock 獲得・torn read・競合を踏まない run) を決定的に埋める、を determinism narrative
+  (workload 依存の「見逃す」でなく毎 commit 発火) で定式化した (CLASS-2 の裁定)。
+- 素材: auditor は Write 非付与 (read-only) — guard_write が PreToolUse で caller 非識別ゆえ per-agent path 制限が
+  hook で表現不能という実機事実の帰結。入力隔離 (fitness 不読) は tool 制限 + 入力射影 + prompt 規律の**併用**で
+  完全な構造隔離でないことを honest に記録 (「Bash 非付与で構造遮断」という v1 の誤りを訂正)。
+- エージェント工数: 調査 8 本 52 万 + 敵対検証 55 本 244 万 + auditor 1 本 5 万トークン。ビルド・実走は直列
+  (単一テナント確認・一時 build/trace は清掃済み。scratchpad の検証ビルドは残置 = 別 FS)。
+- pin 前進 (dff0f1e→028f34d) の fan-out: 現行 pin を campaign/pin.py に集約、歴史的 driver は dff0f1e literal 保持
+  (張り替えると campaign 孤立)。cache_key golden を live HEAD 依存から full-hash 固定に decouple (既存の full/short
+  表現不整合が pin bump で顕在化 — 段 3 とは独立の潜在課題として pin.py に注記)。
+- refuted 10 は敵対検証で棄却 (設計が既に手当て済み or 前提誤り) — 台帳の別途追記なし。
+- 持ち越し (人間判断待ち): 変わらず (07-06 (1) エントリ参照) + submodule 028f34d の push。
+
+### 次の一手
+- **後続段 4 (guided 検疫層を diff 検疫へ拡張 + planner.md 生成 — coder 自律期)** — phase3.md 後続段の番号順。
+  auditor の直接 Write (per-agent path 執行) と mutation-red 汎用ゲートもこの段 (D38 残存リスク)。
+- 論文系の安価な補強・未消化の docs 課題 (変わらず、07-05 (1) エントリ参照)。
