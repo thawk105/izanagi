@@ -90,8 +90,14 @@ def _parse_abort_counts(stdout: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
+# trace run の timeout。S2 verify 構成の gate2 run timeout (120s) と同値に揃えてある
+# (s2_verify_calibration.py)。abort payload (trace-timeout) にも記録する — 「どの上限で
+# 打ち切られたか」が無いと liveness-red の次手入力が空になる (規律3)。
+TRACE_TIMEOUT_S = 120.0
+
+
 def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
-               clocks_per_us: int, timeout_s: float = 120.0):
+               clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S):
     """trace-enabled binary を回し IZANAGI_TRACE_DIR に trace を吐く。
 
     返り値 `(ncommit, returncode, aborts)`。**呼び手は returncode を必ず検査する** —
@@ -185,7 +191,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             ncommit, rc, aborts = _run_trace(tr.binary, tdir, correctness.flags,
                                              clocks_per_us)
         except subprocess.TimeoutExpired:
-            return _abort("trace-timeout", "trace 取得タイムアウト → reject")
+            return _abort("trace-timeout", "trace 取得タイムアウト → reject",
+                          {"timeout_s": TRACE_TIMEOUT_S})
         # 異常終了・空トレースは「正しさ未確定」。verifier に渡すと空 DSG が
         # serializable=True に化け false-green になる (規律2 違反) → 手前で reject。
         if rc != 0:
@@ -193,8 +200,13 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                           f"trace バイナリ異常終了 rc={rc} → reject",
                           {"rc": rc, "commits": ncommit})
         if ncommit == 0:
+            # aborts も載せる: 「回っているが全 abort (commit 枯渇)」と「そもそも回って
+            # いない」を WAL から区別する (sort 変異の主要失敗形態の分離, 規律3)。None の
+            # まま記録可 — abort_counts_ 行が出る前に死んだ、の可視化 (判定順で ncommit==0
+            # がこの検査より先に来るため None がありうる)。
             return _abort("trace-empty",
-                          "空トレース (commit 0) → 検証不能 reject", {"commits": 0})
+                          "空トレース (commit 0) → 検証不能 reject",
+                          {"commits": 0, "aborts": aborts})
         if aborts is None:
             # abort 数は「合成枝 (abort-path) が verify 中に実行された証拠」(phase3.md
             # 完了条件 2 / 残存リスク = 空振り認証)。取れない run を certified にすると

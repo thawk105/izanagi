@@ -258,7 +258,7 @@ def _red_vr():
 @contextlib.contextmanager
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    aborts=7, build_raises=False, high_variance=False,
-                   unstable=False, competing=None):
+                   unstable=False, competing=None, trace_timeout=False):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。"""
@@ -297,7 +297,13 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         assert_worktree_within_allowlist=lambda *a, **k: None,
         src_token=lambda *a, **k: "stock",
         resolve=lambda *a, **k: "stock"))
-    patch("_run_trace", lambda *a, **k: (ncommit, rc, aborts))
+    if trace_timeout:
+        def _raise_timeout(*a, **k):
+            raise subprocess.TimeoutExpired(cmd="trace",
+                                            timeout=pipeline.TRACE_TIMEOUT_S)
+        patch("_run_trace", _raise_timeout)
+    else:
+        patch("_run_trace", lambda *a, **k: (ncommit, rc, aborts))
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
     def fake_remeasure(measure_fn, settle_fn=None, **k):
@@ -475,6 +481,34 @@ def test_pipeline_empty_trace_aborts_before_verify():
     st = wal.replay(lay)[r.variant]
     assert STAGE_VERIFY_DONE not in st.stages_seen
     assert STAGE_COMMIT not in st.stages_seen
+
+
+def test_pipeline_trace_timeout_abort_records_timeout_s():
+    """S4 consumer (規律3): trace-timeout の abort payload に timeout_s が載る。
+    liveness-red の次手入力 — どの上限で打ち切られたかを WAL に残す
+    (旧配線は extra ゼロで、timeout の中身が consumer に届かなかった)。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, trace_timeout=True)
+    assert r.aborted and not r.certified and len(calls) == 0
+    st = wal.replay(lay)[r.variant]
+    assert st.last_terminal.payload.get("reason") == "trace-timeout"
+    assert st.last_terminal.payload.get("timeout_s") == pipeline.TRACE_TIMEOUT_S
+
+
+def test_pipeline_empty_trace_abort_records_aborts():
+    """S4 consumer (規律3): trace-empty の abort payload に aborts が載り、「回っているが
+    全 abort (commit 枯渇)」と「そもそも回っていない」を WAL から区別できる (sort 変異の
+    主要失敗形態の分離)。aborts=None も欠落でなく null で残す (計器未確定の可視化)。"""
+    lay = _tmp_layout()
+    r, _ = _eval(lay, ncommit=0, aborts=31337)
+    p = wal.replay(lay)[r.variant].last_terminal.payload
+    assert p.get("reason") == "trace-empty"
+    assert p.get("commits") == 0 and p.get("aborts") == 31337
+    lay2 = _tmp_layout()
+    r2, _ = _eval(lay2, ncommit=0, aborts=None)
+    p2 = wal.replay(lay2)[r2.variant].last_terminal.payload
+    assert p2.get("reason") == "trace-empty"
+    assert "aborts" in p2 and p2["aborts"] is None
 
 
 def test_pipeline_bench_no_throughput_aborts():
