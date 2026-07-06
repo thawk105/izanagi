@@ -905,3 +905,49 @@ broken-silo 駆動の手動手順の温存 (第三の駆動経路化・二重正
 cold で競合が薄い)。ablation 実証には十分だが、恒常回帰として使うなら seed による 0 化がありうる —
 回帰化するときは reps を持たせるか highkey 専用に rratio/skew を調整する。FLAGS_extime 判別子は消えたが
 getenv(IZANAGI_TRACE_DIR) 判別子は段 5 規定 (5) まで残る (kickoff 同様 coder が getenv を書かない段では潜在)。
+
+## D37. S4 consumer 実体化 — liveness 別型・abort 率のシグナル化・赤 2 本実走の線引き (2026-07-06)
+
+**背景:** phase3.md 後続段 2。S4 配線 (verify-red → abort payload → load_rejections) は完成していたが
+consumer 不在 (呼び手はテストのみ)、liveness-red は payload 痩せ + 読み出し除外の二重欠落で次手入力に
+届かなかった。設計 v1 → 6 レンズ 52 エージェントの敵対検証 (real 13 / contested 7 / refuted 3、一次資料 =
+output/insights/2026-07-06_s4-consumer-design-adversarial.json) → v2 で確定。
+
+**決定 1 — liveness-red は Rejection と別型 (LivenessRejection):** verify-red の語彙 (verdict/anomalies =
+cycle を断つ方向) に liveness を押し込むと次手生成が誤誘導される。liveness 集合 = trace-{timeout, empty,
+run-nonzero-exit, no-abort-counts, parse-error} (pipeline の reason 文字列と 1:1 — WAL を介した暗黙 API と
+規約明記)。infra/bench 系 (build-error/bench-*/eval-exception 等) は詳細を返さず正規化 reason (動的部を
+split(":") で畳む) の件数に集約 — CC 設計と無関係な赤で帰属を汚さず、沈黙もさせない (規律 3)。両型に
+workload 前方寛容フィールド (D36 決定 4-(3) の段 5 配線へ対称)。
+
+**決定 2 — 「abort 率異常」は reject ゲートでなく構造化シグナル:** 段 2 定義の「liveness-red
+(trace-empty/abort 率異常/timeout)」のうち abort 率異常は、verify/bench を通った variant を reject する
+根拠が無く (規律 2 の対象外)、variant/stock 比の帯を正当化する実測分布も無い (恣意的閾値は誤誘導計器)。
+digest 側で verify run の abort 率を stock 対照 (src_token=="stock" — 「キー無し」判定は WAL 実態と逆) と
+並べて常時表示し、判定は critic。対照なし・旧形式 (aborts 未記録)・未発火は明示。機械帯は分布が溜まる
+段 5 以降の ablation 点。aborts==0 の機械フラグも不要 (敵対検証 refuted: abort-path 編集面で variant 起因の
+aborts==0 は因果的に不可能、恒久対策は S2 構成 + 段 5 配線)。
+
+**決定 3 — 実走は赤 2 本、verify-red の完全 E2E は段 3 以降と明記:** coder 発の赤は liveness-red
+(過大 backoff 1e9µs → trace-timeout。timeout 120s の 8 倍で決定的、孤児化しても約 17 分で自然終了する桁を
+orchestrator が供与)。verify-red を実 run で出す変異 (validation 経路) は buildcache allowlist に**正しく
+拒否され** pipeline を通れない — 防壁を緩めず、焼き込み経路は fixture trace (r1_write_skew) 注入の半実
+(モック点 = trace 供給 1 点、verifier/焼き込み/WAL/load/render は実物) で実証。編集面を validation に
+広げて coder に G2 を出させる案は却下 (auditor 不在で正しさ論理を触らせ、段 3 の gate を骨抜きにする)。
+**主張の線引き: 段 2 の実証は「赤 → 構造化 → critic が読んで形状別の方向を返す」まで** — 「還流」(次
+variant 生成に使用) は段 4、「改善」は段 4〜6。
+
+**決定 4 — integrity fixture は verifier が実際に検出する 7 条件に限定:** 既知偽陰性 2 形状 (末尾欠番 =
+expected=max+1 の構造上不可視 / trx 尾部欠落 = C 行残り R/W 消失) は fixture 化すると緑化して positive
+control が不成立 → characterization テスト (現状 certified を明示 assert、fail = 検出力向上の合図で反転し
+S1 台帳を閉じる) として可視化。閉ループ fixture は 2 形状 (missing_txids+notes / integrity クリーンでも
+txns=0) + dup_txids の verdict 級テスト新設。E2E broken-trace-hook patch は見送り (indeterminate 固有の
+pipeline 分岐は存在しない — not certified 一括 — ため verdict 差分は合成 WAL で足りる)。
+
+**却下案:** liveness を Rejection に押し込む (意味論汚染) / pipeline への abort 率 reject ゲート新設
+(規律 5、盛りすぎ) / 段 2 定義文の遡及改訂 (完了マーク + 本 D で足りる — 敵対検証 refuted) / infra 系
+abort の詳細描画 (帰属汚染 — 件数集約で沈黙は回避、同 refuted)。
+
+**残存リスク:** fixture trace 注入の赤 2 は WAL 上 stock genome への帰属が偽 (fixture 用 campaign に隔離、
+spec_content に明記)。critic の読み分け実証は 1 呼び (n=1) — 段 4 の実運用で継続観察。abort 率シグナルの
+実データ発火は variant が verify を通る段 4 以降 (段 2 は対照付き経路をテスト固定のみ)。

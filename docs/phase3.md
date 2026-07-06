@@ -135,7 +135,7 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 | **H3 hooks** | **完了 (方針 A)** | 最小第二防壁を配線 (D30/D33)。3 巡目検証で real 9/known 6 摘出・全修正 (変異検査済)、critical (source_digest builtin definedness 偽 cache hit) は D34 で封鎖。identity/観測者効果の担保は下 2 行の一次防壁が担う |
 | **cache_key+variant_id 拡張** | **完了** (kickoff タスク 1 で消化) | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
 | **観測者効果二重検査** | **完了 (14d64e6)** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない)。diff-of-diffs を buildcache.build 出口 (hit/fresh 両経路) で発火、fails-closed |
-| **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。consumer 実体化は後続 |
+| **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。**consumer 実体化も完了 (後続段 2、2026-07-06、D37)** — liveness-red 別型・render 3 形状・critic 消費規定・実走赤 2 本で閉ループ実証 (「読んで方向を返す」まで。還流 = 次 variant 生成への使用は段 4) |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。残り = 段 5 での pipeline 配線 (D36 決定 4)** |
 | S1 (別 protocol trace-hook) | non-blocking (kickoff) / **主実験 headline 2 で発火** | silo 内に閉じる限り不要。ただし発火条件は「別 protocol 移植」だけでなく**主実験 headline 2 (クロスプロトコル stock 最良) も含む** — trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、headline 2 までに S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかが要る (後続段 6 の前提タスク (a)) |
 | C1 (campaign-id drift) | non-blocking | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。残課題 = driver 宣言値 (phase2.md §C1) と並行合成/patch 常駐で HEAD が動く場合の id 安定化 → 段 5 |
@@ -151,8 +151,19 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    `output/env/linux-baremetal/calibration/s2_verify_t48_skew0p9_rr50_rmw0.json`・駆動 =
    `orchestrator/campaign/s2_verify_calibration.py`。**pipeline 配線 (verify 2 本立て) は段 5 で D36
    決定 4 の規定 (identity 組み込み・COMMIT タグ焼き込み・AND 共通ヘルパ・排他・TRACE_DIR 対称化) に従う。**
-2. **S4 load_rejections consumer 実体化** — coder が初めて赤 variant を出す段。verify-red (cycle を断つ) と
-   liveness-red (trace-empty/abort 率異常/timeout) の両対応。integrity-class fixture も positive control に追加。
+2. **(完了 2026-07-06) S4 load_rejections consumer 実体化** — coder が初めて赤 variant を出した段。
+   実体 (D37): LivenessRejection 別型 (liveness 5 reason + infra 系は正規化件数に集約 — 沈黙させない) /
+   render_rejections (verdict 軸 3 形状描画: cycle 型 = edges+total_cycles 併記、integrity 型 = 7 カウンタ+
+   notes+空 DSG 明示、liveness 型 = 枯渇・不全・計器破れの帰属枠。性能語彙の否定 assert 付き) / verify
+   abort 率シグナル (reject でなく表示 — 機械閾値なし・stock 対照併記。「abort 率異常」の段 2 解釈は D37) /
+   critic.md 消費規定 / integrity-class positive control 2 形状 + dup_txids + 既知偽陰性 characterization。
+   実走 = 赤 2 本 (`orchestrator/campaign/p3_s4_red.py`、WAL 機械判定 7/7 PASS、campaign
+   p3-s4-red-s4-red-consumer-9a1897c4): coder 発 trace-timeout (完全 E2E、1e9µs は orchestrator 供与) +
+   fixture trace 注入の verify-red (半実 — broken 変異は buildcache allowlist に正しく拒否されるため。
+   **正規経路の verify-red 初発火は編集面が validation に開く段 3 以降**)。fresh critic が 3 形状を
+   取り違えなく帰属。**実証の線引き: 「赤 → 構造化 → critic が読んで方向を返す」まで — 「還流」(次
+   variant 生成に使用) は段 4、「改善」は段 4〜6** (paper-story の解消条件は入口のみ部分解消)。
+   ablation 点 = render_rejections の合流 1 点 (還流 on/off。reason-only 第 3 アームは段 6 で判断)。
 3. **auditor.md 生成と起動** — lock 経路変異の段。lock 獲得が write_set を被覆するか assert + in-class positive
    control suite を own。入力隔離を構造で強制 (WAL fitness を scope に入れない)。lock 経路は auditor live を gate に。
 4. **guided 検疫層を diff 検疫へ拡張 + planner.md 生成** — coder 自律期。diff が EVOLVE-BLOCK マーカー間かつ
@@ -214,6 +225,11 @@ worklog 全読しないと発掘できない状態を解消するためここに
   テスト固定で潜在に留め、cicada/oze 拡張で protocol 写像が load-bearing になった段へ繰延 (D23)。
 - broken-silo は clean G2 の easy case。coder が現実に出す赤の多くは integrity-class (verdict indeterminate) に
   なりうる → S4 consumer 段で integrity fixture を別途用意 (clean G2 だけで規律3 閉ループを certify しない)。
+  **(解消 2026-07-06、後続段 2)** integrity-class positive control 2 形状 (missing_txids+notes / integrity
+  クリーンでも txns=0 の空 DSG) を閉ループテストで固定、dup_txids の verdict 級テストを新設 (7 条件で唯一の
+  空白だった)。既知偽陰性 2 形状 (末尾欠番・trx 尾部欠落) は fixture 化すると緑化して positive control が
+  不成立 — 逆に characterization テスト (現状 certified を明示 assert、fail = 検出力向上の合図で反転) として
+  可視化した (S1 形式拡張時の回帰点)。
 - **coder のリーク制御が未設計 (P2-5/D21 の Phase 3 版が未予約)**: kickoff の題材 BACKOFF_FIXED は、勝ち筋
   (contention 域で stock 最良 +38%/+11%、sweet-spot 値) が docs/insights/WAL/CLAUDE.md にリポジトリ内既知として
   書かれている。coder のコンテキストにこれが混入すると「合成できた」のか「答えを読んだ」のか分離できない。P2-5 は
