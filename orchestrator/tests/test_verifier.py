@@ -59,6 +59,20 @@ def test_write_skew_g2():
     assert types == {RW}
 
 
+def test_total_cycles_survives_witness_cap():
+    # gate の機械判定は witness 数でなく total_cycles を使う (witness 上限での偽判定防止)。
+    # max_report=0 で witness を全部切っても total_cycles は全数を保持し、
+    # serializable 判定も total 基準のまま赤である。
+    res = verify_trace_dir(os.path.join(FIX, "r1_write_skew"), max_report=0)
+    assert not res.serializable
+    assert len(res.anomalies) == 0            # witness は切られている
+    assert res.total_cycles == 1              # が、全数は構造化されて残る
+    assert result_to_dict(res)["total_cycles"] == 1
+
+    green = _verify("g1_serial")
+    assert green.total_cycles == 0
+
+
 def test_lost_update_g2():
     res = _verify("r2_lost_update")
     assert not res.serializable

@@ -64,6 +64,7 @@ def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
             "notes": res.integrity.notes,
         },
         "anomaly_count": len(res.anomalies),
+        "total_cycles": res.total_cycles,
         "anomalies": [_anomaly_to_dict(a) for a in res.anomalies],
     }
 

@@ -147,6 +147,10 @@ class VerifyResult:
     n_writes: int = 0
     n_keys: int = 0
     n_edges: int = 0
+    # cycle (SCC) の全数。anomalies は max_report で witness を切り詰めるが、
+    # こちらは常に全数 (total ≤ max_report でも 0 でも入る)。gate の機械判定は
+    # witness 数 len(anomalies) でなくこの値を使うこと (witness 上限での偽判定防止)。
+    total_cycles: int = 0
 
     @property
     def verdict(self) -> str:

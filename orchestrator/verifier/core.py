@@ -55,4 +55,5 @@ def verify_trace_dir(trace_dir: str, max_report: Optional[int] = 20) -> VerifyRe
         n_writes=sum(len(t.writes) for t in txns),
         n_keys=len(dsg.versions),
         n_edges=dsg.n_edges,
+        total_cycles=total,
     )
