@@ -837,3 +837,29 @@ head_text=base_text で byte照合が moot) は承認スコープ外ゆえ D39 �
 
 **人間待ち:** submodule 028f34d の push (認証なし、D16、変わらず) + anchor finding = D39 決定1 の wording 訂正の可否
 (insight flagged)。
+
+## 2026-07-07 (4) — ShinkaEvolve 調査 → related-work.md へ比較エントリ
+
+**作業:** ユーザー依頼で ~/github/ShinkaEvolve (Sakana AI, ICLR 2026, LLM×進化 program synthesis) を調査し
+related-work.md に比較エントリを追加。Izanagi の (b) コード合成と同一問題設定かつ released runnable ゆえ
+最も直接的な実装比較対象。
+
+**調査 workflow (wf_cc72ed67-5f4、72 agents / 3.48M tok / 約24分):** 9 サブシステム深読み → 62 技法抽出 →
+各々を絶対規律に敵対検証 (finder → per-技法 verify の pipeline) → 統合。一次資料 = tasks/w3sl4ne86.output
+(session 内・非コミット)、清書 markdown = scratchpad/shinka-for-izanagi-report.md。
+
+**素材 (結論):** **直採用ゼロ** — finder が adopt/adapt と推した技法は敵対検証で一つ残らず inspiration-only 以下に
+格下げ。同一問題の上で設計哲学が正反対に振れていることの実証。Shinka の価値核 (スコア付き勝ちプログラムの prompt
+注入 + 並列 eval 母集団) が Izanagi のリーク制御 (Model Y) と計測直列 (規律4) に正面衝突する。反面教師の核 =
+inspiration 注入 (prompts_base.py の construct_eval_history_msg を実物確認)・crossover・prompt evolution (規律6)。
+外部追認 = diff_quarantine + source_digest が Shinka の marker_validation の fail-closed 上位互換 (D33)、
+EVOLVE-BLOCK マーカー規約は両者共通 (AlphaEvolve 系譜)。詳細は related-work.md の当該エントリ。
+
+**次の一手:** 段4 の本線 (前エントリの次の一手参照) は不変。本調査の産物 = 銀行預けの借用候補
+(Phase 3.5 の親選択 novelty ボーナス 1/(1+children) が最高価値 / 段5/6 の fail-closed 全書き換えスプライス /
+段4 中立の薄い上乗せ 4 件) は related-work に記録済みで、着手はしない (規律5、基質が先)。
+
+**エージェント工数:** 調査 workflow 72 agents / 3.48M tok / 約24分 (エラー 0)。メインループ (偵察・独立確認・
+curate・執筆) 単独。
+
+**コミット:** 本エントリ + related-work.md を同一コミット。
