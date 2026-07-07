@@ -770,3 +770,35 @@ git に載る分: commit 0232101 (設計基盤 docs/phase3-s4-design-foundation.
 6. 1 iteration 実走テスト
 
 **人間待ち:** submodule 028f34d の push (認証なし、D16)。
+
+## 2026-07-07 (2) — 後続段 4 (4a): diff 検疫層の実装 + 敵対 red-team 硬化
+
+**作業:** diff_quarantine.py を skeleton (validate=stub / parse=None) から実装。行封じ込め
+(structural・load-bearing) を主 gate、生指令・マーカー偽装の内容検査を二次 (best-effort、
+完全性は非 load-bearing = source_digest が backstop) とし、S4 rejection digest 新型
+(diff-quarantine、4 subtype + explicit reason) を配線。実装 = 6359aa5。
+
+**素材 (敵対 red-team、workflow 2 回):** 実装後に「hole を逃れる diff が passed になるか」を
+独立コンテキストで裏取り (規律6 の監査発火 = 正しさゲートの新機構)。
+- 1 回目 (55 agents、12 families × self-verify + 独立 verify): 行番号詐称/desync/fails-OPEN/
+  path 過剰一致の **4 root-cause クラス**を検出 (rawdiff = 攻撃者が diff 全体を制御する経路
+  でのみ到達可能。正規経路の `git diff HEAD` では git が honest producer ゆえ不達だが、
+  fails-closed ゲートが自己申告オフセットを信じる構造的弱点として修正)。
+- 2 回目 (16 agents、硬化後モジュールを再攻撃): **security-bypass=0** (containment 健全と確認)、
+  false-positive=1 (内容検査の過剰 reject)、refuted 4 (rawdiff 不達で棄却)、known-accepted 5
+  (content-check splice 回避 = 設計上の非 load-bearing 残余)。
+- 修正 (同 commit): (1) HEAD アンカー検証 (context/削除行を申告行番号の HEAD 内容と byte 照合
+  → 行番号詐称を根絶) (2) fail-closed パース (未パースヘッダ・カウント未充足・ヘッダ無し body・
+  カウント超過 body を malformed) (3) _same_file を normpath 完全一致 + traversal 拒否に厳密化
+  (4) marker 偽装検出を EVOLVE-BLOCK-BEGIN/END 限定に絞り偶発的言及の誤 reject を解消。
+- **意図した保守性 (棄却でなく設計):** 行頭 # を C++ 文脈非依存で弾く内容検査は over-reject
+  方向に倒す (D33 = text 検査の文脈認識化は不可能かつ罠)。coder は hole 行を # で始めない
+  規約。回帰テスト test_content_check_conservative_by_design で固定。positive control 30 本。
+
+**エージェント工数:** 実装+テスト 0.5h、red-team workflow 2 本 (55+16 agents、約 3.0M tokens、
+計 29 分)。一次資料ポインタ = tasks/wdgkt67dk.output・wg2hcxd1n.output (session 内、非コミット)。
+
+**次の一手 (段 4 残):** 変わらず前エントリの 2〜6 (D39 作成 / main-experiment baseline 3/4 /
+planner-v4 と loop driver 実装 / 1 iteration 実走)。4a (diff 検疫) と skeleton は消化済み。
+
+**人間待ち:** 変わらず (前エントリ参照 — submodule 028f34d の push)。

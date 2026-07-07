@@ -61,6 +61,15 @@ orchestrator が context を射影して coder に渡す：
    - 変更行 ⊆ #if 合成枝内部 (hole) ✓
 4. backslash-newline splice 等の C++ レキサ回避が効かない (diff 行構造と固定行を見るだけ) = robust
 
+**実装で追加した硬化 (2026-07-07 敵対 red-team、詳細は worklog 2026-07-07 (2)):** 実装後の
+red-team で「ハンクヘッダの行番号を信じると詐称・desync でフレーム/領域外を hole に誤帰属
+できる」「未パース/不正 diff を空 diff と取り違えて fails-OPEN」「_same_file の過剰一致」の
+3+1 クラスを発見・修正。追加機構 = (a) **HEAD アンカー検証** (context/削除行を申告行番号の
+HEAD 内容と byte 照合。ハンクヘッダを信頼せず行番号を実体に錨づけ)、(b) **fail-closed パース**
+(未パースヘッダ・カウント不整合・ハンク外 body を malformed で reject)、(c) _same_file を
+normpath 完全一致 + traversal 拒否に厳密化、(d) rejection に第 4 subtype `malformed` 追加。
+本節の「@@ ハンクヘッダ (行域) で照合」は正確には「HEAD アンカーで行番号を検証した上で照合」。
+
 **rejection 新型 (S4 rejection):**
 
 structured digest 形式 (D37 パターンに従う、規律3):
