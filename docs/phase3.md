@@ -282,6 +282,7 @@ worklog 全読しないと発掘できない状態を解消するためここに
   被覆 assert も見逃す — 段 3 scope 外の characterization 台帳項。「相補的」は {書き lock 欠落} と {読み検証弱化}
   に限定、この盲点は両者の外。(b) INSERT/insert 経路変異はスコープ外 (段 3 は lockWriteSet の write lock 欠落
   class 限定)。(c) tidword に owner 無しゆえ lock stomp/二重保持は raw∧shadow を満たしスコープ外。(d) auditor が
-  段 4 で自律追加する assert の mutation 非恒真性は段 3 では prompt 規律のみ (段 4 で driver の mutation-red 汎用
-  ゲートを予約)。(e) auditor の書き込み面 path-scoped 機械執行は段 4 (guard_write は PreToolUse で caller 非識別)。
-  詳細は D38 残存リスク節。
+  段 4 で自律追加する assert の mutation 非恒真性は、段 4 で driver の mutation-red 汎用ゲート `mutation_red_gate`
+  として実装 (構文一次篩 + positive control 実走、D39 決定5)。(e) auditor の書き込み面 path-scoped 機械執行は
+  段 4 で「read-only 据え置きが正解」と裁定 (guard_write は caller 非識別ゆえ原理的に不能、D39 決定6)。
+  詳細は D38/D39 の残存リスク節。

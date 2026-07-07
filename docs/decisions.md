@@ -1040,3 +1040,103 @@ owner フィールド無しゆえ lock stomp/二重保持は raw∧shadow を満
 段 4 で「追加 positive control は対応変異を戻すと必ず赤を driver が毎回機械確認」の汎用ゲートを
 予約 (RECUR-2/WIRE-4)。(e) auditor の書き込み面 path-scoped 機械執行は段 4 (per-agent
 permission、guard_write は caller 非識別、ISO-2/3)。
+
+## D39. 後続段 4 — coder 自律ループの機械部分 (diff 検疫の消費配線・停止条件・whiteboard 粒度・mutation-red gate・Model Y) (2026-07-07)
+
+**背景:** phase3.md 後続段 4「guided 検疫層を diff 検疫へ拡張 + planner.md 生成 — coder
+自律期」。coder (LLM) が初めて変異の値・方向を自律生成する段 = reward hacking 圧力が最大
+(design v1 §5)。4a (diff 検疫層) は先行セッションで実装済み (D なし・6359aa5、敵対 red-team
+55+16 agents で硬化) だが**どの loop からも import されず消費されない片肺**だった。本 D は
+loop harness (`campaign/p3_s4_loop.py`) を実体化し、検疫を消費経路に繋ぎ、design v1 §5 の
+Open Questions 6 点を実装で確定する。設計正本 = design v1 (本 D 確定で凍結)、実装後監査 =
+6 レンズ独立敵対 (規律6、real は決定/残存リスクに反映)。
+
+**決定 1 — diff 検疫 baseline = template patch 適用後の working-tree (design v1 §5 Q1 確定):**
+EVOLVE-BLOCK 骨格 (#if/#else/#endif + stock 枝 + マーカー) は committed HEAD に無く
+`patches/silo-backoff-fixed.patch` が applied() 時に注入する不変フレーム。coder 編集面は
+#if 合成枝 (hole) の 1 行のみ。**diff 検疫の baseline を「骨格適用後 working-tree」に錨づける**
+— harness が applied 下で backoff.hh (骨格入り) を base_text として読み、hole を coder の
+implementation で置換した edited_text との difflib unified diff を `DiffQuarantine(marker,
+working_diff, head_text=base_text)` に渡す。これで骨格挿入自体は diff に現れず coder の hole
+変更だけが検疫対象になる。**却下: HEAD=stock 基準** (骨格挿入が coder 変更に紛れ #else 枝改変
+が誤検出、design v1 §1 の underspec 指摘)。**却下: 骨格を submodule に commit して HEAD 化**
+(submodule push が人間待ちでブロック、D16)。diff_quarantine の `head_text` は docstring 上
+「HEAD 内容」だが実体は working_diff の削除/context 行の照合基準ゆえ base_text を渡して
+アンカー検証 (行番号詐称封じ) が成立する — 検証は弱まらない。
+
+**決定 2 — 停止条件の三形式 (design v1 §4 確定):** (a) **収束** = 同一方向かつ magnitude=small
+が 3 連続 (`CONVERGE_STREAK`)。段階的 magnitude 変化 (small→medium→large) は「異なる提案」
+として収束と扱わない。(b) **逆方向枯渇** = critic が逆方向を 2 回以上推奨 (`REVERSE_STREAK`)
+かつ直近改善なし (`state.reverse_recommendations` は critic 帰属を消費するメインセッションが
+更新)。(c) **予算** = 10 iteration または wall-clock 3600 秒。予算枯渇時は whiteboard を
+checkpoint し段 6 へ inherit (partial result は「未査証」marked、final certified finding では
+ない)。iteration は **WAL 由来でない独立カウンタ** — online_digest の LeakageError (n>iterations)
+を恒真化させないため (D26 の教訓)。
+
+**決定 3 — whiteboard 粒度 = 方向のみ・機序を物理排除 (structural inference 対策、規律2/6):**
+WhiteboardEntry は {iteration, direction, magnitude, result, delta_pct} のみ。critic の
+attribution (機序) と棄却理由の technical explanation を**フィールドとして持たせない** (漏らす
+経路自体を型で塞ぐ)。planner がそれを読んで棄却理由から採用 (勝ち筋) 値を逆算できる structural
+inference リスクを断つ (design v1 §4)。project_whiteboard は planner.justification を転写せず
+direction/magnitude/result/delta_pct だけを射影する。delta_pct は変化率 (具体 throughput 値
+でない)。
+
+**決定 4 — diff-quarantine の consumer 配線 (片肺閉じ、規律3) + reflux on/off = LLM ablation
+合流点:** `critic/digest.py` に `DiffQuarantineRejection` / `load_diff_rejections` (STAGE_ABORT
+の reason==`DIFF_QUARANTINE_REASON` を構造保持で読む) / `render_rejections(..., diff_rejections=)`
+の第 4 節を追加。`DIFF_QUARANTINE_REASON` は diff_quarantine の `rejection_type` と 1:1 の暗黙
+API (WAL 経由、test_p3_s4_loop で同値固定)。`load_liveness_rejections` は diff-quarantine を
+other から除外 (二重計上防止)。harness の `make_critic_digest(reflux=)` が**還流 on/off の合流
+1 点** = LLM ablation 対照 (on=赤 rejection を critic に還流 / off=緑 LI のみ)。緑 LI は両アーム
+共通 (trace-disabled build 由来、規律1)。第 3 アーム reason-only は段 6 (phase3.md 段 2)。
+reject は hard gate = fitness を構造的に持たない (性能数値を赤節に載せない、テストが否定 assert
+で固定)。
+
+**決定 5 — mutation-red 汎用ゲート = 構文一次篩 + positive control 実走 (D38 残 (d) 消化):**
+`mutation_red_gate(condition, invariant)` は auditor が追加する assert の非恒真性を構文検査する
+(design v1 §4(d): guard = `assert condition != invariant`、恒真は reject = 謳うだけで発火しない
+gate を弾く)。これは**構文レベルの一次篩** — 実 mutation で赤になるかの operative proof は
+positive control 実走 (段 3 s3_lock_coverage 様式の broken patch 赤緑、D38 決定2) が担う
+(auditor.md L62 が既に前提化)。段 4 の編集面は backoff hole のみ (lock 経路は段 5) ゆえ auditor
+新 assert は限定的で、本ゲートは枠組み + 恒真 assert を弾くテストで実証。段 5 で lock 経路が開くと
+実 mutation 確認が load-bearing になる。
+
+**決定 6 — auditor は段 4 も read-only 据え置き、auditor-v4 を作らない (D38 残 (e) 消化):**
+D38 決定3 (guard_write が caller 非識別ゆえ path-scoped 執行は原理的に不能) は段 4 でも変わらない
+— auditor に直接 Write を与える自律形は採らず、提案を構造化出力で返し orchestrator が人間レビュー
+gate 下で反映する。既存 `.claude/agents/auditor.md` を段 4 でそのまま spawn (tools/model 不変)。
+auditor.md footer と phase3.md 残存リスク (e) の「段 4 で改訂/機械執行」予約を「read-only 据え置き
+が正解」で close (dangling promise 解消)。design v1 §4 loop step6 の「auditor optional」は assert
+非恒真性サブ機能のみに scoped — reward-hack 静的監査 (ギャラリー型 1-7) は auditor 専任のまま。
+段 4 で optional の正当化 = 編集面が backoff hole のみ + Model Y (coder は structured 値提案で
+filesystem Edit なし) + diff_quarantine + source_digest が frame を機械封鎖するため型 2/7 の一部が
+機械カバーされ auditor 負荷が段 3 より狭い。段 5 で lock 経路が開くと auditor 再び必須
+(`test_lock_path_edit_surface_requires_auditor_live` が gate、D38)。
+
+**決定 7 — Model Y = harness は LLM を spawn せず proposal を引数で受ける (design v1 §0 確定):**
+ループ主導権はメインセッション。`p3_s4_loop.py` は planner/coder/critic を spawn せず、その構造化
+出力を**引数として受け取り**機械部分 (挿入→検疫→評価委譲→WAL→digest→whiteboard→停止判定) だけを
+回す (critic-experiment が tools=Bash のみで guided.py 出力だけ見るのと同型のリーク制御)。coder は
+filesystem browse 経路を構造的に持たない = 勝ち筋 literal を物理的に読めない。**整合規約:** genome
+flags['BACKOFF_FIXED'] と hole literal を coder の value で揃える (static50/red の前例。食い違うと
+還流信号が自己矛盾)。実走口 = `main()` (fixture proposal で 1 iteration の機械 E2E、`--no-build` で
+build を省いた配線 dry-run)。実 LLM の planner/coder/critic はメインセッションが spawn し harness の
+関数へ proposal を渡す。
+
+**却下案:** HEAD=stock 基準の diff 検疫 (骨格が coder 変更に紛れる、決定1) / 骨格を submodule に
+commit (push 人間待ち、D16) / auditor-v4 別ロール新設 (write 次元は D38 で決着、決定6) / whiteboard
+に機序を載せる (structural inference、決定3) / mutation-red gate を実 mutation 確認のみで枠組みを
+省く (段 4 編集面が狭くテストで足りる、決定5) / iteration カウンタを WAL 由来にする (leak assert
+恒真化、決定2) / baseline 3/4 の数値詳細を段 4 で確定 (段 6 タスク (c)(d) の前倒し = 規律5 違反、
+main-experiment L33 が段 6 送りと明記)。
+
+**残存リスク (known-limitation):** (a) mutation-red gate は段 4 では構文一次篩 + 枠組み止まり
+— 実 mutation 確認が load-bearing になるのは段 5 (lock 経路の編集面拡張時)。(b) reflux=off の
+赤節ドロップは意図的 ablation だが緑 LI は両アーム共通 — off アームが「rejection を一切見ない」
+ことの妥当性は段 6 の LLM ablation 設計で再検証 (第 3 アーム reason-only との弁別)。(c) 実 LLM の
+planner/coder/critic の spawn はメインセッションが担い harness は機械部分のみ — 実 iteration の
+統計的評価 (seed×N・検証相) は段 6 (main-experiment §検証相)。段 4 の 1 iteration 実走は「配線が
+E2E で通る」の機械実証に留め有意性を主張しない (kickoff CorrectnessWorkload は同一キー競合をほぼ
+踏まず n も小さい)。(d) diff-quarantine reject の variant は build しない (src_token 空) — WAL の
+terminal skip 判定は汚さない (abort=terminal で正当) が、diffq_variant_id はハッシュ衝突を genome+
+implementation で回避 (test で決定性・提案感度を固定)。

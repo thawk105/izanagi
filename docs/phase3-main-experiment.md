@@ -40,6 +40,20 @@
 **LLM の価値の ablation:** coder に critic の機序帰属を入力する系列と、しない系列 (指標素通し) を比較する。P2-5 が
 「指標を渡すこと」と「指標を LLM に解釈させること」を分けたのと同じ切り分けを合成側で行う。
 
+**後続段 4 で配線した事前登録要素 (数値詳細は段 6、実体・不変条件のみ段 4 で固定):**
+- **ablation 還流スイッチの実体:** on アーム (critic の機序帰属を次 iteration の coder/planner へ還流) と off アーム
+  (緑 leading-indicators のみ渡す) の**合流 1 点** = `campaign/p3_s4_loop.py` の `make_critic_digest(reflux=)`
+  (= `render_rejections` を合流するか否か)。reflux は campaign identity (search_config) に焼き別 campaign に物理分離する
+  (D39 決定4)。第 3 アーム reason-only は段 6。
+- **ベースライン 3/4 の substrate anchor (段 4 が固定 → 段 6 が「同じ編集面・同じ試行予算」を honor するための実値):**
+  編集面 = diff 検疫の hole (silo-backoff-magnitude、`include/backoff.hh` の #if 合成枝 1 行、D39 決定1)。試行予算 =
+  iteration budget (10 iteration または 3600 秒、D39 決定2)。変異軸 = backoff (human-named、coder の値提案より前に固定
+  = ベースライン 4 の「軸命名を coder 出力前に固定」を trivially 満たす)。生成分布・sweep grid の数値は段 6 タスク (c)(d)。
+- **段 4 中間結果の報告作法:** 段 4 の 1 iteration 実走は「配線が E2E で通る」の機械実証に留め、**有意性を主張しない**
+  (n 小・検証相なし・kickoff CorrectnessWorkload は同一キー競合をほぼ踏まない — 残存リスク節)。上の統計計画の guard
+  「予算上 n を確保できない比較は記述統計に留め有意性を主張しない」を段 4 に適用する (検定力不足の偽 negative を
+  「LLM に価値なし」と誤読させない)。
+
 **統計計画 (P2-5/D29 を継承):** 採否は点比較でなく分布比較。差が between-run floor 以下は「差なし」に丸め、
 floor〜1.5×floor は `near_floor` として cross-run 再現で裏取り。優劣は確率優越 a (同分布で 0.500) + exact/permutation
 検定。headline は必ず「中央値・変動係数・floor・有意か否か・機序帰属」を添える (層3 説明可能性の統計的裏打ち)。
