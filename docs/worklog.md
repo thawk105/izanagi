@@ -802,3 +802,38 @@ git に載る分: commit 0232101 (設計基盤 docs/phase3-s4-design-foundation.
 planner-v4 と loop driver 実装 / 1 iteration 実走)。4a (diff 検疫) と skeleton は消化済み。
 
 **人間待ち:** 変わらず (前エントリ参照 — submodule 028f34d の push)。
+
+## 2026-07-07 (3) — 継承 S4 loop 実装の監査取り込み (real4+cheap2 硬化) + 運用ルール3件恒久化
+
+**セッション救出:** worklog「壊れた」は誤警報 — 最初の Read が幻の出力 (5000行超の `---`・文字化け) を
+返しただけで、実ファイルは 804行・HEAD一致・破損ゼロ (診断で確定)。
+
+**継承作業の発掘 (規律6 発火):** 別セッション (11:02〜11:32) が worklog/handoff/commit を残さず放置した
+未コミット差分を継承 = 段4 loop harness (p3_s4_loop.py) + digest.py 配線 + D39 + campaign 実走。handoff は空。
+取り込み前に独立コンテキストで敵対監査した。
+
+**監査 (workflow wsjicuqze, 6レンズ×verify, 31 agents/1.39M tok):** real17→実質9論点/plausible2/refuted5。
+**正しさゲート (規律2) は無傷** = 全 verifier が「verifier は実バイナリの直列化性を検査ゆえ hard-gate は緩まない」
+と一致。critical/high ゼロ。穴は規律3/6 の恒真保証・帰属汚染・片肺型。最重要3件: (1) value↔literal 整合未強制で
+帰属汚染 (規律6/決定7) (2) 収束判定が diff検疫 reject 3連続を converged と誤判定 (決定2a) (3) WAL 非依存を謳う
+assert が 1==1 恒真。一次資料 = output/insights/2026-07-07_s4-loop-inherited-audit.json (フルは tasks/wsjicuqze.output)。
+
+**修正 (ユーザー承認 real4+cheap2):** 上記 + delta_pct 死フィールドの明示 defer + mutation_red_gate の定数tautology
+検出/fail-open明示。test 32/32・回帰259・E2E dry-run PASS。**anchor finding (決定1 の「検証は弱まらない」が誤導 —
+head_text=base_text で byte照合が moot) は承認スコープ外ゆえ D39 未改訂、insight に記録し人間判断へ flag。**
+
+**運用ルール恒久化 (ユーザー協議の決着):** CLAUDE.md 作業の進め方に (9) BG待機の心拍 = ~1分周期のタイムスタンプ付き
+進捗 (harness に周期フック無し=行動規律)、(8強化) handoff を5分おき生きた進捗更新 + 作成→削除を~15分単位に切る
+(風呂敷を広げない)。メモリ3件更新。
+
+**エージェント工数:** 監査 workflow 31 agents/1.39M tok/8m50s (1本 StructuredOutput 上限で脱落・結論不変)。
+メインループ (診断・修正・コミット) 単独。
+
+**コミット:** 9324024..b6abdc0 (4本: feat loop / docs D39 / insight / CLAUDE ルール) + 本エントリ。
+
+**次の一手 (段4 残):** 段4b以降 (実 LLM の planner-v4/coder-v4 をメインセッションが spawn し harness に proposal を
+渡す実ループ・複数 iteration) → 段5 (lock 経路編集面拡張、mutation_red 配線が load-bearing 化) → 段6 (主実験・統計
+評価・delta_pct live 化)。安価な docs 補強は変わらず (07-05 (1) 参照)。
+
+**人間待ち:** submodule 028f34d の push (認証なし、D16、変わらず) + anchor finding = D39 決定1 の wording 訂正の可否
+(insight flagged)。
