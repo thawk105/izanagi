@@ -1,0 +1,18 @@
+# critic digest — silo leading indicators (P2-3)
+
+## workload: p3-s4 ()
+
+genome | throughput_tps | abort_rate | latency_ns | llc_miss_rate | ipc
+---|---|---|---|---|---
+
+### フラグ軸の限界効果 (他フラグで周辺化した水準別平均)
+- **BACK_OFF** ():
+- **no_wait** ():
+- **WAL** ():
+
+
+# rejections — 正しさ/liveness/frame ゲート不通過 (採用されず、性能数値は構造的に存在しない)
+
+(rejection なし — 全 variant 緑)
+# verify run の abort 統計 (シグナル — reject 理由ではない。閾値判定なし、異常かどうかは読み手が stock 対照比で判断)
+(verify 到達 run なし — 本 campaign では未発火)

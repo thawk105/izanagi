@@ -1,0 +1,589 @@
+# -*- coding: utf-8 -*-
+"""P3 後続段 4 driver — coder 自律ループの機械部分 (design v1 §4)。
+
+**位置づけ:** 後続段 4 = coder (LLM) が初めて変異の値・方向を自律生成する段。
+reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 周):
+
+    1. planner (LLM):  leading-indicators → 方向提案 (値なし)
+    2. coder   (LLM):  方向 → 具体 backoff 値 + hole コード (勝ち筋値を見ずに合成)
+    3. harness (本Py): coder コードを EVOLVE-BLOCK hole に挿入 → diff 検疫 (4a)
+       - reject  → diff-quarantine rejection を WAL に焼き critic へ (bench に進めない)
+       - pass    → run_campaign (build×2/verify/bench) に委譲 → WAL
+    4. harness (本Py): 緑 (LI) + 赤 (rejection/liveness/diff-quarantine) digest を組む
+    5. critic  (LLM):  帰属 + 次方向 (値なし・機序は whiteboard に載せない)
+    6. harness (本Py): whiteboard 射影 (機序を落とす) + 停止判定
+
+**ループ主導権はメインセッション** (design v1 §4)。本モジュールは LLM を spawn しない —
+planner/coder/critic の構造化出力を **引数として受け取り** 機械部分だけを回す
+(critic-experiment が tools=Bash のみで guided.py 出力だけ見るのと同型のリーク制御:
+Model Y = coder に filesystem browse を与えず、harness が context を射影する)。
+
+**diff 検疫の baseline = silo-backoff-fixed.patch 適用後の working-tree** (design v1 §5
+Q1 の確定、D39)。骨格 (#if/#else/#endif + stock 枝 + マーカー) は template patch が入れる
+不変フレーム。coder の編集面は #if 合成枝 (hole) の 1 行のみ。baseline を「骨格適用後」に
+錨づけることで、骨格挿入自体は diff に出ず coder の hole 変更だけが検疫対象になる
+(HEAD=stock 基準だと骨格挿入が coder 変更に紛れる — 敵対検証 2026-07-07 の underspec 指摘)。
+
+fixture proposal で機械 E2E を回す実走口は main() (`--no-build` で build を省いた配線
+dry-run、既定は kickoff 規模で実 build/verify/bench)。実 LLM の planner/coder/critic は
+メインセッションが spawn し本モジュールの関数へ proposal を渡す。
+"""
+from __future__ import annotations
+
+import argparse
+import difflib
+import os
+import re
+import sys
+import time
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from campaign import ident, source_digest, wal                     # noqa: E402
+from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
+                                      DiffQuarantineResult,
+                                      parse_template_file)
+from campaign.layout import CampaignLayout, campaign_layout         # noqa: E402
+from campaign.loop import run_campaign                             # noqa: E402
+from campaign.model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
+                            CampaignConfig, Genome)
+from campaign.pipeline import PerfConfig, variant_id               # noqa: E402
+from critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
+                           build_digest, load_diff_rejections,
+                           load_liveness_rejections, load_rejections,
+                           load_verify_abort_signals, render_rejections,
+                           render_text)
+
+# ---- campaign 定数 (p3_s4_red 様式。実走前に pin/env を確認する) -----------------
+PIN = "028f34d"                       # 現 submodule HEAD (D38 で dff0f1e→028f34d 前進)
+ENV_TAG = "linux-baremetal"           # 計測層タグ (規律: 計測層以外の数値を混ぜない)
+CLK = 1800
+NUMA = ["numactl", "--interleave=all"]
+
+MARKER_ID = "silo-backoff-magnitude"
+SOURCE_REL = "include/backoff.hh"     # EVOLVE_BLOCK_SOURCES の唯一メンバ (段 4)
+TEMPLATE_PATCH = "patches/silo-backoff-fixed.patch"  # 骨格 (hole) を敷く不変フレーム
+
+_BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
+
+# 停止条件 (design v1 §4、D39 で凍結)。
+MAX_ITER = 10
+MAX_WALLTIME_S = 3600
+CONVERGE_STREAK = 3                   # 同一方向・magnitude=small が N 連続 → 収束
+REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改善なし → 枯渇
+
+
+# ==== 提案・状態の型 (LLM 出力と harness 状態) =================================
+
+@dataclass
+class PlannerProposal:
+    """planner-v4 の出力 (値・機序なし)。"""
+    axis: str
+    direction: str                    # increase | decrease | explore_both
+    magnitude: str                    # small | medium | large
+    justification: str = ""
+    uncertainty: str = ""
+
+
+@dataclass
+class CoderProposal:
+    """coder-v4-autonomous の出力 (値 + hole コード)。"""
+    axis: str
+    value: float                      # 1..1000 の backoff 量
+    implementation: str               # "double now_backoff = <式>;"
+    justification: str = ""
+    confidence: str = "medium"
+
+
+@dataclass
+class WhiteboardEntry:
+    """評価済み提案の 1 行。**機序 (critic attribution) を持たない** — 棄却理由から
+    採用値を逆算できる structural inference リスクへの物理的対策 (design v1 §4、規律2/6)。
+    planner/coder が見るのは direction/magnitude/result/delta_pct のみ。"""
+    iteration: int
+    direction: str
+    magnitude: str
+    result: str                       # success | fail | rejected
+    delta_pct: Optional[float] = None   # 性能変化率 (率、具体 throughput 値でない)。段 4 は
+                                        # 常に None = 段 6 予約 (統計的 delta/検証相は D39 残存リスク c)
+
+
+@dataclass
+class LoopState:
+    """ループ状態。iteration は **WAL 由来でない独立カウンタ** — loop が増分し WAL からは
+    読まない。online_digest の LeakageError (n>iterations) を将来このループに配線する際に
+    恒真化させないための不変 (本ループでは LeakageError 未配線 = D26 の教訓を先取り)。"""
+    whiteboard: List[WhiteboardEntry] = field(default_factory=list)
+    iteration: int = 0
+    start_ts: float = 0.0
+    reverse_recommendations: int = 0    # critic の逆方向推奨の連続回数
+
+
+@dataclass
+class StopDecision:
+    stop: bool
+    reason: str                       # converged|reverse-exhausted|budget-*|continue
+
+
+# ==== hole 挿入 + diff 検疫 (4a) ==============================================
+
+def _indent_of(line: str) -> str:
+    return line[:len(line) - len(line.lstrip())]
+
+
+def render_hole(base_text: str, marker, implementation: str) -> str:
+    """base_text (骨格適用後) の hole 行群を coder の implementation で置換する。
+
+    hole = marker.hole_first .. marker.hole_last (現テンプレは単一行)。元の hole 行の
+    インデントを保って implementation を挿入する (行頭が空白+コードになり、diff 検疫の
+    二次検査 '_DIRECTIVE_RE (行頭 #)' に偶発ヒットしない — coder 規約の harness 側担保)。"""
+    lines = base_text.split('\n')
+    indent = _indent_of(lines[marker.hole_first - 1])
+    new_body = [indent + ln if ln else ln for ln in implementation.split('\n')]
+    out = lines[:marker.hole_first - 1] + new_body + lines[marker.hole_last:]
+    return '\n'.join(out)
+
+
+def make_working_diff(base_text: str, edited_text: str, source_rel: str) -> str:
+    """base_text→edited_text の unified diff (git diff HEAD 相当だが baseline は
+    骨格適用後の working-tree)。diff_quarantine.parse_diff が読む `+++ b/<path>` +
+    `@@` 形式を difflib で生成する。"""
+    base = base_text.splitlines(keepends=True)
+    edited = edited_text.splitlines(keepends=True)
+    return "".join(difflib.unified_diff(
+        base, edited, fromfile=f"a/{source_rel}", tofile=f"b/{source_rel}"))
+
+
+def quarantine(sub: str, implementation: str,
+               marker_id: str = MARKER_ID,
+               source_rel: str = SOURCE_REL,
+               write: bool = True) -> Tuple[DiffQuarantineResult, str, str, str]:
+    """骨格適用後の working-tree に coder の implementation を挿入し diff 検疫する。
+
+    **前提: 呼び出し元が既に applied(TEMPLATE_PATCH) 下にある** (working-tree に骨格が
+    入っている)。手順:
+      1. backoff.hh (骨格入り) を base_text として読む
+      2. parse_template_file で marker を取り source_rel を差し替える (basename 推定を上書き)
+      3. hole を implementation で置換 → edited_text (write=True でファイルに書く)
+      4. working_diff = make_working_diff(base, edited)、head_text=base で validate
+
+    Returns: (DiffQuarantineResult, base_text, edited_text, working_diff)。
+    passed=False なら呼び出し元は build に進めず reject を WAL/critic へ (規律2 hard gate)。
+    parse_template_file が None を返す (テンプレ骨格が壊れている) 場合は MALFORMED 相当の
+    fails-closed 結果を合成して返す (骨格が読めなければ検疫できない = reject)。"""
+    path = os.path.join(sub, source_rel)
+    with open(path, encoding="utf-8") as f:
+        base_text = f.read()
+    marker = parse_template_file(path, marker_id)
+    if marker is None:
+        res = DiffQuarantineResult(
+            passed=False, reason="テンプレ骨格をパースできない (fails-closed)",
+            digest={"rejection_type": "diff-quarantine", "subtype": "malformed",
+                    "reason": "テンプレ骨格をパースできない",
+                    "diff_region": source_rel, "template_diff_id": marker_id,
+                    "evidence": "parse_template_file が None (骨格構造の破れ)"})
+        return res, base_text, base_text, ""
+    marker.source_rel = source_rel
+    edited_text = render_hole(base_text, marker, implementation)
+    working_diff = make_working_diff(base_text, edited_text, source_rel)
+    if write:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(edited_text)
+    res = DiffQuarantine(marker, working_diff, head_text=base_text).validate()
+    return res, base_text, edited_text, working_diff
+
+
+# ==== diff-quarantine reject の WAL 記録 (片肺の書き手側) ======================
+
+def diffq_variant_id(genome: Genome, implementation: str) -> str:
+    """diff 検疫で reject された variant の WAL キー。build しない (src_token 無し) ため
+    pipeline.variant_id は使えない — genome + 提案コードのハッシュで一意化する。"""
+    import hashlib
+    h = hashlib.sha256((genome.canonical() + "|impl=" + implementation).encode()).hexdigest()[:12]
+    return f"diffq-{h}"
+
+
+def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: str,
+                       res: DiffQuarantineResult, env_tag: str = ENV_TAG) -> str:
+    """diff 検疫 reject を WAL に BUILD_START→ABORT(reason=diff-quarantine) で焼く。
+
+    load_diff_rejections がこの形を読み返し critic に渡す (規律3: 検疫が reject を出した
+    だけで消費されない片肺を作らない)。build/verify には到達しないので verify payload も
+    fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
+    v = diffq_variant_id(genome, implementation)
+    wal.log(layout, v, STAGE_BUILD_START, env_tag,
+            {"genome": genome.canonical(), "src_token": ""})
+    wal.log(layout, v, STAGE_ABORT, env_tag,
+            {"reason": DIFF_QUARANTINE_REASON,
+             "genome": genome.canonical(),
+             "diff_quarantine": res.digest or {}})
+    return v
+
+
+# ==== critic 入力 digest (緑 + 赤、還流 on/off スイッチ) =======================
+
+def make_critic_digest(layout: CampaignLayout, tag: str = "p3-s4",
+                       reflux: bool = True) -> str:
+    """critic に渡す digest テキストを組む。
+
+    緑 (render_text: committed LI) + 赤 (render_rejections: verify-red/liveness/
+    diff-quarantine)。**reflux=False (還流 off ablation) では赤節を落とす** — critic に
+    rejection の構造化 anomaly を還流させない対照アーム (main-experiment の LLM ablation、
+    合流 1 点の切替。phase3.md 段 6 の第 3 アーム reason-only は段 6)。緑 LI は両アーム
+    共通 (性能数値は trace-disabled build 由来、規律1)。"""
+    green = render_text([build_digest(tag, {}, layout)])
+    if not reflux:
+        return green
+    livs, other = load_liveness_rejections(layout)
+    red = render_rejections(
+        load_rejections(layout), livs, other,
+        load_verify_abort_signals(layout),
+        diff_rejections=load_diff_rejections(layout))
+    return green + "\n\n" + red
+
+
+# ==== whiteboard 射影 (機序を落とす) =========================================
+
+def project_whiteboard(state: LoopState, planner: PlannerProposal,
+                       result: str, delta_pct: Optional[float] = None) -> WhiteboardEntry:
+    """critic の帰属 (機序) を落として whiteboard に 1 行だけ射影する (design v1 §4)。
+
+    記録するのは iteration/direction/magnitude/result/delta_pct のみ。critic の
+    attribution (なぜ効いた/壊れたか) や棄却理由の technical explanation は載せない —
+    planner がそれを読んで棄却理由から採用値を逆算できる structural inference リスク
+    (規律2/6)。result: success (certified 緑) | fail (verify/liveness 赤) | rejected
+    (diff 検疫 reject)。"""
+    e = WhiteboardEntry(iteration=state.iteration, direction=planner.direction,
+                        magnitude=planner.magnitude, result=result, delta_pct=delta_pct)
+    state.whiteboard.append(e)
+    return e
+
+
+def whiteboard_for_planner(state: LoopState) -> List[Dict]:
+    """planner-v4 / coder-v4 入力の whiteboard フィールド (評価済みのみ・値なし)。"""
+    return [{"iteration": e.iteration, "direction": e.direction,
+             "magnitude": e.magnitude, "result": e.result, "delta_pct": e.delta_pct}
+            for e in state.whiteboard]
+
+
+# ==== 停止判定 (design v1 §4、D39) ===========================================
+
+def check_stop(state: LoopState) -> StopDecision:
+    """収束 / 逆方向枯渇 / 予算尽き を機械判定する。
+
+    - Budget: iteration >= MAX_ITER または wall-clock >= MAX_WALLTIME_S。
+    - Convergence: 同一方向かつ magnitude=small が CONVERGE_STREAK 連続。段階的な
+      magnitude 変化 (small→medium→large) は「異なる提案」として収束と扱わない。
+    - Reverse-exhausted: critic の逆方向推奨が REVERSE_STREAK 回以上 + 直近改善なし
+      (state.reverse_recommendations は critic 帰属を消費するメインセッションが更新)。"""
+    elapsed = time.monotonic() - state.start_ts if state.start_ts else 0.0
+    if state.iteration >= MAX_ITER:
+        return StopDecision(True, "budget-iterations")
+    if elapsed >= MAX_WALLTIME_S:
+        return StopDecision(True, "budget-walltime")
+    # 収束は **評価が成立した** 提案だけで測る。diff 検疫 reject (result=rejected) は評価
+    # 未成立ゆえ収束に数えない — reject 連続を「収束」と取り違えない (規律3、D39 決定2a)。
+    evaluated = [e for e in state.whiteboard if e.result != "rejected"]
+    tail = evaluated[-CONVERGE_STREAK:]
+    if (len(tail) >= CONVERGE_STREAK
+            and all(e.direction == tail[0].direction and e.magnitude == "small"
+                    for e in tail)):
+        return StopDecision(True, "converged")
+    if state.reverse_recommendations >= REVERSE_STREAK:
+        # 「直近改善なら止めない」escape は delta_pct が算出される段 6 で live 化する。段 4 は
+        # delta_pct 未算出 (常に None、段 6 予約) ゆえ escape は明示的に無効 = reverse-exhausted は
+        # reverse_recommendations 単独で判定する (恒真ガードを置かない、D39 残存リスク c/決定2b)。
+        recent = state.whiteboard[-1] if state.whiteboard else None
+        improved = recent is not None and recent.delta_pct is not None and recent.delta_pct > 0
+        if not improved:
+            return StopDecision(True, "reverse-exhausted")
+    return StopDecision(False, "continue")
+
+
+# ==== mutation-red 汎用ゲート (D38 残消化、design v1 §4(d)) ====================
+
+_WS_RE = re.compile(r"\s+")
+
+
+def _norm_expr(e: str) -> str:
+    return _WS_RE.sub("", e.strip())
+
+
+_TRIVIAL_TRUE_RE = re.compile(
+    r"^(true|1|(.+)==\2|(.+)>=\3|(.+)<=\4)$", re.IGNORECASE)
+
+_CONST_CMP_RE = re.compile(r"^(-?\d+(?:\.\d+)?)(==|!=|>=|<=|>|<)(-?\d+(?:\.\d+)?)$")
+
+
+def _is_constant_tautology(c: str) -> bool:
+    """両辺が数値定数の比較で常に真か (mutation で決して赤にならない = 恒真)。"""
+    m = _CONST_CMP_RE.match(c)
+    if not m:
+        return False
+    import operator
+    ops = {"==": operator.eq, "!=": operator.ne, ">=": operator.ge,
+           "<=": operator.le, ">": operator.gt, "<": operator.lt}
+    return ops[m.group(2)](float(m.group(1)), float(m.group(3)))
+
+
+def mutation_red_gate(assert_condition: str, invariant: str) -> Tuple[bool, str]:
+    """auditor が追加する assert の **非恒真性** を構文検査する (design v1 §4(d))。
+
+    ガード = `assert condition != invariant`: assert 条件が invariant (常に成り立つ性質)
+    と構造的に同一なら恒真 = mutation で決して赤にならない = 謳うだけで発火しない保証
+    (規律3 の「正しさシグナルを後付けにしない」の対偶: 発火しない gate は無価値)。
+
+    これは **構文レベルの一次篩** — 実 mutation で赤になるかの担保は positive control
+    実走 (段 3 s3_lock_coverage 様式の broken patch 赤緑) が別途行う (auditor.md L62 が
+    「非恒真性の実際の担保は driver の mutation-red レコード」と前提化済み)。段 4 の
+    編集面は backoff hole のみ (lock 経路は段 5) ゆえ auditor 新 assert は限定的で、
+    本ゲートは枠組み + 恒真 assert を弾くテストで実証する。段 5 で lock 経路が開くと
+    実 mutation 確認が load-bearing になる。
+
+    本篩が弾くのは構文的に自明な恒真のみ (true/1・両辺同一比較・定数比較)。文脈依存の
+    意味的恒真 (unsigned 変数の `x>=0` 等) は **fail-open で通す** — 構文検査の原理的限界
+    (D33: text 検査の文脈認識化は不可能かつ罠)。ゆえに本ゲートは load-bearing でなく、実
+    mutation で赤になるかの担保は positive control 実走 (段 5 s3_lock_coverage 様式) が負う。
+
+    Returns: (ok, reason)。ok=False なら恒真 (reject すべき assert)。"""
+    c = _norm_expr(assert_condition)
+    inv = _norm_expr(invariant)
+    if not c:
+        return False, "assert 条件が空 (発火しない)"
+    if c == inv:
+        return False, (f"恒真: assert 条件が invariant と構造的に同一 "
+                       f"({assert_condition!r}) — mutation で赤にならない")
+    if _TRIVIAL_TRUE_RE.match(c):
+        return False, f"恒真: assert 条件が自明に真 ({assert_condition!r})"
+    if _is_constant_tautology(c):
+        return False, f"恒真: assert 条件が定数比較で常に真 ({assert_condition!r})"
+    return True, ""
+
+
+# ==== campaign 設定 + 機械判定 (p3_s4_red 様式) ==============================
+
+def _repo_root() -> str:
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(os.path.dirname(here))
+
+
+def default_cfg(reflux: bool = True) -> CampaignConfig:
+    """段 4 自律ループの campaign 設定。reflux (還流 on/off) は search_config に焼き、
+    LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
+    return CampaignConfig(
+        spec_slug="p3-s4-loop", search_tag="s4-autonomous",
+        spec_content=("P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し "
+                      "coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した "
+                      "hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に "
+                      "還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない"),
+        ccbench_commit=PIN,
+        search_config={"scale": "silo", "axis": MARKER_ID,
+                       "reflux": "on" if reflux else "off",
+                       "records": 100_000, "threads": 4},
+        trial="p3-s4-loop")
+
+
+def default_perf() -> PerfConfig:
+    """配線規模 (kickoff/red と同じ、性能比較用 calibration ではない — 規律4)。
+    実 fitness 比較に入る段では calibrator が決めた records/threads/reps に差し替える。"""
+    return PerfConfig(records=100_000, threads=4,
+                      workload={"ycsb_rratio": "50", "ycsb_zipf_skew": "0.9",
+                                "ycsb_rmw": "false"}, extime=1, reps=2)
+
+
+def _records_of(layout: CampaignLayout, v: str) -> Dict:
+    out: Dict = {}
+    for r in wal.read_records(layout):
+        if r.variant == v:
+            out[r.stage] = r.payload
+    return out
+
+
+# ==== 帰属整合 (value ↔ hole literal、D39 決定7 の機械強制) ====================
+
+class AttributionMismatch(ValueError):
+    """coder.value と implementation の backoff literal が食い違う = 帰属汚染 (規律6/D39 決定7)。
+    メインセッション (Model Y の loop 主導) が catch し coder に再提案させる想定 — harness は
+    値と走る literal の不一致を素通しせず、ここで止める (謳うだけの整合規約にしない)。"""
+
+
+_NOW_BACKOFF_RE = re.compile(r"now_backoff\s*=\s*(-?\d+(?:\.\d+)?)")
+_NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def assert_value_literal_consistent(coder: CoderProposal) -> None:
+    """coder.value と implementation の backoff literal の整合を機械強制する (D39 決定7)。
+
+    Model Y では coder (untrusted、規律6) が value と implementation を独立フィールドで供給する。
+    両者が食い違うと genome{BACKOFF_FIXED=int(value)} に紐付く certified fitness が実際に走った
+    別 literal binary の性能になり **帰属が汚染される** (どの値が効いたかの還流信号が自己矛盾)。
+    D39 決定7 はこれを「整合規約」と呼ぶが規約は謳うだけでは発火しない — harness が機械照合する。
+
+    判定: implementation の `now_backoff = <lit>` 代入 literal が value と数値一致すること。
+    代入 literal を抽出できない (自由式) 場合は fails-closed で value が implementation に数値
+    として現れることを要求する (段 4 の編集面は backoff literal のみ、D39 決定1)。"""
+    m = _NOW_BACKOFF_RE.search(coder.implementation)
+    if m is not None:
+        if float(m.group(1)) != float(coder.value):
+            raise AttributionMismatch(
+                f"帰属汚染: coder.value={coder.value} だが implementation の now_backoff "
+                f"literal={m.group(1)} — genome{{BACKOFF_FIXED={int(coder.value)}}} に別 literal "
+                f"binary の結果が紐付く (規律6/D39 決定7)")
+        return
+    lits = {float(x) for x in _NUM_RE.findall(coder.implementation)}
+    if float(coder.value) not in lits:
+        raise AttributionMismatch(
+            f"帰属汚染: coder.value={coder.value} が implementation に数値として現れない "
+            f"({coder.implementation!r}) — value と走る literal の一致を機械確認できない "
+            f"(規律6/D39 決定7)")
+
+
+# ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
+
+def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
+                      planner: PlannerProposal, coder: CoderProposal,
+                      state: LoopState, sub: str, do_build: bool,
+                      log=print) -> Dict:
+    """1 iteration の機械部分を回す (LLM proposal は引数で受け取る)。
+
+    do_build=True: applied(TEMPLATE_PATCH) 下で挿入→検疫→(pass なら)run_campaign。
+    do_build=False: 挿入→検疫のみ (配線 dry-run、build/verify/bench を省く)。
+
+    Returns: {"outcome": rejected|certified|aborted|dry-pass, "variant": ..., ...}。
+    """
+    from campaign.patchharness import applied
+    genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
+                             "BACKOFF_FIXED": int(coder.value)})
+    # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
+    # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
+    assert_value_literal_consistent(coder)
+    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout.ensure()
+
+    if not do_build:
+        # dry-run: 骨格を一時適用せず、骨格入りソースを合成して検疫だけ試す経路は
+        # 実 working-tree を汚さない (test 用)。ここでは applied を通す本経路を使う。
+        with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
+            res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)
+        if not res.passed:
+            v = record_diff_reject(layout, genome, coder.implementation, res)
+            project_whiteboard(state, planner, "rejected")
+            return {"outcome": "rejected", "variant": v, "digest": res.digest}
+        return {"outcome": "dry-pass", "variant": None}
+
+    with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
+        res, _b, _e, _d = quarantine(sub, coder.implementation, write=True)
+        if not res.passed:
+            v = record_diff_reject(layout, genome, coder.implementation, res)
+            project_whiteboard(state, planner, "rejected")
+            log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
+            return {"outcome": "rejected", "variant": v, "digest": res.digest}
+        # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
+        # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
+        # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
+        summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log)
+    v = next((r.variant for r in summary.results), None)
+    recs = _records_of(layout, v) if v else {}
+    r = summary.results[0] if summary.results else None
+    if r and r.certified and not r.aborted:
+        project_whiteboard(state, planner, "success", delta_pct=None)  # 段 6 予約 (率算出は統計的 delta とセット、D39 残存リスク c)
+        return {"outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
+                "verdict": r.verdict, "records": recs}
+    project_whiteboard(state, planner, "fail")
+    return {"outcome": "aborted", "variant": v,
+            "verdict": (r.verdict if r else ""), "records": recs}
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """fixture proposal で 1 iteration の機械 E2E を実走する (配線実証)。
+
+    実 LLM (planner/coder/critic) はメインセッションが spawn する — 本 main は harness
+    の機械経路 (挿入→検疫→評価→WAL→digest→whiteboard→停止判定) が通ることを、人間が
+    与えた fixture backoff 値で確認する口。--no-build で build/verify/bench を省く。"""
+    ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
+    ap.add_argument("--no-build", action="store_true",
+                    help="build/verify/bench を省き挿入→検疫の配線のみ確認")
+    ap.add_argument("--value", type=float, default=20.0,
+                    help="fixture の backoff 値 (coder proposal の代わり)")
+    ap.add_argument("--reflux", choices=["on", "off"], default="on",
+                    help="critic 還流 on/off (LLM ablation の対照アーム)")
+    a = ap.parse_args(argv if argv is not None else sys.argv[1:])
+
+    root = _repo_root()
+    sub = os.path.join(root, "external", "ccbench")
+    from campaign.patchharness import assert_pinned_clean
+    from campaign.p2_2 import _assert_single_tenant
+    if not a.no_build:
+        _assert_single_tenant()
+    assert_pinned_clean(sub, PIN)
+
+    cfg = default_cfg(reflux=(a.reflux == "on"))
+    perf = default_perf()
+    state = LoopState(start_ts=time.monotonic())
+    state.iteration = 1
+
+    # fixture proposal (人間が与える = kickoff と同じリーク制御。coder の自律発案の代役)。
+    planner = PlannerProposal(axis=MARKER_ID, direction="explore_both", magnitude="small",
+                              justification="fixture (機械 E2E 用)")
+    coder = CoderProposal(axis=MARKER_ID, value=a.value,
+                          implementation=f"double now_backoff = {a.value};",
+                          justification="fixture", confidence="low")
+
+    print(f"=== 段 4 loop 1 iteration (機械 E2E, value={a.value}, "
+          f"reflux={a.reflux}, build={not a.no_build}) ===")
+    out = run_one_iteration(cfg, perf, planner, coder, state, sub,
+                            do_build=not a.no_build)
+    print(f"  outcome={out['outcome']} variant={out.get('variant')}")
+
+    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
+    out_path = os.path.join(layout.root, "s4_loop_digest.txt")
+    layout.ensure()
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(digest_txt)
+
+    stop = check_stop(state)
+
+    # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
+    dqs = load_diff_rejections(layout)
+    # iteration の WAL 非依存を **差分**で実証する (1==1 の恒真 assert にしない): loop の
+    # iteration は WAL レコード数と一致しない = WAL から導出していないことの witness (D39 決定2)。
+    n_wal = len(list(wal.read_records(layout)))
+    checks = {
+        f"iteration(={state.iteration}) が WAL レコード数(={n_wal})と独立 (WAL 由来でない)":
+            state.iteration == 1 and n_wal != state.iteration,
+        "critic digest 書き出し": os.path.exists(out_path),
+        "停止判定が機械的に返る": stop.reason in (
+            "continue", "converged", "reverse-exhausted",
+            "budget-iterations", "budget-walltime"),
+    }
+    if out["outcome"] != "dry-pass":
+        checks["whiteboard に 1 行射影 (機序なし)"] = len(state.whiteboard) == 1
+        checks["whiteboard entry が方向/結果のみ (機序フィールド無し)"] = (
+            len(state.whiteboard) == 1
+            and set(vars(state.whiteboard[0])) == {
+                "iteration", "direction", "magnitude", "result", "delta_pct"})
+    if out["outcome"] == "rejected":
+        checks["diff-quarantine reject が WAL に焼かれ load_diff_rejections が復元"] = (
+            any(d.variant == out["variant"] and d.subtype for d in dqs))
+        checks["reject が whiteboard で result=rejected"] = (
+            state.whiteboard[0].result == "rejected")
+    elif out["outcome"] == "certified":
+        checks["certified で fitness_tps あり"] = out.get("fitness_tps") is not None
+        checks["certified で whiteboard result=success"] = (
+            state.whiteboard[0].result == "success")
+
+    print("\n=== 判定 (WAL/状態 機械確認) ===")
+    ok = all(checks.values())
+    for name, passed in checks.items():
+        print(f"  [{'PASS' if passed else 'FAIL'}] {name}")
+    print(f"\ncampaign dir: {layout.root}")
+    print(f"停止判定: stop={stop.stop} reason={stop.reason}")
+    print(f"\n段 4 loop 1 iteration 判定: {'PASS' if ok else 'FAIL'}")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
