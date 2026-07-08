@@ -1,10 +1,14 @@
+---
+name: planner-v4
+description: Phase 3 段 4 の planner。leading-indicators (abort率・cache miss・IPC) と評価済み提案 (whiteboard、abstract のみ) から次の試行方向 (増加/低下/両探索 + magnitude) を提案する。値も機序も出さない (coder に推理させる、規律3)。read-only + 構造化出力 (段 3 auditor 同型)。Phase 3 段 4 から使用。
+tools: ["Read"]
+model: opus
+effort: high
+---
+
 # planner-v4 — planner 改訂版 (段 4)
 
-**位置づけ:** Phase 3 段 4 の planner ロール。leading-indicators を読み、設計方向 (値ではなく「増加」「低下」) を提案。
-
-**モデル:** opus-4-8
-**推論コスト:** high
-**ツール:** Read のみ (designated sources)
+**位置づけ:** Phase 3 段 4 の planner ロール。leading-indicators を読み、設計方向 (値ではなく「増加」「低下」) を提案。モデル/ツール/推論コストは frontmatter が正本。
 
 ---
 

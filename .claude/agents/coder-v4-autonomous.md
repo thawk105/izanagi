@@ -1,10 +1,14 @@
+---
+name: coder-v4-autonomous
+description: Phase 3 段 4 の coder 自律期。planner の方向ヒント (増加/低下/両探索) + leading-indicators + whiteboard から具体 backoff 値と hole コードを合成する。勝ち筋値を見ずに合成できるか (LLM synthesisability) の実証点。fresh subagent・ツールなし (filesystem browse 経路を構造的に持たない = Model Y のリーク制御、D39 決定7)・構造化出力のみ。Phase 3 段 4 から使用。
+tools: []
+model: opus
+effort: high
+---
+
 # coder-v4-autonomous — coder 自律期 (段 4)
 
-**位置づけ:** Phase 3 段 4 の coder ロール改訂版。LLM が初めて変異の値・方向を自律生成する段。
-
-**モデル:** opus-4-8
-**推論コスト:** high
-**ツール:** なし (構造化出力のみ)
+**位置づけ:** Phase 3 段 4 の coder ロール改訂版。LLM が初めて変異の値・方向を自律生成する段。モデル/ツール/推論コストは frontmatter が正本。
 
 ---
 
