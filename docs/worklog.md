@@ -863,3 +863,46 @@ EVOLVE-BLOCK マーカー規約は両者共通 (AlphaEvolve 系譜)。詳細は 
 curate・執筆) 単独。
 
 **コミット:** 本エントリ + related-work.md を同一コミット。
+
+## 2026-07-08 — 段4b 駆動基盤の実体化 (v4 登録 + LoopState 永続化 + 駆動口 + 監査硬化)
+
+**環境の阻止事項 (計測直列の判断):** 計測層が single-tenant でない — pgrep で別ユーザー leon が
+`/home/leon/ccbench/oze/build-tsan` で ccbench(oze) を能動実行中 (claude セッション複数 + TSan)。
+段4b は各 iteration で build/verify/bench を実走するため、**実 LLM の測定ループは single-tenant 窓
+待ちに繰延** (規律4)。計測を伴わない駆動基盤の整備 (解析/合成/文書) は待機の barrier を待たず進めた。
+
+**段4b の 2 つの構造的障壁を発掘・解消 (git diff からは動機が読めない部分):**
+- v4 役割 (planner-v4/coder-v4-autonomous) が YAML frontmatter を欠き**エージェント型として未登録** =
+  spawn 不能だった。frontmatter 付与で登録 (06e4847)。**mid-session の .md 追加は反映されない**ことを
+  実 spawn probe で実証 (Agent type not found) — 実測ドライバは本 commit 後の fresh session 必須 (runbook §0)。
+- 複数 iteration の Model Y 駆動には LoopState の cross-process 永続化が要る (各 iteration = 別 Bash
+  プロセスゆえ whiteboard が毎回空リセット → feedback 死) が未実装だった。checkpoint + 駆動口を実装 (24cd8a7)。
+
+**素材 (敵対監査、workflow wf_9f9d0102-78a、5レンズ×verify、19 agents/1.04M tok/13分):** 新機構 (gate
+隣接 = リーク制御 whiteboard を運ぶ checkpoint + 計測ゲート付き駆動口) を規律6 で監査。14 findings →
+**confirmed 7 / plausible 3 / refuted 5**。**正しさゲート (規律2/3) は無傷** (verifier は毎 iteration
+発火、hard-gate 不変)。critical/high ゼロ。穴はすべて checkpoint (信頼境界の外) の schema 検証不足と、
+段4 delta_pct≡None を型でなく writer 規約だけで担保していた点 (謳うだけの保証 = 継承監査の anchor
+finding 同型)。real 5 を同 commit で fail-closed 修正: (1) top-level 欠落の無音デフォルト→予算ゲート
+fail-open (2) delta_pct 非None が planner に流入し得る勝ち筋チャネル→load/射影の両境界で WhiteboardLeakError
+(3) layout 未伝播で WAL と digest 分裂 (4) tmp 固定名 (5) prior_critic_reverse 非bool で停止 fail-open。
+concurrent-driver race (plausible) は Model Y 単一駆動で非経路ゆえ flock 張らず runbook 記載 (規律5)。
+一次資料 = `output/insights/2026-07-08_s4b-loopstate-audit.json` (自己完結凍結。session 内フルは
+tasks/w08zchmeg.output)。
+
+**成果物:** commit 06e4847..a5c193c (3本: agents 登録 / campaign 駆動基盤+硬化 / docs runbook+insight+
+phase3 注記)。test 47 (監査 fix の 6 ガード追加)・回帰 274 passed・駆動 CLI dry-run E2E + 非bool 拒否を実証。
+runbook = `docs/phase3-s4b-runbook.md` (Model Y 実走手順)。
+
+**未コミット残 (人間対応):** wiring dry-run が既存 campaign dir `output/campaigns/p3-s4-loop-s4-autonomous-
+0b53a387/` に untracked な checkpoint/WAL を残した (loop_state.json・runs/)。guard_bash が campaign dir の
+rm を拒否 (proof-chain 保護、規律2) ゆえ AI は消せない — throwaway (全 --no-build、実測なし) につき人間が
+git clean 可。tracked な digest 変更は git checkout で HEAD に復元済 (commit には非混入)。
+
+**次の一手 (段4b 実走):** fresh session を開き (v4 登録反映) + single-tenant 窓を待って runbook §1 の
+1 iteration プロトコル (planner-v4 → coder-v4-autonomous → `--run-iteration` → critic → 反復) を実 build で
+回す。段4b の 1 iteration は「配線が E2E で通る」の機械実証に留め有意性は主張しない (D39 残存リスク c)。
+その後 段5 (lock 経路編集面拡張・mutation_red 配線 load-bearing 化) → 段6 (主実験・delta_pct live 化)。
+
+**人間待ち:** submodule 028f34d の push (認証なし、D16、変わらず) + anchor finding = D39 決定1 の wording
+訂正の可否 (2026-07-07 insight flagged、変わらず) + 上記 wiring campaign dir の git clean。
