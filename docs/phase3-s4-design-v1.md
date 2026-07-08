@@ -230,9 +230,9 @@ planner が設計方向を提案・coder が具体コード合成。これは **
 - Partial result は「未査証」として marked (not final certified finding)
 
 **Whiteboard granularity (敵対検証で指摘: structural inference risk):**
-- 記録対象: 提案番号・評価結果 (성공/失敗) ・performance delta (성능 변화율, 구체값 아님)
-- 記録禁止: 왜 실패했는지의 기구적 설명 (例: "hard margin を курis → 棄却理由から採용方법を역산 가능" リスク)
-- Critic の帰属は「next-direction proposal」+ leading-indicators only (棄却이유의 technical explanation は含めない)
+- 記録対象: 提案番号・評価結果 (成功/失敗)・performance delta (性能変化率, 具体値ではない)
+- 記録禁止: なぜ失敗したかの機序的説明 (例: "hard margin を課す → 棄却理由から採用方法を逆算可能" リスク)
+- Critic の帰属は「next-direction proposal」+ leading-indicators only (棄却理由の technical explanation は含めない)
 
 ### D38 残消化
 

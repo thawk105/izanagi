@@ -207,7 +207,7 @@ Token cost 比較（同じ問題セット）:
   (4): 平均 2000 tokens/iteration
   → (4) は (1) 比 -17%, cost-benefit は正
 
-全削減幅 = 400 tokens/iteration × 평가 100 iteration × 10 探索エポック = 400K tokens 削減
+全削減幅 = 400 tokens/iteration × 評価 100 iteration × 10 探索エポック = 400K tokens 削減
 ```
 
 ### Token 削減効果
@@ -319,7 +319,7 @@ grep -r "backoff axis saturation" docs/archive/
 calibrator_agent = agent(
     prompt="""
     CCBench workload tuple200/thread4 に対して:
-    (1) 50/100/200/500 record で각각 5 trial → abort 検出のばらつき（変動係数）を測定
+    (1) 50/100/200/500 record で各々 5 trial → abort 検出のばらつき（変動係数）を測定
     (2) cache-miss 率が plateau する最小の N を特定
     (3) その N 以下ではshallow な測定（キャッシュが on-die に全て乗る）、
         その N 以上では同じ abort 検出が repeat されることを確認
