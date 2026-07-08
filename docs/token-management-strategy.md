@@ -44,7 +44,7 @@ struct TxnMetadata {
 ```
 
 #### 1.3 計測ガイドライン
-- **正しさ検証フェーズ:** trace-enabled build で run、verifier が trace を consume して anomaly を detect
+- **正しさ検証フェーズ:** trace-enabled build で run、verifier が trace を食って anomaly を検出
 - **性能計測フェーズ:** trace-disabled build で run、同じ workload・同じ seed で複数 trial
 - **比較対象:** variant と baseline の両方を同じ build config で測定（両者に observer effect を均等に適用）
 - **計測環境:** bare-metal 実機上のみ（VM や Mac 越し計測は偽の性能差を生む）
@@ -64,7 +64,7 @@ struct TxnMetadata {
 長期実行 AI system（探索が複数セッション・複数日に渡る）において、状態が複数箇所に再掲されると：
 - 圧縮後に状態が矛盾（A は「探索中」、B では「探索完了」）
 - AI が古い記述を参照して決定を誤る
-- 追補による行番号ずれで参照が broken
+- 追補による行番号ずれで参照が壊れる
 
 ### 実装
 
@@ -156,7 +156,7 @@ verifier_agent_config = {
 
 - **Verifier (検証系):** trace/bench output を食う ← Write/Edit 禁止
 - **Coder (合成系):** 指定 EVOLVE-BLOCK 領域内の code を修正 ← designated source file のみ
-- **Auditor (監査系):** variant diff を読んで安全性 check ← Write/Edit 禁止（findings 提案のみ）
+- **Auditor (監査系):** variant diff を読んで安全性を確認 ← Write/Edit 禁止（findings 提案のみ）
 
 #### 3.2 Output の構造化スキーマ化
 
@@ -281,7 +281,7 @@ summary = agent(
 古い worklog や audit 記録は `docs/archive/` に移動：
 ```
 docs/archive/
-  worklog-phase1-2.md       (60 KB, frozen — 查询時のみ grep + partial read)
+  worklog-phase1-2.md       (60 KB, frozen — 検索時のみ grep + partial read)
   audit-2026-06-30.jsonl    (過去 audit 記録、structured format)
   insights-phase2.md        (凍結済み insights)
 ```
@@ -404,8 +404,8 @@ Phase 3-4 での **性能主張は、Phase 3-main-experiment.md に事前登録*
 
 ### 背景
 
-「長時間実行の AI explore」が停止した場合（停電、API timeout、user cancel など）の復旧を想定：
-- 途中で「どこまで came たか」を記録（WAL = database recovery の concept）
+「長時間実行の AI 探索」が停止した場合（停電、API timeout、user cancel など）の復旧を想定：
+- 途中で「どこまで進んだか」を記録（WAL = database recovery の concept）
 - 次セッション開始時に「最後のキャッシュ可能なポイント」から再開
 - 計算の二度手間を避ける
 
@@ -452,7 +452,7 @@ workflow_result = workflow("adversarial-verify", args={
 handoff_content = f"""
 # 敵対検証 (中断)
 
-**位置づけ:** design v1 の 19 attack vectors を evaluate 中
+**位置づけ:** design v1 の 19 attack vectors を評価中
 **停止理由:** workflow timeout at agent 14/19
 
 ## 復旧手順
@@ -482,7 +482,7 @@ result = workflow(resumeFromRunId=wf_301ed286-5fb)
   docs/handoff/<YYMMDD>-<task-short>.md  (create or update)
   ↓
 セッション終了（handoff の吸収）:
-  末尾エントリ内容を worklog.md に integrate → handoff ファイル削除
+  末尾エントリ内容を worklog.md に吸収 → handoff ファイル削除
   ↓
 （新セッション開始時）:
   docs/handoff/ が empty なら README 不要
@@ -501,7 +501,7 @@ result = workflow(resumeFromRunId=wf_301ed286-5fb)
 
 ### 背景
 
-LLM が生成する code variant は「見た目は reasonable」でも、正しさを微妙に破ることがある（reward hacking）。手作業で「何か危ないかも」と check するのは工数が膨大。
+LLM が生成する code variant は「見た目は妥当」でも、正しさを微妙に破ることがある（reward hacking）。手作業で「何か危ないかも」と確認するのは工数が膨大。
 
 ### 実装
 

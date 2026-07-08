@@ -7,7 +7,7 @@
 decisions。矛盾があれば正典が勝つ。
 
 後続段 4 = coder が初めて変異の値・方向を**自律生成**する段。reward hacking 圧力が最も高く、
-coder リーク制御が airtight でないと主実験の妥当性 (「合成できた vs 答えを読んだ」の区別・
+coder リーク制御が完全でないと主実験の妥当性 (「合成できた vs 答えを読んだ」の区別・
 失敗条件 c) が崩れる。3 点セット (coder.md 自律版改訂 / planner.md / diff 検疫層) + D38 残消化。
 
 ## 1. diff 検疫層 (段 4 の核・新機構)
@@ -22,7 +22,7 @@ coder リーク制御が airtight でないと主実験の妥当性 (「合成�
   #endif + #else 枝) が template 適用済み HEAD と byte 同一 ∧ 変更行 ⊆ #if 合成枝内部 (hole)」を、
   unified diff の @@ ハンクヘッダ (厳密仕様の行域) と固定テンプレ行 (BEGIN/END コメント・#if <AXIS>/#else/
   #endif) の exact-match で照合。backslash-newline splice 等の C++ レキサ回避が効かない (diff 行構造と固定行
-  を見るだけ) ので **robust = 一次防壁級**。working-tree diff (結果) を見るので Edit/Bash のツール経路に
+  を見るだけ) ので **頑健 = 一次防壁級**。working-tree diff (結果) を見るので Edit/Bash のツール経路に
   不感 = hook 迂回 (攻撃 f) を構造的に無効化。
 - **既存で覆う分は再実装しない (D30/D33):** #include 追加/TRACE 混入/任意バイト変更は source_digest
   (assert_includes_match_head / assert_trace_diff_matches_head / preprocess 後ハッシュ / -Werror=undef) が
@@ -39,11 +39,11 @@ coder リーク制御が airtight でないと主実験の妥当性 (「合成�
 
 - **急所 (主実験妥当性):** decisions.md:319/338 等に sweet-spot literal (+38.3/+11.3%, 0-10us) が存在し、
   coder は Read tool を持つため coder.md:26 の「output/docs を読むな」は **prompt 規律のみで機械執行されて
-  いない**。airtight でないと失敗条件 c (利得が機械 sweep で再現 = LLM 固有価値なし) の判定が汚れる。
+  いない**。リーク制御が完全でないと失敗条件 c (利得が機械 sweep で再現 = LLM 固有価値なし) の判定が汚れる。
 - **critic-experiment の 4 層構造 (テンプレート):** (1) critic.md から最適解 literal を物理削除した専用 .md、
   (2) 誘導専用 WAL layout (評価済みだけ育つ)、(3) 全 8 入り digest を import しない物理分離、(4) tools=Bash
   のみ + fresh context。coder は CODE を書くので遮断対象が質的に違う (勝ち筋 VALUE・機序・利得・grid fitness)。
-- **最強の構造障壁 = coder に filesystem browse を与えない:** critic-experiment がラベルを返すのと同型で、
+- **最強の構造障壁 = coder にファイルシステム走査を与えない:** critic-experiment がラベルを返すのと同型で、
   coder は**提案枝コードを構造化出力で返す** → Python ハーネスが挿入 + diff 検疫 + evaluate。これで
   「output/docs/WAL を読む」経路が構造的に閉じる (Read tool で徘徊させない)。見せる = spec/API/designated
   ソース、遮断 = 勝ち筋値・機序・WAL fitness・過去 variant の性能。
@@ -72,7 +72,7 @@ coder リーク制御が airtight でないと主実験の妥当性 (「合成�
 ## 4. 自律ループ駆動 + D38 残 + 主実験配線
 
 - **駆動 = ハイブリッド (headless CLI 不在):** ループ主導権 = メインセッション (orchestrator 役) が Task で
-  毎 iteration fresh に planner→coder→auditor→critic を spawn。Python 側は決定的機械ゲート (diff 検疫 parse・
+  毎 iteration 新規に planner→coder→auditor→critic を spawn。Python 側は決定的機械ゲート (diff 検疫 parse・
   mutation-red・COMMIT = pipeline.evaluate 唯一経路) を所有。ループ形 = planner(方向)→coder(#if 枝を構造化
   出力で提案)→Python が挿入 + diff 検疫→pipeline.evaluate(verify+bench)→critic(帰属)/auditor(監査)→whiteboard
   更新→次 iteration。
@@ -87,7 +87,7 @@ coder リーク制御が airtight でないと主実験の妥当性 (「合成�
 
 1. diff 検疫のフレーム byte 同値検査の正確な形 — template 適用済み HEAD をどう錨にするか (patch 適用後の
    working-tree を基準にするか、HEAD の #else/骨格を baseline にするか)。マーカー id 複数化への拡張。
-2. coder に filesystem browse を与えない駆動 — coder が API 確認に CCBench ソースを読む必要 (coder.md 現行で
+2. coder にファイルシステム走査を与えない駆動 — coder が API 確認に CCBench ソースを読む必要 (coder.md 現行で
    許可) とリーク遮断の両立。構造化出力形 (提案枝コードのスキーマ) の設計。
 3. リーク制御の物理削除 vs 入力射影 — 勝ち筋 literal が decisions/docs に散在するのを coder から遮断する形
    (専用 .md + fresh context で「読むな」を構造化。Read tool を外すと API 確認もできない矛盾)。

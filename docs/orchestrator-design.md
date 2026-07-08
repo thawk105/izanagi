@@ -14,7 +14,7 @@ Izanagi の orchestrator (探索ループの中枢) は、**DB のトランザ�
 |---|---|
 | トランザクション | サブエージェント呼び出し / variant 評価パイプライン |
 | Atomicity | variant 評価の all-or-nothing (コミットポイント通過のみ採用) |
-| Consistency | CLAUDE.md の絶対規律 + hooks による enforcement |
+| Consistency | CLAUDE.md の絶対規律 + hooks による機械執行 |
 | Isolation | ベンチ実行の排他制御 / worktree 分離 |
 | Durability | 評価ログの先行書き込み + クラッシュリカバリ |
 | WAL | output/campaigns/<id>/runs/ への逐次追記ログ |
@@ -42,11 +42,11 @@ Izanagi の orchestrator (探索ループの中枢) は、**DB のトランザ�
 
 - コミットポイントは「全段通過して記録された瞬間」のみ
 - ログに「コミット」レコードがない variant は、リカバリ時に破棄する (= rollback)
-- half-evaluated を許すと、進化ループが「ビルドだけ通った variant」を誤って親に選ぶ等の腐敗が起きる
+- 「半分評価済み」を許すと、進化ループが「ビルドだけ通った variant」を誤って親に選ぶ等の腐敗が起きる
 
 ## C: Consistency — 絶対規律と hooks
 
-CLAUDE.md の絶対規律 = 整合性制約。hooks = その機械的 enforcement。既に雛形で実装方針が確立している (docs/agent-architecture.md 参照)。
+CLAUDE.md の絶対規律 = 整合性制約。hooks = その機械執行。既に雛形で実装方針が確立している (docs/agent-architecture.md 参照)。
 
 制約は人間 (作者) が CLAUDE.md / memory に育てていく。variant がどう進化しても破ってはいけない不変条件 (正しさゲート・観測者効果の分離) がここに固まる。
 
@@ -95,7 +95,7 @@ output/
     calibration/             飽和レコード数 + noise floor (within-run / between-run, §3.6(3)/A2)
     profile/                 perf 機序プロファイル (spin 分離・有用 IPC, P2-4)
   campaigns/<campaign-id>/  ← 入力スコープ (1 campaign = D12 射影の単位)
-    campaign.lock            同一性を決める正準 config (下記)。改竄不能な identity 源
+    campaign.lock            同一性を決める正準 config (下記)。改竄不能な同一性の源
     spec/                    凍結した入力 spec cards (レポートを自己完結にする)
     runs/                    この campaign の WAL (env-tag 必須フィールド)
     variants/                variant ソース/patch とビルドキャッシュキー
@@ -105,7 +105,7 @@ output/
   whiteboard/               ← campaign 横断で転用可能な教訓 (任意。SkillOpt の転用性)
 ```
 
-ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` のキャンペーンスコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor/profile の書き込み先は `output/env/<env-tag>/`。
+ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` の campaign スコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor/profile の書き込み先は `output/env/<env-tag>/`。
 
 ### 材料レポートの出力規約 (再現性が一級市民)
 
@@ -120,7 +120,7 @@ output/
 
 ### campaign とは何か
 
-1回の合成パイプライン起動を、**(入力 spec, 探索 config) を固定したもの**として定義する。2つの起動が「同じ campaign (=リカバリで再開する)」であるのは (spec, 探索 config) が一致するときだけ。ablation (full探索 vs LLM誘導、OEE on/off、有効 Tier 集合) や CCBench commit、scale protocol が違えば**別 campaign** になる — roadmap が随所で要求する「足す/抜く比較」がこれで素直に並ぶ。実測値 (calibration が決めるレコード数など) は同一性の入力ではなく、campaign 内に記録される派生値。
+1回の合成パイプライン起動を、**(入力 spec, 探索 config) を固定したもの**として定義する。2つの起動が「同じ campaign (=リカバリで再開する)」であるのは (spec, 探索 config) が一致するときだけ。ablation (全探索 vs LLM誘導、OEE on/off、有効 Tier 集合) や CCBench commit、scale protocol が違えば**別 campaign** になる — roadmap が随所で要求する「足す/抜く比較」がこれで素直に並ぶ。実測値 (calibration が決めるレコード数など) は同一性の入力ではなく、campaign 内に記録される派生値。
 
 ### campaign-id の決め方
 
@@ -141,7 +141,7 @@ output/
 
 **なぜ slug とハッシュの両方か:**
 - slug 単独: 無衝突でない。名前が同じで中身の違う 2 spec が黙って衝突 → 2 campaign の WAL が混ざる (致命的)
-- ハッシュ単独: 安定・無衝突だが `output/campaigns/a3f9c2d1/` は何も語らず、navigate に毎回 manifest を開く羽目になる
+- ハッシュ単独: 安定・無衝突だが `output/campaigns/a3f9c2d1/` は何も語らず、たどるのに毎回 manifest を開く羽目になる
 - 両方: 人間に可読 + ハッシュが同一性を保証。git/docker が `name@digest` を採るのと同じ理由
 
 **ハッシュは spec の「名前」でなく「内容」を覆うこと (正直さの担保).** ワークロード spec を編集して名前を据え置くと、ハッシュが変わり**新しい campaign ディレクトリ**になる → 古い spec の WAL に新しい spec の run を黙って追記しない。spec のドリフトが自動的に新しい同一性を生む。これは §3.4 の reward-hack 対策 (改竄を識別する / 再構成不可能なエントロピー) を campaign 同一性に適用したもので、「ワークロードを弄ったのに orchestrator が古い campaign を再開して比較不能な run を混ぜた」という静かな汚染を断つ。D12 の honest-by-construction (完全・決定論的射影) の前提でもある。

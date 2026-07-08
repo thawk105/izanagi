@@ -1,6 +1,6 @@
 # 後続段 4 (coder 自律期) — Design v1
 
-**位置づけ:** design-foundation (調査で確定した骨子) + handoff の記憶 (Model Y 裁定・密結合発見) を統合した実装設計。段 4 完了時に D39 に畳んで本文書は凍結。正典は phase3.md 後続段 4・main-experiment・decisions。矛盾があれば正典が勝つ。
+**位置づけ:** 設計基盤 (調査で確定した骨子) + handoff の記憶 (Model Y 裁定・密結合発見) を統合した実装設計。段 4 完了時に D39 に畳んで本文書は凍結。正典は phase3.md 後続段 4・main-experiment・decisions。矛盾があれば正典が勝つ。
 
 後続段 4 = coder が初めて変異の値・方向を**自律生成**する段。reward hacking 圧力が最も高く、3 点セット (diff 検疫層 4a / coder リーク制御 4b / planner 4c) + D38 残消化。
 
@@ -13,7 +13,7 @@
 ### Model X (却下) vs Model Y (採用)
 
 **Model X = coder が filesystem を Edit**
-- coder が Edit tool でファイルを直接編集 → diff 検疫が `git diff` のフレーム byte 同値を検証 (主 gate)
+- coder が Edit tool でファイルを直接編集 → diff 検疫が `git diff` のフレーム byte 同値を検証 (主ゲート)
 - **急所:** coder は Read tool を持つため、`output/docs/WAL` を徘徊して勝ち筋 literal を読める = リーク
 
 **Model Y (採用) = coder は fresh subagent・提案を構造化出力で返す**
@@ -26,7 +26,7 @@
 
 orchestrator が context を射影して coder に渡す：
 - **許可:** フレーム + hole 位置 (新規ファイル: `src/coder-spec.md`) / coder が呼んでよい silo API surface の curated snippet
-- **遮断 (物理削除/context 除去):** decisions.md:319/338・output/insights/2026-06-22_p2-case-study-*・backoff-sweep WAL・main-experiment §24/59 (勝ち筋 VALUE・機序・利得・grid fitness)
+- **遮断 (物理削除/context 除去):** decisions.md:319/338・output/insights/2026-06-22_p2-case-study-*・backoff-sweep WAL・main-experiment §24/59 (勝ち筋の値・機序・利得・grid fitness)
 
 ---
 
@@ -40,13 +40,13 @@ orchestrator が context を射影して coder に渡す：
 - #include 追加・TRACE 混入・任意バイト変更 → source_digest (assert_includes_match_head / assert_trace_diff_matches_head / preprocess 後ハッシュ / -Werror=undef) が既に fails-closed
 - content 逸脱 (枝内の生 #if/#define/computed include・環境判別述語) → auditor + 規律6 に据え置き (text-gate しない、D30/D33)
 
-**敵対検証で指摘: Baseline diff の取得が underspecified**
+**敵対検証で指摘: Baseline diff の取得が仕様未確定**
 - unified diff を「HEAD vs working-tree」で取得する際、template を既に HEAD に適用しているか、original HEAD を基準にするか明記が必要
 - #else 枝 (stock 枝) への改変が unified diff で「+」行に見えるため、hunk parse で hole 境界を正確に計算する必要
-- Remediation: diff_quarantine.py で以下を明文化 (D39 に参照):
+- 対策: diff_quarantine.py で以下を明文化 (D39 に参照):
   1. `git diff HEAD -- <file>` を取得 (template 適用済み HEAD vs current working-tree)
-  2. Hunk @@ 行域から #if/#else/#endif の行番号を parse
-  3. Validation: 「変更行がすべて hole (#if 枝) の範囲内に収まるか」を line-by-line 検査
+  2. @@ ハンク行域から #if/#else/#endif の行番号を解析
+  3. 検証: 「変更行がすべて hole (#if 枝) の範囲内に収まるか」を 1 行ずつ検査
   4. Stock 枝 (#else 枝) への改変を検出 → frame-altered-stock-branch reject
 
 ### 実装仕様
@@ -56,10 +56,10 @@ orchestrator が context を射影して coder に渡す：
 **動作:**
 1. coder が返した提案枝コードを harness が template に挿入 → edit
 2. `git diff` を unified diff format で取得
-3. unified diff の @@ ハンクヘッダ (行域) + 固定テンプレ行 (BEGIN/END コメント・#if <AXIS>/#else/#endif) の exact-match で照合
+3. unified diff の @@ ハンクヘッダ (行域) + 固定テンプレ行 (BEGIN/END コメント・#if <AXIS>/#else/#endif) の完全一致で照合
    - 骨格 (マーカー + #if/#else/#endif + #else 枝) が template 適用済み HEAD と byte 同一 ✓
    - 変更行 ⊆ #if 合成枝内部 (hole) ✓
-4. backslash-newline splice 等の C++ レキサ回避が効かない (diff 行構造と固定行を見るだけ) = robust
+4. backslash-newline splice 等の C++ レキサ回避が効かない (diff 行構造と固定行を見るだけ) = 頑健
 
 **実装で追加した硬化 (2026-07-07 敵対 red-team、詳細は worklog 2026-07-07 (2)):** 実装後の
 red-team で「ハンクヘッダの行番号を信じると詐称・desync でフレーム/領域外を hole に誤帰属
@@ -91,7 +91,7 @@ structured digest 形式 (D37 パターンに従う、規律3):
 
 **配線 (規律3、片肺を作らない):**
 - verify-red が正規経路で初発火する (D37 決定3) ので、diff-reject を S4 rejection digest の新型として配線
-- critic/次手に structured reason で形状別の推奨方向を返す (型が明示されているので inference 不要)
+- critic/次手に structured reason で形状別の推奨方向を返す (型が明示されているので推論不要)
 
 **hook 配線:** guard_write には入れない (PreToolUse で呼出元エージェント識別不能、content 検査は D33 削除)
 
@@ -101,7 +101,7 @@ structured digest 形式 (D37 パターンに従う、規律3):
 
 ### 急所
 
-decisions.md:319/338 等に sweet-spot literal (+38.3/+11.3%, 0-10us) が存在。coder が Read tool を持つため、**airtight でないと失敗条件 c (利得が機械 sweep で再現 = LLM 固有価値なし) の判定が汚れる。**
+decisions.md:319/338 等に sweet-spot literal (+38.3/+11.3%, 0-10us) が存在。coder が Read tool を持つため、**遮断が完全でないと失敗条件 c (利得が機械 sweep で再現 = LLM 固有価値なし) の判定が汚れる。**
 
 ### 実装戦略: Model Y (filesystem browse なし)
 
@@ -110,18 +110,18 @@ decisions.md:319/338 等に sweet-spot literal (+38.3/+11.3%, 0-10us) が存在�
 - fresh context (本会話・prior turn history を見ない)
 - 提案枝コードを構造化出力で返す (harness が挿入)
 
-**敵対検証で指摘: Bash tool による leak 可能性**
-- Read 削除しても、Bash tool で `cat`, `grep` などの shell commands が実行可能
+**敵対検証で指摘: Bash tool によるリーク可能性**
+- Read 削除しても、Bash tool で `cat`, `grep` などのシェルコマンドが実行可能
 - 現行設計は Read + Bash 両方削除と誤認する可能性がある
 - Remediation (D39 で詳細決定):
   1. Bash tool は「許可」（orchestrator の Python harness 起動等で必要）
-  2. But: coder は subagent として独立した read-only filesystem view で起動（orchestrator が seccomp/chroot で制限）
+  2. ただし: coder は subagent として独立した read-only filesystem view で起動（orchestrator が seccomp/chroot で制限）
   3. OR: Bash tool を削除し、coder は「提案を構造化出力で返す」のみ（orchestrator 側で template 適用）
   4. 現行 design v1 は「Bash=削除」前提で進める。必要に応じて段 5 で緩和
 
 **工数推定:** Bash 完全削除は coder の API 確認機能に影響するため、段 4 では削除、確認は orchestrator の入力に curated snippet で補う
 
-**遮断対象 (物理削除 or 新規 .md で curate):**
+**遮断対象 (物理削除または新規 .md で精選):**
 
 新規 `src/coder-spec.md` に含める：
 - Template 定義 (フレーム + hole マーカー)
@@ -182,14 +182,14 @@ planner が設計方向を提案・coder が具体コード合成。これは **
 }
 ```
 
-**ruleプロンプト:**
+**ルールプロンプト:**
 - "過去の評価済みだけを whiteboard で見る (未評価設計を再提案しない)"
 - "具体値を提案するな (方向のみ)"
 - "数字・個別 measurement は見るが、勝ち筋設計の要約・比較グラフ・後知恵の利得は見るな"
 
 **whiteboard memory:**
 - 却下設計を「評価済みのみ・事実 + uncertainty」で記録
-- planner に見せる (P2-5 の自信ある早期停止誤収束 8/12, D21 を再演しない narrow scope)
+- planner に見せる (P2-5 の自信ある早期停止誤収束 8/12, D21 を再演しない狭い範囲に絞る)
 
 ---
 
@@ -210,29 +210,29 @@ planner が設計方向を提案・coder が具体コード合成。これは **
 4. verify: red?
    - → YES: mutation-red ゲートで assert 恒真性確認 (D38 残タスク)
    - → NO: bench run
-5. critic: 帰属 (消費 white board・次方向を推奨) + stopping condition 判定
-6. auditor: 監査 (optional・決定3 段 4 では mutation-red driver が主)
-7. whiteboard update + 次 iteration OR 停止判定
+5. critic: 帰属 (whiteboard を消費・次方向を推奨) + 停止条件の判定
+6. auditor: 監査 (任意・決定3 段 4 では mutation-red 駆動役が主)
+7. whiteboard 更新 + 次 iteration または停止判定
 ```
 
 **停止条件の形式 (D39 で詳細決定):**
 
-**Convergence:**
-- planner が同一軸・同一方向・magnitude ≤ small の proposal を 3 回連続 → segment 4 完了
+**収束:**
+- planner が同一軸・同一方向・magnitude ≤ small の proposal を 3 回連続 → 段 4 完了
 - 異なる magnitude (small→medium→large) の段階的変化は「異なる提案」と扱う (同一方向但し magnitude 変化を追跡)
 
-**Reverse-direction:**
+**逆方向:**
 - critic が段階的に「逆方向有望」を 2 回以上推奨 (且つ前回の方向で性能改善なし) → exploration 枯渇
 
-**Budget exhaustion:**
-- Iteration budget = 10 iterations OR wall-clock 3600 sec (whichever first)
-- Budget 枯渇時の partial result: whiteboard を checkpoint で stage 6 に inherit (段 6 で再開可能)
-- Partial result は「未査証」として marked (not final certified finding)
+**予算枯渇:**
+- Iteration budget = 10 iterations OR wall-clock 3600 sec (いずれか早い方)
+- Budget 枯渇時の partial result: whiteboard を checkpoint で段 6 に継承 (段 6 で再開可能)
+- 部分結果は「未査証」として記録 (certified finding の最終版ではない)
 
-**Whiteboard granularity (敵対検証で指摘: structural inference risk):**
+**whiteboard の粒度 (敵対検証で指摘: 構造的推論リスク):**
 - 記録対象: 提案番号・評価結果 (成功/失敗)・performance delta (性能変化率, 具体値ではない)
 - 記録禁止: なぜ失敗したかの機序的説明 (例: "hard margin を課す → 棄却理由から採用方法を逆算可能" リスク)
-- Critic の帰属は「next-direction proposal」+ leading-indicators only (棄却理由の technical explanation は含めない)
+- Critic の帰属は「次方向の提案」+ leading-indicator のみ (棄却理由の技術的説明は含めない)
 
 ### D38 残消化
 
@@ -271,7 +271,7 @@ planner が設計方向を提案・coder が具体コード合成。これは **
    - 専用 .md + fresh context で「読むな」を構造化。Read tool を外すと API 確認もできない矛盾の解法
 
 4. **planner/coder/critic/auditor の 4 ロール自律ループの iteration 予算・停止条件・whiteboard の粒度**
-   - ループをいつ止めるか (コンバージしたか、逆方向になったか、予算尽きたか)
+   - ループをいつ止めるか (収束したか、逆方向になったか、予算尽きたか)
    - whiteboard に何を記録するか (評価済みだけか、提案全履歴か)
 
 5. **diff-reject の S4 rejection 新型の形**

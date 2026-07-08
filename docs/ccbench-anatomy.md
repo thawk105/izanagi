@@ -16,11 +16,11 @@
    → パラメータ探索は「ビルドし直し型」だが ccache で warm rebuild が安い (roadmap §6 の予想が確定)。
 2. **プロトコルは10種。YCSB 対応は7種** (silo, tictoc, mocc, cicada, ermia, si, oze)。ss2pl/mvto/d2pl は YCSB バイナリを作らない。
    (docs/protocols_en.md の上段表は ss2pl/mvto を YCSB ✓ と**誤記** → `output/insights/` に記録、§2 参照)
-3. **`si` = `ermia` から SSN を剥がした Snapshot Isolation = 本物の write-skew (G2) を admit する。**
+3. **`si` = `ermia` から SSN を剥がした Snapshot Isolation = 本物の write-skew (G2) を出す。**
    → Phase 1 タスク3「verifier が赤を出せる証明」の **positive control**。`ermia`(SSN)/`oze`(明示グラフ) は anti-dependency を実体化する **cross-check oracle**。
 4. **Silo の trace 3 点 (read tidword / write key+value / commit maxtid) は全て CC-native フィールドに既存** → **trace 専用フィールドを足す必要なし** (絶対規律1 に最適)。例外は `ss2pl` のみ (ロックは版IDを持たないので producer-id の trace 専用フィールドが要る)。
 5. **`#ifdef TRACE` には罠がある。** cmake が常に `-DTRACE=0` を定義すると `#ifdef TRACE` は常に真でコンパイルアウトされない (観測者効果が漏れ、絶対規律1違反)。**`#if TRACE` を使う**か、**0 のとき `-D` を出さない**こと (後者は `INSERT_*_DELAY_MS` に既存先例)。既存の `ADD_ANALYSIS` が `#ifdef TRACE` のほぼ完全な実装先例 (§5)。
-6. **スレッドピンニングが既定で OFF。** `setThreadAffinity` は `#ifdef Linux` だが、protocol バイナリには `-DLinux` が**渡されていない** (`ProtocolHelpers.cmake`、flags.make で確認)。→ 96スレ/2ソケットでワーカーが両ソケットを浮遊し測定が scheduler 依存に。**絶対規律4 のために `-DLinux` 追加か `numactl` ピンニングが必須** (§7)。
+6. **スレッドピンニングが既定で OFF。** `setThreadAffinity` は `#ifdef Linux` だが、protocol バイナリには `-DLinux` が**渡されていない** (`ProtocolHelpers.cmake`、flags.make で確認)。→ 96スレ/2ソケットでワーカーが両ソケットを浮遊し測定がスケジューラ依存に。**絶対規律4 のために `-DLinux` 追加か `numactl` ピンニングが必須** (§7)。
 7. **`clocks_per_us` はランタイム gflag (default 2100、自動校正なし)。** calibrator がホストの TSC 周波数を実測して毎回 `-clocks_per_us` で渡す。`throughput[tps]` はこの値に**非依存** (OS sleep 秒で割る) だが、backoff/epoch の実挙動と latency 系メトリクスは依存 (§6)。
 8. **ARM/Apple Silicon 懸念は消滅** (ここはネイティブ x86_64)。GCC 11.4 で `-Werror` 通過 (#44 は HEAD で解決済み)、`-mcx16`/`-march` 不要 (§7)。
 
@@ -37,7 +37,7 @@
 - **ビルド確認 (本ホスト R760):** `cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF` + `make -j` を GCC 11.4 で実行 → **34バイナリ全て EXIT 0、ccbench 本体は `-Werror` で警告ゼロ**。残る警告は third-party masstree のみ (`-Werror` なし)。
 - 既定が `Debug+ASan`、計測は `Release`。`silo` だけ非パラメタ化の `replay_test.exe` も作る (variant 探索には無関係)。
 
-**Izanagi variant の同一性キー:** `(protocol N, build-flag-vector V)`。V は protocol N が**実際に参照する**ビルド時 `-D` の値のみ (参照しないフラグを変えても同一バイナリ→ ccache が dedup するので genome から除外)。計測比較用 genome には instrumentation/sizing を含めない (§3, §5)。
+**Izanagi variant の同一性キー:** `(protocol N, build-flag-vector V)`。V は protocol N が**実際に参照する**ビルド時 `-D` の値のみ (参照しないフラグを変えても同一バイナリ→ ccache が重複排除するので genome から除外)。計測比較用 genome には instrumentation/sizing を含めない (§3, §5)。
 
 ---
 
@@ -50,7 +50,7 @@
 | **mocc** | hybrid (OCC+温度で選択的2PL) | serializable | ✓ | 暗黙 (cold は OCC, hot は悲観ロック) | read `cc/mocc/transaction.cc:106` / commit `:1074` |
 | **cicada** | MVCC | serializable | ✓ | TS順可視性 + commit検証 | read `cc/cicada/transaction.cc:144` / commit `:919` |
 | **ermia** | MVCC + **SSN** | serializable (SSI) | ✓ | **明示** (SSN pstamp/sstamp) | read `cc/ermia/transaction.cc:92` / commit `:905`→ssn_parallel_commit`:594` |
-| **si** | MVCC (ermia から SSN 除去) | **Snapshot Isolation (非 serializable)** | ✓ | **無し** → **G2 を admit** | read `cc/si/transaction.cc:92` / commit `:621`→si_commit`:470` |
+| **si** | MVCC (ermia から SSN 除去) | **Snapshot Isolation (非 serializable)** | ✓ | **無し** → **G2 を出す** | read `cc/si/transaction.cc:92` / commit `:621`→si_commit`:470` |
 | **oze** | MVCC + **明示シリアライゼーショングラフ** | serializable | ✓ | **最も明示的** (has_cycle) | read `cc/oze/transaction.cc:66` / commit `:1126`→validation`:540` |
 | **ss2pl** | 2PL (strong strict) | serializable | — | 構造上 G2 不可 (悲観ロック) | read `cc/ss2pl/transaction.cc:126` / commit `:76`→unlockList`:454` |
 | **mvto** | MVCC (Reed 1978) | serializable | — | 暗黙 (rts vs wts) | read `cc/mvto/transaction.cc:65` / commit `:459` |
@@ -104,7 +104,7 @@ YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto
 - `PROCEDURE_SORT` (silo) … print のみ。意図 (キー順アクセス) は実際には `KEY_SORT` だけが実装、しかも silo はそれを渡していない。
 - `SLEEP_READ_PHASE`, `WORKER1_INSERT_DELAY_RPHASE`, `INSERT_{READ,BATCH}_DELAY_MS` … 実験/計測撹乱ノブであり最適化ではない。perf では OFF 固定。`DEBUG_MSG`(oze)/`ADD_ANALYSIS` は instrumentation (§5)。
 
-**相互排他 / 依存 (探索の制約として encode する):**
+**相互排他 / 依存 (探索の制約として符号化する):**
 - `NO_WAIT_LOCKING_IN_VALIDATION` XOR `NO_WAIT_OF_TICTOC` (同一 `#if`/`#elif`)
 - `DLR0` XOR `DLR1` (ss2pl、既定で DLR1 のみ build)、`RWLOCK` XOR `MQLOCK` (mocc、既定 RWLOCK のみ)
 - `INLINE_VERSION_PROMOTION` は `INLINE_VERSION_OPT` に hard 依存 (cicada 既定では `INLINE_VERSION_OPT_CICADA=0` なので両者 default で no-op)
@@ -189,8 +189,8 @@ CCBench には既に **`ADD_ANALYSIS`** という「ビルド時 `-D` で計測�
 
 - **x86_64 ネイティブ。ARM/Apple Silicon 懸念は消滅。** GCC 11.4 で `-Wall -Wextra -Werror` 通過 (#44 は HEAD で防御的初期化済み: `cc/cicada/transaction.cc:488`, `cc/mocc/transaction.cc:629`)。clang 15 も利用可。
 - **特別な ISA `-m` フラグ不要。** 全 atomic は `__atomic_*` builtin (`include/atomic_wrapper.hh`)、**128bit CAS / cmpxchg16b 不使用** → `-mcx16` 不要。`_mm_pause`/`rdtsc`/`rdtscp` は x86_64 baseline。実コンパイル行は `-O3 -DNDEBUG -Wall -Wextra -Werror -std=c++20` のみ (`-march` 無し)。`_mm_clwb` 等は opt-in microbench (`-DCCBENCH_BUILD_MICROBENCH=ON`、既定 OFF) のみ。
-- **🔴 スレッドピンニングが既定で OFF (本ホストで最重要の計測ギャップ):** `setThreadAffinity` (`include/cpu.hh:30-41`、`sched_setaffinity`+`SYS_gettid`) は `#ifdef Linux` で囲われているが、`ccbench_add_protocol` は protocol バイナリに **`-DLinux` を定義しない** (flags.make の `CXX_DEFINES` に `-DLinux` 無しを確認)。→ **as-built ではワーカーが一切ピンされず、OS スケジューラが両ソケット間を migrate する。**
-  - **絶対規律4 への直撃:** 2ソケット機での unpinned run は scheduler 依存で noisy。many-core の cache 競合が再現されず歪む。
+- **🔴 スレッドピンニングが既定で OFF (本ホストで最重要の計測ギャップ):** `setThreadAffinity` (`include/cpu.hh:30-41`、`sched_setaffinity`+`SYS_gettid`) は `#ifdef Linux` で囲われているが、`ccbench_add_protocol` は protocol バイナリに **`-DLinux` を定義しない** (flags.make の `CXX_DEFINES` に `-DLinux` 無しを確認)。→ **as-built ではワーカーが一切ピンされず、OS スケジューラが両ソケット間を移動する。**
+  - **絶対規律4 への直撃:** 2ソケット機での unpinned run はスケジューラ依存でノイズが大きい。many-core の cache 競合が再現されず歪む。
   - **対策:** `ccbench_add_protocol` 内に `if(CMAKE_SYSTEM_NAME STREQUAL "Linux") target_compile_definitions(${target} PRIVATE Linux) endif()` を足す (`MicrobenchHelpers.cmake:43-45` に先例)、**または** run を `numactl`/`taskset` で包む。これは CCBench への改変なので **patches/ で管理** (D6)。
 - **NUMA 非対応。** `libnuma`/`numa_alloc`/`mbind` 一切なし。ピンしても `myid % nproc` 順でロケーリティ制御なし → cross-socket トラフィック非制御。**reproducible な96スレ/2NUMA run には `numactl` で明示ピン (interleave or local 方針を固定) する。**
 - `<linux/fs.h>`/`fdatasync` は WAL path のみ (`#ifdef Linux` + build時 `WAL=0` 既定)。O_DIRECT/hugepages/mmap は無し。

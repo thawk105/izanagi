@@ -31,8 +31,8 @@ certified commit する (正確な合格条件は下の「完了条件 (2 項)�
 cache-miss 1 周は別の主張で、両方要る)。新機構の束を**正しさ的に枯れた足場 (純 timing) で先に通す**のが最小手。
 
 ### なぜ first target = 純 timing (静的 backoff) か。lock-sort は撤回
-draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判全員が high severity で撤回勧告 (実コード裏取り):
-- **verifier は lock 獲得順をトレースしない** (commit 時の (epoch,tid) のみ emit, transaction.cc:517-540)
+draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判者全員が high severity で撤回勧告 (実コード裏取り):
+- **verifier は lock 獲得順をトレースしない** (commit 時の (epoch,tid) のみ出力, transaction.cc:517-540)
   → lock 経路の正しさを certify 不能 = **規律2 の穴**。
 - silo は no-wait (競合即 abort, transaction.cc:154-157 / Options.cmake:34) ゆえ「sort=デッドロック回避」は
   誤診断。sort が動かすのは liveness で、commit 枯渇 (trace-empty abort) として現れ正しさ違反と検出されない。
@@ -176,15 +176,14 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    (lockskip/early-unlock、実ビルド実走)。**auditor live 定義 = 機械 4 点 (auditor.md 実体化 / assert 発火 /
    positive control suite 赤緑 / 入力隔離構造) + n=1 定性 2 点 (独立検出 / negative control 弁別)。段 6 headline
    gate の充足条件は機械 4 点。** 実走 = `orchestrator/campaign/s3_lock_coverage.py` (all_pass、正本 =
-   `output/env/linux-baremetal/calibration/s3_lock_coverage.json`)、n=1 = output/insights/2026-07-06_s3-auditor-
-   live-n1.md。**編集面拡張 (transaction.cc を EVOLVE_BLOCK_SOURCES に) は段 5 に繰延** — 「lock 経路は auditor
+   `output/env/linux-baremetal/calibration/s3_lock_coverage.json`)、n=1 = `output/insights/2026-07-06_s3-auditor-live-n1.md`。**編集面拡張 (transaction.cc を EVOLVE_BLOCK_SOURCES に) は段 5 に繰延** — 「lock 経路は auditor
    live を gate に」を sequencing でなく機械で効かせるため `test_lock_path_edit_surface_requires_auditor_live`
    (段 3 は vacuously true、段 5 で発火) を配線。**ablation 点 = 被覆 assert の on/off が lockskip 検出力に与える差**
    (assert 有=X 検出 / 無=verifier 単独で cycles==0 = 見逃す)。pin 前進 (dff0f1e→028f34d) の扱いは D38・campaign/pin.py。
 4. **guided 検疫層を diff 検疫へ拡張 + planner.md 生成** — coder 自律期。diff が EVOLVE-BLOCK マーカー間かつ
    #if 枝内に収まるか parse 検証。**(4a diff 検疫 = 完了 6359aa5。4b 駆動基盤 = 完了 2026-07-08:
    planner-v4/coder-v4-autonomous を registered 定義化・LoopState checkpoint 永続化・--run-iteration
-   駆動口・監査硬化 fail-closed 5 点。実 LLM の測定ループは single-tenant 窓待ち — 実走手順は
+   駆動口・監査硬化 fails-closed 5 点。実 LLM の測定ループは single-tenant 窓待ち — 実走手順は
    `docs/phase3-s4b-runbook.md`、監査は `output/insights/2026-07-08_s4b-loopstate-audit.json`)**
 5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題 (driver 宣言値・並行時の id 安定化)** — S2 gate を満たした後 + 並行合成の段。**S2 verify 2 本立ての pipeline 配線をこの段の先頭で行う (D36 決定 4 の 6 規定: campaign identity 組み込み・COMMIT タグ焼き込み・AND 共通ヘルパ・red payload の workload タグ・bench 同一排他 + numactl・IZANAGI_TRACE_DIR 対称化)。**
    - **lock 経路 (cc/silo/transaction.cc) への編集面拡張 (段 3 から繰延、D38)** — coder が lock を変異できるようにする前提作業。survey_B の変更点: source_digest.EVOLVE_BLOCK_SOURCES + ALLOWLIST に `cc/silo/transaction.cc` 追加 + hooks/guard_write.py:37 の写し定数 + drift test + 偽 submodule fixture (test_campaign.py) に transaction.cc 生成追加 + test_source_digest_allowlist の反例差し替え (**同一コミット必須** — 定数だけ足すと fixture 群が一斉に落ちる)。**前提 gate = `test_lock_path_edit_surface_requires_auditor_live` の緑** (auditor live の機械 4 点、D38)。この拡張と auditor live を同一/後コミットに束ね、auditor 不在で lock 経路が編集可能になる窓を作らない。非 stock variant の src_token churn は許容 (再評価方向)。
@@ -234,7 +233,7 @@ worklog 全読しないと発掘できない状態を解消するためここに
   verify) を純 timing にも前倒す。timing 純度そのもの (straight-line・API 範囲) は payload 検査では機械保証されず、auditor live まで
   coder diff の人間レビューが gate (方針 A で hook が唯一防壁でなくなった帰結)。
   **(追記 2026-07-06) S2 構成自体は後続段 1 で確定 (D36・gate 3 点 all_pass)。残りは段 5 の配線のみ。**
-- preprocess 後ハッシュは対象ファイル集合の列挙漏れがあれば偽キャッシュヒットが復活する。固定集合に限定しテストで固定するが
+- preprocess 後ハッシュは対象ファイル集合の列挙漏れがあれば偽 cache hit が復活する。固定集合に限定しテストで固定するが
   template patch の改訂で集合が動いたら漏れる残留リスク。**タスク2 敵対レビューで実証 (medium, D24)**: `Options.cmake` は
   ALLOWLIST 内だが `EVOLVE_BLOCK_SOURCES` (= digest 対象) 外で、`VAL_SIZE` 等の build 左右マクロを変えると別バイナリ
   なのに src_token/cache_key/variant_id が不変 (偽 hit)。現状は発火経路が人間 template のみ (coder 未実装) ゆえ潜在。

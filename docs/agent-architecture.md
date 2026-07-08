@@ -70,7 +70,7 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 - **tools:** コード読み書き、ビルド
 - **model:** 強いモデル
 - **規律:** 検証用情報を出すときは `#ifdef TRACE` に隔離する。CC のデータ構造に検証専用フィールドを常駐させない (絶対規律1)。移植時は最適化カタログ (前提/効果/競合) を参照して前提条件を満たすか確認する
-- **⚠ kickoff の確定制約は本節でなく `docs/phase3.md` + D22/D23/D24/D30 を正典とする** (本節は Phase 3 着手前の予約仕様で、kickoff 設計を反映していない)。coder.md を生成するときは最低限: (1) 編集面は EVOLVE-BLOCK の `#if` 枝内の straight-line code のみ (#include/型/マクロ定義の追加禁止、閉じた領域制約)、(2) COMMIT を書く唯一の経路は `pipeline.evaluate()`、(3) 勝ち筋値・機序説明のリーク制御 (P2-5/D21 の Phase 3 版、phase3.md 残存リスク)、(4) hooks は方針 A で最小第二防壁 = 正しさ/identity の担保は一次防壁 (source_digest / 観測者効果二重検査) にある、を織り込む
+- **⚠ kickoff の確定制約は本節でなく `docs/phase3.md` + D22/D23/D24/D30 を正典とする** (本節は Phase 3 着手前の予約仕様で、kickoff 設計を反映していない)。coder.md を生成するときは最低限: (1) 編集面は EVOLVE-BLOCK の `#if` 枝内の straight-line code のみ (#include/型/マクロ定義の追加禁止、閉じた領域制約)、(2) COMMIT を書く唯一の経路は `pipeline.evaluate()`、(3) 勝ち筋値・機序説明のリーク制御 (P2-5/D21 の Phase 3 版、phase3.md 残存リスク)、(4) hooks は方針 A で最小第二防壁 = 正しさ/同一性の担保は一次防壁 (source_digest / 観測者効果二重検査) にある、を織り込む
 - **駆動方式の環境制約 (worklog 2026-06-29 から昇格):** この環境には **headless の claude CLI が無い**。roadmap §3.8 の「ループ主導権は orchestrator、LLM は iteration 単位で fresh に呼ぶ」を実装するとき、orchestrator が CLI を子プロセスとして呼ぶ形は取れない。P2-5 誘導アームは「各試行を fresh サブエージェント (本会話を見ない) が `guided.py` を Bash で駆動する」形で迂回した — coder ループも同系の駆動 (fresh サブエージェント + Python ハーネスの Bash 駆動) を前提に設計する。
 
 ### auditor (Phase 3・後続段 3 で実体化 = `.claude/agents/auditor.md`)
@@ -79,7 +79,7 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 - **model:** 強いモデル (adversarial な reasoning が要る)
 - **規律:** 最適化を担当するエージェント (planner/coder) とコンテキストを分離する。見張り役が最適化圧力に毒されないため。CC 版の reward hack ギャラリー (related-work.md の Jitskit 節を参照 — Appendix B の型リスト本文は repo に無いため、repo 実績から翻訳した CC 版として auditor.md に持つ)
 - **⚠ 確定制約は本節でなく `auditor.md` + `docs/phase3.md` 後続段 3 + D38 を正典とする** (本節は予約仕様。実体化で 2 点分岐した):
-  - **tools = read-only (Read/Grep/Glob、Write/Edit/Bash 非付与)。** 予約の「テスト追加の書き込み」は段 3 では「auditor が提案テストを構造化出力で返し、orchestrator が人間レビュー gate 下で反映する」形で実現 (段 2 の coder/critic と同型)。理由 = guard_write (PreToolUse) は呼び出し元エージェントを識別できず (tool_name/tool_input のみ) per-agent の path 制限が hook で表現不能 → auditor に Write を与えると「既存テストを弱める書き込み」を機械的に止められない。read-only なら構造的に不可能。直接 Write の自律形は後続段 4 (per-agent permission 執行とセット) へ繰延 (D38、audit-2026-06-30 §4 段 2 の部分消化)。
+  - **tools = read-only (Read/Grep/Glob、Write/Edit/Bash 非付与)。** 予約の「テスト追加の書き込み」は段 3 では「auditor が提案テストを構造化出力で返し、orchestrator が人間レビューゲート下で反映する」形で実現 (段 2 の coder/critic と同型)。理由 = guard_write (PreToolUse) は呼び出し元エージェントを識別できず (tool_name/tool_input のみ) per-agent の path 制限が hook で表現不能 → auditor に Write を与えると「既存テストを弱める書き込み」を機械的に止められない。read-only なら構造的に不可能。直接 Write の自律形は後続段 4 (per-agent permission 執行とセット) へ繰延 (D38、audit-2026-06-30 §4 段 2 の部分消化)。
   - **入力隔離:** 「WAL fitness を scope に入れない」(phase3.md 後続段 3) は tool 制限 + orchestrator の入力射影 (abort/patch/designated ソースだけを渡す) + prompt 規律の併用。Read を持つため完全な構造隔離ではない (honest に auditor.md/D38 に記録)。
 
 > **Phase 3 設計時の参考: Google eng-practices** (github.com/google/eng-practices)。コードレビュー規範を reviewer 側と author 側の両方向で定義している。Izanagi の coder = author / auditor = reviewer に写像でき、auditor の「何を見るか」チェックリストの原料 (二層基準・reviewer の 5 観点) を auditor.md に翻訳済み。

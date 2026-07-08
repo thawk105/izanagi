@@ -45,13 +45,13 @@
   (緑 leading-indicators のみ渡す) の**合流 1 点** = `campaign/p3_s4_loop.py` の `make_critic_digest(reflux=)`
   (= `render_rejections` を合流するか否か)。reflux は campaign identity (search_config) に焼き別 campaign に物理分離する
   (D39 決定4)。第 3 アーム reason-only は段 6。
-- **ベースライン 3/4 の substrate anchor (段 4 が固定 → 段 6 が「同じ編集面・同じ試行予算」を honor するための実値):**
+- **ベースライン 3/4 の substrate anchor (段 4 が固定 → 段 6 が「同じ編集面・同じ試行予算」を守るための実値):**
   編集面 = diff 検疫の hole (silo-backoff-magnitude、`include/backoff.hh` の #if 合成枝 1 行、D39 決定1)。試行予算 =
-  iteration budget (10 iteration または 3600 秒、D39 決定2)。変異軸 = backoff (human-named、coder の値提案より前に固定
-  = ベースライン 4 の「軸命名を coder 出力前に固定」を trivially 満たす)。生成分布・sweep grid の数値は段 6 タスク (c)(d)。
+  iteration budget (10 iteration または 3600 秒、D39 決定2)。変異軸 = backoff (人間命名、coder の値提案より前に固定
+  = ベースライン 4 の「軸命名を coder 出力前に固定」を自明に満たす)。生成分布・sweep grid の数値は段 6 タスク (c)(d)。
 - **段 4 中間結果の報告作法:** 段 4 の 1 iteration 実走は「配線が E2E で通る」の機械実証に留め、**有意性を主張しない**
   (n 小・検証相なし・kickoff CorrectnessWorkload は同一キー競合をほぼ踏まない — 残存リスク節)。上の統計計画の guard
-  「予算上 n を確保できない比較は記述統計に留め有意性を主張しない」を段 4 に適用する (検定力不足の偽 negative を
+  「予算上 n を確保できない比較は記述統計に留め有意性を主張しない」を段 4 に適用する (検定力不足の偽陰性を
   「LLM に価値なし」と誤読させない)。
 
 **統計計画 (P2-5/D29 を継承):** 採否は点比較でなく分布比較。差が between-run floor 以下は「差なし」に丸め、
@@ -65,7 +65,7 @@ floor〜1.5×floor は `near_floor` として cross-run 再現で裏取り。優
   ゼロで成立した。Phase 3 は全試行が**直列実計測** (規律4) なので、(i) アームあたり系列数と 1 系列の試行予算、(ii) 検定
   単位 = **系列** (P2-5 と同じ。試行は path-dependent で独立でない)、(iii) その n で exact/permutation の最小可能 p が
   有意水準を下回るかの検定力概算、(iv) 実計測の総予算上限、の 4 点を実行前に確定する。予算上 n を確保できない比較は
-  「記述統計に留め有意性を主張しない」と先に宣言する (検定力不足由来の偽 negative を「LLM に価値なし」と誤読させない)。
+  「記述統計に留め有意性を主張しない」と先に宣言する (検定力不足由来の偽陰性を「LLM に価値なし」と誤読させない)。
 - **多重比較:** headline の有意主張は比較族 (ベースライン × workload) で Holm 補正する (P2-5 では Holm が実際に有意主張を
   1 つ落とした。D29)。
 - **天井の不在を明示:** コード空間は列挙不能なので、P2-5 のオラクル天井に相当する真の天井は**原理的に得られない** —

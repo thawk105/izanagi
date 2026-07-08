@@ -14,7 +14,7 @@ spawn し、機械部分 (`orchestrator/campaign/p3_s4_loop.py`) に proposal �
 ## 0. 実走前ゲート (すべて満たすまで駆動を始めない)
 
 1. **fresh session である** — `planner-v4` / `coder-v4-autonomous` はエージェント登録が
-   **session 開始時**に読まれる。frontmatter を足した commit より後に**新しく開いた session**
+   **セッション開始時**に読まれる。frontmatter を足した commit より後に**新しく開いた session**
    でないと spawn できない (mid-session の .md 追加は反映されない、2026-07-08 実証)。
    確認 = Agent の利用可能型に `planner-v4` と `coder-v4-autonomous` が並ぶこと。
 2. **計測層が single-tenant** — `pgrep -a -f 'ccbench|silo|bench'` で他ユーザー/孤児ベンチが
@@ -47,7 +47,7 @@ spawn し、機械部分 (`orchestrator/campaign/p3_s4_loop.py`) に proposal �
 - 出力 = `{proposal: {axis, direction, magnitude, justification, uncertainty}}` (値なし)。
 
 ### (b) coder-v4-autonomous を spawn (値 + hole コード合成)
-`Agent(subagent_type='coder-v4-autonomous')` (tools=[] = filesystem browse 経路なし、リーク制御)。
+`Agent(subagent_type='coder-v4-autonomous')` (tools=[] = ファイルシステム走査経路なし、リーク制御)。
 入力 (メインセッションが射影):
 ```json
 {
@@ -85,7 +85,7 @@ python3 -m campaign.p3_s4_loop --run-iteration <scratch>/prop.json
 - 出力 = `ran / outcome (rejected|certified|aborted|dry-pass|stopped-before) / iteration / 停止判定 /
   checkpoint パス / digest パス`。
 - **配線リハーサルは `--no-build`** (single-tenant 不要。ただし diff 検疫 pass の clean 提案は
-  dry-pass = whiteboard に載らない → 実 feedback は build を要する。dry は wiring 確認専用)。
+  dry-pass = whiteboard に載らない → 実 feedback は build を要する。dry は配線確認専用)。
 
 ### (e) 停止判定を読み、続けるなら critic を spawn
 - `停止判定` が `continue` 以外 (converged / reverse-exhausted / budget-*) → ループ終了 (§3 へ)。
@@ -123,7 +123,7 @@ python3 -m campaign.p3_s4_loop --run-iteration <scratch>/prop.json
 ## 4. 既知の限界 (実走前に承知しておく)
 
 - 段 4 は `delta_pct` 常に None (統計的 delta/検証相は段 6 予約) → whiteboard の性能率は空。
-- dry-pass (clean 提案 × `--no-build`) は whiteboard に載らない (wiring 専用)。実 feedback は
+- dry-pass (clean 提案 × `--no-build`) は whiteboard に載らない (配線専用)。実 feedback は
   build 必須。
 - 段 4 の 1 iteration 実走は「配線が E2E で通る」の機械実証 — kickoff CorrectnessWorkload は
   同一キー競合をほぼ踏まず n も小さいため**有意性を主張しない** (D39 残存リスク c)。

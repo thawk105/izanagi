@@ -196,7 +196,7 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **TOCTOU (Time-Of-Check to Time-Of-Use)** — 「確認した時点」と「使う時点」の間に対象が変わり、確認が無意味になる競合の穴。*izanagi:* 旧ビルドは identity と無関係に共有作業ツリーをコンパイルしていた穴。cache_key に作業ツリー由来のハッシュを織り込んで構造的に解消した (D23)。
 
-**fails-closed / fails-open (安全側/危険側の失敗)** — 異常時にどちらに倒れるか。fails-closed=安全側 (止める・拒否する)、fails-open=危険側 (通してしまう)。*izanagi:* 正しさに関わる経路は必ず fails-closed。identity 計算の失敗 (g++ 不在など) は best-effort skip せず停止する (D23)。
+**fails-closed / fails-open (安全側/危険側の失敗)** — 異常時にどちらに倒れるか。fails-closed=安全側 (止める・拒否する)、fails-open=危険側 (通してしまう)。*izanagi:* 正しさに関わる経路は必ず fails-closed。identity 計算の失敗 (g++ 不在など) は best-effort で読み飛ばさず停止する (D23)。
 
 **positive control / 陽性対照** — 「検出器がちゃんと検出できる」ことを確かめるため、わざと陽性の検体を通すこと。*izanagi:* broken-silo パッチで verifier が確実に G2 の赤を出すか確認する。赤検出力が空打ちでない実証 (decisions.md D16)。
 
@@ -230,6 +230,6 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **三層可変性 (憲法 / 戦略 / 戦術)** — 文書を変えてよい度合いで 3 層に分ける統治。憲法 (絶対規律) は人間のみ変更可、戦略 (roadmap) は Claude が版管理規律の下で改訂可、戦術 (phase docs 等) は自由。*izanagi:* 設計を進化させる権限と、正しさ規律の不変性を両立させる仕組み (CLAUDE.md §「roadmap の更新 — 三層の可変性」)。
 
-**living document (living ドキュメント)** — 完成品として凍結せず、試行錯誤の発見に応じて改訂し続ける文書。改訂履歴そのものが研究記録になる。*izanagi:* roadmap の運用思想。過去の版は roadmap-history/ に凍結し、設計仮説の変遷を残す (CLAUDE.md §「roadmap の更新 — 三層の可変性」)。
+**living document (生きた文書)** — 完成品として凍結せず、試行錯誤の発見に応じて改訂し続ける文書。改訂履歴そのものが研究記録になる。*izanagi:* roadmap の運用思想。過去の版は roadmap-history/ に凍結し、設計仮説の変遷を残す (CLAUDE.md §「roadmap の更新 — 三層の可変性」)。
 
 **auto-compact (自動圧縮) / 自己一貫性バイアス** — 長い対話でコンテキストを要約圧縮する機構 (ロッシー) と、一度出した見立てに固執して反証を軽視する認知の偏り。*izanagi:* 同一セッション内のコンテキスト劣化の原因。自己一貫性バイアスは P2-5 の「自信ある早期停止の負債」と同型。区切りで handoff を書いてセッションを終える等で対処 (roadmap §3.8, D31)。
