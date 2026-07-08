@@ -147,7 +147,7 @@ verifier_agent_config = {
                 "type": "G2_CYCLE",
                 "txns": [tid_a, tid_b],
                 "edges": [{"src": ..., "dst": ...}],
-                "severity": "REAL"
+                "severity": "high"
             }
         ]
     }
@@ -179,12 +179,12 @@ class AnomalyFinding:
     type: Literal["G2_CYCLE", "DIRTY_READ", ...]
     txn_ids: list[int]
     edges: list[DependencyEdge]
-    affiliation: Literal["VERIFIED", "PLAUSIBLE", "REFUTED"]
+    verdict: Literal["real", "contested", "refuted"]
     confidence: float
 
 response: list[AnomalyFinding] = [
     AnomalyFinding(type="G2_CYCLE", txn_ids=[101, 202], edges=[...], 
-                   affiliation="VERIFIED", confidence=0.95),
+                   verdict="real", confidence=0.95),
     ...
 ]
 ```
@@ -461,7 +461,7 @@ handoff_content = f"""
 
 **キャッシュ可能:**
 - agents 1-13 出力: 1.2 MB の structured findings
-- 統計: REAL 6/CONTESTED 7 までの intermediate count
+- 統計: real 6/contested 7 までの intermediate count
 
 **未確定:**
 - agents 14-19: 未実行
@@ -543,9 +543,9 @@ result = workflow("""
 
 # 結果を structured 集計
 findings = {
-    "REAL": [f for f in result if f.affiliation == "VERIFIED"],      # 9 件
-    "CONTESTED": [f for f in result if f.affiliation == "PLAUSIBLE"], # 7 件
-    "REFUTED": [f for f in result if f.affiliation == "REFUTED"]      # 3 件
+    "real":      [f for f in result if f.verdict == "real"],       # 9 件
+    "contested": [f for f in result if f.verdict == "contested"],  # 7 件
+    "refuted":   [f for f in result if f.verdict == "refuted"]      # 3 件
 }
 ```
 
@@ -561,8 +561,8 @@ findings = {
   "findings": [
     {
       "id": "OQ5_diff_reject_reason",
-      "type": "REAL",
-      "severity": "HIGH",
+      "verdict": "real",
+      "severity": "high",
       "attack_description": "diff-reject digest に explicit reason field が欠落",
       "evidence": "D37 pattern 未適用，structured reason 不在",
       "fix": "rejection_type を JSON field に追加"
@@ -725,7 +725,7 @@ Q5: Session が「数時間以上」か？
 - **Distributed session cache:** 複数セッション間で生ビルド artifact を S3 等に cache → network fetch で resume 加速
 - **Token-aware scheduling:** agent pool に token budget を均等配分（長時間 agent が予算を独占しない）
 - **Selective compression:** 重要な node（decision, finding）の圧縮率を下げ、narrative 部分の圧縮率を上げる
-- **Audit log の formal specification:** findings の affiliation（REAL/CONTESTED/REFUTED）を SAT solver で formal verify
+- **Audit log の formal specification:** findings の verdict（real/contested/refuted）を SAT solver で formal verify
 
 ---
 
@@ -737,7 +737,7 @@ Q5: Session が「数時間以上」か？
 | **Calibrator** | サンプル数・iteration 数の「最小値」を決める AI agent |
 | **Handoff** | Session 中断時の checkpoint ファイル（40 行上限） |
 | **Digest** | 大規模 output（ビルドログ，trace）を AI が構造化して凝縮したもの |
-| **Affiliation** | Finding の確度レベル（REAL/PLAUSIBLE/REFUTED） |
+| **Verdict** | Finding の確度レベル（real/contested/refuted）。severity（high/medium/low）とは独立軸 |
 | **Ablation** | 新機能の on/off 比較で「本当に効いているか」を検証 |
 | **Frozen audit log** | 敵対検証の結果を JSON で permanent に記録（追補なし） |
 | **Source digest** | cpp -E 後の preprocessed code の SHA256（cache key + identity check） |
