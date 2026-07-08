@@ -58,10 +58,10 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判者全員が
   逸脱の判定は auditor / coder diff の人間レビュー領域のまま — coder.md タスクの前提 gate =
   `test_settings_json_wires_both_hooks` の緑で機械確認)。
 - **適用の隔離:** patch は submodule working-tree への out-of-band 適用 (kickoff/s4-red の campaign 内は
-  pin 不動 → campaign-id 不変。**現行 pin は campaign/pin.py の CURRENT_PIN = 028f34d に集約** — 後続段 3 で
+  pin 不動 → campaign-id 不変。**現行 pin は orchestrator/campaign/pin.py の CURRENT_PIN = 028f34d に集約** — 後続段 3 で
   被覆 assert を izanagi-trace に足し dff0f1e→028f34d に前進した、D38。歴史的 driver は自分の dff0f1e literal
   を保持し再走は checkout してから)。1 variant 評価ごとに clean→apply→build→revert。apply 前に対象が pinned-clean か
-  assert (汚れていたら fails-closed abort)。駆動部 = `campaign/patchharness.py` の `applied()` context
+  assert (汚れていたら fails-closed abort)。駆動部 = `orchestrator/campaign/patchharness.py` の `applied()` context
   manager (blocking タスクで実装済み: enter = flock 排他 + pinned-clean assert + apply、exit = revert +
   clean assert。順序固定 apply→resolve→build→revert は context manager の形状で担保)。
 
@@ -78,7 +78,7 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判者全員が
 - [x] **(blocking) verify の abort 数を WAL に記録** — ccbench stdout の `abort_counts_:` をパースし
       STAGE_VERIFY_DONE payload に `aborts` として記録。集計行が読めない run は fails-closed reject
       (`trace-no-abort-counts`) — 完了条件 2 の「abort > 0」の検査可能性を機械で担保 (規律3)。詳細 = 当該コミット本文。
-- [x] **(blocking) apply/revert ハーネス** — `campaign/patchharness.py` の `applied()` context manager。
+- [x] **(blocking) apply/revert ハーネス** — `orchestrator/campaign/patchharness.py` の `applied()` context manager。
       flock 直列化 (並走 apply の ABA 対策)・pinned-clean assert・順序固定 apply→resolve→build→revert・
       fails-closed。revert 後 assert は「porcelain 空」より弱く恒久解は段 5 の worktree 隔離 (残存リスク節)。
       詳細 = 当該コミット本文・worklog 2026-07-04。
@@ -102,7 +102,7 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判者全員が
       WAL 機械判定 10/10 PASS — no-op が src_token=stock で seed ビルドに cache-hit certified commit /
       static50 が別 id・cache-miss 新規ビルドで verify aborts 41,868 > 0 → bench → certified commit。
       abort>0 が大きく成立したため S2-lite 前倒しは不要。駆動 = patches/variant-*.patch +
-      `campaign/p3_kickoff.py`。詳細 = 当該コミット本文・worklog 2026-07-05): coder.md を critic/profiler 体裁で生成
+      `orchestrator/campaign/p3_kickoff.py`。詳細 = 当該コミット本文・worklog 2026-07-05): coder.md を critic/profiler 体裁で生成
       (agent-architecture.md の coder 仕様予約節 — kickoff の確定制約は同節の ⚠ 注記どおり本文書 + D22/D23/D24/D30 が正典)。**前提 gate: H3 hook (方針 A 最小化版) の settings.json 配線が完了している
       こと** — 未配線の間に coder を実走させない。配線状態は `test_settings_json_wires_both_hooks` の緑で機械確認
       する (over-claim の前歴 = D30 があるため、宣言でなくテストを gate にする)。**まず「#else 枝を逐語複写する
@@ -179,7 +179,7 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    `output/env/linux-baremetal/calibration/s3_lock_coverage.json`)、n=1 = `output/insights/2026-07-06_s3-auditor-live-n1.md`。**編集面拡張 (transaction.cc を EVOLVE_BLOCK_SOURCES に) は段 5 に繰延** — 「lock 経路は auditor
    live を gate に」を sequencing でなく機械で効かせるため `test_lock_path_edit_surface_requires_auditor_live`
    (段 3 は vacuously true、段 5 で発火) を配線。**ablation 点 = 被覆 assert の on/off が lockskip 検出力に与える差**
-   (assert 有=X 検出 / 無=verifier 単独で cycles==0 = 見逃す)。pin 前進 (dff0f1e→028f34d) の扱いは D38・campaign/pin.py。
+   (assert 有=X 検出 / 無=verifier 単独で cycles==0 = 見逃す)。pin 前進 (dff0f1e→028f34d) の扱いは D38・orchestrator/campaign/pin.py。
 4. **guided 検疫層を diff 検疫へ拡張 + planner.md 生成** — coder 自律期。diff が EVOLVE-BLOCK マーカー間かつ
    #if 枝内に収まるか parse 検証。**(4a diff 検疫 = 完了 6359aa5。4b 駆動基盤 = 完了 2026-07-08:
    planner-v4/coder-v4-autonomous を registered 定義化・LoopState checkpoint 永続化・--run-iteration
