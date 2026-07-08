@@ -935,3 +935,24 @@ fails-closed で凍結ファイルは 1 バイトも書き換えず。ユーザ�
 
 **工数:** workflow 2 本・計 ~26 エージェント。**次の一手:** (1) 凍結 apply 24 件の適用 (生データ精査後)。
 (2) token 内容整合 2 件の調査 (544-566/728-740 の確度クラス定義の正本確認)。
+
+## 2026-07-09 — 文書整合監査 (roadmap/phase3 + 正本) と軽微修正4件
+
+**依頼:** 進捗確認 + roadmap.md/phase3.md の記述健全性・「おかしなところ」調査。**やり方:** 5レンズ (参照整合/
+進捗整合/roadmap品質/phase3品質/decisions照合) を独立コンテキストで並列精査し、各指摘を懐疑的検証者で
+real/refuted 裏取りする workflow (11エージェント・約0.48M tok・5.8分、規律6)。
+
+**結果 = real 4 / refuted 2 / disclosed 0 (総指摘6)。構造的破綻なし** — check_docs lint 通過・参照ほぼ全解決・
+段 status/must 表/残存リスクは相互整合。real は全て low〜nit の表記/鮮度齟齬で本セッションに修正済:
+- phase3 の `campaign/*.py` が orchestrator 欠落 (5箇所) → 80f7071 で完全パス統一。
+- phase3 段5「D36 決定4 の 6 規定」が decisions 本体と非同型・同文書の別引用と数割れ → 66e1b19 で「規定 (抜粋)」に。
+- roadmap §6 の `33d74a3` が現行 pin (028f34d) と誤読可 (実は解剖スナップショット) → 49aa2c4 で明示。協議・軽微ゆえ
+  改訂セレモニー不要 (roadmap-history README、版番号据え置き)。
+- refuted 2 = guard_write.py:37 参照 (行番号・実体とも正)・roadmap §3.3 の #ifdef∥#if (D14 が容認済みの概念/実装分離)。
+
+**前正本の次の一手の消化:** 前エントリ (07-08(2)) 次の一手(1)「凍結 apply 24件」は d399771 (apply 24/keep 37) で
+完了済だが完了記録が無く末尾正本が git HEAD より古かった (本監査 real #1、本エントリで解消)。
+
+**次の一手:** (1) token 内容整合 2件の調査 (token-management-strategy.md の確度クラス定義の正本確認、07-08(2) から
+持ち越し・変わらず)。(2) 段4b 実走 = fresh session + 単一テナント窓で runbook §1 の 1 iteration (変わらず前エントリ参照)。
+**人間待ち:** 変わらず (前エントリ参照) + wiring campaign dir p3-s4-loop-s4-autonomous-0b53a387 の git clean 未了。
