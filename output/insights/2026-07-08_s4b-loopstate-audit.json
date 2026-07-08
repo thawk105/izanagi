@@ -1,0 +1,74 @@
+{
+  "id": "2026-07-08_s4b-loopstate-audit",
+  "title": "段4b LoopState 永続化 + 駆動口 (p3_s4_loop 新機構) の敵対監査",
+  "date": "2026-07-08",
+  "trigger": "規律6 の監査発火 = 新機構 (gate 隣接: リーク制御 whiteboard を cross-process で運ぶ checkpoint + 計測ゲートを持つ駆動口) の実装。ultracode の adversarial-verify 方針。",
+  "method": {
+    "workflow": "wf_9f9d0102-78a (s4b-loopstate-adversarial-audit)",
+    "shape": "5 レンズ finder (leak / fail-open / tautology / orphan / cross-process) → 各 finding を独立コンテキストで敵対 verify (default REFUTED、repro スクリプト実行まで)",
+    "agents": 19,
+    "tokens": 1040392,
+    "duration_min": 13,
+    "errors": 0,
+    "primary_source_session_local": "tasks/w08zchmeg.output (session 内・非コミット。本 JSON が自己完結の凍結)"
+  },
+  "tally": { "total_findings": 14, "confirmed": 7, "plausible": 3, "refuted": 5 },
+  "verdict_summary": "正しさゲート (規律2/3、verifier/diff検疫/value↔literal 整合) は無傷 — verifier は run_one_iteration で毎 iteration 発火し hard-gate は緩まない。穴はすべて checkpoint (信頼境界の外の外部状態、規律6) の schema 検証不足と、段4 delta_pct≡None 不変を型でなく writer 規約だけで担保していた点 (謳うだけの保証 = 2026-07-07 継承監査の anchor finding 同型)。critical/high ゼロ。",
+  "confirmed_and_fixed": [
+    {
+      "lens": "fail-open",
+      "severity": "medium",
+      "title": "state_from_dict の top-level フィールドが欠落を無音デフォルト → 予算ゲート fail-open",
+      "detail": "whiteboard entry 層は未知キーを fail-closed で raise するのに、top-level iteration/start_wall/reverse_recommendations は d.get(k, default) で欠落を素通し。drift/改竄 checkpoint で iteration→0 / reverse→0 にリセットされ budget-iterations / reverse-exhausted が発火せず直列計測 (規律4) が上限超過。verify: repro 2本で iteration キー削除→check_stop continue を再現。",
+      "fix": "top-level 既知4フィールドを必須化 + 未知キー拒否 (whiteboard entry 層と対称の fail-closed)。d.get→d[key]。"
+    },
+    {
+      "lens": "leak / tautology",
+      "severity": "low(実害)/high(原則)",
+      "title": "段4 delta_pct≡None 不変を load/射影が値契約として強制せず、型は名前しか whitelist しない",
+      "detail": "_WB_FIELDS が delta_pct を含むため未知キーガードは非 None 値を弾かない。汚染 checkpoint (drift/改竄/段6流用) の delta_pct が whiteboard_for_planner 経由で planner に流入すると iteration 毎の利得から採用値を逆算する structural inference (規律2/6)。同一機序が reverse-exhausted の improved escape も抑止 (停止ゲート fail-open)。verify: 現行 production writer は全 None ゆえ realized defect は未成立 (PLAUSIBLE) だが docstring 過剰主張 + 謳うだけの保証は real (anchor finding 同型)。",
+      "fix": "_DELTA_PCT_LIVE フラグ (段4=False) を導入し、state_from_dict (load) と whiteboard_for_planner (planner 射影) の両境界で非 None を WhiteboardLeakError で fail-closed。段6 で live 化時にフラグを明示的に開く。docstring の過剰主張を訂正。"
+    },
+    {
+      "lens": "orphan / cross-process",
+      "severity": "medium",
+      "title": "drive_iteration が layout を run_one_iteration に渡さず WAL と checkpoint/digest が分裂",
+      "detail": "run_one_iteration は layout 引数を持たず cfg 由来 layout を自前導出。drive_iteration が layout を注入すると reject WAL は cfg 由来 layout に、checkpoint/digest は注入 layout に書かれ digest が空になる。verify: 2 verifier が CONFIRMED (注入経路)。production は layout=None ゆえ一致だが注入 test 経路で分裂 + 実 output 汚染。",
+      "fix": "run_one_iteration に layout 引数を追加 (None なら cfg 由来)。drive_iteration が同一 layout を伝播 → WAL/records/checkpoint/digest を co-locate。build 経路の注入は cfg 由来と一致必須のガード (run_campaign が cfg layout に書くため)。副次効果: 注入 test が hermetic 化 (実 output を汚さない)。"
+    },
+    {
+      "lens": "cross-process",
+      "severity": "low",
+      "title": "save_loop_state の tmp が固定名で並行 writer が衝突",
+      "detail": "tmp = p + '.tmp' 固定。verify: 4 プロセス並行 repro で os.replace が FileNotFoundError ~2800/4000、partial-read JSONDecodeError 2749 件。段4b は単一駆動前提だが安価な標準化。",
+      "fix": "tmp = f'{p}.{os.getpid()}.tmp' (PID 一意化)。最終 os.replace の last-writer-wins は残る (相互排他は張らない = Model Y 単一駆動前提、下記 deferred)。"
+    },
+    {
+      "lens": "fail-open",
+      "severity": "low",
+      "title": "load_proposal_file の prior_critic_reverse が型未検証 → 非 bool で停止フィードバック fail-open",
+      "detail": "d.get('prior_critic_reverse') を型検証せず返す。_fold_critic_reverse の is True/is False は非 bool (文字列 'true'・整数1) で両分岐 miss → 黙って no-op → reverse-exhausted カウンタが進まず停止ゲートが沈黙。planner/coder の必須キーは fail-closed なのに片方だけ緩い非対称。verify: CONFIRMED (repro)。",
+      "fix": "load_proposal_file で prior_critic_reverse ∈ {None, bool} を fail-closed 検証 (CLI で 'yes' 入力を ValueError で弾くことを実証)。"
+    }
+  ],
+  "confirmed_deferred": [
+    {
+      "lens": "fail-open / cross-process",
+      "severity": "low",
+      "title": "同一 campaign への並行 drive_iteration に相互排他が無く iteration 予算を過小計上",
+      "detail": "load→iteration++→run→save が非アトミック・flock 無し。2 driver が iteration=9 から同時起動すると両者 10 で実 bench → 上限超過。verify PLAUSIBLE。",
+      "resolution": "Model Y は単一セッション逐次駆動 (D39 決定7、1 Bash/iteration 待ち合わせ) ゆえ harness のどの経路も並行 driver を生成しない = 非経路。flock は張らない (規律5 = 非経路に機構を足さない)。runbook §4 に単一駆動前提を明記。tmp 一意化 (上記 fix) で破損リスクは低減。"
+    }
+  ],
+  "refuted_count": 5,
+  "refuted_examples": [
+    "budget-walltime 恒偽化 (start_wall<=0) は正常運用で生成されない checkpoint を要し到達不能",
+    "dry-pass が whiteboard に載らないのは wiring 専用モードの意図的・文書化済み挙動 (欠陥でない)",
+    "whiteboard_for_planner の orphan 疑い — 射影 helper が唯一の呼び出し元でも feedback は checkpoint 経由で成立"
+  ],
+  "post_fix_state": {
+    "tests": "orchestrator/tests/test_p3_s4_loop.py 47 passed (監査 fix の 6 ガード test 追加)",
+    "regression": "274 passed / 4 skipped",
+    "e2e": "駆動 CLI --run-iteration dry-run PASS + 非bool prior_critic_reverse を fail-closed で拒否 (CLI 実証)"
+  }
+}
