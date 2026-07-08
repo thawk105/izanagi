@@ -10,6 +10,7 @@ pytest でも 素の `python3 orchestrator/tests/test_p3_s4_loop.py` でも走�
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -367,6 +368,241 @@ def test_make_critic_digest_reflux_off_drops_red_section():
     off = L.make_critic_digest(lay, reflux=False)
     assert "diff-quarantine" in on            # on アームは赤を還流
     assert "diff-quarantine" not in off       # off アームは落とす
+
+
+# ==== LoopState checkpoint/resume (段 4b の cross-process 永続化) ==============
+
+def _tmp_layout(tag: str) -> CampaignLayout:
+    return CampaignLayout(root=tempfile.mkdtemp(prefix=f"izanagi_s4loop_{tag}_")).ensure()
+
+
+def test_loop_state_roundtrip():
+    """save → load で whiteboard/iteration/reverse/start_wall が完全復元する (段 4 は
+    delta_pct≡None ゆえ entry の delta_pct は None)。"""
+    lay = _tmp_layout("ckpt")
+    st = L.LoopState(iteration=3, start_wall=1000.5, reverse_recommendations=1)
+    st.whiteboard.append(L.WhiteboardEntry(1, "increase", "small", "fail", None))
+    st.whiteboard.append(L.WhiteboardEntry(2, "decrease", "medium", "rejected", None))
+    p = L.save_loop_state(lay, st)
+    assert os.path.exists(p)
+    st2 = L.load_loop_state(lay)
+    assert L.state_to_dict(st) == L.state_to_dict(st2)
+    assert st2.iteration == 3 and st2.reverse_recommendations == 1
+    assert st2.start_wall == 1000.5
+    assert [e.direction for e in st2.whiteboard] == ["increase", "decrease"]
+    assert all(e.delta_pct is None for e in st2.whiteboard)
+
+
+def test_state_from_dict_rejects_nonnull_delta_pct():
+    """段 4 の delta_pct≡None 不変を load 側が値契約として強制する — 非 None (勝ち筋チャネル) の
+    checkpoint 経由混入を WhiteboardLeakError で弾く (型で名前を whitelist するだけでは防げない、
+    規律2/6、監査 2026-07-08)。"""
+    bad = {"iteration": 3, "start_wall": 0.0, "reverse_recommendations": 0,
+           "whiteboard": [{"iteration": 1, "direction": "increase", "magnitude": "small",
+                           "result": "success", "delta_pct": 4.7}]}
+    try:
+        L.state_from_dict(bad)
+        raise AssertionError("非 None delta_pct を素通しした (勝ち筋チャネル混入)")
+    except L.WhiteboardLeakError as e:
+        assert "delta_pct" in str(e)
+
+
+def test_state_from_dict_fails_closed_on_missing_top_level_field():
+    """top-level 予算フィールド欠落 (drift/改竄) を fail-closed で弾く — 無音デフォルトすると
+    iteration/reverse カウンタが暗黙リセットされ予算ゲートが fail-open する (規律2/4/6、監査 2026-07-08)。"""
+    for drop in ("iteration", "reverse_recommendations", "start_wall", "whiteboard"):
+        d = {"iteration": 9, "start_wall": 1.0, "reverse_recommendations": 5, "whiteboard": []}
+        del d[drop]
+        try:
+            L.state_from_dict(d)
+            raise AssertionError(f"必須フィールド {drop} 欠落を素通しした (予算ゲート fail-open)")
+        except ValueError as e:
+            assert drop in str(e) or "必須" in str(e)
+
+
+def test_state_from_dict_rejects_unknown_top_level_field():
+    """top-level の未知キー (schema drift/改竄) を fail-closed で弾く (whiteboard entry 層と対称)。"""
+    d = {"iteration": 1, "start_wall": 0.0, "reverse_recommendations": 0, "whiteboard": [],
+         "sweet_spot": 25.0}   # 未知 top-level フィールド混入
+    try:
+        L.state_from_dict(d)
+        raise AssertionError("未知 top-level フィールドを素通しした")
+    except ValueError as e:
+        assert "sweet_spot" in str(e)
+
+
+def test_whiteboard_for_planner_rejects_nonnull_delta_pct():
+    """planner 射影の関所でも段 4 は delta_pct≡None を強制する (in-memory 経路の二重防壁、規律2/6)。"""
+    st = L.LoopState(iteration=2)
+    st.whiteboard.append(L.WhiteboardEntry(1, "increase", "small", "success", 3.3))
+    try:
+        L.whiteboard_for_planner(st)
+        raise AssertionError("planner 射影が非 None delta_pct を素通しした")
+    except L.WhiteboardLeakError:
+        pass
+
+
+def test_load_loop_state_missing_returns_none():
+    """checkpoint 未作成の layout は None (呼び出し元が初期化する)。"""
+    assert L.load_loop_state(_tmp_layout("empty")) is None
+
+
+def test_state_to_dict_has_only_abstract_whiteboard_fields():
+    """checkpoint の whiteboard entry は決定3 の 5 フィールドのみ — 機序 (attribution/
+    justification) を永続化層に持ち込まない (structural inference 経路を型で塞ぐ、規律2/6)。"""
+    st = L.LoopState(iteration=1)
+    st.whiteboard.append(L.WhiteboardEntry(1, "increase", "small", "fail", -1.0))
+    d = L.state_to_dict(st)
+    assert set(d["whiteboard"][0]) == {"iteration", "direction", "magnitude",
+                                       "result", "delta_pct"}
+    assert set(d) == {"iteration", "start_wall", "reverse_recommendations", "whiteboard"}
+    assert "start_ts" not in d          # monotonic は永続化しない (跨ぐと無意味)
+
+
+def test_state_from_dict_rejects_unknown_whiteboard_field():
+    """未知フィールド (機序漏れ) を持つ checkpoint を load 側で拒否する — 決定3 の型不変を
+    復元経路でも守る (汚染 checkpoint を素通しして planner に機序を渡さない、規律6)。"""
+    bad = {"iteration": 1, "start_wall": 0.0, "reverse_recommendations": 0,
+           "whiteboard": [{"iteration": 1, "direction": "increase", "magnitude": "small",
+                           "result": "fail", "delta_pct": -1.0,
+                           "attribution": "MLP 低下が効いた"}]}   # 機序フィールド混入
+    try:
+        L.state_from_dict(bad)
+        raise AssertionError("機序フィールド混入 checkpoint を素通しした")
+    except ValueError as e:
+        assert "attribution" in str(e)
+
+
+def test_cross_process_whiteboard_accumulates():
+    """別 iteration = 別プロセスを模し、checkpoint 経由で whiteboard が累積することを確認。
+    これが無いと planner が前 iteration の result を見れず feedback loop が死ぬ (段 4b の core)。"""
+    lay = _tmp_layout("xproc")
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
+    # iteration 1 (プロセス A): 復元 (無 → 初期化) → 射影 → 保存
+    st = L.load_loop_state(lay) or L.LoopState(start_wall=time.time())
+    st.iteration += 1
+    L.project_whiteboard(st, pl, "fail")
+    L.save_loop_state(lay, st)
+    # iteration 2 (プロセス B): 復元 (iteration 1 の状態を拾う) → 射影 → 保存
+    st = L.load_loop_state(lay)
+    assert st is not None and len(st.whiteboard) == 1 and st.iteration == 1
+    st.iteration += 1
+    L.project_whiteboard(st, pl, "rejected")
+    L.save_loop_state(lay, st)
+    # 復元して 2 件累積・順序保持を確認
+    st = L.load_loop_state(lay)
+    assert st.iteration == 2 and len(st.whiteboard) == 2
+    assert [e.result for e in st.whiteboard] == ["fail", "rejected"]
+
+
+def test_fold_critic_reverse():
+    """critic feedback の畳込み: True→+1 (逆方向推奨の連続)、False→0 リセット、None→変更なし。"""
+    st = L.LoopState()
+    L._fold_critic_reverse(st, True)
+    L._fold_critic_reverse(st, True)
+    assert st.reverse_recommendations == 2
+    L._fold_critic_reverse(st, None)          # 変更なし
+    assert st.reverse_recommendations == 2
+    L._fold_critic_reverse(st, False)         # 順方向路線 → リセット
+    assert st.reverse_recommendations == 0
+
+
+def test_wall_budget_via_start_wall():
+    """checkpoint 経由 (start_wall 設定) では wall-clock で予算判定する (cross-process)。
+    start_wall を過去に置くと budget-walltime、直近なら継続 — monotonic に依存しない。"""
+    st = L.LoopState(iteration=1, start_wall=time.time() - L.MAX_WALLTIME_S - 1)
+    assert L.check_stop(st).reason == "budget-walltime"
+    st2 = L.LoopState(iteration=1, start_wall=time.time())
+    assert L.check_stop(st2).reason == "continue"
+
+
+def test_drive_iteration_stops_before_running_when_reverse_exhausted():
+    """入口停止: 前 critic の逆方向推奨で reverse_recommendations が閾値に達すると、
+    drive_iteration は run_one_iteration を呼ばず (ran=False) build/verify/bench に進まない。
+    sub に不在パスを渡しても到達しない = 実行前に停止する証拠 (submodule に触れない)。"""
+    lay = _tmp_layout("stopbefore")
+    seed = L.LoopState(iteration=0, start_wall=time.time(),
+                       reverse_recommendations=L.REVERSE_STREAK - 1)
+    L.save_loop_state(lay, seed)
+    cfg, perf = L.default_cfg(), L.default_perf()
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
+    cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,
+                         implementation="double now_backoff = 20.0;")
+    out = L.drive_iteration(cfg, perf, pl, cd, prior_critic_reverse=True,
+                            sub="/nonexistent/should/not/be/touched",
+                            do_build=False, layout=lay)
+    assert out["ran"] is False
+    assert out["stop_reason"] == "reverse-exhausted"
+    # checkpoint に畳込み後の reverse=REVERSE_STREAK が焼かれている
+    st = L.load_loop_state(lay)
+    assert st.reverse_recommendations == L.REVERSE_STREAK
+
+
+def test_drive_iteration_checkpoint_survives_across_calls():
+    """入口停止しない設定で drive の checkpoint 継続を確認 (do_build=False の reject 経路)。
+    coder が hole-escape 提案 → run_one_iteration dry が reject → whiteboard に rejected 1 件 →
+    checkpoint に焼かれ、2 回目の drive がそれを拾う。submodule (pinned-clean) に触れる E2E。"""
+    import subprocess
+    # この test は実 submodule (applied path) を要するため、pinned-clean でなければ skip。
+    root = os.path.dirname(_ORCH)
+    sub = os.path.join(root, "external", "ccbench")
+    try:
+        head = subprocess.check_output(["git", "-C", sub, "rev-parse", "--short", "HEAD"],
+                                       text=True).strip()
+        dirty = subprocess.check_output(["git", "-C", sub, "status", "--porcelain"],
+                                        text=True).strip()
+    except Exception:
+        import pytest
+        pytest.skip("submodule 未取得")
+    if not head.startswith(L.PIN[:7]) or dirty:
+        import pytest
+        pytest.skip(f"submodule が pinned-clean でない (head={head} dirty={bool(dirty)})")
+    lay = _tmp_layout("drivereject")
+    cfg, perf = L.default_cfg(), L.default_perf()
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
+    # hole-escape (行頭 #define) → diff 検疫 reject。value と literal は整合させる。
+    cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,
+                         implementation="#define EVIL 1\ndouble now_backoff = 20.0;")
+    out1 = L.drive_iteration(cfg, perf, pl, cd, None, sub, do_build=False, layout=lay)
+    assert out1["ran"] is True and out1["outcome"] == "rejected" and out1["iteration"] == 1
+    st = L.load_loop_state(lay)
+    assert len(st.whiteboard) == 1 and st.whiteboard[0].result == "rejected"
+    out2 = L.drive_iteration(cfg, perf, pl, cd, None, sub, do_build=False, layout=lay)
+    assert out2["iteration"] == 2
+    st = L.load_loop_state(lay)
+    assert len(st.whiteboard) == 2 and st.iteration == 2
+
+
+def test_load_proposal_file_rejects_nonbool_prior_reverse():
+    """prior_critic_reverse が非 bool (文字列 "true" 等) だと _fold_critic_reverse で黙って no-op し
+    停止フィードバックが fail-open する → load 側で fail-closed に弾く (規律2、監査 2026-07-08)。"""
+    d = os.path.join(tempfile.mkdtemp(prefix="izanagi_s4loop_prop_"), "prop.json")
+    with open(d, "w", encoding="utf-8") as f:
+        json.dump({"planner": {"axis": "silo-backoff-magnitude", "direction": "increase",
+                               "magnitude": "small"},
+                   "coder": {"axis": "silo-backoff-magnitude", "value": 20.0,
+                             "implementation": "double now_backoff = 20.0;"},
+                   "prior_critic_reverse": "true"}, f)   # 非 bool (文字列)
+    try:
+        L.load_proposal_file(d)
+        raise AssertionError("非 bool prior_critic_reverse を素通しした (停止フィードバック fail-open)")
+    except ValueError as e:
+        assert "prior_critic_reverse" in str(e)
+
+
+def test_load_proposal_file_accepts_null_and_bool_prior_reverse():
+    """null と bool は正常に読める (fail-closed が正当値を巻き込まない)。"""
+    base = {"planner": {"axis": "silo-backoff-magnitude", "direction": "increase",
+                        "magnitude": "small"},
+            "coder": {"axis": "silo-backoff-magnitude", "value": 20.0,
+                      "implementation": "double now_backoff = 20.0;"}}
+    dd = tempfile.mkdtemp(prefix="izanagi_s4loop_prop2_")
+    for val, expect in [(None, None), (True, True), (False, False)]:
+        p = os.path.join(dd, f"prop_{val}.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump({**base, "prior_critic_reverse": val}, f)
+        _pl, _cd, prior = L.load_proposal_file(p)
+        assert prior is expect
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import json
 import os
 import re
 import sys
@@ -117,7 +118,8 @@ class LoopState:
     恒真化させないための不変 (本ループでは LeakageError 未配線 = D26 の教訓を先取り)。"""
     whiteboard: List[WhiteboardEntry] = field(default_factory=list)
     iteration: int = 0
-    start_ts: float = 0.0
+    start_ts: float = 0.0                # monotonic (プロセス内。永続化しない — 跨ぐと無意味)
+    start_wall: float = 0.0             # 絶対 epoch (checkpoint 経由の cross-process wall budget)
     reverse_recommendations: int = 0    # critic の逆方向推奨の連続回数
 
 
@@ -262,10 +264,19 @@ def project_whiteboard(state: LoopState, planner: PlannerProposal,
 
 
 def whiteboard_for_planner(state: LoopState) -> List[Dict]:
-    """planner-v4 / coder-v4 入力の whiteboard フィールド (評価済みのみ・値なし)。"""
-    return [{"iteration": e.iteration, "direction": e.direction,
-             "magnitude": e.magnitude, "result": e.result, "delta_pct": e.delta_pct}
-            for e in state.whiteboard]
+    """planner-v4 / coder-v4 入力の whiteboard フィールド (評価済みのみ・値なし)。段 4 は
+    **射影境界でも delta_pct≡None を fail-closed 強制**する — planner へ勝ち筋チャネル (性能値) を
+    渡さない (規律2/6)。load 側 state_from_dict と二重で塞ぎ、in-memory 経路 (project_whiteboard が
+    誤って非 None を書く) も射影の関所で止める (監査 2026-07-08)。"""
+    out = []
+    for e in state.whiteboard:
+        if not _DELTA_PCT_LIVE and e.delta_pct is not None:
+            raise WhiteboardLeakError(
+                f"段 4 の delta_pct≡None 不変が planner 射影で破れた "
+                f"(iteration={e.iteration} delta_pct={e.delta_pct!r}、規律2/6)")
+        out.append({"iteration": e.iteration, "direction": e.direction,
+                    "magnitude": e.magnitude, "result": e.result, "delta_pct": e.delta_pct})
+    return out
 
 
 # ==== 停止判定 (design v1 §4、D39) ===========================================
@@ -278,7 +289,13 @@ def check_stop(state: LoopState) -> StopDecision:
       magnitude 変化 (small→medium→large) は「異なる提案」として収束と扱わない。
     - Reverse-exhausted: critic の逆方向推奨が REVERSE_STREAK 回以上 + 直近改善なし
       (state.reverse_recommendations は critic 帰属を消費するメインセッションが更新)。"""
-    elapsed = time.monotonic() - state.start_ts if state.start_ts else 0.0
+    # wall budget: checkpoint 経由 (main-session 駆動) では start_wall (絶対 epoch) を使う —
+    # 各 iteration は別 Bash プロセスゆえ monotonic は跨ぐと無意味。start_wall 未設定 (in-process
+    # fixture / test) では従来どおり monotonic を使う (後方互換。既存 test は start_ts のみ設定)。
+    if state.start_wall:
+        elapsed = time.time() - state.start_wall
+    else:
+        elapsed = time.monotonic() - state.start_ts if state.start_ts else 0.0
     if state.iteration >= MAX_ITER:
         return StopDecision(True, "budget-iterations")
     if elapsed >= MAX_WALLTIME_S:
@@ -300,6 +317,107 @@ def check_stop(state: LoopState) -> StopDecision:
         if not improved:
             return StopDecision(True, "reverse-exhausted")
     return StopDecision(False, "continue")
+
+
+# ==== LoopState checkpoint/resume (main-session 駆動の cross-process 永続化) ====
+#
+# 段 4b の実ループはメインセッションが iteration を回す (Model Y、D39 決定7)。各 iteration は
+# 別々の Bash 呼び出し = fresh Python プロセスゆえ、LoopState (whiteboard/iteration/reverse) を
+# **ディスクに checkpoint** しないと iteration 間で状態が消え feedback loop が死ぬ (planner が
+# 前 iteration の result を見れない)。D39 決定2 の「予算枯渇時に whiteboard を checkpoint し段 6
+# へ inherit」の実体でもある。checkpoint は WAL でなく loop 状態の投影 — 正本は WAL (レコード)、
+# checkpoint は planner に射影する abstract 状態 (機序なし・値なし、決定3 の型と同じ最小フィールド)。
+
+
+def loop_state_path(layout: CampaignLayout) -> str:
+    return os.path.join(layout.root, "loop_state.json")
+
+
+class WhiteboardLeakError(ValueError):
+    """段 4 の delta_pct≡None 不変が checkpoint 経由で破れた = 勝ち筋チャネル (性能値) の混入
+    (規律2/6)。型で名前を whitelist するだけでは leak 防御にならない — 値チャネルが空であることを
+    検査する (監査 2026-07-08 の real finding。anchor finding 同型 = 謳うだけの保証を発火させる)。"""
+
+
+# delta_pct は段 4 では常に None (統計的 delta/検証相は段 6 予約、D39 残存リスク c)。段 4 で非 None が
+# 現れる = drift/改竄/段6 checkpoint 流用による性能値の混入 → planner に流入すると iteration 毎の利得
+# から採用値を逆算できる structural inference (規律2/6)。段 6 で delta_pct を live 化するときはここを
+# True にして明示ゲートを開ける (それまでは load と planner 射影の両方で None を fail-closed 強制)。
+_DELTA_PCT_LIVE = False
+
+
+def state_to_dict(state: LoopState) -> Dict:
+    """checkpoint へ焼く辞書。start_ts (monotonic) は永続化しない (跨ぐと無意味) —
+    wall budget は start_wall (絶対 epoch) が担う。whiteboard は決定3 の 5 フィールドのみ
+    (機序フィールドを持たない = structural inference 経路を型で塞ぐ、規律2/6)。"""
+    return {"iteration": state.iteration, "start_wall": state.start_wall,
+            "reverse_recommendations": state.reverse_recommendations,
+            "whiteboard": [{"iteration": e.iteration, "direction": e.direction,
+                            "magnitude": e.magnitude, "result": e.result,
+                            "delta_pct": e.delta_pct} for e in state.whiteboard]}
+
+
+_WB_FIELDS = {"iteration", "direction", "magnitude", "result", "delta_pct"}
+_TOP_FIELDS = {"iteration", "start_wall", "reverse_recommendations", "whiteboard"}
+
+
+def state_from_dict(d: Dict) -> LoopState:
+    """checkpoint 辞書から復元 — checkpoint はディスク上の外部状態 (信頼境界の外、規律6) ゆえ
+    schema を fail-closed に強制する (監査 2026-07-08)。
+
+    (1) **top-level は既知 4 フィールドを必須化**し未知キーを拒否する。欠落を無音デフォルト
+        (`d.get(k, 0)`) にすると drift/改竄 checkpoint で iteration/reverse カウンタが暗黙リセット
+        され、budget-iterations / reverse-exhausted の**予算ゲートが fail-open** する (直列計測資源
+        の予算超過、規律4)。リーク側 (whiteboard entry) は塞いで予算側は塞がない非対称を解消する。
+    (2) **whiteboard entry は既知 5 フィールドに絞り** (未知キー = 機序漏れの疑い、決定3)、段 4 は
+        **delta_pct≡None を値契約として強制**する (型で名前を whitelist するだけでは勝ち筋チャネル
+        の混入を防げない、規律2/6)。"""
+    unknown = set(d) - _TOP_FIELDS
+    if unknown:
+        raise ValueError(f"checkpoint top-level に未知フィールド {unknown} — schema drift/改竄の疑い (規律6)")
+    missing = _TOP_FIELDS - set(d)
+    if missing:
+        raise ValueError(f"checkpoint に必須フィールド {missing} 欠落 — 予算/収束カウンタの暗黙"
+                         f"リセット (予算ゲート fail-open) を防ぐため fail-closed (規律2/4/6)")
+    wb = []
+    for e in d["whiteboard"]:
+        extra = set(e) - _WB_FIELDS
+        if extra:
+            raise ValueError(f"whiteboard entry に未知フィールド {extra} — 機序漏れの疑い (決定3)")
+        delta = e.get("delta_pct")
+        if not _DELTA_PCT_LIVE and delta is not None:
+            raise WhiteboardLeakError(
+                f"段 4 の delta_pct≡None 不変が破れた (delta_pct={delta!r}) — 勝ち筋チャネルの "
+                f"checkpoint 経由混入 (規律2/6)。段 6 で live 化するまで None 固定")
+        wb.append(WhiteboardEntry(
+            iteration=int(e["iteration"]), direction=e["direction"],
+            magnitude=e["magnitude"], result=e["result"], delta_pct=delta))
+    return LoopState(whiteboard=wb, iteration=int(d["iteration"]),
+                     start_wall=float(d["start_wall"]),
+                     reverse_recommendations=int(d["reverse_recommendations"]))
+
+
+def save_loop_state(layout: CampaignLayout, state: LoopState) -> str:
+    """LoopState を atomic に checkpoint する (os.replace = 途中で落ちても壊れた checkpoint を
+    残さない、WAL 哲学)。tmp は **PID 付き一意名** — 同一 campaign に複数プロセスが当たっても
+    共有 tmp の rename 衝突/部分読みを避ける (最終 os.replace は last-writer-wins のまま。段 4b は
+    単一駆動が前提だが tmp 一意化は安価な標準化、監査 2026-07-08)。"""
+    layout.ensure()
+    p = loop_state_path(layout)
+    tmp = f"{p}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(state_to_dict(state), f, ensure_ascii=False, indent=2)
+    os.replace(tmp, p)
+    return p
+
+
+def load_loop_state(layout: CampaignLayout) -> Optional[LoopState]:
+    """checkpoint があれば復元。無ければ None (呼び出し元が初期化する)。"""
+    p = loop_state_path(layout)
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="utf-8") as f:
+        return state_from_dict(json.load(f))
 
 
 # ==== mutation-red 汎用ゲート (D38 残消化、design v1 §4(d)) ====================
@@ -445,11 +563,16 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
 def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                       planner: PlannerProposal, coder: CoderProposal,
                       state: LoopState, sub: str, do_build: bool,
-                      log=print) -> Dict:
+                      layout: Optional[CampaignLayout] = None, log=print) -> Dict:
     """1 iteration の機械部分を回す (LLM proposal は引数で受け取る)。
 
     do_build=True: applied(TEMPLATE_PATCH) 下で挿入→検疫→(pass なら)run_campaign。
     do_build=False: 挿入→検疫のみ (配線 dry-run、build/verify/bench を省く)。
+
+    layout=None なら cfg 由来 layout を導出する。**注入 layout は reject WAL/records/checkpoint/
+    digest を同一 layout に co-locate させるため** (drive_iteration が checkpoint と同じ layout を
+    渡す — さもないと reject WAL が cfg 由来 layout に、checkpoint/digest が注入 layout に分裂し
+    digest が空になる、監査 2026-07-08)。
 
     Returns: {"outcome": rejected|certified|aborted|dry-pass, "variant": ..., ...}。
     """
@@ -459,7 +582,14 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
     assert_value_literal_consistent(coder)
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    if layout is None:
+        layout = campaign_layout(str(ident.campaign_id(cfg)))
+    elif do_build and layout.root != campaign_layout(str(ident.campaign_id(cfg))).root:
+        # build 経路は run_campaign が cfg 由来 layout に WAL を書く — 注入 layout がそれと食い違うと
+        # WAL と reject/records/digest が分裂する。build 時は一致を強制 (production は layout=None
+        # ゆえ常に一致。注入は dry/test 専用の hermetic 化、監査 2026-07-08)。
+        raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
+                         f"{layout.root} != cfg 由来")
     layout.ensure()
 
     if not do_build:
@@ -496,6 +626,98 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
             "verdict": (r.verdict if r else ""), "records": recs}
 
 
+# ==== 段 4b 駆動口 (実 planner/coder proposal を受けて 1 iteration を継続) =========
+
+def _fold_critic_reverse(state: LoopState, prior_critic_reverse: Optional[bool]) -> None:
+    """前 iteration の critic feedback (逆方向推奨だったか) を reverse_recommendations に畳む。
+
+    critic 帰属の消費はメインセッションの職務 (Model Y、D39 決定2/7) — 本 harness は critic の
+    自然文帰属を読まず、「逆方向を推奨したか否か」の bool だけを受け取り機械カウンタに反映する
+    (機序を harness に持ち込まない = whiteboard 射影と同じ規律2/6)。True → +1 (逆方向推奨の連続)、
+    False → 0 リセット (順方向路線が続く)、None → 変更なし (iteration 1 入口 or feedback 未供給)。"""
+    if prior_critic_reverse is True:
+        state.reverse_recommendations += 1
+    elif prior_critic_reverse is False:
+        state.reverse_recommendations = 0
+
+
+def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optional[bool]]:
+    """メインセッションが spawn した planner/coder の構造化出力 (+ 前 critic の逆方向 bool) を
+    JSON ファイルから読む。schema:
+
+        {"planner": {axis, direction, magnitude, justification?, uncertainty?},
+         "coder":   {axis, value, implementation, justification?, confidence?},
+         "prior_critic_reverse": true|false|null}
+
+    Model Y の入力射影点 — メインセッションはここに **abstract な proposal だけ** を書く
+    (勝ち筋値・機序を harness へ運ぶ経路にしない)。value↔literal 整合は run_one_iteration が
+    機械強制する (D39 決定7)。"""
+    with open(path, encoding="utf-8") as f:
+        d = json.load(f)
+    p, c = d["planner"], d["coder"]
+    planner = PlannerProposal(
+        axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
+        justification=p.get("justification", ""), uncertainty=p.get("uncertainty", ""))
+    coder = CoderProposal(
+        axis=c["axis"], value=float(c["value"]), implementation=c["implementation"],
+        justification=c.get("justification", ""), confidence=c.get("confidence", "medium"))
+    # prior_critic_reverse は null か bool のみを許す。非 bool (文字列 "true"・整数 1 等) は
+    # _fold_critic_reverse の `is True`/`is False` で黙って no-op し reverse-exhausted の停止
+    # フィードバックが fail-open する — planner/coder の必須キーと同じく fail-closed にする
+    # (schema 検証を片方だけ緩めない、規律2、監査 2026-07-08)。
+    prior = d.get("prior_critic_reverse")
+    if prior is not None and not isinstance(prior, bool):
+        raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
+                         f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
+    return planner, coder, prior
+
+
+def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
+                    planner: PlannerProposal, coder: CoderProposal,
+                    prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
+                    layout: Optional[CampaignLayout] = None, log=print) -> Dict:
+    """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
+
+    手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
+    **入口 check_stop** (逆方向枯渇/予算/収束を iteration 消費前に判定 = 無駄打ちしない。停止なら
+    run_one_iteration を呼ばない = build/verify/bench に進めない) → iteration++ →
+    run_one_iteration → checkpoint 保存 → digest 書き出し → 末尾 check_stop (新 whiteboard を
+    反映した収束判定) を返す。checkpoint は各 iteration で atomic 更新 (落ちても次 iteration が拾える)。
+
+    Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
+    入口停止 (iteration 未消費) を表す。"""
+    if layout is None:
+        layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout.ensure()
+    state = load_loop_state(layout)
+    if state is None:
+        state = LoopState(start_wall=time.time())
+    _fold_critic_reverse(state, prior_critic_reverse)
+
+    pre = check_stop(state)
+    if pre.stop:
+        save_loop_state(layout, state)
+        log(f"  入口停止 (iteration 消費せず): {pre.reason}")
+        return {"outcome": "stopped-before", "variant": None,
+                "stop_reason": pre.reason, "iteration": state.iteration, "ran": False}
+
+    state.iteration += 1
+    # 同一 layout を run_one_iteration に渡す — reject WAL/records と checkpoint/digest を
+    # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
+    out = run_one_iteration(cfg, perf, planner, coder, state, sub,
+                            do_build=do_build, layout=layout, log=log)
+    save_loop_state(layout, state)
+
+    digest_txt = make_critic_digest(
+        layout, reflux=(cfg.search_config.get("reflux") == "on"))
+    with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
+        f.write(digest_txt)
+
+    post = check_stop(state)
+    out.update({"stop_reason": post.reason, "iteration": state.iteration, "ran": True})
+    return out
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     """fixture proposal で 1 iteration の機械 E2E を実走する (配線実証)。
 
@@ -509,6 +731,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="fixture の backoff 値 (coder proposal の代わり)")
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
+    ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
+                    help="段 4b 駆動: 実 planner/coder proposal (JSON) を受けて checkpoint 継続で "
+                         "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
 
     root = _repo_root()
@@ -521,6 +746,25 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     cfg = default_cfg(reflux=(a.reflux == "on"))
     perf = default_perf()
+
+    # === 段 4b 駆動口: 実 proposal を受けて checkpoint 継続で 1 iteration ===
+    if a.run_iteration:
+        planner, coder, prior_rev = load_proposal_file(a.run_iteration)
+        print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
+              f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}) ===")
+        out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+                              do_build=not a.no_build)
+        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        print(f"  ran={out['ran']} outcome={out['outcome']} "
+              f"variant={out.get('variant')} iteration={out['iteration']}")
+        print(f"  停止判定: {out['stop_reason']}")
+        print(f"  checkpoint: {loop_state_path(layout)}")
+        print(f"  digest: {os.path.join(layout.root, 's4_loop_digest.txt')}")
+        # 停止判定が機械的に返り、checkpoint が焼かれていれば駆動口として健全。
+        ok = (out["stop_reason"] in ("continue", "converged", "reverse-exhausted",
+                                     "budget-iterations", "budget-walltime")
+              and os.path.exists(loop_state_path(layout)))
+        return 0 if ok else 1
     state = LoopState(start_ts=time.monotonic())
     state.iteration = 1
 
