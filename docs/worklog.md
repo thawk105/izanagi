@@ -735,13 +735,13 @@ git に載る分: commit 0232101 (設計基盤 docs/phase3-s4-design-foundation.
 - **design v1 新規作成** (`docs/phase3-s4-design-v1.md`):
   - design-foundation (調査 5 レンズ) + handoff 記憶 (Model Y 裁定・4a-4b 密結合発見) を統合
   - 核発見「4a と 4b は密結合」を明示化 (coder 出力 interface が diff 検疫の役割を決める)
-  - 6 つの Open Questions 敵対検証用に構体化
+  - 6 つの Open Questions 敵対検証用に構造化
 - **coder input context 新規作成:**
   - `src/coder-spec.md`: template + API + leading-indicators + baseline 値 (risk = sweet-spot 値が漏れないか)
   - `src/coder-leakproof-context.md`: 勝ち筋値を物理削除した curated context (勝ち筋・利得・性能数値なし)
-- **敵対検証実施 (workflow wf_301ed286-5fb, 19 attack vectors × 6 OQ):**
+- **敵対検証実施 (workflow wf_301ed286-5fb, 19 攻撃ベクタ × 6 OQ):**
   - 結果: REAL 9 / CONTESTED 7 / REFUTED 3
-  - 主要 REAL findings: (1) diff-reject digest に explicit reason field 欠落 (D37 パターン未適用), (2) Bash tool で Read 削除後も cat 経路が leakage 可能, (3) whiteboard の棄却理由が structural inference 許す, (4) loop 停止条件未定義 → D39 必須
+  - 主要 REAL findings: (1) diff-reject digest に明示的な reason field 欠落 (D37 パターン未適用), (2) Bash tool で Read 削除後も cat 経路が漏洩し得る, (3) whiteboard の棄却理由が構造的推論を許す, (4) loop 停止条件未定義 → D39 必須
   - 主要 contested: backoff 軸飽和への obscurity (但し P2 実績で反証), 複数マーカー拡張での complexity
   - 結果を `docs/handoff/2026-07-07-s4-adversarial-findings.md` に凍結
 
@@ -750,7 +750,7 @@ git に載る分: commit 0232101 (設計基盤 docs/phase3-s4-design-foundation.
 **エージェント工数:** design v1 + context 作成 0.5h、workflow (19 agents 並列) 993k tokens / 5m 23s。
 
 **追加作業 (本セッション内):**
-- design v1 敵対検証 findings 反映 (diff-reject digest に reason field / Bash leak 明文化 / loop stopping 形式化)
+- design v1 敵対検証 findings 反映 (diff-reject digest に reason field / Bash leak 明文化 / loop 停止条件の形式化)
 - agent role 2 点作成 (coder-v4-autonomous.md / planner-v4.md、日本語版)
 - diff_quarantine.py skeleton 作成
 - handoff 2 点作成 (adversarial-findings.md / session-summary.md)
@@ -818,9 +818,9 @@ planner-v4 と loop driver 実装 / 1 iteration 実走)。4a (diff 検疫) と s
 帰属汚染 (規律6/決定7) (2) 収束判定が diff検疫 reject 3連続を converged と誤判定 (決定2a) (3) WAL 非依存を謳う
 assert が 1==1 恒真。一次資料 = output/insights/2026-07-07_s4-loop-inherited-audit.json (フルは tasks/wsjicuqze.output)。
 
-**修正 (ユーザー承認 real4+cheap2):** 上記 + delta_pct 死フィールドの明示 defer + mutation_red_gate の定数tautology
+**修正 (ユーザー承認 real4+cheap2):** 上記 + delta_pct 死フィールドの明示的な繰延 + mutation_red_gate の定数恒真
 検出/fail-open明示。test 32/32・回帰259・E2E dry-run PASS。**anchor finding (決定1 の「検証は弱まらない」が誤導 —
-head_text=base_text で byte照合が moot) は承認スコープ外ゆえ D39 未改訂、insight に記録し人間判断へ flag。**
+head_text=base_text で byte照合が無意味) は承認スコープ外ゆえ D39 未改訂、insight に記録し人間判断へ flag。**
 
 **運用ルール恒久化 (ユーザー協議の決着):** CLAUDE.md 作業の進め方に (9) BG待機の心拍 = ~1分周期のタイムスタンプ付き
 進捗 (harness に周期フック無し=行動規律)、(8強化) handoff を5分おき生きた進捗更新 + 作成→削除を~15分単位に切る
@@ -866,9 +866,9 @@ curate・執筆) 単独。
 
 ## 2026-07-08 — 段4b 駆動基盤の実体化 (v4 登録 + LoopState 永続化 + 駆動口 + 監査硬化)
 
-**環境の阻止事項 (計測直列の判断):** 計測層が single-tenant でない — pgrep で別ユーザー leon が
+**環境の阻止事項 (計測直列の判断):** 計測層が単一テナントでない — pgrep で別ユーザー leon が
 `/home/leon/ccbench/oze/build-tsan` で ccbench(oze) を能動実行中 (claude セッション複数 + TSan)。
-段4b は各 iteration で build/verify/bench を実走するため、**実 LLM の測定ループは single-tenant 窓
+段4b は各 iteration で build/verify/bench を実走するため、**実 LLM の測定ループは単一テナント窓
 待ちに繰延** (規律4)。計測を伴わない駆動基盤の整備 (解析/合成/文書) は待機の barrier を待たず進めた。
 
 **段4b の 2 つの構造的障壁を発掘・解消 (git diff からは動機が読めない部分):**
@@ -899,7 +899,7 @@ runbook = `docs/phase3-s4b-runbook.md` (Model Y 実走手順)。
 rm を拒否 (proof-chain 保護、規律2) ゆえ AI は消せない — throwaway (全 --no-build、実測なし) につき人間が
 git clean 可。tracked な digest 変更は git checkout で HEAD に復元済 (commit には非混入)。
 
-**次の一手 (段4b 実走):** fresh session を開き (v4 登録反映) + single-tenant 窓を待って runbook §1 の
+**次の一手 (段4b 実走):** fresh session を開き (v4 登録反映) + 単一テナント窓を待って runbook §1 の
 1 iteration プロトコル (planner-v4 → coder-v4-autonomous → `--run-iteration` → critic → 反復) を実 build で
 回す。段4b の 1 iteration は「配線が E2E で通る」の機械実証に留め有意性は主張しない (D39 残存リスク c)。
 その後 段5 (lock 経路編集面拡張・mutation_red 配線 load-bearing 化) → 段6 (主実験・delta_pct live 化)。

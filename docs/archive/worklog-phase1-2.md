@@ -240,7 +240,7 @@ calibration を機に「ccbench 改変の行き先」を再検討し、D6 (全�
 ### タスク5a (正しさ側) 完了
 
 既知最適化の on/off で正しさパイプラインが期待通り動くことを実トレースで実証。invisible reads は
-silo 内在で toggle 不可・mocc は trace-hook 未実装のため、代表として **silo `BACK_OFF` (意味論保存)
+silo 内在で切り替え不可・mocc は trace-hook 未実装のため、代表として **silo `BACK_OFF` (意味論保存)
 を on/off** → 両方とも verifier が **certified SERIALIZABLE** (BACK_OFF=1: 277,391 txn / =0: 571,816 txn)。
 観測者効果分離はタスク1 の symbol 不在が最強の構造的証明で、977e194 で再確認 (trace build に
 izanagi_trace 6 / perf build に 0)。DB-dump semantic 等価性は symbol 不在より弱いので冗長と判断・未実装。
@@ -423,7 +423,7 @@ workload から再構成・binary placeholder = 近似再現)。実コマンド�
 コミット前に **3視点の敵対的監査** (security/injection・規律 compliance・correctness/completeness) を
 並列ワークフローで実施。全視点 **clean**:
 
-- footprint は宣言された12ファイルに限局 (untracked なし、hooks/・CLAUDE.md・.claude/ 改変なし)
+- 変更範囲は宣言された12ファイルに限局 (untracked なし、hooks/・CLAUDE.md・.claude/ 改変なし)
 - 記録されるコマンド文字列は eval/exec/subprocess に一切流れない**不活性データ** (`#` コメント描画のみ、
   shell=True 不在)
 - 計測数値 (miss率/tps/noise floor) は byte-identical = **改竄・捏造なし** (規律4)
@@ -1187,7 +1187,7 @@ phase3 の worklog 筆頭残存は誤り/誇張)。
   限界まで記載。
 - **CLAUDE.md 規律6** に発火条件 1 文を追記 (別セッション/別 AI 作業物の取り込み・Phase 境界・overnight 後に独立
   敵対裏取り)。憲法だがユーザー直接指示で実施。詳細は roadmap §3.7 に委譲し 1 文に留める (二重管理回避)。
-- **協議合意した改訂ゆえ版管理セレモニー不要** (CLAUDE.md 改訂規律の協議改訂パス: 版数据え置き・history 凍結なし)、
+- **協議合意した改訂ゆえ版管理セレモニー不要** (CLAUDE.md 改訂規律の協議改訂パス: 版数を据え置き・history 凍結なし)、
   設計判断は D27 に記録。
 
 コミット前に改訂自体を独立エージェントで敵対レビュー (§3.7 の「採用・コミット前に監査」を自身に適用 = ドッグフーディング)。

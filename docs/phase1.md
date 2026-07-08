@@ -42,7 +42,7 @@ CCBench を clone して構造を調査し、結果を `docs/ccbench-anatomy.md`
 
 ## タスク1 [Mac]: trace-hook の設計と実装 (観測者効果の分離を守る)
 
-**✅ 完了 (2026-06-17)。** `patches/trace-hook.patch` で Silo に `#if TRACE` トレースを実装。実証: trace の C 行数 = ベンチ `commit_counts_` 完全一致 (327918)、非 genesis read の 100% が producer に matchable・ORPHAN 0・版重複 0、trace-disabled build に `izanagi_trace` シンボル 0 (compile-out)、3点とも CC-native でフィールド追加なし。トレース形式と適用フローは `patches/README.md`。`-DLinux` ピンニングは別 patch (task4) に分離。
+**✅ 完了 (2026-06-17)。** `patches/trace-hook.patch` で Silo に `#if TRACE` トレースを実装。実証: trace の C 行数 = ベンチ `commit_counts_` 完全一致 (327918)、非 genesis read の 100% が producer に対応付け可能・ORPHAN 0・版重複 0、trace-disabled build に `izanagi_trace` シンボル 0 (compile-out)、3点とも CC-native でフィールド追加なし。トレース形式と適用フローは `patches/README.md`。`-DLinux` ピンニングは別 patch (task4) に分離。
 
 CCBench に trace を吐く口を足す。**絶対規律1 (観測者効果の分離) を厳守。** 実装は **`#if TRACE`** で行う (naive な `#ifdef TRACE` + cmake `-DTRACE=0` は常真化して消えず観測者効果が漏れる → `decisions.md` D14)。既存 `ADD_ANALYSIS` が同型の完全コンパイルアウト先例 (`ccbench-anatomy.md` §5)。Silo から着手 — read-version=`expected` Tidword (`cc/silo/transaction.cc:261`)、write-value=WriteElement body (`:479/:525`)、commit-order=`maxtid` (`:511`)、**3点とも CC-native でフィールド追加不要** (§4)。`-DLinux` 未定義でスレッドピンニングが死んでいる件 (§7) も、この patch で併せて直すか別 patch にするか判断する。
 
@@ -144,7 +144,7 @@ cache miss 率の飽和点でレコード数を決めるロジックを実装す
 
 - [x] 既知最適化を on/off (silo BACK_OFF。invisible reads 自体は silo で toggle 不可なため代表最適化を使用。invisible reads の正しさは silo=invisible が tasks 2/3 で certified 済み・broken silo が red で担保)
 - [x] 両方の trace に対して verifier が緑を出すことを確認 (BACK_OFF on/off とも certified serializable)
-- [x] ビルド等価性: trace-enabled と trace-disabled の意味論一致は**タスク1 の symbol 不在で構造的に担保**済み (perf binary に trace コードが 1 byte も無い)。DB 状態ダンプによる semantic 等価性は symbol 不在の方が強い証明なので冗長と判断 (DB-dump 計装は未実装)。**残増分:** mocc trace-hook (visible-reads 側の trace 検証 + verifier を 2nd エンジンに拡張) は低価値・高コスト (mocc は shipped の serializable protocol) なので Phase 2 任意増分に回す。
+- [x] ビルド等価性: trace-enabled と trace-disabled の意味論一致は**タスク1 の symbol 不在で構造的に担保**済み (perf binary に trace コードが 1 byte も無い)。DB 状態ダンプによる意味論的等価性は symbol 不在の方が強い証明なので冗長と判断 (DB-dump 計装は未実装)。**残増分:** mocc trace-hook (visible-reads 側の trace 検証 + verifier を 2nd エンジンに拡張) は低価値・高コスト (mocc は shipped の serializable protocol) なので Phase 2 任意増分に回す。
 
 **完了条件:** 正しさパイプラインが既知の最適化の on/off に対して期待通り動く (達成: BACK_OFF on/off 両緑 + tasks 2/3 の green-for-correct/red-for-broken)。
 

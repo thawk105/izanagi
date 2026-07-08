@@ -142,7 +142,7 @@ insight 2026-06-29_p2-5-guided-vs-enumeration.md (再校正追記あり) / decis
 ## 当面の着手順
 
 1. **P2-0** (verifier 大規模 sanity) — 計測なしで安全・高速。Phase 1 verifier 信頼性の総仕上げ。
-2. **P2-1** (測定安定性ロジック) — machine 非依存の純ロジック + モックテスト (calibrator と同型)。
+2. **P2-1** (測定安定性ロジック) — マシン非依存の純ロジック + モックテスト (calibrator と同型)。
 3. **P2-2** (実 fitness 全探索) — ここから本格的な実機計測 (直列)。
 
 P2-3 以降 (critic/profiler/LLM 誘導) は探索の骨格が回り始めてから足す。
@@ -173,7 +173,7 @@ Phase 3 着手の直前に消化する (今やると過剰修正):
 - **S2 certify workload = perf workload の一致**: 検証 (tuple200/thread4) と計測 (1m/thread48) が別。合成 variant が
   「小 workload では踏まないデータパス」を持つと緑 certify と赤い実行が食い違う。perf 構成 (の縮小版) でも 1 回
   verify + broken-silo 同一フラグ赤検出を消化 (insight の follow-up [P1])。
-- **S1 trace-hook の別 protocol 拡張**: silo+si のみ instrumented。別 protocol を探索素材に入れる Phase で同型 hook を
+- **S1 trace-hook の別 protocol 拡張**: silo+si のみ計装済み。別 protocol を探索素材に入れる Phase で同型 hook を
   追加 (ermia は cstamp<<1 の罠を worklog 記録済み)。それまでは「silo+si 以外は探索外」を維持。
 - **C1 campaign-id drift (A2 で露呈) — 解消済み (2026-07-02、選択肢 a を採用)**: 6/28 の ODR-fix
   gitlink 前進 (CCBENCH_COMMIT 6656e93→dff0f1e) が content-addressed campaign-id (D13) を移動させ、
