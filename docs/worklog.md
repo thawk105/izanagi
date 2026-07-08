@@ -956,3 +956,25 @@ real/refuted 裏取りする workflow (11エージェント・約0.48M tok・5.8
 **次の一手:** (1) token 内容整合 2件の調査 (token-management-strategy.md の確度クラス定義の正本確認、07-08(2) から
 持ち越し・変わらず)。(2) 段4b 実走 = fresh session + 単一テナント窓で runbook §1 の 1 iteration (変わらず前エントリ参照)。
 **人間待ち:** 変わらず (前エントリ参照) + wiring campaign dir p3-s4-loop-s4-autonomous-0b53a387 の git clean 未了。
+
+## 2026-07-09 (2) — 持ち越し token 内容整合 2件を消化 (正本確認 → 修正) + 段4b 実走は窓待ちで見送り
+
+**依頼:** 進捗。次の一手 2件のうち task1 (token 内容整合) を消化。task2 (段4b 実走) は見送り判断。
+
+**正本確認 (git 不可視の裏取り):** token-management-strategy.md の確度クラス表記揺れの「正本」を実データで確定。
+実コード (orchestrator/agents/hooks/tools) に affiliation/VERIFIED/PLAUSIBLE 語彙は不在。実監査 JSON 43件+
+(output/insights・docs/archive) で確度フィールド=`verdict`・三値=`real`(37)/`contested`(9)/`refuted`(3) 小文字・
+`severity` は独立軸 high/medium/low と実証 (roadmap §3.7 の real/refuted と整合)。文書の3語彙はいずれも実装非写しの
+擬似コード。→ 2206e6d で全8箇所を正本へ統一 (severity 欄の確度値混入 :150 と用語表の三値揺れ :740 を含む)。
+`plausible` verdict は実データ0件・中間値は一貫して contested。`CONFIRMED_REAL`/`deferred_disclosed` は
+07-07 inherited-audit の一回限り異形 (支配的正本でない) と確認。
+
+**段4b 実走は見送り (単一テナント窓なし):** 計測前 pgrep で別ユーザー leon の ccbench セッション稼働を確認
+(`/home/leon/ccbench/oze/build-tsan`・claude 2本)。loadavg 0.22 だが leon がベンチ起動すれば計測汚染 → runbook が
+「single-tenant 窓待ち」とした人間調整 gate に該当。絶対規律4 に従い実走せず。
+
+**未コミット差分の申告 (規律6):** セッション開始時点で `M CLAUDE.md` が既在 = 作業の進め方 rule9 に「日本語で」+
+英単語混入禁止の追記。私の作業でなく minimize-english の既知方針と整合するが、素性不明ゆえ取り込まず分離 (人間確認待ち)。
+
+**次の一手:** (1) 段4b 実走 = fresh session + 単一テナント窓で runbook §1 の 1 iteration (task2 変わらず)。
+**人間待ち:** 変わらず (前エントリ参照) + 未コミット CLAUDE.md 差分の要否確認。
