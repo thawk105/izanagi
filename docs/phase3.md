@@ -183,8 +183,11 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 4. **guided 検疫層を diff 検疫へ拡張 + planner.md 生成** — coder 自律期。diff が EVOLVE-BLOCK マーカー間かつ
    #if 枝内に収まるか parse 検証。**(4a diff 検疫 = 完了 6359aa5。4b 駆動基盤 = 完了 2026-07-08:
    planner-v4/coder-v4-autonomous を registered 定義化・LoopState checkpoint 永続化・--run-iteration
-   駆動口・監査硬化 fails-closed 5 点。実 LLM の測定ループは single-tenant 窓待ち — 実走手順は
-   `docs/phase3-s4b-runbook.md`、監査は `output/insights/2026-07-08_s4b-loopstate-audit.json`)**
+   駆動口・監査硬化 fails-closed 5 点。実 LLM の測定ループ = 完了 2026-07-09: iteration 1〜4 実走
+   all certified/success、iteration 5 は提案生成後に budget-walltime (3600s) で入口停止 (D39 決定2
+   の予算停止規定どおり)。正本 = campaign `p3-s4-loop-s4-autonomous-0b53a387` の loop_state.json/
+   whiteboard、段 6 へ「未査証 (partial)」として inherit。実走手順は `docs/phase3-s4b-runbook.md`、
+   監査は `output/insights/2026-07-08_s4b-loopstate-audit.json`)**
 5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題 (driver 宣言値・並行時の id 安定化)** — S2 gate を満たした後 + 並行合成の段。**S2 verify 2 本立ての pipeline 配線をこの段の先頭で行う (D36 決定 4 の規定 (抜粋): campaign identity 組み込み・COMMIT タグ焼き込み・AND 共通ヘルパ・red payload の workload タグ・bench 同一排他 + numactl・IZANAGI_TRACE_DIR 対称化)。**
    - **lock 経路 (cc/silo/transaction.cc) への編集面拡張 (段 3 から繰延、D38)** — coder が lock を変異できるようにする前提作業。survey_B の変更点: source_digest.EVOLVE_BLOCK_SOURCES + ALLOWLIST に `cc/silo/transaction.cc` 追加 + hooks/guard_write.py:37 の写し定数 + drift test + 偽 submodule fixture (test_campaign.py) に transaction.cc 生成追加 + test_source_digest_allowlist の反例差し替え (**同一コミット必須** — 定数だけ足すと fixture 群が一斉に落ちる)。**前提 gate = `test_lock_path_edit_surface_requires_auditor_live` の緑** (auditor live の機械 4 点、D38)。この拡張と auditor live を同一/後コミットに束ね、auditor 不在で lock 経路が編集可能になる窓を作らない。非 stock variant の src_token churn は許容 (再評価方向)。
 6. **主実験の実行 (headline 比較 4 対照 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を

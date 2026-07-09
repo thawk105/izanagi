@@ -978,3 +978,46 @@ real/refuted 裏取りする workflow (11エージェント・約0.48M tok・5.8
 
 **次の一手:** (1) 段4b 実走 = fresh session + 単一テナント窓で runbook §1 の 1 iteration (task2 変わらず)。
 **人間待ち:** 変わらず (前エントリ参照) + 未コミット CLAUDE.md 差分の要否確認。
+
+## 2026-07-09 (3) — handoff 引き継ぎ: 段4b 実走完了 (iteration 1〜4 + budget-walltime 停止)
+
+**依頼:** `docs/handoff/2026-07-09-p3-s4b-iteration-loop.md` からの続き。
+
+**引き継いだ未コミット差分の監査:** 前セッションの `_resolve_duplicate` バグ修正 (重複 genome 提案を
+fail 誤記録する回帰の修正) + テスト2件を読み込み、`run_campaign` の skip 経路 (`s.skipped`) との整合・
+fails-closed (identity 不能時は success を捏造せず fail に倒す) を確認。pytest 276 緑。d862da3 でコミット
+(campaign.lock/loop_state.json/runs/wal.jsonl も他 campaign 同様 git 追跡対象と確認し同梱)。
+
+**実走ゲート 5 点 (runbook §0) 確認:** fresh session (planner-v4/coder-v4-autonomous 利用可能)・単一テナント
+(pgrep 系検査で競合プロセスなし、leon セッションは既に非稼働)・submodule pin 028f34d clean・test 緑・
+calibration 設計済み — 全通過。
+
+**実走順序の欠落を発見・補正:** 前セッションは iteration4 完了後の critic (runbook (e)) を経ずに iteration5
+の planner-v4 へ進もうとして 2 回異常停止していた。今回は critic を先に digest 読解させ「decrease 継続
+(逆方向なし)」の判定を得てから iteration5 の prop.json を確定 (protocol 通りの順序に復元)。
+
+**critic の主な所見 (素材: 段6 のナラティブ候補):** BACKOFF_FIXED 40→30 の gain (+7.4%、noise floor 3.0% 超)
+は latency 律速の機序であり衝突低減ではない (abort 率はむしろ 40→30 で上昇、bench/verify 2 系列で同方向)。
+knee が近い兆候。stock 対照との +75〜87% はこの campaign では NO_WAIT_LOCKING_IN_VALIDATION との交絡で
+backoff 単独に帰属できない。WAL 実測 3 点 (30/40/40) に対し whiteboard は 4 件 success という不整合を
+process anomaly として指摘したが、これは今回コミットした重複解決の設計通り (iteration2 が iteration1 の
+WAL を再利用) と確認済み — 新規異常ではない。
+
+**iteration5 は budget-walltime で入口停止:** planner-v4 (decrease/small) → coder-v4-autonomous (value=50,
+`double now_backoff = 50;`) は正常に構造化出力 (前セッションの幻覚・規律6 誤発動は「事実提示のみ」の
+プロンプト書き換えで再発せず)。harness 実走で `start_wall` (絶対 epoch、iteration1 開始時刻) からの経過が
+3,843s > MAX_WALLTIME_S=3600 のため入口 check_stop が発火し iteration5 は未評価のまま停止 (D39 決定2の
+予算停止規定どおり)。セッション間の中断時間も wall budget に算入される設計 (各 iteration が別プロセスゆえ
+絶対 epoch を使う) であり、事前登録された停止規則を延長・再起動する判断はしなかった (測定の恣意的延長を
+しない規律の精神を踏襲)。checkpoint (`loop_state.json`) は iteration4 のまま不変 — 正本。
+
+**完了状況:** 段4b の実 LLM 測定ループはこれで完了 (`docs/phase3.md` item4 のチェック記述を本エントリと
+同コミットで更新)。iteration 1〜4 全て certified/success (BACKOFF_FIXED 30/40/40)、正本 =
+`output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/loop_state.json` + `runs/wal.jsonl`。段6へ
+「未査証 (partial)」として inherit。
+
+**未コミット CLAUDE.md 差分の解消を確認:** 前々エントリで人間確認待ちとした rule9 の日本語明記差分は
+a14c133 (ユーザー自身のコミット) で解消済みと確認。持ち越し事項なし。
+
+**次の一手:** 段5 (S2 verify 2 本立て pipeline 配線 → sort-strategy ターゲット起動 / lock 経路編集面拡張)
+へ進む。**人間待ち:** なし。
