@@ -1,6 +1,6 @@
-# ShinkaEvolve 深掘り (related-work.md §7.2 の付録)
+# ShinkaEvolve 深掘り (related-work/ §7.2 の付録)
 
-> `related-work.md` の ShinkaEvolve エントリ本体から分離した詳細 (2026-07-10、D35: 実装検討時のみ読む)。
+> `related-work/README.md` の ShinkaEvolve エントリ本体から分離した詳細 (2026-07-10、D35: 実装検討時のみ読む)。
 > 9 サブシステム深読み・62 技法の敵対検証 (2026-07-07、72 エージェント作業フロー) の全記録。
 > 本文の要約と技術的判断は同一 — こちらは根拠の全展開。
 

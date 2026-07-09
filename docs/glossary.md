@@ -38,15 +38,15 @@ izanagi の探索ループ (層2) と Phase 2 主実験 (P2-5) を読むため�
 
 **MAP-Elites / quality-diversity (クオリティダイバーシティ)** — 最良 1 個だけを探すのでなく、特徴空間の各ニッチごとに最良個体を保存し、質と多様性を同時に得る進化計算アルゴリズム群。*izanagi:* Phase 3.5 (任意) で多様性保存を本格化する将来オプション。今は安い果実 (複数 variant 保存) だけ取り、完全な機構は予約する (規律5)。
 
-**spec cards (仕様カード)** — 合成の入力要求を数枚の構造化カードに分けて記述する様式 (Jitskit 由来)。環境・ワークロード・要求 (要件) を別カードにして曖昧さを排す。*izanagi:* ワークロード入力を 3 枚のカードで与え、要求カードが対象の分離レベルを定義する (三層アーキテクチャの入口, related-work.md §Jitskit)。
+**spec cards (仕様カード)** — 合成の入力要求を数枚の構造化カードに分けて記述する様式 (Jitskit 由来)。環境・ワークロード・要求 (要件) を別カードにして曖昧さを排す。*izanagi:* ワークロード入力を 3 枚のカードで与え、要求カードが対象の分離レベルを定義する (三層アーキテクチャの入口, related-work/ §Jitskit)。
 
-**whiteboard memory (ホワイトボードメモリ)** — 却下した案や失敗した試行を「やるな記憶」として蓄積し、後の判断に活かす記憶機構。捨てた選択肢を消さず知識として残す発想。*izanagi:* `output/insights/` に却下設計・行き止まりを構造化して蓄積する運用。関連研究 (SkillOpt / DecentMem の二プール記憶) が外部裏付け (related-work.md §SkillOpt / §DecentMem)。
+**whiteboard memory (ホワイトボードメモリ)** — 却下した案や失敗した試行を「やるな記憶」として蓄積し、後の判断に活かす記憶機構。捨てた選択肢を消さず知識として残す発想。*izanagi:* `output/insights/` に却下設計・行き止まりを構造化して蓄積する運用。関連研究 (SkillOpt / DecentMem の二プール記憶) が外部裏付け (related-work/ §SkillOpt / §DecentMem)。
 
 **replay (リプレイ, 再生)** — 新規に計測し直さず、記録済みの測定値を配って探索や解析を回すこと。*izanagi:* P2-5 は P2-2 で実測済みの全 8 通りの値を再生するだけで完結し、新規の直列計測をゼロにした (絶対規律4 のコスト 0)。
 
 **事前登録 (じぜんとうろく, pre-registration)** — 実験を始める前に仮説・比較対象・検定方法を確定・公開しておく研究規律。結果を見てから基準を後付けする (p-hacking) のを防ぐ。*izanagi:* Phase 3 主実験の主張・比較集合・失敗条件・統計計画を反証可能な形で着手前に固定し、過剰主張を構造的に防ぐ (phase3.md 新設節)。
 
-**validation gate (検証ゲート)** — 「検証セットで性能が悪化しない編集だけ採用し、それ以外は捨てる」という採否の関所。*izanagi:* 関連研究 (SkillOpt / Self-Harness) の機構で、絶対規律2 (正しさゲートを壊す variant は reject) と構造同型と位置づける (related-work.md §SkillOpt / §Self-Harness)。
+**validation gate (検証ゲート)** — 「検証セットで性能が悪化しない編集だけ採用し、それ以外は捨てる」という採否の関所。*izanagi:* 関連研究 (SkillOpt / Self-Harness) の機構で、絶対規律2 (正しさゲートを壊す variant は reject) と構造同型と位置づける (related-work/ §SkillOpt / §Self-Harness)。
 
 **OEE (Open-Ended Evolution, 開放型進化)** — 到達目標を固定せず、新規性そのものを報酬に無限に探索を続ける進化のパラダイム。*izanagi:* コード移植でアクション空間が開いて初めて意味を持つため Phase 3.5 に予約。初手で入れると失敗の切り分けができなくなる (decisions.md D9)。
 

@@ -5,7 +5,7 @@
 roadmap 本文や他文書の「roadmap §7」参照は本文書を指す。追加・更新の扱いは roadmap 本体と同じ。
 
 2026-07-10 にスタイルを再編した (統一エントリテンプレート + 判定タグ + 逆引き索引 + 柱分類、
-ShinkaEvolve 深掘りは `related-work-shinka-deepdive.md` に分離)。技術的判断・ニュアンスは
+ShinkaEvolve 深掘りは `shinka-deepdive.md` に分離)。技術的判断・ニュアンスは
 再編前から変えていない。arXiv ID は 2026-07-10 に arxiv_get_papers または arxiv_search で
 実在確認済みのもののみ記載し (CCBench 2009.11558 / AlphaEvolve 2506.13131 / OCC-timestamp
 1811.04967 は arxiv_get_papers で全文メタデータを取得、他は arxiv_search 結果レコードで
@@ -160,7 +160,7 @@ MAD ロバスト sigmoid を借用予約 (スコア/重みは harness に閉じ 
 敵でない」設計で、Izanagi の絶対規律を共有しない。**この哲学差こそが結論であり、Izanagi の
 規律が「不便な保守主義」でなく問題設定から要請された選択であることの外部証拠になる。**
 → 62 技法の敵対検証 (2026-07-07)、反面教師/外部追認/銀行預けの全詳細は
-**`related-work-shinka-deepdive.md`** に分離 (D35: 実装検討時のみ読む)。
+**`shinka-deepdive.md`** に分離 (D35: 実装検討時のみ読む)。
 
 > **注意 (7.2 全体):** AlphaEvolve/FunSearch/DGM/Shinka は同じ「勝ち筋を生成側に見せる」
 > サンプル効率機構を核とする。ShinkaEvolve 深掘りの結論「直採用ゼロ」はこの系譜全体に適用され、

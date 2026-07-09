@@ -77,7 +77,7 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 
 - **役割:** variant を監査し、verifier が構造的に見逃す不変条件違反 (reward hack) を検出して positive control テストを設計・提案する (Jitskit の auditor)
 - **model:** 強いモデル (adversarial な reasoning が要る)
-- **規律:** 最適化を担当するエージェント (planner/coder) とコンテキストを分離する。見張り役が最適化圧力に毒されないため。CC 版の reward hack ギャラリー (related-work.md の Jitskit 節を参照 — Appendix B の型リスト本文は repo に無いため、repo 実績から翻訳した CC 版として auditor.md に持つ)
+- **規律:** 最適化を担当するエージェント (planner/coder) とコンテキストを分離する。見張り役が最適化圧力に毒されないため。CC 版の reward hack ギャラリー (related-work/ の Jitskit 節を参照 — Appendix B の型リスト本文は repo に無いため、repo 実績から翻訳した CC 版として auditor.md に持つ)
 - **⚠ 確定制約は本節でなく `auditor.md` + `docs/phase3.md` 後続段 3 + D38 を正典とする** (本節は予約仕様。実体化で 2 点分岐した):
   - **tools = read-only (Read/Grep/Glob、Write/Edit/Bash 非付与)。** 予約の「テスト追加の書き込み」は段 3 では「auditor が提案テストを構造化出力で返し、orchestrator が人間レビューゲート下で反映する」形で実現 (段 2 の coder/critic と同型)。理由 = guard_write (PreToolUse) は呼び出し元エージェントを識別できず (tool_name/tool_input のみ) per-agent の path 制限が hook で表現不能 → auditor に Write を与えると「既存テストを弱める書き込み」を機械的に止められない。read-only なら構造的に不可能。直接 Write の自律形は後続段 4 (per-agent permission 執行とセット) へ繰延 (D38、audit-2026-06-30 §4 段 2 の部分消化)。
   - **入力隔離:** 「WAL fitness を scope に入れない」(phase3.md 後続段 3) は tool 制限 + orchestrator の入力射影 (abort/patch/designated ソースだけを渡す) + prompt 規律の併用。Read を持つため完全な構造隔離ではない (honest に auditor.md/D38 に記録)。
