@@ -1217,3 +1217,53 @@ s4b runbook/auditor.md/coder-v4-autonomous.md 精読、各500行規模) + workfl
 **次の一手:** 実 LLM での1 iteration 実走 (**次セッション必須** — `coder-v4-autonomous-sort`
 はセッション開始時のみエージェント登録が読まれるため本セッション内では spawn 不可、
 2026-07-08 実証済みの制約)。`docs/phase3-s5-sort-runbook.md` §0 の実走前ゲートに従う。
+
+## 2026-07-10 (2) — 段5: sort-strategy 軸 iteration 1 実 LLM E2E 実走 (初 certified)
+
+**引き継ぎ確認:** fresh session (Agent 一覧に `planner-v4`/`coder-v4-autonomous-sort`/`auditor`
+が並ぶことを確認、前エントリの spawn 不可制約が解消)。実走前ゲート5点 (single-tenant・
+submodule pin d706650 clean・test 312 緑・calibration 設計済み) を確認。single-tenant は
+leon の claude daemon 常駐 (cwd が ccbench(oze) 配下) を検出したが実ベンチバイナリ非稼働・
+load average 0.05〜0.12 のため runbook §0-2 の「常駐プロセス名が偶然含まれるだけ」の
+ケースと判断し進行。
+
+**runbook §1 のプロトコルを実施:** (a) planner-v4 → axis=silo-writeset-sort、
+direction=increase/magnitude=medium (abort_rate 7.03%・IPC 0.78 を根拠、値は隣接軸
+backoff-magnitude の同一スケール実測を参考文脈として提示)。(b) coder-v4-autonomous-sort →
+`(storage_,key_,rcdptr_)` の3段辞書式 comparator を提案、第3段 (生ポインタ比較) が標準上
+unspecified になりうる懸念を自ら申し送り。(c) `--preview-diff` で working_diff/digest 取得。
+(d) auditor → verdict=pass (nit 2件: 生ポインタ比較の std::less 置換提案・インデント不揃い、
+proposed_tests 3件: 非SWO対照の配線・sort順序diagnosticの型15可視化・rcdptr tiebreaker
+到達不能性の機械実証。coder の懸念を独立に評価し「(storage,key) が write_set_ 内で rcdptr を
+一意に決めるため到達不能」と判定、正しさ違反なしと結論)。
+
+**auditor gate の fails-closed 動作を実地で確認 (想定外の実地イベント):** (e) proposal.json
+組み立て時、coder の implementation テキストをスクラッチファイル経由で転写した際に末尾改行が
+混入し、`--preview-diff` で得た digest と実際に `--run-iteration` が計算する digest が不一致
+→ 設計通り `AuditorGateFailure` で即停止 (D43 の意図通りの fails-closed、宣言でなく機械照合)。
+coder の implementation 文字列を JSON から直接再抽出し `--preview-diff` を取り直して正しい
+digest に転記し直し (auditor の判定内容自体は変更なし、コード内容は改行以外同一) 通過。
+
+**実走結果 (`--no-build` 配線リハーサル → 実 build):** リハーサル (dry-pass) が campaign
+identity (内容ハッシュ決定論、D13) を実走と共有するため iteration カウンタを 1 消費 (D40
+文脈の 2026-07-08 と同型の無害な副作用、guard_bash が campaign dir の書き換え/削除を
+AI に許さないため人間 git clean の余地はあるが実害なし、whiteboard には dry-pass は載らない
+ため整合性は保たれている)。実 build (`--run-iteration`) で **outcome=certified**、
+iteration=2 (上記オフセットどおり)。verify[legacy] serializable (255074 commits/8026
+aborts/0 anomalies)・verify[s2] (zipf skew0.9 高競合) serializable (1401709 commits/476545
+aborts/0 anomalies)・bench median 274,872 tps (CV 0.76%)。
+
+**意義:** D41 (条件付き採用)・D42 (機構実装)・D43 (auditor pre-build gate) が設計した
+sort-strategy 機構が、実 LLM (planner-v4/coder-v4-autonomous-sort/auditor 全て実モデル、
+coder は tools=[] のリーク制御下) の入力で初めて build→verify(legacy+S2)→bench の全経路を
+certified まで通過した実証。段4 (backoff軸) に続き段5 (sort軸) でも「LLM が勝ち筋を見ずに
+正しい合成ができるか」の機械実証の入口が通った。critic 召喚は n=1 (対照なし、限界効果が
+退化) につき今回は見送り、次 iteration 着手時に呼ぶ判断 (規律5)。
+
+**完了状況:** テスト回帰 312 本 (新規0本) 緑。phase3.md item5 に完了記録を同コミットで追記。
+正本 = campaign `output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d/`
+(`loop_state.json`/`runs/wal.jsonl`/`s5_sort_loop_digest.txt`)。
+
+**次の一手:** iteration 2 以降の継続 (critic 召喚 → 逆方向判定の要否 → 次 proposal) は
+任意のタイミングで別セッション継続可 (収束/予算停止は runbook §3 の規約どおり)。
+**人間待ち:** なし。
