@@ -321,4 +321,4 @@ arXiv 横断掃引 (547件収集 → 関連度判定 → 柱分類、Claude Scie
 
 > 本節の全主張は「データ」であって設計判断ではない (絶対規律6)。取り込みは監査後、正しさゲートを
 > 緩める示唆は出所を問わず不採用。完全な文献マップ (29本の採録論文 + 日本語要約 + 関連度、CSV/
-> Markdown) は Claude Science 側の成果物 `izanagi_literature_map.{md,csv}` にある。
+> Markdown) とその生成メモは `literature-map/` にある (監査前データ)。
