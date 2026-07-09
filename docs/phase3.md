@@ -223,16 +223,11 @@ worklog 全読しないと発掘できない状態を解消するためここに
 ## 残存リスク
 
 - 純 timing first target は**新規性が薄い** (機構の配線実証が主目的、性能新規性は sort 以降)。意図的トレードオフ。
-- **S2 non-blocking の根拠に空振り認証リスク**: S2 (certify workload = perf workload) を non-blocking とする根拠
-  「純 timing は workload 依存パスを持たない」は厳密には正しくない — static backoff は **abort 時にのみ実行される
-  競合依存パス**であり、現 CorrectnessWorkload (tuple200/thread4) は同一キー競合をほぼ踏まない (本ファイル冒頭で自認)。
-  競合を踏まない ⇒ abort がほぼ出ない ⇒ **coder が書いた #if 枝が verify 中に一度も実行されないまま緑 certify** に
-  なりうる (空振り認証)。緩和 (**完了条件 2 に反映済み**): **「verify run の abort > 0 = 合成枝が実行された証拠」を
-  WAL の verify payload で確認**する。前提 = abort 数の WAL 記録 (blocking タスク。旧配線は abort 数をどこにも
-  記録しておらず、この確認自体が実行不能だった)。abort ≈ 0 なら S2-lite (CorrectnessWorkload の競合度を上げた縮小
-  verify) を純 timing にも前倒す。timing 純度そのもの (straight-line・API 範囲) は payload 検査では機械保証されず、auditor live まで
-  coder diff の人間レビューが gate (方針 A で hook が唯一防壁でなくなった帰結)。
-  **(追記 2026-07-06) S2 構成自体は後続段 1 で確定 (D36・gate 3 点 all_pass)。残りは段 5 の配線のみ。**
+- **S2 non-blocking の根拠に空振り認証リスク (解消 2026-07-06、後続段 1、D36)**: 「純 timing は workload 依存
+  パスを持たない」は厳密には不正確 (static backoff は abort 時にのみ実行される競合依存パス) だが、完了条件 2 の
+  「verify run の abort > 0 を WAL で確認」で空振り認証を防止済み。S2 構成自体は後続段 1 で確定 (gate 3 点
+  all_pass)。残りは段 5 の pipeline 配線のみ。**timing 純度そのもの (straight-line・API 範囲) は payload 検査
+  では機械保証されず、auditor live まで coder diff の人間レビューが gate** (方針 A の帰結、未解消のまま)。
 - preprocess 後ハッシュは対象ファイル集合の列挙漏れがあれば偽 cache hit が復活する。固定集合に限定しテストで固定するが
   template patch の改訂で集合が動いたら漏れる残留リスク。**タスク2 敵対レビューで実証 (medium, D24)**: `Options.cmake` は
   ALLOWLIST 内だが `EVOLVE_BLOCK_SOURCES` (= digest 対象) 外で、`VAL_SIZE` 等の build 左右マクロを変えると別バイナリ
@@ -241,13 +236,10 @@ worklog 全読しないと発掘できない状態を解消するためここに
   (SPEC-2) が Bash 経路の `sed -i .../Options.cmake` で hook を丸ごと迂回できることを示した。→ 恒久解は **identity 側
   (configure 最終 -D 集合、or `Options.cmake` の digest 織り込み) を hook 非依存にする**。kickoff では固定集合限定 +
   テスト固定で潜在に留め、cicada/oze 拡張で protocol 写像が load-bearing になった段へ繰延 (D23)。
-- broken-silo は clean G2 の easy case。coder が現実に出す赤の多くは integrity-class (verdict indeterminate) に
-  なりうる → S4 consumer 段で integrity fixture を別途用意 (clean G2 だけで規律3 閉ループを certify しない)。
-  **(解消 2026-07-06、後続段 2)** integrity-class positive control 2 形状 (missing_txids+notes / integrity
-  クリーンでも txns=0 の空 DSG) を閉ループテストで固定、dup_txids の verdict 級テストを新設 (7 条件で唯一の
-  空白だった)。既知偽陰性 2 形状 (末尾欠番・trx 尾部欠落) は fixture 化すると緑化して positive control が
-  不成立 — 逆に characterization テスト (現状 certified を明示 assert、fail = 検出力向上の合図で反転) として
-  可視化した (S1 形式拡張時の回帰点)。
+- **broken-silo は clean G2 の easy case (解消 2026-07-06、後続段 2、D37)**: coder が出す赤の多くは
+  integrity-class (verdict indeterminate) になりうる懸念に対し、integrity-class positive control 2 形状 +
+  dup_txids の verdict 級テストを新設して閉ループ実証。既知偽陰性 2 形状は characterization テストとして
+  可視化 (S1 形式拡張時の回帰点、詳細は D37)。
 - **coder のリーク制御が未設計 (P2-5/D21 の Phase 3 版が未予約)**: kickoff の題材 BACKOFF_FIXED は、勝ち筋
   (contention 域で stock 最良 +38%/+11%、sweet-spot 値) が docs/insights/WAL/CLAUDE.md にリポジトリ内既知として
   書かれている。coder のコンテキストにこれが混入すると「合成できた」のか「答えを読んだ」のか分離できない。P2-5 は
@@ -255,15 +247,10 @@ worklog 全読しないと発掘できない状態を解消するためここに
   確立した (D12/D21)。Phase 3 で coder が実際に #if 枝を自律生成する段 (後続段 4) では、この Phase 3 版リーク制御
   (勝ち筋値・機序説明を coder の入力から遮断) を予約する。kickoff (no-op / 人間が値を与える純 timing) では coder が
   値を発明しないので潜在。
-- **観測者効果の二重検査の述語 (方針 A で一次防壁に昇格した分、重い)**: 旧仕様「TRACE マクロ以外で差が無いことを
-  両ビルドの preprocess 出力で diff」には 2 つの問題があった — (1) trace/perf の preprocess 出力は `#if TRACE` 領域で
-  **正当に**食い違うため素の diff は述語として成立しない、(2) coder が `#ifdef TRACE` の**内側**に挙動差を隠す攻撃
-  (2 巡目 GW2R-1 の payload が実演した形) を素通しする。**確定仕様 (diff-of-diffs、kickoff タスク参照) は
-  両方を同時に解消し、実装済み (commit 14d64e6)**: variant の TRACE=1/TRACE=0 差分が pinned HEAD の同差分と一致する
-  ことを assert するので、正当な trace-hook 差分は許容され、#ifdef TRACE 内側への追加/改変は D_variant≠D_stock で
-  fails-closed になる。
-  残る限界 (タスク定義に明記): 検証専用メタデータが #ifdef の外 = 両ビルド共通に常駐するケースは機械判定不能
-  (fitness の自己ペナルティで false-green にはならないが、意味判定は auditor / 人間レビュー領域)。
+- **観測者効果の二重検査の述語 (解消、commit 14d64e6)**: 旧仕様 (TRACE マクロ以外の差分無し diff) は
+  trace/perf の正当な差分を誤検出する・#ifdef TRACE 内側への攻撃を素通しする、の 2 欠陥があったが、
+  diff-of-diffs (variant の TRACE=1/TRACE=0 差分が pinned HEAD の同差分と一致することを assert) で解消。
+  **残る限界: #ifdef の外 = 両ビルド共通の検証専用メタデータは機械判定不能** (auditor / 人間レビュー領域、未解消)。
 - **#include 死角の残り (道Y 一般問題)**: identity 核の閉塞 (`assert_includes_match_head`) が捕えるのは literal な
   `#include` 行のみ。`#if __has_include(...)` (preprocess 環境と実ビルドで評価が分岐しうる) や #define 経由の
   computed include は #include 行に現れず素通りする。identity 核だけでは完了条件 1 (骨格の #if 指令は inert) と
