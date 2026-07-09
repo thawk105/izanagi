@@ -34,7 +34,7 @@ import sys
 
 # source_digest.EVOLVE_BLOCK_SOURCES の写し (hook は単体で動く必要があるため import
 # しない)。ドリフトは orchestrator/tests/test_hooks.py が両者の一致を assert して防ぐ。
-EVOLVE_BLOCK_SOURCES = ("include/backoff.hh",)
+EVOLVE_BLOCK_SOURCES = ("include/backoff.hh", "cc/silo/transaction.cc")
 
 
 def _repo_root() -> str:

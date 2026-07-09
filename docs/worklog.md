@@ -1058,3 +1058,35 @@ ValueError fails-closed 化、(c) パス跨ぎで EvalResult.verdict が持ち�
 **次の一手:** 段5 残り (lock 経路 (cc/silo/transaction.cc) への編集面拡張 [前提 gate =
 `test_lock_path_edit_surface_requires_auditor_live` 確認済み] → sort-strategy ターゲット起動 →
 git worktree 隔離 → C1 残課題) へ進む。**人間待ち:** なし。
+
+## 2026-07-09 (5) — 段5 続き: lock 経路 (transaction.cc) 編集面拡張
+
+**依頼:** 前エントリ「次の一手」どおり続行。段5 の2項目 (lock 経路編集面拡張) に着手。
+
+**実装前の裏取り:** 実装に入る前に、実 submodule (pin 028f34d) の `cc/silo/transaction.cc` が
+`-Werror=undef` preprocess を実際に通るか (Options.cmake 既定にない未定義マクロを #if 参照
+していないか) を Python で直接検証してから着手 — 事前検証なしで allowlist に足すと fails-closed
+で全 digest 計算が壊れるリスクがあったため。素材: 同ファイルの TRACE 差分は 45 行 (D38 の
+write_set 被覆 assert 由来、想定通り) で D_variant==D_stock は自明に成立 (transaction.cc 自体は
+未改変) と確認。
+
+**実装:** phase3.md 段5 の survey_B 記載どおり同一コミットで5点 — `source_digest.
+EVOLVE_BLOCK_SOURCES`/`ALLOWLIST` に `cc/silo/transaction.cc` 追加・`hooks/guard_write.py` の
+写し定数を同期・`test_campaign.py` の `_fake_ccbench_repo` に transaction.cc 生成追加・
+`test_source_digest_allowlist` の反例を (transaction.cc が allowlist 内に移ったため)
+`cc/silo/util.cc` に差し替え。drift test (`test_constants_match_source_digest`) は変更不要
+(両定数を同期させれば自動的に新集合で緑)。
+
+**実機検証:** 実 submodule に対し src_token (stock genome→"stock" 維持)・includes 一致・
+trace-diff 一致・allowlist assert の 4 点、および guard_write hook が transaction.cc の
+Edit を許可しつつ Options.cmake 等は引き続き拒否することを個別に実行して確認。pytest は
+テスト新規追加なしでフィクスチャ/定数更新のみ、287 本 (段5 (4) と同数) 緑。
+
+**完了状況:** 段5 の lock 経路編集面拡張、完了。`docs/phase3.md` 該当箇所を本エントリと同
+コミットで更新。**明示しておく残課題 (本タスクの範囲外):** これは identity/allowlist 層の
+地ならしのみで、段4 coder loop (`p3_s4_loop.SOURCE_REL`) は引き続き backoff.hh 単一マーカーを
+駆動する。実際の lock 変異 (template patch + marker 追加 + diff_quarantine の複数マーカー対応、
+diff_quarantine.py docstring 曰く「段5/6 で仕様化」) は未着手の別タスク。
+
+**次の一手:** 段5 残り (sort-strategy ターゲット起動 → git worktree 隔離 → C1 残課題) へ進む。
+**人間待ち:** なし。

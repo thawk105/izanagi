@@ -1297,24 +1297,27 @@ def test_source_digest_semantic_comment_vs_behavior():
 
 
 def test_source_digest_allowlist():
-    """allowlist 内 (Options.cmake/backoff.hh) は通過、外 (transaction.cc) は fails-closed。"""
+    """allowlist 内 (Options.cmake/backoff.hh/transaction.cc) は通過、外 (util.cc) は
+    fails-closed。transaction.cc は段 5 (D38 決定5) で編集面に加わったため、反例には
+    未だ編集面外の隣接ファイル cc/silo/util.cc を使う (2026-07-09 差し替え)。"""
     saved = source_digest.subprocess
     try:
-        # 異常系: git status を fake し transaction.cc の tracked 改変を注入
+        # 異常系: git status を fake し util.cc の tracked 改変を注入 (allowlist 外)
         source_digest.subprocess = types.SimpleNamespace(
             run=lambda *a, **k: types.SimpleNamespace(
-                returncode=0, stdout=" M cc/silo/transaction.cc\n M include/backoff.hh\n"),
+                returncode=0, stdout=" M cc/silo/util.cc\n M include/backoff.hh\n"),
             SubprocessError=Exception)
         try:
             source_digest.assert_worktree_within_allowlist("/x")
             assert False, "allowlist 外改変で停止すべき"
         except RuntimeError:
             pass
-        # 正常系: allowlist 内 + untracked (build 生成物) は無視
+        # 正常系: allowlist 内 (transaction.cc 含む) + untracked (build 生成物) は無視
         source_digest.subprocess = types.SimpleNamespace(
             run=lambda *a, **k: types.SimpleNamespace(
                 returncode=0,
-                stdout=" M cmake/Options.cmake\n M include/backoff.hh\n?? build-variants/x\n"),
+                stdout=" M cmake/Options.cmake\n M include/backoff.hh\n"
+                       " M cc/silo/transaction.cc\n?? build-variants/x\n"),
             SubprocessError=Exception)
         source_digest.assert_worktree_within_allowlist("/x")   # 例外なし = OK
     finally:
@@ -1406,16 +1409,30 @@ _FAKE_BACKOFF_HH = (
     "  }\n"
     "};\n")
 
+# 段 5 (D38 決定5) で EVOLVE_BLOCK_SOURCES に加わった lock 経路。#if 指令を持たないので
+# -Werror=undef の対象にならない (実 transaction.cc は BACK_OFF 等 Options.cmake 既定の
+# マクロしか参照せず fake Options.cmake との整合を保つ必要はここでは無い、compute/baseline
+# が同一 defines で同一ファイルを preprocess できれば足りる)。
+_FAKE_TRANSACTION_CC = (
+    "class Transaction {\n"
+    "public:\n"
+    "  void lockWriteSet() {}\n"
+    "  void writePhase() {}\n"
+    "};\n")
+
 
 def _fake_ccbench_repo():
     """(sub, head, git) — git は fake repo で任意コマンドを回すヘルパー。"""
     sub = _tmpdir("izanagi_fakecc_")
     os.makedirs(os.path.join(sub, "cmake"))
     os.makedirs(os.path.join(sub, "include"))
+    os.makedirs(os.path.join(sub, "cc", "silo"))
     with open(os.path.join(sub, "cmake", "Options.cmake"), "w", encoding="utf-8") as f:
         f.write('set(CCBENCH_BACK_OFF 1 CACHE STRING "exponential backoff")\n')
     with open(os.path.join(sub, "include", "backoff.hh"), "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH)
+    with open(os.path.join(sub, "cc", "silo", "transaction.cc"), "w", encoding="utf-8") as f:
+        f.write(_FAKE_TRANSACTION_CC)
 
     def git(*args):
         r = subprocess.run(["git", "-C", sub, *args], capture_output=True, text=True)

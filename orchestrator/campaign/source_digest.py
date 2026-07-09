@@ -61,10 +61,14 @@ from .model import Genome
 
 # ---- 対象集合 (kickoff の固定集合。動的なマーカー走査はマーカー導入後に格上げ) ----
 OPTIONS_CMAKE = "cmake/Options.cmake"
-EVOLVE_BLOCK_SOURCES = ("include/backoff.hh",)
+# cc/silo/transaction.cc = 後続段 3 (D38) の lock 経路。編集面への追加は段 5 (D38 決定5) で
+# auditor live 機械 4 点 (test_lock_path_edit_surface_requires_auditor_live) の gate 下に解禁。
+# 段 4 の coder loop (p3_s4_loop.SOURCE_REL) はまだ backoff.hh 単一マーカーのみを駆動する —
+# ここでの追加は identity/allowlist 層の地ならしで、実マーケット化 (template patch) は別タスク。
+EVOLVE_BLOCK_SOURCES = ("include/backoff.hh", "cc/silo/transaction.cc")
 # template patch (silo-backoff-fixed.patch) が touch するファイル。working-tree の
 # tracked 改変がこれを超えたら coder の編集面が EVOLVE-BLOCK を逸脱した印 → 停止。
-ALLOWLIST = frozenset({"cmake/Options.cmake", "include/backoff.hh"})
+ALLOWLIST = frozenset({"cmake/Options.cmake", "include/backoff.hh", "cc/silo/transaction.cc"})
 
 STOCK = "stock"        # 後方互換: working-tree==HEAD baseline のときの src トークン
 
