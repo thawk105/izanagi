@@ -1,0 +1,182 @@
+# Phase 3 段 5 Runbook — sort-strategy 自律ループの実走手順 (Model Y 駆動)
+
+**位置づけ:** 段 5 sort-strategy = 実 LLM (`planner-v4` / `coder-v4-autonomous-sort` /
+`auditor` / `critic`) をメインセッションが spawn し、機械部分
+(`orchestrator/campaign/p3_s4_loop_sort.py`) に proposal を引数で渡す実ループ。
+`docs/phase3-s4b-runbook.md` (backoff 軸) の兄弟文書 — 構造は同じだが **auditor が
+per-iteration 必須の機械 gate として追加**されている点が異なる (D41 条件4、敵対レビュー
+2026-07-10)。設計正本は D41/D42/D43 (decisions.md) と `orchestrator/campaign/p3_s4_loop_sort.py`
+の docstring。本書は**運用手順**だけを持つ (設計判断・完了状況は書かない — 正本は
+worklog 末尾と phase3.md)。矛盾があれば正典が勝つ。
+
+---
+
+## 0. 実走前ゲート (すべて満たすまで駆動を始めない)
+
+1. **fresh session である** — `planner-v4` / `coder-v4-autonomous-sort` / `auditor` は
+   エージェント登録が**セッション開始時**に読まれる。`coder-v4-autonomous-sort.md` を
+   追加した commit より後に**新しく開いた session** でないと spawn できない (mid-session
+   の `.md` 追加は反映されない、2026-07-08 実証・段4b runbook と同じ制約)。確認 = Agent
+   の利用可能型に `planner-v4` / `coder-v4-autonomous-sort` / `auditor` が並ぶこと。
+2. **計測層が single-tenant** — `pgrep -a -f 'ccbench|silo|bench'` で他ユーザー/孤児
+   ベンチが無いこと (load avg は EMA で laggy ゆえ pgrep が正、規律4)。**この機で他ユーザー
+   (leon 等) の claude セッションが並行稼働していることがある — バイナリ実行 (`ycsb_*.exe` 等)
+   のプロセスが実際に走っているかを見分ける** (daemon/vscode-server 等の常駐プロセス名に
+   `ccbench`/`bench` が偶然含まれるだけの場合は競合ではない)。
+3. **submodule が pinned-clean** — `git -C external/ccbench rev-parse --short HEAD` が
+   `d706650` (= `p3_s4_loop_sort.PIN` = `pin.CURRENT_PIN`)、
+   `git -C external/ccbench status --porcelain` が空。
+4. **test 緑** — `python3 -m pytest orchestrator/tests/ -q` が all pass。
+5. **calibration の確認** — 段 5 の `default_perf` は配線規模 (records=100k/threads=4/
+   extime=1/reps=2、有意性を主張しない)。**headline 性能主張はしない段** — headline は段 6。
+
+---
+
+## 1. 1 iteration の駆動プロトコル (メインセッションが回す)
+
+ループ主導権はメインセッション。harness は LLM を spawn しない。1 周:
+
+### (a) planner-v4 を spawn (方向提案・値なし、backoff 軸と無改変で共用)
+`Agent(subagent_type='planner-v4')`。入力は段4b runbook と同型 (JSON):
+```json
+{
+  "current_perf": {"throughput_ops_sec": <baseline>, "abort_rate_pct": <baseline>, "last_delta_pct": null},
+  "leading_indicators": {"cache_miss_rate_pct": <baseline>, "contention_level": "<...>", "IPC_overall": <baseline>},
+  "whiteboard": <loop_state.json の whiteboard (抽象・機序なし)>
+}
+```
+axis は `"silo-writeset-sort"` (段4b は `"silo-backoff-magnitude"`)。**direction/magnitude
+の意味論をメインセッション側で具体的に解釈・注入しない** — 「乖離度を上げる」「積極的に
+再順序化する」等の言い回しは coder への戦略ヒントの経路になりうるため使わない (敵対
+レビュー 2026-07-10)。planner-v4 自体は無改変 (`.claude/agents/planner-v4.md` は段4b と
+共通)。
+- 出力 = `{proposal: {axis, direction, magnitude, justification, uncertainty}}` (値なし)。
+
+### (b) coder-v4-autonomous-sort を spawn (comparator コード合成)
+`Agent(subagent_type='coder-v4-autonomous-sort')` (tools=[] = ファイルシステム走査経路
+なし、リーク制御)。入力:
+```json
+{
+  "leakproof_context": "<src/coder-leakproof-context.md の内容を inline で>",
+  "sort_spec": "<coder-v4-autonomous-sort.md の「合成対象と制約」節を inline で>",
+  "planner_direction": <(a) の proposal>,
+  "baseline": {"throughput_ops_sec": <baseline>, "abort_rate_pct": <baseline>},
+  "whiteboard": <抽象 whiteboard>
+}
+```
+- リーク制御 (規律2/6, D39 決定7 を継承): coder には**勝ち筋の comparator 設計・性能利得・
+  機序を渡さない**。
+- 出力 = `{proposal: {axis, implementation, justification, confidence}}`。`value` は無い
+  (backoff 軸との違い)。`implementation` は EVOLVE-BLOCK hole 全体 (`sort(...)` 文一式) を
+  置換する複数行コード。
+
+### (c) diff プレビューを取得 (auditor に渡す実 diff + digest を得る、段4b には無い新ステップ)
+`coder.implementation` をファイルに書き、harness の `--preview-diff` を呼ぶ (build 不要・
+single-tenant 不要、read-only に近い):
+```
+echo "$IMPLEMENTATION" > <scratch>/impl.txt
+python3 -m campaign.p3_s4_loop_sort --preview-diff <scratch>/impl.txt
+```
+出力 JSON = `{"passed": bool, "working_diff": "...", "diff_digest": "<sha256>", "subtype": ..., "reason": ...}`。
+- `passed=false` (フレーム/hole 逸脱) なら auditor を呼ばず、この時点で `<scratch>/prop.json`
+  の `auditor` は省略できない仕様なので、`auditor: {"verdict": "reject", "diff_digest": "<空文字列は不可>"}`
+  のような回避を試みない — **`passed=false` は diff 検疫 reject として直接 `--run-iteration`
+  に渡す** (auditor に見せる価値のある diff にすらなっていないため)。この場合 (b) に戻り
+  coder に再提案させる (メインセッションの判断)。
+- `passed=true` なら `working_diff` を auditor への入力に、`diff_digest` を後述 (e) の
+  `auditor.diff_digest` に**そのまま**使う。
+
+### (d) auditor を spawn (per-iteration 必須の機械 gate、D41 条件4)
+`Agent(subagent_type='auditor')`。入力 (メインセッションが射影、auditor.md の入力隔離
+規約どおり fitness/WAL 生ファイルは渡さない):
+```json
+{
+  "diff": "<(c) の working_diff>",
+  "designated_source_context": "<patches/silo-sort-variant.patch の骨格 + WriteElement 定義等、必要な API 確認用の抜粋>",
+  "abort_reject_digest": "<直近 iteration の赤 digest があれば (verdict/liveness の形状のみ、性能数値なし)>"
+}
+```
+- 出力 (`auditor.md` の出力節どおり) = `{verdict, violations, nits, proposed_tests, uncertainty}`。
+  `verdict` は `pass`/`reject`/`uncertain` のいずれか。
+
+### (e) proposal ファイルを書く
+`<scratch>/prop.json`:
+```json
+{
+  "planner": <(a) の proposal>,
+  "coder":   <(b) の proposal>,
+  "auditor": {
+    "verdict": "<(d) の verdict>",
+    "diff_digest": "<(c) の diff_digest そのまま>",
+    "violations": <(d) の violations>,
+    "nits": <(d) の nits>,
+    "proposed_tests": <(d) の proposed_tests>,
+    "uncertainty": "<(d) の uncertainty>"
+  },
+  "prior_critic_reverse": <前 iteration の critic が逆方向を推奨したか true|false、iteration 1 は null>
+}
+```
+**`auditor.diff_digest` は (c) で得た値をそのまま転記する** — auditor 自身が計算するの
+ではなく、メインセッションが「auditor に見せた diff」と「これから build される diff」の
+同一性を機械照合するための値 (敵対レビュー 2026-07-10)。ここで別の diff の digest を
+貼り付けたり、古い iteration の digest を使い回すと、次の (f) で `AuditorGateFailure` が
+発生し駆動が止まる (fails-closed、意図通りの動作)。
+
+### (f) harness で 1 iteration を実走 (single-tenant!)
+```
+python3 -m campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.json
+```
+- checkpoint 復元 → critic feedback 畳込み → 入口 check_stop → iteration++ → 挿入→diff
+  検疫→**auditor gate (digest 突合 + verdict 判定)**→(pass なら)build×2/verify(legacy+S2)/bench
+  → checkpoint 保存 (atomic) → digest 書き出し → 末尾 check_stop。
+- `AuditorGateFailure` が飛んだら (digest 不一致・auditor フィールド欠落等) **メイン
+  セッションの手順ミス** — (c)/(e) をやり直す (coder/auditor の再spawn は不要、正しい
+  digest を転記し直せば足りることが多い)。
+- 出力 = `ran / outcome (rejected|certified|aborted|dry-pass|stopped-before) / iteration /
+  停止判定 / checkpoint パス / digest パス`。`rejected` の内訳は WAL の
+  `diff_quarantine.subtype` (`frame-altered`/`hole-escape`/`outside-region`/`malformed`
+  = 検疫型、`auditor-violation`/`auditor-uncertain` = auditor 型) で読み分けられる。
+- **配線リハーサルは `--no-build`** (single-tenant 不要。diff 検疫 + auditor gate の配線
+  確認のみ、dry-pass は whiteboard に載らない)。
+
+### (g) 停止判定を読み、続けるなら critic を spawn
+段4b runbook §1(e) と同じ (harness は critic の自然文を読まない、メインセッションが
+「逆方向を推奨したか」を判定して次 iteration の `prior_critic_reverse` に反映)。
+
+---
+
+## 2. リーク制御チェックリスト (毎 iteration、メインセッションが自己監査)
+
+段4b runbook §2 と同じ排除対象 (sweet-spot literal・機序・利得・WAL/reports/profile・
+勝ち筋 VALUE 節) に加え、sort 軸固有の追加項目:
+- **planner_direction の解釈をメインセッション側で具体化しない** — "increase" 等の言葉に
+  「積極的な再順序化」「乖離度」のような機序含みの説明を足して coder に渡さない (§1(a))。
+- **auditor の violations/uncertainty をそのまま whiteboard に転写しない** — whiteboard
+  entry は `L.project_whiteboard` が既存の 5 フィールド (機序なし) しか書けない設計なので
+  構造的に防がれているが、critic への digest (`s5_sort_loop_digest.txt`) には auditor の
+  violations 文が载る (これは critic までの経路であり whiteboard へは流れない、設計通り)。
+
+---
+
+## 3. 停止と継承
+
+段4b runbook §3 と同じ規約 (収束/逆方向枯渇/予算、checkpoint は段6へ inherit、reflux on/off
+は LLM ablation の対照)。`MAX_ITER`/`MAX_WALLTIME_S` も同じ値 (`L.check_stop` に完全委譲)。
+
+---
+
+## 4. 既知の限界 (実走前に承知しておく)
+
+- 段4b runbook §4 と同じ限界 (delta_pct 常に None・dry-pass は whiteboard に載らない・
+  有意性を主張しない・並行 driver は想定しない) に加えて:
+- **型14 (非 SWO comparator) への機械的プロパティテストは未実装** (敵対レビュー
+  2026-07-10 でユーザー確認の上、次善タスクとして繰延)。現状の防壁は auditor 静的目視 +
+  既存 timeout (`TRACE_TIMEOUT_S=120`/perf run の `timeout_s=120`、ハングを無限にしない
+  defense-in-depth)。write_set_ サイズが小さい探索 (規律4の最小レコード数) では非 SWO
+  comparator でもハングが顕在化しない恐れがある (D42 条件1の実機知見)。
+- **型15 (fairness reward hack) の機械観測点も未実装** (規律5、D41 決定3・D42 条件3)。
+  現状は auditor 静的目視のみが防壁。発火条件・指標 (Gini係数/max-min比) は phase3.md
+  残存リスク節を参照。
+- `--isolate-worktree` は**既定 ON** (backoff driver とは非対称、PIN が異なるため)。
+  `--no-isolate-worktree` で無効化できるが、共有 tree で backoff driver と交互に走らせる
+  場合は `assert_pinned_clean` の PIN 不一致で止まりうる (意図通りの fails-closed)。

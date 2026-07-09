@@ -1372,3 +1372,86 @@ D40/D41 と同型の分割)。
 本決定の範囲外。実装したのは「変異を許しても正しさゲートが機械的に検出できる基盤」までであり、
 実際の coder 生成・auditor 実運用レビュー・fairness 機械観測点・sort-strategy 専用 mutation-red
 gate driver 化はいずれも次のタスク以降。
+
+## D43. 後続段 5 — sort-strategy 兄弟 driver 実装 (D42 条件6 の残り) + auditor 機械 gate (2026-07-10)
+
+**背景:** D42 条件6 (方針確定・実装は繰延) の残りを実装した。sort 戦略は backoff (スカラー値の
+変異) と異なり write_set_ 施錠順序 comparator という**コード片**の変異であり、既存
+`coder-v4-autonomous.md` の出力スキーマ (`value:1-1000` + `"double now_backoff=<式>;"`) が
+そのまま転用できないことが実装着手時に判明した (`assert_value_literal_consistent` 相当の数値
+整合チェックも同様に適用不可)。実装前に 3 レンズ (リーク制御/fails-closed/regression) 敵対
+レビューを実施し (workflow journal `wf_b1b73f25-27d`)、必須修正 6 点を反映した。
+
+**新設 `orchestrator/campaign/p3_s4_loop_sort.py`:** `p3_s4_loop.py` の兄弟 driver。共有可能な
+汎用ヘルパ (`quarantine`/`record_diff_reject`/`make_critic_digest`/`check_stop`/`LoopState`
+永続化等) は `campaign.p3_s4_loop` を `L` として import しそのまま再利用 (D42 決定6 で確認済みの
+方針どおり)。PIN=`pin.CURRENT_PIN` (d706650)。`CoderProposalSort` に `value` フィールドは無い。
+
+**auditor を機械的な pre-build gate にした (D41 条件4 の機械化):** `assert_value_literal_consistent`
+(backoff 軸の pre-build fails-closed 整合チェック) に相当する仕組みが sort 軸には無い
+(数値リテラルが存在しないため) ため、代わりに **auditor の verdict を機械 gate にする**設計
+とした。当初案 (「auditor verdict != pass なら reject」) は敵対レビューで「宣言止まり (fields
+欠落時に fail-open しうる、auditor が実際にそのdiffを見た保証が無い)」と3レンズ全員から
+指摘された。**修正: `auditor.diff_digest` (審査した working_diff の sha256) を proposal JSON の
+必須フィールドにし、`run_one_iteration` が `quarantine()` で実際に生成する working_diff の
+digest と機械照合する** — 不一致は `AuditorGateFailure` (backoff の `AttributionMismatch` と
+同型) で即停止。`auditor` フィールド欠落・`verdict` が未知の値も `load_proposal_file` が
+`.get()` に頼らず `d["auditor"]`/例外で fails-closed に落とす。
+
+**verdict=reject/uncertain を diff-quarantine 経路に相乗り:** 新規 loader/renderer を作らず
+既存 consumer (`load_diff_rejections`/`render_rejections`) をそのまま再利用 (auditor.md 型5
+「consumer 取り残し」を自ら再演しない) — `record_diff_reject` を呼ぶ際に `digest["subtype"]` を
+`auditor-violation`/`auditor-uncertain` で分け、reject (違反確信) と uncertain (判断材料不足)
+を同一 bucket にしない (規律3、敵対レビューの指摘)。`render_rejections` に auditor-* subtype
+専用の読み方ヒント分岐を追加 (`orchestrator/critic/digest.py`)。
+
+**その他の必須修正 (敵対レビューで確定):**
+- `coder-v4-autonomous-sort.md` (新設サブエージェント) の出力スキーマから `strategy_summary`
+  相当の一言要約フィールドを削除し `justification` のみに絞った — 具体戦略の例示 (当初案
+  「contended-key優先ソート」) が D39 決定7 のリーク制御を出力スキーマの例示という経路で
+  直撃していた。
+- planner-v4 は無改変で再利用するが、direction (increase/decrease) の意味論をメインセッション
+  側で「乖離度」「再順序化」等の機序含みの言葉で具体化する当初案を撤回し、`docs/phase3-s5-sort-runbook.md`
+  では中立的な「コード変更の大小・探索方向」という抽象シグナルとしてのみ扱う (fairness reward
+  hack を誘発しうる方向のヒントになりうるため)。
+- `default_cfg()` に `search_config[SEARCH_CONFIG_VERIFY_KEY] = VERIFY_LEGACY_PLUS_S2` を明記
+  (S2 verify 配線)。D41 が sort-strategy 採用の根拠にした「S2 (zipf skew0.9) が hot key 競合を
+  実際に踏む」という前提を、この driver 自身が満たさないと D41 の条件付き採用の土台が崩れる
+  ため必須修正と判定された (当初案は言及漏れだった)。
+- `--isolate-worktree` 相当を既定 ON にした (`--no-isolate-worktree` で opt-out)。sort driver
+  の PIN (d706650) が backoff driver の PIN (028f34d、literal 固定のまま) と異なるため、共有
+  tree で両者を交互に走らせると `assert_pinned_clean` が衝突する。
+- `_BASE` に `BACK_OFF: 1` を明示 (`s5_permutation_coverage.py` の `_BASE` と同じ形) — Options.cmake
+  の CACHE 既定への暗黙依存を避ける。
+- `_resolve_duplicate` (重複提案の WAL 復元) に `ccbench_dir=sub` を明示的に渡す — backoff 版の
+  同名関数は worktree 隔離が既定 OFF ゆえこの引数が無いが、sort driver は既定 ON のため、渡さないと
+  worktree 隔離下で誤った tree を参照する。
+
+**次善タスクとして繰延 (規律5、ユーザー確認済み):** 型14 (非 SWO comparator) への機械的
+プロパティテスト (coder の comparator を C++ テストハーネスに組み込み、ランダム WriteElement
+列で SWO 公理を数千回サンプル検査する、本ビルド前の追加ステップ) は、新規 C++ テストハーネス
++ ビルド配線 + 結果パースが必要で driver 新設と同程度の実装コストになるため、AskUserQuestion で
+確認の上「次善タスクとして繰延」を選択した (D42 条件1 の ASan/UBSan driver 化繰延と同型)。
+現状の防壁は auditor 静的目視 (型14) + 既存 timeout (`pipeline.TRACE_TIMEOUT_S=120`/perf run
+の `timeout_s=120`、ハングを無限にしない defense-in-depth) の二層。fairness (型15) の機械観測点
+も D41/D42 の決定どおり未実装 (規律5)。
+
+**新設 `docs/phase3-s5-sort-runbook.md`:** `phase3-s4b-runbook.md` の兄弟文書。auditor spawn
+(§1(d)、段4b には無い新ステップ) と `--preview-diff` (auditor に渡す実 diff + digest を得る
+新 CLI モード、§1(c)) を追加した以外は同じ構造。
+
+**実 LLM での 1 iteration 実走は本タスクの範囲外 — 次セッションへ繰延:** `coder-v4-autonomous-sort`
+はエージェント登録がセッション開始時にのみ読まれるため (2026-07-08 実証済みの制約)、本タスクで
+新設した `.claude/agents/coder-v4-autonomous-sort.md` は**このセッション内では spawn できない**。
+実 LLM (planner-v4/coder-v4-autonomous-sort/auditor/critic) を使った 1 iteration 実走は、
+runbook の実走前ゲート (fresh session 確認) を満たす次セッションで行う。
+
+**正本:** `orchestrator/campaign/p3_s4_loop_sort.py`・`.claude/agents/coder-v4-autonomous-sort.md`・
+`docs/phase3-s5-sort-runbook.md`・`orchestrator/critic/digest.py` (render_rejections 微修正)・
+`orchestrator/tests/test_p3_s4_loop_sort.py` (新規17本)・workflow journal (敵対レビュー、
+`subagents/workflows/wf_b1b73f25-27d/journal.jsonl`)。テスト 312 本 (新規17本) 緑。
+
+**残存リスク:** 型14 (非 SWO comparator) の機械的プロパティテスト・型15 (fairness) の機械観測点
+はいずれも未実装 (上記、次善タスク/規律5)。実 LLM 実走 (次セッション) で初めて
+`coder-v4-autonomous-sort`/auditor gate が実データを通り、設計が実運用に耐えるかが分かる —
+本タスクは機構レベルの実装までであり「機能する」ことの実証は次セッションに持ち越し。

@@ -1184,3 +1184,36 @@ pipeline.py の実コード調査、各500行規模)。
 **次の一手:** sort-strategy 兄弟 driver (`p3_s4_loop_sort.py` 相当) の実装 + 実際に coder ループで
 variant を1本評価する (D42 で繰延した残り)。
 **人間待ち:** 本エントリ + D42 + phase3.md 更新 + submodule (d706650, 未push) のコミット可否確認。
+
+## 2026-07-10 — 段5: D42 条件6 の残り実装 (sort-strategy 兄弟 driver + auditor 機械 gate、D43)
+
+**引き継ぎ確認:** 前エントリ末尾の「人間待ち」(submodule d706650 の push・コミット可否) は
+セッション開始時点で確認したところ既に解消済み (submodule push 済み・メインリポジトリ
+commit 5cc693b 済み) だった。
+
+**設計:** 実装着手前に p3_s4_loop.py/diff_quarantine.py/coder-v4-autonomous.md 等を精読し、
+sort 戦略が backoff (スカラー値) と異なりコード片の変異のため backoff 用 coder 出力スキーマ
+(value + "now_backoff=" literal) が転用不可と判明。3レンズ敵対レビュー (workflow
+`wf_b1b73f25-27d`) で実装前設計を検証し必須修正6点を反映 (詳細 D43)。
+
+**ユーザー判断:** 型14 (非SWO comparator) への機械的プロパティテスト追加を AskUserQuestion
+で確認 → 「次善タスクとして繰延」を選択 (D42 条件1 と同型)。
+
+**手続き上の学び:** 新設 `coder-v4-autonomous-sort.md` の Write は、D42 で auditor.md 追記時に
+auto-mode classifier が「自己変更」として保護し明示承認を要求した前例と異なり、今回はブロック
+されずに完了した (会話内で計画を事前に明示していたためと推測、確証はない)。ユーザーには
+別途ファイル内容を提示済み。**refuted:** smoke テストで作った使い捨て campaign dir
+(`output/campaigns/smoketest-1c8447d3`) の `rm -rf` は `guard_bash` が proof-chain 保護で
+正当に拒否 (D42 と同種の学び) — 削除を試みず放置 (無害な WAL 数行のみ、実データではない)。
+
+**エージェント工数:** Explore ×2 並列 (p3_s4_loop.py/diff_quarantine.py/pipeline.py 精読と
+s4b runbook/auditor.md/coder-v4-autonomous.md 精読、各500行規模) + workflow 3レンズ敵対
+レビュー (review×3 + synthesize×1、37万 token)。
+
+**完了状況:** テスト 312 本 (新規17本) 緑。正本 = D43 (docs/decisions.md)・phase3.md 段5・
+`orchestrator/campaign/p3_s4_loop_sort.py`・`.claude/agents/coder-v4-autonomous-sort.md`・
+`docs/phase3-s5-sort-runbook.md`・`orchestrator/tests/test_p3_s4_loop_sort.py`。
+
+**次の一手:** 実 LLM での1 iteration 実走 (**次セッション必須** — `coder-v4-autonomous-sort`
+はセッション開始時のみエージェント登録が読まれるため本セッション内では spawn 不可、
+2026-07-08 実証済みの制約)。`docs/phase3-s5-sort-runbook.md` §0 の実走前ゲートに従う。
