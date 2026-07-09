@@ -1,0 +1,47 @@
+{
+  "env_tag": "linux-baremetal",
+  "ccbench_commit": "d706650",
+  "genome": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "clocks_per_us": 2100,
+  "runs": {
+    "stock_single": {
+      "exit_code": 0,
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "permutation_violations": 0,
+      "txns": 217293,
+      "p_reasons": {}
+    },
+    "erase_single": {
+      "exit_code": 3,
+      "verdict": "indeterminate",
+      "certified": false,
+      "total_cycles": 0,
+      "permutation_violations": 249252,
+      "txns": 257197,
+      "p_reasons": {
+        "size-changed": 249252
+      }
+    },
+    "swap_single": {
+      "exit_code": 3,
+      "verdict": "indeterminate",
+      "certified": false,
+      "total_cycles": 0,
+      "permutation_violations": 879025,
+      "txns": 0,
+      "p_reasons": {
+        "rcdptr-set-changed": 879025
+      }
+    }
+  },
+  "checks": {
+    "stock_silent_certified": true,
+    "erase_characterization": true,
+    "erase_size_changed_only": true,
+    "swap_characterization": true,
+    "swap_rcdptr_changed_only": true
+  },
+  "all_pass": true
+}

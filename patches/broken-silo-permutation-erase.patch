@@ -1,0 +1,21 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index b06fd4f..000e001 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -406,6 +406,16 @@ bool TxExecutor::validationPhase() { // Validation Phase
+ 
+   sort(write_set_.begin(), write_set_.end());
+ 
++#if IZANAGI_BREAK_PERMUTATION
++  // izanagi 段 5 — DELIBERATELY BROKEN variant (positive control, D41).
++  // Drop one element right after sort, simulating the element loss that a
++  // non-strict-weak-order comparator's UB in std::sort can silently cause
++  // (D41 死角 1). The permutation-preservation check MUST flag it (P
++  // size-changed). Flag defaults OFF (inert, #else = no-op). NEVER build
++  // this into a perf or correctness baseline (絶対規律2).
++  if (!write_set_.empty()) write_set_.pop_back();
++#endif
++
+ #if TRACE
+   // Permutation-preservation check, post-sort verdict (D41 決定2). Outside
+   // the EVOLVE-BLOCK above for the same reason as the pre-sort snapshot.

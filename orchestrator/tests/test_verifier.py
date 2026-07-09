@@ -359,6 +359,77 @@ def test_lock_coverage_malformed_key_flagged():
         shutil.rmtree(d, ignore_errors=True)
 
 
+# ---- permutation 保存違反 (P 行) の positive control (段 5, D41) ----
+#
+# validationPhase の #if TRACE assert が emit する P 行を、verifier が
+# Integrity.permutation_violations に配線し verdict を indeterminate に倒すことを
+# 固定する。P 行は X と異なり txid を持たない (validationPhase は commit 前に走り、
+# abort する trx でも起こりうるため)。実ビルド実走の positive control (要素 erase の
+# broken comparator) は s3_lock_coverage.py 様式の別 driver が担う (X 行と同じ役割分担)。
+
+def test_permutation_violation_indeterminate():
+    """P 行 (permutation 保存違反) は verdict を indeterminate に倒す。txid を持たない
+    ので txn ブロックの外 (C 行の前) に単独で出現しても正しくパースされる。"""
+    import shutil
+    d = _tmp_trace("P size-changed\nC 0 0 5 10\nW 0 aa U 5 10\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.permutation_violations == 1
+        assert res.total_cycles == 0                    # cycle は無い
+        assert res.serializable                          # 純グラフ事実 = 非巡回
+        assert res.verdict == "indeterminate"            # だが認証できない (P が汚す)
+        assert res.verdict != "non-serializable"         # cycle を捏造しない (GATE-1 と同型)
+        assert not res.certified
+        assert result_to_dict(res)["integrity"]["permutation_violations"] == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_permutation_violation_control_serializable():
+    """P 行の無い同じ形は serializable/certified (非恒真の基底 = assert は正しい sort
+    で沈黙する)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.permutation_violations == 0
+        assert res.verdict == "serializable"
+        assert res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_permutation_violation_reasons_parsed():
+    """2 reason (size-changed / rcdptr-set-changed) が parse され件数が issues に載る。"""
+    import shutil
+    d = _tmp_trace("P size-changed\nP rcdptr-set-changed\nC 0 0 5 10\nW 0 aa U 5 10\n")
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert len(issues.permutation_violations) == 2
+        assert set(issues.permutation_violations) == {"size-changed", "rcdptr-set-changed"}
+        res = verify_trace_dir(d)
+        assert res.integrity.permutation_violations == 2
+        note = " ".join(res.integrity.notes)
+        assert "size-changed" in note and "rcdptr-set-changed" in note
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_permutation_violation_between_txn_blocks():
+    """P 行は txn ブロックの間 (前の txn の commit 後、次の txn の C 行の前) にも
+    独立して出現しうる (validationPhase は txn 単位でなくワーカーのタイムライン上の
+    任意の点で走るため)。txid 相関検査 (_expect) を通らないことの確認。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nP rcdptr-set-changed\nC 1 0 5 11\nW 1 bb U 5 11\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.permutation_violations == 1
+        assert res.n_txns == 2                           # 両 txn とも正常に parse される
+        assert res.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- 既知偽陰性の characterization (現状の挙動を明示ロックする) ----
 #
 # 以下 2 テストは「現状 certified になってしまう」ことを assert する。**これは仕様の

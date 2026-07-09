@@ -1,0 +1,23 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index b06fd4f..000e002 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -406,6 +406,18 @@ bool TxExecutor::validationPhase() { // Validation Phase
+ 
+   sort(write_set_.begin(), write_set_.end());
+ 
++#if IZANAGI_BREAK_PERMUTATION_SWAP
++  // izanagi 段 5 — DELIBERATELY BROKEN variant (positive control, D41).
++  // Overwrite one element's rcdptr_ with another's right after sort, without
++  // changing write_set_.size(). This is the complementary broken shape to
++  // broken-silo-permutation-erase.patch: same element count, different
++  // rcdptr_ multiset (one tuple's lock coverage is silently lost while
++  // another is double-counted). The permutation-preservation check MUST
++  // flag it (P rcdptr-set-changed, not size-changed). Flag defaults OFF
++  // (inert). NEVER build this into a perf or correctness baseline (絶対規律2).
++  if (write_set_.size() >= 2) write_set_[0].rcdptr_ = write_set_[1].rcdptr_;
++#endif
++
+ #if TRACE
+   // Permutation-preservation check, post-sort verdict (D41 決定2). Outside
+   // the EVOLVE-BLOCK above for the same reason as the pre-sort snapshot.

@@ -60,6 +60,21 @@ def verify_trace_dir(trace_dir: str, max_report: Optional[int] = 20) -> VerifyRe
             f"(torn-read window; variant broke lock coverage, not a trace-hook fault): "
             f"{sample}")
 
+    # P 行 = validationPhase の permutation 保存 assert (D41)。sort が write_set_ の
+    # 要素を欠落/複製させた (非 strict-weak-order comparator の UB) 可能性 — X 行と
+    # 同じ理由で anomalies でなくここに乗せる (絶対規律2)。
+    dsg.integrity.permutation_violations = len(issues.permutation_violations)
+    if issues.permutation_violations:
+        reasons_p: Dict[str, int] = {}
+        for r in issues.permutation_violations:
+            reasons_p[r] = reasons_p.get(r, 0) + 1
+        by_reason_p = ", ".join(f"{r}×{n}" for r, n in sorted(reasons_p.items()))
+        dsg.integrity.notes.append(
+            f"{len(issues.permutation_violations)} permutation-preservation "
+            f"violation(s) [{by_reason_p}] — validationPhase's write_set_ sort "
+            f"dropped or duplicated an element (non-strict-weak-order comparator "
+            f"UB, not a trace-hook fault)")
+
     anomalies, total = dsg.anomalies(max_report=max_report)
     if total > len(anomalies):
         dsg.integrity.notes.append(

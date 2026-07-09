@@ -7,6 +7,11 @@
     R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版
     W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版=この trx の commit
     X <txid> <key_hex> <reason>               lock 被覆違反 (writePhase の #if TRACE assert。D38)
+    P <reason>                                permutation 保存違反 (validationPhase の
+                                               #if TRACE assert。D41)。txid を持たない —
+                                               validationPhase は writePhase の txid 採番より
+                                               前に走り、abort する trx でも起こりうるため
+                                               txn 文脈と無関係に独立して出現しうる
 
 1 trx の C/R/W 行は **同一ファイル内で連続** (1 worker が trx を逐次実行し、
 writePhase 内で C→R…→W… を一括 emit するため)。C 行が trx の区切り。
@@ -54,6 +59,11 @@ class ParseIssues:
     # これは trace-hook の問題でなく variant の CC 正しさ違反 (torn read 窓) で、
     # integrity.lock_coverage_violations に配線され verdict を indeterminate に倒す。
     lock_coverage_violations: List[tuple] = field(default_factory=list)
+    # P 行 = validationPhase の permutation 保存 assert が emit した違反 (D41)。reason
+    # のみ (txid 無し、上記 schema コメント参照)。非 strict-weak-order comparator の
+    # UB で write_set_ の要素が失われた/複製された可能性を示す。
+    # integrity.permutation_violations に配線され verdict を indeterminate に倒す。
+    permutation_violations: List[str] = field(default_factory=list)
 
 
 def _check_key(key: str, issues: ParseIssues) -> None:
@@ -119,6 +129,15 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         _check_key(key, issues)
                         issues.lock_coverage_violations.append(
                             (current.txid, key, reason))
+                    elif tag == "P":
+                        # P <reason>  permutation 保存違反 (validationPhase の
+                        # #if TRACE assert が emit、D41)。X と異なり txid を
+                        # 持たない — validationPhase は commit 前 (txid 未採番)
+                        # に走り abort する trx でも起こりうるため、どの txn
+                        # ブロックの内外でも独立に出現しうる (_expect を通さ
+                        # ない、current が None でも受理する)。
+                        _, reason = f
+                        issues.permutation_violations.append(reason)
                     else:
                         raise ParseError(
                             f"{path}:{lineno}: unknown record tag {tag!r}: {line!r}")

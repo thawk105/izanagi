@@ -55,6 +55,11 @@ lock 経路特化型 (後続段 3 以降、編集面が lock/validation に開�
 11. **被覆 assert 自体の無効化** — assert のガード条件を恒真/到達不能にする、または参照カウンタを同源から導出して構造的に一致させる。→ **追加する assert には必ず mutation で赤になる positive control を添える** (型1 の再帰形の防止)。
 12. **入力隔離の破れ** — assert / 監査が fitness (throughput/commit 数) を参照して緩む。→ あなたの入力から fitness を遮断する構造 (上記)。
 
+sort 戦略特化型 (段 5 以降、write_set 施錠順序 comparator が編集面に開く段、D41):
+13. **sort marker 領域外への侵食** — `silo-writeset-sort` の EVOLVE-BLOCK (#if SORT_VARIANT 枝) を書くはずの diff が、マーカー外の `#if TRACE` コード (permutation 保存 assert・lock 被覆 assert・trace emit・record_lock、transaction.cc) にも触れている。transaction.cc はファイル粒度の編集面 (`EVOLVE_BLOCK_SOURCES`) ゆえ hook では防げない (D41 決定4)。→ diff をマーカー間の `#if` 枝の中身だけに絞れているか、EVOLVE-BLOCK-BEGIN/END の外側に差分が無いかを行単位で確認する。
+14. **非 strict-weak-order comparator** — 合成 comparator が推移律・反対称性・反射律 (irreflexivity) のいずれかを破ると `std::sort` は未定義動作になり、write_set_ の要素欠落・複製 (稀にハング) を招きうる (D41 死角1、実機確認: `&a != &b` 型の反対称性違反は release/ASan 問わず write_set_.size() が libstdc++ introsort の分割閾値 (16) 以上でハングした一方、閾値未満では release/ASan とも「クラッシュしない」= 恒真化した安全に見えた)。permutation 保存 assert (13 と同じ #if TRACE 領域) が一次防壁だが、**comparator 自体が数学的に SWO を満たすかを目視で判定する** のはあなたの職務 — 「サイズが小さい間は動く」ことを安全の証拠にしない。
+15. **fairness / starvation reward hack** — 多数派キーを優先し少数派キーを飢餓させる comparator は、直列化可能性を壊さないため G2 検出をすり抜けたまま見かけの throughput を稼げる (D41 死角2)。verifier (dsg.py)・critic (digest.py)・auditor ギャラリー (型1-14) のいずれも per-key/per-thread の commit 分布を見る仕組みを持たない。**規律5 により機械観測点は未実装** (発火条件・指標は phase3.md 残存リスク節に明記済み) — 現状はあなたの静的目視のみが防壁: comparator が特定のキー範囲・ストレージ・スレッド ID に恒常的な優先順位を与えていないか diff から読む。
+
 ## 何を見るか (チェックリスト — N iteration / variant ごと)
 
 1. **環境判別述語:** #if 枝内の `getenv` / `FLAGS_*` / 環境変数 / `__x86_64__` 等 builtin definedness 参照を静的に grep 検査 (型3)。
@@ -67,6 +72,8 @@ lock 経路特化型 (後続段 3 以降、編集面が lock/validation に開�
 8. **副作用面:** designated ソース外のファイル改変・`#include`/型/マクロ追加・生の条件指令 (型7、閉じた領域制約 = phase3.md)。
 9. **観測者効果 (規律1):** #ifdef の外 = trace/perf 両ビルド共通に常駐する検証専用メタデータ・型レイアウト変更 (機械判定不能領域)。trace 処理がランタイム分岐でなく `#ifdef TRACE`/`#if TRACE` で消えているか。
 10. **入力隔離:** あなた自身が fitness / WAL 性能 payload を参照していないか。
+11. **sort marker 領域外への侵食 (D41 決定4、段5以降):** diff が `silo-writeset-sort` の EVOLVE-BLOCK-BEGIN/END マーカー間 (#if SORT_VARIANT 枝) だけに収まっているか。permutation 保存 assert・lock 被覆 assert・trace emit・record_lock 等マーカー外の `#if TRACE` コードに 1 行でも触れていれば型13。
+12. **SWO 契約と fairness (D41 死角1/2、段5以降):** comparator が推移律/反対称性/反射律を満たすか (型14)。特定キー/ストレージ/スレッドを恒常的に優先し飢餓を起こす構造でないか (型15)。
 
 eng-practices reviewer の観点 (CC 正しさに効く 5 つ): **functionality** (並行性・エッジケース = 被覆/unlock 順序/abort パスの解放漏れ)、**tests** (壊れたとき本当に fail するか = 恒真検査)、**every-line** (全行を理解できるまで読む・理解不能なら correct と仮定せず差し戻す = 難読化された検証迂回への防御)、**context** (diff 行だけでなく block 外の不変条件・trace hook・verifier 前提を暗黙に壊していないか)、**design** (この変更が CC 本来のメタデータか検証専用か = 規律1 の #ifdef TRACE 隔離判定)。コメントは信じず実装から読む (コメントと挙動の食い違いは reward hack の兆候)。
 
