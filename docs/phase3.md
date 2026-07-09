@@ -198,11 +198,25 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 6. **主実験の実行 (headline 比較 4 対照 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
    実走する段。**Phase 3 の headline 主張はこの段の完了をもって初めて出せる** (段 4/5 の中間結果は評価設計に
    従った暫定として報告)。gate = 変異軸 (sort or それ以降) から headline 候補が出たこと + S2 gate + auditor live。
-   ここで仕込む前提タスク: (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照)、
+   ここで仕込む前提タスク: (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照。
+   D44 注意: stock 専用計測経路を選ぶ場合、対抗馬だけ certified 要件を免除する非対称比較になる — その扱いを
+   設計時に明文化する)、
    (b) SPACES への mocc/tictoc/cicada 登録 + protocol 別 calibration + between-run floor の対象別再実測、
-   (c) ランダム変異生成器と生成分布の確定 (ベースライン 3)、(d) 機械 sweep 駆動と軸命名手順の固定 (ベースライン 4)、
+   (c) ランダム変異生成器と生成分布の確定 (ベースライン 3)、(d) 機械 sweep 駆動と軸命名手順の固定 (ベースライン 4。
+   phase3-main-experiment.md 2026-07-10 追記の sweep-matched / sweep-ceiling 分離に従う)、
    (e) coder リーク制御 (P2-5/D21 の Phase 3 版) の実体化、(f) 検証相 (seed×N・長 extime) の実装、
-   (g) サンプル設計 4 点の数値確定 (統計計画の節)。
+   (g) サンプル設計 4 点の数値確定 (統計計画の節)、
+   (h) **planner→coder 経路のリーク遮断 (D44、headline の前提条件)** — planner-v4 の Read 無制限を解消する
+   (coder と同型の構造遮断: orchestrator が leading-indicators/whiteboard を射影して渡し Read を剥奪する、
+   または Read 対象の機械 allowlist)。同時に `coder-v4-autonomous.md` の入力スキーマ例が `src/coder-spec.md`
+   (runbook が明示禁止したリーク源、しかも内容は実測と逆方向の陳腐値) を指している文書地雷を除去する。
+   エージェント定義の変更は auto-mode の自己変更保護に当たるため人間確認の下で行う、
+   (i) **sort 軸の機械 sweep 先行実測 (D44、安価な先取り)** — 段 6 本走の前に、sort comparator 空間を
+   機械列挙 + ランダム変異で回し coder の到達点と比較する。失敗条件 (c) の答えがここで「同等」と出るなら、
+   本走の前に軸選定・設計を見直せる (P2-5 の教訓: 仮説に工数を先払いしない)、
+   (j) related-work の欠落埋め (D44) — OpenEvolve・OtterTune 系 (DB 自動チューニング)・learned index /
+   learned query optimizer 系の追加、AlphaEvolve/FunSearch 一次資料エントリ化、Polyjuice/CCaaLF
+   (公開実装あり) との実測比較の要否判断。
 7. **(拡張予約) 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初の本丸「他 CC の最適化を CCBench コーパスから
    移植する」+ 隠れた肝「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、**主実験 (段 6) 完了後の拡張**として
    ここに予約する (a' 方針、D32)。根拠 = 非対称性: 空間外合成は P2-4 で実証済み・**移植の価値は未検証仮説** (I5 =
@@ -211,6 +225,24 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    一歩目は**カタログ化の試作 1 枚** (他 CC の最適化 1 つを「前提/効果/競合」でカード化し、移植先で前提が満たせるかを
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
+8. **(D44 で追加。着手順・段 6 との前後は着手時に判断) 探索側を防壁の水準へ引き上げる 3 機構** — 外部評価
+   (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
+   D41 と同水準の敵対検証を課す (設計の具体化はここに書かない — 着手時の設計タスクが正本):
+   - **(8a) 軸提案のループ内化** — LLM の実証済み価値 (機序帰属からの軸発見、P2-4) をループに戻す。
+     critic の機序帰属を入力に「次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)」を提案する役を新設し、
+     人間は承認 gate としてのみ関与する。D41→D43 で 1 回実施した軸オンボーディング手順 (骨格 patch・
+     検疫対応・positive control・auditor ギャラリー拡張・verifier 死角の特定) を**再利用可能なテンプレ**に
+     固めることが前提作業 — 軸あたり固定費を下げないとループ内化しても回らない。リーク制御と両立する
+     (軸提案に勝ち筋の値は不要、機序帰属のみでよい)。
+   - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
+     (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
+     coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
+     を追加する。P2-4 の 3 類型結果 (+38.3%/+11.3%/−6.6%) が有望性の既存証拠。
+   - **(8c) 駆動のセッション非依存化** — 実測の律速は build/verify (66〜175 秒/iteration) ではなく
+     エージェント呼び出しとセッション運営 (実 iteration 間隔 8〜25 分、subagent 登録のセッション開始時
+     制約)。planner/coder/auditor の呼び出しをセッション登録に依存しない駆動 (orchestrator からの API
+     直呼び) に移し、予算時計を暦時間から実行時間ベースへ変える。「ループ主導権は orchestrator」
+     (roadmap §3.8) の自然な延長であり、一晩数十 iteration を可能にする。
 
 ---
 
@@ -294,6 +326,15 @@ worklog 全読しないと発掘できない状態を解消するためここに
   (`orchestrator/campaign/critic/digest.py` 相当) または段6 headline 判定に先立つ専用 driver。現状の唯一の防壁は
   auditor ギャラリー型15 (静的目視、`.claude/agents/auditor.md`) — 機械観測点が無いことを沈黙させないための記録
   (規律3)。
+- **planner-v4 の Read 無制限がリーク制御の系全体を弱める (D44、段 6 前提タスク (h) で解消予定)**:
+  coder の遮断 (tools=[]、D39 決定7) は構造的に堅いが、planner-v4 は `tools: ["Read"]` に機械制限が無く、
+  設計文書上も output/insights (勝ち筋の詳細を含む) を読んでよいことになっている。planner→coder の自然文
+  (justification) は機序を含意する言い回しを運べる (D43 の敵対レビューで「乖離度」「再順序化」等の機序含み
+  語の具体化案が一度採用されかけ撤回された = 同種漏洩がプロンプト設計レベルで起きうることの実証)。
+  「テキスト検査・自己申告は唯一防壁にできない」(D30) の教訓が planner に未適用の状態。あわせて
+  `coder-v4-autonomous.md` の入力スキーマ例が禁止ファイル `src/coder-spec.md` を指す文書地雷も現存
+  (実行済み iteration は runbook どおり leakproof_context を使ったと記録されているが、将来セッションが
+  例をなぞる経路が残っている)。headline 主張の前提条件 (phase3-main-experiment.md 2026-07-10 追記 4) 。
 - **非 strict-weak-order comparator の UB は write_set_ サイズ依存で顕在化する (段5、D41 決定1、実機確認)**:
   反対称性違反 comparator (`return &a != &b;`) を `-DSORT_VARIANT=1` で実機ビルド・実行したところ、
   release/ASan (UBSan 無し) 問わず write_set_.size() が **16 要素以上** (libstdc++ introsort の insertion-sort
