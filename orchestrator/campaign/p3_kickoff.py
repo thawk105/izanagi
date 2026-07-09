@@ -81,15 +81,6 @@ def _perf() -> PerfConfig:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
 
-def _records_of(layout, v: str) -> dict:
-    """variant v の stage→payload (最後勝ち)。判定は宣言でなく WAL レコードで行う。"""
-    out = {}
-    for r in wal.read_records(layout):
-        if r.variant == v:
-            out[r.stage] = r.payload
-    return out
-
-
 def main() -> int:
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
@@ -114,9 +105,9 @@ def main() -> int:
     # --- WAL 機械判定 (完了条件の文言どおり。宣言でなくレコードを gate にする) ---
     layout = campaign_layout(str(ident.campaign_id(cfg)))
     v1 = variant_id(STOCK_G)                       # 条件1: stock id (src 省略) のはず
-    r1 = _records_of(layout, v1)
+    r1 = wal.records_by_stage(layout, v1)
     v2 = next((r.variant for r in s2.results), None)
-    r2 = _records_of(layout, v2) if v2 else {}
+    r2 = wal.records_by_stage(layout, v2) if v2 else {}
 
     checks = {
         # 条件 1: src_token=stock / trace+perf とも cache-hit / certified commit

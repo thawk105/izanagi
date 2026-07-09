@@ -512,14 +512,6 @@ def default_perf() -> PerfConfig:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
 
-def _records_of(layout: CampaignLayout, v: str) -> Dict:
-    out: Dict = {}
-    for r in wal.read_records(layout):
-        if r.variant == v:
-            out[r.stage] = r.payload
-    return out
-
-
 # ==== 帰属整合 (value ↔ hole literal、D39 決定7 の機械強制) ====================
 
 class AttributionMismatch(ValueError):
@@ -577,7 +569,7 @@ def _resolve_duplicate(cfg: CampaignConfig, genome: Genome, layout: CampaignLayo
         dup_v = variant_id(genome, dup_src_tok)
     except RuntimeError:
         dup_v = None
-    recs = _records_of(layout, dup_v) if dup_v else {}
+    recs = wal.records_by_stage(layout, dup_v) if dup_v else {}
     commit_payload = recs.get(STAGE_COMMIT)
     verify_payload = recs.get(STAGE_VERIFY_DONE, {})
     if commit_payload is not None:
@@ -649,7 +641,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         return _resolve_duplicate(cfg, genome, layout, planner, state, log=log)
-    recs = _records_of(layout, v) if v else {}
+    recs = wal.records_by_stage(layout, v) if v else {}
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
         project_whiteboard(state, planner, "success", delta_pct=None)  # 段 6 予約 (率算出は統計的 delta とセット、D39 残存リスク c)

@@ -49,24 +49,21 @@ from campaign.layout import repo_output_root                           # noqa: E
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
-from campaign.pipeline import CorrectnessWorkload, _parse_abort_counts  # noqa: E402
+from campaign.pipeline import (CorrectnessWorkload, S2_FLAGS,           # noqa: E402
+                               _parse_abort_counts)
 
 PIN = "dff0f1e"
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 REPS = 3
 NUMA = ["numactl", "--interleave=all"]   # perf 計測 (p2_2/calibrator) と同条件。
-                                         # 段 5 配線時も S2 verify run は interleave で回す (D36)
+                                         # 段 5 配線 (pipeline.evaluate) も同じ interleave で回す (D36)
 
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
 STOCK_G = Genome("silo", {**_BASE, "BACK_OFF": 1})
 
-# perf 代表 workload と同一 (p2_2.py / calibration_t48_skew0p9_rr50_rmw0)。
-# max_ope=10 は ccbench 既定と同値だが明示凍結 (既定変更で構成が黙って動かないように)。
-S2_FLAGS = {
-    "ycsb_tuple_num": "1000000", "ycsb_zipf_skew": "0.9", "ycsb_rratio": "50",
-    "ycsb_rmw": "false", "ycsb_max_ope": "10", "thread_num": "48",
-}
+# S2_FLAGS (perf 代表 workload と同一。max_ope=10 は ccbench 既定と同値だが明示凍結) は
+# pipeline.py が正本 (段 5 pipeline 配線の CorrectnessWorkload と共有、二重定義防止)。
 EXTIME_CANDIDATES = (3, 1)     # 3 優先 (perf 完全一致 = extime 判別子の除去)
 
 GATE1_RATIO_BAND = (0.5, 2.0)

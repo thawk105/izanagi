@@ -98,8 +98,13 @@ def repro_command(binary: str, gflags: Sequence[str],
 
 def run_once(binary: str, gflags: Sequence[str],
              numactl: Optional[Sequence[str]] = None,
-             timeout_s: float = 120.0):
-    """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。"""
+             timeout_s: float = 120.0,
+             extra_env: Optional[Dict[str, str]] = None):
+    """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。
+
+    extra_env (D36 決定4-5): verify run にのみ設定される環境変数 (IZANAGI_TRACE_DIR
+    等) を perf run にも対称に設定するための差し込み口。既定 None は環境変数を
+    一切足さず (親プロセスの環境をそのまま継承)、既存呼び出し元の挙動を変えない。"""
     tmp = tempfile.mkdtemp(prefix="izanagi_run_")     # TMPDIR=/home 配下
     try:
         perf_out = os.path.join(tmp, "perf.csv")
@@ -109,9 +114,10 @@ def run_once(binary: str, gflags: Sequence[str],
         # cwd を使い捨て tmp にし log/ を用意する (binary/perf_out は絶対パスなので
         # cwd 変更に非依存、tmp は finally で rmtree → WAL log も一緒に消える)。
         os.makedirs(os.path.join(tmp, "log"), exist_ok=True)
+        env = dict(os.environ, **extra_env) if extra_env else None
         t0 = time.monotonic()
         proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=timeout_s, cwd=tmp)
+                              timeout=timeout_s, cwd=tmp, env=env)
         wall = time.monotonic() - t0
         metrics = parse_bench_stdout(proc.stdout)
         perf_text = ""
@@ -133,7 +139,8 @@ def measure_point(binary: str, records: int, threads: int,
                   clocks_per_us: int, extime: int = 3, reps: int = 5,
                   workload: Optional[Dict[str, str]] = None,
                   numactl: Optional[Sequence[str]] = None,
-                  settle_first: bool = False) -> ScalePoint:
+                  settle_first: bool = False,
+                  extra_env: Optional[Dict[str, str]] = None) -> ScalePoint:
     """1 測定点を reps 回反復して ScalePoint を組む。
 
     throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
@@ -164,7 +171,8 @@ def measure_point(binary: str, records: int, threads: int,
         # 全体を捨てず、握り潰さず notes に構造化記録して残り rep で median を取る
         # (reps>=2 の冗長性を活かす)。except: pass にはしない (沈黙させない)。
         try:
-            metrics, counters, wall = run_once(binary, base_flags, numactl=numactl)
+            metrics, counters, wall = run_once(binary, base_flags, numactl=numactl,
+                                               extra_env=extra_env)
         except (RuntimeError, subprocess.TimeoutExpired) as e:
             n_exec_fail += 1
             pt.notes.append(f"rep{i} failed: {type(e).__name__}: {str(e)[:200]}")

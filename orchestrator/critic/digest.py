@@ -345,7 +345,15 @@ def load_verify_abort_signals(layout: CampaignLayout) -> List[VerifyAbortSignal]
 
     verify まで到達した run のみ (liveness-red は VERIFY_DONE 手前で abort するため
     ここには現れない — 段 2 の赤専用 campaign では本シグナルは空になる。実データでの
-    発火は variant が verify を通り始める段 4 以降)。"""
+    発火は variant が verify を通り始める段 4 以降)。
+
+    S2 有効時 (D36 決定4、search_config['verify']=='legacy+s2') は variant ごとに
+    legacy→S2 の順で複数回 STAGE_VERIFY_DONE が書かれうる (敵対レビュー 2026-07-09 で
+    確認)。stock 対照との比較はスケールを揃える必要があるため常に**最初に書かれる
+    legacy パス**を採用する (先勝ち) — campaign 内の全 genome (stock 含む) は同じ
+    passes 順序で評価されるため legacy は常に最初に書かれ、variant と stock の両方が
+    同一スケールの数値になる。S2 パスの commits/aborts はここでは読まない (S2 の
+    reject は load_rejections/load_liveness_rejections が workload タグ付きで拾う)。"""
     genome_of: Dict[str, str] = {}
     srctok_of: Dict[str, str] = {}
     seen: Dict[str, Dict] = {}
@@ -354,7 +362,8 @@ def load_verify_abort_signals(layout: CampaignLayout) -> List[VerifyAbortSignal]
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
             srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
         elif r.stage == STAGE_VERIFY_DONE:
-            seen[r.variant] = r.payload
+            if r.variant not in seen:      # 先勝ち: legacy パスは常に最初 (上記 docstring)
+                seen[r.variant] = r.payload
     return [VerifyAbortSignal(
                 variant=v, genome=genome_of.get(v, ""),
                 commits=p.get("commits"), aborts=p.get("aborts"),

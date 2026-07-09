@@ -331,7 +331,7 @@ def test_measure_point_survives_partial_rep_failure():
     good = ({"throughput[tps]": "1000", "maxrss": "100 kB"},
             PerfCounters(llc_load_misses=10, llc_loads=100), 0.5)
 
-    def fake_run_once(binary, gflags, numactl=None, timeout_s=120.0):
+    def fake_run_once(binary, gflags, numactl=None, timeout_s=120.0, extra_env=None):
         calls["n"] += 1
         if calls["n"] == 2:                    # 2 回目 (rep1) だけ失敗
             raise RuntimeError("ccbench produced no metrics (injected)")
@@ -354,7 +354,7 @@ def test_measure_point_all_reps_fail_raises():
     """全 rep が run_once 例外なら集約 RuntimeError (測定不能を沈黙で None 化しない)。"""
     from calibrator import runner
 
-    def fake_run_once(binary, gflags, numactl=None, timeout_s=120.0):
+    def fake_run_once(binary, gflags, numactl=None, timeout_s=120.0, extra_env=None):
         raise RuntimeError("ccbench produced no metrics (injected)")
 
     orig = runner.run_once

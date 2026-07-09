@@ -89,7 +89,8 @@ def _perf() -> PerfConfig:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
 
-def _fixture_run_trace(binary, trace_dir, flags, clocks_per_us, timeout_s=None):
+def _fixture_run_trace(binary, trace_dir, flags, clocks_per_us, timeout_s=None,
+                       numactl=None):
     """_run_trace の fixture 差し替え (赤 2 専用)。バイナリは実行せず r1_write_skew
     (G2 赤、C 行 2) を trace_dir へコピーする。rc=0・aborts=1 を返し、trace-empty /
     trace-no-abort-counts の手前 reject を踏まずに実 verifier へ渡す。"""
@@ -121,14 +122,6 @@ def _synthetic_integrity_rejection() -> Rejection:
         variant="fixture-synthetic-integrity", src_token="fixture")
 
 
-def _records_of(layout, v: str) -> dict:
-    out = {}
-    for r in wal.read_records(layout):
-        if r.variant == v:
-            out[r.stage] = r.payload
-    return out
-
-
 def main() -> int:
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
@@ -153,8 +146,8 @@ def main() -> int:
 
     # --- WAL 機械判定 (完了判定 (b): レコードと復元を gate にする) ---
     layout = campaign_layout(str(ident.campaign_id(cfg)))
-    r1 = _records_of(layout, v1) if v1 else {}
-    r2 = _records_of(layout, v2) if v2 else {}
+    r1 = wal.records_by_stage(layout, v1) if v1 else {}
+    r2 = wal.records_by_stage(layout, v2) if v2 else {}
     livs, other = load_liveness_rejections(layout)
     rejs = load_rejections(layout)
 

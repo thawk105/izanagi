@@ -363,6 +363,27 @@ def test_verify_abort_signal_no_stock_and_legacy_are_explicit():
     assert "未発火" in out2
 
 
+def test_verify_abort_signal_prefers_first_pass_when_s2_writes_second_record():
+    """D36 決定4 (S2 有効時): variant ごとに legacy→S2 の順で STAGE_VERIFY_DONE が
+    複数回書かれうる (敵対レビュー 2026-07-09 CONFIRMED — 修正前は最後勝ちで legacy の
+    commits/aborts が消え、stock 対照とスケールが食い違う比較になっていた)。
+    campaign 内の全 genome (stock 含む) は同じ passes 順序で評価されるため、
+    legacy パス (常に最初) を先勝ちで採用しスケールを揃える。"""
+    lay = _tmp_layout()
+    stock = _G.format(b=0, l=1, t=0, w=0)
+    wal.log(lay, stock, STAGE_BUILD_START, "test",
+            {"genome": stock, "src_token": STOCK_SRC_TOKEN})
+    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
+            {"verdict": "serializable", "commits": 900, "aborts": 100,
+             "workload": {"tag": "legacy"}})
+    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
+            {"verdict": "serializable", "commits": 1_500_000, "aborts": 500_000,
+             "workload": {"tag": "s2"}})
+    out = load_verify_abort_signals(lay)
+    assert len(out) == 1
+    assert out[0].commits == 900 and out[0].aborts == 100  # S2 (2 件目) でなく legacy を採用
+
+
 def test_stock_token_matches_source_digest():
     """STOCK_SRC_TOKEN のローカル定数が source_digest.STOCK から drift しない。"""
     from campaign import source_digest

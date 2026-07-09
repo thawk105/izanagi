@@ -1021,3 +1021,40 @@ a14c133 (ユーザー自身のコミット) で解消済みと確認。持ち越
 
 **次の一手:** 段5 (S2 verify 2 本立て pipeline 配線 → sort-strategy ターゲット起動 / lock 経路編集面拡張)
 へ進む。**人間待ち:** なし。
+
+## 2026-07-09 (4) — 段5 着手: S2 verify 2 本立て pipeline 配線 (D36 決定4) 実装 + 敵対レビューで是正4件
+
+**依頼:** 「izanagi の仕事を進めてください」(進捗はタイムスタンプ付きで細かく)。段5 冒頭タスクとして
+worklog 前エントリの「次の一手」どおり着手。
+
+**実装:** `pipeline.evaluate()` を legacy (既定・小規模) + extra_correctness (S2 相当・t48 フルロード) の
+複数 verify pass に対応させ、D36 決定4 の残り 5 点 (完了条件6 の auditor.md 静的検査は既に D38 で
+充足済みと確認) を配線: (1) `CampaignConfig.search_config["verify"]=="legacy+s2"` を campaign_id ハッシュに
+組み込み (S2 on/off の ablation が別 campaign になる)、(2) STAGE_COMMIT payload に通過 verify 構成タグ列、
+(3) abort/verify_done payload に workload タグ、(4) S2 パスのみ bench_lock + numactl、(5) perf run にも
+IZANAGI_TRACE_DIR をダミー値で対称設定 (getenv 判別子の除去)。`wal.records_by_stage()` を新設し
+p3_kickoff.py/p3_s4_red.py/p3_s4_loop.py の重複 `_records_of()` 3 本を統合。
+
+**実機スモーク (モック無し):** stock genome を legacy→S2 の実 build/verify で通し、両パス certified・
+WAL タグ付けを確認 (初回 166.4秒、修正後再検証 137.6秒。単一テナント・pin 028f34d clean を事前確認)。
+
+**敵対レビュー (workflow, 8観点 finder → 1票検証, 28エージェント):** 実装直後・コミット前に実施。
+20 件が検証を生存 (refuted 0)、重複除去で実質7つの根本原因に集約。**素材:** 根本原因の1つ
+(STAGE_VERIFY_DONE の複数書き込みと「最後勝ち」読み手の衝突) は 2026-07-06 の設計時敵対検証
+(`output/insights/2026-07-06_s2-design-adversarial-review.json` real 指摘1件目) が既に予言していた
+クラスの欠陥 — 設計レビューで指摘された論点が実装段階で異なる workflow 構成により再度独立検出された
+(設計時レビューは実装時の再発を自動では防がない)。real 4件を修正: (a) S2 パスへの
+competing_bench_pids() 追加 (bench_lock だけでは孤児/競合ベンチを捕えない)、(b) numactl 未指定時の
+ValueError fails-closed 化、(c) パス跨ぎで EvalResult.verdict が持ち越される (aborted なのに前パスの
+'serializable' が残留) バグの修正、(d) records_by_stage/load_verify_abort_signals の複数書き込み対応
+(legacy パス先勝ちでスケールを固定)。残り3件は現状唯一の呼び手 (S2) では発火しない設計上の制約として
+記録のみ (規律5、盛らない)。一次資料 = `output/insights/2026-07-09_s2-pipeline-wiring-adversarial-review.json`。
+修正後 pytest 287本 (新規14本) 緑、実機スモーク再検証も緑。
+
+**完了状況:** 段5 冒頭タスク (S2 verify pipeline 配線) 完了。`docs/phase3.md` 段5 の記述を本エントリと
+同コミットで更新 (D36 決定4-2 の「AND 共通ヘルパ」は書き手側 (verify_configs) のみ実装し、読み手側は
+実consumer 発生まで見送りと明記)。
+
+**次の一手:** 段5 残り (lock 経路 (cc/silo/transaction.cc) への編集面拡張 [前提 gate =
+`test_lock_path_edit_surface_requires_auditor_live` 確認済み] → sort-strategy ターゲット起動 →
+git worktree 隔離 → C1 残課題) へ進む。**人間待ち:** なし。

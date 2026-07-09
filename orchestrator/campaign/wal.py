@@ -113,6 +113,24 @@ def replay(layout: CampaignLayout) -> Dict[str, EvalState]:
     return states
 
 
+def records_by_stage(layout: CampaignLayout, variant: str) -> Dict[str, Dict]:
+    """variant の stage→payload (最後勝ち)。判定は宣言でなく WAL レコードで行う。
+
+    p3_kickoff.py / p3_s4_red.py / p3_s4_loop.py が各々独立に持っていた同一実装を
+    統合 (D36 決定4-2)。**注意 (敵対レビュー 2026-07-09 で確認):** STAGE_VERIFY_DONE
+    は S2 有効時 (evaluate() の extra_correctness、search_config['verify']=='legacy+s2')
+    に variant ごと legacy→S2 の順で複数回書かれる。本関数は stage 単位の最後勝ちの
+    ため、この場合は最後のパス (S2) の payload だけが残り、先行パスの verdict/commits/
+    aborts は見えなくなる。全パスを見る・スケールを揃えて比較する必要がある consumer
+    (例 critic.digest.load_verify_abort_signals) は wal.read_records() を直接使い、
+    workload タグ (payload["workload"]["tag"]) で読み分けること。"""
+    out: Dict[str, Dict] = {}
+    for r in read_records(layout):
+        if r.variant == variant:
+            out[r.stage] = r.payload
+    return out
+
+
 def terminal_variants(states: Dict[str, EvalState]) -> set:
     """評価が終わっている (commit=採用 / abort=不採用) variant 集合 = スキップ対象。"""
     return {v for v, st in states.items() if st.terminal}

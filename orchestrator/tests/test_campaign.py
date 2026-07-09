@@ -108,6 +108,18 @@ def test_campaign_id_search_config_order_invariant():
     assert a.cfg_hash8 == b.cfg_hash8
 
 
+def test_campaign_id_verify_config_changes_hash():
+    """D36 決定4-1: search_config['verify'] (S2 on/off) は campaign_id ハッシュに
+    含まれる (search_config は既に汎用ハッシュ対象、D13) — S2 の ablation は別
+    campaign になり WAL terminal skip の汚染 (S2 素通り certified の恒久化) を
+    構造的に防ぐ。"""
+    h0 = ident.campaign_id(_cfg(search_config={"tier": "0-1", "scale": "silo"})).cfg_hash8
+    h1 = ident.campaign_id(_cfg(search_config={
+        "tier": "0-1", "scale": "silo",
+        pipeline.SEARCH_CONFIG_VERIFY_KEY: pipeline.VERIFY_LEGACY_PLUS_S2})).cfg_hash8
+    assert h0 != h1
+
+
 def test_identity_mismatch_guard():
     cfg = _cfg()
     stored = ident.canonical_preimage(cfg)
@@ -174,6 +186,20 @@ def test_wal_tolerates_truncated_last_line():
     states = wal.replay(lay)                              # 例外を投げず
     assert states["v4"].committed
     assert "v5" not in states                             # 壊れた行は捨てる
+
+
+def test_wal_records_by_stage_last_wins_per_stage():
+    """D36 決定4-2: p3_kickoff/p3_s4_red/p3_s4_loop の重複 _records_of() を統合した
+    共通ヘルパ。stage ごとに最後の payload が残る (宣言でなく WAL レコードで判定)。"""
+    lay = _layout(); lay.ensure()
+    wal.log(lay, "v1", STAGE_BUILD_START, "linux-baremetal", {"genome": "g"})
+    wal.log(lay, "v1", STAGE_COMMIT, "linux-baremetal", {"fitness_tps": 1})
+    wal.log(lay, "v1", STAGE_COMMIT, "linux-baremetal", {"fitness_tps": 2})  # 再書き (最後勝ち)
+    wal.log(lay, "v2", STAGE_BUILD_START, "linux-baremetal", {"genome": "other"})
+    recs = wal.records_by_stage(lay, "v1")
+    assert recs[STAGE_BUILD_START]["genome"] == "g"
+    assert recs[STAGE_COMMIT]["fitness_tps"] == 2
+    assert "v2" not in recs                              # 他 variant は混ざらない
 
 
 def test_lock_preimage_roundtrip_and_immutable():
@@ -596,6 +622,273 @@ def test_pipeline_self_compute_identity_error_aborts_under_stock_id():
     assert r.aborted and not r.certified
     assert r.variant == pipeline.variant_id(g)        # identity 不明 → stock id (canonical のみ)
     assert wal.replay(lay)[r.variant].aborted
+
+
+# ===== STAGE2: S2 verify 2 本立て pipeline 配線 (D36 決定4、段5) =====
+
+@contextlib.contextmanager
+def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=None):
+    """verify pass を呼び出し順に異なる結果で返す mock (_mock_pipeline は全 pass
+    共通の固定戻り値しか表現できないため、S2 (2 パス目以降) 専用に用意する)。
+
+    pass_results = [(ncommit, rc, aborts, certified), ...] — _run_trace/
+    verify_trace_dir が呼ばれた順に 1 要素ずつ消費する。yield する dict:
+      trace  = 各 _run_trace 呼び出しの {"flags":..., "numactl":...} 記録
+      bench_lock_enters = bench_lock() で入った回数 (verify pass 分 + bench 分)
+    """
+    saved = {}
+
+    def patch(name, val):
+        saved[name] = getattr(pipeline, name)
+        setattr(pipeline, name, val)
+
+    calls = {"trace": [], "bench_lock_enters": 0}
+
+    @contextlib.contextmanager
+    def fake_lock(*a, **k):
+        calls["bench_lock_enters"] += 1
+        yield
+
+    idx_trace = {"i": 0}
+
+    def fake_run_trace(binary, tdir, flags, clocks_per_us, timeout_s=None, numactl=None):
+        i = idx_trace["i"]
+        idx_trace["i"] += 1
+        calls["trace"].append({"flags": dict(flags), "numactl": numactl})
+        ncommit, rc, aborts, _ = pass_results[i]
+        return ncommit, rc, aborts
+
+    idx_verify = {"i": 0}
+
+    def fake_verify(tdir):
+        i = idx_verify["i"]
+        idx_verify["i"] += 1
+        _, _, _, certified = pass_results[i]
+        return _green_vr() if certified else _red_vr()
+
+    def fake_build(genome, commit, trace, src_token=None):
+        return types.SimpleNamespace(bin_hash="dead" + ("t" if trace else "p"),
+                                     binary="/nonexistent/ycsb.exe", cached=False,
+                                     configure_cmd="<cfg>", build_cmd="<build>")
+
+    def fake_measure(*a, **k):
+        return types.SimpleNamespace(
+            throughputs=[median, median], run_cmd="<run>",
+            leading_indicators=lambda: {"throughput_tps": median, "abort_rate": 0.0,
+                                        "latency_ns": 1.0, "llc_miss_rate": 0.0, "ipc": 1.0})
+
+    def fake_remeasure(measure_fn, settle_fn=None, **k):
+        pt = measure_fn()
+        nf = types.SimpleNamespace(median=median, cv=cv, high_variance=False)
+        return types.SimpleNamespace(point=pt, nf=nf, rounds=1, stable=True,
+                                     unstable=False, cv_history=[cv])
+
+    patch("buildcache", types.SimpleNamespace(build=fake_build))
+    patch("source_digest", types.SimpleNamespace(
+        STOCK="stock", assert_worktree_within_allowlist=lambda *a, **k: None,
+        src_token=lambda *a, **k: "stock", resolve=lambda *a, **k: "stock"))
+    patch("_run_trace", fake_run_trace)
+    patch("verify_trace_dir", fake_verify)
+    patch("bench_lock", fake_lock)
+    patch("settle", lambda *a, **k: {"settled": True})
+    patch("competing_bench_pids", lambda: list(competing or []))
+    patch("measure_point", fake_measure)
+    patch("remeasure_until_stable", fake_remeasure)
+    try:
+        yield calls
+    finally:
+        for k, val in saved.items():
+            setattr(pipeline, k, val)
+
+
+def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock():
+    """D36 決定4: legacy (既定) + S2 (extra_correctness) を順に通し、両方 certified
+    なら STAGE_COMMIT.verify_configs に両タグが並ぶ。S2 パスだけ numactl + bench_lock
+    (決定4-4) を使い、legacy パスは従来どおり並列可 (numactl 無し)。"""
+    lay = _tmp_layout()
+    numa = ["numactl", "--interleave=all"]
+    with _mock_pipeline_multipass([(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
+        r = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            log=lambda *a: None)
+    assert r.certified and not r.aborted
+    assert calls["trace"][0]["numactl"] is None           # legacy パス: numactl 無し
+    assert calls["trace"][1]["numactl"] == numa            # S2 パス: numactl あり
+    assert calls["bench_lock_enters"] == 2                 # S2 verify パス 1 + bench 1
+    verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
+    assert [rec.payload["workload"]["tag"] for rec in verify_recs] == ["legacy", "s2"]
+    commit = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_COMMIT][-1]
+    assert commit.payload.get("verify_configs") == ["legacy", "s2"]
+
+
+def test_pipeline_extra_correctness_second_pass_red_aborts_with_workload_tag():
+    """legacy は緑、S2 (2 パス目) が赤 → 即 abort。abort payload に workload タグ
+    (D36 決定4-3) が載り、次手生成がどの構成で壊れたか帰属できる。legacy・S2 両方の
+    STAGE_VERIFY_DONE が残る (verify_done は certified 判定前に書く既存仕様、S2 は
+    verify まで到達して赤判定された = trace-empty 等の手前 reject とは異なる)。"""
+    lay = _tmp_layout()
+    with _mock_pipeline_multipass([(100, 0, 5, True), (900000, 0, 50000, False)]):
+        r = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=["numactl", "--interleave=all"],
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None)
+    assert r.aborted and not r.certified
+    assert r.verdict == "non-serializable"        # 前パス (legacy) の verdict を持ち越さない
+    abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload.get("workload") == {"tag": "s2"}
+    assert abort.payload.get("verify", {}).get("verdict") == "non-serializable"
+    verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
+    assert [rec.payload["workload"]["tag"] for rec in verify_recs] == ["legacy", "s2"]
+    assert verify_recs[0].payload["certified"] is True
+    assert verify_recs[1].payload["certified"] is False
+    assert STAGE_COMMIT not in {rec.stage for rec in wal.read_records(lay)}
+
+
+def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
+    """回帰確認: extra_correctness 未指定 (既定) は legacy 1 パスのみ、bench_lock は
+    verify 中に一切入らない (do_bench=False で bench 分もゼロ) — 既存 campaign の
+    挙動を変えない (S2 は opt-in)。"""
+    lay = _tmp_layout()
+    with _mock_pipeline_multipass([(100, 0, 5, True)]) as calls:
+        r = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, log=lambda *a: None)
+    assert r.certified and calls["bench_lock_enters"] == 0
+    verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
+    assert len(verify_recs) == 1 and verify_recs[0].payload["workload"]["tag"] == "legacy"
+    commit = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_COMMIT][-1]
+    assert commit.payload.get("verify_configs") == ["legacy"]
+
+
+def test_pipeline_extra_correctness_requires_numactl():
+    """D36 決定4-4: use_numactl=True を含む extra_correctness (S2 相当) は numactl
+    必須。無指定を黙って劣化させず fails-closed で ValueError にする
+    (敵対レビュー 2026-07-09 CONFIRMED: numactl 無しで S2 が静かに較正条件から
+    乖離しうる欠落の修正)。build/verify に一切触れる前に即エラーになる。"""
+    lay = _tmp_layout()
+    try:
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None)
+        assert False, "should raise ValueError"
+    except ValueError:
+        pass
+
+
+def test_pipeline_extra_correctness_second_pass_competing_tenant_aborts():
+    """D36 決定4-4 (敵対レビュー 2026-07-09 CONFIRMED): S2 パスは bench_lock だけでなく
+    bench 本体と同じ competing_bench_pids() admission も通す。孤児/競合ベンチ検知時は
+    verify-competing-tenant で fails-closed reject し、汚染計測を certified にしない。"""
+    lay = _tmp_layout()
+    numa = ["numactl", "--interleave=all"]
+    with _mock_pipeline_multipass(
+            [(100, 0, 5, True)], competing=["999 /x/ycsb_silo.exe -t=48"]) as calls:
+        r = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None)
+    assert r.aborted and not r.certified
+    assert len(calls["trace"]) == 1               # legacy パスのみ実走、S2 は手前で reject
+    abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload.get("reason") == "verify-competing-tenant"
+    assert abort.payload.get("workload") == {"tag": "s2"}
+    assert abort.payload.get("competing")
+
+
+def test_pipeline_extra_correctness_second_pass_early_reject_clears_stale_verdict():
+    """敵対レビュー 2026-07-09 CONFIRMED: legacy が certified で res.verdict に
+    'serializable' 等を残した状態で、S2 パスが verify_trace_dir に到達する前に
+    (trace 異常終了等で) reject されると、以前は古い verdict が aborted 結果に
+    紛れ込んでいた。今は各パス開始時に verdict をクリアするので空のまま返る。"""
+    lay = _tmp_layout()
+    numa = ["numactl", "--interleave=all"]
+    # 2 パス目の rc=139 (segfault 相当) → verify_trace_dir に到達せず trace-run-nonzero-exit
+    with _mock_pipeline_multipass([(100, 0, 5, True), (0, 139, None, True)]):
+        r = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None)
+    assert r.aborted and not r.certified
+    assert r.verdict == ""                         # legacy の 'serializable' を持ち越さない
+    abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload.get("reason") == "trace-run-nonzero-exit"
+    assert abort.payload.get("workload") == {"tag": "s2"}
+
+
+def test_loop_enables_s2_extra_correctness_via_search_config():
+    """D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=='legacy+s2' で
+    run_campaign が evaluate() に S2 extra_correctness を渡す (opt-in の配線点)。"""
+    from campaign import loop as L
+
+    captured = {}
+
+    def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
+                  numactl=None, correctness=None, extra_correctness=None,
+                  do_bench=True, do_settle=True, src_token=None, log=print):
+        captured["extra_correctness"] = extra_correctness
+        v = pipeline.variant_id(g, src_token or "stock")
+        wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
+        wal.log(layout, v, STAGE_COMMIT, env_tag, {"fitness_tps": 1.0})
+        return EvalResult(genome=g, variant=v, certified=True, aborted=False,
+                          fitness_tps=1.0)
+
+    out_root = _tmpdir("izanagi_loop_s2_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="sort", spec_content="x",
+                         ccbench_commit="deadbeef",
+                         search_config={pipeline.SEARCH_CONFIG_VERIFY_KEY:
+                                        pipeline.VERIFY_LEGACY_PLUS_S2})
+    saved_eval, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    try:
+        L.run_campaign(cfg, [Genome("silo", {"BACK_OFF": 1})],
+                       PerfConfig(records=1, threads=1), "test-env", 1800,
+                       output_root=out_root, log=lambda *a: None)
+    finally:
+        L.evaluate, L.source_digest = saved_eval, saved_sd
+    assert captured["extra_correctness"] is not None
+    assert [tag for tag, _ in captured["extra_correctness"]] == [pipeline.S2_TAG]
+
+
+def test_loop_omits_extra_correctness_without_verify_search_config():
+    """回帰確認: search_config に verify キーが無い既存 campaign は extra_correctness
+    が None のまま (S2 は opt-in、既存 campaign の挙動を変えない)。"""
+    from campaign import loop as L
+
+    captured = {}
+
+    def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
+                  numactl=None, correctness=None, extra_correctness=None,
+                  do_bench=True, do_settle=True, src_token=None, log=print):
+        captured["extra_correctness"] = extra_correctness
+        v = pipeline.variant_id(g, src_token or "stock")
+        wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
+        wal.log(layout, v, STAGE_COMMIT, env_tag, {"fitness_tps": 1.0})
+        return EvalResult(genome=g, variant=v, certified=True, aborted=False,
+                          fitness_tps=1.0)
+
+    out_root = _tmpdir("izanagi_loop_nos2_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum", spec_content="x",
+                         ccbench_commit="deadbeef")
+    saved_eval, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    try:
+        L.run_campaign(cfg, [Genome("silo", {"BACK_OFF": 1})],
+                       PerfConfig(records=1, threads=1), "test-env", 1800,
+                       output_root=out_root, log=lambda *a: None)
+    finally:
+        L.evaluate, L.source_digest = saved_eval, saved_sd
+    assert captured["extra_correctness"] is None
 
 
 # ===== STAGE2: campaign ループの堅牢性 (例外隔離 / run 内 dedup) =====

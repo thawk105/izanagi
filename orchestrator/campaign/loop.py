@@ -17,7 +17,9 @@ from typing import List, Optional, Sequence
 from . import ident, source_digest, wal
 from .layout import campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
-from .pipeline import EvalResult, PerfConfig, evaluate, variant_id
+from .pipeline import (EvalResult, PerfConfig, S2_TAG, SEARCH_CONFIG_VERIFY_KEY,
+                       VERIFY_LEGACY_PLUS_S2, evaluate, s2_correctness_workload,
+                       variant_id)
 
 
 @dataclass
@@ -40,6 +42,14 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  log=print) -> CampaignSummary:
     cid = ident.campaign_id(cfg)
     layout = campaign_layout(str(cid), output_root).ensure()
+
+    # D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=="legacy+s2" で S2 構成
+    # (t48 フルロード規模、データパス被覆担当) を legacy (検出力担当) に追加する。
+    # search_config はここで既に campaign_id のハッシュ対象 (D13) なので、S2 on/off
+    # の切り替えは自動的に別 campaign になり WAL terminal skip の汚染を構造的に防ぐ。
+    extra_correctness = None
+    if cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2:
+        extra_correctness = [(S2_TAG, s2_correctness_workload())]
 
     # 同一性: 初回は lock を書く、再開は照合 (黙ってマージしない関所, D13)
     pre = ident.canonical_preimage(cfg)
@@ -114,7 +124,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             r = evaluate(g, layout, env_tag, cfg.ccbench_commit, perf,
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
                          do_settle=(do_bench and first_bench),
-                         src_token=src_tok, log=log)
+                         src_token=src_tok, extra_correctness=extra_correctness,
+                         log=log)
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。
