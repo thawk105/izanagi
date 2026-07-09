@@ -1200,3 +1200,72 @@ pytest は新規 5 本 (checkout 単体) を含む 292 本 (既存 287 + 新規 
 リング設計と一緒にやるべき別作業 (規律5)。(b) sort-strategy 起動そのものは本決定の範囲外、
 別タスクへ繰延 (上記背景節)。(c) C1 の「driver 宣言値がリテラルであること」自体は変更していない
 (IDENT-1/IDENT-3 により意図的据え置き) — 本決定が解消したのは「並行合成で HEAD が動く」側面のみ。
+
+---
+
+## D41. 後続段 5 — sort-strategy 起動の設計再評価: 3 レンズ敵対レビューで条件付き採用 (2026-07-09)
+
+**背景:** D40 で別タスクへ繰延された sort-strategy 起動 (write_set 施錠順序 comparator を
+変異軸にする案) について、D22 撤回時の3論点が現在の基盤 (S2 verify pipeline 配線=D36決定4・
+auditor live化+write_set被覆assert=D38・lock経路のEVOLVE_BLOCK_SOURCES化=D38続き) でどう
+変わったかを実コード裏取りの上で設計提案 (単一マーカー・sort呼び出し1箇所限定・S2をgateに
+使用) にまとめ、D22 と同水準 (3 レンズ) の敵対レビューにかけた (auditor 1 + 独立懐疑者 2、
+計 100 tool call・37.8万 token)。正本 = ワークフロー journal
+(`subagents/workflows/wf_f1bee1e6-de3/journal.jsonl`)。
+
+**検証結果 (3 レンズ全員 adopt_with_conditions・severity medium — D22 の全員 reject/high から
+前進):**
+- D22 objection 1 (verifier は lock 獲得順を一切トレースしない) — 今も不変 (trace schema は
+  C/R/W/X のみ、D38 の被覆 assert も「保持しているか」だけを見て順序は見ない)。ただし今回は
+  これを「危険」でなく「順序は correctness の入力にならないから安全」の論拠として読み替え
+  られる、と 3 レンズ共通で確認。
+- D22 objection 2 (no-wait ⇒ sort=デッドロック回避は誤診断、sort は liveness 専用) — 実コード
+  再確認 (`Options.cmake:27` の `CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1` 固定・
+  `transaction.cc:161-164` の即 abort+release)。この固定値は EVOLVE_BLOCK_SOURCES 外で
+  coder から編集不能。
+- D22 objection 3 (workload が競合を踏まない) — S2 (段5 配線済み) の使用で解消。zipf skew0.9
+  が hot key への書き込み集中を生み lockWriteSet の CAS 競合を実際に起こすことを
+  `S2_FLAGS` (pipeline.py) から確認。
+
+**新たに発見された 2 つの死角 (D22 には無かった論点、3 レンズ収斂):**
+1. **非 strict-weak-order comparator の UB**: 提案側の「comparator が不正でも sort は要素の
+   置換のみ (追加/欠落なし)」という前提は誤り。libstdc++ の introsort は SWO 契約違反で
+   out-of-bounds read/write を起こしうる (`WriteElement` は `unique_ptr<char[]>` を持つため
+   double-free/UAF にもなりうる)。かつ D38 の被覆 assert が「comparator に関わらず常に通る」
+   ことは、裏を返せばこの変異軸に対して歯を持たない (ギャラリー型1/11 = 恒真化した保証) こと
+   を意味し、無音の lost update を検出できない。
+2. **fairness reward hack**: 多数派キーを優先し少数派キーを飢餓させる comparator は、直列化
+   可能性を壊さないため G2 検出をすり抜けたまま見かけの throughput を稼げる。verifier
+   (dsg.py)・critic (digest.py)・auditor ギャラリー (型1-12) のいずれにも per-key/per-thread
+   分布を見る仕組みが存在しないことを 3 レンズ全員が独立に確認。
+
+**決定 — 条件付き採用 (severity medium)。実装着手前に以下 7 点を満たすこと:**
+1. mutation-red positive control は release ビルドの crash/hang 検出に加え、ASan/UBSan 有効
+   ビルドでも実施し「クラッシュしない」と「メモリ破壊が無い」を区別する。
+2. 被覆 assert に **permutation 保存検査** (sort 直前後の `write_set_.size()` と `rcdptr_`
+   multiset の不変性、#if TRACE 内) を新設し、要素を erase する broken comparator で赤に
+   なることを `s3_lock_coverage.py` 様式で実走確認する (死角1 を閉じる一次防壁)。
+3. per-thread/per-key commit 分布の偏り (Gini/max-min 比等) を leading indicators または
+   auditor ギャラリーに追加する。規律5 により今すぐ実装しないとしても、発火条件と観測すべき
+   指標をここに明記し沈黙させない (規律3、死角2 の対策)。
+4. variant 毎に auditor が diff を sort marker 領域外の `#if TRACE` コード (被覆 assert
+   568-577・retention 589-621・trace emit・record_lock) に触れていないか確認する
+   (transaction.cc はファイル粒度の編集面ゆえ hook では防げない、型11)。
+5. `CCBENCH_*` フラグ (`BACKOFF_FIXED` の sentinel に相当する stock/inert 分岐選択) の設計を
+   確定し、D23/D24 の honest-digest スキームと整合させる。
+6. `p3_s4_loop.py` の `MARKER_ID`/`SOURCE_REL`/`TEMPLATE_PATCH` はモジュールレベル定数で
+   ハードコードされている (68-70行) — 新規兄弟 driver を作るかパラメータ化するかを実装タスク
+   として明示する (`diff_quarantine.py` 自体は変更不要、下記却下案参照)。
+7. S2 は legacy の置き換えでなく追加である (`pipeline.evaluate()` は `passes` の先頭に常に
+   legacy を実行し、S2 は `extra_correctness` で追加されるだけ) — 設計文書はこれに合わせる。
+
+**却下 (提案の誤り、レビューで判明):**
+- 「非 SWO comparator でも sort は要素の置換のみ」という安全論拠 — 技術的に誤り (死角1)。
+- 「`diff_quarantine.py` 自体に複数マーカー対応が要る」という D40 背景メモの想定 —
+  `TemplateMarker`/`DiffQuarantine` は marker_id/source_rel をパラメータ化済みの汎用実装で
+  不要と判明。ただし `p3_s4_loop.py` 側のハードコード定数の扱いは実装タスクとして残る
+  (決定6)。
+
+**残存リスク:** 上記条件 1〜7 を満たさずに実装した場合、正しさゲートを緩める方向の変異が
+採用されうる (絶対規律2 直撃)。**実装そのものは本決定の範囲外、別タスクへ繰延する**
+(規律5、D40 と同型の分割 — 設計検討と実装を1手に束ねない)。

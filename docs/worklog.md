@@ -1117,3 +1117,28 @@ Write→Bash の2段分割による再試行が auto-mode の分類器に「拒�
 
 **次の一手:** sort-strategy ターゲット起動 (別タスク、設計検討から着手) へ進む。
 **人間待ち:** 本タスクの変更をコミットしてよいかの確認。
+
+## 2026-07-09 (7) — sort-strategy 起動の設計検討: 3レンズ敵対レビューで条件付き採用 (D41)
+
+**依頼:** 前エントリの「次の一手」どおり sort-strategy ターゲット起動に着手。D22 撤回時と同水準の
+敵対検証が要ると判断していたため、まず実コード裏取り (transaction.cc の no-wait 挙動・
+WriteElement::operator<・S2_FLAGS・D38 被覆 assert) で設計提案を組み、D22 と同型の3レンズ
+(auditor + 独立懐疑者2、workflow 経由・opus/high、計100 tool call・37.8万 token) で敵対
+レビューした。
+
+**結果 (3レンズ全員 adopt_with_conditions・severity medium — D22 の全員 reject/high から前進):**
+D22 の3論点 (verifier がlock順を見ない/no-wait でsortは正しさ非関与/workloadが競合を踏まない) は
+現基盤 (S2 pipeline 配線・auditor live化・lock経路開放) でいずれも「今回は安全側」に再評価できた。
+一方で自分の設計提案には見落としがあり、レビューで新規死角2件が判明: (1) 非strict-weak-order
+comparatorでのstd::sort UB (自分の「要素の置換のみで安全」という前提が技術的に誤りだった)、
+(2) fairness/starvation reward hack (多数派キー優先で少数派を飢餓させG2検出をすり抜ける経路が
+verifier/critic/auditorのどこにも無い)。実装着手前の必須条件7点を課して条件付き採用とした。
+
+**完了状況:** 設計レビュー完了、D41 として記録。`docs/phase3.md` 段5に反映。
+一次資料 = D41 (docs/decisions.md)・workflow journal (`subagents/workflows/wf_f1bee1e6-de3/journal.jsonl`)。
+**実装 (CCBENCH_*フラグ設計・template patch・p3_s4_loop.pyパラメータ化・permutation保存assert・
+ASan/UBSan positive control・fairness観測点) は本タスクの範囲外、別タスクへ繰延** (規律5、D40と
+同型の分割)。
+
+**次の一手:** sort-strategy 実装 (D41 の必須条件7点を満たす形で、別タスクとして着手)。
+**人間待ち:** 本エントリ + D41 + phase3.md 更新のコミット可否確認。
