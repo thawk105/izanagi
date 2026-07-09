@@ -49,6 +49,7 @@ from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout         # noqa: E402
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
+                            STAGE_COMMIT, STAGE_VERIFY_DONE,
                             CampaignConfig, Genome)
 from campaign.pipeline import PerfConfig, variant_id               # noqa: E402
 from critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
@@ -560,6 +561,37 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
 
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
 
+def _resolve_duplicate(cfg: CampaignConfig, genome: Genome, layout: CampaignLayout,
+                       planner: PlannerProposal, state: LoopState, log=print) -> Dict:
+    """重複提案 (run_campaign がリカバリでスキップし summary.results が空) を解決する。
+
+    coder が独立に選んだ値が既存 genome (同一 src_token) と一致し、同一 variant_id が
+    既に terminal (前 iteration で certified/aborted 済み) だと run_campaign はリカバリで
+    再評価せず summary.results が空になる (loop.py の skip 経路)。これを新規の失敗と
+    取り違えない (規律3: 正しさ/評価シグナルを後付けにしない・なぜこうなったかを構造化
+    して返す — ここは壊れていない)。genome の src_token/variant_id を独立に再解決し、
+    既存 WAL レコードから証拠を復元する (監査 2026-07-09、段 4b iteration 2 の実走 =
+    coder が iteration 1 と独立に同じ値を再提案した実例で発見)。"""
+    try:
+        dup_src_tok = source_digest.resolve(genome, cfg.ccbench_commit)
+        dup_v = variant_id(genome, dup_src_tok)
+    except RuntimeError:
+        dup_v = None
+    recs = _records_of(layout, dup_v) if dup_v else {}
+    commit_payload = recs.get(STAGE_COMMIT)
+    verify_payload = recs.get(STAGE_VERIFY_DONE, {})
+    if commit_payload is not None:
+        project_whiteboard(state, planner, "success", delta_pct=None)
+        log(f"  重複提案 (既存 certified variant {dup_v} と同一 genome、新規評価はスキップ)")
+        return {"outcome": "duplicate", "variant": dup_v,
+                "fitness_tps": commit_payload.get("fitness_tps"),
+                "verdict": verify_payload.get("verdict", ""), "records": recs}
+    project_whiteboard(state, planner, "fail")
+    log(f"  重複提案 (既存 aborted variant {dup_v} と同一 genome)")
+    return {"outcome": "aborted", "variant": dup_v,
+            "verdict": verify_payload.get("verdict", ""), "records": recs}
+
+
 def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                       planner: PlannerProposal, coder: CoderProposal,
                       state: LoopState, sub: str, do_build: bool,
@@ -615,6 +647,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log)
     v = next((r.variant for r in summary.results), None)
+    if v is None and summary.skipped > 0:
+        return _resolve_duplicate(cfg, genome, layout, planner, state, log=log)
     recs = _records_of(layout, v) if v else {}
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:

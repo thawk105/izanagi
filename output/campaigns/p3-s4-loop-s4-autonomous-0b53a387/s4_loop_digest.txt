@@ -4,15 +4,36 @@
 
 genome | throughput_tps | abort_rate | latency_ns | llc_miss_rate | ipc
 ---|---|---|---|---|---
+BACKOFF_FIXED=30,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 | 525,722 | 7.80% | 7,573ns | 33.03% | 0.80
+BACKOFF_FIXED=40,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 | 491,796 | 7.03% | 8,081ns | 32.63% | 0.78
+BACKOFF_FIXED=40,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 | 487,088 | 7.20% | 8,171ns | 32.29% | 0.74
 
 ### フラグ軸の限界効果 (他フラグで周辺化した水準別平均)
-- **BACK_OFF** ():
-- **no_wait** ():
-- **WAL** ():
+- **BACK_OFF** (1):
+    - throughput_tps: 1=501,536
+    - abort_rate: 1=7.34%
+    - latency_ns: 1=7,942ns
+    - llc_miss_rate: 1=32.65%
+    - ipc: 1=0.77
+- **no_wait** (L):
+    - throughput_tps: L=501,536
+    - abort_rate: L=7.34%
+    - latency_ns: L=7,942ns
+    - llc_miss_rate: L=32.65%
+    - ipc: L=0.77
+- **WAL** (0):
+    - throughput_tps: 0=501,536
+    - abort_rate: 0=7.34%
+    - latency_ns: 0=7,942ns
+    - llc_miss_rate: 0=32.65%
+    - ipc: 0=0.77
 
 
 # rejections — 正しさ/liveness/frame ゲート不通過 (採用されず、性能数値は構造的に存在しない)
 
 (rejection なし — 全 variant 緑)
 # verify run の abort 統計 (シグナル — reject 理由ではない。閾値判定なし、異常かどうかは読み手が stock 対照比で判断)
-(verify 到達 run なし — 本 campaign では未発火)
+(stock 対照なし — 比は計算不能。率のみ表示)
+- variant=20bbb4c1a855: aborts=48800 commits=370984 rate=11.63%
+- variant=27d1d016998e: aborts=59364 commits=391673 rate=13.16%
+- variant=dad58f9f9000: aborts=47972 commits=358943 rate=11.79%

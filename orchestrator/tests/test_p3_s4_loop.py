@@ -15,6 +15,7 @@ import os
 import sys
 import tempfile
 import time
+import unittest.mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -603,6 +604,54 @@ def test_load_proposal_file_accepts_null_and_bool_prior_reverse():
             json.dump({**base, "prior_critic_reverse": val}, f)
         _pl, _cd, prior = L.load_proposal_file(p)
         assert prior is expect
+
+
+# ==== _resolve_duplicate (重複 genome 提案 = coder が既評価値を独立に再提案) ==========
+
+def test_resolve_duplicate_recovers_certified_from_wal():
+    """run_campaign が重複 (既存 terminal variant) としてスキップし summary.results が
+    空になっても、_resolve_duplicate は既存 WAL の commit/verify_done から証拠を復元して
+    outcome=duplicate・whiteboard result=success を返す (fail と誤記録しない、規律3。
+    段 4b iteration 2 の実走で coder が独立に同一値を再提案した実例で発見した回帰)。"""
+    lay = _tmp_layout("dupok")
+    cfg = L.default_cfg()
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 40})
+    fake_src_tok = "deadbeef"
+    v = L.variant_id(genome, fake_src_tok)
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": fake_src_tok})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"verdict": "serializable", "certified": True, "commits": 1, "aborts": 1})
+    L.wal.log(lay, v, L.STAGE_COMMIT, L.ENV_TAG, {"fitness_tps": 491796.0, "cv": 0.009})
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="medium")
+    state = L.LoopState(iteration=2, start_wall=time.time())
+    with unittest.mock.patch.object(L.source_digest, "resolve", return_value=fake_src_tok):
+        out = L._resolve_duplicate(cfg, genome, lay, pl, state)
+    assert out["outcome"] == "duplicate"
+    assert out["variant"] == v
+    assert out["fitness_tps"] == 491796.0
+    assert len(state.whiteboard) == 1
+    assert state.whiteboard[0].result == "success"
+
+
+def test_resolve_duplicate_falls_back_to_fail_when_no_commit():
+    """重複先が commit でなく abort のみ (証拠が commit でない) なら成功を捏造せず
+    whiteboard は fail のまま (規律2: certified を安売りしない)。"""
+    lay = _tmp_layout("dupfail")
+    cfg = L.default_cfg()
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 999})
+    fake_src_tok = "cafef00d"
+    v = L.variant_id(genome, fake_src_tok)
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": fake_src_tok})
+    L.wal.log(lay, v, L.STAGE_ABORT, L.ENV_TAG, {"reason": "verify-red"})
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="large")
+    state = L.LoopState(iteration=2, start_wall=time.time())
+    with unittest.mock.patch.object(L.source_digest, "resolve", return_value=fake_src_tok):
+        out = L._resolve_duplicate(cfg, genome, lay, pl, state)
+    assert out["outcome"] == "aborted"
+    assert len(state.whiteboard) == 1
+    assert state.whiteboard[0].result == "fail"
 
 
 if __name__ == "__main__":
