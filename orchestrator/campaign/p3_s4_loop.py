@@ -31,6 +31,7 @@ dry-run、既定は kickoff 規模で実 build/verify/bench)。実 LLM の plann
 from __future__ import annotations
 
 import argparse
+import contextlib
 import difflib
 import json
 import os
@@ -587,11 +588,17 @@ def _resolve_duplicate(cfg: CampaignConfig, genome: Genome, layout: CampaignLayo
 def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                       planner: PlannerProposal, coder: CoderProposal,
                       state: LoopState, sub: str, do_build: bool,
-                      layout: Optional[CampaignLayout] = None, log=print) -> Dict:
+                      layout: Optional[CampaignLayout] = None, log=print,
+                      cache_root: str = "") -> Dict:
     """1 iteration の機械部分を回す (LLM proposal は引数で受け取る)。
 
     do_build=True: applied(TEMPLATE_PATCH) 下で挿入→検疫→(pass なら)run_campaign。
     do_build=False: 挿入→検疫のみ (配線 dry-run、build/verify/bench を省く)。
+
+    `cache_root` (段5 git worktree 隔離): `sub` が呼び手の `patchharness.checkout()` で
+    作った使い捨て worktree の場合、build 出力だけは固定共有パス配下に据え置きたい
+    呼び手が明示する (省略時は `sub` 直下 = 従来動作と完全互換)。ccbench_dir は常に
+    `sub` そのもの (patch/coder 編集がある実際の tree を build に使う)。
 
     layout=None なら cfg 由来 layout を導出する。**注入 layout は reject WAL/records/checkpoint/
     digest を同一 layout に co-locate させるため** (drive_iteration が checkpoint と同じ layout を
@@ -637,7 +644,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
-        summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log)
+        summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
+                              ccbench_dir=sub, cache_root=cache_root)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         return _resolve_duplicate(cfg, genome, layout, planner, state, log=log)
@@ -701,7 +709,8 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
 def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     planner: PlannerProposal, coder: CoderProposal,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
-                    layout: Optional[CampaignLayout] = None, log=print) -> Dict:
+                    layout: Optional[CampaignLayout] = None, log=print,
+                    cache_root: str = "") -> Dict:
     """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
 
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
@@ -731,7 +740,8 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     # 同一 layout を run_one_iteration に渡す — reject WAL/records と checkpoint/digest を
     # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
     out = run_one_iteration(cfg, perf, planner, coder, state, sub,
-                            do_build=do_build, layout=layout, log=log)
+                            do_build=do_build, layout=layout, log=log,
+                            cache_root=cache_root)
     save_loop_state(layout, state)
 
     digest_txt = make_critic_digest(
@@ -760,26 +770,42 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
                     help="段 4b 駆動: 実 planner/coder proposal (JSON) を受けて checkpoint 継続で "
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
+    ap.add_argument("--isolate-worktree", action="store_true",
+                    help="段5 git worktree 隔離: 共有 external/ccbench でなく使い捨て "
+                         "worktree で apply/build/verify する (既定 OFF = 既存動作と完全互換)")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
 
     root = _repo_root()
-    sub = os.path.join(root, "external", "ccbench")
-    from campaign.patchharness import assert_pinned_clean
+    fixed_sub = os.path.join(root, "external", "ccbench")
+    from campaign import patchharness
     from campaign.p2_2 import _assert_single_tenant
     if not a.no_build:
         _assert_single_tenant()
-    assert_pinned_clean(sub, PIN)
+    patchharness.assert_pinned_clean(fixed_sub, PIN)
 
     cfg = default_cfg(reflux=(a.reflux == "on"))
     perf = default_perf()
+
+    # 段5 git worktree 隔離 (opt-in): 有効時は 1 回だけ使い捨て worktree を作り、build
+    # キャッシュだけ固定共有パス配下に据え置く (cache_key は内容キーなので worktree 間で
+    # 共有して問題ない)。無効時は contextlib.nullcontext で固定共有パスをそのまま使う
+    # (既存動作と完全互換、進行中 campaign の campaign-id/WAL に触れない)。
+    if a.isolate_worktree:
+        wt_cm = patchharness.checkout(PIN, base_dir=fixed_sub)
+        cache_root = os.path.join(fixed_sub, "build-variants")
+    else:
+        wt_cm = contextlib.nullcontext(fixed_sub)
+        cache_root = ""
 
     # === 段 4b 駆動口: 実 proposal を受けて checkpoint 継続で 1 iteration ===
     if a.run_iteration:
         planner, coder, prior_rev = load_proposal_file(a.run_iteration)
         print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
-              f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}) ===")
-        out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
-                              do_build=not a.no_build)
+              f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
+              f"isolate_worktree={a.isolate_worktree}) ===")
+        with wt_cm as sub:
+            out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+                                  do_build=not a.no_build, cache_root=cache_root)
         layout = campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -802,9 +828,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                           justification="fixture", confidence="low")
 
     print(f"=== 段 4 loop 1 iteration (機械 E2E, value={a.value}, "
-          f"reflux={a.reflux}, build={not a.no_build}) ===")
-    out = run_one_iteration(cfg, perf, planner, coder, state, sub,
-                            do_build=not a.no_build)
+          f"reflux={a.reflux}, build={not a.no_build}, "
+          f"isolate_worktree={a.isolate_worktree}) ===")
+    with wt_cm as sub:
+        out = run_one_iteration(cfg, perf, planner, coder, state, sub,
+                                do_build=not a.no_build, cache_root=cache_root)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = campaign_layout(str(ident.campaign_id(cfg)))

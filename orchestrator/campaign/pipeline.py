@@ -156,8 +156,15 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              correctness: Optional[CorrectnessWorkload] = None,
              extra_correctness: Optional[Sequence[Tuple[str, CorrectnessWorkload]]] = None,
              do_bench: bool = True, do_settle: bool = True,
-             src_token: Optional[str] = None, log=print) -> EvalResult:
+             src_token: Optional[str] = None, log=print,
+             ccbench_dir: str = "", cache_root: str = "") -> EvalResult:
     """1 genome を評価し WAL に記録する。
+
+    `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
+    完全互換)。呼び手が `patchharness.isolated()` で作った worktree を `ccbench_dir` に渡すと
+    ソースはその worktree から読み、`cache_root` を固定パス配下に据え置けばビルドキャッシュは
+    campaign 非依存のまま共有される (worktree 間で内容キーが揃う)。campaign-id には含めない
+    (ビルド結果に影響しない実装詳細 — numactl/do_bench と同じ実行時引数の扱い)。
 
     **正しさを確証できない variant は全て abort (fitness なし)** — verifier red だけで
     なく、ビルド失敗・trace 異常終了・空トレース・パース不能・bench 測定失敗も「採用
@@ -191,7 +198,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # identity 核に持ち込まない, 規律2)。
     if src_token is None:
         try:
-            src_tok = source_digest.resolve(genome, ccbench_commit)
+            src_tok = source_digest.resolve(genome, ccbench_commit, ccbench_dir)
         except RuntimeError as e:
             v0 = variant_id(genome)        # stock id で abort を記録 (WAL キーを残す)
             wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
@@ -223,8 +230,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # --- build (trace + perf 別ビルド, 絶対規律1)。ビルド失敗はこの variant 固有の
     #     失敗として abort 隔離 (campaign 全体を落とさず前進, overnight 耐性) ---
     try:
-        tr = buildcache.build(genome, ccbench_commit, trace=True, src_token=src_tok)
-        pf = buildcache.build(genome, ccbench_commit, trace=False, src_token=src_tok)
+        tr = buildcache.build(genome, ccbench_commit, trace=True, src_token=src_tok,
+                              ccbench_dir=ccbench_dir, cache_root=cache_root)
+        pf = buildcache.build(genome, ccbench_commit, trace=False, src_token=src_tok,
+                              ccbench_dir=ccbench_dir, cache_root=cache_root)
     except (RuntimeError, subprocess.SubprocessError) as e:
         return _abort("build-error", f"ビルド失敗 → reject ({e})")
     wal.log(layout, v, STAGE_BUILD_DONE, env_tag,

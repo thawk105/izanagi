@@ -140,7 +140,7 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
 | **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。**consumer 実体化も完了 (後続段 2、2026-07-06、D37)** — liveness-red 別型・render 3 形状・critic 消費規定・実走赤 2 本で閉ループ実証 (「読んで方向を返す」まで。還流 = 次 variant 生成への使用は段 4) |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。残り = 段 5 での pipeline 配線 (D36 決定 4)** |
 | S1 (別 protocol trace-hook) | non-blocking (kickoff) / **主実験 headline 2 で発火** | silo 内に閉じる限り不要。ただし発火条件は「別 protocol 移植」だけでなく**主実験 headline 2 (クロスプロトコル stock 最良) も含む** — trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、headline 2 までに S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかが要る (後続段 6 の前提タスク (a)) |
-| C1 (campaign-id drift) | non-blocking | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。残課題 = driver 宣言値 (phase2.md §C1) と並行合成/patch 常駐で HEAD が動く場合の id 安定化 → 段 5 |
+| C1 (campaign-id drift) | **解消済み (2026-07-09、段5、D40)** | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。並行合成/patch 常駐で HEAD が動く残課題は git worktree 隔離 (`patchharness.checkout()`、opt-in) で解消 — 各評価が自分の pin を自分の worktree で checkout するため他の並行評価の影響を受けない。driver 宣言値 (phase2.md §C1) がリテラルであること自体は IDENT-1/IDENT-3 により意図的据え置き (変更なし) |
 
 ---
 
@@ -190,6 +190,7 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    監査は `output/insights/2026-07-08_s4b-loopstate-audit.json`)**
 5. **sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題 (driver 宣言値・並行時の id 安定化)** — S2 gate を満たした後 + 並行合成の段。**(完了 2026-07-09) S2 verify 2 本立ての pipeline 配線** — D36 決定4 の規定 5 点 (campaign identity 組み込み・COMMIT タグ焼き込み・red payload の workload タグ・bench 同一排他 + numactl・IZANAGI_TRACE_DIR 対称化) を `pipeline.evaluate()` に実装 (legacy→S2 の順で複数 verify pass を通し、全通過で certified)。opt-in = `CampaignConfig.search_config["verify"]=="legacy+s2"` (未設定の既存 campaign は無挙動変化)。実機スモーク (stock genome, legacy+S2 実 build/verify) で両パス certified・WAL タグ付けを確認 (137〜166秒)。8 観点 28 エージェントの敵対レビューで是正 4 件 (S2 パスへの competing_bench_pids 追加・numactl 未指定時の fails-closed 化・パス跨ぎの EvalResult.verdict 残留クリア・records_by_stage/load_verify_abort_signals の複数書き込み対応) を実施、テスト 287 本 (新規 14 本) 緑。**残課題**: decision4-2 の「AND 共通ヘルパ」は W (STAGE_COMMIT.verify_configs への書き込み) のみ実装 — 読み手が実際に必要とする consumer が出た時点 (このタスク自体では未発生、S2 を有効化する具体 campaign が無いため) に追加する (規律5: 使われない抽象を先回りで作らない)。正本 = `orchestrator/campaign/pipeline.py` (S2_FLAGS/s2_correctness_workload/evaluate 拡張)・`orchestrator/tests/test_campaign.py` (S2 wiring テスト群)。
    - **(完了 2026-07-09) lock 経路 (cc/silo/transaction.cc) への編集面拡張 (段 3 から繰延、D38)** — coder が lock を変異できるようにする前提作業。survey_B の変更点を同一コミットで実装: source_digest.EVOLVE_BLOCK_SOURCES + ALLOWLIST に `cc/silo/transaction.cc` 追加・hooks/guard_write.py:37 の写し定数を同期・偽 submodule fixture (test_campaign.py `_fake_ccbench_repo`) に transaction.cc 生成追加・test_source_digest_allowlist の反例を `cc/silo/util.cc` (未だ編集面外の隣接ファイル) に差し替え。drift test (`test_constants_match_source_digest`) は既存のまま自動的に新集合へ発火。実機検証 (実 submodule, pin 028f34d): `-Werror=undef` preprocess 成功・stock genome の src_token は "stock" を維持 (後方互換)・includes/trace-diff/allowlist の fails-closed assert 全て緑・guard_write が transaction.cc の Edit を許可しつつ Options.cmake 等は引き続き拒否することを実機確認。**前提 gate = `test_lock_path_edit_surface_requires_auditor_live` の緑を実確認済み** (auditor live の機械 4 点、`s3_lock_coverage.json` all_pass、D38)。この拡張は auditor live 確認と同一コミットに束ね、auditor 不在で lock 経路が編集可能になる窓を作らなかった。**残課題:** 段 4 の coder loop (`p3_s4_loop.SOURCE_REL`) は引き続き backoff.hh 単一マーカーのみを駆動 — 実際の lock 変異 (template patch + marker + diff_quarantine 複数マーカー対応) は未着手の別タスク (本タスクは identity/allowlist 層の地ならしのみ)。非 stock variant の src_token churn は許容済み (再評価方向)。テスト 287 本 (新規0本、フィクスチャ/定数更新のみ) 緑。
+   - **(完了 2026-07-09) git worktree 隔離 (opt-in) + C1 残課題の解消 (D40)** — `patchharness.checkout(pin, base_dir)` (使い捨て worktree、呼び出しごとに一意パス) を新設し `applied()` と組み合わせ可能に (責務分離)。`pipeline.evaluate()`/`loop.run_campaign()` に `ccbench_dir`/`cache_root` を実行時引数として素通し (campaign-id には含めない、numactl/do_bench と同じ扱い)。`p3_s4_loop.py` に `--isolate-worktree` opt-in フラグ (既定 OFF、進行中の段4b campaign の識別子・WAL に触れない)。**C1 (並行合成で共有 tree の HEAD が動く場合の id 安定化) は本機構で解消** — 各評価が自分の pin を自分の worktree で checkout するため他の並行評価の影響を受けない (driver 宣言値がリテラルであること自体は IDENT-1/IDENT-3 により意図的据え置き、変更なし)。**sort-strategy ターゲット起動は別タスクへ繰延** (diff_quarantine.py の複数マーカー対応・transaction.cc 用 template patch・mutation_red_gate 実発火など設計検討量が大きく、撤回済みの当初提案と同水準の敵対検証が要るため、規律5 に従い別セッションで扱う)。実機検証: `checkout()` 単体 (実 submodule pin 028f34d、worktree 作成→破棄→base 無傷)・`--isolate-worktree --no-build` dry-run (進行中 campaign の WAL/checkpoint に差分なしを確認)・使い捨て campaign identity での実ビルド(trace+perf)→verify→bench 1 回 (certified, fitness 561,398 tps、本番 campaign 非汚染)。テスト 292 本 (新規 5 本) 緑。正本 = `orchestrator/campaign/patchharness.py`(checkout)・`pipeline.py`/`loop.py`(素通し)・`p3_s4_loop.py`(opt-in フラグ)・D40。
 6. **主実験の実行 (headline 比較 4 対照 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
    実走する段。**Phase 3 の headline 主張はこの段の完了をもって初めて出せる** (段 4/5 の中間結果は評価設計に
    従った暫定として報告)。gate = 変異軸 (sort or それ以降) から headline 候補が出たこと + S2 gate + auditor live。
@@ -262,10 +263,12 @@ worklog 全読しないと発掘できない状態を解消するためここに
   検査しない) — したがって受け皿は **auditor + 規律6 監査領域の known-limitation として据え置く** (機械防壁の予約
   なし)。kickoff (no-op / 人間が値を与える純 timing) では coder が #if/#include/#define を発明しないので潜在 —
   後続段 4 (coder 自律期) で auditor のレビュー観点に明示的に含める。
-- **共有 working-tree の並走 (ABA) は flock 緩和のみ**: patchharness の `_tree_lock` は単一 tree 上の並走
-  apply/build/revert を直列化する最小防壁。恒久解は段 5 の git worktree 隔離 (variant ごとに独立 tree)。revert 後の
-  残骸検査も tracked 改変 + patch touch 集合のみでタスク定義の「porcelain 空」より弱い (body 中の事故で作られた
-  patch 外 untracked 残骸は捕えない) — worktree 隔離で tree ごと使い捨てにして解消する。
+- **共有 working-tree の並走 (ABA) — 解消済み (2026-07-09、段5、D40、opt-in)**: patchharness の
+  `_tree_lock`/`applied()` (共有 tree 1 本 + flock 直列化) は既定のまま残るが、`checkout()` (使い捨て
+  git worktree、呼び出しごとに一意パス) を新設し組み合わせ可能にした。opt-in した呼び手 (現状
+  `p3_s4_loop.py --isolate-worktree`) は worktree ごと使い捨てるため revert 後の残骸検査の既知の弱さ
+  (「porcelain 空」より弱い) も実害が無くなる。opt-in していない他 4 driver (歴史的 campaign 再現用) は
+  従来どおり `_tree_lock`/`applied()` のみで動作 (規律5: 使われないものを先回りで変えない)。
 - **_recheck の transient 失敗破棄は D25 と非対称 (意図的)**: build 後再照合 (`_recheck_src_token`) で resolve が
   transient に失敗した場合も新規ビルド成果を破棄する。D25 (identity-error abort は retryable) と層が違う — WAL
   terminal の可否ではなく共有キャッシュの清潔性の問題で、identity 不明のバイナリを残す方が害が大きい (偽 hit 防止 >

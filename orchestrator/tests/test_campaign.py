@@ -308,7 +308,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                         "abort_rate": 0.03, "latency_ns": 1000.0,
                                         "llc_miss_rate": 0.2, "ipc": 1.5})
 
-    def fake_build(genome, commit, trace, src_token=None):
+    def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
         if build_raises:
             raise RuntimeError("build boom")
         return types.SimpleNamespace(bin_hash="dead" + ("t" if trace else "p"),
@@ -666,7 +666,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         _, _, _, certified = pass_results[i]
         return _green_vr() if certified else _red_vr()
 
-    def fake_build(genome, commit, trace, src_token=None):
+    def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
         return types.SimpleNamespace(bin_hash="dead" + ("t" if trace else "p"),
                                      binary="/nonexistent/ycsb.exe", cached=False,
                                      configure_cmd="<cfg>", build_cmd="<build>")
@@ -833,7 +833,8 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
 
     def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
                   numactl=None, correctness=None, extra_correctness=None,
-                  do_bench=True, do_settle=True, src_token=None, log=print):
+                  do_bench=True, do_settle=True, src_token=None, log=print,
+                  ccbench_dir="", cache_root=""):
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
@@ -868,7 +869,8 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
 
     def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
                   numactl=None, correctness=None, extra_correctness=None,
-                  do_bench=True, do_settle=True, src_token=None, log=print):
+                  do_bench=True, do_settle=True, src_token=None, log=print,
+                  ccbench_dir="", cache_root=""):
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
@@ -1851,6 +1853,104 @@ def test_patchharness_applied_rejects_dirty_tree():
     assert not entered                       # body に入っていない
     with open(hh, encoding="utf-8") as f:
         assert f.read() == dirt              # patch は当たっていない (dirt が原文のまま)
+
+
+def test_patchharness_checkout_creates_isolated_worktree():
+    """段5 git worktree 隔離: checkout() は pin_commit で使い捨て worktree を作り、
+    exit で `git worktree list` から消える (base repo の working-tree は無傷)。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    with patchharness.checkout(head[:12], base_dir=sub) as wt:
+        assert wt != sub
+        assert os.path.isdir(wt)
+        wt_git = lambda *a: subprocess.run(   # noqa: E731
+            ["git", "-C", wt, *a], capture_output=True, text=True).stdout.strip()
+        assert wt_git("rev-parse", "HEAD") == head
+        with open(os.path.join(wt, "include", "backoff.hh"), encoding="utf-8") as f:
+            assert f.read() == _FAKE_BACKOFF_HH          # base の HEAD 内容がそのまま見える
+        listing = git("worktree", "list", "--porcelain")
+        assert os.path.realpath(wt) in listing
+    assert not os.path.exists(wt)                        # worktree ディレクトリごと破棄
+    assert os.path.realpath(wt) not in git("worktree", "list", "--porcelain")
+    assert git("status", "--porcelain") == ""             # base repo は無傷
+
+
+def test_patchharness_checkout_two_concurrent_worktrees_independent():
+    """同一 base から 2 つの checkout() を同時に開いても互いに干渉しない
+    (段5 の目的そのもの: 呼び出しごとに一意パスなので並行評価が競合しない)。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    with patchharness.checkout(head[:12], base_dir=sub) as wt1:
+        with patchharness.checkout(head[:12], base_dir=sub) as wt2:
+            assert wt1 != wt2
+            hh1 = os.path.join(wt1, "include", "backoff.hh")
+            hh2 = os.path.join(wt2, "include", "backoff.hh")
+            with open(hh1, "w", encoding="utf-8") as f:
+                f.write(_FAKE_BACKOFF_HH.replace("return 1;", "return 111;"))
+            # wt2 は wt1 への書き込みの影響を受けない (独立 worktree)
+            with open(hh2, encoding="utf-8") as f:
+                assert f.read() == _FAKE_BACKOFF_HH
+        assert not os.path.exists(wt2)
+        assert os.path.exists(wt1)                       # wt1 はまだ生きている
+    assert not os.path.exists(wt1)
+    assert git("status", "--porcelain") == ""
+
+
+def test_patchharness_checkout_composes_with_applied():
+    """checkout() が返す worktree path を applied() にそのまま渡せる (責務分離の確認)。
+    patch は worktree 内だけに当たり、base repo の working-tree は無傷のまま。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    hh_base = os.path.join(sub, "include", "backoff.hh")
+    with open(hh_base, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace("return 1;", "return 2;"))
+    git("add", "-A")
+    patch_text = git("diff", "--cached")
+    git("reset", "-q", "--hard", "HEAD")
+    patch_path = os.path.join(_tmpdir("izanagi_patch_wt_"), "variant.patch")
+    with open(patch_path, "w", encoding="utf-8") as f:
+        f.write(patch_text)
+
+    with patchharness.checkout(head[:12], base_dir=sub) as wt:
+        with patchharness.applied(patch_path, head[:12], wt):
+            with open(os.path.join(wt, "include", "backoff.hh"), encoding="utf-8") as f:
+                assert "return 2;" in f.read()            # worktree 内には当たっている
+            with open(hh_base, encoding="utf-8") as f:
+                assert f.read() == _FAKE_BACKOFF_HH        # base repo の working-tree は無傷
+    assert not os.path.exists(wt)
+    assert git("status", "--porcelain") == ""
+
+
+def test_patchharness_checkout_raises_on_add_failure():
+    """存在しない pin では git worktree add が失敗し、fails-closed で RuntimeError になる
+    (親ディレクトリの後始末も行う — テスト後に残骸が残らないことも確認)。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    try:
+        with patchharness.checkout("0" * 40, base_dir=sub):
+            assert False, "存在しない commit で worktree add は失敗すべき"
+    except RuntimeError as e:
+        assert "worktree add" in str(e)
+
+
+def test_patchharness_checkout_leak_raises():
+    """worktree 破棄後も base の一覧に残っていたら (leak) 沈黙せず例外にする (規律6)。
+    実 remove は正常に走らせつつ、直後の監視関数だけ「まだ残っている」ふりに差し替えて
+    fails-closed 経路を検査する (removal 自体を偽装すると実体の破棄まで検証できない)。"""
+    from campaign import patchharness
+    sub, head, git = _fake_ccbench_repo()
+    saved = patchharness._worktree_paths
+    captured = {}
+    try:
+        with patchharness.checkout(head[:12], base_dir=sub) as wt:
+            captured["path"] = wt
+            patchharness._worktree_paths = lambda base: [wt]   # exit 直前に「残存」を偽装
+        assert False, "leak を検出したら例外にすべき"
+    except RuntimeError as e:
+        assert "leak" in str(e)
+    finally:
+        patchharness._worktree_paths = saved
+    assert not os.path.exists(captured["path"])     # 実体は正しく破棄されている (leak は偽装のみ)
 
 
 def _run():

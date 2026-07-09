@@ -39,7 +39,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  perf: PerfConfig, env_tag: str, clocks_per_us: int,
                  numactl: Optional[Sequence[str]] = None,
                  do_bench: bool = True, output_root: str = "",
-                 log=print) -> CampaignSummary:
+                 log=print, ccbench_dir: str = "", cache_root: str = "") -> CampaignSummary:
+    """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
+    引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。campaign-id には含めない
+    (numactl/do_bench と同じ扱い、pipeline.evaluate の docstring 参照)。"""
     cid = ident.campaign_id(cfg)
     layout = campaign_layout(str(cid), output_root).ensure()
 
@@ -90,7 +93,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         # (source_digest.resolve) を使い、確定済み src_token を渡して id 確定点を単一化する。
         # 確定不能は stock id で fails-closed abort (best-effort skip を持ち込まない, 規律2)。
         try:
-            src_tok = source_digest.resolve(g, cfg.ccbench_commit)
+            src_tok = source_digest.resolve(g, cfg.ccbench_commit, ccbench_dir)
         except RuntimeError as e:
             v0 = variant_id(g)              # identity 不明ゆえ canonical のみの stock id
             if v0 in done:
@@ -125,7 +128,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
                          do_settle=(do_bench and first_bench),
                          src_token=src_tok, extra_correctness=extra_correctness,
-                         log=log)
+                         log=log, ccbench_dir=ccbench_dir, cache_root=cache_root)
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。

@@ -1140,3 +1140,63 @@ E2E で通る」の機械実証に留め有意性を主張しない (kickoff Cor
 踏まず n も小さい)。(d) diff-quarantine reject の variant は build しない (src_token 空) — WAL の
 terminal skip 判定は汚さない (abort=terminal で正当) が、diffq_variant_id はハッシュ衝突を genome+
 implementation で回避 (test で決定性・提案感度を固定)。
+
+## D40. 後続段 5 — git worktree 隔離 (opt-in) で並行合成時の HEAD 安定性を機構で担保 (C1 残課題の解消) (2026-07-09)
+
+**背景:** phase3.md 後続段 5「sort-strategy ターゲット起動 / git worktree 隔離 / C1 残課題」。
+このうち sort-strategy 起動 (lock 獲得順=write_set comparator を変異対象にする新軸) は
+diff_quarantine.py の複数マーカー対応・transaction.cc 用 template patch・mutation_red_gate の
+実発火など設計検討量が大きく (撤回済みの当初 sort-strategy 提案と同水準の敵対検証が要る)、
+別タスクへ繰延する (規律5)。本決定は残り 2 項目 (git worktree 隔離・C1) のみを扱う。
+
+**現状の問題:** `patchharness._tree_lock()` は共有 tree `external/ccbench` 1 本への flock で
+apply→build→revert を直列化する最小防壁 (段 3 時点の暫定)。orchestrator-design.md は
+「ビルド: 並列OK / trace検証: 並列OK」(絶対規律4 の直列制約は bench 実測のみ) と設計している
+が、共有 tree 排他がこれを事実上ブロックしていた。C1 (campaign-id drift) の残課題 (phase2.md
+§C1) も「並行合成/patch常駐で共有 tree の HEAD が動く場合の id 安定化」が未解消のまま段 5 に
+持ち越されていた。
+
+**決定 1 — `patchharness.checkout(pin_commit, base_dir="")`: 1 評価専用の使い捨て worktree:**
+`git worktree add --detach <一意パス> <pin>` で作り、exit で `git worktree remove --force`
+(失敗時は prune+rmtree のフォールバック、それでも base の worktree 一覧に残るなら例外 = leak を
+沈黙させない、規律6)。`applied()` (共有 tree + flock) とは責務を分離し、`with checkout(pin) as
+wt: with applied(patch, pin, wt): ...` と自由に組み合わせる。worktree は呼び出しごとに一意パス
+なので他の並行評価と原理的に競合しない — **C1 の「並行合成で HEAD が動く」前提そのものが
+起きなくなる** (各評価が自分の pin を自分の worktree で checkout するため)。worktree ごと
+使い捨てるので `revert_worktree` の untracked 残骸検査の既知の限界 (「porcelain 空」より弱い、
+残存リスク節) もこの経路では実害が無い (tree ごと消える)。
+
+**決定 2 — `pipeline.evaluate()`/`loop.run_campaign()` に `ccbench_dir`/`cache_root` を実行時
+引数として素通し (campaign-id には含めない):** 下位層 (`buildcache.build()`/
+`source_digest.resolve()`) は既に両パラメータを受け取れたが、中間層がノーパラメータで固定
+呼び出ししていたため素通ししていなかった。`CampaignConfig`/`search_config` には入れない —
+worktree か共有 tree かはビルド結果に影響しない実装詳細であり、既存の `numactl`/`do_bench`/
+`output_root` と同じ「関数の実行時引数」の扱いにする (D13 の campaign-id 安定性を保つ)。
+`cache_root` は固定共有パス配下に据え置く運用を推奨 (cache_key は内容キーなので worktree 間で
+共有可能、「ビルドキャッシュは campaign 非依存」の設計意図を維持)。
+
+**決定 3 — p3_s4_loop.py は opt-in フラグ (`--isolate-worktree`, 既定 OFF):** 進行中の段 4b
+campaign (`p3-s4-loop-s4-autonomous-0b53a387`、budget-walltime 停止で段 6 へ「未査証 (partial)」
+として引き継ぎ予定) の campaign-id/WAL/checkpoint に触れないための保守的選択。他 4 driver
+(`p3_kickoff.py`/`p3_s4_red.py`/`s2_verify_calibration.py`/`s3_lock_coverage.py`) は移行しない
+— 過去 campaign の再現用であり並行実行の対象でないため不要 (規律5: 使われないものを先回りで
+変えない)。
+
+**実機検証:** 実 submodule (pin 028f34d) に対し `checkout()` 単体 (worktree 作成→pin 一致→
+破棄→base repo 無傷→`git worktree list` から消える) を確認。`p3_s4_loop.py --isolate-worktree
+--no-build` の dry-run 経路を実走し進行中 campaign の WAL/checkpoint に差分が無いことを
+`git status`/`git diff` で確認。**さらに使い捨て campaign identity (`izanagi-worktree-smoke`,
+本番 WAL とは別 output_root) を使い、worktree 隔離経路での実ビルド(trace+perf)→verify→bench
+まで 1 回通し certified (fitness 561,398 tps) を確認** (本番 campaign には一切触れない)。
+pytest は新規 5 本 (checkout 単体) を含む 292 本 (既存 287 + 新規 5) 全数緑。
+
+**却下案:** worktree 隔離を `CampaignConfig` の一部にする (campaign-id が実装詳細で変わってしまう
+→却下、決定2)。全 5 driver を一括移行 (歴史的 4 driver は再現専用で並行実行の対象でない→不要、
+規律5)。既定を worktree 隔離 ON にする (進行中 campaign の識別子は変えないが、opt-in にして
+挙動変化を最小化する方が安全側、決定3)。
+
+**残存リスク (known-limitation):** (a) `run_campaign()` 内の複数 genome はまだ逐次 for ループ
+(loop.py) — 1 campaign 内で複数 genome を並行 worktree 評価する仕組みは段 6 主実験のスケジュー
+リング設計と一緒にやるべき別作業 (規律5)。(b) sort-strategy 起動そのものは本決定の範囲外、
+別タスクへ繰延 (上記背景節)。(c) C1 の「driver 宣言値がリテラルであること」自体は変更していない
+(IDENT-1/IDENT-3 により意図的据え置き) — 本決定が解消したのは「並行合成で HEAD が動く」側面のみ。

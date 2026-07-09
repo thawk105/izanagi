@@ -20,6 +20,11 @@ fails-closed (規律2/6):
   自動修復を試みず停止して人間に出す (規律6: 素性の知れない状態を沈黙して進めない)。
 - untracked (`??`) のうち patch 由来でないもの (build-variants 等のビルド生成物) は無視
   する — source_digest.assert_worktree_within_allowlist と同じ規則。
+
+`checkout()` (段5 git worktree 隔離): `applied()` は共有 tree 1本 + flock 直列化だが、
+`checkout()` は 1 variant 専用の使い捨て git worktree を作る。呼び出しごとに一意パスなので
+他の並行評価と競合しない。`with checkout(pin) as sub: with applied(patch, pin, sub): ...`
+と組み合わせて使う (責務は分離: worktree の生成/破棄と patch の apply/revert は別関数)。
 """
 from __future__ import annotations
 
@@ -27,7 +32,9 @@ import contextlib
 import fcntl
 import hashlib
 import os
+import shutil
 import subprocess
+import tempfile
 from typing import List
 
 
@@ -203,3 +210,56 @@ def _default_ccbench_dir() -> str:
     here = os.path.dirname(os.path.abspath(__file__))     # <repo>/orchestrator/campaign
     repo = os.path.dirname(os.path.dirname(here))         # <repo>
     return os.path.join(repo, "external", "ccbench")
+
+
+def _worktree_paths(base: str) -> List[str]:
+    """base repo に登録済みの worktree 絶対パス一覧 (`git worktree list --porcelain`)。
+
+    leak 検出 (checkout() の破棄後に base の worktree 一覧へ残っていないか) にのみ使う。"""
+    r = _git(base, "worktree", "list", "--porcelain")
+    if r.returncode != 0:
+        raise RuntimeError(
+            f"patchharness: git worktree list 失敗 (rc={r.returncode}) → fails-closed。\n"
+            f"  {r.stderr.strip()[-300:]}")
+    prefix = "worktree "
+    return [ln[len(prefix):].strip() for ln in r.stdout.splitlines() if ln.startswith(prefix)]
+
+
+@contextlib.contextmanager
+def checkout(pin_commit: str, base_dir: str = ""):
+    """1 variant 評価専用の使い捨て git worktree を pin_commit で作り、exit で破棄する
+    (段5 git worktree 隔離、phase3.md 後続段5)。patch は当てない (骨格/hole 適用は
+    呼び手が返り値の path を `applied()` に渡して組み合わせる — 責務の分離)。
+
+    `applied()` (共有 tree + flock 直列化) と違い、worktree は呼び出しごとに一意パスなので
+    他の並行評価と原理的に競合しない — 共有 tree の HEAD を誰かが動かす、という C1 残課題の
+    前提そのものが起きなくなる (並行合成時の id 安定化)。`git worktree add <path> <pin>` は
+    base repo の checkout 状態に依存せず任意の既存 commit を独立 checkout できるため、
+    base 側の pinned-clean を要求しない。
+
+    exit で worktree ごと使い捨てるため、内側で `applied()` を使っても `revert_worktree` の
+    untracked 残骸検査 (「porcelain 空」より弱い既知の限界、残存リスク節) の限界はこの経路
+    では実害が無い — tree ごと消えるので残骸が次 variant に持ち越されることがない。"""
+    base = base_dir or _default_ccbench_dir()
+    parent = tempfile.mkdtemp(prefix="izanagi_wt_", dir=os.environ.get("TMPDIR", "/tmp"))
+    path = os.path.join(parent, "wt")     # git worktree add は対象パス非存在を要求 → 親だけ予約
+    r = _git(base, "worktree", "add", "--detach", path, pin_commit)
+    if r.returncode != 0:
+        shutil.rmtree(parent, ignore_errors=True)
+        raise RuntimeError(
+            f"patchharness: git worktree add 失敗 (pin={pin_commit}, rc={r.returncode}) → "
+            f"fails-closed。\n  {r.stderr.strip()[-500:]}")
+    try:
+        assert_pinned_clean(path, pin_commit)   # 防御的 (worktree は必ず真だが既存契約と揃える)
+        yield path
+    finally:
+        r2 = _git(base, "worktree", "remove", "--force", path)
+        if r2.returncode != 0:
+            _git(base, "worktree", "prune")
+            shutil.rmtree(path, ignore_errors=True)
+        shutil.rmtree(parent, ignore_errors=True)
+        remaining = {os.path.realpath(p) for p in _worktree_paths(base)}
+        if os.path.realpath(path) in remaining:
+            raise RuntimeError(
+                f"patchharness: worktree 破棄後も base repo の一覧に残る ({path}) — leak を "
+                "疑え。手動で `git worktree remove --force` して復旧すること (fails-closed、規律6)")
