@@ -210,6 +210,14 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      リーク制御と両立する
      (軸提案に勝ち筋の値は不要、機序帰属のみでよい)。次軸の標準手順 = 機械 sweep 偵察 (D46 の器) で
      軸の生死を先取りしてから LLM ループを回す (worklog 2026-07-10 (10) 決着 3 点目)。
+     **本体設計は完了 (2026-07-10、D47 — 3 巡の敵対レビュー: v1 で実効性レンズ reject → must 5/
+     should 11/nit 6 反映の v2 → 再判定で新規 must 1 → v3 で adopt-with-conditions)。** 役の常設
+     定義 = `docs/agent-architecture.md` §axis-proposer。要点: tools:[] + 二層射影 (勝ち筋の値は
+     落とし診断数値は保持・recommend 丸ごと除外・死軸は生死二値のみ)・出口基準の事前定義付き
+     n=1 実証・**8a 由来軸は当面「探索補助」限定で段 6 headline の対象軸にしない** (事前登録の
+     命名固定と原理的に非両立のため、D47 決定 5)。残るタスク = 実体化 (`.claude/agents/
+     axis-proposer.md` 生成 — **ユーザー明示承認が必要**、D42 条件 4) + n=1 実証 (D47 決定 4 の
+     出口基準)。実体化セッションは D47 の必須条件 5 点を消化すること。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
@@ -324,3 +332,12 @@ worklog 全読しないと発掘できない状態を解消するためここに
   masstree 側の既知 UB を許容リストする設計が要る。broken patch = `patches/broken-silo-sort-nonswo.patch`
   (silo-sort-variant.patch 込み)。実装そのもの (sort-strategy の実運用 coder ループ) は本タスクの範囲外、
   別タスクへ繰延 (規律5)。
+- **axis-proposer の恒真提案検出に機械 backstop が無い (段 8a、D47 必須条件 2、規律 3 の見送り)**:
+  提案の fails-closed 機械検査はフィールド存在検査のみで、mechanism_hypothesis の実質性 (恒真で
+  ないか・attribution 実在項目に論理的に繋がるか) は人間 gate の意味判断に依存する。機械 lint 化は
+  自然文の意味検査の恒真化リスク (D30/D45 却下 (b) と同根) のため見送り。**指標 = 恒真提案の
+  差し戻し率 (n=1 から記録)、発火条件 = 差し戻しが頻発するなら attribution の構造化 ID 化 +
+  提案側の機械参照照合への格上げを検討。** 併せて既知限界 3 点 (主張時に限定表現する): (a) 射影
+  内容の選別は手動解釈 (provenance 三点セットで事後検証可能にするのが代償)、(b) 射影者 =
+  信頼中核の記憶汚染 (D46 残存リスク (a) と同型)、(c) n=1 出口採点の射影者からの分離が運用上
+  不能な場合は自己採点バイアスが残る (分離不能時は provenance 記録)。

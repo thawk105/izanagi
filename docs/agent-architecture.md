@@ -90,6 +90,15 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 
 > **Phase 3 設計時の参考: Google eng-practices** (github.com/google/eng-practices)。コードレビュー規範を reviewer 側と author 側の両方向で定義している。Izanagi の coder = author / auditor = reviewer に写像でき、auditor の「何を見るか」チェックリストの原料 (二層基準・reviewer の 5 観点) を auditor.md に翻訳済み。
 
+### axis-proposer (Phase 3 段 8a・設計確定 D47、実体化は未 — 生成にユーザー明示承認が必要)
+
+- **役割:** critic の機序帰属を入力に「次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)」を構造化提案する。axis-onboarding.md §1 の段階 A の実体化。下流は人間承認 gate → 段階 B (シートの独立再導出 + 敵対レビュー)。B〜F のゲートは一切短縮しない。提案の採用判断はしない (それは D 偵察の出口 = 人間判断)
+- **tools = [] (ツールなし)。** planner-v4 (D45)・coder-v4 (D39 決定 7) と同型の構造遮断。入力は信頼中核が前渡しする: critic 機序帰属の**二層射影** (勝ち筋の値は落とし診断数値は保持。recommend は丸ごと除外、attribution 出典優先) + EVOLVE_BLOCK ソースの stock 抜粋 (全 mapped 領域に機械的一致、裁量選定不可) + 編集面の地図 (開通・未開通対称、効きやすさのヒントなし)。死んだ軸は生死の二値のみ (機序帰属も流さない)
+- **model:** 強いモデル (機序からの軸合成 = P2-4 で LLM の実証済み価値とされた推論)
+- **出力:** 構造化提案のみ (軸定義シート §2 の提案版サブセット、候補 1〜3 件)。fails-closed はフィールド存在検査のみ — 恒真検出は人間 gate の意味判断 (既知限界、D47 必須条件 2)。埋まらない欄は unknowns に落とす (規律 3)
+- **規律:** 提案は untrusted データ (規律 6、axis-onboarding §2 の「軸提案が LLM 由来のとき」が受け皿)。provenance 三点セット (raw critic 出力 / 射影版入力 / 対応表) を凍結し事後検証可能にする。8a 由来軸は当面「探索補助」に限定 — 段 6 headline の対象軸にしない (事前登録の命名固定と原理的に非両立、D47 決定 5)
+- **確定制約の正典 = D47** (採用条件・射影の二層規律・出口基準・却下案)。本節は常設定義の要約。配管の現状 (critic 帰属の非永続化・whiteboard 物理防壁) は `orchestrator/campaign/p3_s4_loop.py` を参照
+
 ---
 
 ## hooks (方針 A の最小第二防壁・Python)
