@@ -90,7 +90,7 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 
 > **Phase 3 設計時の参考: Google eng-practices** (github.com/google/eng-practices)。コードレビュー規範を reviewer 側と author 側の両方向で定義している。Izanagi の coder = author / auditor = reviewer に写像でき、auditor の「何を見るか」チェックリストの原料 (二層基準・reviewer の 5 観点) を auditor.md に翻訳済み。
 
-### axis-proposer (Phase 3 段 8a・設計確定 D47、実体化は未 — 生成にユーザー明示承認が必要)
+### axis-proposer (Phase 3 段 8a で実体化 = `.claude/agents/axis-proposer.md`、設計 D47)
 
 - **役割:** critic の機序帰属を入力に「次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)」を構造化提案する。axis-onboarding.md §1 の段階 A の実体化。下流は人間承認 gate → 段階 B (シートの独立再導出 + 敵対レビュー)。B〜F のゲートは一切短縮しない。提案の採用判断はしない (それは D 偵察の出口 = 人間判断)
 - **tools = [] (ツールなし)。** planner-v4 (D45)・coder-v4 (D39 決定 7) と同型の構造遮断。入力は信頼中核が前渡しする: critic 機序帰属の**二層射影** (勝ち筋の値は落とし診断数値は保持。recommend は丸ごと除外、attribution 出典優先) + EVOLVE_BLOCK ソースの stock 抜粋 (全 mapped 領域に機械的一致、裁量選定不可) + 編集面の地図 (開通・未開通対称、効きやすさのヒントなし)。死んだ軸は生死の二値のみ (機序帰属も流さない)

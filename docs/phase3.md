@@ -215,9 +215,15 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      定義 = `docs/agent-architecture.md` §axis-proposer。要点: tools:[] + 二層射影 (勝ち筋の値は
      落とし診断数値は保持・recommend 丸ごと除外・死軸は生死二値のみ)・出口基準の事前定義付き
      n=1 実証・**8a 由来軸は当面「探索補助」限定で段 6 headline の対象軸にしない** (事前登録の
-     命名固定と原理的に非両立のため、D47 決定 5)。残るタスク = 実体化 (`.claude/agents/
-     axis-proposer.md` 生成 — **ユーザー明示承認が必要**、D42 条件 4) + n=1 実証 (D47 決定 4 の
-     出口基準)。実体化セッションは D47 の必須条件 5 点を消化すること。
+     命名固定と原理的に非両立のため、D47 決定 5)。**実体化完了 (2026-07-10、ユーザー明示承認済み =
+     worklog 2026-07-10 (13)。`.claude/agents/axis-proposer.md` 生成 + D47 必須条件 5 点消化 —
+     条件 2 は残存リスク節、条件 3/4 は axis-onboarding §2/§3-B、条件 5 は定義の出力スキーマ)。**
+     残るタスク = n=1 実証 (D47 決定 4 の出口基準。新設定義は同一セッションで spawn 不可の
+     ため別セッション、axis-onboarding §3-F)。n=1 の入力材料の既知限界 (実体化検証 2026-07-10):
+     backoff 軸 critic の生出力は非保持 (P2-3 の帰属は要旨 insight `output/insights/
+     2026-06-22_p2-3-critic-leading-indicator-attribution.md` のみ現存) — 出所記録三点セットの
+     「生出力」の脚はこの要旨 insight とし、その旨を n=1 の出所記録に明記する (critic 再実行に
+     よる生出力の再生成は、現行文書が勝ち筋の値を含むため記憶汚染リスクがあり採らない)。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
@@ -333,7 +339,9 @@ worklog 全読しないと発掘できない状態を解消するためここに
   (silo-sort-variant.patch 込み)。実装そのもの (sort-strategy の実運用 coder ループ) は本タスクの範囲外、
   別タスクへ繰延 (規律5)。
 - **axis-proposer の恒真提案検出に機械 backstop が無い (段 8a、D47 必須条件 2、規律 3 の見送り)**:
-  提案の fails-closed 機械検査はフィールド存在検査のみで、mechanism_hypothesis の実質性 (恒真で
+  提案の fails-closed 検査はフィールド存在検査のみで (n=1 の手動運用ではこの検査は信頼中核が
+  提案の消費前に実行し、欠落は差し戻す — 「機械」検査になるのは 8c の駆動配管が載ってから。
+  実体化検証 2026-07-10 の指摘)、mechanism_hypothesis の実質性 (恒真で
   ないか・attribution 実在項目に論理的に繋がるか) は人間 gate の意味判断に依存する。機械 lint 化は
   自然文の意味検査の恒真化リスク (D30/D45 却下 (b) と同根) のため見送り。**指標 = 恒真提案の
   差し戻し率 (n=1 から記録)、発火条件 = 差し戻しが頻発するなら attribution の構造化 ID 化 +
