@@ -323,7 +323,7 @@ Phase 3.5 (任意): Open-Ended Evolution
   - ablation で OEE 有り/無しの探索効率を比較
 ```
 
-各 Phase の詳細タスクは該当する docs/phaseN.md に。現在どの Phase かの正本は CLAUDE.md「現在地」が指す worklog 末尾と現行 phase doc (roadmap は現況を主張しない)。
+各 Phase の詳細タスクは該当する docs/phase<N>.md に。現在どの Phase かの正本は CLAUDE.md「現在地」が指す worklog 末尾と現行 phase doc (roadmap は現況を主張しない)。
 
 ---
 

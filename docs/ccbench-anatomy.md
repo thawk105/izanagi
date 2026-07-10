@@ -205,7 +205,7 @@ CCBench には既に **`ADD_ANALYSIS`** という「ビルド時 `-D` で計測�
 
 ## 8. Izanagi 次タスクへの申し送り
 
-- **タスク1 (trace-hook):** Silo から着手。3点とも CC-native (§4) なので trace 専用フィールド不要。`#if TRACE` 方式 + cmake `CCBENCH_TRACE` で配線 (§5)。改変は `patches/trace-hook.patch` (D6)。同 patch に **`-DLinux` ピンニング修正**も束ねるか別 patch にするか要判断。
+- **タスク1 (trace-hook):** Silo から着手。3点とも CC-native (§4) なので trace 専用フィールド不要。`#if TRACE` 方式 + cmake `CCBENCH_TRACE` で配線 (§5)。改変の行き先は `izanagi-trace` ブランチ = submodule pin (D16。本文書執筆時の D6 案 = patches/ 配下の単一 trace-hook patch は D16 で改訂済み)。同 patch に **`-DLinux` ピンニング修正**も束ねるか別 patch にするか要判断。
 - **S1 (trace-hook の他 protocol 移植) の既知の罠 — ermia の版 ID 写像 (worklog 2026-06-18 から昇格):** si の版 ID は `cstamp` (単 uint) をそのまま `(epoch=1, tid=cstamp)` に写像できたが、**ermia は版 cstamp が `cstamp<<1` (低ビット = SSN flag, `ssn_commit`)** で、commit 経路も `ssn_commit`/`ssn_parallel_commit` の 2 系統ある。版 ID 写像をこの 1 ビットシフトに合わせないと**全 read が orphan 化**する (si の trace-hook はそのままでは流用不可)。Phase 3 主実験 headline 2 (クロスプロトコル) で S1 が発火する際の必須知識 (phase3.md must 表 S1 行)。
 - **タスク2 (verifier):** TRACE ログから ww/wr/rw 辺を構築し G2 cycle 検出。版ID は Silo=Tidword(epoch,tid)、cicada=Version.wts_+chain、ss2pl=発番した producer-id。read-own-write 短絡を「再観測」として扱う。
 - **タスク3 (赤を出せる証明):** **`si` を positive control に** (SSN 剥がし= SI = 本物の write-skew G2)。`ermia`(SSN)/`oze`(明示グラフ) を cross-check oracle に。これは「わざと壊した CC」より自然で、CCBench 内に既に存在する本物の anomaly。

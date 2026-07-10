@@ -290,7 +290,7 @@ worklog 全読しないと発掘できない状態を解消するためここに
   dup_txids の verdict 級テストを新設して閉ループ実証。既知偽陰性 2 形状は characterization テストとして
   可視化 (S1 形式拡張時の回帰点、詳細は D37)。
 - **coder のリーク制御が未設計 (P2-5/D21 の Phase 3 版が未予約)**: kickoff の題材 BACKOFF_FIXED は、勝ち筋
-  (contention 域で stock 最良 +38%/+11%、sweet-spot 値) が docs/insights/WAL/CLAUDE.md にリポジトリ内既知として
+  (contention 域で stock 最良 +38%/+11%、sweet-spot 値) が docs・insights・WAL・CLAUDE.md にリポジトリ内既知として
   書かれている。coder のコンテキストにこれが混入すると「合成できた」のか「答えを読んだ」のか分離できない。P2-5 は
   誘導アームで **fresh context + 最適解 literal の物理削除 (`critic-experiment`) + 評価済みのみ digest** のリーク制御を
   確立した (D12/D21)。Phase 3 で coder が実際に #if 枝を自律生成する段 (後続段 4) では、この Phase 3 版リーク制御
@@ -332,7 +332,7 @@ worklog 全読しないと発掘できない状態を解消するためここに
   主実験の headline 候補になったとき (= 見かけの性能差が fairness 由来でないことを示す必要が生じたとき)。
   **観測すべき指標:** per-key または per-thread の commit 数分布から Gini 係数 (0=完全平等・1=完全不平等) または
   max-min 比 (最大 commit 数/最小 commit 数)。**想定される実装場所:** critic の leading indicators
-  (`orchestrator/campaign/critic/digest.py` 相当) または段6 headline 判定に先立つ専用 driver。現状の唯一の防壁は
+  の算出部 (専用モジュールは未実装 — 実装場所は着手時に確定) または段6 headline 判定に先立つ専用 driver。現状の唯一の防壁は
   auditor ギャラリー型15 (静的目視、`.claude/agents/auditor.md`) — 機械観測点が無いことを沈黙させないための記録
   (規律3)。
 - **planner→coder 経路の遮断は Read 経路のみ構造化済み — justification 自然文経路と射影の自己規律は

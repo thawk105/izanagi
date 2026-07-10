@@ -48,9 +48,26 @@ HANDOFF_DIR = REPO / "docs" / "handoff"
 HANDOFF_MAX_LINES = 60          # 定型 40 行 + 余白
 HANDOFF_STALE_SECONDS = 48 * 3600
 
+# --- 参照実在性 (2026-07-11 追加、docs 整備) ---
+# living docs 中の「実在しない D 番号」「実在しないファイルパス」への参照 = 腐敗。
+# 凍結族 (worklog/decisions/insights/archive) は対象外 — 書いた時点で正しければよい。
+D_REF = re.compile(r"\bD(\d{1,3})\b")
+# パスは既知のトップディレクトリ始まりに限定 (submodule 内 cc/ 等は pin 固定で腐らないので対象外)。
+# プレースホルダ (<日付> 等)・glob (*) は文字クラス外なのでマッチが切れ、拡張子必須で自然に除外される。
+PATH_REF = re.compile(r"(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude)/[\w.\-/]+\.[A-Za-z0-9]+")
+
 
 def main() -> int:
     findings: list[str] = []
+
+    # decisions.md の D 見出し重複 (grep index の壊れ)
+    d_heads = re.findall(
+        r"^## D(\d+)\b", (REPO / "docs" / "decisions.md").read_text(), re.MULTILINE
+    )
+    dups = {n for n in d_heads if d_heads.count(n) > 1}
+    for n in sorted(dups, key=int):
+        findings.append(f"docs/decisions.md: D{n} の見出しが重複 — grep index が壊れる")
+    known_d = {int(n) for n in d_heads}
 
     for doc in LIVING_DOCS:
         if not doc.exists():
@@ -73,6 +90,21 @@ def main() -> int:
                 findings.append(
                     f"{rel}:{lineno}: 次アクションの再掲 (正本は worklog 末尾の「次の一手」)"
                 )
+            # 実在しない D 番号への参照 (decisions.md の見出しが正)
+            for m in D_REF.finditer(line):
+                if int(m.group(1)) not in known_d:
+                    findings.append(
+                        f"{rel}:{lineno}: 実在しない D 参照: {m.group(0)!r} (decisions.md に見出しなし)"
+                    )
+            # 実在しないファイルパスへの参照 (改名・移動の腐敗検出)。
+            # ccbench-anatomy.md は冒頭宣言どおり external/ccbench/ 相対パスも許容
+            for m in PATH_REF.finditer(line):
+                p = m.group(0)
+                if (REPO / p).exists():
+                    continue
+                if doc.name == "ccbench-anatomy.md" and (REPO / "external" / "ccbench" / p).exists():
+                    continue
+                findings.append(f"{rel}:{lineno}: 実在しないパス参照: {p!r}")
 
     if HANDOFF_DIR.exists():
         now = time.time()
