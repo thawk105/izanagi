@@ -140,7 +140,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    設計再評価と実装着手前必須条件 7 点 (D41) / 必須条件の機構レベル実装 (permutation 保存検査・
    SORT_VARIANT フラグ・auditor ギャラリー型 13-15、D42) / 兄弟 driver `p3_s4_loop_sort.py` + auditor
    機械 gate (`AuditorGateFailure`、D43) / 実 LLM iteration 1 E2E で初 certified (bench median 274,872 tps、
-   CV 0.76%)。iteration 2 以降の継続判断は worklog 2026-07-10 (6) の人間判断待ち (参照のみ)。
+   CV 0.76%)。**iteration 2 は見送りで決着** (ユーザー協議、worklog 2026-07-10 (10) — 偵察 (D46) で
+   軸に floor 超地形が見当たらないため。代替の本筋 = 段 8a 前倒し)。
    **残課題 (現役):** (a) D36 決定 4-2 の「AND 共通ヘルパ」は W (STAGE_COMMIT.verify_configs への書き込み)
    のみ実装 — 読み手 consumer が出た時点で追加 (規律 5)、(b) backoff 軸 driver (`p3_s4_loop.SOURCE_REL`)
    は引き続き backoff.hh 単一マーカーのみを駆動 (sort 軸は兄弟 driver 側)、(c) auditor ギャラリー型 14
@@ -198,12 +199,14 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 8. **(D44 で追加。着手順・段 6 との前後は着手時に判断) 探索側を防壁の水準へ引き上げる 3 機構** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
    D41 と同水準の敵対検証を課す (設計の具体化はここに書かない — 着手時の設計タスクが正本):
-   - **(8a) 軸提案のループ内化** — LLM の実証済み価値 (機序帰属からの軸発見、P2-4) をループに戻す。
+   - **(8a) 軸提案のループ内化 (前倒し決着 2026-07-10 — sort 軸 iteration 2 見送りの代替本筋、
+     worklog 2026-07-10 (10))** — LLM の実証済み価値 (機序帰属からの軸発見、P2-4) をループに戻す。
      critic の機序帰属を入力に「次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)」を提案する役を新設し、
      人間は承認 gate としてのみ関与する。D41→D43 で 1 回実施した軸オンボーディング手順 (骨格 patch・
      検疫対応・positive control・auditor ギャラリー拡張・verifier 死角の特定) を**再利用可能なテンプレ**に
      固めることが前提作業 — 軸あたり固定費を下げないとループ内化しても回らない。リーク制御と両立する
-     (軸提案に勝ち筋の値は不要、機序帰属のみでよい)。
+     (軸提案に勝ち筋の値は不要、機序帰属のみでよい)。次軸の標準手順 = 機械 sweep 偵察 (D46 の器) で
+     軸の生死を先取りしてから LLM ループを回す (worklog 2026-07-10 (10) 決着 3 点目)。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
