@@ -1681,3 +1681,83 @@ lint (数値リテラル検査等) — 自然文の意味検査は恒真化し�
 **正本:** `docs/agent-architecture.md` §axis-proposer (役の常設定義)・`docs/phase3.md` 後続段
 8a (実証計画・残存リスク)・本エントリ (採用条件・棄却理由・主張の限定)。レビュー一次資料 =
 `output/insights/2026-07-10_s8a-axis-proposer-design-review.json` + 3 workflow journal。
+
+## D48. 段 8a 段階 B — silo-backoff-trigger-gating の軸定義: 3 レンズ敵対レビューで条件付き採用 (2026-07-10)
+
+**背景:** axis-proposer n=1 の採用提案 1 (人間 gate 決着 = worklog 2026-07-10 (16)) の軸オン
+ボーディング段階 B。シートは提案の転写でなく pinned HEAD (d706650) の実コード裏取りによる
+独立再導出 (axis-onboarding §2 の LLM 由来規定、規律 6)。シート全文 (裁定反映済み) =
+`output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md`。3 レンズ (auditor =
+正しさ/reward hack、リーク/転写 = D47 必須検査、実効性/完全性) = workflow `wf_5aeaba58-dc5`
+(全員独立コンテキスト、計 37.6 万 token)。**verdict = 3 レンズとも adopt-with-conditions**
+(must-fix 1 / should-fix 7 / nit 3、全反映)。
+
+**決定 1 — D47 必須検査 3 点は全 PASS (LLM 由来軸の転写検査):** (1) 軸名・hole 骨格は入力
+射影 (diagnostics/edit_surface_map/stock 抜粋) に既出でない — attribution (a) は「backoff
+on/off」であって「要因別 gate」ではなく、骨格は提案者の寄与。(2) シートの診断数値 5 リテラル
+(abort baseline 3 種・-77%・skew0.9) は全て projected_input attribution (a) に出典を持ち、
+recommend 由来リテラル (ipc 帯・政策識別名・8.49M 系) の混入ゼロ。(3) stock 抜粋の選定は
+全 mapped 17 領域との機械的一致 (source_digest.py:68 で EVOLVE_BLOCK_SOURCES 裏取り済み)。
+ただし「提案原文との差分」節の 1 主張は却下 (LT-1): 「CC-native = TRACE 外」の方向性は提案の
+safety_argument に既出であり、シートの独立導出は thread_local 実装比較・規律 1 両側使い分け・
+diff-of-diffs 整合に限る (シート訂正済み)。
+
+**決定 2 — 軸の骨格設計 (レビュー裁定で確定):**
+- **骨格全体 (要因 enum + 7 store + gate) を `#if CCBENCH_BACKOFF_TRIGGER_GATING` で囲み
+  stock inert にする** (F1)。無条件記録は pinned baseline との一致を壊し stock genome の
+  `src_token="stock"` 正規化が失われる (source_digest.resolve は一致時のみ STOCK) — PIN
+  前進 (perf ビルドに記録コストが乗る) は却下し、#if 囲み (記録コストは variant の自己
+  ペナルティ = 正直側、退化点空集合が真の BACK_OFF=0 相当になる) を採る。
+- **要因記録は thread_local (transaction.cc ファイルスコープ) + 7 代入点全 store + begin()
+  での sentinel リセット** (AUD-2/F6)。sentinel「未記録」は gate で stock デフォルト (=
+  backoff する) に落とす fail-safe 契約 — 非 YCSB workload (tpcc/bomb 系) の app 層 abort
+  (要因未記録) でも stock 挙動に縮退するだけで誤発火しない。
+- **構文契約は「要因 enum + コンパイル時定数のみ読取可」に絞る** (AUD-3/F2 の統合裁定)。
+  明示禁止 = thid_ (per-thread 優先 gate = fairness hack) / result_ 系カウンタ (fitness
+  信号への適応 = 入力隔離の破れ) / clear 済みコンテナ (silent 縮退)。**この絞りで偵察空間 =
+  coder 変異空間となり、偵察の生死判定が部分空間の下界に留まる問題 (F2) は構造的に消える。**
+  メンバ読取への拡張は段階 B 差し戻し (シート改訂 + 再レビュー) 事項。
+
+**決定 3 — 記録偽装遮断の執行主体の正確な内訳 (AUD-1 must-fix の訂正):** 初版シートの
+「guard_write + diff 検疫が designated 面を機械執行」は誤り — guard_write はファイル粒度で
+marker 境界を執行しない (D41 決定 4 と同根)。正しい執行主体 = (1) DiffQuarantine が coder
+diff の hole 外削除・挿入を行単位で機械拒否 (diff_quarantine.py の OUTSIDE_REGION/
+FRAME_ALTERED、実効性レンズが実コード裏取り)、(2) auditor diff_digest 機械 gate (コード片軸、
+axis-onboarding §4)、(3) auditor ギャラリーへの記録偽装型の追加 (下記必須条件 6)。
+
+**実装着手前の必須条件 (C 段着手セッションで消化):**
+1. 骨格 patch は #if CCBENCH_BACKOFF_TRIGGER_GATING 囲みで stock inert (決定 2)。identity
+   実証 (stock → src_token="stock" / variant → 別 digest) を C 段出口に含める
+2. 骨格 patch の中立性レビュー (7 store が純代入・abort 分岐の制御フロー不変・commit path
+   不触) を C 段の独立検査として実施 (AUD-5/C6 — serializability 不可侵主張の唯一の依存点)
+3. 要因記録の positive control は必須 (AUD-4): #if TRACE 内の要因別 abort 集計 +
+   local_early_aborts_/local_abort_counts_ との整合検査 + misattribution mutation (故意の
+   誤記録 broken patch) で赤の歯を実走証明。characterization 型 (単一スレッド決定的) 適用
+4. coder 定義・auditor チェックリストに構文契約の禁止リスト (決定 2) を明記。禁止の執行は
+   構文恒真検査でなく auditor 目視 + 偵察退化点の明示列挙 (F5、D30 整合)
+5. 軸定数ブロック (MARKER_ID/SOURCE_REL/TEMPLATE_PATCH/_BASE (BACK_OFF:1 明示、F6)/PIN) は
+   C 段成果物に置き、D 偵察器は E 段 driver でなくそこから import (axis-onboarding §1 脚注)
+6. auditor ギャラリーに記録偽装型 (marker 外の骨格 store 無改変の行単位確認) を追加 —
+   `.claude/agents/` の変更なのでユーザー明示承認が必要 (D42 条件 4)
+7. 偵察 firewall (リークレンズ条件): D 偵察 → E coder/planner 入力にシートの診断数値
+   リテラル・偵察の具体勝ち点を流さない — ループへ渡すのは軸の生死二値のみ (axis-onboarding
+   §3-D。シート自体も coder 入力の材料にしない)
+
+**D 段 (機械 sweep 偵察) の必須前提 (F3/F4 で昇格):** (a) 要因別 abort 頻度の事前実測で
+不感ビットを確定 (YCSB では node/absent ≈0 見込み — 実効空間の規模で sweep を設計)、
+(b) read-heavy floor の較正 (できないなら落とす正当化を明文化)、(c) 適応 Backoff_ との
+連成の扱いを凍結 (BACKOFF_FIXED 固定点での gate 単独地形 or Backoff_ 軌跡記録。magnitude
+軸との直交性主張は adaptive-off 前提の限定付き)。
+
+**却下した安全論拠 (同じ誤りを次の軸で繰り返さない):** (a) 「guard_write + diff 検疫が
+designated 面を機械執行」(初版シート) — guard_write はファイル粒度 (決定 3)。(b) 「要因の
+発生点は全て transaction.cc 内に閉じる (無条件の全数)」— YCSB 限定でのみ真。tpcc.hh:61-84・
+bomb 系・dbomb_deterministic.hh:261 は app 層で status_=aborted を代入する (AUD-2、sentinel
+契約で対処)。(c) 無条件 (両ビルド常駐) の要因記録でも identity は保たれるという初版の暗黙
+想定 — src_token=stock の正規化を壊す (F1)。(d) 提案原文の reward hack 欄「abort 率指標だけ
+良く見せる」— gate は abort 計数に触れず待機除去は abort 増方向なので成立しない (シートの
+refutation を auditor レンズが支持)。
+
+**正本:** 本エントリ (採用条件・必須条件リスト)・シート insight (軸定義の全文、裁定反映済み)。
+レビュー一次資料 = workflow `wf_5aeaba58-dc5` の journal (3 レンズの findings/conditions/
+checked_claims 全文)。次段 = C (機構実装、別セッション・別タスク、規律 5)。

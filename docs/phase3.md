@@ -227,10 +227,14 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      — 開通・未開通対称の地図でも bias が消えなかった。次回 n を増やすときの観測継続項目)**。
      **人間承認 gate 決着 (2026-07-10、ユーザー判断): 提案 1 (silo-backoff-trigger-gating) のみ
      採用。** 提案 2 (wal-flush-cadence) は軸適格性 no、提案 3 (lock-conflict-retry-bound) は
-     スカラー縮退リスクの境界で棄却 (採点 insight の判定材料どおり)。残るタスク = 採用提案の
-     段階 B — シートは提案の転写でなく実コード裏取りの独立再導出 (axis-onboarding §2 の LLM
-     由来規定)、B レビュー必須検査 3 点 (D47 必須条件 3) の照合対象 = 凍結済み provenance
-     三点セット。
+     スカラー縮退リスクの境界で棄却 (採点 insight の判定材料どおり)。
+     **段階 B 完了 (2026-07-10、D48 — シート独立再導出 + 3 レンズ敵対レビューで条件付き採用。
+     verdict = 3 レンズとも adopt-with-conditions、must 1/should 7/nit 3 全反映、D47 必須検査
+     3 点 = 全 PASS)。** 骨格設計の確定 = #if 囲み stock inert / thread_local 7 点全 store +
+     sentinel fail-safe / 構文契約は要因 enum + 定数のみ (偵察空間 = coder 空間)。シート
+     (裁定反映済み) = `output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md`。
+     残るタスク = **段階 C (機構実装、D48 必須条件 7 点の消化。別セッション・規律 5)** →
+     D 偵察 (必須前提 3 点 = 要因別 abort 頻度実測・read-heavy floor 較正・適応連成の扱い)。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
