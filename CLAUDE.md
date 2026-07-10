@@ -81,7 +81,7 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 
 ## サブエージェント
 
-`.claude/agents/` にロール定義 (verifier / calibrator / critic / profiler、P2-5 限定の派生 critic-experiment)。各ロールの権限・規律の正本は各 `.md` と `docs/agent-architecture.md`。Phase 3 ロール (planner / coder / auditor) は該当する段に来たとき同文書の予約仕様から生成する。検証系ロール (verifier / critic / profiler) は Edit/Write 非付与 — ただし Bash を持つため完全なツール権限隔離ではなく、書き込み禁止は prompt 規律との併用 (audit-2026-06-30 §4 の裁定)。
+`.claude/agents/` にロール定義 (検証系 verifier / calibrator / critic / profiler、P2-5 限定の派生 critic-experiment、Phase 3 の合成系 — 現有一覧は ls が正本)。各ロールの権限・規律の正本は各 `.md` と `docs/agent-architecture.md`。Phase 3 ロールは該当する段に来たとき同文書の予約仕様から生成する (どの段まで実体化済みかの正本は phase3.md)。検証系ロール (verifier / critic / profiler) は Edit/Write 非付与 — ただし Bash を持つため完全なツール権限隔離ではなく、書き込み禁止は prompt 規律との併用 (audit-2026-06-30 §4 の裁定)。
 
 ## hooks
 
@@ -91,7 +91,7 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 
 `docs/` — roadmap.md (設計と理由) / decisions.md (設計判断と却下案、D 番号) / phase1〜3.md (タスク分解。チェックリスト = 完了状況の正本。phase1/2 は完了・凍結) / phase3-main-experiment.md (主実験の事前登録) / worklog.md (日誌。末尾エントリ = 可変状態の正本) / handoff/ (セッションの WAL) / archive/ (凍結記録 — 監査台帳・worklog 過去分。ファイル名は移動前と不変、規約は同 README) / agent-architecture.md / orchestrator-design.md (ACID/WAL/排他) / ccbench-anatomy.md (CCBench 構造調査) / glossary.md (用語集) / related-work/ (関連研究、README.md が本体 + shinka-deepdive.md 付録)。成果物は `output/` (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。`tools/` — 運用スクリプト (check_docs.py = 文書 lint / plotting/ = campaign の論文品質作図、tools/plotting/README.md 参照)。
 
-**大きい参照文書の引き方 (D35):** `decisions.md` (≈100KB) と `glossary.md` (≈39KB) は**全文 Read しない**。decisions は `grep -n "^## D" docs/decisions.md` がそのまま目次になる — 特定の D は見出し行から次見出しまでを offset 指定で部分 Read する (1 エントリ平均 23 行)。glossary も用語を grep して該当項目だけ読む。worklog 過去分・audit 系・insights も同様に grep で絞り、全読はサブエージェントに委ねて構造化された結論だけ受け取る。
+**大きい参照文書の引き方 (D35):** `decisions.md` (≈100KB) と `glossary.md` (≈39KB) は**全文 Read しない**。decisions は `grep -n "^## D" docs/decisions.md` がそのまま目次になる — 特定の D は見出し行から次見出しまでを offset 指定で部分 Read する (長さはエントリごとにまちまち、近年の D は 100 行前後もある — 固定の行数を仮定せず必ず次見出しまで読む)。glossary も用語を grep して該当項目だけ読む。worklog 過去分・audit 系・insights も同様に grep で絞り、全読はサブエージェントに委ねて構造化された結論だけ受け取る。
 
 ## 言語方針
 

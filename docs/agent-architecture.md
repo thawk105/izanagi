@@ -11,13 +11,13 @@ Claude Code のサブエージェント (`.claude/agents/*.md`) と hooks の構
 サブエージェントは Phase ごとに必要なものだけ足す。最初から全部並べない。理由は decisions.md D7 — ablation で各ロールの効果を測るため、また探索失敗時の切り分けのため。
 
 ```
-Phase 1: verifier, calibrator           (実体化済み)
-Phase 2: + critic (P2-3), profiler (P2-4) (実体化済み)
-Phase 3: + planner, coder, auditor       (仕様予約)
+Phase 1: verifier, calibrator
+Phase 2: + critic (P2-3), profiler (P2-4)
+Phase 3: + coder (kickoff), auditor (段 3), planner-v4/coder-v4 (段 4), axis-proposer (段 8a)
 Phase 3.5: (OEE。新規ロールは不要、層3の選択ロジックを格上げ)
 ```
 
-Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕様を予約してある。該当 Phase に来たとき、この仕様に従って `.claude/agents/*.md` を生成する。**今は作らない。** (Phase 1-2 のロール = verifier/calibrator/critic/profiler は実体化済み。)
+Phase 3 のロールは、本ドキュメントに仕様を予約しておき、該当する段に来たときこの仕様に従って `.claude/agents/*.md` を生成する方式を取る (どの段まで実体化済みかの正本は phase3.md のチェックリスト — ここには再掲しない)。
 
 ---
 

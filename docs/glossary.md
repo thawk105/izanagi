@@ -214,9 +214,9 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 サブエージェント構成 (agent-architecture.md) と絶対規律、セッション運用を読むための用語。
 
-**verifier / calibrator / critic / profiler (実体化済みのロール)** — verifier=trace を読んで直列化を検査する正しさの番人 (書き込み権限なし)。calibrator=レコード数と noise floor を決める。critic=指標を読んで性能差を設計選択に帰属させ次手を返す。profiler=有望 variant に perf を回し many-core のスケール懸念を解釈する。*izanagi:* Phase 1-2 で足したサブエージェント。各々コンテキストを分離し tools で権限を絞る (agent-architecture.md)。
+**verifier / calibrator / critic / profiler (Phase 1-2 のロール)** — verifier=trace を読んで直列化を検査する正しさの番人 (書き込み権限なし)。calibrator=レコード数と noise floor を決める。critic=指標を読んで性能差を設計選択に帰属させ次手を返す。profiler=有望 variant に perf を回し many-core のスケール懸念を解釈する。*izanagi:* Phase 1-2 で足したサブエージェント。各々コンテキストを分離し tools で権限を絞る (agent-architecture.md)。
 
-**planner / coder / auditor (Phase 3 の予約ロール)** — planner=構造から設計プランを提案 (コードに引きずられない)。coder=プランを EVOLVE-BLOCK 内の差分に落とす。auditor=variant を監査し verifier が見逃した不変条件違反を見つけてテストを足す。*izanagi:* Phase 3 で足す。kickoff の確定制約は phase3.md + D22-24/D30 が正典 (agent-architecture.md §planner/§coder/§auditor)。
+**planner / coder / auditor (Phase 3 のロール)** — planner=構造から設計プランを提案 (コードに引きずられない)。coder=プランを EVOLVE-BLOCK 内の差分に落とす。auditor=variant を監査し verifier が見逃した不変条件違反を見つけてテストを提案する (read-only — 反映は人間レビュー gate、D38 決定 3)。*izanagi:* Phase 3 の各段で実体化する (どこまで実体化済みかの正本は phase3.md)。kickoff の確定制約は phase3.md + D22-24/D30 が正典 (agent-architecture.md §planner/§coder/§auditor)。
 
 **adversarial auditor (敵対的監査役)** — 生成物を「壊す側」の視点で監査し、正しさ検証の抜け穴を能動的に探す見張り役。*izanagi:* auditor の性格。最適化を担当する planner/coder とコンテキストを分離し、見張りが最適化圧力に毒されないようにする (Jitskit 由来)。
 
