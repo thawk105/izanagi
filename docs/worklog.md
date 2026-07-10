@@ -1678,3 +1678,29 @@ token / 9.2 分。
 ### 次の一手
 変わらず (前エントリ参照)。本協議側は回答の送付判断と質問 2 (ソルバ・量子の妥当性) への
 回答作成が持ち越し。
+
+## 2026-07-10 (20) — 段 8a 段階 C: trigger-gating 機構実装 (D48 必須条件 7 点全消化)
+
+(17)(18) の次の一手どおり。成果はコミット 4bced5c..cbcbe1d (4 本: verifier A 行 /
+patches 3 枚 / driver + 軸定数 / D49 + phase3 + シート追記)。
+
+中立性レビュー (D48 条件 2) = 3 レンズ独立コンテキスト (auditor 1 + Explore 2 の
+サブエージェント並列 — B 段より軽い監査対象のため workflow でなく直接 spawn):
+auditor 中立性 = neutral-confirmed (7 項目)、敵対 = no-refutation (攻撃仮説 11 +
+棄却列挙 18、全 refuted)、設計整合 = consistent-with-notes (8 項目 MATCH、注記 2 件は
+D49 決定 2/3 に吸収)。却下裁定 0。レンズ全文はセッション transcript のみ (workflow
+journal なし) — 要旨と申し送り 3 点は D49 に凍結済み。
+
+素材: diff-of-diffs (規律 1 の一次防壁) が「検証計装をどこに置くか」を設計制約として
+逆規定した初のケース — TRACE 内集計を template patch に載せる素直な案が一次防壁と
+衝突することが実装時に判明し、characterization 専用 patch への分離 (D49 決定 1) を
+強制された。防壁が後段の設計を拘束する = 防壁が形骸化していない証拠でもある。
+
+エージェント工数: 3 レンズ計 ~15 万 token / 21 分 (auditor 4.2 万・整合 6.8 万・敵対は
+usage 記録欠落 ~4 万推定)。実走: coverage (ビルド 2 + run 3) ≈ 4 分 ×2 回 (軸定数
+import へのリファクタ後に JSON 正本を再生成)。計測なし (characterization のみ)。
+
+### 次の一手
+D 偵察 (別セッション): まず設計タスク — D48 必須前提 3 点 (要因別頻度の p2_2 動作点
+実測・read-heavy floor 較正・適応 Backoff_ 連成の凍結) + D49 申し送り (恒等 gate 対照)。
+E 段 (loop driver + coder 定義) は D の生死判定後。
