@@ -91,4 +91,5 @@ def verify_trace_dir(trace_dir: str, max_report: Optional[int] = 20) -> VerifyRe
         n_keys=len(dsg.versions),
         n_edges=dsg.n_edges,
         total_cycles=total,
+        abort_reasons=dict(issues.abort_reasons),
     )

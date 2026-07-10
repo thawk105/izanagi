@@ -64,6 +64,12 @@ class ParseIssues:
     # UB で write_set_ の要素が失われた/複製された可能性を示す。
     # integrity.permutation_violations に配線され verdict を indeterminate に倒す。
     permutation_violations: List[str] = field(default_factory=list)
+    # A 行 = abort 要因の記録 (段 8a trigger-gating 軸の検証計装、D48 positive
+    # control)。**違反ではなく集計データ** — integrity/verdict には一切関与しない
+    # (docstring の「非ゼロなら認証しない」はこのフィールドには適用されない)。
+    # emit 元は characterization 専用の計装 patch のみ (通常 verify では現れない)。
+    # 要因別カウント。coverage driver が ADD_ANALYSIS カウンタとの整合検査に使う。
+    abort_reasons: Dict[str, int] = field(default_factory=dict)
 
 
 def _check_key(key: str, issues: ParseIssues) -> None:
@@ -138,6 +144,16 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         # ない、current が None でも受理する)。
                         _, reason = f
                         issues.permutation_violations.append(reason)
+                    elif tag == "A":
+                        # A <reason>  abort 要因の記録 (段 8a、D48 positive
+                        # control の計装 patch が abort() 冒頭で emit)。abort
+                        # する trx は txid 未採番なので P と同じく txid 非相関
+                        # (_expect を通さない)。違反ではなく集計データ —
+                        # integrity/verdict に関与しない (ParseIssues の
+                        # abort_reasons コメント参照)。
+                        _, reason = f
+                        issues.abort_reasons[reason] = (
+                            issues.abort_reasons.get(reason, 0) + 1)
                     else:
                         raise ParseError(
                             f"{path}:{lineno}: unknown record tag {tag!r}: {line!r}")

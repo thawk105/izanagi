@@ -430,6 +430,54 @@ def test_permutation_violation_between_txn_blocks():
         shutil.rmtree(d, ignore_errors=True)
 
 
+# ---- A 行 (abort 要因の記録、段 8a/D48 positive control 計装) ----
+
+def test_abort_reason_tally_parsed_not_verdict():
+    """A 行は**集計データ**であり integrity/verdict に不関与 (certified のまま)。
+    P と同じく txid 非相関 (abort する trx は txid 未採番) — txn ブロック外でも
+    受理される。要因別カウントが VerifyResult.abort_reasons と JSON stats に載る
+    (coverage driver の整合検査入力、D48 必須条件 3)。"""
+    import shutil
+    d = _tmp_trace("A lock-conflict\nC 0 0 5 10\nW 0 aa U 5 10\n"
+                   "A lock-conflict\nA readvali-tid\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.abort_reasons == {"lock-conflict": 2, "readvali-tid": 1}
+        assert res.verdict == "serializable"     # A 行は認証を汚さない
+        assert res.certified
+        assert res.integrity.clean()
+        assert result_to_dict(res)["stats"]["abort_reasons"] == {
+            "lock-conflict": 2, "readvali-tid": 1}
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_abort_reason_absent_is_empty():
+    """A 行の無い通常 trace では abort_reasons は空 dict (通常 verify の出力不変性)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.abort_reasons == {}
+        assert result_to_dict(res)["stats"]["abort_reasons"] == {}
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_unknown_tag_still_parse_error_after_a():
+    """A タグを足しても未知タグの fails-closed (ParseError) は不変 (規律2)。"""
+    import shutil
+    d = _tmp_trace("Z bogus\nC 0 0 5 10\nW 0 aa U 5 10\n")
+    try:
+        try:
+            verify_trace_dir(d)
+            assert False, "unknown tag must raise ParseError"
+        except ParseError as e:
+            assert "unknown record tag" in str(e)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- 既知偽陰性の characterization (現状の挙動を明示ロックする) ----
 #
 # 以下 2 テストは「現状 certified になってしまう」ことを assert する。**これは仕様の

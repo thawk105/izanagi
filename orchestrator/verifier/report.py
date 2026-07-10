@@ -51,6 +51,9 @@ def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
             "writes": res.n_writes,
             "keys": res.n_keys,
             "edges": res.n_edges,
+            # A 行 (段 8a/D48 計装) の要因別カウント。集計データであり
+            # verdict/integrity に不関与 — 通常 verify では常に {}
+            "abort_reasons": dict(res.abort_reasons),
         },
         "integrity": {
             "clean": res.integrity.clean(),

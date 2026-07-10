@@ -9,7 +9,7 @@ isolation)。verifier の入力は trace のみ。
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # 版ID = (epoch, tid)。同一キー上ではこの組が producer trx を一意に決める
 # (ww 競合で tid が単調増加するため。trace-hook の実測で版重複 0 を確認済み)。
@@ -165,6 +165,10 @@ class VerifyResult:
     n_writes: int = 0
     n_keys: int = 0
     n_edges: int = 0
+    # A 行 (abort 要因の記録、段 8a/D48 positive control 計装) の要因別カウント。
+    # 違反ではなく集計データ — integrity/verdict に不関与 (計装 patch を当てた
+    # characterization run でのみ非空。通常 verify では常に空)。
+    abort_reasons: Dict[str, int] = field(default_factory=dict)
     # cycle (SCC) の全数。anomalies は max_report で witness を切り詰めるが、
     # こちらは常に全数 (total ≤ max_report でも 0 でも入る)。gate の機械判定は
     # witness 数 len(anomalies) でなくこの値を使うこと (witness 上限での偽判定防止)。
