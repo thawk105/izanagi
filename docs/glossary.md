@@ -176,6 +176,10 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **EVOLVE-BLOCK** — ソースコード中に「ここだけ LLM が書き換えてよい」と明示的に囲った領域。マーカーで画定し、その外は逐語温存する。*izanagi:* coder の編集面を局所化する機構 (P2-4 の inert patch の一般化)。`#if` 枝 (合成) / `#else` 枝 (stock 逐語) の二枝構造 (phase3.md §EVOLVE-BLOCK 機構, D22)。
 
+**hole (ホール, 変異穴)** — 骨格の中で「ここだけ書き換えてよい」と開けられた空白部分。周囲の骨格は不可触で、穴の中だけが編集面になる。*izanagi:* EVOLVE-BLOCK の `#if` 枝の中身。「hole の位置と骨格」と言うときは、どのソースのどの処理に穴を開け、どんな枠 (マーカー・二枝構造) で囲うかを指す (axis-onboarding.md §2)。
+
+**stock (ストック, 無変異の原型)** — 手を加えていない、供給されたままの状態。変異側 (variant) に対する原型であり比較基準。*izanagi:* CCBench 本来のコード・動作。EVOLVE-BLOCK の `#else` 枝は stock を逐語温存し、性能比較の基準線も stock (D16/D22)。
+
 **source_digest / preprocess 後ハッシュ** — ソースをプリプロセッサ (`cpp -E`) に通した正規化出力のハッシュ値。マーカーコメントの有無など「意味に効かない差」を吸収し、実ビルドがコンパイルする中身の同一性だけを見る。*izanagi:* variant の同一性 (identity) を「コードの差」まで正しく捉える一次防壁。方針 A (D30) でこれが偽キャッシュヒット防止の要になった (phase3.md §kickoff タスク, D23)。
 
 **cache_key / variant_id** — ビルドキャッシュの鍵と、WAL 上で variant を一意に指す ID。source_digest を織り込むことで「同じフラグでも中身が違えば別物」と扱える。*izanagi:* 同フラグ別コードが WAL/critic で取り違えられる穴を塞ぐ (D23)。
@@ -193,6 +197,8 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 **WAL (Write-Ahead Log, 先行書き込みログ)** — 操作を実行する前に、まず追記専用ログに記録してから反映する耐障害の仕組み。クラッシュしても復元できる。*izanagi:* 各 variant 評価を決定論的に追記する探索の永続状態。生 tps と実行コマンドを残し、後から分布を再構成できる (orchestrator-design.md §D: Durability)。
 
 **proof chain / forensic binding (証拠連鎖・法定的束縛)** — 主張 → コード → 実測値を辿れる証拠の鎖。「なぜこの variant を採った/外した」を根拠まで遡れる構造。*izanagi:* 層3 の説明可能性を統計的に裏打ちする。WAL の run 値まで各主張を紐づける (ARA の forensic binding と同型, orchestrator-design.md §材料レポートの出力規約)。
+
+**provenance (プロビナンス, 出所記録)** — ある成果物・データが「どこから・何を経て」生まれたかを後から遡れるようにした記録。*izanagi:* campaign の出所記録ファイル、偵察の結果を見た事実の記録 (D46)、axis-proposer の射影三点セット = 生の critic 出力 / 射影版入力 / 落とした項目の対応表 (D47) など、事後検証を可能にする層。
 
 **TOCTOU (Time-Of-Check to Time-Of-Use)** — 「確認した時点」と「使う時点」の間に対象が変わり、確認が無意味になる競合の穴。*izanagi:* 旧ビルドは identity と無関係に共有作業ツリーをコンパイルしていた穴。cache_key に作業ツリー由来のハッシュを織り込んで構造的に解消した (D23)。
 
