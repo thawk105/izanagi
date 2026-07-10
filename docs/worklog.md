@@ -1398,3 +1398,39 @@ iteration 2 を回して LLM ablation の材料にする (機械 sweep 対照が
 段 5 sort 軸継続可否の人間判断待ちは変わらず (前エントリ参照)。本セッションは判断非依存の
 段 6 前提タスク (j) related-work の欠落埋めへ — Web 調査 5 レンズ (wf_4009aafc-235) 起動済み、
 結果の監査 → §7 エントリ化から。
+
+## 2026-07-10 (8) — 段6前提タスク (j) 消化: related-work 欠落埋め (D44)
+
+調査 = workflow wf_4009aafc-235 (5 レンズ: OtterTune 系 / learned-DB 系 / OpenEvolve /
+AlphaEvolve・FunSearch 一次資料 / Polyjuice・CCaaLF 実装状態。各レンズが論文 PDF・公式リポジトリへ
+直接アクセス)。書誌の独立機械検証 (規律6 の監査) = arXiv バルク照合 9/9 一致・DOI 解決・
+リポジトリ実在をメインセッションで実施してから採録。反映先は related-work/README.md §7.1/7.2 +
+逆引き索引、生データ凍結 = `docs/related-work/literature-map/gap-research-2026-07-10.md`。
+
+**副次発見 (書誌の陳腐化を検出):** CCaaLF は v4 (2026-03) で NeurCC に改名され SIGMOD 2026
+(PACMMOD 4(3), DOI 10.1145/3802088) 採択済み。FunSearch の arXiv プレプリント不在を API 二重確認
+(既存の「id検証: 未検証」を解消)。OpenEvolve の独立論文は存在しないと三重根拠で確定。EVOLVE-BLOCK
+マーカーの出典 = AlphaEvolve §2.1/2.3 と一次資料で確定 (hooks 設計の出典として引用可能に)。
+
+**人間判断待ち (新規): Polyjuice/NeurCC との実測比較の要否。** 材料 (全文は生データの
+comparison_material 節): (1) 両公開実装とも Silo codebase 上で CCBench とは別基盤 — 絶対値の
+直接比較は CCBench 自身の教訓 (同一基盤で測れ) と衝突。やるなら「同一ハードで各系内相対値
+(共通アンカー = Silo) の並置 + 自機再訓練」で、CCBench 上への再実装は新プロトコル 1 本規模で
+非現実的。(2) Polyjuice 公式実装は 2021 年凍結 (TF 1.14/GCC 7.5 世代) の環境考古学コスト +
+ポリシーはハードウェア依存で再訓練 ~30〜60 時間。(3) 主張が「固定プロトコル群に対する特化合成の
+優位」に留まる限りベースラインは CCBench 内で完結し論文数値のオーダー引用で足りる — 直接実測が
+必須になるのは「学習型 CC を定量的に上回る」を headline にする場合のみ。
+
+素材: 「knob の選択 vs コードの合成」の境界線は UDO (SIGMOD 2017 起点の knob 系譜で探索空間最大、
+transaction code variants の「選択」まで行って「合成」には届かない) で一行で引ける。learned DB
+components 系譜との対比「model-in-the-path でなく code-as-output — CC は µs 以下の critical path
+なので実行時推論ゼロは必然」も論文ポジショニングの核。
+
+**調査手順の教訓 (litmap README に追記済み):** arXiv API は http:// だと 301→空ボディで「0 件」に
+見える偽陰性が出る (OpenEvolve 調査で実発生、3 クエリ無効化)。https 直指定 + totalResults 確認を
+作法化。エージェント工数 ≈ subagent 5 本 / 22 万 token。
+
+### 次の一手
+人間判断待ち 2 件 (段 5 sort 軸継続可否 = 2026-07-10 (6) / Polyjuice/NeurCC 実測比較の要否 =
+本エントリ) の決着まで、判断非依存の残りは段 6 前提タスク (b) protocol 別 calibration (計測窓の
+調整要) など。

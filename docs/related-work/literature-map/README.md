@@ -9,6 +9,8 @@
 
 - `izanagi_literature_map.md` — 6柱・29本の文献マップ (日本語要約・関連度スコア・空白域分析)
 - `izanagi_literature_map.csv` — 同内容の表形式 (pillar / arxiv_id / 著者 / 関連度 / 要約 / URL)
+- `gap-research-2026-07-10.md` — 欠落域調査 (D44 (j): OtterTune 系 / learned-DB 系 / OpenEvolve /
+  AlphaEvolve・FunSearch 一次資料 / Polyjuice 実装状態) の生データ。採録済み → ../README.md §7.1/7.2
 
 ## 生成方法 (再現メモ)
 
@@ -30,6 +32,10 @@ OpenAlex は API キー未設定のため今回未使用 (キー追加で DB系�
 - **1 リクエスト / 3 秒.** 検索を連発するときは各コールの間に 3 秒空ける。
 - **429 は指数バックオフ.** 3 → 6 → 12 秒で再試行する。回避のためのミラー/別経路は
   使わない (レート制限は守る側の作法)。
+- **https 直指定 (2026-07-10 の教訓、偽陰性対策).** `http://export.arxiv.org` は 301 (https へ)
+  を返し、リダイレクトを追わないクライアントでは空ボディ = 「0 件」に見える偽陰性が出る
+  (OpenEvolve 調査で実際に 3 クエリが無効化された)。必ず `https://` で叩き、検索の不在主張を
+  する前に `totalResults` フィールドの存在を確認する。
 
 OpenAlex を併用する場合も同様にレート制限を尊重する (キーありでも連発しない)。
 

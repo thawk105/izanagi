@@ -48,11 +48,13 @@ ID をいつ検証したか」が一目で追える:
 | 研究 | 識別子 | 判定 | 接地する Izanagi 要素 | 柱 |
 |---|---|---|---|---|
 | CCBench | `2009.11558` (VLDB 2020) | `外部補強` | 素材コーパスの学術的出自 | 7.1 |
-| Polyjuice / CCaaLF | `2105.10329` / `2503.10036` | `思想` | 層2 の祖先、新規性主張の核 | 7.1 |
+| Polyjuice / CCaaLF→NeurCC | `2105.10329` / `2503.10036` (SIGMOD 2026) | `思想` | 層2 の祖先、新規性主張の核 | 7.1 |
 | ATCC | `2603.13906` | `思想` | 未知/エージェント的ワークロードへの CC 適応 (最新競合) | 7.1 |
-| AlphaEvolve | `2506.13131` | `思想` | 進化的コード合成の源流 | 7.2 |
+| DB knob チューニング系譜 (OtterTune/CDBTune/QTune/UDO) | SIGMOD 2017 ほか | `引用元` | 「選択 vs 合成」の境界線、P2-5 の外部文脈 | 7.1 |
+| learned DB components 系譜 (Kraska/ALEX/PGM/Neo/Bao) | `1712.01208` ほか | `引用元`+`外部補強` | 物語の源流、実行時推論ゼロの必然性 | 7.1 |
+| AlphaEvolve | `2506.13131` (白書) | `思想` | 進化的コード合成の源流、EVOLVE-BLOCK の出典 | 7.2 |
 | Darwin Gödel Machine | `2505.22954` | `思想` | 自己改善系譜の理論的源流 | 7.2 |
-| FunSearch | *Nature* 2023 | `思想` | LLM×進化ループの先駆 | 7.2 |
+| FunSearch | *Nature* 625 (2024) | `思想` | LLM×進化ループの先駆 | 7.2 |
 | ShinkaEvolve | `2509.19349` (ICLR 2026) | `反面教師`+`部品予約` | 最直接の比較対象、リーク制御の対極 | 7.2 |
 | Jitskit | `2605.24096` | `採用`(部品多数) | spec cards / auditor / leading indicators 他 | 7.3 |
 | VibeServe | `2605.06068` | `思想` | 対象特化合成の賭け、orchestrator D の先行例 | 7.3 |
@@ -93,13 +95,20 @@ CCBench が実装し Izanagi が素材とする各プロトコルの正典出典
 Silo 系 OCC のチューニング軸を実測で示しており、Izanagi がフラグ空間外に求める
 「新しい変異軸」の探索対象の一例。
 
-#### Polyjuice / CCaaLF `2105.10329` (OSDI 2021) / `2503.10036` (2025)
-`判定: 思想` · `接地: 層2, 新規性主張` · `id検証: 2026-07-10`
+#### Polyjuice / CCaaLF→NeurCC `2105.10329` (OSDI 2021) / `2503.10036` (SIGMOD 2026)
+`判定: 思想` · `接地: 層2, 新規性主張` · `id検証: 2026-07-10 (実装状態調査 worklog 2026-07-10 (8) で v4 改題・採択を確認)`
 **一言:** CC をアクション (wait粒度 / dirty read有無 / write expose / early validation) に分解して
-進化的に学習する、層2 の思想的祖先。CCaaLF は CC を学習可能関数としてモデル化し関数近似へ一般化。
+進化的に学習する、層2 の思想的祖先。CCaaLF は CC を学習可能関数としてモデル化し関数近似へ一般化 —
+v4 (2026-03) で **NeurCC に改名**され SIGMOD 2026 (PACMMOD Vol.4 Issue 3, DOI 10.1145/3802088) に
+採択済み。引用時は CCaaLF = NeurCC の名前対応を明記する。
 **採る:** 「CC をアクション列に分解して探索する」問題設定。
 **採らない:** 「事前定義したアクション空間の中での最適配合探索」に留まる点 — Izanagi の (b)
 コード移植は「アクション空間自体を LLM が拡張する」点で質的に違う (新規性の核)。
+**実装と比較可能性:** 両者とも公開実装あり — Polyjuice = github.com/derFischer/Polyjuice (OSDI 2021
+公式アーティファクト、2021 年凍結・TF 1.14 世代 toolchain)、NeurCC = github.com/neurdb/neurcc
+(Docker あり、コミット 1 本)。**いずれも Silo codebase 上の実装で CCBench とは別基盤** — 絶対値の
+直接比較は CCBench 自身の中心主張 (プロトコル比較は同一基盤で測れ) と衝突する。実測比較の要否と
+最小構成の判断材料は worklog 2026-07-10 (8) (人間判断待ち)。
 **系譜上の位置:** 学習型 CC の起点。ATCC が同系譜の最新。
 
 #### ATCC `2603.13906`
@@ -114,6 +123,41 @@ Silo 系 OCC のチューニング軸を実測で示しており、Izanagi が�
 > アクション空間自体をコードで拡張する* — はこの延長線上で最も外側にあり、既存研究が正面から
 > 扱う例は本調査では未発見 (新規性主張の外堀は埋まっている)。
 
+#### DB 自動チューニング (knob tuning) 系譜 — OtterTune / CDBTune / QTune / UDO
+`判定: 引用元` · `接地: P2-5 negative result (フラグ探索は自明) の外部文脈` · `id検証: 2026-07-10 (一次資料 PDF 4/4 精読、worklog 2026-07-10 (8))`
+**一言:** DBMS の設定 knob を ML/RL で自動チューニングする系譜。OtterTune (Van Aken et al.,
+SIGMOD 2017) = GP 回帰 + workload mapping の起点 / CDBTune (SIGMOD 2019) = DDPG による
+end-to-end 強化学習化 / QTune (VLDB 2019) = クエリ認識 (DS-DDPG、3 粒度) / UDO (`2104.01744`,
+VLDB 2021) = knob + index + トランザクションコード variant 選択を統合する強化学習 (delayed-HOO)。
+**採る (引用のみ):** 差別化の基準点。この系譜は探索が「設計者が事前に開けた knob 次元」に閉じ、
+CC のロジック (競合検出・待機・abort の判断構造) には手が届かない。系譜内で探索空間が最大の UDO
+の「transaction code variants」ですら人間が用意した有限候補からの**選択**であり、Izanagi の**合成**
+(アクション空間自体の拡張) との境界線を一行で引ける最良の引用先。knob 探索が専業 ML/RL で解けて
+しまうこと自体が P2-5 (フラグ探索に LLM の付加価値なし) と同方向を指す外部証拠。
+**採らない:** 機構すべて — Izanagi は knob 探索をしない (P2-5 で既反証)。
+**系譜上の位置:** 「ワークロード特化の DB 自動最適化」の最古参。Izanagi はこの目標を knob 空間から
+コード空間へ持ち出す位置に立つ。
+
+#### learned DB components 系譜 — learned index / learned query optimizer
+`判定: 引用元`+`外部補強` · `接地: 層2 の物語 (部品の学習特化)、実行時推論ゼロの設計必然性` · `id検証: 2026-07-10 (arXiv バルク 5/5 + venue 裏取り、worklog 2026-07-10 (8))`
+**一言:** DB 中核部品を学習物で置き換える系譜。Kraska et al. (`1712.01208`, SIGMOD 2018) =
+「インデックスはモデルである」の元祖 (RMI) / ALEX (`1905.08898`, SIGMOD 2020) = 更新対応の第二波 /
+PGM-index (`1910.06169`, PVLDB 13(8) 2020) = 最悪ケース保証の証明付き / Neo (`1904.03711`,
+VLDB 2019) = learned query optimizer の最初期 / Bao (`2004.03814`, SIGMOD 2021) = 既存 optimizer を
+粗粒度ヒントで「操縦」する実用化 (arXiv 版と venue 版でタイトルが異なる点に注意)。
+**採る (引用 + 外部補強):** (1) 物語の源流 — Izanagi は「learned DB components の CC 版」の章に
+あたる。ただし手段が根本的に違う: この系譜は model-in-the-path (実行経路にモデル推論を挟む) だが、
+Izanagi は code-as-output (学習コストは合成時に払い、実行時はプレーン C++・推論ゼロ)。CC は
+トランザクション毎 µs 以下の critical path なので推論を挟む余地がなく、この違いは好みでなく必然
+(Neo/Bao との対比から導出)。(2) 外部補強 2 点 — PGM の「学習部品に証明可能な保証を付けよ」という
+要請は、CC 合成に serializability verifier を常設する規律 2/3 と同じ問いへの別解。Bao の「白紙から
+全置換せず実証済み部品を保ち介入面を絞る」は EVOLVE-BLOCK 設計 (stock 骨格温存 + 指定領域のみ変異)
+と同型の教訓。
+**採らない:** ALEX 型のオンライン自己適応機構 — Izanagi のワークロード適応はオフライン再合成
+(合成パイプラインの再実行) で担う立場。
+**系譜上の位置:** index (データ構造) → optimizer (意思決定) と学習置換が拡大してきた延長線上に
+CC (意思決定 + 正しさ制約が最も強い部品) がある。
+
 ---
 
 ### 7.2 AI 探索・進化的合成の系譜 (層2 (b) の方法論)
@@ -121,12 +165,22 @@ Silo 系 OCC のチューニング軸を実測で示しており、Izanagi が�
 LLM を変異オペレータとして進化探索でコードを合成する系譜。verifier がある所で正しさを保ちつつ
 性能指標を最適化する、Izanagi (b) と同一の問題設定。
 
-#### AlphaEvolve `2506.13131` (Google DeepMind)
-`判定: 思想` · `接地: 層2 (b) コード合成` · `id検証: 2026-07-10`
-**一言:** 進化的コーディングエージェント。LLM を変異オペレータとして進化探索でアルゴリズム/
-コードを発見。
-**採る:** 進化探索でコードを合成する問題設定 (ShinkaEvolve が直系とする源流)。
-**採らない:** 後述 (7.2 末尾の注意) — 勝ち筋を生成側に見せるサンプル効率機構は Model Y と衝突。
+#### AlphaEvolve `2506.13131` (Google DeepMind 白書、査読なし・v1 のみ)
+`判定: 思想` · `接地: 層2 (b) コード合成、EVOLVE-BLOCK 機構の出典` · `id検証: 2026-07-10 (一次資料 PDF 44 頁精読、worklog 2026-07-10 (8))`
+**一言:** 進化的コーディングエージェント。進化 DB (MAP-Elites + 島モデルに着想) から親 +
+inspirations をサンプルし、**過去の勝ちプログラム群と評価スコアを prompt に注入**、LLM アンサンブル
+(Gemini Flash = 量 / Pro = 質) が SEARCH/REPLACE 形式の diff を生成、evaluator カスケード (難易度
+昇順の段階ゲート) で採点して DB に登録。成果は 4×4 複素行列乗算 48 回 (Strassen 以来 56 年ぶりの
+更新)・数学未解決問題 50+ (75% 再発見・20% 更新)・Borg スケジューリング・Gemini 訓練カーネル等。
+**採る:** (1) 進化探索でコードを合成する問題設定 (ShinkaEvolve が直系とする源流)。(2) **EVOLVE-BLOCK
+マーカー (§2.1) と diff 形式の編集面限定 (§2.3) は Izanagi が hooks/guard_write で採用している機構の
+出典そのもの** — 出典として明記して引用できる。(3) evaluator カスケード (不良の早期除去 → 本評価) は
+スコアを生成側に返さず harness 内に閉じる限り規律 6 と整合し、Izanagi の Tier0→verify→bench 直列
+ゲートと相似。
+**採らない:** 勝ちプログラム + スコアの prompt 注入は周辺機能でなく**ループの定義そのもの**で、
+§4 の ablation (No evolution を切ると両タスクで大幅劣化) がそれを直接証明 — この系譜のサンプル
+効率の源泉が Model Y リーク制御と正面衝突する機構にあることの一次証拠 (7.2 末尾の注意の裏付け)。
+LLM-generated feedback をスコアに混ぜる機構も正しさゲート希釈の方向 (規律 2/3) で不採用。
 **系譜上の位置:** FunSearch の後継、ShinkaEvolve/DGM の源流。
 
 #### Darwin Gödel Machine (DGM) `2505.22954`
@@ -135,13 +189,26 @@ LLM を変異オペレータとして進化探索でコードを合成する系�
 **採る:** 自己改善の理論的枠組み (SkillOpt/Self-Harness の源流としての位置づけ)。
 **系譜上の位置:** AlphaEvolve 系譜かつ 7.4 自己改善系譜の理論的源流。
 
-#### FunSearch (Romera-Paredes et al., *Nature* 2023)
-`判定: 思想` · `接地: 層2 (b)` · `id検証: 未検証 (Nature 掲載につき arXiv ID なし)`
-**一言:** LLM を進化ループに組み込み数学的・アルゴリズム的発見を行った先駆。
-**採る:** LLM×進化ループという方法論の起点としての位置づけ。
+#### FunSearch (Romera-Paredes et al., *Nature* 625, 468–475, 2024; オンライン 2023-12)
+`判定: 思想` · `接地: 層2 (b)` · `id検証: 2026-07-10 (DOI 10.1038/s41586-023-06924-6 解決確認。arXiv プレプリント不在を API 二重確認 — Nature のみが一次資料)`
+**一言:** LLM を進化ループに組み込み数学的・アルゴリズム的発見を行った先駆。凍結済み LLM (創造役)
+と systematic evaluator (confabulation の門番) を対にし、programs database + 島モデルで母集団を
+保持。核となる機構は **best-shot prompting** = スコア最良のプログラム群を prompt に戻して改良させる。
+プログラム全体でなく骨格 (skeleton) 中の決定的ロジックのみ進化。成果 = cap set 8 次元 512 要素
+(既知最良超え)・オンラインビンパッキング。実装 = github.com/google-deepmind/funsearch。
+**採る:** LLM×進化ループという方法論の起点としての位置づけ。島モデル (多様性維持) は Phase 3.5
+(母集団導入) の思想的参照先候補。
+**採らない:** best-shot prompting — 機構名自体が「勝ち筋を生成側に見せる」ことを示す。また
+evaluator は幻覚防止の門番であって serializability 級の意味論的正しさゲートではない — **規律 2
+相当の層がこの系譜には起点から存在しない**ことの証拠 (Izanagi が verifier を足す必然性の対比項)。
 **系譜上の位置:** AlphaEvolve/ShinkaEvolve の起点。
-> OpenEvolve (AlphaEvolve のオープン再実装として言及される) は本調査では独立した査読/
-> プレプリントを ID 付きで特定できず。名称のみ記載、ID 未確証 (実在確認できしだい補完可能)。
+> **OpenEvolve** (github.com/algorithmicsuperintelligence/openevolve、旧 codelion/openevolve から
+> 移管・旧 URL は 301 で到達可) = AlphaEvolve の**非公式**オープン再実装 (Asankhaya Sharma、
+> 2025-05 公開、Apache-2.0、活発に保守中)。**独立した査読論文/プレプリントは存在しないと確定**
+> (2026-07-10 三重確認: arXiv 全文検索で該当 0・公式 Citation 節が @software 形式・他論文の引用も
+> 全て @software 形式。一次資料 = リポジトリ + 作者の Hugging Face ブログ 2025-05-20)。EVOLVE-BLOCK
+> マーカー方式を実装するオープン系の代表だが、勝ち筋注入系譜のため機構は ShinkaEvolve と同じ扱い
+> (思想のみ・機構非採用)。第三者の独立評価 (`2511.20987`、全単射構成への適用) が実在性の傍証。
 
 #### ShinkaEvolve `2509.19349` (Sakana AI, ICLR 2026, github.com/SakanaAI/ShinkaEvolve)
 `判定: 反面教師 (直採用ゼロ) + 部品予約` · `接地: Model Y リーク制御, 絶対規律2/4/6, Phase 3.5` · `id検証: 2026-07-10`

@@ -177,9 +177,15 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    floor 未較正・n=2 で断定せず。sort 軸に「順序の質」由来の floor 超地形は見当たらない — 軸選定の
    見直し (段 8a 前倒し等) が人間判断事項** (正本 = D46・`output/insights/2026-07-10_s6-sort-sweep-
    preliminary.md`・`orchestrator/campaign/s6_sort_sweep.py`)、
-   (j) related-work の欠落埋め (D44) — OpenEvolve・OtterTune 系 (DB 自動チューニング)・learned index /
-   learned query optimizer 系の追加、AlphaEvolve/FunSearch 一次資料エントリ化、Polyjuice/CCaaLF
-   (公開実装あり) との実測比較の要否判断。
+   (j) **(完了 2026-07-10、実測比較の要否のみ人間判断待ち)** related-work の欠落埋め (D44) —
+   Web 調査 5 レンズ + 書誌の独立機械検証 (arXiv バルク 9/9・DOI・リポジトリ実在) を経て
+   related-work/README.md §7.1/7.2 へ反映: OtterTune 系 (knob tuning 4 本) と learned DB components
+   系 (5 本) を系譜まとめエントリで新設、AlphaEvolve/FunSearch を一次資料裏付けへ更新 (EVOLVE-BLOCK
+   マーカーの出典 = AlphaEvolve §2.1/2.3 と確定、FunSearch は arXiv プレプリント不在確認)、
+   OpenEvolve は「論文なし」を三重根拠で確定。**副次発見: CCaaLF は v4 で NeurCC に改名され
+   SIGMOD 2026 採択** (エントリ・逆引き索引に反映)。生データ =
+   `docs/related-work/literature-map/gap-research-2026-07-10.md`。Polyjuice/NeurCC 実測比較の
+   要否判断の材料 (別基盤問題・環境考古学コスト・間接比較で足りる場面) は worklog 2026-07-10 (8)。
 7. **(拡張予約) 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初の本丸「他 CC の最適化を CCBench コーパスから
    移植する」+ 隠れた肝「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、**主実験 (段 6) 完了後の拡張**として
    ここに予約する (a' 方針、D32)。根拠 = 非対称性: 空間外合成は P2-4 で実証済み・**移植の価値は未検証仮説** (I5 =
