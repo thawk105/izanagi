@@ -1,0 +1,63 @@
+{
+  "env_tag": "linux-baremetal",
+  "ccbench_commit": "d706650",
+  "genome": "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "clocks_per_us": 2100,
+  "runs": {
+    "skeleton_multi": {
+      "exit_code": 0,
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "abort_reasons": {
+        "lock-conflict": 3963,
+        "readvali-locked": 2511,
+        "readvali-tid": 856
+      },
+      "txns": 234687,
+      "abort_counts": 7330,
+      "early_aborts": 0,
+      "a_total": 7330
+    },
+    "skeleton_single": {
+      "exit_code": 0,
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "abort_reasons": {},
+      "txns": 214908,
+      "abort_counts": 0,
+      "early_aborts": 0,
+      "a_total": 0
+    },
+    "misattr_multi": {
+      "exit_code": 0,
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "abort_reasons": {
+        "node-vali": 3652,
+        "readvali-tid": 709,
+        "readvali-locked": 2156
+      },
+      "txns": 233806,
+      "abort_counts": 6517,
+      "early_aborts": 0,
+      "a_total": 6517
+    }
+  },
+  "checks": {
+    "skeleton_certified": true,
+    "skeleton_aborts_present": true,
+    "skeleton_conservation": true,
+    "skeleton_structural_zero": true,
+    "skeleton_no_early_aborts": true,
+    "skeleton_live_reasons_present": true,
+    "single_no_aborts": true,
+    "misattr_verifier_blind": true,
+    "misattr_exposed_by_structural_zero": true,
+    "misattr_lock_conflict_gone": true,
+    "misattr_conservation_still_holds": true
+  },
+  "all_pass": true
+}
