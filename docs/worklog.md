@@ -1732,3 +1732,25 @@ ATCC 系譜 + 正本ポインタ)、§8 は新規性主張への系譜限定の�
 
 ### 次の一手
 段 8a の D 偵察 (前エントリ参照)。
+
+## 2026-07-11 (3) — 監査: docs/ 整備 — token 消費削減 (ユーザー依頼)
+
+6 レンズ (tms実態照合/参照実在性/意味的再掲/孤児文書/phase3読み方/固定費地図) +
+finding 別敵対裏取り、独立コンテキスト (workflow wf_8993ce15-3bf)。49 finding →
+real 21 / partially-real 13 / refuted 15。一次資料 (finding 全文・裁定) =
+`output/insights/2026-07-11_docs-token-audit.json`。反映 = c9d6fcb..019e4c2 (5 本)。
+最重要: (1) token-management-strategy.md (07-07 Haiku 生成) の定量記述はほぼ全て
+一次記録の裏付けなし — 架空「Phase 5」・論文用 Table 1 の捏造値・実在 workflow id を
+流用した架空の中断復旧物語。論文転写事故リスクにつき削除/プレースホルダ化 + 冒頭監査注記、
+(2) check_docs の LIVING_DOCS が実在しない related-work.md を指し黙って skip、
+(3) phase3.md の must 表と残存リスク節が完了済みの S2 pipeline 配線を未了と主張 (同一文書内 drift)。
+素材: LLM 生成の体系化文書は概念枠が概ね正確でも定量記述がほぼ全て捏造だった —
+生成物の採用前監査 (規律6) の必要性を docs 領域で実証した事例。
+エージェント工数: 55 本 / 約 166 万 token / 18 分。計測なし。
+ユーザー判断待ち: (a) token-management-strategy.md の位置づけ (監査所見 = archive 移動を推奨。
+今回は 07-08 の据え置き経緯を尊重し移動せず lint 登録で腐敗停止まで)、(b) CLAUDE.md 圧縮
+(fc-02/05: 作業の進め方節・主要ドキュメント節で ~1-2K token/セッション、承認要)、
+(c) auditor.md のギャラリー/チェックリスト圧縮 (fc-04、D42 条件 4 で承認要)。
+
+### 次の一手
+段 8a の D 偵察 (変わらず、(2) 参照)。
