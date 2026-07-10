@@ -11,6 +11,16 @@ diff で書き、フラグ空間の外に最適化 variant を合成する。P2-
 ユーザー承認 (2026-06-29)。decisions D22。**絶対規律 (特に 1/2/3/5/6) はここで初めて load-bearing になる**
 (LLM が正しさを破りうるコードを書く)。
 
+## 読み方 (D35 — セッション開始時に全文を読まない)
+
+- セッション開始時に読むのは 2 箇所だけ: **must 表** (`grep -n "着手前 must" docs/phase3.md` で位置特定) と、
+  **「後続段」リストの未了項** — 完了項は行頭が `N. **(完了 <日付>)` で始まるので、それ以外の番号項と
+  その未完了サブ項が開タスク。完了/未了の正本はこの後続段リスト (must 表は blocking 分類が主で、
+  完了の追記は従)。
+- 「残存リスク」節は発火条件付き既知限界の台帳 — セッション開始時には読まず、該当リスクに触れる
+  作業時だけ引く。
+- 「kickoff の最小スコープ」節の EVOLVE-BLOCK 機構・閉じた領域制約・適用の隔離は**現役の規定** (完了記録ではない)。
+
 ---
 
 ## Phase 3 全体の完了定義と主実験の評価設計 — `docs/phase3-main-experiment.md` へ分離 (2026-07-05, D35)
@@ -101,7 +111,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 | **cache_key+variant_id 拡張** | **完了** (kickoff タスク 1 で消化) | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
 | **観測者効果二重検査** | **完了 (14d64e6)** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない)。diff-of-diffs を buildcache.build 出口 (hit/fresh 両経路) で発火、fails-closed |
 | **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。**consumer 実体化も完了 (後続段 2、2026-07-06、D37)** — liveness-red 別型・render 3 形状・critic 消費規定・実走赤 2 本で閉ループ実証 (「読んで方向を返す」まで。還流 = 次 variant 生成への使用は段 4) |
-| S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。残り = 段 5 での pipeline 配線 (D36 決定 4)** |
+| S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。pipeline 配線も完了 (段 5、D36 決定 4、opt-in = legacy+s2)** |
 | S1 (別 protocol trace-hook) | non-blocking (kickoff) / **主実験 headline 2 で発火** | silo 内に閉じる限り不要。ただし発火条件は「別 protocol 移植」だけでなく**主実験 headline 2 (クロスプロトコル stock 最良) も含む** — trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、headline 2 までに S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかが要る (後続段 6 の前提タスク (a)) |
 | C1 (campaign-id drift) | **解消済み (2026-07-09、段5、D40)** | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。並行合成/patch 常駐で HEAD が動く残課題は git worktree 隔離 (`patchharness.checkout()`、opt-in) で解消 — 各評価が自分の pin を自分の worktree で checkout するため他の並行評価の影響を受けない。driver 宣言値 (phase2.md §C1) がリテラルであること自体は IDENT-1/IDENT-3 により意図的据え置き (変更なし) |
 
@@ -111,7 +121,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 **段 1〜5 は完了 (2026-07-06〜07-10)。完了記録の詳細 (実装内訳・敵対レビュー・実測値・実機検証手順)
 は `docs/archive/phase3-kickoff-stages1-5.md` へ分離 (2026-07-10)** — ここには完了サマリ + 現役情報
-(ablation 点・残課題・発火条件) + 正本ポインタのみ残す (完了/未了の正本は本リスト、番号は分離前と不変):
+(ablation 点・残課題・発火条件) + 正本ポインタのみ残す (完了/未了の正本は本リスト、番号は分離前と不変)。
+未了の段の完了済みサブ項・段階内訳は、その段が閉じてから同手口で分離する (現役 context のうちは据え置き):
 
 1. **(完了 2026-07-06) S2 verify 構成の確定** — perf 代表 workload と完全同一構成 (「縮小」なし) で
    gate 3 点 (contention 再現・trace 規模・赤検出力) all_pass。pipeline 配線 (D36 決定 4) は段 5 で完了。
@@ -271,11 +282,14 @@ worklog 全読しないと発掘できない状態を解消するためここに
 
 ## 残存リスク
 
+(発火条件付き既知限界の台帳。解消済み表記の項も未解消 tail を持つため**一括のアーカイブ分離は不可** —
+分離するなら項単位で tail の有無を確認する)
+
 - 純 timing first target は**新規性が薄い** (機構の配線実証が主目的、性能新規性は sort 以降)。意図的トレードオフ。
 - **S2 non-blocking の根拠に空振り認証リスク (解消 2026-07-06、後続段 1、D36)**: 「純 timing は workload 依存
   パスを持たない」は厳密には不正確 (static backoff は abort 時にのみ実行される競合依存パス) だが、完了条件 2 の
   「verify run の abort > 0 を WAL で確認」で空振り認証を防止済み。S2 構成自体は後続段 1 で確定 (gate 3 点
-  all_pass)。残りは段 5 の pipeline 配線のみ。**timing 純度そのもの (straight-line・API 範囲) は payload 検査
+  all_pass)。pipeline 配線も段 5 で完了 (D36 決定 4)。**timing 純度そのもの (straight-line・API 範囲) は payload 検査
   では機械保証されず、auditor live まで coder diff の人間レビューが gate** (方針 A の帰結、未解消のまま)。
 - preprocess 後ハッシュは対象ファイル集合の列挙漏れがあれば偽 cache hit が復活する。固定集合に限定しテストで固定するが
   template patch の改訂で集合が動いたら漏れる残留リスク。**タスク2 敵対レビューで実証 (medium, D24)**: `Options.cmake` は

@@ -6,6 +6,9 @@
 (phase3-main-experiment.md と同様の分離運用)。正典は phase3.md 後続段 4・main-experiment・
 decisions。矛盾があれば正典が勝つ。
 
+> 訂正注記 (2026-07-11 監査 ref-06): 本文の「main-experiment §24/§59」「§65-66」は執筆時の
+> 行番号で、現行 docs/phase3-main-experiment.md に該当節番号は存在しない (v1 文書の同注記参照)。
+
 後続段 4 = coder が初めて変異の値・方向を**自律生成**する段。reward hacking 圧力が最も高く、
 coder リーク制御が完全でないと主実験の妥当性 (「合成できた vs 答えを読んだ」の区別・
 失敗条件 c) が崩れる。3 点セット (coder.md 自律版改訂 / planner.md / diff 検疫層) + D38 残消化。

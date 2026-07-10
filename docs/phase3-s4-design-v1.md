@@ -2,6 +2,8 @@
 
 **位置づけ:** 設計基盤 (調査で確定した骨子) + handoff の記憶 (Model Y 裁定・密結合発見) を統合した実装設計。段 4 完了時に D39 に畳んで本文書は凍結。正典は phase3.md 後続段 4・main-experiment・decisions。矛盾があれば正典が勝つ。
 
+> 訂正注記 (2026-07-11 監査 ref-06): 本文の「main-experiment §24/§59」「§65-66」は執筆時の行番号で、現行 docs/phase3-main-experiment.md に該当節番号は存在しない。§24/§59 ≈ リーク制御と対の事前登録の規定、§65-66 ≈ 検証相 (seed×N・長 extime) の規定 — 現行文書を該当語で grep して引くこと。
+
 後続段 4 = coder が初めて変異の値・方向を**自律生成**する段。reward hacking 圧力が最も高く、3 点セット (diff 検疫層 4a / coder リーク制御 4b / planner 4c) + D38 残消化。
 
 ---
