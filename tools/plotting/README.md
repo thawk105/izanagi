@@ -30,6 +30,8 @@ campaign を複数指定するとその順で横並び (workload 比較) にな�
 
 ## 設計上の約束
 
+作法の全文は `FIGURE_CONVENTIONS.md` (図種に依存しない規約の本体)。本スクリプトはその backoff sweep 向け実装。
+
 - **入力は WAL/dat のみ**。図の数値はすべてその場で再計算 (記憶・手写しなし)。
 - **95% CI は throughput の n 反復生値から** (t 分布、`1.96·s/√n`)。
 - **abort%/IPC は dat の集約値** (現状 1 点集約 — 反復値が保存されれば CI 化可能)。
