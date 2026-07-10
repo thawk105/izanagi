@@ -1,0 +1,100 @@
+{
+ "what": "axis-proposer n=1 実証の一次資料 (提案全文 + 分離採点全文 + 観測)。段 8a、出口基準 = D47 決定 4 (提案を見る前に事前定義済み・変更なし)",
+ "date": "2026-07-10",
+ "category": "実証 (n=1)。性能計測なし — 読み取り・推論・採点のみ (絶対規律 4 の計測窓に非干渉)",
+ "input_provenance": "output/insights/2026-07-10_s8a-n1-provenance.json (raw の脚 = P2-3 要旨 insight / 射影版入力 / 落とした対応表 9 件 / 地図・抜粋の機械生成規則 / spawn プロンプト sha256)",
+ "execution": {
+  "proposer": "axis-proposer (.claude/agents/axis-proposer.md、model=opus/effort=high、tools なし・入力 3 点は本文埋め込み 59,488 文字)",
+  "cost": "subagent 5.6 万 token / 225 秒 / 1 呼び出し (n=1 の定義どおり単発)",
+  "fails_closed_input": "PASS (領域 17 の地図・抜粋一致 / opened 機械判定 / 死軸二値 / recommend 由来トークン機械 grep 0 件)",
+  "fails_closed_output": "PASS (必須フィールド完備・mutation_type 二型内・unknowns 非空。実行主体 = 信頼中核、消費前に機械検査)"
+ },
+ "proposal": {
+  "proposals": [
+   {
+    "axis_name": "silo-backoff-trigger-gating",
+    "mutation_type": "code_fragment",
+    "hole_location": {
+     "region": "cc/silo/transaction.cc",
+     "source_rel": "cc/silo/transaction.cc",
+     "position": "TxExecutor::abort() 末尾の #if BACK_OFF ブロック — 現状 abort 要因を問わず Backoff::backoff(FLAGS_clocks_per_us) を無条件発火している呼出点",
+     "skeleton": "abort に至った要因 (施錠競合 / read-set 検証失敗 / node 検証失敗 / absent 等) を判別する述語で backoff 呼出を gate する変異穴。要因を保持する最小状態を abort() 到達前 (validationPhase / lockWriteSet の abort 分岐) に記録する骨格を含む。gate 述語の形が変異面で、待機量そのもの (magnitude 軸) は触らない。"
+    },
+    "mechanism_hypothesis": "attribution 項目 (a)「abort 後の再試行前バックオフ待機の有効化」の相反二効果 — abort 率大幅低減 (balanced 65.3→18.1% 等) と throughput 全 workload 低下 (read-heavy -77% / balanced -61% / write-heavy -22.5%) の併存、かつ『損は abort baseline が高い workload ほど小さい (write-heavy -22.5% < read-heavy -77%)』— を根拠にする。IPC が 1.4-1.6→0.4-0.5 に崩壊する診断は待機そのものが核の命令発行を止める純損であること、その純損は『無駄な再試行を実際に削れる workload』でだけ相殺されることを示す。したがって待機を『相殺が効く要因の abort』に限定する発火条件の変異を abort() 呼出点に開けると、abort baseline が低く純損だけが乗る read-heavy 側の損を避けつつ balanced/write-heavy 側の abort 削減利得を残す地形が予想される。これは待機量を決める magnitude 軸 (silo-backoff-magnitude) と直交する『いつ待つか』の次元。",
+    "safety_argument_hypothesis": "要因判別を誤り本来 backoff すべき競合再試行を素通しすると live-lock / abort storm を招き、throughput でなく実行の安定性を壊す型の危険がある。要因記録は CC-native 経路で持ち #if TRACE 外に漏らさない設計が要る (観測者効果分離・規律1)。validation / lock coverage 側には触れない前提だが、これは下書きで段階 B で再検証される。",
+    "unknowns": [
+     "どの abort 要因が read-heavy の純損の主因かの要因別内訳 (射影に来ていない)",
+     "感度を持つ workload の実測動作点",
+     "positive control の設計",
+     "計測動作点 (skew / thread / レコード数) の確定",
+     "reward hack 仮説 (要因判別を偽装して backoff を全 skip し abort 率指標だけ良く見せる余地 — 規律2 の攻撃面)",
+     "既存軸台帳との構造照合結果 (magnitude 軸との分離が台帳上も成立するか)"
+    ]
+   },
+   {
+    "axis_name": "silo-wal-flush-cadence",
+    "mutation_type": "code_fragment",
+    "hole_location": {
+     "region": "cc/silo/transaction.cc",
+     "source_rel": "cc/silo/transaction.cc",
+     "position": "TxExecutor::wal() の flush 発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` からヘッダチェックサム変換・logfile_.write・log_set_.clear までのブロック",
+     "skeleton": "log レコードの buffer 蓄積量と flush 発火の cadence (発火閾値・1 write でまとめるグルーピング単位・ヘッダチェックサム計算の呼出頻度) を変異させる穴。LogRecord 構築時の全体 memset + computeChkSum の padding 含む全 int chunk 走査という 1 レコード固定コストの発生頻度も cadence 側で動く。"
+    },
+    "mechanism_hypothesis": "attribution 項目 (c)「コミット時ログ書込の有効化」— throughput 低下が書込比率に単調比例 (read-heavy -1.9% は noise 内 / balanced -6.8% / write-heavy -13.4%)、abort 率不変、latency と llc_miss_rate が増加、を『競合でも正しさ検証でもなく純粋な書込 I/O コスト』に帰属した診断を根拠にする。abort に帰属しないという切り分けは、変異面が競合制御側でなく flush の cadence (現状 LOGSET_SIZE/2 到達発火) と 1 レコードあたりのメモリトラフィックにあることを示す。llc_miss 増は log_set_ buffer と LogRecord (VAL_SIZE + 全体 memset) のメモリ traffic に整合し、flush 粒度/頻度を変えると write-heavy 側 (-13.4%) で I/O コストの地形が最も動くと予想される。施錠順序 (silo-writeset-sort, dead) とも magnitude 軸とも別の処理段。",
+    "safety_argument_hypothesis": "flush を遅らせる/まとめる変異は durability window を広げ、flush 前 crash でコミット済 tx のログを喪失させうる — serializability ではなく recoverability を壊す型。Silo の epoch-based group commit 契約と衝突しうるため、段階 B で durability 契約の再検証が必須。",
+    "unknowns": [
+     "WAL ビルド (#if WAL) が計測動作点で有効かどうか (backoff 診断は skew0.9/48thread/1M だが WAL on/off の動作点は射影に無い)",
+     "durability 契約の正確な要件と epoch group commit との相互作用",
+     "reward hack 仮説 (flush を実質 skip して I/O コストだけ消し durability を犠牲に throughput を稼ぐ — 規律2 の攻撃面)",
+     "positive control の設計",
+     "感度を持つ workload の実測",
+     "既存軸台帳との構造照合結果"
+    ]
+   },
+   {
+    "axis_name": "silo-lock-conflict-retry-bound",
+    "mutation_type": "code_fragment",
+    "hole_location": {
+     "region": "cc/silo/transaction.cc",
+     "source_rel": "cc/silo/transaction.cc",
+     "position": "TxExecutor::lockWriteSet() の施錠競合応答分岐 (`if (expected.lock) { #if NO_WAIT_LOCKING_IN_VALIDATION ... #elif NO_WAIT_OF_TICTOC ... }`)",
+     "skeleton": "施錠競合検出時の応答を『即 abort』と『全 retry (goto retry)』の二極でなく、有界回数の局所リトライ後に abort へ落とす中間政策の変異穴。リトライ上限とリトライ間の短待機をパラメタ化する骨格。lock 保持中にリトライを回さない (保持済み lock は解放してから) 構造を維持する。"
+    },
+    "mechanism_hypothesis": "attribution 項目 (b)「validation 中のロック競合に対する 2 種の待たない政策の選択」— 2 政策の優劣が workload 間で反転 (差 balanced 19.6% / write-heavy 12.7% / read-heavy 0.4% は noise floor 2.28% 内で順位不能)、かつ勝ち方が異なる (balanced 優位側は IPC 1.62 の高命令発行で稼ぐ / write-heavy 優位側は abort 率 50.8→21.0% と latency の同時低減で稼ぐ) を根拠にする。二極が異なる機序で異なる workload に勝つという非単調構造 (P2-4 の軸発見が依存した型) は、二極の中間 (有界リトライ) が未探索次元であることを示す。即 abort は命令発行を保つが abort 率を上げ、全 retry は abort/latency を下げるが発行を止める — 有界リトライ点はその中間地形を balanced と write-heavy の双方で拾える可能性がある。これは 2-policy コンパイル選択 (stock config) の内挿ではなく『リトライ有界性』という新次元の穴。",
+    "safety_argument_hypothesis": "有界リトライは無限 live-lock を有界化するが、リトライ上限・待機の設計次第で validation 中の他 tx への starvation/fairness を悪化させうる。no-wait の serializability 保証は最終的に abort へ落とす限り保たれるが、lock を保持したままリトライを回す誤設計は deadlock を導入する — 段階 B で『lock 保持中リトライでない』ことの再検証が必須。",
+    "unknowns": [
+     "2 政策のどちらが各 workload の優位側か (政策識別は射影で落とされた — 中間政策の設計に本来必要な情報)",
+     "noise floor 2.28% に対する中間点の識別可能性",
+     "既存の 2-policy コンパイル選択が軸台帳に登録済みか (登録済みなら軸内探索の疑い — 人間 gate の構造照合で要確認)",
+     "reward hack 仮説",
+     "感度を持つ workload の実測と positive control の設計",
+     "計測動作点の確定"
+    ]
+   }
+  ],
+  "global_unknowns": [
+   "全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round 計測・交互作用未分離) の射影であり、3 提案の地形予想は他動作点・多 round・軸間交互作用の下で崩れうる",
+   "本役の 3 提案はいずれも『探索補助』限定で段 6 の headline 非対象 — 採用は人間承認 gate → 段階 B の独立再導出 (提案軸名・骨格が入力射影に既出でないことの検査を含む) を経て初めて軸になる",
+   "射影漏れの自己点検: 入力に勝ち筋のリテラル値・recommend 節・死んだ軸の機序帰属が混入した兆候は認めなかった (silo-writeset-sort は status:dead のみで機序なし = 二層射影と整合、attribution (b) も優位側の存在と相対差は示すが政策識別は withheld)"
+  ]
+ },
+ "scoring": {
+  "scorer": "独立コンテキスト (Explore subagent、read-only)。射影を組んだ主体 (メインセッション) と分離 (D47 決定 4)",
+  "verdict": "成功 = yes。3 項目すべて yes の候補 2 件 (提案 1 が最もクリーン、提案 3 は基準 3 が境界)。提案 2 は基準 3 (軸適格性) が no — 実質スカラー 1 個 (flush 閾値) に還元可能",
+  "observations": {
+   "恒真提案率": "0/3 (全 mechanism_hypothesis が入力診断の具体構造に紐付く)",
+   "既存軸再提案": "0 (magnitude / sort の言い換えなし)",
+   "既開通領域への偏り": "3/3 — 全提案が既開通ファイル transaction.cc 内。対称地図 (17 領域中 15 が未開通) でも bias が消えていない。D47 決定 4 の観測項目として要記録"
+  },
+  "full_text": "# 採点結果 — axis-proposer n=1 実証 (D47 決定 4)\n\n採点者 = 独立コンテキスト (Explore subagent、read-only、射影・提案の両主体と分離)。以下は採点者の返答全文 (逐語)。\n\n## 前提の確認 (裏取り)\n\n**既存軸台帳 (現物で確認):**\n- `silo-backoff-magnitude` — hole は `patches/silo-backoff-fixed.patch`。位置 = `include/backoff.hh` の `backoff()` 待機ループ内。骨格 = 待機量スカラー `now_backoff` の合成 (スカラー値軸)。\n- `silo-writeset-sort` — hole は `patches/silo-sort-variant.patch`。位置 = `cc/silo/transaction.cc` の `validationPhase()`、`lockWriteSet()` 呼出直前の write_set sort。骨格 = comparator の合成 (コード片軸)。\n\n**入力射影 (proposer が見たもの):** diagnostics = `silo-backoff-magnitude` (alive、attribution 3 項 (a)(b)(c)) + `silo-writeset-sort` (dead 二値のみ)。stock_excerpts に `transaction.cc` 全文 (abort / lockWriteSet / wal / validationPhase を含む) と `backoff.hh` 全文。edit_surface_map は 17 領域中 opened=true は 2 つのみ (`transaction.cc`、`backoff.hh`)。attribution の 3 design_choice は診断帰属であって「軸名」ではない (台帳の軸は 2 つのみ)。\n\n## 提案 1 — silo-backoff-trigger-gating (位置: `transaction.cc` `abort()` 末尾の無条件 `Backoff::backoff()` 呼出点)\n\n- **基準 1 (別 hole か): yes。** magnitude 軸は `backoff.hh` の待機ループで「どれだけ待つか (スカラー)」を変異させるのに対し、本提案は `transaction.cc` `abort()` の呼出点で「abort 要因別に待つか否か」を gate する述語を変異させる。ファイル・処理段 (呼出点 vs 待機ループ本体)・骨格 (要因判別述語 vs スカラー量) がいずれも別。要因別 gate は単一 magnitude 値では表現不能な独立 DoF で、写経・軸内探索でない。呼出点は現状 EVOLVE-BLOCK でなく新規 hole。\n- **基準 2 (attribution に繋がるか): yes。** attribution (a)「abort 後の再試行前バックオフ待機の有効化」を名指しで参照。引用値 (abort率 balanced 65.3→18.1%、throughput read-heavy -77%/balanced -61%/write-heavy -22.5%、IPC 1.4–1.6→0.4–0.5、「損は abort baseline が高い workload ほど小さい」) はすべて projected_input の (a) の記載と一致。\n- **基準 3 (軸適格性: スカラー1個に還元不能か): yes。** mutation_type=code_fragment。変異面は「要因 (施錠競合/検証失敗/node/absent) を判別する述語」+ 要因を保持する最小状態の記録であり、コード片。magnitude スカラーは明示的に不可触。単一スカラー探索に還元できない。\n- **恒真性: no (恒真でない)。** 相反二効果と「abort baseline が高いほど損が小さい」という具体構造に基づき、「相殺が効く要因の abort にだけ待機を限定する」という機序特定の仮説。どの軸にも言える一般論ではない。\n\n→ **3 項すべて yes。最もクリーンな成功候補。**\n\n## 提案 2 — silo-wal-flush-cadence (位置: `transaction.cc` `wal()` の `if (log_set_.size() > LOGSET_SIZE / 2)` flush ブロック)\n\n- **基準 1 (別 hole か): yes。** magnitude 軸 (backoff.hh) とも sort 軸 (validationPhase comparator) とも別のファイル処理段 (WAL flush)。`wal()` は現状 EVOLVE-BLOCK でなく新規 hole。attribution (c) は「ログ書込の on/off」の診断であって軸名でない。写経ではない。\n- **基準 2 (attribution に繋がるか): yes。** attribution (c)「コミット時ログ書込の有効化」を名指し参照。引用値 (throughput read-heavy -1.9%(noise内)/balanced -6.8%/write-heavy -13.4%、abort率不変、latency・llc_miss 増) はすべて projected_input の (c) と一致。\n- **基準 3 (軸適格性): no (境界だが不適格寄り)。** 変異面の中核レバーは flush 発火 cadence = 実質「どのくらい貯めてから flush するか」の頻度で、現物は `LOGSET_SIZE/2` という単一スカラー閾値。付随して挙げる「グルーピング単位」も件数スカラー、「checksum 呼出頻度」はその従属。I/O コストが書込頻度に単調というのが (c) の診断そのものなので、勝ち筋は 1 スカラー (flush 頻度/閾値) の掃引で拾える構造 = backoff magnitude と同型の「スカラー1個還元可能」。code_fragment の自己申告は採らない。\n- **恒真性: no 寄り (弱い)。** 「flush 粒度を変えれば write-heavy で I/O 地形が最も動く」は (c) の書込比率単調構造に紐付くが、「I/O 頻度を変えれば I/O コストが動く」という半ば自明に近い。恒真とまでは言わないが 3 件で最も一般論寄り。\n- (基準外の補足: 提案自身の unknowns が認める通り、計測動作点で `#if WAL` が有効かは射影に無く、hole が実在動作点に存在するかが未確定。基準 3 項には含めない。)\n\n→ **基準 3 が no。3 項すべて yes には至らない。**\n\n## 提案 3 — silo-lock-conflict-retry-bound (位置: `transaction.cc` `lockWriteSet()` の施錠競合分岐 `if (expected.lock){ #if NO_WAIT_LOCKING_IN_VALIDATION … #elif NO_WAIT_OF_TICTOC … }`)\n\n- **基準 1 (別 hole か): yes。** sort 軸と同じ `transaction.cc`・同じ validation 系だが hole が別 (sort=write_set 順序の comparator / 本提案=施錠競合時の応答制御フロー)。位置 (sort vs 施錠競合分岐) も骨格 (comparator vs 有界リトライ制御) も別。参照する「待たない 2 政策」は stock のコンパイル時 config であって台帳の軸ではない (台帳は magnitude と sort の 2 つのみ、と現物確認済み) ため軸内探索でない。有界リトライは stock に存在しない新 DoF。\n- **基準 2 (attribution に繋がるか): yes。** attribution (b)「validation 中のロック競合に対する 2 種の待たない政策の選択」を名指し参照。引用値 (差 balanced 19.6%/write-heavy 12.7%/read-heavy 0.4%、noise floor 2.28%、balanced 優位側 IPC 1.62、write-heavy 優位側 abort率 50.8→21.0%) はすべて projected_input の (b) と一致。\n- **基準 3 (軸適格性): yes (境界)。** mutation_type=code_fragment。二極 (即 abort / 全 retry) の中間に「有界リトライ→abort」の制御フローを合成し、lock 保持中はリトライしない正当性構造を含む。パラメタは retry上限 + リトライ間待機の 2 つ + 制御フロー本体。単一スカラーには還元できない。ただし境界事例 — リトライ間待機を固定すると実質「retry 上限 N のスカラー掃引」に縮退し得る (総括参照)。\n- **恒真性: no (3 件で最も機序特定的)。** 二極が workload ごとに異なる機序で勝つ (balanced=高発行 IPC 1.62 / write-heavy=abort・latency 同時低減) という非単調・順位反転構造を根拠に、その中間点が双方を拾える可能性を主張。P2-4 が依存した非単調型に紐付く具体仮説で、一般論でない。\n\n→ **3 項すべて yes (基準 3 は境界)。成功候補。**\n\n## 総括\n\n- **成功判定 (D47 決定 4 の成功 = 3 項すべて yes の候補が 1 件以上): yes。** 提案 1 が 3 項すべて明確に yes (最もクリーン)。提案 3 も 3 項 yes (基準 3 は境界)。よって D47 決定 4 の n=1 出口基準を満たす。\n- **観測 — 既存軸の再提案 (言い換え・軸内探索) が混じっていたか: 明確な再提案は無し。** 3 件とも backoff-magnitude / writeset-sort の言い換えではない。最も近いのは提案 3 (attribution (b) の stock 2 政策に隣接) だが、当該 2 政策は台帳の軸でなく、提案は「有界リトライ」という別 DoF を開けるため軸内探索でない。\n- **観測 — 既開通領域への偏り (bias 発現): あり (要記録)。** edit_surface_map は 17 領域中 15 を opened=false で対称提示していたにもかかわらず、3 提案とも既開通ファイル `cc/silo/transaction.cc` 内 (abort / wal / lockWriteSet) に hole を置き、未開通 15 領域には 1 件も出ていない (backoff.hh も opened)。transaction.cc 内の新サブ位置ではあるが、ファイル粒度では既開通領域への強い偏り。対称地図でも bias が消えていない点は D47 決定 4 の観測項目として記録すべき。\n- **恒真提案率: 0/3。** いずれの mechanism_hypothesis も入力診断の具体構造 (相反二効果 / 単調比例 / 非単調反転) に紐付き、恒真 (どの軸にも言える一般論) には落ちていない。\n- **判定に迷った境界事例:**\n  1. 提案 3 の基準 3 (主要境界) — 「有界リトライ」は制御フロー合成 + 2 パラメタで文言上「スカラー1個」には該当せず yes としたが、リトライ間待機を固定すると retry 上限 N の 1 スカラー掃引に縮退し、backoff 同型の不適格に倒れうる。成功判定は提案 3 単独に依存しない (提案 1 が独立にクリーン all-yes) ため結論は安定。\n  2. 提案 2 の基準 3 — flush cadence を code_fragment と自己申告するが、中核レバーは flush 頻度/閾値の実質 1 スカラーと判断し no とした。code_fragment と見る余地はあり境界。\n"
+ },
+ "known_limitations": [
+  "政策識別の匿名化の部分性: diagnostics で「待たない 2 政策」の識別名 (L/T) と workload 別勝者対応を落としたが、stock ソース (lockWriteSet の条件コンパイル分岐) に政策の実装が見えるため、意味論からの識別推定は可能。勝者対応 (どちらがどの workload で優位か) は入力のどこにも無いので、射影の目的 (探索の答えを渡さない) は保たれる — B レビュー照合時はこの線引きで確認する",
+  "spawn プロンプトの転写は機械検証なし: 生成ファイル (sha256 は provenance に凍結) をメインセッションのコンテキスト経由で逐語転写した。転写誤りの機械照合は無い (D47 決定 2 の手動射影と同型の既知限界)",
+  "採点材料の選定はメインセッション (射影者) が行った: 材料は D47 決定 4 が指定するもの (基準原文・射影版入力・既存軸台帳現物) に限定したが、材料選定経由の誘導リスクは原理的に残る",
+  "恒真検出は採点者の意味判断 (機械 backstop なし、D47 必須条件 2 の既知限界)",
+  "n=1 は「能力の有無」の検証であり、固定費回収・提案の質の統計的主張はしない (D47 決定 4)"
+ ],
+ "next": "提案 3 件は untrusted データのまま人間承認 gate へ (D47 必須条件 4 の構造照合材料 = 本採点)。採用された提案のみ軸オンボーディング段階 B (シート独立再導出 + 敵対レビュー) に進む。8a 由来軸は探索補助限定・段 6 headline 非対象 (D47 決定 5)",
+ "還元判断": "ユーザー確認待ち (提案の採用/棄却は人間 gate。上流還元の性質のものではない)"
+}
