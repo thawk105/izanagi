@@ -6,6 +6,8 @@
 
 **対象読者:** AI エージェント開発者、論文の方法論セクション執筆者、token 効率化を必要とするシステム設計者
 
+> **実態照合監査 (2026-07-11):** 本文書は 2026-07-07 に AI (Claude Haiku 4.5) が生成した体系化ガイドで、監査 (`output/insights/2026-07-11_docs-token-audit.json`) により**定量記述の大半に一次記録の裏付けが無い**ことが確認された。同日、捏造値の削除・実測値への差し替え・架空例の明示を実施済み。本文書は**解説であって正本ではない** — 運用規律の正本は CLAUDE.md / docs/roadmap.md / docs/handoff/README.md / docs/phase3-main-experiment.md。論文に数値を転写する際は必ず一次記録 (worklog / output/insights / WAL) から採取すること。
+
 ---
 
 ## 1. 観測者効果の分離 — 計測と検証ビルドの物理分離
@@ -73,7 +75,7 @@ struct TxnMetadata {
 |---------|------|---|---|
 | 完了タスク一覧 | `docs/phase{N}.md` チェックボックス | タスク完了時に同コミット含める | 可変・per-phase |
 | セッション進捗・次の一手 | `docs/worklog.md` 末尾エントリ | セッション終了時に新エントリ追加 | 可変・時系列 |
-| 設計判断・却下案 | `docs/decisions.md` (D001, D002, ...) | Atomic に新 decision 追加 | 準-不変（但し新 D 追加で拡張） |
+| 設計判断・却下案 | `docs/decisions.md` (D1, D2, ... — 見出しは `## D<n>.` 形式) | Atomic に新 decision 追加 | 準-不変（但し新 D 追加で拡張） |
 | 中断セッションの復旧 | `docs/handoff/<YYMMDD>-<task>.md` (40 行 limit) | セッション区切り時に上書き | Transient (完了で削除) |
 
 #### 2.2 「他文書への再掲禁止」ルール
@@ -200,15 +202,12 @@ response: list[AnomalyFinding] = [
   (3) +critic: 新 critic agent 追加
   (4) +both: verifier + critic
 
-Token cost 比較（同じ問題セット）:
-  (1): 平均 2400 tokens/iteration
-  (2): 平均 1800 tokens/iteration (-25%)  ← 差分 600 tokens を verifier が担う
-  (3): 平均 2100 tokens/iteration (+12.5% over (2)) ← critic overhead
-  (4): 平均 2000 tokens/iteration
-  → (4) は (1) 比 -17%, cost-benefit は正
-
-全削減幅 = 400 tokens/iteration × 評価 100 iteration × 10 探索エポック = 400K tokens 削減
+→ 各パターンで同じ問題セットの tokens/iteration を比較し、
+  cost-benefit が正であることを確認してから常設化する。
 ```
+
+> ⚠ token cost の実測 ablation は未実施 (2026-07-11 監査 — 旧版にあった具体数値は
+> 一次記録に存在しない架空値だったため削除)。実測したら worklog / insights のパスをここに引く。
 
 ### Token 削減効果
 
@@ -222,11 +221,11 @@ Token cost 比較（同じ問題セット）:
 
 ### 背景
 
-izanagi では以下の大規模ドキュメントが存在：
-- `decisions.md`: 100+ KB, 全体で 100+ decision entries
-- `glossary.md`: 40 KB, 200+ 用語
-- `worklog.md` 過去分: 100+ KB
-- `ccbench-anatomy.md`: 30 KB
+izanagi では以下の大規模ドキュメントが存在 (規模は 2026-07-11 時点の実測)：
+- `decisions.md`: ~196 KB, 49 decision entries
+- `glossary.md`: ~44 KB, ~105 用語
+- `worklog.md` 過去分 (docs/archive/): ~100 KB
+- `ccbench-anatomy.md`: ~32 KB
 
 これらを全読すると 10K+ tokens を消費し、毎セッション同じ内容を再読することになる。
 
@@ -235,22 +234,17 @@ izanagi では以下の大規模ドキュメントが存在：
 #### 4.1 Grep-based index 活用
 
 ```bash
-# decisions.md の目次引き: 単語でスキャン
-grep -n "^## D" docs/decisions.md | head -20
-# 出力:
-# 72:## D05 — verifier: trace 依存グラフの G2 anomaly 検出
-# 145:## D10 — two-layer stratagem (P1 ← baseline; P2+ ← synthesis)
+# decisions.md の目次引き: 見出し行がそのまま目次になる
+grep -n "^## D" docs/decisions.md
+# 出力例 (2026-07-11 時点の実物):
+# 59:## D5. レコード数の自動キャリブレーションを別レイヤーに分離
+# 109:## D10. 環境の二層戦略 — Mac devcontainer (開発層) と Linux 実機 (計測層)
 # ...
 ```
 
-目的の D（例：D37）が見つかったら、次の D までを offset 指定で読む：
-
-```bash
-# D37 から D38 の手前まで
-sed -n '3500,3650p' docs/decisions.md
-# または Read tool で offset/limit 指定
-Read(file_path="docs/decisions.md", offset=3500, limit=150)
-```
+目的の D が見つかったら、**その見出し行から次の `^## D` 見出しの手前まで**を
+Read tool の offset/limit 指定で読む (行番号は追記で動くため、固定値を覚えず
+毎回 grep 結果から範囲を計算する)。
 
 #### 4.2 Glossary の用語検索
 
@@ -278,12 +272,13 @@ summary = agent(
 
 #### 4.4 Archive ファイルの活用
 
-古い worklog や audit 記録は `docs/archive/` に移動：
+古い worklog や audit 記録は `docs/archive/` に移動 (収容物の正本は `docs/archive/README.md`)：
 ```
 docs/archive/
-  worklog-phase1-2.md       (60 KB, frozen — 検索時のみ grep + partial read)
-  audit-2026-06-30.jsonl    (過去 audit 記録、structured format)
-  insights-phase2.md        (凍結済み insights)
+  worklog-phase1-2.md                     (frozen — 検索時のみ grep + partial read)
+  audit-2026-06-30.md                     (リポジトリ全体監査の台帳)
+  audit-2026-07-04-docs-consistency.json  (docs 横断監査の一次資料、structured format)
+  phase3-kickoff-stages1-5.md             (phase3.md の完了済み記録の分離アーカイブ)
 ```
 
 新セッションで「過去の同様な問題がなかったか」を調べる場合：
@@ -383,8 +378,9 @@ assert cost_model["total_estimated"] < AVAILABLE_BUDGET
 
 #### 5.4 Main experiment の事前登録
 
-Phase 3-4 での **性能主張は、Phase 3-main-experiment.md に事前登録**：
-- 対照群 4 (stock best / random / grid sweep / coder)
+Phase 3 での **性能主張は、docs/phase3-main-experiment.md に事前登録** (対照群の列挙は
+同文書が正本 — silo stock 最良 / クロスプロトコル stock 最良 / ランダム変異 / 機械 sweep の
+4 対照。coder は被験系であって対照群ではない)：
 - サンプル数（同じ workload × N trial）
 - 統計検定法（Holm 補正）
 - 天井・床の有無を記載
@@ -413,31 +409,17 @@ Phase 3-4 での **性能主張は、Phase 3-main-experiment.md に事前登録*
 
 #### 6.1 Checkpoint の形式（Handoff ファイル）
 
-```markdown
-# 中断ポイント: <タスク概要>
-
-**位置づけ:** <何をしていたか>
-**停止理由:** <なぜ止まったか>
-
----
-
-## 次セッションの復旧手順
-
-1. <action 1>
-2. <action 2>
-...
-
-**キャッシュ可能なアーティファクト:**
-- <file A>: <内容要約>
-- <file B>: <内容要約>
-
-**未確定の状態（再評価必須）:**
-- <state X>: <理由>
-```
+定型の正本は `docs/handoff/README.md` (ここに再掲しない — 再掲は drift 源。
+なお `状態:` ヘッダ行は `tools/check_docs.py` の必須検査項目)。
 
 **40 行 limit の理由:** 圧縮後の「復旧に必要な最小情報」に絞る（冗長な narrative を避ける）
 
 #### 6.2 実装例：Adversarial verification の中断・復旧
+
+> ⚠ 以下は resume 機構の説明用の**架空シナリオ** (2026-07-11 監査で明示)。引用している
+> workflow id `wf_301ed286-5fb` の実 run は中断しておらず、19 agents 並列・993k tokens・
+> 5 分 23 秒で一発完走した (worklog 2026-07-07)。「timeout at agent 14/19」「24 分 → 2 分」
+> 等の数値は実測ではない。
 
 ```python
 # Session 1: 敵対検証を開始，途中で timeout
@@ -467,8 +449,8 @@ handoff_content = f"""
 - agents 14-19: 未実行
 """
 
-# Session 2: Handoff を読んで復旧
-handoff = read("docs/handoff/2026-07-07-s4-adversarial-findings.md")
+# Session 2: Handoff を読んで復旧 (パスは架空例)
+handoff = read("docs/handoff/<日付>-s4-adversarial-findings.md")
 # → resumeFromRunId = wf_301ed286-5fb を抽出
 result = workflow(resumeFromRunId=wf_301ed286-5fb)
 # → キャッシュヒット: agents 1-13 即座に return
@@ -665,21 +647,20 @@ Q5: Session が「数時間以上」か？
   "session_id": "2026-07-07-s4-adversarial",
   "phase": "Phase 3, Stage 4",
   "agents_spawned": 19,
-  "total_tokens": {
-    "input": 245_000,
-    "output": 993_000,
-    "total": 1_238_000
-  },
+  "total_tokens": 993_000,
   "wall_clock_seconds": 323,
   "token_reduction_techniques": [
     "subagent_isolation",
     "structured_output_schema",
     "parallel_workflow"
   ],
-  "cache_hits": 0,  # workflow cache hit 数
-  "estimated_cost_without_optimization": 2_100_000  # 比較用
+  "cache_hits": 0
 }
 ```
+
+> ⚠ 上の total_tokens / wall_clock は worklog 2026-07-07 の実測。旧版にあった
+> input/output 分解と「最適化なし時の見積もり」は一次記録に存在しない架空値だったため
+> 削除 (2026-07-11 監査)。
 
 ### 9.2 論文への記載例
 
@@ -688,15 +669,18 @@ Q5: Session が「数時間以上」か？
 > (1) Verifier/critic/auditor を独立 subagent に隔離し，trace/code diff の output を structured schema で凝縮（§3）
 > (2) 大規模参照文書（decisions.md, glossary.md）を grep-based index で段階的読み込み（§4）
 > (3) Trace と性能計測ビルドを物理分離し，観測者効果を排除（§1）
-> 結果として，従来型単一 agent による実装比で 35-50% token 削減を達成した．
+> 結果として，従来型単一 agent による実装比で <実測値> % の token 削減を達成した．
 
 **Results section (cost):**
-> Table 1: Token 消費量の phase 別内訳
+> Table 1: Token 消費量の phase 別内訳 — **数値は未集計のプレースホルダ**
 > | Phase | Total Tokens | per-iteration | Agents | Wall-clock |
-> | Phase 1 | 1.2M | 12K | calibrator × 1 | 4.5h |
-> | Phase 2 | 4.8M | 36K | verifier × 1, critic × 3 | 18h |
-> | Phase 3-4 | 2.1M | 105K | coder, planner, auditor × parallel | 6h |
-> 全体で 8.1M token，compute cost $X
+> | Phase 1 | <実測値> | <実測値> | calibrator × 1 | <実測値> |
+> | Phase 2 | <実測値> | <実測値> | verifier, critic | <実測値> |
+> | Phase 3 | <実測値> | <実測値> | coder, planner, auditor | <実測値> |
+
+> ⚠ 旧版の Table 1 には一次記録に存在しない架空値 (1.2M/4.8M/2.1M、「35-50% 削減」等) が
+> 入っていた (2026-07-11 監査で削除)。**論文に載せる数値は必ず worklog のエージェント工数
+> 記録・output/insights・WAL から集計して埋めること。**
 
 ---
 
@@ -704,9 +688,12 @@ Q5: Session が「数時間以上」か？
 
 ### 10.1 Known limitation
 
-1. **Handoff の revert 後 dirty check が weak**
-   - `git status --porcelain` は mode 変更を検出しない
-   - 恒久解は Phase 5 での worktree 隔離（独立ディレクトリで patch apply）
+1. **campaign 評価の apply→revert 残骸検査が weak** (旧版は「Handoff の revert」と誤帰属 —
+   handoff ファイルに revert の概念はない。実体は patchharness の残骸検査)
+   - `git status --porcelain` は mode 変更を検出しない（「porcelain 空」より弱い）
+   - 恒久解の git worktree 隔離は **D40 (2026-07-09、Phase 3 段 5) で opt-in 実装済み** —
+     worktree ごと使い捨てるため残骸検査の弱さは実害が無くなる（旧版が帰属させていた
+     「Phase 5」はこのリポジトリに存在しない架空の Phase）
 
 2. **#include の computed include は scope 外**
    ```cpp
@@ -717,8 +704,10 @@ Q5: Session が「数時間以上」か？
    このような computed include の content は source_digest に乗らない（remaining risk）
 
 3. **Multi-marker EVOLVE-BLOCK の completeness check が未実装**
-   - 現在は単一マーカー（silo-backoff-magnitude）
-   - 複数マーカー拡張時に hunk-to-marker mapping の robust 性検証が必須（Phase 5）
+   - 執筆時 (2026-07-07) は単一マーカー（silo-backoff-magnitude）。その後 D48/D49 で
+     2 軸目のマーカー（silo-backoff-trigger-gating）が追加された
+   - 複数マーカー拡張時の hunk-to-marker mapping の robust 性検証は未実装のまま
+     （発火条件付きの既知限界。旧版の「Phase 5」帰属は架空 Phase のため削除）
 
 ### 10.2 今後の改善方向
 
@@ -731,10 +720,12 @@ Q5: Session が「数時間以上」か？
 
 ## 附録: 用語集
 
+用語の詳細定義は `docs/glossary.md` を参照 (本表は本文書の文脈での補助定義。食い違ったら glossary 側が優先)。
+
 | 用語 | 定義 |
 |------|------|
 | **Observer effect** | Trace/計測用メタデータの取得が，performance を歪める現象 |
-| **Calibrator** | サンプル数・iteration 数の「最小値」を決める AI agent |
+| **Calibrator** | レコード数 (サンプルサイズ) と noise floor を決める AI agent（iteration 予算は §5.2 の別機構） |
 | **Handoff** | Session 中断時の checkpoint ファイル（40 行上限） |
 | **Digest** | 大規模 output（ビルドログ，trace）を AI が構造化して凝縮したもの |
 | **Verdict** | Finding の確度レベル（real/contested/refuted）。severity（high/medium/low）とは独立軸 |
