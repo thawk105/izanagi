@@ -1704,3 +1704,20 @@ import へのリファクタ後に JSON 正本を再生成)。計測なし (char
 D 偵察 (別セッション): まず設計タスク — D48 必須前提 3 点 (要因別頻度の p2_2 動作点
 実測・read-heavy floor 較正・適応 Backoff_ 連成の凍結) + D49 申し送り (恒等 gate 対照)。
 E 段 (loop driver + coder 定義) は D の生死判定後。
+
+## 2026-07-11 (1) — 監査: roadmap.md ↔ 現状の双方向整合 (ユーザー依頼)
+
+7 レンズ照合 (節別 5 + 逆方向 2) + finding 別敵対検証 8 本、独立コンテキスト
+(workflow run wf_bf2812c5-518)。判定 real 4 / partially-real 2 / refuted 2。
+**逸脱 0 件** — 現行作業は roadmap の方針・スコープ内、D45〜D49 は戦術決定で
+roadmap 改訂を要する未反映は無し、改訂セレモニーも正当 (全て協議改訂の類型)。
+最重要: (1) §4 の noise floor 記述が D19 の within/between-run 分離に未追随
+(§3.6 との内部矛盾、medium)、(2) §3.4 の auditor「テストを追加」が D38 決定 3
+(read-only + 提案 + 人間レビュー gate) と食い違い (medium)、(3) §9 の Phase 3
+枚挙に axis-proposer 欠落 (low)。一次資料 (finding 全文・裁定・修正案) =
+`output/insights/2026-07-11_roadmap-consistency-audit.md`。
+エージェント工数: 15 本 / 約 68 万 token / 10.5 分。計測なし。
+
+### 次の一手
+roadmap 修正 6 点の実施はユーザー判断待ち (軽微改訂の類型、insight に修正案凍結済み)。
+段 8a の D 偵察は変わらず (前エントリ参照)。
