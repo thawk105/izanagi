@@ -25,13 +25,15 @@ REPO = Path(__file__).resolve().parent.parent
 LIVING_DOCS = [
     REPO / "CLAUDE.md",
     REPO / "docs" / "roadmap.md",
-    REPO / "docs" / "related-work.md",
+    REPO / "docs" / "related-work" / "README.md",  # 旧 related-work.md はディレクトリ化 (2026-07-11 監査 lint-04 で修正 — 旧パスは黙って skip されていた)
     REPO / "docs" / "phase3.md",                  # 現行 phase doc。Phase 移行時にここを差し替え、旧 doc は凍結宣言
     REPO / "docs" / "phase3-main-experiment.md",  # 事前登録 (サンプル設計数値の確定追記が残るため living)
     REPO / "docs" / "glossary.md",
     REPO / "docs" / "agent-architecture.md",
     REPO / "docs" / "orchestrator-design.md",
     REPO / "docs" / "ccbench-anatomy.md",
+    REPO / "docs" / "axis-onboarding.md",              # 2026-07-11 監査 dup-05 で追加
+    REPO / "docs" / "token-management-strategy.md",    # 同上 (最も再掲が多く lint の網が必要)
 ]
 
 # docs 間の行番号参照 (追記で必ずずれる)。節名参照に直すこと。
@@ -54,7 +56,8 @@ HANDOFF_STALE_SECONDS = 48 * 3600
 D_REF = re.compile(r"\bD(\d{1,3})\b")
 # パスは既知のトップディレクトリ始まりに限定 (submodule 内 cc/ 等は pin 固定で腐らないので対象外)。
 # プレースホルダ (<日付> 等)・glob (*) は文字クラス外なのでマッチが切れ、拡張子必須で自然に除外される。
-PATH_REF = re.compile(r"(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude)/[\w.\-/]+\.[A-Za-z0-9]+")
+# 負の後読み: external/ccbench/docs/... のような長いパスの途中を docs/... と誤マッチしない
+PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude)/[\w.\-/]+\.[A-Za-z0-9]+")
 
 
 def main() -> int:
