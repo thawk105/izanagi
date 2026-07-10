@@ -1305,3 +1305,32 @@ workload 次元導入・同等性基準の事前定義 等) の採否。→ 同�
 「リーク制御不完全」の限定付きになる) → ② (i) sort 軸の機械 sweep 先行実測 (失敗条件 (c) の安価な
 先取り) → ③ 段 5 sort 軸 iteration 2 継続 (critic 召喚から)。
 **人間待ち:** なし ((h) のエージェント定義変更時に auto-mode の自己変更確認が入る見込み)。
+
+## 2026-07-10 (5) — 段6前提タスク (h) 消化: planner-v4 の Read 剥奪 + 文書地雷除去 (D45)
+
+worklog 2026-07-10 (4) の推奨順①を消化。b8c422b (feat(p3-s6): planner-v4 の Read 剥奪 (tools:[]) +
+文書地雷 4 点除去) が実装本体、設計判断 (allowlist 棄却根拠・主張の限定表現) は D45 に凍結。
+
+**敵対レビュー:** 実装前に 3 レンズ (遮断完全性/機能退行/文書整合、workflow `wf_bf71a696-9c0`、
+read-only agent) を並走。全レンズ approve-with-fixes、must-fix 1 + should-fix 6 を全て反映。
+最重要 3 件 = (1) D44 が名指しした地雷と同クラスの誘導参照が 3 箇所残存していた (design-v1 §3 の
+「output/insights OK」が最重量 — リーク自体を明文推奨)、(2) phase3.md 残存リスク節の同一項目内の
+coder-spec 地雷「現存」記述 — 片側だけの解消済み化は矛盾を作るため同時書き換え、(3) tools:[] 採用・
+allowlist 棄却の根拠がどの正本にも残らない → D45 新設で解消。棄却された指摘: なし (nit 数件は
+編集時に吸収)。一次資料 = workflow journal (findings 全文)。
+
+**素材:** 「遮断は Read 経路に限る」の限定が本タスクの方法論上の要点: justification 自然文経路
+(D43 near-miss が実証) と射影の自己規律は構造遮断されないまま残り、headline 主張時の限定表現を
+phase3.md 残存リスク節に固定した。防壁を足すたびに「その防壁が何を守らないか」を同時に書く運用。
+
+**留意 (次セッションへ):** エージェント定義はセッション開始時にのみ読まれるため、tools:[] の
+planner-v4 が有効になるのは本セッション以後の fresh session から。D44 残存リスク (b) の
+「リーク制御不完全」限定は、新定義で回す次の sort 軸 iteration から外れる (D45 決定3)。
+phase3.md (h) の「人間確認の下で行う」に対し、auto-mode の自己変更確認は実際には発火しなかった
+(Edit 素通り) — 人間 gate は本エントリと b8c422b の事後レビューに委ねる (diff は frontmatter 1 行 +
+文書のみで小さい)。
+
+### 次の一手
+D44 推奨順の② = 段6前提タスク (i) sort 軸の機械 sweep 先行実測 (失敗条件 (c) の安価な先取り) →
+③ = 段5 sort 軸 iteration 2 継続 (critic 召喚から。fresh session で新 planner-v4 定義が有効)。
+人間待ち: なし (b8c422b の事後レビューは任意)。
