@@ -107,8 +107,11 @@ v4 (2026-03) で **NeurCC に改名**され SIGMOD 2026 (PACMMOD Vol.4 Issue 3, 
 **実装と比較可能性:** 両者とも公開実装あり — Polyjuice = github.com/derFischer/Polyjuice (OSDI 2021
 公式アーティファクト、2021 年凍結・TF 1.14 世代 toolchain)、NeurCC = github.com/neurdb/neurcc
 (Docker あり、コミット 1 本)。**いずれも Silo codebase 上の実装で CCBench とは別基盤** — 絶対値の
-直接比較は CCBench 自身の中心主張 (プロトコル比較は同一基盤で測れ) と衝突する。実測比較の要否と
-最小構成の判断材料は worklog 2026-07-10 (8) (人間判断待ち)。
+直接比較は CCBench 自身の中心主張 (プロトコル比較は同一基盤で測れ) と衝突する。**実測比較は
+見送りで決着** (ユーザー協議 2026-07-10、worklog 2026-07-10 (9)): 事前登録の headline 4 対照は
+CCBench 内 + LLM なし対照で完結し、査読対応は本エントリの質的差別化 + 論文数値のオーダー引用で
+足りる。再判断は「学習型 CC を定量的に上回る」を headline へ昇格させる場合のみ (最小構成・工数は
+worklog 2026-07-10 (8) の材料が正本)。
 **系譜上の位置:** 学習型 CC の起点。ATCC が同系譜の最新。
 
 #### ATCC `2603.13906`
