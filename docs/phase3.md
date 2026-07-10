@@ -233,8 +233,16 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      3 点 = 全 PASS)。** 骨格設計の確定 = #if 囲み stock inert / thread_local 7 点全 store +
      sentinel fail-safe / 構文契約は要因 enum + 定数のみ (偵察空間 = coder 空間)。シート
      (裁定反映済み) = `output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md`。
-     残るタスク = **段階 C (機構実装、D48 必須条件 7 点の消化。別セッション・規律 5)** →
-     D 偵察 (必須前提 3 点 = 要因別 abort 頻度実測・read-heavy floor 較正・適応連成の扱い)。
+     **段階 C 完了 (2026-07-10、D49 — D48 必須条件 7 点全消化)。** 骨格 patch
+     (`patches/silo-backoff-trigger-gating-variant.patch`、stock inert・identity 実証済み) +
+     positive control (計装/misattr patch + `s8a_trigger_coverage.py`、11 検査 all_pass —
+     misattr の赤の歯を実走証明、verifier は緑のまま = 死角の実証) + 中立性 3 レンズ全通過 +
+     軸定数 `orchestrator/campaign/axis_trigger_gating.py` (D 偵察器/E driver の import 先、
+     構文契約禁止リストの転記元)。実装上の設計判断 (計装の characterization 専用分離・hole の
+     述語 1 行化・構造ゼロ検査型) は D49 が正本。
+     残るタスク = **D 偵察 (別セッション、必須前提 3 点 = 要因別 abort 頻度実測・read-heavy
+     floor 較正・適応連成の扱い + D49 申し送り 3 点 = 恒等 gate 対照・latent fragility・
+     頻度実測は p2_2 動作点で)。**
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)

@@ -1761,3 +1761,62 @@ refutation を auditor レンズが支持)。
 **正本:** 本エントリ (採用条件・必須条件リスト)・シート insight (軸定義の全文、裁定反映済み)。
 レビュー一次資料 = workflow `wf_5aeaba58-dc5` の journal (3 レンズの findings/conditions/
 checked_claims 全文)。次段 = C (機構実装、別セッション・別タスク、規律 5)。
+
+## D49. 段 8a 段階 C — silo-backoff-trigger-gating の機構実装: D48 必須条件 7 点の消化 (2026-07-10)
+
+**背景:** D48 の実装着手前必須条件を消化する C 段 (axis-onboarding §3-C、D42 型)。成果物 =
+骨格 patch (`patches/silo-backoff-trigger-gating-variant.patch`) + 検証計装 patch + misattr
+broken patch + coverage driver (`s8a_trigger_coverage.py`) + 軸定数モジュール
+(`axis_trigger_gating.py`) + verifier A 行配線。PIN 前進なし (D48 決定 2 どおり patch のみ)。
+
+**決定 1 — 検証計装 (A 行 tally) は characterization 専用の重ね当て patch に分離:**
+シート/D48 は「#if TRACE 内の要因別 abort 集計」を必須としたが置き場所は未指定だった。
+template patch に入れると variant の TRACE=1/0 preprocess 差分が pinned HEAD のそれと食い
+違い、diff-of-diffs (`assert_trace_diff_matches_head`、規律 1 一次防壁) が全ループ評価で
+fails-closed になることが実装時に判明。PIN 前進は D48 決定 2 で却下済み → 計装は
+`instr-*.patch` として分離し C 段 characterization でのみ骨格に重ねる。**偽陰性を生まない
+根拠:** 骨格 store は coder 不可触 (DiffQuarantine 行単位拒否 + auditor 型 16/項目 13) で、
+C 段で一度証明した記録正確性はループ中も構造的に不変 — 常設監視は不要。
+
+**決定 2 — hole をシートの「述語付き呼出」から「述語代入 1 行」へ絞る (安全側リファインメント):**
+gate 変数宣言と `Backoff::backoff` 呼出をマーカー外の骨格へ hoist。DiffQuarantine の hole
+(#if と #else の間) が述語の代入式 1 行だけになり、coder は呼出の有無・重複に構造的に触れ
+られない。シート「hole は述語式のみ」の意図の忠実化 (整合レンズ裁定: 強化方向、段階 B
+差し戻し不要)。
+
+**決定 3 — positive control は「多スレッド + 構造ゼロ検査」の characterization 変形:**
+§3-C の型 (単一スレッドで新 verifier assert の violation>0 → indeterminate) は本軸に適用
+不能 — (a) 単一スレッドでは競合 abort 自体が出ない (t1 は abort==0/A==0 の決定的アンカーに
+使う)、(b) 歯は verifier verdict でなく driver の構造ゼロ検査に置く (trace schema は abort
+要因を構造的に持てない = それ自体が本軸の死角。シートが「適用できる見込み」と留保付きで
+織り込み済みの適応)。構造ゼロ (YCSB update/read のみでは node-vali / insert-node /
+scan-node / update-absent / unset は発生不能) は統計閾値でない二値信号なので多スレッドでも
+判定は決定的。実証 = `output/env/linux-baremetal/calibration/s8a_trigger_gating_coverage.json`
+(11 検査 all_pass): 保存則 A 行総数==abort_counts_ (8066 全数一致)・構造ゼロ・misattr
+(施錠競合→kNodeVali 誤記録) で node-vali>0 の赤、**verifier は緑のまま** (死角の実走証明)、
+保存則は misattr でも破れない (保存則だけでは捕まらない不十分性も機械証明)。
+
+**必須条件の消化台帳 (D48 → 全 7 点消化):** 1 identity ✓ (stock→"stock" / variant→別
+digest / diff-of-diffs 通過 / フラグ 0/1 両ビルド ok) / 2 中立性 ✓ (3 レンズ独立コンテキスト
+= auditor **neutral-confirmed** 7 項目・敵対 **no-refutation** 29 仮説試行・整合
+**consistent-with-notes** 8 項目 MATCH) / 3 positive control ✓ (決定 3) / 4 構文契約禁止
+リスト ✓ (auditor 側は worklog 2026-07-10 (18) 承認済み追記で充足、E 段 coder 定義の転記元
+= `axis_trigger_gating.SYNTAX_CONTRACT_FORBIDDEN`) / 5 軸定数 ✓ (`axis_trigger_gating.py`
+— D 偵察器と E 段 driver の import 先) / 6 ✓ (worklog (18) 前倒し消化) / 7 偵察 firewall ✓
+(同モジュール docstring — D 偵察 → E 入力は軸の生死二値のみ)。
+
+**verifier 変更:** A 行 (abort 要因 tally) を parse/model/core/report に最小配線 — **集計
+データであり integrity/verdict に不関与** (通常 verify では常に空。emit 元は計装 patch
+のみ)。テスト 3 本 (集計・空・未知タグ fails-closed 不変)。
+
+**申し送り (D 段偵察の設計セッションへ):** (a) 本軸の公平な対照はフラグ 0 の stock でなく
+**フラグ 1 の恒等 gate (全集合)** — フラグ 1 は恒等 gate でも 7 store + 1 分岐が perf
+ビルドに乗るため (中立性レンズ nit)。偵察の stock 対照は全集合点で取る。(b) 敵対レンズの
+latent fragility 2 点 — cmake 非経由の手コンパイルは #error で fail-loud (silent でない)、
+`on_resp_node` の thread_local 書込は同期 scan 前提 (非同期 scan 導入時に再訪)。(c) D 段
+必須前提 3 点 (D48) は不変。coverage の t4 要因分布 (lock-conflict 4365 / readvali-locked
+2782 / readvali-tid 919、構造ゼロ 5 種 =0) は検証動作点 (t4/tuple200) のもの — 偵察設計の
+頻度実測は p2_2 確定動作点で別途行う。
+
+**正本:** 本エントリ + `patches/README.md` の軸節 + coverage JSON。レンズ 3 本の要旨は
+worklog 2026-07-10 (20)。

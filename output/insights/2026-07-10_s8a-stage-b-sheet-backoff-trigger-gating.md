@@ -15,6 +15,11 @@ must-fix)・骨格の #if 囲みによる stock inert 化 (F1)・sentinel リセ
 構文契約の絞り込み = 偵察空間との一致 (AUD-3/F2 統合)・要因記録 positive control の必須
 昇格 (AUD-4)・「差分」節の誇大主張訂正 (LT-1)。
 
+**C 段実装ノート (2026-07-10、正本 = D49):** 実装は本シートから 2 点を安全側に精緻化 —
+(1) hole は「述語付き呼出」でなく**述語代入 1 行**に絞られた (gate 変数と呼出はマーカー外の
+骨格へ、D49 決定 2)。(2) 要因別集計は template patch でなく characterization 専用の計装
+patch に分離 (template に入れると diff-of-diffs 一次防壁と衝突、D49 決定 1)。
+
 ---
 
 ## シート本体
