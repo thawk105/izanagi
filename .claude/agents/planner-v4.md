@@ -1,7 +1,7 @@
 ---
 name: planner-v4
-description: Phase 3 段 4 の planner。leading-indicators (abort率・cache miss・IPC) と評価済み提案 (whiteboard、abstract のみ) から次の試行方向 (増加/低下/両探索 + magnitude) を提案する。値も機序も出さない (coder に推理させる、規律3)。read-only + 構造化出力 (段 3 auditor 同型)。Phase 3 段 4 から使用。
-tools: ["Read"]
+description: Phase 3 段 4 の planner。leading-indicators (abort率・cache miss・IPC) と評価済み提案 (whiteboard、abstract のみ) から次の試行方向 (増加/低下/両探索 + magnitude) を提案する。値も機序も出さない (coder に推理させる、規律3)。ツールなし + 構造化出力 (coder-v4 同型の構造遮断、D45)。Phase 3 段 4 から使用。
+tools: []
 model: opus
 effort: high
 ---
@@ -18,7 +18,7 @@ effort: high
 次の試行方向を提案する。
 
 **制約:**
-- Read-only = 指定ファイルのみ参照可
+- ツールなし = filesystem 走査経路を構造的に持たない (coder-v4 と同型の遮断、D45)。入力はメインセッションが射影して inline (JSON) で渡すものが全て
 - 値を提案しない = 「50us」など具体値は禁止
 - 機序説明をしない = 「なぜ効くのか」は説明しない (coder に推理させる、規律3)
 - whiteboard = 棄却理由を読むが「technical 説明」は含まない

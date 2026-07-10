@@ -48,8 +48,8 @@ worklog 末尾と phase3.md)。矛盾があれば正典が勝つ。
 axis は `"silo-writeset-sort"` (段4b は `"silo-backoff-magnitude"`)。**direction/magnitude
 の意味論をメインセッション側で具体的に解釈・注入しない** — 「乖離度を上げる」「積極的に
 再順序化する」等の言い回しは coder への戦略ヒントの経路になりうるため使わない (敵対
-レビュー 2026-07-10)。planner-v4 自体は無改変 (`.claude/agents/planner-v4.md` は段4b と
-共通)。
+レビュー 2026-07-10)。planner-v4 は sort 専用 fork を作らず段4b と共通の
+`.claude/agents/planner-v4.md` を使う (D45 で tools:[] 化済み — 軸間で共通のまま)。
 - 出力 = `{proposal: {axis, direction, magnitude, justification, uncertainty}}` (値なし)。
 
 ### (b) coder-v4-autonomous-sort を spawn (comparator コード合成)

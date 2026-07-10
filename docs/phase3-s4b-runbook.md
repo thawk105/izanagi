@@ -58,8 +58,8 @@ spawn し、機械部分 (`orchestrator/campaign/p3_s4_loop.py`) に proposal �
 }
 ```
 - **リーク制御 (規律2/6, D39 決定7):** coder には**勝ち筋値・性能利得・機序を渡さない**。渡すのは
-  `src/coder-leakproof-context.md` (物理削除済み) + planner の抽象方向のみ。`src/coder-spec.md`
-  は sweet-spot 漏れリスクありゆえ coder に直接渡さない (leakproof 版を使う)。
+  `src/coder-leakproof-context.md` (勝ち筋 literal を物理削除した curated 版) + planner の抽象方向のみ。
+  `src/coder-spec.md` は sweet-spot 漏れリスクありゆえ coder に直接渡さない (leakproof 版を使う)。
 - coder は tools=[] ゆえ prompt に無い情報を読めない = 構造的リーク閉。
 - 出力 = `{proposal: {axis, value(1-1000), implementation, justification, confidence}}`。
   `implementation` は `double now_backoff = <値>;` 形。value と literal は一致させる

@@ -63,6 +63,8 @@ coder リーク制御が完全でないと主実験の妥当性 (「合成でき
 - **read-only + 構造化出力 (段 3 auditor と同型、D38):** guard_write は PreToolUse で caller 非識別ゆえ
   per-agent path 制限が hook で表現不能 → planner も tools=read-only、提案を構造化出力で返し orchestrator が
   人間レビュー gate 下で反映。雛形 = auditor.md (opus/high)。
+  **(⚠ superseded by D45, 2026-07-10: 実体の planner-v4 は tools=[] — read-only ですらなくツールなし。
+  入力はメインセッションの射影 inline のみ)**
 - **planner のリーク制御は coder より緩くない:** planner が軸/方向を提案する行為そのものが LLM 価値の実証点
   (baseline 4 の帰無仮説判定軸)。勝ち筋 literal を読むと「提案した」が「答えを読んだ」に化けて主実験の
   妥当性が崩れる。

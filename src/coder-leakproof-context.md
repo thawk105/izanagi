@@ -99,10 +99,10 @@ rmw0_readmindwrite / max_ope10_ops_per_tx / extime3_execution_time_seconds
 ```
 以下の情報を用いて、backoff 値の提案を考えてください：
 
-1. Template 仕様: [coder-spec.md の section 1-3]
+1. Template 仕様: [エージェント定義 (coder-v4-autonomous.md) の出力節 — implementation は `double now_backoff = <式>;` 形]
 2. Planner の方向ヒント: {direction} / {magnitude} (「増加」「低下」「両方探索」)
-3. Leading indicators: [coder-spec.md section 3]
-4. 現行 baseline: [coder-spec.md section 4]
+3. Leading indicators: [メインセッションが射影した leading_indicators (JSON inline)]
+4. 現行 baseline: [メインセッションが射影した baseline (JSON inline)]
 5. 評価済み提案: [whiteboard の却下設計・ただし値なし]
 
 出力: 

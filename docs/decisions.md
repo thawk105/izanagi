@@ -1497,3 +1497,42 @@ iteration に対し実 iteration 間隔は 10〜20 倍。この工数比は pape
 「リーク制御不完全」の限定付きで解釈する。(c) 本評価自体も AI によるもの — §3.7 の「誰が監査者を監査
 するか」と同型の限界。批判 4 本の findings は一次資料 (workflow journal) に凍結してあり、採用しなかった
 指摘も含め遡及検証できる。
+
+## D45. planner-v4 の Read 剥奪 (tools:[]) — 段 6 前提タスク (h) の実装判断 (2026-07-10)
+
+**背景:** D44 決定2(h) は planner→coder 経路のリーク遮断を「orchestrator 射影入力化 or 機械 allowlist」の
+二択で予約した。実装にあたり選択の根拠を確定する。実装前に 3 レンズ敵対レビュー (遮断完全性/機能退行/
+文書整合、workflow `wf_bf71a696-9c0`) を実施し、全レンズ approve-with-fixes (must-fix 1・should-fix 6)。
+
+**決定1 — tools:[] (Read 剥奪 + 射影入力) を採用、allowlist は棄却:**
+(a) Read の運用上の必要はゼロ — runbook 2 冊 (段4b §1(a)・段5 sort §1(a)) とも planner 入力は全て
+メインセッションが射影した inline JSON で、実走 2 回 (worklog 2026-07-09 (3)・2026-07-10 (2)) とも
+planner が Read を使った形跡なし。(b) allowlist は構造強制が原理的に不能 — hooks は方針 A の 2 つ以外
+足さない (CLAUDE.md) 上、PreToolUse は caller 非識別 (D38/D39 決定6) で per-agent の path 制限を表現
+できず、prompt 規律に退化する (「テキスト検査・自己申告は唯一防壁にできない」D30 に反する)。
+(c) planner は元々 Bash 非保持のため、Read 剥奪だけで file-read 経路の構造遮断が完全になる
+(design-v1 の「Read だけ剥奪して Bash が残ると不完全」という注意は planner には該当しない)。
+
+**決定2 — 文書地雷の同時除去 (レビューが検出した同クラス地雷を含め 4 点):**
+`coder-v4-autonomous.md` 入力例の spec_file → leakproof_context 置換 (D44 が名指しした地雷)、
+design-v1 §3「tools=Read のみ (output/insights OK)」と design-foundation §3「tools=read-only」断定への
+supersede 注記 (凍結文書につき注記のみ)、`src/coder-spec.md` §7 の旧設計フロー (spec 直渡し) への
+superseded 注記、`src/coder-leakproof-context.md` 内 prompt template の coder-spec 誘導参照を実運用
+(射影 inline) に一致させる修正。将来セッションが文書をなぞって Read 経路や spec 直渡しを再生成する
+経路を塞ぐ (coder-v4-autonomous-sort.md はレビューで clean 確認済み)。
+
+**決定3 — 主張の限定表現:** 本遮断は **Read (file-read) 経路に限る**。残る限界 = (a) メインセッション
+射影の自己規律 (構造でなく prompt 規律)、(b) planner_direction.justification の自然文経路 (D43 near-miss
+が実証)。headline 前提条件 (phase3-main-experiment.md 2026-07-10 追記 4) は「Read 無制限の解消」の字義で
+充足するが、主張時は「Read 経路の構造遮断済み・justification 経路は既知限界」と限定する (正本 =
+phase3.md 残存リスク節)。D44 残存リスク (b) の「リーク制御不完全」の限定は、次セッション以降の
+sort 軸 iteration (新定義が有効になった後) から外れる。
+
+**却下した代替案:** (a) Read 機械 allowlist — 決定1(b) の通り構造強制不能。(b) whiteboard/justification
+の構造検査 (機序語の機械 lint) — 自然文の意味検査は恒真化しやすく偽陰性が防壁の錯覚を生む (D30 と同根)。
+既知限界として明示し、段 6 の評価設計 (ablation) 側で扱う。(c) planner 廃止 (coder に方向も出させる) —
+段 4/5 の設計 (方向と値の分離、規律3) を壊すため不採用。
+
+**正本:** `.claude/agents/planner-v4.md` (tools:[])・`.claude/agents/coder-v4-autonomous.md`・
+`src/coder-spec.md` §7・`src/coder-leakproof-context.md`・phase3.md 段6(h)+残存リスク節・
+agent-architecture.md planner 節注記。レビュー一次資料 = workflow `wf_bf71a696-9c0` journal。

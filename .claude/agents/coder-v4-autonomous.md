@@ -28,7 +28,7 @@ effort: high
 
 ```json
 {
-  "spec_file": "src/coder-spec.md",
+  "leakproof_context": "<src/coder-leakproof-context.md の内容を inline で>",
   "baseline": {
     "throughput_ops_sec": 88124.1,
     "abort_rate_pct": 7.9

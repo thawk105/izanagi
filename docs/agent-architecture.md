@@ -63,6 +63,12 @@ Phase 3 のロール (planner/coder/auditor) は、本ドキュメントに仕�
 - **tools:** 読み取り + 設計ドキュメント書き込み。コード実装はしない
 - **model:** 強いモデル
 - **規律:** whiteboard memory (却下済み設計) を参照し、同じ失敗を再提案しない
+- **⚠ 確定制約は本節でなく `planner-v4.md` + D45 を正典とする** (本節は予約仕様。実体化で分岐した):
+  実体の planner-v4 は **tools=[] (ツールなし — 予約の「読み取り + 設計ドキュメント書き込み」と異なり
+  Read も Write も持たない)**。入力はメインセッションが leading-indicators/whiteboard を射影して inline
+  (JSON) で渡し、提案は構造化出力で返す (coder-v4 と同型の構造遮断)。当初実体は tools=[Read] だったが、
+  Read の運用上の必要がゼロである一方 output/insights (勝ち筋詳細) への機械制限なしアクセスがリーク制御の
+  系全体を弱めるため、D44 段 6 前提タスク (h) → D45 で剥奪。
 
 ### coder (Phase 3・仕様予約)
 

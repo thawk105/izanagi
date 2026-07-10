@@ -206,11 +206,15 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    phase3-main-experiment.md 2026-07-10 追記の sweep-matched / sweep-ceiling 分離に従う)、
    (e) coder リーク制御 (P2-5/D21 の Phase 3 版) の実体化、(f) 検証相 (seed×N・長 extime) の実装、
    (g) サンプル設計 4 点の数値確定 (統計計画の節)、
-   (h) **planner→coder 経路のリーク遮断 (D44、headline の前提条件)** — planner-v4 の Read 無制限を解消する
-   (coder と同型の構造遮断: orchestrator が leading-indicators/whiteboard を射影して渡し Read を剥奪する、
-   または Read 対象の機械 allowlist)。同時に `coder-v4-autonomous.md` の入力スキーマ例が `src/coder-spec.md`
-   (runbook が明示禁止したリーク源、しかも内容は実測と逆方向の陳腐値) を指している文書地雷を除去する。
-   エージェント定義の変更は auto-mode の自己変更保護に当たるため人間確認の下で行う、
+   (h) **(完了 2026-07-10、D45) planner→coder 経路のリーク遮断 (D44、headline の前提条件)** — planner-v4 を
+   tools:[] 化 (Read 剥奪 = file-read 経路を coder (D39 決定7) と同型に構造遮断。入力は従来どおりメイン
+   セッションの射影 inline JSON — 運用上 Read の必要はゼロだった)。allowlist 案は棄却 (根拠は D45)。
+   同時に文書地雷 4 点を除去/中和: `coder-v4-autonomous.md` の spec_file 例 → leakproof_context に置換、
+   design-v1 §3 の「output/insights OK」記述と design-foundation §3 の「tools=read-only」断定に supersede
+   注記、`src/coder-spec.md` §7 の旧設計フローに superseded 注記、`src/coder-leakproof-context.md` 内
+   template の coder-spec 誘導参照を実運用 (射影 inline) に一致させた。**遮断は Read 経路に限る** —
+   justification 自然文経路・射影の自己規律は残存リスク節に維持。3レンズ敵対レビュー済み
+   (must-fix 1・should-fix 6 を全て反映)。定義変更は次セッションから有効、
    (i) **sort 軸の機械 sweep 先行実測 (D44、安価な先取り)** — 段 6 本走の前に、sort comparator 空間を
    機械列挙 + ランダム変異で回し coder の到達点と比較する。失敗条件 (c) の答えがここで「同等」と出るなら、
    本走の前に軸選定・設計を見直せる (P2-5 の教訓: 仮説に工数を先払いしない)、
@@ -326,15 +330,17 @@ worklog 全読しないと発掘できない状態を解消するためここに
   (`orchestrator/campaign/critic/digest.py` 相当) または段6 headline 判定に先立つ専用 driver。現状の唯一の防壁は
   auditor ギャラリー型15 (静的目視、`.claude/agents/auditor.md`) — 機械観測点が無いことを沈黙させないための記録
   (規律3)。
-- **planner-v4 の Read 無制限がリーク制御の系全体を弱める (D44、段 6 前提タスク (h) で解消予定)**:
-  coder の遮断 (tools=[]、D39 決定7) は構造的に堅いが、planner-v4 は `tools: ["Read"]` に機械制限が無く、
-  設計文書上も output/insights (勝ち筋の詳細を含む) を読んでよいことになっている。planner→coder の自然文
-  (justification) は機序を含意する言い回しを運べる (D43 の敵対レビューで「乖離度」「再順序化」等の機序含み
-  語の具体化案が一度採用されかけ撤回された = 同種漏洩がプロンプト設計レベルで起きうることの実証)。
-  「テキスト検査・自己申告は唯一防壁にできない」(D30) の教訓が planner に未適用の状態。あわせて
-  `coder-v4-autonomous.md` の入力スキーマ例が禁止ファイル `src/coder-spec.md` を指す文書地雷も現存
-  (実行済み iteration は runbook どおり leakproof_context を使ったと記録されているが、将来セッションが
-  例をなぞる経路が残っている)。headline 主張の前提条件 (phase3-main-experiment.md 2026-07-10 追記 4) 。
+- **planner→coder 経路の遮断は Read 経路のみ構造化済み — justification 自然文経路と射影の自己規律は
+  残存 (D44→D45、段 6 前提タスク (h) は 2026-07-10 完了)**: planner-v4 の tools:[] 化で file-read 経路は
+  coder (D39 決定7) と同型に構造遮断され、文書地雷 (coder-v4-autonomous.md の spec_file 例・design 文書の
+  「output/insights OK」記述・coder-spec.md §7 旧設計フロー・leakproof-context 内の誘導参照) も除去/中和
+  済み — headline 前提条件 (phase3-main-experiment.md 2026-07-10 追記 4) は「Read 無制限の解消」の字義で
+  充足。**残る限界 2 点** (headline 主張時は「Read 経路の構造遮断済み・以下は既知限界」と限定表現する):
+  (a) spawn 時入力の射影はメインセッションの自己規律のまま — runbook §2 チェックリストは prompt 規律で
+  あり「テキスト検査・自己申告は唯一防壁にできない」(D30) はこの面に未適用、(b) planner_direction の
+  justification 自然文が機序含み語を coder へ運ぶ経路は構造的に開いたまま (D43 の敵対レビューで「乖離度」
+  「再順序化」等の機序含み語の具体化案が一度採用されかけ撤回された = 同種漏洩がプロンプト設計レベルで
+  起きうることの実証)。
 - **非 strict-weak-order comparator の UB は write_set_ サイズ依存で顕在化する (段5、D41 決定1、実機確認)**:
   反対称性違反 comparator (`return &a != &b;`) を `-DSORT_VARIANT=1` で実機ビルド・実行したところ、
   release/ASan (UBSan 無し) 問わず write_set_.size() が **16 要素以上** (libstdc++ introsort の insertion-sort

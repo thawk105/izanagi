@@ -144,6 +144,11 @@ coder が「値をどう変えるか」を提案された時の参考指標：
 
 ## 7. Coder の入力 context 構成
 
+> **⚠ 本節は旧設計 (D39 以前の予約) で superseded。現行運用では本ドキュメント (coder-spec.md) を
+> coder に渡さない** (sweet-spot 漏れリスク — 段4b runbook §1(b) が明示禁止)。coder が受け取るのは
+> `coder-leakproof-context.md` の inline 全文 + planner の抽象方向 + 射影済み baseline/whiteboard のみ
+> (D45)。本節は経緯記録として残す。
+
 **用意するファイル:**
 1. 本ドキュメント (`coder-spec.md`)
 2. `coder-leakproof-context.md` — curated contextファイル (下記参照)

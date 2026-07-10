@@ -160,6 +160,8 @@ planner が設計方向を提案・coder が具体コード合成。これは **
 **ロール (agent-architecture.md reserve から生成):**
 - read-only + structured output (段 3 auditor と同型)
 - tools=Read のみ (output/insights・ccbench-anatomy・API reference は OK)
+  **(⚠ superseded by D45, 2026-07-10: 実体の planner-v4 は tools=[] — output/insights の Read 許可は
+  リーク経路そのものとして撤回。本文書は凍結記録につき本注記のみ)**
 - 強モデル (opus/high)
 
 **入力:**
