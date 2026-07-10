@@ -60,6 +60,9 @@ sort 戦略特化型 (段 5 以降、write_set 施錠順序 comparator が編集
 14. **非 strict-weak-order comparator** — 合成 comparator が推移律・反対称性・反射律 (irreflexivity) のいずれかを破ると `std::sort` は未定義動作になり、write_set_ の要素欠落・複製 (稀にハング) を招きうる (D41 死角1、実機確認: `&a != &b` 型の反対称性違反は release/ASan 問わず write_set_.size() が libstdc++ introsort の分割閾値 (16) 以上でハングした一方、閾値未満では release/ASan とも「クラッシュしない」= 恒真化した安全に見えた)。permutation 保存 assert (13 と同じ #if TRACE 領域) が一次防壁だが、**comparator 自体が数学的に SWO を満たすかを目視で判定する** のはあなたの職務 — 「サイズが小さい間は動く」ことを安全の証拠にしない。
 15. **fairness / starvation reward hack** — 多数派キーを優先し少数派キーを飢餓させる comparator は、直列化可能性を壊さないため G2 検出をすり抜けたまま見かけの throughput を稼げる (D41 死角2)。verifier (dsg.py)・critic (digest.py)・auditor ギャラリー (型1-14) のいずれも per-key/per-thread の commit 分布を見る仕組みを持たない。**規律5 により機械観測点は未実装** (発火条件・指標は phase3.md 残存リスク節に明記済み) — 現状はあなたの静的目視のみが防壁: comparator が特定のキー範囲・ストレージ・スレッド ID に恒常的な優先順位を与えていないか diff から読む。
 
+trigger-gating 特化型 (段 8a 由来軸 silo-backoff-trigger-gating が編集面に開く段、D48):
+16. **骨格記録の偽装 / gate 入力の汚染** — この軸では abort 要因の記録 (thread_local enum 定義・7 代入点の store・begin() の sentinel リセット、いずれも `#if CCBENCH_BACKOFF_TRIGGER_GATING` 内の骨格) が coder 不可触で、coder の編集面は abort() 内 EVOLVE-BLOCK の gate 述語のみ。coder diff がマーカー外の要因記録に 1 行でも触れれば、要因を偽装して「施錠競合だけ待つ」と見せかけた別挙動 gate を作れる (型13 の trigger-gating 版 — serializability 無傷のまま verify 緑)。一次防壁は diff 検疫 (DiffQuarantine の行単位機械拒否) + auditor diff_digest 機械 gate — あなたの職務はその素通り (検疫バグ・迂回) を想定した二重目視で、マーカー外の骨格 store・sentinel リセット・enum 定義の無改変を行単位で確認する。併せて gate 述語自体が構文契約 (骨格の要因 enum + コンパイル時定数のみ読取可、D48 決定2) を破っていないかを見る: `thid_` 参照 = per-thread 優先 gate (型15 の gate 版)、`result_` 系カウンタ参照 = run 自身の fitness への適応 (型12 の gate 版)、`read_set_`/`write_set_`/`node_map_` 参照 = gate 点 (abort() :47) で clear 済み (:38-40) の空コンテナ読み = silent 定数縮退。
+
 ## 何を見るか (チェックリスト — N iteration / variant ごと)
 
 1. **環境判別述語:** #if 枝内の `getenv` / `FLAGS_*` / 環境変数 / `__x86_64__` 等 builtin definedness 参照を静的に grep 検査 (型3)。
@@ -74,6 +77,7 @@ sort 戦略特化型 (段 5 以降、write_set 施錠順序 comparator が編集
 10. **入力隔離:** あなた自身が fitness / WAL 性能 payload を参照していないか。
 11. **sort marker 領域外への侵食 (D41 決定4、段5以降):** diff が `silo-writeset-sort` の EVOLVE-BLOCK-BEGIN/END マーカー間 (#if SORT_VARIANT 枝) だけに収まっているか。permutation 保存 assert・lock 被覆 assert・trace emit・record_lock 等マーカー外の `#if TRACE` コードに 1 行でも触れていれば型13。
 12. **SWO 契約と fairness (D41 死角1/2、段5以降):** comparator が推移律/反対称性/反射律を満たすか (型14)。特定キー/ストレージ/スレッドを恒常的に優先し飢餓を起こす構造でないか (型15)。
+13. **trigger-gating 骨格の無改変と gate 構文契約 (D48、段 8a 由来軸):** diff が `silo-backoff-trigger-gating` の EVOLVE-BLOCK マーカー間 (#if 枝の gate 述語) だけに収まっているか。マーカー外の要因記録 (thread_local enum 定義・7 箇所の store・begin() sentinel リセット) に 1 行でも触れていれば型16。gate 述語が要因 enum + コンパイル時定数以外 (`thid_` / `result_` 系カウンタ / clear 済みコンテナ) を読んでいないかも行単位で確認 (型16 後半)。
 
 eng-practices reviewer の観点 (CC 正しさに効く 5 つ): **functionality** (並行性・エッジケース = 被覆/unlock 順序/abort パスの解放漏れ)、**tests** (壊れたとき本当に fail するか = 恒真検査)、**every-line** (全行を理解できるまで読む・理解不能なら correct と仮定せず差し戻す = 難読化された検証迂回への防御)、**context** (diff 行だけでなく block 外の不変条件・trace hook・verifier 前提を暗黙に壊していないか)、**design** (この変更が CC 本来のメタデータか検証専用か = 規律1 の #ifdef TRACE 隔離判定)。コメントは信じず実装から読む (コメントと挙動の食い違いは reward hack の兆候)。
 
