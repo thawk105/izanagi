@@ -189,6 +189,44 @@ coder (LLM) の EVOLVE-BLOCK 編集を orchestrator が diff 監査のうえ pat
 
 ---
 
+## silo-backoff-trigger-gating — abort 要因 gate 軸の骨格 + positive control (Phase 3 段 8a, D48)
+
+段 8a (axis-proposer) 由来の初の軸。abort 要因 (施錠競合 / read-vali ×2 / node-vali /
+absent) で `Backoff::backoff()` の発火可否を gate する。軸定義の正本 = シート insight
+(`output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md`) + D48。
+軸定数 (MARKER_ID/`_BASE`/PIN 等) は `orchestrator/campaign/axis_trigger_gating.py`
+(C 段成果物 — D 偵察器と E 段 driver の両方がここから import する、axis-onboarding §1)。
+
+- **silo-backoff-trigger-gating-variant.patch** — 骨格 (template patch)。要因 enum +
+  file-scope thread_local + 7 代入点全 store + begin() sentinel リセット + gate 器 +
+  EVOLVE-BLOCK マーカー (id=`silo-backoff-trigger-gating`、hole = gate 述語の代入 1 行のみ。
+  `Backoff::backoff` 呼出と gate 変数はマーカー外 = coder 不可触) + `cmake/Options.cmake`
+  universal 相乗り (`CCBENCH_BACKOFF_TRIGGER_GATING`、既定 0)。**既定 0 で inert**:
+  骨格全体が `#if BACKOFF_TRIGGER_GATING` 囲みで preprocess 後に原文一致 →
+  stock genome は src_token="stock" (D48 決定 2/F1、identity 実証済み 2026-07-10)。
+  要因記録は gate が perf ビルドで読む CC-native メタデータ — `#if TRACE` に入れては
+  いけない (規律 1 の「CC 本来のもの」側)。PIN 前進はしない (D48 決定 2)。
+- **instr-silo-backoff-trigger-gating-tally.patch** — 検証専用計装 (characterization
+  時のみ骨格の上に重ねる)。abort() 冒頭で `A <要因>` 行を emit (`#if
+  BACKOFF_TRIGGER_GATING && TRACE`)。**template patch に入れない理由:** 入れると
+  variant の TRACE=1/0 preprocess 差分が pinned HEAD のそれと食い違い diff-of-diffs
+  (`assert_trace_diff_matches_head`) が全ループ評価で fails-closed になる。骨格 store は
+  coder 不可触 (DiffQuarantine 行単位拒否) ゆえ C 段の一度きりの歯の証明で記録正確性は
+  ループ中も構造的に不変。
+- **broken-silo-trigger-misattr.patch** — **わざと壊した記録** (positive control)。
+  施錠競合を `IZANAGI_BREAK_TRIGGER_MISATTR` 定義時に kNodeVali へ故意誤記録。
+  serializability 無傷 (verifier 緑のまま = trace schema の死角の実走証明) だが
+  YCSB の構造ゼロ検査 (node-vali==0 のはず) が赤になる = 検査の歯。**既定 OFF inert・
+  裸マクロは CCBENCH_ 外 = pipeline から定義不能** (broken-silo と同じ隔離規約、規律 2)。
+
+**駆動の正本 = `orchestrator/campaign/s8a_trigger_coverage.py`** (骨格+計装 t4/t1 +
+misattr t4 の 3 run、保存則 = A 行総数==abort_counts_ / 構造ゼロ / 赤の歯を機械判定)。
+実証 (2026-07-10, `output/env/linux-baremetal/calibration/s8a_trigger_gating_coverage.json`):
+skeleton t4 = 8066 abort 全数一致・構造ゼロ 5 種すべて 0・certified / t1 = abort 0 /
+misattr = node-vali>0 で赤 (保存則は破れない = 保存則だけでは捕まらないことも機械証明)。
+
+---
+
 ## トレース形式 (verifier = タスク2 の入力契約)
 
 trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`

@@ -1,0 +1,197 @@
+diff --git a/cmake/Options.cmake b/cmake/Options.cmake
+index 0000000..0000000 100644
+--- a/cmake/Options.cmake
++++ b/cmake/Options.cmake
+@@ -22,6 +22,16 @@
+ set(CCBENCH_MASSTREE_USE  1 CACHE STRING "use Masstree as the index")
+ set(CCBENCH_VAL_SIZE      4 CACHE STRING "value size in bytes (YCSB)")
+ 
++# izanagi (Phase 3 段8a, D48): abort 要因で Backoff::backoff() の発火可否を gate
++# する軸 (silo only)。0 (既定) = stock (要因不問で backoff。骨格全体が #if で消え
++# preprocess 後に原文一致 = inert)。1 = 骨格 (要因記録 + gate 器) が生き、
++# EVOLVE-BLOCK hole の述語 (coder 合成) が発火可否を決める。コード片軸 =
++# SORT_VARIANT 型の on/off。silo 専用マクロだが universal に相乗りする理由も
++# SORT_VARIANT と同じ (protocol 固有 OPTIONS への配線は ALLOWLIST 外改変になる、
++# D23/D42 条件5 — このファイルのみの改変で完結し他プロトコルには無害なマクロが
++# 渡るだけ)。
++set(CCBENCH_BACKOFF_TRIGGER_GATING 0 CACHE STRING "izanagi: 0=stock unconditional backoff; 1=abort-reason-gated backoff (EVOLVE-BLOCK, silo only)")
++
+ # ----- multi-protocol (used by 2+ protocols) -----
+ set(CCBENCH_KEY_SORT                       0 CACHE STRING "")
+ set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING "")
+@@ -65,6 +75,7 @@
+     MASSTREE_USE=${CCBENCH_MASSTREE_USE}
+     VAL_SIZE=${CCBENCH_VAL_SIZE}
+     TRACE=${CCBENCH_TRACE}
++    BACKOFF_TRIGGER_GATING=${CCBENCH_BACKOFF_TRIGGER_GATING}
+     PARENT_SCOPE)
+ endfunction()
+ 
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index c8e35d0..0e19bdf 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -12,6 +12,40 @@ extern void displayDB();
+ extern void siloLeaderWork(uint64_t& epoch_timer_start,
+                            uint64_t& epoch_timer_stop);
+ 
++#ifndef BACKOFF_TRIGGER_GATING
++#error "BACKOFF_TRIGGER_GATING must be defined (-DBACKOFF_TRIGGER_GATING=0 for stock; CMake supplies the default)"
++#endif
++#if BACKOFF_TRIGGER_GATING
++// izanagi (Phase 3 stage 8a, D48): abort-reason recording -- the
++// human-installed skeleton of the silo-backoff-trigger-gating axis.
++// Recording is the skeleton's exclusive domain (the coder must not touch
++// it): if the coder could write these stores it could forge reasons to
++// dress up the gate (reward-hack path, D48 decision 3; DiffQuarantine
++// rejects edits outside the EVOLVE-BLOCK hole line-by-line). thread_local
++// at file scope keeps the whole mechanism inside cc/silo/transaction.cc
++// (EVOLVE_BLOCK_SOURCES) -- one TxExecutor per worker thread (ycsb.hh
++// worker 1:1), so per-thread semantics match per-executor semantics. This
++// is CC-native metadata read by the gate in the perf build -- deliberately
++// NOT under #if TRACE (it would break the gate in the perf build; 規律1
++// "CC 本来のもの" side). The whole block vanishes when
++// BACKOFF_TRIGGER_GATING=0, so the stock genome preprocesses
++// byte-identical to pinned HEAD (inert, D48/F1 -- src_token="stock").
++enum class IzanagiAbortReason : unsigned char {
++  kUnset = 0,      // sentinel: not recorded (e.g. app-layer aborts in
++                   // non-YCSB workloads) -> gate must take stock behavior
++                   // (do back off). Fail-safe contract (D48/AUD-2).
++  kLockConflict,   // lockWriteSet: NO_WAIT lock conflict
++  kUpdateAbsent,   // lockWriteSet: UPDATE target absent
++  kReadValiTid,    // validationPhase: read-set tid/epoch changed
++  kReadValiLocked, // validationPhase: locked and not own write
++  kNodeVali,       // validationPhase: node version changed
++  kInsertNode,     // insert: node version mismatch (YCSB never fires)
++  kScanNode,       // scan callback: node version mismatch (YCSB never fires)
++};
++static thread_local IzanagiAbortReason izanagi_abort_reason_ =
++    IzanagiAbortReason::kUnset;
++#endif
++
+ void TxExecutor::gc_records() {
+   const auto r_epoch = ReclamationEpoch;
+ 
+@@ -44,7 +78,39 @@ void TxExecutor::abort() {
+   std::uint64_t start(rdtscp());
+ #endif
+ 
++#if BACKOFF_TRIGGER_GATING
++  // izanagi skeleton (D48): gate scaffold. The predicate variable and the
++  // gated call below live OUTSIDE the EVOLVE-BLOCK markers = coder-
++  // untouchable (DiffQuarantine outside-region). Initial true = stock
++  // default (back off).
++  bool izanagi_gate_pass = true;
++#endif
++  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
++  // izanagi Phase 3 (D48/phase3.md): this conditional-compilation skeleton
++  // is the coder (LLM) edit surface -- ONLY the single assignment in the
++  // branch selected when BACKOFF_TRIGGER_GATING >= 1 (the gate predicate).
++  // Contract (D48 decision 2): the predicate may read the
++  // IzanagiAbortReason enum and compile-time constants ONLY; straight-line,
++  // side-effect free (reason recording is the skeleton's exclusive domain).
++  // Explicitly forbidden reads: thid_ (per-thread priority gate = fairness
++  // hack), result_ counters (adaptation to the run's own fitness signal),
++  // read/write/node containers (cleared above -> silent degeneration).
++  // kUnset must map to true (stock fallback -- fail-safe sentinel
++  // contract). Closed-region constraint (D23 route Y): no #include
++  // changes, no new functions/types/globals/macros, no raw preprocessor
++  // directives, no nondeterministic builtins (this comment avoids raw
++  // tokens so marker scanning does not false-positive).
++#if BACKOFF_TRIGGER_GATING
++  izanagi_gate_pass = true;
++#else
+   Backoff::backoff(FLAGS_clocks_per_us);
++#endif
++  // EVOLVE-BLOCK-END silo-backoff-trigger-gating
++#if BACKOFF_TRIGGER_GATING
++  if (izanagi_gate_pass) {
++    Backoff::backoff(FLAGS_clocks_per_us);
++  }
++#endif
+ 
+ #if ADD_ANALYSIS
+   result_->local_backoff_latency_ += rdtscp() - start;
+@@ -54,6 +120,13 @@ void TxExecutor::abort() {
+ 
+ void TxExecutor::begin() {
+   status_ = TransactionStatus::inflight;
++#if BACKOFF_TRIGGER_GATING
++  // izanagi skeleton (D48/AUD-2, F6): fail-safe sentinel reset. Any abort
++  // whose reason is never recorded (app-layer aborts; future workloads)
++  // reaches the gate as kUnset -> stock behavior (back off) -- never a
++  // stale reason from a previous tx on this thread (misattribution guard).
++  izanagi_abort_reason_ = IzanagiAbortReason::kUnset;
++#endif
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+ }
+@@ -96,6 +169,9 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+       if (it != node_map_.end()) {
+         if (unlikely(it->second != insert_info.old_version)) {
+           status_ = TransactionStatus::aborted;
++#if BACKOFF_TRIGGER_GATING
++          izanagi_abort_reason_ = IzanagiAbortReason::kInsertNode;  // izanagi skeleton (D48)
++#endif
+           return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
+         }
+         // otherwise, bump the version
+@@ -160,6 +236,9 @@ void TxExecutor::lockWriteSet() {
+       if (expected.lock) {
+ #if NO_WAIT_LOCKING_IN_VALIDATION
+         this->status_ = TransactionStatus::aborted;
++#if BACKOFF_TRIGGER_GATING
++        izanagi_abort_reason_ = IzanagiAbortReason::kLockConflict;  // izanagi skeleton (D48)
++#endif
+         if (itr != write_set_.begin()) unlockWriteSet(itr);
+         return;
+ #elif NO_WAIT_OF_TICTOC
+@@ -185,6 +264,9 @@ void TxExecutor::lockWriteSet() {
+     if (itr->op_ == OpType::UPDATE && itr->rcdptr_->tidword_.absent) {
+       unlockWriteSet(itr);
+       this->status_ = TransactionStatus::aborted;
++#if BACKOFF_TRIGGER_GATING
++      izanagi_abort_reason_ = IzanagiAbortReason::kUpdateAbsent;  // izanagi skeleton (D48)
++#endif
+       return;
+     }
+ 
+@@ -456,6 +538,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+       result_->local_vali_latency_ += rdtscp() - start;
+ #endif
+       this->status_ = TransactionStatus::aborted;
++#if BACKOFF_TRIGGER_GATING
++      izanagi_abort_reason_ = IzanagiAbortReason::kReadValiTid;  // izanagi skeleton (D48)
++#endif
+       unlockWriteSet();
+       return false;
+     }
+@@ -468,6 +553,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+       result_->local_vali_latency_ += rdtscp() - start;
+ #endif
+       this->status_ = TransactionStatus::aborted;
++#if BACKOFF_TRIGGER_GATING
++      izanagi_abort_reason_ = IzanagiAbortReason::kReadValiLocked;  // izanagi skeleton (D48)
++#endif
+       unlockWriteSet();
+       return false;
+     }
+@@ -479,6 +567,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+     auto node = (MasstreeWrapper<Tuple>::node_type*) it.first;
+     if (node->full_version_value() != it.second) {
+       this->status_ = TransactionStatus::aborted;
++#if BACKOFF_TRIGGER_GATING
++      izanagi_abort_reason_ = IzanagiAbortReason::kNodeVali;  // izanagi skeleton (D48)
++#endif
+       unlockWriteSet();
+       return false;
+     }
+@@ -724,5 +815,8 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
+     tx_->node_map_.emplace_hint(it, (void*) n, version);
+   } else if ((*it).second != version) {
+     tx_->status_ = TransactionStatus::aborted;
++#if BACKOFF_TRIGGER_GATING
++    izanagi_abort_reason_ = IzanagiAbortReason::kScanNode;  // izanagi skeleton (D48)
++#endif
+   }
+ }

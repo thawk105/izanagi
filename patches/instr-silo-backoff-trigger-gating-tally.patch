@@ -1,0 +1,35 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 0000000..0000000 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -59,6 +59,30 @@
+ }
+ 
+ void TxExecutor::abort() {
++#if BACKOFF_TRIGGER_GATING && TRACE
++  // izanagi (Phase 3 stage 8a, D48/AUD-4): abort-reason tally -- verification-
++  // only instrumentation (characterization patch, NOT part of the axis
++  // skeleton). Emits one "A <reason>" line per abort so the coverage driver
++  // can cross-check recorded reasons against ADD_ANALYSIS counters and prove
++  // the misattribution mutation turns red. Lives in a separate patch layered
++  // over the skeleton for characterization runs only: baking it into the
++  // template patch would make the variant's TRACE=1/TRACE=0 preprocess diff
++  // diverge from pinned HEAD's and trip assert_trace_diff_matches_head
++  // (規律1 一次防壁) on every loop evaluation. All 7 skeleton stores happen
++  // before abort() is entered (status_ is set at the abort decision point;
++  // the run loop then calls abort()), and nothing inside abort() writes the
++  // reason, so the value emitted here is exactly what the gate below reads.
++  {
++    static const char* const izanagi_abort_reason_names[] = {
++        "unset",           "lock-conflict", "update-absent", "readvali-tid",
++        "readvali-locked", "node-vali",     "insert-node",   "scan-node"};
++    izanagi_trace::stream(thid_)
++        << "A "
++        << izanagi_abort_reason_names[static_cast<unsigned>(
++               izanagi_abort_reason_)]
++        << '\n';
++  }
++#endif
+   // remove inserted records
+   for (auto& we : write_set_) {
+     if (we.op_ == OpType::INSERT) {

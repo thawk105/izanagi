@@ -1,0 +1,24 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 0000000..0000000 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -237,8 +237,19 @@
+ #if NO_WAIT_LOCKING_IN_VALIDATION
+         this->status_ = TransactionStatus::aborted;
+ #if BACKOFF_TRIGGER_GATING
++#ifdef IZANAGI_BREAK_TRIGGER_MISATTR
++        // izanagi positive control (D48/AUD-4): deliberate misattribution --
++        // record the NO_WAIT lock conflict as kNodeVali. Serializability is
++        // untouched (the store is still a pure assignment on the same abort
++        // path), so the verifier stays green; only the abort-reason tally
++        // cross-check can catch this. Bare macro outside the CCBENCH_
++        // namespace = cannot be defined via the pipeline (coverage driver +
++        // manual -D only; never mix into a baseline, 規律2).
++        izanagi_abort_reason_ = IzanagiAbortReason::kNodeVali;
++#else
+         izanagi_abort_reason_ = IzanagiAbortReason::kLockConflict;  // izanagi skeleton (D48)
+ #endif
++#endif
+         if (itr != write_set_.begin()) unlockWriteSet(itr);
+         return;
+ #elif NO_WAIT_OF_TICTOC
