@@ -18,3 +18,5 @@
 - `audit-2026-06-30.md` — リポジトリ全体監査の台帳 (残項目の正本は現行 phase doc の must 表)
 - `audit-2026-07-04-docs-consistency.json` — docs 横断監査 (real 39/refuted 4) の一次資料
 - `worklog-phase1-2.md` — worklog の Phase 1〜2 分 (2026-06-17〜06-30) ローテーションアーカイブ
+- `phase3-kickoff-stages1-5.md` — phase3.md の完了済み記録 (kickoff タスク詳細 + 後続段 1〜5) の
+  分離アーカイブ (2026-07-10)。チェックリスト正本・must 表・残存リスクは現行 phase3.md のまま
