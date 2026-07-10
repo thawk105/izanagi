@@ -1,0 +1,31 @@
+{
+  "space_version": "mech-enum-v1",
+  "workload": "write-heavy",
+  "trial": "p3-s6-sort-sweep-remeasure1",
+  "pin": "d706650",
+  "floor_cv_provisional": 0.03,
+  "coder_equiv": "sk_aa",
+  "entries": {
+    "sk_ad": {
+      "variant_id": "fce171c04c87",
+      "category": "full-order",
+      "src_token": "a8e1df03de89d61edd569fef369b6bc5ad10b5ccc805bf1207ba146d4d52775d",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });"
+    },
+    "stock": {
+      "variant_id": "d913f46dd87c",
+      "category": "stock",
+      "src_token": "stock",
+      "outcome": "certified",
+      "implementation": "SORT_VARIANT=0 の #else 枝 (テンプレ骨格そのまま) = sort(write_set_.begin(), write_set_.end()) — WriteElement::operator< による (storage_, key_) 昇順 2 段辞書式 (silo_op_element.hh)"
+    },
+    "sk_aa": {
+      "variant_id": "2a4ef8c4a954",
+      "category": "full-order",
+      "src_token": "4b5e66ba15f7dd23c05c0e0b984d308a7d8a4ddae07e5d88df1223e5ca77c17b",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : a.key_ < b.key_;\n       });"
+    }
+  }
+}

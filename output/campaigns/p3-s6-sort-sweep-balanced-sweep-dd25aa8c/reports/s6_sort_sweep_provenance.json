@@ -1,0 +1,122 @@
+{
+  "space_version": "mech-enum-v1",
+  "workload": "balanced",
+  "trial": "p3-s6-sort-sweep",
+  "pin": "d706650",
+  "floor_cv_provisional": 0.03,
+  "coder_equiv": "sk_aa",
+  "entries": {
+    "stock": {
+      "variant_id": "d913f46dd87c",
+      "category": "stock",
+      "src_token": "stock",
+      "outcome": "certified",
+      "implementation": "SORT_VARIANT=0 の #else 枝 (テンプレ骨格そのまま) = sort(write_set_.begin(), write_set_.end()) — WriteElement::operator< による (storage_, key_) 昇順 2 段辞書式 (silo_op_element.hh)"
+    },
+    "s_asc": {
+      "variant_id": "ad26ecdec838",
+      "category": "degenerate",
+      "src_token": "d9be27f3b0c4e1ef8489bff2f94d289e594a68ad318b8ba9f5a39a1a8ec7e272",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ < b.storage_;\n       });"
+    },
+    "s_desc": {
+      "variant_id": "0a4d22cb3555",
+      "category": "degenerate",
+      "src_token": "ed44ba16e72e3b896dca570f60bbd0ee2beeae54ef208a9b2a3fbbe9ce0dd0ad",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return b.storage_ < a.storage_;\n       });"
+    },
+    "k_asc": {
+      "variant_id": "5b0f54647a3f",
+      "category": "full-order",
+      "src_token": "4afb49d129fc682f2b76e885a201e46895c99122e37ccb6439ed30b610cb5902",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.key_ < b.key_;\n       });"
+    },
+    "k_desc": {
+      "variant_id": "ed584c364892",
+      "category": "full-order",
+      "src_token": "a11cb4028f54cc2decfee5e061d99ae8ec741160b1b4d077da5f314913decd6c",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return b.key_ < a.key_;\n       });"
+    },
+    "p_asc": {
+      "variant_id": "c75918c018fc",
+      "category": "full-order",
+      "src_token": "9b13bf23b37824105f5fc2a4cf58093f3a9015c5e367193594663e130cac91da",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.rcdptr_ < b.rcdptr_;\n       });"
+    },
+    "p_desc": {
+      "variant_id": "105f182938c7",
+      "category": "full-order",
+      "src_token": "a11a1c45909e374f161a894d8ea6473262bb930e70dbba4ffc585e23377955d6",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return b.rcdptr_ < a.rcdptr_;\n       });"
+    },
+    "sk_aa": {
+      "variant_id": "2a4ef8c4a954",
+      "category": "full-order",
+      "src_token": "4b5e66ba15f7dd23c05c0e0b984d308a7d8a4ddae07e5d88df1223e5ca77c17b",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : a.key_ < b.key_;\n       });"
+    },
+    "sk_ad": {
+      "variant_id": "fce171c04c87",
+      "category": "full-order",
+      "src_token": "a8e1df03de89d61edd569fef369b6bc5ad10b5ccc805bf1207ba146d4d52775d",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });"
+    },
+    "sk_da": {
+      "variant_id": "2e409a10d705",
+      "category": "full-order",
+      "src_token": "b89bebd3fba05980435f712a73a5ad0d6fd8d4f8ee63d23756352137893f9f75",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : a.key_ < b.key_;\n       });"
+    },
+    "sk_dd": {
+      "variant_id": "bb34e91ff804",
+      "category": "full-order",
+      "src_token": "6c24d2bdef4d3d59ca32edbfd551050cb95eea8369eccb9cc2bcefa51f6a4029",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : b.key_ < a.key_;\n       });"
+    },
+    "sp_aa": {
+      "variant_id": "db0516efabaa",
+      "category": "full-order",
+      "src_token": "76fa8d18a91c60a7233ccaead2624a1ecd8e44a307172c2c55f28c43cfdcae5d",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : a.rcdptr_ < b.rcdptr_;\n       });"
+    },
+    "sp_ad": {
+      "variant_id": "42b1ac7e0cae",
+      "category": "full-order",
+      "src_token": "6b52fe712366280f54921c81232c4b396f6bdf07bdd0cf97e1e922a01ef83c24",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.rcdptr_ < a.rcdptr_;\n       });"
+    },
+    "sp_da": {
+      "variant_id": "53e97fde249f",
+      "category": "full-order",
+      "src_token": "61012dc465177c64196f90ef90d7a0a32e4efed6ebbf49b969b79e8ed35160d0",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : a.rcdptr_ < b.rcdptr_;\n       });"
+    },
+    "sp_dd": {
+      "variant_id": "9f0174fd03dc",
+      "category": "full-order",
+      "src_token": "9a5c541ae02005ae836c6baaee60f38c54b2eb9a04d00440800187debd31b019",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : b.rcdptr_ < a.rcdptr_;\n       });"
+    },
+    "nosort": {
+      "variant_id": "816ce5549097",
+      "category": "degenerate",
+      "src_token": "9567b2ac31a39587d14b40a3aeb9001523858097a76a4c9275dc4661eb898229",
+      "outcome": "certified",
+      "implementation": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>&, const WriteElement<Tuple>&) -> bool {\n         return false;\n       });"
+    }
+  }
+}

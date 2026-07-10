@@ -215,9 +215,15 @@ critic 出力は kickoff では「帰属が正しいか」の検証のみ (次�
    template の coder-spec 誘導参照を実運用 (射影 inline) に一致させた。**遮断は Read 経路に限る** —
    justification 自然文経路・射影の自己規律は残存リスク節に維持。3レンズ敵対レビュー済み
    (must-fix 1・should-fix 6 を全て反映)。定義変更は次セッションから有効、
-   (i) **sort 軸の機械 sweep 先行実測 (D44、安価な先取り)** — 段 6 本走の前に、sort comparator 空間を
-   機械列挙 + ランダム変異で回し coder の到達点と比較する。失敗条件 (c) の答えがここで「同等」と出るなら、
-   本走の前に軸選定・設計を見直せる (P2-5 の教訓: 仮説に工数を先払いしない)、
+   (i) **(完了 2026-07-10、D46) sort 軸の機械 sweep 先行実測 (D44、安価な先取り)** — sort comparator
+   空間を構文契約から機械列挙 (15 候補 + stock、全点 SWO 構成的保証。ランダム変異は D46 決定4 で
+   段 6 (c) へ繰延) し、p2_2 確定動作点で balanced/write-heavy 全点 legacy+s2 verify の偵察
+   (preliminary、事前登録外カテゴリ — (c) 判定は出さず、正式 grid への firewall を明文化)。実測:
+   32+6 点全 certified・anomaly 0。**balanced は全点 floor 内で winner が再測不再現 (差なし方向)、
+   write-heavy は sk_ad の stock 超え +3.55%/+4.12% が 2 run 再現するも分解すると各成分 floor 内・
+   floor 未較正・n=2 で断定せず。sort 軸に「順序の質」由来の floor 超地形は見当たらない — 軸選定の
+   見直し (段 8a 前倒し等) が人間判断事項** (正本 = D46・`output/insights/2026-07-10_s6-sort-sweep-
+   preliminary.md`・`orchestrator/campaign/s6_sort_sweep.py`)、
    (j) related-work の欠落埋め (D44) — OpenEvolve・OtterTune 系 (DB 自動チューニング)・learned index /
    learned query optimizer 系の追加、AlphaEvolve/FunSearch 一次資料エントリ化、Polyjuice/CCaaLF
    (公開実装あり) との実測比較の要否判断。

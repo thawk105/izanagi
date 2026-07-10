@@ -1536,3 +1536,54 @@ sort 軸 iteration (新定義が有効になった後) から外れる。
 **正本:** `.claude/agents/planner-v4.md` (tools:[])・`.claude/agents/coder-v4-autonomous.md`・
 `src/coder-spec.md` §7・`src/coder-leakproof-context.md`・phase3.md 段6(h)+残存リスク節・
 agent-architecture.md planner 節注記。レビュー一次資料 = workflow `wf_bf71a696-9c0` journal。
+
+## D46. sort 軸機械 sweep 先行実測 (段6前提 (i)) — 偵察カテゴリと auditor 適用範囲 (2026-07-10)
+
+**背景:** D44 段6前提タスク (i) の実装。sort comparator 空間を機械列挙で回し、失敗条件
+(c) の答えと軸の生死を段 6 本走前に安価に先取りする。設計 3 レンズ + 実装 2 レンズの
+敵対検証 (全 approve-with-fixes、must 6 + should 11 を全反映) を経て実走。
+
+**決定:**
+1. **報告カテゴリ「偵察 (preliminary)」の新設** — 事前登録が定義するどの構成
+   (sweep-matched / sweep-ceiling / ベースライン3) でもないことを明記して報告する。
+   (c) の判定は出さない (16対1 の非対称・grid の事前固定未充足・ランダム変異アーム
+   欠落)。firewall: 段 6 の正式 grid / (c) 判定は本結果を材料流用せずゼロから再導出。
+   floor 0.030 は参考線のみ、high-abort 点 (退化点 + abort 率 stock 比 2 倍超) は
+   floor 判定不能扱い (fails-closed)。「軸の生死」の断定はしない。
+2. **列挙空間の構成原則** — hole の構文契約 (参照可能メンバ storage_/key_/rcdptr_ ×
+   asc/desc × 辞書式 prefix、先頭キー全順序で打ち切り) + 退化点 nosort = 15 候補 +
+   stock。全点 SWO (厳密弱順序) を構成的に保証し、テストの Python 有限モデル総当たり
+   (4 公理 × 12 要素空間) で機械検査 (D42 の非 SWO ハングを実走前に遮断)。空間設計は
+   coder iteration 1 出力後 = 汚染は provenance に明記し firewall の根拠とする。
+3. **auditor 段の適用範囲の解釈** — D41 条件4 (per-variant auditor 目視) は LLM 由来
+   variant に適用され、信頼中核が構成原則から機械生成する候補には課さない。
+   AuditorVerdict の自己生成 (self-attest) はしない — 「自己申告 pass」の前例を作らない
+   ため段そのものを省く。帰結 2 点を報告に明示: 型15 (fairness) の目視は本 sweep に
+   存在しない / 非 SWO への機械 backstop = 検疫 + permutation assert + timeout +
+   有限モデル検査。
+4. **ランダム変異の descope** — (i) の「機械列挙 + ランダム変異」からランダム変異を
+   段 6 (c) へ繰延。根拠: SWO 構成空間からの一様抽出は列挙の劣化版にしかならず、
+   コード片レベルのランダム生成は非 SWO ハング (D42) を機械検査なしで踏む。
+
+**却下した代替案:** (a) 配線規模 (t4/100k) での実測 — contention が弱く施錠順序の影響が
+観測できない懸念が支配的 + floor が同スケール未較正。p2_2 確定動作点を採用。
+(b) write-heavy の代表点手選び (7点) — 列挙原則の独立性を自ら毀損 (統計レンズ)。全点に変更。
+(c) 既存 sort loop (`p3_s4_loop_sort.py`) の AuditorVerdict 自己生成による駆動 — 上記 3。
+
+**実測 (凍結。詳細 = `output/insights/2026-07-10_s6-sort-sweep-preliminary.md`):**
+32 本走点 + 6 再測点の全てが certified (legacy+s2、anomaly 0)。balanced は全点 floor 内
+で本走 winner が再測で再現せず (差なし方向)。write-heavy は sk_ad (storage 昇順→key
+降順) の stock 超えが 2 run 再現 (+3.55%/+4.12%) だが、分解すると lambda 実装差 +
+key 降順寄与の合成で各成分は floor 内、かつ floor は当該域で未較正・系列 n=2 のため
+断定しない。coder 到達点 (sk_aa 同値) は valid 12 点中 10-11 位。**sort 軸に「順序の
+質」由来の floor 超地形は見当たらない — 段 5 iteration 2 継続の期待値は下がり、軸
+選定の見直し (段 8a 前倒し等) が人間判断事項として浮上** (worklog 2026-07-10 (6))。
+
+**残存リスク:** (a) 偵察結果が段 6 設計へ流れる経路は firewall で明文遮断したが、設計者
+の記憶を通じた汚染は防げない — 段 6 (d) の正式 grid 設計時に本偵察を見たことを情報源と
+して記録する (ベースライン4 の「命名の情報源を記録」と同じ扱い)。(b) fairness 観測点は
+未実装のまま (D41 死角2)。(c) write-heavy の S2 verify は rr50 固定で被覆は off-workload。
+
+**正本:** `orchestrator/campaign/s6_sort_sweep.py`・`orchestrator/tests/test_s6_sort_sweep.py`
+(c8194da)・campaign 4 本 (insight 冒頭に列挙)・レビュー一次資料 = workflow
+`wf_fd769b0c-2ab` (設計 3 レンズ) / `wf_5bcc233a-673` (実装 2 レンズ) journal。

@@ -1334,3 +1334,42 @@ phase3.md (h) の「人間確認の下で行う」に対し、auto-mode の自�
 D44 推奨順の② = 段6前提タスク (i) sort 軸の機械 sweep 先行実測 (失敗条件 (c) の安価な先取り) →
 ③ = 段5 sort 軸 iteration 2 継続 (critic 召喚から。fresh session で新 planner-v4 定義が有効)。
 人間待ち: なし (b8c422b の事後レビューは任意)。
+
+## 2026-07-10 (6) — 段6前提タスク (i) 消化: sort 軸機械 sweep 偵察 (D46)
+
+D44 推奨順②を消化。実装 = c8194da (driver + テスト 15 本)、設計判断 = D46 (偵察カテゴリ
+新設・列挙空間の構成原則・auditor 適用範囲の解釈・ランダム変異繰延)、実測一次資料 =
+`output/insights/2026-07-10_s6-sort-sweep-preliminary.md` + campaign 4 本 (本走 2 + 再測 2)。
+
+**敵対検証:** 設計 3 レンズ (wf_fd769b0c-2ab: 事前登録整合/機構安全/統計) + 実装 2 レンズ
+(wf_5bcc233a-673)、全 approve-with-fixes、must 6 + should 11 を全反映。最重要 3 件 =
+(1) (c) 先取り判定は 16対1 非対称 + grid 事前固定未充足の二重汚染 → 判定自体を出さず
+firewall 明文化に転換、(2) nosort 候補が -Werror=unused-parameter でビルド不能 (レビュアー
+が GCC13 実測) → 無名引数形に修正、実走前に捕捉、(3) 「軸の生死」argmax 判定は選択バイアス
+無補正 → 記述統計 + cross-run 再測に限定。棄却された指摘: なし。一次資料 = 両 workflow
+journal。エージェント工数 ≈ subagent 10 本 / 100 万 token (読解 5 + レビュー 5)。
+
+**実測の要点 (詳細は insight):** 32+6 点全 certified・anomaly 0 (順序不定含む全域で
+「施錠順序は correctness の入力でない」を実測裏付け)。balanced = 差なし方向 (winner 再測
+不再現)。write-heavy = sk_ad の stock 超え 2 run 再現 (+3.55/+4.12%) だが各成分 floor 内・
+floor 未較正・n=2 で断定せず。coder 到達点 (sk_aa 同値) は 12 点中 10-11 位。
+
+素材: 偵察 (preliminary) という事前登録外カテゴリを firewall 付きで新設した方法論 —
+「安価な先取り」と「事前登録の拘束」の両立は、判定を放棄して記述統計 + 再測に限定する
+ことで成立した。退化点 (順序不定) が両 workload の表最上位 = 効いているのは順序の質で
+なく comparator コスト次元、という観察も軸選定の材料。
+
+**セッション異常・救出:** write-heavy 起動時に作業ディレクトリ逸脱で即失敗 → 絶対パスで
+再起動 (実害なし、WAL 汚染なし)。実走ログのパイプバッファで進捗不可視 → 以後
+PYTHONUNBUFFERED=1 と WAL 行数監視に切替。
+
+**人間判断待ち:** sort 軸に「順序の質」由来の floor 超地形が見当たらないため、
+**段 5 sort 軸 iteration 2 継続 (D44 推奨順③) の期待値が下がった**。選択肢 = (a) それでも
+iteration 2 を回して LLM ablation の材料にする (機械 sweep 対照が今回できたので比較文脈は
+むしろ揃った)、(b) 段 8a (軸提案のループ内化) を前倒しして別軸をオンボーディングする、
+(c) 段 6 の他の前提タスク ((j) related-work 等) を先に消化する。判断材料は insight の
+「段 6 への示唆」節。
+
+### 次の一手
+人間判断待ち (上記) の決着まで、次セッションは (j) related-work の欠落埋め (D44) か
+段 6 前提タスク (b) (protocol 別 calibration) など判断非依存のタスクを消化するのが安全。
