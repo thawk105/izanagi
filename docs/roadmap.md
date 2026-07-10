@@ -1,6 +1,6 @@
 # Izanagi ロードマップ — 全設計と理由
 
-**版: v1 (初期設計)。** 本ドキュメントは生きた文書であり、試行錯誤の発見に応じて Claude が改訂してよい (改訂規律は CLAUDE.md の「roadmap の更新」参照)。過去の版は docs/roadmap-history/ に凍結保存されており、設計仮説の変遷そのものが研究記録 (論文の方法論セクションの原料) になる。
+**版: v1 系。** 本ドキュメントは生きた文書であり、試行錯誤の発見に応じて Claude が改訂してよい (改訂規律は CLAUDE.md の「roadmap の更新」参照)。協議改訂は版番号を上げず in-place で反映する (改訂履歴は git log) — docs/roadmap-history/ への版凍結は Claude の自律改訂時のみで、凍結版と改訂理由 (decisions.md) の変遷そのものが研究記録 (論文の方法論セクションの原料) になる。
 
 このドキュメントは、本システムの設計のすべてとその理由を記録する。次の作業者 (人間または Claude) が、設計に至った議論を見ていなくても「なぜこうなっているか」を完全に追えることを目的とする。
 
@@ -156,7 +156,7 @@ LLM は最適化圧力の下で、書かれていない不変条件を破って�
 
 これらに対し:
 1. **据え置きの正しさゲート** — 壊すと即 reject。「絶対壊しちゃダメ」(serializability anomaly検査、ACID基本) と「壊れていい」(プロトコル固有テスト、variant のキャラクタライズに使う) を分ける
-2. **adversarial auditor** (Phase 3 で導入) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を見つけてテストを追加
+2. **adversarial auditor** (Phase 3 で導入) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を検出し、それを捕らえる positive control テストを設計・**提案**する。auditor は read-only (Edit/Write 非付与、D38 決定 3) — 提案の反映は orchestrator の人間レビュー gate が行い、「既存テストを弱める書き込み」は構造的に不可能にする
 3. **hooks による書き込み時防壁** (Phase 1 から薄く) — verifier 迂回・成果物への直接書き込みを機械的に弾く**最小の第二防壁**。**方針 A (D30) 以降、hooks は「唯一の防壁」ではない**: identity の honest さ (偽 cache hit / `#ifdef`) は source_digest の preprocess 後ハッシュ、観測者効果の分離は観測者効果の二重検査 (diff-of-diffs、§3.3) が**一次防壁**として担い、hook はテキスト検査の完全性に依存しない範囲 (堅牢なパス検査) に責務を絞る。2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証したため (規律5 と両立させる責務再配置)
 4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。これは verifier に専用書き込みツール (Edit/Write) を与えない出力側隔離 (Bash 経由は prompt 規律で禁止 — 完全なツール権限隔離ではない、audit-2026-06-30 §4) と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
 
@@ -247,7 +247,7 @@ variant と baseline は決して同一セッションで測らない (別ビル
 
 LLM の役割は数値を見て判断 + 説明し、`output/insights/` に妥当性を文書化すること。査読で必ず問われる「なぜそのレコード数?」に先回りで答えられる。
 
-**noise floor の実測 (§3.6 と接続).** calibrator はレコード数の飽和点に加えて、その環境の **noise floor** も実測する責務を持つ。確定した実験条件 (レコード数・thread 数) で baseline を**連続 N 回**測って throughput の CV を出し、「この差以下は信用するな」の下限として固定する。これは環境タグごと (mac-devcontainer / linux-baremetal) に持ち、§3.6(4) の分布比較が「差なし」に丸める閾値の根拠になる。Mac devcontainer で noise floor が大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる。あわせて、ベンチ前の load average 静定確認 (admission control、orchestrator-design.md) も calibrator の責務に含める。
+**noise floor の実測 (§3.6 と接続).** calibrator はレコード数の飽和点に加えて、その環境の **noise floor** も実測する責務を持つ。確定した実験条件 (レコード数・thread 数) で baseline を**連続 N 回**測って throughput の CV を出し、「この差以下は信用するな」の下限として固定する。これは環境タグごと (mac-devcontainer / linux-baremetal) に持つ。**ただし、この「連続 N 回」の CV は within-run であり、1 測定の品質ゲート (§3.6(3)) にのみ使う — §3.6(4) の分布比較が「差なし」に丸める採否の閾値には使わない。採否の floor は between-run (§3.6(3')、D19) で、calibrator でなく別ドライバ (orchestrator/campaign/between_run_floor.py) が確定する。within-run の流用は run 間ドリフトを過小評価して偽 faster を出す (D19 が塞いだ経路)。**Mac devcontainer で noise floor が大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる。あわせて、ベンチ前の load average 静定確認 (admission control、orchestrator-design.md) も calibrator の責務に含める。
 
 スケール感度の検出: variant 評価を単一スケールでやらず最低2点で測る (small: 4thread/100万, medium: 10thread/1000万)。「small→medium での性能の伸び方」を特徴量として LLM に渡し、small で良いのに medium で頭打ちの variant は「スケールしない疑い」とフラグを立てる。これが層3の「なぜこの variant を最終選択から外したか」に直結する。
 
@@ -278,16 +278,17 @@ CCBench 還元スキーム: 探索中に CCBench 自体の問題を見つけた�
 
 ## 7. 関連研究からの借用 — `docs/related-work/` へ分離 (2026-07-05, D35)
 
-関連研究 (Polyjuice/CCaaLF・Jitskit・IDS・VibeServe・SkillOpt・Self-Harness・DecentMem・ARA・
-知識労働の経済分析・12-factor-agents・ECC) と、各々から何を借用し何を借用しないかの記録は
-`docs/related-work/` にある。読むのは論文執筆・ポジショニング検討・新規関連研究の追加時のみ —
+関連研究 (Polyjuice/CCaaLF→NeurCC・ATCC の学習型 CC 系譜、ShinkaEvolve/AlphaEvolve/DGM の
+進化合成系譜、Jitskit・IDS・VibeServe、SkillOpt・Self-Harness・DecentMem・ARA・
+知識労働の経済分析・12-factor-agents・ECC など — 完全な一覧は同文書の逆引き索引が正本) と、
+各々から何を借用し何を借用しないかの記録は `docs/related-work/` にある。読むのは論文執筆・ポジショニング検討・新規関連研究の追加時のみ —
 日常セッションのブートには不要 (これがこの分離の理由)。本文中・他文書の「§7」参照は同文書を指す。
 
 ---
 
 ## 8. 本システムの新規性 (ポジショニング)
 
-- Jitskit は KVストア、IDS は分散KVの consistency。**誰も single-node の CC プロトコルの serializability を対象にしていない**
+- Jitskit は KVストア、IDS は分散KVの consistency。**bespoke 自動合成の系譜 (Jitskit/IDS/VibeServe) では、誰も single-node の CC プロトコルの serializability を対象にしていない。** 同じ対象を扱う学習型 CC (Polyjuice/CCaaLF→NeurCC・ATCC) は §2 で認知済みの隣接系譜で、そちらとの空白は「対象」でなく方式の交点 (アクション空間自体を LLM がコードで拡張する合成) — 精密な差別化は related-work 7.1/7.6 が担う
 - 両者とも「ゼロから合成」か「証明付き合成」。Izanagi の**コーパス駆動の合成**は空きポジション — CCBench 資産をベース CC 選定 (層1)・クロスプロトコル比較 (Phase 3 主実験 headline 2)・変異軸のアイデア源として使い、実証済みの空間外合成 (b1、P2-4) を軸に、他 CC からの最適化移植 (b2) を拡張として持つ (D32)
 - CCBench という「10 プロトコル (YCSB 対応は 7: silo/tictoc/mocc/cicada/ermia/si/oze) × 最適化フラグ群が交換可能単位で整理された資産」を使う点が独自 (§6 の実体調査に一致)
 
@@ -314,7 +315,7 @@ Phase 2: パラメータ探索
 Phase 3: コード粒度の合成
   - EVOLVE-BLOCK で LLM がフラグ空間外の変異軸を合成 (b1 = 主実験)
   - 他CC の最適化移植 (b2) + カタログ化は主実験後の拡張予約 (D32)
-  + planner/coder (分離), auditor (reward hack監査)
+  + planner/coder (分離), auditor (reward hack監査), axis-proposer (軸提案のループ内化、段 8a・D47)
 
 Phase 3.5 (任意): Open-Ended Evolution
   - コード移植でアクション空間が開いて初めて意味を持つ
