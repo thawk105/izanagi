@@ -1,0 +1,55 @@
+{
+  "workload": {
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "95",
+    "ycsb_rmw": "0"
+  },
+  "genome": "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "records": 1000000,
+  "threads": 48,
+  "clocks_per_us": 1800,
+  "abort_rate": 0.1603,
+  "run_cmd": "numactl --interleave=all perf stat -e LLC-load-misses,LLC-loads,instructions,cycles -- /home/tanab/github/izanagi/external/ccbench/build-variants/silo_8b5ff70bd3_t0/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=1800 -ycsb_zipf_skew=0.9 -ycsb_rratio=95 -ycsb_rmw=0",
+  "within_run": {
+    "reps": 10,
+    "cv": 0.0019422054042911763,
+    "median": 8461803.5,
+    "mean": 8463144.1,
+    "stdev": 16437.16420831498,
+    "throughputs": [
+      8435016.0,
+      8458254.0,
+      8450083.0,
+      8450125.0,
+      8464992.0,
+      8476487.0,
+      8462544.0,
+      8484852.0,
+      8488025.0,
+      8461063.0
+    ],
+    "high_variance": false
+  },
+  "between_run": {
+    "sessions": 8,
+    "reps_per_session": 5,
+    "cv": 0.0010979692594382789,
+    "median": 8457436.5,
+    "mean": 8458941.875,
+    "stdev": 9287.658146125195,
+    "session_throughputs": [
+      8455401.0,
+      8458702.0,
+      8456907.0,
+      8452515.0,
+      8466030.0,
+      8446583.0,
+      8457966.0,
+      8477431.0
+    ],
+    "high_variance": false,
+    "notes": [
+      "between-run CV 0.11% = 8 独立セッションの session-median の散らばり。settle は admission (独立性でない) ため cold-boot/温度ドリフト未含 = 下限。high-abort genome はこれを上回りうる → cross-campaign データと突き合わせ保守側に採れ"
+    ]
+  }
+}

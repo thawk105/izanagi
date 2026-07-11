@@ -15,6 +15,14 @@ high-abort 域こそ run 間ドリフトが大きい (worklog: no-backoff abort 
 write-heavy(rr5, high-abort) と balanced(rr50, 既存 within 2.28% の点) の 2 点で測る。fresh な
 back-to-back セッションは cold-boot/温度ドリフトを含まない**下限**なので、wired する floor は本値と
 cross-campaign の genuine な between データ (sweep vs repro, 別時間窓) を突き合わせ保守側に採る。
+read-heavy(rr95) は段 8a D 偵察の必須前提 (D48 前提 (b)、シート F4 — trigger-gating 軸の
+最良ケース側 workload) で追加 (2026-07-11)。既存 2 点と同形 (同 genome/同動作点) で測る。
+
+**pin の注記 (2026-07-11):** 既存 2 点 (write-heavy/balanced) は dff0f1e (p2_2 歴史 pin) で
+実測済み。本 driver は以後 `pin.CURRENT_PIN` でビルドする — floor の用途は現行 pin で走る
+campaign (D 偵察等) の採否参照線であり、pin 側に合わせるのが用途に正しい。perf ビルド
+(trace=False) では izanagi-trace ブランチの差分は #if TRACE で全て消えるため物理量としての
+floor は pin 間で同等 (buildcache の nm ガードが trace シンボル混入を fails-closed に検査)。
 
   python orchestrator/campaign/between_run_floor.py            # 両動作点
   python orchestrator/campaign/between_run_floor.py write-heavy # 1 点だけ
@@ -30,11 +38,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from calibrator.analyze import noise_floor                       # noqa: E402
 from calibrator.runner import measure_point                      # noqa: E402
 from calibrator.stability import between_run_noise_floor        # noqa: E402
-from campaign import buildcache                                  # noqa: E402
+from campaign import buildcache, pin                             # noqa: E402
 from campaign.layout import env_scope_dir                    # noqa: E402
 from campaign.model import Genome                                # noqa: E402
-from campaign.p2_2 import (CCBENCH_COMMIT, CLK, ENV_TAG, EXTIME,  # noqa: E402
+from campaign.p2_2 import (CLK, ENV_TAG, EXTIME,                 # noqa: E402
                            NUMA, RECORDS, THREADS, _assert_single_tenant)
+
+CCBENCH_COMMIT = pin.CURRENT_PIN   # docstring「pin の注記」参照 (2026-07-11)
 
 # p2_2 が比較に使う stock 構成 = baseline。BACK_OFF=0 なので write-heavy では high-abort。
 BASELINE = Genome("silo", {"BACK_OFF": 0, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
@@ -47,6 +57,7 @@ SESSIONS = 8            # 独立セッション数 (CV 推定の相対 SE ~27%, 
 POINTS = [
     ("write-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"}),
     ("balanced", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}),
+    ("read-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"}),
 ]
 
 
