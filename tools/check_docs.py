@@ -48,7 +48,6 @@ LINE_REF_STRICT = [
 ]
 
 HANDOFF_DIR = REPO / "docs" / "handoff"
-HANDOFF_MAX_LINES = 60          # 定型 40 行 + 余白
 HANDOFF_STALE_SECONDS = 48 * 3600
 
 # --- 参照実在性 (2026-07-11 追加、docs 整備) ---
@@ -117,11 +116,8 @@ def main() -> int:
                 continue
             rel = f.relative_to(REPO)
             text = f.read_text()
-            nlines = len(text.splitlines())
-            if nlines > HANDOFF_MAX_LINES:
-                findings.append(
-                    f"{rel}: {nlines} 行 (> {HANDOFF_MAX_LINES})。handoff は上書き運用・40 行上限"
-                )
+            # 行数上限は撤廃 (2026-07-11 ユーザー指示: 手戻り防止が読み込みコストに優先。
+            # 正本 = handoff/README.md 運用ルール)
             status_line = next((l for l in text.splitlines() if "状態:" in l), None)
             if status_line is None:
                 findings.append(f"{rel}: ヘッダ定型 (状態:) がない — handoff/README.md の定型に従う")
