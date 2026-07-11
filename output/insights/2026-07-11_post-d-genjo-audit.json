@@ -1,0 +1,435 @@
+{
+ "title": "段 8a 段階 D 完了後の現状整合監査 (docs/実装/一次資料/E 段実行可能性)",
+ "date": "2026-07-11",
+ "trigger": "ユーザー依頼「現状を分析し、それが適切かどうか検討し、docsを更新してください」",
+ "position": "段階 D 完了 (D50) 直後・E 段人間判断 gate 前の区切り監査。07-11 (5) はサブエージェント 0 本の計測セッションで、段階 D 成果物は独立コンテキストの敵対裏取り未実施だった (規律 6 の発火条件に該当)",
+ "method": {
+  "workflow": "wf_5622c0d8-70c",
+  "lenses": [
+   "cross-doc (正本間整合)",
+   "impl-vs-record (実装照合)",
+   "numbers (数値の一次資料照合)",
+   "stage-e-readiness (E 段実行可能性)",
+   "phase3-drift (must 表/残存リスク追随)",
+   "pending-tracking (判断待ち追跡漏れ)"
+  ],
+  "finder": "Explore (読み取り専用)",
+  "verify": "finding 別敵対検証 (refute 志向、迷えば refuted 側)",
+  "agents": 19,
+  "tokens_approx": 801000,
+  "duration_min": 10.2
+ },
+ "summary": {
+  "findings_total": 13,
+  "findings_independent": 11,
+  "real": 10,
+  "partially_real": 2,
+  "refuted": 1,
+  "no_issue_confirmations": 67,
+  "headline": "E 段 gate の判断材料 (floor 超地形表・完了主張・campaign/コミット/参照ファイルの実在) は 4 正本一致で歪みなし。見つかった誤りは記述レベル (分母ラベル・stale literal・全称の過大) で、軸の生死判断を変えるものはない"
+ },
+ "adjudication": [
+  {
+   "id": "L1-1/L2-1/L3-1",
+   "severity": "medium",
+   "verdict": "real",
+   "裁定": "採用 (3 レンズが独立に同一指摘 — 収束)。recon insight の abort 総数分母の workload ラベル 3 者取り違え。正 = 149K (balanced) / 156K (write-heavy) / 71K (read-heavy)。E 段 gate の判断材料 (floor 超地形・不感判定) には非波及。",
+   "対応": "recon insight 該当行を訂正注記付きで修正"
+  },
+  {
+   "id": "L1-2",
+   "severity": "low",
+   "verdict": "partially-real",
+   "裁定": "採用 (訂正 claim ベース)。「同 `-provenance.json`」は自然な読みでは実在ファイルに解決するが曖昧な省略記法。",
+   "対応": "phase3.md の参照を明示パスに置換"
+  },
+  {
+   "id": "L2-2",
+   "severity": "low",
+   "verdict": "real",
+   "裁定": "採用。回帰テスト 2 本はフル revert への歯を持つ (検証役確認) が、build() との結線だけを外す将来 refactor には緑のまま。コード変更は本監査の範囲外。",
+   "対応": "見送り台帳に統合テスト 1 本の余地を台帳化"
+  },
+  {
+   "id": "L3-2",
+   "severity": "low",
+   "verdict": "real",
+   "裁定": "採用。「全評価点 certified」は本走 stock 2 点 (balanced/write-heavy = aborted/build-error) を含めると文字通りには不正確。教訓節・骨格常駐コストの再測由来明示という緩和材料はあるが、無限定の全称は訂正すべき。",
+   "対応": "recon insight の当該行を限定表現に訂正"
+  },
+  {
+   "id": "L4-1",
+   "severity": "low",
+   "verdict": "real",
+   "裁定": "採用。E 段 provenance への情報源記録義務は 7 箇所で明文化されているが実装先 (どのファイルのどのフィールドか) が未定義で、既存 loop 基盤 (p3_s4_loop*.py) に受け皿がない。E 段 gate の判断自体は歪めない (着手時タスク)。",
+   "対応": "phase3.md 8a 項の残るタスクに「E 着手時の最初の設計タスク = 実装先確定」を明文化"
+  },
+  {
+   "id": "L4-2",
+   "severity": "low",
+   "verdict": "real",
+   "裁定": "採用。agent-architecture.md §coder が E-loop 自律 coder (tools:[]) を反映せず §planner の addendum と非対称 — E 段着手時に同ファイルを正本として読むと誤誘導。",
+   "対応": "§coder に §planner と対称の coder-v4-autonomous addendum を追記"
+  },
+  {
+   "id": "L5-1",
+   "severity": "medium",
+   "verdict": "real",
+   "裁定": "採用。「適用の隔離」(現役の規定) の CURRENT_PIN literal が段 5 の前進 (028f34d→d706650、コミット 5cc693b) に未追随。07-11 (3) の S2 pipeline drift と同型。可変状態の literal 再掲そのものが構造原因。",
+   "対応": "phase3.md の literal 再掲をやめ pin.py への集約を明示 + 前進経緯を注記"
+  },
+  {
+   "id": "L5-2",
+   "severity": "low",
+   "verdict": "real",
+   "裁定": "採用。残存リスク見出し「未予約」が段 6 前提タスク (e) の予約・D45 の部分遮断と自己矛盾 (見出しが (e) 追加の約 5 時間前に書かれ未改訂)。",
+   "対応": "見出しを現状 (段 4 で部分消化・完全版は 6(e) 予約済み) に追随"
+  },
+  {
+   "id": "L6-1",
+   "severity": "medium",
+   "verdict": "partially-real",
+   "裁定": "採用 (訂正 claim ベース)。pipeline._abort 診断改善は D50 教訓節で恒久記録されるが actionable なタスク台帳には無い。見送り台帳の字義スコープ (過去の次の一手由来) 外だが、台帳の存在理由 (worklog 全読しないと発掘できない状態の解消) に合致。",
+   "対応": "見送り台帳に出自明記で追加"
+  },
+  {
+   "id": "L6-2",
+   "severity": "low",
+   "verdict": "real",
+   "裁定": "採用。ftruncate-xor insight の還元判断欄が #116/#118 完了に未追随のまま前方追跡なし。insight への追記訂正は 07-10 (19) がユーザー判断待ちと明示しているため insight 自体は触らない。",
+   "対応": "見送り台帳に台帳化 (追記訂正はユーザー判断待ちのまま)"
+  },
+  {
+   "id": "L6-3",
+   "severity": "low",
+   "verdict": "refuted",
+   "裁定": "棄却。worklog 07-10 (19) 自体が持ち越しを正本に固定しており追跡先は失われていない。handoff の未コミット削除は README 規定どおりの正常運用。",
+   "対応": "なし"
+  }
+ ],
+ "findings_full": [
+  {
+   "lens": "cross-doc",
+   "findings": [
+    {
+     "id": "L1-1",
+     "severity": "medium",
+     "claim": "偵察 insight の要因頻度節が abort 総数 (分母) の workload ラベルを 3 者取り違えており、正本データ JSON および同 insight 内の別記述と矛盾する。",
+     "evidence": "output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json の abort_counts は read-heavy=71110(71K, L44)/balanced=149216(149K, L63)/write-heavy=155988(156K, L82)。しかし output/insights/2026-07-11_s8a-trigger-gating-recon.md:26 は「分母 = 実測 abort 総数 71K (balanced) / 149K (write-heavy) / 156K (read-heavy)」と各値を誤った workload に付与。さらに同 insight L99 は正しい対応 (balanced は lc 82K>rl 51K=JSON の 82436/50574、write-heavy は lc 149K/156K=JSON の 149369/155988) を用いており、L26 と L99 が自己矛盾。",
+     "suggested_fix": "recon.md:26 の分母ラベルを JSON に合わせ「149K (balanced) / 156K (write-heavy) / 71K (read-heavy)」に訂正する。",
+     "files": [
+      "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+      "output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json"
+     ],
+     "lens": "cross-doc",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "一次資料を自分で開いて確認。JSON (s8a_trigger_freq_t48.json) の abort_counts は read-heavy=71110 (L44), balanced=149216 (L63), write-heavy=155988 (L82) — つまり正本の対応は 71K=read-heavy / 149K=balanced / 156K=write-heavy。insight L26 は「71K (balanced) / 149K (write-heavy) / 156K (read-heavy)」と 3 者すべてを別 workload に付与しており、正本と全て食い違う (3-way 取り違え、finding の記述どおり)。さらに同 insight L99「balanced は lc 82K>rl 51K、write-heavy は lc 149K/156K」は JSON (balanced lock-conflict=82436/readvali-locked=50574、write-heavy lock-conflict=149369/abort=155988) と一致する正しい対応を使っており、write-heavy 総数を 156K・balanced 総数を 149K として扱う点で L26 (write-heavy=149K, balanced=71K) と自己矛盾する。suggested_fix「149K (balanced) / 156K (write-heavy) / 71K (read-heavy)」も JSON に厳密一致。claim・evidence・fix すべて成立。severity=medium はやや高め — 当該箇所は preliminary 偵察 insight の括弧内 descriptive な分母ラベルで、不感判定 (=0、workload 非依存) や結論・利得表には波及しない性質。ただし正本 JSON との不一致 + 文書内 (L26 vs L99) の自己矛盾という明確な事実誤りであり、low〜medium 相当は妥当。"
+     }
+    },
+    {
+     "id": "L1-2",
+     "severity": "low",
+     "claim": "phase3.md の 07-10 n=1 一次資料への相互参照が、字義どおり解決すると実在しないパスを指す。",
+     "evidence": "docs/phase3.md:233-234 は「`2026-07-10_s8a-n1-proposal-and-scoring.json` + 同 `-provenance.json`」と記す。この連結は output/insights/2026-07-10_s8a-n1-proposal-and-scoring-provenance.json を意味するが、ls 上そのファイルは存在しない (MISS)。実在する provenance は output/insights/2026-07-10_s8a-n1-provenance.json。",
+     "suggested_fix": "phase3.md:234 の参照を明示パス `output/insights/2026-07-10_s8a-n1-provenance.json` に置換する。",
+     "files": [
+      "docs/phase3.md",
+      "output/insights/2026-07-10_s8a-n1-provenance.json"
+     ],
+     "lens": "cross-doc",
+     "verdict": {
+      "verdict": "partially-real",
+      "reasoning": "一次資料を自分で確認した。docs/phase3.md:233-234 は finding の引用どおり「`output/insights/2026-07-10_s8a-n1-proposal-and-scoring.json` (提案・採点全文) + 同 `-provenance.json`」と記す (自分で Read で確認)。ls/存在確認の結果、`output/insights/2026-07-10_s8a-n1-proposal-and-scoring-provenance.json` は不在、`output/insights/2026-07-10_s8a-n1-provenance.json` (67955 bytes) は実在 — finding の存在事実は全て正しい。加えて phase3.md:235 の provenance 説明 (三点セット: raw の脚/射影版入力/落とした対応表) は当該 67KB ファイルの内容と一致し、意図された参照先が s8a-n1-provenance.json であることを裏付ける。ただし headline claim「字義どおり解決すると実在しないパスを指す」は過大。「同」は ditto の省略記法で、自然な読み (共通 stem `2026-07-10_s8a-n1` を共有し末尾のみ `-provenance.json` に差し替え) では実在ファイルに正しく解決する。実在しないパスは、前ファイル名の全 stem に `-provenance.json` を単純連結するという不自然な parse を選んだ場合にのみ生じる。よって「壊れた参照」ではなく「明示パスでない曖昧な省略記法」が実態。severity low は妥当 (成立してもドキュメント明確化の nit にとどまる)。suggested_fix (明示パス化) は明確化として妥当だが、断定的な MISS 主張は成立しないため partially-real。",
+      "corrected_claim": "phase3.md:234 の 07-10 n=1 provenance 参照は省略記法「同 `-provenance.json`」で書かれており明示パスでない (曖昧)。自然な読み (共通 stem `2026-07-10_s8a-n1` + `-provenance.json`) では実在する `output/insights/2026-07-10_s8a-n1-provenance.json` に正しく解決するが、前ファイル名全体への単純連結という parse では実在しない `...-proposal-and-scoring-provenance.json` になり得る。断定的に壊れているのではなく、明示パス化で曖昧さを解消できる doc 明確化 nit。"
+     }
+    }
+   ],
+   "confirmations": [
+    "floor 超地形表 (balanced g_rl +84.5%/再測+91.0%、write-heavy g_rt +61.2%/+61.3%、read-heavy g_rl +98.9%/+98.7%) は insight(L82-84)・D50(decisions.md L1841-42)・phase3(L256-57) で一致し、campaign 本走 report の実数 (balanced +84.53%、write-heavy +61.17%、read-heavy +98.85%) とも整合。E 段 gate の判断材料は歪んでいない。",
+    "完了主張は 4 文書一致 — worklog(5)・phase3 L254・D50・insight とも「段 8a 段階 D 完了 (2026-07-11、D50)」「E 段は人間判断 gate 待ち」で、完了/未了の食い違いなし。",
+    "テスト数 352→(buildcache 修正後)354 は insight L43/L142 と D50 L1865 で一致 (352 + 回帰 2 本 = 354)。",
+    "残骸全数点検 7 個 (今回の毒 1 + 2026-06-19 の Phase2 期 trace 残骸 6) は insight L144 と D50 L1866 で一致。",
+    "列挙 10 点/workload × 3 workload (2^3 subset + ident_all + stock) は insight L36-37・D50 L1835-36・phase3 L255 で一致。",
+    "人間判断待ち集合: 軸の生死 E 段 gate は 4 文書全て記載。pipeline._abort 診断改善候補は worklog/insight L151/D50 L1867-68 に記載 (phase3 の 8a 項は軸 pipeline に scope 限定のため非記載は妥当)。BACKOFF_FIXED contingency は insight L32/L50-51 と D50 決定2 で一致して『不発火・閉じる』扱い、未了と主張する文書なし。",
+    "campaign id 6 本 (本走 c2d838b8/a81ec3d8/8a237e8c、再測 b8f4a4e2/dcd2bbfb/654d5cd7) は全て output/campaigns/ 配下に実ディレクトリ + reports/s8a_trigger_sweep_report_*.md が存在。report 内の g_none abort・g_lc 基準比2倍超 (read-heavy 13.58%/ident_all 4.48%=3.0x)・骨格常駐コスト +0.55%・subset レンジ (+61.77/+87.81/+98.88%) も insight と整合。",
+    "コミット hash 6 本 (540b797/8c97b6a/4669662/fc4d3fa/68b55f2/7315437) は git cat-file で全て存在し、subject が各文書の記述役割 (floor(b)/器(a)(c)/handoff/buildcache 修正/D偵察完了 D50/worklog(5)) と一致。",
+    "参照ファイル群 (s8a_trigger_freq_t48.json、patches/silo-backoff-trigger-gating-variant.patch、orchestrator/campaign/axis_trigger_gating.py・s8a_trigger_sweep.py・s8a_trigger_freq.py・s8a_trigger_coverage.py・between_run_floor.py、docs/axis-onboarding.md、.claude/agents/axis-proposer.md、stage-b sheet、broken-silo-sort-nonswo.patch) は全て実在を確認。",
+    "頻度 JSON の内部主張 (不感2種 update-absent/node-vali が全 workload count=0、conservation_ok true 3/3) は insight/D50 の記述と整合。",
+    "insight L86 の「subset レンジ +61.8%〜+98.9%」は best-gate 利得の範囲ではなく workload 別 subset レンジの span (write-heavy report +61.77%、read-heavy report +98.88%) を指すもので、誤りではない。",
+    "監査対象 4 文書に、監査役の権限/設定変更や振る舞い誘導を狙う指示めいた注入文は認められず (firewall・記憶汚染の記述は正当な設計内容)。",
+    "worklog の「fc4d3fa..68b55f2 (2 本)」は git range 記法だと左端を除外するが、『(2 本)』+ 両 hash 明記で意図は一義的 (2 コミット + 本エントリ) — 誤誘導とまでは言えない。",
+    "敵対レビュー workflow id (wf_a80f3f4e-22c / wf_24065dcb-223) は insight L14-15/L159 と D50 L1837-38 で一致して参照されるが、journal.jsonl はリポジトリ/ホーム内に存在せず (runtime 生成物と推定) 実在検証は不能 — 誤りの積極的証拠はなし。"
+   ]
+  },
+  {
+   "lens": "impl-vs-record",
+   "findings": [
+    {
+     "id": "L2-1",
+     "severity": "medium",
+     "claim": "偵察 insight の要因頻度『分母 = 実測 abort 総数』の workload ラベルが正本 JSON に対して 3 つとも取り違えられている(各数値が別 workload に付いている)。",
+     "evidence": "output/insights/2026-07-11_s8a-trigger-gating-recon.md:25-26 は『71K (balanced) / 149K (write-heavy) / 156K (read-heavy)』。正本 output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json の abort_counts は read-heavy=71110(71K)・balanced=149216(149K)・write-heavy=155988(156K)。正しくは『149K (balanced) / 156K (write-heavy) / 71K (read-heavy)』。同 insight line 99『write-heavy は lc 149K/156K』は JSON と整合(write-heavy lock-conflict=149369, abort総数=155988)しており line 26 と自己矛盾している。",
+     "suggested_fix": "insight line 25-26 を『分母 = 実測 abort 総数 149K (balanced) / 156K (write-heavy) / 71K (read-heavy)』へ訂正(数値自体は実在、workload ラベルのみ回転)。D50/phase3 側にはこの分母数値は転記されていないため insight の 1 箇所修正で閉じる。",
+     "files": [
+      "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+      "output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json"
+     ],
+     "lens": "impl-vs-record",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "一次資料を両方開いて確認。正本 output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json の abort_counts は read-heavy=71110(71K)・balanced=149216(149K)・write-heavy=155988(156K)。insight output/insights/2026-07-11_s8a-trigger-gating-recon.md:25-26 は『71K (balanced) / 149K (write-heavy) / 156K (read-heavy)』で、3 数値とも別 workload に付いている(read-heavy→balanced→write-heavy→read-heavy の巡回取り違え)。数値自体はすべて実在し、ラベルのみ回転。同 md:99『write-heavy は lc 149K/156K』は JSON(write-heavy lock-conflict=149369, abort総数=155988)と整合し、line 26 と自己矛盾しており claim を裏付ける。grep で 71K/149K/156K は md 内の 25-26 行と 99 行にしか現れず(trace_*.log のヒットは無関係なアドレス/値で分母ではない)、D50/phase3・reports へ未転記 = 1 箇所修正で閉じるという scope も成立。severity=medium は妥当だが、当該 insight は firewall 下の偵察 (preliminary) ドキュメントで下流伝播がないため low 寄りの medium と評価できる。claim・corrected 値・自己矛盾指摘・修正 scope すべて成立。"
+     }
+    },
+    {
+     "id": "L2-2",
+     "severity": "low",
+     "claim": "buildcache 修正の回帰テスト 2 本は helper _clear_stale_build_dir を単体で検証するのみで、build() が configure 前にそれを呼ぶ結線(buildcache.py:110)を assert しない。フル revert には赤くなる歯を持つが、呼び出し 1 行だけを外す将来 refactor には緑のまま永続毒が再発しうる。",
+     "evidence": "orchestrator/tests/test_campaign.py:63,78 の 2 本は buildcache._clear_stale_build_dir(...) を直接呼ぶ(コミット fc4d3fa をフル revert すると helper 定義も消え AttributeError で両方 red = 歯はある)。しかし呼び出し側 orchestrator/campaign/buildcache.py:110 の結線を検証する統合テストは無く、helper を残したまま line 110 の呼び出しだけを外す変更ではテストは緑を維持し、insight:141 / decisions.md D50 が『回帰固定/回帰テスト 2 本』と謳う永続毒が沈黙再発する。",
+     "suggested_fix": "記録上の主張(insight:141・D50)は本数=2 とフル revert への発火という点で正確なので docs 変更は不要。将来のために build() が binary 不在残骸を configure 前に破棄する結線を assert する統合テストを 1 本足す余地がある旨を残存リスク欄に一言添える程度で十分(コード変更は本監査の範囲外)。",
+     "files": [
+      "orchestrator/tests/test_campaign.py",
+      "orchestrator/campaign/buildcache.py"
+     ],
+     "lens": "impl-vs-record",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "全要素を一次資料で確認。(1) test_campaign.py:56 test_buildcache_clears_stale_build_dir と :69 test_buildcache_stale_clear_spares_complete_and_absent の 2 本は buildcache._clear_stale_build_dir(...) を直接呼ぶ単体テスト (実呼出は 65/75/78 行、finding の 63/78 は微小にズレるが対象テストは正しい)。どちらも build() を起動しない。(2) 結線は buildcache.py:110 の _clear_stale_build_dir(bdir, binary)、直後 111 が _run(cfg, 'configure')。(3) git show fc4d3fa で当該コミットが call(110)と helper 定義(177-189)の両方を追加=フル revert で helper 消失→両テスト AttributeError で red、歯は実在。(4) 実 build() を駆動する 3 テスト (1573/1611/1726) は全て bdir 不在から開始するため line110 は no-op、line110 削除でも全緑。ステール dir (CMakeCache あり binary 無し dir 存在) を作って build() を呼ぶ統合テストは repo 全体 (grep 済、test_campaign.py が唯一のテスト) に存在せず、helper 残置で line110 だけ外す refactor は緑を維持=永続毒が沈黙再発しうる、が成立。(5) insight 141 行・decisions.md D50(1865 行)とも『回帰テスト 2 本』と記載、本数=2・フル revert 発火は正確で docs 訂正不要という finding の評価も妥当。補強点: repo は test_build_cache_miss_wires_recheck(1611)で『単体テストは直接呼ぶため build() 側呼出を消しても全緑=結線消失を検出できない』という同型の結線テストを既に慣行化しているのに、_clear_stale_build_dir にはそれが無い。severity=low は妥当 (現行コードは正しく、将来 refactor に対するテスト頑健性の欠落に限る、コード変更不要)。"
+     }
+    }
+   ],
+   "confirmations": [
+    "(a) 配置: buildcache.py:110 の _clear_stale_build_dir 呼び出しは cache-hit return(99-108 行, binary 存在時)より後・_run(cfg,'configure')(111 行)より前に置かれ、insight/D50 の『configure 前に破棄』と一致。",
+    "(a) cache-hit(binary あり完成品)不触: build() は line 99 で binary 存在なら return するため line 110 に到達せず、加えて helper 自身が buildcache.py:188 で `not os.path.exists(binary)` を再ガードする二重防護。恒真な保証ではなく、実発火条件は `os.path.isdir(bdir)`(binary 不在の残骸 dir)で確認。",
+    "(a) テストの歯: test_buildcache_clears_stale_build_dir は残骸 dir が破棄されること(body が no-op なら失敗)、test_buildcache_stale_clear_spares_complete_and_absent は完成 binary 温存(binary ガードを外すと失敗)を assert。両者ともフル revert では AttributeError で red。テスト本数 2 と『352→354(+2)』の算術も 2 本追加と整合。",
+    "(b) 10 点/workload: candidates() は 2^3 subset(空集合 g_none 含む)+ ident_all = 9、candidate_names が先頭に stock を付けて 10。effective=3 は freq JSON の effective_reasons=[lock-conflict,readvali-tid,readvali-locked]。test_candidates_counts_and_uniqueness(2^N+1)+stock 検査で機械固定。",
+    "(b) 動作点 p2_2: THREADS=48・RECORDS=1_000_000・REPS=5・EXTIME=3(p2_2 由来)、CLK=1800、NUMA=numactl --interleave=all、全 workload の ycsb_zipf_skew=0.9 を実測確認 — insight の『t48/1M/skew0.9/reps5/extime3/CLK1800/interleave』と一致。test_perf_is_p2_2_operating_point が (1M,48,3,5) を固定。",
+    "(b) 全点 verify legacy+s2 / 基準 ident_all / floor fails-closed: config_for が SEARCH_CONFIG_VERIFY_KEY=VERIFY_LEGACY_PLUS_S2 を焼き(test_config_wires_s2_verify_and_provenance)、report() は ident_row を基準に _rel を出し、_floor_uncalibrated は退化点・abort材料欠落・ident_all比2倍超で True を返す fails-closed。insight の主張と一致。",
+    "(b) 実効 3 ビット + 不感 2: freq JSON の effective_reasons=[lock-conflict,readvali-tid,readvali-locked]、insensitive_reasons=[update-absent,node-vali] は全 workload カウント 0、conservation_ok 全 true。insight の『実効 3・不感 2・保存則 3/3 OK』と一致。",
+    "(c) #if 囲み stock inert: patch は enum・thread_local・7 stores・gate 器の全てを `#if BACKOFF_TRIGGER_GATING` で囲み、フラグ 0 では EVOLVE-BLOCK の `#else` が原文 `Backoff::backoff(FLAGS_clocks_per_us);` を無条件維持 → preprocess 後 pinned HEAD と原文一致。D48/D49・phase3:244 の『#if 囲み stock inert』と一致。",
+    "(c) thread_local 7 点全 store: 記録店は kInsertNode/kLockConflict/kUpdateAbsent/kReadValiTid/kReadValiLocked/kNodeVali/kScanNode の 7 サイト(patch 内で確認)。『7 点全 store』と一致(begin() の sentinel リセットは別途 sentinel fail-safe 側として存在)。",
+    "(c) sentinel fail-safe: kUnset=0 を sentinel とし begin() で毎 tx リセット(misattribution guard)、gate 述語は predicate_for が常に kUnset 項を含め kUnset→true(=backoff=stock)へ写す fail-safe 契約。D48/D49 と一致。",
+    "(D50/phase3 記録の整合): decisions.md D50 と phase3.md:244-257 の floor 超数値(balanced g_rl +84.5%/+91.0%、write-heavy g_rt +61.2%/+61.3%、read-heavy g_rl +98.9%/+98.7%)・実効3ビット・骨格設計(#if inert/7 store/sentinel)は insight およびコード/patch と一致し、実装矛盾なし。"
+   ]
+  },
+  {
+   "lens": "numbers",
+   "findings": [
+    {
+     "id": "L3-1",
+     "severity": "medium",
+     "claim": "偵察 insight の必須前提 (a) にある abort 総数分母 3 個が workload に取り違えられている (3 者とも誤ラベルの巡回置換)。",
+     "evidence": "output/insights/2026-07-11_s8a-trigger-gating-recon.md:26 は「分母 = 実測 abort 総数 71K (balanced) / 149K (write-heavy) / 156K (read-heavy)」。だが一次資料 output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json の abort_counts は read-heavy=71110・balanced=149216・write-heavy=155988 (ycsb_rratio 95/50/5 で各 workload を確定)。正しくは 71K=read-heavy・149K=balanced・156K=write-heavy。しかも同 insight:99 は write-heavy 総数を「lc 149K/156K」と 156K で正しく扱っており内部矛盾。freq JSON 側は自己整合 (read-heavy が最少 abort で妥当)。",
+     "suggested_fix": "insight:26 を「71K (read-heavy) / 149K (balanced) / 156K (write-heavy)」に訂正。",
+     "files": [
+      "/home/tanab/github/izanagi/output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+      "/home/tanab/github/izanagi/output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json"
+     ],
+     "lens": "numbers",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "一次資料を自分で開いて確認。JSON (s8a_trigger_freq_t48.json) の各 workload は rratio で確定: read-heavy(rratio95, L28-45) abort_counts=71110 (L44)、balanced(rratio50, L47-64) abort_counts=149216 (L63)、write-heavy(rratio5, L66-83) abort_counts=155988 (L82)。よって正しい対応は 71K=read-heavy / 149K=balanced / 156K=write-heavy。insight L26 は「71K (balanced) / 149K (write-heavy) / 156K (read-heavy)」と 3 者全て誤ラベル。値→ラベルの写像は read-heavy→balanced, balanced→write-heavy, write-heavy→read-heavy の 3-cycle で、finding の「巡回置換」記述どおり。内部矛盾も確認: insight L99「write-heavy は lc 149K/156K」は write-heavy の lc=149369(149K)・総数=155988(156K) を正しく扱い、write-heavy 総数を 156K としており L26 の「149K (write-heavy)」と食い違う(149K=149216 は本来 balanced 総数、write-heavy の lc 149369 とは別値でどちらも 149K に丸まる偶然)。JSON 側は自己整合で read-heavy が最少 abort、rratio95=read/rratio5=write の標準解釈も妥当。finding の主張・訂正案 (71K=read-heavy/149K=balanced/156K=write-heavy) は完全に成立。severity=medium は妥当だが、本 insight は「偵察 (preliminary)・段 6 headline 非対象・firewall で E 段へは生死二値のみ流す」明記の探索補助文書で、abort 総数は前提 (a) の分母記述に留まり gate 結果自体は per-workload で正しく処理されているため、実害面では low〜medium の下寄りと評価する。"
+     }
+    },
+    {
+     "id": "L3-2",
+     "severity": "low",
+     "claim": "「全評価点 certified」は本走 stock (balanced・write-heavy) が build-error で aborted のため文字通りには不正確。",
+     "evidence": "insight:87「全評価点 certified (legacy+s2 とも anomaly 0)」。しかし provenance p3-...-balanced-sweep-c2d838b8 の stock は outcome=\"aborted\"、p3-...-write-heavy-sweep-a81ec3d8 も stock outcome=\"aborted\" (grep: aborted 1 / certified 9)。両本走 report でも stock は certified ✗「ABORT: build-error」。read-heavy 本走 stock と全 remeasure stock は certified。緩和材料: 同 insight §教訓 (124-151 行) が stock 欠測を明記し、骨格常駐コスト (balanced -1.24% / write-heavy -0.85%) は remeasure campaign から取得と§結果:92-93 に明示。なお「anomaly 0」「legacy+s2」の内訳は report/provenance に anomaly フィールドが無く直接は非明示 (certified 判定が verify 通過を含意)。",
+     "suggested_fix": "insight:87 を「floor地形の評価点 (subset/control/degenerate) と ident_all は全 campaign で certified。stock 本走 2 点は build-error で別掲・remeasure で回復」と限定表現に。",
+     "files": [
+      "/home/tanab/github/izanagi/output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+      "/home/tanab/github/izanagi/output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-c2d838b8/reports/s8a_trigger_sweep_provenance.json",
+      "/home/tanab/github/izanagi/output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8/reports/s8a_trigger_sweep_provenance.json"
+     ],
+     "lens": "numbers",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "一次資料を自分で開いて全点確認。(1) insight md 行87 実体 = 「- 全評価点 certified (legacy+s2 とも anomaly 0)。unstable なし。」— 「floor 超地形」節下の無限定な全称。(2) balanced provenance (p3-...-balanced-sweep-c2d838b8) の stock entry は outcome=\"aborted\"/category=\"stock\"/src_token=\"stock\"、outcome 集計 = aborted 1 + certified 9。(3) write-heavy provenance (a81ec3d8) も同一 = stock outcome=\"aborted\"、aborted 1 + certified 9。(4) 両 report md の stock 行は certified=✗・備考「ABORT: build-error」。よって「全評価点 certified」は本走 stock 2 点 (balanced/write-heavy) が aborted のため文字通りには不正確 = claim 成立。緩和材料も実在確認: 教訓節 (124-151) が stock build-error 欠測を明記、行92-93 が骨格常駐コスト balanced -1.24%/write-heavy -0.85% を「再測」由来 (read-heavy のみ本走) と明示 = 本走 stock 欠測を暗黙に認めている。finding の caveat も正直 (provenance に anomaly フィールド無し、grep=0 で確認、certified が verify 通過を含意)。唯一の解釈余地は「評価点」に別掲 stock (行41「別掲用に 1 点」、行39-40 で基準を ident_all に) を含むかだが、finding は「文字通りには」と hedge し low 扱いにしており過剰主張していない。severity=low は妥当 — 数値・結論に波及しない語の精度 nit で、同 insight 内に既に自己文書化済み。"
+     }
+    }
+   ],
+   "confirmations": [
+    "floor超表の本走列 (balanced g_rl +84.5% / write-heavy g_rt +61.2% / read-heavy g_rl +98.9%) を各本走 report の median_tps から再計算し一致 (84.53/61.17/98.85% → 丸め一致)。さらに balanced 本走は WAL wal.jsonl の生 median_tps (g_rl 1,705,451 / ident_all 924,221) から独立再計算しても +84.53% で report と完全一致 (report が生データに忠実)。",
+    "floor超表の再測列 (balanced +91.0% / write-heavy +61.3% / read-heavy +98.7%) を remeasure report の生 median から再計算し一致 (91.00/61.28/98.73%)。全て remeasure campaign の WAL 生 median からも再現。",
+    "再測点の本走比 (+0.04% / -1.2% / +0.75%) を g_(best) の再測/本走 median 比から再計算し一致 (+0.0434 / -1.16 / +0.75%、丸め整合)。",
+    "骨格常駐コスト (+0.55% read-heavy本走 / -1.24% balanced再測 / -0.85% write-heavy再測) を ident_all/stock median 比から再計算し一致 (+0.55 / -1.24 / -0.85%)。各コストの出典 campaign (read-heavy は本走、balanced/write-heavy は stock 本走欠測のため再測) のラベルも正しい。",
+    "不感縮約 backstop (g_lc+rt+rl vs ident_all: -1.75% / -0.37% / +0.77%) を各本走 median 比から再計算し一致 (-1.75 / -0.37 / +0.77%)。",
+    "high-abort 分離点の主張を全 report の abort率で検証: g_none 全 workload (balanced 70.17 / write-heavy 81.59 / read-heavy 15.86%) high-abort 明記、write-heavy g_rl abort 41.85%→41.9%、read-heavy g_lc 13.58% は ident_all 4.48% の 3.03 倍 (2倍超)、read-heavy g_none 8,348,300 (8.35M) abort 15.86%→15.9% — 全て insight:88-89,104 と一致。分離点リストは各 report の high-abort フラグと過不足なく一致 (漏れ・過剰なし)。",
+    "freq JSON の実効 3 ビット {lock-conflict, readvali-tid, readvali-locked} = effective_reasons と一致。不感 2 種 {update-absent, node-vali} は全 3 workload で count 0。保存則 (reason_tally 総和 == abort_counts) を 3 workload とも手計算で確認 (71110/149216/155988) し conservation_ok=true と一致 = 3/3。",
+    "分母の集合 {71K,149K,156K} 自体は freq JSON と一致 (取り違えは workload 割当のみ、L3-1 参照)。",
+    "§示唆:99 の支配要因数値 (balanced lc 82,436≈82K > rl 50,574≈51K、write-heavy lc 149,369≈149K / 総数 156K) は freq JSON と一致。非比例主張「workload 横断で再現」は read-heavy の最良較正 gate (g_rl) が支配要因 rl と一致し一見矛盾に見えるが、read-heavy では最希少要因 lc (5,536) を gate した g_lc が 7.13M tps を出す非比例が別途成立するため、主張自体は擁護可能と判断 (finding としない)。",
+    "subset レンジ +61.8%〜+98.9% (write-heavy 本走 +61.77 / read-heavy 本走 +98.88、balanced +87.81 が中間) を各 report のレンジ値から確認し一致。floor ±3.0% を「1 桁上回る」も 84.5/61.2/98.9% ÷ 3.0% で成立。",
+    "floor_cv=0.03 が全 provenance に記録され insight:27 の read-heavy floor=0.030、report の floor 0.030 参考線と整合。freq JSON の動作点 (threads48/records1e6/skew0.9/clocks1800) も p2_2 確定条件と整合 (freq は characterization につき extime=1 で性能数値なし、と JSON purpose に明記)。",
+    "gate 述語の provenance implementation を全点確認: 各 g_* の izanagi_gate_pass 論理和が gate 名 (lc/rt/rl の subset) と対応、ident_all は 6 reason 全網羅の恒等 gate、stock は BACKOFF_TRIGGER_GATING=0 — insight の「比較基準=ident_all」「実効全集合 g_lc+rt+rl」の定義と整合。"
+   ]
+  },
+  {
+   "lens": "stage-e-readiness",
+   "findings": [
+    {
+     "id": "L4-1",
+     "severity": "low",
+     "claim": "E段 provenance への「偵察 insight を見た」情報源記録義務 (D46 (a) ループ版) は 6 箇所以上で明文化されているが、実装先 (どのファイル/フィールド/機構が記録するか) がどこにも指定されておらず宙吊りで、既存 loop 基盤に受け皿が無い。",
+     "evidence": "義務の記述: output/insights/2026-07-11_s8a-trigger-gating-recon.md:12-13,112 / docs/axis-onboarding.md:165 / orchestrator/campaign/axis_trigger_gating.py:15-16 / D48 条件7 (docs/decisions.md:1742-1744) / D50 決定1 (docs/decisions.md:1855-1856) / docs/worklog.md:1798。一方、実装先の検索: grep -niE 'provenance|情報源|recon|偵察|insight' を orchestrator/campaign/p3_s4_loop.py と p3_s4_loop_sort.py に掛けて 0 hit。E driver の LoopState/state 書き出し (p3_s4_loop.py:411 の json.dump) にも該当フィールド無し。sort runbook のリーク制御チェックリスト (docs/phase3-s5-sort-runbook.md:148 の §2) にも「偵察を見た」記録項目は無い。trigger-gating は D→E の新順序を通る初の軸ゆえ sort の前例 (recon が loop の後手) が流用できず、記録先が真に未定義。",
+     "suggested_fix": "E着手前に記録先を確定する — 例えば axis-onboarding §3-E の E driver 成果物リストか phase3-s5-sort-runbook §2 チェックリストに「campaign provenance/LoopState に recon_insight_seen 等の情報源フィールドを持たせ E driver 起動時に記録」を機構として明記し、D50 か新 D エントリで実装先 (ファイル・フィールド名) を指定する。現状は義務文だけで機械記録の宿主が無い。",
+     "files": [
+      "/home/tanab/github/izanagi/docs/axis-onboarding.md",
+      "/home/tanab/github/izanagi/orchestrator/campaign/p3_s4_loop.py",
+      "/home/tanab/github/izanagi/orchestrator/campaign/axis_trigger_gating.py",
+      "/home/tanab/github/izanagi/output/insights/2026-07-11_s8a-trigger-gating-recon.md"
+     ],
+     "lens": "stage-e-readiness",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "全ての実体を一次資料で確認した。(1) 義務の明文化 ≥6 箇所: output/insights/2026-07-11_s8a-trigger-gating-recon.md:13「E 段 campaign provenance に「偵察 insight を見た」の情報源記録を義務付ける (D46 (a) のループ版)」・同 47・同 112 / docs/axis-onboarding.md:169「偵察 insight を見た事実は campaign provenance に情報源として記録する (D46 残存リスク (a) のループ版)」/ orchestrator/campaign/axis_trigger_gating.py:15-16 同旨 / docs/decisions.md:1855-1856 (D50 決定1)「E 段 provenance への情報源記録義務 (D46 (a) ループ版) は不変」/ docs/worklog.md:1799「provenance 記録義務」。加えて finding 未引用の orchestrator/campaign/s8a_trigger_sweep.py:432 にも同文があり、実際は 7 箇所目。よって「6 箇所以上」は堅く成立。(2) 実装先の未指定: grep -niE 'provenance|情報源|recon|偵察|insight' を p3_s4_loop.py / p3_s4_loop_sort.py に掛け 0 hit (exit 1) を再現。LoopState (p3_s4_loop.py:117-125) のフィールドは whiteboard/iteration/start_wall/reverse_recommendations のみで情報源フィールド無し。save_loop_state の json.dump (state_to_dict) にも該当無し。CampaignConfig (model.py:59-70) は spec_slug/search_tag/spec_content/search_config のみで provenance 情報源フィールド無し。recon_insight_seen 等の具体フィールド名を docs/orchestrator/output 全体で grep しても 0 hit — 記録先は真に抽象文 (「campaign provenance に情報源として記録する」) のみ。(3) 既存 provenance 機構は D 段 sweep ツール専用: _write_provenance は s8a_trigger_sweep.py:338 / s6_sort_sweep.py:296 が reports/*_provenance.json を書くが、スキーマ (space_version/workload/trial/pin/effective_reasons/floor_cv/freq_source/firewall/variant impl) に「偵察を見た」情報源欄は無く、E 段 loop driver はこの provenance.json を一切書かない。sort runbook §2 (phase3-s5-sort-runbook.md:148-) はリーク排除チェックリストで、情報源記録項目は無し (finding 通り)。(4) trigger-gating の E 段 driver は未実装 (find で s8a_trigger_* = D 段のみ、p3_s4_loop_trigger_gating.py 等は不在)。worklog も「E 段へ進むかの人間判断 gate」と E 未着手を裏付ける。以上より claim (義務は反復明文化されるが実装先=ファイル/フィールド/機構が未指定・既存 loop 基盤に受け皿無し) は成立。severity=low は妥当 — 未実装段 (E) の設計完結性の宙吊りで、E 着手前に解消すべき loose end。実行中バグではないので low が正しい。唯一の evidence 上の瑕疵は finding が「D48 条件7 (decisions.md:1742-1744)」を義務の明文化箇所として挙げる点で、当該条文は firewall 条件 (E へ渡すのは生死二値のみ) であり情報源記録義務そのものの逐語ではない。ただし他 6+ 箇所で義務は明文化されており「6 箇所以上」の count は揺るがず、claim の真偽には影響しない。"
+     }
+    },
+    {
+     "id": "L4-2",
+     "severity": "low",
+     "claim": "agent-architecture.md の合成ロール予約仕様は E-loop 自律 coder (coder-v4-autonomous, tools:[]) を反映しておらず、§planner が持つ planner-v4 addendum と非対称に §coder には coder-v4/D39/D43 へのポインタが無いため、同ファイルを E-loop coder 役の正本として読むと誤誘導する。",
+     "evidence": "docs/agent-architecture.md §coder (74-80 行): tools は「コード読み書き、ビルド」のまま、⚠ note (79 行) は「kickoff の確定制約は docs/phase3.md + D22/D23/D24/D30 を正典」と kickoff のみへ redirect し、E-loop 自律版 (coder-v4-autonomous, D39 決定7/D43) や coder-v4-autonomous(-sort).md を一切指さない。対して §planner (66-71 行) は planner-v4 addendum を持ち planner-v4.md + D45 (tools:[]) を明示。実体 = .claude/agents/coder-v4-autonomous-sort.md frontmatter は tools:[]。着手経路は axis-onboarding §3-E (docs/axis-onboarding.md:181-184) が正しく template + tools なしを指すため blocking ではない。",
+     "suggested_fix": "agent-architecture.md §coder に §planner の planner-v4 addendum と対称な coder-v4-autonomous addendum を追加し、E-loop 自律 coder の確定制約 (tools:[]・構造化出力のみ・D39 決定7/D43・coder-v4-autonomous(-sort).md) を指すポインタと『本節 tools 欄は予約、E-loop では tools:[]』の redirect を明記する。",
+     "files": [
+      "/home/tanab/github/izanagi/docs/agent-architecture.md"
+     ],
+     "lens": "stage-e-readiness",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "全ての事実主張を一次資料で確認し成立。(1) agent-architecture.md §coder line 77 の tools = 「コード読み書き、ビルド」で tools:[] 記載なし。(2) line 79 の ⚠ note は「kickoff の確定制約は docs/phase3.md + D22/D23/D24/D30 を正典」と kickoff のみへ redirect。(3) §coder (73-80 行) 内に coder-v4/D39/D43/autonomous へのポインタ無し — grep 'coder-v4|D39|D43|autonomous' は line 16(段階導入表)・69(§planner)・96(§axis-proposer) のみヒットし §coder 内は 0。line 80 は E-loop 駆動方式 (fresh subagent + Python ハーネス) を述べるが tools:[]・構造化出力のみ・D39決定7/D43・実体エージェントファイルのいずれも指さない。(4) §planner (66-71 行) は「⚠ 確定制約は本節でなく planner-v4.md + D45 を正典とする…tools=[]」の addendum を持ち、非対称は実在。(5) 実体 .claude/agents/coder-v4-autonomous-sort.md frontmatter = tools:[] (coder-v4-autonomous.md も同様)、一方 kickoff の coder.md = [\"Read\",\"Grep\",\"Glob\",\"Edit\"] なので §coder を E-loop coder 正本として読むと tools 付与を誤認する余地は本物。(6) axis-onboarding §3-E (181-184 行) は「coder-v4-autonomous-<軸>.md: fresh subagent・tools なし (D39 決定7)・構造化出力のみ」を正しく指すため blocking でない。severity=low は妥当 — ドキュメント完全性/非対称の nit で非 blocking、かつ §coder 見出し「Phase 3・仕様予約」と ⚠ note「本節は予約仕様で kickoff 設計を反映していない」が「誤誘導」リスクを一部自己緩和している。"
+     }
+    }
+   ],
+   "confirmations": [
+    "(a) ロール予約: E-loop に要る 4 役の実体化仕様が特定可能 — planner-v4 (tools:[], D45, 無改変再利用)・coder-v4-autonomous-<軸> (code-片 template=coder-v4-autonomous-sort.md, tools:[], D39/D43)・auditor (read-only, D38)・critic を axis-onboarding §3-E (docs/axis-onboarding.md:170-189) が列挙し tools 権限・入出力を規定。矛盾なしと確認。",
+    "(a) firewall 一貫性: 「E 段へ流すのは軸の生死二値のみ」が axis_trigger_gating.py:11-16 docstring・D48 条件7 (decisions.md:1742-1744)・D50 決定1 (decisions.md:1855-1856)・axis-onboarding §3-D (axis-onboarding.md:160-165)・recon insight:10-13 で同一表現。相互矛盾なしと確認。",
+    "(c) C 段成果物の E-driver readiness: axis_trigger_gating.py が MARKER_ID/SOURCE_REL/TEMPLATE_PATCH/FLAG/PIN/_BASE/GATEABLE_REASONS/SYNTAX_CONTRACT_FORBIDDEN を全保持 (23-64 行) し docstring で firewall を明記。import 元検査で s8a_trigger_sweep.py:71 が axis_trigger_gating を import (E driver を import しない) = §1 脚注 (axis-onboarding.md:34-40) の sort の轍回避を遵守済みと確認。",
+    "(c) E driver 本体の不在は正当: find で p3_s4_loop_backoff-trigger 系ファイル無し = 未実装だが、これは E 段が人間 gate 待ちゆえ想定どおり。型 (p3_s4_loop_sort.py) と §3-E の成果物リストで着手可能と確認。",
+    "(d) 出口基準の事前定義: axis-onboarding §1 表 (axis-onboarding.md:30-31) が E=『実装前 3 レンズレビュー + テスト緑』、F=『outcome=certified』を規定し、§3-E:187-189 (fails-closed テスト必須)・§3-F:202 (verify legacy+s2 anomaly 0) で詳細化。完了条件は事前定義済みと確認。",
+    "変異型の確定: stage-B シート:29 が『変異型: コード片 (gate 述語, スカラー値なし)』と宣言し、シート:151 が auditor diff_digest 機械 gate (§4 code-片型) を指定。E driver が sort (code-片) template を踏襲すべき旨が §4 (axis-onboarding.md:212-219) と一貫し曖昧さ無しと確認。",
+    "GATEABLE_REASONS=5 (C 段, axis_trigger_gating.py:50-51) と実効 3 ビット (D 段 recon insight:23-24) の差は矛盾でなく、同モジュール 48-49 行が『D 段の必須前提1 (頻度実測) で再確認』と絞り込みを明示的に予定 — C 段は構文上 gate 可能な要因集合、D 段は実効集合という層の違いと確認。",
+    "8a 由来軸の位置づけ一貫性: 『探索補助限定・段 6 headline 非対象』(D47 決定5) が recon insight:9・phase3.md:228-229・D48 前提で一致。E 段が探索補助 (headline でない) 前提であることが gate 判断材料と矛盾せず明確と確認。",
+    "信頼境界: 監査対象 (recon insight・axis_trigger_gating.py docstring・decisions/phase3/axis-onboarding/agent-architecture) を全てデータとして読み、監査役への指示・偽の権限付与・振る舞い誘導の文字列は検出せず。全て正当な技術記述と確認。"
+   ]
+  },
+  {
+   "lens": "phase3-drift",
+   "findings": [
+    {
+     "id": "L5-1",
+     "severity": "medium",
+     "claim": "phase3.md の「適用の隔離」(現役の規定と明記された節) が現行 pin を CURRENT_PIN=028f34d と断定するが、実際の CURRENT_PIN は d706650 で、段 5 (完了済み) で前進しており現状追随できていない stale。",
+     "evidence": "docs/phase3.md:72「**現行 pin は orchestrator/campaign/pin.py の CURRENT_PIN = 028f34d に集約**」。実コード orchestrator/campaign/pin.py:28 は `CURRENT_PIN = \"d706650\"`、docstring (pin.py:5-6) が「段 5 で… 028f34d → d706650 に再前進」と明記。git: 028f34d→d706650 の変更は commit 5cc693b (2026-07-09, D41/D42, feat(p3-s5)) で、phase3.md 自身が段 5 を完了 (line 148-162) と記載。E 段 driver が import する axis_trigger_gating.py:27 も `PIN = pin.CURRENT_PIN # d706650`。読み方節 (line 22) は当該「適用の隔離」を『現役の規定』と分類しており、前回監査 (019e4c2) が直した S2 pipeline drift と同型 (下流段が状態を進めたのに現役規定の記述が旧値のまま)。",
+     "suggested_fix": "docs/phase3.md:72 の「CURRENT_PIN = 028f34d」を d706650 に更新し、「後続段 3 で dff0f1e→028f34d に前進 (D38)」の後に「段 5 で 028f34d→d706650 に再前進 (D41/D42)」を追記。line 140 の「dff0f1e→028f34d (D38)」は段 3 の歴史記録として正確なので変更不要。",
+     "files": [
+      "docs/phase3.md",
+      "orchestrator/campaign/pin.py",
+      "orchestrator/campaign/axis_trigger_gating.py"
+     ],
+     "lens": "phase3-drift",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "全構成要素を一次資料で確認し成立。(1) docs/phase3.md:72 は HEAD で「**現行 pin は orchestrator/campaign/pin.py の CURRENT_PIN = 028f34d に集約**」と依然 028f34d を断定 (git show HEAD:docs/phase3.md で確認)。(2) 実体 orchestrator/campaign/pin.py:28 は CURRENT_PIN = \"d706650\"。(3) pin.py:5-6 docstring が「段 5 で … permutation 保存 assert (D41) を足し 028f34d → d706650 に再前進」と明記。(4) git: 028f34d→d706650 は commit 5cc693b (2026-07-09 21:12:31、\"feat(p3-s5): … D41 必須条件7点、D42\") で発生。同 commit は pin.py と phase3.md の段5 完了記録 (diff の line 27 に「pin 028f34d→d706650 前進」) を更新したが line 72 の 適用の隔離 節は触れておらず取り残した (5cc693b の phase3.md diff を 028f34d|d706650 で grep しても line 72 は非該当)。(5) phase3.md:22 の「読み方」節が 適用の隔離 を『現役の規定 (完了記録ではない)』と明記分類。(6) axis_trigger_gating.py:27 は PIN = pin.CURRENT_PIN # d706650 で E 段 driver/D 偵察器が import する現役定数。(7) phase3.md:140「dff0f1e→028f34d (D38)」は段3 完了エントリ配下の歴史記録で正確 = 変更不要という finding の切り分けも妥当。従って「現役の規定と明記された節が現行 pin を 028f34d と断定するが実際は d706650 で段5 (完了済み) で前進しており stale」は文字どおり成立。severity=medium は、コード側 (pin.py/axis_trigger_gating.py) は正しく pin.CURRENT_PIN を参照しており実行時被害ゼロの純ドキュメント drift である点でやや強めだが、当該節が「現役の規定」と明示分類され読者を現行 pin について誤誘導しうること、および過去に同型 (S2 pipeline drift) を修正した前例がある監査文脈では許容範囲。low〜medium 相当。"
+     }
+    },
+    {
+     "id": "L5-2",
+     "severity": "low",
+     "claim": "残存リスク節の見出しが coder リーク制御を『未予約』と断定するが、後続段 6 前提タスク (e) が同一物 (P2-5/D21 の Phase 3 版) を明示的に予約しており、文書内で自己矛盾している。",
+     "evidence": "docs/phase3.md:311「**coder のリーク制御が未設計 (P2-5/D21 の Phase 3 版が未予約)**」。一方 docs/phase3.md:172「(e) coder リーク制御 (P2-5/D21 の Phase 3 版) の実体化」が段 6 前提タスクとして予約済み。加えて段 4 は完了 (line 142) し、planner→coder の Read 経路遮断は D45 で実装 (残存リスク line 357-367 が別項として現状を追随)。見出しの『未予約』は現状 (6(e) 予約 + D45 部分実装) を過小に映す。",
+     "suggested_fix": "docs/phase3.md:311 の見出し『(P2-5/D21 の Phase 3 版が未予約)』を『後続段 6 前提タスク (e) で予約済・実体化は未了、Read 経路は D45 で部分遮断 (残存リスク別項参照)』相当へ改め、6(e) と line 357 項への相互参照を張る。",
+     "files": [
+      "docs/phase3.md"
+     ],
+     "lens": "phase3-drift",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "一次資料 docs/phase3.md を直接確認。line 311 見出し「**coder のリーク制御が未設計 (P2-5/D21 の Phase 3 版が未予約)**」は「未予約」を断定。一方 line 172 の段 6 前提タスク「(e) coder リーク制御 (P2-5/D21 の Phase 3 版) の実体化」が同一識別子「P2-5/D21 の Phase 3 版」を明示予約 — 直接矛盾。さらに同一バレット内の line 315-316「後続段 4 では、この Phase 3 版リーク制御…を予約する」自身も「予約する」と述べており、矛盾はバレット内にも存在(finding が挙げた (e) だけでなく本文自体でも齟齬)。段 4 完了 (line 142「(完了 2026-07-09)」)、D45 の planner→coder Read 経路遮断も完了 (line 174 (h)「(完了 2026-07-10、D45)」および別項 line 357-367)。残存リスク節 (line 288〜) は生きた台帳で、兄弟項は状態更新済み(line 307「解消 2026-07-06」、line 318「解消、commit 14d64e6」、line 330「解消済み (2026-07-09…)」、line 357「D44→D45…完了」)。git blame で line 311=cdf0513b(2026-07-03 15:21)、line 172(e)=441a50b6(同日 20:21)= (e) が見出しの約5時間後に追加され見出しは一度も改訂されず、staleness を裏付け。finding の evidence(311/172/142/357-367 の各行、同一物指摘、D45 部分実装)は全て実体と一致。severity low は妥当(文書整合性のみ、実行時影響なし)。"
+     }
+    }
+   ],
+   "confirmations": [
+    "must 表 7 行 (H3 hooks/cache_key+variant_id/観測者効果二重検査/S4/S2/S1/C1) の完了・未了主張を git とコードで裏取り: S2 行の『pipeline 配線も完了 (段 5, opt-in=legacy+s2)』は loop.py:49 / p3_s4_loop_sort.py:32 / wal.py:121 の legacy+s2 分岐で実在確認、前回監査 (019e4c2) の S2 drift 修正が効いており同型の done-as-undone は must 表に残っていない。",
+    "後続段リスト: 1-5 が完了マーカー (N. **(完了 日付))・6/7/8 が未了、で読み方節の判定ヒューリスティックと一致。8a は段階 A-D が D47→D48→D49→D50 で単調に完了・E 段のみ人間 gate 待ちで、worklog 末尾 (5)・D50・insight と整合。",
+    "段階 D 完了追記 (68b55f2) の数値が 3 正本と完全一致: balanced g_rl +84.5%/+91.0%・write-heavy g_rt +61.2%/+61.3%・read-heavy g_rl +98.9%/+98.7% (phase3.md:257-259 = insight L79-83 = D50 L1841-1843)。E 段への firewall (生死二値のみ, D48 条件 7) も三者で一致。",
+    "stage D 追記が他節と矛盾を生んでいないことを確認: must 表に 8a 行はなく、見送り台帳・他後続段 (段 5 の sort iteration 2 見送り=別軸) とも非衝突。段 5 が『sort 軸に floor 超なし→8a 前倒し』と述べ、8a が floor 超を得た narrative は一貫。",
+    "読み方節のポインタ類が全て機能: grep '着手前 must' は must 表見出し (line 106) にヒット、完了項パターン `N. **(完了 <日付>)` は 1-5 に合致・6/7/8 に非合致、残存リスク節/kickoff の最小スコープ節 (line 36) いずれも実在。",
+    "phase3.md が参照する 16 ファイル/パスが全て実在 (insight 2026-07-11_s8a-trigger-gating-recon.md=160行で背景記述と一致、axis_trigger_gating.py、silo-backoff-trigger-gating-variant.patch、s8a_trigger_coverage/sweep/freq.py、archive/phase3-kickoff-stages1-5.md、axis-onboarding.md、agent-architecture.md、.claude/agents/axis-proposer.md、phase3-main-experiment.md、s4b/s5 runbook、pin.py、s6-sort-sweep-preliminary.md、s8a_trigger_freq_t48.json)。",
+    "line 70 の gate 主張 (coder.md タスク前提 = test_settings_json_wires_both_hooks の緑) を裏取り: orchestrator/tests/test_hooks.py:476 に当該テスト実在。",
+    "見送り台帳 5 項 (balanced backoff profile 対照・over-throttle IPC 機序分離・mocc trace-hook・ermia cross-check・calibration K 感度) は状況変化で拾う/捨てるに転じた形跡なし: s8a D 偵察は trigger-gating 軸であり backoff-profile 対照とは別軸のため balanced 項を消化しておらず、意図的見送りのまま妥当。",
+    "phase3.md:140 の『pin 前進 dff0f1e→028f34d (D38)』は段 3 完了記録の歴史記述として pin.py 履歴と一致し正確 (現行値の主張ではないため drift ではない)。"
+   ]
+  },
+  {
+   "lens": "pending-tracking",
+   "findings": [
+    {
+     "id": "L6-1",
+     "severity": "medium",
+     "claim": "07-11 (5) の人間判断待ち (2)「pipeline._abort の WAL payload に例外要約を乗せる診断改善」は E 段判断と独立に進められる作業だが、phase3.md の構造化台帳 (見送り台帳/後続段/must 表/残存リスク) のどこにも載らず、worklog 末尾『次の一手』(E 段 gate 単独) からも脱落しており、worklog 末尾がスクロールすれば D50 でしか発掘できなくなる。",
+     "evidence": "docs/worklog.md:1793-1794 が『人間判断待ち: (2) pipeline._abort の WAL payload に例外要約を乗せる診断改善』を列挙。docs/worklog.md:1796-1798 の『次の一手』は E 段 gate のみで (2) を含まない。grep 'pipeline._abort|例外要約|診断改善' docs/phase3.md = 0 hit (見送り台帳 phase3.md:274-285 にも無い)。追跡は docs/decisions.md:1867-1868 (D50 教訓節) と recon insight:148-151 のみ。見送り台帳の存在理由 (phase3.md:276-278『worklog 全読しないと発掘できない状態を解消するため』) が示す通り、本項はまさにその台帳が拾うべき E 段独立の任意項。",
+     "suggested_fix": "phase3.md の見送り台帳 (または 8c 駆動配管の診断前提) に『pipeline._abort の abort payload に例外要約を追加 (今回 reason のみで調査遅延、07-11 (5)/D50 教訓節)』を 1 行追加し、E 段 gate と切り離して独立タスクとして明示する。",
+     "files": [
+      "docs/worklog.md",
+      "docs/phase3.md",
+      "docs/decisions.md",
+      "output/insights/2026-07-11_s8a-trigger-gating-recon.md"
+     ],
+     "lens": "pending-tracking",
+     "verdict": {
+      "verdict": "partially-real",
+      "reasoning": "一次資料で全て確認。worklog.md:1793-1794 は item (2)「pipeline._abort の WAL payload に例外要約を乗せる診断改善」を 07-11 (5) の『人間判断待ち』に列挙 (『次の一手』ではない)。worklog.md:1796-1798 の『次の一手』は E 段 gate のみで (2) を含まない。phase3.md を grep 'pipeline._abort|例外要約|診断改善' → 0 hit、見送り台帳 (274-285、無関係な 5 項) / must 表 (106-117) / 後続段 / 残存リスク のどこにも無い (phase3.md の abort payload 言及は L113 S4 verify-red anomaly と L337 破棄で別文脈)。decisions.md:1867-1868 (D50 教訓節) と insight:148-151 で追跡されるのも確認。07-11 (5) は worklog 末尾で後続エントリ無し=現在は tail。ここまで事実は正確。ただし claim を減点する 2 点: (1) 見送り台帳の自己定義スコープ (phase3.md:276『過去エントリの「次の一手」に載ったまま引き継がれなかった任意項』) は \"過去の次の一手\" 由来項が対象で、本項は一度も次の一手に載っておらず最新エントリの人間判断待ちにあるため、台帳の字義スコープ上は自動対象ではない (『台帳がまさに拾うべき』は解釈的な拡張。suggested_fix 自身も 8c 代替を併記してヘッジ)。(2) 本項は decisions.md D50 という worklog スクロールに耐える恒久記録 + recon insight に既に残るため『D50 でしか発掘できなくなる』は追跡の過小評価かつ喪失リスクの誇張。明示的に任意 (人間判断待ち) の診断改善候補が恒久記録に残っている以上、severity medium は過大で low が妥当。事実骨格は成立するが台帳スコープの誤帰属と severity 誇張のため partially-real。",
+      "corrected_claim": "07-11 (5) 人間判断待ち (2)「pipeline._abort の WAL payload に例外要約を乗せる診断改善」は E 段 gate と独立の任意項だが、phase3.md の構造化台帳 (見送り台帳/後続段/must 表/残存リスク) に登録されず、worklog 末尾『次の一手』(E 段 gate 単独) にも入っていない。恒久追跡は decisions.md:1867-1868 (D50 教訓節) と recon insight:148-151 のみで、いずれも \"着手すべきタスク台帳\" ではないため、worklog 末尾がスクロールすると actionable task としては発掘しづらくなる (ただし D50 は恒久記録なので情報自体は失われない)。なお見送り台帳の字義スコープは \"過去の次の一手\" 由来項であり本項は元来対象外のため、台帳への追加は自動マッチではなく suggested_fix の代替 (8c 駆動配管の診断前提) 等への 1 行登録が適切。severity は low が妥当 (明示的に任意の診断改善候補で恒久記録済み)。"
+     }
+    },
+    {
+     "id": "L6-2",
+     "severity": "low",
+     "claim": "07-10 (19) が明示した『insight への追記訂正はユーザー判断待ち』(2026-06-19_ccbench-silo-wal-ftruncate-xor-bug.md の master 還元完了の反映) が現行正本のどこにも追跡されず宙に浮いており、当該 insight は還元完了 (PR #116/#118) 後も『還元判断: ユーザー確認待ち』のまま。",
+     "evidence": "docs/worklog.md:1674-1676 (19) が『insight は「master 還元は人間判断待ち」のままだが…上流還元は #116/#118 の 2 件完了が正。insight への追記訂正はユーザー判断待ち』と記載。当該 insight は line 45『## 還元判断: **ユーザー確認待ち**』/ line 55『master 還元は後日人間が判断』のまま。git log -1 = 2026-06-20 (15ec702) で (19) の指摘後も未更新。worklog 末尾 (5)・phase3.md・decisions.md に前方追跡なし (grep 'ftruncate-xor|還元' で当該項の追跡ヒットは (19) 自身のみ)。",
+     "suggested_fix": "見送り台帳もしくは残存リスク節に『2026-06-19 ftruncate-xor insight の還元判断欄が #116/#118 完了に未追随 (07-11 (19) 指摘、ユーザー判断待ち)』を台帳化するか、insight 冒頭に還元完了の追記注記を入れる (ユーザー承認後)。",
+     "files": [
+      "docs/worklog.md",
+      "output/insights/2026-06-19_ccbench-silo-wal-ftruncate-xor-bug.md"
+     ],
+     "lens": "pending-tracking",
+     "verdict": {
+      "verdict": "real",
+      "reasoning": "全サブクレームを一次資料で確認し成立。(1) docs/worklog.md:1674-1676 の「## 2026-07-10 (19)」エントリは finding が引用するとおり「insight への追記訂正はユーザー判断待ち」「上流還元は #116/#118 の 2 件完了が正」を明記。(2) output/insights/2026-06-19_ccbench-silo-wal-ftruncate-xor-bug.md は line 45 = 「## 還元判断: **ユーザー確認待ち**」、line 55 = 「master 還元は後日人間が判断 (master は据え置き)」のままで未訂正。(3) git log でこの insight ファイルのコミットは 15ec702 (2026-06-20 08:03) の 1 件のみ、(19) 指摘 (07-10) 後も更新なし。(4) 前方追跡なしを確認: 非 archive docs で当該 insight ファイル名がヒットするのは worklog.md:1674 (=(19) 自身) のみ。worklog 末尾は確かに (5) で、その人間判断待ちリストは軸の生死 gate・pipeline 診断のみ (ftruncate 無関係)。decisions.md:75 / roadmap.md:275 は一般の還元スキーム記述のみ。#116/#118 完了は paper-story/2026-07-03.md:51 と 2026-07-10.md:86 に副産物ナラティブとして記載されるが、これは「insight 訂正はユーザー判断待ち」という保留アクション項目の追跡ではなく、finding の「追跡ヒットは (19) 自身のみ」という主張と整合。よって『保留訂正が正本のどこにも追跡されず宙に浮き、insight は還元完了後も還元判断:ユーザー確認待ちのまま』は成立。severity low は妥当 — output/insights/ 副産物レポートの文書ドリフト/追跡漏れで、機能・安全性への影響はない。なお suggested_fix 内の「07-11 (19)」は実体「2026-07-10 (19)」の軽微な日付表記ゆれだが、claim 本文は「07-10 (19)」と正しく、判定に影響なし。"
+     }
+    },
+    {
+     "id": "L6-3",
+     "severity": "low",
+     "claim": "07-10 (19) の持ち越し (資金提供元回答の送付判断・質問 2「ソルバ/量子」の回答作成) と (18) の lint ヘッダ違反 1 件を追跡していた handoff `2026-07-10-funder-reply.md` は git 未コミットのまま削除され、worklog への吸収エントリも無く、これらの持ち越しは追跡先を失っている。",
+     "evidence": "docs/worklog.md:1679-1680 (19) 次の一手『本協議側は回答の送付判断と質問 2 (ソルバ・量子の妥当性) への回答作成が持ち越し』。docs/worklog.md:1651-1653 (18) が並行 funder セッションの handoff と lint 違反 1 件を宣言。git log --all -- docs/handoff/2026-07-10-funder-reply.md = 空 (一度もコミットされず)。現 handoff dir は README.md と 2026-07-11-post-d-genjo-kansa.md のみ。worklog に funder 吸収エントリ無し (grep '資金提供元|funder' は (18)(19) のみ)。※対リポジトリ成果物なしの対外通信タスクゆえ E 段には非影響 (peripheral)。",
+     "suggested_fix": "対外通信タスクとしてプロジェクト正本の追跡対象外とするならその旨を (5) か README に 1 行明記し『追跡しない』を明示。追跡するなら見送り台帳へ移す。lint 違反はファイル消滅済みのため現状 check_docs で残存有無を確認し、解消なら記録不要。",
+     "files": [
+      "docs/worklog.md",
+      "docs/handoff/README.md"
+     ],
+     "lens": "pending-tracking",
+     "verdict": {
+      "verdict": "refuted",
+      "reasoning": "中核主張「worklog への吸収エントリも無く、これらの持ち越しは追跡先を失っている」が一次資料で反証される。docs/worklog.md:1659-1680 のエントリ (19) 自体が資金提供元回答づくり作業の worklog 記録 (「協議: 資金提供元質問への回答案作成」) であり、その次の一手 (1679-1680) が finding の言う持ち越しを逐語で正本に固定している:「本協議側は回答の送付判断と質問 2 (ソルバ・量子の妥当性) への回答作成が持ち越し」。すなわち持ち越しは worklog に残っており追跡先を失っていない。handoff `2026-07-10-funder-reply.md` が未コミットのまま消えた点は事実 (git log --all で空、working tree にも無し) だが、これは異常ではなく handoff の正常運用: docs/handoff/README.md:12 が「正常終了時は worklog エントリに吸収してファイルを削除する」と規定し、handoff は作業ツリー WAL。現に現行 dir の 2026-07-11-post-d-genjo-kansa.md は git status で ?? (未追跡) であり、未コミットの handoff は通常。短命な並行 funder セッションが作成→(19) へ吸収→削除、を一括で行い commit を挟まなかっただけ。lint ヘッダ違反はファイル内在 (ヘッダ定型) でファイル消滅と同時に解消し、finding 自身 suggested_fix でこれを認めている。よって「対象を追跡していた handoff が消えて持ち越しが宙に浮いた」という finding の実質的な欠陥主張は成立しない。severity low・peripheral という自己評価は妥当だが、指摘そのものが不成立のため refuted。なお finding が (19) を吸収エントリと認めない前提自体が内部矛盾 (持ち越しは (19) 由来と明記しつつ worklog 吸収無しと述べる)。"
+     }
+    }
+   ],
+   "confirmations": [
+    "07-10 (16): (15) の n=1 採否人間判断待ちはセッション内で決着 (提案 1 のみ採用、worklog:1605-1606)、次の一手『段階 B』は (17) で消化 — 決着済み (a)。",
+    "07-10 (17): 次の一手『段階 C』は (20) で、『auditor ギャラリー追記はユーザー承認要』は (18) で消化 — 決着済み (a)。",
+    "07-10 (18): auditor ギャラリー型 16 追記のユーザー明示承認取得済み (worklog:1646)、次の一手『段階 C』は (20) で消化 — 決着済み (a)。",
+    "07-10 (20): 次の一手『D 偵察』は (5) で完了 (D50) — 決着済み (a)。",
+    "07-11 (1): roadmap 修正 6 点のユーザー判断待ちは (2) で反映 (worklog:1727) — 決着済み (a)。",
+    "07-11 (2)(4): 次の一手『段 8a D 偵察』は (5) で完了 — 決着済み (a)。",
+    "07-11 (3) ユーザー判断待ち (a)(b)(c) は全決着: (4) が『(b)(c) は反映+検証込みで完了、(a) は据え置き決着』と明記 (worklog:1771)、反映コミット ea76de4/f882fa3/22cc2d7/2d5b6d4 を git log で実在確認 — 決着済み (a)。",
+    "07-11 (5) 人間判断待ち (1) 軸の生死 gate=E 段へ進むか は現行正本で適切に追跡: 次の一手 (worklog:1796-1798)・phase3.md:260-261『残るタスク=E 段実体化 (人間判断 gate 待ち)』・D50 決定 1 (decisions.md:1854-1856)・insight 還元判断節の 4 箇所で一致 — 現行正本追跡 (b)。",
+    "07-11 (5) leon セッション留意は worklog 末尾本文 (worklog:1789-1790) に記載、今後の計測時の汚染源注意として現行正本 (worklog 末尾) に載っており、計測再開まで前方アクションは不要 — 現行正本追跡 (b)。",
+    "BACKOFF_FIXED 追走 (contingency) は insight MS-1 と D50 決定 2 (decisions.md:1857) で『不発火のまま閉じる』と決着 — 宙浮き無し。",
+    "次の一手=E 段 gate 単独の妥当性: 8b/8c とその最小前提作業は phase3.md 後続段リスト (phase3.md:262-270) に、見送り台帳 5 項は phase3.md:280-284 に別途追跡されており、E 段 gate が実際の分岐点であるため 8b/8c/見送り台帳の正本漏れは無い (漏れは L6-1 の診断改善 1 点のみ)。",
+    "前セッション handoff は 7315437『handoff 吸収・削除』で正常吸収され、07-11 (5) が正本化 — handoff 運用ルール (吸収→削除) に整合。"
+   ]
+  }
+ ]
+}
