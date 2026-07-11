@@ -69,8 +69,10 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判者全員が
   逸脱の判定は auditor / coder diff の人間レビュー領域のまま — coder.md タスクの前提 gate =
   `test_settings_json_wires_both_hooks` の緑で機械確認)。
 - **適用の隔離:** patch は submodule working-tree への out-of-band 適用 (kickoff/s4-red の campaign 内は
-  pin 不動 → campaign-id 不変。**現行 pin は orchestrator/campaign/pin.py の CURRENT_PIN = 028f34d に集約** — 後続段 3 で
-  被覆 assert を izanagi-trace に足し dff0f1e→028f34d に前進した、D38。歴史的 driver は自分の dff0f1e literal
+  pin 不動 → campaign-id 不変。**現行 pin の正本は orchestrator/campaign/pin.py の CURRENT_PIN に集約**
+  (literal は本文書に再掲しない — 段の前進で必ず腐るため。2026-07-11 監査で 028f34d 再掲が段 5 の
+  d706650 前進 (D41/D42) に未追随のまま発見された。前進経緯は pin.py docstring と D38/D41 が正本)。
+  歴史的 driver は自分の dff0f1e literal
   を保持し再走は checkout してから)。1 variant 評価ごとに clean→apply→build→revert。apply 前に対象が pinned-clean か
   assert (汚れていたら fails-closed abort)。駆動部 = `orchestrator/campaign/patchharness.py` の `applied()` context
   manager (blocking タスクで実装済み: enter = flock 排他 + pinned-clean assert + apply、exit = revert +
@@ -231,7 +233,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      条件 2 は残存リスク節、条件 3/4 は axis-onboarding §2/§3-B、条件 5 は定義の出力スキーマ)。**
      **n=1 実証完了 (2026-07-10、D47 決定 4 の出口基準で成功 — 3 項目全 yes の候補 2 件 /
      提案 3 件、採点は射影非関与の独立コンテキスト)。** 一次資料 = `output/insights/
-     2026-07-10_s8a-n1-proposal-and-scoring.json` (提案・採点全文) + 同 `-provenance.json`
+     2026-07-10_s8a-n1-proposal-and-scoring.json` (提案・採点全文) + `output/insights/
+     2026-07-10_s8a-n1-provenance.json`
      (三点セット: raw の脚 = P2-3 要旨 insight — critic 再実行による生出力再生成は勝ち筋を含む
      現行文書経由の記憶汚染リスクで不採用、実体化検証 2026-07-10 の決定 / 射影版入力 / 落とした
      対応表)。観測: 恒真 0/3・既存軸再提案 0・**既開通領域への偏り 3/3 (全提案が transaction.cc
@@ -308,7 +311,10 @@ worklog 全読しないと発掘できない状態を解消するためここに
   integrity-class (verdict indeterminate) になりうる懸念に対し、integrity-class positive control 2 形状 +
   dup_txids の verdict 級テストを新設して閉ループ実証。既知偽陰性 2 形状は characterization テストとして
   可視化 (S1 形式拡張時の回帰点、詳細は D37)。
-- **coder のリーク制御が未設計 (P2-5/D21 の Phase 3 版が未予約)**: kickoff の題材 BACKOFF_FIXED は、勝ち筋
+- **coder のリーク制御 — 段 4 の tools:[] 構造遮断 (coder-v4-autonomous、D39 決定 7) で部分消化。
+  完全版 (入力射影の体系化) は後続段 6 前提タスク (e) に予約済み・実体化未了** (見出しの現状追随
+  2026-07-11 監査 — 旧見出し「未予約」は (e) の予約と自己矛盾していた。以下は経緯の記録):
+  kickoff の題材 BACKOFF_FIXED は、勝ち筋
   (contention 域で stock 最良 +38%/+11%、sweet-spot 値) が docs・insights・WAL・CLAUDE.md にリポジトリ内既知として
   書かれている。coder のコンテキストにこれが混入すると「合成できた」のか「答えを読んだ」のか分離できない。P2-5 は
   誘導アームで **fresh context + 最適解 literal の物理削除 (`critic-experiment`) + 評価済みのみ digest** のリーク制御を
