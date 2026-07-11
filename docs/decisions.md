@@ -1820,3 +1820,51 @@ latent fragility 2 点 — cmake 非経由の手コンパイルは #error で fa
 
 **正本:** 本エントリ + `patches/README.md` の軸節 + coverage JSON。レンズ 3 本の要旨は
 worklog 2026-07-10 (20)。
+
+## D50. 段 8a 段階 D — silo-backoff-trigger-gating の機械 sweep 偵察: 3 workload で floor 超が cross-run 再現 (2026-07-11)
+
+**文脈:** D48 (軸定義) → D49 (機構実装) を受けた D 段偵察 (D46 型)。E 段 (LLM ループ) の
+固定費を払う前に、軸の生死 (floor 超地形の有無) を機械 sweep で先取りする。
+
+**設計 (要旨 — 正本は insight `output/insights/2026-07-11_s8a-trigger-gating-recon.md`):**
+- D48 必須前提 3 点の消化: (a) 要因頻度実測 → 実効 3 ビット {lock-conflict, readvali-tid,
+  readvali-locked} 確定 (不感 2 種は全 workload カウント 0、保存則 3/3、
+  s8a_trigger_freq_t48.json)。(b) read-heavy floor = max(0.030, rr95 実測) = 0.030
+  (genuine-between 未較正の残存リスク付き)。(c) 主走 adaptive (E 段と同条件が生死判定として
+  正当)、BACKOFF_FIXED 追走は contingency — 今回不発火 (floor 超が出た)
+- 列挙 = 2^3 subset + ident_all (恒等 gate = 比較基準、D49 申し送り a) + 真 stock (骨格常駐
+  コスト別掲) = 10 点/workload × 3 workload。動作点 = p2_2 (t48/1M/skew0.9/reps5)。全点
+  verify legacy+s2。敵対レビュー 2 巡 (設計 3 レンズ wf_a80f3f4e-22c / 実装 2 レンズ
+  wf_24065dcb-223) 全反映 — 裁定台帳 9 項は insight に凍結
+
+**実測 (本走 3 + cross-run 再測 3 campaign):**
+- floor 超 best (floor 較正済み点、vs ident_all): balanced g_rl **+84.5% (再測 +91.0%)** /
+  write-heavy g_rt **+61.2% (再測 +61.3%)** / read-heavy g_rl **+98.9% (再測 +98.7%)** —
+  **3 workload すべてで floor (±3.0%) を 1 桁上回る利得が cross-run 再現**
+- 全評価点 certified (legacy+s2 anomaly 0)。退化点 g_none・write-heavy g_rl・read-heavy
+  g_lc は high-abort 判定不能に分離 (fails-closed)
+- 不感縮約 backstop 全 workload floor 内 / 骨格常駐コスト (ident_all vs stock) 3 測定
+  全て floor 内 = 軸の固定費は検出限界以下
+
+**観察 (機序判断はしない — E 段への firewall 対象):** 最適 gate が workload で入れ替わる
+(balanced/read-heavy = rl、write-heavy = rt)。頻度実測の支配要因と勝ち gate が一致しない =
+要因頻度と gate 利得の非比例が workload 横断で再現 — 8b (workload 次元) の動機づけ材料。
+
+**決定:**
+1. 偵察の観察 = 「floor 超地形が 3 workload で cross-run 再現 = 軸は生の強い候補」。
+   **E 段へ進むかは人間判断 gate** (worklog 次の一手)。E 段へ流してよいのは生死二値のみ
+   (D48 条件 7)・E 段 provenance への情報源記録義務 (D46 (a) ループ版) は不変
+2. BACKOFF_FIXED 追走 (contingency) は不発火のまま閉じる — 発火条件 (全点平坦) 不成立
+
+**教訓 (計測基盤): kill 残骸の永続毒の恒久封鎖。** balanced の stock 欠測 (build-error) は
+「二重起動事故の一過性巻き添え」ではなかった — kill は _discard_build_dir を飛ばすため
+「CMakeCache あり・binary 無し」の中途 build dir が共有キャッシュに永続し、残骸 CMakeCache
+に焼き付いた一時 worktree パス (実行ごとランダム・消滅済み) との不一致で以後の同一 variant
+configure が毎回即死していた (write-heavy クリーン起動での再発で発覚、WAL ts 0.107 秒 +
+build dir 実地検証で確定)。恒久修正 = buildcache.build の configure 前に binary 不在の既存
+build dir を破棄 (_clear_stale_build_dir、回帰テスト 2 本、354 passed、read-heavy 本走の
+stock 建て直し成功で実地検証)。残骸全数点検 7 個 (詳細は insight 教訓節)。guard_bash は
+Bash からの rm を正しく拒否 — 迂回せず正規経路で対処。診断改善候補 (pipeline._abort の
+payload に例外要約) は人間判断待ち。
+
+**正本:** 本エントリ + insight (裁定台帳・教訓の全文)。campaign id 6 本は insight の結果節。

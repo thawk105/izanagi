@@ -1,0 +1,37 @@
+{
+  "space_version": "reason-subset-v1",
+  "workload": "write-heavy",
+  "trial": "p3-s8a-trigger-sweep-remeasure1",
+  "pin": "d706650",
+  "effective_reasons": [
+    "lock-conflict",
+    "readvali-tid",
+    "readvali-locked"
+  ],
+  "floor_cv": 0.03,
+  "freq_source": "/home/tanab/github/izanagi/output/env/linux-baremetal/calibration/s8a_trigger_freq_t48.json",
+  "firewall": "偵察 → E 段は軸の生死二値のみ (D48 条件 7)。段 6 正式 grid へ材料流用しない (D46 決定 1)",
+  "entries": {
+    "g_rt": {
+      "variant_id": "e932c4502198",
+      "category": "subset",
+      "src_token": "ff0e2dd53b5a24457cae5bfc8bfbc93b50f2967f4ca7e9c5af1a8740cbb7fc3b",
+      "outcome": "certified",
+      "implementation": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid;"
+    },
+    "ident_all": {
+      "variant_id": "97cf65d3d89e",
+      "category": "control-identity",
+      "src_token": "c51917616176b0c3dca3c2d9cacc24d509112265223b7a7203f561bd980719b1",
+      "outcome": "certified",
+      "implementation": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;"
+    },
+    "stock": {
+      "variant_id": "0dc58cf2ff82",
+      "category": "stock",
+      "src_token": "stock",
+      "outcome": "certified",
+      "implementation": "BACKOFF_TRIGGER_GATING=0 — 骨格全体が #if で消え preprocess 後に pinned HEAD と原文一致 (src_token=stock)。abort() は要因不問で Backoff::backoff() を無条件呼出 (transaction.cc の stock 枝)。ident_all との差 = 骨格常駐コスト (7 store + 1 分岐) の別掲用"
+    }
+  }
+}

@@ -251,9 +251,14 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      軸定数 `orchestrator/campaign/axis_trigger_gating.py` (D 偵察器/E driver の import 先、
      構文契約禁止リストの転記元)。実装上の設計判断 (計装の characterization 専用分離・hole の
      述語 1 行化・構造ゼロ検査型) は D49 が正本。
-     残るタスク = **D 偵察 (別セッション、必須前提 3 点 = 要因別 abort 頻度実測・read-heavy
-     floor 較正・適応連成の扱い + D49 申し送り 3 点 = 恒等 gate 対照・latent fragility・
-     頻度実測は p2_2 動作点で)。**
+     **段階 D 完了 (2026-07-11、D50 — 必須前提 3 点 + D49 申し送り 3 点全消化)。**
+     機械 sweep 偵察 (2^3 subset + ident_all + stock、3 workload、全点 verify legacy+s2) で
+     **floor 超地形が 3 workload とも cross-run 再現** (best vs ident_all: balanced g_rl
+     +84.5%/再測 +91.0%、write-heavy g_rt +61.2%/+61.3%、read-heavy g_rl +98.9%/+98.7%) =
+     軸は生の強い候補。insight =
+     `output/insights/2026-07-11_s8a-trigger-gating-recon.md` (裁定台帳・kill 残骸毒の
+     教訓を含む)。残るタスク = **E 段実体化 (人間判断 gate 待ち — E 段へ流すのは軸の
+     生死二値のみ、D48 条件 7)。**
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
