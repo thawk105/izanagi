@@ -53,6 +53,31 @@ def test_buildcache_detects_trace_symbol_leak():
     assert buildcache._has_trace_symbols(leaked)
 
 
+def test_buildcache_clears_stale_build_dir(tmp_path):
+    """kill 残骸 (CMakeCache あり・binary 無し) は configure 前に破棄される。
+
+    残骸 CMakeCache の一時 worktree パス焼き付きが以後の configure を永続的に即死させた
+    2026-07-11 s8a stock build-error の回帰固定。"""
+    bdir = tmp_path / "silo_deadbeef00_t0"
+    bdir.mkdir()
+    (bdir / "CMakeCache.txt").write_text("CMAKE_HOME_DIRECTORY:INTERNAL=/tmp/gone_wt/wt\n")
+    binary = str(bdir / "cc" / "silo" / "ycsb_silo.exe")
+    buildcache._clear_stale_build_dir(str(bdir), binary)
+    assert not bdir.exists()                 # 中途 dir は破棄される
+
+
+def test_buildcache_stale_clear_spares_complete_and_absent(tmp_path):
+    """binary が完成している dir は破棄しない (正当な成果物)。bdir 不在は no-op。"""
+    bdir = tmp_path / "silo_cafebabe00_t1"
+    binpath = bdir / "cc" / "silo" / "ycsb_silo.exe"
+    binpath.parent.mkdir(parents=True)
+    binpath.write_bytes(b"\x7fELF")
+    buildcache._clear_stale_build_dir(str(bdir), str(binpath))
+    assert binpath.exists()                  # 完成品は温存
+    absent = tmp_path / "no_such_dir"
+    buildcache._clear_stale_build_dir(str(absent), str(absent / "x.exe"))  # 例外なく no-op
+
+
 def test_genome_canonical_deterministic():
     g1 = Genome("silo", {"WAL": 0, "BACK_OFF": 1})
     g2 = Genome("silo", {"BACK_OFF": 1, "WAL": 0})    # 順序違い

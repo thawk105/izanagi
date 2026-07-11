@@ -107,6 +107,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
         return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=True,
                            configure_cmd=cfg_str, build_cmd=build_str)
 
+    _clear_stale_build_dir(bdir, binary)
     _run(cfg, "configure")
     _run(build_cmd, "build")
     if not os.path.exists(binary):
@@ -171,6 +172,21 @@ def _assert_trace_diff(genome: Genome, ccbench_commit: str, sub: str, cxx: str,
         if built_fresh:
             _discard_build_dir(bdir)
         raise
+
+
+def _clear_stale_build_dir(bdir: str, binary: str) -> None:
+    """kill 等で中断された中途 build dir (binary 不在で dir だけ残る) を configure 前に破棄する。
+
+    build 途中の kill では Python の例外経路 (_discard_build_dir) が走らず、
+    「CMakeCache.txt あり・binary 無し」の残骸が共有キャッシュに永続する。残骸の
+    CMakeCache には当時の一時 worktree パス (実行ごとランダム) が焼き付いているため、
+    以後の同一 variant の configure が cmake のソースディレクトリ不一致で**毎回即死**する
+    (2026-07-11 s8a sweep の stock 点が二重起動事故の kill 以降 build-error を再発し続けた
+    実障害)。正当な完成品 (binary あり) は呼び手の cache hit 経路が先に扱う — ここに来る
+    既存 dir は不完全と確定しているので、破棄してから新規 configure する (fails-closed 側の
+    回復。破棄の成否検査は _discard_build_dir と共通)。"""
+    if os.path.isdir(bdir) and not os.path.exists(binary):
+        _discard_build_dir(bdir)
 
 
 def _discard_build_dir(bdir: str) -> None:
