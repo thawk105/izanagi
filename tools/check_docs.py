@@ -33,7 +33,7 @@ LIVING_DOCS = [
     REPO / "docs" / "orchestrator-design.md",
     REPO / "docs" / "ccbench-anatomy.md",
     REPO / "docs" / "axis-onboarding.md",              # 2026-07-11 監査 dup-05 で追加
-    REPO / "docs" / "token-management-strategy.md",    # 同上 (最も再掲が多く lint の網が必要)
+    # token-management-strategy.md は 2026-07-11 に docs/archive/ へ凍結移動 (対象外の凍結族へ)
 ]
 
 # docs 間の行番号参照 (追記で必ずずれる)。節名参照に直すこと。

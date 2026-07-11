@@ -20,3 +20,6 @@
 - `worklog-phase1-2.md` — worklog の Phase 1〜2 分 (2026-06-17〜06-30) ローテーションアーカイブ
 - `phase3-kickoff-stages1-5.md` — phase3.md の完了済み記録 (kickoff タスク詳細 + 後続段 1〜5) の
   分離アーカイブ (2026-07-10)。チェックリスト正本・must 表・残存リスクは現行 phase3.md のまま
+- `token-management-strategy.md` — AI 生成の token 管理解説 (2026-07-07 Haiku 生成)。2026-07-11 の
+  docs 監査で定量記述の捏造を確認・除去済み。解説であって正本ではない (冒頭の監査注記参照) ため
+  凍結移動 (2026-07-11、ユーザー承認)
