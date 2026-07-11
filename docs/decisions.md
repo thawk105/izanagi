@@ -1841,8 +1841,9 @@ worklog 2026-07-10 (20)。
 - floor 超 best (floor 較正済み点、vs ident_all): balanced g_rl **+84.5% (再測 +91.0%)** /
   write-heavy g_rt **+61.2% (再測 +61.3%)** / read-heavy g_rl **+98.9% (再測 +98.7%)** —
   **3 workload すべてで floor (±3.0%) を 1 桁上回る利得が cross-run 再現**
-- 全評価点 certified (legacy+s2 anomaly 0)。退化点 g_none・write-heavy g_rl・read-heavy
-  g_lc は high-abort 判定不能に分離 (fails-closed)
+- floor 地形の評価点は全 campaign で certified (legacy+s2 anomaly 0。本走 stock 2 点
+  (balanced/write-heavy) は build-error 欠測 — 下記教訓節、骨格常駐コストは再測で回復)。
+  退化点 g_none・write-heavy g_rl・read-heavy g_lc は high-abort 判定不能に分離 (fails-closed)
 - 不感縮約 backstop 全 workload floor 内 / 骨格常駐コスト (ident_all vs stock) 3 測定
   全て floor 内 = 軸の固定費は検出限界以下
 

@@ -22,8 +22,9 @@
   s8a_trigger_freq_t48.json`): 実効 3 ビット **{lock-conflict (lc), readvali-tid (rt),
   readvali-locked (rl)}**。不感 {update-absent, node-vali} (全 workload カウント 0 —
   update-absent は YCSB (delete なし) の構造論拠、node-vali は経験的予想の側)。
-  保存則 (A 行総数 == abort_counts_) 3/3 OK。分母 = 実測 abort 総数 71K (balanced) /
-  149K (write-heavy) / 156K (read-heavy)。
+  保存則 (A 行総数 == abort_counts_) 3/3 OK。分母 = 実測 abort 総数 149K (balanced) /
+  156K (write-heavy) / 71K (read-heavy) (訂正 2026-07-11 監査: 初版は 3 ラベルとも
+  取り違え — 正本 = s8a_trigger_freq_t48.json。数値自体は実在、示唆節の対応は初版から正)。
 - **(b) read-heavy floor** = max(0.030, rr95 実測) = **0.030** (rr95 実測 within CV 0.19% /
   between CV 0.11% が保守性を裏付け。ただし genuine-between 未較正の残存リスク付き —
   fresh 実測は下限値)。
@@ -84,7 +85,10 @@ cross-run 再測 (trial=remeasure1、別 campaign):
 
 - **3 workload すべてで floor (±3.0%) を 1 桁上回る利得が cross-run 再現。**
   要因選択に情報がある: gate の選び方で subset レンジは +61.8%〜+98.9% の幅。
-- 全評価点 certified (legacy+s2 とも anomaly 0)。unstable なし。
+- floor 地形の評価点 (subset/ident_all/退化点) は全 campaign で certified (legacy+s2 とも
+  anomaly 0)。unstable なし。本走 stock 2 点 (balanced/write-heavy) は build-error で欠測
+  (教訓節の kill 残骸毒) — 骨格常駐コストは再測 campaign で回復済み (訂正 2026-07-11 監査:
+  初版の「全評価点 certified」は本走 stock 欠測を含めると無限定には成立しないため限定)。
 - high-abort 判定不能 (fails-closed) に分離した点: 退化点 g_none (全 workload)、
   write-heavy の g_rl (abort 41.9%)、read-heavy の g_lc (abort 基準比 2 倍超)。
 - 不感縮約 backstop (g_lc+rt+rl vs ident_all): -1.75% / -0.37% / +0.77% — 全 workload
