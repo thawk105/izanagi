@@ -1773,3 +1773,26 @@ finding 5 / 問題なし確認 37。裁定: real 4 / 実害なし 1。一次資�
 
 ### 次の一手
 段 8a の D 偵察 (変わらず、(2) 参照)。
+
+## 2026-07-11 (5) — 段 8a 段階 D 完了: 3 workload 本走 + cross-run 再測 + kill 残骸毒の発見と封鎖
+
+handoff (07-11 14:50 中断) からの再開セッション。計測 5 本直列 (write-heavy/read-heavy
+本走 + 再測 3 本、17:03〜18:48) で D 偵察を完了。fc4d3fa..68b55f2 (2 本) +本エントリ。
+- **前セッション handoff の訂正 (未コミット事象):** balanced stock 欠測の「二重起動事故の
+  巻き添え」説は誤り — write-heavy クリーン起動での再発から永続毒 (kill 残骸の中途 build
+  dir) を特定・恒久封鎖 (詳細と教訓は insight 教訓節 + D50 が正本)。handoff 旧記述
+  「remeasure に stock を含めれば回復」も残骸破棄なしでは誤りだった
+- guard_bash が残骸 dir の手動 rm を拒否 → 迂回せず正規経路 (buildcache 内の破棄) で対処
+  (防壁の意図どおりの発火として記録)
+- 素材: 要因頻度と gate 利得の非比例が workload 横断で再現 (支配要因と勝ち gate の不一致)
+  — 8b の動機づけ。偵察 firewall (生死二値のみ) の運用初適用例
+- 別ユーザー leon の claude セッション 2 本が同居 (計測中はアイドルを確認) — 今後の計測で
+  ベンチを走らせ始めたら汚染源になる点に留意
+- エージェント工数: 本セッションのサブエージェント/workflow 0 本 (全てメインループ)
+- 人間判断待ち: (1) **軸の生死 gate — E 段へ進むか** (偵察の観察 = 3 workload floor 超
+  cross-run 再現 = 生の強い候補)。(2) pipeline._abort の WAL payload に例外要約を乗せる
+  診断改善 (今回 reason のみで調査が遅延した)
+
+### 次の一手
+E 段 (LLM ループ) へ進むかの人間判断 gate。進む場合は agent-architecture.md の予約仕様から
+E 段ロールを実体化 (E 段へ流すのは軸の生死二値のみ、D48 条件 7 / provenance 記録義務)。
