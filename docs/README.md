@@ -18,9 +18,12 @@
 - `orchestrator-design.md` — orchestrator の ACID/WAL/排他、環境タグ
 - `ccbench-anatomy.md` — CCBench 構造調査
 - `axis-onboarding.md` — 変異軸オンボーディングの手順書
+- `isolation-phenomena.md` — verifier が判定する serializability 異常 (G0/G1/G2) の分類
 - `glossary.md` — 用語集 (用語を grep して該当項目だけ読む)
-- `related-work/` — 関連研究 (README.md が本体 + shinka-deepdive.md 付録)
+- `related-work/` — 関連研究 (README.md が本体 + shinka-deepdive.md 付録 + literature-map/ 文献マップ)
+- `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
+- `phase3-s4*.md` / `phase3-s5*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。phase3.md から辿る
 
 ## docs/ の外
 
