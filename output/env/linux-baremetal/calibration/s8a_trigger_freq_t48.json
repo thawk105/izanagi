@@ -1,0 +1,95 @@
+{
+  "purpose": "段 8a D 偵察の必須前提 (a): 要因別 abort 頻度の事前実測。characterization であり性能計測ではない — 性能数値なし。trace I/O 下の分布につき相対分布は参考値、不感判定 (=0) のみ設計入力 (構造的性質で trace I/O に不変)。",
+  "env_tag": "linux-baremetal",
+  "ccbench_commit": "d706650",
+  "genome": "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "clocks_per_us": 1800,
+  "records": 1000000,
+  "threads": 48,
+  "extime": 1,
+  "reason_names": [
+    "unset",
+    "lock-conflict",
+    "update-absent",
+    "readvali-tid",
+    "readvali-locked",
+    "node-vali",
+    "insert-node",
+    "scan-node"
+  ],
+  "gateable_reasons": [
+    "lock-conflict",
+    "update-absent",
+    "readvali-tid",
+    "readvali-locked",
+    "node-vali"
+  ],
+  "workloads": {
+    "read-heavy": {
+      "ycsb": {
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rratio": "95",
+        "ycsb_rmw": "0"
+      },
+      "reason_tally": {
+        "unset": 0,
+        "lock-conflict": 5536,
+        "update-absent": 0,
+        "readvali-tid": 13419,
+        "readvali-locked": 52155,
+        "node-vali": 0,
+        "insert-node": 0,
+        "scan-node": 0
+      },
+      "abort_counts": 71110,
+      "conservation_ok": true
+    },
+    "balanced": {
+      "ycsb": {
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rratio": "50",
+        "ycsb_rmw": "0"
+      },
+      "reason_tally": {
+        "unset": 0,
+        "lock-conflict": 82436,
+        "update-absent": 0,
+        "readvali-tid": 16206,
+        "readvali-locked": 50574,
+        "node-vali": 0,
+        "insert-node": 0,
+        "scan-node": 0
+      },
+      "abort_counts": 149216,
+      "conservation_ok": true
+    },
+    "write-heavy": {
+      "ycsb": {
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rratio": "5",
+        "ycsb_rmw": "0"
+      },
+      "reason_tally": {
+        "unset": 0,
+        "lock-conflict": 149369,
+        "update-absent": 0,
+        "readvali-tid": 1818,
+        "readvali-locked": 4801,
+        "node-vali": 0,
+        "insert-node": 0,
+        "scan-node": 0
+      },
+      "abort_counts": 155988,
+      "conservation_ok": true
+    }
+  },
+  "effective_reasons": [
+    "lock-conflict",
+    "readvali-tid",
+    "readvali-locked"
+  ],
+  "insensitive_reasons": [
+    "update-absent",
+    "node-vali"
+  ]
+}

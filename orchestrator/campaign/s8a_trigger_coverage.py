@@ -87,10 +87,14 @@ def _repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _build(bdir: str, extra_cxx_define: str = "") -> str:
-    """working-tree (patch 適用済み) を TRACE=1 で fresh build し binary パスを返す。"""
+def _build(bdir: str, extra_cxx_define: str = "", genome: Genome = None) -> str:
+    """working-tree (patch 適用済み) を TRACE=1 で fresh build し binary パスを返す。
+
+    genome は明示引数 (省略時は本モジュールの GENOME)。s8a_trigger_freq.py が import
+    再利用するため、呼び出し側の genome でビルドし「JSON の genome 欄 ≠ 実ビルド」の
+    無警告ドリフトを塞ぐ (実装レビュー 2026-07-11 F1)。"""
     sub = os.path.join(_repo_root(), "external", "ccbench")
-    defines = GENOME.cmake_defines() + ["-DCCBENCH_TRACE=1"]
+    defines = (genome or GENOME).cmake_defines() + ["-DCCBENCH_TRACE=1"]
     if extra_cxx_define:
         defines.append(f"-DCMAKE_CXX_FLAGS=-D{extra_cxx_define}=1")
     cfg = ["cmake", "-S", sub, "-B", bdir, "-DCMAKE_BUILD_TYPE=Release",
