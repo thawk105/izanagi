@@ -1893,3 +1893,26 @@ runbook の数値 literal = 現在全一致で正本記号併記あり)。
 
 ### 次の一手
 変わらず (前エントリ参照)。
+
+## 2026-07-12 (5) — 戦略検討: headline 軸の空白と主張再定式化の絵 (ユーザー依頼、読み取り専用・並行 F 段と分離)
+
+ユーザー依頼「roadmap/phase docs/コードを閲覧し、やりたいことができているか・何をすべきか・今後の
+進め方を検討」(Fable5 利用最終日の高判断前倒し)。計測ゼロ・実装変更ゼロ・F 段不可侵。5 レンズ並列
+読解 (達成度/段6経路/論文/リスク/8b8c、46.0 万 token) + コード指摘 4 件の敵対裏取り 3 本
+(real 2 / real-既知境界 1 / partially-real 1 / refuted 0)。
+- 素材: 最重要 (1) **headline 適格軸が現存しない** — backoff=スカラー不適格 (D44 追記1)・sort=地形
+  なし (D46)・trigger-gating=「偵察空間 = coder 変異空間」(D48 決定 2) ゆえ失敗条件 (c) が構造発火
+  し D47 決定 5 の改訂でも消えない。事前登録 substrate anchor (backoff hole) と軸適格性の矛盾も発見。
+- 素材: (2) 出口 3 択 = 構文契約のメンバ読取拡張 (D48 予約) / axis-proposer 次軸 / **系レベル主張
+  再構成 (推奨)** — 「LLM が軸を発見しループで探索する系 vs 軸発見なしの非 LLM 系」へ事前登録改訂
+  (D44 作法 = 主張を制約する方向)。sweep の floor 超は失敗条件から「発見軸が本物である裏書き」へ転化。
+- (3) F 段 should-fix: provenance extra-source の iteration 2 silent 消失 (real、**F 段 iter1 が
+  extra 3 本使用済み = 発火条件成立中**、F 段 handoff に申し送り追記済み) / hole 内コメント =
+  auditor への injection 経路 (real・反証不能・機械 reject 推奨) / runbook abort>0 確認 2 行。
+- 一次資料 (裁定台帳・達成度照合・道筋全文): `output/insights/2026-07-12_strategy-review-headline-axis.md`
+- エージェント工数: workflow 5 本 46.0 万 + Explore 裏取り 3 本 約 15 万 token。計測なし。
+- 人間判断待ち: headline 3 択の協議 (決着後に事前登録改訂草案を起草するのが次)。
+
+### 次の一手
+F 段継続 (並行セッション、iter2 前に provenance 回避策 = extra 3 本の毎回再指定 or union merge 修正)。
+本検討の続き = headline 3 択のユーザー協議。
