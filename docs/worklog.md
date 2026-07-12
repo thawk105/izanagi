@@ -1863,3 +1863,14 @@ E 段 gate (変わらず 07-11 (5) 参照)。
 ### 次の一手
 coder 定義草案のユーザー承認。承認後 = F 段 (実 LLM iteration 1 E2E、
 `docs/phase3-s8a-trigger-runbook.md` §0 の実走前ゲート) を fresh session で。
+
+## 2026-07-12 (3) — ユーザー承認: coder-v4-autonomous-trigger-gating 定義の配置
+
+07-12 (2) の判断待ち (coder 定義草案) を**ユーザーが明示承認** (「承認するけど次の作業は
+次のセッションでやります」)。草案どおり `.claude/agents/` へ配置し、insight の状態と
+phase3.md 8a 項を追随。F 段 (実 LLM iteration 1 E2E) は**ユーザー指示により次セッション**
+— agent 登録制約 (セッション開始時のみ) とも整合。エージェント工数: 0 本。計測なし。
+
+### 次の一手
+F 段 = 実 LLM iteration 1 E2E を fresh session で (`docs/phase3-s8a-trigger-runbook.md`
+§0 の実走前ゲート 6 点 + §0.5 の起草者 firewall 自己宣言から)。
