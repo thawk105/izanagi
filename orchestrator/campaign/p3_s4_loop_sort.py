@@ -54,18 +54,21 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import hashlib
 import json
 import os
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pin, source_digest, wal              # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
+from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
+                                   AuditorVerdict, assert_digest_matches,
+                                   auditor_reject_result, compute_diff_digest,
+                                   parse_auditor_dict)
 from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout        # noqa: E402
 from campaign.loop import run_campaign                             # noqa: E402
@@ -108,68 +111,19 @@ class CoderProposalSort:
     confidence: str = "medium"
 
 
-_AUDITOR_VERDICTS = {"pass", "reject", "uncertain"}
-
-
-@dataclass
-class AuditorVerdict:
-    """auditor (subagent_type='auditor') の構造化出力 (D41 条件4 の機械 gate)。
-
-    `diff_digest`: auditor が審査した working_diff (`--preview-diff` が生成したもの) の
-    sha256 hexdigest。`run_one_iteration` はこれを実際に `quarantine()` が生成する
-    working_diff の digest と突合する — 「このiterationのこのdiffを実際に見た判定か」を
-    機械確認する (敵対レビュー 2026-07-10、backoff の `assert_value_literal_consistent`
-    と同型の自己矛盾検出)。"""
-    verdict: str                      # pass | reject | uncertain
-    diff_digest: str
-    violations: List[Dict] = field(default_factory=list)
-    nits: List[Dict] = field(default_factory=list)
-    proposed_tests: List[Dict] = field(default_factory=list)
-    uncertainty: str = ""
-
-
-class AuditorGateFailure(ValueError):
-    """auditor gate の機械的整合性が破れた (規律6、敵対レビュー 2026-07-10)。
-
-    - diff_digest 不一致: auditor が審査した diff と実際に build/検疫される diff が
-      食い違う (メインセッションの伝達ミス・古い verdict の使い回し・入れ替えのいずれか
-      を示す — 悪意の有無を問わず「整合が機械確認できない」時点で fails-closed に倒す)。
-    - proposal JSON の `auditor` フィールド欠落・verdict が未知の値: schema 違反。
-
-    backoff 軸の `AttributionMismatch` と同型の設計 — 「整合規約」を harness が機械照合し、
-    破れたら reject (WAL 記録して次提案へ) でなく即例外で止める (メインセッションが catch
-    し、必要なら diff を作り直して auditor に再審査させる想定)。"""
-
-
-def compute_diff_digest(working_diff: str) -> str:
-    """working_diff (unified diff テキスト) の sha256 hexdigest。auditor gate の機械照合対象。"""
-    return hashlib.sha256(working_diff.encode("utf-8")).hexdigest()
+# AuditorVerdict / AuditorGateFailure / compute_diff_digest / _AUDITOR_VERDICTS は
+# `campaign.auditor_gate` へ共有昇格した (段 8a E 段レビュー 2026-07-12 — コード片軸
+# 2 軸目)。本モジュールの公開名 (S.AuditorVerdict 等) は import で同一オブジェクトの
+# まま維持 (既存テスト・runbook 無改変)。
 
 
 # ==== diff 検疫 + auditor gate (hole 挿入は L.quarantine に委譲) ================
 
 def _auditor_reject_result(subtype: str, auditor: AuditorVerdict) -> DiffQuarantineResult:
-    """auditor gate reject を diff-quarantine 経路 (`L.record_diff_reject` /
-    `load_diff_rejections` / `render_rejections`) に相乗りさせる合成結果。
-
-    新規 loader/renderer を作らず既存 consumer をそのまま再利用する (auditor.md 型5
-    「consumer 取り残し」を自ら再演しない、敵対レビュー 2026-07-10)。WAL 上の
-    `reason` は既存の `DIFF_QUARANTINE_REASON` と揃え (`load_diff_rejections` がこれで
-    フィルタする)、`digest["subtype"]` だけ `auditor-violation`/`auditor-uncertain` で
-    区別する (規律3: reject と uncertain を同一 bucket にしない)。"""
-    evidence_parts = []
-    if auditor.violations:
-        evidence_parts.append(f"violations={auditor.violations}")
-    if auditor.nits:
-        evidence_parts.append(f"nits={auditor.nits}")
-    if auditor.uncertainty:
-        evidence_parts.append(f"uncertainty={auditor.uncertainty}")
-    reason = f"auditor verdict={auditor.verdict} ({len(auditor.violations)} violations)"
-    return DiffQuarantineResult(
-        passed=False, reason=reason,
-        digest={"rejection_type": DIFF_QUARANTINE_REASON, "subtype": subtype,
-                "reason": reason, "diff_region": SOURCE_REL, "template_diff_id": MARKER_ID,
-                "evidence": "; ".join(evidence_parts) or "(詳細なし)"})
+    """auditor gate reject の合成結果 (軸定数を束ねた薄い wrapper — 本体は
+    `auditor_gate.auditor_reject_result` へ共有昇格、旧署名は後方互換で維持)。"""
+    return auditor_reject_result(subtype, auditor,
+                                 diff_region=SOURCE_REL, template_diff_id=MARKER_ID)
 
 
 def _quarantine_and_audit(sub: str, coder: CoderProposalSort, auditor: AuditorVerdict,
@@ -188,12 +142,7 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalSort, auditor: AuditorVe
         log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
         return {"outcome": "rejected", "variant": v, "digest": res.digest}
 
-    actual_digest = compute_diff_digest(working_diff)
-    if actual_digest != auditor.diff_digest:
-        raise AuditorGateFailure(
-            f"帰属汚染: auditor.diff_digest={auditor.diff_digest!r} だが実際の working_diff の "
-            f"digest={actual_digest!r} — auditor が審査した diff と実際に build/検疫される diff が "
-            f"食い違う (規律6、宣言でなく機械照合、敵対レビュー 2026-07-10)")
+    assert_digest_matches(auditor, working_diff)   # 不一致 → AuditorGateFailure (共有照合コア)
 
     if auditor.verdict != "pass":
         subtype = "auditor-uncertain" if auditor.verdict == "uncertain" else "auditor-violation"
@@ -336,20 +285,7 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalSort,
     coder = CoderProposalSort(
         axis=c["axis"], implementation=c["implementation"],
         justification=c.get("justification", ""), confidence=c.get("confidence", "medium"))
-    verdict = a["verdict"]
-    if verdict not in _AUDITOR_VERDICTS:
-        raise AuditorGateFailure(
-            f"auditor.verdict は {sorted(_AUDITOR_VERDICTS)} のいずれか (got {verdict!r}) — "
-            f"未知の値は fails-closed で拒否 (規律2、敵対レビュー 2026-07-10)")
-    digest = a["diff_digest"]
-    if not isinstance(digest, str) or not digest:
-        raise AuditorGateFailure(
-            "auditor.diff_digest が空/非文字列 — quarantine() の working_diff と機械照合できない "
-            "(fails-closed、敵対レビュー 2026-07-10)")
-    auditor = AuditorVerdict(
-        verdict=verdict, diff_digest=digest,
-        violations=a.get("violations", []), nits=a.get("nits", []),
-        proposed_tests=a.get("proposed_tests", []), uncertainty=a.get("uncertainty", ""))
+    auditor = parse_auditor_dict(a)   # verdict 未知・digest 空/非文字列 → AuditorGateFailure
     prior = d.get("prior_critic_reverse")
     if prior is not None and not isinstance(prior, bool):
         raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
