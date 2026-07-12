@@ -1957,3 +1957,30 @@ F 段継続 (並行セッション、iter2 前に provenance 回避策 = extra 3
 人間判断待ち (1)〜(3) の決着 (headline 3 択協議と同席)。段 8a ループは checkpoint
 (iteration=2、reverse_recommendations=1) で中断可能な状態 — 再開は runbook §1 (a) から
 任意の fresh session で可。
+
+## 2026-07-12 (7) — 事前登録改訂 D52: headline 主張の系レベル再構成 (ユーザー承認 = 07-12 (5) 3 択の決着)
+
+07-12 (5) の人間判断待ち (headline 3 択) を**ユーザーが③ (系レベル再構成) で承認**
+(「進めてください」)。草案 v1 → 3 レンズ敵対レビュー (事前登録作法整合 / 規律整合・リーク制御 /
+実効性・統計、独立コンテキスト workflow、23.2 万 token) → **全レンズ adopt-with-conditions、
+must-fix 9 系統 / should-fix 12 / nit 5 / refuted 0 全反映**の v2 → 正本反映 (D52)。
+- 最重要裁定 3 件: C5 帰属遮断 ablation が D47 決定 4 基準 (2) の定義から恒真化 (3 レンズ独立
+  収束 → 全アーム共通基準 (2') に置換 + 由来盲検) / C4 無作為選定対照が記述工程の非対称で
+  藁人形化 (→ 選定のみ無作為に対称化) / 独立再命名が骨格 patch の識別子経由で恒真化 (→ 匿名化
+  + canary 格下げ + 一致を肯定的証拠に使わない)
+- 素材: 改訂の provenance に「既知結果台帳」(HARKing 境界 — S-1 = 結果既知の登録追試と自認、
+  confirmatory と呼ばない限定表現義務) を凍結する型を初適用。「headline 差し替え」と「制約方向
+  の付帯変更」の二層書き分け (前例誤読の防止) も同追記が初出
+- F 段への帰結 (D52 決定 3): 主張 S の下で trigger 軸内実計測は headline 判定に寄与しない —
+  07-12 (6) 判断待ち (1) の判断材料として phase3.md 8a 項に接続済み
+- 一次資料: 拘束力 = phase3-main-experiment.md 2026-07-12 追記 / 設計論証・裁定台帳 =
+  `output/insights/2026-07-12_s6-headline-system-level-reframe-draft.md` (v2)
+- エージェント工数: レビュー workflow 3 本 23.2 万 token。計測なし (草案・反映とも文書作業のみ)
+- 持ち越し: F 段 should-fix 3 件 (provenance union merge / hole 内コメント機械 reject /
+  runbook abort>0 2 行) は変わらず (07-12 (5)(6) 参照)
+
+### 次の一手
+D52 の着手順 (事前登録追記 §着手順): (1) 独立再命名 canary → (2) n 確定 + 提案ラウンド束
+S-2/C4/C5 → (3) S-1 直接比較再計測 (計測窓)。(1)(2) は計測ゼロで F 段判断と独立に開始可。
+07-12 (6) の人間判断待ち (動作点再ホスト/クローズ・proposed_tests 採否) は D52 決定 3 を材料に
+ユーザー協議。

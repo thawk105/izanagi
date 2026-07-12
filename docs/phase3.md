@@ -163,9 +163,13 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    同型 — 現状の防壁は auditor の静的目視 + 残存リスク節の実機確認記録)。実走手順 =
    `docs/phase3-s5-sort-runbook.md`。正本 = D40〜D43・`orchestrator/campaign/p3_s4_loop_sort.py`・
    campaign `p3-s5-sort-loop-s5-sort-autonomous-3be89e0d`。
-6. **主実験の実行 (headline 比較 4 対照 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
+6. **主実験の実行 (headline 比較 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
    実走する段。**Phase 3 の headline 主張はこの段の完了をもって初めて出せる** (段 4/5 の中間結果は評価設計に
-   従った暫定として報告)。gate = 変異軸 (sort or それ以降) から headline 候補が出たこと + S2 gate + auditor live。
+   従った暫定として報告)。**headline 主張は 2026-07-12 追記 (D52) で系レベル (主張 S = 軸発見の優越) に
+   再構成済み** — gate は「変異軸から headline 候補が出たこと」から「主張 S の判定材料の充足 (S-1 再計測 +
+   S-2/S-3 提案ラウンド束 + 独立再命名 canary、着手順は同追記)」に置き換わった。旧 gate (軸内探索の headline
+   候補軸) は旧主張の scope 限定保存に伴い休眠 (復活条件 = 非列挙軸の実体化、同追記)。S2 gate + auditor live
+   は充足済みで不変。
    ここで仕込む前提タスク: (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照。
    D44 注意: stock 専用計測経路を選ぶ場合、対抗馬だけ certified 要件を免除する非対称比較になる — その扱いを
    設計時に明文化する)、
@@ -278,7 +282,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      abort 約 2.3%) では gate の発火頻度が低く bite しない、**探索停止推奨**。ループは
      checkpoint (campaign `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5`) で中断中。
      残るタスク = **動作点再ホスト (高競合 workload、段 8b との合流含む) か本動作点クローズ
-     かの人間判断** + auditor proposed_tests (fail-safe 意味検査ほか) の採否。
+     かの人間判断** + auditor proposed_tests (fail-safe 意味検査ほか) の採否。判断材料 =
+     D52 (主張 S の下で本軸の軸内実計測は headline 判定に寄与しない — F 段継続は 8c 配線検証の
+     最小限に限定、動作点再ホストは 8b または非列挙軸の事前登録と束ねた別途正当化を要する)。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
