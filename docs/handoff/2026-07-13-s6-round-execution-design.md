@@ -34,8 +34,11 @@
 ## 注意 (次セッションの Claude へ)
 
 - 実走前に必ず `verify` を通す (fails-closed — 1 述語でも不成立なら人間判断)
-- claude -p の呼び出しフラグ (`--system-prompt` / `--output-format json` /
-  `--exclude-dynamic-system-prompt-sections` / `--disallowedTools`) は canary 07-13 (1) の
-  遮断構成 — 本走前に preflight (保有ツール NONE の実測) を 1 本流すこと (canary の前例)。
-  effort 指定が headless で効かない場合は §7 変更点台帳への追記を忘れない
+- 遮断配線は 07-13 (7) で品質固め済み: `preflight` サブコマンド実装 + 実測 1 本 OK (保有
+  ツール NONE)。`--effort high` は実在フラグ (--help 確認済み)。
+  `--exclude-dynamic-system-prompt-sections` は `--system-prompt` 併用時に無視されるため
+  外した (遮断の実効 = 完全置換 + preflight。failures.md F14)。本走直前にも preflight を
+  1 本流すこと
+- 機械部分の回帰テスト = `orchestrator/tests/test_s6_proposal_rounds.py` (18 件)。driver を
+  触ったら必ず回す
 - 60 ラウンドの実走中は心拍規律 (約 1 分周期の日本語進捗) + スロット単位の中間 provenance

@@ -2125,3 +2125,26 @@ S-1 直接比較再計測は計測窓待ち。
 - 人間判断待ち: 作業の進め方 5 への配線 1 行 (provenance ポインタ方式 + workflow 要旨返し) は
   未承認のまま持ち越し (実効は memory 側で既に担保)
 - gate 残 2 点 (master seed / 実走承認) は変わらず (前エントリ参照)
+
+## 2026-07-13 (7) — 実走以外の前進 (ユーザー指示): provenance 恒久修正 + s6 driver 品質固め
+
+ユーザー指示「実走以外やってくれ」。07-12 (6) 判断待ちのうち (3) の実体 = provenance 恒久修正
+(real 裁定済み) を消化。(1) 動作点再ホスト / (2) proposed_tests 採否は設計判断につき不触。
+
+- trigger-gating provenance: information_sources を path 後勝ち union 化 — --extra-source
+  追記分がヘッダ焼き直しで消える構造の恒久修正 (07-12 (5) real 裁定、回避策「毎回再指定」を
+  廃止)。回帰テスト追加、既存含め 21 passed
+- s6 driver 品質固め: **preflight 実装 + 実測 1 本 OK (保有ツール NONE)** — docstring に
+  謳って未実装だった (F9 型の自己検出)。--effort high 追加 (フラグ実在を --help で確認)。
+  C4 単体スクリプトを freeze へ統合削除 (F2 drift 型の予防)。機械部分テスト 18 件新設
+  (出力三分法・validate_score・freeze→verify 改変検出の positive control — モック母集団で
+  実 seed 試算を回避)
+- 素材: `--exclude-dynamic-system-prompt-sections` は `--system-prompt` 併用時に無視される
+  仕様と判明 — canary の遮断実効は完全置換 + preflight が担保していて実害なし (記録の不正確
+  のみ)。canary provenance に erratum 注記、failures.md **F14** [恒真ゲート] に採録 (台帳
+  配線後の初運用)
+- 人間判断待ち: 変わらず — gate 残 2 点 (master seed / 実走承認) + 07-12 (6) (1)(2)
+
+### 次の一手
+実走は gate 残 2 点の承認後 (引き継ぎは handoff)。それ以外の実走非依存タスクは 07-12 (6)
+(1)(2) の人間判断待ちに依存するものが主で、独立に進められる大物は現状なし。

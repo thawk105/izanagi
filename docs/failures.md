@@ -117,6 +117,16 @@
   方式へ (実走 driver の frozen/ + hash_ledger.json が実装例)
 - 再発検知: /context の Messages 伸び率。単発 10k 超の Read をやる前に抽出可否を自問
 
+### F14. 無効化されるフラグを遮断機構として記録 [恒真ゲート]
+- 事象: canary (worklog 07-13 (1)) の実行記録が `--exclude-dynamic-system-prompt-sections` を
+  遮断構成の一部として記録したが、このフラグは `--system-prompt` 併用時に無視される仕様
+  (2026-07-13 に --help で確認)。遮断の実効は完全置換 + preflight 実測が担保しており実害
+  なし — 記録の不正確のみ
+- 根本原因: CLI フラグの仕様を確認せず前例転写した
+- 恒久対応: canary provenance に訂正注記 (erratum) + s6 driver は無効フラグを外し docstring に
+  実態を記載。新しい CLI フラグは --help で仕様確認してから遮断構成に数える
+- 再発検知: preflight (保有ツール NONE の実測) を毎実走の必須段にする (s6 driver に実装済み)
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
