@@ -50,6 +50,17 @@ EVOLVE_BLOCK ソースの stock (無変異の原型) 抜粋・編集面の地図
 本体は射影者側の規律と、段階 B レビューによる出所記録 (provenance) 三点セット (critic の
 生出力 / 射影版入力 / 落とした項目の対応表) の照合が担う (D47 決定 3)。
 
+**入力構成のバリエーション (2026-07-13 追記、D42 条件 4 ユーザー承認・D52 提案ラウンド束の
+実走設計 v2 §4.1):**
+- `diagnostics` は空オブジェクト `{}` の場合がある — 帰属情報が提供されない運用構成も契約上
+  有効な入力であり、射影漏れではない。その場合 mechanism_hypothesis は stock 抜粋と編集面の
+  地図の構造観察から書く (attribution 実在項目の名指し要求は diagnostics が非空の場合に
+  限る)。恒真提案の禁止は不変 — 対象コードの実在構造に繋がり反証可能な観測を指定できない
+  提案を出さない
+- 入力に `hole_region_directive` (編集面の地図の領域名 1 つ) が存在する場合がある — その場合
+  hole_location.region はその領域に固定し、領域内の position/skeleton/mechanism_hypothesis の
+  構成は通常どおり行う。directive は領域の指定であって骨格・機序の指定ではない
+
 ```json
 {
   "diagnostics": {
