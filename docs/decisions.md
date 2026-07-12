@@ -1869,3 +1869,73 @@ Bash からの rm を正しく拒否 — 迂回せず正規経路で対処。診
 payload に例外要約) は人間判断待ち。
 
 **正本:** 本エントリ + insight (裁定台帳・教訓の全文)。campaign id 6 本は insight の結果節。
+
+## D51. 段 8a E 段実装 — trigger-gating LLM ループ driver + provenance 情報源記録の宿主確定 (2026-07-12)
+
+**背景:** D50 の E 段 gate をユーザー指示 2026-07-12「izanagiの仕事を進めてください」
+(worklog 07-11 (5) 判断待ち (1) への承認と解釈、解釈自体を provenance の gate_record に
+構造化記録) で通過し、axis-onboarding §3-E の E 段を実装した。E 着手時の最初の設計タスク
+= provenance 情報源記録義務 (D46 (a) ループ版) の実装先確定 (07-11 監査 L4-1 — 義務文
+7 箇所に対し記録の宿主が未定義・loop 基盤に受け皿なし)。実装前に 3 レンズ敵対レビュー
+(リーク制御/fails-closed/regression、独立コンテキスト workflow `wf_3ee6392c-870`) を実施、
+**3 レンズとも adopt-with-conditions** (must 3 (独立 2)/should 10/nit 5、全反映 — 部分
+採用 1)。finding 全文・裁定台帳 =
+`output/insights/2026-07-12_s8a-stage-e-design-review.md`。
+
+**決定 1 — provenance 情報源記録の宿主 = `<campaign root>/reports/p3_s8a_trigger_loop_provenance.json`:**
+偵察器 `_write_provenance` の様式 (reports/ 隔離 = proof-chain 保護外・merge・逐次書き)
+を踏襲しつつ fails-closed に強化した loop 版。スキーマ = ヘッダ (`information_sources`
+(不読の明示を含む固定定数 + `--extra-source` 動的追記) / `liveness_binary`="alive" (E 段
+入力に渡しうる偵察由来情報の全量) / `gate_record` {basis/approval/firewall_scope} (gate
+通過根拠の構造化、レビュー FC-5) / `firewall` 宣言) + `entries` (iteration →
+proposal_path/auditor_diff_digest/variant/outcome)。**書き込み順序が本体** (レビュー
+must-fix FC-1): ヘッダ = `drive_iteration` 入口 (build 前 — 静的欠落は 1 度のビルドも
+走らせず停止)、entry = `run_one_iteration` 後・`save_loop_state` **前** (entry が書けない
+iteration は checkpoint が前進せず、再開時に WAL replay 経由で再記録)。記録は CLI で
+省略不能 (宣言止まりにしない)。fails-closed 群: atomic 書き (PID-tmp + os.replace) /
+未知キー保存 (前方互換) / decode 不能は `.corrupt.<ts>` 退避 + 例外停止 (silent reset =
+記録義務の黙殺はしない — 「診断チャネルの破損で loop を止めるのは過剰」の指摘は退避のみ
+部分採用) / 情報源空で起動拒否 / 偵察診断キー (effective_reasons/floor_cv/freq_source) の
+書き込み拒否 (D48 条件 7)。fixture main 直呼び経路は配線確認専用で対象外 (F 段実経路 =
+`--run-iteration` → `drive_iteration` が funnel、テストで固定)。既存 driver (backoff/
+sort) への遡及適用はしない (歴史的 driver の凍結)。
+
+**決定 2 — auditor 機械 gate の共有昇格 (`campaign/auditor_gate.py`、コード片軸 2 軸目):**
+当初案「4 点の純粋移動 + 公開名維持」は 2 レンズが独立に反証 (must-fix 収束) —
+`_quarantine_and_audit`/`_auditor_reject_result` は MARKER_ID/SOURCE_REL/ENV_TAG の
+module-global に閉じ verbatim 移動は NameError。裁定 = 軸非依存部品 5 点
+(AuditorVerdict/AuditorGateFailure/compute_diff_digest/assert_digest_matches 照合コア/
+auditor_reject_result 引数化 builder + parse_auditor_dict) のみ抽出し、軸定数依存の
+関数は各 driver に wrapper として残す。sort は同一オブジェクト import + 委譲 wrapper で
+既存テスト 17 本無改変緑 (regression 保全の実証)。兄弟 driver 間 import (trigger → sort)
+はレイヤ違反として却下 (axis-onboarding §1 脚注の同型)。
+
+**決定 3 — 構文契約禁止識別子の機械 grep を pre-build に追加 (執行の役割分担を明文化):**
+D48 決定 2 の禁止リスト (`SYNTAX_CONTRACT_FORBIDDEN`) について、「auditor 目視が執行の
+正本・grep は補助」という当初案の格下げをレビュー (FC-8) が反証 — 目視は harness が機械
+検証できず、どちらも hard gate として扱われない曖昧さが残る。裁定 = **リスト上の識別子は
+grep が機械執行する hard gate** (subtype="syntax-contract"、識別子境界 \\b 付き・過検出は
+安全側)、**auditor 目視はその超集合** (恒真述語・fairness 誘導などリストに載らない意味的
+違反) を執行し、grep 緑は目視義務を免除しない (runbook 明記)。reject evidence はマッチ
+識別子名のみ (coder の gate 式本文を critic 還流に運ばない、リークレンズ nit)。
+`render_rejections` に専用の読み方ヒント分岐を追加。
+
+**決定 4 — リーク制御の要点 (リークレンズ must-fix):** coder へ見せる骨格 enum 抜粋は
+**裸のメンバ名のみ** — 実 patch の per-member コメント (発火経路・「YCSB では発火しない」
+= 不感要因の絞り込みヒント) を strip した固定テキストを coder 定義に埋め込み、実 patch
+からの都度抜粋を禁止。kUnset→true の fail-safe 契約は骨格の物理的契約として明示 (勝ち筋
+情報ではない)。coder 入力は 5 フィールドに全列挙固定 (baseline は E 段 campaign 自身の
+実測 — 偵察由来でない)。E 段入力に渡しうる偵察由来情報は `LIVENESS_BINARY`="alive" のみ。
+
+**成果物:** `orchestrator/campaign/auditor_gate.py` + `p3_s4_loop_trigger_gating.py`
+(b539b33 / fff44ea、テスト 28 本新規・全体 384 passed) / `docs/phase3-s8a-trigger-runbook.md` /
+coder 定義草案 = `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`
+(**ユーザー承認待ち** — `.claude/agents/` の変更は明示承認必須、axis-onboarding §5)。
+**F 段 (実 LLM iteration 1) は coder 定義の承認・配置後の fresh session** (agent 登録は
+セッション開始時のみ)。
+
+**残存リスク:** (a) provenance の information_sources は自己申告 (起草者の記憶汚染は防げ
+ない — 記録は監査可能性の担保であり、封じ込めの保証ではない。D46 (a) と同じ限界)。
+(b) fairness (型 15) の機械観測点は本軸でも未実装 (thid_ grep は直接経路のみ遮断、間接
+経路は auditor 目視。D41 決定 3 から不変)。(c) S2 verify は rr50 固定の off-workload
+被覆 (D50 限定 (4) から不変)。

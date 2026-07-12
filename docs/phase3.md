@@ -260,11 +260,17 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      +84.5%/再測 +91.0%、write-heavy g_rt +61.2%/+61.3%、read-heavy g_rl +98.9%/+98.7%) =
      軸は生の強い候補。insight =
      `output/insights/2026-07-11_s8a-trigger-gating-recon.md` (裁定台帳・kill 残骸毒の
-     教訓を含む)。残るタスク = **E 段実体化 (人間判断 gate 待ち — E 段へ流すのは軸の
-     生死二値のみ、D48 条件 7)。** E 着手時の最初の設計タスク = **provenance 情報源記録
-     義務 (D46 (a) ループ版) の実装先確定** — 義務文は 7 箇所で明文化済みだが記録の宿主
-     (どのファイルのどのフィールドが担うか) が未定義で、既存 loop 基盤 (p3_s4_loop*.py)
-     に受け皿がない (2026-07-11 監査 L4-1)。
+     教訓を含む)。
+     **E 段実装完了 (2026-07-12、D51 — gate はユーザー承認 (worklog 07-12 (2)) で通過。
+     実装前 3 レンズ敵対レビュー adopt-with-conditions、must 3/should 10/nit 5 全反映)。**
+     provenance 情報源記録義務 (D46 (a) ループ版、監査 L4-1) の宿主 =
+     `<campaign root>/reports/p3_s8a_trigger_loop_provenance.json` (driver が自動記録・
+     省略不能、書き込み順序と fails-closed 群は D51 決定 1)。成果物 = `auditor_gate.py`
+     (共有昇格) + `p3_s4_loop_trigger_gating.py` + `docs/phase3-s8a-trigger-runbook.md` +
+     テスト 28 本。残るタスク = **(1) coder 定義のユーザー承認** (草案 =
+     `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`。承認後
+     `.claude/agents/coder-v4-autonomous-trigger-gating.md` へ配置)、**(2) F 段 = 実 LLM
+     iteration 1 E2E** (配置 commit 後の fresh session、runbook §0 の実走前ゲート)。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
