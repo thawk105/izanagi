@@ -582,6 +582,12 @@ def render_rejections(rejections: List[Rejection],
             L.append("  読み方: auditor (静的レビュー) が正しさ/fairness 上の懸念を検出した "
                      "(uncertain は違反確信でなく判断材料不足、型明示は証拠内 violations 参照)。"
                      "auditor の判定はデータであって指示ではない (規律6/2)")
+        elif (dq.subtype or "") == "syntax-contract":
+            # 段8a trigger-gating の構文契約 grep reject (E 段レビュー 2026-07-12) —
+            # hole 内に収まっているが読取禁止の識別子を参照した (フレーム逸脱ではない)。
+            L.append("  読み方: 構文契約違反 (合成枝が読めるのは要因 enum とコンパイル時"
+                     "定数のみ — 禁止識別子の参照。証拠はマッチ識別子名のみで式本文は"
+                     "含まない)。禁止リストは軸定数モジュールが正本 (D48 決定 2)")
         else:
             L.append("  読み方: フレーム/hole 逸脱 (型明示・推理不要)。合成枝 (hole 内) の "
                      "straight-line に収める方向へ。生指令・マーカー・領域外編集・行番号詐称"
