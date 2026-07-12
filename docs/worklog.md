@@ -1820,3 +1820,20 @@ E 段ロールを実体化 (E 段へ流すのは軸の生死二値のみ、D48 �
 ### 次の一手
 E 段 gate (変わらず (5) 参照)。進む場合の最初の設計タスク = provenance 記録義務の実装先確定
 (phase3.md 8a 項に明文化済み)。
+
+## 2026-07-12 (1) — 見送り台帳の診断改善: abort payload に例外要約 (E 段 gate と独立)
+
+台帳の「pipeline._abort の例外要約」(07-11 (5) 人間判断待ち (2) 由来、D50 教訓節) を拾って
+完了 = 84ccab7 (feat(campaign): abort WAL payload に例外要約を追加)。07-11 (5) の判断待ち
+2 件のうち (2) はこれで消化 — 残る判断待ちは (1) E 段 gate のみ。
+- 敵対レビュー (workflow 3 レンズ + finding 別裏取り、独立コンテキスト): finding 4 →
+  real 0 / refuted 4。最重要 refuted = 「"error" キーが liveness rejection 経由で LLM
+  次手入力へ流れる新注入経路 (規律 6)」の疑い — 経路は実在するが、render_rejections の
+  規律 6 フレームは liveness 節も覆っており、trace 由来自由文字列の LLM 還流は verify-red
+  節が設計として既に持つ (load-bearing)。新規の越境なしと裁定。残り 3 件 = _exc_summary
+  の切り詰め算術 nit (私的ヘルパ・呼び手は limit=1000 のみで実害なし、前提は docstring に
+  明示済み)
+- エージェント工数: 10 本 / 約 34 万 token / 6.4 分。計測なし
+
+### 次の一手
+E 段 gate (変わらず 07-11 (5) 参照)。
