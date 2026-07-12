@@ -2104,3 +2104,20 @@ S-1 直接比較再計測は計測窓待ち。
 次セッション: gate 残 2 点 (master seed / 実走承認) → 凍結コミット列 →
 `s6_proposal_rounds.py freeze → verify → run → anonymize → score → tally` → 採点 reason の
 人間監査。着手順 3 = S-1 直接比較再計測は計測窓待ち。
+
+## 2026-07-13 (6) — 協議: コンテキスト浪費の根因対策 + 失敗台帳 docs/failures.md 新設
+
+セッション区切り後のユーザー協議 (/context の Messages 268k の指摘) から。
+
+- 協議の決着: (1) provenance 全文主義 → 「hash + ポインタ + 要旨」方式へ (凍結の本質 =
+  改変有無の判定可能性で、hash 照合で足りる — 実装例は実走 driver の frozen/ + hash_ledger)。
+  (2) 裏取り全文の返却は冗長 (journal.jsonl に全文が自動で残る) — ただし**要旨化の精度劣化
+  リスクへの対策として、絞るのは散文であって判定構造ではない**: caveats 専用欄 + must-fix/
+  partially-real/レンズ衝突時は全文へ機械的エスカレーション
+- **`docs/failures.md` 新設 (ユーザー要望「二度と同じ過ちを犯さない」の正本):** 過去の失敗
+  13 件 (F1〜F13) を worklog/memory から回収して初期化。恒久対応は実体ポインタ必須 (宣言だけ
+  の恒真対応を認めない)・再発は既存エントリに追記して顕在化・機械化優先。Phase 1〜2 分 4 件は
+  未回収と明記
+- 人間判断待ち: CLAUDE.md への配線 2 点 — (a) 作業の進め方 5 に provenance ポインタ方式 +
+  workflow 要旨返しの 1 行、(b) failures.md への追記運用の 1 行。承認あれば次セッションで反映
+- gate 残 2 点 (master seed / 実走承認) は変わらず (前エントリ参照)

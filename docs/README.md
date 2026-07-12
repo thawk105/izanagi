@@ -12,6 +12,8 @@
 - `phase3.md` — 現行 phase doc。チェックリストと must 表 = タスク粒度の完了状況の正本
 - `phase3-main-experiment.md` — 主実験の事前登録
 - `worklog.md` — 日誌。末尾エントリ = 可変状態の正本 (書式は CLAUDE.md 作業の進め方 7)
+- `failures.md` — 失敗台帳。起こした問題の型別索引と恒久対応の実体ポインタ (2026-07-13 新設。
+  問題発生時は worklog と同時に追記、再発は既存エントリに「再発:」追記)
 - `handoff/` — セッションの WAL (中断引き継ぎ + 並行セッションの宣言板。運用は同 README)
 - `archive/` — 凍結記録 (監査台帳・worklog 過去分・凍結文書)。ファイル名は移動前と不変、規約は同 README
 - `agent-architecture.md` — サブエージェント構成・権限・規律の正本 (ロール定義本体は `.claude/agents/`)
