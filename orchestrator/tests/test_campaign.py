@@ -630,6 +630,31 @@ def test_pipeline_build_error_aborts():
     assert st.aborted and STAGE_BUILD_DONE not in st.stages_seen
 
 
+def test_pipeline_build_error_payload_carries_exception_summary():
+    """D50 教訓の診断改善: build-error の abort payload に例外要約 ("error" キー) を載せる。
+    reason だけの WAL では失敗原因を帰属できず、kill 残骸毒の調査が build dir の実地検分
+    まで遅延した (worklog 2026-07-11 (5))。"""
+    lay = _tmp_layout()
+    r, _ = _eval(lay, build_raises=True)
+    aborts = [rec for rec in wal.read_records(lay)
+              if rec.variant == r.variant and rec.stage == STAGE_ABORT]
+    assert aborts and aborts[-1].payload.get("reason") == "build-error"
+    err = aborts[-1].payload.get("error", "")
+    assert "RuntimeError" in err and "build boom" in err
+
+
+def test_exc_summary_truncates_tail_biased():
+    """_exc_summary: 長い例外 (ビルドログ等) は本命が末尾に出やすいので末尾優先で畳む。
+    短い例外は型名付きでそのまま返す。"""
+    short = pipeline._exc_summary(RuntimeError("g++ 不在"))
+    assert short == "RuntimeError: g++ 不在"
+    long_e = RuntimeError("HEAD" + "x" * 5000 + "error: 本命はここTAIL")
+    s = pipeline._exc_summary(long_e)
+    assert s.startswith("RuntimeError: HEAD")
+    assert s.endswith("error: 本命はここTAIL")
+    assert len(s) < 1100                       # limit=1000 + 省略マーカ分で頭打ち
+
+
 def test_pipeline_self_compute_identity_error_aborts_under_stock_id():
     """直接 caller (src_token=None) で source_digest.resolve が確定不能なら stock id で abort
     (fails-closed, 規律2)。loop は src_token を渡すので通らないが、直接 caller 用の防壁を回帰する

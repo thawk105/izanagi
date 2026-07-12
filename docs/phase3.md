@@ -288,7 +288,6 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **mocc trace-hook** (worklog 2026-06-19) — visible reads の trace 検証 + verifier 2nd エンジン化。S1 発火時に吸収するのが自然。
 - **ermia cross-check** (worklog 2026-06-18) — si 赤 / ermia 緑 の同一エンジン ablation。同上 (版 ID 写像の罠は ccbench-anatomy.md §8 に昇格済み)。
 - **calibration の K 感度・thread 数変更時の再 calibration** (worklog 2026-06-18) — 後続段 6 前提タスク (b) の protocol 別 calibration が部分吸収する。
-- **pipeline._abort の abort payload に例外要約を追加** (worklog 2026-07-11 (5) の人間判断待ち由来、D50 教訓節) — kill 残骸毒の調査が reason のみで遅延した診断改善。E 段 gate と独立に着手可能。
 - **ftruncate-xor insight の還元判断欄の追随** (worklog 2026-07-10 (19) 由来) — 上流還元は PR #116/#118 で完了済みだが insight (2026-06-19) は「ユーザー確認待ち」表記のまま。追記訂正はユーザー判断待ち (勝手に書き換えない)。
 - **buildcache 残骸破棄の結線統合テスト** (2026-07-11 監査 L2-2 由来) — fc4d3fa の回帰テスト 2 本は helper 単体のみで、build() が configure 前に破棄を呼ぶ結線を assert しない。結線だけ外れる将来 refactor への歯として統合テスト 1 本の余地。
 

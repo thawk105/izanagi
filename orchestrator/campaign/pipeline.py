@@ -120,6 +120,17 @@ def _parse_abort_counts(stdout: str) -> Optional[int]:
 TRACE_TIMEOUT_S = 120.0
 
 
+def _exc_summary(e: BaseException, limit: int = 1000) -> str:
+    """例外由来 abort の WAL payload に載せる要約 (D50 教訓: reason だけの WAL では
+    build-error の現地調査を一次資料から始められず、kill 残骸毒の特定が遅延した)。
+    ビルドログ等の長い出力は本命 (error: 行) が末尾に出やすいので末尾優先で畳む。
+    limit は 200 超が前提 (先頭 200 + 末尾 limit-200 の算術が退化する。既定 1000 のみで使用)。"""
+    s = f"{type(e).__name__}: {e}"
+    if len(s) <= limit:
+        return s
+    return s[:200] + " …[中略]… " + s[-(limit - 200):]
+
+
 def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
                clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,
                numactl: Optional[Sequence[str]] = None):
@@ -203,7 +214,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             v0 = variant_id(genome)        # stock id で abort を記録 (WAL キーを残す)
             wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
             wal.log(layout, v0, STAGE_ABORT, env_tag,
-                    {"reason": "identity-error", "error": str(e)})
+                    {"reason": "identity-error", "error": _exc_summary(e)})
             log(f"  [eval {v0}] abort: identity-error ({e})")
             r = EvalResult(genome=genome, variant=v0, certified=False, aborted=True)
             r.notes.append(f"source_digest 確定不能 → reject ({e})")
@@ -235,7 +246,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         pf = buildcache.build(genome, ccbench_commit, trace=False, src_token=src_tok,
                               ccbench_dir=ccbench_dir, cache_root=cache_root)
     except (RuntimeError, subprocess.SubprocessError) as e:
-        return _abort("build-error", f"ビルド失敗 → reject ({e})")
+        # 例外要約を payload に載せる (D50 教訓): reason="build-error" だけだと WAL から
+        # 失敗原因 (configure 即死か compile error か) を帰属できず調査が build dir の
+        # 実地検分から始まる。identity-error の "error" キーと同じ語彙。
+        return _abort("build-error", f"ビルド失敗 → reject ({e})",
+                      {"error": _exc_summary(e)})
     wal.log(layout, v, STAGE_BUILD_DONE, env_tag,
             {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
              "trace_cached": tr.cached, "perf_cached": pf.cached,
@@ -288,7 +303,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 vr = verify_trace_dir(tdir)
             except ParseError as e:
                 return _abort("trace-parse-error", f"trace パース不能 ({tag}) → reject ({e})",
-                              workload_tag=tag)
+                              {"error": _exc_summary(e)}, workload_tag=tag)
             res.verdict = vr.verdict
             wal.log(layout, v, STAGE_VERIFY_DONE, env_tag,
                     {"verdict": vr.verdict, "certified": vr.certified,
