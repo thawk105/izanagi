@@ -1,0 +1,36 @@
+{
+ "meta": {
+  "date": "2026-07-12",
+  "trigger": "ユーザー依頼「izanagi/docs に書くべきでないものが書かれていたりする？保守運用の観点で」→「改善できるところは改善してほしい」→「恒久対応も含められそう？」",
+  "method": "読み取り専用 Explore 3 レンズ並列 (衛生 / 導出可能情報の再掲 / living docs 意味的腐敗)。既存 lint (check_docs.py) は違反ゼロだった — 検出はすべて lint が構造的に見ない領域。恒久対応で足した新検査の導入自走が 1 件を追加検出",
+  "baseline_commit": "fff44ea",
+  "fix_commits": "22b1364..997d9ca (5 本: hooks/README 是正 / 地図 README 是正 / runbook literal 廃止 / lint 恒久対応 / foundation 凍結移動)",
+  "tally": {"real": 12, "refuted": 0, "high": 1, "medium": 5, "low": 6, "applied": 9, "deferred": 3}
+ },
+ "findings": [
+  {"id": "reprint-01", "lens": "導出可能再掲", "severity": "high", "file": "hooks/README.md:30", "summary": "EVOLVE_BLOCK_SOURCES の literal 再掲「= include/backoff.hh」が 1 要素時代のまま。実体 (source_digest.py / guard_write.py) は段 5 で cc/silo/transaction.cc を含む 2 要素に前進済みで、防壁の実効範囲を過小記述 (transaction.cc への編集を hook が拒否すると誤読させる)", "disposition": "applied — literal を廃し source_digest の定数を正本として指す記号参照へ", "fix_commit": "22b1364"},
+  {"id": "reprint-02", "lens": "導出可能再掲", "severity": "medium", "file": "docs/README.md:26", "summary": "docs 地図の段番号 glob (phase3-s4*.md / phase3-s5*.md) が phase3-s8a-trigger-runbook.md を取りこぼし。段番号の手書き列挙は段の追加で必ず腐る構造で、s8a で現に発火", "disposition": "applied — phase3-s*.md の総称にして段番号列挙を廃止", "fix_commit": "25970f7"},
+  {"id": "reprint-03", "lens": "導出可能再掲", "severity": "medium", "file": "orchestrator/README.md:10-14", "summary": "campaign/ の「現構成」列挙が Phase 2 で停止。実体約 40 モジュールのうち Phase 3 層 (p3_*, s6_*, s8a_*, auditor_gate, diff_quarantine 等) がまるごと欠落", "disposition": "applied — 安定核のみ列挙し、段の前進で増える駆動層は「現有一覧は ls が正本」へ委譲", "fix_commit": "25970f7"},
+  {"id": "reprint-04", "lens": "導出可能再掲", "severity": "low", "file": "docs/phase3-s4b-runbook.md ほか runbook 群", "summary": "default_perf (records=100k/threads=4/extime=1/reps=2)・予算 (10 iteration/3600s)・TRACE_TIMEOUT_S=120・歴史 pin (028f34d/dff0f1e) の数値 literal。突合の結果、現時点で全部コードと一致。大半はコード記号を正本として併記済み", "disposition": "deferred — 現状維持 (実走前ゲートの目視照合用として機能。歴史 pin は「歴史的 driver は literal 保持」の制度と整合)。CURRENT_PIN だけは rot-01 で literal 禁止へ", "fix_commit": null},
+  {"id": "rot-01", "lens": "意味的腐敗", "severity": "medium", "file": "docs/phase3-s5-sort-runbook.md:27 / docs/phase3-s8a-trigger-runbook.md:26,135 / docs/axis-onboarding.md:297", "summary": "pin.CURRENT_PIN の現在値 literal がゲート行に再掲され、axis-onboarding §7.2 テンプレ「ゲート 3 の PIN 値」が literal 記載を制度化。runbook は lint 網外だったため、次軸オンボーディングでの pin 前進時に runbook だけが黙って腐ることが確実だった", "disposition": "applied — literal を除去し記号参照へ + テンプレを「記号参照で書く (literal 禁止)」に修正 + lint で機械禁止 (perm-01)", "fix_commit": "3c1bcdd, fb6d922"},
+  {"id": "rot-02", "lens": "意味的腐敗", "severity": "medium", "file": "docs/phase3-s4-design-foundation.md", "summary": "冒頭の「段 4 完了時に D39 + phase3.md に畳んで本文書は凍結/削除する」が段 4 完了 (2026-07-09) 後も未履行。「まだ decisions ではない」等の前向き枠が事実と乖離し、生きた文書からの参照ゼロの実質孤児", "disposition": "applied — 凍結注記を付して docs/archive/ へ移動 (約束の履行)。archive/README の収容物一覧に追記", "fix_commit": "997d9ca"},
+  {"id": "rot-03", "lens": "意味的腐敗", "severity": "low", "file": "docs/phase3-s8a-trigger-runbook.md:16-18", "summary": "実走前ゲート 1 が「草案 = insight (承認待ちの間、実走不可)」のまま。07-12 (3) の承認・配置に未追随 (worklog/phase3.md への追随はされたが runbook が漏れた)", "disposition": "applied — 承認・配置済み (2026-07-12) に更新", "fix_commit": "3c1bcdd"},
+  {"id": "rot-04", "lens": "意味的腐敗", "severity": "low", "file": "docs/isolation-phenomena.md", "summary": "verifier が現に判定するものを現在形で主張する生きた参照文書だが LIVING_DOCS 網外 (内容は安定事実で腐敗リスク自体は低い)", "disposition": "applied — LIVING_DOCS へ編入 (perm-01 と同コミット)", "fix_commit": "fb6d922"},
+  {"id": "rot-05", "lens": "意味的腐敗", "severity": "low", "file": "docs/phase3-s4b-runbook.md:5", "summary": "凍結予定・supersede 注記付きの設計経緯文書 design-v1 を「設計正本」と格上げ呼称 (v1 自身は正典への従属を宣言しており自己ステータスと不整合)", "disposition": "applied — 正典 (D39・phase3.md) と設計経緯文書の従属関係が分かる表現へ", "fix_commit": "3c1bcdd"},
+  {"id": "lint-self-01", "lens": "lint 導入自走", "severity": "medium", "file": "docs/phase3.md:74", "summary": "07-11 監査の経緯を説明する記述の中に d706650 literal が残存 (「literal を再掲しない」という規約の説明文自体が値を再掲していた)。perm-01 の新検査が導入時の自走で検出", "disposition": "applied — 値を「段 5 の pin 前進」に置換 (具体値は D41/D42 と pin.py docstring が正本)", "fix_commit": "3c1bcdd"},
+  {"id": "hygiene-01", "lens": "衛生", "severity": "low-medium", "file": "docs/worklog.md:870,973", "summary": "他利用者のユーザー名を含むパス /home/leon/ccbench/... が歴史記録に露出 (単一テナント窓待ちの判断記録という正当な文脈)", "disposition": "deferred — worklog 過去エントリは凍結族 (改竄禁止)。git 履歴にも残るため編集の実効性なし。報告のみ", "fix_commit": null},
+  {"id": "hygiene-02", "lens": "衛生", "severity": "low", "file": "docs/related-work/literature-map/gap-research-2026-07-10.md:71,172", "summary": "消滅済みセッションスクラッチの絶対パス (DL した PDF の在処として) + repo 内ファイルへの絶対パス。読者に無価値/repo 相対で書くべきもの", "disposition": "deferred — 日付付き調査記録 (凍結族)。報告のみ。今後の調査記録では repo 相対 + 「揮発」明記が望ましい", "fix_commit": null}
+ ],
+ "permanent_measures": [
+  {"id": "perm-01", "commit": "fb6d922", "summary": "check_docs.py: (1) 段 runbook を glob (phase3-s*-runbook.md) で LIVING_DOCS に自動編入 — 手書き列挙だと段の追加で取りこぼす構造自体を廃止。(2) pin.CURRENT_PIN の現在値の literal 再掲を living docs で機械禁止 — 書いた時点で拒否すれば腐る対象が生まれない。値の抽出失敗は違反として可視化 (検査の蒸発防止、tests/README の疑似スキップ禁止と同系)。(3) isolation-phenomena.md 編入", "self_test": "仮 runbook (docs/phase3-s99-lint-selftest-runbook.md) を作成し pin literal + 実在しないパスの 2 種が検出されること・削除で違反ゼロに戻ることを確認 (恒真な保証でないことの実証)。導入自走で lint-self-01 を実際に検出"},
+  {"id": "perm-02", "commit": "3c1bcdd", "summary": "axis-onboarding §7.2 テンプレ修正 — 次軸以降の runbook 起草時に literal を書く制度を「記号参照で書く (値の literal 禁止)」へ。制度の根の修正で、perm-01 の機械検査と二重化"}
+ ],
+ "healthy": [
+  "秘密情報 (資格情報/トークン/鍵) ゼロ、一時ファイル (.tmp/.bak/~) ゼロ、空ファイル・placeholder 放置ゼロ",
+  "living docs への生ログ・巨大データ貼り付けなし (一次資料の JSON 凍結 + ポインタ運用が守られている)",
+  "追跡から漏れた TODO/FIXME 孤児なし",
+  "agent-architecture.md のツール権限記述は .claude/agents/*.md frontmatter 全 11 本と一致 (確定制約を各 .md へ委譲する良い形)",
+  "phase3.md「テスト 28 本」= D51 と一致。coder 配置は phase3.md/worklog/repo の三者一致",
+  "handoff/ は README のみ (全セッション正常終了)。docs/ に git 未追跡・無視ファイルなし"
+ ]
+}

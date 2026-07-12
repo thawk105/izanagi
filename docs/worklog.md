@@ -1874,3 +1874,22 @@ phase3.md 8a 項を追随。F 段 (実 LLM iteration 1 E2E) は**ユーザー指
 ### 次の一手
 F 段 = 実 LLM iteration 1 E2E を fresh session で (`docs/phase3-s8a-trigger-runbook.md`
 §0 の実走前ゲート 6 点 + §0.5 の起草者 firewall 自己宣言から)。
+
+## 2026-07-12 (4) — 監査: docs 保守運用「書くべきでないもの」(ユーザー依頼) + lint 恒久対応
+
+ユーザー依頼「docs に書くべきでないものは？ (保守運用の観点)」→「改善できるところは改善」
+→「恒久対応も」。読み取り専用 3 レンズ並列 (衛生 / 導出可能情報の再掲 / living docs
+意味的腐敗) + 新 lint 導入自走の追加検出 1。real 12 (高 1・中 5・低 6) / refuted 0。
+適用 9 / 見送り 3 (leon パス・調査記録のスクラッチパス = 凍結族改竄禁止で報告のみ、
+runbook の数値 literal = 現在全一致で正本記号併記あり)。
+一次資料: `docs/archive/audit-2026-07-12-docs-maintenance.json`。
+最重要: (1) hooks/README の EVOLVE_BLOCK_SOURCES literal が transaction.cc 追加に未追随 =
+防壁範囲の過小記述 (高)、(2) runbook の pin literal 再掲を axis-onboarding テンプレが制度化
+しており次の pin 前進で確実に腐る構造 (中)、(3) 恒久対応 = check_docs に runbook glob 自動
+編入 + CURRENT_PIN literal の機械禁止 (書けなくすれば腐る対象が生まれない)。新検査は導入
+自走で phase3.md の残存 literal 1 件を即検出 (実効性を導入時に実証。仮 runbook での自己検証
+も済み — 恒真でない)。衛生レンズは白 (秘密情報・一時ファイル・TODO 孤児ゼロ)。
+是正コミット 22b1364..997d9ca (5 本)。エージェント工数: 3 本 (Explore)。計測なし。
+
+### 次の一手
+変わらず (前エントリ参照)。
