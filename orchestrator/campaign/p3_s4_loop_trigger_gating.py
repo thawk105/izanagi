@@ -229,16 +229,23 @@ def _write_provenance_header(layout: CampaignLayout,
     """run レベルの provenance ヘッダを焼く (drive_iteration 入口 = build 前。静的な
     記録欠落を 1 度のビルドも走らせず検出する、レビュー FC-1(a)/regression SF1 裁定)。
 
-    ヘッダは毎回現在の定数で上書き merge (定数改訂の追随)、既存 entries は保持。"""
+    ヘッダは毎回現在の定数で上書き merge (定数改訂の追随)、既存 entries は保持。
+    information_sources は path キーの後勝ち union (既存 → 定数 → 今回の extra) —
+    上書き置換だと過去 iteration の --extra-source 追記分が次の焼き直しで消える
+    (07-12 (5) real 裁定。回避策「毎回再指定」を不要にする恒久修正)。"""
     if not INFORMATION_SOURCES:
         raise ValueError("INFORMATION_SOURCES が空 — E 段 provenance の情報源記録義務 "
                          "(D46 (a) ループ版) を満たせないため起動しない (fails-closed)")
     prov = _load_provenance(layout)
+    merged: Dict[str, Dict[str, str]] = {}
+    for src in (list(prov.get("information_sources", []))
+                + list(INFORMATION_SOURCES) + list(extra_sources)):
+        merged[src["path"]] = src
     prov.update({
         "axis": MARKER_ID,
         "pin": PIN,
         "axis_constants_module": "campaign.axis_trigger_gating",
-        "information_sources": list(INFORMATION_SOURCES) + list(extra_sources),
+        "information_sources": list(merged.values()),
         "liveness_binary": LIVENESS_BINARY,
         "gate_record": dict(GATE_RECORD),
         "firewall": ("E 段 coder/planner 入力へ流してよい偵察由来情報は軸の生死二値のみ。"

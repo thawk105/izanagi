@@ -253,6 +253,23 @@ def test_provenance_header_fails_closed_on_empty_sources(monkeypatch):
     assert not os.path.exists(T._provenance_path(lay))
 
 
+def test_provenance_header_unions_extra_sources_across_rewrites():
+    """--extra-source の追記分は、extra 再指定なしの header 焼き直し (次 iteration 相当)
+    でも消えない。07-12 (5) real 裁定の恒久修正 (回避策「毎回再指定」の廃止) の回帰テスト。"""
+    lay = _tmp_layout("provunion")
+    extra = {"path": "output/insights/some-review.md", "role": "grep 部分読み"}
+    T._write_provenance_header(lay, extra_sources=(extra,))
+    T._write_provenance_header(lay)  # 再指定なしの焼き直し
+    with open(T._provenance_path(lay), encoding="utf-8") as f:
+        prov = json.load(f)
+    paths = [s["path"] for s in prov["information_sources"]]
+    assert extra["path"] in paths, "動的追加分が焼き直しで消えた (上書き置換への退行)"
+    assert paths.count(extra["path"]) == 1, "union の重複排除が壊れた"
+    for src in T.INFORMATION_SOURCES:
+        assert src["path"] in paths, "固定定数分が union から欠落した"
+    assert len(paths) == len(set(paths)), "information_sources に重複 path がある"
+
+
 def test_provenance_write_rejects_recon_diagnostic_keys():
     lay = _tmp_layout("provforbid")
     try:
