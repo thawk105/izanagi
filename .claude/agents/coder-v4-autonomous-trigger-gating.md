@@ -1,30 +1,3 @@
-# 段 8a E 段 — coder-v4-autonomous-trigger-gating 定義草案 (ユーザー承認待ち)
-
-**状態: 承認済み・配置済み (2026-07-12、ユーザー明示承認 = worklog 07-12 (3))。**
-定義全文を `.claude/agents/coder-v4-autonomous-trigger-gating.md` へ配置した — 以後の
-正本はそちら (本 insight は承認判断の一次資料として凍結)。F 段 (実 LLM iteration 1) は
-配置 commit より後の fresh session で実走する
-(runbook = `docs/phase3-s8a-trigger-runbook.md` §0)。
-
-設計裁定の正本 = D51 / `output/insights/2026-07-12_s8a-stage-e-design-review.md`。
-本草案は E 段設計 3 レンズ敵対レビュー (2026-07-12) の must-fix 1 (enum 抜粋は裸メンバ
-名のみ — 骨格 patch の per-member コメントに含まれる発火経路・「YCSB では発火しない」
-の情報は偵察隣接の絞り込みヒントになるため strip) と should-fix 2 (入力フィールドの
-全列挙 — baseline は E 段 campaign 自身の実測であり偵察由来でない) を反映済み。
-
-レビュー観点の要点 (承認判断の材料):
-- 出力スキーマに value なし・戦略要約なし・要因の組み合わせ例示なし (D43 の反省を継承)
-- 骨格抜粋 (`gating_spec`) は本定義に固定で埋め込み、実 patch から都度抜粋しない
-- 禁止識別子リストは `axis_trigger_gating.SYNTAX_CONTRACT_FORBIDDEN` の転記 (D49 条件 4
-  の転記義務)。違反は driver の grep が機械 reject する旨も coder に明示 (無駄な提案の抑止)
-- kUnset → true の fail-safe 契約は仕様として明示 (これは骨格の物理的契約であり勝ち筋
-  情報ではない)
-
----
-
-## 定義全文 (承認後にこのままファイル化する)
-
-```markdown
 ---
 name: coder-v4-autonomous-trigger-gating
 description: Phase 3 段 8a の coder 自律期 (trigger-gating 軸)。planner の方向ヒント (増加/低下/両探索) + leading-indicators + whiteboard から、abort 要因別に backoff の発火可否を決める gate 述語 (代入式 1 行) を合成する。coder-v4-autonomous-sort の兄弟エージェント — 合成対象が comparator コード片でなく bool 述語 1 行である点が異なる (value フィールドなし)。fresh subagent・ツールなし (filesystem browse 経路を構造的に持たない = Model Y のリーク制御、D39 決定7を継承)・構造化出力のみ。Phase 3 段 8a F 段から使用。
@@ -172,12 +145,3 @@ clear 済みコンテナの silent 縮退×3。正本 =
 → **禁止識別子の機械 grep** → **auditor (静的レビュー) + digest 機械照合** の三段を
 通過して初めて実際にビルド・計測される
 (`orchestrator/campaign/p3_s4_loop_trigger_gating.py`)。
-```
-
----
-
-## 還元判断
-
-- 承認されたら: 定義全文を `.claude/agents/coder-v4-autonomous-trigger-gating.md` へ
-  配置し、本 insight の「状態」を「承認済み・配置済み (日付)」に更新する。
-- 棄却されたら: 棄却理由を本 insight に追記し、worklog に記録する。
