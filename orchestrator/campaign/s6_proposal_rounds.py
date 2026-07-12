@@ -153,7 +153,8 @@ def cmd_freeze(args) -> None:
     pi = load_projected_input()
     s = args.master_seed
 
-    # C4 抽出 (s6_c4_region_draw と同一規則 — 二重実装を避けるため同一手続きをここに持つ)
+    # C4 抽出 (単体スクリプト s6_c4_region_draw.py は 2026-07-13 に本 freeze へ統合し削除 —
+    # 発見/抽出ロジックの二重実装は failures.md F2 (C1 drift) の型)
     regions = sorted(e["region"] for e in pi["edit_surface_map"])
     if len(regions) != EXPECTED_POPULATION_SIZE:
         sys.exit(f"fails-closed: 領域数 {len(regions)} != {EXPECTED_POPULATION_SIZE}")
@@ -302,17 +303,47 @@ def classify_proposer_output(raw: str):
                      "dropped_non_dict_indices": dropped or None}
 
 
-def call_headless(system_prompt: str, user_prompt: str, cwd: Path) -> dict:
-    """claude -p headless 呼び出し (canary の遮断構成)。返り値 = 生出力とメタ。"""
+def call_headless(system_prompt: str, user_prompt: str, cwd: Path,
+                  model: str = "opus") -> dict:
+    """claude -p headless 呼び出し (canary の遮断構成)。返り値 = 生出力とメタ。
+
+    --system-prompt はデフォルトシステムプロンプトの完全置換 — 動的節は構造的に入らない
+    (--exclude-dynamic-system-prompt-sections は --system-prompt 併用時に無視される仕様を
+    2026-07-13 に --help で確認したため外した。遮断の実効 = 完全置換 + preflight 実測)。
+    --effort high は axis-proposer frontmatter の踏襲 (採点者も同値に固定)。"""
     cmd = [
-        "claude", "-p", "--model", "opus", "--output-format", "json",
-        "--exclude-dynamic-system-prompt-sections",
+        "claude", "-p", "--model", model, "--effort", "high",
+        "--output-format", "json",
         "--disallowedTools", *DISALLOWED_TOOLS.split(),
         "--system-prompt", system_prompt,
         user_prompt,
     ]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), timeout=1200)
     return {"returncode": r.returncode, "stdout": r.stdout, "stderr": r.stderr[-2000:]}
+
+
+def cmd_preflight(args) -> None:
+    """遮断構成の実測確認 (canary 07-13 (1) の前例): 同一の遮断フラグで haiku に保有
+    ツールを自己申告させ NONE を確認する。射影・提案・採点材料は一切渡さない
+    (freeze-before-observation に抵触しない)。"""
+    neutral_cwd = Path(args.neutral_cwd)
+    if str(REPO) in str(neutral_cwd.resolve()) or "izanagi" in neutral_cwd.name:
+        sys.exit("fails-closed: 中立 cwd がリポジトリ内/izanagi を含む")
+    neutral_cwd.mkdir(parents=True, exist_ok=True)
+    res = call_headless(
+        "あなたは診断プローブである。質問にだけ正確に答える。",
+        "現在あなたが呼び出せるツールの名前を全て列挙せよ。1 つも無い場合は NONE とだけ"
+        "出力せよ。",
+        neutral_cwd, model="haiku")
+    if res["returncode"] != 0:
+        sys.exit(f"preflight 失敗: claude -p が rc={res['returncode']}: {res['stderr']}")
+    try:
+        body = json.loads(res["stdout"]).get("result", "")
+    except (json.JSONDecodeError, ValueError):
+        sys.exit(f"preflight 失敗: 出力がパース不能: {res['stdout'][:500]}")
+    if "NONE" not in body:
+        sys.exit(f"fails-closed: 遮断構成でツールが残っている疑い — 自己申告: {body[:500]}")
+    print(f"preflight OK: 保有ツール NONE (自己申告: {body.strip()[:200]})")
 
 
 def cmd_run(args) -> None:
@@ -527,6 +558,9 @@ def main() -> None:
     p_freeze.add_argument("--master-seed", type=int, required=True,
                           help="人間が承認 gate で独立確定した整数")
     sub.add_parser("verify")
+    p_pre = sub.add_parser("preflight")
+    p_pre.add_argument("--neutral-cwd", required=True,
+                       help="リポジトリ外の中立 cwd (パスに izanagi を含まない)")
     p_run = sub.add_parser("run")
     p_run.add_argument("--neutral-cwd", required=True,
                        help="リポジトリ外の中立 cwd (パスに izanagi を含まない)")
@@ -535,8 +569,9 @@ def main() -> None:
     p_score.add_argument("--neutral-cwd", required=True)
     sub.add_parser("tally")
     args = ap.parse_args()
-    {"freeze": cmd_freeze, "verify": cmd_verify, "run": cmd_run,
-     "anonymize": cmd_anonymize, "score": cmd_score, "tally": cmd_tally}[args.cmd](args)
+    {"freeze": cmd_freeze, "verify": cmd_verify, "preflight": cmd_preflight,
+     "run": cmd_run, "anonymize": cmd_anonymize, "score": cmd_score,
+     "tally": cmd_tally}[args.cmd](args)
 
 
 if __name__ == "__main__":
