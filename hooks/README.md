@@ -27,7 +27,8 @@ TRACE 混入は build 出口の一次防壁が捕える。
   `build-variants/` への Edit/Write を拒否。COMMIT/fitness を書く唯一の経路は `pipeline.evaluate()`。
   比較基盤は realpath で解決 (output/ が別ボリュームへの symlink でも fail-open しない, 3 巡目 fix)。
 - **編集面の限定 (規律1・2, D23/D24):** `external/ccbench/` 内は EVOLVE-BLOCK ソース
-  (`source_digest.EVOLVE_BLOCK_SOURCES` = `include/backoff.hh`) だけ書き込み可。`Options.cmake` 等は
+  (`source_digest.EVOLVE_BLOCK_SOURCES`。現有の対象ファイルは同定数が正本 — 軸の追加で増えるため
+  ここに値を再掲しない) だけ書き込み可。`Options.cmake` 等は
   人間 template 専有 — template 改訂は `patches/` + `git apply` (Bash) 経由。NotebookEdit は notebook_path を
   優先判定 (良性 file_path decoy で管轄を外せない, 3 巡目 fix)。
 - **payload 検査は方針 A で削除 (D33):** `#ifdef`/生指令/TRACE 混入/偽 cache hit の担保は、テキスト検査の
