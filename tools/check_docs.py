@@ -34,8 +34,13 @@ LIVING_DOCS = [
     REPO / "docs" / "orchestrator-design.md",
     REPO / "docs" / "ccbench-anatomy.md",
     REPO / "docs" / "axis-onboarding.md",              # 2026-07-11 監査 dup-05 で追加
+    REPO / "docs" / "isolation-phenomena.md",          # 2026-07-12 監査: 現在形の生きた参照文書なのに lint 網の外だった
     # token-management-strategy.md は 2026-07-11 に docs/archive/ へ凍結移動 (対象外の凍結族へ)
 ]
+# 段 runbook (現在の実走手順を主張する生きた運用文書) は glob で自動編入する —
+# 手書き列挙だと段の追加で取りこぼす (2026-07-12 監査: s8a runbook が網の外で pin literal が腐る構造だった)。
+# design 系 (phase3-s*-design-*.md) は段完了で凍結する族なので編入しない。
+LIVING_DOCS += sorted((REPO / "docs").glob("phase3-s*-runbook.md"))
 
 # docs 間の行番号参照 (追記で必ずずれる)。節名参照に直すこと。
 # 対象は自リポジトリの docs のみ (pin 固定の submodule 内文書への参照は腐らないので許容)。
@@ -60,8 +65,30 @@ D_REF = re.compile(r"\bD(\d{1,3})\b")
 PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude)/[\w.\-/]+\.[A-Za-z0-9]+")
 
 
+def _current_pin() -> str | None:
+    """pin.CURRENT_PIN の現在値を pin.py から抽出する (import せず正規表現 — 単体スクリプトのため)。
+
+    living docs にこの値の literal が書かれると pin 前進で黙って腐る (2026-07-12 監査:
+    runbook のゲート行が該当)。値の正本は pin.py であり、docs は `pin.CURRENT_PIN` への
+    記号参照で書く。抽出に失敗したら None を返し、main が違反として可視化する
+    (黙って skip すると検査自体が蒸発する — tests/README.md の疑似スキップ禁止と同系)。
+    """
+    pin_py = REPO / "orchestrator" / "campaign" / "pin.py"
+    if not pin_py.exists():
+        return None
+    m = re.search(r'^CURRENT_PIN\s*=\s*"([0-9a-f]{7,40})"', pin_py.read_text(), re.MULTILINE)
+    return m.group(1) if m else None
+
+
 def main() -> int:
     findings: list[str] = []
+
+    current_pin = _current_pin()
+    if current_pin is None:
+        findings.append(
+            "tools/check_docs.py: pin.CURRENT_PIN を抽出できない (pin.py 不在か形式変更) — "
+            "pin literal 検査が蒸発している。_current_pin() を実体に追従させること"
+        )
 
     # decisions.md の D 見出し重複 (grep index の壊れ)
     d_heads = re.findall(
@@ -92,6 +119,12 @@ def main() -> int:
             if doc.name in ("CLAUDE.md", "roadmap.md") and re.search(r"次\s*=", line):
                 findings.append(
                     f"{rel}:{lineno}: 次アクションの再掲 (正本は worklog 末尾の「次の一手」)"
+                )
+            # pin.CURRENT_PIN の値 literal 再掲 (pin 前進で黙って腐る。2026-07-12 監査)
+            if current_pin and current_pin in line:
+                findings.append(
+                    f"{rel}:{lineno}: pin.CURRENT_PIN の値 {current_pin!r} の literal 再掲 — "
+                    "`pin.CURRENT_PIN` への記号参照に直す (値の正本は pin.py)"
                 )
             # 実在しない D 番号への参照 (decisions.md の見出しが正)
             for m in D_REF.finditer(line):
