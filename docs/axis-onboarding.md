@@ -294,7 +294,7 @@ backoff 軸 (段 4) と sort 軸 (段 5) の実装差分の機械的洗い出し
 | variant patch 3 役 | identity 後方互換 (`variant-noop-else-copy` 型 = 合成枝が #else の逐語複写 → cache-hit 実証)・certified 緑 1 周 (sweep 済み非勝者点でリーク制御)・(任意) red consumer。**注意: 3 役とも kickoff/backoff の資産で sort 軸では未作成** — 実施済み手順でなく踏襲推奨の型として読む |
 | coder 定義 (`coder-v4-autonomous-<軸>.md`) | frontmatter (段番号/name/description)・合成対象と制約 (骨格提示・利用可能 API・型シグネチャ・正しさ契約)・出力スキーマ (§4 の軸型分岐) |
 | auditor ギャラリー型 | 軸固有 reward hack 型を連番で末尾追記 + 「何を見るか」チェックリスト対応項目 (**ユーザー明示承認が必要**) |
-| runbook 兄弟文書 | §0 ゲート 1 の agent 名列挙・ゲート 3 の PIN 値・§1 の軸固有段・§2 の軸固有リーク経路追記・§4 の軸固有 failure mode + 機械 backstop の有無 (未実装なら発火条件を明記) |
+| runbook 兄弟文書 | §0 ゲート 1 の agent 名列挙・ゲート 3 の PIN 記号参照 (`<driver>.PIN` = `pin.CURRENT_PIN` の形で書く — **値の literal を runbook に書かない**。pin 前進で腐る、2026-07-12 監査)・§1 の軸固有段・§2 の軸固有リーク経路追記・§4 の軸固有 failure mode + 機械 backstop の有無 (未実装なら発火条件を明記) |
 | 偵察 sweep | 列挙生成器 + CANDIDATES・構文契約・退化点/対照点の選定・WORKLOADS (感度で絞る)・動作点・firewall 文言のコード内 4 箇所 (docstring/spec_content/report 冒頭/floor fails-closed)・偵察報告書 (insight) の定型節立て (位置づけ→実験→結果→示唆 (判断しない)→還元判断) |
 | 台帳更新 | decisions.md (D 番号)・worklog 末尾・phase3.md への記録・(submodule assert を足した場合) `pin.py` の CURRENT_PIN/PREVIOUS_PIN。driver docstring と runbook は設計を書かず正典を指す |
 

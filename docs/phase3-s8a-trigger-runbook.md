@@ -14,8 +14,8 @@
 ## 0. 実走前ゲート (すべて満たすまで駆動を始めない)
 
 1. **coder 定義が承認・配置済みである** — `.claude/agents/coder-v4-autonomous-trigger-gating.md`
-   はユーザー明示承認が必要 (axis-onboarding §5)。草案 =
-   `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md` (承認待ちの間、実走不可)。
+   が存在すること (ユーザー明示承認のうえ配置済み 2026-07-12。承認が必要な理由は
+   axis-onboarding §5、経緯は phase3.md 段 8a と worklog)。
 2. **fresh session である** — エージェント登録はセッション開始時のみ (2026-07-08 実証)。
    coder 定義を配置した commit より後に開いた session で、Agent の利用可能型に
    `planner-v4` / `coder-v4-autonomous-trigger-gating` / `auditor` が並ぶこと。
@@ -23,7 +23,8 @@
    ベンチが無いこと (leon 等の並行 claude セッションはバイナリ実行が実際に走っているかで
    見分ける。規律4)。
 4. **submodule が pinned-clean** — `git -C external/ccbench rev-parse --short HEAD` が
-   `d706650` (= `axis_trigger_gating.PIN` = `pin.CURRENT_PIN`)、status --porcelain が空。
+   `axis_trigger_gating.PIN` (= `pin.CURRENT_PIN`) と一致し、status --porcelain が空。
+   pin の値は `pin.py` が正本 — ここに literal を書かない (pin 前進で腐るため)。
 5. **test 緑** — `python3 -m pytest orchestrator/tests/ -q` が all pass。
 6. **配線規模の自覚** — `default_perf` は records=100k/threads=4 (有意性を主張しない)。
    headline 性能主張はしない段 — 本軸はそもそも探索補助限定 (段 6 headline 非対象、
@@ -132,6 +133,6 @@ sort runbook §3 と同じ規約 (`L.check_stop` に完全委譲、checkpoint �
   防壁は auditor 静的目視のみ。
 - worktree 隔離は既定 ON (`--no-isolate-worktree` で無効化) — backoff driver (PIN
   028f34d) と共有 tree で交互に走らせると `assert_pinned_clean` が止める (fails-closed、
-  意図どおり)。sort driver とは同 PIN (d706650)。
+  意図どおり)。sort driver とは同 PIN (どちらも `pin.CURRENT_PIN` を参照)。
 - S2 verify の workload は既定 (rr50 相当) — 偵察 D 段の限定 (4) と同じ off-workload
   被覆が残る。

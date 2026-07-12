@@ -24,8 +24,9 @@ worklog 末尾と phase3.md)。矛盾があれば正典が勝つ。
    のプロセスが実際に走っているかを見分ける** (daemon/vscode-server 等の常駐プロセス名に
    `ccbench`/`bench` が偶然含まれるだけの場合は競合ではない)。
 3. **submodule が pinned-clean** — `git -C external/ccbench rev-parse --short HEAD` が
-   `d706650` (= `p3_s4_loop_sort.PIN` = `pin.CURRENT_PIN`)、
-   `git -C external/ccbench status --porcelain` が空。
+   `p3_s4_loop_sort.PIN` (= `pin.CURRENT_PIN`) と一致し、
+   `git -C external/ccbench status --porcelain` が空。pin の値は `pin.py` が正本 —
+   ここに literal を書かない (pin 前進で腐るため、2026-07-12 監査)。
 4. **test 緑** — `python3 -m pytest orchestrator/tests/ -q` が all pass。
 5. **calibration の確認** — 段 5 の `default_perf` は配線規模 (records=100k/threads=4/
    extime=1/reps=2、有意性を主張しない)。**headline 性能主張はしない段** — headline は段 6。

@@ -2,7 +2,8 @@
 
 **位置づけ:** 段 4b = 実 LLM (planner-v4 / coder-v4-autonomous / critic) をメインセッションが
 spawn し、機械部分 (`orchestrator/campaign/p3_s4_loop.py`) に proposal を引数で渡す実ループ。
-設計正本は D39 (decisions.md) と `docs/phase3-s4-design-v1.md`。本書は**運用手順**だけを持つ
+設計の正典は D39 (decisions.md) と phase3.md 後続段 4。設計経緯の詳細は
+`docs/phase3-s4-design-v1.md` (段 4 完了で凍結、矛盾があれば正典が勝つ)。本書は**運用手順**だけを持つ
 (設計判断・完了状況は書かない — 正本は worklog 末尾と phase3.md)。矛盾があれば正典が勝つ。
 
 段 4 の機械部分 (挿入→検疫→評価→WAL→digest→whiteboard→停止判定) と cross-process 永続化
