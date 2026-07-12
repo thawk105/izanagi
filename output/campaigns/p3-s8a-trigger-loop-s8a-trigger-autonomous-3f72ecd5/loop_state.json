@@ -1,0 +1,21 @@
+{
+  "iteration": 2,
+  "start_wall": 1783865069.6722705,
+  "reverse_recommendations": 1,
+  "whiteboard": [
+    {
+      "iteration": 1,
+      "direction": "increase",
+      "magnitude": "medium",
+      "result": "success",
+      "delta_pct": null
+    },
+    {
+      "iteration": 2,
+      "direction": "increase",
+      "magnitude": "small",
+      "result": "success",
+      "delta_pct": null
+    }
+  ]
+}

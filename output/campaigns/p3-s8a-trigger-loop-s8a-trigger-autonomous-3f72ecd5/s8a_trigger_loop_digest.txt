@@ -1,0 +1,37 @@
+# critic digest — silo leading indicators (P2-3)
+
+## workload: p3-s8a-trigger ()
+
+genome | throughput_tps | abort_rate | latency_ns | llc_miss_rate | ipc
+---|---|---|---|---|---
+BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 | 276,472 | 2.28% | 14,421ns | 31.99% | 0.46
+BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0 | 275,614 | 2.34% | 14,346ns | 32.65% | 0.47
+
+### フラグ軸の限界効果 (他フラグで周辺化した水準別平均)
+- **BACK_OFF** (1):
+    - throughput_tps: 1=276,043
+    - abort_rate: 1=2.31%
+    - latency_ns: 1=14,383ns
+    - llc_miss_rate: 1=32.32%
+    - ipc: 1=0.47
+- **no_wait** (L):
+    - throughput_tps: L=276,043
+    - abort_rate: L=2.31%
+    - latency_ns: L=14,383ns
+    - llc_miss_rate: L=32.32%
+    - ipc: L=0.47
+- **WAL** (0):
+    - throughput_tps: 0=276,043
+    - abort_rate: 0=2.31%
+    - latency_ns: 0=14,383ns
+    - llc_miss_rate: 0=32.32%
+    - ipc: 0=0.47
+
+
+# rejections — 正しさ/liveness/frame ゲート不通過 (採用されず、性能数値は構造的に存在しない)
+
+(rejection なし — 全 variant 緑)
+# verify run の abort 統計 (シグナル — reject 理由ではない。閾値判定なし、異常かどうかは読み手が stock 対照比で判断)
+(stock 対照なし — 比は計算不能。率のみ表示)
+- variant=e1785940172e: aborts=7632 commits=252661 rate=2.93%
+- variant=ca5206c3dac5: aborts=7568 commits=250421 rate=2.93%

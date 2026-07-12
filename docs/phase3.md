@@ -270,9 +270,15 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      (共有昇格) + `p3_s4_loop_trigger_gating.py` + `docs/phase3-s8a-trigger-runbook.md` +
      テスト 28 本。**coder 定義は承認・配置済み (2026-07-12 ユーザー明示承認 =
      `.claude/agents/coder-v4-autonomous-trigger-gating.md`、承認判断の一次資料 =
-     `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`)。** 残るタスク =
-     **F 段 = 実 LLM iteration 1 E2E** (配置 commit 後の fresh session、runbook §0 の
-     実走前ゲート)。
+     `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`)。**
+     **F 段完了 (2026-07-12、worklog 07-12 (6)) — 実 LLM iteration 1〜2 E2E、両 iteration
+     certified (verify legacy+S2 とも 0 anomalies)・auditor pass・provenance 全 entry 記録。**
+     軸提案 (axis-proposer) から探索 (planner/coder 自律) までループ内で閉じた初の軸の実走。
+     critic 帰属 = 両 iteration ともノイズ内 tie — この動作点 (records=100k/threads=4、
+     abort 約 2.3%) では gate の発火頻度が低く bite しない、**探索停止推奨**。ループは
+     checkpoint (campaign `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5`) で中断中。
+     残るタスク = **動作点再ホスト (高競合 workload、段 8b との合流含む) か本動作点クローズ
+     かの人間判断** + auditor proposed_tests (fail-safe 意味検査ほか) の採否。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
      coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)

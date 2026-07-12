@@ -1916,3 +1916,44 @@ runbook の数値 literal = 現在全一致で正本記号併記あり)。
 ### 次の一手
 F 段継続 (並行セッション、iter2 前に provenance 回避策 = extra 3 本の毎回再指定 or union merge 修正)。
 本検討の続き = headline 3 択のユーザー協議。
+
+## 2026-07-12 (6) — 段 8a F 段: 実 LLM iteration 1〜2 E2E (軸提案からループ探索まで LLM 内で閉じた初の実走)
+
+ユーザー指示「izanagiの仕事を進めてください」= 07-12 (3) 次の一手 (F 段) の実行。runbook §0
+ゲート 6 点全通過 + §0.5 firewall 自己宣言を履行 (偵察 insight・シート insight を不開封のまま
+完走。E 段レビュー insight の grep 部分読みのみ — --extra-source で provenance に記録)。
+
+- iteration 1 = certified (variant e1785940172e、275,614 tps CV 1.65%)。coder 述語 = record 競合
+  3 要因のみ backoff — build が trace/perf とも cache hit = D 偵察列挙空間の 1 点と source 一致
+  (勝ち筋不可視の coder が意味ある点を独立合成した傍証)。critic: ノイズ内で帰属不能 (+0.27% <
+  floor 3.0%)・decrease 逆方向推奨 → iteration 2 の prior_critic_reverse=true
+- iteration 2 = certified (variant ca5206c3dac5、276,472 tps CV 0.46%)。planner は whiteboard の
+  success から increase/small 継続 (critic 推奨は設計どおり planner 非伝達)。coder 述語 = 反転形
+  1 要因 skip (fresh build)。critic: 真の tie (全指標 noise 内で一致方向の動きなし)・**探索停止
+  推奨 (逆方向でなく「方向自体が無関係」— この動作点 abort ~2.3% では gate の発火頻度が低すぎ
+  bite しない)**。reverse_recommendations=1 のまま
+- 両 iteration とも verify legacy+S2 serializable・0 anomalies・auditor pass (violations 0)。
+  検疫 / 構文契約 grep / auditor 機械 gate / provenance (entries 1〜2、extra 3 本保持) の全配線が
+  実 LLM 駆動で E2E 通過。iteration 1 baseline は sort 前例 (07-10 (2)) に倣い隣接 sort loop
+  campaign の同一スケール実測を参考提示、iteration 2 から自 campaign 実測へ切替
+- 07-12 (5) の申し送り (provenance extra_sources 置換、real) を handoff 経由で受領・裁定:
+  回避策 (extra 3 本の毎回再指定) を iteration 2 から適用し、sources 11 本の保持を実測確認。
+  恒久修正 (固定 path 上書き + 動的 union + 回帰テスト) は持ち越し
+- auditor proposed_tests (人間レビュー gate 行き): 自由形述語の fail-safe 意味検査 (両 iteration
+  の auditor が独立に同型指摘 — 既存機械検査は sweep 論理和形専用で coder 反転形は網外) /
+  stock-equivalence 観察器 (skip 要因の structural_zero 交差) / 骨格改竄 red / 禁止識別子 red
+- 素材: 軸の発見 (axis-proposer n=1) から探索 (planner/coder 自律) までループ内で閉じた初の軸が
+  E2E で回った。探索はこの動作点で枯れ = 「軸は生きているが配線規模の動作点では bite しない」
+  という critic の機序帰属が、次の人間判断 (動作点再ホスト) の入力になる形で構造化された (規律 3)
+- ユーザー指示 (セッション中): 並行セッションのコミット操作中につき一時コミット禁止 → 本エントリ
+  以下の変更のコミットは解除連絡後に実施
+- エージェント工数: 8 本 (planner 2 / coder 2 / auditor 2 / critic 2、計 約 20 万 token)。
+  計測 = trigger loop iteration ×2 (records=100k/threads=4 配線規模、有意性主張なし)
+- 人間判断待ち: (1) 軸の動作点再ホスト (高競合 workload での再走 — 段 8b workload 次元との合流が
+  自然かを含む) か本動作点クローズか — 07-12 (5) の headline 3 択協議と同席が自然 (2) auditor
+  proposed_tests の採否 (3) provenance 恒久修正ほか should-fix の着手順
+
+### 次の一手
+人間判断待ち (1)〜(3) の決着 (headline 3 択協議と同席)。段 8a ループは checkpoint
+(iteration=2、reverse_recommendations=1) で中断可能な状態 — 再開は runbook §1 (a) から
+任意の fresh session で可。

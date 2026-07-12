@@ -1,0 +1,72 @@
+{
+ "axis": "silo-backoff-trigger-gating",
+ "pin": "d706650",
+ "axis_constants_module": "campaign.axis_trigger_gating",
+ "information_sources": [
+  {
+   "path": "docs/decisions.md#D48/D49/D50",
+   "role": "読了 — 軸定義・機構実装・偵察の決定要旨。D50 決定/実測節は floor 超 best のworkload 別数値を含む (起草者は見た)"
+  },
+  {
+   "path": "docs/worklog.md 2026-07-11 (5)(6) / 2026-07-12 (1)",
+   "role": "読了 — 直近状態と E 段 gate の判断待ち"
+  },
+  {
+   "path": "docs/phase3.md 8a 項 / docs/axis-onboarding.md",
+   "role": "読了 — 段の完了状況とオンボーディング手順 (§3-E が本実装の規定)"
+  },
+  {
+   "path": "orchestrator/campaign/axis_trigger_gating.py",
+   "role": "読了 — 軸定数・firewall 文言の正本"
+  },
+  {
+   "path": "patches/silo-backoff-trigger-gating-variant.patch",
+   "role": "読了 — 骨格と hole (述語代入 1 行) の現物"
+  },
+  {
+   "path": "p3_s4_loop(_sort).py / test_p3_s4_loop_sort.py / phase3-s5-sort-runbook.md / coder-v4-autonomous-sort.md",
+   "role": "読了 — sort 軸 E 段資材 (写経元の型)"
+  },
+  {
+   "path": "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+   "role": "不読 — 偵察 insight 本文 (勝ち点の詳細・裁定台帳) は E 段起草で開いていない (D50 の凍結要旨のみ経由)"
+  },
+  {
+   "path": "output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md",
+   "role": "不読 — 軸定義シート本文は E 段起草で開いていない (D48 の裁定要旨のみ経由)"
+  },
+  {
+   "path": "output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d/s5_sort_loop_digest.txt",
+   "role": "読了 — iteration 1 baseline/leading-indicators の出所 (隣接 sort 軸ループの同一スケール実測、偵察由来でない)"
+  },
+  {
+   "path": "docs/worklog.md 2026-07-10 (2) エントリ",
+   "role": "読了 — sort 軸 iteration 1 の駆動前例 (baseline 参考提示の型)"
+  },
+  {
+   "path": "output/insights/2026-07-12_s8a-stage-e-design-review.md",
+   "role": "部分読 (grep) — baseline 残置の FC 裁定と fixture 経路 FC-7 裁定のみ"
+  }
+ ],
+ "liveness_binary": "alive",
+ "gate_record": {
+  "basis": "D50 決定 1 — floor 超地形が 3 workload で cross-run 再現 (軸は生の強い候補)",
+  "approval": "ユーザー指示 2026-07-12「izanagiの仕事を進めてください」を worklog 2026-07-11 (5) 人間判断待ち (1) (E 段 gate) への承認と解釈して着手",
+  "firewall_scope": "E 段 coder/planner 入力へ流すのは軸の生死二値 (alive) のみ (D48 条件 7)"
+ },
+ "firewall": "E 段 coder/planner 入力へ流してよい偵察由来情報は軸の生死二値のみ。偵察の具体勝ち点・要因部分集合・順位・シート診断数値は流さない (D48 条件 7、正本 = axis_trigger_gating docstring)",
+ "entries": {
+  "1": {
+   "proposal_path": "/home/tanab/tmp/claude-1025/-home-tanab-github-izanagi/c03c25b3-30df-4e42-bbe7-7af0c3ab48fb/scratchpad/prop.json",
+   "auditor_diff_digest": "15ed554aeaaa405fd8eda0099a5d22e7aab1b52fd56041f94453fdeb252c1292",
+   "variant": "e1785940172e",
+   "outcome": "certified"
+  },
+  "2": {
+   "proposal_path": "/home/tanab/tmp/claude-1025/-home-tanab-github-izanagi/c03c25b3-30df-4e42-bbe7-7af0c3ab48fb/scratchpad/prop_it2.json",
+   "auditor_diff_digest": "db820e59654919a327c362d44c65039c5cabafc26736c4a722b8ef945e69e32c",
+   "variant": "ca5206c3dac5",
+   "outcome": "certified"
+  }
+ }
+}
