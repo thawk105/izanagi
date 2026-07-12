@@ -1837,3 +1837,29 @@ E 段 gate (変わらず (5) 参照)。進む場合の最初の設計タスク =
 
 ### 次の一手
 E 段 gate (変わらず 07-11 (5) 参照)。
+
+## 2026-07-12 (2) — 段 8a E 段実装: gate 通過 + provenance 宿主確定 + driver 一式 (D51)
+
+ユーザー指示「izanagiの仕事を進めてください」を 07-11 (5) 判断待ち (1) (E 段 gate) への
+承認と解釈して着手 — 解釈自体を D51 と provenance の gate_record (レビュー FC-5 裁定の
+新設フィールド) に構造化記録した。実装 = b539b33..064af01 (3 本)。
+- 実装前 3 レンズ敵対レビュー (リーク制御/fails-closed/regression、独立コンテキスト
+  workflow): 3 レンズ全員 adopt-with-conditions、must 3 (独立 2 — 「auditor gate の
+  純粋移動」不成立を 2 レンズが独立指摘 = 収束) / should 10 / nit 5。全採用、部分採用
+  1 = 「provenance 破損で loop 停止は過剰」— 停止は維持 (記録義務の silent 黙殺の方が
+  害大) しつつ復旧材料の .corrupt 退避のみ採用。一次資料 =
+  `output/insights/2026-07-12_s8a-stage-e-design-review.md`
+- 素材: LLM が提案した軸 (8a) を LLM ループで探索する初の軸 — 軸の発見から探索までが
+  ループ内で閉じる。provenance の gate_record (外部入力 = ユーザーの短い指示をどう解釈
+  して gate を通したかの構造化記録) は規律 6 の運用としての初出
+- guard_bash が insight 生成の heredoc + output/ パス同居を拒否 → 迂回せずスクリプト
+  ファイル化で対処 (防壁の意図どおりの発火)
+- エージェント工数: Explore 1 本 (6.0 万 token) + workflow 3 本 (23.0 万 token /
+  14.3 分)。計測なし
+- 人間判断待ち: **coder 定義草案の承認** (`output/insights/
+  2026-07-12_s8a-stage-e-coder-agent-draft.md` に全文凍結。`.claude/agents/` の変更は
+  明示承認必須 — 承認後に配置し、F 段は配置 commit 後の fresh session)
+
+### 次の一手
+coder 定義草案のユーザー承認。承認後 = F 段 (実 LLM iteration 1 E2E、
+`docs/phase3-s8a-trigger-runbook.md` §0 の実走前ゲート) を fresh session で。

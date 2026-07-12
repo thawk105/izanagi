@@ -268,8 +268,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      省略不能、書き込み順序と fails-closed 群は D51 決定 1)。成果物 = `auditor_gate.py`
      (共有昇格) + `p3_s4_loop_trigger_gating.py` + `docs/phase3-s8a-trigger-runbook.md` +
      テスト 28 本。残るタスク = **(1) coder 定義のユーザー承認** (草案 =
-     `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`。承認後
-     `.claude/agents/coder-v4-autonomous-trigger-gating.md` へ配置)、**(2) F 段 = 実 LLM
+     `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`。承認後 `.claude/agents/`
+     へ coder-v4-autonomous-trigger-gating 定義として配置)、**(2) F 段 = 実 LLM
      iteration 1 E2E** (配置 commit 後の fresh session、runbook §0 の実走前ゲート)。
    - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
      (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
