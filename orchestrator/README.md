@@ -7,10 +7,11 @@ Phase 進行に伴って実装してきた。現構成 (roadmap §9 参照):
 - calibrator/   — レコード数自動決定 + noise floor (Phase 1)。純ロジック
                   (perfparse/benchparse/analyze/report) + 実機ドライバ (runner/tsc/sweep)、
                   測定安定性 stability (P2-1/A2)
-- campaign/     — Phase 2 の中枢。WAL/ACID (wal, loop, pipeline)、識別 (ident,
+- campaign/     — Phase 2 以降の中枢。安定核 = WAL/ACID (wal, loop, pipeline)、識別 (ident,
                   source_digest = D23)、ビルド (buildcache)、遺伝子空間 (genome, model)、
-                  実験ドライバ (p2_2, backoff_*, between_run_floor, p2_5, guided)、
-                  リプレイ (replay)、レポート射影器 (*_report, search_baselines)
+                  リプレイ (replay)。この核の上に Phase・段ごとの実験ドライバと gate 部品
+                  (p2_*, p3_*, s*_sweep, auditor_gate, diff_quarantine 等) が段の前進で
+                  増えていく — 現有一覧は ls が正本 (ここに列挙しない)
 - critic/       — critic への WAL digest 供給 (digest, online_digest)
 - reports/      — 入力非依存の材料レポート (calibration_report, plot)
 
