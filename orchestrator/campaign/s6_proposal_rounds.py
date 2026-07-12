@@ -283,18 +283,23 @@ def classify_proposer_output(raw: str):
         return "score_zero", {"reason": "type-invalid:proposals-not-array"}
     if len(p) == 0:
         return "score_zero", {"reason": "zero-proposals"}
+    # 非 dict 要素 (型不正の提案) は採点前に機械除去して記録する — 内容退化の機械適用
+    # (曖昧は no)。除去後 0 件ならラウンド不適格に直行。
+    dropped = [i for i, prop in enumerate(p) if not isinstance(prop, dict)]
+    p = [prop for prop in p if isinstance(prop, dict)]
+    if len(p) == 0:
+        return "score_zero", {"reason": "all-proposals-type-invalid"}
     for idx, prop in enumerate(p):
-        if not isinstance(prop, dict):
-            # 型不正の提案は機械前処理で不適格確定 (曖昧は no の機械適用)。正常提案が残れば採点へ
-            continue
         for k in PROPOSAL_REQUIRED_FIELDS:
             if k not in prop:
                 return "supplement", {"reason": f"missing-required-field:proposals[{idx}].{k}"}
     truncated = None
     if len(p) > 3:
         truncated = f"truncated-{len(p)}-to-3 (JSON 配列順先頭 3 件、v2 §3.3)"
-        data["proposals"] = p[:3]
-    return "score", {"bundle": data, "truncated": truncated}
+        p = p[:3]
+    data["proposals"] = p
+    return "score", {"bundle": data, "truncated": truncated,
+                     "dropped_non_dict_indices": dropped or None}
 
 
 def call_headless(system_prompt: str, user_prompt: str, cwd: Path) -> dict:
@@ -382,10 +387,49 @@ def cmd_anonymize(_args) -> None:
     print(f"anonymize: 採点対象 {len(order)} 件 (score_zero/unfilled は採点外で確定済み)")
 
 
+def validate_score(score, bundle) -> "str | None":
+    """採点出力の機械照合 (敵対チェック must 1)。返り値 = 不備の記述 (None = 合格)。
+    round_eligible の型 (bool)・件数一致・eligible == AND(c1,c2,c3)・
+    round_eligible == OR(eligible)・副指標の範囲を照合する。不備 = 機械故障 → retry。
+    """
+    if not isinstance(score, dict):
+        return "score-not-dict"
+    ps = score.get("proposals_scored")
+    if not isinstance(ps, list):
+        return "proposals_scored-not-list"
+    if len(ps) != len(bundle["proposals"]):
+        return f"count-mismatch:{len(ps)}!={len(bundle['proposals'])}"
+    if not isinstance(score.get("round_eligible"), bool):
+        return "round_eligible-not-bool"
+    eligibles = []
+    for i, item in enumerate(ps):
+        if not isinstance(item, dict):
+            return f"scored[{i}]-not-dict"
+        bits = [item.get("c1_novel_vs_projection"), item.get("c2_mechanism_substantive"),
+                item.get("c3_axis_eligible"), item.get("eligible")]
+        if any(not isinstance(b, bool) for b in bits):
+            return f"scored[{i}]-criteria-not-bool"
+        if item["eligible"] != (bits[0] and bits[1] and bits[2]):
+            return f"scored[{i}]-eligible!=AND(c1,c2,c3)"
+        eligibles.append(item["eligible"])
+    if score["round_eligible"] != any(eligibles):
+        return "round_eligible!=OR(eligible)"
+    dea = score.get("distinct_eligible_axes")
+    if not isinstance(dea, int) or not (0 <= dea <= sum(eligibles)) \
+            or (sum(eligibles) > 0 and dea < 1):
+        return "distinct_eligible_axes-out-of-range"
+    return None
+
+
 def cmd_score(args) -> None:
     SCORES.mkdir(parents=True, exist_ok=True)
+    # 凍結測定器の同一性を実行直前に再検証 (cmd_run が verify を呼ぶのと対称)
+    ledger = json.loads((FROZEN / "hash_ledger.json").read_text())
     prefix = (FROZEN / "scoring_user_prefix.txt").read_text()
     scoring_sys = (FROZEN / "scoring_system_prompt.txt").read_text()
+    if sha256_text(prefix) != ledger["scoring_user_prefix_sha256"] \
+            or sha256_text(scoring_sys) != ledger["scoring_system_prompt_sha256"]:
+        sys.exit("fails-closed: 採点プロンプトが凍結 hash と不一致 — 採点を開始しない")
     neutral_cwd = Path(args.neutral_cwd)
     neutral_cwd.mkdir(parents=True, exist_ok=True)
     inputs = sorted(ANON.glob("score-input-*.json"))
@@ -398,6 +442,7 @@ def cmd_score(args) -> None:
         if success_count >= SCORING_BUDGET:
             sys.exit(f"fails-closed: 採点カウンタ {success_count} が上限 {SCORING_BUDGET} — "
                      "未採点が残るため当該検定は判定不能 (tally に committed)")
+        bundle = json.loads(path.read_text())
         user_prompt = prefix.replace("{PROPOSAL_BUNDLE_JSON}", path.read_text())
         outcome = None
         for retry in range(MAX_RETRY + 1):  # 機械故障のみ retry (別カウンタ、120 に数えない)
@@ -407,11 +452,14 @@ def cmd_score(args) -> None:
             try:
                 body = json.loads(res["stdout"]).get("result", "")
                 score = json.loads(body)
-                if not isinstance(score, dict) or "proposals_scored" not in score \
-                        or "round_eligible" not in score:
-                    continue  # 必須フィールド物理欠落 = 機械故障扱い → retry
             except (json.JSONDecodeError, ValueError):
                 continue  # パース不能 = 機械故障扱い → retry
+            problem = validate_score(score, bundle)
+            if problem is not None:
+                # 型・論理和・件数の不整合 = 機械故障扱い → retry (敵対チェック must 1)
+                (SCORES / f"score-{pos}.reject{retry}.json").write_text(json.dumps(
+                    {"problem": problem, "score": score}, ensure_ascii=False, indent=1))
+                continue
             outcome = {"score": score, "retries_used": retry}
             break
         if outcome is None:
@@ -448,8 +496,13 @@ def cmd_tally(_args) -> None:
                 undecidable.append(slot)
             else:
                 pos = inv[slot]
-                sc = json.loads((SCORES / f"score-{pos}.final.json").read_text())
-                rounds[arm][i] = 1 if sc["score"]["round_eligible"] else 0
+                sc = json.loads((SCORES / f"score-{pos}.final.json").read_text())["score"]
+                # validate_score が保証済みの整合を tally でも独立再計算 (防御の二重化)
+                recomputed = any(x["eligible"] for x in sc["proposals_scored"])
+                if sc["round_eligible"] is not recomputed:
+                    sys.exit(f"fails-closed: {slot} の round_eligible が再計算と不一致 — "
+                             "採点物が validate_score を経ていない")
+                rounds[arm][i] = 1 if recomputed else 0
     result = {"rounds": rounds, "undecidable_slots": undecidable}
     if undecidable:
         result["verdict"] = ("判定不能 (n=20/アーム の二値が揃わない — 凍結の判定不能原則)")
