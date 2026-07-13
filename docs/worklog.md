@@ -2302,3 +2302,30 @@ s6-rounds は読み取り専用 (凍結集計・tally.json 不変)。正本 =
 ### 次の一手
 1. 提言 5 点の裁定待ち — 裁定までは 07-13 (11) の次の一手 1 (S-1 実走準備、計測ゼロ) が現行
 2. 07-12 (6) 持ち越し裁定 — 変わらず (前エントリ参照)
+
+## 2026-07-14 (2) — 性能先行スクリーニング (bench-first screening) の設計 (ユーザー発案)
+
+ユーザー発案「性能で評価して価値が弱ければ正しさ検査もしない」の設計化 (「設計を進めて」指示)。
+WAL 実測: verify ≈120〜250 秒/variant vs bench ≈18 秒 = 6.6〜13.7 倍 — 「安い方で先に落とす」は
+bench 先行が正解。設計の正本 = `output/insights/2026-07-14_bench-first-screening-design.md`
+(v2、3 レンズ敵対レビュー反映済み)。設計フェーズは計測ゼロ。
+
+- 骨子: evaluate() の順序 opt-in (既定完全互換) / 棄却は保守側 k·floor (k≥1.5、床際帯・
+  unstable・high-abort は verify 送り) / 採用 (COMMIT) には verify 全通過を不変要求 /
+  未検証数値の探索射影隔離 / 適用先は偵察 sweep・8b のみ (S-1・検証相・LLM ループは対象外)
+- 3 レンズ敵対レビュー (独立コンテキスト read-only): 全レンズ adopt-with-conditions。
+  must 5 系統 (床際帯の不可逆棄却が D19 矛盾 — 2 レンズ独立収束 / 偽棄却率の合成要因無視 /
+  baseline 経時ドリフト / bench_done⟹certified 不変条件の崩壊で s8a/s6 report が未検証
+  median を印字する consumer 取り残し) / should 7 / nit 8 / refuted 13 — must/should 全反映。
+  設計の核 (正しさゲート不変・探索射影隔離・replay 冪等・bench_lock 逐次性) は実コード
+  裏取りで生存
+- 素材: 「STAGE_BENCH_DONE ⟹ certified」という文書化されていない不変条件が実は consumer 群の
+  前提だった — 順序変更系の機構は暗黙不変条件の全数監査を gate 条件にする (方法論の素材)
+- エージェント工数: レビュー workflow 22.0 万 subagent トークン
+- 人間判断待ち: (1) 本設計の実装着手 gate (insight 裁定欄。着手時に D 採番) (2) 07-14 (1)
+  提言 5 点・origin push・07-12 (6) 持ち越し — 変わらず (前エントリ参照)
+
+### 次の一手
+1. bench-first screening の実装着手判断 (ユーザー gate) — 採用なら pipeline 実装 + consumer
+   監査 + テスト 7 点 + positive control + 初回 ablation (実装は計測窓を一部使う)
+2. 07-14 (1) 提言 5 点の裁定・S-1 実走準備 — 変わらず (前エントリ参照)
