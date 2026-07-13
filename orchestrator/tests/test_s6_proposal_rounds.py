@@ -45,6 +45,37 @@ def test_classify_parse_failure_is_supplement():
     assert cls == "supplement" and d["reason"] == "json-parse-failure"
 
 
+def test_classify_fenced_json_is_scored():
+    """amendment 2026-07-13 (ユーザー裁定 A): フェンス付き完全 JSON は整形欠陥で
+    落とさない。実走 1 巡目で 5/7 attempt がこの形で supplement 化した実出力分布の反映。"""
+    raw = "```json\n" + json.dumps(_bundle()) + "\n```"
+    cls, _ = M.classify_proposer_output(raw)
+    assert cls == "score"
+
+
+def test_classify_fence_without_lang_tag_is_scored():
+    raw = "```\n" + json.dumps(_bundle()) + "\n```"
+    cls, _ = M.classify_proposer_output(raw)
+    assert cls == "score"
+
+
+def test_classify_fenced_broken_json_still_supplement():
+    """フェンスを剥がしても壊れている JSON は従来どおり supplement (判定規則は不変)。"""
+    cls, d = M.classify_proposer_output("```json\nnot json {\n```")
+    assert cls == "supplement" and d["reason"] == "json-parse-failure"
+
+
+def test_classify_unclosed_fence_unchanged():
+    """フェンスが閉じていない場合は剥がさない (機械規則の閉じた定義)。"""
+    cls, d = M.classify_proposer_output("```json\n" + json.dumps(_bundle()))
+    assert cls == "supplement" and d["reason"] == "json-parse-failure"
+
+
+def test_strip_code_fence_leaves_plain_json_untouched():
+    plain = json.dumps(_bundle())
+    assert M.strip_code_fence(plain) == plain
+
+
 def test_classify_missing_toplevel_field_is_supplement():
     cls, _ = M.classify_proposer_output(json.dumps({"proposals": []}))
     assert cls == "supplement"  # global_unknowns の物理欠落

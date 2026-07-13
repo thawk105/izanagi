@@ -1,11 +1,68 @@
 {
- "classification": "supplement",
+ "classification": "score",
  "detail": {
-  "reason": "json-parse-failure"
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-lock-wait-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal 内 for(;;) ループ先頭の `while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); }` — read phase でロック済みタプルに遭遇したときの無限スピン待機ループ",
+      "skeleton": "ロック済みタプルへの read phase 応答戦略を挟む hole。現状は writer のロック解除まで無限スピン(idle busy-wait)。ここを別構造(有界スピン後に再取得サイクルへ抜ける／spin と yield 相当の切替え/待機周期の構造変更 等)へ差し替える。直後の `expected == check` による版一致再確認(version-stability recheck)は骨格として保持し、変異は待機の仕方のみに限定する"
+     },
+     "mechanism_hypothesis": "attribution 実在項目『abort 後の再試行前バックオフ待機の有効化』の診断が、idle 待機の副作用として ipc の 1.4–1.6 → 0.4–0.5 崩壊(コアが待機で実命令を発行できない)と read-heavy latency 5.7→25μs 増を示している。この『コアが遊ぶと ipc が潰れる』機序は abort backoff 固有ではなく、read_internal のロック待ちスピンという別フェーズの idle 待機点にも同型に働くと予想する。加えて同項目で損が最大だったのは read-heavy(-77%)= 読取り支配・abort_rate も 15.6% と低め の workload であり、read-heavy 性能が abort ではなく読取り経路の停止に敏感であることを示唆する。ゆえに read phase のロック待機の仕方(現状の無限スピン)を変える位置に、read-heavy 側の ipc/latency 地形が存在すると予想する。これは backoff-magnitude(abort フェーズの待機量スカラー)とも writeset-sort(施錠順序 comparator)とも構造的に別位置の hole である",
+     "safety_argument_hypothesis": "read_internal のスピンは、書込中(lock=1)タプルの中途値を読まないための Silo read consistency 機構の一部。待機構造を変えても『ロック解除後に安定版を読み、expected==check で版一致を再確認して初めて read_set_ に確定する』不変を壊さないことが前提。早期離脱系の変異は abort 挙動や読取り一貫性の窓を変えうる。段階 B で読取り一貫性不変の保持を実コードで再検証する必要がある",
+     "unknowns": [
+      "感度を持つ workload(read-heavy 予想は attribution からの外挿にすぎず、実測での確認が必要)",
+      "reward hack 仮説(待機を形式的に短縮して throughput を稼ぐが読取り一貫性を実質崩す変異が抜ける経路の有無)",
+      "positive control 設計",
+      "計測動作点(skew/thread/レコード数/round)の確定",
+      "偵察の列挙空間(待機構造のバリエーション空間)",
+      "safety_argument の実コード裏取り(recheck 保持で十分かの検証)"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-batch-threshold",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::wal 内 `if (log_set_.size() > LOGSET_SIZE / 2)` のフラッシュ発火閾値リテラル(現状 LOGSET_SIZE=1000 につき > 500 でヘッダ+ログレコードをまとめて書込)",
+      "skeleton": "ログバッファのフラッシュ発火閾値を決めるスカラー hole。現状 LOGSET_SIZE/2(=500 レコード)で 1 回の write にまとめる。この閾値を別値に置き、1 write syscall あたりの束ね量(=I/O 発行頻度と 1 回あたりのサイズ)を変える"
+     },
+     "mechanism_hypothesis": "attribution 実在項目『コミット時ログ書込の有効化』の診断が、throughput 低下は書込比率に単調比例(write-heavy -13.4% / balanced -6.8% / read-heavy -1.9% は noise 内)で、abort_rate 不変・latency 増・llc_miss 増 — すなわち競合でも検証でもなく純粋な書込 I/O コストへの帰属、と特定している。フラッシュ発火閾値は 1 回の write に束ねるレコード数を直接決め、この純 I/O コストの償却度(1 レコードあたりの write 発行オーバーヘッド)を左右する量である。ゆえに attribution 3 が孤立させた I/O コスト成分そのものに対し、この閾値の位置に(特に write-heavy 側で)地形が存在すると予想する。backoff-magnitude(abort 待機量)とは別の I/O 系スカラーであり構造的に別位置",
+     "safety_argument_hypothesis": "フラッシュ閾値はログバッファ(log_set_)の滞留量を決める。閾値拡大はメモリ滞留増に加え、実装が真の durability を担う場合は commit 応答前のログ永続化保証タイミングを遅らせうる。ただし現 wal は val に \"FIXME\"、コメントに TODO: logging とあり durability の実体が未確定 — この前提の真偽自体が段階 B の再検証対象。段階 B で recovery/replay(replayTest.cc)との整合を実コードで確認する必要がある",
+     "unknowns": [
+      "感度を持つ workload(write-heavy 予想の実測確認)",
+      "WAL が計測時に有効化されていたか — 本 hole は WAL 有効構成でのみ意味を持つ(構成前提の裏取り)",
+      "reward hack 仮説(閾値を極端化して I/O を実質スキップし durability を空洞化する変異が抜ける経路)",
+      "positive control 設計",
+      "計測動作点の確定",
+      "偵察の列挙空間(閾値スカラーの探索範囲)",
+      "safety_argument の実コード裏取り(現 wal のダミー実装下で durability 不変が何を意味するか)"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics は単一動作点(skew0.9 / 48thread / 1M レコード / 各構成 1 round・交互作用未分離)の射影であり、両提案の地形予想はいずれも単点からの外挿。感度の実在は段階 B の独立再導出で確認されるまで未確定",
+    "提案 hole_location が既存軸台帳(silo-backoff-magnitude / silo-writeset-sort)と構造的に別であることの最終照合は人間 gate の担当(D47 必須条件 4)",
+    "両提案とも transaction.cc(既開通領域)内の別位置の hole であり、開通済みへ寄せた選定ではなく機序が指す位置がたまたま同領域内である。開通コスト判断は人間側",
+    "mechanism_hypothesis の実質性(恒真でないこと)の最終判定は人間 gate の意味判断(D47 必須条件 2)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
  },
  "raw": {
   "returncode": 0,
   "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":154942,\"duration_api_ms\":156370,\"ttft_ms\":112551,\"ttft_stream_ms\":2177,\"time_to_request_ms\":279,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-lock-wait-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal 内 for(;;) ループ先頭の `while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); }` — read phase でロック済みタプルに遭遇したときの無限スピン待機ループ\\\",\\n        \\\"skeleton\\\": \\\"ロック済みタプルへの read phase 応答戦略を挟む hole。現状は writer のロック解除まで無限スピン(idle busy-wait)。ここを別構造(有界スピン後に再取得サイクルへ抜ける／spin と yield 相当の切替え/待機周期の構造変更 等)へ差し替える。直後の `expected == check` による版一致再確認(version-stability recheck)は骨格として保持し、変異は待機の仕方のみに限定する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目『abort 後の再試行前バックオフ待機の有効化』の診断が、idle 待機の副作用として ipc の 1.4–1.6 → 0.4–0.5 崩壊(コアが待機で実命令を発行できない)と read-heavy latency 5.7→25μs 増を示している。この『コアが遊ぶと ipc が潰れる』機序は abort backoff 固有ではなく、read_internal のロック待ちスピンという別フェーズの idle 待機点にも同型に働くと予想する。加えて同項目で損が最大だったのは read-heavy(-77%)= 読取り支配・abort_rate も 15.6% と低め の workload であり、read-heavy 性能が abort ではなく読取り経路の停止に敏感であることを示唆する。ゆえに read phase のロック待機の仕方(現状の無限スピン)を変える位置に、read-heavy 側の ipc/latency 地形が存在すると予想する。これは backoff-magnitude(abort フェーズの待機量スカラー)とも writeset-sort(施錠順序 comparator)とも構造的に別位置の hole である\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"read_internal のスピンは、書込中(lock=1)タプルの中途値を読まないための Silo read consistency 機構の一部。待機構造を変えても『ロック解除後に安定版を読み、expected==check で版一致を再確認して初めて read_set_ に確定する』不変を壊さないことが前提。早期離脱系の変異は abort 挙動や読取り一貫性の窓を変えうる。段階 B で読取り一貫性不変の保持を実コードで再検証する必要がある\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload(read-heavy 予想は attribution からの外挿にすぎず、実測での確認が必要)\\\",\\n        \\\"reward hack 仮説(待機を形式的に短縮して throughput を稼ぐが読取り一貫性を実質崩す変異が抜ける経路の有無)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点(skew/thread/レコード数/round)の確定\\\",\\n        \\\"偵察の列挙空間(待機構造のバリエーション空間)\\\",\\n        \\\"safety_argument の実コード裏取り(recheck 保持で十分かの検証)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-batch-threshold\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::wal 内 `if (log_set_.size() > LOGSET_SIZE / 2)` のフラッシュ発火閾値リテラル(現状 LOGSET_SIZE=1000 につき > 500 でヘッダ+ログレコードをまとめて書込)\\\",\\n        \\\"skeleton\\\": \\\"ログバッファのフラッシュ発火閾値を決めるスカラー hole。現状 LOGSET_SIZE/2(=500 レコード)で 1 回の write にまとめる。この閾値を別値に置き、1 write syscall あたりの束ね量(=I/O 発行頻度と 1 回あたりのサイズ)を変える\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目『コミット時ログ書込の有効化』の診断が、throughput 低下は書込比率に単調比例(write-heavy -13.4% / balanced -6.8% / read-heavy -1.9% は noise 内)で、abort_rate 不変・latency 増・llc_miss 増 — すなわち競合でも検証でもなく純粋な書込 I/O コストへの帰属、と特定している。フラッシュ発火閾値は 1 回の write に束ねるレコード数を直接決め、この純 I/O コストの償却度(1 レコードあたりの write 発行オーバーヘッド)を左右する量である。ゆえに attribution 3 が孤立させた I/O コスト成分そのものに対し、この閾値の位置に(特に write-heavy 側で)地形が存在すると予想する。backoff-magnitude(abort 待機量)とは別の I/O 系スカラーであり構造的に別位置\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"フラッシュ閾値はログバッファ(log_set_)の滞留量を決める。閾値拡大はメモリ滞留増に加え、実装が真の durability を担う場合は commit 応答前のログ永続化保証タイミングを遅らせうる。ただし現 wal は val に \\\\\\\"FIXME\\\\\\\"、コメントに TODO: logging とあり durability の実体が未確定 — この前提の真偽自体が段階 B の再検証対象。段階 B で recovery/replay(replayTest.cc)との整合を実コードで確認する必要がある\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload(write-heavy 予想の実測確認)\\\",\\n        \\\"WAL が計測時に有効化されていたか — 本 hole は WAL 有効構成でのみ意味を持つ(構成前提の裏取り)\\\",\\n        \\\"reward hack 仮説(閾値を極端化して I/O を実質スキップし durability を空洞化する変異が抜ける経路)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点の確定\\\",\\n        \\\"偵察の列挙空間(閾値スカラーの探索範囲)\\\",\\n        \\\"safety_argument の実コード裏取り(現 wal のダミー実装下で durability 不変が何を意味するか)\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics は単一動作点(skew0.9 / 48thread / 1M レコード / 各構成 1 round・交互作用未分離)の射影であり、両提案の地形予想はいずれも単点からの外挿。感度の実在は段階 B の独立再導出で確認されるまで未確定\\\",\\n    \\\"提案 hole_location が既存軸台帳(silo-backoff-magnitude / silo-writeset-sort)と構造的に別であることの最終照合は人間 gate の担当(D47 必須条件 4)\\\",\\n    \\\"両提案とも transaction.cc(既開通領域)内の別位置の hole であり、開通済みへ寄せた選定ではなく機序が指す位置がたまたま同領域内である。開通コスト判断は人間側\\\",\\n    \\\"mechanism_hypothesis の実質性(恒真でないこと)の最終判定は人間 gate の意味判断(D47 必須条件 2)\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"464a4990-46d7-42d7-865a-9eb9a52ac15d\",\"total_cost_usd\":0.619618,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":35185,\"cache_read_input_tokens\":0,\"output_tokens\":9711,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":35185,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":9711,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":35185,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":35185},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24898,\"outputTokens\":18,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.024988,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":9711,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":35185,\"webSearchRequests\":0,\"costUSD\":0.59463,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"1016c56a-c0a9-4269-947c-c126b993166e\"}\n",
   "stderr": ""
+ },
+ "amendment": {
+  "id": "2026-07-13-fence",
+  "old_classification": "supplement",
+  "old_detail_reason": "json-parse-failure"
  }
 }

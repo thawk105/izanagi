@@ -1,0 +1,56 @@
+{
+ "what": "フェンス欠陥 amendment の全変更差分 (追加 LLM 呼び出しゼロの機械再分類)",
+ "amendment_id": "2026-07-13-fence",
+ "user_ruling": "A: 修正 + 再分類 + 続きから再走 (2026-07-13、AskUserQuestion 裁定)",
+ "pre_amendment_snapshot_commit": "d6895d3",
+ "rule": "最初の非 supplement attempt を採用 (v2 §3.4 の凍結規則の機械再適用)",
+ "attempt_changes": [
+  {
+   "file": "c4-17.attempt0.json",
+   "old": "supplement",
+   "new": "score"
+  },
+  {
+   "file": "c5-15.attempt0.json",
+   "old": "supplement",
+   "new": "score"
+  },
+  {
+   "file": "c5-15.attempt1.json",
+   "old": "supplement",
+   "new": "score"
+  },
+  {
+   "file": "c5-15.attempt2.json",
+   "old": "supplement",
+   "new": "score"
+  },
+  {
+   "file": "main-14.attempt0.json",
+   "old": "supplement",
+   "new": "score"
+  },
+  {
+   "file": "main-14.attempt1.json",
+   "old": "supplement",
+   "new": "score"
+  }
+ ],
+ "final_changes": [
+  {
+   "slot": "c4-17",
+   "old": null,
+   "new": "score"
+  },
+  {
+   "slot": "c5-15",
+   "old": "unfilled",
+   "new": "score"
+  },
+  {
+   "slot": "main-14",
+   "old": "score",
+   "new": "score"
+  }
+ ]
+}

@@ -63,8 +63,6 @@
   "stderr": ""
  },
  "amendment": {
-  "id": "2026-07-13-fence",
-  "old_classification": "supplement",
-  "old_detail_reason": "json-parse-failure"
+  "id": "2026-07-13-fence"
  }
 }

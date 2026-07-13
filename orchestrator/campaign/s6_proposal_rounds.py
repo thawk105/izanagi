@@ -269,12 +269,24 @@ def cmd_verify(_args) -> None:
 # --------------------------------------------------------------------- run
 
 
+def strip_code_fence(raw: str) -> str:
+    """コードフェンスの機械除去 (amendment 2026-07-13、ユーザー裁定 A)。
+    先頭行が ``` で始まり末尾行が ``` のときのみ両行を落とす。中身の解釈はしない —
+    三分法の判定規則は不変で、これは JSON 解析前の整形欠陥の修正 (アーム間中立)。"""
+    s = raw.strip()
+    if s.startswith("```") and s.endswith("```"):
+        lines = s.split("\n")
+        if len(lines) >= 2:
+            return "\n".join(lines[1:-1])
+    return raw
+
+
 def classify_proposer_output(raw: str):
     """v2 §3.3 の三分法。返り値 = (分類, 詳細)。
     分類: 'supplement' (機械故障 → retry) / 'score' (採点行き) / 'score_zero' (ラウンド 0 直行)。
     """
     try:
-        data = json.loads(raw)
+        data = json.loads(strip_code_fence(raw))
     except (json.JSONDecodeError, ValueError):
         return "supplement", {"reason": "json-parse-failure"}
     if not isinstance(data, dict) or "proposals" not in data or "global_unknowns" not in data:

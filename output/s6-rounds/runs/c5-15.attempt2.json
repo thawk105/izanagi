@@ -1,11 +1,86 @@
 {
- "classification": "supplement",
+ "classification": "score",
  "detail": {
-  "reason": "json-parse-failure"
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-spinwait-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal 内の read-own-lock 待機ループ `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`",
+      "skeleton": "施錠されたタプルに読み手が遭遇したときの待機本体 (現状は無停止の tidword 再ロードの単純スピン) を、待機方針を挟める hole にする。挟むのは『スピンする本体の 1 段ぶんの振る舞い』であり、ループの脱出条件 (lock クリア) と直後の absent/再検査 (expected==check) は skeleton 側に残す。"
+     },
+     "mechanism_hypothesis": "diagnostics が空のため機序は stock 構造観察に基づく (attribution 名指しは不能)。read_internal の `while (expected.lock)` は tuple->tidword_ を acquire ロードで無停止再読みするだけで、_mm_pause も上限も持たない。同じ tidword キャッシュラインは writePhase の `storeRelease((*itr).rcdptr_->tidword_.obj_, maxtid.obj_)` が書き戻す対象でもあるため、書き込み中のホットタプルに読み手が集まると、読み手のスピン acquire ロードと書き手のコミット store が同一ラインで競合する構造がある。この待機本体に停止/上限付き待機を挟む変異は当該ラインの往復を変える見込み。反証可能性: 書き込みロックと読みが同一ホットタプルで競合しない構成ではこのループはほぼ回らず変異は不活性 — 実在構造 (read_internal のロック待機 + writePhase の同ライン store) に接続した観測である。既開通の silo-backoff-magnitude (abort 後の待機、include/backoff.hh) とは別フェーズ (コミット前の読み待機) ・別位置であり軸内探索ではない。",
+     "safety_argument_hypothesis": "保持すべき不変条件は『lock ビットが立っている間はタプル値を read_set に取り込まない』。待機方針を差し替える変異が、待機を早期に打ち切って施錠中の body を読む経路を作ると torn read / 一貫性違反になりうる。段階 B で『変異が lock クリア確認前に body= や read_set 追加に到達しないこと』を必ず再検証する前提の下書き。",
+     "unknowns": [
+      "感度を持つ workload (ホットタプル書き込み競合が読み待機を実際に回す動作点) の特定 — 機序単独では導出不能",
+      "計測動作点 (thread_num / zipf_skew / rratio 等) の具体値",
+      "positive control 設計 (待機方針の差が指標に出ることを示す仕込み)",
+      "reward hack 仮説 (待機を実質無効化して abort/spin を糊塗する退化変異の形)",
+      "スカラー下位変異 (スピン上限回数のみ) と code_fragment 変異の切り分け — 型の最終確定",
+      "偵察の列挙空間 (どの待機プリミティブ群を候補にするか)"
+     ]
+    },
+    {
+     "axis_name": "silo-lock-conflict-response",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::lockWriteSet 内、既施錠タプル検出分岐 `if (expected.lock) { #if NO_WAIT_LOCKING_IN_VALIDATION ... #elif NO_WAIT_OF_TICTOC goto retry #endif }`",
+      "skeleton": "Phase-1 施錠取得中に他者保有ロックを検出したときの応答 (現状はコンパイル時マクロで即 abort か goto retry の二択に固定) を、応答方針を差し替えられる hole にする。CAS 成功経路・`izanagi_trace::record_lock` の記録・max_wset_ 更新は skeleton 側に残し、hole は『衝突検出時に何を返すか』のみ。"
+     },
+     "mechanism_hypothesis": "diagnostics 空のため stock 構造観察に基づく。lockWriteSet は sort 済み write_set_ を先頭から施錠し、`expected.lock` 検出時に write-write 衝突をどう処理するかで、完了済み read フェーズを捨てる abort に倒すか、部分 unlock 後 begin から取り直す goto retry に倒すかが分岐する。これは『施錠する順序』(既開通 silo-writeset-sort の comparator) とは別の決定点であり、順序が同じでも応答方針だけを変えられる — hole 位置が構造的に別。反証可能性: write_set_ が互いに素な (重なりのない) workload ではこの分岐に到達しないため変異は不活性で、実在の衝突経路に接続した観測になっている。",
+     "safety_argument_hypothesis": "保持すべきは進行保証 (デッドロック/ライブロック不在)。stock の no-wait はソート順による全順序でデッドロックを避けている。待機・無限リトライ方向へ振る変異はライブロックや、部分 unlock の取りこぼしによるロック残留を起こしうる。段階 B で『全経路で最終的にロックが解放される・取得順の全順序性が壊れない』ことを再検証する前提の下書き。",
+     "unknowns": [
+      "感度を持つ workload (write_set_ 重なりが高い動作点) の特定",
+      "現状マクロ選択 (NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC) と EVOLVE-BLOCK hole 化の整合 — ひな型改訂要否",
+      "計測動作点の具体値",
+      "positive control 設計",
+      "reward hack 仮説 (衝突時に検証を素通りさせ false-commit を得る退化変異の形 — TRACE 検査との関係)",
+      "偵察の列挙空間 (応答方針の候補集合)"
+     ]
+    },
+    {
+     "axis_name": "silo-reclamation-epoch-lag",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork 内の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の猶予定数 (2)",
+      "skeleton": "GC 回収を許可するまでの epoch 猶予の固定定数 (2) をスカラー hole にする。epoch 前進条件 (chkClkSpan + chkEpochLoaded) と atomicAddGE 自体は skeleton 側に残し、hole は回収境界の遅れ量のみ。"
+     },
+     "mechanism_hypothesis": "diagnostics 空のため stock 構造観察に基づく。siloLeaderWork は `ReclamationEpoch = cur_epoch - 2` を設定し、transaction.cc の gc_records() は `if (rec->tidword_.epoch > r_epoch) break; delete rec;` でこの境界を使って Tuple を解放する。定数 2 は『進行中の読み手がまだ参照しうる Tuple を解放しない安全窓』と『gc_records_ deque の滞留量・回収頻度』のトレードオフを固定している構造がある。この遅れ量を変える変異は回収バックログの大きさと解放頻度を変える見込み。反証可能性: DELETE/INSERT が gc_records_ を積まない読み主体 workload では gc_records() がほぼ空回りし変異は不活性 — 実在の回収経路に接続した観測。既開通二軸 (施錠順序・abort 後待機) とはフェーズ (epoch 管理/GC) も位置も別。",
+     "safety_argument_hypothesis": "保持すべきは『解放される Tuple をまだどの読み手も参照していない』こと。猶予を安全窓より縮める変異は use-after-free を招きうる (読み手の ThLocalEpoch が未前進の間に解放)。段階 B で epoch 前進と読み手参照終了の同期条件を必ず再検証する前提の下書き。scalar 型のため自動的に headline 非対象。",
+     "unknowns": [
+      "安全窓の下限 (何 epoch 未満で use-after-free が原理的に発生するか) の実コード裏取り — 機序単独では確定不能",
+      "感度を持つ workload (gc_records_ が実際に積まれる DELETE/INSERT 混在動作点) の特定",
+      "計測動作点 (epoch_time flag との相互作用を含む) の具体値",
+      "positive control 設計 (回収遅れ量の差が指標に出る仕込み)",
+      "reward hack 仮説 (安全窓を削って見かけの回収指標だけ良化させる退化変異の形)",
+      "偵察の列挙空間 (探索する定数レンジ)"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空 (`{}`) のため、全提案の mechanism_hypothesis は stock 抜粋と編集面の地図の構造観察のみに基づく仮説であり、attribution 実在項目の診断数値による地形裏付けは無い — 段階 B の独立再導出でこの裏付け不在を補う必要がある",
+    "既存軸台帳として本入力射影に明示されているのは silo-writeset-sort と silo-backoff-magnitude の 2 hole のみ。他に開通済み/検討中の軸がある場合、提案 3 件の構造的別位置性 (D47 必須条件 3・4 の既出照合) は人間 gate 側の台帳照合で最終確認が要る",
+    "3 件はいずれも探索補助限定 (機序帰属が coder 出力後である以上、段 6 headline 非対象。昇格には事前登録側改訂が前提)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
  },
  "raw": {
   "returncode": 0,
   "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":132462,\"duration_api_ms\":134069,\"ttft_ms\":66722,\"ttft_stream_ms\":1655,\"time_to_request_ms\":101,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-spinwait-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal 内の read-own-lock 待機ループ `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`\\\",\\n        \\\"skeleton\\\": \\\"施錠されたタプルに読み手が遭遇したときの待機本体 (現状は無停止の tidword 再ロードの単純スピン) を、待機方針を挟める hole にする。挟むのは『スピンする本体の 1 段ぶんの振る舞い』であり、ループの脱出条件 (lock クリア) と直後の absent/再検査 (expected==check) は skeleton 側に残す。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics が空のため機序は stock 構造観察に基づく (attribution 名指しは不能)。read_internal の `while (expected.lock)` は tuple->tidword_ を acquire ロードで無停止再読みするだけで、_mm_pause も上限も持たない。同じ tidword キャッシュラインは writePhase の `storeRelease((*itr).rcdptr_->tidword_.obj_, maxtid.obj_)` が書き戻す対象でもあるため、書き込み中のホットタプルに読み手が集まると、読み手のスピン acquire ロードと書き手のコミット store が同一ラインで競合する構造がある。この待機本体に停止/上限付き待機を挟む変異は当該ラインの往復を変える見込み。反証可能性: 書き込みロックと読みが同一ホットタプルで競合しない構成ではこのループはほぼ回らず変異は不活性 — 実在構造 (read_internal のロック待機 + writePhase の同ライン store) に接続した観測である。既開通の silo-backoff-magnitude (abort 後の待機、include/backoff.hh) とは別フェーズ (コミット前の読み待機) ・別位置であり軸内探索ではない。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"保持すべき不変条件は『lock ビットが立っている間はタプル値を read_set に取り込まない』。待機方針を差し替える変異が、待機を早期に打ち切って施錠中の body を読む経路を作ると torn read / 一貫性違反になりうる。段階 B で『変異が lock クリア確認前に body= や read_set 追加に到達しないこと』を必ず再検証する前提の下書き。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (ホットタプル書き込み競合が読み待機を実際に回す動作点) の特定 — 機序単独では導出不能\\\",\\n        \\\"計測動作点 (thread_num / zipf_skew / rratio 等) の具体値\\\",\\n        \\\"positive control 設計 (待機方針の差が指標に出ることを示す仕込み)\\\",\\n        \\\"reward hack 仮説 (待機を実質無効化して abort/spin を糊塗する退化変異の形)\\\",\\n        \\\"スカラー下位変異 (スピン上限回数のみ) と code_fragment 変異の切り分け — 型の最終確定\\\",\\n        \\\"偵察の列挙空間 (どの待機プリミティブ群を候補にするか)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-lock-conflict-response\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::lockWriteSet 内、既施錠タプル検出分岐 `if (expected.lock) { #if NO_WAIT_LOCKING_IN_VALIDATION ... #elif NO_WAIT_OF_TICTOC goto retry #endif }`\\\",\\n        \\\"skeleton\\\": \\\"Phase-1 施錠取得中に他者保有ロックを検出したときの応答 (現状はコンパイル時マクロで即 abort か goto retry の二択に固定) を、応答方針を差し替えられる hole にする。CAS 成功経路・`izanagi_trace::record_lock` の記録・max_wset_ 更新は skeleton 側に残し、hole は『衝突検出時に何を返すか』のみ。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空のため stock 構造観察に基づく。lockWriteSet は sort 済み write_set_ を先頭から施錠し、`expected.lock` 検出時に write-write 衝突をどう処理するかで、完了済み read フェーズを捨てる abort に倒すか、部分 unlock 後 begin から取り直す goto retry に倒すかが分岐する。これは『施錠する順序』(既開通 silo-writeset-sort の comparator) とは別の決定点であり、順序が同じでも応答方針だけを変えられる — hole 位置が構造的に別。反証可能性: write_set_ が互いに素な (重なりのない) workload ではこの分岐に到達しないため変異は不活性で、実在の衝突経路に接続した観測になっている。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"保持すべきは進行保証 (デッドロック/ライブロック不在)。stock の no-wait はソート順による全順序でデッドロックを避けている。待機・無限リトライ方向へ振る変異はライブロックや、部分 unlock の取りこぼしによるロック残留を起こしうる。段階 B で『全経路で最終的にロックが解放される・取得順の全順序性が壊れない』ことを再検証する前提の下書き。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (write_set_ 重なりが高い動作点) の特定\\\",\\n        \\\"現状マクロ選択 (NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC) と EVOLVE-BLOCK hole 化の整合 — ひな型改訂要否\\\",\\n        \\\"計測動作点の具体値\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"reward hack 仮説 (衝突時に検証を素通りさせ false-commit を得る退化変異の形 — TRACE 検査との関係)\\\",\\n        \\\"偵察の列挙空間 (応答方針の候補集合)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-reclamation-epoch-lag\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork 内の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の猶予定数 (2)\\\",\\n        \\\"skeleton\\\": \\\"GC 回収を許可するまでの epoch 猶予の固定定数 (2) をスカラー hole にする。epoch 前進条件 (chkClkSpan + chkEpochLoaded) と atomicAddGE 自体は skeleton 側に残し、hole は回収境界の遅れ量のみ。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空のため stock 構造観察に基づく。siloLeaderWork は `ReclamationEpoch = cur_epoch - 2` を設定し、transaction.cc の gc_records() は `if (rec->tidword_.epoch > r_epoch) break; delete rec;` でこの境界を使って Tuple を解放する。定数 2 は『進行中の読み手がまだ参照しうる Tuple を解放しない安全窓』と『gc_records_ deque の滞留量・回収頻度』のトレードオフを固定している構造がある。この遅れ量を変える変異は回収バックログの大きさと解放頻度を変える見込み。反証可能性: DELETE/INSERT が gc_records_ を積まない読み主体 workload では gc_records() がほぼ空回りし変異は不活性 — 実在の回収経路に接続した観測。既開通二軸 (施錠順序・abort 後待機) とはフェーズ (epoch 管理/GC) も位置も別。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"保持すべきは『解放される Tuple をまだどの読み手も参照していない』こと。猶予を安全窓より縮める変異は use-after-free を招きうる (読み手の ThLocalEpoch が未前進の間に解放)。段階 B で epoch 前進と読み手参照終了の同期条件を必ず再検証する前提の下書き。scalar 型のため自動的に headline 非対象。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"安全窓の下限 (何 epoch 未満で use-after-free が原理的に発生するか) の実コード裏取り — 機序単独では確定不能\\\",\\n        \\\"感度を持つ workload (gc_records_ が実際に積まれる DELETE/INSERT 混在動作点) の特定\\\",\\n        \\\"計測動作点 (epoch_time flag との相互作用を含む) の具体値\\\",\\n        \\\"positive control 設計 (回収遅れ量の差が指標に出る仕込み)\\\",\\n        \\\"reward hack 仮説 (安全窓を削って見かけの回収指標だけ良化させる退化変異の形)\\\",\\n        \\\"偵察の列挙空間 (探索する定数レンジ)\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空 (`{}`) のため、全提案の mechanism_hypothesis は stock 抜粋と編集面の地図の構造観察のみに基づく仮説であり、attribution 実在項目の診断数値による地形裏付けは無い — 段階 B の独立再導出でこの裏付け不在を補う必要がある\\\",\\n    \\\"既存軸台帳として本入力射影に明示されているのは silo-writeset-sort と silo-backoff-magnitude の 2 hole のみ。他に開通済み/検討中の軸がある場合、提案 3 件の構造的別位置性 (D47 必須条件 3・4 の既出照合) は人間 gate 側の台帳照合で最終確認が要る\\\",\\n    \\\"3 件はいずれも探索補助限定 (機序帰属が coder 出力後である以上、段 6 headline 非対象。昇格には事前登録側改訂が前提)\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"cd70c029-ef60-4827-b2dd-c6db9aa69f81\",\"total_cost_usd\":0.24059550000000002,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":7985,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":7985,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":14,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02394,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":7985,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.21665550000000003,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"7bec85f0-40cf-41ff-a258-938a311f8648\"}\n",
   "stderr": ""
+ },
+ "amendment": {
+  "id": "2026-07-13-fence",
+  "old_classification": "supplement",
+  "old_detail_reason": "json-parse-failure"
  }
 }
