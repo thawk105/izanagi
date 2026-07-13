@@ -2267,9 +2267,9 @@ s6-rounds は読み取り専用 (凍結集計・tally.json 不変)。正本 =
   サンプル設計 4 点 (前提タスク (g)) 未確定
 - エージェント工数: レビュー workflow 3 本 20.3 万 + 棚卸し 7.1 万 subagent トークン
 - セッション事象: 本環境に izanagi の push 認証なし (SSH publickey 拒否・gh 不在。ccbench と
-  同じ) — 本セッションの成果はローカルブランチ `worktree-s6-report-language` にあり、
-  **main への ff 取り込みと push は人間** (worktree ベースは main d656ff8 に ff 済み・分岐なし)
-- 人間判断待ち: (1) ブランチ取り込み (上記) (2) 07-12 (6) 持ち越し変わらず (前エントリ参照)
+  同じ、memory 反映済み) — 成果ブランチ `worktree-s6-report-language` の main への ff 取り込みは
+  ユーザー指示で実施済み。**origin への push のみ人間**
+- 人間判断待ち: (1) origin への push (2) 07-12 (6) 持ち越し変わらず (前エントリ参照)
 
 ### 次の一手
 1. S-1 実走準備 (計測ゼロで自律開始可): サンプル設計 4 点の数値確定 (事前登録追記、レビュー
