@@ -171,7 +171,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    候補軸) は旧主張の scope 限定保存に伴い休眠 (復活条件 = 非列挙軸の実体化、同追記)。S2 gate + auditor live
    は充足済みで不変。独立再命名 canary は 2026-07-13 実施済み — 一致 (中立命名 abort-cause-gated-backoff、
    3 項全対応) = 不発火、**人間追認済み (2026-07-13) = 形式要件充足** (裁定台帳 =
-   `output/insights/2026-07-13_s6-canary-rename.md`)。
+   `output/insights/2026-07-13_s6-canary-rename.md`)。**S-2/S-3 提案ラウンド束は 2026-07-13
+   実走・集計完了** (60/60・判定不能ゼロ、名目 p: S-2=0.115 / S-3=1.0 の先行報告。生成物 =
+   `output/s6-rounds/`、経緯 = worklog 07-13 (8))。報告文言の確定は採点 reason 監査
+   (audit-sheet.md、人間) の後 — 主張 S の判定材料は S-1 再計測 (計測窓待ち) を残すのみ。
    ここで仕込む前提タスク: (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照。
    D44 注意: stock 専用計測経路を選ぶ場合、対抗馬だけ certified 要件を免除する非対称比較になる — その扱いを
    設計時に明文化する)、
