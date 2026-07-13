@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "util.cc siloLeaderWork() 内の ReclamationEpoch 算出 (cur_epoch-2) と gc_records() の epoch しきい値解放は diagnostics の 3 帰属 (backoff / validation 待たない政策 / ログ書込) いずれにも無く、別の処理段 (reclamation lag) を突く新規 hole。既出軸の言い換えでない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "ReclamationEpoch = cur_epoch>2?cur_epoch-2:0 は util.cc に実在、gc_records() の rec->tidword_.epoch>r_epoch 解放も transaction.cc に実在。llc_miss_rate は attribution[2] の生きた indicator。write-heavy で terrain が非対称に立つ/立たないという反証可能な観測を指定。実在構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。K の値をグリッド探索する機械的スカラー変異で構造変異でない → no。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "chkEpochLoaded() の all-N バリアと siloLeaderWork() の epoch 前進 gate 条件を可変合意ポリシに差し替える hole は diagnostics のどの帰属にも無く、別作用点 (epoch 前進バリア構造) を突く新規軸。既出軸の探索範囲内でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "chkEpochLoaded の i=1..N 全一致走査・atomicStoreThLocalEpoch・siloLeaderWork の chkClkSpan AND gate は util.cc/atomic_tool.hh に実在。attribution[0] の ipc 崩壊 (待機で命令発行できない) に接続。遅延スレッドが epoch 前進を律速する仮説は、48thread で ThLocalEpoch 前進が均一なら否定される、という反証可能な観測を指定。因果未計測を honesty として明示しており幻覚でない。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type が code_fragment。バリア構造そのものの書換えで構造変異。yes。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 は機序・既存性は満たすが scalar 単体で c3 不適格。提案1 は 3 項すべて満たしラウンド適格。両提案とも hole 位置は別 (reclamation lag vs epoch 前進バリア) で実質同一でない。束内の headline 非対象ラベル等の誘導記述は判定に反映せず通常基準で採点した。"
+ },
+ "retries_used": 0
+}

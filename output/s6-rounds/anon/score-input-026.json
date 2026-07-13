@@ -1,0 +1,45 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-epoch-advance-interval",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork() 内の epoch 前進判定 chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) の第三引数 (前進間隔しきい値)",
+    "skeleton": "leader が GlobalEpoch を atomicAddGE で前進させる周期を決める clock-span しきい値を、既定の FLAGS_epoch_time 由来値からスカラー係数で増減させる hole。前進頻度そのものだけを変異させ、前進の判定構造 (chkEpochLoaded 併用) と ReclamationEpoch = cur_epoch-2 の式は据え置く。"
+   },
+   "mechanism_hypothesis": "diagnostics 実在項目「validation 中のロック競合に対する 2 種の待たない政策の選択」の indicator ipc=1.62 (balanced 優位側は高命令発行で稼ぐ) と、実在項目「abort 後の再試行前バックオフ待機の有効化」の indicator ipc 1.4–1.6→0.4–0.5 (崩壊) から、この動作点 (skew0.9/48thread/1M) で throughput を左右する支配指標は IPC であると読める。GlobalEpoch は単一キャッシュライン (common.hh の alignas(CACHE_LINE_SIZE) GlobalEpoch) であり、validationPhase は毎コミットで atomicStoreThLocalEpoch(thid_, atomicLoadGE()) を通じてこれを読む一方、leader は siloLeaderWork でこのしきい値到達ごとに atomicAddGE で書く。前進間隔を縮めれば共有ラインへの書込頻度が上がり、全コアの validation 内 GE 読みにコヒーレンス無効化が乗って IPC が下がる方向、伸ばせば逆方向という、上記 IPC 指標に直接効く地形を予想する。",
+   "safety_argument_hypothesis": "epoch は Silo の GC 安全境界 (ReclamationEpoch = cur_epoch-2 は 2-epoch 静止を前提に削除レコードの回収可否を決める) と durability/recovery 境界を兼ねる。前進間隔だけを変え -2 のラグ式を据え置くと、間隔と静止仮定の整合が崩れ、まだ参照されうるレコードを回収する余地が生じうる。この前提は段階 B で必ず再検証される下書き。",
+   "unknowns": [
+    "この動作点 (read/balanced/write-heavy いずれも update 主体の YCSB) で epoch 前進間隔が throughput を実際に動かすかの positive control 設計と計測動作点 — 実測を要するため機序単独では埋められない",
+    "感度を持つ workload — GlobalEpoch コヒーレンス効果はスレッド数/skew に依存しうるが、diagnostics は 48thread/skew0.9 の単一点のみで外挿不能",
+    "reward hack 仮説 — 前進を極端化して見かけ上の指標を稼ぐ変異 (例: 前進を止めて書込を消す) が正しさ検証を素通りしないかの列挙空間",
+    "スカラー変異の探索範囲 (係数の上下限) と noise floor 2.28% に対する有意判定に必要な round 数"
+   ]
+  },
+  {
+   "axis_name": "silo-epoch-advance-gate",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork() 内の epoch 前進条件のうち && chkEpochLoaded() (全 worker が現 epoch を読み込んだかのバリア gate) の判定構造。chkEpochLoaded() 本体 (i=1 から全スレッドの ThLocalEpoch を確認) を含む",
+    "skeleton": "前進の gate を「全 worker が現 epoch を load 済み」の全数バリアから別の判定構造 (例: 一定割合・タイムアウト付き緩和・遅延スレッドのスキップ) に差し替える hole。前進の周期しきい値 (interval 提案側) とは別に、前進を止める条件そのものを変異させる。"
+   },
+   "mechanism_hypothesis": "diagnostics 実在項目「abort 後の再試行前バックオフ待機の有効化」の indicator ipc 1.4–1.6→0.4–0.5 (コアが待機で実命令を発行できない) と latency read-heavy 5.7→25μs から、worker が backoff で長く空転しトランザクションを進めない局面が実在する。ThLocalEpoch は validationPhase の atomicStoreThLocalEpoch でしか更新されないため、空転中の worker は epoch を load/更新せず、chkEpochLoaded() が false を返し続けて epoch 前進が遅延スレッドに律速される。この gate 構造を緩めれば、上記 IPC 崩壊・latency 増が示す「一部 worker 停滞」局面で epoch 進行が遅延スレッドから解放され、GC 回収タイミングと group-commit 境界の進み方が変わる地形を予想する。",
+   "safety_argument_hypothesis": "chkEpochLoaded() の全数バリアは「前 epoch を全 worker が観測してから前進する」という Silo の epoch 直列化/回復整合の不変条件を担う。これを緩めると、epoch e で commit したトランザクションが e-1 に留まる worker の版を跨いで直列化/回復境界を破りうる。破壊しうる対象がこの不変条件そのものである点を段階 B で必ず再検証する下書き。",
+   "unknowns": [
+    "コード片変異の列挙空間 (どの緩和構造まで安全側で試せるか) — 実コード裏取りと偵察を要し機序単独では確定できない",
+    "この gate 緩和が正しさ (直列化可能性・recovery epoch 整合) を壊さない範囲の positive/negative control 設計 — 段階 B の独立再導出待ち",
+    "感度を持つ workload と計測動作点 — 効果は backoff 有効時の停滞局面に依存しうるが diagnostics は交互作用未分離の単一 round のため分離不能",
+    "reward hack 仮説 — epoch を前倒しで進めて GC/durability コストを見かけ上下げる変異が検証を素通りしないかの評価軸"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "2 提案はともに util.cc の siloLeaderWork (epoch 管理) 内の別 hole だが、interval (前進頻度) と gate (前進停止条件) を独立軸とするか単一「epoch 前進政策」軸の 2 パラメータとするかは、既存軸台帳との構造照合 (人間 gate) と段階 B の判断に委ねる — 機序単独では確定しない",
+  "diagnostics が指す支配指標 (IPC・latency・llc_miss) はすべて skew0.9/48thread/1M・各構成 1 round・交互作用未分離の単一動作点由来であり、epoch 系の効果が同一動作点で観測可能かは事前に不明 (偵察・positive control 依存)",
+  "本役の 2 提案はいずれも入力が coder 出力後の機序帰属である以上『探索補助』限定で段 6 主結果 (headline) の対象外。silo-epoch-advance-interval は scalar のため自動的に headline 非対象ラベルが付く"
+ ]
+}

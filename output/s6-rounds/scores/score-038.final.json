@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": false,
+    "c1_reason": "診断 attribution 第2項『validation 中のロック競合に対する 2 種の待たない政策の選択』は、まさに lockWriteSet() 内の `if (expected.lock)` 競合応答分岐 (NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC の択一) を既出軸として掲げている。本提案は同一作用点・同一処理段 (validation の施錠競合応答) に第3の中間政策 (有界スピン) を挟むもので、別の処理段・別の状態・別の作用点ではなく既出軸の応答形状の探索拡張 (軸内探索) に当たる。提案自身も unknowns で『既存二極の言い換えでない構造照合』『D47 必須条件 3 の対象』と重複懸念を明記しており、曖昧側は no に倒す。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の lockWriteSet #if 分岐・IPC 1.62・abort 50.8→21.0% に接続し、balanced/write-heavy に地形が集中し read-heavy 0.4% は順位不能という反証可能な観測 (どの workload で感度が出れば/出なければ仮説が崩れるか) を指定している。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment、有界スピン→再取得→上限 abort の構造変異でスカラー単体ではない。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断 attribution 第3項『コミット時ログ書込の有効化』は on/off トグルの軸であり、本提案は wal() 内 `if (log_set_.size() > LOGSET_SIZE / 2)` の flush 粒度・まとめ書き単位という構造的に別の作用点 (書込の有無ではなく flush 頻度・バッチ構造) を提案している。診断に載る軸の骨格再掲でも軸内探索でもなく、別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の wal() flush 判定・LOGSET_SIZE/2=500・LogHeader.chkSum_・コメントアウト済み fdatasync に接続し、write-heavy に最大の地形・read-heavy 低感度という反証可能な予想を指定している。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment。skeleton は flush 閾値とまとめ書き単位 (バッチ構造改訂) を変異面に置き、構造変異とスカラーの複合。提案は scalar/code_fragment 確定不能と自己言及するが宣言値は code_fragment で構造改訂を含むため yes。",
+    "eligible": true
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read_internal() の `for(;;){ while(expected.lock){...} }` ロック解放待ちスピンは、診断3軸 (backoff.hh の待機量・lockWriteSet の validation 政策・log 書込) のいずれとも異なる処理段 (read phase の読取り一貫性待ち) の作用点で、診断に未掲載。validation 側 no-wait 軸とは別の処理段・別の状態 (読取り一貫性 vs 施錠) であり構造的に別 hole。提案自身が重複懸念を明記しつつも位置・状態が異なる。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の read_internal スピンループに接続し、IPC 崩壊 (1.4–1.6→0.4–0.5)・latency 5.7→25μs を機序根拠に、read-heavy に地形を持つ (read 経路支配) という反証可能な予想を指定している。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment、有界スピン→abort の構造変異でスカラー単体ではない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "提案0と提案2はいずれも有界スピン no-wait 政策だが、作用点が validation の lockWriteSet 競合分岐 (提案0) と read phase の read_internal スピン (提案2) で別位置・別処理段のため実質同一ではない。提案1は WAL flush 粒度で無関係。",
+  "overall_notes": "提案0は診断第2項の既出軸 (validation 競合応答) と同一作用点への中間政策挿入で既存性 no、機序・軸型は適格。提案1・2は別 hole で3項充足し適格。束内に採点基準変更や検査省略の誘導は見られなかった。地形予想の裏取り・重複独立確認は本採点外の追加観測。"
+ },
+ "retries_used": 1
+}

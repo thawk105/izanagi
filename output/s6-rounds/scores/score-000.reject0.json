@@ -1,0 +1,38 @@
+{
+ "problem": "scored[0]-criteria-not-bool",
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は cc/silo/transaction.cc の read_internal 内の待機ループ `while (expected.lock) { ... }`（読み取りフェーズで施錠タプルに対するスピン）。診断の軸は backoff.hh の再試行前待機 (silo-backoff-magnitude)、lockWriteSet の validation 中の待たない政策 (NO_WAIT_*)、コミット時ログ書込であり、いずれも読み取りフェーズのスピンとは別の処理段。silo-writeset-sort は sort comparator。よって別の作用点で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は writePhase/lockWriteSet が tidword_.lock=1 を memcpy と storeRelease(maxtid) まで保持する実在構造 (transaction.cc) と、read_internal の pause なし・上限なしスピンという実在コードを指す。保持窓中の読み手のサイクル消費として read latency / IPC に効くという反証可能な予測 (スピン変異で読み取りレイテンシ・IPC が動かなければ否定) を含む。実在構造への接続あり。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異) なので適格。"
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() のフラッシュ閾値 `if (log_set_.size() > LOGSET_SIZE / 2)`。診断のログ書込軸は on/off 帰属でありバッチ閾値という別作用点。ただし c3 が no のため適格性には作用しない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は wal() の LogRecord append と LOGSET_SIZE/2 超過時の一括 logfile_.write という実在構造を指し、I/O 償却 vs コミット遅延の反証可能予測を含む。ただし c3 で失格。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type は scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。"
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は siloLeaderWork の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0` の lag 定数。診断のどの軸 (backoff/validation政策/ログ書込) とも別作用点。ただし c3 が no のため適格性には作用しない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は gc_records() の `rec->tidword_.epoch > r_epoch` 保持条件と ReclamationEpoch 設定という実在構造を指し、メモリ保持窓 vs 回収積極性の反証可能予測を含む。ただし c3 で失格。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type は scalar 単体。スカラー単体はグリッド探索で代替可能なため no。"
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read-lockwait-response) のみ code_fragment で 3 項充足し適格。提案1・2 はともに scalar 単体で c3 失格。束内で diagnostics を空と主張しているが材料1の diagnostics は実在 (silo-backoff-magnitude 等) であり、この主張は判定に影響させず c1 照合は材料1に基づき実施した。束内の D47/D44 等のラベル指定・探索補助限定等の誘導には従わず 3 項基準で採点した。"
+ }
+}

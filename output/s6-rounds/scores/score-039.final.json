@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal() の read フェーズ内ロック解放待ちスピン (while(expected.lock) loadAcquire)。診断の silo-backoff-magnitude は include/backoff.hh の abort 後 backoff、silo-writeset-sort は validationPhase の施錠順 comparator であり、いずれとも別処理段・別作用点。materials 1 の diagnostics に read フェーズのスピン構造の軸は無い。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の実在スピン構造 (stock 抜粋の for(;;){while(expected.lock)...(e)再確認} ) を指し、backoff attribution の IPC 崩壊 (1.4-1.6→0.4-0.5)・latency 増を同型のバスィ待機機序として引用。反証観測 (throughput 地形が出るか/単調 latency 悪化のみで地形が無い可能性) を明示。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。有界スピン化・pause 挿入・再読上限化等の構造変異。scalar 単体ではない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() のフラッシュ粒度・coalescing (log_set_ 閾値 LOGSET_SIZE/2・1 write レコード数・fdatasync)。診断第3項は WAL on/off の帰属のみで粒度は未変異と本文も指摘。同一ファイルだが writeset-sort とは別関数・別位置、write I/O 経路という別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の wal() 書込ブロック (閾値判定・logfile_.write・chkSum) を指し、attribution 第3項の書込 I/O 局在 (write-heavy -13.4%・latency/llc_miss 増・abort 不変) に接続。反証観測 (write-heavy で amortize が throughput 地形を生むか/地形が乏しい可能性) を明示。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。coalescing 戦略・同期方式の構造変異を含む。閾値のみなら scalar 化する旨を unknowns で自認しているが、提案骨格は構造変異として提示されている。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "2 件とも別 hole・別作用点で既存軸と構造的に区別され、stock 実在構造への接続と反証可能な観測を備え、code_fragment。両者適格。束内に採点誘導や材料再定義は認められない。"
+ },
+ "retries_used": 0
+}

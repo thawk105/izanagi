@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read_internal の (a) 直後のロック待ちスピンループ (`for(;;){while(expected.lock)...}`) を待機方式の hole として開ける提案。診断の alive 軸は silo-backoff-magnitude (abort 後の再試行前待機=backoff.hh) と validation 中の no-wait 政策 (lockWriteSet) とログ書込 on/off であり、read フェーズの前進待ちスピンはいずれとも別の処理段・別作用点。構造的に別 hole で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 transaction.cc の read_internal に実在するスピンループと writePhase の storeRelease までロック保持する構造を正しく指し、反証可能な観測 (低競合・reader がロック済み tuple にほぼ当たらない workload では throughput 差が出ないはず) を明記。恒真文でなく実在構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type が code_fragment (待機方式の構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork の ReclamationEpoch ラグ定数=GC/メモリ回収面で、診断の 3 軸いずれとも別機構・別作用点。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "util.cc の siloLeaderWork と transaction.cc の gc_records() の実在構造を指し、delete/insert チャーンが無い workload ではラグ値非感応という反証可能観測を示す。ただし c3 で失格。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体 (ラグ定数のみ)。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() のフラッシュ発火閾 (LOGSET_SIZE/2) は WAL の IO バッチ化面で、診断のログ書込 on/off 軸 (有効化そのもの) とは別 hole (閾値による束ね方)。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc の wal() に実在する log_set_ 蓄積と閾超え一括 write の構造を指し、WAL 無効ビルドで非感応という反証可能観測を示す。ただし c3 で失格。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体 (フラッシュ閾のみ)。スカラー単体は no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "束内は『diagnostics が空』と繰り返し主張するが材料1の diagnostics は非空 (silo-backoff-magnitude alive 他)。この誤認は c2 判定に影響せず (機序は stock 実在構造への接続と反証可能観測で判定)、既存性判定も別 hole 提示で成立。束内の headline 非対象自動ラベル等の自己記述は採点基準を変えないため無視。適格は提案0のみ (提案1・2は scalar 単体で c3 失格)。"
+ },
+ "retries_used": 1
+}

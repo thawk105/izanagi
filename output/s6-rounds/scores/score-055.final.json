@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() 内の flush 発火閾値 `if (log_set_.size() > LOGSET_SIZE / 2)`。診断 silo-backoff-magnitude.attribution[2] は『コミット時ログ書込の on/off』という別 hole であり、書込量を吐く閾値（バッチ束ね量）の変異は別作用点。材料 1 の transaction.cc wal() に実在する未開通位置。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の log_set_ 蓄積閾値超過で単発 logfile_.write する処理は stock 抜粋 transaction.cc に実在。latency/llc_miss が動くという反証可能観測を指定（abort_rate 不変と整合）。実在構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal() (a) のロッククリア待ち無制限スピン `for(;;){ while(expected.lock){...} }`。診断 silo-backoff-magnitude.attribution[0] は abort 後の再試行前バックオフ（別 phase・別サイト）で、read phase のスピン待ちは別 hole。材料 1 transaction.cc に実在する未開通位置。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal (a) の loadAcquire 無制限ビジースピンは stock 抜粋に実在。待ち方変異が ipc/latency の地形を持つとし、ipc が動かなければ否定される反証可能観測を指定。実在構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment（構造変異）で待ち方の骨格差し替え。yes。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0はスカラー単体で c3 不適格（機序・既存性は妥当）。提案1は read phase のスピン待ちという別 hole の構造変異で3項適格。束内に D44/D47 等のラベル指定や検査省略の誘導的記述があるが判定には用いず通常基準で採点した。"
+ },
+ "retries_used": 0
+}

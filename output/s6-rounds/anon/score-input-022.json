@@ -1,0 +1,49 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-wal-file-io-semantics",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/bomb_silo.cc",
+    "source_rel": "cc/silo/bomb_silo.cc",
+    "position": "main() 内 ccbench::run に渡す worker_init ラムダの `#if WAL` ブロック — `trans.logfile_.open(logpath, O_CREAT | O_TRUNC | O_WRONLY, 0644);` と直後の `trans.logfile_.ftruncate(1000000000);` のログファイル準備箇所",
+    "skeleton": "ログファイルの open フラグ集合と前確保 (ftruncate 量・戦略) を、別の I/O 設定方針に差し替える変異を挟む hole。現状は open フラグ = O_CREAT|O_TRUNC|O_WRONLY 固定・前確保 = 1GB リテラル固定で、書込 I/O 経路のこの設定次元自体が未探索。挟むのは『どんな I/O 設定で永続化するか』であって WAL の on/off ではない (WAL 二値は別レイヤのコンパイル時マクロ)"
+   },
+   "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude の 3 番目の attribution『コミット時ログ書込の有効化 (on/off)』が、throughput 低下を書込比率に単調比例 (write-heavy -13.4% / balanced -6.8% / read-heavy -1.9% は noise 内) と観測し、indicators で abort_rate 不変・latency 増加・llc_miss_rate 増加を示して『競合でも正しさ検証でもなく純粋な書込 I/O コスト』と帰属した。この帰属は WAL の有無という二値の効果だが、その I/O コストの大きさ・形そのものは open フラグ (同期/バッファリング意味論) と前確保の仕方に依存し、現状それらは固定リテラルでこの位置に軸がない。write-heavy で latency 増加が最大という診断から、書込 I/O が支配的な workload ほどこの位置の設定変異が latency 成分に地形を作ると予想する。",
+   "safety_argument_hypothesis": "この変異が原理的に壊しうるのは WAL の durability 契約である。open フラグを同期弱化側 (fsync/O_DSYNC を外す・書込を捨てる等) に振ると、計測される throughput は上がるが recovery 可能性が損なわれる — 性能指標だけを見る perf build では durability が検証されないため、これは reward hack (見かけの高速化) の直接経路になる。前確保量を書込総量より小さくすると書込がはみ出し失敗しうる。段階 B で durability 保持の独立再検証が必須。",
+   "unknowns": [
+    "感度を持つ workload — attribution は write-heavy を示唆するが、単一動作点・各構成 1 round・交互作用未分離のため実測裏取りを要する",
+    "reward hack 仮説の具体化と封じ方 — 非同期化/非永続化による見かけ高速化を計測側でどう検出・排除するか (perf build に durability 検証がない前提)",
+    "durability を保持する open フラグ/前確保戦略の有効列挙空間 (偵察要)",
+    "positive control 設計 — I/O コストを既知量だけ動かす構成の特定",
+    "計測動作点 (skew/thread/レコード数/書込比率) の妥当な選定"
+   ]
+  },
+  {
+   "axis_name": "silo-worker-thread-placement",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/bomb_silo.cc",
+    "source_rel": "cc/silo/bomb_silo.cc",
+    "position": "main() 内 ccbench::run に渡す worker_init ラムダの `#ifdef Linux` ブロック内 `setThreadAffinity(thid);` のスレッド固定箇所",
+    "skeleton": "thid → 物理コアの写像を、別の配置方針 (詰め配置/散らし配置/ソケット意識配置など) に差し替える変異を挟む hole。現状は thid を直接コアに割り当てる固定写像で、ワーカーの LLC 共有トポロジ・coherence 距離という配置次元が未探索。挟むのは配置写像であって CC ロジックではない"
+   },
+   "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude の 1 番目の attribution (backoff) が indicators.llc_miss_rate で『微増 (cache 面の利得なし)』を、3 番目の attribution (ログ書込) が indicators.llc_miss_rate で『増加』を観測しており、複数の設計選択で LLC ミスが実際に動いている。skew0.9/48thread では GlobalEpoch の atomicAddGE と hot tuple の tidword への coherence トラフィックがコア間トポロジ上を流れるが、現状 setThreadAffinity は thid 直写像固定で、どのコア群が LLC を共有し coherence 距離がどうなるかという配置次元に軸が一切ない。llc_miss が既に複数箇所で動いている診断から、この位置で配置写像を変えると LLC 共有・coherence 地形が動くと予想する。",
+   "safety_argument_hypothesis": "CC 正しさ (serializability) は物理コア配置に対して直交であり、配置変異が正しさを壊す経路は原理的にないと初期には見込む。ただし leader スレッド (thid==0 が epoch 駆動と reclamation timing を担う) の配置と NUMA トポロジが相互作用し、epoch 進行速度・計測妥当性に影響しうる点は段階 B で要確認。",
+   "unknowns": [
+    "IPC 崩壊 (backoff attribution の ipc 1.4-1.6→0.4-0.5) への配置の寄与は、この崩壊が backoff 待機に帰属済みのため分離不能 — 配置単独効果は実測を要する",
+    "感度を持つ workload の特定 (単一動作点・交互作用未分離のため機序単独で不能)",
+    "配置方針の列挙空間と、実行環境の物理トポロジ (ソケット/LLC 構成) の偵察",
+    "reward hack 仮説 — 配置で計測を有利化する経路の有無",
+    "positive control 設計・計測動作点の選定"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離という前提で射影されており、提案の機序が別動作点で成立するかは機序単独では埋められない",
+  "入力 diagnostics は機序帰属のみで勝ち筋の値 (最適動作点リテラル・順位・勝者) と recommend 示唆を含まない (二層射影) ため、各提案の期待効果量・優先順位は本役では判定不能 — 人間 gate → 段階 B の独立再導出に委ねる",
+  "hole_region_directive により region は cc/silo/bomb_silo.cc に固定され、本ラウンドでは他領域の候補は探索していない (領域指定は骨格・機序の指定ではない)",
+  "cc/silo/bomb_silo.cc は編集面の地図で opened:false — 開通コストは評価しておらず人間側判断 (機序が指す位置なのでそのまま提案した)",
+  "本役の提案軸はいずれも探索補助限定 (段 6 headline 非対象)。昇格には事前登録『軸命名は coder 出力前に固定』側の改訂が前提"
+ ]
+}

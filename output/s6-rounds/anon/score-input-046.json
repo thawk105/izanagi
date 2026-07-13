@@ -1,0 +1,51 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-readspin-abort-bound",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal の for(;;) 冒頭にある `while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); }` — 読取フェーズでロック保持中タプルに当たった際の無限スピン待機",
+    "skeleton": "読取フェーズのロック待ちを『無限スピン』から『上限付きスピン → 上限超過で abort/retry へ変換』する分岐に差し替える code_fragment hole。lock 保持中に (c) の val を読み進める経路は塞いだまま (torn read を作らない)、待機を打ち切って abort に倒す条件だけを変異面にする。上限は分岐内に埋め込むスカラー副次パラメータになる"
+   },
+   "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude の attribution[0] (backoff 有効化) は indicators.ipc が全 workload で 1.4–1.6 → 0.4–0.5 に崩壊し『コアが待機で実命令を発行できない』と実測している。すなわち純粋待機は IPC を潰す。同 attribution[1] (validation 中の 2 種の待たない政策) は『待つ/待たない』の優劣が workload 間で反転し差が balanced 19.6% と大きいことを示す — ロック競合時の待機打ち切り方には無視できない地形がある。read_internal のスピンは validation の lockWriteSet (既存 2 政策軸の位置) とも abort 後 backoff (既存スカラー軸の位置) とも別の位置にある未計装の無限待機で、ここには待機打ち切り政策の変異体がまだ一つも入っていない。IPC 崩壊機序と待機打ち切りの workload 反転機序が両方効く位置と予想する",
+   "safety_argument_hypothesis": "この変異が原理的に壊しうるのは OCC 読取の直列化正当性。上限超過時に『待機を止めて lock 保持のまま val を読み進める』経路を作ると torn read → 直列化違反になる。変換先は必ず abort/retry でなければならず、read_internal は末尾の expected==check 再検査で version 一貫性を担保しているため、この不変を保ったまま『待機→abort』へ倒す限りは安全側と仮定する。段階 B で torn-read 経路が閉じていることの再検証が必須",
+   "unknowns": [
+    "感度を持つ workload の特定 (読取スピン頻度が高いのは read-heavy と推測するが未実測。read-heavy は 2 政策軸では noise floor 内 0.4% で、abort の在り処が validation でなく読取側にある可能性の裏取りが要る)",
+    "分岐内に埋め込むスピン上限スカラーの探索空間・列挙範囲",
+    "reward hack 仮説 (上限を極小に倒して即 abort させ abort 率を犠牲に見かけの throughput を稼ぐ経路、および #if TRACE 計装との相互作用) の実コード裏取り",
+    "positive control 設計",
+    "計測動作点 (単一 skew0.9/48thread/1M 以外での感度)",
+    "偵察の列挙空間"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-batch-threshold",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::wal 内のフラッシュ発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` の閾値 (現状 LOGSET_SIZE=1000 に対し 500 レコード)",
+    "skeleton": "コミット時ログを 1 回の logfile_.write でまとめ書きする発火閾値 = フラッシュ回数を規定するスカラーを変異させる scalar hole。書込レコード内容・computeChkSum・convertChkSumIntoComplementOnTwo・write 経路そのものは不変で、蓄積量 (= I/O 発行粒度) だけを動かす"
+   },
+   "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude の attribution[2] (コミット時ログ書込の有効化) は throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%) し、indicators.abort_rate は不変のまま latency と llc_miss_rate が増える、と『純粋な書込 I/O コスト』へ帰属している。競合でも検証でもなく I/O 発行そのものが損の源なら、その I/O 発行粒度 (フラッシュ閾値) は損の大きさを直接左右する候補になる。閾値を上げれば少数・大サイズの write に集約され per-flush 固定費が償却されうる。既存 WAL 軸は on/off の二値であり発火粒度は変異していない — これは同じ I/O コスト機序を別ノブから叩く未探索位置と予想する",
+   "safety_argument_hypothesis": "この変異が原理的に壊しうるのはログ完全性とバッファ境界。閾値を上げると log_set_ (vector) の滞留レコード数が増え、LOGSET_SIZE=1000 前提の想定・logfile_.ftruncate(1000000000) の容量・run 終了時の残余フラッシュ経路の有無に依存してレコード欠落やメモリ膨張が起きうる。write するレコード数は logRecNum_ で駆動されチェックサムも同じ集合で計算されるため、閾値変更単体はチェックサム整合を壊さない見込みだが、終了時残余処理の有無は stock 抜粋外で未確認。段階 B で残余フラッシュ経路と境界条件の再検証が必須",
+   "unknowns": [
+    "run 終了時の残余ログフラッシュ経路の有無 (stock 抜粋外 — 欠落があると閾値上げでレコード喪失)",
+    "閾値探索の上限と LOGSET_SIZE・バッファ確保・ftruncate 容量との整合",
+    "感度を持つ workload・計測動作点 (write-heavy 想定だが単一動作点のみ)",
+    "reward hack 仮説 (閾値を実質無限大にしてフラッシュを事実上無効化し durability を犠牲に I/O を消して throughput を稼ぐ = WAL の意味を空洞化する経路) の実コード裏取り",
+    "positive control 設計",
+    "偵察の列挙空間",
+    "この提案は mutation_type: scalar のため headline 非対象ラベルが自動付与される (探索補助限定)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "入力 diagnostics はすべて skew0.9/48thread/1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離であり、両提案の予想地形も同条件下でのみ機序が根拠を持つ (noise floor 2.28%)",
+  "両提案の hole が既存 3 評価済み設計選択 (backoff 待機量・validation の 2 待たない政策・WAL on/off) および dead 軸 silo-writeset-sort と相互作用するかは未評価",
+  "本役の 2 提案はいずれも探索補助限定で段 6 の headline 対象軸にしない (D47 決定 5)。人間承認 gate → 段階 B の独立再導出・既出非該当検査を経て初めて軸になる",
+  "射影漏れの疑い: 検出せず (diagnostics は診断数値の動きと相反効果の相対関係のみで、最適動作点リテラル・候補間順位・勝者・recommend 節・dead 軸の機序帰属は含まれていないことを確認)"
+ ]
+}

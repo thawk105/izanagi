@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "対象は read_internal() 内の read phase ロック解放待ちスピン `while (expected.lock)` であり、診断に載る 3 軸 (backoff.hh の abort 後待機=silo-backoff-magnitude、validation の待たない政策、コミット時ログ書込) および既開通の writeset-sort comparator とは別処理段・別作用点。材料 1 の transaction.cc に実在する別 hole を提案しており既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal() の `for(;;){while(expected.lock){...}}` という実在スピンを指し、attribution 1 の『コアが待機で実命令を発行できない』IPC 崩壊 (1.4-1.6→0.4-0.5) を機序として read 待機点一般へ外挿。反証観測として IPC/latency/abort 率の振る舞い、および torn read の reward hack 反証手順を指定しており反証可能。恒真文でなく実構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (待機打ち切り/yield/短い待機挟みの構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() 内フラッシュ発火閾値 `if (log_set_.size() > LOGSET_SIZE / 2)` を対象。診断のコミット時ログ書込軸は on/off 有効化の帰属であり、バッチ境界サイズの調整という作用点自体は診断に既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の実在フラッシュ条件と logfile_.write を指し、attribution 3 の『純粋な書込 I/O コスト』(throughput 低下が書込比率に単調比例、write-heavy -13.4%) を機序に、閾値上げで I/O 発行回数償却を予測。write-heavy throughput・syscall 回数・durability 窓の反証観測を指定。実構造接続で反証可能。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。閾値のスカラー値変異でありスカラー単体は既存の機械的グリッド探索で代替可能なため no。提案自身も unknowns で headline 非対象・探索補助限定と記載。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read phase スピン応答=code_fragment) は 3 項すべて yes で適格。提案1 (WAL フラッシュ閾値) は c1/c2 は満たすが mutation_type=scalar 単体のため c3 で失格。束内に採点基準変更や検査省略の誘導は見られず、通常基準で採点した。"
+ },
+ "retries_used": 0
+}

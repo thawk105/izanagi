@@ -1,0 +1,43 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の3軸は abort後バックオフ (silo-backoff-magnitude)・validation中のロック競合待たない政策・コミット時ログ書込。本提案は read_internal の (a) ロック待ちスピン (`while(expected.lock){...}`) という読み経路の別待機点を hole とする。診断のどの軸とも別処理段の作用点で、既開通 hole (writeset-sort comparator / backoff スカラー) の変異範囲にも入らない。",
+    "c2_reason": "stock 抜粋 transaction.cc の read_internal に当該スピンループ (無停止 loadAcquire 再ロード) が実在し、機序はその位置のキャッシュコヒーレンス往復を指す。反証観測『変異前後で性能不変なら棄却』を明示。実在構造に接続し反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異)。",
+    "c2_mechanism_substantive": true,
+    "eligible": true,
+    "c3_reason_dummy": ""
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork の epoch 前進ゲートと ReclamationEpoch 算出を hole とする。診断3軸 (backoff/validation政策/ログ書込) と既開通2 hole はいずれも epoch 制御に触れず、別処理段・別作用点。",
+    "c1_reason_extra": "",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 util.cc の siloLeaderWork に epoch 前進条件 (chkClkSpan && chkEpochLoaded → atomicAddGE) と ReclamationEpoch = cur_epoch-2 が実在。機序はその GC 境界/validation 直列化窓への帰属を指す。反証観測『オフセット/条件を変えて計測不変なら棄却』を明示。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。",
+    "eligible": true
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "gc_records() の起動カデンス (毎コミット/毎 abort の無条件 deque 走査) を hole とする。診断3軸・既開通2 hole は reclamation 消費頻度に触れず、提案1 (epoch/reclamation 値決定) とも消費側で別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 transaction.cc に gc_records() 本体 (epoch>r_epoch ガードの front 走査) と writePhase末尾・abort での無条件呼び出しが実在。機序は per-tx 固定オーバーヘッドを指し、反証観測『カデンス変更で計測不変なら棄却』を明示。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 3,
+  "dedup_notes": "",
+  "overall_notes": "3提案とも読み経路スピン待機・epoch前進/reclamation境界・gc消費カデンスの相異なる別hole を提案し、いずれも stock 実在構造に接続し反証可能な観測を指定、全て code_fragment。提案1と2は ReclamationEpoch を介し結合するが hole 位置 (値決定 vs 消費頻度) は別で縮約不要。束内に採点誘導・材料再定義の類は認められず。diagnostics 空との記述があるが本材料1では診断が存在し、これは判定に影響しない。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,21 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断3軸(backoff待機量・validation待たない政策・コミット時ログ書込)および既開通hole(silo-backoff-magnitudeスカラー/silo-writeset-sort comparator)はいずれもtransaction.cc/backoff.hh側の処理段。本提案はcc/silo/include/tuple.hhのTupleメンバ配置(tidword_とbody_のキャッシュライン相対配置)という別領域・別のhole位置を突いており、材料1のどの軸骨格の再掲でも軸内変異でもない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "tuple.hhに実在するTidword tidword_/TupleBody body_、transaction.ccのread_internalスピンループ・validationPhase再チェック・writePhaseのmemcpyという実在処理に接続。反証可能観測としてllc_miss_rate(診断indicatorsに実在する生きた指標)がレイアウト変異で動くかを指定しており、動かなければ仮説否定という条件が明示されている。恒真文や幻覚構造への依存はない。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment(alignas付与/パディングメンバ挿入によるメモリレイアウト構造変異)。スカラー単体ではない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案1件、3項すべてyesで適格。unknownsに『段6 headline非対象・事前登録改訂前提』等の記述があるが採点基準の変更誘導とは判断せず、通常どおり3項で採点した。"
+ },
+ "retries_used": 0
+}

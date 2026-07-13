@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "対象 hole は TxExecutor::read_internal の read-phase 待機ループ (`while(expected.lock){ loadAcquire }` と (e) 再読安定チェック) で、stock 抜粋に実在。診断の既出軸は backoff.hh の再試行前待機 (silo-backoff-magnitude) と validationPhase/lockWriteSet 内のロック競合『2 種の待たない政策』(attribution[1]) だが、本提案は read-phase・別関数・別段の待機構造を作用点にしており構造的に別 hole。writeset-sort とも別。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の無制限スピン (実在) と attribution[0] の ipc 崩壊 (1.4-1.6→0.4-0.5) / read-heavy latency 5.7→25μs を機序の根拠に接続し、bounded/no-wait 化で read-heavy の spin コストと abort コストのトレードオフ地形が現れる (latency/abort/throughput の振る舞い) と反証可能な観測を指定。恒真文ではなく実在構造に繋がる。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (待機継続 vs 早期中断の分岐構造の書換)。scalar 単体でない。yes。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "対象 hole は wal() の flush 閾値 `if (log_set_.size() > LOGSET_SIZE/2)` で stock に実在。診断 attribution[2] は『コミット時ログ書込の on/off』であり閾値変異とは別作用点。構造的に別 hole でありこの項自体は yes だが C3 で不適格。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "attribution[2] の書込 I/O コスト帰属 (write-heavy -13.4%・latency/llc_miss 増・abort 不変) と wal() の一括 write 構造 (sizeof(LogRecord)*logRecNum_) に接続し、閾値変化で write() あたりレコード数=syscall アモータイズ度が変わり write-heavy に latency/throughput 地形が現れると反証可能に指定。実在構造に繋がる。yes。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体 (flush バッチ閾値の数値のみ変異、I/O 構造は不変)。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read-phase 待機政策 code_fragment) は3項すべて yes で適格。提案1 (WAL flush 閾値) は scalar 単体のため C3 不適格。束内 global_unknowns に headline 非対象ラベル等の記述があるが判定基準は変更せず 3 項基準で採点した。ラウンド適格。"
+ },
+ "retries_used": 0
+}

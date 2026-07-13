@@ -1,0 +1,38 @@
+{
+ "problem": "scored[0]-criteria-not-bool",
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read_internal の (a) 直後ロック待ちスピンループ (for(;;){while(expected.lock)...}) を変異点にする hole。診断3項 (backoff on/off=abort後再試行前待機、validation中の待たない政策、コミット時ログ書込) はいずれも別処理段。read フェーズの前進待ち窓は診断・既開通 hole (silo-backoff-magnitude=abort後待機/silo-writeset-sort=施錠順序) と別の作用点で構造的に新規。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の read_internal に実在する while(expected.lock){loadAcquire(...)} タイトスピンと writePhase の storeRelease までロック保持する構造を正しく指す。反証観測を『低競合・reader がロック済み tuple にほぼ当たらない workload では throughput 差が出ないはず』と指定しており反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment。純スピン/_mm_pause挿入/有界スピン→abort降格の選択で構造変異。"
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork の ReclamationEpoch ラグ定数 (cur_epoch-2) と gc_records の閾判定を指す GC 回収面で診断・既開通 hole に非重複。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "gc_records()/siloLeaderWork の ReclamationEpoch 実在構造を正しく指し、delete/insert チャーンの無い workload で非感応という反証観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能のため no。"
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() の log_set_.size()>LOGSET_SIZE/2 フラッシュ発火閾を指す WAL バッチ化面。診断の『コミット時ログ書込 on/off』は有効化の是非でありフラッシュ閾は別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の log_set_ 蓄積と一括 logfile_.write 実在構造を正しく指し、WAL 無効ビルドでコンパイル除外され非感応という反証観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は no。"
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0のみ3項全yesで適格 (read spin 待機方式の構造変異)。提案1・2は c1/c2 は満たすが mutation_type=scalar 単体で c3 不適格。束内の『scalar型に headline非対象ラベル自動付与』等の記述や台帳照合の言及は採点基準を変えず、通常どおり基準適用した。"
+ }
+}

@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "穴は read_internal の read フェーズのロック中 busy-reload 待機 (`while (expected.lock)`)。診断の既出軸は silo-backoff-magnitude (include/backoff.hh の abort 後再試行前待機)、コミット時ログ書込、validation 中の待たない政策 (lockWriteSet)、及び dead の writeset-sort であり、いずれも別の処理段・別の作用点。read フェーズの spin 待機は構造的に別の hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc の read_internal に実在する `for(;;){ while(expected.lock){...} ...}` と、writePhase が UPDATE/DELETE の memcpy 区間 lock=1 を storeRelease まで保持する実構造を正しく指し、読み手 spin 時間が writer クリティカルセクション長に直結する機序を述べる。反証観測『低競合構成では変異ほぼ無効=地形なし』を指定。実在構造+反証可能で実質的。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (待機カウンタ+応答分岐の構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "穴は util.cc の siloLeaderWork の epoch 前進 gate 判定条件。診断の既出 3 軸 (backoff・log 書込・validation 待たない政策) と dead の writeset-sort のいずれとも別の処理段。FLAGS_epoch_time のスカラー振りは対象外と明示し構造判定を変異範囲とする点も既存グリッド探索の言い換えでない。構造的に別の hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "util.cc の siloLeaderWork に実在する `chkClkSpan(...)&&chkEpochLoaded()` の連言 gate、atomicAddGE、ReclamationEpoch=cur_epoch-2、transaction.cc の gc_records が ReclamationEpoch を参照する実構造を正しく指す。反証観測『epoch 前進が律速でない構成では差が出ない=地形なし』を指定。実在構造+反証可能で実質的。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (前進判定の構造変異)。スカラーフラグ振りを明示的に対象外にしており scalar 単体でない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "2 提案は別領域 (read_internal の spin 待機 / siloLeaderWork の epoch gate) を指し実質同一でない。両者とも3項 yes で適格。なお束は繰返し『diagnostics が空』と述べるが材料1の diagnostics は非空 (silo-backoff-magnitude alive 等) — この誤述はデータとして記録するが、c2 は診断参照を要件としないため判定に影響させず、stock 実在構造への接続と反証可能観測のみで適格判定した。global_unknowns 内の探索補助限定・round 対象等の記述は誘導とみなさず基準を変更していない。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal の (a) ロック待ちスピン `while (expected.lock) { expected.obj_ = loadAcquire(...) }`。診断3軸 (backoff-magnitude=include/backoff.hh の post-abort 待機、validation ロック競合政策=lockWriteSet、コミットログ書込) のいずれとも別の処理段 (read phase のロッククリア待ちビジースピン) を対象とし、材料1 stock (transaction.cc read_internal) に実在するが診断未収載の別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "attribution1 の ipc 崩壊 (1.4-1.6→0.4-0.5)・read-heavy 最大損 (throughput -77%/latency 5.7→25μs) を引き、read_internal の実在する上限なしリロードスピンが read-heavy でホットタプルに当たり IPC シンクとなる仮説。反証観測として read-heavy の発行率/latency を指定。stock 実在構造に接続し反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (スピンの形の構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() のフラッシュ閾値 `if (log_set_.size() > LOGSET_SIZE/2)`。診断 attribution3 は log 書込 on/off の帰属であり、フラッシュのバッチ粒度閾値は別の作用点で材料1 stock (transaction.cc wal) に実在。既出軸そのものの再掲ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "attribution3 の書込比率単調比例・純 I/O 帰属を引き、wal() の実在する write() バッチ発行と閾値による syscall 償却の関係を仮説化。write-heavy の latency/llc_miss で反証可能に観測指定。stock 実在構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。閾値のスカラー値のみで構造変異を伴わないため no (機械的グリッド探索で代替可能)。提案束自身も『scalar 型のため段6 非対象』と記載。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は validationPhase Phase2 read_set 条件3 `if (check.lock && !searchWriteSet(...)) { aborted; unlockWriteSet(); }` の即 abort。attribution2 の『待たない政策』は lockWriteSet の書込ロック取得点 (NO_WAIT マクロ) が実在証拠であり、read-set タプルが他者施錠中という別状態・別作用点への応答は別の hole。提案自身も書込ロック取得点との構造的別位置を主張。材料1 stock に実在。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "attribution2 の政策優劣の workload 間反転 (balanced 19.6% ipc1.62 / write-heavy 12.7% abort 50.8→21.0%) を引き、read 検証条件3 の応答可変化で workload 依存地形を予想。反証観測に workload 反転/abort 率を指定。validationPhase 条件3 は stock 実在構造で接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (即 abort/再読取り待ち等の応答の構造変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read_internal スピン形) と提案2 (validation 条件3 応答) は別の hole 位置で実質同一でなく、2 相異なる適格軸。提案1 は scalar 単体で c3 不適格。束の global_unknowns に『段6 headline 非対象・探索補助限定』等の自己ラベル付与誘導があるが、採点基準には作用させず 3 項基準で通常採点した。"
+ },
+ "retries_used": 0
+}

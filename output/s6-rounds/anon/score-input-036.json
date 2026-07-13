@@ -1,0 +1,27 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-replay-record-read-granularity",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/replayTest.cc",
+    "source_rel": "cc/silo/replayTest.cc",
+    "position": "main() のログ replay ループ: `for (i < loadhd.logRecNum_)` 内の `loadfile.read((void*)&logrec, sizeof(LogRecord))` による 1 レコードずつの逐次読み出しと直後の `logrec.computeChkSum()` 累算",
+    "skeleton": "ループ内の 1 レコード = 1 read の逐次読み出しを、複数レコードを 1 read でまとめ読みしてからメモリ上で checksum 累算する構造に差し替える hole。read の I/O 粒度 (1 回あたり何レコード分をまとめて読むか) の決め方だけを変異面にし、logRecNum_ 総数・checksum 累算の意味・LogRecord のバイト解釈は不変に保つ骨格"
+   },
+   "mechanism_hypothesis": "diagnostics の silo-backoff-magnitude / attribution 3 項目め (コミット時ログ書込の有効化 on/off) は、throughput 低下が書込比率に単調比例 (read-heavy -1.9% は noise 内 / balanced -6.8% / write-heavy -13.4%)・abort_rate 不変・latency と llc_miss_rate が増加、と観測され『競合でも正しさ検証でもなく純粋な書込 I/O コストへの帰属』と結論されている。この診断数値の動き (abort 系指標が動かず I/O/メモリ系指標だけが動く) は、支配的コストが CC 競合ではなくログレコードの I/O 粒度そのものに局在することを示す。replayTest.cc の replay ループはこの同じ LogRecord 粒度の読み側の鏡像 (1 レコード = 1 read の逐次読み出し) であり、書込側で llc_miss/latency が I/O 粒度に反応したのと対称に、読み側の read 粒度を変えると I/O 律速の性能地形が replay 経路上に現れる、と予想する",
+   "safety_argument_hypothesis": "まとめ読みは LogRecord (std::string_view を持つ非自明型) を格納するバッファの寿命・アラインメント・padding バイトの読み取り前提を変える。log.hh の computeChkSum() は sizeof(LogRecord)/sizeof(int) 単位で padding を含めて全バイトを合算する契約に依存しており、バッファ再利用や境界処理を誤ると checksum 一致判定 (loadhd.chkSum_ との突き合わせ) を静かに壊しうる。string_view (key_) の指す先の寿命破壊も原理的に壊しうる対象。いずれも段階 B で必ず再検証される前提の下書き",
+   "unknowns": [
+    "感度を持つ workload: 診断数値 (WAL の I/O コスト) は skew0.9 / 48thread / 1M レコードのトランザクション throughput 計測から来ているが、replayTest.cc は transaction throughput ベンチから呼ばれない独立の replay-test 入口であり、この hole が効く感度を持つ計測対象 (replay/recovery 時間) が計測ハーネスに存在するか自体が機序単独では埋まらない",
+    "計測動作点: replay 経路の性能を測る動作点 (ログ件数・レコードサイズ・ファイルサイズ) が未定。トランザクション側の単一動作点はそのまま流用できない",
+    "positive control 設計: read 粒度が実際に I/O 律速地形を持つことを示す positive control が未設計",
+    "reward hack 仮説: checksum 検証を弱める/省く方向でまとめ読みが『速く見える』抜け道になりうるが具体仮説は未導出",
+    "偵察の列挙空間: replay 経路が計測系に組み込まれているか (そもそも main() 単体テストのまま計測不能か) の偵察が未実施"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "hole_region_directive により region は cc/silo/replayTest.cc に固定されたが、この領域は diagnostics を産んだトランザクション throughput ベンチ (bomb/sbomb/tpcc/ycsb の各 _silo.cc 入口経由) から呼ばれない独立入口である。attribution との接続は共有された LogRecord の I/O 粒度を介する間接接続のみで、段 6 の主結果指標 (headline) にこの hole の変異が波及する経路は入力からは確認できない。本役の提案は変異型を問わず探索補助限定であり、この提案は特にトランザクション性能地形への外挿を主張しない",
+  "diagnostics は attribution の実在項目 (WAL 帰属) に接続したが、その項目の効果は書込側の計測であって replay(読み側) の計測ではない — 骨格が指す性能地形は attribution の鏡像仮説であり、同一指標の再現ではない。段階 B の独立再導出で読み側計測が可能か、可能なら地形が実在するかを裏取りする必要がある"
+ ]
+}

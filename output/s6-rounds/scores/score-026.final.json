@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "epoch 前進間隔 (siloLeaderWork 内 chkClkSpan 第三引数) の hole は diagnostics の 3 軸 (backoff-magnitude / validation lock政策 / commit log) いずれとも別の処理段・別作用点。材料1に既出でない構造。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "common.hh の alignas(CACHE_LINE_SIZE) GlobalEpoch、util.cc の atomicAddGE、transaction.cc の atomicStoreThLocalEpoch(atomicLoadGE()) といった実在構造を指し、前進間隔短縮でコヒーレンス無効化→IPC低下という反証可能な観測 (IPC の方向) を指定している。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "chkEpochLoaded() 全数バリア gate の判定構造差し替えは diagnostics 3 軸のいずれとも別の処理段。epoch 前進停止条件という別状態への作用点で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "util.cc の chkEpochLoaded() (i=1 から全 ThLocalEpoch 確認)、transaction.cc の atomicStoreThLocalEpoch で epoch 更新される実在構造を指し、backoff空転中の worker 停滞で前進が律速→gate 緩和で epoch 進行/latency/GC 境界が変わるという反証可能な観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type が code_fragment (gate 判定構造の差し替え)。構造変異につき yes。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は機序・既存性は満たすが scalar 単体で c3 不適格。提案1は epoch 前進 gate の構造変異で3項充足。両提案は siloLeaderWork 内の別 hole (interval vs gate) で実質同一ではない。束内 global_unknowns に headline 対象外ラベル等の記述があるが採点基準には影響させていない。"
+ },
+ "retries_used": 0
+}

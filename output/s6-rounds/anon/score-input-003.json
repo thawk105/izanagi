@@ -1,0 +1,46 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lockwait-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal 内、(a) 読み取り直後の待機ループ `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`",
+    "skeleton": "被読取タプルが write ロック中のとき現状は無条件・無制限のスピン再読 (busy-wait) で解放を待つ。この読取側ロック待機の規律部分に hole を開け、待機の形 (pause 挿入・境界付きスピン後の早期 abort への転換・再読間隔) を変異させる。読取が最終的に unlocked かつ非 absent な一貫版を確定してから read_set_ へ積む不変 ((e) の再チェック `if (expected == check) break;`) は骨格側に残し、変異は待機の仕方だけに閉じる。"
+   },
+   "mechanism_hypothesis": "diagnostics 空のため構造観察から述べる。read_internal の待機は `while (expected.lock)` の無制限スピンで、解放されるまで CPU を回し続け、外側 for では TID 変化のたびに再読して local_extra_reads_ を加算する構造になっている。この読取側ロック待機点は、既開通の silo-backoff-magnitude (backoff.hh、abort 確定 *後* の再試行前待機) とも silo-writeset-sort (validationPhase の write set 施錠順 comparator) とも実行相・対象状態が異なる別位置であり、競合時の読取スレッドの粘り方 (待つ/譲る/諦める) を変える余地がこの位置に構造的に存在する。反証可能な観測点: read_internal のスピン挙動と extra_reads / 読取遅延の変化として現れる。",
+   "safety_argument_hypothesis": "早期 abort や再読間隔の変更が (e) の TID 再検証を迂回すると、ロック中/更新途中の版 (torn read) を読取確定しうる。待機の形のみを変え「unlocked かつ expected==check を満たしてから read_set_ へ積む」不変を保存する必要がある — 段階 B で必ず再検証される下書き。",
+   "unknowns": [
+    "この軸が感度を持つ workload (競合度・read/write 比・zipf skew の水準) は機序単独では導出不可",
+    "reward hack 仮説 (例: 待機を実質無効化して見かけ上の性能を得つつ正当性を崩す経路) は実コード裏取りを要する",
+    "positive control 設計・計測動作点は未定",
+    "偵察の列挙空間 (境界付きスピンの上限値・pause 粒度の候補域) は実測を要する"
+   ]
+  },
+  {
+   "axis_name": "silo-reclamation-epoch-lag",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;`",
+    "skeleton": "削除レコードの回収を許可する epoch 遅延 (現状は現在 epoch から固定 2 だけ遡った値) をスカラー hole 化する。gc_records は `rec->tidword_.epoch > r_epoch` で break するため、この遅延値が回収の積極性 (メモリ回収 vs 安全余裕) を決める。"
+   },
+   "mechanism_hypothesis": "diagnostics 空のため構造観察から述べる。siloLeaderWork は epoch 前進時に ReclamationEpoch を `cur_epoch - 2` と固定遅延で計算し、transaction.cc の gc_records() はこの ReclamationEpoch を閾に削除済みレコードを delete する。この遅延定数は epoch ベース回収の安全余裕そのものを支配する構造パラメータで、既開通の 2 hole (write set 施錠順 comparator / 再試行前待機量) のいずれとも対象状態・処理段が異なる。回収の早さ (メモリ再利用の圧・GC 頻度) がこの一点に集約されており、値を動かせば gc_records の回収タイミングが変わる形で反証可能に現れる。mutation_type scalar のため headline 非対象。",
+   "safety_argument_hypothesis": "遅延を縮めると、まだ並行トランザクションから可視な (古い epoch を読んでいるワーカがいる) レコードを早期 delete し、reclaimed メモリの読取 (use-after-free) を招きうる。epoch ベース回収が保証する「全ワーカが r_epoch より新しい epoch に進んだ後にのみ解放」の前提を割らない下限が要る — 段階 B で必ず再検証される下書き。",
+   "unknowns": [
+    "安全な遅延下限は chkEpochLoaded / epoch 前進条件と全ワーカの epoch 読込規律に依存し機序単独では確定不可",
+    "この軸が感度を持つ workload (削除/挿入比・レコード寿命分布) は未定",
+    "reward hack 仮説 (回収を早めてメモリ指標を稼ぎつつ正当性を崩す経路) は実コード裏取りを要する",
+    "positive control 設計・計測動作点・偵察の列挙空間 (遅延候補域) は実測を要する",
+    "この hole が WAL/削除の無いワークロード構成で無感度になる条件は未検証"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空のため両提案とも先行指標の動きの大きさ・形に基づく地形予想ではなく stock 構造観察のみに依拠しており、実性能地形の有無は段階 B の独立再導出まで未確定",
+  "両 hole とも既存 2 軸との構造的分離は編集面の地図・stock 抜粋の範囲で判断したもので、既存軸台帳との網羅的照合 (人間 gate 必須条件 4) は未実施",
+  "提案軸名・骨格が入力射影に既出でないことの必須検査 (段階 B) は消費側の責務であり本出力では未担保"
+ ]
+}

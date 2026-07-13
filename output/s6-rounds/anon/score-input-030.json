@@ -1,0 +1,47 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-wal-io-path",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/bomb_silo.cc",
+    "source_rel": "cc/silo/bomb_silo.cc",
+    "position": "main() 内 ccbench::run の worker_init ラムダ、#if WAL ガード下の trans.logfile_.open(logpath, O_CREAT | O_TRUNC | O_WRONLY, 0644) と直後の trans.logfile_.ftruncate(1000000000) の呼び出し組",
+    "skeleton": "log ファイルの I/O 経路入口設定 (open フラグ集合 = durability/buffering に関わる O_* フラグ、および sync/fdatasync 呼びの有無・preallocation 量) を EVOLVE-BLOCK で囲み変異可能にする。write 本体 (transaction.cc の wal()) は skeleton 側で不変とし、入口の I/O 経路パラメタのみ挟む"
+   },
+   "mechanism_hypothesis": "attribution 3 項目め (コミット時ログ書込 on/off) の effect は throughput 低下が書込比率に単調比例 (balanced -6.8% / write-heavy -13.4%、read-heavy -1.9% は noise 内)、かつ abort_rate 不変・latency 増加・llc_miss_rate 増加、を『競合でも正しさ検証でもなく純粋な書込 I/O コスト』へ帰属している。この帰属が正しければ低下要因は I/O 経路そのものにあり、経路の入口パラメタ (現状 open は O_CREAT|O_TRUNC|O_WRONLY で sync 無し) を変えると latency と llc_miss_rate の増分に地形が出ると予想する。損が最大の write-heavy (-13.4%) が I/O 経路の感度が最も高い候補動作点",
+   "safety_argument_hypothesis": "open フラグ/sync 有無の変異は WAL の durability と永続化順序を変えうる — replayTest.cc が読むログ整形・crash recovery の replay 正しさの前提を壊す恐れ。段階 B で replay 正しさ (LogHeader チェックサム整合・logRecNum 整合) の再検証が必須。特に『実際には永続化せず throughput だけ稼ぐ』抜け道 (durability を捨てて速く見せる) が reward hack になりうる",
+   "unknowns": [
+    "感度を持つ workload の実測 (attribution は単調比例を示すが、変異が効く read/write 比の範囲は未測)",
+    "reward hack 仮説: durability を実質放棄して I/O コストを見かけ上消す変異の検出設計",
+    "positive control 設計",
+    "計測動作点 (現状 skew0.9 / 48thread / 1M・各構成 1 round・単一点のみ)",
+    "この WAL design_choice は silo-backoff-magnitude の attribution 内に既出 — 既存の WAL 関連探索範囲との重複でないことを段階 B の既存軸台帳照合で確認する必要 (軸内探索の疑いを潰す)"
+   ]
+  },
+  {
+   "axis_name": "silo-worker-core-placement",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/bomb_silo.cc",
+    "source_rel": "cc/silo/bomb_silo.cc",
+    "position": "main() 内 worker_init ラムダ、#ifdef Linux ガード下の setThreadAffinity(thid) 呼び出し",
+    "skeleton": "worker スレッドの thid→物理コア写像を EVOLVE-BLOCK で囲み、現状の恒等写像 (thid をそのまま core に固定) を別の割当関数 (グルーピング/インターリーブ等の配置ポリシ) に差し替え可能にする。affinity 決定のみを変異面とし、その後の masstree thread_init 等は skeleton で不変"
+   },
+   "mechanism_hypothesis": "attribution 1 項目め (backoff on/off) は llc_miss_rate『微増 (cache 面の利得なし)』、3 項目め (WAL) は llc_miss_rate『増加』と、両ケースで LLC 挙動が指標に現れている。skew0.9 / 48thread の高競合下では contending スレッドの物理コア配置が LLC 共有トポロジ (どのスレッド群が同一キャッシュを取り合うか) を左右するため、worker_init の thid→core 恒等写像を別配置に開ける hole は llc_miss_rate に地形が出うると予想する",
+   "safety_argument_hypothesis": "コア配置は CC の正しさには影響しない (直列化・lock 被覆に無関係) が、計測妥当性を壊しうる — 複数 worker が同一物理コアに衝突する配置は throughput 計測を配置ノイズで汚染する。段階 B で『全スレッドが排他的に 1 コアを占有する』不変条件の維持を確認する必要",
+   "unknowns": [
+    "attribution は placement を独立要因として分離していない (llc_miss_rate の変化は backoff 待機と WAL I/O に帰属済み) — placement 感度自体は未実証。偵察 (配置ポリシ列挙空間の探索) が必要",
+    "感度を持つ workload・skew 域の実測",
+    "positive control 設計 (配置差が LLC 経由で throughput に効くことを示す最小構成)",
+    "計測動作点 (単一点のみ・交互作用未分離)",
+    "48thread と物理コア数/トポロジの対応 (NUMA・LLC 分割境界) が入力射影に無く、配置空間の定義に必要"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離) の射影であり、動作点依存性・設計選択間の交互作用は未知。両提案の機序予想はこの単一点に条件付き",
+  "diagnostics の silo-writeset-sort は status=dead のみで死因の機序帰属が二層射影で落とされている — 提案が死んだ軸と機序的に重ならない保証は本役側では作れず、段階 B の独立再導出と既存軸台帳照合に依存する",
+  "hole_region_directive により region が cc/silo/bomb_silo.cc に固定されている一方、attribution の機序の中核 (backoff 待機による IPC 崩壊 1.4–1.6→0.4–0.5、validation の待たない 2 政策の workload 間反転) は include/backoff.hh と cc/silo/transaction.cc を指しており、指定 region 内でそれらの機序中核には触れられない。指定 region で機序に接続できる hole は I/O 経路 (WAL) と thread 配置 (llc_miss 経由) に限られ、backoff/no-wait 政策の機序は本提案の対象外"
+ ]
+}

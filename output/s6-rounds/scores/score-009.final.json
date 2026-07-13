@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": false,
+    "c1_reason": "hole位置は lockWriteSet() の `if (expected.lock)` 施錠済みタプル遭遇時の応答分岐 (NO_WAIT_LOCKING_IN_VALIDATION の即abort / NO_WAIT_OF_TICTOC の unlock→goto retry)。これは診断2つ目『validation 中のロック競合に対する 2 種の待たない政策の選択』が指す作用点そのもの。同じ処理段・同じ作用点で応答政策を変異させる提案であり、既出軸の探索範囲内 (第三の有界待機オプションを足すのみ) と判定。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "lockWriteSet の実在する二極分岐 (即abort/無限retry)・validationPhase の sort・write_set_ 走査に正しく接続し、反証可能観測『この分岐通過に起因する abort 計数』を指定している。stock 実在構造に繋がる。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異)。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole位置は read_internal() の `while(expected.lock)` 施錠クリア待ちスピンの刻み方 (pause挿入・再読込間隔・有界化)。診断は backoff-magnitude・validation lock policy・commit log write・writeset-sort のみで、read フェーズのスピン規律は別の処理段・別作用点。既出軸に含まれない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の実在する密スピンと writePhase の memcpy(VAL_SIZE)→storeRelease(maxtid) クリティカル区間に接続し、反証可能観測 local_extra_reads_ / read 遅延計数を指定。stock 実在構造に繋がる。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole位置は siloLeaderWork() の ReclamationEpoch 遅延距離リテラル 2。診断のいずれの軸 (backoff・validation policy・log write・writeset-sort) にも該当せず、gc 回収エポック遅延は別作用点。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "siloLeaderWork の実在 `ReclamationEpoch = cur_epoch>2?cur_epoch-2:0` と gc_records() の `rec->tidword_.epoch > r_epoch` 閾判定、writePhase DELETE→gc_records_ push に正しく接続し、delete 含む workload の解放/メモリ挙動という反証可能観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能のため不適格。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "束は繰り返し『diagnostics 空』と主張するが、材料1の diagnostics には silo-backoff-magnitude (alive・3帰属) 等が存在し事実に反する。ただし採点は材料1に照合して実施した。提案0は診断『validation 中のロック競合に対する2種の待たない政策の選択』と同一作用点のため既存性 no。提案1のみ適格。提案2は scalar 単体で軸適格 no。"
+ },
+ "retries_used": 0
+}

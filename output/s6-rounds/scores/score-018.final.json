@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は cc/silo/transaction.cc の read_internal 内、ロック中タプルへの読み取り経路のタイトスピン待機 (`while (expected.lock) { ... }`) の待機規律。診断の silo-backoff-magnitude は abort 後の再試行前 backoff (別位置・別処理段)、silo-writeset-sort は施錠順序 comparator、validation の待たない政策は lockWriteSet 内の書込セット施錠待機であり、いずれも read 経路の spin とは別 hole。構造的に別作用点で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の減衰なしタイトスピンは stock に実在。attribution の ipc 崩壊 (1.4-1.6→0.4-0.5) と『コアが待機で実命令を発行できない』を IPC 律速の根拠に繋げ、read-heavy latency 5.7→25μs から相対感度を示唆。反証可能な観測 (待機規律変異で abort/IPC/latency の地形が post-abort backoff と別位置で動くか) を指定。実在構造に接続し反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment、待機政策の続行/離脱判断の構造差し替え。スカラー単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() 内のフラッシュ発火条件 (`if (log_set_.size() > LOGSET_SIZE / 2)`) の粒度/構造。診断『コミット時ログ書込の有効化 (on/off)』は書込機能の有無への帰属であり、フラッシュ発火規律 (batching/group-commit トリガ構造) の変異は別作用点で既出でない。stock の wal() は実在。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "attribution『コミット時ログ書込』の throughput 低下が書込比率に単調比例・純書込 I/O コスト帰属を根拠に、per-flush 償却コストがフラッシュ粒度に支配される機序を提示。wal() の固定半バッファ閾値フラッシュは stock に実在。反証可能な観測 (write-heavy で per-flush 粒度変異が throughput/latency/llc_miss をどう動かすか) を指定。実在構造に接続し反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment と明示され、skeleton は発火構造の差し替え (batching/group-commit トリガ) を記述。unknowns で scalar の可能性に触れるが提案の骨格は構造変異でスカラー単体でない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "2 提案とも別位置・別機序の適格軸。global_unknowns に headline 非対象等の運用注記があるが採点基準には作用させず、通常基準で採点した。"
+ },
+ "retries_used": 0
+}

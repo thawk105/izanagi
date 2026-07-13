@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole 位置は cc/silo/transaction.cc の read_internal の読取り前ロック待ちスピン `while (expected.lock) { expected.obj_ = loadAcquire(...); }`。材料1診断の既出軸は silo-backoff-magnitude (backoff.hh の abort 後再試行待ち)・validation 中の待たない政策 (lockWriteSet)・commit 時ログ書込であり、いずれも読取り phase のスピン待ちとは別処理段・別作用点。edit_surface_map の既開通 hole (writeset-sort comparator / backoff-magnitude) とも別。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の当該 while ループは stock 抜粋 (transaction.cc) に実在し、Tidword が alignas(CACHE_LINE_SIZE) である点も tuple.hh に実在。_mm_pause もバックオフも無い連続 loadAcquire がコヒーレンストラフィックを生む機序は実在構造に接続。反証可能な観測として『施錠タプルへの読取り衝突率が高い構成で待機ペーシングが llc_miss/ipc/throughput を変えるか』が指定でき、変化しなければ仮説否定 — 反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異)。適格。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は util.cc の siloLeaderWork 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` のリテラル遅延幅。材料1診断・edit_surface_map の既開通 hole いずれとも別処理段 (epoch ベース回収の安全マージン)。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "siloLeaderWork の ReclamationEpoch 計算と gc_records() の `rec->tidword_.epoch > r_epoch` 判定はともに stock 抜粋に実在し、削除レコードの reclaim 時期がこのリテラルに直結する機序は実在構造に接続。反証可能な観測として delete/insert 比率の高い workload でアロケータ圧・性能が変わるかが指定できる。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type は scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため不適格。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read_internal のロック待ちスピンへのペーシング) は3項すべて yes で適格。提案1 (reclamation epoch 遅延幅) は c1/c2 yes だが mutation_type=scalar 単体のため c3 不適格。束内の『diagnostics 空』という記述は材料1の実在診断と矛盾するが、判定は材料1に基づき stock 実在構造への接続で行った。束内の headline 非対象ラベル等の指定は判定に用いていない。ラウンド適格。"
+ },
+ "retries_used": 1
+}

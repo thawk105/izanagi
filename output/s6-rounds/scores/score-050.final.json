@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断3軸は backoff待機(include/backoff.hh, abort後)・validation中のロック競合政策(lockWriteSet)・コミット時ログ書込。本提案は read_internal() の施錠中スピン `while(expected.lock)` という別の処理段(読取フェーズの待機サイト)に hole を開けており、材料1のどの軸とも作用点が異なる。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock 実在の read_internal() スピンループを指し(transaction.cc に存在)、backoff軸の ipc崩壊 indicator を機序として引用。read-heavy 中心に性能地形が出るという反証可能な観測(read-heavy で感度が出なければ否定)を指定。恒真文でなく実在構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() のフラッシュ発火閾値 `if (log_set_.size() > LOGSET_SIZE / 2)` は診断のログ書込 on/off 軸とは別の作用点(閾値)であり材料1に既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の実在するフラッシュ判定を指し、ログ書込軸の latency/llc_miss indicator を機序に繋げ write-heavy 中心のトレードオフ地形という反証可能予想を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は機械的グリッド探索で代替可能なため不適格。提案自身も『scalar 型のため段6 headline 非対象』と記述。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": false,
+    "c1_reason": "hole 位置が lockWriteSet() の `if (expected.lock)` 競合応答分岐であり、診断 attribution 第2項『validation 中のロック競合に対する 2 種の待たない政策の選択』とまさに同一の作用点。政策の識別は射影で落とされているが、同じ処理段・同じ競合応答点で応答戦略を挟み替える提案であり既出軸の探索範囲内。提案自身も unknowns で『軸内探索でないことの確認が要る』と自認。曖昧につき no に倒す。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "lockWriteSet の実在する競合応答分岐を指し、attribution 第2項の政策反転・ipc/abort_rate indicator を機序に接続。反転する性能地形という反証可能観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "3提案は transaction.cc 内の別位置(read_internal 読取待機 / wal フラッシュ閾値 / lockWriteSet 競合応答)。提案0のみ3項適格。提案1は scalar 単体で c3 不適格。提案2は診断 attribution 第2項と同一作用点で c1 既出(提案自身も軸内探索リスクを自認)。束内に採点基準変更・項指定等の誘導は認めず。round_eligible は提案0により true。"
+ },
+ "retries_used": 0
+}

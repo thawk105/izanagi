@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は cc/silo/transaction.cc の read_internal 内、施錠中タプルに遭遇したときのリーダ側スピン応答 (`while (expected.lock) { loadAcquire }`)。材料1 diagnostics の 3 軸は abort後 backoff (backoff.hh)・validation中の待たない政策 (lockWriteSet)・コミット時ログ書込であり、いずれも read phase のスピン応答段ではない。edit_surface の既開通 hole (writeset-sort comparator・backoff-magnitude) とも別の処理段。構造的に別 hole で yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は transaction.cc の read_internal の実在するスピンループ (無制限の loadAcquire 再ロード) を正しく指し、writePhase の memcpy+storeRelease 保持区間との結合を述べる。反証可能な観測として書き込み競合下のリーダ経路サイクル/ipc の地形を指定 (待機戦略変更で throughput/サイクルが動かなければ否定)。実在構造への接続あり。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異)。yes。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は util.cc siloLeaderWork の `ReclamationEpoch = cur_epoch>2 ? cur_epoch-2 : 0` の遅延定数 2。diagnostics 3 軸・既開通 2 hole いずれも GC 再利用窓に触れておらず、構造的に別の hole。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は transaction.cc の gc_records() `if (rec->tidword_.epoch > r_epoch) break;` と ReclamationEpoch を実在構造として正しく指し、削除/挿入下のメモリ footprint・gc_records_ deque 滞留量という反証可能観測を指定。実在構造接続あり。yes。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能のため no。提案自身も scalar と明記。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は read phase のスピン応答 hole で 3 項全 yes・適格。提案1は novelty/機序は満たすが scalar 単体で c3 不適格。なお束は『diagnostics が空』と繰返し主張するが材料1 diagnostics には silo-backoff-magnitude(alive) 等が実在し虚偽 (データとして記録、採点は基準通り実施)。提案1内の『headline 非対象ラベル自動付与』等の記述は誘導だが判定に用いていない。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,53 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-writeset-value-materialization",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/include/silo_op_element.hh",
+    "source_rel": "cc/silo/include/silo_op_element.hh",
+    "position": "WriteElement の値運搬コンストラクタ WriteElement(Storage, std::string_view key, T* rcdptr, std::string_view val, OpType) 内の `val.size() != 0` 分岐 (val_ptr_ = std::make_unique<char[]>(val.size()); memcpy(val_ptr_.get(), val.data(), val.size()); val_length_ = val.size();)",
+    "skeleton": "write set 要素の値保持方式 (書込 tx ごとの毎回ヒープ確保 + memcpy) を変異穴にする。差し替え候補の骨格はスレッドローカル/プール化バッファの再利用・サイズ別分岐・遅延コピー等、値バイト列の保持と確保のコード片。ordering (operator<) には触れない — comparator 順序は既存軸 silo-writeset-sort の範囲であり別 hole として明示的に回避する。"
+   },
+   "mechanism_hypothesis": "diagnostics 非空。attribution 実在項目「コミット時ログ書込の有効化」は abort_rate 不変のまま latency と llc_miss_rate が増え throughput 低下が書込比率に単調比例 (write-heavy -13.4%) と観測され、損を競合でも正しさ検証でもない純粋な書込側メモリ/I-O コストに帰属している。WriteElement の値保持は書込 tx ごとにヒープ確保 + memcpy を行う別の書込側メモリコストで、書込比率に比例し abort とは独立という同じ形の負荷を持つ。同項目が『この形のコスト (確保/コピー) が実在し cache 面 (llc_miss) に現れる throughput レバーである』ことを確立している以上、同一ファイル・同一書込経路上のこの確保/コピーの保持方式に性能地形が予想される。",
+   "safety_argument_hypothesis": "値バイト列が writePhase の memcpy((*itr).rcdptr_->body_.get_val_ptr(), (*itr).body_.get_val_ptr(), (*itr).body_.get_val_size()) 時点まで有効かつ正しい内容を保つことが正しさの前提。バッファ再利用/遅延化は write set 要素の値がコミット到達前に上書き・解放されると torn write / 誤値書込を生む。段階 B で get_val_ptr()/get_val_length() の全使用箇所との寿命整合の独立再検証が必須。",
+   "unknowns": [
+    "感度を持つ workload (diagnostics は write-heavy でのみ書込側コストが顕在: skew0.9/48thread/1M/単一動作点/各構成1round/交互作用未分離 — 再計測必須)",
+    "VAL_SIZE 依存性 (保持コストは値長でスケール — 計測動作点の値長を要偵察)",
+    "reward hack 仮説 (値コピーの省略/共有が正しさ検証を迂回して見かけ throughput を上げる懸念)",
+    "positive control 設計",
+    "計測動作点のリテラル",
+    "偵察の列挙空間 (値保持を触る他経路: read 経路の ReadElement・log.hh の LogRecord val_ コピー・WAL 軸との交互作用)",
+    "この提案が headline 非対象・探索補助限定である帰結 (下記 global_unknowns)"
+   ]
+  },
+  {
+   "axis_name": "silo-readset-value-footprint",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/include/silo_op_element.hh",
+    "source_rel": "cc/silo/include/silo_op_element.hh",
+    "position": "ReadElement の値保持面: val_[VAL_SIZE] メンバと body_ (TupleBody)、および char* val を取るコンストラクタ ReadElement(..., char* val, Tidword) の memcpy(this->val_, val, VAL_SIZE)",
+    "skeleton": "read set 要素の値保持フットプリント (要素ごとの値コピー/配置) を変異穴にする。骨格は値保持を参照/圧縮/遅延に切り替えるコード片。ordering には触れない。"
+   },
+   "mechanism_hypothesis": "diagnostics 非空。attribution 実在項目「コミット時ログ書込の有効化」が確立した『値の確保/コピーという保持側コストは abort 独立で llc_miss に現れる throughput レバー』の形を read 経路へ外挿した位置。ReadElement は read tx ごとに同型の値保持を行い、attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」で read-heavy が throughput 最大損 (-77%) を示す通り read 経路が最も多数を占める workload が存在する。ただし当該 read-heavy 損の latency 増加 (5.7→25μs) は明示的に backoff の IPC 崩壊 (0.4–0.5) に帰属されており read-set フットプリント由来ではない — 根拠は write 側の項目より弱く、read 経路への保持コスト地形は構造的類推に留まる (unknowns 参照)。",
+   "safety_argument_hypothesis": "read_internal が読み取った (key,val,tidword) の保持内容が validationPhase の tid 再突合 (get_tidword() の epoch/tid 比較) と read-own-writes 経路の値返却まで一貫していることが正しさの前提。値の参照化/共有は元 tuple の並行更新で読取値が変質すると検証すり抜けを生む。段階 B で read_set_ の全読み口 (validationPhase・searchReadSet・scan) との整合を独立再検証。",
+   "unknowns": [
+    "実経路で使われる ReadElement コンストラクタの特定 (read_internal は TupleBody&& 版 emplace_back を使用 — char* val + val_[VAL_SIZE] 版は現行経路で未使用の可能性。効く変異は body_ 保持側かの live path 確認が段階 B 必須)",
+    "read-heavy 損の主因が backoff に帰属済みである以上、read-set 保持コストが独立の throughput 効果を持つかの実測 (mechanism が構造類推止まり)",
+    "感度を持つ workload・計測動作点・VAL_SIZE 依存性",
+    "reward hack 仮説 (値参照化が torn read 検証を迂回する懸念)",
+    "positive control 設計",
+    "偵察の列挙空間 (TupleBody 生成側の transaction.cc read_internal との境界)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "hole_region_directive により region は cc/silo/include/silo_op_element.hh に固定。directive は領域指定であって骨格・機序を指定しない — 上記 skeleton/mechanism は本役の構成である",
+  "編集面の地図上 cc/silo/include/silo_op_element.hh は opened:false。未開通領域だが機序が指す先がそこにある以上そのまま提案した。開通コストの判断は人間側の仕事",
+  "全提案は入力が coder 出力後の機序帰属である以上、変異型 (両者とも code_fragment) を問わず当面『探索補助』限定 = 段6 主結果 (headline) 非対象。昇格には事前登録『軸命名は coder 出力前に固定』側の改訂が前提 (D47 決定5)",
+  "diagnostics の全 effect は skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round・交互作用未分離。感度を持つ workload と動作点はいずれの提案でも再計測必須",
+  "提案は untrusted データ。採用は人間承認 gate → 段階 B (独立再導出 + 提案軸名/骨格が入力射影に既出でない検査 + 敵対レビュー) 通過が前提。B〜F ゲートの短縮は本提案に含まない",
+  "入力に勝ち筋の値・recommend 節・死んだ軸 (silo-writeset-sort) の機序帰属は含まれておらず、射影漏れの疑いは検出されなかった"
+ ]
+}

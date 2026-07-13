@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1の既開通 hole は include/backoff.hh の silo-backoff-magnitude (待機量=scalar 軸) のみ。本提案は Backoff::backoff() の spin ループ本体で now_backoff (長さ) を固定し、待機中の占有動作 (_mm_pause() 単発 busy-spin) の構造そのものを差し替える別作用点の code 片穴で、量の言い換えではなく構造的に別の hole。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock backoff.hh に実在する Backoff::backoff() の for(;;){_mm_pause();stop=rdtscp();if(chkClkSpan)break} 構造を指しており、診断 attribution の ipc『1.4–1.6→0.4–0.5 崩壊 (コアが待機で実命令発行不能)』を名指し。IPC の回復有無という反証可能な観測量を指定 (待ち方変異が IPC を回復させなければ仮説否定)。実在構造接続かつ反証可能観測あり。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (spin 本体の構造変異)。scalar 単体ではない。yes。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "既開通 hole silo-backoff-magnitude は待機量 scalar。本提案は待機ループの終了条件 (chkClkSpan による時間到達で break) に早期離脱述語を挟む構造変異で、量の上限は固定したまま『待ち切るか途中で抜けるか』の終了条件という別作用点の hole。提案0 (spin 本体) とも別位置。構造的に別 hole。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の chkChlkSpan による flat な時間ベース busy-wait 構造 (実在) を指し、attribution の latency『read-heavy 5.7→25μs 増加』と throughput 全 workload 低下を参照。now_backoff 全量が latency に無条件加算される構造への帰属で、latency の回復有無という反証可能観測を指定。unknowns で信号可読性の懸念を挙げるが機序核心は幻覚でなく実在構造接続。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (終了条件構造の変異)。scalar 単体ではない。yes。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "提案0は spin ループ本体 (占有動作) の差し替え、提案1は同ループの終了条件 (早期離脱) の差し替え。同一関数内だが作用点・骨格が異なり実質同一ではない。",
+  "overall_notes": "両提案とも include/backoff.hh の既開通 scalar 軸 (magnitude) とは別作用点の code_fragment 穴で、診断の実在 indicator (ipc/latency) と反証可能観測に接続。global_unknowns に『探索補助限定・headline 対象外』等の役割メタ記述があるが採点基準の変更を誘導するものではなく、通常基準で採点。両提案適格・ラウンド適格。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,68 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lockwait-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal の (a) ステップ、for(;;) 内の `while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); }` — 読み取り側でタプルロックが晴れるのを待つ唯一のスピン地点",
+    "skeleton": "内側の busy-reload ループを可変な待機ポリシで挟む hole。ロック検出→再読込の間に挟む処理 (無挟み=現行 / _mm_pause 挿入 / 有界スピン回数 / 反復間の適応遅延) をコード片で差し替える。ループ脱出条件 (lock が晴れる) と脱出後の TID 再検査 (c)〜(e) は骨格として固定し、hole は待機の刻みのみを対象にする"
+   },
+   "mechanism_hypothesis": "diagnostics 空につき構造観察から。read_internal はライタがタプルロックを保持する間、tidword_ を無制限に loadAcquire で再読込し続ける (待機刻みの制御が一切ない)。この待機は abort 後に発火する既開通の silo-backoff-magnitude とは発火経路が別 (トランザクションを abort せずインプレースで待つ) であり、コミット時施錠順序の silo-writeset-sort とも別処理。ロック競合下では tidword_ キャッシュラインへの再読込頻度と読み手/書き手のコヒーレンス干渉がこの一点で決まるため、待機刻みを変える変異はこの地点に競合ダイナミクスの地形を持ちうる、と構造から予想する (実在ループを名指し、反証は「read_internal 以外に読み取り側待機地点があれば偽」)",
+   "safety_argument_hypothesis": "外側 for(;;) がロック解除後に (c) データ読み・(e) TID 再検査を行い一致するまでループするため、純粋な待機刻み変更は原型の正当性 (ロックが晴れかつ TID 一致時のみ body を確定) を保存するはず。ただし待機を早期脱出させる (ロック晴れ未確認で先へ進む) 変異はロック中/torn な値の読み取りを許し得る — 段階 B で「ロック晴れ確認と TID 再検査の不変条件が保存されているか」を必ず再検証",
+   "unknowns": [
+    "この地形が現れる workload (zipf_skew・rratio・ronly_ratio による読み取り対書き込みロック競合の強度) — 機序単独では特定不可",
+    "計測動作点 (thread_num・tuple_num)",
+    "この TU で _mm_pause 等の待機プリミティブが利用可能か (include 依存)",
+    "positive control 設計 (待機刻み変異が効くと分かる仕込み条件)",
+    "reward hack 仮説 (待機を実質スキップして throughput を見かけ上上げる退化変異の可能性)",
+    "偵察の列挙空間 (採用しうる待機ポリシの候補集合)"
+   ]
+  },
+  {
+   "axis_name": "silo-reclamation-epoch-lag",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` のリテラル 2 (回収を現在 epoch から何 epoch 遅らせるかのマージン)",
+    "skeleton": "回収遅延 epoch 数を決めるスカラー hole。cur_epoch から差し引くマージン (現行 2) を可変にする。ガード `cur_epoch > N` と `: 0` の下限クランプは骨格として保持し、hole は減算マージン N のみ"
+   },
+   "mechanism_hypothesis": "diagnostics 空につき構造観察から。ReclamationEpoch は transaction.cc の gc_records() で `rec->tidword_.epoch > r_epoch` の閾値として使われ、削除済みレコードを free するタイミングを支配する。マージン 2 を大きくすれば回収を遅らせメモリ保持が増え、小さくすれば回収が積極化する — この保持対回収のトレードオフの唯一の数値ノブがこのリテラル。施錠順序 (silo-writeset-sort) とも abort 後待機 (silo-backoff-magnitude) とも別軸。gc/allocator 圧が効く構成でこの一点に地形を予想する (実在の減算式を名指し、反証は「回収閾値を決める他の定数があれば偽」)",
+   "safety_argument_hypothesis": "マージンを縮めると、古い epoch のインフライト読み手がまだ参照しうるレコードを free する use-after-free の危険がある。Silo の epoch ベース回収はこのマージンが最大 epoch スキューを覆うことに依存するため、安全下限は epoch 前進・ThLocalEpoch 同期の解析なしには決まらない — 段階 B で安全下限を必ず再導出",
+   "unknowns": [
+    "gc が実際に走る workload (delete/insert を含む構成か — YCSB update-only では gc_records_ に積まれない可能性)",
+    "安全なマージン下限 (epoch スキュー・chkEpochLoaded 同期の実解析が必要、機序単独で不可)",
+    "計測動作点 (thread_num・epoch_time)",
+    "positive control 設計",
+    "reward hack 仮説",
+    "headline 非対象 (mutation_type: scalar につき自動ラベル、D44 決定 1(i))"
+   ]
+  },
+  {
+   "axis_name": "silo-localset-lookup-structure",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::searchReadSet と searchWriteSet — read_set_/write_set_ を線形走査する `for (auto& re : read_set_)` / `for (auto& we : write_set_)` のメンバシップ判定",
+    "skeleton": "ローカルセットのメンバシップ判定を差し替える hole。現行の O(n) 線形走査を補助索引 (例: (storage,key) をキーにしたハッシュ) を用いた探索に置換し、read_set_/write_set_ への要素追加 (emplace_back) と delete_record 内の write_set_.erase に索引更新を随伴させる。返り値契約 (一致要素へのポインタ / nullptr) は骨格固定"
+   },
+   "mechanism_hypothesis": "diagnostics 空につき構造観察から。read()/update()/insert()/delete_record() は各操作で searchWriteSet/searchReadSet を呼び、両者ともローカルセット全体を線形走査する。1 トランザクションあたり操作数が大きい構成 (common.hh の DEFINE_uint64 batch_max_ope 既定 1000 のバッチ経路等) では、操作数に対し走査コストが二乗で効く。この二つの関数がローカルセット・メンバシップ判定の唯一の実装であり、双方 O(n) である点が構造的ボトルネックの候補。施錠順序軸 (コミット時ソート) とも待機軸とも別処理。反証は「read_set_/write_set_ の探索が他所にもあり索引化が部分的にしか効かない場合」",
+   "safety_argument_hypothesis": "索引はローカルセットの意味論 (read-own-writes・重複検出・delete_record の cancel-previous-write による write_set_.erase) を厳密に保存せねばならない。erase/emplace の各所で索引が非同期化すると、探索が古い/欠落した要素を返し lost update や誤値読み取りに直結する — 段階 B で「セットを変異させる全地点 (delete_record の erase・scan・各 emplace_back) が索引と整合するか」を必ず再検証",
+   "unknowns": [
+    "1 トランザクションの操作数が大きい workload (batch モード・TPC-C 等) の実在と感度 — 機序単独では特定不可",
+    "索引維持コストと線形走査コストの損益分岐点",
+    "計測動作点 (max_ope 相当・thread_num)",
+    "positive control 設計",
+    "reward hack 仮説 (索引が検証をショートカットして正当性を迂回する退化の可能性)",
+    "索引更新を随伴させねばならないセット変異地点の完全列挙 (偵察空間)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空のため、どの位置に実際に性能地形があるかの先行指標の裏付けが一切ない — 3 提案の mechanism_hypothesis はすべて stock 構造からの事前推定であり、段階 B の実コード裏取り・実測での独立再導出が前提",
+  "編集面の地図が開通済みと報告する hole は silo-writeset-sort と silo-backoff-magnitude の 2 件だが、transaction.cc の lockWriteSet 内コメントが施錠競合応答を『coder edit surface』と記述しており、台帳に未記載の暗黙編集面が存在する可能性 — 提案 1・3 (ともに transaction.cc) が既存軸の探索範囲と構造的に重複しないことは人間 gate の既存軸台帳照合 (D47 必須条件 4) で確認要"
+ ]
+}

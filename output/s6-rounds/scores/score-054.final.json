@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の silo-backoff-magnitude 第3項は『コミット時ログ書込の有効化 (on/off)』という WAL の有無トグル。本提案は sbomb_silo.cc worker_init の open flag / 書込モード (O_CREAT|O_TRUNC|O_WRONLY の経路構成) を変異させる別位置の hole であり、on/off とは別の作用点。既開通の backoff/sort とも別。構造的に別 hole で yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "sbomb_silo.cc 抜粋に実在する trans.logfile_.open(...) の flag を指しており実在構造に接続。第3項 attribution の latency 増加・llc_miss_rate 増加・書込比率単調比例を引き、open flag/書込モード変異が同じ latency/llc_miss 指標を動かすとの反証可能な観測を指定。恒真文でない。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異)。yes。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "ftruncate(1000000000) のリテラルという事前確保サイズは診断の on/off とは別次元。ただし c3 で失格。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "実在する ftruncate リテラルを指し、page fault 経由で llc_miss/latency に波及との反証可能観測を指定。stock 構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "setThreadAffinity(thid) の worker→コア写像変異は診断のどの軸 (backoff/validation政策/log書込) にも既開通の backoff/sort にも該当しない配置面。構造的に別 hole で yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "sbomb_silo.cc 抜粋に実在する setThreadAffinity(thid) 呼び出しを指し実在構造に接続。llc_miss_rate が本系で応答する指標 (backoff微増/WAL増加) を根拠に、affinity 写像変異が llc_miss を動かすとの反証可能観測を指定。恒真文『改善する可能性』ではなく具体的観測量を指定。提案自体が恒真接近を懸念しているが、実在コード点と llc_miss 指定により最低限の実質性は満たす。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (写像変換のコード片)。yes。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (WAL open mode) と提案2 (affinity 写像) が適格。提案1 は scalar 単体で c3 失格。提案0と1は同一 WAL I/O region だが hole 位置 (open flag vs ftruncate サイズ) は別。束内の『段階 B で判定』等の記述は判定を変えず通常基準で採点した。"
+ },
+ "retries_used": 0
+}

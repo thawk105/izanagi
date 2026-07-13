@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の3軸 (backoff-magnitude・validation no-wait 政策・log 書込) と dead の writeset-sort のいずれとも別の hole。材料1の Tuple 定義 (`alignas(CACHE_LINE_SIZE) Tidword tidword_; TupleBody body_;`) の cache line 配置という別作用点を提案しており既出でない",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在構造 (tuple.hh の Tuple メンバ配置、transaction.cc の read_internal spin-load/loadAcquire・lockWriteSet の CAS・writePhase の memcpy) に接続。反証可能観測として llc_miss_rate と coherence traffic の変化を指定し、動かなければ仮説否定という向きが明示される",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (メンバ順序・padding 幅の構造変異)。scalar 単体でない",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断のどの軸・骨格とも異なる。材料1の Tidword union (lock:1/tid:29/epoch:32 が単一 obj_ に同居) の lock ビットを version ビット群から別語/別 line に分離する構造変異で、別の状態・作用点を提案しており既出でない",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在構造 (tuple.hh の Tidword ビットフィールド、lockWriteSet の lock CAS、validationPhase/read_internal の version 読取り) に接続。反証可能観測として lock-CAS/version-read の line 共有度による coherence traffic・llc_miss の変化を指定している",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (ビットフィールド語の分解・配置の構造変異)。scalar 単体でない",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "2件とも tuple.hh の cache 面 (llc_miss) を機序基盤とするが、hole は相異なる (提案0=Tuple メンバ tidword_/body_ の cache line 配置、提案1=Tidword 語内の lock ビットと version ビットの分離)。束内に採点基準変更の誘導はなし。global_unknowns の tuple.hh が opened:false という指摘は編集面の状態であり適格性3項の判定材料ではないため作用させていない。"
+ },
+ "retries_used": 0
+}

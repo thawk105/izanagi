@@ -1,0 +1,45 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-wal-flush-batch",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::wal() 内の flush 発火判定 `if (log_set_.size() > LOGSET_SIZE / 2)`（LOGSET_SIZE は transaction.hh の #define=1000）",
+    "skeleton": "flush を発火させるバッファ蓄積閾値（1 回の logfile_.write でまとめる LogRecord 数 = write syscall の頻度）をスカラー変異穴にする。header の logRecNum_ とレコード列の対応・convertChkSumIntoComplementOnTwo→write→init の順序骨格は保持したまま、閾値係数だけを穴にする。"
+   },
+   "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude.attribution[2]（コミット時ログ書込 on/off）は、throughput 低下が書込比率に単調比例（read-heavy -1.9% は noise 内 / balanced -6.8% / write-heavy -13.4%）し、indicators で abort_rate 不変・latency 増加・llc_miss_rate 増加、すなわち競合でも正しさ検証でもなく純粋な書込 I/O コストへの帰属、と観測している。この I/O 実体は wal() が log_set_ を閾値超過時に単発 logfile_.write でまとめて吐くコストであり、flush 束ね量を変えれば 1 コミットに配賦される write syscall 回数と llc への書込圧（llc_miss_rate 増加の帰属先）が変わる。abort_rate 不変の帰属と整合する『競合非依存・I/O 償却軸』として、この閾値位置に latency/llc_miss を動かす性能地形を予想する。",
+   "safety_argument_hypothesis": "flush 閾値変異は、header.logRecNum_ が直後に書くレコード数と一致する前提・および replayTest.cc が読む header→records レイアウトの整合を壊しうる。閾値を上げてバッファ滞留を増やす方向は、耐久性の外部可視点（commit 応答前に flush 済みであるべきか。現状 fdatasync はコメントアウトで既に弱い）を変えうる。壊しうる対象の初期仮説 = 「header レコード数とフラッシュされたレコード列の対応不変・replay 可能性」。段階 B で必ず再検証。",
+   "unknowns": [
+    "本軸は WAL がコンパイル in（#if WAL）のときにしか地形を持たない — 感度を持つ build config / workload の特定は実コード裏取りと実測を要する",
+    "reward hack 仮説（flush を極端に遅延させて計測窓内の I/O を回避し見かけの throughput を稼ぐ等）の設計",
+    "positive control 設計・計測動作点（skew/thread/レコード数）・偵察の列挙空間",
+    "mutation_type=scalar のため headline 非対象ラベルが自動付与（D44 決定 1(i)）。本役の提案軸は探索補助限定である旨（D47 決定 5）"
+   ]
+  },
+  {
+   "axis_name": "silo-read-lockwait-strategy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal() 冒頭 (a) の『ロッククリア待ち』無制限スピン `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`",
+    "skeleton": "ロック中タプルを待つ内側スピンの『待ち方』を変異穴にする。現状の裸 loadAcquire 無制限ビジースピンを、別の待機形（pause 挿入 / 有界スピン回数後に別経路へ）に差し替える骨格。(e) の TID 再検査 break 条件と read_set_ への emplace は骨格として保持。既開通 silo-writeset-sort（comparator）・silo-backoff-magnitude（abort 後の待機量スカラー）とは位置も phase も別。"
+   },
+   "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude.attribution[0]（abort 後の再試行前バックオフ待機）は、indicators.ipc が全 workload で 1.4–1.6 → 0.4–0.5 に崩壊（『コアが待機で実命令を発行できない』）と実測しており、これはビジー待機がコアの命令発行を停める効果そのものの証拠である。read_internal の (a) は、ロック中（in-flight）タプルに対し loadAcquire を無制限ビジースピンする別のビジー待機サイトである。同 round の attribution[0].indicators.abort_rate（read-heavy 15.6% / balanced 65.3% / write-heavy 59.7%、backoff 前の baseline）はロックが頻繁に取られ読み手がロック中タプルへ衝突する頻度が高いことを示すため、このスピン点の待ち方変異が ipc/latency の地形を持つと予想する。バックオフ軸（abort 後・スカラー量）とは phase もサイトも異なる別 hole。",
+   "safety_argument_hypothesis": "このスピンは Silo OCC ステップ(a)＝『ロック中(in-flight)タプルの値を読み進めない』不変条件を担う。待ち方変異が『ロック中でも読み進める』方向に崩れると、直後 (e) の TID 再検査で弾けない限り torn read を露出しうる。壊しうる対象の初期仮説 = 「ロック中タプルの値露出禁止・(e) 再検査による読み一貫性」。段階 B で必ず再検証。",
+   "unknowns": [
+    "reward hack 仮説（待機を実質スキップして throughput を稼ぎ、正しさは (e) 再検査任せにする等）の設計と、abort() の再検査で捕捉されるかの実コード裏取り",
+    "本 hole が既開通 silo-backoff-magnitude（待機一般）の探索空間と重複しないことの人間 gate 台帳照合（D47 必須条件 4）",
+    "positive control 設計・感度を持つ workload・計測動作点・偵察の列挙空間",
+    "code_fragment だが本役提案は探索補助限定で段 6 headline 非対象（D47 決定 5）"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離である旨が明記されており、提案位置の地形の存在は他動作点で未確認",
+  "noise floor 2.28% 未満の差は順位不能（attribution[1] の read-heavy 0.4% 等）— 機序推論の分解能限界",
+  "3 提案いずれも入力射影（勝ち筋の値・recommend 節・死んだ軸 silo-writeset-sort の機序を除く）のみから構成しており、既存軸との構造的別個性は段階 B の独立再導出と既出骨格非該当検査（D47 必須条件 3）で確定される"
+ ]
+}

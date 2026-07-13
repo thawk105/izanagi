@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "軸は worker→物理コア割当 (tpcc_silo.cc worker_init ラムダの setThreadAffinity(thid) 引数変換) の hole。診断3軸 (backoff on/off・validation 待たない政策・ログ書込 on/off) および dead の writeset-sort のいずれとも別の処理段・別作用点。材料1に affinity 変異軸の既出なし。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は stock 抜粋に実在する setThreadAffinity(thid) 呼出 (tpcc_silo.cc の #ifdef Linux ブロック) を指し、コア配置が LLC 共有/跨ソケットを決めると繋げる。attribution 第1項の ipc 崩壊・llc_miss 微増を根拠に llc_miss_rate/ipc 次元の地形を予想し、割当政策を変えても llc_miss/ipc が動かなければ否定される反証可能な観測を指定。実在構造への接続あり。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (setThreadAffinity 引数を写像 f(thid) へ差し替える構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "ftruncate(1e9) のログ事前確保サイズ hole。診断第3項 (ログ書込 on/off) とは別の作用点 (確保サイズ vs 有効化) で、材料1に prealloc size 軸の既出なし。ただし c3 で失格。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は tpcc_silo.cc 抜粋に実在する trans.logfile_.ftruncate(1000000000) を指し、確保済みブロックか割当メタデータ I/O かを分ける。attribution 第3項 (abort 不変・latency/llc_miss 増・書込比率単調比例) と繋がり、write-heavy latency 経由の地形を予想 = 反証可能。実在構造接続あり。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体 (ftruncate 引数のバイト数リテラル変異)。スカラー単体は機械的グリッド探索で代替可能のため no。提案本文自身も headline 非対象ラベル自動付与を認めている。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (core-affinity) は3項すべて yes で適格。提案1 (wal-prealloc-size) は scalar 単体のため c3 で失格 (c1/c2 は充足)。両提案は別 hole で dedup 不要。束内の『scalar ゆえ headline 非対象』等の記述は判定基準に影響させず通常採点した。"
+ },
+ "retries_used": 1
+}

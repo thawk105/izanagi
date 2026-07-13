@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal の (a) ステップ内 `while (expected.lock) { expected.obj_ = loadAcquire(...); }` の読み取り側スピン地点。診断の3軸 (backoff=abort後再試行待機 / validation中の待たない政策=lockWriteSet / コミット時ログ書込) のいずれとも別処理段。読み取りフェーズでのインプレース待機刻みは診断・既開通hole (silo-writeset-sort/silo-backoff-magnitude) いずれにも未出の別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の transaction.cc read_internal に実在する busy-reload ループを名指し、待機刻みが tidword_ キャッシュライン再読込頻度を決めるという実構造への接続を持つ。反証観測「read_internal 以外に読み取り側待機地点があれば偽」を明示。恒真文でなく反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment。待機ポリシをコード片で差し替える構造変異。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "ReclamationEpoch のマージンリテラル 2 は診断・既開通hole いずれにも未出。siloLeaderWork の実在減算式を指す別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "util.cc の `ReclamationEpoch = cur_epoch > 2 ? ...` と transaction.cc gc_records() の `rec->tidword_.epoch > r_epoch` 閾値という実在構造に接続し、反証観測「回収閾値を決める他の定数があれば偽」を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。提案自身も headline 非対象 scalar と自己申告。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は searchReadSet/searchWriteSet の O(n) 線形走査を補助索引に置換。診断3軸・既開通hole いずれにも未出のローカルセット探索構造という別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock transaction.cc に実在する searchReadSet/searchWriteSet の線形走査ループ、read/update/insert/delete_record からの呼び出し、common.hh の batch_max_ope 既定1000 に接続。反証観測「read_set_/write_set_ の探索が他所にもあり索引化が部分的にしか効かない場合」を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment。走査方式を索引探索へ置換する構造変異。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案0(読み取り側スピン待機)と提案2(ローカルセット探索構造)が3項適格。提案1はscalar単体でC3不適格。束内にD44決定・人間gate・既存軸台帳照合(D47)等の運用参照文言があるが採点基準の変更誘導ではなく、通常基準で採点した。"
+ },
+ "retries_used": 0
+}

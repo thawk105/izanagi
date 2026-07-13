@@ -1,0 +1,70 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-validation-lock-conflict-response",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::lockWriteSet() の write_set_ 走査ループ内、`if (expected.lock)` に入る施錠済みタプル遭遇時の応答分岐 (現在 `#if NO_WAIT_LOCKING_IN_VALIDATION` の即 abort と `#elif NO_WAIT_OF_TICTOC` の unlock→`goto retry` を compile-time で二者択一)",
+    "skeleton": "施錠済みタプル遭遇時の応答を決める処理を EVOLVE-BLOCK hole で包む。入力 = 既取得ロック集合 (itr の位置)・当該 expected・遭遇回数等、出力 = {即 abort / 一定量スピン後に再 CAS 試行 / 部分 unlock して retry} のいずれかの決定。ただし abort 決定時は既存の `status_=aborted` 設定と itr 手前までの `unlockWriteSet(itr)` を必ず経由する骨格を hole 外に残す"
+   },
+   "mechanism_hypothesis": "stock 観察: lockWriteSet は validationPhase 内で write_set_ を sort 済みの状態で走査し、施錠済みタプルに当たった時の応答が現状 compile-time の二極 (即 abort / 無限 retry) に固定されていて、その中間 (有界待機して衝突が一過性なら abort を回避する) が存在しない。この分岐は「他ワーカーが一時的に保持しているロック」という一過性事象を「この txn の abort」という不可逆結果へ変換する単一点であり、遭遇確率は write_set_ サイズと writer 並行度に比例する構造を持つ。したがってこの位置の応答方針の変異は abort 発生の分岐を直接動かす地形を持ちうる (反証可能: この分岐通過に起因する abort 計数で測れる)。diagnostics が空のため先行指標の実測裏付けはなく、構造観察に基づく事前仮説である",
+   "safety_argument_hypothesis": "silo の deadlock 回避は write_set_ を sort してから施錠する順序性に依存する。有界スピン等の変異が『sort 順以外のロックを待つ』挙動を生むと deadlock を再導入しうる。また abort 決定パスでは既取得ロックの部分 unlock (itr 手前) と status_ 設定を漏らすとロックリーク/整合性破壊になる。これらは段階 B で必ず再検証される前提の下書き",
+   "unknowns": [
+    "感度を持つ workload (write-write 競合が validation 段で顕在化する構成・スキュー・write set サイズ) — 機序単独では特定不能",
+    "計測動作点 (この分岐由来 abort をどの指標・どの thread_num/skew で観測するか)",
+    "positive control 設計 (この hole が確かに abort 率を動かすことを示す既知変異)",
+    "reward hack 仮説 (abort を見かけ上減らすが直列化正当性を壊す退化変異の形)",
+    "偵察の列挙空間 (中間方針の候補集合・スピン上限の探索範囲)",
+    "既存軸 silo-backoff-magnitude (abort 後待機) との軸境界が本当に構造的に別かの台帳照合 — 人間 gate 必須条件 4 の対象"
+   ]
+  },
+  {
+   "axis_name": "silo-read-spin-discipline",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal() の `for(;;)` 先頭の待機ループ `while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); }`",
+    "skeleton": "施錠クリア待ちスピンの本体を EVOLVE-BLOCK hole で包む。入力 = 現行の tidword 再読込結果とスピン反復数、出力 = 待機の刻み方 (例: pause 挿入の有無・再読込間隔・有界化) の決定。ロックがクリアするまで待つ (=クリアせず先へ進まない) という不変条件は hole 外骨格として保持"
+   },
+   "mechanism_hypothesis": "stock 観察: read_internal は施錠中タプルに対し pause もフェンスも無い密スピン (毎反復 ACQUIRE で tidword を再読込) を回す。writer 側は writePhase で lock 済みタプルに対し body_ (サイズ VAL_SIZE) の memcpy → storeRelease(maxtid) を行うため、reader のスピン持続はこの writer クリティカル区間に有界化される。スピンの刻み方 (pause 挿入/再読込頻度) は当該タプル tidword のキャッシュラインへのコヒーレンストラフィックを支配する構造にあり、この位置の変異は競合時 read フェーズの停滞に地形を持ちうる (反証可能: local_extra_reads_ / read 遅延計数で測れる)。diagnostics 空につき構造観察由来の事前仮説",
+   "safety_argument_hypothesis": "このスピンは torn read 防止の本質。変異がロック set 中にループを抜けて先へ進む (クリア前に body を読む) と writePhase の memcpy 途中値を読む dirty read になり直列化正当性を破る。`while(expected.lock)` の脱出条件=ロッククリアの不変と、直後の expected==check 再検証を保持することが前提。段階 B で再検証",
+   "unknowns": [
+    "感度を持つ workload (read が施錠中タプルに当たる頻度が上がる read-write 混在・ホットキー構成)",
+    "計測動作点 (read フェーズ停滞をどの指標で分離計測するか)",
+    "positive control 設計",
+    "reward hack 仮説 (スピンを短絡して見かけ throughput を上げるが dirty read を許す退化)",
+    "偵察の列挙空間 (pause 有無・有界化上限などの候補範囲)",
+    "本 hole が transaction.cc 内で既開通 silo-writeset-sort と構造的に別 hole であることの台帳照合 (位置は別だが同一ファイル)"
+   ]
+  },
+  {
+   "axis_name": "silo-reclamation-epoch-lag",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork() 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の遅延距離リテラル 2",
+    "skeleton": "回収エポック遅延距離を EVOLVE-BLOCK hole のスカラーにする。gc_records() が `rec->tidword_.epoch > r_epoch` で回収を止める前提を保ちつつ、cur_epoch から何エポック遅らせて ReclamationEpoch を定めるかの値を変異させる"
+   },
+   "mechanism_hypothesis": "stock 観察: siloLeaderWork が固定リテラル 2 で ReclamationEpoch を cur_epoch より 2 エポック遅らせて設定し、transaction.cc の gc_records() はこの ReclamationEpoch を閾に `delete rec` で退役レコードを解放する。writePhase の DELETE 経路が gc_records_ に push する構造から、この遅延距離は「退役レコードが解放されるまで滞留する深さ」を支配するスカラーであり、アロケータ圧・解放タイミングに地形を持ちうる (反証可能: delete を含む workload での解放/メモリ挙動で測れる)。diagnostics 空につき構造観察由来の事前仮説。scalar 型のため headline 非対象ラベルが自動付与される",
+   "safety_argument_hypothesis": "遅延距離を全ワーカー ThLocalEpoch のエポックスキュー最大値より小さくすると、旧エポックで validation 中の reader からまだ可視なレコードを解放し use-after-free / torn read を招きうる。現行の `>2` ガードと chkEpochLoaded によるエポック前進ゲートはこの安全マージンのためにあり、より小さい値はこの前提条件に対する安全性証明を要する。段階 B で必ず再検証",
+   "unknowns": [
+    "感度を持つ workload (そもそも delete/insert が gc_records_ を生む構成でないと本 hole は性能に無感 — YCSB update-only では非感度の可能性)",
+    "計測動作点 (解放タイミング/メモリ footprint をどう観測するか)",
+    "positive control 設計",
+    "reward hack 仮説 (回収を遅らせ/早めて見かけ性能を得るが安全マージンを削る退化)",
+    "偵察の列挙空間 (遅延距離の安全下限・探索範囲)",
+    "util.cc は未開通領域であり開通コストは人間側判断 (機序が指す先がここであるため未開通のまま提案)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空 (`{}`) のため 3 提案いずれも先行指標の実測裏付けを持たず、stock 抜粋と編集面の地図の構造観察のみに基づく事前仮説である。どの hole に実際の性能地形があるか・提案間の優先順位は本入力からは解けない",
+  "計測対象ビルドの構成 (WAL / TRACE / MASSTREE_USE の on/off・実行 workload の種別と delete 有無・thread_num・skew) が入力に含まれず、各機序の感度前提が確認できない",
+  "既存軸台帳 (silo-writeset-sort / silo-backoff-magnitude) との hole 構造照合は人間承認 gate (D47 必須条件 4) の職掌。特に P1 と silo-backoff-magnitude の軸境界は要判定",
+  "全提案は探索補助限定 (入力が coder 出力後の機序帰属である以上 headline 非対象、D47 決定 5)。恒真検出 (mechanism_hypothesis の実質性) の最終判断は人間 gate の意味判断に委ねる"
+ ]
+}

@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read_internal のステップ(a)施錠待ちスピンループ (`while (expected.lock) { ... }`) を変異点とする hole。診断の3軸 (backoff待機・validation中のno-wait政策・コミット時ログ書込) にも既開通2 hole (silo-writeset-sort=validationPhaseの施錠順序 / silo-backoff-magnitude=abort後待機) にも該当せず、読み取りフェーズ中の競合遭遇時点という別処理段の hole。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc 実在の read_internal スピンループ (loadAcquire でロックビットが立つ間 tidword を再ロード) を指し、『読み取り側の前進はライタの施錠保持時間に直接結合している』という反証可能な観測 (応答差替後に競合下 latency が不変なら仮説否定) に接地する。幻覚なし。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (施錠中タプル遭遇時の応答方針差替え)。構造変異でありスカラー単体ではない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "util.cc の siloLeaderWork の epoch 前進条件 (`chkClkSpan(...)&&chkEpochLoaded()` で atomicAddGE) を変異点とする hole。診断3軸・既開通2 hole のいずれとも別の制御変数 (epoch cadence) で、別作用点。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "util.cc 実在の siloLeaderWork 前進条件・ReclamationEpoch=cur-2 に接地し、『epoch境界が commit 可視化・reclamation 世代を一斉に律速』という反証可能な主張 (cadence 変更で可視化/reclamation timing が不変なら否定) を示す。実在構造に繋がる。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (前進タイミング条件の形の差替え)。構造変異。",
+    "eligible": true
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "gc_records() の解放走査起動閾値を変異点とする hole。診断3軸・既開通2 hole のいずれにも該当せず、reclamation/gc 頻度という別作用点で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc 実在の gc_records() deque 走査と writePhase末尾・abort() の2呼出点に接地し、解放頻度が観測可能な差 (メモリ滞留 vs 一時的 throughput) を生むという反証可能な主張を示す。実在構造に繋がる。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体 (解放走査を起動する蓄積件数のスカラー閾値)。既存の機械的グリッド探索で代替可能なため no。unknowns 内で境界事例と自認するが宣言型は scalar。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "P0・P1 は別処理段の構造変異 hole で3項充足・適格。P2 は novel かつ実在構造接地だが mutation_type=scalar 単体のため c3 で不適格。束は『diagnostics は空』と繰り返し記述するが材料1の diagnostics は非空 (silo-backoff-magnitude alive 等) — これは提案側の誤前提だが採点は基準どおり実施した。束内の段階B検査・headline非対象ラベル等の運用指示には従わず記録のみ。"
+ },
+ "retries_used": 0
+}

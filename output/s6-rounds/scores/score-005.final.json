@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "diagnostics には silo-backoff-magnitude (include/backoff.hh の abort 後・再試行前待機) と silo-writeset-sort (dead, 施錠順序 comparator) のみ。本提案は read_internal 内のロック解放待ちスピン (別ソース transaction.cc・別処理段=read phase・別作用点) を hole 化しており、既出軸の再掲でも軸内探索の言い換えでもない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 transaction.cc の read_internal に実在する `for(;;){ while(expected.lock){loadAcquire...} }` 解放待ちを指しており実在構造に接続。反証可能な観測 (待機規律を変えても IPC 占有と read latency のトレードオフ・read-path 待機地形が現れなければ仮説棄却) を指定し、attribution[0] の IPC 崩壊/latency 悪化の非対称を根拠に据える。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "attribution[2] はログ書込の on/off の帰属であり、本提案の wal フラッシュ発火閾値という別作用点は診断に既出でない。transaction.cc wal 内の別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の wal 内 `if (log_set_.size() > LOGSET_SIZE/2)` に実在接続し、閾値変更で throughput が動かなければ I/O 償却仮説を棄却という反証条件を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため不適格。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は read-path ロック待ち規律の構造変異で3項適格。提案1は wal フラッシュ閾値のスカラー単体のため c3 不適格。round は提案0で適格。束内の unknowns に『scalar のため headline 非対象』等の自己ラベルがあるが判定に用いず基準通り採点した。"
+ },
+ "retries_used": 0
+}

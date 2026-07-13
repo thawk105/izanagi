@@ -1,0 +1,70 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-lock-contention-local-wait",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "lockWriteSet() 内、write set 施錠ループの競合分岐 `if (expected.lock) { ... }`（他 worker が当該 tuple の lock を保持している際の応答箇所。既開通 hole silo-writeset-sort の comparator/sort とは別の処理段）",
+    "skeleton": "lock 保持を検出した分岐で、即時 abort / 即時 goto retry（無待機応答）に入る前に、tuple-local な有界待機（短いスピン上限つきで lock ビットの解消を再読込みで確認し、上限内に解消すれば CAS 取得へ、上限超過で従来の abort/retry へ落ちる）を挟む。待機上限量を変異点にするコード片。取得は必ず CAS 経由・lock 保持中の素通り取得は不可という骨格を保持"
+   },
+   "mechanism_hypothesis": "attribution 実在項目「validation 中のロック競合に対する 2 種の待たない政策の選択」は、2 政策の優劣が workload 間で反転し、write-heavy 優位側が abort_rate 50.8→21.0% と latency の同時低減で稼ぐ一方、balanced 優位側は ipc 1.62 の高命令発行（abort を高いまま回す）で稼ぐ、という非単調構造を示す。この反転は「lock 競合検出時にどれだけ待つか」に地形がある可能性を示唆する。加えて attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」の ipc 崩壊（全 workload 1.4–1.6→0.4–0.5）が、無条件スピン待機の純損側を定量化している。この 2 項目の突き合わせから、競合点局所の有界待機は、lock が短時間で解ける write-heavy 側では abort/retry を回避して稼ぎ側（abort・latency 同時低減）に寄り、balanced 側では ipc 崩壊コスト側に寄る、という workload 依存の相反地形を予想する。既存の post-abort グローバル待機（silo-backoff-magnitude）とは待機の発生位置（競合点 tuple-local vs abort 後 global）が構造的に別",
+   "safety_argument_hypothesis": "有界待機の導入は Silo の no-wait が保証するデッドロック非発生を崩しうる（局所待機と lock 保持の組合せ次第で待機環が生じる余地）。骨格は待機後も必ず abort か retry のいずれかへ収束し、lock 保持中の tuple を CAS 抜きで取得しないこと、および #if TRACE の lock-coverage 不変（record_lock は CAS 成功パスのみ）を侵さないことを前提とする。段階 B で必ず再検証",
+   "unknowns": [
+    "この hole が attribution 項目 2 の「2 種の待たない政策の選択」軸の探索範囲（政策の二択）と重なるか別軸かは、既存軸台帳との構造照合（人間 gate）が要る — proposer 側では政策の識別が射影で落ちており判定不能",
+    "感度を持つ workload（read/balanced/write-heavy のどこで地形が出るか）は単一動作点 skew0.9/48thread/1M/1round では未確定 — 偵察要",
+    "待機上限のスカラー探索空間（下限・上限・刻み）の列挙",
+    "デッドロック非発生・serializability を壊さない positive control 設計",
+    "reward hack 仮説（待機で見かけの abort_rate を下げつつ実効 throughput を損なう擬似改善の検出手段）",
+    "計測動作点と交互作用（BACK_OFF グローバル待機との重畳）の分離設計"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-cadence",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "wal() 内のログフラッシュ発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)`（ヘッダ書込 + logRecNum_ 分のレコード一括書込を起動する閾値）",
+    "skeleton": "フラッシュ発火のバッチ閾値（現状 LOGSET_SIZE/2 = 500 相当）を変異可能なスカラーに置換し、1 回の書込あたりのレコード束サイズ＝ I/O 発行頻度を調整する。LOGSET_SIZE マクロ本体（transaction.hh・未開通）には触れず、wal() 内リテラル比較の側で束サイズを与える骨格"
+   },
+   "mechanism_hypothesis": "attribution 実在項目「コミット時ログ書込の有効化 (on/off)」は、throughput 低下が書込比率に単調比例（read-heavy -1.9% は noise 内 / balanced -6.8% / write-heavy -13.4%）し、abort_rate 不変のまま latency と llc_miss_rate が増える、という帰属を示す — 損は競合でも正しさ検証でもなく純粋な書込 I/O コスト。コストが abort 非依存で I/O 側に局在するなら、フラッシュ束サイズ（1 回の write に載せるレコード数）を大きく取って書込回数を減らす変異は、この I/O コストを直接動かせる。特に write-heavy（-13.4%、損最大）で最も効きやすい地形を予想する。並行制御路（backoff・lock 競合）に一切触れない点で silo-backoff-magnitude / silo-writeset-sort とは構造的に別",
+   "safety_argument_hypothesis": "束サイズ拡大は durability/recovery 窓を広げる（commit 可視化とログ永続化のずれ）。replayTest.cc は LogHeader.logRecNum_ ぶんを順に読むため、ヘッダの logRecNum_ と実書込レコード数の整合、および log_set_ バッファ容量（LOGSET_SIZE=1000）を超えない束境界の維持が前提。段階 B で recovery 正しさとして必ず再検証",
+   "unknowns": [
+    "束サイズの探索空間（LOGSET_SIZE の上限内でどこまで許容されるか、マクロ自体の改訂が要るなら未開通 transaction.hh を開ける必要）",
+    "感度を持つ workload と VAL_SIZE / 書込比率依存の実測動作点 — 単一動作点では未確定、偵察要",
+    "durability を犠牲にした見かけ throughput 改善（reward hack）の検出手段と、recovery 健全性の positive control 設計",
+    "fdatasync が現状コメントアウトである実測条件下で I/O コストがどこまでバッチ頻度に感応するかの偵察",
+    "scalar 型のため headline 非対象ラベルが自動付与される点（D44 決定 1(i)）— 昇格は事前登録側改訂が前提"
+   ]
+  },
+  {
+   "axis_name": "silo-read-spin-bound",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "read_internal() 内、TID word 読取の lock 解消待ちスピン `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(...); } ... }`（読取スナップショット確定前の無限スピン）",
+    "skeleton": "lock 解消待ちの無限スピンに上限を与え、上限内で解消すれば従来どおり一貫読取（tidword 二度読み一致確認）へ進み、上限超過時は lock 保持中データを読まずに abort/retry ステータスへ落とす。二度読み一致による torn-read 防止の骨格は不変とし、変異点はスピン上限量とその後の分岐"
+   },
+   "mechanism_hypothesis": "attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」は、待機導入で ipc が全 workload 1.4–1.6→0.4–0.5 に崩壊する（コアが待機で実命令を発行できない）ことを示し、スピン待機が IPC を潰すという機序を実測で確立している。同項目は read-heavy の latency 5.7→25μs 増と throughput -77%（損最大）も示す。read_internal の `while (expected.lock)` は上限のないスピン＝同じ機序クラスに属し、読取路が支配的な read-heavy では当該スピン滞留が IPC 崩壊側に効きうる。有界化はスピン滞留（IPC 崩壊）と再読取/abort 増の間にトレードオフ地形を作ると予想する。既存の post-abort グローバル待機（silo-backoff-magnitude）とは待機位置（read 路 tuple-local vs abort 後 global）が構造的に別",
+   "safety_argument_hypothesis": "スピンを打ち切って読取を続けると lock 保持中データの torn-read を起こしうる。骨格は上限超過時に必ず読取を行わず abort/retry へ落ち、lock 解消時のみ二度読み一致確認を経て読取する不変を保持することを前提とする。段階 B で読取一貫性として必ず再検証",
+   "unknowns": [
+    "機序の因果移送前提の未検証：attribution 項目 1 の ipc/latency 数値は backoff 待機への帰属であり、read_internal スピンでの滞留量が実測で有意かは未確定 — read-heavy のスピン時間比率の偵察が必須で、有意でなければ本提案は恒真側に落ちる",
+    "感度を持つ workload（read-heavy 想定だが単一動作点では未確定）",
+    "スピン上限のスカラー探索空間の列挙",
+    "torn-read 非発生を保証する positive control 設計と serializability への影響検証",
+    "reward hack 仮説（打ち切りで見かけ latency を下げつつ abort 増で実効 throughput を損なう擬似改善の検出手段）",
+    "backoff グローバル待機・lock 競合局所待機との交互作用分離"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全提案の診断が単一動作点（skew0.9 / 48thread / 1M レコード / 各構成 1 round・交互作用未分離・noise floor 2.28%）由来であり、感度を持つ workload・計測動作点・偵察の列挙空間は機序単独で導出できず段階 B の実コード裏取り + 偵察を要する",
+  "3 提案はいずれも待機/I-O 頻度に触れ、BACK_OFF・WAL・lock 競合政策の compile-time フラグと重畳しうる — 交互作用の分離設計が全体で未確定",
+  "軸定義シートの reward hack 仮説・positive control・計測動作点欄は各提案 unknowns に落としており、恒真の埋め草で塞いでいない（D47 必須条件 5）",
+  "命名（silo-lock-contention-local-wait / silo-wal-flush-cadence / silo-read-spin-bound）は LLM 命名として出所記録に残る前提。本役の提案軸は変異型を問わず当面『探索補助』限定で段 6 主結果の対象軸にしない（D47 決定 5）",
+  "入力射影に勝ち筋の値・recommend 節・死んだ軸（silo-writeset-sort）の機序帰属が混入している兆候は認めなかった（silo-writeset-sort は status:dead のみで帰属なし＝契約どおり）"
+ ]
+}

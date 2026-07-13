@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "軸は tuple.hh の tidword_ と body_ 間のキャッシュライン境界パディングという配置 (false sharing) 変異。診断3軸 (backoff スカラー・validation 政策・ログ書込) いずれの骨格でもなく、opened hole (backoff・writeset-sort) とも別の処理段・別領域 (tuple.hh、opened:false)。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在構造 (Tuple の alignas(CACHE_LINE_SIZE) Tidword tidword_/body_、read_internal の lock spin、lockWriteSet の CAS) に繋がり、診断の llc_miss_rate『微増・cache 利得なし』を根拠にしている。反証可能観測を llc_miss_rate/coherence トラフィックとして指定 (パディングで動かなければ配置由来 miss 仮説が否定される)。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (メモリ配置のコード片挿入/除去)。構造変異。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "軸は Tidword の lock ビットをバージョン語 (tid/epoch) と別ワードへ分離するビットフィールド構造変異。診断3軸・opened 2 hole いずれの骨格でもなく、tuple.hh の別状態・別作用点。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在構造 (struct Tidword の union obj_ 単一64bit語、read_internal の (a)-(e) 再読取比較、lockWriteSet 単一語 CAS、validationPhase の check.lock) に繋がる。診断項目2の write-heavy abort 50.8→21.0% を根拠に、ロック churn とバージョン読取の結合緩和を仮説とし、反証可能観測を abort_rate/latency として指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (ビットフィールド定義とその随伴コード変異)。構造変異。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "両提案とも tuple.hh (opened:false) の別 hole を提案し、診断・既開通 2 hole と骨格重複なし。それぞれ配置 (false sharing) 変異とビットフィールド分割変異で相異なる。unknowns 内に「オンボーディングひな型の改訂検討」等の記述があるが採点基準への誘導ではなく通常採点。両提案適格。"
+ },
+ "retries_used": 0
+}

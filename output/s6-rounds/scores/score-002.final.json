@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal() の TID word 監視スピンループ (transaction.cc の for(;;){while(expected.lock)...} 実在) の待ち政策。診断3軸 (backoff magnitude=post-abort待機・validation no-wait政策・commit log書込) のいずれとも別の処理段 (read phase のロック解除待ち) を対象にしており、silo-writeset-sort/silo-backoff-magnitude の既開通 hole とも別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の busy-wait は stock に実在 (while(expected.lock) がタイトにロードを回す)。機序は post-abort 待機の IPC 崩壊 (1.4-1.6→0.4-0.5) と同型の占有機構を別位置で踏むという仮説で、IPC/latency の観測量および契機切替時の abort 増という反証可能な観測を指定している。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (待ち方の制御フロー差替)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() の flush 閾値 (if(log_set_.size()>LOGSET_SIZE/2)) を対象とする hole。診断の『commit log書込 on/off』とは別の作用点 (書込頻度=バッチ粒度) で、閾値そのものは診断に既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の log_set_ 蓄積・logfile_.write は stock に実在。診断項目3 (書込 I/O コストへの帰属、latency/llc_miss 増・abort不変) に接続し、閾値変化と I/O 償却/latency の地形という反証可能観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体 (write() 発行頻度を制御する単一スカラー)。スカラー単体は既存グリッド探索で代替可能のため no。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は abort() 内 #if BACK_OFF の待機発火箇所 (transaction.cc に実在) に『待つか否か・いつ待つか』の gate を挟む制御フロー変異。既開通 hole silo-backoff-magnitude は backoff.hh のスカラー待機量軸であり、本提案は別作用点 (abort() 制御フロー) の code_fragment で magnitude では表現不能。診断の on/off はコンパイル時大域フラグの観測だが、本提案は局所状態/abort契機による動的 gate という構造的に別の hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "abort() の Backoff::backoff 呼出は stock 実在。診断項目1 の非対称 (純損は削れる再試行が無い abort にも一律待機コストを払う) に接続し、gate による相殺workload/純損workload 間の throughput 地形という反証可能観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (待機発火の gate 制御フロー変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read spin政策) と提案2 (abort backoff gate) が適格。提案1 は scalar 単体で c3 不適格。3提案は相異なる hole 位置。束末尾の global_unknowns に headline適格性ラベルの誘導があるが判定には作用させていない。提案2 は隣接軸 silo-backoff-magnitude との近接が懸念点だが、作用点 (abort()制御フロー) と mutation_type (code_fragment) がスカラー magnitude 軸と構造的に別のため yes と判定。"
+ },
+ "retries_used": 0
+}

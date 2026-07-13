@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は cc/silo/transaction.cc の read_internal 冒頭 (a) の `for(;;){ while(expected.lock){ loadAcquire } }` スピン待機。診断の既出軸は silo-backoff-magnitude (abort後の再試行前backoff・include/backoff.hh) と silo-writeset-sort (施錠順序comparator)。read フェーズのインライン待機点は別の処理段・別の作用点で、既出軸の軸内変異ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の while(expected.lock) loadAcquire ループと施錠側の storeRelease(tuple->tidword_) は stock (transaction.cc) に実在。機序は tidword_ の同一 cache line を読み手がタイトスピンし施錠→解放の coherence 往復に干渉するという具体的因果で、待機戦略 (pause挿入等) 差替時に throughput/ipc/llc が動くかで反証可能。実在構造に接続し観測で否定しうる。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異) で適格。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork の `ReclamationEpoch = cur_epoch>2 ? cur_epoch-2 : 0` の epoch ラグ定数。診断3軸 (backoff / validation待たない政策 / ログ書込on-off) いずれとも別の GC 猶予支配点で、gc_records の物理delete条件に繋がる別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "gc_records() の `rec->tidword_.epoch > r_epoch` break と r_epoch=ReclamationEpoch は stock (transaction.cc/util.cc) に実在。ラグ縮小で早期解放→use-after-free/メモリ保持減という反証可能な観測を指定。実在構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。既存の機械的グリッド探索で代替可能なため不適格。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() の `if (log_set_.size() > LOGSET_SIZE/2)` の flush 閾値。診断のログ軸は『コミット時ログ書込の有効化 (on/off)』であり、書込頻度/滞留量のトレードオフ閾値は別 hole。silo-writeset-sort とも関数・対象量が異なる。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の log_set_ 蓄積と logfile_.write まとめ書き、閾値判定は stock (transaction.cc) に実在。閾値変化で write回数と滞留量が動く反証可能な観測を指定。ただし #if WAL 下でのみ有効という制約も自認しており実在構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は不適格。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "束は diagnostics を『空』と繰り返し記述するが、材料1の diagnostics には silo-backoff-magnitude(alive)/silo-writeset-sort(dead) が実在しており事実相違。これは採点基準を変える指示ではなく判定に影響させず、材料1に基づき採点した。提案0のみ code_fragment で3項適格。提案1・2は scalar 単体で c3 不適格 (提案束自身も『段6 headline 非対象』と scalar 性を自認)。"
+ },
+ "retries_used": 0
+}

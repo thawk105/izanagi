@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "diagnostics の 3 軸は backoff 待機量 (backoff.hh)・validation の 2 待たない政策 (lockWriteSet)・WAL on/off。本提案は read_internal の for(;;) 内 `while (expected.lock) { ... }` = 読取フェーズのロック待ちスピンという別処理段の hole を提案しており、材料 1 の診断・既開通 hole いずれにも該当しない。構造的に別の作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 transaction.cc の read_internal に実在する無限スピン待機を正確に指し、attribution[0] の ipc 崩壊 (1.4–1.6→0.4–0.5) と attribution[1] の待機打ち切り政策の workload 反転という実測値に接続。反証可能な観測 (ipc・abort_rate・workload 感度) を指定しており恒真文ではない。torn read を作らず abort/retry へ倒す点も末尾 expected==check 再検査という実在構造に整合。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type が code_fragment (スピンを上限付き→abort 変換する分岐差替)。スカラー上限は副次パラメータで構造変異が主体のため適格。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() 内 `if (log_set_.size() > LOGSET_SIZE / 2)` のフラッシュ閾値という位置は WAL on/off とは別の作用点で、診断に閾値軸は載っていない。位置としては既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 transaction.cc の wal() に実在する閾値条件を指し、attribution[2] の書込 I/O コスト帰属 (latency/llc_miss 増、abort 不変) に接続。反証可能な観測 (per-flush 固定費償却・latency) を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。閾値スカラーのみを動かす提案で構造変異を伴わないため、既存の機械的グリッド探索で代替可能。提案自身も headline 非対象・探索補助限定と明記。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read-phase spin の abort 変換) は 3 項すべて満たし適格。提案1 (WAL flush 閾値) は c1/c2 は満たすが scalar 単体のため c3 で不適格。束内に採点基準変更の誘導は無し。global_unknowns の headline 非対象等の記述は副次情報であり判定に作用させていない。"
+ },
+ "retries_used": 0
+}

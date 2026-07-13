@@ -1,0 +1,67 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-lockconflict-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::lockWriteSet() 内、write set を施錠して回る for ループの `if (expected.lock)` 分岐 — ロック済みタプルに遭遇したときの応答部（stock では NO_WAIT_LOCKING_IN_VALIDATION = 即 abort / NO_WAIT_OF_TICTOC = 部分解錠して goto retry のコンパイル時マクロで選択されている箇所）",
+    "skeleton": "ロック済み遭遇時の応答方針（即 abort / 部分解錠して再試行 / 有界スピン後に再試行 など）を挟む EVOLVE-BLOCK を、この衝突応答分岐のみに開ける。CAS 成功側パス（`compareExchange` 成功 → break、および #if TRACE の record_lock）は骨格として据え置き、変異が施錠獲得自体を飛ばせないようにする"
+   },
+   "mechanism_hypothesis": "stock の lockWriteSet は施錠獲得の内側ループに衝突応答分岐を持ち、この応答方針は既開通の silo-writeset-sort（施錠する順序を決める comparator）とも silo-backoff-magnitude（abort 後の待機量）とも構造的に別の制御点である。sort は「どの順で獲得を試みるか」、backoff は「abort 後にどれだけ待つか」を動かすのに対し、この hole は「獲得の途中でロック済みを踏んだ瞬間に、待つのか諦めるのか」を動かす。書込競合下ではこの分岐の通過頻度が高くなる構造なので、方針差が abort 率と再試行の無駄仕事の配分に効く地形がありうると予想する（反証形: 競合を上げても挙動が平坦なら地形なし）。diagnostics が空のため実測の裏付けはなく、これは stock 構造からの観測にとどまる",
+   "safety_argument_hypothesis": "獲得途中で諦める方針を入れると『全 write ロックを保持しないままコミット段へ進む』経路や、部分解錠と再獲得の組合せによる livelock/deadlock を新たに開きうる。#if TRACE の record_lock / writePhase 入口の被覆チェックが CAS 成功パス側にある前提を壊さないことが必要。段階 B で必ず再検証される下書き",
+   "unknowns": [
+    "感度を持つ workload（競合度・write 比率・スレッド数の動作点）— diagnostics 空のため機序単独で導出不能",
+    "reward hack 仮説（例: 早期 abort で見かけの throughput を稼ぐ退化）の有無と positive control 設計",
+    "計測動作点（competing との相対比較基準）",
+    "偵察の列挙空間（試すべき方針バリアントの集合）",
+    "既存 silo-writeset-sort との相互作用（sort 順が変わると本 hole の最適方針が動くか）"
+   ]
+  },
+  {
+   "axis_name": "silo-readwait-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal() 内、(a) の読取後にある `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(...); } ... }` の、writer がロック保持中に無制限にスピンして待つ内側ループ",
+    "skeleton": "read フェーズのロック待ちを、無制限 busy-spin から変異方針（有界スピン後に abort、pause 挿入、tidword 再読込間隔の変更など）に差し替える EVOLVE-BLOCK を、この待機ループのみに開ける。(e) の `expected == check` 二重チェックによる整合確認は骨格として据え置き、torn read を許さない"
+   },
+   "mechanism_hypothesis": "stock の read_internal は、対象タプルを writer がロック中のとき無制限に busy-spin して解錠を待つ。これは write set 施錠側の制御点（silo-writeset-sort / silo-lockconflict-policy）や abort 後待機（silo-backoff-magnitude）とは別フェーズ（read phase）の待機であり、既開通 hole の探索範囲に含まれない別位置である。read 主体で writer が混じる競合下では、この無制限スピンが読取レイテンシと CPU サイクルを消費する構造なので、有界化・pause 化で read latency とキャッシュ圧が動く地形がありうると予想する（反証形: writer 混入を上げても read latency が平坦なら地形なし）。diagnostics 空のため実測裏付けなし、stock 構造からの観測にとどまる",
+   "safety_argument_hypothesis": "待機を途中で打ち切って読む方針にすると、ロック保持中の値をコピーする torn read を新たに開きうる。abort に落とすなら status 遷移と read_set_ の整合、および (e) の再チェック不変を保つことが必要。段階 B で必ず再検証される下書き",
+   "unknowns": [
+    "感度を持つ workload（read/write 比率・skew・competing writer の動作点）— diagnostics 空のため機序単独で導出不能",
+    "reward hack 仮説（早期 abort による見かけ改善）と positive control 設計",
+    "計測動作点",
+    "偵察の列挙空間（有界化・pause・再読込間隔のバリアント集合）",
+    "silo-lockconflict-policy と同一の『待つ vs 諦める』軸族に属し独立軸として成立するかの構造照合（人間 gate の台帳照合対象）"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-threshold",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::wal() 内、ログをまとめて書き出す判定 `if (log_set_.size() > LOGSET_SIZE / 2)` のフラッシュ閾値（LOGSET_SIZE は transaction.hh で 1000 定義）",
+    "skeleton": "ログをファイルへ書き出す前にバッファに溜めるレコード数の閾値をスカラーとして変異させる hole。LOGSET_SIZE 配列上限との整合を保つ範囲でフラッシュ発火点を動かす"
+   },
+   "mechanism_hypothesis": "stock の wal は log_set_ が LOGSET_SIZE の半分を超えたらまとめて書き出す。この閾値は 1 回のログ書込に何 tx 分を束ねるかを決めるスカラーで、既開通の silo-backoff-magnitude（abort 後待機量）とも施錠系 hole とも別の制御点である。閾値を上げれば書込回数が減り I/O が償却され、下げれば per-tx のフラッシュ頻度が上がる構造なので、WAL 有効ビルドで throughput と per-tx latency の配分に効く地形がありうると予想する（反証形: WAL 無効なら本経路が通らず地形なし）。diagnostics 空のため実測裏付けなし、stock 構造からの観測にとどまる。mutation_type=scalar のため headline 非対象",
+   "safety_argument_hypothesis": "閾値を LOGSET_SIZE に対して過大に取ると log_set_ / latest_log_header_.logRecNum_ を跨いだ書出しでバッファ上限や durability window を壊しうる。回復（replayTest 経路）が読める形式・件数不変を保つことが必要。段階 B で必ず再検証される下書き",
+   "unknowns": [
+    "本 hole は WAL 有効ビルドでのみ活性 — 対象ビルド構成が計測系に含まれるかが機序単独で不明",
+    "感度を持つ workload（write 量・VAL_SIZE・ログ I/O 帯域の動作点）",
+    "reward hack 仮説（フラッシュを遅らせて見かけ throughput を稼ぐ／durability を損なう退化）と positive control 設計",
+    "計測動作点および LOGSET_SIZE 上限との安全な可動範囲",
+    "偵察の列挙空間（探索するスカラー値域）"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空オブジェクトで提供されたため、全提案の mechanism_hypothesis は attribution 実在項目の名指しではなく stock 抜粋と編集面の地図の構造観察に基づく。実際の性能地形の有無・向き・大きさは一切裏付けられておらず、段階 B の実コード裏取りと独立再導出が前提",
+  "既開通 hole は silo-writeset-sort（transaction.cc, コード片）と silo-backoff-magnitude（backoff.hh, スカラー）の 2 件のみが入力射影に明示されている。提案 3 件がこれらの探索範囲外であることの最終確認は人間 gate の既存軸台帳との構造照合に委ねる",
+  "候補 silo-lockconflict-policy と silo-readwait-policy は『ロック待ちで待つか諦めるか』という近い機序族に属する別位置であり、独立軸として両立するか一方に統合すべきかは段階 B の判断対象",
+  "全提案は D47 決定 5 により当面『探索補助』限定で段 6 headline 非対象"
+ ]
+}

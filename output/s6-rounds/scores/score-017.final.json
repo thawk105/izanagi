@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断には「コミット時ログ書込の有効化 (on/off)」があるが、本提案は on/off トグルではなく sbomb_silo.cc worker_init ラムダの logfile_.open のフラグ集合と ftruncate 事前確保という別の処理段・別作用点 (I/O パス設定) を hole 化しており、transaction.cc の wal() には触れないと明言。軸内探索の言い換えではなく構造的に別の hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "参照する logfile_.open / ftruncate(1000000000) は stock 抜粋 sbomb_silo.cc に実在。診断の latency 増・llc_miss 増という指標に接続し、cache 経由回避フラグで llc_miss 増分が動くはずという反証可能観測を指定 (動かなければ page cache 干渉仮説が否定)。実在構造への接続あり。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (フラグ集合の書換え)。scalar 単体ではない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断のどの軸 (backoff-magnitude / validation 政策 / ログ書込) にも thid→core 親和性写像は現れない。setThreadAffinity(thid) の恒等写像を並べ替える別作用点で、既出軸の言い換えでない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "参照する setThreadAffinity(thid) は stock 抜粋 sbomb_silo.cc の worker_init ラムダに実在。診断が llc_miss を『微増/増加』と生きた指標として示す点に接続し、写像を並べ替えると llc_miss (下流 IPC・latency) が動くという反証可能観測を指定。実在構造への接続あり。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (thid→core 写像の書換え)。scalar 単体ではない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "両提案とも hole 位置が異なり (WAL ログ I/O パス vs worker コア親和性写像)、実質同一ではない。両提案が対象とする sbomb_silo.cc は edit_surface_map 上 opened=false だが、これは採点3項の判定材料ではなく減点しない (提案自身 global_unknowns で未検証と明記)。両者とも stock 実在構造に接続し反証可能観測を指定。束内に採点基準変更の誘導は認めない。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal の for(;;) while(expected.lock){ loadAcquire } ロック待ちスピンの待機規律。材料1診断は backoff-magnitude・validation中の待たない政策・コミット時ログ書込・writeset-sort であり、読み取り相の対書き手スピン規律は別処理段・別作用点。既出軸の言い換えではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の read_internal スピンと writePhase の memcpy(get_val_ptr)+storeRelease(maxtid) という実在構造に接続。反証可能な観測『高 write ratio/skew 動作点でスピン規律に throughput が非感応なら仮説は誤り』を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment(構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork の epoch 前進スパン閾値は診断の3軸(backoff/待たない政策/ログ書込)いずれとも別位置・別処理段。ただし既存 FLAGS_epoch_time チューニングと外形が近い点は留保。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "siloLeaderWork の chkClkSpan+chkEpochLoaded→atomicAddGE、validationPhase の atomicStoreThLocalEpoch、writePhase の commit TID epoch という実在構造に接続。反証観測『閾値に throughput 非感応なら誤り』を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。既存グリッド探索で代替可能のため不適格。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork の ReclamationEpoch ラグ量(リテラル2)と gc_records の epoch 境界は GC 回収窓であり診断3軸のいずれとも別機序・別位置。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "siloLeaderWork の ReclamationEpoch=cur_epoch-2、gc_records() の rec->tidword_.epoch>r_epoch 判定、writePhase DELETE 経路の gc_records_.push_back という実在構造に接続。反証観測『delete を含む workload で回収ラグに throughput/メモリ非感応なら誤り』を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。既存グリッド探索で代替可能のため不適格。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "束は『diagnostics は空』と繰り返し主張するが、材料1の diagnostics は silo-backoff-magnitude(alive)・silo-writeset-sort(dead)を含み空ではない。この誤前提は採点基準を変えずデータとして扱い、既存性照合は材料1に対して通常どおり実施した。提案0のみ3項適格。提案1・2は code_fragment 位置を指しつつ mutation_type=scalar 単体のため c3 で不適格。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "軸は ReclamationEpoch = cur_epoch - 2 の後退距離 (GC 解放境界) を振るもの。診断の 3 軸 (backoff 待機量・validation ロック政策・コミットログ書込) のいずれとも別の処理段 (siloLeaderWork の reclamation frontier / gc_records) を提案しており既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "util.cc の siloLeaderWork 内 ReclamationEpoch 計算・transaction.cc の gc_records() の `rec->tidword_.epoch > ReclamationEpoch` 消費という実在構造を指し、lag→常駐フットプリント→llc_miss/latency 方向の地形という反証可能な観測を指定している。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。提案本文の unknowns 自身も headline 非対象 scalar と明記。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "chkEpochLoaded の全スレッド一致述語 (エポック前進ゲート) を定足数/時間上限政策に差し替える hole。診断 3 軸とも別の処理段 (GlobalEpoch 前進条件) で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の util.cc chkEpochLoaded (全 ThLocalEpoch==nowepo 要求)・atomicStoreThLocalEpoch (validation 到達時のみ前進)・siloLeaderWork の atomicAddGE という実在構造に接続し、定足数部分化→latency 方向の地形という反証可能な観測を指定している。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異) なので適格。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は novel かつ機序実質的だが scalar 単体で軸適格性 no のため不適格。提案1は code_fragment・別処理段・実在構造接続・反証可能観測を満たし適格。束内に D44/D47 等の運用ラベル・headline 非対象指定があるが採点基準は変更せず 3 項で判定した。"
+ },
+ "retries_used": 0
+}

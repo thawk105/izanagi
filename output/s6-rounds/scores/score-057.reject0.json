@@ -1,0 +1,30 @@
+{
+ "problem": "scored[1]-criteria-not-bool",
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の 3 軸 (backoff-magnitude・validation no-wait 政策・コミット時ログ書込) および silo-writeset-sort のいずれとも別の作用点。worker_init ラムダの setThreadAffinity(thid) 引数変換 (thread→物理コア割当写像) は材料 1 の診断・既開通 hole に登場せず、別処理段の構造的 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "tpcc_silo.cc stock 抜粋に実在する `setThreadAffinity(thid)` 呼出および common.hh/util.cc の posix_memalign 済み ThLocalEpoch/CTIDW 共有配列を指して繋がる。診断の ipc 崩壊・llc_miss 微増を根拠に、割当政策変更で llc_miss_rate・ipc が変化するという反証可能な観測を指定 (政策間で llc_miss/ipc が不変なら否定)。恒真文ではない。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (割当写像 f(thid) を挟む構造変異)。scalar 単体ではない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "ftruncate(1e9) のログ事前確保サイズは診断の attribution 第3項 (ログ書込 on/off) とは別の作用点で、診断軸そのものの再掲ではない。tpcc_silo.cc の ftruncate リテラルを指す。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "tpcc_silo.cc stock 抜粋の `trans.logfile_.ftruncate(1000000000)` に実在接続。attribution 第3項の書込 I/O コスト分離を根拠に、write-heavy で latency が事前確保サイズに感度を持つという反証可能観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。提案本文自身も scalar と明記。"
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は core-affinity 引数変換のコード片軸で 3 項適格。提案1は WAL 事前確保サイズの scalar 単体で c3 不適格。束の unknowns には診断 workload (YCSB) と被指定領域 (TPC-C 入口) の不一致が自己申告されているが、既存性・機序判定には作用させず基準通り採点した。"
+ }
+}

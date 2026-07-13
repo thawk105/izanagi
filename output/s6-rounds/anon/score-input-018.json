@@ -1,0 +1,50 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lockwait-discipline",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal 内、tuple の tidword を読んでロック解放を待つ最適化スピン `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の待機ループ本体と離脱条件",
+    "skeleton": "読み取り経路でロック中タプルに遭遇したときの待機規律を変異選択可能にする hole。無制限のタイトスピン (現状) を、待機政策 (例: 有限スピン回数後に abort/再試行へ離脱・ポーズ挿入・即時 abort など) に差し替える構造を read-lock-wait 地点に挟む。abort 経路の待機 (backoff) とは別位置・別機序 (read-phase の spin-vs-abort 判断)。読了後の (e) tidword 再確認と『lock クリア時のみ body を読む』不変は骨格側に残し、変異面は待機の続行/離脱の判断だけに限定する"
+   },
+   "mechanism_hypothesis": "attribution『abort 後の再試行前バックオフ待機の有効化』が、待機の副作用として ipc を 1.4–1.6→0.4–0.5 に崩壊させ (indicators.ipc: 『コアが待機で実命令を発行できない』)、llc_miss_rate は微増にとどまる (cache 面利得なし) と診断している。つまりこの系の待機は cache 律速でなく IPC 律速で throughput を直接削る第一次要因である。read_internal には backoff とは別に、read 経路上の減衰なしタイトスピン (ロック中タプルへの busy-wait) が実在する。同 attribution で latency が read-heavy で 5.7→25μs と最大に伸びており、read-heavy が待機追加に対して相対感度が高いことを示唆する。よってこの read-lock-wait 地点の待機規律を変異させると、post-abort backoff とは別位置で abort と IPC のトレードオフを動かす性能地形がありうる。",
+   "safety_argument_hypothesis": "Silo の読み取り不変 (body はロック解放時のみ読む・読了後に tidword を再確認して一致時のみ read_set へ確定) を壊しうる。待機を早期離脱させて『ロック保持中に body を読む』『(e) 再確認を省く』変異は torn/未コミット読み → 直列化違反になる。逆に有限スピン後 abort へ抜ける変異は構成上安全側 (abort が増えるだけ)。段階 B で読み取り不変の保存を必ず再検証する。",
+   "unknowns": [
+    "感度を持つ workload の実測特定 (mechanism は read-heavy を示唆するが 1 動作点・各構成 1 round・交互作用未分離のため裏取り必須)",
+    "reward hack 仮説 (待機短縮が正しさ検証を素通りして見かけ throughput を上げる経路の有無)",
+    "positive control 設計 (待機規律が確かに効く条件の作り込み)",
+    "計測動作点 (skew/thread/レコード数/workload 比率の選定)",
+    "偵察の列挙空間 (どの待機政策バリアントを候補集合に含めるか)",
+    "この hole が silo-backoff-magnitude の探索範囲 (post-abort 待機) と実コード上で重複しないことの独立確認"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-cadence",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::wal 内、蓄積ログのフラッシュ発火条件 `if (log_set_.size() > LOGSET_SIZE / 2) { ... logfile_.write(...); ... latest_log_header_.init(); log_set_.clear(); }` (LOGSET_SIZE は transaction.hh で 1000 定義)",
+    "skeleton": "ログレコードをバッファに溜めて logfile_ へ書き出すフラッシュ発火の粒度/構造を変異選択可能にする hole。現状は固定の半バッファ閾値でのサイズ駆動フラッシュ。これを batching/group-commit のトリガ構造 (バッチサイズ・グループ境界などフラッシュ発火規律) として開ける。チェックサム確定 (convertChkSumIntoComplementOnTwo) とヘッダ+レコードの書き出し整合は骨格側に残し、変異面は『いつ溜め・いつ吐くか』の発火規律に限定"
+   },
+   "mechanism_hypothesis": "attribution『コミット時ログ書込の有効化』は、throughput 低下が書込比率に単調比例 (write-heavy -13.4% / balanced -6.8% / read-heavy は noise 内) し、indicators で abort_rate 不変・latency 増加・llc_miss_rate 増加、と診断している。損は競合でも正しさ検証でもなく純粋な書込 I/O コストへ帰属済み。損が I/O 償却コストであるなら、フラッシュ発火の粒度 (1 フラッシュあたりに何レコードを束ねるか) がその per-flush 償却コストを直接支配する。stock は固定の半バッファ閾値で吐く実装であり、batching/group-commit のトリガ構造を変異させると、書込比率が最大の workload ほど強く I/O 償却の地形を動かしうる。",
+   "safety_argument_hypothesis": "ログの整形不変 (LogHeader の chkSum の二の補数化・logRecNum カウント・レコード列の対応) と『コミット済みトランザクションのレコードをフラッシュ前に落とさない』ことを壊しうる。発火規律の変異でレコード欠落や二重計上が起きると log ファイルが不整合になる。なお本ベンチは fdatasync がコメントアウト・val が 'FIXME' スタブでクラッシュ耐久性は弱く計測されておらず、耐久性そのものは範囲外の可能性が高い — 正しさハーネスが log 内容/整形をどこまで検査するかを段階 B で確定し再検証する。",
+   "unknowns": [
+    "mutation_type の確定 (固定閾値のスカラー化に留まるなら scalar、発火構造の差し替えなら code_fragment。骨格を code_fragment 仮置きしたが、スカラーが最近接の代替であり、収まり方はオンボーディング側ひな型の判断を要する)",
+    "感度を持つ workload の実測特定 (mechanism は write-heavy 最大を示唆するが単一動作点・交互作用未分離のため裏取り必須)",
+    "reward hack 仮説 (フラッシュ発火を遅延/間引くことで I/O を回避しつつ正しさ検証を素通りする経路の有無)",
+    "positive control 設計 (I/O 償却が確かに効く条件の作り込み)",
+    "計測動作点 (WAL 有効前提での workload 比率・レコード数の選定)",
+    "偵察の列挙空間 (どの batching/group-commit バリアントを候補集合に含めるか)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離であり、機序仮説の性能地形はいずれも独立再導出 (段階 B) と多動作点での裏取りを経ないと確度が付かない",
+  "本役の 2 提案はいずれも探索補助限定であり段 6 主結果 (headline) の対象軸にしない (入力が coder 出力後の機序帰属である以上、事前登録『軸命名は coder 出力前に固定』と原理的に非両立。昇格には事前登録側の改訂が前提)",
+  "両 hole は既開通領域 transaction.cc 内だが既存 hole (silo-writeset-sort = コミット時施錠順序 comparator) とは別位置・別機序である旨は、段階 B の既存軸台帳との構造照合で独立確認が必要",
+  "noise floor 2.28% が示すとおり read-heavy 相当の小差は順位不能であり、提案軸の効果判定にも同等の計測分解能の確保が要る"
+ ]
+}

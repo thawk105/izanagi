@@ -1,0 +1,49 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-reclamation-epoch-lag",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/include/util.hh",
+    "source_rel": "cc/silo/include/util.hh",
+    "position": "siloLeaderWork の宣言に隣接して、reclamation フロンティアの後退距離を表すヘッダレベル定数を新設する。現在この距離は siloLeaderWork 実装 (util.cc) の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0` のリテラル 2 として埋め込まれ、gc_records() が `rec->tidword_.epoch > ReclamationEpoch` の記録だけ残す形で消費される",
+    "skeleton": "util.hh に `constexpr uint32_t` の lag スカラーを宣言し (現リテラル 2 の置換)、siloLeaderWork が cur_epoch からその lag を引いて ReclamationEpoch を決める。GC 解放境界 = 現エポックから何エポック後退させるか、を 1 スカラーで振る hole"
+   },
+   "mechanism_hypothesis": "diagnostics 非空。attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」の indicator llc_miss_rate は微増 (cache 面の利得なし)、実在項目「コミット時ログ書込の有効化」の indicator llc_miss_rate は増加 — llc_miss が二つの独立した attribution 項目で動いている。reclamation lag は削除記録 (gc_records_ deque、epoch <= cur-lag でのみ解放) の常駐フットプリントを直接支配する量であり、これは llc_miss が反映する常駐量の一部。lag を振ると、上記二項目が各々 待機 / 書込 I/O に帰属させている llc_miss とは別経路で llc_miss・latency 方向に地形が出ると予想する",
+   "safety_argument_hypothesis": "lag を read-safety に必要なエポック窓より小さくすると、in-flight トランザクションがまだ読みうる記録を早期解放しうる (Silo の GC 正当性は lag ≥ 必要エポック数に依存) → use-after-free / lost-update。安全な下界は性能ノブではなく正当性不変量であり、段階 B で必ず再導出される前提の下書き",
+   "unknowns": [
+    "感度を持つ workload の特定 — 診断動作点 (skew0.9/48thread/1M) の delete/insert 比率が未提供で、GC フットプリントが効く workload を機序単独で決められない",
+    "reward hack 仮説 — lag を極大化して全 GC を先送りしメモリを膨張させる / 極小化して torn read で見かけ上加速する 変異が spurious な数値を出しうる (要 positive/negative control 設計)",
+    "positive control 設計・計測動作点・安全下界の偵察空間 — いずれも実コード裏取り/実測を要し機序単独では埋まらない",
+    "リテラル 2 をヘッダ定数として宿すのが最善か、siloLeaderWork 実装を持つ util.cc (opened:false) の共開通を要するか — 編集面の実体所在の確認が必要",
+    "mutation_type=scalar により本提案は自動的に headline 非対象ラベル (D44 決定 1(i))。加えて本役の提案は探索補助限定 (D47 決定 5)"
+   ]
+  },
+  {
+   "axis_name": "silo-epoch-advance-quorum",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/include/util.hh",
+    "source_rel": "cc/silo/include/util.hh",
+    "position": "chkEpochLoaded の宣言 (siloLeaderWork が atomicAddGE の直前に消費するエポック前進ゲート)。現状 chkEpochLoaded は全 worker スレッドの ThLocalEpoch == 現エポック を要求し、満たすまで GlobalEpoch を増やさない",
+    "skeleton": "全スレッド一致の述語を、ヘッダレベルの政策フラグメントに差し替える hole (例: 定足数比率・時間上限による前進上書き)。エポック前進の前提条件をどんな述語で判定するか、の構造記述を挟む"
+   },
+   "mechanism_hypothesis": "diagnostics 非空。attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」の indicator ipc は全 workload で 1.4–1.6→0.4–0.5 に崩壊 (コアが待機で実命令を発行できない)、latency は read-heavy 5.7→25μs に増加。バックオフは worker を pause ループに滞留させるが、ThLocalEpoch は validationPhase 到達時のみ atomicStoreThLocalEpoch で前進するため、滞留スレッドは chkEpochLoaded の全スレッド定足数を遅らせ、GlobalEpoch とそれに連なる group-commit / 耐久性境界を停滞させる — 上記項目が latency 膨張を帰属させている「待機で idle」条件と同じ経路。定足数を部分化する変異は、待機量そのもの (backoff-magnitude 軸) の変更とは別に latency 方向へ地形を出すと予想する",
+   "safety_argument_hypothesis": "全スレッド定足数を緩めると、旧エポックで実行中のスレッドを追い越して GlobalEpoch (および ReclamationEpoch) が前進しうる → Silo のエポックベース直列化 / GC 安全不変量を破り、非直列コミットや早期回収を招く。段階 B はこの定足数が守る不変量を先に再導出してからでなければ緩和を評価できない",
+   "unknowns": [
+    "定足数ロジックを util.hh (宣言のみのヘッダ) 内に宿せるか、実体を持つ util.cc (opened:false) の共開通を要するか — code_fragment の実際の編集面所在の確認が必要",
+    "感度を持つ workload — どの workload の latency が定足数律速かは機序単独で決まらず実測を要する",
+    "reward hack 仮説 — 定足数無視のエポック前進が commit 計数を spurious に膨らませうる (positive/negative control 要設計)",
+    "positive control 設計・計測動作点・エポック不変量の偵察空間 — 実コード裏取りを要し機序単独では埋まらない",
+    "backoff との交絡 — 診断で交互作用は未分離、かつ siloLeaderWork と leaderBackoffWork は同じ leaderWork 内で走るため効果分離が非自明",
+    "本役の提案は探索補助限定・headline 非対象 (D47 決定 5)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "診断はすべて単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離・noise floor 2.28%) の射影であり、両提案の地形は未計測。感度 workload・reward hack・positive control・計測動作点は機序単独で埋められず段階 B の実コード裏取りに落ちる",
+  "hole_region_directive により両提案とも region=cc/silo/include/util.hh に固定した。util.hh は宣言中心のヘッダで、両 hole の実体ロジック (siloLeaderWork / chkEpochLoaded の実装) は util.cc (opened:false) 側にある — 提案は領域指定に従うが、実体の編集面がヘッダ内定数/inline で足りるか util.cc 共開通を要するかは人間 gate 側の判断事項",
+  "既存軸 (silo-backoff-magnitude=再試行前待機量スカラー@include/backoff.hh / silo-writeset-sort=施錠順 comparator@transaction.cc) との構造照合は人間承認 gate の仕事。両提案は別領域・別機序 (エポック回収境界 / エポック前進定足数) だが、既存軸台帳との最終照合は本役の範囲外",
+  "命名 axis_name はいずれも LLM 命名として出所記録に残る前提 (D47 決定 5)"
+ ]
+}

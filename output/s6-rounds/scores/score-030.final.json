@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断 silo-backoff-magnitude の3項目め『コミット時ログ書込の有効化 (on/off)』は WAL のオン/オフ切替。本提案は bomb_silo.cc worker_init の open(O_CREAT|O_TRUNC|O_WRONLY) 呼びと ftruncate、および wal() の sync 有無という I/O 経路パラメタ (フラグ集合・fdatasync・preallocation) を変異面とする。on/off の切替ではなく I/O 経路構成という別作用点の hole であり、軸内探索の言い換えでなく構造的に別 hole。提案自身も unknowns で重複懸念を挙げるが、作用点・骨格が診断の on/off と異なるため novel と判定。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は stock_excerpts に実在する構造 (bomb_silo.cc の trans.logfile_.open(logpath, O_CREAT|O_TRUNC|O_WRONLY, 0644)・ftruncate、transaction.cc の wal() のコメントアウトされた fdatasync) を正確に指す。反証可能観測として『I/O 経路パラメタを変えると latency と llc_miss_rate の増分に地形が出る、write-heavy が最感度』を指定。実在構造への接続と反証可能観測ありで yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (open フラグ集合・sync 呼びの挿入・preallocation の複合変異)。scalar 単体でなく構造変異。yes。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "スレッド affinity (thid→物理コア写像) は診断のどの attribution にも載っていない。llc_miss_rate の変化は backoff 待機と WAL I/O に帰属済みだが placement は独立要因として未登場。setThreadAffinity(thid) を別配置ポリシに差し替える別作用点の hole であり novel。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は bomb_silo.cc worker_init の #ifdef Linux ガード下 setThreadAffinity(thid) という実在呼びを指す。反証可能観測として『thid→core 恒等写像を別配置に開けると llc_miss_rate に地形が出る (skew0.9/48thread の高競合下で LLC 共有トポロジを左右)』を指定。恒真文でなく特定の観測量の振る舞いを予言しており yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (thid→core 割当関数の差し替え = 構造変異)。yes。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "2 提案とも指定 region cc/silo/bomb_silo.cc の worker_init 内の別々の作用点 (WAL open/I-O 経路、thread affinity) を対象とし、機序は診断の I/O コスト帰属・llc_miss 指標に接続。提案束内の global_unknowns で段階 B の台帳照合など運用手順への言及があるが採点基準への誘導ではなく、通常どおり3項で採点。両提案とも3項 yes で適格。"
+ },
+ "retries_used": 0
+}

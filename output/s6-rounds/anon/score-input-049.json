@@ -1,0 +1,50 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-wal-durability-config",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/tpcc_silo.cc",
+    "source_rel": "cc/silo/tpcc_silo.cc",
+    "position": "worker_init ラムダ内の #if WAL ブロック — trans.logfile_.open(logpath, O_CREAT | O_TRUNC | O_WRONLY, 0644) の open フラグと、その後のログ書込に対する同期方針の指定箇所",
+    "skeleton": "#if WAL のログファイル open 方式 (open フラグ + 書込同期/バッファリング方針: fdatasync 有無・O_DSYNC・O_DIRECT 等) を EVOLVE-BLOCK hole 化し、I/O パスの書込方式のみを変異させる。ログレコード生成・チェックサム計算 (transaction.cc wal() / log.hh) は挟まず、ファイルオープンと同期の構成だけを差し替える骨格"
+   },
+   "mechanism_hypothesis": "diagnostics の silo-backoff-magnitude 軸 attribution 3 (design_choice『コミット時ログ書込の有効化 (on/off)』) は、throughput 低下が書込比率に単調比例 (balanced -6.8% / write-heavy -13.4% / read-heavy -1.9% は noise 内) し、indicators で abort_rate 不変・latency 増加・llc_miss_rate 増加を示すことから、これを競合でも正しさ検証でもない『純粋な書込 I/O コスト』へ帰属している。コストが I/O パスに帰属している以上、その I/O コストを形作る実レバー = ログファイルの open 方式・同期方針 (本領域 worker_init の #if WAL ブロックに実在) が性能地形を持つ位置と予想する。反証可能な予想: open/同期方式を変えれば abort_rate を動かさずに latency と llc_miss_rate を上下でき、帰属が誤りなら効果は出ない。",
+   "safety_argument_hypothesis": "WAL は crash recovery / durability 機構。open フラグ (O_TRUNC / O_DSYNC / O_DIRECT 等) や同期の有無を変えると、ログの永続性保証と replayTest.cc が前提するレコード整形 (log.hh computeChkSum のチェックサム境界・VAL_SIZE 前提) が壊れうる。特に O_DIRECT 化はアラインメント要件を導入し既存 write() 経路 (fileio.hh、抜粋外) と非整合になりうる。段階 B で durability / replay 正しさの再検証必須。",
+   "unknowns": [
+    "感度を持つ workload の特定 — attribution 3 は write-heavy で最大だが read/balanced/write-heavy・書込比率という診断は YCSB (rratio) 系動作点由来に見え、TPC-C 入口 (本領域) への機序転移は未検証",
+    "reward hack 仮説 — 同期を落として durability を犠牲に見かけ throughput を稼ぐ偽の勝ち筋の排除設計 (positive control 要)",
+    "positive control 設計 (機序単独で導出不能)",
+    "計測動作点 — 本 hole は #if WAL コンパイル時のみ有効。単一動作点 skew0.9 / 48thread / 1M・各構成 1 round・noise floor 2.28% の枠内で効果が noise を超えるか未確定",
+    "偵察の列挙空間 — 安全かつ意味ある open フラグ/同期変異の集合。File クラスと write() 実装 (fileio.hh) は抜粋外で挙動未知",
+    "既存 WAL on/off・backoff・no-wait 政策との交互作用 (診断上も未分離)"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-prealloc-size",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/tpcc_silo.cc",
+    "source_rel": "cc/silo/tpcc_silo.cc",
+    "position": "worker_init ラムダ内 #if WAL ブロックの trans.logfile_.ftruncate(1000000000) — ログファイル事前確保サイズのリテラル 1000000000",
+    "skeleton": "ftruncate によるログファイル事前確保サイズのスカラー (1000000000) を EVOLVE-BLOCK hole 化し、書込前のブロック割当・メタデータ更新が書込経路に混入する量を変える。周辺の open/書込ロジックは不変、確保サイズ 1 値のみ変異"
+   },
+   "mechanism_hypothesis": "同じ attribution 3 (『コミット時ログ書込の有効化 (on/off)』) が WAL コストを latency 増加・llc_miss_rate 増加を伴う『純粋な書込 I/O コスト』と帰属している。事前確保サイズはこの I/O コストの一成分 — 書込中のファイルシステム側ブロック割当/メタデータ更新の発生量 — を左右する実パラメータであり、本領域に literal として実在する。予想: 確保サイズを変えれば abort_rate を動かさず I/O コスト側 (latency) が動く。帰属が誤り、あるいはこの run 長で割当コストが観測不能なら効果は出ない (反証可能)。",
+   "safety_argument_hypothesis": "ftruncate は正しさに直接効かない (書込は事前確保外へも拡張可能)。ただし過小確保は動的ブロック割当を書込経路へ混ぜ I/O コスト帰属を交絡させ、過大確保は初期化コスト/ページキャッシュ圧を変える。1000000000 を固定サイズ前提にする箇所 (抜粋外) があれば破綻しうる — 段階 B で確認。",
+   "unknowns": [
+    "感度を持つ workload の特定 — attribution 3 の観測が YCSB 系動作点由来に見え、TPC-C 入口への転移が未検証。3 秒 run 長で事前確保サイズ差が計測可能かも不明",
+    "reward hack 仮説",
+    "positive control 設計",
+    "計測動作点 — #if WAL コンパイル時のみ有効・単一動作点・noise floor 2.28% との比較",
+    "偵察の列挙空間 — File::ftruncate 実装挙動 (fallocate vs truncate の割当意味、fileio.hh 抜粋外)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "workload 整合性の疑い: 診断の read-heavy/balanced/write-heavy と『書込比率』は YCSB (rratio) 系スイープ由来に見えるが、hole_region_directive は region を TPC-C 入口 (cc/silo/tpcc_silo.cc) に固定。WAL 設定ブロックは各ベンチ入口で重複しており、tpcc の hole は TPC-C run のみに効く。attribution 3 の I/O コスト機序が固定 transaction mix の TPC-C に転移するかは段階 B 偵察事項",
+  "両提案とも #if WAL コンパイル時のみ意味を持つ — build 構成に WAL が含まれることが前提",
+  "本領域 (cc/silo/tpcc_silo.cc) は edit_surface_map で opened:false。開通コストの判断は人間側 (本役は機序が指す位置として提案するのみ)",
+  "両提案とも本役の規定により『探索補助』限定・段 6 headline 非対象。うち scalar 提案 (silo-wal-prealloc-size) は自動的に headline 非対象ラベル対象",
+  "入力に recommend 節・勝ち筋リテラル・順位・死んだ軸 (silo-writeset-sort) の機序帰属の混入は認めず (射影漏れ疑いなし)。attribution 2 の workload 間反転は非単調構造の保持であり勝者リテラルではないと判断"
+ ]
+}

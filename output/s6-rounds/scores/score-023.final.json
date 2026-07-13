@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1診断の既出軸は silo-backoff-magnitude (backoff.hh の abort 後再試行前待機) と silo-writeset-sort (dead, comparator)。本提案は transaction.cc の read_internal() ロック待ちスピンループ (別処理段・別作用点) に待機挿入する構造的に別の hole。既出軸の言い換えではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 read_internal の `while(expected.lock){ expected.obj_=loadAcquire(tuple->tidword_.obj_); }` と writePhase の storeRelease に実在的に繋がる。反証可能な観測: 競合の無い workload ではスピンに入らず差が出ない、を指定。診断非参照だが stock 実在構造への接続と反証観測があり適格。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork() の ReclamationEpoch lag 定数 2。診断3軸のいずれにも該当せず、別位置・別状態 (GC 猶予距離) の hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock util.cc の `ReclamationEpoch = cur_epoch>2?cur_epoch-2:0` と transaction.cc gc_records() の `rec->tidword_.epoch > r_epoch` に実在的に繋がる。反証観測 (削除/挿入がほぼ無い workload では gc_records_ が育たず無影響) を指定。ただし c3 不適格のため提案全体は不適格。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。既存の機械的グリッド探索で代替可能なため no。提案本文も『scalar のため段6 headline 非対象ラベルが自動付与』と自認。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read()/scan() 冒頭のローカルセット走査順序 (searchReadSet/searchWriteSet の順・短絡)。診断3軸 (backoff/comparator/log書込) のいずれとも別の作用点で構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock transaction.cc の searchReadSet/searchWriteSet 線形走査と read() の呼び出し順序に実在的に繋がる。反証観測 (read_set_/write_set_ が小さい workload では走査長差が無視でき無影響) を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (走査順・短絡の構造変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案束は繰り返し『diagnostics 空』と主張するが、材料1の diagnostics には silo-backoff-magnitude(alive)・silo-writeset-sort(dead) が実在し事実に反する。ただし c2 は診断参照を要求せず stock 実在構造への接続で判定するため採点結果には影響しない。提案0・2が適格 (code_fragment)、提案1は scalar 単体で c3 不適格。3項基準は束内の誘導に依らず同一に適用した。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,52 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lockwait-spin-shape",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "read_internal() の `for(;;){ while(expected.lock){ expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... (e) checks the TID word again ... }` の、ロック解放を待つ内側スピンおよびその再読ループ構造",
+    "skeleton": "read フェーズのロック解放待ちを、現在の『無制限バスィスピン (pause 無し・上限無し)』から別の待機構造へ差し替える EVOLVE-BLOCK hole。待機の形 (有界スピン→abort / pause 挿入 / 再読回数の上限化など) をコード片として変異させる。既開通の silo-writeset-sort (validationPhase の write set 施錠順序 comparator) とも silo-backoff-magnitude (abort 後 backoff、include/backoff.hh) とも位置・機序が異なる — こちらは read フェーズ内のロック解放待ちで、abort 後待機でも施錠順序でもない"
+   },
+   "mechanism_hypothesis": "silo-backoff-magnitude の attribution 第1項 (abort 後 backoff 待機 on/off) は、待機導入で ipc が全 workload 1.4–1.6→0.4–0.5 に崩壊 (指標注記『コアが待機で実命令を発行できない』) し、latency が read-heavy で 5.7→25μs に増える、という『バスィ待機は IPC を潰し read-heavy の latency を最も悪化させる』機序を実測で示した。read_internal のロック解放待ちスピン (`while(expected.lock) loadAcquire`) は、この機序と同型の無制限バスィスピンでありながら lifecycle 上の別地点 (read フェーズ。skew0.9 のホットキーが write でロックされている間 reader が回す) にあり、backoff 軸の射程 (abort 後待機) の外にある。read-heavy は backoff 軸で最大の損 (-77%) を出した動作点でもあるため、この読み取り側スピンの待機構造を変異させると IPC/latency トレードに地形が出ると予想する",
+   "safety_argument_hypothesis": "この変異は OCC の read 不変条件 (読み取り値が『ロック解放済みかつ TID 再確認で一致した安定版』であること) を壊しうる — 例えば早期 abort/pause 挿入自体は無害でも、再読回数の上限化がロック中・非最新版の torn read を素通しさせると dirty read になる。段階 B で read_internal の (a)〜(e) 不変条件保持を実コードで再検証する前提の下書き",
+   "unknowns": [
+    "感度を持つ workload の特定 (機序は read-heavy を示唆するが、待機構造変異が実際に throughput 地形を生むかは未実測 — 単調 latency 悪化のみで地形が無い可能性も含む)",
+    "reward hack 仮説 (例: 待機短縮が正しさ検証を素通りして見かけ throughput を稼ぐ経路)",
+    "positive control 設計",
+    "計測動作点 (skew/thread/レコード数/read 比率スイープ)",
+    "偵察の列挙空間 (試すべきスピン変種 = 有界スピン・pause 挿入・再読上限・abort 切替 等の候補集合)",
+    "既開通の silo-backoff-magnitude (abort 後待機) との交互作用 — 両方が待機である以上、独立でない可能性",
+    "本軸は探索補助限定。headline 昇格には事前登録側 (軸命名を coder 出力前に固定) の改訂が前提"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-granularity",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "wal() の `if (log_set_.size() > LOGSET_SIZE / 2){ convertChkSumIntoComplementOnTwo(); logfile_.write(header); logfile_.write(&log_set_[0], sizeof(LogRecord)*logRecNum_); ... }` のバッチ吐き出しトリガと 1 回の write でまとめるレコード数 (閾値定数 LOGSET_SIZE は transaction.hh 由来、コメントアウト中の fdatasync を含む)",
+    "skeleton": "ログのフラッシュ粒度・coalescing 戦略 (吐き出し閾値・1 write あたりレコード数・同期 fdatasync の有無) をコード片として変異させる hole。silo-writeset-sort (validationPhase の comparator) とは同一ファイル内だが別関数・別位置で、write I/O 経路を対象とする点で構造的に別"
+   },
+   "mechanism_hypothesis": "silo-backoff-magnitude の attribution 第3項 (コミット時ログ書込 on/off) は、throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%)、abort_rate 不変、latency と llc_miss_rate が増える、として損を『競合でも正しさ検証でもなく純粋な書込 I/O コスト』に帰属した。この帰属は損の原因を wal() の書込 I/O に局在させており、当該ラウンドは WAL on/off は測ったがフラッシュ粒度・coalescing は変異させていない (未探索の直交レバー)。wal() の吐き出し閾値・1 write あたりレコード数を変異させると、損最大の write-heavy (-13.4%) で per-tx I/O 寄与 (latency/llc_miss の増分) を amortize する方向に地形が出ると予想する",
+   "safety_argument_hypothesis": "この変異はクラッシュ回復・耐久性の前提 (ログが replay 可能な形で吐き出されること) と、LogHeader の chkSum_/logRecNum_ とレコード列のバッチ整合 (replayTest.cc が header→logRecNum_ 件のレコードを順に読む前提) を壊しうる。閾値やまとめ方の変異が header とレコード数の不整合や部分書込を生むと replay が壊れる。段階 B で耐久性・replay 整合を実コードで再検証する前提の下書き",
+   "unknowns": [
+    "感度を持つ workload の特定 (機序は write-heavy を示唆するが、amortize が実 throughput 地形を生むかは未実測。損が単調 I/O コストである以上、地形が乏しい可能性も残る)",
+    "本 hole は WAL ビルド (#if WAL) 有効時のみ効く — 計測構成が WAL 無効なら死ぬ。有効動作点の存在確認が必要",
+    "reward hack 仮説 (例: 同期省略/フラッシュ間引きで durability を犠牲に見かけ throughput を稼ぐ経路)",
+    "positive control 設計",
+    "計測動作点 (WAL 有効・書込比率スイープ・fdatasync 有無)",
+    "偵察の列挙空間 (吐き出し閾値・coalescing 単位・同期方式の候補集合)。閾値のみを変異させるなら mutation_type は scalar 寄りになり headline 非対象ラベルが自動付与される — 骨格確定時に再判定要",
+    "本軸は探索補助限定。headline 昇格には事前登録側の改訂が前提"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 diagnostics が単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離) の射影であり、機序からの地形予想が他動作点へ一般化する保証はない",
+  "提案 2 件はいずれも既開通 2 領域 (include/backoff.hh, cc/silo/transaction.cc) と近接または同一ファイル内にあり、既存軸 (silo-backoff-magnitude / silo-writeset-sort) との交互作用が独立でない可能性 — 段階 A→B で既存軸台帳との構造照合が必要",
+  "対象 2 領域の EVOLVE-BLOCK hole を新規に開通するコスト (トレース/正しさフックの配置を含む) の判断は人間側の仕事であり、本提案は開通済み/未開通を対称に扱っている",
+  "diagnostics 内の attribution 第2項 (validation 中の 2 種の待たない政策) は既に評価済みの設計選択のため、その位置での hole 提案は『既出の言い換え』回避のため意図的に外した"
+ ]
+}

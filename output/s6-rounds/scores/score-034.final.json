@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal の locked tuple に対する常時スピン待機 `for(;;){ while(expected.lock){...} }` の待機打ち切り政策。診断の 3 軸 (abort 後バックオフ待機 in backoff.hh / validation 中の待たない政策 in lockWriteSet / コミット時ログ書込) はいずれも別の処理段。read phase のスピン待機は別の作用点で、構造的に別 hole。yes",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "参照する read_internal の locked tuple 常時スピンは transaction.cc の stock 抜粋に実在。attribution 項目1 の IPC 崩壊 (1.4-1.6→0.4-0.5) を援用し、read phase 側でも同型のコア停止 (低 IPC) が発生しうるとし、workload 別 IPC/throughput という反証可能な観測を指定。yes",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (待機打ち切り判定の挟み込み構造変異)。yes",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() のフラッシュ発火閾値 `log_set_.size() > LOGSET_SIZE/2`。診断のログ書込軸は on/off であり、group-commit のバッチ粒度は別の作用点。構造的には別 hole。yes (ただし C3 で不適格)",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "参照する wal() のフラッシュ閾値式は transaction.cc の stock 抜粋に実在。attribution 項目3 (書込 I/O コストへの帰属・abort 率不変) を援用し、write() 発火頻度が I/O 償却率を支配するとし、write-heavy の throughput/latency という反証可能な観測を指定。yes (ただし C3 で不適格)",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type は scalar 単体 (閾値のみのチューナブル化)。スカラー単体は既存の機械的グリッド探索で代替可能なため no。束内でも自ら headline 非対象 scalar と明記。no",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 は read phase スピン待機政策の構造変異で 3 項すべて yes。提案1 は wal フラッシュ閾値のスカラー単体のため C3 不適格。束内に採点基準変更の誘導は認められず。global_unknowns に既存性検査を段階Bへ委ねる旨あるが採点はこちらで独立に実施した。"
+ },
+ "retries_used": 0
+}

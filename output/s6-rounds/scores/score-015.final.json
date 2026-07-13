@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": false,
+    "c1_reason": "hole 位置は lockWriteSet() の `if (expected.lock)` 競合応答分岐で、これは診断 attribution の実在項目「validation 中のロック競合に対する 2 種の待たない政策の選択」がまさに指す既出軸の作用点と同一。提案自身も『既存二択の離散点を内挿する骨格』と述べ、同じ処理段・同じ作用点での政策空間探索 (軸内探索) にとどまる。別の処理段・別の状態・別の作用点ではないため既存性 no。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock 実在の lockWriteSet() 分岐 (NO_WAIT_LOCKING/NO_WAIT_OF_TICTOC) を指し、診断の反転 (ipc 1.62 高発行 vs abort_rate 50.8→21.0%/latency 同時低減) に紐づく。反証可能な観測 (どの指標で勝つかが反転境界をまたぐ) を指定。恒真ではない。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異)。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() の flush 発火しきい値 `if (log_set_.size() > LOGSET_SIZE/2)`。診断の「コミット時ログ書込の有効化 (on/off)」は logging の有効化トグルであり、flush バッチ粒度という別作用点。既出軸の再掲ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock 実在の wal() バッチ書込経路を指し、診断の書込 I/O 帰属 (abort 不変・latency/llc_miss 増加・書込比率に単調比例) に接続。syscall 頻度低下という反証可能観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。既存の機械的グリッド探索で代替可能なため軸適格性 no。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は abort() 内 `#if BACK_OFF` 待機発火ブロックを abort 原因分類で gating するコード片。診断の silo-backoff-magnitude は backoff.hh の待機量スカラー (別作用点・別構造)。原因分類による発火判定という新たな状態・作用点を導入しており、量のスカラー探索とは構造的に別 hole。既存性 yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock 実在の abort() backoff ブロックを指し、診断の ipc 崩壊 (1.4-1.6→0.4-0.5) と損の abort-baseline 依存 (write-heavy -22.5% < read-heavy -77%) に紐づく。非競合由来 abort での ipc 回復という反証可能観測を指定。原因分類の伝播は未実装だが幻覚ではなく提案として追加する構造であり、機序核は実在観測に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は既診断済みの validation ロック競合政策軸と同一作用点の軸内探索で既存性 no。提案1は novel な flush 粒度だが scalar 単体で軸適格性 no。提案2 (abort-backoff gating) のみ 3 項充足で適格。束内に採点基準変更等の誘導は認めず。"
+ },
+ "retries_used": 0
+}

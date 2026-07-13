@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "対象は read_internal の楽観読み (a) ステップの `while (expected.lock) { loadAcquire }` 純スピンの待ち方。材料1 diagnostics の3軸は abort後再試行バックオフ (silo-backoff-magnitude)・validation 中の待たない政策・コミット時ログ書込であり、dead軸は施錠順 comparator。いずれも読み位相のロック待ちスピンとは別処理段・別作用点であり、構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc の read_internal の for(;;)/while(expected.lock) スピンと、writePhase UPDATE の memcpy→storeRelease によるロック保持窓、tidword_ の同一キャッシュライン loadAcquire という実在構造を正しく指しており幻覚なし。VAL_SIZE 比例の保持窓を読み手がスピン消費しキャッシュライン競合が変わるという予測で、latency/占有時間・競合という観測量の変化として反証可能 (待ち方変異で latency/競合が動かなければ否定)。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (待機ポリシー差込の構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "対象は util.cc siloLeaderWork の `cur_epoch - 2` の定数2 (回収猶予マージン)。diagnostics のどの軸 (backoff量・validation政策・ログ書込) にも既開通軸 (施錠順) にも該当せず、gc回収境界という別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "writePhase DELETE の gc_records_.push_back、gc_records() の `epoch > r_epoch` break、siloLeaderWork の ReclamationEpoch=cur_epoch-2 という実在構造を正しく指す。deque長とfree発火時期の変化として反証可能な観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体 (マージン値のみ変異)。構造変異との複合でない。提案自身も「探索補助限定・scalar型」と明記。基準によりスカラー単体は no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は読み位相ロック待ちスピンの構造変異で3項適格。提案1は機序・既存性は満たすが mutation_type が scalar 単体のため軸適格 no。なお両提案は本文中で『diagnostics 空』と前提しているが、材料1の diagnostics は3件の attribution を持ち空でない — この前提相違は判定基準を変えず、既存性は材料1に対して照合した。"
+ },
+ "retries_used": 0
+}

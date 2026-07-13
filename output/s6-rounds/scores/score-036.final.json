@@ -1,0 +1,21 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断に載る軸は silo-backoff-magnitude(backoff.hh のスカラー・validation 待たない政策・コミット時ログ書込 on/off)と silo-writeset-sort(施錠順 comparator)のみ。本提案は cc/silo/replayTest.cc の replay ループの 1レコード=1read 逐次読み出しをまとめ読み構造へ差し替える、別領域・別処理段(読み側 I/O 粒度)の hole であり、既出軸・その骨格の再掲でも軸内探索の言い換えでもない。",
+    "c2_mechanism_substantive": false,
+    "c2_reason": "replayTest.cc の replay ループ・log.hh の computeChkSum・LogRecord は stock 抜粋に実在し接続はある。しかし反証可能な観測(どの観測量がどう振る舞えば否定されるか)が具体に特定されていない。機序は『read 粒度を変えると I/O 律速の性能地形が replay 経路上に現れる』と予想するのみで、観測量として挙げた replay/recovery 時間について提案自身が unknowns 冒頭で『この hole が効く感度を持つ計測対象が計測ハーネスに存在するか自体が機序単独では埋まらない』と明記しており、観測量の存在自体が未確定。曖昧のため no に倒す。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment(逐次読みをまとめ読み構造に差し替える構造変異)。scalar 単体ではない。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": false,
+  "distinct_eligible_axes": 0,
+  "dedup_notes": "",
+  "overall_notes": "提案は1件。領域は replayTest.cc(独立の replay-test 入口、throughput ベンチから呼ばれない)に固定。軸は診断に未出で c1 適格、mutation_type は code_fragment で c3 適格だが、反証可能な観測量が特定されておらず(提案自ら観測対象の存在を未確定と明記)c2 で不適格、よって提案不適格・ラウンド不適格。global_unknowns 等に採点基準変更の誘導は認められない。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の alive 軸は silo-backoff-magnitude (post-abort backoff・include/backoff.hh)、validation 内の待たない政策、コミット時ログ書込の3件と dead な writeset-sort。本提案は cc/silo/transaction.cc の read_internal 内 `while(expected.lock) loadAcquire` の read フェーズ・ビジースピンに上限を挟む別処理段の hole で、いずれの既出軸とも別位置。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal のロッククリア待ちスピン `for(;;){ while(expected.lock){...} }` は stock 抜粋 (transaction.cc) に実在。仮説は診断項目1の『待機が IPC を潰す (1.4-1.6→0.4-0.5)』機序を同型のこのスピンに適用し、上限導入で abort 率×IPC が交換されるという反証可能な観測 (最適上限の workload 依存性・IPC/abort の振る舞い) を指定。実在構造に接続。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (スピン上限カウンタと超過時 abort 分岐の構造変異)。yes。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断のコミット時ログ書込軸は WAL on/off の I/O コスト帰属。本提案は wal() の flush 発火閾値 `log_set_.size() > LOGSET_SIZE/2` を変異穴にする別位置 (on/off ではなくバッチ粒度)。構造的に別 hole。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の flush 判定閾値は stock 抜粋 transaction.cc に実在。診断項目3の書込 I/O コスト帰属 (abort 不変・latency 増・llc_miss 増) を根拠に閾値上昇で write() 頻度減→latency 償却、llc_miss は逆向き悪化という符号付き反証可能観測を指定。yes。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。提案文自身も scalar とラベルしている。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read-spin-bound) は3項すべて yes で適格。提案1 (wal-flush-batch-size) は scalar 単体のため軸適格性 no で不適格 (C1/C2 は満たす)。束内 global_unknowns に headline 対象外等のラベル誘導があるが判定基準は変更せず通常採点した。"
+ },
+ "retries_used": 0
+}

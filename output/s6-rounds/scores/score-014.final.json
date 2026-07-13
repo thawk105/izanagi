@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "対象は cc/silo/include/silo_op_element.hh の WriteElement 値保持 (毎回ヒープ確保+memcpy) という別 hole。診断の既出軸は backoff (スカラー・include/backoff.hh)、validation の待たない政策、コミット時ログ書込 (WAL)、及び dead の writeset-sort (comparator)。いずれとも別の処理段・別作用点で、comparator 順序には明示的に触れないと宣言。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋に実在する WriteElement コンストラクタの val_ptr_=make_unique+memcpy と writePhase の memcpy(get_val_ptr) を指して繋がる。反証観測を『abort 独立・書込比率比例・llc_miss に現れる throughput レバー』として指定 (診断のコミット時ログ書込項の形を援用)。この保持方式変更で throughput/llc_miss が動かなければ仮説否定 — 反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (バッファ再利用・サイズ別分岐・遅延コピー等の構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "対象は同ファイルの ReadElement 値保持フットプリント (val_[VAL_SIZE]・body_・memcpy(this->val_,...))。既出軸 (backoff/validation政策/ログ書込/writeset-sort) と別の処理段・別作用点で、comparator には触れない。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "ReadElement は stock 抜粋に実在する構造で、read_internal/validationPhase の tid 再突合経路も実在。反証観測を『read-set 保持コストが独立の throughput 効果 (llc_miss) を持つか実測』として明示。効果が無ければ否定 — 反証可能。ただし本人が構造類推止まりと認め、指定した char* val コンストラクタは現行未使用可能性 (unknowns 明記) だが構造自体は抜粋に実在するため幻覚ではない。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (値保持を参照/圧縮/遅延に切替える構造変異)。scalar 単体でない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "2 件とも silo_op_element.hh の値保持コストを穴とするが、提案0は WriteElement (書込経路)、提案1は ReadElement (読取経路) で別 hole・別構造のため相異なる。束内に round_eligible 等の指定や検査省略の誘導はなく、global_unknowns の『探索補助限定/headline 非対象』等の自己申告は適格性判定に影響させていない。"
+ },
+ "retries_used": 0
+}

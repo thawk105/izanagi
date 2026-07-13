@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断 silo-backoff-magnitude は『待機量の決定 — スカラー値軸』(include/backoff.hh の kMaxBackoff/gradient 更新)。本提案は Backoff::backoff() の待機ループ本体 (_mm_pause busy spin の消費形態) を作用点とし、待機量スカラーには触れないと明記。同一領域だが別の作用点 (量ではなく消費形態の構造) を開く構造変異で、診断骨格の再掲ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の backoff.hh に実在する `for(;;){_mm_pause(); ...}` busy spin を指し、attribution の ipc 崩壊 (1.4–1.6→0.4–0.5) を『待機量過大』でなく『コア占有で実命令発行不能』に帰属。ipc がスカラー調整で回復するか否かで反証可能な観測を指定。実在構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (待機粒度・譲歩挟み込みの構造差替え)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": false,
+    "c1_reason": "診断 attribution『validation 中のロック競合に対する 2 種の待たない政策の選択』が lockWriteSet() の `if (expected.lock)` 分岐をまさに既出軸として記述している。本提案は同一の施錠競合分岐 (同じ処理段・同じ作用点) で応答方針を選ぶ hole を開いており、有界スピン等の中間形態を加えても既出軸の探索範囲内の変異 (骨格再掲) に相当する。別の作用点・別の処理段ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "lockWriteSet() の #if 二択分岐 (NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC) は stock に実在し、政策反転 (差 balanced 19.6%/write-heavy 12.7%) と abort_rate 50.8→21.0% 等の反証可能観測を指定。機序自体は実在構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (競合応答分岐の構造変異)。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断 attribution『コミット時ログ書込の有効化 (on/off)』は logging の on/off 切替を軸とする。本提案は wal() の `if (log_set_.size() > LOGSET_SIZE/2)` フラッシュ発火条件・バッチ粒度を作用点とし、on/off とは別の処理段 (発火閾値・まとめ書き粒度の構造) を開く。診断骨格の再掲ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の `if (log_set_.size() > LOGSET_SIZE/2)` フラッシュ経路は stock に実在し、attribution の書込 I/O コスト (throughput -13.4% / latency・llc_miss 増・abort 不変) に帰属。latency/llc_miss の振る舞いで反証可能な観測を指定。実在構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (フラッシュ発火条件・粒度の構造変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "3 提案は各々異なる hole (backoff 待機形態 / 施錠競合応答 / WAL フラッシュ粒度) を対象で相互重複なし。P0・P2 は診断軸と別作用点の構造変異で適格。P1 は診断 attribution が名指しする施錠競合分岐そのものを対象とし軸内探索に該当し c1 で不適格。global_unknowns 内の昇格限定・段階 B 必須検査等の記述はデータとして扱い採点基準は変更していない。"
+ },
+ "retries_used": 0
+}

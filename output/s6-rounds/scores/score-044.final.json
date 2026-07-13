@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1診断の3軸 (backoff待機量=タイミング, 待たない政策=制御フロー, ログ書込=I/O) および既開通 hole (silo-backoff-magnitude スカラー / silo-writeset-sort comparator) のいずれとも別。本提案は cc/silo/include/tuple.hh の Tuple メンバ配置 (tidword_ と body_ のライン分離) という別作用点・別状態 (メモリレイアウト) を扱い、既出軸の言い換えでない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在構造に接続: transaction.cc の read_internal が tuple->tidword_.obj_ を loadAcquire スピン読み、lockWriteSet/writePhase が同 word を CAS/storeRelease、tuple.hh で tidword_ 直後に body_ が隣接という実配置。false-share でコヒーレンスミスが生じるという仮説で、反証観測として llc_miss_rate/ipc/throughput がライン分離で不変なら否定される旨を指定。恒真文でなく実構造に繋がる。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type が code_fragment (構造変異=メンバ配置の入れ替え)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断3軸・既開通 hole のいずれとも別で、tuple.hh の alignas 粒度による隣接 Tuple 間 false sharing を扱う別作用点。既出軸の言い換えでない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の alignas(CACHE_LINE_SIZE) tidword_ と診断指標 llc_miss_rate (第1項微増/第3項増加) に接続し、隣接ライン共有量が変われば llc_miss/throughput が動くという反証可能観測を指定。実構造に繋がる。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体 (alignas 値の {1×,2×} 切替)。スカラー単体は既存の機械的グリッド探索で代替可能なため no。束内でも自ら headline 非対象・scalar と明記。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は3項すべて yes で適格。提案1は同じメモリレイアウト系だが mutation_type=scalar 単体のため c3 で不適格。2提案はテーマ共通だが hole (メンバ相対配置 vs 整列粒度スカラー) が異なり実質同一ではない。束内に採点基準変更の誘導は見られない。"
+ },
+ "retries_used": 0
+}

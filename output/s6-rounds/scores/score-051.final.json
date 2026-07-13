@@ -1,0 +1,21 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の既出軸は silo-backoff-magnitude (待機量スカラー)・validation の待たない政策・コミット時ログ書込・silo-writeset-sort (施錠順序 comparator) の4つ。本提案は cc/silo/include/tuple.hh の Tuple メンバレイアウト (tidword_ と body_ の間の padding / 再アライン) という別領域・別の作用点 (レコードのメモリ配置と false sharing) の構造 hole であり、いずれの既出軸の軸内変異でもない。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "機序は stock 実在構造を指す: tuple.hh の `alignas(CACHE_LINE_SIZE) Tidword tidword_;` と後続 `TupleBody body_;`、read_internal の spin-load・lockWriteSet の CAS・writePhase の storeRelease が同一 tidword 語に集中する点は抜粋に実在。反証可能な観測として llc_miss_rate / コヒーレンス往復・throughput の変動を指定し、動かなければ地形なしと否定できると自認 (『地形自体が小さい可能性も同じ数値から読める』)。恒真文ではなく実在レイアウトに接続。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment と宣言され、padding/再アライン挿入という構造変異。unknowns に scalar 型帰属の迷いはあるが headline 宣言は code_fragment。yes。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案1件。tuple レイアウト/false-sharing の構造 hole で既出4軸と別作用点、実在構造接続と反証可能観測 (llc_miss) を備え、code_fragment。3項すべて yes でラウンド適格。束内に採点基準変更・材料再定義の誘導は認められない。"
+ },
+ "retries_used": 0
+}

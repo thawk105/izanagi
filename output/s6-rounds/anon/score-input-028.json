@@ -1,0 +1,50 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-backoff-wait-discipline",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "include/backoff.hh",
+    "source_rel": "include/backoff.hh",
+    "position": "Backoff::backoff(size_t clocks_per_us) 内の待機 spin ループ本体 (for(;;){ _mm_pause(); stop=rdtscp(); if(chkClkSpan(start,stop,...)) break; })",
+    "skeleton": "spin 1 反復あたりに実行する待機プリミティブ/コア占有動作を差し替える変異穴。now_backoff (待機の長さ=既存 scalar 軸) はそのままに、待機中にコアで何を実行するか (現状 _mm_pause() の単発ビジースピン) の構造を code 片で変異させる。時間ベースの離脱条件 chkClkSpan は skeleton 側に残す"
+   },
+   "mechanism_hypothesis": "attribution 実在項目「abort 後の再試行前バックオフ待機の有効化 (on/off)」の indicator ipc『全 workload で 1.4–1.6 → 0.4–0.5 に崩壊 (コアが待機で実命令を発行できない)』を名指しで参照する。同項目で abort_rate は大幅低減 (read-heavy 15.6→4.5% 等) しており待機の「長さ」自体は abort 抑制に効いている一方、この IPC 崩壊は待機の『長さ』ではなく『待ち方』(busy-spin が実命令をゼロにする占有の仕方) に帰属する。既存 scalar 軸 (待機量の決定) を固定したまま backoff() の spin 本体だけを差し替えると、この IPC 崩壊面に既存軸と別方向の性能地形が予想される",
+   "safety_argument_hypothesis": "backoff() は abort() 内で read_set_/write_set_/node_map_ を clear した後・retry 前に呼ばれる純粋な待機であり、Silo の直列化正しさ (validationPhase の TID/lock/epoch 検査) には関与しない。待ち方の差し替えは serializability を壊さないと予想。ただし時間ベース離脱条件を変異が消すと無限スピン (liveness 破壊) の余地があり、段階 B で再検証が必要",
+   "unknowns": [
+    "感度を持つ workload の特定 (read-heavy で IPC 崩壊が最大かは単一動作点 skew0.9/48thread/1M・各構成 1 round では未確定)",
+    "計測動作点 (thread 数/skew/レコード数を変えたときの IPC 回復の有無)",
+    "reward hack 仮説 (待機を実質無効化して IPC だけ見かけ回復させ abort 抑制効果を捨てる退行の検出設計)",
+    "positive control 設計 (待ち方変異が IPC に効くことを示す既知の効く変異の用意)",
+    "偵察の列挙空間 (backoff.hh scope 内で待機中に安全に実行できる占有動作の候補集合)",
+    "headline 非対象ラベルの扱い (本役提案は探索補助限定 — 事前登録改訂前は段 6 主結果対象外)"
+   ]
+  },
+  {
+   "axis_name": "silo-backoff-early-exit",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "include/backoff.hh",
+    "source_rel": "include/backoff.hh",
+    "position": "Backoff::backoff(size_t clocks_per_us) の待機ループ終了条件 (現状 chkClkSpan による経過時間到達のみで break)",
+    "skeleton": "経過時間到達 (now_backoff 全量消化) に加えて早期離脱述語を挟む変異穴。待機の『長さの上限』は既存 scalar 軸のまま、『上限まで待ち切るか途中で抜けるか』の終了条件構造を code 片で変異させる"
+   },
+   "mechanism_hypothesis": "attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」の indicator latency『read-heavy 5.7→25μs に増加』および effect『abort 率の大幅低減にもかかわらず throughput が全 workload で低下』を名指しで参照する。現状の flat な時間ベース busy-wait は now_backoff 全量を abort→retry latency に無条件加算する構造であり、待機量とは独立に『上限まで待ち切る』こと自体が latency 増加へ寄与する。終了条件に早期離脱を挟む穴は、待機量 (既存軸) と別に、この latency 増加面へ地形を予想する",
+   "safety_argument_hypothesis": "終了条件の変更は待機時間の短縮方向であり正しさ (validation) には無関係と予想。ただし早期離脱が過剰だと待機の abort 抑制効果を打ち消し高競合下で livelock 的な throughput 退行を招く余地があり、これは正しさ違反ではなく性能退行として段階 B で再検証が必要",
+   "unknowns": [
+    "早期離脱述語が読める観測信号が backoff.hh scope 内 (static backoff() は clocks_per_us のみ受領、共有 committed カウンタ等へ直接届かない) で得られるか — 得られない場合はひな型/インタフェース側の改訂要否を含め要確認",
+    "感度を持つ workload (latency 増加が最大の read-heavy が最適点か、write-heavy との反転有無)",
+    "計測動作点・交互作用 (単一動作点 1 round・交互作用未分離のため早期離脱の効き方の workload 依存は未確定)",
+    "reward hack 仮説 (常時即離脱で latency だけ回復させ abort 抑制を捨てる退行の検出設計)",
+    "positive control 設計・偵察の列挙空間",
+    "gate での既存軸台帳照合 — 『待機の長さ』(magnitude) と『待ち切るかの終了条件』が構造的に別穴であることの独立確認 (軸内探索でないことの必須検査)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "両提案とも hole_region_directive により include/backoff.hh に領域固定。同ファイル既開通 hole は silo-backoff-magnitude (待機量=scalar) のみで、両提案はその『量』ではなく『待ち方 (spin 本体)』『終了条件』を狙う code 片穴として構造分離を意図するが、軸内探索でないことの最終判断は人間 gate + 段階 B の独立再導出に委ねる",
+  "診断は alive 軸 (silo-backoff-magnitude) のみ非空で、dead 軸 silo-writeset-sort の機序帰属は二層射影で構造的に来ていない (射影漏れではない)",
+  "attribution 全項目が単一動作点 (skew0.9/48thread/1M)・各構成 1 round・交互作用未分離であり、両提案の mechanism_hypothesis はこの制約下の診断数値の動きからの予想にとどまる",
+  "両提案 mutation_type=code_fragment。本役提案は変異型を問わず当面『探索補助』限定で段 6 主結果 (headline) 対象外 — 昇格は事前登録側 (軸命名を coder 出力前に固定) の改訂が前提"
+ ]
+}

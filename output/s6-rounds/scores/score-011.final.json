@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断に載る軸は silo-backoff-magnitude (backoff.hh の post-abort 待機) と silo-writeset-sort (write set 施錠順序 comparator, dead)。本提案は cc/silo/transaction.cc の read_internal の read-phase スピンループ `while(expected.lock)` を有界化する hole で、別処理段 (read フェーズの待機) ・別作用点。診断の再掲でも軸内探索の言い換えでもない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal の `for(;;){ while(expected.lock){...} check==expected で break }` は stock 抜粋 transaction.cc に実在。attribution[0] の ipc 崩壊・latency 増と attribution[1] の read-heavy 0.4% (noise 内) を突き合わせ、read-heavy の待機感応が write 側競合経路に由来しえない余地を read 側スピンに帰す論。反証観測 (有界化で read-heavy IPC/throughput が backoff コストなしに回収されるか) を指定。恒真文でも幻覚でもない。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (有界スピン+abort 分岐という構造変異にスカラー副パラメタ埋込の複合形)。構造変異とスカラーの複合は適格。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "attribution[2] はコミット時ログ書込の on/off (feature toggle)。本提案は wal() のフラッシュ発火水位 `if (log_set_.size() > LOGSET_SIZE/2)` の変異で、on/off とは別位置 (有効時の I/O 償却水位)。診断軸の再掲ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の `if (log_set_.size() > LOGSET_SIZE/2)` は stock 抜粋に実在。attribution[2] の書込 I/O 純コスト帰属 (latency増/llc_miss増/abort不変) に接続し、発火水位を上げて syscall を償却すれば write-heavy -13.4% の損を validation/abort に触れず狙えるとする反証可能な予想。実在構造に繋がり観測指定あり。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。提案自身も headline 非対象と自認。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 (read-spin 有界化) は 3 項すべて yes で適格。提案1 (WAL flush 水位) は c1/c2 は満たすが mutation_type=scalar 単体のため c3 で失格。束末尾に D44/D47 等の運用ラベル指定や headline 非対象の主張があるが、採点基準は変更せず 3 項で判定した。ラウンド適格。"
+ },
+ "retries_used": 0
+}

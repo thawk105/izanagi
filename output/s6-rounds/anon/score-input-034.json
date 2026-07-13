@@ -1,0 +1,50 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lockwait-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal の TID 再読取りループ内、locked tuple に対する無制限スピン `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の待機部",
+    "skeleton": "read phase で locked tuple に遭遇した際の『常時スピン待機』を、待機/有界スピン→abort の政策選択 hole に置換する。fallback は必ず abort 側 (locked のまま値を読み進める分岐は作らない)。post-spin の TID 再検査 (expected==check, ステップ e) は skeleton 側に据え置き、変異は待機の打ち切り判定のみを挟む"
+   },
+   "mechanism_hypothesis": "attribution 項目1 (abort 後バックオフ待機 on/off) は待機投入で IPC が全 workload 1.4–1.6→0.4–0.5 に崩壊 (『コアが待機で実命令を発行できない』) することを実測している。read_internal の locked tuple スピンは abort-retry バックオフとは別経路の『常時 ON の待機』であり、skew0.9 の高競合下では同型のコア停止 (低 IPC) が read phase で発生しうるが現状は軸化されていない。加えて項目2 (2種の待たない政策) は wait/no-wait の優劣が workload 間で反転し差が balanced 19.6% / write-heavy 12.7% と大きいことを示す — read phase 側の wait/no-wait/有界スピン選択も、既開通の abort-retry 待機量 (スカラー) とは別の位置で workload 依存の地形を露出する見込み",
+   "safety_argument_hypothesis": "スピンを有界化して abort に落とすのは、fallback が abort である限り直列化可能性を壊さない (abort は常に安全)。原理的に壊しうるのは (i) locked/未コミット tuple を待たずに読み進める分岐を作った場合の dirty read、(ii) post-spin の atomic-snapshot 再検査 (expected==check) を省いた場合の torn read。段階 B でこの読取りプロトコル不変条件の保存を必ず再検証する前提の下書き",
+   "unknowns": [
+    "感度を持つ workload (read-heavy か高競合か) の特定 — 実測要",
+    "reward hack 仮説: 有界スピンを早期 abort 側に振って無仕事のまま throughput を水増しする経路の有無",
+    "positive control 設計",
+    "計測動作点 (単一点 skew0.9/48thread/1M のまま妥当か)",
+    "項目1 が既に abort 経路に待機を投入している事実との交互作用 (未分離)",
+    "他の read phase スピン地点 (lockWriteSet 内 CAS ループ等) を hole 範囲に含めるべきかの偵察空間"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-granularity",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::wal のフラッシュ発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` の閾値 (現状 500 固定)",
+    "skeleton": "ログをまとめて 1 回の logfile_.write() に落とす group-commit のバッチ閾値を固定定数からチューナブルなスカラーに開ける。write の対象サイズ計算 (sizeof(LogRecord)*logRecNum_) と LogHeader 更新は skeleton 側に据え置き、変異は発火閾値のみ"
+   },
+   "mechanism_hypothesis": "attribution 項目3 (コミット時ログ書込 on/off) は throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise / balanced -6.8% / write-heavy -13.4%)、abort 率は不変のまま latency と llc_miss が増える、と実測し『競合でも正しさ検証でもなく純粋な書込 I/O コスト』へ帰属している。コストが syscall/I/O 律速で競合非依存であるなら、write() の発火頻度を決めるバッチ閾値 (現状 LOGSET_SIZE/2=500) が I/O 償却率を直接支配する。abort 率不変が並行制御軸との非結合を裏づけるため、バッチ粒度のスカラーは CC 軸と直交した地形を露出する見込み",
+   "safety_argument_hypothesis": "バッチ拡大は未フラッシュのメモリ内ログ窓を広げ、クラッシュ時の durability/回復損失を増やす。CC プロトコルの正しさは WAL がコミット後処理のため不変。原理的に壊しうるのは (i) 回復/replay 不変条件 (replayTest の logRecNum_/checksum 前提)、(ii) log_set_ バッファと LOGSET_SIZE 配列容量の境界 (sizeof(LogRecord)*logRecNum_ 書込のオーバーフロー)。段階 B でこれらを必ず再検証する前提の下書き",
+   "unknowns": [
+    "感度を持つ workload (write-heavy 想定だが未確認)",
+    "reward hack 仮説: 閾値を計測窓内で一度もフラッシュしない値に振り、I/O を実質スキップして throughput を水増しする経路 (durability を代償にした無仕事利得)",
+    "positive control 設計",
+    "計測動作点",
+    "スカラーの上限 (LOGSET_SIZE=1000 の配列容量) との整合範囲",
+    "hole を transaction.cc の閾値式に置くか log.hh 側のサイズ定義 (未開通) に置くかの位置判断"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 diagnostics は単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離) の射影であり、両提案の地形予想は未検証 — 段階 B の独立再導出でのみ確定する",
+  "本役の提案は変異型を問わず当面『探索補助』限定で段 6 主結果 (headline) 非対象。silo-wal-flush-granularity は mutation_type: scalar のため自動的に headline 非対象ラベル付き",
+  "提案軸名・骨格が入力射影に既出でないことの必須検査、および provenance 三点セット (critic 生出力 / 射影版入力 / 落とした項目対応表) 照合は段階 B 側の仕事",
+  "diagnostics の 3 attribution が単一軸 silo-backoff-magnitude 配下に束ねられている構成の解釈 — 各 design_choice が別軸評価だった可能性は入力からは判別不能"
+ ]
+}

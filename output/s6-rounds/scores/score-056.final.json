@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read_internal 内の楽観読み lock 待ちスピンループを対象とする hole。診断の 3 軸 (backoff 待機量・validation の待たない政策・コミット時ログ書込) とも silo-writeset-sort とも別の処理段 (読み経路の楽観読み中ロック競合応答) を提案しており既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋 transaction.cc の read_internal に実在する `while (expected.lock) { expected.obj_ = loadAcquire(...) }` ループを名指しで指し、writePhase の storeRelease が立てる lock との関係に繋げている。反証は同ループの有無・形で可能と明示。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "util.cc siloLeaderWork の ReclamationEpoch = cur_epoch-2 のラグ定数を対象。診断軸・既開通 2 hole の探索範囲外の別サブシステム (回収遅延) で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "siloLeaderWork の実在リテラル 2 と gc_records の `rec->tidword_.epoch > r_epoch` 判定を名指しで指し反証可能。実在構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork のグローバルエポック前進ゲート述語 (chkClkSpan && chkEpochLoaded) を差し替える hole。診断軸・既開通 hole と別位置・別作用点で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock に実在する siloLeaderWork のゲート述語・validationPhase Phase2 の epoch 比較 `get_tidword().epoch != check.epoch`・writePhase の commit-TID epoch 成分を指しており、前進条件変異でこれら粒度が動くと繋げ反証可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案 0 と 2 は別 hole (読み経路スピン vs エポック前進述語) で適格。提案 1 は機序・既存性は満たすが scalar 単体で c3 不適格。束内 global_unknowns に headline 非対象ラベル等の運用言及があるが判定に影響させていない。"
+ },
+ "retries_used": 0
+}

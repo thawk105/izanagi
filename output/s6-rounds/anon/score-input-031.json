@@ -1,0 +1,61 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-backoff-wait-primitive",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "include/backoff.hh",
+    "source_rel": "include/backoff.hh",
+    "position": "Backoff::backoff(size_t clocks_per_us) の待機ループ本体 — `for(;;){ _mm_pause(); stop = rdtscp(); if (chkClkSpan(...)) break; }`",
+    "skeleton": "待機の「消費形態」を変異面にする hole を開く。現状は _mm_pause による busy spin でコアを占有し続ける。待機量そのもの (kMaxBackoff/kIncrBackoff/gradient 更新ロジック = 既開通 silo-backoff-magnitude の面) には触れず、待機中にコアへ実命令発行余地を残す待機粒度・譲歩挟み込みの構造だけを差し替え対象にする"
+   },
+   "mechanism_hypothesis": "attribution「abort 後の再試行前バックオフ待機の有効化」で abort_rate は read-heavy 15.6→4.5% / balanced 65.3→18.1% / write-heavy 59.7→12.1% と大幅低減した一方、ipc が全 workload で 1.4–1.6 → 0.4–0.5 に崩壊し throughput が全 workload で低下している (低減と低下の併存)。この併存は『待機量が過大』ではなく、ipc 崩壊指標が直接示すとおり『待機がコアを占有して実命令を発行させない (busy spin)』に帰属できる。ipc 崩壊は待機量スカラーの調整では回復しない位置にあり、待機の消費形態そのものに未探索の性能地形が予想される",
+   "safety_argument_hypothesis": "待機形態の変更は abort 後の再試行タイミングと leader の epoch 前進 (待機に依存) に影響しうる。譲歩を挟むと epoch 進行・スレッド公平性・latency 分布が変わる恐れがある。段階 B で epoch 前進不変性と直列化正しさへの無影響を必ず再検証する前提の下書き",
+   "unknowns": [
+    "この hole は既開通軸 silo-backoff-magnitude と同一領域 (include/backoff.hh) にある — 既存軸台帳との構造照合で軸内探索でないこと (待機量スカラーと待機形態の分離) の確認が人間 gate / 段階 B で必須",
+    "感度を持つ workload と計測動作点は機序単独で確定不能 (skew0.9 / 48thread / 1M / 単一動作点・交互作用未分離)",
+    "待機形態の候補列挙空間 (偵察) は未導出",
+    "positive control 設計・reward hack 仮説は未導出"
+   ]
+  },
+  {
+   "axis_name": "silo-lockwait-conflict-response",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::lockWriteSet() の施錠競合分岐 — `if (expected.lock) { ... }` (現状 #if で『即 abort』/『部分解放して goto retry』の二択に固定)",
+    "skeleton": "施錠取得時に既ロックを検出した際の応答方針 (即 abort / 部分解放し retry / 有界スピン後に判断 等) を選ぶ hole を開く。施錠『順序』(既開通 silo-writeset-sort の comparator 面) には触れず、競合検出後の『応答』だけを変異面にする"
+   },
+   "mechanism_hypothesis": "attribution「validation 中のロック競合に対する 2 種の待たない政策の選択」で、2 政策の優劣が workload 間で反転 (差 balanced 19.6% / write-heavy 12.7% / read-heavy 0.4% は noise floor 内で順位不能) し、稼ぎ方も分岐する — balanced 優位側は ipc 1.62 の高命令発行で稼ぎ、write-heavy 優位側は abort_rate 50.8→21.0% と latency の同時低減で稼ぐ。単一政策が全 workload 最適でないという反転構造は、この競合応答分岐そのものが性能地形を持つ位置であることを示す。二択の外 (有界スピン等の中間形態) に未探索地形が予想される",
+   "safety_argument_hypothesis": "競合応答の変更は現状 no-wait が保証する deadlock 回避を壊しうる。有界スピンや待機を挟むと循環待ちが生じる恐れがあり、部分解放 (unlockWriteSet(itr)) の順序不変性にも影響しうる。段階 B で deadlock-freedom と直列化正しさを必ず再検証する前提の下書き",
+   "unknowns": [
+    "射影で 2 政策の識別が落とされている (どちらがどの政策か不明) — 変異面の設計には政策識別の実コード裏取りが必要",
+    "反転を生む workload 感度と計測動作点は機序単独で確定不能 (単一動作点・各構成 1 round・交互作用未分離)",
+    "中間形態の候補列挙空間 (偵察)・reward hack 仮説・positive control 設計は未導出"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-batching",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::wal(std::uint64_t ctid) のフラッシュ発火判定 — `if (log_set_.size() > LOGSET_SIZE / 2) { ... logfile_.write(...) ... }`",
+    "skeleton": "ログのバッチ蓄積とフラッシュ発火条件 (閾値・まとめ書きの粒度・フラッシュ形態) を変異面にする hole を開く。ログレコード/ヘッダ構造 (log.hh) と chkSum ベースの正しさ検証には触れない"
+   },
+   "mechanism_hypothesis": "attribution「コミット時ログ書込の有効化」で throughput 低下が書込比率に単調比例し (read-heavy -1.9% は noise 内 / balanced -6.8% / write-heavy -13.4%)、abort_rate は不変のまま latency と llc_miss_rate が増える。競合でも正しさ検証でもなく純粋な書込 I/O コストへの帰属であることから、コストは write() 発火経路そのものにある。フラッシュを起こす LOGSET_SIZE/2 閾値がまとめ書き粒度を規定するため、バッチ発火条件に I/O コスト地形が予想される",
+   "safety_argument_hypothesis": "フラッシュ粒度の変更は durability 境界とクラッシュ回復時の replay 整合 (LogHeader の chkSum / logRecNum 対応) に影響しうる。バッファ滞留を増やすと未フラッシュログの喪失窓が広がる恐れがある。段階 B で durability 契約と replayTest 整合を必ず再検証する前提の下書き",
+   "unknowns": [
+    "書込 I/O コストの動作点感度と計測動作点は機序単独で確定不能 (単一動作点・交互作用未分離)",
+    "フラッシュ発火条件の候補列挙空間 (偵察)・positive control 設計・reward hack 仮説は未導出",
+    "WAL 経路の durability 契約 (どこまでを不変に保つか) の実コード裏取りが必要"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離 — 各提案 hole の感度動作点は再計測なしに確定できない",
+  "本役の 3 提案はいずれも当面『探索補助』限定で段 6 の headline 対象外 (入力が coder 出力後の機序帰属である以上、事前登録『軸命名は coder 出力前に固定』と原理的に非両立)。昇格には事前登録側の改訂が前提",
+  "各提案の hole_location は既存軸台帳との構造照合 (軸内探索でないことの確認) を人間承認 gate で経る必要があり、段階 B は提案の転写でなく独立再導出 + 提案軸名/骨格が入力射影に既出でないことの必須検査を行う"
+ ]
+}

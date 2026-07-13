@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal の読み取りフェーズ内スピン待機ループ `while (expected.lock) { ... }`（transaction.cc の read_internal に実在）。診断の既出軸は backoff.hh の abort 後再試行待機(silo-backoff-magnitude)、lockWriteSet の待たない政策(validation lock 競合)、コミット時ログ書込、writeset-sort であり、読み取りフェーズの施錠中スピン応答はいずれとも別の処理段・別作用点。既出軸の言い換えではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "writePhase が lockWriteSet で tidword_.lock=1 を立て memcpy〜storeRelease まで保持する実在構造と、read_internal の pause 無し・上限無しビジースピン(共に stock 抜粋に実在)へ接続。反証可能な観測として読み取りレイテンシ/IPC/abort 率を挙げ、待機構造を差し替えた際にこれらが動かなければ仮説否定という向き。実在構造への接続と観測量指定を満たす。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment(構造変異)。スピン本体の pause 挿入・上限＋楽観再読復帰・待機構造差し替えを許すコード片軸。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は wal() の `if (log_set_.size() > LOGSET_SIZE / 2)` フラッシュ閾値(transaction.cc に実在)。診断の『コミット時ログ書込の有効化(on/off)』は WAL 有効/無効の帰属であり、バッチ蓄積閾値の量的制御点とは別 hole。既出軸の再掲ではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "wal() の LogRecord append と閾値超過時の logfile_.write 一括書込(stock 抜粋に実在)、latest_log_header_.logRecNum_ 関係へ接続。I/O 償却 vs コミット遅延の観測でスループット/latency がどう振る舞えば否定されるかを示す。実在構造接続を満たす。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。閾値の数値選択のみで既存の機械的グリッド探索で代替可能。構造変異との複合でない。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は siloLeaderWork(util.cc)の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0` の lag 定数。診断の既出軸(施錠順序・再試行間隔・ログ書込)と別の処理段(GC 回収エポック窓)。既出軸内の言い換えではない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "gc_records() の `rec->tidword_.epoch > r_epoch` 回収停止条件と siloLeaderWork の lag 定数(共に stock 抜粋に実在)へ接続。lag を安全下限未満にすると use-after-free、メモリ保持窓 vs 回収積極性の観測で否定可能。実在構造接続を満たす。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。lag 定数の数値選択のみでグリッド探索代替可能、構造変異との複合でない。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "適格は提案0(read-lockwait-response, code_fragment)のみ。提案1・2は機序・既存性は満たすが mutation_type が scalar 単体のため c3 で不適格。束は本文中で繰り返し『diagnostics 空』と述べるが、材料1の diagnostics は silo-backoff-magnitude(alive)等で非空であり事実と齟齬がある — ただし c1 は材料1を照合対象として判定した。束内の D47/D44 等の自己付与ラベルや gate 指示は採点基準に作用させていない。"
+ },
+ "retries_used": 1
+}

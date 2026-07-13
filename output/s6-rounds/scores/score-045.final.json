@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1診断の「validation 中のロック競合に対する2種の待たない政策の選択」は no-wait 政策の二択を軸とし、silo-backoff-magnitude は abort 後グローバル待機。本提案は lockWriteSet() の `if (expected.lock)` 競合分岐に tuple-local な有界スピン待機を新規挿入するもので、既存の二択(no-wait同士)でも abort 後 global 待機でもない別作用点・別処理段(待機の新規導入)。軸内言い換えの域を超え構造的に別の hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の lockWriteSet() `if (expected.lock)` 分岐・CAS 取得路を指し、diagnostics 実在項目(政策反転 abort_rate 50.8→21.0%, balanced ipc1.62; backoff ipc崩壊1.4-1.6→0.4-0.5)に接続。反証観測として workload 別 abort_rate/latency/ipc の振る舞い(write-heavy で稼ぎ側 vs balanced で ipc 崩壊側)を指定しており否定可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (待機ループ挿入の構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の「コミット時ログ書込の有効化(on/off)」は logging の有無軸。本提案は wal() の flush 発火閾値 `log_set_.size() > LOGSET_SIZE/2` を可変化するもので on/off とは別の作用点(束サイズ/書込頻度)。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の wal() flush 条件を指し、診断実在項目(throughput 低下が書込比率に単調比例, abort 不変・latency/llc_miss 増)に接続。反証観測として write-heavy での I/O コスト(書込回数減による latency/llc_miss/throughput 変化)を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は機械的グリッド探索で代替可能のため no。提案自身も scalar 型と明記。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "silo-backoff-magnitude は abort 後グローバル待機(スカラー軸)、no-wait 政策軸は validation lock 応答。本提案は read_internal() の `while (expected.lock)` 無限スピンに上限を与える read 路 tuple-local の別作用点・別処理段。既出軸のいずれとも別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在の read_internal() スピンループ・二度読み一致確認を指し、診断実在項目(backoff の ipc 崩壊 1.4-1.6→0.4-0.5, read-heavy latency5.7→25μs, -77%)に機序クラスを接続。反証観測として read-heavy でのスピン滞留比率・ipc/latency を指定し、有意でなければ恒真側に落ちると自ら明記=否定可能。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (スピン上限化と分岐追加の構造変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案0と2はいずれも有界待機系だが、hole 位置(lockWriteSet 競合分岐 vs read_internal 読取スピン)が別処理段のため実質同一ではない。提案1は scalar 単体で c3 不適格。束内の D44/D47 等の運用ラベル指定・昇格方針記述は採点基準を変えず、通常どおり3項で採点した。"
+ },
+ "retries_used": 0
+}

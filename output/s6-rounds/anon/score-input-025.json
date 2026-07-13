@@ -1,0 +1,69 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lock-wait-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal() の (a) 段のロック待ちスピン: `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`",
+    "skeleton": "ロックビットが立っている間の待機挙動を変異穴にする。現状は tidword を無条件タイトループで再ロードするだけ。ここに待機戦略 (例: _mm_pause 挿入・スピン回数上限・上限超過時に read を諦めて再試行系へ戻す等) を挟む骨格。(b)-(e) の再検証順序 (ロッククリア確認→body 読取→tidword 再確認) は骨格側に固定し、変異は「クリアを待つ間の振る舞い」のみに閉じる。"
+   },
+   "mechanism_hypothesis": "diagnostics は空のため attribution 名指しは行わず、stock 構造観察による。read_internal の待ちループは、writer が tidword.lock を落とすまで同一キャッシュラインを acquire ロードで叩き続ける。writePhase の storeRelease はこの同じ tidword への書き込みであり、読み手のタイトスピンが writer のリリース書き込みとキャッシュライン獲得を競合させうる構造がある。この位置の待機挙動は、read 経路 (validation 前) のcontention 応答という点で、abort() 内の再試行前待機 (既存 silo-backoff-magnitude) とも write set 施錠順序 (既存 silo-writeset-sort) とも別の hole であり、反証可能な性能差 (contention 下 read latency) を持ちうる。",
+   "safety_argument_hypothesis": "この変異が原理的に壊しうるのは read の一貫性: ロックが立っている間に body を読むと torn read になる。骨格が (a)ロッククリア待ち→(c)読取→(e)tidword 再確認の順序を保持する限り安全だが、変異が待機を早期に打ち切って読取へ抜ける経路を作ると破れる。段階 B で (b)-(e) 順序保持の再検証が必須。",
+   "unknowns": [
+    "この contention 応答に感度を持つ workload (skew・rratio・thread_num の動作点) — 実測を要し機序単独では導出不可",
+    "reward hack 仮説 (例: 待機を極端に縮めて見かけ throughput を上げつつ一貫性計測を素通りする経路の有無)",
+    "positive control 設計",
+    "計測動作点",
+    "偵察の列挙空間 (待機戦略の候補集合)",
+    "transaction.cc は開通済みだが既存 hole (silo-writeset-sort) と別位置に新規 EVOLVE-BLOCK マーカを開ける可否・境界は人間側判断"
+   ]
+  },
+  {
+   "axis_name": "silo-writeset-lock-conflict-response",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::lockWriteSet() の `if (expected.lock)` 分岐 (現状 NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC マクロで abort か goto retry に分岐している競合応答部)",
+    "skeleton": "write set 施錠中に対象 tuple が既にロックされていた場合の応答方針を変異穴にする。現状はコンパイル時マクロで「即 abort」か「一部解錠して retry」の二択。ここを実行時変異 (有界スピン後 abort・retry 回数上限付き・即 abort 等) の骨格に置換。既取得ロックの解錠 (unlockWriteSet(itr)) と status_ 設定は骨格側に固定。"
+   },
+   "mechanism_hypothesis": "diagnostics 空のため構造観察による。lockWriteSet は sort 済み write set を先頭から施錠していくが、他 worker が同 tuple を保持している場合の応答が固定化されている。stock コメントも当該分岐を「conflict response = coder edit surface」と別枠に位置づけており、施錠『順序』(既存 silo-writeset-sort) とは独立に施錠『競合時の待つ/諦める』が別 hole として存在する構造がある。競合応答方針は abort 率と施錠待ち時間のトレードオフに直結し、反証可能な性能差を持ちうる。abort() 内の再試行前待機 (silo-backoff-magnitude) は abort 確定後の話であり本位置とは経路が異なる。",
+   "safety_argument_hypothesis": "原理的に壊しうるのはデッドロック非発生性とロックカバレッジ不変条件。sort 済み昇順施錠がデッドロックを防ぐ前提のため、変異が施錠を飛ばして先へ進む/既取得ロックを解錠せず抜ける経路を作ると writePhase 入口の lock-coverage チェック (TRACE フック) が検出する不変条件を破る。段階 B で解錠漏れなし・昇順施錠保持の再検証が必須。",
+   "unknowns": [
+    "感度を持つ workload と動作点 — 実測要",
+    "reward hack 仮説 (競合時に abort を回避して見かけ commit を増やしつつ直列化を壊す経路の有無)",
+    "positive control 設計",
+    "計測動作点",
+    "偵察の列挙空間 (競合応答方針の候補集合と有界スピンのスカラー範囲)",
+    "既存 hole (silo-writeset-sort) と同一関数近傍に別 EVOLVE-BLOCK を開ける可否・マーカ境界は人間側判断"
+   ]
+  },
+  {
+   "axis_name": "silo-reclamation-epoch-lag",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork() の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の遅延定数 2",
+    "skeleton": "GC 再利用エポックの遅れ幅 (現状ハードコード 2) をスカラー変異穴にする。gc_records() は `rec->tidword_.epoch > ReclamationEpoch` で回収可否を決めるため、この遅延幅が回収タイミングを支配する。骨格は cur_epoch との単調関係と非負クランプを固定し、変異は遅延幅リテラルのみ。"
+   },
+   "mechanism_hypothesis": "diagnostics 空のため構造観察による。transaction.cc の gc_records() は ReclamationEpoch を閾値に Tuple を delete するが、その ReclamationEpoch は util.cc の siloLeaderWork で `cur_epoch - 2` として決まる。遅延幅 2 はメモリ再利用の早さと、旧エポックに留まる並行読み手の安全域のトレードオフを支配するスカラーであり、施錠順序 (silo-writeset-sort) とも再試行待機 (silo-backoff-magnitude) とも独立の別 hole。回収タイミングは delete/insert を含む workload でメモリ再利用局所性に効きうる反証可能量。",
+   "safety_argument_hypothesis": "原理的に壊しうるのは use-after-free: 遅延幅を縮めすぎると、より古いエポックの読み手 (read_set_ が当該 Tuple を参照中) がまだいる間に Tuple を delete しうる。遅延 2 は全 worker のエポック追随保証 (chkEpochLoaded) と対で安全域を作っている前提のため、段階 B でエポック保証との整合再検証が必須。mutation_type=scalar により headline 非対象ラベルが自動付与される。",
+   "unknowns": [
+    "感度を持つ workload (delete/insert 比率・tuple_num・thread_num) — 実測要",
+    "reward hack 仮説 (回収を遅らせてメモリ確保コストを先送りし見かけ throughput を上げる経路の有無)",
+    "positive control 設計",
+    "計測動作点",
+    "偵察の列挙空間 (遅延幅の有効レンジと下限安全境界)",
+    "util.cc は未開通 — この位置に EVOLVE-BLOCK を開通するコストと可否は人間側判断"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空オブジェクトのため、attribution の実測数値による候補間の優先順位付け・地形の大きさ予想ができない。3 候補はいずれも stock 構造観察のみに基づく反証可能仮説であり、相対有望度は不明",
+  "3 候補はいずれも既存二軸 (silo-writeset-sort / silo-backoff-magnitude) と構造的に別位置だが、既存軸台帳との最終的な非重複判定は人間承認 gate の構造照合に委ねる",
+  "本役の提案は変異型を問わず当面『探索補助』限定で段 6 headline 非対象 (D47 決定 5)。昇格には事前登録側改訂が前提"
+ ]
+}

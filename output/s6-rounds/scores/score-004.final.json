@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read_internal の読取フェーズのロック待ちスピン (for(;;){while(expected.lock){...}}) を hole 化。診断は backoff-magnitude・validation の no-wait 政策・WAL・writeset-sort(dead) を扱うが、読取フェーズのスピン待ちサイトはどれとも別の処理段・別作用点。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の transaction.cc read_internal に実在するスピン待ちループを指す。ipc 崩壊・lock政策反転の診断に接続し、読取側スピン→即abort差替えで abort率↔ipc トレードオフが立つと予想、workload 依存の throughput 地形という反証可能な観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() のフラッシュ発火閾値 (log_set_.size()>LOGSET_SIZE/2) を対象。WAL 診断はログ書込 on/off の I/O コストで、フラッシュ頻度という別ノブだが、C3不適格のため適格には無関係。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の wal() に実在する if(log_set_.size()>LOGSET_SIZE/2) 発火判定を指す。純I/Oコストは batching で償却可能という機序から write-heavy端 (-13.4%) で地形が最も動くという反証可能な予測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "既開通 silo-backoff-magnitude と同一 region (include/backoff.hh) だが、対象は Backoff::backoff の待機ループ per-iteration 本体 (_mm_pause 挙動) であり、待機量スカラー (Backoff_/update_backoff) とは別の作用点。長さでなく待機中挙動という構造的に別の hole で、軸内探索の言い換えに当たらない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock backoff.hh の for(;;){_mm_pause();stop=rdtscp();if(chkClkSpan)break;} を指す。ipc 崩壊 (待機で実命令発行不能) の帰属に接続し、待機総量固定で本体差替えると ipc 崩壊を abort率低減から切り離せるか、read-heavy 側で回収余地最大という反証可能な観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (構造変異)。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "提案0(読取スピン政策)と2(backoff待機本体)は別作用点の code_fragment で適格。提案1(WALフラッシュ閾値)は scalar 単体のため C3 不適格。束末尾の global_unknowns に headline対象性やラベルの指定・検査省略の誘導があるが、採点基準は変えず 3項で判定した。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,38 @@
+{
+ "problem": "scored[0]-criteria-not-bool",
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1診断 silo-backoff-magnitude の attribution『validation 中のロック競合に対する 2 種の待たない政策の選択』は、abort 即時 / goto retry の二つの『待たない』政策の択一を探索面としている。本提案は同じ lockWriteSet() の if(expected.lock) 分岐位置ではあるが、両極とは別クラスの『有界スピン→再取得→上限で abort』という待つ中間政策を新規コード構造として挿入する — 同じ処理を同形で挟み替える言い換えではなく、待たない二極に無い待ち構造を追加するため構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の transaction.cc lockWriteSet() 内 NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC マクロ分岐という実在構造を指し、diagnostic の稼ぎ方反転 (balanced IPC1.62 / write-heavy abort50.8→21.0%) を根拠に、地形が balanced/write-heavy に集中し read-heavy(0.4%)では順位不能という反証可能な予測を指定。実在処理に接続し観測量の振る舞い予測あり。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。上限回数・スピン形状の構造変異。scalar 単体ではない。"
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1診断の attribution『コミット時ログ書込の有効化 (on/off)』は書込の有無トグルの探索であり、書込 I/O コストへの帰属が結論。本提案は wal() の flush 判定 if(log_set_.size()>LOGSET_SIZE/2) とまとめ書き粒度という別 hole (有無ではなく flush 頻度・単位) を提案しており、別の作用点・別処理。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の transaction.cc wal() 内 LOGSET_SIZE/2 閾値・LogHeader.chkSum_ 計算という実在構造に接続。I/O コストの根が flush 粒度なら write-heavy に最大地形・read-heavy 低感度という反証可能な予測を指定。fdatasync コメントアウトの現状も正しく参照。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (バッチ構造改訂)。提案自身が scalar 化の可能性を注記するが現状 code_fragment と明示され、flush ロジック構造改訂を含むため構造変異として適格。"
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1診断は validation 側 (lockWriteSet) と backoff のみを探索面とする。本提案は read_internal() の for(;;){while(expected.lock){...}} 無限スピンという read phase の別処理段を有界スピン→abort に置換する hole であり、診断に未探索。別の処理段・別作用点で構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の transaction.cc read_internal() のロック解放待ちスピン (実在構造) を指し、backoff 診断の IPC 崩壊 (1.4-1.6→0.4-0.5) と latency 増を機序根拠に、read 経路支配的な read-heavy に地形を持つという反証可能な予測を指定。実在処理へ接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment。有界上限とスピン形状の構造変異。scalar 単体ではない。"
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 3,
+  "dedup_notes": "提案0(validation lockWriteSet)と提案2(read_internal)はともに有界待ち政策だが、hole 位置・処理段が validation phase と read phase で異なり骨格も別 — 実質同一ではない。3件とも相異なる hole。",
+  "overall_notes": "3提案とも既開通領域 transaction.cc 内の別位置を対象とし、診断 attribution の実在構造に接続、反証可能な地形予測を持つ。全て code_fragment で3項適格。束内に採点基準変更・round_eligible 指定等の誘導は見られず。"
+ }
+}

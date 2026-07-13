@@ -1,0 +1,70 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lock-wait",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal の (a) ロック待ちスピン `for(;;){ while(expected.lock){ expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`",
+    "skeleton": "書き込み側がロック保持中に読み手が tidword を無停止で再ロードし続ける busy-spin を、待機規律を挟む変異で置換する hole。骨格は『ロッククリア待ちのスピン本体をどう回すか (無停止再ロード / pause 挿入 / 有限スピン後の別動作)』を変異面とし、ロッククリア判定・(e) の tidword 再チェック整合ループは骨格側に残す"
+   },
+   "mechanism_hypothesis": "diagnostics は空のため機序は静的構造観察から述べる。read_internal の当該スピンは、読み経路で競合タプルのロック解放を待つ唯一の待機点であり、現状は pause も待機量調整も持たない無停止再ロードである。一方 abort 経路 (transaction.cc abort → Backoff::backoff) は待機規律を持つ。つまり『トランザクション中断後の再試行待ち』(既出 silo-backoff-magnitude が支配) と『進行中の読みがロック解放を待つ間の待ち』は構造上別の待機点であり、後者はどの既開通 hole の変異範囲にも入らない。競合タプルへの再ロード集中はキャッシュコヒーレンス往復を生む位置であり、ここに待機規律を挟む変異は読み側競合の地形に触れうる。反証可能性: 変異前後で当該スピン滞在挙動が観測でき、無効なら性能不変で棄却できる",
+   "safety_argument_hypothesis": "この変異が原理的に壊しうるもの: (1) ロッククリア待ちを短絡してロック保持中/absent のタプルを読むと torn read / 未コミット値読取りになる — 骨格側の『lock クリア後にのみ本体読取り、(e) で tidword 再一致確認』不変条件を保持できるかが要。(2) 待機規律次第で読み手のライブロック/スタベーション。段階 B で必ず再検証される前提の下書き",
+   "unknowns": [
+    "この軸が感度を持つ workload (競合度・zipf skew・read/write 比) — diagnostics 空につき機序単独で特定不能、偵察要",
+    "reward hack 仮説 (待機短絡で見かけの throughput を上げつつ正当性を崩す抜け道の有無)",
+    "positive control 設計 (地形が実在すると分かっている変異点の当て込み)",
+    "計測動作点 (スレッド数・extime・計測窓)",
+    "偵察の列挙空間 (挟みうる待機規律の候補集合の実コード裏取り)",
+    "read_internal と既存 silo-writeset-sort が同一 source (transaction.cc) 内にある点で、既存軸台帳との構造照合 (人間 gate) 前に非重複を確定できない"
+   ]
+  },
+  {
+   "axis_name": "silo-epoch-advance-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork の epoch 前進ゲート `if (chkClkSpan(..., FLAGS_epoch_time*...) && chkEpochLoaded()) { atomicAddGE(); ... ReclamationEpoch = cur_epoch>2 ? cur_epoch-2 : 0; ... }`",
+    "skeleton": "leader が global epoch を前進させる条件と、それに連動する ReclamationEpoch の算出 (現状 cur_epoch-2) を変異面とする hole。骨格は『epoch を進める / reclamation 境界をどこに置くか』の判定ロジックで、atomicAddGE の原子性・epoch 単調増加そのものは骨格側に残す"
+   },
+   "mechanism_hypothesis": "機序は静的構造から述べる (diagnostics 空)。siloLeaderWork は Silo の epoch 粒度を一手に決める制御点で、epoch 前進のたびに ReclamationEpoch = cur_epoch-2 が GC 安全境界を、epoch 境界が validation の直列化窓を規定している。既出 2 軸 (write set 施錠順序 comparator / abort 後待機量) はいずれもこの epoch 制御に触れない — したがって epoch 前進条件・reclamation ラグ (現在固定オフセット 2) の変異は構造的に別の hole。epoch 粒度は GC 頻度と validation 中断率のトレードオフを規定する位置であり、性能地形がありうる。反証可能: オフセットや前進条件を変えても計測不変なら棄却",
+   "safety_argument_hypothesis": "原理的に壊しうるもの: reclamation ラグを詰めると epoch 内でまだ参照されうるレコードを早期 delete → use-after-free。epoch 前進条件を緩めると Silo の epoch ベース直列化前提 (chkEpochLoaded による全スレッド同期) が崩れ、可視性/直列化違反。単調増加・全スレッド load 確認の破壊は正当性欠陥。段階 B で必ず再検証",
+   "unknowns": [
+    "感度を持つ workload と epoch_time 設定域 — 機序単独では特定不能、偵察要",
+    "reward hack 仮説 (epoch 前進を緩めて GC/validation を減らし見かけ性能を得つつ正当性を崩す経路)",
+    "positive control 設計",
+    "計測動作点 (epoch_time・スレッド数・extime)",
+    "偵察の列挙空間 (前進条件・reclamation オフセットの変異候補と ReclamationEpoch 消費側 gc_records との結合範囲の実コード裏取り)",
+    "util.cc は現状未開通領域 — 開通コスト判断は人間側。この提案は機序が指す先が未開通だったため位置のみ提示"
+   ]
+  },
+  {
+   "axis_name": "silo-gc-reclamation-cadence",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::gc_records() 本体 (`while(!gc_records_.empty()){ if(rec->tidword_.epoch > r_epoch) break; delete rec; ... }`) と、その無条件呼び出し点 (writePhase 末尾・abort)",
+    "skeleton": "毎コミット/毎 abort で無条件に走る reclamation 消費 (gc_records_ の front 走査) の起動頻度を変異面とする hole。骨格は『いつ reclamation を回すか (毎回 / 閾値バッチ / 間引き)』で、epoch>r_epoch の解放ガード条件は骨格側に残す"
+   },
+   "mechanism_hypothesis": "機序は静的構造から (diagnostics 空)。gc_records() は writePhase 末尾と abort で毎回無条件に呼ばれ、その都度 gc_records_ deque の front を走査する。これは reclamation 境界の『値/タイミング』を決める silo-epoch-advance-policy とは別の、reclamation の『消費カデンス』を決める位置である。既出 2 軸 (施錠順序 / 待機量) はこの消費頻度に触れない。高スループット下では毎トランザクションの deque 走査が固定オーバーヘッドを生む位置であり、起動を間引く/バッチ化する変異が per-tx コスト地形に触れうる。反証可能: カデンス変更で計測不変なら棄却",
+   "safety_argument_hypothesis": "原理的に壊しうるもの: reclamation を遅延させるとメモリ増大 (正当性は epoch>r_epoch ガード保持なら不変)。逆に epoch ガードを崩す変異は use-after-free。deque の front 単調消費前提を壊すと解放漏れ/二重解放。silo-epoch-advance-policy と ReclamationEpoch を介して結合するため独立性は要検証。段階 B で必ず再検証",
+   "unknowns": [
+    "感度を持つ workload (中断率・書込割合が gc 起動頻度に効く regime) — 機序単独で特定不能、偵察要",
+    "reward hack 仮説 (reclamation を止めて per-tx コストだけ下げメモリ/正当性を犠牲にする経路)",
+    "positive control 設計",
+    "計測動作点",
+    "偵察の列挙空間 (カデンス変異候補の集合)",
+    "silo-epoch-advance-policy (提案 2) と ReclamationEpoch 経由で結合 — 両提案の独立性は人間 gate/段階 B の照合まで確定不能"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空オブジェクトのため、先行指標の動きに基づく候補間の優先順位付け・競合レジームの確認ができない。全提案の mechanism_hypothesis は stock 抜粋と編集面の地図の静的構造観察のみに基づく仮説であり、段階 B での実コード裏取り + 独立再導出が前提",
+  "3 提案のうち 2 件 (read-lock-wait, gc-reclamation-cadence) が既開通の transaction.cc 内に位置し、既出 silo-writeset-sort との非重複は position/skeleton レベルでは別と判断したが、既存軸台帳との構造照合 (D47 必須条件 4, 人間 gate) を経ていない",
+  "全提案が code_fragment で当面『探索補助』限定 (段 6 headline 非対象)。昇格には事前登録側の改訂が前提",
+  "入力に hole_region_directive は無く、region は proposer 側で機序が指す先として選定した"
+ ]
+}

@@ -1,0 +1,66 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-spin-backoff",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "read_internal() 内、(a) のロック待ちスピンループ `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`",
+    "skeleton": "ロック解放待ちの tight spin ループに、待機挿入 (pause 回数・上限反復後の譲歩/中断など) を挟む変異穴。読み終わり後の楽観再検証ループ (expected==check) は骨格として保持し、変異対象はスピン部のみに限定。"
+   },
+   "mechanism_hypothesis": "diagnostics が空のため attribution 実在項目の名指しは非適用 (契約上有効な入力構成)。stock 構造観察: read_internal のロック待ちは `loadAcquire(tuple->tidword_.obj_)` を無停止で反復し、同じ tidword を writePhase の `storeRelease((*itr).rcdptr_->tidword_.obj_, maxtid.obj_)` が書き換える。競合下ではこの無 pause スピンが lock holder の書き込みと同一キャッシュラインを奪い合い coherence traffic を生む構造がある。スピン部への待機挿入の有無/量でこの競合経路の地形が変わりうると予想する。反証可能: 競合が無いワークロードではスピンにほぼ入らず差が出ない。既開通 silo-backoff-magnitude は abort 後再試行前の待機 (backoff.hh) であり、本穴は read フェーズのロック解放待ちで位置・機序ともに別。",
+   "safety_argument_hypothesis": "待機を過剰にするとロック解放後の読み取り再開が遅れ、ThLocalEpoch 進行の遅延や read フェーズ長期化による validation abort 率上昇に波及しうる。楽観読みの再検証 (expected==check) を保持する限り可視性・直列化正当性そのものは壊さない想定だが、段階 B で必ず再検証される前提の下書き。",
+   "unknowns": [
+    "感度を持つ workload (競合度・zipf_skew・スレッド数) — 機序単独では確定できず偵察要",
+    "計測動作点 (どの競合水準で効果が現れるか)",
+    "positive control 設計",
+    "reward hack 仮説",
+    "code_fragment に留めるか、待機量をスカラー化した場合の探索空間 (どちらの mutation_type が適切か)"
+   ]
+  },
+  {
+   "axis_name": "silo-reclamation-epoch-lag",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork() 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の定数 2 (現在 epoch からの GC 猶予距離)",
+    "skeleton": "reclamation の epoch lag 定数 2 をスカラー変異穴にする。gc_records() 側の判定 `rec->tidword_.epoch > r_epoch` の閾値供給元がこの ReclamationEpoch。境界式 (cur_epoch>2?…:0) の構造は保持し、lag 値のみ変異。"
+   },
+   "mechanism_hypothesis": "diagnostics 空のため attribution 名指しは非適用。stock 構造観察: gc_records() は `const auto r_epoch = ReclamationEpoch;` を読み、`rec->tidword_.epoch > r_epoch` で break する。lag=2 はこの猶予距離であり、writePhase の DELETE 経路が gc_records_ に push したレコードのドレイン速度と、`delete rec` によるメモリ解放/再利用タイミングを直接規定する。この距離を変えると割当・解放圧の地形が変わりうると予想する。反証可能: 削除/挿入がほぼ無いワークロード (更新のみ) では gc_records_ が育たず無影響。scalar のため段 6 headline 非対象ラベルが自動付与される。既開通 2 軸 (writeset-sort・backoff-magnitude) と位置・機序ともに別。",
+   "safety_argument_hypothesis": "lag を小さくすると、まだ別 tx が read フェーズで参照しうる epoch のレコードを早期に `delete` し use-after-free を招く危険がある。正当性 critical な定数であり、下限の安全性は段階 B で必ず再検証される前提。util.cc は未開通領域だが、機序が指す先がここであるためそのまま提案 (開通コスト判断は人間側)。",
+   "unknowns": [
+    "安全に許容される lag 下限 (実コード裏取り要)",
+    "感度を持つ workload (削除/挿入比率・epoch_time との相互作用)",
+    "positive control 設計",
+    "計測動作点",
+    "reward hack 仮説"
+   ]
+  },
+  {
+   "axis_name": "silo-local-set-search-order",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "read() 冒頭のローカルセット走査 `re = searchReadSet(...); if(re) ...; we = searchWriteSet(...); if(we) ...`(および scan() 内の同型ループ)",
+    "skeleton": "read-own-writes 解決時のローカルセット探索の順序・短絡構造を変異穴にする。searchReadSet/searchWriteSet はいずれも write_set_/read_set_ 上の線形走査 (O(n))。骨格として「両セットを漏れなく検査する」不変を保持し、走査順・早期短絡のみ変異。"
+   },
+   "mechanism_hypothesis": "diagnostics 空のため attribution 名指しは非適用。stock 構造観察: read() は searchReadSet を先、searchWriteSet を後に呼び、どちらも該当 vector を先頭から線形走査する。read-own-write / write-own-read の比率が高いワークロードでは、ヒットするセットを先に走査するか否かで平均走査長が変わる構造がある。この順序変異でセット走査コストの地形が動きうると予想する。反証可能: read_set_/write_set_ が小さい (per-tx オペレーション数が少ない) ワークロードでは走査長差が無視でき無影響。既開通 2 軸と位置・機序ともに別 (comparator でも backoff でもない、ローカルセット参照経路)。",
+   "safety_argument_hypothesis": "両セットを検査する不変を保つ限り read-own-writes / read-own-deletes の可視性正当性は壊れない想定。ただし短絡を誤設計すると write set 側の未反映値を見落とす危険があり、段階 B で正当性再検証される前提の下書き。",
+   "unknowns": [
+    "軸内探索 (既存軸の探索範囲内の変異) でなく構造的に別 hole であることの、既存軸台帳との照合結果",
+    "感度を持つ workload (per-tx オペレーション数・read/write 比率)",
+    "positive control 設計",
+    "計測動作点",
+    "reward hack 仮説"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空オブジェクトのため、全提案の mechanism_hypothesis は stock 抜粋と編集面の地図の構造観察のみに由来する。性能地形の実在 (動きの大きさ・符号) は一切未検証で、段階 B の実コード裏取り + 偵察でのみ確定する",
+  "transaction.cc 内のコードコメント (lockWriteSet の TRACE ブロック) が『conflict response above = the coder edit surface』と記しており、write set 施錠時の競合応答が edit_surface_map に列挙されない既存 hole である可能性がある。本ラウンドの提案はいずれもその位置を避けたが、既存軸台帳との構造照合 (人間承認 gate) で衝突有無を確認要",
+  "各提案の mutation_type 仮置き (特に silo-read-spin-backoff の code_fragment/scalar 二択) は機序単独で確定できず、オンボーディング段階 B で確定要"
+ ]
+}

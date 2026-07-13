@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "材料1診断は silo-backoff-magnitude・silo-writeset-sort の2軸のみ。本提案は util.cc siloLeaderWork の ReclamationEpoch オフセット (gc reclamation 経路) という別位置の hole で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc の gc_records() の `rec->tidword_.epoch > ReclamationEpoch` と util.cc の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0` という実在構造に繋がり、delete/insert チャーンの無いワークロードでは N が無効という反証可能な観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "read_internal() のロック待ちスピン (読取側の待ち点) は診断2軸 (書込側施錠順序・abort後待機) と構造的に別の作用点で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc read_internal の `while (expected.lock) { loadAcquire(...) }` スピンと (e) 再チェック `expected == check` という実在構造に接続。write比率>0・contention 構成でのみ効き read-only では不変という反証可能な観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type が code_fragment (待機規律の構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の『ログ書込の有効化 (on/off)』とは別に、wal() の flush 閾値 `log_set_.size() > LOGSET_SIZE/2` という batch 粒度の別 hole。既出の2 hole とは別位置。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc wal() の log_set_ 蓄積と `logfile_.write` 1回発行、LOGSET_SIZE/2 閾値という実在構造に接続。#if WAL 有効時のみ効くという反証可能な観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0と2はscalar単体でC3不適格、提案1のみ code_fragment で3項全yes。束内 global_unknowns に headline非対象・探索補助限定ラベル等の記載があるが、採点基準は変えず通常判定した。"
+ },
+ "retries_used": 0
+}

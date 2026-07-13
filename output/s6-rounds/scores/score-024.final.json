@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は cc/silo/transaction.cc の TxExecutor::read_internal 内 for(;;) ループ先頭の `while (expected.lock) { ... }` という read phase のロック待ちスピン点。診断の既開通 hole は silo-backoff-magnitude (backoff.hh の abort 後再試行前待機量スカラー) と silo-writeset-sort (施錠順序 comparator) の 2 つで、いずれも read phase のスピン待機とは別の処理段・別作用点。構造的に別 hole で yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock 実在の read_internal スピンループ (材料1 transaction.cc に実在) を指し、待機で ipc が崩壊する機序 (診断の ipc 1.4-1.6→0.4-0.5) を read phase の idle 待機点に同型に働くと予想。反証可能な観測として read-heavy 側の ipc/latency 地形の有無を指定 (感度が read-heavy に出なければ否定) しており、実在構造への接続と反証可能観測を満たす。yes。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (構造変異=待機構造の差替え) で yes。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は TxExecutor::wal 内 `if (log_set_.size() > LOGSET_SIZE / 2)` のフラッシュ発火閾値。診断の既開通 hole (backoff-magnitude / writeset-sort) とは別位置。コミット時ログ書込は attribution に軸として載るが、この閾値リテラルという作用点は診断骨格に既出でない。yes。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock 実在の wal 関数のフラッシュ閾値 (材料1 に実在) を指し、診断のログ書込 I/O コスト帰属 (throughput 低下が書込比率に単調比例) に対し閾値が I/O 償却度を左右すると予想。反証可能観測として write-heavy 側の地形を指定。実在構造接続と反証可能観測を満たす。yes。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type は scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0はread_internalスピン点への構造変異で3項適格。提案1は機序・既存性は満たすがmutation_typeがscalar単体のためc3不適格。束内にsafety_argument_hypothesisやunknowns等の追加欄があるが採点基準は3項のみで判定。round_eligibleは提案0により真。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,47 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-lockwait-policy",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal — 冒頭の版取得ループ内の `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` のうち、ロックビットが立っている間の待機部 (`while (expected.lock)` の無制限リロード)",
+    "skeleton": "ロック中の待機戦略だけを差し替える穴。現状は「ロックが下りるまで tidword を無制限に busy-reload」。この位置に『待機カウンタ + 応答分岐』を挟む骨格 (例: 一定回数リロード後に _mm_pause 相当で譲る／打ち切って読み取り側 abort 相当の Status を返す、等) を変異範囲とする。ロック解放後に (a)〜(e) の TID 再読取り整合ループへ合流する不変条件は骨格側に固定し、穴は『どう待つ/いつ諦めるか』のみ。"
+   },
+   "mechanism_hypothesis": "diagnostics が空のため構造観察から述べる。read_internal はロックビットが立っている間 tidword を無制限に busy-reload し、読み手側にはこのループを離脱して abort する経路が無い。一方 writePhase は UPDATE/DELETE で memcpy を挟んだ区間このロックを保持する (storeRelease まで lock=1)。したがって読み手の待機時間は writer のクリティカルセクション長に直結し、競合時に読み手 CPU が spin で消費される構造がこの一点に集中している。この位置に待機上限＋譲歩/打ち切りを入れる変異は、spin 浪費と読み手 abort 発生の配分を変えうる。反証可能性: ロック済み tuple に読み手がほぼ遭遇しない低競合構成では変異はほぼ無効となり、この位置に地形が無いことが確認できる。",
+   "safety_argument_hypothesis": "Silo 読み取りの正しさは『ロックが下りた安定版を読み、(e) の TID 再読取りで一致を確認する』不変条件に依存する。ロックビットが立ったまま body を返す/後段の TID 再読取りを飛ばす変異は原子性を壊す。打ち切って読み手 abort に倒す方向はデータを返さないため原理的に安全側だが、abort 経路自体が read フェーズに存在しない (Status の受け皿が無い) 可能性があり、そこは段階 B で要確認。",
+   "unknowns": [
+    "この穴が地形を持つワークロード (競合度・write 比率・VAL_SIZE によるクリティカルセクション長) の同定",
+    "読み手側 abort を返す場合に必要な Status 値/呼び出し側の再試行経路が既存にあるか (無ければオンボーディング手順でなく本体設計変更を要する)",
+    "reward hack 仮説 (常時即打ち切り等で見かけの指標だけ改善する退化変異の有無)",
+    "positive control 設計・計測動作点・感度を持つ workload の実測裏取り (機序単独では不可)",
+    "mutation_type=code_fragment だが探索補助限定ラベルは共通"
+   ]
+  },
+  {
+   "axis_name": "silo-epoch-advance-cadence",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/util.cc",
+    "source_rel": "cc/silo/util.cc",
+    "position": "siloLeaderWork — epoch 前進を gate する条件 `if (chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()) { atomicAddGE(); ... ReclamationEpoch = ...; epoch_timer_start = epoch_timer_stop; }` の判定部",
+    "skeleton": "epoch を前進させる『いつ進めるか』の判定ロジックだけを穴にする。現状は時間経過 (FLAGS_epoch_time) と全スレッド最新 epoch ロード確認 (chkEpochLoaded) の AND 固定。この判定条件を変異範囲とする骨格 (例: 経過時間条件の形を変える、全スレッド確認の粒度を変える 等)。atomicAddGE() 実行と ReclamationEpoch = cur_epoch-2 の後段は骨格に固定し、穴は前進タイミングの決定のみ。FLAGS_epoch_time の数値だけを振るのは既存のスカラーフラグ範囲であり本穴の対象外 (判定の構造を変える)。"
+   },
+   "mechanism_hypothesis": "diagnostics が空のため構造観察から述べる。siloLeaderWork は epoch 前進を『時間 gate かつ全スレッドが最新 epoch をロード済み』の連言で律速している。この epoch はコミット可視性の粒度 (writePhase の tid_c.epoch) と GC 安全境界 (ReclamationEpoch = cur_epoch-2、transaction.cc の gc_records が参照) の両方を同時に駆動する単一の制御点である。前進判定の構造を変える変異は、この『コミット可視化の待ち時間』と『再利用可能になるまでの遅延』のトレードオフをこの一点で動かしうる。反証可能性: epoch 前進が律速でない構成 (extime が長く GC 圧が低い等) では観測可能な差が出ないことで、この位置に地形が無いことが確認できる。",
+   "safety_argument_hypothesis": "epoch は GC 安全 (ReclamationEpoch=cur_epoch-2 で 2 epoch 前まで) とコミット順序に直結するため、前進を速めすぎると gc_records が生存レコードを回収する危険、chkEpochLoaded の連言を緩めると未ロードスレッドとの epoch 不整合の危険がある。ReclamationEpoch の -2 マージンと atomicAddGE の後段は骨格に固定し、穴は前進『タイミング』のみに限る前提。この安全論は段階 B で必ず再検証。",
+   "unknowns": [
+    "cc/silo/util.cc 領域は未開通 — 開通コストの判断は人間側 (機序は未開通領域を指す)",
+    "GC 安全マージン (-2) と epoch 前進を切り離せる範囲の実コード裏取り",
+    "感度を持つ workload・計測動作点 (extime / epoch_time / スレッド数の組) の同定",
+    "reward hack 仮説 (epoch を止める/加速する退化で見かけ指標を動かす変異の有無)",
+    "スカラーフラグ振りとの切り分けが実装上成立するかの偵察 (成立しなければ mutation_type を scalar 側に寄せ直す判断が要る)"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "diagnostics が空 (`{}`) のため先行指標の動きの大きさ・形が与えられておらず、各提案の効果量・符号・非単調性は構造観察からの予想に留まる — 実測での地形確認は段階 B に全面依存",
+  "両提案とも入力射影に既出の 2 軸 (silo-writeset-sort / silo-backoff-magnitude) と構造的に別の hole であることは提案側の主張であり、既存軸台帳との構造照合 (D47 必須条件 4) は人間 gate 側の作業",
+  "本役の提案は変異型を問わず探索補助限定 — 段 6 headline 非対象 (D47 決定 5)"
+ ]
+}

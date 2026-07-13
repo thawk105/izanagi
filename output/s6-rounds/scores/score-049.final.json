@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断 silo-backoff-magnitude attribution 3 は『コミット時ログ書込の有効化 (on/off)』という WAL on/off 軸。本提案は tpcc_silo.cc worker_init の logfile_.open(O_CREAT|O_TRUNC|O_WRONLY) の open フラグ・同期方針 (O_DSYNC/O_DIRECT/fdatasync 有無) という別の処理段・作用点を hole 化しており、on/off ではなく I/O パスの書込方式変異。構造的に別 hole で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "attribution 3 (書込 I/O コスト帰属・abort_rate 不変/latency 増/llc_miss 増) を根拠にし、stock 実在の open 呼出 (tpcc_silo.cc worker_init #if WAL) と wal()/log.hh の書込経路を指す。反証可能観測『open/同期方式を変えれば abort_rate を動かさず latency・llc_miss を上下でき、帰属誤りなら効果が出ない』を明示。実在構造に接続。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (open フラグ・同期構成の構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "ftruncate(1000000000) の事前確保サイズという hole は診断にも既出軸探索範囲にも無く、別の作用点。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "attribution 3 の書込 I/O コスト帰属に接続し、stock 実在の ftruncate リテラルを指す。反証可能観測 (確保サイズ変更で abort_rate 不変・latency 変化、効果なければ帰属誤りまたは run 長で観測不能) を指定。実在構造に接続。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体 (ftruncate サイズ 1 値のみ)。既存の機械的グリッド探索で代替可能なため no。提案束自身も headline 非対象と自己記載。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0は WAL open/同期方式の構造変異で3項適格。提案1は同じ attribution 3 帰属だが scalar 単体で c3 不適格。両提案は異なる hole 位置 (open フラグ vs ftruncate サイズ) で実質同一ではない。束内の『探索補助限定』『headline 非対象』等の自己ラベルは判定に用いず基準どおり採点した。"
+ },
+ "retries_used": 0
+}

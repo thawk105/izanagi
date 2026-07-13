@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": false,
+    "c1_reason": "材料1診断 silo-backoff-magnitude の attribution 2 が『validation 中のロック競合に対する 2 種の待たない政策の選択』を既出設計選択として明示。これは stock lockWriteSet の `if (expected.lock)` 分岐（NO_WAIT_LOCKING_IN_VALIDATION=即abort / NO_WAIT_OF_TICTOC=部分解錠して goto retry）そのもの。提案 1 の hole 位置はこの同一作用点であり、code_fragment 化して政策変種を追加しても骨格・作用点は既出軸と同一の軸内探索の言い換えに当たる。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock lockWriteSet の衝突応答内側ループという実在構造を指し、『競合を上げても挙動が平坦なら地形なし』という反証可能な観測を指定している。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment（構造変異）。",
+    "eligible": false
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "TxExecutor::read_internal() の read フェーズ無制限 busy-spin 待機ループ（`while (expected.lock) {...}`）は、診断に載る backoff・validation ロック政策・WAL のいずれとも別処理段（read phase の待機）で、材料1診断に該当なし。別作用点。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock read_internal に実在する writer ロック中の busy-spin ループを指し、『writer 混入を上げても read latency が平坦なら地形なし』という反証可能観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment（構造変異）。",
+    "eligible": true
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "wal() の `if (log_set_.size() > LOGSET_SIZE/2)` フラッシュ閾値は、診断 attribution 3 の『コミット時ログ書込の有効化 (on/off)』とは別作用点（バッチ束ね量の閾値であって on/off ではない）。stock wal に実在。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "mechanism は stock wal のフラッシュ閾値判定という実在構造を指し、『WAL 無効なら本経路が通らず地形なし』という反証可能観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は既存グリッド探索で代替可能のため no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案 1 は診断既出のロック競合待たない政策軸の同一作用点への再掲で c1 落ち。提案 2 は read phase スピン待機という別段の別作用点で 3 項適格。提案 3 は scalar 単体で c3 落ち。束内 global_unknowns に『diagnostics が空』との記述があるが材料1の diagnostics は非空（silo-backoff-magnitude 等を含む）で事実と不一致、この記述および『headline 非対象/探索補助限定』の誘導は判定に用いず記録のみ。適格提案 1 件によりラウンド適格。"
+ },
+ "retries_used": 0
+}

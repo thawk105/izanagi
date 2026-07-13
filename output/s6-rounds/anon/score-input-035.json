@@ -1,0 +1,50 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-tuple-lockword-line-isolation",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/include/tuple.hh",
+    "source_rel": "cc/silo/include/tuple.hh",
+    "position": "class Tuple のメンバ配置 `alignas(CACHE_LINE_SIZE) Tidword tidword_; TupleBody body_;` と struct Tidword の union obj_ 境界",
+    "skeleton": "ホットなロックワード tidword_ の分離度を変える変異穴 — tidword_ と body_ の間、あるいは Tuple 末尾にキャッシュライン境界パディングを挿入/除去/変化させ、tidword_ が body_ や隣接タプル要素とライン共有するかどうかを構造として切り替えるコード片を挟む"
+   },
+   "mechanism_hypothesis": "attribution 項目1 (backoff) の abort_rate 指標が示す baseline 競合水準は高い (balanced 65.3% / write-heavy 59.7%) 一方、同項目の llc_miss_rate は『微増・cache 面の利得なし』であり、無駄再試行を削っても cache miss がほぼ動かない=残存 miss が再試行由来でなく構造 (配置) 由来である示唆を与える。また attribution 項目2 (2政策) で write-heavy 優位側でも abort_rate が 50.8→21.0% と残存競合が大きく、skew0.9 の hot set 上で複数スレッドが同一 tidword_ を read-spin (read_internal の lock spin) と CAS (lockWriteSet) で叩き続ける。tidword_ が body_ の memcpy 更新や隣接タプルとライン共有していれば false sharing がこのコヒーレンストラフィックを増幅する。よって tidword_ のライン分離度を変える本位置に、競合下の coherence 由来 miss を動かす性能地形を予想する。",
+   "safety_argument_hypothesis": "本変異は Tuple のメモリ配置のみを変え、tidword_ のビット意味・CAS プロトコル・読取検証契約は不変の想定。ただし sizeof(Tuple) の変化が makeDB のテーブル確保、get_tuple の &table[key] インデクシング、総キャッシュフットプリントへ波及しうる — 段階 B で要再検証。",
+   "unknowns": [
+    "どの workload がこの配置変異に感度を持つか (read-heavy の read-spin 集中か write-heavy の CAS 集中か) は未特定 — 実測要",
+    "reward hack 仮説: 単一動作点 skew0.9 の特定 hot set に最適化した配置が他分布へ汎化しない懸念 — 偵察・実測要",
+    "positive control 設計 未導出",
+    "感度が出る計測動作点 (skew/thread/レコード数) 未導出",
+    "偵察の列挙空間 (試すべきパディング量・境界配置の集合) 未導出",
+    "sizeof(Tuple) 変化の波及範囲 (makeDB・テーブル確保・インデクシング) の実コード裏取り要"
+   ]
+  },
+  {
+   "axis_name": "silo-tidword-lockbit-field-split",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/include/tuple.hh",
+    "source_rel": "cc/silo/include/tuple.hh",
+    "position": "struct Tidword の union 内ビットフィールド割当 (lock:1 / latest:1 / absent:1 / tid:29 / epoch:32) と obj_ の単一 64bit 語構成",
+    "skeleton": "競合するロックビットを、読取検証で比較されるバージョン語 (tid/epoch) と別ワードへ分離する変異穴 — obj_ の『ロックとバージョンを 1 語に同居』前提を崩す構造変異をビットフィールド定義側に置く"
+   },
+   "mechanism_hypothesis": "attribution 項目2 (2政策) の write-heavy 優位側は『abort_rate と latency の同時低減で稼ぐ』(abort 50.8→21.0%) と示され、高書込競合下で abort の主要因が同一 tidword_ 上のロック観測にあることを示唆する。現状 lock ビットとバージョン (tid/epoch) は単一 64bit 語に同居し、writer のロック set/clear が読者のバージョン再検証語を毎回無効化する。ロックビットを別語へ分離すればロック churn とバージョン読取の結合が緩む位置であり、attribution 項目2 が示す競合由来 abort/latency の地形を動かす候補と予想する。",
+   "safety_argument_hypothesis": "ロックビットとバージョン語の分離は Silo の『単一 64bit tidword をアトミックに読取・検証する』契約 (read_internal の (a)–(e) 再読取比較、lockWriteSet の単一語 CAS、validationPhase phase-3 の check.lock 検査) を原理的に破壊しうる — 直列化正しさに直結。段階 B で最優先再検証、恐らく transaction.cc 側の大規模随伴変更を要する。",
+   "unknowns": [
+    "正しさ不変条件を保てるフィールド分割が存在するか自体が未確認 (機序単独では導出不能)",
+    "随伴して変更が必要な transaction.cc 側の読取/検証/施錠コードの範囲 未特定",
+    "reward hack 仮説 未導出",
+    "positive control 設計 未導出",
+    "計測動作点 未導出",
+    "偵察の列挙空間 (どのフィールド分割案を試すか) 未導出",
+    "本提案が mutation_type=code_fragment に収まるが、実体はヘッダ側レイアウト変異と transaction.cc 側随伴変異の複合であり、既存二型のどちらにも単独では収まらない可能性 — オンボーディングひな型が複数領域にまたがる変異を表現できるかの改訂検討が要る"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 diagnostics が単一動作点 (skew0.9 / 48thread / 1M レコード)・各構成 1 round・交互作用未分離のため、配置/レイアウト変異と既開通 2 軸 (silo-backoff-magnitude・silo-writeset-sort) の交互作用は不明",
+  "cc/silo/include/tuple.hh 領域は未開通 (opened:false) — 開通コストの判断は人間側の仕事",
+  "diagnostics の llc_miss_rate は『微増』等の粗い動きのみで、レイアウト/配置変異の性能地形を確証するだけの分解能があるかは未確認"
+ ]
+}

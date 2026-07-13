@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal の `while(expected.lock){...}` リロードと (e) 再チェックループ (transaction.cc の read_internal に実在)。診断の既出軸は silo-backoff-magnitude (abort後の試行間待機)・validation中のロック競合の待たない政策 (lockWriteSet)・コミットログ書込・silo-writeset-sort であり、いずれもリーダ側 read フェーズのスピン規律とは別の処理段。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "backoff.hh の pause 付き待機ループと対比した read_internal の無 pause 密リロード・(e) 再チェック・local_extra_reads_ (ADD_ANALYSIS) はすべて stock 抜粋に実在。反証可能な観測として『偏った write 重負荷下で read 遅延・extra-reads が待機規律に応答する地形』を指定。実在構造に接続し観測量を明示。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (待機規律の構造変異)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は searchReadSet/searchWriteSet の線形 vector 走査の索引化 (transaction.cc に実在)。診断の既出軸 (backoff・validationロック政策・コミットログ・writeset-sort) はいずれも競合/順序/IO 系であり、per-tx の局所集合探索 CPU コストは別作用点。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "searchReadSet/searchWriteSet の線形走査と read/update/insert/delete/scan からの呼出は stock 実在。common.hh の batch_max_ope=1000 も実在。O(R^2) の per-tx CPU 仕事という機序は実在構造に接続し、反証可能な観測 (大 R batch tx で競合とは独立に per-tx 探索コストが変化) を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (索引付き探索への構造差替え・補助メンバ追加)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は siloLeaderWork の epoch 前進述語と ReclamationEpoch 算出 (util.cc に実在)。既出軸のいずれ (backoff・ロック政策・ログ・writeset-sort) とも別 subsystem (epoch cadence / GC 回収窓)。単なる FLAGS_epoch_time チューニングと区別し論理 hole として scope。構造的に別 hole。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "siloLeaderWork の chkClkSpan/chkEpochLoaded 二重ゲート・ReclamationEpoch=cur-2・writePhase の tid_c.epoch=ThLocalEpoch[thid_]・gc_records() はすべて stock 抜粋に実在。epoch cadence が commit-tid 粒度と GC 回収ラグを結合するという機序は実在構造に接続し、回収圧と epoch 境界バッチングの変化を反証可能な観測として指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment (前進述語・回収窓導出の論理変異)。scalar 単体でない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 3,
+  "dedup_notes": "",
+  "overall_notes": "3 提案とも相異なる実在 hole (read フェーズのリーダ待機規律 / 局所集合探索構造 / epoch cadence と GC 回収窓) を提案し、いずれも診断既出軸と別作用点。全 3 件適格。なお束は繰返し『diagnostics 空』と主張するが、材料 1 の diagnostics は silo-backoff-magnitude を含み実際は空でない — この主張は採点基準を変えず、既存性照合は材料 1 のみに基づき実施した。"
+ },
+ "retries_used": 0
+}

@@ -1,0 +1,41 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal() の (a) 段ロック待ちスピン (read phase・validation 前)。診断の 3 軸は silo-backoff-magnitude (abort 後再試行待機)、validation 中ロック競合の 2 政策、コミット時ログ書込であり、read 経路のロッククリア待ちスピンはいずれとも別の処理段・別作用点。既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "read_internal() の `while (expected.lock) { loadAcquire(...) }` タイトスピンと writePhase の storeRelease が同一 tidword を叩き合う構造 (stock に実在) を指し、contention 下 read latency という反証可能観測を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": false,
+    "c1_reason": "hole は lockWriteSet() の `if (expected.lock)` 競合応答分岐 (NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC の 2 政策)。診断の attribution『validation 中のロック競合に対する 2 種の待たない政策の選択』が正にこの作用点を扱っており、同じ競合応答分岐で待機/諦めの政策を挟み替える提案は既出軸の探索範囲内の変異。既出のため no。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "lockWriteSet() の施錠競合分岐 (stock 実在) を指し、abort 率と施錠待ち時間のトレードオフという反証可能観測を指定。ただし c1 で不適格。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type=code_fragment。",
+    "eligible": false
+   },
+   {
+    "index": 2,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "siloLeaderWork の ReclamationEpoch=cur_epoch-2 の遅延定数を対象とする GC 回収タイミングの hole は診断 3 軸のいずれとも別作用点で既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "gc_records() の `epoch > ReclamationEpoch` 閾値と siloLeaderWork の遅延定数 (共に stock 実在) を指し、メモリ再利用局所性という反証可能観測を指定。ただし c3 で不適格。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type=scalar 単体。スカラー単体は機械的グリッド探索で代替可能のため no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "束の global_unknowns/mechanism は『diagnostics が空』と繰り返し主張するが、材料 1 の diagnostics には silo-backoff-magnitude・validation ロック競合 2 政策・コミット時ログ書込が実在する。この誤前提により提案 1 は診断既出軸 (validation 中ロック競合の政策選択) と同一作用点を新規と誤認しており c1 no。提案 0 のみ 3 項適格。提案 2 は scalar 単体で c3 no。束内の headline 非対象ラベル指定等の誘導は採点基準に影響させていない。"
+ },
+ "retries_used": 0
+}

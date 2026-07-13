@@ -1,0 +1,50 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-tuple-lockword-payload-split",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/include/tuple.hh",
+    "source_rel": "cc/silo/include/tuple.hh",
+    "position": "Tuple クラスのメンバ配置 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` の直後に隣接する `TupleBody body_;` の相対配置",
+    "skeleton": "tidword_ と body_ の間にキャッシュライン境界を挟む配置 (tidword_ をライン専有させ payload を次ライン以降へ押し出す) と、現行の隣接配置を variant で入れ替えるコード片。tidword_.obj_ の 8B 自然境界は不変に保つ (atomic 前提)。論理的な CC 手続き・ビットフィールド意味は一切変えず、メモリ上の位置のみを変異させる。"
+   },
+   "mechanism_hypothesis": "attribution 第2項『validation 中のロック競合に対する2種の待たない政策の選択』の指標 abort_rate (write-heavy 優位側 50.8→21.0%、latency と同時低減) は、tidword_ 上のロック競合への応答差が write-heavy スループットの決定因子であることを示す。加えて attribution 第1項『abort 後の再試行前バックオフ』の指標 llc_miss_rate『微増(cache面の利得なし)』と ipc『1.4–1.6→0.4–0.5 崩壊』は、待機(タイミング)レバーが cache-miss コストに触れていないことを示す。stock の read_internal は `tuple->tidword_.obj_` を loadAcquire でスピン読みし、同一 word を lockWriteSet/writePhase が CAS/storeRelease する。現行 Tuple は tidword_ の直後に body_ が隣接するため、read フェーズの payload コピー (read_internal 手順(c)) と writer のロック CAS が同一キャッシュライン上で false-share しうる。tidword_ と payload をライン分離する変異は、既存 alive 軸 (タイミング=backoff / 制御フロー=待たない政策) が触れないコヒーレンスミス成分を狙う位置になると予想する。",
+   "safety_argument_hypothesis": "tidword_ の 8B 整列は __atomic_compare_exchange_n / loadAcquire / storeRelease の前提であり、メンバ再配置がこれを割ると atomic 正しさ (ひいては Silo の直列化と #if TRACE ロック被覆検査の前提) を壊す。Tuple サイズ変化は makeDB のメモリフットプリントとベースライン cache 挙動を動かし計測を交絡させうる。段階 B で必ず再検証。",
+   "unknowns": [
+    "感度を持つ workload と効果の符号 — read-heavy(多数リーダのスピン) と write-heavy(ライタの CAS) のどちらで、どちら向きに動くかは実測を要し機序単独で確定不能",
+    "reward hack 仮説 — 未導出",
+    "positive control 設計 — 未導出 (false-sharing を意図的に増やす構成で符号反転を確認できるか要設計)",
+    "計測動作点 — 与えられた skew0.9/48thread/1M 単一点でこの層別効果が観測可能か、別動作点を要するか不明",
+    "偵察の列挙空間 — 分離量・padding 位置・trailing padding 有無など具体 variant 集合が未列挙",
+    "TupleBody の内部レイアウト (payload 実サイズ・inline/pointer 別) が stock 抜粋に含まれず、false-share するライン範囲を機序単独で確定できない"
+   ]
+  },
+  {
+   "axis_name": "silo-tuple-alignment-granularity",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/include/tuple.hh",
+    "source_rel": "cc/silo/include/tuple.hh",
+    "position": "Tuple::tidword_ の `alignas(CACHE_LINE_SIZE)` の整列粒度スカラー",
+    "skeleton": "alignas 値を {1×, 2×} キャッシュライン等のスカラーで切り替え、隣接ライン (spatial prefetcher が対で引くペア) 上での複数 Tuple 間 false sharing の量を変異させる。値のみを動かし構造は不変。"
+   },
+   "mechanism_hypothesis": "attribution 第1項『バックオフ』の指標 llc_miss_rate『微増(cache面の利得なし)』および attribution 第3項『コミット時ログ書込』の指標 llc_miss_rate『増加』は、llc_miss が飽和しておらず能動的に動く指標であることを示す (かつ第1項の指標から待機レバーではこの成分が縮まらない)。skew0.9 でアクセスが少数の hot record に集中する動作点では、隣接アドレスの Tuple が同一/対キャッシュライン上に落ちると writer の tidword_ CAS が近傍レコードの読みと coherence を共有しうる。整列粒度スカラーを上げてライン境界を粗くする変異は、この隣接 Tuple 間の共有量を狙って動かす位置になると予想する。",
+   "safety_argument_hypothesis": "整列粒度の増大は Tuple サイズ・DB フットプリントを増やし、キャッシュ占有量経由でベースライン性能を動かす (計測交絡)。粒度縮小は tidword_ の atomic 前提となる自然境界を割りうる。段階 B で必ず再検証。",
+   "unknowns": [
+    "感度を持つ workload と効果の符号 — 未確定 (point-access 主体の YCSB で隣接ライン効果がそもそも生じるか要偵察)",
+    "reward hack 仮説 — 未導出",
+    "positive control 設計 — 未導出",
+    "計測動作点 — skew0.9 の hot-record 集中度に依存し、別 skew で効果が消える可能性が機序単独で排除できない",
+    "偵察の列挙空間 — 試すべき整列倍率の候補集合が未列挙",
+    "silo-tuple-lockword-payload-split (提案A) と同じメモリレイアウト系のため、段階 B で『別 hole か / A の探索範囲内か』の構造照合が必要"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 attribution は各構成 1 round・単一動作点・交互作用未分離の診断であり、機序の符号・大きさは n=1 の実測裏取り (段階 B) 抜きに確定できない",
+  "本役の 2 提案はいずれも scalar/code_fragment を問わず当面『探索補助』限定で段 6 headline 非対象 (D47 決定5)。scalar 提案 (提案B) には自動的に headline 非対象ラベルが付く (D44 決定1(i))",
+  "2 提案はどちらもメモリレイアウト系という共通テーマを持つため、既存軸台帳 (silo-backoff-magnitude=タイミング, silo-writeset-sort=comparator コード片) との構造照合に加え、2 提案間が互いに別 hole であることの段階 B 検査を要する",
+  "hole_region_directive で region は cc/silo/include/tuple.hh に固定した。ただし TupleBody の内部実装が stock 抜粋外のため、この領域が性能を持つ hole を実際に成立させるかは偵察で要確認"
+ ]
+}

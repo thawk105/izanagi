@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の attribution 3『コミット時ログ書込の有効化 (on/off)』は WAL 二値の効果帰属。本提案は bomb_silo.cc の worker_init 内 logfile_.open のフラグ集合・ftruncate 前確保量という I/O 設定次元を挟む別 hole であり、on/off 二値とは別の作用点。材料 1 の diagnostics に該当軸なし。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 抜粋の bomb_silo.cc に実在する `trans.logfile_.open(logpath, O_CREAT|O_TRUNC|O_WRONLY, 0644)` と `ftruncate(1000000000)` を指しており実在構造に接続。attribution3 の latency 増加・llc 増加観測を根拠に、書込 I/O 支配 workload ほど latency 成分に地形が出ると予測し、反証可能な観測 (latency が I/O 設定変異で動かなければ否定) を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type = code_fragment (I/O 設定コード片の差し替え)。scalar 単体でない。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の 3 attribution (backoff/validation待たない政策/ログ書込) いずれもスレッド配置に触れていない。setThreadAffinity の thid→コア写像という別作用点の hole で、材料 1 の既出軸と構造的に別。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock の atomic_tool.hh の atomicAddGE(GlobalEpoch)・tuple.hh の tidword という実在構造の coherence トラフィックを指し、bomb_silo.cc の setThreadAffinity(thid) 固定写像を作用点とする。attribution の llc_miss_rate 微増/増加観測を根拠に、配置変異で LLC 共有・coherence 地形 (llc_miss) が動くと予測 — 反証可能な観測 (llc_miss が配置変異で動かなければ否定) を指定。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type = code_fragment (コア配置写像コード片の差し替え)。scalar 単体でない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 2,
+  "dedup_notes": "",
+  "overall_notes": "2 提案とも別作用点 (WAL I/O 設定 vs スレッド配置) で既存性・機序実質性・軸適格すべて充足。両提案が bomb_silo.cc (opened:false) を作用点とする点は global_unknowns で自己申告済みだが、開通状態は本 3 項の判定材料でない。global_unknowns 内の探索補助限定/昇格前提の記述は採点基準変更の誘導ではなく所見であり、通常採点した。"
+ },
+ "retries_used": 0
+}

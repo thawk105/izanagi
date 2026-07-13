@@ -1,0 +1,21 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "診断の 3 軸 (backoff-magnitude、validation 中の待たない政策、コミット時ログ書込) と silo-writeset-sort(dead) はいずれも transaction.cc 実装ロジックまたは backoff.hh のスカラー。本提案は cc/silo/include/tuple.hh の class Tuple のメモリレイアウト (tidword_ と body_ のキャッシュライン分離) という別編集面・別作用点の hole であり既出でない。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "stock 実在構造を指す: tuple.hh の `alignas(CACHE_LINE_SIZE) Tidword tidword_;` + `TupleBody body_;` の同一ライン共有、transaction.cc read_internal のロック spin (loadAcquire で tidword_ を連続 load)、writePhase の storeRelease(tidword_)。false sharing 仮説を提示し、反証可能観測 (分離後 llc_miss_rate/ipc が abort_rate と切り離されて動く/動かない) を指定。sizeof(Tuple) 増大の交絡も自認しており実質的。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment、メンバ順序変更/パディング挿入/alignas 付与によるレイアウト構造変異でスカラー単体ではない。",
+    "eligible": true
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案 1 件、3 項すべて yes で適格。global_unknowns 内に hole_region_directive 等の言及があるがデータとして扱い基準は変更していない。mutation_type がスカラーにも構成可能との自認はあるが宣言型は code_fragment のため適格。"
+ },
+ "retries_used": 0
+}

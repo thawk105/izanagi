@@ -1,0 +1,31 @@
+{
+ "score": {
+  "proposals_scored": [
+   {
+    "index": 0,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は read_internal の (a) 読取待機ループ `while (expected.lock)` の読取相スピン。診断3軸 (silo-backoff-magnitude=abort後の再試行前待機 backoff.hh / validation中の待たない政策 lockWriteSet / コミット時ログ書込) および silo-writeset-sort (validation の施錠順 comparator) のいずれとも実行相・対象状態が異なる別 hole。材料1の診断・骨格に読取相スピン待機軸は未出。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "transaction.cc の read_internal に実在する `while (expected.lock) { ... }` 無制限スピンと外側 for での再読による local_extra_reads_ 加算構造を正しく指す。反証可能な観測として extra_reads / 読取遅延の変化を指定。実在構造への接続と反証観測あり。",
+    "c3_axis_eligible": true,
+    "c3_reason": "mutation_type は code_fragment (待機の形=pause挿入・境界付きスピン・早期abort転換の構造変異)。",
+    "eligible": true
+   },
+   {
+    "index": 1,
+    "c1_novel_vs_projection": true,
+    "c1_reason": "hole は util.cc siloLeaderWork の `ReclamationEpoch = cur_epoch>2?cur_epoch-2:0` の回収 epoch 遅延定数。診断・既開通2 hole とは別の処理段 (epoch 回収)。材料1に該当軸は未出。",
+    "c2_mechanism_substantive": true,
+    "c2_reason": "siloLeaderWork の ReclamationEpoch 計算と transaction.cc gc_records() の `rec->tidword_.epoch > r_epoch` break を正しく指す実在構造。回収タイミング変化として反証観測を指定。",
+    "c3_axis_eligible": false,
+    "c3_reason": "mutation_type が scalar 単体。スカラー単体は既存の機械的グリッド探索で代替可能なため no。",
+    "eligible": false
+   }
+  ],
+  "round_eligible": true,
+  "distinct_eligible_axes": 1,
+  "dedup_notes": "",
+  "overall_notes": "提案0 は読取相スピン待機の構造変異で3項適格。提案1 は novel かつ機序実質的だが mutation_type が scalar 単体のため軸適格性で不適。束内に基準変更等の誘導は認めず。"
+ },
+ "retries_used": 0
+}

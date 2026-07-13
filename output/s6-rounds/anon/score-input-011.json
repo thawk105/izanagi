@@ -1,0 +1,52 @@
+{
+ "proposals": [
+  {
+   "axis_name": "silo-read-spin-bound",
+   "mutation_type": "code_fragment",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::read_internal の (a) TID 読み取りスピンループ `for(;;){ while(expected.lock){ expected.obj_=loadAcquire(tuple->tidword_.obj_); } ... check==expected で break }`",
+    "skeleton": "ロックビットが既に立った tuple に対する read-phase の無制限スピンを有界化する変異穴。スピン反復に上限を設け、上限超過時は読み取り側 txn を abort へ落とす分岐を挟む構造。locked tuple の read-through は禁止 (spin か abort の二択のみ)、version 再チェック step(e) の `expected==check` は保持。上限反復数は穴内スカラー副パラメタとして埋め込む。silo-backoff-magnitude (post-abort 待機・backoff.hh) とも silo-writeset-sort (施錠順序 comparator) とも別位置・別フェーズの wait。"
+   },
+   "mechanism_hypothesis": "attribution[0] (backoff 有効化) の indicators.ipc『全 workload で 1.4–1.6→0.4–0.5 に崩壊 (コアが待機で実命令を発行できない)』は、待機がどこにあれ IPC を潰す throughput の沈み先であることを立てる。同 attribution[0] の latency『read-heavy 5.7→25μs 増加』は read-heavy の latency が待機に対し特に感応的であることを示す。一方 attribution[1] (2 種の待たない政策) の差の大きさ『read-heavy 0.4% (noise floor 2.28% 内で順位不能)』は、read-heavy が validation 中の write 側ロック競合政策に対しては不感であることを示す。この二点を突き合わせると、read-heavy の待機感応 (latency/throughput) は write 側競合経路に由来しえず、未モデル化の read 側待機に由来する余地が残る。read_internal の `while(expected.lock)` は locked tuple への read-phase 無制限スピンであり、その read 側待機の具体候補。ここを有界化すれば read-heavy の IPC を post-abort backoff のコストを払わずに回収できるかを、この位置で探れる。",
+   "safety_argument_hypothesis": "壊しうる不変条件の初期仮説: (1) lock ビットが立った tuple の body を読み進めない (mid-update = torn/未コミット読みの禁止) — 上限超過時は必ず abort へ落ち、決して read-through しない、(2) step(e) の version 二重チェックを維持し version 安定性保証を保つ。加えて有界化による早期 abort 増が post-abort backoff 経路 (attribution[0]) と相互作用しうる。段階 B で silo read protocol (locked/absent tuple 非読取・version double-check) に対し再検証必須。",
+   "unknowns": [
+    "感度を持つ workload — attribution は read-heavy を示唆するが、感応方向・大きさは実測要 (単一動作点 skew0.9/48thread/1M・1 round・交互作用未分離)",
+    "reward hack 仮説 — 有益仕事をせず read txn を早期 abort させて IPC/throughput を見かけ上高く保つ経路の明示モデル化が未了",
+    "positive control 設計",
+    "計測動作点 (attribution の単一点が感度点とは限らない)",
+    "偵察の列挙空間 — スピン上限反復数 (穴内スカラー副パラメタ) の探索範囲",
+    "本穴 (read-phase spin) と attribution[1] の validation 中 write 側待たない政策との関係が真に別軸か、段階 B の既存軸台帳との構造照合要",
+    "mutation_type — code_fragment に置いたが有界スピン+abort 分岐という構造変異にスカラー副パラメタが埋め込まれる混合形。ひな型が単一型前提なら手順側改訂の要否を段階 B で判定"
+   ]
+  },
+  {
+   "axis_name": "silo-wal-flush-batch-threshold",
+   "mutation_type": "scalar",
+   "hole_location": {
+    "region": "cc/silo/transaction.cc",
+    "source_rel": "cc/silo/transaction.cc",
+    "position": "TxExecutor::wal() のフラッシュ発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` (LOGSET_SIZE=1000 → 発火水位 500)",
+    "skeleton": "log レコードを 1 回の write() syscall にまとめるバッチ発火水位のスカラー変異穴。現 LOGSET_SIZE/2 を変異させ syscall 償却度を変える。header (chkSum_ / logRecNum_) とバッチ書込サイズ (`sizeof(LogRecord)*logRecNum_`) の整合、および epoch 境界の durability 保証は不変条件として穴外に置く。WAL の on/off (feature toggle) ではなく、有効時の I/O 償却水位のみを対象とする点で既評価済みの WAL 有無設計選択とは別位置。"
+   },
+   "mechanism_hypothesis": "attribution[2] (コミット時ログ書込の有効化) の effect『throughput 低下が書込比率に単調比例 (read-heavy -1.9% は noise 内 / balanced -6.8% / write-heavy -13.4%)』と indicators『abort_rate 不変・latency 増・llc_miss 増』は、損失を競合でも正しさ検証でもなく『純粋な書込 I/O コスト』へ明示帰属している。wal() の `if (log_set_.size() > LOGSET_SIZE/2)` は何レコードで write() を発火するかを決める水位で、I/O が純コストかつ書込比率に単調である以上、発火水位を上げて syscall を償却することは write-heavy -13.4% の損を、abort/validation (attribution が不変と示す面) に触れずに直接狙える。この位置に性能地形を予想する。",
+   "safety_argument_hypothesis": "壊しうる不変条件の初期仮説: silo の epoch ベース group commit の durability — txn 結果が durable と報告される前にその log が永続化される順序を、発火水位を上げて未永続ウィンドウを拡大しても侵さないこと。また log_set_ / latest_log_header_ の記帳 (chkSum_・logRecNum_) がバッチ書込サイズと整合し replayTest の LogHeader.logRecNum_ vs 実書込レコード数の一致を保つこと。段階 B で WAL recovery / replay 意味論に対し再検証必須。",
+   "unknowns": [
+    "感度を持つ workload — attribution は write-heavy を示唆するが実測要 (単一動作点・1 round・交互作用未分離)",
+    "reward hack 仮説 — durability を弱めて (永続化を遅延/省略して) throughput を見かけ上稼ぐ経路の明示モデル化が未了",
+    "positive control 設計",
+    "計測動作点",
+    "偵察の列挙空間 — 発火水位スカラーの探索範囲 (LOGSET_SIZE との関係・上限)",
+    "wal() 内の TODO (log(ctid,key,\"FIXME\") = val 未実装) 状態がバッチ量変異の実効性に与える影響が未評価",
+    "本穴が scalar のため D44 決定 1(i) により自動的に headline 非対象ラベル付き — 昇格は事前登録側改訂前提"
+   ]
+  }
+ ],
+ "global_unknowns": [
+  "全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード)・各構成 1 round・交互作用未分離 — いずれの提案も感度の存在/方向/大きさは未確立、段階 B の独立再導出で実コード裏取り要",
+  "両提案とも cc/silo/transaction.cc に穴を開けるが、同ファイルには既開通 hole (silo-writeset-sort) と #if TRACE の正しさトレース足場が同居する。新 hole が既存 EVOLVE-BLOCK / trace マーカーと衝突しないことの構造照合が段階 B で必須 (D41/D38 のトレース配置規律との干渉確認を含む)",
+  "本役の提案は変異型を問わず当面『探索補助』限定で段 6 主結果 (headline) の対象軸にしない (D47 決定 5)。昇格には事前登録側の改訂が前提",
+  "diagnostics が非空のため mechanism_hypothesis は attribution 実在項目の名指しで構成したが、勝ち筋の値・recommend 示唆・死んだ軸 (silo-writeset-sort status:dead) の機序帰属は入力に含まれておらず、それらに依存しない推論であることを段階 B の provenance 三点セット照合で確認要"
+ ]
+}
