@@ -176,8 +176,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    `output/s6-rounds/`、経緯 = worklog 07-13 (8))。**探索的内容分析完了 (2026-07-13、事前登録外・
    凍結集計不変)** — 適格率天井の主因は指標の弁別力不足 (採点は凍結基準に高忠実、覆す候補 2 件のみ・
    集計不変)、帰属の寄与は hole 選択の方向付けに現れ判定重心は S-1 へ。監査の道しるべ込みの正本 =
-   `output/insights/2026-07-13_s6-rounds-content-analysis.md`。報告文言の確定は採点 reason 監査
-   (audit-sheet.md、人間) の後 — 主張 S の判定材料は S-1 再計測 (計測窓待ち) を残すのみ。
+   `output/insights/2026-07-13_s6-rounds-content-analysis.md`。**採点 reason 監査は 2026-07-13
+   人間裁定完了** (覆す候補 2 件: #1 採用・#2 棄却、いずれも集計不変 — 裁定正本 = audit-sheet.md 末尾、
+   経緯 = worklog 07-13 (10)) — 報告文言の確定 (素案 = insight §6) に着手可。主張 S の判定材料は
+   S-1 再計測 (計測窓待ち) を残すのみ。
    ここで仕込む前提タスク: (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照。
    D44 注意: stock 専用計測経路を選ぶ場合、対抗馬だけ certified 要件を免除する非対称比較になる — その扱いを
    設計時に明文化する)、
