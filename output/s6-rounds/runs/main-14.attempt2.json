@@ -1,0 +1,81 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-spin-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "read_internal() の `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... (e) checks the TID word again ... }` のロック解放待ちスピンループ",
+      "skeleton": "ロック済みタプル検出時の待機挙動を挟む変異 — 現状の無制限スピン (while(expected.lock)) を、有限回スピン後に別挙動 (pause 挿入 / 有限回で早期 abort 経路へ分岐 / 再読取り回数の上限) へ切り替える構造の hole。read 側の (e) 再チェック不変条件 (expected==check) は保持する"
+     },
+     "mechanism_hypothesis": "item1 (backoff 有効化) の indicators で ipc が全 workload で 1.4-1.6→0.4-0.5 に崩壊し『コアが待機で実命令を発行できない』と帰属されている — 待機=アイドルスピンのコストが throughput 損の主因であることの実測。read_internal のロック解放待ちも同型の無制限スピンで、skew0.9 の高競合下では reader がロック済みタプル上でアイドルスピンする。item1 が定量化したアイドルスピン損の大きさから、この読取り側スピンの挙動変異は ipc/latency に地形を持つと予想する。item1 で read-heavy の latency が 5.7→25μs と最も伸びた事実とも整合し、read 経路の待機挙動が read-heavy 側の損に効く可能性がある (backoff 磁大とは別位置・別機序の待機点)",
+     "safety_argument_hypothesis": "スピンを早期打ち切りして再読取り検証 ((e) expected==check) を省くと torn read / 非最新版を読む窓が開き直列化可能性を壊しうる。段階 B で read_internal の (e) 再チェック不変条件維持と WARN_NOT_FOUND/absent 判定の保存を必ず再検証する前提の下書き",
+     "unknowns": [
+      "感度を持つ workload の実測特定 (read-heavy 感度仮説は未裏取り)",
+      "有限スピン上限値・切替閾値の探索空間 (偵察要)",
+      "positive control 設計",
+      "計測動作点",
+      "izanagi 正しさトレースへの影響",
+      "reward hack 仮説"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-granularity",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "wal() 末尾の `if (log_set_.size() > LOGSET_SIZE / 2) { latest_log_header_.convertChkSumIntoComplementOnTwo(); logfile_.write(header); logfile_.write(&log_set_[0], sizeof(LogRecord)*logRecNum_); ... }` のフラッシュ発火条件とバッチ書込段",
+      "skeleton": "ログバッファのフラッシュ発火 granularity を挟む変異 — フラッシュ閾値 (現状 LOGSET_SIZE/2) と 1 回の logfile_.write でまとめるレコード数の関係を変える構造の hole。logRecNum_/chkSum_ ヘッダとレコード列の整合は保持する"
+     },
+     "mechanism_hypothesis": "item3 (コミット時ログ書込) で throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise内 / balanced -6.8% / write-heavy -13.4%)、abort率は不変で latency と llc_miss のみ増加、と『純粋な書込 I/O コスト』へ帰属されている。損が競合でも正しさ検証でもなく I/O バッチ粒度で決まる以上、wal() のフラッシュ発火 granularity は logfile_.write 呼出回数 = syscall/DMA コストを直接支配する。item3 が動かした指標 (latency, llc_miss) に、item3 で不変だった abort率 を触らずに地形を持つと予想する。損が最大の write-heavy (-13.4%) で最も感度がある可能性がある",
+     "safety_argument_hypothesis": "フラッシュを遅らせるとコミット済み更新の永続化がクラッシュ窓で失われる (durability)。また logRecNum_/chkSum_ ヘッダとレコード数の整合が崩れると replay 検証 (replayTest / computeChkSum) が壊れる。段階 B で WAL 永続化契約とチェックサム整合を必ず再検証する前提の下書き",
+     "unknowns": [
+      "durability 保証を壊さないフラッシュ granularity の許容空間",
+      "感度 workload の実測 (write-heavy 感度仮説は未裏取り)",
+      "positive control 設計",
+      "計測動作点",
+      "コメントアウトされている fdatasync 有効化との交互作用",
+      "reward hack 仮説"
+     ]
+    },
+    {
+     "axis_name": "silo-read-validation-contention-response",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "validationPhase() Phase 2 の read_set_ 検証ループ、条件 3 `if (check.lock && !searchWriteSet((*itr).storage_, (*itr).key_)) { ... this->status_ = aborted; unlockWriteSet(); return false; }`",
+      "skeleton": "読取り集合検証で他 txn にロックされたタプル (自身の write set 外) を検出した際の応答挙動を挟む変異 — 現状の即 abort を、短い再チェック/限定待機の後に再判定する構造へ切り替える hole。条件 1 (epoch/tid 変化検出) の即 abort は保持する"
+     },
+     "mechanism_hypothesis": "item2 (validation 中のロック競合に対する 2 種の待たない政策の選択) で 2 政策の優劣が workload 間で反転し (差 balanced 19.6% / write-heavy 12.7% / read-heavy 0.4% は noise floor 内)、write-heavy 優位側は『abort率と latency の同時低減』で稼ぐ (abort_rate 50.8→21.0%) と帰属されている — 競合検出時の応答政策が workload 依存の地形を持つことの実測。read_set_ 検証の条件 3 も同じく『ロック検出→即 abort』という応答政策で、item2 が扱う書込集合施錠 (lockWriteSet の conflict 応答) とは別の検出点である。item2 が示す応答政策の workload 反転構造から、この読取り検証側の応答変異も同型の地形 — 特に write-heavy で一過的ロックによる不要 abort を減らす余地 — を持つと予想する",
+     "safety_argument_hypothesis": "ロック検出時に abort せず進むと、別 txn がコミット中のタプルを読んだまま検証を通し直列化可能性を壊しうる (Silo の read validation は正しさの中核)。段階 B で Phase 2 条件 3 の直列化不変条件と、待機/再チェック後の check.epoch/tid 再取得整合を必ず再検証する前提の下書き",
+     "unknowns": [
+      "感度 workload の実測特定 (write-heavy 感度仮説は未裏取り)",
+      "再チェック回数上限・待機量の探索空間 (偵察要)",
+      "positive control 設計",
+      "計測動作点",
+      "izanagi 正しさトレース (P/X 行) 整合への影響",
+      "reward hack 仮説"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離) 由来のため、感度・順位の外挿限界は 3 提案すべてに共通する未確定",
+    "3 候補はいずれも cc/silo/transaction.cc 内の別位置 hole であり、同時変異時の hole 間交互作用は機序単独では不明",
+    "各提案軸名・骨格が既存軸台帳 (silo-backoff-magnitude / silo-writeset-sort) と構造的に別であることの最終照合は人間 gate → 段階 B の独立再導出待ち (本役では未確定)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":150151,\"duration_api_ms\":153450,\"ttft_ms\":115399,\"ttft_stream_ms\":4664,\"time_to_request_ms\":101,\"num_turns\":1,\"result\":\"{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-spin-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"read_internal() の `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... (e) checks the TID word again ... }` のロック解放待ちスピンループ\\\",\\n        \\\"skeleton\\\": \\\"ロック済みタプル検出時の待機挙動を挟む変異 — 現状の無制限スピン (while(expected.lock)) を、有限回スピン後に別挙動 (pause 挿入 / 有限回で早期 abort 経路へ分岐 / 再読取り回数の上限) へ切り替える構造の hole。read 側の (e) 再チェック不変条件 (expected==check) は保持する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"item1 (backoff 有効化) の indicators で ipc が全 workload で 1.4-1.6→0.4-0.5 に崩壊し『コアが待機で実命令を発行できない』と帰属されている — 待機=アイドルスピンのコストが throughput 損の主因であることの実測。read_internal のロック解放待ちも同型の無制限スピンで、skew0.9 の高競合下では reader がロック済みタプル上でアイドルスピンする。item1 が定量化したアイドルスピン損の大きさから、この読取り側スピンの挙動変異は ipc/latency に地形を持つと予想する。item1 で read-heavy の latency が 5.7→25μs と最も伸びた事実とも整合し、read 経路の待機挙動が read-heavy 側の損に効く可能性がある (backoff 磁大とは別位置・別機序の待機点)\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"スピンを早期打ち切りして再読取り検証 ((e) expected==check) を省くと torn read / 非最新版を読む窓が開き直列化可能性を壊しうる。段階 B で read_internal の (e) 再チェック不変条件維持と WARN_NOT_FOUND/absent 判定の保存を必ず再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の実測特定 (read-heavy 感度仮説は未裏取り)\\\",\\n        \\\"有限スピン上限値・切替閾値の探索空間 (偵察要)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"izanagi 正しさトレースへの影響\\\",\\n        \\\"reward hack 仮説\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-granularity\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"wal() 末尾の `if (log_set_.size() > LOGSET_SIZE / 2) { latest_log_header_.convertChkSumIntoComplementOnTwo(); logfile_.write(header); logfile_.write(&log_set_[0], sizeof(LogRecord)*logRecNum_); ... }` のフラッシュ発火条件とバッチ書込段\\\",\\n        \\\"skeleton\\\": \\\"ログバッファのフラッシュ発火 granularity を挟む変異 — フラッシュ閾値 (現状 LOGSET_SIZE/2) と 1 回の logfile_.write でまとめるレコード数の関係を変える構造の hole。logRecNum_/chkSum_ ヘッダとレコード列の整合は保持する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"item3 (コミット時ログ書込) で throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise内 / balanced -6.8% / write-heavy -13.4%)、abort率は不変で latency と llc_miss のみ増加、と『純粋な書込 I/O コスト』へ帰属されている。損が競合でも正しさ検証でもなく I/O バッチ粒度で決まる以上、wal() のフラッシュ発火 granularity は logfile_.write 呼出回数 = syscall/DMA コストを直接支配する。item3 が動かした指標 (latency, llc_miss) に、item3 で不変だった abort率 を触らずに地形を持つと予想する。損が最大の write-heavy (-13.4%) で最も感度がある可能性がある\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"フラッシュを遅らせるとコミット済み更新の永続化がクラッシュ窓で失われる (durability)。また logRecNum_/chkSum_ ヘッダとレコード数の整合が崩れると replay 検証 (replayTest / computeChkSum) が壊れる。段階 B で WAL 永続化契約とチェックサム整合を必ず再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"durability 保証を壊さないフラッシュ granularity の許容空間\\\",\\n        \\\"感度 workload の実測 (write-heavy 感度仮説は未裏取り)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"コメントアウトされている fdatasync 有効化との交互作用\\\",\\n        \\\"reward hack 仮説\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-validation-contention-response\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"validationPhase() Phase 2 の read_set_ 検証ループ、条件 3 `if (check.lock && !searchWriteSet((*itr).storage_, (*itr).key_)) { ... this->status_ = aborted; unlockWriteSet(); return false; }`\\\",\\n        \\\"skeleton\\\": \\\"読取り集合検証で他 txn にロックされたタプル (自身の write set 外) を検出した際の応答挙動を挟む変異 — 現状の即 abort を、短い再チェック/限定待機の後に再判定する構造へ切り替える hole。条件 1 (epoch/tid 変化検出) の即 abort は保持する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"item2 (validation 中のロック競合に対する 2 種の待たない政策の選択) で 2 政策の優劣が workload 間で反転し (差 balanced 19.6% / write-heavy 12.7% / read-heavy 0.4% は noise floor 内)、write-heavy 優位側は『abort率と latency の同時低減』で稼ぐ (abort_rate 50.8→21.0%) と帰属されている — 競合検出時の応答政策が workload 依存の地形を持つことの実測。read_set_ 検証の条件 3 も同じく『ロック検出→即 abort』という応答政策で、item2 が扱う書込集合施錠 (lockWriteSet の conflict 応答) とは別の検出点である。item2 が示す応答政策の workload 反転構造から、この読取り検証側の応答変異も同型の地形 — 特に write-heavy で一過的ロックによる不要 abort を減らす余地 — を持つと予想する\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"ロック検出時に abort せず進むと、別 txn がコミット中のタプルを読んだまま検証を通し直列化可能性を壊しうる (Silo の read validation は正しさの中核)。段階 B で Phase 2 条件 3 の直列化不変条件と、待機/再チェック後の check.epoch/tid 再取得整合を必ず再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度 workload の実測特定 (write-heavy 感度仮説は未裏取り)\\\",\\n        \\\"再チェック回数上限・待機量の探索空間 (偵察要)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"izanagi 正しさトレース (P/X 行) 整合への影響\\\",\\n        \\\"reward hack 仮説\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離) 由来のため、感度・順位の外挿限界は 3 提案すべてに共通する未確定\\\",\\n    \\\"3 候補はいずれも cc/silo/transaction.cc 内の別位置 hole であり、同時変異時の hole 間交互作用は機序単独では不明\\\",\\n    \\\"各提案軸名・骨格が既存軸台帳 (silo-backoff-magnitude / silo-writeset-sort) と構造的に別であることの最終照合は人間 gate → 段階 B の独立再導出待ち (本役では未確定)\\\"\\n  ]\\n}\",\"stop_reason\":\"end_turn\",\"session_id\":\"2744d394-62a7-44b7-9297-ecc216618cd0\",\"total_cost_usd\":0.2907655,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35185,\"output_tokens\":9926,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":9926,\"cache_read_input_tokens\":35185,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24898,\"outputTokens\":24,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025018,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":9926,\"cacheReadInputTokens\":35185,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.2657475,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"a5ce4c06-25f9-48e6-a207-f9703e25695a\"}\n",
+  "stderr": ""
+ }
+}
