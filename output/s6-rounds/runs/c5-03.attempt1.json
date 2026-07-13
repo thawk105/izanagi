@@ -1,0 +1,82 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-spin-discipline",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal 内、ロック待ちスピンループ `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の待機部分",
+      "skeleton": "ロック中 tidword を無停止で再ロードする現行の busy スピンを、待機規律を差し込める hole に置換する骨格 — 例: pause 挿入 / 有界スピン回数 → 早期 abort への分岐、といった『ロック解放待ちの間どう振る舞うか』の変異を挟む。読み取り成功後の check==expected 再検証 (行 (e)) は hole 外に据え置く。"
+     },
+     "mechanism_hypothesis": "diagnostics は空のため構造観察から書く。read_internal のスピンは while(expected.lock) で tidword を停止なく再 loadAcquire し続ける。同じ tidword キャッシュラインへ writePhase の UPDATE 経路が memcpy(...get_val_ptr...) 後に storeRelease(maxtid) で書き込む(transaction.cc writePhase)。したがって読み手のスピン滞在時間は書き手の memcpy クリティカルセクション長 (VAL_SIZE) に結合し、無停止再ロードは書き手が触ろうとするラインにコヒーレンストラフィックを載せる構造にある。ここに待機規律を挟む変異は、ホットタプル上の読み手↔書き手競合の結合の仕方を変えうる。反証可能性: 書き込み比率・skew が高い動作点でスピン規律に throughput が非感応なら本仮説は誤り。既開通 silo-writeset-sort(施錠順序 comparator)とも silo-backoff-magnitude(abort 後トランザクション間待機)とも別位置・別機序(読み取り相の対書き手待機)である。",
+     "safety_argument_hypothesis": "原理的に壊しうるもの: 早期 abort 分岐を入れる場合、ロック解放前に読み取り相を抜けても check==expected 再検証で torn/locked read が排除される不変を保つこと。有界スピンが未解放のまま body を読むと torn read。段階 B で Silo 読み取りプロトコル (a)-(e) の不変維持を再検証前提とする。",
+     "unknowns": [
+      "感度を持つ workload(write ratio / zipf_skew / VAL_SIZE の実測動作点)",
+      "reward hack 仮説(スピンを実質無効化して見かけ改善する余地)",
+      "positive control 設計",
+      "計測動作点のリテラル",
+      "偵察の列挙空間(挿入しうる待機規律の候補集合)",
+      "コード片としての正確な EVOLVE-BLOCK 境界(check 再検証を hole 外に固定できるかの実コード確認)"
+     ]
+    },
+    {
+     "axis_name": "silo-epoch-advance-cadence",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork 内、GlobalEpoch を進める条件 `chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()` のスパン閾値",
+      "skeleton": "epoch を進める時間スパン閾値を、単一スカラーで可変化する hole。FLAGS 既定値をそのまま使う代わりに、閾値算出式に進化対象スカラーを挟む(領域 util.cc は未開通)。"
+     },
+     "mechanism_hypothesis": "diagnostics 空につき構造観察から。siloLeaderWork は時間スパン到達 かつ chkEpochLoaded()(全ワーカースレッドが最新 epoch を load 済み)の両成立で atomicAddGE() する。validationPhase は atomicStoreThLocalEpoch(thid_, atomicLoadGE()) で ThLocalEpoch を GlobalEpoch に合わせ、writePhase の commit TID の epoch はこの ThLocalEpoch を用いる。よって epoch 前進の粗さは、全スレッド epoch-load バリア(chkEpochLoaded)の発火頻度と、commit がグルーピングされる粒度を規定する構造にある。スパン閾値を可変化する変異は、この全スレッド協調の頻度を動かしうる。反証可能性: 閾値に throughput が非感応なら誤り。既開通 silo-backoff-magnitude はスカラーだが機序は abort 後待機量であり、本候補の epoch 協調頻度とは別機序・別位置。",
+     "safety_argument_hypothesis": "原理的に壊しうるもの: epoch は reclamation(ReclamationEpoch 算出)と検証の epoch 比較に連動するため、前進を過度に遅らせると reclamation が停滞、過度に速めると chkEpochLoaded バリアが常時偽で前進不能になりうる。極端値でのライブネス劣化。段階 B で epoch とバリアの整合を再検証前提。",
+     "unknowns": [
+      "感度を持つ workload と計測動作点",
+      "既存 FLAGS_epoch_time チューニング慣行との重複可否(軸内探索でないことの gate 照合が必須)",
+      "reward hack 仮説",
+      "positive control 設計",
+      "偵察の列挙空間(スカラーの許容域)",
+      "スカラー1個で表現しきれる変異かどうか(閾値式の実コード形状確認)"
+     ]
+    },
+    {
+     "axis_name": "silo-reclamation-epoch-lag",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork 内、`ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` のラグ量リテラル 2",
+      "skeleton": "現行 epoch から差し引く回収ラグ深さ(リテラル 2)を進化対象スカラーに置換する hole。gc_records() が `rec->tidword_.epoch > r_epoch` で回収を打ち切る境界(transaction.cc)を動かす。"
+     },
+     "mechanism_hypothesis": "diagnostics 空につき構造観察から。siloLeaderWork は ReclamationEpoch を cur_epoch から固定リテラル 2 だけ遅らせて算出する。TxExecutor::gc_records() は gc_records_ 先頭の Tuple を r_epoch(=ReclamationEpoch)より新しければ break、それ以下なら delete する(transaction.cc)。DELETE 経路は writePhase で gc_records_.push_back される。したがってラグ深さは、削除されたタプルが実 free されるまで居座る epoch 数を規定し、メモリ/アロケータ再利用のタイミングとキャッシュ占有に効く構造にある。ラグを可変化する変異はこの回収窓を動かす。反証可能性: delete を含む workload で回収ラグに throughput/メモリが非感応なら誤り。既開通 2 hole(施錠順序・abort 後待機)とは別機序(GC 回収窓)・別位置。",
+     "safety_argument_hypothesis": "原理的に壊しうるもの: ラグを in-flight な最古 epoch のスパンより浅くすると、まだ古い epoch を参照中の読み手が存在するタプルを free し use-after-free。回収の安全窓を割る変異が最大の危険。段階 B で最大 in-flight epoch スパンとの下限関係を再検証前提。",
+     "unknowns": [
+      "感度を持つ workload(delete/insert 比率を含む)と計測動作点",
+      "安全な回収ラグ下限(最大 in-flight epoch スパン)の実測",
+      "reward hack 仮説(回収を実質止めてメモリ計測を回避する余地)",
+      "positive control 設計",
+      "偵察の列挙空間(ラグ量の許容域)",
+      "gc_records の epoch 比較境界と ReclamationEpoch 算出が同一スカラーで一貫改変できるかの実コード確認"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空のため、変異位置の性能地形は attribution 実測ではなく stock 抜粋と編集面地図の構造観察のみに依拠する — 各 mechanism_hypothesis の効果の大きさ・符号は未確定で、段階 B の独立再導出と偵察で裏取りを要する",
+    "3 候補いずれも本役由来ゆえ探索補助限定(段 6 headline 非対象)。scalar 2 候補(epoch-advance-cadence / reclamation-epoch-lag)には headline 非対象ラベルが自動付与される前提",
+    "epoch-advance-cadence と reclamation-epoch-lag は既存 FLAGS/リテラルの調整と外形が近い — 人間 gate での既存軸台帳・軸内探索照合(既出軸の言い換えでないことの確認)が特に必要",
+    "入力 diagnostics が空であることは D42 条件4/D52 で契約上有効な運用構成であり射影漏れではないと解したが、もし本来 attribution が渡る構成で空になっていた場合は別途の射影漏れ確認を要する(本役からは判別不能)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":146463,\"duration_api_ms\":147840,\"ttft_ms\":86524,\"ttft_stream_ms\":5537,\"time_to_request_ms\":278,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-spin-discipline\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal 内、ロック待ちスピンループ `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の待機部分\\\",\\n        \\\"skeleton\\\": \\\"ロック中 tidword を無停止で再ロードする現行の busy スピンを、待機規律を差し込める hole に置換する骨格 — 例: pause 挿入 / 有界スピン回数 → 早期 abort への分岐、といった『ロック解放待ちの間どう振る舞うか』の変異を挟む。読み取り成功後の check==expected 再検証 (行 (e)) は hole 外に据え置く。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics は空のため構造観察から書く。read_internal のスピンは while(expected.lock) で tidword を停止なく再 loadAcquire し続ける。同じ tidword キャッシュラインへ writePhase の UPDATE 経路が memcpy(...get_val_ptr...) 後に storeRelease(maxtid) で書き込む(transaction.cc writePhase)。したがって読み手のスピン滞在時間は書き手の memcpy クリティカルセクション長 (VAL_SIZE) に結合し、無停止再ロードは書き手が触ろうとするラインにコヒーレンストラフィックを載せる構造にある。ここに待機規律を挟む変異は、ホットタプル上の読み手↔書き手競合の結合の仕方を変えうる。反証可能性: 書き込み比率・skew が高い動作点でスピン規律に throughput が非感応なら本仮説は誤り。既開通 silo-writeset-sort(施錠順序 comparator)とも silo-backoff-magnitude(abort 後トランザクション間待機)とも別位置・別機序(読み取り相の対書き手待機)である。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"原理的に壊しうるもの: 早期 abort 分岐を入れる場合、ロック解放前に読み取り相を抜けても check==expected 再検証で torn/locked read が排除される不変を保つこと。有界スピンが未解放のまま body を読むと torn read。段階 B で Silo 読み取りプロトコル (a)-(e) の不変維持を再検証前提とする。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload(write ratio / zipf_skew / VAL_SIZE の実測動作点)\\\",\\n        \\\"reward hack 仮説(スピンを実質無効化して見かけ改善する余地)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点のリテラル\\\",\\n        \\\"偵察の列挙空間(挿入しうる待機規律の候補集合)\\\",\\n        \\\"コード片としての正確な EVOLVE-BLOCK 境界(check 再検証を hole 外に固定できるかの実コード確認)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-epoch-advance-cadence\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork 内、GlobalEpoch を進める条件 `chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()` のスパン閾値\\\",\\n        \\\"skeleton\\\": \\\"epoch を進める時間スパン閾値を、単一スカラーで可変化する hole。FLAGS 既定値をそのまま使う代わりに、閾値算出式に進化対象スカラーを挟む(領域 util.cc は未開通)。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空につき構造観察から。siloLeaderWork は時間スパン到達 かつ chkEpochLoaded()(全ワーカースレッドが最新 epoch を load 済み)の両成立で atomicAddGE() する。validationPhase は atomicStoreThLocalEpoch(thid_, atomicLoadGE()) で ThLocalEpoch を GlobalEpoch に合わせ、writePhase の commit TID の epoch はこの ThLocalEpoch を用いる。よって epoch 前進の粗さは、全スレッド epoch-load バリア(chkEpochLoaded)の発火頻度と、commit がグルーピングされる粒度を規定する構造にある。スパン閾値を可変化する変異は、この全スレッド協調の頻度を動かしうる。反証可能性: 閾値に throughput が非感応なら誤り。既開通 silo-backoff-magnitude はスカラーだが機序は abort 後待機量であり、本候補の epoch 協調頻度とは別機序・別位置。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"原理的に壊しうるもの: epoch は reclamation(ReclamationEpoch 算出)と検証の epoch 比較に連動するため、前進を過度に遅らせると reclamation が停滞、過度に速めると chkEpochLoaded バリアが常時偽で前進不能になりうる。極端値でのライブネス劣化。段階 B で epoch とバリアの整合を再検証前提。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload と計測動作点\\\",\\n        \\\"既存 FLAGS_epoch_time チューニング慣行との重複可否(軸内探索でないことの gate 照合が必須)\\\",\\n        \\\"reward hack 仮説\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"偵察の列挙空間(スカラーの許容域)\\\",\\n        \\\"スカラー1個で表現しきれる変異かどうか(閾値式の実コード形状確認)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-reclamation-epoch-lag\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork 内、`ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` のラグ量リテラル 2\\\",\\n        \\\"skeleton\\\": \\\"現行 epoch から差し引く回収ラグ深さ(リテラル 2)を進化対象スカラーに置換する hole。gc_records() が `rec->tidword_.epoch > r_epoch` で回収を打ち切る境界(transaction.cc)を動かす。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空につき構造観察から。siloLeaderWork は ReclamationEpoch を cur_epoch から固定リテラル 2 だけ遅らせて算出する。TxExecutor::gc_records() は gc_records_ 先頭の Tuple を r_epoch(=ReclamationEpoch)より新しければ break、それ以下なら delete する(transaction.cc)。DELETE 経路は writePhase で gc_records_.push_back される。したがってラグ深さは、削除されたタプルが実 free されるまで居座る epoch 数を規定し、メモリ/アロケータ再利用のタイミングとキャッシュ占有に効く構造にある。ラグを可変化する変異はこの回収窓を動かす。反証可能性: delete を含む workload で回収ラグに throughput/メモリが非感応なら誤り。既開通 2 hole(施錠順序・abort 後待機)とは別機序(GC 回収窓)・別位置。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"原理的に壊しうるもの: ラグを in-flight な最古 epoch のスパンより浅くすると、まだ古い epoch を参照中の読み手が存在するタプルを free し use-after-free。回収の安全窓を割る変異が最大の危険。段階 B で最大 in-flight epoch スパンとの下限関係を再検証前提。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload(delete/insert 比率を含む)と計測動作点\\\",\\n        \\\"安全な回収ラグ下限(最大 in-flight epoch スパン)の実測\\\",\\n        \\\"reward hack 仮説(回収を実質止めてメモリ計測を回避する余地)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"偵察の列挙空間(ラグ量の許容域)\\\",\\n        \\\"gc_records の epoch 比較境界と ReclamationEpoch 算出が同一スカラーで一貫改変できるかの実コード確認\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空のため、変異位置の性能地形は attribution 実測ではなく stock 抜粋と編集面地図の構造観察のみに依拠する — 各 mechanism_hypothesis の効果の大きさ・符号は未確定で、段階 B の独立再導出と偵察で裏取りを要する\\\",\\n    \\\"3 候補いずれも本役由来ゆえ探索補助限定(段 6 headline 非対象)。scalar 2 候補(epoch-advance-cadence / reclamation-epoch-lag)には headline 非対象ラベルが自動付与される前提\\\",\\n    \\\"epoch-advance-cadence と reclamation-epoch-lag は既存 FLAGS/リテラルの調整と外形が近い — 人間 gate での既存軸台帳・軸内探索照合(既出軸の言い換えでないことの確認)が特に必要\\\",\\n    \\\"入力 diagnostics が空であることは D42 条件4/D52 で契約上有効な運用構成であり射影漏れではないと解したが、もし本来 attribution が渡る構成で空になっていた場合は別途の射影漏れ確認を要する(本役からは判別不能)\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"b120a425-eb06-4c6c-a2c2-347f75efcc35\",\"total_cost_usd\":0.2643555,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":8935,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":8935,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":16,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02395,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":8935,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.24040550000000002,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"b2860de4-89f8-4fa3-a81c-3d73c3a709b4\"}\n",
+  "stderr": ""
+ }
+}

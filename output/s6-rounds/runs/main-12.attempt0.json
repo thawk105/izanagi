@@ -1,0 +1,81 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-lock-wait-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "read_internal() 内、施錠中 tuple に対する待機スピン `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の、lock 検出時の応答箇所",
+      "skeleton": "施錠中 tuple を読もうとしたときの応答を差し替える hole。原型は「lock が clear になるまで無制限スピン」。変異は同じ位置に別応答（有界スピン後に読取セット追加を遅延 / 一度だけ再取得して次処理へ / スピン粒度を変える等）を挟む形。直後の (e) `check.obj_ = loadAcquire(...); if (expected == check) break;` による TID 再検査での読値整合検証は skeleton 側に固定し hole 外に置く。"
+     },
+     "mechanism_hypothesis": "attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」の indicator ipc 『全 workload で 1.4–1.6 → 0.4–0.5 に崩壊（コアが待機で実命令を発行できない）』は、abort 後に限らず『待機がコアの命令発行を潰す』という機序を示す。read_internal の施錠中スピンは backoff 軸（include/backoff.hh、abort 後）とは別の待機サイトであり、skew0.9 で hot tuple が writePhase 中に施錠される間、reader がここで空回りする。同 attribution の effect で read-heavy が backoff 損 -77%（abort baseline は 15.6% と最小）＝throughput が読取経路コストに支配される workload である以上、この読取待機サイトの応答変異には read-heavy を中心に性能地形が予想される。",
+     "safety_argument_hypothesis": "この待機スピンは『施錠中（＝writePhase で書換中）の値を読まない』ためにある。変異が施錠中値をそのまま読取セットに入れると torn read / 非直列化を招きうる。原理的な安全網は直後の (e) tidword 再検査（読取後に epoch/tid が変わっていれば再読）であり、これを hole 外に固定する限り整合は保たれる仮説。段階 B で (e) の再検査が変異後も全経路で効くことの再検証が必須。",
+     "unknowns": [
+      "感度を持つ workload の実測特定（read-heavy 予想は機序推論であって裏取り前）",
+      "reward hack 仮説（例: 待機短縮で throughput を稼ぐが正しさ検証を実質スキップする経路の有無）",
+      "positive control 設計",
+      "計測動作点（単一動作点 skew0.9/48thread/1M 以外での挙動）",
+      "偵察の列挙空間（挟みうる応答戦略の候補集合）"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-batch-threshold",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "wal() 内のフラッシュ発火判定 `if (log_set_.size() > LOGSET_SIZE / 2)`（LOGSET_SIZE は transaction.hh で 1000 定義）の閾値",
+      "skeleton": "ログをファイルに書き出すバッチ発火閾値のスカラー変異。原型は固定 `LOGSET_SIZE / 2`。変異はこの発火点を可変係数にする（フラッシュ頻度＝1 write() あたりのレコード数を上下させる）。header 生成・convertChkSumIntoComplementOnTwo・logRecNum_ 集計・バッファ確保上限は hole 外。"
+     },
+     "mechanism_hypothesis": "attribution 実在項目「コミット時ログ書込の有効化」は effect『throughput 低下が書込比率に単調比例（write-heavy -13.4%）… 競合でも正しさ検証でもなく純粋な書込 I/O コストへの帰属』で、indicator は abort_rate 不変・latency 増加・llc_miss_rate 増加。コストが純粋 I/O + キャッシュ footprint に局在するなら、その I/O の発火頻度と 1 回あたりバッチ量を決めるフラッシュ閾値は同じ機序の直接の操作点である。大バッチ＝syscall 削減だが log_set_ footprint 増（llc_miss 側）、小バッチ＝逆。write-heavy（-13.4%、write 比率最大）を中心に latency/llc_miss のトレードオフ地形が予想される。",
+     "safety_argument_hypothesis": "この閾値は durability/recovery 面の量（1 フラッシュに溜めるレコード数）を決める。閾値を log_records_ / LOGSET_SIZE の確保容量を超えて上げるとバッファ溢れ、また replayTest.cc が期待する header（chkSum_/logRecNum_）整合が崩れうる。閾値が確保容量内かつ header 集計経路を hole 外に保つ限り正しさは保たれる仮説。段階 B でバッファ上限との整合と replay 経路の再検証が必須。",
+     "unknowns": [
+      "感度を持つ workload の実測特定（write-heavy 予想は裏取り前）",
+      "reward hack 仮説（例: フラッシュを実質無効化して I/O コストを回避し durability 前提を壊す変異）",
+      "positive control 設計",
+      "計測動作点（WAL 有効構成での単一動作点以外の挙動、VAL_SIZE/LogRecord サイズ依存）",
+      "偵察の列挙空間（閾値スカラーの探索範囲・バッファ確保上限との関係）",
+      "scalar 型のため段 6 headline 非対象（D44 決定 1(i)）"
+     ]
+    },
+    {
+     "axis_name": "silo-validation-conflict-response",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "lockWriteSet() の施錠取得ループ内 `if (expected.lock) { ... }` 競合応答分岐（コード内コメントが『the coder edit surface = the conflict response above』と明示する箇所）。write_set_ の sort comparator（既開通の死んだ hole silo-writeset-sort）とは別位置。",
+      "skeleton": "施錠済み tuple を掴もうとして競合検出したときの応答戦略を挟む hole。原型は #if で二択（即時 abort / 部分解錠して goto retry）を compile-time 固定。変異は同位置に応答戦略（有界待機してから再試行 / 応答を write set 位置・競合状況で切替える等）を挟む形。CAS 成功で施錠を確立する skeleton 経路（`compareExchange(...)` 成功 → break）と、writePhase 入口の施錠被覆検査（#if TRACE, D38）は hole 外。"
+     },
+     "mechanism_hypothesis": "attribution 実在項目「validation 中のロック競合に対する 2 種の待たない政策の選択」は effect『2 政策の優劣が workload 間で反転する — 単一の政策が全 workload で最適、は否定された』で、indicator は balanced 優位側 ipc 1.62（高命令発行で稼ぐ）／write-heavy 優位側 abort_rate 50.8→21.0%（abort と latency の同時低減で稼ぐ）と、稼ぎ方自体が workload で異なることを示す。固定二択の優劣が反転する＝この競合応答位置に workload 依存の性能地形が実在する証拠であり、二択の外側の応答戦略を生成する hole を開けると未探索の地形がありそう。",
+     "safety_argument_hypothesis": "この分岐は CC 正しさの中核（施錠を確立してから書く 2PL 相当の被覆）に直接効く。応答変異が施錠を持たないまま writePhase に進む / 早期解錠する経路を作ると isolation 破れ（lost update・torn write）。原理的安全網は writePhase 入口の施錠被覆検査と retention 検査（D38 #if TRACE）で、これらを hole 外に保つ限り検出可能な仮説。段階 B で被覆検査が変異後も全経路で発火することの再検証が必須。",
+     "unknowns": [
+      "既存軸台帳との構造照合（attribution 2 は固定二択の設計選択評価であって evolve 軸ではないが、位置がコメント上『coder edit surface』と重なるため、人間 gate での台帳照合で軸内探索でないことの確認が要る）",
+      "感度を持つ workload の実測特定（反転の再現・交互作用未分離）",
+      "reward hack 仮説（例: 応答を実質 no-wait 化して abort を稼ぎ正しさ被覆を薄くする変異）",
+      "positive control 設計",
+      "計測動作点（単一動作点・noise floor 2.28% 内で read-heavy 差 0.4% は順位不能）",
+      "偵察の列挙空間（挟みうる応答戦略の候補集合）"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全 attribution が単一動作点（skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離）由来で、機序推論の workload 依存はすべて実測前の予想である",
+    "noise floor 2.28%（read-heavy 系の小差は順位不能）を下回る効果は本提案の機序推論から判別できない",
+    "3 提案はいずれも cc/silo/transaction.cc 内の別位置に hole を開く（read_internal 読取待機 / wal フラッシュ閾値 / lockWriteSet 競合応答）が、開通済み hole との相互作用・同時変異時の交絡は未評価",
+    "mutation_type がどちらの型にも収まらない提案は本ラウンドには無いが、型仮置きの妥当性は段階 B の独立再導出で再確認が要る"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":153058,\"duration_api_ms\":154579,\"ttft_ms\":94147,\"ttft_stream_ms\":1674,\"time_to_request_ms\":89,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-lock-wait-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"read_internal() 内、施錠中 tuple に対する待機スピン `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の、lock 検出時の応答箇所\\\",\\n        \\\"skeleton\\\": \\\"施錠中 tuple を読もうとしたときの応答を差し替える hole。原型は「lock が clear になるまで無制限スピン」。変異は同じ位置に別応答（有界スピン後に読取セット追加を遅延 / 一度だけ再取得して次処理へ / スピン粒度を変える等）を挟む形。直後の (e) `check.obj_ = loadAcquire(...); if (expected == check) break;` による TID 再検査での読値整合検証は skeleton 側に固定し hole 外に置く。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」の indicator ipc 『全 workload で 1.4–1.6 → 0.4–0.5 に崩壊（コアが待機で実命令を発行できない）』は、abort 後に限らず『待機がコアの命令発行を潰す』という機序を示す。read_internal の施錠中スピンは backoff 軸（include/backoff.hh、abort 後）とは別の待機サイトであり、skew0.9 で hot tuple が writePhase 中に施錠される間、reader がここで空回りする。同 attribution の effect で read-heavy が backoff 損 -77%（abort baseline は 15.6% と最小）＝throughput が読取経路コストに支配される workload である以上、この読取待機サイトの応答変異には read-heavy を中心に性能地形が予想される。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この待機スピンは『施錠中（＝writePhase で書換中）の値を読まない』ためにある。変異が施錠中値をそのまま読取セットに入れると torn read / 非直列化を招きうる。原理的な安全網は直後の (e) tidword 再検査（読取後に epoch/tid が変わっていれば再読）であり、これを hole 外に固定する限り整合は保たれる仮説。段階 B で (e) の再検査が変異後も全経路で効くことの再検証が必須。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の実測特定（read-heavy 予想は機序推論であって裏取り前）\\\",\\n        \\\"reward hack 仮説（例: 待機短縮で throughput を稼ぐが正しさ検証を実質スキップする経路の有無）\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点（単一動作点 skew0.9/48thread/1M 以外での挙動）\\\",\\n        \\\"偵察の列挙空間（挟みうる応答戦略の候補集合）\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-batch-threshold\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"wal() 内のフラッシュ発火判定 `if (log_set_.size() > LOGSET_SIZE / 2)`（LOGSET_SIZE は transaction.hh で 1000 定義）の閾値\\\",\\n        \\\"skeleton\\\": \\\"ログをファイルに書き出すバッチ発火閾値のスカラー変異。原型は固定 `LOGSET_SIZE / 2`。変異はこの発火点を可変係数にする（フラッシュ頻度＝1 write() あたりのレコード数を上下させる）。header 生成・convertChkSumIntoComplementOnTwo・logRecNum_ 集計・バッファ確保上限は hole 外。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目「コミット時ログ書込の有効化」は effect『throughput 低下が書込比率に単調比例（write-heavy -13.4%）… 競合でも正しさ検証でもなく純粋な書込 I/O コストへの帰属』で、indicator は abort_rate 不変・latency 増加・llc_miss_rate 増加。コストが純粋 I/O + キャッシュ footprint に局在するなら、その I/O の発火頻度と 1 回あたりバッチ量を決めるフラッシュ閾値は同じ機序の直接の操作点である。大バッチ＝syscall 削減だが log_set_ footprint 増（llc_miss 側）、小バッチ＝逆。write-heavy（-13.4%、write 比率最大）を中心に latency/llc_miss のトレードオフ地形が予想される。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この閾値は durability/recovery 面の量（1 フラッシュに溜めるレコード数）を決める。閾値を log_records_ / LOGSET_SIZE の確保容量を超えて上げるとバッファ溢れ、また replayTest.cc が期待する header（chkSum_/logRecNum_）整合が崩れうる。閾値が確保容量内かつ header 集計経路を hole 外に保つ限り正しさは保たれる仮説。段階 B でバッファ上限との整合と replay 経路の再検証が必須。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の実測特定（write-heavy 予想は裏取り前）\\\",\\n        \\\"reward hack 仮説（例: フラッシュを実質無効化して I/O コストを回避し durability 前提を壊す変異）\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点（WAL 有効構成での単一動作点以外の挙動、VAL_SIZE/LogRecord サイズ依存）\\\",\\n        \\\"偵察の列挙空間（閾値スカラーの探索範囲・バッファ確保上限との関係）\\\",\\n        \\\"scalar 型のため段 6 headline 非対象（D44 決定 1(i)）\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-validation-conflict-response\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"lockWriteSet() の施錠取得ループ内 `if (expected.lock) { ... }` 競合応答分岐（コード内コメントが『the coder edit surface = the conflict response above』と明示する箇所）。write_set_ の sort comparator（既開通の死んだ hole silo-writeset-sort）とは別位置。\\\",\\n        \\\"skeleton\\\": \\\"施錠済み tuple を掴もうとして競合検出したときの応答戦略を挟む hole。原型は #if で二択（即時 abort / 部分解錠して goto retry）を compile-time 固定。変異は同位置に応答戦略（有界待機してから再試行 / 応答を write set 位置・競合状況で切替える等）を挟む形。CAS 成功で施錠を確立する skeleton 経路（`compareExchange(...)` 成功 → break）と、writePhase 入口の施錠被覆検査（#if TRACE, D38）は hole 外。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目「validation 中のロック競合に対する 2 種の待たない政策の選択」は effect『2 政策の優劣が workload 間で反転する — 単一の政策が全 workload で最適、は否定された』で、indicator は balanced 優位側 ipc 1.62（高命令発行で稼ぐ）／write-heavy 優位側 abort_rate 50.8→21.0%（abort と latency の同時低減で稼ぐ）と、稼ぎ方自体が workload で異なることを示す。固定二択の優劣が反転する＝この競合応答位置に workload 依存の性能地形が実在する証拠であり、二択の外側の応答戦略を生成する hole を開けると未探索の地形がありそう。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この分岐は CC 正しさの中核（施錠を確立してから書く 2PL 相当の被覆）に直接効く。応答変異が施錠を持たないまま writePhase に進む / 早期解錠する経路を作ると isolation 破れ（lost update・torn write）。原理的安全網は writePhase 入口の施錠被覆検査と retention 検査（D38 #if TRACE）で、これらを hole 外に保つ限り検出可能な仮説。段階 B で被覆検査が変異後も全経路で発火することの再検証が必須。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"既存軸台帳との構造照合（attribution 2 は固定二択の設計選択評価であって evolve 軸ではないが、位置がコメント上『coder edit surface』と重なるため、人間 gate での台帳照合で軸内探索でないことの確認が要る）\\\",\\n        \\\"感度を持つ workload の実測特定（反転の再現・交互作用未分離）\\\",\\n        \\\"reward hack 仮説（例: 応答を実質 no-wait 化して abort を稼ぎ正しさ被覆を薄くする変異）\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点（単一動作点・noise floor 2.28% 内で read-heavy 差 0.4% は順位不能）\\\",\\n        \\\"偵察の列挙空間（挟みうる応答戦略の候補集合）\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全 attribution が単一動作点（skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離）由来で、機序推論の workload 依存はすべて実測前の予想である\\\",\\n    \\\"noise floor 2.28%（read-heavy 系の小差は順位不能）を下回る効果は本提案の機序推論から判別できない\\\",\\n    \\\"3 提案はいずれも cc/silo/transaction.cc 内の別位置に hole を開く（read_internal 読取待機 / wal フラッシュ閾値 / lockWriteSet 競合応答）が、開通済み hole との相互作用・同時変異時の交絡は未評価\\\",\\n    \\\"mutation_type がどちらの型にも収まらない提案は本ラウンドには無いが、型仮置きの妥当性は段階 B の独立再導出で再確認が要る\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"2ad37ab6-dd57-42ed-9bfd-e9b076a0d94b\",\"total_cost_usd\":0.2870505,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35185,\"output_tokens\":9778,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":9778,\"cache_read_input_tokens\":35185,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24898,\"outputTokens\":21,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025003,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":9778,\"cacheReadInputTokens\":35185,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.2620475,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"c4fdc47c-5449-413c-ad0f-0c8c0292f7c3\"}\n",
+  "stderr": ""
+ }
+}

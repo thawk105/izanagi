@@ -1,0 +1,62 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-tpcc-worker-core-affinity",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/tpcc_silo.cc",
+      "source_rel": "cc/silo/tpcc_silo.cc",
+      "position": "main() が ccbench::run に渡す worker_init ラムダ (第4引数)。#ifdef Linux ブロックの setThreadAffinity(thid) 呼び出し箇所",
+      "skeleton": "setThreadAffinity に渡すスレッド識別子を恒等 thid から worker→物理コア割当を組み替える写像 f(thid) へ差し替える hole。写像は sequential / interleaved / socket-packed 等の配置政策を切り替えるコード片 (割当の実体 setThreadAffinity 本体は本ファイル外だが、呼出時の引数変換で観測可能なコア配置を変える)"
+     },
+     "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude の attribution 第1項 (backoff on/off) が、ipc を全 workload で 1.4–1.6 → 0.4–0.5 に崩壊させ、llc_miss_rate は『微増・cache 面の利得なし』と動いた。すなわちこの skew0.9 / 48thread の動作点では IPC と LLC 挙動がクリティカルパス上にあり、かつ cache 面は現状利得ゼロ = 未最適の余地が明示された。worker→物理コア割当は、競合ワーカ同士が LLC を共有するか跨ソケットになるかを直接決めるレバーで、これまで恒等 thid のまま未探索。ipc/llc_miss がこれだけ動いた事実から、当該配置 hole に llc_miss_rate・ipc 次元の性能地形を予想する。",
+     "safety_argument_hypothesis": "CC プロトコル本体 (validation/lock/write phase) を一切触らないため直列化可能性には原理的に影響しないはずだが、posix_memalign 済み共有配列 (ThLocalEpoch/CTIDW) は chkArg 時に配置確定済みで、コア再割当は跨ソケットアクセスを生みうる (性能のみ、正しさは非破壊の初期仮説)。壊しうる候補は計測有効性側 — 同一コアへの多重割当やコア数超過による oversubscription。段階 B で再検証前提。",
+     "unknowns": [
+      "感度を持つ workload の特定 (機序は locality 経路を示すのみで、read/balanced/write-heavy のどれで地形が出るか未導出)",
+      "効果経路が LLC-sharing 由来か NUMA メモリ配置由来かの分離 (機序単独では不能)",
+      "計測動作点 (skew/thread/tuple/socket 構成) が affinity 感度を持つ設定かの実測裏取り",
+      "positive control 設計 (配置政策の反証可能な対照)",
+      "reward hack 仮説 (oversubscription や計測窓の偏りで見かけ改善する経路)",
+      "偵察の列挙空間 (試す割当政策の集合)",
+      "mutation_type=code_fragment としたが割当実体が呼出外にあり hole が引数変換に限定される点でオンボーディングのコード片ひな型に収まりきらない懸念 — ひな型改訂要否を段階 B/人間 gate で判断"
+     ]
+    },
+    {
+     "axis_name": "silo-tpcc-wal-prealloc-size",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/tpcc_silo.cc",
+      "source_rel": "cc/silo/tpcc_silo.cc",
+      "position": "main() の worker_init ラムダ内 #if WAL ブロック。trans.logfile_.ftruncate(1000000000) のログファイル事前確保サイズ",
+      "skeleton": "ftruncate に渡すログファイル事前確保バイト数 (現在 1e9 固定リテラル) を変異させるスカラー hole。ブロック割当メタデータ I/O が事前確保でどれだけ回避されるかを掃く"
+     },
+     "mechanism_hypothesis": "diagnostics.silo-backoff-magnitude の attribution 第3項 (コミット時ログ書込 on/off) が、abort_rate 不変のまま latency 増・llc_miss 増を示し、throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%) — 競合でも検証でもなく純粋な書込 I/O コストへの帰属と分離された。事前確保サイズは、書込が確保済みブロックに落ちるか割当メタデータ I/O を誘発するかを決め、まさにこの分離された I/O コスト成分を左右する未探索レバー。単調比例が最も急な write-heavy 側で latency 経由の性能地形を予想する。",
+     "safety_argument_hypothesis": "WAL は本 run 中に読み戻されない追記ログで、事前確保サイズが小さくてもファイルは書込時に延伸するだけで DB の直列化可能性・レコード正しさには非影響の初期仮説。壊しうる候補は recovery/replay 側 (replayTest 経路) の妥当性と、極端に小さい値での見かけ throughput 改善が I/O 正当性を犠牲にする経路。段階 B で必ず再検証。",
+     "unknowns": [
+      "実 I/O サブシステム (tmpfs / 実ディスク / fs 種別) が事前確保サイズに感度を持つか — 機序単独で不明",
+      "WAL on を前提とする下位レバーであり attribution 第3項 (WAL on/off) 軸との構造的重なりの有無 (軸内探索でない根拠 = 独立再導出は段階 B の必須検査)",
+      "感度 workload の特定 (write-heavy 偏重を予想するが未確定)",
+      "positive control 設計と reward hack 仮説 (過小確保で latency 見かけ改善しつつ recovery を壊す経路)",
+      "計測動作点の実測裏取り",
+      "scalar ゆえ headline 非対象ラベルが自動付与される点 (記録事項)"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics の効果は read-heavy / balanced / write-heavy (YCSB の read 比率変種と読める) で計測されているが、hole_region_directive は TPC-C 入口 (cc/silo/tpcc_silo.cc) を指定している。診断で観測した機序が TPC-C 入口を通る実行に転移するかは未確認 — 診断 workload と被指定領域の不一致は射影漏れではなく本質的不確実性であり、段階 B の独立再導出で要検証",
+    "attribution は単一動作点 (skew0.9 / 48thread / 1M レコード)・各構成 1 round・交互作用未分離・noise floor 2.28% と明記されており、上記いずれの地形予想も弱い外挿にとどまる",
+    "両提案とも cc/silo/tpcc_silo.cc は未開通領域 (edit_surface_map で opened=false)。開通コストの判断は人間側の仕事であり、機序が指す先が未開通である事実自体は提案抑制の理由にしていない"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":179136,\"duration_api_ms\":181374,\"ttft_ms\":139610,\"ttft_stream_ms\":4595,\"time_to_request_ms\":105,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-tpcc-worker-core-affinity\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/tpcc_silo.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/tpcc_silo.cc\\\",\\n        \\\"position\\\": \\\"main() が ccbench::run に渡す worker_init ラムダ (第4引数)。#ifdef Linux ブロックの setThreadAffinity(thid) 呼び出し箇所\\\",\\n        \\\"skeleton\\\": \\\"setThreadAffinity に渡すスレッド識別子を恒等 thid から worker→物理コア割当を組み替える写像 f(thid) へ差し替える hole。写像は sequential / interleaved / socket-packed 等の配置政策を切り替えるコード片 (割当の実体 setThreadAffinity 本体は本ファイル外だが、呼出時の引数変換で観測可能なコア配置を変える)\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics.silo-backoff-magnitude の attribution 第1項 (backoff on/off) が、ipc を全 workload で 1.4–1.6 → 0.4–0.5 に崩壊させ、llc_miss_rate は『微増・cache 面の利得なし』と動いた。すなわちこの skew0.9 / 48thread の動作点では IPC と LLC 挙動がクリティカルパス上にあり、かつ cache 面は現状利得ゼロ = 未最適の余地が明示された。worker→物理コア割当は、競合ワーカ同士が LLC を共有するか跨ソケットになるかを直接決めるレバーで、これまで恒等 thid のまま未探索。ipc/llc_miss がこれだけ動いた事実から、当該配置 hole に llc_miss_rate・ipc 次元の性能地形を予想する。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"CC プロトコル本体 (validation/lock/write phase) を一切触らないため直列化可能性には原理的に影響しないはずだが、posix_memalign 済み共有配列 (ThLocalEpoch/CTIDW) は chkArg 時に配置確定済みで、コア再割当は跨ソケットアクセスを生みうる (性能のみ、正しさは非破壊の初期仮説)。壊しうる候補は計測有効性側 — 同一コアへの多重割当やコア数超過による oversubscription。段階 B で再検証前提。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の特定 (機序は locality 経路を示すのみで、read/balanced/write-heavy のどれで地形が出るか未導出)\\\",\\n        \\\"効果経路が LLC-sharing 由来か NUMA メモリ配置由来かの分離 (機序単独では不能)\\\",\\n        \\\"計測動作点 (skew/thread/tuple/socket 構成) が affinity 感度を持つ設定かの実測裏取り\\\",\\n        \\\"positive control 設計 (配置政策の反証可能な対照)\\\",\\n        \\\"reward hack 仮説 (oversubscription や計測窓の偏りで見かけ改善する経路)\\\",\\n        \\\"偵察の列挙空間 (試す割当政策の集合)\\\",\\n        \\\"mutation_type=code_fragment としたが割当実体が呼出外にあり hole が引数変換に限定される点でオンボーディングのコード片ひな型に収まりきらない懸念 — ひな型改訂要否を段階 B/人間 gate で判断\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-tpcc-wal-prealloc-size\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/tpcc_silo.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/tpcc_silo.cc\\\",\\n        \\\"position\\\": \\\"main() の worker_init ラムダ内 #if WAL ブロック。trans.logfile_.ftruncate(1000000000) のログファイル事前確保サイズ\\\",\\n        \\\"skeleton\\\": \\\"ftruncate に渡すログファイル事前確保バイト数 (現在 1e9 固定リテラル) を変異させるスカラー hole。ブロック割当メタデータ I/O が事前確保でどれだけ回避されるかを掃く\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics.silo-backoff-magnitude の attribution 第3項 (コミット時ログ書込 on/off) が、abort_rate 不変のまま latency 増・llc_miss 増を示し、throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%) — 競合でも検証でもなく純粋な書込 I/O コストへの帰属と分離された。事前確保サイズは、書込が確保済みブロックに落ちるか割当メタデータ I/O を誘発するかを決め、まさにこの分離された I/O コスト成分を左右する未探索レバー。単調比例が最も急な write-heavy 側で latency 経由の性能地形を予想する。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"WAL は本 run 中に読み戻されない追記ログで、事前確保サイズが小さくてもファイルは書込時に延伸するだけで DB の直列化可能性・レコード正しさには非影響の初期仮説。壊しうる候補は recovery/replay 側 (replayTest 経路) の妥当性と、極端に小さい値での見かけ throughput 改善が I/O 正当性を犠牲にする経路。段階 B で必ず再検証。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"実 I/O サブシステム (tmpfs / 実ディスク / fs 種別) が事前確保サイズに感度を持つか — 機序単独で不明\\\",\\n        \\\"WAL on を前提とする下位レバーであり attribution 第3項 (WAL on/off) 軸との構造的重なりの有無 (軸内探索でない根拠 = 独立再導出は段階 B の必須検査)\\\",\\n        \\\"感度 workload の特定 (write-heavy 偏重を予想するが未確定)\\\",\\n        \\\"positive control 設計と reward hack 仮説 (過小確保で latency 見かけ改善しつつ recovery を壊す経路)\\\",\\n        \\\"計測動作点の実測裏取り\\\",\\n        \\\"scalar ゆえ headline 非対象ラベルが自動付与される点 (記録事項)\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics の効果は read-heavy / balanced / write-heavy (YCSB の read 比率変種と読める) で計測されているが、hole_region_directive は TPC-C 入口 (cc/silo/tpcc_silo.cc) を指定している。診断で観測した機序が TPC-C 入口を通る実行に転移するかは未確認 — 診断 workload と被指定領域の不一致は射影漏れではなく本質的不確実性であり、段階 B の独立再導出で要検証\\\",\\n    \\\"attribution は単一動作点 (skew0.9 / 48thread / 1M レコード)・各構成 1 round・交互作用未分離・noise floor 2.28% と明記されており、上記いずれの地形予想も弱い外挿にとどまる\\\",\\n    \\\"両提案とも cc/silo/tpcc_silo.cc は未開通領域 (edit_surface_map で opened=false)。開通コストの判断は人間側の仕事であり、機序が指す先が未開通である事実自体は提案抑制の理由にしていない\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"7bf7675f-24f7-4b86-9dc7-4eea959a395a\",\"total_cost_usd\":0.6321089999999999,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":31500,\"cache_read_input_tokens\":3714,\"output_tokens\":11609,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":31500,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":11609,\"cache_read_input_tokens\":3714,\"cache_creation_input_tokens\":31500,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":31500},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24922,\"outputTokens\":20,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025022,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":11609,\"cacheReadInputTokens\":3714,\"cacheCreationInputTokens\":31500,\"webSearchRequests\":0,\"costUSD\":0.6070869999999999,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"719ebfac-afb9-47b7-977b-f1ce3e9b5137\"}\n",
+  "stderr": ""
+ }
+}

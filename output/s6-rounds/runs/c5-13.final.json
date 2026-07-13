@@ -1,0 +1,79 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-spin-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal の step (a) 相当のスピンループ `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... check.obj_ = loadAcquire(...); if (expected == check) break; ... }`",
+      "skeleton": "ロックビット待ちの busy スピン (`while (expected.lock)`) と再読取り一致判定 (`expected == check`) の再試行ループを EVOLVE-BLOCK で囲い、待機方式 (無ヒント busy / _mm_pause 挿入 / 有界スピン回数後の分岐) を差し替え可能にする hole。骨格の (a)〜(e) 読取り整合手順 (ロッククリア待ち → 値読取り → tidword 再読取り一致確認) の不変条件は hole 外に残す。"
+     },
+     "mechanism_hypothesis": "diagnostics 空につき stock 構造観察から: read_internal のスピンは loadAcquire を _mm_pause 等のヒントなしで密ループさせており、一方 writePhase の UPDATE 経路はロック保持のまま `memcpy(... body_.get_val_size())` で VAL_SIZE 分のデータコピーを行う。よってライタが値コピー中の tuple にヒットしたリーダは、その区間ぶんヒントなしでコアを占有してスピンする構造がある。この待機区間の長さ・形は read_internal のスピン方式に依存し、read フェーズのレイテンシと extra_reads 系の計数に観測可能な差として現れうる、という反証可能な予想。silo-writeset-sort (施錠順序 comparator) とも silo-backoff-magnitude (abort 後の再試行待機量) とも位置・機序が別 — これは read フェーズ内のロック待ちスピンである。",
+     "safety_argument_hypothesis": "有界スピンや早期離脱に変異させると、ロックがクリアされる前にループを抜けて (b)〜(e) の再読取り一致判定を飛ばした場合、書込み途中の値を読む torn read / 一貫性違反を生む危険がある。`expected == check` による再読取り整合の不変条件が hole 外で必ず成立することが安全性の要。段階 B で必ず再検証。",
+     "unknowns": [
+      "この軸に感度を持つ workload (競合度・zipf_skew・VAL_SIZE 依存で効くはず) の特定",
+      "reward hack 仮説 (スピンを事実上のスキップに変えて計測動作点だけ有利化する経路の有無)",
+      "positive control 設計",
+      "計測動作点 (スレッド数・スキュー)",
+      "偵察の列挙空間 (どのスピン方式群を候補にするか)"
+     ]
+    },
+    {
+     "axis_name": "silo-localset-lookup-structure",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::searchReadSet / TxExecutor::searchWriteSet の線形走査 `for (auto& re : read_set_) { if (re.storage_ != s) continue; if (re.key_ == key) return &re; }` および write_set_ 版",
+      "skeleton": "read_set_/write_set_ に対する key 一致探索の実装 (現状は毎回全要素線形走査) を EVOLVE-BLOCK で囲い、探索補助構造 (キー→要素インデックスの補助マップ / ソート維持 + 二分探索) の維持と参照に差し替え可能にする hole。read-own-writes と最初一致返却のセマンティクスは hole 外の契約として保持。"
+     },
+     "mechanism_hypothesis": "diagnostics 空につき stock 構造観察から: searchReadSet/searchWriteSet は read/update/insert/delete/scan の各操作ごとに read_set_・write_set_ を毎回線形走査する。common.hh の batch_max_ope は既定で単一バッチ Tx あたり最大 1000 操作を許すため、大きな Tx では 1 操作ごとの走査がローカルセット長に比例し、局所探索コストが二次的に増える構造がある。この探索コストは per-tx レイテンシがセット長に対しどう伸びるかとして観測可能で、補助構造を挟むと形が変わりうる、という反証可能な予想。silo-writeset-sort が施錠順のための write_set 全体ソートであるのに対し、これはローカルセットの key 検索経路という別位置・別機序。",
+     "safety_argument_hypothesis": "補助構造化は read-own-writes の正しさ (同一 key に対し write_set の該当要素を返す) と、複数エントリ/最初一致返却の順序依存セマンティクスを保存する必要がある。ハッシュ化等で同一 key の返却要素が線形走査時と食い違うと局所可視性が壊れる危険。段階 B で必ず再検証。",
+     "unknowns": [
+      "感度を持つ workload (大きい batch_max_ope・多操作 Tx でこそ効くはず) の特定",
+      "reward hack 仮説 (探索構造の維持コストを計測外に隠す経路の有無)",
+      "positive control 設計",
+      "計測動作点 (Tx あたり操作数・セット長分布)",
+      "補助構造候補の列挙空間"
+     ]
+    },
+    {
+     "axis_name": "silo-epoch-advance-interval",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork の epoch 前進条件 `if (chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()) { atomicAddGE(); ... ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0; ... }`",
+      "skeleton": "epoch を進める閾値スパン (現状 `FLAGS_epoch_time * FLAGS_clocks_per_us * 1000`) をスカラー hole 化し、epoch 前進の cadence を変異可能にする。chkEpochLoaded 全読込確認と ReclamationEpoch = cur-2 の猶予不変条件は hole 外に残す。"
+     },
+     "mechanism_hypothesis": "diagnostics 空につき stock 構造観察から: siloLeaderWork は clock span が閾値を超え、かつ全ワーカーが最新 epoch を読込済み (chkEpochLoaded) のときのみ GlobalEpoch を進め、ReclamationEpoch を cur-2 に置く。transaction.cc の gc_records は `rec->tidword_.epoch > r_epoch` で保留する構造なので、epoch cadence は GC の回収遅れ (回収待ち record の滞留量) と、validationPhase が epoch 比較で行う整合の粒度の双方を左右する。閾値を変異させると回収滞留と epoch 越えの頻度が変わり、スループット/メモリ挙動に観測可能な差が出うる、という反証可能な予想。既開通 2 軸 (施錠順 comparator・abort 後待機量) と位置も対象量も別。",
+     "safety_argument_hypothesis": "閾値を過度に短縮して epoch 前進を速めると、ReclamationEpoch = cur-2 の 2-epoch 猶予前提が保証する「まだ可視な record を回収しない」不変条件を崩し、use-after-free / 消えた版の読取りを生む危険がある。chkEpochLoaded の全読込確認と cur-2 猶予が hole 外で保持されることが安全性の要。段階 B で必ず再検証 (scalar につき自動的に headline 非対象)。",
+     "unknowns": [
+      "感度を持つ workload (回収圧・長 Tx が効くはず) の特定",
+      "reward hack 仮説 (回収を遅らせてメモリと引き換えに計測窓だけスループットを稼ぐ経路の有無)",
+      "positive control 設計",
+      "計測動作点 (extime・epoch_time 近傍の走査範囲)",
+      "偵察の列挙空間 (安全に許せる閾値下限は cur-2 猶予との整合で実コード裏取りが要る)",
+      "util.cc は未開通領域 — 開通可否/コストの判断は人間側"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空のため、3 候補間の優先順位・どれが実際に性能地形を持つかを attribution 数値から裏付けられない — 各 mechanism_hypothesis は stock 構造観察のみに立脚し、実測は段階 B に委ねる",
+    "既存軸台帳の全体像は入力射影に 2 hole (silo-writeset-sort / silo-backoff-magnitude) しか見えていない — 提案 3 件が台帳の他軸と構造的に重複しないかの最終照合は人間 gate の構造照合に依存",
+    "mutation_type は既存二型に収めたが、silo-epoch-advance-interval は閾値スカラーであると同時に前進条件ロジックにも触れうる境界例 — scalar 仮置きの妥当性は段階 B のひな型適合確認を要する"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":121848,\"duration_api_ms\":123135,\"ttft_ms\":61385,\"ttft_stream_ms\":2546,\"time_to_request_ms\":88,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-spin-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal の step (a) 相当のスピンループ `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... check.obj_ = loadAcquire(...); if (expected == check) break; ... }`\\\",\\n        \\\"skeleton\\\": \\\"ロックビット待ちの busy スピン (`while (expected.lock)`) と再読取り一致判定 (`expected == check`) の再試行ループを EVOLVE-BLOCK で囲い、待機方式 (無ヒント busy / _mm_pause 挿入 / 有界スピン回数後の分岐) を差し替え可能にする hole。骨格の (a)〜(e) 読取り整合手順 (ロッククリア待ち → 値読取り → tidword 再読取り一致確認) の不変条件は hole 外に残す。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空につき stock 構造観察から: read_internal のスピンは loadAcquire を _mm_pause 等のヒントなしで密ループさせており、一方 writePhase の UPDATE 経路はロック保持のまま `memcpy(... body_.get_val_size())` で VAL_SIZE 分のデータコピーを行う。よってライタが値コピー中の tuple にヒットしたリーダは、その区間ぶんヒントなしでコアを占有してスピンする構造がある。この待機区間の長さ・形は read_internal のスピン方式に依存し、read フェーズのレイテンシと extra_reads 系の計数に観測可能な差として現れうる、という反証可能な予想。silo-writeset-sort (施錠順序 comparator) とも silo-backoff-magnitude (abort 後の再試行待機量) とも位置・機序が別 — これは read フェーズ内のロック待ちスピンである。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"有界スピンや早期離脱に変異させると、ロックがクリアされる前にループを抜けて (b)〜(e) の再読取り一致判定を飛ばした場合、書込み途中の値を読む torn read / 一貫性違反を生む危険がある。`expected == check` による再読取り整合の不変条件が hole 外で必ず成立することが安全性の要。段階 B で必ず再検証。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"この軸に感度を持つ workload (競合度・zipf_skew・VAL_SIZE 依存で効くはず) の特定\\\",\\n        \\\"reward hack 仮説 (スピンを事実上のスキップに変えて計測動作点だけ有利化する経路の有無)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点 (スレッド数・スキュー)\\\",\\n        \\\"偵察の列挙空間 (どのスピン方式群を候補にするか)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-localset-lookup-structure\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::searchReadSet / TxExecutor::searchWriteSet の線形走査 `for (auto& re : read_set_) { if (re.storage_ != s) continue; if (re.key_ == key) return &re; }` および write_set_ 版\\\",\\n        \\\"skeleton\\\": \\\"read_set_/write_set_ に対する key 一致探索の実装 (現状は毎回全要素線形走査) を EVOLVE-BLOCK で囲い、探索補助構造 (キー→要素インデックスの補助マップ / ソート維持 + 二分探索) の維持と参照に差し替え可能にする hole。read-own-writes と最初一致返却のセマンティクスは hole 外の契約として保持。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空につき stock 構造観察から: searchReadSet/searchWriteSet は read/update/insert/delete/scan の各操作ごとに read_set_・write_set_ を毎回線形走査する。common.hh の batch_max_ope は既定で単一バッチ Tx あたり最大 1000 操作を許すため、大きな Tx では 1 操作ごとの走査がローカルセット長に比例し、局所探索コストが二次的に増える構造がある。この探索コストは per-tx レイテンシがセット長に対しどう伸びるかとして観測可能で、補助構造を挟むと形が変わりうる、という反証可能な予想。silo-writeset-sort が施錠順のための write_set 全体ソートであるのに対し、これはローカルセットの key 検索経路という別位置・別機序。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"補助構造化は read-own-writes の正しさ (同一 key に対し write_set の該当要素を返す) と、複数エントリ/最初一致返却の順序依存セマンティクスを保存する必要がある。ハッシュ化等で同一 key の返却要素が線形走査時と食い違うと局所可視性が壊れる危険。段階 B で必ず再検証。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (大きい batch_max_ope・多操作 Tx でこそ効くはず) の特定\\\",\\n        \\\"reward hack 仮説 (探索構造の維持コストを計測外に隠す経路の有無)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点 (Tx あたり操作数・セット長分布)\\\",\\n        \\\"補助構造候補の列挙空間\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-epoch-advance-interval\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork の epoch 前進条件 `if (chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()) { atomicAddGE(); ... ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0; ... }`\\\",\\n        \\\"skeleton\\\": \\\"epoch を進める閾値スパン (現状 `FLAGS_epoch_time * FLAGS_clocks_per_us * 1000`) をスカラー hole 化し、epoch 前進の cadence を変異可能にする。chkEpochLoaded 全読込確認と ReclamationEpoch = cur-2 の猶予不変条件は hole 外に残す。\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空につき stock 構造観察から: siloLeaderWork は clock span が閾値を超え、かつ全ワーカーが最新 epoch を読込済み (chkEpochLoaded) のときのみ GlobalEpoch を進め、ReclamationEpoch を cur-2 に置く。transaction.cc の gc_records は `rec->tidword_.epoch > r_epoch` で保留する構造なので、epoch cadence は GC の回収遅れ (回収待ち record の滞留量) と、validationPhase が epoch 比較で行う整合の粒度の双方を左右する。閾値を変異させると回収滞留と epoch 越えの頻度が変わり、スループット/メモリ挙動に観測可能な差が出うる、という反証可能な予想。既開通 2 軸 (施錠順 comparator・abort 後待機量) と位置も対象量も別。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"閾値を過度に短縮して epoch 前進を速めると、ReclamationEpoch = cur-2 の 2-epoch 猶予前提が保証する「まだ可視な record を回収しない」不変条件を崩し、use-after-free / 消えた版の読取りを生む危険がある。chkEpochLoaded の全読込確認と cur-2 猶予が hole 外で保持されることが安全性の要。段階 B で必ず再検証 (scalar につき自動的に headline 非対象)。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (回収圧・長 Tx が効くはず) の特定\\\",\\n        \\\"reward hack 仮説 (回収を遅らせてメモリと引き換えに計測窓だけスループットを稼ぐ経路の有無)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点 (extime・epoch_time 近傍の走査範囲)\\\",\\n        \\\"偵察の列挙空間 (安全に許せる閾値下限は cur-2 猶予との整合で実コード裏取りが要る)\\\",\\n        \\\"util.cc は未開通領域 — 開通可否/コストの判断は人間側\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空のため、3 候補間の優先順位・どれが実際に性能地形を持つかを attribution 数値から裏付けられない — 各 mechanism_hypothesis は stock 構造観察のみに立脚し、実測は段階 B に委ねる\\\",\\n    \\\"既存軸台帳の全体像は入力射影に 2 hole (silo-writeset-sort / silo-backoff-magnitude) しか見えていない — 提案 3 件が台帳の他軸と構造的に重複しないかの最終照合は人間 gate の構造照合に依存\\\",\\n    \\\"mutation_type は既存二型に収めたが、silo-epoch-advance-interval は閾値スカラーであると同時に前進条件ロジックにも触れうる境界例 — scalar 仮置きの妥当性は段階 B のひな型適合確認を要する\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"a3663d7a-0828-4a33-b231-751bb1d8f403\",\"total_cost_usd\":0.2335205,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":7702,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":7702,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":14,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02394,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":7702,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.2095805,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"de41ceee-6b3d-494b-a641-30b26c1b3e86\"}\n",
+  "stderr": ""
+ }
+}

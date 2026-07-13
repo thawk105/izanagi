@@ -1,0 +1,83 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-spin-wait-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "read_internal() の TID word 監視スピンループ `for(;;){ while(expected.lock){ expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... check.obj_ = ...; if(expected==check) break; }` — ロック解除までロードを回すだけのタイトな待ち (現状 _mm_pause なし)",
+      "skeleton": "ロック解除待ちの内側ループ本体を変異穴にし、待ち方の政策 (純スピン / pause 挿入 / 有界スピン後に契機切替) を差し替える。ループ抜けの条件と (e) 再チェックの正しさ骨格は保持し、待機中のコア占有の仕方だけを挟む"
+     },
+     "mechanism_hypothesis": "attribution 項目1 (abort 後バックオフ on/off) の indicators で ipc が全 workload で 1.4–1.6→0.4–0.5 に崩壊 (コアが待機で実命令を発行できない)、read-heavy の latency が 5.7→25μs に増加、という診断数値の動き。これは post-abort の待機に対する観測だが、read_internal の同型の busy-wait (ロック解除までロードを回すだけの占有) も同じ IPC 崩壊機構に晒される別位置であり、skew0.9 で hot record が writePhase 中に施錠される間 reader が滞留する read-heavy で最も踏まれる。待機中の振る舞いを変えると、この待機由来の IPC/latency と、待ちを契機切替に転じた場合の abort 増の間に地形が予想される",
+     "safety_argument_hypothesis": "TID word の再読・(e) 再チェックによる read の atomicity 検証を保つ限り正しさは維持される想定。ただし待ちを abort/契機切替に転じる変種はロック中データ非可視の不変条件を崩しうる — 段階 B で必ず再検証",
+     "unknowns": [
+      "感度を持つ workload の実測 (read-heavy 偏重は機序からの推測、実コード裏取り要)",
+      "read_internal の現状スピンに _mm_pause が無いことの確認",
+      "既存 #if SLEEP_READ_PHASE フックとの干渉範囲",
+      "read_internal を EVOLVE-BLOCK 化する編集面拡張の要否",
+      "positive control 設計",
+      "計測動作点",
+      "reward hack 仮説"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-batch-threshold",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "wal() の flush 判定 `if (log_set_.size() > LOGSET_SIZE / 2)` の蓄積閾値",
+      "skeleton": "ログバッファを実 I/O (logfile_.write) に流す蓄積閾値をスカラー変異穴にする。書込のバッチ粒度 = write() 発行頻度を制御する単一スカラー"
+     },
+     "mechanism_hypothesis": "attribution 項目3 (コミット時ログ書込 on/off) で throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%)、abort 率不変のまま latency と llc_miss が増える = 競合でも正しさ検証でもなく純粋な書込 I/O コストへの帰属、という診断数値。abort 動態に触れず I/O コストのみが効いているので、バッチ閾値で write() 発行頻度を変えると I/O 償却と latency/llc_miss の間に地形が予想される (特に write-heavy)",
+     "safety_argument_hypothesis": "recovery 正しさ (ログ順序・チェックサム・durability 窓) に影響しうる。閾値拡大は障害時の未フラッシュ窓を拡げる。現状 wal() は val_ に \"FIXME\" スタブを書くため I/O 量は実だが値忠実度は未完 — 段階 B で計測妥当性ごと要検証",
+     "unknowns": [
+      "LOGSET_SIZE が transaction.hh (#define・未開通領域) 由来で、wal() 内の /2 のみを編集面にできるか閾値定義ごと開通が要るかの確認",
+      "val_ \"FIXME\" スタブ下で I/O コスト計測が本番忠実か",
+      "感度 workload (write-heavy 推測) の実測",
+      "reward hack 仮説の精査 (flush をほぼ止めれば I/O は消せるが durability を捨てる = hack)",
+      "fdatasync 有無 (コメントアウト済) という別レバーとの切り分け",
+      "positive control 設計",
+      "計測動作点"
+     ]
+    },
+    {
+     "axis_name": "silo-abort-backoff-gating",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "abort() 内 `#if BACK_OFF ... Backoff::backoff(FLAGS_clocks_per_us) ... #endif` の待機発火箇所",
+      "skeleton": "全 abort で無条件に待機を呼ぶ現状に、待機を発火するか否かの gate を挟む変異穴 (局所状態・abort 契機で分岐)。backoff.hh のスカラー待機量ではなく『待つか否か・いつ待つか』の制御フロー変異"
+     },
+     "mechanism_hypothesis": "attribution 項目1 で abort 率は大幅低減 (balanced 65.3→18.1% 等) するが throughput は全 workload で低下し、かつ『損は abort baseline が高い workload ほど小さい (write-heavy -22.5% < read-heavy -77%): 待機が無駄な再試行を実際に削れる workload では相殺、abort が元々少ない workload では純損』という診断数値の非対称。純損は削れる再試行が無い abort にも待機コストを一律に払う構図であり、待機発火を abort 側で gate すると相殺の効く場合だけ待ち純損側で待たない選別で地形が予想される",
+     "safety_argument_hypothesis": "serializability には直接影響しない (待機の有無は正しさを変えない) が、待機省略で活性 (リトライ暴走的ライブロック) が悪化しうる — 段階 B で要検証",
+     "unknowns": [
+      "これが silo-backoff-magnitude (スカラー待機量軸) の探索範囲外である (gate は magnitude では表現不能) ことの人間 gate での既存軸台帳照合 — 隣接軸ゆえ必須",
+      "abort 契機を識別する情報が abort() 局所で得られるか (validation 政策の識別は入力射影で落ちている)",
+      "感度 workload の実測",
+      "positive control 設計",
+      "計測動作点",
+      "reward hack 仮説"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離 — 提案の機序帰属はこの限界を継承し、感度 workload の主張はすべて機序からの外挿で実測未裏取り",
+    "noise floor 2.28% を下回る差 (例: read-heavy 系) は順位不能であり、地形予想の分解能はこの床に制約される",
+    "3 提案はいずれも入力が coder 出力後の機序帰属由来のため『探索補助』限定で段 6 headline 非対象 (silo-wal-flush-batch-threshold は scalar につき自動で headline 非対象ラベル)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":184310,\"duration_api_ms\":185541,\"ttft_ms\":149881,\"ttft_stream_ms\":5316,\"time_to_request_ms\":324,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-spin-wait-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"read_internal() の TID word 監視スピンループ `for(;;){ while(expected.lock){ expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... check.obj_ = ...; if(expected==check) break; }` — ロック解除までロードを回すだけのタイトな待ち (現状 _mm_pause なし)\\\",\\n        \\\"skeleton\\\": \\\"ロック解除待ちの内側ループ本体を変異穴にし、待ち方の政策 (純スピン / pause 挿入 / 有界スピン後に契機切替) を差し替える。ループ抜けの条件と (e) 再チェックの正しさ骨格は保持し、待機中のコア占有の仕方だけを挟む\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 項目1 (abort 後バックオフ on/off) の indicators で ipc が全 workload で 1.4–1.6→0.4–0.5 に崩壊 (コアが待機で実命令を発行できない)、read-heavy の latency が 5.7→25μs に増加、という診断数値の動き。これは post-abort の待機に対する観測だが、read_internal の同型の busy-wait (ロック解除までロードを回すだけの占有) も同じ IPC 崩壊機構に晒される別位置であり、skew0.9 で hot record が writePhase 中に施錠される間 reader が滞留する read-heavy で最も踏まれる。待機中の振る舞いを変えると、この待機由来の IPC/latency と、待ちを契機切替に転じた場合の abort 増の間に地形が予想される\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"TID word の再読・(e) 再チェックによる read の atomicity 検証を保つ限り正しさは維持される想定。ただし待ちを abort/契機切替に転じる変種はロック中データ非可視の不変条件を崩しうる — 段階 B で必ず再検証\\\",\\n      \\\"unknowns\\\": [\\\"感度を持つ workload の実測 (read-heavy 偏重は機序からの推測、実コード裏取り要)\\\", \\\"read_internal の現状スピンに _mm_pause が無いことの確認\\\", \\\"既存 #if SLEEP_READ_PHASE フックとの干渉範囲\\\", \\\"read_internal を EVOLVE-BLOCK 化する編集面拡張の要否\\\", \\\"positive control 設計\\\", \\\"計測動作点\\\", \\\"reward hack 仮説\\\"]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-batch-threshold\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"wal() の flush 判定 `if (log_set_.size() > LOGSET_SIZE / 2)` の蓄積閾値\\\",\\n        \\\"skeleton\\\": \\\"ログバッファを実 I/O (logfile_.write) に流す蓄積閾値をスカラー変異穴にする。書込のバッチ粒度 = write() 発行頻度を制御する単一スカラー\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 項目3 (コミット時ログ書込 on/off) で throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%)、abort 率不変のまま latency と llc_miss が増える = 競合でも正しさ検証でもなく純粋な書込 I/O コストへの帰属、という診断数値。abort 動態に触れず I/O コストのみが効いているので、バッチ閾値で write() 発行頻度を変えると I/O 償却と latency/llc_miss の間に地形が予想される (特に write-heavy)\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"recovery 正しさ (ログ順序・チェックサム・durability 窓) に影響しうる。閾値拡大は障害時の未フラッシュ窓を拡げる。現状 wal() は val_ に \\\\\\\"FIXME\\\\\\\" スタブを書くため I/O 量は実だが値忠実度は未完 — 段階 B で計測妥当性ごと要検証\\\",\\n      \\\"unknowns\\\": [\\\"LOGSET_SIZE が transaction.hh (#define・未開通領域) 由来で、wal() 内の /2 のみを編集面にできるか閾値定義ごと開通が要るかの確認\\\", \\\"val_ \\\\\\\"FIXME\\\\\\\" スタブ下で I/O コスト計測が本番忠実か\\\", \\\"感度 workload (write-heavy 推測) の実測\\\", \\\"reward hack 仮説の精査 (flush をほぼ止めれば I/O は消せるが durability を捨てる = hack)\\\", \\\"fdatasync 有無 (コメントアウト済) という別レバーとの切り分け\\\", \\\"positive control 設計\\\", \\\"計測動作点\\\"]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-abort-backoff-gating\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"abort() 内 `#if BACK_OFF ... Backoff::backoff(FLAGS_clocks_per_us) ... #endif` の待機発火箇所\\\",\\n        \\\"skeleton\\\": \\\"全 abort で無条件に待機を呼ぶ現状に、待機を発火するか否かの gate を挟む変異穴 (局所状態・abort 契機で分岐)。backoff.hh のスカラー待機量ではなく『待つか否か・いつ待つか』の制御フロー変異\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 項目1 で abort 率は大幅低減 (balanced 65.3→18.1% 等) するが throughput は全 workload で低下し、かつ『損は abort baseline が高い workload ほど小さい (write-heavy -22.5% < read-heavy -77%): 待機が無駄な再試行を実際に削れる workload では相殺、abort が元々少ない workload では純損』という診断数値の非対称。純損は削れる再試行が無い abort にも待機コストを一律に払う構図であり、待機発火を abort 側で gate すると相殺の効く場合だけ待ち純損側で待たない選別で地形が予想される\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"serializability には直接影響しない (待機の有無は正しさを変えない) が、待機省略で活性 (リトライ暴走的ライブロック) が悪化しうる — 段階 B で要検証\\\",\\n      \\\"unknowns\\\": [\\\"これが silo-backoff-magnitude (スカラー待機量軸) の探索範囲外である (gate は magnitude では表現不能) ことの人間 gate での既存軸台帳照合 — 隣接軸ゆえ必須\\\", \\\"abort 契機を識別する情報が abort() 局所で得られるか (validation 政策の識別は入力射影で落ちている)\\\", \\\"感度 workload の実測\\\", \\\"positive control 設計\\\", \\\"計測動作点\\\", \\\"reward hack 仮説\\\"]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\\"全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離 — 提案の機序帰属はこの限界を継承し、感度 workload の主張はすべて機序からの外挿で実測未裏取り\\\", \\\"noise floor 2.28% を下回る差 (例: read-heavy 系) は順位不能であり、地形予想の分解能はこの床に制約される\\\", \\\"3 提案はいずれも入力が coder 出力後の機序帰属由来のため『探索補助』限定で段 6 headline 非対象 (silo-wal-flush-batch-threshold は scalar につき自動で headline 非対象ラベル)\\\"]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"73b5693d-d2ce-4915-8556-54502da2ed31\",\"total_cost_usd\":0.34416050000000004,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35185,\"output_tokens\":12063,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":12063,\"cache_read_input_tokens\":35185,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24898,\"outputTokens\":18,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.024988,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":12063,\"cacheReadInputTokens\":35185,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.3191725,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"6d35e884-2b88-4ade-94fd-ca6d9c7230b0\"}\n",
+  "stderr": ""
+ }
+}

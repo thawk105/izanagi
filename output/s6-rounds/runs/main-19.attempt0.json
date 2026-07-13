@@ -1,0 +1,60 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-readphase-spin-response",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "read_internal() 内のロック解放待ちスピン `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`。既開通 hole (silo-writeset-sort = write set 施錠順序 comparator) とは別位置・別処理段の read phase 待機点",
+      "skeleton": "ロックビット検知時 (`while (expected.lock)`) の応答を挟み込むコード片 hole。無制限ビジースピンの継続部分を変異面とし、待機の打ち切り/yield/短い待機挟みなどの構造をそこにだけ入れられるようにする (打ち切り時の後続 abort 経路との接続は skeleton 側に残す)"
+     },
+     "mechanism_hypothesis": "attribution 1 (abort 後 backoff 待機の有効化) の indicators で ipc が全 workload 1.4–1.6 → 0.4–0.5 に崩壊し、effect が『コアが待機で実命令を発行できない』と帰属している。この IPC 崩壊の機序は backoff.hh の abort 後待機に固有ではなく、待機点一般に当てはまる。read_internal の `while (expected.lock)` は skew0.9 の hot tuple 上で解放まで無制限にコアを回すもう一つの制御されていない待機点であり、同型の IPC 損がここでも発生している疑いがある。backoff は abort 率低減と引き換えに IPC を崩した (相反二効果) が、read phase の待ち方を変える変異は abort を経ずに IPC を触れる位置なので、backoff が払ったトレードオフとは別の性能地形がありうる",
+     "safety_argument_hypothesis": "この待機スピンは read_internal (e) の『TID word を再チェックし expected == check まで繰り返す』atomicity 保証の一部であり、ロック中タプルの中間状態を確定読みしないための門である。スピンの短絡・省略は locked tuple の torn read を通し serializability を壊しうる。段階 B で writePhase の storeRelease タイミングとの相対順序を含め再検証が必須",
+     "unknowns": [
+      "感度を持つ workload — read-heavy で latency 5.7→25μs という backoff 側の逆向き反応から、read 待機がどの workload でどれだけ効くかは機序単独では確定不能。実測必要",
+      "変異の具体形の列挙空間 (打ち切り回数上限 / _mm_pause 挿入 / yield / 限定 backoff 挟み) の偵察",
+      "reward hack 仮説: スピン省略が torn read を許して見かけ上 abort 率を下げる偽の勝ちになりうる — positive control / 反証手順の設計",
+      "計測動作点と 1 round 計測での交互作用分離",
+      "torn read が実際に発生しないことの実コード裏取り (TID 再チェック門との整合)"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-batch-threshold",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "wal() 内のフラッシュ発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` の閾値 (LOGSET_SIZE は transaction.hh で 1000 に定義。現状 500 レコードでフラッシュ)",
+      "skeleton": "フラッシュ発火閾値のスカラー値 hole。logfile_.write を呼ぶバッチ境界の大きさをそこだけ変える (バッファ機構本体・チェックサム処理は skeleton 側に残す)"
+     },
+     "mechanism_hypothesis": "attribution 3 (コミット時ログ書込の有効化) は effect で throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%)、indicators で abort_rate 不変・latency 増・llc_miss 増と帰属し、競合でも正しさ検証でもなく『純粋な書込 I/O コスト』と結論している。純 I/O コストである以上、wal() のフラッシュ閾値を上げてバッチを大きくすれば logfile_.write の呼出回数 (= syscall/I/O 発行回数) が償却され、書込比率に単調比例する損の一部 (特に write-heavy -13.4%) を回収できる位置に地形がありうる",
+     "safety_argument_hypothesis": "フラッシュ間隔を延ばすと未書出しログの滞留量が増え、クラッシュ時の durability 窓 (ロストしうるコミット済み txn 範囲) が広がる。また閾値を LOGSET_SIZE に近づける/超えると log_set_ の想定バッチ容量を圧迫する。durability 契約と容量境界の両方を段階 B で再検証",
+     "unknowns": [
+      "mutation_type=scalar のため D44 決定 1(i) により headline 非対象ラベルが付く (本役の提案は元来探索補助限定)",
+      "感度を持つ workload と計測動作点の実測 — 書込比率依存の効きは write-heavy 偏重の可能性",
+      "reward hack 仮説: 閾値を事実上フラッシュ無効化まで上げれば I/O が消えて throughput が上がるが durability を失う偽の勝ち — positive control 設計",
+      "wal() 本体が `(char*) \"FIXME\"` の TODO 実装であり実ログ内容が未書出しである点が、この軸が『実 WAL コスト』を測れているかに与える影響の裏取り",
+      "閾値上限を LOGSET_SIZE 以上に取る変異はバッファ機構改修を要し scalar 単体に収まらない — その場合オンボーディングひな型の改訂要否",
+      "LOGSET_SIZE (=1000) と log_set_ 実容量・LogPackage との整合の実コード裏取り"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離という但し書きを共有する。提案の 2 hole の効きも同一制約下の数値からの外挿であり、動作点掃引と反復計測なしには地形の存在自体が未確定",
+    "勝ち筋の値・critic の recommend 節・死んだ軸 (silo-writeset-sort) の機序は入力に来ておらず (設計通りの二層射影)、提案はいずれも診断数値の動きからの機序外挿にとどまる。射影漏れの疑いは検出していない",
+    "2 提案とも探索補助限定。人間承認 gate (既存軸台帳との hole_location 構造照合) → 段階 B (提案の転写でなく独立再導出、提案軸名・骨格が入力射影に既出でないことの必須検査) を通過して初めて軸になる。本 JSON の軸名は LLM 命名として出所記録に残す下書き"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":206017,\"duration_api_ms\":207190,\"ttft_ms\":159794,\"ttft_stream_ms\":2152,\"time_to_request_ms\":174,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-readphase-spin-response\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"read_internal() 内のロック解放待ちスピン `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }`。既開通 hole (silo-writeset-sort = write set 施錠順序 comparator) とは別位置・別処理段の read phase 待機点\\\",\\n        \\\"skeleton\\\": \\\"ロックビット検知時 (`while (expected.lock)`) の応答を挟み込むコード片 hole。無制限ビジースピンの継続部分を変異面とし、待機の打ち切り/yield/短い待機挟みなどの構造をそこにだけ入れられるようにする (打ち切り時の後続 abort 経路との接続は skeleton 側に残す)\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 1 (abort 後 backoff 待機の有効化) の indicators で ipc が全 workload 1.4–1.6 → 0.4–0.5 に崩壊し、effect が『コアが待機で実命令を発行できない』と帰属している。この IPC 崩壊の機序は backoff.hh の abort 後待機に固有ではなく、待機点一般に当てはまる。read_internal の `while (expected.lock)` は skew0.9 の hot tuple 上で解放まで無制限にコアを回すもう一つの制御されていない待機点であり、同型の IPC 損がここでも発生している疑いがある。backoff は abort 率低減と引き換えに IPC を崩した (相反二効果) が、read phase の待ち方を変える変異は abort を経ずに IPC を触れる位置なので、backoff が払ったトレードオフとは別の性能地形がありうる\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この待機スピンは read_internal (e) の『TID word を再チェックし expected == check まで繰り返す』atomicity 保証の一部であり、ロック中タプルの中間状態を確定読みしないための門である。スピンの短絡・省略は locked tuple の torn read を通し serializability を壊しうる。段階 B で writePhase の storeRelease タイミングとの相対順序を含め再検証が必須\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload — read-heavy で latency 5.7→25μs という backoff 側の逆向き反応から、read 待機がどの workload でどれだけ効くかは機序単独では確定不能。実測必要\\\",\\n        \\\"変異の具体形の列挙空間 (打ち切り回数上限 / _mm_pause 挿入 / yield / 限定 backoff 挟み) の偵察\\\",\\n        \\\"reward hack 仮説: スピン省略が torn read を許して見かけ上 abort 率を下げる偽の勝ちになりうる — positive control / 反証手順の設計\\\",\\n        \\\"計測動作点と 1 round 計測での交互作用分離\\\",\\n        \\\"torn read が実際に発生しないことの実コード裏取り (TID 再チェック門との整合)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-batch-threshold\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"wal() 内のフラッシュ発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` の閾値 (LOGSET_SIZE は transaction.hh で 1000 に定義。現状 500 レコードでフラッシュ)\\\",\\n        \\\"skeleton\\\": \\\"フラッシュ発火閾値のスカラー値 hole。logfile_.write を呼ぶバッチ境界の大きさをそこだけ変える (バッファ機構本体・チェックサム処理は skeleton 側に残す)\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 3 (コミット時ログ書込の有効化) は effect で throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%)、indicators で abort_rate 不変・latency 増・llc_miss 増と帰属し、競合でも正しさ検証でもなく『純粋な書込 I/O コスト』と結論している。純 I/O コストである以上、wal() のフラッシュ閾値を上げてバッチを大きくすれば logfile_.write の呼出回数 (= syscall/I/O 発行回数) が償却され、書込比率に単調比例する損の一部 (特に write-heavy -13.4%) を回収できる位置に地形がありうる\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"フラッシュ間隔を延ばすと未書出しログの滞留量が増え、クラッシュ時の durability 窓 (ロストしうるコミット済み txn 範囲) が広がる。また閾値を LOGSET_SIZE に近づける/超えると log_set_ の想定バッチ容量を圧迫する。durability 契約と容量境界の両方を段階 B で再検証\\\",\\n      \\\"unknowns\\\": [\\n        \\\"mutation_type=scalar のため D44 決定 1(i) により headline 非対象ラベルが付く (本役の提案は元来探索補助限定)\\\",\\n        \\\"感度を持つ workload と計測動作点の実測 — 書込比率依存の効きは write-heavy 偏重の可能性\\\",\\n        \\\"reward hack 仮説: 閾値を事実上フラッシュ無効化まで上げれば I/O が消えて throughput が上がるが durability を失う偽の勝ち — positive control 設計\\\",\\n        \\\"wal() 本体が `(char*) \\\\\\\"FIXME\\\\\\\"` の TODO 実装であり実ログ内容が未書出しである点が、この軸が『実 WAL コスト』を測れているかに与える影響の裏取り\\\",\\n        \\\"閾値上限を LOGSET_SIZE 以上に取る変異はバッファ機構改修を要し scalar 単体に収まらない — その場合オンボーディングひな型の改訂要否\\\",\\n        \\\"LOGSET_SIZE (=1000) と log_set_ 実容量・LogPackage との整合の実コード裏取り\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round 計測・交互作用未分離という但し書きを共有する。提案の 2 hole の効きも同一制約下の数値からの外挿であり、動作点掃引と反復計測なしには地形の存在自体が未確定\\\",\\n    \\\"勝ち筋の値・critic の recommend 節・死んだ軸 (silo-writeset-sort) の機序は入力に来ておらず (設計通りの二層射影)、提案はいずれも診断数値の動きからの機序外挿にとどまる。射影漏れの疑いは検出していない\\\",\\n    \\\"2 提案とも探索補助限定。人間承認 gate (既存軸台帳との hole_location 構造照合) → 段階 B (提案の転写でなく独立再導出、提案軸名・骨格が入力射影に既出でないことの必須検査) を通過して初めて軸になる。本 JSON の軸名は LLM 命名として出所記録に残す下書き\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"fd07c6d2-6e37-4a47-b15e-bea2381a9add\",\"total_cost_usd\":0.3347155,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35185,\"output_tokens\":11684,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":11684,\"cache_read_input_tokens\":35185,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24898,\"outputTokens\":24,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025018,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":11684,\"cacheReadInputTokens\":35185,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.3096975,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"b9381e8a-f8ae-4772-88b7-e4be63718893\"}\n",
+  "stderr": ""
+ }
+}

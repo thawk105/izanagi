@@ -1,0 +1,82 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-lockwait-response",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal 内、body コピー前の `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の内側スピンループ (楽観読みの lock 待ち)",
+      "skeleton": "lock ビットが立っている間の待ち応答を差し替える hole。stock は tidword を無待機で再 loadAcquire し続けるタイトスピン。変異点として、待ち応答の形 (pause 挿入・上限付きスピン→中断/再試行・適応的遅延など) を挟む構造を開ける。既開通の silo-writeset-sort (write set 施錠順の comparator = 書き込み経路の順序決定) とも silo-backoff-magnitude (abort 後再試行前の待機量 = commit 失敗後の経路) とも別位置で、ここは読み経路の楽観読み中のロック競合応答である"
+     },
+     "mechanism_hypothesis": "diagnostics 空のため構造観察から述べる。read_internal のこのループは writePhase の storeRelease が立てる tuple->tidword_.lock を、無待機の loadAcquire 反復で監視する。同一 tidword キャッシュラインを競合ライタと共有するため、書き込み競合下ではこのスピンが読み側のコヒーレンストラフィックと待機時間を左右する固定点になっている。待ち応答の構造を変えると、この読み経路の待機挙動・abort 構成が地形として動く可能性がある。この観測は read_internal 内に実在する `while (expected.lock)` ループを名指しで指しており、反証は同ループの有無・形で可能",
+     "safety_argument_hypothesis": "楽観読みの再検証 (直後の (e) tidword 再読み + `expected == check` 判定) が破れると torn read を通しうる。待ちを上限付き中断に変えると、lock クリア確認前に body を採用する経路を誤って開けない構造が必須。段階 B で読み一貫性 (Silo の read validation) の保存を必ず再検証する前提の下書き",
+     "unknowns": [
+      "感度を持つ workload (競合度・書き込み比・zipf skew の動作点) — 実測が要る",
+      "reward hack 仮説 (スピンを実質無効化して見かけの throughput を上げる変異等) の列挙",
+      "positive control 設計",
+      "計測動作点 (thread_num・extime 等)",
+      "偵察の列挙空間 (待ち応答の変異候補の実在範囲)",
+      "この hole が読み一貫性を壊さない不変条件の実コード裏取り"
+     ]
+    },
+    {
+     "axis_name": "silo-reclamation-epoch-lag",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の定数 2 (GC 安全ラグのエポック数)",
+      "skeleton": "reclamation の遅延エポック数リテラルを変異させるスカラー hole。gc_records は `rec->tidword_.epoch > r_epoch` で解放を保留するため、この定数がグローバルエポックからどれだけ遅らせて回収するかを決める。silo-backoff-magnitude (待機時間のスカラー) とは対象量が別 (回収遅延エポック数) で、回収サブシステムに属する"
+     },
+     "mechanism_hypothesis": "diagnostics 空のため構造観察から述べる。siloLeaderWork がこの定数で ReclamationEpoch を決め、TxExecutor::gc_records がそれを閾値に delete rec を判定する。ラグを縮めれば解放済みタプルメモリの滞留が減りアロケータ/キャッシュ再利用が早まる一方、伸ばせば安全余裕が増える、という footprint と再利用のトレードオフの固定点になっている。この観測は util.cc の実在リテラルと gc_records の実在判定を名指しで指しており反証可能。既開通 2 hole のどちらの探索範囲にも入らない",
+     "safety_argument_hypothesis": "ラグをエポック保証以下に縮めると、並行リーダがまだ参照中のタプルを解放し use-after-free を招きうる (エポックベース回収の安全境界)。段階 B で epoch 保証とリーダ参照区間の関係を必ず再検証する前提の下書き",
+     "unknowns": [
+      "安全に縮められる下限の実コード根拠 (epoch fence とリーダ参照区間の関係)",
+      "感度を持つ workload (割り当て/解放頻度が効く動作点)",
+      "reward hack 仮説 (安全を犠牲に footprint 指標だけ改善する変異)",
+      "positive control 設計",
+      "計測動作点",
+      "偵察の列挙空間 (ラグ値の実在探索範囲)"
+     ]
+    },
+    {
+     "axis_name": "silo-epoch-advance-cadence",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork 内 `if (chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()) { atomicAddGE(); ... }` のグローバルエポック前進ゲート述語",
+      "skeleton": "エポック前進の発火条件 (述語) を差し替えるコード片 hole。stock は経過時間閾値 AND 全スレッドの epoch load 完了、で前進。変異点として前進条件の構成 (時間ゲートに加えた別条件、commit 進捗連動など) を挟む。silo-reclamation-epoch-lag が回収ラグの量なのに対し、こちらはエポック自体の進む速さを決める別 hole"
+     },
+     "mechanism_hypothesis": "diagnostics 空のため構造観察から述べる。この述語が GlobalEpoch の前進タイミングを決め、それは (1) ReclamationEpoch の進行速度 (回収の速さ)、(2) validationPhase Phase 2 の read 検証 `(*itr).get_tidword().epoch != check.epoch` が使う epoch 粒度、(3) writePhase の commit-TID の epoch 成分、を同時に駆動する。前進条件を変えるとこれら 3 経路の粒度が同時に動く固定点で、性能地形が予想される。参照先はすべて stock 抜粋内に実在する処理 (siloLeaderWork のゲート・validationPhase の epoch 比較) で反証可能。既開通 2 hole の探索範囲外",
+     "safety_argument_hypothesis": "エポック前進を速めすぎる/条件を緩めると、chkEpochLoaded による全スレッド同期を欠いた前進が read 検証の serializability 前提や回収安全境界を崩しうる。段階 B で epoch がなす直列化点の保存を必ず再検証する前提の下書き",
+     "unknowns": [
+      "chkEpochLoaded 同期を外せない条件の実コード根拠 (直列化正当性への影響)",
+      "silo-reclamation-epoch-lag との相互作用 (両者ともエポックサブシステムに属し独立に効くか未確定)",
+      "感度を持つ workload",
+      "reward hack 仮説 (検証を実質素通しにする前進条件)",
+      "positive control 設計",
+      "計測動作点",
+      "偵察の列挙空間 (前進述語の変異候補範囲)"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空のため、3 提案はいずれも先行指標の実測動きではなく stock 構造観察のみに基づく。各 hole の実際の感度・順位は段階 B の実コード裏取りと偵察を経ないと不明",
+    "silo-reclamation-epoch-lag と silo-epoch-advance-cadence はともに util.cc siloLeaderWork のエポックサブシステムに触れ、hole 位置は別だが機序が一部連動しうる。人間 gate での既存軸台帳との構造照合時に、両者の独立性と既存軸重複の有無を確認要",
+    "本役の 3 提案はいずれも当面『探索補助』限定 (段 6 headline 非対象)。scalar 提案 (silo-reclamation-epoch-lag) には headline 非対象ラベルが自動付与される"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":137286,\"duration_api_ms\":138994,\"ttft_ms\":82584,\"ttft_stream_ms\":1800,\"time_to_request_ms\":228,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-lockwait-response\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal 内、body コピー前の `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の内側スピンループ (楽観読みの lock 待ち)\\\",\\n        \\\"skeleton\\\": \\\"lock ビットが立っている間の待ち応答を差し替える hole。stock は tidword を無待機で再 loadAcquire し続けるタイトスピン。変異点として、待ち応答の形 (pause 挿入・上限付きスピン→中断/再試行・適応的遅延など) を挟む構造を開ける。既開通の silo-writeset-sort (write set 施錠順の comparator = 書き込み経路の順序決定) とも silo-backoff-magnitude (abort 後再試行前の待機量 = commit 失敗後の経路) とも別位置で、ここは読み経路の楽観読み中のロック競合応答である\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空のため構造観察から述べる。read_internal のこのループは writePhase の storeRelease が立てる tuple->tidword_.lock を、無待機の loadAcquire 反復で監視する。同一 tidword キャッシュラインを競合ライタと共有するため、書き込み競合下ではこのスピンが読み側のコヒーレンストラフィックと待機時間を左右する固定点になっている。待ち応答の構造を変えると、この読み経路の待機挙動・abort 構成が地形として動く可能性がある。この観測は read_internal 内に実在する `while (expected.lock)` ループを名指しで指しており、反証は同ループの有無・形で可能\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"楽観読みの再検証 (直後の (e) tidword 再読み + `expected == check` 判定) が破れると torn read を通しうる。待ちを上限付き中断に変えると、lock クリア確認前に body を採用する経路を誤って開けない構造が必須。段階 B で読み一貫性 (Silo の read validation) の保存を必ず再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (競合度・書き込み比・zipf skew の動作点) — 実測が要る\\\",\\n        \\\"reward hack 仮説 (スピンを実質無効化して見かけの throughput を上げる変異等) の列挙\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点 (thread_num・extime 等)\\\",\\n        \\\"偵察の列挙空間 (待ち応答の変異候補の実在範囲)\\\",\\n        \\\"この hole が読み一貫性を壊さない不変条件の実コード裏取り\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-reclamation-epoch-lag\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の定数 2 (GC 安全ラグのエポック数)\\\",\\n        \\\"skeleton\\\": \\\"reclamation の遅延エポック数リテラルを変異させるスカラー hole。gc_records は `rec->tidword_.epoch > r_epoch` で解放を保留するため、この定数がグローバルエポックからどれだけ遅らせて回収するかを決める。silo-backoff-magnitude (待機時間のスカラー) とは対象量が別 (回収遅延エポック数) で、回収サブシステムに属する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空のため構造観察から述べる。siloLeaderWork がこの定数で ReclamationEpoch を決め、TxExecutor::gc_records がそれを閾値に delete rec を判定する。ラグを縮めれば解放済みタプルメモリの滞留が減りアロケータ/キャッシュ再利用が早まる一方、伸ばせば安全余裕が増える、という footprint と再利用のトレードオフの固定点になっている。この観測は util.cc の実在リテラルと gc_records の実在判定を名指しで指しており反証可能。既開通 2 hole のどちらの探索範囲にも入らない\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"ラグをエポック保証以下に縮めると、並行リーダがまだ参照中のタプルを解放し use-after-free を招きうる (エポックベース回収の安全境界)。段階 B で epoch 保証とリーダ参照区間の関係を必ず再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"安全に縮められる下限の実コード根拠 (epoch fence とリーダ参照区間の関係)\\\",\\n        \\\"感度を持つ workload (割り当て/解放頻度が効く動作点)\\\",\\n        \\\"reward hack 仮説 (安全を犠牲に footprint 指標だけ改善する変異)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"偵察の列挙空間 (ラグ値の実在探索範囲)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-epoch-advance-cadence\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork 内 `if (chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()) { atomicAddGE(); ... }` のグローバルエポック前進ゲート述語\\\",\\n        \\\"skeleton\\\": \\\"エポック前進の発火条件 (述語) を差し替えるコード片 hole。stock は経過時間閾値 AND 全スレッドの epoch load 完了、で前進。変異点として前進条件の構成 (時間ゲートに加えた別条件、commit 進捗連動など) を挟む。silo-reclamation-epoch-lag が回収ラグの量なのに対し、こちらはエポック自体の進む速さを決める別 hole\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空のため構造観察から述べる。この述語が GlobalEpoch の前進タイミングを決め、それは (1) ReclamationEpoch の進行速度 (回収の速さ)、(2) validationPhase Phase 2 の read 検証 `(*itr).get_tidword().epoch != check.epoch` が使う epoch 粒度、(3) writePhase の commit-TID の epoch 成分、を同時に駆動する。前進条件を変えるとこれら 3 経路の粒度が同時に動く固定点で、性能地形が予想される。参照先はすべて stock 抜粋内に実在する処理 (siloLeaderWork のゲート・validationPhase の epoch 比較) で反証可能。既開通 2 hole の探索範囲外\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"エポック前進を速めすぎる/条件を緩めると、chkEpochLoaded による全スレッド同期を欠いた前進が read 検証の serializability 前提や回収安全境界を崩しうる。段階 B で epoch がなす直列化点の保存を必ず再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"chkEpochLoaded 同期を外せない条件の実コード根拠 (直列化正当性への影響)\\\",\\n        \\\"silo-reclamation-epoch-lag との相互作用 (両者ともエポックサブシステムに属し独立に効くか未確定)\\\",\\n        \\\"感度を持つ workload\\\",\\n        \\\"reward hack 仮説 (検証を実質素通しにする前進条件)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"偵察の列挙空間 (前進述語の変異候補範囲)\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空のため、3 提案はいずれも先行指標の実測動きではなく stock 構造観察のみに基づく。各 hole の実際の感度・順位は段階 B の実コード裏取りと偵察を経ないと不明\\\",\\n    \\\"silo-reclamation-epoch-lag と silo-epoch-advance-cadence はともに util.cc siloLeaderWork のエポックサブシステムに触れ、hole 位置は別だが機序が一部連動しうる。人間 gate での既存軸台帳との構造照合時に、両者の独立性と既存軸重複の有無を確認要\\\",\\n    \\\"本役の 3 提案はいずれも当面『探索補助』限定 (段 6 headline 非対象)。scalar 提案 (silo-reclamation-epoch-lag) には headline 非対象ラベルが自動付与される\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"2fb6d53a-6c75-4aab-b004-feeaa52f30cf\",\"total_cost_usd\":0.25773050000000003,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":8670,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":8670,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":16,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02395,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":8670,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.23378050000000003,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"6eab248b-0fec-48b6-b9c7-7456233b1949\"}\n",
+  "stderr": ""
+ }
+}

@@ -1,0 +1,79 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-reclamation-epoch-lag",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork() 内、epoch 前進成立後の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の定数オフセット 2",
+      "skeleton": "現在ハードコードされている epoch 遅延量 2 を hole 制御のスカラー N に置換 (ReclamationEpoch = cur_epoch > N ? cur_epoch - N : 0)。前進判定・atomicAddGE・タイマ更新は skeleton 側に残し、変異は遅延量リテラルのみに閉じる"
+     },
+     "mechanism_hypothesis": "gc_records() (transaction.cc) は `rec->tidword_.epoch > ReclamationEpoch` を満たす間 break し、満たさなくなった (epoch <= r_epoch) レコードだけ delete する。つまりこのオフセットは、DELETE 経路の writePhase で gc_records_ に push されたレコードが解放されるまで保持される epoch 数を直接決める境界であり、古い epoch でそのレコードを掴んだ並行リーダが安全に参照できる猶予窓の幅そのものである。オフセットを大きくすると保持レコード数 (= 生存アロケーション量・delete/new チャーン) が増え、小さくすると解放が早まる — この解放遅延と安全余裕のトレードオフが hole。既開通の silo-writeset-sort (施錠順序) とも silo-backoff-magnitude (abort 後待機) とも触れる面が異なり、reclamation 経路という別位置に地形を予想する。反証可能性: gc_records_ を回す DELETE/INSERT チャーンの無いワークロードでは N が結果に影響しない (= 効かない) ことが計測で切り分けられる",
+     "safety_argument_hypothesis": "N を過小にすると、現在エポック - N 以前に当該レコードを load 済みで in-flight のリーダがまだ参照している最中に delete rec が走り、use-after-free / torn read を招きうる。epoch ベース reclamation の安全不変条件 (「全リーダが読み終えた epoch 分だけ遅らせて解放」) を N が担保するため、B で FLAGS_epoch_time との相互作用込みで再検証必須。この下書きは前提であり保証ではない",
+     "unknowns": [
+      "gc_records_ を実際に駆動する delete/insert 率をもつ感度ワークロードの特定 (実測要)",
+      "既定オフセット 2 が既に最適か過剰保守かの判定 (実コード裏取り+計測要)",
+      "reward hack 仮説 (例: 解放を早めてメモリ指標だけ改善し正当性を犠牲にする経路) の列挙",
+      "positive control 設計 (N を壊れる方向に振って安全違反が検出されることの確認手順)",
+      "計測動作点 (FLAGS_epoch_time・スレッド数・contention 域) の指定",
+      "偵察の列挙空間 (reclamation 経路に触れる他ソース: gc_records() 呼出箇所全て) の裏取り"
+     ]
+    },
+    {
+     "axis_name": "silo-read-lockwait-discipline",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "read_internal() の (a) スピン待ち `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の内側 busy-wait ループ",
+      "skeleton": "ロック済みタプルに遭遇したリーダの待機規律を hole 化 — 現状の密再ロードのみのスピンに対し、待機挙動 (pause 挿入 / 有界スピン後に外側ループへ再委譲 等) を変異で差し替える。(e) 再チェック `expected == check` によるスナップショット整合検証と body 読取り順序は skeleton 側に固定し、変異はロック解放待ちの待ち方だけに閉じる"
+     },
+     "mechanism_hypothesis": "read_internal はタプルの tidword を読み、lock ビットが立つ間 loadAcquire で密にスピンし、writer の writePhase storeRelease がロックを落とすまでリーダをブロックする。これは書込側 lockWriteSet の衝突応答 (NO_WAIT の abort/retry) とも、abort 後の Backoff::backoff (この経路は abort せず待つので走らない) とも構造的に別の、読取側の待ち点である。write-contended なキーでは密再ロードループが tuple->tidword_ のキャッシュコヒーレンストラフィックを焼く。この位置の待機規律を変異させると、読取レイテンシとコヒーレンストラフィックのトレードオフをこの特定の待ち点で探れる。反証可能性: リーダがロック済みタプルに遭遇する構成 (write 比率>0・contention) でのみ効き、read-only 構成では不変であることが切り分けられる",
+     "safety_argument_hypothesis": "(a)〜(e) の楽観読取プロトコルは、スピン脱出後 expected がロック解除済みかつ整合したスナップショットを表し、(e) の再読 `expected == check` で再検証されることを前提とする。スピン脱出条件を弱めたり body コピー前のロッククリア前提を崩す変異は、writer の memcpy 進行中に body_ を読む torn read を招きうる。ロッククリア前提を保つことが必須で B で再検証。下書きにすぎない",
+     "unknowns": [
+      "このスピンがホットになる contention 域・write 比率 (感度ワークロード、プロファイル要)",
+      "reward hack 仮説 (待機を減らして古い値を読むことでスループット指標だけ上げる経路) の列挙",
+      "positive control 設計 (整合前提を壊す変異で torn read が検出されることの確認)",
+      "計測動作点 (スレッド数・zipf_skew・rratio) の指定",
+      "偵察の列挙空間 (同種スピンをもつ他経路: read() 内・scan 経由 read_internal) の裏取り"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-batch-fraction",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "wal() のフラッシュ判定 `if (log_set_.size() > LOGSET_SIZE / 2)` の閾値 (LOGSET_SIZE は transaction.hh の #define LOGSET_SIZE 1000)",
+      "skeleton": "log_set_ をディスクへ吐く充填閾値を hole 制御のスカラーに置換。header の chkSum/logRecNum 会計・convertChkSumIntoComplementOnTwo・書込み1回の粒度は skeleton に残し、変異は「どれだけ溜めたら flush するか」のリテラルに閉じる"
+     },
+     "mechanism_hypothesis": "wal() はコミット毎に LogRecord を log_set_ に積み、LOGSET_SIZE/2 超過で logfile_.write を 1 回発行して logRecNum_ 件をまとめ書きする。この閾値は write() syscall を何トランザクション分に償却するかの粒度を決める: 大きくすると syscall 償却が進み (スループット↑・末尾レイテンシ↑・クラッシュ損失窓↑)、小さくすると早期 flush になる。既開通 2 軸 (施錠順序・abort 待機) とはロギング経路という別位置で交わらない。反証可能性: #if WAL がコンパイルされ WAL が有効な構成でのみ効き、それ以外では経路自体が無効",
+     "safety_argument_hypothesis": "この経路は #if WAL 下のみ。バッチ粒度変更は単一版正当性には触れないが耐久性窓を変える。LogHeader の logRecNum_/chkSum_ 会計が実書込みレコードと一致し続けること、閾値が log_set_ の想定容量を超えて破綻しないことが前提で、LOGSET_SIZE との相互作用は B で再検証。下書きにすぎない",
+     "unknowns": [
+      "WAL が段 6 の計測構成に含まれるか (含まれなければ本軸は死に得る — 構成裏取り要)",
+      "感度ワークロード (WAL 有効かつ書込み律速となる域) の特定",
+      "reward hack 仮説 (flush を遅らせ耐久性を犠牲にスループット指標だけ上げる経路) の列挙",
+      "positive control 設計・計測動作点の指定",
+      "LOGSET_SIZE (バッファ想定) と閾値の許容関係の実コード裏取り"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空 (帰属情報なし) のため、3 候補はいずれも stock 抜粋と編集面地図の構造観察のみに基づく機序予想であり、先行指標の実測による感度・順位付け・優先度は本役では導出不能。因果から性能への繋がりは全て段階 B の実コード裏取り+独立再導出で経験的に確定する前提の未検証仮説である",
+    "3 候補が既存軸台帳 (silo-writeset-sort / silo-backoff-magnitude 以外を含む) と構造的に重複しないことの最終照合は人間承認 gate 側 (D47 必須条件 4) に委ねる — 本役は入力射影に既出の 2 hole との非重複のみ確認済み",
+    "mutation_type: scalar の 2 候補 (reclamation-epoch-lag / wal-flush-batch-fraction) は headline 非対象ラベル付き。code_fragment の read-lockwait-discipline も含め全候補は探索補助限定 (D47 決定 5)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":131629,\"duration_api_ms\":132993,\"ttft_ms\":65709,\"ttft_stream_ms\":1428,\"time_to_request_ms\":98,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-reclamation-epoch-lag\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork() 内、epoch 前進成立後の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の定数オフセット 2\\\",\\n        \\\"skeleton\\\": \\\"現在ハードコードされている epoch 遅延量 2 を hole 制御のスカラー N に置換 (ReclamationEpoch = cur_epoch > N ? cur_epoch - N : 0)。前進判定・atomicAddGE・タイマ更新は skeleton 側に残し、変異は遅延量リテラルのみに閉じる\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"gc_records() (transaction.cc) は `rec->tidword_.epoch > ReclamationEpoch` を満たす間 break し、満たさなくなった (epoch <= r_epoch) レコードだけ delete する。つまりこのオフセットは、DELETE 経路の writePhase で gc_records_ に push されたレコードが解放されるまで保持される epoch 数を直接決める境界であり、古い epoch でそのレコードを掴んだ並行リーダが安全に参照できる猶予窓の幅そのものである。オフセットを大きくすると保持レコード数 (= 生存アロケーション量・delete/new チャーン) が増え、小さくすると解放が早まる — この解放遅延と安全余裕のトレードオフが hole。既開通の silo-writeset-sort (施錠順序) とも silo-backoff-magnitude (abort 後待機) とも触れる面が異なり、reclamation 経路という別位置に地形を予想する。反証可能性: gc_records_ を回す DELETE/INSERT チャーンの無いワークロードでは N が結果に影響しない (= 効かない) ことが計測で切り分けられる\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"N を過小にすると、現在エポック - N 以前に当該レコードを load 済みで in-flight のリーダがまだ参照している最中に delete rec が走り、use-after-free / torn read を招きうる。epoch ベース reclamation の安全不変条件 (「全リーダが読み終えた epoch 分だけ遅らせて解放」) を N が担保するため、B で FLAGS_epoch_time との相互作用込みで再検証必須。この下書きは前提であり保証ではない\\\",\\n      \\\"unknowns\\\": [\\n        \\\"gc_records_ を実際に駆動する delete/insert 率をもつ感度ワークロードの特定 (実測要)\\\",\\n        \\\"既定オフセット 2 が既に最適か過剰保守かの判定 (実コード裏取り+計測要)\\\",\\n        \\\"reward hack 仮説 (例: 解放を早めてメモリ指標だけ改善し正当性を犠牲にする経路) の列挙\\\",\\n        \\\"positive control 設計 (N を壊れる方向に振って安全違反が検出されることの確認手順)\\\",\\n        \\\"計測動作点 (FLAGS_epoch_time・スレッド数・contention 域) の指定\\\",\\n        \\\"偵察の列挙空間 (reclamation 経路に触れる他ソース: gc_records() 呼出箇所全て) の裏取り\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-lockwait-discipline\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"read_internal() の (a) スピン待ち `for (;;) { while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の内側 busy-wait ループ\\\",\\n        \\\"skeleton\\\": \\\"ロック済みタプルに遭遇したリーダの待機規律を hole 化 — 現状の密再ロードのみのスピンに対し、待機挙動 (pause 挿入 / 有界スピン後に外側ループへ再委譲 等) を変異で差し替える。(e) 再チェック `expected == check` によるスナップショット整合検証と body 読取り順序は skeleton 側に固定し、変異はロック解放待ちの待ち方だけに閉じる\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"read_internal はタプルの tidword を読み、lock ビットが立つ間 loadAcquire で密にスピンし、writer の writePhase storeRelease がロックを落とすまでリーダをブロックする。これは書込側 lockWriteSet の衝突応答 (NO_WAIT の abort/retry) とも、abort 後の Backoff::backoff (この経路は abort せず待つので走らない) とも構造的に別の、読取側の待ち点である。write-contended なキーでは密再ロードループが tuple->tidword_ のキャッシュコヒーレンストラフィックを焼く。この位置の待機規律を変異させると、読取レイテンシとコヒーレンストラフィックのトレードオフをこの特定の待ち点で探れる。反証可能性: リーダがロック済みタプルに遭遇する構成 (write 比率>0・contention) でのみ効き、read-only 構成では不変であることが切り分けられる\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"(a)〜(e) の楽観読取プロトコルは、スピン脱出後 expected がロック解除済みかつ整合したスナップショットを表し、(e) の再読 `expected == check` で再検証されることを前提とする。スピン脱出条件を弱めたり body コピー前のロッククリア前提を崩す変異は、writer の memcpy 進行中に body_ を読む torn read を招きうる。ロッククリア前提を保つことが必須で B で再検証。下書きにすぎない\\\",\\n      \\\"unknowns\\\": [\\n        \\\"このスピンがホットになる contention 域・write 比率 (感度ワークロード、プロファイル要)\\\",\\n        \\\"reward hack 仮説 (待機を減らして古い値を読むことでスループット指標だけ上げる経路) の列挙\\\",\\n        \\\"positive control 設計 (整合前提を壊す変異で torn read が検出されることの確認)\\\",\\n        \\\"計測動作点 (スレッド数・zipf_skew・rratio) の指定\\\",\\n        \\\"偵察の列挙空間 (同種スピンをもつ他経路: read() 内・scan 経由 read_internal) の裏取り\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-batch-fraction\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"wal() のフラッシュ判定 `if (log_set_.size() > LOGSET_SIZE / 2)` の閾値 (LOGSET_SIZE は transaction.hh の #define LOGSET_SIZE 1000)\\\",\\n        \\\"skeleton\\\": \\\"log_set_ をディスクへ吐く充填閾値を hole 制御のスカラーに置換。header の chkSum/logRecNum 会計・convertChkSumIntoComplementOnTwo・書込み1回の粒度は skeleton に残し、変異は「どれだけ溜めたら flush するか」のリテラルに閉じる\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"wal() はコミット毎に LogRecord を log_set_ に積み、LOGSET_SIZE/2 超過で logfile_.write を 1 回発行して logRecNum_ 件をまとめ書きする。この閾値は write() syscall を何トランザクション分に償却するかの粒度を決める: 大きくすると syscall 償却が進み (スループット↑・末尾レイテンシ↑・クラッシュ損失窓↑)、小さくすると早期 flush になる。既開通 2 軸 (施錠順序・abort 待機) とはロギング経路という別位置で交わらない。反証可能性: #if WAL がコンパイルされ WAL が有効な構成でのみ効き、それ以外では経路自体が無効\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この経路は #if WAL 下のみ。バッチ粒度変更は単一版正当性には触れないが耐久性窓を変える。LogHeader の logRecNum_/chkSum_ 会計が実書込みレコードと一致し続けること、閾値が log_set_ の想定容量を超えて破綻しないことが前提で、LOGSET_SIZE との相互作用は B で再検証。下書きにすぎない\\\",\\n      \\\"unknowns\\\": [\\n        \\\"WAL が段 6 の計測構成に含まれるか (含まれなければ本軸は死に得る — 構成裏取り要)\\\",\\n        \\\"感度ワークロード (WAL 有効かつ書込み律速となる域) の特定\\\",\\n        \\\"reward hack 仮説 (flush を遅らせ耐久性を犠牲にスループット指標だけ上げる経路) の列挙\\\",\\n        \\\"positive control 設計・計測動作点の指定\\\",\\n        \\\"LOGSET_SIZE (バッファ想定) と閾値の許容関係の実コード裏取り\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空 (帰属情報なし) のため、3 候補はいずれも stock 抜粋と編集面地図の構造観察のみに基づく機序予想であり、先行指標の実測による感度・順位付け・優先度は本役では導出不能。因果から性能への繋がりは全て段階 B の実コード裏取り+独立再導出で経験的に確定する前提の未検証仮説である\\\",\\n    \\\"3 候補が既存軸台帳 (silo-writeset-sort / silo-backoff-magnitude 以外を含む) と構造的に重複しないことの最終照合は人間承認 gate 側 (D47 必須条件 4) に委ねる — 本役は入力射影に既出の 2 hole との非重複のみ確認済み\\\",\\n    \\\"mutation_type: scalar の 2 候補 (reclamation-epoch-lag / wal-flush-batch-fraction) は headline 非対象ラベル付き。code_fragment の read-lockwait-discipline も含め全候補は探索補助限定 (D47 決定 5)\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"f7a92c62-c350-4388-b048-ccdb7dce296e\",\"total_cost_usd\":0.23644050000000003,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":7818,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":7818,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":18,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02396,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":7818,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.21248050000000002,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"154de807-7206-4e68-ade9-06d91bac6241\"}\n",
+  "stderr": ""
+ }
+}

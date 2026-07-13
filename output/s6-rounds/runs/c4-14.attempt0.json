@@ -1,0 +1,80 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-sbomb-wal-open-mode",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/sbomb_silo.cc",
+      "source_rel": "cc/silo/sbomb_silo.cc",
+      "position": "main() 内 ccbench::run に渡す worker_init ラムダの #if WAL ブロック: trans.logfile_.open(logpath, O_CREAT | O_TRUNC | O_WRONLY, 0644); に続く ftruncate まで",
+      "skeleton": "per-worker log file の open flag / 書込モード (バッファリング・同期・direct-IO 相当の指定) を挟む/差し替えるコード片 — ログを取る/取らないの二値ではなく『どの I/O 経路で書くか』を変異させる hole"
+     },
+     "mechanism_hypothesis": "diagnostics の silo-backoff-magnitude attribution 第3項 (コミット時ログ書込 on/off) は throughput 低下を competition でも validation でもなく『純粋な書込 I/O コスト』に帰属している: abort_rate 不変・latency 増加・llc_miss_rate 増加、かつ低下が書込比率に単調比例 (read-heavy -1.9% / balanced -6.8% / write-heavy -13.4%)。損の所在が I/O 経路そのものである以上、その経路を構成する log file の open flag・書込モードの箇所に、同じ latency / llc_miss 指標を動かす性能地形が予想される。これは『ログを取るか否か』の既存 on/off とは別位置 — 経路の構成を変える hole である。",
+     "safety_argument_hypothesis": "open flag / 書込モードの変異は永続化・crash recovery の意味論 (replayTest.cc が前提とする log レコード形式とファイル状態) を壊しうる。特に O_TRUNC の除去や同期挿入/除去は replay 互換性や耐障害保証を変えうる — 段階 B で必ず再検証される前提の下書き。",
+     "unknowns": [
+      "感度を持つ workload (write-heavy で損最大の観察はあるが、経路変異が効く workload は未実測)",
+      "positive control 設計 (I/O 経路変異が latency/llc_miss を実際に動かすことの独立確認)",
+      "計測動作点 (attribution は skew0.9/48thread/1M/1round の単一点由来)",
+      "reward hack 仮説 (書込を実質スキップして latency を稼ぐ抜け穴の有無)",
+      "偵察の列挙空間 (どの flag / 書込モードの組合せを候補集合とするか)",
+      "wal() 側の fdatasync (transaction.cc、既開通外) との交互作用"
+     ]
+    },
+    {
+     "axis_name": "silo-sbomb-log-prealloc-size",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/sbomb_silo.cc",
+      "source_rel": "cc/silo/sbomb_silo.cc",
+      "position": "worker_init ラムダの #if WAL ブロック内 trans.logfile_.ftruncate(1000000000) のリテラル 1000000000",
+      "skeleton": "ログファイル事前確保サイズのスカラー — 計測中のファイル拡張 (割当・page fault) が起きる閾値を動かす単一数値の hole"
+     },
+     "mechanism_hypothesis": "同 attribution 第3項が WAL 損を書込 I/O コストに帰属し latency 増加・llc_miss_rate 増加を示す。ftruncate による事前確保サイズは、計測中にファイル末尾を超える書込 (割当・page fault) が発生するか否かを決める I/O コスト次元である。低下が書込比率に単調比例し write-heavy (-13.4%) で最大という事実は書込量が支配的であることを示し、事前確保サイズがその書込経路のコスト (page fault 経由で llc_miss/latency に波及) を動かす位置として予想される。",
+     "safety_argument_hypothesis": "事前確保サイズ過小の場合、計測中に書込がファイル容量を超えて失敗ないしクラッシュしうる — 正しさ (直列化可能性) ではなく計測有効性を壊す種類のリスク。段階 B で境界条件の再検証が必要。",
+     "unknowns": [
+      "感度を持つ workload (書込量が事前確保を超える動作点かは未実測)",
+      "positive control 設計 (サイズがコストに繋がる下限領域の特定)",
+      "計測動作点・実行時間依存 (extime とファイル成長速度の関係)",
+      "reward hack 仮説",
+      "silo-sbomb-wal-open-mode と同一 WAL I/O 機序族に属し、独立した軸として成立するか (書込モード変異の下位次元でないか) は段階 B の既存軸台帳との構造照合で判定を要する"
+     ]
+    },
+    {
+     "axis_name": "silo-sbomb-thread-affinity-map",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/sbomb_silo.cc",
+      "source_rel": "cc/silo/sbomb_silo.cc",
+      "position": "worker_init ラムダの #ifdef Linux setThreadAffinity(thid) 呼び出し (thid → コアの引き渡し箇所)",
+      "skeleton": "setThreadAffinity に渡す worker→コアの割当を変換するコード片 — スレッドと物理コア/LLC/NUMA ドメインの対応を差し替える hole (setThreadAffinity 本体 cpu.hh は編集面外、呼び出し側の写像のみ変異)"
+     },
+     "mechanism_hypothesis": "llc_miss_rate が本系で応答する指標であること — attribution 第1項 (backoff) で微増、第3項 (WAL) で増加 — から、LLC 局所性が性能に波及する面が存在する。スレッド→コア配置は LLC/NUMA 局所性の第一決定要因であり、affinity 写像の変異はこの llc_miss 指標を動かす地形を持つと予想される。機序が指す先は既開通の backoff/sort とは無関係な配置面であり、構造的に別の hole である。",
+     "safety_argument_hypothesis": "配置写像の変異は直列化可能性など正しさには影響しない (純配置)。ただしコア過剰割当・衝突・同一コアへの多重ピンで計測を無効化しうる — 計測有効性の面で段階 B の再検証を要する。",
+     "unknowns": [
+      "機序が llc_miss の『増える』方向の観察に留まり、『別配置で減る地形がある』は未実測 (方向性が positive control で要確認)",
+      "本提案の機序帰属は他2件より弱く、恒真 (配置は常にキャッシュに効く) に接近する余地がある — 段階 B の実質性判断で厳格に検査されるべき",
+      "感度を持つ workload / トポロジ (48thread 単一点、物理コア構成は入力に無し)",
+      "positive control 設計・計測動作点・reward hack 仮説",
+      "偵察の列挙空間 (写像関数族の候補集合)"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード / 各構成 1 round) 由来で交互作用が未分離 — いずれの提案も感度を持つ workload・動作点は機序単独では確定不能",
+    "diagnostics は silo 一般の workload (read/balanced/write-heavy) 帰属であり、hole_region_directive が指す sbomb (static BoMB) 入口上で同じ I/O・配置機序が同様に現れるかは未検証 — attribution の観測が sbomb 由来か否かは入力射影から判別できない",
+    "3 提案のうち 2 件 (open-mode / prealloc-size) が同一 WAL I/O 機序に根を持つため、独立した別軸として台帳に載るか、単一軸の下位次元かは段階 B の既存軸台帳との構造照合を要する",
+    "mechanism_hypothesis の実質性 (特に affinity 提案の恒真性) は人間 gate の意味判断に委ねる — 本役は反証可能な位置指定までしか担保しない"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":147217,\"duration_api_ms\":149022,\"ttft_ms\":103743,\"ttft_stream_ms\":1815,\"time_to_request_ms\":85,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-sbomb-wal-open-mode\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/sbomb_silo.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/sbomb_silo.cc\\\",\\n        \\\"position\\\": \\\"main() 内 ccbench::run に渡す worker_init ラムダの #if WAL ブロック: trans.logfile_.open(logpath, O_CREAT | O_TRUNC | O_WRONLY, 0644); に続く ftruncate まで\\\",\\n        \\\"skeleton\\\": \\\"per-worker log file の open flag / 書込モード (バッファリング・同期・direct-IO 相当の指定) を挟む/差し替えるコード片 — ログを取る/取らないの二値ではなく『どの I/O 経路で書くか』を変異させる hole\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics の silo-backoff-magnitude attribution 第3項 (コミット時ログ書込 on/off) は throughput 低下を competition でも validation でもなく『純粋な書込 I/O コスト』に帰属している: abort_rate 不変・latency 増加・llc_miss_rate 増加、かつ低下が書込比率に単調比例 (read-heavy -1.9% / balanced -6.8% / write-heavy -13.4%)。損の所在が I/O 経路そのものである以上、その経路を構成する log file の open flag・書込モードの箇所に、同じ latency / llc_miss 指標を動かす性能地形が予想される。これは『ログを取るか否か』の既存 on/off とは別位置 — 経路の構成を変える hole である。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"open flag / 書込モードの変異は永続化・crash recovery の意味論 (replayTest.cc が前提とする log レコード形式とファイル状態) を壊しうる。特に O_TRUNC の除去や同期挿入/除去は replay 互換性や耐障害保証を変えうる — 段階 B で必ず再検証される前提の下書き。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (write-heavy で損最大の観察はあるが、経路変異が効く workload は未実測)\\\",\\n        \\\"positive control 設計 (I/O 経路変異が latency/llc_miss を実際に動かすことの独立確認)\\\",\\n        \\\"計測動作点 (attribution は skew0.9/48thread/1M/1round の単一点由来)\\\",\\n        \\\"reward hack 仮説 (書込を実質スキップして latency を稼ぐ抜け穴の有無)\\\",\\n        \\\"偵察の列挙空間 (どの flag / 書込モードの組合せを候補集合とするか)\\\",\\n        \\\"wal() 側の fdatasync (transaction.cc、既開通外) との交互作用\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-sbomb-log-prealloc-size\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/sbomb_silo.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/sbomb_silo.cc\\\",\\n        \\\"position\\\": \\\"worker_init ラムダの #if WAL ブロック内 trans.logfile_.ftruncate(1000000000) のリテラル 1000000000\\\",\\n        \\\"skeleton\\\": \\\"ログファイル事前確保サイズのスカラー — 計測中のファイル拡張 (割当・page fault) が起きる閾値を動かす単一数値の hole\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"同 attribution 第3項が WAL 損を書込 I/O コストに帰属し latency 増加・llc_miss_rate 増加を示す。ftruncate による事前確保サイズは、計測中にファイル末尾を超える書込 (割当・page fault) が発生するか否かを決める I/O コスト次元である。低下が書込比率に単調比例し write-heavy (-13.4%) で最大という事実は書込量が支配的であることを示し、事前確保サイズがその書込経路のコスト (page fault 経由で llc_miss/latency に波及) を動かす位置として予想される。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"事前確保サイズ過小の場合、計測中に書込がファイル容量を超えて失敗ないしクラッシュしうる — 正しさ (直列化可能性) ではなく計測有効性を壊す種類のリスク。段階 B で境界条件の再検証が必要。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (書込量が事前確保を超える動作点かは未実測)\\\",\\n        \\\"positive control 設計 (サイズがコストに繋がる下限領域の特定)\\\",\\n        \\\"計測動作点・実行時間依存 (extime とファイル成長速度の関係)\\\",\\n        \\\"reward hack 仮説\\\",\\n        \\\"silo-sbomb-wal-open-mode と同一 WAL I/O 機序族に属し、独立した軸として成立するか (書込モード変異の下位次元でないか) は段階 B の既存軸台帳との構造照合で判定を要する\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-sbomb-thread-affinity-map\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/sbomb_silo.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/sbomb_silo.cc\\\",\\n        \\\"position\\\": \\\"worker_init ラムダの #ifdef Linux setThreadAffinity(thid) 呼び出し (thid → コアの引き渡し箇所)\\\",\\n        \\\"skeleton\\\": \\\"setThreadAffinity に渡す worker→コアの割当を変換するコード片 — スレッドと物理コア/LLC/NUMA ドメインの対応を差し替える hole (setThreadAffinity 本体 cpu.hh は編集面外、呼び出し側の写像のみ変異)\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"llc_miss_rate が本系で応答する指標であること — attribution 第1項 (backoff) で微増、第3項 (WAL) で増加 — から、LLC 局所性が性能に波及する面が存在する。スレッド→コア配置は LLC/NUMA 局所性の第一決定要因であり、affinity 写像の変異はこの llc_miss 指標を動かす地形を持つと予想される。機序が指す先は既開通の backoff/sort とは無関係な配置面であり、構造的に別の hole である。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"配置写像の変異は直列化可能性など正しさには影響しない (純配置)。ただしコア過剰割当・衝突・同一コアへの多重ピンで計測を無効化しうる — 計測有効性の面で段階 B の再検証を要する。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"機序が llc_miss の『増える』方向の観察に留まり、『別配置で減る地形がある』は未実測 (方向性が positive control で要確認)\\\",\\n        \\\"本提案の機序帰属は他2件より弱く、恒真 (配置は常にキャッシュに効く) に接近する余地がある — 段階 B の実質性判断で厳格に検査されるべき\\\",\\n        \\\"感度を持つ workload / トポロジ (48thread 単一点、物理コア構成は入力に無し)\\\",\\n        \\\"positive control 設計・計測動作点・reward hack 仮説\\\",\\n        \\\"偵察の列挙空間 (写像関数族の候補集合)\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード / 各構成 1 round) 由来で交互作用が未分離 — いずれの提案も感度を持つ workload・動作点は機序単独では確定不能\\\",\\n    \\\"diagnostics は silo 一般の workload (read/balanced/write-heavy) 帰属であり、hole_region_directive が指す sbomb (static BoMB) 入口上で同じ I/O・配置機序が同様に現れるかは未検証 — attribution の観測が sbomb 由来か否かは入力射影から判別できない\\\",\\n    \\\"3 提案のうち 2 件 (open-mode / prealloc-size) が同一 WAL I/O 機序に根を持つため、独立した別軸として台帳に載るか、単一軸の下位次元かは段階 B の既存軸台帳との構造照合を要する\\\",\\n    \\\"mechanism_hypothesis の実質性 (特に affinity 提案の恒真性) は人間 gate の意味判断に委ねる — 本役は反証可能な位置指定までしか担保しない\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"35e0de49-fd06-483e-88d0-9806f06aa6dc\",\"total_cost_usd\":0.583543,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":31500,\"cache_read_input_tokens\":3714,\"output_tokens\":9666,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":31500,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":9666,\"cache_read_input_tokens\":3714,\"cache_creation_input_tokens\":31500,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":31500},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24921,\"outputTokens\":22,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025030999999999998,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":9666,\"cacheReadInputTokens\":3714,\"cacheCreationInputTokens\":31500,\"webSearchRequests\":0,\"costUSD\":0.558512,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"050ba18b-16ae-486e-ab43-ee2c80951cb4\"}\n",
+  "stderr": ""
+ }
+}

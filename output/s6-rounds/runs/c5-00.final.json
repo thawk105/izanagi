@@ -1,0 +1,81 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-phase-contention-response",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal, ステップ(a)の施錠待ちスピンループ `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` — ロックビットが立っている被参照タプルに対する読み取り側の待機挙動",
+      "skeleton": "被参照タプルが施錠中のときの読み取り側応答を挟む hole。現状は無条件ビジースピン (再ロード) のみ。この応答部を変異点にし、ステップ(e)の TID 再チェック (`check.obj_ = loadAcquire(...); if (expected == check) break;`) と absent 判定は骨格側に固定して不可侵にする。変異は「施錠中タプルに出会ったときの前進方針」の差し替えに限定する"
+     },
+     "mechanism_hypothesis": "diagnostics は空のため先行指標からの地形推定は行わず、stock 構造の観察に接地する: read_internal は被参照タプルの lock ビットが立つ間、`while (expected.lock)` で無条件に tidword を再ロードし続ける (実在ループ)。この結果、読み取り側の前進はライタの施錠保持時間に直接結合している。この位置は、開通済み 2 hole が占める時点 — validationPhase での write set 施錠順序 (silo-writeset-sort) と abort 後の再試行前待機 (silo-backoff-magnitude) — のいずれとも異なるプロトコル時刻 (読み取りフェーズ中の競合遭遇時点) にあり、両 hole の探索範囲では到達できない位置に別の hole を開けられる。この構造的差異が反証可能な主張の核 (段階 B で read_internal の該当ループが実在し、かつ両既開通 hole と時点が分離していることを独立確認できる)",
+     "safety_argument_hypothesis": "読み取り側応答を差し替える変異は、ステップ(c)のデータ読取り前に lock クリアを待つ不変条件と、ステップ(e)の TID 再チェックによる torn-read 検出を壊しうる。施錠中タプルの body を再チェックなしに read_set へ積む変異は一貫性違反を生む。段階 B で(e)再チェックの骨格固定が有効かを必ず再検証する前提の下書き",
+     "unknowns": [
+      "この hole に地形があるかを感度をもって示す workload (競合度・zipf_skew・thread_num の動作点) — 機序単独では導出不能",
+      "reward hack 仮説 (例: 早期 abort への差し替えで commit を回避し見かけの指標を稼ぐ経路の有無)",
+      "positive control 設計 (この応答差が計測可能な差を生むと分かっている参照変異)",
+      "計測動作点のリテラル",
+      "偵察の列挙空間 (応答方針の候補集合)",
+      "scalar 下位形 (有界スピン回数のみを変異させる型) が別軸になりうるか、本 code_fragment 軸の探索範囲内かの切り分け"
+     ]
+    },
+    {
+     "axis_name": "silo-epoch-advance-cadence",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork の epoch 前進条件 `if (chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()) { atomicAddGE(); ... ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0; }`",
+      "skeleton": "leader スレッドが GlobalEpoch を進める判定条件を変異点にする hole。`chkEpochLoaded()` による全スレッド epoch 読込完了ガードと `ReclamationEpoch = cur-2` の 2 世代遅延は骨格側に固定。変異は前進タイミング条件 (時間スパン判定の形) の差し替えに限定する"
+     },
+     "mechanism_hypothesis": "構造観察に接地: GlobalEpoch は siloLeaderWork でのみ、固定時間スパン (FLAGS_epoch_time) 経過かつ chkEpochLoaded() 成立時に前進する (実在条件)。この epoch 境界が commit の可視化・group durability・reclamation 世代 (ReclamationEpoch) を一斉に律速している。前進タイミングは開通済み 2 hole (write set 施錠順序・abort 後待機量) のどちらとも別の制御変数であり、両 hole の探索範囲外の位置に別の hole を開ける。反証可能性は siloLeaderWork の前進条件が実在し、両既開通 hole の変数と独立であることを段階 B で確認できる点にある",
+     "safety_argument_hypothesis": "epoch 前進タイミングの変異は reclamation 安全性を壊しうる。chkEpochLoaded() ガードや 2 世代遅延を弱める方向の変異は、まだ参照されうるレコードを gc_records() が解放し use-after-free を招く。前進頻度を上げる変異が durability/可視化の意味論を変えないかも要検証。骨格側ガードの固定が有効かを段階 B で再検証する前提の下書き",
+     "unknowns": [
+      "epoch cadence 差に感度を持つ workload と動作点 — 機序単独で導出不能",
+      "reward hack 仮説 (前進頻度操作で commit 計数の意味を変質させ指標を稼ぐ経路)",
+      "positive control 設計",
+      "計測動作点のリテラル",
+      "偵察の列挙空間 (前進条件の候補形)",
+      "util.cc は未開通領域 — 開通コストの判断は人間側。機序が指す先が未開通である旨のみ記録"
+     ]
+    },
+    {
+     "axis_name": "silo-reclamation-gc-batching",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::gc_records() の解放ループと、その呼び出し点 (writePhase 末尾 `gc_records(); read_set_.clear(); ...` および abort() 内 `gc_records();`)",
+      "skeleton": "gc_records() を毎トランザクション無条件に走らせている現状に対し、蓄積レコード数がスカラー閾値に達するまで解放走査を遅延させる閾値を変異点にする hole。変異する量は「解放走査を起動する蓄積件数」のスカラー。ReclamationEpoch との世代順序判定 (`rec->tidword_.epoch > r_epoch` で break) は骨格側に固定"
+     },
+     "mechanism_hypothesis": "構造観察に接地: gc_records() は gc_records_ deque を先頭から走査し epoch <= ReclamationEpoch のレコードを delete する (実在ループ)。この走査が writePhase 末尾と abort() の双方で毎トランザクション無条件に呼ばれている (実在呼出点 2 箇所)。解放起動頻度は開通済み 2 hole (施錠順序・待機量) のいずれとも別の量であり、両 hole の探索範囲外に別の scalar hole を開ける。反証可能性は gc_records() と 2 呼出点が実在し、解放頻度が両既開通 hole の変数と独立であることを段階 B で確認できる点にある",
+     "safety_argument_hypothesis": "解放遅延の変異は 2 方向で壊しうる: (1) 遅延過多でメモリが解放されず滞留・枯渇、(2) 起動条件が世代順序判定 (`epoch > r_epoch` break) を迂回する形に化けると、まだ参照されうるレコードを早期解放し use-after-free。世代判定の骨格固定が有効かを段階 B で再検証する前提の下書き",
+     "unknowns": [
+      "解放頻度差に感度を持つ workload (更新比率・delete/insert 比・tuple_num の動作点) — 機序単独で導出不能",
+      "reward hack 仮説 (解放を無期限遅延させメモリと引き換えに一時的な throughput を稼ぐ経路 = 特に警戒すべき)",
+      "positive control 設計",
+      "計測動作点のリテラル",
+      "この提案はスカラー閾値だが、閾値ゲートの導入に小さな構造足場 (蓄積カウンタ) を要するため scalar/code_fragment の境界事例である旨 — オンボーディング手順のひな型がスカラー型に足場付随を許すか要確認"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空のため、いずれの提案も先行指標による地形の存在確認を伴わない — 3 件の mechanism_hypothesis はすべて stock 構造からの反証可能な構造的推測であり、段階 B での独立再導出 (提案の転写でなく実コード裏取りからの再構成) を必須とする",
+    "lockWriteSet の施錠競合応答部 (NO_WAIT 分岐region) は stock 内 #if TRACE コメントが『the coder edit surface = the conflict response above』と記述しており、編集面の地図に opened として列挙されていない一方で既存の編集対象と重なる可能性がある。本ラウンドの 3 提案はこの領域を避けたが、人間 gate での既存軸台帳との構造照合でこの領域の帰属を確認されたい",
+    "本役の 3 提案はいずれも探索補助限定 (段 6 headline 非対象)。scalar 提案 (silo-reclamation-gc-batching) には D44 決定 1(i) により headline 非対象ラベルが自動付与される",
+    "3 提案は transaction.cc 2 件・util.cc 1 件に分布し、既開通 hole (silo-writeset-sort / silo-backoff-magnitude) とは時点・制御変数が構造的に分離していると主張するが、その分離が軸内探索でないことの最終判定は段階 B の必須検査 (提案軸名・骨格が入力射影に既出でないこと) に委ねる"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":160917,\"duration_api_ms\":162337,\"ttft_ms\":96305,\"ttft_stream_ms\":1986,\"time_to_request_ms\":113,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-phase-contention-response\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal, ステップ(a)の施錠待ちスピンループ `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` — ロックビットが立っている被参照タプルに対する読み取り側の待機挙動\\\",\\n        \\\"skeleton\\\": \\\"被参照タプルが施錠中のときの読み取り側応答を挟む hole。現状は無条件ビジースピン (再ロード) のみ。この応答部を変異点にし、ステップ(e)の TID 再チェック (`check.obj_ = loadAcquire(...); if (expected == check) break;`) と absent 判定は骨格側に固定して不可侵にする。変異は「施錠中タプルに出会ったときの前進方針」の差し替えに限定する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics は空のため先行指標からの地形推定は行わず、stock 構造の観察に接地する: read_internal は被参照タプルの lock ビットが立つ間、`while (expected.lock)` で無条件に tidword を再ロードし続ける (実在ループ)。この結果、読み取り側の前進はライタの施錠保持時間に直接結合している。この位置は、開通済み 2 hole が占める時点 — validationPhase での write set 施錠順序 (silo-writeset-sort) と abort 後の再試行前待機 (silo-backoff-magnitude) — のいずれとも異なるプロトコル時刻 (読み取りフェーズ中の競合遭遇時点) にあり、両 hole の探索範囲では到達できない位置に別の hole を開けられる。この構造的差異が反証可能な主張の核 (段階 B で read_internal の該当ループが実在し、かつ両既開通 hole と時点が分離していることを独立確認できる)\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"読み取り側応答を差し替える変異は、ステップ(c)のデータ読取り前に lock クリアを待つ不変条件と、ステップ(e)の TID 再チェックによる torn-read 検出を壊しうる。施錠中タプルの body を再チェックなしに read_set へ積む変異は一貫性違反を生む。段階 B で(e)再チェックの骨格固定が有効かを必ず再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"この hole に地形があるかを感度をもって示す workload (競合度・zipf_skew・thread_num の動作点) — 機序単独では導出不能\\\",\\n        \\\"reward hack 仮説 (例: 早期 abort への差し替えで commit を回避し見かけの指標を稼ぐ経路の有無)\\\",\\n        \\\"positive control 設計 (この応答差が計測可能な差を生むと分かっている参照変異)\\\",\\n        \\\"計測動作点のリテラル\\\",\\n        \\\"偵察の列挙空間 (応答方針の候補集合)\\\",\\n        \\\"scalar 下位形 (有界スピン回数のみを変異させる型) が別軸になりうるか、本 code_fragment 軸の探索範囲内かの切り分け\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-epoch-advance-cadence\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork の epoch 前進条件 `if (chkClkSpan(epoch_timer_start, epoch_timer_stop, FLAGS_epoch_time * FLAGS_clocks_per_us * 1000) && chkEpochLoaded()) { atomicAddGE(); ... ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0; }`\\\",\\n        \\\"skeleton\\\": \\\"leader スレッドが GlobalEpoch を進める判定条件を変異点にする hole。`chkEpochLoaded()` による全スレッド epoch 読込完了ガードと `ReclamationEpoch = cur-2` の 2 世代遅延は骨格側に固定。変異は前進タイミング条件 (時間スパン判定の形) の差し替えに限定する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"構造観察に接地: GlobalEpoch は siloLeaderWork でのみ、固定時間スパン (FLAGS_epoch_time) 経過かつ chkEpochLoaded() 成立時に前進する (実在条件)。この epoch 境界が commit の可視化・group durability・reclamation 世代 (ReclamationEpoch) を一斉に律速している。前進タイミングは開通済み 2 hole (write set 施錠順序・abort 後待機量) のどちらとも別の制御変数であり、両 hole の探索範囲外の位置に別の hole を開ける。反証可能性は siloLeaderWork の前進条件が実在し、両既開通 hole の変数と独立であることを段階 B で確認できる点にある\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"epoch 前進タイミングの変異は reclamation 安全性を壊しうる。chkEpochLoaded() ガードや 2 世代遅延を弱める方向の変異は、まだ参照されうるレコードを gc_records() が解放し use-after-free を招く。前進頻度を上げる変異が durability/可視化の意味論を変えないかも要検証。骨格側ガードの固定が有効かを段階 B で再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"epoch cadence 差に感度を持つ workload と動作点 — 機序単独で導出不能\\\",\\n        \\\"reward hack 仮説 (前進頻度操作で commit 計数の意味を変質させ指標を稼ぐ経路)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点のリテラル\\\",\\n        \\\"偵察の列挙空間 (前進条件の候補形)\\\",\\n        \\\"util.cc は未開通領域 — 開通コストの判断は人間側。機序が指す先が未開通である旨のみ記録\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-reclamation-gc-batching\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::gc_records() の解放ループと、その呼び出し点 (writePhase 末尾 `gc_records(); read_set_.clear(); ...` および abort() 内 `gc_records();`)\\\",\\n        \\\"skeleton\\\": \\\"gc_records() を毎トランザクション無条件に走らせている現状に対し、蓄積レコード数がスカラー閾値に達するまで解放走査を遅延させる閾値を変異点にする hole。変異する量は「解放走査を起動する蓄積件数」のスカラー。ReclamationEpoch との世代順序判定 (`rec->tidword_.epoch > r_epoch` で break) は骨格側に固定\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"構造観察に接地: gc_records() は gc_records_ deque を先頭から走査し epoch <= ReclamationEpoch のレコードを delete する (実在ループ)。この走査が writePhase 末尾と abort() の双方で毎トランザクション無条件に呼ばれている (実在呼出点 2 箇所)。解放起動頻度は開通済み 2 hole (施錠順序・待機量) のいずれとも別の量であり、両 hole の探索範囲外に別の scalar hole を開ける。反証可能性は gc_records() と 2 呼出点が実在し、解放頻度が両既開通 hole の変数と独立であることを段階 B で確認できる点にある\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"解放遅延の変異は 2 方向で壊しうる: (1) 遅延過多でメモリが解放されず滞留・枯渇、(2) 起動条件が世代順序判定 (`epoch > r_epoch` break) を迂回する形に化けると、まだ参照されうるレコードを早期解放し use-after-free。世代判定の骨格固定が有効かを段階 B で再検証する前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"解放頻度差に感度を持つ workload (更新比率・delete/insert 比・tuple_num の動作点) — 機序単独で導出不能\\\",\\n        \\\"reward hack 仮説 (解放を無期限遅延させメモリと引き換えに一時的な throughput を稼ぐ経路 = 特に警戒すべき)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点のリテラル\\\",\\n        \\\"この提案はスカラー閾値だが、閾値ゲートの導入に小さな構造足場 (蓄積カウンタ) を要するため scalar/code_fragment の境界事例である旨 — オンボーディング手順のひな型がスカラー型に足場付随を許すか要確認\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空のため、いずれの提案も先行指標による地形の存在確認を伴わない — 3 件の mechanism_hypothesis はすべて stock 構造からの反証可能な構造的推測であり、段階 B での独立再導出 (提案の転写でなく実コード裏取りからの再構成) を必須とする\\\",\\n    \\\"lockWriteSet の施錠競合応答部 (NO_WAIT 分岐region) は stock 内 #if TRACE コメントが『the coder edit surface = the conflict response above』と記述しており、編集面の地図に opened として列挙されていない一方で既存の編集対象と重なる可能性がある。本ラウンドの 3 提案はこの領域を避けたが、人間 gate での既存軸台帳との構造照合でこの領域の帰属を確認されたい\\\",\\n    \\\"本役の 3 提案はいずれも探索補助限定 (段 6 headline 非対象)。scalar 提案 (silo-reclamation-gc-batching) には D44 決定 1(i) により headline 非対象ラベルが自動付与される\\\",\\n    \\\"3 提案は transaction.cc 2 件・util.cc 1 件に分布し、既開通 hole (silo-writeset-sort / silo-backoff-magnitude) とは時点・制御変数が構造的に分離していると主張するが、その分離が軸内探索でないことの最終判定は段階 B の必須検査 (提案軸名・骨格が入力射影に既出でないこと) に委ねる\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"39fc9bb7-d676-4fa6-8cb3-1d1d8e1b5526\",\"total_cost_usd\":0.29670549999999996,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":10229,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":10229,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":16,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02395,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":10229,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.27275549999999993,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"dac9f32c-32b6-4a37-acda-1e10b08a3ea5\"}\n",
+  "stderr": ""
+ }
+}

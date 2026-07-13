@@ -1,0 +1,62 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-lockspin-wait-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal — 楽観読みの (a) ステップ、`for (;;)` の先頭にある `while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); }` のロック待ちスピン",
+      "skeleton": "ロックビットが立っている間の待ち方 (bare busy-spin) を変異穴にする。現状は pause ヒントなし・上限なしの純スピン。ここに待機ポリシー (例: _mm_pause 挿入 / 有限回スピン後に楽観アボートへ退避 / 反復回数に応じた待機形状) を差し込む骨格。ロックが晴れた後の読み取り本体 (b)-(e) と read_set への push は skeleton 側に残し、変異は「待ち方」のみに閉じる"
+     },
+     "mechanism_hypothesis": "diagnostics 空のため構造観察から: read_internal のこのスピンは pause ヒントも上限もない純ループで、writePhase 側は UPDATE で `memcpy((*itr).rcdptr_->body_.get_val_ptr(), ...)` を挟んでから storeRelease でロックを解放するため、ロック保持窓は VAL_SIZE に比例して伸びる。つまり書き込み中タプルに衝突した読み手は書き込み窓の全長をこの無停止スピンで消費し、ライタが解放のため storeRelease する同一キャッシュライン (tidword_) を読み手が loadAcquire で叩き続ける構図になる。この待ち方の変異は読み手占有時間とキャッシュライン競合の形を変えうる、と当該行構造から予想する。既開通の silo-backoff-magnitude はアボート後再試行の待機量 (Backoff::backoff) であり位相・位置とも別、silo-writeset-sort はコミット時施錠順であり別位置。",
+     "safety_argument_hypothesis": "このスピンは読み手が書き込み中の値を途中で読む (torn read) のを防ぐ機構そのもの。ロック保持中に待たずに読み取り本体へ進む変異は読み取りアトミック性を壊し CC 正当性違反になりうる。有限スピン→退避型にする場合も、退避先が正規のアボート/再試行経路であることが必須。段階 B で torn-read 不可の再検証が要る (この下書きは未裏取り)。",
+     "unknowns": [
+      "この位置が実際に性能地形を持つか (診断数値なしのため感度未確認 — 感度を持つ workload / skew / write 比の特定は偵察・実測を要する)",
+      "reward hack 仮説 (待機省略で見かけスループットを上げつつ正当性を壊す変異の検出設計)",
+      "positive control 設計",
+      "計測動作点 (thread_num・zipf_skew・rratio・VAL_SIZE の測定点)",
+      "偵察の列挙空間 (待機形状の候補集合)",
+      "この読み側待ちと既開通 silo-backoff-magnitude が相互作用して効果が交絡しないかの切り分け設計"
+     ]
+    },
+    {
+     "axis_name": "silo-reclamation-epoch-grace-margin",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の定数 `2` (現在 epoch と回収 epoch の猶予マージン)",
+      "skeleton": "回収猶予マージンのリテラル `2` をスカラー変異穴にする。この値は transaction.cc gc_records() の `if (rec->tidword_.epoch > r_epoch) break;`(= epoch <= ReclamationEpoch のとき delete) が参照する回収境界を決める。epoch 進行ロジックと gc の骨格は据え置き、マージン値のみ変異"
+     },
+     "mechanism_hypothesis": "構造観察から: writePhase の DELETE 経路が `gc_records_.push_back((*itr).rcdptr_)` で退役タプルを積み、gc_records() が現在 ReclamationEpoch を境に delete する。ReclamationEpoch は siloLeaderWork の `cur_epoch - 2` で決まり、この `2` が「回収までに置く epoch 猶予」を直接支配する。epoch_time (common.hh の DEFINE_uint64 でランタイムフラグ上書き可) と違い、この `2` はハードコード定数でフラグ非依存のためスカラー穴として素直。insert/delete を含む workload で gc_records_ deque 長と free() の発火時期を変える、と当該式から予想する。既開通二軸 (施錠順・アボート待機量) とは領域も機序も別。",
+     "safety_argument_hypothesis": "この猶予マージンは、退役タプルへの生ポインタ (Tuple*) をまだ保持しうる進行中トランザクションが存在しないことを epoch ラグで保証する機構。マージンを安全な epoch 差より縮めると use-after-free を招きメモリ安全性を壊す。段階 B で epoch ベース回収の安全証明 (どの epoch 差以上なら参照者不在か) の再検証が必須 (この下書きは未裏取り)。",
+     "unknowns": [
+      "感度を持つ workload (insert/delete 比・tuple_num・epoch_time との組み合わせ) の特定 — 実測要",
+      "reward hack 仮説 (回収を遅らせてメモリ増と引き換えに見かけ性能を得る変異の検出)",
+      "positive control 設計",
+      "計測動作点",
+      "偵察の列挙空間 (マージン候補値の範囲・安全下限)",
+      "scalar 型のため段 6 headline 非対象ラベルが自動付与される (D44 決定 1(i)) — この軸は探索補助限定"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空 `{}` で先行指標の動きが与えられていないため、両提案とも「この位置が実際に性能地形を持つ」ことは構造観察による予想に留まる。位置の妥当性は段階 B の実コード裏取り + 偵察/実測で独立に確認される必要がある (提案は untrusted、規律 6)",
+    "測定ビルド構成 (WAL の on/off、選択 workload = bomb/sbomb/tpcc/ycsb のどれか、MASSTREE_USE 等) が両穴の経路を実際に踏むかが入力から判別不能 — どの入口 (*.cc) がベンチ対象かの情報は射影に含まれていない",
+    "hole_region_directive が入力に無いため region は proposer 選定。人間 gate での既存軸台帳との構造照合 (D47 必須条件 4) が別途要る",
+    "両提案とも mutation_type は既存二型に収まっており第三型の発明はしていない"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":145791,\"duration_api_ms\":147561,\"ttft_ms\":97473,\"ttft_stream_ms\":1790,\"time_to_request_ms\":321,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-lockspin-wait-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal — 楽観読みの (a) ステップ、`for (;;)` の先頭にある `while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); }` のロック待ちスピン\\\",\\n        \\\"skeleton\\\": \\\"ロックビットが立っている間の待ち方 (bare busy-spin) を変異穴にする。現状は pause ヒントなし・上限なしの純スピン。ここに待機ポリシー (例: _mm_pause 挿入 / 有限回スピン後に楽観アボートへ退避 / 反復回数に応じた待機形状) を差し込む骨格。ロックが晴れた後の読み取り本体 (b)-(e) と read_set への push は skeleton 側に残し、変異は「待ち方」のみに閉じる\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics 空のため構造観察から: read_internal のこのスピンは pause ヒントも上限もない純ループで、writePhase 側は UPDATE で `memcpy((*itr).rcdptr_->body_.get_val_ptr(), ...)` を挟んでから storeRelease でロックを解放するため、ロック保持窓は VAL_SIZE に比例して伸びる。つまり書き込み中タプルに衝突した読み手は書き込み窓の全長をこの無停止スピンで消費し、ライタが解放のため storeRelease する同一キャッシュライン (tidword_) を読み手が loadAcquire で叩き続ける構図になる。この待ち方の変異は読み手占有時間とキャッシュライン競合の形を変えうる、と当該行構造から予想する。既開通の silo-backoff-magnitude はアボート後再試行の待機量 (Backoff::backoff) であり位相・位置とも別、silo-writeset-sort はコミット時施錠順であり別位置。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"このスピンは読み手が書き込み中の値を途中で読む (torn read) のを防ぐ機構そのもの。ロック保持中に待たずに読み取り本体へ進む変異は読み取りアトミック性を壊し CC 正当性違反になりうる。有限スピン→退避型にする場合も、退避先が正規のアボート/再試行経路であることが必須。段階 B で torn-read 不可の再検証が要る (この下書きは未裏取り)。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"この位置が実際に性能地形を持つか (診断数値なしのため感度未確認 — 感度を持つ workload / skew / write 比の特定は偵察・実測を要する)\\\",\\n        \\\"reward hack 仮説 (待機省略で見かけスループットを上げつつ正当性を壊す変異の検出設計)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点 (thread_num・zipf_skew・rratio・VAL_SIZE の測定点)\\\",\\n        \\\"偵察の列挙空間 (待機形状の候補集合)\\\",\\n        \\\"この読み側待ちと既開通 silo-backoff-magnitude が相互作用して効果が交絡しないかの切り分け設計\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-reclamation-epoch-grace-margin\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork 内 `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の定数 `2` (現在 epoch と回収 epoch の猶予マージン)\\\",\\n        \\\"skeleton\\\": \\\"回収猶予マージンのリテラル `2` をスカラー変異穴にする。この値は transaction.cc gc_records() の `if (rec->tidword_.epoch > r_epoch) break;`(= epoch <= ReclamationEpoch のとき delete) が参照する回収境界を決める。epoch 進行ロジックと gc の骨格は据え置き、マージン値のみ変異\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"構造観察から: writePhase の DELETE 経路が `gc_records_.push_back((*itr).rcdptr_)` で退役タプルを積み、gc_records() が現在 ReclamationEpoch を境に delete する。ReclamationEpoch は siloLeaderWork の `cur_epoch - 2` で決まり、この `2` が「回収までに置く epoch 猶予」を直接支配する。epoch_time (common.hh の DEFINE_uint64 でランタイムフラグ上書き可) と違い、この `2` はハードコード定数でフラグ非依存のためスカラー穴として素直。insert/delete を含む workload で gc_records_ deque 長と free() の発火時期を変える、と当該式から予想する。既開通二軸 (施錠順・アボート待機量) とは領域も機序も別。\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この猶予マージンは、退役タプルへの生ポインタ (Tuple*) をまだ保持しうる進行中トランザクションが存在しないことを epoch ラグで保証する機構。マージンを安全な epoch 差より縮めると use-after-free を招きメモリ安全性を壊す。段階 B で epoch ベース回収の安全証明 (どの epoch 差以上なら参照者不在か) の再検証が必須 (この下書きは未裏取り)。\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (insert/delete 比・tuple_num・epoch_time との組み合わせ) の特定 — 実測要\\\",\\n        \\\"reward hack 仮説 (回収を遅らせてメモリ増と引き換えに見かけ性能を得る変異の検出)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"偵察の列挙空間 (マージン候補値の範囲・安全下限)\\\",\\n        \\\"scalar 型のため段 6 headline 非対象ラベルが自動付与される (D44 決定 1(i)) — この軸は探索補助限定\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空 `{}` で先行指標の動きが与えられていないため、両提案とも「この位置が実際に性能地形を持つ」ことは構造観察による予想に留まる。位置の妥当性は段階 B の実コード裏取り + 偵察/実測で独立に確認される必要がある (提案は untrusted、規律 6)\\\",\\n    \\\"測定ビルド構成 (WAL の on/off、選択 workload = bomb/sbomb/tpcc/ycsb のどれか、MASSTREE_USE 等) が両穴の経路を実際に踏むかが入力から判別不能 — どの入口 (*.cc) がベンチ対象かの情報は射影に含まれていない\\\",\\n    \\\"hole_region_directive が入力に無いため region は proposer 選定。人間 gate での既存軸台帳との構造照合 (D47 必須条件 4) が別途要る\\\",\\n    \\\"両提案とも mutation_type は既存二型に収まっており第三型の発明はしていない\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"296345eb-0bc6-4687-9ba2-9f839df9d079\",\"total_cost_usd\":0.2655105,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":8980,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":8980,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":22,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.023979999999999998,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":8980,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.2415305,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"fc76f213-8779-4e47-a2f9-ce62cbdd0a49\"}\n",
+  "stderr": ""
+ }
+}

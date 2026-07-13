@@ -1,0 +1,61 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-lockwait-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal 内、値コピー (c) の手前にある `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の、施錠中タプルに遭遇したときのリーダ側応答部分",
+      "skeleton": "施錠中タプルに対するリーダの待機戦略を EVOLVE-BLOCK hole 化する。現状は無制限のビジー再ロードのみ。この待機応答の一点に別の戦略 (有界スピン後の _mm_pause 挿入 / 待機回数の刻み方 / 早期の再取得ループへの復帰の仕方) を挟む構造にする。値コピー (c) と再チェック (e) の前提 (安定した pre-image を読むこと) は不変式として hole 外に保持する"
+     },
+     "mechanism_hypothesis": "diagnostics が空のため、これは stock 構造観察に基づく反証可能な仮説である。read_internal は read()/scan() の両方から呼ばれるホット読み取り経路であり、施錠中タプルに遭遇したときのリーダ側の唯一の応答が無制限の loadAcquire 再ロードスピンである。この待機はリーダのサイクル消費を writePhase 側のロック保持区間 (memcpy + storeRelease) の長さに直接結合する。編集面の既開通 hole は施錠『順序』の comparator (silo-writeset-sort) と abort 後の待機『量』(silo-backoff-magnitude) の 2 つだが、いずれもリーダ経路のスピン応答には触れていない。よってこの位置は構造的に別の hole であり、書き込み競合下でリーダ経路に費やされるサイクルの地形が予想される",
+     "safety_argument_hypothesis": "スピンや再チェックを弱めるとリーダが書き込み途中の値を観測する torn read を招きうる。ステップ (a) のロッククリア待ちと (e) の TID 再チェックは安定 pre-image 保証の本体であり、変異はこの検証の意味を保持しなければならない。段階 B で必ず再検証される前提の下書き",
+     "unknowns": [
+      "感度を持つ workload (書き込み競合率・zipf_skew・thread_num の動作点) — 機序単独では導出不能",
+      "reward hack 仮説 (例: 施錠検出時に WARN_NOT_FOUND 等を早返しして作業をスキップし throughput を偽装する変異) の列挙",
+      "positive control 設計",
+      "計測動作点のリテラル",
+      "偵察の列挙空間 (取りうる待機戦略の候補集合)",
+      "既存 hole silo-backoff-magnitude (abort 後待機) との相互作用の有無"
+     ]
+    },
+    {
+     "axis_name": "silo-reclamation-epoch-lag",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/util.cc",
+      "source_rel": "cc/silo/util.cc",
+      "position": "siloLeaderWork 内の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の遅延定数 2",
+      "skeleton": "GC 再利用エポックの遅延量 (現状定数 2) をスカラー hole 化する。エポック前進時に確定する ReclamationEpoch と現在エポックの差を変異対象の値にする。cur_epoch との大小分岐の骨格は保持する"
+     },
+     "mechanism_hypothesis": "diagnostics が空のため stock 構造観察に基づく反証可能な仮説。transaction.cc の gc_records() は `if (rec->tidword_.epoch > r_epoch) break;` (r_epoch = ReclamationEpoch) で解放判断しており、この定数 2 が『解放を何エポック遅延させるか』を決める唯一の値である。この再利用窓は削除/挿入を伴う実行でメモリ footprint と gc_records_ deque の滞留量を支配する。編集面の既開通 hole (施錠順序 comparator・abort 待機量) はいずれも GC 再利用窓に触れておらず、構造的に別の hole である",
+     "safety_argument_hypothesis": "遅延を Silo のエポックベース再利用の安全余裕未満に縮めると、旧エポックを読み込んだ並行リーダにまだ可視なレコードを解放し use-after-free / 正当性違反を招きうる。定数 2 はこの安全下限を符号化している疑いが強く、下限より小さくできない前提。段階 B で必ず再検証される",
+     "unknowns": [
+      "エポック遅延の安全下限 (実コード裏取りを要する — 機序単独では確定不能)",
+      "感度を持つ workload (削除/挿入比・batch 有無) の特定",
+      "reward hack 仮説 (再利用を過度に遅延させて解放コストを計測窓外へ押し出す変異等) の列挙",
+      "positive control 設計と計測動作点",
+      "mutation_type=scalar につき本提案は headline 非対象ラベルが自動付与される (D44 決定 1(i)) — 本役の提案は変異型を問わず探索補助限定 (D47 決定 5)、昇格には事前登録側改訂が前提"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics が空 ({}) のため、候補間の優先順位付けに使える先行指標の動き (attribution) が入力に存在しない。両提案とも stock 構造観察のみに依拠しており、実際に性能地形があるかは段階 B の実コード裏取り + 偵察に完全依存する",
+    "対象システムの競合レジーム (contention 動作点) が入力から不明 — どちらの hole も効くかは workload 依存で、機序単独では判定不能",
+    "2 提案と既開通 2 軸 (silo-writeset-sort / silo-backoff-magnitude) の相互作用・独立性は人間 gate の既存軸台帳との構造照合 (D47 必須条件 4) を要する",
+    "入力に diagnostics・recommend・勝ち筋の値が含まれていないことは契約上有効な構成 (D42 条件 4) と解釈しており、射影漏れの疑いは検出していない"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":113385,\"duration_api_ms\":114802,\"ttft_ms\":71075,\"ttft_stream_ms\":1779,\"time_to_request_ms\":92,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-lockwait-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal 内、値コピー (c) の手前にある `for(;;){ while (expected.lock) { expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... }` の、施錠中タプルに遭遇したときのリーダ側応答部分\\\",\\n        \\\"skeleton\\\": \\\"施錠中タプルに対するリーダの待機戦略を EVOLVE-BLOCK hole 化する。現状は無制限のビジー再ロードのみ。この待機応答の一点に別の戦略 (有界スピン後の _mm_pause 挿入 / 待機回数の刻み方 / 早期の再取得ループへの復帰の仕方) を挟む構造にする。値コピー (c) と再チェック (e) の前提 (安定した pre-image を読むこと) は不変式として hole 外に保持する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics が空のため、これは stock 構造観察に基づく反証可能な仮説である。read_internal は read()/scan() の両方から呼ばれるホット読み取り経路であり、施錠中タプルに遭遇したときのリーダ側の唯一の応答が無制限の loadAcquire 再ロードスピンである。この待機はリーダのサイクル消費を writePhase 側のロック保持区間 (memcpy + storeRelease) の長さに直接結合する。編集面の既開通 hole は施錠『順序』の comparator (silo-writeset-sort) と abort 後の待機『量』(silo-backoff-magnitude) の 2 つだが、いずれもリーダ経路のスピン応答には触れていない。よってこの位置は構造的に別の hole であり、書き込み競合下でリーダ経路に費やされるサイクルの地形が予想される\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"スピンや再チェックを弱めるとリーダが書き込み途中の値を観測する torn read を招きうる。ステップ (a) のロッククリア待ちと (e) の TID 再チェックは安定 pre-image 保証の本体であり、変異はこの検証の意味を保持しなければならない。段階 B で必ず再検証される前提の下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (書き込み競合率・zipf_skew・thread_num の動作点) — 機序単独では導出不能\\\",\\n        \\\"reward hack 仮説 (例: 施錠検出時に WARN_NOT_FOUND 等を早返しして作業をスキップし throughput を偽装する変異) の列挙\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点のリテラル\\\",\\n        \\\"偵察の列挙空間 (取りうる待機戦略の候補集合)\\\",\\n        \\\"既存 hole silo-backoff-magnitude (abort 後待機) との相互作用の有無\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-reclamation-epoch-lag\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/util.cc\\\",\\n        \\\"position\\\": \\\"siloLeaderWork 内の `ReclamationEpoch = cur_epoch > 2 ? cur_epoch - 2 : 0;` の遅延定数 2\\\",\\n        \\\"skeleton\\\": \\\"GC 再利用エポックの遅延量 (現状定数 2) をスカラー hole 化する。エポック前進時に確定する ReclamationEpoch と現在エポックの差を変異対象の値にする。cur_epoch との大小分岐の骨格は保持する\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics が空のため stock 構造観察に基づく反証可能な仮説。transaction.cc の gc_records() は `if (rec->tidword_.epoch > r_epoch) break;` (r_epoch = ReclamationEpoch) で解放判断しており、この定数 2 が『解放を何エポック遅延させるか』を決める唯一の値である。この再利用窓は削除/挿入を伴う実行でメモリ footprint と gc_records_ deque の滞留量を支配する。編集面の既開通 hole (施錠順序 comparator・abort 待機量) はいずれも GC 再利用窓に触れておらず、構造的に別の hole である\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"遅延を Silo のエポックベース再利用の安全余裕未満に縮めると、旧エポックを読み込んだ並行リーダにまだ可視なレコードを解放し use-after-free / 正当性違反を招きうる。定数 2 はこの安全下限を符号化している疑いが強く、下限より小さくできない前提。段階 B で必ず再検証される\\\",\\n      \\\"unknowns\\\": [\\n        \\\"エポック遅延の安全下限 (実コード裏取りを要する — 機序単独では確定不能)\\\",\\n        \\\"感度を持つ workload (削除/挿入比・batch 有無) の特定\\\",\\n        \\\"reward hack 仮説 (再利用を過度に遅延させて解放コストを計測窓外へ押し出す変異等) の列挙\\\",\\n        \\\"positive control 設計と計測動作点\\\",\\n        \\\"mutation_type=scalar につき本提案は headline 非対象ラベルが自動付与される (D44 決定 1(i)) — 本役の提案は変異型を問わず探索補助限定 (D47 決定 5)、昇格には事前登録側改訂が前提\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics が空 ({}) のため、候補間の優先順位付けに使える先行指標の動き (attribution) が入力に存在しない。両提案とも stock 構造観察のみに依拠しており、実際に性能地形があるかは段階 B の実コード裏取り + 偵察に完全依存する\\\",\\n    \\\"対象システムの競合レジーム (contention 動作点) が入力から不明 — どちらの hole も効くかは workload 依存で、機序単独では判定不能\\\",\\n    \\\"2 提案と既開通 2 軸 (silo-writeset-sort / silo-backoff-magnitude) の相互作用・独立性は人間 gate の既存軸台帳との構造照合 (D47 必須条件 4) を要する\\\",\\n    \\\"入力に diagnostics・recommend・勝ち筋の値が含まれていないことは契約上有効な構成 (D42 条件 4) と解釈しており、射影漏れの疑いは検出していない\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"267c6c0e-1ea4-48e9-a75b-b76d0939ce55\",\"total_cost_usd\":0.21386550000000001,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":34051,\"output_tokens\":6915,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":6915,\"cache_read_input_tokens\":34051,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":23870,\"outputTokens\":18,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02396,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":6915,\"cacheReadInputTokens\":34051,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.1899055,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"8f157105-7d64-4f2e-8668-004ceb2b699f\"}\n",
+  "stderr": ""
+ }
+}

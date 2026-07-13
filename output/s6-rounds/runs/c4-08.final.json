@@ -1,0 +1,42 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-tuple-lockword-layout",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/include/tuple.hh",
+      "source_rel": "cc/silo/include/tuple.hh",
+      "position": "class Tuple のメンバ宣言部 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` と `TupleBody body_;` の間、および tidword_ のアライン指定",
+      "skeleton": "tidword_ (offset 0, 8byte, union obj_) と body_ の間に padding / 再アライン (例: body_ を別キャッシュラインへ押し出す alignas、または tidword_ 側の単独ライン化を明示する pad メンバ挿入) を挟む構造変異。tidword_.obj_ の 8byte アトミック境界と union レイアウトは不変に保つ骨格。padding 量/有無/どちら側を押し出すかが変異点"
+     },
+     "mechanism_hypothesis": "diagnostics の silo-backoff-magnitude attribution 1 (バックオフ待機有効化) で ipc が 1.4–1.6→0.4–0.5 に崩壊し llc_miss_rate が微増、attribution 3 (コミット時ログ書込) で abort 不変のまま llc_miss_rate が増加する — 二つの独立した設計選択がともに cache 面の圧を示している。tidword_ は Tuple 内で唯一 alignas(CACHE_LINE_SIZE) が付く 8byte のメンバで、読取パスの spin-load・施錠パスの CAS・writePhase の storeRelease がすべてこの語に集中する熱点である。skew0.9 では少数のホットレコードの tidword ライン群が支配的に叩かれるため、その語と value body メタデータの同一/別ライン配置は、書込側の body 更新が読取側 spin ラインを無効化するコヒーレンス往復の量を左右しうる。この位置のレイアウト変異は llc_miss が動いている事実の指す先にあり、待機量 (backoff スカラー) とも施錠順序 comparator (writeset-sort) とも構造的に別。ただし llc 信号が『微増』規模である以上、地形自体が小さい可能性も同じ数値から読める",
+     "safety_argument_hypothesis": "tidword_.obj_ に対する loadAcquire/compareExchange/storeRelease は 8byte アライン前提で、padding は tidword_ より後ろに置く限りこのアトミック性を壊さない初期見立て。ただし body_ (TupleBody) 自身の要求アラインを padding が崩さないこと、sizeof(Tuple) 増大が 1M レコード分のフットプリントに乗ること、init(TupleBody&&) の move 経路が不変であることは段階 B で必ず再検証が要る前提。恒真化を避けるため『壊しうるもの = レコード配列全体のメモリ量とアトミック境界』を名指しで残す",
+     "unknowns": [
+      "どの workload でこの地形が出るか (read-heavy は多数の別レコードを触り abort 15.6% と低競合、write-heavy/balanced は少数ホットに集中 — 感度 workload は機序単独で確定不能、positive control 要)",
+      "positive control 設計 (レイアウト変異が throughput を動かすことを示す対照条件)",
+      "reward hack 仮説 (padding が計測上の throughput を上げず単にメモリを増やすだけ / 別の測定副作用で見かけ改善する経路)",
+      "計測動作点 (現診断は skew0.9 / 48thread / 1M / 単一動作点・各構成 1 round のみ — 本軸の感度動作点は未定)",
+      "偵察の列挙空間 (padding 量・押し出す側・alignas 粒度=1/2/複数ライン のどこを候補集合にするか)",
+      "TupleBody の内部レイアウト/サイズが抜粋に無く、tidword_ と body_ が実際に同一ラインを共有するか (false sharing の実在) をコード裏取りせずに確定できない",
+      "mutation_type を code_fragment とするか、padding バイト数を単一スカラーとして scalar (=headline 非対象) 型に寄せるかの型帰属"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全診断が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round・交互作用未分離であり、cache 面の『微増/増加』が noise floor に対して有意かは入力から判定できない",
+    "hole_region_directive により領域が cc/silo/include/tuple.hh に固定されているため、spin-load / CAS の熱点本体 (transaction.cc の read_internal・lockWriteSet 側) にレイアウトより直接的な地形があるかは本提案の射程外 (当該領域の hole 適否判断は人間側)",
+    "本役の提案は探索補助限定 (段 6 headline 非対象) — 入力が coder 出力後の機序帰属である以上、事前登録の軸命名固定と非両立 (D47 決定 5)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":131554,\"duration_api_ms\":133439,\"ttft_ms\":94370,\"ttft_stream_ms\":4004,\"time_to_request_ms\":119,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-tuple-lockword-layout\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"position\\\": \\\"class Tuple のメンバ宣言部 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` と `TupleBody body_;` の間、および tidword_ のアライン指定\\\",\\n        \\\"skeleton\\\": \\\"tidword_ (offset 0, 8byte, union obj_) と body_ の間に padding / 再アライン (例: body_ を別キャッシュラインへ押し出す alignas、または tidword_ 側の単独ライン化を明示する pad メンバ挿入) を挟む構造変異。tidword_.obj_ の 8byte アトミック境界と union レイアウトは不変に保つ骨格。padding 量/有無/どちら側を押し出すかが変異点\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"diagnostics の silo-backoff-magnitude attribution 1 (バックオフ待機有効化) で ipc が 1.4–1.6→0.4–0.5 に崩壊し llc_miss_rate が微増、attribution 3 (コミット時ログ書込) で abort 不変のまま llc_miss_rate が増加する — 二つの独立した設計選択がともに cache 面の圧を示している。tidword_ は Tuple 内で唯一 alignas(CACHE_LINE_SIZE) が付く 8byte のメンバで、読取パスの spin-load・施錠パスの CAS・writePhase の storeRelease がすべてこの語に集中する熱点である。skew0.9 では少数のホットレコードの tidword ライン群が支配的に叩かれるため、その語と value body メタデータの同一/別ライン配置は、書込側の body 更新が読取側 spin ラインを無効化するコヒーレンス往復の量を左右しうる。この位置のレイアウト変異は llc_miss が動いている事実の指す先にあり、待機量 (backoff スカラー) とも施錠順序 comparator (writeset-sort) とも構造的に別。ただし llc 信号が『微増』規模である以上、地形自体が小さい可能性も同じ数値から読める\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"tidword_.obj_ に対する loadAcquire/compareExchange/storeRelease は 8byte アライン前提で、padding は tidword_ より後ろに置く限りこのアトミック性を壊さない初期見立て。ただし body_ (TupleBody) 自身の要求アラインを padding が崩さないこと、sizeof(Tuple) 増大が 1M レコード分のフットプリントに乗ること、init(TupleBody&&) の move 経路が不変であることは段階 B で必ず再検証が要る前提。恒真化を避けるため『壊しうるもの = レコード配列全体のメモリ量とアトミック境界』を名指しで残す\\\",\\n      \\\"unknowns\\\": [\\n        \\\"どの workload でこの地形が出るか (read-heavy は多数の別レコードを触り abort 15.6% と低競合、write-heavy/balanced は少数ホットに集中 — 感度 workload は機序単独で確定不能、positive control 要)\\\",\\n        \\\"positive control 設計 (レイアウト変異が throughput を動かすことを示す対照条件)\\\",\\n        \\\"reward hack 仮説 (padding が計測上の throughput を上げず単にメモリを増やすだけ / 別の測定副作用で見かけ改善する経路)\\\",\\n        \\\"計測動作点 (現診断は skew0.9 / 48thread / 1M / 単一動作点・各構成 1 round のみ — 本軸の感度動作点は未定)\\\",\\n        \\\"偵察の列挙空間 (padding 量・押し出す側・alignas 粒度=1/2/複数ライン のどこを候補集合にするか)\\\",\\n        \\\"TupleBody の内部レイアウト/サイズが抜粋に無く、tidword_ と body_ が実際に同一ラインを共有するか (false sharing の実在) をコード裏取りせずに確定できない\\\",\\n        \\\"mutation_type を code_fragment とするか、padding バイト数を単一スカラーとして scalar (=headline 非対象) 型に寄せるかの型帰属\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全診断が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round・交互作用未分離であり、cache 面の『微増/増加』が noise floor に対して有意かは入力から判定できない\\\",\\n    \\\"hole_region_directive により領域が cc/silo/include/tuple.hh に固定されているため、spin-load / CAS の熱点本体 (transaction.cc の read_internal・lockWriteSet 側) にレイアウトより直接的な地形があるかは本提案の射程外 (当該領域の hole 適否判断は人間側)\\\",\\n    \\\"本役の提案は探索補助限定 (段 6 headline 非対象) — 入力が coder 出力後の機序帰属である以上、事前登録の軸命名固定と非両立 (D47 決定 5)\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"5c4b5c42-2268-49b1-9b73-774998721384\",\"total_cost_usd\":0.23867600000000003,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35212,\"output_tokens\":7842,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":7842,\"cache_read_input_tokens\":35212,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24920,\"outputTokens\":19,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025015000000000003,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":7842,\"cacheReadInputTokens\":35212,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.21366100000000002,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"1f61e6b7-dcab-4545-8824-8766e36566a5\"}\n",
+  "stderr": ""
+ }
+}

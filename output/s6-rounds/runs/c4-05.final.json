@@ -1,0 +1,42 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-tuple-tidword-body-cacheline-split",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/include/tuple.hh",
+      "source_rel": "cc/silo/include/tuple.hh",
+      "position": "class Tuple のメンバ配置 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` と直後の `TupleBody body_;` の境界。現状 tidword_ は 8byte で 64byte 境界先頭に置かれ body_ が byte8 から続くため両者は同一キャッシュラインを共有する",
+      "skeleton": "tidword_ (commit 時 storeRelease / lockWriteSet の compareExchange の書込対象、かつ read_internal のロック spin で連続 load される hot word) と body_ (read 経路で読まれるペイロード) を別キャッシュラインへ分離する変異穴 — tidword_ と body_ の間へのパディング挿入 / body_ 側 alignas 付与 / メンバ順序変更のいずれかを挟む。Tidword union 自体 (obj_ と bitfield の重なり) には触れず、tidword_.obj_ が単一 8byte アトミック対象であることを不変に保つ骨格"
+     },
+     "mechanism_hypothesis": "attribution 実在項目『コミット時ログ書込の有効化』は abort_rate 不変のまま llc_miss_rate が増加する動き (competition でも検証でもない純書込 I/O への帰属) を示し、この harness で llc_miss_rate が concurrency-control 競合とは独立に動く実測レバーであることが確認できる。一方『abort 後の再試行前バックオフ待機の有効化』は abort を大幅低減しても llc_miss_rate は微増のみ (cache 面の利得なし) かつ ipc が 1.4–1.6→0.4–0.5 に崩壊する。この 2 項目は「cache-coherence 面が測定されているが既存いずれの軸もそこを動かしていない」ことを示唆する。tidword_ と body_ の同一ライン共有は、commit の storeRelease(tidword_) が read_internal で spin 中の readers の body_ ラインを毎回無効化する false sharing を生む位置であり、ここを分離すると llc_miss_rate / ipc が abort_rate と切り離された形 (バックオフのように待機経由で ipc が落ちるのではなく) で動く地形を予想する",
+     "safety_argument_hypothesis": "lockWriteSet の compareExchange・writePhase の storeRelease・read_internal の loadAcquire はすべて tidword_.obj_ を単一 8byte アトミックオブジェクトとして扱う。tidword_ の後方へのパディング挿入や body_ の再アライメントは union 内部に触れないため単語 CAS 不変は保たれる想定だが、これは段階 B で必ず再検証される前提。加えて sizeof(Tuple) 増大は 1M レコードのフットプリントを膨らませ working set を変え、それ自体が llc_miss_rate を動かしうる交絡 — 分離の真の効果と切り分ける制御が必須",
+     "unknowns": [
+      "感度を持つ workload の特定 — read-heavy は spin する readers が多く false sharing が効きやすい仮説と、backoff で read-heavy が最悪だった事実が同居しており、どの read/write 比で分離が効くかは実測を要する",
+      "positive control 設計 (分離の効果を意図的に注入/除去して符号を確認する手段) が機序単独では導出不能",
+      "計測動作点 (skew0.9 / 48thread / 1M レコード) で false sharing 効果が noise floor 2.28% を超えて観測可能かは未確定",
+      "reward hack 仮説: パディングで llc_miss_rate を下げても throughput が伴わない / フットプリント増で見かけ上 cache 指標だけ動く縮退が起こりうる",
+      "mutation_type の分類が曖昧 — パディング byte 数 / alignas 値としてスカラー軸にも構成でき、その場合 headline 非対象ラベルが自動付与される。code_fragment (レイアウト構造変更) として仮置きしたが型境界の確定は onboarding 側判断",
+      "型定義ヘッダ (関数本体でなくクラス定義) への hole は既開通 2 hole (transaction.cc 実装本体 / backoff.hh 実装) と異なる編集面種別であり、オンボーディング手順のひな型が想定していない可能性 — ひな型改訂要否の確認が必要",
+      "TupleBody の内部レイアウト・VAL_SIZE 依存が分離効果に与える影響は本抜粋外で未知",
+      "感度を持つ workload・reward hack・positive control・計測動作点・偵察列挙空間の各シート欄は機序単独で実質導出できないため確定を段階 B に委ねる"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全 attribution が単一動作点・各構成 1 round 計測・交互作用未分離である旨を明記しており、本提案の予想地形も 1 動作点での符号予想に留まる。分離効果と既存軸 (backoff / log-write / no-wait 政策) との交互作用は入力段階で分離されておらず、独立性は段階 B の再導出で確認を要する",
+    "diagnostics 非空だが hole_region_directive で cc/silo/include/tuple.hh に固定されているため、機序が指す位置と directive 領域の整合は本提案内で成立させたものの、他領域 (例: read_internal の spin 実装がある transaction.cc) の方が機序に近い可能性は directive の制約上ここでは評価していない"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":124999,\"duration_api_ms\":126640,\"ttft_ms\":85193,\"ttft_stream_ms\":2013,\"time_to_request_ms\":117,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-tuple-tidword-body-cacheline-split\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"position\\\": \\\"class Tuple のメンバ配置 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` と直後の `TupleBody body_;` の境界。現状 tidword_ は 8byte で 64byte 境界先頭に置かれ body_ が byte8 から続くため両者は同一キャッシュラインを共有する\\\",\\n        \\\"skeleton\\\": \\\"tidword_ (commit 時 storeRelease / lockWriteSet の compareExchange の書込対象、かつ read_internal のロック spin で連続 load される hot word) と body_ (read 経路で読まれるペイロード) を別キャッシュラインへ分離する変異穴 — tidword_ と body_ の間へのパディング挿入 / body_ 側 alignas 付与 / メンバ順序変更のいずれかを挟む。Tidword union 自体 (obj_ と bitfield の重なり) には触れず、tidword_.obj_ が単一 8byte アトミック対象であることを不変に保つ骨格\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目『コミット時ログ書込の有効化』は abort_rate 不変のまま llc_miss_rate が増加する動き (competition でも検証でもない純書込 I/O への帰属) を示し、この harness で llc_miss_rate が concurrency-control 競合とは独立に動く実測レバーであることが確認できる。一方『abort 後の再試行前バックオフ待機の有効化』は abort を大幅低減しても llc_miss_rate は微増のみ (cache 面の利得なし) かつ ipc が 1.4–1.6→0.4–0.5 に崩壊する。この 2 項目は「cache-coherence 面が測定されているが既存いずれの軸もそこを動かしていない」ことを示唆する。tidword_ と body_ の同一ライン共有は、commit の storeRelease(tidword_) が read_internal で spin 中の readers の body_ ラインを毎回無効化する false sharing を生む位置であり、ここを分離すると llc_miss_rate / ipc が abort_rate と切り離された形 (バックオフのように待機経由で ipc が落ちるのではなく) で動く地形を予想する\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"lockWriteSet の compareExchange・writePhase の storeRelease・read_internal の loadAcquire はすべて tidword_.obj_ を単一 8byte アトミックオブジェクトとして扱う。tidword_ の後方へのパディング挿入や body_ の再アライメントは union 内部に触れないため単語 CAS 不変は保たれる想定だが、これは段階 B で必ず再検証される前提。加えて sizeof(Tuple) 増大は 1M レコードのフットプリントを膨らませ working set を変え、それ自体が llc_miss_rate を動かしうる交絡 — 分離の真の効果と切り分ける制御が必須\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の特定 — read-heavy は spin する readers が多く false sharing が効きやすい仮説と、backoff で read-heavy が最悪だった事実が同居しており、どの read/write 比で分離が効くかは実測を要する\\\",\\n        \\\"positive control 設計 (分離の効果を意図的に注入/除去して符号を確認する手段) が機序単独では導出不能\\\",\\n        \\\"計測動作点 (skew0.9 / 48thread / 1M レコード) で false sharing 効果が noise floor 2.28% を超えて観測可能かは未確定\\\",\\n        \\\"reward hack 仮説: パディングで llc_miss_rate を下げても throughput が伴わない / フットプリント増で見かけ上 cache 指標だけ動く縮退が起こりうる\\\",\\n        \\\"mutation_type の分類が曖昧 — パディング byte 数 / alignas 値としてスカラー軸にも構成でき、その場合 headline 非対象ラベルが自動付与される。code_fragment (レイアウト構造変更) として仮置きしたが型境界の確定は onboarding 側判断\\\",\\n        \\\"型定義ヘッダ (関数本体でなくクラス定義) への hole は既開通 2 hole (transaction.cc 実装本体 / backoff.hh 実装) と異なる編集面種別であり、オンボーディング手順のひな型が想定していない可能性 — ひな型改訂要否の確認が必要\\\",\\n        \\\"TupleBody の内部レイアウト・VAL_SIZE 依存が分離効果に与える影響は本抜粋外で未知\\\",\\n        \\\"感度を持つ workload・reward hack・positive control・計測動作点・偵察列挙空間の各シート欄は機序単独で実質導出できないため確定を段階 B に委ねる\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全 attribution が単一動作点・各構成 1 round 計測・交互作用未分離である旨を明記しており、本提案の予想地形も 1 動作点での符号予想に留まる。分離効果と既存軸 (backoff / log-write / no-wait 政策) との交互作用は入力段階で分離されておらず、独立性は段階 B の再導出で確認を要する\\\",\\n    \\\"diagnostics 非空だが hole_region_directive で cc/silo/include/tuple.hh に固定されているため、機序が指す位置と directive 領域の整合は本提案内で成立させたものの、他領域 (例: read_internal の spin 実装がある transaction.cc) の方が機序に近い可能性は directive の制約上ここでは評価していない\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"f08d5710-dca1-4b55-a6ce-853b7bf4ccff\",\"total_cost_usd\":0.234266,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35212,\"output_tokens\":7665,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":7665,\"cache_read_input_tokens\":35212,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24920,\"outputTokens\":22,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.02503,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":7665,\"cacheReadInputTokens\":35212,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.209236,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"bbab8ec0-639a-45bf-b392-be18705c8000\"}\n",
+  "stderr": ""
+ }
+}

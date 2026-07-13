@@ -1,0 +1,62 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-read-lock-wait-policy",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::read_internal の read-phase 待機ループ — `for(;;){ while(expected.lock){ expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... (e) check.obj_=loadAcquire(...); if(expected==check) break; }`。既開通の silo-writeset-sort (validationPhase 前の sort comparator) とは別関数・別 phase の hole",
+      "skeleton": "read 時にロック中の tuple を観測したときの待機政策を挟む変異穴: 現状の「lock が clear するまで無制限スピン + tidword 安定まで再読」を、(i) スピン上限を設けて超過時に競合として abort へ落とす no-wait/bounded-wait 版、(ii) 再読回数の上限、などの構造に差し替える骨格。挟む位置は read_internal の待機/再読ループ本体、変異は待機継続 vs 早期中断の分岐構造の書き換え"
+     },
+     "mechanism_hypothesis": "attribution[0] (abort 後バックオフ on/off) の indicators で ipc が 1.4–1.6→0.4–0.5 に崩壊 (『コアが待機で実命令を発行できない』) し read-heavy latency が 5.7→25μs に増える、という『ビジースピンが IPC を焼き latency を伸ばす』機序が実測されている。同じ待機コスト類は read_internal の `while(expected.lock)` 無制限スピンにも構造的に存在する — skew0.9 read-heavy でホット tuple が writer に一瞬 lock される間、reader はここで焼く。さらに attribution[1] (validation の待たない政策) では write-heavy 優位側が『abort 率と latency の同時低減』(50.8→21.0%) で稼ぐと出ており、待機の代わりに早期 abort へ振る政策が地形を持つ workload が実在する。バックオフ (retry-time の待機量) でも validation-phase のロック政策でもない read-phase の待機/no-wait 分岐を動かすと、read-heavy の spin コストと abort コストのトレードオフ面に性能地形が予想される",
+     "safety_argument_hypothesis": "read_internal の (e) 再読安定性チェック (expected==check かつ lock clear) は『read_set_ に積む値はロック無し・tidword 安定な一貫版を観測した』という Silo の読み一貫性不変条件を確立している。bounded/no-wait 変異はこの不変を壊しうる — ロック保持中に読んだ値を read_set_ に返すと torn read / 非直列スケジュールを生む。変異は『待つのをやめる』方向でのみ許され、『ロック中の値を採用する』方向は禁止という前提が段階 B で必ず再検証される",
+     "unknowns": [
+      "感度を持つ workload の実測特定 (read-heavy 優位の仮説は attribution からの推論で未裏取り)",
+      "positive control 設計 (待機政策変異が地形を持つことを示す既知の対照点)",
+      "reward hack 仮説 (早期 abort で見かけ throughput を稼ぐ抜け道の有無)",
+      "計測動作点 (単一 skew0.9/48thread/1M 点でこの hole が動くかは未確認)",
+      "偵察の列挙空間 (bounded 上限値・no-wait 分岐の候補集合)",
+      "この hole が attribution[1] の『2 種の待たない政策』(政策識別は射影で落とされている) と実コード上で重複しないことの確認 — 段階 B の既存軸台帳照合を要する"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-batch-threshold",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "TxExecutor::wal() の flush 判定 `if (log_set_.size() > LOGSET_SIZE / 2)` — LOGSET_SIZE は cc/silo/include/transaction.hh の `#define LOGSET_SIZE 1000`",
+      "skeleton": "コミット時ログの flush バッチ閾値 (現状 LOGSET_SIZE/2 = 500 レコード溜まったら header+records をまとめて write) をスカラー変異穴にする。閾値だけを書き換え、flush の I/O 構造 (header→records の一括 write) は不変に保つ骨格"
+     },
+     "mechanism_hypothesis": "attribution[2] (コミット時ログ書込 on/off) は throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%) し、indicators で abort_rate 不変・latency 増加・llc_miss 増加 — 『競合でも正しさ検証でもなく純粋な書込 I/O コスト』への帰属が実測されている。純 I/O コストが駆動である以上、flush が 500 レコード毎に走る現閾値を動かすと write() 呼び出し 1 回あたりに載るレコード数が変わり、syscall/write のアモータイズ度が変化する。書込比率が高いほど損が大きい (write-heavy -13.4%) という単調構造から、write-heavy 側でこの I/O アモータイズ閾値に latency/throughput 地形が予想される。バックオフ待機量スカラーとも writeset-sort 順序とも別の、I/O バッチ側のスカラー hole",
+     "safety_argument_hypothesis": "この変異が原理的に壊しうるのは耐久性/リカバリ境界であって in-memory のコミット済みデータ正しさではない (wal は commit 後に走る)。ただし flush は header の logRecNum_ 分の LogRecord を連続領域として一括 write する構造 (`sizeof(LogRecord)*logRecNum_`) と LogHeader の chkSum 整合に依存しており、閾値の取り方によってはバッファ前提・replayTest のログ形式整合を崩しうる。閾値変異はこの連続 write とチェックサム不変を保つ範囲に限る前提が段階 B で再検証される",
+     "unknowns": [
+      "計測動作点で WAL がコンパイル有効 (#if WAL) の build かどうか — この hole は WAL-on でのみ活性",
+      "『WAL on/off』が既に別軸として登録済みか否か (入力射影には silo-backoff-magnitude と silo-writeset-sort の 2 軸しか見えず判定不能。段階 B の台帳照合を要する)",
+      "感度を持つ workload (write-heavy 優位の仮説は未裏取り)",
+      "positive control 設計・偵察の列挙空間 (閾値候補集合の下限/上限)",
+      "reward hack 仮説 (flush を遅延させて計測窓内の I/O を回避する抜け道の有無)",
+      "durability window の変化が n=1 実証の出口基準に抵触しないかの確認"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離) の射影であり、noise floor 2.28% — 提案 hole の地形がこの点を超えて再現するかは未確認",
+    "BACK_OFF / WAL / NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC 等のコンパイルフラグが計測 build でどう設定されているかが入力に無く、各 hole の活性条件が確定できない",
+    "attribution[1] の 2 政策の識別子が射影で落とされているため、read-phase 待機政策 (提案1) が既存 validation-phase 政策と実コード上で構造的に別であることの最終確認は段階 B の独立再導出に依存する",
+    "本役の 2 提案はいずれも入力が coder 出力後の機序帰属である以上『探索補助』限定 (段 6 headline 非対象) — scalar 提案 (提案2) は自動的に headline 非対象ラベル"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":165492,\"duration_api_ms\":167631,\"ttft_ms\":112301,\"ttft_stream_ms\":1645,\"time_to_request_ms\":96,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-read-lock-wait-policy\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::read_internal の read-phase 待機ループ — `for(;;){ while(expected.lock){ expected.obj_ = loadAcquire(tuple->tidword_.obj_); } ... (e) check.obj_=loadAcquire(...); if(expected==check) break; }`。既開通の silo-writeset-sort (validationPhase 前の sort comparator) とは別関数・別 phase の hole\\\",\\n        \\\"skeleton\\\": \\\"read 時にロック中の tuple を観測したときの待機政策を挟む変異穴: 現状の「lock が clear するまで無制限スピン + tidword 安定まで再読」を、(i) スピン上限を設けて超過時に競合として abort へ落とす no-wait/bounded-wait 版、(ii) 再読回数の上限、などの構造に差し替える骨格。挟む位置は read_internal の待機/再読ループ本体、変異は待機継続 vs 早期中断の分岐構造の書き換え\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution[0] (abort 後バックオフ on/off) の indicators で ipc が 1.4–1.6→0.4–0.5 に崩壊 (『コアが待機で実命令を発行できない』) し read-heavy latency が 5.7→25μs に増える、という『ビジースピンが IPC を焼き latency を伸ばす』機序が実測されている。同じ待機コスト類は read_internal の `while(expected.lock)` 無制限スピンにも構造的に存在する — skew0.9 read-heavy でホット tuple が writer に一瞬 lock される間、reader はここで焼く。さらに attribution[1] (validation の待たない政策) では write-heavy 優位側が『abort 率と latency の同時低減』(50.8→21.0%) で稼ぐと出ており、待機の代わりに早期 abort へ振る政策が地形を持つ workload が実在する。バックオフ (retry-time の待機量) でも validation-phase のロック政策でもない read-phase の待機/no-wait 分岐を動かすと、read-heavy の spin コストと abort コストのトレードオフ面に性能地形が予想される\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"read_internal の (e) 再読安定性チェック (expected==check かつ lock clear) は『read_set_ に積む値はロック無し・tidword 安定な一貫版を観測した』という Silo の読み一貫性不変条件を確立している。bounded/no-wait 変異はこの不変を壊しうる — ロック保持中に読んだ値を read_set_ に返すと torn read / 非直列スケジュールを生む。変異は『待つのをやめる』方向でのみ許され、『ロック中の値を採用する』方向は禁止という前提が段階 B で必ず再検証される\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の実測特定 (read-heavy 優位の仮説は attribution からの推論で未裏取り)\\\",\\n        \\\"positive control 設計 (待機政策変異が地形を持つことを示す既知の対照点)\\\",\\n        \\\"reward hack 仮説 (早期 abort で見かけ throughput を稼ぐ抜け道の有無)\\\",\\n        \\\"計測動作点 (単一 skew0.9/48thread/1M 点でこの hole が動くかは未確認)\\\",\\n        \\\"偵察の列挙空間 (bounded 上限値・no-wait 分岐の候補集合)\\\",\\n        \\\"この hole が attribution[1] の『2 種の待たない政策』(政策識別は射影で落とされている) と実コード上で重複しないことの確認 — 段階 B の既存軸台帳照合を要する\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-batch-threshold\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"TxExecutor::wal() の flush 判定 `if (log_set_.size() > LOGSET_SIZE / 2)` — LOGSET_SIZE は cc/silo/include/transaction.hh の `#define LOGSET_SIZE 1000`\\\",\\n        \\\"skeleton\\\": \\\"コミット時ログの flush バッチ閾値 (現状 LOGSET_SIZE/2 = 500 レコード溜まったら header+records をまとめて write) をスカラー変異穴にする。閾値だけを書き換え、flush の I/O 構造 (header→records の一括 write) は不変に保つ骨格\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution[2] (コミット時ログ書込 on/off) は throughput 低下が書込比率に単調比例 (read-heavy -1.9% noise 内 / balanced -6.8% / write-heavy -13.4%) し、indicators で abort_rate 不変・latency 増加・llc_miss 増加 — 『競合でも正しさ検証でもなく純粋な書込 I/O コスト』への帰属が実測されている。純 I/O コストが駆動である以上、flush が 500 レコード毎に走る現閾値を動かすと write() 呼び出し 1 回あたりに載るレコード数が変わり、syscall/write のアモータイズ度が変化する。書込比率が高いほど損が大きい (write-heavy -13.4%) という単調構造から、write-heavy 側でこの I/O アモータイズ閾値に latency/throughput 地形が予想される。バックオフ待機量スカラーとも writeset-sort 順序とも別の、I/O バッチ側のスカラー hole\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この変異が原理的に壊しうるのは耐久性/リカバリ境界であって in-memory のコミット済みデータ正しさではない (wal は commit 後に走る)。ただし flush は header の logRecNum_ 分の LogRecord を連続領域として一括 write する構造 (`sizeof(LogRecord)*logRecNum_`) と LogHeader の chkSum 整合に依存しており、閾値の取り方によってはバッファ前提・replayTest のログ形式整合を崩しうる。閾値変異はこの連続 write とチェックサム不変を保つ範囲に限る前提が段階 B で再検証される\\\",\\n      \\\"unknowns\\\": [\\n        \\\"計測動作点で WAL がコンパイル有効 (#if WAL) の build かどうか — この hole は WAL-on でのみ活性\\\",\\n        \\\"『WAL on/off』が既に別軸として登録済みか否か (入力射影には silo-backoff-magnitude と silo-writeset-sort の 2 軸しか見えず判定不能。段階 B の台帳照合を要する)\\\",\\n        \\\"感度を持つ workload (write-heavy 優位の仮説は未裏取り)\\\",\\n        \\\"positive control 設計・偵察の列挙空間 (閾値候補集合の下限/上限)\\\",\\n        \\\"reward hack 仮説 (flush を遅延させて計測窓内の I/O を回避する抜け道の有無)\\\",\\n        \\\"durability window の変化が n=1 実証の出口基準に抵触しないかの確認\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全 attribution が単一動作点 (skew0.9 / 48thread / 1M レコード・各構成 1 round・交互作用未分離) の射影であり、noise floor 2.28% — 提案 hole の地形がこの点を超えて再現するかは未確認\\\",\\n    \\\"BACK_OFF / WAL / NO_WAIT_LOCKING_IN_VALIDATION / NO_WAIT_OF_TICTOC 等のコンパイルフラグが計測 build でどう設定されているかが入力に無く、各 hole の活性条件が確定できない\\\",\\n    \\\"attribution[1] の 2 政策の識別子が射影で落とされているため、read-phase 待機政策 (提案1) が既存 validation-phase 政策と実コード上で構造的に別であることの最終確認は段階 B の独立再導出に依存する\\\",\\n    \\\"本役の 2 提案はいずれも入力が coder 出力後の機序帰属である以上『探索補助』限定 (段 6 headline 非対象) — scalar 提案 (提案2) は自動的に headline 非対象ラベル\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"fee33f2f-ea73-4ec7-92a5-fa1467c3d782\",\"total_cost_usd\":0.29726050000000004,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35185,\"output_tokens\":10186,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":10186,\"cache_read_input_tokens\":35185,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24898,\"outputTokens\":23,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025013,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":10186,\"cacheReadInputTokens\":35185,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.27224750000000003,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"98391596-aa7d-4c3e-aa2b-28379327156d\"}\n",
+  "stderr": ""
+ }
+}

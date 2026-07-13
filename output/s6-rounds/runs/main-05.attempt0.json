@@ -1,0 +1,83 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-validation-lock-conflict-response",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "lockWriteSet() 内、write set 施錠ループの `if (expected.lock)` 分岐 — 現状は施錠済みタプルに遭遇した際の応答が `#if NO_WAIT_LOCKING_IN_VALIDATION`(即 abort) / `#elif NO_WAIT_OF_TICTOC`(unlock して goto retry) のコンパイル時二択で固定されている箇所",
+      "skeleton": "この競合応答分岐に EVOLVE-BLOCK hole を開け、施錠済みタプル遭遇時の応答 — 即 abort / 再取得へ goto retry / 有限回リチェックしてから abort — を実行時政策として選べる構造にする。既存二択の離散点を内挿する骨格 (即 abort と bounded-retry の間の連続化) であって、施錠順序 (silo-writeset-sort) や待機量スカラー (silo-backoff-magnitude) とは別位置"
+     },
+     "mechanism_hypothesis": "attribution 実在項目「validation 中のロック競合に対する 2 種の待たない政策の選択」は、2 政策の優劣が workload 間で反転し (差 balanced 19.6% / write-heavy 12.7% / read-heavy 0.4% は noise floor 2.28% 内で順位不能)、かつ稼ぎ方の指標が政策で異なることを示す: balanced 優位側は ipc 1.62 の高命令発行で稼ぎ (abort 率は高いまま)、write-heavy 優位側は abort_rate 50.8→21.0% と latency の同時低減で稼ぐ。単一政策が全 workload 最適が否定されている以上、各 workload が勝つ指標 (ipc か abort_rate/latency か) はまさにこの競合応答分岐が直接動かす量であり、二択の中間に開けた hole には反転境界をまたぐ地形が予想される。恒真ではなく、指標の反転が観測された当該分岐位置に限定した予想である",
+     "safety_argument_hypothesis": "この分岐は write set 施錠経路上にあり、no-wait 政策が保証するデッドロック非発生の前提を直接崩しうる。spin/retry 系の変異が、既に取得済みのロックを解放せず (現状 retry 前の `unlockWriteSet(itr)` を省いて) 再試行すると施錠順序デッドロックの窓が開く。また有限回リトライが writePhase 前の read-set/node 検証と組み合わさったときの中断整合も崩しうる。段階 B で再検証必須",
+     "unknowns": [
+      "感度を持つ workload の特定 (反転が最大化する rratio/skew 領域は単一動作点 skew0.9/48thread/1M では不明)",
+      "reward hack 仮説 (例: リトライ上限で abort をカウント上見かけ削減するが実効直列性を稼がない等)",
+      "positive control 設計",
+      "計測動作点",
+      "偵察の列挙空間 (取りうる応答政策の候補集合)",
+      "この競合応答分岐が入力に見えない登録済み軸台帳の探索範囲と重複しないかの構造照合 (入力射影には開通済み hole が silo-backoff-magnitude と silo-writeset-sort の 2 件しか載っておらず、本役では全台帳を参照できない)",
+      "死んだ軸 silo-writeset-sort (施錠順序 comparator) との交互作用"
+     ]
+    },
+    {
+     "axis_name": "silo-wal-flush-batch-threshold",
+     "mutation_type": "scalar",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "wal() 内、バッファした log_set_ をまとめて logfile_.write() する flush 発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` (LOGSET_SIZE は transaction.hh で 1000 定義、現状しきい値 500 レコード固定)",
+      "skeleton": "flush 発火しきい値をスカラー hole にし、単一 write 呼び出しにまとめる前に何レコード buffer するか (I/O バッチ粒度) を変異させる。LOGSET_SIZE 上限内で成立する範囲のスカラー軸"
+     },
+     "mechanism_hypothesis": "attribution 実在項目「コミット時ログ書込の有効化」は throughput 低下を純粋な書込 I/O コストに帰属している: abort_rate 不変・latency 増加・llc_miss 増加で、低下が書込比率に単調比例 (write-heavy -13.4% / balanced -6.8% / read-heavy -1.9% は noise 内)。低下が競合や検証でなく per-write I/O である以上、write syscall 回数をレコード数で償却する flush 粒度 — 現状 LOGSET_SIZE/2=500 固定 — が動いた指標 (I/O 由来 latency) を直接決めており、損が集中する write-heavy でバッチを大きくすれば syscall 頻度が下がる方向の地形が予想される。恒真ではなく、latency 増加を生んだ書込経路の粒度パラメタを名指しする予想",
+     "safety_argument_hypothesis": "バッファ拡大はコミット済みレコードの永続化を遅らせ、耐久性境界を後退させる。log_set_ / LogPackage の配列サイジングと header.logRecNum_ の前提を超えるとログ形式破壊やレコード欠落を招く。scalar のため headline 非対象ラベルが自動付与される。段階 B で耐久性境界の再検証必須",
+     "unknowns": [
+      "感度を持つ workload (write-heavy 集中は示唆されるが flush 粒度の効きの動作点は不明)",
+      "reward hack 仮説 (しきい値を上げ fdatasync 無し前提で永続化を実質省いて throughput を水増しする経路 — 特に重要)",
+      "positive control 設計",
+      "計測動作点、および計測時に WAL が on 構成だったかの明示 (diagnostics は WAL トグルの存在は示すが動作点の WAL 設定を明示しない)",
+      "LOGSET_SIZE 定義 (transaction.hh) との結合と、しきい値上限の実コード上の安全域",
+      "偵察の列挙空間 (スカラー範囲)"
+     ]
+    },
+    {
+     "axis_name": "silo-abort-backoff-gating",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/transaction.cc",
+      "source_rel": "cc/silo/transaction.cc",
+      "position": "abort() 内、read/write set と node_map クリア後の `#if BACK_OFF ... Backoff::backoff(FLAGS_clocks_per_us); ...#endif` ブロック — 現状 abort 原因に関わらず無条件で待機を発火する箇所",
+      "skeleton": "post-abort 待機の発火を条件化する hole。abort 入口で得られる abort 原因分類 (施錠競合由来か、read-set/node 検証由来か) に応じて待機を発火/抑止する gating を挟む。待機量スカラー (silo-backoff-magnitude, backoff.hh) とは別で、量ではなく発火判定のコード片"
+     },
+     "mechanism_hypothesis": "attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」は、待機で abort_rate は大幅低減する一方 ipc が全 workload で 1.4–1.6→0.4–0.5 に崩壊 (コアが待機で実命令を発行できない) し、throughput は損。かつ損は abort baseline が高い workload ほど小さい (write-heavy -22.5% < read-heavy -77%) — 待機が無駄な再試行を実際に削れる workload では相殺が効き、abort が元々少ない workload では純損、という非対称が明示されている。すなわち待機のペイオフは abort が競合由来の無駄リトライか否かに依存する。現状 abort 原因を問わず無条件発火のため、非競合由来 abort でも ipc 崩壊の純損を払っている。原因で発火を gating すれば、純損側で ipc を回復する方向の地形が予想される。恒真ではなく、ipc 崩壊と損の abort-baseline 依存という観測項目に紐づく予想",
+     "safety_argument_hypothesis": "待機抑止は live-lock 相当のリトライ嵐 (待機で抑えていた再試行の再過熱) を再燃させうる。abort() は現状 status_ が aborted である事実しか持たず、原因分類を分岐点まで持ち回す新経路自体が abort/retry の状態機械を変える。gating の判定が誤ると abort_rate 低減の利得を失う。段階 B で再検証必須",
+     "unknowns": [
+      "abort 原因分類が abort() 入口で実コード上取得可能か (現状 status_ は原因を区別せず、原因の伝播経路が必要 — 実装可能性そのものが未確認)",
+      "本提案が silo-backoff-magnitude (待機量スカラー、magnitude 0 = 無待機) の探索範囲内の変異と構造照合で判定されないかの確認 (発火判定のコード片であってスカラー量ではないという区別が台帳照合で保たれるか)",
+      "感度を持つ workload と原因別 abort 構成比",
+      "reward hack 仮説",
+      "positive control 設計",
+      "計測動作点",
+      "偵察の列挙空間 (gating 述語の候補集合)"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "全提案が単一動作点 (skew0.9 / 48thread / 1M レコード)・各構成 1 round・交互作用未分離の診断に立脚しており、他動作点での各レバーの効きの符号・大きさは未知",
+    "入力射影に開通済み hole は silo-backoff-magnitude (backoff.hh) と silo-writeset-sort (transaction.cc, dead) の 2 件しか載っておらず、登録済み軸台帳全体との構造照合 (既存軸探索範囲との非重複確認) は人間承認 gate 側の作業として残る",
+    "diagnostics は非空だが勝ち筋の値・recommend の示唆・死んだ軸 silo-writeset-sort の機序帰属は構造的に届いておらず (二層射影)、届いた入力にそれらしき残留は認めなかった (射影漏れの疑いなし)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":181943,\"duration_api_ms\":183874,\"ttft_ms\":116068,\"ttft_stream_ms\":1679,\"time_to_request_ms\":95,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-validation-lock-conflict-response\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"lockWriteSet() 内、write set 施錠ループの `if (expected.lock)` 分岐 — 現状は施錠済みタプルに遭遇した際の応答が `#if NO_WAIT_LOCKING_IN_VALIDATION`(即 abort) / `#elif NO_WAIT_OF_TICTOC`(unlock して goto retry) のコンパイル時二択で固定されている箇所\\\",\\n        \\\"skeleton\\\": \\\"この競合応答分岐に EVOLVE-BLOCK hole を開け、施錠済みタプル遭遇時の応答 — 即 abort / 再取得へ goto retry / 有限回リチェックしてから abort — を実行時政策として選べる構造にする。既存二択の離散点を内挿する骨格 (即 abort と bounded-retry の間の連続化) であって、施錠順序 (silo-writeset-sort) や待機量スカラー (silo-backoff-magnitude) とは別位置\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目「validation 中のロック競合に対する 2 種の待たない政策の選択」は、2 政策の優劣が workload 間で反転し (差 balanced 19.6% / write-heavy 12.7% / read-heavy 0.4% は noise floor 2.28% 内で順位不能)、かつ稼ぎ方の指標が政策で異なることを示す: balanced 優位側は ipc 1.62 の高命令発行で稼ぎ (abort 率は高いまま)、write-heavy 優位側は abort_rate 50.8→21.0% と latency の同時低減で稼ぐ。単一政策が全 workload 最適が否定されている以上、各 workload が勝つ指標 (ipc か abort_rate/latency か) はまさにこの競合応答分岐が直接動かす量であり、二択の中間に開けた hole には反転境界をまたぐ地形が予想される。恒真ではなく、指標の反転が観測された当該分岐位置に限定した予想である\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"この分岐は write set 施錠経路上にあり、no-wait 政策が保証するデッドロック非発生の前提を直接崩しうる。spin/retry 系の変異が、既に取得済みのロックを解放せず (現状 retry 前の `unlockWriteSet(itr)` を省いて) 再試行すると施錠順序デッドロックの窓が開く。また有限回リトライが writePhase 前の read-set/node 検証と組み合わさったときの中断整合も崩しうる。段階 B で再検証必須\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の特定 (反転が最大化する rratio/skew 領域は単一動作点 skew0.9/48thread/1M では不明)\\\",\\n        \\\"reward hack 仮説 (例: リトライ上限で abort をカウント上見かけ削減するが実効直列性を稼がない等)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"偵察の列挙空間 (取りうる応答政策の候補集合)\\\",\\n        \\\"この競合応答分岐が入力に見えない登録済み軸台帳の探索範囲と重複しないかの構造照合 (入力射影には開通済み hole が silo-backoff-magnitude と silo-writeset-sort の 2 件しか載っておらず、本役では全台帳を参照できない)\\\",\\n        \\\"死んだ軸 silo-writeset-sort (施錠順序 comparator) との交互作用\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-wal-flush-batch-threshold\\\",\\n      \\\"mutation_type\\\": \\\"scalar\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"wal() 内、バッファした log_set_ をまとめて logfile_.write() する flush 発火条件 `if (log_set_.size() > LOGSET_SIZE / 2)` (LOGSET_SIZE は transaction.hh で 1000 定義、現状しきい値 500 レコード固定)\\\",\\n        \\\"skeleton\\\": \\\"flush 発火しきい値をスカラー hole にし、単一 write 呼び出しにまとめる前に何レコード buffer するか (I/O バッチ粒度) を変異させる。LOGSET_SIZE 上限内で成立する範囲のスカラー軸\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目「コミット時ログ書込の有効化」は throughput 低下を純粋な書込 I/O コストに帰属している: abort_rate 不変・latency 増加・llc_miss 増加で、低下が書込比率に単調比例 (write-heavy -13.4% / balanced -6.8% / read-heavy -1.9% は noise 内)。低下が競合や検証でなく per-write I/O である以上、write syscall 回数をレコード数で償却する flush 粒度 — 現状 LOGSET_SIZE/2=500 固定 — が動いた指標 (I/O 由来 latency) を直接決めており、損が集中する write-heavy でバッチを大きくすれば syscall 頻度が下がる方向の地形が予想される。恒真ではなく、latency 増加を生んだ書込経路の粒度パラメタを名指しする予想\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"バッファ拡大はコミット済みレコードの永続化を遅らせ、耐久性境界を後退させる。log_set_ / LogPackage の配列サイジングと header.logRecNum_ の前提を超えるとログ形式破壊やレコード欠落を招く。scalar のため headline 非対象ラベルが自動付与される。段階 B で耐久性境界の再検証必須\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload (write-heavy 集中は示唆されるが flush 粒度の効きの動作点は不明)\\\",\\n        \\\"reward hack 仮説 (しきい値を上げ fdatasync 無し前提で永続化を実質省いて throughput を水増しする経路 — 特に重要)\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点、および計測時に WAL が on 構成だったかの明示 (diagnostics は WAL トグルの存在は示すが動作点の WAL 設定を明示しない)\\\",\\n        \\\"LOGSET_SIZE 定義 (transaction.hh) との結合と、しきい値上限の実コード上の安全域\\\",\\n        \\\"偵察の列挙空間 (スカラー範囲)\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-abort-backoff-gating\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/transaction.cc\\\",\\n        \\\"position\\\": \\\"abort() 内、read/write set と node_map クリア後の `#if BACK_OFF ... Backoff::backoff(FLAGS_clocks_per_us); ...#endif` ブロック — 現状 abort 原因に関わらず無条件で待機を発火する箇所\\\",\\n        \\\"skeleton\\\": \\\"post-abort 待機の発火を条件化する hole。abort 入口で得られる abort 原因分類 (施錠競合由来か、read-set/node 検証由来か) に応じて待機を発火/抑止する gating を挟む。待機量スカラー (silo-backoff-magnitude, backoff.hh) とは別で、量ではなく発火判定のコード片\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution 実在項目「abort 後の再試行前バックオフ待機の有効化」は、待機で abort_rate は大幅低減する一方 ipc が全 workload で 1.4–1.6→0.4–0.5 に崩壊 (コアが待機で実命令を発行できない) し、throughput は損。かつ損は abort baseline が高い workload ほど小さい (write-heavy -22.5% < read-heavy -77%) — 待機が無駄な再試行を実際に削れる workload では相殺が効き、abort が元々少ない workload では純損、という非対称が明示されている。すなわち待機のペイオフは abort が競合由来の無駄リトライか否かに依存する。現状 abort 原因を問わず無条件発火のため、非競合由来 abort でも ipc 崩壊の純損を払っている。原因で発火を gating すれば、純損側で ipc を回復する方向の地形が予想される。恒真ではなく、ipc 崩壊と損の abort-baseline 依存という観測項目に紐づく予想\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"待機抑止は live-lock 相当のリトライ嵐 (待機で抑えていた再試行の再過熱) を再燃させうる。abort() は現状 status_ が aborted である事実しか持たず、原因分類を分岐点まで持ち回す新経路自体が abort/retry の状態機械を変える。gating の判定が誤ると abort_rate 低減の利得を失う。段階 B で再検証必須\\\",\\n      \\\"unknowns\\\": [\\n        \\\"abort 原因分類が abort() 入口で実コード上取得可能か (現状 status_ は原因を区別せず、原因の伝播経路が必要 — 実装可能性そのものが未確認)\\\",\\n        \\\"本提案が silo-backoff-magnitude (待機量スカラー、magnitude 0 = 無待機) の探索範囲内の変異と構造照合で判定されないかの確認 (発火判定のコード片であってスカラー量ではないという区別が台帳照合で保たれるか)\\\",\\n        \\\"感度を持つ workload と原因別 abort 構成比\\\",\\n        \\\"reward hack 仮説\\\",\\n        \\\"positive control 設計\\\",\\n        \\\"計測動作点\\\",\\n        \\\"偵察の列挙空間 (gating 述語の候補集合)\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"全提案が単一動作点 (skew0.9 / 48thread / 1M レコード)・各構成 1 round・交互作用未分離の診断に立脚しており、他動作点での各レバーの効きの符号・大きさは未知\\\",\\n    \\\"入力射影に開通済み hole は silo-backoff-magnitude (backoff.hh) と silo-writeset-sort (transaction.cc, dead) の 2 件しか載っておらず、登録済み軸台帳全体との構造照合 (既存軸探索範囲との非重複確認) は人間承認 gate 側の作業として残る\\\",\\n    \\\"diagnostics は非空だが勝ち筋の値・recommend の示唆・死んだ軸 silo-writeset-sort の機序帰属は構造的に届いておらず (二層射影)、届いた入力にそれらしき残留は認めなかった (射影漏れの疑いなし)\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"3799c606-2e32-4255-b472-e51c33790bef\",\"total_cost_usd\":0.3406355,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35185,\"output_tokens\":11921,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":11921,\"cache_read_input_tokens\":35185,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24898,\"outputTokens\":23,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025013,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":11921,\"cacheReadInputTokens\":35185,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.3156225,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"6268c5c5-5b2b-4196-a6fd-476f0617b586\"}\n",
+  "stderr": ""
+ }
+}

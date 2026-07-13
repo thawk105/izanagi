@@ -1,0 +1,42 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-tuple-hotcold-linesplit",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/include/tuple.hh",
+      "source_rel": "cc/silo/include/tuple.hh",
+      "position": "class Tuple のメンバ配置 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` と直後の `TupleBody body_;` の境界。現状 tidword_ はキャッシュライン境界に置かれ、body_ はその直後 (同一ライン内) に並ぶ",
+      "skeleton": "tidword_ と body_ の間に EVOLVE-BLOCK を開け、スピン対象の熱いメタデータ (tidword_) とデータ本体 (body_) のキャッシュライン相対配置を変異させる骨格。無変異原型 = 現行の隣接配置。変異面は body_ 側の alignas 付与 / 明示パディングメンバの挿入 / あるいはパディング量の可変で、両フィールドを別ラインに隔離するか同居させるかを切り替える (tidword_ の 8B アラインとアトミック要件は不変に保つ)"
+     },
+     "mechanism_hypothesis": "attribution[0] (backoff) の indicators.llc_miss_rate は『微増 (cache 面の利得なし)』、attribution[2] (コミット時ログ書込) の indicators.llc_miss_rate は『増加』で、いずれも llc_miss_rate が本動作点 (skew0.9 高スキュー) で実際に動く生きた指標であり、かつ現行レイアウトが『cache 面の利得なし』と明言されている点に着目する。read_internal のスピンループと validationPhase の再チェックが同一 tidword_ を反復ロードで叩く一方、writePhase の memcpy が同居する body_ を書く。tidword_ と body_ が同一ラインを共有していれば、検証スピンによるライン無効化がデータ側にも波及する構造がある。この境界に hole を開けて両者のライン相対配置を変異させると llc_miss_rate が動くと予想する — 隔離すれば偽共有低減、footprint 増でライン数増による悪化もありうる両側可動の地形であり、既出 2 軸 (再試行前待機量スカラー / write set 施錠順序 comparator) とは別の hole 位置・別の指標を突く",
+     "safety_argument_hypothesis": "Tuple のメンバ配置/サイズ変更は sizeof(Tuple) やフィールドオフセットに依存するコード (テーブル確保 makeDB の要素跨ぎ・アトミック操作の 8B アライン前提) を原理的に壊しうる。tidword_.obj_ のアトミック性は 8B アラインが保たれる限り不変だが、1M レコード規模のパディングは DB 総サイズ・初期化を変える。段階 B で offset/size 依存箇所の実コード裏取りと正しさ (アトミック要件) の再検証が必須 — ここは下書き",
+     "unknowns": [
+      "感度を持つ workload の特定 (llc_miss の動きが read-heavy / balanced / write-heavy のどれで最大かは機序単独では導けない)",
+      "reward hack 仮説 (レイアウト変異が計測指標だけ動かし実性能に無関係な経路を作らないかの検討)",
+      "positive control 設計 (レイアウト変異が確実に llc_miss を動かすと分かっている参照変異)",
+      "計測動作点 (単一動作点 skew0.9/48thread/1M の外での挙動)",
+      "偵察の列挙空間 (パディング量・隔離方式の候補集合)",
+      "sizeof(Tuple)/オフセット依存コードの実在箇所リスト (実コード裏取り待ち)",
+      "本役の提案軸は探索補助限定・段 6 headline 非対象 (事前登録改訂が前提)"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "diagnostics は各構成 1 round・単一動作点・交互作用未分離のため、llc_miss_rate の動きの因果 (レイアウト起因か I/O 起因か) が入力からは切り分けられない",
+    "本提案は既開通 2 軸 (silo-backoff-magnitude / silo-writeset-sort) との交互作用が未分離であり、独立効果は段階 B で再導出が必要",
+    "hole_region_directive により region は cc/silo/include/tuple.hh に固定されており、他領域との相対的な効きやすさは本役では判断不能 (D47 決定 1)"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":100183,\"duration_api_ms\":106636,\"ttft_ms\":69808,\"ttft_stream_ms\":1517,\"time_to_request_ms\":103,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-tuple-hotcold-linesplit\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"position\\\": \\\"class Tuple のメンバ配置 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` と直後の `TupleBody body_;` の境界。現状 tidword_ はキャッシュライン境界に置かれ、body_ はその直後 (同一ライン内) に並ぶ\\\",\\n        \\\"skeleton\\\": \\\"tidword_ と body_ の間に EVOLVE-BLOCK を開け、スピン対象の熱いメタデータ (tidword_) とデータ本体 (body_) のキャッシュライン相対配置を変異させる骨格。無変異原型 = 現行の隣接配置。変異面は body_ 側の alignas 付与 / 明示パディングメンバの挿入 / あるいはパディング量の可変で、両フィールドを別ラインに隔離するか同居させるかを切り替える (tidword_ の 8B アラインとアトミック要件は不変に保つ)\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution[0] (backoff) の indicators.llc_miss_rate は『微増 (cache 面の利得なし)』、attribution[2] (コミット時ログ書込) の indicators.llc_miss_rate は『増加』で、いずれも llc_miss_rate が本動作点 (skew0.9 高スキュー) で実際に動く生きた指標であり、かつ現行レイアウトが『cache 面の利得なし』と明言されている点に着目する。read_internal のスピンループと validationPhase の再チェックが同一 tidword_ を反復ロードで叩く一方、writePhase の memcpy が同居する body_ を書く。tidword_ と body_ が同一ラインを共有していれば、検証スピンによるライン無効化がデータ側にも波及する構造がある。この境界に hole を開けて両者のライン相対配置を変異させると llc_miss_rate が動くと予想する — 隔離すれば偽共有低減、footprint 増でライン数増による悪化もありうる両側可動の地形であり、既出 2 軸 (再試行前待機量スカラー / write set 施錠順序 comparator) とは別の hole 位置・別の指標を突く\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"Tuple のメンバ配置/サイズ変更は sizeof(Tuple) やフィールドオフセットに依存するコード (テーブル確保 makeDB の要素跨ぎ・アトミック操作の 8B アライン前提) を原理的に壊しうる。tidword_.obj_ のアトミック性は 8B アラインが保たれる限り不変だが、1M レコード規模のパディングは DB 総サイズ・初期化を変える。段階 B で offset/size 依存箇所の実コード裏取りと正しさ (アトミック要件) の再検証が必須 — ここは下書き\\\",\\n      \\\"unknowns\\\": [\\n        \\\"感度を持つ workload の特定 (llc_miss の動きが read-heavy / balanced / write-heavy のどれで最大かは機序単独では導けない)\\\",\\n        \\\"reward hack 仮説 (レイアウト変異が計測指標だけ動かし実性能に無関係な経路を作らないかの検討)\\\",\\n        \\\"positive control 設計 (レイアウト変異が確実に llc_miss を動かすと分かっている参照変異)\\\",\\n        \\\"計測動作点 (単一動作点 skew0.9/48thread/1M の外での挙動)\\\",\\n        \\\"偵察の列挙空間 (パディング量・隔離方式の候補集合)\\\",\\n        \\\"sizeof(Tuple)/オフセット依存コードの実在箇所リスト (実コード裏取り待ち)\\\",\\n        \\\"本役の提案軸は探索補助限定・段 6 headline 非対象 (事前登録改訂が前提)\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"diagnostics は各構成 1 round・単一動作点・交互作用未分離のため、llc_miss_rate の動きの因果 (レイアウト起因か I/O 起因か) が入力からは切り分けられない\\\",\\n    \\\"本提案は既開通 2 軸 (silo-backoff-magnitude / silo-writeset-sort) との交互作用が未分離であり、独立効果は段階 B で再導出が必要\\\",\\n    \\\"hole_region_directive により region は cc/silo/include/tuple.hh に固定されており、他領域との相対的な効きやすさは本役では判断不能 (D47 決定 1)\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"60c79882-b742-4ae6-9afe-27c0a07ae52a\",\"total_cost_usd\":0.198361,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":35212,\"output_tokens\":6228,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":6228,\"cache_read_input_tokens\":35212,\"cache_creation_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24920,\"outputTokens\":26,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025050000000000003,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":6228,\"cacheReadInputTokens\":35212,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.17331100000000002,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"996c9a0c-f9a1-40f7-b57f-f81dcee3058b\"}\n",
+  "stderr": ""
+ }
+}

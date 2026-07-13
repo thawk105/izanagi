@@ -1,0 +1,62 @@
+{
+ "classification": "score",
+ "detail": {
+  "bundle": {
+   "proposals": [
+    {
+     "axis_name": "silo-tuple-tidword-body-cacheline-split",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/include/tuple.hh",
+      "source_rel": "cc/silo/include/tuple.hh",
+      "position": "class Tuple のメンバ宣言部 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` に続く `TupleBody body_;` の配置。現状 tidword_ のみ cache line 先頭に整列され body_ が同一構造内で後続する",
+      "skeleton": "tidword_ と body_ の間に cache line 境界を挟む padding を入れる / body_ 自身に alignas 指定を付す、を切り替える hole。CAS・spin-load の対象語 (tidword_) と memcpy の対象データ (body_) を同一 cache line に載せるか分離するかを変異軸にする (メンバ順序・padding 幅の構造変異)"
+     },
+     "mechanism_hypothesis": "attribution の「abort 後の再試行前バックオフ待機の有効化」項目は indicators.llc_miss_rate が『微増 (cache面の利得なし)』、「コミット時ログ書込の有効化」項目は llc_miss_rate が『増加』と、いずれも cache miss を実測で動く量として報告している。skew0.9 の単一動作点では hot tuple の tidword_ が read_internal の spin-load (loadAcquire) と lockWriteSet/writePhase の CAS/storeRelease で激しく触られ、同 tuple の body_ は writePhase の memcpy 対象になる。両者が同一 cache line を共有していれば version 語への CAS がデータ読取り側の line を coherence 無効化しうる。この位置で tidword_/body_ の cache line 配置を変えると llc_miss と競合由来 coherence traffic の地形が動くと予想する",
+     "safety_argument_hypothesis": "メンバ順序・padding 変更は Tuple 単体の footprint を拡大し、read-heavy のワーキングセットを膨らませて llc_miss を逆に悪化させる方向にも振れうる (相反効果の可能性)。concurrency の正しさは tidword_ が単一原子語である限り不変のはずだが、TupleBody の move/init 経路 (`init(TupleBody&&)`) とサイズ前提が layout に依存していないかは段階 B で要再検証",
+     "unknowns": [
+      "どの workload (read-heavy / balanced / write-heavy) で cache 配置が感度を持つか — llc_miss 数値は skew0.9/48thread/1M の単一動作点・各構成 1 round・交互作用未分離であり、layout レバーの符号が workload 間で反転するか否かは機序単独で導出不能",
+      "positive control 設計 (この layout 変異が意図方向に llc_miss を動かすことをどの計測で示すか)",
+      "reward hack 仮説 (見かけの競合低減が計測アーティファクトでないことの確認方法)",
+      "偵察の列挙空間 (試すべき padding 幅・メンバ順序・alignas 対象の候補集合)",
+      "計測動作点 (skew・thread 数・レコード数の校正)",
+      "感度を持つ workload / reward hack / positive control など軸定義シートの実測・実コード裏取り欄すべて"
+     ]
+    },
+    {
+     "axis_name": "silo-tidword-lockword-version-decouple",
+     "mutation_type": "code_fragment",
+     "hole_location": {
+      "region": "cc/silo/include/tuple.hh",
+      "source_rel": "cc/silo/include/tuple.hh",
+      "position": "struct Tidword の union 内ビットフィールド — `bool lock : 1` が `tid : 29` / `epoch : 32` と単一 `uint64_t obj_` に同居している箇所、および Tuple 内でのその語の配置",
+      "skeleton": "lock ビットを version ビット群 (tid/epoch) と別の 64bit 語 / 別 cache line に分離する変異を挟む hole。lock 用 CAS が書き換える語と version 検証が読む語を構造的に分けるか否かを変異軸にする"
+     },
+     "mechanism_hypothesis": "同じく attribution の「abort 後の再試行前バックオフ待機の有効化」項目の indicators.llc_miss_rate『微増』と「コミット時ログ書込の有効化」項目の llc_miss_rate『増加』が cache 面を動く量として示す。skew0.9 で lockWriteSet の lock CAS (書き手) と validationPhase / read_internal の version 読取り (読み手) が同一 obj_ 語=同一 cache line に集中する。lock ビットと version ビットが同居する現状では lock 取得の CAS が version 読取り側の line を無効化する。この語の分解位置を変異させれば lock-CAS traffic と version-read traffic の line 共有度が変わり、hot tuple の coherence 地形が動くと予想する",
+     "safety_argument_hypothesis": "Silo の read protocol (read_internal: lock clear 確認 → body 読取り → tidword 再読取り比較) と validationPhase の lock 検査は、lock と version が単一原子語に同居し 1 回の atomic load で同時観測できることに依存している可能性が高い。分離は torn-read / 直列化不能ウィンドウを生む恐れがあり、CC 正しさへの影響が大きい。段階 B での独立再導出・敵対レビューで正しさ再検証が必須で、そこで棄却されうる前提が多い",
+     "unknowns": [
+      "lock/version 分離が Silo の単一語 read 検証不変条件を破らずに成立しうるか — 機序単独では正しさ成否を導出不能 (段階 B の実コード裏取り事項)",
+      "感度を持つ workload の特定 (llc_miss は単一動作点・1 round・交互作用未分離)",
+      "reward hack 仮説 (正しさを緩めて見かけの throughput を稼ぐ抜け道でないかの検査設計)",
+      "positive control 設計 (分離が意図した coherence traffic 低減を生むことの実証手順)",
+      "偵察の列挙空間 (別語化の粒度・配置候補) と計測動作点の校正",
+      "軸定義シートの実測・実コード裏取り・偵察を要する残り全欄"
+     ]
+    }
+   ],
+   "global_unknowns": [
+    "hole_region_directive により region は cc/silo/include/tuple.hh に固定されているが、当該領域は編集面の地図上 opened:false であり、現行 EVOLVE_BLOCK 編集面は cc/silo/transaction.cc と include/backoff.hh のみ開通済み。tuple.hh に EVOLVE-BLOCK hole を開通する是非・コストは人間側の判断事項",
+    "diagnostics を tuple.hh の layout レバーに繋ぐ実測経路は llc_miss_rate 指標のみで、IPC 崩壊・abort 率・latency 系の動きは backoff / lockWriteSet 側 (別領域) を指しており本領域の機序に直接使えない — tuple.hh 内提案の機序基盤は cache 面に限定される",
+    "全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round・交互作用未分離であり、本提案 2 件の性能地形予想はこの動作点前提に条件づく",
+    "mutation_type は 2 件とも code_fragment (構造体 layout 変異) と判断したが、D44 決定 1(i) の scalar 自動 headline 非対象ラベルは付かない。ただし本役提案は変異型を問わず当面『探索補助』限定 (D47 決定 5) であり、段 6 主結果対象化には事前登録側改訂が前提"
+   ]
+  },
+  "truncated": null,
+  "dropped_non_dict_indices": null
+ },
+ "raw": {
+  "returncode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":174216,\"duration_api_ms\":175847,\"ttft_ms\":128845,\"ttft_stream_ms\":1962,\"time_to_request_ms\":104,\"num_turns\":1,\"result\":\"```json\\n{\\n  \\\"proposals\\\": [\\n    {\\n      \\\"axis_name\\\": \\\"silo-tuple-tidword-body-cacheline-split\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"position\\\": \\\"class Tuple のメンバ宣言部 — `alignas(CACHE_LINE_SIZE) Tidword tidword_;` に続く `TupleBody body_;` の配置。現状 tidword_ のみ cache line 先頭に整列され body_ が同一構造内で後続する\\\",\\n        \\\"skeleton\\\": \\\"tidword_ と body_ の間に cache line 境界を挟む padding を入れる / body_ 自身に alignas 指定を付す、を切り替える hole。CAS・spin-load の対象語 (tidword_) と memcpy の対象データ (body_) を同一 cache line に載せるか分離するかを変異軸にする (メンバ順序・padding 幅の構造変異)\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"attribution の「abort 後の再試行前バックオフ待機の有効化」項目は indicators.llc_miss_rate が『微増 (cache面の利得なし)』、「コミット時ログ書込の有効化」項目は llc_miss_rate が『増加』と、いずれも cache miss を実測で動く量として報告している。skew0.9 の単一動作点では hot tuple の tidword_ が read_internal の spin-load (loadAcquire) と lockWriteSet/writePhase の CAS/storeRelease で激しく触られ、同 tuple の body_ は writePhase の memcpy 対象になる。両者が同一 cache line を共有していれば version 語への CAS がデータ読取り側の line を coherence 無効化しうる。この位置で tidword_/body_ の cache line 配置を変えると llc_miss と競合由来 coherence traffic の地形が動くと予想する\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"メンバ順序・padding 変更は Tuple 単体の footprint を拡大し、read-heavy のワーキングセットを膨らませて llc_miss を逆に悪化させる方向にも振れうる (相反効果の可能性)。concurrency の正しさは tidword_ が単一原子語である限り不変のはずだが、TupleBody の move/init 経路 (`init(TupleBody&&)`) とサイズ前提が layout に依存していないかは段階 B で要再検証\\\",\\n      \\\"unknowns\\\": [\\n        \\\"どの workload (read-heavy / balanced / write-heavy) で cache 配置が感度を持つか — llc_miss 数値は skew0.9/48thread/1M の単一動作点・各構成 1 round・交互作用未分離であり、layout レバーの符号が workload 間で反転するか否かは機序単独で導出不能\\\",\\n        \\\"positive control 設計 (この layout 変異が意図方向に llc_miss を動かすことをどの計測で示すか)\\\",\\n        \\\"reward hack 仮説 (見かけの競合低減が計測アーティファクトでないことの確認方法)\\\",\\n        \\\"偵察の列挙空間 (試すべき padding 幅・メンバ順序・alignas 対象の候補集合)\\\",\\n        \\\"計測動作点 (skew・thread 数・レコード数の校正)\\\",\\n        \\\"感度を持つ workload / reward hack / positive control など軸定義シートの実測・実コード裏取り欄すべて\\\"\\n      ]\\n    },\\n    {\\n      \\\"axis_name\\\": \\\"silo-tidword-lockword-version-decouple\\\",\\n      \\\"mutation_type\\\": \\\"code_fragment\\\",\\n      \\\"hole_location\\\": {\\n        \\\"region\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"source_rel\\\": \\\"cc/silo/include/tuple.hh\\\",\\n        \\\"position\\\": \\\"struct Tidword の union 内ビットフィールド — `bool lock : 1` が `tid : 29` / `epoch : 32` と単一 `uint64_t obj_` に同居している箇所、および Tuple 内でのその語の配置\\\",\\n        \\\"skeleton\\\": \\\"lock ビットを version ビット群 (tid/epoch) と別の 64bit 語 / 別 cache line に分離する変異を挟む hole。lock 用 CAS が書き換える語と version 検証が読む語を構造的に分けるか否かを変異軸にする\\\"\\n      },\\n      \\\"mechanism_hypothesis\\\": \\\"同じく attribution の「abort 後の再試行前バックオフ待機の有効化」項目の indicators.llc_miss_rate『微増』と「コミット時ログ書込の有効化」項目の llc_miss_rate『増加』が cache 面を動く量として示す。skew0.9 で lockWriteSet の lock CAS (書き手) と validationPhase / read_internal の version 読取り (読み手) が同一 obj_ 語=同一 cache line に集中する。lock ビットと version ビットが同居する現状では lock 取得の CAS が version 読取り側の line を無効化する。この語の分解位置を変異させれば lock-CAS traffic と version-read traffic の line 共有度が変わり、hot tuple の coherence 地形が動くと予想する\\\",\\n      \\\"safety_argument_hypothesis\\\": \\\"Silo の read protocol (read_internal: lock clear 確認 → body 読取り → tidword 再読取り比較) と validationPhase の lock 検査は、lock と version が単一原子語に同居し 1 回の atomic load で同時観測できることに依存している可能性が高い。分離は torn-read / 直列化不能ウィンドウを生む恐れがあり、CC 正しさへの影響が大きい。段階 B での独立再導出・敵対レビューで正しさ再検証が必須で、そこで棄却されうる前提が多い\\\",\\n      \\\"unknowns\\\": [\\n        \\\"lock/version 分離が Silo の単一語 read 検証不変条件を破らずに成立しうるか — 機序単独では正しさ成否を導出不能 (段階 B の実コード裏取り事項)\\\",\\n        \\\"感度を持つ workload の特定 (llc_miss は単一動作点・1 round・交互作用未分離)\\\",\\n        \\\"reward hack 仮説 (正しさを緩めて見かけの throughput を稼ぐ抜け道でないかの検査設計)\\\",\\n        \\\"positive control 設計 (分離が意図した coherence traffic 低減を生むことの実証手順)\\\",\\n        \\\"偵察の列挙空間 (別語化の粒度・配置候補) と計測動作点の校正\\\",\\n        \\\"軸定義シートの実測・実コード裏取り・偵察を要する残り全欄\\\"\\n      ]\\n    }\\n  ],\\n  \\\"global_unknowns\\\": [\\n    \\\"hole_region_directive により region は cc/silo/include/tuple.hh に固定されているが、当該領域は編集面の地図上 opened:false であり、現行 EVOLVE_BLOCK 編集面は cc/silo/transaction.cc と include/backoff.hh のみ開通済み。tuple.hh に EVOLVE-BLOCK hole を開通する是非・コストは人間側の判断事項\\\",\\n    \\\"diagnostics を tuple.hh の layout レバーに繋ぐ実測経路は llc_miss_rate 指標のみで、IPC 崩壊・abort 率・latency 系の動きは backoff / lockWriteSet 側 (別領域) を指しており本領域の機序に直接使えない — tuple.hh 内提案の機序基盤は cache 面に限定される\\\",\\n    \\\"全 attribution が skew0.9 / 48thread / 1M レコードの単一動作点・各構成 1 round・交互作用未分離であり、本提案 2 件の性能地形予想はこの動作点前提に条件づく\\\",\\n    \\\"mutation_type は 2 件とも code_fragment (構造体 layout 変異) と判断したが、D44 決定 1(i) の scalar 自動 headline 非対象ラベルは付かない。ただし本役提案は変異型を問わず当面『探索補助』限定 (D47 決定 5) であり、段 6 主結果対象化には事前登録側改訂が前提\\\"\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"b0653575-450d-480f-88ed-16944e36d89e\",\"total_cost_usd\":0.615572,\"usage\":{\"input_tokens\":1,\"cache_creation_input_tokens\":31498,\"cache_read_input_tokens\":3714,\"output_tokens\":10949,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":31498,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"not_available\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":10949,\"cache_read_input_tokens\":3714,\"cache_creation_input_tokens\":31498,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":31498},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":24920,\"outputTokens\":17,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.025005,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-opus-4-8\":{\"inputTokens\":1,\"outputTokens\":10949,\"cacheReadInputTokens\":3714,\"cacheCreationInputTokens\":31498,\"webSearchRequests\":0,\"costUSD\":0.590567,\"contextWindow\":1000000,\"maxOutputTokens\":64000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"d97ba0fc-0839-4121-be3e-d7351a6b4dfc\"}\n",
+  "stderr": ""
+ }
+}
