@@ -16,18 +16,28 @@
    `docs/glossary.md` は検索して該当項目だけを読む。
 5. `git status` を確認し、他セッションまたはユーザーの変更を上書きしない。
 
+### 条件付き custom role の例外
+
+`.codex/agents/` の `auditor` / `critic` / `verifier` として起動された子は、上の作業開始 1〜5 を
+繰り返さない。親が共通ブートと handoff を所有し、子は CLAUDE/worklog/phase/handoff を読まず、
+profile と呼出 prompt で明示された射影入力だけを扱う。これは通常ブートによる性能値・期待結果の
+混入を防ぐ入力隔離である。親は起動直前に実効 sandbox を read-only にし、子は開始時に確認する。
+read-only を確認できない子は `ADAPTER-REFUSED` を返し、tool を使わず停止する。
+
 ## 共通規律と Codex 固有の注意
 
 - `CLAUDE.md` の絶対規律、信頼境界、文書運用、計測規律、push は人間が行うという境界をすべて守る。
 - `.claude/settings.json` の PreToolUse hooks は Codex には自動適用されない。hook が発火したと
-  主張せず、`hooks/README.md` が定める保護対象と編集面を手動でも守る。
-- `.claude/agents/` は実験ロールのモデル・ツール・情報遮断を含む契約である。Codex のサブエージェントは
-  同じツール権限を持つため、機械的に同等な隔離を作れないロールを安易に置き換えない。置換が必要なら
-  `docs/agent-architecture.md` と対象ロールを読み、弱くなる境界を明示して独立検証を追加する。
+  主張せず、`hooks/README.md` が定める保護対象と編集面を手動でも守る。Codex への配線を保留した
+  理由と再開条件は D54。
+- Codex native profile の入口は `.codex/agents/README.md`。有効 profile だけを使い、毎回
+  親の実効 sandbox を read-only にしたうえで `fork_turns="none"` で起動し、role が許す入力だけを
+  明示的に渡す。`.claude/agents/` は role 本文と Claude 固有の権限契約であり、Codex profile を
+  同等な隔離とは扱わない。
 - ドキュメントは日本語、orchestrator・hooks・verifier は Python、CCBench と variant は C++ を基本とする。
-- タスク完了時は関連テストと `python3 tools/check_docs.py` を実行し、phase の完了チェックは実装と
-  同じ commit に含める。commit を作った後は `python3 tools/check_ai_provenance.py` で導入時点から
-  `HEAD` までを監査する。
+- タスク完了時は関連テスト、`python3 tools/check_codex_agents.py`、`python3 tools/check_docs.py` を
+  実行し、phase の完了チェックは実装と同じ commit に含める。commit を作った後は
+  `python3 tools/check_ai_provenance.py` で導入時点から `HEAD` までを監査する。
 
 ## commit provenance
 

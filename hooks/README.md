@@ -8,6 +8,11 @@ ECC のように大量の hook は持たない。下記2本だけ (規律5「盛
 「明白な直接書き込みを止める最小の第二防壁」に絞り、identity の正直さ (偽 cache hit / `#ifdef`) と
 観測者効果の分離 (TRACE 混入) は**一次防壁 (source_digest)** に委譲した。
 
+**Codex には未配線 (D54)。** Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡し、
+Claude の Write/Edit の `file_path` 形とは異なる。既存 `guard_write` を設定だけ複製すると path 欠落を
+管轄外として通すため、Codex adapter と parity test ができるまでは `.codex/hooks.json` を置かない。
+これは新しい論理 hook の追加ではなく、既存 2 判定核の将来 adapter として扱う。
+
 **3 巡の敵対検証で硬化 (2026-07-02 / 07-03 / 07-04)。** 各巡で Opus 赤チームが real finding を摘出し修正:
 - 1・2 巡目 (旧 payload テキスト検査): critical GW2R-1 (コメント行連結でコメント除去器を騙し `#define TRACE`
   を素通し) 等 real 13。「テキスト検査で C++ 翻訳フェーズ・shell を完全再現するのは原理的に無理」を実証し、

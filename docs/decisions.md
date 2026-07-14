@@ -2025,3 +2025,56 @@ role、重複を検査する。導入以前の欠落は legacy とし、履歴�
 サブエージェント数、トークン、利用枠、棄却 finding は既存 worklog/一次資料の担当とする。
 タスク難度・役割・入力コンテキストが交絡するため、commit 数や成功率だけでモデルの優劣を
 断定せず、タスク種別、手戻り、レビュー finding、テスト結果、所要時間と合わせて評価する。
+
+## D54. Codex native agent adapter — 安全に近似できる 3 role だけを fail-closed で有効化 (2026-07-14)
+
+**背景:** `.claude/agents/` の定義を Codex でも流用できるかというユーザー相談を受け、実装承認後に
+Codex 0.144.2 と公式 custom-agent 仕様、Claude role 12 件、D38/D39/D45/D47 の隔離条件を照合した。
+Codex profile は `name` / `description` / `developer_instructions` と model/reasoning/sandbox を持つが、
+Claude の per-role tools allowlist や fresh-context 属性を持たない。`read-only` は file write を止めても
+file read と Bash の経路を消さず、親 turn の live permission override が優先される場合もある。
+
+**決定 1 — 初期有効化は `auditor` / `critic` / `verifier` の 3 roleだけ:** `.codex/agents/` に
+直接発見される TOML profile を置き、3 件とも `gpt-5.6-sol` / reasoning `high` /
+`sandbox_mode="read-only"` に固定する。profile の冒頭に「意味的 role の条件付き adapter であり
+Claude と同等の隔離ではない」と明記する。呼出側は毎回 `fork_turns="none"` で fresh subagent を
+起動し、auditor は監査対象の射影、critic は digest、verifier は trace だけを明示的に渡す。
+出力を研究証拠に単独採用せず、元の verifier / auditor / 人間 gate と併用する。モデルは初版で
+統一し、製品 adapter 差とモデル品質差を同時に持ち込まない。
+
+親 turn の live permission override が profile より優先されるため、**起動直前の親の実効 sandbox も
+read-only であることを必須条件**とする。子は開始時に実効 sandbox を確認し、確認不能・不一致なら
+`ADAPTER-REFUSED` を返して tool 未使用で停止する。また root `AGENTS.md` の通常ブートは親だけが
+担当し、子は CLAUDE/worklog/phase/handoff を読まない。critic は共有本文に残る `digest.py` 自走許可を
+adapter override で無効化する。これらを満たせない client/surface では 3 profile も使用禁止とする。
+
+**決定 2 — 残り 9 role は発見可能な場所へ置かない:** `axis-proposer` / `planner-v4` /
+`coder-v4-autonomous*` は `tools: []` による file-read 経路不存在と Model Y のリーク遮断を再現不能。
+`coder` は EVOLVE-BLOCK 合成枝だけへの編集面限定、`critic-experiment` は `guided.py` だけを許す
+Bash-only 境界を再現不能。`calibrator` / `profiler` は書込みが必要だが、成果物宛先だけへ write 面を
+限定できない。専用 harness/API 境界ができるまで Claude 専用とし、単に prompt を移して有効化しない。
+
+**決定 3 — 同期と分類を機械化:** `.claude/agents/*.md` の prompt 本文を意味契約の正本とし、
+`tools/check_codex_agents.py` が全 role を supported/blocked のどちらかへ必ず分類する。未分類 role、
+欠落・余分・blocked profile、name/description/body/model/reasoning/sandbox の drift を拒否し、`--write` は
+supported 3 件だけを固定 renderer で再生成する。生成物は `tomllib` / `tomli` で round-trip parse し、
+必須キー・値・型と developer instructions の一致を検査する。parser 不在や制御文字を含む不正 TOML は
+検査を省略せず失敗する。Claude `coder.md` の description は `#if` が YAML comment と解釈されて
+移行時に切断されたため JSON quote し、同型を lint で拒否する。
+
+**決定 4 — Codex hook は今回は配線しない:** 入力の `tool_name` / `tool_input` と exit 2 の拒否は
+概ね互換だが、Codex の `apply_patch` は `tool_input.command` に patch 全文を渡す。既存
+`guard_write` は `file_path` / `notebook_path` を期待し、path 欠落を管轄外として許可するため、設定の
+コピーは防壁を黙って蒸発させる。将来は既存 2 判定核への Codex adapter と parity test を作ってから
+配線し、第三の論理 hook は増やさない。
+
+**却下した代替案:** (1) 12 role を自動移行 — 試験変換は本文と effort だけを移し、Claude model と
+tools 境界を落とした。(2) blocked profile も `disabled` 相当で置く — standalone profile に安全な
+無効化フィールドはなく、発見可能にするだけで誤用面が増える。(3) calibrator/profiler を
+workspace-write で先行 — 宛先限定がなく初版の利便性に対して権限面が広すぎる。(4) prompt の
+「読まない」で `tools: []` を代用 — 構造遮断を行動規律へ弱め、既存の実験契約を壊す。
+
+**限界と再開条件:** active 3 件も Claude と隔離同等ではない。Codex profile の実験利用は起動引数・
+射影入力・下流 gate を provenance とともに残す。blocked role の再評価は、tool surface を構造的に
+限定する専用 harness、または同等の機械境界と敵対 parity test が揃った時だけ行う。これは製品 adapter
+の追加であり、Phase 3 のチェックリストや研究主張の完了状態を変更しない。

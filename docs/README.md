@@ -17,7 +17,7 @@
   問題発生時は worklog と同時に追記、再発は既存エントリに「再発:」追記)
 - `handoff/` — セッションの WAL (中断引き継ぎ + 並行セッションの宣言板。運用は同 README)
 - `archive/` — 凍結記録 (監査台帳・worklog 過去分・凍結文書)。ファイル名は移動前と不変、規約は同 README
-- `agent-architecture.md` — サブエージェント構成・権限・規律の正本 (ロール定義本体は `.claude/agents/`)
+- `agent-architecture.md` — サブエージェント構成・製品別 adapter・権限・規律の正本
 - `orchestrator-design.md` — orchestrator の ACID/WAL/排他、環境タグ
 - `ccbench-anatomy.md` — CCBench 構造調査
 - `axis-onboarding.md` — 変異軸オンボーディングの手順書
@@ -32,7 +32,9 @@
 
 - `AGENTS.md` — Codex 用の薄い作業入口。共有規律の正本 `CLAUDE.md` と現行正本へのポインタ
 - `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`
-- `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_ai_provenance.py` = commit trailer 監査 /
-  `plotting/` = campaign の論文品質作図、規約は `tools/plotting/FIGURE_CONVENTIONS.md`)
+- `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_codex_agents.py` = Codex profile 同期・分類 /
+  `check_ai_provenance.py` = commit trailer 監査 / `plotting/` = campaign の論文品質作図、規約は
+  `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 方針 A の最小第二防壁 (guard_write / guard_bash、詳細は同 README)
-- `.claude/agents/` — サブエージェントのロール定義 (現有一覧は ls が正本)
+- `.claude/agents/` — role 本文と Claude Code 固有の model/tools 契約 (現有一覧は ls が正本)
+- `.codex/agents/` — 条件付きで有効化した Codex native profile と保留理由 (D54)

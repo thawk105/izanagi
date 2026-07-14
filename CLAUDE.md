@@ -83,6 +83,10 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 
 `.claude/agents/` にロール定義 (検証系 verifier / calibrator / critic / profiler、P2-5 限定の派生 critic-experiment、Phase 3 の合成系 — 現有一覧は ls が正本)。各ロールの権限・規律の正本は各 `.md` と `docs/agent-architecture.md`。Phase 3 ロールは該当する段に来たとき同文書の予約仕様から生成する (どの段まで実体化済みかの正本は phase3.md)。検証系ロール (verifier / critic / profiler) は Edit/Write 非付与 — ただし Bash を持つため完全なツール権限隔離ではなく、書き込み禁止は prompt 規律との併用 (audit-2026-06-30 §4 の裁定)。
 
+Codex runtime adapter の有効化集合・差分・fresh 起動契約は `.codex/agents/README.md` と
+`tools/check_codex_agents.py` が正本。Claude の tools 境界と同等とは扱わない (D54)。role 定義を
+変更した作業は同 checker の `--write` と通常検査を同じ commit で通す。
+
 ## hooks
 
 `hooks/` の `guard_write` / `guard_bash` = 方針 A の最小第二防壁 (proof-chain 成果物への直接書き込み拒否 + variant 編集面の EVOLVE-BLOCK designated ソース限定。`.claude/settings.json` の PreToolUse に配線済み)。規律1 の内容検査は hook では行わない — 一次防壁 (source_digest 系) が担う (D30/D33)。この 2 つ以外の hook は足さない。拒否に遭ったら `hooks/README.md` を読む。

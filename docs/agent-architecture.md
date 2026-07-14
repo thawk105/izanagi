@@ -1,8 +1,30 @@
 # サブエージェント・アーキテクチャ
 
-Claude Code のサブエージェント (`.claude/agents/*.md`) と hooks の構成、および段階導入計画。
+Izanagi のサブエージェント role、製品別 runtime adapter、hooks の構成、および段階導入計画。
 
-設計の出発点は Jitskit と IDS のマルチエージェント構成。それを Claude Code のネイティブ機能に写像する。ECC からは「tools/model を明示してロールを権限で縛る」「hook で規律を機械執行する」運用パターンを借りた (ECC の規模そのものは反面教師)。
+設計の出発点は Jitskit と IDS のマルチエージェント構成。それを各 AI 製品のネイティブ機能へ
+安全側に写像する。ECC からは「tools/model を明示してロールを権限で縛る」「hook で規律を
+機械執行する」運用パターンを借りた (ECC の規模そのものは反面教師)。
+
+---
+
+## 製品別 runtime adapter
+
+`.claude/agents/` は role の意味・prompt と Claude Code 固有の model/tools 契約の正本である。
+Codex は同じ Markdown を直接の実行定義として使わず、条件付きで安全に近似できる role だけを
+`.codex/agents/` の TOML profile に写す。現在の有効化集合と保留理由は同ディレクトリの README、
+全 role の fail-closed 分類と同期は `tools/check_codex_agents.py` が正本 (D54)。
+
+Codex custom agent には Claude の tools allowlist や fresh-context 属性がない。したがって、
+有効 profile も毎回 `fork_turns="none"` で起動し、呼出側が role ごとの入力を射影して渡す。
+起動直前に親 turn の実効 sandbox も read-only にする (live permission override が profile より
+優先されるため)。子は実効 read-only を開始時に確認し、不一致なら tool を使わず拒否する。
+`sandbox_mode="read-only"` は読取面・Bash 面を同じ形にはできないため、root AGENTS の通常ブートも
+親だけが行い、子は worklog/phase/handoff を読まずに射影入力だけを扱う。Codex 出力だけを根拠に
+実験上の隔離同等性や証拠能力を主張せず、元の verifier / auditor / 人間 gate と組み合わせる。
+
+この adapter は開発製品の選択肢を増やす運用層であり、Phase 3 のロール実体化状況や研究タスクの
+完了判定を変更しない。
 
 ---
 
@@ -105,6 +127,11 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 ## hooks (方針 A の最小第二防壁・Python)
 
 ECC のように大量に持たない。`.claude/settings.json` の PreToolUse に配線済みの 2 つだけ (D30/D33)。auditor の事後監査に加えた「書き込み時点の第二防壁」であり、**テキスト内容の検査には完全性を負わせない** (2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証済み — 責務再配置の経緯は D30/D33)。
+
+Codex には未配線 (D54)。Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡すが、
+既存 `guard_write` は Claude の `tool_input.file_path` / `notebook_path` を判定するため、設定だけを
+複製すると書込み面の検査が蒸発する。将来は既存 2 判定核への Codex adapter と parity test を
+作り、同値性を確認してから配線する。第三の論理 hook は追加しない。
 
 ### guard_write (PreToolUse: Write|Edit|MultiEdit|NotebookEdit)
 - proof-chain 成果物 (WAL / campaign.lock / build-variants 等) への直接書き込みを拒否 (規律2 = verifier 迂回の阻止)

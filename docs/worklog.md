@@ -2375,3 +2375,30 @@ bench 先行が正解。設計の正本 = `output/insights/2026-07-14_bench-firs
 
 ### 次の一手
 1. Phase 3 の次の一手は 07-14 (3) から変わらず
+
+## 2026-07-14 (5) — Codex native agent adapter の初期実装 (D54)
+
+ユーザー相談「`.claude/agents` を Codex も流用できるか」への回答後、明示承認「やってほしい」を
+受けて実装。計測ゼロ・Phase 3 の研究状態変更なし。
+
+- 公式 custom-agent 仕様、Codex 0.144.2、Claude role 12 件、D38/D39/D45/D47 を照合。
+  `auditor` / `critic` / `verifier` の 3 件だけを条件付き native profile 化し、残り 9 件は
+  tools:[]・編集面・Bash-only・write 宛先の境界を再現できないため fail-closed で保留
+- active 3 件は明示 model/reasoning + read-only。親 turn も起動直前に実効 read-only、
+  `fork_turns="none"`、role 別入力射影を必須化。不一致は子が `ADAPTER-REFUSED` で tool 未使用停止
+- root AGENTS の通常ブートは親だけが担当。隔離 role の子は CLAUDE/worklog/phase/handoff を読まない。
+  critic 本文の `digest.py` 自走許可も Codex override で無効化
+- `tools/check_codex_agents.py`: 全 12 role の分類と source tools/model/effort 契約、active profile の
+  欠落/余分/blocked/本文・設定 drift、TOML round-trip を検査。`--write` は active 3 件だけを再生成
+- 試験移行で切断された `coder.md` の未引用 `#if` description を quote。同型を checker で拒否
+- Codex hook は未配線。`apply_patch` が path でなく patch 全文を渡し、既存 guard_write の設定コピーは
+  silent fail-open になるため、既存 2 判定核への adapter + parity test まで保留 (第三 hook は増やさない)
+- 独立レビュー: 初期調査 3 + 最終整合 2。real finding 4 系統 (親権限 override、通常ブートからの
+  入力汚染、critic 自走矛盾、TOML parse 不在) を全反映し、再確認で全 closed・新規 finding 0
+- 検証: profile checker / 専用 9 テスト / docs lint / TOML parse / Codex local load 確認、関連 pytest
+  **26 passed, 1 skipped**。phase3.md / roadmap は変更なし
+
+### 次の一手
+1. S-1 の計測ゼロ準備: サンプル設計 4 点 → 直接比較 driver + 既知軸基準点 freeze → 検証相実装
+2. 8b の前向き設計 (holdout / descriptor ablation / 全件報告) と、層3 report schema + 最小 renderer を並行
+3. 計測窓で対象別 floor・sort read-heavy・S-1 本走を完了。8c と bench-first は各発火条件で別途判断

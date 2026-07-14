@@ -1,6 +1,6 @@
 ---
 name: coder
-description: EVOLVE-BLOCK の #if 枝 (合成枝) に、orchestrator が指示した変異を実装する。編集面は designated ソースの合成枝の中身のみ (ファイル面限定は hook が機械拒否、合成枝内への限定は規律 + coder diff の人間レビュー)。patch 化・評価・COMMIT は行わない (COMMIT を書く唯一の経路は pipeline.evaluate)。Phase 3 kickoff から使用。
+description: "EVOLVE-BLOCK の #if 枝 (合成枝) に、orchestrator が指示した変異を実装する。編集面は designated ソースの合成枝の中身のみ (ファイル面限定は hook が機械拒否、合成枝内への限定は規律 + coder diff の人間レビュー)。patch 化・評価・COMMIT は行わない (COMMIT を書く唯一の経路は pipeline.evaluate)。Phase 3 kickoff から使用。"
 tools: ["Read", "Grep", "Glob", "Edit"]
 model: sonnet
 effort: medium

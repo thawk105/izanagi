@@ -25,6 +25,7 @@ REPO = Path(__file__).resolve().parent.parent
 LIVING_DOCS = [
     REPO / "AGENTS.md",                         # Codex 用の共有規律入口
     REPO / "CLAUDE.md",
+    REPO / ".codex" / "agents" / "README.md", # Codex runtime adapter の生きた運用文書
     REPO / "docs" / "README.md",                  # docs の地図 (2026-07-11 fc-05 で CLAUDE.md から委譲)
     REPO / "docs" / "ai-provenance.md",           # commit provenance の共有規約
     REPO / "docs" / "roadmap.md",
@@ -64,7 +65,7 @@ D_REF = re.compile(r"\bD(\d{1,3})\b")
 # パスは既知のトップディレクトリ始まりに限定 (submodule 内 cc/ 等は pin 固定で腐らないので対象外)。
 # プレースホルダ (<日付> 等)・glob (*) は文字クラス外なのでマッチが切れ、拡張子必須で自然に除外される。
 # 負の後読み: external/ccbench/docs/... のような長いパスの途中を docs/... と誤マッチしない
-PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude)/[\w.\-/]+\.[A-Za-z0-9]+")
+PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude|\.codex)/[\w.\-/]+\.[A-Za-z0-9]+")
 
 
 def _current_pin() -> str | None:
