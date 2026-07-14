@@ -1134,6 +1134,44 @@ def test_nonfinite_manifest_json_constants_are_rejected():
             shutil.rmtree(root)
 
 
+def test_direct_role_coverage_drift_raises_clean_profile_error():
+    # ledger の direct 集合と checker の _SOURCE_EXAMPLE_PARITY_ROLES が drift したとき、
+    # guard は未定義名参照の NameError ではなく clean な ProfileError finding を返す。
+    original = CCA._SOURCE_EXAMPLE_PARITY_ROLES
+    CCA._SOURCE_EXAMPLE_PARITY_ROLES = frozenset({"axis-proposer"})
+    try:
+        findings = CCA.check(_REPO)  # NameError なら check() の except を素通りしここで送出される
+        assert any("coverage drift" in finding for finding in findings), findings
+    finally:
+        CCA._SOURCE_EXAMPLE_PARITY_ROLES = original
+
+
+def test_lockstep_role_deletion_is_rejected_by_absolute_count_floor():
+    # 全 source から 1 role を同時削除すると set 等号は 11 件で整合するが、review ledger の
+    # 絶対枚数 floor で fail-closed になる。profiler は mediated なので direct coverage guard と干渉しない。
+    from orchestrator.codex_roles import review_ledger as LEDGER
+    role = "profiler"
+    ledgers = (
+        SOURCE_FILE_SHA256, ROLE_MANIFEST_SHA256, DESCRIPTION_SHA256,
+        SCHEMA_SHA256, ROLE_IO_CONTRACTS,
+    )
+    root = _fixture()
+    saved = {id(ledger): ledger.pop(role) for ledger in ledgers}
+    try:
+        (root / ".claude" / "agents" / f"{role}.md").unlink()
+        (root / ".codex" / "role-adapters" / f"{role}.json").unlink()
+        manifest = _manifest(root)
+        del manifest["roles"][role]
+        _write_manifest(root, manifest)
+        findings = CCA.check(root)
+        assert any("role 総数が想定と不一致" in finding for finding in findings), findings
+        assert f"expected={LEDGER.EXPECTED_ROLE_COUNT}" in " ".join(findings)
+    finally:
+        for ledger in ledgers:
+            ledger[role] = saved[id(ledger)]
+        shutil.rmtree(root)
+
+
 def _run():
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     failed = 0

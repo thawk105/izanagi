@@ -28,6 +28,7 @@ from .policy import (OPEN_SUBTREE_POLICY, OPAQUE_STRING_POLICY, POLICY_VERSION,
 from .review_ledger import (
     DEVELOPER_INSTRUCTION_TEMPLATE_SHA256,
     DESCRIPTION_SHA256,
+    EXPECTED_ROLE_COUNT,
     ROLE_IO_CONTRACTS,
     ROLE_MANIFEST_SHA256,
     SCHEMA_SHA256,
@@ -537,6 +538,13 @@ def load_role_specs(root: Path | None = None) -> dict[str, RoleSpec]:
             == set(SCHEMA_SHA256) == set(ROLE_IO_CONTRACTS)
             == set(ROLE_MANIFEST_SHA256)):
         raise RoleSpecError("review ledger role inventory drift")
+    # 上の set 等号は各 source を相互束縛するが枚数は固定しない。全 source からの lockstep 削除
+    # (11 件で全整合) を止めるため、review ledger の絶対 floor と照合する。
+    if len(inventory) != EXPECTED_ROLE_COUNT:
+        raise RoleSpecError(
+            f"role 総数が想定と不一致: expected={EXPECTED_ROLE_COUNT}, actual={len(inventory)} "
+            "(role の増減は review_ledger.EXPECTED_ROLE_COUNT の明示更新を必須とする)"
+        )
 
     observed_template_hash = hashlib.sha256(
         DEVELOPER_INSTRUCTION_TEMPLATE.encode("utf-8")

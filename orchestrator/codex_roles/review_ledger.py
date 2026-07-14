@@ -7,6 +7,11 @@ contract requires an explicit review update here; regenerating an adapter alone 
 from __future__ import annotations
 
 
+# Claude role / Codex adapter の絶対枚数。set 等号は各 source を相互束縛するが枚数自体は固定しない
+# ため、全 source から lockstep で 1 role を削除すると 11 件でも整合してしまう。この floor を
+# 人間レビュー ledger に置くことで、role の増減は必ずここの明示更新を伴う review checkpoint になる。
+EXPECTED_ROLE_COUNT = 12
+
 SOURCE_FILE_SHA256 = {
     "auditor": "324ff727b78935f5915fe7c685ad93ae3f3b3df74de2056990060266858f53f8",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
@@ -224,6 +229,7 @@ ROLE_IO_CONTRACTS = {
 
 
 __all__ = [
+    "EXPECTED_ROLE_COUNT",
     "DEVELOPER_INSTRUCTION_TEMPLATE_SHA256",
     "DESCRIPTION_SHA256",
     "ROLE_MANIFEST_SHA256",

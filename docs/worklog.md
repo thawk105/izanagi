@@ -2469,3 +2469,20 @@ D56 の三軸裁定へ更新。計測ゼロ、Phase 3 の研究状態変更な�
 ### 次の一手
 1. 全 nested tool surface の exact allowlist と許可外 event 負例が揃うまで runtime blocked を維持
 2. Phase 3 本筋は 07-14 (5) の次の一手から変わらず
+
+## 2026-07-15 (2) — .claude↔.codex agent 設計 parity 調査 + 静的 gate 2 defect 修正
+
+ユーザー依頼「.claude と .codex を検査し、.claude の agent 設計が .codex でもできているか調査」。計測ゼロ、Phase 3 研究状態変更なし。
+- 5 facet の敵対監査 (Claude subagent 30 体、confirmed 24 / refuted 1)。三軸で評価が割れる。
+素材: static adapter (定義・移植) は 12/12 達成で機械強制 (全単射・byte 安定・source から独立した SHA-256 pin)。一方 .claude の中核価値である runtime tool 隔離 (tools:[] の構造遮断・検証系の Edit/Write 秘匿・細粒度 allowlist) は Codex の `input.additional_tools` が制御不能なため再現不能で、設計は隔離を偽らず全 12 role を fail-closed 休眠 (runtime blocked) で誠実に扱う。過大主張・恒真は中核に無し。
+- 監査が拾った実 defect 2 件を修正 (前回 07-15(1) の real 14 監査でも未検出):
+  1. `check_codex_agents.py:312` が未定義 `_OUTPUT_EXAMPLE_PARITY_ROLES` を参照 → coverage-drift guard 発火時に ProfileError でなく NameError が `check()` の except を素通り (fail-close は維持されるが診断死・未 exercise の潜在)。
+  2. role 枚数の絶対 floor 欠如 → 全 source からの lockstep 削除が 11 件で全整合し素通り。`review_ledger.EXPECTED_ROLE_COUNT=12` を人間レビュー checkpoint として追加し spec.py で強制。
+- 各修正に positive control テスト併設 (guard 発火時 clean ProfileError / lockstep 削除の枚数 finding)。
+- 設計として残す (defect でない): consumer:null 11 role の下流未配線は保守側、native lockdown が静的 gate 依存・`$CODEX_HOME` 不可視・generic-child 規律 doc-only は D55/D56 の設計どおり (全 role blocked ゆえ間接無害化)。
+- refuted 1: 「drift は必ず import 時 traceback で clean ERROR にならない」→ 経路により error 表面が不均一なだけで、全経路で非ゼロ終了 fail-closed は保たれる。
+- 検証: checker 緑 (0 native / 12 dormant / blocked)、static 38 passed (36→38)、runtime 76 passed / 3 skip、統合 527 passed / 8 skip。既知の commit-gate canary 1 件のみ環境未整備で fail (退行でない)。
+
+### 次の一手
+1. 全 nested tool surface の exact allowlist と許可外 event 負例が揃うまで runtime blocked を維持 (変わらず、前エントリ参照)
+2. Phase 3 本筋は 07-14 (5) の次の一手から変わらず

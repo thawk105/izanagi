@@ -309,7 +309,7 @@ def validate_inventory(root: Path) -> dict[str, ROLE_SPEC.RoleSpec]:
     if ledger_direct != set(_SOURCE_EXAMPLE_PARITY_ROLES):
         raise ProfileError(
             "direct JSON source parity coverage drift "
-            f"ledger={sorted(ledger_direct)}, checker={sorted(_OUTPUT_EXAMPLE_PARITY_ROLES)}"
+            f"ledger={sorted(ledger_direct)}, checker={sorted(_SOURCE_EXAMPLE_PARITY_ROLES)}"
         )
     _validate_adapter_inventory(root, specs)
     for role in specs.values():
