@@ -58,6 +58,13 @@ LINE_REF_STRICT = [
 HANDOFF_DIR = REPO / "docs" / "handoff"
 HANDOFF_STALE_SECONDS = 48 * 3600
 
+# --- worklog 肥大 (2026-07-15 追加、トークン節約メンテ) ---
+# ブート時「末尾エントリのみ読む」運用でも、肥大は grep 誤爆・事故全読・コンテキスト
+# 圧迫の温床になる (2026-07-05 のローテ後、Phase 3 分だけで 224KB まで再肥大した実績)。
+# 閾値超過 = ローテーションの合図 (手順は worklog.md 冒頭とCLAUDE.md 作業の進め方 7)。
+WORKLOG = REPO / "docs" / "worklog.md"
+WORKLOG_ROTATE_BYTES = 100_000
+
 # --- 参照実在性 (2026-07-11 追加、docs 整備) ---
 # living docs 中の「実在しない D 番号」「実在しないファイルパス」への参照 = 腐敗。
 # 凍結族 (worklog/decisions/insights/archive) は対象外 — 書いた時点で正しければよい。
@@ -144,6 +151,14 @@ def main() -> int:
                 if doc.name == "ccbench-anatomy.md" and (REPO / "external" / "ccbench" / p).exists():
                     continue
                 findings.append(f"{rel}:{lineno}: 実在しないパス参照: {p!r}")
+
+    wl_size = WORKLOG.stat().st_size if WORKLOG.exists() else 0
+    if wl_size > WORKLOG_ROTATE_BYTES:
+        findings.append(
+            f"docs/worklog.md: {wl_size // 1000}KB > 閾値 {WORKLOG_ROTATE_BYTES // 1000}KB — "
+            "肥大。過去分を docs/archive/worklog-<範囲>.md へローテーションする "
+            "(手順の正本は worklog.md 冒頭のローテーション節)"
+        )
 
     if HANDOFF_DIR.exists():
         now = time.time()
