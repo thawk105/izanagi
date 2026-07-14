@@ -1,10 +1,12 @@
 # hooks — 機械的防壁 (Python)
 
-絶対規律1・2 を書き込み時点で機械執行する最小限の hook。auditor の事後監査に加えた第二防壁。
-ECC のように大量の hook は持たない。下記2本だけ (規律5「盛らない」)。
+絶対規律1・2 を書き込み時点で機械執行する最小限の hook (guard_write / guard_bash)。auditor の
+事後監査に加えた第二防壁。ECC のように大量の hook は持たない。正しさ防壁はこの2本だけ
+(規律5「盛らない」)。加えて、正しさ規律とは**別系統**のコンテキスト衛生 hook (guard_read =
+D35 の機械執行、hook 3 節) を 1 本だけ持つ (2026-07-15 ユーザー承認、失敗台帳 F18)。
 
 **実装ステータス: 実装済・配線済 (Phase 3 タスク3、方針 A)。** `.claude/settings.json` の PreToolUse に
-両 hook を配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash`)。方針 A (D30) で hook の責務を
+3 hook を配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash` / `Read`)。方針 A (D30) で hook の責務を
 「明白な直接書き込みを止める最小の第二防壁」に絞り、identity の正直さ (偽 cache hit / `#ifdef`) と
 観測者効果の分離 (TRACE 混入) は**一次防壁 (source_digest)** に委譲した。
 
@@ -61,6 +63,25 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 - here-doc `<<` は不透明構文として fails-closed (bare interpreter への流し込みを塞ぐ)。
 - 純読み取り (nm/objdump/readelf/ldd/size/du/zcat 系) を allowlist に追加 (規律1 の nm 手検証を止めない)。
 - tar/rsync は read (backup) / write (展開・mirror INTO) を判別 (backup を巻き込まない)。
+
+## hook 3: guard_read.py (PreToolUse: Read) — コンテキスト衛生 (正しさ防壁ではない)
+
+大きい記録ファイルの offset/limit 無し Read を止め、D35 (grep index → 部分読み) を prompt 規律から
+機械執行に格上げする (2026-07-15 ユーザー承認、失敗台帳 F18)。事故 1 回の全読 (decisions.md
+235KB ≈ 70K token) がセッションの利用枠を直撃するため。guard_write / guard_bash (正しさ規律の
+第二防壁) とは目的も失敗方向も異なる。
+
+- **管轄:** repo 内 `docs/` / `output/` 配下、**80KB 超**のテキストのみ。規約上の全読があり得る
+  文書 (roadmap 52KB の Phase 初回全読、phase3.md 54KB、glossary 43KB) は通し、事故の主犯級
+  (decisions.md / worklog アーカイブ / 監査 JSON / WAL・trace) だけ捕まえる。バイナリ族
+  (.png 等、offset の概念がない) は管轄外
+- **offset / limit / pages のいずれかが明示されていれば通す** — 止めるのは無指定の事故全読だけ。
+  意図的な全文読みは offset 明示の分割で 1 回の再試行から可能 (サブエージェントの要約読みも同様)
+- **fail-open:** hook 自身の不具合では読み取りを止めない (guard_write の fails-closed と逆 —
+  読み取り事故の被害はトークンであって正しさではないため、可用性を優先)
+- 既知の限界: Bash 経由の読み込み (`cat docs/decisions.md` 等) は見ない (主経路 = Read ツール
+  のみ。Bash 側は CLAUDE.md 作業の進め方 5 の行動規律)。閾値以下の中型ファイルも見ない
+  (D35 の grep 規律の領分)。repo 外・docs/output 外は管轄外
 
 ## 既知の限界 (正直に)
 

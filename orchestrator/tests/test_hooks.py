@@ -35,6 +35,7 @@ def _load_hook(name: str):
 
 GW = _load_hook("guard_write")
 GB = _load_hook("guard_bash")
+GR = _load_hook("guard_read")
 
 # template patch (silo-backoff-fixed.patch) と同型の合成骨格。
 _SKELETON = """#pragma once
@@ -473,7 +474,84 @@ def test_bash_false_positive_fixes_allowed():
 
 # ---------- 配線 (settings.json) と hook 実行体 ----------
 
-def test_settings_json_wires_both_hooks():
+# ---------- guard_read: コンテキスト衛生 (D35) ----------
+
+def _mk_read_fixture() -> str:
+    """tmp に repo_root を合成 (docs/output に閾値の上下のファイルを置く)。"""
+    root = tempfile.mkdtemp(prefix="izanagi-readtest-")
+    os.makedirs(os.path.join(root, "docs"))
+    os.makedirs(os.path.join(root, "output", "insights"))
+    os.makedirs(os.path.join(root, "orchestrator"))
+    big = "x" * (GR.THRESHOLD_BYTES + 1)
+    for rel, content in (("docs/big.md", big),
+                         ("docs/small.md", "x" * 1000),
+                         ("docs/big.png", big),
+                         ("output/insights/big.json", big),
+                         ("orchestrator/big.py", big)):
+        with open(os.path.join(root, rel), "w", encoding="utf-8") as f:
+            f.write(content)
+    return root
+
+
+def _read(root, rel_or_abs, **extra):
+    path = rel_or_abs if os.path.isabs(rel_or_abs) else os.path.join(root, rel_or_abs)
+    return GR.decide("Read", {"file_path": path, **extra}, repo_root=root)
+
+
+def test_read_small_outside_or_missing_allowed():
+    root = _mk_read_fixture()
+    try:
+        ok, _ = _read(root, "docs/small.md")
+        assert ok, "閾値以下の docs は素通しであるべき"
+        ok, _ = _read(root, "orchestrator/big.py")
+        assert ok, "docs/output 外は大きくても管轄外"
+        ok, _ = _read(root, "docs/no-such.md")
+        assert ok, "実在しないパスはツール側が報告する (管轄外)"
+        ok, _ = _read(root, "docs/big.png")
+        assert ok, "バイナリ族は offset の概念がないので管轄外"
+        ok, _ = GR.decide("Grep", {"file_path": os.path.join(root, "docs/big.md")},
+                          repo_root=root)
+        assert ok, "Read 以外のツールは管轄外"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_read_large_guarded_without_range_denied():
+    root = _mk_read_fixture()
+    try:
+        for rel in ("docs/big.md", "output/insights/big.json"):
+            ok, why = _read(root, rel)
+            assert not ok, f"{rel} の無指定全読は拒否されるべき"
+            assert "offset" in why and "D35" in why, f"誘導が不十分: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_read_large_with_explicit_range_allowed():
+    root = _mk_read_fixture()
+    try:
+        for extra in ({"offset": 100}, {"limit": 200}, {"offset": 0},
+                      {"offset": 1, "limit": 50}, {"pages": "1-5"}):
+            ok, why = _read(root, "docs/big.md", **extra)
+            assert ok, f"明示 {extra} の部分読みは通すべき: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_read_symlink_into_docs_still_guarded():
+    root = _mk_read_fixture()
+    try:
+        link = os.path.join(root, "alias.md")
+        os.symlink(os.path.join(root, "docs", "big.md"), link)
+        ok, _ = _read(root, link)
+        assert not ok, "symlink 経由でも realpath 照合で管轄内 (guard_write と同系)"
+    finally:
+        shutil.rmtree(root)
+
+
+# ---------- 配線と煙テスト ----------
+
+def test_settings_json_wires_all_hooks():
     p = os.path.join(_REPO, ".claude", "settings.json")
     with open(p, encoding="utf-8") as f:
         cfg = json.load(f)
@@ -484,6 +562,7 @@ def test_settings_json_wires_both_hooks():
     cmds = " ".join(h["command"] for e in pre for h in e["hooks"])
     matchers = [e["matcher"] for e in pre]
     assert "guard_write.py" in cmds and "guard_bash.py" in cmds
+    assert "guard_read.py" in cmds
     # SPEC-3 (2026-07-03): substring 'Write'+'Edit' だけでは MultiEdit/NotebookEdit 欠落を
     # 見逃す (恒真寄り)。guard_write.decide は 4 tool すべてを管轄するので、matcher が
     # 4 tool 全部を含むことを要求する (config 一致だけでは足りない = 実配線を gate)。
@@ -491,11 +570,17 @@ def test_settings_json_wires_both_hooks():
     assert any(write_toks <= set(m.split("|")) for m in matchers), \
         f"Write matcher は {write_toks} を全て含むべき (SPEC-3): {matchers}"
     assert any(m == "Bash" for m in matchers)
+    assert any(m == "Read" for m in matchers), "guard_read の Read matcher が未配線"
 
 
 def test_hook_scripts_run_as_subprocess():
     """settings.json が呼ぶ形 (stdin JSON → exit code) の煙テスト。"""
     env = dict(os.environ)
+    # guard_read の煙テストは実物 decisions.md を使う — 閾値前提が崩れたら恒真化する
+    # のでここで前提を明示 gate する
+    decisions = os.path.join(_REPO, "docs", "decisions.md")
+    assert os.path.getsize(decisions) > GR.THRESHOLD_BYTES, \
+        "前提崩れ: decisions.md が閾値以下になった — 煙テストの対象を差し替えること"
     for name, payload, want in (
         ("guard_write", {"tool_name": "Write", "tool_input": {
             "file_path": "/tmp/free.txt", "content": "x"}}, 0),
@@ -508,6 +593,11 @@ def test_hook_scripts_run_as_subprocess():
             "command": "echo x >> output/campaigns/c/runs/wal.jsonl"}}, 2),
         ("guard_bash", {"tool_name": "Bash", "tool_input": {}}, 0),   # command 欠落
         ("guard_write", "壊れた json wal.jsonl", 2),                  # 不正入力 fails-closed
+        ("guard_read", {"tool_name": "Read", "tool_input": {
+            "file_path": decisions}}, 2),                             # 無指定全読は拒否
+        ("guard_read", {"tool_name": "Read", "tool_input": {
+            "file_path": decisions, "offset": 100, "limit": 50}}, 0),  # 部分読みは許可
+        ("guard_read", "壊れた json", 0),                             # 衛生層は fail-open
     ):
         raw = payload if isinstance(payload, str) else json.dumps(payload)
         r = subprocess.run(

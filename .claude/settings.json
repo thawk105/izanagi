@@ -18,6 +18,15 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/guard_bash.py\""
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/guard_read.py\""
+          }
+        ]
       }
     ]
   }
