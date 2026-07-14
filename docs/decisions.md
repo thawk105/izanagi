@@ -167,6 +167,14 @@
 
 **位置づけ:** これは協議合意による設計判断の記録 (roadmap 改訂セレモニーの対象外。版上げ・history 凍結はしない)。verifier 隔離 (D7) の思想を研究 artifact 層へ延長したもの。
 
+**2026-07-14 協議追記 — 実装時期だけを supersede:** 全体戦略レビュー後のユーザー承認により、
+薄い材料レポート renderer の着手を Phase 3.5 以降から **Phase 3 の workload descriptor 実装と並行**へ
+前倒しする。これは D12 の「層3を作らないと論文期まで driver 0 本になる」という実証後の時期改訂であり、
+スコープを narrative 執筆へ広げるものではない。上記の死守条件は一切緩めない: WAL + whiteboard の
+完全・決定論的射影、全 run・全 reject・noise floor・環境タグの収録、事実層の機械生成、LLM 仮説層との
+分離、研究としての成功/新規性を自動で閉じない、を Phase 3 renderer の完了条件にする。協議改訂の
+provenance は worklog 2026-07-14 (3)。
+
 ---
 
 ## D13. 出力レイアウト — campaign 軸 + env 軸の二分、同一性は内容ハッシュ

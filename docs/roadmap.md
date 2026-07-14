@@ -12,63 +12,71 @@
 
 ## 1. 究極のゴール
 
-**CCBench を使って、AI が特定ワークロードに特化した CC を自動生成するシステム。**
+**ワークロード仕様を入力に、CCBench を素材コーパスとして、正しさを維持したワークロード特化 CC variant を自動合成・選択し、その判断根拠を proof chain 付きで説明する AI システム。**
 
-入力はワークロード仕様。AI が:
-1. CCBench を解析し、入力ワークロードに最適なベース CC を選定する (選定・測定のループを回しうる)
-2. ベース CC に対し、他の CC 実装を解析して付加できそうな最適化を持ってきて、測定・取捨選択する
-3. ベース CC に対する variant が複数でき、それらを比較して最終的に1つを選ぶ
+ここでいう AI システムは LLM 単体ではない。LLM による機序帰属・変異軸提案、有限空間に強い機械探索、正しさ verifier、性能測定、最終選択を一体として扱う。列挙可能な空間で機械探索が LLM より強いなら、機械探索を使うのが正しい設計であり、システムの成功に「LLM が機械探索を上回ること」は含めない。
+
+入力は、少なくとも read/write 比率、競合水準、スケール、最適化目的、正しさ制約を型付きで持つ workload descriptor とする。既知の勝者名や性能値は入力に混ぜない。システムは:
+1. CCBench の候補を同一条件で比較し、ベース CC 候補と比較基準を定める
+2. 指標の機序帰属から変異軸または探索箇所を提案し、LLM 合成と bounded machine search を使い分ける
+3. 各 variant を正しさ・identity・性能の据え置きゲートで評価し、採用・棄却・差なしを記録する
+4. 証拠が支持する最終 variant を選ぶ。改善を立証できなければ stock または tie を正直に選ぶ
 
 最終成果物は3つ:
-- **新しい CC** (既存 CC + 引っ張ってきた最適化)
-- **なぜそれが選ばれたかの理由**
-- **どれをやるとどうだったか、という試行錯誤の説明**
+- **certified な CC の選択結果** — 証拠が支持すれば新規 variant、支持しなければ stock 選択または tie 判定
+- **evidence-bound な材料レポート** — workload、選択、正しさ、性能分布、代替案、仮説を proof chain で結ぶ
+- **再現可能な試行台帳** — 採用・棄却・失敗・差なしを含む全評価の provenance
 
-3番目 (説明可能性) が本システムの差別化の核心。Polyjuice/CCaaLF は policy table という数値の塊を出すだけで「なぜこの CC が速いか」を言語で説明できない。Izanagi は試行ログから因果込みのレポートを生成する。
+stock/tie は正直な no-improvement 出力として必要だが、「新しい CC」という研究目標の達成には数えない。
+
+主張は次の階層を混同しない:
+1. **評価器の主張** — 宣言した point-key YCSB / 観測 trace の範囲で positive control を赤にし、同一 identity を再現できる
+2. **システムの主張** — workload ごとに certified な variant を合成・選択できる
+3. **LLM 固有の主張** — LLM あり/なしのアブレーションでのみ、軸発見や探索効率への寄与を言う
+4. **無人自律の主張** — セッション外から反復を駆動し、人間が候補を手で運ばず完走した場合にのみ言う
+
+下位の成立から上位を推論しない。特に、異なる workload で異なる勝者が出ただけでは workload descriptor が選択を駆動した証明にならず、機序説明はアブレーションなしには因果でなく仮説である。
 
 ---
 
 ## 2. 三層アーキテクチャ
 
 ```
-ワークロード入力 (spec cards)
+ワークロード入力 (typed descriptor)
    ↓
 層1: ベースCC選定ループ
-   CCBench解析 → workload照合 → 軽量ベンチで確定
-   ↓ ベースCC確定
-層2: 最適化合成ループ (進化探索)
-   変異軸合成/最適化抽出 → variant生成 → 評価(正しさ+性能) → 取捨選択
-   ↑__据え置きの正しさゲートを壊す変異はreject__|
+   候補抽出 → 同一条件ベンチ → seed と比較基準を記録
+   ↓ seed + baseline
+層2: ハイブリッド合成・探索ループ
+   機序帰属 → 軸提案/探索箇所 → LLM合成または機械探索
+   → 評価(正しさ+identity+性能) → workload別 archive
+   ↑__据え置きゲートを壊す変異は reject__|
    ↓
-層3: variant比較・選択
-   Pareto front上で最終CCを決定
+層3: evidence-bound 比較・選択・説明
+   分布・floor・代替案・proof chain から最終CCを決定
    ↓
-最終成果物: 新CC + 理由 + 試行ログ
+最終成果物: certified variant + 材料レポート + 試行台帳
 ```
 
 ### 層1 — ベース CC 選定 (軽く作る)
 
-ここに凝りすぎるのは罠。理由は2つ:
-- 既存研究が強い (CormCC/ACC/Polyjuice が workload→CC選定を既にやっている)。LLM で再発明しても新規性が出ない
-- 層2 の進化ループが十分強ければ、ベース CC が多少最適でなくても吸収される。AlphaEvolve 系の経験則として、初期個体の質より mutation operator と evaluator の質が支配的
+ここに凝りすぎるのは罠。workload→CC 選定には CormCC/ACC/Polyjuice など強い既存研究があり、LLM で再発明しても主な新規性にならない。一方で、層2が seed の誤りを必ず吸収するとも仮定しない。seed 選択の誤りと合成能力を混同しないため、軽量ベンチで 2〜3 protocol を同一条件比較し、選んだ seed と棄却した候補を provenance 付きで残す。
 
-実装方針: ヒューリスティック + 数回のベンチで十分。「read-heavy & low-contention → OCC系 (Silo/TicToc)、write-heavy & high-contention → 2PL系/MOCC、long-read混在 → MVCC系」程度のルールで初期個体を2-3個選び、軽くベンチして一番マシなものをシードにする。**複数シードから並列に進化させる方が良い** (island model)。
+実装方針はヒューリスティックで候補を絞り、数回のベンチで seed と stock baseline を確定する。複数 seed や island model は、多様性不足が実測で律速になったときの拡張であり、初期の必須機構ではない。LLM を使う場合も、選択器そのものより「どの workload 特性と実装特性が対応するか」の仮説生成に使い、層3で証拠と照合する。
 
-LLM を使うなら「選定ロジック」ではなく「なぜこの workload にこの CC か、を CCBench の insight を引用しながら説明させる」方。これは層3の説明生成の伏線になる。
+### 層2 — ハイブリッド合成・探索ループ (心臓部。移植 (b2) は拡張予約、D32)
 
-### 層2 — 最適化合成ループ (心臓部。旧称「最適化移植ループ」— 移植 (b2) は拡張予約に降格、D32)
-
-#### 最適化の粒度: まずパラメータ寄り、余力があればコード移植
+#### 最適化の粒度: (a) は対照・bounded search、(b1) は主経路、(b2) は拡張
 
 3段階の選択肢がある:
 - **(a) パラメータ粒度 (Polyjuice式)** — 最適化を事前定義フラグ/数値にする。LLM ほぼ不要、新規性低いがロバスト
-- **(b) コード粒度 (AlphaEvolve式)** — CCBench 内の特定関数を `EVOLVE-BLOCK` で囲み LLM に diff を書かせる。新規性高い、本構想の本丸。**(b) の内側に 2 形態がある (順序は D32 で確定)**: **(b1) 空間外合成** = ベース CC の内側で、フラグ空間に無い新しい変異軸を critic の機序帰属から合成する (P2-4 backoff で実証済み)。**(b2) 移植** = 他 CC の最適化を持ち込む (未検証仮説)。Phase 3 の主実験は (b1) で行い、(b2) は主実験後の拡張として予約する (phase3.md 後続段 7)
+- **(b) コード粒度 (AlphaEvolve式)** — CCBench 内の特定関数を `EVOLVE-BLOCK` で囲み LLM に diff を書かせる。**(b) の内側に 2 形態がある (順序は D32 で確定)**: **(b1) 空間外合成** = ベース CC の内側で、フラグ空間に無い新しい変異軸を critic の機序帰属から合成する (P2-4 backoff が成立例)。**(b2) 移植** = 他 CC の最適化を持ち込む (未検証仮説)。Phase 3 は (b1) を先にし、(b2) は後続拡張として予約する (phase3.md 後続段 7)
 - **(c) アルゴリズム粒度 (FunSearch式)** — ゼロから書かせる。自由度高すぎて正しさが崩壊。CC では非推奨
 
-**決定: まず (a) を主軸。Phase 3 で (b) を足す — (b) の内側は (b1) 空間外合成が先、(b2) 移植は主実験後の拡張 (D32)。(c) はやらない。**
+**決定: (a) は ground truth・機械対照・bounded search として使う。研究上の主経路は、(b1) で LLM が機序帰属から軸や hole を提案し、その軸内を機械探索するハイブリッド構成とする。(b2) は後続拡張、(c) はやらない。**
 
-(a) を選ぶ利点 (本プロジェクトの状況で特に効く):
-- パラメータ粒度なら生成 variant は「CCBench が元々持つ最適化フラグの組み合わせ」だから理屈上は全部正しいはず。これは trace verifier を検証するのに最高の環境 (Phase 1 のゴールと噛み合う)
+(a) を対照として使う利点 (本プロジェクトの状況で特に効く):
+- パラメータ粒度は「CCBench が元々持つ最適化フラグの組み合わせ」なので、コード合成より探索空間と identity を固定しやすく、trace verifier の検証に向く。ただし組み合わせ安全性を仮定せず、全候補を同じ verifier に通す
 - 探索空間が有限 (CCBench の最適化が主に on/off なら高々 2^7=128 + 連続パラメータ数個)。**初手は全探索すら可能**。全探索の最適と LLM 探索の到達速度を比較でき、論文の図になる (**この比較は P2-5 で実施済み = negative result。silo 8 の自明空間では誘導は機械的勾配 (貪欲) を超えず、deceptive 構造では貪欲より有意に有害。D21/D29。よって「論文の図」は『誘導が速い』ではなく『小空間ではフラグ探索が自明で価値は空間外の合成にある』という物語に転じた**)
 - (a)→(b) の移行が自然。パラメータ探索で「invisible reads を on にすると効く」が分かった後、コード移植で「その実装そのものを別 CC 文脈に移植できるか」に進む (**実際に起きた移行は違う形だった** — 「効いたフラグの実装を移植」ではなく「フラグ空間の外の新軸を合成」(P2-4 backoff) として起きた。これが (b1) を先にする D32 の根拠)
 
@@ -85,34 +93,47 @@ CCBench の著者は「異なる実装の混合は深い分析には不適切」
 ```
 この「最適化カタログ化」は隠れた肝。層3の説明生成にもそのまま流用できる。CCBench 著者が最適化を「CPU cache / delay on conflict / version lifetime」の3カテゴリに既に整理しているので、これを LLM の prompt の制約に使える。
 
-**着手時期 (D32):** カタログ化 + 移植 (b2) は Phase 3 の主実験 (空間外合成 b1、phase3.md 段 6) を完了した後の拡張として予約する (phase3.md 後続段 7)。一歩目はカタログ化の試作 1 枚で、移植の本格投資はその結果 (移植先で前提が満たせるか) で決める。カタログ化の成果物は移植を見送っても層3 の説明生成に流用できる。
+**着手時期:** D32 の b1 先行 / b2 後続は維持し、b2 の着手 gate を協議改訂した。カタログ化 + 移植は、workload descriptor (phase3.md 段 8b) と層3材料レポートの最小 E2E を成立させた後の拡張として予約する (phase3.md 段 7)。一歩目はカタログ化の試作 1 枚で、移植の本格投資はその結果 (移植先で前提が満たせるか) で決める。カタログ化の成果物は移植を見送っても層3の説明生成に流用できる。
 
-#### 探索戦略
+#### 探索戦略 — 役割分担を先に固定する
 
-AlphaEvolve/CodeEvolve の island-based GA を借りるのが堅い。ただし CC は評価が高コスト (1 variant = 数十秒のベンチ)。緩和策:
-- **low-fidelity proxy**: 本ベンチ前に短時間 (1-2秒) の軽量ベンチでスクリーニング
-- **LLM に次の一手を考えさせる**: ランダム変異でなく、過去の試行結果をコンテキストに入れて「このワークロードでは delay-on-conflict 系が効いているから次は wait-die 系を試せ」と方向づけさせる。これが LLM-evolution の最大の強みで、ただの GA より遥かに少ない試行で収束しうる (**仮説。P2-5/D29 で列挙可能なフラグ空間では反証された** — leading indicators を機械集約した digest 勾配で回す貪欲が同水準に到達し、LLM 固有の付加は貪欲から統計的に分離できず、deceptive 構造では『自信ある早期停止』が負債になった。**LLM 誘導の実証済み価値は「少ない試行で収束」ではなく、指標を機序に帰属させフラグ空間の外に新しい変異軸を合成すること** = P2-4 backoff。空間を広げる (cicada/oze) までは誘導の優位を主張しない)
+1. profiler / critic が leading indicators を集約し、性能差の機序仮説を作る
+2. LLM が仮説から新しい変異軸または `EVOLVE-BLOCK` hole を提案する
+3. 列挙可能な軸内は sweep・greedy・random などの機械探索で最適化する
+4. 各候補を同じ correctness・identity・performance gate に通す
+5. workload 別の全結果を archive し、次の帰属と層3へ戻す
 
-#### 探索側の 3 ギャップと対策予約 (2026-07-10、D44 外部評価)
+P2-5/D29 は、有限で小さいフラグ空間では LLM 誘導を必須にする理由がなく、機械的勾配が同等以上になりうることを示した。P2-4 backoff は空間外の軸を作る価値を示す成立例だが、LLM の自律性や機械探索への優越まで証明しない。したがって「LLM が何でも探索する」のでなく、LLM は主にアクション空間を広げ、機械は境界の明確な空間を漏れなく調べる。
 
-Phase 3 段 5 時点の外部評価 (Fable5 監査、worklog 2026-07-10 (3)、D44) は、防壁 (正しさ・identity・
-リーク制御) の成熟に対し探索側に 3 つの構造ギャップを特定した — (i) LLM の実証済み価値である
-「軸の発見」(P2-4) がループ外の人間主導イベントのまま (sort 軸 1 本の追加に設計判断 4 件 + 敵対検証を
-要した実績 = 軸あたり固定費が高い)、(ii) §1 が「入力はワークロード仕様」と定義するのに workload 次元が
-ループ入力に無い (coder は対象 workload を知らされずに合成する設計)、(iii) 探索の律速が機械処理
-(build/verify) でなく LLM 呼び出しとセッション運営にある。対策は phase3.md 後続段 8 に予約
-(8a 軸提案のループ内化 / 8b workload 次元のループ入力化 / 8c 駆動のセッション非依存化)。設計の具体化は
-着手時に行い、D41 と同水準の敵対検証を課す。防壁を緩める変更はここに含まれない (絶対規律は不変)。
+low-fidelity proxy や island model は、正式評価との順位相関や多様性不足を測ってから導入する。population、世代更新、選択、変異/交叉、必要なら migration を実装し、その寄与をアブレーションするまでは、本ループを **進化探索** や GA と呼ばず、sequential/hybrid search と呼ぶ。
 
-### 層3 — variant 比較・選択 + 説明生成 (差別化の決定打)
+#### システム合成と無人自律を名乗るための要件 (D44 + 2026-07-14 協議改訂)
 
-Polyjuice/CCaaLF が絶対に出せないのが「なぜ」の説明。Izanagi は層2で試行ログ (どの最適化を入れたら性能がどう動いたか) が全部残るので、LLM に食わせて因果込みのレポートを生成する:
+- **軸提案がループ内にあること** — 人間が毎回 hole と勝ち筋を手渡さない
+- **workload descriptor が第一級入力であること** — coder が workload を知らないまま結果だけ比較する構成にしない
+- **層3が WAL/proof chain から決定論的に生成できること** — 成功例だけを人間が後から物語化しない
 
-> 「このワークロードは write-heavy かつ中コンテンション。ベースに MOCC を選んだ理由は [CCBench I3: wait/no-wait の有効性は状況依存]。そこに Silo の invisible reads を移植したところ12%向上 (理由: read-heavy phase での cache 汚染削減、I2と整合)。一方 TicToc の timestamp 最適化は移植したが3%悪化したため不採用 (理由: MOCC の temperature tracking と timestamp 管理が二重コストになった、I5の実例)」
+上の 3 点は human-supervised なシステム合成の最小要件である。**無人自律を名乗るには、さらに反復駆動が
+セッション非依存で、checkpoint・予算・再開を orchestrator が所有することが必須**。現況と着手順は
+`docs/phase3.md` を正本とする。planner/coder を人間がセッションごとに運ぶ段階は human-supervised loop、
+orchestrator が各 role を呼び予算内で終了まで駆動して初めて unattended/autonomous と呼ぶ。8c を後回しに
+することは着手順の判断であって、この要件の免除ではない。どちらの場合も正しさ・identity・リーク制御の
+防壁は緩めない。
 
-(上の数値は narrative の例示。**実際の採否では §3.6 に従い、3% のような noise floor 以下の差は「差なし」に丸め、採否根拠にしてはいけない。** 12% のような差も中央値・CV・有意性を添えて初めて主張になる。)
+### 層3 — evidence-bound な比較・選択 + 説明生成
 
-これは単なるオマケでなく研究としての主張そのもの。「AI が CC を合成した」だけなら半分既存研究だが、「AI が CC を合成し、その設計判断を人間が検証可能な形で説明した」は新しい。
+層3は自由作文ではなく、WAL と proof chain を読む material-report renderer を中核にする。**数値・verdict・参照を並べる事実層は完全かつ決定論的な射影**とし、LLM を使いうる機序仮説層とは分離する。最低限、次を結ぶ:
+
+- workload descriptor と選択された variant/source identity
+- verifier verdict、seed、trace、build provenance
+- baseline/variant の分布、CV、between-run floor、統計判定
+- 比較した代替案と採用・棄却・差なしの理由
+- leading indicators と code diff に基づく機序仮説
+- 各 claim から code・run・artifact への参照
+
+アブレーションで分離できた効果だけを因果として述べ、それ以外は「整合する仮説」と明記する。noise floor 以下を勝敗に使わず、改善が立証できなければ stock/tie を出力する。LLM は構造化された証拠の要約や仮説生成に使ってよいが、数値・verdict・参照を創作できない。成果物は論文本文ではなく、人間が検証可能な材料レポートである (D12)。
+
+差別化の核心は、variant を出すことだけでなく、**どの入力に対し、どの候補を、どの正しさ証拠と性能証拠で選んだかを再検証可能にすること**にある。
 
 ---
 
@@ -124,26 +145,26 @@ evaluator が本システムの成否を分ける。AlphaEvolve/Jitskit/IDS す�
 
 数千 evaluation を回したいので、安いチェックで枝刈り → 中コストで実検証 → 高コストで形式的保証の段階構成にする。
 
-- **Tier 0: 静的・構文チェック (μ秒)** — コンパイル通る、基本 trx 実行のスモーク。LLM は壊れたコードを平気で吐くので必須
-- **Tier 1: トレース検証 (ミリ秒〜秒)** — CC特化の最重要パート。実行トレースを取り、後から serializability を検査。read/write 依存グラフを作って cycle 検出 (Adya の serialization graph)。YCSB の単純 read/write なら辺は ww/wr/rw の3種。**Serializable 狙いなら G2 (anti-dependency cycle) まで見る必要がある**。自前 mini-verifier で十分。既存ツール (Cobra/Elle) を繋ぐのは TPC-C のような複雑 trx まで見るとき
+- **Tier 0: 静的・構文チェック → compile/smoke** — 安いテキスト/構文検査を先に行い、その後にコンパイルと基本 trx のスモークを通す。compile/smoke は別コストなので μ秒とはみなさない
+- **Tier 1: トレース検証** — CC特化の最重要パート。実行トレースを取り、後から serializability を検査。read/write 依存グラフを作って cycle 検出 (Adya の serialization graph)。YCSB の point read/write なら辺は ww/wr/rw の3種で、G2 (anti-dependency cycle) まで見る。自前 mini-verifier が担保するのはこの宣言範囲であり、predicate/phantom、fairness/starvation、未観測実行まで保証しない。TPC-C 等へ広げる場合は形式と verifier を拡張する
 - **Tier 2: 既存OSS DBのテスト移植 (秒〜分)** — isolation level 固有の境界条件のカバー。PostgreSQL の isolation tests、Hermitage (Martin Kleppmann) など。「variant が宣言した isolation level で通るべき/落ちるべきテストの集合」を固定
 - **Tier 3: 形式検証 (分〜時間)** — TLA+/TLC など。最終候補にだけ。**初期スコープ外** (理由は decisions.md 参照)
 
 ### 3.2 二相設計 (IDS式に格上げ)
 
-- **開発相 (短時間 × 大量)** = 回帰検出。短い trace で cycle 検出、anomaly 出たら即 reject。確率的に見逃しはあってよい。「安く広く」。**ただし IDS の教訓により、最後にまとめて回すのでなく毎 iteration 回し、構造化フィードバックを LLM に返す**
-- **検証相 (長時間 + 精査)** = 最終候補の保証。層3で選んだ1個 (数個) にだけ長時間 trace + 厳密検査。確率的に高い確信度まで上げる。「高く狭く」
+- **開発相 (短時間 × 大量)** = 回帰検出。短い trace で cycle 検出、anomaly 出たら即 reject。確率的な見逃しは残る。「安く広く」。最後にまとめず毎 iteration 回し、構造化フィードバックを次の proposer/selector へ返す
+- **検証相 (長時間 + 精査)** = 最終候補 1 個 (数個) にだけ長時間 trace + 厳密検査を行い、観測証拠を強める。「高く狭く」
 
-確率的保証は「ランダム seed を変えて N回回して全部 cycle 無し → 信頼度 1-εⁿ」という素朴なもので十分。これは Jitskit の reward hack 対策 (seed を変えて複数 run) とも合致する。
+seed を変えた複数 run は未観測バグの機会を増やすが、1 run の検出確率と独立性を較正していないため数値的な信頼度や完全保証には変換しない。報告するのは条件、seed、trace 規模、観測 verdict である。
 
 ### 3.3 観測者効果の分離 (最重要の計測規律)
 
 正しさ検証用のトレース取得が、計測対象を歪める (Heisenbug 的構造)。対策:
 
-- **trace-enabled build** (トレース口あり、正しさ専用、性能は見ない) と **trace-disabled build** (トレース口を `#ifdef` で完全に消す、性能専用) を分ける
-- トレース取得をランタイムフラグにしない。`#ifdef TRACE` でコンパイル時にコードごと消す (false でも分岐予測ミス・命令キャッシュ汚染で性能に効くため)
+- **trace-enabled build** (トレース口あり、正しさ専用、性能は見ない) と **trace-disabled build** (トレース口を `#if TRACE` で完全に消す、性能専用) を分ける
+- トレース取得をランタイムフラグにしない。`#if TRACE` でコンパイル時にコードごと消す (`TRACE=0` でも定義有無だけを見るガードは真になるため使わない。ランタイム分岐は分岐予測・命令キャッシュを汚しうる)
 - 性能比較は variant も baseline も trace-disabled で揃える
-- メタデータは「CC本来 (アルゴリズムが要求する。性能比較に含める)」と「検証専用 (verifier にトレースを渡すためだけ。`#ifdef TRACE` で消す)」を区別。この2つを混ぜない
+- メタデータは「CC本来 (アルゴリズムが要求する。性能比較に含める)」と「検証専用 (verifier にトレースを渡すためだけ。`#if TRACE` で消す)」を区別。この2つを混ぜない
 - perf は trace-disabled build に当てる
 - ビルド等価性の機械検証: trace-enabled と trace-disabled でトレース有無が CC の意味論を変えていないことを機械確認する。**実装は当初案 (最終 DB 状態の一致比較) から変更**: Phase 1 タスク1 の **symbol 不在検査 (perf binary に trace コードが 1 byte も無い、`nm`)** の方が DB 状態一致より強い証明なので、DB-dump 計装は冗長と判断し未実装 (phase1.md タスク5a 節の判断記録参照)。Phase 3 では方針 A (D30) により、この機械確認が観測者効果分離の**一次防壁に昇格**し、symbol 不在に加えて **diff-of-diffs** (variant の TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と一致することを assert する「観測者効果の二重検査」。素の出力 diff は `#if TRACE` ガード領域で正当に食い違うため不成立と敵対検証で裁定済み) へ拡張済み (2026-07-04 実体化。`source_digest.assert_trace_diff_matches_head` を `buildcache.build` 出口の hit/fresh 両経路で発火、fails-closed)
 
@@ -156,15 +177,15 @@ LLM は最適化圧力の下で、書かれていない不変条件を破って�
 
 これらに対し:
 1. **据え置きの正しさゲート** — 壊すと即 reject。「絶対壊しちゃダメ」(serializability anomaly検査、ACID基本) と「壊れていい」(プロトコル固有テスト、variant のキャラクタライズに使う) を分ける
-2. **adversarial auditor** (Phase 3 で導入) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を検出し、それを捕らえる positive control テストを設計・**提案**する。auditor は read-only (Edit/Write 非付与、D38 決定 3) — 提案の反映は orchestrator の人間レビュー gate が行い、「既存テストを弱める書き込み」は構造的に不可能にする
+2. **adversarial auditor** (Phase 3 から使用) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を検出し、それを捕らえる positive control テストを設計・**提案**する。auditor は read-only (Edit/Write 非付与、D38 決定 3) — 提案の反映は orchestrator の人間レビュー gate が行い、「既存テストを弱める書き込み」は構造的に不可能にする
 3. **hooks による書き込み時防壁** (Phase 1 から薄く) — verifier 迂回・成果物への直接書き込みを機械的に弾く**最小の第二防壁**。**方針 A (D30) 以降、hooks は「唯一の防壁」ではない**: identity の honest さ (偽 cache hit / `#ifdef`) は source_digest の preprocess 後ハッシュ、観測者効果の分離は観測者効果の二重検査 (diff-of-diffs、§3.3) が**一次防壁**として担い、hook はテキスト検査の完全性に依存しない範囲 (堅牢なパス検査) に責務を絞る。2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証したため (規律5 と両立させる責務再配置)
 4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。これは verifier に専用書き込みツール (Edit/Write) を与えない出力側隔離 (Bash 経由は prompt 規律で禁止 — 完全なツール権限隔離ではない、audit-2026-06-30 §4) と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
 
-### 3.5 leading indicators (収束に必須)
+### 3.5 leading indicators (診断シグナル)
 
-Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iteration で停滞しランダム化する。leading indicator (lock contention / cache hit率 / I/O / memory帯域) を毎 iteration LLM に渡すことが収束に必須。「write-only は allocator contention で診断、read-heavy は cache hit率で診断」のように、どの指標が効くかは workload による。
+Jitskit では、スカラーの throughput だけより leading indicators を併用する方が探索診断に有効だった。Izanagi でも lock contention / cache hit率 / I/O / memory帯域を候補シグナルとして構造化するが、どの指標が有効か、LLM 解釈が必要かは workload と対照実験で決める。
 
-**P2-5 の含意 (D29):** 指標が収束に必須であることは変わらないが、silo 8 の小空間では**指標を機械集約した digest 勾配 (貪欲、LLM なし) だけで同水準の収束に届いた**。つまり「指標を LLM に渡すこと」の価値と「指標を LLM に解釈させること」の価値は分けて考える必要がある — 前者は必須、後者 (LLM 固有の付加) は小空間では貪欲から分離できなかった。LLM 解釈の価値は、指標を**機序に帰属**させフラグ空間の外に新軸を合成する局面 (P2-4 backoff) で現れる。空間を広げる (cicada/oze) までは LLM 解釈の優位を主張しない。
+**P2-5 の含意 (D29):** silo 8 の小空間では**指標を機械集約した digest 勾配 (貪欲、LLM なし) だけで同水準の収束に届いた**。つまり「診断シグナルを探索器へ渡すこと」の価値と「LLM に解釈させること」の価値は分けて考える必要があり、どちらも全 workload での必須条件とはまだ言えない。後者 (LLM 固有の付加) は小空間では貪欲から分離できなかった。機序帰属からフラグ空間外の軸を提案する局面 (P2-4 backoff が成立例) が次に検証すべき役割仮説であり、LLM あり/なしの軸提案アブレーションなしには優位や因果的必要性を主張しない。
 
 これは「FlameGraph を見て many-core でヤバいか判断してほしい」という当初の直感の正式版。perf プロファイリングは有望な variant にだけ回す (二段構え: screening 通過 → profiling)。
 
@@ -172,7 +193,7 @@ Jitskit が実証: スカラーの throughput だけ渡すと探索は 8-12 iter
 
 性能数値は「1 run の点」ではなく「**反復測定の分布**」として扱う。他ユーザー・他プロセス・温度スロットリング等の外乱は一晩の自動ループでは必ず混入するが、人間の「あれ?」は介在しない。だから**ばらつきの監視と再測定を実行時の気まぐれに委ねず、規律として明文化・自動化する**。これは絶対規律1 (観測者効果の分離) / §3.4 (reward hacking 対策) と同じ構造の汚染防止であり、reward hacking の鏡像 ——「**ノイズを最適化シグナルと誤認する**」—— への対策でもある。
 
-**(1) 反復と要約.** 1 measurement = N 回反復 (初期値 N=5、calibration で調整)。各 run の冒頭は warmup として破棄し定常状態のみを採る (※現実装は ccbench の extime 一括計測に従属し warmup 分離なし — 意図的非対応、D28 参照)。報告は単一の throughput でなく **中央値 + 散布度 (変動係数 CV / IQR)** を必ず持つ。WAL (campaign スコープ `output/campaigns/<id>/runs/`。出力レイアウトと campaign 同一性は orchestrator-design.md / D13) には個々の run 値も残し、後から分布を再構成できるようにする。calibration/noise floor は入力非依存なので env スコープ `output/env/<env-tag>/` に置く。
+**(1) 反復と要約.** 1 measurement = N 回反復 (初期値 N=5、calibration で調整)。各 run の冒頭は warmup として破棄し定常状態のみを採る (※現実装は ccbench の extime 一括計測に従属し warmup 分離なし — 意図的非対応、D28 参照)。報告は単一の throughput でなく **中央値 + 散布度 (変動係数 CV / IQR)** を必ず持つ。WAL (campaign スコープ `output/campaigns/<id>/runs/`。出力レイアウトと campaign 同一性は orchestrator-design.md / D13) には個々の run 値も残し、後から分布を再構成できるようにする。calibration/noise floor は env スコープ `output/env/<env-tag>/` に置くが、thread 数・代表 workload/config の署名で別物としてキーする。
 
 **(2) 外れ値検出 → 自動再測定 (=「あれ?」の機械化).** 反復内の CV が閾値 (初期 5%) を超えたら「測定が外乱で歪んだ」とみなし**自動で測り直す**。再測定の前に Admission Control の静定確認 (load average 静定) を必ず通す。規定回数 (初期 3 ラウンド) 測っても CV が収束しなければ、その variant に **`unstable` フラグ**を付けて分布比較から除外し、insight に「測定不能」として記録する。沈黙して 1 点を採用してはいけない。
 
@@ -219,7 +240,7 @@ variant と baseline は決して同一セッションで測らない (別ビル
 3. **コンテキスト衛生.** 生 trace・生ビルドログ・WAL 全文をメインコンテキストに読み込まない。サブエージェント (独立コンテキスト) に読ませて構造化された結論だけ受け取るか、digest (online digest 等) を読む。必要な断片は tail / grep で絞る。「生データでなく構造化された要約が層間を流れる」は規律3 (構造化 anomaly) と同じ設計思想の運用面
 4. **圧縮跨ぎの再読.** 自動圧縮の後に編集するファイルは、要約の記憶で触らず必ず再読してから編集する
 
-**ループ主導権の原則 (Phase 3 の配線).** 反復ループの主導権は orchestrator (Python) に置き、LLM (coder / critic) は iteration 単位で fresh に呼ぶ。各呼び出しに渡すのは digest + 構造化 anomaly + 前回の構造化ログだけ。Claude のセッションが数十 iteration のループを自分で回すと、iteration が進むほど評価ログがメインコンテキストに堆積して上記 3 つの劣化が必ず起きる。orchestrator 主導なら各呼び出しのコンテキストは常に小さく、**品質がセッションの寿命に依存しない**。これは orchestrator-design.md「サブエージェントは中間状態を観測できないトランザクション (構造化ログで引き継ぐ)」の帰結であり、新設計ではなく既存原則の適用である。なお subagent 登録がセッション開始時にのみ読まれる制約 (2026-07-08 実証) の下では、登録ベースの LLM 呼び出し自体がセッション運営を律速にする (段4b/段5 実測: 機械処理 66〜175 秒/iteration に対し実 iteration 間隔はその 10〜20 倍) — 本原則を徹底する方向として、orchestrator からの API 直呼び駆動への移行を phase3.md 後続段 8 (8c) に予約した (D44)。
+**ループ主導権の原則 (Phase 3 の完成形).** 反復ループの主導権は orchestrator (Python) に置き、LLM (coder / critic) は iteration 単位で fresh に呼ぶ。現行は LoopState/checkpoint と機械評価までは実体化しているが、role 呼び出しはセッション運営に依存する human-supervised loop であり、本原則は 8c 完了まで部分実装である。完成形で各呼び出しに渡すのは digest + 構造化 anomaly + 前回の構造化ログだけ。Claude のセッションが数十 iteration のループを自分で回すと、iteration が進むほど評価ログがメインコンテキストに堆積して上記 3 つの劣化が起きる。orchestrator 主導なら各呼び出しのコンテキストは常に小さく、**品質がセッションの寿命に依存しない**。これは orchestrator-design.md「サブエージェントは中間状態を観測できないトランザクション (構造化ログで引き継ぐ)」の帰結である。subagent 登録がセッション開始時にのみ読まれる制約 (2026-07-08 実証) の下では、登録ベースの LLM 呼び出し自体がセッション運営を律速にするため、orchestrator からの API 直呼び駆動への移行を phase3.md 段 8c に予約した (D44)。
 
 **限界 (正直に).** 本ルールは Claude の自己申告ベース —— 劣化しつつある Claude 自身が圧縮に気づいて従う必要がある (§3.7「監査者の劣化」と同型の自己言及)。だから守れなくても正しさは壊れない構造が下にある: 機械的ゲート (hooks / pipeline.evaluate の fails-closed / WAL proof chain) は Claude の品質に依存せず (規律2)、劣化した成果物は §3.7 の遡及監査が捕まえる。本節の前向き層が守るのは正しさではなく**成果物の質と手戻りコスト**である。
 
@@ -245,17 +266,17 @@ variant と baseline は決して同一セッションで測らない (別ビル
 
 注意: 飽和点は thread 数に依存する。探索に使う thread 数を決めたらその thread 数でキャリブレーションする。thread 数を変えたら測り直し。
 
-LLM の役割は数値を見て判断 + 説明し、`output/insights/` に妥当性を文書化すること。査読で必ず問われる「なぜそのレコード数?」に先回りで答えられる。
+閾値適用と採用点の決定は calibrator が機械的に行う。LLM の役割は異常仮説と説明の補助に限定し、`output/insights/` に「なぜそのレコード数か」を証拠付きで文書化する。
 
-**noise floor の実測 (§3.6 と接続).** calibrator はレコード数の飽和点に加えて、その環境の **noise floor** も実測する責務を持つ。確定した実験条件 (レコード数・thread 数) で baseline を**連続 N 回**測って throughput の CV を出し、「この差以下は信用するな」の下限として固定する。これは環境タグごと (mac-devcontainer / linux-baremetal) に持つ。**ただし、この「連続 N 回」の CV は within-run であり、1 測定の品質ゲート (§3.6(3)) にのみ使う — §3.6(4) の分布比較が「差なし」に丸める採否の閾値には使わない。採否の floor は between-run (§3.6(3')、D19) で、calibrator でなく別ドライバ (orchestrator/campaign/between_run_floor.py) が確定する。within-run の流用は run 間ドリフトを過小評価して偽 faster を出す (D19 が塞いだ経路)。**Mac devcontainer で noise floor が大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる。あわせて、ベンチ前の load average 静定確認 (admission control、orchestrator-design.md) も calibrator の責務に含める。
+**noise floor の実測 (§3.6 と接続).** calibrator はレコード数の飽和/下限点に加えて、その実験署名の **noise floor** も実測する責務を持つ。確定した条件 (env、record 数、thread 数、代表 workload/config) で baseline を**連続 N 回**測って throughput の CV を出し、env スコープ内で署名別に保存する。**ただし、この「連続 N 回」の CV は within-run であり、1 測定の品質ゲート (§3.6(3)) にのみ使う — §3.6(4) の分布比較が「差なし」に丸める採否の閾値には使わない。採否の floor は between-run (§3.6(3')、D19) で、calibrator でなく別ドライバ (orchestrator/campaign/between_run_floor.py) が対象別に確定する。within-run の流用は run 間ドリフトを過小評価して偽 faster を出す (D19 が塞いだ経路)。**Mac devcontainer で noise floor が大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる。あわせて、ベンチ前の load average 静定確認 (admission control、orchestrator-design.md) も calibrator の責務に含める。
 
-スケール感度の検出: variant 評価を単一スケールでやらず最低2点で測る (small: 4thread/100万, medium: 10thread/1000万)。「small→medium での性能の伸び方」を特徴量として LLM に渡し、small で良いのに medium で頭打ちの variant は「スケールしない疑い」とフラグを立てる。これが層3の「なぜこの variant を最終選択から外したか」に直結する。
+スケール感度の検出: variant 評価を単一スケールでやらず、calibrator が確定した thread/record 動作点から最低2点を選ぶ。固定の `4thread/100万` 等を全環境へ流用しない。small→larger の性能変化を構造化特徴量として selector と層3へ渡し、larger で頭打ちの variant は「スケールしない疑い」とフラグを立てる。
 
 ---
 
 ## 5. 計算リソースと現実
 
-計算層は**専有 Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) を確保済み** (旧計画のラップトップ前提を更新)。CCBench の VLDB 論文は 1run 3秒程度。3秒/run なら一晩 (8時間) で約1万 run。sample 効率の心配はかなり緩む。スケール (レコード数・thread 数) は calibrator が cache miss 飽和点で決める。many-core (96スレ/2ソケット) では絶対規律4 (cache 競合の再現) のためスレッドピンニング (`-DLinux`/numactl) が要る — ccbench-anatomy.md §7。
+計算層は**専有 Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) を確保済み** (旧計画のラップトップ前提を更新)。CCBench の raw bench だけなら数秒でも、1 evaluation は build・複数 verify・bench・再測を含み数十〜数百秒になりうるため、「一晩の件数」は full pipeline の実測から予算化する。スケール (record 数・thread 数) は calibrator が D15 の飽和点または working-set 下限で決める。many-core (96スレ/2ソケット) では絶対規律4 (cache 競合の再現) のためスレッドピンニング (`-DLinux`/numactl) が要る — ccbench-anatomy.md §7。
 
 ただし前述の通りスケールダウンには非線形の落とし穴 (コンテンション率の変化、cache 階層の効き方) があるので、calibrator とスケール感度検出で対処する。
 
@@ -268,9 +289,11 @@ AI システムのリポジトリ + CCBench を submodule で参照する。**su
 - CCBench のバージョンを commit hash で固定 (再現可能)
 - CCBench への改変を「パッチ」で管理できる
 
-CCBench の走らせ方: orchestrator が patches/ を適用 → cd external/ccbench && make → 走らせて output/runs/ (= campaign スコープ `output/campaigns/<id>/runs/` の短縮表記、D13/orchestrator-design.md) にログ → 実験後 git checkout で ccbench をクリーンに戻す。これで「CCBench本体は常にクリーン、改変は patches/ に明示的に存在」が保てる。※この「全改変を patches/ で」は D16 で三分岐に改訂済み: 本物のバグ修正は上流 master へ還元、trace-hook は `izanagi-trace` ブランチ (submodule pin)、patches/ 行きは意図的バグ (broken-silo)・合成 variant (D18)・診断計器 (D20) のみ (decisions.md D16 参照)。
+CCBench の走らせ方: orchestrator が pinned-clean を確認した隔離 worktree (`patchharness.checkout()`、または直列 context) に variant patch を適用 → buildcache で identity を解決・ビルド → `pipeline.evaluate()` が verify/bench と WAL 記録を実行 → context 終了時に revert/破棄と clean assert、の順に固定する。共有 submodule を素の `make → git checkout` で運用しない。改変の所在は D16 の三分岐に従う: 本物のバグ修正は上流 master へ還元、trace-hook は `izanagi-trace` ブランチ (submodule pin)、patches/ 行きは意図的バグ (broken-silo)・合成 variant (D18)・診断計器 (D20) のみ。
 
-trace 吐く口 — ビルド時 vs ランタイム: CCBench の最適化フラグが `#define` (ビルド時) かランタイムかで探索ループの形が変わる。CCBench は性能ベンチなのでおそらく多くがビルド時 `#define`。だとするとパラメータ探索は「ビルドし直し型」になり make 時間が評価コストに乗る (緩和: 組み合わせごとにバイナリをキャッシュ)。**これは Phase 1 タスク0 で実物を読んで確認する最優先事項。**
+CCBench の protocol は build target、最適化軸と trace 有無は CMake define、read 比率・record 数・thread 数などは gflags で渡す実行時 workload である (Phase 1 タスク0で確認済み)。したがって variant 探索はビルドし直し型だが、build cache は protocol/genome、CCBench commit、TRACE、preprocess 後 source digest、toolchain を identity に含め、同一 build identity のバイナリだけを再利用する。
+
+workload descriptor は build-cache key からは外してよいが、**campaign・evaluation・report identity には必ず含める**。同じバイナリを複数 workload で実行することはできても、certification は `(variant, workload/config)` ごとであり横流ししない。各 workload で perf と同一構成の verify を別に通し (D36)、その組に対する verdict と性能だけを proof chain へ載せる。
 
 CCBench 還元スキーム: 探索中に CCBench 自体の問題を見つけたら `output/insights/` に構造化レポートを吐く。必ず「還元判断: ユーザー確認待ち」を付ける。AI は発見を構造化するところまで、上流に出すかは人間が決める (誤検出 = verifier のバグを CCBench のバグと誤認、を防ぐ関所)。
 
@@ -288,11 +311,12 @@ CCBench 還元スキーム: 探索中に CCBench 自体の問題を見つけた�
 
 ## 8. 本システムの新規性 (ポジショニング)
 
-- Jitskit は KVストア、IDS は分散KVの consistency。**bespoke 自動合成の系譜 (Jitskit/IDS/VibeServe) では、誰も single-node の CC プロトコルの serializability を対象にしていない。** 同じ対象を扱う学習型 CC (Polyjuice/CCaaLF→NeurCC・ATCC) は §2 で認知済みの隣接系譜で、そちらとの空白は「対象」でなく方式の交点 (アクション空間自体を LLM がコードで拡張する合成) — 精密な差別化は related-work 7.1/7.6 が担う
-- 両者とも「ゼロから合成」か「証明付き合成」。Izanagi の**コーパス駆動の合成**は空きポジション — CCBench 資産をベース CC 選定 (層1)・クロスプロトコル比較 (Phase 3 主実験 headline 2)・変異軸のアイデア源として使い、実証済みの空間外合成 (b1、P2-4) を軸に、他 CC からの最適化移植 (b2) を拡張として持つ (D32)
-- CCBench という「10 プロトコル (YCSB 対応は 7: silo/tictoc/mocc/cicada/ermia/si/oze) × 最適化フラグ群が交換可能単位で整理された資産」を使う点が独自 (§6 の実体調査に一致)
+- Jitskit/IDS/VibeServe 系の evaluator-in-the-loop 合成を、single-node CC の serializability と many-core 性能へ適用する
+- CCBench を単なるベンチでなく、ベース選択・実装比較・変異軸の着想に使う **local corpus** とし、機序帰属からアクション空間を広げられる設計にする。P2-4 は実現可能性を支持する一事例で、LLM の因果的必要性は未実証
+- 広げた bounded space は機械探索し、各 iteration を fail-closed な正しさ検証と source identity に結ぶ。機械 sweep の勝者もシステム成果に含め、LLM 固有成果とは分ける
+- workload descriptor、variant、verifier、性能分布、棄却案を proof chain で結んだ evidence-bound な説明を出す
 
-ポジション: **Jitskit/IDS のループ方法論を継承しつつ、対象を CC の serializability にし、合成方式を CCBench 資産を土台にした帰属駆動の合成 (実証済みの空間外合成 b1 + 拡張予約の移植 b2、D32) にする。** 系譜の3本目として乗れる。
+ポジションは、**コーパス駆動の局所コード合成 × workload 別のハイブリッド探索 × serializability verifier × evidence-bound explanation** の交点に置く。空間外合成 (b1) を主経路とし、他 CC からの移植 (b2) は前提条件をカード化できた場合の拡張とする。精密な先行研究との差分と優先権主張は `docs/related-work/` で管理し、ロードマップだけから「世界初」を断定しない。
 
 ---
 
@@ -307,20 +331,24 @@ Phase 1: 評価器を信頼できる状態にする
   - 手動で invisible reads on/off → verifier緑 & 性能差が CCBench I2 と整合
   サブエージェント: verifier, calibrator
 
-Phase 2: パラメータ探索
-  - 全探索 vs LLM誘導 の比較
-  - leading indicators を LLM に渡す
+Phase 2: bounded search の ground truth と対照を作る
+  - 全探索・貪欲・ランダム・LLM誘導を同じ予算で比較
+  - leading indicators の価値と LLM 固有寄与を分離する
   + critic (指標の解釈), profiler (スケール懸念検出)
 
-Phase 3: コード粒度の合成
-  - EVOLVE-BLOCK で LLM がフラグ空間外の変異軸を合成 (b1 = 主実験)
-  - 他CC の最適化移植 (b2) + カタログ化は主実験後の拡張予約 (D32)
-  + planner/coder (分離), auditor (reward hack監査), axis-proposer (軸提案のループ内化、段 8a・D47)
+Phase 3: workload 特化ハイブリッド合成
+  A. EVOLVE-BLOCK + verifier + identity で safe variant loop を成立させる
+  B. workload descriptor を第一級入力にし、固定候補の選択と descriptor-conditioned な生成を分けて検証する
+  C. WAL/proof chain から evidence-bound な層3材料レポートを生成する
+  D. unattended/autonomous を主張する前に、orchestrator から role を呼び反復をセッション非依存化する
+  E. 以上の後に cross-protocol と最適化移植 (b2) を判断する
+  + planner/coder (分離), auditor (reward hack監査), axis-proposer (軸提案)
 
-Phase 3.5 (任意): Open-Ended Evolution
-  - コード移植でアクション空間が開いて初めて意味を持つ
-  - 多様性保存を完全な MAP-Elites/quality-diversity に格上げ
-  - ablation で OEE 有り/無しの探索効率を比較
+Phase 3.5 (任意): population-based evolutionary search
+  - 非列挙空間または多様性不足が実測上の律速になった場合だけ着手する
+  - population・世代・選択・変異/交叉・migration を実装し、sequential search と区別する
+  - MAP-Elites/quality-diversity の寄与を ablation する
+  - Open-Ended Evolution はさらに先の任意拡張とし、有限 population-based search と同義にしない
 ```
 
 各 Phase の詳細タスクは該当する docs/phase<N>.md に。現在どの Phase かの正本は CLAUDE.md「現在地」が指す worklog 末尾と現行 phase doc (roadmap は現況を主張しない)。
@@ -330,11 +358,15 @@ Phase 3.5 (任意): Open-Ended Evolution
 ## 10. スコープ外 (明示的にやらないこと)
 
 - 完全な形式証明 (IDS式 Rocq) — 将来拡張。C++ many-core 実装の形式化が重すぎる
-- Open-Ended Evolution の完全機構 — Phase 3.5 に予約。初手で入れると失敗の切り分けができなくなる
+- Open-Ended Evolution の完全機構 — Phase 3.5 以降に予約。初手で入れると失敗の切り分けができなくなる
 - ECC のような汎用ツール化・多言語・marketplace — 単一研究目的に不要
-- 層1 の凝った選定器 — 既存研究が強く、層2が吸収するため軽くて良い
+- 層1 の凝った選定器 — 既存研究が強く、同一条件の seed/baseline 比較を越える投資は主題から外れる
+- **列挙可能な軸で LLM が機械探索を上回ることを成功条件にすること** — 役割分担に反し、P2-5 の negative result も無視する
+- **制約なしのコード生成** — `EVOLVE-BLOCK`、designated source、verifier を外した生成は比較可能性と正しさを失う
+- **アブレーションなしの因果説明** — workload と勝者の相関や leading indicator との整合だけなら機序仮説に留める
+- **sequential loop を進化探索と呼ぶこと** — population/世代/選択/変異等が実装・評価されるまでは用語を予約する
 - **論文執筆・推敲そのもの (narrative 生成)** — Izanagi のスコープ外。Izanagi は材料レポート (ARA 的 artifact) の生成までを担い、自動執筆は別システムに委ねる (D12)
 - **ARA Compiler (フォーマット変換器)** — CCBench は既に構造化済みの C++ コーパスで変換対象が存在しない。取り込めば純粋なスコープ膨張 (規律5)
 - **ARA Live Research Manager (背景監視による推測的ハーベスティング)** — Izanagi の orchestrator は各 variant 評価を能動的・決定論的に WAL へ書く設計なので、自由形式セッションから研究イベントを事後収集する機構の必然性が薄い (規律5)。7種イベント taxonomy と ai-suggested の人間確認ゲート思想のみ、decisions.md / output/insights/ のエントリ構造化と roadmap 改訂セレモニーの人間確認に響く思想参照として留める (機構は実装しない)
 
-OEE について補足: 完全機構 (新規性報酬・無限走行) は Phase 3.5 に回すが、安い果実は初手から取る — (a) 多様性の保存 (層3で「throughput最強の1個」でなく特性の違う variant を複数残す)、(b) whiteboard memory (既に採用)。
+OEE について補足: 完全機構 (新規性報酬・無限走行) は Phase 3.5 より先の任意拡張に回すが、安い果実は初手から取る — (a) archive に特性の違う variant を複数残す、(b) whiteboard memory (既に採用)。この多様性保存だけでは、population-based search や OEE を実装・実証したことにはならない。

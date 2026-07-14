@@ -2329,3 +2329,33 @@ bench 先行が正解。設計の正本 = `output/insights/2026-07-14_bench-firs
 1. bench-first screening の実装着手判断 (ユーザー gate) — 採用なら pipeline 実装 + consumer
    監査 + テスト 7 点 + positive control + 初回 ablation (実装は計測窓を一部使う)
 2. 07-14 (1) 提言 5 点の裁定・S-1 実走準備 — 変わらず (前エントリ参照)
+
+## 2026-07-14 (3) — 全体戦略の協議改訂: workload 特化ハイブリッド合成へ再定義
+
+ユーザー依頼で `docs/` と実装の整合を調査し、phase / roadmap の更新案を提示した後、明示承認
+「更新していいよ」を受領。07-14 (1) の提言 5 点を採用し、roadmap は協議改訂として in-place 更新
+(版上げ・過去版凍結・D 採番なし。履歴は git log) とした。
+
+- 成功単位を「LLM が機械探索に勝つこと」から、LLM の機序帰属・軸提案 + bounded machine search +
+  verifier + 層3を合わせた**システム**へ変更。LLM 固有寄与はアブレーションがある場合だけ主張する
+- 登録済み S' は S-1 を安価に完走して閉じるが、LLM vs machine の分離実証を Phase 3 の中心価値から外す。
+  次の投資先は 8b workload descriptor と evidence-bound な層3材料レポート
+- 8c セッション非依存駆動は 8b + 層3の 1 cycle 後も反復運営が律速なら着手。cross-protocol / b2 移植、
+  population-based evolutionary search と、その先の OEE は順に再判断する
+- 既知の rr5/rr50/rr95 winner switching は配線 demo / 結果既知の事前登録付き追試
+  (confirmatory とは呼ばない) に限定。新しい workload
+  特化主張には、結果未見の holdout 条件・descriptor 対照・全件報告を実走前に凍結する
+- 8a F の低競合動作点は性能探索をクローズし、単独再ホストはしない。高競合で再利用する場合は 8b の
+  前向き設計へ統合する
+- D12 の材料レポート実装時期だけを Phase 3.5 以降から Phase 3 へ前倒し。WAL + whiteboard の完全・
+  決定論的射影、全 run/reject/noise/env、事実層の機械生成、研究成功/新規性を自動判定しない不変条件は維持
+- 提言 5 の手続き固定費上限も採用: 3 レンズ敵対レビューは新しい統計主張・不可逆な決定へ限定し、
+  可逆な文言/文書作業は 1 レンズまたは事後監査、反復可能な整合検査は機械 lint へ寄せる。
+  correctness/identity/measurement の既存ゲートは対象外で、一切緩めない
+- bench-first screening は設計済み・**実装未承認のまま**。別 gate を維持し、採用時も偵察 sweep / 8b
+  だけに opt-in、S-1・検証相・LLM loop は対象外。正しさ・identity・リーク制御の既存防壁は不変
+
+### 次の一手
+1. S-1 の計測ゼロ準備: サンプル設計 4 点 → 直接比較 driver + 既知軸基準点 freeze → 検証相実装
+2. 8b の前向き設計 (holdout / descriptor ablation / 全件報告) と、層3 report schema + 最小 renderer を並行
+3. 計測窓で対象別 floor・sort read-heavy・S-1 本走を完了。8c と bench-first は各発火条件で別途判断

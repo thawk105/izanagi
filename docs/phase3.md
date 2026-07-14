@@ -1,19 +1,43 @@
-# Phase 3 — LLM コード合成 (planner/coder/auditor)
+# Phase 3 — workload 特化ハイブリッド合成 (planner/coder/auditor)
 
-**目的:** roadmap §2 層2(b) **コード粒度の合成**。CCBench コードの `EVOLVE-BLOCK` 領域を LLM (coder) が
-diff で書き、フラグ空間の外に最適化 variant を合成する。P2-4 backoff ケーススタディ (critic 帰属が
-フラグ空間外の静的 backoff 合成を駆動し certified なまま勝った) がその予告編。Phase 2 の negative result
-(P2-5: フラグ探索は自明) が「なぜ合成が要るか」を動機づける。
+**目的:** roadmap §2 の **コード粒度の空間外合成 (b1) + bounded machine search** を結び、workload
+descriptor に応じて certified な CC variant を選ぶ。CCBench コードの `EVOLVE-BLOCK` 領域を LLM (coder) が
+diff で書く一方、列挙可能な軸内は機械探索へ渡す。P2-4 backoff は成立例、P2-5 の negative result
+(有限フラグ空間で LLM 誘導は機械探索を上回らない) はこの役割分担の根拠である。
 
-**最終成果物 (CLAUDE.md):** 新しい CC + なぜ速いかの説明 (層3) + 試行錯誤の記録。
+**研究目標 (CLAUDE.md):** 新しい CC + なぜ速いかの説明 + 試行錯誤の記録。
+
+**各 run の正直な出力契約:** 証拠が支持すれば certified な新 variant、支持しなければ stock 選択または
+tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す。stock/tie は有効な no-improvement
+結果だが「新しい CC」という研究目標の達成には数えない。LLM 固有の優越は別のアブレーションでのみ主張する。
 
 **設計の出所:** 多エージェント workflow (Map5→Design→Critique3→Finalize) + 敵対的安全検証で kickoff を固め、
 ユーザー承認 (2026-06-29)。decisions D22。**絶対規律 (特に 1/2/3/5/6) はここで初めて load-bearing になる**
 (LLM が正しさを破りうるコードを書く)。
 
+## 現行チェックポイント (2026-07-14 協議改訂)
+
+- safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。ただし現行の反復は
+  人間がセッション間を運ぶ **human-supervised loop** であり、無人の進化探索ではない。
+- 旧主実験の主張 S は S-2 不成立・S-3 棄却により縮小主張 S' へ後退した。残りは **S-1**
+  (性能次元。下の must 表にある **S1 trace-hook とは別物**。同様に主張の **S-2** と verify 構成の
+  **S2** も別物) の登録済み family を安価に閉じる作業だけで、
+  S' を Phase 3 全体の中心価値には据えない。
+- 次の研究上の主経路は **8b workload descriptor + 層3材料レポート**。両者は並行着手できる。
+  8c セッション非依存駆動は反復運営が再び律速になると確認した場合、段 7 cross-protocol / b2 移植は
+  8b と層3の後に判断する。
+- 既知の rr5/rr50/rr95 結果は配線確認・**結果既知の事前登録付き追試** (confirmatory とは呼ばない) にだけ使う。新しい workload 特化主張は、
+  結果を見ていない holdout workload/競合条件と全件報告規則を実走前に凍結してから評価する。
+- bench-first screening は設計済みだが**実装未承認**。採用しても偵察 sweep と 8b の opt-in に限り、
+  S-1、検証相、LLM loop の評価順は変えない。
+
+**現行の着手順:** (1) S-1 の計測ゼロ準備を終える、(2) 計測窓を待つ間に 8b の前向き設計と層3最小
+renderer を並行で作る、(3) 計測窓で対象別 floor・sort read-heavy・S-1 本走を閉じる、(4) 8b + 層3の
+1 cycle 後に必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を再判断する。
+
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
-- セッション開始時に読むのは 2 箇所だけ: **must 表** (`grep -n "着手前 must" docs/phase3.md` で位置特定) と、
+- セッション開始時に読むのは 3 箇所だけ: **現行チェックポイント**、**must 表** (`grep -n "着手前 must" docs/phase3.md` で位置特定) と、
   **「後続段」リストの未了項** — 完了項は行頭が `N. **(完了 <日付>)` で始まるので、それ以外の番号項と
   その未完了サブ項が開タスク。完了/未了の正本はこの後続段リスト (must 表は blocking 分類が主で、
   完了の追記は従)。
@@ -23,13 +47,17 @@ diff で書き、フラグ空間の外に最適化 variant を合成する。P2-
 
 ---
 
-## Phase 3 全体の完了定義と主実験の評価設計 — `docs/phase3-main-experiment.md` へ分離 (2026-07-05, D35)
+## 旧主実験の事前登録 — `docs/phase3-main-experiment.md` へ分離 (2026-07-05, D35)
 
 主実験 (後続段 6) の事前登録 = 反証可能な主張・headline 比較 4 対照 (silo stock 最良 / クロスプロトコル
 stock 最良 / ランダム変異 / 機械 sweep) とその操作的定義・LLM ablation・統計計画 (floor 流用禁止・
 サンプル設計・Holm 補正・天井の不在・deceptive 相当の検証・検証相の配線)・失敗条件 (a)〜(e) は
-`docs/phase3-main-experiment.md` に事前登録してある。**coder が性能主張を生む段 (後続段 4 以降) の主張は
-すべて同設計に従う。** kickoff は同設計を満たさなくてよい (別スコープ) — 読むのは後続段 4 に入るとき。
+`docs/phase3-main-experiment.md` に事前登録してある。同文書は元の本文を消さず、既知結果を開示した
+日付付き改訂だけを append-only で重ねる契約である。D52 は D50/F 段等の結果を見た後の複合改訂で、
+主張 S と「失敗条件 (g) 発火時に S' へ縮小する規則」を固定した。その規則が 2026-07-13 の S-3 棄却で
+実際に発火した。一方、8b の workload 特化は旧比較の結果から
+独立した新しい主張なので、既知結果を pilot と明示し、未見 holdout・descriptor ablation・全件報告を別の
+前向き設計として凍結する。kickoff は旧主実験を満たさなくてよい (別スコープ)。
 
 ---
 
@@ -106,7 +134,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ---
 
-## 残り Phase 3 着手前 must の blocking 分類
+## 現行 Phase 3 must と発火条件
 
 | must | kickoff | 根拠 |
 |---|---|---|
@@ -115,7 +143,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 | **観測者効果二重検査** | **完了 (14d64e6)** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない)。diff-of-diffs を buildcache.build 出口 (hit/fresh 両経路) で発火、fails-closed |
 | **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。**consumer 実体化も完了 (後続段 2、2026-07-06、D37)** — liveness-red 別型・render 3 形状・critic 消費規定・実走赤 2 本で閉ループ実証 (「読んで方向を返す」まで。還流 = 次 variant 生成への使用は段 4) |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。pipeline 配線も完了 (段 5、D36 決定 4、opt-in = legacy+s2)** |
-| S1 (別 protocol trace-hook) | non-blocking (kickoff) / **主実験 headline 2 で発火** | silo 内に閉じる限り不要。ただし発火条件は「別 protocol 移植」だけでなく**主実験 headline 2 (クロスプロトコル stock 最良) も含む** — trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、headline 2 までに S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかが要る (後続段 6 の前提タスク (a)) |
+| S1 (別 protocol trace-hook) | **現状 non-blocking** / 旧 headline 2 復活または段 7 cross-protocol 着手時に発火 | silo 内に閉じる現行 S-1/8b/層3には不要。trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、cross-protocol 比較を復活させる場合は S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかを先に決める (後続段 6 の休眠タスク (a) / 段 7) |
 | C1 (campaign-id drift) | **解消済み (2026-07-09、段5、D40)** | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。並行合成/patch 常駐で HEAD が動く残課題は git worktree 隔離 (`patchharness.checkout()`、opt-in) で解消 — 各評価が自分の pin を自分の worktree で checkout するため他の並行評価の影響を受けない。driver 宣言値 (phase2.md §C1) がリテラルであること自体は IDENT-1/IDENT-3 により意図的据え置き (変更なし) |
 
 ---
@@ -142,7 +170,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    機械 4 点 + n=1 定性 2 点、段 6 headline gate の充足条件は機械 4 点。ablation 点 = 被覆 assert on/off の
    lockskip 検出力差。** pin 前進 dff0f1e→028f34d (D38、orchestrator/campaign/pin.py)。正本 = D38・
    `orchestrator/campaign/s3_lock_coverage.py`・`output/insights/2026-07-06_s3-auditor-live-n1.md`。
-4. **(完了 2026-07-09) guided 検疫層の diff 検疫拡張 + planner/coder 自律ループ (4a/4b)** — diff 検疫
+4. **(完了 2026-07-09) guided 検疫層の diff 検疫拡張 + planner/coder human-supervised loop (4a/4b、当時の呼称「自律ループ」)** — diff 検疫
    (6359aa5)・駆動基盤 (planner-v4/coder-v4-autonomous の registered 定義化・LoopState checkpoint 永続化・
    `--run-iteration` 駆動口・監査硬化 fails-closed 5 点)・実 LLM iteration 1〜4 all certified/success +
    iteration 5 は budget-walltime (3600s) 入口停止 (D39 決定 2 どおり)。**段 6 へ「未査証 (partial)」として
@@ -163,29 +191,29 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    同型 — 現状の防壁は auditor の静的目視 + 残存リスク節の実機確認記録)。実走手順 =
    `docs/phase3-s5-sort-runbook.md`。正本 = D40〜D43・`orchestrator/campaign/p3_s4_loop_sort.py`・
    campaign `p3-s5-sort-loop-s5-sort-autonomous-3be89e0d`。
-6. **主実験の実行 (headline 比較 + LLM ablation)** — 冒頭「Phase 3 全体の完了定義と主実験の評価設計」を
-   実走する段。**Phase 3 の headline 主張はこの段の完了をもって初めて出せる** (段 4/5 の中間結果は評価設計に
-   従った暫定として報告)。**headline 主張は 2026-07-12 追記 (D52) で系レベル (主張 S = 軸発見の優越) に
-   再構成済み** — gate は「変異軸から headline 候補が出たこと」から「主張 S の判定材料の充足 (S-1 再計測 +
-   S-2/S-3 提案ラウンド束 + 独立再命名 canary、着手順は同追記)」に置き換わった。旧 gate (軸内探索の headline
-   候補軸) は旧主張の scope 限定保存に伴い休眠 (復活条件 = 非列挙軸の実体化、同追記)。S2 gate + auditor live
-   は充足済みで不変。独立再命名 canary は 2026-07-13 実施済み — 一致 (中立命名 abort-cause-gated-backoff、
-   3 項全対応) = 不発火、**人間追認済み (2026-07-13) = 形式要件充足** (裁定台帳 =
-   `output/insights/2026-07-13_s6-canary-rename.md`)。**S-2/S-3 提案ラウンド束は 2026-07-13
-   実走・集計完了** (60/60・判定不能ゼロ、名目 p: S-2=0.115 / S-3=1.0 の先行報告。生成物 =
-   `output/s6-rounds/`、経緯 = worklog 07-13 (8))。**探索的内容分析完了 (2026-07-13、事前登録外・
-   凍結集計不変)** — 適格率天井の主因は指標の弁別力不足 (採点は凍結基準に高忠実、覆す候補 2 件のみ・
-   集計不変)、帰属の寄与は hole 選択の方向付けに現れ判定重心は S-1 へ。監査の道しるべ込みの正本 =
-   `output/insights/2026-07-13_s6-rounds-content-analysis.md`。**採点 reason 監査は 2026-07-13
-   人間裁定完了** (覆す候補 2 件: #1 採用・#2 棄却、いずれも集計不変 — 裁定正本 = audit-sheet.md 末尾、
-   経緯 = worklog 07-13 (10))。**S-2/S-3 報告文言は 2026-07-13 確定** — S-2 不成立 (失敗条件 (f)
-   発火) / S-3 棄却 (失敗条件 (g) 発火 → 帰属依存節を削除した縮小主張 S' の文言も同時確定)。
-   Holm 上界により両検定の非有意は S-1 の結果に依存せず確定 (族判定表の形式的完成のみ S-1 待ち)。
-   3 レンズ敵対レビュー済み (must-fix 0 / should-fix 1 / nit 1 全反映)、正本 =
-   `output/insights/2026-07-13_s6-report-language.md`。主張 S の判定材料は S-1 再計測を残すのみ
-   (計測窓に加え実装準備が未了 — S-1 直接比較 driver・検証相 (f)・既知軸基準点の機械凍結・
-   sort read-heavy 欠測・対象別 floor 再実測・サンプル設計 4 点。棚卸し = worklog 07-13 (11))。
-   ここで仕込む前提タスク: (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照。
+6. **旧主実験の縮小主張 S' を閉じる (残り = S-1)** — D52 で旧 headline を主張 S に再構成したが、
+   S-2 は不成立、S-3 は棄却済みで、帰属依存節を削った S' だけが残った。これは登録済み family を最後まで
+   報告するために安価に完走するものであり、roadmap 改訂後の Phase 3 中心価値や「LLM が機械探索を上回る」
+   成功条件にはしない。**S-1 が成立しても、適格率次元の発見再現性は未実証のまま**と併記する。
+
+   **S-1 closure checklist (未チェックを上から実施):**
+   - [x] 独立再命名 canary の人間追認
+   - [x] S-2/S-3 提案ラウンド、凍結集計、reason 監査、報告文言の確定
+   - [ ] サンプル設計 4 点の数値を事前登録へ追記し、独立レビューする
+   - [ ] S-1 直接比較 driver と、既知軸基準点の machine-readable freeze を作る
+   - [ ] 検証相 (seed×N・長 extime) を実装する
+   - [ ] sort read-heavy 欠測を補い、対象別 between-run floor を再実測する
+   - [ ] S-1 本走、再測、Holm 族判定表、S' 報告を完結する
+
+   正本は canary = `output/insights/2026-07-13_s6-canary-rename.md`、提案ラウンド =
+   `output/s6-rounds/`、内容分析 = `output/insights/2026-07-13_s6-rounds-content-analysis.md`、
+   確定文言 = `output/insights/2026-07-13_s6-report-language.md`、棚卸し = worklog 2026-07-13 (11)。
+   Holm 上界により S-2/S-3 の非有意は S-1 の結果に依存せず確定しているが、族判定表の形式的完成は
+   S-1 待ちである。
+
+   以下の前提タスク台帳は旧 headline の契約を保存する。(a)〜(e) は旧 headline を復活させない限り休眠、
+   (f)(g) は上の S-1 checklist で現役、(h)〜(j) は完了済み:
+   (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照。
    D44 注意: stock 専用計測経路を選ぶ場合、対抗馬だけ certified 要件を免除する非対称比較になる — その扱いを
    設計時に明文化する)、
    (b) SPACES への mocc/tictoc/cicada 登録 + protocol 別 calibration + between-run floor の対象別再実測、
@@ -221,19 +249,22 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    `docs/related-work/literature-map/gap-research-2026-07-10.md`。**Polyjuice/NeurCC 実測比較は
    見送りで決着** (ユーザー協議、worklog 2026-07-10 (9)。再判断の発火条件 = 「学習型 CC を定量的に
    上回る」の headline 昇格時のみ、材料は worklog 2026-07-10 (8))。
-7. **(拡張予約) 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初の本丸「他 CC の最適化を CCBench コーパスから
-   移植する」+ 隠れた肝「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、**主実験 (段 6) 完了後の拡張**として
-   ここに予約する (a' 方針、D32)。根拠 = 非対称性: 空間外合成は P2-4 で実証済み・**移植の価値は未検証仮説** (I5 =
+7. **(8b + 層3の後に再判断) cross-protocol 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初案
+   「他 CC の最適化を CCBench コーパスから移植する」+「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、
+   **workload descriptor と evidence-bound report の最小 E2E を先に成立させた後の拡張**として
+   ここに予約する (a' 方針、D32)。根拠 = 非対称性: 空間外合成には P2-4 の成立例がある一方、**移植の価値は未検証仮説** (I5 =
    「異なる実装の混合は不適切」という CCBench 著者の警告 + 他 CC のメタデータ前提を持ち込む正しさ攻撃面) なので、
-   実証済みの道で主実験まで到達してから投資判断する (規律5 / P2-5 の教訓 = 仮説に工数を先払いしない)。着手時の
+   現行 Silo 内でシステム主張を成立させてから投資判断する (規律5 / P2-5 の教訓 = 仮説に工数を先払いしない)。着手時の
    一歩目は**カタログ化の試作 1 枚** (他 CC の最適化 1 つを「前提/効果/競合」でカード化し、移植先で前提が満たせるかを
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
-8. **(D44 で追加。着手順・段 6 との前後は着手時に判断) 探索側を防壁の水準へ引き上げる 3 機構** — 外部評価
+8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、次は 8b、8c は条件付き)** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
-   D41 と同水準の敵対検証を課す (設計の具体化はここに書かない — 着手時の設計タスクが正本):
-   - **(8a) 軸提案のループ内化 (前倒し決着 2026-07-10 — sort 軸 iteration 2 見送りの代替本筋、
-     worklog 2026-07-10 (10))** — LLM の実証済み価値 (機序帰属からの軸発見、P2-4) をループに戻す。
+   リスクに応じてレビューする。新しい統計主張・不可逆な決定は D41 相当の 3 レンズ、可逆な schema/文言は
+   1 レンズまたは事後監査、反復可能な整合検査は機械 lint とする (worklog 2026-07-14 (3))。これはレビュー
+   資源の配分であり、correctness/identity/measurement gate は一切緩めない:
+   - **(8a 完了 2026-07-12) 軸提案のループ内化 (前倒し決着 — sort 軸 iteration 2 見送りの代替本筋、
+     worklog 2026-07-10 (10))** — P2-4 が成立可能性を示した役割仮説 (機序帰属からの軸発見) をループに入れる。
      critic の機序帰属を入力に「次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)」を提案する役を新設し、
      人間は承認 gate としてのみ関与する。D41→D43 で 1 回実施した軸オンボーディング手順 (骨格 patch・
      検疫対応・positive control・auditor ギャラリー拡張・verifier 死角の特定) を**再利用可能なテンプレ**に
@@ -292,23 +323,51 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`)。**
      **F 段完了 (2026-07-12、worklog 07-12 (6)) — 実 LLM iteration 1〜2 E2E、両 iteration
      certified (verify legacy+S2 とも 0 anomalies)・auditor pass・provenance 全 entry 記録。**
-     軸提案 (axis-proposer) から探索 (planner/coder 自律) までループ内で閉じた初の軸の実走。
+     軸提案 (axis-proposer) から探索 (planner/coder、iteration 内は自動・セッション駆動は人間) まで
+     ループ内で閉じた初の軸の実走。
      critic 帰属 = 両 iteration ともノイズ内 tie — この動作点 (records=100k/threads=4、
-     abort 約 2.3%) では gate の発火頻度が低く bite しない、**探索停止推奨**。ループは
-     checkpoint (campaign `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5`) で中断中。
-     残るタスク = **動作点再ホスト (高競合 workload、段 8b との合流含む) か本動作点クローズ
-     かの人間判断** + auditor proposed_tests (fail-safe 意味検査ほか) の採否。判断材料 =
-     D52 (主張 S の下で本軸の軸内実計測は headline 判定に寄与しない — F 段継続は 8c 配線検証の
-     最小限に限定、動作点再ホストは 8b または非列挙軸の事前登録と束ねた別途正当化を要する)。
-   - **(8b) workload 次元のループ入力化** — 「ワークロード特化」の実証に必須。最小の一歩 = 既存 3 類型
-     (rr5/rr50/rr95) で同一軸の campaign を並走させ特化 (workload ごとに異なる勝ち筋) が出るかを見る。
-     coder への入力に抽象化した workload 記述子 (read 比率・競合水準の抽象ラベル。実測値はリークしない形)
-     を追加する。P2-4 の 3 類型結果 (+38.3%/+11.3%/−6.6%) が有望性の既存証拠。
-   - **(8c) 駆動のセッション非依存化** — 実測の律速は build/verify (66〜175 秒/iteration) ではなく
-     エージェント呼び出しとセッション運営 (実 iteration 間隔 8〜25 分、subagent 登録のセッション開始時
-     制約)。planner/coder/auditor の呼び出しをセッション登録に依存しない駆動 (orchestrator からの API
-     直呼び) に移し、予算時計を暦時間から実行時間ベースへ変える。「ループ主導権は orchestrator」
-     (roadmap §3.8) の自然な延長であり、一晩数十 iteration を可能にする。
+     abort 約 2.3%) では gate の発火頻度が低く bite しない。checkpoint (campaign
+     `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5`) を最終成果物として保存し、この動作点の
+     性能探索はクローズ済み。
+     **2026-07-14 裁定:** この低競合動作点での性能探索はクローズし、単独の再ホストはしない。高競合で
+     再利用するなら、結果既知の追試でなく下の 8b 前向き設計へ統合する。auditor proposed_tests は軸を
+     再利用するときだけ採否を再開する。
+   - **(8b 未着手) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
+     coder / selector への入力に型付き workload descriptor (read/write 比率、競合ラベル、スケール、目的、
+     正しさ制約。勝者名と実測性能値は除外) を追加し、同一 variant 集合を同一予算で比較する。
+     既存 rr5/rr50/rr95 と D50/P2-4 の結果はすでに既知なので、**配線 demo または結果既知の
+     事前登録付き追試 (confirmatory とは呼ばない) にしか使わない**。新しい科学的主張には次を実走前に凍結する:
+     - **selector 実験:** 固定 variant 集合から descriptor 条件付きで選ぶ。これは workload-aware selection を
+       検査するが、descriptor-conditioned synthesis の証拠には数えない
+     - **generation/search 実験:** proposal/search 開始前に descriptor を与え、on/off または swapped 対照を置く。
+       「ワークロード特化合成」の主張にはこちらが必要
+
+     1. 結果を見ていない holdout workload/競合条件と除外不能な全件報告規則
+     2. descriptor on/off と、必要に応じ blind/swapped descriptor 対照
+     3. variant 集合、探索予算、correctness gate、対象別 floor、選択規則
+     4. 「異なる勝者」だけでなく descriptor が選択を駆動したと判定する基準
+
+     高競合動作点で 8a 軸を再利用する場合もこの設計に含め、既知 rr 比率の winner switching を新発見として
+     数えない。D50 の機械 sweep は pilot/既知証拠であり、将来の自動システム成果へ遡及的に再分類しない。
+     bench-first screening は別途実装承認された場合だけ reconnaissance/8b に opt-in できる。
+   - **(8c 未着手・条件付き) 駆動のセッション非依存化** — planner/coder/auditor を orchestrator から
+     呼び、checkpoint・budget・再開を Python 側が所有する。過去には build/verify よりセッション運営が遅かったが、
+     8b の前向き設計と層3最小 E2E を 1 cycle 回してなお反復運営が律速なら実装する。単発の workload
+     descriptor 配線やレポート生成を先送りしてまで先に作らない。実装しない間は human-supervised scope に
+     留まり、究極ゴールの unattended/autonomous 達成を主張しない。
+9. **層3材料レポート (未着手、8b と並行可)** — WAL/proof chain から次を決定論的に結ぶ renderer を作る:
+   workload descriptor、selected/baseline identity、verifier/seed/trace provenance、性能分布と floor、
+   採用・棄却・差なし、leading indicators + diff に基づく機序仮説、artifact 参照。アブレーションのない説明は
+   因果でなく仮説と表示し、改善が立証できなければ stock/tie を出す。事実層は機械的な完全射影、LLM を
+   使う仮説層は別区画とし、数値・verdict・参照を LLM に作文させない。
+
+   **最小完了条件:** 新しい計測を行わず、既存 campaign 1 件について WAL + whiteboard の全 run・全 reject、
+   noise floor、環境タグ、variant/source identity、artifact 参照を漏れなく schema 検証済みレポートへ再生成する。
+   WAL event ID / whiteboard item ID (ID がなければ canonical record hash) の入力 multiset と、レポートの
+   source-ref multiset が完全一致する双射検査を持つ。件数一致だけでは不可。未知 event 種別、重複、脱落、
+   参照不能は fails-closed とし、全 claim の参照先が存在し、同じ入力から同じ事実層を再生成できる。
+   operational な selected/stock/tie は凍結規則の機械適用結果として記録してよいが、研究としての成功・新規性を
+   自動判定しない。論文 prose の自動生成は対象外 (roadmap §2 層3 / D12 の 2026-07-14 協議追記)。
 
 ---
 
