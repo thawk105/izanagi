@@ -12,6 +12,7 @@
 - `phase3.md` — 現行 phase doc。チェックリストと must 表 = タスク粒度の完了状況の正本
 - `phase3-main-experiment.md` — 主実験の事前登録
 - `worklog.md` — 日誌。末尾エントリ = 可変状態の正本 (書式は CLAUDE.md 作業の進め方 7)
+- `ai-provenance.md` — commit ごとの AI 製品・モデル・推論深度・役割を記録する `AI-Agent` trailer 規約
 - `failures.md` — 失敗台帳。起こした問題の型別索引と恒久対応の実体ポインタ (2026-07-13 新設。
   問題発生時は worklog と同時に追記、再発は既存エントリに「再発:」追記)
 - `handoff/` — セッションの WAL (中断引き継ぎ + 並行セッションの宣言板。運用は同 README)
@@ -29,7 +30,9 @@
 
 ## docs/ の外
 
+- `AGENTS.md` — Codex 用の薄い作業入口。共有規律の正本 `CLAUDE.md` と現行正本へのポインタ
 - `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`
-- `tools/` — 運用スクリプト (check_docs.py = 文書 lint / plotting/ = campaign の論文品質作図、規約は tools/plotting/FIGURE_CONVENTIONS.md)
+- `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_ai_provenance.py` = commit trailer 監査 /
+  `plotting/` = campaign の論文品質作図、規約は `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 方針 A の最小第二防壁 (guard_write / guard_bash、詳細は同 README)
 - `.claude/agents/` — サブエージェントのロール定義 (現有一覧は ls が正本)

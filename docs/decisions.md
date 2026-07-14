@@ -1990,3 +1990,38 @@ D47 改訂も別途必要で再定式化と直交 (非列挙軸が必要にな�
 
 **正本:** phase3-main-experiment.md 2026-07-12 追記 (拘束力) / 本エントリ (決定・却下案) /
 insight v2 (設計論証・裁定台帳)。
+
+## D53. AI 作業 provenance を commit trailer に正規化する (2026-07-14)
+
+**背景:** Claude Max 20x と Codex x20 の併用方針を協議する中で、ユーザーが「どの製品・モデル・
+推論深度が仕事をしたかを commit に残し、後から製品選定と設定を監査・改善したい」と提案した。
+既存履歴の `Co-Authored-By` と一部のセッション URL は製品・著者表示には使えるが、推論深度、役割、
+複数構成の対応関係を機械的に復元できない。
+
+**決定:** 規約導入 commit 以後の全 commit に、反復可能な `AI-Agent:` trailer を必須化する。
+AI が関与した場合は 1 行に product/model/reasoning/role を固定順で記録し、複数構成・複数役割は
+行を分ける。AI が実質的に関与しない場合は `AI-Agent: none` の 1 行だけを使う。製品面が設定を
+表示しない場合 (`not-exposed`) と、本来確認できるが記録時に失われた場合 (`unknown`) を分け、
+内部モデルを推測しない。Git 操作だけの AI は寄与者に数えず、競合解決や採否を伴う統合判断を
+行った場合だけ `integrator` として記録する。完全な形式は `docs/ai-provenance.md` を正本とする。
+
+Codex の入口は root `AGENTS.md` とし、共有規律の正本 `CLAUDE.md` と現行 phase/worklog/handoff
+への薄いポインタに限定する。可変状態と絶対規律を再掲しない。Claude は `CLAUDE.md` から、Codex は
+`AGENTS.md` から同じ provenance 正本へ到達する。
+
+**機械監査:** hook は追加しない。`tools/check_ai_provenance.py` が provenance 文書を最初に追加した
+commit を自動で cutoff とし、そこから HEAD までの欠落、`none` の排他違反、固定 field 順、識別子、
+role、重複を検査する。導入以前の欠落は legacy とし、履歴を書き換えない。既存の
+`guard_write` / `guard_bash` 以外の hook を増やさない規律と、commit provenance の監査可能性を
+両立させる。
+
+**却下した代替案:** (1) `Co-Authored-By` だけを使う — モデル・推論深度・役割がない。
+(2) product/model/reasoning を別々の trailer にする — 複数 AI で対応関係が曖昧になる。
+(3) worklog に毎回記録する — Git と二重帳簿になり、commit 単位の結合も弱い。
+(4) commit-msg hook で強制する — 現行 hook 2 本限定と衝突し、導入時点では過剰。独立 lint の
+運用で欠落が続いた場合にだけ再判断する。
+
+**限界:** trailer は自己申告の観察データで、モデル比較の統制実験ではない。同一構成の複数
+サブエージェント数、トークン、利用枠、棄却 finding は既存 worklog/一次資料の担当とする。
+タスク難度・役割・入力コンテキストが交絡するため、commit 数や成功率だけでモデルの優劣を
+断定せず、タスク種別、手戻り、レビュー finding、テスト結果、所要時間と合わせて評価する。

@@ -23,8 +23,10 @@ REPO = Path(__file__).resolve().parent.parent
 # docs/archive/ 配下 (監査台帳・worklog アーカイブ等の凍結族。規約は同 README — ファイル名不変で移動)、
 # および完了 Phase の phase1/phase2 (2026-07-05 に冒頭へ凍結宣言済み)。
 LIVING_DOCS = [
+    REPO / "AGENTS.md",                         # Codex 用の共有規律入口
     REPO / "CLAUDE.md",
     REPO / "docs" / "README.md",                  # docs の地図 (2026-07-11 fc-05 で CLAUDE.md から委譲)
+    REPO / "docs" / "ai-provenance.md",           # commit provenance の共有規約
     REPO / "docs" / "roadmap.md",
     REPO / "docs" / "related-work" / "README.md",  # 旧 related-work.md はディレクトリ化 (2026-07-11 監査 lint-04 で修正 — 旧パスは黙って skip されていた)
     REPO / "docs" / "phase3.md",                  # 現行 phase doc。Phase 移行時にここを差し替え、旧 doc は凍結宣言

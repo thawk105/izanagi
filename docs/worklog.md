@@ -2359,3 +2359,19 @@ bench 先行が正解。設計の正本 = `output/insights/2026-07-14_bench-firs
 1. S-1 の計測ゼロ準備: サンプル設計 4 点 → 直接比較 driver + 既知軸基準点 freeze → 検証相実装
 2. 8b の前向き設計 (holdout / descriptor ablation / 全件報告) と、層3 report schema + 最小 renderer を並行
 3. 計測窓で対象別 floor・sort read-heavy・S-1 本走を完了。8c と bench-first は各発火条件で別途判断
+
+## 2026-07-14 (4) — Codex 作業入口と AI commit provenance 規約
+
+ユーザー提案「Claude/Codex の製品・モデル・推論深度を commit に記録し、後から選定を監査・改善
+できるようにする」を採用。運用判断の正本は D53、形式の正本は `docs/ai-provenance.md`。
+
+- 2 レンズ独立レビュー (既存規律/入口整合、trailer schema + 敵対レビュー): must-fix 5 系統
+  (`none` 排他、unknown 分離、機械的 committer の水増し、Codex 隔離 over-claim、必須規約の未検査)
+  とパス誤り 1 件を全反映。反復 `AI-Agent` 自体は Git parser で成立確認、refuted 0
+- 機械強制 hook は既存の 2 本限定と衝突するため不採用。独立 lint で導入 commit 以後を監査し、
+  欠落が続いた場合だけ再判断する
+- エージェント工数: read-only レビュー 2 エージェント。設定・役割の実値は worklog へ再掲せず
+  導入 commit の trailer を正本とする
+
+### 次の一手
+1. Phase 3 の次の一手は 07-14 (3) から変わらず
