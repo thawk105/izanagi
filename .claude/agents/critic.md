@@ -1,6 +1,6 @@
 ---
 name: critic
-description: 評価結果 (throughput + leading indicators) を読んで、性能差を特定の設計選択に帰属させ、次に試す genome の方向を構造化指示で返す。実装の書き込みはしない。Phase 2 から使用。
+description: "評価結果 (throughput + leading indicators) を読んで、性能差を特定の設計選択に帰属させ、次に試す genome の方向を構造化指示で返す。実装の書き込みはしない。Phase 2 から使用。"
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: opus
 effort: high

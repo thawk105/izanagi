@@ -105,11 +105,14 @@ def auditor_reject_result(subtype: str, auditor: AuditorVerdict, *,
 def parse_auditor_dict(a: Dict) -> AuditorVerdict:
     """proposal JSON の `auditor` オブジェクトを fails-closed に検証して読む。
 
-    verdict が未知の値・diff_digest が空/非文字列は `AuditorGateFailure` (規律2、
-    敵対レビュー 2026-07-10)。呼び手はトップレベルの `auditor` キー自体を `d["auditor"]`
-    で取り出すこと (`.get()` に頼らない — 欠落は KeyError で fails-closed)。"""
+    verdict が未知の値・diff_digest が空/非文字列・list[dict] / string の型契約違反・
+    verdict と correctness violations の矛盾は `AuditorGateFailure` (規律2、敵対レビュー
+    2026-07-10)。`pass` は violations なし、`reject` は violations あり、`uncertain` は
+    violations なし + 非空 uncertainty に限定する。呼び手はトップレベルの `auditor`
+    キー自体を `d["auditor"]` で取り出すこと (`.get()` に頼らない — 欠落は KeyError で
+    fails-closed)。"""
     verdict = a["verdict"]
-    if verdict not in _AUDITOR_VERDICTS:
+    if not isinstance(verdict, str) or verdict not in _AUDITOR_VERDICTS:
         raise AuditorGateFailure(
             f"auditor.verdict は {sorted(_AUDITOR_VERDICTS)} のいずれか (got {verdict!r}) — "
             f"未知の値は fails-closed で拒否 (規律2、敵対レビュー 2026-07-10)")
@@ -118,7 +121,37 @@ def parse_auditor_dict(a: Dict) -> AuditorVerdict:
         raise AuditorGateFailure(
             "auditor.diff_digest が空/非文字列 — quarantine() の working_diff と機械照合できない "
             "(fails-closed、敵対レビュー 2026-07-10)")
+
+    typed_lists = {}
+    for key in ("violations", "nits", "proposed_tests"):
+        value = a.get(key, [])
+        if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+            raise AuditorGateFailure(
+                f"auditor.{key} は list[dict] のみ (got {value!r}) — 構造化監査結果を "
+                "fails-closed で拒否 (規律2)")
+        typed_lists[key] = value
+
+    uncertainty = a.get("uncertainty", "")
+    if not isinstance(uncertainty, str):
+        raise AuditorGateFailure(
+            f"auditor.uncertainty は string のみ (got {uncertainty!r}) — 構造化監査結果を "
+            "fails-closed で拒否 (規律2)")
+
+    violations = typed_lists["violations"]
+    if verdict == "pass" and violations:
+        raise AuditorGateFailure(
+            "auditor.verdict='pass' なのに correctness violations が非空 — 正しさ違反を "
+            "pass にできない (規律2)")
+    if verdict == "reject" and not violations:
+        raise AuditorGateFailure(
+            "auditor.verdict='reject' なのに correctness violations が空 — reject の根拠を "
+            "構造化して返す必要がある (規律3)")
+    if verdict == "uncertain" and (violations or not uncertainty.strip()):
+        raise AuditorGateFailure(
+            "auditor.verdict='uncertain' は violations が空かつ uncertainty が非空であることが "
+            "必須 — correctness 違反は reject、根拠なし uncertain は fails-closed (規律2/3)")
+
     return AuditorVerdict(
         verdict=verdict, diff_digest=digest,
-        violations=a.get("violations", []), nits=a.get("nits", []),
-        proposed_tests=a.get("proposed_tests", []), uncertainty=a.get("uncertainty", ""))
+        violations=violations, nits=typed_lists["nits"],
+        proposed_tests=typed_lists["proposed_tests"], uncertainty=uncertainty)

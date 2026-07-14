@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Codex custom agent adapter の fail-closed 同期テスト。"""
+"""Codex native 0 / non-native projection adapter 12 のfail-closedテスト。"""
 from __future__ import annotations
 
 import importlib.util
+import copy
+import hashlib
+import json
 import shutil
 import sys
 import tempfile
+from contextlib import contextmanager, redirect_stderr
+from dataclasses import replace
+from io import StringIO
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -16,118 +22,1116 @@ CCA = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = CCA
 _SPEC.loader.exec_module(CCA)
 
+from orchestrator.codex_roles import policy as ROLE_POLICY  # noqa: E402
+from orchestrator.codex_roles.review_ledger import (  # noqa: E402
+    DEVELOPER_INSTRUCTION_TEMPLATE_SHA256,
+    DESCRIPTION_SHA256,
+    ROLE_IO_CONTRACTS,
+    ROLE_MANIFEST_SHA256,
+    SCHEMA_SHA256,
+    SOURCE_FILE_SHA256,
+)
+
 
 def _fixture() -> Path:
     root = Path(tempfile.mkdtemp(prefix="izanagi-codex-agents-"))
     shutil.copytree(_REPO / ".claude" / "agents", root / ".claude" / "agents")
-    shutil.copytree(_REPO / ".codex" / "agents", root / ".codex" / "agents")
+    shutil.copytree(
+        _REPO / ".codex" / "role-adapters", root / ".codex" / "role-adapters"
+    )
+    (root / ".codex" / "agents").mkdir(parents=True)
+    shutil.copytree(
+        _REPO / "orchestrator" / "codex_roles", root / "orchestrator" / "codex_roles"
+    )
+    campaign = root / "orchestrator" / "campaign"
+    campaign.mkdir(parents=True)
+    shutil.copy2(
+        _REPO / "orchestrator" / "campaign" / "auditor_gate.py",
+        campaign / "auditor_gate.py",
+    )
     return root
 
 
-def test_current_profiles_are_in_sync():
+def _manifest(root: Path) -> dict:
+    return json.loads(
+        (root / "orchestrator" / "codex_roles" / "manifest.json").read_text(encoding="utf-8")
+    )
+
+
+def _write_manifest(root: Path, value: dict) -> None:
+    (root / "orchestrator" / "codex_roles" / "manifest.json").write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def _canonical_sha256(value: object) -> str:
+    encoded = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+@contextmanager
+def _reviewed_role_entry(root: Path, role: str):
+    """test内だけfull role pinを明示更新し、その先の独立gateを検査する。"""
+
+    old_pin = ROLE_MANIFEST_SHA256[role]
+    ROLE_MANIFEST_SHA256[role] = _canonical_sha256(_manifest(root)["roles"][role])
+    try:
+        yield
+    finally:
+        ROLE_MANIFEST_SHA256[role] = old_pin
+
+
+def test_policy_has_zero_native_and_twelve_static_dormant_adapters():
+    assert CCA.ACTIVE == {}
+    assert len(CCA.STATIC_ADAPTERS) == 12
+    assert CCA.STATIC_ADAPTERS == frozenset(CCA.ROLE_SPEC.load_role_specs(_REPO))
+
+
+def test_review_ledger_independently_pins_all_twelve_sources_and_io_contracts():
+    specs = CCA.ROLE_SPEC.load_role_specs(_REPO)
+    roles = set(specs)
+    assert len(roles) == 12
+    assert roles == set(SOURCE_FILE_SHA256)
+    assert roles == set(DESCRIPTION_SHA256)
+    assert roles == set(SCHEMA_SHA256)
+    assert roles == set(ROLE_IO_CONTRACTS)
+    assert roles == set(ROLE_MANIFEST_SHA256)
+    assert hashlib.sha256(
+        CCA.ROLE_SPEC.DEVELOPER_INSTRUCTION_TEMPLATE.encode("utf-8")
+    ).hexdigest() == DEVELOPER_INSTRUCTION_TEMPLATE_SHA256
+    for role, spec in specs.items():
+        assert hashlib.sha256(spec.source.path.read_bytes()).hexdigest() == (
+            SOURCE_FILE_SHA256[role]
+        )
+        assert hashlib.sha256(spec.description.encode("utf-8")).hexdigest() == (
+            DESCRIPTION_SHA256[role]
+        )
+        assert _canonical_sha256(spec.input_schema) == SCHEMA_SHA256[role]["input"]
+        assert _canonical_sha256(spec.output_schema) == SCHEMA_SHA256[role]["output"]
+        assert _canonical_sha256(
+            _manifest(_REPO)["roles"][role]
+        ) == ROLE_MANIFEST_SHA256[role]
+        contract = ROLE_IO_CONTRACTS[role]
+        assert tuple(spec.input_schema["required"]) == contract["input_required_fields"]
+        assert tuple(spec.output_schema["required"]) == contract["output_required_fields"]
+        assert contract["mode"] == (
+            "direct-json-example" if not spec.claude_tools else "mediated-override"
+        )
+
+
+def test_current_sources_render_byte_exact_and_native_is_empty():
     assert CCA.check(_REPO) == []
+    assert list((_REPO / ".codex" / "agents").glob("*.toml")) == []
 
 
-def test_prompt_drift_is_rejected():
+def test_all_adapters_pin_model_policy_and_blocked_runtime_activation():
+    specs = CCA.ROLE_SPEC.load_role_specs(_REPO)
+    for role, spec in specs.items():
+        adapter = CCA.ROLE_SPEC.load_json_strict(
+            _REPO / ".codex" / "role-adapters" / f"{role}.json"
+        )
+        assert adapter["model"] == spec.codex_model
+        assert adapter["model_reasoning_effort"] == spec.codex_reasoning_effort
+        assert adapter["mode"] == "static-dormant"
+        assert adapter["runtime_boundary"] == "static-only-runtime-blocked"
+        assert adapter["runtime_activation"] == {
+            "status": "blocked",
+            "reason": "uncontrollable_additional_tools",
+            "uncontrollable_surface": "input.additional_tools",
+            "evidence_owner": "runtime-launcher-additional-tools-attestation",
+        }
+        contract = ROLE_IO_CONTRACTS[role]
+        assert adapter["review_ledger"] == {
+            "role_manifest_sha256": ROLE_MANIFEST_SHA256[role],
+            "developer_instruction_template_sha256": (
+                DEVELOPER_INSTRUCTION_TEMPLATE_SHA256
+            ),
+            "source_file_sha256": SOURCE_FILE_SHA256[role],
+            "description_sha256": DESCRIPTION_SHA256[role],
+            "input_schema_sha256": SCHEMA_SHA256[role]["input"],
+            "output_schema_sha256": SCHEMA_SHA256[role]["output"],
+            "io_contract": {
+                "mode": contract["mode"],
+                "input_required_fields": list(contract["input_required_fields"]),
+                "output_required_fields": list(contract["output_required_fields"]),
+                "source_obligations": contract["source_obligations"],
+            },
+        }
+        assert not ({"wire_contract", "wire_tools_attested_by", "capabilities"} & adapter.keys())
+        assert adapter["input_policy"] == {
+            "version": "izanagi.codex-role-policy/v1",
+            "recursive_forbidden_key_tokens": list(spec.forbidden_key_tokens),
+            "opaque_string_content": "trusted-projection-producer-responsibility",
+            "open_object_subtrees": "trusted-projection-producer-responsibility",
+        }
+        if spec.consumer is None:
+            assert adapter["consumer_contract"] == {
+                "use": "standalone-typed-proposal-only",
+                "status": "trusted-integration-unwired",
+            }
+        else:
+            assert adapter["consumer_contract"] == {
+                "use": "trusted-integration",
+                "status": "trusted-parser-wired",
+            }
+
+
+def test_source_body_is_embedded_exactly_once_before_product_override():
+    for role, spec in CCA.ROLE_SPEC.load_role_specs(_REPO).items():
+        adapter = CCA.ROLE_SPEC.load_json_strict(
+            _REPO / ".codex" / "role-adapters" / f"{role}.json"
+        )
+        instructions = adapter["developer_instructions"]
+        assert instructions.count(spec.source.body) == 1
+        assert instructions.index(spec.source.body) < instructions.index(
+            "<<<CODEX_PRODUCT_OVERRIDE_BEGIN>>>"
+        )
+        override = instructions.split("<<<CODEX_PRODUCT_OVERRIDE_BEGIN>>>", 1)[1]
+        assert "tool使用、repository探索、実行loop、write/edit命令" in override
+        assert "trusted projection/driverへlower済み" in override
+        assert "adapter logical schemaを優先" in override
+        assert "schemaが許すunknown/unknowns/uncertainty/confidenceへ" in override
+
+
+def test_claude_tool_capabilities_are_lowered_without_runtime_tool_claim():
+    specs = CCA.ROLE_SPEC.load_role_specs(_REPO)
+    for role, spec in specs.items():
+        assert set(spec.capability_mapping) == set(spec.claude_tools)
+        assert spec.semantic_projection_mode == (
+            "direct-projection" if not spec.claude_tools else "mediated-projection"
+        )
+        adapter = CCA.ROLE_SPEC.load_json_strict(
+            _REPO / ".codex" / "role-adapters" / f"{role}.json"
+        )
+        assert "capabilities" not in adapter
+        assert "wire_contract" not in adapter
+        assert adapter["semantic_projection_mode"] == spec.semantic_projection_mode
+        assert adapter["semantic_projection_mode_semantics"] == (
+            "tool-lowering-classification-only; "
+            "does-not-prove-semantic-equivalence-or-consumer-wiring"
+        )
+
+
+def test_any_native_discovery_toml_is_rejected():
     root = _fixture()
     try:
-        profile = root / ".codex" / "agents" / "critic.toml"
-        profile.write_text(profile.read_text(encoding="utf-8") + "# drift\n", encoding="utf-8")
-        assert any("drift" in finding for finding in CCA.check(root))
-    finally:
-        shutil.rmtree(root)
-
-
-def test_invalid_toml_from_control_character_is_rejected():
-    root = _fixture()
-    try:
-        source = root / ".claude" / "agents" / "verifier.md"
-        data = source.read_bytes()
-        assert data.endswith(b"\n")
-        source.write_bytes(data[:-1] + b"\x00\n")
-        assert any("TOML parse" in finding for finding in CCA.check(root))
-    finally:
-        shutil.rmtree(root)
-
-
-def test_blocked_and_unknown_profiles_are_rejected():
-    root = _fixture()
-    try:
-        blocked = root / ".codex" / "agents" / "planner-v4.toml"
-        blocked.write_text('name = "planner-v4"\n', encoding="utf-8")
-        extra = root / ".codex" / "agents" / "mystery.toml"
-        extra.write_text('name = "mystery"\n', encoding="utf-8")
+        for name in ("auditor.toml", "planner-v4.toml", "mystery.toml"):
+            (root / ".codex" / "agents" / name).write_text(
+                "not even valid TOML\n", encoding="utf-8"
+            )
         findings = CCA.check(root)
-        assert any("file-read" in finding for finding in findings)
-        assert any("余分" in finding for finding in findings)
+        assert len(findings) == 3
+        assert all("native discovery profileは禁止" in finding for finding in findings)
     finally:
         shutil.rmtree(root)
 
 
-def test_missing_profile_is_rejected_and_write_repairs_it():
+def test_project_config_native_role_is_rejected_and_globals_are_allowed():
     root = _fixture()
     try:
-        missing = root / ".codex" / "agents" / "verifier.toml"
-        missing.unlink()
-        assert any("欠落" in finding for finding in CCA.check(root))
-        CCA.write_profiles(root)
+        config = root / ".codex" / "config.toml"
+        config.write_text(
+            "[agents]\nmax_threads = 4\nmax_depth = 1\ninterrupt_message = true\n",
+            encoding="utf-8",
+        )
         assert CCA.check(root) == []
+        config.write_text(
+            "[agents]\nmax_threads = 4\n\n"
+            "[agents.auditor]\n"
+            'description = "forbidden native role"\n'
+            'config_file = "./custom/auditor.toml"\n',
+            encoding="utf-8",
+        )
+        findings = CCA.check(root)
+        assert len(findings) == 1
+        assert "native discovery agent role 'auditor'は禁止" in findings[0]
+        config.write_text("[agents\n", encoding="utf-8")
+        assert any("TOML parse 失敗" in finding for finding in CCA.check(root))
     finally:
         shutil.rmtree(root)
 
 
-def test_new_claude_role_must_be_classified():
+def test_write_mode_does_not_create_native_or_adapter_files():
+    root = _fixture()
+    try:
+        before = sorted(str(path.relative_to(root)) for path in root.rglob("*"))
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            result = CCA.main(["--write", "--root", str(root)])
+        after = sorted(str(path.relative_to(root)) for path in root.rglob("*"))
+        assert result == 1
+        assert "--write" in stderr.getvalue()
+        assert before == after
+    finally:
+        shutil.rmtree(root)
+
+
+def test_adapter_inventory_missing_extra_and_symlink_are_rejected():
+    for mode in ("missing", "extra", "symlink"):
+        root = _fixture()
+        try:
+            adapter_dir = root / ".codex" / "role-adapters"
+            if mode == "missing":
+                (adapter_dir / "auditor.json").unlink()
+            elif mode == "extra":
+                (adapter_dir / "mystery.json").write_text("{}\n", encoding="utf-8")
+            else:
+                target = adapter_dir / "auditor.json"
+                target.unlink()
+                target.symlink_to(adapter_dir / "critic.json")
+            assert any("adapter inventory 不一致" in finding or "symlink" in finding
+                       for finding in CCA.check(root))
+        finally:
+            shutil.rmtree(root)
+
+
+def test_adapter_byte_drift_and_runtime_claim_injection_are_rejected():
+    root = _fixture()
+    try:
+        path = root / ".codex" / "role-adapters" / "auditor.json"
+        adapter = json.loads(path.read_text(encoding="utf-8"))
+        adapter["wire_contract"] = {"wire_tools": []}
+        path.write_text(json.dumps(adapter, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+                        encoding="utf-8")
+        assert any("byte parity drift" in finding for finding in CCA.check(root))
+    finally:
+        shutil.rmtree(root)
+
+
+def test_claude_body_or_description_drift_requires_independent_ledger_review():
+    for mutation in ("body", "description"):
+        root = _fixture()
+        try:
+            path = root / ".claude" / "agents" / "auditor.md"
+            text = path.read_text(encoding="utf-8")
+            if mutation == "body":
+                text += "\nBODY-DRIFT-SENTINEL\n"
+            else:
+                line = next(v for v in text.splitlines() if v.startswith("description: "))
+                text = text.replace(line, 'description: "meaning changed"', 1)
+            path.write_text(text, encoding="utf-8")
+            if mutation == "body":
+                findings = CCA.check(root)
+                expected = "SOURCE_FILE_SHA256 drift"
+            else:
+                # file全体pinだけをreview済み相当に差し替えても、description固有pinが赤になる。
+                old_pin = SOURCE_FILE_SHA256["auditor"]
+                SOURCE_FILE_SHA256["auditor"] = hashlib.sha256(path.read_bytes()).hexdigest()
+                try:
+                    findings = CCA.check(root)
+                finally:
+                    SOURCE_FILE_SHA256["auditor"] = old_pin
+                expected = "description SHA256 drift"
+            assert any(expected in finding for finding in findings)
+        finally:
+            shutil.rmtree(root)
+
+
+def test_claude_tools_model_and_effort_must_match_manifest():
+    cases = (
+        ("auditor", 'tools: ["Read", "Grep", "Glob"]', "tools: []"),
+        ("planner-v4", "model: opus", "model: sonnet"),
+        ("critic-experiment", "effort: high", "effort: medium"),
+    )
+    for role, old, new in cases:
+        root = _fixture()
+        try:
+            path = root / ".claude" / "agents" / f"{role}.md"
+            text = path.read_text(encoding="utf-8")
+            assert old in text
+            path.write_text(text.replace(old, new, 1), encoding="utf-8")
+            old_pin = SOURCE_FILE_SHA256[role]
+            SOURCE_FILE_SHA256[role] = hashlib.sha256(path.read_bytes()).hexdigest()
+            try:
+                findings = CCA.check(root)
+            finally:
+                SOURCE_FILE_SHA256[role] = old_pin
+            assert any("Claude source contract drift" in finding for finding in findings)
+        finally:
+            shutil.rmtree(root)
+
+
+def test_unquoted_and_leading_hash_description_are_rejected():
+    for replacement in (
+        "description: plain",
+        "description: #if hidden-by-yaml",
+        "description: visible #then-hidden-by-yaml",
+    ):
+        root = _fixture()
+        try:
+            path = root / ".claude" / "agents" / "coder.md"
+            text = path.read_text(encoding="utf-8")
+            line = next(v for v in text.splitlines() if v.startswith("description: "))
+            path.write_text(text.replace(line, replacement, 1), encoding="utf-8")
+            assert any("JSON quoted string" in finding for finding in CCA.check(root))
+        finally:
+            shutil.rmtree(root)
+
+
+def test_manifest_and_claude_role_inventory_must_be_bijective():
     root = _fixture()
     try:
         (root / ".claude" / "agents" / "new-role.md").write_text(
-            "---\nname: new-role\ndescription: test\ntools: []\nmodel: opus\neffort: high\n---\n\nbody\n",
+            '---\nname: new-role\ndescription: "test"\ntools: []\n'
+            "model: opus\neffort: high\n---\n\nbody\n",
             encoding="utf-8",
         )
-        assert any("未分類 role" in finding for finding in CCA.check(root))
+        assert any("role inventory 不一致" in finding for finding in CCA.check(root))
     finally:
         shutil.rmtree(root)
 
 
-def test_claude_tool_contract_drift_requires_reclassification():
-    root = _fixture()
+def test_capability_mapping_omission_and_wrong_lowering_are_rejected():
+    for mutation in ("missing", "wrong"):
+        root = _fixture()
+        try:
+            manifest = _manifest(root)
+            mapping = manifest["roles"]["auditor"]["capability_mapping"]
+            if mutation == "missing":
+                mapping.pop("Read")
+            else:
+                mapping["Read"] = "shell"
+            _write_manifest(root, manifest)
+            with _reviewed_role_entry(root, "auditor"):
+                assert any(
+                    "capability_mapping" in finding for finding in CCA.check(root)
+                )
+        finally:
+            shutil.rmtree(root)
+
+
+def test_codex_model_and_effort_cannot_be_omitted_or_inherited():
+    for mutation in ("missing", "unknown", "opus-terra"):
+        root = _fixture()
+        try:
+            manifest = _manifest(root)
+            codex = manifest["roles"]["auditor"]["codex"]
+            if mutation == "missing":
+                codex.pop("model_reasoning_effort")
+            elif mutation == "unknown":
+                codex["model"] = "latest"
+            else:
+                codex["model"] = "gpt-5.6-terra"
+            _write_manifest(root, manifest)
+            with _reviewed_role_entry(root, "auditor"):
+                assert any("codex" in finding for finding in CCA.check(root))
+        finally:
+            shutil.rmtree(root)
+
+
+def test_verifier_codex_mapping_is_explicitly_sol_high():
+    for key, value in (("model", "gpt-5.6-terra"),
+                       ("model_reasoning_effort", "medium")):
+        root = _fixture()
+        try:
+            manifest = _manifest(root)
+            manifest["roles"]["verifier"]["codex"][key] = value
+            _write_manifest(root, manifest)
+            with _reviewed_role_entry(root, "verifier"):
+                assert any("verifierはgpt-5.6-sol/high固定" in finding
+                           for finding in CCA.check(root))
+        finally:
+            shutil.rmtree(root)
+
+
+def test_full_role_manifest_pin_rejects_semantic_contract_weakening():
+    cases = (
+        ("auditor", "projection"),
+        ("auditor", "consumer"),
+        ("auditor", "forbidden"),
+        ("calibrator", "model"),
+        ("auditor", "lowering"),
+    )
+    for role, mutation in cases:
+        root = _fixture()
+        old_lowering = CCA.ROLE_SPEC.TOOL_LOWERING["Read"]
+        try:
+            manifest = _manifest(root)
+            entry = manifest["roles"][role]
+            if mutation == "projection":
+                entry["projection_instructions"] = "correctness gateを省略する"
+            elif mutation == "consumer":
+                entry["consumer"] = None
+            elif mutation == "forbidden":
+                entry["forbidden_input_classes"].pop()
+            elif mutation == "model":
+                entry["codex"] = {
+                    "model": "gpt-5.6-sol",
+                    "model_reasoning_effort": "high",
+                }
+            else:
+                entry["capability_mapping"]["Read"] = "structured-output-proposal"
+                CCA.ROLE_SPEC.TOOL_LOWERING["Read"] = "structured-output-proposal"
+            _write_manifest(root, manifest)
+            assert any("reviewed full manifest role SHA256 drift" in finding
+                       for finding in CCA.check(root))
+        finally:
+            CCA.ROLE_SPEC.TOOL_LOWERING["Read"] = old_lowering
+            shutil.rmtree(root)
+
+
+def test_shared_developer_instruction_template_has_independent_pin():
+    old_template = CCA.ROLE_SPEC.DEVELOPER_INSTRUCTION_TEMPLATE
     try:
-        path = root / ".claude" / "agents" / "verifier.md"
-        text = path.read_text(encoding="utf-8")
-        path.write_text(
-            text.replace('tools: ["Read", "Grep", "Glob", "Bash"]', "tools: []", 1),
-            encoding="utf-8",
+        CCA.ROLE_SPEC.DEVELOPER_INSTRUCTION_TEMPLATE = old_template.replace(
+            "正しさゲートや隔離条件を緩めない",
+            "正しさゲートや隔離条件を必要に応じて緩める",
         )
-        assert any("source contract drift" in finding for finding in CCA.check(root))
+        assert any("DEVELOPER_INSTRUCTION_TEMPLATE_SHA256 drift" in finding
+                   for finding in CCA.check(_REPO))
+    finally:
+        CCA.ROLE_SPEC.DEVELOPER_INSTRUCTION_TEMPLATE = old_template
+
+
+def test_runtime_activation_is_blocked_on_uncontrollable_additional_tools():
+    for path, value in (
+        (("runtime_activation", "status"), "active"),
+        (("runtime_activation", "reason"), "tool-free"),
+        (("runtime_activation", "uncontrollable_surface"), "body.tools"),
+        (("runtime_boundary",), "outer-bwrap+responses-wire-attestation"),
+    ):
+        root = _fixture()
+        try:
+            manifest = _manifest(root)
+            target = manifest
+            for key in path[:-1]:
+                target = target[key]
+            target[path[-1]] = value
+            _write_manifest(root, manifest)
+            assert any("runtime activation" in finding or "runtime_boundary" in finding
+                       for finding in CCA.check(root))
+        finally:
+            shutil.rmtree(root)
+
+
+def test_recursive_forbidden_key_aliases_are_role_specific_and_fail_closed():
+    cases = {
+        "axis-proposer": (
+            "winner_value", "winner_values", "winner", "winners", "recommend",
+            "recommendation", "recommendations", "ranking", "rankings",
+            "candidate_rankings", "critic_recommendation", "critic_recommendations",
+            "dead_axis_attributions", "performance_hint", "performance_hints",
+        ),
+        "auditor": (
+            "wal", "wals", "history", "histories", "median_tps",
+            "leading_indicator", "leading_indicators",
+            "winning_mechanism", "winning_mechanisms",
+        ),
+        "coder-v4-autonomous": (
+            "winner", "winners", "ranking", "rankings", "candidate_rankings",
+            "unevaluated_performance", "unevaluated_performances",
+            "optimal_mechanism", "optimal_mechanisms",
+        ),
+        "coder-v4-autonomous-sort": (
+            "winning_comparator", "winning_comparators", "winners",
+            "candidate_rankings", "rankings", "optimal_mechanisms",
+        ),
+        "coder-v4-autonomous-trigger-gating": (
+            "winning_gate", "winning_gates", "winners", "candidate_rankings",
+            "rankings", "optimal_mechanisms",
+        ),
+        "critic-experiment": (
+            "fitness", "winner", "winners", "winner_tied_sets", "arrival_verdict",
+            "arrival_verdicts", "wal", "wals", "source_tree", "source_trees",
+        ),
+        "planner-v4": ("winner_values", "winners", "grid_optima", "source_trees"),
+        "calibrator": ("trace_enabled", "campaign_fitness", "between_run_floor"),
+        "profiler": ("trace_enabled", "concurrent_benchmarks"),
+        "verifier": (
+            "throughputs", "fitnesses", "expected_verdicts", "winners",
+            "implementation_fix_requests",
+        ),
+    }
+    for role, aliases in cases.items():
+        for alias in aliases:
+            try:
+                ROLE_POLICY.validate_input_semantics(
+                    role, {"safe": [{"nested": {alias: "red"}}]}
+                )
+            except ROLE_POLICY.RolePolicyError as exc:
+                assert "recursive forbidden key" in str(exc)
+            else:
+                raise AssertionError(f"{role}:{alias}を許可した")
+
+    # tableに列挙した全tokenはnested/list内でも必ず拒否する。
+    for role, tokens in ROLE_POLICY.ROLE_FORBIDDEN_KEY_TOKENS.items():
+        for token in tokens:
+            assert ROLE_POLICY.find_forbidden_keys(
+                role, {"safe": [{"nested": {token: "red"}}]}
+            )
+    for role, alias in (
+        ("axis-proposer", "candidateRankings"),
+        ("coder-v4-autonomous-sort", "winningComparators"),
+        ("verifier", "expectedVerdicts"),
+    ):
+        assert ROLE_POLICY.find_forbidden_keys(role, {alias: "red"})
+
+    # calibratorの正規入力にあるthroughput系観測は一律禁止しない。
+    ROLE_POLICY.validate_input_semantics(
+        "calibrator",
+        {
+            "request": {},
+            "measurements": [{"records": 1, "throughput_ops_sec": 123.0}],
+        },
+    )
+
+
+def test_opaque_string_is_not_misrepresented_as_recursively_inspected():
+    ROLE_POLICY.validate_input_semantics(
+        "axis-proposer",
+        {
+            "diagnostics": {
+                "opaque": "winner recommend ranking performance_hint"
+            },
+            "stock_excerpts": [
+                {"region": "r", "source_rel": "src/x.cpp", "excerpt": "stock"}
+            ],
+            "edit_surface_map": [
+                {"region": "r", "role": "neutral", "opened": False}
+            ],
+        },
+    )
+    spec = CCA.ROLE_SPEC.get_role_spec("axis-proposer")
+    assert ROLE_POLICY.find_forbidden_keys(spec, {"opaque": "winner"}) == ()
+    assert ROLE_POLICY.OPAQUE_STRING_POLICY == (
+        "trusted-projection-producer-responsibility"
+    )
+    assert ROLE_POLICY.OPEN_SUBTREE_POLICY == (
+        "trusted-projection-producer-responsibility"
+    )
+
+
+def test_auditor_input_digest_is_sha256_of_utf8_working_diff():
+    working_diff = "diff --git a/x b/x\n+日本語\n"
+    digest = hashlib.sha256(working_diff.encode("utf-8")).hexdigest()
+    projected = {"working_diff": working_diff, "diff_digest": digest}
+    ROLE_POLICY.validate_input_semantics("auditor", projected)
+    ROLE_POLICY.validate_output_semantics(
+        "auditor",
+        projected,
+        {
+            "verdict": "pass",
+            "diff_digest": digest,
+            "violations": [],
+            "nits": [],
+            "proposed_tests": [],
+            "uncertainty": "",
+        },
+    )
+    try:
+        ROLE_POLICY.validate_input_semantics(
+            "auditor", {"working_diff": working_diff, "diff_digest": "0" * 64}
+        )
+    except ROLE_POLICY.RolePolicyError as exc:
+        assert "SHA-256" in str(exc)
+    else:
+        raise AssertionError("working_diffと不一致なdigestを許可した")
+
+
+def test_auditor_output_verdict_and_structured_feedback_are_consistent():
+    diff = "diff --git a/x b/x\n+x\n"
+    digest = hashlib.sha256(diff.encode("utf-8")).hexdigest()
+    projected = {"working_diff": diff, "diff_digest": digest}
+    base = {
+        "diff_digest": digest,
+        "violations": [],
+        "nits": [],
+        "proposed_tests": [],
+        "uncertainty": "",
+    }
+    valid = (
+        {**base, "verdict": "pass"},
+        {
+            **base,
+            "verdict": "reject",
+            "violations": [{"type": 1, "reason": "correctness"}],
+        },
+        {**base, "verdict": "uncertain", "uncertainty": "insufficient evidence"},
+    )
+    for output in valid:
+        ROLE_POLICY.validate_output_semantics("auditor", projected, output)
+
+    invalid = (
+        {**base, "verdict": "pass", "violations": [{"type": 1}]},
+        {**base, "verdict": "reject"},
+        {**base, "verdict": "uncertain", "uncertainty": "  "},
+        {**base, "verdict": "uncertain", "uncertainty": "unknown",
+         "violations": [{"type": 1}]},
+        {**base, "verdict": "pass", "nits": [42]},
+    )
+    for output in invalid:
+        try:
+            ROLE_POLICY.validate_output_semantics("auditor", projected, output)
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"auditor出力矛盾を許可: {output!r}")
+
+
+def test_calibrator_records_are_positive_unique_and_selected_from_measurements():
+    schema = CCA.ROLE_SPEC.get_role_spec("calibrator").input_schema
+    measurements_schema = schema["properties"]["measurements"]
+    assert measurements_schema["minItems"] == 1
+    assert measurements_schema["uniqueItems"] is True
+    assert measurements_schema["items"]["properties"]["records"] == {
+        "type": "integer",
+        "minimum": 1,
+    }
+
+    valid_input = {
+        "request": {"threads": 8},
+        "measurements": [
+            {"records": 1000, "miss_rate": 0.4},
+            {"records": 2000, "miss_rate": 0.2},
+        ],
+    }
+    ROLE_POLICY.validate_input_semantics("calibrator", valid_input)
+    ROLE_POLICY.validate_output_semantics(
+        "calibrator", valid_input, {"selected_records": 2000}
+    )
+    invalid_inputs = (
+        {"request": {}, "measurements": []},
+        {"request": {}, "measurements": [{"records": 0}]},
+        {"request": {}, "measurements": [{"records": True}]},
+        {
+            "request": {},
+            "measurements": [
+                {"records": 1000, "miss_rate": 0.4},
+                {"records": 1000, "miss_rate": 0.2},
+            ],
+        },
+    )
+    for projected in invalid_inputs:
+        try:
+            ROLE_POLICY.validate_input_semantics("calibrator", projected)
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"calibratorの不正measurementを許可: {projected!r}")
+    for selected in (0, -1, True, 3000):
+        try:
+            ROLE_POLICY.validate_output_semantics(
+                "calibrator", valid_input, {"selected_records": selected}
+            )
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(
+                f"calibratorの未測定/不正selected_recordsを許可: {selected!r}"
+            )
+
+
+def test_axis_planner_and_coder_semantic_policy_negative_cases():
+    axis_input = {
+        "diagnostics": {},
+        "stock_excerpts": [
+            {"region": "region-a", "source_rel": "src/a.cpp", "excerpt": "stock"}
+        ],
+        "edit_surface_map": [
+            {"region": "region-a", "role": "neutral", "opened": False}
+        ],
+        "hole_region_directive": "region-a",
+    }
+    try:
+        ROLE_POLICY.validate_output_semantics(
+            "axis-proposer", axis_input, {"proposals": []}
+        )
+    except ROLE_POLICY.RolePolicyError as exc:
+        assert "1..3" in str(exc)
+    else:
+        raise AssertionError("axis-proposerの空提案を許可した")
+
+    unknown_region = {
+        "proposals": [{
+            "mutation_type": "scalar",
+            "hole_location": {"region": "region-b", "source_rel": "src/b.cpp"},
+        }]
+    }
+    try:
+        ROLE_POLICY.validate_output_semantics("axis-proposer", axis_input, unknown_region)
+    except ROLE_POLICY.RolePolicyError as exc:
+        assert "編集面地図" in str(exc)
+    else:
+        raise AssertionError("編集面地図に無いregionを許可した")
+
+    wrong_source = {
+        "proposals": [{
+            "mutation_type": "scalar",
+            "hole_location": {"region": "region-a", "source_rel": "src/wrong.cpp"},
+        }]
+    }
+    try:
+        ROLE_POLICY.validate_output_semantics("axis-proposer", axis_input, wrong_source)
+    except ROLE_POLICY.RolePolicyError as exc:
+        assert "stock抜粋" in str(exc)
+    else:
+        raise AssertionError("regionと無関係なsource_relを許可した")
+
+    invalid_axis_inputs = (
+        {
+            **axis_input,
+            "stock_excerpts": axis_input["stock_excerpts"] * 2,
+        },
+        {
+            **axis_input,
+            "edit_surface_map": [
+                {"region": "region-b", "role": "neutral", "opened": False}
+            ],
+            "hole_region_directive": None,
+        },
+        {**axis_input, "hole_region_directive": "region-missing"},
+    )
+    for invalid in invalid_axis_inputs:
+        try:
+            ROLE_POLICY.validate_input_semantics("axis-proposer", invalid)
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"axis projection不整合を許可: {invalid!r}")
+
+    planner_input = {}
+    planner_output = {
+        "proposal": {
+            "axis": "silo-backoff-magnitude",
+            "direction": "sideways",
+            "magnitude": "small",
+        }
+    }
+    try:
+        ROLE_POLICY.validate_output_semantics(
+            "planner-v4", planner_input, planner_output
+        )
+    except ROLE_POLICY.RolePolicyError as exc:
+        assert "direction" in str(exc)
+    else:
+        raise AssertionError("plannerの未知directionを許可した")
+
+    coder_input = {
+        "planner_direction": {
+            "axis": "silo-backoff-magnitude",
+            "direction": "increase",
+            "magnitude": "small",
+        }
+    }
+    for field, value in (("value", 0), ("value", 1001), ("confidence", "certain")):
+        proposal = {
+            "axis": "silo-backoff-magnitude",
+            "value": 50,
+            "confidence": "medium",
+        }
+        proposal[field] = value
+        try:
+            ROLE_POLICY.validate_output_semantics(
+                "coder-v4-autonomous", coder_input, {"proposal": proposal}
+            )
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"coder-v4の不正{field}={value!r}を許可した")
+
+
+def test_critic_profiler_and_verifier_semantic_policy_negative_cases():
+    critic_input = {
+        "unevaluated_candidates": ["B0-L-W0"],
+        "trajectory": ["B1-T-W1"],
+    }
+    bad_critic_outputs = (
+        {"action": "evaluate", "genome": None},
+        {"action": "evaluate", "genome": "B0-T-W0"},
+        {"action": "stop", "genome": "B0-L-W0"},
+    )
+    for output in bad_critic_outputs:
+        try:
+            ROLE_POLICY.validate_output_semantics(
+                "critic-experiment", critic_input, output
+            )
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"critic-experiment条件違反を許可: {output!r}")
+
+    for profiler_input in (
+        {"certified": False, "screening": {"passed": True}},
+        {"certified": True, "screening": {"passed": False}},
+    ):
+        try:
+            ROLE_POLICY.validate_input_semantics("profiler", profiler_input)
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError("profilerのgate未通過inputを許可した")
+
+    trusted = {
+        "serializable": True,
+        "verdict": "serializable",
+        "certified": True,
+        "stats": {"txns": 3},
+        "total_cycles": 0,
+        "anomalies": [],
+        "integrity": {"clean": True},
+    }
+    verifier_input = {"verification_result": trusted}
+    valid_output = {**trusted, "uncertainty": ""}
+    ROLE_POLICY.validate_output_semantics("verifier", verifier_input, valid_output)
+    mutations = {
+        "serializable": False,
+        "verdict": "indeterminate",
+        "certified": False,
+        "stats": {"txns": 2},
+        "total_cycles": 1,
+        "anomalies": [{"invented": True}],
+        "integrity": {"clean": False},
+    }
+    for field, value in mutations.items():
+        output = {**valid_output, field: value}
+        try:
+            ROLE_POLICY.validate_output_semantics("verifier", verifier_input, output)
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"verifier trusted field改変を許可: {field}")
+
+    invalid_trusted_results = (
+        {**trusted, "integrity": {"clean": False}},
+        {
+            "serializable": False,
+            "verdict": "non-serializable",
+            "certified": False,
+            "stats": {"txns": 3},
+            "total_cycles": 1,
+            "anomalies": [],
+            "integrity": {"clean": True},
+        },
+        {
+            "serializable": True,
+            "verdict": "indeterminate",
+            "certified": False,
+            "stats": {"txns": 3},
+            "total_cycles": 0,
+            "anomalies": [],
+            "integrity": {"clean": True},
+        },
+    )
+    for invalid in invalid_trusted_results:
+        try:
+            ROLE_POLICY.validate_input_semantics(
+                "verifier", {"verification_result": invalid}
+            )
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"verifier三値不変条件違反を許可: {invalid!r}")
+
+    # 空traceはacyclic/cleanでもcertifiedにせずindeterminateとして許可する。
+    empty_trace = {
+        "serializable": True,
+        "verdict": "indeterminate",
+        "certified": False,
+        "stats": {"txns": 0},
+        "total_cycles": 0,
+        "anomalies": [],
+        "integrity": {"clean": True},
+    }
+    ROLE_POLICY.validate_output_semantics(
+        "verifier",
+        {"verification_result": empty_trace},
+        {**empty_trace, "uncertainty": "empty trace"},
+    )
+
+
+def test_auditor_output_schema_requires_diff_digest_for_consumer():
+    root = _fixture()
+    try:
+        manifest = _manifest(root)
+        required = manifest["roles"]["auditor"]["output_schema"]["required"]
+        required.remove("diff_digest")
+        _write_manifest(root, manifest)
+        schema = manifest["roles"]["auditor"]["output_schema"]
+        old_pin = SCHEMA_SHA256["auditor"]["output"]
+        old_fields = ROLE_IO_CONTRACTS["auditor"]["output_required_fields"]
+        old_obligations = dict(ROLE_IO_CONTRACTS["auditor"]["source_obligations"])
+        with _reviewed_role_entry(root, "auditor"):
+            SCHEMA_SHA256["auditor"]["output"] = _canonical_sha256(schema)
+            ROLE_IO_CONTRACTS["auditor"]["output_required_fields"] = tuple(required)
+            ROLE_IO_CONTRACTS["auditor"]["source_obligations"].pop("diff_digest")
+            try:
+                assert any("consumer 必須 field" in finding
+                           for finding in CCA.check(root))
+            finally:
+                SCHEMA_SHA256["auditor"]["output"] = old_pin
+                ROLE_IO_CONTRACTS["auditor"]["output_required_fields"] = old_fields
+                ROLE_IO_CONTRACTS["auditor"]["source_obligations"] = old_obligations
     finally:
         shutil.rmtree(root)
 
 
-def test_unquoted_hash_in_description_is_rejected():
+def test_all_role_manifest_schema_and_adapter_weakening_hits_independent_ledgers():
+    """generated側を同時に合わせても、独立schema/required台帳は弱化を拒否する。"""
+
+    for role in sorted(ROLE_IO_CONTRACTS):
+        for surface in ("input", "output"):
+            root = _fixture()
+            try:
+                manifest = _manifest(root)
+                schema = manifest["roles"][role][f"{surface}_schema"]
+                field = schema["required"][0]
+                schema["required"].remove(field)
+                schema["properties"].pop(field)
+                _write_manifest(root, manifest)
+
+                adapter_path = root / ".codex" / "role-adapters" / f"{role}.json"
+                adapter = json.loads(adapter_path.read_text(encoding="utf-8"))
+                adapter_schema = adapter[f"{surface}_schema"]
+                adapter_schema["required"].remove(field)
+                adapter_schema["properties"].pop(field)
+                adapter["review_ledger"]["io_contract"][
+                    f"{surface}_required_fields"
+                ].remove(field)
+                observed_pin = _canonical_sha256(schema)
+                adapter["review_ledger"][f"{surface}_schema_sha256"] = observed_pin
+                adapter_path.write_text(
+                    json.dumps(
+                        adapter, ensure_ascii=False, sort_keys=True, indent=2
+                    ) + "\n",
+                    encoding="utf-8",
+                )
+
+                assert any("reviewed full manifest role SHA256 drift" in finding
+                           for finding in CCA.check(root))
+
+                with _reviewed_role_entry(root, role):
+                    assert any(
+                        "reviewed schema SHA256 drift" in finding
+                        for finding in CCA.check(root)
+                    )
+
+                    # schema pinもreview済み相当に差し替えても、required field台帳が独立に赤。
+                    old_pin = SCHEMA_SHA256[role][surface]
+                    SCHEMA_SHA256[role][surface] = observed_pin
+                    try:
+                        findings = CCA.check(root)
+                    finally:
+                        SCHEMA_SHA256[role][surface] = old_pin
+                    assert any("review ledger drift" in finding for finding in findings)
+            finally:
+                shutil.rmtree(root)
+
+
+def test_consumer_required_field_drift_is_detected_from_source_ast():
     root = _fixture()
     try:
-        path = root / ".claude" / "agents" / "coder.md"
+        path = root / "orchestrator" / "campaign" / "auditor_gate.py"
         text = path.read_text(encoding="utf-8")
-        quoted = next(line for line in text.splitlines() if line.startswith("description: "))
-        decoded = __import__("json").loads(quoted.removeprefix("description: "))
-        path.write_text(text.replace(quoted, f"description: {decoded}"), encoding="utf-8")
-        assert any("JSON quote" in finding for finding in CCA.check(root))
+        assert 'digest = a["diff_digest"]' in text
+        path.write_text(text.replace('digest = a["diff_digest"]',
+                                     'digest = a.get("diff_digest")', 1), encoding="utf-8")
+        assert any("consumer required field drift" in finding for finding in CCA.check(root))
     finally:
         shutil.rmtree(root)
 
 
-def test_profiles_encode_permission_and_input_fail_closed_contracts():
+def test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced():
+    roles = (
+        "planner-v4",
+        "coder-v4-autonomous",
+        "coder-v4-autonomous-sort",
+        "coder-v4-autonomous-trigger-gating",
+    )
+    for role in roles:
+        spec = CCA.ROLE_SPEC.get_role_spec(role)
+        flattened = copy.deepcopy(spec.output_schema["properties"]["proposal"])
+        mutated = replace(spec, output_schema=flattened)
+        try:
+            CCA._validate_source_output_shape(mutated)
+        except CCA.ProfileError as exc:
+            assert "shape parity drift" in str(exc)
+        else:
+            raise AssertionError(f"{role}のflattened output schemaを許可した")
+
+
+def test_axis_proposer_source_output_shape_parity_covers_nested_arrays():
+    for mutation in ("global_unknowns", "proposal_field", "hole_field"):
+        spec = CCA.ROLE_SPEC.get_role_spec("axis-proposer")
+        schema = copy.deepcopy(spec.output_schema)
+        if mutation == "global_unknowns":
+            schema["required"].remove("global_unknowns")
+            schema["properties"].pop("global_unknowns")
+        else:
+            proposal = schema["properties"]["proposals"]["items"]
+            if mutation == "proposal_field":
+                proposal["required"].remove("safety_argument_hypothesis")
+                proposal["properties"].pop("safety_argument_hypothesis")
+            else:
+                hole = proposal["properties"]["hole_location"]
+                hole["required"].remove("skeleton")
+                hole["properties"].pop("skeleton")
+        try:
+            CCA._validate_source_output_shape(replace(spec, output_schema=schema))
+        except CCA.ProfileError as exc:
+            assert "shape parity drift" in str(exc)
+        else:
+            raise AssertionError(f"axis nested output弱化を許可: {mutation}")
+
+
+def test_direct_role_source_input_shape_parity_covers_top_and_nested_fields():
+    planner = CCA.ROLE_SPEC.get_role_spec("planner-v4")
+    planner_schema = copy.deepcopy(planner.input_schema)
+    planner_schema["required"].remove("leading_indicators")
+    planner_schema["properties"].pop("leading_indicators")
+    try:
+        CCA._validate_source_input_shape(
+            replace(planner, input_schema=planner_schema)
+        )
+    except CCA.ProfileError as exc:
+        assert "shape parity drift" in str(exc)
+    else:
+        raise AssertionError("planner source入力に残るfieldのschema削除を許可した")
+
+    axis = CCA.ROLE_SPEC.get_role_spec("axis-proposer")
+    axis_schema = copy.deepcopy(axis.input_schema)
+    stock = axis_schema["properties"]["stock_excerpts"]["items"]
+    stock["required"].remove("excerpt")
+    stock["properties"].pop("excerpt")
+    try:
+        CCA._validate_source_input_shape(replace(axis, input_schema=axis_schema))
+    except CCA.ProfileError as exc:
+        assert "shape parity drift" in str(exc)
+    else:
+        raise AssertionError("axis source入力のnested field schema削除を許可した")
+
+
+def test_duplicate_manifest_key_is_rejected():
     root = _fixture()
     try:
-        CCA.write_profiles(root)
-        for role in CCA.SUPPORTED:
-            text = (root / ".codex" / "agents" / f"{role}.toml").read_text(encoding="utf-8")
-            assert "ADAPTER-REFUSED" in text
-            assert "親 turn の実効 sandbox を read-only" in text
-            assert "Codex role-specific input override" in text
-        critic = (root / ".codex" / "agents" / "critic.toml").read_text(encoding="utf-8")
-        assert "digest.py` の自走許可はこの Codex adapter では無効" in critic
+        path = root / "orchestrator" / "codex_roles" / "manifest.json"
+        text = path.read_text(encoding="utf-8")
+        text = text.replace(
+            '"schema_version": "izanagi.codex-role-manifest/v1",',
+            '"schema_version": "izanagi.codex-role-manifest/v1",\n'
+            '  "schema_version": "duplicate",',
+            1,
+        )
+        path.write_text(text, encoding="utf-8")
+        assert any("JSON key が重複" in finding for finding in CCA.check(root))
     finally:
         shutil.rmtree(root)
+
+
+def test_nonfinite_manifest_json_constants_are_rejected():
+    for constant in ("NaN", "Infinity", "-Infinity"):
+        root = _fixture()
+        try:
+            path = root / "orchestrator" / "codex_roles" / "manifest.json"
+            text = path.read_text(encoding="utf-8")
+            text = text.replace("{", f'{{\n  "poison": {constant},', 1)
+            path.write_text(text, encoding="utf-8")
+            assert any("非有限JSON定数は禁止" in finding
+                       for finding in CCA.check(root))
+        finally:
+            shutil.rmtree(root)
 
 
 def _run():

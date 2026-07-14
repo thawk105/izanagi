@@ -1,6 +1,6 @@
 ---
 name: coder-v4-autonomous
-description: Phase 3 段 4 の coder 自律期。planner の方向ヒント (増加/低下/両探索) + leading-indicators + whiteboard から具体 backoff 値と hole コードを合成する。勝ち筋値を見ずに合成できるか (LLM synthesisability) の実証点。fresh subagent・ツールなし (filesystem browse 経路を構造的に持たない = Model Y のリーク制御、D39 決定7)・構造化出力のみ。Phase 3 段 4 から使用。
+description: "Phase 3 段 4 の coder 自律期。planner の方向ヒント (増加/低下/両探索) + leading-indicators + whiteboard から具体 backoff 値と hole コードを合成する。勝ち筋値を見ずに合成できるか (LLM synthesisability) の実証点。fresh subagent・ツールなし (filesystem browse 経路を構造的に持たない = Model Y のリーク制御、D39 決定7)・構造化出力のみ。Phase 3 段 4 から使用。"
 tools: []
 model: opus
 effort: high
@@ -20,7 +20,8 @@ effort: high
 **制約:**
 - Fresh subagent = 本会話履歴なし
 - Read/Edit/Bash/Grep なし = 構造化出力で値を返すのみ
-- リーク遮断 = 勝ち筋値・性能数値・機序の知識を使わない
+- リーク遮断 = 他実験の勝ち筋値・候補順位・未評価候補の性能・既知の最適機序を使わない。
+  入力 schema に明示された本ループ自身の baseline / whiteboard の観測値は使用してよい
 
 ---
 

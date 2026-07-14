@@ -32,9 +32,11 @@
 
 - `AGENTS.md` — Codex 用の薄い作業入口。共有規律の正本 `CLAUDE.md` と現行正本へのポインタ
 - `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`
-- `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_codex_agents.py` = Codex profile 同期・分類 /
+- `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
+  Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
   `check_ai_provenance.py` = commit trailer 監査 / `plotting/` = campaign の論文品質作図、規約は
   `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 方針 A の最小第二防壁 (guard_write / guard_bash、詳細は同 README)
 - `.claude/agents/` — role 本文と Claude Code 固有の model/tools 契約 (現有一覧は ls が正本)
-- `.codex/agents/` — 条件付きで有効化した Codex native profile と保留理由 (D54)
+- `.codex/agents/` — Codex role adapter の現行状態・再開条件の正本 (D54〜D56、F16/F17)
+- `.codex/role-adapters/` — 非自動発見の Codex adapter 定義 (稼働可否は `.codex/agents/README.md` が正本)

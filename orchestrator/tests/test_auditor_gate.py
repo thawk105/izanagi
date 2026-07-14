@@ -61,10 +61,18 @@ def test_auditor_reject_result_uncertain_subtype_and_empty_evidence():
 
 
 def test_parse_auditor_dict_roundtrip():
-    a = parse_auditor_dict({"verdict": "pass", "diff_digest": "a" * 64,
+    a = parse_auditor_dict({"verdict": "reject", "diff_digest": "a" * 64,
                             "violations": [{"type": 1}], "uncertainty": "x"})
-    assert a.verdict == "pass" and a.diff_digest == "a" * 64
+    assert a.verdict == "reject" and a.diff_digest == "a" * 64
     assert a.violations == [{"type": 1}] and a.uncertainty == "x"
+
+
+def test_parse_auditor_dict_accepts_consistent_pass_and_uncertain():
+    passed = parse_auditor_dict({"verdict": "pass", "diff_digest": "a" * 64})
+    uncertain = parse_auditor_dict({"verdict": "uncertain", "diff_digest": "b" * 64,
+                                    "uncertainty": "designated source が不足"})
+    assert passed.violations == []
+    assert uncertain.violations == [] and uncertain.uncertainty
 
 
 def test_parse_auditor_dict_rejects_unknown_verdict():
@@ -80,6 +88,45 @@ def test_parse_auditor_dict_rejects_empty_and_nonstring_digest():
         try:
             parse_auditor_dict({"verdict": "pass", "diff_digest": bad})
             raise AssertionError(f"diff_digest={bad!r} を素通しした")
+        except AuditorGateFailure:
+            pass
+
+
+def test_parse_auditor_dict_rejects_non_list_dict_structured_fields():
+    bad_values = (None, {}, "text", ["not-a-dict"], [{"ok": True}, 1])
+    for key in ("violations", "nits", "proposed_tests"):
+        for bad in bad_values:
+            try:
+                parse_auditor_dict({"verdict": "pass", "diff_digest": "a" * 64,
+                                    key: bad})
+                raise AssertionError(f"{key}={bad!r} を素通しした")
+            except AuditorGateFailure:
+                pass
+
+
+def test_parse_auditor_dict_rejects_nonstring_uncertainty():
+    for bad in (None, 1, [], {}):
+        try:
+            parse_auditor_dict({"verdict": "pass", "diff_digest": "a" * 64,
+                                "uncertainty": bad})
+            raise AssertionError(f"uncertainty={bad!r} を素通しした")
+        except AuditorGateFailure:
+            pass
+
+
+def test_parse_auditor_dict_rejects_verdict_violation_contradictions():
+    bad_objects = (
+        {"verdict": "pass", "violations": [{"type": 1}]},
+        {"verdict": "reject", "violations": []},
+        {"verdict": "uncertain", "violations": [{"type": 1}], "uncertainty": "x"},
+        {"verdict": "uncertain", "violations": []},
+        {"verdict": "uncertain", "violations": [], "uncertainty": ""},
+        {"verdict": "uncertain", "violations": [], "uncertainty": "  \t"},
+    )
+    for bad in bad_objects:
+        try:
+            parse_auditor_dict({"diff_digest": "a" * 64, **bad})
+            raise AssertionError(f"矛盾した auditor verdict を素通しした: {bad!r}")
         except AuditorGateFailure:
             pass
 

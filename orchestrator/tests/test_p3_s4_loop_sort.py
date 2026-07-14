@@ -255,6 +255,19 @@ def test_load_proposal_file_rejects_nonstring_diff_digest():
         pass
 
 
+def test_load_proposal_file_rejects_pass_with_correctness_violations():
+    """現役 sort driver も共有 parser 境界で矛盾した pass を閉じる。"""
+    obj = {**_base_proposal(),
+          "auditor": {"verdict": "pass", "diff_digest": "a" * 64,
+                      "violations": [{"type": 14}]}}
+    p = _write_json(obj, "pass_with_violations.json")
+    try:
+        S.load_proposal_file(p)
+        raise AssertionError("correctness violations 付き pass を素通しした")
+    except S.AuditorGateFailure:
+        pass
+
+
 def test_load_proposal_file_roundtrip():
     obj = {**_base_proposal(),
           "auditor": {"verdict": "pass", "diff_digest": "a" * 64,

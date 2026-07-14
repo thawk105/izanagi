@@ -2,8 +2,9 @@
 
 Izanagi のサブエージェント role、製品別 runtime adapter、hooks の構成、および段階導入計画。
 
-設計の出発点は Jitskit と IDS のマルチエージェント構成。それを各 AI 製品のネイティブ機能へ
-安全側に写像する。ECC からは「tools/model を明示してロールを権限で縛る」「hook で規律を
+設計の出発点は Jitskit と IDS のマルチエージェント構成。製品ごとに実行境界を再審査し、
+同等の権限隔離を再現できない場合は native 実行へ写さず static/blocked で止める。ECC からは
+「tools/model を明示してロールを権限で縛る」「hook で規律を
 機械執行する」運用パターンを借りた (ECC の規模そのものは反面教師)。
 
 ---
@@ -11,20 +12,19 @@ Izanagi のサブエージェント role、製品別 runtime adapter、hooks の
 ## 製品別 runtime adapter
 
 `.claude/agents/` は role の意味・prompt と Claude Code 固有の model/tools 契約の正本である。
-Codex は同じ Markdown を直接の実行定義として使わず、条件付きで安全に近似できる role だけを
-`.codex/agents/` の TOML profile に写す。現在の有効化集合と保留理由は同ディレクトリの README、
-全 role の fail-closed 分類と同期は `tools/check_codex_agents.py` が正本 (D54)。
+Codex は同じ Markdown を native 実行定義として使わず、製品固有の adapter と parity gate を介す。
+manifest と renderer は移植元本文を exact 1 回埋め込み、metadata、model/effort、capability lowering、
+schema、禁止入力 policy、consumer 配線状態を検査対象にする。open/opaque subtree は trusted projection
+producer の責任であり、全階層を検査済みとは扱わない。
 
-Codex custom agent には Claude の tools allowlist や fresh-context 属性がない。したがって、
-有効 profile も毎回 `fork_turns="none"` で起動し、呼出側が role ごとの入力を射影して渡す。
-起動直前に親 turn の実効 sandbox も read-only にする (live permission override が profile より
-優先されるため)。子は実効 read-only を開始時に確認し、不一致なら tool を使わず拒否する。
-`sandbox_mode="read-only"` は読取面・Bash 面を同じ形にはできないため、root AGENTS の通常ブートも
-親だけが行い、子は worklog/phase/handoff を読まずに射影入力だけを扱う。Codex 出力だけを根拠に
-実験上の隔離同等性や証拠能力を主張せず、元の verifier / auditor / 人間 gate と組み合わせる。
+Codex adapter の分類、native discoverability、runtime probe の結果、再開条件を含む**現行状態の正本**は
+`.codex/agents/README.md`、機械検査の正本は `tools/check_codex_agents.py` である (D54〜D56、F16/F17)。
+本書には件数や active/static/blocked の現況を再掲しない。両正本が role を安全な実行面として再分類する
+までは、native profile を起動せず、非自動発見 adapter を実行定義として扱わず、generic child も role
+隔離の代替にしない。`task_name` や自然言語の成功・拒否自己申告だけでは実行証拠にならない。
 
-この adapter は開発製品の選択肢を増やす運用層であり、Phase 3 のロール実体化状況や研究タスクの
-完了判定を変更しない。
+この adapter は将来の Codex runtime 再開に備える互換・検査層であり、Phase 3 のロール実体化状況や
+研究タスクの完了判定を変更しない。
 
 ---
 
@@ -128,7 +128,7 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 
 ECC のように大量に持たない。`.claude/settings.json` の PreToolUse に配線済みの 2 つだけ (D30/D33)。auditor の事後監査に加えた「書き込み時点の第二防壁」であり、**テキスト内容の検査には完全性を負わせない** (2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証済み — 責務再配置の経緯は D30/D33)。
 
-Codex には未配線 (D54)。Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡すが、
+Codex には未配線 (D54〜D56)。Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡すが、
 既存 `guard_write` は Claude の `tool_input.file_path` / `notebook_path` を判定するため、設定だけを
 複製すると書込み面の検査が蒸発する。将来は既存 2 判定核への Codex adapter と parity test を
 作り、同値性を確認してから配線する。第三の論理 hook は追加しない。

@@ -1,0 +1,166 @@
+{
+  "id": "2026-07-14_codex-agent-adapter-remediation",
+  "title": "Codex native agent adapter の独立再現と fail-closed 休眠化",
+  "date": "2026-07-14",
+  "trigger": "前セッションの commit 0d8b2f2 再監査を独立に再現し、現行 surface で安全な方針へ修正するというユーザー依頼",
+  "baseline": {
+    "commit": "0d8b2f248d611963a20d604cdbe9422096fb8c58",
+    "codex_cli": "0.144.2",
+    "preexisting_uncommitted_changes_preserved": [
+      "docs/failures.md",
+      "docs/worklog.md",
+      "output/insights/2026-07-14_codex-agent-adapter-reaudit.json"
+    ],
+    "commit_created": false
+  },
+  "official_contract_checked": {
+    "fetched_at": "2026-07-14",
+    "source": "https://learn.chatgpt.com/docs/agent-configuration/subagents",
+    "facts": [
+      "custom agent の optional fields である model、model_reasoning_effort、sandbox_mode、mcp_servers、skills.config は省略時に親 session から継承される",
+      "SubagentStart event は agent_id、agent_type、permission_mode を持つ",
+      "親 turn の live sandbox/approval override は custom agent file の default より優先される"
+    ]
+  },
+  "independent_reproduction": {
+    "exposed_spawn_agent_schema": {
+      "accepted_fields": [
+        "task_name",
+        "message",
+        "fork_turns"
+      ],
+      "profile_or_agent_type_field": false,
+      "task_name_documented_purpose": "canonical task path の命名"
+    },
+    "profile_selector_negative": {
+      "parent_thread_id": "019f6044-ff57-7120-9f03-4b54c897ca4b",
+      "runtime": "read-only ephemeral codex exec --json",
+      "request": "project custom agent auditor を agent type/profile として明示選択して子を1件起動",
+      "observed_json_events": [
+        "thread.started",
+        "turn.started",
+        "item.completed(type=agent_message)",
+        "turn.completed"
+      ],
+      "spawn_events": 0,
+      "child_thread_ids": [],
+      "verdict": "custom profile は選択・起動されなかった"
+    },
+    "natural_language_false_positive": {
+      "parent_thread_id": "019f6045-6286-7002-980e-82073edac853",
+      "runtime": "read-only ephemeral codex exec --json",
+      "request": "generic child の positive control",
+      "actual_collab_events": [
+        {
+          "tool": "wait",
+          "receiver_thread_ids": []
+        }
+      ],
+      "spawn_events": 0,
+      "natural_language_claim": "PROBE_CHILD_OK と /root/generic_positive_control を返した",
+      "verdict": "実 child 無しでも成功自己申告が成立し、自然言語 final は operative proof にならない"
+    },
+    "real_spawn_positive_control": {
+      "parent_thread_id": "019f6042-95d9-7030-811c-e751fdee0b6b",
+      "child_thread_id": "019f6045-ba07-7e62-8ba8-474728b39df8",
+      "agent_path": "/root/runtime_probe",
+      "parent_spawn_event": {
+        "type": "sub_agent_activity",
+        "event_id": "call_mxVvilnR5nZx4Nrrl2Nnk0oo",
+        "kind": "started",
+        "agent_thread_id": "019f6045-ba07-7e62-8ba8-474728b39df8",
+        "agent_path": "/root/runtime_probe"
+      },
+      "child_session_metadata": {
+        "parent_thread_id": "019f6042-95d9-7030-811c-e751fdee0b6b",
+        "agent_path": "/root/runtime_probe",
+        "agent_role": null,
+        "originator": "codex_vscode"
+      },
+      "child_tool_event": {
+        "type": "custom_tool_call",
+        "name": "exec",
+        "call_id": "call_uUuCKlMALCuWyMNEzWFjeYVk"
+      },
+      "actual_callable_names_returned": [
+        "apply_patch",
+        "exec_command",
+        "web__run",
+        "request_plugin_install"
+      ],
+      "interpretation": "通常の generic child は実在し tool event も追跡できたが、agent_role は null だった。この正例と比較して profile selector negative の spawn 無しを判定した。これは read-only custom profile の権限試験ではなく、現行 surface の実 child/event 形状と親由来 tool surface の正例である。"
+    },
+    "checker_negative_controls": [
+      {
+        "finding": "CA-03",
+        "before": "旧 permission test の呼出先は fixture、write_profiles、read_text、rmtree のみで spawn/event 観測は0。成功文言だけを含む不正TOML writerへ差し替えても pass を再現",
+        "after": "presence-only test と profile renderer を削除。active role が1件でも runtime E2E gate 未実装エラーにし、発見可能 TOML を内容にかかわらず拒否"
+      },
+      {
+        "finding": "CA-04",
+        "before": "blocked planner-v4 の body-only drift 後も checker findings=[]。active auditor も --write 後は findings=[]",
+        "after": "全12 role の body SHA-256 を policy に固定し、dormant/blocked 双方の body drift 負例を追加。--write は常に exit 1"
+      },
+      {
+        "finding": "CA-05",
+        "before": "description: #if hidden-by-yaml を checker は '#if hidden-by-yaml' と解釈して findings=[]、PyYAML 5.4.1 は null と解釈",
+        "after": "全12 role の description を JSON quoted string 必須にし、未引用値と行頭 # の負例を追加"
+      }
+    ]
+  },
+  "verdict": {
+    "audit_supported": true,
+    "findings_real": [
+      "custom profile selector 不在",
+      "全 tool surface の構造的 allowlist 不在",
+      "runtime を見ない presence-only test",
+      "role body drift 未検出",
+      "description 行頭 # 未検出"
+    ],
+    "policy": "0 active / 3 dormant / 9 blocked",
+    "runtime_e2e": "BLOCKED",
+    "reason": "明示 selector、全 tool surface exact allowlist、event-based positive/negative control を現行 surface で保証できない"
+  },
+  "remediation": {
+    "discoverable_profiles": "auditor/critic/verifier TOML を削除し 0 件化",
+    "boot_contract": "custom role の通常ブート省略例外を削除。task_name を role 名にした generic child も通常ブート対象",
+    "static_gate": "ACTIVE=0、DORMANT=3、BLOCKED=9 の排他的・網羅的分類、active kill switch、standalone TOML と project config agent role の禁止、metadata/description/body digest drift、description JSON quote を検査",
+    "runtime_gate": "実装可能になるまで成功・skip・xfail と数えず BLOCKED。再開時は child thread ID、agent type、instruction digest、全 local/remote tool の許可・拒否 event を必須化",
+    "decision": "D54 初版の active 裁定を supersede し D55 を追加",
+    "phase3_research_state_changed": false
+  },
+  "post_implementation_adversarial_review": {
+    "runtime": "通常ブートした generic integration reviewer。custom profile は使用せず、repo は無編集",
+    "initial_verdict": "1 high / 2 medium",
+    "findings": [
+      {
+        "severity": "high",
+        "title": "project .codex/config.toml の [agents.<name>] + config_file が standalone profile 禁止を迂回",
+        "resolution": "checker が project config を TOML parse し、global agent settings 以外の role を拒否。正例・role負例・不正TOML負例を追加"
+      },
+      {
+        "severity": "medium",
+        "title": "quoted description の値 drift が未固定",
+        "resolution": "全12 role の description SHA-256 を固定し、quoted value drift 負例を追加"
+      },
+      {
+        "severity": "medium",
+        "title": "worklog の (6) が監査対象 (5) より前に配置",
+        "resolution": "既存内容を変更せず (4)→(5)→(6)→(7) の時系列へ移動"
+      }
+    ],
+    "targeted_recheck": "3 findings closed / new high-medium 0",
+    "open_findings_after_resolution": 0
+  },
+  "verification": {
+    "focused_pytest": "29 passed, 1 skipped in 0.26s",
+    "focused_skip_reason": "template patch 未適用 (marker 無し)。適用後に有効化される既存 test_hooks skip",
+    "standalone_codex_agent_tests": "12 passed, 0 failed",
+    "check_codex_agents": "OK: Codex agent roles (0 active / 3 dormant / 9 blocked)",
+    "write_mode_negative": "--write は exit 1 で発見可能 profile の生成を拒否",
+    "yaml_frontmatter": "12 role の description が PyYAML 5.4.1 で全て string",
+    "check_docs": "違反なし",
+    "py_compile": "clean",
+    "git_diff_check": "clean"
+  }
+}

@@ -1,376 +1,369 @@
 #!/usr/bin/env python3
-"""Codex agent profile の同期と安全な有効化集合を検査する。
+"""Codex native 0件と、全12 dormant projection adapter の静的契約を検査する。
 
-`.claude/agents/*.md` の role 本文を意味契約の正本とし、Codex で権限境界を
-近似できる role だけを `.codex/agents/*.toml` に生成する。通常実行は検査のみ、
-`--write` は対応 profile を決定的に再生成する。
+native custom profile は現行 collaboration surface の selector/権限隔離を保証できない
+ため引き続き禁止する。一方 `.codex/role-adapters/*.json` は自動発見されない source
+adapter であり、Claude 12 role と全単射、capability lowering、I/O schema、semantic policy、
+consumer、renderer の期待 byte と照合する。runtime activation は全件blocked固定である。
+
+``input.additional_tools`` inventoryと隔離の実効性はruntime launcher側の証拠が正本であり、
+このstatic checkerはtool-free/activeを主張せず、自然言語の成功申告を証拠に数えない。
 """
 from __future__ import annotations
 
 import argparse
+import ast
 import json
+import re
 import sys
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 try:  # Python 3.11+
     import tomllib  # type: ignore[import-not-found]
-except ModuleNotFoundError:  # Python 3.10 (Izanagi の現行環境)
+except ModuleNotFoundError:  # Python 3.10
     try:
         import tomli as tomllib  # type: ignore[import-not-found,no-redef]
     except ModuleNotFoundError:
         tomllib = None  # type: ignore[assignment]
 
 REPO = Path(__file__).resolve().parent.parent
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
 
-_FRONTMATTER_KEYS = {"name", "description", "tools", "model", "effort"}
+from orchestrator.codex_roles import spec as ROLE_SPEC  # noqa: E402
 
-# Codex custom agent の sandbox で Claude の権限境界を安全側に近似できる初期集合。
-# model を全 role で固定し、モデル差と製品 adapter 差を同時に持ち込まない。
-SUPPORTED = {
-    "auditor": {
-        "model": "gpt-5.6-sol",
-        "reasoning": "high",
-        "sandbox": "read-only",
-    },
-    "critic": {
-        "model": "gpt-5.6-sol",
-        "reasoning": "high",
-        "sandbox": "read-only",
-    },
-    "verifier": {
-        "model": "gpt-5.6-sol",
-        "reasoning": "high",
-        "sandbox": "read-only",
-    },
+ProfileError = ROLE_SPEC.RoleSpecError
+ClaudeAgent = ROLE_SPEC.ClaudeAgent
+parse_claude_agent = ROLE_SPEC.parse_claude_agent
+load_inventory = ROLE_SPEC.load_claude_inventory
+
+# native profile とstatic adapterを混同しない。runtime gate未解決のためactivate禁止。
+ACTIVE: dict[str, object] = {}
+NATIVE_ACTIVE = ACTIVE
+STATIC_ADAPTERS = frozenset(ROLE_SPEC.load_role_specs(REPO))
+
+_AGENT_GLOBAL_KEYS = {
+    "max_threads",
+    "max_depth",
+    "job_max_runtime_seconds",
+    "interrupt_message",
 }
-
-# 発見可能な `.codex/agents/` に実体化してはいけない role。理由は人間向け README と
-# D54 に詳述する。ここでは全 inventory を fail-closed に分類すること自体が目的。
-BLOCKED = {
-    "axis-proposer": "tools:[] による file-read 経路不存在を再現できない",
-    "calibrator": "書込先を calibration 成果物だけに限定できない",
-    "coder": "EVOLVE-BLOCK 単位の編集面を profile だけでは限定できない",
-    "coder-v4-autonomous": "tools:[] による Model Y のリーク遮断を再現できない",
-    "coder-v4-autonomous-sort": "tools:[] による Model Y のリーク遮断を再現できない",
-    "coder-v4-autonomous-trigger-gating": "tools:[] による Model Y のリーク遮断を再現できない",
-    "critic-experiment": "guided.py だけを許す Bash-only 境界を再現できない",
-    "planner-v4": "tools:[] による file-read 経路不存在を再現できない",
-    "profiler": "perf 出力先だけに書込みを限定できない",
-}
-
-# 分類理由が前提にする Claude 側の権限/model 契約。ここが変わったとき、同じ supported/blocked
-# 判定を黙って使い続けない。順序も source の意図的な tool surface 表記として固定する。
-SOURCE_CONTRACT = {
-    "auditor": (("Read", "Grep", "Glob"), "opus", "high"),
-    "axis-proposer": ((), "opus", "high"),
-    "calibrator": (("Read", "Write", "Bash"), "sonnet", "medium"),
-    "coder": (("Read", "Grep", "Glob", "Edit"), "sonnet", "medium"),
-    "coder-v4-autonomous": ((), "opus", "high"),
-    "coder-v4-autonomous-sort": ((), "opus", "high"),
-    "coder-v4-autonomous-trigger-gating": ((), "opus", "high"),
-    "critic": (("Read", "Grep", "Glob", "Bash"), "opus", "high"),
-    "critic-experiment": (("Bash",), "opus", None),
-    "planner-v4": ((), "opus", "high"),
-    "profiler": (("Read", "Grep", "Glob", "Bash"), "opus", "high"),
-    "verifier": (("Read", "Grep", "Glob", "Bash"), "sonnet", "high"),
-}
-
-_ADAPTER_PREAMBLE = """# Izanagi Codex runtime adapter
-
-この profile は `.claude/agents/{role}.md` の意味的な役割を Codex に移すための条件付き
-adapter であり、Claude Code の tools allowlist と同等の隔離を主張しない。
-
-呼出側の必須契約:
-- 起動直前に親 turn の実効 sandbox を read-only にする。親の live permission override は profile の
-  `sandbox_mode` より優先されるため、workspace-write / danger-full-access の親から起動しない。
-- 毎回 `fork_turns=\"none\"` の fresh subagent として起動する。
-- 対象 role が許された入力だけを明示的に射影して渡す。作業ツリーを探索して入力を補わない。
-
-開始時に自分の実効 sandbox が read-only であることを確認する。確認できない、または read-only
-でない場合は `ADAPTER-REFUSED: effective sandbox is not read-only` とだけ返し、tool を使わず停止する。
-read-only は書込み防止だけで読取面・Bash 面を制限しきらない。研究上の証拠に使う前に元の
-verifier / auditor / 人間 gate を通す。
-"""
-
-_ROLE_OVERRIDES = {
-    "auditor": """この起動で明示的に渡された監査射影と、その中で列挙された path だけを扱う。
-WAL、fitness、throughput、worklog、phase、handoff、output 配下を探索・読取してはならない。""",
-    "critic": """入力は呼出側が inline で渡した digest だけに限定する。共有本文にある
-`orchestrator/critic/digest.py` の自走許可はこの Codex adapter では無効。campaign directory、WAL、
-worklog、phase、handoff を探索・読取して digest を補ってはならない。""",
-    "verifier": """入力は呼出側が inline で渡した trace、または明示した trace path と検査コードだけに
-限定する。性能値、期待 verdict、worklog、phase、handoff、output の別成果物を探索・読取してはならない。""",
-}
-
-_ADAPTER_EPILOGUE = """# Codex runtime override (tool 境界)
-
-上の共有 role 本文にある「特定 tool だけを持つ」「Bash/Edit/Write が構造的に不可能」という記述は
-Claude Code 側の契約であり、この Codex session の実際の tool surface を表さない。Codex では本
-adapter 冒頭の制約を優先し、見えている追加 tool を入力面の拡張や書込みに使わない。
-"""
+_SOURCE_EXAMPLE_PARITY_ROLES = frozenset({
+    "axis-proposer",
+    "planner-v4",
+    "coder-v4-autonomous",
+    "coder-v4-autonomous-sort",
+    "coder-v4-autonomous-trigger-gating",
+})
 
 
-class ProfileError(ValueError):
-    """agent 定義が限定 schema に違反した。"""
-
-
-@dataclass(frozen=True)
-class ClaudeAgent:
-    path: Path
-    name: str
-    description: str
-    tools: tuple[str, ...]
-    model: str
-    effort: str | None
-    body: str
-
-
-def _decode_scalar(raw: str, path: Path, key: str) -> str:
-    if raw.startswith('"'):
-        try:
-            value = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ProfileError(f"{path}: {key} の quoted value が不正: {exc}") from exc
-        if not isinstance(value, str):
-            raise ProfileError(f"{path}: {key} は文字列でなければならない")
-        return value
-    if key == "description" and " #" in raw:
-        raise ProfileError(
-            f"{path}: description 内の # は JSON quote が必要 (YAML comment 切断を防ぐ)"
-        )
-    if not raw:
-        raise ProfileError(f"{path}: {key} が空")
-    return raw
-
-
-def parse_claude_agent(path: Path) -> ClaudeAgent:
-    text = path.read_text(encoding="utf-8")
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].rstrip("\r\n") != "---":
-        raise ProfileError(f"{path}: frontmatter 開始 `---` がない")
-    try:
-        end = next(i for i, line in enumerate(lines[1:], 1) if line.rstrip("\r\n") == "---")
-    except StopIteration as exc:
-        raise ProfileError(f"{path}: frontmatter 終端 `---` がない") from exc
-
-    values: dict[str, object] = {}
-    for lineno, line in enumerate(lines[1:end], 2):
-        raw_line = line.rstrip("\r\n")
-        if not raw_line:
-            continue
-        key, sep, raw = raw_line.partition(":")
-        if not sep or key not in _FRONTMATTER_KEYS:
-            raise ProfileError(f"{path}:{lineno}: 未対応 frontmatter 行: {raw_line!r}")
-        if key in values:
-            raise ProfileError(f"{path}:{lineno}: {key} が重複")
-        raw = raw.strip()
-        if key == "tools":
-            try:
-                parsed = json.loads(raw)
-            except json.JSONDecodeError as exc:
-                raise ProfileError(f"{path}:{lineno}: tools は JSON 配列で書く: {exc}") from exc
-            if not isinstance(parsed, list) or not all(isinstance(v, str) for v in parsed):
-                raise ProfileError(f"{path}:{lineno}: tools は文字列の JSON 配列でなければならない")
-            values[key] = tuple(parsed)
-        else:
-            values[key] = _decode_scalar(raw, path, key)
-
-    required = {"name", "description", "tools", "model"}
-    missing = required - values.keys()
-    if missing:
-        raise ProfileError(f"{path}: frontmatter 必須キー欠落: {sorted(missing)}")
-    if values["name"] != path.stem:
-        raise ProfileError(f"{path}: filename と name が不一致 ({values['name']!r})")
-
-    body = "".join(lines[end + 1 :])
-    if body.startswith("\n"):
-        body = body[1:]
-    if not body or not body.endswith("\n"):
-        raise ProfileError(f"{path}: prompt 本文は非空かつ LF 終端でなければならない")
-
-    return ClaudeAgent(
-        path=path,
-        name=str(values["name"]),
-        description=str(values["description"]),
-        tools=tuple(values["tools"]),
-        model=str(values["model"]),
-        effort=str(values["effort"]) if "effort" in values else None,
-        body=body,
-    )
-
-
-def load_inventory(root: Path) -> dict[str, ClaudeAgent]:
-    source_dir = root / ".claude" / "agents"
-    paths = sorted(source_dir.glob("*.md"))
-    if not paths:
-        raise ProfileError(f"{source_dir}: Claude agent 定義がない")
-    inventory: dict[str, ClaudeAgent] = {}
-    for path in paths:
-        agent = parse_claude_agent(path)
-        if agent.name in inventory:
-            raise ProfileError(f"{path}: role name {agent.name!r} が重複")
-        inventory[agent.name] = agent
-    return inventory
-
-
-def render_profile(agent: ClaudeAgent) -> str:
-    policy = SUPPORTED[agent.name]
-    expected_effort = policy["reasoning"]
-    if agent.effort != expected_effort:
-        raise ProfileError(
-            f"{agent.path}: Claude effort={agent.effort!r} と Codex reasoning={expected_effort!r} "
-            "が一致しない。意図的な写像変更なら policy と D54 を同時改訂する"
-        )
-    instructions = (
-        _ADAPTER_PREAMBLE.format(role=agent.name)
-        + "\n"
-        + agent.body
-        + "\n"
-        + "# Codex role-specific input override\n\n"
-        + _ROLE_OVERRIDES[agent.name]
-        + "\n\n"
-        + _ADAPTER_EPILOGUE
-    )
-    if "'''" in instructions:
-        raise ProfileError(f"{agent.path}: TOML multiline literal の終端 `'''` を本文に含む")
-    q = lambda value: json.dumps(value, ensure_ascii=False)
-    rendered = (
-        f"name = {q(agent.name)}\n"
-        f"description = {q(agent.description)}\n"
-        f"model = {q(policy['model'])}\n"
-        f"model_reasoning_effort = {q(policy['reasoning'])}\n"
-        f"sandbox_mode = {q(policy['sandbox'])}\n"
-        "developer_instructions = '''\n"
-        f"{instructions}"
-        "'''\n"
-    )
-    _validate_rendered_profile(rendered, agent, policy, instructions)
-    return rendered
-
-
-def _parse_toml(text: str, label: object) -> dict[str, object]:
+def load_project_agent_roles(root: Path) -> set[str]:
+    """project config 経由でnative discoveryされるagent role名を返す。"""
+    config = root / ".codex" / "config.toml"
+    if not config.exists():
+        return set()
     if tomllib is None:
         raise ProfileError(
-            f"{label}: TOML parser がない。Python 3.11+ を使うか Python 3.10 に tomli を導入する"
+            f"{config}: TOML parser がない。Python 3.11+ または tomli が必要"
         )
     try:
-        parsed = tomllib.loads(text)
+        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
     except Exception as exc:  # tomllib/tomli で例外 class が異なる
-        raise ProfileError(f"{label}: TOML parse 失敗: {exc}") from exc
-    if not isinstance(parsed, dict):
-        raise ProfileError(f"{label}: TOML root は table でなければならない")
-    return parsed
+        raise ProfileError(f"{config}: TOML parse 失敗: {exc}") from exc
+    agents = parsed.get("agents")
+    if agents is None:
+        return set()
+    if not isinstance(agents, dict):
+        raise ProfileError(f"{config}: agents は table でなければならない")
+    return set(agents) - _AGENT_GLOBAL_KEYS
 
 
-def _validate_rendered_profile(
-    rendered: str,
-    agent: ClaudeAgent,
-    policy: dict[str, str],
-    instructions: str,
-) -> None:
-    parsed = _parse_toml(rendered, agent.path)
-    expected = {
-        "name": agent.name,
-        "description": agent.description,
-        "model": policy["model"],
-        "model_reasoning_effort": policy["reasoning"],
-        "sandbox_mode": policy["sandbox"],
-        "developer_instructions": instructions,
-    }
-    if parsed != expected:
-        raise ProfileError(f"{agent.path}: renderer の TOML round-trip が不一致")
+def _function_required_fields(path: Path, function_name: str) -> set[str]:
+    """parser の `arg["field"]` を必須fieldとしてASTから取り出す。"""
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, SyntaxError) as exc:
+        raise ProfileError(f"{path}: consumer parse 失敗: {exc}") from exc
+    function = next(
+        (node for node in tree.body
+         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+         and node.name == function_name),
+        None,
+    )
+    if function is None or not function.args.args:
+        raise ProfileError(f"{path}: consumer function {function_name!r} がない")
+    argument = function.args.args[0].arg
+    required: set[str] = set()
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Subscript):
+            continue
+        if not isinstance(node.value, ast.Name) or node.value.id != argument:
+            continue
+        key: Any = node.slice
+        # Python 3.8 compatibility (3.9+ は ast.Constant が直接入る)。
+        if isinstance(key, ast.Index):  # pragma: no cover - Python 3.8 only
+            key = key.value
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            required.add(key.value)
+    if not required:
+        raise ProfileError(
+            f"{path}: {function_name} の必須fieldを検出できない。consumer検査を黙って空にしない"
+        )
+    return required
 
 
-def expected_profiles(root: Path) -> dict[str, str]:
-    inventory = load_inventory(root)
-    actual_roles = set(inventory)
-    classified = set(SUPPORTED) | set(BLOCKED)
-    overlap = set(SUPPORTED) & set(BLOCKED)
-    if overlap:
-        raise ProfileError(f"policy: supported/blocked が重複: {sorted(overlap)}")
-    if actual_roles != classified:
-        unknown = actual_roles - classified
-        stale = classified - actual_roles
-        details = []
-        if unknown:
-            details.append(f"未分類 role={sorted(unknown)}")
-        if stale:
-            details.append(f"実体のない policy role={sorted(stale)}")
-        raise ProfileError("policy inventory 不一致: " + "; ".join(details))
-    if set(SOURCE_CONTRACT) != actual_roles:
-        raise ProfileError("SOURCE_CONTRACT inventory が role policy と不一致")
-    for name, agent in inventory.items():
-        observed = (agent.tools, agent.model, agent.effort)
-        if observed != SOURCE_CONTRACT[name]:
+def _validate_consumer(root: Path, role: ROLE_SPEC.RoleSpec) -> None:
+    if role.consumer is None:
+        return
+    consumer = role.consumer
+    path = root / consumer["path"]
+    if path.is_symlink():
+        raise ProfileError(f"{path}: consumer symlink は禁止")
+    observed = _function_required_fields(path, consumer["parser"])
+    declared = set(consumer["required_fields"])
+    if observed != declared:
+        raise ProfileError(
+            f"{path}:{consumer['parser']}: consumer required field drift "
+            f"observed={sorted(observed)}, manifest={sorted(declared)}"
+        )
+    schema_required = set(role.output_schema["required"])
+    if not observed <= schema_required:
+        raise ProfileError(
+            f"{role.name}: consumer必須fieldがoutput schema requiredに無い: "
+            f"{sorted(observed-schema_required)}"
+        )
+
+
+def _source_json_example(role: ROLE_SPEC.RoleSpec, heading: str) -> Any:
+    marker = f"\n## {heading}\n"
+    if marker not in role.source.body:
+        raise ProfileError(f"{role.source.path}: `## {heading}`節がない")
+    section = role.source.body.split(marker, 1)[1]
+    match = re.search(r"```json\s*\n(.*?)\n```", section, flags=re.DOTALL)
+    if match is None:
+        raise ProfileError(f"{role.source.path}: {heading}JSON例がない")
+    # coder-v4-autonomousの`<1-1000>`等、意図的なunquoted placeholderは
+    # key shapeだけを照合するためnullへ正規化する。
+    example_text = re.sub(
+        r"(:\s*)<[^>\n]+>(\s*[,}])", r"\1null\2", match.group(1)
+    )
+    try:
+        return json.loads(example_text)
+    except json.JSONDecodeError as exc:
+        raise ProfileError(
+            f"{role.source.path}: {heading}JSON例を解釈できない: {exc}"
+        ) from exc
+
+
+def _validate_example_shape(value: Any, schema: dict[str, Any], label: str) -> None:
+    """JSON例が宣言schemaのrequired/closed key treeを満たすことを再帰照合する。"""
+
+    raw_types = schema.get("type")
+    types = {raw_types} if isinstance(raw_types, str) else set(raw_types or ())
+    if isinstance(value, dict):
+        if "object" not in types:
+            raise ProfileError(f"{label}: source例はobjectだがschema typeが異なる")
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            # 意図的にopenなobject subtreeはtrusted producer責任であり、例の内部を
+            # schema parityの根拠にしない。
+            return
+        required = set(schema.get("required", ()))
+        missing = required - set(value)
+        if missing:
+            raise ProfileError(f"{label}: source例のrequired key欠落={sorted(missing)}")
+        extra = set(value) - set(properties)
+        if schema.get("additionalProperties") is False and extra:
+            raise ProfileError(f"{label}: source例の未宣言key={sorted(extra)}")
+        for key in sorted(set(value) & set(properties)):
+            child = properties[key]
+            if not isinstance(child, dict):
+                raise ProfileError(f"{label}.{key}: schema nodeはobjectでなければならない")
+            _validate_example_shape(value[key], child, f"{label}.{key}")
+        return
+    if isinstance(value, list):
+        if "array" not in types:
+            raise ProfileError(f"{label}: source例はarrayだがschema typeが異なる")
+        items = schema.get("items")
+        if isinstance(items, dict):
+            for index, child in enumerate(value):
+                _validate_example_shape(child, items, f"{label}[{index}]")
+
+
+def _validate_source_shape(role: ROLE_SPEC.RoleSpec, heading: str,
+                           schema: dict[str, Any]) -> None:
+    if role.name not in _SOURCE_EXAMPLE_PARITY_ROLES:
+        return
+    example = _source_json_example(role, heading)
+    try:
+        _validate_example_shape(example, schema, f"{role.name}.{heading}")
+    except ProfileError as exc:
+        raise ProfileError(
+            f"{role.source.path}: source {heading} shape parity drift: {exc}"
+        ) from exc
+
+
+def _validate_source_input_shape(role: ROLE_SPEC.RoleSpec) -> None:
+    _validate_source_shape(role, "入力", role.input_schema)
+
+
+def _validate_source_output_shape(role: ROLE_SPEC.RoleSpec) -> None:
+    _validate_source_shape(role, "出力", role.output_schema)
+
+
+def _validate_adapter_inventory(root: Path,
+                                specs: dict[str, ROLE_SPEC.RoleSpec]) -> None:
+    adapter_dir = root / ROLE_SPEC.ADAPTER_DIR_REL
+    if not adapter_dir.is_dir():
+        raise ProfileError(f"{adapter_dir}: non-native adapter directory がない")
+    if adapter_dir.is_symlink():
+        raise ProfileError(f"{adapter_dir}: adapter directory symlink は禁止")
+    expected = ROLE_SPEC.expected_adapters(root)
+    expected_paths = set(expected)
+    actual_paths = {path for path in adapter_dir.iterdir() if path.is_file() or path.is_symlink()}
+    if actual_paths != expected_paths:
+        missing = sorted(str(path.relative_to(root)) for path in expected_paths - actual_paths)
+        extra = sorted(str(path.relative_to(root)) for path in actual_paths - expected_paths)
+        raise ProfileError(
+            f"{adapter_dir}: adapter inventory 不一致 missing={missing}, extra={extra}"
+        )
+    if set(specs) != {path.stem for path in expected_paths}:
+        raise ProfileError("Claude role と Codex adapter が全単射でない")
+    for path, rendered in expected.items():
+        if path.is_symlink():
+            raise ProfileError(f"{path}: adapter symlink は禁止")
+        # duplicate key/BOM/NFC等もbyte比較とは独立に検査する。
+        parsed = ROLE_SPEC.load_json_strict(path)
+        if not isinstance(parsed, dict):
+            raise ProfileError(f"{path}: adapter top-level は object")
+        actual = path.read_text(encoding="utf-8")
+        if actual != rendered:
             raise ProfileError(
-                f"{agent.path}: Claude source contract drift: observed={observed!r}, "
-                f"expected={SOURCE_CONTRACT[name]!r}。supported/blocked 判定を再レビューする"
+                f"{path}: rendered adapter byte parity drift。manifest/Claude sourceから再生成する"
             )
-    return {f"{name}.toml": render_profile(inventory[name]) for name in sorted(SUPPORTED)}
+        if parsed.get("mode") != "static-dormant":
+            raise ProfileError(f"{path}: adapter modeはstatic-dormant固定")
+        if parsed.get("runtime_activation") != ROLE_SPEC.RUNTIME_ACTIVATION:
+            raise ProfileError(
+                f"{path}: uncontrollable additional_tools解決までruntime activationはblocked"
+            )
+        forbidden_runtime_claims = {"wire_contract", "wire_tools_attested_by", "capabilities"}
+        if forbidden_runtime_claims & set(parsed):
+            raise ProfileError(
+                f"{path}: static adapterにtool-free/runtime claimを含めてはならない"
+            )
+        instructions = parsed.get("developer_instructions")
+        if not isinstance(instructions, str):
+            raise ProfileError(f"{path}: developer_instructionsはstring")
+        if instructions.count(specs[path.stem].source.body) != 1:
+            raise ProfileError(
+                f"{path}: Claude source.bodyがdeveloper_instructionsへexact 1回入っていない"
+            )
+        body_end = instructions.find("<<<CLAUDE_ROLE_BODY_END>>>")
+        override = instructions.find("<<<CODEX_PRODUCT_OVERRIDE_BEGIN>>>")
+        if body_end < 0 or override <= body_end:
+            raise ProfileError(f"{path}: product overrideはClaude本文後でなければならない")
+        required_override = (
+            "tool使用、repository探索、実行loop、write/edit命令はtrusted projection/driverへlower済み",
+            "adapter logical schemaを優先",
+            "schemaが許すunknown/unknowns/uncertainty/confidenceへ",
+        )
+        if not all(text in instructions[override:] for text in required_override):
+            raise ProfileError(f"{path}: product override契約が欠落")
+        spec = specs[path.stem]
+        expected_input_policy = {
+            "version": ROLE_SPEC.POLICY_VERSION,
+            "recursive_forbidden_key_tokens": list(spec.forbidden_key_tokens),
+            "opaque_string_content": ROLE_SPEC.OPAQUE_STRING_POLICY,
+            "open_object_subtrees": ROLE_SPEC.OPEN_SUBTREE_POLICY,
+        }
+        if parsed.get("input_policy") != expected_input_policy:
+            raise ProfileError(f"{path}: recursive input policy metadataが不一致")
+        expected_consumer = (
+            {"use": "trusted-integration", "status": "trusted-parser-wired"}
+            if spec.consumer is not None
+            else {
+                "use": "standalone-typed-proposal-only",
+                "status": "trusted-integration-unwired",
+            }
+        )
+        if parsed.get("consumer_contract") != expected_consumer:
+            raise ProfileError(f"{path}: consumer integration statusが不一致")
+
+
+def validate_inventory(root: Path) -> dict[str, ROLE_SPEC.RoleSpec]:
+    root = root.resolve()
+    specs = ROLE_SPEC.load_role_specs(root)
+    if set(specs) != set(STATIC_ADAPTERS):
+        raise ProfileError(
+            f"static adapter inventory drift expected={sorted(STATIC_ADAPTERS)}, "
+            f"actual={sorted(specs)}"
+        )
+    if ACTIVE:
+        raise ProfileError("native active profile は0件固定")
+    ledger_direct = {
+        name for name, contract in ROLE_SPEC.ROLE_IO_CONTRACTS.items()
+        if contract["mode"] == "direct-json-example"
+    }
+    if ledger_direct != set(_SOURCE_EXAMPLE_PARITY_ROLES):
+        raise ProfileError(
+            "direct JSON source parity coverage drift "
+            f"ledger={sorted(ledger_direct)}, checker={sorted(_OUTPUT_EXAMPLE_PARITY_ROLES)}"
+        )
+    _validate_adapter_inventory(root, specs)
+    for role in specs.values():
+        _validate_consumer(root, role)
+        _validate_source_input_shape(role)
+        _validate_source_output_shape(role)
+    return specs
 
 
 def check(root: Path = REPO) -> list[str]:
+    root = root.resolve()
     try:
-        expected = expected_profiles(root)
+        validate_inventory(root)
+        configured_roles = load_project_agent_roles(root)
     except (OSError, ProfileError) as exc:
         return [str(exc)]
 
-    profile_dir = root / ".codex" / "agents"
-    actual = {path.name: path for path in profile_dir.glob("*.toml")}
     findings: list[str] = []
-    for name in sorted(set(actual) - set(expected)):
-        role = Path(name).stem
-        reason = BLOCKED.get(role, "policy にない余分な profile")
-        findings.append(f"{actual[name]}: 有効化禁止/余分な profile ({reason})")
-    for name in sorted(set(expected) - set(actual)):
-        findings.append(f"{profile_dir / name}: 対応 profile が欠落 (`--write` で再生成)")
-    for name in sorted(set(expected) & set(actual)):
-        try:
-            current = actual[name].read_text(encoding="utf-8")
-        except OSError as exc:
-            findings.append(f"{actual[name]}: 読み取り失敗: {exc}")
-            continue
-        try:
-            _parse_toml(current, actual[name])
-        except ProfileError as exc:
-            findings.append(str(exc))
-            continue
-        if current != expected[name]:
-            findings.append(
-                f"{actual[name]}: source/policy から drift (`python3 tools/check_codex_agents.py --write`)"
-            )
+    native_dir = root / ".codex" / "agents"
+    for path in sorted(native_dir.glob("*.toml")):
+        findings.append(
+            f"{path}: native discovery profileは禁止。role-adaptersはstatic/dormantでactivate不可"
+        )
+    config = root / ".codex" / "config.toml"
+    for role in sorted(configured_roles):
+        findings.append(
+            f"{config}: native discovery agent role {role!r}は禁止。"
+            "role-adaptersはstatic/dormantでactivate不可"
+        )
     return findings
-
-
-def write_profiles(root: Path = REPO) -> None:
-    expected = expected_profiles(root)
-    profile_dir = root / ".codex" / "agents"
-    profile_dir.mkdir(parents=True, exist_ok=True)
-    unexpected = sorted(path for path in profile_dir.glob("*.toml") if path.name not in expected)
-    if unexpected:
-        names = ", ".join(str(path) for path in unexpected)
-        raise ProfileError(f"余分/blocked profile は自動削除しない: {names}")
-    for name, content in expected.items():
-        (profile_dir / name).write_text(content, encoding="utf-8", newline="\n")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--write", action="store_true", help="対応 profile を決定的に再生成する")
+    parser.add_argument("--write", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--root", type=Path, default=REPO, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
-    try:
-        if args.write:
-            write_profiles(args.root)
-        findings = check(args.root)
-    except (OSError, ProfileError) as exc:
-        findings = [str(exc)]
+    if args.write:
+        print(
+            "ERROR: --write はnative profile生成と誤認されるため使用しない。"
+            "role-adaptersはmanifest rendererの期待byteをreviewしてapplyする",
+            file=sys.stderr,
+        )
+        return 1
+    findings = check(args.root)
     if findings:
         for finding in findings:
             print(f"ERROR: {finding}", file=sys.stderr)
         return 1
-    print(f"OK: Codex agent profiles ({len(SUPPORTED)} active / {len(BLOCKED)} blocked)")
+    print(
+        "OK: Codex agent roles "
+        f"({len(ACTIVE)} native active / {len(STATIC_ADAPTERS)} static dormant; "
+        "runtime activation blocked: uncontrollable_additional_tools)"
+    )
     return 0
 
 

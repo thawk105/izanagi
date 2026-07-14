@@ -140,6 +140,52 @@
 - 再発検知: LLM 出力を機械判定する新規経路では、実出力サンプル (最低 1 本) をテスト母集団に
   含めてから本走する。実走 1 本目の final を確認してから残りを流す (canary 走行)
 
+### F16. Codex profile の load を実 spawn・権限隔離の証明と誤認 [恒真ゲート] [権限逸脱] [ドリフト]
+- 事象: commit 0d8b2f2 で 3 role を active としたが、現行 0.144.2 surface の spawn schema は
+  custom agent type を選べず、fresh 実走でも spawn event 無し。初回試行は子を起動せず
+  「adapter instructions を受領」と自己申告した。read-only profile も親の MCP/skills を継承する
+  ため、外部 write/read 面は構造遮断されない (2026-07-14 再監査 CA-01〜03)。
+- 根本原因: TOML parse/load と prompt 文字列の存在を、profile の選択可能性・実拒否・全 tool surface
+  の read-only と同一視した。実 runtime の spawn event と権限負例をテスト母集団に入れなかった。
+- 恒久対応: D54 の「条件を満たせない client/surface では使用禁止」を現行 surface に適用し、3 role は
+  selector + tool allowlist harness と E2E positive/negative control が揃うまで利用しない。一次資料 =
+  `output/insights/2026-07-14_codex-agent-adapter-reaudit.json`。監査時点では実装修正をユーザー判断待ちとした。
+- 再発検知: agent adapter の有効判定は自然言語 final でなく JSON event の spawn type/receiver、child
+  instruction digest、write/read 負例で行う。文字列 presence test だけを証拠に数えない。
+- 対応実体 (2026-07-14): D55 で `0 active / 3 dormant / 9 blocked` に再裁定し、project の発見可能な
+  profile/agent role、custom role の通常ブート省略を撤去。checker は全 role の metadata/body digest・
+  description の JSON quote/value digest、project config の agent role 不在を hard gate にし、runtime
+  E2E は再開条件未充足のまま成功扱いしない。
+  独立再現と修正証拠 = `output/insights/2026-07-14_codex-agent-adapter-remediation.json`。
+
+### F17. top-level tools 0 件を総合 tool-free と誤認 [恒真ゲート] [権限逸脱] [ドリフト]
+- 事象: 全 12 role 用 standalone harness の実装途中、raw Responses の top-level `body.tools` が無い
+  known sol/terra を「production tool 0 件」と判定した。しかし同じ request の先頭には developer
+  `input.additional_tools` があり、`exec` / `wait` / `request_user_input` / `collaboration` と、その下の
+  file 操作・agent fan-out 宣言面が残っていた。JSONL に `view_image` call が出ない負例も再現した。
+- 根本原因: tool inventory を top-level field だけに限定し、developer input と custom/code-mode tool
+  descriptor を同じ信頼境界として数えなかった。static adapter の capability 空集合、prompt の不使用
+  命令、outer filesystem sandbox を runtime 全面の不存在と混同しかけた。
+- 恒久対応: D56 で全 12 adapter を非自動発見 static/dormant、runtime activation を blocked に固定。
+  runtime probe は raw request の top-level key 集合、message/content boundary と順序、
+  `additional_tools` 全 descriptor、forced fixture の tool history を exact に照合し、存在する限り
+  auth/external model 使用前に停止する。wire bytes は strict UTF-8/JSON (重複 key・非有限数・過深入力拒否)
+  で読み、検証した Codex/bubblewrap bytes を固定してから実行する。adapter 自体から
+  wire/tool-free/absent surface の主張を撤去した。
+- 再発検知: tool-free 判定は request body 全体と product/runtime developer surface を対象にする。
+  JSONL の tool event 不在、自然言語 final、`body.tools=[]`、sandbox mode のどれか単独では証拠にしない。
+  新 runtime/model/CLI は raw envelope/descriptor digest drift を赤にし、runtime prerequisite の欠落も
+  skip 成功にせず、負例を再監査する。同一 UID の敵対 process に対する loopback provenance や network
+  隔離は証明しておらず、probe/outer sandbox 単独を active 化の根拠にしない。
+- 同時に閉じた移植ドリフト: 初期案は Claude 本文を hash するだけで Codex instructions へ完全移植せず、
+  禁止入力 class も metadata のみだった。全本文 exact 埋込、top-level closed envelope と重要 field schema、
+  recursive forbidden-key と cross-field validator、source input/output parity、description JSON quote の mutation
+  tests へ置換した。auditor の `pass + violations` は現役 trusted parser まで fail-closed 化した。opaque
+  string と意図的に open な object subtree は trusted projection producer の責任である。source/manifest/
+  adapter/product override を同時に弱める自己承認を避けるため、生成物と独立した reviewed source/
+  description/schema SHA、full role manifest SHA、共通 developer template SHA と I/O 契約台帳を固定し、
+  台帳自体の変更は明示レビュー対象にした。
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —

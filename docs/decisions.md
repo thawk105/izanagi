@@ -2026,7 +2026,19 @@ role、重複を検査する。導入以前の欠落は legacy とし、履歴�
 タスク難度・役割・入力コンテキストが交絡するため、commit 数や成功率だけでモデルの優劣を
 断定せず、タスク種別、手戻り、レビュー finding、テスト結果、所要時間と合わせて評価する。
 
-## D54. Codex native agent adapter — 安全に近似できる 3 role だけを fail-closed で有効化 (2026-07-14)
+## D54. Codex native agent adapter — 初版の 3 role 有効化を同日再監査で休眠化 (2026-07-14)
+
+**2026-07-14 再監査追記 — 初版の active 裁定を supersede:** commit `0d8b2f2` の独立再監査で、
+現行 collaboration surface の `spawn_agent` schema には custom profile を明示選択する field がなく、
+`task_name=auditor` 等は generic child の名前を変えるだけと確認した。profile の
+`sandbox_mode="read-only"` も filesystem write の制限に留まり、省略した MCP / apps・connectors /
+skills / plugins 等の surface は親から継承される。TOML の load/parse と prompt 内の拒否文言は、
+profile の実 spawn や権限拒否の証明にならない。自然言語 final の成功・拒否自己申告も証拠に数えない。
+一次資料は `output/insights/2026-07-14_codex-agent-adapter-reaudit.json`、失敗台帳は F16。
+
+したがって初版決定 1 の「3 role を active」と、初版決定 3 の「supported profile を生成する」部分を
+supersede する。初版決定 2 の 9 role blocked と決定 4 の hook 未配線は継続する。現行裁定の正本は
+D55/D56 とし、以下の背景と決定 1〜4 は初版時点の判断履歴として残す。
 
 **背景:** `.claude/agents/` の定義を Codex でも流用できるかというユーザー相談を受け、実装承認後に
 Codex 0.144.2 と公式 custom-agent 仕様、Claude role 12 件、D38/D39/D45/D47 の隔離条件を照合した。
@@ -2034,7 +2046,7 @@ Codex profile は `name` / `description` / `developer_instructions` と model/re
 Claude の per-role tools allowlist や fresh-context 属性を持たない。`read-only` は file write を止めても
 file read と Bash の経路を消さず、親 turn の live permission override が優先される場合もある。
 
-**決定 1 — 初期有効化は `auditor` / `critic` / `verifier` の 3 roleだけ:** `.codex/agents/` に
+**初版決定 1 (上の再監査追記で superseded) — 初期有効化は `auditor` / `critic` / `verifier` の 3 roleだけ:** `.codex/agents/` に
 直接発見される TOML profile を置き、3 件とも `gpt-5.6-sol` / reasoning `high` /
 `sandbox_mode="read-only"` に固定する。profile の冒頭に「意味的 role の条件付き adapter であり
 Claude と同等の隔離ではない」と明記する。呼出側は毎回 `fork_turns="none"` で fresh subagent を
@@ -2048,13 +2060,13 @@ read-only であることを必須条件**とする。子は開始時に実効 s
 担当し、子は CLAUDE/worklog/phase/handoff を読まない。critic は共有本文に残る `digest.py` 自走許可を
 adapter override で無効化する。これらを満たせない client/surface では 3 profile も使用禁止とする。
 
-**決定 2 — 残り 9 role は発見可能な場所へ置かない:** `axis-proposer` / `planner-v4` /
+**初版決定 2 (blocked 裁定は継続) — 残り 9 role は発見可能な場所へ置かない:** `axis-proposer` / `planner-v4` /
 `coder-v4-autonomous*` は `tools: []` による file-read 経路不存在と Model Y のリーク遮断を再現不能。
 `coder` は EVOLVE-BLOCK 合成枝だけへの編集面限定、`critic-experiment` は `guided.py` だけを許す
 Bash-only 境界を再現不能。`calibrator` / `profiler` は書込みが必要だが、成果物宛先だけへ write 面を
 限定できない。専用 harness/API 境界ができるまで Claude 専用とし、単に prompt を移して有効化しない。
 
-**決定 3 — 同期と分類を機械化:** `.claude/agents/*.md` の prompt 本文を意味契約の正本とし、
+**初版決定 3 (active profile 生成部分は上の再監査追記で superseded) — 同期と分類を機械化:** `.claude/agents/*.md` の prompt 本文を意味契約の正本とし、
 `tools/check_codex_agents.py` が全 role を supported/blocked のどちらかへ必ず分類する。未分類 role、
 欠落・余分・blocked profile、name/description/body/model/reasoning/sandbox の drift を拒否し、`--write` は
 supported 3 件だけを固定 renderer で再生成する。生成物は `tomllib` / `tomli` で round-trip parse し、
@@ -2062,7 +2074,7 @@ supported 3 件だけを固定 renderer で再生成する。生成物は `tomll
 検査を省略せず失敗する。Claude `coder.md` の description は `#if` が YAML comment と解釈されて
 移行時に切断されたため JSON quote し、同型を lint で拒否する。
 
-**決定 4 — Codex hook は今回は配線しない:** 入力の `tool_name` / `tool_input` と exit 2 の拒否は
+**初版決定 4 (継続) — Codex hook は今回は配線しない:** 入力の `tool_name` / `tool_input` と exit 2 の拒否は
 概ね互換だが、Codex の `apply_patch` は `tool_input.command` に patch 全文を渡す。既存
 `guard_write` は `file_path` / `notebook_path` を期待し、path 欠落を管轄外として許可するため、設定の
 コピーは防壁を黙って蒸発させる。将来は既存 2 判定核への Codex adapter と parity test を作ってから
@@ -2074,7 +2086,134 @@ tools 境界を落とした。(2) blocked profile も `disabled` 相当で置く
 workspace-write で先行 — 宛先限定がなく初版の利便性に対して権限面が広すぎる。(4) prompt の
 「読まない」で `tools: []` を代用 — 構造遮断を行動規律へ弱め、既存の実験契約を壊す。
 
-**限界と再開条件:** active 3 件も Claude と隔離同等ではない。Codex profile の実験利用は起動引数・
+**初版の限界と再開条件 (active 部分は上の再監査追記で superseded):** active 3 件も Claude と隔離同等ではない。Codex profile の実験利用は起動引数・
 射影入力・下流 gate を provenance とともに残す。blocked role の再評価は、tool surface を構造的に
 限定する専用 harness、または同等の機械境界と敵対 parity test が揃った時だけ行う。これは製品 adapter
 の追加であり、Phase 3 のチェックリストや研究主張の完了状態を変更しない。
+
+## D55. Codex native agent adapter の休眠化と event-based 再開 gate (2026-07-14)
+
+**背景:** D54 初版を commit `0d8b2f2` として実装後、現行 runtime で custom profile の実 spawn と
+権限拒否を独立再検証した。`spawn_agent` schema には profile selector がなく、`task_name` は generic
+child の名前にすぎなかった。spawn event が無いのに自然言語 final が成功を自己申告する偽陽性も
+再現した。また `sandbox_mode="read-only"` は filesystem write の制限であり、親から継承した MCP /
+apps・connectors / skills / plugins 等の外部 read・write 面を構造遮断しない (F16、再監査 insight)。
+
+**決定 1 — 0 active / 3 dormant / 9 blocked:** `auditor` / `critic` / `verifier` は prompt の写像候補を
+保持する dormant とし、D54 初版から blocked だった残り 9 role はそのまま据え置く。standalone
+profile に安全な disabled field はないため、dormant を含め `.codex/agents/*.toml` は 1 件も置かない。
+project `.codex/config.toml` の `[agents.<name>]` + `config_file` も同じ発見経路なので禁止する。
+両 project entrypoint で発見可能 agent 0 を checker の hard gate とし、generic child を dormant role の
+代替にしない。
+
+**決定 2 — 静的 gate と runtime gate を分離:** `tools/check_codex_agents.py` は全 12 role の
+active/dormant/blocked 分類を漏れ・重複なく検査し、frontmatter 契約、description/本文 policy
+digest の drift、両 project entrypoint の発見可能 agent を拒否する。これは source policy と
+誤有効化を止める静的 gate であり、
+profile 選択や権限隔離の証明ではない。TOML の parse/load、prompt 内の `ADAPTER-REFUSED` 等の文字列、
+agent の自然言語 final は runtime 証拠に数えない。
+
+**決定 3 — 再開は 4 条件の AND:** 次をすべて満たしたときだけ dormant role を再分類する。
+
+1. 呼出 surface が custom profile type を明示選択できる。
+2. built-in tool、shell、MCP、apps/connectors、skills、plugins を含む child の全 tool surface を
+   role ごとの exact allowlist に固定でき、省略 field による親からの継承がない。
+3. JSON event の非空 child thread ID・agent type・instruction digest・許可/拒否 tool event を検査する
+   E2E があり、generic `task_name` の偽 selector、spawn 無しの成功自己申告、許可外 local/remote
+   read・write を negative control で赤にする。
+4. D55、checker、専用テストを同時に policy 再分類し、独立レビューを通す。
+
+現行環境では 1〜3 を満たす harness がないため、runtime E2E は **BLOCKED** である。未実行を skip、
+xfail、成功として数えない。条件を検査できる harness 自体ができるまで active 数は 0 のまま固定する。
+
+**決定 4 — hook adapter は必要条件にも十分条件にも数えない:** D54 の Codex hook 未配線裁定は継続する。
+将来 local file write の parity hook ができても、それだけでは継承された外部 tool surface を閉じないため、
+決定 3 の exact allowlist と event-based E2E を省略できない。
+
+**研究状態への影響:** これは製品 runtime adapter の fail-closed 化であり、Phase 3 の Claude role
+実体化状況、チェックリスト、研究主張、計測結果は変更しない。
+独立再現と実装検証の一次資料は
+`output/insights/2026-07-14_codex-agent-adapter-remediation.json`。
+
+## D56. 全 12 Claude role の非 native Codex 移植と runtime fail-closed (2026-07-14)
+
+**背景:** D55 は危険な native profile を撤去したが、Claude 側 12 role の Codex 定義そのものは
+3 件の写像候補と 9 件の保留理由に留まっていた。ユーザー指示「安全に提供・移植・整合性検査を
+実現」により、実行可能性と静的移植を分離して完成させる。実装途中に top-level `body.tools` だけを
+見て既知 model の tool を 0 件と判定したが、raw Responses `input.additional_tools` に別の developer
+tool surface が注入されると独立再検出した (F17)。
+
+**決定 1 — 全 12 件を非自動発見の static/dormant adapter として提供する:**
+`.codex/role-adapters/*.json` は `.claude/agents/*.md` と全単射にする。各 adapter は移植元本文を exact
+1 回、Codex product override より前へ埋め込み、source 全文・意味契約の SHA-256、Claude/Codex の
+model/effort、fresh-context 要求、top-level closed envelope と重要 field の schema、禁止入力 class、
+consumer 状態を持つ。
+Claude tool は Codex runtime へ再付与せず、Read/Grep/Glob は trusted input projection、Bash/Write は
+trusted driver、Edit は構造化提案へ lower する。この mediated projection を Claude と同じ tool 隔離と
+呼ばず、projection mode は製品間の意味等価性の証明にも使わない。consumer 未配線 role は
+standalone typed proposal 定義までで、研究 pipeline の自動採用を
+意味しない。
+D55 決定 1〜2 の `3 dormant / 9 blocked` という単一分類と旧 checker 契約は、この三軸状態で supersede
+する。D55 決定 3 の selector/child 条件は native profile を将来再採用する場合の追加条件として残す。
+
+**決定 2 — runtime activation は全 12 件 blocked:** Codex CLI 0.144.2 の known sol/terra で top-level
+`body.tools` は空でも、developer `input.additional_tools` に `exec` / `wait` / `request_user_input` /
+`collaboration` が残る。入れ子には file 操作や agent fan-out の宣言面があり、static adapter から
+allowlist/disable できない。したがって adapter は `mode=static-dormant`、
+`runtime_activation.status=blocked`、reason=`uncontrollable_additional_tools` に固定する。
+standalone launcher は credential 読込・official-provider command の経路を持たず、既定動作を外部 model を
+使わない custom loopback provider の raw request/namespace attestation だけに限定する。これは production
+provider request の capture ではない。live 要求も同じ loopback preflight 後に必ず blocker で停止する。
+top-level tools 0 件、JSONL の tool item 不在、自然言語の不使用申告は tool-free の証拠に数えない。
+
+**決定 3 — 静的 parity と semantic policy を機械 gate にする:**
+`orchestrator/codex_roles/review_ledger.py` に自動生成物と独立したレビュー済み
+source/description/schema SHA-256 と role 別 I/O 契約を固定する。direct JSON 例のある 5 role は
+入力・出力双方の source shape parity、mediated 7 role は固定 source hash + reviewed I/O obligations を使う。
+加えて role manifest entry 全体 (model/consumer/禁止 class/capability/projection を含む) と共通
+developer instruction template の exact SHA-256 を独立 pin する。これにより source、manifest、adapter、
+product override を同時に弱めても、台帳の明示更新なしに検査は通らない。`tools/check_codex_agents.py` は
+native discovery 0、Claude↔Codex inventory 12/12、frontmatter limited schema、description の JSON
+quote、本文 exact 埋込・digest、model/effort、capability lowering、I/O schema、source 入出力例、consumer、
+期待 renderer byte を検査する。入力は role 別 deny token を mapping key に再帰適用し、cross-field
+validator が auditor の diff digest、planner/coder の axis/range、critic-experiment の候補、profiler の
+certification、verifier の三値不変条件と trusted echo を検査する。opaque string 内は検査済みと装わず、
+trusted projection producer の責任として明記する。意図的に open な object subtree も同じ境界であり、
+全階層を検査済みとは呼ばない。成功文言だけの正例は置かず、本文/description `#` /
+schema/policy/native discovery/tool surface の各 mutation を赤にする。
+
+auditor は correctness violation 1 件以上なら `reject`、`pass` なら violations 空、`uncertain` なら
+violations 空かつ非空 uncertainty を必須とする。この不変条件は Codex semantic validator だけでなく、
+現役 Claude campaign の trusted parser にも適用する。`violations` / `nits` / `proposed_tests` は
+object 配列へ型付けし、`pass + violations` が build gate を通る余地を残さない。
+
+`critic-experiment` の `effort: high` は、従来 parent から継承していた high を全 role 明示方針へ合わせて
+固定しただけであり、凍結済み P2-5 の実験結果・解釈を変更しない。
+
+**決定 4 — outer sandbox は defense-in-depth であって active 化の根拠ではない:** launcher は bundled
+bubblewrap で host repo/home を mount せず、projection stage を read-only、runtime HOME を一時領域へ
+限定する。forced `view_image` が host canary を `ENOENT` にする実 wire 負例も保持する。この fixture は
+outer namespace だけを検査するため内側を `danger-full-access` にするが、pinned outer bubblewrap と loopback
+provider 内に限定し、active role 設定には使わない。ただし
+`additional_tools` には filesystem 外の面や recursive execution/fan-out があり得るため、この封じ込め
+だけで安全な role 実行とは判定しない。
+probe は host loopback server へ到達するため network namespace を共有し、provider URL を
+`127.0.0.1` の一時 port に固定する。このため outer bwrap を network 隔離の証拠にも数えない。
+
+raw request attestation は top-level key 集合、message/content boundary、developer/user 順序、
+forced fixture だけに許す tool history を exact に固定し、UTF-8・重複 key・有限数・深さを含む strict JSON
+として読む。Codex/bubblewrap は pathname の初回 hash だけを信用せず、検証した bytes を runtime 私有面へ
+固定してから同じ実体を実行する。これらは drift/通常更新との競合を閉じる証拠であり、同一 UID の敵対
+process を隔離する主張ではない。loopback probe と outer sandbox は引き続き active 化の十分条件に数えない。
+
+**再開条件:** raw request から `additional_tools` を構造的に除去するか、nested surface を含む全 tool を
+exact allowlist で強制し、standalone の実 `codex exec` thread ID、adapter/instruction/input digest、tool inventory、
+許可外 local/remote read・write、再帰 Codex、agent fan-out の負例が実 event で拒否されること。
+tool allowlist が非空の場合だけは許可 tool の positive event も求める。model/runtime developer prompt と
+tool descriptor の digest drift も fail-closed にし、
+D55/D56、checker、runtime test、独立レビューを同時更新して初めて active を再検討する。native profile
+を使う場合は D55 の明示 selector 条件も別途必要である。
+
+**研究状態への影響:** static adapter と製品境界の整備であり、Phase 3 の計測、主張、Claude role の
+実体化状況を変更しない。一次資料は
+`output/insights/2026-07-14_codex-role-adapter-completion.json`。

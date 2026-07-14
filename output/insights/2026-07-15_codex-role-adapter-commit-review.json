@@ -1,0 +1,242 @@
+{
+  "id": "2026-07-15_codex-role-adapter-commit-review",
+  "title": "Codex role adapter 未コミット差分の独立 commit review",
+  "date": "2026-07-15",
+  "trigger": "ユーザー依頼「git diff をレビューし、問題を直してコミット」",
+  "baseline": {
+    "head": "0d8b2f248d611963a20d604cdbe9422096fb8c58",
+    "branch": "main",
+    "worktree_origin": "別セッション/別AIを含む未コミット作業物",
+    "research_measurement_changed": false
+  },
+  "lenses": [
+    {
+      "name": "static-semantic-contract",
+      "focus": "source/manifest/adapter/review ledger、schema、consumer semantic gate",
+      "real": 5,
+      "refuted": 2
+    },
+    {
+      "name": "runtime-wire-and-containment",
+      "focus": "raw Responses envelope、strict JSON、process/binary boundary、release prerequisite",
+      "real": 6,
+      "refuted": 2
+    },
+    {
+      "name": "docs-and-active-consumer",
+      "focus": "現役 auditor driver、runbook、可変状態の正本、worklog/decision/failure ledger",
+      "real": 3,
+      "refuted": 1
+    }
+  ],
+  "summary": {
+    "real": 14,
+    "refuted": 5,
+    "commit_disposition": "accept-after-remediation",
+    "headline": "初版の runtime blocked 裁定は妥当だったが、独立 pin、現役 auditor gate、raw request attestation に実穴があった。active 化はせず、機械 gate を硬化してから commit する。"
+  },
+  "findings": [
+    {
+      "id": "ST-01",
+      "severity": "high",
+      "verdict": "real",
+      "status": "closed",
+      "title": "manifest の意味契約を generated adapter と同時に弱化できる",
+      "reproduction": "projection instructions、consumer、forbidden class、Codex model、capability loweringをmanifestとadapterで同時変更すると旧checkerがgreen",
+      "remediation": "全 roles.<name> entry のcanonical SHA-256を独立review ledgerへ追加し、semantic digestとadapterへ埋込"
+    },
+    {
+      "id": "ST-02",
+      "severity": "high",
+      "verdict": "real",
+      "status": "closed",
+      "title": "共通 developer product override が独立 pin されていない",
+      "reproduction": "正しさgate/入力をdata扱い/tool不使用の安全文を弱化して全adapterを再生成しても旧checkerがgreen",
+      "remediation": "共通 exact template と独立SHA-256を追加し、role/source/projectionだけをplaceholder化"
+    },
+    {
+      "id": "ST-03",
+      "severity": "high",
+      "verdict": "real",
+      "status": "closed",
+      "title": "auditor pass + correctness violations が現役 build gateを通る",
+      "reproduction": "Codex semantic validatorとcampaign parse_auditor_dictが矛盾を受理し、sort/trigger driverはverdictだけでpass判定",
+      "remediation": "pass/reject/uncertainとviolations/uncertaintyのiff条件、list[dict]型をCodex validatorと現役trusted parserの双方で強制"
+    },
+    {
+      "id": "ST-04",
+      "severity": "medium",
+      "verdict": "real",
+      "status": "closed",
+      "title": "direct role の source parity が出力例しか見ない",
+      "reproduction": "planner input schemaからleading_indicatorsを削除してreview pinを更新するとsource入力例と不一致のまま旧checkerがgreen",
+      "remediation": "direct 5 roleの入力/出力JSON例をrequired/closed/nested key treeで再帰照合"
+    },
+    {
+      "id": "ST-05",
+      "severity": "medium",
+      "verdict": "real",
+      "status": "closed",
+      "title": "manifest strict JSON がNaN/Infinityを受理する",
+      "reproduction": "minimum=NaNとschema pin更新で非標準JSONが旧checkerを通過",
+      "remediation": "parse_constant拒否、allow_nan=false、schema数値境界の有限性検査"
+    },
+    {
+      "id": "RT-01",
+      "severity": "high",
+      "verdict": "real",
+      "status": "closed",
+      "title": "raw request attestation が未知命令・順序変更・余分なtool historyを受理する",
+      "reproduction": "top-level instructions追加、developer/user順序入替、input function_call追加が旧attest_requestを通過",
+      "remediation": "top-level key/value、message/content boundary、environment、developer/user順序、forced followup historyを経路別exact契約へ固定"
+    },
+    {
+      "id": "RT-02",
+      "severity": "medium",
+      "verdict": "real",
+      "status": "closed",
+      "title": "HTTP wire body が permissive JSON parseでcanonical evidenceを曖昧化する",
+      "reproduction": "duplicate model keyのlast-wins bodyを旧handlerが受理",
+      "remediation": "strict UTF-8 decodeとduplicate key/BOM/CR/NFC/非有限数拒否を両handlerへ適用"
+    },
+    {
+      "id": "RT-03",
+      "severity": "medium",
+      "verdict": "real",
+      "status": "closed",
+      "title": "非有限float・過深入力・巨大integer・file全読みにfail-open余地",
+      "reproduction": "1e999がinf、1100段配列がraw RecursionError、5000桁intがraw ValueError、fileはread_bytes後にsize検査",
+      "remediation": "有限float parser、JSON domain/depth検査、例外正規化、max+1 bounded read"
+    },
+    {
+      "id": "RT-04",
+      "severity": "medium",
+      "verdict": "real",
+      "status": "mitigated-with-explicit-boundary",
+      "title": "Codex/bwrap のhash対象pathnameと後続実行実体が未結合",
+      "reproduction": "初回hash後のos.replaceで別inodeを後続Popen/ro-bindが再解決可能",
+      "remediation": "O_NOFOLLOWで開いたsource bytesをsize/digest検証し、runtime私有配置へcopyした実体だけを実行",
+      "residual": "能動探索する同一UID hostile processへの強い隔離ではない。runtimeはblockedのまま、loopback/outer sandboxをactivation証拠にしない"
+    },
+    {
+      "id": "RT-05",
+      "severity": "low",
+      "verdict": "real",
+      "status": "closed",
+      "title": "runtime prerequisite欠落がskip-onlyの成功exitになる",
+      "reproduction": "Codex/bwrap/busybox不在構成で旧suiteがpassed+skipped、exit 0",
+      "remediation": "commit/release suiteに非skip prerequisite assertionを追加"
+    },
+    {
+      "id": "RT-06",
+      "severity": "low",
+      "verdict": "real",
+      "status": "documented-limit",
+      "title": "loopback request とspawned Codex processの強いorigin bindingはない",
+      "reproduction": "同一host processが期待bodyを先取りできる理論上の合成証拠面",
+      "remediation": "custom loopback/同一UID/network非隔離の限界をD56/F17/READMEへ明記し、runtime activationの根拠から除外",
+      "reactivation_requirement": "専用namespaceまたはrequest/response/processを結ぶprovenanceが必要"
+    },
+    {
+      "id": "DOC-01",
+      "severity": "high",
+      "verdict": "real",
+      "status": "closed",
+      "title": "sort runbook がauditor diff_digest echo契約と不一致",
+      "reproduction": "旧手順はdigestをauditorへ渡さずcallerがproposalへ直接転記",
+      "remediation": "4入力、返却digest echo、driver再計算照合、矛盾時再審査/停止へ更新"
+    },
+    {
+      "id": "DOC-02",
+      "severity": "medium",
+      "verdict": "real",
+      "status": "closed",
+      "title": "Codexの可変件数/状態が入口文書へ重複",
+      "reproduction": "AGENTS/CLAUDE/docs README/architectureがcanonical READMEと同じ現況を再掲",
+      "remediation": "現行stateを.codex/agents/READMEとcheckerへ集約し、入口はfail-closed invariantだけを保持"
+    },
+    {
+      "id": "DOC-03",
+      "severity": "low",
+      "verdict": "real",
+      "status": "closed",
+      "title": "worklog監査エントリが長く、critic-experiment effort明示の根拠も未記録",
+      "reproduction": "旧entry (8) が一次資料詳細を重複し、P2-5凍結との関係が説明されない",
+      "remediation": "entry (8)をD35形式へ圧縮し、inherited highの明示化で実験解釈不変とD56へ記録"
+    }
+  ],
+  "refuted": [
+    {
+      "id": "RF-01",
+      "lens": "static",
+      "claim": "native-discoverable profileが差分に残る",
+      "evidence": ".codex/agents TOMLは撤去されproject agent entryもcheckerが拒否"
+    },
+    {
+      "id": "RF-02",
+      "lens": "static",
+      "claim": "Claude role本文またはinventoryがadapterから欠落する",
+      "evidence": "12/12全単射、source body exact 1回、expected byte parityを確認"
+    },
+    {
+      "id": "RF-03",
+      "lens": "runtime",
+      "claim": "run_roleがcredentialまたはofficial providerへ到達する",
+      "evidence": "loopback preflight後に必ずBLOCKED、credential読込/official command経路なし"
+    },
+    {
+      "id": "RF-04",
+      "lens": "runtime",
+      "claim": "outer namespaceがhost repo/homeをmountする",
+      "evidence": "mount commandとforced ENOENT負例で非表示を確認。ただしnetwork/同一UID隔離の証明ではない"
+    },
+    {
+      "id": "RF-05",
+      "lens": "docs",
+      "claim": "この移植がPhase 3の研究計測・主張を変更する",
+      "evidence": "製品adapterとgateだけの変更で、phase checklist/measurement結果は不変"
+    }
+  ],
+  "official_contract_check": {
+    "source": "OpenAI Codex manual current fetch (2026-07-14/15)",
+    "confirmed": [
+      "custom agent optional fields are inherited when omitted",
+      "parent live permission override is reapplied",
+      "current callable spawn_agent surface has no explicit custom profile selector"
+    ],
+    "decision": "native activationを復活させずstatic/dormant + runtime blockedを維持"
+  },
+  "verification": {
+    "status": "green-before-commit",
+    "commands": [
+      {
+        "command": "python3 -m pytest -q orchestrator/tests/test_codex_role_runtime.py",
+        "result": "80 passed in 7.91s; sol/terra/forced real wire included, skip 0"
+      },
+      {
+        "command": "python3 -m pytest -q orchestrator/tests/test_codex_agents.py orchestrator/tests/test_codex_role_runtime.py orchestrator/tests/test_calibrator.py orchestrator/tests/test_auditor_gate.py orchestrator/tests/test_critic.py orchestrator/tests/test_verifier.py orchestrator/tests/test_p3_s4_loop_sort.py orchestrator/tests/test_p3_s4_loop_trigger_gating.py orchestrator/tests/test_hooks.py",
+        "result": "267 passed, 1 skipped in 21.62s",
+        "note": "skipは既存hooks template未適用条件。runtime E2Eは全実行。sandbox外はlocal loopback/bwrap/submodule harnessのみ"
+      },
+      {
+        "command": "python3 orchestrator/tests/test_codex_agents.py",
+        "result": "36 passed, 0 failed"
+      },
+      {
+        "command": "python3 tools/check_codex_agents.py",
+        "result": "OK: native discoveryなし、static adapter byte parity、runtime blocked"
+      },
+      {
+        "command": "python3 tools/check_docs.py",
+        "result": "違反なし"
+      },
+      {
+        "command": "py_compile + JSON/hash parity + git diff --check",
+        "result": "pass"
+      }
+    ],
+    "runtime_skips_counted_as_success": 0,
+    "submodule_final_status": "clean"
+  },
+  "commit_created": false
+}

@@ -1,51 +1,97 @@
-# Codex custom agent adapter
+# Codex role adapter — native 0 / static 12 / runtime blocked
 
-`.claude/agents/*.md` の role 本文を意味契約の正本とし、Codex で安全側に近似できる
-role だけを、このディレクトリの TOML profile として有効化する。同期と分類の機械的な正本は
-`tools/check_codex_agents.py`、設計判断は D54。
+`.claude/agents/*.md` は role 本文と Claude Code 固有の model/tools 契約の正本である。
+Codex 版は自動発見されない `.codex/role-adapters/*.json` に全 12 件を置き、共有 manifest と renderer、
+semantic policy、checker で同期する。初版判断は D54、native profile の休眠化は D55、全 12 件の
+静的移植と runtime 裁定は D56 とする。
 
-project の `.codex` layer を信頼した Codex client で読み込む。定義を追加・更新した後は新しい
-session で role 名と設定を確認してから使う。
+現行状態は次の 3 軸を混同しない。
 
-## 有効化する初期集合
+| 面 | 状態 | 意味 |
+|---|---|---|
+| native profile | active 0 / 発見可能 profile 0 | `.codex/agents/*.toml` と project `[agents.<name>]` は禁止 |
+| static adapter | 12 / 12 定義済み | Claude 本文・metadata・I/O・capability lowering を byte-stable JSON に移植済み |
+| runtime activation | active 0 / blocked 12 | `input.additional_tools` を構造的に除去できないため実行禁止 |
 
-| role | model | reasoning | sandbox | 用途上の条件 |
-|---|---|---|---|---|
-| `auditor` | `gpt-5.6-sol` | high | read-only | 元の人間 gate と併用。D38 と同等の Bash 非付与ではない |
-| `critic` | `gpt-5.6-sol` | high | read-only | digest だけを呼出側から渡す |
-| `verifier` | `gpt-5.6-sol` | high | read-only | trace だけを呼出側から渡す |
+static adapter は実行可能 profile ではない。`dormant` は「無効な TOML を残す」という意味でも、
+prompt 規律だけで隔離できたという意味でもない。
 
-いずれも**起動直前に親 turn の実効 sandbox を read-only にし**、毎回 `fork_turns="none"` で
-起動する。子も開始時に実効 read-only を確認し、確認不能・不一致なら `ADAPTER-REFUSED` で停止する。
-workspace-write / danger-full-access の親からは起動しない。Codex profile には fresh context や
-tool allowlist のフィールドがなく、`read-only` は書込みを止めるだけで読取面や Bash 面を
-Claude と同じ形にはできない。親 turn の live permission override が profile より優先される
-場合もあるため、研究上の証拠に単独採用しない。
+## 静的移植の契約
 
-root `AGENTS.md` の通常ブートは親の担当であり、この 3 role の子は CLAUDE/worklog/phase/handoff を
-読まない。auditor は明示した監査射影、critic は inline digest、verifier は明示した trace と
-検査コードだけを扱う。とくに critic は共有 role 本文にある `digest.py` 自走許可を使わない。
+各 adapter は移植元本文を exact 1 回、Codex product override より前へ埋め込む。Claude の tool は
+Codex 子へ再付与せず、`Read/Grep/Glob` は trusted input projection、`Bash/Write` は trusted driver、
+`Edit` は構造化提案へ lower する。全 role の model/effort、top-level closed envelope と重要 field の
+schema、禁止入力 class、recursive forbidden-key policy、consumer 配線状態を manifest に明示する。
+`semantic_projection_mode` は direct/mediated という変換方式の分類であり、製品間の意味等価性や
+producer/consumer の実配線を証明する値ではない。
 
-## fail-closed で保留する role
+opaque string と意図的に open な object subtree は安全に再解釈できないため完全検査の対象外であり、
+その内容を射影する trusted producer が禁止情報を除く。`consumer: null` の role は standalone typed
+proposal 定義までで、既存の
+研究 pipeline へ自動採用される配線を意味しない。
 
-- `axis-proposer` / `planner-v4` / `coder-v4-autonomous*`: `tools: []` による
-  file-read 経路不存在と Model Y のリーク遮断を再現できない。
-- `coder`: EVOLVE-BLOCK の合成枝だけに編集面を限定できない。
-- `critic-experiment`: `guided.py` だけを許す Bash-only の実験境界を再現できない。
-- `calibrator` / `profiler`: 書込みが必要だが、成果物の宛先だけに write 面を限定できない。
+`spawn_agent` の `task_name` を `auditor` などにしても profile selector にはならず、generic child の
+名前が変わるだけである。child や親が自然言語 final で「profile を受領した」「拒否した」と申告しても、
+spawn event と tool event が無ければ実行証拠に数えない。generic child を dormant role の代替として
+扱ってはならない。
 
-これらは専用 harness/API 境界ができるまで `.codex/agents/*.toml` を作らない。置くと Codex が
-発見可能になるため、checker は存在そのものを拒否する。
+## runtime の blocker と再開条件
 
-## 更新手順
+Codex CLI 0.144.2 の raw Responses request では top-level `body.tools` が空でも、developer
+`input.additional_tools` に `exec` / `collaboration` / `request_user_input` / `wait` が注入される。
+`exec` と `collaboration` の下には file 操作や agent fan-out に到達し得る宣言面がある。
+したがって top-level tool 0 件や JSONL 上の tool event 不在を「tool-free」の証拠にしない。
 
-1. role の意味変更は対応する `.claude/agents/*.md` へ入れる。
-2. `python3 tools/check_codex_agents.py --write` で対応 profile を再生成する。
-3. `python3 tools/check_codex_agents.py` と
-   `python3 orchestrator/tests/test_codex_agents.py` を通す。
+`tools/run_codex_role.py` の既定動作は外部 model と credential を使わず、実 CLI thread で custom loopback
+provider 宛ての raw request と outer namespace を attestation するだけである。これは production provider の
+request capture ではない。`--live` も同じ loopback preflight 後に必ず
+`BLOCKED_BY_RUNTIME_TOOL_SURFACE` で失敗し、credential 読込・official-provider command の経路自体を持たない。
+bubblewrap の host repo/home 非表示と forced `view_image` の `ENOENT` は defense-in-depth 証拠であり、
+active 化の十分条件には数えない。forced fixture は outer namespace だけを検査するため内側を
+`danger-full-access` にするが、pinned outer bubblewrap・loopback provider 内に限定し、active role 設定には使わない。
+probe は host の loopback server へ到達するため network namespace を共有する。provider URL は
+`127.0.0.1` の一時 port に固定するが、network 隔離の証拠には数えない。
 
-Python 3.10 で checker を動かす場合は TOML round-trip 検査用の `tomli` が必要。Python 3.11
-以降は標準 `tomllib` を使う。parser がなければ checker は検査を省略せず失敗する。
+wire attestation は top-level key 集合、message/content boundary と順序、`additional_tools` 全 descriptor、
+forced fixture だけに許す tool history を exact に固定する。request は strict UTF-8/JSON として読み、
+重複 key、非有限数、過深入力を拒否する。Codex/bubblewrap は検証した bytes を runtime 用に固定してから
+実行し、pathname の初回 hash と後続実行を別実体にしない。ただし同一 UID の敵対 process に対する
+provenance や network 隔離は証明しない。loopback/outer sandbox は active 化の十分条件ではない。
 
-Codex の自動移行に依存しない。Claude の `model: opus|sonnet` と `tools` 制限は Codex TOMLへ
-同値に移らず、`#` を含む未引用 YAML description も移行時に切断され得るためである。
+次の 3 共通条件をすべて満たすまで、runtime E2E は **BLOCKED** である。未実行を skip や成功として
+数えず、active 数を 0 のまま保つ。
+
+1. **全 tool surface の exact allowlist:** filesystem sandbox だけでなく、built-in tool、shell、
+   MCP server、apps/connectors、skills、plugins を含む child の全 surface を role ごとの許可集合に
+   固定できる。省略フィールドによる親からの継承は許可しない。
+2. **event-based E2E:** standalone では実 `codex exec` thread ID、adapter/instruction/input digest、
+   exact tool inventory と許可外 local/remote read・write・再帰 Codex・agent fan-out の拒否 event を検査する。
+   tool 許可集合が空の role には「許可 tool の実行」を求めず、非空の場合のみ positive event を求める。
+3. **policy 再分類:** D55/D56、`tools/check_codex_agents.py`、専用テストを同時に更新し、独立レビュー後に
+   初めて active runtime を実装する。native を選ぶ場合だけ active profile も生成する。
+
+native custom profile を再採用する場合だけは、上記に加えて明示 profile selector と spawn event 上の
+非空 child thread ID / agent type / child instruction digest を必須とする。`task_name` の命名と成功自己申告は
+その positive control に数えない。
+
+Codex hook adapter だけでは条件 2 を満たさない。local file write を止めても、継承した MCP/apps 等の
+外部 read・write 面は残るためである。
+
+## 整合性検査
+
+role の意味変更は対応する `.claude/agents/*.md` に入れる。
+`orchestrator/codex_roles/review_ledger.py` は自動生成物と独立したレビュー済み source/description/schema、
+full role manifest、共通 developer instruction template の SHA-256 と role 別 I/O 契約の固定台帳である。
+direct JSON 例を持つ 5 role は source の入力・出力 shape parity、mediated の 7 role は固定 source hash +
+reviewed I/O obligations で移植契約を結び、台帳の明示レビュー無しに再生成だけで追従しない。checker は
+Claude と Codex の全単射、
+frontmatter、description の JSON quote、本文の埋込・digest、model/effort、capability lowering、I/O schema、
+semantic policy、consumer、adapter の期待 byte、native discovery 0 を同時に検査する。通常確認は次で行う。
+
+```sh
+python3 tools/check_codex_agents.py
+python3 -m pytest -q orchestrator/tests/test_codex_agents.py orchestrator/tests/test_codex_role_runtime.py
+```
+
+`--write` は native profile 生成との誤認を避けるため fail-closed に拒否する。自然言語の成功文、TOML の
+load/parse、prompt 文字列の存在だけを selector、実 spawn、権限拒否の証明にしてはならない。

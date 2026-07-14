@@ -206,6 +206,15 @@ def test_load_proposal_file_roundtrip_and_fails_closed():
     assert coder.implementation == _CLEAN_IMPL and not hasattr(coder, "value")
     assert auditor.verdict == "pass" and prior is True
 
+    # uncertain は violations なし + 非空 uncertainty が必須 (共有 parser 境界)。
+    bad_uncertain = {**base,
+                     "auditor": {"verdict": "uncertain", "diff_digest": "b" * 64}}
+    try:
+        T.load_proposal_file(_write_json(bad_uncertain, "uncertain_without_reason.json"))
+        raise AssertionError("根拠なし uncertain を素通しした")
+    except T.AuditorGateFailure:
+        pass
+
 
 # ==== campaign 設定 =============================================================
 

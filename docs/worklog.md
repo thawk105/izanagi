@@ -2402,3 +2402,70 @@ bench 先行が正解。設計の正本 = `output/insights/2026-07-14_bench-firs
 1. S-1 の計測ゼロ準備: サンプル設計 4 点 → 直接比較 driver + 既知軸基準点 freeze → 検証相実装
 2. 8b の前向き設計 (holdout / descriptor ablation / 全件報告) と、層3 report schema + 最小 renderer を並行
 3. 計測窓で対象別 floor・sort read-heavy・S-1 本走を完了。8c と bench-first は各発火条件で別途判断
+
+## 2026-07-14 (6) — commit 0d8b2f2 Codex agent adapter 再監査
+
+ユーザー依頼「長寿コンテキスト下の修正を検査」。計測ゼロ、実装修正なし。
+5 レンズで real 5 / refuted 5。native audit role は親が workspace-write のため D54 に従い不使用、
+代わりに read-only ephemeral runtime 3 本で起動実体を確認した。
+- 最重要: 現行 0.144.2 の spawn schema は custom agent type を選べず、3 profile は実 spawn 未成立
+- 最重要: read-only profile は親の MCP/skills を継承し、外部 write/read 面を構造遮断しない
+- presence-only test が spawn 無しの成功自己申告を検出せず、分類 body drift と YAML `#` 負例にも穴
+一次資料: `output/insights/2026-07-14_codex-agent-adapter-reaudit.json`。失敗台帳 F16。
+focused 検証は 26 passed / 1 skipped、docs/provenance/checker 緑。現行 surface では3 roleを利用禁止と裁定。
+
+### 次の一手
+1. ユーザー承認後、3 profile を dormant/blocked 化し selector + tool allowlist harness の再開条件へ戻す
+2. checker の body policy digest、YAML parser、runtime E2E positive/negative control を同時に修理する
+3. Phase 3 本筋の次の一手は 07-14 (5) から変わらず
+
+## 2026-07-14 (7) — Codex agent adapter 再監査の独立再現と休眠化
+
+ユーザー指示「実 child ID/tool event で再現後、安全側へ修正」。計測ゼロ、commit なし。
+5 finding を全て real と独立確認。custom role は現行契約どおり 0、generic subagent 5 本を使用。
+- selector 負例 parent `019f6044-ff57-7120-9f03-4b54c897ca4b` は spawn event 0
+- 偽正例 parent `019f6045-6286-7002-980e-82073edac853` は receiver 空 wait のみで成功自己申告
+- 実正例 child `019f6045-ba07-7e62-8ba8-474728b39df8` で spawn + tool event を確認
+人間方針「保証不能なら dormant/blocked 優先」に従い、`0 active / 3 dormant / 9 blocked` と裁定。
+runtime E2E は selector + 全 tool surface allowlist が無いため BLOCKED (skip/成功には数えない)。
+一次資料: `output/insights/2026-07-14_codex-agent-adapter-remediation.json`。失敗台帳 F16、決定 D55。
+統合レビュー 1 high / 2 medium も全反映し、同 reviewer の再確認で 3 closed / 新規 high-medium 0。
+focused 29 passed / 1 skipped、専用 runner 12 passed、
+agent/docs checker と diff/compile 緑。
+
+### 次の一手
+1. 人間が未コミット差分を確認して commit。push は人間が行う
+2. Phase 3 本筋は 07-14 (5) の次の一手から変わらず
+
+## 2026-07-14 (8) — 全 12 Codex role の静的移植・独立整合性 gate・runtime fail-closed
+
+ユーザー指示「安全に提供・移植・整合性検査を実現」を受け、実行可能性と静的移植を分離する
+D56 の三軸裁定へ更新。計測ゼロ、Phase 3 の研究状態変更なし、commit 前レビューへ引き継いだ。
+- non-native adapter は Claude role 全件の本文・metadata・I/O・tool lowering を静的に保持する。
+- 実 raw request では top-level tools が空でも `input.additional_tools` が残るため runtime は BLOCKED。
+- loopback probe/outer sandbox/JSONL tool event 不在を active 化の十分条件には数えない。
+- credential 読込・official-provider command 経路は実装せず、`--live` も blocker で停止する。
+- 一次資料: `output/insights/2026-07-14_codex-role-adapter-completion.json`、失敗台帳 F17、決定 D56。
+- 初回検証は統合 167 passed・runtime skip 0、agent/docs checker・compile・diff check 緑。
+
+### 次の一手
+1. 未コミット差分を独立再レビューし、finding を閉じて provenance 付きで commit。push は人間が行う
+2. 全 nested tool surface の exact allowlist と許可外 tool 負例が揃うまで runtime blocked を維持
+3. Phase 3 本筋は 07-14 (5) の次の一手から変わらず
+
+## 2026-07-15 (1) — Codex role adapter commit review
+
+ユーザー依頼「git diff をレビューし、問題を直してコミット」。計測ゼロ、Phase 3 研究状態変更なし。
+- 3 レンズ独立監査で real 14 / refuted 5。全裁定は一次資料へ凍結した。
+- 最重要 1: full role manifest と共通 developer 指示に独立 pin がなく、generated 側の同時弱化を再現。
+- 最重要 2: auditor の `pass + violations` が dormant adapterだけでなく現役 campaign gate も通過。
+- 最重要 3: raw wire attestation が未知命令・message順序・余分なtool historyを受理。
+- 上記は独立 ledger、現役 trusted parser、exact envelope/strict JSON/verified private binaryで閉じた。
+- 同一 UID hostile process と custom loopback の official-provider provenance は未証明と明記し、
+  runtime activation の根拠から除外したまま BLOCKED を維持する。
+- 一次資料: `output/insights/2026-07-15_codex-role-adapter-commit-review.json`、F17、D56。
+- 検証: 統合 267 passed / 1 hooks skip、runtime実wire 80 passed / skip 0、static 36/0、全checker緑。
+
+### 次の一手
+1. 全 nested tool surface の exact allowlist と許可外 event 負例が揃うまで runtime blocked を維持
+2. Phase 3 本筋は 07-14 (5) の次の一手から変わらず

@@ -8,10 +8,16 @@ ECC のように大量の hook は持たない。下記2本だけ (規律5「盛
 「明白な直接書き込みを止める最小の第二防壁」に絞り、identity の正直さ (偽 cache hit / `#ifdef`) と
 観測者効果の分離 (TRACE 混入) は**一次防壁 (source_digest)** に委譲した。
 
-**Codex には未配線 (D54)。** Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡し、
+**Codex には未配線 (D54〜D56、F16/F17)。** Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡し、
 Claude の Write/Edit の `file_path` 形とは異なる。既存 `guard_write` を設定だけ複製すると path 欠落を
 管轄外として通すため、Codex adapter と parity test ができるまでは `.codex/hooks.json` を置かない。
 これは新しい論理 hook の追加ではなく、既存 2 判定核の将来 adapter として扱う。
+
+ただし hook adapter が完成しても、それだけでは dormant な Codex profile の再開条件を満たさない。
+local file write の拒否は、親から継承される MCP / apps・connectors / skills / plugins の外部 read・write
+面を閉じないためである。明示 profile selector、全 tool surface の exact allowlist、spawn と許可・拒否
+tool event を使う E2E、policy 再分類が揃うまでは active 化せず **BLOCKED** とする。自然言語 final の
+「hook が発火した」「権限を拒否した」という自己申告は証拠に数えない。
 
 **3 巡の敵対検証で硬化 (2026-07-02 / 07-03 / 07-04)。** 各巡で Opus 赤チームが real finding を摘出し修正:
 - 1・2 巡目 (旧 payload テキスト検査): critical GW2R-1 (コメント行連結でコメント除去器を騙し `#define TRACE`

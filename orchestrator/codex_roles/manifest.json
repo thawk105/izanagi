@@ -1,0 +1,1548 @@
+{
+  "schema_version": "izanagi.codex-role-manifest/v1",
+  "adapter_schema_version": "izanagi.codex-role-adapter/v1",
+  "runtime_boundary": "static-only-runtime-blocked",
+  "runtime_activation": {
+    "status": "blocked",
+    "reason": "uncontrollable_additional_tools",
+    "uncontrollable_surface": "input.additional_tools",
+    "evidence_owner": "runtime-launcher-additional-tools-attestation"
+  },
+  "consumer_null_semantics": "standalone-typed-proposal-only; trusted-integration-unwired",
+  "semantic_projection_mode_semantics": "tool-lowering-classification-only; does-not-prove-semantic-equivalence-or-consumer-wiring",
+  "roles": {
+    "auditor": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": [
+          "Read",
+          "Grep",
+          "Glob"
+        ]
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "fitness",
+        "throughput",
+        "winner",
+        "raw-wal",
+        "planner-coder-history"
+      ],
+      "forbidden_key_tokens": [
+        "fitness",
+        "fitnesses",
+        "throughput",
+        "throughputs",
+        "winner",
+        "winners",
+        "raw_wal",
+        "raw_wals",
+        "wal",
+        "wals",
+        "planner_coder_history",
+        "planner_coder_histories",
+        "history",
+        "histories",
+        "median_tps",
+        "leading_indicator",
+        "leading_indicators",
+        "winning_mechanism",
+        "winning_mechanisms"
+      ],
+      "semantic_projection_mode": "mediated-projection",
+      "capability_mapping": {
+        "Read": "input-projection",
+        "Grep": "input-projection",
+        "Glob": "input-projection"
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "working_diff",
+          "diff_digest",
+          "designated_sources",
+          "abort_digest"
+        ],
+        "properties": {
+          "working_diff": {
+            "type": "string"
+          },
+          "diff_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "designated_sources": {
+            "type": "array"
+          },
+          "abort_digest": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "verdict",
+          "diff_digest",
+          "violations",
+          "nits",
+          "proposed_tests",
+          "uncertainty"
+        ],
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "reject",
+              "uncertain"
+            ]
+          },
+          "diff_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "nits": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "proposed_tests": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "uncertainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": {
+        "path": "orchestrator/campaign/auditor_gate.py",
+        "parser": "parse_auditor_dict",
+        "required_fields": [
+          "verdict",
+          "diff_digest"
+        ]
+      },
+      "projection_instructions": "射影済み working diff と designated source、性能値を除いた abort digestだけを監査する。正しさ違反は無条件rejectし、verifierの死角、恒真assert、marker外侵食、観測者効果、入力汚染を探す。監査対象diffのdigestを変えずに返し、positive control案を構造化する。"
+    },
+    "axis-proposer": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": []
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "winner-value",
+        "candidate-ranking",
+        "critic-recommend",
+        "dead-axis-attribution",
+        "performance-hint"
+      ],
+      "forbidden_key_tokens": [
+        "winner_value",
+        "winner_values",
+        "winner",
+        "winners",
+        "candidate_ranking",
+        "candidate_rankings",
+        "ranking",
+        "rankings",
+        "critic_recommend",
+        "critic_recommends",
+        "critic_recommendation",
+        "critic_recommendations",
+        "recommend",
+        "recommends",
+        "recommendation",
+        "recommendations",
+        "dead_axis_attribution",
+        "dead_axis_attributions",
+        "performance_hint",
+        "performance_hints"
+      ],
+      "semantic_projection_mode": "direct-projection",
+      "capability_mapping": {},
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "diagnostics",
+          "stock_excerpts",
+          "edit_surface_map"
+        ],
+        "properties": {
+          "diagnostics": {
+            "type": "object"
+          },
+          "stock_excerpts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "region",
+                "source_rel",
+                "excerpt"
+              ],
+              "properties": {
+                "region": {
+                  "type": "string"
+                },
+                "source_rel": {
+                  "type": "string"
+                },
+                "excerpt": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "edit_surface_map": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "region",
+                "role",
+                "opened"
+              ],
+              "properties": {
+                "region": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "opened": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "hole_region_directive": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "proposals",
+          "global_unknowns"
+        ],
+        "properties": {
+          "proposals": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "axis_name",
+                "mutation_type",
+                "hole_location",
+                "mechanism_hypothesis",
+                "safety_argument_hypothesis",
+                "unknowns"
+              ],
+              "properties": {
+                "axis_name": {
+                  "type": "string"
+                },
+                "mutation_type": {
+                  "type": "string",
+                  "enum": [
+                    "scalar",
+                    "code_fragment"
+                  ]
+                },
+                "hole_location": {
+                  "type": "object",
+                  "required": [
+                    "region",
+                    "source_rel",
+                    "position",
+                    "skeleton"
+                  ],
+                  "properties": {
+                    "region": {
+                      "type": "string"
+                    },
+                    "source_rel": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "string"
+                    },
+                    "skeleton": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "mechanism_hypothesis": {
+                  "type": "string"
+                },
+                "safety_argument_hypothesis": {
+                  "type": "string"
+                },
+                "unknowns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "global_unknowns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "診断の二層射影、stock抜粋、対称な編集面地図だけから未探索EVOLVE-BLOCK hole候補を1〜3件提案する。採用判断や下流gateの短縮はせず、実測やコード裏取りが必要な事項はunknownsへ落とす。"
+    },
+    "calibrator": {
+      "claude": {
+        "model": "sonnet",
+        "effort": "medium",
+        "tools": [
+          "Read",
+          "Write",
+          "Bash"
+        ]
+      },
+      "codex": {
+        "model": "gpt-5.6-terra",
+        "model_reasoning_effort": "medium"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "trace-enabled-performance",
+        "campaign-fitness",
+        "between-run-floor-as-within-run"
+      ],
+      "forbidden_key_tokens": [
+        "trace_enabled_performance",
+        "trace_enabled_performances",
+        "trace_enabled",
+        "campaign_fitness",
+        "campaign_fitnesses",
+        "between_run_floor_as_within_run",
+        "between_run_floors_as_within_run",
+        "between_run_floor",
+        "between_run_floors"
+      ],
+      "semantic_projection_mode": "mediated-projection",
+      "capability_mapping": {
+        "Read": "input-projection",
+        "Write": "trusted-driver-projection",
+        "Bash": "trusted-driver-projection"
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "request",
+          "measurements"
+        ],
+        "properties": {
+          "request": {
+            "type": "object"
+          },
+          "measurements": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "required": [
+                "records"
+              ],
+              "properties": {
+                "records": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "selected_records",
+          "decision_basis",
+          "within_run_noise",
+          "scale_risk",
+          "uncertainty"
+        ],
+        "properties": {
+          "selected_records": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision_basis": {
+            "type": "string"
+          },
+          "within_run_noise": {
+            "type": "object"
+          },
+          "scale_risk": {
+            "type": "string"
+          },
+          "uncertainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "trusted driverがtrace-disabled実機で取得したcache miss、maxrss、反復分布だけを解釈し、飽和点またはL3下限を満たす最小recordsを選ぶ。within-run品質floorとbetween-run採否floorを混同せず、根拠とscale riskを返す。"
+    },
+    "coder": {
+      "claude": {
+        "model": "sonnet",
+        "effort": "medium",
+        "tools": [
+          "Read",
+          "Grep",
+          "Glob",
+          "Edit"
+        ]
+      },
+      "codex": {
+        "model": "gpt-5.6-terra",
+        "model_reasoning_effort": "medium"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "wal",
+        "fitness",
+        "winner-value",
+        "docs-results",
+        "trace-gate-edit"
+      ],
+      "forbidden_key_tokens": [
+        "wal",
+        "wals",
+        "fitness",
+        "fitnesses",
+        "winner_value",
+        "winner_values",
+        "winner",
+        "winners",
+        "docs_result",
+        "docs_results",
+        "trace_gate_edit",
+        "trace_gate_edits"
+      ],
+      "semantic_projection_mode": "mediated-projection",
+      "capability_mapping": {
+        "Read": "input-projection",
+        "Grep": "input-projection",
+        "Glob": "input-projection",
+        "Edit": "structured-output-proposal"
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "instruction",
+          "marker_id",
+          "designated_source",
+          "api_excerpts"
+        ],
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "marker_id": {
+            "type": "string"
+          },
+          "designated_source": {
+            "type": "string"
+          },
+          "api_excerpts": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "implementation",
+          "summary",
+          "constraint_check",
+          "uncertainty"
+        ],
+        "properties": {
+          "implementation": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "constraint_check": {
+            "type": "object"
+          },
+          "uncertainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "指定されたEVOLVE-BLOCKの合成枝へ入れるstraight-line implementationだけを提案する。marker骨格、stock枝、include、型、macro、生の前処理指令、TRACE、検証gateには触れない。repoは直接編集せずtrusted callerへ構造化提案を返す。"
+    },
+    "coder-v4-autonomous": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": []
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "external-winner-value",
+        "candidate-ranking",
+        "unevaluated-performance",
+        "known-optimal-mechanism"
+      ],
+      "forbidden_key_tokens": [
+        "external_winner_value",
+        "external_winner_values",
+        "winner",
+        "winners",
+        "candidate_ranking",
+        "candidate_rankings",
+        "ranking",
+        "rankings",
+        "unevaluated_performance",
+        "unevaluated_performances",
+        "known_optimal_mechanism",
+        "known_optimal_mechanisms",
+        "optimal_mechanism",
+        "optimal_mechanisms"
+      ],
+      "semantic_projection_mode": "direct-projection",
+      "capability_mapping": {},
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "leakproof_context",
+          "baseline",
+          "planner_direction",
+          "whiteboard"
+        ],
+        "properties": {
+          "leakproof_context": {
+            "type": "string"
+          },
+          "baseline": {
+            "type": "object"
+          },
+          "planner_direction": {
+            "type": "object",
+            "required": [
+              "axis",
+              "direction",
+              "magnitude",
+              "justification"
+            ],
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "silo-backoff-magnitude"
+                ]
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "increase",
+                  "decrease",
+                  "explore_both"
+                ]
+              },
+              "magnitude": {
+                "type": "string",
+                "enum": [
+                  "small",
+                  "medium",
+                  "large"
+                ]
+              },
+              "justification": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "whiteboard": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "proposal"
+        ],
+        "properties": {
+          "proposal": {
+            "type": "object",
+            "required": [
+              "axis",
+              "value",
+              "implementation",
+              "justification",
+              "confidence"
+            ],
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "silo-backoff-magnitude"
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "implementation": {
+                "type": "string"
+              },
+              "justification": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "本ループ自身のbaseline、abstract planner direction、評価済みwhiteboardからbackoff値とholeコードを合成する。他実験の勝ち筋、候補順位、未評価性能、既知最適機序は使わない。"
+    },
+    "coder-v4-autonomous-sort": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": []
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "external-winning-comparator",
+        "candidate-ranking",
+        "unevaluated-performance",
+        "known-optimal-mechanism"
+      ],
+      "forbidden_key_tokens": [
+        "external_winning_comparator",
+        "external_winning_comparators",
+        "winning_comparator",
+        "winning_comparators",
+        "winner",
+        "winners",
+        "candidate_ranking",
+        "candidate_rankings",
+        "ranking",
+        "rankings",
+        "unevaluated_performance",
+        "unevaluated_performances",
+        "known_optimal_mechanism",
+        "known_optimal_mechanisms",
+        "optimal_mechanism",
+        "optimal_mechanisms"
+      ],
+      "semantic_projection_mode": "direct-projection",
+      "capability_mapping": {},
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "leakproof_context",
+          "sort_spec",
+          "baseline",
+          "planner_direction",
+          "whiteboard"
+        ],
+        "properties": {
+          "leakproof_context": {
+            "type": "string"
+          },
+          "sort_spec": {
+            "type": "string"
+          },
+          "baseline": {
+            "type": "object"
+          },
+          "planner_direction": {
+            "type": "object",
+            "required": [
+              "axis",
+              "direction",
+              "magnitude",
+              "justification"
+            ],
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "silo-writeset-sort"
+                ]
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "increase",
+                  "decrease",
+                  "explore_both"
+                ]
+              },
+              "magnitude": {
+                "type": "string",
+                "enum": [
+                  "small",
+                  "medium",
+                  "large"
+                ]
+              },
+              "justification": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "whiteboard": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "proposal"
+        ],
+        "properties": {
+          "proposal": {
+            "type": "object",
+            "required": [
+              "axis",
+              "implementation",
+              "justification",
+              "confidence"
+            ],
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "silo-writeset-sort"
+                ]
+              },
+              "implementation": {
+                "type": "string"
+              },
+              "justification": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "本ループの射影入力とsort specからstrict weak orderingを満たすcomparator実装を合成する。closed regionを守り、副作用、非決定処理、外部勝ち筋や未評価性能を使わない。"
+    },
+    "coder-v4-autonomous-trigger-gating": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": []
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "external-winning-gate",
+        "candidate-ranking",
+        "unevaluated-performance",
+        "known-optimal-mechanism"
+      ],
+      "forbidden_key_tokens": [
+        "external_winning_gate",
+        "external_winning_gates",
+        "winning_gate",
+        "winning_gates",
+        "winner",
+        "winners",
+        "candidate_ranking",
+        "candidate_rankings",
+        "ranking",
+        "rankings",
+        "unevaluated_performance",
+        "unevaluated_performances",
+        "known_optimal_mechanism",
+        "known_optimal_mechanisms",
+        "optimal_mechanism",
+        "optimal_mechanisms"
+      ],
+      "semantic_projection_mode": "direct-projection",
+      "capability_mapping": {},
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "leakproof_context",
+          "gating_spec",
+          "baseline",
+          "planner_direction",
+          "whiteboard"
+        ],
+        "properties": {
+          "leakproof_context": {
+            "type": "string"
+          },
+          "gating_spec": {
+            "type": "string"
+          },
+          "baseline": {
+            "type": "object"
+          },
+          "planner_direction": {
+            "type": "object",
+            "required": [
+              "axis",
+              "direction",
+              "magnitude",
+              "justification"
+            ],
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "silo-backoff-trigger-gating"
+                ]
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "increase",
+                  "decrease",
+                  "explore_both"
+                ]
+              },
+              "magnitude": {
+                "type": "string",
+                "enum": [
+                  "small",
+                  "medium",
+                  "large"
+                ]
+              },
+              "justification": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "whiteboard": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "proposal"
+        ],
+        "properties": {
+          "proposal": {
+            "type": "object",
+            "required": [
+              "axis",
+              "implementation",
+              "justification",
+              "confidence"
+            ],
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "silo-backoff-trigger-gating"
+                ]
+              },
+              "implementation": {
+                "type": "string"
+              },
+              "justification": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "本ループの射影入力とgating specからabort要因別backoff gateの代入式1行を合成する。kUnsetは必ずbackoffし、禁止識別子、副作用、外部勝ち筋や未評価性能を使わない。"
+    },
+    "critic": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": [
+          "Read",
+          "Grep",
+          "Glob",
+          "Bash"
+        ]
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "uncertified-fitness",
+        "raw-untrusted-instruction",
+        "noise-floor-overclaim"
+      ],
+      "forbidden_key_tokens": [
+        "uncertified_fitness",
+        "uncertified_fitnesses",
+        "raw_untrusted_instruction",
+        "raw_untrusted_instructions",
+        "noise_floor_overclaim",
+        "noise_floor_overclaims"
+      ],
+      "semantic_projection_mode": "mediated-projection",
+      "capability_mapping": {
+        "Read": "input-projection",
+        "Grep": "input-projection",
+        "Glob": "input-projection",
+        "Bash": "trusted-driver-projection"
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "digest"
+        ],
+        "properties": {
+          "digest": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "attribution",
+          "recommend",
+          "avoid",
+          "uncertainty"
+        ],
+        "properties": {
+          "attribution": {
+            "type": "array"
+          },
+          "recommend": {
+            "type": "array"
+          },
+          "avoid": {
+            "type": "array"
+          },
+          "uncertainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "trusted driverが生成したcampaign digestを読み、throughput単独でなくabort、latency、LLC miss、IPCとreject形状を組み合わせて設計選択へ帰属する。正しさを緩めず、between-run floor内の差を誇張しない。"
+    },
+    "critic-experiment": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": [
+          "Bash"
+        ]
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "unevaluated-fitness",
+        "winner-tied-set",
+        "arrival-verdict",
+        "raw-wal",
+        "source-tree"
+      ],
+      "forbidden_key_tokens": [
+        "unevaluated_fitness",
+        "unevaluated_fitnesses",
+        "fitness",
+        "fitnesses",
+        "winner_tied_set",
+        "winner_tied_sets",
+        "winner",
+        "winners",
+        "arrival_verdict",
+        "arrival_verdicts",
+        "raw_wal",
+        "raw_wals",
+        "wal",
+        "wals",
+        "source_tree",
+        "source_trees"
+      ],
+      "semantic_projection_mode": "mediated-projection",
+      "capability_mapping": {
+        "Bash": "trusted-driver-projection"
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "trial",
+          "workload",
+          "seed",
+          "online_digest",
+          "unevaluated_candidates",
+          "trajectory"
+        ],
+        "properties": {
+          "trial": {
+            "type": "string"
+          },
+          "workload": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "integer"
+          },
+          "online_digest": {
+            "type": "object"
+          },
+          "unevaluated_candidates": {
+            "type": "array",
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^B[01]-[LT]-W[01]$"
+            }
+          },
+          "trajectory": {
+            "type": "array",
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^B[01]-[LT]-W[01]$"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "action",
+          "genome",
+          "reason",
+          "uncertainty"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "evaluate",
+              "stop"
+            ]
+          },
+          "genome": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^B[01]-[LT]-W[01]$"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "uncertainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "online digestと未評価labelだけから次に評価するgenomeを1件選ぶか停止を提案する。trusted driverがstart/evaluateとtrajectory集約を担い、未評価性能、最適解、到達判定はモデルへ渡さない。"
+    },
+    "planner-v4": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": []
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "winner-value",
+        "grid-optimum",
+        "technical-whiteboard-detail",
+        "source-tree"
+      ],
+      "forbidden_key_tokens": [
+        "winner_value",
+        "winner_values",
+        "winner",
+        "winners",
+        "grid_optimum",
+        "grid_optima",
+        "technical_whiteboard_detail",
+        "technical_whiteboard_details",
+        "source_tree",
+        "source_trees"
+      ],
+      "semantic_projection_mode": "direct-projection",
+      "capability_mapping": {},
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "current_perf",
+          "leading_indicators",
+          "whiteboard"
+        ],
+        "properties": {
+          "current_perf": {
+            "type": "object"
+          },
+          "leading_indicators": {
+            "type": "object"
+          },
+          "whiteboard": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "proposal"
+        ],
+        "properties": {
+          "proposal": {
+            "type": "object",
+            "required": [
+              "axis",
+              "direction",
+              "magnitude",
+              "justification",
+              "uncertainty"
+            ],
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "silo-backoff-magnitude"
+                ]
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "increase",
+                  "decrease",
+                  "explore_both"
+                ]
+              },
+              "magnitude": {
+                "type": "string",
+                "enum": [
+                  "small",
+                  "medium",
+                  "large"
+                ]
+              },
+              "justification": {
+                "type": "string"
+              },
+              "uncertainty": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "current performance、leading indicators、abstract whiteboardだけから次のaxis方向と変更規模を返す。具体値や勝ち筋機序は提案せず、測定値に基づくjustificationと未説明分散を返す。"
+    },
+    "profiler": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": [
+          "Read",
+          "Grep",
+          "Glob",
+          "Bash"
+        ]
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "uncertified-variant",
+        "trace-enabled-profile",
+        "concurrent-benchmark",
+        "profile-throughput-as-headline"
+      ],
+      "forbidden_key_tokens": [
+        "uncertified_variant",
+        "uncertified_variants",
+        "trace_enabled_profile",
+        "trace_enabled_profiles",
+        "trace_enabled",
+        "concurrent_benchmark",
+        "concurrent_benchmarks",
+        "profile_throughput_as_headline",
+        "profile_throughput_as_headlines",
+        "profile_throughputs_as_headline"
+      ],
+      "semantic_projection_mode": "mediated-projection",
+      "capability_mapping": {
+        "Read": "input-projection",
+        "Grep": "input-projection",
+        "Glob": "input-projection",
+        "Bash": "trusted-driver-projection"
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "certified",
+          "screening",
+          "profile_data"
+        ],
+        "properties": {
+          "certified": {
+            "type": "boolean",
+            "const": true
+          },
+          "screening": {
+            "type": "object",
+            "required": [
+              "passed"
+            ],
+            "properties": {
+              "passed": {
+                "type": "boolean",
+                "const": true
+              }
+            }
+          },
+          "profile_data": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "hotspot_attribution",
+          "scale_risk",
+          "mechanism",
+          "uncertainty"
+        ],
+        "properties": {
+          "hotspot_attribution": {
+            "type": "array"
+          },
+          "scale_risk": {
+            "type": "array"
+          },
+          "mechanism": {
+            "type": "string"
+          },
+          "uncertainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "certifiedかつscreening通過variantのtrace-disabled perf射影だけを解釈し、cycleの行先を有用仕事かspin/lock/NUMA/allocatorへ帰属する。perf下throughputをheadlineにせずmany-core scale riskを返す。"
+    },
+    "verifier": {
+      "claude": {
+        "model": "sonnet",
+        "effort": "high",
+        "tools": [
+          "Read",
+          "Grep",
+          "Glob",
+          "Bash"
+        ]
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "throughput",
+        "fitness",
+        "expected-verdict",
+        "winner",
+        "implementation-fix-request"
+      ],
+      "forbidden_key_tokens": [
+        "throughput",
+        "throughputs",
+        "fitness",
+        "fitnesses",
+        "expected_verdict",
+        "expected_verdicts",
+        "winner",
+        "winners",
+        "implementation_fix_request",
+        "implementation_fix_requests"
+      ],
+      "semantic_projection_mode": "mediated-projection",
+      "capability_mapping": {
+        "Read": "input-projection",
+        "Grep": "input-projection",
+        "Glob": "input-projection",
+        "Bash": "trusted-driver-projection"
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "verification_result"
+        ],
+        "properties": {
+          "verification_result": {
+            "type": "object",
+            "required": [
+              "serializable",
+              "verdict",
+              "certified",
+              "stats",
+              "total_cycles",
+              "anomalies",
+              "integrity"
+            ],
+            "properties": {
+              "serializable": {
+                "type": "boolean"
+              },
+              "verdict": {
+                "type": "string",
+                "enum": [
+                  "serializable",
+                  "non-serializable",
+                  "indeterminate"
+                ]
+              },
+              "certified": {
+                "type": "boolean"
+              },
+              "stats": {
+                "type": "object",
+                "required": [
+                  "txns"
+                ],
+                "properties": {
+                  "txns": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false
+              },
+              "total_cycles": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "anomalies": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "integrity": {
+                "type": "object",
+                "required": [
+                  "clean"
+                ],
+                "properties": {
+                  "clean": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "serializable",
+          "verdict",
+          "certified",
+          "stats",
+          "total_cycles",
+          "anomalies",
+          "integrity",
+          "uncertainty"
+        ],
+        "properties": {
+          "serializable": {
+            "type": "boolean"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "serializable",
+              "non-serializable",
+              "indeterminate"
+            ]
+          },
+          "certified": {
+            "type": "boolean"
+          },
+          "stats": {
+            "type": "object",
+            "required": [
+              "txns"
+            ],
+            "properties": {
+              "txns": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "total_cycles": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "anomalies": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "integrity": {
+            "type": "object",
+            "required": [
+              "clean"
+            ],
+            "properties": {
+              "clean": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "uncertainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "trusted deterministic verifierがtraceだけから作ったDSG結果を、性能値や期待結果なしで検査する。cycleはtrx列・ww/wr/rw辺・key/versionまで構造化し、integrity不良はserializableと主張せずindeterminateにする。実装は直さない。"
+    }
+  }
+}

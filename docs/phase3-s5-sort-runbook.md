@@ -84,21 +84,29 @@ python3 -m campaign.p3_s4_loop_sort --preview-diff <scratch>/impl.txt
   のような回避を試みない — **`passed=false` は diff 検疫 reject として直接 `--run-iteration`
   に渡す** (auditor に見せる価値のある diff にすらなっていないため)。この場合 (b) に戻り
   coder に再提案させる (メインセッションの判断)。
-- `passed=true` なら `working_diff` を auditor への入力に、`diff_digest` を後述 (e) の
-  `auditor.diff_digest` に**そのまま**使う。
+- `passed=true` なら trusted caller であるメインセッションが事前計算済みの `diff_digest` と
+  `working_diff` を組にして auditor へ渡す。proposal に採用する digest は auditor が実際の監査後に
+  echo した返却値であり、(c) の値を caller が後付けしない。
 
 ### (d) auditor を spawn (per-iteration 必須の機械 gate、D41 条件4)
 `Agent(subagent_type='auditor')`。入力 (メインセッションが射影、auditor.md の入力隔離
 規約どおり fitness/WAL 生ファイルは渡さない):
 ```json
 {
-  "diff": "<(c) の working_diff>",
-  "designated_source_context": "<patches/silo-sort-variant.patch の骨格 + WriteElement 定義等、必要な API 確認用の抜粋>",
-  "abort_reject_digest": "<直近 iteration の赤 digest があれば (verdict/liveness の形状のみ、性能数値なし)>"
+  "working_diff": "<(c) の working_diff>",
+  "diff_digest": "<(c) で事前計算した sha256>",
+  "designated_sources": ["<patches/silo-sort-variant.patch の骨格 + WriteElement 定義等、必要な API 抜粋>"],
+  "abort_digest": {}
 }
 ```
-- 出力 (`auditor.md` の出力節どおり) = `{verdict, violations, nits, proposed_tests, uncertainty}`。
+`abort_digest` がある場合は、直近 iteration の赤 digest から verdict/liveness の形状だけを入れ、
+性能数値は含めない。
+- 出力 (`auditor.md` の出力節どおり) =
+  `{verdict, diff_digest, violations, nits, proposed_tests, uncertainty}`。`diff_digest` は auditor が
+  `working_diff` を監査した後、入力で受けた事前計算値を変更せずに echo する。
   `verdict` は `pass`/`reject`/`uncertain` のいずれか。
+- 返却 `diff_digest` が入力値と異なる、空、欠落のいずれかなら caller が値を補正してはならない。
+  同じ `working_diff` / `diff_digest` の組で auditor に再審査させ、矛盾が解消しなければ iteration を停止する。
 
 ### (e) proposal ファイルを書く
 `<scratch>/prop.json`:
@@ -108,7 +116,7 @@ python3 -m campaign.p3_s4_loop_sort --preview-diff <scratch>/impl.txt
   "coder":   <(b) の proposal>,
   "auditor": {
     "verdict": "<(d) の verdict>",
-    "diff_digest": "<(c) の diff_digest そのまま>",
+    "diff_digest": "<(d) で auditor が echo した diff_digest>",
     "violations": <(d) の violations>,
     "nits": <(d) の nits>,
     "proposed_tests": <(d) の proposed_tests>,
@@ -117,11 +125,10 @@ python3 -m campaign.p3_s4_loop_sort --preview-diff <scratch>/impl.txt
   "prior_critic_reverse": <前 iteration の critic が逆方向を推奨したか true|false、iteration 1 は null>
 }
 ```
-**`auditor.diff_digest` は (c) で得た値をそのまま転記する** — auditor 自身が計算するの
-ではなく、メインセッションが「auditor に見せた diff」と「これから build される diff」の
-同一性を機械照合するための値 (敵対レビュー 2026-07-10)。ここで別の diff の digest を
-貼り付けたり、古い iteration の digest を使い回すと、次の (f) で `AuditorGateFailure` が
-発生し駆動が止まる (fails-closed、意図通りの動作)。
+**`auditor.diff_digest` には (d) の返却値を採用する**。digest 自体は trusted caller が (c) で
+事前計算し、auditor は同じ digest と組になった `working_diff` を監査してその値を echo する。
+次の (f) で driver が build/検疫対象から再計算した実 digest と照合するため、別 diff や古い
+iteration の返却値を使い回すと `AuditorGateFailure` で駆動が止まる。
 
 ### (f) harness で 1 iteration を実走 (single-tenant!)
 ```
@@ -130,9 +137,9 @@ python3 -m campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.json
 - checkpoint 復元 → critic feedback 畳込み → 入口 check_stop → iteration++ → 挿入→diff
   検疫→**auditor gate (digest 突合 + verdict 判定)**→(pass なら)build×2/verify(legacy+S2)/bench
   → checkpoint 保存 (atomic) → digest 書き出し → 末尾 check_stop。
-- `AuditorGateFailure` が飛んだら (digest 不一致・auditor フィールド欠落等) **メイン
-  セッションの手順ミス** — (c)/(e) をやり直す (coder/auditor の再spawn は不要、正しい
-  digest を転記し直せば足りることが多い)。
+- `AuditorGateFailure` が飛んだら (digest 不一致・auditor フィールド欠落・verdict と violations の
+  矛盾等) **メインセッションの手順ミスまたは監査帰属の破れ** — 値だけを転記し直さず、(c) で
+  現在の diff/digest を再取得して auditor に再審査させる。再審査でも矛盾が解消しなければ停止する。
 - 出力 = `ran / outcome (rejected|certified|aborted|dry-pass|stopped-before) / iteration /
   停止判定 / checkpoint パス / digest パス`。`rejected` の内訳は WAL の
   `diff_quarantine.subtype` (`frame-altered`/`hole-escape`/`outside-region`/`malformed`

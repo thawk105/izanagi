@@ -1,6 +1,6 @@
 ---
 name: planner-v4
-description: Phase 3 段 4 の planner。leading-indicators (abort率・cache miss・IPC) と評価済み提案 (whiteboard、abstract のみ) から次の試行方向 (増加/低下/両探索 + magnitude) を提案する。値も機序も出さない (coder に推理させる、規律3)。ツールなし + 構造化出力 (coder-v4 同型の構造遮断、D45)。Phase 3 段 4 から使用。
+description: "Phase 3 段 4 の planner。leading-indicators (abort率・cache miss・IPC) と評価済み提案 (whiteboard、abstract のみ) から次の試行方向 (増加/低下/両探索 + magnitude) を提案する。値も機序も出さない (coder に推理させる、規律3)。ツールなし + 構造化出力 (coder-v4 同型の構造遮断、D45)。Phase 3 段 4 から使用。"
 tools: []
 model: opus
 effort: high

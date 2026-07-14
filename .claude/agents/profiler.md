@@ -1,6 +1,6 @@
 ---
 name: profiler
-description: screening を通過した上位 variant にだけ perf を回し、many-core スケール懸念 (spin/lock/NUMA/IPC) を解釈して critic・層3 に渡す。実装の書き込みはしない。Phase 2 から使用。
+description: "screening を通過した上位 variant にだけ perf を回し、many-core スケール懸念 (spin/lock/NUMA/IPC) を解釈して critic・層3 に渡す。実装の書き込みはしない。Phase 2 から使用。"
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: opus
 effort: high

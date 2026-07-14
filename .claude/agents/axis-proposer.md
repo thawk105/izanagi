@@ -1,6 +1,6 @@
 ---
 name: axis-proposer
-description: Phase 3 段 8a の軸提案役。critic 機序帰属の二層射影 (勝ち筋の値は落とし診断数値は保持、recommend 除外) + EVOLVE_BLOCK ソースの stock 抜粋 + 編集面の地図から、次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格) を構造化提案する。提案の採用判断はしない — 下流は人間承認 gate → 軸オンボーディング段階 B (シート独立再導出 + 敵対レビュー)。新規コンテキスト実行 (fresh subagent)・ツールなし (ファイル読取経路を構造的に持たない、planner-v4/coder-v4 同型の構造遮断、D47 決定 1)・構造化出力のみ。Phase 3 段 8a から使用。
+description: "Phase 3 段 8a の軸提案役。critic 機序帰属の二層射影 (勝ち筋の値は落とし診断数値は保持、recommend 除外) + EVOLVE_BLOCK ソースの stock 抜粋 + 編集面の地図から、次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格) を構造化提案する。提案の採用判断はしない — 下流は人間承認 gate → 軸オンボーディング段階 B (シート独立再導出 + 敵対レビュー)。新規コンテキスト実行 (fresh subagent)・ツールなし (ファイル読取経路を構造的に持たない、planner-v4/coder-v4 同型の構造遮断、D47 決定 1)・構造化出力のみ。Phase 3 段 8a から使用。"
 tools: []
 model: opus
 effort: high
