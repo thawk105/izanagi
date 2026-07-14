@@ -186,6 +186,20 @@
   description/schema SHA、full role manifest SHA、共通 developer template SHA と I/O 契約台帳を固定し、
   台帳自体の変更は明示レビュー対象にした。
 
+### F18. 正本の再肥大と無指定全読 — D35 が prompt 規律だけで止まらない [コンテキスト浪費]
+- 事象: worklog.md が Phase 3 分だけで 224KB (88 エントリ) まで再肥大し、セッションの利用枠が
+  半日で約 2 割消費される事態に (2026-07-15 ユーザー報告、別セッションの分析)。decisions.md
+  235KB 級の offset 無し Read は 1 回 ≈ 70K token で、D35 (grep index → 部分読み) は prompt
+  規律のみ — 事故 1 回を機械的に止められない構造だった
+- 根本原因: ローテーションの発火条件が「Phase 境界」だけで肥大を検知する仕組みが無い +
+  D35 の読み方規律が機械執行されていない (F13 の読む側対策は memory どまりで、読む主体が
+  変わると効かない)
+- 恒久対応: (1) `hooks/guard_read.py` — repo 内 docs/output 配下 80KB 超の offset/limit 無し
+  Read を拒否し部分読みへ誘導 (settings.json 配線 + test_hooks.py 回帰)、(2) `tools/check_docs.py`
+  の worklog 肥大検査 (100KB 超で lint 違反 = ローテーションの合図)、(3) worklog を 07-14
+  戦略改訂境界で再ローテーション (224KB → 20KB)
+- 再発検知: check_docs.py (セッション締めの必須 lint) が肥大を、guard_read が全読を機械検知
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
