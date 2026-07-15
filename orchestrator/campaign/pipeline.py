@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import sys as _sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -159,6 +159,107 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
                 with open(os.path.join(trace_dir, fn)) as f:
                     n += sum(1 for line in f if line.startswith("C "))
     return n, proc.returncode, _parse_abort_counts(proc.stdout)
+
+
+@dataclass(frozen=True)
+class _BenchResult:
+    """bench 成功時に COMMIT 判定へ渡す、既測値の最小集合。"""
+    median_tps: float
+    cv: float
+    high_variance: bool
+    unstable: bool
+    leading_indicators: Dict
+
+
+def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
+               numactl: Optional[Sequence[str]], do_settle: bool,
+               layout: CampaignLayout, variant: str, env_tag: str,
+               res: EvalResult,
+               abort: Callable[[str, str, Optional[Dict]], EvalResult],
+               log=print) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
+    """現行の full bench を実行し、成功時は WAL と EvalResult に既測値を残す。"""
+    # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
+    # (入れると gflags last-wins で calibration の records を無言上書きする)。
+    if "ycsb_tuple_num" in perf.workload:
+        # assert だと python -O で消える。calibration の records を gflags last-wins で
+        # 無言上書きする事故 (規律4 の動作点破壊) への唯一の防壁なので例外文にする。
+        raise ValueError(
+            "PerfConfig.workload に ycsb_tuple_num を入れない (records を上書きする)")
+
+    # IZANAGI_TRACE_DIR を perf run にも対称に設定する (D36 決定4-5): verify run だけが
+    # この環境変数を持つと、EVOLVE_BLOCK の共有コード (#if TRACE の外) が getenv 有無で
+    # verify/perf を判別する経路になりうる (auditor.md 型3 の判別述語)。perf build は
+    # TRACE がコンパイルアウトされ実際には未使用だが、変数の「有無」自体を判別子に
+    # できなくする (値の中身までは踏み込まない — 残りは auditor の静的検査が担う)。
+    dummy_tdir = tempfile.mkdtemp(prefix="izanagi_eval_notrace_")
+
+    def _measure():
+        return measure_point(perf_binary, perf.records, perf.threads, clocks_per_us,
+                             extime=perf.extime, reps=perf.reps,
+                             workload=perf.workload, numactl=numactl,
+                             extra_env={"IZANAGI_TRACE_DIR": dummy_tdir})
+
+    try:
+        # 外れ値 → 自動再測定 (§3.6(2)): 反復内 CV が閾値超なら静定して測り直す。規定
+        # ラウンドで収束しなければ unstable。再測定の実走も全て bench_lock 下 = 単一
+        # テナント直列 (絶対規律4)。
+        with bench_lock():
+            # admission を fails-closed に (絶対規律4): bench_lock 取得直後・自分の bench
+            # 開始前に競合/孤児ベンチを pgrep で直接確認し、居たら**汚染計測を採用せず
+            # abort** する (settle の load EMA は laggy なので一次ゲートはこの確定信号)。
+            # 孤児は規律6 に従い**自動 kill せず PID を表に出して停止** — 人間が処遇を
+            # 判断する。driver の pre-flight が campaign 冒頭で 1 回見るのに対し、ここは
+            # genome ごと = campaign 途中で湧いた競合も捕える。
+            comp = competing_bench_pids()
+            if comp:
+                return abort("bench-competing-tenant",
+                             "競合 ccbench ベンチを検知 → 汚染計測を採用せず reject (規律4)",
+                             {"competing": comp}), None
+            settled = settle() if do_settle else None
+            rem = remeasure_until_stable(_measure,
+                                         settle_fn=settle if do_settle else None)
+    finally:
+        shutil.rmtree(dummy_tdir, ignore_errors=True)
+    pt, nf = rem.point, rem.nf
+    if nf is None or nf.median is None:
+        # 全 rep で throughput が取れず測定不能 → fitness 無しの COMMIT を書かない。
+        # 半端な評価を terminal commit にして永久 skip させない (A: atomicity)。
+        return abort("bench-no-throughput", "bench 測定失敗 (throughput 無し) → reject",
+                     {"tps": getattr(pt, "throughputs", None), "rounds": rem.rounds,
+                      "rep_notes": getattr(pt, "notes", [])}), None
+    if nf.cv is None:
+        # 有効 rep が 1 点のみ (残りは rep 失敗) / 全 rep tps=0 だと CV が定義できず、
+        # within-run 品質ゲート (P2-1) を通せない → fitness として採用しない (規律4)。
+        # 旧実装はここを素通りし直後の log f-string の nf.cv*100 で TypeError →
+        # 意図しない eval-exception abort (permanent skip) になっていた (洗練検査 MED)。
+        return abort("bench-cv-undefined",
+                     f"CV 算出不能 (有効 rep {len(pt.throughputs)} 点) → reject",
+                     {"tps": pt.throughputs, "rounds": rem.rounds,
+                      "rep_notes": getattr(pt, "notes", [])}), None
+    res.fitness_tps, res.cv, res.unstable = nf.median, nf.cv, rem.unstable
+    leading_indicators = pt.leading_indicators()
+    wal.log(layout, variant, STAGE_BENCH_DONE, env_tag,
+            {"median_tps": nf.median, "cv": nf.cv,
+             "high_variance": nf.high_variance, "unstable": rem.unstable,
+             "rounds": rem.rounds, "cv_history": rem.cv_history,
+             "tps": pt.throughputs,
+             # admission: load が静定したか (settle の戻り)。fails-closed の一次ゲートは
+             # competing_bench_pids だが、settled=False の測定は forensic に残す (規律4)。
+             "settled": (settled.get("settled") if settled else None),
+             # leading indicators (§3.5): fitness を設計選択に帰属させる材料。
+             # critic が abort率/latency/cache/IPC を読んで次の genome 方向を出す。
+             "leading_indicators": leading_indicators,
+             # rep 単位の失敗記録 (1e2c01c, 規律3)。部分失敗 (例 2/5 rep timeout) は
+             # fitness が残り rep の median で成立するため、ここに載せないと「なぜ標本が
+             # 痩せたか」が WAL の機械可読経路から消える (洗練検査 MED)
+             "rep_notes": getattr(pt, "notes", []),
+             "run_cmd": pt.run_cmd})              # この測定点を再現する実行コマンド
+    log(f"  [eval {variant}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
+        f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
+        f"{' ⚠UNSTABLE' if rem.unstable else ''})")
+    return None, _BenchResult(
+        median_tps=nf.median, cv=nf.cv, high_variance=nf.high_variance,
+        unstable=rem.unstable, leading_indicators=leading_indicators)
 
 
 def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
@@ -361,91 +462,19 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         return res
 
     # --- bench (排他 + 静定, I/Admission) ---
-    # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
-    # (入れると gflags last-wins で calibration の records を無言上書きする)。
-    if "ycsb_tuple_num" in perf.workload:
-        # assert だと python -O で消える。calibration の records を gflags last-wins で
-        # 無言上書きする事故 (規律4 の動作点破壊) への唯一の防壁なので例外文にする。
-        raise ValueError(
-            "PerfConfig.workload に ycsb_tuple_num を入れない (records を上書きする)")
-
-    # IZANAGI_TRACE_DIR を perf run にも対称に設定する (D36 決定4-5): verify run だけが
-    # この環境変数を持つと、EVOLVE_BLOCK の共有コード (#if TRACE の外) が getenv 有無で
-    # verify/perf を判別する経路になりうる (auditor.md 型3 の判別述語)。perf build は
-    # TRACE がコンパイルアウトされ実際には未使用だが、変数の「有無」自体を判別子に
-    # できなくする (値の中身までは踏み込まない — 残りは auditor の静的検査が担う)。
-    dummy_tdir = tempfile.mkdtemp(prefix="izanagi_eval_notrace_")
-
-    def _measure():
-        return measure_point(pf.binary, perf.records, perf.threads, clocks_per_us,
-                             extime=perf.extime, reps=perf.reps,
-                             workload=perf.workload, numactl=numactl,
-                             extra_env={"IZANAGI_TRACE_DIR": dummy_tdir})
-
-    try:
-        # 外れ値 → 自動再測定 (§3.6(2)): 反復内 CV が閾値超なら静定して測り直す。規定
-        # ラウンドで収束しなければ unstable。再測定の実走も全て bench_lock 下 = 単一
-        # テナント直列 (絶対規律4)。
-        with bench_lock():
-            # admission を fails-closed に (絶対規律4): bench_lock 取得直後・自分の bench
-            # 開始前に競合/孤児ベンチを pgrep で直接確認し、居たら**汚染計測を採用せず
-            # abort** する (settle の load EMA は laggy なので一次ゲートはこの確定信号)。
-            # 孤児は規律6 に従い**自動 kill せず PID を表に出して停止** — 人間が処遇を
-            # 判断する。driver の pre-flight が campaign 冒頭で 1 回見るのに対し、ここは
-            # genome ごと = campaign 途中で湧いた競合も捕える。
-            comp = competing_bench_pids()
-            if comp:
-                return _abort("bench-competing-tenant",
-                              "競合 ccbench ベンチを検知 → 汚染計測を採用せず reject (規律4)",
-                              {"competing": comp})
-            settled = settle() if do_settle else None
-            rem = remeasure_until_stable(_measure,
-                                         settle_fn=settle if do_settle else None)
-    finally:
-        shutil.rmtree(dummy_tdir, ignore_errors=True)
-    pt, nf = rem.point, rem.nf
-    if nf is None or nf.median is None:
-        # 全 rep で throughput が取れず測定不能 → fitness 無しの COMMIT を書かない。
-        # 半端な評価を terminal commit にして永久 skip させない (A: atomicity)。
-        return _abort("bench-no-throughput", "bench 測定失敗 (throughput 無し) → reject",
-                      {"tps": getattr(pt, "throughputs", None), "rounds": rem.rounds,
-                       "rep_notes": getattr(pt, "notes", [])})
-    if nf.cv is None:
-        # 有効 rep が 1 点のみ (残りは rep 失敗) / 全 rep tps=0 だと CV が定義できず、
-        # within-run 品質ゲート (P2-1) を通せない → fitness として採用しない (規律4)。
-        # 旧実装はここを素通りし直後の log f-string の nf.cv*100 で TypeError →
-        # 意図しない eval-exception abort (permanent skip) になっていた (洗練検査 MED)。
-        return _abort("bench-cv-undefined",
-                      f"CV 算出不能 (有効 rep {len(pt.throughputs)} 点) → reject",
-                      {"tps": pt.throughputs, "rounds": rem.rounds,
-                       "rep_notes": getattr(pt, "notes", [])})
-    res.fitness_tps, res.cv, res.unstable = nf.median, nf.cv, rem.unstable
-    wal.log(layout, v, STAGE_BENCH_DONE, env_tag,
-            {"median_tps": nf.median, "cv": nf.cv,
-             "high_variance": nf.high_variance, "unstable": rem.unstable,
-             "rounds": rem.rounds, "cv_history": rem.cv_history,
-             "tps": pt.throughputs,
-             # admission: load が静定したか (settle の戻り)。fails-closed の一次ゲートは
-             # competing_bench_pids だが、settled=False の測定は forensic に残す (規律4)。
-             "settled": (settled.get("settled") if settled else None),
-             # leading indicators (§3.5): fitness を設計選択に帰属させる材料。
-             # critic が abort率/latency/cache/IPC を読んで次の genome 方向を出す。
-             "leading_indicators": pt.leading_indicators(),
-             # rep 単位の失敗記録 (1e2c01c, 規律3)。部分失敗 (例 2/5 rep timeout) は
-             # fitness が残り rep の median で成立するため、ここに載せないと「なぜ標本が
-             # 痩せたか」が WAL の機械可読経路から消える (洗練検査 MED)
-             "rep_notes": getattr(pt, "notes", []),
-             "run_cmd": pt.run_cmd})              # この測定点を再現する実行コマンド
-    log(f"  [eval {v}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
-        f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
-        f"{' ⚠UNSTABLE' if rem.unstable else ''})")
+    aborted_result, bench = _run_bench(
+        pf.binary, perf, clocks_per_us, numactl, do_settle,
+        layout, v, env_tag, res, _abort, log)
+    if aborted_result is not None:
+        return aborted_result
+    assert bench is not None
 
     # --- commit (A: 全段通過した瞬間だけ) ---
     # unstable は規定ラウンドでも CV が収束しなかった印 = この 1 点を信用するな。正しさは
     # 通っているので reject はしないが、採否の分布比較から呼び手が除外する
     # (§3.6(4): 沈黙して 1 点を採用しない)。high_variance は採用ラウンド自体の騒がしさ。
     wal.log(layout, v, STAGE_COMMIT, env_tag,
-            {"fitness_tps": nf.median, "cv": nf.cv,
-             "high_variance": nf.high_variance, "unstable": rem.unstable,
+            {"fitness_tps": bench.median_tps, "cv": bench.cv,
+             "high_variance": bench.high_variance, "unstable": bench.unstable,
              "verify_configs": verify_tags})
     return res
