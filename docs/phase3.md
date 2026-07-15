@@ -29,8 +29,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   8b と層3の後に判断する。
 - 既知の rr5/rr50/rr95 結果は配線確認・**結果既知の事前登録付き追試** (confirmatory とは呼ばない) にだけ使う。新しい workload 特化主張は、
   結果を見ていない holdout workload/競合条件と全件報告規則を実走前に凍結してから評価する。
-- bench-first screening は設計済みだが**実装未承認**。採用しても偵察 sweep と 8b の opt-in に限り、
-  S-1、検証相、LLM loop の評価順は変えない。
+- bench-first screening v2 は**実装方針採用済み・未着手** (2026-07-15、D58)。将来実装しても
+  偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止は
+  D58 の採用対象に含めず、別設計・別裁定とする。
 
 **現行の着手順:** (1) S-1 の計測ゼロ準備を終える、(2) 計測窓を待つ間に 8b の前向き設計と層3最小
 renderer を並行で作る、(3) 計測窓で対象別 floor・sort read-heavy・S-1 本走を閉じる、(4) 8b + 層3の
@@ -297,10 +298,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
      高競合動作点で 8a 軸を再利用する場合もこの設計に含め、既知 rr 比率の winner switching を新発見として
      数えない。D50 の機械 sweep は pilot/既知証拠であり、将来の自動システム成果へ遡及的に再分類しない。
-     bench-first screening は別途実装承認された場合だけ reconnaissance/8b に opt-in できる。
-     計測反復・検証 seed 数の逐次停止 (Best-of-∞ 型の適応的打ち切り、related-work §7.2) は、bench-first
-     screening と同じ実装承認案件に束ねる。採用しても偵察 sweep / 8b の opt-in に限り、S-1 の事前登録済み
-     サンプル設計には適用せず、採否判定の between-run floor 丸め (roadmap §3.6(4)) は変えない。
+     bench-first screening v2 は D58 で方針採用済み・未着手。将来実装後に reconnaissance/8b へだけ
+     opt-in できる。計測反復・検証 seed 数の逐次停止 (Best-of-∞ 型の適応的打ち切り、related-work §7.2) は
+     D58 の対象外で、別設計・別裁定のまま据え置く。将来採用しても偵察 sweep / 8b の opt-in に限り、
+     S-1 の事前登録済みサンプル設計には適用せず、採否判定の between-run floor 丸め
+     (roadmap §3.6(4)) は変えない。
    - **(8c 未着手・条件付き) 駆動のセッション非依存化** — planner/coder/auditor を orchestrator から
      呼び、checkpoint・budget・再開を Python 側が所有する。過去には build/verify よりセッション運営が遅かったが、
      8b の前向き設計と層3最小 E2E を 1 cycle 回してなお反復運営が律速なら実装する。単発の workload
@@ -338,7 +340,9 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **mocc trace-hook** (worklog 2026-06-19) — visible reads の trace 検証 + verifier 2nd エンジン化。S1 発火時に吸収するのが自然。
 - **ermia cross-check** (worklog 2026-06-18) — si 赤 / ermia 緑 の同一エンジン ablation。同上 (版 ID 写像の罠は ccbench-anatomy.md §8 に昇格済み)。
 - **calibration の K 感度・thread 数変更時の再 calibration** (worklog 2026-06-18) — 後続段 6 前提タスク (b) の protocol 別 calibration が部分吸収する。
-- **ftruncate-xor insight の還元判断欄の追随** (worklog 2026-07-10 (19) 由来) — 上流還元は PR #116/#118 で完了済みだが insight (2026-06-19) は「ユーザー確認待ち」表記のまま。追記訂正はユーザー判断待ち (勝手に書き換えない)。
+- **(完了 2026-07-15) ftruncate-xor insight の還元判断欄の追随** (worklog 2026-07-10 (19) 由来) —
+  ユーザー承認を受け、insight (2026-06-19) に WAL ftruncate XOR の PR #116 master マージ完了を
+  日付付きで追記訂正した。別件 ODR 違反の PR #118 と合わせ、探索由来の上流還元 2 件が完了済み。
 - **buildcache 残骸破棄の結線統合テスト** (2026-07-11 監査 L2-2 由来) — fc4d3fa の回帰テスト 2 本は helper 単体のみで、build() が configure 前に破棄を呼ぶ結線を assert しない。結線だけ外れる将来 refactor への歯として統合テスト 1 本の余地。
 
 ---

@@ -266,9 +266,10 @@ auditor/worktree/構造化出力へ実測値を与える。NEC 小山田グル�
 **一言:** 多数決の best-of-N を無限計算極限から捉え、Bayes factor による適応サンプリングと
 LLM アンサンブルの予算配分を理論化する。
 **採る:** カテゴリ判定 (serializable / anomaly) の seed 数を固定 N から Bayes factor 逐次停止へ
-置換する部品を予約する。論文実測では計算を 2–5 倍削減しており、発火条件は phase3.md 段 8 の
-bench-first screening 承認案件と束ね、S-1 事前登録には適用しない。Bo5 の「多数決 > LLM-as-judge >
-reward model」は LLM-as-judge を正しさ経路へ入れない現行判断の外部証拠とする。
+置換する部品を予約する。論文実測では計算を 2–5 倍削減しているが、bench-first v2 の方針採用
+(D58) には含めず、別設計・別裁定とする。将来採用しても S-1 事前登録には適用しない。Bo5 の
+「多数決 > LLM-as-judge > reward model」は LLM-as-judge を正しさ経路へ入れない現行判断の
+外部証拠とする。
 **採らない:** Dirichlet 過程/Bayes factor を連続量 throughput へ直用しない。型不一致に加え、一晩
 ループの非定常ドリフトで i.i.d. 前提が壊れるため、連続量には逐次 t 検定系を使い、between-run floor
 丸め (§3.6(4)) は主防壁のままにする。単一 CC を成果物とする §10 に反する MILP アンサンブルも採らない。

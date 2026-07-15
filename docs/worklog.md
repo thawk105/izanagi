@@ -427,3 +427,33 @@ sonnet Explore ×3 が前例調査 (統計実装・driver 部品・argmax 出典
 1. 変わらず (前エントリ参照): S-1 検定単位のユーザー承認 → v2 追記 → driver 実装
 2. 逐次停止 + bench-first screening の実装可否はユーザー承認待ち (phase3.md 段 8 に束ね済み)
 3. push は人間の判断に委ねる
+
+## 2026-07-15 (12) — ftruncate-xor insight の上流還元完了訂正
+
+ユーザーが、2026-06-19 の ftruncate-xor insight に残っていた「master 還元はユーザー確認待ち」
+表記を完了済みへ訂正することを承認。履歴を消さず日付付き訂正注記を追加し、WAL ftruncate XOR
+が PR #116 で ccbench master にマージ済みである現行状態へ更新した。Phase 3 見送り台帳の保留項も
+完了へ同期。PR #118 は別件 ODR 違反の上流還元であり、両者を同一修正として扱わない。
+
+- bench-first screening は説明依頼のみで、実装承認はまだ受けていない。未承認状態を維持。
+- コード・研究結果・計測状態の変更なし。
+
+### 次の一手
+1. Phase 3 の現行着手順と S-1 検定単位の承認待ちは前エントリから変わらず
+2. bench-first screening + 逐次停止は、説明後のユーザー裁定まで実装しない
+3. push は人間の判断に委ねる
+
+## 2026-07-15 (13) — bench-first v2 の方針採用と実装着手の分離
+
+ユーザー裁定: bench-first screening v2 は偵察 sweep / 8b 限定で**将来実装する方針として採用**。
+「採用方針を決めること」と「このセッションで実装へ着手すること」を分離し、本セッションでは
+コード変更・positive control・ablation・計測を行わない。正本は D58 と設計 insight v2。
+
+- 前エントリの「実装承認はまだ受けていない」は当時の状態。本エントリで方針採用済みへ更新。
+- 設計 v2 の適用先、棄却規則、correctness gate を変えない実装着手に再承認は不要。
+- Best-of-∞ 型逐次停止は今回の裁定対象外。bench-first から分離し、別設計・別裁定のまま維持。
+
+### 次の一手
+1. Phase 3 の現行着手順と S-1 検定単位の承認待ちは前エントリから変わらず
+2. bench-first v2 の実装は別タスクで着手し、設計 insight §5 の tests / positive control / ablation を完了条件にする
+3. 逐次停止は別設計・別裁定まで実装しない。push は人間の判断に委ねる

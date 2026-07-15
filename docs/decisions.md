@@ -2242,3 +2242,25 @@ D55/D56、checker、runtime test、独立レビューを同時更新して初め
 **境界:** 可変状態の新しい cache は作らない (D35 の却下を維持)。規律6の外部入力境界は緩めない。
 研究状態、Phase 3 のチェックリスト、計測結果は変更しない。文書詳細を移すときは参照先を同じ変更で
 追随させ、`check_docs.py` と独立レビューで dangling pointer と意味欠落を検査する。
+
+## D58. bench-first screening v2 を偵察 sweep / 8b 限定で実装する方針を採用 (2026-07-15)
+
+**背景:** 現行 pipeline は build → verify → bench の順で、実測コストは verify (legacy+S2) が
+約 120〜250 秒/variant、bench が約 18 秒/variant。多点の探索的 sweep では、明白に遅い候補にも
+支配的コストの verify を払っている。3 レンズ敵対レビューを反映した設計 v2 は、bench を先行し、
+保守側の `k·between-run floor` を超えて劣位な候補だけを uncertified のまま棄却する。
+
+**決定:** `output/insights/2026-07-14_bench-first-screening-design.md` の v2 を採用し、将来実装する。
+適用先は事前登録外の偵察 sweep と 8b campaign の opt-in に限定する。本決定は実装方針の採用であり、
+この決定を記録したセッションではコード変更・positive control・ablation・計測に着手しない。
+
+**不変条件:** certified / COMMIT へ到達する候補は従来どおり全 verify 構成を通す。S-1、検証相、
+LLM loop、基準点・floor 再実測には適用しない。screen-reject の未認証性能値を探索射影や正式結果へ
+混入させない。設計 v2 の範囲内で将来着手するときの再承認は不要だが、適用先拡大、棄却規則変更、
+correctness gate の変更は別裁定を要する。
+
+**別判断:** 計測反復・verify seed 数の Best-of-∞ 型逐次停止は本決定に含めない。これは部品予約の
+段階であり、非定常な throughput とカテゴリ判定の型差を閉じる別設計・別裁定を経るまで実装しない。
+
+**現時点の状態:** 方針採用済み・実装未着手。実装計画、既知限界、初回 ablation の完了条件は上記
+insight を正本とする。

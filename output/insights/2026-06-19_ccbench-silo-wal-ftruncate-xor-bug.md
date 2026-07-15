@@ -42,9 +42,15 @@ syscall を避ける典型最適化)。
 gcc-13 (CI と同じ。ccbench CLAUDE ハードルール4「Werror promotion 系は GCC 13 で確認」) で
 -Werror クリーンを確認すること。`ftruncate` の引数型 (`off_t`) に注意。
 
-## 還元判断: **ユーザー確認待ち**
+## 還元判断: **完了 (PR #116、ccbench master にマージ済み)**
 
-Izanagi 非依存の CCBench 本物のバグ。D16 の分岐では「pinning バグ修正→submodule master 還元」
+**追記訂正 (2026-07-15、ユーザー確認):** 本節の初版では master 還元を「ユーザー確認待ち」と
+していたが、その後ユーザーが修正ブランチを push し、PR #116 が master にマージされた
+(`10 ^ 9` → `1000000000`、5 箇所、origin/master `2574412`)。以下の 2026-06-20 対応記録にある
+「master 還元は後日人間が判断」と、その前提となった当初の還元判断は、当時の状態を保存した履歴で
+あり、現行状態ではない。
+
+**当初の還元判断:** Izanagi 非依存の CCBench 本物のバグ。D16 の分岐では「pinning バグ修正→submodule master 還元」
 の先例に倣い **master 還元候補** (trace-hook のような izanagi 専用計装ではなく、誰にとっても
 正しい修正)。izanagi-trace ブランチは master を内包するので、master に修正を入れて izanagi-trace
 に反映する形が筋。**push は人間** (この環境に ccbench push 認証なし)。CLAUDE.md「勝手に上流 PR
@@ -52,7 +58,7 @@ Izanagi 非依存の CCBench 本物のバグ。D16 の分岐では「pinning バ
 
 **対応 (2026-06-20、ユーザー判断「izanagi-trace のみ修正」):** izanagi-trace に修正 commit
 `6656e93` (5箇所 `10 ^ 9`→`1000000000`)。WAL=1 ビルドで gcc-13 -Werror クリーンを確認。
-master 還元は後日人間が判断 (master は据え置き)。parent gitlink を 6656e93 に前進。
+master 還元は後日人間が判断 (この時点では master は据え置き)。parent gitlink を 6656e93 に前進。
 探索は WAL=0/1 両方を含む silo 12 genome で続行。
 
 ## 副次発見 (別現象、P2-2 で確定予定)
