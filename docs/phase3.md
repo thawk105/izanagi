@@ -298,16 +298,24 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      高競合動作点で 8a 軸を再利用する場合もこの設計に含め、既知 rr 比率の winner switching を新発見として
      数えない。D50 の機械 sweep は pilot/既知証拠であり、将来の自動システム成果へ遡及的に再分類しない。
      bench-first screening は別途実装承認された場合だけ reconnaissance/8b に opt-in できる。
+     計測反復・検証 seed 数の逐次停止 (Best-of-∞ 型の適応的打ち切り、related-work §7.2) は、bench-first
+     screening と同じ実装承認案件に束ねる。採用しても偵察 sweep / 8b の opt-in に限り、S-1 の事前登録済み
+     サンプル設計には適用せず、採否判定の between-run floor 丸め (roadmap §3.6(4)) は変えない。
    - **(8c 未着手・条件付き) 駆動のセッション非依存化** — planner/coder/auditor を orchestrator から
      呼び、checkpoint・budget・再開を Python 側が所有する。過去には build/verify よりセッション運営が遅かったが、
      8b の前向き設計と層3最小 E2E を 1 cycle 回してなお反復運営が律速なら実装する。単発の workload
      descriptor 配線やレポート生成を先送りしてまで先に作らない。実装しない間は human-supervised scope に
-     留まり、究極ゴールの unattended/autonomous 達成を主張しない。
+     留まり、究極ゴールの unattended/autonomous 達成を主張しない。8c で orchestrator が所有する予算の第一単位は
+     **ベンチ実時間 (秒)**、LLM 呼び出し回数は第二軸とする。Vesper のトークン予算終了基準は直輸入しない —
+     Izanagi の律速資源はトークンでなくベンチ実時間であり、ベンチは排他実行のため並列化で回収できない
+     (related-work §7.2)。
 9. **層3材料レポート (未着手、8b と並行可)** — WAL/proof chain から次を決定論的に結ぶ renderer を作る:
    workload descriptor、selected/baseline identity、verifier/seed/trace provenance、性能分布と floor、
-   採用・棄却・差なし、leading indicators + diff に基づく機序仮説、artifact 参照。アブレーションのない説明は
-   因果でなく仮説と表示し、改善が立証できなければ stock/tie を出す。事実層は機械的な完全射影、LLM を
-   使う仮説層は別区画とし、数値・verdict・参照を LLM に作文させない。
+   採用・棄却・差なし、leading indicators + diff に基づく機序仮説、artifact 参照。機序仮説層の原料として、
+   coder/critic の構造化出力に含まれる「なぜ効くと考えたか」(アプローチと根拠) を WAL から決定論的に拾って載せ、
+   事実層 (数値・verdict・参照) との分離を保つ。これは形式の強制より鍵概念の言語化が成否を分けた D2I の事例研究に
+   よる外部補強である (related-work §7.5)。アブレーションのない説明は因果でなく仮説と表示し、改善が立証できなければ
+   stock/tie を出す。事実層は機械的な完全射影、LLM を使う仮説層は別区画とし、数値・verdict・参照を LLM に作文させない。
 
    **最小完了条件:** 新しい計測を行わず、既存 campaign 1 件について WAL + whiteboard の全 run・全 reject、
    noise floor、環境タグ、variant/source identity、artifact 参照を漏れなく schema 検証済みレポートへ再生成する。
