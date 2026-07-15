@@ -207,7 +207,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    **S-1 closure checklist (未チェックを上から実施):**
    - [x] 独立再命名 canary の人間追認
    - [x] S-2/S-3 提案ラウンド、凍結集計、reason 監査、報告文言の確定
-   - [ ] サンプル設計 4 点の数値を事前登録へ追記し、独立レビューする
+   - [x] サンプル設計 4 点の数値を事前登録へ追記し、独立レビューする (v2 承認 2026-07-15、
+     検定単位 = 独立セッション (S-1 限定) を含め発効。裁定台帳 = 2026-07-15_s1-sample-design)
    - [ ] S-1 直接比較 driver と、既知軸基準点の machine-readable freeze を作る
    - [ ] 検証相 (seed×N・長 extime) を実装する
    - [ ] sort read-heavy 欠測を補い、対象別 between-run floor を再実測する

@@ -4,6 +4,9 @@
   数値を事前登録へ追記し、独立レビューする」の履行記録)
 - 状態: **確定案 v2 はユーザー承認待ち** (検定単位の実質改訂 1 点を含むため D44 作法の
   AI 単独改訂範囲外)。承認後に `docs/phase3-main-experiment.md` 末尾へ追記する
+  - **2026-07-15 訂正:** ユーザー承認済み・発効。§4 全文を同日
+    `docs/phase3-main-experiment.md` 末尾へ逐語追記し、承認記録を付した (履歴として
+    上記の承認待ち表記は保持)
 - レビュー体制: codex `gpt-5.6-sol` (reasoning high)・独立コンテキスト 3 本 (統計 /
   事前登録作法 / fails-closed 実効性)。verdict = reject / adopt-with-conditions /
   adopt-with-conditions。v1 の must-fix 20 件はすべて real と裁定し v2 へ反映 (refuted 0)
