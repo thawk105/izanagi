@@ -373,3 +373,34 @@ partially_real に降格 — 基本設計 (クラス 1 と 2/3 の分離・昇�
 1. push は人間の判断に委ねる (この環境に push 認証なし)
 2. 07-15 (6) 次の一手は全消化。次セッションは本流へ復帰 — phase3.md 現行チェックポイントの着手順
    (1) S-1 計測ゼロ準備、(2) 計測窓待ちの間に 8b 前向き設計 + 層3最小 renderer を並行
+
+## 2026-07-15 (10) — S-1 計測ゼロ準備の前半: サンプル設計 4 点 v2 と既知軸 freeze (codex 委譲)
+
+ユーザー指示「fable5 は計画専任・実行は codex (残枠 fable5 25% vs codex 95%)」で本流復帰。
+S-1 closure checklist の計測不要 3 項のうち前 2 項を前進。分業 = 親が正本読解と仕様・文面、
+sonnet Explore ×3 が前例調査 (統計実装・driver 部品・argmax 出典)、codex gpt-5.6-sol
+(reasoning high) が 3 レンズ敵対レビューと freeze 実装。
+
+- commit: c648bbe (サンプル設計 4 点の確定案 v2 + 3 レンズ裁定台帳)、30cc134 (既知軸
+  基準点 freeze 実体化 + verify + positive control テスト 5 本)
+- レビュー: 3 レンズ (統計 / 事前登録作法 / fails-closed)、must-fix 20 = real 20 /
+  refuted 0、verdict = reject + adopt-with-conditions ×2。最重要 3 件: (1) v1 の主統計量
+  (median 差) は完全分離でも極端分割が非一意で最小 p 計算が誤り (N=5 では Holm 初段を通ら
+  ない) → 層別 rank-sum へ変更、(2) 2 campaign 分割と無層化 permutation の交換可能性矛盾
+  → 層別 exact permutation (C(8,4)²=4,900)、(3) スクリーニング通過データの検定再利用は選択
+  推論 → 全比較無条件完走 + gate 不通過 p*=1 の連言規則。一次資料 =
+  `output/insights/2026-07-15_s1-sample-design.md` (v2 全文 + レビュー JSON 同梱)
+- **人間判断待ち (最重要):** v2 は検定単位「系列 → 独立セッション (S-1 限定)」の実質改訂
+  1 点を含み D44 作法 (制約方向のみ AI 改訂可) の範囲外。**ユーザー承認まで S-1 実走禁止**
+  を v2 に埋め込み済み。承認後に phase3-main-experiment.md 末尾へ追記し checklist をチェック
+- freeze の裁定 2 件 (親が監査・採用): 共通 stock = ccbench 出荷既定 BACK_OFF=1 /
+  NO_WAIT_LOCKING_IN_VALIDATION=1 / NO_WAIT_OF_TICTOC=0 / WAL=0 (Options.cmake 逐語 +
+  sha256 記録)。sort argmax は category=full-order 限定 (WAL 生 argmax は退化点 s_asc —
+  既存レポート契約の明示規則化、selection_rules に記録)
+- 工数: sonnet Explore ×3、codex exec ×4 (レビュー 3 並行 + 実装 1)。codex 空振りなし
+
+### 次の一手
+1. ユーザー承認 (検定単位) → v2 を事前登録本文へ追記、checklist「サンプル設計 4 点」チェック
+2. 承認後: S-1 直接比較 driver + 層別統計実装 + 検証相の仕様書 → codex 実装 (v2 の計測開始
+   gate (3)(4)(5) を完了条件に組み込む)
+3. push は人間の判断に委ねる (この環境に push 認証なし)
