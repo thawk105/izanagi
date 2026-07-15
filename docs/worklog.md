@@ -1,7 +1,7 @@
 # Izanagi 作業ログ (worklog)
 
-セッションごとの進捗を時系列で記録する。**何をやって・何が分かって・次に何をするか。**
-git 履歴より粗く、roadmap / decisions より具体的な「作業の物語」。役割分担:
+セッションごとの進捗を時系列で記録する。git 履歴や各正本に入らない協議・異常・持ち越しを束ねる
+「作業の索引」であり、commit 内容の再説明はしない。役割分担:
 
 - 設計判断と却下案 → `docs/decisions.md`
 - CCBench の構造的事実 → `docs/ccbench-anatomy.md`
@@ -9,7 +9,22 @@ git 履歴より粗く、roadmap / decisions より具体的な「作業の物�
 - タスク分解 → `docs/phaseN.md`
 - **このファイル = それらを束ねる日誌 (各セッションの索引)**
 
-**ローテーション:** Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の閾値超過が
+## 新規エントリの書式 (D35)
+
+過去エントリは凍結し、次の規約は新規エントリに適用する。
+
+- 本文化するのは、ユーザー承認・協議の決着、棄却 finding (refuted)、未コミット事象・セッション異常と
+  救出、エージェント工数、人間判断待ち・持ち越し、次の一手など **git に入り得ない情報だけ**
+- commit は「hash + 件名 (+ 位置づけ 1 行)」まで。連続群は「先頭..末尾 (N 本)」で表し、内容を再掲しない
+- 監査の finding 全文と裁定は insight / audit JSON に凍結する。worklog はレンズ数、real/refuted 数、
+  最重要 1〜3 件、一次資料ポインタの 10〜15 行に留める
+- 論文素材になる段落は行頭に「素材:」を付ける。持ち越しは逐語再掲せず「変わらず (前エントリ参照)」
+  とする
+- docs(worklog) だけの commit は prose の body を付けず、件名 + 必須 trailer だけにする
+
+## ローテーション
+
+Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の閾値超過が
 知らせる) に、過去分を `docs/archive/worklog-<範囲>.md` へ**移動**し、現行ファイルを軽く保つ
 (ブート時に読むのは末尾エントリのみ、の運用を軽く保つため。2026-07-05 導入、D35)。
 アーカイブは凍結 (訂正注記のみ追記可)。既存アーカイブの一覧は `docs/archive/README.md`。
@@ -246,3 +261,69 @@ D56 の三軸裁定へ更新。計測ゼロ、Phase 3 の研究状態変更な�
 
 ### 次の一手
 1. Phase 3 本筋は 07-14 (5) の次の一手から変わらず
+
+## 2026-07-15 (4) — 協議: 特定研究者へのコード共有方法
+
+ユーザーが公開化検討の動機を「特定の研究者へ研究相談するときにコードを見せたい」と明確化。
+この目的には現行 full-history repository の不特定公開は過剰と裁定した。
+- 3 系統の事前監査では既知 credential 形式に明白な hit はなかったが、root license 未定、raw AI 実行
+  metadata、個人 path/email、paper-story、資金提供元向け記録、第三者 notice が公開 gate と判明。
+- 推奨形は **private 開発正本 + history を持たない curated private review repo/snapshot**。相談用 README、
+  対象コード・テスト、正負各 1 件程度の evidence だけを入れ、生 worklog / provider telemetry は除く。
+- GitHub 個人所有 private repo の collaborator は write 権限のみ。単なる閲覧なら organization 所有 repo の
+  Read role が適切。既存 repo 直招待は、相手を信頼し全履歴・全 raw 成果物を見せてよい場合だけ。
+- public 化は将来の open research / community collaboration の別判断として残す。GitHub 変更、commit、push なし。
+
+### 次の一手
+1. 共有相手が決まった時点で、相談したい問いから review snapshot の収録範囲を切る
+2. Phase 3 本筋は 07-14 (5) の次の一手から変わらず
+
+## 2026-07-15 (5) — CLAUDE.md 常駐コンテキストの再縮退
+
+ユーザーが事前診断を確認し、絶対規律1の旧 `#ifdef TRACE` 具体記法を D14 へ委譲する変更を含めて
+実施を承認。未コミット差分として D57 と関連正本へ反映した。
+- `CLAUDE.md`: 17,930B → 10,758B (40.0% 減)。絶対規律と作業手順の番号は維持
+- 独立設計/参照監査 2 件 + 差分レビュー 1 件。差分レビュー real 5 件を全修正、再レビュー未解決 0
+- 開始時から存在した 07-15 (4) public-readiness の未コミット差分は保持し、同エントリを改変していない
+- 検査: `check_docs.py` / `check_codex_agents.py` / `git diff --check` PASS、関連 pytest 59 passed / 1 skipped
+
+### 次の一手
+1. 未コミット差分を人間が確認し、採用時に provenance 規約付きで commit する
+2. Phase 3 本筋は 07-14 (5) の次の一手から変わらず
+
+## 2026-07-15 (6) — コンテキスト読書量・進捗記録保持の診断
+
+ユーザー依頼により、定型的な起動読書、文書チェック頻度、参照され得ない古い進捗記録を読み取り監査。
+- 既存対策 (worklog 再ローテ、`guard_read`、肥大 lint、未コミット D57 の CLAUDE 40% 縮退) は有効。
+  一方、相談・質問・診断にも phase/worklog/handoff を一律発火する task-class gate は未実装。
+- 今回の一律起動対象は AGENTS とコマンド出力を除いて 45,447B。phase 指定範囲 29,909B のうち
+  完了済み 8a、段6 (h)〜(j)、解消済 must 行だけで 12,981B を占めた。
+- worklog archive は現役文書から旧日付への意味参照が 49 件あり保持対象。git-history-only 化の候補は
+  既知捏造文書と D39 吸収済み設計基盤の計 41,475B。07-12 docs 監査 JSON は一次資料だが archive 索引漏れ。
+- 機械検査 3 種は計約 0.15 秒で、削減対象ではない。直前の token 節約メンテ自身の約 26 万 token / 8 agent
+  という多レンズ運用、全質問共通 boot、短い read-only 作業までの handoff/worklog が主要な削減面。
+- 既存ファイルの削除・規約変更はレビュー依頼の範囲外として未実施。計測・commit・push なし。
+
+### 次の一手
+1. 採用する場合は task-class gate → phase hot path 分離 → archive 到達性 lint / history-only 化の順に実施する
+
+## 2026-07-15 (7) — 起動導線の task-class gate 実装 (codex 委譲)
+
+07-15 (6) 次の一手 1 をユーザー指示で実施。実装は codex `gpt-5.6-sol` (公式 CLI 0.144.4、reasoning
+medium) へ委譲し、対象 3 ファイルの現状を読んで節単位に詰めた仕様書を渡した (verbatim 転送への
+ユーザー指摘を memory `refine-specs-before-delegating` に恒久化)。
+- 未コミット差分: `CLAUDE.md` (現在地にゲート一元定義・作業の進め方 1/2/6/7/8・サブエージェント)、
+  `AGENTS.md` (作業開始をゲート参照化)、`docs/handoff/README.md` (開始手順のクラス条件化)。
+  既存の 07-15 (4)/(5) 系 dirty 差分は保持
+- 裁定: クラス 2 定義の「関連 handoff」に対し、起動導線ではクラス 2/3 共通で残 handoff 全読に統一
+  (宣言板機能の維持)。`docs/failures.md` F11 の再発検知はクラス 2/3 セッションが担う (文言は
+  スコープ外として未修正)
+- 環境事象: `/snap/bin/codex` は第三者発行 (jcat-nysasounds) の非公式 snap で `~/.codex` を読めず
+  401。公式 `@openai/codex` を `~/.local` へ導入し切替、snap 削除推奨をユーザーへ提示
+- 検査: `check_docs.py` / `check_codex_agents.py` / `git diff --check` PASS
+- 同セッション内のユーザー指示で全未コミット差分を監査の上 commit した: 5fe8da3 (D57 一式)、
+  6aadab0 (gate)。gate 前状態の CLAUDE.md 等は取得済み全文から index 再構成 (10,758B 一致で検証)
+
+### 次の一手
+1. push は人間の判断に委ねる (この環境に push 認証なし)
+2. 07-15 (6) 次の一手の残り (phase hot path 分離 → archive 到達性 lint) は変わらず
