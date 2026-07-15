@@ -69,7 +69,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import axis_trigger_gating as T                     # noqa: E402
-from campaign import ident, source_digest, wal                    # noqa: E402
+from campaign import ident, pipeline, source_digest, wal          # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root     # noqa: E402
 from campaign.loop import run_campaign                            # noqa: E402
@@ -374,14 +374,17 @@ def _load_rows(layout, prov_entries: Dict[str, Dict]) -> List[Dict]:
         if not vid:
             continue
         recs = wal.records_by_stage(layout, vid)
-        bench = recs.get(STAGE_BENCH_DONE) or {}
         commit = recs.get(STAGE_COMMIT)
+        certified = commit is not None
+        # BENCH_DONE は screening 経路では uncertified のまま存在し得る。性能値は
+        # COMMIT の存在で gate し、探索・正式レポートへ漏らさない。
+        bench = (recs.get(STAGE_BENCH_DONE) or {}) if certified else {}
         abort = recs.get(STAGE_ABORT)
         li = bench.get("leading_indicators") or {}
         rows.append({
             "name": name, "category": e.get("category"), "variant_id": vid,
-            "certified": commit is not None,
-            "aborted": commit is None and abort is not None,
+            "certified": certified,
+            "aborted": not certified and abort is not None,
             "abort_reason": (abort or {}).get("reason"),
             "median_tps": bench.get("median_tps"), "cv": bench.get("cv"),
             "unstable": bool(bench.get("unstable")),
@@ -411,6 +414,16 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
     stable = [r for r in ok if not r["unstable"]]
     subs = [r for r in stable if r["category"] == "subset"]
     degen = [r for r in stable if r["category"] == "degenerate"]
+    screen_rejected = [
+        r for r in rows
+        if not r["certified"]
+        and r["abort_reason"] == pipeline.SCREEN_REJECTION_REASON
+    ]
+    other_aborted = [
+        r for r in rows
+        if r["aborted"]
+        and r["abort_reason"] != pipeline.SCREEN_REJECTION_REASON
+    ]
     floor = FLOOR_CV.get(tag)
 
     lines: List[str] = []
@@ -433,6 +446,8 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
       "(7) 本軸は 8a (post-coder) 由来 — 探索補助限定・段 6 headline 非対象 (D47 決定 5)。"
       "(8) 単一 campaign の floor 超は候補提示のみ — 生死二値の確定は cross-run 再測 "
       "(当該点 + ident_all の --remeasure) 後 (レビュー MS-2/STAT-3)。")
+    w("**集計母集団:** 数値テーブルとレンジ・min・best は certified 生存点限定。"
+      "screening 正常棄却は未認証のため reason だけを別掲し、性能数値を描画しない。")
     if "remeasure" in trial and ident_row is None:
         w("")
         w("**⚠ fails-closed 警告: 本 remeasure campaign に cross-run 基準 ident_all が"
@@ -441,7 +456,7 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
     w("")
     w("| 点 | 分類 | median tps | CV% | abort率 | unstable | certified | 備考 |")
     w("|---|---|---:|---:|---:|---|---|---|")
-    for r in sorted(rows, key=lambda x: -(x["median_tps"] or 0)):
+    for r in sorted(ok, key=lambda x: -(x["median_tps"] or 0)):
         note = []
         if r["name"] == IDENT_NAME:
             note.append("基準 (恒等 gate、フラグ 1)")
@@ -449,13 +464,28 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
             note.append("stock (フラグ 0) — 骨格コスト別掲用")
         elif _floor_uncalibrated(r, ident_row):
             note.append("high-abort/未較正: floor 判定不能")
-        if r["aborted"]:
-            note.append(f"ABORT: {r['abort_reason']}")
         w(f"| {r['name']} | {r['category']} | "
           f"{_fmt(r['median_tps'])} | {_fmt_pct(r['cv'])} | {_fmt_pct(r['abort_rate'])} | "
           f"{'⚠' if r['unstable'] else ''} | {'✓' if r['certified'] else '✗'} | "
           f"{'; '.join(note)} |")
     w("")
+
+    if screen_rejected:
+        w("### screening 正常棄却 (未認証のため性能数値なし)")
+        w("")
+        w("| 点 | 分類 | reason |")
+        w("|---|---|---|")
+        for r in sorted(screen_rejected, key=lambda x: x["name"]):
+            w(f"| {r['name']} | {r['category']} | {r['abort_reason']} |")
+        w("")
+    if other_aborted:
+        w("### その他の非認証 ABORT (性能数値なし)")
+        w("")
+        w("| 点 | 分類 | reason |")
+        w("|---|---|---|")
+        for r in sorted(other_aborted, key=lambda x: x["name"]):
+            w(f"| {r['name']} | {r['category']} | {r['abort_reason']} |")
+        w("")
 
     # レンジ集計・best-vs-基準は floor 較正済み点 (非 high-abort) に限定する —
     # 強調される best が floor 判定不能点になる誤読を構造的に消す (実装レビュー F2 nit)。
@@ -463,7 +493,7 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
     uncal = [r for r in subs if _floor_uncalibrated(r, ident_row)]
     if calib:
         best, worst = max(calib, key=_tps), min(calib, key=_tps)
-        w(f"**subset 点 (stable かつ floor 較正済み, n={len(calib)}"
+        w(f"**subset 点 (certified 生存点限定、stable かつ floor 較正済み, n={len(calib)}"
           f"{f' / 判定不能 {len(uncal)} 点は除外' if uncal else ''}):** "
           f"max={best['name']} {_fmt(_tps(best))} tps / min={worst['name']} "
           f"{_fmt(_tps(worst))} tps / レンジ {_rel(best, worst)} "

@@ -51,7 +51,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, pin, source_digest, wal              # noqa: E402
+from campaign import ident, pin, pipeline, source_digest, wal    # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign import p3_s4_loop_sort as S                         # noqa: E402
 from campaign.layout import campaign_layout                       # noqa: E402
@@ -329,14 +329,17 @@ def _load_rows(layout, prov_entries: Dict[str, Dict]) -> List[Dict]:
         if not vid:
             continue
         recs = wal.records_by_stage(layout, vid)
-        bench = recs.get(STAGE_BENCH_DONE) or {}
         commit = recs.get(STAGE_COMMIT)
+        certified = commit is not None
+        # BENCH_DONE は screening 経路では uncertified のまま存在し得る。性能値は
+        # COMMIT の存在で gate し、探索・正式レポートへ漏らさない。
+        bench = (recs.get(STAGE_BENCH_DONE) or {}) if certified else {}
         abort = recs.get(STAGE_ABORT)
         li = bench.get("leading_indicators") or {}
         rows.append({
             "name": name, "category": e.get("category"), "variant_id": vid,
-            "certified": commit is not None,
-            "aborted": commit is None and abort is not None,
+            "certified": certified,
+            "aborted": not certified and abort is not None,
             "abort_reason": (abort or {}).get("reason"),
             "median_tps": bench.get("median_tps"), "cv": bench.get("cv"),
             "unstable": bool(bench.get("unstable")),
@@ -366,6 +369,16 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
     stable = [r for r in ok if not r["unstable"]]
     full = [r for r in stable if r["category"] == "full-order"]
     degen = [r for r in stable if r["category"] == "degenerate"]
+    screen_rejected = [
+        r for r in rows
+        if not r["certified"]
+        and r["abort_reason"] == pipeline.SCREEN_REJECTION_REASON
+    ]
+    other_aborted = [
+        r for r in rows
+        if r["aborted"]
+        and r["abort_reason"] != pipeline.SCREEN_REJECTION_REASON
+    ]
 
     lines: List[str] = []
     w = lines.append
@@ -379,10 +392,12 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
       "(3) 本 sweep は fairness 偏向 (D41 型15) を検出しない。"
       "(4) write-heavy の S2 verify は rr50 固定 (off-workload 被覆)。"
       "(5) 段 6 の正式 grid / (c) 判定は本結果を材料流用しない (firewall)。")
+    w("**集計母集団:** 数値テーブルとレンジ・min・best は certified 生存点限定。"
+      "screening 正常棄却は未認証のため reason だけを別掲し、性能数値を描画しない。")
     w("")
     w("| 点 | 分類 | median tps | CV% | abort率 | unstable | certified | 備考 |")
     w("|---|---|---:|---:|---:|---|---|---|")
-    for r in sorted(rows, key=lambda x: -(x["median_tps"] or 0)):
+    for r in sorted(ok, key=lambda x: -(x["median_tps"] or 0)):
         note = []
         if r["name"] == CODER_EQUIV:
             note.append("coder iter1 同値順序")
@@ -390,17 +405,32 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
             note.append("対照 (operator<)")
         elif _floor_uncalibrated(r, stock):
             note.append("high-abort/未較正: floor 判定不能")
-        if r["aborted"]:
-            note.append(f"ABORT: {r['abort_reason']}")
         w(f"| {r['name']} | {r['category']} | "
           f"{_fmt(r['median_tps'])} | {_fmt_pct(r['cv'])} | {_fmt_pct(r['abort_rate'])} | "
           f"{'⚠' if r['unstable'] else ''} | {'✓' if r['certified'] else '✗'} | "
           f"{'; '.join(note)} |")
     w("")
 
+    if screen_rejected:
+        w("### screening 正常棄却 (未認証のため性能数値なし)")
+        w("")
+        w("| 点 | 分類 | reason |")
+        w("|---|---|---|")
+        for r in sorted(screen_rejected, key=lambda x: x["name"]):
+            w(f"| {r['name']} | {r['category']} | {r['abort_reason']} |")
+        w("")
+    if other_aborted:
+        w("### その他の非認証 ABORT (性能数値なし)")
+        w("")
+        w("| 点 | 分類 | reason |")
+        w("|---|---|---|")
+        for r in sorted(other_aborted, key=lambda x: x["name"]):
+            w(f"| {r['name']} | {r['category']} | {r['abort_reason']} |")
+        w("")
+
     if full:
         best, worst = max(full, key=_tps), min(full, key=_tps)
-        w(f"**valid 全順序点 (stable, n={len(full)}):** "
+        w(f"**valid 全順序点 (certified 生存点限定、stable, n={len(full)}):** "
           f"max={best['name']} {_fmt(_tps(best))} tps / min={worst['name']} "
           f"{_fmt(_tps(worst))} tps / レンジ {_rel(best, worst)} "
           f"(選択バイアス無補正の記述統計 — floor との断定比較は cross-run 再測点のみ)")

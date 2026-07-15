@@ -16,6 +16,7 @@ build/verify/bench を伴わない機械部分のみ:
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import re
 import sys
@@ -26,6 +27,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import ident                                        # noqa: E402
+from campaign import pipeline                                     # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign import s6_sort_sweep as W                           # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
@@ -279,3 +281,77 @@ def test_floor_uncalibrated_fails_closed():
     assert not W._floor_uncalibrated(calm, stock)      # 0.05 <= 0.08
     assert W._floor_uncalibrated(ok, None)             # stock 欠落 → fails-closed
     assert W._floor_uncalibrated({"category": "full-order", "abort_rate": None}, stock)
+
+
+def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch):
+    """BENCH_DONE は certified の証拠ではない。screen 数値は WAL にだけ保持する。"""
+    layout = _tmp_layout()
+    W.wal.log(layout, "v-screen", W.STAGE_BENCH_DONE, W.ENV_TAG, {
+        "median_tps": 12345,
+        "cv": 0.01,
+        "unstable": True,
+        "leading_indicators": {
+            "abort_rate": 0.12,
+            "ipc": 1.23,
+            "llc_miss_rate": 0.34,
+        },
+    })
+    W.wal.log(layout, "v-screen", W.STAGE_ABORT, W.ENV_TAG, {
+        "reason": pipeline.SCREEN_REJECTION_REASON,
+        "screen": {"median_tps": 12345},
+    })
+    W.wal.log(layout, "v-certified", W.STAGE_BENCH_DONE, W.ENV_TAG, {
+        "median_tps": 6789,
+        "cv": 0.02,
+        "unstable": False,
+        "leading_indicators": {
+            "abort_rate": 0.05,
+            "ipc": 0.98,
+            "llc_miss_rate": 0.21,
+        },
+    })
+    # 空 payload も COMMIT の存在として扱う (truthiness で判定しない)。
+    W.wal.log(layout, "v-certified", W.STAGE_COMMIT, W.ENV_TAG, {})
+
+    entries = {
+        "screened-out": {"variant_id": "v-screen", "category": "full-order"},
+        "certified": {"variant_id": "v-certified", "category": "full-order"},
+    }
+    rows = {r["name"]: r for r in W._load_rows(layout, entries)}
+    rejected = rows["screened-out"]
+    assert rejected["certified"] is False
+    assert rejected["abort_reason"] == pipeline.SCREEN_REJECTION_REASON
+    assert {
+        key: rejected[key]
+        for key in ("median_tps", "cv", "abort_rate", "ipc", "llc_miss_rate")
+    } == {
+        "median_tps": None,
+        "cv": None,
+        "abort_rate": None,
+        "ipc": None,
+        "llc_miss_rate": None,
+    }
+    assert rejected["unstable"] is False
+    assert rows["certified"]["certified"] is True
+    assert rows["certified"]["median_tps"] == 6789
+
+    abort_payload = next(
+        r.payload for r in W.wal.read_records(layout)
+        if r.variant == "v-screen" and r.stage == W.STAGE_ABORT
+    )
+    assert abort_payload["screen"]["median_tps"] == 12345
+
+    reports = os.path.join(layout.root, "reports")
+    os.makedirs(reports, exist_ok=True)
+    with open(os.path.join(reports, "s6_sort_sweep_provenance.json"),
+              "w", encoding="utf-8") as f:
+        json.dump({"entries": entries}, f)
+    monkeypatch.setattr(W, "campaign_layout", lambda _campaign_id: layout)
+
+    path = W.report("balanced", log=lambda _line: None)
+    assert path is not None
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    assert "screening 正常棄却" in text
+    assert pipeline.SCREEN_REJECTION_REASON in text
+    assert "12345" not in text.replace(",", "")
