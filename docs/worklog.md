@@ -347,3 +347,29 @@ partially_real に降格 — 基本設計 (クラス 1 と 2/3 の分離・昇�
 ### 次の一手
 1. push は人間の判断に委ねる (この環境に push 認証なし)
 2. 07-15 (6) 次の一手の残り (phase hot path 分離 → archive 到達性 lint) は変わらず
+
+## 2026-07-15 (9) — phase3 hot path 分離と archive 到達性 lint (codex 委譲)
+
+07-15 (6) 次の一手の残り 2 項をユーザー指示 (「fable5 は計画、実行は codex」) で消化。仕様書は親が
+対象ファイルを読んで縮約後の確定文面まで詰め、codex `gpt-5.6-sol` (reasoning medium) は機械適用 +
+逐語照合 + 検証、commit は親が監査後に実施 (07-15 (8) の分業を踏襲)。
+- commit: d251519 (phase3.md 分離。段 8a・段 6 (h)〜(j)・must 表 H3/S4/C1 の経緯を
+  `docs/archive/phase3-s6-s8a-completed-details.md` へ逐語分離、「段が閉じてから分離」契約を
+  「現役情報をサマリに残せるなら完了済みサブ項も分離可」へ改訂)、b1fa64b (到達性 lint 双方向 +
+  git-history-only 化 41,475B)
+- 裁定: must 表の縮約は H3/S4/C1 の 3 行のみ — cache_key 行・観測者効果行は現役防壁説明が主で
+  据え置き。S2/S1 行も発火条件が現役で据え置き。failures.md F8 のファイル名記載は事件名であり
+  削除後も変更不要。減少量 5,889B は期待 (約 13KB) より小さいが、現役の裁定・発火条件を本文に
+  残す意図的な選択の帰結
+- 環境事象: codex 起動時 `failed to refresh available models: timeout` で、プロンプトをエコーした
+  まま**モデル未実行で exit 0** する空振りが 1 回発生。last-message ファイル不在で検知し再実行で
+  完遂。委譲の完了判定は exit code でなく成果物 (last-message・git status) で確認する
+- 教訓: commit trailer の `AI-Agent:` 群と `Co-Authored-By:` の間に空行を入れると trailer ブロックが
+  分断され check_ai_provenance が fail する — 連続段落で書く (d251519 の amend で対処)
+- 気づき (スコープ外・処分は人間判断): `.claude/worktrees/strategy-review-freeze` が locked のまま
+  残存 (07-14 戦略評価セッションの残骸とみられる)
+
+### 次の一手
+1. push は人間の判断に委ねる (この環境に push 認証なし)
+2. 07-15 (6) 次の一手は全消化。次セッションは本流へ復帰 — phase3.md 現行チェックポイントの着手順
+   (1) S-1 計測ゼロ準備、(2) 計測窓待ちの間に 8b 前向き設計 + 層3最小 renderer を並行
