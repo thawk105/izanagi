@@ -97,7 +97,7 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 - **役割:** planner のプランを CCBench コードへの diff (EVOLVE-BLOCK 内) に落とす。他 CC の最適化を移植する
 - **tools:** コード読み書き、ビルド
 - **model:** 強いモデル
-- **規律:** 検証用情報を出すときは `#ifdef TRACE` に隔離する。CC のデータ構造に検証専用フィールドを常駐させない (絶対規律1)。移植時は最適化カタログ (前提/効果/競合) を参照して前提条件を満たすか確認する
+- **規律:** 検証用情報は D14 の `#if TRACE` 契約で性能ビルドから完全除去する。CC のデータ構造に検証専用フィールドを常駐させない (絶対規律1)。移植時は最適化カタログ (前提/効果/競合) を参照して前提条件を満たすか確認する
 - **⚠ E-loop 自律期の確定制約は本節でなく `.claude/agents/coder-v4-autonomous(-sort).md` + D39 決定 7 / D43 を正典とする** (本節の tools 欄は予約仕様。実体化で分岐した — §planner の planner-v4 addendum と対称): 実体の coder-v4-autonomous / coder-v4-autonomous-sort は **tools=[] (ツールなし — filesystem browse 経路を構造的に持たない = リーク制御)**。入力は planner の方向ヒント + leading-indicators + whiteboard をメインセッションが射影して inline で渡し、合成は構造化出力のみで返す。
 - **⚠ kickoff の確定制約は本節でなく `docs/phase3.md` + D22/D23/D24/D30 を正典とする** (本節は Phase 3 着手前の予約仕様で、kickoff 設計を反映していない)。coder.md を生成するときは最低限: (1) 編集面は EVOLVE-BLOCK の `#if` 枝内の straight-line code のみ (#include/型/マクロ定義の追加禁止、閉じた領域制約)、(2) COMMIT を書く唯一の経路は `pipeline.evaluate()`、(3) 勝ち筋値・機序説明のリーク制御 (P2-5/D21 の Phase 3 版、phase3.md 残存リスク)、(4) hooks は方針 A で最小第二防壁 = 正しさ/同一性の担保は一次防壁 (source_digest / 観測者効果二重検査) にある、を織り込む
 - **駆動方式の環境制約 (worklog 2026-06-29 から昇格):** この環境には **headless の claude CLI が無い**。roadmap §3.8 の「ループ主導権は orchestrator、LLM は iteration 単位で fresh に呼ぶ」を実装するとき、orchestrator が CLI を子プロセスとして呼ぶ形は取れない。P2-5 誘導アームは「各試行を fresh サブエージェント (本会話を見ない) が `guided.py` を Bash で駆動する」形で迂回した — coder ループも同系の駆動 (fresh サブエージェント + Python ハーネスの Bash 駆動) を前提に設計する。
@@ -126,12 +126,14 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 
 ## hooks (方針 A の最小第二防壁・Python)
 
-ECC のように大量に持たない。`.claude/settings.json` の PreToolUse に配線済みの 2 つだけ (D30/D33)。auditor の事後監査に加えた「書き込み時点の第二防壁」であり、**テキスト内容の検査には完全性を負わせない** (2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証済み — 責務再配置の経緯は D30/D33)。
+ECC のように大量に持たない。正しさの第二防壁は `guard_write` / `guard_bash` の 2 本 (D30/D33) で、
+**テキスト内容の検査には完全性を負わせない**。これらとは別系統のコンテキスト衛生として
+`guard_read` を 1 本持ち、Claude の PreToolUse には合計 3 本を配線する。現行の責務・配線・既知限界は
+`hooks/README.md` が正本。
 
-Codex には未配線 (D54〜D56)。Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡すが、
-既存 `guard_write` は Claude の `tool_input.file_path` / `notebook_path` を判定するため、設定だけを
-複製すると書込み面の検査が蒸発する。将来は既存 2 判定核への Codex adapter と parity test を
-作り、同値性を確認してから配線する。第三の論理 hook は追加しない。
+Codex には未配線 (D54〜D56)。tool input と継承 tool surface が Claude と異なるため、設定だけを複製せず、
+製品別 adapter と parity test を作ってから配線する。正しさ防壁の第三の論理 hook は追加しない
+(`guard_read` は正しさ防壁ではない)。
 
 ### guard_write (PreToolUse: Write|Edit|MultiEdit|NotebookEdit)
 - proof-chain 成果物 (WAL / campaign.lock / build-variants 等) への直接書き込みを拒否 (規律2 = verifier 迂回の阻止)

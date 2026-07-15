@@ -5,7 +5,8 @@ descriptor に応じて certified な CC variant を選ぶ。CCBench コード�
 diff で書く一方、列挙可能な軸内は機械探索へ渡す。P2-4 backoff は成立例、P2-5 の negative result
 (有限フラグ空間で LLM 誘導は機械探索を上回らない) はこの役割分担の根拠である。
 
-**研究目標 (CLAUDE.md):** 新しい CC + なぜ速いかの説明 + 試行錯誤の記録。
+**研究目標 (roadmap §1):** 新規 variant の実証を目指すが、証拠が支持しなければ stock / tie を選び、
+判断根拠と全試行を proof chain 付きで返す。
 
 **各 run の正直な出力契約:** 証拠が支持すれば certified な新 variant、支持しなければ stock 選択または
 tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す。stock/tie は有効な no-improvement

@@ -228,7 +228,7 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **正しさゲート (correctness gate)** — 「絶対に壊してはいけない不変条件」の関所。壊す variant は性能に関わらず即 reject。*izanagi:* 絶対規律2 の中核。「壊していい」(プロトコル固有テスト = variant の性格づけ) と厳密に分ける (CLAUDE.md 絶対規律2)。
 
-**観測者効果の分離 (絶対規律1)** — 正しさ検証用のトレース取得を、性能計測ビルドから完全に除去する規律。ランタイム分岐でなくコンパイル時 (`#if TRACE`) に消す。*izanagi:* 6 つの絶対規律の 1 つ。性能数値の信頼性の前提 (D14。CLAUDE.md の記法は「コンパイル時除去」の意味として読む)。
+**観測者効果の分離 (絶対規律1)** — 正しさ検証用のトレース取得を、性能計測ビルドから完全に除去する規律。ランタイム分岐でなくコンパイル時に消し、CCBench の具体実装は D14 の `#if TRACE` 契約に従う。*izanagi:* 6 つの絶対規律の 1 つ。性能数値の信頼性の前提。
 
 **入力側隔離 / 出力側隔離 (anti-fabrication isolation)** — 検証エージェントに期待値 (性能数値・正解) を一切見せない (入力側) + 書き込み権限を外す (出力側) で、「期待値をコピーして捏造する」経路を両側から断つこと。*izanagi:* verifier は trace だけを入力とし、throughput を受け取らず、Edit/Write も持たない (ARA の anti-fabrication isolation, agent-architecture.md §verifier)。
 

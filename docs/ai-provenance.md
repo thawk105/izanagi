@@ -51,7 +51,7 @@ AI-Agent: none
 - `Co-Authored-By` は著者表示のため必要に応じて併用してよいが、model と reasoning を持たないため
   `AI-Agent` の代用にはしない。セッション URL も任意の補助情報である。
 - トークン数、利用枠、料金はこの trailer の対象外とする。必要なエージェント工数や棄却 finding は
-  `CLAUDE.md` の規定どおり worklog または一次資料へ残す。
+  `docs/worklog.md` 冒頭の書式に従い、worklog または一次資料へ残す。
 
 ## 例
 

@@ -109,7 +109,7 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 
 ## テスト
 
-`orchestrator/tests/test_hooks.py` が両 hook の判定核 (`decide()`) を直叩きし、3 巡の敵対レビューで確定した
+`orchestrator/tests/test_hooks.py` が 3 hook の判定核 (`decide()`) を直叩きし、3 巡の敵対レビューで確定した
 全 finding を回帰固定する (`test_bash_finding_bypasses_all_denied` / `test_bash_round2_bypasses_denied` /
 `test_bash_false_positive_fixes_allowed` / `test_symlinked_output_tree_still_protects` /
 `test_notebookedit_decoy_file_path_denied` 等)。settings.json の配線 (4 tool matcher) と、subprocess として

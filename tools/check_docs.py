@@ -61,7 +61,7 @@ HANDOFF_STALE_SECONDS = 48 * 3600
 # --- worklog 肥大 (2026-07-15 追加、トークン節約メンテ) ---
 # ブート時「末尾エントリのみ読む」運用でも、肥大は grep 誤爆・事故全読・コンテキスト
 # 圧迫の温床になる (2026-07-05 のローテ後、Phase 3 分だけで 224KB まで再肥大した実績)。
-# 閾値超過 = ローテーションの合図 (手順は worklog.md 冒頭とCLAUDE.md 作業の進め方 7)。
+# 閾値超過 = ローテーションの合図 (手順の正本は worklog.md 冒頭)。
 WORKLOG = REPO / "docs" / "worklog.md"
 WORKLOG_ROTATE_BYTES = 100_000
 

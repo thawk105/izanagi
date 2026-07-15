@@ -19,7 +19,7 @@
 3. **`si` = `ermia` から SSN を剥がした Snapshot Isolation = 本物の write-skew (G2) を出す。**
    → Phase 1 タスク3「verifier が赤を出せる証明」の **positive control**。`ermia`(SSN)/`oze`(明示グラフ) は anti-dependency を実体化する **cross-check oracle**。
 4. **Silo の trace 3 点 (read tidword / write key+value / commit maxtid) は全て CC-native フィールドに既存** → **trace 専用フィールドを足す必要なし** (絶対規律1 に最適)。例外は `ss2pl` のみ (ロックは版IDを持たないので producer-id の trace 専用フィールドが要る)。
-5. **`#ifdef TRACE` には罠がある。** cmake が常に `-DTRACE=0` を定義すると `#ifdef TRACE` は常に真でコンパイルアウトされない (観測者効果が漏れ、絶対規律1違反)。**`#if TRACE` を使う**か、**0 のとき `-D` を出さない**こと (後者は `INSERT_*_DELAY_MS` に既存先例)。既存の `ADD_ANALYSIS` が `#ifdef TRACE` のほぼ完全な実装先例 (§5)。
+5. **`#ifdef TRACE` には罠がある。** cmake が常に `-DTRACE=0` を定義すると `#ifdef TRACE` は常に真でコンパイルアウトされない (観測者効果が漏れ、絶対規律1違反)。**`#if TRACE` を使う**か、**0 のとき `-D` を出さない**こと (後者は `INSERT_*_DELAY_MS` に既存先例)。既存の `#if ADD_ANALYSIS` が数値マクロ契約の実装先例 (§5)。
 6. **スレッドピンニングが既定で OFF。** `setThreadAffinity` は `#ifdef Linux` だが、protocol バイナリには `-DLinux` が**渡されていない** (`ProtocolHelpers.cmake`、flags.make で確認)。→ 96スレ/2ソケットでワーカーが両ソケットを浮遊し測定がスケジューラ依存に。**絶対規律4 のために `-DLinux` 追加か `numactl` ピンニングが必須** (§7)。
 7. **`clocks_per_us` はランタイム gflag (default 2100、自動校正なし)。** calibrator がホストの TSC 周波数を実測して毎回 `-clocks_per_us` で渡す。`throughput[tps]` はこの値に**非依存** (OS sleep 秒で割る) だが、backoff/epoch の実挙動と latency 系メトリクスは依存 (§6)。
 8. **ARM/Apple Silicon 懸念は消滅** (ここはネイティブ x86_64)。GCC 11.4 で `-Werror` 通過 (#44 は HEAD で解決済み)、`-mcx16`/`-march` 不要 (§7)。
@@ -150,7 +150,7 @@ verifier が必要とするのは、commit した各 tx について: 各 READ �
 **version-producer recovery (どの tx がその版を書いたか):**
 - **Silo:** 版ID = 生産 tx の commit TID。`Tidword` (`cc/silo/include/tuple.hh:12-22`) は64bit union: bit0 lock / bit1 latest / bit2 absent / tid:29 / epoch:32。commit 時に `maxtid` を tuple に stamp (`:527`)、reader はそれを `ReadElement::tidword_` にスナップ (`:261`)。→ read の `tidword.{epoch,tid}` == 生産者の commit `maxtid.{epoch,tid}`。**G2 rw 辺:** reader が見た版 = read の tidword、上書き版 = 同キーに次に commit した maxtid (全 commit TID をキーごとに順序付ければ再構成可能)。
 - **cicada (MVCC):** read で `read_set_.emplace_back(s,key,tuple,later_ver,ver)` (`cc/cicada/transaction.cc:126`)。`ver` = 観測した `Version*` (自前 `wts_`/`rts_`/`status_` を持つ、`version.hh:25-32`)、`later_ver` = 次に新しい版 → **rw 辺の両端が CC-native。** 生産者 = `ver_->wts_` (writer の commit ts、`:706` で設定)。commit 順 = tx の `wts_` (生成 `time_stamp.hh:39`: `ts_=(localClock_<<8)|tid`、低 byte が thid)。
-- **ss2pl (ロックのみ): 唯一 trace 専用フィールドが要る。** 版ID/commit TID が無い。`read_internal` で r_lock 取得後に `read_set_.emplace_back(s,key,tuple,body)` (`:193`、DLR0=wait/DLR1=no-wait で gate)。serialization point は commit 内 `unlockList()` (`:104`)。→ **`#ifdef TRACE` 下で global commit sequence number を `:104` で発番**し、各 record の last-writer を記録して rw 辺を再構成する。
+- **ss2pl (ロックのみ): 唯一 trace 専用フィールドが要る。** 版ID/commit TID が無い。`read_internal` で r_lock 取得後に `read_set_.emplace_back(s,key,tuple,body)` (`:193`、DLR0=wait/DLR1=no-wait で gate)。serialization point は commit 内 `unlockList()` (`:104`)。→ **D14 の `#if TRACE` 下で global commit sequence number を `:104` で発番**し、各 record の last-writer を記録して rw 辺を再構成する。
 
 **注意 (read-own-write 短絡):** silo `read()` は read/write set ヒット時に `ReadElement` を**追加せず**早期 return (`cc/silo/transaction.cc:195-204`、cicada `:156-165`、ss2pl `:136-145`)。verifier はこれを「既記録版の再観測」として扱い、欠落 read と誤認しないこと。
 
@@ -158,10 +158,12 @@ verifier が必要とするのは、commit した各 tx について: 各 READ �
 
 ## 5. 観測者効果分離の実装指針 (絶対規律1) — `ADD_ANALYSIS` 先例
 
-CCBench には既に **`ADD_ANALYSIS`** という「ビルド時 `-D` で計測計装を完全コンパイルアウトする」機構があり、Izanagi の `#ifdef TRACE` のほぼ完全な先例になる。
+CCBench には既に **`ADD_ANALYSIS`** という「数値マクロを `#if` で判定し、計測計装を完全コンパイルアウトする」機構があり、Izanagi の `#if TRACE` のほぼ完全な先例になる。
 - **完全コンパイルアウト (全軸):** counter フィールド自体が `#if ADD_ANALYSIS` (`include/result.hh:24-62,72-112`)、計測サイトの `rdtscp()`/`+=` も `#if` (`cc/silo/transaction.cc:42-50`)、集計 (`common/result.cc:688-729`)、表示も全て gate。**runtime 分岐 (`if(enabled)`) ではない真の `#if`。** → 絶対規律1 が要求する「false でも分岐予測ミス・命令キャッシュ汚染で性能に効くのを避ける」を既に満たす実装パターン。
 - **Izanagi が `TRACE` を足すときの手順:** `cmake/Options.cmake` に `CCBENCH_TRACE 0 CACHE STRING` を足し、`ccbench_universal_definitions` (`:55-63`) 経由で target-private `-DTRACE=<v>` に流す。read/write/commit の既存 `rdtscp` ブラケットサイトがそのまま TRACE emit 点になる。
-- **⚠ 致命的な罠:** `ADD_ANALYSIS` は `#if ADD_ANALYSIS` (**常に定義される数値マクロ**)。roadmap/CLAUDE.md の表記は `#ifdef TRACE`。cmake が常に `-DTRACE=0` を定義すると **`#ifdef TRACE` は常に真** → コンパイルアウトされず観測者効果が漏れる (絶対規律1違反)。
+- **⚠ 致命的な罠:** `ADD_ANALYSIS` は `#if ADD_ANALYSIS` (**常に定義される数値マクロ**)。cmake が常に
+  `-DTRACE=0` を定義する契約では **`#ifdef TRACE` は常に真**になる。D14 どおり `#if TRACE` を使わないと
+  コンパイルアウトされず観測者効果が漏れる (絶対規律1違反)。CLAUDE.md は具体記法を D14 へ委譲する。
   **対策のどちらかを取る:** (a) コード側を **`#if TRACE`** にする (ADD_ANALYSIS と統一、推奨)、または (b) cmake 側で 0 のとき `-DTRACE` を出さない (`INSERT_*_DELAY_MS` が空値で drop される `ccbench_normalize_options` `:68-82` が先例)。**この設計判断は decisions.md に記録すべき候補** (絶対規律1 のコンパイルアウト要件を CCBench のマクロ規約と整合させる手段の確定)。
 - **`TRACE` は `ADD_ANALYSIS` と別マクロにする** (現状 fork に `TRACE` は存在しない = Izanagi が新規追加)。正しさ trace build と perf-analysis build を分離可能に保つため。**genome (性能比較キー) に `TRACE`/`ADD_ANALYSIS`/`DEBUG_MSG` を絶対に含めない。**
 

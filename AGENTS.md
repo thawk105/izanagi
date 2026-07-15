@@ -27,15 +27,6 @@
   起動せず、`task_name` を role 名にした通常の Codex 子も role 隔離の代替にしない。通常の Codex 子は
   すべて上の作業開始 1〜5 の対象である。`.claude/agents/` は role 本文と Claude 固有の権限契約であり、
   Codex 子を同等な隔離とは扱わない。
-- ドキュメントは日本語、orchestrator・hooks・verifier は Python、CCBench と variant は C++ を基本とする。
 - タスク完了時は関連テスト、`python3 tools/check_codex_agents.py`、`python3 tools/check_docs.py` を
   実行し、phase の完了チェックは実装と同じ commit に含める。commit を作った後は
   `python3 tools/check_ai_provenance.py` で導入時点から `HEAD` までを監査する。
-
-## commit provenance
-
-commit を作るときは `docs/ai-provenance.md` を正本として、AI 製品・モデル・推論深度・役割を
-反復可能な `AI-Agent:` trailer に必ず記録する。値が不明な場合は正本が定める
-`not-exposed` / `unknown` を区別し、推測しない。複数の AI 構成が実質的に寄与した場合は
-構成ごとに trailer を分ける。
-`Co-Authored-By` やセッション URL はこの記録の代用にならない。
