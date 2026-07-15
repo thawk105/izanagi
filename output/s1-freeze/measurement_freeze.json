@@ -1,0 +1,1303 @@
+{
+  "what": "S-1 計測 freeze v2 (18セル・比較対・schedule・実装 hash)",
+  "frozen_at_head": "02c840c4a001f8df6810355471806cb251400fdf",
+  "ccbench_pin": "d706650",
+  "generator": {
+    "path": "orchestrator/campaign/s1_measurement_freeze.py",
+    "sha256": "a7c41a8175b2edeef9e6bb7b8ad4b36991668d709e6d1f5604cd80a81287d0fa"
+  },
+  "python_version": "3.10.12 (main, Feb  4 2025, 14:57:36) [GCC 11.4.0]",
+  "cells": {
+    "balanced:system_gate": {
+      "workload": "balanced",
+      "configuration": "system_gate",
+      "variant": {
+        "name": "g_rl",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACKOFF_TRIGGER_GATING": 1
+        },
+        "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;",
+        "sources": [
+          {
+            "path": "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+            "sha256": "0e1d4a1f7ac07c30ce373bf144ebcb9838f89a87cb517a538b92513ec9c837f2",
+            "key": "floor超地形 best gate table: balanced"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "4b7ad441f5e3d1eabffd0ce8f2d7c67caa43bc4bd8c21435dcc725991465ba7c",
+            "key": "entries.g_rl.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-c2d838b8/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "87a6e5640c96f5d5d26cb889538b347c8dfd32fcb7a800f8b423b65405070cf3",
+            "key": "entries.g_rl.implementation equality assertion"
+          },
+          {
+            "path": "orchestrator/campaign/axis_trigger_gating.py",
+            "sha256": "47507d9b936efeaa463f839a59d5afd7c2a7a8d36427a46ad61579bf4b50c04c",
+            "key": "_BASE"
+          },
+          {
+            "path": "orchestrator/campaign/s8a_trigger_sweep.py",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+            "key": "_genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.balanced.system_gate"
+      }
+    },
+    "balanced:ident_all": {
+      "workload": "balanced",
+      "configuration": "ident_all",
+      "variant": {
+        "name": "ident_all",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACKOFF_TRIGGER_GATING": 1
+        },
+        "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;",
+        "sources": [
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "4b7ad441f5e3d1eabffd0ce8f2d7c67caa43bc4bd8c21435dcc725991465ba7c",
+            "key": "entries.ident_all.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-c2d838b8/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "87a6e5640c96f5d5d26cb889538b347c8dfd32fcb7a800f8b423b65405070cf3",
+            "key": "entries.ident_all.implementation equality assertion"
+          },
+          {
+            "path": "orchestrator/campaign/axis_trigger_gating.py",
+            "sha256": "47507d9b936efeaa463f839a59d5afd7c2a7a8d36427a46ad61579bf4b50c04c",
+            "key": "_BASE"
+          },
+          {
+            "path": "orchestrator/campaign/s8a_trigger_sweep.py",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+            "key": "_genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.balanced.ident_all"
+      }
+    },
+    "balanced:p2_2_flag_opt": {
+      "workload": "balanced",
+      "configuration": "p2_2_flag_opt",
+      "variant": {
+        "variant": "5185ee5e6094",
+        "label": "B0-L-W0",
+        "flags": {
+          "BACK_OFF": 0,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0
+        },
+        "reference_fitness_tps": 2752621.0,
+        "sources": [
+          {
+            "path": "output/campaigns/p2-2-silo-balanced-enumerate-f1588056/runs/wal.jsonl",
+            "sha256": "d6e98161d8cc3a011688316c3a180a532c0374c87fbbcc30934106f51f95f34c",
+            "key": "stage=commit/build_start"
+          },
+          {
+            "path": "orchestrator/campaign/genome.py",
+            "sha256": "8e8abd7f613af886b4b726b1e8f13870078c23c7d901f6b7ea003f56ad840b24",
+            "key": "SILO_SPACE fallback definition"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.balanced.p2_2_flag_opt"
+      }
+    },
+    "balanced:backoff_fixed_best": {
+      "workload": "balanced",
+      "configuration": "backoff_fixed_best",
+      "variant": {
+        "backoff_us": 5,
+        "flags": {
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACK_OFF": 1,
+          "BACKOFF_FIXED": 5
+        },
+        "reference_fitness_tps": 3106342.0,
+        "reference_points": {
+          "no_backoff": {
+            "flags": {
+              "BACKOFF_FIXED": -1,
+              "BACK_OFF": 0,
+              "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+              "NO_WAIT_OF_TICTOC": 0,
+              "WAL": 0
+            },
+            "reference_fitness_tps": 2791760.0
+          },
+          "stock_adaptive": {
+            "flags": {
+              "BACKOFF_FIXED": -1,
+              "BACK_OFF": 1,
+              "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+              "NO_WAIT_OF_TICTOC": 0,
+              "WAL": 0
+            },
+            "reference_fitness_tps": 916149.0
+          }
+        },
+        "sources": [
+          {
+            "path": "output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/runs/wal.jsonl",
+            "sha256": "8ac3f47e55274fada20e6518eea9cbb0e822170eeda1b424df99e76e11fd789c",
+            "key": "stage=commit/build_start"
+          },
+          {
+            "path": "orchestrator/campaign/backoff_sweep.py",
+            "sha256": "4e7fa96eef4a9051ebc4da5d69a71f98ba30b7e94d857403a4cc2901d473da89",
+            "key": "_BASE and SWEEP_US"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.balanced.backoff_fixed_best"
+      }
+    },
+    "balanced:sort_best": {
+      "workload": "balanced",
+      "configuration": "sort_best",
+      "variant": {
+        "name": "sp_dd",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "SORT_VARIANT": 1
+        },
+        "comparator": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : b.rcdptr_ < a.rcdptr_;\n       });",
+        "note": "本走 argmax 規則により sp_dd を固定。balanced の sp_dd は remeasure campaign p3-s6-sort-sweep-balanced-sweep-1b39095e で floor 超を再現せず、D46 裁定は差なし。",
+        "remeasure_reference": {
+          "argmax_name": "sk_aa",
+          "reference_fitness_tps": 921457.0
+        },
+        "sources": [
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-balanced-sweep-dd25aa8c/runs/wal.jsonl",
+            "sha256": "e003d8668e481e224d5b5160c1be593c5169c5ef6f560eddb12eea811c3cb585",
+            "key": "stage=commit argmax"
+          },
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-balanced-sweep-dd25aa8c/reports/s6_sort_sweep_provenance.json",
+            "sha256": "8c8e0b2270046fdcc0486858946e95b0e6c5d39ab6872a643aee366f31dd9863",
+            "key": "entries.sp_dd.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-balanced-sweep-1b39095e/runs/wal.jsonl",
+            "sha256": "542681e3c246317b1e5c08ea7c1cbb7dd16ebba85029fdb3e574a52e4a68f785",
+            "key": "remeasure stage=commit reference"
+          },
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-balanced-sweep-1b39095e/reports/s6_sort_sweep_provenance.json",
+            "sha256": "fa862099c1637b9bd36ea627d824153864b77006cd6dd341bca2a5dd426f0f70",
+            "key": "remeasure name mapping"
+          },
+          {
+            "path": "output/insights/2026-07-10_s6-sort-sweep-preliminary.md",
+            "sha256": "ba9a799d12d11422ca4d303cbf422f9a9f40e85260a32f2e6ea0ed58a39f0718",
+            "key": "D46 main/remeasure interpretation"
+          },
+          {
+            "path": "orchestrator/campaign/s6_sort_sweep.py",
+            "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+            "key": "_genome(1) and candidate space"
+          },
+          {
+            "path": "orchestrator/campaign/p3_s4_loop_sort.py",
+            "sha256": "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+            "key": "_BASE used by _genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.balanced.sort_best"
+      }
+    },
+    "balanced:stock_common": {
+      "workload": "balanced",
+      "configuration": "stock_common",
+      "variant": {
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0
+        },
+        "sources": [
+          {
+            "path": "external/ccbench/cmake/Options.cmake",
+            "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+            "key": "four CACHE defaults and BACK_OFF universal mapping",
+            "lines": [
+              "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+              "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+              "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+              "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+              "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+            ]
+          },
+          {
+            "path": "external/ccbench/cc/silo/CMakeLists.txt",
+            "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+            "key": "silo target mappings for three protocol flags",
+            "lines": [
+              "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+              "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+              "10:     WAL=${CCBENCH_WAL}"
+            ]
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.balanced.stock_common"
+      }
+    },
+    "write-heavy:system_gate": {
+      "workload": "write-heavy",
+      "configuration": "system_gate",
+      "variant": {
+        "name": "g_rt",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACKOFF_TRIGGER_GATING": 1
+        },
+        "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid;",
+        "sources": [
+          {
+            "path": "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+            "sha256": "0e1d4a1f7ac07c30ce373bf144ebcb9838f89a87cb517a538b92513ec9c837f2",
+            "key": "floor超地形 best gate table: write-heavy"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "3b0bdf7735ef292281c575d71cf8699fcb071aadc6dcb6ed394eed9a5cd2d441",
+            "key": "entries.g_rt.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "4518376a154d1fe290eee05803168dd6ed107a0e3dbeca74aca962d47ab7b71f",
+            "key": "entries.g_rt.implementation equality assertion"
+          },
+          {
+            "path": "orchestrator/campaign/axis_trigger_gating.py",
+            "sha256": "47507d9b936efeaa463f839a59d5afd7c2a7a8d36427a46ad61579bf4b50c04c",
+            "key": "_BASE"
+          },
+          {
+            "path": "orchestrator/campaign/s8a_trigger_sweep.py",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+            "key": "_genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.write-heavy.system_gate"
+      }
+    },
+    "write-heavy:ident_all": {
+      "workload": "write-heavy",
+      "configuration": "ident_all",
+      "variant": {
+        "name": "ident_all",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACKOFF_TRIGGER_GATING": 1
+        },
+        "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;",
+        "sources": [
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "3b0bdf7735ef292281c575d71cf8699fcb071aadc6dcb6ed394eed9a5cd2d441",
+            "key": "entries.ident_all.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "4518376a154d1fe290eee05803168dd6ed107a0e3dbeca74aca962d47ab7b71f",
+            "key": "entries.ident_all.implementation equality assertion"
+          },
+          {
+            "path": "orchestrator/campaign/axis_trigger_gating.py",
+            "sha256": "47507d9b936efeaa463f839a59d5afd7c2a7a8d36427a46ad61579bf4b50c04c",
+            "key": "_BASE"
+          },
+          {
+            "path": "orchestrator/campaign/s8a_trigger_sweep.py",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+            "key": "_genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.write-heavy.ident_all"
+      }
+    },
+    "write-heavy:p2_2_flag_opt": {
+      "workload": "write-heavy",
+      "configuration": "p2_2_flag_opt",
+      "variant": {
+        "variant": "5185ee5e6094",
+        "label": "B0-L-W0",
+        "flags": {
+          "BACK_OFF": 0,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0
+        },
+        "reference_fitness_tps": 1872376.0,
+        "sources": [
+          {
+            "path": "output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6/runs/wal.jsonl",
+            "sha256": "14b43988f228c573fa1a0b1e7d7fcdc51e8e34c42f4c6b39ff5c27808ff399a5",
+            "key": "stage=commit/build_start"
+          },
+          {
+            "path": "orchestrator/campaign/genome.py",
+            "sha256": "8e8abd7f613af886b4b726b1e8f13870078c23c7d901f6b7ea003f56ad840b24",
+            "key": "SILO_SPACE fallback definition"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.write-heavy.p2_2_flag_opt"
+      }
+    },
+    "write-heavy:backoff_fixed_best": {
+      "workload": "write-heavy",
+      "configuration": "backoff_fixed_best",
+      "variant": {
+        "backoff_us": 10,
+        "flags": {
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACK_OFF": 1,
+          "BACKOFF_FIXED": 10
+        },
+        "reference_fitness_tps": 2603521.0,
+        "reference_points": {
+          "no_backoff": {
+            "flags": {
+              "BACKOFF_FIXED": -1,
+              "BACK_OFF": 0,
+              "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+              "NO_WAIT_OF_TICTOC": 0,
+              "WAL": 0
+            },
+            "reference_fitness_tps": 1882125.0
+          },
+          "stock_adaptive": {
+            "flags": {
+              "BACKOFF_FIXED": -1,
+              "BACK_OFF": 1,
+              "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+              "NO_WAIT_OF_TICTOC": 0,
+              "WAL": 0
+            },
+            "reference_fitness_tps": 1052528.0
+          }
+        },
+        "sources": [
+          {
+            "path": "output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/runs/wal.jsonl",
+            "sha256": "9c179331a7171969ac6f4ed2b1d09e4afbf52378cfbac7bd133696a6589fe926",
+            "key": "stage=commit/build_start"
+          },
+          {
+            "path": "orchestrator/campaign/backoff_sweep.py",
+            "sha256": "4e7fa96eef4a9051ebc4da5d69a71f98ba30b7e94d857403a4cc2901d473da89",
+            "key": "_BASE and SWEEP_US"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.write-heavy.backoff_fixed_best"
+      }
+    },
+    "write-heavy:sort_best": {
+      "workload": "write-heavy",
+      "configuration": "sort_best",
+      "variant": {
+        "name": "sk_ad",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "SORT_VARIANT": 1
+        },
+        "comparator": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });",
+        "note": "本走 argmax 規則で固定。remeasure は参考値としてのみ併記し、再選定には使わない。",
+        "remeasure_reference": {
+          "argmax_name": "sk_ad",
+          "reference_fitness_tps": 1098674.0
+        },
+        "sources": [
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/runs/wal.jsonl",
+            "sha256": "8ad315afd66c1d0e97dbb4b7c82e16e93dc778ad5f50b263716a3d406efdc6a6",
+            "key": "stage=commit argmax"
+          },
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json",
+            "sha256": "42aad55fd9fc57360ec3beff429ccebee1ba0f41288a10e52d12a71c547fcdc7",
+            "key": "entries.sk_ad.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-d4552403/runs/wal.jsonl",
+            "sha256": "108091b7136bdf94facd0ebb680ac26c5a4de74163254e34a3e4243ac27101ff",
+            "key": "remeasure stage=commit reference"
+          },
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-d4552403/reports/s6_sort_sweep_provenance.json",
+            "sha256": "99f5f243371413ca989785b4f53acaf4b91dca0efce47dc28f9329d9fdaeaea6",
+            "key": "remeasure name mapping"
+          },
+          {
+            "path": "output/insights/2026-07-10_s6-sort-sweep-preliminary.md",
+            "sha256": "ba9a799d12d11422ca4d303cbf422f9a9f40e85260a32f2e6ea0ed58a39f0718",
+            "key": "D46 main/remeasure interpretation"
+          },
+          {
+            "path": "orchestrator/campaign/s6_sort_sweep.py",
+            "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+            "key": "_genome(1) and candidate space"
+          },
+          {
+            "path": "orchestrator/campaign/p3_s4_loop_sort.py",
+            "sha256": "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+            "key": "_BASE used by _genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.write-heavy.sort_best"
+      }
+    },
+    "write-heavy:stock_common": {
+      "workload": "write-heavy",
+      "configuration": "stock_common",
+      "variant": {
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0
+        },
+        "sources": [
+          {
+            "path": "external/ccbench/cmake/Options.cmake",
+            "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+            "key": "four CACHE defaults and BACK_OFF universal mapping",
+            "lines": [
+              "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+              "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+              "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+              "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+              "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+            ]
+          },
+          {
+            "path": "external/ccbench/cc/silo/CMakeLists.txt",
+            "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+            "key": "silo target mappings for three protocol flags",
+            "lines": [
+              "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+              "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+              "10:     WAL=${CCBENCH_WAL}"
+            ]
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.write-heavy.stock_common"
+      }
+    },
+    "read-heavy:system_gate": {
+      "workload": "read-heavy",
+      "configuration": "system_gate",
+      "variant": {
+        "name": "g_rl",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACKOFF_TRIGGER_GATING": 1
+        },
+        "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;",
+        "sources": [
+          {
+            "path": "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+            "sha256": "0e1d4a1f7ac07c30ce373bf144ebcb9838f89a87cb517a538b92513ec9c837f2",
+            "key": "floor超地形 best gate table: read-heavy"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "4466f6c28f735854a331b57dcb9ebd750ff42fcc6db0458cc5c775134608656c",
+            "key": "entries.g_rl.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "bfe345564d6c57be00741ec2a9b0c340a6515b72f5f336f0b53c8a0d592b688a",
+            "key": "entries.g_rl.implementation equality assertion"
+          },
+          {
+            "path": "orchestrator/campaign/axis_trigger_gating.py",
+            "sha256": "47507d9b936efeaa463f839a59d5afd7c2a7a8d36427a46ad61579bf4b50c04c",
+            "key": "_BASE"
+          },
+          {
+            "path": "orchestrator/campaign/s8a_trigger_sweep.py",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+            "key": "_genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.read-heavy.system_gate"
+      }
+    },
+    "read-heavy:ident_all": {
+      "workload": "read-heavy",
+      "configuration": "ident_all",
+      "variant": {
+        "name": "ident_all",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACKOFF_TRIGGER_GATING": 1
+        },
+        "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;",
+        "sources": [
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "4466f6c28f735854a331b57dcb9ebd750ff42fcc6db0458cc5c775134608656c",
+            "key": "entries.ident_all.implementation"
+          },
+          {
+            "path": "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json",
+            "sha256": "bfe345564d6c57be00741ec2a9b0c340a6515b72f5f336f0b53c8a0d592b688a",
+            "key": "entries.ident_all.implementation equality assertion"
+          },
+          {
+            "path": "orchestrator/campaign/axis_trigger_gating.py",
+            "sha256": "47507d9b936efeaa463f839a59d5afd7c2a7a8d36427a46ad61579bf4b50c04c",
+            "key": "_BASE"
+          },
+          {
+            "path": "orchestrator/campaign/s8a_trigger_sweep.py",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+            "key": "_genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.read-heavy.ident_all"
+      }
+    },
+    "read-heavy:p2_2_flag_opt": {
+      "workload": "read-heavy",
+      "configuration": "p2_2_flag_opt",
+      "variant": {
+        "variant": "b971a1d9f80a",
+        "label": "B0-T-W0",
+        "flags": {
+          "BACK_OFF": 0,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 0,
+          "NO_WAIT_OF_TICTOC": 1,
+          "WAL": 0
+        },
+        "reference_fitness_tps": 8487844.0,
+        "sources": [
+          {
+            "path": "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/runs/wal.jsonl",
+            "sha256": "50f772772fc5c2cd527338c54a43bd9b7b29dc4e2637f73df2cbecb05e0ea76d",
+            "key": "stage=commit/build_start"
+          },
+          {
+            "path": "orchestrator/campaign/genome.py",
+            "sha256": "8e8abd7f613af886b4b726b1e8f13870078c23c7d901f6b7ea003f56ad840b24",
+            "key": "SILO_SPACE fallback definition"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.read-heavy.p2_2_flag_opt"
+      }
+    },
+    "read-heavy:backoff_fixed_best": {
+      "workload": "read-heavy",
+      "configuration": "backoff_fixed_best",
+      "variant": {
+        "backoff_us": 2,
+        "flags": {
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "BACK_OFF": 1,
+          "BACKOFF_FIXED": 2
+        },
+        "reference_fitness_tps": 7889420.0,
+        "reference_points": {
+          "no_backoff": {
+            "flags": {
+              "BACKOFF_FIXED": -1,
+              "BACK_OFF": 0,
+              "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+              "NO_WAIT_OF_TICTOC": 0,
+              "WAL": 0
+            },
+            "reference_fitness_tps": 8450806.0
+          },
+          "stock_adaptive": {
+            "flags": {
+              "BACKOFF_FIXED": -1,
+              "BACK_OFF": 1,
+              "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+              "NO_WAIT_OF_TICTOC": 0,
+              "WAL": 0
+            },
+            "reference_fitness_tps": 1919103.0
+          }
+        },
+        "sources": [
+          {
+            "path": "output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/runs/wal.jsonl",
+            "sha256": "c74d5837a4facd071704a515f905d1d638463878850661cf217b96cd694774dc",
+            "key": "stage=commit/build_start"
+          },
+          {
+            "path": "orchestrator/campaign/backoff_sweep.py",
+            "sha256": "4e7fa96eef4a9051ebc4da5d69a71f98ba30b7e94d857403a4cc2901d473da89",
+            "key": "_BASE and SWEEP_US"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.read-heavy.backoff_fixed_best"
+      }
+    },
+    "read-heavy:sort_best": {
+      "workload": "read-heavy",
+      "configuration": "sort_best",
+      "variant": {
+        "name": "sk_ad",
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0,
+          "SORT_VARIANT": 1
+        },
+        "comparator": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });",
+        "note": "read-heavy は sweep 未実施。D52 §2.1 の事前固定 sk_ad を採用し、comparator は write-heavy 本走 provenance から流用。",
+        "sources": [
+          {
+            "path": "docs/phase3-main-experiment.md",
+            "sha256": "dab2569e51db8dbf80f3c9f634f59afe84445a76fa635cc27d325fe3faf4abc5",
+            "key": "D52 2026-07-12追記: read-heavy sk_ad事前固定"
+          },
+          {
+            "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json",
+            "sha256": "42aad55fd9fc57360ec3beff429ccebee1ba0f41288a10e52d12a71c547fcdc7",
+            "key": "entries.sk_ad.implementation"
+          },
+          {
+            "path": "orchestrator/campaign/s6_sort_sweep.py",
+            "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+            "key": "_genome(1) and candidate space"
+          },
+          {
+            "path": "orchestrator/campaign/p3_s4_loop_sort.py",
+            "sha256": "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+            "key": "_BASE used by _genome(1)"
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.read-heavy.sort_best"
+      }
+    },
+    "read-heavy:stock_common": {
+      "workload": "read-heavy",
+      "configuration": "stock_common",
+      "variant": {
+        "flags": {
+          "BACK_OFF": 1,
+          "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+          "NO_WAIT_OF_TICTOC": 0,
+          "WAL": 0
+        },
+        "sources": [
+          {
+            "path": "external/ccbench/cmake/Options.cmake",
+            "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+            "key": "four CACHE defaults and BACK_OFF universal mapping",
+            "lines": [
+              "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+              "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+              "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+              "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+              "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+            ]
+          },
+          {
+            "path": "external/ccbench/cc/silo/CMakeLists.txt",
+            "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+            "key": "silo target mappings for three protocol flags",
+            "lines": [
+              "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+              "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+              "10:     WAL=${CCBENCH_WAL}"
+            ]
+          }
+        ]
+      },
+      "source_pointer": {
+        "path": "output/s1-freeze/known_axes_freeze.json",
+        "key": "entries.read-heavy.stock_common"
+      }
+    }
+  },
+  "comparisons": [
+    {
+      "comparison_id": "S-1a:balanced:p2_2_flag_opt",
+      "family": "S-1a",
+      "workload": "balanced",
+      "left_cell": "balanced:system_gate",
+      "right_cell": "balanced:p2_2_flag_opt",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:balanced:backoff_fixed_best",
+      "family": "S-1a",
+      "workload": "balanced",
+      "left_cell": "balanced:system_gate",
+      "right_cell": "balanced:backoff_fixed_best",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:balanced:sort_best",
+      "family": "S-1a",
+      "workload": "balanced",
+      "left_cell": "balanced:system_gate",
+      "right_cell": "balanced:sort_best",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:write-heavy:p2_2_flag_opt",
+      "family": "S-1a",
+      "workload": "write-heavy",
+      "left_cell": "write-heavy:system_gate",
+      "right_cell": "write-heavy:p2_2_flag_opt",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:write-heavy:backoff_fixed_best",
+      "family": "S-1a",
+      "workload": "write-heavy",
+      "left_cell": "write-heavy:system_gate",
+      "right_cell": "write-heavy:backoff_fixed_best",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:write-heavy:sort_best",
+      "family": "S-1a",
+      "workload": "write-heavy",
+      "left_cell": "write-heavy:system_gate",
+      "right_cell": "write-heavy:sort_best",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:read-heavy:p2_2_flag_opt",
+      "family": "S-1a",
+      "workload": "read-heavy",
+      "left_cell": "read-heavy:system_gate",
+      "right_cell": "read-heavy:p2_2_flag_opt",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:read-heavy:backoff_fixed_best",
+      "family": "S-1a",
+      "workload": "read-heavy",
+      "left_cell": "read-heavy:system_gate",
+      "right_cell": "read-heavy:backoff_fixed_best",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1a:read-heavy:sort_best",
+      "family": "S-1a",
+      "workload": "read-heavy",
+      "left_cell": "read-heavy:system_gate",
+      "right_cell": "read-heavy:sort_best",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1b:balanced:gate_on_vs_gate_off",
+      "family": "S-1b",
+      "workload": "balanced",
+      "left_cell": "balanced:system_gate",
+      "right_cell": "balanced:ident_all",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1b:write-heavy:gate_on_vs_gate_off",
+      "family": "S-1b",
+      "workload": "write-heavy",
+      "left_cell": "write-heavy:system_gate",
+      "right_cell": "write-heavy:ident_all",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    },
+    {
+      "comparison_id": "S-1b:read-heavy:gate_on_vs_gate_off",
+      "family": "S-1b",
+      "workload": "read-heavy",
+      "left_cell": "read-heavy:system_gate",
+      "right_cell": "read-heavy:ident_all",
+      "alternative": "greater",
+      "note": "stock_common は併記用の文脈セルであり、検定比較対には含めない。"
+    }
+  ],
+  "s1b_pairing": [
+    {
+      "workload": "balanced",
+      "gate_on": "g_rl",
+      "gate_off": "ident_all",
+      "flags_identical": true
+    },
+    {
+      "workload": "write-heavy",
+      "gate_on": "g_rt",
+      "gate_off": "ident_all",
+      "flags_identical": true
+    },
+    {
+      "workload": "read-heavy",
+      "gate_on": "g_rl",
+      "gate_off": "ident_all",
+      "flags_identical": true
+    }
+  ],
+  "operating_point": {
+    "RECORDS": 1000000,
+    "THREADS": 48,
+    "EXTIME": 3,
+    "REPS": 5
+  },
+  "workload_flags": {
+    "balanced": {
+      "ycsb_rratio": "50"
+    },
+    "write-heavy": {
+      "ycsb_rratio": "5"
+    },
+    "read-heavy": {
+      "ycsb_rratio": "95"
+    }
+  },
+  "master_seed": 20260715,
+  "schedule": {
+    "floor": [
+      [
+        "balanced:sort_best",
+        "write-heavy:p2_2_flag_opt",
+        "balanced:system_gate",
+        "read-heavy:backoff_fixed_best",
+        "write-heavy:stock_common",
+        "balanced:stock_common",
+        "read-heavy:sort_best",
+        "balanced:p2_2_flag_opt",
+        "read-heavy:ident_all",
+        "write-heavy:ident_all",
+        "balanced:backoff_fixed_best",
+        "write-heavy:sort_best",
+        "balanced:ident_all",
+        "read-heavy:system_gate",
+        "read-heavy:p2_2_flag_opt",
+        "read-heavy:stock_common",
+        "write-heavy:backoff_fixed_best",
+        "write-heavy:system_gate"
+      ],
+      [
+        "read-heavy:stock_common",
+        "read-heavy:backoff_fixed_best",
+        "balanced:p2_2_flag_opt",
+        "balanced:sort_best",
+        "write-heavy:system_gate",
+        "write-heavy:sort_best",
+        "balanced:stock_common",
+        "read-heavy:sort_best",
+        "write-heavy:p2_2_flag_opt",
+        "write-heavy:ident_all",
+        "write-heavy:backoff_fixed_best",
+        "write-heavy:stock_common",
+        "read-heavy:p2_2_flag_opt",
+        "balanced:ident_all",
+        "balanced:system_gate",
+        "read-heavy:ident_all",
+        "read-heavy:system_gate",
+        "balanced:backoff_fixed_best"
+      ],
+      [
+        "write-heavy:system_gate",
+        "write-heavy:stock_common",
+        "read-heavy:stock_common",
+        "balanced:sort_best",
+        "write-heavy:ident_all",
+        "balanced:backoff_fixed_best",
+        "read-heavy:sort_best",
+        "read-heavy:backoff_fixed_best",
+        "balanced:stock_common",
+        "write-heavy:p2_2_flag_opt",
+        "write-heavy:backoff_fixed_best",
+        "write-heavy:sort_best",
+        "read-heavy:system_gate",
+        "read-heavy:ident_all",
+        "balanced:ident_all",
+        "read-heavy:p2_2_flag_opt",
+        "balanced:system_gate",
+        "balanced:p2_2_flag_opt"
+      ],
+      [
+        "write-heavy:system_gate",
+        "write-heavy:backoff_fixed_best",
+        "balanced:ident_all",
+        "read-heavy:stock_common",
+        "read-heavy:system_gate",
+        "read-heavy:backoff_fixed_best",
+        "balanced:backoff_fixed_best",
+        "write-heavy:stock_common",
+        "balanced:system_gate",
+        "balanced:p2_2_flag_opt",
+        "balanced:sort_best",
+        "read-heavy:ident_all",
+        "read-heavy:p2_2_flag_opt",
+        "balanced:stock_common",
+        "write-heavy:ident_all",
+        "write-heavy:sort_best",
+        "read-heavy:sort_best",
+        "write-heavy:p2_2_flag_opt"
+      ],
+      [
+        "read-heavy:sort_best",
+        "write-heavy:p2_2_flag_opt",
+        "write-heavy:sort_best",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:ident_all",
+        "balanced:stock_common",
+        "write-heavy:backoff_fixed_best",
+        "read-heavy:ident_all",
+        "balanced:ident_all",
+        "balanced:sort_best",
+        "read-heavy:backoff_fixed_best",
+        "write-heavy:system_gate",
+        "balanced:backoff_fixed_best",
+        "balanced:p2_2_flag_opt",
+        "balanced:system_gate",
+        "read-heavy:system_gate",
+        "write-heavy:stock_common",
+        "read-heavy:stock_common"
+      ],
+      [
+        "balanced:stock_common",
+        "balanced:ident_all",
+        "balanced:p2_2_flag_opt",
+        "read-heavy:ident_all",
+        "read-heavy:backoff_fixed_best",
+        "write-heavy:backoff_fixed_best",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:stock_common",
+        "read-heavy:system_gate",
+        "write-heavy:sort_best",
+        "write-heavy:system_gate",
+        "balanced:sort_best",
+        "balanced:backoff_fixed_best",
+        "balanced:system_gate",
+        "write-heavy:p2_2_flag_opt",
+        "read-heavy:stock_common",
+        "read-heavy:sort_best",
+        "write-heavy:ident_all"
+      ],
+      [
+        "balanced:system_gate",
+        "read-heavy:sort_best",
+        "write-heavy:ident_all",
+        "read-heavy:backoff_fixed_best",
+        "balanced:p2_2_flag_opt",
+        "write-heavy:stock_common",
+        "read-heavy:stock_common",
+        "write-heavy:backoff_fixed_best",
+        "write-heavy:sort_best",
+        "write-heavy:system_gate",
+        "read-heavy:ident_all",
+        "read-heavy:p2_2_flag_opt",
+        "balanced:ident_all",
+        "balanced:backoff_fixed_best",
+        "read-heavy:system_gate",
+        "write-heavy:p2_2_flag_opt",
+        "balanced:sort_best",
+        "balanced:stock_common"
+      ],
+      [
+        "balanced:sort_best",
+        "balanced:backoff_fixed_best",
+        "write-heavy:backoff_fixed_best",
+        "balanced:stock_common",
+        "read-heavy:p2_2_flag_opt",
+        "read-heavy:sort_best",
+        "balanced:p2_2_flag_opt",
+        "write-heavy:ident_all",
+        "write-heavy:system_gate",
+        "balanced:ident_all",
+        "read-heavy:system_gate",
+        "balanced:system_gate",
+        "read-heavy:stock_common",
+        "write-heavy:sort_best",
+        "write-heavy:p2_2_flag_opt",
+        "write-heavy:stock_common",
+        "read-heavy:ident_all",
+        "read-heavy:backoff_fixed_best"
+      ]
+    ],
+    "test_block_1": [
+      [
+        "read-heavy:system_gate",
+        "balanced:p2_2_flag_opt",
+        "balanced:backoff_fixed_best",
+        "write-heavy:system_gate",
+        "read-heavy:sort_best",
+        "read-heavy:ident_all",
+        "read-heavy:stock_common",
+        "balanced:system_gate",
+        "balanced:ident_all",
+        "write-heavy:p2_2_flag_opt",
+        "read-heavy:backoff_fixed_best",
+        "balanced:stock_common",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:ident_all",
+        "write-heavy:sort_best",
+        "balanced:sort_best",
+        "write-heavy:stock_common",
+        "write-heavy:backoff_fixed_best"
+      ],
+      [
+        "balanced:stock_common",
+        "write-heavy:p2_2_flag_opt",
+        "read-heavy:sort_best",
+        "write-heavy:ident_all",
+        "balanced:system_gate",
+        "read-heavy:backoff_fixed_best",
+        "read-heavy:ident_all",
+        "balanced:backoff_fixed_best",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:stock_common",
+        "write-heavy:backoff_fixed_best",
+        "balanced:p2_2_flag_opt",
+        "balanced:sort_best",
+        "write-heavy:system_gate",
+        "write-heavy:sort_best",
+        "read-heavy:system_gate",
+        "balanced:ident_all",
+        "read-heavy:stock_common"
+      ],
+      [
+        "read-heavy:system_gate",
+        "balanced:system_gate",
+        "read-heavy:stock_common",
+        "balanced:stock_common",
+        "balanced:p2_2_flag_opt",
+        "balanced:backoff_fixed_best",
+        "balanced:ident_all",
+        "read-heavy:ident_all",
+        "write-heavy:backoff_fixed_best",
+        "write-heavy:sort_best",
+        "write-heavy:system_gate",
+        "read-heavy:p2_2_flag_opt",
+        "read-heavy:backoff_fixed_best",
+        "balanced:sort_best",
+        "read-heavy:sort_best",
+        "write-heavy:p2_2_flag_opt",
+        "write-heavy:stock_common",
+        "write-heavy:ident_all"
+      ],
+      [
+        "read-heavy:sort_best",
+        "write-heavy:stock_common",
+        "balanced:backoff_fixed_best",
+        "write-heavy:backoff_fixed_best",
+        "write-heavy:system_gate",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:sort_best",
+        "read-heavy:ident_all",
+        "balanced:stock_common",
+        "balanced:p2_2_flag_opt",
+        "balanced:sort_best",
+        "balanced:ident_all",
+        "write-heavy:ident_all",
+        "write-heavy:p2_2_flag_opt",
+        "read-heavy:system_gate",
+        "balanced:system_gate",
+        "read-heavy:stock_common",
+        "read-heavy:backoff_fixed_best"
+      ]
+    ],
+    "test_block_2": [
+      [
+        "write-heavy:backoff_fixed_best",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:stock_common",
+        "balanced:backoff_fixed_best",
+        "balanced:sort_best",
+        "read-heavy:system_gate",
+        "balanced:p2_2_flag_opt",
+        "write-heavy:p2_2_flag_opt",
+        "write-heavy:ident_all",
+        "read-heavy:sort_best",
+        "write-heavy:sort_best",
+        "read-heavy:stock_common",
+        "balanced:system_gate",
+        "read-heavy:backoff_fixed_best",
+        "balanced:ident_all",
+        "write-heavy:system_gate",
+        "balanced:stock_common",
+        "read-heavy:ident_all"
+      ],
+      [
+        "read-heavy:backoff_fixed_best",
+        "read-heavy:stock_common",
+        "write-heavy:system_gate",
+        "read-heavy:system_gate",
+        "balanced:system_gate",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:p2_2_flag_opt",
+        "balanced:p2_2_flag_opt",
+        "balanced:stock_common",
+        "balanced:sort_best",
+        "write-heavy:sort_best",
+        "balanced:backoff_fixed_best",
+        "write-heavy:ident_all",
+        "write-heavy:backoff_fixed_best",
+        "balanced:ident_all",
+        "read-heavy:ident_all",
+        "write-heavy:stock_common",
+        "read-heavy:sort_best"
+      ],
+      [
+        "read-heavy:backoff_fixed_best",
+        "write-heavy:sort_best",
+        "write-heavy:backoff_fixed_best",
+        "balanced:system_gate",
+        "write-heavy:stock_common",
+        "read-heavy:system_gate",
+        "write-heavy:p2_2_flag_opt",
+        "balanced:stock_common",
+        "read-heavy:p2_2_flag_opt",
+        "write-heavy:ident_all",
+        "balanced:backoff_fixed_best",
+        "balanced:p2_2_flag_opt",
+        "read-heavy:ident_all",
+        "read-heavy:sort_best",
+        "write-heavy:system_gate",
+        "read-heavy:stock_common",
+        "balanced:sort_best",
+        "balanced:ident_all"
+      ],
+      [
+        "read-heavy:sort_best",
+        "read-heavy:ident_all",
+        "balanced:backoff_fixed_best",
+        "write-heavy:system_gate",
+        "balanced:stock_common",
+        "read-heavy:backoff_fixed_best",
+        "balanced:p2_2_flag_opt",
+        "write-heavy:stock_common",
+        "balanced:sort_best",
+        "balanced:system_gate",
+        "read-heavy:p2_2_flag_opt",
+        "read-heavy:stock_common",
+        "write-heavy:sort_best",
+        "write-heavy:p2_2_flag_opt",
+        "write-heavy:backoff_fixed_best",
+        "read-heavy:system_gate",
+        "balanced:ident_all",
+        "write-heavy:ident_all"
+      ]
+    ]
+  },
+  "schedule_hash": "b76333da5db1945908641679773bf7ef307ac2dc2bb3462a171b15be235ae150",
+  "implementation_hashes": {
+    "s1_stats": {
+      "path": "orchestrator/campaign/s1_stats.py",
+      "sha256": "d1aef1c819f153b398672767c067b85b2685d046a7eb5ab96a9977d57b160491",
+      "key": "S-1 層別統計実装"
+    },
+    "s1_measurement_freeze": {
+      "path": "orchestrator/campaign/s1_measurement_freeze.py",
+      "sha256": "a7c41a8175b2edeef9e6bb7b8ad4b36991668d709e6d1f5604cd80a81287d0fa",
+      "key": "S-1 計測 freeze generator"
+    },
+    "known_axes_freeze": {
+      "path": "output/s1-freeze/known_axes_freeze.json",
+      "sha256": "7a7458df4ee4350ff500f7b47662fe74ae8e3d0936430c1dda8c3a8fcb012f3e",
+      "key": "S-1 既知軸基準点 freeze"
+    }
+  }
+}
