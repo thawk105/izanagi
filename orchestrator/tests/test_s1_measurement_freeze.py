@@ -175,6 +175,11 @@ def test_generate_builds_registered_cells_comparisons_and_schedule(freeze_env):
     assert doc["operating_point"] == {
         "RECORDS": 1_000_000, "THREADS": 48, "EXTIME": 3, "REPS": 5,
     }
+    assert doc["workload_flags"] == {
+        "balanced": {"ycsb_rratio": "50"},
+        "write-heavy": {"ycsb_rratio": "5"},
+        "read-heavy": {"ycsb_rratio": "95"},
+    }
 
 
 def test_generate_refuses_existing_freeze(tmp_path, freeze_env):
@@ -193,6 +198,19 @@ def test_verify_rejects_one_byte_freeze_tamper(tmp_path, freeze_env):
     assert len(tampered) == len(original)
     path.write_bytes(tampered)
     with pytest.raises(M.FreezeError):
+        _verify(path, freeze_env)
+
+
+def test_verify_rejects_one_byte_workload_flag_tamper(tmp_path, freeze_env):
+    path = tmp_path / "measurement_freeze.json"
+    _generate(path, freeze_env)
+    original = path.read_bytes()
+    tampered = original.replace(b'"ycsb_rratio": "50"',
+                                b'"ycsb_rratio": "51"', 1)
+    assert tampered != original
+    assert len(tampered) == len(original)
+    path.write_bytes(tampered)
+    with pytest.raises(M.FreezeError, match="workload_flags"):
         _verify(path, freeze_env)
 
 

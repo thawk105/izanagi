@@ -567,3 +567,56 @@ commit は親の責務とし、本作業では行っていない。
 1. 親は B1 freeze を生成・commit した後、4 role を各 `--dry-run` で照合し、gate (2)〜(5) を統合監査する
 2. 実走は計測機ホストで develop → floor → block1 → 時間分離 → block2 の別プロセス順に行う
 3. commit / push は親・人間の判断に委ねる
+
+## 2026-07-15 (18) — S-1 report 生成 + 判定純関数 (B2b)
+
+計測開始 gate (3) の判定系として、B1 freeze、B2a の4 campaign WAL/session ledger/時間台帳、
+A の層別統計を束ねる JSON + Markdown report generator を追加した。freeze 実体生成、実計測、
+commit は行っていない。
+
+- B1 `verify`、B2a `read_session_ledger` / schedule validator / layout / budget reader、A の
+  `stratified_test` / `p_star` / `family_p` / `EffectSizes` を再利用。session-start から次の start
+  までの WAL 区間内にある一意な COMMIT と build_start.src_token だけを標本へ束縛し、孤立
+  bench/COMMIT と空 verify_configs を拒否する certified consumer を実体化した。
+- left=system_gate / alternative=greater / target=left の対応を `bind_left_target` 1 箇所へ集約。
+  floor campaign 8 本だけの CV から `max(cv_left, cv_right, 0.03)`、block 4+4 の層別検定、
+  gate 連言、三値判定、S-1a/S-1b family p の参考判定を生成する。Holm 族4全体は裁定しない。
+- hard gate 失敗時も report 自体は生成し、freeze/schedule/certified/sample n/budget の理由を構造化。
+  unstable は除外せず、効果量、block 効果、retry 一覧、時間台帳要約を開示する。Markdown には
+  「独立な検証相を持たない — ブロック化した単一登録追試 + gate 連言」の読み替えを明記した。
+- 専用 pytest 10 passed、B1/B2a/A 関連 35 passed。orchestrator 全体の未選別実行は 620 passed /
+  10 skipped / 2 failed (固定 Codex runtime 不在 1、sandbox が submodule revert を拒否 1)。
+  既知2件を明示 deselect した再実行は 620 passed / 10 skipped / 2 deselected。
+  `check_codex_agents.py` / `check_docs.py` / diff whitespace 検査は pass。
+- 後者の既知失敗により `external/ccbench` へ template patch 2 ファイルの残骸が残った。sandbox は
+  `.git/modules` を read-only として正規 revert を拒否するため、本セッションは external を
+  追加編集せず停止し、親が sandbox 外の正規経路で HEAD 同一へ復旧する。
+
+### 次の一手
+1. 親は external test 残骸を復旧し、B2b の統合監査後に B1/A/B2a と同じ provenance で commit する
+2. measurement freeze 生成・commit と gate (2)〜(5) の統合確認が終わるまで S-1 実走は禁止
+3. push は人間の判断に委ねる
+
+## 2026-07-15 (19) — S-1 driver 監査 finding 3 件 + workload rratio freeze 移管 (B2a-fix)
+
+B2a 敵対監査の real 3 件と親の統合裁定 1 件を、B1 measurement freeze・B2a driver・
+専用 positive control へ最小差分で反映した。freeze 実体生成、実計測、commit は行っていない。
+
+- D50 系の既存 driver と一致する balanced=rr50 / write-heavy=rr5 / read-heavy=rr95 を
+  measurement freeze の必須 `workload_flags` へ移し、driver の旧ハードコードを削除した。
+  1 byte 改竄拒否、freeze 値の伝播、旧 schema 拒否を固定した。
+- session 起動 preflight を extime 下限から、性能 15 分 / develop 20 分の保守 wall 上界へ変更した。
+  下限は満たすが上界未満の残額で evaluate に到達しない回帰を追加した。
+- prepare と evaluate を同じ最大 2 retry 単位へ統合した。一時 OS/subprocess 故障は retry し、
+  freeze/gate/quarantine の `DriverError` は従来どおり即 abort。prepare 2 失敗→3 回目成功の
+  ledger・予算 retry 記録と、契約違反の retry なしを固定した。
+- `trace-timeout` を retryable に追加し、同じ reason でも `verify` payload 付きの verifier red は
+  retry されない負例を追加した。
+- 指定 pytest 24 passed、S-1 関連 59 passed。orchestrator 全体は 627 passed / 11 skipped /
+  1 failed (既知の Codex runtime prerequisites 不在 gate のみ)。`check_codex_agents.py` /
+  `check_docs.py` / `git diff --check` は pass。既存の external 2 ファイル残骸には触れていない。
+
+### 次の一手
+1. 親は external 残骸を正規経路で復旧し、B2a-fix と B2b の統合差分を監査する
+2. measurement freeze を生成・commit 後、4 role の `--dry-run` と gate (2)〜(5) を統合確認する
+3. commit / push は親・人間の判断に委ねる

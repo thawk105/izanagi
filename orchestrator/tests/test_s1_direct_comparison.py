@@ -39,6 +39,11 @@ def _freeze() -> dict:
         "schedule_hash": "a" * 64,
         "operating_point": {"RECORDS": 1_000_000, "THREADS": 48,
                             "EXTIME": 3, "REPS": 5},
+        "workload_flags": {
+            "balanced": {"ycsb_rratio": "50"},
+            "write-heavy": {"ycsb_rratio": "5"},
+            "read-heavy": {"ycsb_rratio": "95"},
+        },
         "cells": cells,
         "schedule": {
             "floor": [order[:] for _ in range(8)],
@@ -139,6 +144,22 @@ def test_budget_shortage_does_not_start_session(tmp_path):
     assert any(e.get("event") == "budget-refused" for e in S.read_session_ledger(layout))
 
 
+def test_budget_preflight_uses_conservative_upper_bound(tmp_path):
+    budget_path = tmp_path / "time_ledger.json"
+    # 性能実行の下限15秒は残るが、保守上界15分には足りない通常枠残額。
+    S.append_budget_entry(
+        budget_path, role="floor", started_iso="2026-07-15T00:00:00+00:00",
+        wall_s=35_900.0, phase="floor", note="existing non-retry work")
+    calls = []
+    rc = S.run_role(
+        "floor", freeze_path=_write_freeze(tmp_path), budget_path=budget_path,
+        output_root=str(tmp_path / "out"), verify_document=lambda doc: None,
+        evaluate_fn=lambda *a, **k: calls.append(1), prepare_cell_fn=_prepared,
+        single_tenant_fn=lambda: None, monotonic=_Clock(), log=lambda msg: None)
+    assert rc == S.EXIT_BUDGET
+    assert calls == []
+
+
 def test_retry_limit_abandons_session_and_continues(tmp_path):
     calls = []
 
@@ -160,6 +181,68 @@ def test_retry_limit_abandons_session_and_continues(tmp_path):
                for e in events)
 
 
+def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
+    prepare_calls = []
+    evaluate_calls = []
+
+    @contextlib.contextmanager
+    def flaky_prepare(cell, pin):
+        prepare_calls.append(1)
+        if len(prepare_calls) <= 2:
+            raise OSError("temporary checkout failure")
+        yield S.PreparedCell(
+            Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache")
+
+    def evaluate(genome, *args, **kwargs):
+        evaluate_calls.append(1)
+        return _green(genome)
+
+    rc = S.run_role(
+        "develop", freeze_path=_write_freeze(tmp_path),
+        budget_path=tmp_path / "time_ledger.json", output_root=str(tmp_path / "out"),
+        verify_document=lambda doc: None, evaluate_fn=evaluate,
+        prepare_cell_fn=flaky_prepare, single_tenant_fn=lambda: None,
+        monotonic=_Clock(), log=lambda msg: None)
+    assert rc == S.EXIT_OK
+    assert len(prepare_calls) == 20
+    assert len(evaluate_calls) == 18
+    layout = S.layout_for(_freeze(), "develop", output_root=str(tmp_path / "out"))
+    events = S.read_session_ledger(layout)
+    assert S.validate_session_ledger(layout, S.schedule_for_role(_freeze(), "develop")) == 18
+    first_starts = [e for e in events if e.get("event") == "session-start"
+                    and e.get("schedule_index") == 0]
+    assert [e["attempt"] for e in first_starts] == [0, 1, 2]
+    assert len([e for e in events if e.get("event") == "retry"
+                and e.get("retry_of") == 0]) == 2
+    budget = S.read_budget(tmp_path / "time_ledger.json")
+    assert len([e for e in budget["entries"]
+                if e["note"].startswith("machine-failure-retry:")]) == 2
+
+
+def test_prepare_freeze_contract_error_aborts_without_retry(tmp_path):
+    prepare_calls = []
+    evaluate_calls = []
+
+    @contextlib.contextmanager
+    def invalid_prepare(cell, pin):
+        prepare_calls.append(1)
+        raise S.DriverError("freeze gate_predicate が構文契約違反")
+        yield  # pragma: no cover
+
+    with pytest.raises(S.DriverError, match="構文契約違反"):
+        S.run_role(
+            "develop", freeze_path=_write_freeze(tmp_path),
+            budget_path=tmp_path / "time_ledger.json",
+            output_root=str(tmp_path / "out"), verify_document=lambda doc: None,
+            evaluate_fn=lambda *a, **k: evaluate_calls.append(1),
+            prepare_cell_fn=invalid_prepare, single_tenant_fn=lambda: None,
+            monotonic=_Clock(), log=lambda msg: None)
+    assert prepare_calls == [1]
+    assert evaluate_calls == []
+    layout = S.layout_for(_freeze(), "develop", output_root=str(tmp_path / "out"))
+    assert not any(e.get("event") == "retry" for e in S.read_session_ledger(layout))
+
+
 def test_verifier_red_stops_without_retry(tmp_path):
     calls = []
 
@@ -174,6 +257,68 @@ def test_verifier_red_stops_without_retry(tmp_path):
     document = _freeze()
     layout = S.layout_for(document, "floor", output_root=str(tmp_path / "out"))
     assert not any(e.get("event") == "retry" for e in S.read_session_ledger(layout))
+
+
+def test_trace_timeout_retries_but_verify_payload_does_not(tmp_path):
+    timeout_calls = []
+
+    def timeout_then_green(genome, layout, *args, **kwargs):
+        timeout_calls.append(1)
+        variant = pipeline.variant_id(genome)
+        if len(timeout_calls) == 1:
+            wal.log(layout, variant, "abort", S.ENV_TAG, {"reason": "trace-timeout"})
+            return EvalResult(genome=genome, variant=variant,
+                              certified=False, aborted=True)
+        return _green(genome)
+
+    assert _run(tmp_path, "develop", timeout_then_green) == S.EXIT_OK
+    assert len(timeout_calls) == 19
+
+    red_root = tmp_path / "red"
+    red_root.mkdir()
+    red_calls = []
+
+    def verifier_red(genome, layout, *args, **kwargs):
+        red_calls.append(1)
+        variant = pipeline.variant_id(genome)
+        wal.log(layout, variant, "abort", S.ENV_TAG,
+                {"reason": "trace-timeout", "verify": {"verdict": "red"}})
+        return EvalResult(genome=genome, variant=variant,
+                          certified=False, aborted=True)
+
+    assert _run(red_root, "develop", verifier_red) == S.EXIT_VERIFIER_RED
+    assert red_calls == [1]
+
+
+def test_driver_uses_workload_flags_from_freeze(tmp_path):
+    document = _freeze()
+    document["workload_flags"]["balanced"]["ycsb_rratio"] = "42"
+    captured = []
+
+    def evaluate(genome, layout, env, pin, perf, clocks, **kwargs):
+        captured.append(dict(perf.workload))
+        return _green(genome)
+
+    rc = S.run_role(
+        "develop", freeze_path=_write_freeze(tmp_path, document),
+        budget_path=tmp_path / "time_ledger.json", output_root=str(tmp_path / "out"),
+        verify_document=lambda doc: None, evaluate_fn=evaluate,
+        prepare_cell_fn=_prepared, single_tenant_fn=lambda: None,
+        monotonic=_Clock(), log=lambda msg: None)
+    assert rc == S.EXIT_OK
+    assert [flags["ycsb_rratio"] for flags in captured[:6]] == ["42"] * 6
+
+
+def test_driver_refuses_freeze_without_workload_flags(tmp_path):
+    document = _freeze()
+    del document["workload_flags"]
+    with pytest.raises(S.DriverError, match="workload_flags"):
+        S.run_role(
+            "develop", freeze_path=_write_freeze(tmp_path, document),
+            budget_path=tmp_path / "time_ledger.json",
+            output_root=str(tmp_path / "out"), verify_document=lambda doc: None,
+            evaluate_fn=_green, prepare_cell_fn=_prepared,
+            single_tenant_fn=lambda: None, monotonic=_Clock(), log=lambda msg: None)
 
 
 def test_verifier_red_in_one_campaign_blocks_other_campaign(tmp_path):

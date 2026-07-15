@@ -47,11 +47,18 @@ CAMPAIGN_ROUNDS = {"floor": 8, "test_block_1": 4, "test_block_2": 4}
 # seed 自体に意味を持たせず、commit された定数で実行順を凍結する。
 MASTER_SEED = 20260715
 OPERATING_POINT = {"RECORDS": 1_000_000, "THREADS": 48, "EXTIME": 3, "REPS": 5}
+# D50 系の確立した workload 座標。p2_2 / s8a_trigger_sweep / backoff_sweep と同じ
+# balanced=rr50, write-heavy=rr5, read-heavy=rr95 を比較点の自由度ごと凍結する。
+WORKLOAD_FLAGS = {
+    "balanced": {"ycsb_rratio": "50"},
+    "write-heavy": {"ycsb_rratio": "5"},
+    "read-heavy": {"ycsb_rratio": "95"},
+}
 
 TOP_LEVEL_KEYS = {
     "what", "frozen_at_head", "ccbench_pin", "generator", "python_version",
-    "cells", "comparisons", "s1b_pairing", "operating_point", "master_seed",
-    "schedule", "schedule_hash", "implementation_hashes",
+    "cells", "comparisons", "s1b_pairing", "operating_point", "workload_flags",
+    "master_seed", "schedule", "schedule_hash", "implementation_hashes",
 }
 IMPLEMENTATION_KEYS = {
     "s1_stats", "s1_measurement_freeze", "known_axes_freeze",
@@ -262,6 +269,7 @@ def build_document(
         "comparisons": _build_comparisons(),
         "s1b_pairing": copy.deepcopy(known_doc.get("s1b_pairing")),
         "operating_point": copy.deepcopy(OPERATING_POINT),
+        "workload_flags": copy.deepcopy(WORKLOAD_FLAGS),
         "master_seed": master_seed,
         "schedule": schedule,
         "schedule_hash": _canonical_sha256(schedule),
@@ -349,6 +357,8 @@ def _validate_schema(doc: Mapping) -> None:
 
     if doc.get("operating_point") != OPERATING_POINT:
         raise FreezeError("operating_point が事前登録値と不一致")
+    if doc.get("workload_flags") != WORKLOAD_FLAGS:
+        raise FreezeError("workload_flags が事前固定値と不一致")
     master_seed = doc.get("master_seed")
     if isinstance(master_seed, bool) or not isinstance(master_seed, int):
         raise FreezeError("master_seed が整数でない")

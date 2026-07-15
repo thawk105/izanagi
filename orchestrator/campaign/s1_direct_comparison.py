@@ -13,6 +13,7 @@ import datetime as dt
 import json
 import math
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -42,6 +43,12 @@ SESSION_STAGE = "s1-session"
 FREEZE_REL = "output/s1-freeze/measurement_freeze.json"
 BUDGET_REL = "output/s1-budget/time_ledger.json"
 
+# 性能 session: trace/perf build 数分 + legacy trace run 最大120秒
+# (pipeline.TRACE_TIMEOUT_S) + verifier + bench 15秒 + settle を保守側へ丸める。
+SESSION_WALL_UPPER_BOUND_S = 15 * 60.0
+# develop は bench 無しだが legacy と S2 の2 verifyを通すため、別の大きい上界を置く。
+DEVELOP_SESSION_WALL_UPPER_BOUND_S = 20 * 60.0
+
 ROLE_TO_FREEZE = {
     "floor": "floor",
     "block1": "test_block_1",
@@ -52,14 +59,6 @@ ROLE_TO_PHASE = {
     "floor": "floor",
     "block1": "block1",
     "block2": "block2",
-}
-
-# workload 名は freeze cell が固定する。数値座標は Phase 2 以来の同名 workload の定義で、
-# 未知名を既定へ丸めず拒否する。records は PerfConfig.records の専権なので含めない。
-WORKLOAD_FLAGS = {
-    "balanced": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
-    "write-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
-    "read-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
 }
 
 EXIT_OK = 0
@@ -78,7 +77,7 @@ class ScheduleDeviation(DriverError):
 
 
 class BudgetExhausted(DriverError):
-    """通常枠または retry 専用枠が次の session の下限時間に満たない。"""
+    """通常枠または retry 専用枠が次の session の保守上界に満たない。"""
 
 
 @dataclass(frozen=True)
@@ -134,6 +133,30 @@ def _operating_point(document: Mapping) -> Dict[str, int]:
     if actual != expected:
         raise DriverError(f"freeze operating_point が事前登録値と不一致: {actual!r}")
     return expected
+
+
+def _workload_flags(document: Mapping) -> Dict[str, Dict[str, str]]:
+    """freeze の workload→rratio 対応を読み、旧 schema や暗黙の既定を拒否する。"""
+    actual = document.get("workload_flags")
+    expected_workloads = {"balanced", "write-heavy", "read-heavy"}
+    if not isinstance(actual, dict) or set(actual) != expected_workloads:
+        raise DriverError("freeze workload_flags が3 workload object でない")
+    out: Dict[str, Dict[str, str]] = {}
+    for workload in sorted(expected_workloads):
+        flags = actual.get(workload)
+        if not isinstance(flags, dict) or set(flags) != {"ycsb_rratio"}:
+            raise DriverError(f"freeze workload_flags.{workload} schema が不一致")
+        rratio = flags.get("ycsb_rratio")
+        if (not isinstance(rratio, str) or not rratio.isdigit()
+                or not 0 <= int(rratio) <= 100):
+            raise DriverError(
+                f"freeze workload_flags.{workload}.ycsb_rratio が0..100の文字列でない")
+        # skew/rmw は全 workload 共通の固定動作点。比較の意味を決める rratio 対応だけを
+        # freeze から逐語使用し、records は PerfConfig.records の専権なので含めない。
+        out[workload] = {
+            "ycsb_zipf_skew": "0.9", "ycsb_rratio": rratio, "ycsb_rmw": "0",
+        }
+    return out
 
 
 def _display_cell_id(cell: Mapping) -> str:
@@ -418,7 +441,7 @@ def _has_global_verifier_red(path: Path) -> bool:
                for entry in read_budget(path)["entries"])
 
 
-def assert_budget_available(path: Path, minimum_s: float, *, retry: bool) -> None:
+def assert_budget_available(path: Path, required_s: float, *, retry: bool) -> None:
     document = read_budget(path)
     spent = float(document["spent_s"])
     retry_spent = _retry_spent(document)
@@ -426,19 +449,17 @@ def assert_budget_available(path: Path, minimum_s: float, *, retry: bool) -> Non
     total_remaining = TOTAL_BUDGET_S - spent
     lane_remaining = ((RETRY_RESERVE_S - retry_spent) if retry
                       else ((TOTAL_BUDGET_S - RETRY_RESERVE_S) - regular_spent))
-    if min(total_remaining, lane_remaining) + 1e-9 < minimum_s:
+    if min(total_remaining, lane_remaining) + 1e-9 < required_s:
         lane = "retry専用2h枠" if retry else "通常10h枠"
         raise BudgetExhausted(
-            f"{lane}の残りが session 最小実行時間に不足: "
-            f"remaining={min(total_remaining, lane_remaining):.3f}s minimum={minimum_s:.3f}s")
+            f"{lane}の残りが session 保守上界に不足: "
+            f"remaining={min(total_remaining, lane_remaining):.3f}s "
+            f"required={required_s:.3f}s")
 
 
-def _minimum_session_s(role: str, perf: PerfConfig) -> float:
-    # 外部 overhead を楽観視せず、少なくとも実行が必ず占有する extime 合計を下限にする。
-    if role == "develop":
-        return float(int(pipeline.CorrectnessWorkload().flags["extime"]) +
-                     int(pipeline.s2_correctness_workload().flags["extime"]))
-    return float(perf.extime * perf.reps)
+def _session_wall_upper_bound_s(role: str) -> float:
+    return (DEVELOP_SESSION_WALL_UPPER_BOUND_S
+            if role == "develop" else SESSION_WALL_UPPER_BOUND_S)
 
 
 @contextlib.contextmanager
@@ -521,10 +542,22 @@ def _result_classification(result: EvalResult, layout: CampaignLayout) -> tuple[
     reason = str(payload.get("reason") or getattr(result, "abort_reason", "") or "abort")
     if payload.get("verify") is not None or (result.verdict and result.verdict != "serializable"):
         return "verifier-red", reason
-    if reason in {"build-error", "trace-run-nonzero-exit",
+    if reason in {"build-error", "trace-run-nonzero-exit", "trace-timeout",
                   "bench-no-throughput", "bench-cv-undefined"}:
         return "retryable", reason
     return "abandoned", reason
+
+
+def _is_transient_prepare_failure(exc: BaseException) -> bool:
+    """prepare のうち OS/subprocess の一時故障だけを閉じた retry 対象にする。"""
+    current: Optional[BaseException] = exc
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, (OSError, subprocess.SubprocessError)):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def _attempts_for(events: Sequence[Mapping], index: int) -> int:
@@ -554,6 +587,7 @@ def run_role(
     process_started = monotonic()
     document = load_verified_freeze(freeze_path, verify_document=verify_document)
     point = _operating_point(document)
+    workload_flags = _workload_flags(document)
     schedule = schedule_for_role(document, role)
     cfg = config_for(document, role)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
@@ -596,7 +630,7 @@ def run_role(
                                "ts": _iso_now()})
 
     perf_by_workload: Dict[str, PerfConfig] = {}
-    for workload, flags in WORKLOAD_FLAGS.items():
+    for workload, flags in workload_flags.items():
         perf_by_workload[workload] = PerfConfig(
             records=point["RECORDS"], threads=point["THREADS"],
             workload=dict(flags), extime=point["EXTIME"], reps=point["REPS"])
@@ -639,9 +673,9 @@ def run_role(
                     })
 
             retry = attempt > 0
-            minimum_s = _minimum_session_s(role, perf)
+            required_s = _session_wall_upper_bound_s(role)
             try:
-                assert_budget_available(budget_path, minimum_s, retry=retry)
+                assert_budget_available(budget_path, required_s, retry=retry)
             except BudgetExhausted as exc:
                 _append_event(layout, {
                     "event": "budget-refused", "schedule_index": index,
@@ -656,11 +690,14 @@ def run_role(
 
             started_iso = _iso_now()
             attempt_started = monotonic()
-            with prepare_cell_fn(item.cell, cfg.ccbench_commit) as prepared:
-                # variant_id は evaluate 直前に確定し、session-start を必ず先行耐久化する。
-                variant = pipeline.variant_id(prepared.genome, prepared.src_token)
-                _append_event(layout, _base_event(item, variant, attempt))
-                try:
+            variant = f"prepare-failure-{index}-{attempt}"
+            session_started = False
+            try:
+                with prepare_cell_fn(item.cell, cfg.ccbench_commit) as prepared:
+                    # variant_id は evaluate 直前に確定し、session-start を必ず先行耐久化する。
+                    variant = pipeline.variant_id(prepared.genome, prepared.src_token)
+                    _append_event(layout, _base_event(item, variant, attempt))
+                    session_started = True
                     kwargs = dict(
                         numactl=NUMACTL,
                         correctness=None,
@@ -672,13 +709,24 @@ def run_role(
                         ccbench_dir=prepared.ccbench_dir, cache_root=prepared.cache_root,
                         screening=None, bench_max_rounds=1,
                     )
-                    result = evaluate_fn(
-                        prepared.genome, layout, ENV_TAG, cfg.ccbench_commit, perf,
-                        CLOCKS_PER_US, **kwargs)
-                except Exception as exc:  # evaluate の例外は閉じた retry 対象 (a)。
-                    status, reason = "retryable", f"{type(exc).__name__}: {exc}"
-                else:
-                    status, reason = _result_classification(result, layout)
+                    try:
+                        result = evaluate_fn(
+                            prepared.genome, layout, ENV_TAG, cfg.ccbench_commit, perf,
+                            CLOCKS_PER_US, **kwargs)
+                    except Exception as exc:  # evaluate の例外は閉じた retry 対象 (a)。
+                        status, reason = "retryable", f"{type(exc).__name__}: {exc}"
+                    else:
+                        status, reason = _result_classification(result, layout)
+            except DriverError:
+                # freeze 値・gate predicate・quarantine の契約違反は機械故障でない。
+                raise
+            except Exception as exc:
+                if session_started or not _is_transient_prepare_failure(exc):
+                    # evaluate 後の cleanup 失敗は COMMIT の重複を避けるため再試行しない。
+                    raise
+                # prepare 未到達 attempt も start/result を対にし、再開照合で欠落させない。
+                _append_event(layout, _base_event(item, variant, attempt))
+                status, reason = "retryable", f"prepare {type(exc).__name__}: {exc}"
 
             wall_s = monotonic() - attempt_started
             process_attempt_wall += wall_s
