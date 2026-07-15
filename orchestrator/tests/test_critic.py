@@ -15,13 +15,14 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import wal                                          # noqa: E402
+from campaign import pipeline, wal                                # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
 from critic.digest import (STOCK_SRC_TOKEN, LivenessRejection,    # noqa: E402
                            build_digest, load_liveness_rejections,
-                           load_rejections, load_verify_abort_signals,
+                           load_rejections, load_screen_rejections,
+                           load_verify_abort_signals,
                            render_rejections, render_text)
 
 
@@ -188,6 +189,53 @@ def test_load_liveness_rejections_surfaces_reason_and_extra():
     lte = next(l for l in lrs if l.reason == "trace-empty")
     assert lte.extra.get("commits") == 0 and lte.extra.get("aborts") == 4321
     assert other == {"build-error": 1, "eval-exception": 1}
+
+
+def test_screen_rejection_loader_is_disjoint_and_render_hides_uncertified_metrics():
+    """screen reject は専用 loader だけが拾い、未認証性能値は render へ渡さない。
+
+    否定 assert の恒真化を防ぐため、同じ WAL の payload["screen"] に 12345 が
+    実在することを正対照で先に固定する。
+    """
+    lay = _tmp_layout()
+    genome = _G.format(b=1, l=1, t=0, w=0)
+    wal.log(lay, "screened-out", STAGE_BUILD_START, "test",
+            {"genome": genome, "src_token": "codediff-screen"})
+    wal.log(lay, "screened-out", STAGE_ABORT, "test", {
+        "reason": pipeline.SCREEN_REJECTION_REASON,
+        "screen": {
+            "median_tps": 12345, "cv": 0.01, "baseline_tps": 20000,
+            "baseline_ref": "stock-v1", "floor": 0.10, "k": 1.5,
+            "margin": -0.38275,
+        },
+    })
+
+    records = list(wal.read_records(lay))
+    abort = next(r for r in records if r.stage == STAGE_ABORT)
+    assert abort.payload["screen"]["median_tps"] == 12345  # 正対照
+
+    assert load_rejections(lay) == []
+    liveness, other = load_liveness_rejections(lay)
+    assert liveness == [] and other == {}
+    screened = load_screen_rejections(lay)
+    assert len(screened) == 1
+    assert vars(screened[0]) == {
+        "genome": genome,
+        "flags": {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+                  "NO_WAIT_OF_TICTOC": 0, "WAL": 0},
+        "variant": "screened-out",
+        "src_token": "codediff-screen",
+        "reason": pipeline.SCREEN_REJECTION_REASON,
+    }
+
+    out = render_rejections([], [], {}, None, screen_rejections=screened)
+    assert "screening 正常棄却 (未認証のため性能数値なし)" in out
+    assert "件数: 1" in out and f"genome={genome}" in out
+    assert "codediff-screen" not in out
+    assert pipeline.SCREEN_REJECTION_REASON not in out
+    assert "全 variant 緑" not in out
+    for hidden in ("12345", "median_tps", "baseline_tps", "cv"):
+        assert hidden not in out
 
 
 def test_rejection_types_keep_forward_workload_tag():

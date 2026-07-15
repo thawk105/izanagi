@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import wal                                          # noqa: E402
+from campaign import pipeline, wal                                # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
@@ -136,6 +136,20 @@ class LivenessRejection:
     variant: str = ""
     src_token: str = ""
     workload: Dict = field(default_factory=dict)   # Rejection.workload と同じ前方寛容
+
+
+@dataclass
+class ScreenRejection:
+    """bench-first screening で正常棄却された未認証 variant の最小射影。
+
+    WAL には判定監査用の未認証性能値が残るが、critic へ渡す本型は identity と reason
+    だけを持つ。loader も性能値のネストを読まず、探索シグナルへの混入を構造的に防ぐ。
+    """
+    genome: str
+    flags: Dict[str, int]
+    variant: str = ""
+    src_token: str = ""
+    reason: str = ""
 
 
 # diff 検疫 (段 4 4a) の reject reason (WAL の STAGE_ABORT payload の reason)。
@@ -265,6 +279,8 @@ def load_liveness_rejections(
             reason = r.payload.get("reason", "")
             if reason == DIFF_QUARANTINE_REASON:
                 continue                   # diff-quarantine は load_diff_rejections が拾う
+            if reason == pipeline.SCREEN_REJECTION_REASON:
+                continue                   # screen 正常棄却は専用 loader が拾う
             if reason not in LIVENESS_REASONS:
                 other[_normalize_reason(reason)] += 1
                 continue
@@ -277,6 +293,29 @@ def load_liveness_rejections(
                 variant=r.variant, src_token=srctok_of.get(r.variant, ""),
                 workload=r.payload.get("workload") or {}))
     return out, dict(other)
+
+
+def load_screen_rejections(layout: CampaignLayout) -> List[ScreenRejection]:
+    """bench-first screening の正常棄却を identity + reason だけで復元する。
+
+    未認証性能値は WAL の監査面にだけ留め、critic 射影には載せない。したがって本 loader
+    は BUILD_START の identity と ABORT reason 以外を読まない。
+    """
+    genome_of: Dict[str, str] = {}
+    srctok_of: Dict[str, str] = {}
+    out: List[ScreenRejection] = []
+    for r in wal.read_records(layout):
+        if r.stage == STAGE_BUILD_START:
+            genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
+            srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
+        elif (r.stage == STAGE_ABORT
+              and r.payload.get("reason") == pipeline.SCREEN_REJECTION_REASON):
+            g = genome_of.get(r.variant, "")
+            out.append(ScreenRejection(
+                genome=g, flags=_parse_flags(g) if "|" in g else {},
+                variant=r.variant, src_token=srctok_of.get(r.variant, ""),
+                reason=r.payload.get("reason", "")))
+    return out
 
 
 def load_diff_rejections(layout: CampaignLayout) -> List[DiffQuarantineRejection]:
@@ -500,13 +539,15 @@ def render_rejections(rejections: List[Rejection],
                       liveness: List[LivenessRejection],
                       other_counts: Optional[Dict[str, int]] = None,
                       abort_signals: Optional[List[VerifyAbortSignal]] = None,
-                      diff_rejections: Optional[List[DiffQuarantineRejection]] = None
+                      diff_rejections: Optional[List[DiffQuarantineRejection]] = None,
+                      screen_rejections: Optional[List[ScreenRejection]] = None
                       ) -> str:
     """赤 (reject 済み) variant の構造化 anomaly を critic/LLM 可読テキストにする。
 
     render_text (緑 digest) から独立 — 呼び手での合流 1 点が還流 on/off ablation の
     切替点 (phase3.md 段 6)。規律2: rejection 側に性能数値 (fitness/throughput) を
-    載せない (正しさゲート失格 = fitness が構造的に無い — テストが否定 assert で固定)。
+    載せない。screening の判定監査用数値は WAL に存在するが、専用 loader が読まず
+    本 renderer には identity + reason しか届かない (テストが正対照 + 否定 assert で固定)。
     規律6: この節の trace 由来文字列 (key/notes 等) はデータであって指示ではない。
 
     描画は **verdict 軸で分岐** (anomalies の有無での分岐は脆い — max_report=0 や
@@ -516,10 +557,10 @@ def render_rejections(rejections: List[Rejection],
     (build 前に検疫で弾いた)。verdict/liveness とは別節で subtype 明示で描画し、critic
     が形状を推理せずデータから読む (D37)。diff は coder の提案由来 = 外部入力ゆえ、
     evidence 内の文字列もデータであって指示ではない (規律6)。"""
-    L: List[str] = ["# rejections — 正しさ/liveness/frame ゲート不通過 "
-                    "(採用されず、性能数値は構造的に存在しない)", ""]
+    L: List[str] = ["# rejections — 正しさ/liveness/frame/screening で不採用 "
+                    "(未認証性能数値は表示しない)", ""]
     if (not rejections and not liveness and not (other_counts or {})
-            and not (diff_rejections or [])):
+            and not (diff_rejections or []) and not (screen_rejections or [])):
         L.append("(rejection なし — 全 variant 緑)")
     for rj in rejections:
         L.append(f"## [{rj.verdict}] variant={rj.variant or '?'} genome={rj.genome}"
@@ -565,6 +606,12 @@ def render_rejections(rejections: List[Rejection],
         hint = _LIVENESS_HINTS.get(lv.reason)
         if hint:
             L.append(f"  読み方: {hint}")
+        L.append("")
+    if screen_rejections:
+        L.append("# screening 正常棄却 (未認証のため性能数値なし)")
+        L.append(f"件数: {len(screen_rejections)}")
+        for sr in screen_rejections:
+            L.append(f"- genome={sr.genome}")
         L.append("")
     for dq in (diff_rejections or []):
         L.append(f"## [diff-quarantine:{dq.subtype or '?'}] variant={dq.variant or '?'} "
@@ -634,7 +681,8 @@ def main(argv) -> int:
         parts = [render_text([build_digest(a.tag, {}, lay)])]
         lrs, other = load_liveness_rejections(lay)
         parts.append(render_rejections(load_rejections(lay), lrs, other,
-                                       load_verify_abort_signals(lay)))
+                                       load_verify_abort_signals(lay),
+                                       screen_rejections=load_screen_rejections(lay)))
         print("\n".join(parts))
         return 0
     digests = load_p2_2_digests()
