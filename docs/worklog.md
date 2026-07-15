@@ -404,3 +404,26 @@ sonnet Explore ×3 が前例調査 (統計実装・driver 部品・argmax 出典
 2. 承認後: S-1 直接比較 driver + 層別統計実装 + 検証相の仕様書 → codex 実装 (v2 の計測開始
    gate (3)(4)(5) を完了条件に組み込む)
 3. push は人間の判断に委ねる (この環境に push 認証なし)
+
+## 2026-07-15 (11) — 小山田系 7 論文の台帳登録 + 設計文書小改善 4 点 (codex 委譲)
+
+ユーザー指示「作業はなるべく codex へ (fable5 残枠節約)」。前会話 (read-only 分析) で
+/home/tanab/tmp/izanagi_analysis_notes/ のノート 8 件を精査し改善 5 点を提案 → 本セッションで実装。
+分業 = 親が裁定表つき仕様書 2 本 + 監査 + commit、codex gpt-5.6-sol (medium) ×2 並行が起草。
+
+- commit: b09bd27 (台帳 7 エントリ + notes/ 取り込み)、343f8e8 (auditor モデル階層)、
+  81440f3 (phase3: 層3 原料要件 / 8c 予算単位 / 逐次停止の束ね)
+- 裁定 (親、監査で確認): 7 本の判定タグ = 外部補強 ×3 (Vesper/D2I) + 部品予約 ×2
+  (Best-of-∞/Self-Developing) + 思想 ×1 (DISC) + 反面教師 ×2 (LaMDAgent/cotomi)。
+  人物 dossier 1 件はリポジトリ非取り込み (人物情報、正本性なし)
+- arXiv ID 7 件は curl タイトル照合で全件実在確認 (台帳の捏造回避規約)。ノートの取得経路
+  申告 (arXiv HTML 精読) は notes/README.md に出自として記録
+- 見送り (提案のうち未実装): 逐次停止の実装 (bench-first screening と同一承認案件に束ねる
+  形で phase3.md に登録のみ — **実装はユーザー承認待ち**)。verbal-diff 還流は D39 リーク制御
+  と緊張するため敵対レビュー前提の将来検討として台帳に記録のみ
+- 工数: codex exec ×2 (並行、空振りなし)。監査 finding 0 (両タスクとも仕様どおり)
+
+### 次の一手
+1. 変わらず (前エントリ参照): S-1 検定単位のユーザー承認 → v2 追記 → driver 実装
+2. 逐次停止 + bench-first screening の実装可否はユーザー承認待ち (phase3.md 段 8 に束ね済み)
+3. push は人間の判断に委ねる
