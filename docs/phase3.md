@@ -35,11 +35,13 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止は
   D58 の採用対象に含めず、別設計・別裁定とする。
 
-**現行の着手順:** (1) S-1 計測開始 gate (2)〜(5) の実装統合は完了した。次は measurement freeze
-実体を生成・commit し、検証相 extime 校正を計測機で実走して gate を閉じる。(2) 計測窓を待つ間に
-8b の前向き設計と層3最小 renderer を並行で作る。(3) 計測窓で対象別 floor・sort read-heavy・S-1
-本走を閉じる。(4) 8b + 層3の 1 cycle 後に必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を
-再判断する。
+**現行の着手順:** (1)〜(3) は 2026-07-16 に完了した — S-1 計測開始 gate を全て閉じ (freeze 実体
+163107c、extime=3s 校正 0f30427)、8b 前向き設計 draft (c59482a、発効はユーザー承認待ち) と
+層3最小 renderer + 実レポート (15d9e7c / 24202e2) を作り、S-1 本走 (develop v2 / floor /
+block1 / block2 全 success) と report (d9aef7b) を閉じた。三値判定 = **S-1a 不成立 / S-1b 成立**、
+Holm 族 4 全体の裁定と S' 報告文言の確定は人間へ。次: (a) 族 4 裁定・S' 報告のユーザー確認、
+(b) 8b 設計の承認発効、(c) 8b + 層3の 1 cycle 後に必要性を計測して 8c、さらにその後に段 7 /
+Phase 3.5 を再判断する。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
@@ -215,8 +217,14 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      層別統計、report 判定系を実装する (2026-07-15)。freeze **実体の生成・commit は未了**
    - [x] 検証相 (seed×N・長 extime) の extime 校正 driver を実装する (2026-07-15)。校正の**実走と
      確定値の事前登録追記は未了**
-   - [ ] sort read-heavy 欠測を補い、対象別 between-run floor を再実測する
-   - [ ] S-1 本走、再測、Holm 族判定表、S' 報告を完結する
+   - [x] sort read-heavy 欠測を補い、対象別 between-run floor を再実測する (2026-07-16、
+     floor campaign 144/144 = 18 セル × 8 標本)
+   - [x] S-1 本走、再測を完走し report を生成する (2026-07-16、develop v2 → floor → block1 →
+     block2 全 success、report = `output/reports/s1_direct_comparison/`。三値判定 = S-1a 不成立 /
+     S-1b 成立。開発相 v1 は driver 実体化バグで 3 セル abandoned → 修正 d2a46f1 後に v2 で
+     完全再走、経緯は failures.md F19)
+   - [ ] Holm 族 4 全体の裁定と S' 報告文言を人間確認で確定する (report は参考 α=0.0125 のみ、
+     族全体の裁定は事前登録どおり自動で閉じない)
 
    正本は canary = `output/insights/2026-07-13_s6-canary-rename.md`、提案ラウンド =
    `output/s6-rounds/`、内容分析 = `output/insights/2026-07-13_s6-rounds-content-analysis.md`、

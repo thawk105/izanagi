@@ -693,3 +693,38 @@ proof chain の書き込み境界に合わせた。
 1. S-1 measurement freeze 実体を生成・verify・commit し、計測機で extime 校正を実走する
 2. 計測窓で sort read-heavy と対象別 floor を補充後、S-1 本走と report を閉じる
 3. push は人間の判断に委ねる
+
+## 2026-07-16 (1) — S-1 gate 全閉鎖 → 本走完走 → 三値判定。並行で 8b draft + 層3最小 E2E
+
+前夜 (20) の次の一手 1〜3 を親 (Fable 5) がホスト直列で完遂。分業 = 親が計測・裁定・freeze 運用、
+codex gpt-5.6-terra ×4 (8b 起草 / 層3 実装 / 8b 監査修正 / driver 修正)、監査 Explore ×2。
+
+- **三値判定 (丸めず): S-1a = 家族不成立** (系側 gate vs 既知軸最良 9 比較: vs sort_best 3 成立
+  /+55〜98%、vs p2_2_flag_opt・backoff_fixed_best 6 不成立 = gate 側が 9〜55% 低い。family
+  p=1.0)。**S-1b = 家族成立** (gate on vs off 3/3、family p=0.000204、+61〜99%)。hard gate 全
+  pass、予算 6.37h/12h。**Holm 族 4 全体の裁定と S' 報告文言は人間待ち** (report は参考 α のみ)
+- commit 群: 02c840c..d9aef7b (9 本) — freeze 再凍結 ×2 (値レベル不変・schedule_hash 同一を
+  機械確認する運用を確立)、extime=3s 校正 (gate (5))、driver 修正、8b draft、層3 renderer +
+  実レポート、本走成果物 + report
+- **セッション異常 1 (実体化バグ、failures.md F19):** develop v1 で backoff_fixed_best 3 セルが
+  build-error → abandoned。親が WAL から診断 (hole に数値文字列を書く誤設計、正 = パッチ +
+  フラグのみ)、trial v1→v2 版上げで identity 分離し v1 を失敗記録として保存、v2 で 18/18。
+  開発相が本計測前にバグを検出する防壁として実証された
+- **セッション異常 2 (計測汚染 near-miss):** 計測中に同居ユーザー leon が bomb_oze.exe (60 コア)
+  を実行。develop 相 (verify のみ) だったため実害なし。多コア監視 + SIGINT 中断・ledger prefix
+  再開の汚染時手順を handoff に裁定として残した (計測 4 campaign 中の多コア出現はゼロを確認)
+- 敵対監査 2 本 (Explore、意図せず Opus 4.8 — 以後は codex read-only へ、memory 3 件更新):
+  8b = must-fix 3 (nested schema 開放 / selector 機構矛盾 / holdout 検索の偽 0 件) を含む 9 件、
+  層3 = must-fix 2 (双射が生産経路で恒真 / noise floor 常時 null) を含む 11 件。全件を裁定して
+  codex へ差し戻し消化。親裁定の要点 = selector を採点 oracle と descriptor 依存予測選択の二層に
+  分離 / 双射は本体走査 vs 入力の独立比較 + view 参照整合
+- ユーザー協議: (a) サブエージェントより codex 優先 (時限方針、レート枠)、(b) codex 実行面の
+  モデル表示が gpt-5.6-terra (依頼語彙 sol とずれ、config も terra — 経緯不明のため報告済み)
+- 工数: codex exec ×4 (全て一発 green)、Explore ×2、計測 wall 約 6.4h (台帳)
+
+### 次の一手
+1. **Holm 族 4 全体の裁定と S' 報告文言の確定 (人間)** — report = `output/reports/s1_direct_comparison/`
+2. **8b 設計 draft の承認発効 (人間)** — `docs/phase3-8b-descriptor-design.md`。発効後に selector
+   実験の実装へ
+3. 層3 renderer の対象拡大 (sweep campaign への適用) と機序仮説層の原料配線は 8b と並行可
+4. push は人間の判断に委ねる

@@ -201,6 +201,23 @@
   戦略改訂境界で再ローテーション (224KB → 20KB)
 - 再発検知: check_docs.py (セッション締めの必須 lint) が肥大を、guard_read が全読を機械検知
 
+### F19. freeze variant の実体化バグ — 単体検査は通るが実 build で落ちる経路が本走まで潜伏 [手順漏れ]
+- 事象: S-1 develop v1 で backoff_fixed_best 3 セルが build-error ×3 → abandoned
+  (2026-07-16、worklog 同日)。`prepare_cell` が EVOLVE-BLOCK hole に生の数値文字列 "5" を
+  quarantine 書き込みし、骨格の変数宣言を破壊した。正方式は backoff-sweep と同じ
+  「骨格パッチ + CMake フラグのみ」で、hole 置換は不要かつ有害だった
+- 根本原因: 実体化経路の positive control が「quarantine が pass する」まで しか届いておらず、
+  「その生成物が実際に build を通る」という統合検査が無かった。gate 述語 / comparator /
+  数値という三種の variant を同じ `implementation` 変数で運ぶ設計が、種別ごとの意味論の
+  違い (コード片 vs フラグ値) を隠した
+- 恒久対応: (1) d2a46f1 — 数値種別は hole 置換経路から分離し、backoff_us と
+  flags.BACKOFF_FIXED の不一致を DriverError で fails-closed 化 + 「骨格が汚れないこと」の
+  回帰テスト、(2) trial 版上げ (v1→v2) で実行系の版を campaign identity に反映し、失敗
+  campaign を改竄せず保存する前例を確立、(3) 開発相 (develop role) がこの型のバグを本計測前に
+  検出する防壁として実証された — 開発相を飛ばして floor/block を直接走らせない
+- 再発検知: test_s1_direct_comparison.py の骨格温存検査 + develop 相の実 build (18 構成) が
+  毎回の統合 positive control として機能する
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
