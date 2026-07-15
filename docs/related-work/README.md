@@ -10,6 +10,8 @@ ShinkaEvolve 深掘りは `shinka-deepdive.md` に分離)。技術的判断・�
 実在確認済みのもののみ記載し (CCBench 2009.11558 / AlphaEvolve 2506.13131 / OCC-timestamp
 1811.04967 は arxiv_get_papers で全文メタデータを取得、他は arxiv_search 結果レコードで
 タイトル・著者・発表年を照合)、未確証の基盤研究は venue/名称のみ (捏造回避)。
+2026-07-15 追加分 (7.2/7.4/7.5 の NEC 小山田グループ 7 本) は curl による arXiv abstract
+ページのタイトル照合で実在確認した。
 
 ---
 
@@ -56,6 +58,9 @@ ID をいつ検証したか」が一目で追える:
 | Darwin Gödel Machine | `2505.22954` | `思想` | 自己改善系譜の理論的源流 | 7.2 |
 | FunSearch | *Nature* 625 (2024) | `思想` | LLM×進化ループの先駆 | 7.2 |
 | ShinkaEvolve | `2509.19349` (ICLR 2026) | `反面教師`+`部品予約` | 最直接の比較対象、リーク制御の対極 | 7.2 |
+| Effective Harness Engineering (Vesper) | `2605.15221` | `外部補強` | auditor / worktree / 少数深掘り / digest 射影 | 7.2 |
+| Best-of-∞ | `2509.21091` | `部品予約` | 正しさ検証の逐次停止 / learned selector 排除 | 7.2 |
+| DISC | `2502.16706` | `思想` | 評価予算の難所配分 / 分布比較 | 7.2 |
 | Jitskit | `2605.24096` | `採用`(部品多数) | spec cards / auditor / leading indicators 他 | 7.3 |
 | VibeServe | `2605.06068` | `思想` | 対象特化合成の賭け、orchestrator D の先行例 | 7.3 |
 | IDS | `2605.23109` | `思想` | 「正しさを後付けにしない」= 規律3 | 7.3 |
@@ -63,9 +68,13 @@ ID をいつ検証したか」が一目で追える:
 | Self-Harness | `2606.09498` | `外部補強` | validation gate=規律2 / verifier-grounded=規律3 | 7.4 |
 | DecentMem | `2605.22721` | `外部補強` | whiteboard 二プール構造の理論裏付け | 7.4 |
 | ARA | `2604.24658` | `採用`+`部品予約`+`反面教師` | anti-fabrication isolation (§3.4) 他 | 7.4 |
+| Self-Developing | `2410.15639` | `部品予約` | accept/reject による生成器ステアリング | 7.4 |
+| LaMDAgent | `2505.21963` | `反面教師` | 層2 ループの近傍例 / 正しさゲート欠落との対比 | 7.4 |
 | How AI Agents Reshape Knowledge Work | `2606.07489` | `引用元` | 二段構え (Tier0-3/profiling) の経済学的引用元 | 7.5 |
 | 12-factor-agents | github | `点検レンズ` | orchestrator/サブエージェント設計の sanity check | 7.5 |
 | ECC | github | `点検レンズ`(運用参考3点) | tools/model 明示 / hooks 機械執行 | 7.5 |
+| cotomi Act | `2605.03231` | `反面教師` | evaluator-integrity / コンテキスト衛生 | 7.5 |
+| D2I (Learning Deliberately, Acting Intuitively) | `2507.06999` | `外部補強` | 二相分離 / 層3 の機序説明 | 7.5 |
 
 ---
 
@@ -236,6 +245,51 @@ MAD ロバスト sigmoid を借用予約 (スコア/重みは harness に閉じ 
 > サンプル効率機構を核とする。ShinkaEvolve 深掘りの結論「直採用ゼロ」はこの系譜全体に適用され、
 > **本系譜からの借用は思想・問題設定のみ、機構は非採用**。
 
+#### Effective Harness Engineering (Vesper) `2605.15221`
+`判定: 外部補強` · `接地: §3.4/D38 (auditor), D40 (worktree), §3.8/D31 (質>量), D39 (digest 射影)` · `id検証: 2026-07-15`
+**一言:** coding agent を進化探索へ組み込む harness Vesper の実証研究。深い少数生成、独立した
+評価ハック検出、Git worktree 並列、探索 DB の効果を同一実験面で比較する。
+**採る:** 能力の高いモデルほど評価ハックが増えた Finding 3 (gpt-5.2-codex で 8.2%) を、auditor
+(D38) の必要性と auditor を被監査側と同等以上の tier に置く方針の定量的外部証拠にする。ハック検出
+on/off × モデル能力は coder を安価モデルへ下げる実験の ablation 軸に予約する。固定予算下の
+per-variant 深掘り優位を少数深掘り運用に、worktree 並列 3.2–3.9x を D40 に接地する。DB observation
+の効果が限定的だった結果は、リーク制御付き digest 射影 (D39) を維持する判断の補強に使う。
+**採らない:** トークン予算を終了基準へ直輸入しない。Izanagi の律速はベンチ実時間であり、8c では
+ベンチ実秒予算へ翻訳する。worktree は FS 競合対策であって、物理干渉を防ぐベンチ排他ロックの
+代替ではない。
+**系譜上の位置:** OpenEvolve/AlphaEvolve 系 harness の実証研究。Izanagi が独立に先取りした
+auditor/worktree/構造化出力へ実測値を与える。NEC 小山田グループ。
+**調査ノート:** notes/note_harness_engineering.md
+
+#### Best-of-∞ `2509.21091`
+`判定: 部品予約` · `接地: §3.2 (検証相の seed 数), §3.6 (反復測定), §3.4 (learned selector 排除)` · `id検証: 2026-07-15`
+**一言:** 多数決の best-of-N を無限計算極限から捉え、Bayes factor による適応サンプリングと
+LLM アンサンブルの予算配分を理論化する。
+**採る:** カテゴリ判定 (serializable / anomaly) の seed 数を固定 N から Bayes factor 逐次停止へ
+置換する部品を予約する。論文実測では計算を 2–5 倍削減しており、発火条件は phase3.md 段 8 の
+bench-first screening 承認案件と束ね、S-1 事前登録には適用しない。Bo5 の「多数決 > LLM-as-judge >
+reward model」は LLM-as-judge を正しさ経路へ入れない現行判断の外部証拠とする。
+**採らない:** Dirichlet 過程/Bayes factor を連続量 throughput へ直用しない。型不一致に加え、一晩
+ループの非定常ドリフトで i.i.d. 前提が壊れるため、連続量には逐次 t 検定系を使い、between-run floor
+丸め (§3.6(4)) は主防壁のままにする。単一 CC を成果物とする §10 に反する MILP アンサンブルも採らない。
+**系譜上の位置:** 探索でなく集約の理論。Izanagi へは逐次停止・予算配分の方法論として効く。
+NEC 小山田グループ。
+**調査ノート:** notes/note_best_of_asymptotic_performance_of_test_t.md
+
+#### DISC `2502.16706`
+`判定: 思想` · `接地: §3.6(4) (分布比較), 層2 探索戦略` · `id検証: 2026-07-15`
+**一言:** 推論を難所ほど細かく動的分解し、限られた評価予算を難しい箇所へ集中する推論
+スケーリング手法。
+**採る (思想のみ):** 累積シグナルが閾値 σ に達したら止める適応的打ち切りから「評価予算を難所に
+寄せる」思想を借り、Best-of-∞ の逐次停止と同じ承認案件で検討する。統計推定に依存する段では
+低温度で分散を抑えるという ablation 知見も参照する。
+**採らない:** z-score 受理規準は採らない。between-run floor 丸めが主防壁であり、location-scale
+仮定は throughput の非定常ノイズで壊れる。自己回帰 prefix 分解にも variant 系譜への自然な写像が
+ないため直輸入しない。
+**系譜上の位置:** 推論スケーリングの分解粒度制御。Izanagi では思想の借用に留める。共著に
+小山田氏。
+**調査ノート:** notes/note_disc_dynamic_decomposition_improves_llm_.md
+
 ---
 
 ### 7.3 対象特化システムの自動合成 (設計レベルの予言書)
@@ -338,6 +392,35 @@ ARA Compiler / Live Research Manager のような重機構はスコープ外 (§
 **系譜上の位置:** ARA は「物語 PDF でなく機械検証可能 artifact こそ一次研究対象」と主張。Izanagi は
 この artifact (材料レポート) の生成までを担い、narrative 化・推敲は別システムに委ねる (D12)。
 
+#### Self-Developing (Can LLMs Invent Algorithms to Improve Themselves?) `2410.15639`
+`判定: 部品予約` · `接地: §7 SkillOpt/Self-Harness 系譜, 絶対規律2, D9 (Phase 3.5 予約)` · `id検証: 2026-07-15`
+**一言:** accept/reject されたアルゴリズムを選好データへ変換し、改善案を生成する LLM 自体を
+DPO で反復更新する自己改善ループ。
+**採る (Phase 3.5 予約):** 取捨で終わらせず accept/reject を生成器へのステアリング信号にする
+レシピを予約する。上位 3% chosen / 下位 10% rejected、エリート top-3 持ち越し、温度減衰を参照し、
+着手時は DPO 訓練ではなく whiteboard 射影を拡張した in-context ステアリングから始める。
+開発/テスト分離によるリーク防止は §3.6 と整合する。
+**採らない:** 正しさゲートを選好信号へ溶かさない。serializability 違反は低スコアでなく即 reject
+とし、選好対にすら入れない (絶対規律2)。GPU 前提でコスト構造が合わない毎反復 DPO 訓練も採らない。
+**系譜上の位置:** SkillOpt/Self-Harness と同じメタ層最適化だが、生成器そのものを訓練する
+最右翼。NEC 小山田グループ。
+**調査ノート:** notes/note_can_large_language_models_invent_algorit.md
+
+#### LaMDAgent `2505.21963`
+`判定: 反面教師` · `接地: 絶対規律2, §3.4, P2-5/D21/D29, §3.6(4), §8 (ポジショニング)` · `id検証: 2026-07-15`
+**一言:** post-training のアクションを列挙・選択・評価し、テキスト memory を更新する層2ループの
+近傍実装。評価は正しさゲートを持たず、スカラー報酬に一元化される。
+**採る (外部補強として):** LLM 選択の random に対する優位が test +1.9 点に留まりアクション空間
+設計が支配的だった ablation を P2-5 の negative result (D21/D29) の独立補強に使う。2B→9B の
+転移で小さな順位差が逆転した結果を、スケールで消える差を採否根拠にしない §3.6(4) floor 丸めの
+外部証拠とする。memory 更新雛形と mode collapse/命名バイアス対策は §3.4-3、D44/D48 と照合する。
+**採らない (反面教師):** 正しさゲートなしのスカラー報酬一元は採らない。これは §8 の差別化点で
+ある。一方、スカラー + テキスト memory だけで 100 iteration 改善した結果は、§3.5 の leading
+indicators 前提と緊張する事実として記録し、どちらも無条件には信じない。
+**系譜上の位置:** 層2ループ (列挙→選択→評価→memory 更新) の最も近い参照実装。ただし評価規律は
+移植しない。NEC 小山田グループ。
+**調査ノート:** notes/note_lamdagent_an_autonomous_framework_for_po.md
+
 ---
 
 ### 7.5 運用・設計の点検レンズ (取り込みでなく sanity check)
@@ -373,6 +456,36 @@ interaction-mode ルーティングで Izanagi の探索エスカレーション
 大規模 Claude Code 環境は絶対規律5 (段階導入・盛らない) と正面衝突する。Izanagi は CC 合成という
 単一目的に必要なロール/hook だけを Phase ごとに足す。唯一拾える原子は「hook 自体にテストを書く」
 発想 (適用済み — 両 hook に回帰テスト群、3 巡の敵対検証の fix は変異検査で固定。hooks/README.md 参照)。
+
+#### cotomi Act `2605.03231`
+`判定: 反面教師` · `接地: 絶対規律2/3, §3.8 (コンテキスト衛生), Phase 1 verify-red` · `id検証: 2026-07-15`
+**一言:** web GUI 自動化を対象に、実行 scaffold とユーザー行動からの知識抽出を統合する。
+自動 scorer の誤判定と、事後 verifier を使わない best-of-N 設計の両方を示す対照例。
+**採る (思想・外部補強):** ベンチの自動 scorer に false positive/negative があり人手検証を要した
+事例を、verify-red / positive control (D36-D38) の evaluator-integrity 外部例とする。trajectory /
+script / insight の抽象度ラダーは whiteboard 還流粒度の将来参照にする。意味的な verbal-diff が
++12.7pp だった結果も参照するが、D39 のリーク制御と緊張するため、還流形式の変更は敵対レビューを
+前提とする将来検討に留める。
+**採らない (反面教師):** 事後 verifier を外し best-of-N 事前合意と人手 curation で代替する設計は、
+正しさが二値でハードな CC の絶対規律2/3と衝突する。探索効率の機構へ翻訳できても、正しさの根拠には
+決して使わない。
+**系譜上の位置:** 正しさが緩く人手 curation で吸収できる web GUI 自動化の設計。ドメイン適合性の
+断層を示す対照例。NEC 小山田グループ。
+**調査ノート:** notes/note_cotomi_act_learning_to_automate_work_by_.md
+
+#### D2I (Learning Deliberately, Acting Intuitively) `2507.06999`
+`判定: 外部補強` · `接地: D4/§3.3 (二相分離), 層3 説明生成, 規律3/D3` · `id検証: 2026-07-15`
+**一言:** 学習時には構造化推論の型を強制し、推論時には外す非対称によって、推論能力と応答の
+柔軟性を分離するマルチモーダル LLM の学習法。
+**採る:** 「学習時は型を強制し本番で外す」非対称を D4 の trace-enabled/disabled 二相分離と同型の
+独立 echo とする。形式の強制より鍵概念を正しく言語化できたかが成否を分けた事例を、層3 の機序仮説層
+へ coder/critic の「なぜ効くと考えたか」を拾う要件の補強に使う。難タスクほど複数候補の価値が
+上がる Pass@K 分析は、難度適応の候補数予算の参照にする。
+**採らない:** format reward / GRPO は literal に移植しない。Izanagi はモデルを学習しないため、
+原理の類推に留める。
+**系譜上の位置:** RL ファインチューニング論文であり直接対応する機構はない。二相分離思想の外部
+裏付けとして 7.5 に置く。NEC 小山田グループ (筆頭は京大インターン)。
+**調査ノート:** notes/note_learning_deliberately_acting_intuitively.md
 
 ---
 
