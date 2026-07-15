@@ -162,7 +162,7 @@ def _fixture(
     if over_budget:
         entries.append({
             "campaign_role": "block2", "started_iso": "2026-07-15T00:00:00+00:00",
-            "wall_s": spent, "phase": "block2", "note": "budget-refused: fixture",
+            "wall_s": spent, "phase": "block2", "note": "fixture overspend",
         })
     budget_path.write_text(json.dumps({
         "total_budget_s": 43_200, "spent_s": spent, "entries": entries,
@@ -293,6 +293,48 @@ def test_over_budget_refusal_is_symmetric_for_unfinished_comparisons(tmp_path):
     for item in result["comparisons"]:
         codes = {reason["code"] for reason in item["reasons"]}
         assert "budget_exceeded" in codes
+        assert "budget_preflight_refused" in codes
+
+
+def test_complete_samples_over_budget_invalidates_all_comparisons(tmp_path):
+    args = _fixture(tmp_path, over_budget=True)
+    result = _generate(tmp_path, *args)
+    assert result["hard_gates"]["budget"]["status"] == "fail"
+    assert all(item["judgment"] == report.INDETERMINATE
+               for item in result["comparisons"])
+    for item in result["comparisons"]:
+        codes = {reason["code"] for reason in item["reasons"]}
+        assert "budget_exceeded" in codes
+        assert "budget_preflight_refused" not in codes
+
+
+def test_budget_public_validation_failure_invalidates_all_comparisons(
+        tmp_path, monkeypatch):
+    args = _fixture(tmp_path)
+
+    def reject_public_validation(_path):
+        raise driver.DriverError("公開 validator: 予算を超過済み")
+
+    monkeypatch.setattr(report, "read_budget", reject_public_validation)
+    result = _generate(tmp_path, *args)
+    assert result["hard_gates"]["budget"]["status"] == "fail"
+    assert all(item["judgment"] == report.INDETERMINATE
+               for item in result["comparisons"])
+    for item in result["comparisons"]:
+        codes = {reason["code"] for reason in item["reasons"]}
+        assert codes == {"budget_public_validation_failed"}
+
+
+def test_preflight_refusal_always_has_global_schedule_failure(tmp_path):
+    args = _fixture(tmp_path, stop_block2=True)
+    result = _generate(tmp_path, *args)
+    assert result["hard_gates"]["budget"]["status"] == "fail"
+    assert result["hard_gates"]["schedule"]["block2"]["status"] == "fail"
+    assert all(item["judgment"] == report.INDETERMINATE
+               for item in result["comparisons"])
+    for item in result["comparisons"]:
+        codes = {reason["code"] for reason in item["reasons"]}
+        assert "schedule_incomplete" in codes
         assert "budget_preflight_refused" in codes
 
 

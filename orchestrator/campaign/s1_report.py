@@ -641,7 +641,9 @@ def _evaluate_comparison(
     budget_codes = {reason.get("code") for reason in budget.get("reasons", [])}
     if budget_codes & {"budget_missing", "budget_invalid", "budget_summary_invalid"}:
         reasons.extend(budget.get("reasons", []))
-    elif budget_codes & {"budget_exceeded", "budget_preflight_refused"}:
+    elif "budget_preflight_refused" in budget_codes:
+        # 起動前拒否は拒否対象の schedule 未完を必ず伴い、schedule hard gate が
+        # global に全比較を判定不能へ倒す。この分岐は当該未完比較へ拒否理由も結び付ける。
         if not _comparison_complete(comparison, assessments):
             reasons.extend(budget.get("reasons", []))
 
@@ -810,6 +812,14 @@ def build_report(
     for role, assessment in assessments.items():
         if assessment.schedule_gate.get("status") != "pass":
             global_reasons.extend(assessment.schedule_gate.get("reasons", []))
+    # 総予算超過は freeze / schedule と同じ全体 hard gate であり、標本の完備性に
+    # かかわらず全比較を判定不能へ倒す。公開 validator が先に超過を拒否した場合も同じ。
+    global_reasons.extend(
+        reason for reason in budget.get("reasons", [])
+        if reason.get("code") in {
+            "budget_exceeded", "budget_public_validation_failed",
+        }
+    )
 
     raw_comparisons = document.get("comparisons", []) if document is not None else []
     if not isinstance(raw_comparisons, list):
