@@ -231,12 +231,17 @@ def test_screening_float_identity_does_not_collapse_distinct_values():
 
 def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     """repr 正準化は screening key が無い歴史的 campaign の pre-image に触れない。"""
+    import dataclasses
+
     from campaign.backoff_sweep import WORKLOADS as BACKOFF_WORKLOADS
     from campaign.backoff_sweep import config_for as backoff_config
     from campaign.s6_sort_sweep import config_for as s6_config
 
+    # 歴史的 id は当時の ccbench pin (dff0f1e) で刻まれている。driver の現行 pin が
+    # 進んでも pre-image 検査が成立するよう、照合はここで歴史的 pin に固定する。
     expected = {
-        str(ident.campaign_id(backoff_config(tag, workload)))
+        str(ident.campaign_id(dataclasses.replace(
+            backoff_config(tag, workload), ccbench_commit="dff0f1e")))
         for tag, workload in BACKOFF_WORKLOADS
     }
     assert expected == {

@@ -25,7 +25,7 @@ def test_autonomous_loop_has_no_screening_wiring():
 def _summary(tag):
     return types.SimpleNamespace(
         campaign_id=f"campaign-{tag}", committed=1, aborted=0,
-        layout_root=f"/tmp/campaign-{tag}")
+        layout_root=f"/tmp/campaign-{tag}", results=[])
 
 
 def test_backoff_screening_cli_is_default_off_and_explicit_on(monkeypatch):
@@ -42,7 +42,44 @@ def test_backoff_screening_cli_is_default_off_and_explicit_on(monkeypatch):
     monkeypatch.setattr(B.wal, "replay", lambda _layout: {})
     assert B.main(["backoff_sweep.py", "balanced", "--screening",
                    "--calibration-dir", "/floor"] ) == 0
-    assert calls[-1][1] == {"screening_enabled": True, "calibration_dir": "/floor"}
+    assert calls[-1][1] == {
+        "screening_enabled": True, "calibration_dir": "/floor",
+        "screening_fixed_us": None, "confirm_each_candidate": False}
+
+    assert B.main(["backoff_sweep.py", "read-heavy", "--screening",
+                   "--screening-fixed-us", "100",
+                   "--confirm-each-candidate"]) == 0
+    assert calls[-1][1] == {
+        "screening_enabled": True, "calibration_dir": "",
+        "screening_fixed_us": 100, "confirm_each_candidate": True}
+
+
+def test_backoff_minimal_screening_selection_and_identity():
+    tag, workload = B.WORKLOADS[-1]
+    full = B.config_for(tag, workload)
+    minimal = B.config_for(tag, workload, screening_fixed_us=100)
+    assert "screening_fixed_us" not in full.search_config
+    assert minimal.search_config["screening_fixed_us"] == 100
+    assert str(B.ident.campaign_id(full)) != str(B.ident.campaign_id(minimal))
+
+
+def test_backoff_minimal_screening_runs_only_baseline_and_selected(monkeypatch):
+    seen = {}
+
+    def fake_screened(cfg, gs, perf, workload, calibration_dir, log, **kwargs):
+        seen["canonical"] = [g.canonical() for g in gs]
+        return _summary("minimal")
+
+    monkeypatch.setattr(B, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(B, "_run_screened_workload", fake_screened)
+    B.run_workload("read-heavy", B.WORKLOADS[-1][1], log=lambda *_: None,
+                   screening_enabled=True, screening_fixed_us=100)
+    assert seen["canonical"] == [
+        "silo|BACKOFF_FIXED=-1,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,"
+        "NO_WAIT_OF_TICTOC=0,WAL=0",
+        "silo|BACKOFF_FIXED=100,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,"
+        "NO_WAIT_OF_TICTOC=0,WAL=0",
+    ]
 
 
 def test_s6_screening_cli_is_default_off_and_explicit_on(monkeypatch):

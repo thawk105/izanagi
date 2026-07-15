@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -30,11 +31,11 @@ from campaign.model import CampaignConfig, Genome               # noqa: E402
 from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
                            REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig                        # noqa: E402
-from campaign import ident, screening_driver, source_digest, wal  # noqa: E402
+from campaign import ident, pin, screening_driver, source_digest, wal  # noqa: E402
 from campaign.loop import CampaignSummary                       # noqa: E402
 from campaign.pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
 
-CCBENCH_COMMIT = "dff0f1e"
+CCBENCH_COMMIT = pin.CURRENT_PIN      # d706650 — literal 保持をやめ pin 正本へ (between_run_floor と同型)
 
 # 全 genome 共通の base = 高 abort 域の勝者構成 L-W0 (no-wait-locking / WAL 無)。
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
@@ -60,18 +61,25 @@ def genomes():
     return gs
 
 
-def config_for(tag: str, workload: dict) -> CampaignConfig:
+def config_for(tag: str, workload: dict, *,
+               screening_fixed_us: Optional[int] = None) -> CampaignConfig:
+    search_config = {"scale": "silo-backoff", "base": "L-W0",
+                     "sweep_us": SWEEP_US, "workload": tag,
+                     "records": RECORDS, "threads": THREADS, "ycsb": workload}
+    # positive control 等の最小 screening campaign 専用。省略時はキー自体を
+    # 足さず、既存 campaign-id と全点 sweep の既定挙動を不変に保つ。
+    if screening_fixed_us is not None:
+        search_config["screening_fixed_us"] = screening_fixed_us
     return CampaignConfig(
         spec_slug=f"backoff-sweep-silo-{tag}", search_tag="sweep",
         spec_content=f"P2 case study: silo static-backoff sweep — workload={tag}",
         ccbench_commit=CCBENCH_COMMIT,
-        search_config={"scale": "silo-backoff", "base": "L-W0",
-                       "sweep_us": SWEEP_US, "workload": tag,
-                       "records": RECORDS, "threads": THREADS, "ycsb": workload},
+        search_config=search_config,
         trial="p2-backoff")
 
 
-def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log):
+def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
+                           confirm_each_candidate=False):
     baseline = gs[0]
     baseline_ref = variant_id(
         baseline, source_digest.resolve(baseline, cfg.ccbench_commit))
@@ -89,6 +97,9 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log):
                         layout_root=prepared.layout.root, total=len(gs))
     results = [measured[0]]
     for genome in gs[1:]:
+        if confirm_each_candidate:
+            input("screened candidate 直前の単一テナント/高CPU確認後に Enter: ")
+        _assert_single_tenant()
         results.append(screening_driver.evaluate_candidate(
             prepared.cfg, prepared.layout, genome, perf, ENV_TAG, CLK,
             screening=prepared.screening, numactl=NUMA, log=log))
@@ -106,15 +117,29 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log):
 
 
 def run_workload(tag: str, workload: dict, log=print, *,
-                 screening_enabled: bool = False, calibration_dir: str = ""):
+                 screening_enabled: bool = False, calibration_dir: str = "",
+                 screening_fixed_us: Optional[int] = None,
+                 confirm_each_candidate: bool = False):
     _assert_single_tenant()
     gs = genomes()
-    cfg = config_for(tag, workload)
+    if screening_fixed_us is not None:
+        if not screening_enabled:
+            raise ValueError("screening_fixed_us は screening opt-in 時だけ指定できる")
+        selected = [g for g in gs
+                    if g.flags.get("BACK_OFF") == 1
+                    and g.flags.get("BACKOFF_FIXED") == screening_fixed_us]
+        if len(selected) != 1:
+            raise ValueError(
+                f"screening_fixed_us は既存 sweep 点から一意に選ぶ: {screening_fixed_us}")
+        gs = [gs[0], selected[0]]
+    cfg = config_for(tag, workload, screening_fixed_us=screening_fixed_us)
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff sweep  workload={tag}  ({workload})  {len(gs)} genome ===")
     if screening_enabled:
-        s = _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log)
+        s = _run_screened_workload(
+            cfg, gs, perf, workload, calibration_dir, log,
+            confirm_each_candidate=confirm_each_candidate)
     else:
         s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log)
 
@@ -140,12 +165,20 @@ def main(argv) -> int:
                     help="bench-first screeningをopt-in (既定off)")
     ap.add_argument("--calibration-dir", default="",
                     help="between_run_noise_*.jsonの置き場 (省略時はlinux-baremetal正本)")
+    ap.add_argument("--screening-fixed-us", type=int,
+                    help="screening時に baseline + 指定fixed-usの最小2点だけ実走")
+    ap.add_argument("--confirm-each-candidate", action="store_true",
+                    help="screened candidate直前に外部競合確認のためEnter待ち")
     a = ap.parse_args(argv[1:])
+    if (a.screening_fixed_us is not None or a.confirm_each_candidate) and not a.screening:
+        ap.error("--screening-fixed-us/--confirm-each-candidate は --screening と併用する")
     sel = a.workload
     wls = [w for w in WORKLOADS if sel is None or w[0] == sel]
     summaries = [(tag, run_workload(
         tag, wl, screening_enabled=a.screening,
-        calibration_dir=a.calibration_dir)) for tag, wl in wls]
+        calibration_dir=a.calibration_dir,
+        screening_fixed_us=a.screening_fixed_us,
+        confirm_each_candidate=a.confirm_each_candidate)) for tag, wl in wls]
     print("\n=== backoff sweep 完了 ===")
     for tag, s in summaries:
         print(f"  {tag}: {s.campaign_id}  committed={s.committed} aborted={s.aborted}")
