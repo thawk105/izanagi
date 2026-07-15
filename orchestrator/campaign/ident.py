@@ -30,12 +30,45 @@ def screening_search_config(
     """
     if screening is None:
         return {}
+    return screening_policy_search_config(
+        screening.baseline_ref, screening.floor, screening.k,
+        screening.high_abort_factor)
+
+
+def screening_policy_search_config(
+        baseline_ref: str, floor: float, k: float,
+        high_abort_factor: float) -> Dict[str, Dict[str, str]]:
+    """実測値をまだ持たない driver が campaign identity を先に焼くための正本。"""
     return {"screening": {
-        "baseline_ref": screening.baseline_ref,
-        "floor": f"{screening.floor:.6g}",
-        "k": f"{screening.k:.6g}",
-        "high_abort_factor": f"{screening.high_abort_factor:.6g}",
+        "baseline_ref": baseline_ref,
+        "floor": repr(floor),
+        "k": repr(k),
+        "high_abort_factor": repr(high_abort_factor),
     }}
+
+
+def verify_screening_preimage(
+        screening: "ScreeningConfig", stored_preimage: Optional[str]) -> None:
+    """runtime screening と campaign.lock に焼き込まれた方針を機械照合する。
+
+    lock 欠落・JSON 破損・screening key 欠落・値の相違はすべて ValueError。既存 campaign
+    へ runtime 引数だけで screening を混在させる迂回を、評価開始前に拒否する。
+    """
+    if stored_preimage is None:
+        raise ValueError("screening 有効評価には campaign.lock の方針焼き込みが必要")
+    try:
+        stored = json.loads(stored_preimage)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError("campaign.lock が正準 JSON でなく screening 方針を検証できない") from exc
+    if not isinstance(stored, dict):
+        raise ValueError("campaign.lock の正準JSONがobjectでなくscreening方針を検証できない")
+    search_config = stored.get("search_config")
+    actual = search_config.get("screening") if isinstance(search_config, dict) else None
+    expected = screening_search_config(screening)["screening"]
+    if actual != expected:
+        raise ValueError(
+            "runtime ScreeningConfig と campaign.lock の screening 方針が不一致: "
+            f"stored={actual!r}, expected={expected!r}")
 
 
 def canonical_preimage(cfg: CampaignConfig) -> str:

@@ -7,12 +7,14 @@ WAL/lock のテストは TMPDIR (=/home 配下) に一時 campaign を作る。
 from __future__ import annotations
 
 import atexit
+import ast
 import contextlib
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import types
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -148,7 +150,7 @@ def test_campaign_id_verify_config_changes_hash():
 
 def _screening(**kw):
     base = dict(baseline_tps=10000.0, baseline_ref="stock-v1",
-                baseline_measured_at=1000.0, floor=0.10, k=1.5,
+                baseline_measured_at=time.time(), floor=0.10, k=1.5,
                 baseline_abort_rate=0.03, high_abort_factor=2.0)
     base.update(kw)
     return ScreeningConfig(**base)
@@ -170,6 +172,26 @@ def test_screening_config_is_frozen_and_requires_baseline_abort_rate():
         pass
 
 
+def test_screening_config_rejects_invalid_statistical_policy():
+    invalid = [
+        ("k", 1.499999),
+        ("baseline_tps", 0.0),
+        ("baseline_tps", -1.0),
+        ("floor", 0.0),
+        ("floor", 1.0),
+        ("baseline_abort_rate", -0.000001),
+        ("high_abort_factor", 0.999999),
+        ("reanchor_threshold_s", 0.0),
+        ("reanchor_threshold_s", -1.0),
+    ]
+    for field_name, value in invalid:
+        try:
+            _screening(**{field_name: value})
+            assert False, f"{field_name}={value!r} must fail closed"
+        except ValueError as exc:
+            assert field_name in str(exc)
+
+
 def test_screening_search_config_omits_none_and_preserves_legacy_campaign_id():
     base = {"tier": "0-1", "scale": "silo"}
     search = {**base, **ident.screening_search_config(None)}
@@ -183,7 +205,7 @@ def test_screening_search_config_hashes_policy_not_reanchored_measurements():
     entry = ident.screening_search_config(sc)
     assert entry == {"screening": {
         "baseline_ref": "stock-v1", "floor": "0.1", "k": "1.5",
-        "high_abort_factor": "2"}}
+        "high_abort_factor": "2.0"}}
     h0 = ident.campaign_id(_cfg(search_config=entry)).cfg_hash8
     reanchored = _screening(baseline_tps=12345.0, baseline_measured_at=2000.0,
                             baseline_abort_rate=0.04)
@@ -192,6 +214,40 @@ def test_screening_search_config_hashes_policy_not_reanchored_measurements():
     for changed in (_screening(floor=0.11), _screening(k=1.6)):
         assert ident.campaign_id(_cfg(
             search_config=ident.screening_search_config(changed))).cfg_hash8 != h0
+
+
+def test_screening_float_identity_does_not_collapse_distinct_values():
+    for field_name, left, right in (
+            ("floor", 0.03000001, 0.03000002),
+            ("k", 1.5000001, 1.5000002)):
+        a = _screening(**{field_name: left})
+        b = _screening(**{field_name: right})
+        a_entry = ident.screening_search_config(a)
+        b_entry = ident.screening_search_config(b)
+        assert a_entry != b_entry
+        assert ident.campaign_id(_cfg(search_config=a_entry)).cfg_hash8 != \
+            ident.campaign_id(_cfg(search_config=b_entry)).cfg_hash8
+
+
+def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
+    """repr 正準化は screening key が無い歴史的 campaign の pre-image に触れない。"""
+    from campaign.backoff_sweep import WORKLOADS as BACKOFF_WORKLOADS
+    from campaign.backoff_sweep import config_for as backoff_config
+    from campaign.s6_sort_sweep import config_for as s6_config
+
+    expected = {
+        str(ident.campaign_id(backoff_config(tag, workload)))
+        for tag, workload in BACKOFF_WORKLOADS
+    }
+    assert expected == {
+        "backoff-sweep-silo-write-heavy-sweep-4891e99f",
+        "backoff-sweep-silo-balanced-sweep-3d39fe94",
+        "backoff-sweep-silo-read-heavy-sweep-9d37b4cf",
+    }
+    assert str(ident.campaign_id(s6_config("balanced"))) == \
+        "p3-s6-sort-sweep-balanced-sweep-dd25aa8c"
+    assert str(ident.campaign_id(s6_config("write-heavy"))) == \
+        "p3-s6-sort-sweep-write-heavy-sweep-0484feef"
 
 
 def test_identity_mismatch_guard():
@@ -367,6 +423,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         def __init__(self):
             super().__init__()
             self.trace = []
+            self.events = []
 
     bench_calls = CallEvidence()
     saved = {}
@@ -381,6 +438,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
     def fake_measure(*a, **k):
         bench_calls.append(1)                            # 実 bench が走った証跡
+        bench_calls.events.append("bench")
         return types.SimpleNamespace(
             throughputs=([] if median is None else [median, median]),
             run_cmd="<run>",
@@ -412,6 +470,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     else:
         def fake_trace(*a, **k):
             bench_calls.trace.append(1)
+            bench_calls.events.append("verify")
             return ncommit, rc, aborts
         patch("_run_trace", fake_trace)
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
@@ -441,6 +500,10 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
 def _eval(lay, do_bench=True, screening=None, **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
+    if screening is not None and wal.read_lock(lay) is None:
+        cfg = _cfg(search_config={**_cfg().search_config,
+                                  **ident.screening_search_config(screening)})
+        wal.write_lock(lay, ident.canonical_preimage(cfg))
     with _mock_pipeline(**mock_kw) as calls:
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
@@ -702,6 +765,42 @@ def test_pipeline_screen_reject_skips_verify_and_never_commits():
         "margin": -0.1501}
 
 
+def test_pipeline_stale_screening_falls_back_to_verify_first_and_records_trace():
+    lay = _tmp_layout()
+    now = time.time()
+    r, calls = _eval(
+        lay,
+        screening=_screening(baseline_measured_at=now - 31 * 60),
+        median=8000.0,
+    )
+    assert r.certified and not r.aborted
+    assert calls.events == ["verify", "bench"]
+    assert any("stale-baseline" in note and "1860" in note for note in r.notes)
+    records = list(wal.read_records(lay))
+    bench = [rec for rec in records if rec.stage == STAGE_BENCH_DONE][-1]
+    disabled = bench.payload["screening_disabled"]
+    assert disabled["reason"] == "stale-baseline"
+    assert disabled["age_s"] >= 31 * 60
+    assert disabled["threshold_s"] == 1800.0
+    commit = [rec for rec in records if rec.stage == STAGE_COMMIT][-1]
+    assert "screened" not in commit.payload
+
+
+def test_pipeline_fresh_screening_remains_active():
+    lay = _tmp_layout()
+    r, calls = _eval(
+        lay,
+        screening=_screening(baseline_measured_at=time.time() - 29 * 60),
+        median=8000.0,
+    )
+    assert r.aborted and not r.certified
+    assert calls.events == ["bench"]
+    records = list(wal.read_records(lay))
+    bench = [rec for rec in records if rec.stage == STAGE_BENCH_DONE][-1]
+    assert bench.payload["screening"] is True
+    assert "screening_disabled" not in bench.payload
+
+
 def test_pipeline_screening_verify_red_keeps_existing_structured_abort():
     lay = _tmp_layout()
     r, calls = _eval(lay, screening=_screening(), median=9000.0,
@@ -739,6 +838,8 @@ def test_pipeline_screening_boundary_and_fails_safe_matrix():
         ("inside-floor", 9500.0, 0.03, False, False),
         ("faster", 11000.0, 0.03, False, False),
         ("unstable", 8000.0, 0.03, True, False),
+        # high-abort は厳密な >。等号は対象外へ逃がさず通常の screening 判定を行う。
+        ("high-abort-equal", 8000.0, 0.06, False, True),
         ("high-abort", 8000.0, 0.060001, False, False),
         ("abort-rate-missing", 8000.0, None, False, False),
     ]
@@ -760,6 +861,64 @@ def test_pipeline_screening_boundary_and_fails_safe_matrix():
             assert commit.payload["fitness_tps"] == median, name
 
 
+def test_evaluate_commit_writes_are_syntactically_verify_gated():
+    """設計 §5-5(i): evaluate 内に verify なし COMMIT の構文位置を作れないことを固定。"""
+    with open(pipeline.__file__, encoding="utf-8") as f:
+        tree = ast.parse(f.read(), filename=pipeline.__file__)
+    evaluate_node = next(
+        n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "evaluate")
+
+    parents = {}
+    for parent in ast.walk(evaluate_node):
+        for child in ast.iter_child_nodes(parent):
+            parents[child] = parent
+
+    verify_loop = next(
+        n for n in ast.walk(evaluate_node)
+        if isinstance(n, ast.For)
+        and isinstance(n.iter, ast.Name) and n.iter.id == "passes")
+    certified_assignment = next(
+        n for n in ast.walk(evaluate_node)
+        if isinstance(n, ast.Assign)
+        and any(isinstance(t, ast.Attribute)
+                and isinstance(t.value, ast.Name) and t.value.id == "res"
+                and t.attr == "certified" for t in n.targets)
+        and isinstance(n.value, ast.Constant) and n.value.value is True)
+    assert verify_loop.end_lineno < certified_assignment.lineno
+
+    commit_calls = []
+    for node in ast.walk(evaluate_node):
+        if not isinstance(node, ast.Call) or len(node.args) < 3:
+            continue
+        if not (isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "wal" and node.func.attr == "log"):
+            continue
+        stage = node.args[2]
+        if isinstance(stage, ast.Name) and stage.id == "STAGE_COMMIT":
+            commit_calls.append(node)
+
+    assert len(commit_calls) == 2
+    for call in commit_calls:
+        assert call.lineno > certified_assignment.lineno
+        cur = parents.get(call)
+        inside_certified_if = False
+        while cur is not None and cur is not evaluate_node:
+            if (isinstance(cur, ast.If)
+                    and isinstance(cur.test, ast.Attribute)
+                    and isinstance(cur.test.value, ast.Name)
+                    and cur.test.value.id == "res"
+                    and cur.test.attr == "certified"):
+                inside_certified_if = True
+                break
+            cur = parents.get(cur)
+        assert inside_certified_if
+
+    # mutation resistance: verify loop より前へ
+    # `if False: wal.log(..., STAGE_COMMIT, ...)` を挿すと call 数・行順・認証 if の
+    # いずれも満たせず、このテストが落ちることを意図した形状検査である。
+
+
 def test_pipeline_screening_with_no_bench_is_immediate_value_error():
     lay = _tmp_layout()
     with _mock_pipeline() as calls:
@@ -773,6 +932,47 @@ def test_pipeline_screening_with_no_bench_is_immediate_value_error():
             assert "screening" in str(e) and "do_bench=False" in str(e)
     assert len(calls) == 0 and len(calls.trace) == 0
     assert list(wal.read_records(lay)) == []
+
+
+def test_pipeline_rejects_runtime_screening_mixed_into_legacy_campaign():
+    """F4監査再現: helper不使用の既存COMMIT campaignへscreeningを後付けできない。"""
+    lay = _tmp_layout()
+    legacy_cfg = _cfg()
+    wal.write_lock(lay, ident.canonical_preimage(legacy_cfg))
+    wal.log(lay, "already-committed", STAGE_COMMIT, "test-env", {"fitness_tps": 1.0})
+    before = list(wal.read_records(lay))
+
+    with _mock_pipeline() as calls:
+        try:
+            pipeline.evaluate(
+                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                screening=_screening(), log=lambda *a: None)
+            assert False, "legacy campaign への runtime screening 混在は拒否すべき"
+        except ValueError as exc:
+            assert "campaign.lock" in str(exc) and "screening" in str(exc)
+    assert calls.events == [] and calls.trace == []
+    assert list(wal.read_records(lay)) == before
+
+
+def test_pipeline_rejects_screening_policy_drift_from_campaign_lock():
+    for changed in ({"baseline_ref": "other"}, {"floor": 0.11}, {"k": 1.6}):
+        lay = _tmp_layout()
+        locked = _screening()
+        cfg = _cfg(search_config={**_cfg().search_config,
+                                  **ident.screening_search_config(locked)})
+        wal.write_lock(lay, ident.canonical_preimage(cfg))
+        runtime = _screening(**changed)
+        with _mock_pipeline() as calls:
+            try:
+                pipeline.evaluate(
+                    Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                    PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                    screening=runtime, log=lambda *a: None)
+                assert False, f"screening policy drift {changed} must be rejected"
+            except ValueError as exc:
+                assert "不一致" in str(exc)
+        assert calls.events == [] and list(wal.read_records(lay)) == []
 
 
 def test_pipeline_build_error_aborts():

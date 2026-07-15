@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -31,7 +32,7 @@ from calibrator.stability import remeasure_until_stable         # noqa: E402
 from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
-from . import buildcache, source_digest, wal                   # noqa: E402
+from . import buildcache, ident, source_digest, wal            # noqa: E402
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
@@ -102,6 +103,23 @@ class ScreeningConfig:
     k: float = 1.5
     baseline_abort_rate: float
     high_abort_factor: float = 2.0
+    reanchor_threshold_s: float = 1800.0
+
+    def __post_init__(self) -> None:
+        checks = (
+            (self.k >= 1.5, "k は 1.5 以上でなければならない"),
+            (self.baseline_tps > 0, "baseline_tps は正でなければならない"),
+            (0 < self.floor < 1, "floor は 0 より大きく 1 未満でなければならない"),
+            (self.baseline_abort_rate >= 0,
+             "baseline_abort_rate は 0 以上でなければならない"),
+            (self.high_abort_factor >= 1.0,
+             "high_abort_factor は 1.0 以上でなければならない"),
+            (self.reanchor_threshold_s > 0,
+             "reanchor_threshold_s は正でなければならない"),
+        )
+        for valid, message in checks:
+            if not valid:
+                raise ValueError(message)
 
 
 @dataclass
@@ -189,7 +207,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                numactl: Optional[Sequence[str]], do_settle: bool,
                layout: CampaignLayout, variant: str, env_tag: str,
                abort: Callable[[str, str, Optional[Dict]], EvalResult],
-               log=print, screening: bool = False
+               log=print, screening: bool = False,
+               bench_payload_extra: Optional[Dict] = None,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
@@ -270,6 +289,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
     }
     if screening:
         bench_payload["screening"] = True
+    if bench_payload_extra:
+        bench_payload.update(bench_payload_extra)
     wal.log(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
     log(f"  [eval {variant}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
@@ -313,6 +334,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     並列可 (lock.py の設計方針)。"""
     if screening is not None and not do_bench:
         raise ValueError("screening 指定時に do_bench=False は使えない")
+    if screening is not None:
+        # D58 campaign 分離: runtime 引数だけで既存 campaign へ screening を混在させない。
+        # WAL/build を一切書く前に、campaign.lock の同一方針焼き込みを検証する。
+        ident.verify_screening_preimage(screening, wal.read_lock(layout))
     correctness = correctness or CorrectnessWorkload()
     passes: List[Tuple[str, CorrectnessWorkload, bool]] = [(LEGACY_TAG, correctness, False)]
     for tag, wl in (extra_correctness or []):
@@ -450,10 +475,31 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         finally:
             shutil.rmtree(tdir, ignore_errors=True)
 
+    # baseline が古い場合は screening を無効化し、通常の verify-first 経路へ倒す。
+    # 再アンカーは driver の責務であり、evaluate() は古い基準による偽棄却をしない。
+    active_screening = screening
+    screening_disabled_payload: Optional[Dict] = None
+    if screening is not None:
+        baseline_age_s = time.time() - screening.baseline_measured_at
+        if baseline_age_s > screening.reanchor_threshold_s:
+            active_screening = None
+            screening_disabled_payload = {
+                "screening_disabled": {
+                    "reason": "stale-baseline",
+                    "age_s": baseline_age_s,
+                    "threshold_s": screening.reanchor_threshold_s,
+                    "baseline_ref": screening.baseline_ref,
+                }
+            }
+            res.notes.append(
+                "stale-baseline: baseline age "
+                f"{baseline_age_s:.3f}s exceeds reanchor threshold "
+                f"{screening.reanchor_threshold_s:.3f}s; screening disabled")
+
     # screening 経路だけ bench を先行する。測定不能/CV 不定は _run_bench の既存 reason で
     # abort。unstable・abort率欠損・high-abort は曖昧側なので棄却せず verify へ送る。
     bench: Optional[_BenchResult] = None
-    if screening is not None:
+    if active_screening is not None:
         aborted_result, bench = _run_bench(
             pf.binary, perf, clocks_per_us, numactl, do_settle,
             layout, v, env_tag, _abort, log, screening=True)
@@ -464,11 +510,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         if not bench.unstable:
             abort_rate = bench.leading_indicators.get("abort_rate")
             if abort_rate is not None:
-                high_abort = abort_rate > (screening.baseline_abort_rate *
-                                           screening.high_abort_factor)
+                high_abort = abort_rate > (active_screening.baseline_abort_rate *
+                                           active_screening.high_abort_factor)
                 if not high_abort:
-                    threshold = screening.baseline_tps * (
-                        1 - screening.k * screening.floor)
+                    threshold = active_screening.baseline_tps * (
+                        1 - active_screening.k * active_screening.floor)
                     screen_reject = bench.median_tps < threshold
         if screen_reject:
             return _abort(
@@ -477,11 +523,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 {"screen": {
                     "median_tps": bench.median_tps,
                     "cv": bench.cv,
-                    "baseline_tps": screening.baseline_tps,
-                    "baseline_ref": screening.baseline_ref,
-                    "floor": screening.floor,
-                    "k": screening.k,
-                    "margin": bench.median_tps / screening.baseline_tps - 1,
+                    "baseline_tps": active_screening.baseline_tps,
+                    "baseline_ref": active_screening.baseline_ref,
+                    "floor": active_screening.floor,
+                    "k": active_screening.k,
+                    "margin": bench.median_tps / active_screening.baseline_tps - 1,
                 }})
 
     verify_tags: List[str] = []
@@ -511,34 +557,39 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         verify_tags.append(tag)
     res.certified = True
 
-    if not do_bench:
-        # 配線テストでベンチを省くとき: certified だけで commit (fitness なし)。
-        wal.log(layout, v, STAGE_COMMIT, env_tag, {"fitness_tps": None,
-                                                   "note": "no-bench",
-                                                   "verify_configs": verify_tags})
+    # COMMIT の全構文位置を認証完了判定の内側に閉じる。AST gate がこの形を固定する。
+    if res.certified:
+        if not do_bench:
+            # 配線テストでベンチを省くとき: certified だけで commit (fitness なし)。
+            wal.log(layout, v, STAGE_COMMIT, env_tag, {"fitness_tps": None,
+                                                       "note": "no-bench",
+                                                       "verify_configs": verify_tags})
+            return res
+
+        # --- bench (排他 + 静定, I/Admission)。screening 経路は既測なので再実行しない。 ---
+        if bench is None:
+            aborted_result, bench = _run_bench(
+                pf.binary, perf, clocks_per_us, numactl, do_settle,
+                layout, v, env_tag, _abort, log,
+                bench_payload_extra=screening_disabled_payload)
+            if aborted_result is not None:
+                return aborted_result
+        assert bench is not None
+        res.fitness_tps, res.cv, res.unstable = (
+            bench.median_tps, bench.cv, bench.unstable)
+
+        # --- commit (A: 全段通過した瞬間だけ) ---
+        # unstable は規定ラウンドでも CV が収束しなかった印 = この 1 点を信用するな。正しさは
+        # 通っているので reject はしないが、採否の分布比較から呼び手が除外する
+        # (§3.6(4): 沈黙して 1 点を採用しない)。high_variance は採用ラウンド自体の騒がしさ。
+        commit_payload = {
+            "fitness_tps": bench.median_tps, "cv": bench.cv,
+            "high_variance": bench.high_variance, "unstable": bench.unstable,
+            "verify_configs": verify_tags,
+        }
+        if active_screening is not None:
+            commit_payload["screened"] = True
+        wal.log(layout, v, STAGE_COMMIT, env_tag, commit_payload)
         return res
 
-    # --- bench (排他 + 静定, I/Admission)。screening 経路は既測なので再実行しない。 ---
-    if bench is None:
-        aborted_result, bench = _run_bench(
-            pf.binary, perf, clocks_per_us, numactl, do_settle,
-            layout, v, env_tag, _abort, log)
-        if aborted_result is not None:
-            return aborted_result
-    assert bench is not None
-    res.fitness_tps, res.cv, res.unstable = (
-        bench.median_tps, bench.cv, bench.unstable)
-
-    # --- commit (A: 全段通過した瞬間だけ) ---
-    # unstable は規定ラウンドでも CV が収束しなかった印 = この 1 点を信用するな。正しさは
-    # 通っているので reject はしないが、採否の分布比較から呼び手が除外する
-    # (§3.6(4): 沈黙して 1 点を採用しない)。high_variance は採用ラウンド自体の騒がしさ。
-    commit_payload = {
-        "fitness_tps": bench.median_tps, "cv": bench.cv,
-        "high_variance": bench.high_variance, "unstable": bench.unstable,
-        "verify_configs": verify_tags,
-    }
-    if screening is not None:
-        commit_payload["screened"] = True
-    wal.log(layout, v, STAGE_COMMIT, env_tag, commit_payload)
-    return res
+    raise AssertionError("verify 完了前の非認証結果は COMMIT 経路へ到達できない")
