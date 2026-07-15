@@ -1,0 +1,2 @@
+{"variant":"d08328e01a24","stage":"build_start","env_tag":"linux-baremetal","ts":1784116819.10268,"payload":{"genome":"silo|BACKOFF_FIXED=-1,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0","src_token":"04013c87e76cf4f8f7f66ffb774912d4521914fd8c86b19cf2239a998d732550"}}
+{"variant":"d08328e01a24","stage":"abort","env_tag":"linux-baremetal","ts":1784116819.1046026,"payload":{"reason":"build-error","error":"RuntimeError: ccbench_commit 不一致: 宣言=dff0f1e だが submodule HEAD=d706650cdb31。誤った版でのビルド/偽キャッシュヒットを防ぐため停止する (honest-by-construction)。"}}
