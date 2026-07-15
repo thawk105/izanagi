@@ -1,6 +1,6 @@
 {
   "what": "S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)",
-  "frozen_at_head": "0f304270954eacd6df136bbac50da649e289833d",
+  "frozen_at_head": "2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1",
   "ccbench_pin": "d706650cdb31e442bef45b9b4216951d4fb40969",
   "generator": {
     "path": "orchestrator/campaign/s1_known_axes_freeze.py",
@@ -621,7 +621,7 @@
         "sources": [
           {
             "path": "docs/phase3-main-experiment.md",
-            "sha256": "dd97a1be2d3b680a80c1c0e529fe0d235dce31aeb37f99f95f6364e54ed17258",
+            "sha256": "e544de1969dd4df13dc42aa3d165e22b70fab2ab399dc011baa46359727bea45",
             "key": "D52 2026-07-12追記: read-heavy sk_ad事前固定"
           },
           {
