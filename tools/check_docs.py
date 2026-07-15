@@ -32,6 +32,7 @@ LIVING_DOCS = [
     REPO / "docs" / "related-work" / "README.md",  # 旧 related-work.md はディレクトリ化 (2026-07-11 監査 lint-04 で修正 — 旧パスは黙って skip されていた)
     REPO / "docs" / "phase3.md",                  # 現行 phase doc。Phase 移行時にここを差し替え、旧 doc は凍結宣言
     REPO / "docs" / "phase3-main-experiment.md",  # 事前登録 (サンプル設計数値の確定追記が残るため living)
+    REPO / "docs" / "phase3-8b-descriptor-design.md",  # 段 8b の実走前凍結設計 (draft の間は living)
     REPO / "docs" / "glossary.md",
     REPO / "docs" / "agent-architecture.md",
     REPO / "docs" / "orchestrator-design.md",
