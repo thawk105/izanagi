@@ -1,6 +1,6 @@
 {
   "what": "S-1 計測 freeze v2 (18セル・比較対・schedule・実装 hash)",
-  "frozen_at_head": "02c840c4a001f8df6810355471806cb251400fdf",
+  "frozen_at_head": "0f304270954eacd6df136bbac50da649e289833d",
   "ccbench_pin": "d706650",
   "generator": {
     "path": "orchestrator/campaign/s1_measurement_freeze.py",
@@ -740,7 +740,7 @@
         "sources": [
           {
             "path": "docs/phase3-main-experiment.md",
-            "sha256": "dab2569e51db8dbf80f3c9f634f59afe84445a76fa635cc27d325fe3faf4abc5",
+            "sha256": "dd97a1be2d3b680a80c1c0e529fe0d235dce31aeb37f99f95f6364e54ed17258",
             "key": "D52 2026-07-12追記: read-heavy sk_ad事前固定"
           },
           {
@@ -1296,7 +1296,7 @@
     },
     "known_axes_freeze": {
       "path": "output/s1-freeze/known_axes_freeze.json",
-      "sha256": "7a7458df4ee4350ff500f7b47662fe74ae8e3d0936430c1dda8c3a8fcb012f3e",
+      "sha256": "3eb808b4b751d5dc57e57e214fc6d7fea9a9c702a0208b5f0e87f094ae65bce1",
       "key": "S-1 既知軸基準点 freeze"
     }
   }
