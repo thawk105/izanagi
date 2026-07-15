@@ -33,6 +33,8 @@ from campaign.loop import run_campaign                          # noqa: E402
 from campaign.model import CampaignConfig                       # noqa: E402
 from campaign.pipeline import PerfConfig                        # noqa: E402
 
+# 歴史的 pin を意図的に保持 (IDENT-1/IDENT-3、pin.py docstring 参照)。
+# 再走には submodule を dff0f1e へ checkout する。
 CCBENCH_COMMIT = "dff0f1e"
 ENV_TAG = "linux-baremetal"
 CLK = 1800

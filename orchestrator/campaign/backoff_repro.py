@@ -32,6 +32,8 @@ from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, ENV_TAG, EXTIME,  # noqa: E402
                            NUMA, RECORDS, REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig, variant_id             # noqa: E402
 
+# 歴史的 pin を意図的に保持 (IDENT-1/IDENT-3、pin.py docstring 参照)。
+# 再走には submodule を dff0f1e へ checkout する。
 CCBENCH_COMMIT = "dff0f1e"
 
 # 元 sweep で確定した値 (committed)。再現の比較基準。

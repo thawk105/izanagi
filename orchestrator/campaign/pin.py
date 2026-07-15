@@ -8,10 +8,10 @@ assert (D41) を足し 028f34d → d706650 に再前進した。`ccbench_commit`
 campaign-id を移動させる (decisions.md:327 の ODR-fix gitlink 前進と同型 = 既知・
 正直な content-addressed 挙動、バグではない)。
 
-**この定数を使うのは pin 前進後に新設された driver だけ** (現行 = s3 lock-coverage /
-s5 permutation-coverage)。歴史的 driver (p3_kickoff / p3_s4_red / p2_2 / backoff_* /
-sanity_silo / demo / s2_verify_calibration) は**自分の literal pin (dff0f1e) を保持**
-する — それぞれの campaign はその pin で凍結・push 済みで、再走するには submodule を
+**この定数を使うのは pin 前進後に新設された driver と現行で再走する driver だけ**
+(backoff_sweep を含む)。歴史的 driver (p3_kickoff / p3_s4_red / p2_2 /
+backoff_repro / sanity_silo / demo / s2_verify_calibration) は**自分の literal pin
+(dff0f1e) を保持**する — それぞれの campaign はその pin で凍結・push 済みで、再走するには submodule を
 dff0f1e に checkout してから回す (現 working-tree が d706650 のとき dff0f1e-pin driver
 を回すと patchharness の pinned-clean assert が fails-closed で止まる = 正しい安全側
 動作)。一律に全 driver をこの定数に張り替えると歴史的 campaign が現 config で孤立する
