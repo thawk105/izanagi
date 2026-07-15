@@ -38,10 +38,13 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 **現行の着手順:** (1)〜(3) は 2026-07-16 に完了した — S-1 計測開始 gate を全て閉じ (freeze 実体
 163107c、extime=3s 校正 0f30427)、8b 前向き設計 draft (c59482a、発効はユーザー承認待ち) と
 層3最小 renderer + 実レポート (15d9e7c / 24202e2) を作り、S-1 本走 (develop v2 / floor /
-block1 / block2 全 success) と report (d9aef7b) を閉じた。三値判定 = **S-1a 不成立 / S-1b 成立**、
-Holm 族 4 全体の裁定と S' 報告文言の確定は人間へ。次: (a) 族 4 裁定・S' 報告のユーザー確認、
-(b) 8b 設計の承認発効、(c) 8b + 層3の 1 cycle 後に必要性を計測して 8c、さらにその後に段 7 /
-Phase 3.5 を再判断する。
+block1 / block2 全 success) と report (d9aef7b) を閉じた。三値判定 = **S-1a 不成立 / S-1b 成立**。
+族 4 判定表は 2026-07-16 ユーザー承認で確定し (**S' は headline 不成立**、最終報告 =
+`output/reports/s_prime_final_report.md`)、8b 設計も同日発効した (holdout = rr80/rr20)。
+次: (a) 8b selector 実験の実装 (holdout freeze 手順 → descriptor 射影と検証 gate → selector 役 →
+oracle 評価 driver、正本 = `docs/phase3-8b-descriptor-design.md`)、(b) 層3 renderer の対象拡大を
+並行、(c) 8b + 層3の 1 cycle 後に必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を
+再判断する。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 

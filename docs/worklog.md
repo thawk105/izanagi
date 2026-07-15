@@ -732,3 +732,27 @@ codex gpt-5.6-terra ×4 (8b 起草 / 層3 実装 / 8b 監査修正 / driver 修�
    実験の実装へ
 3. 層3 renderer の対象拡大 (sweep campaign への適用) と機序仮説層の原料配線は 8b と並行可
 4. push は人間の判断に委ねる
+
+## 2026-07-16 (2) — 5 裁定の全承認と実行: 族 4 確定 = S' 不成立、8b 発効 (holdout rr80/rr20)
+
+朝のユーザー協議で前エントリの裁定待ち 5 件が全承認され、本セッション (一晩完走した親) が
+確定作業まで実行してから新セッションへ交代する。
+
+- **族 4 判定表の確定 (裁定 1):** S-1b のみ成立、S-2 第 2 段打ち切り、S-1a/S-3 非有意。帰結 =
+  **縮小主張 S' は headline 不成立** (合成軸は sort には勝つが flag 最適化・静的 backoff 最良に
+  及ばず、既知軸最良の超越は不成立)。最終報告 = `output/reports/s_prime_final_report.md`
+  (確定文言 2026-07-13 の §6 雛形を充填、凍結集計には不作用)。事前登録へ日付付き追記 +
+  freeze 再凍結 3 回目 (値不変・schedule_hash 同一) = ccfd5f1
+- **8b 設計の発効 (裁定 2):** holdout = H1 (rr80) + H2 (rr20) をユーザー選択。理由 = descriptor
+  中核フィールド (read/write 比率) 軸上の未測定内挿点で、H3/H4 は校正前提の交絡があるため
+  次サイクルへ。選択時点で両条件の測定結果は非存在 (機械確認は実走前 freeze 手順で実行)
+- push 可 (裁定 3、実施は人間)・層3 拡張の並行 (副次 4)・codex モデル運用 (副次 5、2066ce6) も承認
+- 実装 (8b selector 実験 + 層3 拡張) は新セッションへ委譲 — 引き継ぎプロンプトを提示して交代
+
+### 次の一手
+1. 8b selector 実験の実装 (新セッション、codex 委譲主体): holdout freeze 手順 (§3.1 正規表現 +
+   rr50 陽性対照) → descriptor 射影 + 検証 gate (§2.2 fails-closed 二段) → selector 役 (tool-less
+   構造化出力、勝者名・実測値の遮断) → oracle 評価 driver (§5.1 二層分離)。正本 =
+   `docs/phase3-8b-descriptor-design.md`
+2. 層3 renderer の対象拡大 (sweep campaign 適用、機序仮説層の原料配線) を並行
+3. push は人間の判断に委ねる (未 push: 前セッション分含め 02c840c..HEAD)
