@@ -327,3 +327,23 @@ medium) へ委譲し、対象 3 ファイルの現状を読んで節単位に詰
 ### 次の一手
 1. push は人間の判断に委ねる (この環境に push 認証なし)
 2. 07-15 (6) 次の一手の残り (phase hot path 分離 → archive 到達性 lint) は変わらず
+
+## 2026-07-15 (8) — task-class gate の第三者監査と文言精密化 (codex 委譲)
+
+ユーザー依頼で gate (6aadab0) の妥当性とトークン効率を検証した。調査 4 観点 25 エージェント
+(約 74.5 万 token)、指摘ごとに敵対検証で real/refuted 選別。severity high の指摘 5 件は全て
+partially_real に降格 — 基本設計 (クラス 1 と 2/3 の分離・昇格ラチェット) は成立し、実効欠陥は
+記述の隙間 4 点 + phase3.md 読み方の自己参照 grep + AGENTS.md 再掲のみ、が最終裁定。
+- 却下台帳の再確認: 起動キャッシュ新設 (D35/D57)・ゲート hook 強制 (D31)・handoff 全読の緩和
+  (07-15 (7))・worklog 薄化 (D35) は指示書に地雷として明記し再提案を禁止した
+- 委譲: `gpt-5.6-sol` (reasoning medium)。1 回目は sandbox の `.git` 書込拒否で codex が自己判断で
+  編集を取り消し clean 終了 (アンカー検証・バイト検証は成功)。full-access 化はせず「編集 = codex、
+  監査後 commit = 親」へ分業変更し、`codex exec resume` で完遂 (resume は `--sandbox` 不可、
+  `-c sandbox_mode=` で渡す)
+- 監査: 独立 2 観点 (指示遵守・境界 / 取り残し消費者・回帰) とも全項 refuted でブロッカーなし。
+  旧 grep 語「着手前 must」は見出し改称済みで既に腐っていたことが判明 (今回のは純修正)
+- commit: 8d68c76..c70eaa5 (4 本)。07-15 (7) が繰り延べた F11 文言の条件化を消化
+
+### 次の一手
+1. push は人間の判断に委ねる (この環境に push 認証なし)
+2. 07-15 (6) 次の一手の残り (phase hot path 分離 → archive 到達性 lint) は変わらず
