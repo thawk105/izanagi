@@ -543,3 +543,27 @@ commit は親の責務とし、本作業では行っていない。
 1. 親は並行実装の driver/stats/calibration と B1 の入出力契約を統合監査する
 2. external submodule の意図した差分を整理後、known-axes verify を通してから人間が freeze を生成・commit する
 3. push は人間の判断に委ねる
+
+## 2026-07-15 (17) — S-1 直接比較 driver (B2a)
+
+計測開始 gate (3) の実行系として、4 campaign を分離した直接比較 driver、session ledger、
+12h 予算台帳、機械故障 retry と positive control を追加した。統計・判定・report、freeze 実体生成、
+実計測、commit は行っていない。
+
+- `pipeline.evaluate` に runtime-only `bench_max_rounds` (既定3) を追加。既存 campaign-id と既定挙動を
+  保ち、S-1 のみ1を渡して 1 session = measure_point 1回を固定した。
+- `develop` は18セルを legacy+S2 / benchなし、`floor` は8周回、`block1` / `block2` は各4周回を
+  freeze 順に実行。各 role を search_config に焼き、別 campaign-id とした。
+- campaign WAL の unknown stage `s1-session` を採用。既存 replay/records_by_stage が任意 stage を
+  安全に保持する回帰を固定し、schedule prefix・重複・欠落・順序逸脱を fail-closed で照合する。
+- 12h ledger は tmp+fsync+`os.replace`、通常10hと retry専用2hを分離。evaluate 例外・build error・
+  bench系失敗だけ最大2 retry、verifier red は retryせず全 role 共通の停止事実として台帳に残す。
+- 専用 pytest 10 passed、既存 campaign と合わせて110 passed / 3 skipped。全体の未選別実行は
+  608 passed / 10 skipped / 2 failed (固定 Codex runtime 不在1、sandboxが既存 submodule patch
+  テストの `.git/modules` revertを拒否1)。後者と同型の別テストも選別再実行で確認し、いずれも
+  テスト残骸はHEAD同一へ復旧、submodule clean。B1/A/C 専用27 passed、Codex/docs/diff検査 pass。
+
+### 次の一手
+1. 親は B1 freeze を生成・commit した後、4 role を各 `--dry-run` で照合し、gate (2)〜(5) を統合監査する
+2. 実走は計測機ホストで develop → floor → block1 → 時間分離 → block2 の別プロセス順に行う
+3. commit / push は親・人間の判断に委ねる

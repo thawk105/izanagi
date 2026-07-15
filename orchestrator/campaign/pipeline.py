@@ -209,6 +209,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                abort: Callable[[str, str, Optional[Dict]], EvalResult],
                log=print, screening: bool = False,
                bench_payload_extra: Optional[Dict] = None,
+               bench_max_rounds: int = 3,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
@@ -250,7 +251,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                              {"competing": comp}), None
             settled = settle() if do_settle else None
             rem = remeasure_until_stable(_measure,
-                                         settle_fn=settle if do_settle else None)
+                                         settle_fn=settle if do_settle else None,
+                                         max_rounds=bench_max_rounds)
     finally:
         shutil.rmtree(dummy_tdir, ignore_errors=True)
     pt, nf = rem.point, rem.nf
@@ -308,7 +310,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              do_bench: bool = True, do_settle: bool = True,
              src_token: Optional[str] = None, log=print,
              ccbench_dir: str = "", cache_root: str = "",
-             screening: Optional[ScreeningConfig] = None) -> EvalResult:
+             screening: Optional[ScreeningConfig] = None,
+             bench_max_rounds: int = 3) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -316,6 +319,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     ソースはその worktree から読み、`cache_root` を固定パス配下に据え置けばビルドキャッシュは
     campaign 非依存のまま共有される (worktree 間で内容キーが揃う)。campaign-id には含めない
     (ビルド結果に影響しない実装詳細 — numactl/do_bench と同じ実行時引数の扱い)。
+    `bench_max_rounds` も同じ runtime-only 軸で campaign-id には含めない。既定 3 は従来の
+    `remeasure_until_stable` 既定と同一で、事前登録が 1 measure_point に固定した driver
+    だけ 1 を明示する。
 
     **正しさを確証できない variant は全て abort (fitness なし)** — verifier red だけで
     なく、ビルド失敗・trace 異常終了・空トレース・パース不能・bench 測定失敗も「採用
@@ -332,6 +338,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
     並列可 (lock.py の設計方針)。"""
+    if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
+            or bench_max_rounds < 1):
+        raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
     if screening is not None and not do_bench:
         raise ValueError("screening 指定時に do_bench=False は使えない")
     if screening is not None:
@@ -502,7 +511,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     if active_screening is not None:
         aborted_result, bench = _run_bench(
             pf.binary, perf, clocks_per_us, numactl, do_settle,
-            layout, v, env_tag, _abort, log, screening=True)
+            layout, v, env_tag, _abort, log, screening=True,
+            bench_max_rounds=bench_max_rounds)
         if aborted_result is not None:
             return aborted_result
         assert bench is not None
@@ -571,7 +581,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             aborted_result, bench = _run_bench(
                 pf.binary, perf, clocks_per_us, numactl, do_settle,
                 layout, v, env_tag, _abort, log,
-                bench_payload_extra=screening_disabled_payload)
+                bench_payload_extra=screening_disabled_payload,
+                bench_max_rounds=bench_max_rounds)
             if aborted_result is not None:
                 return aborted_result
         assert bench is not None
