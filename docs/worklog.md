@@ -620,3 +620,40 @@ B2a 敵対監査の real 3 件と親の統合裁定 1 件を、B1 measurement fr
 1. 親は external 残骸を正規経路で復旧し、B2a-fix と B2b の統合差分を監査する
 2. measurement freeze を生成・commit 後、4 role の `--dry-run` と gate (2)〜(5) を統合確認する
 3. commit / push は親・人間の判断に委ねる
+
+## 2026-07-15 (20) — S-1 計測開始 gate (2)〜(5) 実装の親統合: codex 並列 8 タスクの束ね
+
+ユーザー指示「緻密なプランを立てて並列可能な単位で最大限並列に codex へ」。エントリ
+(16)〜(19) は各 codex タスクの自筆記録 — 本エントリは親 (Fable 5) の統合視点の束ね。
+分業 = 親が正本読解・仕様書 7 本・裁定・監査駆動・commit、codex gpt-5.6-sol ×8 が実装
+(wave 1: 統計 A / freeze B1 / extime 校正 C / pin 裁定 D → wave 2: driver B2a → wave 3:
+report B2b + 監査修正 B2a-fix/B2b-fix)、sonnet Explore ×7 が偵察 3 + 敵対監査 4。
+
+- commit: ddea4bd..48be6c4 (8 本)。gate 別の到達状態: (2) generator + schedule 凍結済み
+  (**freeze 実体は未生成** — 生成は親の実行、既存 freeze なしを確認して generate)、
+  (3) driver 実行系 + report 判定系 + positive control 完備、(4) 統計 + テストベクトル
+  済み、(5) 校正 driver 済み (**実走待ち**)
+- 敵対監査 4 本 (独立コンテキスト、各 5〜8 レンズ): A/B1/C = 実害 0、B2a = real 3
+  (予算下限見積もり / prepare が retry 枠外 / trace-timeout 非 retryable)、B2b = real 1
+  (budget 超過が完備比較で fails-open)。全 4 件を同セッション内の fix commit で消化。
+  監査全文は commit message に要約、詳細はレビュー転写なし (Explore の構造化返答を親が
+  裁定して即消費)
+- 裁定 3 件 (親): (1) pin literal 4 driver は「保持」— 取り残しの定義を「再走予定が
+  あるのに literal」に限定 (a9c970c の backoff_sweep と区別)。(2) workload→rratio 対応
+  は freeze へ移管 (比較の意味を決める自由度を改竄検出の内側へ)。(3) 検証相校正の条件 =
+  read-heavy × g_rl (最重条件・保守側。stock 校正は D50 の gate 増速分だけ verify 時間を
+  過小評価する)
+- セッション異常: codex sandbox の read-only .git/modules により pytest の patchharness
+  テストが submodule revert に失敗し sort 軸パッチ残骸が 2 度残留 → 親が
+  patchharness.revert_worktree の正規経路で復旧 ×2 (guard hook は直接 git checkout を
+  正しく拒否 — 迂回せず)。B1 が「他セッション由来」と誤認 → (16) 内で訂正済み
+- 統合検証: 全 pytest 633 passed (fail は既知の codex runtime 前提検査 1 件のみ)、
+  provenance 50 件違反なし、docs lint 違反なし、driver は freeze 不在で fails-closed
+  起動拒否 (exit 2) を実機確認
+- 工数: codex exec ×8 (全て一発 green、空振り 0)、Explore ×7
+
+### 次の一手
+1. **freeze 実体の生成 + commit** (親実行: python3 orchestrator/campaign/s1_measurement_freeze.py generate → verify → commit)。これで gate (2) が閉じる
+2. **extime 校正の実走** (親ホスト、計測窓): python3 orchestrator/campaign/s1_verify_extime_calibration.py → 確定値を事前登録本文へ日付付き追記。これで gate (5) が閉じる
+3. 4 role の --dry-run 照合 → 計測窓で develop → floor → block1 → block2 (block 間は時間分離、単一テナント確認)。S-1 report 生成まで
+4. push は人間の判断に委ねる
