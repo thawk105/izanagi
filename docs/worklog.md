@@ -515,3 +515,31 @@ ab8a150..38c7e32 を実装済みだったことを発見し、規律 6 の取り
 2. bench-first ablation は初回採用 campaign で実施 (事前登録済み)。pin literal 取り残し
    4 ファイル (p2_2 / demo / backoff_repro / sanity_silo) の修正は軽作業として次セッションで
 3. push は人間の判断に委ねる
+
+## 2026-07-15 (16) — S-1 measurement freeze v2 generator (B1)
+
+計測開始 gate (2) の拡張として、known-axes freeze のみを構成値の出所にした
+measurement freeze generator と改竄 positive control を追加した。freeze 実体の生成と
+commit は親の責務とし、本作業では行っていない。
+
+- 3 workload × 6 構成の18セルを known-axes entries から逐語射影し、参照キーを付与。
+- S-1a 9 対 + S-1b 3 対の左側片側 `greater`、S-1b flags/predicate diff 再検査、
+  事前登録動作点を凍結。`stock_common` は比較外の併記セルと明記。
+- floor 8 周回 + test block 4 周回 ×2、各周回18セル均衡の seed 固定 schedule
+  (288 sessions) と canonical JSON hash、stats/generator/known freeze の sha256 を凍結。
+- verify は schema → generator/全実装 hash → known-axes 全照合 → S-1b → schedule hash
+  → HEAD ancestor/pin →完全再構成の順で fail-closed。二重 generate も明示削除まで拒否。
+- 専用 pytest: 7 passed。`orchestrator/tests` 全体は 600 passed / 10 skipped / 2 failed
+  (固定 Codex runtime 不在 1、sandbox の submodule revert 不可 1)。該当環境 gate を除いた
+  再実行は 600 passed / 9 skipped / 3 deselected。`check_codex_agents.py` / `check_docs.py` /
+  `git diff --check` pass。
+- 作業時の `external/ccbench/cmake/Options.cmake` は dirty (同一親セッション内の並行
+  codex テストが patchharness の revert に sandbox 制約で失敗した残骸 — B1 は「他
+  セッション由来」と誤認していたが親の統合時に訂正)。dirty のままだと known-axes freeze
+  の source hash 照合が fail する (fails-closed の正動作)。親が
+  patchharness.revert_worktree の正規経路で復旧済み。
+
+### 次の一手
+1. 親は並行実装の driver/stats/calibration と B1 の入出力契約を統合監査する
+2. external submodule の意図した差分を整理後、known-axes verify を通してから人間が freeze を生成・commit する
+3. push は人間の判断に委ねる
