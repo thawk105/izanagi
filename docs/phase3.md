@@ -16,7 +16,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 ユーザー承認 (2026-06-29)。decisions D22。**絶対規律 (特に 1/2/3/5/6) はここで初めて load-bearing になる**
 (LLM が正しさを破りうるコードを書く)。
 
-## 現行チェックポイント (2026-07-14 協議改訂)
+## 現行チェックポイント (2026-07-15 更新)
 
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。ただし現行の反復は
   人間がセッション間を運ぶ **human-supervised loop** であり、無人の進化探索ではない。
@@ -35,9 +35,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止は
   D58 の採用対象に含めず、別設計・別裁定とする。
 
-**現行の着手順:** (1) S-1 の計測ゼロ準備を終える、(2) 計測窓を待つ間に 8b の前向き設計と層3最小
-renderer を並行で作る、(3) 計測窓で対象別 floor・sort read-heavy・S-1 本走を閉じる、(4) 8b + 層3の
-1 cycle 後に必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を再判断する。
+**現行の着手順:** (1) S-1 計測開始 gate (2)〜(5) の実装統合は完了した。次は measurement freeze
+実体を生成・commit し、検証相 extime 校正を計測機で実走して gate を閉じる。(2) 計測窓を待つ間に
+8b の前向き設計と層3最小 renderer を並行で作る。(3) 計測窓で対象別 floor・sort read-heavy・S-1
+本走を閉じる。(4) 8b + 層3の 1 cycle 後に必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を
+再判断する。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
@@ -209,8 +211,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    - [x] S-2/S-3 提案ラウンド、凍結集計、reason 監査、報告文言の確定
    - [x] サンプル設計 4 点の数値を事前登録へ追記し、独立レビューする (v2 承認 2026-07-15、
      検定単位 = 独立セッション (S-1 限定) を含め発効。裁定台帳 = 2026-07-15_s1-sample-design)
-   - [ ] S-1 直接比較 driver と、既知軸基準点の machine-readable freeze を作る
-   - [ ] 検証相 (seed×N・長 extime) を実装する
+   - [x] S-1 直接比較 driver、既知軸基準点の machine-readable freeze、計測 freeze generator、
+     層別統計、report 判定系を実装する (2026-07-15)。freeze **実体の生成・commit は未了**
+   - [x] 検証相 (seed×N・長 extime) の extime 校正 driver を実装する (2026-07-15)。校正の**実走と
+     確定値の事前登録追記は未了**
    - [ ] sort read-heavy 欠測を補い、対象別 between-run floor を再実測する
    - [ ] S-1 本走、再測、Holm 族判定表、S' 報告を完結する
 

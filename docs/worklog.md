@@ -657,3 +657,22 @@ report B2b + 監査修正 B2a-fix/B2b-fix)、sonnet Explore ×7 が偵察 3 + �
 2. **extime 校正の実走** (親ホスト、計測窓): python3 orchestrator/campaign/s1_verify_extime_calibration.py → 確定値を事前登録本文へ日付付き追記。これで gate (5) が閉じる
 3. 4 role の --dry-run 照合 → 計測窓で develop → floor → block1 → block2 (block 間は時間分離、単一テナント確認)。S-1 report 生成まで
 4. push は人間の判断に委ねる
+
+## 2026-07-15 (21) — 現行状態ドキュメントの整合
+
+S-1 計測開始 gate (2)〜(5) の実装統合後も、root README と Phase 3 の S-1 checklist が
+「実装前」の状態を示していたため、実装済みと計測待ちを分離して更新した。
+
+- `README.md` は Phase 3 の現行主経路、S-1 の残作業、stock/tie を含む成果物契約、task-class gate に
+  整合させた。旧「Phase 3 着手前」の説明は除去した
+- `docs/phase3.md` は S-1 の direct-comparison driver / known-axes + measurement freeze generator /
+  層別統計 / report / extime 校正 driver を実装済みにし、freeze 実体生成・校正実走・本走を未了として
+  明記した
+- `docs/roadmap.md` は戦略文書であり、現況を主張せず phase doc と worklog を正本としているため、現行
+  実装との矛盾はなく変更しなかった
+- 検証: S-1 関連 pytest 57 passed、`check_codex_agents.py` / `check_docs.py` / `git diff --check` pass
+
+### 次の一手
+1. S-1 measurement freeze 実体を生成・verify・commit し、計測機で extime 校正を実走する
+2. 計測窓で sort read-heavy と対象別 floor を補充後、S-1 本走と report を閉じる
+3. push は人間の判断に委ねる

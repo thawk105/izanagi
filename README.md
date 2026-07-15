@@ -2,7 +2,10 @@
 
 **ワークロード特化の並行性制御 (Concurrency Control) を AI が自動合成するシステム。**
 
-CCBench を素材コーパスとして、入力ワークロードに最適な CC を選定し、他の CC 実装から有用な最適化を移植して variant を進化させ、最終的に「新しい CC + なぜそれが速いのかの説明 + 試行錯誤の記録」を生成することを目指す。
+CCBench を素材コーパスとして、入力ワークロードに対する CC variant を合成・選択し、最終的に
+「certified な選択結果 + evidence-bound な材料レポート + 再現可能な試行台帳」を生成することを目指す。
+証拠が改善を支持しなければ stock または tie を正直に選ぶ。他 CC 実装からの最適化移植は、現行の
+空間外合成を先に検証した後に判断する拡張である。
 
 ## 名前の由来
 
@@ -12,12 +15,18 @@ CCBench を素材コーパスとして、入力ワークロードに最適な CC
 
 ## 現在の状態
 
-**Phase 2 (パラメータ探索) 完了。次は Phase 3 (合成) 着手。** Phase 1 (評価器の構築) は完了済み — trace verifier・calibrator が `orchestrator/` に実装され、評価パイプライン (正しさ + 性能) が信頼できる状態。Phase 2 は P2-0〜P2-5 + A2 完了 (silo 全探索、critic/profiler 実体化、backoff ケーススタディで stock 最良を contention 域で +38%/+11% 上回る合成を certified で達成)。主実験 P2-5 は negative result (LLM 誘導は機械的勾配で達成できる水準を超えず、deceptive 構造では有意に有害 → 価値は空間外の合成にある、D21/D29)。S4 (規律3 配線) 完了済み。次は Phase 3 (LLM が CC コードを合成: planner/coder/auditor)。詳細な現在地は `CLAUDE.md` と `docs/worklog.md` 末尾。
+**現在は Phase 3 (workload 特化ハイブリッド合成)。** Phase 1 の evaluator と Phase 2 の
+bounded search は完了し、safe variant loop と軸 onboarding/axis-proposer は実体化済みである。
+現行の主経路は workload descriptor (8b) と層3材料レポートであり、旧主実験の縮小主張 S' は
+S-1 の登録済み計測を閉じる作業だけが残る。S-1 は計測開始 gate (2)〜(5) の実装統合まで完了し、
+measurement freeze 実体の生成、検証相 extime 校正、計測機での floor/sort 補充と本走が未了である。
+詳細な可変状態は `docs/phase3.md` の現行チェックポイントと `docs/worklog.md` 末尾を正本とする。
 
-実装を読む/進める前に、必ず以下を順に読むこと:
+実装を読む/進める前に、まず `CLAUDE.md` の task-class gate で依頼を分類する。変更を伴う Phase 作業は
+同ファイルの起動順に従い、以下から必要な箇所だけを読む:
 
 1. `CLAUDE.md` — 作業の出発点。現在地と絶対規律
-2. `docs/roadmap.md` — 全体設計とその理由 (議論の蓄積)
+2. `docs/roadmap.md` — 全体設計とその理由 (roadmap 改訂または Phase 初回は全文、それ以外は関連節)
 3. `docs/phase3.md` — 今やるべきタスクの分解 (Phase 1/2 は `docs/phase1.md` / `docs/phase2.md` に完了記録)
 
 ## アーキテクチャ概要 (三層)
