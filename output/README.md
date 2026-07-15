@@ -5,21 +5,40 @@
 ```
 output/
 ├── campaigns/<campaign-id>/      入力ごとの探索 (= 入力依存。campaign スコープ)
-│   ├── runs/wal.jsonl            評価の WAL (生 tps + leading indicators + 実行コマンド = forensic binding)
-│   └── reports/                  材料レポート (.dat[再現コマンド] + .plt + .png + report.md)
+│   ├── campaign.lock             同一性の正準 pre-image
+│   ├── spec/                     凍結した入力 spec
+│   ├── runs/wal.jsonl            評価の WAL (env tag・測定値・gate結果 = forensic binding)
+│   ├── variants/                 variant source/patch と build identity
+│   ├── reports/                  report・plot・provenance の決定論的射影先
+│   └── insights/                 campaign 固有 insight / whiteboard
 ├── env/<env-tag>/                環境ごと・入力非依存 (= 測定の物差し。env スコープ)
 │   ├── calibration/              レコード数飽和点 + noise floor (within-run / between-run, A2)
 │   └── profile/                  perf 機序プロファイル (spin 分離・有用 IPC 等, P2-4)
 ├── insights/                     CCBench 還元すべき発見 / calibrator・探索の妥当性文書
+├── s1-freeze/                    S-1 の known-axes / measurement freeze（後者は生成時に追加）
+├── s6-rounds/                    S-2/S-3 提案ラウンドの匿名化・採点・集計 provenance
 └── runs/silo-sample/             参照用サンプル trace (verifier 用。throwaway な生 trace は置かない)
 ```
 
 `<campaign-id>` = `<spec-slug>-<search-tag>-<cfg-hash8>` (内容ハッシュ、D13)。`<env-tag>` = `linux-baremetal` 等。
 
+`s1-freeze/` と `s6-rounds/` は campaign をまたぐ登録済み主実験の補助成果物である。前者の
+`known_axes_freeze.json` は存在する一方、`measurement_freeze.json` は S-1 計測開始 gate を閉じる時点で
+生成する。後者は独立セッションの提案・匿名化・採点を結ぶ記録であり、通常の campaign 出力ではない。
+
 ## なぜ二軸か (D13)
 
 - **campaign スコープ (入力依存)**: fitness・材料レポートは入力 workload ごとに変わる。campaign-id は spec の**中身** + ccbench-commit + 探索 config のハッシュなので、入力が変われば別 campaign になる (honest-by-construction)。
 - **env スコープ (入力非依存)**: calibration (レコード数・noise floor) と profile は「測定の物差し」であって variant の fitness ではない。(env, thread数, 代表 workload) ごとに決まり入力非依存なので campaign と分ける。
+
+## proof chain の扱い
+
+- `campaign.lock` と `campaigns/*/runs/` は proof chain の保護対象である。COMMIT/fitness を記録する唯一の
+  経路は `pipeline.evaluate()` であり、直接編集・削除・移動しない。
+- `reports/` と `insights/` は生成物・散文を置く射影先で、機械防護の対象外である。ただし WAL や source
+  identity と矛盾する根拠を後から書き換えてよい意味ではない。report は入力証拠を参照可能に保つ。
+- throwaway な生 trace・一時バイナリ・ローカルの実行残骸は追跡しない。必要な再現根拠は WAL、lock、凍結
+  spec、report/provenance、または insight に構造化して残す。
 
 ## insights の使い方
 

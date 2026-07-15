@@ -676,3 +676,20 @@ S-1 計測開始 gate (2)〜(5) の実装統合後も、root README と Phase 3 
 1. S-1 measurement freeze 実体を生成・verify・commit し、計測機で extime 校正を実走する
 2. 計測窓で sort read-heavy と対象別 floor を補充後、S-1 本走と report を閉じる
 3. push は人間の判断に委ねる
+
+## 2026-07-15 (22) — output 成果物地図の現行化
+
+`output/README.md` が campaign の WAL と reports だけを示す古い地図だったため、現行レイアウトと
+proof chain の書き込み境界に合わせた。
+
+- campaign 内の `campaign.lock`、`spec/`、`variants/`、`insights/` と、report/provenance の射影先を追加
+- 登録済み主実験の campaign 横断成果物 `s1-freeze/` と `s6-rounds/` を明記。S-1 measurement freeze は
+  未生成であることも区別した
+- `campaign.lock` / `runs/` の直接編集禁止と、reports/insights が機械防護の対象外でも根拠改竄を許さない
+  ことを明文化
+- 検証: `check_docs.py`、`git diff --check`、hooks/campaign pytest 121 passed / 4 skipped
+
+### 次の一手
+1. S-1 measurement freeze 実体を生成・verify・commit し、計測機で extime 校正を実走する
+2. 計測窓で sort read-heavy と対象別 floor を補充後、S-1 本走と report を閉じる
+3. push は人間の判断に委ねる
