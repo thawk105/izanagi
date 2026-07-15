@@ -13,9 +13,29 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .model import CampaignConfig, CampaignId
+
+if TYPE_CHECKING:
+    from .pipeline import ScreeningConfig
+
+
+def screening_search_config(
+        screening: Optional["ScreeningConfig"]) -> Dict[str, Dict[str, str]]:
+    """screening 方針だけを campaign-id 用 search_config entry に正準化する。
+
+    基準の再アンカーで campaign-id を割らないため、実測値と測定時刻・基準 abort 率は
+    含めない。None はキー自体を返さず、歴史的 campaign-id を完全に温存する。
+    """
+    if screening is None:
+        return {}
+    return {"screening": {
+        "baseline_ref": screening.baseline_ref,
+        "floor": f"{screening.floor:.6g}",
+        "k": f"{screening.k:.6g}",
+        "high_abort_factor": f"{screening.high_abort_factor:.6g}",
+    }}
 
 
 def canonical_preimage(cfg: CampaignConfig) -> str:

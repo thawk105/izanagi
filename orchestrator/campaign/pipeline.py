@@ -71,6 +71,8 @@ S2_TAG = "s2"
 # campaign_id に反映する (別 campaign になり WAL terminal skip の汚染を防ぐ)。
 SEARCH_CONFIG_VERIFY_KEY = "verify"
 VERIFY_LEGACY_PLUS_S2 = f"{LEGACY_TAG}+{S2_TAG}"
+# bench-first screening の terminal abort reason。WAL writer/reader が共有する暗黙 API。
+SCREEN_REJECTION_REASON = "screen-slower-than-floor"
 
 
 def s2_correctness_workload() -> CorrectnessWorkload:
@@ -88,6 +90,18 @@ class PerfConfig:
     workload: Dict[str, str] = field(default_factory=dict)
     extime: int = 3
     reps: int = 5
+
+
+@dataclass(frozen=True, kw_only=True)
+class ScreeningConfig:
+    """bench-first screening の固定方針と、driver が再アンカーする基準点。"""
+    baseline_tps: float
+    baseline_ref: str
+    baseline_measured_at: float
+    floor: float
+    k: float = 1.5
+    baseline_abort_rate: float
+    high_abort_factor: float = 2.0
 
 
 @dataclass
@@ -174,10 +188,10 @@ class _BenchResult:
 def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                numactl: Optional[Sequence[str]], do_settle: bool,
                layout: CampaignLayout, variant: str, env_tag: str,
-               res: EvalResult,
                abort: Callable[[str, str, Optional[Dict]], EvalResult],
-               log=print) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
-    """現行の full bench を実行し、成功時は WAL と EvalResult に既測値を残す。"""
+               log=print, screening: bool = False
+               ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
+    """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
     # (入れると gflags last-wins で calibration の records を無言上書きする)。
     if "ycsb_tuple_num" in perf.workload:
@@ -236,24 +250,27 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                      f"CV 算出不能 (有効 rep {len(pt.throughputs)} 点) → reject",
                      {"tps": pt.throughputs, "rounds": rem.rounds,
                       "rep_notes": getattr(pt, "notes", [])}), None
-    res.fitness_tps, res.cv, res.unstable = nf.median, nf.cv, rem.unstable
     leading_indicators = pt.leading_indicators()
-    wal.log(layout, variant, STAGE_BENCH_DONE, env_tag,
-            {"median_tps": nf.median, "cv": nf.cv,
-             "high_variance": nf.high_variance, "unstable": rem.unstable,
-             "rounds": rem.rounds, "cv_history": rem.cv_history,
-             "tps": pt.throughputs,
-             # admission: load が静定したか (settle の戻り)。fails-closed の一次ゲートは
-             # competing_bench_pids だが、settled=False の測定は forensic に残す (規律4)。
-             "settled": (settled.get("settled") if settled else None),
-             # leading indicators (§3.5): fitness を設計選択に帰属させる材料。
-             # critic が abort率/latency/cache/IPC を読んで次の genome 方向を出す。
-             "leading_indicators": leading_indicators,
-             # rep 単位の失敗記録 (1e2c01c, 規律3)。部分失敗 (例 2/5 rep timeout) は
-             # fitness が残り rep の median で成立するため、ここに載せないと「なぜ標本が
-             # 痩せたか」が WAL の機械可読経路から消える (洗練検査 MED)
-             "rep_notes": getattr(pt, "notes", []),
-             "run_cmd": pt.run_cmd})              # この測定点を再現する実行コマンド
+    bench_payload = {
+        "median_tps": nf.median, "cv": nf.cv,
+        "high_variance": nf.high_variance, "unstable": rem.unstable,
+        "rounds": rem.rounds, "cv_history": rem.cv_history,
+        "tps": pt.throughputs,
+        # admission: load が静定したか (settle の戻り)。fails-closed の一次ゲートは
+        # competing_bench_pids だが、settled=False の測定は forensic に残す (規律4)。
+        "settled": (settled.get("settled") if settled else None),
+        # leading indicators (§3.5): fitness を設計選択に帰属させる材料。
+        # critic が abort率/latency/cache/IPC を読んで次の genome 方向を出す。
+        "leading_indicators": leading_indicators,
+        # rep 単位の失敗記録 (1e2c01c, 規律3)。部分失敗 (例 2/5 rep timeout) は
+        # fitness が残り rep の median で成立するため、ここに載せないと「なぜ標本が
+        # 痩せたか」が WAL の機械可読経路から消える (洗練検査 MED)
+        "rep_notes": getattr(pt, "notes", []),
+        "run_cmd": pt.run_cmd,                    # この測定点を再現する実行コマンド
+    }
+    if screening:
+        bench_payload["screening"] = True
+    wal.log(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
     log(f"  [eval {variant}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
         f"{' ⚠UNSTABLE' if rem.unstable else ''})")
@@ -269,7 +286,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              extra_correctness: Optional[Sequence[Tuple[str, CorrectnessWorkload]]] = None,
              do_bench: bool = True, do_settle: bool = True,
              src_token: Optional[str] = None, log=print,
-             ccbench_dir: str = "", cache_root: str = "") -> EvalResult:
+             ccbench_dir: str = "", cache_root: str = "",
+             screening: Optional[ScreeningConfig] = None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -283,6 +301,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     しない」に倒す (規律2: certified を安売りしない / 空 DSG を緑と誤認させない)。
     abort も commit も terminal だが、abort は **fitness を付けず採用しない**。
 
+    `screening` (D58) を指定したときだけ full bench を verify より前へ移し、明白な
+    劣位点を uncertified のまま棄却する。COMMIT は従来どおり全 verify 構成通過後だけ。
+
     `extra_correctness` (D36 決定4): (tag, workload) の列。既定 correctness (tag
     LEGACY_TAG) に加え指定された構成を**全て**通した variant だけ certified にする
     (verify 2 本立て、既存 CorrectnessWorkload は置き換えず併存、決定2)。各構成は
@@ -290,6 +311,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
     並列可 (lock.py の設計方針)。"""
+    if screening is not None and not do_bench:
+        raise ValueError("screening 指定時に do_bench=False は使えない")
     correctness = correctness or CorrectnessWorkload()
     passes: List[Tuple[str, CorrectnessWorkload, bool]] = [(LEGACY_TAG, correctness, False)]
     for tag, wl in (extra_correctness or []):
@@ -427,6 +450,40 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         finally:
             shutil.rmtree(tdir, ignore_errors=True)
 
+    # screening 経路だけ bench を先行する。測定不能/CV 不定は _run_bench の既存 reason で
+    # abort。unstable・abort率欠損・high-abort は曖昧側なので棄却せず verify へ送る。
+    bench: Optional[_BenchResult] = None
+    if screening is not None:
+        aborted_result, bench = _run_bench(
+            pf.binary, perf, clocks_per_us, numactl, do_settle,
+            layout, v, env_tag, _abort, log, screening=True)
+        if aborted_result is not None:
+            return aborted_result
+        assert bench is not None
+        screen_reject = False
+        if not bench.unstable:
+            abort_rate = bench.leading_indicators.get("abort_rate")
+            if abort_rate is not None:
+                high_abort = abort_rate > (screening.baseline_abort_rate *
+                                           screening.high_abort_factor)
+                if not high_abort:
+                    threshold = screening.baseline_tps * (
+                        1 - screening.k * screening.floor)
+                    screen_reject = bench.median_tps < threshold
+        if screen_reject:
+            return _abort(
+                SCREEN_REJECTION_REASON,
+                "bench-first screening の保守床を明白に下回る → uncertified reject",
+                {"screen": {
+                    "median_tps": bench.median_tps,
+                    "cv": bench.cv,
+                    "baseline_tps": screening.baseline_tps,
+                    "baseline_ref": screening.baseline_ref,
+                    "floor": screening.floor,
+                    "k": screening.k,
+                    "margin": bench.median_tps / screening.baseline_tps - 1,
+                }})
+
     verify_tags: List[str] = []
     for tag, workload, use_numactl in passes:
         if use_numactl:
@@ -461,20 +518,27 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                                                    "verify_configs": verify_tags})
         return res
 
-    # --- bench (排他 + 静定, I/Admission) ---
-    aborted_result, bench = _run_bench(
-        pf.binary, perf, clocks_per_us, numactl, do_settle,
-        layout, v, env_tag, res, _abort, log)
-    if aborted_result is not None:
-        return aborted_result
+    # --- bench (排他 + 静定, I/Admission)。screening 経路は既測なので再実行しない。 ---
+    if bench is None:
+        aborted_result, bench = _run_bench(
+            pf.binary, perf, clocks_per_us, numactl, do_settle,
+            layout, v, env_tag, _abort, log)
+        if aborted_result is not None:
+            return aborted_result
     assert bench is not None
+    res.fitness_tps, res.cv, res.unstable = (
+        bench.median_tps, bench.cv, bench.unstable)
 
     # --- commit (A: 全段通過した瞬間だけ) ---
     # unstable は規定ラウンドでも CV が収束しなかった印 = この 1 点を信用するな。正しさは
     # 通っているので reject はしないが、採否の分布比較から呼び手が除外する
     # (§3.6(4): 沈黙して 1 点を採用しない)。high_variance は採用ラウンド自体の騒がしさ。
-    wal.log(layout, v, STAGE_COMMIT, env_tag,
-            {"fitness_tps": bench.median_tps, "cv": bench.cv,
-             "high_variance": bench.high_variance, "unstable": bench.unstable,
-             "verify_configs": verify_tags})
+    commit_payload = {
+        "fitness_tps": bench.median_tps, "cv": bench.cv,
+        "high_variance": bench.high_variance, "unstable": bench.unstable,
+        "verify_configs": verify_tags,
+    }
+    if screening is not None:
+        commit_payload["screened"] = True
+    wal.log(layout, v, STAGE_COMMIT, env_tag, commit_payload)
     return res

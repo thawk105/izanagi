@@ -26,7 +26,8 @@ from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
 from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE)
-from campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
+from campaign.pipeline import (EvalResult, PerfConfig,           # noqa: E402
+                               ScreeningConfig)
 from skiputil import Skip, skip                                  # noqa: E402
 from verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
                             Integrity, RW, VerifyResult)
@@ -143,6 +144,54 @@ def test_campaign_id_verify_config_changes_hash():
         "tier": "0-1", "scale": "silo",
         pipeline.SEARCH_CONFIG_VERIFY_KEY: pipeline.VERIFY_LEGACY_PLUS_S2})).cfg_hash8
     assert h0 != h1
+
+
+def _screening(**kw):
+    base = dict(baseline_tps=10000.0, baseline_ref="stock-v1",
+                baseline_measured_at=1000.0, floor=0.10, k=1.5,
+                baseline_abort_rate=0.03, high_abort_factor=2.0)
+    base.update(kw)
+    return ScreeningConfig(**base)
+
+
+def test_screening_config_is_frozen_and_requires_baseline_abort_rate():
+    assert ScreeningConfig.__dataclass_params__.frozen is True
+    try:
+        ScreeningConfig(baseline_tps=1.0, baseline_ref="v", baseline_measured_at=1.0,
+                        floor=0.1)
+        assert False, "baseline_abort_rate must be required"
+    except TypeError:
+        pass
+    sc = _screening()
+    try:
+        sc.floor = 0.2
+        assert False, "frozen dataclass must reject mutation"
+    except (AttributeError, TypeError):
+        pass
+
+
+def test_screening_search_config_omits_none_and_preserves_legacy_campaign_id():
+    base = {"tier": "0-1", "scale": "silo"}
+    search = {**base, **ident.screening_search_config(None)}
+    assert search == base and "screening" not in search
+    cfg = _cfg(search_config=search)
+    assert str(ident.campaign_id(cfg)) == "readheavy-locont-fullsearch-45ca7ab9"
+
+
+def test_screening_search_config_hashes_policy_not_reanchored_measurements():
+    sc = _screening()
+    entry = ident.screening_search_config(sc)
+    assert entry == {"screening": {
+        "baseline_ref": "stock-v1", "floor": "0.1", "k": "1.5",
+        "high_abort_factor": "2"}}
+    h0 = ident.campaign_id(_cfg(search_config=entry)).cfg_hash8
+    reanchored = _screening(baseline_tps=12345.0, baseline_measured_at=2000.0,
+                            baseline_abort_rate=0.04)
+    assert ident.campaign_id(_cfg(
+        search_config=ident.screening_search_config(reanchored))).cfg_hash8 == h0
+    for changed in (_screening(floor=0.11), _screening(k=1.6)):
+        assert ident.campaign_id(_cfg(
+            search_config=ident.screening_search_config(changed))).cfg_hash8 != h0
 
 
 def test_identity_mismatch_guard():
@@ -308,12 +357,18 @@ def _red_vr():
 
 @contextlib.contextmanager
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
-                   aborts=7, build_raises=False, high_variance=False,
-                   unstable=False, competing=None, trace_timeout=False):
+                   aborts=7, abort_rate=0.03, build_raises=False,
+                   high_variance=False, unstable=False, competing=None,
+                   trace_timeout=False):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。"""
-    bench_calls = []
+    class CallEvidence(list):
+        def __init__(self):
+            super().__init__()
+            self.trace = []
+
+    bench_calls = CallEvidence()
     saved = {}
 
     def patch(name, val):
@@ -330,7 +385,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             throughputs=([] if median is None else [median, median]),
             run_cmd="<run>",
             leading_indicators=lambda: {"throughput_tps": median,
-                                        "abort_rate": 0.03, "latency_ns": 1000.0,
+                                        "abort_rate": abort_rate, "latency_ns": 1000.0,
                                         "llc_miss_rate": 0.2, "ipc": 1.5})
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
@@ -350,11 +405,15 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         resolve=lambda *a, **k: "stock"))
     if trace_timeout:
         def _raise_timeout(*a, **k):
+            bench_calls.trace.append(1)
             raise subprocess.TimeoutExpired(cmd="trace",
                                             timeout=pipeline.TRACE_TIMEOUT_S)
         patch("_run_trace", _raise_timeout)
     else:
-        patch("_run_trace", lambda *a, **k: (ncommit, rc, aborts))
+        def fake_trace(*a, **k):
+            bench_calls.trace.append(1)
+            return ncommit, rc, aborts
+        patch("_run_trace", fake_trace)
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
     def fake_remeasure(measure_fn, settle_fn=None, **k):
@@ -380,13 +439,13 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             setattr(pipeline, k, v)
 
 
-def _eval(lay, do_bench=True, **mock_kw):
+def _eval(lay, do_bench=True, screening=None, **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
     with _mock_pipeline(**mock_kw) as calls:
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-            do_bench=do_bench, log=lambda *a: None)
+            do_bench=do_bench, screening=screening, log=lambda *a: None)
     return r, calls
 
 
@@ -398,6 +457,8 @@ def test_pipeline_green_commits_with_fitness():
     st = wal.replay(lay)[r.variant]
     assert st.committed and not st.aborted
     assert STAGE_COMMIT in st.stages_seen
+    commit = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_COMMIT][-1]
+    assert "screened" not in commit.payload
 
 
 def test_pipeline_records_leading_indicators_in_wal():
@@ -412,6 +473,7 @@ def test_pipeline_records_leading_indicators_in_wal():
     assert set(li) == {"throughput_tps", "abort_rate", "latency_ns",
                        "llc_miss_rate", "ipc"}
     assert li["abort_rate"] == 0.03 and li["ipc"] == 1.5
+    assert "screening" not in bench[0].payload
 
 
 def test_pipeline_red_aborts_without_fitness_or_bench():
@@ -619,6 +681,98 @@ def test_pipeline_unstable_commits_but_flags_for_exclusion():
     commit = [rec for rec in wal.read_records(lay)
               if rec.variant == r.variant and rec.stage == STAGE_COMMIT]
     assert commit and commit[-1].payload.get("unstable") is True
+
+
+def test_pipeline_screen_reject_skips_verify_and_never_commits():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, screening=_screening(), median=8499.0)
+    assert r.aborted and not r.certified and r.fitness_tps is None
+    assert len(calls) == 1 and len(calls.trace) == 0
+    records = list(wal.read_records(lay))
+    assert STAGE_VERIFY_DONE not in {rec.stage for rec in records}
+    assert STAGE_COMMIT not in {rec.stage for rec in records}
+    bench = [rec for rec in records if rec.stage == STAGE_BENCH_DONE][-1]
+    assert bench.payload.get("screening") is True
+    abort = [rec for rec in records if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload["reason"] == pipeline.SCREEN_REJECTION_REASON
+    assert "verify" not in abort.payload
+    assert abort.payload["screen"] == {
+        "median_tps": 8499.0, "cv": 0.01, "baseline_tps": 10000.0,
+        "baseline_ref": "stock-v1", "floor": 0.10, "k": 1.5,
+        "margin": -0.1501}
+
+
+def test_pipeline_screening_verify_red_keeps_existing_structured_abort():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, screening=_screening(), median=9000.0,
+                     certified=False)
+    assert r.aborted and not r.certified and r.fitness_tps is None
+    assert len(calls) == 1 and len(calls.trace) == 1
+    records = list(wal.read_records(lay))
+    assert STAGE_COMMIT not in {rec.stage for rec in records}
+    abort = [rec for rec in records if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload["reason"] == "non-serializable"
+    assert abort.payload["verify"]["anomalies"][0]["phenomenon"] == "G2"
+
+
+def test_pipeline_screening_keeps_existing_bench_failure_reasons():
+    cases = [
+        ({"median": None}, "bench-no-throughput"),
+        ({"median": 9000.0, "cv": None}, "bench-cv-undefined"),
+    ]
+    for mock_kw, reason in cases:
+        lay = _tmp_layout()
+        r, calls = _eval(lay, screening=_screening(), **mock_kw)
+        assert r.aborted and not r.certified and r.fitness_tps is None
+        assert len(calls) == 1 and len(calls.trace) == 0
+        terminal = wal.replay(lay)[r.variant].last_terminal
+        assert terminal.stage == STAGE_ABORT and terminal.payload["reason"] == reason
+
+
+def test_pipeline_screening_boundary_and_fails_safe_matrix():
+    # threshold = 10000 * (1 - 1.5 * 0.10) = 8500。等号・曖昧点は verify 側。
+    cases = [
+        ("below-k-floor", 8499.0, 0.03, False, True),
+        ("equal-k-floor", 8500.0, 0.03, False, False),
+        ("near-floor-band", 8750.0, 0.03, False, False),
+        ("floor-boundary", 9000.0, 0.03, False, False),
+        ("inside-floor", 9500.0, 0.03, False, False),
+        ("faster", 11000.0, 0.03, False, False),
+        ("unstable", 8000.0, 0.03, True, False),
+        ("high-abort", 8000.0, 0.060001, False, False),
+        ("abort-rate-missing", 8000.0, None, False, False),
+    ]
+    for name, median, abort_rate, unstable, rejected in cases:
+        lay = _tmp_layout()
+        r, calls = _eval(lay, screening=_screening(), median=median,
+                         abort_rate=abort_rate, unstable=unstable)
+        records = list(wal.read_records(lay))
+        stages = {rec.stage for rec in records}
+        assert len(calls) == 1, name               # full bench は常に 1 回だけ
+        if rejected:
+            assert r.aborted and not r.certified, name
+            assert len(calls.trace) == 0 and STAGE_COMMIT not in stages, name
+        else:
+            assert r.certified and not r.aborted, name
+            assert len(calls.trace) == 1 and STAGE_COMMIT in stages, name
+            commit = [rec for rec in records if rec.stage == STAGE_COMMIT][-1]
+            assert commit.payload["screened"] is True, name
+            assert commit.payload["fitness_tps"] == median, name
+
+
+def test_pipeline_screening_with_no_bench_is_immediate_value_error():
+    lay = _tmp_layout()
+    with _mock_pipeline() as calls:
+        try:
+            pipeline.evaluate(
+                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                do_bench=False, screening=_screening(), log=lambda *a: None)
+            assert False, "should raise ValueError"
+        except ValueError as e:
+            assert "screening" in str(e) and "do_bench=False" in str(e)
+    assert len(calls) == 0 and len(calls.trace) == 0
+    assert list(wal.read_records(lay)) == []
 
 
 def test_pipeline_build_error_aborts():
