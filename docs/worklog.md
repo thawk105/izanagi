@@ -457,3 +457,41 @@ sonnet Explore ×3 が前例調査 (統計実装・driver 部品・argmax 出典
 1. Phase 3 の現行着手順と S-1 検定単位の承認待ちは前エントリから変わらず
 2. bench-first v2 の実装は別タスクで着手し、設計 insight §5 の tests / positive control / ablation を完了条件にする
 3. 逐次停止は別設計・別裁定まで実装しない。push は人間の判断に委ねる
+
+## 2026-07-15 (14) — bench-first v2 実装の監査・完了条件消化 (codex 委譲 + 親実走)
+
+前セッション (worklog 未記録のまま終了) が bench-first v2 の中核 4 コミット
+ab8a150..38c7e32 を実装済みだったことを発見し、規律 6 の取り込み監査から着手。
+分業 = codex gpt-5.6-sol が監査 (read-only, high) と実装、親 (Fable 5) が裁定・実走・commit。
+
+- 監査: 5 レンズ + positive control 候補調査。must-fix 5 / should 3、親裁定で全件 real
+  (うち 1 点は「autonomous loop へ非配線はむしろ正しい」と対策範囲を限定)。一次資料 =
+  scratchpad の監査報告 (要点は各 commit message に反映)
+- commit: 163c796..9685bf0 (3 本、finding 対応 + 偵察 sweep 3 driver への opt-in 配線)、
+  a9c970c (最小 2 点実走経路 + ccbench pin 取り残し修正)、C5/C6 相当 2 本 (実 WAL fixture
+  回帰 + docs 状態整合)
+- **positive control 成功:** campaign backoff-sweep-silo-read-heavy-sweep-6f169f90 で
+  screen-slower-than-floor の実発火を確認 (詳細は commit と設計 insight §5-6 追記)
+- セッション異常・救出 2 件: (1) codex sandbox は .git 書き込み不可 → commit は親が肩代わり
+  (trailer は author=codex + integrator=claude の 2 行)。(2) sandbox は PID namespace で
+  ホストプロセス不可視 = 単一テナント証明不能 → fail-closed 停止 (正当)。**計測実行は
+  ホスト側の親が担う分業を恒久化**
+- 防壁の正発火 2 件: ccbench pin 不一致 (backoff_sweep の literal dff0f1e vs d706650) は
+  8ff95955 に失敗記録として台帳化。同型の pin literal 取り残しが p2_2 / demo /
+  backoff_repro / sanity_silo に残存 (未修正・持ち越し)
+- **人間判断待ち (最重要): S-1 known-axes freeze の再凍結。** タスク A の driver 変更で
+  freeze の provenance hash (driver ソース sha256) と実体が不整合になり、加えて positive
+  control campaign が材料 glob に混入 (no_backoff 重複)。混入は generator への screening
+  campaign 除外 (D58 firewall) で解消し **未コミットで作業ツリーに保持**。値レベル
+  (variant / fitness / 選定 / s1b_pairing / selection_rules) は新旧完全一致を機械検証済み —
+  差分は provenance hash のみ。freeze 設計上、再凍結は人間の明示削除が必要。承認まで
+  test_s1_known_axes_freeze 1 件 (generator sha 検出) が fail する
+- 工数: codex exec ×4 (監査 1 + 実装 2 + fixture/docs 1、空振りなし)、親実走 2 回 (2 点計測)
+
+### 次の一手
+1. **ユーザー裁定: S-1 freeze の再凍結** (rm output/s1-freeze/known_axes_freeze.json →
+   generate → freeze テスト green 確認 → 除外ヘルパと新 freeze を commit)
+2. S-1 検定単位の承認待ちは変わらず (worklog (10) 参照)。再凍結と同時に裁定可能
+3. bench-first の残り = ablation (初回採用 campaign で実施、事前登録済み)。pin literal
+   取り残し 4 ファイルの修正は軽作業として次セッションで
+4. push は人間の判断に委ねる
