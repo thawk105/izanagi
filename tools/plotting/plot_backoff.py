@@ -20,11 +20,23 @@ provenance ヘッダに「どの campaign のどの commit / ファイルから�
 実行は計測機の外で (cygnus 上では走らせない — 図生成に計測は不要)。
 """
 import sys, os, json, re, glob, hashlib, datetime
-import numpy as np
-import matplotlib as mpl
-mpl.use("Agg")
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FixedLocator, FixedFormatter, NullLocator
+
+np=mpl=plt=FixedLocator=FixedFormatter=NullLocator=None
+
+def _load_plot_deps():
+    """WAL consumer の単体利用では作図依存を要求せず、作図時だけ import する。"""
+    global np, mpl, plt, FixedLocator, FixedFormatter, NullLocator
+    if np is not None:
+        return
+    import numpy as _np
+    import matplotlib as _mpl
+    _mpl.use("Agg")
+    import matplotlib.pyplot as _plt
+    from matplotlib.ticker import (FixedFormatter as _FixedFormatter,
+                                   FixedLocator as _FixedLocator,
+                                   NullLocator as _NullLocator)
+    np, mpl, plt = _np, _mpl, _plt
+    FixedLocator, FixedFormatter, NullLocator = _FixedLocator, _FixedFormatter, _NullLocator
 
 # ---- 内蔵スタイル (publication-grade, 自己完結) ----------------------------
 def _style():
@@ -78,9 +90,16 @@ def load_campaign(cdir):
         m=re.search(r"thread_num=(\d+)", rc or "")
         if m: thread_nums.add(int(m.group(1)))
 
-    pts=[]; none=None; adapt=None
+    pending_bench={}; certified_bench={}
     for x in recs:
-        if x.get("stage")!="bench_done": continue
+        variant=x.get("variant")
+        if x.get("stage")=="bench_done":
+            pending_bench[variant]=x
+        elif x.get("stage")=="commit" and variant in pending_bench:
+            certified_bench[variant]=pending_bench.pop(variant)
+    excluded_uncertified=sorted(pending_bench)
+    pts=[]; none=None; adapt=None
+    for x in certified_bench.values():
         g=genome.get(x["variant"],{}); p=x["payload"]
         reps=p.get("tps",[]); bf=g.get("BACKOFF_FIXED","-1"); bo=g.get("BACK_OFF","0")
         if bo=="1" and bf not in ("-1",None): pts.append((int(bf),reps))
@@ -108,6 +127,7 @@ def load_campaign(cdir):
         "campaign":meta.get("campaign",os.path.basename(cdir)),
         "threads":sorted(thread_nums), "pts":pts, "none":none, "adapt":adapt,
         "abort_ipc":abort_ipc,
+        "excluded_uncertified":excluded_uncertified,
     }
 
 def _sha256(path):
@@ -122,6 +142,7 @@ def _short_wl(wl):
     return wl.split("(")[0].strip() if wl else "?"
 
 def make_figure(camps, out_prefix):
+    _load_plot_deps()
     _style()
     n=len(camps)
     fig,axes=plt.subplots(2,n,figsize=(3.9*n,6.6),squeeze=False)
@@ -129,6 +150,10 @@ def make_figure(camps, out_prefix):
     facts={}
     for j,c in enumerate(camps):
         wl=_short_wl(c["workload"]); pts=c["pts"]
+        if not pts:
+            raise ValueError(
+                f"{c['campaign']}: certified static-backoff pointが無い "
+                f"(excluded uncertified BENCH_DONE={len(c['excluded_uncertified'])})")
         xs=[bf for bf,_ in pts]
         ms=[_ci95(r)[0]/1e6 for _,r in pts]; cis=[_ci95(r)[1]/1e6 for _,r in pts]
         none_m=_ci95(c["none"])[0]/1e6 if c["none"] else None
@@ -223,12 +248,19 @@ def main(argv):
         "inputs": [{"campaign":c["campaign"],"dir":c["dir"],
                     "wal":c["wal"],"wal_sha256":c["wal_sha256"],
                     "dat":c["dat"],"dat_sha256":c["dat_sha256"],
-                    "threads":c["threads"],"env":c["env"]} for c in camps],
+                    "threads":c["threads"],"env":c["env"],
+                    "excluded_uncertified_bench_done":c["excluded_uncertified"]}
+                   for c in camps],
         "facts": facts,
     }
     with open(out_prefix+".provenance.json","w") as fh:
         json.dump(prov, fh, ensure_ascii=False, indent=2)
     print(f"wrote {out_prefix}.png / .pdf / .provenance.json")
+    for c in camps:
+        excluded=c["excluded_uncertified"]
+        if excluded:
+            print(f"  {c['campaign']}: excluded {len(excluded)} uncertified BENCH_DONE "
+                  f"(後続COMMITなし): {', '.join(excluded)}")
     for wl,f in facts.items():
         print(f"  {wl}: best {f['best_M']:.2f}M @ {f['best_bf']}\u00b5s "
               f"(none={f['none_M']:.2f}M adapt={f['adapt_M']:.2f}M n={f['n_reps']})")

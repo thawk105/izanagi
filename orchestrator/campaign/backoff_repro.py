@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -25,7 +26,8 @@ from campaign import ident, source_digest, wal                   # noqa: E402
 from campaign.backoff_sweep import _BASE                         # noqa: E402
 from campaign.layout import campaign_layout                      # noqa: E402
 from campaign.loop import run_campaign                           # noqa: E402
-from campaign.model import CampaignConfig, Genome                # noqa: E402
+from campaign.model import (STAGE_BENCH_DONE, STAGE_COMMIT,      # noqa: E402
+                            CampaignConfig, Genome)
 from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, ENV_TAG, EXTIME,  # noqa: E402
                            NUMA, RECORDS, REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig, variant_id             # noqa: E402
@@ -66,13 +68,19 @@ def _config(tag: str, workload: dict) -> CampaignConfig:
         trial="p2-backoff-repro")
 
 
-def _bench_tps(layout, v: str) -> float:
-    """campaign WAL から variant id v の median tps を引く。"""
-    tps = None
+def _bench_tps(layout, v: str) -> Optional[float]:
+    """campaign WAL から certified variant の median tps だけを引く。"""
+    pending_tps = None
+    certified_tps = None
     for r in wal.read_records(layout):
-        if r.variant == v and r.stage == "bench_done":
-            tps = r.payload.get("median_tps")
-    return tps
+        if r.variant != v:
+            continue
+        if r.stage == STAGE_BENCH_DONE:
+            pending_tps = r.payload.get("median_tps")
+        elif r.stage == STAGE_COMMIT:
+            certified_tps = pending_tps
+            pending_tps = None
+    return certified_tps
 
 
 def run_workload(tag: str, log=print) -> dict:
