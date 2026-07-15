@@ -305,6 +305,13 @@ fails-closed 方向の付帯規則だが、**1 点だけ実質改訂を含む** 
   (ε の定義・seed identity の記録・trace の永続保全 (現行 pipeline は verify 後に trace を
   削除する) のいずれも無いため) — 「独立反復 n=8 × 3 workload で anomaly ゼロ」という操作的
   事実として報告する。roadmap §3.2 の 1-εⁿ 表現は本 S-1 報告では限定表現に置換する。
+- **(iv 付属の校正確定 — 2026-07-16 追記) long extime = 3s に確定:** read-heavy (rr95) ×
+  系側 gate `g_rl` の trace-enabled build で extime {3, 6}s を各 1 回実測した (10s は
+  「600 秒超過で残候補打ち切り」の規則により未実測)。verifier wall time = 433.3s / 974.7s、
+  いずれも verdict = serializable・certified。600 秒以下の最大値として **extime = 3s** を
+  採る。検証相の総所要見込み ≈ 433.3s × 24 verify ≈ 2.9h ≤ 4h (予算内)。全候補の生値・
+  構成 provenance・選定規則は `output/env/linux-baremetal/calibration/s1_verify_extime.json`
+  (人間可読版は同名 `.md`) に凍結した。
 
 **層 2 — 付帯規則の確定 (いずれも fails-closed / 機械判定可能な形で):**
 

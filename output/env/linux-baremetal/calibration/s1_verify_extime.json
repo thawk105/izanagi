@@ -1,0 +1,97 @@
+{
+  "config_name": "s1-verify-extime",
+  "env_tag": "linux-baremetal",
+  "ccbench_commit": "d706650",
+  "genome": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "configuration_provenance": {
+    "workload": "read-heavy",
+    "workload_flags": {
+      "ycsb_tuple_num": "1000000",
+      "ycsb_zipf_skew": "0.9",
+      "ycsb_rratio": "95",
+      "ycsb_rmw": "0",
+      "ycsb_max_ope": "10",
+      "thread_num": "48"
+    },
+    "subset_name": "g_rl",
+    "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;",
+    "freeze_path": "output/s1-freeze/known_axes_freeze.json",
+    "freeze_frozen_at_head": "c890e958acfc3e2456e0033648069a9f2f297b81",
+    "freeze_system_gate": {
+      "name": "g_rl",
+      "flags": {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+        "BACKOFF_TRIGGER_GATING": 1
+      },
+      "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;",
+      "sources": [
+        {
+          "path": "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+          "sha256": "0e1d4a1f7ac07c30ce373bf144ebcb9838f89a87cb517a538b92513ec9c837f2",
+          "key": "floor超地形 best gate table: read-heavy"
+        },
+        {
+          "path": "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7/reports/s8a_trigger_sweep_provenance.json",
+          "sha256": "4466f6c28f735854a331b57dcb9ebd750ff42fcc6db0458cc5c775134608656c",
+          "key": "entries.g_rl.implementation"
+        },
+        {
+          "path": "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json",
+          "sha256": "bfe345564d6c57be00741ec2a9b0c340a6515b72f5f336f0b53c8a0d592b688a",
+          "key": "entries.g_rl.implementation equality assertion"
+        },
+        {
+          "path": "orchestrator/campaign/axis_trigger_gating.py",
+          "sha256": "47507d9b936efeaa463f839a59d5afd7c2a7a8d36427a46ad61579bf4b50c04c",
+          "key": "_BASE"
+        },
+        {
+          "path": "orchestrator/campaign/s8a_trigger_sweep.py",
+          "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+          "key": "_genome(1)"
+        }
+      ]
+    },
+    "template_patch": "silo-backoff-trigger-gating-variant.patch",
+    "src_token": "4608a96ecda4a7799bbb61ea49d219196b069a4dcb555c1d3cfb524c9656afe6",
+    "binary_hash": "6d619f0b5bf6497b",
+    "build_cached": true,
+    "configure_cmd": "cmake -S /home/tanab/github/izanagi/external/ccbench -B /home/tanab/github/izanagi/external/ccbench/build-variants/silo_ed667c6e59_t1 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 -DCCBENCH_BACKOFF_TRIGGER_GATING=1 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=1",
+    "build_cmd": "cmake --build /home/tanab/github/izanagi/external/ccbench/build-variants/silo_ed667c6e59_t1 --target ycsb_silo.exe -j 16",
+    "free_disk_gb_at_start": 161.4
+  },
+  "candidates": [
+    {
+      "extime": 3,
+      "run_walltime_s": 3.5126164983958006,
+      "trace_files": 48,
+      "trace_bytes": 1877892713,
+      "trace_lines": 57660545,
+      "verifier_walltime_s": 433.3322196835652,
+      "maxrss_gb": 25.68033218383789,
+      "txns": 5283740,
+      "edges": 80726086,
+      "verdict": "serializable",
+      "certified": true
+    },
+    {
+      "extime": 6,
+      "run_walltime_s": 6.840334223583341,
+      "trace_files": 48,
+      "trace_bytes": 3790224982,
+      "trace_lines": 114012094,
+      "verifier_walltime_s": 974.7296444606036,
+      "maxrss_gb": 51.42896270751953,
+      "txns": 10447714,
+      "edges": 172771102,
+      "verdict": "serializable",
+      "certified": true
+    }
+  ],
+  "chosen_extime": 3,
+  "limit_s": 600,
+  "decision_rule": "extime 3,6,10 を昇順に各 1 回実測し、verifier walltime <= 600s の最大値を採る。walltime > 600s で残候補を打ち切り、extime=3 も超過なら候補なしとして失敗する。verdict != serializable または certified != true は校正全体を失敗させる。"
+}
