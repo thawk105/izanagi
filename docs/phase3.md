@@ -141,13 +141,13 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 | must | kickoff | 根拠 |
 |---|---|---|
-| **H3 hooks** | **完了 (方針 A)** | 最小第二防壁を配線 (D30/D33)。3 巡目検証で real 9/known 6 摘出・全修正 (変異検査済)、critical (source_digest builtin definedness 偽 cache hit) は D34 で封鎖。identity/観測者効果の担保は下 2 行の一次防壁が担う |
+| **H3 hooks** | **完了 (方針 A)** | 最小第二防壁を配線 (D30/D33)。3 巡の検証・修正の内訳は archive (`phase3-s6-s8a-completed-details.md`)、critical (source_digest builtin definedness 偽 cache hit) は D34 で封鎖。identity/観測者効果の担保は下 2 行の一次防壁が担う |
 | **cache_key+variant_id 拡張** | **完了** (kickoff タスク 1 で消化) | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
 | **観測者効果二重検査** | **完了 (14d64e6)** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない)。diff-of-diffs を buildcache.build 出口 (hit/fresh 両経路) で発火、fails-closed |
-| **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。**consumer 実体化も完了 (後続段 2、2026-07-06、D37)** — liveness-red 別型・render 3 形状・critic 消費規定・実走赤 2 本で閉ループ実証 (「読んで方向を返す」まで。還流 = 次 variant 生成への使用は段 4) |
+| **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。**consumer 実体化も完了 (後続段 2、2026-07-06、D37)**。実証内訳は後続段 2 と archive (`phase3-s6-s8a-completed-details.md`)。還流 (次 variant 生成への使用) は段 4 で消化済み |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。pipeline 配線も完了 (段 5、D36 決定 4、opt-in = legacy+s2)** |
 | S1 (別 protocol trace-hook) | **現状 non-blocking** / 旧 headline 2 復活または段 7 cross-protocol 着手時に発火 | silo 内に閉じる現行 S-1/8b/層3には不要。trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、cross-protocol 比較を復活させる場合は S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかを先に決める (後続段 6 の休眠タスク (a) / 段 7) |
-| C1 (campaign-id drift) | **解消済み (2026-07-09、段5、D40)** | apply→revert で HEAD 不動。読み手 3 本の discover 統一 (065593a, 2026-07-02) で歴史的 campaign の孤立は解消済み。並行合成/patch 常駐で HEAD が動く残課題は git worktree 隔離 (`patchharness.checkout()`、opt-in) で解消 — 各評価が自分の pin を自分の worktree で checkout するため他の並行評価の影響を受けない。driver 宣言値 (phase2.md §C1) がリテラルであること自体は IDENT-1/IDENT-3 により意図的据え置き (変更なし) |
+| C1 (campaign-id drift) | **解消済み (2026-07-09、段5、D40)** | git worktree 隔離 (`patchharness.checkout()`、opt-in) で各評価が自分の pin を自分の worktree で checkout — 並行合成/patch 常駐で HEAD が動いても干渉しない。解消の経緯 (apply→revert HEAD 不動・読み手 3 本の discover 統一 065593a) は archive (`phase3-s6-s8a-completed-details.md`)。driver 宣言値 (phase2.md §C1) がリテラルであること自体は IDENT-1/IDENT-3 により意図的据え置き (変更なし) |
 
 ---
 
@@ -156,7 +156,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 **段 1〜5 は完了 (2026-07-06〜07-10)。完了記録の詳細 (実装内訳・敵対レビュー・実測値・実機検証手順)
 は `docs/archive/phase3-kickoff-stages1-5.md` へ分離 (2026-07-10)** — ここには完了サマリ + 現役情報
 (ablation 点・残課題・発火条件) + 正本ポインタのみ残す (完了/未了の正本は本リスト、番号は分離前と不変)。
-未了の段の完了済みサブ項・段階内訳は、その段が閉じてから同手口で分離する (現役 context のうちは据え置き):
+未了の段の中の完了済みサブ項・段階内訳も、後続作業が参照する現役情報 (裁定・発火条件・正本ポインタ) を
+サマリとして残せるなら同手口で分離してよい (2026-07-15 改訂、worklog 2026-07-15 の読書量診断による。
+段 6 (h)〜(j)・段 8a・must 表解消済み行の詳細 = `docs/archive/phase3-s6-s8a-completed-details.md`):
 
 1. **(完了 2026-07-06) S2 verify 構成の確定** — perf 代表 workload と完全同一構成 (「縮小」なし) で
    gate 3 点 (contention 再現・trace 規模・赤検出力) all_pass。pipeline 配線 (D36 決定 4) は段 5 で完了。
@@ -225,33 +227,23 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    (e) coder リーク制御 (P2-5/D21 の Phase 3 版) の実体化、(f) 検証相 (seed×N・長 extime) の実装、
    (g) サンプル設計 4 点の数値確定 (統計計画の節)、
    (h) **(完了 2026-07-10、D45) planner→coder 経路のリーク遮断 (D44、headline の前提条件)** — planner-v4 を
-   tools:[] 化 (Read 剥奪 = file-read 経路を coder (D39 決定7) と同型に構造遮断。入力は従来どおりメイン
-   セッションの射影 inline JSON — 運用上 Read の必要はゼロだった)。allowlist 案は棄却 (根拠は D45)。
-   同時に文書地雷 4 点を除去/中和: `coder-v4-autonomous.md` の spec_file 例 → leakproof_context に置換、
-   design-v1 §3 の「output/insights OK」記述と design-foundation §3 の「tools=read-only」断定に supersede
-   注記、`src/coder-spec.md` §7 の旧設計フローに superseded 注記、`src/coder-leakproof-context.md` 内
-   template の coder-spec 誘導参照を実運用 (射影 inline) に一致させた。**遮断は Read 経路に限る** —
-   justification 自然文経路・射影の自己規律は残存リスク節に維持。3レンズ敵対レビュー済み
-   (must-fix 1・should-fix 6 を全て反映)。定義変更は次セッションから有効、
-   (i) **(完了 2026-07-10、D46) sort 軸の機械 sweep 先行実測 (D44、安価な先取り)** — sort comparator
-   空間を構文契約から機械列挙 (15 候補 + stock、全点 SWO 構成的保証。ランダム変異は D46 決定4 で
-   段 6 (c) へ繰延) し、p2_2 確定動作点で balanced/write-heavy 全点 legacy+s2 verify の偵察
-   (preliminary、事前登録外カテゴリ — (c) 判定は出さず、正式 grid への firewall を明文化)。実測:
-   32+6 点全 certified・anomaly 0。**balanced は全点 floor 内で winner が再測不再現 (差なし方向)、
-   write-heavy は sk_ad の stock 超え +3.55%/+4.12% が 2 run 再現するも分解すると各成分 floor 内・
-   floor 未較正・n=2 で断定せず。sort 軸に「順序の質」由来の floor 超地形は見当たらない — 軸選定の
-   見直し (段 8a 前倒し等) が人間判断事項** (正本 = D46・`output/insights/2026-07-10_s6-sort-sweep-
-   preliminary.md`・`orchestrator/campaign/s6_sort_sweep.py`)、
-   (j) **(完了 2026-07-10)** related-work の欠落埋め (D44) —
-   Web 調査 5 レンズ + 書誌の独立機械検証 (arXiv バルク 9/9・DOI・リポジトリ実在) を経て
-   related-work/README.md §7.1/7.2 へ反映: OtterTune 系 (knob tuning 4 本) と learned DB components
-   系 (5 本) を系譜まとめエントリで新設、AlphaEvolve/FunSearch を一次資料裏付けへ更新 (EVOLVE-BLOCK
-   マーカーの出典 = AlphaEvolve §2.1/2.3 と確定、FunSearch は arXiv プレプリント不在確認)、
-   OpenEvolve は「論文なし」を三重根拠で確定。**副次発見: CCaaLF は v4 で NeurCC に改名され
-   SIGMOD 2026 採択** (エントリ・逆引き索引に反映)。生データ =
-   `docs/related-work/literature-map/gap-research-2026-07-10.md`。**Polyjuice/NeurCC 実測比較は
-   見送りで決着** (ユーザー協議、worklog 2026-07-10 (9)。再判断の発火条件 = 「学習型 CC を定量的に
-   上回る」の headline 昇格時のみ、材料は worklog 2026-07-10 (8))。
+   tools:[] 化 (Read 剥奪 = file-read 経路を coder (D39 決定7) と同型に構造遮断。入力はメインセッションの
+   射影 inline JSON)。文書地雷 4 点の除去/中和を含む実施内訳は archive
+   (`phase3-s6-s8a-completed-details.md`)。**遮断は Read 経路に限る** — justification 自然文経路・射影の
+   自己規律は残存リスク節に維持 (現役)。正本 = D45、
+   (i) **(完了 2026-07-10、D46) sort 軸の機械 sweep 先行実測 (D44、安価な先取り)** — comparator 空間を
+   構文契約から機械列挙 (15 候補 + stock、全点 SWO 構成的保証) し、balanced/write-heavy 全点を偵察
+   (preliminary、事前登録外カテゴリ — 正式 grid への firewall を明文化)。32+6 点全 certified・anomaly 0
+   だが **sort 軸に「順序の質」由来の floor 超地形は見当たらず、軸選定の見直し (段 8a 前倒し) で決着済み**。
+   実測内訳は archive (`phase3-s6-s8a-completed-details.md`)。正本 = D46・
+   `output/insights/2026-07-10_s6-sort-sweep-preliminary.md`・`orchestrator/campaign/s6_sort_sweep.py`、
+   (j) **(完了 2026-07-10) related-work の欠落埋め (D44)** — Web 調査 5 レンズ + 書誌の独立機械検証を経て
+   related-work/README.md §7.1/7.2 へ反映 (OtterTune 系・learned DB components 系の系譜エントリ新設、
+   AlphaEvolve/FunSearch/OpenEvolve の一次資料確定、CCaaLF→NeurCC 改名 + SIGMOD 2026 採択の反映)。
+   調査内訳は archive (`phase3-s6-s8a-completed-details.md`)。**Polyjuice/NeurCC 実測比較は見送りで決着 —
+   再判断の発火条件 = 「学習型 CC を定量的に上回る」の headline 昇格時のみ** (ユーザー協議、worklog
+   2026-07-10 (9)、材料は worklog 2026-07-10 (8))。生データ =
+   `docs/related-work/literature-map/gap-research-2026-07-10.md`。
 7. **(8b + 層3の後に再判断) cross-protocol 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初案
    「他 CC の最適化を CCBench コーパスから移植する」+「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、
    **workload descriptor と evidence-bound report の最小 E2E を先に成立させた後の拡張**として
@@ -267,74 +259,27 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    1 レンズまたは事後監査、反復可能な整合検査は機械 lint とする (worklog 2026-07-14 (3))。これはレビュー
    資源の配分であり、correctness/identity/measurement gate は一切緩めない:
    - **(8a 完了 2026-07-12) 軸提案のループ内化 (前倒し決着 — sort 軸 iteration 2 見送りの代替本筋、
-     worklog 2026-07-10 (10))** — P2-4 が成立可能性を示した役割仮説 (機序帰属からの軸発見) をループに入れる。
-     critic の機序帰属を入力に「次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)」を提案する役を新設し、
-     人間は承認 gate としてのみ関与する。D41→D43 で 1 回実施した軸オンボーディング手順 (骨格 patch・
-     検疫対応・positive control・auditor ギャラリー拡張・verifier 死角の特定) を**再利用可能なテンプレ**に
-     固めることが前提作業 — 軸あたり固定費を下げないとループ内化しても回らない。**前提作業は完了
-     (2026-07-10、`docs/axis-onboarding.md` 新設 — 3 レンズ敵対レビュー済み、must 3/should 8 全反映。
-     偵察 insight → LLM ループの新設 firewall と「削るのは再発見コストでありゲートではない」を明文化)**。
-     リーク制御と両立する
-     (軸提案に勝ち筋の値は不要、機序帰属のみでよい)。次軸の標準手順 = 機械 sweep 偵察 (D46 の器) で
-     軸の生死を先取りしてから LLM ループを回す (worklog 2026-07-10 (10) 決着 3 点目)。
-     **本体設計は完了 (2026-07-10、D47 — 3 巡の敵対レビュー: v1 で実効性レンズ reject → must 5/
-     should 11/nit 6 反映の v2 → 再判定で新規 must 1 → v3 で adopt-with-conditions)。** 役の常設
-     定義 = `docs/agent-architecture.md` §axis-proposer。要点: tools:[] + 二層射影 (勝ち筋の値は
-     落とし診断数値は保持・recommend 丸ごと除外・死軸は生死二値のみ)・出口基準の事前定義付き
-     n=1 実証・**8a 由来軸は当面「探索補助」限定で段 6 headline の対象軸にしない** (事前登録の
-     命名固定と原理的に非両立のため、D47 決定 5)。**実体化完了 (2026-07-10、ユーザー明示承認済み =
-     worklog 2026-07-10 (13)。`.claude/agents/axis-proposer.md` 生成 + D47 必須条件 5 点消化 —
-     条件 2 は残存リスク節、条件 3/4 は axis-onboarding §2/§3-B、条件 5 は定義の出力スキーマ)。**
-     **n=1 実証完了 (2026-07-10、D47 決定 4 の出口基準で成功 — 3 項目全 yes の候補 2 件 /
-     提案 3 件、採点は射影非関与の独立コンテキスト)。** 一次資料 = `output/insights/
-     2026-07-10_s8a-n1-proposal-and-scoring.json` (提案・採点全文) + `output/insights/
-     2026-07-10_s8a-n1-provenance.json`
-     (三点セット: raw の脚 = P2-3 要旨 insight — critic 再実行による生出力再生成は勝ち筋を含む
-     現行文書経由の記憶汚染リスクで不採用、実体化検証 2026-07-10 の決定 / 射影版入力 / 落とした
-     対応表)。観測: 恒真 0/3・既存軸再提案 0・**既開通領域への偏り 3/3 (全提案が transaction.cc
-     — 開通・未開通対称の地図でも bias が消えなかった。次回 n を増やすときの観測継続項目)**。
-     **人間承認 gate 決着 (2026-07-10、ユーザー判断): 提案 1 (silo-backoff-trigger-gating) のみ
-     採用。** 提案 2 (wal-flush-cadence) は軸適格性 no、提案 3 (lock-conflict-retry-bound) は
-     スカラー縮退リスクの境界で棄却 (採点 insight の判定材料どおり)。
-     **段階 B 完了 (2026-07-10、D48 — シート独立再導出 + 3 レンズ敵対レビューで条件付き採用。
-     verdict = 3 レンズとも adopt-with-conditions、must 1/should 7/nit 3 全反映、D47 必須検査
-     3 点 = 全 PASS)。** 骨格設計の確定 = #if 囲み stock inert / thread_local 7 点全 store +
-     sentinel fail-safe / 構文契約は要因 enum + 定数のみ (偵察空間 = coder 空間)。シート
-     (裁定反映済み) = `output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md`。
-     **段階 C 完了 (2026-07-10、D49 — D48 必須条件 7 点全消化)。** 骨格 patch
-     (`patches/silo-backoff-trigger-gating-variant.patch`、stock inert・identity 実証済み) +
-     positive control (計装/misattr patch + `s8a_trigger_coverage.py`、11 検査 all_pass —
-     misattr の赤の歯を実走証明、verifier は緑のまま = 死角の実証) + 中立性 3 レンズ全通過 +
-     軸定数 `orchestrator/campaign/axis_trigger_gating.py` (D 偵察器/E driver の import 先、
-     構文契約禁止リストの転記元)。実装上の設計判断 (計装の characterization 専用分離・hole の
-     述語 1 行化・構造ゼロ検査型) は D49 が正本。
-     **段階 D 完了 (2026-07-11、D50 — 必須前提 3 点 + D49 申し送り 3 点全消化)。**
-     機械 sweep 偵察 (2^3 subset + ident_all + stock、3 workload、全点 verify legacy+s2) で
-     **floor 超地形が 3 workload とも cross-run 再現** (best vs ident_all: balanced g_rl
-     +84.5%/再測 +91.0%、write-heavy g_rt +61.2%/+61.3%、read-heavy g_rl +98.9%/+98.7%) =
-     軸は生の強い候補。insight =
-     `output/insights/2026-07-11_s8a-trigger-gating-recon.md` (裁定台帳・kill 残骸毒の
-     教訓を含む)。
-     **E 段実装完了 (2026-07-12、D51 — gate はユーザー承認 (worklog 07-12 (2)) で通過。
-     実装前 3 レンズ敵対レビュー adopt-with-conditions、must 3/should 10/nit 5 全反映)。**
-     provenance 情報源記録義務 (D46 (a) ループ版、監査 L4-1) の宿主 =
-     `<campaign root>/reports/p3_s8a_trigger_loop_provenance.json` (driver が自動記録・
-     省略不能、書き込み順序と fails-closed 群は D51 決定 1)。成果物 = `auditor_gate.py`
-     (共有昇格) + `p3_s4_loop_trigger_gating.py` + `docs/phase3-s8a-trigger-runbook.md` +
-     テスト 28 本。**coder 定義は承認・配置済み (2026-07-12 ユーザー明示承認 =
-     `.claude/agents/coder-v4-autonomous-trigger-gating.md`、承認判断の一次資料 =
-     `output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md`)。**
-     **F 段完了 (2026-07-12、worklog 07-12 (6)) — 実 LLM iteration 1〜2 E2E、両 iteration
-     certified (verify legacy+S2 とも 0 anomalies)・auditor pass・provenance 全 entry 記録。**
-     軸提案 (axis-proposer) から探索 (planner/coder、iteration 内は自動・セッション駆動は人間) まで
-     ループ内で閉じた初の軸の実走。
-     critic 帰属 = 両 iteration ともノイズ内 tie — この動作点 (records=100k/threads=4、
-     abort 約 2.3%) では gate の発火頻度が低く bite しない。checkpoint (campaign
-     `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5`) を最終成果物として保存し、この動作点の
-     性能探索はクローズ済み。
-     **2026-07-14 裁定:** この低競合動作点での性能探索はクローズし、単独の再ホストはしない。高競合で
-     再利用するなら、結果既知の追試でなく下の 8b 前向き設計へ統合する。auditor proposed_tests は軸を
-     再利用するときだけ採否を再開する。
+     worklog 2026-07-10 (10))** — critic の機序帰属から次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)
+     を提案する axis-proposer を新設し (人間は承認 gate としてのみ関与)、採用軸 silo-backoff-trigger-gating
+     を段階 B〜F (シート独立再導出 → 骨格 patch + positive control → 機械 sweep 偵察 → E 段 driver 実装 →
+     実 LLM iteration 1〜2 E2E 両 certified・auditor pass・provenance 全 entry 記録) で完走 — 軸提案から
+     探索までループ内で閉じた初の軸。偵察 (D50) で floor 超地形が 3 workload とも cross-run 再現
+     (best vs ident_all: balanced +84.5%/+91.0%、write-heavy +61.2%/+61.3%、read-heavy +98.9%/+98.7%)。
+     設計・実装・実測・裁定台帳の詳細は `docs/archive/phase3-s6-s8a-completed-details.md` へ分離
+     (2026-07-15)。**現役の規定・発火条件:**
+     - 役の常設定義 = `docs/agent-architecture.md` §axis-proposer + `.claude/agents/axis-proposer.md`。
+       軸オンボーディング手順テンプレ = `docs/axis-onboarding.md`。いずれも完了記録でなく現役の規定
+     - **8a 由来軸は当面「探索補助」限定で段 6 headline の対象軸にしない** (事前登録の命名固定と
+       原理的に非両立のため、D47 決定 5)
+     - **2026-07-14 裁定:** 低競合動作点 (records=100k/threads=4、abort 約 2.3%、critic 帰属は両
+       iteration ともノイズ内 tie) での性能探索はクローズし、単独の再ホストはしない。高競合で再利用
+       するなら、結果既知の追試でなく 8b 前向き設計へ統合する。auditor proposed_tests は軸を再利用
+       するときだけ採否を再開する
+     - 観測継続項目: 軸提案の既開通領域への偏り (n=1 で提案 3/3 が transaction.cc — 開通・未開通対称の
+       地図でも bias が消えなかった)。次回 n を増やすときに観測を継続する
+     - 正本 = D47〜D51・`docs/phase3-s8a-trigger-runbook.md`・checkpoint campaign
+       `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5` (最終成果物)・
+       `orchestrator/campaign/axis_trigger_gating.py`・`auditor_gate.py`・`p3_s4_loop_trigger_gating.py`
    - **(8b 未着手) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
      coder / selector への入力に型付き workload descriptor (read/write 比率、競合ラベル、スケール、目的、
      正しさ制約。勝者名と実測性能値は除外) を追加し、同一 variant 集合を同一予算で比較する。
