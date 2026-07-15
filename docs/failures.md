@@ -99,7 +99,8 @@
 - 事象: 正常終了時に handoff の削除 (worklog への吸収) を落とした
 - 恒久対応: memory `session-close-checklist` — セッション TODO 末尾に worklog → lint →
   handoff 吸収・削除の定型 3 点を必ず置く
-- 再発検知: docs/handoff/ の残ファイルを次セッション開始時に必ず ls する (CLAUDE.md 現在地)
+- 再発検知: クラス 2 / 3 セッションの開始時に docs/handoff/ の残ファイルを ls する (CLAUDE.md
+  現在地の作業種別ゲート。クラス 1 は handoff を読まない)
 
 ### F12. 架空スキーマ例示による coder 誘導 near-miss [捏造/幻覚]
 - 事象: 出力スキーマの description に具体戦略・CC 機構名を例示すると coder がそれに誘導される
