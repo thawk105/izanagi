@@ -1,0 +1,2351 @@
+{
+  "total_budget_s": 43200,
+  "spent_s": 22943.711507913657,
+  "entries": [
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:36:15.425483+00:00",
+      "wall_s": 291.65736297983676,
+      "phase": "develop",
+      "note": "session: index=0 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:41:07.085199+00:00",
+      "wall_s": 158.15218310896307,
+      "phase": "develop",
+      "note": "session: index=1 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:43:45.239454+00:00",
+      "wall_s": 361.57580694556236,
+      "phase": "develop",
+      "note": "session: index=2 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:49:46.816825+00:00",
+      "wall_s": 20.001999489031732,
+      "phase": "develop",
+      "note": "session: index=3 attempt=0 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:50:06.820634+00:00",
+      "wall_s": 19.997382921166718,
+      "phase": "develop",
+      "note": "machine-failure-retry: index=3 attempt=1 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:50:26.819903+00:00",
+      "wall_s": 20.037038387730718,
+      "phase": "develop",
+      "note": "machine-failure-retry: index=3 attempt=2 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:50:46.858812+00:00",
+      "wall_s": 170.50969217997044,
+      "phase": "develop",
+      "note": "session: index=4 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:53:37.370400+00:00",
+      "wall_s": 166.01223402563483,
+      "phase": "develop",
+      "note": "session: index=5 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T15:56:23.384675+00:00",
+      "wall_s": 289.2322527291253,
+      "phase": "develop",
+      "note": "session: index=6 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:01:12.618949+00:00",
+      "wall_s": 128.97678027953953,
+      "phase": "develop",
+      "note": "session: index=7 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:03:21.597794+00:00",
+      "wall_s": 328.2841638047248,
+      "phase": "develop",
+      "note": "session: index=8 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:08:49.884204+00:00",
+      "wall_s": 20.404994897544384,
+      "phase": "develop",
+      "note": "session: index=9 attempt=0 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:09:10.291605+00:00",
+      "wall_s": 20.37347707990557,
+      "phase": "develop",
+      "note": "machine-failure-retry: index=9 attempt=1 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:09:30.667362+00:00",
+      "wall_s": 20.16829718183726,
+      "phase": "develop",
+      "note": "machine-failure-retry: index=9 attempt=2 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:09:50.837952+00:00",
+      "wall_s": 166.22070792131126,
+      "phase": "develop",
+      "note": "session: index=10 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:12:37.061089+00:00",
+      "wall_s": 123.67203048150986,
+      "phase": "develop",
+      "note": "session: index=11 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:14:40.735647+00:00",
+      "wall_s": 166.2662189686671,
+      "phase": "develop",
+      "note": "session: index=12 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:17:27.004666+00:00",
+      "wall_s": 126.38911919854581,
+      "phase": "develop",
+      "note": "session: index=13 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:19:33.398133+00:00",
+      "wall_s": 319.497013496235,
+      "phase": "develop",
+      "note": "session: index=14 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:24:52.897766+00:00",
+      "wall_s": 20.520361118018627,
+      "phase": "develop",
+      "note": "session: index=15 attempt=0 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:25:13.420743+00:00",
+      "wall_s": 20.092986952513456,
+      "phase": "develop",
+      "note": "machine-failure-retry: index=15 attempt=1 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:25:33.516553+00:00",
+      "wall_s": 19.980886386707425,
+      "phase": "develop",
+      "note": "machine-failure-retry: index=15 attempt=2 status=retryable reason=build-error"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:25:53.500392+00:00",
+      "wall_s": 125.28667366690934,
+      "phase": "develop",
+      "note": "session: index=16 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:27:58.789962+00:00",
+      "wall_s": 124.17074551526457,
+      "phase": "develop",
+      "note": "session: index=17 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:30:02.962294+00:00",
+      "wall_s": 0.13829954247921705,
+      "phase": "develop",
+      "note": "campaign-overhead: freeze/ledger/preflight"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:31:06.668439+00:00",
+      "wall_s": 196.0658344477415,
+      "phase": "develop",
+      "note": "session: index=0 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:34:22.736693+00:00",
+      "wall_s": 122.56186412274837,
+      "phase": "develop",
+      "note": "session: index=1 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:36:25.300486+00:00",
+      "wall_s": 356.68435280397534,
+      "phase": "develop",
+      "note": "session: index=2 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:42:21.986777+00:00",
+      "wall_s": 379.33584946300834,
+      "phase": "develop",
+      "note": "session: index=3 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:48:41.324874+00:00",
+      "wall_s": 131.02367610950023,
+      "phase": "develop",
+      "note": "session: index=4 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:50:52.350586+00:00",
+      "wall_s": 126.64624786376953,
+      "phase": "develop",
+      "note": "session: index=5 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:52:58.999014+00:00",
+      "wall_s": 243.00175266619772,
+      "phase": "develop",
+      "note": "session: index=6 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:57:02.003025+00:00",
+      "wall_s": 122.39351182244718,
+      "phase": "develop",
+      "note": "session: index=7 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T16:59:04.398723+00:00",
+      "wall_s": 343.2848138678819,
+      "phase": "develop",
+      "note": "session: index=8 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:04:47.685996+00:00",
+      "wall_s": 374.36050614342093,
+      "phase": "develop",
+      "note": "session: index=9 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:11:02.049302+00:00",
+      "wall_s": 127.56308616045862,
+      "phase": "develop",
+      "note": "session: index=10 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:13:09.614886+00:00",
+      "wall_s": 123.23401977773756,
+      "phase": "develop",
+      "note": "session: index=11 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:15:12.851815+00:00",
+      "wall_s": 170.8310911944136,
+      "phase": "develop",
+      "note": "session: index=12 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:18:03.685521+00:00",
+      "wall_s": 121.52868189383298,
+      "phase": "develop",
+      "note": "session: index=13 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:20:05.217149+00:00",
+      "wall_s": 268.5310379518196,
+      "phase": "develop",
+      "note": "session: index=14 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:24:33.750844+00:00",
+      "wall_s": 370.741180120036,
+      "phase": "develop",
+      "note": "session: index=15 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:30:44.494716+00:00",
+      "wall_s": 129.6144606396556,
+      "phase": "develop",
+      "note": "session: index=16 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:32:54.112013+00:00",
+      "wall_s": 125.92111967131495,
+      "phase": "develop",
+      "note": "session: index=17 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "develop",
+      "started_iso": "2026-07-15T17:35:00.034887+00:00",
+      "wall_s": 0.12457597721368074,
+      "phase": "develop",
+      "note": "campaign-overhead: freeze/ledger/preflight"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:36:17.227270+00:00",
+      "wall_s": 30.665867779403925,
+      "phase": "floor",
+      "note": "session: index=0 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:36:47.895258+00:00",
+      "wall_s": 64.85210687946528,
+      "phase": "floor",
+      "note": "session: index=1 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:37:52.749495+00:00",
+      "wall_s": 52.40420740004629,
+      "phase": "floor",
+      "note": "session: index=2 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:38:45.155887+00:00",
+      "wall_s": 64.40519806742668,
+      "phase": "floor",
+      "note": "session: index=3 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:39:49.563292+00:00",
+      "wall_s": 50.79154655709863,
+      "phase": "floor",
+      "note": "session: index=4 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:40:40.357387+00:00",
+      "wall_s": 50.634066469967365,
+      "phase": "floor",
+      "note": "session: index=5 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:41:30.993900+00:00",
+      "wall_s": 50.74627615418285,
+      "phase": "floor",
+      "note": "session: index=6 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:42:21.742802+00:00",
+      "wall_s": 63.690914334729314,
+      "phase": "floor",
+      "note": "session: index=7 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:43:25.436196+00:00",
+      "wall_s": 50.89879287593067,
+      "phase": "floor",
+      "note": "session: index=8 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:44:16.337531+00:00",
+      "wall_s": 50.174755056388676,
+      "phase": "floor",
+      "note": "session: index=9 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:45:06.514941+00:00",
+      "wall_s": 62.67442684061825,
+      "phase": "floor",
+      "note": "session: index=10 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:46:09.192119+00:00",
+      "wall_s": 50.458763759583235,
+      "phase": "floor",
+      "note": "session: index=11 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:46:59.653588+00:00",
+      "wall_s": 50.75491096545011,
+      "phase": "floor",
+      "note": "session: index=12 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:47:50.411162+00:00",
+      "wall_s": 51.626550793647766,
+      "phase": "floor",
+      "note": "session: index=13 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:48:42.040614+00:00",
+      "wall_s": 62.79323678929359,
+      "phase": "floor",
+      "note": "session: index=14 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:49:44.836921+00:00",
+      "wall_s": 51.09060066379607,
+      "phase": "floor",
+      "note": "session: index=15 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:50:35.930601+00:00",
+      "wall_s": 59.3894474087283,
+      "phase": "floor",
+      "note": "session: index=16 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:51:35.323134+00:00",
+      "wall_s": 55.3263411289081,
+      "phase": "floor",
+      "note": "session: index=17 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:52:30.652409+00:00",
+      "wall_s": 51.2068248083815,
+      "phase": "floor",
+      "note": "session: index=18 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:53:21.862212+00:00",
+      "wall_s": 62.619109141640365,
+      "phase": "floor",
+      "note": "session: index=19 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:54:24.484340+00:00",
+      "wall_s": 63.750961584970355,
+      "phase": "floor",
+      "note": "session: index=20 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:55:28.238666+00:00",
+      "wall_s": 50.921277632936835,
+      "phase": "floor",
+      "note": "session: index=21 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:56:19.163287+00:00",
+      "wall_s": 55.12485151272267,
+      "phase": "floor",
+      "note": "session: index=22 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:57:14.291579+00:00",
+      "wall_s": 51.65187798254192,
+      "phase": "floor",
+      "note": "session: index=23 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:58:05.947164+00:00",
+      "wall_s": 50.58104139752686,
+      "phase": "floor",
+      "note": "session: index=24 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:58:56.531717+00:00",
+      "wall_s": 50.716124864295125,
+      "phase": "floor",
+      "note": "session: index=25 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T17:59:47.251225+00:00",
+      "wall_s": 64.08879727404565,
+      "phase": "floor",
+      "note": "session: index=26 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:00:51.343860+00:00",
+      "wall_s": 50.72541744634509,
+      "phase": "floor",
+      "note": "session: index=27 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:01:42.072838+00:00",
+      "wall_s": 60.70216528326273,
+      "phase": "floor",
+      "note": "session: index=28 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:02:42.778716+00:00",
+      "wall_s": 50.457432569004595,
+      "phase": "floor",
+      "note": "session: index=29 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:03:33.239986+00:00",
+      "wall_s": 64.37899448163807,
+      "phase": "floor",
+      "note": "session: index=30 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:04:37.623065+00:00",
+      "wall_s": 50.38282027468085,
+      "phase": "floor",
+      "note": "session: index=31 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:05:28.009902+00:00",
+      "wall_s": 52.31356823910028,
+      "phase": "floor",
+      "note": "session: index=32 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:06:20.327638+00:00",
+      "wall_s": 50.7093088068068,
+      "phase": "floor",
+      "note": "session: index=33 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:07:11.041116+00:00",
+      "wall_s": 52.57461737561971,
+      "phase": "floor",
+      "note": "session: index=34 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:08:03.619695+00:00",
+      "wall_s": 62.94537155982107,
+      "phase": "floor",
+      "note": "session: index=35 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:09:06.569338+00:00",
+      "wall_s": 55.942949363961816,
+      "phase": "floor",
+      "note": "session: index=36 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:10:02.516361+00:00",
+      "wall_s": 51.00061940681189,
+      "phase": "floor",
+      "note": "session: index=37 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:10:53.521106+00:00",
+      "wall_s": 50.86585459951311,
+      "phase": "floor",
+      "note": "session: index=38 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:11:44.391136+00:00",
+      "wall_s": 50.80569391604513,
+      "phase": "floor",
+      "note": "session: index=39 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:12:35.201153+00:00",
+      "wall_s": 51.56371114496142,
+      "phase": "floor",
+      "note": "session: index=40 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:13:26.769230+00:00",
+      "wall_s": 60.780360472388566,
+      "phase": "floor",
+      "note": "session: index=41 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:14:27.554184+00:00",
+      "wall_s": 51.441728443838656,
+      "phase": "floor",
+      "note": "session: index=42 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:15:19.000475+00:00",
+      "wall_s": 64.33985297847539,
+      "phase": "floor",
+      "note": "session: index=43 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:16:23.345268+00:00",
+      "wall_s": 51.04103013500571,
+      "phase": "floor",
+      "note": "session: index=44 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:17:14.391339+00:00",
+      "wall_s": 63.409495891071856,
+      "phase": "floor",
+      "note": "session: index=45 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:18:17.805390+00:00",
+      "wall_s": 59.85601406078786,
+      "phase": "floor",
+      "note": "session: index=46 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:19:17.666146+00:00",
+      "wall_s": 51.76990353874862,
+      "phase": "floor",
+      "note": "session: index=47 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:20:09.441034+00:00",
+      "wall_s": 51.79850735235959,
+      "phase": "floor",
+      "note": "session: index=48 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:21:01.244712+00:00",
+      "wall_s": 50.85472631268203,
+      "phase": "floor",
+      "note": "session: index=49 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:21:52.104348+00:00",
+      "wall_s": 50.77657620795071,
+      "phase": "floor",
+      "note": "session: index=50 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:22:42.886102+00:00",
+      "wall_s": 62.654256872832775,
+      "phase": "floor",
+      "note": "session: index=51 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:23:45.545523+00:00",
+      "wall_s": 51.830512061715126,
+      "phase": "floor",
+      "note": "session: index=52 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:24:37.381056+00:00",
+      "wall_s": 63.96727600321174,
+      "phase": "floor",
+      "note": "session: index=53 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:25:41.353453+00:00",
+      "wall_s": 54.652930156327784,
+      "phase": "floor",
+      "note": "session: index=54 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:26:36.011461+00:00",
+      "wall_s": 60.51583052612841,
+      "phase": "floor",
+      "note": "session: index=55 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:27:36.532834+00:00",
+      "wall_s": 50.62661658320576,
+      "phase": "floor",
+      "note": "session: index=56 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:28:27.164774+00:00",
+      "wall_s": 50.762633573263884,
+      "phase": "floor",
+      "note": "session: index=57 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:29:17.933149+00:00",
+      "wall_s": 51.97811303380877,
+      "phase": "floor",
+      "note": "session: index=58 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:30:09.916623+00:00",
+      "wall_s": 64.24593313969672,
+      "phase": "floor",
+      "note": "session: index=59 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:31:14.168127+00:00",
+      "wall_s": 61.02819044794887,
+      "phase": "floor",
+      "note": "session: index=60 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:32:15.201842+00:00",
+      "wall_s": 51.41035717353225,
+      "phase": "floor",
+      "note": "session: index=61 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:33:06.618039+00:00",
+      "wall_s": 51.92751475516707,
+      "phase": "floor",
+      "note": "session: index=62 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:33:58.551054+00:00",
+      "wall_s": 63.90186452399939,
+      "phase": "floor",
+      "note": "session: index=63 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:35:02.458582+00:00",
+      "wall_s": 50.63889116514474,
+      "phase": "floor",
+      "note": "session: index=64 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:35:53.103200+00:00",
+      "wall_s": 50.99166475236416,
+      "phase": "floor",
+      "note": "session: index=65 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:36:44.100898+00:00",
+      "wall_s": 62.36851444002241,
+      "phase": "floor",
+      "note": "session: index=66 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:37:46.475522+00:00",
+      "wall_s": 51.3731508217752,
+      "phase": "floor",
+      "note": "session: index=67 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:38:37.854574+00:00",
+      "wall_s": 51.175655806437135,
+      "phase": "floor",
+      "note": "session: index=68 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:39:29.036324+00:00",
+      "wall_s": 50.72979418747127,
+      "phase": "floor",
+      "note": "session: index=69 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:40:19.772256+00:00",
+      "wall_s": 50.80837280675769,
+      "phase": "floor",
+      "note": "session: index=70 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:41:10.586672+00:00",
+      "wall_s": 63.64436839800328,
+      "phase": "floor",
+      "note": "session: index=71 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:42:14.237211+00:00",
+      "wall_s": 51.81734654866159,
+      "phase": "floor",
+      "note": "session: index=72 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:43:06.060657+00:00",
+      "wall_s": 65.44031484890729,
+      "phase": "floor",
+      "note": "session: index=73 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:44:11.507201+00:00",
+      "wall_s": 50.50053387787193,
+      "phase": "floor",
+      "note": "session: index=74 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:45:02.014363+00:00",
+      "wall_s": 62.87335825059563,
+      "phase": "floor",
+      "note": "session: index=75 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:46:04.894486+00:00",
+      "wall_s": 50.59920693747699,
+      "phase": "floor",
+      "note": "session: index=76 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:46:55.500354+00:00",
+      "wall_s": 50.90727177169174,
+      "phase": "floor",
+      "note": "session: index=77 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:47:46.414395+00:00",
+      "wall_s": 59.65929079428315,
+      "phase": "floor",
+      "note": "session: index=78 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:48:46.080478+00:00",
+      "wall_s": 51.19932217989117,
+      "phase": "floor",
+      "note": "session: index=79 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:49:37.286465+00:00",
+      "wall_s": 51.671584020368755,
+      "phase": "floor",
+      "note": "session: index=80 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:50:28.964658+00:00",
+      "wall_s": 50.627575840801,
+      "phase": "floor",
+      "note": "session: index=81 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:51:19.599065+00:00",
+      "wall_s": 62.95073636621237,
+      "phase": "floor",
+      "note": "session: index=82 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:52:22.556687+00:00",
+      "wall_s": 55.9934022622183,
+      "phase": "floor",
+      "note": "session: index=83 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:53:18.557225+00:00",
+      "wall_s": 61.04404928442091,
+      "phase": "floor",
+      "note": "session: index=84 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:54:19.608540+00:00",
+      "wall_s": 64.62723118253052,
+      "phase": "floor",
+      "note": "session: index=85 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:55:24.242910+00:00",
+      "wall_s": 52.48778749909252,
+      "phase": "floor",
+      "note": "session: index=86 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:56:16.738042+00:00",
+      "wall_s": 51.879643984138966,
+      "phase": "floor",
+      "note": "session: index=87 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:57:08.625297+00:00",
+      "wall_s": 50.94309951644391,
+      "phase": "floor",
+      "note": "session: index=88 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:57:59.575767+00:00",
+      "wall_s": 50.612150869332254,
+      "phase": "floor",
+      "note": "session: index=89 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:58:50.195546+00:00",
+      "wall_s": 51.456790960393846,
+      "phase": "floor",
+      "note": "session: index=90 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T18:59:41.659903+00:00",
+      "wall_s": 51.31383195146918,
+      "phase": "floor",
+      "note": "session: index=91 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:00:32.981212+00:00",
+      "wall_s": 65.33448932599276,
+      "phase": "floor",
+      "note": "session: index=92 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:01:38.323062+00:00",
+      "wall_s": 50.38637041673064,
+      "phase": "floor",
+      "note": "session: index=93 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:02:28.717108+00:00",
+      "wall_s": 62.83187718316913,
+      "phase": "floor",
+      "note": "session: index=94 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:03:31.556676+00:00",
+      "wall_s": 59.63871216122061,
+      "phase": "floor",
+      "note": "session: index=95 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:04:31.203128+00:00",
+      "wall_s": 62.70521980058402,
+      "phase": "floor",
+      "note": "session: index=96 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:05:33.916418+00:00",
+      "wall_s": 50.77032732218504,
+      "phase": "floor",
+      "note": "session: index=97 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:06:24.694965+00:00",
+      "wall_s": 52.986088901758194,
+      "phase": "floor",
+      "note": "session: index=98 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:07:17.688984+00:00",
+      "wall_s": 51.535073671489954,
+      "phase": "floor",
+      "note": "session: index=99 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:08:09.231733+00:00",
+      "wall_s": 56.24331744853407,
+      "phase": "floor",
+      "note": "session: index=100 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:09:05.483115+00:00",
+      "wall_s": 50.73063467256725,
+      "phase": "floor",
+      "note": "session: index=101 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:09:56.221829+00:00",
+      "wall_s": 62.75804997049272,
+      "phase": "floor",
+      "note": "session: index=102 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:10:58.988063+00:00",
+      "wall_s": 52.396086116321385,
+      "phase": "floor",
+      "note": "session: index=103 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:11:51.392124+00:00",
+      "wall_s": 63.26494716387242,
+      "phase": "floor",
+      "note": "session: index=104 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:12:54.665478+00:00",
+      "wall_s": 51.070504617877305,
+      "phase": "floor",
+      "note": "session: index=105 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:13:45.744146+00:00",
+      "wall_s": 50.99168438836932,
+      "phase": "floor",
+      "note": "session: index=106 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:14:36.744122+00:00",
+      "wall_s": 51.123005899600685,
+      "phase": "floor",
+      "note": "session: index=107 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:15:27.875241+00:00",
+      "wall_s": 51.859174236655235,
+      "phase": "floor",
+      "note": "session: index=108 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:16:19.742868+00:00",
+      "wall_s": 51.3226128090173,
+      "phase": "floor",
+      "note": "session: index=109 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:17:11.073844+00:00",
+      "wall_s": 50.86244586389512,
+      "phase": "floor",
+      "note": "session: index=110 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:18:01.944620+00:00",
+      "wall_s": 62.95960559230298,
+      "phase": "floor",
+      "note": "session: index=111 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:19:04.913041+00:00",
+      "wall_s": 64.36261727847159,
+      "phase": "floor",
+      "note": "session: index=112 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:20:09.284417+00:00",
+      "wall_s": 50.69776278920472,
+      "phase": "floor",
+      "note": "session: index=113 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:20:59.990805+00:00",
+      "wall_s": 51.56494603585452,
+      "phase": "floor",
+      "note": "session: index=114 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:21:51.564545+00:00",
+      "wall_s": 60.87263279687613,
+      "phase": "floor",
+      "note": "session: index=115 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:22:52.445989+00:00",
+      "wall_s": 50.78255817852914,
+      "phase": "floor",
+      "note": "session: index=116 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:23:43.237639+00:00",
+      "wall_s": 56.008050022646785,
+      "phase": "floor",
+      "note": "session: index=117 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:24:39.254989+00:00",
+      "wall_s": 50.61919075995684,
+      "phase": "floor",
+      "note": "session: index=118 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:25:29.883083+00:00",
+      "wall_s": 62.928123521618545,
+      "phase": "floor",
+      "note": "session: index=119 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:26:32.820358+00:00",
+      "wall_s": 50.544245820492506,
+      "phase": "floor",
+      "note": "session: index=120 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:27:23.373546+00:00",
+      "wall_s": 63.78339198883623,
+      "phase": "floor",
+      "note": "session: index=121 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:28:27.166278+00:00",
+      "wall_s": 51.9131315080449,
+      "phase": "floor",
+      "note": "session: index=122 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:29:19.088803+00:00",
+      "wall_s": 64.55209156312048,
+      "phase": "floor",
+      "note": "session: index=123 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:30:23.650364+00:00",
+      "wall_s": 50.965235280804336,
+      "phase": "floor",
+      "note": "session: index=124 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:31:14.624786+00:00",
+      "wall_s": 51.03003165870905,
+      "phase": "floor",
+      "note": "session: index=125 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:32:05.664436+00:00",
+      "wall_s": 50.98595107905567,
+      "phase": "floor",
+      "note": "session: index=126 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:32:56.659978+00:00",
+      "wall_s": 61.77910441625863,
+      "phase": "floor",
+      "note": "session: index=127 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:33:58.448697+00:00",
+      "wall_s": 61.345261751674116,
+      "phase": "floor",
+      "note": "session: index=128 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:34:59.803715+00:00",
+      "wall_s": 50.337647640146315,
+      "phase": "floor",
+      "note": "session: index=129 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:35:50.151165+00:00",
+      "wall_s": 64.65252357814461,
+      "phase": "floor",
+      "note": "session: index=130 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:36:54.813866+00:00",
+      "wall_s": 50.223297151736915,
+      "phase": "floor",
+      "note": "session: index=131 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:37:45.047340+00:00",
+      "wall_s": 63.84663224965334,
+      "phase": "floor",
+      "note": "session: index=132 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:38:48.904206+00:00",
+      "wall_s": 50.85791037604213,
+      "phase": "floor",
+      "note": "session: index=133 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:39:39.771959+00:00",
+      "wall_s": 55.864445759914815,
+      "phase": "floor",
+      "note": "session: index=134 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:40:35.646488+00:00",
+      "wall_s": 51.299961091950536,
+      "phase": "floor",
+      "note": "session: index=135 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:41:26.956739+00:00",
+      "wall_s": 51.84322019480169,
+      "phase": "floor",
+      "note": "session: index=136 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:42:18.809894+00:00",
+      "wall_s": 52.85292707104236,
+      "phase": "floor",
+      "note": "session: index=137 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:43:11.672787+00:00",
+      "wall_s": 51.363310971297324,
+      "phase": "floor",
+      "note": "session: index=138 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:44:03.046202+00:00",
+      "wall_s": 51.40371391642839,
+      "phase": "floor",
+      "note": "session: index=139 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:44:54.460243+00:00",
+      "wall_s": 64.10837764758617,
+      "phase": "floor",
+      "note": "session: index=140 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:45:58.578770+00:00",
+      "wall_s": 50.78802350349724,
+      "phase": "floor",
+      "note": "session: index=141 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:46:49.377105+00:00",
+      "wall_s": 51.04939061682671,
+      "phase": "floor",
+      "note": "session: index=142 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:47:40.437097+00:00",
+      "wall_s": 63.055266896262765,
+      "phase": "floor",
+      "note": "session: index=143 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "floor",
+      "started_iso": "2026-07-15T19:48:43.495693+00:00",
+      "wall_s": 0.9872059961780906,
+      "phase": "floor",
+      "note": "campaign-overhead: freeze/ledger/preflight"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:49:16.448279+00:00",
+      "wall_s": 51.965340125374496,
+      "phase": "block1",
+      "note": "session: index=0 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:50:08.417290+00:00",
+      "wall_s": 64.83562285732478,
+      "phase": "block1",
+      "note": "session: index=1 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:51:13.256876+00:00",
+      "wall_s": 61.14506039023399,
+      "phase": "block1",
+      "note": "session: index=2 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:52:14.405972+00:00",
+      "wall_s": 55.04958182480186,
+      "phase": "block1",
+      "note": "session: index=3 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:53:09.459570+00:00",
+      "wall_s": 51.73143500555307,
+      "phase": "block1",
+      "note": "session: index=4 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:54:01.195028+00:00",
+      "wall_s": 51.45660967193544,
+      "phase": "block1",
+      "note": "session: index=5 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:54:52.655954+00:00",
+      "wall_s": 51.38493871781975,
+      "phase": "block1",
+      "note": "session: index=6 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:55:44.044893+00:00",
+      "wall_s": 51.93431648146361,
+      "phase": "block1",
+      "note": "session: index=7 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:56:35.983403+00:00",
+      "wall_s": 50.78640799038112,
+      "phase": "block1",
+      "note": "session: index=8 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:57:26.774438+00:00",
+      "wall_s": 65.7655830597505,
+      "phase": "block1",
+      "note": "session: index=9 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:58:32.544233+00:00",
+      "wall_s": 63.49376246985048,
+      "phase": "block1",
+      "note": "session: index=10 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T19:59:36.042215+00:00",
+      "wall_s": 50.28123408649117,
+      "phase": "block1",
+      "note": "session: index=11 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:00:26.327913+00:00",
+      "wall_s": 62.83242885954678,
+      "phase": "block1",
+      "note": "session: index=12 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:01:29.165880+00:00",
+      "wall_s": 50.62297780811787,
+      "phase": "block1",
+      "note": "session: index=13 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:02:19.793429+00:00",
+      "wall_s": 51.481629494577646,
+      "phase": "block1",
+      "note": "session: index=14 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:03:11.279679+00:00",
+      "wall_s": 50.57147488370538,
+      "phase": "block1",
+      "note": "session: index=15 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:04:01.855814+00:00",
+      "wall_s": 51.641663044691086,
+      "phase": "block1",
+      "note": "session: index=16 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:04:53.502187+00:00",
+      "wall_s": 60.79033932927996,
+      "phase": "block1",
+      "note": "session: index=17 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:05:54.298225+00:00",
+      "wall_s": 51.278804145753384,
+      "phase": "block1",
+      "note": "session: index=18 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:06:45.581917+00:00",
+      "wall_s": 64.23666465748101,
+      "phase": "block1",
+      "note": "session: index=19 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:07:49.823364+00:00",
+      "wall_s": 50.66946718189865,
+      "phase": "block1",
+      "note": "session: index=20 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:08:40.497661+00:00",
+      "wall_s": 50.920979876071215,
+      "phase": "block1",
+      "note": "session: index=21 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:09:31.423729+00:00",
+      "wall_s": 52.84039310924709,
+      "phase": "block1",
+      "note": "session: index=22 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:10:24.269088+00:00",
+      "wall_s": 64.00629772990942,
+      "phase": "block1",
+      "note": "session: index=23 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:11:28.280698+00:00",
+      "wall_s": 50.3775779446587,
+      "phase": "block1",
+      "note": "session: index=24 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:12:18.663535+00:00",
+      "wall_s": 62.55830543488264,
+      "phase": "block1",
+      "note": "session: index=25 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:13:21.227273+00:00",
+      "wall_s": 62.43986008130014,
+      "phase": "block1",
+      "note": "session: index=26 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:14:23.672337+00:00",
+      "wall_s": 50.70444485824555,
+      "phase": "block1",
+      "note": "session: index=27 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:15:14.382328+00:00",
+      "wall_s": 59.76430053636432,
+      "phase": "block1",
+      "note": "session: index=28 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:16:14.152286+00:00",
+      "wall_s": 64.08637666050345,
+      "phase": "block1",
+      "note": "session: index=29 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:17:18.243969+00:00",
+      "wall_s": 50.91946393903345,
+      "phase": "block1",
+      "note": "session: index=30 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:18:09.168944+00:00",
+      "wall_s": 55.921451889909804,
+      "phase": "block1",
+      "note": "session: index=31 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:19:05.096648+00:00",
+      "wall_s": 50.77779897954315,
+      "phase": "block1",
+      "note": "session: index=32 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:19:55.880107+00:00",
+      "wall_s": 51.6853922046721,
+      "phase": "block1",
+      "note": "session: index=33 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:20:47.571353+00:00",
+      "wall_s": 50.80431554839015,
+      "phase": "block1",
+      "note": "session: index=34 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:21:38.381803+00:00",
+      "wall_s": 50.62814177945256,
+      "phase": "block1",
+      "note": "session: index=35 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:22:29.016060+00:00",
+      "wall_s": 52.93883468862623,
+      "phase": "block1",
+      "note": "session: index=36 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:23:21.960837+00:00",
+      "wall_s": 51.95115911588073,
+      "phase": "block1",
+      "note": "session: index=37 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:24:13.917819+00:00",
+      "wall_s": 50.66756510268897,
+      "phase": "block1",
+      "note": "session: index=38 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:25:04.591537+00:00",
+      "wall_s": 50.7065017092973,
+      "phase": "block1",
+      "note": "session: index=39 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:25:55.304175+00:00",
+      "wall_s": 64.08552100043744,
+      "phase": "block1",
+      "note": "session: index=40 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:26:59.395999+00:00",
+      "wall_s": 62.248372592031956,
+      "phase": "block1",
+      "note": "session: index=41 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:28:01.650631+00:00",
+      "wall_s": 51.051235924474895,
+      "phase": "block1",
+      "note": "session: index=42 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:28:52.708049+00:00",
+      "wall_s": 50.71530418749899,
+      "phase": "block1",
+      "note": "session: index=43 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:29:43.429643+00:00",
+      "wall_s": 59.5557425506413,
+      "phase": "block1",
+      "note": "session: index=44 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:30:42.991619+00:00",
+      "wall_s": 51.36520715709776,
+      "phase": "block1",
+      "note": "session: index=45 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:31:34.363511+00:00",
+      "wall_s": 56.1624376680702,
+      "phase": "block1",
+      "note": "session: index=46 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:32:30.532480+00:00",
+      "wall_s": 63.01379391923547,
+      "phase": "block1",
+      "note": "session: index=47 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:33:33.552758+00:00",
+      "wall_s": 62.639254450798035,
+      "phase": "block1",
+      "note": "session: index=48 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:34:36.198360+00:00",
+      "wall_s": 50.74892758298665,
+      "phase": "block1",
+      "note": "session: index=49 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:35:26.954227+00:00",
+      "wall_s": 51.26867703907192,
+      "phase": "block1",
+      "note": "session: index=50 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:36:18.229376+00:00",
+      "wall_s": 63.618772322312,
+      "phase": "block1",
+      "note": "session: index=51 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:37:21.854735+00:00",
+      "wall_s": 50.756214623339474,
+      "phase": "block1",
+      "note": "session: index=52 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:38:12.617975+00:00",
+      "wall_s": 50.957165628671646,
+      "phase": "block1",
+      "note": "session: index=53 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:39:03.581948+00:00",
+      "wall_s": 51.717781350016594,
+      "phase": "block1",
+      "note": "session: index=54 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:39:55.306664+00:00",
+      "wall_s": 50.72283002734184,
+      "phase": "block1",
+      "note": "session: index=55 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:40:46.036523+00:00",
+      "wall_s": 61.69262587279081,
+      "phase": "block1",
+      "note": "session: index=56 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:41:47.741007+00:00",
+      "wall_s": 59.33725083898753,
+      "phase": "block1",
+      "note": "session: index=57 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:42:47.085493+00:00",
+      "wall_s": 54.96966615039855,
+      "phase": "block1",
+      "note": "session: index=58 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:43:42.062436+00:00",
+      "wall_s": 62.288964971899986,
+      "phase": "block1",
+      "note": "session: index=59 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:44:44.358596+00:00",
+      "wall_s": 50.972014443948865,
+      "phase": "block1",
+      "note": "session: index=60 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:45:35.337923+00:00",
+      "wall_s": 51.691694028675556,
+      "phase": "block1",
+      "note": "session: index=61 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:46:27.036785+00:00",
+      "wall_s": 51.15551860630512,
+      "phase": "block1",
+      "note": "session: index=62 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:47:18.199916+00:00",
+      "wall_s": 64.19637325592339,
+      "phase": "block1",
+      "note": "session: index=63 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:48:22.403542+00:00",
+      "wall_s": 50.88427399005741,
+      "phase": "block1",
+      "note": "session: index=64 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:49:13.295510+00:00",
+      "wall_s": 50.884105464443564,
+      "phase": "block1",
+      "note": "session: index=65 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:50:04.187126+00:00",
+      "wall_s": 51.16998435650021,
+      "phase": "block1",
+      "note": "session: index=66 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:50:55.364627+00:00",
+      "wall_s": 63.892538944259286,
+      "phase": "block1",
+      "note": "session: index=67 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:51:59.264654+00:00",
+      "wall_s": 52.18994672968984,
+      "phase": "block1",
+      "note": "session: index=68 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:52:51.462305+00:00",
+      "wall_s": 53.139366121031344,
+      "phase": "block1",
+      "note": "session: index=69 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:53:44.609545+00:00",
+      "wall_s": 50.51440877933055,
+      "phase": "block1",
+      "note": "session: index=70 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:54:35.131840+00:00",
+      "wall_s": 64.33509333338588,
+      "phase": "block1",
+      "note": "session: index=71 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block1",
+      "started_iso": "2026-07-15T20:55:39.470778+00:00",
+      "wall_s": 0.51054254360497,
+      "phase": "block1",
+      "note": "campaign-overhead: freeze/ledger/preflight"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:26:58.961777+00:00",
+      "wall_s": 40.35648521408439,
+      "phase": "block2",
+      "note": "session: index=0 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:27:39.323186+00:00",
+      "wall_s": 63.64001381956041,
+      "phase": "block2",
+      "note": "session: index=1 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:28:42.968098+00:00",
+      "wall_s": 50.92908629216254,
+      "phase": "block2",
+      "note": "session: index=2 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:29:33.901958+00:00",
+      "wall_s": 62.29078229609877,
+      "phase": "block2",
+      "note": "session: index=3 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:30:36.197488+00:00",
+      "wall_s": 51.12930382415652,
+      "phase": "block2",
+      "note": "session: index=4 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:31:27.331936+00:00",
+      "wall_s": 52.4695616690442,
+      "phase": "block2",
+      "note": "session: index=5 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:32:19.806418+00:00",
+      "wall_s": 63.33415480237454,
+      "phase": "block2",
+      "note": "session: index=6 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:33:23.145604+00:00",
+      "wall_s": 63.946386229246855,
+      "phase": "block2",
+      "note": "session: index=7 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:34:27.096947+00:00",
+      "wall_s": 50.55992086511105,
+      "phase": "block2",
+      "note": "session: index=8 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:35:17.662013+00:00",
+      "wall_s": 50.844651997089386,
+      "phase": "block2",
+      "note": "session: index=9 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:36:08.511745+00:00",
+      "wall_s": 50.799422800540924,
+      "phase": "block2",
+      "note": "session: index=10 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:36:59.316532+00:00",
+      "wall_s": 51.33153831958771,
+      "phase": "block2",
+      "note": "session: index=11 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:37:50.653307+00:00",
+      "wall_s": 51.630904170684516,
+      "phase": "block2",
+      "note": "session: index=12 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:38:42.289672+00:00",
+      "wall_s": 64.0263297855854,
+      "phase": "block2",
+      "note": "session: index=13 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:39:46.321374+00:00",
+      "wall_s": 50.62732873111963,
+      "phase": "block2",
+      "note": "session: index=14 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:40:36.954259+00:00",
+      "wall_s": 54.49646233767271,
+      "phase": "block2",
+      "note": "session: index=15 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:41:31.456105+00:00",
+      "wall_s": 50.55825384519994,
+      "phase": "block2",
+      "note": "session: index=16 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:42:22.020042+00:00",
+      "wall_s": 50.76697195786983,
+      "phase": "block2",
+      "note": "session: index=17 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:43:12.792629+00:00",
+      "wall_s": 62.60119459591806,
+      "phase": "block2",
+      "note": "session: index=18 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:44:15.399509+00:00",
+      "wall_s": 50.52416266966611,
+      "phase": "block2",
+      "note": "session: index=19 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:45:05.929563+00:00",
+      "wall_s": 54.857123357243836,
+      "phase": "block2",
+      "note": "session: index=20 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:46:00.792696+00:00",
+      "wall_s": 52.6218458134681,
+      "phase": "block2",
+      "note": "session: index=21 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:46:53.420496+00:00",
+      "wall_s": 51.78553488012403,
+      "phase": "block2",
+      "note": "session: index=22 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:47:45.212188+00:00",
+      "wall_s": 62.36707905679941,
+      "phase": "block2",
+      "note": "session: index=23 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:48:47.585303+00:00",
+      "wall_s": 65.08876515645534,
+      "phase": "block2",
+      "note": "session: index=24 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:49:52.679931+00:00",
+      "wall_s": 64.95522828958929,
+      "phase": "block2",
+      "note": "session: index=25 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:50:57.641212+00:00",
+      "wall_s": 50.157654895447195,
+      "phase": "block2",
+      "note": "session: index=26 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:51:47.804801+00:00",
+      "wall_s": 50.466001712717116,
+      "phase": "block2",
+      "note": "session: index=27 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:52:38.276825+00:00",
+      "wall_s": 50.648644264787436,
+      "phase": "block2",
+      "note": "session: index=28 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:53:28.931901+00:00",
+      "wall_s": 61.102499512955546,
+      "phase": "block2",
+      "note": "session: index=29 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:54:30.040611+00:00",
+      "wall_s": 51.53029385395348,
+      "phase": "block2",
+      "note": "session: index=30 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:55:21.577140+00:00",
+      "wall_s": 59.249680964276195,
+      "phase": "block2",
+      "note": "session: index=31 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:56:20.833187+00:00",
+      "wall_s": 51.27452410943806,
+      "phase": "block2",
+      "note": "session: index=32 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:57:12.114032+00:00",
+      "wall_s": 50.75416309013963,
+      "phase": "block2",
+      "note": "session: index=33 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:58:02.874742+00:00",
+      "wall_s": 50.33968093339354,
+      "phase": "block2",
+      "note": "session: index=34 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:58:53.221157+00:00",
+      "wall_s": 51.38356136903167,
+      "phase": "block2",
+      "note": "session: index=35 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T21:59:44.611477+00:00",
+      "wall_s": 62.74147741496563,
+      "phase": "block2",
+      "note": "session: index=36 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:00:47.359525+00:00",
+      "wall_s": 50.81107960175723,
+      "phase": "block2",
+      "note": "session: index=37 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:01:38.177542+00:00",
+      "wall_s": 59.78034678194672,
+      "phase": "block2",
+      "note": "session: index=38 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:02:37.964741+00:00",
+      "wall_s": 52.665045850910246,
+      "phase": "block2",
+      "note": "session: index=39 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:03:30.636957+00:00",
+      "wall_s": 51.360455114394426,
+      "phase": "block2",
+      "note": "session: index=40 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:04:22.004500+00:00",
+      "wall_s": 51.74716352019459,
+      "phase": "block2",
+      "note": "session: index=41 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:05:13.758672+00:00",
+      "wall_s": 63.895299810916185,
+      "phase": "block2",
+      "note": "session: index=42 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:06:17.660861+00:00",
+      "wall_s": 51.08935876749456,
+      "phase": "block2",
+      "note": "session: index=43 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:07:08.757254+00:00",
+      "wall_s": 62.28502982389182,
+      "phase": "block2",
+      "note": "session: index=44 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:08:11.049405+00:00",
+      "wall_s": 51.45129677373916,
+      "phase": "block2",
+      "note": "session: index=45 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:09:02.507870+00:00",
+      "wall_s": 62.59950321819633,
+      "phase": "block2",
+      "note": "session: index=46 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:10:05.114428+00:00",
+      "wall_s": 63.47531858552247,
+      "phase": "block2",
+      "note": "session: index=47 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:11:08.597280+00:00",
+      "wall_s": 50.63423211686313,
+      "phase": "block2",
+      "note": "session: index=48 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:11:59.240589+00:00",
+      "wall_s": 50.65182900149375,
+      "phase": "block2",
+      "note": "session: index=49 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:12:49.899731+00:00",
+      "wall_s": 56.178637580014765,
+      "phase": "block2",
+      "note": "session: index=50 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:13:46.085936+00:00",
+      "wall_s": 50.42647921666503,
+      "phase": "block2",
+      "note": "session: index=51 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:14:36.520896+00:00",
+      "wall_s": 51.47467448282987,
+      "phase": "block2",
+      "note": "session: index=52 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:15:28.003767+00:00",
+      "wall_s": 50.576417974196374,
+      "phase": "block2",
+      "note": "session: index=53 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:16:18.588386+00:00",
+      "wall_s": 51.59655132610351,
+      "phase": "block2",
+      "note": "session: index=54 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:17:10.192657+00:00",
+      "wall_s": 51.28936247434467,
+      "phase": "block2",
+      "note": "session: index=55 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:18:01.489782+00:00",
+      "wall_s": 61.19528030324727,
+      "phase": "block2",
+      "note": "session: index=56 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:19:02.693031+00:00",
+      "wall_s": 55.072664751671255,
+      "phase": "block2",
+      "note": "session: index=57 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:19:57.773542+00:00",
+      "wall_s": 50.553839973174036,
+      "phase": "block2",
+      "note": "session: index=58 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:20:48.335277+00:00",
+      "wall_s": 62.85512440931052,
+      "phase": "block2",
+      "note": "session: index=59 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:21:51.198501+00:00",
+      "wall_s": 64.12100923527032,
+      "phase": "block2",
+      "note": "session: index=60 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:22:55.327598+00:00",
+      "wall_s": 50.510282275266945,
+      "phase": "block2",
+      "note": "session: index=61 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:23:45.846080+00:00",
+      "wall_s": 50.894583290442824,
+      "phase": "block2",
+      "note": "session: index=62 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:24:36.748790+00:00",
+      "wall_s": 51.91111347824335,
+      "phase": "block2",
+      "note": "session: index=63 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:25:28.668056+00:00",
+      "wall_s": 62.12677772529423,
+      "phase": "block2",
+      "note": "session: index=64 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:26:30.803068+00:00",
+      "wall_s": 50.64196388889104,
+      "phase": "block2",
+      "note": "session: index=65 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:27:21.453453+00:00",
+      "wall_s": 51.706755543127656,
+      "phase": "block2",
+      "note": "session: index=66 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:28:13.168535+00:00",
+      "wall_s": 65.20361549034715,
+      "phase": "block2",
+      "note": "session: index=67 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:29:18.380547+00:00",
+      "wall_s": 60.39321736712009,
+      "phase": "block2",
+      "note": "session: index=68 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:30:18.782297+00:00",
+      "wall_s": 52.074895662255585,
+      "phase": "block2",
+      "note": "session: index=69 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:31:10.865850+00:00",
+      "wall_s": 50.538364646025,
+      "phase": "block2",
+      "note": "session: index=70 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:32:01.412809+00:00",
+      "wall_s": 50.648727694526315,
+      "phase": "block2",
+      "note": "session: index=71 attempt=0 status=success reason=certified"
+    },
+    {
+      "campaign_role": "block2",
+      "started_iso": "2026-07-15T22:32:52.066010+00:00",
+      "wall_s": 0.5650787400081754,
+      "phase": "block2",
+      "note": "campaign-overhead: freeze/ledger/preflight"
+    }
+  ]
+}

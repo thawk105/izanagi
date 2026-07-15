@@ -1,0 +1,1 @@
+{"ccbench_commit":"d706650","search_config":{"campaign_role":"floor","schedule_hash":"b76333da5db1945908641679773bf7ef307ac2dc2bb3462a171b15be235ae150","verify":"legacy"},"search_tag":"direct-comparison","spec_content":"S-1 登録追試の計測実行系。freeze の18セルと固定 schedule を pipeline.evaluate の COMMIT 唯一経路で実行する。","trial":"s1-direct-v2"}
