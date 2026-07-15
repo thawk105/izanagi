@@ -6,17 +6,11 @@
 
 ## 作業開始
 
-まず `CLAUDE.md`「現在地」の作業種別ゲート (task-class gate) で依頼を分類し、クラスに応じた導線に
-従う。次の 1〜5 はクラス 2 / 3 の導線である。
-
-1. 作業前に `CLAUDE.md` を全文読み、絶対規律・現在地の引き方・作業手順に従う。
-2. `CLAUDE.md`「現在地」がクラスごとに指定する範囲で、`docs/worklog.md` と現行 phase doc を読む。
-   phase doc 自身の「読み方」を優先し、完了済みの長い経緯を常時ロードしない。
-3. `docs/handoff/` を列挙し、README 以外の残ファイルがあればすべて読む。作業セッションでは
-   自分専用の handoff を作り、節目ごとに更新し、正常終了時に worklog へ吸収して削除する。
-4. `docs/roadmap.md` は現行タスクが参照する節だけを読む。`docs/decisions.md` と
-   `docs/glossary.md` は検索して該当項目だけを読む。
-5. `git status` を確認し、他セッションまたはユーザーの変更を上書きしない。
+まず `CLAUDE.md` を全文読み、「現在地」の作業種別ゲート (task-class gate) で依頼を分類し、クラスに
+応じた導線に従う。クラス 1 では、ゲート定義と回答に必要なファイルだけを読み、起動確認・handoff・
+worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「現在地」の起動順をそのまま実行する
+(worklog・phase doc・handoff・roadmap / decisions の引き方と `git status` 確認を含む)。phase doc は
+その冒頭の「読み方」に従い、完了済みの長い経緯を常時ロードしない。
 
 ## 共通規律と Codex 固有の注意
 
