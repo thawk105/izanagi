@@ -1,10 +1,10 @@
 {
   "what": "S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)",
-  "frozen_at_head": "c648bbe2aa8dff028411b3b53a3ba8e6767bdb15",
+  "frozen_at_head": "ca921338507ad66540ceae997b327e6c3ab3cb3d",
   "ccbench_pin": "d706650cdb31e442bef45b9b4216951d4fb40969",
   "generator": {
     "path": "orchestrator/campaign/s1_known_axes_freeze.py",
-    "sha256": "358c8152801314298aa3944c621aef223e1b5fc395f9e5be1f9ed7ed324ad39e"
+    "sha256": "1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0"
   },
   "python_version": "3.10.12 (main, Feb  4 2025, 14:57:36) [GCC 11.4.0]",
   "selection_rules": {
@@ -49,7 +49,7 @@
           },
           {
             "path": "orchestrator/campaign/s8a_trigger_sweep.py",
-            "sha256": "8abd5aeff8fb370c93371346a60ad947d3bb5c1d82b558a621b59a80bdb8f890",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
             "key": "_genome(1)"
           }
         ]
@@ -82,7 +82,7 @@
           },
           {
             "path": "orchestrator/campaign/s8a_trigger_sweep.py",
-            "sha256": "8abd5aeff8fb370c93371346a60ad947d3bb5c1d82b558a621b59a80bdb8f890",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
             "key": "_genome(1)"
           }
         ]
@@ -150,7 +150,7 @@
           },
           {
             "path": "orchestrator/campaign/backoff_sweep.py",
-            "sha256": "2856b5307fb6eb9c3dbac880adec2d5ed9d330e8ef5f4219b0d7073affd89748",
+            "sha256": "4e7fa96eef4a9051ebc4da5d69a71f98ba30b7e94d857403a4cc2901d473da89",
             "key": "_BASE and SWEEP_US"
           }
         ]
@@ -198,7 +198,7 @@
           },
           {
             "path": "orchestrator/campaign/s6_sort_sweep.py",
-            "sha256": "02df5689fc361baa9dce1890552a7803bd7fb1f8ea1ef28a01cf0672e103716a",
+            "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
             "key": "_genome(1) and candidate space"
           },
           {
@@ -275,7 +275,7 @@
           },
           {
             "path": "orchestrator/campaign/s8a_trigger_sweep.py",
-            "sha256": "8abd5aeff8fb370c93371346a60ad947d3bb5c1d82b558a621b59a80bdb8f890",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
             "key": "_genome(1)"
           }
         ]
@@ -308,7 +308,7 @@
           },
           {
             "path": "orchestrator/campaign/s8a_trigger_sweep.py",
-            "sha256": "8abd5aeff8fb370c93371346a60ad947d3bb5c1d82b558a621b59a80bdb8f890",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
             "key": "_genome(1)"
           }
         ]
@@ -376,7 +376,7 @@
           },
           {
             "path": "orchestrator/campaign/backoff_sweep.py",
-            "sha256": "2856b5307fb6eb9c3dbac880adec2d5ed9d330e8ef5f4219b0d7073affd89748",
+            "sha256": "4e7fa96eef4a9051ebc4da5d69a71f98ba30b7e94d857403a4cc2901d473da89",
             "key": "_BASE and SWEEP_US"
           }
         ]
@@ -424,7 +424,7 @@
           },
           {
             "path": "orchestrator/campaign/s6_sort_sweep.py",
-            "sha256": "02df5689fc361baa9dce1890552a7803bd7fb1f8ea1ef28a01cf0672e103716a",
+            "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
             "key": "_genome(1) and candidate space"
           },
           {
@@ -501,7 +501,7 @@
           },
           {
             "path": "orchestrator/campaign/s8a_trigger_sweep.py",
-            "sha256": "8abd5aeff8fb370c93371346a60ad947d3bb5c1d82b558a621b59a80bdb8f890",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
             "key": "_genome(1)"
           }
         ]
@@ -534,7 +534,7 @@
           },
           {
             "path": "orchestrator/campaign/s8a_trigger_sweep.py",
-            "sha256": "8abd5aeff8fb370c93371346a60ad947d3bb5c1d82b558a621b59a80bdb8f890",
+            "sha256": "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
             "key": "_genome(1)"
           }
         ]
@@ -602,7 +602,7 @@
           },
           {
             "path": "orchestrator/campaign/backoff_sweep.py",
-            "sha256": "2856b5307fb6eb9c3dbac880adec2d5ed9d330e8ef5f4219b0d7073affd89748",
+            "sha256": "4e7fa96eef4a9051ebc4da5d69a71f98ba30b7e94d857403a4cc2901d473da89",
             "key": "_BASE and SWEEP_US"
           }
         ]
@@ -631,7 +631,7 @@
           },
           {
             "path": "orchestrator/campaign/s6_sort_sweep.py",
-            "sha256": "02df5689fc361baa9dce1890552a7803bd7fb1f8ea1ef28a01cf0672e103716a",
+            "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
             "key": "_genome(1) and candidate space"
           },
           {

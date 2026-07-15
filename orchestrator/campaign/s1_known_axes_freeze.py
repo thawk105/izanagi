@@ -144,6 +144,29 @@ def _wal_records(path: Path) -> List[Dict]:
     return records
 
 
+def _exclude_screening_campaigns(paths: Sequence[Path]) -> List[Path]:
+    """bench-first screening campaign (D58) を S-1 材料から除外する。
+
+    screening campaign は偵察専用で、S-1 の基準点材料に流用しない (D58 firewall)。
+    判別子は campaign.lock の search_config に焼き込まれた screening キー
+    (pipeline の機械結合が evaluate 前に保証する)。lock が読めない campaign は
+    素性不明なので fails-closed で止める。
+    """
+    kept: List[Path] = []
+    for path in paths:
+        lock_path = path.parent.parent / "campaign.lock"
+        if not lock_path.is_file():
+            raise FreezeError(f"campaign.lock がない: {lock_path}")
+        lock = _load_json(lock_path)
+        search_config = lock.get("search_config")
+        if not isinstance(search_config, dict):
+            raise FreezeError(f"campaign.lock に search_config がない: {lock_path}")
+        if "screening" in search_config:
+            continue
+        kept.append(path)
+    return kept
+
+
 def _commit_rows(paths: Sequence[Path]) -> Tuple[List[Dict], Dict[str, str]]:
     rows: List[Dict] = []
     genomes: Dict[str, str] = {}
@@ -216,8 +239,8 @@ def _p2_label(flags: Mapping[str, int]) -> str:
 
 
 def _p2_entry(workload: str) -> Tuple[Dict, str]:
-    paths = sorted(ROOT.glob(
-        f"output/campaigns/p2-2-silo-{workload}-enumerate-*/runs/wal.jsonl"))
+    paths = _exclude_screening_campaigns(sorted(ROOT.glob(
+        f"output/campaigns/p2-2-silo-{workload}-enumerate-*/runs/wal.jsonl")))
     if not paths:
         raise FreezeError(f"P2-2 WAL がない: workload={workload}")
     rows, wal_genomes = _commit_rows(paths)
@@ -251,8 +274,8 @@ def _p2_entry(workload: str) -> Tuple[Dict, str]:
 
 
 def _backoff_entry(workload: str) -> Dict:
-    paths = sorted(ROOT.glob(
-        f"output/campaigns/backoff-sweep-silo-{workload}-sweep-*/runs/wal.jsonl"))
+    paths = _exclude_screening_campaigns(sorted(ROOT.glob(
+        f"output/campaigns/backoff-sweep-silo-{workload}-sweep-*/runs/wal.jsonl")))
     if not paths:
         raise FreezeError(f"BACKOFF_FIXED WAL がない: workload={workload}")
     rows, wal_genomes = _commit_rows(paths)
@@ -343,7 +366,7 @@ def _find_sort_remeasure(workload: str) -> Tuple[Path, Path]:
         prov = _load_json(prov_path)
         if str(prov.get("trial", "")).startswith("p3-s6-sort-sweep-remeasure"):
             wal_path = prov_path.parent.parent / "runs/wal.jsonl"
-            if wal_path.is_file():
+            if wal_path.is_file() and _exclude_screening_campaigns([wal_path]):
                 found.append((wal_path, prov_path))
     if len(found) != 1:
         raise FreezeError(f"sort remeasure が一意でない: workload={workload} count={len(found)}")
