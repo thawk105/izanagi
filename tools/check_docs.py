@@ -38,7 +38,7 @@ LIVING_DOCS = [
     REPO / "docs" / "ccbench-anatomy.md",
     REPO / "docs" / "axis-onboarding.md",              # 2026-07-11 監査 dup-05 で追加
     REPO / "docs" / "isolation-phenomena.md",          # 2026-07-12 監査: 現在形の生きた参照文書なのに lint 網の外だった
-    # token-management-strategy.md は 2026-07-11 に docs/archive/ へ凍結移動 (対象外の凍結族へ)
+    # token-management-strategy.md は 2026-07-11 に docs/archive/ へ凍結移動 → 2026-07-15 に git-history-only 化 (F8 捏造文書、墓標 = docs/archive/README.md)
 ]
 # 段 runbook (現在の実走手順を主張する生きた運用文書) は glob で自動編入する —
 # 手書き列挙だと段の追加で取りこぼす (2026-07-12 監査: s8a runbook が網の外で pin literal が腐る構造だった)。
@@ -57,6 +57,9 @@ LINE_REF_STRICT = [
 
 HANDOFF_DIR = REPO / "docs" / "handoff"
 HANDOFF_STALE_SECONDS = 48 * 3600
+
+ARCHIVE_DIR = REPO / "docs" / "archive"
+ARCHIVE_README = ARCHIVE_DIR / "README.md"
 
 # --- worklog 肥大 (2026-07-15 追加、トークン節約メンテ) ---
 # ブート時「末尾エントリのみ読む」運用でも、肥大は grep 誤爆・事故全読・コンテキスト
@@ -151,6 +154,34 @@ def main() -> int:
                 if doc.name == "ccbench-anatomy.md" and (REPO / "external" / "ccbench" / p).exists():
                     continue
                 findings.append(f"{rel}:{lineno}: 実在しないパス参照: {p!r}")
+
+    archive_readme_text = ARCHIVE_README.read_text()
+    archive_section = re.search(
+        r"^## 現在の収容物\s*$\n(?P<body>.*?)(?=^## |\Z)",
+        archive_readme_text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if archive_section is None:
+        findings.append("docs/archive/README.md: 「現在の収容物」節がない — archive の索引を検査できない")
+    else:
+        # 到達性 = archive の実在物を README の索引から辿れること。git-history-only の墓標は
+        # working tree に実在しないことが契約なので、索引から実在物への逆方向検査を免除する。
+        for archived in sorted(ARCHIVE_DIR.iterdir()):
+            if archived.is_file() and archived.name != ARCHIVE_README.name:
+                if archived.name not in archive_readme_text:
+                    findings.append(
+                        f"docs/archive/README.md: {archived.name} が索引 (現在の収容物) に未掲載 — "
+                        "到達性がない (追記するか規約に従い墓標行を書く)"
+                    )
+        for line in archive_section.group("body").splitlines():
+            if not line.startswith("- ") or "git-history-only" in line:
+                continue
+            for name in re.findall(r"`([^`/]+\.(?:md|json))`", line):
+                if not (ARCHIVE_DIR / name).is_file():
+                    findings.append(
+                        f"docs/archive/README.md: {name} が索引 (現在の収容物) に掲載されているが "
+                        "docs/archive/ に実在しない (削除済みなら git-history-only の墓標行にする)"
+                    )
 
     wl_size = WORKLOG.stat().st_size if WORKLOG.exists() else 0
     if wl_size > WORKLOG_ROTATE_BYTES:
