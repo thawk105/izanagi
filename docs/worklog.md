@@ -719,7 +719,11 @@ codex gpt-5.6-terra ×4 (8b 起草 / 層3 実装 / 8b 監査修正 / driver 修�
   codex へ差し戻し消化。親裁定の要点 = selector を採点 oracle と descriptor 依存予測選択の二層に
   分離 / 双射は本体走査 vs 入力の独立比較 + view 参照整合
 - ユーザー協議: (a) サブエージェントより codex 優先 (時限方針、レート枠)、(b) codex 実行面の
-  モデル表示が gpt-5.6-terra (依頼語彙 sol とずれ、config も terra — 経緯不明のため報告済み)
+  モデル表示が gpt-5.6-terra (依頼語彙 sol とずれ、config 既定も terra — 本セッションの 4 タスクは
+  無指定のため terra で走った。trailer は実行面表示どおり terra で正)。協議後の実測で
+  `-c model="gpt-5.6-sol"` の指定可・正常完走を確定し、**以後の codex 委譲はモデルを毎回明示
+  (既定 sol)、低位モデルでも結果が変わらない難易度なら低位へ切り替えてトークンを節約する**運用に
+  決定 (ユーザー指示 2026-07-16)。config.toml はユーザー所有のため書き換えない (毎回明示で担保)
 - 工数: codex exec ×4 (全て一発 green)、Explore ×2、計測 wall 約 6.4h (台帳)
 
 ### 次の一手
