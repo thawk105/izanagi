@@ -495,3 +495,23 @@ ab8a150..38c7e32 を実装済みだったことを発見し、規律 6 の取り
 3. bench-first の残り = ablation (初回採用 campaign で実施、事前登録済み)。pin literal
    取り残し 4 ファイルの修正は軽作業として次セッションで
 4. push は人間の判断に委ねる
+
+## 2026-07-15 (15) — ユーザー承認 2 件の発効: S-1 再凍結 + 検定単位
+
+前エントリの人間判断待ち 2 件が同時に承認され、親 (Fable 5) が反映した。
+
+- **再凍結:** 値レベル完全一致 (機械検証) のまま known_axes_freeze.json を再生成。
+  screening campaign の材料除外 (D58 firewall) と合わせて commit。凍結テスト 5 本 green、
+  全体 pytest は既知の環境依存 1 件 (codex runtime 前提検査) を除き green
+- **検定単位 (系列 → 独立セッション、S-1 限定):** 設計 v2 全文を
+  phase3-main-experiment.md 末尾へ逐語追記し承認記録を付す。S-1 実走禁止は解除、
+  計測開始 gate の残り 4 条件 (driver + positive control / 統計実装 / 検証相校正 等) は
+  引き続き gate として生きる。checklist「サンプル設計 4 点」消化
+- commit: 再凍結 + 承認発効の 2 本 (hash は git log 参照)
+
+### 次の一手
+1. **S-1 直接比較 driver + 層別統計実装 + 検証相の仕様書 → codex 実装** (worklog (10) の
+   次の一手 2 が着手可能になった。計測開始 gate (2)〜(5) を完了条件に組み込む)
+2. bench-first ablation は初回採用 campaign で実施 (事前登録済み)。pin literal 取り残し
+   4 ファイル (p2_2 / demo / backoff_repro / sanity_silo) の修正は軽作業として次セッションで
+3. push は人間の判断に委ねる
