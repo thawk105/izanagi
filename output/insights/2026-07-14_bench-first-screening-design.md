@@ -8,9 +8,9 @@ variant をレビューが独立再計算。v1 の 140〜267 秒 / 8〜15 倍は
 verify が評価時間の 6〜7 割を占める。roadmap §2「low-fidelity proxy でスクリーニング」構想の
 具体化にあたる。
 
-**分類: 探索効率の機構設計。設計フェーズは計測ゼロ。設計 v2 は方針採用済み (2026-07-15、D58) だが
-実装は未着手。将来の実装フェーズは positive control 1 点 + 初回 ablation の実走を伴う
-(計測窓を使う)。事前登録の凍結内容に触れない。**
+**分類: 探索効率の機構設計。設計フェーズは計測ゼロ。設計 v2 は方針採用済み (2026-07-15、D58)。
+当初の「実装未着手」は同日付で訂正し、監査 must-fix 対応込みで実装済み、positive control 1 点も
+実走済み。初回 ablation は初回採用 campaign で行う。事前登録の凍結内容に触れない。**
 
 **版歴: v1 (2026-07-14) → 3 レンズ敵対レビュー (§9) → v2 (must-fix 5 系統・should-fix 7 系統
 全反映)。**
@@ -168,7 +168,10 @@ v1 の「floor を超えて劣位なら棄却」は 2 レンズが独立に must
 | S-1 検証相 (事前登録済み) | **使わない** | 凍結手順に触れない |
 | LLM ループ (F 段型) | 当面使わない | 律速がセッション運営 + 挙動変更リスク |
 
-## 5. 実装計画 (方針採用済み・未着手)
+## 5. 実装計画 (方針採用済み・当初未着手)
+
+**2026-07-15 状態訂正:** 以下 1〜6 は実装・consumer 監査・監査 must-fix 対応・positive control
+まで完了。7 の ablation は初回採用 campaign で実施予定。
 
 1. bench 段 (~80 行、pipeline.py:363-441) を `_run_bench()` ヘルパに切り出し (挙動不変の
    refactor)。注意 2 点 (レビュー): (a) ycsb_tuple_num ガード (:366-370) の移設を含める、
@@ -184,8 +187,18 @@ v1 の「floor を超えて劣位なら棄却」は 2 レンズが独立に must
    が変わる、(v) screening×do_bench=False の ValueError、(vi) render 出力に uncertified 数値が
    現れない否定 assert、(vii) screen-reject payload の verify キー非交差。
    **実出力サンプルをテスト母集団に含める (F15 教訓)** — 初回実走 1 点の WAL からの回帰を追加
+   - **2026-07-15 完了:** campaign `backoff-sweep-silo-read-heavy-sweep-6f169f90` の実 WAL
+     (baseline の build_start〜COMMIT と対照の build_start〜ABORT) を fixture に固定し、critic、
+     sweep report gate、replay、P2-2 report、backoff consumer の回帰へ通した。
 6. **positive control (F9 教訓):** 基準点より k·floor を明確に超えて遅い既知 variant で
    screen_reject の発火を実走 1 点で確認 (計測窓を使う)
+   - **2026-07-15 実走完了:** ccbench pin `d706650`、read-heavy (skew 0.9 / rr95 / rmw 0) の
+     campaign `backoff-sweep-silo-read-heavy-sweep-6f169f90`。baseline `84319b1127a6`
+     (BACKOFF_FIXED=-1, BACK_OFF=0) は median 8,470,959 tps、CV 0.28%、legacy verify は
+     serializable (534,083 commits / 222,242 aborts / anomaly 0) で COMMIT。対照 `610e879931c4`
+     (BACKOFF_FIXED=100, BACK_OFF=1) は median 1,912,074 tps、CV 0.93%、abort_rate 0.0457 で、
+     rr95 の between-run 実較正値 `floor=0.0010979692594382789` と `k=1.5` に対し margin −77.4%。
+     `screen-slower-than-floor` が発火し、verify 未実行の uncertified reject となった。
 7. **ablation (初回採用 campaign で 1 回):** 基準は v1 の「生き残り集合の一致」から置換
    (screening の目的が集合縮小である以上、集合等値は自己矛盾 — レビュー指摘):
    (i) **誤棄却ゼロ** = screening 却下集合 ⊆ off 側で確認された明白劣位 (baseline×(1−k·floor)
@@ -260,4 +273,6 @@ ablation 基準置換、§6 却下理由訂正、§7 見積もり撤回、§8 �
 - **実装状態:** 未着手。本裁定は実装方針を決めたもので、このセッションの実装・計測着手を指示しない。
   D58 の範囲内で着手するときの再承認は不要だが、適用先拡大・棄却規則変更・correctness gate 変更は
   別裁定を要する。
+- **実装状態の 2026-07-15 訂正:** 上記は裁定時点の履歴。監査 must-fix 対応込みで実装し、positive
+  control と実 WAL fixture 回帰まで完了。ablation は初回採用 campaign で §5-7 に従って実施する。
 - **逐次停止:** 本裁定の対象外。Best-of-∞ 型の計測反復 / verify seed 数の逐次停止は別設計・別裁定とする。

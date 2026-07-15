@@ -29,7 +29,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   8b と層3の後に判断する。
 - 既知の rr5/rr50/rr95 結果は配線確認・**結果既知の事前登録付き追試** (confirmatory とは呼ばない) にだけ使う。新しい workload 特化主張は、
   結果を見ていない holdout workload/競合条件と全件報告規則を実走前に凍結してから評価する。
-- bench-first screening v2 は**実装方針採用済み・未着手** (2026-07-15、D58)。将来実装しても
+- bench-first screening v2 は**実装済み** (2026-07-15、D58。監査 must-fix 対応込み)。positive
+  control `backoff-sweep-silo-read-heavy-sweep-6f169f90` で `screen-slower-than-floor` の発火も
+  実走確認済み。ablation は初回採用 campaign で設計 insight §5-7 の 4 基準により実施する。適用は
   偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止は
   D58 の採用対象に含めず、別設計・別裁定とする。
 
@@ -298,7 +300,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
      高競合動作点で 8a 軸を再利用する場合もこの設計に含め、既知 rr 比率の winner switching を新発見として
      数えない。D50 の機械 sweep は pilot/既知証拠であり、将来の自動システム成果へ遡及的に再分類しない。
-     bench-first screening v2 は D58 で方針採用済み・未着手。将来実装後に reconnaissance/8b へだけ
+     bench-first screening v2 は D58 の範囲で実装済み (監査 must-fix 対応込み)。positive control
+     `backoff-sweep-silo-read-heavy-sweep-6f169f90` で `screen-slower-than-floor` の発火を実走確認済みで、
+     初回採用 campaign では設計 insight §5-7 の 4 基準により ablation を行う。reconnaissance/8b へだけ
      opt-in できる。計測反復・検証 seed 数の逐次停止 (Best-of-∞ 型の適応的打ち切り、related-work §7.2) は
      D58 の対象外で、別設計・別裁定のまま据え置く。将来採用しても偵察 sweep / 8b の opt-in に限り、
      S-1 の事前登録済みサンプル設計には適用せず、採否判定の between-run floor 丸め

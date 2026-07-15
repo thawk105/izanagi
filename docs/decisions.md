@@ -2264,3 +2264,9 @@ correctness gate の変更は別裁定を要する。
 
 **現時点の状態:** 方針採用済み・実装未着手。実装計画、既知限界、初回 ablation の完了条件は上記
 insight を正本とする。
+
+**2026-07-15 状態訂正:** 上記は D58 採択時点の履歴。設計 v2 は監査 must-fix 対応を含めて実装済みで、
+positive control `backoff-sweep-silo-read-heavy-sweep-6f169f90` により
+`screen-slower-than-floor` の実発火を確認した。実出力 WAL の consumer 回帰 fixture も追加済み。
+ablation は初回採用 campaign で insight §5-7 の 4 基準により実施する。適用範囲と逐次停止の別裁定は
+変更しない。
