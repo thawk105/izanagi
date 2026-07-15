@@ -17,13 +17,28 @@
 
 ## 現在地
 
-**現在 Phase 3 (合成)。** この節は状態の**ポインタ**であり、詳細な状態は書かない。セッション開始時は
-次の順に確認する。
+**現在 Phase 3 (合成)。** この節は状態の**ポインタ**であり、詳細な状態は書かない。
 
-- `docs/worklog.md` の**末尾エントリだけ**を読む。`grep -n "^## \|^### 次の一手" docs/worklog.md`
-  で位置を特定する。ここが直近実績と「次の一手」の正本である
-- 現行 phase doc (`docs/phase3.md`) が指定する**現行チェックポイント・must 表・未了項だけ**を読む
-- `docs/handoff/` を列挙し、README 以外の残ファイルを読む。作業セッションでは自分専用 handoff を作る
+セッションおよび子エージェントの開始時は、まず依頼を次の作業種別ゲート (task-class gate) で分類する。
+
+1. **質問・相談・説明・レビュー・診断 (read-only):** 回答に関連するファイルだけを読む。worklog / phase
+   doc / handoff は回答に必要と判明した場合だけ引く。短い read-only 作業では handoff の作成、worklog
+   の追記、完了検査を行わない
+2. **状態を変更する実装・長時間処理・中断作業の再開:** `git status`、関連 handoff、必要な worklog /
+   phase 箇所を確認し、専用 handoff を使う
+3. **Phase 作業:** worklog 末尾と、選択した現行タスクが参照する現行 phase doc の節だけを読む。未了の
+   大項目を一括して読まない
+
+分類に迷った場合は重い方のクラスを選ぶ。クラス 1 で始めた作業に編集・状態変更が必要と判明した時点で
+クラス 2 に昇格し、逆方向には降格しない。クラス 2 / 3 は次の順に確認する。
+
+- クラス 3 では `docs/worklog.md` の**末尾エントリだけ**を読む。クラス 2 では依頼に必要な場合だけ引く。
+  `grep -n "^## \|^### 次の一手" docs/worklog.md` で位置を特定する。ここが直近実績と「次の一手」の
+  正本である
+- 現行 phase doc (`docs/phase3.md`) は、クラス 3 では選択した現行タスクが参照する節だけを読み、
+  クラス 2 では依頼に必要な箇所だけを読む
+- `docs/handoff/` を列挙し、README 以外の残ファイルをすべて読む。作業セッションでは自分専用
+  handoff を作る
 - `git status` を確認し、他セッションまたはユーザーの変更を上書きしない
 
 roadmap は Phase 初回または改訂時を除き現行タスクが参照する節だけを読む。decisions / glossary / 過去の
@@ -87,7 +102,7 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 
 role の本文・製品別権限は各 `.claude/agents/*.md`、共通設計は `docs/agent-architecture.md`、実体化状況は
 現行 phase doc が正本。製品別 adapter の可否は各製品の入口と正本に従い、generic child を権限隔離済み
-role の代替にしない。
+role の代替にしない。子にも「現在地」の作業種別ゲートを適用し、クラス 1 相当の小さい作業では起動しない。
 
 ## hooks
 
@@ -117,19 +132,20 @@ commit 前に `docs/ai-provenance.md` を読み、同規約の `AI-Agent:` trail
 性能比較に使えるのは、計測層で取得し環境タグを付けた値だけである。環境契約は
 `docs/orchestrator-design.md`、計算資源と CCBench の扱いは roadmap §§5–6 を正本とする。
 
-1. 「現在地」の起動順を実行する
-2. 現行 phase doc のタスクを上から順に潰す
+1. クラス 2 / 3 では「現在地」の起動順を実行する
+2. クラス 3 では、選択した現行タスクを現行 phase doc に従って進める
 3. 設計判断は `grep -n "^## D" docs/decisions.md` で索引し、該当 D だけを読む
 4. CCBench の改変は D16/D18/D20 に従う。バグ等は `output/README.md` の形式で insight に構造化し、
    上流 PR / push は人間の判断に委ねる
 5. 自動圧縮後は新しいサブタスクを始めず、編集対象を再読して区切りで終える。生 trace・ビルドログ・
    WAL 全文は読まず、digest または独立コンテキストの構造化結論を使う。正本は roadmap §3.8 (D31)
 6. 可変状態の正本は worklog 末尾と現行 phase doc だけとし、他文書へ再掲しない。docs 間は行番号で
-   参照しない。完了変更では phase のチェックを同じ commit に含め、関連テストと
+   参照しない。クラス 2 / 3 の完了変更では phase のチェックを同じ commit に含め、関連テストと
    `python3 tools/check_docs.py` を通す
-7. セッション末に worklog を 1 回更新する。書式・ローテーションの正本は `docs/worklog.md` 冒頭
-8. 作業中は専用 handoff に節目ごと + 10 分おきに生きた進捗を集約し、正常終了時に worklog へ吸収して
-   削除する。詳細・定型は `docs/handoff/README.md`
+7. クラス 2 / 3 のセッション末に worklog を 1 回更新する。書式・ローテーションの正本は
+   `docs/worklog.md` 冒頭
+8. クラス 2 / 3 の作業中は専用 handoff に節目ごと + 10 分おきに生きた進捗を集約し、正常終了時に
+   worklog へ吸収して削除する。詳細・定型は `docs/handoff/README.md`
 9. 長時間待機中は約 1 分ごとに、時刻・完了数・実行中・次に起きることを日本語で報告する。計測を
    増やさず、独立な解析・検証・合成・文書を進める
 10. campaign の作図は `tools/plotting/FIGURE_CONVENTIONS.md` を正本とし、計測機の外で行う

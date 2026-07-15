@@ -6,12 +6,14 @@
 
 ## 作業開始
 
+まず `CLAUDE.md`「現在地」の作業種別ゲート (task-class gate) で依頼を分類し、クラスに応じた導線に
+従う。次の 1〜5 はクラス 2 / 3 の導線である。
+
 1. 作業前に `CLAUDE.md` を全文読み、絶対規律・現在地の引き方・作業手順に従う。
-2. `CLAUDE.md`「現在地」が指定する `docs/worklog.md` の末尾エントリと、現行 phase doc の
-   必要箇所だけを読む。phase doc 自身の「読み方」を優先し、完了済みの長い経緯を常時ロード
-   しない。
-3. `docs/handoff/` を列挙し、README 以外の残ファイルがあれば読む。作業セッションでは自分専用の
-   handoff を作り、節目ごとに更新し、正常終了時に worklog へ吸収して削除する。
+2. `CLAUDE.md`「現在地」がクラスごとに指定する範囲で、`docs/worklog.md` と現行 phase doc を読む。
+   phase doc 自身の「読み方」を優先し、完了済みの長い経緯を常時ロードしない。
+3. `docs/handoff/` を列挙し、README 以外の残ファイルがあればすべて読む。作業セッションでは
+   自分専用の handoff を作り、節目ごとに更新し、正常終了時に worklog へ吸収して削除する。
 4. `docs/roadmap.md` は現行タスクが参照する節だけを読む。`docs/decisions.md` と
    `docs/glossary.md` は検索して該当項目だけを読む。
 5. `git status` を確認し、他セッションまたはユーザーの変更を上書きしない。
@@ -25,8 +27,8 @@
 - Codex role adapter の現行状態と再開条件は `.codex/agents/README.md` と
   `tools/check_codex_agents.py` が正本。両正本が安全な実行面として再分類するまでは native profile として
   起動せず、`task_name` を role 名にした通常の Codex 子も role 隔離の代替にしない。通常の Codex 子は
-  すべて上の作業開始 1〜5 の対象である。`.claude/agents/` は role 本文と Claude 固有の権限契約であり、
-  Codex 子を同等な隔離とは扱わない。
-- タスク完了時は関連テスト、`python3 tools/check_codex_agents.py`、`python3 tools/check_docs.py` を
-  実行し、phase の完了チェックは実装と同じ commit に含める。commit を作った後は
-  `python3 tools/check_ai_provenance.py` で導入時点から `HEAD` までを監査する。
+  `CLAUDE.md`「現在地」のゲートに従い、クラス 1 相当の小さい作業では起動しない。`.claude/agents/` は
+  role 本文と Claude 固有の権限契約であり、Codex 子を同等な隔離とは扱わない。
+- クラス 2 / 3 のタスク完了時は関連テスト、`python3 tools/check_codex_agents.py`、
+  `python3 tools/check_docs.py` を実行し、phase の完了チェックは実装と同じ commit に含める。
+  commit を作った後は `python3 tools/check_ai_provenance.py` で導入時点から `HEAD` までを監査する。
