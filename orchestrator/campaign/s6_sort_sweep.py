@@ -51,7 +51,8 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, pin, pipeline, source_digest, wal    # noqa: E402
+from campaign import (ident, pin, pipeline, screening_driver,    # noqa: E402
+                      source_digest, wal)
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign import p3_s4_loop_sort as S                         # noqa: E402
 from campaign.layout import campaign_layout                       # noqa: E402
@@ -194,7 +195,9 @@ def _genome(sort_variant: int) -> Genome:
 # ==== 駆動 ====================================================================
 
 def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MAIN,
-              isolate: bool = True, log=print) -> Dict[str, Dict]:
+              isolate: bool = True, log=print, *,
+              screening_enabled: bool = False,
+              calibration_dir: str = "") -> Dict[str, Dict]:
     """候補ごとに applied(骨格) → quarantine(write) → run_campaign を直列に回す。
 
     1 候補 = 1 run_campaign 呼び出し (同一 campaign dir に WAL 追記、variant_id は
@@ -216,7 +219,8 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
     cfg = config_for(tag, trial)
     perf = perf_for(tag)
     layout = campaign_layout(str(ident.campaign_id(cfg)))
-    layout.ensure()
+    if not screening_enabled:
+        layout.ensure()
     patch = os.path.join(root, S.TEMPLATE_PATCH)
 
     wt_cm = checkout(PIN, base_dir=fixed_sub) if isolate else \
@@ -224,14 +228,37 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
     cache_root = os.path.join(fixed_sub, "build-variants") if isolate else ""
 
     prov: Dict[str, Dict] = {}
-    log(f"\n=== s6 sort sweep  workload={tag}  trial={trial}  "
-        f"{len(sel_names)} 点 (campaign {layout.root}) ===")
+    if not screening_enabled:
+        log(f"\n=== s6 sort sweep  workload={tag}  trial={trial}  "
+            f"{len(sel_names)} 点 (campaign {layout.root}) ===")
     try:
         with wt_cm as sub:
+            active_screening = None
+            if screening_enabled:
+                baseline_ref = _candidate_ref(STOCK_NAME, cfg, sub, patch)
+                baseline_entry = {}
+
+                def measure_baseline(screen_cfg, screen_layout):
+                    baseline_entry.update(_eval_one(
+                        STOCK_NAME, screen_cfg, perf, screen_layout, sub, patch,
+                        cache_root, log=log, force=True))
+
+                prepared = screening_driver.prepare_screening_campaign(
+                    cfg, WORKLOADS[tag], baseline_ref, measure_baseline,
+                    calibration_dir=calibration_dir)
+                cfg, layout, active_screening = (
+                    prepared.cfg, prepared.layout, prepared.screening)
+                n_points = len(set(sel_names) | {STOCK_NAME})
+                log(f"\n=== s6 sort sweep  workload={tag}  trial={trial}  "
+                    f"{n_points} 点 (screening opt-in, campaign {layout.root}) ===")
+                prov[STOCK_NAME] = baseline_entry
+                _write_provenance(layout, tag, trial, prov)
             for name in sel_names:
+                if screening_enabled and name == STOCK_NAME:
+                    continue
                 try:
                     entry = _eval_one(name, cfg, perf, layout, sub, patch, cache_root,
-                                      log=log)
+                                      log=log, screening=active_screening)
                 except Exception as e:
                     # run_campaign の外側 (applied/quarantine/resolve) の例外も候補単位で
                     # 隔離する — 1 点の transient 失敗で全走を落とし成果ゼロにしない
@@ -247,8 +274,27 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
     return prov
 
 
+def _candidate_ref(name: str, cfg: CampaignConfig, sub: str, patch: str) -> str:
+    """candidate の確定variant id。screening identityを実測前に焼くために使う。"""
+    from campaign.patchharness import applied
+    if name == STOCK_NAME:
+        impl, genome = None, _genome(0)
+    else:
+        _cat, impl = next((c, i) for n, c, i in CANDIDATES if n == name)
+        genome = _genome(1)
+    with applied(patch, PIN, sub):
+        if impl is not None:
+            res, _b, _e, _wd = L.quarantine(
+                sub, impl, marker_id=S.MARKER_ID, source_rel=S.SOURCE_REL, write=True)
+            if not res.passed:
+                raise ValueError(f"baseline candidate {name} がdiff検疫を通らない")
+        src_tok = source_digest.resolve(genome, cfg.ccbench_commit, sub)
+    return variant_id(genome, src_tok)
+
+
 def _eval_one(name: str, cfg: CampaignConfig, perf: PerfConfig, layout, sub: str,
-              patch: str, cache_root: str, log=print) -> Dict:
+              patch: str, cache_root: str, log=print, *, screening=None,
+              force: bool = False) -> Dict:
     from campaign.patchharness import applied
     if name == STOCK_NAME:
         cat, impl = "stock", None
@@ -270,11 +316,24 @@ def _eval_one(name: str, cfg: CampaignConfig, perf: PerfConfig, layout, sub: str
         src_tok = source_digest.resolve(genome, cfg.ccbench_commit, sub)
         vid = variant_id(genome, src_tok)
         log(f"  --- {name} ({cat}) variant={vid} src={src_tok[:12]} ---")
-        summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA,
-                               log=log, ccbench_dir=sub, cache_root=cache_root)
-    r = summary.results[0] if summary.results else None
+        if screening is None and not force:
+            summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA,
+                                   log=log, ccbench_dir=sub, cache_root=cache_root)
+            r = summary.results[0] if summary.results else None
+        else:
+            r = screening_driver.evaluate_candidate(
+                cfg, layout, genome, perf, ENV_TAG, CLK, screening=screening,
+                numactl=NUMA, src_token=src_tok, force=force, log=log,
+                ccbench_dir=sub, cache_root=cache_root)
     if r is not None:
-        outcome = "certified" if (r.certified and not r.aborted) else "aborted"
+        if r.certified and not r.aborted:
+            outcome = "certified"
+        else:
+            terminal = wal.replay(layout).get(vid)
+            reason = (terminal.last_terminal.payload.get("reason")
+                      if terminal and terminal.last_terminal else None)
+            outcome = ("screen-rejected"
+                       if reason == pipeline.SCREEN_REJECTION_REASON else "aborted")
     else:
         # WAL replay で skip (中断再開時)。terminal は commit も abort も含むため WAL を
         # 引いて区別する — 一律 "replayed" にすると前 run の abort 点が完了サマリ/exit
@@ -510,6 +569,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--no-isolate-worktree", action="store_true",
                     help="worktree 隔離を無効化 (デバッグ用。既定 ON)")
     ap.add_argument("--list", action="store_true", help="候補と implementation を表示")
+    ap.add_argument("--screening", action="store_true",
+                    help="bench-first screeningをopt-in (既定off)")
+    ap.add_argument("--calibration-dir", default="",
+                    help="between_run_noise_*.jsonの置き場")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
 
     if a.list:
@@ -524,17 +587,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     names = [n.strip() for n in a.names.split(",")] if a.names else None
 
     if a.report:
+        if a.screening:
+            print("--report と --screening の同時指定は不可 (screening run直後のWALを参照すること)")
+            return 2
         return 0 if report(a.workload, trial=trial) else 1
 
     prov = run_sweep(a.workload, names=names, trial=trial,
-                     isolate=not a.no_isolate_worktree)
+                     isolate=not a.no_isolate_worktree,
+                     screening_enabled=a.screening,
+                     calibration_dir=a.calibration_dir)
     bad = {n: e for n, e in prov.items()
-           if e["outcome"] not in ("certified", "replayed-certified")}
+           if e["outcome"] not in ("certified", "replayed-certified", "screen-rejected")}
     print(f"\n=== s6 sort sweep 完了: {len(prov) - len(bad)}/{len(prov)} 点 OK ===")
     if bad:
         for n, e in bad.items():
             print(f"  ✗ {n}: {e['outcome']}")
-    report(a.workload, trial=trial)
+    if not a.screening:
+        report(a.workload, trial=trial)
     return 0 if not bad else 1
 
 

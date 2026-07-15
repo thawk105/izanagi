@@ -194,6 +194,13 @@ def test_workload_trial_effective_baked_into_identity():
     assert len({str(ca), str(cb), str(cr), str(ce)}) == 4
 
 
+def test_default_off_campaign_ids_remain_historical_values():
+    assert str(ident.campaign_id(W.config_for("balanced", EFF3))) == \
+        "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8"
+    assert str(ident.campaign_id(W.config_for("write-heavy", EFF3))) == \
+        "p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8"
+
+
 def test_config_wires_s2_verify_and_provenance():
     cfg = W.config_for("balanced", EFF3)
     assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_S2

@@ -18,16 +18,21 @@ backoff は timing のみ変える (CC 論理は不変) ので serializable の�
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.loop import run_campaign                          # noqa: E402
+from campaign.layout import CampaignLayout                      # noqa: E402
 from campaign.model import CampaignConfig, Genome               # noqa: E402
 from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
                            REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig                        # noqa: E402
+from campaign import ident, screening_driver, source_digest, wal  # noqa: E402
+from campaign.loop import CampaignSummary                       # noqa: E402
+from campaign.pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
 
 CCBENCH_COMMIT = "dff0f1e"
 
@@ -66,14 +71,52 @@ def config_for(tag: str, workload: dict) -> CampaignConfig:
         trial="p2-backoff")
 
 
-def run_workload(tag: str, workload: dict, log=print):
+def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log):
+    baseline = gs[0]
+    baseline_ref = variant_id(
+        baseline, source_digest.resolve(baseline, cfg.ccbench_commit))
+    measured = []
+
+    def measure_baseline(screen_cfg, layout):
+        measured.append(screening_driver.evaluate_candidate(
+            screen_cfg, layout, baseline, perf, ENV_TAG, CLK,
+            screening=None, numactl=NUMA, force=True, do_settle=True, log=log))
+
+    prepared = screening_driver.prepare_screening_campaign(
+        cfg, workload, baseline_ref, measure_baseline,
+        calibration_dir=calibration_dir)
+    s = CampaignSummary(campaign_id=str(ident.campaign_id(prepared.cfg)),
+                        layout_root=prepared.layout.root, total=len(gs))
+    results = [measured[0]]
+    for genome in gs[1:]:
+        results.append(screening_driver.evaluate_candidate(
+            prepared.cfg, prepared.layout, genome, perf, ENV_TAG, CLK,
+            screening=prepared.screening, numactl=NUMA, log=log))
+    for result in results:
+        if result is None:
+            s.skipped += 1
+            continue
+        s.results.append(result)
+        s.evaluated += 1
+        if result.aborted:
+            s.aborted += 1
+        elif result.certified:
+            s.committed += 1
+    return s
+
+
+def run_workload(tag: str, workload: dict, log=print, *,
+                 screening_enabled: bool = False, calibration_dir: str = ""):
     _assert_single_tenant()
     gs = genomes()
     cfg = config_for(tag, workload)
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff sweep  workload={tag}  ({workload})  {len(gs)} genome ===")
-    s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log)
+    if screening_enabled:
+        s = _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log)
+    else:
+        s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log)
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
     rows.sort(key=lambda t: t[0], reverse=True)
@@ -91,16 +134,31 @@ def run_workload(tag: str, workload: dict, log=print):
 
 
 def main(argv) -> int:
-    sel = argv[1] if len(argv) > 1 else None
+    ap = argparse.ArgumentParser(description="silo static-backoff sweep")
+    ap.add_argument("workload", nargs="?", choices=[w[0] for w in WORKLOADS])
+    ap.add_argument("--screening", action="store_true",
+                    help="bench-first screeningをopt-in (既定off)")
+    ap.add_argument("--calibration-dir", default="",
+                    help="between_run_noise_*.jsonの置き場 (省略時はlinux-baremetal正本)")
+    a = ap.parse_args(argv[1:])
+    sel = a.workload
     wls = [w for w in WORKLOADS if sel is None or w[0] == sel]
-    if not wls:
-        print(f"unknown workload: {sel} (選択肢: {[w[0] for w in WORKLOADS]})")
-        return 2
-    summaries = [(tag, run_workload(tag, wl)) for tag, wl in wls]
+    summaries = [(tag, run_workload(
+        tag, wl, screening_enabled=a.screening,
+        calibration_dir=a.calibration_dir)) for tag, wl in wls]
     print("\n=== backoff sweep 完了 ===")
     for tag, s in summaries:
         print(f"  {tag}: {s.campaign_id}  committed={s.committed} aborted={s.aborted}")
-    ok = all(s.aborted == 0 for _, s in summaries)
+    def unexpected_abort(summary):
+        layout = CampaignLayout(summary.layout_root)
+        return any(
+            st.last_terminal is not None
+            and st.last_terminal.payload.get("reason") != SCREEN_REJECTION_REASON
+            for st in wal.replay(layout).values()
+            if st.aborted and not st.committed)
+
+    ok = all(not unexpected_abort(s) for _, s in summaries) if a.screening else \
+        all(s.aborted == 0 for _, s in summaries)
     print(f"backoff sweep: {'全 genome 計測成功' if ok else 'abort あり (要確認)'}")
     return 0 if ok else 1
 
