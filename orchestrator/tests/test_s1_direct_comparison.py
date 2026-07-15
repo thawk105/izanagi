@@ -64,6 +64,24 @@ def _prepared(cell, pin):
     yield S.PreparedCell(Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache")
 
 
+@contextlib.contextmanager
+def _fixture_checkout(worktree: Path):
+    yield str(worktree)
+
+
+@contextlib.contextmanager
+def _fixture_backoff_patch(backoff: Path):
+    backoff.write_text("""// EVOLVE-BLOCK-BEGIN silo-backoff-magnitude
+#if BACKOFF_FIXED >= 0
+double now_backoff = static_cast<double>(BACKOFF_FIXED);
+#else
+double now_backoff = Backoff_.load(std::memory_order_acquire);
+#endif
+// EVOLVE-BLOCK-END silo-backoff-magnitude
+""", encoding="utf-8")
+    yield []
+
+
 class _Clock:
     def __init__(self):
         self.value = 0.0
@@ -103,6 +121,63 @@ def test_modified_freeze_is_refused_before_campaign_start(tmp_path):
             verify_document=reject, evaluate_fn=lambda *a, **k: calls.append(1),
             prepare_cell_fn=_prepared, single_tenant_fn=lambda: None)
     assert calls == []
+
+
+def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch):
+    """固定値は flag だけで選び、backoff EVOLVE-BLOCK を置換しない。"""
+    from campaign import patchharness
+    from campaign import p3_s4_loop as loop_axis
+
+    worktree = tmp_path / "worktree"
+    include = worktree / "include"
+    include.mkdir(parents=True)
+    backoff = include / "backoff.hh"
+    backoff.write_text("// stock fixture\n", encoding="utf-8")
+    applied = []
+    monkeypatch.setattr(
+        patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *args, **kwargs: applied.append(args) or _fixture_backoff_patch(backoff))
+    monkeypatch.setattr(S.source_digest, "resolve", lambda *args: "fixture-source")
+    monkeypatch.setattr(loop_axis, "quarantine", lambda *args, **kwargs: pytest.fail("hole を置換してはならない"))
+    cell = {
+        "configuration": "backoff_fixed_best",
+        "variant": {"backoff_us": 5, "flags": {"BACK_OFF": 1, "BACKOFF_FIXED": 5}},
+    }
+
+    with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969") as prepared:
+        assert prepared.genome.flags["BACKOFF_FIXED"] == 5
+        content = backoff.read_text(encoding="utf-8")
+        assert "EVOLVE-BLOCK-BEGIN silo-backoff-magnitude" in content
+        assert "EVOLVE-BLOCK-END silo-backoff-magnitude" in content
+        assert "#if BACKOFF_FIXED >= 0" in content
+        assert "static_cast<double>(BACKOFF_FIXED)" in content
+        assert "Backoff_.load" in content
+        assert "\n5\n" not in content
+
+    assert applied == [(str(S.ROOT / loop_axis.TEMPLATE_PATCH),
+                        "d706650cdb31e442bef45b9b4216951d4fb40969")]
+
+
+def test_prepare_backoff_fixed_best_refuses_flag_value_mismatch(tmp_path, monkeypatch):
+    from campaign import patchharness
+
+    worktree = tmp_path / "worktree"
+    monkeypatch.setattr(patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
+    cell = {
+        "configuration": "backoff_fixed_best",
+        "variant": {"backoff_us": 5, "flags": {"BACK_OFF": 1, "BACKOFF_FIXED": 4}},
+    }
+
+    with pytest.raises(S.DriverError, match="backoff_us と flags.BACKOFF_FIXED が不一致"):
+        with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
+            pass
+
+
+def test_s1_v2_trial_does_not_reuse_v1_campaign_id():
+    campaign_id = str(S.ident.campaign_id(S.config_for(_freeze(), "develop")))
+    assert campaign_id != "s1-direct-develop-direct-comparison-7bccdf1a"
 
 
 def test_schedule_mutation_refused_and_deviation_recorded(tmp_path):

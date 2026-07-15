@@ -219,7 +219,8 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
             "schedule_hash": schedule_hash,
             "verify": verify_mode,
         },
-        trial="s1-direct-v1",
+        # v1 は prepare_cell 実体化バグを含む実行系で走ったため identity を分離する。
+        trial="s1-direct-v2",
     )
 
 
@@ -490,40 +491,50 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
 
     with contextlib.ExitStack() as stack:
         sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))
-        implementation: Optional[str] = None
-        marker_id = source_rel = patch_path = None
+        quarantine_implementation: Optional[str] = None
+        marker_id = source_rel = quarantine_patch_path = None
+        patch_only_path = None
         if configuration in {"system_gate", "ident_all"}:
-            implementation = variant.get("gate_predicate")
-            if not isinstance(implementation, str) or not implementation.strip():
+            quarantine_implementation = variant.get("gate_predicate")
+            if (not isinstance(quarantine_implementation, str)
+                    or not quarantine_implementation.strip()):
                 raise DriverError(f"{configuration} の gate_predicate がない")
-            forbidden = gate_loop.check_syntax_contract(implementation)
+            forbidden = gate_loop.check_syntax_contract(quarantine_implementation)
             if forbidden:
                 raise DriverError(f"freeze gate_predicate が構文契約違反: {forbidden}")
             marker_id, source_rel = gate_axis.MARKER_ID, gate_axis.SOURCE_REL
-            patch_path = ROOT / "patches" / gate_axis.TEMPLATE_PATCH
+            quarantine_patch_path = ROOT / "patches" / gate_axis.TEMPLATE_PATCH
         elif configuration == "sort_best":
-            implementation = variant.get("comparator")
-            if not isinstance(implementation, str) or not implementation.strip():
+            quarantine_implementation = variant.get("comparator")
+            if (not isinstance(quarantine_implementation, str)
+                    or not quarantine_implementation.strip()):
                 raise DriverError("sort_best の comparator がない")
             marker_id, source_rel = sort_axis.MARKER_ID, sort_axis.SOURCE_REL
-            patch_path = ROOT / sort_axis.TEMPLATE_PATCH
+            quarantine_patch_path = ROOT / sort_axis.TEMPLATE_PATCH
         elif configuration == "backoff_fixed_best":
             value = variant.get("backoff_us")
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise DriverError("backoff_fixed_best.backoff_us が非負整数でない")
-            implementation = str(value)
-            marker_id, source_rel = loop_axis.MARKER_ID, loop_axis.SOURCE_REL
-            patch_path = ROOT / loop_axis.TEMPLATE_PATCH
+            if clean_flags.get("BACKOFF_FIXED") != value:
+                raise DriverError(
+                    "backoff_fixed_best の backoff_us と flags.BACKOFF_FIXED が不一致")
+            # 静的値は CMake flag が選ぶ骨格枝で実現する。EVOLVE-BLOCK は置換しない。
+            patch_only_path = ROOT / loop_axis.TEMPLATE_PATCH
 
-        if implementation is not None:
-            assert patch_path is not None and marker_id is not None and source_rel is not None
+        if quarantine_implementation is not None:
+            assert (quarantine_patch_path is not None and marker_id is not None
+                    and source_rel is not None)
             stack.enter_context(patchharness.applied(
-                str(patch_path), ccbench_pin, ccbench_dir=sub))
+                str(quarantine_patch_path), ccbench_pin, ccbench_dir=sub))
             result, _base, _edited, _diff = loop_axis.quarantine(
-                sub, implementation, marker_id=marker_id, source_rel=source_rel, write=True)
+                sub, quarantine_implementation, marker_id=marker_id,
+                source_rel=source_rel, write=True)
             if not result.passed:
                 raise DriverError(
                     f"freeze variant の diff 検疫不通過: {configuration}: {result.reason}")
+        elif patch_only_path is not None:
+            stack.enter_context(patchharness.applied(
+                str(patch_only_path), ccbench_pin, ccbench_dir=sub))
         src_token = source_digest.resolve(genome, ccbench_pin, sub)
         yield PreparedCell(genome=genome, src_token=src_token,
                            ccbench_dir=sub, cache_root=cache_root)
