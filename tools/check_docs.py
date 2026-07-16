@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parent.parent
 # docs/archive/ 配下 (監査台帳・worklog アーカイブ等の凍結族。規約は同 README — ファイル名不変で移動)、
 # および完了 Phase の phase1/phase2 (2026-07-05 に冒頭へ凍結宣言済み)。
 LIVING_DOCS = [
+    REPO / "README.md",                         # リポジトリ入口 (現況主張・パス参照を持つ生きた文書)
     REPO / "AGENTS.md",                         # Codex 用の共有規律入口
     REPO / "CLAUDE.md",
     REPO / ".codex" / "agents" / "README.md", # Codex runtime adapter の生きた運用文書

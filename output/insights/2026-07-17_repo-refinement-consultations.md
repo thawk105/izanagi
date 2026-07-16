@@ -272,3 +272,99 @@
 - 提案: 発見者・修正者と別コンテキストの最終 diff reviewer を置き、各 finding を real/refuted/accepted-risk に再裁定する。終了条件へ必須3 checker、関連テストの pass/skip 内訳、freeze verifier、phase/worklog/handoff、commit 後 provenance 監査を明記する。
 
 最優先の修正順は、`freeze の推移閉包確定 → scope manifest → checker/統合 positive control の修理 → task 3 read-only 監査 → 修正 → task 4 → mutable 文書だけ task 2/5` です。現在の順序で一括着手してはいけません。`````
+
+## 独立最終レビュー (branch 全 diff、codex gpt-5.6-sol reasoning=max) — prompt (逐語)
+
+`````markdown
+あなたは独立コンテキストの敵対的最終レビュアーです。cwd の git リポジトリ (worktree) で、ブランチの全変更 `git diff b943447..HEAD` と各 commit message (`git log b943447..HEAD`) を精読し、攻撃してください。所見は severity (must-fix / should / nit)、攻撃シナリオ、根拠 file:line、提案の 4 点構造で返してください。所見ゼロなら「所見なし」と明言してください。
+
+## 背景
+
+このブランチは「リポジトリ棚卸し・リファインメント」セッションの成果で、次の 6 commit を含む:
+1. 86d3076 棚卸し裁定 (削除ゼロ) + 敵対相談逐語の凍結 (output/insights)
+2. ac8f3e9 docs 文体明瞭化 + glossary 簡潔化 (意味・見出し不変が契約)
+3. d7b43b1 検査系 fail-open 3 件の修正 (check_docs 不在検知 / plot CI t 分布化 / テスト環境依存 SKIP 化)
+4. bd8fc0f コメント・README の実体同期 17 件
+5. d98d9fe docs 地図へ 3 ディレクトリ追加
+6. f2dab53 glossary の stale pin ポインタ化 + patches/README の cmake フラグ誤記修正
+
+## 重点攻撃面
+
+- **意味ドリフト**: 文体修正 (ac8f3e9) が意味・事実を変えた箇所はないか (特に docs/glossary.md、docs/agent-architecture.md、docs/orchestrator-design.md)
+- **検査の弱体化**: d7b43b1 のテスト SKIP 化が「依存が揃った環境で従来走っていた検査」を殺していないか。skip ガードの条件が広すぎないか。check_docs の変更が既存検査を緩めていないか。新テスト (test_check_docs.py / test_plot_backoff_ci.py) が恒真でないか
+- **統計の正しさ**: plot_backoff の t 値表・中心統計量変更 (median→mean) は FIGURE_CONVENTIONS.md の規約と数学的に整合するか
+- **凍結違反**: SHA 凍結対象 (docs/phase3-main-experiment.md, docs/phase3-8b-descriptor-design.md, orchestrator/campaign/axis_trigger_gating.py, backoff_sweep.py, genome.py, p3_s4_loop_sort.py, s1_known_axes_freeze.py, s1_measurement_freeze.py, s1_stats.py, s6_sort_sweep.py, s8a_trigger_sweep.py, s8b_holdout_freeze.py, orchestrator/codex_roles/review_ledger.py) と s8b_*.py (裁定待ち) への変更が diff に混入していないか
+- **commit message の過大主張**: 各 message の主張が diff の実体と一致するか
+- **取り残し**: 修正が謳う問題の同型が他の場所に残っていないか (例: -DTRACE=0 誤記、stale pin literal、fail-open な continue)
+
+出力の冒頭に「must-fix 件数 / should 件数 / nit 件数」の集計を書いてください。
+`````
+
+## 独立最終レビュー 出力 (逐語)
+
+`````markdown
+must-fix 3件 / should 4件 / nit 1件
+
+### 1. root README の「現在の状態」が既に正本と矛盾し、lint にも入っていない
+
+- severity: must-fix
+- 攻撃シナリオ: README は extime 校正・floor/sort 補充・S-1 本走を未了とするため、利用者が完了済み計測を再実行したり、研究状態を誤報したりする。しかも root README は `LIVING_DOCS` 外なので `check_docs` は緑のまま。
+- 根拠: [README.md:21](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/README.md:21) は未了と記載する一方、正本は S-1 本走完走・最終判定済みとしている [docs/phase3.md:23](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/docs/phase3.md:23)、[docs/phase3.md:234](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/docs/phase3.md:234)。root README は列挙されていない [tools/check_docs.py:25](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/tools/check_docs.py:25)。
+- 提案: root README から個別進捗を除き、phase3/worklog へのポインタだけにする。併せて root README を必須 living doc に加え、不在・現況再掲の positive control を追加する。
+
+### 2. submodule の「未初期化」と「初期化済みだが壊れた状態」を同じ SKIP にしている
+
+- severity: must-fix
+- 攻撃シナリオ: 新しい submodule pin が `Options.cmake` や `backoff.hh` を削除・移動しても、まさに検出すべき互換性回帰が SKIP になる。S-1 freeze 生成側も同様で、依存が揃った環境でも検査が蒸発し得る。
+- 根拠: ファイルが一つ無いだけで無条件 SKIP する [test_campaign.py:1637](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/test_campaign.py:1637)、[test_s1_known_axes_freeze.py:22](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/test_s1_known_axes_freeze.py:22)。これは「依存物が揃った環境では検査不変」という契約 [orchestrator/tests/README.md:15](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/README.md:15) より広い。
+- 提案: submodule 自体が未初期化の場合だけ SKIP にする。`.git` がある、または submodule が初期化済みなら、必須ファイル不在や `rev-parse` 失敗は assertion/ERROR にする。その区別の mutation test を置く。
+
+### 3. 変更対象の freeze テストは、文書化された素の runner でゼロ件実行のまま成功する
+
+- severity: must-fix
+- 攻撃シナリオ: 文書どおり `python3 orchestrator/tests/test_s1_known_axes_freeze.py` を実行しても、5 テストは一件も呼ばれず、出力なし・exit 0 になる。freeze generator を壊しても直接実行ゲートが偽緑になる。
+- 根拠: README は全テストファイルが `_run()` を持つと保証している [orchestrator/tests/README.md:3](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/README.md:3) が、対象ファイルは pytest へ直接依存し [test_s1_known_axes_freeze.py:12](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/test_s1_known_axes_freeze.py:12)、最後のテスト後に `_run`/`__main__` がない [test_s1_known_axes_freeze.py:80](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/test_s1_known_axes_freeze.py:80)。直接実行の exit 0 も再現した。
+- 提案: fixture 代替を備えた raw runner を実装するか、このファイルを明示的に pytest-only として成功条件から素の実行を外す。全 `test_*.py` の runner 実在・実行件数を検査するメタテストも必要。
+
+### 4. n=1 を「幅ゼロの95% CI」として固定している
+
+- severity: should
+- 攻撃シナリオ: 反復が一件だけの campaign を入力すると、分散を推定できないのにゼロ幅のエラーバーが描かれ、図の副題はそれを「95% CI」と表示する。
+- 根拠: n<2 で半幅 0 を返す [plot_backoff.py:79](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/tools/plotting/plot_backoff.py:79) うえ、新テストがその挙動を正として固定している [test_plot_backoff_ci.py:71](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/test_plot_backoff_ci.py:71)。図は無条件に95% CIと表示する [plot_backoff.py:229](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/tools/plotting/plot_backoff.py:229)。
+- 提案: n<2 は入力拒否、または CI unavailable として `None`/NaN を返し、エラーバーと95%表記を抑止する。単一標本テストもその契約へ変更する。
+
+### 5. 「pin 値非依存へ修正」という commit message に反して、新しい current-pin literal を再掲している
+
+- severity: should
+- 攻撃シナリオ: `CURRENT_PIN` が次に前進すると、driver は新 pin を使うのにコメントは `d706650` のまま残る。運用者が実際の build identity や必要な assert を誤認する。
+- 根拠: 動的参照の横に値を再掲する [s3_lock_coverage.py:25](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/campaign/s3_lock_coverage.py:25)、[s3_lock_coverage.py:45](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/campaign/s3_lock_coverage.py:45)。歴史的 driver にも「現行は d706650」を追加している [p3_s4_loop.py:63](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/campaign/p3_s4_loop.py:63)。値の正本は [pin.py:28](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/campaign/pin.py:28)。
+- 提案: 歴史的 literal そのもの以外は値を書かず、`pin.CURRENT_PIN` と必要 capability だけを記す。mutable code の `CURRENT_PIN` 横に hex literal を置くパターンも lint する。
+
+### 6. sort comparator を「安全な変異面」と断定した直後に、その断定を自己否定している
+
+- severity: should
+- 攻撃シナリオ: 前半だけを読んだ実装者が任意 comparator を correctness 非依存と扱うと、非 strict-weak-order comparator による OOB/UAF/hang を正系列へ入れ得る。通常 verifier が順序を見ないことは安全性の証明ではない。
+- 根拠: comparator 変異は serializability を壊さず安全と断定する [patches/README.md:233](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/patches/README.md:233) 一方、直後に非 SWO が OOB read/write を起こし得ると認めている [patches/README.md:241](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/patches/README.md:241)、[patches/README.md:252](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/patches/README.md:252)。
+- 提案: 「SWO・permutation 保存・D41 の全 gate を満たす場合に限り、選ばれた順序自体は serializability を変えない」と限定する。「安全な変異面」は撤回する。
+
+### 7. 実在しないという理由で、意図的に追跡外の load-bearing sample を output 地図から消している
+
+- severity: should
+- 攻撃シナリオ: output 地図を正本として掃除すると `output/runs/silo-sample` が非契約の残骸に見え、削除・非生成になる。その結果、実 Silo trace による緑の地面が恒常的に SKIP される。
+- 根拠: 現在の output 木は sample を掲載しない [output/README.md:5](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/output/README.md:5) が、テスト契約は同パスを明示する [orchestrator/tests/README.md:19](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/README.md:19)、consumer も固定参照して不存在時に SKIP する [test_verifier.py:23](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/test_verifier.py:23)、[test_verifier.py:571](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/orchestrator/tests/test_verifier.py:571)。そもそも追跡外なのは明示的な契約 [\.gitignore:18](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/.gitignore:18)。
+- 提案: output 地図へ「任意・追跡外の実 trace fixture」として復元し、生成手順の正本である tests README へリンクする。
+
+### 8. d98d9fe の「3ディレクトリとも owner README へのポインタ」という説明は `src/` だけ成立しない
+
+- severity: nit
+- 攻撃シナリオ: commit message を信じると `src/README.md` に所有契約があるように見えるが、実際は二ファイルの直列挙であるため、将来の `src/` 追加時に地図が腐る。
+- 根拠: `orchestrator/` と `patches/` は owner README を指す一方、`src/` はファイルを直接列挙している [docs/README.md:41](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/docs/README.md:41)。実体は [coder-spec.md:1](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/src/coder-spec.md:1) と [coder-leakproof-context.md:1](/home/SFC/tanab/github/izanagi/.claude/worktrees/repo-refinement/src/coder-leakproof-context.md:1) のみで、`src/README.md` はない。
+- 提案: 小さな `src/README.md` を owner にするか、commit message を「src は現役二仕様への直接ポインタ」と訂正する。
+
+確認結果: 凍結指定パスと `s8b_*.py` の変更はゼロ。`git diff --check`、`check_docs`、`check_codex_agents`、provenance 監査は成功。CI テストは 5 passed。全対象 pytest は read-only 環境に使用可能な一時ディレクトリがなく起動不能だったため、全件成功とは数えていません。`````
+
+### 親裁定 (2026-07-17)
+
+- must-fix 3 / should 4 = **全件 real、修正 wave 2 で解消** (root README の進捗再掲 pointer 化 + LIVING_DOCS 追加 / skip ガードを「submodule 未初期化のみ」に精密化 / test_s1_known_axes_freeze の素 runner 偽緑解消 + メタテスト / n<2 の CI 抑止 / pin literal 再掲の除去 / sort comparator 断定の限定 / silo-sample 行の復元)
+- nit 1 (d98d9fe message の src/ 表現) = 実害なしと裁定、履歴書換えせず worklog 注記のみ
+- レビュー確認事項: 凍結指定パスと s8b_*.py への変更ゼロ / check_docs・check_codex_agents・provenance 監査 成功。full pytest は親が実行: 1 failed (D56 意図的 gate) / 934 passed / 22 skipped

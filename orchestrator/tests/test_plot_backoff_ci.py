@@ -68,12 +68,26 @@ def test_ci95_center_is_mean_not_median():
     assert abs(center - 4.0) < 1e-9, center
 
 
-def test_ci95_single_sample_zero_width():
-    """n<2 は CI 幅 0 (点推定のみ)。"""
+def test_ci95_single_sample_ci_incalculable():
+    """n<2 は分散を推定できず CI 計算不能 → 半幅は None (幅ゼロの誤差棒を描かない)。
+
+    旧契約は半幅 0.0 を返し、図に幅ゼロの誤差棒が「95% CI」として描かれていた
+    (分散未知なのに不確かさゼロと誤読させる)。None を返して描画側が誤差棒を抑止する。
+    """
     plot = _load_plot_module()
     center, half = plot._ci95([123456.0])
     assert center == 123456.0
-    assert half == 0.0
+    assert half is None
+
+
+def test_ci95_half_M_suppresses_errorbar_when_incalculable():
+    """描画ヘルパ: n<2 は NaN (errorbar が誤差棒を描かない)、n>=2 は半幅/1e6。"""
+    plot = _load_plot_module()
+    assert math.isnan(plot._ci95_half_M([123456.0]))     # n=1 → 誤差棒抑止
+    half_M = plot._ci95_half_M([1.0e6, 2.0e6, 3.0e6, 4.0e6, 5.0e6])
+    expected_half_M = 2.776 * math.sqrt(0.5)             # n=5, 単位 1e6 tps
+    assert not math.isnan(half_M)
+    assert abs(half_M - expected_half_M) < 1e-9, (half_M, expected_half_M)
 
 
 def test_ci95_large_n_uses_normal_approx():

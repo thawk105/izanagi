@@ -15,12 +15,9 @@ CCBench を素材コーパスとして、入力ワークロードに対する CC
 
 ## 現在の状態
 
-**現在は Phase 3 (workload 特化ハイブリッド合成)。** Phase 1 の evaluator と Phase 2 の
-bounded search は完了し、safe variant loop と軸 onboarding/axis-proposer は実体化済みである。
-現行の主経路は workload descriptor (8b) と層3材料レポートであり、旧主実験の縮小主張 S' は
-S-1 の登録済み計測を閉じる作業だけが残る。S-1 は計測開始 gate (2)〜(5) の実装統合と
-measurement freeze 実体の生成まで完了し、検証相 extime 校正、計測機での floor/sort 補充と本走が未了である。
-詳細な可変状態は `docs/phase3.md` の現行チェックポイントと `docs/worklog.md` 末尾を正本とする。
+**本プロジェクトは Phase 3 (workload 特化ハイブリッド合成) にある。** 個別の進捗・完了状況・次の一手といった
+可変状態はここに再掲しない (リポジトリの再掲禁止規約と同じ扱い — 再掲は必ず腐る)。現在地の正本は
+`docs/worklog.md` 末尾と `docs/phase3.md` の現行チェックポイントであり、そこだけを引く。
 
 実装を読む/進める前に、まず `CLAUDE.md` の task-class gate で依頼を分類する。変更を伴う Phase 作業は
 同ファイルの起動順に従い、以下から必要な箇所だけを読む:

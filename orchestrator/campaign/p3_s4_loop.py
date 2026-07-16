@@ -61,7 +61,7 @@ from critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
 
 # ---- campaign 定数 (p3_s4_red 様式。実走前に pin/env を確認する) -----------------
 PIN = "028f34d"                       # 段4/D38 時点で凍結した pin (当時の submodule HEAD、
-                                       # 現行は d706650 だが歴史的 campaign 凍結のため literal 保持)
+                                       # 現行 pin の正本は pin.CURRENT_PIN だが歴史的 campaign 凍結のため literal 保持)
 ENV_TAG = "linux-baremetal"           # 計測層タグ (規律: 計測層以外の数値を混ぜない)
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]

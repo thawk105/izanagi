@@ -15,6 +15,7 @@ output/
 │   ├── calibration/              レコード数飽和点 + noise floor (within-run / between-run, A2)
 │   └── profile/                  perf 機序プロファイル (spin 分離・有用 IPC 等, P2-4)
 ├── insights/                     CCBench 還元すべき発見 / calibrator・探索の妥当性文書
+├── runs/silo-sample/             任意・追跡外 (.gitignore) の実 Silo trace fixture — 生成手順と契約は orchestrator/tests/README.md
 ├── s1-freeze/                    S-1 の known-axes / measurement freeze (両者とも生成済み)
 ├── s1-budget/                    S-1 計測の時間台帳 (time_ledger.json)
 ├── s6-rounds/                    S-2/S-3 提案ラウンドの匿名化・採点・集計 provenance

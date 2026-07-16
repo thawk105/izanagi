@@ -231,8 +231,10 @@ coder (LLM) の EVOLVE-BLOCK 編集を orchestrator が diff 監査のうえ pat
   cache-hit (規律2、D18/D23 sentinel 規約)。閉じた領域制約は backoff 軸と同型 (既存 silo API を呼ぶ
   straight-line code のみ・新依存/生 preprocessor 指令/非決定 builtin 禁止、D23 道Y)。
 - **順序は correctness の入力にならない** (trace schema は C/R/W/X のみで lock 獲得順を見ない) ため、
-  comparator 変異は serializability を壊さない = 安全な変異面 (D41 の objection 1 読み替え)。同梱の
-  合成枝は正当な comparator の一例 (`storage_`/`key_` 順)。
+  **SWO・permutation 保存・D41 の全 gate を満たす場合に限り**、順序自体は serializability を変えない
+  (D41 の objection 1 読み替え)。この条件を外れた comparator (非 SWO 等) は下の positive control が
+  示すとおり UB・要素欠落を招くので「安全な変異面」ではない — 安全性は gate 通過に条件づく。同梱の
+  合成枝は条件を満たす正当な comparator の一例 (`storage_`/`key_` 順)。
 
 ---
 

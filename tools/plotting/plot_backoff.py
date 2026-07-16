@@ -81,12 +81,25 @@ def _ci95(reps):
 
     正本 FIGURE_CONVENTIONS.md §2: 小 n では t 分布 (t_{0.975,n-1}·s/√n)、n>=30 で
     1.96·s/√n の正規近似。CI 半幅は平均の標準誤差 s/√n なので、中心統計量も標本平均に
-    統一する (median 中心に平均 SE を付ける不整合を避ける)。n<2 は CI 幅 0。
+    統一する (median 中心に平均 SE を付ける不整合を避ける)。
+
+    n<2 は分散を推定できないので CI は**計算不能**。半幅に 0 を返すと図に幅ゼロの
+    誤差棒が「95% CI」として描かれ (実際は不確かさ未知)、査読で崩れる。よって半幅は
+    None を返し、描画側 (`_ci95_half_M`) が誤差棒を抑止する。
     """
     a=np.asarray(reps,dtype=float)
-    if len(a)<2: return float(np.mean(a)), 0.0
+    if len(a)<2: return float(np.mean(a)), None
     n=len(a)
     return float(np.mean(a)), _t975(n-1)*a.std(ddof=1)/np.sqrt(n)
+
+def _ci95_half_M(reps):
+    """errorbar 用の 95% CI 半幅 (M tps)。CI 計算不能 (n<2) は NaN を返す。
+
+    matplotlib の errorbar は yerr=NaN の点で誤差棒を描かないので、幅ゼロの棒を
+    「95% CI」と偽って描くのを避け、その点だけ誤差棒なし (CI 未知) として表示される。
+    """
+    half=_ci95(reps)[1]
+    return float("nan") if half is None else half/1e6
 
 def load_campaign(cdir):
     """1 campaign を読み、workload ラベル・sweep 点・baseline を返す。"""
@@ -176,7 +189,7 @@ def make_figure(camps, out_prefix):
                 f"{c['campaign']}: certified static-backoff pointが無い "
                 f"(excluded uncertified BENCH_DONE={len(c['excluded_uncertified'])})")
         xs=[bf for bf,_ in pts]
-        ms=[_ci95(r)[0]/1e6 for _,r in pts]; cis=[_ci95(r)[1]/1e6 for _,r in pts]
+        ms=[_ci95(r)[0]/1e6 for _,r in pts]; cis=[_ci95_half_M(r) for _,r in pts]
         none_m=_ci95(c["none"])[0]/1e6 if c["none"] else None
         adapt_m=_ci95(c["adapt"])[0]/1e6 if c["adapt"] else None
         # top: throughput

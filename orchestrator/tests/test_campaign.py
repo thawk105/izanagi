@@ -1634,14 +1634,72 @@ def _ccbench_head_or_skip():
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+def _submodule_initialized(sub=None) -> bool:
+    """external/ccbench submodule が init 済みか (作業ツリー内に .git があるか)。
+    未 init の submodule ディレクトリは空 (`.git` 不在) で、init 後は gitlink ファイル
+    `.git` を持つ。この 1 点だけが skip と実検査を分ける (README『依存物不在時の skip』)。"""
+    sub = sub if sub is not None else buildcache._ccbench_dir()
+    return os.path.exists(os.path.join(sub, ".git"))
+
+
 def _require_ccbench_file(rel):
     """submodule の実ファイル (rel は sub 相対) が要る source_digest テスト用ガード。
-    不在なら skip (README の『submodule が無い環境では skip として数える』契約)。
-    submodule が checkout 済みの環境では実ファイルパスを返し、従来どおり実検査が走る。"""
-    path = os.path.join(buildcache._ccbench_dir(), rel)
-    if not os.path.exists(path):
-        skip(f"submodule 未 checkout ({rel} 不在)")
-    return path
+    skip は submodule 未 init (external/ccbench に .git が無い) のときだけ。init 済みで
+    必須ファイルが欠けている場合は skip せずパスを返し、呼び手が open 等で自然に FAIL する
+    — 新 pin がファイルを消した互換性回帰を skip に化けさせないため (README『依存物不在時
+    の skip』の精密化)。"""
+    sub = buildcache._ccbench_dir()
+    if not _submodule_initialized(sub):
+        skip("submodule 未 init (external/ccbench に .git 無し) — source_digest は実 ccbench ソースが要る")
+    return os.path.join(sub, rel)
+
+
+def test_require_ccbench_file_skips_only_on_uninitialized_submodule(tmp_path=None):
+    """所見 A の positive control: skip 判定は submodule の init 状態だけで決まる。
+    init 済みで必須ファイルが欠落 (新 pin がファイルを削除した互換性回帰) しても skip せず、
+    呼び手が自然に FAIL できる。init/未 init を偽 submodule 構造で切り替えて区別を実測する。
+    guard を旧 fail-open (ファイル欠落なら skip) へ退行させると (2) で skip に化けるため、
+    その skip を AssertionError に変換して発火させる (skip に化けても素通りさせない)。"""
+    saved = buildcache._ccbench_dir
+    # skiputil.skip は pytest 配下では pytest.skip (Skipped) を、素の runner では custom Skip を
+    # 投げる。ここでは skip 判定そのものを検査対象にするので PYTEST_CURRENT_TEST を一時退避し、
+    # どちらの runner でも custom Skip に統一する — 統一しないと pytest 側でこの検査自体が (1) の
+    # 時点で skip に化け、(2) の positive control (init+missing→no-skip) が一度も走らない。
+    saved_env = os.environ.pop("PYTEST_CURRENT_TEST", None)
+    with _tmp_dir(tmp_path) as tmp:
+        try:
+            # (1) 未 init (空 dir・.git 無し): skip する — これが本環境の実状態でもある
+            uninit = tmp / "uninit"
+            uninit.mkdir()
+            buildcache._ccbench_dir = lambda: str(uninit)
+            try:
+                _require_ccbench_file("cmake/Options.cmake")
+                assert False, "未 init submodule では skip すべき"
+            except Skip:
+                pass
+
+            # (2) init 済み (.git あり) だが必須ファイル欠落: skip せず、存在しないパスを返す
+            #     → 呼び手 (open) が FileNotFoundError で自然に FAIL する (skip に化けない)。
+            #     旧 fail-open へ退行するとここで skip → AssertionError に変換して発火させる。
+            initd = tmp / "initd"
+            (initd / "cmake").mkdir(parents=True)
+            (initd / ".git").write_text("gitdir: /elsewhere\n")   # gitlink ファイル相当
+            buildcache._ccbench_dir = lambda: str(initd)
+            try:
+                p_missing = _require_ccbench_file("cmake/Options.cmake")
+            except Skip:
+                raise AssertionError(
+                    "init 済み + ファイル欠落で skip してはいけない (fail-open 回帰)")
+            assert not os.path.exists(p_missing)                   # 欠落 → open で自然 FAIL
+
+            # (3) init 済み・ファイル存在: 従来どおり実パスを返し実検査が走る (skip しない)
+            (initd / "cmake" / "Options.cmake").write_text("set(X 1)\n")
+            p_present = _require_ccbench_file("cmake/Options.cmake")
+            assert os.path.exists(p_present)
+        finally:
+            buildcache._ccbench_dir = saved
+            if saved_env is not None:
+                os.environ["PYTEST_CURRENT_TEST"] = saved_env
 
 
 def _require_g13():
