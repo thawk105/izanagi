@@ -798,3 +798,16 @@ codex (gpt-5.6-sol ×4) に委譲、親が仕様起草・監査・統合・実�
    (§5.1 二層分離、s1_direct_comparison の器を再利用、floor/budget null の間は bench 拒否)。
    oracle 実測は親が計測窓で直列
 3. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
+
+## 2026-07-16 (4) — holdout freeze の生成 (ユーザー承認)
+
+束縛規則 nearest-read-ratio-v1 をユーザーが承認 (選択肢提示の上で「承認して生成まで」)。
+`generate --confirmed-by thawk105 --confirmed-at 2026-07-16` → verify pass (4d9610b)。
+rr80 anchor=read-heavy / rr20 anchor=write-heavy、実測参照値は除去済み、floor/budget は
+再実測後の再凍結で充填。あわせて「承認依頼は 何を/なぜ/選択肢/承認後 の 4 点を平易に書く」
+をメモリ化した (「これわからんわ」の指摘から)。
+
+### 次の一手
+1. 8b 後半の実装: selector 役 (tool-less 構造化出力、freeze variant_binding の whitelist 射影)
+   → oracle 評価 driver (§5.1 二層分離、floor/budget null の間は bench 拒否)。実測は親が直列
+2. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
