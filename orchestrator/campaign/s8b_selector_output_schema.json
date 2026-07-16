@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "choice_id", "rationale"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "8b-selector-output/v1"},
+    "choice_id": {
+      "type": "string",
+      "enum": ["c01", "c02", "c03", "c04", "c05", "c06"]
+    },
+    "rationale": {"type": "string", "minLength": 1, "maxLength": 2000}
+  }
+}
