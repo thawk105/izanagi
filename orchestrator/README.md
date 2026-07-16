@@ -14,6 +14,8 @@ Phase 進行に伴って実装してきた。現構成 (roadmap §9 参照):
                   増えていく — 現有一覧は ls が正本 (ここに列挙しない)
 - critic/       — critic への WAL digest 供給 (digest, online_digest)
 - reports/      — 入力非依存の材料レポート (calibration_report, plot)
+- codex_roles/  — Claude role → dormant Codex adapter の共有契約 (spec/policy/launcher/probe/
+                  events/review_ledger/manifest)。static-only・runtime blocked
 
 エントリポイント: `calibrate.py` / `verify.py` (ルート直下)。
 

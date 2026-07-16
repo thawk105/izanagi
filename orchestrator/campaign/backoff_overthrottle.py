@@ -94,7 +94,7 @@ def main(argv) -> int:
         statics = [r for r in rows if r["back_off"] == 1 and r["backoff_us"] >= 0]
         adaptive = next((r for r in rows if r["back_off"] == 1 and r["backoff_us"] < 0), None)
         if statics and adaptive:
-            # 適応のスピン占有率を超える最小の静的点 = 適応が「どの量に駐車しているか」の下限
+            # 適応のスピン占有率を超えない最大の静的点 = 適応が「どの量に駐車しているか」の下限
             over = [r for r in statics if r["spin_rate"] <= adaptive["spin_rate"]]
             parked = max((r["backoff_us"] for r in over), default=None)
             # over-throttling 判定 = 「sweet spot 上限 (fitness 実測 5-10us) を超えて駐車」。

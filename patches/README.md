@@ -98,6 +98,32 @@ S2 verify 構成の付加価値 (規律5 の「効果を測れる ablation」) �
 
 ---
 
+## broken-silo-lockskip-validation.patch / broken-silo-early-unlock-validation.patch — write_set 被覆 assert の positive control (Phase 3 後続段 3, D38)
+
+**わざと壊した CC** (positive control) 2 本。段 3 で新設した writePhase の lock 被覆 assert
+(izanagi-trace の `#if TRACE`、2 検査点 = lockWriteSet 入口の「獲得被覆」と各 storeRelease 直前の
+「保持継続」) が恒真でなく実際に歯を持つことを機械実証する (D38 決定2 の非恒真性 operative proof)。
+verifier は commit 経路 (C/R/W) しか trace せず lock 獲得・被覆・torn read が構造的に見えない死角を、
+この assert が埋める。
+
+- **broken-silo-lockskip-validation.patch** (`IZANAGI_BREAK_LOCK_COVERAGE`): lockWriteSet で非 INSERT
+  tuple の write lock 獲得を skip し、writePhase が被覆なしで書く → 入口検査 (獲得被覆) が
+  X (not-locked-at-entry) で赤。
+- **broken-silo-early-unlock-validation.patch** (`IZANAGI_BREAK_EARLY_UNLOCK`): writePhase で tuple
+  データ書き込み前に lock を release し torn-read 窓を開ける → storeRelease 直前検査 (保持継続) が
+  X (lock-lost-before-write) で赤。2 検査点が別々に歯を持つことを分離実証する。
+- **verdict は indeterminate** (non-serializable ではない): X 行は verifier の Integrity カウンタ
+  `lock_coverage_violations` に配線され clean()→indeterminate に倒す (cycle を生まないので
+  serializable=False とは両立不能、D38 決定1)。
+- **既定 OFF inert**: 裸マクロ (`IZANAGI_BREAK_*`、`CCBENCH_` 接頭辞なし) ゆえ pipeline から定義不能。
+  baseline に絶対混ぜない (broken-silo と同じ隔離規約、絶対規律2)。
+- **駆動の正本 = `orchestrator/campaign/s3_lock_coverage.py`** (apply → 一時 build → run → verifier +
+  assert → revert を機械化)。実証 (2026-07-06, `output/env/linux-baremetal/calibration/s3_lock_coverage.json`
+  all_pass): stock=X0/certified、lockskip 単一スレッド=total_cycles==0 (verifier certify) かつ
+  lcv>0/indeterminate、early-unlock=保持破れのみ。
+
+---
+
 ## silo-backoff-fixed.patch — 静的 backoff (合成 variant, D18) + noinline (診断計器, P2-4) + EVOLVE-BLOCK 骨格 (Phase 3, D22)
 
 このパッチは izanagi の silo backoff 追加を 3 つ束ねる: **(1) `BACKOFF_FIXED`** = 量を単一軸に固定する合成 variant (D18)、**(2) `BACKOFF_NOINLINE`** = perf 帰属用の診断計器 (P2-4)、**(3) `EVOLVE-BLOCK` マーカー骨格** = Phase 3 で coder (LLM) が合成する純 timing 変異の編集面 (D22)。いずれも `cmake/Options.cmake` + `include/backoff.hh` を触り、既定値で inert (stock 不変)。
@@ -186,6 +212,53 @@ coder (LLM) の EVOLVE-BLOCK 編集を orchestrator が diff 監査のうえ pat
   perf/correctness の baseline・正系列 campaign に決して混ぜない。専用 campaign
   (search_tag=s4-red-consumer) でのみ評価する。buildcache に成果物は入るが cache-hit は
   同一 src_token に限られるため正系列で再利用されることはない。
+
+---
+
+## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
+
+段 5 (sort-strategy) の coder 編集面。write_set の lock 獲得順序を決める comparator を、stock の
+`WriteElement::operator<` (silo_op_element.hh) の代わりに coder (LLM) が合成する軸。D22 で撤回された
+案を 3 レンズ敵対レビューで条件付き採用した (D41、実装前必須 7 点)。
+
+- `cmake/Options.cmake` に universal 相乗りの `CCBENCH_SORT_VARIANT` (既定 0 = stock、silo 専用だが
+  protocol CMakeLists が ALLOWLIST 外改変になるのを避けるため universal に相乗り、他プロトコルには
+  無害なマクロが渡るだけ、D41 決定5) を足し、`validationPhase()` の sort 呼び出しに EVOLVE-BLOCK
+  マーカー (id=`silo-writeset-sort`) を画定。`#if SORT_VARIANT` 枝が coder 合成 comparator、`#else` が
+  stock 逐語温存。値でなくコード片 (comparator) の変異のため `BACKOFF_FIXED` の数値 sentinel でなく
+  単純な on/off スイッチ。
+- **既定 0 で inert**: preprocess 後ソースが原本と byte-identical (`#else` を選ぶ) → stock genome は
+  cache-hit (規律2、D18/D23 sentinel 規約)。閉じた領域制約は backoff 軸と同型 (既存 silo API を呼ぶ
+  straight-line code のみ・新依存/生 preprocessor 指令/非決定 builtin 禁止、D23 道Y)。
+- **順序は correctness の入力にならない** (trace schema は C/R/W/X のみで lock 獲得順を見ない) ため、
+  comparator 変異は serializability を壊さない = 安全な変異面 (D41 の objection 1 読み替え)。同梱の
+  合成枝は正当な comparator の一例 (`storage_`/`key_` 順)。
+
+---
+
+## broken-silo-permutation-erase.patch / broken-silo-permutation-swap.patch / broken-silo-sort-nonswo.patch — sort 軸の positive control (Phase 3 段 5, D41)
+
+**わざと壊した CC** (positive control) 3 本。段 5 の死角 1 (非 strict-weak-order comparator の UB —
+libstdc++ の introsort が SWO 契約違反で OOB read/write・要素欠落を無音で起こしうる。かつ D38 の被覆
+assert は comparator に関わらず常に通るのでこの軸に歯を持たない) を閉じる **permutation 保存検査**
+(sort 直前後の `write_set_.size()` と `rcdptr_` multiset の不変性、`#if TRACE` 内、D41 決定2) が
+歯を持つことを機械実証する。
+
+- **broken-silo-permutation-erase.patch** (`IZANAGI_BREAK_PERMUTATION`): sort 直後に 1 要素を
+  pop_back → 要素欠落。permutation 保存検査が P (size-changed) で赤。
+- **broken-silo-permutation-swap.patch** (`IZANAGI_BREAK_PERMUTATION_SWAP`): sort 直後に 1 要素の
+  `rcdptr_` を別要素で上書き (size 不変・multiset だけ変化) → erase の相補形。検査が
+  P (rcdptr-set-changed、size-changed ではない) で赤。size だけ見る検査では捕まらないことも実証する。
+- **broken-silo-sort-nonswo.patch** (非 SWO comparator, D41 決定1): EVOLVE-BLOCK 内に反対称性を破る
+  comparator (`&a != &b` = 相異なる 2 要素で comp(a,b)/comp(b,a) が両真) を置く。libstdc++ introsort を
+  `write_set_.size() >= 16` (partitioning 閾) で hang させる (release/ASan 両ビルドで確認)。
+  「小サイズで crash しない」は安全の証拠にならない (D41 死角1) — 必須条件 1 (ASan/UBSan で
+  「クラッシュしない」と「メモリ破壊が無い」を区別) の一次防壁。
+- **既定 OFF inert**: `IZANAGI_BREAK_PERMUTATION*` は裸マクロで pipeline から定義不能。sort-nonswo は
+  `SORT_VARIANT` 枠内だが意図的破壊ゆえ専用 characterization でのみ重ねる。baseline に絶対混ぜない
+  (broken-silo と同じ隔離規約、絶対規律2)。
+- **駆動の正本 = `orchestrator/campaign/s5_permutation_coverage.py`**
+  (`output/env/linux-baremetal/calibration/s5_permutation_coverage.json` に実走結果)。
 
 ---
 

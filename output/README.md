@@ -15,16 +15,19 @@ output/
 │   ├── calibration/              レコード数飽和点 + noise floor (within-run / between-run, A2)
 │   └── profile/                  perf 機序プロファイル (spin 分離・有用 IPC 等, P2-4)
 ├── insights/                     CCBench 還元すべき発見 / calibrator・探索の妥当性文書
-├── s1-freeze/                    S-1 の known-axes / measurement freeze（後者は生成時に追加）
+├── s1-freeze/                    S-1 の known-axes / measurement freeze (両者とも生成済み)
+├── s1-budget/                    S-1 計測の時間台帳 (time_ledger.json)
 ├── s6-rounds/                    S-2/S-3 提案ラウンドの匿名化・採点・集計 provenance
-└── runs/silo-sample/             参照用サンプル trace (verifier 用。throwaway な生 trace は置かない)
+├── s8b-freeze/                   段 8b holdout freeze (holdout_freeze.json)
+└── reports/                      campaign 横断の材料レポート (s_prime_final_report.md, s1_direct_comparison/)
 ```
 
 `<campaign-id>` = `<spec-slug>-<search-tag>-<cfg-hash8>` (内容ハッシュ、D13)。`<env-tag>` = `linux-baremetal` 等。
 
-`s1-freeze/` と `s6-rounds/` は campaign をまたぐ登録済み主実験の補助成果物である。前者の
-`known_axes_freeze.json` は存在する一方、`measurement_freeze.json` は S-1 計測開始 gate を閉じる時点で
-生成する。後者は独立セッションの提案・匿名化・採点を結ぶ記録であり、通常の campaign 出力ではない。
+`s1-freeze/`・`s1-budget/`・`s6-rounds/`・`s8b-freeze/`・`reports/` は campaign をまたぐ登録済み主実験の
+補助成果物である。`s1-freeze/` には `known_axes_freeze.json` と `measurement_freeze.json` (freeze v2、
+18 セル・比較対・schedule・実装 hash) が生成済みで、後者は S-1 計測開始 gate を閉じる時点で凍結した。
+`s6-rounds/` は独立セッションの提案・匿名化・採点を結ぶ記録であり、通常の campaign 出力ではない。
 
 ## なぜ二軸か (D13)
 

@@ -82,7 +82,12 @@ coder が「値をどう変えるか」を提案された時の参考指標：
 
 ---
 
-## 4. Measurement Results (coder が参考にしてよい現行値)
+## 4. Measurement Results (旧設計の現行値記録)
+
+> **⚠ 本節は §7 と同じく旧設計 (D39 以前) で superseded。この throughput/abort/latency 値は現行運用で
+> coder に一切渡らない** — 本ドキュメント (coder-spec.md) 自体が coder 非提供 (D45)、coder が受け取るのは
+> `coder-leakproof-context.md` の inline 全文 (勝ち筋値・利得を物理削除済み) + planner の抽象方向 +
+> 射影済み baseline/whiteboard のみ。具体値を coder が信頼するとリーク経路になるため、本節は経緯記録として残す。
 
 ### stock (BACKOFF_FIXED=-1・Cicada 適応)
 ```json
@@ -126,10 +131,13 @@ coder が「値をどう変えるか」を提案された時の参考指標：
 
 ## 6. Coder の制約 (リーク制御)
 
-### 許可
+> **⚠ 本節も §7 と同じく superseded (D45/D39)。下記「許可」は本ドキュメントを coder に渡していた旧設計の
+> 記述であり、現行運用では coder-spec.md 自体が coder 非提供。coder が実際に受け取るのは
+> `coder-leakproof-context.md` の inline 全文のみで、§3/§4 の leading-indicator・現行値はどこにも渡らない。**
+
+### 許可 (旧設計)
 - CCBench API surface (Backoff class public interface)
 - 値 (リテラル・計算式)
-- leading-indicator の参考
 
 ### 禁止
 - output/insights/2026-06-22_p2-case-study-* (sweet-spot value や利得情報)

@@ -11,8 +11,8 @@ fitness は P2-2 (silo 全探索) で既に実測・WAL 永続化済み。よっ
 はこの landscape の上を走る。
 
 **C1 (campaign-id drift, phase2.md):** P2-2 dir 名 (5ffcabad 等) は古い ccbench_commit
-'6656e93' を pre-image にして決まっており、現 pin (dff0f1e) で campaign-id を再計算すると
-別ハッシュになり dir を引けない。WAL の中身は commit 非依存なので、ここでは **dir 名の
+'6656e93' を pre-image にして決まっており、現 pin (どの値であれ、以降前進済み) で campaign-id
+を再計算すると別ハッシュになり dir を引けない。WAL の中身は commit 非依存なので、ここでは **dir 名の
 prefix (slug-tag) で discover** する (id 再計算に依存しない)。re-run で同 tag に複数 dir が
 できたら曖昧として明示エラー (黙って誤った方を拾わない)。
 """

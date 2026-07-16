@@ -22,7 +22,7 @@ assert 有 = X 行検出 / assert 無 = verifier 単独では total_cycles==0 �
 これを単一 run 内 (cycles==0 かつ X>=1) で機械判定する (裁定 9)。
 
 裸マクロ (IZANAGI_BREAK_*) は CCBENCH_ 名前空間外ゆえ pipeline からは定義不能 = この
-driver + 手動 -D でのみビルド。PIN = pin.CURRENT_PIN (028f34d、trace-hook 込み)。
+driver + 手動 -D でのみビルド。PIN = pin.CURRENT_PIN (d706650、write_set 被覆 assert 込み)。
 実行は直列 (単一テナント確認済み前提)。fitness は測らない (正しさ検証のみ)。
 """
 from __future__ import annotations
@@ -42,7 +42,7 @@ from campaign.model import Genome                                      # noqa: E
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
 
-PIN = pin.CURRENT_PIN                    # 028f34d (izanagi-trace, 被覆 assert 込み)
+PIN = pin.CURRENT_PIN                    # d706650 (izanagi-trace, 被覆 assert 込み)
 ENV_TAG = "linux-baremetal"
 CLK = 2100
 RUN_TIMEOUT_S = 120.0
