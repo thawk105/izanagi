@@ -811,3 +811,40 @@ rr80 anchor=read-heavy / rr20 anchor=write-heavy、実測参照値は除去済�
 1. 8b 後半の実装: selector 役 (tool-less 構造化出力、freeze variant_binding の whitelist 射影)
    → oracle 評価 driver (§5.1 二層分離、floor/budget null の間は bench 拒否)。実測は親が直列
 2. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
+
+## 2026-07-16 (5) — 8b 後半: selector 系 + oracle 評価 driver の実装 (codex 並列委譲 + 二波監査)
+
+worklog (4) 次の一手 1 を実装。プランニングを gpt-5.6-sol(max) 相談 2 本 (selector 側 /
+oracle driver 側) に並列で投げ、両裁定を採用。実装は codex(gpt-5.6-sol, high) を最大 3 並列で
+回し、親は仕様起草・裁定・監査・統合・commit を担当。計測なし (floor/budget null の段階)。
+
+- **6 commit (e247552..98e4133):** §9 再凍結 draft / selector 入出力 / selector 予測凍結+役
+  +inventory 同期 / oracle manifest+budget / oracle report+judge / oracle driver+gate+pipeline
+  bench_wall_s。テスト 8b 対象 178 passed + pipeline 回帰 100 passed、check_docs/
+  check_codex_agents/check_ai_provenance いずれも違反なし
+- **設計未規定点 → §9 再凍結 draft (承認待ち、8 項目):** off=stock_common 固定、selector は
+  不透明 ID カタログのみ (raw variant_binding は既知 argmax 由来ゆえ全遮断)、swapped 追従は
+  family ID 一致、予測はセル独立 1 回・fallback 禁止、予測凍結と oracle の分離、集約=median of
+  medians、実走後 resume 拒否。**承認まで予測の実実行はしない**。selector-8b は static dormant
+  で実体化 (Codex runtime は blocked 維持、13 static)
+- **敵対監査 2 波 (codex read-only、real/refuted 選別):** 第 1 波 (A/C/D2 = 14 file) real 9 /
+  refuted 5、第 2 波 (B/D1) real 4 / refuted 6。最重要 = report/judge の false-green 4 経路
+  (expected binding 欠落で binding_ok=True / retry で correctness red が後続 commit に上書き
+  = 規律2 直撃 / holdout 全落ちでも determinate / manifest hash 自己申告受理) と driver の
+  null-restore が未承認 floor で gate を開く恒真化。全 13 件を F1/F2 で修正し番人テストを追加。
+  監査全文は scratchpad 退避 (audit-wave1/2-out.md、insight 未凍結 — 次セッションで output/
+  へ移すか判断)
+- 素材: 「勝ち筋値を LLM に渡さず不透明 ID + 中立語彙で選ばせる」設計と「値でなく lineage が
+  性能結果由来なら遮断する」判断は、workload-aware selection のリーク制御の一次事例
+- codex 運用: 実装は編集面を互いに素な新規ファイルへ割り、WAL 語彙を仕様書の同一表で固定して
+  独立ドリフトを防いだ。B の .codex/ 2 file は sandbox read-only で /tmp 退避 → 親が反映
+- 計測機工数: codex 実装 5 + 監査 2 + 修正 2 + 相談 2 = 11 セッション (全 gpt-5.6-sol、
+  相談 max / 実装・監査 high)
+
+### 次の一手
+1. **§9 再凍結 draft の 8 項目にユーザー承認**を得る (4 点形式で別途提示)。承認後にのみ
+   selector 予測の実実行 (selector-8b を Claude role runtime で 6 セル) が可能になる
+2. floor/budget の再実測 → holdout freeze v2 の再凍結 (数値充填 + strict v2 verifier 実装)。
+   これが済むまで oracle driver の run 系は gate で拒否され続ける (設計どおり)
+3. 監査全文 (scratchpad audit-wave1/2-out.md) を output/insights か output/ 監査 JSON へ凍結
+4. push は人間の判断に委ねる (未 push: 02c840c..98e4133)
