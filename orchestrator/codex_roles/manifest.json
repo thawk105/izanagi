@@ -1358,6 +1358,226 @@
       "consumer": null,
       "projection_instructions": "certifiedかつscreening通過variantのtrace-disabled perf射影だけを解釈し、cycleの行先を有用仕事かspin/lock/NUMA/allocatorへ帰属する。perf下throughputをheadlineにせずmany-core scale riskを返す。"
     },
+    "selector-8b": {
+      "claude": {
+        "model": "opus",
+        "effort": "high",
+        "tools": []
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "model_reasoning_effort": "high"
+      },
+      "fresh_context": true,
+      "forbidden_input_classes": [
+        "experiment-arm",
+        "holdout-identity",
+        "descriptor-source-identity",
+        "raw-variant-binding",
+        "known-winner",
+        "measured-performance",
+        "oracle-result"
+      ],
+      "forbidden_key_tokens": [
+        "arm",
+        "holdout",
+        "target",
+        "descriptor_source",
+        "variant_binding",
+        "binding_key",
+        "winner",
+        "measured_tps",
+        "throughput",
+        "sources",
+        "oracle"
+      ],
+      "semantic_projection_mode": "direct-projection",
+      "capability_mapping": {},
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "descriptor",
+          "candidates"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "8b-selector-input/v1"
+          },
+          "descriptor": {
+            "type": "object",
+            "required": [
+              "schema_version",
+              "source",
+              "read_write",
+              "contention",
+              "scale",
+              "objective",
+              "correctness"
+            ],
+            "properties": {
+              "schema_version": {
+                "type": "string",
+                "const": "8b-v1"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "campaign_search_config_projection",
+                  "human_declared"
+                ]
+              },
+              "read_write": {
+                "type": "object",
+                "required": [
+                  "read_ratio_percent",
+                  "rmw"
+                ],
+                "properties": {
+                  "read_ratio_percent": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "rmw": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "contention": {
+                "type": "object",
+                "required": [
+                  "skew",
+                  "label"
+                ],
+                "properties": {
+                  "skew": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                  },
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "high"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "scale": {
+                "type": "object",
+                "required": [
+                  "records",
+                  "threads"
+                ],
+                "properties": {
+                  "records": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "threads": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "objective": {
+                "type": "string",
+                "enum": [
+                  "maximize_throughput_tps"
+                ]
+              },
+              "correctness": {
+                "type": "string",
+                "enum": [
+                  "serializable_legacy_and_s2"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "candidates": {
+            "type": "array",
+            "minItems": 6,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "required": [
+                "choice_id",
+                "mechanism"
+              ],
+              "properties": {
+                "choice_id": {
+                  "type": "string",
+                  "enum": [
+                    "c01",
+                    "c02",
+                    "c03",
+                    "c04",
+                    "c05",
+                    "c06"
+                  ]
+                },
+                "mechanism": {
+                  "type": "string",
+                  "enum": [
+                    "protocol_flag_bundle",
+                    "fixed_abort_backoff",
+                    "write_set_ordering",
+                    "subset_abort_reason_gate",
+                    "all_abort_reason_gate",
+                    "upstream_defaults"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "choice_id",
+          "rationale"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "8b-selector-output/v1"
+          },
+          "choice_id": {
+            "type": "string",
+            "enum": [
+              "c01",
+              "c02",
+              "c03",
+              "c04",
+              "c05",
+              "c06"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "consumer": null,
+      "projection_instructions": "8b-selector-input/v1 の workload descriptor と固定6候補だけから最適と推論する choice_id をちょうど1件選び、8b-selector-output/v1 の choice_id と空でない rationale だけを返す。候補順位、外部情報、実測結果を補わない。"
+    },
     "verifier": {
       "claude": {
         "model": "sonnet",

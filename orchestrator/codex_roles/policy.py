@@ -93,6 +93,11 @@ ROLE_FORBIDDEN_KEY_TOKENS: dict[str, tuple[str, ...]] = {
         "concurrent_benchmarks", "profile_throughput_as_headline",
         "profile_throughput_as_headlines", "profile_throughputs_as_headline",
     ),
+    "selector-8b": (
+        "arm", "holdout", "target", "descriptor_source", "variant_binding",
+        "binding_key", "winner", "measured_tps", "throughput", "sources",
+        "oracle",
+    ),
     "verifier": (
         "throughput", "throughputs", "fitness", "fitnesses", "expected_verdict",
         "expected_verdicts", "winner", "winners", "implementation_fix_request",
@@ -106,6 +111,14 @@ _CONFIDENCE = frozenset({"high", "medium", "low"})
 _GENOME_RE = re.compile(r"^B[01]-[LT]-W[01]$")
 _CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _NORMALISE_RE = re.compile(r"[^a-z0-9]+")
+_SELECTOR_8B_CANDIDATES = (
+    ("c01", "protocol_flag_bundle"),
+    ("c02", "fixed_abort_backoff"),
+    ("c03", "write_set_ordering"),
+    ("c04", "subset_abort_reason_gate"),
+    ("c05", "all_abort_reason_gate"),
+    ("c06", "upstream_defaults"),
+)
 
 
 class RolePolicyError(ValueError):
@@ -346,6 +359,18 @@ def validate_input_semantics(role: Any, projected_input: Any) -> None:
         screening = _mapping(data.get("screening"), "input.screening")
         if screening.get("passed") is not True:
             raise RolePolicyError("profiler input.screening.passedはtrue固定")
+    elif spec.name == "selector-8b":
+        candidates = _array(data.get("candidates"), "input.candidates")
+        observed = []
+        for index, raw in enumerate(candidates):
+            candidate = _mapping(raw, f"input.candidates[{index}]")
+            if set(candidate) != {"choice_id", "mechanism"}:
+                raise RolePolicyError(
+                    f"input.candidates[{index}]はchoice_id/mechanismだけを持つ"
+                )
+            observed.append((candidate.get("choice_id"), candidate.get("mechanism")))
+        if tuple(observed) != _SELECTOR_8B_CANDIDATES:
+            raise RolePolicyError("selector-8b candidatesが固定catalogと逐語一致しない")
     elif spec.name == "verifier":
         trusted = _mapping(data.get("verification_result"),
                            "input.verification_result")
@@ -467,6 +492,13 @@ def validate_output_semantics(role: Any, projected_input: Any, result: Any) -> N
                 raise RolePolicyError("critic-experiment stopのgenomeはnull固定")
         else:
             raise RolePolicyError("critic-experiment actionはevaluate|stop")
+    elif spec.name == "selector-8b":
+        candidate_ids = {candidate["choice_id"] for candidate in data["candidates"]}
+        if output.get("choice_id") not in candidate_ids:
+            raise RolePolicyError("selector-8b choice_idが入力catalogにない")
+        rationale = output.get("rationale")
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise RolePolicyError("selector-8b rationaleは空でないstringが必要")
     elif spec.name == "verifier":
         trusted = _mapping(data.get("verification_result"),
                            "input.verification_result")

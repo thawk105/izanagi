@@ -1,8 +1,8 @@
-# Codex role adapter — native 0 / static 12 / runtime blocked
+# Codex role adapter — native 0 / static 13 / runtime blocked
 
 `.claude/agents/*.md` は role 本文と Claude Code 固有の model/tools 契約の正本である。
-Codex 版は自動発見されない `.codex/role-adapters/*.json` に全 12 件を置き、共有 manifest と renderer、
-semantic policy、checker で同期する。初版判断は D54、native profile の休眠化は D55、全 12 件の
+Codex 版は自動発見されない `.codex/role-adapters/*.json` に全 13 件を置き、共有 manifest と renderer、
+semantic policy、checker で同期する。初版判断は D54、native profile の休眠化は D55、全 13 件の
 静的移植と runtime 裁定は D56 とする。
 
 現行状態は次の 3 軸を混同しない。
@@ -10,11 +10,13 @@ semantic policy、checker で同期する。初版判断は D54、native profile
 | 面 | 状態 | 意味 |
 |---|---|---|
 | native profile | active 0 / 発見可能 profile 0 | `.codex/agents/*.toml` と project `[agents.<name>]` は禁止 |
-| static adapter | 12 / 12 定義済み | Claude 本文・metadata・I/O・capability lowering を byte-stable JSON に移植済み |
-| runtime activation | active 0 / blocked 12 | `input.additional_tools` を構造的に除去できないため実行禁止 |
+| static adapter | 13 / 13 定義済み | Claude 本文・metadata・I/O・capability lowering を byte-stable JSON に移植済み |
+| runtime activation | active 0 / blocked 13 | `input.additional_tools` を構造的に除去できないため実行禁止 |
 
 static adapter は実行可能 profile ではない。`dormant` は「無効な TOML を残す」という意味でも、
 prompt 規律だけで隔離できたという意味でもない。
+
+`selector-8b` も tool-less Claude role の static/dormant projection のみで、Codex runtime は blocked のままとする。
 
 ## 静的移植の契約
 
@@ -82,7 +84,7 @@ Codex hook adapter だけでは条件 2 を満たさない。local file write �
 role の意味変更は対応する `.claude/agents/*.md` に入れる。
 `orchestrator/codex_roles/review_ledger.py` は自動生成物と独立したレビュー済み source/description/schema、
 full role manifest、共通 developer instruction template の SHA-256 と role 別 I/O 契約の固定台帳である。
-direct JSON 例を持つ 5 role は source の入力・出力 shape parity、mediated の 7 role は固定 source hash +
+direct JSON 例を持つ 6 role は source の入力・出力 shape parity、mediated の 7 role は固定 source hash +
 reviewed I/O obligations で移植契約を結び、台帳の明示レビュー無しに再生成だけで追従しない。checker は
 Claude と Codex の全単射、
 frontmatter、description の JSON quote、本文の埋込・digest、model/effort、capability lowering、I/O schema、

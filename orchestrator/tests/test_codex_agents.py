@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Codex native 0 / non-native projection adapter 12 のfail-closedテスト。"""
+"""Codex native 0 / non-native projection adapter 13 のfail-closedテスト。"""
 from __future__ import annotations
 
 import importlib.util
@@ -84,16 +84,16 @@ def _reviewed_role_entry(root: Path, role: str):
         ROLE_MANIFEST_SHA256[role] = old_pin
 
 
-def test_policy_has_zero_native_and_twelve_static_dormant_adapters():
+def test_policy_has_zero_native_and_thirteen_static_dormant_adapters():
     assert CCA.ACTIVE == {}
-    assert len(CCA.STATIC_ADAPTERS) == 12
+    assert len(CCA.STATIC_ADAPTERS) == 13
     assert CCA.STATIC_ADAPTERS == frozenset(CCA.ROLE_SPEC.load_role_specs(_REPO))
 
 
-def test_review_ledger_independently_pins_all_twelve_sources_and_io_contracts():
+def test_review_ledger_independently_pins_all_thirteen_sources_and_io_contracts():
     specs = CCA.ROLE_SPEC.load_role_specs(_REPO)
     roles = set(specs)
-    assert len(roles) == 12
+    assert len(roles) == 13
     assert roles == set(SOURCE_FILE_SHA256)
     assert roles == set(DESCRIPTION_SHA256)
     assert roles == set(SCHEMA_SHA256)
@@ -602,6 +602,46 @@ def test_opaque_string_is_not_misrepresented_as_recursively_inspected():
     assert ROLE_POLICY.OPEN_SUBTREE_POLICY == (
         "trusted-projection-producer-responsibility"
     )
+
+
+def test_selector_8b_policy_pins_catalog_order_and_nonempty_single_choice():
+    projected = {
+        "schema_version": "8b-selector-input/v1",
+        "descriptor": {},
+        "candidates": [
+            {"choice_id": "c01", "mechanism": "protocol_flag_bundle"},
+            {"choice_id": "c02", "mechanism": "fixed_abort_backoff"},
+            {"choice_id": "c03", "mechanism": "write_set_ordering"},
+            {"choice_id": "c04", "mechanism": "subset_abort_reason_gate"},
+            {"choice_id": "c05", "mechanism": "all_abort_reason_gate"},
+            {"choice_id": "c06", "mechanism": "upstream_defaults"},
+        ],
+    }
+    output = {
+        "schema_version": "8b-selector-output/v1",
+        "choice_id": "c03",
+        "rationale": "descriptor と機構の適合",
+    }
+    ROLE_POLICY.validate_input_semantics("selector-8b", projected)
+    ROLE_POLICY.validate_output_semantics("selector-8b", projected, output)
+
+    wrong_catalog = copy.deepcopy(projected)
+    wrong_catalog["candidates"][0]["mechanism"] = "upstream_defaults"
+    try:
+        ROLE_POLICY.validate_input_semantics("selector-8b", wrong_catalog)
+    except ROLE_POLICY.RolePolicyError as exc:
+        assert "固定catalog" in str(exc)
+    else:
+        raise AssertionError("selector-8b catalog の対応ずれを許可した")
+
+    try:
+        ROLE_POLICY.validate_output_semantics(
+            "selector-8b", projected, {**output, "rationale": " "}
+        )
+    except ROLE_POLICY.RolePolicyError as exc:
+        assert "rationale" in str(exc)
+    else:
+        raise AssertionError("selector-8b の空 rationale を許可した")
 
 
 def test_auditor_input_digest_is_sha256_of_utf8_working_diff():

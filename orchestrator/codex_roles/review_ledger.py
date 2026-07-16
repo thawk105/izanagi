@@ -10,7 +10,7 @@ from __future__ import annotations
 # Claude role / Codex adapter の絶対枚数。set 等号は各 source を相互束縛するが枚数自体は固定しない
 # ため、全 source から lockstep で 1 role を削除すると 11 件でも整合してしまう。この floor を
 # 人間レビュー ledger に置くことで、role の増減は必ずここの明示更新を伴う review checkpoint になる。
-EXPECTED_ROLE_COUNT = 12
+EXPECTED_ROLE_COUNT = 13
 
 SOURCE_FILE_SHA256 = {
     "auditor": "324ff727b78935f5915fe7c685ad93ae3f3b3df74de2056990060266858f53f8",
@@ -24,6 +24,7 @@ SOURCE_FILE_SHA256 = {
     "critic-experiment": "fc20aa7ef1bf9af45eaa2e56313b8b5221a3ff2a2413110fa333ba470ff9456e",
     "planner-v4": "0a52dd4feada41167aa62711cc8cf1ad81e306ad706e99825b9709595b412ef2",
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
+    "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
     "verifier": "e244dff1273053878dd34fc26f6b96acc3faff466e3b2bdbf9a80920820ba8e0",
 }
 
@@ -42,6 +43,7 @@ ROLE_MANIFEST_SHA256 = {
     "critic-experiment": "69dd9033640393fbde6a51c8f7d606e7780b91393e8d2829d530e5c3d2156b0e",
     "planner-v4": "9e142881783337414af0c8d239541fc8f2b0a2892b160d58940602c93615dd17",
     "profiler": "61a3cc067886a042bcf076fc1b2494bf26bb5e6e64bcd6a6e8bc01a77071ec30",
+    "selector-8b": "8d1a101ca21c17dab7cc529ceda263f2ec77dbc09b290a838cfddc88346f8631",
     "verifier": "18216687be26dbb5de59d4cf84691c85f50820fbd4af33edef18ad947493884e",
 }
 
@@ -62,6 +64,7 @@ DESCRIPTION_SHA256 = {
     "critic-experiment": "cc698590354ca22332f54ccb965ff67f8f093eca9a3c46063d3a8779e9956761",
     "planner-v4": "e1c82ce9410df83eb54db2dd491a11e3e303e43a83fefe44ce249a2e287e03e8",
     "profiler": "208aa13e1acb0b281dc0de3e811c2ec4c9483217d9ec63a2ed9c69fa5fd16347",
+    "selector-8b": "144f5f9b20ab953dfb2e1f5c8622f1db2b74a9be3f3ac4cf821f7c0752b11632",
     "verifier": "21906b5078651cf0b99b831b8be96aeca064a45c4a45ad42c6417238c129bdc3",
 }
 
@@ -112,6 +115,10 @@ SCHEMA_SHA256 = {
     "profiler": {
         "input": "464c5c4d556d311bd002804b8dc5979ffa400acea16ae6f1695975b1f913a744",
         "output": "afdcede422f9dbd77995c34865e754dfe316a2271c1e558928155131240edeb0",
+    },
+    "selector-8b": {
+        "input": "2960dfeb3933f68cd57097ef40bd96e30c63fa934f6a41d29c0a5f04f6c8c404",
+        "output": "a2fc5431ca3bf7d5932499e7f968b0fbc8210f94c4bef6aa35716926d2b310e4",
     },
     "verifier": {
         "input": "e3df4ec4dee7c5fa3c024ab4543f4f26180d953b2f82466164994140b2090789",
@@ -212,6 +219,10 @@ ROLE_IO_CONTRACTS = {
             "mechanism": "adapter-field:mechanism",
             "uncertainty": "adapter-field:uncertainty",
         },
+    ),
+    "selector-8b": _direct(
+        ("schema_version", "descriptor", "candidates"),
+        ("schema_version", "choice_id", "rationale"),
     ),
     "verifier": _mediated(
         ("verification_result",),
