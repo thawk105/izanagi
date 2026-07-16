@@ -890,3 +890,31 @@ pegasus02 上で前エントリの runbook を実機検証。gen_S スモーク�
 ### 次の一手
 1. Pegasus を正式性能計測へ採用する場合のみ、専用 env-tag と再 calibration/noise floor を設計
    (併せて roadmap §5 改訂 + 実走系 runbook のゲート差し替え)
+
+## 2026-07-16 (8) — Pegasus 時代の全体調査: cygnus 前提除去・roadmap §5 協議改訂・トークン衛生
+
+izanagi 全体を調査し、旧計測機 cygnus (Dell R760) の名指しと「ノード割当て = 専有の保証」の
+絶対断定を除去した (65b535e, 3b887aa)。
+
+- 協議決着: (a) スケジューラのノード割当てを専有の保証と見なさない (ユーザー指摘。gen_S は
+  Exclusive submit=OFF / CPU 48/48 を `qstat -Qf` で実測。evidence は
+  /work/SFC/tanab/pegasus_smoke_20260716/evidence/)。単独性確認は計測を走らせるノード上で行う。
+  (b) roadmap §5 は協議改訂 (版凍結なし・版数不変)、設計判断は **D59** (正本 env-tag 据え置き /
+  別環境の正式採用 4 条件 / マシン非依存方針)
+- 置き場の裁定: Pegasus 対応 TODO は phase3.md に常設しない (D35 ブート規律 + 可変状態一元化)。
+  README 2 種は委譲構造が正しく変更不要。phase3 チェックポイントは worklog (4)(5) の現在地に
+  同期し、着手順に監査成果物凍結タスク (c) を補完
+- 監査: codex 敵対レビュー第 2 回 (レンズ 7)。REAL 2 (handoff README の旧専有断定 / 着手順の
+  凍結タスク脱落) + MINOR 2 (must 表の効力語復元、roadmap §3.6(5) の機種名) — 全採用。
+  REFUTED 4 (Exclusive submit=OFF の解釈・協議改訂手続き・ノイズ修理・着手順整合は問題なし)
+- 工数: Explore ×2 (トークン衛生監査 / 置き場調査)、codex exec ×1 (reviewer)。memory 2 本
+  (専有前提の除去を追記、verify-single-tenant-before-measuring を再作成)
+- 運用知見: guard hook は「保護パス言及 + $() 構文」の commit を fails-closed で拒否する —
+  コミットメッセージに保護パスを含むときは `git commit -F <file>` を使う
+
+### 次の一手
+1. §9 再凍結 draft 8 項目のユーザー承認 → selector 予測の実実行 (phase3 チェックポイント (a))
+2. floor/budget 再実測の env 選択は人間判断待ち: linux-baremetal で取るか、Pegasus 専用 env-tag
+   を先に設計するか (D59 の境界)
+3. Pegasus を正式計測へ採用する場合の env-tag/calibration/ゲート差し替えは変わらず (entry (7))
+4. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
