@@ -40,7 +40,8 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 floor/budget は再実測までの null)、8b 後半 = selector 役 + oracle 評価 driver の実装 (二波監査
 反映済み)、層3 renderer v2 + 実レポート、までは完了 — 経緯・commit hash・監査内訳は worklog
 2026-07-16 (1)〜(6) と archive を正本とし、ここに再掲しない。
-次: (a) **§9 再凍結 draft 8 項目のユーザー承認** (承認まで selector 予測の実実行はしない)、
+次: (a) **§9 再凍結 draft の残り = 項 7〜8 のユーザー承認** (項 1〜6 は 2026-07-16 承認済み。
+承認後も実実行には worklog 2026-07-16 (9) の前提条件 (i)〜(v) が必要)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
 残存証拠 (worklog 要約 + commit 本文 + 回帰テスト) からの再構成 + 消失記録を output/insights へ

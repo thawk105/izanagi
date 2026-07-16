@@ -960,3 +960,33 @@ checkpoint (c) 着手時に、凍結対象の二波監査全文 (audit-wave1/2-o
 2. floor/budget 再実測の env 選択は人間判断待ちのまま (linux-baremetal 継続 or Pegasus 専用
    env-tag 設計、D59 の 4 条件)
 3. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
+
+### 追記 — セッション末のユーザー裁定と引き継ぎ (同セッション)
+
+- **§9 裁定 (4 点形式で提示):** bundle A = 項 1〜3、bundle B = 項 4〜6 を**承認 (発効)**。正本は
+  更新済み (§9 冒頭の承認状態 + phase3 checkpoint (a))。**項 7〜8 は「もっと詳しく説明して」で
+  保留** — 次セッションは以下の要点で再提示して裁定を得る:
+  - 項 7 (median of medians): 各 trial 内の bench rep 中央値 → 構成ごとに trial 中央値たちの
+    中央値。二重中央値は共有環境の外乱スパイクに頑健 (平均は 1 スパイクで汚れる)。floor は §6 の
+    on/off 予測構成差の判定にのみ使い、argmax の tie-break には使わない。exact tie は勝者なし =
+    判定不能へ倒す (救済しない)。実装・テスト済み (report の rep 集約 + judge)。n/reps の欠測
+    規則の数値は floor 再実測後の再凍結で充填
+  - 項 8 (実走後 resume 拒否): 実走後は WAL に holdout 条件が現れ、freeze の「結果を見ていない」
+    保証 (未既知性検索) が失効する。途中再開を許すと「一部結果を見た後の再実行」と区別できず
+    cherry-pick 経路になるため安全側で拒否。driver の拒否は実発火を確認済み (単なる assert では
+    ない)。既知の迂回 2 経路 (--output-root 変更 / campaign-start 1 行だけの truncated WAL) は
+    R6 で実証済みで、強化 (lock+WAL 存在判定 + output-root 非依存の実走済みマーカー) は前提条件
+    (iv)。代償: クラッシュした block は再開不能 → 複数 block 運用の破綻 (A3-3) と合わせて実行
+    トポロジーを設計裁定してから数値再凍結に進むのが正
+- **floor env のユーザー回答:** 「正式採用というか、普通に pegasus も cygnus も使う。今はこれは
+  pegasus で動いている」— 二者択一でなく併用が前提。含意: 計測の正本性は D59 のとおり env-tag
+  単位のまま変わらない。floor/budget を Pegasus で取るなら専用 env-tag + calibration + noise
+  floor が前提条件、cygnus (linux-baremetal) なら既存 tag で再実測可。次セッションで「どの
+  env-tag の floor を v2 に充填するか」を工数比較つきの具体案で再提示する
+- **再開手順 (次セッション):** (1) 項 7〜8 の裁定を得る → §9 全発効、(2) floor 実測 env の確定、
+  (3) A3-3/A3-4 (+ A3-6 の単一 object 要件) を含む実行トポロジーと freeze v2 schema の設計 →
+  承認 → strict v2 verifier 実装、(4) trusted prediction runner (R3) と resume 強化 (R6) の
+  実装、(5) freeze 再凍結 (R1 の design hash 追随 + 数値充填)。ここまで済んで初めて selector
+  予測 6 セルの実実行に到達する。本セッションの一次資料はすべて repo 内
+  (output/insights/2026-07-16_s8b-*.md 4 本 + 本エントリ) — scratchpad に唯一コピーは残して
+  いない (F20 恒久対応を実践)
