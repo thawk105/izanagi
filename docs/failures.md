@@ -92,6 +92,12 @@
 - 恒久対応: check_docs 修正 (対象不在は fail)。「恒真な保証 (謳うだけで発火しない assert)」は
   監査の標準疑い項目 (CLAUDE.md 規律 6 の監査発火条件に明記済み)
 - 再発検知: 新しい検査を足すときは「わざと壊して発火を確認」(positive control) を習慣化
+- 再発 (2026-07-17): related-work.md のパス書き換えで個別事象は解消していたが、恒久対応が
+  謳う「対象不在は fail」という構造修正自体は未 land で、LIVING_DOCS ループの
+  `if not doc.exists(): continue` が残存 (手書き列挙対象が改名/削除で黙って蒸発する経路が
+  再び開いていた)。修正: 手書き列挙分 (_ENUMERATED_DOCS) の不在を違反として積む fail 経路に
+  変更し、positive control (orchestrator/tests/test_check_docs.py) で固定。glob 由来の動的分は
+  従来どおり実在物のみ検査
 
 ### F10. runbook の固定 campaign 名参照 — pin 前進で腐る構造 [ドリフト]
 - 事象: runbook が固定の campaign 名を参照しており、submodule pin の前進で確実に腐る構造

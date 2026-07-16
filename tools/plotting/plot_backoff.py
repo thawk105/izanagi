@@ -62,10 +62,31 @@ def _parse_genome(g):
             k,v=kv.split("=",1); d[k]=v
     return d
 
+# t_{0.975, df} (両側 95% = 上側 0.025 臨界値) df=1..28。df>=29 (=n>=30) は正規
+# 近似 1.96 を使う。正本: FIGURE_CONVENTIONS.md §2 (小 n は t_{0.975,n-1}·s/√n、
+# n>=30 で 1.96·s/√n の近似)。scipy を増やさないための内蔵表。
+_T_975 = {
+    1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365,
+    8: 2.306, 9: 2.262, 10: 2.228, 11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145,
+    15: 2.131, 16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086, 21: 2.080,
+    22: 2.074, 23: 2.069, 24: 2.064, 25: 2.060, 26: 2.056, 27: 2.052, 28: 2.048,
+}
+
+def _t975(df):
+    """t_{0.975, df}。df>=29 (n>=30) は正規近似 1.96 (FIGURE_CONVENTIONS.md §2)。"""
+    return _T_975.get(df, 1.96)
+
 def _ci95(reps):
+    """点推定 = 標本平均、95% CI 半幅 = t_{0.975,n-1}·s/√n。
+
+    正本 FIGURE_CONVENTIONS.md §2: 小 n では t 分布 (t_{0.975,n-1}·s/√n)、n>=30 で
+    1.96·s/√n の正規近似。CI 半幅は平均の標準誤差 s/√n なので、中心統計量も標本平均に
+    統一する (median 中心に平均 SE を付ける不整合を避ける)。n<2 は CI 幅 0。
+    """
     a=np.asarray(reps,dtype=float)
-    if len(a)<2: return float(np.median(a)), 0.0
-    return float(np.median(a)), 1.96*a.std(ddof=1)/np.sqrt(len(a))
+    if len(a)<2: return float(np.mean(a)), 0.0
+    n=len(a)
+    return float(np.mean(a)), _t975(n-1)*a.std(ddof=1)/np.sqrt(n)
 
 def load_campaign(cdir):
     """1 campaign を読み、workload ラベル・sweep 点・baseline を返す。"""

@@ -41,6 +41,11 @@ LIVING_DOCS = [
     REPO / "docs" / "isolation-phenomena.md",          # 2026-07-12 監査: 現在形の生きた参照文書なのに lint 網の外だった
     # token-management-strategy.md は 2026-07-11 に docs/archive/ へ凍結移動 → 2026-07-15 に git-history-only 化 (F8 捏造文書、墓標 = docs/archive/README.md)
 ]
+# 手書き列挙分 (glob 由来ではない) を凍結してスナップショットする。列挙対象の不在は
+# 「黙って skip」ではなく違反にする — 改名/削除で検査が黙って蒸発するのを防ぐ (F9 恒真ゲート
+# の再発防止。_current_pin 経路と同じ原則)。glob 由来の動的分は実在物だけを拾うので対象外。
+_ENUMERATED_DOCS = frozenset(LIVING_DOCS)
+
 # 段 runbook (現在の実走手順を主張する生きた運用文書) は glob で自動編入する —
 # 手書き列挙だと段の追加で取りこぼす (2026-07-12 監査: s8a runbook が網の外で pin literal が腐る構造だった)。
 # design 系 (phase3-s*-design-*.md) は段完了で凍結する族なので編入しない。
@@ -115,6 +120,13 @@ def main() -> int:
 
     for doc in LIVING_DOCS:
         if not doc.exists():
+            # 手書き列挙対象の不在 = 違反 (改名/削除で検査が黙って蒸発するのを封じる)。
+            # glob 由来の動的分は実在物だけなので、不在があっても無視 (発生しえない)。
+            if doc in _ENUMERATED_DOCS:
+                findings.append(
+                    f"{doc.relative_to(REPO)}: LIVING_DOCS の列挙対象が不在 — 改名/削除で "
+                    "lint が黙って蒸発する。列挙を実体に追従させるか、凍結した族なら LIVING_DOCS から外す"
+                )
             continue
         rel = doc.relative_to(REPO)
         for lineno, line in enumerate(doc.read_text().splitlines(), 1):

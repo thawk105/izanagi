@@ -16,9 +16,21 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import s1_known_axes_freeze as M  # noqa: E402
+from skiputil import skip  # noqa: E402
+
+
+def _require_submodule_sources():
+    """build_document()/generate() は external/ccbench の実ファイル (Options.cmake /
+    silo CMakeLists) を読み、submodule に対し git rev-parse する。submodule 未 checkout の
+    環境では該当ファイルの不在を検知して skip (README の『submodule が無い環境では skip
+    として数える』契約)。checkout 済みの環境では従来どおり実検査が走る。"""
+    for rel in (M.OPTIONS_REL, M.SILO_CMAKE_REL):
+        if not (M.ROOT / rel).exists():
+            skip(f"submodule 未 checkout ({rel} 不在) — build_document は実 ccbench ソースが要る")
 
 
 def test_generate_selects_registered_expected_points():
+    _require_submodule_sources()
     doc = M.build_document()
     entries = doc["entries"]
     for workload, (variant, fitness) in M.EXPECTED_P2.items():
@@ -33,6 +45,7 @@ def test_generate_selects_registered_expected_points():
 
 
 def test_generate_refuses_existing_freeze(tmp_path):
+    _require_submodule_sources()
     path = tmp_path / "known_axes_freeze.json"
     M.generate(path)
     with pytest.raises(M.FreezeError, match="既に存在"):
@@ -65,6 +78,7 @@ def test_verify_rejects_tampered_source_copy(tmp_path):
 
 
 def test_s1b_pairing_rejects_mismatched_flags():
+    _require_submodule_sources()
     doc = M.build_document()
     forged = copy.deepcopy(doc)
     forged["entries"]["balanced"]["ident_all"]["flags"]["BACK_OFF"] = 0

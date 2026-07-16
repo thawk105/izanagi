@@ -56,29 +56,46 @@ def test_buildcache_detects_trace_symbol_leak():
     assert buildcache._has_trace_symbols(leaked)
 
 
-def test_buildcache_clears_stale_build_dir(tmp_path):
+@contextlib.contextmanager
+def _tmp_dir(tmp_path):
+    """pytest では tmp_path fixture、素の runner (tmp_path=None) では tempfile ベースの
+    一時 dir を pathlib.Path で供給する。二重 runner 契約 (README) をどちらの経路でも満たす。"""
+    if tmp_path is not None:
+        yield tmp_path
+        return
+    import pathlib
+    d = tempfile.mkdtemp(prefix="izanagi_tc_")
+    try:
+        yield pathlib.Path(d)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_buildcache_clears_stale_build_dir(tmp_path=None):
     """kill 残骸 (CMakeCache あり・binary 無し) は configure 前に破棄される。
 
     残骸 CMakeCache の一時 worktree パス焼き付きが以後の configure を永続的に即死させた
     2026-07-11 s8a stock build-error の回帰固定。"""
-    bdir = tmp_path / "silo_deadbeef00_t0"
-    bdir.mkdir()
-    (bdir / "CMakeCache.txt").write_text("CMAKE_HOME_DIRECTORY:INTERNAL=/tmp/gone_wt/wt\n")
-    binary = str(bdir / "cc" / "silo" / "ycsb_silo.exe")
-    buildcache._clear_stale_build_dir(str(bdir), binary)
-    assert not bdir.exists()                 # 中途 dir は破棄される
+    with _tmp_dir(tmp_path) as tmp:
+        bdir = tmp / "silo_deadbeef00_t0"
+        bdir.mkdir()
+        (bdir / "CMakeCache.txt").write_text("CMAKE_HOME_DIRECTORY:INTERNAL=/tmp/gone_wt/wt\n")
+        binary = str(bdir / "cc" / "silo" / "ycsb_silo.exe")
+        buildcache._clear_stale_build_dir(str(bdir), binary)
+        assert not bdir.exists()                 # 中途 dir は破棄される
 
 
-def test_buildcache_stale_clear_spares_complete_and_absent(tmp_path):
+def test_buildcache_stale_clear_spares_complete_and_absent(tmp_path=None):
     """binary が完成している dir は破棄しない (正当な成果物)。bdir 不在は no-op。"""
-    bdir = tmp_path / "silo_cafebabe00_t1"
-    binpath = bdir / "cc" / "silo" / "ycsb_silo.exe"
-    binpath.parent.mkdir(parents=True)
-    binpath.write_bytes(b"\x7fELF")
-    buildcache._clear_stale_build_dir(str(bdir), str(binpath))
-    assert binpath.exists()                  # 完成品は温存
-    absent = tmp_path / "no_such_dir"
-    buildcache._clear_stale_build_dir(str(absent), str(absent / "x.exe"))  # 例外なく no-op
+    with _tmp_dir(tmp_path) as tmp:
+        bdir = tmp / "silo_cafebabe00_t1"
+        binpath = bdir / "cc" / "silo" / "ycsb_silo.exe"
+        binpath.parent.mkdir(parents=True)
+        binpath.write_bytes(b"\x7fELF")
+        buildcache._clear_stale_build_dir(str(bdir), str(binpath))
+        assert binpath.exists()                  # 完成品は温存
+        absent = tmp / "no_such_dir"
+        buildcache._clear_stale_build_dir(str(absent), str(absent / "x.exe"))  # 例外なく no-op
 
 
 def test_genome_canonical_deterministic():
@@ -1617,6 +1634,24 @@ def _ccbench_head_or_skip():
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+def _require_ccbench_file(rel):
+    """submodule の実ファイル (rel は sub 相対) が要る source_digest テスト用ガード。
+    不在なら skip (README の『submodule が無い環境では skip として数える』契約)。
+    submodule が checkout 済みの環境では実ファイルパスを返し、従来どおり実検査が走る。"""
+    path = os.path.join(buildcache._ccbench_dir(), rel)
+    if not os.path.exists(path):
+        skip(f"submodule 未 checkout ({rel} 不在)")
+    return path
+
+
+def _require_g13():
+    """source_digest の preprocess は g++-13 を直接叩く (D23)。PATH に無い環境では skip
+    (README の『C++ toolchain が無い環境では skip として数える』契約)。toolchain のある
+    環境では従来どおり実 preprocess を走らせるので検査は弱まらない。"""
+    if shutil.which("g++-13") is None:
+        skip("C++ toolchain 不在 (g++-13 が PATH に無い) — source_digest preprocess は実 g++-13 が要る")
+
+
 def test_source_digest_silo8_id_backward_compatible():
     """silo 8 genome の variant_id/cache_key がリファクタ後も不変 (既存 WAL/cache 整合)。
     デフォルト src='stock' は canonical のみハッシュ = 旧値 (実機非依存)。"""
@@ -1636,8 +1671,8 @@ def test_source_digest_silo8_id_backward_compatible():
 
 def test_source_digest_parse_options_defaults():
     """Options パース: 既定値・クォート剥がし・空値 unset (D23 finding 対策)。"""
-    sub = buildcache._ccbench_dir()
-    with open(os.path.join(sub, "cmake/Options.cmake"), encoding="utf-8") as f:
+    opts = _require_ccbench_file("cmake/Options.cmake")
+    with open(opts, encoding="utf-8") as f:
         d = source_digest.parse_options_defaults(f.read())
     if "BACKOFF_FIXED" not in d:
         skip("template patch 未適用 (Options.cmake に BACKOFF_FIXED 既定なし) — 適用後のみ")
@@ -1684,11 +1719,12 @@ def test_source_digest_failsclosed_on_missing_define():
 
     template patch 適用後の骨格は #ifndef+#error (全経路停止)、-Werror=undef は
     それ以外の未定義マクロ評価への防壁として残る。どちらも RuntimeError に落ちる。"""
-    sub = buildcache._ccbench_dir()
-    with open(os.path.join(sub, "include/backoff.hh"), encoding="utf-8") as f:
+    hh = _require_ccbench_file("include/backoff.hh")
+    with open(hh, encoding="utf-8") as f:
         src = f.read()
     if "BACKOFF_FIXED" not in src:
         skip("template patch 未適用 (backoff.hh に BACKOFF_FIXED 骨格なし) — 適用後のみ")
+    _require_g13()  # 供給漏れ停止と preprocess 起動不能を取り違えないため g++-13 不在は skip
     try:
         source_digest._cpp_normalize(src, {"BACKOFF_NOINLINE": "0"}, "g++-13")  # FIXED 欠落
         assert False, "供給漏れで停止すべき (#error / -Werror=undef)"
@@ -1698,11 +1734,13 @@ def test_source_digest_failsclosed_on_missing_define():
 
 def test_source_digest_semantic_comment_vs_behavior():
     """コメントのみ変更は同 digest (cpp -P 除去)、挙動変更 (memory_order) は別 digest。"""
-    sub = buildcache._ccbench_dir()
-    with open(os.path.join(sub, "cmake/Options.cmake"), encoding="utf-8") as f:
+    opts = _require_ccbench_file("cmake/Options.cmake")
+    hh = _require_ccbench_file("include/backoff.hh")
+    _require_g13()
+    with open(opts, encoding="utf-8") as f:
         defines = source_digest._merge_defines(
             source_digest.parse_options_defaults(f.read()), {})
-    with open(os.path.join(sub, "include/backoff.hh"), encoding="utf-8") as f:
+    with open(hh, encoding="utf-8") as f:
         src = f.read()
     base = source_digest._cpp_normalize(src, defines, "g++-13")
     commented = source_digest._cpp_normalize(src + "\n// trailing comment\n", defines, "g++-13")
@@ -1873,6 +1911,7 @@ def test_source_digest_builtin_ifdef_not_aliased_to_stock():
     baseline と byte 一致 → src_token='stock' に化け、別挙動の variant が stock の certified 結果を
     verify 素通りで継承する (規律2 直撃)。案A (-undef 廃止) で builtin を実ビルドと揃えれば、
     #ifdef が digest に正直に反映され STOCK に化けない = 別 cache_key で cache-miss ビルドされる。"""
+    _require_g13()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, head, _git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
@@ -1896,6 +1935,7 @@ def test_source_digest_include_change_rejected_by_resolve():
     fails-closed abort する。恒久案 (行を identity に織り込んで許す) は include 先の中身が
     identity 外に dangling し中身違いの新規 header で variant 間 alias が残るため却下
     (2026-07-03 敵対検証 high)。行集合を HEAD 固定にすれば include 追加自体を止め穴ごと消える。"""
+    _require_g13()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, head, _git = _fake_ccbench_repo()
     assert source_digest.resolve(g, head, sub) == source_digest.STOCK    # clean = stock 通過
@@ -2064,6 +2104,7 @@ def test_trace_diff_of_diffs_predicate():
     (a) stock は通過、(b) TRACE 非依存の payload 編集も通過 (正当な編集を巻き込まない)、
     (c) variant が #if TRACE の挙動差を追加したら fails-closed abort — nm の name-based
     検査では捕えない C++ ソースレベルの TRACE 混入 (規律1)。"""
+    _require_g13()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, head, _git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
@@ -2088,6 +2129,7 @@ def test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit():
     入れないので、TRACE 非依存の編集で差分位置がずれても偽陽性にならない。
     (c) #if TRACE の内側の挙動差改変は D_variant≠D_stock で abort — 旧 nm 検査が
     素通しした「#ifdef TRACE 内側に挙動差を隠す攻撃」(GW2R-1 系) の閉塞。"""
+    _require_g13()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, _head, git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
