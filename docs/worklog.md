@@ -756,3 +756,45 @@ codex gpt-5.6-terra ×4 (8b 起草 / 層3 実装 / 8b 監査修正 / driver 修�
    `docs/phase3-8b-descriptor-design.md`
 2. 層3 renderer の対象拡大 (sweep campaign 適用、機序仮説層の原料配線) を並行
 3. push は人間の判断に委ねる (未 push: 前セッション分含め 02c840c..HEAD)
+
+## 2026-07-16 (3) — 8b 前半 2 段 + 層3 v2 の実装 (codex 委譲 + 親統合)。後半 2 段は繰延
+
+ユーザー裁定でスコープを縮小 (全 4 段 + 層3 は 1 セッションに重すぎる) し、8b-1/8b-2/層3 を
+codex (gpt-5.6-sol ×4) に委譲、親が仕様起草・監査・統合・実適用を担った。計測なし。
+
+- **8b-1 holdout freeze 手順 (289477c):** §3.1 三軸 conjunction 検索 + rr50 陽性対照 + 番人
+  テスト。**実リポジトリ search は全条件 pass** (rr80/rr20 conjunction 0 件、陽性対照 35 件、
+  15,184 files)。親統合 2 点 = verify の二層化 (per_axis_counts の再実行完全一致は無関係
+  ファイル追加で偽陽性破綻する欠陥)、git 列挙の通常ファイル限定 (ccbench 入れ子 submodule
+  gitlink / untracked symlink・入れ子 repo での誤発火)
+- **設計未規定点の発見 → 要ユーザー承認:** 固定 6 構成は workload 間で実体が異なる (gate
+  g_rl/g_rt、backoff 5/10/2µs、sort sp_dd/sk_ad、p2 flags)。holdout への束縛規則
+  `nearest-read-ratio-v1` (rr80→read-heavy / rr20→write-heavy anchor、実測参照値は再帰除去)
+  を実装裁定として freeze に明示記録する設計にした。**freeze 生成 (generate --confirmed-by)
+  はこの裁定の承認後に人間確認者名を与えて実行する**
+- **8b-2 descriptor 射影 + 二段検証 gate (98aadce):** schema 逐語凍結、canonical 整数文字列、
+  禁止キー再帰走査 (キー限定 — enum 値 maximize_throughput_tps の偽陽性回避を明記)、
+  positive control (measured_tps/winner 注入が両段で落ちる)。テスト 18 passed
+- **層3 renderer v2 (da163d0) + 実レポート 6 本 (66e3193):** sweep 対応 (whiteboard_provenance)、
+  floor 照合の実欠陥 2 種を実適用で発見し修正 — (a) records/threads のみの一意仮定が標準動作点
+  1m/48 で不成立 (floor 無し JSON への発火 + 5 件重複) → workload 込み within/between 二種
+  独立照合へ、(b) stage "abort" 未知拒否 → 正規化 + aborts view。trigger sweep 6 本へ生成
+  (双射 pass)。screening payload 持ち (6f169f90) は対象外注記。機序仮説層の原料配線
+  (agent_outputs.jsonl 案) は insight に設計凍結、実装は v3 繰延
+- **自己一致の実検出:** codex B のテストが三軸静止リテラルを含み、holdout 検索に conjunction
+  hit した → 実行時組み立てへ修正。「holdout 軸の JSON 形リテラルを repo に静止させない」は
+  今後の実装でも維持する規律 (freeze の番人テスト + 実検索が防壁)
+- **codex 運用の教訓 2 点:** (1) B が worklog へ越権追記 → 差し戻し。以後の仕様書に
+  「worklog へ書くな」を明記する。(2) codex は CLAUDE.md に従い自分用 handoff を作り正常
+  終了時に自削除した (良い挙動、放置時は親が回収)
+- 検証: 対象テスト 55 passed (holdout 10 / descriptor 18 / layer3 27)、check_docs 違反なし、
+  check_ai_provenance 71 件違反なし、ccbench clean (codex に pytest の対象限定を徹底)
+
+### 次の一手
+1. ユーザー承認 2 件: (a) variant_binding 規則 nearest-read-ratio-v1、(b) 承認後に
+   `python3 orchestrator/campaign/s8b_holdout_freeze.py generate --confirmed-by <確認者> --confirmed-at <日付>`
+2. 8b 後半の実装: selector 役 (tool-less 構造化出力、勝者名・実測値の構造遮断、入力 builder は
+   descriptor_for_holdout + freeze variant_binding の whitelist 射影) → oracle 評価 driver
+   (§5.1 二層分離、s1_direct_comparison の器を再利用、floor/budget null の間は bench 拒否)。
+   oracle 実測は親が計測窓で直列
+3. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
