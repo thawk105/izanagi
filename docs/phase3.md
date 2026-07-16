@@ -42,8 +42,9 @@ floor/budget は再実測までの null)、8b 後半 = selector 役 + oracle 評
 2026-07-16 (1)〜(6) と archive を正本とし、ここに再掲しない。
 次: (a) **§9 再凍結 draft 8 項目のユーザー承認** (承認まで selector 予測の実実行はしない)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
-拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う)、(c) 8b 二波監査の全文
-(scratchpad 退避分) を output/insights または監査 JSON へ凍結、(d) 8b + 層3の 1 cycle 後に
+拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
+残存証拠 (worklog 要約 + commit 本文 + 回帰テスト) からの再構成 + 消失記録を output/insights へ
+凍結する (原文の逐語復元は不能と明記する)、(d) 8b + 層3の 1 cycle 後に
 必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を再判断する。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
@@ -202,7 +203,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    同型 — 現状の防壁は auditor の静的目視 + 残存リスク節の実機確認記録)。実走手順 =
    `docs/phase3-s5-sort-runbook.md`。正本 = D40〜D43・`orchestrator/campaign/p3_s4_loop_sort.py`・
    campaign `p3-s5-sort-loop-s5-sort-autonomous-3be89e0d`。
-6. **旧主実験の縮小主張 S' を閉じる (残り = S-1)** — D52 で旧 headline を主張 S に再構成したが、
+6. **(完了 2026-07-16) 旧主実験の縮小主張 S' を閉じる** — D52 で旧 headline を主張 S に再構成したが、
    S-2 は不成立、S-3 は棄却済みで、帰属依存節を削った S' だけが残った。これは登録済み family を最後まで
    報告するために安価に完走するものであり、roadmap 改訂後の Phase 3 中心価値や「LLM が機械探索を上回る」
    成功条件にはしない。**S-1 が成立しても、適格率次元の発見再現性は未実証のまま**と併記する。
@@ -222,14 +223,14 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      block2 全 success、report = `output/reports/s1_direct_comparison/`。三値判定 = S-1a 不成立 /
      S-1b 成立。開発相 v1 は driver 実体化バグで 3 セル abandoned → 修正 d2a46f1 後に v2 で
      完全再走、経緯は failures.md F19)
-   - [ ] Holm 族 4 全体の裁定と S' 報告文言を人間確認で確定する (report は参考 α=0.0125 のみ、
-     族全体の裁定は事前登録どおり自動で閉じない)
+   - [x] Holm 族 4 全体の裁定と S' 報告文言を人間確認で確定する (2026-07-16 判定表ユーザー承認 =
+     S' headline 不成立で確定、最終報告 = `output/reports/s_prime_final_report.md`、worklog 2026-07-16 (2))
 
    正本は canary = `output/insights/2026-07-13_s6-canary-rename.md`、提案ラウンド =
    `output/s6-rounds/`、内容分析 = `output/insights/2026-07-13_s6-rounds-content-analysis.md`、
    確定文言 = `output/insights/2026-07-13_s6-report-language.md`、棚卸し = worklog 2026-07-13 (11)。
-   Holm 上界により S-2/S-3 の非有意は S-1 の結果に依存せず確定しているが、族判定表の形式的完成は
-   S-1 待ちである。
+   Holm 上界により S-2/S-3 の非有意は S-1 の結果に依存せず確定しており、族判定表は S-1 三値判定
+   (S-1a 不成立 / S-1b 成立) を受けて 2026-07-16 に完成・ユーザー承認済み。
 
    以下の前提タスク台帳は旧 headline の契約を保存する。(a)〜(e) は旧 headline を復活させない限り休眠、
    (f)(g) は上の S-1 checklist で現役、(h)〜(j) は完了済み:
@@ -268,7 +269,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    一歩目は**カタログ化の試作 1 枚** (他 CC の最適化 1 つを「前提/効果/競合」でカード化し、移植先で前提が満たせるかを
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
-8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、次は 8b、8c は条件付き)** — 外部評価
+8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、8b 進行中、8c は条件付き)** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
    リスクに応じてレビューする。新しい統計主張・不可逆な決定は D41 相当の 3 レンズ、可逆な schema/文言は
    1 レンズまたは事後監査、反復可能な整合検査は機械 lint とする (worklog 2026-07-14 (3))。これはレビュー
@@ -295,7 +296,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      - 正本 = D47〜D51・`docs/phase3-s8a-trigger-runbook.md`・checkpoint campaign
        `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5` (最終成果物)・
        `orchestrator/campaign/axis_trigger_gating.py`・`auditor_gate.py`・`p3_s4_loop_trigger_gating.py`
-   - **(8b 未着手) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
+   - **(8b 着手済み — 現在地・着手順は現行チェックポイントが正本) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
      coder / selector への入力に型付き workload descriptor (read/write 比率、競合ラベル、スケール、目的、
      正しさ制約。勝者名と実測性能値は除外) を追加し、同一 variant 集合を同一予算で比較する。
      既存 rr5/rr50/rr95 と D50/P2-4 の結果はすでに既知なので、**配線 demo または結果既知の

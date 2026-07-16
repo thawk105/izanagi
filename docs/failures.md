@@ -222,6 +222,22 @@
 - 再発検知: test_s1_direct_comparison.py の骨格温存検査 + develop 相の実 build (18 構成) が
   毎回の統合 positive control として機能する
 
+### F20. 監査全文の揮発性領域退避 — セッション成果の唯一コピーが /tmp から消失 [手順漏れ]
+- 事象: 8b 二波監査の全文 (audit-wave1/2-out.md) を /tmp のセッション scratchpad へ退避し、
+  worklog 2026-07-16 (5) は「次セッションで output/ へ移すか判断」とポインタだけを記録した。
+  同日午後の凍結着手時に全 /tmp/claude-* と ~/.codex/sessions、Claude transcript を探索したが
+  不在 — 唯一コピーが失われ、原文全文は復元不能になった (削除時刻・主体・原因は不明のため
+  断定しない)
+- 根本原因: 「セッションを跨いで必要になり得る成果物」を非永続領域にだけ置き、永続化判断を
+  次セッションへ繰り延べた。scratchpad はセッション専用の一時領域であり、生存保証がない
+- 恒久対応: セッションを跨ぐ可能性のある成果物 (監査・相談の全文、実測値、裁定) は生成した
+  同じセッション内に repo 配下 (output/insights 等) へ置き、worklog / handoff には repo 内
+  パスだけを残す (docs/handoff/README.md へ規約追記)。残存証拠からの再構成 =
+  `output/insights/2026-07-16_s8b-two-wave-audit-reconstruction.md`
+- 再発検知: 機械 lint は見送り — worklog / handoff の /tmp 言及は正当な一時運用でも現れ、
+  「唯一コピーか」の意味判定が必要になるため恒真化リスクがある (D31 と同型の prompt 規律とし、
+  再発時に機械化を再検討)
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
