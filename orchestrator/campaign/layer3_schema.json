@@ -3,23 +3,32 @@
   "title": "Izanagi Layer 3 material report",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "meta", "workload", "variants", "runs", "verifications", "rejects", "noise_floor", "noise_floor_provenance", "noise_floor_search", "env_tags", "whiteboard", "artifact_refs", "source_refs", "mechanism_hypotheses"],
+  "required": ["schema_version", "meta", "workload", "variants", "runs", "verifications", "rejects", "aborts", "noise_floor", "env_tags", "whiteboard", "whiteboard_provenance", "artifact_refs", "source_refs", "mechanism_hypotheses"],
   "properties": {
-    "schema_version": {"const": "layer3-material-report/v1"},
+    "schema_version": {"const": "layer3-material-report/v2"},
     "meta": {"type": "object", "additionalProperties": false, "required": ["campaign_id", "campaign_path", "ccbench_commit", "generated_from_head", "generator"], "properties": {"campaign_id": {"type": "string", "minLength": 1}, "campaign_path": {"type": "string", "minLength": 1}, "ccbench_commit": {"type": "string"}, "generated_from_head": {"type": "string", "minLength": 1, "description": "provenance only; excluded from deterministic comparison because HEAD can move"}, "generator": {"type": "object", "additionalProperties": false, "required": ["identity", "sha256"], "properties": {"identity": {"const": "orchestrator.campaign.layer3_report"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}},
     "workload": {"type": "object"},
     "variants": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "genome", "src_token", "events"], "properties": {"variant": {"type": "string"}, "genome": {"type": "array", "items": {"type": "string"}}, "src_token": {"type": "array", "items": {"type": "string"}}, "events": {"type": "array", "items": {"type": "object"}}}}},
     "runs": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "source_ref", "tps", "median_tps", "cv", "rounds", "leading_indicators"], "properties": {"variant": {"type": "string"}, "source_ref": {"$ref": "#/definitions/wal_ref"}, "tps": {"type": "array"}, "median_tps": {"type": "number"}, "cv": {"type": "number"}, "rounds": {"type": "integer"}, "leading_indicators": {"type": "object"}, "high_variance": {"type": "boolean"}, "unstable": {"type": "boolean"}, "cv_history": {"type": "array"}, "settled": {"type": "boolean"}, "rep_notes": {"type": "array"}, "run_cmd": {"type": "string"}}}},
     "verifications": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "source_ref", "verdict", "certified"], "properties": {"variant": {"type": "string"}, "source_ref": {"$ref": "#/definitions/wal_ref"}, "verdict": {"type": "string"}, "certified": {"type": "boolean"}, "commits": {"type": "integer"}, "aborts": {"type": "integer"}, "anomalies": {"type": "integer"}, "workload": {"type": "object"}}}},
     "rejects": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "reason", "source_ref"], "properties": {"variant": {"type": "string"}, "reason": {"enum": ["commit-event-absent"]}, "source_ref": {"$ref": "#/definitions/wal_ref"}}}},
-    "noise_floor": {},
-    "noise_floor_provenance": {"enum": ["env-record", "no-matching-env-record"]},
-    "noise_floor_search": {"type": ["object", "null"]},
+    "aborts": {"type": "array", "items": {"type": "object", "required": ["variant", "source_ref", "reason"], "properties": {"variant": {"type": "string"}, "source_ref": {"$ref": "#/definitions/wal_ref"}, "reason": {"type": "string", "minLength": 1}}}},
+    "noise_floor": {"type": "object", "additionalProperties": false, "required": ["within_run", "between_run"], "properties": {"within_run": {"$ref": "#/definitions/floor_result"}, "between_run": {"$ref": "#/definitions/floor_result"}}},
     "env_tags": {"type": "array", "items": {"type": "string"}},
     "whiteboard": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["iteration", "direction", "magnitude", "result", "delta_pct"], "properties": {"iteration": {"type": "integer"}, "direction": {"type": "string"}, "magnitude": {"type": "string"}, "result": {"type": "string"}, "delta_pct": {"type": ["number", "null"]}}}},
+    "whiteboard_provenance": {"enum": ["loop_state", "absent"]},
     "artifact_refs": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
     "source_refs": {"type": "array", "items": {"type": "string", "pattern": "^(wal|wb):[0-9a-f]{64}$"}},
-    "mechanism_hypotheses": {"type": "array", "maxItems": 0, "description": "reserved and always empty until structured WAL inputs exist; a schema_version bump is required to enable it"}
+    "mechanism_hypotheses": {"type": "array", "maxItems": 0, "description": "原料配線設計 = docs/ 側の設計文書に従い、実装時に v3 へ上げる"}
   },
-  "definitions": {"wal_ref": {"type": "string", "pattern": "^wal:[0-9a-f]{64}$"}}
+  "definitions": {
+    "wal_ref": {"type": "string", "pattern": "^wal:[0-9a-f]{64}$"},
+    "floor_source": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "floor_result": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "object"}, "provenance": {"const": "env-record"}, "source": {"$ref": "#/definitions/floor_source"}, "search": {"type": "null"}}},
+        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "null"}, "provenance": {"const": "no-matching-env-record"}, "source": {"type": "null"}, "search": {"type": "object"}}}
+      ]
+    }
+  }
 }

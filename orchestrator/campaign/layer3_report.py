@@ -2,13 +2,19 @@
 """D12 の層3材料レポートを WAL と whiteboard から再生成する。
 
 使い方: ``python3 orchestrator/campaign/layer3_report.py <campaign_dir> <out_json>``。
-これは既存の構造化記録だけを完全射影する。入力由来の hash multiset と、構築済み
+これは既存の構造化記録だけを完全射影する。loop campaign の whiteboard に加え、
+``loop_state.json`` を持たない sweep campaign も whiteboard の provenance を明示して扱う。
+入力由来の hash multiset と、構築済み
 report 本体を再走査して得る multiset を独立に比較し、view の source_ref も一次配置を
 参照することを検査する。未知 stage、重複、脱落、参照不能、読めない入力、schema
 不適合はいずれも例外にし、部分レポートを出力しない。
 
 ``mechanism_hypotheses`` は未実装の予約区画であり、常に空である。WAL に必要な原料が
 構造化され、schema_version を上げて契約を拡張するまで解除しない。
+noise floor は within_run = 1 測定の品質、between_run = run 間比較の採否 floor として区別する（p2_2.py の A2 注記と同じ区別）。
+abort variant も commit-event-absent のため rejects に載り、詳細理由は aborts view が保持する。
+schema v1 で生成済みの実レポートは、generator sha を内包する記録済み artifact であり、
+v2 への更新のために再生成しない。
 ``generated_from_head`` は provenance であり、決定論比較の対象外である（HEAD が動けば
 変わる）。
 """
@@ -18,6 +24,7 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import subprocess
 import tempfile
 from collections import Counter, defaultdict
@@ -27,9 +34,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import jsonschema
 
 
-SCHEMA_VERSION = "layer3-material-report/v1"
+SCHEMA_VERSION = "layer3-material-report/v2"
 GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
-STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "commit"))
+STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "commit", "abort"))
 _HERE = Path(__file__).resolve().parent
 _SCHEMA_PATH = _HERE / "layer3_schema.json"
 _DEFAULT_OUTPUT_ROOT = _HERE.parents[1] / "output"
@@ -161,7 +168,7 @@ def _assert_bijection(records: Sequence[Mapping[str, Any]], whiteboard: Sequence
     if source_refs != actual:
         raise Layer3ReportError("source_refs 区画が report 本体走査結果と一致しない")
     primary_wal_refs = {ref for ref in actual if ref.startswith("wal:")}
-    for section in ("runs", "verifications", "rejects"):
+    for section in ("runs", "verifications", "rejects", "aborts"):
         for row in report.get(section, ()):
             if not isinstance(row, Mapping) or row.get("source_ref") not in primary_wal_refs:
                 raise Layer3ReportError("%s の source_ref が一次配置を参照しない" % section)
@@ -196,30 +203,94 @@ def _view_row(event: Mapping[str, Any]) -> Dict[str, Any]:
             "source_ref": canonical_record_ref("wal", event)}
 
 
-def _calibration_records(calibration_dir: Path, records: Any, threads: Any) -> Tuple[Any, Dict[str, Any]]:
+def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
+                        workload: Any) -> Tuple[Dict[str, Dict[str, Any]],
+                                                Dict[str, Dict[str, Any]]]:
+    """floor を kind 別に分類・照合し、report 値と完全な検索詳細を返す。"""
     paths = sorted(calibration_dir.glob("*.json")) if calibration_dir.is_dir() else []
-    matches = []
-    mismatch_reasons = Counter()
+    block_for_kind = {"within_run": "noise_floor", "between_run": "between_run"}
+    candidates: Dict[str, List[Tuple[Path, Dict[str, Any], Any, Any, Dict[str, Any]]]] = {
+        kind: [] for kind in block_for_kind
+    }
+    skipped_no_floor_block = []
     for path in paths:
         doc = _read_json(path)
         if not isinstance(doc, dict):
             raise Layer3ReportError("calibration record が object でない: %s" % path)
-        doc_records = doc.get("records", (doc.get("saturation") or {}).get("records"))
-        doc_threads = doc.get("threads")
-        if doc_records != records or doc_threads != threads:
-            mismatch_reasons["records=%r threads=%r" % (doc_records, doc_threads)] += 1
+
+        kinds = [kind for kind, block in block_for_kind.items()
+                 if isinstance(doc.get(block), dict)]
+        if len(kinds) > 1:
+            raise Layer3ReportError("calibration record が複数 kind の floor block を持つ: %s" % path)
+        if not kinds:
+            skipped_no_floor_block.append(path.name)
             continue
-        floor = doc.get("noise_floor", doc.get("between_run"))
-        if not isinstance(floor, dict):
-            raise Layer3ReportError("一致 calibration の floor block がない: %s" % path)
-        matches.append((path, floor))
-    if len(matches) > 1:
-        raise Layer3ReportError("一致する calibration floor が複数ある")
-    if matches:
-        path, floor = matches[0]
-        return floor, {"path": str(path.relative_to(calibration_dir.parents[2])), "sha256": _sha256_file(path)}
-    details = "; ".join("%s (%d)" % item for item in sorted(mismatch_reasons.items()))
-    return None, {"scanned_files": len(paths), "summary": "scanned %d calibration files; none match records=%s threads=%s%s" % (len(paths), records, threads, ("; mismatches: " + details) if details else "")}
+
+        if "records" in doc:
+            doc_records = doc["records"]
+        else:
+            saturation = doc.get("saturation")
+            if not isinstance(saturation, dict) or "records" not in saturation:
+                raise Layer3ReportError("floor calibration に records がない: %s" % path)
+            doc_records = saturation["records"]
+        if "threads" not in doc:
+            raise Layer3ReportError("floor calibration に threads がない: %s" % path)
+        if "workload" not in doc or not isinstance(doc["workload"], dict):
+            raise Layer3ReportError("floor calibration に workload dict がない: %s" % path)
+        kind = kinds[0]
+        candidates[kind].append(
+            (path, doc[block_for_kind[kind]], doc_records, doc["threads"], doc["workload"]))
+
+    campaign_has_no_ycsb = not isinstance(workload, dict)
+    report_floors: Dict[str, Dict[str, Any]] = {}
+    search_details: Dict[str, Dict[str, Any]] = {}
+    for kind in block_for_kind:
+        candidate_rows = candidates[kind]
+        mismatches = []
+        matches = []
+        for path, floor, doc_records, doc_threads, doc_workload in candidate_rows:
+            if (not campaign_has_no_ycsb and doc_records == records
+                    and doc_threads == threads and doc_workload == workload):
+                matches.append((path, floor))
+            else:
+                mismatches.append({
+                    "file": path.name,
+                    "records": doc_records,
+                    "threads": doc_threads,
+                    "workload": doc_workload,
+                })
+        if len(matches) > 1:
+            raise Layer3ReportError("一致する %s calibration floor が複数ある" % kind)
+
+        detail = {
+            "scanned_files": len(paths),
+            "candidate_files": [row[0].name for row in candidate_rows],
+            "skipped_no_floor_block": list(skipped_no_floor_block),
+            "campaign_has_no_ycsb": campaign_has_no_ycsb,
+            "criteria": {"records": records, "threads": threads,
+                         "workload": workload if isinstance(workload, dict) else None},
+            "mismatches": mismatches,
+        }
+        search_details[kind] = detail
+        if matches:
+            path, floor = matches[0]
+            report_floors[kind] = {
+                "value": floor,
+                "provenance": "env-record",
+                "source": {
+                    "path": str(path.relative_to(calibration_dir.parents[2])),
+                    "sha256": _sha256_file(path),
+                },
+                "search": None,
+            }
+        else:
+            report_floors[kind] = {
+                "value": None,
+                "provenance": "no-matching-env-record",
+                "source": None,
+                "search": detail,
+            }
+    return report_floors, search_details
 
 
 def _resolve_campaign_dir(campaign_dir: Path, output_root: Optional[Path]) -> Tuple[Path, Path]:
@@ -241,15 +312,31 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     if not campaign_dir.is_dir():
         raise Layer3ReportError("campaign directory が存在しない: %s" % campaign_dir)
     lock = _read_json(campaign_dir / "campaign.lock")
-    state = _read_json(campaign_dir / "loop_state.json")
-    if not isinstance(lock, dict) or not isinstance(state, dict):
-        raise Layer3ReportError("campaign.lock/loop_state.json が object でない")
+    state_path = campaign_dir / "loop_state.json"
+    try:
+        state_mode = state_path.stat().st_mode
+    except FileNotFoundError:
+        if state_path.is_symlink():
+            raise Layer3ReportError("loop_state.json が読めない: %s" % state_path)
+        whiteboard = []
+        whiteboard_provenance = "absent"
+    except OSError as exc:
+        raise Layer3ReportError("loop_state.json が読めない: %s" % state_path) from exc
+    else:
+        if not stat.S_ISREG(state_mode):
+            raise Layer3ReportError("loop_state.json が通常ファイルでない: %s" % state_path)
+        state = _read_json(state_path)
+        if not isinstance(state, dict):
+            raise Layer3ReportError("loop_state.json が object でない")
+        whiteboard = state.get("whiteboard")
+        if not isinstance(whiteboard, list) or not all(isinstance(item, dict) for item in whiteboard):
+            raise Layer3ReportError("loop_state.whiteboard が object の list でない")
+        whiteboard_provenance = "loop_state"
+    if not isinstance(lock, dict):
+        raise Layer3ReportError("campaign.lock が object でない")
     required_lock = {"ccbench_commit", "search_config", "search_tag", "spec_content", "trial"}
     if set(lock) != required_lock or not isinstance(lock["search_config"], dict):
         raise Layer3ReportError("campaign.lock のキーが不正")
-    whiteboard = state.get("whiteboard")
-    if not isinstance(whiteboard, list) or not all(isinstance(item, dict) for item in whiteboard):
-        raise Layer3ReportError("loop_state.whiteboard が object の list でない")
     _assert_unique_refs("wb", whiteboard, "whiteboard")
     records = _read_wal(campaign_dir / "runs" / "wal.jsonl")
     env_tags = {record["env_tag"] for record in records}
@@ -264,13 +351,14 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     events_by_variant = {row["variant"]: row["events"] for row in variant_rows}
     runs = [_view_row(event) for event in ordered if event["stage"] == "bench_done"]
     verifications = [_view_row(event) for event in ordered if event["stage"] == "verify_done"]
+    aborts = [_view_row(event) for event in ordered if event["stage"] == "abort"]
     rejects = [{"variant": name, "reason": "commit-event-absent",
                 "source_ref": canonical_record_ref("wal", events[-1])}
                for name, events in sorted(events_by_variant.items())
                if not any(event["stage"] == "commit" for event in events)]
     calibration_dir = output_root / "env" / next(iter(env_tags)) / "calibration"
-    noise_floor, noise_detail = _calibration_records(calibration_dir, records_count, threads)
-    matched = noise_floor is not None
+    noise_floor, _ = _calibration_floors(
+        calibration_dir, records_count, threads, lock["search_config"].get("ycsb"))
     report: Dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "meta": {
@@ -280,11 +368,11 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
             "generator": {"identity": GENERATOR_IDENTITY, "sha256": _sha256_file(Path(__file__))},
         },
         "workload": lock["search_config"], "variants": variant_rows, "runs": runs,
-        "verifications": verifications, "rejects": rejects, "noise_floor": noise_floor,
-        "noise_floor_provenance": "env-record" if matched else "no-matching-env-record",
-        "noise_floor_search": None if matched else noise_detail,
+        "verifications": verifications, "rejects": rejects, "aborts": aborts,
+        "noise_floor": noise_floor,
         "env_tags": sorted(env_tags),
         "whiteboard": sorted(whiteboard, key=lambda item: canonical_record_ref("wb", item)),
+        "whiteboard_provenance": whiteboard_provenance,
         "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
         "mechanism_hypotheses": [],
     }
