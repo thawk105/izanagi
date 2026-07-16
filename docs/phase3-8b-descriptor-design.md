@@ -265,3 +265,46 @@ S-1 サンプル設計 4 点」と同じく、**n、検定単位、検定力（�
 発効後に holdout、schema、variant 集合、予算、gate、floor、選択規則、判定基準、統計数値、
 screening の範囲を変更する場合は、旧 freeze と変更理由を残し、**再凍結 + ユーザー承認**を要する。
 既知 rr5/rr50/rr95 の配線 demo を追加しても、この手続きを迂回して新規科学的主張へ数え替えてはならない。
+
+## 9. 再凍結 draft 2026-07-16 — selector 実装裁定（承認待ち。承認までは効力を持たない）
+
+selector 役の実装設計 (独立コンテキストの設計相談 2 本 + 親裁定) で、§4/§5.1 が未規定または
+複数解釈を許す点が見つかった。以下は**選択規則に関わるため実装既定にせず**、再凍結事項として
+ユーザー承認を求める。旧凍結からの変更理由は各項に付す。
+
+1. **off arm の静的既定選択 = `stock_common` 固定（agent 非呼び出し）。** §4 の「静的既定選択」は
+   LLM を呼ばない固定規則と解する。`stock_common` は 6 構成中唯一 workload 別 argmax 由来でなく
+   upstream defaults 由来であり、既定として最も防御可能。予測台帳には
+   `decision_method="static_default"` を記録する。（旧凍結は off の具体既定値を未規定）
+2. **selector-visible カタログは不透明 ID + workload 不変の中立機構語彙。** freeze の
+   `variant_binding` 生フィールド（flags・backoff 値・comparator・gate 述語・sources のパス）は
+   値の由来が既知 argmax であり、`sources` パスは anchor workload 名を直接含むため、selector には
+   一切渡さない。渡すのは固定 6 件の `{choice_id: c01..c06, mechanism: 制御語彙}` のみで、全
+   holdout・全呼び出しで byte 同一。ID→構成の解決は信頼中核だけが予測**後**に行う。（旧凍結の
+   「設計由来の静的メタデータ」の解釈を、性能結果を lineage に持つ値を除外する側へ確定）
+3. **swapped 追従の判定単位は構成 family ID の一致。** 現行 variant_binding は holdout ごとに
+   実装実体が異なる（nearest-read-ratio-v1 の帰結）ため、§6 の「swapped の予測が swap 元への
+   on の予測へ追従」は exact implementation でなく family ID（c01..c06 ↔ 6 構成名）の一致として
+   判定する。主張は workload-aware family selection に限定される。
+4. **予測は 2 holdout × 3 arm = 6 セルを各独立 1 回で固定。** on/swapped は fresh・tools なしの
+   selector を同一 payload でもセルごとに独立実行し、結果の再利用・不正出力の再試行をしない
+   （同一 payload の出力共有は swapped 追従を構造的な恒真にする。再試行は cherry-pick になる）。
+5. **selector 出力の欠測・不正は fallback せず判定不能。** strict parser（未知キー・重複キー・
+   複数選択・fence・非有限値を拒否）を通らないセルは `choice_id=null` で凍結し、§6 の該当条件を
+   判定不能へ倒す。既定構成への fallback は置かない。
+6. **予測凍結と oracle の分離。** 予測は `output/s8b-freeze/` 配下に承認後に生成する
+   `selector_predictions.json` (本 draft 時点では未生成) として、oracle 実走前へ
+   exclusive-create + 内容 hash + commit pin で封印し、swapped 追従の期待値
+   （`on[derangement[target]].choice_id`）もこの時点で固定する。oracle 結果は別ファイルへ書き、
+   予測ファイルを更新しない。floor/budget の後日再凍結でファイル全体 hash が変わっても予測を
+   継続利用できるよう、holdout 条件・derangement・variant_binding・カタログ対応だけの部分 hash
+   （selector_basis）で束縛する。
+7. **oracle 集約規則 = 試行内中央値の構成中央値（median of medians）。**（§5.1 は一意最大の
+   確定を規定するが集約統計量が未規定だった。floor は argmax の tie-break に使わず、on/off
+   予測構成差の判定にのみ使う — §6 のとおり）
+8. **実走後の途中再開は拒否。** 実走後は WAL に holdout 条件が現れ、freeze の未既知性検索が
+   意図どおり fail するため、新プロセスでの resume は安全側で拒否する。resume を許す設計変更は
+   未既知性検査範囲の変更であり、別途の再凍結 + 承認を要する。
+
+floor・budget・n・seed・block・extime/reps・機械故障一覧（allowed_excluded_reasons）・検定数値は
+§5.2/§6/§8 のとおり floor 再実測後の再凍結で数値を充填する（本 draft では凍結しない）。
