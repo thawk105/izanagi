@@ -233,6 +233,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                              workload=perf.workload, numactl=numactl,
                              extra_env={"IZANAGI_TRACE_DIR": dummy_tdir})
 
+    bench_wall_s = 0.0
     try:
         # 外れ値 → 自動再測定 (§3.6(2)): 反復内 CV が閾値超なら静定して測り直す。規定
         # ラウンドで収束しなければ unstable。再測定の実走も全て bench_lock 下 = 単一
@@ -248,11 +249,15 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
             if comp:
                 return abort("bench-competing-tenant",
                              "競合 ccbench ベンチを検知 → 汚染計測を採用せず reject (規律4)",
-                             {"competing": comp}), None
+                             {"competing": comp, "bench_wall_s": bench_wall_s}), None
             settled = settle() if do_settle else None
-            rem = remeasure_until_stable(_measure,
-                                         settle_fn=settle if do_settle else None,
-                                         max_rounds=bench_max_rounds)
+            bench_started = time.monotonic()
+            try:
+                rem = remeasure_until_stable(_measure,
+                                             settle_fn=settle if do_settle else None,
+                                             max_rounds=bench_max_rounds)
+            finally:
+                bench_wall_s = float(max(0.0, time.monotonic() - bench_started))
     finally:
         shutil.rmtree(dummy_tdir, ignore_errors=True)
     pt, nf = rem.point, rem.nf
@@ -261,7 +266,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         # 半端な評価を terminal commit にして永久 skip させない (A: atomicity)。
         return abort("bench-no-throughput", "bench 測定失敗 (throughput 無し) → reject",
                      {"tps": getattr(pt, "throughputs", None), "rounds": rem.rounds,
-                      "rep_notes": getattr(pt, "notes", [])}), None
+                      "rep_notes": getattr(pt, "notes", []),
+                      "bench_wall_s": bench_wall_s}), None
     if nf.cv is None:
         # 有効 rep が 1 点のみ (残りは rep 失敗) / 全 rep tps=0 だと CV が定義できず、
         # within-run 品質ゲート (P2-1) を通せない → fitness として採用しない (規律4)。
@@ -270,10 +276,12 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         return abort("bench-cv-undefined",
                      f"CV 算出不能 (有効 rep {len(pt.throughputs)} 点) → reject",
                      {"tps": pt.throughputs, "rounds": rem.rounds,
-                      "rep_notes": getattr(pt, "notes", [])}), None
+                      "rep_notes": getattr(pt, "notes", []),
+                      "bench_wall_s": bench_wall_s}), None
     leading_indicators = pt.leading_indicators()
     bench_payload = {
         "median_tps": nf.median, "cv": nf.cv,
+        "bench_wall_s": bench_wall_s,
         "high_variance": nf.high_variance, "unstable": rem.unstable,
         "rounds": rem.rounds, "cv_history": rem.cv_history,
         "tps": pt.throughputs,

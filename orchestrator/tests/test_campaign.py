@@ -542,6 +542,8 @@ def test_pipeline_records_leading_indicators_in_wal():
                        "llc_miss_rate", "ipc"}
     assert li["abort_rate"] == 0.03 and li["ipc"] == 1.5
     assert "screening" not in bench[0].payload
+    assert isinstance(bench[0].payload.get("bench_wall_s"), float)
+    assert bench[0].payload["bench_wall_s"] >= 0.0
 
 
 def test_pipeline_red_aborts_without_fitness_or_bench():
@@ -704,6 +706,8 @@ def test_pipeline_bench_no_throughput_aborts():
     assert st.aborted and not st.committed
     assert STAGE_VERIFY_DONE in st.stages_seen   # 正しさゲートは通過している
     assert STAGE_COMMIT not in st.stages_seen
+    assert isinstance(st.last_terminal.payload.get("bench_wall_s"), float)
+    assert st.last_terminal.payload["bench_wall_s"] >= 0.0
 
 
 def test_pipeline_bench_cv_undefined_aborts():
@@ -734,6 +738,7 @@ def test_pipeline_competing_tenant_aborts_without_bench():
     assert st.aborted and not st.committed
     assert STAGE_VERIFY_DONE in st.stages_seen   # 正しさゲートは通過 (abort は計測側の理由)
     assert STAGE_COMMIT not in st.stages_seen
+    assert st.last_terminal.payload.get("bench_wall_s") == 0.0
 
 
 def test_pipeline_unstable_commits_but_flags_for_exclusion():
