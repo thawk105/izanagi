@@ -862,3 +862,27 @@ Pegasus は当面デバッグ環境とし、正式計測へ採用するまでは
 
 ### 次の一手
 1. Pegasus を正式性能計測へ採用する場合のみ、専用 env-tag と再 calibration/noise floor を設計
+
+## 2026-07-16 (7) — Pegasus runbook 実機検証 + 横断 docs のマシン非依存化
+
+pegasus02 上で前エントリの runbook を実機検証。gen_S スモークジョブ (Request 866621.nqsv) が
+投入 7 秒後に開始・完走し「投げて帰ってくる」を確認。qsub probe で gpu キューは SFC から
+`EACCESSDEN`、debug は対話型で `qsub` 不可 (`EWRNGTYP`) を実測し、`cuda/12.3.2` 不在、`/scr` の
+所在等と合わせて runbook を補正。一次資料 = /work/SFC/tanab/pegasus_smoke_20260716/ (ジョブ
+出力 + evidence/、残ジョブなし)。
+
+- ユーザー方針 (協議決着): 横断 docs に特定マシン (pegasus/cygnus) を焼き込まない。マシン固有の
+  事実は各マシン専用 runbook のみに置き、CLAUDE.md・orchestrator-design・failures F3 への追記は
+  共有計算環境一般の原則文とした。「主戦場がどこか」は可変状態なので文書へ再掲しない
+- 監査: codex 敵対レビュー (レンズ 7)。REAL 5 = 単一観測の過度な一般化 — 全採用し実測範囲へ
+  縮小。MINOR 1、REFUTED 6。Explore の波及調査は修正要 5 件 → 3 件採用・2 件持ち越し (下記)
+- 工数: codex exec ×1 (reviewer)、Explore ×1。運用知見: codex の `--sandbox danger-full-access`
+  起動は許可分類器に却下される — read-only / workspace-write で使う
+- 持ち越し: roadmap §5 は旧計測機 (Dell R760) 前提のままだが、正式計測の正本は依然
+  linux-baremetal のため現状は誤りでない — Pegasus を正式計測へ採用する時に roadmap-history
+  手続きで改訂。phase3-s4b/s5/s8a runbook の実走前ゲート (pgrep 単独性確認) は共有環境非対応 —
+  再利用時に「専有計算ノード確保」へ差し替え
+
+### 次の一手
+1. Pegasus を正式性能計測へ採用する場合のみ、専用 env-tag と再 calibration/noise floor を設計
+   (併せて roadmap §5 改訂 + 実走系 runbook のゲート差し替え)

@@ -36,7 +36,9 @@
 ### F3. 計測前の単独性未確認 — 孤児ベンチとの並走 near-miss [計測汚染]
 - 事象: 前セッションの孤児ベンチプロセスが残ったまま計測に入りかけた (load average は
   指数移動平均で laggy なため気づきにくい)
-- 恒久対応: memory `verify-single-tenant-before-measuring` — 計測前に pgrep で競合確認
+- 恒久対応: memory `verify-single-tenant-before-measuring` — 計測前に pgrep で競合確認。
+  補足 (2026-07-16): 共有計算環境のログインノードでは pgrep が他ユーザーのプロセスを拾い得て
+  単独性確認にならない。確認は専有した計算ノード上でのみ有効
 - 再発検知: 計測系 runbook の事前チェック手順
 
 ### F4. 監査セッション突然死と文書一貫性の腐敗 [セッション死・救出] [ドリフト]

@@ -6,12 +6,16 @@ Izanagi 固有の実験設計や完了状況は持たず、計算機上での操
 ## 0. 前提
 
 - project: `SFC`
-- 利用可能なキューは、ログインの都度 `qstat -Q` で確認する。キュー構成は変わり得るため、
-  この文書の列挙を正本にしない
-- 既知のキュー: `debug` (最大 1 時間)、`interactive` (最大 24 時間)、`gen_S`、`gen_M`、
-  `gen_L`、`gpu`
-- GPU プログラムはログインノードで実行せず、`debug`、`gpu`、または `interactive` キューで
-  割り当てられた計算ノード上で実行する
+- 利用可能なキューは、ログインの都度 `qstat -Q` で確認する。キュー構成・権限は変わり得るため、
+  この文書の列挙を正本にしない。クラスタ全体のキュー一覧は `pegasusinfo` に出る (自分が使えない
+  キューも含む)
+- 既知のキュー (2026-07-16 実測): バッチ (`qsub` 宛先) は `gen_S`、`gen_M`、`gen_L`。対話
+  (`qlogin` 宛先) は `debug` (最大 1 時間)、`interactive` (最大 24 時間)。`gpu` は project
+  `SFC` からは使えない (`qsub -q gpu` が `EACCESSDEN` で拒否されることを実測)。`gpu_low` と
+  `edu-*` は `qstat -Q` に表示されず、アクセス可否は未検証
+- GPU プログラムはログインノードで実行せず、割り当てられた計算ノード上で実行する。gen_S の
+  計算ノード (bnode014) にも H100 が載っていることを `nvidia-smi` で実測した (他キュー・他
+  node は未確認。§1 の node 仕様上は全 node 同構成)
 
 全体の利用・混雑状況は次で確認する。
 
@@ -29,7 +33,7 @@ pegasusinfo
 | HyperThreading | 無効 |
 | DRAM | 128 GiB (ユーザー利用上限 約 115 GiB) |
 | persistent memory | 2 TiB |
-| GPU | NVIDIA H100 × 1 (80 GiB) |
+| GPU | NVIDIA H100 PCIe × 1 (80 GiB) |
 | local NVMe | 約 5.4 TB (`/scr`) |
 
 1 CPU、48 physical core、HyperThreading 無効の構成である。1 job が 1 node を占有し、各 node の
@@ -38,7 +42,10 @@ GPU は H100 1 枚で固定される。通常は CPU 数、メモリ量、GPU �
 
 ## 2. 短時間の対話ジョブ
 
-デバッグや短時間の動作確認には `qlogin` を使う。次は debug キューで 10 分を要求する最小例。
+デバッグや短時間の動作確認には `qlogin` を使う。`debug` と `interactive` は対話専用キューであり、
+`qsub` でバッチ投入する先ではない (`debug` への `qsub` が `EWRNGTYP (Queue type is wrong)` で
+拒否されることを実測。`interactive` は未 probe だが `qstat -Q` 上は同じ対話型)。次は debug
+キューで 10 分を要求する最小例。
 
 ```bash
 qlogin \
@@ -70,7 +77,7 @@ PBS directive を冒頭に持つシェルスクリプトを作り、ログイン
 #!/bin/bash
 
 #PBS -A SFC
-#PBS -q gpu
+#PBS -q gen_S
 #PBS -l elapstim_req=00:30:00
 
 cd "$PBS_O_WORKDIR" || exit 1
@@ -84,12 +91,15 @@ cd "$PBS_O_WORKDIR" || exit 1
 qsub job.sh
 ```
 
-`qsub` が返す job ID は、状態確認と削除に使うため記録しておく。通常利用する基本 directive は
-次の 3 つである。
+`qsub` は `Request <ID>.nqsv submitted to queue: gen_S.` の形式で request ID を返す。ID は状態確認と
+削除に使うため記録しておく。ジョブ終了後、標準出力・標準エラーは投入時のディレクトリへ
+`<script>.o<ID>` / `<script>.e<ID>` として戻り、標準エラー末尾には NQSV の会計サマリが付く
+(2026-07-16 に gen_S で投入→完走を 1 回実測。このときは投入 7 秒後に開始した)。通常利用する
+基本 directive は次の 3 つである。
 
 ```bash
 #PBS -A SFC
-#PBS -q gpu
+#PBS -q gen_S
 #PBS -l elapstim_req=HH:MM:SS
 ```
 
@@ -125,14 +135,15 @@ qdel <JOBID>
 module avail
 ```
 
-CUDA 12.3.2 の既知の例:
+CUDA の既知の例 (2026-07-16 時点の実在版は 11.8.0 / 12.6.3 / 12.9.1 / 13.0.2。12.3.2 は無い):
 
 ```bash
-module load cuda/12.3.2
+module load cuda/12.6.3
 nvcc sample.cu -o sample
 ```
 
-MPI、コンパイラなどは `module avail` に表示された実在するバージョンを指定する。
+MPI、コンパイラなどは `module avail` に表示された実在するバージョンを指定する。openmpi の版名は
+`openmpi/5.0.10/gcc11.4.0-cuda12.6.3` のようにコンパイラ・CUDA を含む複合名である (実測)。
 
 ```bash
 module load openmpi/<version>
@@ -186,16 +197,17 @@ MPIプロセス数 (1 node あたり) × OMP_NUM_THREADS <= 48
 
 ### GPU
 
-GPU は各 node に NVIDIA H100 80 GiB が 1 枚固定されている。ログインノードでは GPU
-プログラムを実行せず、`debug`、`gpu`、または `interactive` キューで割り当てられた計算ノード上で
-実行する。バッチの通常例は `gpu` キューを指定する。
+GPU は各 node に NVIDIA H100 (PCIe、80 GiB) が 1 枚固定される構成である (§1)。実測は gen_S の
+1 node (bnode014) で `nvidia-smi -L` により H100 PCIe ×1 を確認したのみ。ログインノードでは GPU
+プログラムを実行せず、割り当てられた計算ノード上で実行する。`gpu` キューは project `SFC` からは
+使えないため (§0)、バッチは gen 系キューを指定する。
 
 ```bash
-#PBS -q gpu
+#PBS -q gen_S
 ```
 
 GPU 枚数を個別指定する PBS directive は通常不要である。複数 node を `-b` で要求した場合は、
-node ごとに H100 1 枚が割り当てられる。
+node ごとに H100 1 枚が割り当てられる (§1 の構成から導かれる想定で、未実測)。
 
 ## 6. ストレージと quota
 
@@ -203,10 +215,11 @@ node ごとに H100 1 枚が割り当てられる。
 |---|---|---|
 | `/home/<project>/<user>` | 小さい設定、ソースなど | home 領域 |
 | `/work/<project>/<user>` | 大きなデータ、ビルド、永続成果物 | 大容量データはこちらを優先 |
-| `/scr` | 実行中ジョブのローカル一時領域 | ジョブ終了時に削除される |
+| `/scr` | 実行中ジョブのローカル一時領域 (約 5.4 TB) | 計算ノードのみに存在 (ログインノードには無い)。ジョブ終了時に削除される |
 
 `/scr` に置いた必要な結果は、ジョブが終了する前に `/work/SFC/<user>` などの永続領域へ戻す。
-最終成果物や唯一のコピーを `/scr` に置かない。
+最終成果物や唯一のコピーを `/scr` に置かない。計算ノードでは `/work` 配下が `/work/1/SFC/<user>`
+のような実体パスで見えることがあるが、`$PBS_O_WORKDIR` を経由すれば意識しなくてよい (実測)。
 
 quota とポイント残高は次で確認する。
 
@@ -222,8 +235,11 @@ rbudgetcheck
 
 ## 7. Izanagi で使う場合
 
-Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境として扱う。正式な性能比較へ使うまでは、
-Pegasus 上の throughput を既存の `linux-baremetal` 測定値へ混ぜない。正式採用には次が必要になる。
+Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境として扱う。対話セッションが動くのは
+共有のログインノードであり、ビルド・テスト・ベンチなど重い処理は必ず `qlogin` / `qsub` で
+確保した計算ノード上で行う。単独性確認 (pgrep) は共有ログインノードでは他ユーザーのプロセスを
+拾い得て成立しない — 専有した計算ノード上でだけ意味を持つ。正式な性能比較へ使うまでは、Pegasus
+上の throughput を既存の `linux-baremetal` 測定値へ混ぜない。正式採用には次が必要になる。
 
 1. Pegasus 専用の環境タグを決める
 2. その環境で calibration と noise floor を取り直す
@@ -242,6 +258,7 @@ Izanagi の性能計測では、trace-enabled の正しさ検証と trace-disabl
 - wall time と node 数 (`-b`) が処理に適切である
 - OpenMP threads は 48 以下である
 - hybrid 実行は node あたり `MPI processes × OMP_NUM_THREADS <= 48` である
-- GPU プログラムをログインノードで実行していない
+- GPU プログラムやビルド・テスト・ベンチ等の重い処理をログインノードで実行していない
+- 単独性の確認 (pgrep 等) は、共有ログインノードではなく専有した計算ノード上で行う
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した
