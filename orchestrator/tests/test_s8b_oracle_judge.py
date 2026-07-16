@@ -124,6 +124,50 @@ def test_correctness_red_disqualifies_and_high_score_cannot_win():
     assert holdout["winner_configuration_id"] == CONFIGURATIONS[-2]
 
 
+def test_non_string_excluded_reason_is_unknown():
+    observations = _observations()
+    observations["rows"][0]["excluded_reason"] = 123
+
+    result = judge.judge_oracle(observations)
+    cell = _holdout(result)["configurations"][CONFIGURATIONS[0]]
+
+    assert cell["status"] == "unknown"
+    assert any(reason["code"] == "excluded" and "文字列でない" in reason["message"]
+               for reason in cell["reasons"])
+    assert _holdout(result)["verdict"] == "indeterminate"
+
+
+def test_correctness_red_with_excluded_reason_is_unknown_not_disqualified():
+    observations = _observations()
+    target = CONFIGURATIONS[-1]
+    for row in observations["rows"]:
+        if row["configuration_id"] == target:
+            row["outcome"] = "correctness-red"
+            row["legacy_verify"] = "red"
+            row["s2_verify"] = "missing"
+            row["excluded_reason"] = "machine-fault"
+
+    result = judge.judge_oracle(observations)
+    cell = _holdout(result)["configurations"][target]
+
+    assert cell["status"] == "unknown"
+    assert any(reason["code"] == "red-excluded" for reason in cell["reasons"])
+    assert result["status"] == "indeterminate"
+
+
+def test_committed_row_with_excluded_reason_is_not_eligible():
+    observations = _observations()
+    observations["rows"][0]["excluded_reason"] = "machine-fault"
+
+    result = judge.judge_oracle(observations)
+    cell = _holdout(result)["configurations"][CONFIGURATIONS[0]]
+
+    assert cell["status"] == "unknown"
+    assert any(reason["code"] == "excluded" and "null でない" in reason["message"]
+               for reason in cell["reasons"])
+    assert _holdout(result)["verdict"] == "indeterminate"
+
+
 def test_verify_inconclusive_is_unknown_not_disqualified():
     observations = _observations()
     target = CONFIGURATIONS[-1]

@@ -524,6 +524,12 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         index = window[0].payload.get("schedule_index")
         if _is_int(index):
             windows_by_index.setdefault(index, []).append(window)
+    schedule_indices = {item["schedule_index"] for item in rows}
+    orphan_indices = sorted(index for index in windows_by_index
+                            if index not in schedule_indices)
+    if orphan_indices:
+        global_issues.append(
+            f"trial-start.schedule_index が schedule 外: {orphan_indices!r}")
     output: list[dict] = []
     for item, base in zip(rows, bases):
         if global_issues:

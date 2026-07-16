@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 from collections.abc import Mapping, Sequence
@@ -150,6 +151,60 @@ def _verify_file_record(record: Mapping, *, root: Path, field: str) -> None:
     actual = _file_sha256(path, field=field)
     if actual != record["sha256"]:
         raise SelectorFreezeError(f"{field}.sha256 が実ファイルと不一致")
+
+
+def _verify_commit_pin(sha: str, *, repo: Path, field: str) -> None:
+    """repo で commit へ解決できる pin だけを受理する (git 不在・非 repo は fails-closed)。"""
+    try:
+        subprocess.run(
+            ["git", "cat-file", "-e", f"{sha}^{{commit}}"],
+            cwd=repo, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        detail = getattr(exc, "stderr", b"") or str(exc)
+        if isinstance(detail, bytes):
+            detail = detail.decode("utf-8", "replace")
+        raise SelectorFreezeError(
+            f"{field} が repo の commit に解決できない: {sha}: {str(detail).strip()}"
+        ) from exc
+
+
+def _reparse_agent_raw(row: Mapping, *, root: Path, field: str) -> None:
+    """agent raw 応答を strict parser で再導出し、記録済み結果と照合する。
+
+    raw 不読・hash 不一致・再導出 (status / choice_id / rationale /
+    parser_error_code) と記録値の食い違いは、すべて検証失敗 (fails-closed)。
+    記録済みフィールドを信用して素通しする恒真検証にしない (C2-R2)。
+    """
+    path = _root_file(row["raw_response_path"], root=root, field=f"{field}.path")
+    try:
+        raw_bytes = path.read_bytes()
+    except OSError as exc:
+        raise SelectorFreezeError(f"{field} の実ファイルを読めない: {path}: {exc}") from exc
+    if hashlib.sha256(raw_bytes).hexdigest() != row["raw_sha256"]:
+        raise SelectorFreezeError(f"{field}.sha256 が実ファイルと不一致")
+    try:
+        raw_text = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise SelectorFreezeError(f"{field} の raw 応答が UTF-8 でない: {path}") from exc
+    try:
+        decision = parse_selector_output(raw_text)
+    except SelectorOutputError as exc:
+        if row["status"] != "invalid" or row["parser_error_code"] != exc.code:
+            raise SelectorFreezeError(
+                f"{field} の再 parse 結果 invalid:{exc.code} が記録済み"
+                f" status={row['status']!r}"
+                f" parser_error_code={row['parser_error_code']!r} と不一致"
+            ) from exc
+        return
+    if (row["status"] != "valid"
+            or row["choice_id"] != decision.choice_id
+            or row["rationale"] != decision.rationale):
+        raise SelectorFreezeError(
+            f"{field} の再 parse 結果 valid:{decision.choice_id} が記録済み"
+            f" status={row['status']!r} choice_id={row['choice_id']!r} と不一致"
+        )
 
 
 def _timestamp(value: Any, *, field: str) -> tuple[str, dt.datetime]:
@@ -518,7 +573,11 @@ def build_prediction_freeze(
 
 
 def verify_prediction_freeze(document, *, freeze: Mapping, root=ROOT) -> None:
-    """prediction 文書の hash chain、basis、全セル、期待値を再導出照合する。"""
+    """prediction 文書の hash chain、basis、全セル、期待値を再導出照合する。
+
+    commit pin は形式に加え ``root`` の repo での実在を要求し (C2-R4)、
+    agent raw 応答は strict parser で再 parse して記録値と照合する (C2-R2)。
+    """
     if not isinstance(document, Mapping) or set(document) != _DOCUMENT_KEYS:
         raise SelectorFreezeError("prediction freeze top-level schema が不一致")
     if document.get("schema_version") != SCHEMA_VERSION:
@@ -542,6 +601,9 @@ def verify_prediction_freeze(document, *, freeze: Mapping, root=ROOT) -> None:
     if (not isinstance(document.get("pre_oracle_head"), str)
             or _GIT_SHA_RE.fullmatch(document["pre_oracle_head"]) is None):
         raise SelectorFreezeError("pre_oracle_head が不正")
+    _verify_commit_pin(
+        document["pre_oracle_head"], repo=Path(root), field="pre_oracle_head",
+    )
     sources = _validate_sources(document.get("sources"))
     for name, record in sources.items():
         _verify_file_record(record, root=Path(root), field=f"sources.{name}")
@@ -554,10 +616,7 @@ def verify_prediction_freeze(document, *, freeze: Mapping, root=ROOT) -> None:
     for index, row in enumerate(normalised_rows):
         if row["status"] not in {"valid", "invalid"} or row["arm"] == "off":
             continue
-        _verify_file_record(
-            {"path": row["raw_response_path"], "sha256": row["raw_sha256"]},
-            root=Path(root), field=f"rows[{index}].raw_response",
-        )
+        _reparse_agent_raw(row, root=Path(root), field=f"rows[{index}].raw_response")
     expected = _derive_swapped_expectations(freeze, normalised_rows)
     if document.get("swapped_follow_expectations") != expected:
         raise SelectorFreezeError("swapped_follow_expectations の再導出結果が不一致")

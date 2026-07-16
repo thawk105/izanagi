@@ -133,7 +133,8 @@ def _verify(layout, variant: str, tag: str, certified: bool) -> None:
 
 def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            attempt: int = 1, tps: tuple[float, ...] = (10.0, 12.0),
-           screen_marker: bool = False) -> None:
+           screen_marker: bool = False,
+           excluded_reason: str | None = None) -> None:
     identity = {
         "schedule_index": item["schedule_index"],
         "holdout_id": item["holdout_id"],
@@ -189,7 +190,7 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
     _session(layout, "trial-result", {
         **identity,
         "outcome": declared,
-        "excluded_reason": None,
+        "excluded_reason": excluded_reason,
         "screen_outcome": "not_enabled",
     })
 
@@ -314,6 +315,75 @@ def test_definitive_red_survives_later_committed_retry(tmp_path):
     assert [attempt["outcome"] for attempt in row["attempt_verify_outcomes"]] == [
         "correctness-red", "committed",
     ]
+
+
+@pytest.mark.parametrize("phantom_outcome", ["legacy-red", "committed"])
+def test_trial_window_with_phantom_schedule_index_is_protocol_violation(
+        tmp_path, phantom_outcome):
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    layout = _layout(tmp_path, manifest)
+    phantom = dict(schedule[0], schedule_index=len(schedule) + 100)
+    _trial(layout, phantom, phantom_outcome)
+    for item in schedule:
+        _trial(layout, item, "committed")
+
+    observations = report.build_observations(manifest=manifest, output_root=tmp_path)
+
+    assert all(row["status"] == "protocol_violation"
+               for row in observations["rows"])
+    assert "schedule 外" in observations["rows"][0]["reason"]
+    assert judge.judge_oracle(observations)["status"] == "indeterminate"
+
+
+def test_allowed_excluded_reason_row_stays_reported_and_judges_unknown(tmp_path):
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    excluded_item = schedule[0]
+    layout = _layout(tmp_path, manifest)
+    for item in schedule:
+        if item is excluded_item:
+            _trial(layout, item, "timeout", excluded_reason="machine-fault")
+        else:
+            _trial(layout, item, "committed")
+
+    observations = report.build_observations(manifest=manifest, output_root=tmp_path)
+    row = observations["rows"][0]
+    verdict = judge.judge_oracle(observations)
+
+    assert row["status"] == "completed"
+    assert row["outcome"] == "timeout"
+    assert row["excluded_reason"] == "machine-fault"
+    assert verdict["status"] == "indeterminate"
+    cell = verdict["holdouts"][row["holdout_id"]]["configurations"][
+        row["configuration_id"]
+    ]
+    assert cell["status"] == "unknown"
+    assert any(reason["code"] == "excluded" for reason in cell["reasons"])
+
+
+def test_excluded_reason_outside_allowed_list_is_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "timeout", excluded_reason="power-outage")
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "許可一覧外" in row["reason"]
+
+
+def test_correctness_red_with_excluded_reason_is_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "legacy-red", excluded_reason="machine-fault")
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "correctness-red に excluded_reason" in row["reason"]
 
 
 def test_manifest_hash_is_recomputed_independently_after_tampering(tmp_path):

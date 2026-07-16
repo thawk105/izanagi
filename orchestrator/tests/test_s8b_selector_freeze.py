@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -32,6 +33,25 @@ ARMS = {"on", "off", "swapped"}
 
 def _freeze() -> dict:
     return json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
+
+
+def _fixture_head(root: Path) -> str:
+    """root を git repo 化して空 commit を作り、実在する HEAD SHA を返す。"""
+    root.mkdir(parents=True, exist_ok=True)
+
+    def _git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=root, check=True, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        ).stdout.strip()
+
+    _git("init", "-q")
+    _git(
+        "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+        "-c", "commit.gpgsign=false",
+        "commit", "--allow-empty", "-q", "-m", "fixture",
+    )
+    return _git("rev-parse", "HEAD")
 
 
 def _raw(choice_id: str, rationale: str = "descriptor と機構の適合を比較した") -> str:
@@ -129,15 +149,22 @@ def _policy() -> dict:
 
 
 def _document(
-    freeze: dict, rows: list[dict] | None = None, *, root: Path | None = None,
+    freeze: dict,
+    rows: list[dict] | None = None,
+    *,
+    root: Path | None = None,
+    pre_oracle_head: str | None = None,
 ) -> dict:
+    # 既定の "a"*40 は形式のみ有効な非実在 SHA。build は形式検査までなので通るが、
+    # verify では commit 実在検証 (C2-R4) の負例になる。verify するテストは
+    # _fixture_head() の実 commit を渡す。
     sources = _sources(root)
     return build_prediction_freeze(
         freeze=freeze,
         rows=(_rows(freeze, role_sha256=sources["role"]["sha256"], root=root)
               if rows is None else rows),
         generated_at="2026-07-16T00:00:00Z",
-        pre_oracle_head="a" * 40,
+        pre_oracle_head=pre_oracle_head or "a" * 40,
         sources=sources,
         execution_policy=_policy(),
     )
@@ -260,7 +287,8 @@ def test_swapped_expectations_are_derived_only_from_deranged_on_rows() -> None:
 
 def test_verify_detects_body_row_derangement_and_basis_tampering(tmp_path: Path) -> None:
     freeze = _freeze()
-    document = _document(freeze, root=tmp_path)
+    head = _fixture_head(tmp_path)
+    document = _document(freeze, root=tmp_path, pre_oracle_head=head)
     verify_prediction_freeze(document, freeze=freeze, root=tmp_path)
 
     body_tampered = copy.deepcopy(document)
@@ -297,14 +325,18 @@ def test_verify_binds_role_raw_and_exact_agent_provenance_to_files(tmp_path: Pat
     freeze = _freeze()
 
     role_root = tmp_path / "role-case"
-    role_document = _document(freeze, root=role_root)
+    role_document = _document(
+        freeze, root=role_root, pre_oracle_head=_fixture_head(role_root),
+    )
     role_path = role_root / role_document["sources"]["role"]["path"]
     role_path.write_bytes(role_path.read_bytes() + b"x")
     with pytest.raises(SelectorFreezeError, match="sources.role.sha256"):
         verify_prediction_freeze(role_document, freeze=freeze, root=role_root)
 
     raw_root = tmp_path / "raw-case"
-    raw_document = _document(freeze, root=raw_root)
+    raw_document = _document(
+        freeze, root=raw_root, pre_oracle_head=_fixture_head(raw_root),
+    )
     raw_row = next(row for row in raw_document["rows"] if row["arm"] == "on")
     raw_path = raw_root / raw_row["raw_response_path"]
     raw_path.write_bytes(raw_path.read_bytes() + b"x")
@@ -312,7 +344,9 @@ def test_verify_binds_role_raw_and_exact_agent_provenance_to_files(tmp_path: Pat
         verify_prediction_freeze(raw_document, freeze=freeze, root=raw_root)
 
     provenance_root = tmp_path / "provenance-case"
-    provenance_document = _document(freeze, root=provenance_root)
+    provenance_document = _document(
+        freeze, root=provenance_root, pre_oracle_head=_fixture_head(provenance_root),
+    )
     provenance_row = next(
         row for row in provenance_document["rows"] if row["arm"] == "on"
     )
@@ -322,6 +356,109 @@ def test_verify_binds_role_raw_and_exact_agent_provenance_to_files(tmp_path: Pat
         verify_prediction_freeze(
             provenance_document, freeze=freeze, root=provenance_root,
         )
+
+
+def test_verify_reparses_raw_and_rejects_forged_valid_agent_rows(tmp_path: Path) -> None:
+    """C2-R2 positive control: 非 JSON raw + status=valid/choice_id=c01 の偽装を拒否する。"""
+    freeze = _freeze()
+    head = _fixture_head(tmp_path)
+    sources = _sources(tmp_path)
+    poison = "import os\n\ndef pwn():\n    return 'not selector json'\n"
+    poison_path = tmp_path / "selector-runs" / "poison.py"
+    poison_path.parent.mkdir(parents=True, exist_ok=True)
+    poison_path.write_text(poison, encoding="utf-8")
+    poison_sha = hashlib.sha256(poison.encode("utf-8")).hexdigest()
+
+    rows = []
+    agent_index = 0
+    for job in build_prediction_jobs(freeze):
+        if job["arm"] == "off":
+            rows.append({
+                **job,
+                "status": "valid",
+                "rationale": None,
+                "raw_response_path": None,
+                "raw_sha256": None,
+                "parser_error_code": None,
+                "agent_provenance": None,
+            })
+            continue
+        rows.append({
+            **job,
+            "status": "valid",
+            "choice_id": "c01",
+            "rationale": "forged rationale",
+            "raw_response_path": "selector-runs/poison.py",
+            "raw_sha256": poison_sha,
+            "parser_error_code": None,
+            "agent_provenance": {
+                "child_id": f"forged-{agent_index}",
+                "role_file_sha256": sources["role"]["sha256"],
+                "model": "fixture-model",
+                "started_at": "2026-07-16T00:00:00Z",
+                "finished_at": "2026-07-16T00:01:00Z",
+                "fresh_context": True,
+                "declared_tools": [],
+                "observed_tool_events": [],
+            },
+        })
+        agent_index += 1
+
+    # build は raw を再 parse しない (C2 実証どおり通る) が、verify は落とす。
+    document = build_prediction_freeze(
+        freeze=freeze,
+        rows=rows,
+        generated_at="2026-07-16T00:00:00Z",
+        pre_oracle_head=head,
+        sources=sources,
+        execution_policy=_policy(),
+    )
+    with pytest.raises(SelectorFreezeError, match="再 parse"):
+        verify_prediction_freeze(document, freeze=freeze, root=tmp_path)
+
+
+def test_verify_reparse_detects_choice_swap_and_off_row_agent_fields(
+    tmp_path: Path,
+) -> None:
+    freeze = _freeze()
+    head = _fixture_head(tmp_path)
+    document = _document(freeze, root=tmp_path, pre_oracle_head=head)
+    verify_prediction_freeze(document, freeze=freeze, root=tmp_path)
+
+    # raw は c01 の正規出力のまま、記録だけ c02 (binding は整合済み) へ差し替える。
+    swapped_choice = copy.deepcopy(document)
+    row = next(r for r in swapped_choice["rows"] if r["arm"] == "on")
+    assert row["choice_id"] == "c01"
+    row["choice_id"] = "c02"
+    row["binding_key"] = CHOICE_TO_BINDING["c02"]
+    entry = binding_entry_for_choice(freeze, row["target_holdout"], "c02")
+    rendered = json.dumps(
+        entry, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    )
+    row["binding_entry_sha256"] = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+    _rehash(swapped_choice)
+    with pytest.raises(SelectorFreezeError, match="再 parse"):
+        verify_prediction_freeze(swapped_choice, freeze=freeze, root=tmp_path)
+
+    # static off セルへの agent 系フィールド注入も verify 経路で落ちる。
+    off_forged = copy.deepcopy(document)
+    off_row = next(r for r in off_forged["rows"] if r["arm"] == "off")
+    off_row["rationale"] = "forged"
+    _rehash(off_forged)
+    with pytest.raises(SelectorFreezeError, match="off row に agent"):
+        verify_prediction_freeze(off_forged, freeze=freeze, root=tmp_path)
+
+
+def test_verify_requires_commit_pin_resolvable_in_root_repo(tmp_path: Path) -> None:
+    """C2-R4: 形式のみ有効な 40 桁 hex は commit 実在検証で拒否する。"""
+    freeze = _freeze()
+    head = _fixture_head(tmp_path)
+    good = _document(freeze, root=tmp_path, pre_oracle_head=head)
+    verify_prediction_freeze(good, freeze=freeze, root=tmp_path)
+
+    forged = _document(freeze, root=tmp_path, pre_oracle_head="a" * 40)
+    with pytest.raises(SelectorFreezeError, match="pre_oracle_head"):
+        verify_prediction_freeze(forged, freeze=freeze, root=tmp_path)
 
 
 def test_selector_basis_ignores_floor_budget_but_binds_variant_entries() -> None:
