@@ -882,6 +882,10 @@ pegasus02 上で前エントリの runbook を実機検証。gen_S スモーク�
   linux-baremetal のため現状は誤りでない — Pegasus を正式計測へ採用する時に roadmap-history
   手続きで改訂。phase3-s4b/s5/s8a runbook の実走前ゲート (pgrep 単独性確認) は共有環境非対応 —
   再利用時に「専有計算ノード確保」へ差し替え
+- 追補 (協議決着 2): 原則文の側でも「専有ノードの確保」を常に可能と仮定しない (ユーザー指摘)。
+  Pegasus 不可時に cygnus 等の共有ノード上で計測するしかない場合、load average 監視・外乱回避・
+  外乱検知時の再計測の技法が第一線に戻る。F3 恒久対応・CLAUDE.md・orchestrator-design を
+  この形へ再修正 (技法系を捨てない)
 
 ### 次の一手
 1. Pegasus を正式性能計測へ採用する場合のみ、専用 env-tag と再 calibration/noise floor を設計
