@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Set
 
 from .benchparse import (_num, abort_rate as parse_abort_rate, latency_ns as
                          parse_latency_ns, parse_bench_stdout, throughput_tps)
@@ -57,8 +57,55 @@ def settle(threshold: float = 4.0,
         time.sleep(poll_s)
 
 
+def _self_and_descendant_pids(root_pid: int) -> Set[int]:
+    """`root_pid` 自身 + 全子孫 PID を `/proc` から 1 回の走査で集める (F3 admission 強化)。
+
+    自プロセスの子孫だけを「非競合」として除外するための集合。`/proc/<pid>/stat` の
+    comm フィールドは任意バイト列 (括弧含む) を持ちうるため、最後の `)` の後ろから
+    ppid をパースする (man proc(5))。走査できない (権限・レース・非 Linux) 場合は
+    fails-closed — 自分自身以外は子孫と見なさず絞り込まない (規律4: 検知を弱めない)。"""
+    try:
+        entries = os.listdir("/proc")
+    except OSError:
+        return {root_pid}
+    children: Dict[int, List[int]] = {}
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        try:
+            with open(f"/proc/{entry}/stat", encoding="utf-8", errors="replace") as f:
+                stat = f.read()
+        except OSError:
+            continue        # プロセスが走査中に終了しただけ (競合ではない)
+        rparen = stat.rfind(")")
+        if rparen == -1:
+            continue
+        # `)` の直後は " <state> <ppid> ..." — state (1 文字) の次が ppid (man proc(5))。
+        fields = stat[rparen + 2:].split()
+        if len(fields) < 2:
+            continue
+        try:
+            ppid = int(fields[1])
+        except ValueError:
+            continue
+        children.setdefault(ppid, []).append(pid)
+
+    result = {root_pid}
+    frontier = [root_pid]
+    while frontier:
+        nxt = []
+        for p in frontier:
+            for c in children.get(p, []):
+                if c not in result:
+                    result.add(c)
+                    nxt.append(c)
+        frontier = nxt
+    return result
+
+
 def competing_bench_pids() -> List[str]:
-    """他に走っている ccbench ベンチ (build-variants 下の ycsb_*.exe) の PID 行。
+    """他に走っている ccbench ベンチ (`ycsb_*.exe`) の PID 行 (F3 admission 強化)。
 
     settle() の load average は 1 分 EMA で laggy (汚染直後は検知できず、自分の直前 run の
     残像で誤検知する)。競合プロセスの直接確認はラグなしの確定信号なので、これを計測前の
@@ -66,13 +113,35 @@ def competing_bench_pids() -> List[str]:
     bench 同士しか排他せず、孤児化した子・他者が手起動した ycsb はロックを触らない
     (孤児 livelock 汚染インシデントの犯人) → pgrep で構造的に捕える。
 
+    パターンは binary path 非依存 (`ycsb_.*\\.exe` のみ、path 接頭辞なし)。旧パターン
+    `build-variants/.*ycsb_.*\\.exe` は従来ビルド木限定で、8b oracle の
+    `<output_root>/s8b-build-cache` 配下の孤児 bench を素通りさせていた (F3、
+    docs/failures.md)。path を落とすと自プロセスの子孫 (このプロセスがこれから起こす bench
+    自身、または直前の subprocess の残骸) も同じパターンに当たりうるので、`/proc` 由来の
+    子孫集合で明示的に除外し「他者/孤児」だけを残す。PID がパースできない行は
+    fails-closed で競合側に残す (素性不明を non-competing 扱いにしない)。
+
     呼ぶのは自分のベンチが走り出す前 (各測定点の手前)。拾えるのは他者/孤児だけ。"""
     try:
-        r = subprocess.run(["pgrep", "-af", r"build-variants/.*ycsb_.*\.exe"],
+        r = subprocess.run(["pgrep", "-af", r"ycsb_.*\.exe"],
                            capture_output=True, text=True)
     except (OSError, subprocess.SubprocessError):
         return []
-    return [ln for ln in r.stdout.splitlines() if ln.strip()]
+    lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    if not lines:
+        return []
+    excluded = _self_and_descendant_pids(os.getpid())
+    others = []
+    for ln in lines:
+        pid_field = ln.split(None, 1)[0]
+        try:
+            pid = int(pid_field)
+        except ValueError:
+            others.append(ln)          # PID 不明 = fails-closed で残す
+            continue
+        if pid not in excluded:
+            others.append(ln)
+    return others
 
 
 def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,

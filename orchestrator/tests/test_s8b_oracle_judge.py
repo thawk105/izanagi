@@ -206,3 +206,78 @@ def test_deleting_every_row_for_one_expected_holdout_is_indeterminate():
     assert result["status"] == "indeterminate"
     assert result["holdouts"]["h-second"]["verdict"] == "indeterminate"
     assert any(reason["code"] == "expected-cell-mismatch" for reason in result["reasons"])
+
+
+def _asymmetric_observations() -> dict:
+    """median と mean が乖離する非対称配置 (V9 — C-A #3 の変異 kill 恒久化)。
+
+    - c-low: 各 trial [10, 10, 40] → median 10 / mean 20。trial_medians [10,10,10]。
+    - c-high: 各 trial [15, 15, 15] → median 15 / mean 15。
+    median 集約なら winner=c-high、mean 置換なら c-low が 20 で勝つ (winner 反転)。
+    """
+    configs = {
+        "c-low": [10.0, 10.0, 40.0],
+        "c-high": [15.0, 15.0, 15.0],
+    }
+    rows = []
+    index = 0
+    for configuration_id, values in configs.items():
+        for _ in range(3):
+            rows.append({
+                "schedule_index": index,
+                "block_id": "b0",
+                "holdout_id": "rr80",
+                "configuration_id": configuration_id,
+                "attempt": 1,
+                "status": "completed",
+                "outcome": "committed",
+                "binding_ok": True,
+                "legacy_verify": "pass",
+                "s2_verify": "pass",
+                "bench_values": list(values),
+                "excluded_reason": None,
+                "screen_outcome": "not_enabled",
+                "reason": None,
+            })
+            index += 1
+    return {
+        "schema_version": judge.INPUT_SCHEMA,
+        "manifest_sha256": "manifest-sha",
+        "n_per_cell": 3,
+        "expected_cells": [{
+            "schedule_index": row["schedule_index"],
+            "holdout_id": row["holdout_id"],
+            "configuration_id": row["configuration_id"],
+        } for row in rows],
+        "rows": rows,
+    }
+
+
+def test_v9_asymmetric_fixture_pins_median_aggregation():
+    observations = _asymmetric_observations()
+
+    result = judge.judge_oracle(observations)
+    holdout = result["holdouts"]["rr80"]
+
+    # median 集約の数値を明示 assert する。対称 fixture では mean 置換でも通る
+    # false-green を親が in-process 変異で再現済み (C-A #3)。
+    assert holdout["configurations"]["c-low"]["trial_medians"] == [10.0, 10.0, 10.0]
+    assert holdout["configurations"]["c-low"]["median_of_medians"] == 10.0
+    assert holdout["configurations"]["c-high"]["median_of_medians"] == 15.0
+    assert holdout["verdict"] == "unique-best"
+    assert holdout["winner_configuration_id"] == "c-high"
+
+
+def test_v9_median_to_mean_mutation_flips_winner(monkeypatch):
+    observations = _asymmetric_observations()
+    baseline = judge.judge_oracle(observations)
+
+    # statistics.median を mean へ差し替えると集約が変わり winner が反転する。
+    # この差が出ることが、上の数値 assert が median 依存 (恒真でない) である証拠。
+    monkeypatch.setattr(judge.statistics, "median", judge.statistics.mean)
+    mutated = judge.judge_oracle(observations)
+    mutated_holdout = mutated["holdouts"]["rr80"]
+
+    assert mutated_holdout["configurations"]["c-low"]["median_of_medians"] == 20.0
+    assert mutated_holdout["winner_configuration_id"] == "c-low"
+    assert mutated != baseline

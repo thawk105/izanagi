@@ -196,6 +196,10 @@ def _validate_schedule(schedule: Mapping) -> None:
         if not _is_int(size) or size <= 0:
             raise ManifestError(f"schedule block size が正整数でない: {block_id}")
         block_sizes[block_id] = size
+    # 単一 block 契約 (A3-3): 1 manifest に block は正確に 1 件で、その block が
+    # 予定全行を含む。複数 block は共有台帳の総枠 gate を fail-open させるため拒否する。
+    if len(block_sizes) != 1:
+        raise ManifestError("schedule.blocks が正確に 1 件でない (単一 block 契約)")
     if sum(block_sizes.values()) != n:
         raise ManifestError("schedule n と block size 合計が不一致")
 
@@ -579,8 +583,14 @@ def write_manifest(path, manifest) -> None:
     _atomic_create_json(Path(path), manifest)
 
 
-def verify_manifest(path, *, root) -> dict:
-    """manifest の参照 hash、schedule、block/campaign 束縛を再照合する。"""
+def verify_manifest(path, *, root, freeze_document=None, freeze_sha256=None) -> dict:
+    """manifest の参照 hash、schedule、block/campaign 束縛を再照合する。
+
+    ``freeze_document`` / ``freeze_sha256`` を与えた場合は freeze を disk から
+    再読込せず、hash 検証済みの単一 object (呼び出し元の ``load_verified_freeze``
+    の戻り値) だけを使う。verify から use までの freeze byte 差替え (TOCTOU) を
+    consumer 間で断つための A3-6 経路。両者は同時指定を要求する (片方だけは拒否)。
+    """
     path = Path(path)
     root = Path(root)
     document = _load_json_object(path)
@@ -590,10 +600,21 @@ def verify_manifest(path, *, root) -> dict:
         raise ManifestError("manifest schema_version が不一致")
 
     freeze_record = _source_record(document.get("freeze"), field="freeze")
-    freeze_path = _resolve_source(freeze_record["path"], root=root)
-    if _file_sha256(freeze_path) != freeze_record["sha256"]:
-        raise ManifestError("freeze byte sha256 が manifest と不一致")
-    freeze = _load_json_object(freeze_path)
+    if (freeze_document is None) != (freeze_sha256 is None):
+        raise ManifestError("freeze_document と freeze_sha256 は同時指定する")
+    if freeze_document is not None:
+        # A3-6: 検証済み単一 object を使い freeze を再読込しない。manifest 記載の
+        # byte hash と一致することだけを確認する (差替え検出は呼び出し元の単一 read)。
+        if not isinstance(freeze_document, Mapping):
+            raise ManifestError("freeze_document が object でない")
+        if freeze_sha256 != freeze_record["sha256"]:
+            raise ManifestError("freeze byte sha256 が manifest と不一致")
+        freeze = freeze_document
+    else:
+        freeze_path = _resolve_source(freeze_record["path"], root=root)
+        if _file_sha256(freeze_path) != freeze_record["sha256"]:
+            raise ManifestError("freeze byte sha256 が manifest と不一致")
+        freeze = _load_json_object(freeze_path)
 
     known_record = _source_record(
         document.get("known_axes_freeze"), field="known_axes_freeze",

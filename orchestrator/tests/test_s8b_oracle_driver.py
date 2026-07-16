@@ -6,7 +6,10 @@ import contextlib
 import copy
 import hashlib
 import json
+import os
+import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from unittest import mock
 
@@ -18,6 +21,7 @@ sys.path.insert(0, str(ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
 from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
+from campaign import s8b_run_marker  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
@@ -222,7 +226,8 @@ def _fake_abort_evaluate_factory(reason: str):
 
 
 def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
-         prepare_fn, evaluate_fn):
+         prepare_fn, evaluate_fn, *, output_root=None, budget_path=None,
+         marker_root=None):
     # strict v2 verifier 導入前の run gate は意図どおり常に閉じる。
     # driver 内部の WAL/budget 契約テストだけ future-approved gate を代入する。
     with mock.patch.object(
@@ -230,7 +235,9 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
         return driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=ROOT,
-            output_root=tmp_path / "out", budget_path=tmp_path / "budget.json",
+            output_root=output_root or (tmp_path / "out"),
+            budget_path=budget_path or (tmp_path / "budget.json"),
+            marker_root=marker_root or (tmp_path / "markers"),
             prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
         )
 
@@ -311,11 +318,26 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
         assert tag == pipeline.S2_TAG
         assert workload.flags == pipeline.s2_correctness_workload().flags
     ledger = s8b_budget.read_ledger(
-        tmp_path / "budget.json", manifest_sha256=result["manifest_sha256"],
+        tmp_path / "budget.json",
+        manifest_sha256=result["manifest_sha256"],
+        freeze_sha256=result["freeze_sha256"],
+        schedule_sha256=result["schedule_sha256"],
     )
     assert len(ledger["entries"]) == len(document["schedule"]["rows"])
     assert ledger["spent"]["bench_s"] == pytest.approx(
         0.25 * len(document["schedule"]["rows"])
+    )
+    # terminal 後の精算: charged==actual==実測、reserved は分離して残る。
+    reservation = ledger["reservation"]
+    assert reservation["status"] == "settled"
+    assert reservation["charged_bench_s"] == pytest.approx(
+        0.25 * len(document["schedule"]["rows"])
+    )
+    assert reservation["actual_bench_s"] == pytest.approx(
+        0.25 * len(document["schedule"]["rows"])
+    )
+    assert reservation["reserved_bench_s"] == pytest.approx(
+        float(len(document["schedule"]["rows"]))
     )
 
 
@@ -336,7 +358,12 @@ def test_binding_mismatch_refuses_only_that_row_before_evaluate(tmp_path):
     assert len(evaluate_fn.calls) == len(document["schedule"]["rows"]) - 1
 
 
-def test_budget_refusal_stops_block_and_marks_all_remaining_skipped(tmp_path):
+def test_v8_bulk_reservation_unavailable_runs_nothing(tmp_path):
+    """V8: 残枠が全行最大費用未満なら一行も走らず budget_exhausted_before_attempt を耐久化。
+
+    reservation 総額 = extime×reps×bench_max_rounds×行数。total_bench_s=0.0 では確保できず、
+    driver は trial-start を一つも出さず terminal を budget ledger と WAL の双方へ書く。
+    """
     freeze_path = _synthetic_freeze(tmp_path, total_bench_s=0.0)
     prepare_fn = _prepare_factory()
     manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
@@ -345,41 +372,77 @@ def test_budget_refusal_stops_block_and_marks_all_remaining_skipped(tmp_path):
 
     result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
 
-    assert result["status"] == "budget-refused"
+    assert result["status"] == "budget_exhausted_before_attempt"
+    assert result["completed_trials"] == 0
     events = result["events"]
-    assert [event["event"] for event in events[:3]] == [
-        "campaign-start", "trial-start", "budget-refused",
+    assert [event["event"] for event in events] == [
+        "campaign-start", "budget-exhausted-before-attempt",
     ]
-    skipped = [event for event in events if event["event"] == "trial-skipped"]
-    assert len(skipped) == len(document["schedule"]["rows"]) - 1
-    assert evaluate_fn.calls == []
+    # 一行も走らせない: prepare も evaluate も trial-start も発火しない。
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+    assert not any(event["event"] == "trial-start" for event in events)
+    # terminal は budget ledger にも耐久化される (reservation status=exhausted)。
+    ledger = s8b_budget.read_ledger(
+        tmp_path / "budget.json",
+        manifest_sha256=result["manifest_sha256"],
+        freeze_sha256=result["freeze_sha256"],
+        schedule_sha256=result["schedule_sha256"],
+    )
+    assert ledger["reservation"]["status"] == "exhausted"
+    assert ledger["reservation"]["reserved_bench_s"] == pytest.approx(
+        float(len(document["schedule"]["rows"]))
+    )
+    assert ledger["entries"] == []
 
 
-def test_postflight_budget_debit_refusal_keeps_result_and_skips_remaining(tmp_path):
-    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1.0)
+def test_reservation_envelope_exceeded_is_fail_closed(tmp_path):
+    """実測 bench が予約枠を超過したら fail-closed で error に倒す (protocol violation)。
+
+    reservation 枠 = 行数×(extime×reps×rounds)=行数×1。1 行目の実測 1.5 で単 holdout 枠
+    (6 行×1=6) は超えないが、全 12 行を 1.5 で回すと総枠 12 を超える経路がある。ここでは
+    per-holdout 枠超過 (h の 6 行×1.5=9 > 予約 6) を fixture で発火させる。
+    """
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
     prepare_fn = _prepare_factory()
     manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
     prepare_fn.calls.clear()
+    # 各 trial の実測 bench_wall_s=1.5 > per-row 予約 1.0。holdout 枠 (6 行×1=6) を
+    # 5 行目 (実測累計 7.5) で超える。
     evaluate_fn = _fake_evaluate_factory(bench_wall_s=1.5)
 
     result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
 
-    assert result["status"] == "budget-refused"
-    assert result["completed_trials"] == 1
-    events = result["events"]
-    assert [event["event"] for event in events[:5]] == [
-        "campaign-start", "trial-start", "trial-result", "deviation",
-        "budget-refused",
-    ]
-    deviation = next(event for event in events if event["event"] == "deviation")
-    assert deviation["kind"] == "budget-debit-refused"
-    skipped = [event for event in events if event["event"] == "trial-skipped"]
-    assert len(skipped) == len(document["schedule"]["rows"]) - 1
-    assert len(evaluate_fn.calls) == 1
+    assert result["status"] == "error"
+    deviation = next(event for event in result["events"]
+                     if event["event"] == "deviation")
+    assert deviation["kind"] == "reservation-envelope-exceeded"
+    # error では精算しない (予約枠を非解放のまま残す)。
     ledger = s8b_budget.read_ledger(
-        tmp_path / "budget.json", manifest_sha256=result["manifest_sha256"],
+        tmp_path / "budget.json",
+        manifest_sha256=result["manifest_sha256"],
+        freeze_sha256=result["freeze_sha256"],
+        schedule_sha256=result["schedule_sha256"],
     )
-    assert ledger["entries"] == []
+    assert ledger["reservation"]["status"] == "held"
+    # 所見4: entries 永続化状態を検査する。append_entry は _atomic_replace_json を
+    # 呼ぶ前に BudgetError を raise するため、超過を起こした行の entry は台帳に
+    # 一切残らない。超過より前に (schedule 順で) 成功した行の entry はそのまま
+    # 残る。schedule は擬似乱数で shuffle 済みのため holdout ごとに連続しない
+    # ので、実際の schedule 順で厳密に検査する (固定 index を仮定しない)。
+    rows = document["schedule"]["rows"]
+    failing_index = deviation["schedule_index"]
+    failing_position = next(
+        position for position, row in enumerate(rows)
+        if row["schedule_index"] == failing_index
+    )
+    expected_persisted_indices = {
+        row["schedule_index"] for row in rows[:failing_position]
+    }
+    persisted_indices = {entry["schedule_index"] for entry in ledger["entries"]}
+    assert failing_position > 0  # 超過前に成功した行が実在する
+    assert persisted_indices == expected_persisted_indices
+    assert failing_index not in persisted_indices
+    assert len(ledger["entries"]) == failing_position
 
 
 def test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed(tmp_path):
@@ -458,6 +521,268 @@ def test_tampered_freeze_fails_source_verification(tmp_path):
                for reason in decision.refusals)
 
 
+def test_exit_code_priority_table():
+    """rc 優先順位表: internal-error(1) > protocol_violation(3) >
+    budget-refused(2) > completed(0)。gate-refused も 2、未知 status は 1。"""
+    assert driver._exit_code("completed") == 0
+    assert driver._exit_code("error") == 1
+    assert driver._exit_code("protocol_violation") == 3
+    assert driver._exit_code("budget_exhausted_before_attempt") == 2
+    assert driver._exit_code("refused") == 2
+    # 未知・欠測 status は fail-closed で internal-error(1)。
+    assert driver._exit_code("something-unexpected") == 1
+    assert driver._exit_code(None) == 1
+
+
+def test_v3_all_rows_binding_refused_is_protocol_violation(tmp_path):
+    """V3 (in-process): 全行 binding-refused で evaluate 0 回、status=protocol_violation。
+
+    現行契約では completed / rc 0 に潰れていた (全行 refused でも budget_stopped で
+    なければ completed)。強い completed 定義の下では 1 行でも terminal outcome を
+    得なければ protocol_violation に倒す。
+    """
+    freeze_path = _synthetic_freeze(tmp_path)
+    manifest_prepare = _prepare_factory()
+    manifest_path, document = _write_manifest(
+        tmp_path, freeze_path, manifest_prepare,
+    )
+    # manifest とは異なる src_token を全行で作らせ、全 binding を不一致にする。
+    prepare_fn = _prepare_factory(token_suffix="-changed")
+    evaluate_fn = _fake_evaluate_factory()
+
+    result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
+
+    assert result["status"] == "protocol_violation"
+    assert result["completed_trials"] == 0
+    # 一行も evaluate に到達しない。
+    assert evaluate_fn.calls == []
+    # 全予定行が未解決として列挙される。
+    rows = document["schedule"]["rows"]
+    assert set(result["unresolved_rows"]) == {
+        row["schedule_index"] for row in rows
+    }
+    # terminal event が耐久化される。
+    events = [event["event"] for event in result["events"]]
+    assert events[-1] == "protocol-violation"
+    terminal = result["events"][-1]
+    assert terminal["completed_trials"] == 0
+    assert terminal["scheduled_rows"] == len(rows)
+    # protocol_violation では精算しない (reservation は held のまま非解放)。
+    ledger = s8b_budget.read_ledger(
+        tmp_path / "budget.json",
+        manifest_sha256=result["manifest_sha256"],
+        freeze_sha256=result["freeze_sha256"],
+        schedule_sha256=result["schedule_sha256"],
+    )
+    assert ledger["reservation"]["status"] == "held"
+    assert ledger["entries"] == []
+
+
+def test_v3_partial_binding_refused_is_protocol_violation(tmp_path):
+    """1 行だけ binding-refused でも強い completed 定義を満たさず protocol_violation。"""
+    freeze_path = _synthetic_freeze(tmp_path)
+    manifest_prepare = _prepare_factory()
+    manifest_path, document = _write_manifest(
+        tmp_path, freeze_path, manifest_prepare,
+    )
+    # 1 行目だけ src_token を変えて binding を不一致にする。
+    prepare_fn = _prepare_factory(token_suffix="-changed", suffix_first_only=True)
+    evaluate_fn = _fake_evaluate_factory()
+
+    result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
+
+    rows = document["schedule"]["rows"]
+    assert result["status"] == "protocol_violation"
+    assert result["completed_trials"] == len(rows) - 1
+    assert len(result["unresolved_rows"]) == 1
+    # held のまま (精算しない)。
+    ledger = s8b_budget.read_ledger(
+        tmp_path / "budget.json",
+        manifest_sha256=result["manifest_sha256"],
+        freeze_sha256=result["freeze_sha256"],
+        schedule_sha256=result["schedule_sha256"],
+    )
+    assert ledger["reservation"]["status"] == "held"
+
+
+def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
+    """V3 (subprocess): 全行 binding-refused の CLI 実行が rc 3 を返す。
+
+    in-process だけでなく実プロセス起動で rc を固定する。gate は strict v2
+    verifier 未実装のため子プロセス内で future-approved に差し替え、canonical
+    budget path も tmp に退避して repo 出力を汚さない。現行 CLI は completed 以外を
+    一律 rc 2 (gate-refused/非 completed) に潰し、この経路は rc 0 だった。
+    """
+    freeze_path = _synthetic_freeze(tmp_path)
+    manifest_prepare = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, manifest_prepare)
+    output_root = tmp_path / "cli-out"
+    budget_path = tmp_path / "cli-budget.json"
+
+    # 全行 binding-refused を CLI 経路で再現するため、driver.prepare_cell を
+    # manifest とは異なる src_token を返す fixture に差し替える。
+    script = textwrap.dedent(
+        f"""
+        import contextlib, hashlib, json, sys
+        from unittest import mock
+        sys.path.insert(0, {str(ORCHESTRATOR)!r})
+        from campaign import s8b_oracle_driver as driver
+        from campaign.model import Genome
+        from campaign.s1_direct_comparison import PreparedCell
+
+        @contextlib.contextmanager
+        def fake_prepare(cell, ccbench_pin):
+            entry = cell["variant"]
+            genome = Genome("silo", dict(entry["flags"]))
+            token = "fixture-" + hashlib.sha256(
+                json.dumps(entry, ensure_ascii=False, sort_keys=True,
+                           separators=(",", ":")).encode("utf-8")
+            ).hexdigest() + "-changed"
+            yield PreparedCell(
+                genome=genome, src_token=token,
+                ccbench_dir="/tmp/fixture-ccbench",
+                cache_root="/tmp/fixture-cache",
+            )
+
+        driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
+        with mock.patch.object(
+                driver, "gate_check",
+                return_value=driver.GateDecision(True, [])), \\
+             mock.patch.object(driver, "prepare_cell", fake_prepare):
+            rc = driver.main([
+                "run-block", "--manifest", {str(manifest_path)!r},
+                "--block-id", "b0", "--freeze", {str(freeze_path)!r},
+                "--root", {str(ROOT)!r}, "--output-root", {str(output_root)!r},
+            ])
+        sys.exit(rc)
+        """
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True,
+    )
+    assert proc.returncode == 3, (proc.returncode, proc.stdout, proc.stderr)
+    payload = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert payload["status"] == "protocol_violation"
+    assert payload["completed_trials"] == 0
+
+
+def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
+    """gate 拒否 (real freeze の floor/budget null) は CLI 実行で rc 2。"""
+    manifest_freeze = _synthetic_freeze(tmp_path)
+    manifest_prepare = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, manifest_freeze, manifest_prepare)
+    output_root = tmp_path / "gate-out"
+    budget_path = tmp_path / "gate-budget.json"
+
+    script = textwrap.dedent(
+        f"""
+        import sys
+        sys.path.insert(0, {str(ORCHESTRATOR)!r})
+        from campaign import s8b_oracle_driver as driver
+        driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
+        rc = driver.main([
+            "run-block", "--manifest", {str(manifest_path)!r},
+            "--block-id", "b0", "--freeze", {str(REAL_FREEZE)!r},
+            "--root", {str(ROOT)!r}, "--output-root", {str(output_root)!r},
+        ])
+        sys.exit(rc)
+        """
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True,
+    )
+    assert proc.returncode == 2, (proc.returncode, proc.stdout, proc.stderr)
+    assert not output_root.exists() and not budget_path.exists()
+
+
+def test_load_verified_freeze_single_read_hash_and_strict_parse(tmp_path):
+    """load_verified_freeze は byte sha256 を返し、expected_hash 不一致と非 strict
+    JSON を拒否する (単一 read の hash 束縛と strict parse の直接検査)。"""
+    freeze_path = _synthetic_freeze(tmp_path)
+    expected = _sha256(freeze_path)
+
+    verified = driver.load_verified_freeze(freeze_path)
+    assert verified.sha256 == expected
+    assert verified.document == json.loads(freeze_path.read_text(encoding="utf-8"))
+
+    # expected_hash と一致すれば同じ object を返す。
+    assert driver.load_verified_freeze(freeze_path, expected_hash=expected).sha256 == expected
+    # 不一致は fail-closed。
+    with pytest.raises(driver.OracleDriverError) as mismatch:
+        driver.load_verified_freeze(freeze_path, expected_hash="0" * 64)
+    assert "expected_hash" in str(mismatch.value)
+
+    # strict parse: NaN 等の非数値定数を拒否する。
+    bad = tmp_path / "bad_freeze.json"
+    bad.write_text('{"floor": NaN}', encoding="utf-8")
+    with pytest.raises(driver.OracleDriverError) as strict:
+        driver.load_verified_freeze(bad)
+    assert "strict parse" in str(strict.value) or "非数値定数" in str(strict.value)
+
+
+def test_v6_freeze_swap_after_verify_is_not_observed(tmp_path):
+    """V6: gate/manifest 検証後に freeze bytes を差し替えても、単一 object 使い回し
+    (load_verified_freeze) により差替え後の値 (budget limits・perf 三軸) が一切
+    使われない。
+
+    verify_manifest 直後に freeze ファイルを悪性 bytes (holdout records を +777、
+    budget を 0.0) へ差し替える。単一 object を使う実装では driver は元の verified
+    値だけを使い completed になる。もし verify 後に freeze を再読込する構造なら、
+    差替え後の budget=0 で budget_exhausted に倒れ、perf.records も +777 に汚染
+    されるため FAIL する (verify-use 間 TOCTOU の再現を kill する)。
+    """
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare_fn = _prepare_factory()
+    manifest_path, _document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_evaluate_factory()
+
+    original = json.loads(freeze_path.read_text(encoding="utf-8"))
+    original_records = {
+        holdout_id: original["holdouts"][holdout_id]["records"]
+        for holdout_id in _holdout_ids()
+    }
+    poisoned_records = {value + 777 for value in original_records.values()}
+    real_verify = manifest_module.verify_manifest
+
+    def swapping_verify(path, **kwargs):
+        result = real_verify(path, **kwargs)
+        # 検証が通った直後に freeze ファイルを悪性 bytes へ差し替える。
+        malicious = json.loads(freeze_path.read_text(encoding="utf-8"))
+        for holdout_id in _holdout_ids():
+            malicious["holdouts"][holdout_id]["records"] = (
+                original_records[holdout_id] + 777
+            )
+        malicious["budget"]["total_bench_s"] = 0.0
+        malicious["budget"]["per_holdout_bench_s"] = {
+            holdout_id: 0.0 for holdout_id in _holdout_ids()
+        }
+        freeze_path.write_text(
+            json.dumps(malicious, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return result
+
+    with mock.patch.object(driver, "verify_manifest", swapping_verify):
+        result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
+
+    # 差替え後の budget=0 が使われていれば budget_exhausted。単一 object なら completed。
+    assert result["status"] == "completed"
+    # perf 三軸: records は元の値で、+777 の汚染値を一切含まない。
+    assert evaluate_fn.calls
+    for call in evaluate_fn.calls:
+        assert call["perf"].records in original_records.values()
+        assert call["perf"].records not in poisoned_records
+    # budget limits も元の 1000.0 (差替え後の 0.0 でない)。
+    ledger = s8b_budget.read_ledger(
+        tmp_path / "budget.json",
+        manifest_sha256=result["manifest_sha256"],
+        freeze_sha256=result["freeze_sha256"],
+        schedule_sha256=result["schedule_sha256"],
+    )
+    assert ledger["limits"]["total_bench_s"] == pytest.approx(1000.0)
+
+
 def test_layer3_strict_consumer_accepts_optional_bench_wall_s():
     schema = json.loads(
         (ORCHESTRATOR / "campaign/layer3_schema.json").read_text(encoding="utf-8")
@@ -468,3 +793,150 @@ def test_layer3_strict_consumer_accepts_optional_bench_wall_s():
         "type": "number", "minimum": 0,
     }
     assert "bench_wall_s" not in runs["required"]
+
+
+# ---- R6: resume 拒否の強化 (原子的 lock + 実走済みマーカー + truncated WAL 閉鎖) ----
+
+def _campaign_id(manifest_path: Path) -> str:
+    manifest = manifest_module.verify_manifest(manifest_path, root=ROOT)
+    return manifest_module.config_for_block(manifest, "b0")["campaign_id"]
+
+
+def test_v2_resume_rejected_at_s1_s2_s3_boundaries(tmp_path):
+    """V2 (択 a): S1/S2/S3 各境界直後の crash を模擬し、再起動が全拒否されること。
+
+    S1 = 実走済みマーカー + lock 生成済み・WAL なし、S2 = ledger も生成済み・WAL なし、
+    S3 = campaign-start が WAL に耐久化済み。いずれの境界でも新プロセスの resume は
+    構造化拒否 (OracleDriverError) で倒れ、prepare/evaluate に一切到達しない。
+    """
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_evaluate_factory()
+
+    output_root = tmp_path / "out"
+    marker_root = tmp_path / "markers"
+    identity = s8b_run_marker.freeze_identity(freeze_path)
+    layout = campaign_layout(_campaign_id(manifest_path), output_root=str(output_root))
+
+    def attempt():
+        return _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn,
+                    output_root=output_root, marker_root=marker_root)
+
+    # S1: マーカー + lock 生成済み、WAL/ledger なし。
+    layout.ensure()
+    assert wal.acquire_lock_atomic(layout, "s1-preimage") is True
+    s8b_run_marker.create_run_marker(marker_root, identity, {"stage": "s1"})
+    with pytest.raises(driver.OracleDriverError) as s1:
+        attempt()
+    assert "マーカー" in str(s1.value)
+
+    # S2: ledger 生成済みでも WAL がまだ無い段階。境界は S1 と同じくマーカーが捕捉する。
+    s8b_budget.create_ledger(
+        tmp_path / "budget.json", manifest_sha256="deadbeef",
+        freeze_sha256=identity, schedule_sha256="cafebabe",
+        limits={"total_bench_s": 1.0,
+                "per_holdout_bench_s": {h: 1.0 for h in _holdout_ids()},
+                "oracle_shared": True},
+    )
+    with pytest.raises(driver.OracleDriverError) as s2:
+        attempt()
+    assert "マーカー" in str(s2.value)
+
+    # S3: campaign-start が WAL に耐久化済み (実走中 crash)。WAL byte 存在で拒否。
+    driver._append_session(layout, "fixture-env", "campaign-start", {
+        "campaign_id": layout.root, "block_id": "b0",
+    })
+    assert wal.wal_bytes_present(layout) is True
+    with pytest.raises(driver.OracleDriverError) as s3:
+        attempt()
+    assert "WAL byte" in str(s3.value)
+
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+
+
+def test_atomic_one_shot_lock_rejects_second_start(tmp_path):
+    """既存 campaign.lock (マーカー無し) の resume/並行起動を原子的 lock が拒否する。
+
+    O_CREAT|O_EXCL による one-shot lock の獲得失敗 = 着手済み/並行として fail-closed。
+    非原子の write_lock (exists→上書きなし) では二重通過しうる経路を閉じる。
+    """
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+
+    output_root = tmp_path / "out"
+    layout = campaign_layout(_campaign_id(manifest_path), output_root=str(output_root))
+    layout.ensure()
+    assert wal.acquire_lock_atomic(layout, "prior-holder") is True
+    # 同じ lock の二度目の原子的獲得は False。
+    assert wal.acquire_lock_atomic(layout, "second-holder") is False
+
+    with pytest.raises(driver.OracleDriverError) as excinfo:
+        _run(tmp_path, freeze_path, manifest_path, prepare_fn,
+             _fake_evaluate_factory(), output_root=output_root,
+             marker_root=tmp_path / "markers-lock")
+    assert "campaign.lock" in str(excinfo.value)
+    assert prepare_fn.calls == []
+
+
+def test_v4_marker_fires_across_output_root_change(tmp_path):
+    """V4: 実走済みマーカーが --output-root 非依存に発火し、別 output-root での再走を拒否。"""
+    freeze_path = _synthetic_freeze(tmp_path)
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    marker_root = tmp_path / "freeze-side"
+
+    # 1 回目: output-root A で完走。マーカーは marker_root (output-root 非依存) に残る。
+    result_a = _run(
+        tmp_path, freeze_path, manifest_path,
+        _prepare_factory(), _fake_evaluate_factory(),
+        output_root=tmp_path / "out-a", budget_path=tmp_path / "budget-a.json",
+        marker_root=marker_root,
+    )
+    assert result_a["status"] == "completed"
+    identity = s8b_run_marker.freeze_identity(freeze_path)
+    assert s8b_run_marker.marker_exists(marker_root, identity)
+
+    # 2 回目: 別 output-root・別 budget (WAL も lock も無い新出力先)。マーカーが
+    # output-root 非依存で残るため再走を全拒否する。マーカーを output_root 配下に
+    # 置く実装ならここは素通りしてしまう (迂回) — その変異を kill する。
+    prepare_b = _prepare_factory()
+    with pytest.raises(driver.OracleDriverError) as excinfo:
+        _run(
+            tmp_path, freeze_path, manifest_path,
+            prepare_b, _fake_evaluate_factory(),
+            output_root=tmp_path / "out-b", budget_path=tmp_path / "budget-b.json",
+            marker_root=marker_root,
+        )
+    assert "マーカー" in str(excinfo.value)
+    assert prepare_b.calls == []
+
+
+def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(tmp_path):
+    """V5: campaign-start 1 行だけの途中切断 WAL (parse 可能 record 0 件) でも拒否。
+
+    read_records は末尾切れの 1 行を捨てて [] を返す。resume 判定を「parse 可能 record」
+    でなく「byte の存在」で行うことで、この truncated WAL 迂回を閉じる (fail-closed)。
+    """
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+
+    output_root = tmp_path / "out"
+    layout = campaign_layout(_campaign_id(manifest_path), output_root=str(output_root))
+    layout.ensure()
+    # campaign-start 1 行だけの途中切断 (JSON 未完 = parse 不能) を書き込む。
+    with open(layout.wal_file, "w", encoding="utf-8") as stream:
+        stream.write('{"variant":"oracle-session","stage":"s8b-oracle-session"')
+    assert wal.read_records(layout) == []          # parse 可能 record 0 件
+    assert os.path.getsize(layout.wal_file) > 0     # だが byte は存在する
+
+    with pytest.raises(driver.OracleDriverError) as excinfo:
+        _run(tmp_path, freeze_path, manifest_path, prepare_fn,
+             _fake_evaluate_factory(), output_root=output_root,
+             marker_root=tmp_path / "markers-v5")
+    assert "WAL byte" in str(excinfo.value)
+    assert prepare_fn.calls == []

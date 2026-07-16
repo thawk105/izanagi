@@ -6,6 +6,7 @@ import copy
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -248,6 +249,70 @@ def test_verify_tolerates_per_axis_drift_and_rejects_snapshot_tamper(tmp_path):
     with pytest.raises(M.FreezeError, match="holdout hit"):
         M.verify(freeze, root=root, files=drifted + ["fixtures/post-run.txt"],
                  current_head=head)
+
+
+def _git(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, check=True, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout.strip()
+
+
+def _commit_all(root: Path) -> str:
+    """root を git repo 化し全ファイルを 1 commit にして実在 HEAD SHA を返す。"""
+    _git(root, "init", "-q")
+    _git(root, "add", "-A")
+    _git(
+        root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-q", "-m", "gen1",
+    )
+    return _git(root, "rev-parse", "HEAD")
+
+
+def test_verify_rejects_active_generation_worktree_drift(tmp_path):
+    # v1 単一 filename freeze は唯一の発効中 (active) 世代。生成後に設計本文を worktree で
+    # 改変すると、frozen_at_head 時点の blob が recorded sha256 と一致していても、verify は
+    # worktree 完全一致を要求して拒否する (active 世代のドリフト検知)。blob 救済は世代別
+    # 不変 filename + 承認束縛を伴う v2 の旧世代専用であり、唯一の active 世代へ適用すると
+    # 設計本文の worktree 改変が骨抜きになる (fail-open) ため、ここでは通してはいけない。
+    root, files, _ = _synthetic_freeze_root(tmp_path)
+    head1 = _commit_all(root)
+    freeze = tmp_path / "freeze.json"
+    doc = M.generate(
+        confirmed_by="reviewer", confirmed_at="date", output_path=freeze,
+        root=root, files=files, frozen_at_head=head1,
+    )
+    M.verify(freeze, root=root, files=files)
+
+    # 設計本文を worktree で改変 + 再 commit。frozen_at_head=head1 の blob は不変で
+    # recorded と一致し (blob 救済なら通ってしまう) が、worktree の現物は record と食い違う。
+    (root / M.DESIGN_REL).write_text("design fixture drifted body\n", encoding="utf-8")
+    _git(
+        root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-aqm", "gen2",
+    )
+    assert M._sha256(root / M.DESIGN_REL) != doc["design_source"]["sha256"]
+    with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
+        M.verify(freeze, root=root, files=files)
+
+
+def test_verify_rejects_unratified_generation_documents(tmp_path):
+    root, files, head = _synthetic_freeze_root(tmp_path)
+    freeze = tmp_path / "freeze.json"
+    doc = M.generate(
+        confirmed_by="reviewer", confirmed_at="date", output_path=freeze,
+        root=root, files=files, frozen_at_head=head,
+    )
+    M.verify(freeze, root=root, files=files, current_head=head)
+
+    # 世代 schema field をどれか 1 つでも持つ document は一律 invalid (承認束縛未裁定)。
+    for field in sorted(M.GENERATION_SCHEMA_FIELDS):
+        generation = copy.deepcopy(doc)
+        generation[field] = "x" if field != "supersedes_sha256" else "a" * 64
+        gen_path = tmp_path / f"generation-{field}.json"
+        gen_path.write_text(json.dumps(generation), encoding="utf-8")
+        with pytest.raises(M.FreezeError, match="未承認世代 document は発効しない"):
+            M.verify(gen_path, root=root, files=files, current_head=head)
 
 
 def test_source_guard_has_no_static_concrete_axis_encoding():

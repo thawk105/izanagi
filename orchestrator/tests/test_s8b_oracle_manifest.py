@@ -39,10 +39,11 @@ def _holdout_ids():
 
 
 def _schedule(*, seed="seed-a", n=3, block_sizes=None):
+    # 単一 block 契約 (A3-3): 既定は 1 block に予定全行を含める。
     return manifest.build_schedule(
         n=n,
         master_seed=seed,
-        block_sizes=block_sizes or {"early": 1, "late": 2},
+        block_sizes=block_sizes or {"b0": n},
         holdout_ids=_holdout_ids(),
         configuration_ids=CONFIGURATION_IDS,
     )
@@ -272,7 +273,7 @@ def test_verify_detects_freeze_byte_tampering(tmp_path):
 @pytest.mark.parametrize(
     ("tamper", "message"),
     [("schedule-hash", "schedule_sha256"),
-     ("campaign-duplicate", "campaign ID"),
+     ("campaign-empty", "campaign ID"),
      ("binding-schema", "binding_identity entry schema")],
 )
 def test_verify_detects_manifest_tampering(tmp_path, tamper, message):
@@ -280,10 +281,10 @@ def test_verify_detects_manifest_tampering(tmp_path, tamper, message):
     document = _build_manifest(freeze_path)
     if tamper == "schedule-hash":
         document["schedule_sha256"] = "f" * 64
-    elif tamper == "campaign-duplicate":
-        campaign_id = next(iter(document["campaign_ids"].values()))
+    elif tamper == "campaign-empty":
+        # 単一 block では ID 重複は作れないため、空 ID (fail-closed) を検査する。
         document["campaign_ids"] = {
-            block_id: campaign_id for block_id in document["campaign_ids"]
+            block_id: "" for block_id in document["campaign_ids"]
         }
     else:
         document["binding_identity"][0].pop("src_token")
@@ -296,3 +297,30 @@ def test_verify_detects_manifest_tampering(tmp_path, tamper, message):
 def test_n_and_block_size_mismatch_is_rejected():
     with pytest.raises(manifest.ManifestError, match=r"sum\(block_sizes\)"):
         _schedule(n=3, block_sizes={"early": 1, "late": 1})
+
+
+def test_v1_two_block_manifest_is_rejected_at_build_and_verify(tmp_path):
+    """V1: early/late 2 block manifest が build と verify の双方で reject される。
+
+    A3-3 の両破綻経路 (共有台帳での焼失 / block 別 path での総枠 block 数倍 fail-open) を
+    単一 block 化で構造的に閉じたことを確認する。
+    """
+    freeze_path = _freeze_copy(tmp_path)
+    two_block_schedule = manifest.build_schedule(
+        n=3, master_seed="seed-a", block_sizes={"early": 1, "late": 2},
+        holdout_ids=_holdout_ids(), configuration_ids=CONFIGURATION_IDS,
+    )
+    # build 側: 2 block schedule から manifest を組もうとすると拒否される。
+    with pytest.raises(manifest.ManifestError, match="正確に 1 件でない"):
+        _build_manifest(freeze_path, schedule=two_block_schedule)
+
+    # verify 側: 正当な単一 block manifest の schedule.blocks を 2 件へ改竄しても拒否される。
+    document = _build_manifest(freeze_path)
+    document["schedule"]["blocks"] = [
+        {"block_id": "early", "size": 1},
+        {"block_id": "late", "size": 2},
+    ]
+    path = tmp_path / "two-block-tampered.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(manifest.ManifestError, match="正確に 1 件でない"):
+        manifest.verify_manifest(path, root=_ROOT)

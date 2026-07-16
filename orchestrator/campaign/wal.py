@@ -156,3 +156,44 @@ def read_lock(layout: CampaignLayout) -> Optional[str]:
         return None
     with open(layout.lock_file, "r", encoding="utf-8") as f:
         return f.read()
+
+
+# ---- 原子的 one-shot lock / WAL 存在判定 (R6 resume 拒否の強化) ----
+
+def acquire_lock_atomic(layout: CampaignLayout, preimage: str) -> bool:
+    """`O_CREAT|O_EXCL` で campaign.lock を原子的に獲得する。既存なら False。
+
+    write_lock (exists 確認後の非原子書き込み) の resume-safe 版。並行起動では一方だけが
+    True を得る。WAL 空確認から最初の campaign-start append までを覆う排他区間の起点。
+    True 時は preimage を書き込み、ファイル本体と親ディレクトリを fsync して存在を
+    耐久化する (作成直後の crash でも lock が残る)。
+    """
+    os.makedirs(layout.root, exist_ok=True)
+    try:
+        fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    except FileExistsError:
+        return False
+    try:
+        os.write(fd, preimage.encode("utf-8"))
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    dfd = os.open(layout.root, os.O_RDONLY)
+    try:
+        os.fsync(dfd)
+    finally:
+        os.close(dfd)
+    return True
+
+
+def wal_bytes_present(layout: CampaignLayout) -> bool:
+    """WAL ファイルに byte が存在するか (parse 可否は問わない)。
+
+    read_records は末尾切れの 1 行を捨てるため、campaign-start 1 行だけの途中切断 WAL
+    では [] を返しうる。resume 拒否は「parse 可能 record の有無」でなく「byte の存在」で
+    判定する必要がある (truncated/汚染 WAL 迂回の閉鎖、fail-closed)。
+    """
+    try:
+        return os.path.getsize(layout.wal_file) > 0
+    except OSError:
+        return False

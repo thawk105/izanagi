@@ -10,11 +10,13 @@ import pytest
 
 from orchestrator.campaign.s8b_descriptor import descriptor_for_holdout
 from orchestrator.campaign.s8b_selector_freeze import (
+    SELECTOR_BASIS_VERSION,
     SelectorFreezeError,
     binding_entry_for_choice,
     build_prediction_freeze,
     build_prediction_jobs,
     record_agent_attempt,
+    selector_basis_preimage,
     selector_basis_sha256,
     verify_prediction_freeze,
     write_prediction_freeze,
@@ -475,6 +477,34 @@ def test_selector_basis_ignores_floor_budget_but_binds_variant_entries() -> None
     key = next(iter(CHOICE_TO_BINDING.values()))
     binding_changed["holdouts"][target]["variant_binding"]["entries"][key]["future"] = 1
     assert selector_basis_sha256(binding_changed) != baseline
+
+
+def test_selector_basis_preimage_is_versioned_and_backward_compatible() -> None:
+    freeze = _freeze()
+    preimage = selector_basis_preimage(freeze)
+
+    # 拡張点が機械可読: version tag が preimage に含まれ、hash はそれに束縛される。
+    assert preimage["version"] == SELECTOR_BASIS_VERSION == "selector_basis/v1"
+    rendered = json.dumps(
+        preimage, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    )
+    assert selector_basis_sha256(freeze) == hashlib.sha256(
+        rendered.encode("utf-8")
+    ).hexdigest()
+
+    # 後方互換: 含める/除く field 集合は不変 (floor/budget 除外・binding 束縛)。
+    floor_budget_changed = copy.deepcopy(freeze)
+    floor_budget_changed["floor"] = {"future": 1}
+    floor_budget_changed["budget"] = {"future": 2}
+    assert selector_basis_sha256(floor_budget_changed) == selector_basis_sha256(freeze)
+    assert "floor" not in preimage and "budget" not in preimage
+
+    binding_changed = copy.deepcopy(freeze)
+    target = next(iter(binding_changed["holdouts"]))
+    key = next(iter(CHOICE_TO_BINDING.values()))
+    binding_changed["holdouts"][target]["variant_binding"]["entries"][key]["future"] = 1
+    assert selector_basis_sha256(binding_changed) != selector_basis_sha256(freeze)
 
 
 def test_write_prediction_freeze_is_atomic_exclusive_create(tmp_path: Path) -> None:

@@ -20,7 +20,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import pipeline, s8b_budget, wal  # noqa: E402
+from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from campaign import s1_known_axes_freeze, s8b_holdout_freeze  # noqa: E402
@@ -72,17 +72,6 @@ def _canonical_sha256(value) -> str:
     return hashlib.sha256(_canonical_bytes(value)).hexdigest()
 
 
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    try:
-        with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(chunk)
-    except OSError as exc:
-        raise OracleDriverError(f"sha256 対象を読めない: {path}: {exc}") from exc
-    return digest.hexdigest()
-
-
 def _load_json_object(path: Path) -> dict:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -93,27 +82,89 @@ def _load_json_object(path: Path) -> dict:
     return value
 
 
+def _reject_json_constant(token: str):
+    """strict parse: NaN / Infinity 等の非数値定数を拒否する。"""
+    raise OracleDriverError(f"freeze JSON に非数値定数が含まれる: {token}")
+
+
+@dataclass(frozen=True)
+class VerifiedFreeze:
+    """hash 検証済み freeze bytes の strict parse 結果と、その byte sha256。
+
+    verify から use までを単一 object で束ね、consumer 間 (gate・driver・
+    manifest verify・budget limits・perf 三軸) の再読込を除去する (A3-6)。
+    """
+    document: dict
+    sha256: str
+
+
+def load_verified_freeze(path, expected_hash: Optional[str] = None) -> VerifiedFreeze:
+    """freeze bytes を一度だけ読み、hash 検証 + strict parse した単一 object を返す。
+
+    全 consumer はこの戻り値の ``document`` / ``sha256`` だけを使い、freeze を
+    再読込しない。よって gate 検証後・使用前に freeze byte を差し替えても差替え後
+    の値は一切観測されない (verify-use 間 TOCTOU の遮断、A3-6)。``expected_hash``
+    を与えた場合は byte sha256 との一致を要求し、不一致は拒否する (fail-closed)。
+    """
+    path = Path(path)
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise OracleDriverError(f"freeze bytes を読めない: {path}: {exc}") from exc
+    sha256 = hashlib.sha256(raw).hexdigest()
+    if expected_hash is not None and sha256 != expected_hash:
+        raise OracleDriverError(
+            f"freeze byte sha256 が expected_hash と不一致: {path}"
+        )
+    try:
+        document = json.loads(raw.decode("utf-8"),
+                              parse_constant=_reject_json_constant)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise OracleDriverError(
+            f"freeze JSON を strict parse できない: {path}: {exc}"
+        ) from exc
+    if not isinstance(document, dict):
+        raise OracleDriverError(f"freeze JSON top-level が object でない: {path}")
+    return VerifiedFreeze(document=document, sha256=sha256)
+
+
 def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
     path = Path(path_text)
     return path if path.is_absolute() else root / path
 
 
-def gate_check(*, freeze_path, manifest_path=None, root) -> GateDecision:
-    """実走前の独立 gate を順番に全件検査し、全拒否理由を返す。"""
-    freeze_path = Path(freeze_path)
+def gate_check(*, freeze_path=None, manifest_path=None, root,
+               verified: Optional[VerifiedFreeze] = None) -> GateDecision:
+    """実走前の独立 gate を順番に全件検査し、全拒否理由を返す。
+
+    ``verified`` (``load_verified_freeze`` の戻り値) を与えた場合は freeze を
+    再読込せず、その単一 object の document/sha256 だけを使う (A3-6: verify-use
+    間差替えの遮断)。与えない場合は自身で ``load_verified_freeze`` を一度呼ぶ。
+    """
     root = Path(root)
     refusals: list[str] = []
     freeze: Optional[dict] = None
+    freeze_sha: Optional[str] = None
 
-    try:
-        freeze = _load_json_object(freeze_path)
-    except Exception as exc:
-        refusals.append(f"holdout-freeze-verify: {type(exc).__name__}: {exc}")
+    if verified is not None:
+        freeze = verified.document
+        freeze_sha = verified.sha256
     else:
+        try:
+            loaded = load_verified_freeze(Path(freeze_path))
+        except Exception as exc:
+            refusals.append(f"holdout-freeze-verify: {type(exc).__name__}: {exc}")
+        else:
+            freeze = loaded.document
+            freeze_sha = loaded.sha256
+
+    if freeze is not None:
         if freeze.get("floor") is None and freeze.get("budget") is None:
             try:
                 # v1 verifier は floor/budget がともに null の freeze だけを対象にする。
-                s8b_holdout_freeze.verify(freeze_path, root=root)
+                # v2 実走経路はこの枝に入らない (下の freeze-v2 refusal へ倒れる) ため、
+                # ここでの path 再読込は A3-6 の単一 object 対象外。
+                s8b_holdout_freeze.verify(Path(freeze_path), root=root)
             except Exception as exc:
                 refusals.append(
                     f"holdout-freeze-verify: {type(exc).__name__}: {exc}"
@@ -148,7 +199,14 @@ def gate_check(*, freeze_path, manifest_path=None, root) -> GateDecision:
     if manifest_path is not None:
         manifest_path = Path(manifest_path)
         try:
-            verify_manifest(manifest_path, root=root)
+            # A3-6: 検証済み単一 object を渡し、manifest verify 内での freeze 再読込を除く。
+            if freeze is not None and freeze_sha is not None:
+                verify_manifest(
+                    manifest_path, root=root,
+                    freeze_document=freeze, freeze_sha256=freeze_sha,
+                )
+            else:
+                verify_manifest(manifest_path, root=root)
         except Exception as exc:
             refusals.append(f"manifest-verify: {type(exc).__name__}: {exc}")
         try:
@@ -156,7 +214,9 @@ def gate_check(*, freeze_path, manifest_path=None, root) -> GateDecision:
             record = manifest.get("freeze")
             if not isinstance(record, Mapping) or not isinstance(record.get("sha256"), str):
                 raise OracleDriverError("manifest.freeze.sha256 がない")
-            if record["sha256"] != _file_sha256(freeze_path):
+            if freeze_sha is None:
+                raise OracleDriverError("freeze が読めず byte sha256 を照合できない")
+            if record["sha256"] != freeze_sha:
                 raise OracleDriverError("manifest と指定 freeze の byte sha256 が不一致")
         except Exception as exc:
             refusals.append(f"manifest-freeze-hash: {type(exc).__name__}: {exc}")
@@ -342,29 +402,97 @@ def _outcome_for(result, abort_payload: Mapping) -> str:
 
 
 def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
-                     campaign_id: str) -> None:
+                     campaign_id: str, freeze_sha256: str, marker_root) -> None:
+    """実走前に claim を確立する。既に着手済みなら択 (a) で resume を全拒否する。
+
+    R6: WAL byte の存在 / 実走済みマーカーの存在 / campaign.lock の存在の三重判定で、
+    どれか一つでも存在すれば当該 freeze/campaign は着手済みとみなし resume を拒否する
+    (§9 項 8 択 (a) = 途中 crash は実験全体を判定不能へ)。順序は「マーカー生成 →
+    (呼び出し元が) campaign-start」。マーカーは `--output-root` 非依存の場所に置くため、
+    出力先の付け替えで拒否を迂回できない。
+    """
     layout.ensure()
     preimage = _canonical_bytes({
         "manifest_sha256": manifest_sha256,
         "block_id": block_id,
         "campaign_id": campaign_id,
     }).decode("utf-8")
-    stored = wal.read_lock(layout)
-    if stored is None:
-        wal.write_lock(layout, preimage)
-        stored = wal.read_lock(layout)
-    if stored != preimage:
-        raise OracleDriverError("campaign.lock と oracle block identity が不一致")
-    if wal.read_records(layout):
-        raise OracleDriverError("既存 WAL を持つ oracle campaign の resume は拒否")
+
+    # (1) truncated/汚染 WAL を含む「byte が存在する WAL」の resume を閉じる。
+    #     read_records() が末尾切れの 1 行を捨てて [] を返す経路でも byte 存在で拒否。
+    if wal.wal_bytes_present(layout):
+        raise OracleDriverError(
+            "既存 WAL byte を持つ oracle campaign の resume は拒否 (択 a・truncated 含む)"
+        )
+    # (2) 実走済みマーカー (--output-root 非依存・freeze byte hash 束縛) の存在で全拒否。
+    if s8b_run_marker.marker_exists(marker_root, freeze_sha256):
+        raise OracleDriverError(
+            "実走済みマーカーが存在する freeze の再走は全拒否 (択 a)"
+        )
+    # (3) 原子的 one-shot lock。既存 lock = 並行起動 or 着手済み → resume 拒否。
+    #     ここから campaign-start までが排他区間。
+    if not wal.acquire_lock_atomic(layout, preimage):
+        raise OracleDriverError(
+            "campaign.lock が既に存在するため resume/並行起動を拒否 (択 a)"
+        )
+    # (4) マーカー生成 (campaign-start より前)。原子的 exclusive-create が競合を捕捉する。
+    try:
+        s8b_run_marker.create_run_marker(marker_root, freeze_sha256, {
+            "campaign_id": campaign_id,
+            "block_id": block_id,
+            "manifest_sha256": manifest_sha256,
+        })
+    except s8b_run_marker.RunMarkerError as exc:
+        raise OracleDriverError(
+            f"実走済みマーカーの原子的生成に失敗 (再走の可能性): {exc}"
+        ) from exc
 
 
 def run_block(
         *, manifest_path, block_id, freeze_path, root, output_root, budget_path,
-        evaluate_fn=None, prepare_fn=None) -> dict:
-    """一つの immutable block を直列実行する。gate 拒否時は一切書き込まない。"""
+        marker_root=None, evaluate_fn=None, prepare_fn=None) -> dict:
+    """一つの immutable block を直列実行し、terminal status を耐久化して返す。
+
+    gate 拒否時は一切書き込まず ``status="refused"`` を返す。
+
+    戻り値 JSON 契約 (CLI が ``_exit_code`` で終了コードへ射影する):
+
+    - ``status`` — 次のいずれか (かっこ内は CLI rc):
+      ``completed`` (0): 全予定行が一意 terminal outcome + 対応 budget terminal
+      record を耐久化し、held reservation を実測へ精算した (強い completed 定義)。
+      ``protocol_violation`` (3): 1 行以上が binding-refused / prepare 恒久失敗 /
+      未実行で強い completed 定義を満たさない。``unresolved_rows`` に未達
+      schedule_index を載せ、reservation は精算せず held のまま残す (fail-closed)。
+      ``budget_exhausted_before_attempt`` (2): 一括予約が確保できず一行も走らない。
+      ``error`` (1): 実行中の内部逸脱 (未分類 abort reason / reservation 枠超過)。
+      reservation を非解放のまま残し ``error`` に理由を載せる。
+      ``refused`` (2): 実走前 gate が拒否し ``refusals`` に全拒否理由を載せる。
+    - ``completed_trials`` — 一意 terminal outcome + budget entry を得た行数。
+    - ``unresolved_rows`` — protocol_violation 時のみ。未達 schedule_index の列。
+    - ``error`` — error 時のみ。逸脱理由の文字列。
+    - ``events`` — WAL に耐久化した session event の逐次列 (terminal event を含む)。
+    - ``allowed`` / ``refusals`` / ``campaign_id`` / ``manifest_sha256`` /
+      ``freeze_sha256`` / ``schedule_sha256`` — gate 判定と block identity。
+
+    rc 優先順位は ``_exit_code`` を正本とする:
+    internal-error(1) > protocol_violation(3) > budget-refused(2) > completed(0)。
+    """
+    freeze_path = Path(freeze_path)
+    # A3-6: freeze bytes を一度だけ読み hash 検証 + strict parse した単一 object を、
+    # gate・manifest verify・budget limits・perf 三軸の全 consumer で共有する。
+    # verify から use までの間に freeze byte を差し替えても差替え後の値は使われない。
+    try:
+        verified = load_verified_freeze(freeze_path)
+    except OracleDriverError as exc:
+        decision = GateDecision(
+            allowed=False,
+            refusals=[f"holdout-freeze-verify: {type(exc).__name__}: {exc}"],
+        )
+        return {"status": "refused", **asdict(decision)}
+
     decision = gate_check(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
+        verified=verified,
     )
     if not decision.allowed:
         return {"status": "refused", **asdict(decision)}
@@ -372,11 +500,19 @@ def run_block(
     root = Path(root)
     output_root = Path(output_root)
     budget_path = Path(budget_path)
-    manifest = verify_manifest(Path(manifest_path), root=root)
-    freeze = _load_json_object(Path(freeze_path))
+    # マーカーは --output-root 非依存 (freeze 正本側)。既定は freeze ファイルと同じ
+    # ディレクトリ = production では output/s8b-freeze/ 配下。
+    marker_root = Path(marker_root) if marker_root is not None else freeze_path.parent
+    manifest = verify_manifest(
+        Path(manifest_path), root=root,
+        freeze_document=verified.document, freeze_sha256=verified.sha256,
+    )
+    freeze = verified.document
     block = config_for_block(manifest, block_id)
     limits = s8b_budget.load_oracle_limits(freeze)
     manifest_sha = _canonical_sha256(manifest)
+    freeze_sha = verified.sha256
+    schedule_sha = manifest["schedule_sha256"]
     campaign_id = block["campaign_id"]
     run_contract = block["run_contract"]
     env_tag = run_contract["env_tag"]
@@ -386,26 +522,69 @@ def run_block(
 
     _ensure_campaign(
         layout, manifest_sha256=manifest_sha, block_id=block_id,
-        campaign_id=campaign_id,
+        campaign_id=campaign_id, freeze_sha256=freeze_sha, marker_root=marker_root,
     )
     _append_session(layout, env_tag, "campaign-start", {
         "manifest_sha256": manifest_sha,
         "block_id": block_id,
         "campaign_id": campaign_id,
     })
-    s8b_budget.create_ledger(
-        budget_path, manifest_sha256=manifest_sha, limits=limits,
-    )
+    ledger_identity = {
+        "manifest_sha256": manifest_sha,
+        "freeze_sha256": freeze_sha,
+        "schedule_sha256": schedule_sha,
+    }
+    s8b_budget.create_ledger(budget_path, limits=limits, **ledger_identity)
 
-    completed = 0
-    budget_stopped = False
-    error_stopped = False
-    error_message: Optional[str] = None
     schedule = block["schedule"]
-    required_bench_s = float(
+    per_row_bench_s = float(
         run_contract["extime"] * run_contract["reps"]
         * run_contract["bench_max_rounds"]
     )
+    reserved_bench_s = per_row_bench_s * len(schedule)
+    by_holdout_reserved: dict[str, float] = {}
+    for row in schedule:
+        by_holdout_reserved[row["holdout_id"]] = (
+            by_holdout_reserved.get(row["holdout_id"], 0.0) + per_row_bench_s
+        )
+    reserved_iso = _iso_now()
+
+    # 事前一括 reservation。確保できなければ一行も走らせず terminal を耐久化する
+    # (§5.2 の予算不足 = 未実施 arm を対称に判定不能へ倒す契約)。
+    try:
+        s8b_budget.reserve(
+            budget_path, reserved_bench_s=reserved_bench_s,
+            by_holdout_reserved=by_holdout_reserved, reserved_iso=reserved_iso,
+            **ledger_identity,
+        )
+    except s8b_budget.BudgetError as exc:
+        s8b_budget.mark_exhausted(
+            budget_path, requested_bench_s=reserved_bench_s,
+            by_holdout_requested=by_holdout_reserved, reserved_iso=reserved_iso,
+            **ledger_identity,
+        )
+        _append_session(layout, env_tag, "budget-exhausted-before-attempt", {
+            "reason": str(exc),
+            "reserved_bench_s": reserved_bench_s,
+        })
+        return {
+            "status": "budget_exhausted_before_attempt",
+            "allowed": True,
+            "refusals": [],
+            "campaign_id": campaign_id,
+            "manifest_sha256": manifest_sha,
+            "freeze_sha256": freeze_sha,
+            "schedule_sha256": schedule_sha,
+            "completed_trials": 0,
+            "events": _session_events(layout),
+        }
+
+    completed = 0
+    # 強い completed 定義の未達行 (binding-refused / prepare 恒久失敗 / 未実行) を集める。
+    # 1 件でも残れば terminal は protocol_violation に倒す (fail-closed)。
+    unresolved_rows: list[int] = []
+    error_stopped = False
+    error_message: Optional[str] = None
     for position, row in enumerate(schedule):
         schedule_index = row["schedule_index"]
         holdout_id = row["holdout_id"]
@@ -435,27 +614,7 @@ def run_block(
                             "schedule_index": schedule_index,
                             "reason": "manifest binding_identity と再実体化 identity が不一致",
                         })
-                        row_done = True
-                        break
-
-                    ledger = s8b_budget.read_ledger(
-                        budget_path, manifest_sha256=manifest_sha,
-                    )
-                    try:
-                        s8b_budget.assert_available(
-                            ledger, holdout_id=holdout_id,
-                            required_bench_s=required_bench_s,
-                        )
-                    except s8b_budget.BudgetError as exc:
-                        _append_session(layout, env_tag, "budget-refused", {
-                            "schedule_index": schedule_index, "reason": str(exc),
-                        })
-                        for remaining in schedule[position + 1:]:
-                            _append_session(layout, env_tag, "trial-skipped", {
-                                "schedule_index": remaining["schedule_index"],
-                                "reason": "先行 schedule 行の budget-refused により block 停止",
-                            })
-                        budget_stopped = True
+                        unresolved_rows.append(schedule_index)
                         row_done = True
                         break
 
@@ -527,10 +686,11 @@ def run_block(
                     "schedule_index": schedule_index,
                     "reason": f"prepare {type(exc).__name__}: {exc}",
                 })
+                unresolved_rows.append(schedule_index)
                 row_done = True
                 break
 
-            if budget_stopped or error_stopped or row_done:
+            if error_stopped or row_done:
                 break
             finished_iso = _iso_now()
             wall_s = float(max(0.0, time.monotonic() - attempt_started))
@@ -557,46 +717,64 @@ def run_block(
                 "started_iso": started_iso,
                 "finished_iso": finished_iso,
             }
+            # reservation 済み枠内の実測計上。枠超過は protocol violation として fail-closed。
             try:
                 s8b_budget.append_entry(
-                    budget_path, manifest_sha256=manifest_sha,
-                    entry=budget_entry,
+                    budget_path, entry=budget_entry, **ledger_identity,
                 )
             except s8b_budget.BudgetError as exc:
                 _append_session(layout, env_tag, "deviation", {
-                    "message": f"実測 bench debit が予算台帳に拒否された: {exc}",
-                    "kind": "budget-debit-refused",
+                    "message": f"実測 bench が予約枠を超過し台帳に拒否された: {exc}",
+                    "kind": "reservation-envelope-exceeded",
                     "schedule_index": schedule_index,
                     "bench_s": bench_s,
-                    "reserved_bench_s": required_bench_s,
+                    "reserved_bench_s": reserved_bench_s,
                 })
-                _append_session(layout, env_tag, "budget-refused", {
-                    "schedule_index": schedule_index, "reason": str(exc),
-                })
-                for remaining in schedule[position + 1:]:
-                    _append_session(layout, env_tag, "trial-skipped", {
-                        "schedule_index": remaining["schedule_index"],
-                        "reason": "先行 schedule 行の budget-refused により block 停止",
-                    })
-                budget_stopped = True
+                error_stopped = True
+                error_message = str(exc)
                 row_done = True
                 break
             row_done = True
             break
-        if budget_stopped or error_stopped:
+        if error_stopped:
             break
         if not row_done:
             raise OracleDriverError(f"schedule_index={schedule_index} が終端に到達しない")
 
+    if error_stopped:
+        # 内部逸脱 (未分類 abort / reservation 枠超過)。精算せず予約枠を非解放の
+        # まま残す (fail-closed)。terminal status は internal-error。
+        status = "error"
+    elif completed == len(schedule) and not unresolved_rows:
+        # 強い completed 定義: 全予定行が一意 terminal outcome + budget entry を
+        # 耐久化した。held reservation を実測へ確定し未使用枠を解放する。
+        s8b_budget.settle(
+            budget_path, settled_iso=_iso_now(), **ledger_identity,
+        )
+        status = "completed"
+    else:
+        # 1 行以上が binding-refused / prepare 恒久失敗で terminal outcome を
+        # 得ていない。強い completed 定義を満たさず protocol_violation に倒す。
+        # 精算せず予約枠を held のまま残す (fail-closed)。
+        _append_session(layout, env_tag, "protocol-violation", {
+            "unresolved_rows": unresolved_rows,
+            "completed_trials": completed,
+            "scheduled_rows": len(schedule),
+        })
+        status = "protocol_violation"
+
     return {
-        "status": ("error" if error_stopped else
-                   "budget-refused" if budget_stopped else "completed"),
+        "status": status,
         "allowed": True,
         "refusals": [],
         "campaign_id": campaign_id,
         "manifest_sha256": manifest_sha,
+        "freeze_sha256": freeze_sha,
+        "schedule_sha256": schedule_sha,
         "completed_trials": completed,
         **({"error": error_message} if error_message is not None else {}),
+        **({"unresolved_rows": unresolved_rows}
+           if status == "protocol_violation" else {}),
         "events": _session_events(layout),
     }
 
@@ -615,8 +793,35 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--freeze", type=Path, default=DEFAULT_FREEZE_PATH)
     run.add_argument("--root", type=Path, default=ROOT)
     run.add_argument("--output-root", type=Path, default=Path(repo_output_root()))
-    run.add_argument("--budget", type=Path, default=DEFAULT_BUDGET_PATH)
+    # 実走済みマーカーの置き場は CLI から上書きできない (freeze ファイルと同じ
+    # ディレクトリ = production では output/s8b-freeze/ 配下に固定)。R6: --output-root を
+    # 変えても同じ場所を指すため resume 拒否を出力先付け替えで迂回できない。--budget と
+    # 同じ判断 (別 path 指定 = fail-open) で CLI 面から撤去。run_block の引数はテスト専用
+    # --budget override は廃止。台帳 path は canonical 固定 (別 path 指定による
+    # 総枠複製 = fail-open を塞ぐ。T 層項 6)。
     return parser
+
+
+# terminal status → CLI 終了コードの固定表。rc 優先順位:
+# internal-error(1) > protocol_violation(3) > budget-refused(2) > completed(0)。
+# gate-refused も rc 2。ここに無い status は fail-closed で internal-error(1)。
+_EXIT_CODE_BY_STATUS = {
+    "completed": 0,
+    "error": 1,  # 内部逸脱 = internal-error
+    "protocol_violation": 3,
+    "budget_exhausted_before_attempt": 2,  # budget-refused
+    "refused": 2,  # gate-refused
+}
+
+
+def _exit_code(status: object) -> int:
+    """run_block / gate の terminal status を CLI 終了コードへ射影する。
+
+    rc 優先順位 = internal-error(1) > protocol_violation(3) > budget-refused(2)
+    > completed(0)。gate-refused も rc 2。未知・欠測 status は fail-closed で
+    internal-error(1) に倒す。
+    """
+    return _EXIT_CODE_BY_STATUS.get(status, 1)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -627,14 +832,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 freeze_path=args.freeze, manifest_path=args.manifest, root=args.root,
             )
             print(json.dumps(asdict(decision), ensure_ascii=False, sort_keys=True))
-            return 0 if decision.allowed else 2
+            return 0 if decision.allowed else _exit_code("refused")
         result = run_block(
             manifest_path=args.manifest, block_id=args.block_id,
             freeze_path=args.freeze, root=args.root,
-            output_root=args.output_root, budget_path=args.budget,
+            output_root=args.output_root, budget_path=DEFAULT_BUDGET_PATH,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0 if result.get("status") == "completed" else 2
+        return _exit_code(result.get("status"))
     except Exception as exc:
         print(json.dumps({
             "status": "error", "error": f"{type(exc).__name__}: {exc}",

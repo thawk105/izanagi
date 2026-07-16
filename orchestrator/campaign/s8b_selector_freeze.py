@@ -303,8 +303,18 @@ def build_prediction_jobs(freeze: Mapping) -> list[dict]:
     return jobs
 
 
-def selector_basis_sha256(freeze: Mapping) -> str:
-    """floor/budget と独立な workload・binding・catalog 対応の部分 hash。"""
+SELECTOR_BASIS_VERSION = "selector_basis/v1"
+
+
+def selector_basis_preimage(freeze: Mapping) -> dict:
+    """selector_basis hash の versioned preimage を機械可読な形で構成する。
+
+    現行 preimage は workload 条件・variant_binding・derangement・choice mapping の
+    部分投影のみ。実送信 payload bytes・catalog・descriptor projection 等を含める
+    versioned preimage 拡張 (S 層設計素材) は §8 の再凍結事項であり本関数では実装
+    しない。``version`` tag は将来の拡張世代 (selector_basis/v2 ...) を hash 上で
+    区別する拡張点として明示するのみで、含める/除く field 集合は現行のまま
+    (floor/budget は除外、variant_binding は束縛) を維持する。"""
     holdouts, derangement, targets = _freeze_axes(freeze)
     basis_holdouts = {}
     for target in targets:
@@ -322,12 +332,17 @@ def selector_basis_sha256(freeze: Mapping) -> str:
             },
             "variant_binding": copy.deepcopy(entry["variant_binding"]),
         }
-    basis = {
+    return {
+        "version": SELECTOR_BASIS_VERSION,
         "holdouts": basis_holdouts,
         "derangement": copy.deepcopy(dict(derangement)),
         "choice_to_binding": copy.deepcopy(CHOICE_TO_BINDING),
     }
-    return _canonical_sha256(basis)
+
+
+def selector_basis_sha256(freeze: Mapping) -> str:
+    """floor/budget と独立な workload・binding・catalog 対応の versioned 部分 hash。"""
+    return _canonical_sha256(selector_basis_preimage(freeze))
 
 
 def binding_entry_for_choice(

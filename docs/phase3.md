@@ -43,8 +43,12 @@ floor/budget は再実測までの null)、8b 後半 = selector 役 + oracle 評
 次: (a) ~~§9 再凍結 draft の残り = 項 7〜8 のユーザー承認~~ **完了 (2026-07-16、§9 全 8 項発効。
 項 8 = 択 (a) crash 再走なし。A3-3/A3-4/R5 の追加裁定も承認 — 裁定資料 =
 `output/insights/2026-07-16_s8b-ruling-package.md`、記録 = §9 承認状態 + worklog (11))**。
-次 = 前提条件の実装: strict v2 verifier / R3 runner / R6 強化 / F3 pgrep 修正 / R5 結合 judge
-(設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md` の受入ベクトル V1〜V9)、
+前提条件の実装 wave 1 完了 (2026-07-16、worklog (12)): T 層 reservation 台帳 / C 層 status・rc /
+R6 強化 (択 a) / S 層 単一 object + git blob 束縛骨格 / R3 runner (at-most-once) / R5 結合
+judge / F3 pgrep 修正 — 受入ベクトル V1〜V9 実装済み、s8b 系 222 passed。
+残 = strict v2 verifier 本体 (世代 field 列挙と承認束縛方式の §8 再凍結が前提) と floor
+protocol の凍結 → 実測 → freeze v2 再凍結
+(設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
 `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、

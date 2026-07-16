@@ -1040,3 +1040,31 @@ checkpoint (c) 着手時に、凍結対象の二波監査全文 (audit-wave1/2-o
    世代 schema / R3 runner (at-most-once) / R5 結合 judge (truth table は裁定 5 の値で確定)
 2. floor protocol の凍結案作成 → 承認 → env-tag 確定 → floor/budget 実測 → freeze v2 再凍結 (R1)
 3. worktree branch の main への取り込みと push はユーザー判断
+
+## 2026-07-16 (12) — freeze v2 前提条件の実装 wave 1 (5 レーン workflow + 親レビュー)
+
+裁定 1〜6 発効を受け、設計素材の T/C/S/R3/R6/R5 層 + F3 修正を Claude workflow 16 agents
+(5 レーン: driver 系直列 4 段 + F3/R3/R5/S-freeze 並列、実装 = opus/sonnet、レーン内敵対
+レビューつき) で実装した。fable subagent 不使用 (モデル経済指示の実践)。計測なし。
+
+- 新規: s8b_run_marker.py (freeze byte hash マーカー + O_EXCL lock)、s8b_prediction_runner.py
+  (R3 at-most-once + journal 束縛)、s8b_verdict.py (R5 結合 judge、truth table = 裁定 5 の値)。
+  改修: 予算台帳の事前一括 reservation (crash 非解放・3 値分離)、manifest 単一 block 強制、
+  completed 強化 + rc 優先順位、load_verified_freeze 単一 object 貫通、pgrep path 非依存化、
+  git blob 束縛骨格 + 未承認世代の一律拒否。テスト 150 → 222 passed (受入ベクトル V1〜V9)
+- workflow 事故 1 件: レーン A 段 4 が構造化出力の再試行上限で異常終了 → 実装は完了していたが
+  レビュー段が飛んだため、親が opus 子でレビューを再投げ。所見 6 件 (fix-required 1) —
+  medium 1 = --marker-root CLI が --budget 撤去と同型の経路上書き迂回を再導入 → CLI 面から
+  撤去 (親)。low 2 件 (entries 永続 assert・reservation 合計 cross-check) は sonnet 子で強化。
+  low 3 件は記録のみ (レーン同居・dead code 化した重複検査・v1 拒否経路の再読込)
+- レーン内レビューの主な捕捉: R3 の claim が payload を束縛しない F14 型 (freeze 付け替えで
+  provenance 汚染、修正済み)、S 層 git blob 救済の fail-open (修正済み)、R5 の swapped 両
+  holdout 判定が基数を検査しない穴 (修正済み)
+- 工数: workflow 16 + 単発子 3 (レビュー opus、修正 sonnet、Explore sonnet は (10) 計上済み)
+
+### 次の一手
+1. wave 2: floor protocol の凍結案 (対象集合・n・reps・時間分離・算出式) を作成 → ユーザー承認
+   → env-tag 確定 (裁定 6 で保留) → floor/budget 実測 → freeze v2 再凍結 (R1 design hash 追随、
+   世代 field 列挙と承認束縛方式の §8 裁定を含む)
+2. strict v2 verifier 本体は wave 2 の再凍結と同時に実装 (骨格は今回済み)
+3. worktree branch (worktree-s8b-ruling-prep) の main への取り込みと push はユーザー判断

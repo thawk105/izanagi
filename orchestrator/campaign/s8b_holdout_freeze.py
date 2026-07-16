@@ -546,8 +546,42 @@ TOP_LEVEL_KEYS = {
     "budget", "refreeze_note", "scope_note", "binding_rule_note",
 }
 
+# freeze v2 世代 schema の header field (supersedes 連鎖・変更理由・承認記録)。
+# 承認記録を世代と束縛して「承認済み世代」を機械判定する方式は §8 で未裁定であり、
+# 束縛方式が設計・裁定されるまで新世代は発効しない (設計素材 S 層 裁定依存点)。
+# これらの field を持つ document は現時点では一律 invalid に倒す (fail-closed)。
+# 承認束縛検証を伴わない世代を通せば未承認の floor/budget 差し替え世代が fail-open
+# するため (F14 型: 宣言のみの遮断)、骨格段階では認識即拒否とする。
+GENERATION_SCHEMA_FIELDS = frozenset({
+    "supersedes_sha256", "change_reason",
+    "approved_by", "approved_at", "approval_scope",
+})
+
+
+def _reject_unratified_generation(doc: Mapping) -> None:
+    """世代 schema field を持つ新世代 document を承認束縛未裁定として拒否する。"""
+    if not isinstance(doc, Mapping):
+        return
+    present = sorted(GENERATION_SCHEMA_FIELDS & set(doc))
+    if present:
+        raise FreezeError(
+            "未承認世代 document は発効しない: 世代 schema field "
+            f"{present} を検出したが、承認束縛方式が §8 で未裁定 (fail-closed)"
+        )
+
 
 def _verify_source(doc: Mapping, field: str, root: Path, rel: str) -> None:
+    """source を現行 worktree path の bytes hash で照合する。
+
+    v1 単一 filename freeze は常に唯一の発効中 (active) 世代であり、その source は
+    worktree の現物と完全一致しなければならない (ドリフト検知)。record と不一致なら
+    拒否 (fail-closed)。frozen_at_head 時点の git blob への救済照合は、世代別不変
+    filename + supersedes 連鎖 + 承認束縛を伴う v2 の「旧世代」再検証専用であり、その
+    束縛方式は §8 で未裁定 (未承認世代は _reject_unratified_generation が拒否) のため
+    発効しない。唯一の active 世代へ blob 救済を適用すると、設計本文・known_axes・
+    generator を worktree で改変しても (recorded が frozen_at_head の blob と一致する
+    限り) verify が通り、active 世代のドリフト検知が骨抜きになる (fail-open) ため、
+    ここでは worktree 完全一致のみを正とする。"""
     record = doc.get(field)
     if not isinstance(record, Mapping) or set(record) != {"path", "sha256"}:
         raise FreezeError(f"{field} schema が不正")
@@ -595,6 +629,7 @@ def verify_document(
     ため、再実行値との完全一致は要求しない。holdout を実走した後は再実行で
     conjunction hit が生じて (2) が失敗する — 未既知性は計測開始前にのみ成立する
     性質であり、これは意図した fails-closed である。"""
+    _reject_unratified_generation(doc)
     if set(doc) != TOP_LEVEL_KEYS:
         raise FreezeError(
             f"freeze top-level keys が schema と不一致: {sorted(set(doc) ^ TOP_LEVEL_KEYS)}"
@@ -602,10 +637,11 @@ def verify_document(
     root = Path(root)
     if doc.get("what") != WHAT or doc.get("schema_version") != SCHEMA_VERSION:
         raise FreezeError("what/schema_version 不一致")
+    head = doc.get("frozen_at_head")
     _verify_source(doc, "design_source", root, DESIGN_REL)
     _verify_source(doc, "known_axes_freeze", root, KNOWN_AXES_REL)
     _verify_source(doc, "generator", root, SCRIPT_REL)
-    _verify_head(doc.get("frozen_at_head"), root, current_head)
+    _verify_head(head, root, current_head)
 
     report = search_repository(root, files)
     _assert_search_pass(report)

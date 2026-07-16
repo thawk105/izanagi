@@ -8,7 +8,12 @@ pytest でも素の `python orchestrator/tests/test_calibrator.py` でも走る
 from __future__ import annotations
 
 import os
+import shutil
+import signal
+import subprocess
 import sys
+import tempfile
+import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -387,6 +392,215 @@ def test_clocks_fallback_recorded_in_result():
     res2 = CalibrationResult(env_tag="t", threads=1, clocks_per_us=1800)
     assert sweep._apply_clocks_fallback(res2, 1800) == 1800
     assert res2.clocks_per_us == 1800 and res2.notes == []
+
+
+# ===== competing_bench_pids (F3 admission 強化、付録3) =====
+# 8b oracle は build cache を <output_root>/s8b-build-cache に置く
+# (orchestrator/campaign/s8b_oracle_driver.py) ため、`build-variants/` に固定された旧
+# パターンでは孤児 bench を素通りさせていた (docs/failures.md F3)。新パターンは path
+# 非依存 (`ycsb_.*\.exe` のみ) にする代わり、自プロセスの子孫を明示的に除外する。
+
+def test_competing_bench_pids_pattern_is_path_independent():
+    """pgrep へ渡すパターンが `build-variants/` 接頭辞を要求しないことを固定する
+    (退行防止: 旧パターンへの巻き戻しを検知するテスト)。"""
+    from calibrator import runner
+    calls = []
+
+    def fake_run(cmd, capture_output=True, text=True):
+        calls.append(cmd)
+        class _R:
+            stdout = ""
+        return _R()
+
+    orig = runner.subprocess.run
+    runner.subprocess.run = fake_run
+    try:
+        runner.competing_bench_pids()
+    finally:
+        runner.subprocess.run = orig
+    assert len(calls) == 1
+    cmd = calls[0]
+    assert cmd[:2] == ["pgrep", "-af"]
+    pattern = cmd[2]
+    assert pattern == r"ycsb_.*\.exe"
+    assert "build-variants" not in pattern
+
+
+def test_competing_bench_pids_excludes_self_descendant():
+    """`_self_and_descendant_pids` に含まれる PID の行は非競合として除外され、
+    含まれない PID の行だけが「他者/孤児」として残る。"""
+    from calibrator import runner
+    fake_stdout = (
+        "4242 /out/s8b-build-cache/gen0/ycsb_child.exe\n"
+        "9999 /out/s8b-build-cache/gen0/ycsb_orphan.exe\n"
+    )
+
+    def fake_run(cmd, capture_output=True, text=True):
+        class _R:
+            stdout = fake_stdout
+        return _R()
+
+    orig_run = runner.subprocess.run
+    orig_desc = runner._self_and_descendant_pids
+    runner.subprocess.run = fake_run
+    # 4242 (自分の直前 run の残骸を模す) だけを子孫集合に入れる。
+    runner._self_and_descendant_pids = lambda root_pid: {root_pid, 4242}
+    try:
+        lines = runner.competing_bench_pids()
+    finally:
+        runner.subprocess.run = orig_run
+        runner._self_and_descendant_pids = orig_desc
+    assert len(lines) == 1
+    assert "9999" in lines[0]
+    assert "4242" not in "".join(lines)
+
+
+def test_competing_bench_pids_unparseable_pid_kept_fails_closed():
+    """pgrep 行の先頭 token が PID としてパースできない (想定外の出力形) 場合は
+    素性不明として競合側に残す (規律4: 検知を弱める方向に倒さない)。"""
+    from calibrator import runner
+    fake_stdout = "not-a-pid some garbage ycsb_x.exe\n"
+
+    def fake_run(cmd, capture_output=True, text=True):
+        class _R:
+            stdout = fake_stdout
+        return _R()
+
+    orig = runner.subprocess.run
+    runner.subprocess.run = fake_run
+    try:
+        lines = runner.competing_bench_pids()
+    finally:
+        runner.subprocess.run = orig
+    assert len(lines) == 1
+    assert "garbage" in lines[0]
+
+
+def test_competing_bench_pids_pgrep_error_returns_empty():
+    """pgrep 起動自体が失敗 (OSError) したら空リスト (既存契約を維持)。"""
+    from calibrator import runner
+
+    def fake_run(cmd, capture_output=True, text=True):
+        raise OSError("pgrep not found")
+
+    orig = runner.subprocess.run
+    runner.subprocess.run = fake_run
+    try:
+        assert runner.competing_bench_pids() == []
+    finally:
+        runner.subprocess.run = orig
+
+
+def _spawn_fake_bench_child(fake_argv0):
+    """自プロセスの直接子として、cmdline が `fake_argv0` になるプロセスを 1 つ起こす
+    (execv で `/bin/sleep` に argv0 だけ差し替える)。呼び出し元が Popen を kill/wait する。"""
+    return subprocess.Popen(
+        [sys.executable, "-c",
+         f"import os; os.execv('/bin/sleep', [{fake_argv0!r}, '20'])"])
+
+
+def _spawn_fake_bench_orphan(fake_argv0, pid_file):
+    """二重 fork で自プロセスの子孫から外れた「孤児」プロセスを 1 つ起こす
+    (cmdline は `fake_argv0`)。孤児の PID を `pid_file` に書かせ、確認できるまで待つ。
+    戻り値は (orphan_pid, middle_popen) — 呼び出し元が orphan を kill、middle を wait 済み。"""
+    try:
+        os.remove(pid_file)
+    except OSError:
+        pass
+    script = (
+        "import os, sys\n"
+        "pid = os.fork()\n"
+        "if pid == 0:\n"
+        "    os.setsid()\n"
+        f"    with open({pid_file!r}, 'w') as f:\n"
+        "        f.write(str(os.getpid()))\n"
+        f"    os.execv('/bin/sleep', [{fake_argv0!r}, '20'])\n"
+        "else:\n"
+        "    sys.exit(0)\n"
+    )
+    middle = subprocess.Popen([sys.executable, "-c", script])
+    middle.wait(timeout=5)
+    deadline = time.monotonic() + 5
+    orphan_pid = None
+    while time.monotonic() < deadline:
+        if os.path.exists(pid_file):
+            content = open(pid_file, encoding="utf-8").read().strip()
+            if content:
+                orphan_pid = int(content)
+                break
+        time.sleep(0.05)
+    return orphan_pid
+
+
+def test_competing_bench_pids_real_orphan_under_s8b_build_cache_detected():
+    """実プロセスで検証: `build-variants/` を経路に含まない孤児 bench
+    (8b の `s8b-build-cache` 配下相当の cmdline) が実 pgrep 越しに検知される
+    (F3 admission 強化の本題 — path 非依存化がなければ旧パターンは無反応だった)。"""
+    if shutil.which("pgrep") is None or not os.path.isdir("/proc"):
+        return          # pgrep/proc が無い環境ではスキップ相当 (対象外環境)
+    from calibrator import runner
+    pid_file = os.path.join(tempfile.gettempdir(),
+                            f"_izanagi_test_orphan_{os.getpid()}.pid")
+    fake_argv0 = "/tmp/out/s8b-build-cache/gen0/ycsb_orphan_admission_test.exe"
+    orphan_pid = _spawn_fake_bench_orphan(fake_argv0, pid_file)
+    try:
+        assert orphan_pid is not None, "孤児プロセスの起動を確認できなかった"
+        lines = runner.competing_bench_pids()
+        assert any(str(orphan_pid) in ln for ln in lines), (
+            f"s8b-build-cache 配下の孤児 bench (pid={orphan_pid}) が検知されなかった: "
+            f"{lines}")
+    finally:
+        if orphan_pid is not None:
+            try:
+                os.kill(orphan_pid, signal.SIGKILL)
+            except OSError:
+                pass
+        try:
+            os.remove(pid_file)
+        except OSError:
+            pass
+
+
+def test_competing_bench_pids_real_own_child_excluded():
+    """実プロセスで検証: 自分が起こした直接の子プロセス (bench 相当の cmdline) は
+    子孫として除外され、競合扱いされない (孤児と誤検知の両方が起きないことの対)。"""
+    if shutil.which("pgrep") is None or not os.path.isdir("/proc"):
+        return
+    from calibrator import runner
+    fake_argv0 = f"/tmp/out/s8b-build-cache/gen0/ycsb_child_admission_test_{os.getpid()}.exe"
+    child = _spawn_fake_bench_child(fake_argv0)
+    try:
+        time.sleep(0.3)          # execv 完了を待つ
+        lines = runner.competing_bench_pids()
+        assert not any(str(child.pid) in ln for ln in lines), (
+            f"自分の直接子 (pid={child.pid}) が誤って競合扱いされた: {lines}")
+    finally:
+        child.kill()
+        child.wait(timeout=5)
+
+
+def test_self_and_descendant_pids_includes_real_child():
+    """`_self_and_descendant_pids` が /proc の ppid チェーンを正しく辿り、実際に
+    fork した直接の子 PID を自分の子孫集合へ含めることを確認する
+    (`/proc/<pid>/stat` の comm 後フィールドは `state ppid ...` の順 — ppid を
+    2 番目でなく先頭と誤読する退行を検知する)。"""
+    if not os.path.isdir("/proc"):
+        return
+    from calibrator import runner
+    child = subprocess.Popen(["sleep", "5"])
+    try:
+        deadline = time.monotonic() + 2
+        found = False
+        while time.monotonic() < deadline:
+            result = runner._self_and_descendant_pids(os.getpid())
+            if child.pid in result:
+                found = True
+                break
+            time.sleep(0.05)
+        assert found, f"実子 PID {child.pid} が子孫集合に含まれなかった"
+    finally:
+        child.kill()
+        child.wait(timeout=5)
 
 
 # ---- 素の runner (pytest 無しでも) ----
