@@ -85,7 +85,7 @@ Izanagi の直球。ワークロードに合わせて CC を設計/学習/合成
 #### CCBench `2009.11558` (VLDB 2020)
 `判定: 外部補強` · `接地: 層1/層2 の素材コーパス` · `id検証: 2026-07-10`
 **一言:** Takayuki Tanabe; Takashi Hoshino; Hideyuki Kawashima。主要 in-memory CC プロトコルを
-共通基盤に再実装し同一ワークロードで比較する分析プラットフォーム。
+共通基盤に再実装し同一ワークロードで比較する分析基盤。
 **採る:** Izanagi の層1/層2 が変異させる「素材」そのものの出自。CC 側 related-work の一次アンカー。
 **系譜上の位置:** 以下の素材プロトコルの共通実装基盤。Izanagi はこの固定設計の集合をかき混ぜて
 variant を析出させる。
@@ -225,7 +225,7 @@ evaluator は幻覚防止の門番であって serializability 級の意味論�
 #### ShinkaEvolve `2509.19349` (Sakana AI, ICLR 2026, github.com/SakanaAI/ShinkaEvolve)
 `判定: 反面教師 (直採用ゼロ) + 部品予約` · `接地: Model Y リーク制御, 絶対規律2/4/6, Phase 3.5` · `id検証: 2026-07-10`
 **一言:** LLM×進化アルゴリズムでプログラムを合成する公開フレームワーク (AlphaEvolve/DGM 直系)。
-母集団を島モデル + global archive で保持、LLM アンサンブルを変異オペレータに使い、eval を
+母集団を島モデル + global archive で保持、LLM アンサンブルを変異オペレータに使い、評価を
 並列化して 5-10x を謳う。**同一問題設定を解く現時点で最も直接的な実装比較対象**であり、
 かつ他 (Jitskit/IDS/VibeServe) と違い公開され動作する実装。
 **採る (思想のみ):** Phase 3.5 (母集団導入) で親選択の novelty ボーナス `1/(1+children_count)` +
@@ -233,7 +233,7 @@ MAD ロバスト sigmoid を借用予約 (スコア/重みは harness に閉じ 
 規律6 と整合)。段5/6 拡張時の再構成スプライス/複数マーカー可変域算出も予約。
 **採らない (反面教師の核):** スコア付き勝ちプログラムの prompt 注入 (`construct_eval_history_msg`
 が過去プログラム全文 + combined_score を prompt へ載せる — 本調査で実物確認) は Model Y
-リーク制御の直接否定。crossover / prompt evolution / 並列 eval 前提の機構群 / fuzzy patch も
+リーク制御の直接否定。crossover / prompt evolution / 並列評価前提の機構群 / fuzzy patch も
 すべて絶対規律 (2/4/5/6) と衝突。
 **系譜上の位置:** 決定的な差は前提 — Shinka は「正しさは素朴 validate で足り、最適化圧力は
 敵でない」設計で、Izanagi の絶対規律を共有しない。**この哲学差こそが結論であり、Izanagi の

@@ -198,7 +198,7 @@ hack) が出た (D41)。**コード片軸では言語契約違反 (UB) を必ず
 - `--no-build` での配線リハーサル (dry-pass) は実走と campaign identity (内容ハッシュ決定論、
   D13) を共有するため **iteration カウンタを 1 消費する** (whiteboard には載らないため整合性は
   保たれる。guard_bash が campaign dir の改変を拒否するので放置してよい)。iteration 番号の
-  オフセットを想定しておく (worklog 2026-07-10 (2))。
+  ずれを想定しておく (worklog 2026-07-10 (2))。
 - 出口 = outcome=certified (verify legacy+s2 とも anomaly 0)。
 
 ## §4. 変異型による分岐 — スカラー値軸 vs コード片軸
@@ -289,8 +289,8 @@ backoff 軸 (段 4) と sort 軸 (段 5) の実装差分の機械的洗い出し
 | 軸定数ブロック (**C 段の出口で確定**) | MARKER_ID/SOURCE_REL/TEMPLATE_PATCH/`_BASE`/PIN (新 driver は `pin.CURRENT_PIN`、歴史的 driver は literal 保持)。§1 脚注のとおり E 段 driver でなく C 段成果物または共有モジュールに置き、偵察器 (D) と loop driver (E) の両方がそこから import する |
 | 兄弟 loop driver (E 段) | `run_one_iteration`/`drive_iteration`/`default_cfg` (verify 配線含む)/`load_proposal_file`/`main` CLI + fixture・`_resolve_duplicate` (worktree 隔離既定に合わせ `ccbench_dir` 明示)・digest ファイル名/critic tag (campaign 出力の分離) |
 | worktree 隔離の既定値 | 自軸 PIN が現行共有 tree と一致するかで決める (不一致なら既定 ON)。非対称は runbook §4 に明記 |
-| 骨格 patch (`patches/<protocol>-<軸>-variant.patch`) | EVOLVE-BLOCK マーカー対 (id は driver の MARKER_ID と一致)・`#if`/`#else` (stock 逐語温存)/`#endif` 二枝・fails-closed `#error` ガード・閉領域制約 boilerplate (D23 道 Y — 冒頭の変異内容 1 文だけ軸固有)・cmake universal 相乗り配線 (`CCBENCH_<軸>` の CACHE 行 + 定義関数 1 行) |
-| positive control patch + coverage driver | 検査点ごとの complementary broken patch・checks 辞書 (stock control は不変、mutation 側は検査点数ぶん)・trace 行パース (行 prefix・reason の列位置は軸固有 — X 行は parts[3]/txid あり、P 行は parts[1]/txid なし)・verifier 4 層への Integrity フィールド配線 + pytest fixture |
+| 骨格 patch (`patches/<protocol>-<軸>-variant.patch`) | EVOLVE-BLOCK マーカー対 (id は driver の MARKER_ID と一致)・`#if`/`#else` (stock 逐語温存)/`#endif` 二枝・fails-closed `#error` ガード・閉領域制約の定型文 (D23 道 Y — 冒頭の変異内容 1 文だけ軸固有)・cmake universal 相乗り配線 (`CCBENCH_<軸>` の CACHE 行 + 定義関数 1 行) |
+| positive control patch + coverage driver | 検査点ごとの相補的な broken patch・checks 辞書 (stock control は不変、mutation 側は検査点数ぶん)・trace 行パース (行 prefix・reason の列位置は軸固有 — X 行は parts[3]/txid あり、P 行は parts[1]/txid なし)・verifier 4 層への Integrity フィールド配線 + pytest fixture |
 | variant patch 3 役 | identity 後方互換 (`variant-noop-else-copy` 型 = 合成枝が #else の逐語複写 → cache-hit 実証)・certified 緑 1 周 (sweep 済み非勝者点でリーク制御)・(任意) red consumer。**注意: 3 役とも kickoff/backoff の資産で sort 軸では未作成** — 実施済み手順でなく踏襲推奨の型として読む |
 | coder 定義 (`coder-v4-autonomous-<軸>.md`) | frontmatter (段番号/name/description)・合成対象と制約 (骨格提示・利用可能 API・型シグネチャ・正しさ契約)・出力スキーマ (§4 の軸型分岐) |
 | auditor ギャラリー型 | 軸固有 reward hack 型を連番で末尾追記 + 「何を見るか」チェックリスト対応項目 (**ユーザー明示承認が必要**) |

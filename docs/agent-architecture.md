@@ -13,7 +13,7 @@ Izanagi のサブエージェント role、製品別 runtime adapter、hooks の
 
 `.claude/agents/` は role の意味・prompt と Claude Code 固有の model/tools 契約の正本である。
 Codex は同じ Markdown を native 実行定義として使わず、製品固有の adapter と parity gate を介す。
-manifest と renderer は移植元本文を exact 1 回埋め込み、metadata、model/effort、capability lowering、
+manifest と renderer は移植元本文を正確に 1 回埋め込み、metadata、model/effort、capability lowering、
 schema、禁止入力 policy、consumer 配線状態を検査対象にする。open/opaque subtree は trusted projection
 producer の責任であり、全階層を検査済みとは扱わない。
 
@@ -69,7 +69,7 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 - **tools:** 読み取り + 解析。実装の書き込みはしない
 - **model:** 推論が要るので強めのモデル
 - **規律:** 「lock contention が高くスケールしない」のような診断を、次の variant 生成への具体的指示に変換する。leading indicators を必ず参照する (これが無いと探索が停滞する、Jitskit §3.5)
-- **派生:** ablation 用の中立版 `critic-experiment` (P2-5 誘導アーム専用。リーク制御のため最適解の literal な事前知識を物理削除した版) は P2-5 限定で使用した。D21 参照
+- **派生:** ablation 用の中立版 `critic-experiment` (P2-5 誘導アーム専用。リーク制御のため最適解の文字どおりの事前知識を物理削除した版) は P2-5 限定で使用した。D21 参照
 
 ### profiler (Phase 2・実体化済み, P2-4)
 
@@ -117,16 +117,16 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 - **モデル階層方針:** auditor には、被監査側 (coder/planner) と同等以上の能力 tier のモデルを割り当てる。能力の高いモデルほど評価ハックを高率で生成し (gpt-5.2-codex で 8.2%)、検出の必要性もモデル能力に比例するため、被検体より弱い検出器では検出が破れうる (Vesper, arXiv:2605.15221、related-work §7.2)。これは「下げても結果が変わらないなら安価なモデルへ委譲する」一般方針の明示的な例外とする。一方、低能力な生成器ではハックが発生せず検出が経費倒れになる知見も踏まえ、coder を安価なモデルへ下げる実験では「ハック検出 on/off × モデル能力」を ablation 軸にする。
 - **⚠ 確定制約は本節でなく `auditor.md` + `docs/phase3.md` 後続段 3 + D38 を正典とする** (本節は予約仕様。実体化で 2 点分岐した):
   - **tools = read-only (Read/Grep/Glob、Write/Edit/Bash 非付与)。** 予約の「テスト追加の書き込み」は段 3 では「auditor が提案テストを構造化出力で返し、orchestrator が人間レビューゲート下で反映する」形で実現 (段 2 の coder/critic と同型)。理由 = guard_write (PreToolUse) は呼び出し元エージェントを識別できず (tool_name/tool_input のみ) per-agent の path 制限が hook で表現不能 → auditor に Write を与えると「既存テストを弱める書き込み」を機械的に止められない。read-only なら構造的に不可能。直接 Write の自律形は後続段 4 (per-agent permission 執行とセット) へ繰延 (D38、audit-2026-06-30 §4 段 2 の部分消化)。
-  - **入力隔離:** 「WAL fitness を scope に入れない」(phase3.md 後続段 3) は tool 制限 + orchestrator の入力射影 (abort/patch/designated ソースだけを渡す) + prompt 規律の併用。Read を持つため完全な構造隔離ではない (honest に auditor.md/D38 に記録)。
+  - **入力隔離:** 「WAL fitness を scope に入れない」(phase3.md 後続段 3) は tool 制限 + orchestrator の入力射影 (abort/patch/designated ソースだけを渡す) + prompt 規律の併用。Read を持つため完全な構造隔離ではない (正直に auditor.md/D38 に記録)。
 
 > **Phase 3 設計時の参考: Google eng-practices** (github.com/google/eng-practices)。コードレビュー規範を reviewer 側と author 側の両方向で定義している。Izanagi の coder = author / auditor = reviewer に写像でき、auditor の「何を見るか」チェックリストの原料 (二層基準・reviewer の 5 観点) を auditor.md に翻訳済み。
 
 ### axis-proposer (Phase 3 段 8a で実体化 = `.claude/agents/axis-proposer.md`、設計 D47)
 
 - **役割:** critic の機序帰属を入力に「次の変異軸候補 (EVOLVE-BLOCK hole の位置と骨格)」を構造化提案する。axis-onboarding.md §1 の段階 A の実体化。下流は人間承認 gate → 段階 B (シートの独立再導出 + 敵対レビュー)。B〜F のゲートは一切短縮しない。提案の採用判断はしない (それは D 偵察の出口 = 人間判断)
-- **tools = [] (ツールなし)。** planner-v4 (D45)・coder-v4 (D39 決定 7) と同型の構造遮断。入力は信頼中核が前渡しする: critic 機序帰属の**二層射影** (勝ち筋の値は落とし診断数値は保持。recommend は丸ごと除外、attribution 出典優先) + EVOLVE_BLOCK ソースの stock 抜粋 (全 mapped 領域に機械的一致、裁量選定不可) + 編集面の地図 (開通・未開通対称、効きやすさのヒントなし)。死んだ軸は生死の二値のみ (機序帰属も流さない)
+- **tools = [] (ツールなし)。** planner-v4 (D45)・coder-v4 (D39 決定 7) と同型の構造遮断。入力は信頼中核が前渡しする: critic 機序帰属の**二層射影** (勝ち筋の値は落とし診断数値は保持。recommend は丸ごと除外、attribution 出典優先) + EVOLVE_BLOCK ソースの stock 抜粋 (全 mapped 領域に機械的一致、裁量選定不可) + 編集面の地図 (開通・未開通対称、効きやすさの手がかりなし)。死んだ軸は生死の二値のみ (機序帰属も流さない)
 - **model:** 強いモデル (機序からの軸合成 = P2-4 で LLM の実証済み価値とされた推論)
-- **出力:** 構造化提案のみ (軸定義シート §2 の提案版サブセット、候補 1〜3 件)。fails-closed はフィールド存在検査のみ — 恒真検出は人間 gate の意味判断 (既知限界、D47 必須条件 2)。埋まらない欄は unknowns に落とす (規律 3)
+- **出力:** 構造化提案のみ (軸定義シート §2 の提案版の部分集合、候補 1〜3 件)。fails-closed はフィールド存在検査のみ — 恒真検出は人間 gate の意味判断 (既知限界、D47 必須条件 2)。埋まらない欄は unknowns に落とす (規律 3)
 - **規律:** 提案は untrusted データ (規律 6、axis-onboarding §2 の「軸提案が LLM 由来のとき」が受け皿)。provenance 三点セット (raw critic 出力 / 射影版入力 / 対応表) を凍結し事後検証可能にする。8a 由来軸は当面「探索補助」に限定 — 段 6 headline の対象軸にしない (事前登録の命名固定と原理的に非両立、D47 決定 5)
 - **確定制約の正典 = D47** (採用条件・射影の二層規律・出口基準・却下案)。本節は常設定義の要約。配管の現状 (critic 帰属の非永続化・whiteboard 物理防壁) は `orchestrator/campaign/p3_s4_loop.py` を参照
 

@@ -53,7 +53,7 @@ NUMA を意識する必要は基本的にない。
 
 デバッグや短時間の動作確認には `qlogin` を使う。`debug` と `interactive` は対話専用キューであり、
 `qsub` でバッチ投入する先ではない (`debug` への `qsub` が `EWRNGTYP (Queue type is wrong)` で
-拒否されることを実測。`interactive` は未 probe だが `qstat -Q` 上は同じ対話型)。次は debug
+拒否されることを実測。`interactive` は未検証だが `qstat -Q` 上は同じ対話型)。次は debug
 キューで 10 分を要求する最小例。
 
 ```bash

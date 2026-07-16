@@ -4,7 +4,7 @@
 **調査方法:** 多エージェントによるソース読解 + 高リスク項目の敵対的検証 + 実ホスト (Dell R760) でのビルド確認。全 file:line は `external/ccbench/` 相対。
 **完了条件の充足:** 本ファイルを読めば「trace-hook をどこに刺すか」(§4-5) と「パラメータ探索をどの方式でやるか」(§1, §3) が判断できる。
 
-> 注: 以下の citation は commit `33d74a3` 時点。CCBench を更新したら版を上げて再調査する。
+> 注: 以下の引用は commit `33d74a3` 時点。CCBench を更新したら版を上げて再調査する。
 > ±数行のズレが残りうる(検証で見つかった範囲は本文で明記)。
 
 ---
@@ -56,9 +56,9 @@
 | **mvto** | MVCC (Reed 1978) | serializable | — | 暗黙 (rts vs wts) | read `cc/mvto/transaction.cc:65` / commit `:459` |
 | **d2pl** | 決定論的 2PL (事前宣言ロック) | serializable | — | 構造上 G2 不可 | read `cc/d2pl/transaction.cc:124` / commit `:74` |
 
-**YCSB 対応の真実 = CMake の `WORKLOADS` 行** (= `ycsb_<p>.cc` の有無、auto-生成 `build/PROTOCOL_MATRIX.md` と一致)。
+**YCSB 対応の真実 = CMake の `WORKLOADS` 行** (= `ycsb_<p>.cc` の有無、自動生成 `build/PROTOCOL_MATRIX.md` と一致)。
 YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto, d2pl (3)。
-⚠ `external/ccbench/docs/protocols_en.md:18,20` の**上段手書き表は ss2pl/mvto を YCSB ✓ と誤記**(同ファイル下段の auto-生成表 `:44-45` とも矛盾)。→ CCBench 側の doc 不整合として `output/insights/ccbench-protocols-doc-ycsb-mismatch.md` に記録 (還元判断: ユーザー確認待ち)。
+⚠ `external/ccbench/docs/protocols_en.md:18,20` の**上段手書き表は ss2pl/mvto を YCSB ✓ と誤記**(同ファイル下段の自動生成表 `:44-45` とも矛盾)。→ CCBench 側の doc 不整合として `output/insights/ccbench-protocols-doc-ycsb-mismatch.md` に記録 (還元判断: ユーザー確認待ち)。
 
 **層1ベースCC選定ガイド (YCSB で deployable なもの):**
 - **read-heavy / low-contention → OCC:** `silo` (最も単純で速い read path、canonical baseline)、`tictoc` (commit_ts + TIMESTAMP_HISTORY で contention 耐性がやや高い)。**最有力 read-heavy シード。**
@@ -92,7 +92,7 @@ YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto
 | `SINGLE_EXEC` | cicada | version-lifetime | 0 | MVCC を単版に退化 (inline_ver_ 直接)。**正しさ意味論を変える** | `cc/cicada/transaction.cc:85,235,705,762,952` |
 | `WRITE_LATEST_ONLY` | cicada, oze | version-lifetime | 0 | 最新版のみへ write。**`#ifdef` でなく runtime 定数 `if`** (両分岐コンパイル) | `cc/cicada/transaction.cc:242,491,512` |
 | `MERGE_ON_READ` | oze | other | 0 | read 時に依存グラフを eager マージ。**cycle 検出タイミング=正しさに影響** | `cc/oze/transaction.cc:182` |
-| `TEMPERATURE_RESET_OPT` | mocc | delay-on-conflict | 1 | stale な温度を 0 リセットし cooled record を楽観 path へ戻す | `cc/mocc/util.cc:208`, `transaction.cc:827` |
+| `TEMPERATURE_RESET_OPT` | mocc | delay-on-conflict | 1 | 古くなった温度を 0 にリセットし cooled record を楽観 path へ戻す | `cc/mocc/util.cc:208`, `transaction.cc:827` |
 | `RWLOCK` | mocc | delay-on-conflict | (bare, 常ON) | MOCC の R/W ロック実装選択。hot record の**可視 read** 機構 | `cc/mocc/transaction.cc:166,...`, `lock.cc:932` |
 | `DLR1` | ss2pl | delay-on-conflict | (bare, 常ON) | SS2PL の no-wait デッドロック解決 (r_trylock 失敗で即 abort) | `cc/ss2pl/transaction.cc:178,269,314,413,438` |
 | `KEY_SORT` | d2pl,ermia,mocc,si,ss2pl | delay-on-conflict | 0 | tx の op をキー順 sort しロック順序デッドロック回避 | `include/ycsb.hh:81` |

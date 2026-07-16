@@ -16,10 +16,10 @@ spawn し、機械部分 (`orchestrator/campaign/p3_s4_loop.py`) に proposal �
 
 1. **fresh session である** — `planner-v4` / `coder-v4-autonomous` はエージェント登録が
    **セッション開始時**に読まれる。frontmatter を足した commit より後に**新しく開いた session**
-   でないと spawn できない (mid-session の .md 追加は反映されない、2026-07-08 実証)。
+   でないと spawn できない (セッション途中の .md 追加は反映されない、2026-07-08 実証)。
    確認 = Agent の利用可能型に `planner-v4` と `coder-v4-autonomous` が並ぶこと。
 2. **計測層が single-tenant** — `pgrep -a -f 'ccbench|silo|bench'` で他ユーザー/孤児ベンチが
-   無いこと (load avg は EMA で laggy ゆえ pgrep が正、規律4)。段 4b は各 iteration で
+   無いこと (load avg は EMA ゆえ遅延しがちで pgrep が正、規律4)。段 4b は各 iteration で
    build/verify/bench を実走するため、他者の計測と相互汚染しない窓を要する。
 3. **submodule が pinned-clean** — `git -C external/ccbench rev-parse --short HEAD` が `028f34d`
    (= `p3_s4_loop.PIN`)、`git -C external/ccbench status --porcelain` が空。
@@ -114,7 +114,7 @@ python3 -m campaign.p3_s4_loop --run-iteration <scratch>/prop.json
 
 - **停止条件:** 収束 (同一方向・magnitude=small が 3 連続) / 逆方向枯渇 (critic 逆方向推奨 2 回 +
   改善なし) / 予算 (10 iteration or wall 3600s)。
-- **checkpoint は段 6 へ inherit:** 予算枯渇時の whiteboard は「未査証 (partial)」として段 6 が拾う
+- **checkpoint は段 6 へ継承:** 予算枯渇時の whiteboard は「未査証 (partial)」として段 6 が拾う
   (final certified finding ではない)。checkpoint = `output/campaigns/<id>/loop_state.json`。
 - **reflux (還流 on/off) = LLM ablation の対照:** `--reflux off` で critic への赤節を落とす別
   campaign (別 output dir、混ざらない)。on/off を別 campaign で走らせ比較 (段 6 の LLM ablation)。

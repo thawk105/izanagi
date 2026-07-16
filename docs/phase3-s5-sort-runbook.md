@@ -15,11 +15,11 @@ worklog 末尾と phase3.md)。矛盾があれば正典が勝つ。
 
 1. **fresh session である** — `planner-v4` / `coder-v4-autonomous-sort` / `auditor` は
    エージェント登録が**セッション開始時**に読まれる。`coder-v4-autonomous-sort.md` を
-   追加した commit より後に**新しく開いた session** でないと spawn できない (mid-session
+   追加した commit より後に**新しく開いた session** でないと spawn できない (セッション途中
    の `.md` 追加は反映されない、2026-07-08 実証・段4b runbook と同じ制約)。確認 = Agent
    の利用可能型に `planner-v4` / `coder-v4-autonomous-sort` / `auditor` が並ぶこと。
 2. **計測層が single-tenant** — `pgrep -a -f 'ccbench|silo|bench'` で他ユーザー/孤児
-   ベンチが無いこと (load avg は EMA で laggy ゆえ pgrep が正、規律4)。**この機で他ユーザー
+   ベンチが無いこと (load avg は EMA ゆえ遅延しがちで pgrep が正、規律4)。**この機で他ユーザー
    (leon 等) の claude セッションが並行稼働していることがある — バイナリ実行 (`ycsb_*.exe` 等)
    のプロセスが実際に走っているかを見分ける** (daemon/vscode-server 等の常駐プロセス名に
    `ccbench`/`bench` が偶然含まれるだけの場合は競合ではない)。
@@ -168,7 +168,7 @@ python3 -m campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.json
 
 ## 3. 停止と継承
 
-段4b runbook §3 と同じ規約 (収束/逆方向枯渇/予算、checkpoint は段6へ inherit、reflux on/off
+段4b runbook §3 と同じ規約 (収束/逆方向枯渇/予算、checkpoint は段6へ継承、reflux on/off
 は LLM ablation の対照)。`MAX_ITER`/`MAX_WALLTIME_S` も同じ値 (`L.check_stop` に完全委譲)。
 
 ---

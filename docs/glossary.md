@@ -12,45 +12,45 @@
 
 izanagi の探索ループ (層2) と Phase 2 主実験 (P2-5) を読むための用語。
 
-**貪欲 (どんよく, greedy)** — 各手番でその場で一番良く見える選択肢を選び続ける単純な最適化戦略。先読みや大局観を持たず、目先の傾き (勾配) だけを追う。*izanagi:* LLM を使わず、指標の限界効果 (フラグ 1 個を反転したときの差) の勾配だけで次手を選ぶ機械的な基準線。これを超えなければ「LLM 固有の知能」は無価値、という切り分けの対照 ([2026-06-29 insight](../output/insights/2026-06-29_p2-5-guided-vs-enumeration.md))。
+**貪欲 (どんよく, greedy)** — 各手番で目先で最良に見える手を選び続け、先読みせず勾配だけを追う最適化戦略。*izanagi:* LLM 抜きで指標の限界効果 (フラグ 1 個反転の差) の勾配だけで次手を選ぶ機械的基準線。これを超えなければ「LLM 固有の知能」は無価値、という切り分けの対照 ([2026-06-29 insight](../output/insights/2026-06-29_p2-5-guided-vs-enumeration.md))。
 
-**オラクル天井 (oracle ceiling)** — 常に正解を知る仮想的な選び手 (神託 = oracle) でも達成できる速さの理論上限。どんな賢い戦略もこれ以上速く正解に到達できない、という性能の天井。*izanagi:* silo の 8 通り空間で最適に到達するのに要する評価回数の下限を `2 − k/N` で見積もり、誘導や貪欲がそこにどれだけ近いかを測る物差しにする。天井が低い (余地が小さい) こと自体が「この空間は自明」の証拠になった (phase2.md §P2-5)。
+**オラクル天井 (oracle ceiling)** — 常に正解を知る仮想的な選び手 (神託 = oracle) でも達成できる速さの理論上限。どんな賢い戦略もこれ以上速く正解に到達できない、という性能の天井。*izanagi:* silo の 8 通り空間で最適到達に要する評価回数の下限を `2 − k/N` で見積もり、誘導や貪欲がそこにどれだけ近いかを測る物差し。天井が低いこと自体が「空間は自明」の証拠になった (phase2.md §P2-5)。
 
-**deceptive 構造 (デセプティブ, deceptive landscape)** — 探索空間で「一見良さそうな手がかりが、実は最適から遠ざける」ように配置された地形。局所的に有望に見える方向を素直に辿ると罠にはまる、進化計算・最適化の古典的な難所。*izanagi:* write-heavy では「abort が少ない = 良い」という素直な手がかりが、実は 2 位の罠 (BACK_OFF=1) へ誘導する。critic がそこへ誤って収束する構造を指す (phase2.md §P2-5, phase3-main-experiment.md「deceptive 相当の検証」)。
+**deceptive 構造 (デセプティブ, deceptive landscape)** — 「一見良さそうな手がかりが実は最適から遠ざける」ように配置された探索地形。有望に見える方向を素直に辿ると罠にはまる、最適化の古典的難所。*izanagi:* write-heavy では「abort が少ない = 良い」という素直な手がかりが 2 位の罠 (BACK_OFF=1) へ誘導し、critic がそこへ誤収束する構造を指す (phase2.md §P2-5, phase3-main-experiment.md「deceptive 相当の検証」)。
 
-**誤収束 (ごしゅうそく, premature / false convergence)** — 探索が本当の最適に着く前に、劣った解を「これが答え」と確信して打ち切ってしまうこと。多様性を失い局所解に張り付く進化計算の失敗。*izanagi:* write-heavy の 12 試行中 8 試行で、critic が真の最速を評価しないまま別の構成で確信停止した現象。P2-5 の最重要の失敗モード。
+**誤収束 (ごしゅうそく, premature / false convergence)** — 真の最適に着く前に劣った解を「答え」と確信して打ち切ること。多様性を失い局所解に張り付く進化計算の失敗。*izanagi:* write-heavy の 12 試行中 8 試行で、critic が真の最速を評価しないまま別構成で確信停止した現象。P2-5 の最重要の失敗モード。
 
-**早期停止 (そうきていし, early stopping)** — 十分と判断した時点で反復を打ち切ること。無駄を省く利点があるが、判断が早すぎると本当の最適を見逃す。*izanagi:* critic が「確信したら止める」挙動。balanced では効率化になるが、deceptive な write-heavy では誤収束を確定させる負債になった (「自信ある早期停止」)。
+**早期停止 (そうきていし, early stopping)** — 十分と判断した時点で反復を打ち切ること。無駄を省くが、早すぎると最適を見逃す。*izanagi:* critic の「確信したら止める」挙動。balanced では効率化だが、deceptive な write-heavy では誤収束を確定させる負債になった (「自信ある早期停止」)。
 
-**ablation (アブレーション, 除去実験)** — ある要素を足す/抜くで結果を比較し、その要素の寄与を切り分ける実験手法。「これが効いている」を因果的に示す標準手続き。*izanagi:* critic 有無・profiler 有無・LLM 有無 (誘導 対 貪欲) を比較して各部品の効果を測る。段階導入 (規律5) は各機構を後から ablation できるように足す方針。
+**ablation (アブレーション, 除去実験)** — ある要素を足す/抜くで結果を比較し、その寄与を因果的に切り分ける実験手法。*izanagi:* critic 有無・profiler 有無・LLM 有無 (誘導 対 貪欲) を比較して各部品の効果を測る。段階導入 (規律5) は各機構を後から ablation できるように足す方針。
 
-**negative result (ネガティブリザルト, 否定的結果)** — 「仮説が支持されなかった」ことを主張とする研究結果。効果が無い/期待通りでないことを積極的に示すもので、単なる失敗とは違い知見として価値を持つ。*izanagi:* P2-5 の主成果。「小空間ではフラグ探索は自明で、LLM 誘導は機械的貪欲を超えない」を定量化し、「価値は空間の外の合成にある」という Phase 3 の動機づけにした。
+**negative result (ネガティブリザルト, 否定的結果)** — 「仮説が支持されなかった」ことを主張とする研究結果。単なる失敗と違い知見として価値を持つ。*izanagi:* P2-5 の主成果。「小空間ではフラグ探索は自明で LLM 誘導は機械的貪欲を超えない」を定量化し、「価値は空間の外の合成にある」という Phase 3 の動機づけにした。
 
-**reward hacking (リワードハッキング, 報酬ハッキング)** — 最適化圧力が本来の目的でなく「評価指標の抜け穴」を突いて高スコアを得る現象。指標は満たすが実質は破綻する解が生まれる。*izanagi:* LLM の variant が「検証を甘くして性能を稼ぐ」方向へ変異するのを絶対規律2 で禁じる際の、対策対象そのもの。「最適化圧は必ず正しさを攻撃しに来る」という前提の根拠 (decisions.md D22)。
+**reward hacking (リワードハッキング, 報酬ハッキング)** — 最適化圧力が本来の目的でなく評価指標の抜け穴を突いて高スコアを得る現象。指標は満たすが実質は破綻する。*izanagi:* LLM variant が「検証を甘くして性能を稼ぐ」方向へ変異するのを絶対規律2 で禁じる際の対策対象そのもの。「最適化圧は必ず正しさを攻撃しに来る」の根拠 (decisions.md D22)。
 
-**winner-tied set / equivalence class (等価クラス)** — 最速のものと「実質差なし」と判定できる候補の集合。測定ノイズの床 (floor) 以内で並ぶ複数を同順位とみなし、そのどれかに当たれば「到達」とする。*izanagi:* 探索がいつ正解に着いたと数えるかの定義。読み手 (pivot) に依存せず到達判定できるようにするための工夫 (phase2.md §P2-5)。
+**winner-tied set / equivalence class (等価クラス)** — 最速のものと測定ノイズの床 (floor) 以内で並び「実質差なし」と判定できる候補の集合。*izanagi:* 探索がいつ正解に着いたと数えるかの定義。読み手 (pivot) に依存せず到達判定できるようにするための工夫 (phase2.md §P2-5)。
 
 **low-fidelity proxy (低忠実度プロキシ)** — 本番の高コスト評価の前に、短時間・低精度の簡易評価で候補を粗くふるいにかける代理指標。*izanagi:* bench-first screening v2 は方針採用済み・未実装 (D58)。実装後も偵察 sweep / 8b の opt-in に限り、正式な correctness gate や S-1 には使わない (phase3.md「現行チェックポイント」)。
 
-**island model (島モデル)** — 集団を複数の小集団 (島) に分けて別々に進化させ、時々個体を交換する進化計算の手法。多様性を保ち局所解への早期収束を防ぐ。*izanagi:* 現行 sequential/hybrid search の機構ではない。多様性不足が実測で律速になり、population/世代/migration を実装するときの任意拡張 (roadmap.md §2 層2 / Phase 3.5)。
+**island model (島モデル)** — 集団を複数の小集団 (島) に分け別々に進化させ時々個体を交換する、多様性を保ち早期収束を防ぐ進化計算手法。*izanagi:* 現行 sequential/hybrid search の機構ではない。多様性不足が実測で律速になったとき population/世代/migration を実装する任意拡張 (roadmap.md §2 層2 / Phase 3.5)。
 
-**Pareto front (パレートフロント, 非劣解集合)** — 複数の目的を同時に最適化するとき「どの目的も犠牲にせずには改善できない」解の集合。1 つの勝者でなく、トレードオフ上の最良候補群。*izanagi:* 複数目的が実際に登録された場合だけ層3の選択に使う任意手段。単一目的の現行系や進化探索の必須要件ではない。
+**Pareto front (パレートフロント, 非劣解集合)** — 複数目的の同時最適化で「どの目的も犠牲にせずには改善できない」解の集合。1 勝者でなくトレードオフ上の最良候補群。*izanagi:* 複数目的が実際に登録された場合だけ層3の選択に使う任意手段。単一目的の現行系や進化探索の必須要件ではない。
 
-**MAP-Elites / quality-diversity (クオリティダイバーシティ)** — 最良 1 個だけを探すのでなく、特徴空間の各ニッチごとに最良個体を保存し、質と多様性を同時に得る進化計算アルゴリズム群。*izanagi:* Phase 3.5 (任意) で多様性保存を本格化する将来オプション。今は安い果実 (複数 variant 保存) だけ取り、完全な機構は予約する (規律5)。
+**MAP-Elites / quality-diversity (クオリティダイバーシティ)** — 最良 1 個でなく特徴空間のニッチごとに最良個体を保存し、質と多様性を同時に得る進化計算アルゴリズム群。*izanagi:* Phase 3.5 (任意) で多様性保存を本格化する将来オプション。今は安い果実 (複数 variant 保存) だけ取り、完全な機構は予約する (規律5)。
 
-**spec cards (仕様カード)** — 合成の入力要求を数枚の構造化カードに分けて記述する様式 (Jitskit 由来)。環境・ワークロード・要求 (要件) を別カードにして曖昧さを排す。*izanagi:* ワークロード入力を 3 枚のカードで与え、要求カードが対象の分離レベルを定義する (三層アーキテクチャの入口, related-work/ §Jitskit)。
+**spec cards (仕様カード)** — 合成の入力要求を数枚の構造化カード (環境・ワークロード・要求) に分けて曖昧さを排す様式 (Jitskit 由来)。*izanagi:* ワークロード入力を 3 枚のカードで与え、要求カードが対象の分離レベルを定義する (三層アーキテクチャの入口, related-work/ §Jitskit)。
 
-**workload descriptor (ワークロード記述子)** — 探索対象の workload を、自由文でなく型付きフィールドで表した入力。*izanagi:* read/write 比率、競合水準、scale、最適化目的、正しさ制約を持ち、勝者名や未観測性能値は含めない。build-cache identity ではなく campaign/evaluation/report identity に入り、8b で第一級入力へする (roadmap.md §1/§6, phase3.md 段8b)。
+**workload descriptor (ワークロード記述子)** — 探索対象の workload を自由文でなく型付きフィールドで表した入力。*izanagi:* read/write 比率・競合水準・scale・最適化目的・正しさ制約を持ち、勝者名や未観測性能値は含めない。build-cache identity でなく campaign/evaluation/report identity に入り、8b で第一級入力へする (roadmap.md §1/§6, phase3.md 段8b)。
 
-**whiteboard memory (ホワイトボードメモリ)** — 却下した案や失敗した試行を「やるな記憶」として蓄積し、後の判断に活かす記憶機構。捨てた選択肢を消さず知識として残す発想。*izanagi:* `output/insights/` に却下設計・行き止まりを構造化して蓄積する運用。関連研究 (SkillOpt / DecentMem の二プール記憶) が外部裏付け (related-work/ §SkillOpt / §DecentMem)。
+**whiteboard memory (ホワイトボードメモリ)** — 却下した案や失敗した試行を「やるな記憶」として捨てず蓄積し、後の判断に活かす記憶機構。*izanagi:* `output/insights/` に却下設計・行き止まりを構造化して蓄積する運用。関連研究 (SkillOpt / DecentMem の二プール記憶) が外部裏付け (related-work/ §SkillOpt / §DecentMem)。
 
 **replay (リプレイ, 再生)** — 新規に計測し直さず、記録済みの測定値を配って探索や解析を回すこと。*izanagi:* P2-5 は P2-2 で実測済みの全 8 通りの値を再生するだけで完結し、新規の直列計測をゼロにした (絶対規律4 のコスト 0)。
 
-**事前登録 (じぜんとうろく, pre-registration)** — 実験を始める前に仮説・比較対象・検定方法を確定・公開しておく研究規律。結果を見てから基準を後付けする (p-hacking) のを防ぐ。*izanagi:* Phase 3 主実験の主張・比較集合・失敗条件・統計計画を反証可能な形で着手前に固定し、過剰主張を構造的に防ぐ (phase3.md 新設節)。
+**事前登録 (じぜんとうろく, pre-registration)** — 実験前に仮説・比較対象・検定方法を確定・公開し、結果を見てから基準を後付けする (p-hacking) のを防ぐ研究規律。*izanagi:* Phase 3 主実験の主張・比較集合・失敗条件・統計計画を反証可能な形で着手前に固定し、過剰主張を構造的に防ぐ (phase3.md 新設節)。
 
-**validation gate (検証ゲート)** — 「検証セットで性能が悪化しない編集だけ採用し、それ以外は捨てる」という採否の関所。*izanagi:* 関連研究 (SkillOpt / Self-Harness) の機構で、絶対規律2 (正しさゲートを壊す variant は reject) と構造同型と位置づける (related-work/ §SkillOpt / §Self-Harness)。
+**validation gate (検証ゲート)** — 検証セットで性能が悪化しない編集だけ採用し他は捨てる、採否の関所。*izanagi:* 関連研究 (SkillOpt / Self-Harness) の機構で、絶対規律2 (正しさゲートを壊す variant は reject) と構造同型と位置づける (related-work/ §SkillOpt / §Self-Harness)。
 
-**OEE (Open-Ended Evolution, 開放型進化)** — 到達目標を固定せず、新規性そのものを報酬に無限に探索を続ける進化のパラダイム。*izanagi:* 有限の population-based evolutionary search と同義ではなく、そのさらに先の任意拡張。初手で入れると失敗の切り分けができない (roadmap.md Phase 3.5, decisions.md D9)。
+**OEE (Open-Ended Evolution, 開放型進化)** — 到達目標を固定せず新規性そのものを報酬に無限に探索を続ける進化のパラダイム。*izanagi:* 有限の population-based evolutionary search とは別で、そのさらに先の任意拡張。初手で入れると失敗の切り分けができない (roadmap.md Phase 3.5, decisions.md D9)。
 
 ---
 
@@ -58,31 +58,31 @@ izanagi の探索ループ (層2) と Phase 2 主実験 (P2-5) を読むため�
 
 CCBench のプロトコル群と、正しさ検証 (verifier) を読むための用語。
 
-**serializability (直列化可能性)** — 複数トランザクションを並行実行した結果が、それらを何らかの順で 1 個ずつ直列実行した結果と一致すること。並行実行の「正しさ」の最も強い基準。*izanagi:* verifier が守る正しさゲートの中身。これを破る variant は性能が出ても無価値 (絶対規律2)。
+**serializability (直列化可能性)** — 並行実行の結果が、何らかの順で 1 個ずつ直列実行した結果と一致すること。並行実行の正しさの最も強い基準。*izanagi:* verifier が守る正しさゲートの中身。これを破る variant は性能が出ても無価値 (絶対規律2)。
 
-**isolation level (分離レベル)** — トランザクションが互いの中間状態をどこまで見えなくするかの強度の段階。強いほど異常は起きにくいが並行性は落ちる。*izanagi:* 要求カードが対象の分離レベルを定義する。variant が「宣言した分離レベルで通るべき/落ちるべきテスト」の集合を固定する。
+**isolation level (分離レベル)** — トランザクションが互いの中間状態をどこまで見せないかの強度の段階。強いほど異常は減るが並行性は落ちる。*izanagi:* 要求カードが対象の分離レベルを定義し、variant が「宣言した分離レベルで通るべき/落ちるべきテスト」の集合を固定する。
 
-**Adya の serialization graph / DSG (直列化グラフ)** — トランザクションを節点、依存関係を有向辺として描くグラフ。このグラフに閉路 (cycle) があれば直列化不能、という判定に使う (Adya の理論)。*izanagi:* verifier が trace から構築する依存グラフそのもの。閉路検出が anomaly 検出の核 ([isolation-phenomena.md](isolation-phenomena.md))。
+**Adya の serialization graph / DSG (直列化グラフ)** — トランザクションを節点、依存を有向辺とし、閉路 (cycle) があれば直列化不能と判定するグラフ (Adya の理論)。*izanagi:* verifier が trace から構築する依存グラフそのもの。閉路検出が anomaly 検出の核 ([isolation-phenomena.md](isolation-phenomena.md))。
 
-**ww / wr / rw 依存 (write-depends / read-depends / anti-depends)** — 2 つのトランザクション間の 3 種の依存。ww=同じ物を両方が書く順序、wr=片方の書きをもう片方が読む、rw=片方が読んだ物をもう片方が後で書く (anti-dependency)。*izanagi:* 依存グラフの辺の種類。単純な read/write ワークロードならこの 3 種で辺が張れる。
+**ww / wr / rw 依存 (write-depends / read-depends / anti-depends)** — トランザクション間の 3 種の依存。ww=両方が同じ物を書く順序、wr=片方の書きを他方が読む、rw=片方が読んだ物を他方が後で書く (anti-dependency)。*izanagi:* 依存グラフの辺の種類。単純な read/write ワークロードならこの 3 種で辺が張れる。
 
-**G2 / anti-dependency cycle** — 直列化異常の一種で、rw 依存 (anti-dependency) を含む閉路。直列化可能性を狙うなら、この G2 まで検出する必要がある (弱い判定では見逃す)。*izanagi:* verifier が検出すべき最重要の異常。broken-silo パッチが確実に G2 の赤を出すことで verifier の「赤を出せる」能力を実証する。
+**G2 / anti-dependency cycle** — rw 依存 (anti-dependency) を含む直列化異常の閉路。直列化可能性を狙うならここまで検出が必要 (弱い判定では見逃す)。*izanagi:* verifier が検出すべき最重要の異常。broken-silo パッチが確実に G2 の赤を出すことで verifier の「赤を出せる」能力を実証する。
 
-**G0 / G1a / G1b / G1c、PL-1 / PL-2 / PL-3** — Adya が定義した分離レベルの異常 (phenomena) と、それを禁じる分離レベルの階層。G0=dirty write、G1=dirty read 系、G2=上記。PL-3 が直列化可能に対応。*izanagi:* verifier が「どの異常まで見るか」を厳密に位置づけるための語彙 (isolation-phenomena.md §phenomena)。
+**G0 / G1a / G1b / G1c、PL-1 / PL-2 / PL-3** — Adya が定義した分離異常 (phenomena) とそれを禁じる分離レベルの階層。G0=dirty write、G1=dirty read 系、G2=上記、PL-3 が直列化可能に対応。*izanagi:* verifier が「どの異常まで見るか」を厳密に位置づける語彙 (isolation-phenomena.md §phenomena)。
 
-**write-skew (書き込みスキュー)** — 2 つのトランザクションが互いに相手の読んだ範囲を書き換え、個別には正しいが全体で制約を破る異常。SI で起きる代表的な G2 異常。*izanagi:* SI 系プロトコルの正しさを検証するときの典型的な検出対象 (isolation-phenomena.md §phenomena)。
+**write-skew (書き込みスキュー)** — 2 つのトランザクションが互いの読んだ範囲を書き換え、個別には正しいが全体で制約を破る異常。SI で起きる代表的な G2 異常。*izanagi:* SI 系プロトコルの正しさ検証の典型的な検出対象 (isolation-phenomena.md §phenomena)。
 
-**phantom / 述語異常 (predicate anomaly)** — 「条件に合う行の集合」に対する操作の途中で、別のトランザクションがその集合に行を出し入れして生じる異常。単一行の依存では捉えられない。*izanagi:* 検証の射程を確認するための語彙 (isolation-phenomena.md §スコープ外)。
+**phantom / 述語異常 (predicate anomaly)** — 「条件に合う行の集合」への操作の途中で、別のトランザクションがその集合に行を出し入れして生じる、単一行の依存では捉えられない異常。*izanagi:* 検証の射程を確認するための語彙 (isolation-phenomena.md §スコープ外)。
 
-**OCC (楽観的並行性制御, Optimistic CC)** — 「衝突は稀」と楽観して、実行中はロックせず走り、コミット直前にまとめて競合を検証する方式。競合が少ないと速い。*izanagi:* Silo/TicToc が属する系。read-heavy・低競合で強い (ccbench-anatomy.md §2)。
+**OCC (楽観的並行性制御, Optimistic CC)** — 衝突は稀と楽観し、実行中はロックせず走り、コミット直前にまとめて競合を検証する方式。競合が少ないと速い。*izanagi:* Silo/TicToc が属する系。read-heavy・低競合で強い (ccbench-anatomy.md §2)。
 
-**2PL / SS2PL (strong strict two-phase locking)** — 悲観的並行性制御。データに触れる前にロックを取り、トランザクション終了までロックを保持する方式。競合が多いと安定。*izanagi:* OCC の対極として write-heavy・高競合で候補になる系。
+**2PL / SS2PL (strong strict two-phase locking)** — データに触れる前にロックを取り、トランザクション終了までロックを保持する悲観的並行性制御。競合が多いと安定。*izanagi:* OCC の対極として write-heavy・高競合で候補になる系。
 
 **MVCC (多版並行性制御, Multi-Version CC)** — 各データの複数バージョンを保持し、読みは過去の一貫したスナップショットを見る方式。読みと書きが互いにブロックしにくい。*izanagi:* long-read 混在ワークロードで候補になる系。
 
-**MOCC (Mostly-Optimistic CC)** — OCC を基本にしつつ、競合が激しい「熱い」レコードだけ悲観的にロックする混合方式。*izanagi:* CCBench のプロトコルの 1 つ。record temperature で熱さを追跡する (ccbench-anatomy.md §2)。
+**MOCC (Mostly-Optimistic CC)** — OCC を基本に、競合が激しい「熱い」レコードだけ悲観的にロックする混合方式。*izanagi:* CCBench のプロトコルの 1 つ。record temperature で熱さを追跡する (ccbench-anatomy.md §2)。
 
-**Silo / TicToc / Cicada / ERMIA / SI (si) / oze / MOCC** — CCBench に載る並行性制御プロトコル群。Silo=epoch ベース OCC、TicToc=タイムスタンプを動的に決める OCC、Cicada=多版 + タイムスタンプの高速 MVCC、ERMIA=SSN 付き SI、SI=スナップショット分離、oze=CCBench 独自系。*izanagi:* 合成の素材コーパス。YCSB 対応は 7 プロトコル。kickoff は Silo に閉じる (ccbench-anatomy.md)。
+**Silo / TicToc / Cicada / ERMIA / SI (si) / oze / MOCC** — CCBench に載る並行性制御プロトコル群。Silo=epoch ベース OCC、TicToc=タイムスタンプを動的に決める OCC、Cicada=多版 + タイムスタンプの高速 MVCC、ERMIA=SSN 付き SI、SI=スナップショット分離、oze=CCBench 独自系。*izanagi:* 合成の素材コーパス。YCSB 対応は 7 プロトコル、kickoff は Silo に閉じる (ccbench-anatomy.md)。
 
 **Snapshot Isolation (SI, スナップショット分離)** — 各トランザクションが開始時点の一貫したスナップショットを読み、書き込み衝突だけを検出する分離方式。直列化より弱く write-skew を許す。*izanagi:* si プロトコルの基盤。SSN を足すと直列化まで上げられる。
 
@@ -98,13 +98,13 @@ CCBench のプロトコル群と、正しさ検証 (verifier) を読むための
 
 **TID / Tidword (トランザクション ID)** — Silo が各コミットに振る識別語。状態ビットや順序を詰め込む。*izanagi:* trace のコミットイベントが emit する識別子。verifier の順序復元に使う。
 
-**rts / wts (read-timestamp / write-timestamp)** — タイムスタンプ順序方式で各データに付く「最後に読まれた時刻/書かれた時刻」。順序の妥当性判定に使う。*izanagi:* TicToc/Cicada 系の内部状態を読むための語彙 (ccbench-anatomy.md §2)。
+**rts / wts (read-timestamp / write-timestamp)** — タイムスタンプ順序方式で各データに付く「最後に読まれた/書かれた時刻」。順序の妥当性判定に使う。*izanagi:* TicToc/Cicada 系の内部状態を読むための語彙 (ccbench-anatomy.md §2)。
 
 **record temperature / temp_threshold (レコード温度, MOCC)** — レコードごとの競合の激しさ (熱さ) を数値で追跡し、閾値を超えたら悲観ロックに切り替える MOCC の仕組み。*izanagi:* MOCC の最適化を移植するとき「TicToc のタイムスタンプ管理と二重コストになる」等の競合を判定する対象 (ccbench-anatomy.md §3)。
 
-**zipf skew (zipfian 分布のスキュー)** — アクセスが一部の人気キーに偏る度合い。skew が高いほど同じキーへの競合が増える。*izanagi:* ワークロードの競合度を決めるパラメータ。calibration は skew=0.9 で固定した (ccbench-anatomy.md §3)。
+**zipf skew (zipfian 分布のスキュー)** — アクセスが一部の人気キーに偏る度合い。高いほど同じキーへの競合が増える。*izanagi:* ワークロードの競合度を決めるパラメータ。calibration は skew=0.9 で固定した (ccbench-anatomy.md §3)。
 
-**livelock (ライブロック)** — デッドロックと違い各スレッドは動き続けるが、互いに譲り合って/衝突し続けて全体として前に進まない状態。*izanagi:* no-wait で両者が即 abort し合うと起きうる。Silo の 8 通りから両 0 の組み合わせを除外した理由 (P2-0)。
+**livelock (ライブロック)** — 各スレッドは動き続けるが、互いに譲り合って/衝突し続けて全体として前に進まない状態。*izanagi:* no-wait で両者が即 abort し合うと起きうる。Silo の 8 通りから両 0 の組み合わせを除外した理由 (P2-0)。
 
 **ODR (One Definition Rule, 単一定義規則)** — C++ で「同じ実体の定義は 1 つだけ」という規則。破ると未定義動作。*izanagi:* CCBench 側で見つけた本物のバグ (ODR 違反) を上流 master へ還元した事例 (D16)。
 
@@ -114,15 +114,15 @@ CCBench のプロトコル群と、正しさ検証 (verifier) を読むための
 
 calibrator と測定安定性 (roadmap §3.6)、P2-5 の統計を読むための用語。
 
-**noise floor (ノイズフロア, 雑音の床)** — 測定に必ず乗る揺らぎの下限。この幅より小さい差は本物でなく雑音なので有意と見なせない、という採否の基準線。*izanagi:* 「この差を信じてよいか」を勘で決めないための定量的な床 (roadmap §3.6)。
+**noise floor (ノイズフロア, 雑音の床)** — 測定に必ず乗る揺らぎの下限。この幅より小さい差は雑音で有意と見なせない、という採否の基準線。*izanagi:* 「この差を信じてよいか」を勘で決めないための定量的な床 (roadmap §3.6)。
 
-**within-run / between-run noise floor** — 雑音の床の 2 種。within-run=同一セッション内で連続測定した揺らぎ (1 測定の品質ゲート, 2.28%)。between-run=別セッション間の代表値の揺らぎ (採否の床, 3.0%)。*izanagi:* variant と baseline は別セッションで測るので、採否には between-run を使う。within-run を採否に流用すると偽の「速い」を出す (D19)。
+**within-run / between-run noise floor** — 雑音の床の 2 種。within-run=同一セッション内の連続測定の揺らぎ (1 測定の品質ゲート, 2.28%)、between-run=別セッション間の代表値の揺らぎ (採否の床, 3.0%)。*izanagi:* variant と baseline は別セッションで測るので、採否には between-run を使う。within-run を採否に流用すると偽の「速い」を出す (D19)。
 
 **変動係数 (へんどうけいすう, CV = coefficient of variation)** — 標準偏差 ÷ 平均。散らばりを平均に対する割合で表し、単位の違う量の揺らぎを比較できる。*izanagi:* 反復測定の揺らぎの尺度。閾値を超えたら測定が外乱で歪んだとみなし自動で測り直す (roadmap §3.6)。
 
 **IQR (四分位範囲, interquartile range)** — データを小さい順に並べ、下 1/4 から上 1/4 までの幅。外れ値に強い散らばりの指標。*izanagi:* 中央値と併記する散布度の 1 つ。
 
-**calibration (キャリブレーション, 較正)** — 本番の測定の前に、測定条件 (ここではレコード数) を「妥当性を保ちつつ最小コスト」になるよう自動決定する準備工程。*izanagi:* calibrator が担う。cache miss 率の飽和点、または下限基準でレコード数を決め、noise floor も実測する (roadmap §4)。
+**calibration (キャリブレーション, 較正)** — 本番の測定の前に、測定条件 (ここではレコード数) を「妥当性を保ちつつ最小コスト」に自動決定する準備工程。*izanagi:* calibrator が担う。cache miss 率の飽和点または下限基準でレコード数を決め、noise floor も実測する (roadmap §4)。
 
 **飽和点 (saturation point)** — パラメータを増やしても指標がほとんど動かなくなる点。それ以上は時間の無駄。*izanagi:* レコード数を倍々に増やし、cache miss 率が飽和する最小点を採る。飽和が出ない場合 (masstree) は下限基準に切り替える (D15)。
 
@@ -142,15 +142,15 @@ calibrator と測定安定性 (roadmap §3.6)、P2-5 の統計を読むための
 
 **scale sensitivity (スケール感度)** — 小規模では良いのに大規模で頭打ちになる、規模による性能の伸び方の違い。*izanagi:* variant を最低 2 スケールで測り、「小で良いが大で頭打ち」の variant に「スケールしない疑い」フラグを立てる (roadmap.md §4)。
 
-**確率優越 a (かくりつゆうえつ, common-language effect size)** — 2 群からランダムに 1 個ずつ取ったとき一方が他方より良い確率。同分布なら 0.500。効果の大きさを「勝つ確率」で表し、引き分けは半分ずつ数える。*izanagi:* 誘導 対 貪欲/random の速さ比較の主指標。旧指標 p_lt が引き分けを勝ちに数えず 0.5 から系統的にずれていた欠陥を D29 で修正した ([insight:96](../output/insights/2026-06-29_p2-5-guided-vs-enumeration.md))。
+**確率優越 a (かくりつゆうえつ, common-language effect size)** — 2 群からランダムに 1 個ずつ取ったとき一方が他方より良い確率。同分布なら 0.500、引き分けは半分ずつ数える。*izanagi:* 誘導 対 貪欲/random の速さ比較の主指標。旧指標 p_lt が引き分けを勝ちに数えず 0.5 から系統的にずれていた欠陥を D29 で修正した ([insight:96](../output/insights/2026-06-29_p2-5-guided-vs-enumeration.md))。
 
 **p_lt / p_le** — `P(戦略 < random)` と `P(戦略 ≤ random)`。前者は引き分けを勝ちに数えないので、同分布でも 0.5 を下回る系統バイアスを持つ。*izanagi:* D29 で確率優越 a に置換され、下限/上限の括弧として格下げされた旧指標。
 
-**帰無仮説 / 帰無分布 (null hypothesis / null distribution)** — 「効果は無い・差は無い」とする既定の仮説と、その仮説の下でデータが取る分布。データがこれを十分否定できて初めて「効果あり」と主張する。*izanagi:* 「利得が機械 sweep で再現できる = LLM 不要」を帰無仮説に置く。有意性はこの帰無分布との比較で判定 (phase3.md)。
+**帰無仮説 / 帰無分布 (null hypothesis / null distribution)** — 「効果は無い・差は無い」とする既定の仮説と、その仮説の下でデータが取る分布。これを十分否定できて初めて「効果あり」と主張する。*izanagi:* 「利得が機械 sweep で再現できる = LLM 不要」を帰無仮説に置き、有意性をこの帰無分布との比較で判定 (phase3.md)。
 
 **Mann-Whitney U 検定 (マンホイットニー U 検定)** — 2 群に差があるかを、正規分布を仮定せず順位だけで判定するノンパラメトリック統計検定。少数・非正規データでも使える。*izanagi:* floor を超える差の有意性判定に使うが、反復 5 回では完全分離で常に有意になる弱い sanity。主防壁は floor 丸め (D19)。
 
-**permutation 検定 / exact 検定 (置換検定 / 厳密検定)** — 群のラベルを総当たりで入れ替えて (or 全場合を畳み込んで) 帰無分布を直接構成し、p 値を求める検定。分布の仮定を置かない。*izanagi:* 確率優越 a の有意性を、t 検定 (分散縮小を速さと誤認しうる) の代わりに厳密に判定する ([insight:102](../output/insights/2026-06-29_p2-5-guided-vs-enumeration.md))。
+**permutation 検定 / exact 検定 (置換検定 / 厳密検定)** — 群のラベルを総当たりで入れ替えて帰無分布を直接構成し p 値を求める、分布の仮定を置かない検定。*izanagi:* 確率優越 a の有意性を、t 検定 (分散縮小を速さと誤認しうる) の代わりに厳密に判定する ([insight:102](../output/insights/2026-06-29_p2-5-guided-vs-enumeration.md))。
 
 **Holm 補正 (ホルム補正)** — 複数の検定を同時に行うとき、偶然の当たりで偽陽性が増えるのを抑える多重比較補正。*izanagi:* 6 検定を通しても誘導が有意でないことを確認する厳しさの担保。
 
@@ -164,7 +164,7 @@ calibrator と測定安定性 (roadmap §3.6)、P2-5 の統計を読むための
 
 Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読むための用語。
 
-**genome (ゲノム)** — 進化計算で 1 個体を表す設計変数の符号列。ここでは 1 つの候補構成 (どのフラグをどう立てたか) をまとめて指す符号化。*izanagi:* Silo の最適化フラグ 1 通り = 1 genome。no-wait の XOR 制約で有効 8 genome。探索の基本単位 (phase2.md 冒頭「目的」)。
+**genome (ゲノム)** — 進化計算で 1 個体を表す設計変数の符号列。ここでは 1 つの候補構成 (どのフラグをどう立てたか) の符号化。*izanagi:* Silo の最適化フラグ 1 通り = 1 genome。no-wait の XOR 制約で有効 8 genome。探索の基本単位 (phase2.md 冒頭「目的」)。
 
 **variant (バリアント)** — genome から実際にビルドした 1 つの候補実装。genome が「設計」なら variant は「実体」。*izanagi:* 評価 (正しさ + 性能) の対象。Phase 3 では coder が EVOLVE-BLOCK に書いた差分で生まれる。
 
@@ -178,19 +178,19 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **EVOLVE-BLOCK** — ソースコード中に「ここだけ LLM が書き換えてよい」と明示的に囲った領域。マーカーで画定し、その外は逐語温存する。*izanagi:* coder の編集面を局所化する機構 (P2-4 の inert patch の一般化)。`#if` 枝 (合成) / `#else` 枝 (stock 逐語) の二枝構造 (phase3.md §EVOLVE-BLOCK 機構, D22)。
 
-**hole (ホール, 変異穴)** — 骨格の中で「ここだけ書き換えてよい」と開けられた空白部分。周囲の骨格は不可触で、穴の中だけが編集面になる。*izanagi:* EVOLVE-BLOCK の `#if` 枝の中身。「hole の位置と骨格」と言うときは、どのソースのどの処理に穴を開け、どんな枠 (マーカー・二枝構造) で囲うかを指す (axis-onboarding.md §2)。
+**hole (ホール, 変異穴)** — 骨格の中で「ここだけ書き換えてよい」と開けた空白部分。周囲の骨格は不可触で、穴の中だけが編集面。*izanagi:* EVOLVE-BLOCK の `#if` 枝の中身。「hole の位置と骨格」はどのソースのどの処理に穴を開け、どんな枠 (マーカー・二枝構造) で囲うかを指す (axis-onboarding.md §2)。
 
 **stock (ストック, 無変異の原型)** — 手を加えていない、供給されたままの状態。変異側 (variant) に対する原型であり比較基準。*izanagi:* CCBench 本来のコード・動作。EVOLVE-BLOCK の `#else` 枝は stock を逐語温存し、性能比較の基準線も stock (D16/D22)。
 
-**source_digest / preprocess 後ハッシュ** — ソースをプリプロセッサ (`cpp -E`) に通した正規化出力のハッシュ値。マーカーコメントの有無など「意味に効かない差」を吸収し、実ビルドがコンパイルする中身の同一性だけを見る。*izanagi:* variant の同一性 (identity) を「コードの差」まで正しく捉える一次防壁。方針 A (D30) でこれが偽キャッシュヒット防止の要になった (phase3.md §kickoff タスク, D23)。
+**source_digest / preprocess 後ハッシュ** — ソースをプリプロセッサ (`cpp -E`) に通した正規化出力のハッシュ値。マーカーコメント有無など「意味に効かない差」を吸収し、実ビルドがコンパイルする中身の同一性だけを見る。*izanagi:* variant の同一性 (identity) を「コードの差」まで正しく捉える一次防壁。方針 A (D30) で偽キャッシュヒット防止の要になった (phase3.md §kickoff タスク, D23)。
 
-**cache_key / variant_id** — ビルドキャッシュの鍵と、WAL 上で variant を一意に指す ID。source_digest を織り込むことで「同じフラグでも中身が違えば別物」と扱える。*izanagi:* 同フラグ別コードが WAL/critic で取り違えられる穴を塞ぐ (D23)。
+**cache_key / variant_id** — ビルドキャッシュの鍵と、WAL 上で variant を一意に指す ID。source_digest を織り込み「同じフラグでも中身が違えば別物」と扱える。*izanagi:* 同フラグ別コードが WAL/critic で取り違えられる穴を塞ぐ (D23)。
 
 **inert patch (イナートパッチ, 不活性パッチ)** — 適用しても既定ではビルド結果を変えない (不活性な) パッチ。合成の骨格や診断計器を、本体をクリーンに保ったまま置く。*izanagi:* patches/ に置く合成 variant・診断計器の形式。既定 (sentinel = -1) で stock と同一ハッシュになることを実証済み (D18)。
 
 **template patch (テンプレートパッチ) / sentinel (センチネル, 番兵値)** — EVOLVE-BLOCK のマーカーと `#else` 枝を人間が一度だけ入れる骨格が template patch。どの枝を選ぶかを決める既定の目印値が sentinel。*izanagi:* coder が触るのは `#if` 枝の中身だけで、骨格は人間専有。sentinel の既定値 (-1 = stock) が不活性を保証する (phase3.md §EVOLVE-BLOCK 機構)。
 
-**straight-line code (直線コード)** — 分岐やループを含まない、上から順に実行されるだけのコード。*izanagi:* EVOLVE-BLOCK の `#if` 枝に許すコードの制約。既存 API を呼ぶ直線コードのみとし、型・ヘッダ・マクロ定義の追加を禁じる (観測者効果の混入防止, phase3.md §EVOLVE-BLOCK 機構)。
+**straight-line code (直線コード)** — 分岐やループを含まず、上から順に実行されるだけのコード。*izanagi:* EVOLVE-BLOCK の `#if` 枝に許すコードの制約。既存 API を呼ぶ直線コードのみとし、型・ヘッダ・マクロ定義の追加を禁じる (観測者効果の混入防止, phase3.md §EVOLVE-BLOCK 機構)。
 
 **observer effect / 観測者効果** — 測定するために入れた計器 (トレース取得) が、測定対象そのものを歪めてしまう現象 (Heisenbug 的)。*izanagi:* 最重要の計測規律 (絶対規律1)。正しさ検証用の trace は数値マクロ規約の `#if TRACE` でコンパイル時に消し、性能計測ビルドに 1 バイトも残さない (D14, orchestrator-design.md §I: Isolation)。
 
@@ -198,9 +198,9 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **WAL (Write-Ahead Log, 先行書き込みログ)** — 操作を実行する前に、まず追記専用ログに記録してから反映する耐障害の仕組み。クラッシュしても復元できる。*izanagi:* 各 variant 評価を決定論的に追記する探索の永続状態。生 tps と実行コマンドを残し、後から分布を再構成できる (orchestrator-design.md §D: Durability)。
 
-**proof chain / forensic binding (証拠連鎖・法定的束縛)** — 主張 → コード → 実測値を辿れる証拠の鎖。「なぜこの variant を採った/外した」を根拠まで遡れる構造。*izanagi:* 層3 の説明可能性を統計的に裏打ちする。WAL の run 値まで各主張を紐づける (ARA の forensic binding と同型, orchestrator-design.md §材料レポートの出力規約)。
+**proof chain / forensic binding (証拠連鎖・法定的束縛)** — 主張 → コード → 実測値を辿れる証拠の鎖。「なぜこの variant を採った/外した」を根拠まで遡れる構造。*izanagi:* 層3 の説明可能性を統計的に裏打ちし、WAL の run 値まで各主張を紐づける (ARA の forensic binding と同型, orchestrator-design.md §材料レポートの出力規約)。
 
-**evidence-bound material report (証拠拘束された材料レポート)** — 成功例を選んだ自由作文でなく、WAL + whiteboard を proof chain 付きで完全射影した研究材料。*izanagi:* 全 run、全 reject、noise floor、環境タグ、identity を決定論的な事実層へ収め、LLM の機序仮説層と分ける。論文 prose や研究成功/新規性の自動判定は含めない (D12, phase3.md 段9)。
+**evidence-bound material report (証拠拘束された材料レポート)** — 成功例を選んだ自由作文でなく、WAL + whiteboard を proof chain 付きで完全射影した研究材料。*izanagi:* 全 run・全 reject・noise floor・環境タグ・identity を決定論的な事実層へ収め、LLM の機序仮説層と分ける。論文 prose や研究成功/新規性の自動判定は含めない (D12, phase3.md 段9)。
 
 **human-supervised loop / unattended loop (人間監督付き / 無人ループ)** — 前者は人間がセッション間の role 呼び出しや候補の受け渡しを行う反復、後者は orchestrator が呼び出し・checkpoint・budget・再開を所有する反復。*izanagi:* 現行 Phase 3 は前者。8c を実装して完走するまで autonomous/unattended と呼ばない (roadmap.md §2, phase3.md「現行チェックポイント」)。
 
@@ -212,7 +212,7 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **positive control / 陽性対照** — 「検出器がちゃんと検出できる」ことを確かめるため、わざと陽性の検体を通すこと。*izanagi:* broken-silo パッチで verifier が確実に G2 の赤を出すか確認する。赤検出力が空打ちでない実証 (decisions.md D16)。
 
-**submodule pin (サブモジュールのピン留め)** — 参照する外部リポジトリ (submodule) を特定のコミットに固定すること。再現性を保つ。*izanagi:* CCBench を commit hash で固定。trace-hook 用の改変は別ブランチに置き、pin を dff0f1e に据える (phase3.md §EVOLVE-BLOCK 機構, D16)。
+**submodule pin (サブモジュールのピン留め)** — 参照する外部リポジトリ (submodule) を特定のコミットに固定し、再現性を保つこと。*izanagi:* CCBench を commit hash で固定。trace-hook 用の改変は別ブランチに置き、pin を dff0f1e に据える (phase3.md §EVOLVE-BLOCK 機構, D16)。
 
 ---
 
@@ -220,9 +220,9 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 サブエージェント構成 (agent-architecture.md) と絶対規律、セッション運用を読むための用語。
 
-**verifier / calibrator / critic / profiler (Phase 1-2 のロール)** — verifier=trace を読んで直列化を検査する正しさの番人 (書き込み権限なし)。calibrator=レコード数と noise floor を決める。critic=指標を読んで性能差を設計選択に帰属させ次手を返す。profiler=有望 variant に perf を回し many-core のスケール懸念を解釈する。*izanagi:* Phase 1-2 で足したサブエージェント。各々コンテキストを分離し tools で権限を絞る (agent-architecture.md)。
+**verifier / calibrator / critic / profiler (Phase 1-2 のロール)** — verifier=trace を読んで直列化を検査する正しさの番人 (書き込み権限なし)、calibrator=レコード数と noise floor を決める、critic=指標を読んで性能差を設計選択に帰属させ次手を返す、profiler=有望 variant に perf を回し many-core のスケール懸念を解釈する。*izanagi:* Phase 1-2 で足したサブエージェント。各々コンテキストを分離し tools で権限を絞る (agent-architecture.md)。
 
-**planner / coder / auditor (Phase 3 のロール)** — planner=構造から設計プランを提案 (コードに引きずられない)。coder=プランを EVOLVE-BLOCK 内の差分に落とす。auditor=variant を監査し verifier が見逃した不変条件違反を見つけてテストを提案する (read-only — 反映は人間レビュー gate、D38 決定 3)。*izanagi:* Phase 3 の各段で実体化する (どこまで実体化済みかの正本は phase3.md)。kickoff の確定制約は phase3.md + D22-24/D30 が正典 (agent-architecture.md §planner/§coder/§auditor)。
+**planner / coder / auditor (Phase 3 のロール)** — planner=構造から設計プランを提案 (コードに引きずられない)、coder=プランを EVOLVE-BLOCK 内の差分に落とす、auditor=variant を監査し verifier が見逃した不変条件違反を見つけてテストを提案する (read-only — 反映は人間レビュー gate、D38 決定 3)。*izanagi:* Phase 3 の各段で実体化する (正本は phase3.md)。kickoff の確定制約は phase3.md + D22-24/D30 が正典 (agent-architecture.md §planner/§coder/§auditor)。
 
 **adversarial auditor (敵対的監査役)** — 生成物を「壊す側」の視点で監査し、正しさ検証の抜け穴を能動的に探す見張り役。*izanagi:* auditor の性格。最適化を担当する planner/coder とコンテキストを分離し、見張りが最適化圧力に毒されないようにする (Jitskit 由来)。
 
@@ -230,7 +230,7 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **観測者効果の分離 (絶対規律1)** — 正しさ検証用のトレース取得を、性能計測ビルドから完全に除去する規律。ランタイム分岐でなくコンパイル時に消し、CCBench の具体実装は D14 の `#if TRACE` 契約に従う。*izanagi:* 6 つの絶対規律の 1 つ。性能数値の信頼性の前提。
 
-**入力側隔離 / 出力側隔離 (anti-fabrication isolation)** — 検証エージェントに期待値 (性能数値・正解) を一切見せない (入力側) + 書き込み権限を外す (出力側) で、「期待値をコピーして捏造する」経路を両側から断つこと。*izanagi:* verifier は trace だけを入力とし、throughput を受け取らず、Edit/Write も持たない (ARA の anti-fabrication isolation, agent-architecture.md §verifier)。
+**入力側隔離 / 出力側隔離 (anti-fabrication isolation)** — 検証エージェントに期待値 (性能数値・正解) を一切見せない (入力側) + 書き込み権限を外す (出力側) で、「期待値をコピーして捏造する」経路を両側から断つこと。*izanagi:* verifier は trace だけを入力とし throughput を受け取らず、Edit/Write も持たない (ARA の anti-fabrication isolation, agent-architecture.md §verifier)。
 
 **honest-by-construction (構成的に誠実)** — 「誠実であるよう気をつける」でなく、仕組みの構造上そもそも偽れないようにすること。*izanagi:* source_digest が inert patch で stock と真に同一ハッシュになる等、identity が構造的に偽れない設計 (decisions.md D12)。
 
@@ -240,7 +240,7 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **二相 verifier (two-phase design, IDS 式)** — 検証を 2 相に分ける設計。開発相=短い trace で安く広く回帰検出 (毎反復)、検証相=最終候補だけ長時間で高い確信度まで精査。*izanagi:* 正しさを「最後にまとめて回すゲート」でなく毎反復のシグナルにする規律3 の骨格 (decisions.md D3)。
 
-**三層可変性 (憲法 / 戦略 / 戦術)** — 文書を変えてよい度合いで 3 層に分ける統治。憲法 (絶対規律) は人間のみ変更可、戦略 (roadmap) は Claude が版管理規律の下で改訂可、戦術 (phase docs 等) は自由。*izanagi:* 設計を進化させる権限と、正しさ規律の不変性を両立させる仕組み (CLAUDE.md §「roadmap の更新 — 三層の可変性」)。
+**三層可変性 (憲法 / 戦略 / 戦術)** — 文書を変えてよい度合いで 3 層に分ける統治。憲法 (絶対規律) は人間のみ変更可、戦略 (roadmap) は Claude が版管理規律の下で改訂可、戦術 (phase docs 等) は自由。*izanagi:* 設計を進化させる権限と正しさ規律の不変性を両立させる仕組み (CLAUDE.md §「roadmap の更新 — 三層の可変性」)。
 
 **living document (生きた文書)** — 完成品として凍結せず、試行錯誤の発見に応じて改訂し続ける文書。改訂履歴そのものが研究記録になる。*izanagi:* roadmap の運用思想。過去の版は roadmap-history/ に凍結し、設計仮説の変遷を残す (CLAUDE.md §「roadmap の更新 — 三層の可変性」)。
 
