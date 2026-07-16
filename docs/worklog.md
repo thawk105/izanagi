@@ -918,3 +918,45 @@ izanagi 全体を調査し、旧計測機 cygnus (Dell R760) の名指しと「�
    を先に設計するか (D59 の境界)
 3. Pegasus を正式計測へ採用する場合の env-tag/calibration/ゲート差し替えは変わらず (entry (7))
 4. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
+
+## 2026-07-16 (9) — 8b 監査記録の凍結 (原文消失 → 再構成) + §9 承認前検証 + 所見修正
+
+checkpoint (c) 着手時に、凍結対象の二波監査全文 (audit-wave1/2-out.md、scratchpad 退避分) の
+消失を発見 (failures **F20**)。codex gpt-5.6-sol (max) の敵対相談 3 本 (凍結プラン / §9 提示前
+検証 / 計画全体) で方針を検証し、実行は Claude workflow 2 本 (計 32 agents、検証・起草・修正・
+第 3 波監査・反証) へ委譲、親が裁定・レビュー・統合した。計測なし。
+
+- **凍結 (4bde427):** 再構成 = `output/insights/2026-07-16_s8b-two-wave-audit-reconstruction.md`
+  (12/13 件を証拠階層 (worklog-detail / commit-attributed) つきで再構成、1 件は内容不明のまま
+  残す。refuted 11 は件数のみ)。第 3 波監査 = `2026-07-16_s8b-third-wave-audit.md` (別 ID 系列
+  A3-x)。相談逐語 = `2026-07-16_s8b-freeze-consultations.md`。リーク制御一次事例 =
+  `2026-07-16_s8b-selector-leak-control-case.md`。phase3 は checkpoint (c) を「再構成 + 消失
+  記録」へ改訂 + 段 6 完了化 (族 4 承認は worklog (2)) + 段 8 表記同期
+- **§9 承認前検証 (相談 C2 → workflow 敵対検証で R1〜R6 全 REAL):** (R1) 現行 holdout_freeze は
+  §9 追記による design hash 不一致で verify が失敗中 (状態の陳腐化、コードは fails-closed に
+  動作)。(R3) 予測生成の実行規律 (fresh・各 1 回・再利用禁止) は宣言のみで trusted runner が
+  不在。(R5) §6 に量化 4 点 (swapped 両/いずれか、floor 符号、同一 holdout 性、rationale 証拠
+  基準) が未規定 + prediction と oracle を結合する judge 未実装。(R6) resume 拒否は
+  --output-root 変更と truncated-only WAL で迂回可能。**§9 を承認しても実実行は解禁されない**
+- **修正 (d96a9f0、s8b 系 150 passed + 独立敵対レビュー approve):** C2-R2 = 凍結検証が偽造 raw
+  (非 JSON + status=valid 宣言) を受理する恒真化 → strict 再 parse 照合へ。C2-R4 = commit pin
+  が形式検査のみ ("a"*40 がテスト正例) → git cat-file 実在検証へ。A3-1 = report が schedule 外
+  index の trial window を黙殺し red が隠れる false-green (high) → 全数照合で protocol
+  violation 化。A3-2 = excluded_reason 経路のテスト皆無 (F15 型) → 分岐実行をトレース確認済みの
+  テスト追加
+- 第 3 波監査 confirmed の残り 2 件は設計判断待ちとして凍結: A3-3 (複数 block manifest で
+  budget 台帳が破綻 — 共有 path は 2 block 目焼失、別 path は総枠 block 数倍化) と A3-4 (全行
+  binding-refused でも rc 0)。uncertain 2 件 (A3-5 verify-inconclusive 証拠束縛、A3-6 freeze
+  再読込 TOCTOU) は v2 設計要件/強化候補として記録
+- 工数: codex 相談 3 (max)、Claude workflow 30 + 2 agents。運用知見: 所見別の独立反証 2 票制
+  (default-refuted) が 9 所見中 killed 2 / uncertain 2 を弾き、もっともらしい誤所見の採用を
+  防いだ。pytest 不在環境のため fix agent が pip3 install --user pytest (9.1.1) を導入
+
+### 次の一手
+1. **§9 の 8 項目承認** (提示単位: bundle A={1,2,3} / B={4,5,6} は各一括、C={7}/{8} は個別。
+   項 2 差し戻しは 1/3/6 を道連れにする依存あり)。承認後の実実行にはさらに前提条件: (i) freeze
+   再凍結で design hash 追随 (R1)、(ii) trusted prediction runner 新設 (R3)、(iii) §6 量化
+   4 点の再凍結 + 結合 judge 実装 (R5)、(iv) resume 拒否の強化 (R6)、(v) A3-3/A3-4 の設計裁定
+2. floor/budget 再実測の env 選択は人間判断待ちのまま (linux-baremetal 継続 or Pegasus 専用
+   env-tag 設計、D59 の 4 条件)
+3. push は人間の判断に委ねる (未 push: 02c840c..HEAD)
