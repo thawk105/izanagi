@@ -17,7 +17,7 @@ provenance ヘッダに「どの campaign のどの commit / ファイルから�
     <OUT_PREFIX>.provenance.json   入力ファイル・campaign id・数値の記録
 
 依存: matplotlib, numpy のみ (figure-style スキル非依存・自己完結)。
-実行は計測機の外で (cygnus 上では走らせない — 図生成に計測は不要)。
+実行は計測機の外で (計測機上では走らせない — 図生成に計測は不要)。
 """
 import sys, os, json, re, glob, hashlib, datetime
 

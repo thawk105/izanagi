@@ -15,7 +15,7 @@
    **protocol 選択 = ビルドするターゲット。最適化 = ビルド時 `-D` define (cmake/Options.cmake)。workload パラメータ = ランタイム gflags。**
    → パラメータ探索は「ビルドし直し型」だが ccache で warm rebuild が安い (roadmap §6 の予想が確定)。
 2. **プロトコルは10種。YCSB 対応は7種** (silo, tictoc, mocc, cicada, ermia, si, oze)。ss2pl/mvto/d2pl は YCSB バイナリを作らない。
-   (docs/protocols_en.md の上段表は ss2pl/mvto を YCSB ✓ と**誤記** → `output/insights/` に記録、§2 参照)
+   (external/ccbench/docs/protocols_en.md の上段表は ss2pl/mvto を YCSB ✓ と**誤記** → `output/insights/` に記録、§2 参照)
 3. **`si` = `ermia` から SSN を剥がした Snapshot Isolation = 本物の write-skew (G2) を出す。**
    → Phase 1 タスク3「verifier が赤を出せる証明」の **positive control**。`ermia`(SSN)/`oze`(明示グラフ) は anti-dependency を実体化する **cross-check oracle**。
 4. **Silo の trace 3 点 (read tidword / write key+value / commit maxtid) は全て CC-native フィールドに既存** → **trace 専用フィールドを足す必要なし** (絶対規律1 に最適)。例外は `ss2pl` のみ (ロックは版IDを持たないので producer-id の trace 専用フィールドが要る)。
@@ -58,7 +58,7 @@
 
 **YCSB 対応の真実 = CMake の `WORKLOADS` 行** (= `ycsb_<p>.cc` の有無、auto-生成 `build/PROTOCOL_MATRIX.md` と一致)。
 YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto, d2pl (3)。
-⚠ `docs/protocols_en.md:18,20` の**上段手書き表は ss2pl/mvto を YCSB ✓ と誤記**(同ファイル下段の auto-生成表 `:44-45` とも矛盾)。→ CCBench 側の doc 不整合として `output/insights/ccbench-protocols-doc-ycsb-mismatch.md` に記録 (還元判断: ユーザー確認待ち)。
+⚠ `external/ccbench/docs/protocols_en.md:18,20` の**上段手書き表は ss2pl/mvto を YCSB ✓ と誤記**(同ファイル下段の auto-生成表 `:44-45` とも矛盾)。→ CCBench 側の doc 不整合として `output/insights/ccbench-protocols-doc-ycsb-mismatch.md` に記録 (還元判断: ユーザー確認待ち)。
 
 **層1ベースCC選定ガイド (YCSB で deployable なもの):**
 - **read-heavy / low-contention → OCC:** `silo` (最も単純で速い read path、canonical baseline)、`tictoc` (commit_ts + TIMESTAMP_HISTORY で contention 耐性がやや高い)。**最有力 read-heavy シード。**

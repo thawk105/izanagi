@@ -16,14 +16,14 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 ユーザー承認 (2026-06-29)。decisions D22。**絶対規律 (特に 1/2/3/5/6) はここで初めて load-bearing になる**
 (LLM が正しさを破りうるコードを書く)。
 
-## 現行チェックポイント (2026-07-15 更新)
+## 現行チェックポイント (2026-07-16 更新)
 
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。ただし現行の反復は
   人間がセッション間を運ぶ **human-supervised loop** であり、無人の進化探索ではない。
-- 旧主実験の主張 S は S-2 不成立・S-3 棄却により縮小主張 S' へ後退した。残りは **S-1**
-  (性能次元。下の must 表にある **S1 trace-hook とは別物**。同様に主張の **S-2** と verify 構成の
-  **S2** も別物) の登録済み family を安価に閉じる作業だけで、
-  S' を Phase 3 全体の中心価値には据えない。
+- 旧主実験の主張 S は縮小主張 S' へ後退し、S' も **headline 不成立で確定した** (S-1 本走完走、
+  三値判定 = S-1a 不成立 / S-1b 成立。族 4 判定表 2026-07-16 ユーザー承認、最終報告 =
+  `output/reports/s_prime_final_report.md`)。主張の S-1/S-2 と、must 表の **S1 trace-hook**・
+  verify 構成の **S2** は別物。S' を Phase 3 全体の中心価値には据えない。
 - 次の研究上の主経路は **8b workload descriptor + 層3材料レポート**。両者は並行着手できる。
   8c セッション非依存駆動は反復運営が再び律速になると確認した場合、段 7 cross-protocol / b2 移植は
   8b と層3の後に判断する。
@@ -35,19 +35,16 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止は
   D58 の採用対象に含めず、別設計・別裁定とする。
 
-**現行の着手順:** (1)〜(3) は 2026-07-16 に完了した — S-1 計測開始 gate を全て閉じ (freeze 実体
-163107c、extime=3s 校正 0f30427)、8b 前向き設計 draft (c59482a、発効はユーザー承認待ち) と
-層3最小 renderer + 実レポート (15d9e7c / 24202e2) を作り、S-1 本走 (develop v2 / floor /
-block1 / block2 全 success) と report (d9aef7b) を閉じた。三値判定 = **S-1a 不成立 / S-1b 成立**。
-族 4 判定表は 2026-07-16 ユーザー承認で確定し (**S' は headline 不成立**、最終報告 =
-`output/reports/s_prime_final_report.md`)、8b 設計も同日発効した (holdout = rr80/rr20)。
-8b selector 実験の前半 2 段 (holdout freeze 手順 289477c、descriptor 射影と検証 gate 98aadce)
-と層3 renderer の対象拡大 (v2 da163d0 + 実レポート 66e3193) は 2026-07-16 に実装した。
-次: (a) holdout freeze の生成 — variant_binding 規則 nearest-read-ratio-v1 (設計 §5.1 未規定の
-実装裁定) のユーザー承認 + `generate --confirmed-by` (未既知性検索は全条件 pass 済み)、
-(b) 8b selector 実験の後半 = selector 役 (tool-less 構造化出力) → oracle 評価 driver (正本 =
-`docs/phase3-8b-descriptor-design.md`)、(c) 8b + 層3の 1 cycle 後に必要性を計測して 8c、
-さらにその後に段 7 / Phase 3.5 を再判断する。
+**現行の着手順:** S-1 計測 gate 閉鎖 → S-1 本走・最終報告、8b 設計発効 (holdout = rr80/rr20)、
+8b selector 前半 2 段、holdout freeze 生成 (束縛規則 nearest-read-ratio-v1 ユーザー承認済み、
+floor/budget は再実測までの null)、8b 後半 = selector 役 + oracle 評価 driver の実装 (二波監査
+反映済み)、層3 renderer v2 + 実レポート、までは完了 — 経緯・commit hash・監査内訳は worklog
+2026-07-16 (1)〜(6) と archive を正本とし、ここに再掲しない。
+次: (a) **§9 再凍結 draft 8 項目のユーザー承認** (承認まで selector 予測の実実行はしない)、
+(b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
+拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う)、(c) 8b 二波監査の全文
+(scratchpad 退避分) を output/insights または監査 JSON へ凍結、(d) 8b + 層3の 1 cycle 後に
+必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を再判断する。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
@@ -154,13 +151,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 | must | kickoff | 根拠 |
 |---|---|---|
-| **H3 hooks** | **完了 (方針 A)** | 最小第二防壁を配線 (D30/D33)。3 巡の検証・修正の内訳は archive (`phase3-s6-s8a-completed-details.md`)、critical (source_digest builtin definedness 偽 cache hit) は D34 で封鎖。identity/観測者効果の担保は下 2 行の一次防壁が担う |
-| **cache_key+variant_id 拡張** | **完了** (kickoff タスク 1 で消化) | inert 実証の継承 + 同フラグ別 diff alias 防止。**方針 A で identity honest の一次防壁に昇格** (偽 cache hit を hook でなく digest で塞ぐ) |
-| **観測者効果二重検査** | **完了 (14d64e6)** | nm だけでは data-structure 観測者効果を見逃す。**方針 A で TRACE 混入検知の一次防壁に昇格** (payload 検査に依存しない)。diff-of-diffs を buildcache.build 出口 (hit/fresh 両経路) で発火、fails-closed |
-| **S4** | 完了済 | 規律3 配線 (verify-red の構造化 anomaly を abort payload + load_rejections)。**consumer 実体化も完了 (後続段 2、2026-07-06、D37)**。実証内訳は後続段 2 と archive (`phase3-s6-s8a-completed-details.md`)。還流 (次 variant 生成への使用) は段 4 で消化済み |
+| **完了群**: H3 hooks / cache_key+variant_id 拡張 / 観測者効果二重検査 / S4 / C1 | **完了・解消済み** | **現役の一次防壁 (方針 A):** 偽 cache hit は cache_key+variant_id digest で、TRACE 混入は観測者効果二重検査 (payload 検査に依存しない diff-of-diffs、buildcache.build 出口 hit/fresh 両経路、fails-closed) で塞ぐ。H3 hooks は最小第二防壁 (D30/D33)。規律3 配線 = S4 (verify-red 構造化 anomaly → abort payload + load_rejections、還流は段 4 で消化)。C1 は worktree 隔離 (`patchharness.checkout()`) で解消、driver 宣言値リテラルは IDENT-1/IDENT-3 により意図的据え置き。詳細・経緯は archive (`phase3-s6-s8a-completed-details.md`) と D30/D33/D34/D37/D40 |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。pipeline 配線も完了 (段 5、D36 決定 4、opt-in = legacy+s2)** |
 | S1 (別 protocol trace-hook) | **現状 non-blocking** / 旧 headline 2 復活または段 7 cross-protocol 着手時に発火 | silo 内に閉じる現行 S-1/8b/層3には不要。trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、cross-protocol 比較を復活させる場合は S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかを先に決める (後続段 6 の休眠タスク (a) / 段 7) |
-| C1 (campaign-id drift) | **解消済み (2026-07-09、段5、D40)** | git worktree 隔離 (`patchharness.checkout()`、opt-in) で各評価が自分の pin を自分の worktree で checkout — 並行合成/patch 常駐で HEAD が動いても干渉しない。解消の経緯 (apply→revert HEAD 不動・読み手 3 本の discover 統一 065593a) は archive (`phase3-s6-s8a-completed-details.md`)。driver 宣言値 (phase2.md §C1) がリテラルであること自体は IDENT-1/IDENT-3 により意図的据え置き (変更なし) |
 
 ---
 
