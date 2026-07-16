@@ -331,7 +331,15 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      **ベンチ実時間 (秒)**、LLM 呼び出し回数は第二軸とする。Vesper のトークン予算終了基準は直輸入しない —
      Izanagi の律速資源はトークンでなくベンチ実時間であり、ベンチは排他実行のため並列化で回収できない
      (related-work §7.2)。
-9. **層3材料レポート (未着手、8b と並行可)** — WAL/proof chain から次を決定論的に結ぶ renderer を作る:
+9. **層3材料レポート (事実層は v2 まで完了、機序仮説層は設計凍結済み)** — 最小完了条件は
+   2026-07-16 消化 (renderer 15d9e7c + 実レポート 24202e2)。同日 v2 で対象拡大: loop_state 非
+   保持の sweep campaign 対応 (whiteboard_provenance)、floor の workload 込み within/between
+   二種照合、abort stage 射影を追加し、p3-s8a-trigger-sweep 系 6 campaign の実レポートを生成
+   した。bench-first screening campaign (D58 の `screening` payload) は対象外のまま (拡張時は
+   schema 再凍結)。機序仮説層の原料配線は
+   `output/insights/2026-07-16_layer3-mechanism-wiring-design.md` に設計を凍結し、実装は v3
+   (次の loop 再走と同時) に繰延。以下は当初仕様の正本:
+   WAL/proof chain から次を決定論的に結ぶ renderer を作る:
    workload descriptor、selected/baseline identity、verifier/seed/trace provenance、性能分布と floor、
    採用・棄却・差なし、leading indicators + diff に基づく機序仮説、artifact 参照。機序仮説層の原料として、
    coder/critic の構造化出力に含まれる「なぜ効くと考えたか」(アプローチと根拠) を WAL から決定論的に拾って載せ、
