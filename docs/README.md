@@ -38,6 +38,9 @@
 ## docs/ の外
 
 - `AGENTS.md` — Codex 用の薄い作業入口。共有規律の正本 `CLAUDE.md` と現行正本へのポインタ
+- `orchestrator/` — 探索・評価・campaign 駆動の Python 実装 (構成と安定核は `orchestrator/README.md` が正本)
+- `patches/` — CCBench への意図的 patch (positive control・合成 variant・診断計器)。来歴は `patches/README.md` が正本
+- `src/` — coder 向け仕様 (`coder-spec.md` §1-2 が現役、`coder-leakproof-context.md` = リーク遮断入力の正本)
 - `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`
 - `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
   Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
