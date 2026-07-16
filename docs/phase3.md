@@ -40,10 +40,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 floor/budget は再実測までの null)、8b 後半 = selector 役 + oracle 評価 driver の実装 (二波監査
 反映済み)、層3 renderer v2 + 実レポート、までは完了 — 経緯・commit hash・監査内訳は worklog
 2026-07-16 (1)〜(6) と archive を正本とし、ここに再掲しない。
-次: (a) **§9 再凍結 draft の残り = 項 7〜8 のユーザー承認** (項 1〜6 は 2026-07-16 承認済み。
-承認後も実実行には worklog 2026-07-16 (9) の前提条件 (i)〜(v) が必要。裁定資料 =
-`output/insights/2026-07-16_s8b-ruling-package.md` — 項 7/8 に加え A3-3/A3-4 処置・R5 量化・
-floor env の計 6 裁定単位)、
+次: (a) ~~§9 再凍結 draft の残り = 項 7〜8 のユーザー承認~~ **完了 (2026-07-16、§9 全 8 項発効。
+項 8 = 択 (a) crash 再走なし。A3-3/A3-4/R5 の追加裁定も承認 — 裁定資料 =
+`output/insights/2026-07-16_s8b-ruling-package.md`、記録 = §9 承認状態 + worklog (11))**。
+次 = 前提条件の実装: strict v2 verifier / R3 runner / R6 強化 / F3 pgrep 修正 / R5 結合 judge
+(設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md` の受入ベクトル V1〜V9)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
 `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、

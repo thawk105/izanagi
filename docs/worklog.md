@@ -1017,3 +1017,26 @@ checkpoint (c) 着手時に、凍結対象の二波監査全文 (audit-wave1/2-o
 2. 裁定後: strict v2 verifier / R3 runner / R6 強化 / F3 pgrep 修正の実装 (設計素材の受入
    ベクトル V1〜V9 に従う)
 3. worktree branch の main への取り込みと push はユーザー判断
+
+## 2026-07-16 (11) — 裁定パッケージのユーザー裁定: 1〜5 承認、6 は択 C + Pegasus 継続
+
+ユーザー裁定 (「ほとんど承認、6 だけコメント: 今はしばらく pegasus で作業します」) を記録:
+
+- **裁定 1 (§9 項 7 median of medians) 承認・発効。** 回帰テスト整備 (V9) と rep 採否規則は
+  freeze v2 側 TODO として登録済み
+- **裁定 2 (§9 項 8) 承認・発効、択 (a) = crash 後の再走なし** (推奨解釈で記録。crash は実験全体
+  判定不能、再走導入は択 (b) attempt registry の §8 再凍結が条件)
+- **裁定 3 (A3-3: 単一 block + 累積台帳 + 事前一括 reservation)・裁定 4 (A3-4: completed 強化 +
+  rc 優先順位)・裁定 5 (R5 truth table 5 項目 = 両 holdout / 方向付き floor / 同一 holdout 束縛 /
+  fail-closed 伝播 / rationale 診断限定) の推奨案を承認。** 再凍結本文は freeze v2 で凍結
+- **裁定 6: 択 C (env-neutral 共通実装の先行) を採用。** v2 数値を束縛する唯一の env-tag は
+  floor 実測開始時に確定 (ユーザーは当面 Pegasus で作業 → cygnus 実測の実行者・時刻は未定の
+  まま、Pegasus レーンの整備は必要になった時点で D59 4 条件に従う)
+- 正本反映: §9 承認状態 + phase3 checkpoint (a) 完了化
+
+### 次の一手
+1. 前提条件の実装 (設計素材 + V1〜V9 に従う): F3 pgrep 修正 / C 層 status・rc / T 層 単一 block +
+   reservation 台帳 / R6 lock・マーカー・truncated 閉鎖 (択 a) / S 層 load_verified_freeze +
+   世代 schema / R3 runner (at-most-once) / R5 結合 judge (truth table は裁定 5 の値で確定)
+2. floor protocol の凍結案作成 → 承認 → env-tag 確定 → floor/budget 実測 → freeze v2 再凍結 (R1)
+3. worktree branch の main への取り込みと push はユーザー判断

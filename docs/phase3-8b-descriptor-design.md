@@ -272,11 +272,18 @@ selector 役の実装設計 (独立コンテキストの設計相談 2 本 + 親
 複数解釈を許す点が見つかった。以下は**選択規則に関わるため実装既定にせず**、再凍結事項として
 ユーザー承認を求める。旧凍結からの変更理由は各項に付す。
 
-**承認状態 (2026-07-16 ユーザー裁定、worklog 2026-07-16 (9) 追記):** bundle A = 項 1〜3、
-bundle B = 項 4〜6 を承認 (発効)。項 7〜8 は詳細説明のうえ裁定待ち (承認までは効力を持たない)。
+**承認状態 (2026-07-16 ユーザー裁定、worklog 2026-07-16 (9) 追記・(11)):** bundle A = 項 1〜3、
+bundle B = 項 4〜6 を承認 (発効)。項 7〜8 も承認 (発効、裁定資料 =
+`output/insights/2026-07-16_s8b-ruling-package.md` の裁定 1〜2)。**項 8 は択 (a) = crash 後の
+再走なし** (途中 crash は当該実験全体を判定不能に倒す。再走を許す変更は同資料 裁定 2 択 (b) の
+attempt registry を §8 手続きで再凍結してから)。同日の追加裁定: A3-3 トポロジー (単一 block +
+累積台帳 + 事前一括 reservation)・A3-4 status/rc 契約・R5 truth table 5 項目の推奨案を承認
+(worklog (11)。再凍結本文は freeze v2 で §8 手続きに従い凍結する)。floor 実測 env は択 C
+(env-neutral 共通実装の先行) を採用し、v2 数値を束縛する唯一の env-tag は floor 実測開始時に
+確定する (ユーザーは当面 Pegasus で作業)。
 承認は選択規則の確定であり、selector 予測の実実行はさらに前提条件 (freeze 再凍結による design
-hash 追随 / trusted prediction runner / §6 量化 4 点の再凍結 + 結合 judge / resume 拒否の強化 /
-A3-3・A3-4 の設計裁定 — worklog 同エントリ「次の一手」1) を要する。
+hash 追随 / trusted prediction runner / §6 量化 4 点の再凍結 + 結合 judge / resume 拒否の強化 —
+worklog 2026-07-16 (9)「次の一手」1。A3-3・A3-4 の設計裁定は (11) で完了) を要する。
 
 1. **off arm の静的既定選択 = `stock_common` 固定（agent 非呼び出し）。** §4 の「静的既定選択」は
    LLM を呼ばない固定規則と解する。`stock_common` は 6 構成中唯一 workload 別 argmax 由来でなく
