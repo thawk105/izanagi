@@ -46,9 +46,14 @@ floor/budget は再実測までの null)、8b 後半 = selector 役 + oracle 評
 前提条件の実装 wave 1 完了 (2026-07-16、worklog (12)): T 層 reservation 台帳 / C 層 status・rc /
 R6 強化 (択 a) / S 層 単一 object + git blob 束縛骨格 / R3 runner (at-most-once) / R5 結合
 judge / F3 pgrep 修正 — 受入ベクトル V1〜V9 実装済み、s8b 系 222 passed。
-残 = strict v2 verifier 本体 (世代 field 列挙と承認束縛方式の §8 再凍結が前提) と floor
-protocol の凍結 → 実測 → freeze v2 再凍結
-(設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、
+wave 2 前半完了 (2026-07-17、worklog 参照): floor protocol 凍結案パッケージ 裁定 F1〜F7
+(codex 敵対相談 4 本 47 所見を反映。裁定案 = `output/insights/2026-07-16_s8b-floor-protocol-package.md`、
+相談逐語 = 同 `2026-07-16_s8b-floor-protocol-consultations.md`) + formula v1
+(`orchestrator/campaign/s8b_floor_stats.py`) + floor driver pilot
+(`orchestrator/campaign/s8b_floor_campaign.py`、official mode は承認束縛の §8 裁定まで一律拒否)。
+残 = パッケージのユーザー裁定 (F1〜F7 + 数値案 + env_tag) → protocol JSON 凍結 + 予測封印 →
+floor 実測 → freeze v2 再凍結 + strict v2 verifier 本体 (v2 前提条件の一覧はパッケージ実装状況節、
+設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
 `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、

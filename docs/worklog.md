@@ -1068,3 +1068,43 @@ checkpoint (c) 着手時に、凍結対象の二波監査全文 (audit-wave1/2-o
    世代 field 列挙と承認束縛方式の §8 裁定を含む)
 2. strict v2 verifier 本体は wave 2 の再凍結と同時に実装 (骨格は今回済み)
 3. worktree branch (worktree-s8b-ruling-prep) の main への取り込みと push はユーザー判断
+
+## 2026-07-17 (1) — wave 2 前半: floor protocol 凍結案パッケージ + env-neutral floor driver (裁定待ち)
+
+worklog (12) 次の一手 1 の前半。プラン骨子 → codex gpt-5.6-sol reasoning=max 敵対相談 4 本
+(C-α 統計 / C-β budget・運用 / C-γ driver 設計 / C-δ 世代・承認束縛。所見 47 件 must-fix 大半、
+逐語 = output/insights/2026-07-16_s8b-floor-protocol-consultations.md) → 親裁定 → Claude workflow
+8 agents (起草・実装 = opus、テスト・修正 = sonnet、fable 子なし) + 親再投げ 2 (sonnet)。
+計測なし。**何も発効していない** (パッケージは全項ユーザー裁定待ち)。
+
+- 裁定案 = output/insights/2026-07-16_s8b-floor-protocol-package.md (F1〜F7): 12 セル per-pair
+  floor (pair-contrast 絶対値式 formula v1 = u_noise/delta/wired 下限の max)、seed 均衡置換 +
+  2 block、予測封印 → floor → 機械充填 → 承認 → oracle の順序凍結、budget 三層 namespace +
+  oracle verify ×96 (~11.6h) の正直計上、世代 transition table (v1→v2 / gN→gN+1)、承認束縛 =
+  approval record + `AI-Agent: none` 逐語 + active pointer、v2 検証 = git blob 照合 + 歴史的
+  未知性 + launch certificate。数値はすべて案 (n=8 / reps=5 / gap 1800s / wired 3% /
+  scale ±10% / retry 通算 2)
+- 相談の主要な設計転換 (real 採用): CV×stock 変換は on 側分散を覆わない (B1) / 無関係セルの
+  veto (C1) / 固定巡回の周期共鳴 (D1) / α 未保証の逐語限定 (A1) / floor データは oracle 相当
+  情報を露出 → 予測封印を前置 (H2/B11') / v1 freeze は design・generator の hash drift で現在
+  verify 不合格 — 実測確認、driver は bytes-pin 束縛へ / 「trailer なし = 人間」は provenance
+  規約と逆 (D2')。縮小 = env contract 抽象 (裁定 6 工数欄どおり Pegasus 差分に据え置き)・rep
+  単位 runner API・共有 probe fail-open 是正 (v2 前提条件へ登録)
+- 実装 (env-neutral): s8b_floor_stats.py (formula v1 純関数 + verify_floor_artifact 独立再計算)
+  / s8b_floor_campaign.py (pilot のみ。official mode は承認束縛の §8 裁定まで一律拒否。strict
+  protocol + bytes-pin freeze + seed schedule + 臨界区間 probe + append journal + create-only +
+  forward-only resume + binary 再ハッシュ) / テスト 45 本 (golden pin・改竄検出・mutation 殺し)。
+  orchestrator 全体 925 passed (既存 11 failed は ccbench submodule 未 checkout の本マシン環境
+  要因 — 増減なし)
+- レビュー: レーン内敵対 (opus×2) must-fix 0 / should 2 → 反映 (G6' の台帳脱落、blocks=2 の
+  構造検査漏れ)。親の独立検算 = formula 実装と手計算の一致・縮退 fail-closed を確認。親再投げ
+  で resume binary 再ハッシュ (文書 claim と実装の F14 齟齬)・golden schedule pin・retry 通算
+  意味論の逐語化を閉鎖。C3 (sonnet) が blocks!=2 検査漏れと retry 意味論の曖昧さを実装前に発見
+- 工数: codex 4 (reasoning=max) + workflow 8 (opus 5 / sonnet 3、951k tokens) + 単発 sonnet 2
+
+### 次の一手
+1. パッケージ F1〜F7 + 数値案 + env_tag のユーザー裁定 (チェックリストは同文書末尾)
+2. 裁定後: protocol JSON 凍結 → selector 予測封印 → floor 実測 (実行計画テンプレート) →
+   freeze v2 再凍結 + strict v2 verifier 本体
+3. v2 前提条件 (oracle 側 binary hash 照合 / 共有 probe fail-open 是正 / manifest per-pair 追随 /
+   共有 materialization 抽出) は再凍結 wave で実装 (一覧 = パッケージ実装状況節)
