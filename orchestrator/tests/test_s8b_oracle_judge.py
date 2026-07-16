@@ -1,0 +1,164 @@
+# -*- coding: utf-8 -*-
+"""8b oracle judge の三値・argmax・入力順独立性を検査する。"""
+from __future__ import annotations
+
+import copy
+import random
+import sys
+from pathlib import Path
+
+import pytest
+
+ORCH = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ORCH))
+
+from campaign import s8b_oracle_judge as judge  # noqa: E402
+
+
+# 注意: holdout の三軸 conjunction は JSON 形の静止リテラルにしない。
+# judge fixture は workload 値を持たず、opaque な holdout_id だけを使う。
+CONFIGURATIONS = tuple(f"c{i}" for i in range(6))
+
+
+def _observations(*, n: int = 2, holdouts: tuple[str, ...] = ("rr80",)) -> dict:
+    rows = []
+    index = 0
+    for holdout_id in holdouts:
+        for config_index, configuration_id in enumerate(CONFIGURATIONS):
+            for replicate in range(n):
+                value = float(config_index * 10 + replicate)
+                rows.append({
+                    "schedule_index": index,
+                    "block_id": "b0",
+                    "holdout_id": holdout_id,
+                    "configuration_id": configuration_id,
+                    "attempt": 1,
+                    "status": "completed",
+                    "outcome": "committed",
+                    "binding_ok": True,
+                    "legacy_verify": "pass",
+                    "s2_verify": "pass",
+                    "bench_values": [value, value + 2.0],
+                    "excluded_reason": None,
+                    "screen_outcome": "not_enabled",
+                    "reason": None,
+                })
+                index += 1
+    return {
+        "schema_version": judge.INPUT_SCHEMA,
+        "manifest_sha256": "manifest-sha",
+        "n_per_cell": n,
+        "expected_cells": [{
+            "schedule_index": row["schedule_index"],
+            "holdout_id": row["holdout_id"],
+            "configuration_id": row["configuration_id"],
+        } for row in rows],
+        "rows": rows,
+    }
+
+
+def _holdout(verdict: dict) -> dict:
+    return verdict["holdouts"]["rr80"]
+
+
+def test_complete_data_has_unique_best():
+    result = judge.judge_oracle(_observations())
+
+    assert _holdout(result)["verdict"] == "unique-best"
+    assert _holdout(result)["winner_configuration_id"] == CONFIGURATIONS[-1]
+    assert result["status"] == "determinate"
+
+
+def test_exact_maximum_tie_is_not_broken_by_a_floor():
+    observations = _observations()
+    for row in observations["rows"]:
+        if row["configuration_id"] == CONFIGURATIONS[-2]:
+            row["bench_values"] = [50.0 + (row["schedule_index"] % 2),
+                                   52.0 + (row["schedule_index"] % 2)]
+
+    result = judge.judge_oracle(observations)
+
+    assert _holdout(result)["verdict"] == "tie"
+    assert _holdout(result)["tied_configuration_ids"] == list(CONFIGURATIONS[-2:])
+    assert _holdout(result)["winner_configuration_id"] is None
+
+
+@pytest.mark.parametrize("damage", ["missing", "duplicate", "non-finite", "n-short", "binding"])
+def test_quality_rule_violations_are_indeterminate(damage):
+    observations = _observations()
+    if damage == "missing":
+        observations["rows"][0]["status"] = "not-started"
+        observations["rows"][0]["outcome"] = None
+    elif damage == "duplicate":
+        observations["rows"].append(copy.deepcopy(observations["rows"][0]))
+    elif damage == "non-finite":
+        observations["rows"][0]["bench_values"] = [float("nan")]
+    elif damage == "n-short":
+        observations["n_per_cell"] = 3
+    elif damage == "binding":
+        observations["rows"][0]["binding_ok"] = False
+
+    result = judge.judge_oracle(observations)
+
+    assert _holdout(result)["verdict"] == "indeterminate"
+    assert any(cell["status"] == "unknown"
+               for cell in _holdout(result)["configurations"].values())
+
+
+def test_correctness_red_disqualifies_and_high_score_cannot_win():
+    observations = _observations()
+    red_config = CONFIGURATIONS[-1]
+    for row in observations["rows"]:
+        if row["configuration_id"] == red_config:
+            row["outcome"] = "correctness-red"
+            row["legacy_verify"] = "red"
+            row["s2_verify"] = "missing"
+            row["bench_values"] = [1_000_000.0]
+
+    result = judge.judge_oracle(observations)
+    holdout = _holdout(result)
+
+    assert holdout["configurations"][red_config]["status"] == "disqualified"
+    assert holdout["configurations"][red_config]["median_of_medians"] is None
+    assert holdout["verdict"] == "unique-best"
+    assert holdout["winner_configuration_id"] == CONFIGURATIONS[-2]
+
+
+def test_verify_inconclusive_is_unknown_not_disqualified():
+    observations = _observations()
+    target = CONFIGURATIONS[-1]
+    for row in observations["rows"]:
+        if row["configuration_id"] == target:
+            row["outcome"] = "verify-inconclusive"
+            row["s2_verify"] = "missing"
+            row["bench_values"] = []
+
+    result = judge.judge_oracle(observations)
+    cell = _holdout(result)["configurations"][target]
+
+    assert cell["status"] == "unknown"
+    assert result["status"] == "indeterminate"
+    assert any(reason["code"] == "verify-inconclusive" for reason in cell["reasons"])
+
+
+def test_row_shuffle_does_not_change_verdict_json():
+    observations = _observations()
+    expected = judge.judge_oracle(observations)
+    shuffled = copy.deepcopy(observations)
+    random.Random(827).shuffle(shuffled["rows"])
+
+    assert judge.judge_oracle(shuffled) == expected
+
+
+def test_deleting_every_row_for_one_expected_holdout_is_indeterminate():
+    observations = _observations(holdouts=("rr80", "h-second"))
+    assert judge.judge_oracle(observations)["status"] == "determinate"
+    observations["rows"] = [
+        row for row in observations["rows"] if row["holdout_id"] != "h-second"
+    ]
+
+    result = judge.judge_oracle(observations)
+
+    assert result["status"] == "indeterminate"
+    assert result["holdouts"]["h-second"]["verdict"] == "indeterminate"
+    assert any(reason["code"] == "expected-cell-mismatch" for reason in result["reasons"])
