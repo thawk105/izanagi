@@ -1108,3 +1108,31 @@ worklog (12) 次の一手 1 の前半。プラン骨子 → codex gpt-5.6-sol re
    freeze v2 再凍結 + strict v2 verifier 本体
 3. v2 前提条件 (oracle 側 binary hash 照合 / 共有 probe fail-open 是正 / manifest per-pair 追随 /
    共有 materialization 抽出) は再凍結 wave で実装 (一覧 = パッケージ実装状況節)
+
+## 2026-07-17 (2) — リポジトリ棚卸し・リファインメント (課題 1〜5、計測なし)
+
+ユーザー依頼 5 課題 (棚卸し掃除 → 明瞭化 + glossary 圧縮 → docs 外の実態検査 → docs 反映 →
+docs リファイン)。標準ループ (プラン → codex 敵対相談 → workflow → 親検算 → 再投げ) で実施。
+相談 2 本・独立最終レビューの逐語と裁定、棚卸し・監査の要約 =
+output/insights/2026-07-17_repo-refinement-consultations.md。
+
+- 課題 1 裁定: 全 835 tracked ファイルの棚卸し (9 レーン) = **削除対象ゼロ**。全ファイルが参照・
+  凍結契約・parity 検査・試行台帳のいずれかで保護されており、参照ゼロの残骸なし。codex 相談 2 本
+  22 所見 = 全 real (誤削除リスクの事前攻撃、実害未然)
+- 課題 3 監査: docs 外 243 ファイル全数 (opus 9 レーン) = 20 所見 (must-fix 3)、独立最終レビュー
+  (codex、branch 全 diff) = 8 所見 (must-fix 3)。nit 1 件 (d98d9fe message の src/ 表現) を実害なし
+  と裁定した以外は全て修正。F9 恒真 (check_docs 対象不在 skip) は failures.md へ再発追記
+- 持ち越し (**s8b 裁定の判断材料に追加**): (a) s8b_floor_campaign の official 拒否が CLI 限定で
+  run_campaign() 直呼びは fail-open (裁定待ちパッケージのため未修正・要裁定)、(b) 8b-descriptor
+  §7-8 見出しの stale (SHA 凍結閉包のため未修正)。v1 freeze の hash drift 3 件は前エントリ既知の
+  状態と一致することを byte 照合で確認 (本セッション由来の凍結違反ゼロ)
+- テスト: 11 failed/925 passed/12 skipped → **1 failed/940 passed/22 skipped** (新テスト 15 本。
+  環境依存 10 件は「submodule 未初期化のみ」の精密ガードで SKIP 化、残 1 failed = D56 意図的 gate)
+- 環境注記: 計測機ではない本機に numpy 2.2.6 を導入 (repo requirements 不変)
+- commit: 86d3076..21116bc (7 本)
+- 工数: workflow 6 本 (52 agents、~3.7M tokens、opus/sonnet)、codex 3 本 (gpt-5.6-sol
+  reasoning=max)、単発 opus 1 (phase3 突合 = 齟齬ゼロ)
+
+### 次の一手
+1. 本ブランチ (worktree-repo-refinement) の PR レビューと merge 判断 (ユーザー)
+2. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — 前エントリ参照。上記持ち越し 2 件を材料に追加)
