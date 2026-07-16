@@ -212,7 +212,7 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **positive control / 陽性対照** — 「検出器がちゃんと検出できる」ことを確かめるため、わざと陽性の検体を通すこと。*izanagi:* broken-silo パッチで verifier が確実に G2 の赤を出すか確認する。赤検出力が空打ちでない実証 (decisions.md D16)。
 
-**submodule pin (サブモジュールのピン留め)** — 参照する外部リポジトリ (submodule) を特定のコミットに固定し、再現性を保つこと。*izanagi:* CCBench を commit hash で固定。trace-hook 用の改変は別ブランチに置き、pin を dff0f1e に据える (phase3.md §EVOLVE-BLOCK 機構, D16)。
+**submodule pin (サブモジュールのピン留め)** — 参照する外部リポジトリ (submodule) を特定のコミットに固定し、再現性を保つこと。*izanagi:* CCBench を commit hash で固定。trace-hook 用の改変は別ブランチに置き、pin を特定の submodule commit に据える (現行 pin の値の正本は `orchestrator/campaign/pin.py` の CURRENT_PIN — literal は前進で腐るため本文に引かない。phase3.md §EVOLVE-BLOCK 機構, D16)。
 
 ---
 

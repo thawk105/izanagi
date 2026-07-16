@@ -32,7 +32,7 @@ trace-hook の追加開発は submodule の `izanagi-trace` ブランチに直�
 gitlink を前進させる (submodule の working-tree dirt を放置しない方針に変わった = D16)。
 
 ビルドモード (絶対規律1: 観測者効果分離):
-- **perf ビルド** (`build/`, 既定 `-DTRACE=0`): trace は `#if TRACE` で完全に消える。
+- **perf ビルド** (`build/`, 既定 `-DCCBENCH_TRACE=0`): trace は `#if TRACE` で完全に消える。
   pinning は master 由来で常に有効。性能計測・calibration はこれに当てる。
 - **trace ビルド** (`build-trace/`, `-DCCBENCH_TRACE=1`): trace を吐く。正しさ検証専用。
 - 実証済み: `TRACE=0` ビルドのバイナリに `izanagi_trace` シンボル 0 個 (`nm`/`strings`)。
