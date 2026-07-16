@@ -25,6 +25,7 @@
 - `archive/` — 凍結記録 (監査台帳・worklog 過去分・凍結文書)。ファイル名は移動前と不変、規約は同 README
 - `agent-architecture.md` — サブエージェント構成・製品別 adapter・権限・規律の正本
 - `orchestrator-design.md` — orchestrator の ACID/WAL/排他、環境タグ
+- `pegasus-runbook.md` — Pegasus の qlogin / PBS バッチ / module / 並列実行 / ストレージ運用手順
 - `ccbench-anatomy.md` — CCBench 構造調査
 - `axis-onboarding.md` — 変異軸オンボーディングの手順書
 - `isolation-phenomena.md` — verifier が判定する serializability 異常 (G0/G1/G2) の分類

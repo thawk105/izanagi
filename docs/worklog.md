@@ -848,3 +848,17 @@ oracle driver 側) に並列で投げ、両裁定を採用。実装は codex(gpt
    これが済むまで oracle driver の run 系は gate で拒否され続ける (設計どおり)
 3. 監査全文 (scratchpad audit-wave1/2-out.md) を output/insights か output/ 監査 JSON へ凍結
 4. push は人間の判断に委ねる (未 push: 02c840c..98e4133)
+
+## 2026-07-16 (6) — Pegasus 利用 runbook の新設
+
+ユーザー提供の Pegasus 操作情報と project 名 `SFC` を基に `docs/pegasus-runbook.md` を新設し、
+docs 地図から索引した。利用可能キューは固定一覧でなく実行時の `qstat -Q` を正本とする。
+Pegasus は当面デバッグ環境とし、正式計測へ採用するまでは既存 `linux-baremetal` の測定値へ
+混ぜない境界を明記。ユーザーから追加確認した 2026 年度 node 仕様、1 job 1 node 占有、PBS
+`-b` / OpenMPI directive、48-core hybrid 上限、quota、ストレージ、転送方法まで反映済み。
+
+- 検証: `git diff --check`、`check_codex_agents.py` pass。`check_docs.py` は今回と無関係な既存の
+  `docs/ccbench-anatomy.md` → 欠落 `docs/protocols_en.md` 参照 2 件で fail
+
+### 次の一手
+1. Pegasus を正式性能計測へ採用する場合のみ、専用 env-tag と再 calibration/noise floor を設計
