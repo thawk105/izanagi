@@ -17,6 +17,8 @@ build/
 # Izanagi の成果物 (生ログ等。reports/insights は残す判断もありうるので適宜調整)
 output/runs/
 output/variants/*/bin/
+# S-1 driver のビルドキャッシュ (数万ファイル・GB 級の生成物。WAL/report が正本で、キャッシュは再生成可能)
+output/s1-build-cache/
 
 # CCBench submodule のビルド成果物 (submodule 自体は追跡)
 external/ccbench/build/
