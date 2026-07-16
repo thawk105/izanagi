@@ -209,7 +209,7 @@ variant と baseline は決して同一セッションで測らない (別ビル
 - noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない。**ただし反復数が小さい (reps≈5) と MWU の弁別力は弱く、完全分離は常に p≈0.012 を返す** (within-run cluster が tight なため)。よって MWU は between-run 有意性検定ではなく within-run の分布重なりを弾く弱い sanity にすぎず、**主防壁は between-run floor 丸め (上記第1項)**。floor を僅かに超える差 (floor 〜 1.5×floor) は MWU が無力な帯なので、headline にする前に cross-run 再現で裏取りする (A2: compare が `near_floor` フラグを立てる)
 - 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする。各主張をその根拠 (WAL の run 値) まで辿れる形で紐づける構造は、ARA の forensic binding (claim→code→evidence の proof chain) と同型 (§7・D12)
 
-**(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしなかった (D10) ため (2)(4) は配線のみ用意し、Linux 実機 (Dell R760) 確保後の Phase 2 (A2) で有効化した — noise floor を within-run (品質ゲート) と between-run (採否 floor) に分離した上で (§3.6(3'))。
+**(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしなかった (D10) ため (2)(4) は配線のみ用意し、Linux 実機 (env-tag `linux-baremetal`) 確保後の Phase 2 (A2) で有効化した — noise floor を within-run (品質ゲート) と between-run (採否 floor) に分離した上で (§3.6(3'))。
 
 ### 3.7 Phase 完了監査と引き継ぎ監査 (劣化の遡及検出)
 
@@ -276,7 +276,9 @@ variant と baseline は決して同一セッションで測らない (別ビル
 
 ## 5. 計算リソースと現実
 
-計算層は**専有 Linux サーバ (Dell R760, bare-metal x86_64, 96スレ/2NUMA, 247GiB, perf HW カウンタ動作) を確保済み** (旧計画のラップトップ前提を更新)。CCBench の raw bench だけなら数秒でも、1 evaluation は build・複数 verify・bench・再測を含み数十〜数百秒になりうるため、「一晩の件数」は full pipeline の実測から予算化する。スケール (record 数・thread 数) は calibrator が D15 の飽和点または working-set 下限で決める。many-core (96スレ/2ソケット) では絶対規律4 (cache 競合の再現) のためスレッドピンニング (`-DLinux`/numactl) が要る — ccbench-anatomy.md §7。
+正式計測の正本環境は **bare-metal x86_64 サーバ (env-tag `linux-baremetal`: 96スレ/2NUMA、247GiB、perf HW カウンタ動作)** である。既存の正式測定値・calibration・noise floor はすべてこの env-tag に束縛され、この環境は共有スケジューラ環境が使えない時期の退避先としても残す。開発・ビルド・デバッグは共有スケジューラ型の計算環境 (スパコンのノードをジョブで確保する形) でも行えるが、そこで得た throughput を既存 env-tag の測定値へ混ぜてはいけない。別環境を正式計測へ採用する条件は (1) 専用 env-tag、(2) その env-tag での calibration と noise floor の取り直し、(3) 計測を走らせるノード上での単独性・静定確認 (スケジューラの割当てを専有の保証と見なさない)、(4) module・コンパイラ・CCBench pin・ジョブスクリプトの成果物追跡、である (凍結済み実験を別 env-tag で取り直さない — D59)。どのマシンをいつ主に使うかは可変状態で worklog を正本とし、マシン固有の確保・実行手順は当該環境の runbook (`docs/README.md` の地図から引く) を正本とする。
+
+CCBench の raw bench だけなら数秒でも、1 evaluation は build・複数 verify・bench・再測を含み数十〜数百秒になりうるため、「一晩の件数」は full pipeline の実測から予算化する。スケール (record 数・thread 数) は calibrator が D15 の飽和点または working-set 下限で決める。絶対規律4 (cache 競合の再現) のためのスレッドピンニング要件は env-tag ごとにトポロジが異なる — `linux-baremetal` (96スレ/2ソケット) では `-DLinux`/numactl が要る (ccbench-anatomy.md §7)。単一ソケットのノードでは binding 設計を当該 env-tag の calibration で決め直す。
 
 ただし前述の通りスケールダウンには非線形の落とし穴 (コンテンション率の変化、cache 階層の効き方) があるので、calibrator とスケール感度検出で対処する。
 

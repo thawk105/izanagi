@@ -36,9 +36,12 @@ pegasusinfo
 | GPU | NVIDIA H100 PCIe × 1 (80 GiB) |
 | local NVMe | 約 5.4 TB (`/scr`) |
 
-1 CPU、48 physical core、HyperThreading 無効の構成である。1 job が 1 node を占有し、各 node の
-GPU は H100 1 枚で固定される。通常は CPU 数、メモリ量、GPU 枚数を個別指定する運用ではない。
-1 CPU 構成のため、NUMA を意識する必要は基本的にない。
+1 CPU、48 physical core、HyperThreading 無効の構成である。gen_S ではリクエストごとに CPU 48/48
+の logical host が割り当てられ、事実上 node を埋める形になるが、キュー設定は
+`Exclusive submit = OFF` であり**専有はスケジューラが保証するものではない** (`qstat -Qf gen_S`
+で実測)。計測前の単独性確認は割り当てられたノード上で行う (§7)。各 node の GPU は H100 1 枚で
+固定される。通常は CPU 数、メモリ量、GPU 枚数を個別指定する運用ではない。1 CPU 構成のため、
+NUMA を意識する必要は基本的にない。
 
 ## 2. 短時間の対話ジョブ
 
@@ -109,8 +112,8 @@ node 数を指定する場合は `-b` を使う。次は 2 node の例。
 #PBS -b 2
 ```
 
-1 job が node を占有し、GPU も各 node 1 枚で固定されるため、メモリ量や GPU 枚数を指定する
-PBS directive は通常不要である。
+リクエストは node 単位で割り当てられ (gen_S は CPU 48/48 固定、§1)、GPU も各 node 1 枚で
+固定されるため、メモリ量や GPU 枚数を指定する PBS directive は通常不要である。
 
 ### ジョブの状態確認と削除
 
@@ -237,8 +240,9 @@ rbudgetcheck
 
 Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境として扱う。対話セッションが動くのは
 共有のログインノードであり、ビルド・テスト・ベンチなど重い処理は必ず `qlogin` / `qsub` で
-確保した計算ノード上で行う。単独性確認 (pgrep) は共有ログインノードでは他ユーザーのプロセスを
-拾い得て成立しない — 専有した計算ノード上でだけ意味を持つ。正式な性能比較へ使うまでは、Pegasus
+確保した計算ノード上で行う。単独性確認 (pgrep・load average) は計測を走らせる計算ノード上で
+行う — ジョブがノードを割り当てられても専有が保証されるわけではない (§1)。共有ログインノード
+上の確認は他ユーザーのプロセスを拾って意味をなさない。正式な性能比較へ使うまでは、Pegasus
 上の throughput を既存の `linux-baremetal` 測定値へ混ぜない。正式採用には次が必要になる。
 
 1. Pegasus 専用の環境タグを決める
@@ -259,6 +263,6 @@ Izanagi の性能計測では、trace-enabled の正しさ検証と trace-disabl
 - OpenMP threads は 48 以下である
 - hybrid 実行は node あたり `MPI processes × OMP_NUM_THREADS <= 48` である
 - GPU プログラムやビルド・テスト・ベンチ等の重い処理をログインノードで実行していない
-- 単独性の確認 (pgrep 等) は、共有ログインノードではなく専有した計算ノード上で行う
+- 単独性の確認 (pgrep 等) は、割り当てられた計算ノード上で行う (割当てを専有の保証と見なさない)
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した

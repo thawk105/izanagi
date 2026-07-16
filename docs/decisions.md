@@ -2270,3 +2270,28 @@ positive control `backoff-sweep-silo-read-heavy-sweep-6f169f90` により
 `screen-slower-than-floor` の実発火を確認した。実出力 WAL の consumer 回帰 fixture も追加済み。
 ablation は初回採用 campaign で insight §5-7 の 4 基準により実施する。適用範囲と逐次停止の別裁定は
 変更しない。
+
+## D59. 開発主戦場を共有スケジューラ型スパコンへ移し、正式計測正本 env-tag は据え置く (2026-07-16)
+
+**背景:** 主たる開発・ビルド・デバッグの場を Pegasus (NQSV、`qsub`/`qlogin` でノード確保) へ移す
+ことになった (worklog 2026-07-16 (7)〜)。一方、既存の正式性能測定値・calibration・noise floor・
+凍結済み実験 (S-1 等) はすべて env-tag `linux-baremetal` (研究室の共有 Dell R760、ホスト名
+cygnus) に束縛されている。マシンはプロジェクトの寿命より短く、利用者全員が同じマシンを使える
+わけでもない。
+
+**決定:** (1) 正式計測の正本 env-tag は `linux-baremetal` に据え置き、同環境は共有スケジューラ
+環境が使えない時期の退避先としても残す。(2) 別環境を正式計測へ採用する条件は roadmap §5 の
+4 条件 (専用 env-tag / その env-tag での calibration・noise floor 取り直し / 計測ノード上の
+単独性・静定確認 / module・toolchain・CCBench pin・ジョブスクリプトの成果物追跡)。(3) 横断
+docs (CLAUDE.md・roadmap・orchestrator-design・failures 等) にはマシン名・マシン固有前提を
+焼き込まず、マシン固有の事実・手順は `docs/<machine>-runbook.md` (例: pegasus-runbook.md) に
+閉じる。「いまの主戦場がどこか」は可変状態であり worklog 末尾を正本とする。
+
+**不変条件:** 凍結済み実験を別 env-tag で取り直して上書きしない (前向き凍結ルールの env 側の系)。
+異なる env-tag の throughput を混ぜない (roadmap §3.6)。スケジューラのノード割当てを専有の保証と
+見なさない — 計測前の単独性確認 (pgrep・load average) は計測を走らせるノード上で行い、共有
+ノードでしか計測できない環境では外乱の回避・検知・再計測で運用する (failures F3)。
+
+**現時点の状態:** pegasus-runbook 実機検証済み (ab9e202、スモークジョブ + キュー probe +
+`qstat -Qf` の Exclusive submit=OFF 確認)。Pegasus は開発環境であり、正式計測用 env-tag は未作成。
+roadmap §5 は本決定と同時に協議改訂 (roadmap-history/README.md の協議ルート — 版凍結なし)。
