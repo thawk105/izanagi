@@ -990,3 +990,30 @@ checkpoint (c) 着手時に、凍結対象の二波監査全文 (audit-wave1/2-o
   予測 6 セルの実実行に到達する。本セッションの一次資料はすべて repo 内
   (output/insights/2026-07-16_s8b-*.md 4 本 + 本エントリ) — scratchpad に唯一コピーは残して
   いない (F20 恒久対応を実践)
+
+## 2026-07-16 (10) — 8b 裁定準備: 裁定パッケージ + freeze v2 設計素材の凍結 (相談 4 + workflow 16)
+
+再開手順 (1)〜(3) の裁定に必要な資料を作成した。計測なし・実装コードなし。codex gpt-5.6-sol
+(max) の敵対相談 4 本 (C-A = 項 7/8 提示、C-B = floor env、C-C = 設計骨子、C-D = プラン全体) を
+並列実行して全所見を親裁定し、Claude workflow 16 agents (起草 2・所見別検証 8・修正 2・再検査 2・
+横断整合 2) で起草・修正、親が全文レビューして最終修正 3 件を直接適用した。
+
+- 成果物 (insights 3 本): 相談逐語 + 親裁定 = `2026-07-16_s8b-ruling-prep-consultations.md`、
+  裁定パッケージ (6 裁定単位) = `2026-07-16_s8b-ruling-package.md`、freeze v2 設計素材
+  (T/C/S/R3/R6/R5 層 + 受入ベクトル 9 本) = `2026-07-16_s8b-freeze-v2-design-material.md`
+- 最重要所見: (1) C-C 2 = R6 マーカーと crash 再走は両立不能 → 択 (a) 再走なし / 択 (b) 項 8
+  改訂 + attempt registry の中心裁定へ昇格。(2) C-A 3 = median→mean 変異で現行テストが PASS する
+  false-green (親が in-process 再現)。(3) C-B 6 = 競合検知 pgrep が s8b-build-cache 配下の孤児
+  bench を見逃す F3 潜在ギャップ。R3 は exactly-once → at-most-once へ契約修正 (C-C 7)
+- 検査: s8b 系 150 passed (worktree)。R1 再現 = freeze verify rc=1 (design hash 不一致の
+  fails-closed 正常動作)。resume 拒否 (driver:359) の回帰テスト不在を確認 (裁定 2 に明記)
+- ユーザー指示 (恒久): subagent へのモデル明示割当て — fable 継承をやめ、レビュー = opus /
+  起草・機械検査 = sonnet。memory (subagent-model-economy) へ保存済み
+- 作業は worktree branch worktree-s8b-ruling-prep (基準 50b499b)。push はユーザー判断
+
+### 次の一手
+1. 裁定パッケージの 6 裁定 (§9 項 7 / 項 8 + crash 再走ポリシー / A3-3 トポロジー / A3-4
+   status・rc / R5 truth table / floor env) をユーザーから取得 → §9 承認状態と worklog へ記録
+2. 裁定後: strict v2 verifier / R3 runner / R6 強化 / F3 pgrep 修正の実装 (設計素材の受入
+   ベクトル V1〜V9 に従う)
+3. worktree branch の main への取り込みと push はユーザー判断

@@ -41,9 +41,12 @@ floor/budget は再実測までの null)、8b 後半 = selector 役 + oracle 評
 反映済み)、層3 renderer v2 + 実レポート、までは完了 — 経緯・commit hash・監査内訳は worklog
 2026-07-16 (1)〜(6) と archive を正本とし、ここに再掲しない。
 次: (a) **§9 再凍結 draft の残り = 項 7〜8 のユーザー承認** (項 1〜6 は 2026-07-16 承認済み。
-承認後も実実行には worklog 2026-07-16 (9) の前提条件 (i)〜(v) が必要)、
+承認後も実実行には worklog 2026-07-16 (9) の前提条件 (i)〜(v) が必要。裁定資料 =
+`output/insights/2026-07-16_s8b-ruling-package.md` — 項 7/8 に加え A3-3/A3-4 処置・R5 量化・
+floor env の計 6 裁定単位)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
-拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
+拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
+`output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
 残存証拠 (worklog 要約 + commit 本文 + 回帰テスト) からの再構成 + 消失記録を output/insights へ
 凍結する (原文の逐語復元は不能と明記する)、(d) 8b + 層3の 1 cycle 後に
 必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を再判断する。
