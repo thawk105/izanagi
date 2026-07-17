@@ -41,6 +41,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_s8b_floor_campaign.py
 - test_s8b_floor_stats.py
 - test_s8b_holdout_freeze.py
+- test_s8b_materialization.py
 - test_s8b_oracle_driver.py
 - test_s8b_oracle_judge.py
 - test_s8b_oracle_manifest.py
