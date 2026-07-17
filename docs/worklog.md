@@ -282,3 +282,48 @@ push はユーザー引き渡し (変わらず)
 
 ### 次の一手
 1. 前エントリ (6) の残り (ユーザー任意分) は変わらず
+
+## 2026-07-18 (1) — v2 前提条件 裁定非依存サブセット第 2 波 (freeze I/O 中立化 + 盲点テスト、計測なし)
+
+F1〜F7 裁定待ち継続中の第 2 波。標準ループ (Explore 4 (sonnet) 実査 → codex gpt-5.6-sol
+reasoning=max 敵対相談 4 本 46 所見 → 親裁定 → Claude workflow 11 agents (実装/レビュー opus、
+docs sonnet、fable 子なし。レーン内敵対レビュー 2 レンズ + 修正 + 再レビュー) → 親検算)。
+逐語・裁定表・確定プラン = `output/insights/2026-07-18_s8b-v2-prereqs-wave2-consultations.md`。
+
+- commit: 5945505 から本エントリ分まで 4 本 (逐語凍結 / Lane A freeze I/O 中立化 / Lane B′
+  盲点テスト / docs)
+- スコープ裁定 (codex 反映): **Lane C (JSON strict parse 統一) は撤回** (F7 先取り + v1 generator
+  pin 空洞化 + 「統一」恒偽 — C-γ「やめよ」判定を採用)。**Lane B (binding 検証統合) は closed
+  source bundle pin 裁定後へ延期**し盲点テストのみに縮小 (pin 対象 report から pin 外への
+  load-bearing 検証移動 = pin 弱体化、+ NaN 非同値)。実装したのは Lane A のみ (G-9 の見送り
+  理由 = 差分抑制のみ、を消化。floor→oracle_driver の import edge 消滅)
+- 境界欠陥是正 1 件 (Lane A 内): floor CLI の loader 例外が構造化 error 経路に乗らず traceback で
+  漏れていた — 純リファクタでなく是正として記録
+- **ユーザー裁定材料に追加 2 件**: (B-1) manifest canonicalizer の NaN 受理は report/driver と乖離。
+  strict 化 (allow_nan=False、writer 側も対称に) は fail-closed 強化として裁定待ち。(B-6)
+  generator pin は role→path 束縛のない provenance 記録に過ぎない (materializer に CLAUDE.md を
+  指定しても受理、実証済み) — v2 bundle pin 設計要件 (role→正規 path 束縛 + source closure +
+  report 実行時自己検査) へ
+- 見送り理由の訂正 (D-9): trace-disabled build 共有は「consumer 1 で価値薄」でなく「oracle/floor は
+  既に buildcache.build(trace=False) primitive を共有。残る価値は同一引数契約の結線テストで足りる
+  かの再評価」— G6' 残課題のこの項の記述は本エントリで前エントリ (5) を置換
+- v2 統合時の設計要件を裁定表に記録 (insights §3): binding 検証は安定 issue-code 化 (文言は
+  observations artifact 出力のため consumer 側 render + 複合故障 precedence golden) / versioned
+  stdlib-only leaf / frozenset。C-γ 副産物: 実 artifact 3 件は strict parse を通る (実測) /
+  s8b_holdout_freeze.py は裁定資料の実測 drift hash 保全のため F7 裁定まで一切編集しない
+- セッション異常と救出 1 件: workflow レビュー agent が mutation 検証中に `git checkout` で
+  production 2 ファイルの未 commit 変更を一時消失 → 捕捉済み diff から復元し byte 同値を numstat +
+  全走一致で確認。並行レビュアーが観測したファイル振動も同事故と特定。親も commit 直前に同一
+  時点で diff 実在 + 全走緑を再検証
+- テスト: 996/23/0 → **1025 passed / 23 skipped / 0 failed** (+29 = Lane A 20 + Lane B′ 9)。
+  凍結 2 文書 sha256 前後不変を機械確認
+- 工数: Explore 4 (sonnet) + codex 4 (reasoning=max) + workflow 11 agents (~940k tokens) +
+  親直接 1 (逐語復元)
+
+### 次の一手
+1. 本 4 commit の push → PR → merge 判断 (ユーザー — Pegasus 運用)
+2. F1〜F7 + 数値案 + env_tag のユーザー裁定 (変わらず)。裁定材料に B-1 (manifest NaN strict 化) と
+   B-2 (前エントリ (5) の自己子孫除外) が積まれている
+3. 裁定後 v2 wave の残 (変わらず、エントリ (5) と insights §3 参照): oracle 消費配線 / strict v2
+   verifier / manifest per-pair / bench_max_rounds=1 / G5' env contract / 共有 probe 切替 /
+   G6' 統合 (issue-code 化等の設計要件込み) / bundle pin (role→path 束縛含む)

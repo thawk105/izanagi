@@ -16,7 +16,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 ユーザー承認 (2026-06-29)。decisions D22。**絶対規律 (特に 1/2/3/5/6) はここで初めて load-bearing になる**
 (LLM が正しさを破りうるコードを書く)。
 
-## 現行チェックポイント (2026-07-17 更新)
+## 現行チェックポイント (2026-07-18 更新)
 
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。ただし現行の反復は
   人間がセッション間を運ぶ **human-supervised loop** であり、無人の進化探索ではない。
@@ -53,8 +53,8 @@ wave 2 前半完了 (2026-07-17、worklog 参照): floor protocol 凍結案パ�
 (`orchestrator/campaign/s8b_floor_campaign.py`、official mode は承認束縛の §8 裁定まで一律拒否)。
 残 = パッケージのユーザー裁定 (F1〜F7 + 数値案 + env_tag) → protocol JSON 凍結 + 予測封印 →
 floor 実測 → freeze v2 再凍結 + strict v2 verifier 本体 (v2 前提条件の一覧はパッケージ実装状況節、
-設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`。裁定非依存の 3 件は
-部分基盤のみ実装済み — 完了と数えない。進捗と残課題の正本 = worklog 2026-07-17 (5))、
+設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`。裁定非依存の先行基盤は
+複数 wave で部分実装済み — 完了と数えない。進捗と残課題の正本 = worklog 末尾の v2 前提条件エントリ)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
 `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) ~~8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
