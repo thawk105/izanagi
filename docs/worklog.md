@@ -97,3 +97,25 @@ output/insights/2026-07-17_repo-refinement-consultations.md。
 ### 次の一手
 1. 本ブランチ (worktree-repo-refinement) の PR レビューと merge 判断 (ユーザー)
 2. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — 前エントリ参照。上記持ち越し 2 件を材料に追加)
+
+## 2026-07-17 (3) — docs 衛生リファインメント wave (worklog ローテ + coder-spec バナー + 地図修正)
+
+凍結・保護規約の相談から派生したユーザー依頼 (棚卸しで挙がった 4 候補の実施)。3 件実施 + 1 件を
+凍結により見送り。計測なし。敵対検証 workflow 4 レンズ (byte-exact / バナー事実性 / 凍結安全性 /
+参照整合) = all pass、must-fix 0。
+
+- 見送り (裁定): 8b-descriptor §1 内の stale 引用「(8b 未着手) workload 次元のループ入力化」の修正
+  — `output/s8b-freeze/holdout_freeze.json` の SHA pin 対象のため編集せず、(2) 持ち越し (b) と同枠で
+  freeze v2 再凍結時の修正材料に追加
+- 検証の副次所見 (nit 2、本 wave 由来ゼロ): 8b-descriptor の現 hash は §9 記録コミットにより pin と
+  既に乖離 ((1)/(2) の既知 drift と整合、凍結違反の新規発生なし)。地図の従属文書行は
+  main-experiment を拾わない (個別 entry があるため実害なし)
+- commit: 2c1e0d2 (worklog ローテ 07-14〜07-16 分、境界 = 07-17 (1) 以降を現行保持) / 9b744d4
+  (coder-spec §3/§5/§8 バナー + 地図 glob に phase3-8b-*.md 追加)
+- 工数: 調査 Explore 2 + 敵対検証 workflow 1 本 (opus 4、~206k tokens)
+
+### 次の一手
+1. 本ブランチ (worktree-docs-refinement-wave) の push → PR → merge 判断 (ユーザー実施 —
+   Pegasus は AI ツールから push しない運用)
+2. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — (1) 参照。8b-descriptor の stale 引用を
+   再凍結時の修正材料に追加)
