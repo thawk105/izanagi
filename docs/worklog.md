@@ -430,3 +430,26 @@ protocol JSON / freeze v2 / 承認 record は生成していない。エント�
 2. 全裁定後: protocol JSON 凍結 → 予測封印 → floor 実測。strict v2 verifier wave (F7 後) に
    Lane M・oracle 結線・scale gate consumer を統合 (エントリ (2)(3) と変わらず)
 3. push はユーザー引き渡しのまま (変わらず)
+
+## 2026-07-18 (6) — floor protocol パッケージ 裁定完結 (F6/F7/B-1/B-2 + 追認 2 件、計測なし)
+
+- 裁定逐語: 「F6はaで確定する。f7は推奨されたもので構成する。b-1もそう。b-2もそう。追認1の
+  読み替えはそれでよい。追認2はそれでよい。記録してコミットしてmainに入れて」。F6 は事前問答
+  (「自動合成ループが止まるのでは」→ 内側ループは非影響、AI 生成候補の**発効決定**を機械検査
+  可能にする裁定である旨) を経ての確定。記録の正本 = phase3-8b-descriptor-design.md §9 承認状態
+  (2026-07-18 (6) ブロック)。裁定資料パッケージ・freeze-v2-design-material は不変 (B-2 の子孫
+  除外記載との差異は §9 記録が上書き)
+- **これで F1〜F7 + B-1/B-2 の裁定が完結。** 残る空欄 = master_seed / env_tag (protocol JSON
+  凍結時)、実行責任者・開始時刻 (floor 実走時)
+- 解禁された実装 (次 wave に統合): load_ratified_freeze + 承認束縛 machinery (F6a) / strict v2
+  verifier 本体 (F7) / Lane M manifest per-pair / oracle 結線 (binary 照合・scale gate consumer) /
+  B-1 NaN strict 化 / B-2 probe 縮小 (共有 helper + floor strict_probe の両方) / protocol JSON
+  凍結の準備
+- 工数: 親のみ (子エージェントなし、計測なし)
+
+### 次の一手
+1. strict v2 verifier wave を標準ループ (プラン → codex 敵対相談 → workflow → 親検算) で実行 —
+   上記の解禁項目を統合
+2. master_seed / env_tag の値をユーザーから受領 → protocol JSON 凍結 → selector 予測封印 →
+   floor 実測 (実行計画テンプレートの充填)
+3. push はユーザー引き渡しのまま (変わらず)

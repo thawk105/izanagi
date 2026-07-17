@@ -387,3 +387,36 @@ frozen_at_head / env_tag / floor_protocol / floor_source / experiment_numbers / 
 v2 gN→gN+1 で変わってよいのは floor・budget・experiment_numbers 系 + header のみ。**それ以外の
 diff は verifier 拒否。** 全 field に実 consumer を要求し、consumer 不在 field (例
 `B_arm_seconds`) は消費側を同時実装しない限り凍結しない (恒真保証 F14 の拒否)。
+
+**承認状態 (2026-07-18 ユーザー裁定 続き、worklog 2026-07-18 (6)): F6 = 択 (a) で確定、
+F7 = 推奨案どおり承認、追加材料 B-1・B-2 = 採用、実装解釈の追認 2 件。floor protocol
+パッケージ (F1〜F7) の裁定はこれで完結。**
+
+- **F6 (a) 承認レコード方式:** approval record =
+  `output/s8b-freeze/approvals/<generation_sha256>.json` (path は世代 bytes hash から導出、
+  自己参照回避)。内容 = strict canonical JSON {generation_sha256, approver, approved_at, scope}。
+  **ユーザーが commit し、その commit は `AI-Agent: none` 逐語 trailer を持つ。** 検証 = record
+  存在 ∧ filename・内容 hash の世代一致 ∧ HEAD ancestry ∧ trailer ∧ 導入後の path 改変履歴なし。
+  取り消し = 不可逆 tombstone。active 世代 = 明示 active pointer (複数 successor・pointer 不正・
+  revoked → active なし fail-closed。「最新 = 有効」禁止)。発効順序 = 方式裁定 → source head →
+  AI が inactive 候補生成 (AI trailer 付き commit) → ユーザーが別 commit で approval + active
+  pointer → `load_ratified_freeze` のみが実走 consumer。「規約 attestation であり人間性の
+  暗号学的証明ではない」限界を含めて承認 (強化選択肢 (b) 署名方式は将来の再裁定へ)。裁定前の
+  問答で「自動合成ループは止めない (発効決定の機械化である)」を確認済み
+- **F7 (v2 検証意味論):** (1) source は `frozen_at_head` (pre-generation source head へ再定義)
+  の git blob bytes で照合 / (2) 未知性は二層 = v1 凍結時点で成立 ∧ v1 以後の conjunction hit が
+  申告済み計測 closure と完全一致 (launch certificate 方式) / (3) 全 consumer を単一
+  `load_ratified_freeze` へ統一 (duplicate key・NaN・未知 key 拒否、generation hash・連鎖・
+  approval・active の一括検証) / (4) floor driver は暫定 bytes sha256 pin (実装済み)。
+  protocol JSON = 機械正本・md = 説明、の正本分離を含む。closure 完全一致の代償 (申告漏れ
+  1 件で fail-closed 不合格) を含めて承認
+- **B-1:** manifest canonicalizer / writer を `allow_nan=False` へ統一 (fail-closed 強化) を採用
+- **B-2:** 単独性 probe の身内除外を**自 PID のみ**へ縮小する方針を採用。適用対象 = 共有 helper
+  (`competing_bench_pids`) と floor strict_probe の両方 (wave3 実査で同型の子孫除外を確認)。
+  freeze-v2-design-material の子孫除外記載との差異は本裁定記録が上書きする (凍結文書は不変)
+- **追認 2 件 (裁定文言の実装解釈):** (i) F2 の retry「block 末尾消化」は block 廃止 (F1) に伴い
+  **round 末尾消化**へ読み替え (実装済み: retry 順は schedule 順で事前決定 + 他セル性能値への
+  metamorphic test) — 追認。(ii) settle timeout は floor 経路が settle 非使用のため該当なし
+  (第五の除外理由は置かない) — 追認
+- 未指定のまま残る空欄: master_seed / env_tag (protocol JSON 凍結時にユーザー確定)、
+  実行責任者・開始時刻 (floor 実走時)
