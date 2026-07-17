@@ -153,3 +153,46 @@ output/insights/2026-07-17_repo-refinement-consultations.md。
 1. 本ブランチ分の push (ユーザー実施 — Pegasus は AI から push しない運用)
 2. 本ブランチのローカル main 取り込み後の push (ユーザー実施 — Pegasus は AI から push しない運用)
 3. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — (1) 参照)
+
+## 2026-07-17 (5) — s8b v2 前提条件の裁定非依存サブセット実装 (部分基盤、計測なし)
+
+worklog (1)〜(4) の次の一手が全てユーザー待ち (push / F1〜F7 裁定) のため、パッケージ「v2 前提条件」の
+裁定非依存部分を標準ループ (プラン → codex gpt-5.6-sol reasoning=max 敵対相談 4 本 36 所見・全
+「修正後に進めよ」 → 親裁定 → Claude workflow 20 agents (実装 opus / commit sonnet / fable 子なし、
+レーン内敵対レビュー opus×2 + 修正 + 再レビュー) → 親検算) で実装。逐語・裁定表・確定プラン =
+`output/insights/2026-07-17_s8b-v2-prereqs-consultations.md`。**「3/6 完了」とは数えない (D-1)** —
+L1 は生産基盤のみ (oracle 消費配線なし = 照合は未保証)、L3 は G6' 部分準備。
+
+- commit: 2646e73 から本エントリ分まで 8 本 (逐語凍結 / L1 full-sha256 基盤 + 未配線 gate / L2 probe
+  fail-closed / L3 s8b_materialization 部分抽出 / L5 結線テスト + 台帳完了化 / nit 後始末 / allowlist / docs)
+- セッション異常と救出 2 件: (a) workflow 産 4 commit で AI-Agent trailer が Co-Authored-By と別段落に
+  なり git trailer 非認識 (provenance 監査 4 違反) → filter-branch --msg-filter で未 push 範囲を修復
+  (hash 変更)。(b) L3 新規テストが plain-runner メタテスト赤 (レーンの対象テスト集合の外) → 親フル
+  スイート検算で検出し pytest 専用 allowlist へ
+- 挙動拡大の裁定記録 (スコープ外だが採用): screening_driver が identity-error も再評価するようになった
+  (`model.RETRYABLE_ABORT_REASONS` で loop の D25 契約に統一 — D25 繰延の identity-error poison の
+  screening 側部分解消。番人テスト + verifier-red の negative control で固定)。S2 pass 先頭の verdict
+  消去 (aborted+serializable 矛盾) は既存バグの是正 (B-4)
+- **ユーザー裁定材料に追加 (B-2):** 共有 probe の自己子孫除外は「生きた自分の子 ycsb」を競合から外す。
+  freeze-v2-design-material の記載 (子孫除外を明記) と衝突するため実装では変えていない — admission を
+  自 PID のみ除外へ狭めるかは裁定待ち
+- v2 前提条件の正直な残 (D-1/D-2): oracle 消費配線 (F5 裁定後) / strict v2 verifier 本体 / manifest
+  per-pair 追随 / bench_max_rounds=1 凍結 / **G5' env contract (パッケージ一覧から脱落していた第 7 項)** /
+  floor の共有 probe 切替。G6' 残課題 6 件 (PreparedCell 所有移動・verifier 三重実装統合・trace-disabled
+  build 共有・binding 検証 adapter・VerifiedFreeze/NUMACTL 中立化・v2 での closed source bundle pin —
+  新モジュールは現 materializer pin の対象外) は insights §4 と同文
+- v2 設計材料の追加所見 (実装せず): oracle report の bench-failed 分岐は abort reason 非検査 (偽装面、
+  B-5) / probe reason の stage 別写像案 (B-5) / 実行 byte 保証の起動直前再照合・fstat 等メニュー (A-4)。
+  D-5 の fan-out 監査 (7 driver) は CompetingBenchProbeError 非捕捉伝播 = fail-closed で正しいと確認
+- 棄却/縮小: 36 所見中、部分採用・見送り 8 (B-2 実装見送り、B-5/G-6 の oracle 側は D-4 優先で v2 へ、
+  G-1/G-2 は fallback 側採用、G-9/A-4 部分、B-1 の procps capability 検証は過剰)。詳細 = 裁定表
+- phase3: checkpoint (c) 完了化 (代替凍結・逐語復元不能の D-11 文言)・更新日同期・残欄に部分基盤の
+  注記。裁定待ちパッケージ文書は 1 byte も不変 (D-10)
+- テスト: 基線 1 failed (D56 意図 gate)/940 passed/22 skipped → **1 failed (同一)/996 passed/22 skipped**
+- 工数: Explore 3 (sonnet) + codex 4 (reasoning=max) + workflow 20 agents (~1.5M tokens) + 親直接修正 3
+
+### 次の一手
+1. 本ブランチ (worktree-s8b-v2-prereqs) の push → PR → merge 判断 (ユーザー実施 — Pegasus は AI から
+   push しない運用)。D-12 の推奨: L2 (意味論変更) は個別レビュー価値が高い
+2. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — (1) 参照)。裁定材料に B-2 (自己子孫除外) を追加
+3. 裁定後の v2 wave で「正直な残」を消化 (一覧は本エントリと insights §4)

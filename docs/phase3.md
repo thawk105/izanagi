@@ -16,7 +16,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 ユーザー承認 (2026-06-29)。decisions D22。**絶対規律 (特に 1/2/3/5/6) はここで初めて load-bearing になる**
 (LLM が正しさを破りうるコードを書く)。
 
-## 現行チェックポイント (2026-07-16 更新)
+## 現行チェックポイント (2026-07-17 更新)
 
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。ただし現行の反復は
   人間がセッション間を運ぶ **human-supervised loop** であり、無人の進化探索ではない。
@@ -53,12 +53,15 @@ wave 2 前半完了 (2026-07-17、worklog 参照): floor protocol 凍結案パ�
 (`orchestrator/campaign/s8b_floor_campaign.py`、official mode は承認束縛の §8 裁定まで一律拒否)。
 残 = パッケージのユーザー裁定 (F1〜F7 + 数値案 + env_tag) → protocol JSON 凍結 + 予測封印 →
 floor 実測 → freeze v2 再凍結 + strict v2 verifier 本体 (v2 前提条件の一覧はパッケージ実装状況節、
-設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、
+設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`。裁定非依存の 3 件は
+部分基盤のみ実装済み — 完了と数えない。進捗と残課題の正本 = worklog 2026-07-17 (5))、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
-`output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) 8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
+`output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) ~~8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
 残存証拠 (worklog 要約 + commit 本文 + 回帰テスト) からの再構成 + 消失記録を output/insights へ
-凍結する (原文の逐語復元は不能と明記する)、(d) 8b + 層3の 1 cycle 後に
+凍結する (原文の逐語復元は不能と明記する)~~ **完了 (2026-07-16 — 原文消失を記録し、残存証拠からの
+再構成を代替凍結。逐語復元は不能。成果物 = `output/insights/2026-07-16_s8b-two-wave-audit-reconstruction.md`
++ 第 3 波監査 `2026-07-16_s8b-third-wave-audit.md`、記録 = worklog 2026-07-16 (9)、commit 4bde427)**、(d) 8b + 層3の 1 cycle 後に
 必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を再判断する。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
@@ -382,7 +385,7 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **(完了 2026-07-15) ftruncate-xor insight の還元判断欄の追随** (worklog 2026-07-10 (19) 由来) —
   ユーザー承認を受け、insight (2026-06-19) に WAL ftruncate XOR の PR #116 master マージ完了を
   日付付きで追記訂正した。別件 ODR 違反の PR #118 と合わせ、探索由来の上流還元 2 件が完了済み。
-- **(完了 2026-07-17)** buildcache 残骸破棄の結線統合テスト (2026-07-11 監査 L2-2 由来) — fc4d3fa の回帰テスト 2 本は helper 単体のみで、build() が configure 前に破棄を呼ぶ結線を assert しない。結線だけ外れる将来 refactor への歯として統合テスト 1 本の余地。
+- **(完了 2026-07-17) buildcache 残骸破棄の結線統合テスト** (2026-07-11 監査 L2-2 由来) — fc4d3fa の回帰テスト 2 本は helper 単体のみで、build() が configure 前に破棄を呼ぶ結線を assert しない。結線だけ外れる将来 refactor への歯として統合テスト 1 本の余地。
   `test_buildcache_stale_marker_discarded_before_configure` (orchestrator/tests/test_campaign.py) を追加し、
   build() が configure 前に残骸破棄を呼ぶ結線と `["configure", "build"]` の呼び出し順序を固定した。
 
