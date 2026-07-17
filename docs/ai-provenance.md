@@ -49,7 +49,10 @@ AI-Agent: none
   実質的な判断を加えた場合だけ `integrator` として記録する。説明と実体の独立レビューを行った構成は
   `reviewer` とする。
 - `Co-Authored-By` は著者表示のため必要に応じて併用してよいが、model と reasoning を持たないため
-  `AI-Agent` の代用にはしない。セッション URL も任意の補助情報である。
+  `AI-Agent` の代用にはしない。セッション URL (`Claude-Session:` trailer 等) は commit message にも
+  PR 本文にも記録しない (2026-07-17 ユーザー裁定: 履歴に永続する識別子であり、リポジトリ公開時に
+  セッションの存在と ID を露出するため)。機械抑止は `.claude/settings.json` の
+  `attribution.sessionUrl=false` が担う。
 - トークン数、利用枠、料金はこの trailer の対象外とする。必要なエージェント工数や棄却 finding は
   `docs/worklog.md` 冒頭の書式に従い、worklog または一次資料へ残す。
 
