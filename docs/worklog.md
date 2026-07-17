@@ -222,9 +222,10 @@ L1 は生産基盤のみ (oracle 消費配線なし = 照合は未保証)、L3 �
   公開しないため)。push 後は worklog 中の既存 hash 引用が旧履歴参照になる (対応表で解決可能)
 
 ### 次の一手
-1. **force-push (ユーザー)**: `cd ../izanagi-rewrite && git remote add origin
-   git@github.com:thawk105/izanagi.git && git fetch origin` で想定外の新規 commit がないことを確認 →
-   `git push --force origin main worktree-s8b-ruling-prep` (ruling-prep は完全マージ済みなので
-   `git push origin --delete worktree-s8b-ruling-prep` でも可)。main の branch protection は事前解除
-2. push 後の後始末 (依頼あれば AI 実施可): 各ローカル checkout / worktree / 他マシン clone (Pegasus 等)
-   の fetch + reset、GitHub PR 本文のセッション URL 確認・編集 (スクリプトヘッダの一覧に従う)
+1. [完 2026-07-17] force-push 実施 (ユーザー) → ローカル後始末実施 (AI): 3 checkout を新履歴へ
+   reset、remote-tracking ref 同期、reflog expire + gc で旧オブジェクト消去 (書き換え 168 件消滅・
+   新旧同一 SHA 297 件残存 = 件数一致で整合確認)。旧→新対応表は
+   `../izanagi-claude-session-commit-map-20260717.txt` (repo 外に保管)、rewrite clone は削除
+2. 残り (ユーザー任意): 他マシン clone (Pegasus 等) の fetch + reset または clone し直し / GitHub PR
+   本文のセッション URL 確認 (`gh pr list`、sandbox からは gh 不可) / GitHub 側 refs/pull 残存の完全
+   消去は Support へ GC 依頼 / 次回の実 `git fetch --prune` で tracking ref の最終整合を確認
