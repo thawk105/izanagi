@@ -321,3 +321,26 @@ worklog 2026-07-16 (9)「次の一手」1。A3-3・A3-4 の設計裁定は (11) 
 
 floor・budget・n・seed・block・extime/reps・機械故障一覧（allowed_excluded_reasons）・検定数値は
 §5.2/§6/§8 のとおり floor 再実測後の再凍結で数値を充填する（本 draft では凍結しない）。
+
+**承認状態 (2026-07-18 ユーザー裁定、worklog 2026-07-18 (2)): floor protocol 凍結案パッケージ
+F1 = 修正付き採用。** 裁定資料 = `output/insights/2026-07-16_s8b-floor-protocol-package.md`
+(裁定資料は凍結族のため不変。F2〜F7・追加材料 B-1/B-2 は裁定継続中で、protocol JSON の凍結と
+実装・テストの改訂は全裁定完了後)。修正内容:
+
+- **標本設計の縮小 (ユーザー裁定):** トップ会議 (VLDB 等) の CC 実験報告水準に合わせ、温度・
+  バックグラウンド処理起因の微細変動は追わない。2 block 構造と `min_block_gap_s=1800` を廃止し
+  8 session 連続 1 パス。算出式から block 対比差 `delta_c` 項を削除:
+  `floor_pair(c) = max(u_noise(c), wired_min_rel_floor × m_stock)`。`s8b-floor-stats/v1` は
+  2 block 前提のため formula_id ごと再定義する。所見 D1/E1 (周期共鳴・contrast drift) は不採用へ
+  降格し、「時間ドリフト・cold-boot・温度は floor に含まれない下限」を限界として報告に明記する
+- **マシン異常検出の追加 (fail-closed 専用):** (i) `performance_anomaly` = session 内 5 反復の
+  CV (stdev n-1 / 算術平均) > 10% → session 無効。F2 の閉じた除外理由表へ 4 行目として追加
+  (必須証拠 = 全反復値、retry は既存スロット内、実時間は持ち時間の消費として計上)。
+  (ii) `machine_anomaly` = セル間 CV (既存診断値 `cv_c = s_c / fmean(有効 session medians)`) >
+  15% → 当該 pair の floor = null (判定不能)。閾値は protocol JSON に事前凍結し全セル同一適用。
+  検出は無効化・判定不能へ倒す方向にのみ使い、測定の採り直しによる数値改善方向には使わない
+- **維持:** n_sessions=8 / reps=5 exact / per-pair table (§5.2 のスカラーからの変更を含めて承認) /
+  fail-closed null 意味論 / scale-adequacy gate ±10% / seed 均衡置換 (温度対策でなく実装コスト
+  ゼロの基本衛生として維持 — ユーザー確認済み) / scalar_alt 併記 / 「記述的効果量 + noise gate、
+  α・検定力未保証」の限定
+- `master_seed` は未指定のまま (ユーザー記入欄、承認時に確定)

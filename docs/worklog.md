@@ -328,3 +328,27 @@ docs sonnet、fable 子なし。レーン内敵対レビュー 2 レンズ + 修
 3. 裁定後 v2 wave の残 (変わらず、エントリ (5) と insights §3 参照): oracle 消費配線 / strict v2
    verifier / manifest per-pair / bench_max_rounds=1 / G5' env contract / 共有 probe 切替 /
    G6' 統合 (issue-code 化等の設計要件込み) / bundle pin (role→path 束縛含む)
+
+## 2026-07-18 (2) — floor protocol パッケージ F1 のユーザー裁定 (修正付き採用、計測なし)
+
+対話セッションで F1〜F5 を第三者向けに詳説し、ユーザーが F1 を裁定。記録の正本 =
+phase3-8b-descriptor-design.md §9 承認状態 (2026-07-18)。裁定資料パッケージは 1 byte も不変。
+
+- 裁定逐語 (F1): 「標本設計はやりすぎ。VLDBなどのトップ会議でCCが提案されるとき、マシンの温度や
+  バックグラウンド処理まで言及はないから、それらによって変化する微細な変化は追う必要がない。
+  実験アプローチとしてマシンがおかしいときにおかしい性能出してたらそれを検出するというのは
+  できたほうがよい。」追補確認 (異常検出閾値 session 内 CV 10% / セル間 CV 15%、seed 均衡置換の
+  維持): 「F1は今の2点を確認した。問題ないと思う。」
+- 帰結の要点 (詳細 = §9): 2 block + 1800s gap + `delta_c` 項の廃止 → formula_id 再定義要 /
+  `performance_anomaly`・`machine_anomaly` の 2 段検出ゲート追加 (fail-closed 専用) / 所見 D1/E1
+  は不採用へ降格し限界として記録 / per-pair table・n=8・reps=5・±10% gate・scalar_alt は維持
+- F2 説明中に用語是正 1 件: 「課金」を使わず「持ち時間 (予算) の消費として計上」と書く
+  (ユーザー指摘。以後の記録・文書の表現規約)
+- 工数: 親のみ (子エージェントなし、計測なし)
+
+### 次の一手
+1. F2〜F7 + 数値案 + env_tag のユーザー裁定の継続 (F2 から再開。F2 には F1 裁定由来の
+   `performance_anomaly` 追加の修正が入る。B-1/B-2 も裁定材料に積まれたまま)
+2. 全裁定完了後: protocol JSON 凍結 (F1 修正の formula 再定義 + `s8b_floor_stats.py`/テスト改訂を
+   含む) → 以降はエントリ (1)(5) の次の一手と変わらず
+3. push はユーザー引き渡しのまま (Pegasus 運用)
