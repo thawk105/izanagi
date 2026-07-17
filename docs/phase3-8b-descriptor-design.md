@@ -377,3 +377,13 @@ selector 予測封印 (floor データ閲覧前) → floor 実走 → calculator
   monotonic 値は同一 process 内 duration 限定。計測作法は環境専用 runbook に従う
 - env_tag の値は floor 実測開始時にユーザーが確定 (未指定のまま)。予測封印の位置は推奨どおり
   floor 前 (封印後は floor で構成順位が露出しても selector を動かせない拘束を含めて承認)
+
+**承認状態 (2026-07-18 ユーザー裁定 続き、worklog 2026-07-18 (4)): F5 = 推奨案どおり承認。**
+floor / budget は top-level 維持。floor は per-pair table 形
+(`by_holdout.<h>.{pairs, scale_ref, scalar_alt}`) とし、manifest validator の per-pair 形状への
+追随は v2 実装項目。transition table は 2 分離 — v1→v2 で変わってよい field の列挙 (floor /
+budget / refreeze_note / schema_version / generator.sha256 / design_source.sha256 /
+frozen_at_head / env_tag / floor_protocol / floor_source / experiment_numbers / v2 header) と、
+v2 gN→gN+1 で変わってよいのは floor・budget・experiment_numbers 系 + header のみ。**それ以外の
+diff は verifier 拒否。** 全 field に実 consumer を要求し、consumer 不在 field (例
+`B_arm_seconds`) は消費側を同時実装しない限り凍結しない (恒真保証 F14 の拒否)。

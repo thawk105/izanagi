@@ -373,3 +373,17 @@ phase3-8b-descriptor-design.md §9 承認状態 (2026-07-18)。裁定資料パ�
 2. 全裁定完了後の凍結 wave に env contract 抽象 + Pegasus 実装要件 (G12) を追加 (F4 裁定)。
    ほかはエントリ (2) 次の一手 2 と変わらず
 3. push はユーザー引き渡しのまま (変わらず)
+
+## 2026-07-18 (4) — floor protocol パッケージ F5 のユーザー裁定 (承認、計測なし)
+
+- 裁定逐語: 「f5も承認する。その判断を記録してコミットしてmainに入れて」。記録の正本 =
+  phase3-8b-descriptor-design.md §9 承認状態 (2026-07-18 続き)。裁定資料パッケージは不変
+- F5 の内容 (詳細 = §9): top-level 維持 + per-pair table 形 + transition table 2 分離 +
+  全 field 実 consumer 要求。manifest validator の per-pair 追随は v2 実装項目
+- 工数: 親のみ (子エージェントなし、計測なし)
+
+### 次の一手
+1. F6 (承認束縛方式)・F7 (v2 検証意味論) の第三者向け詳説 → ユーザー裁定 → B-1/B-2、
+   master_seed・env_tag の確定
+2. 全裁定完了後の凍結 wave (変わらず、エントリ (2)(3) 参照)
+3. push はユーザー引き渡しのまま (変わらず)
