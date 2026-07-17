@@ -387,3 +387,46 @@ phase3-8b-descriptor-design.md §9 承認状態 (2026-07-18)。裁定資料パ�
    master_seed・env_tag の確定
 2. 全裁定完了後の凍結 wave (変わらず、エントリ (2)(3) 参照)
 3. push はユーザー引き渡しのまま (変わらず)
+
+## 2026-07-18 (5) — 裁定済み F1〜F5 の実装 wave 3 (formula v2 + env contract、計測なし)
+
+ユーザー指示 (次を計画し codex 並列敵対相談 → workflow 実行 → 親検算・再投げ) による標準ループ。
+F6/F7/B-1/B-2・master_seed/env_tag は未裁定のまま — 本 wave は依存しない**非発効の先行実装**であり
+protocol JSON / freeze v2 / 承認 record は生成していない。エントリ (2) の「実装・テストの改訂は
+全裁定完了後」からの前倒しは、本日のユーザー実行指示によるスコープ裁定 (δ-1 の例外を明記)。
+
+- ループ: Explore 3 (sonnet) 実査 → codex gpt-5.6-sol reasoning=max ×4 **61 所見 (全 real、
+  refuted 0)** → 親裁定 → workflow 2 本 (Lane E 3 agents / Lane S+C 5 agents。実装・レビュー =
+  opus、機械実行 = sonnet、fable 子なし) → 親修正・独立検算 → mutation 検証 15 mutant **全検出**。
+  逐語・裁定表・確定プラン = `output/insights/2026-07-18_s8b-floor-v2-wave3-consultations.md`
+- commit: 3bf8778 (逐語凍結) / 28ccb07 (Lane E: env_contract leaf + registry) / b87bb1e
+  (Lane S+C: floor v2 原子改訂) / 本 docs 分
+- 裁定反映の要点: formula v2 (delta_c/block 全廃・Fraction 厳密閾値・異常検出 2 段) /
+  verify_floor_artifact = expected_protocol 外部入力 + 双方向照合 / campaign v2 (8 round 置換・
+  attempt registry・resume 状態機械・core official 拒否・冪等 finalization) / env_contract
+  lookup + 暫定 machine-pin。**Lane M (manifest per-pair) は F7 wave へ延期 (δ-9: 到達不能 +
+  fixture 二度手間)**
+- 親の独立検算: 式の手計算一致 / 境界 (10% ちょうど非異常) / machine_anomaly null 化 /
+  official 拒否・env 結線・承認数値 pin の現物確認 / 凍結 4 対象 sha256 を毎 commit 照合 /
+  mutation 15/15 (生き残りゼロ)
+- レビュー修正の親反映 9 件: 幽霊 holdout floor 素通り (2 レビュアー独立検出。workflow の修正段
+  トリガが severity=must-fix 限定で verdict=fix-required を取りこぼした親側スクリプト不備も原因、
+  次回は verdict も見る) / diagnostics 全構造非検査 / exec_failures>0 + 完全ベクトルの理由欠落 /
+  round-start 二重記録 / 恒偽 eligible_for_refreeze 定数化 / E 側 3 件 (backing dict 露出等)
+- **ユーザー追認待ち 2 件 (裁定文言の実装解釈):** (i) F2 の retry「block 末尾消化」を block 廃止
+  (F1) に伴い **round 末尾消化**へ読み替え (時間窓保存の最近傍。retry 順は schedule 順で事前決定 +
+  他セル性能値への metamorphic test)。(ii) F2 の settle timeout は floor 経路が settle 非使用の
+  ため該当なしと確認 (第五除外理由は不要)
+- 延期台帳 (完了と数えない): scale_adequacy_rel_tolerance は protocol 記録のみ consumer 未結線
+  (F7 wave、δ-7) / F3 budget runtime は数値凍結後 (δ-8) / G12 強制系・attestation・cache
+  namespace = Pegasus 登録段 (runbook §7 に要件化、二段完了 γ-17) / oracle 側結線 = F7 wave /
+  B-2 は floor strict_probe にも同型の子孫除外あり (裁定適用面として記録)
+- テスト: 1025 → **1138 passed / 23 skipped / 0 failed** (+113)。中間赤 commit なし (S+C 原子)
+- 工数: Explore 3 (sonnet ~375k) + codex 4 (max) + workflow 8 agents (opus 中心 ~960k) +
+  mutation runner (sonnet ~158k) + 親直接修正 9 件
+
+### 次の一手
+1. 残る裁定: F6 (a 方式の確定待ち — 説明済み)・F7・B-1・B-2 + master_seed/env_tag + 上記追認 2 件
+2. 全裁定後: protocol JSON 凍結 → 予測封印 → floor 実測。strict v2 verifier wave (F7 後) に
+   Lane M・oracle 結線・scale gate consumer を統合 (エントリ (2)(3) と変わらず)
+3. push はユーザー引き渡しのまま (変わらず)

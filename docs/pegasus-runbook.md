@@ -256,6 +256,24 @@ Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境と
 3. thread/process binding と要求 node 数を固定する
 4. module、コンパイラ、CCBench pin、ジョブスクリプトを成果物から追跡可能にする
 
+**env contract 登録段の要件 (2026-07-18、F4 裁定 + wave3 実装の帰結):** v2 計測経路
+(floor / oracle) で Pegasus を使うには `orchestrator/campaign/env_contract.py` の registry へ
+Pegasus entry を追加する。追加には上記 1〜4 (D59) に加えて次を要する。
+
+- calibration 成果物は `calibration_ref {path, sha256}` の構造化参照で束縛する (自由文不可)。
+  env_tag の値はユーザーが確定する
+- `isolation_policy` は single_process=True / allow_resume=False で登録する (G12: campaign を
+  単一 allocation/node/process で完遂。walltime 不足・途中 kill は WAL を証拠として保存した上で
+  全数値を不採用にする)
+- 登録時に実装が必要な enforcement (wave3 時点では**未実装**と記録): 残 walltime の事前予約検査 /
+  WAL・成果物の永続領域 allowlist (resolved path で検査、`/scr` 拒否) / PID 可視性の canary
+  probe / build cache の contract_sha256 による namespace 分離 / 実環境 attestation
+  (契約値と実機の実測照合)
+- テスト側 `ENV_LITERAL_VALUES` (orchestrator/tests/test_env_contract.py) へ新 env の値を追加する
+  (registry↔禁止 literal の同期 assert が更新漏れを機械検出する)
+- floor driver は暫定 machine-pin (`contract.env_tag == p2_2.ENV_TAG`) を持つ。これは attestation
+  導入までの取り違え防止 gate であり、Pegasus 実行にはこの pin の扱いを登録段で同時に設計する
+
 Izanagi の性能計測では、trace-enabled の正しさ検証と trace-disabled の性能測定を別 build・別 run
 にする。CCBench は共有 submodule を直接変更して実行せず、orchestrator が pinned-clean を確認する
 既存の隔離・評価経路を使う。計測機と環境タグの現行方針は `docs/roadmap.md` §5 および
