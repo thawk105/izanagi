@@ -23,7 +23,8 @@ AGENT_VALUE = re.compile(
     rf"^product=(?P<product>{IDENT}); "
     rf"model=(?P<model>{IDENT}); "
     rf"reasoning=(?P<reasoning>{IDENT}); "
-    rf"role=(?P<role>{'|'.join(ROLES)})$"
+    rf"role=(?P<role>{'|'.join(ROLES)})"
+    rf"(?:; scope=(?P<scope>{IDENT}))?$"
 )
 
 
@@ -53,18 +54,24 @@ def _ai_agent_values(message: str) -> list[str]:
     return values
 
 
-def validate_message(label: str, message: str) -> list[str]:
+def validate_message(label: str, message: str) -> tuple[list[str], list[str]]:
+    """(findings, scope_findings) を返す。
+
+    scope_findings は「同じ role が複数行あるのに scope がない」違反。scope 規則の
+    導入 commit より前の履歴には遡及しないため、呼び出し側が適用可否を判定する。
+    """
     values = _ai_agent_values(message)
     if not values:
-        return [f"{label}: AI-Agent trailer がない"]
+        return [f"{label}: AI-Agent trailer がない"], []
 
     if "none" in values:
         if values != ["none"]:
-            return [f"{label}: AI-Agent: none は唯一の AI-Agent trailer でなければならない"]
-        return []
+            return [f"{label}: AI-Agent: none は唯一の AI-Agent trailer でなければならない"], []
+        return [], []
 
     findings: list[str] = []
     seen: set[str] = set()
+    by_role: dict[str, list[tuple[str, bool]]] = {}
     for value in values:
         if value in seen:
             findings.append(f"{label}: 同一 AI-Agent trailer の重複: {value}")
@@ -74,9 +81,12 @@ def validate_message(label: str, message: str) -> list[str]:
         if not match:
             findings.append(
                 f"{label}: AI-Agent の形式違反: {value!r} — "
-                "product/model/reasoning/role の順と許可値を確認する"
+                "product/model/reasoning/role (任意で scope) の順と許可値を確認する"
             )
             continue
+        by_role.setdefault(match.group("role"), []).append(
+            (value, match.group("scope") is not None)
+        )
         if match.group("product") in RESERVED_PRODUCTS:
             findings.append(
                 f"{label}: product={match.group('product')} は AI 製品識別子として使えない"
@@ -86,7 +96,35 @@ def validate_message(label: str, message: str) -> list[str]:
                 f"{label}: model/reasoning に none は使えない — "
                 "not-exposed または unknown を使う"
             )
-    return findings
+
+    scope_findings: list[str] = []
+    for role, entries in by_role.items():
+        if len(entries) < 2:
+            continue
+        for value, has_scope in entries:
+            if not has_scope:
+                scope_findings.append(
+                    f"{label}: role={role} が複数行あるのに scope がない: {value}"
+                )
+    return findings, scope_findings
+
+
+def _scope_policy_commit() -> str | None:
+    """scope 規則を docs/ai-provenance.md へ導入した commit を内容検出する (SHA 非依存)。"""
+    commits = _git(
+        "log", "--reverse", "--format=%H", "-S", "scope=", "--", POLICY_PATH
+    ).splitlines()
+    return commits[0] if commits else None
+
+
+def _is_descendant(ancestor: str, commit: str) -> bool:
+    proc = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, commit],
+        cwd=REPO,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return proc.returncode == 0
 
 
 def _policy_commit() -> str:
@@ -129,15 +167,22 @@ def main() -> int:
 
     try:
         if args.message_file is not None:
-            findings = validate_message(args.message_file, _read_message(args.message_file))
+            base, scoped = validate_message(
+                args.message_file, _read_message(args.message_file)
+            )
+            findings = [*base, *scoped]
             checked = 1
         else:
             commits = _commit_range(args.rev_range)
+            scope_epoch = _scope_policy_commit()
             findings = []
             for commit in commits:
                 subject = _git("show", "-s", "--format=%s", commit).strip()
                 message = _git("show", "-s", "--format=%B", commit)
-                findings.extend(validate_message(f"{commit[:12]} {subject}", message))
+                base, scoped = validate_message(f"{commit[:12]} {subject}", message)
+                findings.extend(base)
+                if scoped and scope_epoch is not None and _is_descendant(scope_epoch, commit):
+                    findings.extend(scoped)
             checked = len(commits)
     except (OSError, RuntimeError, UnicodeError) as exc:
         print(f"check_ai_provenance: 実行不能: {exc}", file=sys.stderr)

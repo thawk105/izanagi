@@ -15,7 +15,7 @@ Claude と Codex の製品選定、モデル選択、推論深度を後から監
 固定し、値に `;` または改行を含めない。
 
 ```text
-AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>
+AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>[; scope=<scope>]
 ```
 
 - `product`: `codex` または `claude`。将来ほかの製品を使う場合は、安定した小文字の識別子を使う。
@@ -27,8 +27,13 @@ AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>
   `not-exposed`、本来確認できるが記録時に確定できない場合は `unknown` とする。
 - `role`: 実質的な寄与を `author`, `reviewer`, `researcher`, `manager`, `integrator` のいずれかで表す。
   複数の役割を果たした場合は role ごとに行を分ける。
+- `scope` (任意、2026-07-17 導入): その行の構成が担った作業範囲を表す短い識別子
+  (例: `floor-protocol`, `tests`, `worklog`)。**同じ role が複数行にわたる commit では全行に必須**
+  (どの行が何を担ったかが復元不能になるのを防ぐ)。単独行では省略してよい。この規則は導入
+  commit 以降にのみ適用し、既存履歴へ遡及しない (checker も導入 commit を内容検出して以降だけ
+  検査する)。
 
-`product`, `model`, `reasoning` は `[a-z0-9][a-z0-9._-]*` に収まる識別子とする。
+`product`, `model`, `reasoning`, `scope` は `[a-z0-9][a-z0-9._-]*` に収まる識別子とする。
 
 AI が実質的に関与しなかった commit は、構造を埋める代わりに次の 1 行を使う。
 
@@ -42,7 +47,8 @@ AI-Agent: none
 ## 記録単位
 
 - 同一の product・model・reasoning・role で動いたサブエージェントが複数いても、同じ行を人数分
-  重複させない。異なる構成または役割が寄与した場合は別行にする。
+  重複させない。異なる構成または役割が寄与した場合は別行にし、同一構成が別々の作業を担った
+  場合は `scope` で行を分ける。
 - 変更案、finding、レビュー結果が採用判断または commit 内容へ実質的に影響した構成だけを記録する。
   起動しただけ、ファイルを読んだだけ、結果が使われなかっただけの構成は記録しない。
 - Git 操作を機械的に代行しただけの AI は記録しない。変更範囲の選定、競合解決、採否を伴う最終統合に
@@ -65,6 +71,16 @@ feat(renderer): WAL から材料レポートを生成
 
 AI-Agent: product=codex; model=not-exposed; reasoning=high; role=author
 AI-Agent: product=claude; model=not-exposed; reasoning=high; role=reviewer
+```
+
+複数の構成が同じ role で別々の範囲を担った場合は `scope` で区別する:
+
+```text
+feat(s8b): protocol 凍結と検証テスト
+
+AI-Agent: product=claude; model=opus-4-8; reasoning=high; role=author; scope=protocol
+AI-Agent: product=claude; model=sonnet-5; reasoning=medium; role=author; scope=tests
+AI-Agent: product=claude; model=opus-4-8; reasoning=high; role=reviewer
 ```
 
 製品は分かるが実行面がモデルと推論設定を開示していない場合:
