@@ -344,3 +344,17 @@ F1 = 修正付き採用。** 裁定資料 = `output/insights/2026-07-16_s8b-floo
   ゼロの基本衛生として維持 — ユーザー確認済み) / scalar_alt 併記 / 「記述的効果量 + noise gate、
   α・検定力未保証」の限定
 - `master_seed` は未指定のまま (ユーザー記入欄、承認時に確定)
+
+**承認状態 (2026-07-18 ユーザー裁定 続き、worklog 2026-07-18 (3)): F2・F3 = 推奨案どおり承認。**
+
+- **F2 (運用・停止・retry・resume):** 閉じた除外理由表 (F1 裁定による `performance_anomaly` 行の
+  追加込みで 4 行) / `retry_slots_per_cell=2` (campaign 通算、first-authorized-valid のみ採用、
+  全試行の実時間を持ち時間の消費として計上) / journal は append-only + fsync、manifest・result は
+  create-only / resume は同一 protocol・freeze・manifest・binary hash 限定の forward-only +
+  binary 再ハッシュ照合 / 単独性は probe→measure→post-probe→journal の臨界区間 + strict probe
+  (pgrep rc=1 のみ競合なし、検査不能は campaign abort)。correctness-red は floor に存在しない
+  (perf 専用計測) も承認内容に含む
+- **F3 (budget):** 三層 namespace (子枠間移転禁止) + 親 `B_campaign_wall` 全費用込み cap /
+  oracle 側 verify ×96 (~11.6h prior) の正直計上 / `N_oracle=8` は非拘束の planning prior、
+  `bench_max_rounds=1` / pilot は wall/bench 比の分解実測、cygnus 実測値は非拘束 prior。
+  verify 証明書の cell 単位再利用は本パッケージどおり不提案のまま (起票なし)
