@@ -8,7 +8,7 @@ base_commit: 60da9b8
 human_decision: pending
 ```
 
-**この台帳のどの案も発効していない。** 各案は「意味を変えない」と断定できず人間裁定を要すると
+**C-32 / C-139 / C-150 は 2026-07-17 のユーザー裁定 (byte 予算緩和) で採用・適用済み。他の案は発効していない。** 各案は「意味を変えない」と断定できず人間裁定を要すると
 親 (fable) が分類したもの。採用する場合は tanab さんの直接指示による**別 commit** とし、
 採用時点の本文と old_text (sha256 併記) の一致を確認してから適用する。裁定が来なければ永久に非採用。
 反対解釈 (counter) は「この案が意味を変えていると読める解釈」であり、採否判断の材料。
@@ -113,7 +113,7 @@ planner/coder を人間がセッションごとに運ぶ段階は human-supervis
 ## C-32 — CLAUDE.md 現在地 task-class gate 段落 (byte/行予算超過のため本体反映不可)
 
 - old_text_sha256: `e8fae5e33be88f2f9c457f6283125eb3bd055bd4394fbc24f4a659a2517fc32c`
-- human_decision: pending
+- human_decision: **adopted** (2026-07-17 ユーザー裁定 — byte 予算の緩和とともに採用、適用 commit は git log 参照)
 
 ### 現行 (old、逐語)
 
@@ -144,7 +144,7 @@ planner/coder を人間がセッションごとに運ぶ段階は human-supervis
 ## C-139 — CLAUDE.md 作業の進め方 導入段落 (同上)
 
 - old_text_sha256: `bb8e4ad8f45b902ce8c5830814eb9bfda20d6b9c0602c264e2a7cf8efa627021`
-- human_decision: pending
+- human_decision: **adopted** (2026-07-17 ユーザー裁定 — byte 予算の緩和とともに採用、適用 commit は git log 参照)
 
 ### 現行 (old、逐語)
 
@@ -173,7 +173,7 @@ runbook (`docs/README.md` の地図から引く) に従って決める。
 ## C-150 — CLAUDE.md 作業の進め方 項目 6 (同上)
 
 - old_text_sha256: `5f151dc49aa5c385bb11824d46e39a9d89f5f3d2b41f02d82f156087a5536802`
-- human_decision: pending
+- human_decision: **adopted** (2026-07-17 ユーザー裁定 — byte 予算の緩和とともに採用、適用 commit は git log 参照)
 
 ### 現行 (old、逐語)
 
