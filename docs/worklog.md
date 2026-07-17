@@ -352,3 +352,24 @@ phase3-8b-descriptor-design.md §9 承認状態 (2026-07-18)。裁定資料パ�
 2. 全裁定完了後: protocol JSON 凍結 (F1 修正の formula 再定義 + `s8b_floor_stats.py`/テスト改訂を
    含む) → 以降はエントリ (1)(5) の次の一手と変わらず
 3. push はユーザー引き渡しのまま (Pegasus 運用)
+
+## 2026-07-18 (3) — floor protocol パッケージ F2〜F4 のユーザー裁定 (F2/F3 承認・F4 修正付き、計測なし)
+
+裁定継続。記録の正本 = phase3-8b-descriptor-design.md §9 承認状態 (2026-07-18 続き ×2)。
+裁定資料パッケージは不変。commit 2 本 (F2/F3 記録、F4 記録 + 本エントリ)。
+
+- 裁定逐語: 「F2, 3も推奨通りで承認する。その判断を記録してコミットしてmainに入れて」
+  「f4, 環境抽象は入れます。しばらくPegasusを多用します。その判断を記録してコミットしてmainに
+  入れて」
+- F4 修正の帰結 (詳細 = §9): `ExecutionEnvironmentContract` 抽象を「Pegasus 差分に据え置き」から
+  実装対象へ昇格 (G5' の縮小採用を裁定で反転)。G12 の Pegasus 制約は文書化のみ → 実装要件へ
+  (block は F1 裁定で廃止のため campaign 単位に読み替え)。cygnus 固有値ハードコードの既知限界は
+  env contract で解消する
+- 主戦場: ユーザーはしばらく Pegasus を多用 (計測作法は環境専用 runbook、push 引き渡し運用は継続)
+- 工数: 親のみ (子エージェントなし、計測なし)
+
+### 次の一手
+1. 残る裁定の継続: F5〜F7 + B-1/B-2 + master_seed/env_tag (F5 は説明済み、F6/F7 は説明から)
+2. 全裁定完了後の凍結 wave に env contract 抽象 + Pegasus 実装要件 (G12) を追加 (F4 裁定)。
+   ほかはエントリ (2) 次の一手 2 と変わらず
+3. push はユーザー引き渡しのまま (変わらず)

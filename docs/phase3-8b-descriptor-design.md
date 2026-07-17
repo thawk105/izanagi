@@ -358,3 +358,22 @@ F1 = 修正付き採用。** 裁定資料 = `output/insights/2026-07-16_s8b-floo
   oracle 側 verify ×96 (~11.6h prior) の正直計上 / `N_oracle=8` は非拘束の planning prior、
   `bench_max_rounds=1` / pilot は wall/bench 比の分解実測、cygnus 実測値は非拘束 prior。
   verify 証明書の cell 単位再利用は本パッケージどおり不提案のまま (起票なし)
+
+**承認状態 (2026-07-18 ユーザー裁定 続き、worklog 2026-07-18 (3)): F4 = 修正付き採用 —
+env contract 抽象を採用。** 凍結順序 (パッケージ承認 + protocol JSON 凍結 + env_tag 確定 →
+selector 予測封印 (floor データ閲覧前) → floor 実走 → calculator 純関数の機械充填 + 独立再計算
+一致 → v2 候補生成 + ユーザー承認 → oracle 実走) と「protocol JSON の env_tag が v2 数値を束縛
+する唯一の env-tag」は推奨案どおり。修正内容:
+
+- **「env_tag 一致検査のみ・env contract は Pegasus 差分に据え置き」を破棄し、
+  `ExecutionEnvironmentContract` の抽象化を実装対象へ昇格** (ユーザー裁定: しばらく Pegasus を
+  多用するため)。パッケージが F4 の既知限界とした「driver が cygnus 固有値 (48 threads /
+  1M records / CLK1800 / numactl) をハードコードしたまま env_tag だけ記録」を env contract で
+  解消する
+- **所見 G12 の Pegasus 制約は「文書化のみ」から実装要件へ昇格:** campaign を単一 allocation /
+  node / process で完遂 (パッケージの「block 単位」は F1 裁定で block 廃止のため campaign 単位に
+  読み替え) / walltime 不足時は全廃棄 / hostname・boot id・job id・cpuset・UTC 記録 / PID 可視性の
+  事前 probe / WAL は永続領域 (一時領域 `/scr` 不可) / module・toolchain・job script hash /
+  monotonic 値は同一 process 内 duration 限定。計測作法は環境専用 runbook に従う
+- env_tag の値は floor 実測開始時にユーザーが確定 (未指定のまま)。予測封印の位置は推奨どおり
+  floor 前 (封印後は floor で構成順位が露出しても selector を動かせない拘束を含めて承認)
