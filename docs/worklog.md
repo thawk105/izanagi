@@ -321,7 +321,8 @@ docs sonnet、fable 子なし。レーン内敵対レビュー 2 レンズ + 修
   親直接 1 (逐語復元)
 
 ### 次の一手
-1. 本 4 commit の push → PR → merge 判断 (ユーザー — Pegasus 運用)
+1. [完 2026-07-18] 本 4 commit を main へ ff (ユーザー指示。af82926→本追補 commit、差分は当該
+   commit 群のみを確認の上)。**push はユーザー引き渡しのまま** (Pegasus 運用)
 2. F1〜F7 + 数値案 + env_tag のユーザー裁定 (変わらず)。裁定材料に B-1 (manifest NaN strict 化) と
    B-2 (前エントリ (5) の自己子孫除外) が積まれている
 3. 裁定後 v2 wave の残 (変わらず、エントリ (5) と insights §3 参照): oracle 消費配線 / strict v2
