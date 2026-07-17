@@ -6,7 +6,7 @@
 
 **専門用語につまずいたら `docs/glossary.md` (用語集) を引く。** docs は並行性制御・探索理論・統計・本プロジェクト固有の機構にまたがる用語を、多くは説明なしに使う。用語集はそれらを専門外の読み手向けに平易に定義する。
 
-**読み方 (ブートコスト規律、D35):** 全文必読は「Phase の初回セッション」と「roadmap を改訂するとき」のみ。日常セッションでは、現行タスクが参照する節だけを節名 (§) で引く — 全文を毎セッション読み込むのは §3.8 のコンテキスト衛生 (生データでなくダイジェスト) に反する。関連研究 (§7) は `docs/related-work/` に分離してある。
+**読み方 (ブートコスト規律、D35):** 全文必読は「Phase の初回セッション」と「roadmap を改訂するとき」のみ。日常セッションでは、現行タスクが参照する節だけを節名 (§) で引く。全文を毎セッション読み込むのは §3.8 のコンテキスト衛生 (生データでなくダイジェスト) に反する。関連研究 (§7) は `docs/related-work/` に分離してある。
 
 ---
 
@@ -70,15 +70,20 @@ stock/tie は正直な no-improvement 出力として必要だが、「新しい
 
 3段階の選択肢がある:
 - **(a) パラメータ粒度 (Polyjuice式)** — 最適化を事前定義フラグ/数値にする。LLM ほぼ不要、新規性低いがロバスト
-- **(b) コード粒度 (AlphaEvolve式)** — CCBench 内の特定関数を `EVOLVE-BLOCK` で囲み LLM に diff を書かせる。**(b) の内側に 2 形態がある (順序は D32 で確定)**: **(b1) 空間外合成** = ベース CC の内側で、フラグ空間に無い新しい変異軸を critic の機序帰属から合成する (P2-4 backoff が成立例)。**(b2) 移植** = 他 CC の最適化を持ち込む (未検証仮説)。Phase 3 は (b1) を先にし、(b2) は後続拡張として予約する (phase3.md 後続段 7)
+- **(b) コード粒度 (AlphaEvolve式)** — CCBench 内の特定関数を `EVOLVE-BLOCK` で囲み LLM に diff を書かせる。**(b) の内側に 2 形態がある (順序は D32 で確定)**:
+  - **(b1) 空間外合成** = ベース CC の内側で、フラグ空間に無い新しい変異軸を critic の機序帰属から合成する (P2-4 backoff が成立例)。
+  - **(b2) 移植** = 他 CC の最適化を持ち込む (未検証仮説)。
+  - Phase 3 は (b1) を先にし、(b2) は後続拡張として予約する (phase3.md 後続段 7)
 - **(c) アルゴリズム粒度 (FunSearch式)** — ゼロから書かせる。自由度高すぎて正しさが崩壊。CC では非推奨
 
 **決定: (a) は ground truth・機械対照・bounded search として使う。研究上の主経路は、(b1) で LLM が機序帰属から軸や hole を提案し、その軸内を機械探索するハイブリッド構成とする。(b2) は後続拡張、(c) はやらない。**
 
 (a) を対照として使う利点 (本プロジェクトの状況で特に効く):
 - パラメータ粒度は「CCBench が元々持つ最適化フラグの組み合わせ」なので、コード合成より探索空間と identity を固定しやすく、trace verifier の検証に向く。ただし組み合わせ安全性を仮定せず、全候補を同じ verifier に通す
-- 探索空間が有限 (CCBench の最適化が主に on/off なら高々 2^7=128 + 連続パラメータ数個)。**初手は全探索すら可能**。全探索の最適と LLM 探索の到達速度を比較でき、論文の図になる (**この比較は P2-5 で実施済み = negative result。silo 8 の自明空間では誘導は機械的勾配 (貪欲) を超えず、deceptive 構造では貪欲より有意に有害。D21/D29。よって「論文の図」は『誘導が速い』ではなく『小空間ではフラグ探索が自明で価値は空間外の合成にある』という物語に転じた**)
-- (a)→(b) の移行が自然。パラメータ探索で「invisible reads を on にすると効く」が分かった後、コード移植で「その実装そのものを別 CC 文脈に移植できるか」に進む (**実際に起きた移行は違う形だった** — 「効いたフラグの実装を移植」ではなく「フラグ空間の外の新軸を合成」(P2-4 backoff) として起きた。これが (b1) を先にする D32 の根拠)
+- 探索空間が有限 (CCBench の最適化が主に on/off なら高々 2^7=128 + 連続パラメータ数個)。**初手は全探索すら可能**。全探索の最適と LLM 探索の到達速度を比較でき、論文の図になる
+  → **この比較は P2-5 で実施済み = negative result。silo 8 の自明空間では誘導は機械的勾配 (貪欲) を超えず、deceptive 構造では貪欲より有意に有害。D21/D29。よって「論文の図」は『誘導が速い』ではなく『小空間ではフラグ探索が自明で価値は空間外の合成にある』という物語に転じた**
+- (a)→(b) の移行が自然。パラメータ探索で「invisible reads を on にすると効く」が分かった後、コード移植で「その実装そのものを別 CC 文脈に移植できるか」に進む
+  → **実際に起きた移行は違う形だった** — 「効いたフラグの実装を移植」ではなく「フラグ空間の外の新軸を合成」(P2-4 backoff) として起きた。これが (b1) を先にする D32 の根拠
 
 #### 移植可能性の判定 (CCBench insight I5 への対策)
 
@@ -146,7 +151,10 @@ evaluator が本システムの成否を分ける。AlphaEvolve/Jitskit/IDS す�
 数千 evaluation を回したいので、安いチェックで枝刈り → 中コストで実検証 → 高コストで形式的保証の段階構成にする。
 
 - **Tier 0: 静的・構文チェック → compile/smoke** — 安いテキスト/構文検査を先に行い、その後にコンパイルと基本 trx のスモークを通す。compile/smoke は別コストなので μ秒とはみなさない
-- **Tier 1: トレース検証** — CC特化の最重要パート。実行トレースを取り、後から serializability を検査。read/write 依存グラフを作って cycle 検出 (Adya の serialization graph)。YCSB の point read/write なら辺は ww/wr/rw の3種で、G2 (anti-dependency cycle) まで見る。自前 mini-verifier が担保するのはこの宣言範囲であり、predicate/phantom、fairness/starvation、未観測実行まで保証しない。TPC-C 等へ広げる場合は形式と verifier を拡張する
+- **Tier 1: トレース検証** — CC特化の最重要パート。実行トレースを取り、後から serializability を検査。read/write 依存グラフを作って cycle 検出 (Adya の serialization graph)。
+  - YCSB の point read/write なら辺は ww/wr/rw の3種で、G2 (anti-dependency cycle) まで見る。
+  - 自前 mini-verifier が担保するのはこの宣言範囲であり、predicate/phantom、fairness/starvation、未観測実行まで保証しない。
+  - TPC-C 等へ広げる場合は形式と verifier を拡張する
 - **Tier 2: 既存OSS DBのテスト移植 (秒〜分)** — isolation level 固有の境界条件のカバー。PostgreSQL の isolation tests、Hermitage (Martin Kleppmann) など。「variant が宣言した isolation level で通るべき/落ちるべきテストの集合」を固定
 - **Tier 3: 形式検証 (分〜時間)** — TLA+/TLC など。最終候補にだけ。**初期スコープ外** (理由は decisions.md 参照)
 
@@ -162,11 +170,16 @@ seed を変えた複数 run は未観測バグの機会を増やすが、1 run �
 正しさ検証用のトレース取得が、計測対象を歪める (Heisenbug 的構造)。対策:
 
 - **trace-enabled build** (トレース口あり、正しさ専用、性能は見ない) と **trace-disabled build** (トレース口を `#if TRACE` で完全に消す、性能専用) を分ける
-- トレース取得をランタイムフラグにしない。`#if TRACE` でコンパイル時にコードごと消す (`TRACE=0` でも定義有無だけを見るガードは真になるため使わない。ランタイム分岐は分岐予測・命令キャッシュを汚しうる)
+- トレース取得をランタイムフラグにしない。`#if TRACE` でコンパイル時にコードごと消す
+  - `TRACE=0` でも定義有無だけを見るガードは真になるため使わない。
+  - ランタイム分岐は分岐予測・命令キャッシュを汚しうる
 - 性能比較は variant も baseline も trace-disabled で揃える
 - メタデータは「CC本来 (アルゴリズムが要求する。性能比較に含める)」と「検証専用 (verifier にトレースを渡すためだけ。`#if TRACE` で消す)」を区別。この2つを混ぜない
 - perf は trace-disabled build に当てる
-- ビルド等価性の機械検証: trace-enabled と trace-disabled でトレース有無が CC の意味論を変えていないことを機械確認する。**実装は当初案 (最終 DB 状態の一致比較) から変更**: Phase 1 タスク1 の **symbol 不在検査 (perf binary に trace コードが 1 byte も無い、`nm`)** の方が DB 状態一致より強い証明なので、DB-dump 計装は冗長と判断し未実装 (phase1.md タスク5a 節の判断記録参照)。Phase 3 では方針 A (D30) により、この機械確認が観測者効果分離の**一次防壁に昇格**し、symbol 不在に加えて **diff-of-diffs** (variant の TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と一致することを assert する「観測者効果の二重検査」。素の出力 diff は `#if TRACE` ガード領域で正当に食い違うため不成立と敵対検証で裁定済み) へ拡張済み (2026-07-04 実体化。`source_digest.assert_trace_diff_matches_head` を `buildcache.build` 出口の hit/fresh 両経路で発火、fails-closed)
+- ビルド等価性の機械検証: trace-enabled と trace-disabled でトレース有無が CC の意味論を変えていないことを機械確認する。
+  - **実装は当初案 (最終 DB 状態の一致比較) から変更**: Phase 1 タスク1 の **symbol 不在検査 (perf binary に trace コードが 1 byte も無い、`nm`)** の方が DB 状態一致より強い証明なので、DB-dump 計装は冗長と判断し未実装 (phase1.md タスク5a 節の判断記録参照)。
+  - Phase 3 では方針 A (D30) により、この機械確認が観測者効果分離の**一次防壁に昇格**し、symbol 不在に加えて **diff-of-diffs** (variant の TRACE=1/TRACE=0 preprocess 差分が pinned HEAD の同差分と一致することを assert する「観測者効果の二重検査」。素の出力 diff は `#if TRACE` ガード領域で正当に食い違うため不成立と敵対検証で裁定済み) へ拡張済み
+  - 2026-07-04 実体化。`source_digest.assert_trace_diff_matches_head` を `buildcache.build` 出口の hit/fresh 両経路で発火、fails-closed
 
 ### 3.4 reward hacking 対策 (Jitskit §3.2, Appendix B より)
 
@@ -178,8 +191,12 @@ LLM は最適化圧力の下で、書かれていない不変条件を破って�
 これらに対し:
 1. **据え置きの正しさゲート** — 壊すと即 reject。「絶対壊しちゃダメ」(serializability anomaly検査、ACID基本) と「壊れていい」(プロトコル固有テスト、variant のキャラクタライズに使う) を分ける
 2. **adversarial auditor** (Phase 3 から使用) — N iteration ごとに variant を監査、verifier が見逃した不変条件違反を検出し、それを捕らえる positive control テストを設計・**提案**する。auditor は read-only (Edit/Write 非付与、D38 決定 3) — 提案の反映は orchestrator の人間レビュー gate が行い、「既存テストを弱める書き込み」は構造的に不可能にする
-3. **hooks による書き込み時防壁** (Phase 1 から薄く) — verifier 迂回・成果物への直接書き込みを機械的に弾く**最小の第二防壁**。**方針 A (D30) 以降、hooks は「唯一の防壁」ではない**: identity の honest さ (偽 cache hit / `#ifdef`) は source_digest の preprocess 後ハッシュ、観測者効果の分離は観測者効果の二重検査 (diff-of-diffs、§3.3) が**一次防壁**として担い、hook はテキスト検査の完全性に依存しない範囲 (堅牢なパス検査) に責務を絞る。2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証したため (規律5 と両立させる責務再配置)
-4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。これは verifier に専用書き込みツール (Edit/Write) を与えない出力側隔離 (Bash 経由は prompt 規律で禁止 — 完全なツール権限隔離ではない、audit-2026-06-30 §4) と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
+3. **hooks による書き込み時防壁** (Phase 1 から薄く) — verifier 迂回・成果物への直接書き込みを機械的に弾く**最小の第二防壁**。**方針 A (D30) 以降、hooks は「唯一の防壁」ではない**:
+   - identity の honest さ (偽 cache hit / `#ifdef`) は source_digest の preprocess 後ハッシュ、
+   - 観測者効果の分離は観測者効果の二重検査 (diff-of-diffs、§3.3) が**一次防壁**として担い、
+   - hook はテキスト検査の完全性に依存しない範囲 (堅牢なパス検査) に責務を絞る。2 巡の敵対検証で「テキスト検査に C++/shell の完全性を負わせる設計は原理的に破れる」と実証したため (規律5 と両立させる責務再配置)
+4. **検証エージェントの入力側隔離** — 「導出可能な ground truth を突く」への入力側の対策として、正しさ検証エージェント (verifier) のコンテキストに性能数値や期待結果を一切混入させない。verifier は trace のみを入力とし、throughput 等の報告済み数値を受け取らない。
+   - これは verifier に専用書き込みツール (Edit/Write) を与えない出力側隔離 (Bash 経由は prompt 規律で禁止 — 完全なツール権限隔離ではない、audit-2026-06-30 §4) と対をなす入力側隔離で、「期待値をコピーして捏造する」経路を入力データレベルで断つ (ARA / 2604.24658 の anti-fabrication isolation、§7)
 
 ### 3.5 leading indicators (診断シグナル)
 
@@ -193,7 +210,7 @@ Jitskit では、スカラーの throughput だけより leading indicators を�
 
 性能数値は「1 run の点」ではなく「**反復測定の分布**」として扱う。他ユーザー・他プロセス・温度スロットリング等の外乱は一晩の自動ループでは必ず混入するが、人間の「あれ?」は介在しない。だから**ばらつきの監視と再測定を実行時の気まぐれに委ねず、規律として明文化・自動化する**。これは絶対規律1 (観測者効果の分離) / §3.4 (reward hacking 対策) と同じ構造の汚染防止であり、reward hacking の鏡像 ——「**ノイズを最適化シグナルと誤認する**」—— への対策でもある。
 
-**(1) 反復と要約.** 1 measurement = N 回反復 (初期値 N=5、calibration で調整)。各 run の冒頭は warmup として破棄し定常状態のみを採る (※現実装は ccbench の extime 一括計測に従属し warmup 分離なし — 意図的非対応、D28 参照)。報告は単一の throughput でなく **中央値 + 散布度 (変動係数 CV / IQR)** を必ず持つ。WAL (campaign スコープ `output/campaigns/<id>/runs/`。出力レイアウトと campaign 同一性は orchestrator-design.md / D13) には個々の run 値も残し、後から分布を再構成できるようにする。calibration/noise floor は env スコープ `output/env/<env-tag>/` に置くが、thread 数・代表 workload/config の署名で別物としてキーする。
+**(1) 反復と要約.** 1 measurement = N 回反復 (初期値 N=5、calibration で調整)。各 run の冒頭は warmup として破棄し定常状態のみを採る (※現実装は ccbench の extime 一括計測に従属し warmup 分離なし — 意図的非対応、D28 参照)。報告は単一の throughput でなく **中央値 + 散布度 (変動係数 CV / IQR)** を必ず持つ。WAL には個々の run 値も残し、後から分布を再構成できるようにする (campaign スコープ `output/campaigns/<id>/runs/`。出力レイアウトと campaign 同一性は orchestrator-design.md / D13)。calibration/noise floor は env スコープ `output/env/<env-tag>/` に置くが、thread 数・代表 workload/config の署名で別物としてキーする。
 
 **(2) 外れ値検出 → 自動再測定 (=「あれ?」の機械化).** 反復内の CV が閾値 (初期 5%) を超えたら「測定が外乱で歪んだ」とみなし**自動で測り直す**。再測定の前に Admission Control の静定確認 (load average 静定) を必ず通す。規定回数 (初期 3 ラウンド) 測っても CV が収束しなければ、その variant に **`unstable` フラグ**を付けて分布比較から除外し、insight に「測定不能」として記録する。沈黙して 1 点を採用してはいけない。
 
@@ -202,22 +219,37 @@ Jitskit では、スカラーの throughput だけより leading indicators を�
 **(3') noise floor は用途で 2 種に分かれる (A2 で分離).** 「N 回測った CV」には測り方が 2 つあり、用途が違うので混同してはいけない:
 - **within-run noise floor** = 1 セッション内で反復 (rep) を back-to-back に取った CV。これは「**その 1 測定の品質**」(外乱で歪んでいないか) の尺度で、(2) の自動再測定 (CV 超→測り直し→unstable) の品質ゲートに使う。
 - **between-run noise floor** = **独立したセッション** (別 run、別ビルド、campaign の別時点) の代表値 (session-median) 間の CV。これは「**差が信用できるかの下限**」で、(4) の分布比較が「差なし」に丸める閾値 (compare の floor) に使う。
-variant と baseline は決して同一セッションで測らない (別ビルド・別時点) ので、**採否の floor は within-run でなく between-run であるべき**。within-run はセッション内の warm cache・同一熱状態・同一周波数定常を共有するため run 間ドリフトを過小評価し、これを採否 floor に流用すると between-run ドリフト帯の差を「有意」と誤判定して**偽 faster** を出す。なお fresh な back-to-back セッションは cold-boot/温度/数時間ドリフトを含まない**下限**なので、確定する between-run floor は fresh 実測と cross-campaign の genuine データ (別時間窓の同一 genome 反復) を突き合わせ保守側 (最大) に採る。high-abort genome ほど run 間ドリフトが大きい (abort 率が分散源)。
+
+variant と baseline は決して同一セッションで測らない (別ビルド・別時点) ので、**採否の floor は within-run でなく between-run であるべき**。
+- within-run はセッション内の warm cache・同一熱状態・同一周波数定常を共有するため run 間ドリフトを過小評価し、これを採否 floor に流用すると between-run ドリフト帯の差を「有意」と誤判定して**偽 faster** を出す。
+- なお fresh な back-to-back セッションは cold-boot/温度/数時間ドリフトを含まない**下限**なので、確定する between-run floor は fresh 実測と cross-campaign の genuine データ (別時間窓の同一 genome 反復) を突き合わせ保守側 (最大) に採る。
+- high-abort genome ほど run 間ドリフトが大きい (abort 率が分散源)。
 
 **(4) 採否は点比較でなく分布比較.** variant vs baseline の優劣判定は単一値の大小でなく**分布の比較**で行う:
 - 差が noise floor 以下なら「**差なし**」に丸める。層3 narrative の「3%悪化だから不採用」のような **noise floor 以下の差を採否根拠にしてはいけない** (3% はラップトップ/devcontainer ではほぼノイズ)
-- noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない。**ただし反復数が小さい (reps≈5) と MWU の弁別力は弱く、完全分離は常に p≈0.012 を返す** (within-run cluster が tight なため)。よって MWU は between-run 有意性検定ではなく within-run の分布重なりを弾く弱い sanity にすぎず、**主防壁は between-run floor 丸め (上記第1項)**。floor を僅かに超える差 (floor 〜 1.5×floor) は MWU が無力な帯なので、headline にする前に cross-run 再現で裏取りする (A2: compare が `near_floor` フラグを立てる)
+- noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない。**ただし反復数が小さい (reps≈5) と MWU の弁別力は弱く、完全分離は常に p≈0.012 を返す** (within-run cluster が tight なため)。
+  - よって MWU は between-run 有意性検定ではなく within-run の分布重なりを弾く弱い sanity にすぎず、**主防壁は between-run floor 丸め (上記第1項)**。
+  - floor を僅かに超える差 (floor 〜 1.5×floor) は MWU が無力な帯なので、headline にする前に cross-run 再現で裏取りする (A2: compare が `near_floor` フラグを立てる)
 - 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする。各主張をその根拠 (WAL の run 値) まで辿れる形で紐づける構造は、ARA の forensic binding (claim→code→evidence の proof chain) と同型 (§7・D12)
 
 **(5) スコープ.** Phase 1 では (1)(3) を骨格として実装 (calibrator が noise floor を出し、ベンチが反復+中央値+CV を返す)。(2)(4) は性能採否が実際に走る Phase 2 で必須化する。Phase 1 は Mac devcontainer 中心で性能採否をしなかった (D10) ため (2)(4) は配線のみ用意し、Linux 実機 (env-tag `linux-baremetal`) 確保後の Phase 2 (A2) で有効化した — noise floor を within-run (品質ゲート) と between-run (採否 floor) に分離した上で (§3.6(3'))。
 
 ### 3.7 Phase 完了監査と引き継ぎ監査 (劣化の遡及検出)
 
-§3.4 (reward hacking 対策) と §3.6 (測定の安定性) は「書き込み・評価の**その時点**で正しさ/測定を守る」前向きの層である。だがこのプロジェクトの履歴が示すように、AI が一度入れた作業は後から劣化が露呈しうる —— reward hacking の鏡像 (偽 faster: between-run でなく within-run floor を採否に流用した A2/D19)、consumer 取り残し (D23 src_token を loop が追従せず再評価冪等性 D を破った D25)、謳う保証が恒真な空証文 (online_digest の「二重の関所」D26)、計測汚染 (前セッションの孤児 livelock が read-heavy を 2.2x 歪めた)。これらは**入った時点でなく後から**捕まった。
+§3.4 (reward hacking 対策) と §3.6 (測定の安定性) は「書き込み・評価の**その時点**で正しさ/測定を守る」前向きの層である。だがこのプロジェクトの履歴が示すように、AI が一度入れた作業は後から劣化が露呈しうる ——
+- reward hacking の鏡像 (偽 faster: between-run でなく within-run floor を採否に流用した A2/D19)、
+- consumer 取り残し (D23 src_token を loop が追従せず再評価冪等性 D を破った D25)、
+- 謳う保証が恒真な空証文 (online_digest の「二重の関所」D26)、
+- 計測汚染 (前セッションの孤児 livelock が read-heavy を 2.2x 歪めた)。
+
+これらは**入った時点でなく後から**捕まった。
 
 棚卸しすると、こうした劣化の大半は既に体系的に捕まっている —— (a) 出荷前の敵対検証 (verify-the-verifier / STAGE2 レビュー)、(b) 別セッション作業物の独立裏取り (規律6)、(c) Phase 完了監査 (B→A) のいずれかで。穴は「捕まえる手段」でなく「**回す契機**」にある: 計測汚染だけは計測前の pgrep 目視でほぼ偶然に検出され、audit-2026-06-30 の 43 項目は別セッションで偶発的に監査されるまで蓄積した。Phase 境界・セッション引き継ぎという最も危険な瞬間に監査が発火する保証が規律化されていなかった。
 
-→ **だから「Phase 完了時・別セッション/別 AI の作業物の取り込み時には、独立コンテキストのエージェントで敵対監査を回す」を方法論として固定する。** 監査の作法は実績がテンプレになる: 最悪モード (false-green / 規律違反 / over-claim) を集中攻撃し、各 finding を別エージェントで再検証して誤検出を除き、`git show HEAD` で「説明と実装の食い違い」を照合する (Phase1 完了監査 B→A で A1/A2 を発見・D19、audit-2026-06-30 では蓄積した 43 項目のうち裏取りサブセット 11 件を real 10/refuted 1 に選別)。
+→ **だから「Phase 完了時・別セッション/別 AI の作業物の取り込み時には、独立コンテキストのエージェントで敵対監査を回す」を方法論として固定する。** 監査の作法は実績がテンプレになる:
+1. 最悪モード (false-green / 規律違反 / over-claim) を集中攻撃し、
+2. 各 finding を別エージェントで再検証して誤検出を除き、
+3. `git show HEAD` で「説明と実装の食い違い」を照合する (Phase1 完了監査 B→A で A1/A2 を発見・D19、audit-2026-06-30 では蓄積した 43 項目のうち裏取りサブセット 11 件を real 10/refuted 1 に選別)。
 
 **ただし必須ゲートにはしない (規律5 と両立).** 重い Phase・別セッション引き継ぎ・overnight ループ後に回す**推奨手順**であり、小さな増分では省略してよい。列挙したトリガは最小限であって、疑いがあれば常に回してよい (列挙外を「監査不要」と読まないこと)。Phase 3 の auditor (生成 variant の前向きレビュー) とは射程が直交する —— auditor は coder が出す variant を事前に見張り、本監査は過去に入った作業物を遡及的に裏取りする。補完関係であり重複しない。
 
@@ -232,7 +264,14 @@ variant と baseline は決して同一セッションで測らない (別ビル
 - **自己一貫性バイアス**: コンテキストが長いほど、序盤に立てた誤った仮説・方針に固執しやすい。P2-5 で観測した「自信ある早期停止の負債」(D21/D29) と同型の失敗モード
 - **読んだつもりドリフト**: 圧縮後、元ファイルを再読せずに要約の記憶でコードやドキュメントを編集する
 
-**対策の設計原理: セッションの延命ではなく、短命でも仕事が途切れない構造.** izanagi はセッションを捨てるコストが構造的に低い —— CLAUDE.md「現在地」+ worklog + WAL リプレイ (campaign-id は入力から再計算できるため、状態を持たずに再開できる。orchestrator-design.md) + handoff insight。この再開性を活かし、「長い 1 セッションで完走を粘る」のではなく短いセッションを確実に繋ぐ方向に寄せる。
+**対策の設計原理: セッションの延命ではなく、短命でも仕事が途切れない構造.** izanagi はセッションを捨てるコストが構造的に低い ——
+- CLAUDE.md「現在地」
+- worklog
+- WAL リプレイ
+  - campaign-id は入力から再計算できるため、状態を持たずに再開できる。orchestrator-design.md
+- handoff insight
+
+この再開性を活かし、「長い 1 セッションで完走を粘る」のではなく短いセッションを確実に繋ぐ方向に寄せる。
 
 **運用ルール (4 本、盛らない):**
 1. **粘らず捨てる.** 1 論理タスク = 1 セッションを基本とする。自動圧縮が入ったら (= コンテキストが要約されたと気づいたら) 新しいサブタスクを始めない。進行中の作業を区切りまで進め、worklog / handoff を書いてセッションを終える
@@ -240,7 +279,15 @@ variant と baseline は決して同一セッションで測らない (別ビル
 3. **コンテキスト衛生.** 生 trace・生ビルドログ・WAL 全文をメインコンテキストに読み込まない。サブエージェント (独立コンテキスト) に読ませて構造化された結論だけ受け取るか、digest (online digest 等) を読む。必要な断片は tail / grep で絞る。「生データでなく構造化された要約が層間を流れる」は規律3 (構造化 anomaly) と同じ設計思想の運用面
 4. **圧縮跨ぎの再読.** 自動圧縮の後に編集するファイルは、要約の記憶で触らず必ず再読してから編集する
 
-**ループ主導権の原則 (Phase 3 の完成形).** 反復ループの主導権は orchestrator (Python) に置き、LLM (coder / critic) は iteration 単位で fresh に呼ぶ。現行は LoopState/checkpoint と機械評価までは実体化しているが、role 呼び出しはセッション運営に依存する human-supervised loop であり、本原則は 8c 完了まで部分実装である。完成形で各呼び出しに渡すのは digest + 構造化 anomaly + 前回の構造化ログだけ。Claude のセッションが数十 iteration のループを自分で回すと、iteration が進むほど評価ログがメインコンテキストに堆積して上記 3 つの劣化が起きる。orchestrator 主導なら各呼び出しのコンテキストは常に小さく、**品質がセッションの寿命に依存しない**。これは orchestrator-design.md「サブエージェントは中間状態を観測できないトランザクション (構造化ログで引き継ぐ)」の帰結である。subagent 登録がセッション開始時にのみ読まれる制約 (2026-07-08 実証) の下では、登録ベースの LLM 呼び出し自体がセッション運営を律速にするため、orchestrator からの API 直呼び駆動への移行を phase3.md 段 8c に予約した (D44)。
+**ループ主導権の原則 (Phase 3 の完成形).** 反復ループの主導権は orchestrator (Python) に置き、LLM (coder / critic) は iteration 単位で fresh に呼ぶ。
+
+現行は LoopState/checkpoint と機械評価までは実体化しているが、role 呼び出しはセッション運営に依存する human-supervised loop であり、本原則は 8c 完了まで部分実装である。完成形で各呼び出しに渡すのは digest + 構造化 anomaly + 前回の構造化ログだけ。
+
+Claude のセッションが数十 iteration のループを自分で回すと、iteration が進むほど評価ログがメインコンテキストに堆積して上記 3 つの劣化が起きる。
+
+orchestrator 主導なら各呼び出しのコンテキストは常に小さく、**品質がセッションの寿命に依存しない**。これは orchestrator-design.md「サブエージェントは中間状態を観測できないトランザクション (構造化ログで引き継ぐ)」の帰結である。
+
+subagent 登録がセッション開始時にのみ読まれる制約 (2026-07-08 実証) の下では、登録ベースの LLM 呼び出し自体がセッション運営を律速にするため、orchestrator からの API 直呼び駆動への移行を phase3.md 段 8c に予約した (D44)。
 
 **限界 (正直に).** 本ルールは Claude の自己申告ベース —— 劣化しつつある Claude 自身が圧縮に気づいて従う必要がある (§3.7「監査者の劣化」と同型の自己言及)。だから守れなくても正しさは壊れない構造が下にある: 機械的ゲート (hooks / pipeline.evaluate の fails-closed / WAL proof chain) は Claude の品質に依存せず (規律2)、劣化した成果物は §3.7 の遡及監査が捕まえる。本節の前向き層が守るのは正しさではなく**成果物の質と手戻りコスト**である。
 
@@ -268,7 +315,7 @@ variant と baseline は決して同一セッションで測らない (別ビル
 
 閾値適用と採用点の決定は calibrator が機械的に行う。LLM の役割は異常仮説と説明の補助に限定し、`output/insights/` に「なぜそのレコード数か」を証拠付きで文書化する。
 
-**noise floor の実測 (§3.6 と接続).** calibrator はレコード数の飽和/下限点に加えて、その実験署名の **noise floor** も実測する責務を持つ。確定した条件 (env、record 数、thread 数、代表 workload/config) で baseline を**連続 N 回**測って throughput の CV を出し、env スコープ内で署名別に保存する。**ただし、この「連続 N 回」の CV は within-run であり、1 測定の品質ゲート (§3.6(3)) にのみ使う — §3.6(4) の分布比較が「差なし」に丸める採否の閾値には使わない。採否の floor は between-run (§3.6(3')、D19) で、calibrator でなく別ドライバ (orchestrator/campaign/between_run_floor.py) が対象別に確定する。within-run の流用は run 間ドリフトを過小評価して偽 faster を出す (D19 が塞いだ経路)。**Mac devcontainer で noise floor が大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる。あわせて、ベンチ前の load average 静定確認 (admission control、orchestrator-design.md) も calibrator の責務に含める。
+**noise floor の実測 (§3.6 と接続).** calibrator はレコード数の飽和/下限点に加えて、その実験署名の **noise floor** も実測する責務を持つ。確定した条件 (env、record 数、thread 数、代表 workload/config) で baseline を**連続 N 回**測って throughput の CV を出し、env スコープ内で署名別に保存する。**ただし、この「連続 N 回」の CV は within-run であり、1 測定の品質ゲート (§3.6(3)) にのみ使う。§3.6(4) の分布比較が「差なし」に丸める採否の閾値には使わない。採否の floor は between-run (§3.6(3')、D19) で、calibrator でなく別ドライバ (orchestrator/campaign/between_run_floor.py) が対象別に確定する。within-run の流用は run 間ドリフトを過小評価して偽 faster を出す (D19 が塞いだ経路)。**Mac devcontainer で noise floor が大きく出ること自体が D10 (性能比較は Linux 実機のみ) の定量的裏付けになる。あわせて、ベンチ前の load average 静定確認 (admission control、orchestrator-design.md) も calibrator の責務に含める。
 
 スケール感度の検出: variant 評価を単一スケールでやらず、calibrator が確定した thread/record 動作点から最低2点を選ぶ。固定の `4thread/100万` 等を全環境へ流用しない。small→larger の性能変化を構造化特徴量として selector と層3へ渡し、larger で頭打ちの variant は「スケールしない疑い」とフラグを立てる。
 
@@ -276,7 +323,15 @@ variant と baseline は決して同一セッションで測らない (別ビル
 
 ## 5. 計算リソースと現実
 
-正式計測の正本環境は **bare-metal x86_64 サーバ (env-tag `linux-baremetal`: 96スレ/2NUMA、247GiB、perf HW カウンタ動作)** である。既存の正式測定値・calibration・noise floor はすべてこの env-tag に束縛され、この環境は共有スケジューラ環境が使えない時期の退避先としても残す。開発・ビルド・デバッグは共有スケジューラ型の計算環境 (スパコンのノードをジョブで確保する形) でも行えるが、そこで得た throughput を既存 env-tag の測定値へ混ぜてはいけない。別環境を正式計測へ採用する条件は (1) 専用 env-tag、(2) その env-tag での calibration と noise floor の取り直し、(3) 計測を走らせるノード上での単独性・静定確認 (スケジューラの割当てを専有の保証と見なさない)、(4) module・コンパイラ・CCBench pin・ジョブスクリプトの成果物追跡、である (凍結済み実験を別 env-tag で取り直さない — D59)。どのマシンをいつ主に使うかは可変状態で worklog を正本とし、マシン固有の確保・実行手順は当該環境の runbook (`docs/README.md` の地図から引く) を正本とする。
+正式計測の正本環境は **bare-metal x86_64 サーバ (env-tag `linux-baremetal`: 96スレ/2NUMA、247GiB、perf HW カウンタ動作)** である。既存の正式測定値・calibration・noise floor はすべてこの env-tag に束縛され、この環境は共有スケジューラ環境が使えない時期の退避先としても残す。開発・ビルド・デバッグは共有スケジューラ型の計算環境 (スパコンのノードをジョブで確保する形) でも行えるが、そこで得た throughput を既存 env-tag の測定値へ混ぜてはいけない。
+
+別環境を正式計測へ採用する条件は
+- (1) 専用 env-tag、
+- (2) その env-tag での calibration と noise floor の取り直し、
+- (3) 計測を走らせるノード上での単独性・静定確認 (スケジューラの割当てを専有の保証と見なさない)、
+- (4) module・コンパイラ・CCBench pin・ジョブスクリプトの成果物追跡、
+
+である (凍結済み実験を別 env-tag で取り直さない — D59)。どのマシンをいつ主に使うかは可変状態で worklog を正本とし、マシン固有の確保・実行手順は当該環境の runbook (`docs/README.md` の地図から引く) を正本とする。
 
 CCBench の raw bench だけなら数秒でも、1 evaluation は build・複数 verify・bench・再測を含み数十〜数百秒になりうるため、「一晩の件数」は full pipeline の実測から予算化する。スケール (record 数・thread 数) は calibrator が D15 の飽和点または working-set 下限で決める。絶対規律4 (cache 競合の再現) のためのスレッドピンニング要件は env-tag ごとにトポロジが異なる — `linux-baremetal` (96スレ/2ソケット) では `-DLinux`/numactl が要る (ccbench-anatomy.md §7)。単一ソケットのノードでは binding 設計を当該 env-tag の calibration で決め直す。
 
@@ -286,12 +341,17 @@ CCBench の raw bench だけなら数秒でも、1 evaluation は build・複数
 
 ## 6. リポジトリ構成と CCBench の扱い
 
-AI システムのリポジトリ + CCBench を submodule で参照する。**submodule は v1 (thawk105/ccbench) を使う** — VLDB 論文の実体で、最適化が交換可能単位で整理されたコーパスが揃っているため (v2 は書き直し中で本プロジェクトの前提を満たさない)。実物 (解剖時点のスナップショットは `33d74a3` = CMake 再構成版。現行 submodule pin は `orchestrator/campaign/pin.py` が正本、D38) は **10 プロトコル (YCSB 対応は 7: silo/tictoc/mocc/cicada/ermia/si/oze)** ×3カテゴリの最適化フラグ群を持つ (解剖結果は `docs/ccbench-anatomy.md`)。理由:
+AI システムのリポジトリ + CCBench を submodule で参照する。**submodule は v1 (thawk105/ccbench) を使う** — VLDB 論文の実体で、最適化が交換可能単位で整理されたコーパスが揃っているため (v2 は書き直し中で本プロジェクトの前提を満たさない)。解剖時点のスナップショットは `33d74a3` = CMake 再構成版。現行 submodule pin は `orchestrator/campaign/pin.py` が正本、D38。実物は **10 プロトコル (YCSB 対応は 7: silo/tictoc/mocc/cicada/ermia/si/oze)** ×3カテゴリの最適化フラグ群を持つ (解剖結果は `docs/ccbench-anatomy.md`)。理由:
 - CCBench を汚さない (還元すべき差分が綺麗に切り出せる)
 - CCBench のバージョンを commit hash で固定 (再現可能)
 - CCBench への改変を「パッチ」で管理できる
 
-CCBench の走らせ方: orchestrator が pinned-clean を確認した隔離 worktree (`patchharness.checkout()`、または直列 context) に variant patch を適用 → buildcache で identity を解決・ビルド → `pipeline.evaluate()` が verify/bench と WAL 記録を実行 → context 終了時に revert/破棄と clean assert、の順に固定する。共有 submodule を素の `make → git checkout` で運用しない。改変の所在は D16 の三分岐に従う: 本物のバグ修正は上流 master へ還元、trace-hook は `izanagi-trace` ブランチ (submodule pin)、patches/ 行きは意図的バグ (broken-silo)・合成 variant (D18)・診断計器 (D20) のみ。
+CCBench の走らせ方: orchestrator が pinned-clean を確認した隔離 worktree (`patchharness.checkout()`、または直列 context) に variant patch を適用 → buildcache で identity を解決・ビルド → `pipeline.evaluate()` が verify/bench と WAL 記録を実行 → context 終了時に revert/破棄と clean assert、の順に固定する。共有 submodule を素の `make → git checkout` で運用しない。
+
+改変の所在は D16 の三分岐に従う:
+- 本物のバグ修正は上流 master へ還元、
+- trace-hook は `izanagi-trace` ブランチ (submodule pin)、
+- patches/ 行きは意図的バグ (broken-silo)・合成 variant (D18)・診断計器 (D20) のみ。
 
 CCBench の protocol は build target、最適化軸と trace 有無は CMake define、read 比率・record 数・thread 数などは gflags で渡す実行時 workload である (Phase 1 タスク0で確認済み)。したがって variant 探索はビルドし直し型だが、build cache は protocol/genome、CCBench commit、TRACE、preprocess 後 source digest、toolchain を identity に含め、同一 build identity のバイナリだけを再利用する。
 
