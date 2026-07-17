@@ -196,3 +196,27 @@ L1 は生産基盤のみ (oracle 消費配線なし = 照合は未保証)、L3 �
    push しない運用)。D-12 の推奨: L2 (意味論変更) は個別レビュー価値が高い
 2. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — (1) 参照)。裁定材料に B-2 (自己子孫除外) を追加
 3. 裁定後の v2 wave で「正直な残」を消化 (一覧は本エントリと insights §4)
+
+## 2026-07-17 (6) — Claude-Session trailer の廃止 + AI-Agent scope 導入 (計測なし)
+
+ユーザー問題提起 2 件への対応。(a) commit message の `Claude-Session:` URL は第三者に見られると
+まずくないか → 調査結論: URL はログイン + 所有者限定のアクセス制御下で ID は bearer でないが、
+「AI セッションの存在と ID が履歴に永続する」ため停止 + 履歴除去を裁定。(b) 同一 role の AI-Agent
+行が複数あると何をどれが担ったか復元不能 (既存 8 commit) → scope フィールドで解消。
+
+- commit: 6507c87 (sessionUrl 停止 + 除去スクリプト同梱), faafbbf (scope 導入) の 2 本
+- 停止は二層: project settings (6507c87) + user settings `~/.claude/settings.json` (repo 外、
+  未マージ worktree のセッションにも即時有効)。本セッション以降の commit に Claude-Session なし
+- 履歴除去 (50/460 commit) は**未実行・ユーザー承認待ち**: strip_claude_session_trailers.sh は
+  preflight → 書き換え → 検証で停止し push しない設計。opus 敵対レビュー (7 主張中 5 成立、real 4:
+  rebase 復活 / 未 push 盲点 / branch protection / PR 本文・refs/pull 残存) を反映。合成 repo の
+  実地テスト + preflight 負テストで発火確認済み
+- scope 規則: 同 role 複数行で必須。checker は導入 commit を -S 内容検出する epoch 方式で遡及なし
+  (SHA 非依存 = 履歴書き換え耐性)。message-file 7 ケースと全履歴監査 123 件で固定
+- 工数: claude-code-guide (sonnet) 1 + opus 敵対レビュー 1 + 親直接実装
+
+### 次の一手
+1. strip_claude_session_trailers.sh のユーザーレビュー → 承認後に**ユーザーが実行** (全ブランチ
+   merge / push 済みの時点で。main の branch protection は事前解除、force-push もユーザー)
+2. push 後の後始末: 各 checkout / 他マシン clone (Pegasus 等) の fetch + reset、GitHub PR 本文の
+   セッション URL 確認・編集 (スクリプトヘッダの一覧に従う)
