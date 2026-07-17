@@ -533,6 +533,15 @@ def test_competing_bench_pids_rc1_with_stderr_is_probe_error():
     assert "unrecognized" in e.stderr_excerpt
 
 
+def test_competing_bench_pids_rc1_with_stdout_is_probe_error():
+    """rc==1 なのに stdout に PID 行が付随する矛盾出力も fail-closed で例外にする —
+    「一致なし」の rc を信じて競合行を黙って捨てない (B-1, レビュー L2-N1)。"""
+    e = _expect_probe_error(returncode=1, stdout="1234 ycsb_x.exe", stderr="")
+    assert e.kind == "unexpected-rc"
+    assert e.returncode == 1
+    assert "ycsb_x.exe" in e.stdout_excerpt
+
+
 def test_competing_bench_pids_rc0_empty_stdout_is_inconsistent():
     """rc==0 (一致あり) なのに stdout が空という内部矛盾は inconsistent-output で例外
     (B-1: rc==0 は非空 stdout 必須)。"""

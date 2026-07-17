@@ -141,8 +141,10 @@ def _full_sha256(path: Path) -> str:
     変換するだけ (CLI JSON の構造化失敗契約を保つ)。"""
     try:
         return buildcache.full_sha256(path)
-    except (OSError, buildcache.BinaryDigestError) as exc:
-        raise FloorCampaignError(f"バイナリ sha256 を計算できない: {path}: {exc}") from exc
+    except buildcache.BinaryDigestError as exc:
+        # full_sha256 は OSError を BinaryDigestError (「バイナリ sha256 を計算できない:
+        # ...」整形済み) へ昇格するので、ここは再整形せず変換だけ行う (接頭辞の二重化回避)
+        raise FloorCampaignError(str(exc)) from exc
 
 
 # --------------------------------------------------------------------------- #
