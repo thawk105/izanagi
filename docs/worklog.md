@@ -229,3 +229,28 @@ L1 は生産基盤のみ (oracle 消費配線なし = 照合は未保証)、L3 �
 2. 残り (ユーザー任意): 他マシン clone (Pegasus 等) の fetch + reset または clone し直し / GitHub PR
    本文のセッション URL 確認 (`gh pr list`、sandbox からは gh 不可) / GitHub 側 refs/pull 残存の完全
    消去は Support へ GC 依頼 / 次回の実 `git fetch --prune` で tracking ref の最終整合を確認
+
+## 2026-07-17 (7) — テストスイート fsync 律速の解消 (586s→13s) + codex 在庫番人の D60 降格
+
+ユーザー相談「オーケストレーターのテスト重くない?」起点。診断: campaign 系の per-write
+flush+fsync × pytest 一時 dir がジャーナリング FS (pegasus02 の /tmp=XFS) 上にあることによる
+I/O バリア律速 (実行中プロセスの wchan=xlog_wait_on_iclog、開いていた fd が pytest tmp 下の
+wal.jsonl。スイート CPU 時間は十数秒で残り 99% がディスク待ち)。実測: 全体 586s→13.3s (44 倍、
+996 passed / 23 skipped / 0 failed)、最遅単体 (test_s1_report、79s) はサブ秒へ。
+
+- commit: d9183fd (conftest tmpfs 化 + 容量ガード), 428a299 (codex 番人降格 + D60)。**push は
+  ユーザー引き渡し** (Pegasus からは AI が push しない)
+- 敵対レビュー: workflow 3 レンズ 8 agents (opus)、real 2 (容量無視の /dev/shm 採用 major /
+  コメント陳腐化 minor) / refuted 4。全文 =
+  output/insights/2026-07-17_test-fsync-speedup-adversarial-review.md。real 2 件と D59 決定 3
+  抵触 (README へのマシン固有実測値の焼き込み) は commit 前に反映済み
+- 却下案: WAL への fsync 無効化ノブ (ACID 安定核に本番へ漏れうるテスト用バイパス)、
+  pytest-xdist 並列化 (依存追加が必要で tmpfs 化後は不要)
+- codex 在庫番人: codex auto-update (0.144.2→0.144.5、7/16) でピンが外れ全マシン恒常 fail 化して
+  いた。ユーザー裁定「codex の自動更新で izanagi は困らないでほしい」→ D60 (計数 skip +
+  IZANAGI_REQUIRE_CODEX_RUNTIME=1 opt-in。launcher の実行時 fail-closed は不変)。0.144.5 への
+  再ピン儀式は codex_roles 再開時に vendored 固定と併せて検討 (D60 却下案)
+- 工数: 親直接 + レビュー workflow 8 agents。性能計測層には触れていない (計測なし)
+
+### 次の一手
+1. 前エントリ (6) の残り (ユーザー任意分) は変わらず
