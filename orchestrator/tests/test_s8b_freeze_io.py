@@ -191,31 +191,92 @@ def test_verified_freeze_class_identity_is_single():
 
 
 # --------------------------------------------------------------------------- #
-# NUMACTL 配線                                                                  #
+# env 配線 (F4): NUMACTL/CLK は p2_2 直 import でなく env_contract 経由           #
 # --------------------------------------------------------------------------- #
 
-def test_floor_numactl_is_p2_2_numa_identity():
+def test_floor_no_longer_direct_imports_clk_or_numactl():
+    """F4 結線後、floor は CLK/NUMA を p2_2 から直 import しない (env_contract 経由)。
+
+    旧 wave の ``floor.NUMACTL is p2_2.NUMA`` identity は contract 化で消える。ENV_TAG のみ
+    machine-pin 用に残す。"""
     from campaign import s8b_floor_campaign as floor
-    from campaign import p2_2
-    assert floor.NUMACTL is p2_2.NUMA
-    assert floor.NUMACTL == ["numactl", "--interleave=all"]
+    assert not hasattr(floor, "NUMACTL")   # p2_2.NUMA の直 import は削除された
+    assert not hasattr(floor, "CLK")       # p2_2.CLK の直 import も削除された
+    assert hasattr(floor, "ENV_TAG")       # machine-pin 用にのみ残す
+    assert floor._env_contract is not None  # env_contract を結線している
 
 
-def test_measure_fn_closure_passes_numactl_to_measure_point():
-    """``measure_fn=None`` 経路の closure が ``measure_point`` に ``numactl=NUMACTL``
-    を渡す配線を固定する。
+def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
+    """``measure_fn=None`` 経路の既定 closure が ``measure_point`` へ ``numactl`` /
+    ``clocks_per_us`` を **contract から** 渡すことを実引数 spy で固定する (γ-14: closure ソース
+    文字列検査でなく挙動検査)。"""
+    import contextlib
+    from types import SimpleNamespace
+    from unittest import mock
 
-    縮小の判断 (報告済み): 実 closure の起動は run_campaign の完走 (12 セル実ビルド +
-    runner) を要し過大なため、identity assert (上) + closure ソース検査に縮小する。
-    ソース検査は closure が ``measure_point`` に ``numactl=NUMACTL`` を渡すことを
-    静的に固定する (`s8b_floor_campaign.py` の当該分岐)。
-    """
-    import inspect
+    from campaign import env_contract as ec
     from campaign import s8b_floor_campaign as floor
-    src = inspect.getsource(floor.run_campaign)
-    assert "if measure_fn is None:" in src
-    assert "measure_point(" in src
-    assert "numactl=NUMACTL" in src
+    from campaign.model import Genome
+    from campaign.p2_2 import ENV_TAG
+    from campaign.s1_direct_comparison import PreparedCell
+
+    configs = ("stock_common", "alt_a")
+    shape = {"records": 730079, "threads": 17,
+             "ycsb": {"ycsb_zipf_skew": "0.42", "ycsb_rratio": "79", "ycsb_rmw": "1"}}
+    entries = {c: {"holdout_id": "rrX", "label": f"fx-{c}", "flags": {"BACK_OFF": i}}
+               for i, c in enumerate(configs)}
+    freeze = {"schema_version": floor.FREEZE_SCHEMA,
+              "holdouts": {"rrX": {**shape, "variant_binding": {"entries": entries}}}}
+    freeze_sha = hashlib.sha256(json.dumps(
+        freeze, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    protocol = {
+        "schema": floor.PROTOCOL_SCHEMA, "formula": floor.s8b_floor_stats.FORMULA_ID,
+        "env_tag": ENV_TAG, "ccbench_pin": "0" * 40,
+        "freeze": {"path": "output/s8b-freeze/fx.json", "sha256": freeze_sha},
+        "stock_configuration": "stock_common", "n_sessions": 8, "reps": 5,
+        "master_seed": "seed", "schedule_algorithm": floor.SCHEDULE_ALGORITHM,
+        "extime_s": 3, "wired_min_rel_floor": 0.05, "retry_slots_per_cell": 2,
+        "session_cv_max": "0.10", "cell_cv_max": "0.15",
+        "scale_adequacy_rel_tolerance": "0.10",
+        "allowed_excluded_reasons": list(floor.s8b_floor_stats.ALLOWED_EXCLUDED_REASONS),
+    }
+    verified = fio.VerifiedFreeze(document=freeze, sha256=freeze_sha)
+    contract = ec.lookup(ENV_TAG)
+
+    @contextlib.contextmanager
+    def fake_prepare(cell, ccbench_pin):
+        cell_id = f"{cell['variant']['holdout_id']}::{cell['configuration']}"
+        yield PreparedCell(genome=Genome("silo", {}), src_token=cell_id,
+                           ccbench_dir="/fx/ccbench", cache_root="/fx/cache")
+
+    def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
+                   jobs=16, ccbench_dir="", src_token=None):
+        d = tmp_path / "bin" / src_token.replace("::", "__")
+        d.mkdir(parents=True, exist_ok=True)
+        b = d / "ycsb.exe"
+        payload = src_token.encode()
+        b.write_bytes(payload)
+        sha = hashlib.sha256(payload).hexdigest()
+        return SimpleNamespace(binary=str(b), bin_sha256=sha, bin_hash=sha[:16],
+                               configure_cmd="#", build_cmd="#", cached=False)
+
+    seen = {}
+
+    def spy_measure_point(binary, records, threads, clocks_per_us, **kw):
+        seen["clocks_per_us"] = clocks_per_us
+        seen["numactl"] = kw.get("numactl")
+        return SimpleNamespace(throughputs=[1000.0] * 5, notes=[], run_cmd="./x")
+
+    with mock.patch.object(floor.buildcache, "build", fake_build), \
+         mock.patch.object(floor, "measure_point", spy_measure_point):
+        floor.run_campaign(protocol, verified, out_root=tmp_path / "out", mode="pilot",
+                           measure_fn=None, probe_fn=lambda: (1, ""),
+                           prepare_fn=fake_prepare, now_fn=lambda: __import__("datetime")
+                           .datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc),
+                           monotonic_fn=lambda: 0.0)
+    assert seen["clocks_per_us"] == contract.clocks_per_us
+    assert seen["numactl"] == list(contract.numactl)
 
 
 if __name__ == "__main__":

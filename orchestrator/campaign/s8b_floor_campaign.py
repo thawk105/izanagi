@@ -1,47 +1,45 @@
 # -*- coding: utf-8 -*-
-"""8b floor campaign driver — holdout freeze から floor 案を実測する env-neutral driver。
+"""8b floor campaign driver — holdout freeze から floor 案を実測する env-neutral driver (v2)。
 
-役割 (凍結案パッケージ wave 2 = output/insights/2026-07-16_s8b-floor-protocol-package.md と
-同期): holdout freeze v1 の 2 holdout × 6 構成 = 12 セルを floor protocol (明示入力・未凍結数値の
+役割: holdout freeze v1 の 2 holdout × 6 構成 = 12 セルを floor protocol (明示入力・未凍結数値の
 デフォルト内蔵禁止) が定める schedule どおり直列・単一テナントで計測し、``s8b_floor_stats``
-(formula v1) で floor 案を算出して artifact (result.json/md) に書く。**freeze への floor 書込み・
+(formula v2) で floor 案を算出して artifact (result.json/md) に書く。**freeze への floor 書込み・
 phase 文書の編集はしない** (§8 手続き: 発効はユーザー承認事項)。本 driver は「案」を出すだけで、
 何も発効させない。
 
-系譜: 計測は calibration driver (``between_run_floor.py``) と同型で ``measure_point`` を直接
-呼ぶ (``pipeline.evaluate`` は使わない — floor は correctness gate を通す本走ではなく noise
-の実測)。build 経路だけ oracle と揃える (共有 ``s8b_materialization.prepared_binding`` +
-``buildcache.build(trace=False)``) ので、floor を測るバイナリと oracle 本走のバイナリが同一
-identity になる。
+**この floor は単一 campaign 内で観測された session dispersion に基づく記述的下限であり、
+時間ドリフト・cold-boot・温度など別 run 間の変動は含まれない** (formula v2、§9 承認状態
+2026-07-18)。式は本 driver の外 (``s8b_floor_stats``, formula v2) が正本。driver は計測して
+SessionRecord を作り、cell_stats / holdout_floors / verify_floor_artifact を呼ぶだけで、floor の
+式を自前で持たない。session 有効性・異常判定 (session 内 CV / セル間 CV) はすべて stats 側の
+``assess_session`` / ``cell_cv_exceeds`` が正本で、driver は生値の抽出だけを行う (α-8/δ-6)。
 
-**式は本 driver の外 (``s8b_floor_stats``, formula v1) が正本。** driver は計測して SessionRecord
-を作り、cell_stats / holdout_floors / verify_floor_artifact を呼ぶだけで、floor の式を自前で持たない
-(規律5: 単一目的の分離)。session 有効性契約も ``s8b_floor_stats.session_median`` の逐語定義に従う。
+系譜: 計測は calibration driver (``between_run_floor.py``) と同型で ``measure_point`` を直接呼ぶ
+(``pipeline.evaluate`` は使わない — floor は correctness gate を通す本走ではなく noise の実測。
+floor 経路に settle は使わない = ``measure_point(settle_first=False)`` 既定)。build 経路だけ oracle
+と揃える (共有 ``s8b_materialization.prepared_binding`` + ``buildcache.build(trace=False)``) ので、
+floor を測るバイナリと oracle 本走のバイナリが同一 identity になる。
+
+env 契約 (F4): 計測環境の固有値 (clocks_per_us / numactl) は ``env_contract.lookup(env_tag)`` から
+取る。driver は env 固有 literal を持たない (γ-16 の AST 検査が機械固定)。attestation が入る登録段
+までの暫定 machine-pin として、契約の env_tag が実行機の ``p2_2.ENV_TAG`` と一致することを要求する。
 
 絶対規律の適用:
-- 規律1 (観測者効果): 計測は trace-disabled build (``trace=False``)。buildcache の nm ガードが
-  trace シンボル混入を fails-closed に検査する
+- 規律1 (観測者効果): 計測は trace-disabled build (``trace=False``)。
 - 規律4 (単一テナント直列): session ごとの臨界区間 (probe → measure → post-probe → journal) で
   自前の strict probe (pgrep) を計測の前後に叩く。**rc=1 のみ「競合なし」**、rc=0 の競合列挙は
   当該 session を無効 (``competing_process``, retry 可) にし、実行不能・rc>1・parse 不能は
-  **CampaignAbort** で倒す (共有 ``competing_bench_pids`` も B-1 以降 fail-closed だが、floor は
-  kind 付き CampaignAbort・生出力 journal・competing_process retry を要するため自前 strict probe を維持する)
+  **CampaignAbort** で倒す。**post-probe は measure が例外を投げた経路でも finally 相当で必ず
+  実行する** (β-7)。
 - 規律6 (信頼境界): freeze は素性の知れない外部内容。bytes-hash pin で束縛し、以後この単一
-  parse 結果だけを使う (再読込禁止)
+  parse 結果だけを使う (再読込禁止)。
 
-fail-closed の原則: 縮退・欠測・不正入力・競合はすべて null / 拒否 / 判定不能へ倒す。fallback や
-黙認は書かない。protocol config の数値はコードに既定値を持たず入力必須にする。CLI に env・経路・
-数値の上書き面は作らない (``--marker-root`` 撤去の教訓、worklog 2026-07-16 (12))。
+fail-closed の原則: 縮退・欠測・不正入力・競合はすべて null / 拒否 / 判定不能へ倒す。protocol
+config の数値はコードに既定値を持たず入力必須にする (F14 対策)。CLI に env・経路・数値の上書き面は
+作らない。
 
-**なぜ ``s8b_holdout_freeze.verify_document`` を呼ばないか:** v1 freeze は design/generator の
-worktree drift (design 1829af→bce6ef, generator 1910ff→2356fd) で現在 **意味検証に不合格**で
-あり、意味再検証は freeze v2 machinery (strict v2 verifier) の責務。本 driver は freeze を
-**bytes-hash pin** で束縛し (protocol.freeze.sha256 との byte 一致)、構造だけを最小検査して
-floor 実測に使う。意味検証を通せない v1 でも floor を測れるのは、floor が「対象点の noise の
-物理量」であって freeze の意味論に依存しないため。
-
-official mode は承認束縛方式が §8 未裁定のため現時点で常に拒否する (fail-closed 既定)。pilot の
-artifact には ``eligible_for_refreeze: false`` を焼き込む。
+official mode は承認束縛方式が §8 未裁定のため **core (run_campaign) で無条件拒否する** (δ-3)。
+pilot の artifact には ``eligible_for_refreeze: false`` を焼き込む。
 """
 from __future__ import annotations
 
@@ -58,6 +56,7 @@ import socket
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Callable, Mapping, Optional
 
@@ -71,37 +70,51 @@ from calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
+from campaign import env_contract as _env_contract  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign.layout import env_scope_dir, repo_output_root  # noqa: E402
-from campaign.p2_2 import CLK, ENV_TAG  # noqa: E402
-from campaign.p2_2 import NUMA as NUMACTL  # noqa: E402
+from campaign.p2_2 import ENV_TAG  # noqa: E402  (machine-pin 用のみ。CLK/NUMA は contract 経由)
 from campaign.s1_direct_comparison import prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding,
 )
 
-PROTOCOL_SCHEMA = "s8b-floor-protocol/v1"
+# 版名は一括 v2 改版し交差受理を拒否する (β-2/δ-2)。freeze schema は v1 freeze を読むため据置。
+PROTOCOL_SCHEMA = "s8b-floor-protocol/v2"
 FREEZE_SCHEMA = "8b-holdout-freeze/v1"
-SCHEDULE_ALGORITHM = "balanced-permutation/v1"
-RESULT_SCHEMA = "s8b-floor-result/v1"
-MANIFEST_SCHEMA = "s8b-floor-manifest/v1"
+SCHEDULE_ALGORITHM = "round-permutation/v2"
+RESULT_SCHEMA = "s8b-floor-result/v2"
+MANIFEST_SCHEMA = "s8b-floor-manifest/v2"
+JOURNAL_SCHEMA = "s8b-floor-journal/v2"
 
 # protocol JSON の必須 key (strict: これ以外の key・欠落・型不正・duplicate key はすべて拒否)。
+# v2: blocks / replicates_per_block / min_block_gap_s を削除、session_cv_max / cell_cv_max /
+# scale_adequacy_rel_tolerance を追加 (β-1)。
 _PROTOCOL_KEYS = frozenset({
     "schema", "formula", "env_tag", "ccbench_pin", "freeze", "stock_configuration",
-    "n_sessions", "reps", "blocks", "replicates_per_block", "min_block_gap_s",
-    "master_seed", "schedule_algorithm", "extime_s", "wired_min_rel_floor",
-    "retry_slots_per_cell", "allowed_excluded_reasons",
+    "n_sessions", "reps", "master_seed", "schedule_algorithm", "extime_s",
+    "wired_min_rel_floor", "retry_slots_per_cell",
+    "session_cv_max", "cell_cv_max", "scale_adequacy_rel_tolerance",
+    "allowed_excluded_reasons",
 })
 _FREEZE_RECORD_KEYS = frozenset({"path", "sha256"})
 
-# 無効 session の閉じた excluded_reason コード (パッケージ 裁定 F2 の閉じた表)。driver が観測から
-# 分類するコードはこの集合に限る。protocol.allowed_excluded_reasons が使用コードを含まなければ
-# CampaignAbort (未登録の縮退, fail-closed)。correctness 系コードは floor に存在しない (F2)。
+# 承認済み標本設計の凍結数値 (§9 承認状態 2026-07-18)。validate_protocol が完全一致で pin する
+# (別実験への変質を開始前に拒否, β-1)。閾値は decimal 文字列で凍結し stats が Fraction 厳密算術で
+# 解釈する (α-9)。
+_APPROVED_N_SESSIONS = 8
+_APPROVED_REPS = 5
+_APPROVED_RETRY_SLOTS = 2
+_APPROVED_SESSION_CV_MAX = "0.10"
+_APPROVED_CELL_CV_MAX = "0.15"
+_APPROVED_SCALE_ADEQUACY = "0.10"
+# 閉じた除外理由表の固定順 (stats が正本)。protocol は完全一致 (固定順) を要求する。
+_APPROVED_REASONS = list(s8b_floor_stats.ALLOWED_EXCLUDED_REASONS)
+
+# driver が観測から分類する excluded_reason コード (stats の閉じた表と一致)。
 _REASON_COMPETING = "competing_process"          # preflight/post probe の競合
 _REASON_LAUNCH = "launch_failure"                # プロセス起動失敗 (全 rep 実行不能)
-_REASON_PARTIAL = "nonfinite_or_partial_output"  # bench の非有限/部分 rep 出力
 
 
 class FloorCampaignError(RuntimeError):
@@ -131,16 +144,10 @@ def _canonical_sha256(value) -> str:
 
 
 def _full_sha256(path: Path) -> str:
-    """バイナリ内容の **full** sha256 (provenance snapshot; truncate しない)。
-
-    hash 計算本体は ``buildcache.full_sha256`` に一元化し (二重実装 drift の解消, D-8)、
-    ここは薄い adapter として ``OSError``/``BinaryDigestError`` を ``FloorCampaignError`` に
-    変換するだけ (CLI JSON の構造化失敗契約を保つ)。"""
+    """バイナリ内容の full sha256 (provenance snapshot; truncate しない)。"""
     try:
         return buildcache.full_sha256(path)
     except buildcache.BinaryDigestError as exc:
-        # full_sha256 は OSError を BinaryDigestError (「バイナリ sha256 を計算できない:
-        # ...」整形済み) へ昇格するので、ここは再整形せず変換だけ行う (接頭辞の二重化回避)
         raise FloorCampaignError(str(exc)) from exc
 
 
@@ -192,16 +199,18 @@ def _non_neg_int(value, *, field: str) -> int:
     return value
 
 
-def _non_neg_number(value, *, field: str) -> float:
-    if (isinstance(value, bool) or not isinstance(value, (int, float))
-            or not math.isfinite(float(value)) or float(value) < 0):
-        raise FloorCampaignError(f"protocol.{field} が有限の非負数でない")
-    return float(value)
-
-
 def _non_empty_str(value, *, field: str) -> str:
     if not isinstance(value, str) or not value:
         raise FloorCampaignError(f"protocol.{field} が空でない文字列でない")
+    return value
+
+
+def _pinned(value, expected, *, field: str):
+    """承認凍結値との完全一致を要求する (別実験への変質を開始前に拒否, β-1)。"""
+    if value != expected or type(value) is not type(expected):
+        raise FloorCampaignError(
+            f"protocol.{field} が承認凍結値と不一致 (受領 {value!r} != 承認 {expected!r})"
+        )
     return value
 
 
@@ -209,7 +218,9 @@ def validate_protocol(document: Mapping) -> dict:
     """protocol の必須 key・型・整合を strict に検査し、正規化 dict を返す (fail-closed)。
 
     未知 key・欠落・型不正はすべて拒否する。数値の既定値はコードに持たない (入力必須)。
-    ``formula`` の ``s8b_floor_stats.FORMULA_ID`` 一致検査もここで行う (式の版束縛)。
+    ``formula`` は ``s8b_floor_stats.FORMULA_ID`` (v2) と一致検査する (式の版束縛)。承認済み標本
+    設計の凍結数値 (n_sessions=8 / reps=5 / retry_slots=2 / 閾値 3 種 / 除外理由 4 行固定順) は
+    完全一致で pin する (β-1)。
     """
     if not isinstance(document, Mapping):
         raise FloorCampaignError("protocol が object でない")
@@ -222,7 +233,9 @@ def validate_protocol(document: Mapping) -> dict:
         )
 
     if document["schema"] != PROTOCOL_SCHEMA:
-        raise FloorCampaignError(f"protocol.schema が {PROTOCOL_SCHEMA} でない")
+        raise FloorCampaignError(
+            f"protocol.schema が {PROTOCOL_SCHEMA} でない (v1 の交差受理を拒否)"
+        )
     if document["schedule_algorithm"] != SCHEDULE_ALGORITHM:
         raise FloorCampaignError(
             f"protocol.schedule_algorithm が {SCHEDULE_ALGORITHM} でない"
@@ -251,32 +264,26 @@ def validate_protocol(document: Mapping) -> dict:
             or any(ch not in "0123456789abcdef" for ch in freeze_sha)):
         raise FloorCampaignError("protocol.freeze.sha256 が SHA-256 でない")
 
-    n_sessions = _pos_int(document["n_sessions"], field="n_sessions")
-    reps = _pos_int(document["reps"], field="reps")
-    blocks = _pos_int(document["blocks"], field="blocks")
-    replicates_per_block = _pos_int(
-        document["replicates_per_block"], field="replicates_per_block",
+    # 承認凍結値の完全一致 pin (β-1)。n_sessions/reps/retry_slots は型と値、閾値 3 種は decimal
+    # 文字列として完全一致。
+    n_sessions = _pinned(document["n_sessions"], _APPROVED_N_SESSIONS, field="n_sessions")
+    reps = _pinned(document["reps"], _APPROVED_REPS, field="reps")
+    retry_slots_per_cell = _pinned(
+        document["retry_slots_per_cell"], _APPROVED_RETRY_SLOTS, field="retry_slots_per_cell",
     )
-    if blocks * replicates_per_block != n_sessions:
-        raise FloorCampaignError(
-            f"blocks × replicates_per_block ({blocks}×{replicates_per_block}) が "
-            f"n_sessions ({n_sessions}) と不一致"
-        )
-    if blocks != 2:
-        # formula v1 (s8b_floor_stats.holdout_floors) は d_{c,b} を b=1,2 に固定して直接
-        # 添字参照する 2-block 専用式。blocks!=2 は式の前提を満たさないのでここで拒否する
-        # (fail-closed。レビュー所見 F1-blocks-not-pinned-to-2)。
-        raise FloorCampaignError(
-            f"protocol.blocks ({blocks}) が formula v1 の前提 (2-block 固定) と不一致 "
-            "(blocks は 2 でなければならない)"
-        )
+    session_cv_max = _pinned(
+        document["session_cv_max"], _APPROVED_SESSION_CV_MAX, field="session_cv_max",
+    )
+    cell_cv_max = _pinned(
+        document["cell_cv_max"], _APPROVED_CELL_CV_MAX, field="cell_cv_max",
+    )
+    scale_adequacy_rel_tolerance = _pinned(
+        document["scale_adequacy_rel_tolerance"], _APPROVED_SCALE_ADEQUACY,
+        field="scale_adequacy_rel_tolerance",
+    )
+
     extime_s = _pos_int(document["extime_s"], field="extime_s")
-    retry_slots_per_cell = _non_neg_int(
-        document["retry_slots_per_cell"], field="retry_slots_per_cell",
-    )
-    min_block_gap_s = _non_neg_number(
-        document["min_block_gap_s"], field="min_block_gap_s",
-    )
+
     wired_min_rel_floor = document["wired_min_rel_floor"]
     if (isinstance(wired_min_rel_floor, bool)
             or not isinstance(wired_min_rel_floor, (int, float))
@@ -286,14 +293,12 @@ def validate_protocol(document: Mapping) -> dict:
     wired_min_rel_floor = float(wired_min_rel_floor)
 
     reasons_raw = document["allowed_excluded_reasons"]
-    if not isinstance(reasons_raw, list) or not reasons_raw:
-        raise FloorCampaignError("protocol.allowed_excluded_reasons が空でない list でない")
-    reasons = [
-        _non_empty_str(reason, field="allowed_excluded_reasons[]")
-        for reason in reasons_raw
-    ]
-    if len(set(reasons)) != len(reasons):
-        raise FloorCampaignError("protocol.allowed_excluded_reasons に重複がある")
+    if reasons_raw != _APPROVED_REASONS:
+        # 完全一致 (固定順) を要求する。欠落・余分・並べ替えを開始前に拒否 (β-1)。
+        raise FloorCampaignError(
+            f"protocol.allowed_excluded_reasons が承認凍結 4 行 (固定順) と不一致: "
+            f"受領 {reasons_raw!r}"
+        )
 
     return {
         "schema": PROTOCOL_SCHEMA,
@@ -304,15 +309,15 @@ def validate_protocol(document: Mapping) -> dict:
         "stock_configuration": stock_configuration,
         "n_sessions": n_sessions,
         "reps": reps,
-        "blocks": blocks,
-        "replicates_per_block": replicates_per_block,
-        "min_block_gap_s": min_block_gap_s,
         "master_seed": master_seed,
         "schedule_algorithm": SCHEDULE_ALGORITHM,
         "extime_s": extime_s,
         "wired_min_rel_floor": wired_min_rel_floor,
         "retry_slots_per_cell": retry_slots_per_cell,
-        "allowed_excluded_reasons": reasons,
+        "session_cv_max": session_cv_max,
+        "cell_cv_max": cell_cv_max,
+        "scale_adequacy_rel_tolerance": scale_adequacy_rel_tolerance,
+        "allowed_excluded_reasons": list(_APPROVED_REASONS),
     }
 
 
@@ -391,34 +396,36 @@ def enumerate_cells(freeze: Mapping, *, stock_configuration: str) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
-# schedule (seed 均衡置換, 純粋関数)                                            #
+# schedule v2 (round 単位 seed 置換, 純粋関数)                                  #
 # --------------------------------------------------------------------------- #
 
-def _permutation_seed(master_seed: str, block: int, replicate: int) -> int:
-    payload = f"{master_seed}/{block}/{replicate}".encode("utf-8")
+def _round_seed(master_seed: str, round_no: int) -> int:
+    """round 種: seed = int.from_bytes(sha256(f"{master_seed}/{r}").digest()[:8], big)。"""
+    payload = f"{master_seed}/{round_no}".encode("utf-8")
     return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big")
 
 
-def build_schedule(*, cells: list[dict], master_seed: str, blocks: int,
-                   replicates_per_block: int) -> list[dict]:
-    """block × replicate ごとに 12 セルを seed 決定の置換で並べた session 列を作る (純粋関数)。
+def build_schedule(*, cells: list[dict], master_seed: str, n_sessions: int) -> list[dict]:
+    """round r=1..n_sessions ごとに 12 セル (cell_id sort・一意) を seed 置換した session 列。
 
-    seed = int.from_bytes(sha256(f"{master_seed}/{b}/{r}").digest()[:8], "big") による
-    ``random.Random`` の shuffle。session 列 {seq, block, replicate, cell_id} を返す。
+    契約 (β-3): 各 round は正規化済み (sort 済み・重複なし) の全 cell_id の完全置換で、
+    各セルは round ごとにちょうど 1 回現れる。seq は 0..(n_sessions×|cells|-1) の通し番号。
+    エントリは {seq, round, cell_id} のみ (96 スロット一括置換ではなく round 構造を保つ)。入力
+    順に依存しないよう cell_id を sort し一意検査する。
     """
-    cell_ids = [cell["cell_id"] for cell in cells]
+    if not isinstance(n_sessions, int) or isinstance(n_sessions, bool) or n_sessions <= 0:
+        raise FloorCampaignError("build_schedule: n_sessions が正整数でない")
+    cell_ids = sorted(cell["cell_id"] for cell in cells)
+    if len(set(cell_ids)) != len(cell_ids):
+        raise FloorCampaignError("build_schedule: cell_id が重複している")
+    if not cell_ids:
+        raise FloorCampaignError("build_schedule: cells が空")
     rows: list[dict] = []
-    for block in range(1, blocks + 1):
-        for replicate in range(replicates_per_block):
-            permuted = list(cell_ids)
-            random.Random(_permutation_seed(master_seed, block, replicate)).shuffle(permuted)
-            for cell_id in permuted:
-                rows.append({
-                    "seq": len(rows),
-                    "block": block,
-                    "replicate": replicate,
-                    "cell_id": cell_id,
-                })
+    for round_no in range(1, n_sessions + 1):
+        permuted = list(cell_ids)
+        random.Random(_round_seed(master_seed, round_no)).shuffle(permuted)
+        for cell_id in permuted:
+            rows.append({"seq": len(rows), "round": round_no, "cell_id": cell_id})
     return rows
 
 
@@ -447,7 +454,7 @@ def _read_journal(journal_path: Path) -> list[dict]:
                 value = json.loads(raw)
             except json.JSONDecodeError as exc:
                 # 末尾切れ (crash) の 1 行。fail-closed: truncated journal の自動続行は
-                # 危険なので拒否する (都合のよい session 再現を許さない, 所見 G10)。
+                # 危険なので拒否する (都合のよい session 再現を許さない)。
                 raise FloorCampaignError(
                     f"journal 行 {lineno} が壊れている (truncated crash の疑い): {exc}"
                 ) from exc
@@ -472,12 +479,9 @@ def _default_probe_fn() -> tuple[int, str]:
 def strict_probe(probe_fn: Callable[[], tuple[int, str]]) -> dict:
     """計測前後の臨界区間 probe。競合検知は lag-free の確定信号 (規律4)。
 
-    rc==1 → マッチ無し = 競合なし。rc==0 → 自プロセス子孫を除外して残れば競合 (``competing``
-    に生行を載せて返す — 呼び手が当該 session を ``competing_process`` で無効にする)。それ以外の
-    rc (rc>1)・OSError・**pid parse 不能** → CampaignAbort (fail-closed。パッケージ 裁定 F2 の
-    「実行不能・rc>1・parse 不能は campaign abort」)。共有 ``competing_bench_pids`` も B-1 以降
-    fail-closed だが、floor は kind 付き CampaignAbort・生出力 journal・competing_process retry を
-    要するため自前で叩く。probe の生出力は戻り値に含め、呼び手が journal に残す。
+    rc==1 → マッチ無し = 競合なし。rc==0 → 自プロセス子孫を除外して残れば競合。それ以外の rc
+    (rc>1)・OSError・pid parse 不能 → CampaignAbort (fail-closed)。probe の admission 意味論 (自己
+    子孫除外) は B-2 未裁定のため変えない。生出力は戻り値に含め、呼び手が journal に残す。
     """
     try:
         rc, stdout = probe_fn()
@@ -506,7 +510,7 @@ def strict_probe(probe_fn: Callable[[], tuple[int, str]]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# boot / host provenance                                                       #
+# host / process provenance (G12 capture; γ-5/γ-12: 絶対 monotonic を持たない)  #
 # --------------------------------------------------------------------------- #
 
 def _boot_id() -> Optional[str]:
@@ -516,12 +520,43 @@ def _boot_id() -> Optional[str]:
         return None
 
 
-def _wall_marker(monotonic_fn: Callable[[], float], now_fn: Callable[[], dt.datetime]) -> dict:
+def _cpuset() -> Optional[str]:
+    try:
+        for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
+            if line.startswith("Cpus_allowed_list:"):
+                return line.split(":", 1)[1].strip() or None
+    except (OSError, UnicodeError):
+        return None
+    return None
+
+
+def _proc_starttime() -> Optional[int]:
+    """/proc/self/stat の starttime (field 22)。process identity の一部 (γ-5)。"""
+    try:
+        data = Path("/proc/self/stat").read_text(encoding="utf-8")
+        after = data.rsplit(")", 1)[1].split()  # comm を括弧ごと除いた残り (field 3..)
+        return int(after[19])
+    except (OSError, UnicodeError, IndexError, ValueError):
+        return None
+
+
+def _host_provenance(now_fn: Callable[[], dt.datetime]) -> dict:
+    """G12 capture: hostname / boot_id / job_id / cpuset / UTC。絶対 monotonic は持たない。"""
     return {
-        "boot_id": _boot_id(),
         "hostname": socket.gethostname(),
+        "boot_id": _boot_id(),
+        "job_id": os.environ.get("PBS_JOBID") or os.environ.get("SLURM_JOB_ID") or None,
+        "cpuset": _cpuset(),
         "utc": now_fn().isoformat(),
-        "monotonic": float(monotonic_fn()),
+    }
+
+
+def _process_identity() -> dict:
+    """process 同一性 (γ-5): pid + starttime + execution_uuid。resume 越しの識別用。"""
+    return {
+        "pid": os.getpid(),
+        "starttime": _proc_starttime(),
+        "execution_uuid": uuid.uuid4().hex,
     }
 
 
@@ -543,12 +578,8 @@ def _count_exec_failures(notes) -> int:
     return 0
 
 
-def _project_scalepoint(scale_point, *, reps: int) -> dict:
-    """ScalePoint を SessionRecord の計測フィールドへ射影する (throughputs / exec_failures)。
-
-    有効性判定そのものは ``s8b_floor_stats.session_median`` が正本 (呼び手が SessionRecord を
-    組んで問い合わせる)。ここは生計測の抽出だけを行う。
-    """
+def _project_scalepoint(scale_point) -> dict:
+    """ScalePoint を SessionRecord の計測フィールドへ射影する (throughputs / exec_failures)。"""
     throughputs = [float(t) for t in (getattr(scale_point, "throughputs", None) or [])]
     exec_failures = _count_exec_failures(getattr(scale_point, "notes", None))
     return {"throughputs": throughputs, "exec_failures": exec_failures}
@@ -563,8 +594,7 @@ def _prepared_binding(
         *, freeze: Mapping, holdout_id: str, configuration_id: str,
         ccbench_pin: str, prepare_fn):
     """共有 materializer の floor 境界 wrapper。identity 合成の MaterializationError だけを
-    FloorCampaignError へ因果付き変換し (CLI main が JSON で捕捉する)、consumer body の
-    他例外・cleanup 例外はそのまま透過させる。"""
+    FloorCampaignError へ因果付き変換する。"""
     try:
         with prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
@@ -577,16 +607,7 @@ def _prepared_binding(
 
 def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 out_root: Path, prepare_fn) -> dict[str, dict]:
-    """全 12 セルを実行開始前に実体化・ビルドし、binary path と full sha256 を返す。
-
-    oracle と同一経路 (共有 ``s8b_materialization.prepared_binding`` の contextmanager 内で
-    ``buildcache.build(trace=False, cache_root=<out_root>/s8b-build-cache,
-    ccbench_dir=prepared.ccbench_dir, src_token=prepared.src_token)``) を使うので、floor を
-    測るバイナリと oracle 本走のバイナリが同一 identity になる。途中 rebuild はしない。
-
-    ``binary_sha256`` は ``buildcache.build`` が計算済みの ``result.bin_sha256`` を単一ソース
-    として記録する (record 時の再読・再ハッシュをやめる, A-4)。これは build 時点の byte を
-    写した provenance snapshot であって、以後の実行 byte の同一性を保証するものではない。"""
+    """全 12 セルを実行開始前に実体化・ビルドし、binary path と full sha256 を返す。"""
     cache_root = str(out_root / "s8b-build-cache")
     built: dict[str, dict] = {}
     for cell in cells:
@@ -638,8 +659,8 @@ def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
         "n_sessions": protocol["n_sessions"],
         "reps": protocol["reps"],
         "extime_s": protocol["extime_s"],
-        "blocks": protocol["blocks"],
-        "replicates_per_block": protocol["replicates_per_block"],
+        "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"],
         "cells": [dict(cell) for cell in cells],
         "binaries": {cid: dict(rec) for cid, rec in built.items()},
         "schedule": [dict(row) for row in schedule],
@@ -666,13 +687,16 @@ def _write_create_only_json(path: Path, document: Mapping) -> bytes:
 class _Runner:
     """schedule を直列・単一テナントで消化する実行エンジン (fresh/resume 共通)。
 
-    臨界区間は session ごとに ``session-start → probe → measure → post-probe → session (end)``
-    を journal へ即時記録する。crash した session は start だけが残り、resume では **terminal
-    (再実行しない)** 扱いにする (パッケージ 裁定 F2: 完了/crash いずれも forward-only で再走禁止)。
+    臨界区間は session ごとに ``session-start (=authorization) → probe → measure → post-probe →
+    session (end)`` を journal へ即時記録する。crash した session は start だけが残り、resume では
+    **terminal (再実行しない)** 扱いにする (forward-only)。retry の枠消費は authorization
+    (session-start) の fsync 時点で確定し、(cell_id, retry_ordinal) は resume を跨いで再発行しない
+    (β-5)。retry は失敗が起きた round の末尾で schedule 順に消化する (β-4)。
     """
 
     def __init__(self, *, protocol, cells, cell_by_id, binaries, schedule,
-                 journal_path, measure_fn, probe_fn, sleep_fn, monotonic_fn, now_fn):
+                 journal_path, measure_fn, probe_fn, sleep_fn, monotonic_fn, now_fn,
+                 protocol_sha256, freeze_sha256, manifest_sha256):
         self.protocol = protocol
         self.cells = cells
         self.cell_by_id = cell_by_id
@@ -684,11 +708,16 @@ class _Runner:
         self.sleep_fn = sleep_fn
         self.monotonic_fn = monotonic_fn
         self.now_fn = now_fn
+        self.protocol_sha256 = protocol_sha256
+        self.freeze_sha256 = freeze_sha256
+        self.manifest_sha256 = manifest_sha256
         self.reps = protocol["reps"]
+        self.session_cv_max = protocol["session_cv_max"]
         self.retry_slots = protocol["retry_slots_per_cell"]
-        self.min_gap = protocol["min_block_gap_s"]
         self.allowed_reasons = set(protocol["allowed_excluded_reasons"])
         self.records = _read_journal(journal_path)  # fresh なら []
+
+    # --- journal I/O ----------------------------------------------------- #
 
     def _emit(self, record: dict) -> None:
         _journal_append(self.journal_path, record)
@@ -702,214 +731,263 @@ class _Runner:
             )
         return reason
 
-    def _session_record(self, *, seq, block, replicate, cell_id, kind, retry,
-                        throughputs, exec_failures, excluded_reason,
-                        probe_before, probe_after, run_cmd, notes) -> dict:
-        cell = self.cell_by_id[cell_id]
-        # SessionRecord (s8b_floor_stats) と同じ計測フィールドで有効性を確定する。
-        rec = s8b_floor_stats.SessionRecord(
-            cell_id=cell_id, holdout_id=cell["holdout_id"],
-            configuration_id=cell["configuration_id"], block=block, seq=seq,
-            throughputs=tuple(throughputs), reps_expected=self.reps,
-            exec_failures=exec_failures,
-            excluded_reason=(self._check_reason(excluded_reason)
-                             if excluded_reason is not None else None),
-            retry=retry,
-        )
-        median = s8b_floor_stats.session_median(rec)
-        valid = median is not None
-        reason = rec.excluded_reason
-        if not valid and reason is None:
-            # 計測が終わり excluded 事由 (競合/起動) は無いのに無効 = 非有限/部分 rep 出力。
-            reason = self._check_reason(_REASON_PARTIAL)
-        return {
-            "event": "session",
-            "kind": kind,
-            "seq": seq,
-            "block": block,
-            "replicate": replicate,
-            "cell_id": cell_id,
-            "holdout_id": cell["holdout_id"],
-            "configuration_id": cell["configuration_id"],
-            "records": cell["records"],
-            "threads": cell["threads"],
-            "workload": cell["workload"],
-            # --- SessionRecord と同じ key (verify_floor_artifact が再構成する) ---
-            "throughputs": list(throughputs),
-            "reps_expected": self.reps,
-            "exec_failures": exec_failures,
-            "excluded_reason": reason,
-            "retry": retry,
-            # --- driver の付帯情報 (verify は無視する) ---
-            "session_median": median,
-            "valid": valid,
-            "run_cmd": run_cmd,
-            "notes": list(notes or []),
-            "probe_before": probe_before,
-            "probe_after": probe_after,
-        }
+    # --- attempt registry / retry 予算 (fsync 時点で消費) ----------------- #
 
-    def _run_session(self, *, seq: int, block: int, replicate: Optional[int],
-                     cell_id: str, kind: str) -> dict:
-        retry = kind == "retry"
+    def _authorized_retry_ordinals(self, cell_id: str) -> set:
+        """当該セルで authorization (session-start) 済みの retry_ordinal 集合。crash した
+        authorization も含む (枠消費は session-start の fsync 時点, β-5)。"""
+        return {r.get("retry_ordinal") for r in self.records
+                if r.get("event") == "session-start" and r.get("kind") == "retry"
+                and r.get("cell_id") == cell_id and r.get("retry_ordinal") is not None}
+
+    def _authorized_retries(self, cell_id: str) -> int:
+        return len(self._authorized_retry_ordinals(cell_id))
+
+    def _next_retry_ordinal(self, cell_id: str) -> int:
+        used = self._authorized_retry_ordinals(cell_id)
+        return (max(used) + 1) if used else 1
+
+    def _started_seqs(self) -> set:
+        return {r["seq"] for r in self.records if r.get("event") == "session-start"}
+
+    def _next_retry_seq(self) -> int:
+        seqs = [r["seq"] for r in self.records
+                if r.get("event") in {"session", "session-start"} and "seq" in r]
+        base = len(self.schedule) - 1
+        return max(seqs + [base]) + 1
+
+    def _completed_rounds(self) -> set:
+        return {r["round"] for r in self.records if r.get("event") == "round-complete"}
+
+    # --- round / cell の状態問い合わせ (journal から再構成) --------------- #
+
+    def _round_rows(self, round_no: int) -> list[dict]:
+        return [row for row in self.schedule if row["round"] == round_no]
+
+    def _planned_seq(self, round_no: int, cell_id: str) -> Optional[int]:
+        for row in self.schedule:
+            if row["round"] == round_no and row["cell_id"] == cell_id:
+                return row["seq"]
+        return None
+
+    def _planned_attempt_id(self, round_no: int, cell_id: str) -> Optional[str]:
+        seq = self._planned_seq(round_no, cell_id)
+        return None if seq is None else _attempt_id(cell_id, "planned", seq, None)
+
+    def _round_failed_cells(self, round_no: int) -> list[str]:
+        """round 内で planned session が完了して無効だったセルを schedule 順に。
+
+        crash (start だけで完了記録なし) は forward-only の terminal であり retry を発火しない
+        (完了 invalid のみが retry の trigger)。各セルは round ごと 1 回なので重複しない。
+        """
+        order = [row["cell_id"] for row in self._round_rows(round_no)]
+        failed: list[str] = []
+        for cell_id in order:
+            planned = [r for r in self.records
+                       if r.get("event") == "session" and r.get("kind") == "planned"
+                       and r.get("round") == round_no and r.get("cell_id") == cell_id]
+            if planned and not planned[0].get("valid"):
+                failed.append(cell_id)
+        return failed
+
+    def _cell_round_has_valid(self, cell_id: str, round_no: int) -> bool:
+        return any(r.get("event") == "session" and r.get("cell_id") == cell_id
+                   and r.get("round") == round_no and r.get("valid")
+                   for r in self.records)
+
+    # --- 1 session 実行 (precedence 固定, β-7) ---------------------------- #
+
+    def _run_session(self, *, seq: int, round_no: int, cell_id: str, kind: str,
+                     retry_ordinal: Optional[int], trigger: Optional[str]) -> dict:
+        attempt_id = _attempt_id(cell_id, kind, seq, retry_ordinal)
+        # authorization record: retry 枠はこの fsync 時点で消費される (crash しても再発行しない)。
         self._emit({
             "event": "session-start", "seq": seq, "kind": kind, "cell_id": cell_id,
-            "block": block, "replicate": replicate,
-            "started_iso": self.now_fn().isoformat(),
+            "round": round_no, "retry_ordinal": retry_ordinal, "attempt_id": attempt_id,
+            "trigger": trigger, "started_iso": self.now_fn().isoformat(),
         })
+        start_mono = self.monotonic_fn()
         cell = self.cell_by_id[cell_id]
         binary = self.binaries[cell_id]["binary"]
 
-        probe_before = strict_probe(self.probe_fn)  # rc>1/OSError/parse 不能 → CampaignAbort
+        # pre-probe: rc>1/OSError/parse 不能 → CampaignAbort。競合列挙 → competing_process。
+        probe_before = strict_probe(self.probe_fn)
         if probe_before["competing"]:
-            record = self._session_record(
-                seq=seq, block=block, replicate=replicate, cell_id=cell_id, kind=kind,
-                retry=retry, throughputs=[], exec_failures=0,
-                excluded_reason=_REASON_COMPETING, probe_before=probe_before,
-                probe_after=None, run_cmd=None, notes=["preflight probe 競合で計測をスキップ"],
+            return self._finish_session(
+                seq=seq, round_no=round_no, cell_id=cell_id, kind=kind,
+                retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger,
+                throughputs=[], exec_failures=0, excluded_reason=_REASON_COMPETING,
+                session_cv=None, duration_s=self._elapsed(start_mono),
+                probe_before=probe_before, probe_after=None, run_cmd=None,
+                notes=["preflight probe 競合で計測をスキップ"],
             )
-            self._emit(record)
-            return record
 
-        run_cmd = None
-        notes: list = []
+        # measure を試みる。例外 (全 rep 起動不能) でも post-probe は finally 相当で必ず実行する。
+        measure_error: Optional[BaseException] = None
+        scale_point = None
         try:
             scale_point = self.measure_fn(
                 binary, cell["records"], cell["threads"], cell["workload"],
             )
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
-            # 全 rep が実行不能 = 起動失敗系。session 無効 (retry 可)。
-            record = self._session_record(
-                seq=seq, block=block, replicate=replicate, cell_id=cell_id, kind=kind,
-                retry=retry, throughputs=[], exec_failures=self.reps,
-                excluded_reason=_REASON_LAUNCH, probe_before=probe_before,
-                probe_after=None, run_cmd=None,
-                notes=[f"measure 失敗: {type(exc).__name__}: {str(exc)[:200]}"],
-            )
-            self._emit(record)
-            return record
+            measure_error = exc
 
-        run_cmd = getattr(scale_point, "run_cmd", None)
-        notes = list(getattr(scale_point, "notes", []) or [])
-        probe_after = strict_probe(self.probe_fn)
-        projection = _project_scalepoint(scale_point, reps=self.reps)
-        excluded_reason = _REASON_COMPETING if probe_after["competing"] else None
-        record = self._session_record(
-            seq=seq, block=block, replicate=replicate, cell_id=cell_id, kind=kind,
-            retry=retry, throughputs=projection["throughputs"],
-            exec_failures=projection["exec_failures"], excluded_reason=excluded_reason,
-            probe_before=probe_before, probe_after=probe_after, run_cmd=run_cmd,
-            notes=notes,
+        probe_after = strict_probe(self.probe_fn)  # 検査不能 → CampaignAbort (finally 相当)
+
+        if scale_point is not None:
+            projection = _project_scalepoint(scale_point)
+            throughputs = projection["throughputs"]
+            exec_failures = projection["exec_failures"]
+            run_cmd = getattr(scale_point, "run_cmd", None)
+            notes = list(getattr(scale_point, "notes", []) or [])
+        else:
+            throughputs = []
+            exec_failures = self.reps
+            run_cmd = None
+            notes = [f"measure 失敗: {type(measure_error).__name__}: "
+                     f"{str(measure_error)[:200]}"]
+
+        # 生値から表示 CV / 必然理由を導出 (stats の単一純関数, α-8)。理由の precedence 決定に使う。
+        session_cv: Optional[float] = None
+        derived_reason: Optional[str] = None
+        if scale_point is not None:
+            try:
+                assessment = s8b_floor_stats.assess_session(
+                    throughputs, reps=self.reps, session_cv_max=self.session_cv_max,
+                )
+            except s8b_floor_stats.FloorStatsError as exc:
+                raise CampaignAbort(f"assess_session 内部不変条件破れ: {exc}") from exc
+            session_cv = assessment.cv
+            derived_reason = assessment.required_reason
+
+        # precedence (β-7): post-probe 競合 → competing / 全 rep 起動不能 → launch /
+        # 部分・非有限 → partial / 完全値 CV 超過 → performance / その他 valid。
+        if probe_after["competing"]:
+            excluded_reason: Optional[str] = _REASON_COMPETING
+        elif measure_error is not None:
+            excluded_reason = _REASON_LAUNCH
+        elif exec_failures >= self.reps:
+            excluded_reason = _REASON_LAUNCH  # 全 rep 起動不能 (β-7)
+        elif exec_failures > 0 and derived_reason is None:
+            # 完全有限ベクトル + 起動失敗 note の矛盾状態。session は stats 側で必ず
+            # 無効になる (exec_failures != 0) ため、閉表の理由なしで invalid になる
+            # 行を作らない (レビュー所見)。
+            excluded_reason = _REASON_LAUNCH
+        else:
+            excluded_reason = derived_reason  # None / partial / performance
+
+        return self._finish_session(
+            seq=seq, round_no=round_no, cell_id=cell_id, kind=kind,
+            retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger,
+            throughputs=throughputs, exec_failures=exec_failures,
+            excluded_reason=excluded_reason, session_cv=session_cv,
+            duration_s=self._elapsed(start_mono), probe_before=probe_before,
+            probe_after=probe_after, run_cmd=run_cmd, notes=notes,
         )
+
+    def _elapsed(self, start_mono: float) -> float:
+        """同一 process 内の monotonic 差 (γ-12: 絶対 monotonic は永続化しない)。"""
+        return float(self.monotonic_fn() - start_mono)
+
+    def _finish_session(self, *, seq, round_no, cell_id, kind, retry_ordinal, attempt_id,
+                        trigger, throughputs, exec_failures, excluded_reason, session_cv,
+                        duration_s, probe_before, probe_after, run_cmd, notes) -> dict:
+        cell = self.cell_by_id[cell_id]
+        reason = self._check_reason(excluded_reason) if excluded_reason is not None else None
+        rec = s8b_floor_stats.SessionRecord(
+            cell_id=cell_id, holdout_id=cell["holdout_id"],
+            configuration_id=cell["configuration_id"], seq=seq,
+            throughputs=tuple(throughputs), reps_expected=self.reps,
+            exec_failures=exec_failures, excluded_reason=reason, retry=(kind == "retry"),
+        )
+        median = s8b_floor_stats.session_median(
+            rec, reps=self.reps, session_cv_max=self.session_cv_max,
+        )
+        valid = median is not None
+        record = {
+            "event": "session", "kind": kind, "seq": seq, "round": round_no,
+            "retry_ordinal": retry_ordinal, "attempt_id": attempt_id, "trigger": trigger,
+            "cell_id": cell_id, "holdout_id": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"], "threads": cell["threads"],
+            "workload": cell["workload"],
+            # --- SessionRecord と同じ key (verify_floor_artifact が再構成する) ---
+            "throughputs": list(throughputs), "reps_expected": self.reps,
+            "exec_failures": exec_failures, "excluded_reason": reason,
+            "retry": (kind == "retry"),
+            # --- driver の付帯情報 (verify は無視する) ---
+            "session_median": median, "valid": valid, "session_cv": session_cv,
+            "duration_s": duration_s, "run_cmd": run_cmd, "notes": list(notes or []),
+            "probe_before": probe_before, "probe_after": probe_after,
+        }
         self._emit(record)
         return record
 
-    # --- journal 由来の状態再構成 (fresh/resume 共通) --------------------- #
+    # --- retry (round 末尾で失敗セルを schedule 順に消化, β-4) ------------ #
 
-    def _started_seqs(self) -> set[int]:
-        """start 済み (完了 or crash) の seq。resume はこれを skip する (再走禁止)。"""
-        return {r["seq"] for r in self.records if r.get("event") == "session-start"}
-
-    def _completed_blocks(self) -> set[int]:
-        return {r["block"] for r in self.records if r.get("event") == "block-complete"}
-
-    def _retries_used(self, cell_id: str) -> int:
-        return sum(1 for r in self.records
-                   if r.get("event") == "session" and r.get("retry") is True
-                   and r.get("cell_id") == cell_id)
-
-    def _block_deficit(self, block: int) -> dict[str, int]:
-        """block 内で planned が無効だった数から、同 block の有効 retry で埋めた数を引く。"""
-        invalid_planned: dict[str, int] = {}
-        valid_retry: dict[str, int] = {}
-        for r in self.records:
-            if r.get("event") != "session" or r.get("block") != block:
-                continue
-            cell_id = r.get("cell_id")
-            if not r.get("retry") and not r.get("valid"):
-                invalid_planned[cell_id] = invalid_planned.get(cell_id, 0) + 1
-            elif r.get("retry") and r.get("valid"):
-                valid_retry[cell_id] = valid_retry.get(cell_id, 0) + 1
-        deficit: dict[str, int] = {}
-        for cell_id, count in invalid_planned.items():
-            remaining = count - valid_retry.get(cell_id, 0)
-            if remaining > 0:
-                deficit[cell_id] = remaining
-        return deficit
-
-    def _next_retry_seq(self) -> int:
-        seqs = [r["seq"] for r in self.records
-                if r.get("event") in {"session", "session-start"}]
-        base = len(self.schedule) - 1
-        return max(seqs + [base]) + 1
-
-    # --- block 実行 ------------------------------------------------------- #
-
-    def _wait_gap(self, prev_end_monotonic: Optional[float]) -> None:
-        if prev_end_monotonic is None or self.min_gap <= 0:
-            return
-        deadline = prev_end_monotonic + self.min_gap
-        while self.monotonic_fn() < deadline:
-            self.sleep_fn(min(1.0, deadline - self.monotonic_fn()))
-
-    def _retry_block(self, block: int) -> None:
-        """block 末尾に無効 session を retry_slots_per_cell まで補填する。
-
-        retry_slots_per_cell はセルごとの **campaign 通算** 予算であり、block ごとに復活しない
-        (``_retries_used`` は全 block 通算でカウントする)。block ごとの予算と誤読しないこと。
-        block の時間窓内 (block 末尾) で消化し first-authorized-valid のみ採用、全 attempt 課金
-        (journal に残る)。slot 超過はセル未確定のまま続行 (対称に完走し選択的打ち切りをしない)。
-        """
-        deficit = self._block_deficit(block)
-        for cell_id in sorted(deficit):
-            remaining = deficit[cell_id]
-            while remaining > 0 and self._retries_used(cell_id) < self.retry_slots:
-                record = self._run_session(
-                    seq=self._next_retry_seq(), block=block, replicate=None,
-                    cell_id=cell_id, kind="retry",
+    def _retry_round(self, round_no: int) -> None:
+        for cell_id in self._round_failed_cells(round_no):
+            trigger = self._planned_attempt_id(round_no, cell_id)
+            # campaign 通算予算まで、first-authorized-valid で 1 本有効になるまで消化する。
+            while (self._authorized_retries(cell_id) < self.retry_slots
+                   and not self._cell_round_has_valid(cell_id, round_no)):
+                self._run_session(
+                    seq=self._next_retry_seq(), round_no=round_no, cell_id=cell_id,
+                    kind="retry", retry_ordinal=self._next_retry_ordinal(cell_id),
+                    trigger=trigger,
                 )
-                if record["valid"]:
-                    remaining -= 1
+
+    # --- campaign 実行 --------------------------------------------------- #
 
     def run(self) -> None:
-        if not any(r.get("event") == "campaign-start" for r in self.records):
+        fresh = not any(r.get("event") == "campaign-start" for r in self.records)
+        if fresh:
             self._emit({
-                "event": "campaign-start",
-                **_wall_marker(self.monotonic_fn, self.now_fn),
+                "event": "campaign-start", "schema": JOURNAL_SCHEMA,
+                "protocol_sha256": self.protocol_sha256,
+                "freeze_sha256": self.freeze_sha256,
+                "manifest_sha256": self.manifest_sha256,
+                **_host_provenance(self.now_fn), **_process_identity(),
+            })
+        else:
+            # resume: 新 process の identity を記録する (γ-5)。result には含めない (決定性維持)。
+            self._emit({
+                "event": "resume-start", **_host_provenance(self.now_fn),
+                **_process_identity(),
             })
 
         started = self._started_seqs()
-        completed_blocks = self._completed_blocks()
-        rows_by_block: dict[int, list[dict]] = {}
-        for row in self.schedule:
-            rows_by_block.setdefault(row["block"], []).append(row)
-
-        prev_end_monotonic: Optional[float] = None
-        for block in sorted(rows_by_block):
-            if block in completed_blocks:
+        completed_rounds = self._completed_rounds()
+        started_rounds = {r["round"] for r in self.records
+                          if r.get("event") == "round-start"}
+        for round_no in sorted({row["round"] for row in self.schedule}):
+            if round_no in completed_rounds:
                 continue
-            self._wait_gap(prev_end_monotonic)
-            self._emit({
-                "event": "block-start", "block": block,
-                **_wall_marker(self.monotonic_fn, self.now_fn),
-            })
-            for row in rows_by_block[block]:
+            if round_no not in started_rounds:
+                # resume で round 途中から再入するとき round-start を二重記録しない
+                # (レビュー所見: wall_ledger の round 記録が倍加していた)。
+                self._emit({"event": "round-start", "round": round_no,
+                            "utc": self.now_fn().isoformat()})
+            for row in self._round_rows(round_no):
                 if row["seq"] in started:
                     continue  # 完了 or crash 済み = 再走しない (forward-only)
                 self._run_session(
-                    seq=row["seq"], block=block, replicate=row["replicate"],
-                    cell_id=row["cell_id"], kind="planned",
+                    seq=row["seq"], round_no=round_no, cell_id=row["cell_id"],
+                    kind="planned", retry_ordinal=None, trigger=None,
                 )
-            self._retry_block(block)
-            self._emit({
-                "event": "block-complete", "block": block,
-                **_wall_marker(self.monotonic_fn, self.now_fn),
-            })
-            prev_end_monotonic = self.monotonic_fn()
+            self._retry_round(round_no)
+            self._emit({"event": "round-complete", "round": round_no,
+                        "utc": self.now_fn().isoformat()})
+
+
+def _attempt_id(cell_id: str, kind: str, seq: int, retry_ordinal: Optional[int]) -> str:
+    if kind == "retry":
+        return f"{cell_id}::retry{retry_ordinal}"
+    return f"{cell_id}::seq{seq}"
 
 
 # --------------------------------------------------------------------------- #
-# terminal: floor 算出 (s8b_floor_stats) + artifact (create-only)              #
+# terminal: floor 算出 (s8b_floor_stats) + artifact                            #
 # --------------------------------------------------------------------------- #
 
 def _session_records(records: list[dict]) -> list[dict]:
@@ -918,11 +996,12 @@ def _session_records(records: list[dict]) -> list[dict]:
 
 def _cellstats_to_dict(cs) -> dict:
     return {
+        "holdout_id": cs.holdout_id,
+        "configuration_id": cs.configuration_id,
         "n_valid": cs.n_valid,
         "medians": list(cs.medians),
         "m": cs.m,
         "s": cs.s,
-        "block_medians": cs.block_medians,
         "valid": cs.valid,
         "cv": cs.cv,
         "notes": list(cs.notes),
@@ -931,25 +1010,46 @@ def _cellstats_to_dict(cs) -> dict:
 
 def _floors_to_dict(hf) -> dict:
     return {
-        "pairs": dict(hf.pairs),
+        "pairs": dict(hf.pairs),           # キーは configuration_id (δ-10)
         "scalar_alt": hf.scalar_alt,
         "scale_ref": hf.scale_ref,
-        "diagnostics": hf.diagnostics,
+        "diagnostics": hf.diagnostics,     # キーは cell_id
+    }
+
+
+def _expected_protocol(protocol: Mapping, cells: list[dict]) -> dict:
+    """verify_floor_artifact に渡す外部 expected_protocol (凍結値) を protocol + cells から組む。"""
+    expected_cells: dict[str, list] = {}
+    for cell in cells:
+        expected_cells.setdefault(cell["holdout_id"], []).append(cell["configuration_id"])
+    for holdout_id in expected_cells:
+        expected_cells[holdout_id] = sorted(expected_cells[holdout_id])
+    return {
+        "formula": protocol["formula"],
+        "n_sessions": protocol["n_sessions"],
+        "reps": protocol["reps"],
+        "stock_configuration": protocol["stock_configuration"],
+        "wired_min_rel_floor": protocol["wired_min_rel_floor"],
+        "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"],
+        "expected_cells": expected_cells,
     }
 
 
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
                     manifest_sha256, cells, binaries, records) -> dict:
-    """journal の生 session から floor artifact (result) を組み立てる。
+    """journal の生 session から floor artifact (result) を組み立てる (formula v2)。
 
-    cell_stats / holdout_floors は ``s8b_floor_stats`` (formula v1) が正本。artifact の
-    ``config`` / ``sessions`` / ``cells`` / ``floors`` は ``verify_floor_artifact`` が生
-    session から再計算して自己申告値と厳密比較する形に合わせる。pilot の artifact には
-    ``eligible_for_refreeze: false`` を焼き込む (再凍結資格は official のみ)。
+    cell_stats / holdout_floors は ``s8b_floor_stats`` (formula v2) が正本。artifact の
+    ``config`` / ``sessions`` / ``cells`` / ``floors`` は ``verify_floor_artifact`` が生 session
+    から再計算して自己申告値 + 外部 expected_protocol と厳密比較する形に合わせる。durations /
+    wall_ledger は journal から読むだけの純粋関数なので resume を跨いで決定的 (β-11 の冪等
+    finalization が hash 照合に依存する)。
     """
     n_sessions = protocol["n_sessions"]
-    blocks = protocol["blocks"]
-    replicates_per_block = protocol["replicates_per_block"]
+    reps = protocol["reps"]
+    session_cv_max = protocol["session_cv_max"]
+    cell_cv_max = protocol["cell_cv_max"]
     stock_configuration = protocol["stock_configuration"]
     wired_min_rel_floor = protocol["wired_min_rel_floor"]
 
@@ -962,8 +1062,8 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         records_by_cell.setdefault(cell_id, []).append(
             s8b_floor_stats.SessionRecord(
                 cell_id=cell_id, holdout_id=raw["holdout_id"],
-                configuration_id=raw["configuration_id"], block=int(raw["block"]),
-                seq=int(raw["seq"]), throughputs=tuple(raw["throughputs"]),
+                configuration_id=raw["configuration_id"], seq=int(raw["seq"]),
+                throughputs=tuple(raw["throughputs"]),
                 reps_expected=int(raw["reps_expected"]),
                 exec_failures=int(raw["exec_failures"]),
                 excluded_reason=raw["excluded_reason"], retry=bool(raw["retry"]),
@@ -976,13 +1076,13 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
     for cell in cells:
         cell_id = cell["cell_id"]
         cs = s8b_floor_stats.cell_stats(
-            records_by_cell[cell_id], n_sessions=n_sessions, blocks=blocks,
-            replicates_per_block=replicates_per_block,
+            records_by_cell[cell_id], n_sessions=n_sessions, reps=reps,
+            session_cv_max=session_cv_max,
         )
         cell_stats_map[cell_id] = cs
         cells_out[cell_id] = _cellstats_to_dict(cs)
 
-    # holdout 別 floor (s8b_floor_stats.holdout_floors)。
+    # holdout 別 floor (s8b_floor_stats.holdout_floors)。pairs キーは configuration_id (δ-10)。
     holdouts = sorted({cell["holdout_id"] for cell in cells})
     configurations = sorted({cell["configuration_id"] for cell in cells})
     floors_out: dict[str, dict] = {}
@@ -994,27 +1094,43 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         stock_cell_id = f"{holdout_id}::{stock_configuration}"
         hf = s8b_floor_stats.holdout_floors(
             holdout_cells, stock_id=stock_cell_id,
-            wired_min_rel_floor=wired_min_rel_floor,
+            wired_min_rel_floor=wired_min_rel_floor, cell_cv_max=cell_cv_max,
         )
         floors_out[holdout_id] = _floors_to_dict(hf)
 
     excluded = [
         {
-            "seq": r["seq"], "cell_id": r["cell_id"], "retry": r.get("retry"),
-            "excluded_reason": r.get("excluded_reason"), "block": r.get("block"),
+            "seq": r["seq"], "cell_id": r["cell_id"], "kind": r.get("kind"),
+            "retry": r.get("retry"), "round": r.get("round"),
+            "excluded_reason": r.get("excluded_reason"),
+            "session_cv": r.get("session_cv"),
         }
         for r in session_records if not r.get("valid")
     ]
+    # 全 attempt 台帳 (α-14: CV / median / valid / 除外理由を併記, machine_anomaly と分離)。
+    attempts = [
+        {
+            "seq": r["seq"], "cell_id": r["cell_id"], "kind": r.get("kind"),
+            "round": r.get("round"), "retry_ordinal": r.get("retry_ordinal"),
+            "valid": r.get("valid"), "excluded_reason": r.get("excluded_reason"),
+            "session_cv": r.get("session_cv"), "session_median": r.get("session_median"),
+            "duration_s": r.get("duration_s"),
+        }
+        for r in session_records
+    ]
     wall_ledger = [
-        r for r in records
-        if r.get("event") in {"campaign-start", "block-start", "block-complete"}
+        dict(r) for r in records
+        if r.get("event") in {"campaign-start", "round-start", "round-complete"}
     ]
 
     return {
         "schema": RESULT_SCHEMA,
         "formula": protocol["formula"],
         "mode": mode,
-        "eligible_for_refreeze": (mode == "official"),
+        # official は F6 裁定まで run_campaign core が無条件拒否するため、結果を
+        # 生成できる campaign では恒に False。条件式で書くと「official なら True に
+        # なり得る」という誤読を招くので定数で明示する (レビュー所見)。
+        "eligible_for_refreeze": False,
         "env_tag": protocol["env_tag"],
         "ccbench_pin": protocol["ccbench_pin"],
         "protocol_sha256": protocol_sha256,
@@ -1024,16 +1140,19 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "wired_min_rel_floor": wired_min_rel_floor,
         "reps": protocol["reps"],
         "n_sessions": n_sessions,
+        "scale_adequacy_rel_tolerance": protocol["scale_adequacy_rel_tolerance"],
         "holdouts": holdouts,
         "configurations": configurations,
         "binaries": {cid: dict(rec) for cid, rec in binaries.items()},
-        # --- verify_floor_artifact が読む正本フィールド ---
+        # --- verify_floor_artifact が読む正本フィールド (config は 7 scalar のみ, α-3) ---
         "config": {
+            "formula": protocol["formula"],
             "n_sessions": n_sessions,
-            "blocks": blocks,
-            "replicates_per_block": replicates_per_block,
-            "stock_configuration_id": stock_configuration,
+            "reps": reps,
+            "stock_configuration": stock_configuration,
             "wired_min_rel_floor": wired_min_rel_floor,
+            "session_cv_max": session_cv_max,
+            "cell_cv_max": cell_cv_max,
         },
         "sessions": session_records,
         "cells": cells_out,
@@ -1041,6 +1160,7 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         # --- 付帯 ---
         "wall_ledger": wall_ledger,
         "excluded": excluded,
+        "attempts": attempts,
     }
 
 
@@ -1053,11 +1173,17 @@ def _fmt(value) -> str:
 
 
 def _render_result_md(result: Mapping) -> str:
-    """人間向けサマリ (セル表 + floor 案 + 除外一覧)。"""
+    """人間向けサマリ。**result JSON からのみ描画する** (β-9: JSON が唯一のソース)。
+
+    セル表 + floor 案 (pair=configuration_id) + 除外理由別件数 + machine_anomaly セル一覧 +
+    全 attempt の CV/median/valid (α-14) を併記する。
+    """
     lines: list[str] = []
     lines.append(f"# 8b floor campaign result — {result['env_tag']} / mode={result['mode']}")
     lines.append("")
     lines.append("> floor **案** (何も発効させていない)。freeze への floor 書込みは親が行う。")
+    lines.append("> 単一 campaign 内 session dispersion に基づく記述的下限 "
+                 "(別 run 間の変動は含まない)。")
     lines.append(f"> eligible_for_refreeze: {result['eligible_for_refreeze']}")
     lines.append("")
     lines.append(f"- formula: `{result['formula']}`")
@@ -1067,6 +1193,7 @@ def _render_result_md(result: Mapping) -> str:
     lines.append(f"- manifest_sha256: `{result['manifest_sha256']}`")
     lines.append(f"- stock_configuration: `{result['stock_configuration']}`")
     lines.append(f"- wired_min_rel_floor: {result['wired_min_rel_floor']}")
+    lines.append(f"- scale_adequacy_rel_tolerance: {result.get('scale_adequacy_rel_tolerance')}")
     lines.append("")
 
     lines.append("## セル統計 (session-median の散らばり)")
@@ -1082,7 +1209,7 @@ def _render_result_md(result: Mapping) -> str:
         )
     lines.append("")
 
-    lines.append("## floor 案 (holdout 別)")
+    lines.append("## floor 案 (holdout 別, pair = configuration_id)")
     lines.append("")
     floors = result.get("floors") or {}
     for holdout_id in sorted(floors):
@@ -1091,29 +1218,100 @@ def _render_result_md(result: Mapping) -> str:
         lines.append("")
         lines.append(f"- scalar_alt (全 pair の max): {_fmt(hf.get('scalar_alt'))}")
         lines.append(f"- scale_ref (m_stock): {_fmt(hf.get('scale_ref'))}")
+        diag = hf.get("diagnostics") or {}
+        anomaly_cells = diag.get("machine_anomaly_cells") or []
+        lines.append(f"- machine_anomaly セル: "
+                     f"{', '.join(f'`{c}`' for c in anomaly_cells) if anomaly_cells else '(なし)'}")
         lines.append("")
         pairs = hf.get("pairs") or {}
-        lines.append("| pair (cell) | floor_pair |")
+        lines.append("| pair (configuration_id) | floor_pair |")
         lines.append("|---|---:|")
-        for cell_id in sorted(pairs):
-            lines.append(f"| `{cell_id}` | {_fmt(pairs[cell_id])} |")
+        for cfg in sorted(pairs):
+            lines.append(f"| `{cfg}` | {_fmt(pairs[cfg])} |")
         lines.append("")
 
-    lines.append("## 除外 session")
+    lines.append("## 除外 session (理由別件数)")
     lines.append("")
     excluded = result.get("excluded") or []
-    if not excluded:
+    reason_counts: dict[str, int] = {}
+    for item in excluded:
+        reason = item.get("excluded_reason") or "(none)"
+        reason_counts[reason] = reason_counts.get(reason, 0) + 1
+    if not reason_counts:
         lines.append("(なし)")
     else:
-        lines.append("| seq | cell | retry | reason |")
-        lines.append("|---:|---|:---:|---|")
-        for item in excluded:
-            lines.append(
-                f"| {item['seq']} | `{item['cell_id']}` | {item.get('retry')} | "
-                f"{item.get('excluded_reason')} |"
-            )
+        lines.append("| reason | count |")
+        lines.append("|---|---:|")
+        for reason in sorted(reason_counts):
+            lines.append(f"| {reason} | {reason_counts[reason]} |")
+    lines.append("")
+
+    lines.append("## 全 attempt 台帳 (CV / median / valid)")
+    lines.append("")
+    attempts = result.get("attempts") or []
+    lines.append("| seq | cell | kind | round | valid | reason | cv | median | dur(s) |")
+    lines.append("|---:|---|---|---:|:---:|---|---:|---:|---:|")
+    for a in sorted(attempts, key=lambda x: x.get("seq", 0)):
+        lines.append(
+            f"| {a.get('seq')} | `{a.get('cell_id')}` | {a.get('kind')} | "
+            f"{a.get('round')} | {a.get('valid')} | {a.get('excluded_reason')} | "
+            f"{_fmt(a.get('session_cv'))} | {_fmt(a.get('session_median'))} | "
+            f"{_fmt(a.get('duration_s'))} |"
+        )
     lines.append("")
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# 冪等 finalization (β-11): result.json/md/terminal の状態機械                  #
+# --------------------------------------------------------------------------- #
+
+def _result_bytes(result: Mapping) -> bytes:
+    return (json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _md_bytes(md_text: str) -> bytes:
+    text = md_text if md_text.endswith("\n") else md_text + "\n"
+    return text.encode("utf-8")
+
+
+def _finalize(run_dir: Path, result: Mapping, md_text: str, journal_path: Path) -> None:
+    """既存物は hash 検証 + 欠落分のみ create-only 補完、上書きなし (β-11)。
+
+    result / md は journal の純粋関数なので resume を跨いで決定的。既存 result.json/md が
+    再計算 byte と一致すれば skip、不一致なら fail-closed で拒否 (改竄/非決定の検出)。
+    """
+    result_json = run_dir / "result.json"
+    result_md = run_dir / "result.md"
+    payload = _result_bytes(result)
+    if result_json.exists():
+        if result_json.read_bytes() != payload:
+            raise FloorCampaignError(
+                "finalize: 既存 result.json が再計算と不一致 (改竄/非決定の疑い)"
+            )
+    else:
+        _create_only_bytes(result_json, payload)
+
+    md_payload = _md_bytes(md_text)
+    if result_md.exists():
+        if result_md.read_bytes() != md_payload:
+            raise FloorCampaignError("finalize: 既存 result.md が再計算と不一致")
+    else:
+        _create_only_bytes(result_md, md_payload)
+
+    if not any(r.get("event") == "terminal" and r.get("status") == "completed"
+               for r in _read_journal(journal_path)):
+        _journal_append(journal_path, {"event": "terminal", "status": "completed"})
+
+
+def _create_only_bytes(path: Path, payload: bytes) -> None:
+    try:
+        with open(path, "xb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except FileExistsError as exc:
+        raise FloorCampaignError(f"既に存在するため上書きしない: {path}") from exc
 
 
 # --------------------------------------------------------------------------- #
@@ -1125,20 +1323,21 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
-    注入点 (テスト容易性、``between_run_floor`` の measure_fn 注入と同思想):
-    ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
+    注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
     ``probe_fn() -> (rc, stdout)`` / ``sleep_fn`` / ``monotonic_fn`` / ``prepare_fn`` /
-    ``now_fn() -> datetime``。CLI main はこれらを実物で束ねるだけにする。``mode`` (pilot/
-    official) と ``resume_dir`` は運用パラメタ。
+    ``now_fn() -> datetime``。CLI main はこれらを実物で束ねるだけにする。
 
-    ``protocol`` は ``validate_protocol`` 済み dict でも生 dict でもよい (内部で再検証)、
-    ``freeze_doc`` は ``load_verified_freeze`` の戻り値 (``VerifiedFreeze``: document/sha256)。
-    freeze は protocol.freeze.sha256 と byte 一致を要求する (fail-closed)。
-
-    ``protocol.retry_slots_per_cell`` はセルごとの **campaign 通算** 予算 (block ごとに復活
-    しない) で、各 block 末尾 (``_Runner._retry_block``) で消化される。block ごとの予算と
-    誤読しないこと。
+    official mode は §8 未裁定のため **core で無条件拒否する** (δ-3): build・measure・書き込みを
+    一切行わない。env 契約 (F4): clocks_per_us / numactl は ``env_contract.lookup(env_tag)`` から
+    取る。machine-pin として契約の env_tag が実行機の ``p2_2.ENV_TAG`` と一致することを要求する。
     """
+    # official 拒否は最優先 (build/measure/write の前, δ-3)。
+    if mode == "official":
+        raise FloorCampaignError(
+            "official mode は §8 (承認束縛方式) 未裁定のため core で無条件拒否する "
+            "(F6 まで pilot のみ実行可)"
+        )
+
     if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
     now_fn = now_fn or (lambda: dt.datetime.now(dt.timezone.utc))
@@ -1147,10 +1346,23 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
 
     protocol = validate_protocol(protocol)
 
-    # env 束縛: ENV_TAG != protocol.env_tag → 拒否 (計測環境の取り違え防止)。
-    if ENV_TAG != protocol["env_tag"]:
+    # env 契約 lookup (F4): 未登録 env_tag は fail-closed。EnvContractError は境界で
+    # FloorCampaignError へ翻訳する (s8b_freeze_io adapter と同型)。
+    try:
+        contract = _env_contract.lookup(protocol["env_tag"])
+    except _env_contract.EnvContractError as exc:
+        raise FloorCampaignError(f"env 契約 lookup 失敗: {exc}") from exc
+    # machine-pin (attestation が入る登録段までの暫定 gate): 契約の env_tag が実行機の
+    # p2_2.ENV_TAG と一致しなければ拒否 (計測環境の取り違え防止)。
+    if contract.env_tag != ENV_TAG:
         raise FloorCampaignError(
-            f"env_tag 不一致: protocol={protocol['env_tag']} != p2_2.ENV_TAG={ENV_TAG}"
+            f"env_tag machine-pin 不一致: contract.env_tag={contract.env_tag} "
+            f"!= p2_2.ENV_TAG={ENV_TAG} (この機で走らせてよい env でない)"
+        )
+    # isolation policy: allow_resume=False の env では別 process からの resume を拒否 (γ-5)。
+    if resume_dir is not None and not contract.isolation_policy.allow_resume:
+        raise FloorCampaignError(
+            f"env {contract.env_tag} は allow_resume=False (別 process resume を拒否)"
         )
 
     freeze = freeze_doc.document
@@ -1159,7 +1371,6 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         raise FloorCampaignError(
             "freeze byte sha256 が protocol.freeze.sha256 と不一致 (bytes-hash pin 破れ)"
         )
-    # 構造だけを最小検査する (verify_document は呼ばない — docstring 参照)。
     if freeze.get("schema_version") != FREEZE_SCHEMA:
         raise FloorCampaignError(f"freeze.schema_version が {FREEZE_SCHEMA} でない")
 
@@ -1167,18 +1378,20 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     cell_by_id = {cell["cell_id"]: cell for cell in cells}
     schedule = build_schedule(
         cells=cells, master_seed=protocol["master_seed"],
-        blocks=protocol["blocks"], replicates_per_block=protocol["replicates_per_block"],
+        n_sessions=protocol["n_sessions"],
     )
     protocol_sha256 = _canonical_sha256(protocol)
 
     if measure_fn is None:
         extime_s = protocol["extime_s"]
         reps = protocol["reps"]
+        clocks_per_us = contract.clocks_per_us
+        numactl = list(contract.numactl)
 
         def measure_fn(binary, records, threads, workload):  # noqa: ANN001
             return measure_point(
-                binary, records, threads, CLK, extime=extime_s, reps=reps,
-                workload=workload, numactl=NUMACTL,
+                binary, records, threads, clocks_per_us, extime=extime_s, reps=reps,
+                workload=workload, numactl=numactl,
             )
 
     out_root = Path(out_root)
@@ -1199,26 +1412,37 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         manifest_bytes = _write_create_only_json(manifest_path, manifest)
         manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
     else:
-        # resume: 既存 manifest/journal を読み、protocol/freeze/manifest/binary hash を照合し
+        # resume: 既存 manifest/journal を読み、protocol/freeze/manifest/binary/schedule を照合し
         # forward-only 続行する。完了 or crash 済み seq は skip、再実行は拒否。
         run_dir = Path(resume_dir)
         journal_path = run_dir / "journal.jsonl"
         manifest_path = run_dir / "manifest.json"
-        _manifest, manifest_sha256, built = _load_resume_manifest(
+        manifest, manifest_sha256, built = _load_resume_manifest(
             manifest_path, protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
         )
-        # manifest は binary_sha256 を記録するだけでなく、disk 上バイナリと再照合してはじめて
-        # 「binary hash に限り forward-only」(凍結案パッケージ 裁定 F2) を実装で満たす
-        # (所見 F3-resume-binary-hash-not-enforced)。
+        # manifest.schedule を権威とし、再導出列との一致を検査する (β-6, 改竄検出)。
+        manifest_schedule = manifest.get("schedule")
+        if not isinstance(manifest_schedule, list):
+            raise FloorCampaignError("resume: manifest.schedule が list でない")
+        if [dict(row) for row in manifest_schedule] != schedule:
+            raise FloorCampaignError(
+                "resume: manifest.schedule が再導出列と不一致 (改竄の疑い, fail-closed)"
+            )
+        # 記録済み binary_sha256 と disk 上バイナリの実 hash を全セル再照合する。
         _verify_resume_binaries(built)
 
     runner = _Runner(
         protocol=protocol, cells=cells, cell_by_id=cell_by_id, binaries=built,
         schedule=schedule, journal_path=journal_path, measure_fn=measure_fn,
         probe_fn=probe_fn, sleep_fn=sleep_fn, monotonic_fn=monotonic_fn, now_fn=now_fn,
+        protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+        manifest_sha256=manifest_sha256,
     )
     if resume_dir is not None:
-        _verify_resume_journal(runner.records)
+        _verify_resume_journal(
+            runner.records, schedule=schedule, protocol_sha256=protocol_sha256,
+            freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
+        )
 
     try:
         runner.run()
@@ -1234,17 +1458,16 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         cells=cells, binaries=built, records=runner.records,
     )
 
-    # 自己検査: verify_floor_artifact(result) == [] を満たさなければ artifact を書かない。
-    problems = s8b_floor_stats.verify_floor_artifact(result)
+    # 自己検査: verify_floor_artifact(result, expected_protocol) == [] を満たさなければ書かない。
+    expected = _expected_protocol(protocol, cells)
+    problems = s8b_floor_stats.verify_floor_artifact(result, expected)
     if problems:
         _journal_append(journal_path, {
             "event": "terminal", "status": "artifact-invalid", "problems": list(problems),
         })
         raise FloorCampaignError(f"verify_floor_artifact が非空: {problems}")
 
-    _write_create_only_json(run_dir / "result.json", result)
-    (run_dir / "result.md").write_text(_render_result_md(result), encoding="utf-8")
-    _journal_append(journal_path, {"event": "terminal", "status": "completed"})
+    _finalize(run_dir, result, _render_result_md(result), journal_path)
     return {"status": "completed", "run_dir": str(run_dir), "result": result}
 
 
@@ -1272,6 +1495,10 @@ def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
         raise FloorCampaignError(f"resume: manifest を parse できない: {exc}") from exc
     if not isinstance(manifest, Mapping):
         raise FloorCampaignError("resume: manifest が object でない")
+    if manifest.get("schema_version") != MANIFEST_SCHEMA:
+        raise FloorCampaignError(
+            f"resume: manifest.schema_version が {MANIFEST_SCHEMA} でない (v1 交差受理を拒否)"
+        )
     manifest_sha256 = hashlib.sha256(raw).hexdigest()
     if manifest.get("protocol_sha256") != protocol_sha256:
         raise FloorCampaignError("resume: protocol sha256 が manifest と不一致")
@@ -1284,16 +1511,7 @@ def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
 
 
 def _verify_resume_binaries(built: Mapping) -> None:
-    """resume: manifest 記録の binary_sha256 と disk 上バイナリの実 hash を全セル再照合する。
-
-    凍結案パッケージ (裁定 F2、``output/insights/2026-07-16_s8b-floor-protocol-package.md:166``)
-    は「resume は同一 protocol/freeze/manifest/binary hash に限り forward-only」と謳うが、
-    ``_load_resume_manifest`` の hash 照合は protocol_sha256/freeze_sha256 止まりで、記録済み
-    binary_sha256 を消費していなかった (記録するだけで検証しない破れ、所見
-    F3-resume-binary-hash-not-enforced)。バイナリの不在・差し替えは resume 前提そのものが
-    崩れているため、個々 session の launch_failure (retry 可) には倒さず、campaign 続行不可の
-    FloorCampaignError で拒否する (fail-closed)。
-    """
+    """resume: manifest 記録の binary_sha256 と disk 上バイナリの実 hash を全セル再照合する。"""
     for cell_id in sorted(built):
         rec = built[cell_id]
         binary = rec.get("binary")
@@ -1306,7 +1524,7 @@ def _verify_resume_binaries(built: Mapping) -> None:
             raise FloorCampaignError(
                 f"resume: セル {cell_id} の manifest.binaries に binary_sha256 が無い"
             )
-        actual = _full_sha256(Path(binary))  # バイナリ不在/読めない場合はここで FloorCampaignError
+        actual = _full_sha256(Path(binary))
         if actual != recorded:
             raise FloorCampaignError(
                 f"resume: セル {cell_id} のバイナリ sha256 が manifest と不一致 "
@@ -1314,13 +1532,76 @@ def _verify_resume_binaries(built: Mapping) -> None:
             )
 
 
-def _verify_resume_journal(records: list[dict]) -> None:
-    """resume: campaign-start が存在し、既 completed の campaign を再実行しないことを検査する。"""
-    if not any(r.get("event") == "campaign-start" for r in records):
+def _verify_resume_journal(records: list[dict], *, schedule: list[dict],
+                           protocol_sha256: str, freeze_sha256: str,
+                           manifest_sha256: str) -> None:
+    """resume: journal を状態機械で全件検証する (β-6)。
+
+    campaign-start の schema 版 + protocol/freeze/manifest hash 一致、completed の再実行拒否、
+    session-start の seq 一意 (duplicate start 拒否) + attempt_id 一意 + planned seq の schedule
+    cell/round 一致 + retry (cell_id, retry_ordinal) 一意、session 完了→start 対応を検査する。
+    """
+    starts = [r for r in records if r.get("event") == "campaign-start"]
+    if not starts:
         raise FloorCampaignError("resume: journal に campaign-start がない")
+    cs = starts[0]
+    if len(starts) != 1:
+        raise FloorCampaignError("resume: campaign-start が複数ある")
+    if cs.get("schema") != JOURNAL_SCHEMA:
+        raise FloorCampaignError(
+            f"resume: campaign-start.schema が {JOURNAL_SCHEMA} でない (旧版 journal を拒否)"
+        )
+    if cs.get("protocol_sha256") != protocol_sha256:
+        raise FloorCampaignError("resume: campaign-start.protocol_sha256 が不一致")
+    if cs.get("freeze_sha256") != freeze_sha256:
+        raise FloorCampaignError("resume: campaign-start.freeze_sha256 が不一致")
+    if cs.get("manifest_sha256") != manifest_sha256:
+        raise FloorCampaignError("resume: campaign-start.manifest_sha256 が不一致")
     if any(r.get("event") == "terminal" and r.get("status") == "completed"
            for r in records):
         raise FloorCampaignError("resume: 既に completed 済みの campaign は再実行しない")
+
+    sched_by_seq = {row["seq"]: row for row in schedule}
+    seen_seq: set = set()
+    seen_attempt: set = set()
+    seen_retry: set = set()
+    for r in records:
+        if r.get("event") != "session-start":
+            continue
+        seq = r.get("seq")
+        if seq in seen_seq:
+            raise FloorCampaignError(f"resume: session-start の seq が重複 (duplicate start): {seq}")
+        seen_seq.add(seq)
+        aid = r.get("attempt_id")
+        if aid in seen_attempt:
+            raise FloorCampaignError(f"resume: attempt_id が重複: {aid!r}")
+        seen_attempt.add(aid)
+        kind = r.get("kind")
+        if kind == "planned":
+            row = sched_by_seq.get(seq)
+            if row is None:
+                raise FloorCampaignError(f"resume: planned seq {seq} が schedule に無い")
+            if r.get("cell_id") != row["cell_id"] or r.get("round") != row["round"]:
+                raise FloorCampaignError(
+                    f"resume: seq {seq} の cell/round が schedule と不一致 "
+                    f"(journal={r.get('cell_id')}/{r.get('round')} "
+                    f"!= schedule={row['cell_id']}/{row['round']})"
+                )
+        elif kind == "retry":
+            key = (r.get("cell_id"), r.get("retry_ordinal"))
+            if key in seen_retry:
+                raise FloorCampaignError(
+                    f"resume: (cell_id, retry_ordinal) が重複 (枠再発行): {key}"
+                )
+            seen_retry.add(key)
+        else:
+            raise FloorCampaignError(f"resume: session-start の kind が未知: {kind!r}")
+
+    for r in records:
+        if r.get("event") == "session" and r.get("seq") not in seen_seq:
+            raise FloorCampaignError(
+                f"resume: session 完了 (seq {r.get('seq')}) に対応する start が無い"
+            )
 
 
 # --------------------------------------------------------------------------- #
@@ -1333,10 +1614,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--mode", choices=["pilot", "official"], required=True)
     parser.add_argument("--protocol", type=Path, required=True,
-                        help="floor protocol JSON (s8b-floor-protocol/v1)")
+                        help="floor protocol JSON (s8b-floor-protocol/v2)")
     parser.add_argument("--resume", type=Path, default=None,
                         help="既存 run_dir を forward-only で続行する")
-    # env・経路・数値の上書き面は作らない (--marker-root 撤去の教訓、worklog 2026-07-16 (12))。
     return parser
 
 
@@ -1346,13 +1626,7 @@ def _resolve_freeze_path(freeze_path_text: str) -> Path:
 
 
 def _load_verified_freeze(path, expected_hash=None):
-    """freeze loader (中立 leaf ``s8b_freeze_io``) の floor 境界 adapter。
-
-    leaf は ``FreezeIOError`` を投げる。CLI main の loader 例外を既存の構造化 error
-    JSON 経路 (``except FloorCampaignError``) に乗せるため、ここで ``FloorCampaignError``
-    へ因果付き変換する。移行前は loader が ``OracleDriverError`` を投げ、CLI の
-    ``except FloorCampaignError`` に捕捉されず traceback で漏れていた (境界欠陥)。
-    本 adapter がその欠陥を是正する。"""
+    """freeze loader (中立 leaf ``s8b_freeze_io``) の floor 境界 adapter。"""
     try:
         return _freeze_io.load_verified_freeze(path, expected_hash)
     except _freeze_io.FreezeIOError as exc:
@@ -1362,7 +1636,7 @@ def _load_verified_freeze(path, expected_hash=None):
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
 
-    # official は §8 未裁定 (承認束縛方式が未確定) につき現時点で常に拒否する = fail-closed 既定。
+    # official は §8 未裁定につき CLI でも拒否する (core も二重に拒否する, δ-3)。
     if args.mode == "official":
         print(json.dumps({
             "status": "refused",

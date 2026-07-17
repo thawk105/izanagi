@@ -1,37 +1,155 @@
 # -*- coding: utf-8 -*-
-"""s8b floor 統計の純関数モジュール (formula v1 の実装正本)。
+"""s8b floor 統計の純関数モジュール (formula v2 の実装正本)。
 
 段 8b oracle の **採否丸め閾値 (floor)** を、holdout×構成のセル計測から算出する記述的
 統計を、I/O・環境参照を一切持たない純関数として実装する。実機ドライバ・レポータは本モジュール
 を通してのみ floor を得る (自前で式を持たない)。生成側と検証側が同一関数を通るので、
 `verify_floor_artifact` は自己申告値を厳密 (==) 比較で照合できる。
 
-**この floor は記述的な効果量 (block 対比 delta) + noise gate (session-median の散らばり) で
-あり、α・検定力を保証する検定ではない。** 「有意」とは呼ばない。u_noise は 2 群の session-median
-標準偏差の RSS、delta は block 間の対比差の絶対値で、いずれも「差がその大きさ未満なら run 間
-ノイズと区別できない」という下限を与える。
+**この floor は単一 campaign 内で観測された session dispersion に基づく記述的な下限であり、
+α・検定力を保証する検定ではない。** 「有意」とは呼ばない。u_noise は 2 群の session-median
+標準偏差の RSS で、「差がその大きさ未満なら単一 campaign 内の session 間ノイズと区別できない」
+という下限を与える。**時間ドリフト・cold-boot・温度など別 run 間で生じる変動は本 floor に
+含まれない下限であり、報告側でその限界を明記する** (formula v1 の 2-block delta_c 対比は
+ユーザー裁定 F1 で廃止された。§9 承認状態 2026-07-18)。
 
 算出式 (formula_id = FORMULA_ID) はセルの有効性契約・floor 合成・scalar 代替・診断まで含めて
-本モジュールが正本である。**式を変えるときは FORMULA_ID を改版し、凍結案パッケージ
-(output/insights/2026-07-16_s8b-floor-protocol-package.md) の formula v1 と §8 再凍結事項を
-同時に更新する。** コードとパッケージ本文で式が一字一句一致していること。
+本モジュールが正本である。**式を変えるときは FORMULA_ID を改版する。式の正本記述は
+docs/phase3-8b-descriptor-design.md §9 承認状態 (2026-07-18) を参照する。凍結済み裁定資料
+(output/insights/2026-07-16_*.md) は不変であり本モジュールから編集を指示しない。**
 
 fail-closed 契約 (絶対規律): 縮退・欠測・不正入力はすべて null/判定不能へ倒す。
 - 無効 session は median を作らない (fallback 値を代入しない)。
-- stock セルが無効なら当該 holdout の floor は未確定 = 全 pair null (holdout ごと丸ごと落とす)。
-- stock 以外のセル c が無効なら floor_pair(c) のみ null。他 pair に veto しない。
+- stock セルが無効/machine_anomaly なら当該 holdout の floor は未確定 = 全 pair null +
+  scalar_alt null + scale_ref null (holdout ごと丸ごと落とす)。
+- stock 以外のセル c が無効/machine_anomaly なら当該 pair のみ null。他 pair に veto しない。
 - scalar 代替はいずれかの pair が null なら null (max を欠測で盛らない)。
-- protocol config (n_sessions / blocks / replicates_per_block / stock / wired_min_rel_floor) は
-  すべて呼び出し側からの入力必須。本モジュールは未凍結数値のデフォルトを内蔵しない (F14 対策)。
+- protocol config (n_sessions / reps / stock / wired_min_rel_floor / session_cv_max /
+  cell_cv_max) はすべて呼び出し側からの入力必須。本モジュールは未凍結数値のデフォルトを内蔵
+  しない (F14 対策)。
+
+閾値の厳密算術 (α-9): session 内 CV / セル間 CV の判定はすべて Fraction 厳密算術で行う。
+CV > T ⟺ 標本分散(n-1) > T²·mean² を全て Fraction で比較する。閾値は decimal 文字列で受け
+Fraction(str) で解釈し、標本値は Fraction(float) で厳密変換する。float 直接比較 (0.1 の 2 進
+非正確表現) による境界の非決定を排除する。表示用 cv は float で別に持ち、判定 Fraction と混同
+しない。
 """
 from __future__ import annotations
 
 import math
 import statistics
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Mapping, Optional, Sequence
 
-FORMULA_ID = "s8b-floor-stats/v1"
+FORMULA_ID = "s8b-floor-stats/v2"
+
+# 閉じた除外理由表 (F2 承認 + F1 で 4 行目 performance_anomaly 追加)。並び順も正本。
+ALLOWED_EXCLUDED_REASONS = (
+    "competing_process",
+    "launch_failure",
+    "nonfinite_or_partial_output",
+    "performance_anomaly",
+)
+_REASON_PARTIAL = "nonfinite_or_partial_output"
+_REASON_PERFORMANCE = "performance_anomaly"
+
+# throughput から再導出できる (＝ verifier が生値照合できる) 理由。probe/launch 起因の
+# competing_process / launch_failure は throughput から導出不能で、その真正性は F7 wave
+# (journal 突合) の責務。
+_THROUGHPUT_DERIVABLE_REASONS = frozenset({_REASON_PARTIAL, _REASON_PERFORMANCE})
+
+
+class FloorStatsError(ValueError):
+    """protocol 縮退・型違反・内部不変条件破れの構造化エラー (fail-closed)。"""
+
+
+# ---------------------------------------------------------------------------
+# session 評価 (単一純関数 — 生成側・verifier・cell_stats 全経路が共有)
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class SessionAssessment:
+    """raw throughputs 単体からの評価結果 (α-8: 検証の運用非依存化)。
+
+    median          : 有効 (required_reason is None) なら session_median、無効なら None。
+    cv              : 完全・有限・正の計測なら表示用 CV (float)、部分計測なら None。
+    required_reason : この throughputs が必然的に負う理由 (閉表 4 理由のうち throughput 導出可能な
+                      performance_anomaly / nonfinite_or_partial_output のみ)。有効なら None。
+    """
+    median: Optional[float]
+    cv: Optional[float]
+    required_reason: Optional[str]
+
+
+def _threshold_fraction(name: str, value) -> Fraction:
+    """decimal 文字列閾値を Fraction へ厳密変換 (0 < T <= 1 を要求)。"""
+    if isinstance(value, bool) or not isinstance(value, str):
+        raise FloorStatsError(f"{name} は decimal 文字列であること (受領 {value!r})")
+    try:
+        frac = Fraction(value)
+    except (ValueError, ZeroDivisionError) as exc:
+        raise FloorStatsError(f"{name} を Fraction 化できない: {value!r}") from exc
+    if not (0 < frac <= 1):
+        raise FloorStatsError(f"{name} は (0, 1] 域であること (受領 {value!r})")
+    return frac
+
+
+def _cv_exceeds(values: Sequence[float], threshold: Fraction) -> bool:
+    """CV > threshold を Fraction 厳密算術で判定する。
+
+    CV = s/mean (s = 標本標準偏差 n-1)。CV > T ⟺ var(n-1) > T²·mean² (mean > 0 前提)。
+    全て Fraction。標本値は Fraction(float) で厳密変換 (IEEE-754 の 2 進表現をそのまま採用)
+    するので、同じ入力に対し機械・run をまたいで決定的。
+    """
+    fr = [Fraction(v) for v in values]
+    n = len(fr)
+    mean = sum(fr, Fraction(0)) / n
+    if mean <= 0:
+        # 完全・有限・正値を通過した後にここへ来るのは内部不変条件破れ (β-8)。
+        raise FloorStatsError("CV 判定: 有限正値なのに mean <= 0 (内部不変条件破れ)")
+    var = sum((x - mean) ** 2 for x in fr) / (n - 1)
+    return var > (threshold * threshold) * (mean * mean)
+
+
+def assess_session(throughputs, *, reps: int, session_cv_max) -> SessionAssessment:
+    """raw throughputs から session の median / CV / 必然理由を返す単一純関数 (α-7/α-8)。
+
+    事前検査 (不変条件破れ = 構造化エラー FloorStatsError):
+      - reps は非 bool int かつ >= 2 (標本標準偏差の定義に 2 点以上必要)。
+      - session_cv_max は (0,1] の decimal 文字列。
+      - throughputs 各値は非 bool の実数型 (bool / 非数値は型違反 = エラー)。
+
+    完全性判定 (fail-closed に無効化する = required_reason を付す):
+      - len(throughputs) != reps、または非有限・0 以下を含む → required_reason =
+        "nonfinite_or_partial_output"、median/cv は None。
+      - 完全・有限・正値で CV > session_cv_max (Fraction 厳密) → required_reason =
+        "performance_anomaly"、median は None、cv は表示値。
+      - 完全・有限・正値で CV <= session_cv_max → required_reason None、median と cv を返す。
+    """
+    if isinstance(reps, bool) or not isinstance(reps, int):
+        raise FloorStatsError(f"reps は int であること (受領 {reps!r})")
+    if reps < 2:
+        raise FloorStatsError(f"reps は 2 以上であること (CV の定義に必要, 受領 {reps})")
+    threshold = _threshold_fraction("session_cv_max", session_cv_max)
+
+    tps = tuple(throughputs)
+    # 型違反は理由でなくエラー (bool は int のサブクラスなので先に弾く)。
+    for v in tps:
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise FloorStatsError(f"throughputs に非数値/bool が混入: {v!r}")
+
+    # 完全性 (本数一致 ∧ 全値有限正)。いずれか崩れれば部分/非有限として無効化。
+    complete = len(tps) == reps and all(math.isfinite(v) and v > 0 for v in tps)
+    if not complete:
+        return SessionAssessment(median=None, cv=None, required_reason=_REASON_PARTIAL)
+
+    median = statistics.median(tps)
+    mean_f = statistics.fmean(tps)
+    cv_display = statistics.stdev(tps) / mean_f  # mean_f > 0 (完全・有限・正値)
+    if _cv_exceeds(tps, threshold):
+        return SessionAssessment(median=None, cv=cv_display,
+                                 required_reason=_REASON_PERFORMANCE)
+    return SessionAssessment(median=median, cv=cv_display, required_reason=None)
 
 
 # ---------------------------------------------------------------------------
@@ -42,12 +160,12 @@ class SessionRecord:
     """1 セッション (= 実 campaign の 1 measure_point と同形) の生計測。
 
     throughputs は「成功した rep の tps」列であり、reps_expected 本揃って初めて有効。
-    exec_failures / excluded_reason / 非有限・非正値はいずれも session を無効にする。
+    exec_failures / excluded_reason / 非有限・非正値・CV 超過はいずれも session を無効にする。
+    formula v2 で block field は廃止 (2-block delta_c 対比は F1 裁定で削除, α-12)。
     """
     cell_id: str
     holdout_id: str
     configuration_id: str
-    block: int                       # 1-origin の block 番号
     seq: int                         # holdout×構成内のセッション連番 (順序の決定性用)
     throughputs: tuple                # tuple[float, ...] — 成功 rep の tps
     reps_expected: int
@@ -56,29 +174,21 @@ class SessionRecord:
     retry: bool
 
 
-def session_median(rec: SessionRecord) -> Optional[float]:
-    """有効 session の session_median = statistics.median(throughputs)。無効なら None。
+def session_median(rec: SessionRecord, *, reps: int, session_cv_max) -> Optional[float]:
+    """有効 session の session_median。無効なら None。判定は assess_session に一元化 (α-8)。
 
-    有効性 ⇔ excluded_reason が None ∧ exec_failures == 0 ∧
-    len(throughputs) == reps_expected ∧ 全値が math.isfinite かつ > 0。
-    無効 session は median を作らない (fallback を返さない)。
+    有効性 ⇔ excluded_reason is None ∧ exec_failures == 0 ∧
+    assess_session(throughputs, reps, session_cv_max).required_reason is None。
+    driver が付した probe/launch 起因の excluded_reason (competing_process/launch_failure) は
+    throughput から導出できないため、ここでは self-report を尊重して無効化する (真正性の突合は
+    verifier + F7 wave)。
     """
     if rec.excluded_reason is not None:
         return None
     if rec.exec_failures != 0:
         return None
-    tps = rec.throughputs
-    if len(tps) != rec.reps_expected:
-        return None
-    if rec.reps_expected <= 0:
-        # 期待 rep が 0 以下なら medians の母集団が定義できない = 判定不能。
-        return None
-    for v in tps:
-        if not isinstance(v, (int, float)):
-            return None
-        if not math.isfinite(v) or v <= 0:
-            return None
-    return statistics.median(tps)
+    return assess_session(rec.throughputs, reps=reps,
+                          session_cv_max=session_cv_max).median
 
 
 # ---------------------------------------------------------------------------
@@ -86,58 +196,73 @@ def session_median(rec: SessionRecord) -> Optional[float]:
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class CellStats:
-    """セル c (holdout×構成) の記述統計。
+    """セル c (holdout×構成) の記述統計 (formula v2 — block_medians 廃止)。
 
-    valid=False のとき m/s/cv/block_medians が None でも部分診断値は保持しうるが、
-    holdout_floors は valid=True のセルしか floor 合成に使わない (無効は null へ倒す)。
+    valid=False のとき m/s/cv が None でも部分診断値は保持しうるが、holdout_floors は
+    valid=True のセルしか floor 合成に使わない (無効は null へ倒す)。
+    machine_anomaly はセル間 CV と閾値の関数なので CellStats 自体は持たず holdout_floors が判定
+    する。ただし判定は本モジュールの cell_cv_exceeds が正本で、生成側・verifier が共有する
+    (β-9: cell 出力に再計算可能な machine_anomaly 状態を持たせる)。
     """
     cell_id: str
+    holdout_id: str
+    configuration_id: str
     n_valid: int
-    medians: tuple                        # 有効 session medians (block,seq 昇順)
+    medians: tuple                        # 有効 session medians (seq 昇順)
     m: Optional[float]                    # statistics.median(medians)
     s: Optional[float]                    # statistics.stdev(medians) — n-1、要 2 点以上
-    block_medians: Optional[dict]        # {block: median(その block の有効 medians)}、無効時 None
     valid: bool
-    cv: Optional[float]                  # s / statistics.fmean(medians) — 診断
+    cv: Optional[float]                  # s / statistics.fmean(medians) — 表示用診断 (float)
     notes: tuple = ()                     # 無効理由等 (人間可読)
 
 
-def cell_stats(records: Sequence[SessionRecord], *, n_sessions: int, blocks: int,
-               replicates_per_block: int) -> CellStats:
-    """1 セルの有効 session medians から CellStats を組む。
+def cell_cv_exceeds(medians: Sequence[float], cell_cv_max) -> bool:
+    """セル間 CV > cell_cv_max を Fraction 厳密算術で判定する (machine_anomaly の正本)。
 
-    セル有効 ⇔ 有効 session 数 == n_sessions ∧ 各 block (1..blocks) が
-    replicates_per_block 本ずつ揃う ∧ 全レコードの cell_id が一致 ∧ 有効レコードの
-    block が 1..blocks の範囲内。s は statistics.stdev (n-1、要 2 点以上)。
-    block_medians は有効時のみ dict、無効時 None。
+    要 2 点以上。判定は _cv_exceeds と同一意味論 (表示 float と混同しない厳密経路)。
+    """
+    if len(medians) < 2:
+        raise FloorStatsError("cell_cv_exceeds: medians が 2 点未満 (CV 判定不能)")
+    threshold = _threshold_fraction("cell_cv_max", cell_cv_max)
+    return _cv_exceeds(medians, threshold)
+
+
+def cell_stats(records: Sequence[SessionRecord], *, n_sessions: int, reps: int,
+               session_cv_max) -> CellStats:
+    """1 セルの有効 session medians から CellStats を組む (formula v2)。
+
+    セル有効 ⇔ 有効 session 数 == n_sessions ∧ 全レコードの (cell_id, holdout_id,
+    configuration_id) が一致。有効性判定は assess_session 経由 (α-8)。s は statistics.stdev
+    (n-1、要 2 点以上)。cv は表示用 float 診断で machine_anomaly 判定には使わない
+    (判定は cell_cv_exceeds が Fraction 厳密で行う)。
     """
     notes: list = []
     cell_id = records[0].cell_id if records else ""
+    holdout_id = records[0].holdout_id if records else ""
+    configuration_id = records[0].configuration_id if records else ""
     if not records:
         notes.append("レコードが空")
 
-    # cell_id の一貫性 (混入検知、fail-closed)。
-    mixed = sorted({r.cell_id for r in records})
-    if len(mixed) > 1:
-        notes.append(f"cell_id 不一致: {mixed}")
+    # 座標の一貫性 (混入検知、fail-closed)。
+    mixed_cell = sorted({r.cell_id for r in records})
+    mixed_holdout = sorted({r.holdout_id for r in records})
+    mixed_cfg = sorted({r.configuration_id for r in records})
+    coord_consistent = (len(mixed_cell) <= 1 and len(mixed_holdout) <= 1
+                        and len(mixed_cfg) <= 1)
+    if len(mixed_cell) > 1:
+        notes.append(f"cell_id 不一致: {mixed_cell}")
+    if len(mixed_holdout) > 1:
+        notes.append(f"holdout_id 不一致: {mixed_holdout}")
+    if len(mixed_cfg) > 1:
+        notes.append(f"configuration_id 不一致: {mixed_cfg}")
 
-    expected_blocks = tuple(range(1, blocks + 1))
-
-    # 有効 session を (block, seq) 昇順に。順序の決定性は verify の == 照合に効く。
-    valid_recs = [r for r in records if session_median(r) is not None]
-    valid_recs.sort(key=lambda r: (r.block, r.seq))
-    medians = tuple(session_median(r) for r in valid_recs)  # 全て非 None
+    # 有効 session を seq 昇順に。順序の決定性は verify の == 照合に効く。
+    valid_recs = [r for r in records
+                  if session_median(r, reps=reps, session_cv_max=session_cv_max) is not None]
+    valid_recs.sort(key=lambda r: r.seq)
+    medians = tuple(session_median(r, reps=reps, session_cv_max=session_cv_max)
+                    for r in valid_recs)  # 全て非 None
     n_valid = len(medians)
-
-    # block 外れ値の検知。
-    out_of_range = sorted({r.block for r in valid_recs if r.block not in expected_blocks})
-    if out_of_range:
-        notes.append(f"expected 範囲外の block: {out_of_range} (期待 1..{blocks})")
-
-    # block ごとの有効本数。
-    per_block: dict = {}
-    for r in valid_recs:
-        per_block.setdefault(r.block, []).append(session_median(r))
 
     m = statistics.median(medians) if n_valid >= 1 else None
     s = statistics.stdev(medians) if n_valid >= 2 else None
@@ -146,22 +271,14 @@ def cell_stats(records: Sequence[SessionRecord], *, n_sessions: int, blocks: int
         mean = statistics.fmean(medians)
         cv = s / mean if mean > 0 else None
 
-    # セル有効性。
-    valid = (len(mixed) <= 1 and not out_of_range and n_valid == n_sessions)
+    valid = coord_consistent and n_valid == n_sessions
     if n_valid != n_sessions:
         notes.append(f"有効 session 数 {n_valid} != n_sessions {n_sessions}")
-    for b in expected_blocks:
-        cnt = len(per_block.get(b, ()))
-        if cnt != replicates_per_block:
-            valid = False
-            notes.append(f"block {b}: 有効 {cnt} 本 != replicates_per_block {replicates_per_block}")
 
-    block_medians: Optional[dict] = None
-    if valid:
-        block_medians = {b: statistics.median(per_block[b]) for b in expected_blocks}
-
-    return CellStats(cell_id=cell_id, n_valid=n_valid, medians=medians, m=m, s=s,
-                     block_medians=block_medians, valid=valid, cv=cv, notes=tuple(notes))
+    return CellStats(cell_id=cell_id, holdout_id=holdout_id,
+                     configuration_id=configuration_id, n_valid=n_valid,
+                     medians=medians, m=m, s=s, valid=valid, cv=cv,
+                     notes=tuple(notes))
 
 
 # ---------------------------------------------------------------------------
@@ -169,87 +286,100 @@ def cell_stats(records: Sequence[SessionRecord], *, n_sessions: int, blocks: int
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class HoldoutFloors:
-    """1 holdout の pair 別 floor と scalar 代替。
+    """1 holdout の pair 別 floor と scalar 代替 (formula v2)。
 
-    stock 無効 → 全 pair None + scale_ref None (holdout 未確定)。
-    c 無効 → 当該 pair のみ None (他 pair に veto しない)。
+    pairs のキーは configuration_id (freeze 向き出力, δ-10)。diagnostics のキーは cell_id
+    (raw 向き)。
+    stock 無効/machine_anomaly → 全 pair None + scalar_alt None + scale_ref None (holdout 未確定)。
+    非 stock c 無効/machine_anomaly → 当該 pair のみ None (他 pair に veto しない)。
     scalar_alt: 全 pair floor の max。いずれかが None なら None。
     scale_ref: m_stock (oracle 実走時の scale-adequacy gate 用)。
     """
-    pairs: dict                          # {cell_id: floor_pair (float) | None}
+    pairs: dict                          # {configuration_id: floor_pair (float) | None}
     scalar_alt: Optional[float]
     scale_ref: Optional[float]
-    diagnostics: dict
+    diagnostics: dict                    # {cell_id: {...}} + machine_anomaly_cells 一覧
+
+
+def _cell_machine_anomaly(c: CellStats, cell_cv_max) -> bool:
+    """有効セルが machine_anomaly (セル間 CV 超過) か。無効セルは False (無効理由が優先)。"""
+    if not c.valid or c.n_valid < 2:
+        return False
+    return cell_cv_exceeds(c.medians, cell_cv_max)
 
 
 def holdout_floors(cells: Mapping[str, CellStats], *, stock_id: str,
-                   wired_min_rel_floor: float) -> HoldoutFloors:
-    """FORMULA v1 逐語:
+                   wired_min_rel_floor: float, cell_cv_max) -> HoldoutFloors:
+    """FORMULA v2 逐語 (§9 承認状態 2026-07-18):
 
         u_noise(c)   = sqrt(s_c^2 + s_stock^2)
-        d_{c,b}      = m_{c,b} - m_{stock,b}   (b = 1, 2)
-        delta_c      = |d_{c,1} - d_{c,2}|
-        floor_pair(c)= max(u_noise(c), delta_c, wired_min_rel_floor × m_stock)
+        floor_pair(c)= max(u_noise(c), wired_min_rel_floor × m_stock)
 
-    stock (= stock_common セル) が無効/不在なら当該 holdout の全 pair は null、
-    scale_ref も null (holdout 未確定)。c 無効 → その pair のみ null。
+    machine_anomaly (fail-closed 専用): 有効セル c のセル間 CV > cell_cv_max のとき、
+    非 stock なら当該 pair null、stock なら holdout 全体 (全 pair / scalar_alt / scale_ref) null。
+    stock (= stock_common セル) が無効/不在/machine_anomaly なら当該 holdout の全 pair は null、
+    scale_ref も null (holdout 未確定)。非 stock c 無効/anomaly → その pair のみ null。
+    pairs のキーは configuration_id (δ-10)。
     """
-    diagnostics: dict = {"stock_id": stock_id, "wired_min_rel_floor": wired_min_rel_floor,
-                         "cells": {}}
+    diagnostics: dict = {"stock_id": stock_id,
+                         "wired_min_rel_floor": wired_min_rel_floor,
+                         "cell_cv_max": cell_cv_max,
+                         "cells": {}, "machine_anomaly_cells": []}
     stock = cells.get(stock_id)
     stock_valid = stock is not None and stock.valid
+    stock_anomaly = bool(stock_valid and _cell_machine_anomaly(stock, cell_cv_max))
     diagnostics["stock_valid"] = bool(stock_valid)
+    diagnostics["stock_machine_anomaly"] = stock_anomaly
 
+    # 非 stock セルの configuration_id → pair キー。既定は判定不能 (null)。
     pairs: dict = {}
-    # 非 stock セル全てを列挙 (無効も null として明示的に載せる)。
-    for cid in cells:
+    machine_anomaly_cells: list = []
+    for cid, c in cells.items():
         if cid == stock_id:
             continue
-        pairs[cid] = None  # 既定は判定不能。以下で確定できたときだけ上書き。
+        pairs[c.configuration_id] = None
 
-    if not stock_valid:
-        # holdout 未確定。全 pair null、scale_ref null。
-        diagnostics["reason"] = "stock セル無効/不在"
+    if stock_anomaly:
+        machine_anomaly_cells.append(stock_id)
+        diagnostics["cells"][stock_id] = {"machine_anomaly": True,
+                                          "floor": None, "reason": "stock machine_anomaly"}
+    if not stock_valid or stock_anomaly:
+        reason = "stock セル無効/不在" if not stock_valid else "stock machine_anomaly"
+        diagnostics["reason"] = reason
+        diagnostics["machine_anomaly_cells"] = sorted(machine_anomaly_cells)
         return HoldoutFloors(pairs=pairs, scalar_alt=None, scale_ref=None,
                              diagnostics=diagnostics)
 
     m_stock = stock.m
     s_stock = stock.s
-    bm_stock = stock.block_medians
     scale_ref = m_stock
     rel_floor = wired_min_rel_floor * m_stock
-
-    # formula v1 は d_{c,b} を b=1,2 に固定した 2-block 専用式であり block_medians[1]/[2] を
-    # 直接添字参照する。stock の block_medians がちょうど {1, 2} でなければ式の前提が破れて
-    # いるので、ここで確実に落とす (validate_protocol の blocks==2 検査と対になる fail-closed
-    # 二重防御。レビュー所見 F1-blocks-not-pinned-to-2)。
-    if set(bm_stock) != {1, 2}:
-        raise ValueError(
-            f"holdout_floors: stock の block_medians が {{1, 2}} でない "
-            f"(formula v1 は 2-block 固定): {sorted(bm_stock)}"
-        )
+    diagnostics["cells"][stock_id] = {"machine_anomaly": False, "m": m_stock,
+                                      "s": s_stock, "cv": stock.cv}
 
     for cid, c in cells.items():
         if cid == stock_id:
             continue
+        cfg = c.configuration_id
         if not c.valid:
-            diagnostics["cells"][cid] = {"floor": None, "reason": "セル無効"}
+            diagnostics["cells"][cid] = {"machine_anomaly": False, "floor": None,
+                                         "reason": "セル無効", "cv": c.cv}
             continue
-        if set(c.block_medians) != {1, 2}:
-            raise ValueError(
-                f"holdout_floors: セル {cid} の block_medians が {{1, 2}} でない "
-                f"(formula v1 は 2-block 固定): {sorted(c.block_medians)}"
-            )
+        anomaly = _cell_machine_anomaly(c, cell_cv_max)
+        if anomaly:
+            machine_anomaly_cells.append(cid)
+            pairs[cfg] = None
+            diagnostics["cells"][cid] = {"machine_anomaly": True, "floor": None,
+                                         "reason": "machine_anomaly", "cv": c.cv}
+            continue
         u_noise = math.sqrt(c.s ** 2 + s_stock ** 2)
-        d1 = c.block_medians[1] - bm_stock[1]
-        d2 = c.block_medians[2] - bm_stock[2]
-        delta = abs(d1 - d2)
-        floor_pair = max(u_noise, delta, rel_floor)
-        pairs[cid] = floor_pair
-        diagnostics["cells"][cid] = {
-            "u_noise": u_noise, "delta": delta, "rel_floor": rel_floor,
-            "d1": d1, "d2": d2, "floor": floor_pair, "cv": c.cv,
-        }
+        floor_pair = max(u_noise, rel_floor)
+        pairs[cfg] = floor_pair
+        diagnostics["cells"][cid] = {"machine_anomaly": False, "u_noise": u_noise,
+                                     "rel_floor": rel_floor, "floor": floor_pair,
+                                     "cv": c.cv}
+
+    diagnostics["machine_anomaly_cells"] = sorted(machine_anomaly_cells)
 
     # scalar 代替: 全 pair の max。空 or いずれか null → null (欠測で盛らない)。
     vals = list(pairs.values())
@@ -263,13 +393,22 @@ def holdout_floors(cells: Mapping[str, CellStats], *, stock_id: str,
 
 
 # ---------------------------------------------------------------------------
-# 自己申告値の検証 (生データからの再計算と厳密照合)
+# 自己申告値の検証 (生データからの再計算と厳密照合 + 外部 protocol 照合)
 # ---------------------------------------------------------------------------
-_REQUIRED_CONFIG = ("n_sessions", "blocks", "replicates_per_block",
-                    "stock_configuration_id", "wired_min_rel_floor")
-_REQUIRED_SESSION = ("cell_id", "holdout_id", "configuration_id", "block", "seq",
+# 保証境界 (docstring 正本): verify_floor_artifact は「raw session からの内部整合再計算 +
+# expected_protocol (外部凍結値) との照合」を保証する。raw session 自体の真正性 (append-only
+# journal / attempt registry / schedule との突合) は本関数の責務ではなく F7 wave の責務である
+# (α-1)。したがって「全 throughput を都合よく書き換え derived を再生成した」改竄は本関数単体
+# では捕まらない — journal 突合が別レイヤで必要。
+_EXPECTED_PROTOCOL_KEYS = ("formula", "n_sessions", "reps", "stock_configuration",
+                           "wired_min_rel_floor", "session_cv_max", "cell_cv_max",
+                           "expected_cells")
+_REQUIRED_SESSION = ("cell_id", "holdout_id", "configuration_id", "seq",
                      "throughputs", "reps_expected", "exec_failures",
                      "excluded_reason", "retry")
+# artifact.config に self-report される protocol 値 (expected と完全一致すべき)。
+_CONFIG_SCALARS = ("formula", "n_sessions", "reps", "stock_configuration",
+                   "wired_min_rel_floor", "session_cv_max", "cell_cv_max")
 
 
 def _record_from_mapping(d: Mapping) -> SessionRecord:
@@ -278,7 +417,6 @@ def _record_from_mapping(d: Mapping) -> SessionRecord:
         cell_id=d["cell_id"],
         holdout_id=d["holdout_id"],
         configuration_id=d["configuration_id"],
-        block=int(d["block"]),
         seq=int(d["seq"]),
         throughputs=tuple(d["throughputs"]),
         reps_expected=int(d["reps_expected"]),
@@ -293,42 +431,75 @@ def _cmp(ctx: str, name: str, reported, computed, out: list) -> None:
         out.append(f"{ctx}: {name} 齟齬 (申告 {reported!r} != 再計算 {computed!r})")
 
 
-def verify_floor_artifact(artifact: Mapping) -> list:
-    """artifact の生 session データから cells/floors を再計算し、自己申告値と厳密比較する。
+def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping) -> list:
+    """artifact の生 session を再計算し、自己申告値 + 外部 expected_protocol と厳密照合する。
+
+    **保証境界 (α-1):** 本関数が保証するのは (1) raw session からの cells/floors/理由の内部整合
+    再計算一致と、(2) artifact.config の自己申告 protocol 値が外部 expected_protocol (凍結値) と
+    完全一致すること、および (3) 出現するセル集合が expected_protocol.expected_cells と完全一致
+    すること、である。**raw session 自体の真正性 (append-only journal・attempt registry・
+    schedule 突合) は保証しない — それは F7 wave の責務。**
+
+    expected_protocol の想定形 (外部入力、既定値なし):
+        {formula, n_sessions, reps, stock_configuration, wired_min_rel_floor,
+         session_cv_max, cell_cv_max,
+         expected_cells: {holdout_id: [configuration_id, ...]}}
 
     artifact の想定形:
         {
-          "config": {n_sessions, blocks, replicates_per_block,
-                     stock_configuration_id, wired_min_rel_floor},
+          "config": {formula, n_sessions, reps, stock_configuration,
+                     wired_min_rel_floor, session_cv_max, cell_cv_max},
           "sessions": [ {SessionRecord と同じ key の dict}, ... ],
-          "cells":  { cell_id: {n_valid, medians, m, s, block_medians, valid, cv} },
-          "floors": { holdout_id: {pairs, scalar_alt, scale_ref} },
+          "cells":  { cell_id: {holdout_id, configuration_id, n_valid, medians, m, s,
+                                valid, cv} },
+          "floors": { holdout_id: {pairs, scalar_alt, scale_ref, diagnostics} },
         }
 
-    返り値は人間可読の齟齬文字列のリスト。**空リスト = 完全一致。** 生成側と同じ関数を
-    通すので float は == で比較する (再現不能な誤差は入らない)。欠損・不正形は fail-closed
+    返り値は人間可読の齟齬文字列のリスト。**空リスト = 完全一致。** 欠損・不正形は fail-closed
     で齟齬として列挙する (黙認しない)。
     """
     errors: list = []
 
-    # --- config ---
-    config = artifact.get("config")
-    if not isinstance(config, Mapping):
-        return ["artifact に config が無い (protocol 値は入力必須、既定値は持たない)"]
-    for k in _REQUIRED_CONFIG:
-        if k not in config:
-            errors.append(f"config: 必須キー {k} が欠損")
+    # --- expected_protocol のキー集合検査 (外部入力自体の完全性) ---
+    if not isinstance(expected_protocol, Mapping):
+        return ["expected_protocol が Mapping でない (凍結 protocol 値は入力必須)"]
+    exp_missing = [k for k in _EXPECTED_PROTOCOL_KEYS if k not in expected_protocol]
+    exp_extra = sorted(set(expected_protocol) - set(_EXPECTED_PROTOCOL_KEYS))
+    if exp_missing:
+        errors.append(f"expected_protocol: 必須キー欠損 {exp_missing}")
+    if exp_extra:
+        errors.append(f"expected_protocol: 余分なキー {exp_extra}")
     if errors:
         return errors
-    n_sessions = int(config["n_sessions"])
-    blocks = int(config["blocks"])
-    replicates_per_block = int(config["replicates_per_block"])
-    stock_cfg = config["stock_configuration_id"]
-    wired = config["wired_min_rel_floor"]
+    expected_cells = expected_protocol["expected_cells"]
+    if not isinstance(expected_cells, Mapping) or not expected_cells:
+        return ["expected_protocol.expected_cells が空/Mapping でない (空 artifact 恒真化拒否)"]
+
+    n_sessions = expected_protocol["n_sessions"]
+    reps = expected_protocol["reps"]
+    stock_cfg = expected_protocol["stock_configuration"]
+    wired = expected_protocol["wired_min_rel_floor"]
+    session_cv_max = expected_protocol["session_cv_max"]
+    cell_cv_max = expected_protocol["cell_cv_max"]
+
+    # --- artifact.config vs expected_protocol の完全一致 (α-3: 自己申告を信頼根にしない) ---
+    config = artifact.get("config")
+    if not isinstance(config, Mapping):
+        return errors + ["artifact に config が無い (protocol 値は自己申告 + 外部照合が必須)"]
+    cfg_extra = sorted(set(config) - set(_CONFIG_SCALARS))
+    if cfg_extra:
+        errors.append(f"config: 余分なキー {cfg_extra} (閉じた schema からの逸脱)")
+    for k in _CONFIG_SCALARS:
+        if k not in config:
+            errors.append(f"config: 必須キー {k} が欠損")
+        else:
+            _cmp("config", k, config[k], expected_protocol[k], errors)
+    if errors:
+        return errors
 
     # --- sessions のパース ---
     raw_sessions = artifact.get("sessions")
-    if not isinstance(raw_sessions, Sequence):
+    if not isinstance(raw_sessions, Sequence) or isinstance(raw_sessions, (str, bytes)):
         return ["artifact に sessions 列が無い"]
     records: list = []
     for i, d in enumerate(raw_sessions):
@@ -339,33 +510,91 @@ def verify_floor_artifact(artifact: Mapping) -> list:
         if missing:
             errors.append(f"sessions[{i}]: 必須キー欠損 {missing}")
             continue
-        records.append(_record_from_mapping(d))
+        records.append((i, _record_from_mapping(d)))
     if errors:
         return errors
 
-    # --- holdout → cell への grouping ---
-    by_holdout: dict = {}
-    for r in records:
-        by_holdout.setdefault(r.holdout_id, {}).setdefault(r.cell_id, []).append(r)
+    # --- reps 一様性 + 理由 (閉表) + CV↔reason 双方向一致 (α-4/α-5) ---
+    for i, r in records:
+        ctx = f"sessions[{i}]"
+        if r.reps_expected != reps:
+            errors.append(f"{ctx}: reps_expected {r.reps_expected} != expected.reps {reps}")
+        reason = r.excluded_reason
+        if reason is not None and reason not in ALLOWED_EXCLUDED_REASONS:
+            errors.append(f"{ctx}: excluded_reason {reason!r} が閉表 4 理由に無い")
+            continue
+        # 生値から必然理由を再導出 (throughput 導出可能な範囲のみ)。
+        try:
+            derived = assess_session(r.throughputs, reps=reps,
+                                     session_cv_max=session_cv_max).required_reason
+        except FloorStatsError as exc:
+            errors.append(f"{ctx}: throughputs が assess 不能 ({exc})")
+            continue
+        if reason is None:
+            # 有効主張。生値も完全・有限・CV 以下でなければ異常隠蔽/偽有効。
+            if derived is not None:
+                errors.append(f"{ctx}: 有効主張だが生値の必然理由は {derived!r} "
+                              "(異常隠蔽/偽有効の疑い)")
+        elif reason in _THROUGHPUT_DERIVABLE_REASONS:
+            # throughput 導出可能理由は生値と完全一致すべき (理由すり替えの検出)。
+            if derived != reason:
+                errors.append(f"{ctx}: excluded_reason {reason!r} だが生値の必然理由は "
+                              f"{derived!r} (理由すり替えの疑い)")
+        # competing_process / launch_failure は probe/launch 起因で throughput 導出不能
+        # (真正性は F7 wave の journal 突合)。ここでは検査しない。
+
+    # --- (holdout_id, configuration_id) キーでの cell grouping + 衝突検査 (α-10) ---
+    by_key: dict = {}          # (holdout, cfg) -> list[SessionRecord]
+    cellid_of_key: dict = {}   # (holdout, cfg) -> cell_id
+    key_of_cellid: dict = {}   # cell_id -> (holdout, cfg)
+    for _, r in records:
+        key = (r.holdout_id, r.configuration_id)
+        by_key.setdefault(key, []).append(r)
+        # 同一キー内の cell_id 一貫性。
+        prev = cellid_of_key.get(key)
+        if prev is None:
+            cellid_of_key[key] = r.cell_id
+        elif prev != r.cell_id:
+            errors.append(f"cell {key}: cell_id 不一致 ({prev!r} vs {r.cell_id!r})")
+        # cell_id が別 (holdout, cfg) と衝突していないか (global 再利用の拒否)。
+        prevk = key_of_cellid.get(r.cell_id)
+        if prevk is None:
+            key_of_cellid[r.cell_id] = key
+        elif prevk != key:
+            errors.append(f"cell_id {r.cell_id!r} が複数座標に衝突 ({prevk} vs {key})")
+    if errors:
+        return errors
+
+    # --- expected_cells との完全一致 (空 artifact / holdout 欠落 / cell 欠落の拒否, α-2) ---
+    exp_key_set = set()
+    for h, cfgs in expected_cells.items():
+        for cfg in cfgs:
+            exp_key_set.add((h, cfg))
+    got_key_set = set(by_key)
+    for missing in sorted(exp_key_set - got_key_set):
+        errors.append(f"expected_cells: セル {missing} が artifact に無い")
+    for extra in sorted(got_key_set - exp_key_set):
+        errors.append(f"expected_cells: セル {extra} が expected に無い (余分)")
+    if errors:
+        return errors
 
     # --- cells の再計算と照合 ---
     reported_cells = artifact.get("cells", {})
     if not isinstance(reported_cells, Mapping):
         return ["artifact.cells が Mapping でない"]
 
-    recomputed_cells: dict = {}
-    for holdout_id, cell_map in by_holdout.items():
-        for cid, recs in cell_map.items():
-            cs = cell_stats(recs, n_sessions=n_sessions, blocks=blocks,
-                            replicates_per_block=replicates_per_block)
-            recomputed_cells[cid] = cs
+    recomputed_cells: dict = {}   # cell_id -> CellStats
+    for key, recs in by_key.items():
+        cs = cell_stats(recs, n_sessions=n_sessions, reps=reps,
+                        session_cv_max=session_cv_max)
+        recomputed_cells[cellid_of_key[key]] = cs
 
     calc_ids = set(recomputed_cells)
     rep_ids = set(reported_cells)
     for extra in sorted(rep_ids - calc_ids):
         errors.append(f"cells: 申告に余分な cell_id {extra} (生データに対応セッション無し)")
-    for missing in sorted(calc_ids - rep_ids):
-        errors.append(f"cells: 申告に cell_id {missing} が欠損")
+    for miss in sorted(calc_ids - rep_ids):
+        errors.append(f"cells: 申告に cell_id {miss} が欠損")
 
     for cid in sorted(calc_ids & rep_ids):
         cs = recomputed_cells[cid]
@@ -374,31 +603,39 @@ def verify_floor_artifact(artifact: Mapping) -> list:
         if not isinstance(rep, Mapping):
             errors.append(f"{ctx}: 申告が Mapping でない")
             continue
+        _cmp(ctx, "holdout_id", rep.get("holdout_id"), cs.holdout_id, errors)
+        _cmp(ctx, "configuration_id", rep.get("configuration_id"),
+             cs.configuration_id, errors)
         _cmp(ctx, "n_valid", rep.get("n_valid"), cs.n_valid, errors)
         _cmp(ctx, "medians", _as_tuple(rep.get("medians")), cs.medians, errors)
         _cmp(ctx, "m", rep.get("m"), cs.m, errors)
         _cmp(ctx, "s", rep.get("s"), cs.s, errors)
-        _cmp(ctx, "block_medians", _norm_block_medians(rep.get("block_medians")),
-             cs.block_medians, errors)
         _cmp(ctx, "valid", rep.get("valid"), cs.valid, errors)
         _cmp(ctx, "cv", rep.get("cv"), cs.cv, errors)
 
-    # --- floors の再計算と照合 ---
+    # --- floors の再計算と照合 (pairs / scalar_alt / scale_ref / machine_anomaly) ---
     reported_floors = artifact.get("floors", {})
     if not isinstance(reported_floors, Mapping):
         return errors + ["artifact.floors が Mapping でない"]
 
-    for holdout_id, cell_map in by_holdout.items():
-        cells = {cid: recomputed_cells[cid] for cid in cell_map}
-        # stock セル = configuration_id が stock_configuration_id のセル。
-        stock_ids = sorted({cid for cid, recs in cell_map.items()
-                            if recs[0].configuration_id == stock_cfg})
+    holdouts = sorted({h for (h, _cfg) in by_key})
+    extra_floors = sorted(set(reported_floors) - set(holdouts))
+    if extra_floors:
+        # fail-closed 対称性: 他 schema と同様、余分な holdout キーの捏造を拒否する
+        # (レビュー所見: 幽霊 holdout floor の注入が素通りしていた)。
+        errors.append(f"floors: 期待にない holdout キー {extra_floors}")
+    for holdout_id in holdouts:
+        holdout_cells = {cellid_of_key[key]: recomputed_cells[cellid_of_key[key]]
+                         for key in by_key if key[0] == holdout_id}
+        stock_ids = sorted({cid for cid, cs in holdout_cells.items()
+                            if cs.configuration_id == stock_cfg})
         ctx = f"holdout {holdout_id}"
         if len(stock_ids) != 1:
             errors.append(f"{ctx}: stock 構成 {stock_cfg!r} のセルが {len(stock_ids)} 個 "
-                          f"(1 個であるべき)")
+                          "(1 個であるべき)")
             continue
-        hf = holdout_floors(cells, stock_id=stock_ids[0], wired_min_rel_floor=wired)
+        hf = holdout_floors(holdout_cells, stock_id=stock_ids[0],
+                            wired_min_rel_floor=wired, cell_cv_max=cell_cv_max)
         rep = reported_floors.get(holdout_id)
         if not isinstance(rep, Mapping):
             errors.append(f"{ctx}: floors 申告が無い/Mapping でない")
@@ -406,6 +643,22 @@ def verify_floor_artifact(artifact: Mapping) -> list:
         _cmp(ctx, "pairs", _as_plain_dict(rep.get("pairs")), hf.pairs, errors)
         _cmp(ctx, "scalar_alt", rep.get("scalar_alt"), hf.scalar_alt, errors)
         _cmp(ctx, "scale_ref", rep.get("scale_ref"), hf.scale_ref, errors)
+        # machine_anomaly 状態の再計算一致 (α-11: 改竄 positive control 対象)。
+        rep_diag = rep.get("diagnostics")
+        if not isinstance(rep_diag, Mapping):
+            errors.append(f"{ctx}: diagnostics 申告が無い/Mapping でない")
+        else:
+            _cmp(ctx, "machine_anomaly_cells",
+                 _as_list(rep_diag.get("machine_anomaly_cells")),
+                 hf.diagnostics["machine_anomaly_cells"], errors)
+            # diagnostics 全構造の再計算一致 (レビュー所見: cells 内訳の改竄・
+            # 任意キー注入が素通りしていた)。上の個別照合は pinpoint な error 文言用。
+            _cmp(ctx, "diagnostics", _norm_json(rep_diag),
+                 _norm_json(hf.diagnostics), errors)
+        # floors[h] 自体への余分キー注入も拒否する。
+        extra_keys = sorted(set(rep) - {"pairs", "scalar_alt", "scale_ref", "diagnostics"})
+        if extra_keys:
+            errors.append(f"{ctx}: floors 申告に期待にないキー {extra_keys}")
 
     return errors
 
@@ -417,14 +670,23 @@ def _as_tuple(v):
     return tuple(v)
 
 
+def _as_list(v):
+    if v is None:
+        return None
+    return list(v)
+
+
 def _as_plain_dict(v):
     if v is None:
         return None
     return dict(v)
 
 
-def _norm_block_medians(v):
-    """block_medians 申告のキーを int に正規化 (JSON 由来の str キーを吸収)。None は None。"""
-    if v is None:
-        return None
-    return {int(k): val for k, val in v.items()}
+def _norm_json(v):
+    """深い構造を == 照合可能な形に正規化する (tuple→list、Mapping→dict)。
+    JSON round-trip 済み申告と Python 内再計算値の型差だけを吸収し、値は変えない。"""
+    if isinstance(v, Mapping):
+        return {str(k): _norm_json(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_norm_json(x) for x in v]
+    return v

@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
-"""s8b floor campaign driver (``campaign.s8b_floor_campaign``) の契約テスト。
+"""s8b floor campaign driver (``campaign.s8b_floor_campaign``) の契約テスト (formula v2)。
 
 ccbench submodule はこのマシンに無いため、実ビルド・実 bench は一切呼ばない。
 ``prepare_fn``/``buildcache.build``/``measure_fn``/``probe_fn``/``sleep_fn``/
-``monotonic_fn`` を全て注入し、合成 freeze fixture (holdout rr79/rr23 × 6 構成、
-stock_common 含む) で全経路を回す。rr79/rr23 は実在 freeze (``output/s8b-freeze/
-holdout_freeze.json`` の rr80/rr20) と records/threads/workload を意図的に変え、
-「freeze から来た値」であることをテスト内で判別できるようにしてある — もし
-driver がどこかで実freeze を読んでしまえば cell_id や floor 値が食い違って露見する。
+``monotonic_fn``/``now_fn`` を全て注入し、合成 freeze fixture (holdout rr79/rr23 × 6 構成、
+stock_common 含む) で全経路を回す。rr79/rr23 は実在 freeze の rr80/rr20 と records/threads/
+workload を意図的に変え、「freeze から来た値」であることをテスト内で判別できるようにしてある
+(δ-15: 新規テストは synthetic 軸のみ。holdout 実軸 literal を新規に書かない)。
 
-floor の式そのものの mutation-killing テストは ``test_s8b_floor_stats.py`` が正本。
-本ファイルは driver 側の配線 (schedule 決定性・protocol strict 検証・official 拒否・
-session 有効性→retry→floor 伝播・probe 臨界区間・create-only・resume forward-only・
-block-tail retry と min_block_gap_s・end-to-end golden) を固定する。
+floor の式そのものの mutation-killing テストは ``test_s8b_floor_stats.py`` が正本。本ファイルは
+driver 側の配線 (schedule 決定性・golden + 意図 mutant / protocol 承認凍結値 pin + 版交差拒否 /
+official core 拒否 / session 有効性→retry→floor 伝播 / probe 臨界区間 + post-probe finally /
+performance_anomaly / machine_anomaly / create-only + 冪等 finalization / resume 状態機械 +
+manifest.schedule 権威 + attempt registry / env contract 結線 / duration 台帳) を固定する。
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ import contextlib
 import datetime as dt
 import hashlib
 import json
+import random
 import subprocess
 import sys
 import textwrap
@@ -33,6 +34,7 @@ ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 
+from campaign import env_contract as ec  # noqa: E402
 from campaign import s8b_floor_campaign  # noqa: E402
 from campaign import s8b_floor_stats  # noqa: E402
 from campaign.model import Genome  # noqa: E402
@@ -51,7 +53,6 @@ _CONFIGS = (
 )
 _STOCK = "stock_common"
 
-# 実在 rr80 (records=1000000, threads=48) / rr20 と衝突しない合成値。
 _HOLDOUT_SHAPE = {
     "rr79": {
         "records": 730079, "threads": 17,
@@ -63,7 +64,7 @@ _HOLDOUT_SHAPE = {
     },
 }
 
-# 決定的 measure_fn 用の cell 別基準 tps (golden / floor 伝播テストで使う)。
+# 決定的 measure_fn 用の cell 別基準 tps。
 _BASE_TPS = {
     "rr79::stock_common": 1000.0,
     "rr79::p2_2_flag_opt": 1050.0,
@@ -119,32 +120,42 @@ def _verified_freeze(freeze: dict) -> VerifiedFreeze:
     return VerifiedFreeze(document=freeze, sha256=_freeze_sha(freeze))
 
 
-def _protocol(*, freeze_sha: str, n_sessions: int, blocks: int,
-              replicates_per_block: int, reps: int = 2,
-              master_seed: str = "fixture-seed", wired_min_rel_floor: float = 0.05,
-              min_block_gap_s: float = 0.0, retry_slots_per_cell: int = 1,
-              env_tag: str = ENV_TAG) -> dict:
+def _protocol(*, freeze_sha: str, master_seed: str = "fixture-seed",
+              wired_min_rel_floor: float = 0.05, env_tag: str = ENV_TAG,
+              n_sessions: int = 8, reps: int = 5, retry_slots_per_cell: int = 2,
+              session_cv_max: str = "0.10", cell_cv_max: str = "0.15",
+              scale_adequacy_rel_tolerance: str = "0.10",
+              allowed_excluded_reasons=None, schema: str = None,
+              formula: str = None, schedule_algorithm: str = None) -> dict:
+    """承認凍結値をデフォルトで返す (validate_protocol を通す)。個別 field を override して
+    pin 拒否・版交差拒否を試験する。"""
     return {
-        "schema": s8b_floor_campaign.PROTOCOL_SCHEMA,
-        "formula": s8b_floor_stats.FORMULA_ID,
+        "schema": schema if schema is not None else s8b_floor_campaign.PROTOCOL_SCHEMA,
+        "formula": formula if formula is not None else s8b_floor_stats.FORMULA_ID,
         "env_tag": env_tag,
         "ccbench_pin": "0" * 40,
         "freeze": {"path": "output/s8b-freeze/fixture_freeze.json", "sha256": freeze_sha},
         "stock_configuration": _STOCK,
         "n_sessions": n_sessions,
         "reps": reps,
-        "blocks": blocks,
-        "replicates_per_block": replicates_per_block,
-        "min_block_gap_s": min_block_gap_s,
         "master_seed": master_seed,
-        "schedule_algorithm": s8b_floor_campaign.SCHEDULE_ALGORITHM,
+        "schedule_algorithm": (schedule_algorithm if schedule_algorithm is not None
+                               else s8b_floor_campaign.SCHEDULE_ALGORITHM),
         "extime_s": 3,
         "wired_min_rel_floor": wired_min_rel_floor,
         "retry_slots_per_cell": retry_slots_per_cell,
-        "allowed_excluded_reasons": [
-            "competing_process", "launch_failure", "nonfinite_or_partial_output",
-        ],
+        "session_cv_max": session_cv_max,
+        "cell_cv_max": cell_cv_max,
+        "scale_adequacy_rel_tolerance": scale_adequacy_rel_tolerance,
+        "allowed_excluded_reasons": (list(allowed_excluded_reasons)
+                                     if allowed_excluded_reasons is not None
+                                     else list(s8b_floor_stats.ALLOWED_EXCLUDED_REASONS)),
     }
+
+
+def _valid_protocol_dict(**overrides) -> dict:
+    freeze = _freeze_document()
+    return _protocol(freeze_sha=_freeze_sha(freeze), **overrides)
 
 
 # --------------------------------------------------------------------------- #
@@ -165,11 +176,6 @@ def _fake_prepare(cell, ccbench_pin):
 
 
 def _make_fake_build(build_root: Path):
-    """buildcache.build の代替。実バイナリの代わりに cell_id を刻んだダミーを書く。
-
-    src_token = cell_id (``_fake_prepare`` が仕込む) をディレクトリ名にすることで、
-    measure_fn 側が binary path から cell_id を再構成できるようにする。
-    """
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None):
         assert trace is False, "floor 計測は trace-disabled build (規律1)"
@@ -178,8 +184,6 @@ def _make_fake_build(build_root: Path):
         binary_path = cell_dir / "ycsb_fixture.exe"
         payload = f"fixture-binary::{src_token}".encode("utf-8")
         binary_path.write_bytes(payload)
-        # A-8: fake も「実際に書いた bytes の実ハッシュ」を返す。bin_hash は bin_sha256[:16]
-        # の派生 (BuildResult と同じ契約) — src_token を短縮した別系列にしない。
         bin_sha256 = hashlib.sha256(payload).hexdigest()
         return SimpleNamespace(
             genome=genome, trace=trace, binary=str(binary_path),
@@ -220,7 +224,8 @@ class _FakeScalePoint:
         self.run_cmd = run_cmd
 
 
-def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_reps=None):
+def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_reps=None,
+                     reps_fn=None):
     raise_for = set(raise_for)
     partial_for = set(partial_for)
     calls: list = []
@@ -230,6 +235,10 @@ def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_re
         calls.append(cell_id)
         if cell_id in raise_for:
             raise RuntimeError(f"fixture: 実行不能を模す ({cell_id})")
+        if reps_fn is not None:
+            values = reps_fn(cell_id)
+            return _FakeScalePoint(throughputs=list(values), notes=[],
+                                   run_cmd=f"./fixture {cell_id}")
         n = reps
         if cell_id in partial_for:
             n = partial_reps if partial_reps is not None else max(reps - 1, 0)
@@ -254,130 +263,198 @@ def _read_journal_lines(journal_path: Path) -> list:
 
 
 # =========================================================================== #
-# 1. manifest 決定性 (schedule は freeze 由来セルのみ、seed で決定論的)          #
+# 1. schedule 決定性 + freeze 由来セルのみ + golden (独立 reference) + 意図 mutant #
 # =========================================================================== #
 
 def test_schedule_is_deterministic_by_seed_and_uses_only_freeze_cells():
     freeze = _freeze_document()
     cells = s8b_floor_campaign.enumerate_cells(freeze, stock_configuration=_STOCK)
-    assert len(cells) == 12  # 2 holdout × 6 構成
+    assert len(cells) == 12
     cell_ids = {c["cell_id"] for c in cells}
     assert cell_ids == {f"{h}::{c}" for h in ("rr79", "rr23") for c in _CONFIGS}
-    # 実在 rr80/rr20/rr5/rr50/rr95 は fixture のどこにも現れない (freeze 由来のみ)。
     for forbidden in ("rr80", "rr20", "rr5", "rr50", "rr95"):
         assert not any(forbidden in cid for cid in cell_ids), forbidden
 
-    schedule_a1 = s8b_floor_campaign.build_schedule(
-        cells=cells, master_seed="seed-alpha", blocks=2, replicates_per_block=2,
-    )
-    schedule_a2 = s8b_floor_campaign.build_schedule(
-        cells=cells, master_seed="seed-alpha", blocks=2, replicates_per_block=2,
-    )
-    schedule_b = s8b_floor_campaign.build_schedule(
-        cells=cells, master_seed="seed-beta", blocks=2, replicates_per_block=2,
-    )
-    assert schedule_a1 == schedule_a2  # 同一 seed → 同一 schedule
-    assert schedule_a1 != schedule_b  # 別 seed → 別置換
+    a1 = s8b_floor_campaign.build_schedule(cells=cells, master_seed="seed-alpha", n_sessions=8)
+    a2 = s8b_floor_campaign.build_schedule(cells=cells, master_seed="seed-alpha", n_sessions=8)
+    b = s8b_floor_campaign.build_schedule(cells=cells, master_seed="seed-beta", n_sessions=8)
+    assert a1 == a2                       # 同一 seed → 同一 schedule
+    assert a1 != b                        # 別 seed → 別置換
 
-    # schedule の cell_id 集合は freeze 由来 12 セルのみ (行数は blocks×replicates×12)。
-    assert len(schedule_a1) == 2 * 2 * 12
-    schedule_cell_ids = {row["cell_id"] for row in schedule_a1}
-    assert schedule_cell_ids == cell_ids
-    for forbidden in ("rr80", "rr20", "rr5", "rr50", "rr95"):
-        assert not any(forbidden in row["cell_id"] for row in schedule_a1), forbidden
-
-    # block/replicate 内は 12 セルの置換 (全セルがちょうど1回ずつ)。
-    for block in (1, 2):
-        for replicate in (0, 1):
-            rows = [r for r in schedule_a1 if r["block"] == block and r["replicate"] == replicate]
-            assert {r["cell_id"] for r in rows} == cell_ids
+    assert len(a1) == 8 * 12              # 8 round × 12 cell
+    assert [r["seq"] for r in a1] == list(range(96))  # seq は 0..95 の通し番号
+    assert sorted({r["round"] for r in a1}) == list(range(1, 9))  # round は 1..8 (0-origin でない)
+    for row in a1:
+        assert set(row) == {"seq", "round", "cell_id"}  # block/replicate は無い
+    # 各 round は 12 セルの完全置換 (global shuffle ではない)。
+    for r in range(1, 9):
+        rows = [row["cell_id"] for row in a1 if row["round"] == r]
+        assert len(rows) == 12
+        assert set(rows) == cell_ids
 
 
-def test_build_schedule_golden_pin_for_seed_derivation():
-    """build_schedule の (seq, block, replicate, cell_id) 列を固定 master_seed でリテラル固定する。
-
-    目的は ``_permutation_seed`` の sha256 slice (``[:8]``) や区切り文字 (``"/"``) を変える
-    mutation を殺すこと (レビュー所見 F2-schedule-seed-no-golden-pin)。値は実際に実行して得た
-    ものを検証したうえで焼き込んでいる。**この値は s8b-floor-manifest/v1 の schedule 導出
-    (balanced-permutation/v1) の golden pin であり、変わったら seed 導出が変わった証拠**
-    (意図した変更なら値を再計算してこのテストを更新する)。
-    """
+def test_build_schedule_is_input_order_independent():
     freeze = _freeze_document()
     cells = s8b_floor_campaign.enumerate_cells(freeze, stock_configuration=_STOCK)
-    six_cells = [c for c in cells if c["holdout_id"] == "rr79"]
-    assert len(six_cells) == 6
+    reversed_cells = list(reversed(cells))
+    a = s8b_floor_campaign.build_schedule(cells=cells, master_seed="x", n_sessions=3)
+    b = s8b_floor_campaign.build_schedule(cells=reversed_cells, master_seed="x", n_sessions=3)
+    assert a == b  # cell_id を sort するので入力順に依存しない
 
+
+def test_build_schedule_rejects_duplicate_cell_ids():
+    dup = [{"cell_id": "c"}, {"cell_id": "c"}]
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="重複"):
+        s8b_floor_campaign.build_schedule(cells=dup, master_seed="x", n_sessions=1)
+
+
+# --- golden: 独立 reference (production を import しない) で導出した literal ---
+
+# 独立に計算した sha256 hex (別経路: python3 -c 'hashlib.sha256(...)')。
+# これらから seed = int.from_bytes(bytes.fromhex(hex)[:8], "big") を spec として再導出する。
+# production が区切り "/"・slice [:8]・big-endian・round 起点 1 のいずれかを変えれば不一致。
+_GOLDEN_SEED = "golden-pin-v2"
+_GOLDEN_SORTED = [
+    "rr79::backoff_fixed_best", "rr79::ident_all", "rr79::p2_2_flag_opt",
+    "rr79::sort_best", "rr79::stock_common", "rr79::system_gate",
+]
+_GOLDEN_ROUND_SHA256 = {
+    1: "afb43e056e1b3a69ce629f9a231dabe935fcbd5c21285e5eaaaa31c10adb1f67",
+    2: "08d1ced78e622f342a644e022acd5ceb8846d9a1ea24779b83b417ca5e253a54",
+}
+
+
+def _ref_round_perm(round_no: int) -> list:
+    """spec を独立実装: hex → 先頭 8 byte big-endian → Random.shuffle。"""
+    digest_hex = _GOLDEN_ROUND_SHA256[round_no]
+    seed = int.from_bytes(bytes.fromhex(digest_hex)[:8], "big")
+    perm = list(_GOLDEN_SORTED)
+    random.Random(seed).shuffle(perm)
+    return perm
+
+
+def test_round_seed_matches_independent_sha256_slice_endian():
+    """_round_seed が区切り "/"・先頭 8 byte・big-endian を守ることを独立 hex から固定する。"""
+    for round_no, digest_hex in _GOLDEN_ROUND_SHA256.items():
+        # 独立確認: hex 自体が spec の payload の sha256 である。
+        assert hashlib.sha256(
+            f"{_GOLDEN_SEED}/{round_no}".encode("utf-8")).hexdigest() == digest_hex
+        expected_seed = int.from_bytes(bytes.fromhex(digest_hex)[:8], "big")
+        assert s8b_floor_campaign._round_seed(_GOLDEN_SEED, round_no) == expected_seed
+
+
+def test_build_schedule_golden_and_mutant_controls():
+    freeze = _freeze_document()
+    cells = [c for c in s8b_floor_campaign.enumerate_cells(freeze, stock_configuration=_STOCK)
+             if c["holdout_id"] == "rr79"]
+    assert len(cells) == 6
     schedule = s8b_floor_campaign.build_schedule(
-        cells=six_cells, master_seed="golden-pin-v1", blocks=2, replicates_per_block=2,
+        cells=cells, master_seed=_GOLDEN_SEED, n_sessions=2,
     )
-    rows = [(r["seq"], r["block"], r["replicate"], r["cell_id"]) for r in schedule]
+    rows = [(r["seq"], r["round"], r["cell_id"]) for r in schedule]
 
-    expected = [
-        (0, 1, 0, "rr79::stock_common"),
-        (1, 1, 0, "rr79::sort_best"),
-        (2, 1, 0, "rr79::p2_2_flag_opt"),
-        (3, 1, 0, "rr79::ident_all"),
-        (4, 1, 0, "rr79::system_gate"),
-        (5, 1, 0, "rr79::backoff_fixed_best"),
-        (6, 1, 1, "rr79::ident_all"),
-        (7, 1, 1, "rr79::stock_common"),
-        (8, 1, 1, "rr79::sort_best"),
-        (9, 1, 1, "rr79::system_gate"),
-        (10, 1, 1, "rr79::p2_2_flag_opt"),
-        (11, 1, 1, "rr79::backoff_fixed_best"),
-        (12, 2, 0, "rr79::p2_2_flag_opt"),
-        (13, 2, 0, "rr79::stock_common"),
-        (14, 2, 0, "rr79::sort_best"),
-        (15, 2, 0, "rr79::backoff_fixed_best"),
-        (16, 2, 0, "rr79::ident_all"),
-        (17, 2, 0, "rr79::system_gate"),
-        (18, 2, 1, "rr79::sort_best"),
-        (19, 2, 1, "rr79::stock_common"),
-        (20, 2, 1, "rr79::ident_all"),
-        (21, 2, 1, "rr79::p2_2_flag_opt"),
-        (22, 2, 1, "rr79::backoff_fixed_best"),
-        (23, 2, 1, "rr79::system_gate"),
-    ]
+    # 独立 reference から組んだ期待列 (production 出力の貼付ではない)。
+    expected = []
+    seq = 0
+    for round_no in (1, 2):
+        for cell_id in _ref_round_perm(round_no):
+            expected.append((seq, round_no, cell_id))
+            seq += 1
     assert rows == expected
 
+    # mutant: seed 再利用 (全 round 同一 seed) → round1/round2 の置換が同一になるはず。
+    # 実装は round ごとに別 seed を使うので置換は異なる (seed 再利用 mutant を殺す)。
+    perm1 = [c for (s, r, c) in rows if r == 1]
+    perm2 = [c for (s, r, c) in rows if r == 2]
+    assert perm1 != perm2
+    # mutant: round 起点 0 → round 値 {0,1} になる。実装は {1,2}。
+    assert sorted({r for (s, r, c) in rows}) == [1, 2]
+
 
 # =========================================================================== #
-# 2. protocol strict 検証                                                       #
+# 2. protocol strict 検証 + 承認凍結値 pin (β-1) + 版交差拒否 (β-2)             #
 # =========================================================================== #
 
-def _valid_protocol_dict() -> dict:
-    # formula v1 は 2 block 固定 (validate_protocol が blocks==2 を要求する) なので blocks=2 を使う。
-    freeze = _freeze_document()
-    return _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                     replicates_per_block=1)
-
-
-def test_validate_protocol_rejects_unknown_key():
+def test_validate_protocol_accepts_approved_and_rejects_unknown_missing():
     doc = _valid_protocol_dict()
-    doc["unexpected_extra_key"] = 1
+    assert s8b_floor_campaign.validate_protocol(doc)["n_sessions"] == 8
+
+    doc2 = _valid_protocol_dict()
+    doc2["unexpected_extra_key"] = 1
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="未知"):
-        s8b_floor_campaign.validate_protocol(doc)
+        s8b_floor_campaign.validate_protocol(doc2)
 
-
-def test_validate_protocol_rejects_missing_key():
-    doc = _valid_protocol_dict()
-    del doc["wired_min_rel_floor"]
+    doc3 = _valid_protocol_dict()
+    del doc3["wired_min_rel_floor"]
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="欠落"):
-        s8b_floor_campaign.validate_protocol(doc)
+        s8b_floor_campaign.validate_protocol(doc3)
+
+
+def test_validate_protocol_rejects_removed_v1_keys():
+    # v1 の blocks / replicates_per_block / min_block_gap_s を混ぜたら未知キーで拒否 (β-2)。
+    for legacy in ("blocks", "replicates_per_block", "min_block_gap_s"):
+        doc = _valid_protocol_dict()
+        doc[legacy] = 2
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="未知"):
+            s8b_floor_campaign.validate_protocol(doc)
 
 
 def test_load_protocol_rejects_duplicate_top_level_key(tmp_path):
-    text = '{"schema": "s8b-floor-protocol/v1", "schema": "duplicate"}'
+    text = '{"schema": "s8b-floor-protocol/v2", "schema": "duplicate"}'
     path = tmp_path / "dup.json"
     path.write_text(text, encoding="utf-8")
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="duplicate key"):
         s8b_floor_campaign.load_protocol(path)
 
 
-def test_validate_protocol_rejects_formula_mismatch():
+@pytest.mark.parametrize("override,match", [
+    ({"schema": "s8b-floor-protocol/v1"}, "schema"),
+    ({"schedule_algorithm": "balanced-permutation/v1"}, "schedule_algorithm"),
+    ({"formula": "s8b-floor-stats/v1"}, "formula"),
+])
+def test_validate_protocol_rejects_v1_cross_versions(override, match):
+    doc = _valid_protocol_dict(**{})
+    doc.update(override)
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=match):
+        s8b_floor_campaign.validate_protocol(doc)
+
+
+@pytest.mark.parametrize("field,bad", [
+    ("n_sessions", 4),
+    ("n_sessions", 16),
+    ("reps", 3),
+    ("retry_slots_per_cell", 1),
+    ("retry_slots_per_cell", 0),
+    ("session_cv_max", "0.20"),
+    ("cell_cv_max", "0.10"),
+    ("scale_adequacy_rel_tolerance", "0.05"),
+])
+def test_validate_protocol_pins_approved_numbers(field, bad):
     doc = _valid_protocol_dict()
-    doc["formula"] = "s8b-floor-stats/v0-wrong"
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="formula"):
+    doc[field] = bad
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=field):
+        s8b_floor_campaign.validate_protocol(doc)
+
+
+def test_validate_protocol_pins_threshold_type_not_float():
+    # 閾値は decimal 文字列で凍結 — float 0.10 は型不一致で拒否 (α-9)。
+    doc = _valid_protocol_dict()
+    doc["session_cv_max"] = 0.10
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="session_cv_max"):
+        s8b_floor_campaign.validate_protocol(doc)
+
+
+@pytest.mark.parametrize("reasons", [
+    ["competing_process", "launch_failure", "nonfinite_or_partial_output"],  # 欠落
+    ["competing_process", "launch_failure", "nonfinite_or_partial_output",
+     "performance_anomaly", "correctness_red"],                              # 余分
+    ["launch_failure", "competing_process", "nonfinite_or_partial_output",
+     "performance_anomaly"],                                                 # 並べ替え
+])
+def test_validate_protocol_pins_reasons_exact_order(reasons):
+    doc = _valid_protocol_dict()
+    doc["allowed_excluded_reasons"] = reasons
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="allowed_excluded_reasons"):
         s8b_floor_campaign.validate_protocol(doc)
 
 
@@ -388,61 +465,23 @@ def test_validate_protocol_rejects_malformed_freeze_sha256():
         s8b_floor_campaign.validate_protocol(doc)
 
 
-def test_validate_protocol_rejects_blocks_times_replicates_mismatch():
-    doc = _valid_protocol_dict()
-    doc["n_sessions"] = 99  # blocks(1) * replicates_per_block(1) = 1 != 99
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="n_sessions"):
-        s8b_floor_campaign.validate_protocol(doc)
-
-
-def test_validate_protocol_rejects_blocks_not_two():
-    """formula v1 は 2 block 固定 (block_medians[1]/[2] 直接添字参照)。blocks!=2 は
-    blocks*replicates_per_block==n_sessions を満たしていても拒否する
-    (レビュー所見 F1-blocks-not-pinned-to-2)。"""
-    doc = _valid_protocol_dict()
-    doc["blocks"] = 3
-    doc["replicates_per_block"] = 1
-    doc["n_sessions"] = 3
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="2-block"):
-        s8b_floor_campaign.validate_protocol(doc)
-
-
-def _forbid_measure(*_a, **_kw):
-    raise AssertionError("hash/env の pin 検査より前で measure_fn が呼ばれてはいけない")
-
-
-def test_run_campaign_rejects_freeze_byte_hash_mismatch(tmp_path):
-    freeze = _freeze_document()
-    # formula v1 は 2 block 固定 (validate_protocol が blocks==2 を要求する) なので blocks=2 を使う。
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                         replicates_per_block=1)
-    # freeze_doc の sha256 は正しい形式だが protocol.freeze.sha256 と値が食い違う。
-    other_bytes = json.dumps({"different": "document"}).encode("utf-8")
-    tampered = VerifiedFreeze(document=freeze, sha256=hashlib.sha256(other_bytes).hexdigest())
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="bytes-hash pin"):
-        _run_campaign(protocol, tampered, out_root=tmp_path / "out",
-                     build_root=tmp_path / "bin", measure_fn=_forbid_measure,
-                     probe_fn=lambda: (1, ""))
-
-
-def test_run_campaign_rejects_env_tag_mismatch(tmp_path):
-    freeze = _freeze_document()
-    # formula v1 は 2 block 固定 (validate_protocol が blocks==2 を要求する) なので blocks=2 を使う。
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                         replicates_per_block=1, env_tag="some-other-env")
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="env_tag"):
-        _run_campaign(protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
-                     build_root=tmp_path / "bin", measure_fn=_forbid_measure,
-                     probe_fn=lambda: (1, ""))
+def test_load_resume_manifest_rejects_v1_schema(tmp_path):
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps({
+        "schema_version": "s8b-floor-manifest/v1", "protocol_sha256": "x",
+        "freeze_sha256": "y", "binaries": {},
+    }), encoding="utf-8")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="schema_version"):
+        s8b_floor_campaign._load_resume_manifest(path, protocol_sha256="x", freeze_sha256="y")
 
 
 # =========================================================================== #
-# 3. official mode は常に拒否 (§8 未裁定)                                       #
+# 3. official mode は常に拒否 (§8 未裁定) — CLI + core 直接 (δ-3)               #
 # =========================================================================== #
 
 def test_main_official_mode_always_refused(tmp_path, capsys):
     protocol_path = tmp_path / "protocol.json"
-    protocol_path.write_text("{}", encoding="utf-8")  # official 拒否は内容を読む前に効く
+    protocol_path.write_text("{}", encoding="utf-8")
     rc = s8b_floor_campaign.main(["--mode", "official", "--protocol", str(protocol_path)])
     assert rc == 2
     payload = json.loads(capsys.readouterr().out)
@@ -450,124 +489,231 @@ def test_main_official_mode_always_refused(tmp_path, capsys):
     assert "§8" in payload["reason"]
 
 
-def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
-    """境界欠陥是正の固定: pilot CLI が壊れた freeze (byte hash 不一致) で落ちるとき、
-    loader 例外は境界 adapter で FloorCampaignError へ変換され、既存の構造化 error
-    JSON 経路 (rc 1) に乗る (traceback で漏れない)。
-
-    移行前は loader が OracleDriverError を投げ、CLI の except FloorCampaignError に
-    捕捉されず traceback として stderr へ漏れていた。本テストはその是正を subprocess
-    で固定する。
-    """
-    freeze_path = tmp_path / "freeze.json"
-    # 実 sha256 は protocol.freeze.sha256 ("0"*64) と一致しない (hash 不一致で拒否)。
-    freeze_path.write_text("{}", encoding="utf-8")
-    protocol = _protocol(freeze_sha="0" * 64, n_sessions=2, blocks=2,
-                         replicates_per_block=1)
-    protocol["freeze"]["path"] = str(freeze_path)  # 絶対 path は resolve 素通し。
-    protocol_path = tmp_path / "protocol.json"
-    protocol_path.write_text(json.dumps(protocol), encoding="utf-8")
-
-    script = textwrap.dedent(
-        f"""
-        import sys
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import s8b_floor_campaign as floor
-        sys.exit(floor.main(["--mode", "pilot", "--protocol", {str(protocol_path)!r}]))
-        """
-    )
-    proc = subprocess.run(
-        [sys.executable, "-c", script], capture_output=True, text=True,
-    )
-    assert proc.returncode == 1, (proc.returncode, proc.stdout, proc.stderr)
-    assert "Traceback" not in proc.stderr, proc.stderr
-    payload = json.loads(proc.stdout)
-    assert payload["status"] == "error"
-    assert "FloorCampaignError" in payload["error"]
-    assert "expected_hash" in payload["error"]
-
-
-# =========================================================================== #
-# 4. session 有効性 → retry → floor 未確定の伝播                                #
-# =========================================================================== #
-
-def test_partial_reps_invalidates_session_and_surviving_retry_failure_nulls_floor(tmp_path):
+def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
+    """core run_campaign 自体が official を無条件拒否し build/measure/write を 0 回にする (δ-3)。"""
     freeze = _freeze_document()
-    freeze_sha = _freeze_sha(freeze)
+    out_root = tmp_path / "out"
+
+    def forbid_build(*a, **k):
+        raise AssertionError("official 拒否より前に build してはいけない")
+
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build", forbid_build):
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="official"):
+            s8b_floor_campaign.run_campaign(
+                _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+                out_root=out_root, mode="official",
+                measure_fn=_forbid_measure, probe_fn=lambda: (1, ""),
+                prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+            )
+    assert not out_root.exists()  # 書き込み 0 回
+
+
+def _forbid_measure(*_a, **_kw):
+    raise AssertionError("pin/env/hash の検査より前で measure_fn が呼ばれてはいけない")
+
+
+# =========================================================================== #
+# 4. env contract 結線 (F4) — lookup fail-closed + machine-pin                  #
+# =========================================================================== #
+
+def test_run_campaign_rejects_unknown_env_tag(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze), env_tag="pegasus-unknown")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="env 契約"):
+        _run_campaign(protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+                      build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                      probe_fn=lambda: (1, ""))
+
+
+def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
+    """契約の env_tag が実行機の p2_2.ENV_TAG と一致しなければ拒否する (暫定 machine-pin)。"""
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze), env_tag="foreign-env")
+    fake_contract = ec.ExecutionEnvironmentContract(
+        env_tag="foreign-env", clocks_per_us=2100, numactl=(),
+        isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=True),
+        calibration_ref=ec.CalibrationRef(path="output/x.json", sha256="0" * 64),
+    )
+    with mock.patch.object(s8b_floor_campaign._env_contract, "lookup",
+                           return_value=fake_contract):
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="machine-pin"):
+            _run_campaign(protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+                          build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                          probe_fn=lambda: (1, ""))
+
+
+def test_run_campaign_rejects_freeze_byte_hash_mismatch(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    other = json.dumps({"different": "document"}).encode("utf-8")
+    tampered = VerifiedFreeze(document=freeze, sha256=hashlib.sha256(other).hexdigest())
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="bytes-hash pin"):
+        _run_campaign(protocol, tampered, out_root=tmp_path / "out",
+                      build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                      probe_fn=lambda: (1, ""))
+
+
+def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
+    """measure_fn=None 経路の既定 closure が contract.clocks_per_us / contract.numactl を
+    measure_point に渡す (CLK/NUMA の p2_2 直 import 除去, F4)。"""
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    contract = ec.lookup(ENV_TAG)
+    seen = {}
+
+    def spy_measure_point(binary, records, threads, clocks_per_us, **kw):
+        seen["clocks_per_us"] = clocks_per_us
+        seen["numactl"] = kw.get("numactl")
+        return _FakeScalePoint(throughputs=[1000.0] * 5, notes=[], run_cmd="./x")
+
+    fake_build = _make_fake_build(tmp_path / "bin")
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build", fake_build), \
+         mock.patch.object(s8b_floor_campaign, "measure_point", spy_measure_point):
+        s8b_floor_campaign.run_campaign(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
+            measure_fn=None, probe_fn=lambda: (1, ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, monotonic_fn=lambda: 0.0,
+        )
+    assert seen["clocks_per_us"] == contract.clocks_per_us
+    assert seen["numactl"] == list(contract.numactl)
+
+
+# =========================================================================== #
+# 5. session 有効性 → retry → floor 未確定の伝播                                #
+# =========================================================================== #
+
+def test_partial_reps_invalidates_session_and_burns_retry_then_nulls_pair(tmp_path):
+    freeze = _freeze_document()
     verified = _verified_freeze(freeze)
 
-    # --- 非 stock セルが flaky (4/5 reps) → retry も失敗 → 当該 pair のみ null ---
-    # formula v1 は 2 block 固定 (block_medians[1]/[2] を直接参照) なので blocks=2 を使う
-    # (n_sessions=1 の 1 block では stdev が要る 2 点が集まらず holdout_floors が壊れる)。
     flaky = "rr79::sort_best"
     measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid],
                                   partial_for={flaky})
-    protocol = _protocol(freeze_sha=freeze_sha, n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=5, retry_slots_per_cell=1)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "nonstock",
                             build_root=tmp_path / "nonstock-bin",
                             measure_fn=measure_fn, probe_fn=lambda: (1, ""))
     result = outcome["result"]
 
     flaky_sessions = [s for s in result["sessions"] if s["cell_id"] == flaky]
-    # retry_slots_per_cell はセル単位の campaign 全体予算 (block ごとではない) — block1 の
-    # planned+retry で 1 枠を使い切り、block2 は planned のみで retry を持てない。
-    assert len(flaky_sessions) == 3
+    # 8 planned (全て partial・無効) + campaign 通算 2 retry (round1 末尾で消化) = 10 本。
+    assert len(flaky_sessions) == 8 + 2
     assert all(not s["valid"] for s in flaky_sessions)
     assert all(s["excluded_reason"] == "nonfinite_or_partial_output" for s in flaky_sessions)
+    retries = [s for s in flaky_sessions if s["retry"]]
+    assert len(retries) == 2
+    assert sorted(s["retry_ordinal"] for s in retries) == [1, 2]
 
     assert result["cells"][flaky]["valid"] is False
     assert result["cells"][flaky]["n_valid"] == 0
-    assert result["floors"]["rr79"]["pairs"][flaky] is None
-    other = "rr79::p2_2_flag_opt"
-    assert result["floors"]["rr79"]["pairs"][other] is not None
-    assert result["floors"]["rr79"]["scale_ref"] is not None  # stock は valid
-    assert result["floors"]["rr79"]["scalar_alt"] is None  # null pair が veto する
-    for cid, floor in result["floors"]["rr23"]["pairs"].items():
-        assert floor is not None, cid  # rr23 holdout は無関係で全確定
+    assert result["floors"]["rr79"]["pairs"]["sort_best"] is None
+    assert result["floors"]["rr79"]["pairs"]["p2_2_flag_opt"] is not None
+    assert result["floors"]["rr79"]["scale_ref"] is not None
+    assert result["floors"]["rr79"]["scalar_alt"] is None  # null pair が veto
+    for cfg, floor in result["floors"]["rr23"]["pairs"].items():
+        assert floor is not None, cfg
     assert result["floors"]["rr23"]["scalar_alt"] is not None
 
-    # --- stock セルが flaky → 当該 holdout の floor は全 pair + scale_ref が null ---
+
+def test_stock_flaky_nulls_entire_holdout_including_scale_ref(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
     stock_flaky = "rr79::stock_common"
-    measure_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid],
-                                   partial_for={stock_flaky})
-    outcome2 = _run_campaign(protocol, verified, out_root=tmp_path / "stock",
-                             build_root=tmp_path / "stock-bin",
-                             measure_fn=measure_fn2, probe_fn=lambda: (1, ""))
-    result2 = outcome2["result"]
-    assert result2["cells"][stock_flaky]["valid"] is False
-    for cid, floor in result2["floors"]["rr79"]["pairs"].items():
-        assert floor is None, cid
-    assert result2["floors"]["rr79"]["scale_ref"] is None
-    assert result2["floors"]["rr79"]["scalar_alt"] is None
-    for cid, floor in result2["floors"]["rr23"]["pairs"].items():
-        assert floor is not None, cid  # 無関係 holdout は無傷
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+                                  partial_for={stock_flaky})
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "stock",
+                            build_root=tmp_path / "stock-bin",
+                            measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+    result = outcome["result"]
+    assert result["cells"][stock_flaky]["valid"] is False
+    for cfg, floor in result["floors"]["rr79"]["pairs"].items():
+        assert floor is None, cfg
+    assert result["floors"]["rr79"]["scale_ref"] is None
+    assert result["floors"]["rr79"]["scalar_alt"] is None
+    for cfg, floor in result["floors"]["rr23"]["pairs"].items():
+        assert floor is not None, cfg  # 無関係 holdout は無傷
+
+
+def test_retry_sequence_is_metamorphic_to_other_cells_values(tmp_path):
+    """他セルの性能値を変えても、失敗セルの retry 列 (attempt_id/ordinal) は不変 (β-4)。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    flaky = "rr23::ident_all"
+
+    def run(scale):
+        def value_fn(cid):
+            return _BASE_TPS[cid] * (scale if cid != flaky else 1.0)
+        measure_fn = _make_measure_fn(reps=5, value_fn=value_fn, partial_for={flaky})
+        outcome = _run_campaign(protocol, verified, out_root=tmp_path / f"run{scale}",
+                                build_root=tmp_path / f"bin{scale}",
+                                measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+        return outcome["result"]
+
+    ra = run(1.0)
+    rb = run(2.0)  # 他セルの性能値だけ 2 倍
+
+    def flaky_attempts(result):
+        return [(s["kind"], s["retry_ordinal"], s["attempt_id"], s["valid"],
+                 s["excluded_reason"]) for s in result["sessions"] if s["cell_id"] == flaky]
+
+    assert flaky_attempts(ra) == flaky_attempts(rb)  # retry 列は不変
+    # 一方で他セルの medians は実際に変わっている (metamorphic の前提が空回りでない証拠)。
+    other = "rr23::system_gate"
+    assert ra["cells"][other]["m"] != rb["cells"][other]["m"]
 
 
 # =========================================================================== #
-# 5. probe 臨界区間 (競合 → session 無効 + journal に生出力、実行不能 → abort)   #
+# 6. probe 臨界区間 (競合 → 無効 + 生出力 / 実行不能 → abort / post-probe finally) #
 # =========================================================================== #
 
 def test_probe_competing_invalidates_session_with_raw_stdout_in_journal(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
-    # formula v1 は 2 block 固定 (validate_protocol が blocks==2 を要求する) なので blocks=2 を使う。
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=2, retry_slots_per_cell=0)
-    measure_fn = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
-    conflicting_stdout = "999 ycsb_fixture.exe -thread_num=1\n"
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    conflicting = "999 ycsb_fixture.exe -thread_num=1\n"
 
-    outcome = _run_campaign(
-        protocol, verified, out_root=tmp_path / "out", build_root=tmp_path / "bin",
-        measure_fn=measure_fn, probe_fn=lambda: (0, conflicting_stdout),
-    )
-    assert measure_fn.calls == []  # 競合検知は measure の前でスキップする
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (0, conflicting))
+    assert measure_fn.calls == []  # 競合検知は measure の前でスキップ
     result = outcome["result"]
     assert all(not s["valid"] for s in result["sessions"])
     assert all(s["excluded_reason"] == "competing_process" for s in result["sessions"])
     sample = result["sessions"][0]
-    assert sample["probe_before"]["stdout"] == conflicting_stdout
-    assert sample["probe_before"]["competing"]  # 生の競合行が journal に残る
+    assert sample["probe_before"]["stdout"] == conflicting
+    assert sample["probe_before"]["competing"]
+
+
+def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path):
+    """measure が例外 (全 rep 起動不能) の経路でも post-probe を実行し、post-probe 競合が
+    launch_failure より優先される (β-7 の precedence)。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    launch_fail_cell = "rr79::system_gate"
+
+    # pre-probe は常に競合なし (rc=1)、post-probe (2 回目) は競合 (rc=0) を返す。
+    calls = {"n": 0}
+
+    def probe_fn():
+        calls["n"] += 1
+        if calls["n"] % 2 == 1:
+            return (1, "")           # pre-probe: 競合なし
+        return (0, "777 ycsb_fixture.exe\n")  # post-probe: 競合
+
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+                                  raise_for={launch_fail_cell})
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=probe_fn)
+    result = outcome["result"]
+    # 全 planned は post-probe 競合 → competing_process (launch エラーの cell も competing が優先)。
+    for s in result["sessions"]:
+        assert s["excluded_reason"] == "competing_process"
+        assert s["probe_after"] is not None  # 例外経路でも post-probe が走った
 
 
 @pytest.mark.parametrize("probe_fn, match", [
@@ -578,10 +724,8 @@ def test_probe_competing_invalidates_session_with_raw_stdout_in_journal(tmp_path
 def test_probe_unexecutable_or_unparseable_aborts_campaign(tmp_path, probe_fn, match):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
-    # formula v1 は 2 block 固定 (validate_protocol が blocks==2 を要求する) なので blocks=2 を使う。
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=2, retry_slots_per_cell=0)
-    measure_fn = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
 
     def probe_wrapper():
         return probe_fn()
@@ -595,19 +739,73 @@ def test_probe_unexecutable_or_unparseable_aborts_campaign(tmp_path, probe_fn, m
     journal = _read_journal_lines(run_dir / "journal.jsonl")
     terminal = [r for r in journal if r.get("event") == "terminal"]
     assert terminal and terminal[-1]["status"] == "aborted"
-    assert not (run_dir / "result.json").exists()  # abort 時は artifact を書かない
+    assert not (run_dir / "result.json").exists()
 
 
 # =========================================================================== #
-# 6. create-only (manifest/result) と journal の append                        #
+# 7. performance_anomaly (session 内 CV>10%) / machine_anomaly (セル間 CV>15%)   #
+# =========================================================================== #
+
+def test_performance_anomaly_invalidates_session_and_nulls_pair(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    anomaly = "rr79::ident_all"
+
+    def reps_fn(cid):
+        if cid == anomaly:
+            return [80.0, 90.0, 100.0, 110.0, 120.0]  # CV=sqrt(250)/100≈15.8% > 10%
+        return [_BASE_TPS[cid]] * 5
+
+    measure_fn = _make_measure_fn(reps=5, value_fn=None, reps_fn=reps_fn)
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (1, ""))
+    result = outcome["result"]
+    anomaly_sessions = [s for s in result["sessions"] if s["cell_id"] == anomaly]
+    assert all(s["excluded_reason"] == "performance_anomaly" for s in anomaly_sessions)
+    assert all(not s["valid"] for s in anomaly_sessions)
+    assert result["cells"][anomaly]["valid"] is False
+    assert result["floors"]["rr79"]["pairs"]["ident_all"] is None
+
+
+def test_machine_anomaly_valid_cell_but_pair_null(tmp_path):
+    """セル間 CV>15% のセルは統計的には有効 (n_valid=8) だが当該 pair は machine_anomaly で null。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    noisy = "rr23::sort_best"
+    per_cell = {}
+
+    def reps_fn(cid):
+        if cid == noisy:
+            per_cell[cid] = per_cell.get(cid, 0) + 1
+            # 8 session の median を [100×4, 150×4] にしてセル間 CV≈21% > 15%。
+            value = 100.0 if per_cell[cid] <= 4 else 150.0
+            return [value] * 5  # session 内は一定 (performance_anomaly ではない)
+        return [_BASE_TPS[cid]] * 5
+
+    measure_fn = _make_measure_fn(reps=5, value_fn=None, reps_fn=reps_fn)
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (1, ""))
+    result = outcome["result"]
+    assert result["cells"][noisy]["valid"] is True       # 8 session 全て有効
+    assert result["cells"][noisy]["n_valid"] == 8
+    assert result["floors"]["rr23"]["pairs"]["sort_best"] is None  # machine_anomaly で null
+    diag = result["floors"]["rr23"]["diagnostics"]
+    assert noisy in diag["machine_anomaly_cells"]
+
+
+# =========================================================================== #
+# 8. create-only + journal append + 冪等 finalization (β-11)                    #
 # =========================================================================== #
 
 def test_create_only_rejects_overwrite_journal_appends(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=2)
-    measure_fn = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     out_root = tmp_path / "out"
 
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
@@ -615,18 +813,17 @@ def test_create_only_rejects_overwrite_journal_appends(tmp_path):
     run_dir = Path(outcome["run_dir"])
     assert (run_dir / "manifest.json").exists()
     assert (run_dir / "result.json").exists()
+    assert (run_dir / "result.md").exists()
 
-    # 同一 protocol/now_fn で fresh run を再実行 → 同一 run_dir に衝突して拒否。
-    measure_fn2 = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    # 同一 protocol/now_fn で fresh 再実行 → 同一 run_dir 衝突で拒否。
+    measure_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="既に存在する"):
         _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin2",
                       measure_fn=measure_fn2, probe_fn=lambda: (1, ""))
 
-    # create-only の直接検査: 既存 result.json への上書きは常に拒否。
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="既に存在するため上書きしない"):
         s8b_floor_campaign._write_create_only_json(run_dir / "result.json", {"x": 1})
 
-    # journal は append-only で伸びる。
     journal_path = run_dir / "journal.jsonl"
     before = journal_path.read_text(encoding="utf-8")
     s8b_floor_campaign._journal_append(journal_path, {"event": "test-append-marker"})
@@ -635,36 +832,69 @@ def test_create_only_rejects_overwrite_journal_appends(tmp_path):
     assert len(after) > len(before)
 
 
+def test_idempotent_finalization_after_result_json_crash(tmp_path):
+    """result.json 作成後・md/terminal 前で crash した状態を模し、resume が既存 result.json を
+    hash 検証 + 欠落 md/terminal のみ補完することを固定する (β-11)。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                            measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+    run_dir = Path(outcome["run_dir"])
+    original_result = (run_dir / "result.json").read_bytes()
+
+    # crash 状態を再現: result.md を消し、journal から terminal completed 行を除去する。
+    (run_dir / "result.md").unlink()
+    journal_path = run_dir / "journal.jsonl"
+    kept = [ln for ln in journal_path.read_text(encoding="utf-8").splitlines()
+            if ln.strip() and json.loads(ln).get("event") != "terminal"]
+    journal_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+
+    # resume: 既存 result.json はそのまま (hash 一致で skip)、md/terminal を補完。
+    measure_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome2 = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                             resume_dir=run_dir, measure_fn=measure_fn2,
+                             probe_fn=lambda: (1, ""))
+    assert outcome2["status"] == "completed"
+    assert measure_fn2.calls == []  # 全 session 済みなので新規計測なし
+    assert (run_dir / "result.json").read_bytes() == original_result  # 上書きされない
+    assert (run_dir / "result.md").exists()  # 欠落 md が補完された
+    journal = _read_journal_lines(journal_path)
+    assert any(r.get("event") == "terminal" and r.get("status") == "completed" for r in journal)
+
+
 # =========================================================================== #
-# 7. resume: forward-only 再入、protocol/freeze hash pin                       #
+# 9. resume: forward-only + hash pin + manifest.schedule 権威 + 状態機械         #
 # =========================================================================== #
 
 class _SimulatedCrash(Exception):
     """resume テスト専用: 実クラッシュ (measure_fn を包む except に捕まらない例外) を模す。"""
 
 
-def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
-    freeze = _freeze_document()
-    freeze_sha = _freeze_sha(freeze)
-    verified = _verified_freeze(freeze)
-    # formula v1 は 2 block 固定なので blocks=2 (単一 block では stdev が壊れる、上の
-    # test_partial_reps... 参照)。schedule = blocks(2) × replicates(1) × 12 cells = 24 行。
-    protocol = _protocol(freeze_sha=freeze_sha, n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=2, retry_slots_per_cell=1)
-    out_root = tmp_path / "out"
-
+def _crash_at(n_crash: int):
     call_count = {"n": 0}
 
-    def crashing_measure_fn(binary, records, threads, workload):
+    def measure_fn(binary, records, threads, workload):
         call_count["n"] += 1
-        if call_count["n"] == 4:
-            raise _SimulatedCrash("fixture: プロセスが session 実行中に死ぬ")
+        if call_count["n"] == n_crash:
+            raise _SimulatedCrash("fixture: session 実行中に死ぬ")
         cell_id = _cell_id_from_binary(binary)
-        return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 2, notes=[], run_cmd="./x")
+        return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 5, notes=[], run_cmd="./x")
+    return measure_fn, call_count
 
+
+def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+
+    measure_fn, call_count = _crash_at(4)  # seq0-2 完了、seq3 は start だけ
     with pytest.raises(_SimulatedCrash):
         _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-                     measure_fn=crashing_measure_fn, probe_fn=lambda: (1, ""))
+                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
     assert call_count["n"] == 4
 
     run_dir = _only_run_dir(out_root)
@@ -673,180 +903,193 @@ def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
     starts_before = [r for r in journal_before if r.get("event") == "session-start"]
     sessions_before = [r for r in journal_before if r.get("event") == "session"]
     assert {r["seq"] for r in starts_before} == {0, 1, 2, 3}
-    assert {r["seq"] for r in sessions_before} == {0, 1, 2}  # seq3 は start だけ残る
-    crashed_cell_id = next(r["cell_id"] for r in starts_before if r["seq"] == 3)
+    assert {r["seq"] for r in sessions_before} == {0, 1, 2}
+    crashed_cell = next(r["cell_id"] for r in starts_before if r["seq"] == 3)
 
-    # protocol/freeze hash が不一致な resume は拒否される。
-    mismatched_protocol = dict(protocol)
-    mismatched_protocol["reps"] = protocol["reps"] + 1
+    # protocol hash 不一致 (master_seed 変更) の resume は拒否される。
+    mismatched = dict(protocol)
+    mismatched["master_seed"] = "different-seed"
+    resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="protocol sha256"):
-        _run_campaign(mismatched_protocol, verified, out_root=out_root,
-                     build_root=tmp_path / "bin", resume_dir=run_dir,
-                     measure_fn=crashing_measure_fn, probe_fn=lambda: (1, ""))
+        _run_campaign(mismatched, verified, out_root=out_root, build_root=tmp_path / "bin",
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
 
-    resuming_measure_fn = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    # 正当な resume は forward-only で完了。
+    resume_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-                            resume_dir=run_dir, measure_fn=resuming_measure_fn,
-                            probe_fn=lambda: (1, ""))
+                            resume_dir=run_dir, measure_fn=resume_fn2, probe_fn=lambda: (1, ""))
     assert outcome["status"] == "completed"
-    # 完了済み seq0-2、crash した seq3 は forward-only で再実行しない (seq3 の cell の
-    # *別 block* の occurrence は別 seq の別行なので、そちらは resume で普通に実行される)。
-    assert len(resuming_measure_fn.calls) == 20  # seq4..23 の 20 本だけ新規実行
+    assert len(resume_fn2.calls) == 96 - 4  # seq4..95 の 92 本だけ新規実行
 
     journal_after = _read_journal_lines(run_dir / "journal.jsonl")
     starts_after = [r for r in journal_after if r.get("event") == "session-start"]
     seqs_after = [r["seq"] for r in starts_after]
-    assert len(seqs_after) == len(set(seqs_after)) == 24  # seq の二重 start が無い
-    assert sum(1 for r in starts_after if r["seq"] == 3) == 1  # crash した seq3 は 1 回だけ
-
-    # crash したセルは crash した block 分の有効 session を永久に失い (retry も効かない
-    # forward-only 仕様)、n_sessions(2) に届かず invalid のまま伝播する。
-    result = outcome["result"]
-    assert result["cells"][crashed_cell_id]["n_valid"] < 2
-    assert result["cells"][crashed_cell_id]["valid"] is False
+    assert len(seqs_after) == len(set(seqs_after))          # seq の二重 start が無い
+    assert sum(1 for s in seqs_after if s == 3) == 1        # crash seq3 は 1 回だけ
     assert not any(r.get("seq") == 3 and r.get("event") == "session" for r in journal_after)
+
+    # crash したセルは round1 の 1 session を永久に失い n_sessions に届かず invalid。
+    result = outcome["result"]
+    assert result["cells"][crashed_cell]["n_valid"] < 8
+    assert result["cells"][crashed_cell]["valid"] is False
 
 
 def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
-    """resume は manifest 記録の binary_sha256 を disk 上バイナリと再照合する (所見
-    F3-resume-binary-hash-not-enforced)。フル run を途中 crash させ、バイナリ file の内容を
-    書き換えてから resume すると FloorCampaignError で拒否され、書き換えを戻せば resume が
-    成功することを確認する (crash-resume fixture は
-    ``test_resume_forward_only_skips_completed_and_crashed_seqs`` と同型)。
-    """
     freeze = _freeze_document()
-    freeze_sha = _freeze_sha(freeze)
     verified = _verified_freeze(freeze)
-    protocol = _protocol(freeze_sha=freeze_sha, n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=2, retry_slots_per_cell=1)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     out_root = tmp_path / "out"
     build_root = tmp_path / "bin"
 
-    call_count = {"n": 0}
-
-    def crashing_measure_fn(binary, records, threads, workload):
-        call_count["n"] += 1
-        if call_count["n"] == 4:
-            raise _SimulatedCrash("fixture: プロセスが session 実行中に死ぬ")
-        cell_id = _cell_id_from_binary(binary)
-        return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 2, notes=[], run_cmd="./x")
-
+    measure_fn, _ = _crash_at(4)
     with pytest.raises(_SimulatedCrash):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                     measure_fn=crashing_measure_fn, probe_fn=lambda: (1, ""))
+                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
 
     run_dir = _only_run_dir(out_root)
     manifest = json.loads((run_dir / "manifest.json").read_bytes())
     binaries = manifest["binaries"]
-    tampered_cell_id = sorted(binaries)[0]
-    tampered_binary_path = Path(binaries[tampered_cell_id]["binary"])
-    original_bytes = tampered_binary_path.read_bytes()
+    tampered_cell = sorted(binaries)[0]
+    binary_path = Path(binaries[tampered_cell]["binary"])
+    original = binary_path.read_bytes()
 
-    # --- バイナリ内容を書き換える → resume は binary sha256 不一致で拒否される ---
-    tampered_binary_path.write_bytes(original_bytes + b"-tampered")
-    resuming_measure_fn = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    binary_path.write_bytes(original + b"-tampered")
+    resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="バイナリ sha256"):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                     resume_dir=run_dir, measure_fn=resuming_measure_fn,
-                     probe_fn=lambda: (1, ""))
-    assert resuming_measure_fn.calls == []  # hash 不一致検出は measure より前で効く
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+    assert resume_fn.calls == []
     assert not (run_dir / "result.json").exists()
 
-    # --- 書き換えを戻す → resume は成功する ---
-    tampered_binary_path.write_bytes(original_bytes)
-    resuming_measure_fn2 = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    binary_path.write_bytes(original)
+    resume_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                            resume_dir=run_dir, measure_fn=resuming_measure_fn2,
-                            probe_fn=lambda: (1, ""))
+                            resume_dir=run_dir, measure_fn=resume_fn2, probe_fn=lambda: (1, ""))
     assert outcome["status"] == "completed"
 
 
-# =========================================================================== #
-# 8. block-tail retry のラベル保持 + min_block_gap_s (実 sleep なし)             #
-# =========================================================================== #
-
-class _FakeClock:
-    def __init__(self):
-        self.t = 0.0
-        self.sleep_calls: list = []
-
-    def monotonic(self) -> float:
-        return self.t
-
-    def sleep(self, seconds: float) -> None:
-        self.sleep_calls.append(seconds)
-        self.t += seconds
-
-
-def test_block_tail_retry_preserves_block_label_and_honors_min_block_gap(tmp_path):
+def test_resume_rejects_tampered_manifest_schedule(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=2, retry_slots_per_cell=1,
-                         min_block_gap_s=3.0)
-    flaky = "rr79::sort_best"
-    per_cell_calls: dict = {}
-
-    def measure_fn(binary, records, threads, workload):
-        cell_id = _cell_id_from_binary(binary)
-        per_cell_calls[cell_id] = per_cell_calls.get(cell_id, 0) + 1
-        if cell_id == flaky and per_cell_calls[cell_id] == 1:
-            # block1 の planned だけ 1/2 reps で無効、retry と block2 は正常。
-            return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]], notes=[], run_cmd="./x")
-        return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 2, notes=[], run_cmd="./x")
-
-    clock = _FakeClock()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     out_root = tmp_path / "out"
-    with mock.patch("time.sleep", side_effect=AssertionError("実 sleep を呼んではいけない")):
-        outcome = _run_campaign(
-            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-            measure_fn=measure_fn, probe_fn=lambda: (1, ""),
-            sleep_fn=clock.sleep, monotonic_fn=clock.monotonic,
-        )
+    build_root = tmp_path / "bin"
+
+    measure_fn, _ = _crash_at(4)
+    with pytest.raises(_SimulatedCrash):
+        _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
+                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+    run_dir = _only_run_dir(out_root)
+
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    # schedule の 1 行の cell_id を別セルに書き換える (権威 schedule の改竄)。
+    manifest["schedule"][0]["cell_id"] = manifest["schedule"][1]["cell_id"]
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                             encoding="utf-8")
+
+    resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="schedule"):
+        _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+
+
+def test_resume_rejects_duplicate_session_start(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    build_root = tmp_path / "bin"
+
+    measure_fn, _ = _crash_at(4)
+    with pytest.raises(_SimulatedCrash):
+        _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
+                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+    run_dir = _only_run_dir(out_root)
+
+    # journal に seq0 の session-start を二重に足す (状態機械が duplicate start を拒否)。
+    journal_path = run_dir / "journal.jsonl"
+    dup = next(r for r in _read_journal_lines(journal_path)
+               if r.get("event") == "session-start" and r.get("seq") == 0)
+    s8b_floor_campaign._journal_append(journal_path, dup)
+
+    resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="duplicate start"):
+        _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+
+
+def test_resume_does_not_reissue_retry_slot_after_retry_start_crash(tmp_path):
+    """retry の session-start (authorization) 後・完了前で crash した枠は resume で再発行しない
+    (β-5: 枠消費は authorization の fsync 時点)。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    build_root = tmp_path / "bin"
+    flaky = "rr79::sort_best"
+
+    # 1 回目: flaky の planned は partial (無効)、flaky の retry 1 回目で crash。
+    def first_measure(binary, records, threads, workload):
+        cell_id = _cell_id_from_binary(binary)
+        if cell_id == flaky:
+            # planned は 4 reps (partial)。retry (2 回目以降の flaky 呼び) は crash。
+            first_measure.flaky_calls += 1
+            if first_measure.flaky_calls == 1:
+                return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 4, notes=[],
+                                       run_cmd="./x")
+            raise _SimulatedCrash("fixture: retry 実行中に死ぬ")
+        return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 5, notes=[], run_cmd="./x")
+    first_measure.flaky_calls = 0
+
+    with pytest.raises(_SimulatedCrash):
+        _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
+                      measure_fn=first_measure, probe_fn=lambda: (1, ""))
+
+    run_dir = _only_run_dir(out_root)
+    journal_before = _read_journal_lines(run_dir / "journal.jsonl")
+    retry_starts = [r for r in journal_before if r.get("event") == "session-start"
+                    and r.get("kind") == "retry" and r.get("cell_id") == flaky]
+    assert [r["retry_ordinal"] for r in retry_starts] == [1]  # ordinal 1 が authorize 済み
+
+    # 2 回目 (resume): flaky も正常に測れる。ordinal 1 は再発行されず ordinal 2 が使われる。
+    resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
+                            resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
     assert outcome["status"] == "completed"
 
-    # min_block_gap_s=3.0 は sleep_fn 経由で守られる (実 sleep 呼び出しゼロ)。
-    assert clock.sleep_calls == [1.0, 1.0, 1.0]
-    assert sum(clock.sleep_calls) == pytest.approx(3.0)
-
-    run_dir = Path(outcome["run_dir"])
-    journal = _read_journal_lines(run_dir / "journal.jsonl")
-    flaky_sessions = [r for r in journal if r.get("event") == "session" and r["cell_id"] == flaky]
-    assert len(flaky_sessions) == 3  # block1 planned(無効) + block1 retry(有効) + block2 planned
-    planned_b1 = [s for s in flaky_sessions if s["kind"] == "planned" and s["block"] == 1][0]
-    retry_b1 = [s for s in flaky_sessions if s["kind"] == "retry"][0]
-    planned_b2 = [s for s in flaky_sessions if s["kind"] == "planned" and s["block"] == 2][0]
-    assert planned_b1["valid"] is False
-    assert retry_b1["valid"] is True
-    assert retry_b1["block"] == 1  # block 末尾 retry は元の block ラベルを保つ
-    assert planned_b2["valid"] is True
-    assert planned_b2["block"] == 2
-
-    assert outcome["result"]["cells"][flaky]["valid"] is True  # retry で n_sessions を満たす
+    journal_after = _read_journal_lines(run_dir / "journal.jsonl")
+    retry_starts_after = [r for r in journal_after if r.get("event") == "session-start"
+                          and r.get("kind") == "retry" and r.get("cell_id") == flaky]
+    ordinals = [r["retry_ordinal"] for r in retry_starts_after]
+    assert ordinals == [1, 2]                 # ordinal 1 は 1 回だけ (再発行なし)
+    assert len(ordinals) == len(set(ordinals))  # (cell, ordinal) は再利用されない
+    # 通算 2 枠を超えていない。
+    assert len(ordinals) <= protocol["retry_slots_per_cell"]
 
 
 # =========================================================================== #
-# 9. end-to-end golden (小さい n) + verify_floor_artifact の改竄検出            #
+# 10. end-to-end golden floor 値 + verify 改竄検出 + duration 台帳               #
 # =========================================================================== #
 
 def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
     wired = 0.05
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=4, blocks=2,
-                         replicates_per_block=2, reps=3, wired_min_rel_floor=wired,
-                         retry_slots_per_cell=1)
-    # 全 session が同一 cell に対し同一値を返す決定的 measure_fn
-    # (block 間対比 delta=0, u_noise=0 になるよう作為 — floor = wired × m_stock に一致)。
-    measure_fn = _make_measure_fn(reps=3, value_fn=lambda cid: _BASE_TPS[cid])
-
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze), wired_min_rel_floor=wired)
+    # 全 session が同一 cell に同一値 → s_c=0, u_noise=0 → floor = wired × m_stock。
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
                             probe_fn=lambda: (1, ""))
     assert outcome["status"] == "completed"
     result = outcome["result"]
 
-    assert s8b_floor_stats.verify_floor_artifact(result) == []
+    expected_protocol = s8b_floor_campaign._expected_protocol(
+        s8b_floor_campaign.validate_protocol(protocol),
+        s8b_floor_campaign.enumerate_cells(freeze, stock_configuration=_STOCK),
+    )
+    assert s8b_floor_stats.verify_floor_artifact(result, expected_protocol) == []
 
     for holdout_id in ("rr79", "rr23"):
         stock_id = f"{holdout_id}::{_STOCK}"
@@ -857,27 +1100,54 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
         for cfg in _CONFIGS:
             if cfg == _STOCK:
                 continue
-            cell_id = f"{holdout_id}::{cfg}"
-            assert floors["pairs"][cell_id] == expected_floor, cell_id
+            assert floors["pairs"][cfg] == expected_floor, cfg  # pair キーは configuration_id
         assert floors["scalar_alt"] == expected_floor
 
-    # 改竄検出: floor 値を 1 つ書き換えると verify_floor_artifact が非空になる。
-    tampered = json.loads(json.dumps(result))  # 深いコピー
-    tampered["floors"]["rr79"]["pairs"][f"rr79::{_CONFIGS[0]}"] = 999999.0
-    problems = s8b_floor_stats.verify_floor_artifact(tampered)
-    assert problems  # 齟齬が検出される (空でない)
+    # verify は expected_protocol を必須引数に取る (自己申告だけを信頼根にしない, α-3)。
+    tampered = json.loads(json.dumps(result))
+    tampered["floors"]["rr79"]["pairs"][_CONFIGS[0]] = 999999.0
+    assert s8b_floor_stats.verify_floor_artifact(tampered, expected_protocol)
+
+
+def test_result_json_records_per_attempt_duration_and_no_absolute_monotonic(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+
+    ticks = {"t": 0.0}
+
+    def monotonic_fn():
+        ticks["t"] += 0.5
+        return ticks["t"]
+
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (1, ""), monotonic_fn=monotonic_fn)
+    result = outcome["result"]
+    # 各 attempt に duration_s が記録される (β-10)。
+    for a in result["attempts"]:
+        assert isinstance(a["duration_s"], float)
+        assert a["duration_s"] >= 0
+    # 絶対 monotonic 値は wall_ledger / result に永続化しない (γ-12)。
+    for entry in result["wall_ledger"]:
+        assert "monotonic" not in entry
+    for s in result["sessions"]:
+        assert "monotonic" not in s
+    # result.md は result JSON からのみ描画され機械読込を要さない (β-9): md が存在し attempt 台帳
+    # と machine_anomaly 見出しを含む。
+    run_dir = Path(outcome["run_dir"])
+    md = (run_dir / "result.md").read_text(encoding="utf-8")
+    assert "全 attempt 台帳" in md
+    assert "machine_anomaly" in md
+    assert "除外 session (理由別件数)" in md
 
 
 def test_floor_manifest_binary_sha256_matches_real_file_bytes(tmp_path):
-    """A-8/A-4: manifest.binaries に記録した binary_sha256 が disk 上バイナリの実 sha256 と
-    一致する。build_cells が result.bin_sha256 を単一ソースにし record 時の再ハッシュをやめても
-    byte 整合が保たれること、および bin_hash_short が binary_sha256[:16] の派生であることを固定。
-    fake build は「実際に書いた bytes の実ハッシュ」を返すので、期待値は本番経路と独立。"""
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
-                         replicates_per_block=1, reps=2, retry_slots_per_cell=1)
-    measure_fn = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
                             probe_fn=lambda: (1, ""))
@@ -887,6 +1157,31 @@ def test_floor_manifest_binary_sha256_matches_real_file_bytes(tmp_path):
     assert binaries
     for cell_id, rec in binaries.items():
         actual = hashlib.sha256(Path(rec["binary"]).read_bytes()).hexdigest()
-        assert rec["binary_sha256"] == actual, cell_id       # 実ファイル byte と一致
+        assert rec["binary_sha256"] == actual, cell_id
         assert len(rec["binary_sha256"]) == 64
-        assert rec["bin_hash_short"] == rec["binary_sha256"][:16]  # 派生関係
+        assert rec["bin_hash_short"] == rec["binary_sha256"][:16]
+
+
+def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
+    freeze_path = tmp_path / "freeze.json"
+    freeze_path.write_text("{}", encoding="utf-8")
+    protocol = _protocol(freeze_sha="0" * 64)
+    protocol["freeze"]["path"] = str(freeze_path)
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_text(json.dumps(protocol), encoding="utf-8")
+
+    script = textwrap.dedent(
+        f"""
+        import sys
+        sys.path.insert(0, {str(ORCHESTRATOR)!r})
+        from campaign import s8b_floor_campaign as floor
+        sys.exit(floor.main(["--mode", "pilot", "--protocol", {str(protocol_path)!r}]))
+        """
+    )
+    proc = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
+    assert proc.returncode == 1, (proc.returncode, proc.stdout, proc.stderr)
+    assert "Traceback" not in proc.stderr, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["status"] == "error"
+    assert "FloorCampaignError" in payload["error"]
+    assert "expected_hash" in payload["error"]

@@ -45,10 +45,12 @@ from campaign import p2_2  # noqa: E402
 ENV_LITERAL_VALUES = ("linux-baremetal", "--interleave=all", 1800)
 
 # (repo 相対 module path, registry 静的定義部の FunctionDef 名 or None)。
-# None のモジュールは免除なし = literal の一切の出現を禁止。S+C wave で
-# s8b_floor_campaign.py を (path, None) として追加する拡張点。
+# None のモジュールは免除なし = literal の一切の出現を禁止。s8b_floor_campaign.py は env 契約を
+# lookup 経由でのみ参照し env 固有 literal を持たないので region=None (免除なし) で検査する
+# (S+C wave, γ-16)。免除でなく literal の除去で解消する。
 V2_ENV_NEUTRAL_MODULES = [
     ("orchestrator/campaign/env_contract.py", "_build_registry"),
+    ("orchestrator/campaign/s8b_floor_campaign.py", None),
 ]
 
 

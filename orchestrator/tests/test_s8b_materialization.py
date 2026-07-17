@@ -475,16 +475,18 @@ def test_floor_manifest_golden_stable():
         "e1df79581e810cefd9981e4fee13629cf29b2b299ccef7d018e6941092b7a23c"
     )
 
+    # protocol/manifest は v2 形状 (blocks/replicates_per_block を廃し session_cv_max/
+    # cell_cv_max を持つ; schedule は {seq, round, cell_id})。
     protocol = {
         "freeze": {"path": "p", "sha256": "f" * 64},
         "env_tag": "env-x", "ccbench_pin": "pin-x", "stock_configuration": "stock",
-        "schedule_algorithm": "balanced-permutation/v1", "master_seed": "seed",
-        "n_sessions": 2, "reps": 3, "extime_s": 1, "blocks": ["b0"],
-        "replicates_per_block": 1,
+        "schedule_algorithm": floor.SCHEDULE_ALGORITHM, "master_seed": "seed",
+        "n_sessions": 2, "reps": 3, "extime_s": 1,
+        "session_cv_max": "0.10", "cell_cv_max": "0.15",
     }
     schedule = [
-        {"seq": 0, "cell_id": "H1::stock", "block": "b0"},
-        {"seq": 1, "cell_id": "H1::v1", "block": "b0"},
+        {"seq": 0, "round": 1, "cell_id": "H1::stock"},
+        {"seq": 1, "round": 1, "cell_id": "H1::v1"},
     ]
     manifest = floor.assemble_manifest(
         protocol=protocol, protocol_sha256="p" * 64, freeze_sha256="f" * 64,
@@ -493,7 +495,7 @@ def test_floor_manifest_golden_stable():
     payload = json.dumps(
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     assert hashlib.sha256(payload.encode("utf-8")).hexdigest() == (
-        "2af0f423ca0f78d3c3395c5ade1760412db015cbb2237ee798650f41a9bf5936"
+        "47f012a17916f4fa9064add4a340b2bf140ee5f45b6fa0d729e8e8290de1b771"
     )
 
 
