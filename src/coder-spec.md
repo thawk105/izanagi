@@ -63,6 +63,10 @@ class Backoff {
 
 ## 3. Leading Indicators (planner が提案する方向の根拠)
 
+> **⚠ 本節も §4/§6/§7 と同じく旧設計 (D39/D45 以前) で superseded。§6 のバナーが述べるとおり、本節の
+> leading-indicator 記述・具体値域は現行運用でどこにも渡らない** — 本ドキュメント自体が coder 非提供 (D45)、
+> planner (planner-v4) が受け取る leading-indicators は計測層の構造化出力であって本節ではない。経緯記録として残す。
+
 coder が「値をどう変えるか」を提案された時の参考指標：
 
 ### Backoff の効果
@@ -114,6 +118,10 @@ coder が「値をどう変えるか」を提案された時の参考指標：
 ---
 
 ## 5. Coder の提案形式 (structured output)
+
+> **⚠ 本節も旧設計の記録で superseded。現行の出力スキーマの正本は agent 定義
+> (`.claude/agents/coder-v4-autonomous.md`。軸派生の `-sort` / `-trigger-gating` はスキーマが異なる —
+> value フィールドなし)。本節は段 4 backoff 軸の旧記述であり、経緯記録として残す。**
 
 ```json
 {
@@ -175,6 +183,12 @@ coder が「値をどう変えるか」を提案された時の参考指標：
 ---
 
 ## 8. 段 5 への引き継ぎ
+
+> **⚠ 本節は履行済みの旧計画で superseded。段 5 (sort 軸) は完了済み** (記録 =
+> `docs/archive/phase3-kickoff-stages1-5.md`、2026-07-10 凍結)。sort 軸の template は
+> `external/ccbench/cc/silo/transaction.cc` の EVOLVE-BLOCK として実装されたが、下記の
+> 「coder-spec.md を拡張」する予定は採られず、現行の正本は `docs/phase3-s5-sort-runbook.md` と
+> agent 定義 (`.claude/agents/coder-v4-autonomous-sort.md`)。経緯記録として残す。
 
 段 4 で backoff 軸を合成したら、段 5 で lock-sort 軸が追加される予定。その時：
 - 新軸の template を同じパターンで `external/ccbench/cc/silo/transaction.cc` に追加
