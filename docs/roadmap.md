@@ -16,7 +16,7 @@
 
 ここでいう AI システムは LLM 単体ではない。LLM による機序帰属・変異軸提案、有限空間に強い機械探索、正しさ verifier、性能測定、最終選択を一体として扱う。列挙可能な空間で機械探索が LLM より強いなら、機械探索を使うのが正しい設計であり、システムの成功に「LLM が機械探索を上回ること」は含めない。
 
-入力は、少なくとも read/write 比率、競合水準、スケール、最適化目的、正しさ制約を型付きで持つ workload descriptor とする。既知の勝者名や性能値は入力に混ぜない。システムは:
+入力は workload descriptor とする。これは少なくとも read/write 比率、競合水準、スケール、最適化目的、正しさ制約を型付きで持つ。既知の勝者名や性能値は入力に混ぜない。システムは:
 1. CCBench の候補を同一条件で比較し、ベース CC 候補と比較基準を定める
 2. 指標の機序帰属から変異軸または探索箇所を提案し、LLM 合成と bounded machine search を使い分ける
 3. 各 variant を正しさ・identity・性能の据え置きゲートで評価し、採用・棄却・差なしを記録する
@@ -123,7 +123,7 @@ low-fidelity proxy や island model は、正式評価との順位相関や多�
 
 上の 3 点は human-supervised なシステム合成の最小要件である。**無人自律を名乗るには、さらに反復駆動が
 セッション非依存で、checkpoint・予算・再開を orchestrator が所有することが必須**。現況と着手順は
-`docs/phase3.md` を正本とする。planner/coder を人間がセッションごとに運ぶ段階は human-supervised loop、
+`docs/phase3.md` を正本とする。planner/coder を人間がセッションごとに運ぶ段階は human-supervised loop と呼び、
 orchestrator が各 role を呼び予算内で終了まで駆動して初めて unattended/autonomous と呼ぶ。8c を後回しに
 することは着手順の判断であって、この要件の免除ではない。どちらの場合も正しさ・identity・リーク制御の
 防壁は緩めない。
@@ -228,7 +228,7 @@ variant と baseline は決して同一セッションで測らない (別ビル
 **(4) 採否は点比較でなく分布比較.** variant vs baseline の優劣判定は単一値の大小でなく**分布の比較**で行う:
 - 差が noise floor 以下なら「**差なし**」に丸める。層3 narrative の「3%悪化だから不採用」のような **noise floor 以下の差を採否根拠にしてはいけない** (3% はラップトップ/devcontainer ではほぼノイズ)
 - noise floor を超える差については、信頼区間の重なり、または分布フリーな検定 (Mann-Whitney U 程度で十分) で有意性を判定する。重い統計機構は要らない。**ただし反復数が小さい (reps≈5) と MWU の弁別力は弱く、完全分離は常に p≈0.012 を返す** (within-run cluster が tight なため)。
-  - よって MWU は between-run 有意性検定ではなく within-run の分布重なりを弾く弱い sanity にすぎず、**主防壁は between-run floor 丸め (上記第1項)**。
+  - よって MWU は between-run 有意性検定ではなく within-run の分布重なりを弾く弱い sanity にすぎず、**主防壁は between-run floor 丸め ((4) の第1項、noise floor 以下を「差なし」に丸める)**。
   - floor を僅かに超える差 (floor 〜 1.5×floor) は MWU が無力な帯なので、headline にする前に cross-run 再現で裏取りする (A2: compare が `near_floor` フラグを立てる)
 - 層3 のレポートは差分値だけでなく **「N 回測定の中央値、CV、noise floor、有意か否か」** を添える。これは「なぜこの variant を採った/外した」の説明可能性 (本システムの差別化の核心) を統計的に裏打ちする。各主張をその根拠 (WAL の run 値) まで辿れる形で紐づける構造は、ARA の forensic binding (claim→code→evidence の proof chain) と同型 (§7・D12)
 

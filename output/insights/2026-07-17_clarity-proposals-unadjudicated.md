@@ -8,7 +8,7 @@ base_commit: 60da9b8
 human_decision: pending
 ```
 
-**C-32 / C-139 / C-150 は 2026-07-17 のユーザー裁定 (byte 予算緩和) で採用・適用済み。他の案は発効していない。** 各案は「意味を変えない」と断定できず人間裁定を要すると
+**全 11 案の裁定完了 (2026-07-17)。** C-32/C-139/C-150 + P-19/P-118/P-209/P-155 = 採用・適用済み、P-100 は再起草版を適用、P-89/P-93/P-3 = 見送り。本台帳に pending は残っていない。 各案は「意味を変えない」と断定できず人間裁定を要すると
 親 (fable) が分類したもの。採用する場合は tanab さんの直接指示による**別 commit** とし、
 採用時点の本文と old_text (sha256 併記) の一致を確認してから適用する。裁定が来なければ永久に非採用。
 反対解釈 (counter) は「この案が意味を変えていると読める解釈」であり、採否判断の材料。
@@ -19,7 +19,7 @@ human_decision: pending
 ## P-3 — docs/roadmap.md 冒頭統治段落 (byte-frozen: 協議改訂契約の正本)
 
 - old_text_sha256: `1a438d3178632ace4cf44d679cfd39ef2ba7ca897c0eafa527e46efd1279cfc2`
-- human_decision: pending
+- human_decision: **rejected** (同上 — 軸ずれリスクが利益を上回る)
 
 ### 現行 (old、逐語)
 
@@ -44,7 +44,7 @@ human_decision: pending
 ## P-19 — docs/roadmap.md §1 入力定義文 (semantic-lock、語順再構成を伴うため)
 
 - old_text_sha256: `cb58f5882941f19f7fcc346af99caaefb5c7674728794b9dd1f2d8e6c4b9b1ab`
-- human_decision: pending
+- human_decision: **adopted** (2026-07-17 ユーザー裁定「推奨で変更していい」— 起草どおり適用)
 
 ### 現行 (old、逐語)
 
@@ -67,7 +67,7 @@ human_decision: pending
 ## P-118 — docs/roadmap.md §2 human-supervised loop 呼称文 (真の曖昧性)
 
 - old_text_sha256: `e86de465dd8fad957f655d33a71d15a14dd6324cf87d0c90f1a66383475ecd32`
-- human_decision: pending
+- human_decision: **adopted** (同上 — 解釈 a (命名並列) で適用)
 
 ### 現行 (old、逐語)
 
@@ -90,7 +90,7 @@ planner/coder を人間がセッションごとに運ぶ段階は human-supervis
 ## P-209 — docs/roadmap.md §3.6(4)「上記第1項」(指示対象の明示に語追加を伴うため)
 
 - old_text_sha256: `bb73db2862f8f1d985e41283704ea1e773ca255bad08b78cee2ae8472566f2c1`
-- human_decision: pending
+- human_decision: **adopted** (同上 — 指示対象 = (4) 第 1 バレットで確定して適用)
 
 ### 現行 (old、逐語)
 
@@ -198,7 +198,7 @@ runbook (`docs/README.md` の地図から引く) に従って決める。
 ## P-89 — CLAUDE.md 絶対規律 6 中核文 (byte-frozen = 憲法、人間のみ変更可)
 
 - old_text_sha256: `ed191da7bd99be069652284c70b09f2826be0290c48cf61f419c2ccb27ef6e59`
-- human_decision: pending
+- human_decision: **rejected** (2026-07-17 ユーザー裁定 — 閉じた列挙が信頼境界を弱める反対解釈を採り見送り)
 
 ### 現行 (old、逐語)
 
@@ -226,7 +226,7 @@ runbook (`docs/README.md` の地図から引く) に従って決める。
 ## P-93 — CLAUDE.md 絶対規律 6 監査発火条件 (byte-frozen。既存の規範矛盾を含む)
 
 - old_text_sha256: `37adae99eabccca123e23b680532e62f3e0ca8524c2dd4d97000efa3d5ce0d47`
-- human_decision: pending
+- human_decision: **rejected** (同上 — 解釈 C: CLAUDE.md=行動規律 / roadmap§3.7=機械ゲートにしない、の層の違いとして現状維持)
 
 ### 現行 (old、逐語)
 
@@ -257,7 +257,7 @@ runbook (`docs/README.md` の地図から引く) に従って決める。
 ## P-100 — CLAUDE.md「roadmap の更新 — 三層の可変性」(改訂三語の関係)
 
 - old_text_sha256: `97228bf39bf15f131b1dbd85b264a80e478d53df8dabb3a780661df6756c4a46`
-- human_decision: pending
+- human_decision: **rejected-as-drafted** (同上 — 「大改訂=協議改訂」は roadmap-history/README と不整合。代わりに CLAUDE.md へ協議改訂の 1 文を追記する再起草版を適用、適用 commit の diff 参照)
 
 ### 現行 (old、逐語)
 
@@ -283,7 +283,7 @@ runbook (`docs/README.md` の地図から引く) に従って決める。
 ## P-155 — CLAUDE.md 作業の進め方 項目 8 「節目ごと + 10 分おき」(記号の意味確定)
 
 - old_text_sha256: `7b1bd63a7c780cbf6a372a18a11b8ed4adcf535a58e32109ec06544e29bda9cf`
-- human_decision: pending
+- human_decision: **adopted** (同上 — 解釈 A (いずれか早い方)。handoff/README の「最低 10 分おき」が裏付け)
 
 ### 現行 (old、逐語)
 

@@ -98,7 +98,8 @@ izanagi は素性の知れない外部内容を取り込むのが本質である
 
 - **絶対規律 = 憲法。変更できるのは人間のみ。** roadmap が進化しても規律は緩めない
 - **roadmap = 戦略。AI が改訂できる。** 編集前に必ず `docs/roadmap-history/README.md` を読み、
-  自律改訂では版凍結 + decisions 記録、大改訂ではユーザー確認を行う
+  自律改訂では版凍結 + decisions 記録、大改訂ではユーザー確認を行う。ユーザーと協議して合意した
+  協議改訂はセレモニー不要で in-place (正本は同 README)
 - **phase docs 等 = 戦術。** 各文書自身の更新契約 (凍結・事前登録を含む) に従う
 
 ## サブエージェント
@@ -152,8 +153,8 @@ commit 前に `docs/ai-provenance.md` を読み、同規約の `AI-Agent:` trail
 6. (a) 可変状態の正本は worklog 末尾と現行 phase doc だけとし、他文書へ再掲しない。(b) docs 間は行番号で参照しない。(c) クラス 2 / 3 の完了変更では phase のチェックを同じ commit に含め、関連テストと `python3 tools/check_docs.py` を通す
 7. クラス 2 / 3 のセッション末に worklog を 1 回更新する。書式・ローテーションの正本は
    `docs/worklog.md` 冒頭
-8. クラス 2 / 3 の作業中は専用 handoff に節目ごと + 10 分おきに生きた進捗を集約し、正常終了時に
-   worklog へ吸収して削除する。詳細・定型は `docs/handoff/README.md`
+8. クラス 2 / 3 の作業中は専用 handoff に、節目ごと (作業の区切り) と 10 分おきのいずれか早い方で、
+   生きた進捗を集約する。正常終了時に worklog へ吸収して削除する。詳細・定型は `docs/handoff/README.md`
 9. 長時間待機中は約 1 分ごとに、時刻・完了数・実行中・次に起きることを日本語で報告する。計測を
    増やさず、独立な解析・検証・合成・文書を進める
 10. campaign の作図は `tools/plotting/FIGURE_CONVENTIONS.md` を正本とし、計測機の外で行う
