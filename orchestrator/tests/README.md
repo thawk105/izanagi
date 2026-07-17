@@ -13,14 +13,18 @@ campaign 系は書き込みごとに flush+fsync するため、一時 dir が�
   `TMPDIR=/dev/shm` を手で与える。ただし GB 級の実 trace / 実ビルドを回す作業では
   tmpfs は RAM を食う — その場合はディスク側 TMPDIR のまま実行する
 
-### 並列実行 (任意)
+### 並列実行 — 推奨の起動方法
 
-pytest-xdist が入っている環境では `python3 -m pytest orchestrator/tests -n 8` で
-さらに数倍速くなる (実測は worklog 2026-07-17)。xdist は**必須依存にしない** —
-無い環境では従来どおり直列で走り、導入は `pip3 install --user pytest-xdist` の
-機械ローカル判断とする。並列度は、最遅単体テストと worker 起動コストで頭打ちに
-なるため上げても得しない。共有マシン (ログインノード等) では全コアを掴む
-`-n auto` を避け、節度ある固定値 (目安 8) を使う。
+```
+python3 tools/run_tests.py            # スイート全体。xdist 無ければ --user へ自動導入し -n 8
+python3 tools/run_tests.py <pytest引数>  # 対象・-n の上書きはそのまま渡る
+```
+
+pytest-xdist は**必須依存にしない** — 自動導入に失敗する環境 (オフライン等) では
+ランナーが直列にフォールバックし、`python3 -m pytest orchestrator/tests` 直叩きも
+従来どおり使える。並列度 8 の根拠と実測は worklog 2026-07-17 (最遅単体テストと
+worker 起動コストで頭打ちになるため上げても得しない)。共有マシン (ログイン
+ノード等) では全コアを掴む `-n auto` を使わない。
 
 ## 二重 runner
 

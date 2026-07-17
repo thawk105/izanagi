@@ -267,3 +267,18 @@ README で非推奨と明記。commit は README 追記 + 本エントリのみ�
 
 ### 次の一手
 1. 前エントリ (6) の残り (ユーザー任意分) は変わらず
+
+## 2026-07-17 (9) — テストランナー tools/run_tests.py (xdist 自動導入) 
+
+(8) へのユーザー feedback「導入手順をいちいち言わせず自動化してほしい」対応。
+`tools/run_tests.py`: pytest-xdist 無ければ `pip install --user` へ自動導入し -n 8 で実行、
+導入不可 (オフライン等) は直列 fallback、pytest 引数はそのまま透過。実装中の検出 2 件:
+(a) 引数ヒューリスティックが `-n 4` の値「4」を対象指定と誤認し既定ターゲット無しの
+repo 全体収集でハング → 実在パス / `::` 付き id のみ対象と数える修正。(b) pip uninstall の
+残骸 (空 namespace dir) が find_spec を騙し「導入済み」誤判定 → dist メタデータ
+(pytest の plugin 発見と同じ実体) での判定へ修正。完全未導入状態からの e2e (自動導入 →
+-n 8 → 996 passed / 23 skipped, 5.3s) を確認。commit 本体 + README のランナー起点化。
+push はユーザー引き渡し (変わらず)
+
+### 次の一手
+1. 前エントリ (6) の残り (ユーザー任意分) は変わらず
