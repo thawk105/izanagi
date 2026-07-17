@@ -23,6 +23,10 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
+from campaign.s8b_materialization import (  # noqa: E402
+    MaterializationError,
+    prepared_binding as _materialization_prepared_binding,
+)
 from campaign import s1_known_axes_freeze, s8b_holdout_freeze  # noqa: E402
 from campaign.s8b_oracle_manifest import (  # noqa: E402
     config_for_block,
@@ -224,55 +228,21 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
     return GateDecision(allowed=not refusals, refusals=refusals)
 
 
-def _binding_entry(freeze: Mapping, holdout_id: str, configuration_id: str) -> Mapping:
-    try:
-        holdout = freeze["holdouts"][holdout_id]
-        binding = holdout["variant_binding"]
-        entry = binding["entries"][configuration_id]
-    except (KeyError, TypeError) as exc:
-        raise OracleDriverError(
-            f"freeze binding がない: holdout={holdout_id} configuration={configuration_id}"
-        ) from exc
-    if not isinstance(entry, Mapping):
-        raise OracleDriverError("freeze binding entry が object でない")
-    return entry
-
-
-def _binding_from_prepared(entry: Mapping, prepared: PreparedCell) -> dict:
-    if not isinstance(prepared, PreparedCell):
-        raise OracleDriverError("prepare_fn の戻り値が PreparedCell でない")
-    identity = {
-        "genome_canonical": prepared.genome.canonical(),
-        "src_token": prepared.src_token,
-        "variant_id": pipeline.variant_id(prepared.genome, prepared.src_token),
-        "entry_sha256": _canonical_sha256(entry),
-    }
-    identity["binding_sha256"] = _canonical_sha256(identity)
-    return identity
-
-
 @contextlib.contextmanager
 def _prepared_binding(
         *, freeze: Mapping, holdout_id: str, configuration_id: str,
         ccbench_pin: str, prepare_fn):
-    entry = _binding_entry(freeze, holdout_id, configuration_id)
-    cell = {"configuration": configuration_id, "variant": entry}
-    resource = prepare_fn(cell, ccbench_pin)
-    manager = (resource if hasattr(resource, "__enter__") and hasattr(resource, "__exit__")
-               else contextlib.nullcontext(resource))
-    with manager as prepared:
-        yield _binding_from_prepared(entry, prepared), prepared
-
-
-def prepare_binding(
-        *, freeze, holdout_id, configuration_id, ccbench_pin,
-        prepare_fn=prepare_cell) -> dict:
-    """freeze entry を S-1 materializer で実体化し、完全 binding identity を返す。"""
-    with _prepared_binding(
-            freeze=freeze, holdout_id=holdout_id,
-            configuration_id=configuration_id, ccbench_pin=ccbench_pin,
-            prepare_fn=prepare_fn) as (identity, _prepared):
-        return identity
+    """共有 materializer の境界 wrapper。identity 合成の MaterializationError だけを
+    OracleDriverError へ因果付き変換する (WAL・ログの reason 文字列を現行と一致させる)。
+    consumer body から投げ返される他例外・cleanup 例外はそのまま透過させる。"""
+    try:
+        with _materialization_prepared_binding(
+                freeze=freeze, holdout_id=holdout_id,
+                configuration_id=configuration_id, ccbench_pin=ccbench_pin,
+                prepare_fn=prepare_fn) as (identity, prepared):
+            yield identity, prepared
+    except MaterializationError as exc:
+        raise OracleDriverError(str(exc)) from exc
 
 
 def _expected_binding(manifest: Mapping, holdout_id: str,

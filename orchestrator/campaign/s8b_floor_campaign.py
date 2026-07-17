@@ -10,7 +10,7 @@ phase 文書の編集はしない** (§8 手続き: 発効はユーザー承認�
 
 系譜: 計測は calibration driver (``between_run_floor.py``) と同型で ``measure_point`` を直接
 呼ぶ (``pipeline.evaluate`` は使わない — floor は correctness gate を通す本走ではなく noise
-の実測)。build 経路だけ oracle と揃える (``s8b_oracle_driver._prepared_binding`` +
+の実測)。build 経路だけ oracle と揃える (共有 ``s8b_materialization.prepared_binding`` +
 ``buildcache.build(trace=False)``) ので、floor を測るバイナリと oracle 本走のバイナリが同一
 identity になる。
 
@@ -46,6 +46,7 @@ artifact には ``eligible_for_refreeze: false`` を焼き込む。
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -69,9 +70,14 @@ from calibrator.runner import (  # noqa: E402
     _self_and_descendant_pids,
     measure_point,
 )
-from campaign import buildcache, s8b_floor_stats, s8b_oracle_driver  # noqa: E402
+from campaign import buildcache, s8b_floor_stats  # noqa: E402
 from campaign.layout import env_scope_dir, repo_output_root  # noqa: E402
 from campaign.p2_2 import CLK, ENV_TAG  # noqa: E402
+from campaign.s1_direct_comparison import prepare_cell  # noqa: E402
+from campaign.s8b_materialization import (  # noqa: E402
+    MaterializationError,
+    prepared_binding,
+)
 from campaign.s8b_oracle_driver import (  # noqa: E402
     NUMACTL,
     VerifiedFreeze,
@@ -553,11 +559,28 @@ def _project_scalepoint(scale_point, *, reps: int) -> dict:
 # build 12 cells (oracle と同一経路, trace-disabled)                           #
 # --------------------------------------------------------------------------- #
 
+@contextlib.contextmanager
+def _prepared_binding(
+        *, freeze: Mapping, holdout_id: str, configuration_id: str,
+        ccbench_pin: str, prepare_fn):
+    """共有 materializer の floor 境界 wrapper。identity 合成の MaterializationError だけを
+    FloorCampaignError へ因果付き変換し (CLI main が JSON で捕捉する)、consumer body の
+    他例外・cleanup 例外はそのまま透過させる。"""
+    try:
+        with prepared_binding(
+                freeze=freeze, holdout_id=holdout_id,
+                configuration_id=configuration_id, ccbench_pin=ccbench_pin,
+                prepare_fn=prepare_fn) as (identity, prepared):
+            yield identity, prepared
+    except MaterializationError as exc:
+        raise FloorCampaignError(str(exc)) from exc
+
+
 def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 out_root: Path, prepare_fn) -> dict[str, dict]:
     """全 12 セルを実行開始前に実体化・ビルドし、binary path と full sha256 を返す。
 
-    oracle と同一経路 (``s8b_oracle_driver._prepared_binding`` の contextmanager 内で
+    oracle と同一経路 (共有 ``s8b_materialization.prepared_binding`` の contextmanager 内で
     ``buildcache.build(trace=False, cache_root=<out_root>/s8b-build-cache,
     ccbench_dir=prepared.ccbench_dir, src_token=prepared.src_token)``) を使うので、floor を
     測るバイナリと oracle 本走のバイナリが同一 identity になる。途中 rebuild はしない。
@@ -570,7 +593,7 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
     for cell in cells:
         holdout_id = cell["holdout_id"]
         configuration_id = cell["configuration_id"]
-        with s8b_oracle_driver._prepared_binding(
+        with _prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
                 prepare_fn=prepare_fn) as (identity, prepared):
@@ -1120,7 +1143,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     if not isinstance(freeze_doc, VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
     now_fn = now_fn or (lambda: dt.datetime.now(dt.timezone.utc))
-    prepare_fn = prepare_fn or s8b_oracle_driver.prepare_cell
+    prepare_fn = prepare_fn or prepare_cell
     probe_fn = probe_fn or _default_probe_fn
 
     protocol = validate_protocol(protocol)

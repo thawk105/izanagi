@@ -20,6 +20,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
+from campaign import s8b_materialization  # noqa: E402
 from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
 from campaign import s8b_run_marker  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
@@ -129,7 +130,7 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
     bindings = []
     for holdout_id in _holdout_ids():
         for configuration_id in CONFIGURATIONS:
-            identity = driver.prepare_binding(
+            identity = s8b_materialization.prepare_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id,
                 ccbench_pin="fixture-pin", prepare_fn=prepare_fn,
