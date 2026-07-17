@@ -104,6 +104,40 @@ def _self_and_descendant_pids(root_pid: int) -> Set[int]:
     return result
 
 
+# stdout/stderr 抜粋の上限 (WAL abort payload の肥大防止, B-6)。
+_PROBE_EXCERPT_LIMIT = 2000
+
+
+class CompetingBenchProbeError(RuntimeError):
+    """競合ベンチ検知 pgrep の実行自体が失敗し、競合の有無を確定できない (fail-closed)。
+
+    握りつぶして「競合なし」と誤認すると汚染計測を採用しうる (規律4)。呼び手 (pipeline)
+    はこの専用型だけを捕捉し、構造化 abort (bench-probe-error / verify-probe-error) に
+    変換する。原因追跡のため kind / argv / returncode / errno / stdout・stderr の上限付き
+    抜粋を保持する (B-6): kind は exec-failure (起動失敗) / unexpected-rc (rc>1・負値・
+    rc==1 に付随出力) / inconsistent-output (rc==0 なのに空出力)。"""
+
+    def __init__(self, kind: str, argv: Sequence[str],
+                 returncode: Optional[int] = None, errno: Optional[int] = None,
+                 stdout: str = "", stderr: str = ""):
+        self.kind = kind
+        self.argv = list(argv)
+        self.returncode = returncode
+        self.errno = errno
+        self.stdout_excerpt = (stdout or "")[:_PROBE_EXCERPT_LIMIT]
+        self.stderr_excerpt = (stderr or "")[:_PROBE_EXCERPT_LIMIT]
+        super().__init__(
+            f"competing_bench_pids probe 失敗 (kind={kind}, rc={returncode}, "
+            f"errno={errno})")
+
+    def as_dict(self) -> Dict[str, object]:
+        """WAL abort payload に載せる構造化表現 (B-6: 再起動後も原因を区別できる)。"""
+        return {"kind": self.kind, "argv": self.argv,
+                "returncode": self.returncode, "errno": self.errno,
+                "stdout_excerpt": self.stdout_excerpt,
+                "stderr_excerpt": self.stderr_excerpt}
+
+
 def competing_bench_pids() -> List[str]:
     """他に走っている ccbench ベンチ (`ycsb_*.exe`) の PID 行 (F3 admission 強化)。
 
@@ -121,27 +155,54 @@ def competing_bench_pids() -> List[str]:
     子孫集合で明示的に除外し「他者/孤児」だけを残す。PID がパースできない行は
     fails-closed で競合側に残す (素性不明を non-competing 扱いにしない)。
 
+    fail-closed 契約 (B-1): probe が競合の有無を確定できないときは握りつぶさず
+    `CompetingBenchProbeError` を送出する。無競合と確定できるのは
+    「rc==1 かつ stdout・stderr とも空」のときだけ (procps-ng pgrep の rc 契約:
+    0=一致あり / 1=一致なし / >1=エラー)。BusyBox 等の option 構文エラーが rc==1+空
+    stdout になる罠を stderr 非空で弾く。rc==0 は非空 stdout 必須 (空は
+    inconsistent-output)。それ以外 (rc>1・負値・rc==1 に付随出力) はすべて例外。
+    起動失敗 (OSError/SubprocessError) も例外。
+
     呼ぶのは自分のベンチが走り出す前 (各測定点の手前)。拾えるのは他者/孤児だけ。"""
+    argv = ["pgrep", "-af", r"ycsb_.*\.exe"]
     try:
-        r = subprocess.run(["pgrep", "-af", r"ycsb_.*\.exe"],
-                           capture_output=True, text=True)
-    except (OSError, subprocess.SubprocessError):
+        r = subprocess.run(argv, capture_output=True, text=True)
+    except OSError as e:
+        raise CompetingBenchProbeError(
+            "exec-failure", argv, errno=getattr(e, "errno", None),
+            stderr=str(e)) from e
+    except subprocess.SubprocessError as e:
+        raise CompetingBenchProbeError(
+            "exec-failure", argv, stderr=str(e)) from e
+    rc = r.returncode
+    stdout = r.stdout or ""
+    stderr = r.stderr or ""
+    # 無競合の確定信号: rc==1 かつ出力が完全に空。それ以外の rc==1 (付随出力あり) は
+    # 素性が怪しいので下の unexpected-rc に倒す。
+    if rc == 1 and not stdout.strip() and not stderr.strip():
         return []
-    lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
-    if not lines:
-        return []
-    excluded = _self_and_descendant_pids(os.getpid())
-    others = []
-    for ln in lines:
-        pid_field = ln.split(None, 1)[0]
-        try:
-            pid = int(pid_field)
-        except ValueError:
-            others.append(ln)          # PID 不明 = fails-closed で残す
-            continue
-        if pid not in excluded:
-            others.append(ln)
-    return others
+    if rc == 0:
+        lines = [ln for ln in stdout.splitlines() if ln.strip()]
+        if not lines:
+            # 一致ありを示す rc==0 なのに PID が 1 つも無い = 想定外の内部矛盾。
+            raise CompetingBenchProbeError(
+                "inconsistent-output", argv, returncode=rc,
+                stdout=stdout, stderr=stderr)
+        excluded = _self_and_descendant_pids(os.getpid())
+        others = []
+        for ln in lines:
+            pid_field = ln.split(None, 1)[0]
+            try:
+                pid = int(pid_field)
+            except ValueError:
+                others.append(ln)          # PID 不明 = fails-closed で残す
+                continue
+            if pid not in excluded:
+                others.append(ln)
+        return others
+    # rc>1 / 負値 (シグナル終了) / rc==1 に付随出力 → probe 故障。
+    raise CompetingBenchProbeError(
+        "unexpected-rc", argv, returncode=rc, stdout=stdout, stderr=stderr)
 
 
 def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,

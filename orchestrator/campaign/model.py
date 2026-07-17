@@ -97,6 +97,14 @@ class WalRecord:
     payload: Dict = field(default_factory=dict)  # 段ごとの内容 (binary hash / verdict / tps 等)
 
 
+# transient な環境故障ゆえ terminal abort でも次 run で再評価してよい abort reason
+# (identity-error = g++/git の一時失敗、*-probe-error = 競合検知 pgrep の一時失敗)。
+# variant 固有の欠陥 (verifier-red / build-error) や実競合検知 (competing-tenant) は含めない
+# — それらは terminal のまま。retryable 判定の正本 (loop / screening_driver が参照, D25/B-3)。
+RETRYABLE_ABORT_REASONS = frozenset({
+    "identity-error", "bench-probe-error", "verify-probe-error"})
+
+
 @dataclass
 class EvalState:
     """1 variant の評価状態 (WAL リプレイで復元)。
@@ -124,3 +132,15 @@ class EvalState:
     def resumable(self) -> bool:
         """未終端 = リカバリで破棄して再評価すべき (in-flight でクラッシュした)。"""
         return not self.terminal
+
+    @property
+    def retryable_abort(self) -> bool:
+        """terminal abort だが transient な環境故障ゆえ次 run で再評価すべきか (D25/B-3)。
+
+        commit 済みは対象外。判定は last_terminal (最後の commit/abort) の reason で行う —
+        last (最終レコード全般) 基準だと abort→修復後の再評価が in-flight クラッシュ
+        (BUILD_START が最後) で判定漏れし permanent skip が復活する (D25 の破れ)。"""
+        return (self.aborted and not self.committed
+                and self.last_terminal is not None
+                and self.last_terminal.payload.get("reason")
+                in RETRYABLE_ABORT_REASONS)

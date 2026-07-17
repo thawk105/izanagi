@@ -438,10 +438,11 @@ def _red_vr():
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    aborts=7, abort_rate=0.03, build_raises=False,
                    high_variance=False, unstable=False, competing=None,
-                   trace_timeout=False):
+                   trace_timeout=False, probe_raises=None):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
-    yield する list = measure_point (実 bench) が呼ばれた回数の証跡。"""
+    yield する list = measure_point (実 bench) が呼ばれた回数の証跡。
+    `probe_raises` に例外を渡すと competing_bench_pids がそれを送出する (probe 故障注入)。"""
     class CallEvidence(list):
         def __init__(self):
             super().__init__()
@@ -513,7 +514,12 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
     patch("bench_lock", fake_lock)
     patch("settle", lambda *a, **k: {"settled": True})
-    patch("competing_bench_pids", lambda: list(competing or []))  # 既定: 単一テナント
+
+    def fake_competing():
+        if probe_raises is not None:
+            raise probe_raises
+        return list(competing or [])
+    patch("competing_bench_pids", fake_competing)  # 既定: 単一テナント
     patch("measure_point", fake_measure)
     patch("remeasure_until_stable", fake_remeasure)
     try:
@@ -1136,7 +1142,8 @@ def test_pipeline_self_compute_identity_error_aborts_under_stock_id():
 # ===== STAGE2: S2 verify 2 本立て pipeline 配線 (D36 決定4、段5) =====
 
 @contextlib.contextmanager
-def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=None):
+def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=None,
+                             probe_raises=None):
     """verify pass を呼び出し順に異なる結果で返す mock (_mock_pipeline は全 pass
     共通の固定戻り値しか表現できないため、S2 (2 パス目以降) 専用に用意する)。
 
@@ -1202,7 +1209,12 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
     patch("verify_trace_dir", fake_verify)
     patch("bench_lock", fake_lock)
     patch("settle", lambda *a, **k: {"settled": True})
-    patch("competing_bench_pids", lambda: list(competing or []))
+
+    def fake_competing():
+        if probe_raises is not None:
+            raise probe_raises
+        return list(competing or [])
+    patch("competing_bench_pids", fake_competing)
     patch("measure_point", fake_measure)
     patch("remeasure_until_stable", fake_remeasure)
     try:
@@ -1307,6 +1319,7 @@ def test_pipeline_extra_correctness_second_pass_competing_tenant_aborts():
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None)
     assert r.aborted and not r.certified
+    assert r.verdict == ""                        # B-4: legacy の 'serializable' を持ち越さない
     assert len(calls["trace"]) == 1               # legacy パスのみ実走、S2 は手前で reject
     abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
     assert abort.payload.get("reason") == "verify-competing-tenant"
@@ -1333,6 +1346,138 @@ def test_pipeline_extra_correctness_second_pass_early_reject_clears_stale_verdic
     abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
     assert abort.payload.get("reason") == "trace-run-nonzero-exit"
     assert abort.payload.get("workload") == {"tag": "s2"}
+
+
+def test_pipeline_bench_probe_error_aborts_with_structured_payload():
+    """B-1/B-6: bench 直前の競合検知 probe (pgrep) が実行失敗すると、握りつぶさず
+    bench-probe-error で abort し、abort payload に構造化 probe_error (kind/argv/
+    returncode/errno/stdout/stderr) を残す (WAL 永続経路)。実 bench は走らない。"""
+    from calibrator.runner import CompetingBenchProbeError
+    lay = _tmp_layout()
+    probe_err = CompetingBenchProbeError(
+        "unexpected-rc", ["pgrep", "-af", "x"], returncode=2, stderr="pgrep boom")
+    r, calls = _eval(lay, certified=True, probe_raises=probe_err)
+    # bench 段の abort: 正しさゲートは通過済み (certified) だが probe 故障で不採用 (aborted)。
+    assert r.aborted and r.fitness_tps is None
+    assert len(calls) == 0                         # bench 未起動 (probe 手前で abort)
+    assert STAGE_COMMIT not in {rec.stage for rec in wal.read_records(lay)}
+    abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload.get("reason") == "bench-probe-error"
+    pe = abort.payload.get("probe_error")
+    assert pe and pe["kind"] == "unexpected-rc" and pe["returncode"] == 2
+    assert pe["argv"] == ["pgrep", "-af", "x"]
+    assert "pgrep boom" in pe["stderr_excerpt"]
+
+
+def test_pipeline_verify_probe_error_aborts_and_clears_verdict():
+    """B-1/B-4/B-6: S2 相当 verify パスの probe (pgrep) が実行失敗すると、
+    verify-probe-error で abort し、legacy パスの 'serializable' を持ち越さず
+    (aborted=True かつ verdict 空)、probe_error payload と S2 workload タグを残す。
+    S2 の trace は走らない (probe 手前で reject)。"""
+    from calibrator.runner import CompetingBenchProbeError
+    lay = _tmp_layout()
+    numa = ["numactl", "--interleave=all"]
+    probe_err = CompetingBenchProbeError(
+        "exec-failure", ["pgrep", "-af", "x"], errno=2, stderr="not found")
+    with _mock_pipeline_multipass([(100, 0, 5, True)], probe_raises=probe_err) as calls:
+        r = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None)
+    assert r.aborted and not r.certified
+    assert r.verdict == ""                         # B-4: 空 verdict
+    assert len(calls["trace"]) == 1                # legacy のみ実走、S2 は probe 手前で reject
+    abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload.get("reason") == "verify-probe-error"
+    assert abort.payload.get("workload") == {"tag": "s2"}
+    pe = abort.payload.get("probe_error")
+    assert pe and pe["kind"] == "exec-failure" and pe["errno"] == 2
+    verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
+    assert [rec.payload["workload"]["tag"] for rec in verify_recs] == ["legacy"]
+
+
+def test_loop_probe_error_is_retryable_after_recovery():
+    """B-3/D-3 番人テスト: bench-probe-error / verify-probe-error abort (transient 環境
+    故障) は permanent skip でなく probe 復旧後の次 run で同一 variant が再評価される。
+    run1 = probe 故障で terminal abort、run2 = 復旧 → 再評価・commit を固定する。"""
+    from campaign import loop as L
+    for reason in ("bench-probe-error", "verify-probe-error"):
+        out_root = _tmpdir("izanagi_loop_probe_")
+        cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                             spec_content=f"probe-{reason}", ccbench_commit="deadbeef")
+        g = Genome("silo", {"BACK_OFF": 1})
+        v = pipeline.variant_id(g, "stock")
+        lay = campaign_layout(str(ident.campaign_id(cfg)), out_root).ensure()
+        wal.write_lock(lay, ident.canonical_preimage(cfg))
+        # run1: probe 故障 → terminal abort (evaluate は呼ばれた体で WAL を直書き)
+        wal.log(lay, v, STAGE_BUILD_START, "test-env",
+                {"genome": g.canonical(), "src_token": "stock"})
+        wal.log(lay, v, STAGE_ABORT, "test-env",
+                {"reason": reason, "probe_error": {"kind": "exec-failure"}})
+
+        calls = []
+
+        def fake_eval(g, *a, **kw):
+            calls.append(g)
+            return EvalResult(genome=g,
+                              variant=pipeline.variant_id(g, kw.get("src_token")),
+                              certified=True, aborted=False, fitness_tps=100.0)
+
+        saved, saved_sd = L.evaluate, L.source_digest
+        L.evaluate = fake_eval
+        L.source_digest = _sd_mock("stock")
+        try:
+            s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
+                               1800, do_bench=False, output_root=out_root,
+                               log=lambda *a: None)
+        finally:
+            L.evaluate, L.source_digest = saved, saved_sd
+        assert len(calls) == 1 and s.committed == 1 and s.skipped == 0, reason
+
+
+def test_screening_driver_probe_error_is_retryable_after_recovery():
+    """F2 番人テスト: screening_driver.evaluate_candidate も loop と同じ retryable 契約
+    (model.RETRYABLE_ABORT_REASONS) で transient 環境故障 abort を再評価する。旧実装は
+    identity-error を含む全 terminal を permanent skip する非対称だった — probe-error 2 種に
+    加え identity-error も復旧後に再評価されること (意図的な loop.py との一致) を固定し、
+    同時に非 retryable な terminal (verifier-red) は skip され続けること (過剰な広がりの番人)
+    も固定する。run1 = terminal abort、run2 = 復旧後の evaluate_candidate 呼び出し。"""
+    from campaign import screening_driver as SD
+    retryable = ("bench-probe-error", "verify-probe-error", "identity-error")
+    for reason in retryable + ("verifier-red",):
+        out_root = _tmpdir("izanagi_screen_probe_")
+        cfg = CampaignConfig(spec_slug="t", search_tag="sweep",
+                             spec_content=f"screen-{reason}", ccbench_commit="deadbeef")
+        g = Genome("silo", {"BACK_OFF": 1})
+        v = pipeline.variant_id(g, "stock")
+        lay = campaign_layout(str(ident.campaign_id(cfg)), out_root).ensure()
+        wal.write_lock(lay, ident.canonical_preimage(cfg))
+        # run1: terminal abort (evaluate は呼ばれた体で WAL を直書き)
+        wal.log(lay, v, STAGE_BUILD_START, "test-env",
+                {"genome": g.canonical(), "src_token": "stock"})
+        wal.log(lay, v, STAGE_ABORT, "test-env", {"reason": reason})
+
+        calls = []
+
+        def fake_eval(g, *a, **kw):
+            calls.append(g)
+            return EvalResult(genome=g,
+                              variant=pipeline.variant_id(g, kw.get("src_token")),
+                              certified=True, aborted=False, fitness_tps=100.0)
+
+        saved = SD.evaluate
+        SD.evaluate = fake_eval
+        try:
+            res = SD.evaluate_candidate(
+                cfg, lay, g, PerfConfig(records=1, threads=1), "test-env", 1800,
+                screening=None, src_token="stock", log=lambda *a: None)
+        finally:
+            SD.evaluate = saved
+        if reason in retryable:
+            assert len(calls) == 1 and res is not None and res.certified, reason
+        else:
+            assert calls == [] and res is None, reason
 
 
 def test_loop_enables_s2_extra_correctness_via_search_config():

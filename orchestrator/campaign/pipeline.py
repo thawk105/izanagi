@@ -26,8 +26,8 @@ import sys as _sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _sys.path.insert(0, os.path.dirname(_HERE))   # orchestrator/ を import パスに
 
-from calibrator.runner import (competing_bench_pids,            # noqa: E402
-                               measure_point, settle)
+from calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
+                               competing_bench_pids, measure_point, settle)
 from calibrator.stability import remeasure_until_stable         # noqa: E402
 from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
@@ -245,7 +245,17 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
             # 孤児は規律6 に従い**自動 kill せず PID を表に出して停止** — 人間が処遇を
             # 判断する。driver の pre-flight が campaign 冒頭で 1 回見るのに対し、ここは
             # genome ごと = campaign 途中で湧いた競合も捕える。
-            comp = competing_bench_pids()
+            try:
+                comp = competing_bench_pids()
+            except CompetingBenchProbeError as e:
+                # probe (pgrep) の実行自体が失敗 → 競合の有無を確定できない。握りつぶさず
+                # 専用 reason で abort し、故障詳細を WAL payload に構造化して残す (規律3/4,
+                # B-6)。この reason は transient infra 失敗として retryable 扱いされる (B-3)。
+                return abort("bench-probe-error",
+                             "競合検知 probe (pgrep) 実行失敗 → 競合の有無を確定できず "
+                             "reject (環境故障・再評価可能, 規律3/4)",
+                             {"probe_error": e.as_dict(),
+                              "bench_wall_s": bench_wall_s}), None
             if comp:
                 return abort("bench-competing-tenant",
                              "競合 ccbench ベンチを検知 → 汚染計測を採用せず reject (規律4)",
@@ -576,6 +586,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
 
     verify_tags: List[str] = []
     for tag, workload, use_numactl in passes:
+        # 各パス開始時・probe より前で前パスの verdict を消去する (B-4)。probe (競合検知)
+        # や competing-tenant で _run_one_pass に到達せず abort する場合、_run_one_pass 内の
+        # 消去が走らず前パスの 'serializable' が aborted 結果へ持ち越されるのを防ぐ。
+        res.verdict = ""
         if use_numactl:
             # S2 相当は bench 並みの負荷 → bench と同じ排他下で回す (D36 決定4-4)。
             # 後段の bench 用 bench_lock とはネストしない (逐次 = 別セクションで別途取得、
@@ -585,15 +599,25 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 # bench_lock は izanagi 自身の bench 同士しか排他せず、孤児化した子・
                 # 他者が手起動した ycsb は掴まない。S2 は bench 並みの全規模 run ゆえ
                 # 同じ汚染源に晒される — pgrep で直接確認し fails-closed で reject する。
-                comp = competing_bench_pids()
-                if comp:
+                try:
+                    comp = competing_bench_pids()
+                except CompetingBenchProbeError as e:
+                    # probe (pgrep) 実行失敗 → 競合の有無を確定できず reject。専用 reason +
+                    # 構造化 probe_error payload (規律3/4, B-6)。retryable 扱い (B-3)。
                     aborted_result = _abort(
-                        "verify-competing-tenant",
-                        f"競合 ccbench ベンチを検知 → S2 相当の verify ({tag}) は汚染"
-                        "計測のまま採用せず reject (規律4)",
-                        {"competing": comp}, workload_tag=tag)
+                        "verify-probe-error",
+                        f"競合検知 probe (pgrep) 実行失敗 → S2 相当の verify ({tag}) は"
+                        "競合の有無を確定できず reject (環境故障・再評価可能, 規律3/4)",
+                        {"probe_error": e.as_dict()}, workload_tag=tag)
                 else:
-                    aborted_result = _run_one_pass(tag, workload, numactl)
+                    if comp:
+                        aborted_result = _abort(
+                            "verify-competing-tenant",
+                            f"競合 ccbench ベンチを検知 → S2 相当の verify ({tag}) は汚染"
+                            "計測のまま採用せず reject (規律4)",
+                            {"competing": comp}, workload_tag=tag)
+                    else:
+                        aborted_result = _run_one_pass(tag, workload, numactl)
         else:
             aborted_result = _run_one_pass(tag, workload, None)
         if aborted_result is not None:

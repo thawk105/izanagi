@@ -24,7 +24,8 @@ identity になる。
 - 規律4 (単一テナント直列): session ごとの臨界区間 (probe → measure → post-probe → journal) で
   自前の strict probe (pgrep) を計測の前後に叩く。**rc=1 のみ「競合なし」**、rc=0 の競合列挙は
   当該 session を無効 (``competing_process``, retry 可) にし、実行不能・rc>1・parse 不能は
-  **CampaignAbort** で倒す (共有 ``competing_bench_pids`` の OSError→[] は fail-open なので使わない)
+  **CampaignAbort** で倒す (共有 ``competing_bench_pids`` も B-1 以降 fail-closed だが、floor は
+  kind 付き CampaignAbort・生出力 journal・competing_process retry を要するため自前 strict probe を維持する)
 - 規律6 (信頼境界): freeze は素性の知れない外部内容。bytes-hash pin で束縛し、以後この単一
   parse 結果だけを使う (再読込禁止)
 
@@ -469,8 +470,9 @@ def strict_probe(probe_fn: Callable[[], tuple[int, str]]) -> dict:
     rc==1 → マッチ無し = 競合なし。rc==0 → 自プロセス子孫を除外して残れば競合 (``competing``
     に生行を載せて返す — 呼び手が当該 session を ``competing_process`` で無効にする)。それ以外の
     rc (rc>1)・OSError・**pid parse 不能** → CampaignAbort (fail-closed。パッケージ 裁定 F2 の
-    「実行不能・rc>1・parse 不能は campaign abort」)。共有 ``competing_bench_pids`` の OSError→[]
-    は fail-open なので使わず自前で叩く。probe の生出力は戻り値に含め、呼び手が journal に残す。
+    「実行不能・rc>1・parse 不能は campaign abort」)。共有 ``competing_bench_pids`` も B-1 以降
+    fail-closed だが、floor は kind 付き CampaignAbort・生出力 journal・competing_process retry を
+    要するため自前で叩く。probe の生出力は戻り値に含め、呼び手が journal に残す。
     """
     try:
         rc, stdout = probe_fn()

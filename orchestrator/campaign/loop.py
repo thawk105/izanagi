@@ -66,22 +66,20 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     # リカバリ: terminal な variant はスキップ
     states = wal.replay(layout)
     terminal = wal.terminal_variants(states)
-    # identity-error abort は transient infra 失敗 (g++ 一時不在 / git 一時失敗等) でも起きうる。
-    # genome-intrinsic な失敗 (verifier-red / build-error / eval-exception) と違い環境修復で解消し
-    # うるので permanent skip にせず再評価する (D25: terminal-abort が transient を誤分類して
-    # stock baseline を silently drop する穴を塞ぐ)。永続エラーなら再 resolve で同じ identity-error
-    # に倒れ abort 記録するのでクラッシュループにはならない (commit 済みは除外して再評価しない)。
-    # 判定は last_terminal (最後の commit/abort) 基準 — last (最終レコード全般) 基準だと
-    # 「identity-error abort → 修復後の再評価が BUILD_START を書いた直後にクラッシュ」で
-    # 判定から漏れ、aborted の粘着により permanent skip が復活する (洗練検査 2026-07-02 HIGH)。
-    retryable = {v for v, st in states.items()
-                 if st.aborted and not st.committed and st.last_terminal is not None
-                 and st.last_terminal.payload.get("reason") == "identity-error"}
+    # transient infra 失敗による abort (identity-error = g++/git 一時失敗、*-probe-error =
+    # 競合検知 pgrep 一時失敗) は genome-intrinsic な失敗 (verifier-red / build-error /
+    # eval-exception) と違い環境修復で解消しうるので permanent skip にせず再評価する
+    # (D25/B-3: terminal-abort が transient を誤分類して stock baseline を silently drop /
+    # 環境故障を variant 固有欠陥に化けさせる穴を塞ぐ)。永続エラーなら再評価で同じ reason に
+    # 倒れ abort 記録するのでクラッシュループにはならない (commit 済みは除外して再評価しない)。
+    # 判定基準 (last_terminal) と正本 reason 集合は model.EvalState.retryable_abort を参照。
+    retryable = {v for v, st in states.items() if st.retryable_abort}
     terminal = terminal - retryable
     if terminal:
         log(f"[campaign] リカバリ: {len(terminal)} variant は評価済み → スキップ")
     if retryable:
-        log(f"[campaign] リカバリ: {len(retryable)} variant は identity-error (transient) → 再評価")
+        log(f"[campaign] リカバリ: {len(retryable)} variant は transient abort "
+            "(identity/probe-error) → 再評価")
 
     s = CampaignSummary(campaign_id=str(cid), layout_root=layout.root,
                         total=len(genomes))

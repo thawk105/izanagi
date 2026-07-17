@@ -487,6 +487,29 @@ def test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed(tmp_path)
     assert len(unknown_evaluate.calls) == 1
 
 
+@pytest.mark.parametrize("reason", ["bench-probe-error", "verify-probe-error"])
+def test_probe_error_reason_is_fail_closed_unknown_abort(tmp_path, reason):
+    """B-7 置換裁定 (D-4): probe 故障 abort reason (bench/verify-probe-error) が oracle
+    driver に到達すると、_outcome_for の凍結バケツに無いため _UnknownAbortReason 経路で
+    deviation (kind=unknown-abort-reason) + error_stopped になる (fail-closed)。oracle 側
+    判定表は D-4 で不変ゆえ trial-result 化 (reservation 精算) しない。"""
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_abort_evaluate_factory(reason)
+
+    result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
+
+    assert result["status"] == "error"
+    assert not any(event["event"] == "trial-result" for event in result["events"])
+    deviation = next(event for event in result["events"]
+                     if event["event"] == "deviation")
+    assert deviation["kind"] == "unknown-abort-reason"
+    assert deviation["abort_reason"] == reason
+    assert len(evaluate_fn.calls) == 1
+
+
 def test_transient_prepare_failure_retries_once(tmp_path):
     freeze_path = _synthetic_freeze(tmp_path)
     stable_prepare = _prepare_factory()

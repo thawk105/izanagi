@@ -409,7 +409,9 @@ def test_competing_bench_pids_pattern_is_path_independent():
     def fake_run(cmd, capture_output=True, text=True):
         calls.append(cmd)
         class _R:
+            returncode = 1          # 無競合の確定信号 (rc==1 かつ出力空)
             stdout = ""
+            stderr = ""
         return _R()
 
     orig = runner.subprocess.run
@@ -437,7 +439,9 @@ def test_competing_bench_pids_excludes_self_descendant():
 
     def fake_run(cmd, capture_output=True, text=True):
         class _R:
+            returncode = 0          # 一致あり (PID 行を返す)
             stdout = fake_stdout
+            stderr = ""
         return _R()
 
     orig_run = runner.subprocess.run
@@ -463,7 +467,9 @@ def test_competing_bench_pids_unparseable_pid_kept_fails_closed():
 
     def fake_run(cmd, capture_output=True, text=True):
         class _R:
+            returncode = 0          # 一致あり (行はあるが先頭が PID 形でない)
             stdout = fake_stdout
+            stderr = ""
         return _R()
 
     orig = runner.subprocess.run
@@ -476,19 +482,110 @@ def test_competing_bench_pids_unparseable_pid_kept_fails_closed():
     assert "garbage" in lines[0]
 
 
-def test_competing_bench_pids_pgrep_error_returns_empty():
-    """pgrep 起動自体が失敗 (OSError) したら空リスト (既存契約を維持)。"""
+class _FakeProc:
+    def __init__(self, returncode, stdout, stderr):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def _probe_result(*, returncode=0, stdout="", stderr="", exc=None):
+    """固定 rc/stdout/stderr (または例外) の pgrep 下で competing_bench_pids を呼び、
+    戻り値 or 送出された CompetingBenchProbeError を返す。素の runner でも動くよう
+    monkeypatch fixture でなく手動 save/restore を使う (このファイルの既存様式)。"""
     from calibrator import runner
 
     def fake_run(cmd, capture_output=True, text=True):
-        raise OSError("pgrep not found")
+        if exc is not None:
+            raise exc
+        return _FakeProc(returncode, stdout, stderr)
 
     orig = runner.subprocess.run
     runner.subprocess.run = fake_run
     try:
-        assert runner.competing_bench_pids() == []
+        return runner.competing_bench_pids()
     finally:
         runner.subprocess.run = orig
+
+
+def _expect_probe_error(**kw):
+    """_probe_result が CompetingBenchProbeError を送出することを固定し、例外を返す。"""
+    from calibrator import runner
+    try:
+        _probe_result(**kw)
+    except runner.CompetingBenchProbeError as e:
+        return e
+    raise AssertionError("CompetingBenchProbeError が送出されなかった")
+
+
+def test_competing_bench_pids_rc1_clean_is_no_competition():
+    """rc==1 かつ stdout・stderr とも空だけが「無競合の確定信号」= 空リスト (B-1)。"""
+    assert _probe_result(returncode=1, stdout="", stderr="") == []
+
+
+def test_competing_bench_pids_rc1_with_stderr_is_probe_error():
+    """rc==1 でも stderr 非空 (BusyBox 等の option 構文エラーの罠) は fail-closed で例外
+    にする — 空 stdout を「無競合」と誤認して汚染計測を採用しない (B-1)。"""
+    e = _expect_probe_error(returncode=1, stdout="",
+                            stderr="pgrep: unrecognized option '-a'")
+    assert e.kind == "unexpected-rc"
+    assert e.returncode == 1
+    assert "unrecognized" in e.stderr_excerpt
+
+
+def test_competing_bench_pids_rc0_empty_stdout_is_inconsistent():
+    """rc==0 (一致あり) なのに stdout が空という内部矛盾は inconsistent-output で例外
+    (B-1: rc==0 は非空 stdout 必須)。"""
+    e = _expect_probe_error(returncode=0, stdout="", stderr="")
+    assert e.kind == "inconsistent-output"
+    assert e.returncode == 0
+
+
+def test_competing_bench_pids_rc2_is_probe_error():
+    """rc>1 (pgrep エラー) は fail-closed で例外 (旧: rc 未検査で空扱いの fail-open)。"""
+    e = _expect_probe_error(returncode=2, stdout="", stderr="pgrep error")
+    assert e.kind == "unexpected-rc" and e.returncode == 2
+
+
+def test_competing_bench_pids_rc3_is_probe_error():
+    """rc==3 (pgrep usage error 等) も fail-closed で例外。"""
+    e = _expect_probe_error(returncode=3, stdout="", stderr="usage")
+    assert e.kind == "unexpected-rc" and e.returncode == 3
+
+
+def test_competing_bench_pids_negative_rc_is_probe_error():
+    """負の returncode (シグナル終了) も rc>1 と同じく fail-closed で例外 (B-1: 負値網羅)。"""
+    e = _expect_probe_error(returncode=-9, stdout="", stderr="")
+    assert e.kind == "unexpected-rc" and e.returncode == -9
+
+
+def test_competing_bench_pids_oserror_is_probe_error():
+    """pgrep 起動自体が OSError で失敗したら fail-closed で例外 (旧契約 = 空リスト返しの
+    fail-open を反転)。errno を保持する (B-6)。"""
+    e = _expect_probe_error(exc=OSError(2, "pgrep not found"))
+    assert e.kind == "exec-failure"
+    assert e.errno == 2
+
+
+def test_competing_bench_pids_subprocess_error_is_probe_error():
+    """subprocess.SubprocessError も fail-closed で例外 (握りつぶさない, 規律3)。"""
+    e = _expect_probe_error(exc=subprocess.SubprocessError("boom"))
+    assert e.kind == "exec-failure"
+
+
+def test_competing_bench_probe_error_as_dict_carries_structured_fields():
+    """CompetingBenchProbeError.as_dict が WAL payload 用の全キーを持つ (B-6)。"""
+    from calibrator import runner
+    e = runner.CompetingBenchProbeError(
+        "unexpected-rc", ["pgrep", "-af", "x"], returncode=2, errno=None,
+        stdout="o" * 5000, stderr="e" * 5000)
+    d = e.as_dict()
+    assert set(d) == {"kind", "argv", "returncode", "errno",
+                      "stdout_excerpt", "stderr_excerpt"}
+    assert d["kind"] == "unexpected-rc" and d["returncode"] == 2
+    # 抜粋は上限で切り詰められる (payload 肥大防止)。
+    assert len(d["stdout_excerpt"]) == runner._PROBE_EXCERPT_LIMIT
+    assert len(d["stderr_excerpt"]) == runner._PROBE_EXCERPT_LIMIT
 
 
 def _spawn_fake_bench_child(fake_argv0):

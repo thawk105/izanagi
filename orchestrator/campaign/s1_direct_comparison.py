@@ -553,8 +553,11 @@ def _result_classification(result: EvalResult, layout: CampaignLayout) -> tuple[
     reason = str(payload.get("reason") or getattr(result, "abort_reason", "") or "abort")
     if payload.get("verify") is not None or (result.verdict and result.verdict != "serializable"):
         return "verifier-red", reason
+    # bench-probe-error / verify-probe-error は競合検知 pgrep の一時故障で、環境非シグナル
+    # ゆえ既知の retry 可能集合に含める (B-3/D-3: abandoned 化して retry 枠を捨てない)。
     if reason in {"build-error", "trace-run-nonzero-exit", "trace-timeout",
-                  "bench-no-throughput", "bench-cv-undefined"}:
+                  "bench-no-throughput", "bench-cv-undefined",
+                  "bench-probe-error", "verify-probe-error"}:
         return "retryable", reason
     return "abandoned", reason
 

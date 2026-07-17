@@ -132,7 +132,10 @@ def evaluate_candidate(
         genome, cfg.ccbench_commit, ccbench_dir)
     vid = variant_id(genome, src_tok)
     state = wal.replay(layout).get(vid)
-    if not force and state is not None and state.terminal:
+    # transient な環境故障 abort (identity/probe-error) は permanent skip にせず再評価する
+    # (loop.py と同じ retryable 契約, D25/B-3)。
+    if (not force and state is not None and state.terminal
+            and not state.retryable_abort):
         return None
     extra_correctness = None
     if cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2:
