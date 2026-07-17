@@ -1,5 +1,18 @@
 # orchestrator/tests — テスト方針
 
+## 一時ディレクトリと速度 (conftest.py)
+
+campaign 系は書き込みごとに flush+fsync するため、一時 dir がジャーナリング FS
+にあるとスイートが I/O バリア律速になり数百倍遅くなる (実測は worklog
+2026-07-17)。`conftest.py` が TMPDIR 未指定・`/dev/shm` 書込可・空き 1 GiB 以上の
+とき `TMPDIR=/dev/shm` を設定してこれを避ける。fsync を呼ぶコード経路は変えない
+(検査は弱めない) — 物理ディスクバリアだけが消える。
+
+- TMPDIR を明示すると conftest は何もしない (例: `TMPDIR=/tmp` で環境既定の挙動)
+- 素の `python3 test_*.py` 実行は conftest を経由しない。遅ければ
+  `TMPDIR=/dev/shm` を手で与える。ただし GB 級の実 trace / 実ビルドを回す作業では
+  tmpfs は RAM を食う — その場合はディスク側 TMPDIR のまま実行する
+
 ## 二重 runner
 
 中核の machine 非依存テストは pytest でも素の `python3 orchestrator/tests/test_*.py`

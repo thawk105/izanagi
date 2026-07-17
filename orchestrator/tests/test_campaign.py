@@ -2,7 +2,8 @@
 """orchestrator (campaign engine) STAGE1 の単体テスト (machine 非依存)。
 
 pytest でも 素の `python orchestrator/tests/test_campaign.py` でも走る。
-WAL/lock のテストは TMPDIR (=/home 配下) に一時 campaign を作る。
+WAL/lock のテストは TMPDIR 配下に一時 campaign を作る (pytest 実行では
+conftest.py が TMPDIR を tmpfs へ向ける)。
 """
 from __future__ import annotations
 
@@ -287,7 +288,7 @@ def test_identity_mismatch_guard():
 # ===== WAL / recovery / atomicity (D, A) =====
 
 def _tmpdir(prefix: str) -> str:
-    """テスト用一時 dir。プロセス終了時に後始末する (TMPDIR=/home 配下に leak させない)。"""
+    """テスト用一時 dir。プロセス終了時に後始末する (TMPDIR 配下に leak させない)。"""
     d = tempfile.mkdtemp(prefix=prefix)
     atexit.register(shutil.rmtree, d, ignore_errors=True)
     return d
