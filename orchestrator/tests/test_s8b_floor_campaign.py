@@ -20,7 +20,9 @@ import contextlib
 import datetime as dt
 import hashlib
 import json
+import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -36,7 +38,7 @@ from campaign import s8b_floor_stats  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.p2_2 import ENV_TAG  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
-from campaign.s8b_oracle_driver import VerifiedFreeze  # noqa: E402
+from campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -446,6 +448,43 @@ def test_main_official_mode_always_refused(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "refused"
     assert "§8" in payload["reason"]
+
+
+def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
+    """境界欠陥是正の固定: pilot CLI が壊れた freeze (byte hash 不一致) で落ちるとき、
+    loader 例外は境界 adapter で FloorCampaignError へ変換され、既存の構造化 error
+    JSON 経路 (rc 1) に乗る (traceback で漏れない)。
+
+    移行前は loader が OracleDriverError を投げ、CLI の except FloorCampaignError に
+    捕捉されず traceback として stderr へ漏れていた。本テストはその是正を subprocess
+    で固定する。
+    """
+    freeze_path = tmp_path / "freeze.json"
+    # 実 sha256 は protocol.freeze.sha256 ("0"*64) と一致しない (hash 不一致で拒否)。
+    freeze_path.write_text("{}", encoding="utf-8")
+    protocol = _protocol(freeze_sha="0" * 64, n_sessions=2, blocks=2,
+                         replicates_per_block=1)
+    protocol["freeze"]["path"] = str(freeze_path)  # 絶対 path は resolve 素通し。
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_text(json.dumps(protocol), encoding="utf-8")
+
+    script = textwrap.dedent(
+        f"""
+        import sys
+        sys.path.insert(0, {str(ORCHESTRATOR)!r})
+        from campaign import s8b_floor_campaign as floor
+        sys.exit(floor.main(["--mode", "pilot", "--protocol", {str(protocol_path)!r}]))
+        """
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True,
+    )
+    assert proc.returncode == 1, (proc.returncode, proc.stdout, proc.stderr)
+    assert "Traceback" not in proc.stderr, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["status"] == "error"
+    assert "FloorCampaignError" in payload["error"]
+    assert "expected_hash" in payload["error"]
 
 
 # =========================================================================== #

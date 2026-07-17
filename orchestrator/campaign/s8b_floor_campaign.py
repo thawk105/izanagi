@@ -71,17 +71,14 @@ from calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
+from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign.layout import env_scope_dir, repo_output_root  # noqa: E402
 from campaign.p2_2 import CLK, ENV_TAG  # noqa: E402
+from campaign.p2_2 import NUMA as NUMACTL  # noqa: E402
 from campaign.s1_direct_comparison import prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding,
-)
-from campaign.s8b_oracle_driver import (  # noqa: E402
-    NUMACTL,
-    VerifiedFreeze,
-    load_verified_freeze,
 )
 
 PROTOCOL_SCHEMA = "s8b-floor-protocol/v1"
@@ -1142,7 +1139,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     しない) で、各 block 末尾 (``_Runner._retry_block``) で消化される。block ごとの予算と
     誤読しないこと。
     """
-    if not isinstance(freeze_doc, VerifiedFreeze):
+    if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
     now_fn = now_fn or (lambda: dt.datetime.now(dt.timezone.utc))
     prepare_fn = prepare_fn or prepare_cell
@@ -1348,6 +1345,20 @@ def _resolve_freeze_path(freeze_path_text: str) -> Path:
     return path if path.is_absolute() else ROOT / path
 
 
+def _load_verified_freeze(path, expected_hash=None):
+    """freeze loader (中立 leaf ``s8b_freeze_io``) の floor 境界 adapter。
+
+    leaf は ``FreezeIOError`` を投げる。CLI main の loader 例外を既存の構造化 error
+    JSON 経路 (``except FloorCampaignError``) に乗せるため、ここで ``FloorCampaignError``
+    へ因果付き変換する。移行前は loader が ``OracleDriverError`` を投げ、CLI の
+    ``except FloorCampaignError`` に捕捉されず traceback で漏れていた (境界欠陥)。
+    本 adapter がその欠陥を是正する。"""
+    try:
+        return _freeze_io.load_verified_freeze(path, expected_hash)
+    except _freeze_io.FreezeIOError as exc:
+        raise FloorCampaignError(str(exc)) from exc
+
+
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
 
@@ -1364,7 +1375,7 @@ def main(argv=None) -> int:
         raw_protocol = load_protocol(args.protocol)
         protocol = validate_protocol(raw_protocol)
         freeze_path = _resolve_freeze_path(protocol["freeze"]["path"])
-        verified = load_verified_freeze(freeze_path, expected_hash=protocol["freeze"]["sha256"])
+        verified = _load_verified_freeze(freeze_path, expected_hash=protocol["freeze"]["sha256"])
         out_root = Path(repo_output_root())
         outcome = run_campaign(
             protocol, verified, out_root=out_root, mode=args.mode,

@@ -21,6 +21,7 @@ ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
@@ -86,50 +87,18 @@ def _load_json_object(path: Path) -> dict:
     return value
 
 
-def _reject_json_constant(token: str):
-    """strict parse: NaN / Infinity 等の非数値定数を拒否する。"""
-    raise OracleDriverError(f"freeze JSON に非数値定数が含まれる: {token}")
+def _load_verified_freeze(path, expected_hash: Optional[str] = None):
+    """freeze loader (中立 leaf ``s8b_freeze_io``) の driver 境界 adapter。
 
-
-@dataclass(frozen=True)
-class VerifiedFreeze:
-    """hash 検証済み freeze bytes の strict parse 結果と、その byte sha256。
-
-    verify から use までを単一 object で束ね、consumer 間 (gate・driver・
-    manifest verify・budget limits・perf 三軸) の再読込を除去する (A3-6)。
-    """
-    document: dict
-    sha256: str
-
-
-def load_verified_freeze(path, expected_hash: Optional[str] = None) -> VerifiedFreeze:
-    """freeze bytes を一度だけ読み、hash 検証 + strict parse した単一 object を返す。
-
-    全 consumer はこの戻り値の ``document`` / ``sha256`` だけを使い、freeze を
-    再読込しない。よって gate 検証後・使用前に freeze byte を差し替えても差替え後
-    の値は一切観測されない (verify-use 間 TOCTOU の遮断、A3-6)。``expected_hash``
-    を与えた場合は byte sha256 との一致を要求し、不一致は拒否する (fail-closed)。
-    """
-    path = Path(path)
+    leaf は ``FreezeIOError`` を投げる。driver 経路 (gate_check / run_block / main)
+    が観測する例外型・message・rc・refusal 文字列を現行と一致させるため、ここで
+    ``OracleDriverError`` へ因果付き変換する (message 本文は leaf 側で現行文字列を
+    維持している)。再エクスポートはしない (leaf 単体の例外型は ``FreezeIOError``、
+    driver 経路の例外型は ``OracleDriverError``)。"""
     try:
-        raw = path.read_bytes()
-    except OSError as exc:
-        raise OracleDriverError(f"freeze bytes を読めない: {path}: {exc}") from exc
-    sha256 = hashlib.sha256(raw).hexdigest()
-    if expected_hash is not None and sha256 != expected_hash:
-        raise OracleDriverError(
-            f"freeze byte sha256 が expected_hash と不一致: {path}"
-        )
-    try:
-        document = json.loads(raw.decode("utf-8"),
-                              parse_constant=_reject_json_constant)
-    except (UnicodeError, json.JSONDecodeError) as exc:
-        raise OracleDriverError(
-            f"freeze JSON を strict parse できない: {path}: {exc}"
-        ) from exc
-    if not isinstance(document, dict):
-        raise OracleDriverError(f"freeze JSON top-level が object でない: {path}")
-    return VerifiedFreeze(document=document, sha256=sha256)
+        return _freeze_io.load_verified_freeze(path, expected_hash)
+    except _freeze_io.FreezeIOError as exc:
+        raise OracleDriverError(str(exc)) from exc
 
 
 def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
@@ -138,7 +107,7 @@ def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
 
 
 def gate_check(*, freeze_path=None, manifest_path=None, root,
-               verified: Optional[VerifiedFreeze] = None) -> GateDecision:
+               verified: Optional["_freeze_io.VerifiedFreeze"] = None) -> GateDecision:
     """実走前の独立 gate を順番に全件検査し、全拒否理由を返す。
 
     ``verified`` (``load_verified_freeze`` の戻り値) を与えた場合は freeze を
@@ -155,7 +124,7 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
         freeze_sha = verified.sha256
     else:
         try:
-            loaded = load_verified_freeze(Path(freeze_path))
+            loaded = _load_verified_freeze(Path(freeze_path))
         except Exception as exc:
             refusals.append(f"holdout-freeze-verify: {type(exc).__name__}: {exc}")
         else:
@@ -452,7 +421,7 @@ def run_block(
     # gate・manifest verify・budget limits・perf 三軸の全 consumer で共有する。
     # verify から use までの間に freeze byte を差し替えても差替え後の値は使われない。
     try:
-        verified = load_verified_freeze(freeze_path)
+        verified = _load_verified_freeze(freeze_path)
     except OracleDriverError as exc:
         decision = GateDecision(
             allowed=False,

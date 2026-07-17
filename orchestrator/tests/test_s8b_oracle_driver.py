@@ -20,6 +20,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
+from campaign import s8b_freeze_io  # noqa: E402
 from campaign import s8b_materialization  # noqa: E402
 from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
 from campaign import s8b_run_marker  # noqa: E402
@@ -720,28 +721,98 @@ def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
 
 
 def test_load_verified_freeze_single_read_hash_and_strict_parse(tmp_path):
-    """load_verified_freeze は byte sha256 を返し、expected_hash 不一致と非 strict
-    JSON を拒否する (単一 read の hash 束縛と strict parse の直接検査)。"""
+    """loader 単体 (中立 leaf s8b_freeze_io) は byte sha256 を返し、expected_hash
+    不一致と非 strict JSON を拒否する (単一 read の hash 束縛と strict parse の直接
+    検査)。loader 単体の例外型は FreezeIOError で固定する。"""
     freeze_path = _synthetic_freeze(tmp_path)
     expected = _sha256(freeze_path)
 
-    verified = driver.load_verified_freeze(freeze_path)
+    verified = s8b_freeze_io.load_verified_freeze(freeze_path)
     assert verified.sha256 == expected
     assert verified.document == json.loads(freeze_path.read_text(encoding="utf-8"))
 
     # expected_hash と一致すれば同じ object を返す。
-    assert driver.load_verified_freeze(freeze_path, expected_hash=expected).sha256 == expected
-    # 不一致は fail-closed。
-    with pytest.raises(driver.OracleDriverError) as mismatch:
-        driver.load_verified_freeze(freeze_path, expected_hash="0" * 64)
+    assert s8b_freeze_io.load_verified_freeze(
+        freeze_path, expected_hash=expected).sha256 == expected
+    # 不一致は fail-closed (loader 単体経路は FreezeIOError)。
+    with pytest.raises(s8b_freeze_io.FreezeIOError) as mismatch:
+        s8b_freeze_io.load_verified_freeze(freeze_path, expected_hash="0" * 64)
     assert "expected_hash" in str(mismatch.value)
 
     # strict parse: NaN 等の非数値定数を拒否する。
     bad = tmp_path / "bad_freeze.json"
     bad.write_text('{"floor": NaN}', encoding="utf-8")
-    with pytest.raises(driver.OracleDriverError) as strict:
-        driver.load_verified_freeze(bad)
+    with pytest.raises(s8b_freeze_io.FreezeIOError) as strict:
+        s8b_freeze_io.load_verified_freeze(bad)
     assert "strict parse" in str(strict.value) or "非数値定数" in str(strict.value)
+
+
+def test_driver_boundary_wraps_freeze_io_error_as_oracle_driver_error(tmp_path):
+    """driver 境界 adapter (_load_verified_freeze) は leaf の FreezeIOError を
+    OracleDriverError へ因果付き変換し、message 本文を維持する (driver 経路の
+    例外型は OracleDriverError で固定)。"""
+    bad = tmp_path / "bad_freeze.json"
+    bad.write_text('{"floor": NaN}', encoding="utf-8")
+    with pytest.raises(driver.OracleDriverError) as wrapped:
+        driver._load_verified_freeze(bad)
+    assert isinstance(wrapped.value.__cause__, s8b_freeze_io.FreezeIOError)
+    assert "非数値定数" in str(wrapped.value)
+
+
+def test_run_block_loads_freeze_once_and_passes_same_object_to_gate(tmp_path):
+    """run_block は freeze bytes を厳密 1 回だけ読み、その単一 VerifiedFreeze object
+    を gate_check(verified=...) へ渡す (verify-use 間 TOCTOU 遮断の実発火)。
+
+    恒真回避: 常時 allowed の gate mock を使わず、gate_check を identity 記録付き
+    wrapper に差し替えて渡された object を捕捉し、run_block が load した同一 object
+    との identity と freeze byte read=1 を同時に固定する。
+    """
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare_fn = _prepare_factory()
+    manifest_path, _document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_evaluate_factory()
+
+    real_read_bytes = Path.read_bytes
+    freeze_reads: list[Path] = []
+
+    def counting_read_bytes(self):
+        if Path(self) == Path(freeze_path):
+            freeze_reads.append(Path(self))
+        return real_read_bytes(self)
+
+    loaded: dict = {}
+    real_loader = driver._load_verified_freeze
+
+    def recording_loader(path, expected_hash=None):
+        obj = real_loader(path, expected_hash)
+        loaded["obj"] = obj
+        return obj
+
+    captured: dict = {}
+
+    def recording_gate(*, freeze_path, manifest_path, root, verified=None):
+        captured["verified"] = verified
+        return driver.GateDecision(True, [])
+
+    with mock.patch.object(Path, "read_bytes", counting_read_bytes), \
+            mock.patch.object(driver, "_load_verified_freeze", recording_loader), \
+            mock.patch.object(driver, "gate_check", recording_gate):
+        result = driver.run_block(
+            manifest_path=manifest_path, block_id="b0",
+            freeze_path=freeze_path, root=ROOT,
+            output_root=tmp_path / "out", budget_path=tmp_path / "budget.json",
+            marker_root=tmp_path / "markers",
+            prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
+
+    assert result["status"] == "completed"
+    # freeze byte read はちょうど 1 回 (run_block 冒頭の単一 load。gate/manifest verify
+    # は単一 object を使い回し freeze を再読しない)。
+    assert len(freeze_reads) == 1
+    # gate_check に渡った verified は run_block が load したまさに同一 object。
+    assert isinstance(captured["verified"], s8b_freeze_io.VerifiedFreeze)
+    assert captured["verified"] is loaded["obj"]
 
 
 def test_v6_freeze_swap_after_verify_is_not_observed(tmp_path):
