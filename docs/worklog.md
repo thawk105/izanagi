@@ -119,3 +119,29 @@ output/insights/2026-07-17_repo-refinement-consultations.md。
    Pegasus は AI ツールから push しない運用)
 2. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — (1) 参照。8b-descriptor の stale 引用を
    再凍結時の修正材料に追加)
+
+## 2026-07-17 (4) — roadmap 明瞭化リファインメント (協議改訂) + CLAUDE.md 提案台帳 (計測なし)
+
+セッション冒頭のユーザー要望 (「roadmap.md と CLAUDE.md の分かりにくい部分を分かりやすく」、
+前夜 wave が裁定 A4 でスコープ外化した宿題) の実施。roadmap は協議改訂 (in-place・版凍結なし)。
+
+- commit: 9997d61 (roadmap layout-only 19 hunk)、5ab330a (レビュー修復 4 件)、ebdafb6 (逐語凍結)
+- 協議決着: 意味保存を正しさゲートとする三分類 (byte-frozen / semantic-lock / normative-care) と
+  決定的 checker (変異 self-test 12 種で恒真性を排除) を敵対相談 3 本 (codex、must-fix 30) から確立
+- 盲検変異回帰: checker 不可視の意味反転 7 種を R1 opus×2 が全捕捉・偽陽性ゼロ — レビュー系の
+  弁別力を実証してから本番レビューに入る手順が機能した
+- 最重要 finding: R1 (語レベル双方向含意) が preserved と判定した構造スコープ型ドリフト 3 件
+  (継続段落の同格化・実績括弧のスコープ狭窄・共有述語の分断) を codex 第二系統が検出 —
+  異製品レンズは冗長でなく補完 (一次資料: output/insights/2026-07-17_roadmap-claudemd-clarity-consultations.md)
+- CLAUDE.md は 1 byte も変更していない: 起草レーンが「byte/行予算内の編集は不可能」と正直に判断し
+  全 hunk を提案化。絶対規律 (憲法) 帯・真の曖昧性を含む 11 案は未裁定提案台帳
+  output/insights/2026-07-17_clarity-proposals-unadjudicated.md へ (全件 default: do-not-apply)
+- 工数: codex 相談 3 + survey 6 + draft 2 + 回帰 2 + 本番レビュー 4 + codex レビュー 2、
+  subagent 計 ~1.5M tokens
+- 棄却 finding: survey 66 所見中 11 件を親裁定で却下 (Markdown 段落内改行の無効性等)、
+  R1-b の R-73 反論は codex 構造所見を優先して棄却
+
+### 次の一手
+1. 未裁定提案台帳 11 案のユーザー裁定 (CLAUDE.md の明瞭化はここで初めて動く。急ぎではない)
+2. 本ブランチのローカル main 取り込み後の push (ユーザー実施 — Pegasus は AI から push しない運用)
+3. s8b: パッケージ F1〜F7 のユーザー裁定 (変わらず — (1) 参照)
