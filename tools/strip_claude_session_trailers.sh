@@ -90,9 +90,10 @@ import re
 return re.sub(rb"(?m)^Claude-Session:[^\n]*\n?", b"", message)
 '
 
-# after 側は「Claude-Session」を含む行全般 (コロンなし・本文中の言及も含む上位集合) で数え、
-# 取りこぼしがあれば fail-closed で止める
-after_hits=$(git log --all --oneline --grep='Claude-Session' | wc -l)
+# after 側は実害基準で数える: セッション URL (claude.ai/code) または行頭の trailer 形式が
+# 1 件でも残れば fail-closed で止める。件名・本文でこの対応自体に言及するプロース
+# (例: 「Claude-Session trailer を停止」という commit 件名) は無害なので許す
+after_hits=$(git log --all --oneline -E --grep='claude\.ai/code|^Claude-Session:' | wc -l)
 after_commits=$(git rev-list --all --count)
 echo "== after: Claude-Session を含む commit ${after_hits} 件 / 総 commit ${after_commits} 件 =="
 

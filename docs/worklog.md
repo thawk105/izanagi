@@ -214,9 +214,17 @@ L1 は生産基盤のみ (oracle 消費配線なし = 照合は未保証)、L3 �
 - scope 規則: 同 role 複数行で必須。checker は導入 commit を -S 内容検出する epoch 方式で遡及なし
   (SHA 非依存 = 履歴書き換え耐性)。message-file 7 ケースと全履歴監査 123 件で固定
 - 工数: claude-code-guide (sonnet) 1 + opus 敵対レビュー 1 + 親直接実装
+- 履歴除去を実行 (ユーザー承認後、同日追補): サンドボックスから GitHub へ git 接続不可のため、
+  リモートの上位集合であるローカル repo を素材に `../izanagi-rewrite` を生成。初回実行は残存判定が
+  本対応自身の commit 件名 (プロース言及) に fail-closed 発火 → 判定を実害基準 (URL / 行頭 trailer
+  形式) へ修正して再実行。force-push はユーザー引き渡し。旧→新 SHA 対応表は
+  `izanagi-rewrite/.git/filter-repo/commit-map` に**残し、repo へはコミットしない** (旧 SHA の索引を
+  公開しないため)。push 後は worklog 中の既存 hash 引用が旧履歴参照になる (対応表で解決可能)
 
 ### 次の一手
-1. strip_claude_session_trailers.sh のユーザーレビュー → 承認後に**ユーザーが実行** (全ブランチ
-   merge / push 済みの時点で。main の branch protection は事前解除、force-push もユーザー)
-2. push 後の後始末: 各 checkout / 他マシン clone (Pegasus 等) の fetch + reset、GitHub PR 本文の
-   セッション URL 確認・編集 (スクリプトヘッダの一覧に従う)
+1. **force-push (ユーザー)**: `cd ../izanagi-rewrite && git remote add origin
+   git@github.com:thawk105/izanagi.git && git fetch origin` で想定外の新規 commit がないことを確認 →
+   `git push --force origin main worktree-s8b-ruling-prep` (ruling-prep は完全マージ済みなので
+   `git push origin --delete worktree-s8b-ruling-prep` でも可)。main の branch protection は事前解除
+2. push 後の後始末 (依頼あれば AI 実施可): 各ローカル checkout / worktree / 他マシン clone (Pegasus 等)
+   の fetch + reset、GitHub PR 本文のセッション URL 確認・編集 (スクリプトヘッダの一覧に従う)
