@@ -54,6 +54,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_backoff_consumers.py
 - test_bench_first_real_wal.py
 - test_codex_role_runtime.py
+- test_env_contract.py
 - test_layer3_report.py
 - test_s1_direct_comparison.py
 - test_s1_measurement_freeze.py
