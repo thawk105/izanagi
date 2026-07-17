@@ -2295,3 +2295,29 @@ docs (CLAUDE.md・roadmap・orchestrator-design・failures 等) にはマシン�
 **現時点の状態:** pegasus-runbook 実機検証済み (ab9e202、スモークジョブ + キュー probe +
 `qstat -Qf` の Exclusive submit=OFF 確認)。Pegasus は開発環境であり、正式計測用 env-tag は未作成。
 roadmap §5 は本決定と同時に協議改訂 (roadmap-history/README.md の協議ルート — 版凍結なし)。
+
+## D60. Codex runtime 番人テストの発火範囲を限定する — auto-update を日常作業の破壊要因にしない (2026-07-17)
+
+**背景:** codex-cli が 0.144.2 → 0.144.5 へ自動更新され (2026-07-16。リリースレイアウトも
+`bin/` 分離へ変化)、`test_codex_role_runtime.py` の在庫番人
+`test_runtime_commit_prerequisites_are_available` が全マシンで恒常 fail 化した (判定は PATH と
+`~/.codex` に依存し repo 内容に依存しない)。ユーザー裁定「codex の自動更新で izanagi は困らない
+でほしい」。codex_roles は D55/D56 で全 12 role runtime blocked の休眠サブシステムであり、現用の
+codex 相談 (codex exec) はこの launcher を経由しない。
+
+**決定 1 — 在庫番人は計数 skip へ降格し、hard-fail は opt-in にする:** 前提物 (pinned Codex +
+同梱 bwrap + trusted busybox) 不在時は理由付き skip とし、`IZANAGI_REQUIRE_CODEX_RUNTIME=1` の
+とき従来どおり fail する。codex_roles を変更する作業と D56 再開条件の儀式ではこの opt-in を立てて
+回す (正本: orchestrator/tests/README.md の skip 節)。
+
+**決定 2 — 実行時 fail-closed は不変:** launcher の version pin / binary digest / bwrap 検証は
+そのまま。drifted runtime は起動時に RuntimeIsolationError で拒否され、休眠のまま黙って動く経路は
+ない。この降格は攻撃面の検査を弱めるのではなく、「attestation 証拠の鮮度警報」の発火場所を
+休眠サブシステムへ触れる時点に移すもの。
+
+**却下案:** (a) 番人の単純削除 — 前提物不在で本命 2 本 (実 attestation テスト) が無警告 skip の
+まま腐る (audit 2026-06-30 §3 の偽緑型)。(b) 0.144.5 への即時再ピン — wire digest 再キャプチャの
+儀式が必要で、休眠中に払うコストではない。再ピン時は「ピンが auto-update に可動な場所を指す」
+構造自体の解消 (vendored 固定) を併せて検討する。
+
+**研究状態への影響:** なし (テスト運用の変更のみ。計測・主張・凍結に触れない)。

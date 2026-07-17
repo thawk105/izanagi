@@ -95,6 +95,10 @@ gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い�
   `g++-13` が PATH に無い環境では `_require_g13()` で skip する
   (`_fake_ccbench_repo()` で submodule 非依存に走るものも、preprocess 段で g++-13 が要る)。
 - **gnuplot**: `test_reports.test_make_plot_generates_valid_png` のみ。
+- **pinned Codex runtime** (pinned codex + 同梱 bwrap + trusted busybox):
+  `test_codex_role_runtime` の runtime 系。codex の auto-update でピンがずれると
+  不在扱いになるため、既定は理由付き skip。codex_roles を変更する作業と D56 再開
+  儀式では `IZANAGI_REQUIRE_CODEX_RUNTIME=1` で在庫番人を hard-fail に戻す (D60)。
 
 テストの後半だけが依存物を要する場合 (前半で実検証が完了している場合) は
 skip でなく return で打ち切る (その旨コメントを付ける)。
