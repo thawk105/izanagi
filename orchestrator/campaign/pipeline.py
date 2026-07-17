@@ -319,7 +319,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              src_token: Optional[str] = None, log=print,
              ccbench_dir: str = "", cache_root: str = "",
              screening: Optional[ScreeningConfig] = None,
-             bench_max_rounds: int = 3) -> EvalResult:
+             bench_max_rounds: int = 3,
+             expected_perf_sha256: Optional[str] = None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -335,6 +336,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     なく、ビルド失敗・trace 異常終了・空トレース・パース不能・bench 測定失敗も「採用
     しない」に倒す (規律2: certified を安売りしない / 空 DSG を緑と誤認させない)。
     abort も commit も terminal だが、abort は **fitness を付けず採用しない**。
+
+    `expected_perf_sha256` (A-1, exact 64 lowercase hex): 指定時のみ、両ビルド完了直後・
+    trace/bench 起動前に perf バイナリの full sha256 を厳密照合し、不一致 (期待値の形不正・
+    照合不能を含む) は trace/bench を一切起動せず `bench-binary-mismatch` で abort する。
+    期待値の供給元は freeze v2 で配線するため今回はデフォルト None のまま (未配線=従来同一)。
 
     `screening` (D58) を指定したときだけ full bench を verify より前へ移し、明白な
     劣位点を uncertified のまま棄却する。COMMIT は従来どおり全 verify 構成通過後だけ。
@@ -417,13 +423,33 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         # 実地検分から始まる。identity-error の "error" キーと同じ語彙。
         return _abort("build-error", f"ビルド失敗 → reject ({e})",
                       {"error": _exc_summary(e)})
+    # trace_bin/perf_bin (16 文字) は sha256-prefix-16 / legacy-display-only (過去 WAL との
+    # 対称性維持で不変)。trace_bin_sha256/perf_bin_sha256 (exact 64 lowercase hex) が照合系列。
     wal.log(layout, v, STAGE_BUILD_DONE, env_tag,
             {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
+             "trace_bin_sha256": tr.bin_sha256, "perf_bin_sha256": pf.bin_sha256,
              "trace_cached": tr.cached, "perf_cached": pf.cached,
              # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
              "perf_configure_cmd": pf.configure_cmd, "perf_build_cmd": pf.build_cmd})
     log(f"  [eval {v}] built trace={tr.bin_hash}{'(cache)' if tr.cached else ''} "
         f"perf={pf.bin_hash}{'(cache)' if pf.cached else ''}")
+
+    # --- pre-run binary gate (A-1): 期待値が渡されたときだけ、両ビルド完了直後・trace/bench
+    #     起動前に perf バイナリの (build 時に計算済みの) full sha256 を期待値と厳密照合する。
+    #     再読・再ハッシュはしない (A-4: bin_sha256 が単一ソース)。期待値の形不正 (exact 64
+    #     lowercase hex 以外) も受理せず、mismatch は trace/bench を一切起動せず fails-closed で
+    #     abort する。expected_perf_sha256 の供給元 (ratified v2 の期待値取得) は今回未配線 —
+    #     デフォルト None では従来と完全同一挙動。
+    if expected_perf_sha256 is not None:
+        if (not buildcache.is_full_sha256(expected_perf_sha256)
+                or pf.bin_sha256 != expected_perf_sha256):
+            return _abort(
+                "bench-binary-mismatch",
+                "perf バイナリ sha256 が期待値と不一致/期待値の形不正 → reject "
+                "(trace/bench 未起動)",
+                {"expected": expected_perf_sha256,
+                 "actual": pf.bin_sha256,
+                 "path": pf.binary})
 
     # --- verify (正しさゲート, 絶対規律2)。legacy (既定・軽量) + extra_correctness
     #     (S2 等・bench 並みの負荷) を順に全て通す (verify 2 本立て, D36 決定2/4) ---

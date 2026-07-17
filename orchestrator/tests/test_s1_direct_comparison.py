@@ -462,8 +462,10 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         yield
 
     def fake_build(genome, commit, trace, **kwargs):
+        bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)
         return types.SimpleNamespace(
-            bin_hash="t" if trace else "p", binary="/fake/ycsb", cached=True,
+            bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
+            binary="/fake/ycsb", cached=True,
             configure_cmd="cfg", build_cmd="build")
 
     def fake_remeasure(measure_fn, settle_fn=None, max_rounds=3):

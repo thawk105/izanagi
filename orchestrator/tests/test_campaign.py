@@ -9,6 +9,7 @@ from __future__ import annotations
 import atexit
 import ast
 import contextlib
+import hashlib
 import os
 import shutil
 import subprocess
@@ -471,11 +472,13 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
         if build_raises:
             raise RuntimeError("build boom")
-        return types.SimpleNamespace(bin_hash="dead" + ("t" if trace else "p"),
+        bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)
+        return types.SimpleNamespace(bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
                                      binary="/nonexistent/ycsb.exe", cached=False,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
-    patch("buildcache", types.SimpleNamespace(build=fake_build))
+    patch("buildcache", types.SimpleNamespace(
+        build=fake_build, is_full_sha256=buildcache.is_full_sha256))
     # source_digest は identity 核 (実 git/g++ 依存)。pipeline の段階遷移テストでは
     # mock し stock 固定 (source_digest 自体は専用テストで実機検証する)。
     patch("source_digest", types.SimpleNamespace(
@@ -520,7 +523,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             setattr(pipeline, k, v)
 
 
-def _eval(lay, do_bench=True, screening=None, **mock_kw):
+def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None, **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
     if screening is not None and wal.read_lock(lay) is None:
         cfg = _cfg(search_config={**_cfg().search_config,
@@ -530,7 +533,8 @@ def _eval(lay, do_bench=True, screening=None, **mock_kw):
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-            do_bench=do_bench, screening=screening, log=lambda *a: None)
+            do_bench=do_bench, screening=screening,
+            expected_perf_sha256=expected_perf_sha256, log=lambda *a: None)
     return r, calls
 
 
@@ -561,6 +565,80 @@ def test_pipeline_records_leading_indicators_in_wal():
     assert "screening" not in bench[0].payload
     assert isinstance(bench[0].payload.get("bench_wall_s"), float)
     assert bench[0].payload["bench_wall_s"] >= 0.0
+
+
+# _mock_pipeline の fake_build が返す full sha256 (trace=False=perf 側)。
+_MOCK_PERF_SHA = "db" * 32
+_MOCK_TRACE_SHA = "da" * 32
+
+
+def test_pipeline_build_done_carries_full_and_prefix_bin_keys():
+    """L1/A-8 結線: build_done payload に 4 キー (trace_bin/perf_bin=16 字 legacy-display、
+    trace_bin_sha256/perf_bin_sha256=exact 64 lowercase hex) が揃い、旧 16 字キーが新 64 字
+    キーの接頭辞であること。新キーの欠落 (結線消失) をこのテストが殺す。"""
+    lay = _tmp_layout()
+    r, _ = _eval(lay, certified=True)
+    done = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_BUILD_DONE]
+    assert len(done) == 1
+    p = done[0].payload
+    for k in ("trace_bin", "perf_bin", "trace_bin_sha256", "perf_bin_sha256"):
+        assert k in p, f"build_done に {k} が無い"
+    assert p["trace_bin_sha256"] == _MOCK_TRACE_SHA
+    assert p["perf_bin_sha256"] == _MOCK_PERF_SHA
+    assert len(p["trace_bin_sha256"]) == 64 and len(p["perf_bin_sha256"]) == 64
+    # 16 字系列は 64 字系列の exact 接頭辞 (sha256-prefix-16 契約)。
+    assert p["trace_bin"] == p["trace_bin_sha256"][:16]
+    assert p["perf_bin"] == p["perf_bin_sha256"][:16]
+
+
+def test_pipeline_perf_sha_gate_mismatch_aborts_before_trace_and_bench():
+    """A-1 positive control: expected_perf_sha256 が perf バイナリと不一致なら、trace/bench を
+    一度も起動せず bench-binary-mismatch で abort。payload に expected/actual/path が載る。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True, expected_perf_sha256=_MOCK_TRACE_SHA)  # perf!=trace
+    assert r.aborted and not r.certified
+    assert len(calls) == 0 and len(calls.trace) == 0     # trace も bench も走らない
+    aborts = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT]
+    assert len(aborts) == 1
+    p = aborts[0].payload
+    assert p["reason"] == "bench-binary-mismatch"
+    assert p["expected"] == _MOCK_TRACE_SHA
+    assert p["actual"] == _MOCK_PERF_SHA                  # 実測 (perf) が載る
+    assert "path" in p
+    assert STAGE_VERIFY_DONE not in {rec.stage for rec in wal.read_records(lay)}
+
+
+def test_pipeline_perf_sha_gate_match_continues_normally():
+    """A-1: expected_perf_sha256 が perf バイナリと一致すれば従来どおり続行 (certified)。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True, expected_perf_sha256=_MOCK_PERF_SHA)
+    assert r.certified and not r.aborted
+    assert len(calls) == 1                                # 通常どおり bench が走る
+
+
+def test_pipeline_perf_sha_gate_rejects_malformed_expected():
+    """A-6/A-1: expected が exact 64 lowercase hex でない (16 桁等) 場合も受理せず、trace/bench
+    を起動せず bench-binary-mismatch で abort (prefix 照合しない, fail-closed)。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True,
+                     expected_perf_sha256=_MOCK_PERF_SHA[:16])  # 16 桁 (perf の正 prefix)
+    assert r.aborted and not r.certified
+    assert len(calls) == 0 and len(calls.trace) == 0
+    aborts = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT]
+    assert aborts[0].payload["reason"] == "bench-binary-mismatch"
+    # 形不正でも actual (build 済み bin_sha256) は記録される。expected は形不正の 16 桁のまま。
+    assert aborts[0].payload["expected"] == _MOCK_PERF_SHA[:16]
+    assert aborts[0].payload["actual"] == _MOCK_PERF_SHA
+
+
+def test_pipeline_no_gate_by_default_is_unchanged():
+    """デフォルト (expected_perf_sha256=None) では gate 不発 = 従来と完全同一挙動。"""
+    lay = _tmp_layout()
+    r, calls = _eval(lay, certified=True)
+    assert r.certified and len(calls) == 1
+    done = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_BUILD_DONE]
+    assert done and "bench-binary-mismatch" not in {
+        rec.payload.get("reason") for rec in wal.read_records(lay)}
 
 
 def test_pipeline_red_aborts_without_fitness_or_bench():
@@ -1098,7 +1176,8 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         return _green_vr() if certified else _red_vr()
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
-        return types.SimpleNamespace(bin_hash="dead" + ("t" if trace else "p"),
+        bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)
+        return types.SimpleNamespace(bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
                                      binary="/nonexistent/ycsb.exe", cached=False,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
@@ -1114,7 +1193,8 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         return types.SimpleNamespace(point=pt, nf=nf, rounds=1, stable=True,
                                      unstable=False, cv_history=[cv])
 
-    patch("buildcache", types.SimpleNamespace(build=fake_build))
+    patch("buildcache", types.SimpleNamespace(
+        build=fake_build, is_full_sha256=buildcache.is_full_sha256))
     patch("source_digest", types.SimpleNamespace(
         STOCK="stock", assert_worktree_within_allowlist=lambda *a, **k: None,
         src_token=lambda *a, **k: "stock", resolve=lambda *a, **k: "stock"))
@@ -2136,6 +2216,125 @@ def test_build_cache_miss_wires_recheck():
         assert not br.cached and os.path.exists(br.binary)   # 一致なら新規ビルドが返る
     finally:
         buildcache.source_digest, buildcache._run = saved_sd, saved_run
+
+
+def test_buildresult_bin_hash_derives_from_full_sha256_both_paths():
+    """A-3/D-7: bin_hash は bin_sha256[:16] の read-only 派生 (独立フィールドでない)。fresh /
+    cache-hit 両経路で派生関係が成立し、bin_sha256 が実ファイルの full sha256 (64 hex) と一致。
+    さらに hash 計算は経路あたり 1 回だけ (呼出し回数で固定)。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    root = _tmpdir("izanagi_bc_sha_")
+    key = buildcache.cache_key(g, head, trace=True, src_token="stock")
+    binary = os.path.join(root, key, "cc", "silo", "ycsb_silo.exe")
+    payload = b"real-fixture-binary-bytes"
+    # 期待値は本番 helper でなく hashlib で独立に計算する (恒真回避)。
+    expect = hashlib.sha256(payload).hexdigest()
+
+    def fake_run(cmd, what):
+        if what == "build":
+            os.makedirs(os.path.dirname(binary), exist_ok=True)
+            with open(binary, "wb") as f:
+                f.write(payload)
+
+    sd = types.SimpleNamespace(
+        STOCK="stock",
+        assert_worktree_within_allowlist=lambda *a, **k: None,
+        assert_trace_diff_matches_head=lambda *a, **k: None,
+        resolve=lambda *a, **k: "stock")
+
+    calls = {"n": 0}
+    real_full = buildcache.full_sha256
+
+    def counting_full(path):
+        calls["n"] += 1
+        return real_full(path)
+
+    saved_sd, saved_run, saved_full = (
+        buildcache.source_digest, buildcache._run, buildcache.full_sha256)
+    try:
+        buildcache._run = fake_run
+        buildcache.source_digest = sd
+        buildcache.full_sha256 = counting_full
+        calls["n"] = 0
+        fr = buildcache.build(g, head, trace=True, cache_root=root,
+                              ccbench_dir=sub, src_token="stock")
+        assert not fr.cached
+        assert calls["n"] == 1                       # fresh 経路で 1 回だけ
+        assert fr.bin_sha256 == expect and len(fr.bin_sha256) == 64
+        assert fr.bin_hash == fr.bin_sha256[:16]     # 派生 property
+        calls["n"] = 0
+        hr = buildcache.build(g, head, trace=True, cache_root=root,
+                              ccbench_dir=sub, src_token="stock")
+        assert hr.cached
+        assert calls["n"] == 1                       # cache-hit 経路でも 1 回だけ
+        assert hr.bin_sha256 == expect
+        assert hr.bin_hash == hr.bin_sha256[:16]
+    finally:
+        (buildcache.source_digest, buildcache._run,
+         buildcache.full_sha256) = saved_sd, saved_run, saved_full
+
+
+def test_buildresult_is_frozen():
+    """A-3: BuildResult は frozen (bin_sha256 を後から書き換えて派生 short と乖離させられない)。"""
+    br = buildcache.BuildResult(
+        genome=Genome("silo", {}), trace=False, binary="/x",
+        bin_sha256="a" * 64, build_dir="/d", cached=False)
+    assert br.bin_hash == "a" * 16
+    try:
+        br.bin_sha256 = "b" * 64
+        assert False, "frozen dataclass は書き換え不能であるべき"
+    except Exception as e:                       # FrozenInstanceError (dataclasses)
+        assert "FrozenInstance" in type(e).__name__ or "frozen" in str(e).lower()
+
+
+def test_assert_binary_sha256_accepts_exact_and_rejects_malformed():
+    """A-6/A-5: assert_binary_sha256 は exact 64 lowercase hex のみ受理。15/16/63/65 桁・非 hex・
+    大文字・正しい prefix だが異なる full は拒否、ファイル不在も含め BinaryDigestError 系に倒す
+    (prefix 照合・fallback しない)。成功時は None を返す (bool でない)。"""
+    d = _tmpdir("izanagi_asha_")
+    path = os.path.join(d, "bin")
+    payload = b"assert-fixture-bytes"
+    with open(path, "wb") as f:
+        f.write(payload)
+    good = hashlib.sha256(payload).hexdigest()      # 独立計算 (恒真回避)
+
+    assert buildcache.assert_binary_sha256(path, good) is None   # 成功時のみ復帰
+
+    # 不一致 (正しい 16 字 prefix を持つが full が異なる) → Mismatch
+    bad_full = good[:16] + ("f" if good[16] != "f" else "e") + good[17:]
+    assert len(bad_full) == 64 and bad_full != good and bad_full[:16] == good[:16]
+    try:
+        buildcache.assert_binary_sha256(path, bad_full)
+        assert False, "prefix 一致でも full 不一致は Mismatch であるべき"
+    except buildcache.BinaryDigestMismatch:
+        pass
+
+    # 形不正はすべて BinaryDigestError (Mismatch でない = 照合前に拒否)
+    for bad in (good[:15], good[:16], good[:63], good + "0",   # 15/16/63/65 桁
+                good[:-1] + "g",                                # 非 hex
+                good.upper()):                                  # 大文字
+        try:
+            buildcache.assert_binary_sha256(path, bad)
+            assert False, f"形不正 expected を受理してはいけない: {bad!r}"
+        except buildcache.BinaryDigestError as e:
+            assert not isinstance(e, buildcache.BinaryDigestMismatch), bad
+
+    # ファイル不在 → BinaryDigestError (full_sha256 の OSError を昇格)
+    try:
+        buildcache.assert_binary_sha256(os.path.join(d, "nope"), good)
+        assert False, "ファイル不在は BinaryDigestError であるべき"
+    except buildcache.BinaryDigestError:
+        pass
+
+
+def test_full_sha256_missing_file_raises_digest_error():
+    """A-5: full_sha256 は OSError を握りつぶさず BinaryDigestError (cause 保持) に倒す。"""
+    try:
+        buildcache.full_sha256("/nonexistent/izanagi/bin")
+        assert False, "不在ファイルは BinaryDigestError であるべき"
+    except buildcache.BinaryDigestError as e:
+        assert e.cause is not None
 
 
 _FAKE_BACKOFF_TRACED = (

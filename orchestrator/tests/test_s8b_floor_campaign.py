@@ -174,10 +174,14 @@ def _make_fake_build(build_root: Path):
         cell_dir = build_root / src_token.replace("::", "__")
         cell_dir.mkdir(parents=True, exist_ok=True)
         binary_path = cell_dir / "ycsb_fixture.exe"
-        binary_path.write_bytes(f"fixture-binary::{src_token}".encode("utf-8"))
+        payload = f"fixture-binary::{src_token}".encode("utf-8")
+        binary_path.write_bytes(payload)
+        # A-8: fake も「実際に書いた bytes の実ハッシュ」を返す。bin_hash は bin_sha256[:16]
+        # の派生 (BuildResult と同じ契約) — src_token を短縮した別系列にしない。
+        bin_sha256 = hashlib.sha256(payload).hexdigest()
         return SimpleNamespace(
             genome=genome, trace=trace, binary=str(binary_path),
-            bin_hash=hashlib.sha256(src_token.encode("utf-8")).hexdigest()[:16],
+            bin_sha256=bin_sha256, bin_hash=bin_sha256[:16],
             build_dir=str(cell_dir), cached=False,
             configure_cmd=f"# fixture configure {src_token}",
             build_cmd="# fixture build",
@@ -823,3 +827,27 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
     tampered["floors"]["rr79"]["pairs"][f"rr79::{_CONFIGS[0]}"] = 999999.0
     problems = s8b_floor_stats.verify_floor_artifact(tampered)
     assert problems  # 齟齬が検出される (空でない)
+
+
+def test_floor_manifest_binary_sha256_matches_real_file_bytes(tmp_path):
+    """A-8/A-4: manifest.binaries に記録した binary_sha256 が disk 上バイナリの実 sha256 と
+    一致する。build_cells が result.bin_sha256 を単一ソースにし record 時の再ハッシュをやめても
+    byte 整合が保たれること、および bin_hash_short が binary_sha256[:16] の派生であることを固定。
+    fake build は「実際に書いた bytes の実ハッシュ」を返すので、期待値は本番経路と独立。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze), n_sessions=2, blocks=2,
+                         replicates_per_block=1, reps=2, retry_slots_per_cell=1)
+    measure_fn = _make_measure_fn(reps=2, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (1, ""))
+    assert outcome["status"] == "completed"
+    run_dir = _only_run_dir(tmp_path / "out")
+    binaries = json.loads((run_dir / "manifest.json").read_bytes())["binaries"]
+    assert binaries
+    for cell_id, rec in binaries.items():
+        actual = hashlib.sha256(Path(rec["binary"]).read_bytes()).hexdigest()
+        assert rec["binary_sha256"] == actual, cell_id       # 実ファイル byte と一致
+        assert len(rec["binary_sha256"]) == 64
+        assert rec["bin_hash_short"] == rec["binary_sha256"][:16]  # 派生関係

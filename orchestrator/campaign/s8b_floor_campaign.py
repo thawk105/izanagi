@@ -127,15 +127,15 @@ def _canonical_sha256(value) -> str:
 
 
 def _full_sha256(path: Path) -> str:
-    """バイナリ内容の **full** sha256 (truncate しない — provenance/oracle 照合の前提)。"""
-    digest = hashlib.sha256()
+    """バイナリ内容の **full** sha256 (provenance snapshot; truncate しない)。
+
+    hash 計算本体は ``buildcache.full_sha256`` に一元化し (二重実装 drift の解消, D-8)、
+    ここは薄い adapter として ``OSError``/``BinaryDigestError`` を ``FloorCampaignError`` に
+    変換するだけ (CLI JSON の構造化失敗契約を保つ)。"""
     try:
-        with open(path, "rb") as stream:
-            for chunk in iter(lambda: stream.read(1 << 20), b""):
-                digest.update(chunk)
-    except OSError as exc:
+        return buildcache.full_sha256(path)
+    except (OSError, buildcache.BinaryDigestError) as exc:
         raise FloorCampaignError(f"バイナリ sha256 を計算できない: {path}: {exc}") from exc
-    return digest.hexdigest()
 
 
 # --------------------------------------------------------------------------- #
@@ -559,7 +559,10 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
     ``buildcache.build(trace=False, cache_root=<out_root>/s8b-build-cache,
     ccbench_dir=prepared.ccbench_dir, src_token=prepared.src_token)``) を使うので、floor を
     測るバイナリと oracle 本走のバイナリが同一 identity になる。途中 rebuild はしない。
-    """
+
+    ``binary_sha256`` は ``buildcache.build`` が計算済みの ``result.bin_sha256`` を単一ソース
+    として記録する (record 時の再読・再ハッシュをやめる, A-4)。これは build 時点の byte を
+    写した provenance snapshot であって、以後の実行 byte の同一性を保証するものではない。"""
     cache_root = str(out_root / "s8b-build-cache")
     built: dict[str, dict] = {}
     for cell in cells:
@@ -580,7 +583,7 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 "holdout_id": holdout_id,
                 "configuration_id": configuration_id,
                 "binary": str(binary_path),
-                "binary_sha256": _full_sha256(binary_path),
+                "binary_sha256": result.bin_sha256,
                 "bin_hash_short": result.bin_hash,
                 "binding": dict(identity),
                 "configure_cmd": result.configure_cmd,

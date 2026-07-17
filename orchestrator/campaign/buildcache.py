@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -19,6 +20,76 @@ from typing import List, Optional
 
 from . import source_digest
 from .model import Genome
+
+# バイナリ digest の二系列契約 (敵対相談 A-6 裁定):
+#   - 16 文字系列 = `sha256-prefix-16 / legacy-display-only`。WAL の `trace_bin`/`perf_bin`、
+#     calibration の `binary_hash`、`BuildResult.bin_hash` が該当。provenance 表示専用で、
+#     identity 照合には使わない。full 値の接頭辞であって identity ではない。
+#   - 64 文字系列 = `exact 64 lowercase hex`。`BuildResult.bin_sha256`、WAL の
+#     `*_bin_sha256`、`full_sha256()`/`assert_binary_sha256()` が該当。照合はこの系列だけで
+#     行い、prefix 照合・prefix fallback・現在 disk からの遡及 backfill は禁止する。
+_SHA256_HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
+
+
+class BinaryDigestError(RuntimeError):
+    """バイナリ digest の計算不能・期待値不正など (path/cause を保持, 規律3)。"""
+
+    def __init__(self, path, *, cause=None, message: str = ""):
+        self.path = str(path)
+        self.cause = cause
+        super().__init__(message or f"binary digest error: {self.path}")
+
+
+class BinaryDigestMismatch(BinaryDigestError):
+    """記録済み 64 文字 sha256 と実測が食い違った (path/expected/actual を保持)。"""
+
+    def __init__(self, path, expected: str, actual: str, *, cause=None):
+        self.expected = expected
+        self.actual = actual
+        super().__init__(
+            path, cause=cause,
+            message=(f"binary sha256 不一致: {path} "
+                     f"(expected={expected} actual={actual})"))
+
+
+def is_full_sha256(value) -> bool:
+    """`value` が exact 64 lowercase hex (照合系列の正規形) かを判定する。
+
+    prefix 照合・大文字許容・fallback はしない (A-6)。"""
+    return isinstance(value, str) and bool(_SHA256_HEX64.match(value))
+
+
+def full_sha256(path) -> str:
+    """バイナリ内容の **full** sha256 hexdigest (64 文字, truncate しない)。
+
+    1MB チャンク読み。読取不能は握りつぶさず `BinaryDigestError` (cause 保持) に倒す
+    (規律3)。返り値は exact 64 lowercase hex 系列 (上記契約)。"""
+    h = hashlib.sha256()
+    try:
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+    except OSError as exc:
+        raise BinaryDigestError(
+            path, cause=exc,
+            message=f"バイナリ sha256 を計算できない: {path}: {exc}") from exc
+    return h.hexdigest()
+
+
+def assert_binary_sha256(path, expected: str) -> None:
+    """`path` の full sha256 が `expected` (exact 64 lowercase hex) と一致することを assert。
+
+    成功時のみ復帰する (bool を返さない, A-5)。`expected` が 64 桁 lowercase hex 以外
+    (15/16/63/65 桁・非 hex・大文字を含む) は即 `BinaryDigestError` で拒否し、prefix 照合・
+    prefix fallback は一切しない (A-6, fail-closed)。不一致は `BinaryDigestMismatch`。"""
+    if not is_full_sha256(expected):
+        raise BinaryDigestError(
+            path,
+            message=(f"expected が exact 64 lowercase hex でない: {expected!r} "
+                     "(prefix 照合・fallback はしない, A-6)"))
+    actual = full_sha256(path)
+    if actual != expected:
+        raise BinaryDigestMismatch(path, expected, actual)
 
 
 def _ccbench_dir() -> str:
@@ -48,24 +119,24 @@ def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
     return f"{genome.protocol}_{h}_t{int(trace)}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class BuildResult:
     genome: Genome
     trace: bool
     binary: str             # ycsb_<protocol>.exe の絶対パス
-    bin_hash: str           # バイナリ内容の sha256[:16] (provenance / WAL)
+    bin_sha256: str         # バイナリ内容の full sha256 (exact 64 lowercase hex, 単一ソース)
     build_dir: str
     cached: bool            # キャッシュヒットで再ビルドを省いたか
     configure_cmd: str = ""  # このバイナリを作る cmake configure (実験再現用)
     build_cmd: str = ""      # cmake --build (実験再現用)
 
+    @property
+    def bin_hash(self) -> str:
+        """provenance / WAL 用の 16 文字表示 (= `bin_sha256[:16]`)。
 
-def _bin_hash(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()[:16]
+        `bin_sha256` の read-only 派生であり、独立フィールドとして格納しない (A-3/D-7:
+        「二つの真実」排除)。sha256-prefix-16 / legacy-display-only 系列 — 照合には使わない。"""
+        return self.bin_sha256[:16]
 
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,
@@ -104,7 +175,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
         _assert_trace_diff(genome, ccbench_commit, sub, cxx, bdir, built_fresh=False)
         if not trace:
             _assert_no_trace_symbols(binary)     # 規律1: 既存 perf binary も継続検査
-        return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=True,
+        return BuildResult(genome=genome, trace=trace, binary=binary,
+                           bin_sha256=full_sha256(binary), build_dir=bdir, cached=True,
                            configure_cmd=cfg_str, build_cmd=build_str)
 
     _clear_stale_build_dir(bdir, binary)
@@ -121,7 +193,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     _assert_trace_diff(genome, ccbench_commit, sub, cxx, bdir, built_fresh=True)
     if not trace:
         _assert_no_trace_symbols(binary)         # 規律1: 新規 perf binary に trace 漏れが無いか
-    return BuildResult(genome, trace, binary, _bin_hash(binary), bdir, cached=False,
+    return BuildResult(genome=genome, trace=trace, binary=binary,
+                       bin_sha256=full_sha256(binary), build_dir=bdir, cached=False,
                        configure_cmd=cfg_str, build_cmd=build_str)
 
 
