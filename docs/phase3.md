@@ -382,7 +382,9 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **(完了 2026-07-15) ftruncate-xor insight の還元判断欄の追随** (worklog 2026-07-10 (19) 由来) —
   ユーザー承認を受け、insight (2026-06-19) に WAL ftruncate XOR の PR #116 master マージ完了を
   日付付きで追記訂正した。別件 ODR 違反の PR #118 と合わせ、探索由来の上流還元 2 件が完了済み。
-- **buildcache 残骸破棄の結線統合テスト** (2026-07-11 監査 L2-2 由来) — fc4d3fa の回帰テスト 2 本は helper 単体のみで、build() が configure 前に破棄を呼ぶ結線を assert しない。結線だけ外れる将来 refactor への歯として統合テスト 1 本の余地。
+- **(完了 2026-07-17)** buildcache 残骸破棄の結線統合テスト (2026-07-11 監査 L2-2 由来) — fc4d3fa の回帰テスト 2 本は helper 単体のみで、build() が configure 前に破棄を呼ぶ結線を assert しない。結線だけ外れる将来 refactor への歯として統合テスト 1 本の余地。
+  `test_buildcache_stale_marker_discarded_before_configure` (orchestrator/tests/test_campaign.py) を追加し、
+  build() が configure 前に残骸破棄を呼ぶ結線と `["configure", "build"]` の呼び出し順序を固定した。
 
 ---
 

@@ -2363,6 +2363,66 @@ def test_build_cache_miss_wires_recheck():
         buildcache.source_digest, buildcache._run = saved_sd, saved_run
 
 
+def test_buildcache_stale_marker_discarded_before_configure():
+    """回帰 (結線検査, D-9): build() の cache-miss 経路は configure より前に残骸 build dir
+    (kill 等で中断された中途 build dir) を破棄する。fake `_run` で呼び出し列を記録し、
+    configure 分岐では残骸マーカーが既に消えていることを assert、build 分岐では configure
+    済みであることを assert した上で binary を書く。最終的に呼び出し列が
+    `["configure", "build"]` の厳密一致であることまで固定する — `_clear_stale_build_dir`
+    の呼び出し自体が消える将来 refactor 変異 (build 分岐だけが残っていれば緑になってしまう)
+    を殺すため (2026-07-11 監査 L2-2 由来、フリー実装ではなく統合結線の歯として追加)。"""
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    root = _tmpdir("izanagi_bc_stale_")
+    key = buildcache.cache_key(g, head, trace=True, src_token="stock")
+    bdir = os.path.join(root, key)
+    binary = os.path.join(bdir, "cc", "silo", "ycsb_silo.exe")
+    marker = os.path.join(bdir, "CMakeCache.txt")
+
+    # kill 等で中断された中途 build dir の残骸を事前設置 (CMakeCache.txt あり・binary 無し)。
+    os.makedirs(bdir)
+    with open(marker, "w", encoding="utf-8") as f:
+        f.write("# This is the CMakeCache file.\n"
+                "CMAKE_HOME_DIRECTORY:INTERNAL=/tmp/stale-worktree-vanished\n")
+
+    def _sd(resolved):
+        return types.SimpleNamespace(
+            STOCK="stock",
+            assert_worktree_within_allowlist=lambda *a, **k: None,
+            assert_trace_diff_matches_head=lambda *a, **k: None,
+            resolve=lambda *a, **k: resolved)
+
+    calls = []
+
+    def fake_run(cmd, what):
+        calls.append(what)
+        if what == "configure":
+            # 破棄が configure より前に完了している (残骸マーカーはもう存在しない)。
+            assert not os.path.exists(marker), \
+                "残骸マーカーが configure 時点でまだ残っている — 破棄が configure より前でない"
+            assert calls == ["configure"], calls
+        elif what == "build":
+            # configure が先に走っていることを確認してから binary を書く。
+            assert calls == ["configure", "build"], calls
+            os.makedirs(os.path.dirname(binary), exist_ok=True)
+            with open(binary, "w") as f:
+                f.write("fake-binary")
+
+    saved_sd, saved_run = buildcache.source_digest, buildcache._run
+    try:
+        buildcache._run = fake_run
+        buildcache.source_digest = _sd("stock")
+        br = buildcache.build(g, head, trace=True, cache_root=root,
+                              ccbench_dir=sub, src_token="stock")
+    finally:
+        buildcache.source_digest, buildcache._run = saved_sd, saved_run
+
+    assert calls == ["configure", "build"], calls  # 呼び出し列の厳密一致 (D-9)
+    assert not os.path.exists(marker)               # 残骸マーカーは最終的にも不在
+    assert not br.cached                            # cache-hit でなく fresh build
+    assert os.path.exists(br.binary)
+
+
 def test_buildresult_bin_hash_derives_from_full_sha256_both_paths():
     """A-3/D-7: bin_hash は bin_sha256[:16] の read-only 派生 (独立フィールドでない)。fresh /
     cache-hit 両経路で派生関係が成立し、bin_sha256 が実ファイルの full sha256 (64 hex) と一致。
