@@ -605,6 +605,10 @@ import してよい。subprocess git を使うため freeze_io より重い層)�
   certificate 以前の削除済み痕跡は検出不能 / ignored 領域は scan 境界外 (v1 と同じ) /
   計測中の probe 時間窓 (C4-6、機構は裁定済みのまま)
 
+**(i)〜(vii) は 2026-07-18 ユーザー承認済み** (裁定の記録の正本 =
+`2026-07-18_s8b-c22-consultations.md` §5「検証器実装スコープの確定」)。(i)(ii) の closure schema は
+案A (measurement_closure 新欄) で確定。(viii) の限界受け入れは floor 実測直前に最終承認。
+
 延期台帳 (完了と数えない): reps/extime 等 run contract 残余の束縛 = experiment_numbers 裁定後 /
 G12 完全強制 = Pegasus 登録段 (runbook §7) / selector 側 LegacyFreeze 完全統一の残余は
 prediction 封印 wave で再点検

@@ -151,6 +151,29 @@ Q-3〜Q-6: B の回答を §5 の推奨案として記載 (裁定はユーザー
   → env_tag=Pegasus の登録段は「値決め」でなく「計算ノード上の実測 + 実測照合 attestation の実装」。
     calibration の取得場所 (計算ノード) と実行時照合の設計を登録段で同時に固める
 
+**検証器実装スコープの確定 (2026-07-18 ユーザー裁定):**
+- **【申告リスト = 案A 確定】** v2 世代ファイルに `measurement_closure` 欄を新設 (前 wave C2-1/C2-4 の
+  裁定どおり)。closure = `[{canonical_path, sha256}]` のみ (per-holdout の bool 予告は**全廃**)。
+  hits_by_holdout は verifier が同一 bytes から導出し per-holdout 完全一致で照合 (自己申告 bool 不採用)。
+  closure artifact は世代導入コミット G に同梱、approval/active は別コミット A (C2-3/C2-6)
+- **【第2グループ = 承認】** 前 wave §5 (iii)〜(vii) を実装解釈として承認: 判定境界 (iii) / scale
+  gate (iv) / protocol key に contract_sha256 を追加し 17→18 key (v) / active・revoked は検証 commit
+  H 相対 (vi) / revoked successor の active 資格維持 (vii)。(i)(ii) は上記【申告リスト】で確定
+- **【第3グループ = codex 推奨どおり確定】** (§8.5 各項目を codex の実際の推奨で確定):
+  - full validate_protocol を launch acceptance で採用: P = canonical_sha256(**full_validate(
+    strict_parse(floor_protocol blob)) の正規化戻り値**)。ハッシュ照合のみは「一貫だが未承認の別実験」を
+    通すため不可 (V1 所見5)。protocol.freeze は V1 trust root へ明示 pin
+  - journal / manifest は equality chain (§8.4) の**ハッシュ束縛で照合するが、導入 commit==G までは
+    要求しない** (codex 推奨 = 前 wave (ii) の狭い範囲を超えないため)。manifest への mode 制約の裁定
+    拡大もせず、ls-tree mode 100644/100755 の**検査** (symlink 偽装対策) のみ行う
+  - cert bytes は期待 union に**非編入** + `hits(cert)==∅` を invariant 化 (Q-C)
+  - crash 回復 = **L (launch-start のみ、build から再構築)** / **M (sealed manifest あり)** の二状態を
+    定義し、launch-start-only も回復可能にする (V3 所見4)
+  - one-shot = launch_validate で **generation_number==1 を強制** (reason certificate-generation-scope)。
+    g2+ の静的 load は将来 schema のため維持
+- **【限界の承認 (viii) = floor 実測直前に持ち越し】** certificate 以前の削除痕跡不可視 / ignored 領域
+  scan 境界外 / 計測中 probe 時間窓 の受け入れは floor 前に最終承認 (実装は限界を docstring/保証表に明記)
+
 **C2-2 検証側 (§5-(ix) として追認リストへ追加提案。裁定まで launch_validate は現状維持):**
 - (ix)-1 journal 実体検証: floor_source と同 dir の journal.jsonl を G の regular blob として必須化し
   状態機械を検証、result.wall_ledger は raw journal からの決定的射影として照合 (自己申告排除)。

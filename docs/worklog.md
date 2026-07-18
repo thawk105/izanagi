@@ -630,3 +630,26 @@ V3 テスト・裁定準拠) → 親裁定 → codex 実行 (S0/H) → 親検算
 1. 検証器本丸 wave (エントリ (10) 次の一手 2、§8.3 ロードマップ) — closure schema (i)/(ii) 裁定が律速
 2. floor 実測の直前に Pegasus env_contract 登録段 (calibrator 実走。runbook §7)
 3. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-18 (12) — 検証器実装スコープのユーザー裁定確定 (発効なし・計測なし)
+
+エントリ (10)(11) 次の一手の消化。ユーザー裁定 (正本 = insights `2026-07-18_s8b-c22-consultations.md`
+§5「検証器実装スコープの確定」):
+
+- **申告リスト = 案A** (v2 世代に measurement_closure 新欄。closure = [{canonical_path, sha256}]、
+  bool 予告全廃、verifier が bytes から hit 導出、世代コミット G 同梱・承認は別コミット A)
+- **前 wave §5 (iii)〜(vii) 承認** (判定境界 / scale gate / contract_sha256 で 17→18 key /
+  active・revoked は H 相対 / revoked successor の active 資格)。(i)(ii) は案A で確定
+- **§8.5 = codex 推奨どおり**: full validate 採用 / journal・manifest は hash 束縛のみで**導入==G は
+  非要求** (mode は検査のみ、裁定拡大なし) / cert union 非編入 + hits(cert)==∅ / crash 回復 L/M
+  二状態 / one-shot は generation==1 強制
+- **(viii) 限界受け入れは floor 実測直前に持ち越し** (実装は限界を明記)
+- docs 変更のみ。検証器本丸の実装は未着手 — ユーザー指示によりコンテキストリセット後に開始する
+
+### 次の一手
+1. **検証器本丸 wave** (§8.3 ロードマップ、§8.4 検証鎖契約が実装契約)。closure schema 確定により
+   fixture 前提が揃った。ファイル素集合 R (verifier) ∥ F (issuer)、決定化 seam API 固定後に並列
+2. floor 前段: Pegasus env_contract 登録 (計算ノード実測 + 実測照合 attestation、pegasus-runbook §7)
+3. その後: protocol JSON 凍結 (master_seed=2026-07-18T17:16:12+09:00 / env_tag=pegasus を焼く、
+   AI-Agent: none) → 予測封印 → floor 実測 → v2 候補生成 → 承認 → oracle 実走
+4. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
