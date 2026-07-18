@@ -279,20 +279,41 @@ def _write_exclusive(path: str, data: bytes) -> None:
         os.close(fd)
 
 
-def _rename_noreplace(source: str, target: str) -> None:
-    """Linux renameat2(RENAME_NOREPLACE) による atomic create-only publish。"""
+def _renameat2_noreplace(source: str, target: str) -> None:
+    """Linux renameat2(RENAME_NOREPLACE) の薄い syscall wrapper。"""
     libc = ctypes.CDLL(None, use_errno=True)
     renameat2 = getattr(libc, "renameat2", None)
     if renameat2 is None:
-        raise CertificationError("publish-unsupported", "renameat2 is unavailable")
+        raise OSError(errno.ENOSYS, "renameat2 is unavailable")
     rc = renameat2(
         ctypes.c_int(-100), os.fsencode(source), ctypes.c_int(-100),
         os.fsencode(target), ctypes.c_uint(1),
     )
     if rc != 0:
         err = ctypes.get_errno()
-        code = "publish-collision" if err == errno.EEXIST else "publish-failed"
-        raise CertificationError(code, os.strerror(err))
+        raise OSError(err, os.strerror(err))
+
+
+def _rename_noreplace(source: str, target: str) -> str:
+    """FS 非依存の atomic create-only publish。使用経路を返す。"""
+    try:
+        _renameat2_noreplace(source, target)
+        return "renameat2"
+    except OSError as exc:
+        if exc.errno not in {errno.EINVAL, errno.ENOSYS, errno.ENOTSUP}:
+            code = "publish-collision" if exc.errno == errno.EEXIST else "publish-failed"
+            raise CertificationError(code, os.strerror(exc.errno)) from exc
+
+    try:
+        os.link(source, target)
+    except OSError as exc:
+        code = "publish-collision" if exc.errno == errno.EEXIST else "publish-failed"
+        raise CertificationError(code, os.strerror(exc.errno)) from exc
+    try:
+        os.unlink(source)
+    except OSError as exc:
+        raise CertificationError("publish-failed", os.strerror(exc.errno)) from exc
+    return "link-unlink"
 
 
 def _binary_sha256(binary: str, subprocess_runner: Callable[..., object]) -> str:
@@ -598,7 +619,7 @@ def _certify_main(
             registered, f".publish-{safe_job_id}-{secrets.token_hex(8)}.tmp")
         _write_exclusive(temporary, artifact)
         try:
-            _rename_noreplace(temporary, target)
+            publish_method = _rename_noreplace(temporary, target)
         except Exception:
             try:
                 os.unlink(temporary)
@@ -606,8 +627,15 @@ def _certify_main(
                 pass
             raise
         os.rename(staging_artifact, os.path.join(staging, "calibration.json"))
+        _write_exclusive(
+            os.path.join(staging, "publish.json"),
+            (json.dumps({
+                "method": publish_method,
+                "target": os.path.basename(target),
+            }, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+        )
         print(f"wrote {os.path.join(staging, 'calibration.json')}")
-        print(f"published {target}")
+        print(f"published {target} via {publish_method}")
         return 0
     except (Exception, SystemExit) as exc:
         if isinstance(exc, CertificationError):

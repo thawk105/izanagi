@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import errno
 import hashlib
 import json
 import shutil
@@ -496,6 +497,8 @@ def test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal(
     digest = hashlib.sha256(published[0].read_bytes()).hexdigest()
     assert published[0].name == f"calibration-{digest[:16]}.json"
     validate_calibration_v2(published[0].read_bytes())
+    trace = json.loads((attempt / "publish.json").read_text(encoding="utf-8"))
+    assert trace == {"method": "renameat2", "target": published[0].name}
 
     before = (attempt / "calibration.json").read_bytes()
     rc_existing, _, _ = _invoke(tmp_path, monkeypatch)
@@ -511,6 +514,48 @@ def test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal(
     assert rejection.quality.status == "rejected"
     assert any("publish-collision" in r for r in rejection.quality.reasons)
     assert not (attempt2 / "candidate.json").exists()
+
+
+def test_cli_publish_falls_back_to_link_on_renameat2_einval(
+        tmp_path, monkeypatch):
+    def renameat2_einval(_source, _target):
+        raise OSError(errno.EINVAL, "injected unsupported filesystem")
+
+    monkeypatch.setattr(cli, "_renameat2_noreplace", renameat2_einval)
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
+
+    assert rc == 0
+    published = list(registered.glob("calibration-*.json"))
+    assert len(published) == 1
+    assert published[0].read_bytes() == (attempt / "calibration.json").read_bytes()
+    trace = json.loads((attempt / "publish.json").read_text(encoding="utf-8"))
+    assert trace == {"method": "link-unlink", "target": published[0].name}
+    assert not list(registered.glob(".publish-*.tmp"))
+
+
+def test_cli_link_fallback_rejects_existing_target(
+        tmp_path, monkeypatch):
+    def renameat2_einval(_source, _target):
+        raise OSError(errno.EINVAL, "injected unsupported filesystem")
+
+    monkeypatch.setattr(cli, "_renameat2_noreplace", renameat2_einval)
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
+    assert rc == 0
+    published = list(registered.glob("calibration-*.json"))
+    assert len(published) == 1
+    published_before = published[0].read_bytes()
+
+    shutil.rmtree(attempt)
+    rc2, attempt2, registered2 = _invoke(tmp_path, monkeypatch)
+
+    assert rc2 != 0
+    assert list(registered2.glob("calibration-*.json")) == published
+    assert published[0].read_bytes() == published_before
+    rejection = validate_calibration_v2((attempt2 / "calibration.json").read_bytes())
+    assert rejection.quality.status == "rejected"
+    assert any("publish-collision" in reason for reason in rejection.quality.reasons)
+    assert not (attempt2 / "publish.json").exists()
+    assert not list(registered2.glob(".publish-*.tmp"))
 
 
 if __name__ == "__main__":
