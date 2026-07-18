@@ -535,3 +535,44 @@ fable 子なし。各レーン敵対レビュー 2 レンズ + 修正 + 再レ�
    構造的に不可。次の新規セッションで model 無し Agent 呼び出しが guard_agent に拒否されることを
    確認する (拒否メッセージの目安どおり model を足せば 1 回で回復するはず)
 2. 本 branch (worktree-agent-model-guard) の push/PR はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-18 (9) — C2-2 発行側結線 + guard_agent live 検証 (F21) + 検証側の裁定パッケージ化 (計測なし)
+
+標準ループ: Explore 3 (sonnet) + claude-code-guide 実査 → 親プラン v1 → codex gpt-5.6-sol ×4
+**33 所見 (must-fix 26 / should-fix 7、refuted 0)** → 親裁定 (**検証側 lineage 照合は §5-(i)/(ii)
+追認依存の越権と裁定 → 実装せず §5-(ix)-1〜10 のユーザー裁定パッケージへ構造化**、今 wave は
+判断非依存部分のみ) → codex 実行 3 本 → opus 敵対レビュー 4 本 (findings 0) → 親変異 9/9 全滅。
+逐語・裁定表・プラン v2・裁定パッケージ = `output/insights/2026-07-18_s8b-c22-consultations.md`。
+
+- commit: ff3c14d (逐語凍結) / b6fd37f (Lane A docs) / 1eb1ed1 (発行側結線) + 本 docs 分
+- レーン A (worklog (8) 次の一手 1 の live 検証): **不発を実測** — bg daemon 2.1.211 セッションで
+  model 無し Agent 呼び出しが素通り (同セッションで guard_bash は発火、hook 単体は exit 2)。
+  headless 2.1.212 対照実験 3 本で matcher・enforcement 全連鎖は健全 = repo 配線は正しい。
+  version drift か bg surface 固有かは**未分離** (二重交絡)。failures **F21** [恒真ゲート]
+  [テスト代表性] + hooks/README hook 4 既知限界節が正本。機械的防衛候補と副作用も同節
+- レーン B 発行側: _validate_mode (**実在バグ修正: mode 無検証の path traversal**) /
+  _assert_official_permitted seam 抽出 (無条件拒否不変) / clean_scan_digest 恒真封鎖
+  (_assert_search_pass 必須 + 列挙 before/after + output/s8b-freeze exact allowlist) /
+  validate_launch_certificate (exact 6 keys、fresh/resume 共用) / preflight (scan → mkdir →
+  create-only 発行 + 自己検査 + launch-start journal 耐久化) / campaign-start cert sha 束縛 →
+  wall_ledger 伝播 / resume 意味再検証 (rename・pilot 混線拒否) / builder canonical bytes hit-0
+- **実在バグ修正 2 件目: repo が clean scan hit-0 でなかった** (test_s8b_ratified_freeze.py の
+  fixture 三軸同居が rr80/rr20 に実 hit) → 実行時結合化 (バイト列不変) + 実 scan 不変条件テスト
+  (test_s8b_repo_scan_invariant.py) 新設。trust root 不在の pytest.skip 5 箇所も fail 化 (F9 型)
+- **検証側 lineage 照合は未実装のまま** (worklog (7) blocking 前提の残り半分)。§5-(ix)-1〜10
+  (journal 実体検証 / cert 厳密祖先 / closure 契約 — **実 manifest・result 自身が hit する矛盾を
+  in-memory 実証** / one-shot cert / crash 回復 / eligible_for_refreeze / path 契約 / 型伝搬 /
+  scan 除外恒久設計 / §5-(ii) 機械強制) の裁定後に実装する。launch_validate の受理集合は不変
+- テスト: 1304 → **1337 passed / 23 skipped / 0 failed** (+33)。変異 9/9 KILLED。check_docs /
+  check_ai_provenance (159 commits) 緑。official 拒否 (CLI+core) と発効なし規律は不変
+- 工数: Explore 3 (sonnet ~287k) + guide (sonnet ~76k) + codex 相談 4 (max×3/high×1) + codex 実行
+  3 (high/medium×2) + opus レビュー 4 (~299k) + 親 (プラン・裁定・変異 matrix・skip→fail 直接修正)
+
+### 次の一手
+1. ユーザー接点: worklog (7) の追認事項に加え、本 wave の **§5-(ix)-1〜10 裁定パッケージ**
+   (insights §5) と guard_agent 防衛候補の裁定 + master_seed / env_tag の受領
+2. 裁定後: 検証側 lineage 照合の実装 (fixture 段階 builder 化・reason code 追加込み) → protocol
+   JSON 実凍結 → 予測封印 → floor 実測 → v2 候補生成 → 承認 → oracle 実走 (順序は (7) と同じ)
+3. 次回新規 bg セッションで guard_agent 再検証 (daemon version 確認の上 model 無し Agent 呼び —
+   拒否 = version drift / 素通り = bg surface 配送欠落。手順は hooks/README hook 4 節)
+4. 本 branch (worktree-s8b-c22-launch-cert) の push/PR はユーザー引き渡し (Pegasus 規約)
