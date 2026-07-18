@@ -5,7 +5,9 @@
   ディレクトリ名が旧 wave 名なのはハーネス隔離パス固定の回避策)
 - タスク: worklog (13) 次の一手 2 — Pegasus env_contract 登録段 (計算ノード実測 + attestation)
 - プラン: insights 付録 A (凍結済み) (v1)
-- 状態 (2026-07-19 更新): **実装・レビュー全完了 → wave commit → certification ジョブ投入段**。
+- 状態: (2026-07-19 更新) **実装・レビュー全完了 → wave commit 済み → certification ジョブ段**。
+  初回投入 867863 は qstat 時刻表記 (NQSV `Started Request Time`) のパーサ不一致で allocation 段
+  fail-closed (6 秒、証拠 = job-staging/0:867863.nqsv/)。qstat-fix 適用済み、再投入へ。
   最終ゲート = 全走 1870 passed / 26 skipped / 0 failed、W2-fix 統合レビュー (opus) 判定 =
   commit 可 (抜き取り変異 8/8 KILL 独立再現)。W5 編入事項 = 契約不変式 required⟹single_process +
   pegasus literal/golden 群。以下は経過ログ (古い順):

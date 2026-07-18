@@ -240,21 +240,33 @@ text = open(path, encoding="utf-8", errors="replace").read()
 assigned = "unavailable"
 started = "unavailable"
 if rc == "0":
-    flat = re.sub(r"\n[ \t]+", " ", text)
     for key in ("exec_host", "exec_vnode", "assigned_host", "vnode"):
-        m = re.search(rf"(?im)^\s*{key}\s*=\s*([^\n]+)", flat)
+        m = re.search(rf"(?im)^\s*{re.escape(key)}\s*=\s*([^\n]+)", text)
         if m:
-            token = re.split(r"[:+/,()\s]", m.group(1).strip().lstrip("("))[0]
+            raw = m.group(1).strip()
+            if raw.lower() == "(none)":
+                continue
+            token = re.split(r"[:+/,()\s]", raw.lstrip("("))[0]
             if token:
                 assigned = token
                 break
+    if assigned == "unavailable":
+        # NQSV reports the allocation as a section, not an inline key=value field.
+        m = re.search(
+            r"(?im)^\s*Execution Hosts\(JSVNO\):\s*$\n[ \t]+([^\s(),:+/]+)",
+            text,
+        )
+        if m and m.group(1).lower() != "none":
+            assigned = m.group(1)
     if assigned == "unavailable" and observed.split(".")[0] in text:
         assigned = observed.split(".")[0]
-    for key in ("stime", "start_time", "start"):
-        m = re.search(rf"(?im)^\s*{key}\s*=\s*(.+?)\s*$", flat)
+    for key in ("stime", "start_time", "start", "Started Request Time"):
+        m = re.search(rf"(?im)^\s*{re.escape(key)}\s*=\s*(.+?)\s*$", text)
         if not m:
             continue
         raw = m.group(1).strip()
+        if raw.lower() == "(none)":
+            continue
         if raw.isdigit() and int(raw) > 1_000_000_000:
             started = raw
             break

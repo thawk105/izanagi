@@ -2,7 +2,9 @@
 """計算機 command を実行せずに job 資材の構造と Python entry を検証する。"""
 from __future__ import annotations
 
+import base64
 import dataclasses
+import hashlib
 import importlib.util
 import json
 import os
@@ -19,6 +21,62 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 TOOL_DIR = REPO / "tools" / "pegasus"
+
+# Exact bytes captured from certification job 867863's qstat-f.stdout.
+QSTAT_NQSV_867863 = base64.b64decode("""
+UmVxdWVzdCBJRDogODY3ODYzLm5xc3YKICAgIFJlcXVlc3QgTmFtZSA9IGNlcnRpZnlfY2FsaWJyYXRpb24uc2gKICAgIFVzZXIg
+IE5hbWUgPSB0YW5hYgogICAgR3JvdXAgTmFtZSA9IFNGQwogICAgVXNlciAgSUQgICA9IDMxNjA5CiAgICBHcm91cCBJRCAgID0g
+MzA0MTAKICAgIEN1cnJlbnQgU3RhdGUgICAgICAgICAgID0gUnVubmluZwogICAgUHJldmlvdXMgU3RhdGUgICAgICAgICAgPSBQ
+cmUtcnVubmluZwogICAgU3RhdGUgVHJhbnNpdGlvbiBUaW1lICAgPSBTdW4gSnVsIDE5IDAyOjE1OjU3IDIwMjYKICAgIFN0YXRl
+IFRyYW5zaXRpb24gUmVhc29uID0gUFJFUlVOX1NVQ0NFU1MKICAgIFF1ZXVlID0gZ2VuX1NAbnFzdiAoRXhlY3V0aW9uIFF1ZXVl
+KQogICAgSm9iIFRvcG9sb2d5ID0gRGlzdHJpYnV0ZSBKb2IKICAgIFJlcXVlc3QgUHJpb3JpdHkgID0gMAogICAgUmVxdWVzdCBM
+b2dsZXZlbCAgPSAwCiAgICBSZXJ1bmFibGUgICAgPSBObwogICAgSG9sZGFibGUgICAgID0gWWVzCiAgICBIb2xkIFR5cGUgICAg
+PSAobm9uZSkKICAgIE1pZ3JhdGFibGUgICA9IFllcwogICAgU3VzcGVuZCBUeXBlID0gKG5vbmUpCiAgICBBY2NvdW50IENvZGUg
+PSBTRkMKICAgIFN0ZG91dCA9IHBlZ2FzdXMwMjovaG9tZS9TRkMvdGFuYWIvZ2l0aHViL2l6YW5hZ2kvLmNsYXVkZS93b3JrdHJl
+ZXMvczhiLWMyMi1sYXVuY2gtY2VydC9jZXJ0aWZ5X2NhbGlicmF0aW9uLnNoLm8lcwogICAgU3RkZXJyID0gcGVnYXN1czAyOi9o
+b21lL1NGQy90YW5hYi9naXRodWIvaXphbmFnaS8uY2xhdWRlL3dvcmt0cmVlcy9zOGItYzIyLWxhdW5jaC1jZXJ0L2NlcnRpZnlf
+Y2FsaWJyYXRpb24uc2guZSVzCiAgICBSZXFsb2cgPSAobm9uZSkKICAgIFNoZWxsID0gKG5vbmUpCiAgICBNYWlsIEFkZHJlc3Mg
+PSB0YW5hYkBwZWdhc3VzMDIKICAgIE1haWwgT3B0aW9uICA9IChub25lKQogICAgSm9iIENvbmRpdGlvbjoKICAgICAgICBKb2Ig
+Tk86IDAgIiIKICAgIE51bWJlciBvZiBKb2JzID0gMQogICAgQ3JlYXRlZCBSZXF1ZXN0IFRpbWUgPSBTdW4gSnVsIDE5IDAyOjE1
+OjUwIDIwMjYKICAgIEVudGVyZWQgUXVldWUgVGltZSAgID0gU3VuIEp1bCAxOSAwMjoxNTo1MCAyMDI2CiAgICBQbGFubmVkIFN0
+YXJ0IFRpbWUgICA9IFN1biBKdWwgMTkgMDI6MTY6MDIgMjAyNgogICAgRXhlY3V0ZSBSZXF1ZXN0IFRpbWUgPSAobm9uZSkKICAg
+IFN0YXJ0ZWQgUmVxdWVzdCBUaW1lID0gU3VuIEp1bCAxOSAwMjoxNTo1NyAyMDI2CiAgICBFbmRlZCBSZXF1ZXN0IFRpbWUgICA9
+IChub25lKQogICAgUmVxdWVzdGVkIFN0YXJ0IFRpbWUgPSAobm9uZSkKICAgIERlYWRsaW5lIFRpbWUgICAgICAgID0gKG5vbmUp
+CiAgICBVTUFTSyA9IDAyMgogICAgUmVzZXJ2YXRpb24gSUQgICAgICA9IChub25lKQogICAgcWF0dGFjaCBjb21tYW5kID0gRW5h
+YmxlCiAgICBBdHRhY2ggPSBObwogICAgQ2x1c3RlciBUeXBlIFNlbGVjdCA9IE5PTkUKICAgIFVzZXJQUCBTY3JpcHQgPSAobm9u
+ZSkKICAgIEV4Y2x1c2l2ZSA9IChub25lKQogICAgSENBIE51bWJlciA9IChub25lKQogICAgQWNjZXB0IFNpZ3Rlcm0gPSBObwog
+ICAgRW5hYmxlIENsb3VkIEJ1cnN0aW5nID0gTm8KICBDdXN0b20gUmVzb3VyY2VzOgogICAgU2hhcmUgICAgICAgICAgID0gMQog
+IEV4ZWN1dGlvbiBIb3N0cyhKU1ZOTyk6CiAgICBibm9kZTAwMygzKQogIFJlc291cmNlcyBJbmZvcm1hdGlvbjoKICAgIE1lbW9y
+eSAgICA9IDAuMDAwMDAwQgogICAgQ1BVIFRpbWUgID0gMC4wMDAwMDBTCiAgICBBY2N1bXVsYXRlZCBDUFUgVGltZSA9IDAuMDAw
+MDAwUwogICAgRWxhcHNlICAgID0gMVMKICAgIFJlbWFpbmluZyBFbGFwc2UgPSA3MTk5UwogICAgVmlydHVhbCBNZW1vcnkgPSAw
+LjAwMDAwMEIKICBMb2dpY2FsIEhvc3QgUmVzb3VyY2VzOgogICAgVkUgTm9kZSBOdW1iZXIgICAgICAgID0gTWF4OiAgICAgICAg
+IDAgV2FybjogICAgICAgLS0tIAogICAgQ1BVIE51bWJlciAgICAgICAgICAgID0gTWF4OiAgICAgICAgNDggV2FybjogICAgICAg
+LS0tIAogICAgR1BVIE51bWJlciAgICAgICAgICAgID0gTWF4OiAgICAgICAgIDAgV2FybjogICAgICAgLS0tIAogICAgQ1BVIFRp
+bWUgICAgICAgICAgICAgID0gTWF4OiBVTkxJTUlURUQgV2FybjogVU5MSU1JVEVEIAogICAgTWVtb3J5IFNpemUgICAgICAgICAg
+ID0gTWF4OiBVTkxJTUlURUQgV2FybjogVU5MSU1JVEVEIAogICAgVmlydHVhbCBNZW1vcnkgU2l6ZSAgID0gTWF4OiBVTkxJTUlU
+RUQgV2FybjogVU5MSU1JVEVEIAogICAgVkUgQ1BVIFRpbWUgICAgICAgICAgID0gTWF4OiBVTkxJTUlURUQgV2FybjogVU5MSU1J
+VEVEIAogICAgVkUgTWVtb3J5IFNpemUgICAgICAgID0gTWF4OiBVTkxJTUlURUQgV2FybjogVU5MSU1JVEVEIAogICAgU3Rkb3V0
+IFNpemUgICAgICAgICAgID0gTWF4OiBVTkxJTUlURUQgV2FybjogVU5MSU1JVEVEIAogICAgU3RkZXJyIFNpemUgICAgICAgICAg
+ID0gTWF4OiBVTkxJTUlURUQgV2FybjogVU5MSU1JVEVEIAogIFZFIE5vZGUgUmVzb3VyY2VzOgogICAgVkUgQ1BVIFRpbWUgICAg
+ICAgICAgID0gTWF4OiBVTkxJTUlURUQgV2FybjogVU5MSU1JVEVEIAogICAgVkUgTWVtb3J5IFNpemUgICAgICAgID0gTWF4OiBV
+TkxJTUlURUQgV2FybjogVU5MSU1JVEVEIAogIFJlc291cmNlcyBMaW1pdHM6CiAgICAoUGVyLVJlcSkgRWxhcHNlIFRpbWUgTGlt
+aXQgICAgICAgPSBNYXg6ICAgICA3MjAwUyBXYXJuOiAgICAgNzIwMFMgCiAgICAoUGVyLUpvYikgQ1BVIFRpbWUgICAgICAgICAg
+ICAgICAgPSBNYXg6IFVOTElNSVRFRCBXYXJuOiBVTkxJTUlURUQgCiAgICAoUGVyLUpvYikgQ1BVIE51bWJlciAgICAgICAgICAg
+ICAgPSBNYXg6ICAgICAgICA0OCBXYXJuOiAgICAgICAtLS0gCiAgICAoUGVyLUpvYikgTWVtb3J5IFNpemUgICAgICAgICAgICAg
+PSBNYXg6IFVOTElNSVRFRCBXYXJuOiBVTkxJTUlURUQgCiAgICAoUGVyLUpvYikgVmlydHVhbCBNZW1vcnkgU2l6ZSAgICAgPSBN
+YXg6IFVOTElNSVRFRCBXYXJuOiBVTkxJTUlURUQgCiAgICAoUGVyLUpvYikgR1BVIE51bWJlciAgICAgICAgICAgICAgPSBNYXg6
+ICAgICAgICAgMCBXYXJuOiAgICAgICAtLS0gCiAgICAoUGVyLVByYykgQ1BVIFRpbWUgICAgICAgICAgICAgICAgPSBNYXg6IFVO
+TElNSVRFRCBXYXJuOiBVTkxJTUlURUQgCiAgICAoUGVyLVByYykgT3BlbiBGaWxlIE51bWJlciAgICAgICAgPSBNYXg6ICAgIDI2
+MjE0NCBXYXJuOiAgICAgICAtLS0gCiAgICAoUGVyLVByYykgVmlydHVhbCBNZW1vcnkgU2l6ZSAgICAgPSBNYXg6IFVOTElNSVRF
+RCBXYXJuOiBVTkxJTUlURUQgCiAgICAoUGVyLVByYykgRGF0YSBTZWdtZW50IFNpemUgICAgICAgPSBNYXg6IFVOTElNSVRFRCBX
+YXJuOiBVTkxJTUlURUQgCiAgICAoUGVyLVByYykgU3RhY2sgU2VnbWVudCBTaXplICAgICAgPSBNYXg6IFVOTElNSVRFRCBXYXJu
+OiBVTkxJTUlURUQgCiAgICAoUGVyLVByYykgQ29yZSBGaWxlIFNpemUgICAgICAgICAgPSBNYXg6IFVOTElNSVRFRCBXYXJuOiBV
+TkxJTUlURUQgCiAgICAoUGVyLVByYykgUGVybWFuZW50IEZpbGUgU2l6ZSAgICAgPSBNYXg6IFVOTElNSVRFRCBXYXJuOiBVTkxJ
+TUlURUQgCiAgICAoUGVyLVByYykgVkUgQ1BVIFRpbWUgICAgICAgICAgICAgPSBNYXg6IFVOTElNSVRFRCBXYXJuOiBVTkxJTUlU
+RUQgCiAgICAoUGVyLVByYykgVkUgTWVtb3J5IFNpemUgICAgICAgICAgPSBNYXg6IFVOTElNSVRFRCBXYXJuOiBVTkxJTUlURUQg
+CiAgS2VybmVsIFBhcmFtZXRlcjoKICAgIFJlc291cmNlIFNoYXJpbmcgR3JvdXAgICAgID0gMAogICAgTmljZSBWYWx1ZSAgICAg
+ICAgICAgICAgICAgPSAwCiAgVXNlciBBdHRyaWJ1dGVzOgogICAgKG5vbmUpCgo=
+""")
 
 
 def _load(name: str, path: Path):
@@ -117,6 +175,66 @@ def test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain():
     assert "toolchain_realpaths" in smoke
     assert "proc2_comm cat /proc/2/comm" in smoke
     assert "/proc/1/ns/pid" not in smoke
+
+
+def _qstat_parser_source() -> str:
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    match = re.search(
+        r"readarray -t qstat_values .*?<<'PY'\n(.*?)\nPY\n\)", source, re.DOTALL,
+    )
+    assert match is not None
+    return match.group(1)
+
+
+def _run_qstat_parser(
+        tmp_path: Path, payload: bytes, *, observed: str = "absent-host") -> list[str]:
+    fixture = tmp_path / "qstat-f.stdout"
+    fixture.write_bytes(payload)
+    env = os.environ.copy()
+    env["TZ"] = "Asia/Tokyo"
+    result = subprocess.run(
+        [sys.executable, "-", str(fixture), observed, "0"],
+        input=_qstat_parser_source(), capture_output=True, text=True, env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout.splitlines()
+
+
+def test_qstat_parser_accepts_real_nqsv_867863_output(tmp_path):
+    assert len(QSTAT_NQSV_867863) == 3872
+    assert hashlib.sha256(QSTAT_NQSV_867863).hexdigest() == (
+        "20f395d76af89b6a8d6261b6f92982bd374ee49c387141eebf34a13c9228a257"
+    )
+    assert _run_qstat_parser(tmp_path, QSTAT_NQSV_867863) == [
+        "bnode003", "1784394957",
+    ]
+
+
+def test_qstat_parser_skips_none_and_tries_next_key(tmp_path):
+    payload = b"""exec_host = (none)
+assigned_host = bnode004
+stime = (none)
+start_time = 1784394957
+"""
+    assert _run_qstat_parser(tmp_path, payload) == ["bnode004", "1784394957"]
+
+
+@pytest.mark.parametrize("payload", [
+    b"""exec_host = (none)
+exec_vnode = (none)
+assigned_host = (none)
+vnode = (none)
+stime = (none)
+start_time = (none)
+start = (none)
+Started Request Time = (none)
+Execution Hosts(JSVNO):
+    (none)
+""",
+    b"Request ID: 867863.nqsv\nCurrent State = Running\n",
+])
+def test_qstat_parser_keeps_unavailable_for_none_or_missing_fields(tmp_path, payload):
+    assert _run_qstat_parser(tmp_path, payload) == ["unavailable", "unavailable"]
 
 
 def test_smoke_toolchain_capture_detects_nonzero_gcc_version(tmp_path):

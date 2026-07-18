@@ -1,0 +1,8 @@
+{
+  "message": "qstat allocation/start binding unavailable",
+  "pbs_jobid": "0:867863.nqsv",
+  "rc": 2,
+  "recorded_epoch": 1784394958,
+  "schema_version": "pegasus-job-failure/v1",
+  "stage": "allocation"
+}
