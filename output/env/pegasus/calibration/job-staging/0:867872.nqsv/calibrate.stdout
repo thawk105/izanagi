@@ -1,0 +1,3 @@
+[calibrate] L3 総量検出: 105 MB
+[calibrate] 倍々スイープ開始
+  [sweep] records=1,000,000 threads=48 reps=3 ...

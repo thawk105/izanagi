@@ -122,9 +122,11 @@ print(p["gflags_source_path"])
 print(p["gflags_expected_head"])
 print(p["glog_source_path"])
 print(p["glog_expected_head"])
+for candidate in p["perf_candidates"]:
+    print(candidate)
 PY
 )
-[[ ${#policy_values[@]} -eq 11 ]]
+[[ ${#policy_values[@]} -ge 12 ]]
 PROJECT=${policy_values[0]}
 QUEUE=${policy_values[1]}
 NODES=${policy_values[2]}
@@ -136,6 +138,7 @@ GFLAGS_SOURCE_PATH=${policy_values[7]}
 GFLAGS_EXPECTED_HEAD=${policy_values[8]}
 GLOG_SOURCE_PATH=${policy_values[9]}
 GLOG_EXPECTED_HEAD=${policy_values[10]}
+PERF_CANDIDATES=("${policy_values[@]:11}")
 
 if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9._-]+$ ]]; then
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE is missing or unsafe"
@@ -631,9 +634,84 @@ if [[ "$remaining" -le 0 ]]; then
   exit 2
 fi
 
+# (vii) policy-pinned perf dispatcher bypass. The calibrator's exact event set is
+# read from its source of truth so this smoke cannot silently drift from measurement.
+PERF_EVENTS=$(python3 - "$REPO_ROOT/orchestrator/calibrator/runner.py" <<'PY'
+import ast
+import sys
+
+tree = ast.parse(open(sys.argv[1], encoding="utf-8").read(), filename=sys.argv[1])
+for node in tree.body:
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if any(isinstance(target, ast.Name) and target.id == "PERF_EVENTS" for target in targets):
+            events = ast.literal_eval(node.value)
+            if (not isinstance(events, list) or not events
+                    or any(not isinstance(event, str) or not event for event in events)):
+                raise SystemExit("PERF_EVENTS must be a non-empty list of strings")
+            print(",".join(events))
+            break
+else:
+    raise SystemExit("PERF_EVENTS assignment not found")
+PY
+)
+PERF_SELECTED=""
+PERF_SELECTED_REAL=""
+PERF_SELECTED_VERSION=""
+PERF_SELECTED_SMOKE=""
+for perf_index in "${!PERF_CANDIDATES[@]}"; do
+  perf_candidate=${PERF_CANDIDATES[$perf_index]}
+  perf_version_file="$ATTEMPT_DIR/perf-candidate-${perf_index}.version"
+  perf_smoke_file="$ATTEMPT_DIR/perf-candidate-${perf_index}.smoke"
+  if [[ ! -x "$perf_candidate" ]]; then
+    continue
+  fi
+  perf_version_rc=0
+  timeout 10 "$perf_candidate" --version >"$perf_version_file" 2>&1 || perf_version_rc=$?
+  if [[ "$perf_version_rc" -ne 0 ]]; then
+    continue
+  fi
+  perf_smoke_rc=0
+  timeout 10 "$perf_candidate" stat -e "$PERF_EVENTS" -- sleep 0.1 \
+    >"$perf_smoke_file" 2>&1 || perf_smoke_rc=$?
+  if [[ "$perf_smoke_rc" -ne 0 ]] \
+      || grep -Eqi '<not (supported|counted)>' "$perf_smoke_file"; then
+    continue
+  fi
+  PERF_SELECTED=$perf_candidate
+  PERF_SELECTED_REAL=$(realpath -e "$perf_candidate")
+  PERF_SELECTED_VERSION=$(cat "$perf_version_file")
+  PERF_SELECTED_SMOKE=$(cat "$perf_smoke_file")
+  break
+done
+if [[ -z "$PERF_SELECTED" ]]; then
+  write_failure 2 perf "no policy perf candidate passed version and event smoke"
+  exit 2
+fi
+python3 - "$ATTEMPT_DIR/perf-selection.json" "$PERF_SELECTED_REAL" \
+  "$PERF_SELECTED_VERSION" "$PERF_EVENTS" "$PERF_SELECTED_SMOKE" <<'PY'
+import json
+import sys
+
+path, selected, version, events, smoke = sys.argv[1:]
+with open(path, "x", encoding="utf-8") as handle:
+    json.dump({
+        "schema_version": "pegasus-perf-selection/v1",
+        "path": selected,
+        "version": version,
+        "events": events.split(","),
+        "smoke_output": smoke,
+    }, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    handle.write("\n")
+PY
+mkdir "$TMPDIR/bin"
+ln -s "$PERF_SELECTED_REAL" "$TMPDIR/bin/perf"
+CALIBRATE_PATH="$TMPDIR/bin:$PATH"
+
 # CLI 名は L4 と凍結共有。override/fallback 用 --clocks-per-us は渡さない。
 CALIBRATE_ARGV_JSON="$ATTEMPT_DIR/calibrate-argv.json"
 calibrate_argv=(
+  env "PATH=$CALIBRATE_PATH"
   python3 "$REPO_ROOT/orchestrator/calibrate.py"
   --certify
   --env-tag pegasus

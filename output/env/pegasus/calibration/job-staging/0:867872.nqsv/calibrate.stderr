@@ -1,0 +1,5 @@
+certification rejected: attempt-fatal: RuntimeError: rep0/3 fatal at records=1000000 threads=48: RuntimeError: ccbench failed. rc=2 stderr=WARNING: perf not found for kernel 5.15.0-173
+
+  You may need to install the following packages for this specific kernel:
+    linux-tools-5.15.0-173-generic
+    linux-cloud

@@ -12,5 +12,9 @@
   "gflags_source_path": "/home/SFC/tanab/github/gflags",
   "gflags_expected_head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
   "glog_source_path": "/home/SFC/tanab/github/glog",
-  "glog_expected_head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
+  "glog_expected_head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+  "perf_candidates": [
+    "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "/usr/lib/linux-tools/5.15.0-100-generic/perf"
+  ]
 }

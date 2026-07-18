@@ -210,6 +210,92 @@ def test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe():
     assert '"$BINARY"' not in command
 
 
+def test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate():
+    policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
+    assert policy["perf_candidates"] == [
+        "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+        "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    ]
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    perf_stage = source.index("# (vii) policy-pinned perf dispatcher bypass")
+    calibrate_stage = source.index("CALIBRATE_ARGV_JSON=", perf_stage)
+    assert perf_stage < calibrate_stage
+    fragment = source[perf_stage:calibrate_stage]
+    for required in (
+        'PERF_CANDIDATES=("${policy_values[@]:11}")',
+        'target.id == "PERF_EVENTS"',
+        'stat -e "$PERF_EVENTS" -- sleep 0.1',
+        "grep -Eqi '<not (supported|counted)>'",
+        'write_failure 2 perf "no policy perf candidate passed version and event smoke"',
+        'ln -s "$PERF_SELECTED_REAL" "$TMPDIR/bin/perf"',
+    ):
+        assert required in source
+    assert 'env "PATH=$CALIBRATE_PATH"' in source[calibrate_stage:]
+
+
+def _perf_stage_fragment() -> str:
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index("# (vii) policy-pinned perf dispatcher bypass")
+    end = source.index("# CLI ", start)
+    return source[start:end]
+
+
+def _run_perf_stage(tmp_path: Path, candidates: list[Path]):
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    runner = tmp_path / "orchestrator" / "calibrator" / "runner.py"
+    runner.parent.mkdir(parents=True)
+    runner.write_text(
+        'PERF_EVENTS = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]\n',
+        encoding="utf-8",
+    )
+    quoted_candidates = " ".join(shlex.quote(str(path)) for path in candidates)
+    prefix = f"""ATTEMPT_DIR={shlex.quote(str(attempt))}
+TMPDIR={shlex.quote(str(scratch))}
+REPO_ROOT={shlex.quote(str(tmp_path))}
+PERF_CANDIDATES=({quoted_candidates})
+"""
+    result = subprocess.run(
+        ["bash", "-c", _shell_failure_harness(prefix + _perf_stage_fragment())],
+        capture_output=True, text=True,
+    )
+    return result, attempt
+
+
+def test_perf_stage_all_candidates_failed_writes_perf_failure(tmp_path):
+    result, attempt = _run_perf_stage(
+        tmp_path, [tmp_path / "missing-one", tmp_path / "missing-two"],
+    )
+    assert result.returncode == 2, result.stderr
+    assert json.loads((attempt / "failure.json").read_text())["stage"] == "perf"
+    assert not (attempt / "perf-selection.json").exists()
+
+
+def test_perf_stage_rejects_not_supported_smoke_output(tmp_path):
+    unsupported = tmp_path / "unsupported-perf"
+    unsupported.write_text(
+        """#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo 'perf version fixture'
+  exit 0
+fi
+echo '<not supported>' >&2
+exit 0
+""",
+        encoding="utf-8",
+    )
+    unsupported.chmod(0o755)
+    result, attempt = _run_perf_stage(
+        tmp_path, [unsupported, tmp_path / "missing-second"],
+    )
+    assert result.returncode == 2, result.stderr
+    assert json.loads((attempt / "failure.json").read_text())["stage"] == "perf"
+    assert "<not supported>" in (attempt / "perf-candidate-0.smoke").read_text()
+    assert not (attempt / "perf-selection.json").exists()
+
+
 def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
     policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
     assert policy["gflags_source_path"] == "/home/SFC/tanab/github/gflags"
@@ -827,6 +913,7 @@ TOOLS={json.dumps(str(TOOL_DIR))}
 BINARY=/unused/binary
 BINARY_SHA={'a' * 64}
 PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT=5
+CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
 """
     result = subprocess.run(
         ["bash", "-c", _shell_failure_harness(prefix + fragment)],
@@ -836,7 +923,8 @@ PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT=5
     assert json.loads((attempt / "failure.json").read_text())["stage"] == "calibrate"
     assert json.loads((attempt / "job-result.json").read_text())["calibrate_rc"] == 7
     argv = json.loads((attempt / "calibrate-argv.json").read_text())
-    assert argv[:2] == ["python3", str(tmp_path / "orchestrator" / "calibrate.py")]
+    assert argv[:3] == ["env", "PATH=/fixture/perf/bin:/usr/bin", "python3"]
+    assert argv[3] == str(tmp_path / "orchestrator" / "calibrate.py")
     assert argv[argv.index("--binary") + 1] == "/unused/binary"
 
 
