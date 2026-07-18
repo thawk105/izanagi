@@ -546,15 +546,23 @@ TOP_LEVEL_KEYS = {
     "budget", "refreeze_note", "scope_note", "binding_rule_note",
 }
 
-# freeze v2 世代 schema の header field (supersedes 連鎖・変更理由・承認記録)。
-# 承認記録を世代と束縛して「承認済み世代」を機械判定する方式は §8 で未裁定であり、
-# 束縛方式が設計・裁定されるまで新世代は発効しない (設計素材 S 層 裁定依存点)。
-# これらの field を持つ document は現時点では一律 invalid に倒す (fail-closed)。
-# 承認束縛検証を伴わない世代を通せば未承認の floor/budget 差し替え世代が fail-open
-# するため (F14 型: 宣言のみの遮断)、骨格段階では認識即拒否とする。
+# freeze v2 世代 schema の header/approval field (supersedes 連鎖・承認記録)。
+# 承認済み世代の機械判定は s8b_ratified_freeze.load_ratified_freeze の責務であり、v1
+# verify_document 経路 (LegacyFreeze 相当) はこれらの field を持つ document を一律
+# invalid に倒す。これは **defense-in-depth であって信頼境界ではない** — 実境界は
+# consumer が RatifiedFreeze のみ受理することであり (C1-9)、この union は v1 経路へ
+# v2 document が誤って流れ込んだ場合の第二の遮断にすぎない。承認束縛検証を伴わない
+# 世代を v1 経路で通せば未承認の floor/budget 差し替え世代が fail-open するため
+# (F14 型: 宣言のみの遮断)、認識即拒否とする。旧 (approved_by 系) と新 (v2 header の
+# 新規 field) の union を張り、いずれも v1 の 18 top-level key と重ならない。
 GENERATION_SCHEMA_FIELDS = frozenset({
+    # v1 骨格段階からの旧 header/self-approval field。
     "supersedes_sha256", "change_reason",
     "approved_by", "approved_at", "approval_scope",
+    # F6/F7 確定後の v2 header 新規 field と外部 approval record の field 名。
+    "generation_number", "env_tag",
+    "floor_protocol", "floor_source", "measurement_closure",
+    "approver", "scope",
 })
 
 

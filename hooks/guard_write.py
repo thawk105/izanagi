@@ -83,6 +83,18 @@ def decide(tool_name: str, tool_input: dict, repo_root: str = "") -> tuple:
             f"{label} への直接書き込みは拒否 (規律2)。COMMIT/fitness を書く唯一の"
             "経路は pipeline.evaluate()。verifier を迂回した成果物の更新は不可")
 
+    # s8b-freeze namespace (承認 record / active pointer / revocation / 世代 file) への
+    # 直接 Write/Edit を拒否する (F6a、C1-11)。これは **誤操作抑止であって認証防壁では
+    # ない** — approval/active/revocation の真正性は s8b_ratified_freeze の Git 内容による
+    # 規約 attestation (AI-Agent: none 逐語 + 導入 commit topology) が担い、hook を層に
+    # 数えない。AI が `none` commit を作れる以上ここは人間性の機械証明にならない。
+    freeze_root = os.path.realpath(os.path.join(root, "output", "s8b-freeze"))
+    if rp == freeze_root or rp.startswith(freeze_root + os.sep):
+        return False, (
+            "output/s8b-freeze/ 配下への直接書き込みは拒否 (F6a 誤操作抑止)。approval/"
+            "active pointer/revocation/世代 file の発効は人間 commit + s8b_ratified_freeze "
+            "検証を経る (これは認証防壁ではなく誤操作抑止)")
+
     sub = os.path.realpath(os.path.join(root, "external", "ccbench"))
     if rp == sub or rp.startswith(sub + os.sep):
         rel = os.path.relpath(rp, sub)
@@ -111,7 +123,7 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001 — hook 自身の不具合で全書き込みを止めない。
         # ただし入力に管轄トークンが見えるときだけは fails-closed に倒す。
         if any(t in raw for t in ("external/ccbench", "wal.jsonl", "campaign.lock",
-                                  "build-variants")):
+                                  "build-variants", "output/s8b-freeze")):
             print(f"guard_write hook 内部エラー ({type(e).__name__}: {e}) — 管轄パスを"
                   "含むため fails-closed で拒否", file=sys.stderr)
             return 2

@@ -117,6 +117,32 @@ def test_wal_campaign_lock_buildcache_denied():
         shutil.rmtree(root)
 
 
+def test_s8b_freeze_namespace_denied():
+    # F6a (C1-11): output/s8b-freeze/ 配下 (approval/active/revocation/世代 file) への
+    # 直接 Write/Edit を拒否 (誤操作抑止)。これは認証防壁ではなく事故防止。
+    root = _mk_fixture_repo()
+    try:
+        for rel in ("output/s8b-freeze/holdout_freeze.v2.g1.json",
+                    "output/s8b-freeze/approvals/" + "a" * 64 + ".json",
+                    "output/s8b-freeze/active/" + "b" * 64 + ".json",
+                    "output/s8b-freeze/revocations/" + "c" * 64 + ".json",
+                    "output/s8b-freeze/active-cancellations/" + "d" * 64 + ".json"):
+            ok, why = GW.decide("Write", {"file_path": os.path.join(root, rel),
+                                          "content": "x"}, repo_root=root)
+            assert not ok, f"{rel} への Write は拒否されるべき"
+            assert "s8b-freeze" in why or "誤操作抑止" in why
+        ok, _ = GW.decide("Edit", {"file_path": os.path.join(
+            root, "output/s8b-freeze/approvals/" + "e" * 64 + ".json"),
+            "old_string": "a", "new_string": "b"}, repo_root=root)
+        assert not ok, "s8b-freeze 配下の Edit も拒否されるべき"
+        # namespace 外の output/ (v1 以外の散文) は防護対象でない。
+        ok, _ = GW.decide("Write", {"file_path": os.path.join(
+            root, "output/insights/note.md"), "content": "x"}, repo_root=root)
+        assert ok, "s8b-freeze 外の output/ Write は素通し"
+    finally:
+        shutil.rmtree(root)
+
+
 def test_ccbench_surface_limited_to_evolve_sources():
     root = _mk_fixture_repo()
     try:

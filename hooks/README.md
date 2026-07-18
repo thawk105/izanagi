@@ -44,6 +44,11 @@ TRACE 混入は build 出口の一次防壁が捕える。
   ここに値を再掲しない) だけ書き込み可。`Options.cmake` 等は
   人間 template 専有 — template 改訂は `patches/` + `git apply` (Bash) 経由。NotebookEdit は notebook_path を
   優先判定 (良性 file_path decoy で管轄を外せない, 3 巡目 fix)。
+- **s8b-freeze namespace の直接書き込み拒否 (F6a, C1-11):** `output/s8b-freeze/` 配下 (approval record・
+  active pointer・revocation/cancellation tombstone・v2 世代 file) への Edit/Write を拒否。これは
+  **誤操作抑止であって認証防壁ではない** — 発効の真正性は `s8b_ratified_freeze` の Git 内容による規約
+  attestation (`AI-Agent: none` 逐語 + 導入 commit topology) が担い、hook は層に数えない (AI が `none`
+  commit を作れる以上、人間性の機械証明にはならない)。誤って freeze を worktree 直書きする事故だけを止める。
 - **payload 検査は方針 A で削除 (D33):** `#ifdef`/生指令/TRACE 混入/偽 cache hit の担保は、テキスト検査の
   完全性 (原理的に破れる) ではなく一次防壁 = source_digest の preprocess 後ハッシュ + #include 行 HEAD 固定 +
   build 出口の diff-of-diffs (観測者効果) + TOCTOU 再照合が担う。意味的逸脱 (骨格破壊・領域外編集) の判定は
@@ -103,6 +108,11 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
   digest 環境で dead 化 = identity に乗らない (実ビルドで header があれば別バイナリ)。auditor + 規律6 監査領域
   (git status に `?? x.hh` + `M backoff.hh` として露出)。builtin definedness (`#ifdef __x86_64__`) の方は
   D34 で digest に反映して封鎖済み。
+- **s8b-freeze は認証防壁ではない**: `output/s8b-freeze/` の Write 拒否は誤操作抑止のみ。Bash 経由の書き込み
+  (`echo > output/s8b-freeze/...`) は guard_bash の防護ツリー外で通る (現状 guard_bash は campaign/ccbench
+  のみ防護)。approval/active/revocation の真正性は hook でなく `s8b_ratified_freeze` の Git attestation が担う。
+  Codex 側は hook 未配線 (`.codex/hooks.json` 不在)。AI 偽装を脅威モデル内で塞ぐには allowlist 鍵署名への
+  再裁定が要る (C1-11 の should-fix、F6 代替案 b)。
 - **ハーネス自身は防護対象外**: 防護ツリーは `output/campaigns` と `external/ccbench` のみで、一次防壁の
   コード・hook 自身・`.claude/settings.json` への書き込みはどの hook も守らない。緩和は規律6 の監査 + 人間の
   コミットレビュー (機械防壁を自己参照で増やすと規律5 と衝突)。
