@@ -253,7 +253,10 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
                            ccbench_dir="/fx/ccbench", cache_root="/fx/cache")
 
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
-                   jobs=16, ccbench_dir="", src_token=None):
+                   jobs=16, ccbench_dir="", src_token=None, contract=None,
+                   timeout_s=None):
+        assert ccbench_dir == "/fx/ccbench"
+        assert timeout_s == 900
         d = Path(cache_root) / "fixture" / src_token.replace("::", "__")
         d.mkdir(parents=True, exist_ok=True)
         b = d / "ycsb.exe"
@@ -263,8 +266,10 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         return SimpleNamespace(binary=str(b), bin_sha256=sha, bin_hash=sha[:16],
                                configure_cmd="#", build_cmd="#", cached=False,
                                configure_argv=[
-                                   "cmake", "-S", str(ccbench_dir), "-B", str(d)],
-                               build_argv=["cmake", "--build", str(d)])
+                                   "cmake", "-S", "/fx/ccbench", "-B", str(d)],
+                               build_argv=["cmake", "--build", str(d)],
+                               ccbench_root="/fx/ccbench",
+                               contract_sha256=contract.contract_sha256)
 
     seen = {}
 
@@ -279,13 +284,15 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         return SimpleNamespace(throughputs=[1000.0] * 5, notes=[],
                                run_cmd=shlex.join(argv))
 
-    with mock.patch.object(floor.buildcache, "build", fake_build), \
+    with mock.patch.object(floor.buildcache, "build_v2", fake_build), \
          mock.patch.object(floor, "measure_point", spy_measure_point):
         floor.run_campaign(protocol, verified, out_root=tmp_path / "out", mode="pilot",
                            measure_fn=None, probe_fn=lambda: (1, "", ""),
                            prepare_fn=fake_prepare, now_fn=lambda: __import__("datetime")
                            .datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc),
-                           monotonic_fn=lambda: 0.0)
+                           monotonic_fn=lambda: 0.0,
+                           durable_root_policy=floor.DurableRootPolicy(
+                               approved_roots=(tmp_path.resolve(),), forbidden_roots=()))
     assert seen["clocks_per_us"] == contract.clocks_per_us
     assert seen["numactl"] == list(contract.numactl)
 

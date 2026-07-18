@@ -6,19 +6,25 @@ ccbench-commit, trace 有無)。**trace と perf は別ビルド** (絶対規律
 trace-enabled (`-DCCBENCH_TRACE=1`)、bench は trace-disabled (`=0`)。
 
 ビルドキャッシュは campaign 非依存 (同じ genome は全 campaign で共有) なので、
-ccbench submodule 下の固定キャッシュ root に置く。ccache が効くので warm rebuild は速い。
+ccbench submodule 下の固定キャッシュ root に置く。compiler wrapper 経由の ccache は利用できるが、
+wrapper の実体だけを束縛すると背後の実 compiler 差替えを見逃し得る既知限界がある。
 """
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
+import secrets
 import shutil
+import socket
 import subprocess
+import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from . import source_digest
+from .env_contract import ExecutionEnvironmentContract
 from .model import Genome
 
 # バイナリ digest の二系列契約 (敵対相談 A-6 裁定):
@@ -29,6 +35,16 @@ from .model import Genome
 #     `*_bin_sha256`、`full_sha256()`/`assert_binary_sha256()` が該当。照合はこの系列だけで
 #     行い、prefix 照合・prefix fallback・現在 disk からの遡及 backfill は禁止する。
 _SHA256_HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
+_V2_SCHEMA = "buildcache/v2"
+_V2_COMPLETION_MANIFEST = "completion.json"
+
+
+class BuildError(RuntimeError):
+    """v2 build/toolchain の取得・実行が完遂できなかった。"""
+
+
+class BuildCacheError(RuntimeError):
+    """v2 cache の claim・完成 entry・manifest が信用できない。"""
 
 
 class BinaryDigestError(RuntimeError):
@@ -135,6 +151,8 @@ class BuildResult:
     build_argv: tuple[str, ...] = ()
     cache_root: str = ""
     ccbench_root: str = ""
+    # v2 build namespace の provenance。legacy build() は additive default None を保つ。
+    contract_sha256: Optional[str] = None
 
     @property
     def bin_hash(self) -> str:
@@ -143,6 +161,404 @@ class BuildResult:
         `bin_sha256` の read-only 派生であり、独立フィールドとして格納しない (A-3/D-7:
         「二つの真実」排除)。sha256-prefix-16 / legacy-display-only 系列 — 照合には使わない。"""
         return self.bin_sha256[:16]
+
+
+def _canonical_json_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+
+
+def _tool_version(requested: str, role: str) -> Dict[str, str]:
+    """PATH 上の tool 実体と ``--version`` 先頭行を取得する (v2 identity)。"""
+    try:
+        found = shutil.which(requested)
+    except (OSError, TypeError) as exc:
+        raise BuildError(f"toolchain {role} の探索に失敗: {requested!r}: {exc}") from exc
+    if not found:
+        raise BuildError(
+            f"toolchain {role} が PATH に存在しない: {requested!r} (fails-closed)"
+        )
+    realpath = os.path.realpath(found)
+    if not os.path.isfile(realpath) or not os.access(realpath, os.X_OK):
+        raise BuildError(
+            f"toolchain {role} の実体が実行可能な通常ファイルでない: {realpath!r}"
+        )
+    try:
+        result = subprocess.run(
+            [realpath, "--version"], capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise BuildError(
+            f"toolchain {role} --version を実行できない: {realpath}: {exc}"
+        ) from exc
+    lines = result.stdout.splitlines()
+    if result.returncode != 0 or not lines or not lines[0].strip():
+        detail = result.stderr[-300:] if result.stderr else "stdout 先頭行なし"
+        raise BuildError(
+            f"toolchain {role} --version の取得に失敗 "
+            f"(rc={result.returncode}): {realpath}: {detail}"
+        )
+    return {
+        "requested": requested,
+        "realpath": realpath,
+        "version_first_line": lines[0],
+    }
+
+
+def _toolchain_manifest(cc: str, cxx: str) -> Dict[str, Dict[str, str]]:
+    """compiler 2 本と cmake の構造化 manifest。1 項でも取れなければ停止。"""
+    return {
+        "cc": _tool_version(cc, "cc"),
+        "cxx": _tool_version(cxx, "cxx"),
+        "cmake": _tool_version("cmake", "cmake"),
+    }
+
+
+def _v2_identity(
+        genome: Genome, ccbench_commit: str, trace: bool, src_token: str,
+        cc: str, cxx: str, toolchain: Dict[str, Dict[str, str]],
+) -> tuple[Dict[str, Any], str]:
+    """完全 pre-image と full build digest (64hex) を返す。"""
+    toolchain_sha256 = hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest()
+    preimage: Dict[str, Any] = {
+        "genome_canonical": genome.canonical(),
+        "ccbench_commit": ccbench_commit,
+        "trace": trace,
+        "src_token": src_token,
+        "cc": cc,
+        "cxx": cxx,
+        "toolchain_manifest_sha256": toolchain_sha256,
+    }
+    return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
+
+
+def _fsync_dir(path: str) -> None:
+    """directory entry の永続化を要求する。失敗は握りつぶさない。"""
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _fsync_file(path: str) -> None:
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _write_fsynced_json(path: str, value: Any) -> None:
+    payload = _canonical_json_bytes(value) + b"\n"
+    with open(path, "xb") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _reject_duplicate_pairs(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate key: {key}")
+        value[key] = item
+    return value
+
+
+def _read_completion_manifest(path: str) -> Dict[str, Any]:
+    if os.path.islink(path) or not os.path.isfile(path):
+        raise BuildCacheError(
+            f"v2 completion manifest が存在しない/通常ファイルでない: {path}"
+        )
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        raise BuildCacheError(f"v2 completion manifest を厳密に読めない: {path}: {exc}") from exc
+    if type(value) is not dict:
+        raise BuildCacheError(f"v2 completion manifest の top-level が object でない: {path}")
+    return value
+
+
+def _validate_v2_entry(
+        bdir: str, *, preimage: Dict[str, Any], digest: str,
+        toolchain: Dict[str, Dict[str, str]], binary_relpath: str,
+        contract_sha256: str,
+) -> tuple[str, str]:
+    """完成 entry を manifest と binary bytes の両方で検証する。修復はしない。"""
+    if os.path.islink(bdir) or not os.path.isdir(bdir):
+        raise BuildCacheError(f"v2 cache publish 先が通常 directory でない: {bdir}")
+    manifest_path = os.path.join(bdir, _V2_COMPLETION_MANIFEST)
+    manifest = _read_completion_manifest(manifest_path)
+    expected_keys = {
+        "schema_version", "completion_marker", "full_build_digest",
+        "contract_sha256", "preimage", "toolchain", "binary",
+    }
+    if set(manifest) != expected_keys:
+        raise BuildCacheError(
+            f"v2 completion manifest field 集合が不一致: {manifest_path}: "
+            f"actual={sorted(manifest)}"
+        )
+    if manifest["schema_version"] != _V2_SCHEMA:
+        raise BuildCacheError(f"v2 completion manifest schema 不一致: {manifest_path}")
+    if manifest["completion_marker"] != "complete":
+        raise BuildCacheError(f"v2 completion marker 不一致: {manifest_path}")
+    if manifest["full_build_digest"] != digest:
+        raise BuildCacheError(f"v2 full build digest 不一致: {manifest_path}")
+    if manifest["contract_sha256"] != contract_sha256:
+        raise BuildCacheError(f"v2 contract namespace sha256 不一致: {manifest_path}")
+    if manifest["preimage"] != preimage:
+        raise BuildCacheError(f"v2 pre-image 完全一致検査に失敗: {manifest_path}")
+    if manifest["toolchain"] != toolchain:
+        raise BuildCacheError(f"v2 toolchain manifest 完全一致検査に失敗: {manifest_path}")
+    if hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest() != \
+            preimage["toolchain_manifest_sha256"]:
+        raise BuildCacheError(f"v2 toolchain manifest sha256 不一致: {manifest_path}")
+    binary_record = manifest["binary"]
+    if type(binary_record) is not dict or set(binary_record) != {"relative_path", "sha256"}:
+        raise BuildCacheError(f"v2 binary manifest の field 集合が不一致: {manifest_path}")
+    if binary_record["relative_path"] != binary_relpath:
+        raise BuildCacheError(f"v2 binary relative path 不一致: {manifest_path}")
+    binary = os.path.join(bdir, binary_relpath)
+    try:
+        assert_binary_sha256(binary, binary_record["sha256"])
+    except BinaryDigestError as exc:
+        raise BuildCacheError(f"v2 cached binary sha256 照合失敗: {binary}: {exc}") from exc
+    return binary, binary_record["sha256"]
+
+
+def _v2_commands(
+        genome: Genome, trace: bool, sub: str, bdir: str,
+        toolchain: Dict[str, Dict[str, str]], jobs: int = 16,
+) -> tuple[List[str], List[str]]:
+    target = f"ycsb_{genome.protocol}.exe"
+    defines = genome.cmake_defines() + [f"-DCCBENCH_TRACE={int(trace)}"]
+    configure = [
+        toolchain["cmake"]["realpath"], "-S", sub, "-B", bdir,
+        "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+        f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
+        f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
+    ] + defines
+    build_cmd = [
+        toolchain["cmake"]["realpath"], "--build", bdir,
+        "--target", target, "-j", str(jobs),
+    ]
+    return configure, build_cmd
+
+
+def _v2_result(
+        genome: Genome, trace: bool, binary: str, bin_sha256: str, bdir: str,
+        cached: bool, sub: str, root: str,
+        toolchain: Dict[str, Dict[str, str]], contract_sha256: str,
+) -> BuildResult:
+    configure, build_cmd = _v2_commands(genome, trace, sub, bdir, toolchain)
+    return BuildResult(
+        genome=genome, trace=trace, binary=binary, bin_sha256=bin_sha256,
+        build_dir=bdir, cached=cached,
+        configure_cmd=" ".join(configure), build_cmd=" ".join(build_cmd),
+        configure_argv=tuple(configure), build_argv=tuple(build_cmd),
+        cache_root=os.path.abspath(root), ccbench_root=os.path.abspath(sub),
+        contract_sha256=contract_sha256,
+    )
+
+
+def _acquire_v2_claim(claim: str, parent: str, nonce: str) -> None:
+    try:
+        os.mkdir(claim, 0o700)
+    except FileExistsError as exc:
+        raise BuildCacheError(
+            f"v2 build claim が既に存在する: {claim} — 他 process が build 中または stale。"
+            "待機・自動 retry・stale 自動削除は行わない; 手動回収が必要"
+        ) from exc
+    except OSError as exc:
+        raise BuildCacheError(f"v2 build claim を取得できない: {claim}: {exc}") from exc
+    owner = {
+        "pid": os.getpid(),
+        "host": socket.gethostname(),
+        "starttime": time.time(),
+        "nonce": nonce,
+    }
+    try:
+        _write_fsynced_json(os.path.join(claim, "owner.json"), owner)
+        _fsync_dir(claim)
+        _fsync_dir(parent)
+    except (OSError, ValueError) as exc:
+        # 取得済み claim は stale として残す。自動削除すると別 process と区別不能になる。
+        raise BuildCacheError(f"v2 build claim receipt の永続化に失敗: {claim}: {exc}") from exc
+
+
+def _release_v2_claim(claim: str, parent: str) -> None:
+    """正常 publish 後に限り、自 process が取得した claim を除去する。"""
+    try:
+        os.unlink(os.path.join(claim, "owner.json"))
+        os.rmdir(claim)
+        _fsync_dir(parent)
+    except OSError as exc:
+        raise BuildCacheError(
+            f"publish 後の v2 build claim を除去できない: {claim}: {exc}; 手動回収が必要"
+        ) from exc
+
+
+def build_v2(
+        genome: Genome, *, contract: ExecutionEnvironmentContract,
+        ccbench_commit: str, trace: bool, src_token: str,
+        cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
+        timeout_s: Optional[int] = None,
+) -> BuildResult:
+    """contract namespace に staging/claim/manifest 付きで build する v2 API。
+
+    ``contract`` を省略できる legacy fallback は意図的に持たない。legacy caller は従来の
+    :func:`build` / :func:`cache_key` namespace に隔離したまま、floor/oracle の v2 consumer
+    だけが本 API を明示引数で呼ぶ。``ccbench_dir`` は cache preimage へは入れず、選択した
+    tree の内容を ``src_token`` が束縛する。allowlist/commit/src-token/trace-diff 検査は
+    すべてその tree に対して発火する。``timeout_s=None`` は既存どおり無制限である。
+    """
+    if not isinstance(contract, ExecutionEnvironmentContract):
+        raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
+    if type(trace) is not bool:
+        raise TypeError(f"trace は bool でなければならない: {trace!r}")
+    if timeout_s is not None and (type(timeout_s) is not int or timeout_s <= 0):
+        raise TypeError(f"timeout_s は None または正整数でなければならない: {timeout_s!r}")
+    for name, value in (
+            ("ccbench_commit", ccbench_commit), ("src_token", src_token),
+            ("cc", cc), ("cxx", cxx)):
+        if type(value) is not str or not value:
+            raise TypeError(f"{name} は非空 str でなければならない: {value!r}")
+    try:
+        root = os.fspath(cache_root)
+    except TypeError as exc:
+        raise TypeError(f"cache_root は path-like でなければならない: {cache_root!r}") from exc
+    if type(root) is not str or not root:
+        raise TypeError("cache_root は非空 str path でなければならない")
+    root = os.path.abspath(root)
+
+    contract_sha256 = contract.contract_sha256
+    if not is_full_sha256(contract_sha256):
+        raise BuildCacheError(
+            f"contract.contract_sha256 が full lowercase sha256 でない: {contract_sha256!r}"
+        )
+    sub = ccbench_dir or _ccbench_dir()
+    _verify_ccbench_commit(sub, ccbench_commit)
+    source_digest.assert_worktree_within_allowlist(sub)
+    toolchain = _toolchain_manifest(cc, cxx)
+    preimage, digest = _v2_identity(
+        genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
+    )
+    parent = os.path.join(root, "contracts", contract_sha256)
+    bdir = os.path.join(parent, digest)
+    claim = os.path.join(parent, f"{digest}.building")
+    binary_relpath = os.path.join(
+        "cc", genome.protocol, f"ycsb_{genome.protocol}.exe",
+    )
+    try:
+        os.makedirs(parent, mode=0o700, exist_ok=True)
+    except OSError as exc:
+        raise BuildCacheError(f"v2 contract namespace を作成できない: {parent}: {exc}") from exc
+
+    # 完成 entry より claim を先に見る。publish→claim 除去の間に crash した場合も stale を
+    # 自動的に無視せず、管理者が owner receipt を確認して回収するまで fail-closed。
+    if os.path.lexists(claim):
+        raise BuildCacheError(
+            f"v2 build claim が既に存在する: {claim} — build 中または stale; 手動回収が必要"
+        )
+    if os.path.lexists(bdir):
+        binary, bin_sha256 = _validate_v2_entry(
+            bdir, preimage=preimage, digest=digest, toolchain=toolchain,
+            binary_relpath=binary_relpath, contract_sha256=contract_sha256,
+        )
+        _recheck_src_token(
+            genome, ccbench_commit, sub, cxx, src_token, bdir, built_fresh=False,
+        )
+        _assert_trace_diff(
+            genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
+        )
+        if not trace:
+            _assert_no_trace_symbols(binary)
+        return _v2_result(
+            genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
+            contract_sha256,
+        )
+
+    nonce = secrets.token_hex(16)
+    _acquire_v2_claim(claim, parent, nonce)
+    staging = os.path.join(parent, f".staging-{os.getpid()}-{nonce}")
+    try:
+        # claim 取得前に存在しなかった publish 先が今あるなら、外部 writer との競合。
+        # validation 後の上書きにも cache-hit 化にも倒さず、claim/staging を残して停止する。
+        if os.path.lexists(bdir):
+            raise BuildCacheError(
+                f"v2 publish 先が claim 取得と競合して出現した: {bdir}; 上書きしない"
+            )
+        os.mkdir(staging, 0o700)
+        configure, build_cmd = _v2_commands(genome, trace, sub, staging, toolchain)
+        try:
+            _run(configure, "configure", timeout_s=timeout_s)
+            _run(build_cmd, "build", timeout_s=timeout_s)
+        except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+            raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
+        staging_binary = os.path.join(staging, binary_relpath)
+        if not os.path.isfile(staging_binary):
+            raise BuildError(f"v2 build succeeded but binary missing: {staging_binary}")
+
+        # legacy 経路と同じ 3 検査を publish 前に全て通す。identity / diff-of-diffs
+        # 不一致では既存 helper の fresh-build 規約どおり staging を破棄するが、claim は
+        # stale receipt として残す。不完全 entry を完成 namespace へは出さない。
+        _recheck_src_token(
+            genome, ccbench_commit, sub, cxx, src_token, staging, built_fresh=True,
+        )
+        _assert_trace_diff(
+            genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
+        )
+        if not trace:
+            _assert_no_trace_symbols(staging_binary)
+        try:
+            bin_sha256 = full_sha256(staging_binary)
+        except BinaryDigestError as exc:
+            raise BuildError(f"v2 built binary sha256 を取得できない: {staging_binary}: {exc}") from exc
+        try:
+            _fsync_file(staging_binary)
+        except OSError as exc:
+            raise BuildError(f"v2 built binary を fsync できない: {staging_binary}: {exc}") from exc
+        completion = {
+            "schema_version": _V2_SCHEMA,
+            "completion_marker": "complete",
+            "full_build_digest": digest,
+            "contract_sha256": contract_sha256,
+            "preimage": preimage,
+            "toolchain": toolchain,
+            "binary": {
+                "relative_path": binary_relpath,
+                "sha256": bin_sha256,
+            },
+        }
+        _write_fsynced_json(
+            os.path.join(staging, _V2_COMPLETION_MANIFEST), completion,
+        )
+        _fsync_dir(staging)
+        try:
+            os.rename(staging, bdir)
+            _fsync_dir(parent)
+        except OSError as exc:
+            raise BuildCacheError(
+                f"v2 staging の atomic publish に失敗: {staging} -> {bdir}: {exc}"
+            ) from exc
+        _release_v2_claim(claim, parent)
+    except (BuildError, BuildCacheError):
+        raise
+    except OSError as exc:
+        # claim/staging は手動診断用に残す。自動 cleanup/retry は裁定違反。
+        raise BuildCacheError(f"v2 cache staging/publish 操作に失敗: {exc}") from exc
+
+    binary = os.path.join(bdir, binary_relpath)
+    return _v2_result(
+        genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
+        contract_sha256,
+    )
 
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,
@@ -320,8 +736,10 @@ def _assert_no_trace_symbols(binary: str) -> None:
             "出す等を疑え (decisions D14)。")
 
 
-def _run(cmd: List[str], what: str) -> None:
-    r = subprocess.run(cmd, capture_output=True, text=True)
+def _run(cmd: List[str], what: str, timeout_s: Optional[int] = None) -> None:
+    r = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=timeout_s,
+    )
     if r.returncode != 0:
         raise RuntimeError(f"{what} failed (rc={r.returncode}): "
                            f"{r.stderr[-800:]}")

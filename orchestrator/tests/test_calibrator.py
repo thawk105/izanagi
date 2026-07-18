@@ -455,7 +455,7 @@ def test_competing_bench_pids_excludes_own_pid_only():
         runner.subprocess.run = orig_run
     assert len(lines) == 1
     assert "9999" in lines[0]
-    assert str(own) not in "".join(lines)   # 自 PID 行は除外された
+    assert all(int(line.split(None, 1)[0]) != own for line in lines)  # 自 PID 行だけ除外
 
 
 def test_competing_bench_pids_non_self_descendant_pid_is_competing():

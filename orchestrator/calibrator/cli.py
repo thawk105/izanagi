@@ -15,13 +15,60 @@
 from __future__ import annotations
 
 import argparse
+import copy
+import ctypes
+import dataclasses
+import errno
+import hashlib
 import json
 import os
+import re
+import secrets
+import subprocess
 import sys
-from typing import Dict, List, Optional
+import time
+from typing import Callable, Dict, List, Optional
 
-from .report import render_text, result_to_dict
+from .model import CalibrationResult, CertificationEvidence
+from .report import (certification_quality_reasons, render_text,
+                     result_to_dict)
+from .runner import (CompositeProbeViolation, composite_competing_probe)
+from .schema_v2 import (SCHEMA_VERSION, normalize_request_id,
+                        validate_calibration_v2)
 from .sweep import MAX_RECORDS_DEFAULT, calibrate
+from .tsc import TscMeasurement, measure_tsc
+
+
+# C3-3/C3-7 frozen certification coordinates. Cooldown values come directly from
+# the parent ruling: load1 <= 1.0 at three observations spaced 30 seconds apart,
+# with a 20 minute fatal timeout. Reservation uses worst-case sweep points.
+COOLDOWN_LOAD1_MAX = 1.0
+COOLDOWN_INTERVAL_S = 30.0
+COOLDOWN_CONSECUTIVE = 3
+COOLDOWN_TIMEOUT_S = 20 * 60.0
+BENCH_TIMEOUT_S = 120.0
+TSC_BUDGET_S = 10
+FINALIZE_RESERVE_S = 60
+HASH_TIMEOUT_S = 30.0
+TRACE_CHECK_TIMEOUT_S = 30.0
+RESERVATION_FORMULA = (
+    "tsc + cooldown_max + points*sweep_reps*bench_timeout + "
+    "noise_reps*bench_timeout + 2*sweep_reps*bench_timeout + finalize_reserve"
+)
+_HEX64_RE = re.compile(r"[0-9a-fA-F]{64}")
+_ENV_TAG_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
+
+
+class CertificationError(RuntimeError):
+    """certification attempt 全体を reject する構造化 fatal。"""
+
+    def __init__(self, code: str, detail: str = ""):
+        self.code = code
+        self.detail = detail
+        super().__init__(f"{code}: {detail}" if detail else code)
+
+    def as_reason(self) -> str:
+        return f"{self.code}: {self.detail}" if self.detail else self.code
 
 
 def _parse_kv(s: Optional[str]) -> Dict[str, str]:
@@ -74,6 +121,14 @@ def build_parser() -> argparse.ArgumentParser:
                    help="numactl メモリ方針 (例 interleave=all / membind=0 / none)")
     p.add_argument("--out-root", default=None,
                    help="出力ルート (既定 = リポジトリの output/)")
+    p.add_argument("--certify", action="store_true",
+                   help="calibration/v2 registration certification mode")
+    p.add_argument("--receipt-json", default=None,
+                   help="certification job が作った acquisition receipt JSON")
+    p.add_argument("--binary-sha256", default=None,
+                   help="certification 対象 binary の事前凍結 SHA-256")
+    p.add_argument("--effective-clock-tolerance-pct", type=float, default=None,
+                   help="smoke 配分から親が凍結した effective clock 許容幅")
     return p
 
 
@@ -103,7 +158,8 @@ def _output_root(explicit: Optional[str]) -> str:
     return os.path.join(repo, "output")
 
 
-def _assert_trace_disabled_binary(binary: str) -> None:
+def _assert_trace_disabled_binary(
+        binary: str, *, subprocess_runner: Callable[..., object] = subprocess.run) -> None:
     """--binary が trace-disabled build であることを nm で検査する (絶対規律1)。
 
     calibration は入力非依存の計測基盤 (以後の全 campaign の動作点) なので、trace-enabled
@@ -114,7 +170,10 @@ def _assert_trace_disabled_binary(binary: str) -> None:
     に依存しない層のため、import せず局所実装で重複させている (層の分離 > DRY)。"""
     import subprocess
     try:
-        r = subprocess.run(["nm", "-C", binary], capture_output=True, text=True)
+        r = subprocess_runner(
+            ["nm", "-C", binary], capture_output=True, text=True,
+            timeout=TRACE_CHECK_TIMEOUT_S,
+        )
     except (OSError, subprocess.SubprocessError) as e:
         raise SystemExit(f"規律1 検査不能: nm を起動できない ({e})。trace シンボル漏れを"
                          f"検査できない環境で calibration しない (fails-closed)")
@@ -127,43 +186,515 @@ def _assert_trace_disabled_binary(binary: str) -> None:
             f"calibration は trace-disabled build (build/, -DCCBENCH_TRACE=0) で行うこと")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def reservation_budget(start_records: int, max_records: int,
+                       sweep_reps: int, noise_reps: int) -> Dict[str, object]:
+    """C3-7 の worst-case 予約式と値。early stop は予算を縮める根拠にしない。"""
+    points = 0
+    records = start_records
+    while records <= max_records:
+        points += 1
+        records *= 2
+    required = (
+        TSC_BUDGET_S + int(COOLDOWN_TIMEOUT_S)
+        + points * sweep_reps * int(BENCH_TIMEOUT_S)
+        + noise_reps * int(BENCH_TIMEOUT_S)
+        + 2 * sweep_reps * int(BENCH_TIMEOUT_S)
+        + FINALIZE_RESERVE_S
+    )
+    return {
+        "formula": RESERVATION_FORMULA, "points": points,
+        "tsc_s": TSC_BUDGET_S, "cooldown_max_s": int(COOLDOWN_TIMEOUT_S),
+        "bench_timeout_s": int(BENCH_TIMEOUT_S),
+        "finalize_reserve_s": FINALIZE_RESERVE_S, "required_s": required,
+    }
+
+
+def cooldown_gate(*, load1_fn: Callable[[], float] = lambda: os.getloadavg()[0],
+                  monotonic_fn: Callable[[], float] = time.monotonic,
+                  sleep_fn: Callable[[float], None] = time.sleep) -> List[float]:
+    """C3-3 cooldown: load1<=1.0 を30秒間隔で3回連続、20分 timeout。
+
+    閾値・観測間隔・連続回数・timeout は親裁定で凍結され、変更可能な CLI knob にしない。
+    timeout は calibration を続行せず attempt 全体 fatal にする。
+    """
+    deadline = monotonic_fn() + COOLDOWN_TIMEOUT_S
+    samples: List[float] = []
+    consecutive = 0
+    while True:
+        load1 = float(load1_fn())
+        samples.append(load1)
+        consecutive = consecutive + 1 if load1 <= COOLDOWN_LOAD1_MAX else 0
+        if consecutive >= COOLDOWN_CONSECUTIVE:
+            return samples
+        now = monotonic_fn()
+        if now >= deadline:
+            raise CertificationError(
+                "cooldown-timeout",
+                f"load1 did not remain <= {COOLDOWN_LOAD1_MAX} for "
+                f"{COOLDOWN_CONSECUTIVE} observations; samples={samples!r}",
+            )
+        sleep_fn(min(COOLDOWN_INTERVAL_S, max(0.0, deadline - now)))
+
+
+def _strict_json_file(path: str) -> dict:
+    def pairs_hook(pairs):
+        obj = {}
+        for key, value in pairs:
+            if key in obj:
+                raise CertificationError("receipt-duplicate-key", repr(key))
+            obj[key] = value
+        return obj
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+        value = json.loads(raw, object_pairs_hook=pairs_hook,
+                           parse_constant=lambda token: (_ for _ in ()).throw(
+                               CertificationError("receipt-nonfinite", token)))
+    except CertificationError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise CertificationError("receipt-invalid", str(exc)) from exc
+    if type(value) is not dict:
+        raise CertificationError("receipt-invalid", "top-level must be an object")
+    return value
+
+
+def _sanitize_job_id(value: object) -> str:
+    if type(value) is not str or not value:
+        raise CertificationError("receipt-job-id", "PBS job id is missing")
+    sanitized = re.sub(r"[^A-Za-z0-9._-]", "_", value)
+    if sanitized in {"", ".", ".."}:
+        raise CertificationError("receipt-job-id", repr(value))
+    return sanitized
+
+
+def _write_exclusive(path: str, data: bytes) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    try:
+        with os.fdopen(fd, "wb", closefd=False) as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+    finally:
+        os.close(fd)
+
+
+def _rename_noreplace(source: str, target: str) -> None:
+    """Linux renameat2(RENAME_NOREPLACE) による atomic create-only publish。"""
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is None:
+        raise CertificationError("publish-unsupported", "renameat2 is unavailable")
+    rc = renameat2(
+        ctypes.c_int(-100), os.fsencode(source), ctypes.c_int(-100),
+        os.fsencode(target), ctypes.c_uint(1),
+    )
+    if rc != 0:
+        err = ctypes.get_errno()
+        code = "publish-collision" if err == errno.EEXIST else "publish-failed"
+        raise CertificationError(code, os.strerror(err))
+
+
+def _binary_sha256(binary: str, subprocess_runner: Callable[..., object]) -> str:
+    try:
+        result = subprocess_runner(
+            ["sha256sum", "--", binary], capture_output=True, text=True,
+            timeout=HASH_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CertificationError("binary-hash-error", str(exc)) from exc
+    if result.returncode != 0:
+        raise CertificationError(
+            "binary-hash-error", f"rc={result.returncode}: {(result.stderr or '')[:200]}")
+    token = (result.stdout or "").split(None, 1)[0] if (result.stdout or "").split() else ""
+    if re.fullmatch(r"[0-9a-f]{64}", token) is None:
+        raise CertificationError("binary-hash-error", "sha256sum returned invalid output")
+    return token
+
+
+def _profile_dict(value: object) -> dict:
+    if dataclasses.is_dataclass(value):
+        return dataclasses.asdict(value)
+    if type(value) is dict:
+        return copy.deepcopy(value)
+    raise CertificationError("attestation-invalid", f"unexpected profile type {type(value).__name__}")
+
+
+def _default_probe():
+    from campaign import env_attestation
+    fn = getattr(env_attestation, "probe", None)
+    if fn is None:
+        fn = getattr(env_attestation, "probe_hardware", None)
+    if fn is None:
+        raise CertificationError("attestation-unavailable", "probe API is not implemented")
+    return fn()
+
+
+def _coerce_tsc(value: object) -> TscMeasurement:
+    if isinstance(value, TscMeasurement):
+        measured = value
+    elif dataclasses.is_dataclass(value):
+        raw = dataclasses.asdict(value)
+        measured = TscMeasurement(**raw)
+    elif type(value) is dict:
+        measured = TscMeasurement(**value)
+    else:
+        raise CertificationError("tsc-measurement-failed", repr(value))
+    if len(measured.raw_samples_mhz) != 5:
+        raise CertificationError("tsc-measurement-failed", "exactly five samples are required")
+    ordered = sorted(float(v) for v in measured.raw_samples_mhz)
+    median = ordered[2]
+    if measured.median_mhz != median or measured.clocks_per_us_int != round(median):
+        raise CertificationError("tsc-measurement-failed", "median/nearest-even mismatch")
+    return measured
+
+
+def _static_profile_bytes(profile: dict) -> bytes:
+    static = copy.deepcopy(profile)
+    static.pop("tsc", None)
+    static.pop("effective_clock", None)
+    return json.dumps(static, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _acquisition_reasons(receipt: dict, *, budget: dict,
+                         binary_sha256: str, profile: dict) -> List[str]:
+    reasons: List[str] = []
+    try:
+        qsub = receipt["qsub"]
+        allocation = receipt["allocation"]
+        ccbench = receipt["ccbench"]
+        walltime = receipt["walltime"]
+        known = receipt["known_values_check"]
+        cores = profile["cores"]
+        cpu = profile["cpu"]
+        if (normalize_request_id(qsub["request_id"])
+                != normalize_request_id(allocation["pbs_jobid"])):
+            reasons.append("acquisition-job-id-mismatch")
+        if allocation["assigned_host_qstat"] != allocation["hostname_observed"]:
+            reasons.append("acquisition-host-mismatch")
+        if qsub["nodes"] != 1:
+            reasons.append("acquisition-node-count-invalid")
+        if ccbench["binary_sha256"] != binary_sha256:
+            reasons.append("acquisition-binary-hash-mismatch")
+        if (walltime["reserve_s"] <= 0
+                or budget["required_s"] + walltime["reserve_s"]
+                > walltime["required_s"]):
+            reasons.append("reservation-mismatch")
+        if walltime["required_s"] > qsub["elapstim_req_s"]:
+            reasons.append("reservation-qsub-mismatch")
+        observed_model = " ".join(str(cpu["model_name_normalized"]).split()).casefold()
+        expected_model = " ".join(str(known["expected_cpu_model"]).split()).casefold()
+        computed_known = (
+            bool(known["passed"])
+            and expected_model == observed_model
+            and known["expected_cores"] == cores["physical"]
+            and allocation["cpuset_size"] == cores["affinity_visible"]
+            and bool(allocation["ht_off"])
+            and not bool(cores["smt_active"])
+        )
+        if not computed_known:
+            reasons.append("known-values-check-failed")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CertificationError("receipt-invalid", str(exc)) from exc
+    return reasons
+
+
+def _assemble_v2(result: CalibrationResult, *, profile: dict, receipt: dict,
+                 status: str, reasons: List[str]) -> tuple[dict, bytes]:
+    doc = result_to_dict(result)
+    doc["schema_version"] = SCHEMA_VERSION
+    if doc["noise_floor"] is None:
+        doc["noise_floor"] = {
+            "kind": "within-run", "throughputs": [], "mean": None,
+            "median": None, "stdev": None, "cv": None,
+            "high_variance": False, "notes": [],
+        }
+    else:
+        doc["noise_floor"]["kind"] = "within-run"
+    doc["scale_sensitivity"] = "not-measured"
+    doc["attestation_profile"] = profile
+    doc["acquisition_receipt"] = copy.deepcopy(receipt)
+    doc["quality"] = {"status": status, "reasons": reasons}
+    validate_calibration_v2(doc)
+    raw = (json.dumps(doc, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+    validate_calibration_v2(raw)
+    return doc, raw
+
+
+def _write_rejection(staging: str, reasons: List[str], budget: dict) -> None:
+    payload = {
+        "quality": {"status": "rejected", "reasons": reasons},
+        "reservation": budget,
+    }
+    _write_exclusive(
+        os.path.join(staging, "rejection.json"),
+        (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+    )
+
+
+def _validate_cli(args) -> Optional[str]:
+    if args.start_records <= 0 or args.start_records > args.max_records:
+        return "require 0 < start_records <= max_records"
+    for name in ("threads", "extime", "sweep_reps", "noise_reps"):
+        if getattr(args, name) <= 0:
+            return f"{name} must be a positive integer"
+    if args.certify:
+        if _ENV_TAG_RE.fullmatch(args.env_tag) is None:
+            return "--env-tag must be a canonical schema slug with --certify"
+        if args.clocks_per_us is not None:
+            return "--clocks-per-us is forbidden with --certify"
+        if not args.receipt_json:
+            return "--receipt-json is required with --certify"
+        if not args.binary_sha256 or _HEX64_RE.fullmatch(args.binary_sha256) is None:
+            return "--binary-sha256 HEX64 is required with --certify"
+        if args.effective_clock_tolerance_pct is None:
+            return "--effective-clock-tolerance-pct is required with --certify"
+        if not (0.0 < args.effective_clock_tolerance_pct <= 100.0):
+            return "--effective-clock-tolerance-pct must be in (0, 100]"
+        if args.out_root is not None:
+            return "--out-root is forbidden with --certify"
+    return None
+
+
+def _certify_main(
+        args, *, probe_fn: Callable[[], object], load1_fn: Callable[[], float],
+        clock_fn: Callable[[], object], subprocess_runner: Callable[..., object],
+        nonce_fn: Callable[[], str], monotonic_fn: Callable[[], float],
+        sleep_fn: Callable[[float], None], calibrate_fn: Callable[..., CalibrationResult]) -> int:
+    binary = os.path.abspath(args.binary)
+    budget = reservation_budget(
+        args.start_records, args.max_records, args.sweep_reps, args.noise_reps)
+    receipt = _strict_json_file(args.receipt_json)
+    try:
+        job_id = receipt["allocation"]["pbs_jobid"]
+    except (KeyError, TypeError) as exc:
+        raise CertificationError("receipt-job-id", str(exc)) from exc
+    root = _output_root(None)
+    calibration_root = os.path.join(root, "env", args.env_tag, "calibration")
+    attempts = os.path.join(calibration_root, "attempts")
+    os.makedirs(attempts, exist_ok=True)
+    staging = os.path.join(attempts, _sanitize_job_id(job_id))
+    try:
+        os.mkdir(staging, 0o755)
+    except FileExistsError as exc:
+        raise CertificationError("attempt-exists", staging) from exc
+
+    static_pre: Optional[dict] = None
+    profile: Optional[dict] = None
+    measured_tsc: Optional[TscMeasurement] = None
+    result: Optional[CalibrationResult] = None
+    measurements = []
+    window_receipts: List[dict] = []
+    reasons: List[str] = []
+    try:
+        # C3-3(i): no build/hash/cooldown work precedes the static hardware probe.
+        static_pre = _profile_dict(probe_fn())
+
+        _assert_trace_disabled_binary(binary, subprocess_runner=subprocess_runner)
+        actual_hash = _binary_sha256(binary, subprocess_runner)
+        expected_hash = args.binary_sha256.lower()
+        if actual_hash != expected_hash:
+            raise CertificationError(
+                "binary-hash-mismatch", f"expected={expected_hash} actual={actual_hash}")
+
+        # C3-3(ii): fatal cooldown; no best-effort settle in this path.
+        cooldown_gate(load1_fn=load1_fn, monotonic_fn=monotonic_fn, sleep_fn=sleep_fn)
+
+        # C3-3(iii): dynamic pre-receipt (TSC/effective clock/governor + isolation).
+        dynamic_pre = _profile_dict(probe_fn())
+        visibility = dynamic_pre.get("visibility")
+        if (not isinstance(visibility, dict)
+                or visibility.get("hidepid") != "0"
+                or visibility.get("pid_ns_shared_with_host") is not True):
+            raise CertificationError("visibility-not-host")
+        if _static_profile_bytes(static_pre) != _static_profile_bytes(dynamic_pre):
+            raise CertificationError(
+                "pre-attestation-mismatch", "static hardware changed across cooldown")
+        measured_tsc = _coerce_tsc(clock_fn())
+        profile = copy.deepcopy(dynamic_pre)
+        profile["tsc"] = dataclasses.asdict(measured_tsc)
+        profile["effective_clock"]["tolerance_pct"] = args.effective_clock_tolerance_pct
+        # The rejected empty document is a schema-only preflight for the acquisition
+        # material. It catches unknown/missing nested receipt fields before any bench.
+        _assemble_v2(
+            CalibrationResult(
+                env_tag=args.env_tag, threads=args.threads,
+                clocks_per_us=measured_tsc.clocks_per_us_int,
+            ),
+            profile=profile, receipt=receipt, status="rejected",
+            reasons=["receipt-schema-preflight"],
+        )
+        acquisition_reasons = _acquisition_reasons(
+            receipt, budget=budget, binary_sha256=actual_hash, profile=profile)
+        if acquisition_reasons:
+            reasons.extend(acquisition_reasons)
+            raise CertificationError(
+                "acquisition-invalid", ",".join(acquisition_reasons))
+
+        def window_probe(label: str) -> object:
+            try:
+                observed = composite_competing_probe(
+                    nonce=nonce_fn(), subprocess_runner=subprocess_runner)
+            except CompositeProbeViolation as exc:
+                raise CertificationError("probe-violation", exc.as_reason()) from exc
+            except Exception as exc:
+                raise CertificationError("probe-error", str(exc)) from exc
+            receipt_item = dict(observed)
+            receipt_item["window"] = label
+            window_receipts.append(receipt_item)
+            return observed
+
+        window_probe("dynamic-pre")
+        memory_policy = "interleave=all"
+        numactl = None if len(profile["numa"]) == 1 else ["numactl", "--" + memory_policy]
+
+        # C3-3(iv): every sweep/noise/scale group is bracketed in sweep.calibrate.
+        result = calibrate_fn(
+            binary=binary, env_tag=args.env_tag, threads=args.threads,
+            workload=_parse_kv(args.workload), start_records=args.start_records,
+            max_records=args.max_records, extime=args.extime,
+            sweep_reps=args.sweep_reps, noise_reps=args.noise_reps,
+            numactl=numactl, clocks_per_us=measured_tsc.clocks_per_us_int,
+            certify=True, skip_settle=True, window_probe=window_probe,
+            measurement_sink=measurements, bench_timeout_s=BENCH_TIMEOUT_S,
+            subprocess_runner=subprocess_runner,
+        )
+
+        # C3-3(v): reacquire static profile, compare, then final isolation probe.
+        static_post = _profile_dict(probe_fn())
+        post_matches = _static_profile_bytes(static_pre) == _static_profile_bytes(static_post)
+        window_probe("post-receipt")
+        evidence = CertificationEvidence(
+            tsc_measured=True, cooldown_settled=True, measurements=measurements,
+            all_subprocesses_succeeded=True, all_windows_isolated=True,
+            post_static_matches=post_matches,
+        )
+        reasons.extend(certification_quality_reasons(result, evidence))
+        status = "accepted" if not reasons else "rejected"
+        _, artifact = _assemble_v2(
+            result, profile=profile, receipt=receipt, status=status, reasons=reasons)
+        staging_artifact = os.path.join(
+            staging, "calibration.json" if status == "rejected" else "candidate.json")
+        _write_exclusive(staging_artifact, artifact)
+        report = (
+            f"# certification attempt {job_id}\n\nquality: {status}\n\n"
+            + "```\n" + render_text(result) + "\n```\n"
+        ).encode("utf-8")
+        _write_exclusive(os.path.join(staging, "calibration.md"), report)
+        _write_exclusive(
+            os.path.join(staging, "window-probes.json"),
+            (json.dumps(window_receipts, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+        )
+        if status != "accepted":
+            print("certification rejected: " + "; ".join(reasons), file=sys.stderr)
+            return 1
+
+        registered = os.path.join(calibration_root, "registered")
+        os.makedirs(registered, exist_ok=True)
+        digest = hashlib.sha256(artifact).hexdigest()
+        target = os.path.join(registered, f"calibration-{digest[:16]}.json")
+        safe_job_id = _sanitize_job_id(job_id)
+        temporary = os.path.join(
+            registered, f".publish-{safe_job_id}-{secrets.token_hex(8)}.tmp")
+        _write_exclusive(temporary, artifact)
+        try:
+            _rename_noreplace(temporary, target)
+        except Exception:
+            try:
+                os.unlink(temporary)
+            except OSError:
+                pass
+            raise
+        os.rename(staging_artifact, os.path.join(staging, "calibration.json"))
+        print(f"wrote {os.path.join(staging, 'calibration.json')}")
+        print(f"published {target}")
+        return 0
+    except (Exception, SystemExit) as exc:
+        if isinstance(exc, CertificationError):
+            reason = exc.as_reason()
+        elif isinstance(exc, SystemExit):
+            reason = f"preflight-failed: {exc}"
+        else:
+            reason = f"attempt-fatal: {type(exc).__name__}: {str(exc)[:500]}"
+        reasons = reasons + [reason]
+        try:
+            candidate_path = os.path.join(staging, "candidate.json")
+            if os.path.lexists(candidate_path):
+                os.unlink(candidate_path)
+            calibration_path = os.path.join(staging, "calibration.json")
+            if os.path.exists(calibration_path):
+                _write_rejection(staging, reasons, budget)
+            elif result is not None and profile is not None:
+                _, artifact = _assemble_v2(
+                    result, profile=profile, receipt=receipt,
+                    status="rejected", reasons=reasons)
+                _write_exclusive(calibration_path, artifact)
+            else:
+                _write_rejection(staging, reasons, budget)
+        except Exception as receipt_exc:
+            print(f"failed to write rejection receipt: {receipt_exc}", file=sys.stderr)
+        print("certification rejected: " + "; ".join(reasons), file=sys.stderr)
+        return 1
+
+
+def main(argv: Optional[List[str]] = None, *,
+         probe_fn: Optional[Callable[[], object]] = None,
+         load1_fn: Optional[Callable[[], float]] = None,
+         clock_fn: Optional[Callable[[], object]] = None,
+         subprocess_runner: Optional[Callable[..., object]] = None,
+         nonce_fn: Optional[Callable[[], str]] = None,
+         monotonic_fn: Optional[Callable[[], float]] = None,
+         sleep_fn: Optional[Callable[[float], None]] = None,
+         calibrate_fn: Optional[Callable[..., CalibrationResult]] = None) -> int:
     args = build_parser().parse_args(argv)
+    invalid = _validate_cli(args)
+    if invalid:
+        print(f"invalid arguments: {invalid}", file=sys.stderr)
+        return 2
 
     if not os.path.exists(args.binary):
         print(f"binary not found: {args.binary}", file=sys.stderr)
         return 2
-    _assert_trace_disabled_binary(os.path.abspath(args.binary))
+    if args.certify:
+        try:
+            return _certify_main(
+                args, probe_fn=probe_fn or _default_probe,
+                load1_fn=load1_fn or (lambda: os.getloadavg()[0]),
+                clock_fn=clock_fn or measure_tsc,
+                subprocess_runner=subprocess_runner or subprocess.run,
+                nonce_fn=nonce_fn or (lambda: secrets.token_hex(16)),
+                monotonic_fn=monotonic_fn or time.monotonic,
+                sleep_fn=sleep_fn or time.sleep,
+                calibrate_fn=calibrate_fn or calibrate,
+            )
+        except CertificationError as exc:
+            print("certification rejected: " + exc.as_reason(), file=sys.stderr)
+            return 1
 
-    result = calibrate(
-        binary=os.path.abspath(args.binary),
-        env_tag=args.env_tag,
-        threads=args.threads,
-        workload=_parse_kv(args.workload),
-        start_records=args.start_records,
-        max_records=args.max_records,
-        extime=args.extime,
-        sweep_reps=args.sweep_reps,
-        noise_reps=args.noise_reps,
-        numactl=_numactl_arg(args.numactl),
+    _assert_trace_disabled_binary(
+        os.path.abspath(args.binary),
+        subprocess_runner=subprocess_runner or subprocess.run,
+    )
+    result = (calibrate_fn or calibrate)(
+        binary=os.path.abspath(args.binary), env_tag=args.env_tag,
+        threads=args.threads, workload=_parse_kv(args.workload),
+        start_records=args.start_records, max_records=args.max_records,
+        extime=args.extime, sweep_reps=args.sweep_reps,
+        noise_reps=args.noise_reps, numactl=_numactl_arg(args.numactl),
         clocks_per_us=args.clocks_per_us,
     )
 
-    # env スコープに書き出す (D13)
-    out_dir = os.path.join(_output_root(args.out_root), "env",
-                           args.env_tag, "calibration")
+    # env スコープに従来の固定 stem で書く。certify はこの経路へ入らない。
+    out_dir = os.path.join(_output_root(args.out_root), "env", args.env_tag, "calibration")
     os.makedirs(out_dir, exist_ok=True)
     stem = f"calibration_t{args.threads}_{_workload_tag(_parse_kv(args.workload))}"
     json_path = os.path.join(out_dir, stem + ".json")
     md_path = os.path.join(out_dir, stem + ".md")
-
     with open(json_path, "w") as f:
         json.dump(result_to_dict(result), f, indent=2, ensure_ascii=False)
     with open(md_path, "w") as f:
-        f.write("# calibration: " + args.env_tag +
-                f" / threads={args.threads}\n\n")
+        f.write("# calibration: " + args.env_tag + f" / threads={args.threads}\n\n")
         f.write("```\n" + render_text(result) + "\n```\n")
-
     print()
     print(render_text(result))
     print()

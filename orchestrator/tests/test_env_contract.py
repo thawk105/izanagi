@@ -42,7 +42,7 @@ from campaign import p2_2  # noqa: E402
 # --------------------------------------------------------------------------- #
 
 # 禁止する env 固有 literal。
-ENV_LITERAL_VALUES = ("linux-baremetal", "--interleave=all", 1800)
+ENV_LITERAL_VALUES = ("linux-baremetal", "--interleave=all", "/scr", 1800)
 
 # (repo 相対 module path, registry 静的定義部の FunctionDef 名 or None)。
 # None のモジュールは免除なし = literal の一切の出現を禁止。s8b_floor_campaign.py は env 契約を
@@ -50,6 +50,17 @@ ENV_LITERAL_VALUES = ("linux-baremetal", "--interleave=all", 1800)
 # (S+C wave, γ-16)。免除でなく literal の除去で解消する。
 V2_ENV_NEUTRAL_MODULES = [
     ("orchestrator/campaign/env_contract.py", "_build_registry"),
+    ("orchestrator/campaign/execution_guard.py", None),
+    ("orchestrator/campaign/env_attestation.py", None),
+    ("orchestrator/campaign/reservation.py", None),
+    ("orchestrator/campaign/durable_root.py", None),
+    ("orchestrator/campaign/campaign_claim.py", None),
+    ("orchestrator/campaign/buildcache.py", None),
+    ("orchestrator/campaign/layout.py", None),
+    ("orchestrator/campaign/s8b_oracle_driver.py", None),
+    ("orchestrator/calibrator/schema_v2.py", None),
+    ("orchestrator/calibrator/cli.py", None),
+    ("orchestrator/calibrator/sweep.py", None),
     ("orchestrator/campaign/s8b_floor_campaign.py", None),
 ]
 
@@ -60,6 +71,7 @@ def _valid_contract(**overrides) -> ec.ExecutionEnvironmentContract:
         env_tag="test-env",
         clocks_per_us=1000,
         numactl=("numactl", "--interleave=all"),
+        attestation_mode="none",
         isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=False),
         calibration_ref=ec.CalibrationRef(path="output/x.json", sha256="0" * 64),
     )
@@ -121,6 +133,17 @@ def test_accepts_empty_numactl_tuple():
     assert c.numactl == ()
 
 
+@pytest.mark.parametrize("bad_mode", [None, True, False, 0, "", "optional", "Required"])
+def test_rejects_bad_attestation_mode(bad_mode):
+    with pytest.raises(ec.EnvContractError):
+        _valid_contract(attestation_mode=bad_mode)
+
+
+@pytest.mark.parametrize("mode", ["none", "required"])
+def test_accepts_exact_attestation_modes(mode):
+    assert _valid_contract(attestation_mode=mode).attestation_mode == mode
+
+
 @pytest.mark.parametrize("bad_hex", [
     "0" * 63,           # 短い
     "0" * 65,           # 長い
@@ -171,6 +194,7 @@ def test_lookup_baremetal_golden():
     assert c.env_tag == "linux-baremetal"
     assert c.clocks_per_us == 1800
     assert c.numactl == ("numactl", "--interleave=all")
+    assert c.attestation_mode == "none"
     assert c.isolation_policy == ec.IsolationPolicy(single_process=False, allow_resume=True)
     assert c.calibration_ref.path == (
         "output/env/linux-baremetal/calibration/calibration_t48_skew0p9_rr50_rmw0.json"
@@ -285,7 +309,8 @@ def test_contract_has_no_records_or_threads():
     assert "records" not in field_names
     assert "threads" not in field_names
     assert field_names == {
-        "env_tag", "clocks_per_us", "numactl", "isolation_policy", "calibration_ref",
+        "env_tag", "clocks_per_us", "numactl", "attestation_mode",
+        "isolation_policy", "calibration_ref",
     }
 
 
@@ -293,7 +318,8 @@ def test_contract_has_no_records_or_threads():
 # contract_sha256 — δ-12                                                        #
 # --------------------------------------------------------------------------- #
 
-def _reference_sha256(env_tag, clocks_per_us, numactl, single_process, allow_resume,
+def _reference_sha256(env_tag, clocks_per_us, numactl, attestation_mode,
+                      single_process, allow_resume,
                       cal_path, cal_sha) -> str:
     """production を import しない stdlib-only reference calculator。
     canonical JSON を独立に組み立てて sha256 する。"""
@@ -301,6 +327,7 @@ def _reference_sha256(env_tag, clocks_per_us, numactl, single_process, allow_res
         "env_tag": env_tag,
         "clocks_per_us": clocks_per_us,
         "numactl": list(numactl),
+        "attestation_mode": attestation_mode,
         "isolation_policy": {
             "single_process": single_process,
             "allow_resume": allow_resume,
@@ -317,18 +344,20 @@ def test_contract_sha256_small_golden():
         env_tag="t",
         clocks_per_us=1,
         numactl=(),
+        attestation_mode="none",
         isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=False),
         calibration_ref=ec.CalibrationRef(path="p", sha256="0" * 64),
     )
     expected_json = (
-        '{"calibration_ref":{"path":"p","sha256":"' + "0" * 64 + '"},'
+        '{"attestation_mode":"none",'
+        '"calibration_ref":{"path":"p","sha256":"' + "0" * 64 + '"},'
         '"clocks_per_us":1,"env_tag":"t",'
         '"isolation_policy":{"allow_resume":false,"single_process":true},'
         '"numactl":[]}'
     )
     expected = hashlib.sha256(expected_json.encode("utf-8")).hexdigest()
     # 手書き hex golden (別経路で凍結)。
-    assert expected == "cbfbf008e7d81403c615b9d1d9af341f6c4e211e69c6fa00ac84052caa5cf31d"
+    assert expected == "e278d9dd18258b89a6590ed29c29e999d516c862cd2544b1416741b9e71aaf24"
     assert c.contract_sha256 == expected
 
 
@@ -338,6 +367,7 @@ def test_contract_sha256_matches_independent_reference():
         env_tag="linux-baremetal",
         clocks_per_us=1800,
         numactl=("numactl", "--interleave=all"),
+        attestation_mode="none",
         single_process=False,
         allow_resume=True,
         cal_path="output/env/linux-baremetal/calibration/calibration_t48_skew0p9_rr50_rmw0.json",
@@ -351,6 +381,7 @@ def test_contract_sha256_matches_independent_reference():
     {"clocks_per_us": 2000},
     {"numactl": ("numactl",)},
     {"numactl": ()},
+    {"attestation_mode": "required"},
     {"isolation_policy": None},   # replaced below with valid variant
     {"calibration_ref": None},    # replaced below
 ])

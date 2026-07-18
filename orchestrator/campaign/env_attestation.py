@@ -1,0 +1,710 @@
+# -*- coding: utf-8 -*-
+"""実行環境の strict attestation と calibration admission。
+
+runtime probe と calibrator は ``calibrator.schema_v2`` の凍結 dataclass を共有する。
+必須観測の欠落・曖昧さは fatal とし、best-effort や設定値 fallback は持たない。
+"""
+from __future__ import annotations
+
+import dataclasses
+import hashlib
+import json
+import math
+import os
+import re
+import statistics
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Mapping, Optional, Protocol
+
+from calibrator import schema_v2 as _schema_v2
+from calibrator import tsc as _tsc
+from campaign import env_contract as _env_contract
+
+
+GRANDFATHERED_V1_SHA256 = (
+    "751304772367418806eb6e63c9715cd430315066420e9e3e4c91bf356195eef5"
+)
+PROBE_METHOD = "strict-sysfs-procfs"
+PROBE_VERSION = "1"
+LEGACY_SCHEMA_VERSION = "calibration/v1"
+
+_CPU_DIR_RE = re.compile(r"cpu([0-9]+)")
+_INDEX_DIR_RE = re.compile(r"index([0-9]+)")
+_NODE_DIR_RE = re.compile(r"node([0-9]+)")
+_SIZE_RE = re.compile(r"([0-9]+)([KMGT]?)", re.IGNORECASE)
+_HEX64_RE = re.compile(r"[0-9a-f]{64}")
+_FREQUENCY_SUFFIX_RE = re.compile(
+    r"(?:\s*@?\s*[0-9]+(?:\.[0-9]+)?\s*[KMGT]?Hz)\s*$", re.IGNORECASE,
+)
+
+
+class AttestationError(RuntimeError):
+    """probe・比較・calibration admission の fail-closed 拒否。"""
+
+
+class HardwareProbe(Protocol):
+    def __call__(self) -> _schema_v2.AttestationProfile: ...
+
+
+@dataclass(frozen=True)
+class ProbeRoots:
+    """:func:`probe` が読む filesystem root。fixture tree 用に注入可能。"""
+
+    proc: Path = Path("/proc")
+    sys_cpu: Path = Path("/sys/devices/system/cpu")
+    sys_node: Path = Path("/sys/devices/system/node")
+
+    def __post_init__(self) -> None:
+        for field in dataclasses.fields(self):
+            value = getattr(self, field.name)
+            if not isinstance(value, Path) or not value.is_absolute():
+                raise AttestationError(f"ProbeRoots.{field.name} は absolute Path でなければならない")
+
+
+DEFAULT_PROBE_ROOTS = ProbeRoots()
+
+
+@dataclass(frozen=True)
+class VerifiedCalibration:
+    """一つの contract mode に admission 済みの hash-bound calibration artifact。"""
+
+    schema_version: str
+    sha256: str
+    calibration: Optional[_schema_v2.CalibrationV2]
+    attestation_profile_sha256: Optional[str]
+
+    def __post_init__(self) -> None:
+        if type(self.sha256) is not str or _HEX64_RE.fullmatch(self.sha256) is None:
+            raise AttestationError("verified calibration sha256 が 64 lower-hex でない")
+        if self.schema_version == _schema_v2.SCHEMA_VERSION:
+            if not isinstance(self.calibration, _schema_v2.CalibrationV2):
+                raise AttestationError("calibration/v2 marker に CalibrationV2 値がない")
+            actual_profile_sha = profile_sha256(self.calibration.attestation_profile)
+            if self.attestation_profile_sha256 != actual_profile_sha:
+                raise AttestationError("verified calibration profile sha256 が自己矛盾")
+        elif self.schema_version == LEGACY_SCHEMA_VERSION:
+            if self.calibration is not None or self.attestation_profile_sha256 is not None:
+                raise AttestationError("legacy calibration marker に v2 profile が混入")
+        else:
+            raise AttestationError(f"未知の verified calibration schema: {self.schema_version!r}")
+
+    @property
+    def attestation_profile(self) -> _schema_v2.AttestationProfile:
+        if self.calibration is None:
+            raise AttestationError("legacy calibration に attestation profile はない")
+        return self.calibration.attestation_profile
+
+
+def normalize_cpu_model_name(value: str) -> str:
+    """等値比較に使う canonical CPU model name を返す。
+
+    正規化は意図的に狭く順序固定である。``(R)`` / ``(TM)`` を除去し、末尾の周波数表記を
+    1 個だけ除去してから、空白列を ASCII space 1 個へ畳む。他の marketing name 書換えはしない。
+    """
+    if type(value) is not str or not value.strip():
+        raise AttestationError("CPU model name がない")
+    normalized = value.replace("(R)", "").replace("(TM)", "")
+    normalized = _FREQUENCY_SUFFIX_RE.sub("", normalized)
+    normalized = " ".join(normalized.split())
+    if not normalized:
+        raise AttestationError("CPU model name が正規化後に空になった")
+    return normalized
+
+
+def _read_text(path: Path, *, field: str) -> str:
+    try:
+        value = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise AttestationError(f"必須 {field} を読めない: {path}: {exc}") from exc
+    value = value.strip()
+    if not value:
+        raise AttestationError(f"必須 {field} が空: {path}")
+    return value
+
+
+def _parse_int(value: str, *, field: str) -> int:
+    try:
+        result = int(value, 10)
+    except ValueError as exc:
+        raise AttestationError(f"{field} が 10 進整数でない: {value!r}") from exc
+    if result < 0:
+        raise AttestationError(f"{field} が負: {result}")
+    return result
+
+
+def _parse_float(value: str, *, field: str) -> float:
+    try:
+        result = float(value)
+    except ValueError as exc:
+        raise AttestationError(f"{field} が数値でない: {value!r}") from exc
+    if not math.isfinite(result) or result <= 0.0:
+        raise AttestationError(f"{field} が正の有限値でない: {value!r}")
+    return result
+
+
+def _parse_cpu_list(value: str, *, field: str) -> list[int]:
+    cpus: set[int] = set()
+    for token in value.split(","):
+        token = token.strip()
+        if not token:
+            raise AttestationError(f"{field} に空の CPU-list 要素がある")
+        if "-" in token:
+            parts = token.split("-")
+            if len(parts) != 2:
+                raise AttestationError(f"{field} の range が不正: {token!r}")
+            first = _parse_int(parts[0], field=field)
+            last = _parse_int(parts[1], field=field)
+            if last < first:
+                raise AttestationError(f"{field} の range が降順: {token!r}")
+            cpus.update(range(first, last + 1))
+        else:
+            cpus.add(_parse_int(token, field=field))
+    if not cpus:
+        raise AttestationError(f"{field} が空")
+    return sorted(cpus)
+
+
+def _parse_cache_bytes(value: str, *, field: str) -> int:
+    match = _SIZE_RE.fullmatch(value.strip())
+    if match is None:
+        raise AttestationError(f"{field} の size 表記が未対応: {value!r}")
+    multiplier = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3,
+                  "T": 1024**4}[match.group(2).upper()]
+    result = int(match.group(1)) * multiplier
+    if result <= 0:
+        raise AttestationError(f"{field} が正でない")
+    return result
+
+
+def _cpu_directories(root: Path) -> list[tuple[int, Path]]:
+    try:
+        children = list(root.iterdir())
+    except OSError as exc:
+        raise AttestationError(f"CPU sysfs root を列挙できない: {root}: {exc}") from exc
+    result = []
+    for child in children:
+        match = _CPU_DIR_RE.fullmatch(child.name)
+        if match is not None and child.is_dir():
+            result.append((int(match.group(1)), child))
+    result.sort()
+    if not result:
+        raise AttestationError(f"{root} 配下に cpuN directory がない")
+    return result
+
+
+def _parse_cpuinfo(path: Path) -> tuple[dict[str, object], dict[int, float]]:
+    text = _read_text(path, field="/proc/cpuinfo")
+    blocks = [block for block in re.split(r"\n\s*\n", text) if block.strip()]
+    if not blocks:
+        raise AttestationError("/proc/cpuinfo に processor block がない")
+    required = ("processor", "vendor_id", "cpu family", "model", "model name", "cpu MHz")
+    identities = []
+    raw_names = []
+    mhz_by_cpu: dict[int, float] = {}
+    for index, block in enumerate(blocks):
+        fields: dict[str, str] = {}
+        for line in block.splitlines():
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            key, value = key.strip(), value.strip()
+            if key in fields:
+                raise AttestationError(f"cpuinfo block {index} duplicates {key!r}")
+            fields[key] = value
+        missing = [key for key in required if not fields.get(key)]
+        if missing:
+            raise AttestationError(f"cpuinfo block {index} lacks required fields: {missing}")
+        cpu_id = _parse_int(fields["processor"], field="cpuinfo.processor")
+        if cpu_id in mhz_by_cpu:
+            raise AttestationError(f"cpuinfo duplicates processor {cpu_id}")
+        identity = (
+            fields["vendor_id"],
+            _parse_int(fields["cpu family"], field="cpuinfo.cpu family"),
+            _parse_int(fields["model"], field="cpuinfo.model"),
+            normalize_cpu_model_name(fields["model name"]),
+        )
+        identities.append(identity)
+        raw_names.append(fields["model name"])
+        mhz_by_cpu[cpu_id] = _parse_float(fields["cpu MHz"], field="cpuinfo.cpu MHz")
+    if any(identity != identities[0] for identity in identities[1:]):
+        raise AttestationError("logical CPU 間で cpuinfo identity field が不一致")
+    vendor, family, model, normalized_name = identities[0]
+    return {
+        "vendor": vendor,
+        "family": family,
+        "model": model,
+        "model_name_raw": raw_names[0],
+        "model_name_normalized": normalized_name,
+    }, mhz_by_cpu
+
+
+def _cache_topology(cpus: list[tuple[int, Path]]) -> list[_schema_v2.CacheTopologyEntry]:
+    unique: dict[tuple, _schema_v2.CacheTopologyEntry] = {}
+    expected_indexes: Optional[list[int]] = None
+    logical_cpu_ids = {cpu_id for cpu_id, _ in cpus}
+    for cpu_id, cpu_path in cpus:
+        cache_root = cpu_path / "cache"
+        try:
+            children = list(cache_root.iterdir())
+        except OSError as exc:
+            raise AttestationError(f"cpu{cpu_id} の cache topology を列挙できない: {exc}") from exc
+        indexed = []
+        for child in children:
+            match = _INDEX_DIR_RE.fullmatch(child.name)
+            if match is not None and child.is_dir():
+                indexed.append((int(match.group(1)), child))
+        indexed.sort()
+        if not indexed or [number for number, _ in indexed] != list(range(indexed[-1][0] + 1)):
+            raise AttestationError(f"cpu{cpu_id} cache index directories are missing or non-contiguous")
+        index_numbers = [number for number, _ in indexed]
+        if expected_indexes is None:
+            expected_indexes = index_numbers
+        elif index_numbers != expected_indexes:
+            raise AttestationError(
+                f"cpu{cpu_id} cache index 集合が不一致: expected={expected_indexes} "
+                f"observed={index_numbers}"
+            )
+        seen_this_cpu = set()
+        for number, path in indexed:
+            prefix = f"cpu{cpu_id}.cache.index{number}"
+            entry = _schema_v2.CacheTopologyEntry(
+                level=_parse_int(_read_text(path / "level", field=f"{prefix}.level"),
+                                 field=f"{prefix}.level"),
+                type=_read_text(path / "type", field=f"{prefix}.type"),
+                bytes=_parse_cache_bytes(
+                    _read_text(path / "size", field=f"{prefix}.size"), field=f"{prefix}.size",
+                ),
+                line=_parse_int(
+                    _read_text(path / "coherency_line_size", field=f"{prefix}.line"),
+                    field=f"{prefix}.line",
+                ),
+                shared_cpus=_parse_cpu_list(
+                    _read_text(path / "shared_cpu_list", field=f"{prefix}.shared_cpu_list"),
+                    field=f"{prefix}.shared_cpu_list",
+                ),
+            )
+            if cpu_id not in entry.shared_cpus or not set(entry.shared_cpus) <= logical_cpu_ids:
+                raise AttestationError(
+                    f"{prefix}.shared_cpu_list が列挙済み CPU を表していない"
+                )
+            if entry.canonical_key() in seen_this_cpu:
+                raise AttestationError(f"cpu{cpu_id} has duplicate canonical cache indexes")
+            seen_this_cpu.add(entry.canonical_key())
+            unique[entry.canonical_key()] = entry
+    return [unique[key] for key in sorted(unique)]
+
+
+def _numa_topology(root: Path, logical_cpus: set[int]) -> list[_schema_v2.NumaNode]:
+    try:
+        children = list(root.iterdir())
+    except OSError as exc:
+        raise AttestationError(f"NUMA sysfs root を列挙できない: {root}: {exc}") from exc
+    nodes = []
+    for child in children:
+        match = _NODE_DIR_RE.fullmatch(child.name)
+        if match is None or not child.is_dir():
+            continue
+        node_id = int(match.group(1))
+        nodes.append(_schema_v2.NumaNode(
+            node_id=node_id,
+            cpulist=_parse_cpu_list(
+                _read_text(child / "cpulist", field=f"node{node_id}.cpulist"),
+                field=f"node{node_id}.cpulist",
+            ),
+        ))
+    nodes.sort(key=lambda item: item.node_id)
+    if not nodes:
+        raise AttestationError(f"{root} 配下に nodeN directory がない")
+    covered = {cpu for node in nodes for cpu in node.cpulist}
+    flattened = [cpu for node in nodes for cpu in node.cpulist]
+    if covered != logical_cpus or len(flattened) != len(covered):
+        raise AttestationError(
+            f"NUMA cpulist が logical CPU を完全被覆しない: expected={sorted(logical_cpus)} "
+            f"observed={sorted(covered)}"
+        )
+    return nodes
+
+
+def _measure_tsc_profile() -> _schema_v2.TscProfile:
+    """``calibrator.tsc`` の raw 5 sample API を fallback なしで使う。"""
+    try:
+        measured = _tsc.measure_tsc(rounds=5)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise AttestationError(f"TSC 測定失敗。fallback 禁止: {exc}") from exc
+    if measured is None:
+        raise AttestationError("TSC 測定不能。fallback 禁止")
+    if len(measured.raw_samples_mhz) != 5:
+        raise AttestationError("TSC probe が raw sample を正確に 5 個返さなかった")
+    try:
+        return _schema_v2.TscProfile(
+            raw_samples_mhz=list(measured.raw_samples_mhz),
+            median_mhz=measured.median_mhz,
+            clocks_per_us_int=measured.clocks_per_us_int,
+            source=measured.source,
+        )
+    except _schema_v2.CalibrationSchemaError as exc:
+        raise AttestationError(f"TSC measurement is internally inconsistent: {exc}") from exc
+
+
+def _visibility(proc_root: Path) -> _schema_v2.VisibilityProfile:
+    """proc visibility と host PID namespace の運用指標を取得する。
+
+    ``/proc/2/comm == kthreadd`` は Pegasus の非 root 環境で使える指標だが、comm は
+    namespace 内 process が詐称し得るため暗号学的な host namespace 証明ではない。
+    hidepid、scheduler reservation、単独性検査と組み合わせる既知限界を持つ。
+    """
+    mounts = _read_text(proc_root / "mounts", field="/proc/mounts")
+    candidates = []
+    for line in mounts.splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            raise AttestationError(f"/proc/mounts の行が不正: {line!r}")
+        if parts[1] in {"/proc", str(proc_root)} and parts[2] == "proc":
+            candidates.append(parts[3].split(","))
+    if len(candidates) != 1:
+        raise AttestationError("procfs mount option を一意に決定できない")
+    hidepid_values = [option.split("=", 1)[1] for option in candidates[0]
+                      if option.startswith("hidepid=")]
+    if len(set(hidepid_values)) > 1:
+        raise AttestationError("conflicting hidepid mount options")
+    hidepid = hidepid_values[0] if hidepid_values else "0"
+    if hidepid != "0":
+        raise AttestationError(f"必須 process visibility が hidepid={hidepid} で隠されている")
+    try:
+        proc2_comm = (proc_root / "2/comm").read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        shared_with_host = False
+    except (OSError, UnicodeError) as exc:
+        raise AttestationError(f"PID namespace 指標 /proc/2/comm を読めない: {exc}") from exc
+    else:
+        shared_with_host = proc2_comm == "kthreadd"
+    return _schema_v2.VisibilityProfile(
+        hidepid=hidepid,
+        pid_ns_shared_with_host=shared_with_host,
+        pid_ns_method=_schema_v2.PID_NS_METHOD,
+    )
+
+
+def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.AttestationProfile:
+    """現在 hardware を strict に観測する。部分読取りは probe 全体を拒否する。"""
+    if not isinstance(roots, ProbeRoots):
+        raise AttestationError("roots は ProbeRoots でなければならない")
+    cpus = _cpu_directories(roots.sys_cpu)
+    cpu_ids = {cpu_id for cpu_id, _ in cpus}
+    cpu_identity, mhz_by_cpu = _parse_cpuinfo(roots.proc / "cpuinfo")
+    if set(mhz_by_cpu) != cpu_ids:
+        raise AttestationError(
+            f"cpuinfo processor と sysfs CPU が不一致: cpuinfo={sorted(mhz_by_cpu)} "
+            f"sysfs={sorted(cpu_ids)}"
+        )
+    core_ids = set()
+    governors = set()
+    for cpu_id, cpu_path in cpus:
+        core_ids.add(_parse_int(
+            _read_text(cpu_path / "topology/core_id", field=f"cpu{cpu_id}.core_id"),
+            field=f"cpu{cpu_id}.core_id",
+        ))
+        governors.add(_read_text(
+            cpu_path / "cpufreq/scaling_governor", field=f"cpu{cpu_id}.scaling_governor",
+        ))
+    if len(governors) != 1:
+        raise AttestationError(f"CPU 間で scaling governor が異なる: {sorted(governors)}")
+    try:
+        affinity_visible = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError) as exc:
+        raise AttestationError(f"sched_getaffinity を利用できない: {exc}") from exc
+    if affinity_visible < 1:
+        raise AttestationError("sched_getaffinity が空の CPU 集合を返した")
+
+    tsc_profile = _measure_tsc_profile()
+    try:
+        return _schema_v2.AttestationProfile(
+            cpu=_schema_v2.CpuProfile(**cpu_identity),
+            cores=_schema_v2.CoreProfile(
+                physical=len(core_ids), logical=len(cpus),
+                smt_active=(len(cpus) > len(core_ids)),
+                affinity_visible=affinity_visible,
+            ),
+            cache_topology=_cache_topology(cpus),
+            numa=_numa_topology(roots.sys_node, cpu_ids),
+            tsc=tsc_profile,
+            effective_clock=_schema_v2.EffectiveClockProfile(
+                samples_mhz=[mhz_by_cpu[cpu_id] for cpu_id in sorted(cpu_ids)],
+                method="proc-cpuinfo",
+                governor=next(iter(governors)),
+                # Runtime observation has no policy tolerance of its own.  The
+                # comparator exclusively uses the expected calibration value.
+                tolerance_pct=100.0,
+            ),
+            visibility=_visibility(roots.proc),
+        )
+    except _schema_v2.CalibrationSchemaError as exc:
+        raise AttestationError(f"observed profile が calibration/v2 型に違反: {exc}") from exc
+
+
+probe_hardware = probe
+
+
+def normalize_profile(raw: Mapping[str, object]) -> _schema_v2.AttestationProfile:
+    """schema 形状の raw mapping を検証し、CPU name 正規化を適用する。"""
+    if not isinstance(raw, Mapping):
+        raise AttestationError("raw profile が Mapping でない")
+
+    def exact(value: object, keys: set[str], field: str) -> Mapping[str, object]:
+        if not isinstance(value, Mapping) or set(value) != keys:
+            raise AttestationError(f"{field} の schema key 集合が exact でない")
+        return value
+
+    profile_keys = {"cpu", "cores", "cache_topology", "numa", "tsc",
+                    "effective_clock", "visibility"}
+    exact(raw, profile_keys, "profile")
+    cpu = exact(raw["cpu"], {"vendor", "family", "model", "model_name_raw",
+                             "model_name_normalized"}, "profile.cpu")
+    normalized_name = normalize_cpu_model_name(cpu["model_name_raw"])  # type: ignore[arg-type]
+    if cpu["model_name_normalized"] != normalized_name:
+        raise AttestationError("profile.cpu の normalized name が raw name と不一致")
+    cores = exact(raw["cores"], {"physical", "logical", "smt_active",
+                                 "affinity_visible"}, "profile.cores")
+    try:
+        caches_raw = raw["cache_topology"]
+        numa_raw = raw["numa"]
+        if type(caches_raw) is not list or type(numa_raw) is not list:
+            raise AttestationError("profile cache_topology/numa は list でなければならない")
+        caches = [
+            _schema_v2.CacheTopologyEntry(**dict(exact(
+                item, {"level", "type", "bytes", "line", "shared_cpus"},
+                f"profile.cache_topology[{index}]",
+            )))
+            for index, item in enumerate(caches_raw)
+        ]
+        nodes = [
+            _schema_v2.NumaNode(**dict(exact(
+                item, {"node_id", "cpulist"}, f"profile.numa[{index}]",
+            )))
+            for index, item in enumerate(numa_raw)
+        ]
+        tsc = exact(raw["tsc"], {"raw_samples_mhz", "median_mhz",
+                                 "clocks_per_us_int", "source"}, "profile.tsc")
+        clock = exact(raw["effective_clock"], {"samples_mhz", "method", "governor",
+                                               "tolerance_pct"}, "profile.effective_clock")
+        visibility = exact(raw["visibility"],
+                           {"hidepid", "pid_ns_shared_with_host", "pid_ns_method"},
+                           "profile.visibility")
+        return _schema_v2.AttestationProfile(
+            cpu=_schema_v2.CpuProfile(**dict(cpu)),
+            cores=_schema_v2.CoreProfile(**dict(cores)),
+            cache_topology=caches,
+            numa=nodes,
+            tsc=_schema_v2.TscProfile(**dict(tsc)),
+            effective_clock=_schema_v2.EffectiveClockProfile(**dict(clock)),
+            visibility=_schema_v2.VisibilityProfile(**dict(visibility)),
+        )
+    except (_schema_v2.CalibrationSchemaError, TypeError) as exc:
+        raise AttestationError(f"raw profile が calibration/v2 型に違反: {exc}") from exc
+
+
+def profile_to_dict(profile: _schema_v2.AttestationProfile) -> dict:
+    if not isinstance(profile, _schema_v2.AttestationProfile):
+        raise AttestationError("profile が AttestationProfile でない")
+    return dataclasses.asdict(profile)
+
+
+def profile_sha256(profile: _schema_v2.AttestationProfile) -> str:
+    raw = json.dumps(
+        profile_to_dict(profile), sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _clock_value(profile: _schema_v2.AttestationProfile) -> dict:
+    return {
+        "samples_mhz": list(profile.effective_clock.samples_mhz),
+        "tolerance_pct": profile.effective_clock.tolerance_pct,
+    }
+
+
+def _comparison_values(profile: _schema_v2.AttestationProfile, *, expected: bool) -> dict:
+    values = {
+        "cpu.vendor": profile.cpu.vendor,
+        "cpu.family": profile.cpu.family,
+        "cpu.model": profile.cpu.model,
+        "cpu.model_name_raw": profile.cpu.model_name_raw,
+        "cpu.model_name_normalized": profile.cpu.model_name_normalized,
+        "cores.physical": profile.cores.physical,
+        "cores.logical": profile.cores.logical,
+        "cores.smt_active": profile.cores.smt_active,
+        "cores.affinity_visible": profile.cores.affinity_visible,
+        "cache_topology": [dataclasses.asdict(item) for item in profile.cache_topology],
+        "numa": [dataclasses.asdict(item) for item in profile.numa],
+        "tsc.raw_samples_mhz": list(profile.tsc.raw_samples_mhz),
+        "tsc.median_mhz": profile.tsc.median_mhz,
+        "tsc.clocks_per_us_int": profile.tsc.clocks_per_us_int,
+        "tsc.source": profile.tsc.source,
+        "effective_clock.samples_mhz": _clock_value(profile) if expected else {
+            "samples_mhz": list(profile.effective_clock.samples_mhz),
+        },
+        "effective_clock.method": profile.effective_clock.method,
+        "effective_clock.governor": profile.effective_clock.governor,
+        "visibility.hidepid": profile.visibility.hidepid,
+        "visibility.pid_ns_shared_with_host": profile.visibility.pid_ns_shared_with_host,
+        "visibility.pid_ns_method": profile.visibility.pid_ns_method,
+    }
+    return values
+
+
+def expected_comparison_values(profile: _schema_v2.AttestationProfile) -> dict:
+    """receipt/v2 が使う canonical expected-side 値を返す。"""
+    if not isinstance(profile, _schema_v2.AttestationProfile):
+        raise AttestationError("profile が AttestationProfile でない")
+    return _comparison_values(profile, expected=True)
+
+
+def _recorded_verdict(field: str, expected: object, observed: object) -> str:
+    try:
+        if field == "cpu.model_name_raw":
+            passed = normalize_cpu_model_name(expected) == normalize_cpu_model_name(observed)  # type: ignore[arg-type]
+        elif field in {"tsc.raw_samples_mhz", "tsc.median_mhz"}:
+            if field == "tsc.raw_samples_mhz":
+                expected_median = statistics.median(expected)  # type: ignore[arg-type]
+                observed_median = statistics.median(observed)  # type: ignore[arg-type]
+            else:
+                expected_median = float(expected)  # type: ignore[arg-type]
+                observed_median = float(observed)  # type: ignore[arg-type]
+            passed = round(expected_median) == round(observed_median)
+        elif field == "effective_clock.samples_mhz":
+            expected_map = expected if isinstance(expected, Mapping) else {}
+            observed_map = observed if isinstance(observed, Mapping) else {}
+            expected_samples = expected_map.get("samples_mhz")
+            observed_samples = observed_map.get("samples_mhz")
+            tolerance = expected_map.get("tolerance_pct")
+            if (type(expected_samples) is not list or type(observed_samples) is not list
+                    or not expected_samples or not observed_samples
+                    or type(tolerance) not in (int, float)):
+                passed = False
+            else:
+                expected_median = float(statistics.median(expected_samples))
+                allowed_delta = abs(expected_median) * float(tolerance) / 100.0
+                passed = all(
+                    abs(float(sample) - expected_median) <= allowed_delta
+                    for sample in observed_samples
+                )
+        else:
+            passed = expected == observed
+    except (TypeError, ValueError, statistics.StatisticsError, AttestationError):
+        passed = False
+    return "pass" if passed else "fail"
+
+
+def compare_profiles(
+    expected: _schema_v2.AttestationProfile,
+    observed: _schema_v2.AttestationProfile,
+    *,
+    now_fn: Callable[[], object],
+) -> list[dict]:
+    """field ごとの決定的 verdict を返す。不一致自体では例外にしない。
+
+    ``hostname`` is not present in either hardware profile and is intentionally
+    excluded.  Every observed effective-clock sample must lie within the band
+    around the expected median frozen by the calibration tolerance.
+    """
+    if not isinstance(expected, _schema_v2.AttestationProfile):
+        raise AttestationError("expected が AttestationProfile でない")
+    if not isinstance(observed, _schema_v2.AttestationProfile):
+        raise AttestationError("observed が AttestationProfile でない")
+    if not callable(now_fn):
+        raise AttestationError("now_fn は callable でなければならない")
+    now_fn()  # acquisition-time seam; receipt/v2 has no timestamp field in W0.
+    expected_values = _comparison_values(expected, expected=True)
+    observed_values = _comparison_values(observed, expected=False)
+    return [
+        {
+            "field": field,
+            "expected": expected_values[field],
+            "observed": observed_values[field],
+            "verdict": _recorded_verdict(
+                field, expected_values[field], observed_values[field],
+            ),
+        }
+        for field in expected_values
+    ]
+
+
+def _duplicate_object(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise AttestationError(f"calibration JSON has duplicate key: {key!r}")
+        result[key] = value
+    return result
+
+
+def load_verified_calibration(
+    contract: _env_contract.ExecutionEnvironmentContract, repo_root: Path,
+) -> VerifiedCalibration:
+    """1 回だけ読み、同じ bytes を hash 束縛・parse して cross-field を検証する。"""
+    if not isinstance(contract, _env_contract.ExecutionEnvironmentContract):
+        raise AttestationError("contract の型が不正")
+    if not isinstance(repo_root, Path):
+        raise AttestationError("repo_root は Path でなければならない")
+    try:
+        root = repo_root.resolve(strict=True)
+    except OSError as exc:
+        raise AttestationError(f"repo_root を解決できない: {exc}") from exc
+    relative = Path(contract.calibration_ref.path)
+    if relative.is_absolute():
+        raise AttestationError("calibration_ref.path は repository-relative でなければならない")
+    try:
+        artifact = (root / relative).resolve(strict=True)
+        artifact.relative_to(root)
+    except (OSError, ValueError) as exc:
+        raise AttestationError("calibration_ref.path が repo_root 外または存在しない") from exc
+    try:
+        raw = artifact.read_bytes()
+    except OSError as exc:
+        raise AttestationError(f"calibration artifact を読めない: {exc}") from exc
+    actual_sha = hashlib.sha256(raw).hexdigest()
+    if actual_sha != contract.calibration_ref.sha256:
+        raise AttestationError(
+            f"calibration sha256 不一致: expected={contract.calibration_ref.sha256} "
+            f"observed={actual_sha}"
+        )
+
+    if contract.attestation_mode == "required":
+        try:
+            calibration = _schema_v2.validate_calibration_v2(raw)
+        except _schema_v2.CalibrationSchemaError as exc:
+            raise AttestationError(f"calibration/v2 検証失敗: {exc}") from exc
+        if calibration.env_tag != contract.env_tag:
+            raise AttestationError(
+                f"calibration env_tag 不一致: {calibration.env_tag!r} != {contract.env_tag!r}"
+            )
+        if calibration.clocks_per_us != contract.clocks_per_us:
+            raise AttestationError(
+                "calibration clocks_per_us 不一致: "
+                f"{calibration.clocks_per_us} != {contract.clocks_per_us}"
+            )
+        return VerifiedCalibration(
+            schema_version=_schema_v2.SCHEMA_VERSION,
+            sha256=actual_sha,
+            calibration=calibration,
+            attestation_profile_sha256=profile_sha256(calibration.attestation_profile),
+        )
+
+    if contract.attestation_mode == "none":
+        if actual_sha != GRANDFATHERED_V1_SHA256:
+            raise AttestationError("mode=none は grandfathered v1 artifact bytes だけを受理する")
+        try:
+            parsed = json.loads(raw, object_pairs_hook=_duplicate_object)
+        except (json.JSONDecodeError, UnicodeError) as exc:
+            raise AttestationError(f"legacy calibration JSON を parse できない: {exc}") from exc
+        if type(parsed) is not dict:
+            raise AttestationError("legacy calibration JSON top-level が object でない")
+        return VerifiedCalibration(
+            schema_version=LEGACY_SCHEMA_VERSION,
+            sha256=actual_sha,
+            calibration=None,
+            attestation_profile_sha256=None,
+        )
+    raise AttestationError(f"未対応 attestation_mode: {contract.attestation_mode!r}")

@@ -16,10 +16,11 @@ from __future__ import annotations
 import glob
 import os
 import platform
-from typing import Dict, List, Optional, Sequence
+import subprocess
+from typing import Callable, Dict, List, Optional, Sequence
 
 from . import analyze
-from .model import CalibrationResult, ScalePoint
+from .model import (CalibrationResult, CertificationMeasurement, ScalePoint)
 from .runner import measure_point, settle
 from .tsc import measure_clocks_per_us
 
@@ -76,6 +77,7 @@ def run_sweep(binary: str, threads: int, clocks_per_us: int,
               numactl: Optional[Sequence[str]],
               l3_bytes: Optional[int] = None,
               early_stop: bool = True,
+              measure_fn: Callable[..., ScalePoint] = measure_point,
               log=print) -> List[ScalePoint]:
     """start→max を倍々で測り ScalePoint のリストを返す。
 
@@ -90,9 +92,9 @@ def run_sweep(binary: str, threads: int, clocks_per_us: int,
     rec = start_records
     while rec <= max_records:
         log(f"  [sweep] records={rec:,} threads={threads} reps={reps} ...")
-        pt = measure_point(binary, rec, threads, clocks_per_us,
-                           extime=extime, reps=reps, workload=workload,
-                           numactl=numactl)
+        pt = measure_fn(binary, rec, threads, clocks_per_us,
+                        extime=extime, reps=reps, workload=workload,
+                        numactl=numactl)
         mr = pt.miss_rate
         tps = pt.throughput
         rss = "" if pt.maxrss_kb is None else f" maxrss={pt.maxrss_kb/1024:.0f}MB"
@@ -139,11 +141,24 @@ def calibrate(binary: str, env_tag: str, threads: int,
               clocks_per_us: Optional[int] = None,
               scale_small: Optional[Dict] = None,
               scale_medium: Optional[Dict] = None,
+              certify: bool = False,
+              skip_settle: bool = False,
+              window_probe: Optional[Callable[[str], object]] = None,
+              measurement_sink: Optional[List[CertificationMeasurement]] = None,
+              bench_timeout_s: float = 120.0,
+              subprocess_runner: Callable[..., object] = subprocess.run,
               log=print) -> CalibrationResult:
-    """フル校正を実行して CalibrationResult を返す。"""
+    """フル校正を実行して CalibrationResult を返す。
+
+    ``certify`` は既存 mode と別の fail-closed 経路である。TSC fallback、partial rep、
+    missing perf/maxrss を許さず、各 sweep/noise/scale point を ``window_probe`` の
+    pre/post で挟む。既定 False の挙動は従来どおり。
+    """
     workload = dict(workload or {})
 
     if clocks_per_us is None:
+        if certify:
+            raise RuntimeError("certification requires measured TSC; fallback is forbidden")
         log("[calibrate] TSC 周波数を実測中 ...")
         clocks_per_us = measure_clocks_per_us()
         log(f"[calibrate] clocks_per_us = {clocks_per_us} MHz (実測)")
@@ -151,18 +166,20 @@ def calibrate(binary: str, env_tag: str, threads: int,
     result = CalibrationResult(
         env_tag=env_tag, threads=threads, clocks_per_us=clocks_per_us,
         workload=workload, host=_host_info())
-    clocks_per_us = _apply_clocks_fallback(result, clocks_per_us)
+    if not certify:
+        clocks_per_us = _apply_clocks_fallback(result, clocks_per_us)
 
     # (1) admission control: campaign 冒頭で 1 回だけ静定を待つ (calibrator.md)。
     # 点ごとには待たない (settle の docstring 参照)。
-    log("[calibrate] admission control: load average の静定を待機 ...")
-    st = settle()
-    log(f"[calibrate] load1={st['load1']:.2f} "
-        f"(閾値 {st['threshold']:.1f}, settled={st['settled']})")
-    if not st["settled"]:
-        result.notes.append(
-            f"開始時 load average {st['load1']:.2f} が静定閾値 {st['threshold']:.1f} "
-            "を超過。他プロセスの負荷が測定に混入した可能性 (再校正を検討)")
+    if not skip_settle:
+        log("[calibrate] admission control: load average の静定を待機 ...")
+        st = settle()
+        log(f"[calibrate] load1={st['load1']:.2f} "
+            f"(閾値 {st['threshold']:.1f}, settled={st['settled']})")
+        if not st["settled"]:
+            result.notes.append(
+                f"開始時 load average {st['load1']:.2f} が静定閾値 {st['threshold']:.1f} "
+                "を超過。他プロセスの負荷が測定に混入した可能性 (再校正を検討)")
 
     # L3 総量を検出 (飽和点が無いときの下限基準 D15 に使う)
     l3_bytes = detect_l3_bytes()
@@ -172,11 +189,42 @@ def calibrate(binary: str, env_tag: str, threads: int,
     else:
         result.notes.append("L3 総量を sysfs から検出できず (下限基準が使えない)")
 
+    def _measure(kind: str, binary_arg: str, records: int, threads_arg: int,
+                 clocks_arg: int, **kwargs) -> ScalePoint:
+        reps = int(kwargs.get("reps", 0))
+        if certify and window_probe is None:
+            raise RuntimeError("certification window_probe is required")
+        if window_probe is not None:
+            window_probe(f"{kind}:pre:{records}:{threads_arg}")
+        point: Optional[ScalePoint] = None
+        try:
+            if certify:
+                point = measure_point(
+                    binary_arg, records, threads_arg, clocks_arg,
+                    timeout_s=bench_timeout_s, require_all_reps=True,
+                    require_complete_metrics=True,
+                    subprocess_runner=subprocess_runner, **kwargs,
+                )
+            else:
+                # 既定 mode は既存の call shape と partial-rep semantics を保つ。
+                point = measure_point(
+                    binary_arg, records, threads_arg, clocks_arg, **kwargs)
+            return point
+        finally:
+            if window_probe is not None:
+                window_probe(f"{kind}:post:{records}:{threads_arg}")
+            if point is not None and measurement_sink is not None:
+                measurement_sink.append(CertificationMeasurement(
+                    kind=kind, expected_reps=reps, point=point,
+                ))
+
     # (2)(3) 倍々スイープ + 飽和判定 (膝が無ければ下限基準 D15)
     log("[calibrate] 倍々スイープ開始")
     sweep = run_sweep(binary, threads, clocks_per_us, start_records, max_records,
                       extime, sweep_reps, workload, numactl,
-                      l3_bytes=l3_bytes, log=log)
+                      l3_bytes=l3_bytes,
+                      measure_fn=lambda *a, **kw: _measure("sweep", *a, **kw),
+                      log=log)
     result.sweep = sweep
     result.saturation = analyze.find_saturation(sweep, l3_bytes=l3_bytes)
     sat = result.saturation
@@ -186,26 +234,33 @@ def calibrate(binary: str, env_tag: str, threads: int,
 
     # (4) noise floor: 飽和点で連続 noise_reps 回
     log(f"[calibrate] noise floor: records={sat.records:,} を {noise_reps} 回 ...")
-    nf_point = measure_point(binary, sat.records, threads, clocks_per_us,
-                             extime=extime, reps=noise_reps, workload=workload,
-                             numactl=numactl)
+    nf_point = _measure(
+        "noise", binary, sat.records, threads, clocks_per_us,
+        extime=extime, reps=noise_reps, workload=workload, numactl=numactl,
+    )
     result.noise_floor = analyze.noise_floor(nf_point.throughputs)
     nf = result.noise_floor
     log(f"[calibrate] noise floor CV = "
         f"{'n/a' if nf.cv is None else f'{nf.cv*100:.2f}%'}"
         f"{' (HIGH)' if nf.high_variance else ''}")
 
-    # (5) scale 感度: small/medium 2 点 (既定 small 4t/1m, medium threads/sat.records)
+    # (5) scale 感度: certification は not-measured を記録するため実測しない。
+    if certify:
+        return result
+
+    # 既定 mode だけ small/medium 2 点 (既定 small 4t/1m, medium threads/sat.records)
     sm = scale_small or {"threads": 4, "records": 1_000_000}
     md = scale_medium or {"threads": threads, "records": sat.records}
     log(f"[calibrate] scale: small {sm['threads']}t/{sm['records']:,} ...")
-    small_pt = measure_point(binary, sm["records"], sm["threads"], clocks_per_us,
-                             extime=extime, reps=sweep_reps, workload=workload,
-                             numactl=numactl)
+    small_pt = _measure(
+        "scale-small", binary, sm["records"], sm["threads"], clocks_per_us,
+        extime=extime, reps=sweep_reps, workload=workload, numactl=numactl,
+    )
     log(f"[calibrate] scale: medium {md['threads']}t/{md['records']:,} ...")
-    medium_pt = measure_point(binary, md["records"], md["threads"], clocks_per_us,
-                              extime=extime, reps=sweep_reps, workload=workload,
-                              numactl=numactl)
+    medium_pt = _measure(
+        "scale-medium", binary, md["records"], md["threads"], clocks_per_us,
+        extime=extime, reps=sweep_reps, workload=workload, numactl=numactl,
+    )
     result.scale = analyze.scale_sensitivity(small_pt, medium_pt)
 
     return result

@@ -1,0 +1,6 @@
+PBS_JOBID=0:867860.nqsv
+PBS_O_WORKDIR=/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert
+TMPDIR=unavailable
+scr_exists=true
+scr_is_dir=true
+scr_writable=true

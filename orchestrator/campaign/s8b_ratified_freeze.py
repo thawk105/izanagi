@@ -38,6 +38,7 @@ from types import MappingProxyType
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from campaign import env_contract as _env_contract
+from campaign import env_attestation as _env_attestation
 from campaign import execution_guard as _execution_guard
 from campaign import s8b_floor_contract as _floor_contract
 from campaign import s8b_floor_stats as _floor_stats
@@ -1781,10 +1782,19 @@ def _journal_schema_key(record: Mapping) -> str:
 def _validate_journal(
         records: Tuple[dict, ...], *, protocol: Mapping, schedule: list[dict],
         cells: list[dict], binaries: Mapping[str, Mapping], cert_sha256: str,
-        manifest_sha256: str,
+        manifest_sha256: str, root: Path,
 ) -> dict:
     if not records:
         raise RatifiedFreezeError("journal-state-invalid", "journal が空", cause="journal-empty")
+    try:
+        contract = _env_contract.lookup(protocol["env_tag"])
+        verified_calibration = _env_attestation.load_verified_calibration(contract, root)
+    except (KeyError, _env_contract.EnvContractError,
+            _env_attestation.AttestationError) as exc:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", f"execution env contract を検証できない: {exc}",
+            cause="receipt-contract",
+        ) from exc
     for index, record in enumerate(records):
         key = _journal_schema_key(record)
         expected = _JOURNAL_KEYS.get(key)
@@ -1802,42 +1812,58 @@ def _validate_journal(
             )
         if key == "campaign-start":
             _validate_host_process_fields(record, label="campaign-start")
-            receipt = _exact_keys(
-                record["execution_receipt"], _RECEIPT_KEYS,
-                reason="journal-state-invalid", label="campaign-start.execution_receipt",
-            )
-            _exact_keys(
-                receipt["attestation"], _ATTESTATION_KEYS,
-                reason="journal-state-invalid", label="execution_receipt.attestation",
-            )
-            if receipt["schema"] != _execution_guard.RECEIPT_SCHEMA:
-                raise RatifiedFreezeError(
-                    "journal-state-invalid", "execution_receipt.schema が不正",
-                    cause="receipt-schema",
+            receipt = record["execution_receipt"]
+            if contract.attestation_mode == "none":
+                # legacy v1 の既存 shape/UTC 検証チェーンは維持する。
+                receipt = _exact_keys(
+                    receipt, _RECEIPT_KEYS,
+                    reason="journal-state-invalid", label="campaign-start.execution_receipt",
                 )
-            if (not isinstance(receipt["env_tag"], str)
-                    or _SHA_RE.fullmatch(receipt["contract_sha256"]) is None):
-                raise RatifiedFreezeError(
-                    "journal-state-invalid", "execution_receipt env/hash 型が不正",
-                    cause="receipt-type",
+                _exact_keys(
+                    receipt["attestation"], _ATTESTATION_KEYS,
+                    reason="journal-state-invalid", label="execution_receipt.attestation",
                 )
-            attestation = receipt["attestation"]
-            if not isinstance(attestation["hostname"], str) or not attestation["hostname"]:
-                raise RatifiedFreezeError(
-                    "journal-state-invalid", "receipt attestation.hostname が不正",
-                    cause="receipt-attestation",
-                )
-            for nullable in ("boot_id", "cpuset"):
-                if (attestation[nullable] is not None
-                        and (not isinstance(attestation[nullable], str) or not attestation[nullable])):
+                if receipt["schema"] != _execution_guard.RECEIPT_SCHEMA:
                     raise RatifiedFreezeError(
-                        "journal-state-invalid", f"receipt attestation.{nullable} が不正",
+                        "journal-state-invalid", "execution_receipt.schema が不正",
+                        cause="receipt-schema",
+                    )
+                if (not isinstance(receipt["env_tag"], str)
+                        or _SHA_RE.fullmatch(receipt["contract_sha256"]) is None):
+                    raise RatifiedFreezeError(
+                        "journal-state-invalid", "execution_receipt env/hash 型が不正",
+                        cause="receipt-type",
+                    )
+                attestation = receipt["attestation"]
+                if (not isinstance(attestation["hostname"], str)
+                        or not attestation["hostname"]):
+                    raise RatifiedFreezeError(
+                        "journal-state-invalid", "receipt attestation.hostname が不正",
                         cause="receipt-attestation",
                     )
-            _require_utc(
-                attestation["captured_utc"], reason="journal-state-invalid",
-                label="receipt.attestation.captured_utc",
-            )
+                for nullable in ("boot_id", "cpuset"):
+                    if (attestation[nullable] is not None
+                            and (not isinstance(attestation[nullable], str)
+                                 or not attestation[nullable])):
+                        raise RatifiedFreezeError(
+                            "journal-state-invalid", f"receipt attestation.{nullable} が不正",
+                            cause="receipt-attestation",
+                        )
+                _require_utc(
+                    attestation["captured_utc"], reason="journal-state-invalid",
+                    label="receipt.attestation.captured_utc",
+                )
+            if not _execution_guard.receipt_matches_contract(
+                    receipt, env_tag=contract.env_tag,
+                    contract_sha256=contract.contract_sha256,
+                    attestation_mode=contract.attestation_mode,
+                    verified_calibration=(verified_calibration
+                                          if contract.attestation_mode == "required"
+                                          else None)):
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", "execution receipt の契約再検算に失敗",
+                    cause="receipt-contract",
+                )
         if key == "resume-start":
             _validate_host_process_fields(record, label=f"resume-start[{index}]")
         if key in {"round-start", "round-complete"} and type(record["round"]) is not int:
@@ -2595,6 +2621,7 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
     journal = _validate_journal(
         journal_records, protocol=protocol, schedule=schedule, cells=cells,
         binaries=binaries, cert_sha256=cert_sha, manifest_sha256=manifest_sha,
+        root=root,
     )
     _validate_result(
         result_doc, protocol=protocol, cells=cells, binaries=binaries, journal=journal,

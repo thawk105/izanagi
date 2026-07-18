@@ -88,6 +88,8 @@ class ExecutionEnvironmentContract:
       clocks_per_us: int (正整数)
       numactl: tuple[str, ...] — 空 tuple = 「解決済みで launch prefix なし」として正当。
                None は不可 (未解決と解決済み空を型で区別する)
+      attestation_mode: ``none`` | ``required``。required = 実行直前にハード仕様
+               attestation が必須 (Pegasus 登録段、runbook §7)。
       isolation_policy: IsolationPolicy
       calibration_ref: CalibrationRef
     """
@@ -95,6 +97,7 @@ class ExecutionEnvironmentContract:
     env_tag: str
     clocks_per_us: int
     numactl: Tuple[str, ...]
+    attestation_mode: str
     isolation_policy: IsolationPolicy
     calibration_ref: CalibrationRef
 
@@ -117,6 +120,13 @@ class ExecutionEnvironmentContract:
                 raise EnvContractError(
                     f"numactl[{i}] は str でなければならない: {part!r}"
                 )
+        if type(self.attestation_mode) is not str or self.attestation_mode not in {
+            "none", "required",
+        }:
+            raise EnvContractError(
+                "attestation_mode は 'none' または 'required' でなければならない: "
+                f"{self.attestation_mode!r}"
+            )
         if not isinstance(self.isolation_policy, IsolationPolicy):
             raise EnvContractError(
                 f"isolation_policy は IsolationPolicy でなければならない: {self.isolation_policy!r}"
@@ -155,6 +165,7 @@ def _build_registry() -> dict:
             env_tag="linux-baremetal",
             clocks_per_us=1800,
             numactl=("numactl", "--interleave=all"),
+            attestation_mode="none",
             isolation_policy=IsolationPolicy(single_process=False, allow_resume=True),
             calibration_ref=CalibrationRef(
                 path="output/env/linux-baremetal/calibration/calibration_t48_skew0p9_rr50_rmw0.json",

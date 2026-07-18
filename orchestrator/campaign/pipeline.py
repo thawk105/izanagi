@@ -35,6 +35,7 @@ from verifier.parse import ParseError                           # noqa: E402
 from . import buildcache, ident, source_digest, wal            # noqa: E402
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
+from .env_contract import ExecutionEnvironmentContract          # noqa: E402
 from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
                     STAGE_BUILD_DONE, STAGE_BUILD_START, STAGE_COMMIT,
                     STAGE_VERIFY_DONE)
@@ -330,7 +331,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              ccbench_dir: str = "", cache_root: str = "",
              screening: Optional[ScreeningConfig] = None,
              bench_max_rounds: int = 3,
-             expected_perf_sha256: Optional[str] = None) -> EvalResult:
+             expected_perf_sha256: Optional[str] = None,
+             env_contract: Optional[ExecutionEnvironmentContract] = None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -351,6 +353,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     trace/bench 起動前に perf バイナリの full sha256 を厳密照合し、不一致 (期待値の形不正・
     照合不能を含む) は trace/bench を一切起動せず `bench-binary-mismatch` で abort する。
     期待値の供給元は freeze v2 で配線するため今回はデフォルト None のまま (未配線=従来同一)。
+
+    `env_contract` は v2 consumer 専用の opt-in。指定時だけ contract namespace の
+    `build_v2` を使い、未指定 caller (p3 loop を含む) は legacy build の呼出し形も
+    namespace も不変に保つ。
 
     `screening` (D58) を指定したときだけ full bench を verify より前へ移し、明白な
     劣位点を uncertified のまま棄却する。COMMIT は従来どおり全 verify 構成通過後だけ。
@@ -423,10 +429,34 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # --- build (trace + perf 別ビルド, 絶対規律1)。ビルド失敗はこの variant 固有の
     #     失敗として abort 隔離 (campaign 全体を落とさず前進, overnight 耐性) ---
     try:
-        tr = buildcache.build(genome, ccbench_commit, trace=True, src_token=src_tok,
-                              ccbench_dir=ccbench_dir, cache_root=cache_root)
-        pf = buildcache.build(genome, ccbench_commit, trace=False, src_token=src_tok,
-                              ccbench_dir=ccbench_dir, cache_root=cache_root)
+        if env_contract is None:
+            tr = buildcache.build(
+                genome, ccbench_commit, trace=True, src_token=src_tok,
+                ccbench_dir=ccbench_dir, cache_root=cache_root,
+            )
+            pf = buildcache.build(
+                genome, ccbench_commit, trace=False, src_token=src_tok,
+                ccbench_dir=ccbench_dir, cache_root=cache_root,
+            )
+        else:
+            if not isinstance(env_contract, ExecutionEnvironmentContract):
+                raise TypeError(
+                    "env_contract は ExecutionEnvironmentContract でなければならない"
+                )
+            default_ccbench = buildcache._ccbench_dir()
+            common = {
+                "contract": env_contract,
+                "ccbench_commit": ccbench_commit,
+                "src_token": src_tok,
+                "cc": buildcache.DEFAULT_CC,
+                "cxx": buildcache.DEFAULT_CXX,
+                "cache_root": cache_root or os.path.join(
+                    default_ccbench, "build-variants",
+                ),
+                "ccbench_dir": ccbench_dir,
+            }
+            tr = buildcache.build_v2(genome, trace=True, **common)
+            pf = buildcache.build_v2(genome, trace=False, **common)
     except (RuntimeError, subprocess.SubprocessError) as e:
         # 例外要約を payload に載せる (D50 教訓): reason="build-error" だけだと WAL から
         # 失敗原因 (configure 即死か compile error か) を帰属できず調査が build dir の

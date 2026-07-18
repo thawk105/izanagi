@@ -21,6 +21,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 
 from campaign import s8b_materialization as M  # noqa: E402
+from campaign import env_contract as ec  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 
@@ -426,7 +427,7 @@ def test_materialization_does_not_import_oracle_or_floor():
 # --------------------------------------------------------------------------- #
 
 class _FakeBuildResult:
-    def __init__(self, canonical: str):
+    def __init__(self, canonical: str, contract_sha256: str):
         self.binary = f"/tmp/out/fixed/bin/{canonical}"
         self.bin_sha256 = "0" * 64
         self.bin_hash = "0" * 16
@@ -435,6 +436,8 @@ class _FakeBuildResult:
         self.configure_argv = ["cfg", "/tmp/cc", "/tmp/out", canonical]
         self.build_argv = ["build", "/tmp/out", canonical]
         self.cached = True
+        self.ccbench_root = "/tmp/cc"
+        self.contract_sha256 = contract_sha256
 
 
 def test_floor_manifest_golden_stable():
@@ -465,12 +468,15 @@ def test_floor_manifest_golden_stable():
         yield PreparedCell(genome=genome, src_token=token,
                            ccbench_dir="/tmp/cc", cache_root="/tmp/ca")
 
+    contract = ec.lookup("linux-baremetal")
     with mock.patch.object(
-            floor.buildcache, "build",
-            side_effect=lambda genome, **kw: _FakeBuildResult(genome.canonical())):
+            floor.buildcache, "build_v2",
+            side_effect=lambda genome, **kw: _FakeBuildResult(
+                genome.canonical(), kw["contract"].contract_sha256)):
         built = floor.build_cells(
             freeze, cells, ccbench_pin="pin-x",
-            out_root=Path("/tmp/out"), prepare_fn=prepare_fn)
+            out_root=Path("/tmp/out"), prepare_fn=prepare_fn,
+            contract=contract)
     for record in built.values():
         record["store_path"] = "/tmp/out/store/" + record["binary_sha256"]
     built = floor.project_built_records(built, out_root=Path("/tmp/out"))

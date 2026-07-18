@@ -7,8 +7,8 @@ calibrator の役割は「測定の妥当性を保つ最小コストの実験条
 (`ScaleSensitivity`)、noise floor (`NoiseFloor`)、確定した校正結果
 (`CalibrationResult`)。
 
-**入力非依存性 (D13):** calibration は (env, thread数) ごとに決まり、入力
-ワークロードに依存しない。だから出力は campaign スコープでなく env スコープ
+**workload binding (D15):** calibration は (env, thread数, 代表 workload) ごとに決まる。
+だから出力は campaign スコープでなく env スコープ
 (`output/env/<env-tag>/`) に置く。ここに置く数値は「測定の物差し」であって
 variant の fitness ではない (fitness は verifier/性能ベンチが別途出す)。
 """
@@ -205,6 +205,27 @@ class CalibrationResult:
     workload: Dict[str, str] = field(default_factory=dict)   # 固定した workload param
     host: Dict[str, str] = field(default_factory=dict)       # ホスト識別 (provenance)
     notes: List[str] = field(default_factory=list)
+
+
+@dataclass
+class CertificationMeasurement:
+    """certification で probe に挟まれた 1 measurement point の完備証拠。"""
+
+    kind: str
+    expected_reps: int
+    point: ScalePoint
+
+
+@dataclass
+class CertificationEvidence:
+    """C3-1 の 8 条件を独立に判定するための run-scoped 証拠。"""
+
+    tsc_measured: bool = False
+    cooldown_settled: bool = False
+    measurements: List[CertificationMeasurement] = field(default_factory=list)
+    all_subprocesses_succeeded: bool = False
+    all_windows_isolated: bool = False
+    post_static_matches: bool = False
 
 
 # ---- 小道具 ----
