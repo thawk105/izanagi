@@ -94,6 +94,21 @@ Q-3〜Q-6: B の回答を §5 の推奨案として記載 (裁定はユーザー
 
 ## §5 ユーザー裁定パッケージ (次回ユーザー接点で提示)
 
+**裁定結果 (2026-07-18 ユーザー裁定 — 同日 C2-2 検証側実装 wave で発効):**
+- (ix)-3 = **択 (a)** (期待 hit を union 導出)。実装解釈: 検証鎖で束縛される run_dir artifact
+  (floor_protocol / floor_source=result / journal / manifest) は期待集合へ暗黙に含め、それ以外の
+  hit は measurement_closure の列挙のみを想定内とする (journal/manifest も実 hit するため、
+  これを含めないと (a) が成立しない — 実装 wave の敵対相談で攻撃対象)
+- (ix)-4 = **初回限り** (現 schema の clean hit-0 cert は v1→g1 専用。再実測用の別 schema は将来裁定)
+- (ix)-5 = **厳密検証付き pre-start resume** (ユーザーは「推奨案どおり」と裁定。本項は文書上
+  推奨が明示されていなかったため、launch-start 耐久化の設計意図に沿うこの択を推奨と解釈して採用
+  — 解釈である旨をユーザーに明示済み)
+- (ix)-6 = **official 完走 finalize 時のみ True** の provenance フラグ (B 推奨案)
+- (ix)-1 / -2 / -7 / -8 / -9 / -10 = **追認** (推奨案どおり。-2 の「履歴書換え耐性は H 内記録順
+  のみ」という限界記載も含めて追認)
+- 未裁定のまま残るもの: 前 wave §5 の (i)〜(viii) (strict-v2-wave-consultations.md)、
+  master_seed / env_tag の受領、guard_agent 防衛候補 (次回 bg セッション再検証待ち)
+
 **C2-2 検証側 (§5-(ix) として追認リストへ追加提案。裁定まで launch_validate は現状維持):**
 - (ix)-1 journal 実体検証: floor_source と同 dir の journal.jsonl を G の regular blob として必須化し
   状態機械を検証、result.wall_ledger は raw journal からの決定的射影として照合 (自己申告排除)。
