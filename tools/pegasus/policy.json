@@ -8,5 +8,7 @@
   "certify_walltime_s": 7200,
   "finalize_reserve_s": 600,
   "expected_cpu_model": "Intel(R) Xeon(R) Platinum 8468",
-  "expected_physical_cores": 48
+  "expected_physical_cores": 48,
+  "gflags_source_path": "/home/SFC/tanab/github/gflags",
+  "gflags_expected_head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
 }

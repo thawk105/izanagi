@@ -2021,6 +2021,8 @@ def test_source_digest_stock_roundtrip():
     head = _ccbench_head_or_skip()
     if head is None:
         skip("submodule 未 init — src_token roundtrip は実 working-tree が要る")
+    if not shutil.which("g++-13"):
+        skip("g++-13 不在 — preprocess 実測は計測ホスト (linux-baremetal) 限定")
     for g in genome.SILO_SPACE.enumerate():
         st = source_digest.src_token(g, head)
         assert st == source_digest.STOCK, g.canonical()

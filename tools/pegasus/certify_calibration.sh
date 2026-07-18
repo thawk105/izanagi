@@ -6,8 +6,9 @@
 
 # C3-7 予約式 (秒):
 # TSC(10) + cooldown_max(1200) + points(5)*sweep_reps(3)*120
-# + noise_reps(10)*120 + 2*sweep_reps(3)*120 + build_cap(900)
-# + finalize_reserve(600) = 6430。要求 7200 秒はこれを上回る。
+# + noise_reps(10)*120 + 2*sweep_reps(3)*120
+# + build_cap(CCBench=900 + gflags=60)(960)
+# + finalize_reserve(600) = 6490。要求 7200 秒はこれを上回る。
 set -Eeuo pipefail
 umask 077
 
@@ -115,9 +116,11 @@ print(p["certify_walltime_s"])
 print(p["finalize_reserve_s"])
 print(p["expected_cpu_model"])
 print(p["expected_physical_cores"])
+print(p["gflags_source_path"])
+print(p["gflags_expected_head"])
 PY
 )
-[[ ${#policy_values[@]} -eq 7 ]]
+[[ ${#policy_values[@]} -eq 9 ]]
 PROJECT=${policy_values[0]}
 QUEUE=${policy_values[1]}
 NODES=${policy_values[2]}
@@ -125,6 +128,8 @@ REQUESTED_S=${policy_values[3]}
 FINALIZE_RESERVE_S=${policy_values[4]}
 EXPECTED_CPU=${policy_values[5]}
 EXPECTED_CORES=${policy_values[6]}
+GFLAGS_SOURCE_PATH=${policy_values[7]}
+GFLAGS_EXPECTED_HEAD=${policy_values[8]}
 
 if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9._-]+$ ]]; then
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE is missing or unsafe"
@@ -342,7 +347,71 @@ realpath "$CC_PATH" >"$ATTEMPT_DIR/compiler.path"
 "$CXX_PATH" --version >"$ATTEMPT_DIR/cxx.version" 2>&1
 "$CMAKE_PATH" --version >"$ATTEMPT_DIR/cmake.version" 2>&1
 
-# (iv) pinned-clean + /scr の fresh worktree/build。build cache は一切参照しない。
+# (iv-a) pinned-clean gflags を /scr で static build/install。build cache は一切参照しない。
+if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
+  write_failure 2 gflags "gflags source path missing"
+  exit 2
+fi
+gflags_head_rc=0
+GFLAGS_SOURCE_HEAD=$(git -C "$GFLAGS_SOURCE_PATH" rev-parse HEAD \
+  2>"$ATTEMPT_DIR/gflags-source-head.stderr") || gflags_head_rc=$?
+if [[ "$gflags_head_rc" -ne 0 ]]; then
+  write_failure "$gflags_head_rc" gflags "cannot resolve gflags source HEAD"
+  exit "$gflags_head_rc"
+fi
+printf '%s\n' "$GFLAGS_SOURCE_HEAD" >"$ATTEMPT_DIR/gflags-source-head.stdout"
+if [[ "$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD" ]]; then
+  write_failure 2 gflags "gflags source HEAD mismatch"
+  exit 2
+fi
+gflags_status_rc=0
+GFLAGS_STATUS=$(git -C "$GFLAGS_SOURCE_PATH" status --porcelain --untracked-files=all \
+  2>"$ATTEMPT_DIR/gflags-source-status.stderr") || gflags_status_rc=$?
+if [[ "$gflags_status_rc" -ne 0 ]]; then
+  write_failure "$gflags_status_rc" gflags "cannot inspect gflags working tree"
+  exit "$gflags_status_rc"
+fi
+printf '%s' "$GFLAGS_STATUS" >"$ATTEMPT_DIR/gflags-source-status.stdout"
+if [[ -n "$GFLAGS_STATUS" ]]; then
+  write_failure 2 gflags "gflags working tree is dirty"
+  exit 2
+fi
+
+GFLAGS_BUILD_DIR="$TMPDIR/gflags-build"
+GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"
+gflags_rc=0
+mkdir "$GFLAGS_BUILD_DIR" || gflags_rc=$?
+if [[ "$gflags_rc" -ne 0 ]]; then
+  write_failure "$gflags_rc" gflags "cannot create gflags build directory"
+  exit "$gflags_rc"
+fi
+gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
+gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
+gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
+timeout 60 "${gflags_configure_argv[@]}" \
+  >"$ATTEMPT_DIR/gflags-configure.stdout" 2>"$ATTEMPT_DIR/gflags-configure.stderr" || gflags_rc=$?
+if [[ "$gflags_rc" -ne 0 ]]; then
+  write_failure "$gflags_rc" gflags "gflags configure failed"
+  exit "$gflags_rc"
+fi
+timeout 60 "${gflags_build_argv[@]}" \
+  >"$ATTEMPT_DIR/gflags-build.stdout" 2>"$ATTEMPT_DIR/gflags-build.stderr" || gflags_rc=$?
+if [[ "$gflags_rc" -ne 0 ]]; then
+  write_failure "$gflags_rc" gflags "gflags build failed"
+  exit "$gflags_rc"
+fi
+timeout 60 "${gflags_install_argv[@]}" \
+  >"$ATTEMPT_DIR/gflags-install.stdout" 2>"$ATTEMPT_DIR/gflags-install.stderr" || gflags_rc=$?
+if [[ "$gflags_rc" -ne 0 ]]; then
+  write_failure "$gflags_rc" gflags "gflags install failed"
+  exit "$gflags_rc"
+fi
+
+# (iv-b) pinned-clean CCBench + /scr の fresh worktree/build。
 CCBENCH_BASE="$REPO_ROOT/external/ccbench"
 CCBENCH_HEAD=$(git -C "$CCBENCH_BASE" rev-parse HEAD)
 GITLINK=$(git -C "$REPO_ROOT" ls-tree HEAD external/ccbench | awk '{print $3}')
@@ -357,6 +426,8 @@ configure_argv=(cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Rele
   -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0
   -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
   -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0
+  "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
 build_argv=(cmake --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)
 timeout 900 "${configure_argv[@]}" >"$ATTEMPT_DIR/configure.stdout" 2>"$ATTEMPT_DIR/configure.stderr"
@@ -433,11 +504,11 @@ cmake_version = open(os.path.join(root, "cmake.version"), encoding="utf-8").read
 model = profile["cpu"]["model_name_normalized"]
 known_passed = (expected_cpu in model and profile["cores"]["physical"] == int(expected_cores)
                 and topology["cpuset_size"] == int(expected_cores) and topology["ht_off"] is True)
-frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 900 + int(reserve_s)
+frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 960 + int(reserve_s)
 walltime_formula = (
     "TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+"
-    "noise_reps(10)*120+2*sweep_reps(3)*120+build_cap(900)+"
-    "finalize_reserve(600)=6430"
+    "noise_reps(10)*120+2*sweep_reps(3)*120+"
+    "build_cap(CCBench=900+gflags=60)(960)+finalize_reserve(600)=6490"
 )
 candidate = {
     "qsub": submit["qsub"],
