@@ -431,7 +431,8 @@ def _cmp(ctx: str, name: str, reported, computed, out: list) -> None:
         out.append(f"{ctx}: {name} 齟齬 (申告 {reported!r} != 再計算 {computed!r})")
 
 
-def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping) -> list:
+def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
+                          expected_binaries: Optional[Mapping] = None) -> list:
     """artifact の生 session を再計算し、自己申告値 + 外部 expected_protocol と厳密照合する。
 
     **保証境界 (α-1):** 本関数が保証するのは (1) raw session からの cells/floors/理由の内部整合
@@ -660,7 +661,62 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping) -> list
         if extra_keys:
             errors.append(f"{ctx}: floors 申告に期待にないキー {extra_keys}")
 
+    # --- binaries section の検査 (C3-6: 計測 bytes の識別と journal receipt 突合) ---
+    errors.extend(_verify_binaries_section(artifact, expected_cells, expected_binaries))
+
     return errors
+
+
+def _verify_binaries_section(artifact: Mapping, expected_cells: Mapping,
+                             expected_binaries: Optional[Mapping]) -> list:
+    """artifact.binaries を検査する (C3-6)。
+
+    - (holdout_id, configuration_id) の完全集合が expected_cells と一致する。
+    - 各 rec の bin_hash_short が binary_sha256 の 16 文字 prefix と一致する (identity 整合)。
+    - expected_binaries (journal receipt 由来) が与えられれば cell_id ごとの binary_sha256 を
+      完全一致で突合する (実測直前 hash との reconcile フック)。
+
+    artifact に binaries が無く expected_binaries も無ければ検査しない (binaries を持たない
+    合成 artifact の後方互換)。expected_binaries があるのに binaries が無ければ fail-closed。"""
+    binaries = artifact.get("binaries")
+    if binaries is None and expected_binaries is None:
+        return []
+    out: list = []
+    if not isinstance(binaries, Mapping) or not binaries:
+        return ["binaries: section が無い/空 (expected_binaries があるのに突合できない)"]
+
+    exp_key_set = set()
+    for holdout, cfgs in expected_cells.items():
+        for cfg in cfgs:
+            exp_key_set.add((holdout, cfg))
+    got_key_set = set()
+    for cell_id, rec in binaries.items():
+        if not isinstance(rec, Mapping):
+            out.append(f"binaries[{cell_id}]: rec が Mapping でない")
+            continue
+        key = (rec.get("holdout_id"), rec.get("configuration_id"))
+        got_key_set.add(key)
+        bin_sha = rec.get("binary_sha256")
+        bin_short = rec.get("bin_hash_short")
+        if not isinstance(bin_sha, str) or len(bin_sha) != 64:
+            out.append(f"binaries[{cell_id}]: binary_sha256 が 64hex でない")
+        elif bin_short != bin_sha[:16]:
+            out.append(f"binaries[{cell_id}]: bin_hash_short {bin_short!r} != sha256[:16]")
+        if expected_binaries is not None:
+            exp = expected_binaries.get(cell_id)
+            if not isinstance(exp, str):
+                out.append(f"binaries[{cell_id}]: expected_binaries に receipt が無い")
+            elif exp != bin_sha:
+                out.append(f"binaries[{cell_id}]: binary_sha256 が journal receipt と不一致")
+    for missing in sorted(exp_key_set - got_key_set):
+        out.append(f"binaries: セル {missing} が binaries に無い")
+    for extra in sorted(got_key_set - exp_key_set):
+        out.append(f"binaries: セル {extra} が expected に無い (余分)")
+    if expected_binaries is not None:
+        missing_cells = sorted(set(expected_binaries) - set(binaries))
+        for m in missing_cells:
+            out.append(f"binaries: journal receipt のセル {m} が artifact.binaries に無い")
+    return out
 
 
 def _as_tuple(v):

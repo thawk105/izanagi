@@ -72,6 +72,7 @@ from calibrator.runner import (  # noqa: E402
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
 from campaign import env_contract as _env_contract  # noqa: E402
+from campaign import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign.layout import env_scope_dir, repo_output_root  # noqa: E402
 from campaign.p2_2 import ENV_TAG  # noqa: E402  (machine-pin 用のみ。CLK/NUMA は contract 経由)
@@ -88,6 +89,7 @@ SCHEDULE_ALGORITHM = "round-permutation/v2"
 RESULT_SCHEMA = "s8b-floor-result/v2"
 MANIFEST_SCHEMA = "s8b-floor-manifest/v2"
 JOURNAL_SCHEMA = "s8b-floor-journal/v2"
+LAUNCH_CERT_SCHEMA = "s8b-floor-launch-certificate/v1"
 
 # protocol JSON の必須 key (strict: これ以外の key・欠落・型不正・duplicate key はすべて拒否)。
 # v2: blocks / replicates_per_block / min_block_gap_s を削除、session_cv_max / cell_cv_max /
@@ -675,6 +677,133 @@ def _write_create_only_json(path: Path, document: Mapping) -> bytes:
 
 
 # --------------------------------------------------------------------------- #
+# launch certificate (C2-2) — official 開始時の clean-scan 証明                 #
+#                                                                             #
+# 【状態: 未結線 scaffolding】以下 3 関数は building block として実装・単体検証済み   #
+# だが run_campaign には**まだ結線していない** (下記 official mode の無条件拒否に    #
+# より本 wave では発行経路が存在しない)。official floor を有効化する floor 実走 wave  #
+# で「clean_scan_digest → build_launch_certificate → issue_launch_certificate    #
+# → campaign-start record への cert sha256 束縛 → v2 closure の lineage 照合」を     #
+# 結線することが C2-2 mitigation を発火させる**阻止的前提条件**。それまで verifier      #
+# 側 (s8b_ratified_freeze.launch_validate) は certificate lineage を照合しない —      #
+# certificate 以前に消した痕跡は不可視の open residual (§5-viii)。                   #
+# --------------------------------------------------------------------------- #
+
+def clean_scan_digest(root: Path) -> str:
+    """発行時点の clean scan を証明する: holdout hit 0 件 + 列挙 digest を返す (fail-closed)。
+
+    search_repository を実行し、いずれの holdout にも conjunction hit が無いこと (未申告
+    先行測定が既に存在しないこと) を確認し、列挙集合の digest を返す。hit があれば
+    FloorCampaignError (clean でない = certificate を発行できない)。"""
+    report = _holdout_freeze.search_repository(Path(root))
+    for name, result in report["holdouts"].items():
+        hits = result.get("conjunction_hits")
+        if hits:
+            raise FloorCampaignError(
+                f"launch certificate: holdout {name} に既存 hit {hits} (clean scan でない)"
+            )
+    files = _holdout_freeze.enumerate_repository_files(Path(root))
+    return hashlib.sha256("\n".join(files).encode("utf-8")).hexdigest()
+
+
+def build_launch_certificate(*, v1_freeze_sha256: str, clean_digest: str,
+                             protocol_sha256: str, started_utc: str,
+                             campaign_run_id: str) -> dict:
+    """official floor 開始時の launch certificate を組み立てる (純粋、C2-2)。
+
+    {v1_freeze_sha256, clean_scan_digest, protocol_sha256, started_utc, campaign_run_id}
+    を束ねる。certificate 自身の bytes sha256 を campaign-start record が束縛し、v2 closure は
+    この certificate 起点の lineage から導出する (certificate 以前に削除された痕跡は原理的に
+    検出不能 — §5-viii の限界)。"""
+    return {
+        "schema": LAUNCH_CERT_SCHEMA,
+        "v1_freeze_sha256": v1_freeze_sha256,
+        "clean_scan_digest": clean_digest,
+        "protocol_sha256": protocol_sha256,
+        "started_utc": started_utc,
+        "campaign_run_id": campaign_run_id,
+    }
+
+
+def issue_launch_certificate(cert_path: Path, certificate: Mapping) -> str:
+    """certificate を create-only で発行し、その bytes sha256 (journal 束縛値) を返す。"""
+    cert_bytes = _write_create_only_json(Path(cert_path), certificate)
+    return hashlib.sha256(cert_bytes).hexdigest()
+
+
+# --------------------------------------------------------------------------- #
+# content-addressed binary store (C3-7) — 計測 bytes を hash 名で永続化         #
+# --------------------------------------------------------------------------- #
+
+def store_binaries(built: dict, store_root: Path, *, out_root: Path) -> None:
+    """計測に使う binary bytes を store_root/<sha256> へ create-only 複製する (C3-7)。
+
+    既に同 hash の store が在れば内容 hash を照合するだけ (冪等)。各 built rec に out_root
+    相対の store_path を書き込む。oracle 側の消費 (run marker 前の存在+hash 検査) は W4。"""
+    store_root = Path(store_root)
+    store_root.mkdir(parents=True, exist_ok=True)
+    out_root = Path(out_root)
+    for cell_id in sorted(built):
+        rec = built[cell_id]
+        sha = rec["binary_sha256"]
+        src = Path(rec["binary"])
+        dest = store_root / sha
+        if dest.exists():
+            actual = _full_sha256(dest)
+            if actual != sha:
+                raise FloorCampaignError(
+                    f"binary store 破損: {dest} の sha256={actual} != {sha}"
+                )
+        else:
+            data = src.read_bytes()
+            if hashlib.sha256(data).hexdigest() != sha:
+                raise FloorCampaignError(
+                    f"store 対象 binary の sha256 が build 記録と不一致: {src}"
+                )
+            tmp = store_root / f".{sha}.tmp.{os.getpid()}"
+            with open(tmp, "xb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            try:
+                os.link(tmp, dest)
+            except FileExistsError:
+                pass  # 並走で先に作られた (content-addressed なので同一 bytes)
+            finally:
+                tmp.unlink(missing_ok=True)
+            actual = _full_sha256(dest)
+            if actual != sha:
+                raise FloorCampaignError(f"store 書込後 hash 不一致: {dest} sha256={actual}")
+        try:
+            rec["store_path"] = str(dest.relative_to(out_root))
+        except ValueError:
+            rec["store_path"] = str(dest)
+
+
+def _verify_resume_store(built: Mapping, out_root: Path) -> None:
+    """resume: 記録済み store_path が存在し、その bytes sha256 が binary_sha256 と一致する。"""
+    out_root = Path(out_root)
+    for cell_id in sorted(built):
+        rec = built[cell_id]
+        store_path = rec.get("store_path")
+        sha = rec.get("binary_sha256")
+        if not isinstance(store_path, str) or not store_path:
+            # v2 の store_binaries は常に store_path を書くため、欠落は改竄か
+            # store 前 manifest の混入 — 正当な消費者のない緩和を置かない (fail-closed)。
+            raise FloorCampaignError(f"resume: store_path 欠落: {cell_id}")
+        candidate = Path(store_path)
+        if not candidate.is_absolute():
+            candidate = out_root / store_path
+        if not candidate.is_file():
+            raise FloorCampaignError(f"resume: store 欠落: {store_path}")
+        actual = _full_sha256(candidate)
+        if actual != sha:
+            raise FloorCampaignError(
+                f"resume: store bytes sha256 が binary_sha256 と不一致 (store={actual} rec={sha})"
+            )
+
+
+# --------------------------------------------------------------------------- #
 # session 実行エンジン (fresh/resume 共通)                                      #
 # --------------------------------------------------------------------------- #
 
@@ -804,6 +933,16 @@ class _Runner:
         cell = self.cell_by_id[cell_id]
         binary = self.binaries[cell_id]["binary"]
 
+        # binary receipt (C3-6): 実測直前に binary bytes を再 hash し build 記録と照合する。
+        # 記録 (build 時 hash) と実測直前 hash が食い違えば差し替えの疑いで CampaignAbort。
+        recorded_bin_sha = self.binaries[cell_id]["binary_sha256"]
+        measured_bin_sha = _full_sha256(Path(binary))
+        if measured_bin_sha != recorded_bin_sha:
+            raise CampaignAbort(
+                f"binary receipt 不一致: cell={cell_id} 記録={recorded_bin_sha} "
+                f"実測直前={measured_bin_sha} (計測 bytes 差し替えの疑い)"
+            )
+
         # pre-probe: rc>1/OSError/parse 不能 → CampaignAbort。競合列挙 → competing_process。
         probe_before = strict_probe(self.probe_fn)
         if probe_before["competing"]:
@@ -814,6 +953,7 @@ class _Runner:
                 session_cv=None, duration_s=self._elapsed(start_mono),
                 probe_before=probe_before, probe_after=None, run_cmd=None,
                 notes=["preflight probe 競合で計測をスキップ"],
+                binary_sha256_at_measure=measured_bin_sha,
             )
 
         # measure を試みる。例外 (全 rep 起動不能) でも post-probe は finally 相当で必ず実行する。
@@ -877,6 +1017,7 @@ class _Runner:
             excluded_reason=excluded_reason, session_cv=session_cv,
             duration_s=self._elapsed(start_mono), probe_before=probe_before,
             probe_after=probe_after, run_cmd=run_cmd, notes=notes,
+            binary_sha256_at_measure=measured_bin_sha,
         )
 
     def _elapsed(self, start_mono: float) -> float:
@@ -885,7 +1026,8 @@ class _Runner:
 
     def _finish_session(self, *, seq, round_no, cell_id, kind, retry_ordinal, attempt_id,
                         trigger, throughputs, exec_failures, excluded_reason, session_cv,
-                        duration_s, probe_before, probe_after, run_cmd, notes) -> dict:
+                        duration_s, probe_before, probe_after, run_cmd, notes,
+                        binary_sha256_at_measure=None) -> dict:
         cell = self.cell_by_id[cell_id]
         reason = self._check_reason(excluded_reason) if excluded_reason is not None else None
         rec = s8b_floor_stats.SessionRecord(
@@ -913,6 +1055,8 @@ class _Runner:
             "session_median": median, "valid": valid, "session_cv": session_cv,
             "duration_s": duration_s, "run_cmd": run_cmd, "notes": list(notes or []),
             "probe_before": probe_before, "probe_after": probe_after,
+            # binary receipt (C3-6): 実測直前に再計算した binary bytes の full sha256。
+            "binary_sha256_at_measure": binary_sha256_at_measure,
         }
         self._emit(record)
         return record
@@ -1326,6 +1470,11 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     取る。machine-pin として契約の env_tag が実行機の ``p2_2.ENV_TAG`` と一致することを要求する。
     """
     # official 拒否は最優先 (build/measure/write の前, δ-3)。
+    # 【C2-2 前提条件】official を有効化する際は、この直後に launch certificate 発行
+    # (clean_scan_digest → build_launch_certificate → issue_launch_certificate) と
+    # campaign-start record への cert sha256 束縛を結線し、verifier 側 (launch_validate)
+    # で closure が certificate 起点 lineage から導出されることを照合するまで有効化しない。
+    # 未結線のまま official を開けると C2-2 の未申告先行測定 fail-open が復活する。
     if mode == "official":
         raise FloorCampaignError(
             "official mode は §8 (承認束縛方式) 未裁定のため core で無条件拒否する "
@@ -1399,6 +1548,9 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             freeze, cells, ccbench_pin=protocol["ccbench_pin"],
             out_root=out_root, prepare_fn=prepare_fn,
         )
+        # content-addressed store (C3-7): 計測 bytes を env scope 永続領域へ複製し store_path を記録。
+        store_root = Path(env_scope_dir(protocol["env_tag"], output_root=str(out_root))) / "binaries"
+        store_binaries(built, store_root, out_root=out_root)
         manifest = assemble_manifest(
             protocol=protocol, protocol_sha256=protocol_sha256,
             freeze_sha256=freeze_sha256, cells=cells, built=built, schedule=schedule,
@@ -1424,6 +1576,8 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             )
         # 記録済み binary_sha256 と disk 上バイナリの実 hash を全セル再照合する。
         _verify_resume_binaries(built)
+        # content-addressed store の存在 + hash 一致も再照合する (C3-7)。
+        _verify_resume_store(built, out_root)
 
     runner = _Runner(
         protocol=protocol, cells=cells, cell_by_id=cell_by_id, binaries=built,

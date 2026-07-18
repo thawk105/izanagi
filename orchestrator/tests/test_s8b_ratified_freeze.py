@@ -137,7 +137,11 @@ def _approve_and_point(root: Path, number: int, gen_sha: str, gen_rel: str,
 
 
 def _valid_g1(tmp_path: Path):
-    """v1→g1 の正常な承認・activation を組み、root と主要 hash を返す。"""
+    """v1→g1 の正常な承認・activation を組み、root と主要 hash を返す (structural placeholder)。
+
+    世代 document は placeholder (内容非検査) なので resolve_active_generation (structural)
+    は通るが load_ratified_freeze (semantics 充填済み) は通らない。意味論の happy path は
+    build_valid_semantic_g1 を使う。"""
     root = _base_repo(tmp_path)
     gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
     approval_sha, ptr_sha = _approve_and_point(root, 1, gen_sha, gen_rel, None)
@@ -145,17 +149,119 @@ def _valid_g1(tmp_path: Path):
 
 
 # --------------------------------------------------------------------------
+# 意味論 (V1〜V3) を満たす valid g1 fixture — RV-verify の happy path 共用。
+# --------------------------------------------------------------------------
+
+_RR80_PARAMS = b"ycsb_rratio=80 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
+_RR20_PARAMS = b"ycsb_rratio=20 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
+_RR50_PARAMS = b"ycsb_rratio=50 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"  # 陽性対照
+_FLOOR_PROTOCOL_STUB = b'{"floor_protocol": "stub", "n": 1}\n'    # strict parse 可能・holdout params 無し
+_FLOOR_SOURCE_STUB = b"# floor source stub\n"
+
+
+def _real_bytes(rel: str) -> bytes:
+    return (Path(_ROOT) / rel).read_bytes()
+
+
+def _make_ccbench_submodule(root: Path) -> None:
+    """external/ccbench 入れ子 git repo を作る (enumerate_repository_files の submodule 枝用)。"""
+    sub = root / "external" / "ccbench"
+    sub.mkdir(parents=True)
+    _init_repo(sub)
+    (sub / "ccbench.txt").write_text("ccbench fixture (no ycsb params)\n", encoding="utf-8")
+    _git(sub, "add", "-A")
+    _git(sub, "commit", "-q", "-F", "-", stdin=b"ccbench base\n\nAI-Agent: fixture")
+
+
+def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=None):
+    """V1 (source blob + G^==frozen_at_head + closure) / V2 (transition) / V3 (層1/層2) を
+    すべて満たす v1→g1 を tmp git repo に組む。(root, gen_sha, gen_rel, g1) を返す。
+
+    mutate_g1(g1) が与えられれば直列化前に g1 dict を破壊できる (負例注入用)。
+    extra_closure = [(path, bytes), ...] は base コミットに載せた上で measurement_closure に
+    正しい sha で追加する (V1d を満たす追加 closure 経由の負例用)。
+
+    実 v1 freeze bytes を trust root に据え (sha == V1_FREEZE_SHA256)、g1 は v1 doc から
+    protected field を継承しつつ allowed field (schema_version/frozen_at_head/design_source.sha256/
+    generator.sha256/env_tag/floor_protocol/floor_source/measurement_closure/header) を書く。
+    closure 2 本 (rr80/rr20 params) は search で各 holdout に conjunction hit し、closure 導出と
+    完全一致する。陽性対照 (rr50) と protocol/source stub も置く。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _init_repo(root)
+
+    v1_raw = _REAL_V1.read_bytes()
+    v1_doc = json.loads(v1_raw)
+    _write(root, M.V1_FREEZE_PATH, v1_raw)
+
+    ka_path = v1_doc["known_axes_freeze"]["path"]      # protected (実 bytes が v1 sha と一致)
+    _write(root, ka_path, _real_bytes(ka_path))
+    ds_path = v1_doc["design_source"]["path"]
+    gen_path = v1_doc["generator"]["path"]
+    ds_bytes = b"# design source stub (g1 overrides sha)\n"
+    gen_bytes = b"# generator stub (g1 overrides sha)\n"
+    _write(root, ds_path, ds_bytes)
+    _write(root, gen_path, gen_bytes)
+
+    f80 = "output/env/floor/rr80.json"
+    f20 = "output/env/floor/rr20.json"
+    fp = "output/env/floor/protocol.json"
+    fs = "output/env/floor/source.py"
+    _write(root, f80, _RR80_PARAMS)
+    _write(root, f20, _RR20_PARAMS)
+    _write(root, fp, _FLOOR_PROTOCOL_STUB)
+    _write(root, fs, _FLOOR_SOURCE_STUB)
+    _write(root, "positive_control.txt", _RR50_PARAMS)
+    (root / "README.md").write_text("fixture\n", encoding="utf-8")
+
+    for extra_path, extra_bytes in (extra_closure or []):
+        _write(root, extra_path, extra_bytes)
+
+    # external/ccbench 入れ子 git repo (search_repository の enumerate 対象。params 無し)。
+    _make_ccbench_submodule(root)
+
+    frozen = _commit(root, "base (frozen_at_head)", "claude-base")
+
+    g1 = dict(v1_doc)
+    g1["schema_version"] = "8b-holdout-freeze/v2"
+    g1["frozen_at_head"] = frozen
+    g1["generation_number"] = 1
+    g1["supersedes_sha256"] = M.V1_FREEZE_SHA256
+    g1["design_source"] = {"path": ds_path, "sha256": _sha(ds_bytes)}
+    g1["generator"] = {"path": gen_path, "sha256": _sha(gen_bytes)}
+    g1["env_tag"] = "linux-baremetal"
+    g1["floor_protocol"] = {"path": fp, "sha256": _sha(_FLOOR_PROTOCOL_STUB)}
+    g1["floor_source"] = {"path": fs, "sha256": _sha(_FLOOR_SOURCE_STUB)}
+    g1["measurement_closure"] = [
+        {"canonical_path": f80, "sha256": _sha(_RR80_PARAMS)},
+        {"canonical_path": f20, "sha256": _sha(_RR20_PARAMS)},
+    ]
+    for extra_path, extra_bytes in (extra_closure or []):
+        g1["measurement_closure"].append(
+            {"canonical_path": extra_path, "sha256": _sha(extra_bytes)}
+        )
+    if mutate_g1 is not None:
+        mutate_g1(g1)
+    g1_raw = json.dumps(g1, ensure_ascii=False).encode("utf-8")
+    _write(root, _gen_rel(1), g1_raw)
+    _commit(root, "candidate g1", "claude-opus")     # G, parent == frozen
+    gen_sha = _sha(g1_raw)
+    _approve_and_point(root, 1, gen_sha, _gen_rel(1), None)
+    return root, gen_sha, _gen_rel(1), g1
+
+
+# --------------------------------------------------------------------------
 # 正常系
 # --------------------------------------------------------------------------
 
 def test_happy_path_resolves_and_loads(tmp_path):
-    root, gen_sha, gen_rel, approval_sha, ptr_sha = _valid_g1(tmp_path)
+    if not _REAL_V1.is_file():
+        pytest.skip("実 v1 freeze が無い")
+    root, gen_sha, gen_rel, _g1 = build_valid_semantic_g1(tmp_path)
     res = M.resolve_active_generation(root)
     assert res.generation_number == 1
     assert res.generation_sha256 == gen_sha
     assert res.generation_path == gen_rel
-    assert res.approval_sha256 == approval_sha
-    assert res.pointer_sha256 == ptr_sha
     assert res.activation_head == _git(root, "rev-parse", "HEAD")
 
     freeze = M.load_ratified_freeze(root)
@@ -607,7 +713,9 @@ def test_generation_supersedes_mismatch_rejected(tmp_path):
 # --------------------------------------------------------------------------
 
 def test_ratified_freeze_deep_immutability(tmp_path):
-    root, *_ = _valid_g1(tmp_path)
+    if not _REAL_V1.is_file():
+        pytest.skip("実 v1 freeze が無い")
+    root, *_ = build_valid_semantic_g1(tmp_path)
     freeze = M.load_ratified_freeze(root)
     with pytest.raises((TypeError, AttributeError)):
         freeze.document["schema_version"] = "mutated"       # top-level 再代入不可

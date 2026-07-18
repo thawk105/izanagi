@@ -349,6 +349,38 @@ def search_repository(
     }
 
 
+def recompute_snapshot_zero_hit_sha256(
+    candidate_id: str, expressions: Mapping, per_axis_counts: Mapping,
+) -> str:
+    """記録済みフィールドから zero_hit_output_sha256 を再計算する (v2 未知性層1 の共用)。
+
+    conjunction_hits を空 (未既知性 = 0 hit) に固定した snapshot_input の canonical sha256。
+    v1 verify_document の層1 と v2 verifier (s8b_ratified_freeze) が同一ロジックを通る
+    (挙動不変。式は verify_document の snapshot_input と byte 一致する)。"""
+    snapshot_input = {
+        "candidate_id": candidate_id,
+        "expressions": dict(expressions),
+        "per_axis_counts": dict(per_axis_counts),
+        "conjunction_hits": [],
+    }
+    return _canonical_sha256(snapshot_input)
+
+
+def holdout_conjunction_hits(texts: Mapping[str, str]) -> Dict[str, list]:
+    """与えた texts (path→内容) に各 holdout の三軸 conjunction を適用し hit path list を返す。
+
+    v2 未知性層2 の「closure bytes から期待 hit を導出」用 (verifier が同一 bytes から
+    導出し、予告 bool を信じない)。HOLDOUTS の expressions を _scan_one に通すだけで、
+    search_repository と同じ MATCH_CONVENTION を共有する。"""
+    out: Dict[str, list] = {}
+    for name, holdout in HOLDOUTS.items():
+        ycsb = holdout["ycsb"]
+        expressions = _expressions(ycsb[RRATIO_KEY], ycsb[SKEW_KEY], ycsb[RMW_KEY])
+        result = _scan_one(texts, holdout["candidate_id"], expressions)
+        out[name] = list(result["conjunction_hits"])
+    return out
+
+
 def _assert_search_pass(report: Mapping) -> None:
     errors = []
     holdouts = report.get("holdouts")
@@ -724,13 +756,10 @@ def verify_document(
                 or any(not isinstance(v, int) or isinstance(v, bool) or v < 0
                        for v in per_axis.values())):
             raise FreezeError(f"holdouts.{name}.unknownness_check.per_axis_counts が不正")
-        snapshot_input = {
-            "candidate_id": frozen["candidate_id"],
-            "expressions": dict(unknownness["expressions"]),
-            "per_axis_counts": dict(per_axis),
-            "conjunction_hits": [],
-        }
-        if unknownness.get("zero_hit_output_sha256") != _canonical_sha256(snapshot_input):
+        expected_zero_hit = recompute_snapshot_zero_hit_sha256(
+            frozen["candidate_id"], unknownness["expressions"], per_axis,
+        )
+        if unknownness.get("zero_hit_output_sha256") != expected_zero_hit:
             raise FreezeError(
                 f"holdouts.{name}.unknownness_check.zero_hit_output_sha256 が"
                 "記録済みフィールドから再計算した値と一致しない"

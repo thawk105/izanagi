@@ -1212,6 +1212,152 @@ def test_floor_manifest_binary_sha256_matches_real_file_bytes(tmp_path):
         assert rec["bin_hash_short"] == rec["binary_sha256"][:16]
 
 
+# =========================================================================== #
+# V4 — launch certificate (C2-2) / binary receipt (C3-6) / store (C3-7)         #
+# =========================================================================== #
+
+def test_launch_certificate_create_only_and_journal_binding(tmp_path):
+    cert = s8b_floor_campaign.build_launch_certificate(
+        v1_freeze_sha256="a" * 64, clean_digest="b" * 64, protocol_sha256="c" * 64,
+        started_utc=_FIXED_NOW.isoformat(), campaign_run_id="run-0001",
+    )
+    assert cert["schema"] == s8b_floor_campaign.LAUNCH_CERT_SCHEMA
+    cert_path = tmp_path / "launch_certificate.json"
+    bound_sha = s8b_floor_campaign.issue_launch_certificate(cert_path, cert)
+    # journal 束縛値 = 発行 bytes の sha256。
+    assert bound_sha == hashlib.sha256(cert_path.read_bytes()).hexdigest()
+    # create-only: 再発行は fail-closed (上書きしない)。
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError):
+        s8b_floor_campaign.issue_launch_certificate(cert_path, cert)
+
+
+def test_clean_scan_digest_rejects_existing_hit(tmp_path, monkeypatch):
+    # search が既存 holdout hit を返すと clean_scan_digest は certificate 発行を拒否する。
+    def dirty_search(root):
+        return {"holdouts": {"rr80": {"conjunction_hits": ["output/env/leak.json"]},
+                             "rr20": {"conjunction_hits": []}}}
+    monkeypatch.setattr(s8b_floor_campaign._holdout_freeze, "search_repository", dirty_search)
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError):
+        s8b_floor_campaign.clean_scan_digest(tmp_path)
+
+
+def test_clean_scan_digest_returns_digest_when_clean(tmp_path, monkeypatch):
+    monkeypatch.setattr(s8b_floor_campaign._holdout_freeze, "search_repository",
+                        lambda root: {"holdouts": {"rr80": {"conjunction_hits": []},
+                                                   "rr20": {"conjunction_hits": []}}})
+    monkeypatch.setattr(s8b_floor_campaign._holdout_freeze, "enumerate_repository_files",
+                        lambda root: ("a.py", "b.py"))
+    digest = s8b_floor_campaign.clean_scan_digest(tmp_path)
+    assert digest == hashlib.sha256("a.py\nb.py".encode("utf-8")).hexdigest()
+
+
+def test_binary_receipt_mismatch_aborts(tmp_path):
+    # 実測直前 hash が build 記録 (binary_sha256) と食い違えば CampaignAbort (C3-6)。
+    binf = tmp_path / "bin.exe"
+    binf.write_bytes(b"real binary bytes")
+    cell_id = "rr79::stock_common"
+    cell = {"cell_id": cell_id, "holdout_id": "rr79", "configuration_id": "stock_common",
+            "records": 1, "threads": 1, "workload": {"ycsb": {}}}
+    binaries = {cell_id: {"binary": str(binf), "binary_sha256": "0" * 64}}  # 記録が偽
+    runner = s8b_floor_campaign._Runner(
+        protocol=_valid_protocol_dict(), cells=[cell], cell_by_id={cell_id: cell},
+        binaries=binaries, schedule=[], journal_path=tmp_path / "j.jsonl",
+        measure_fn=lambda *a: _FakeScalePoint([1.0] * 5, [], "x"),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda s: None,
+        monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
+        protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+    )
+    with pytest.raises(s8b_floor_campaign.CampaignAbort):
+        runner._run_session(seq=0, round_no=0, cell_id=cell_id, kind="planned",
+                            retry_ordinal=None, trigger=None)
+
+
+def test_binary_receipt_recorded_in_session_journal(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (1, "", ""))
+    run_dir = _only_run_dir(tmp_path / "out")
+    binaries = json.loads((run_dir / "manifest.json").read_bytes())["binaries"]
+    for s in outcome["result"]["sessions"]:
+        # 実測直前 hash が journal に記録され、build 記録と一致する。
+        rec = binaries[s["cell_id"]]
+        assert s["binary_sha256_at_measure"] == rec["binary_sha256"]
+
+
+def test_resume_store_missing_store_path_rejected(tmp_path):
+    """store_path 欠落 rec は silent skip でなく fail-closed (正当な消費者のない緩和を置かない)。"""
+    built = {"cell-1": {"binary_sha256": "0" * 64}}
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="store_path 欠落"):
+        s8b_floor_campaign._verify_resume_store(built, tmp_path)
+
+
+def test_content_addressed_store_create_only(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    out_root = tmp_path / "out"
+    outcome = _run_campaign(protocol, verified, out_root=out_root,
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (1, "", ""))
+    binaries = json.loads((Path(outcome["run_dir"]) / "manifest.json").read_bytes())["binaries"]
+    for cell_id, rec in binaries.items():
+        store_path = rec.get("store_path")
+        assert store_path, cell_id
+        stored = out_root / store_path
+        assert stored.is_file()
+        assert hashlib.sha256(stored.read_bytes()).hexdigest() == rec["binary_sha256"]
+        # content-addressed: store 名が sha256 で終わる。
+        assert stored.name == rec["binary_sha256"]
+
+    # store_binaries は冪等 (既存 store は hash 照合のみ、上書きしない)。
+    built = {cid: dict(rec) for cid, rec in binaries.items()}
+    store_root = stored.parent
+    s8b_floor_campaign.store_binaries(built, store_root, out_root=out_root)  # 例外なし
+
+
+def test_verify_floor_artifact_binaries_positive_and_negative():
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        outcome = _run_campaign(protocol, verified, out_root=Path(td) / "out",
+                                build_root=Path(td) / "bin", measure_fn=measure_fn,
+                                probe_fn=lambda: (1, "", ""))
+    result = outcome["result"]
+    expected_protocol = s8b_floor_campaign._expected_protocol(
+        s8b_floor_campaign.validate_protocol(protocol),
+        s8b_floor_campaign.enumerate_cells(freeze, stock_configuration=_STOCK),
+    )
+    # 正例: binaries 整合 + journal receipt (expected_binaries) 突合が空リスト。
+    expected_binaries = {cid: rec["binary_sha256"]
+                         for cid, rec in result["binaries"].items()}
+    assert s8b_floor_stats.verify_floor_artifact(
+        result, expected_protocol, expected_binaries) == []
+
+    # 負例1: bin_hash_short を binary_sha256[:16] と食い違わせる。
+    tampered = json.loads(json.dumps(result))
+    any_cid = next(iter(tampered["binaries"]))
+    tampered["binaries"][any_cid]["bin_hash_short"] = "deadbeefdeadbeef"
+    assert s8b_floor_stats.verify_floor_artifact(tampered, expected_protocol)
+
+    # 負例2: journal receipt (expected_binaries) と binary_sha256 が不一致。
+    bad_receipts = dict(expected_binaries)
+    bad_receipts[any_cid] = "f" * 64
+    assert s8b_floor_stats.verify_floor_artifact(result, expected_protocol, bad_receipts)
+
+    # 負例3: binaries からセルを欠落させる (完全集合が崩れる)。
+    dropped = json.loads(json.dumps(result))
+    dropped["binaries"].pop(any_cid)
+    assert s8b_floor_stats.verify_floor_artifact(dropped, expected_protocol)
+
+
 def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
     freeze_path = tmp_path / "freeze.json"
     freeze_path.write_text("{}", encoding="utf-8")

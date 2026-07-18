@@ -34,6 +34,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
+from campaign import env_contract as _env_contract
+from campaign import s8b_holdout_freeze as _hf
 from campaign.s8b_holdout_freeze import TOP_LEVEL_KEYS as V1_TOP_LEVEL_KEYS
 
 # ---------------------------------------------------------------------------
@@ -92,6 +94,26 @@ _POINTER_KEYS = frozenset({
 # (設計判断: 親追認事項。keyed hash + 監査 field、未知 key は fail-closed で拒否)。
 _REVOCATION_KEYS = frozenset({"generation_sha256", "revoked_by", "revoked_at", "reason"})
 _CANCEL_KEYS = frozenset({"pointer_sha256", "cancelled_by", "cancelled_at", "reason"})
+
+# F5 transition table (C1-8: JSON Pointer 完全列挙)。値は「変わってよい / 新設されてよい」
+# JSON Pointer の exact 集合。subtree (object/list) を許す pointer はその子孫も許す。
+# 列挙外の pointer は前世代の値と厳密一致でなければならない (F5: それ以外の diff は拒否)。
+#
+# v1→g1: floor/budget/experiment 系 header + generator/design_source の sha256 (path は不変)。
+_TRANSITION_V1_TO_G1 = frozenset({
+    "/floor", "/budget", "/refreeze_note", "/schema_version",
+    "/generator/sha256", "/design_source/sha256", "/frozen_at_head", "/env_tag",
+    "/floor_protocol", "/floor_source", "/measurement_closure",
+    "/generation_number", "/supersedes_sha256",
+})
+# gN→gN+1 (N>=1): floor・budget・floor_protocol・floor_source・measurement_closure・
+# header (refreeze_note/generation_number/supersedes_sha256/frozen_at_head) のみ。
+# env_tag の変更は拒否する (環境が変わる = 別実験。列挙外 → protected → 厳密一致要求)。
+# この解釈 (F5 の「floor・budget・experiment_numbers 系 + header」の展開) は親追認事項。
+_TRANSITION_GN_TO_GN1 = frozenset({
+    "/floor", "/budget", "/floor_protocol", "/floor_source", "/measurement_closure",
+    "/refreeze_note", "/generation_number", "/supersedes_sha256", "/frozen_at_head",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -428,6 +450,85 @@ def _added_paths(commit: str, root: Path) -> Tuple[frozenset, Tuple[Tuple[str, s
     return frozenset(added), tuple(other)
 
 
+def _parents_of(commit: str, root: Path) -> Tuple[str, ...]:
+    """commit の親 OID 列を返す (rev-list --parents -n 1、H-pure)。"""
+    out = _git_text(["rev-list", "--parents", "-n", "1", commit], root)
+    parts = out.split()
+    if not parts or not _SHA1_RE.match(parts[0]):
+        raise RatifiedFreezeError("bad-commit", f"commit を解決できない: {commit!r}")
+    return tuple(parts[1:])
+
+
+def _blob_oid_at(commit: str, path: str, root: Path) -> Optional[str]:
+    """commit の tree の <path> の blob OID を返す (missing→None、blob 以外→fail-closed)。"""
+    stdin = f"{commit}:{path}\n".encode("utf-8")
+    out = _git(["cat-file", "--batch-check"], root, stdin=stdin).decode("utf-8", "strict")
+    tokens = out.split()
+    if tokens and tokens[-1] == "missing":
+        return None
+    if len(tokens) >= 2 and _SHA1_RE.match(tokens[0]) and tokens[1] == "blob":
+        return tokens[0]
+    raise RatifiedFreezeError(
+        "path-not-blob", f"{path} が {commit} で blob に解決しない: {out.strip()!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# F5 transition table (JSON Pointer 完全列挙、C1-8)
+# ---------------------------------------------------------------------------
+
+def _leaf_pointers(value, prefix: str = "") -> Dict[str, object]:
+    """JSON 値の全 leaf pointer→値の辞書を返す (RFC6901 の ~ / エスケープ込み)。
+
+    dict/list は再帰し、scalar (str/num/bool/None) を leaf とする。空 dict/空 list も
+    leaf として扱い、追加/削除を pointer 集合差として露出する。"""
+    if isinstance(value, Mapping):
+        if not value:
+            return {prefix or "": value}
+        out: Dict[str, object] = {}
+        for key, child in value.items():
+            token = str(key).replace("~", "~0").replace("/", "~1")
+            out.update(_leaf_pointers(child, f"{prefix}/{token}"))
+        return out
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return {prefix or "": list(value)}
+        out = {}
+        for index, child in enumerate(value):
+            out.update(_leaf_pointers(child, f"{prefix}/{index}"))
+        return out
+    return {prefix or "": value}
+
+
+def _pointer_allowed(pointer: str, allowed: frozenset) -> bool:
+    """pointer が allowed 集合の要素そのものか、その subtree (prefix + '/') 配下か。"""
+    for entry in allowed:
+        if pointer == entry or pointer.startswith(entry + "/"):
+            return True
+    return False
+
+
+def _assert_transition(prev: Mapping, nxt: Mapping, allowed: frozenset, *, label: str) -> None:
+    """prev→nxt の diff が allowed pointer 集合の内側だけであることを要求する (F5)。
+
+    allowed 外の pointer で値が変わった / 追加された / 削除された場合はすべて拒否する
+    (列挙外の diff は 1 つでも fail-closed)。"""
+    prev_leaves = _leaf_pointers(prev)
+    next_leaves = _leaf_pointers(nxt)
+    sentinel = object()
+    for pointer in set(prev_leaves) | set(next_leaves):
+        if _pointer_allowed(pointer, allowed):
+            continue
+        pv = prev_leaves.get(pointer, sentinel)
+        nv = next_leaves.get(pointer, sentinel)
+        if pv is sentinel or nv is sentinel or pv != nv:
+            raise RatifiedFreezeError(
+                "transition-violation",
+                f"{label}: 列挙外の pointer {pointer} が変化/新設/削除された "
+                f"(prev={pv!r} next={nv!r})",
+            )
+
+
 # ---------------------------------------------------------------------------
 # 中間検証結果 (record レベル)
 # ---------------------------------------------------------------------------
@@ -498,6 +599,20 @@ class LegacyFreeze:
     (§5-viii)。RatifiedFreeze とは別型で、consumer が誤って v2 実走経路へ流せない。"""
     document: Mapping
     sha256: str
+
+
+@dataclass(frozen=True)
+class LaunchValidatedFreeze:
+    """実走前検証 (full scan 済み) を通した freeze (C2-10 の型分離)。
+
+    ``load_ratified_freeze`` が返す静的 ``RatifiedFreeze`` (source/transition/snapshot 層1
+    まで) を、``launch_validate`` が未知性層2 (現時点 search 再実行 + closure 完全一致 +
+    列挙前後 digest + 陽性対照) を通してこの型へ昇格する。実走 consumer (oracle driver)
+    はこの型を要求する — skip flag は作らない。unknownness 層2 は launch_validate 側。"""
+    ratified: "RatifiedFreeze"
+    activation_head: str
+    search_digest: str
+    symlink_gitlink_inventory: Tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -579,15 +694,191 @@ def _parse_generation_document(raw: bytes, number: int) -> dict:
     return doc
 
 
-def _verify_generation_semantics(document: Mapping, resolution: "ActiveResolution", root: Path) -> None:
-    """世代 document の**内容**検証の拡張点 (W3 が実装)。
+def _source_record_path_sha(document: Mapping, field: str) -> Tuple[str, str]:
+    """{path, sha256} record を厳密に取り出す (schema 逸脱は fail-closed)。"""
+    rec = document.get(field)
+    if not isinstance(rec, Mapping) or set(rec) != {"path", "sha256"}:
+        raise RatifiedFreezeError("source-record-schema", f"{field} が {{path, sha256}} でない")
+    path, sha = rec["path"], rec["sha256"]
+    if not isinstance(path, str) or not path or not isinstance(sha, str) or not _SHA_RE.match(sha):
+        raise RatifiedFreezeError("source-record-schema", f"{field}.path/sha256 が不正")
+    return path, sha
 
-    本レーン (RV-core) は record/連鎖/承認 machinery のみを所有し、ここは意図的に
-    no-op で残す。W3 (RV-verify) が source blob 照合・未知性 closure・transition table・
-    frozen_at_head (G^ 一致) の中身検証をここへ差し込む。fail-open ではない — 承認
-    連鎖・active 判定 (structural) は resolve_active_generation で既に fail-closed 済みで、
-    ここは内容の追加ゲートを重ねる seam である。"""
-    return None
+
+def _closure_entries(document: Mapping) -> List[Tuple[str, str, str]]:
+    """floor_protocol/floor_source/measurement_closure を (kind, path, sha256) 列に正規化する。
+
+    floor_protocol/floor_source = 単一 {path, sha256}。measurement_closure = [{canonical_path,
+    sha256}]。いずれも G tree の blob として実在・bytes sha256 一致・dirty 拒否・履歴不変を課す。"""
+    entries: List[Tuple[str, str, str]] = []
+    for field in ("floor_protocol", "floor_source"):
+        path, sha = _source_record_path_sha(document, field)
+        entries.append((field, path, sha))
+    closure = document.get("measurement_closure")
+    if not isinstance(closure, (list, tuple)):
+        raise RatifiedFreezeError("closure-schema", "measurement_closure が list でない")
+    seen: set = set()
+    for index, item in enumerate(closure):
+        if not isinstance(item, Mapping) or set(item) != {"canonical_path", "sha256"}:
+            raise RatifiedFreezeError(
+                "closure-schema", f"measurement_closure[{index}] が {{canonical_path, sha256}} でない"
+            )
+        path, sha = item["canonical_path"], item["sha256"]
+        if not isinstance(path, str) or not path or not isinstance(sha, str) or not _SHA_RE.match(sha):
+            raise RatifiedFreezeError("closure-schema", f"measurement_closure[{index}] の値が不正")
+        # canonical: root-relative・正規化済み・一意 (重複 path は fail-closed)。
+        if path.startswith("/") or ".." in path.split("/") or path != path.strip():
+            raise RatifiedFreezeError("closure-path", f"canonical_path が非正規: {path!r}")
+        if path in seen:
+            raise RatifiedFreezeError("closure-duplicate", f"measurement_closure に重複 path: {path}")
+        seen.add(path)
+        entries.append(("measurement_closure", path, sha))
+    return entries
+
+
+def _verify_generation_semantics(document: Mapping, resolution: "ActiveResolution", root: Path) -> None:
+    """世代 document の**内容**検証 (V1 source blob + V2 transition + V3 層1、静的)。
+
+    ここは実走 scan を行わない静的層 (H-pure)。full scan を伴う未知性層2 は launch_validate。
+    - V1: 世代導入 commit G は非 merge で G^ == frozen_at_head。design_source/generator/
+      known_axes_freeze は frozen_at_head の blob bytes と sha256 一致 (worktree でなく blob)。
+      floor_protocol/floor_source/measurement_closure は G tree に blob 実在 + sha256 一致 +
+      worktree==H blob (dirty 拒否) + 履歴不変条件。env_tag は env_contract registry に実在。
+      floor_protocol は strict parse 可能 (dup key/NaN 拒否で読める) まで (数値検証は Lane J)。
+    - V2: v1→g1→…→gN の transition を F5 JSON Pointer 完全列挙で検査。
+    - V3 層1: 各 holdout の zero_hit_output_sha256 を記録フィールドから再計算し一致 +
+      conjunction_hits が空。
+
+    fail-closed: いかなる不整合も RatifiedFreezeError。承認連鎖・active (structural) は
+    resolve_active_generation で既に検証済みで、ここは内容ゲートを重ねる。"""
+    head = resolution.activation_head
+    gen_commit = resolution.generation_commit
+
+    # --- V1a: G^ == frozen_at_head (非 merge、G は H ancestry 上の実在 commit) ---
+    frozen = document.get("frozen_at_head")
+    if not isinstance(frozen, str) or not _SHA1_RE.match(frozen):
+        raise RatifiedFreezeError("frozen-at-head-format", "frozen_at_head が 40 桁 SHA でない")
+    parents = _parents_of(gen_commit, root)
+    if len(parents) != 1:
+        raise RatifiedFreezeError(
+            "generation-parent-count", f"世代導入 commit G の親が 1 個でない: {len(parents)}"
+        )
+    if parents[0] != frozen:
+        raise RatifiedFreezeError(
+            "frozen-at-head-mismatch",
+            f"G^ ({parents[0]}) != frozen_at_head ({frozen})",
+        )
+
+    # --- V1b: source blob 照合 (frozen_at_head の blob bytes、worktree でなく blob) ---
+    for field in ("design_source", "generator", "known_axes_freeze"):
+        path, sha = _source_record_path_sha(document, field)
+        blob = _blob_at_or_fail(frozen, path, root, reason="source-blob-missing")
+        if _sha256_hex(blob) != sha:
+            raise RatifiedFreezeError(
+                "source-blob-mismatch",
+                f"{field}: frozen_at_head:{path} の blob sha256 が記録と不一致",
+            )
+
+    # --- V1c: env_tag registry lookup ---
+    env_tag = document.get("env_tag")
+    try:
+        _env_contract.lookup(env_tag)
+    except _env_contract.EnvContractError as exc:
+        raise RatifiedFreezeError("env-tag-unknown", f"env_tag が registry に無い: {exc}") from exc
+
+    # --- V1d: closure artifact (G tree 実在 + sha256 + dirty + 履歴不変) ---
+    graph = _commit_graph(head, root)
+    for kind, path, sha in _closure_entries(document):
+        g_blob = _blob_at_or_fail(gen_commit, path, root, reason="closure-not-in-generation")
+        if _sha256_hex(g_blob) != sha:
+            raise RatifiedFreezeError(
+                "closure-sha-mismatch", f"{kind}:{path} の G blob sha256 が記録と不一致"
+            )
+        h_oid = _blob_oid_at(head, path, root)
+        if h_oid is None:
+            raise RatifiedFreezeError("closure-not-at-head", f"{kind}:{path} が H tree に無い")
+        h_blob = _blob_bytes(head, path, root)
+        try:
+            wt_blob = (root / path).read_bytes()
+        except OSError as exc:
+            raise RatifiedFreezeError("closure-dirty", f"{kind}:{path} を worktree で読めない") from exc
+        if wt_blob != h_blob:
+            raise RatifiedFreezeError("closure-dirty", f"{kind}:{path} の worktree bytes が H blob と不一致")
+        _immutable_introductions(graph, path, h_oid, root)
+        # floor_protocol は strict parse 可能性まで (数値検証は Lane J の protocol builder)。
+        if kind == "floor_protocol":
+            _strict_load(g_blob, what="floor_protocol")
+
+    # --- V2: transition table (v1→g1→…→gN、F5 JSON Pointer 完全列挙) ---
+    _verify_chain_transitions(document, resolution, head, root)
+
+    # --- V3 層1: snapshot 整合 (記録フィールドから zero_hit_output_sha256 を再計算) ---
+    _verify_snapshot_layer1(document)
+
+
+def _blob_at_or_fail(commit: str, path: str, root: Path, *, reason: str) -> bytes:
+    """commit:path の blob bytes を読む。missing/非 blob は指定 reason で fail-closed。"""
+    if _blob_oid_at(commit, path, root) is None:
+        raise RatifiedFreezeError(reason, f"{commit}:{path} が blob として存在しない")
+    return _blob_bytes(commit, path, root)
+
+
+def _verify_chain_transitions(
+    tip_document: Mapping, resolution: "ActiveResolution", head: str, root: Path,
+) -> None:
+    """v1→g1→…→gN の全 transition を F5 で検査する (C1-8)。
+
+    各世代 document を H tree の blob から strict parse し、直前世代 (g1 は v1 LegacyFreeze
+    document) との diff が allowed pointer 集合の内側だけであることを要求する。"""
+    n = resolution.generation_number
+    # v1 document (H tree の blob。bytes sha は supersedes 連鎖で既に束縛済み)。
+    v1_raw = _blob_at_or_fail(head, V1_FREEZE_PATH, root, reason="v1-missing-at-head")
+    if _sha256_hex(v1_raw) != V1_FREEZE_SHA256:
+        raise RatifiedFreezeError("v1-anchor-mismatch", "H tree の v1 freeze bytes が定数と不一致")
+    prev_doc = _strict_load(v1_raw, what="v1 legacy freeze")
+    allowed = _TRANSITION_V1_TO_G1
+    for k in range(1, n + 1):
+        gen_path = _gen_path(k)
+        gen_raw = _blob_at_or_fail(head, gen_path, root, reason="chain-generation-missing")
+        gen_doc = _parse_generation_document(gen_raw, k)
+        _assert_transition(prev_doc, gen_doc, allowed, label=f"g{k-1 if k>1 else 'v1'}→g{k}")
+        prev_doc = gen_doc
+        allowed = _TRANSITION_GN_TO_GN1
+
+
+def _gen_path(number: int) -> str:
+    return f"{FREEZE_DIR}/holdout_freeze.v2.g{number}.json"
+
+
+def _verify_snapshot_layer1(document: Mapping) -> None:
+    """未知性層1: 各 holdout の zero_hit_output_sha256 を記録フィールドから再計算し一致 (C2-8)。"""
+    holdouts = document.get("holdouts")
+    if not isinstance(holdouts, Mapping) or set(holdouts) != set(_hf.HOLDOUTS):
+        raise RatifiedFreezeError("holdouts-schema", "holdouts の集合が v1 の holdout と不一致")
+    for name, frozen in _hf.HOLDOUTS.items():
+        entry = holdouts.get(name)
+        if not isinstance(entry, Mapping):
+            raise RatifiedFreezeError("holdout-entry", f"holdouts.{name} が object でない")
+        unknownness = entry.get("unknownness_check")
+        if not isinstance(unknownness, Mapping):
+            raise RatifiedFreezeError("unknownness-missing", f"holdouts.{name}.unknownness_check が無い")
+        recorded_hits = unknownness.get("conjunction_hits")
+        if recorded_hits != []:
+            raise RatifiedFreezeError(
+                "layer1-nonempty-hits", f"holdouts.{name}.conjunction_hits が空でない"
+            )
+        expressions = unknownness.get("expressions")
+        per_axis = unknownness.get("per_axis_counts")
+        if not isinstance(expressions, Mapping) or not isinstance(per_axis, Mapping):
+            raise RatifiedFreezeError("unknownness-schema", f"holdouts.{name} の未知性フィールド不正")
+        expected = _hf.recompute_snapshot_zero_hit_sha256(
+            frozen["candidate_id"], expressions, per_axis,
+        )
+        if unknownness.get("zero_hit_output_sha256") != expected:
+            raise RatifiedFreezeError(
+                "layer1-snapshot-mismatch",
+                f"holdouts.{name}.zero_hit_output_sha256 が記録フィールドの再計算値と不一致",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -871,3 +1162,142 @@ def load_legacy_freeze(root=ROOT) -> LegacyFreeze:
         )
     document = _strict_load(raw, what="v1 legacy freeze")
     return LegacyFreeze(document=_deep_freeze(document), sha256=sha)
+
+
+# ---------------------------------------------------------------------------
+# 実走前検証 (未知性層2 = full scan。C2-10 の型分離)
+# ---------------------------------------------------------------------------
+
+_CCBENCH_GITLINK = "external/ccbench"
+
+
+def _enumeration_digest(root: Path) -> str:
+    """検索対象**ファイル名集合**の digest (走査前後で一致比較する。C2-8)。
+
+    列挙集合 (path のみ) の sha256 であり、走査中のファイル追加/削除 (=集合変化) を露出する。
+    列挙後・当該 read 前の内容改竄 (空白化→復元) は名前が不変なら検出しない — この内容 TOCTOU
+    窓は single-tenant 前提に依存する既知残余 (§5-viii)。内容まで締めるには full-repo 内容 hash
+    が要るが、それは C2-3 で退けた GB 級 scan コストのため採らない。"""
+    files = _hf.enumerate_repository_files(root)
+    joined = "\n".join(files).encode("utf-8")
+    return _sha256_hex(joined)
+
+
+def _symlink_gitlink_inventory(head: str, root: Path) -> Tuple[str, ...]:
+    """H tree の symlink (120000) / gitlink (160000) を明示列挙する (黙殺しない、C2-3)。
+
+    既知の external/ccbench gitlink (search が意図的に再帰する submodule) は除く。列挙
+    自体を LaunchValidatedFreeze へ surface することで、v1 と同じ「ignored 領域は scan
+    境界外」の既知限界 (§5-viii) を沈黙させない。closure は blob 検証済みのためここに
+    現れない (現れたら別経路で fail-closed)。"""
+    out = _git(["ls-tree", "-r", "-z", head], root)
+    inventory: List[str] = []
+    for chunk in out.split(b"\0"):
+        if not chunk:
+            continue
+        meta, sep, path = chunk.decode("utf-8", "strict").partition("\t")
+        if not sep:
+            continue
+        mode = meta.split(" ", 1)[0]
+        if mode in ("120000", "160000") and path != _CCBENCH_GITLINK:
+            inventory.append(path)
+    return tuple(sorted(inventory))
+
+
+def _assert_search_operational(report: Mapping) -> None:
+    """陽性対照 (rr50) が hit することを要求する (C2-10: 検索式の偽保証を排除、_assert_search_pass
+    から陽性対照だけを分離)。holdout hit の 0 件要求は v2 では課さない (post-floor は closure
+    と完全一致)。"""
+    positive = report.get("positive_control")
+    hit_count = positive.get("hit_count") if isinstance(positive, Mapping) else None
+    if not isinstance(hit_count, int) or isinstance(hit_count, bool) or hit_count <= 0:
+        raise RatifiedFreezeError(
+            "search-not-operational", "rr50 陽性対照が 0 件 (検索式の偽保証を排除できない)"
+        )
+
+
+def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreeze:
+    """実走直前の未知性層2 検証を通し LaunchValidatedFreeze へ昇格する (C2-4/C2-8/C2-10)。
+
+    - HEAD が ratified.activation_head と一致すること (静的検証後の状態移動を拒否)。
+    - 列挙前後の digest 一致 (走査中のファイル追加/削除を露出、C2-8)。digest は列挙
+      **ファイル名集合**の sha256 であり、内容 TOCTOU (列挙後・当該 read 前の空白化→復元)
+      は検出しない。この窓は single-tenant 前提 (計測前の単独性確認) に依存する既知残余で、
+      §5-viii の限界。full-repo 内容 hash は C2-3 で退けた GB 級 scan コストなので採らない。
+    - 現時点 search_repository を再実行し、**holdout ごと**に conjunction hit path 集合が
+      「closure から導出した期待 hit 集合」と完全一致すること (C2-4: 予告 bool を持たず、
+      verifier が同一 G bytes から導出)。closure 外の新規 hit / 導出されたのに現れない hit で
+      fail-closed。
+    - 陽性対照 (rr50) が hit すること (_assert_search_operational)。
+
+    C2-2 (launch certificate 起点 lineage の照合) はここでは**課さない**。certificate /
+    journal 束縛 / floor artifact は official floor 実走の産物だが official mode は core で
+    無条件拒否 (δ-3、§8 未裁定) のため本 wave では生成されず、照合対象が存在しない。closure の
+    lineage anchor は既に header の floor_source (result artifact) であり、新 top-level field は
+    ratified v2 header (§4-2 exact 列挙) に無いので追加しない。official floor を有効化する
+    floor 実走 wave で certificate 発行→journal 束縛→closure lineage 照合を結線するまで、
+    「certificate 以前に消した痕跡」は原理的に不可視の open residual (§5-viii)。
+
+    oracle driver への結線は W4。本レーンは launch_validate までを API として完成させる。"""
+    root = Path(root)
+    head = _capture_head(root)
+    if head != ratified.activation_head:
+        raise RatifiedFreezeError(
+            "activation-head-moved",
+            f"HEAD ({head}) が ratified.activation_head ({ratified.activation_head}) と不一致",
+        )
+
+    # closure bytes (G blob) から期待 hit を導出する (1 回だけ読む、C2-8)。
+    gen_commit = ratified.generation_commit
+    closure = ratified.document.get("measurement_closure")
+    texts: Dict[str, str] = {}
+    for item in closure:
+        path = item["canonical_path"]
+        blob = _blob_bytes(gen_commit, path, root)
+        text = _closure_text(blob)
+        if text is not None:
+            texts[path] = text
+    expected_hits = _hf.holdout_conjunction_hits(texts)
+
+    # 現時点 search 再実行を列挙前後 digest で挟む (C2-8)。
+    digest_before = _enumeration_digest(root)
+    report = _hf.search_repository(root)
+    digest_after = _enumeration_digest(root)
+    if digest_before != digest_after:
+        raise RatifiedFreezeError(
+            "enumeration-shifted", "search 前後で列挙集合の digest が変化 (走査中の追加の疑い)"
+        )
+    _assert_search_operational(report)
+
+    # per-holdout の完全一致 (C2-4)。closure 外の新規 hit / 導出されたのに現れない hit で fail。
+    for name in _hf.HOLDOUTS:
+        current = set(report["holdouts"][name]["conjunction_hits"])
+        expected = set(expected_hits.get(name, []))
+        if current != expected:
+            undeclared = sorted(current - expected)
+            missing = sorted(expected - current)
+            raise RatifiedFreezeError(
+                "closure-hit-mismatch",
+                f"{name}: 現 hit が closure 導出と不一致 "
+                f"(未申告={undeclared} 消失={missing})",
+            )
+
+    inventory = _symlink_gitlink_inventory(head, root)
+    return LaunchValidatedFreeze(
+        ratified=ratified,
+        activation_head=head,
+        search_digest=digest_after,
+        symlink_gitlink_inventory=inventory,
+    )
+
+
+def _closure_text(blob: bytes) -> Optional[str]:
+    """closure blob を検索テキストへ復号する (search の _read_search_text と同判定)。
+
+    NUL を含む / UTF-8 でない blob は非テキストとして None (search と同じく hit 対象外)。"""
+    if b"\0" in blob[:8192]:
+        return None
+    try:
+        return blob.decode("utf-8")
+    except UnicodeError:
+        return None
