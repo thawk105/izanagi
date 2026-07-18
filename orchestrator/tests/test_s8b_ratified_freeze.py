@@ -173,13 +173,18 @@ def _make_ccbench_submodule(root: Path) -> None:
     _git(sub, "commit", "-q", "-F", "-", stdin=b"ccbench base\n\nAI-Agent: fixture")
 
 
-def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=None):
+def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=None,
+                            floor_source_bytes=None):
     """V1 (source blob + G^==frozen_at_head + closure) / V2 (transition) / V3 (層1/層2) を
     すべて満たす v1→g1 を tmp git repo に組む。(root, gen_sha, gen_rel, g1) を返す。
 
     mutate_g1(g1) が与えられれば直列化前に g1 dict を破壊できる (負例注入用)。
     extra_closure = [(path, bytes), ...] は base コミットに載せた上で measurement_closure に
     正しい sha で追加する (V1d を満たす追加 closure 経由の負例用)。
+    floor_source_bytes を与えると floor_source の blob 内容をそれで差し替える (既定は
+    ``_FLOOR_SOURCE_STUB``)。oracle W4 が floor_source を「binaries section を持つ floor
+    artifact」として消費するため、その正例を組む拡張点。ycsb params を含まない bytes に
+    限る (含むと未申告 hit で launch_validate が落ちる)。
 
     実 v1 freeze bytes を trust root に据え (sha == V1_FREEZE_SHA256)、g1 は v1 doc から
     protected field を継承しつつ allowed field (schema_version/frozen_at_head/design_source.sha256/
@@ -207,10 +212,11 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
     f20 = "output/env/floor/rr20.json"
     fp = "output/env/floor/protocol.json"
     fs = "output/env/floor/source.py"
+    fs_bytes = _FLOOR_SOURCE_STUB if floor_source_bytes is None else floor_source_bytes
     _write(root, f80, _RR80_PARAMS)
     _write(root, f20, _RR20_PARAMS)
     _write(root, fp, _FLOOR_PROTOCOL_STUB)
-    _write(root, fs, _FLOOR_SOURCE_STUB)
+    _write(root, fs, fs_bytes)
     _write(root, "positive_control.txt", _RR50_PARAMS)
     (root / "README.md").write_text("fixture\n", encoding="utf-8")
 
@@ -231,7 +237,7 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
     g1["generator"] = {"path": gen_path, "sha256": _sha(gen_bytes)}
     g1["env_tag"] = "linux-baremetal"
     g1["floor_protocol"] = {"path": fp, "sha256": _sha(_FLOOR_PROTOCOL_STUB)}
-    g1["floor_source"] = {"path": fs, "sha256": _sha(_FLOOR_SOURCE_STUB)}
+    g1["floor_source"] = {"path": fs, "sha256": _sha(fs_bytes)}
     g1["measurement_closure"] = [
         {"canonical_path": f80, "sha256": _sha(_RR80_PARAMS)},
         {"canonical_path": f20, "sha256": _sha(_RR20_PARAMS)},

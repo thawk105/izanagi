@@ -35,7 +35,7 @@ _MANIFEST_KEYS = {
 }
 _RUN_CONTRACT_KEYS = {
     "ccbench_pin", "env_tag", "clocks", "reps", "extime", "verify",
-    "screening", "bench_max_rounds",
+    "screening", "bench_max_rounds", "contract_sha256",
 }
 _GENERATOR_KEYS = {"materializer", "report", "judge"}
 _BINDING_KEYS = {
@@ -347,6 +347,10 @@ def _validate_run_contract(run_contract: Mapping) -> dict:
         raise ManifestError("run_contract.screening が off でない")
     for field in ("ccbench_pin", "env_tag"):
         _identifier(run_contract.get(field), field=f"run_contract.{field}")
+    # C3-9/C3-10: env 契約 fingerprint。driver が env_contract.lookup(env_tag) の
+    # contract_sha256 との完全一致を検査する (ここでは形式のみ 64hex 検査)。
+    _sha256_text(run_contract.get("contract_sha256"),
+                 field="run_contract.contract_sha256")
     for field in ("clocks", "reps", "extime", "bench_max_rounds"):
         value = run_contract.get(field)
         if not _is_int(value) or value <= 0:

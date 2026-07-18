@@ -72,6 +72,7 @@ from calibrator.runner import (  # noqa: E402
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
 from campaign import env_contract as _env_contract  # noqa: E402
+from campaign import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
 from campaign import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign.layout import env_scope_dir, repo_output_root  # noqa: E402
@@ -819,7 +820,8 @@ class _Runner:
 
     def __init__(self, *, protocol, cells, cell_by_id, binaries, schedule,
                  journal_path, measure_fn, probe_fn, sleep_fn, monotonic_fn, now_fn,
-                 protocol_sha256, freeze_sha256, manifest_sha256):
+                 protocol_sha256, freeze_sha256, manifest_sha256,
+                 execution_receipt=None):
         self.protocol = protocol
         self.cells = cells
         self.cell_by_id = cell_by_id
@@ -834,6 +836,8 @@ class _Runner:
         self.protocol_sha256 = protocol_sha256
         self.freeze_sha256 = freeze_sha256
         self.manifest_sha256 = manifest_sha256
+        # C3-10: 共有 execution guard の receipt (campaign-start journal に記録)。
+        self.execution_receipt = execution_receipt
         self.reps = protocol["reps"]
         self.session_cv_max = protocol["session_cv_max"]
         self.retry_slots = protocol["retry_slots_per_cell"]
@@ -1086,6 +1090,10 @@ class _Runner:
                 "freeze_sha256": self.freeze_sha256,
                 "manifest_sha256": self.manifest_sha256,
                 **_host_provenance(self.now_fn), **_process_identity(),
+                # C3-10: 共有 execution guard の receipt (env_tag + contract_sha256 +
+                # 実行機 attestation)。report/verifier が env 契約と照合する。
+                **({"execution_receipt": self.execution_receipt}
+                   if self.execution_receipt is not None else {}),
             })
         else:
             # resume: 新 process の identity を記録する (γ-5)。result には含めない (決定性維持)。
@@ -1130,6 +1138,28 @@ def _attempt_id(cell_id: str, kind: str, seq: int, retry_ordinal: Optional[int])
 
 def _session_records(records: list[dict]) -> list[dict]:
     return [r for r in records if r.get("event") == "session"]
+
+
+def _journal_expected_binaries(records: list[dict]) -> dict:
+    """journal の session receipt から cell_id → binary_sha256_at_measure を集約する (C3-6)。
+
+    verify_floor_artifact の expected_binaries に渡す独立 receipt。同一 cell の複数 session が
+    異なる measured hash を持てば差し替えの疑いで fail-closed (実際は _run_session が build 記録と
+    食い違いを CampaignAbort するため、完走 campaign では単一値に収束する)。"""
+    out: dict = {}
+    for rec in _session_records(records):
+        cell_id = rec.get("cell_id")
+        sha = rec.get("binary_sha256_at_measure")
+        if not isinstance(cell_id, str) or not isinstance(sha, str) or len(sha) != 64:
+            continue
+        prev = out.get(cell_id)
+        if prev is not None and prev != sha:
+            raise FloorCampaignError(
+                f"journal receipt: cell {cell_id} の binary_sha256_at_measure が "
+                f"session 間で不一致 ({prev} != {sha})"
+            )
+        out[cell_id] = sha
+    return out
 
 
 def _cellstats_to_dict(cs) -> dict:
@@ -1495,13 +1525,15 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         contract = _env_contract.lookup(protocol["env_tag"])
     except _env_contract.EnvContractError as exc:
         raise FloorCampaignError(f"env 契約 lookup 失敗: {exc}") from exc
-    # machine-pin (attestation が入る登録段までの暫定 gate): 契約の env_tag が実行機の
-    # p2_2.ENV_TAG と一致しなければ拒否 (計測環境の取り違え防止)。
-    if contract.env_tag != ENV_TAG:
-        raise FloorCampaignError(
-            f"env_tag machine-pin 不一致: contract.env_tag={contract.env_tag} "
-            f"!= p2_2.ENV_TAG={ENV_TAG} (この機で走らせてよい env でない)"
-        )
+    # machine-pin + receipt (C3-10): 暫定 machine-pin と実行機 attestation の capture を
+    # oracle driver と共有する execution_guard へ集約する (拒否意味論は同値 — guard が
+    # p2_2.ENV_TAG との一致を検査)。EnvContractError は上で握って FloorCampaignError に
+    # 翻訳済みなので、ここでは machine-pin の ExecutionGuardError だけを翻訳する。
+    try:
+        execution_guard.assert_machine_pin(contract, machine_env_tag=ENV_TAG)
+    except execution_guard.ExecutionGuardError as exc:
+        raise FloorCampaignError(str(exc)) from exc
+    execution_receipt = execution_guard.build_receipt(contract, now_fn=now_fn)
     # isolation policy: allow_resume=False の env では別 process からの resume を拒否 (γ-5)。
     if resume_dir is not None and not contract.isolation_policy.allow_resume:
         raise FloorCampaignError(
@@ -1584,7 +1616,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         schedule=schedule, journal_path=journal_path, measure_fn=measure_fn,
         probe_fn=probe_fn, sleep_fn=sleep_fn, monotonic_fn=monotonic_fn, now_fn=now_fn,
         protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
-        manifest_sha256=manifest_sha256,
+        manifest_sha256=manifest_sha256, execution_receipt=execution_receipt,
     )
     if resume_dir is not None:
         _verify_resume_journal(
@@ -1607,8 +1639,15 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     )
 
     # 自己検査: verify_floor_artifact(result, expected_protocol) == [] を満たさなければ書かない。
+    # C3-6/W3 申し送り: journal receipt (session ごとの実測直前 binary_sha256_at_measure) を
+    # expected_binaries として渡し、binaries section の突合を恒真検査でなく実発火にする。
+    # measured_bin_sha は build 記録 sha と食い違えば _run_session が CampaignAbort するため、
+    # 完走した campaign では全 session が一致し、artifact.binaries と完全一致する。
     expected = _expected_protocol(protocol, cells)
-    problems = s8b_floor_stats.verify_floor_artifact(result, expected)
+    expected_binaries = _journal_expected_binaries(runner.records)
+    problems = s8b_floor_stats.verify_floor_artifact(
+        result, expected, expected_binaries=expected_binaries,
+    )
     if problems:
         _journal_append(journal_path, {
             "event": "terminal", "status": "artifact-invalid", "problems": list(problems),

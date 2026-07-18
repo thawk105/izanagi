@@ -22,7 +22,11 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
+from campaign import env_contract as _env_contract  # noqa: E402
+from campaign import execution_guard  # noqa: E402
+from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root  # noqa: E402
+from campaign.p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
@@ -39,7 +43,6 @@ from campaign.s8b_oracle_manifest import (  # noqa: E402
 SESSION_STAGE = "s8b-oracle-session"
 DEFAULT_FREEZE_PATH = ROOT / "output/s8b-freeze/holdout_freeze.json"
 DEFAULT_BUDGET_PATH = ROOT / "output/s8b-budget/time_ledger.json"
-NUMACTL = ["numactl", "--interleave=all"]
 _BINDING_KEYS = {
     "genome_canonical", "src_token", "variant_id", "entry_sha256",
     "binding_sha256",
@@ -109,7 +112,9 @@ def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
 
 def gate_check(*, freeze_path=None, manifest_path=None, root,
                verified: Optional["_freeze_io.VerifiedFreeze"] = None,
-               verified_manifest: Optional["VerifiedManifest"] = None) -> GateDecision:
+               verified_manifest: Optional["VerifiedManifest"] = None,
+               ratified: Optional["s8b_ratified_freeze.RatifiedFreeze"] = None,
+               ratified_error: Optional[str] = None) -> GateDecision:
     """実走前の独立 gate を順番に全件検査し、全拒否理由を返す。
 
     ``verified`` (``load_verified_freeze`` の戻り値) を与えた場合は freeze を
@@ -120,6 +125,14 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
     再検証・再読込せず、その単一 object だけを使う (C2-9: gate と run_block が同一
     manifest object を共有)。与えない場合 (単体 gate CLI 経路) は自身で
     ``verify_manifest`` を一度呼ぶ。
+
+    ``ratified`` (``load_ratified_freeze`` の戻り値) は v2 経路 (floor/budget が両方
+    null でない freeze) の承認束縛検証結果。**与えられた freeze の bytes sha256 が
+    active 世代の sha256 と完全一致すること** を要求する (不一致 = refusal
+    "freeze-not-active-generation")。resolve に失敗した場合 (``ratified_error`` に
+    構造化 message) は "freeze-ratify" refusal に翻訳する (RatifiedFreezeError を
+    例外として漏らさない)。単体 gate CLI 経路 (ratified 未指定) では自身で
+    ``load_ratified_freeze`` を一度呼ぶ。
     """
     root = Path(root)
     refusals: list[str] = []
@@ -142,20 +155,33 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
         if freeze.get("floor") is None and freeze.get("budget") is None:
             try:
                 # v1 verifier は floor/budget がともに null の freeze だけを対象にする。
-                # v2 実走経路はこの枝に入らない (下の freeze-v2 refusal へ倒れる) ため、
-                # ここでの path 再読込は A3-6 の単一 object 対象外。
+                # v2 実走経路はこの枝に入らず下の承認束縛検証へ倒れるため、ここでの
+                # path 再読込は A3-6 の単一 object 対象外。
                 s8b_holdout_freeze.verify(Path(freeze_path), root=root)
             except Exception as exc:
                 refusals.append(
                     f"holdout-freeze-verify: {type(exc).__name__}: {exc}"
                 )
         else:
-            # floor/budget 充填済み freeze は、承認証跡も含む strict v2
-            # verifier が導入されるまで内容を部分解釈しない。
-            refusals.append(
-                "freeze-v2-verifier-not-implemented: "
-                "floor/budget 充填済み freeze の strict verifier が未実装"
-            )
+            # v2 (floor/budget 充填済み) freeze: 与えられた bytes が承認束縛済みの
+            # active 世代そのものであることを sha256 完全一致で要求する。
+            active = ratified
+            error = ratified_error
+            if active is None and error is None:
+                # 単体 gate CLI 経路: 自身で active 世代を解決する。
+                try:
+                    active = s8b_ratified_freeze.load_ratified_freeze(root)
+                except s8b_ratified_freeze.RatifiedFreezeError as exc:
+                    error = f"[{exc.reason}] {exc}"
+                except Exception as exc:  # noqa: BLE001 (fail-closed)
+                    error = f"{type(exc).__name__}: {exc}"
+            if error is not None:
+                refusals.append(f"freeze-ratify: {error}")
+            elif active is None or freeze_sha is None or freeze_sha != active.sha256:
+                refusals.append(
+                    "freeze-not-active-generation: "
+                    "与えられた freeze bytes sha256 が承認束縛済み active 世代と不一致"
+                )
 
     try:
         known_record = freeze.get("known_axes_freeze") if isinstance(freeze, Mapping) else None
@@ -330,6 +356,12 @@ def _outcome_for(result, abort_payload: Mapping) -> str:
         return "correctness-red"
     if reason in {"build-error", "identity-error"}:
         return "build-failed"
+    if reason == "bench-binary-mismatch":
+        # C3-5: 事前 store 検査 (第一防壁) を抜けた TOCTOU 差替えを pipeline 照合
+        # (第二防壁) が捕捉した terminal outcome。build_done 後・verify 前に起きるため
+        # 既存の build/verify/bench バケツのどれにも適合しない専用 terminal を新設し、
+        # report の閉表・証拠 truth table・judge の unknown 伝播まで一貫して通す。
+        return "binary-mismatch"
     if reason == "trace-timeout":
         return "timeout"
     if reason in {
@@ -340,6 +372,162 @@ def _outcome_for(result, abort_payload: Mapping) -> str:
             "bench-competing-tenant", "bench-no-throughput", "bench-cv-undefined"}:
         return "bench-failed"
     raise _UnknownAbortReason(reason)
+
+
+@dataclass
+class _V2Plan:
+    """v2 実走前検査 (_prepare_v2_execution) の成果。
+
+    ``contract`` = env_contract lookup 結果 (clocks_per_us / numactl の正本)。
+    ``receipt`` = 共有 execution guard の receipt (WAL campaign-start に記録)。
+    ``perf_sha_by_cell`` = (holdout_id, configuration_id) → 期待 perf binary sha256。
+    """
+    contract: "_env_contract.ExecutionEnvironmentContract"
+    receipt: dict
+    perf_sha_by_cell: dict
+
+
+def _store_sha256(out_root, store_path: str) -> Optional[str]:
+    """out_root 相対 (または絶対) store_path の bytes full sha256 (無ければ None)。"""
+    candidate = Path(store_path)
+    if not candidate.is_absolute():
+        candidate = Path(out_root) / store_path
+    try:
+        data = candidate.read_bytes()
+    except OSError:
+        return None
+    return hashlib.sha256(data).hexdigest()
+
+
+def _floor_binaries_by_cell(ratified, root) -> dict:
+    """RatifiedFreeze の floor_source が指す floor artifact の binaries section を、
+    (holdout_id, configuration_id) → {binary_sha256, store_path} へ正規化する (C3-7)。
+
+    cell 対応の同定は文字列 cell_id でなく (holdout_id, configuration_id) の組で行う。"""
+    try:
+        blob = s8b_ratified_freeze.read_floor_source_blob(ratified, root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        raise OracleDriverError(
+            f"floor_source 取得失敗: [{exc.reason}] {exc}"
+        ) from exc
+    try:
+        artifact = json.loads(blob.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise OracleDriverError(f"floor artifact を parse できない: {exc}") from exc
+    binaries = artifact.get("binaries") if isinstance(artifact, Mapping) else None
+    if not isinstance(binaries, Mapping) or not binaries:
+        raise OracleDriverError("floor artifact に binaries section が無い")
+    out: dict = {}
+    for cell_id, rec in binaries.items():
+        if not isinstance(rec, Mapping):
+            raise OracleDriverError(f"floor artifact binaries[{cell_id}] が object でない")
+        holdout = rec.get("holdout_id")
+        config = rec.get("configuration_id")
+        binary_sha = rec.get("binary_sha256")
+        store_path = rec.get("store_path")
+        if not (isinstance(holdout, str) and holdout
+                and isinstance(config, str) and config):
+            raise OracleDriverError(
+                f"floor artifact binaries[{cell_id}] の cell identity 不正"
+            )
+        if not (isinstance(binary_sha, str) and len(binary_sha) == 64
+                and all(ch in "0123456789abcdef" for ch in binary_sha)):
+            raise OracleDriverError(
+                f"floor artifact binaries[{cell_id}].binary_sha256 が 64hex でない"
+            )
+        if not (isinstance(store_path, str) and store_path):
+            raise OracleDriverError(
+                f"floor artifact binaries[{cell_id}].store_path が無い"
+            )
+        key = (holdout, config)
+        if key in out:
+            raise OracleDriverError(f"floor artifact に cell 重複: {key}")
+        out[key] = {"binary_sha256": binary_sha, "store_path": store_path}
+    return out
+
+
+def _prepare_v2_execution(*, ratified, run_contract, schedule, out_root,
+                          root) -> _V2Plan:
+    """v2 実走前検査を一括で行い _V2Plan を返す (run marker 作成前・第一防壁)。
+
+    順に: (1) launch_validate (未知性層2 の full scan、活性 HEAD 一致)、(2) run
+    contract の env 導出 (env_tag が RatifiedFreeze と一致・env 契約 lookup・
+    contract_sha256/clocks 完全一致・machine-pin)、(3) 共有 guard receipt 生成、
+    (4) binary store 消費 (schedule 全行の (holdout, configuration) 別 store 実体の
+    存在 + full sha256 一致)。いずれの不整合も OracleDriverError (呼び出し元が refusal
+    に翻訳)。事前 store 検査が第一防壁、pipeline の expected_perf_sha256 照合が TOCTOU
+    第二防壁という関係で使う (perf_sha_by_cell を返す)。"""
+    if ratified is None:
+        raise OracleDriverError("active 世代が解決されていない (v2 実走の前提破れ)")
+
+    # (1) 未知性層2 (full scan) + 活性 HEAD 一致 (run marker 前に通す)。
+    # launch_validate は内部で _hf (s8b_holdout_freeze) の git/os 走査を呼ぶため、
+    # RatifiedFreezeError 以外 (FreezeError・OSError・subprocess 失敗・report 構造の
+    # KeyError 等) が漏れうる。それらも fail-closed で OracleDriverError へ翻訳し、
+    # run_block の refusal 契約 (stack trace でなく構造化拒否) を破らない。sibling の
+    # load_ratified_freeze 経路 (run_block の generic fallback) と対称にする。
+    try:
+        s8b_ratified_freeze.launch_validate(ratified, root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        raise OracleDriverError(f"launch-validate: [{exc.reason}] {exc}") from exc
+    except Exception as exc:  # noqa: BLE001 (fail-closed: 走査不能 = 実走前提破れ)
+        raise OracleDriverError(
+            f"launch-validate: {type(exc).__name__}: {exc}"
+        ) from exc
+
+    # (2) env 導出 (C3-9 部分): run_contract.env_tag == RatifiedFreeze.env_tag。
+    env_tag = run_contract.get("env_tag")
+    ratified_env = ratified.document.get("env_tag")
+    if env_tag != ratified_env:
+        raise OracleDriverError(
+            f"run_contract.env_tag ({env_tag!r}) が RatifiedFreeze.env_tag "
+            f"({ratified_env!r}) と不一致"
+        )
+    try:
+        contract = _env_contract.lookup(env_tag)
+    except _env_contract.EnvContractError as exc:
+        raise OracleDriverError(f"env 契約 lookup 失敗: {exc}") from exc
+    # (3) machine-pin + contract_sha256/clocks 完全一致 (共有 guard 経由)。
+    try:
+        execution_guard.assert_machine_pin(
+            contract, machine_env_tag=MACHINE_ENV_TAG,
+        )
+    except execution_guard.ExecutionGuardError as exc:
+        raise OracleDriverError(str(exc)) from exc
+    if run_contract.get("contract_sha256") != contract.contract_sha256:
+        raise OracleDriverError(
+            "run_contract.contract_sha256 が env 契約 lookup 結果と不一致"
+        )
+    if run_contract.get("clocks") != contract.clocks_per_us:
+        raise OracleDriverError(
+            "run_contract.clocks が env 契約 clocks_per_us と不一致"
+        )
+    receipt = execution_guard.build_receipt(contract)
+
+    # (4) binary store 消費 (C3-7): 全 schedule 行分の store 実体 + hash を検査。
+    expected = _floor_binaries_by_cell(ratified, root)
+    perf_sha_by_cell: dict = {}
+    for row in schedule:
+        cell = (row["holdout_id"], row["configuration_id"])
+        rec = expected.get(cell)
+        if rec is None:
+            raise OracleDriverError(
+                f"floor artifact に schedule cell の binary receipt が無い: {cell}"
+            )
+        actual = _store_sha256(out_root, rec["store_path"])
+        if actual is None:
+            raise OracleDriverError(
+                f"floor 計測 binary の store 実体が無い: {rec['store_path']} (cell={cell})"
+            )
+        if actual != rec["binary_sha256"]:
+            raise OracleDriverError(
+                f"store binary sha256 が floor receipt と不一致: "
+                f"{rec['store_path']} (cell={cell})"
+            )
+        perf_sha_by_cell[cell] = rec["binary_sha256"]
+    return _V2Plan(
+        contract=contract, receipt=receipt, perf_sha_by_cell=perf_sha_by_cell,
+    )
 
 
 def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
@@ -432,6 +620,22 @@ def run_block(
         return {"status": "refused", **asdict(decision)}
 
     root = Path(root)
+    # v2 (floor/budget が両方 null でない) freeze は承認束縛済み active 世代を 1 回だけ
+    # 解決し、gate へ渡してその bytes sha256 一致を要求する (RatifiedFreezeError は
+    # 例外として漏らさず構造化 refusal に翻訳する)。v1 (両 null) は gate が floor-null/
+    # budget-null で倒すため active 解決に入らない。
+    is_v2 = (verified.document.get("floor") is not None
+             or verified.document.get("budget") is not None)
+    ratified: Optional["s8b_ratified_freeze.RatifiedFreeze"] = None
+    ratified_error: Optional[str] = None
+    if is_v2:
+        try:
+            ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+        except s8b_ratified_freeze.RatifiedFreezeError as exc:
+            ratified_error = f"[{exc.reason}] {exc}"
+        except Exception as exc:  # noqa: BLE001 (fail-closed: 解決不能 = active なし)
+            ratified_error = f"{type(exc).__name__}: {exc}"
+
     # C2-9 / A3-6: manifest を厳密 1 回だけ verify し、gate と本体で同一
     # VerifiedManifest object を共有する (再読込・再検証しない)。verify 失敗時は
     # verified_manifest=None で gate へ渡し、gate が同一 refusal を集約する。
@@ -447,6 +651,7 @@ def run_block(
     decision = gate_check(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
         verified=verified, verified_manifest=verified_manifest,
+        ratified=ratified, ratified_error=ratified_error,
     )
     if not decision.allowed:
         return {"status": "refused", **asdict(decision)}
@@ -477,6 +682,24 @@ def run_block(
     prepare_fn = prepare_fn or prepare_cell
     layout = campaign_layout(campaign_id, output_root=str(output_root))
 
+    # v2 実走前の一括検査 (run marker 作成前・第一防壁): launch_validate +
+    # env 契約導出 + 共有 execution guard/receipt + binary store 消費。いずれの
+    # 不整合も refusal に翻訳し、run marker・WAL・budget を一切書かずに倒す。
+    try:
+        plan = _prepare_v2_execution(
+            ratified=ratified, run_contract=run_contract,
+            schedule=block["schedule"], out_root=output_root, root=root,
+        )
+    except OracleDriverError as exc:
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False, refusals=[f"v2-execution: {exc}"],
+        ))}
+    except Exception as exc:  # 想定外も refusal 契約で倒す (兄弟の ratified 解決経路と対称)
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False,
+            refusals=[f"v2-execution-unexpected: {type(exc).__name__}: {exc}"],
+        ))}
+
     _ensure_campaign(
         layout, manifest_sha256=manifest_sha, block_id=block_id,
         campaign_id=campaign_id, freeze_sha256=freeze_sha, marker_root=marker_root,
@@ -485,6 +708,9 @@ def run_block(
         "manifest_sha256": manifest_sha,
         "block_id": block_id,
         "campaign_id": campaign_id,
+        # C3-10: 共有 execution guard/receipt を run 記録に残す (report が manifest の
+        # env_tag/contract_sha256 と照合する)。
+        "execution_receipt": plan.receipt,
     })
     ledger_identity = {
         "manifest_sha256": manifest_sha,
@@ -588,8 +814,10 @@ def run_block(
                         result = evaluate_fn(
                             prepared_for_eval.genome, layout, env_tag,
                             run_contract["ccbench_pin"], perf,
-                            run_contract["clocks"],
-                            numactl=NUMACTL,
+                            # C3-9: clocks/numactl は env 契約 lookup 結果を使う
+                            # (NUMACTL ハードコード撤去)。
+                            plan.contract.clocks_per_us,
+                            numactl=list(plan.contract.numactl),
                             correctness=None,
                             extra_correctness=[(
                                 pipeline.S2_TAG, pipeline.s2_correctness_workload(),
@@ -602,6 +830,11 @@ def run_block(
                             cache_root=prepared_for_eval.cache_root,
                             screening=None,
                             bench_max_rounds=run_contract["bench_max_rounds"],
+                            # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
+                            # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
+                            expected_perf_sha256=plan.perf_sha_by_cell[
+                                (holdout_id, configuration_id)
+                            ],
                         )
                     except Exception as exc:
                         result = pipeline.EvalResult(

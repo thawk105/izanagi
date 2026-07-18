@@ -65,6 +65,14 @@ def _cell(rows: Sequence[Mapping], n: int, duplicate_indices: set[int]) -> dict:
             reasons.append(_reason(
                 "verify-inconclusive", "verify の pass/red が確定していない",
             ))
+        if row.get("outcome") == "binary-mismatch":
+            # C3-5: 計測 binary が期待 (floor 計測 bytes) と不一致で abort した trial。
+            # この cell は計測の真正性が壊れているため disqualify でなく unknown に倒す
+            # (verify-inconclusive と同じく、他 trial に red があっても cell を unknown に
+            # 固定する: 誤った binary で走った cell の結論を採らない)。
+            reasons.append(_reason(
+                "binary-mismatch", "計測 binary が期待値と不一致で abort した",
+            ))
 
     if reasons:
         return _unknown(reasons)

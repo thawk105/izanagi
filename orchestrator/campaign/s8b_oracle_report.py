@@ -15,7 +15,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import s8b_oracle_manifest, wal  # noqa: E402
+from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 
 
@@ -23,8 +23,12 @@ SCHEMA_VERSION = "8b-oracle-observations/v1"
 SESSION_STAGE = "s8b-oracle-session"
 OUTCOMES = {
     "committed", "correctness-red", "build-failed", "timeout", "bench-failed",
-    "verify-inconclusive",
+    "verify-inconclusive", "binary-mismatch",
 }
+# C3-5: bench-binary-mismatch abort が射影される terminal outcome の abort reason。
+# build_done 後・trace/bench 起動前に発火するため build/verify/bench 証拠のどれにも
+# 適合しない (専用の証拠 truth table を _assess_window に持つ)。
+BINARY_MISMATCH_REASON = "bench-binary-mismatch"
 VERIFY_INCONCLUSIVE_REASONS = {
     "trace-run-nonzero-exit", "trace-empty", "trace-no-abort-counts",
     "trace-parse-error", "verify-competing-tenant",
@@ -422,6 +426,20 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
             issues.append(f"{outcome} 宣言と abort 証拠が一致しない")
         if outcome == "bench-failed" and not (legacy == "pass" and s2 == "pass"):
             issues.append("bench-failed より前の verify が両方 pass でない")
+    elif outcome == "binary-mismatch":
+        # C3-5: build_done 後・verify/bench 起動前の TOCTOU abort。build は完了して
+        # いるが verify は一切走らず (両 tag missing)、bench も無い。abort reason は
+        # bench-binary-mismatch 固定。この証拠形以外は protocol violation。
+        abort_reason = (
+            abort_records[0].payload.get("reason")
+            if len(abort_records) == 1 and isinstance(abort_records[0].payload, Mapping)
+            else None
+        )
+        if not (counts["build_done"] == 1 and counts["abort"] == 1
+                and counts["commit"] == 0 and abort_reason == BINARY_MISMATCH_REASON
+                and legacy == "missing" and s2 == "missing"
+                and not benches):
+            issues.append("binary-mismatch 宣言と build 後 abort 証拠が一致しない")
     elif outcome == "verify-inconclusive":
         abort_reason = (
             abort_records[0].payload.get("reason")
@@ -474,6 +492,22 @@ def _not_started_reason(records: Sequence[object], item: Mapping) -> Optional[st
     return "; ".join(reasons) or None
 
 
+def _receipt_expectations(manifest: Mapping):
+    """manifest run_contract から (env_tag, contract_sha256) を取り出す (v2 のみ)。
+
+    run_contract を持たない (legacy) manifest では None を返し receipt 検査を課さない。
+    v2 (env_tag + contract_sha256 が揃う) manifest でのみ receipt 照合を発火させる。"""
+    run_contract = manifest.get("run_contract") if isinstance(manifest, Mapping) else None
+    if not isinstance(run_contract, Mapping):
+        return None
+    env_tag = run_contract.get("env_tag")
+    contract_sha256 = run_contract.get("contract_sha256")
+    if (isinstance(env_tag, str) and env_tag
+            and isinstance(contract_sha256, str) and contract_sha256):
+        return env_tag, contract_sha256
+    return None
+
+
 def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mapping,
                      manifest_sha: str, allowed_excluded: set[str], output_root: Path) -> list[dict]:
     bases = [_base_row(item) for item in rows]
@@ -507,6 +541,18 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
             global_issues.append("campaign-start.campaign_id が manifest と不一致")
         if len(block_ids) != 1 or start.get("block_id") not in block_ids:
             global_issues.append("campaign-start.block_id が schedule と不一致")
+        # C3-10: manifest が v2 run_contract (env_tag + contract_sha256) を宣言する場合、
+        # campaign-start の execution_receipt が env_tag/contract_sha256 と一致し、実行機
+        # attestation を持つことを要求する (受理が恒真にならないよう存在と一致を両方検査)。
+        expectations = _receipt_expectations(manifest)
+        if expectations is not None:
+            env_tag, contract_sha256 = expectations
+            if not execution_guard.receipt_matches_contract(
+                    start.get("execution_receipt"),
+                    env_tag=env_tag, contract_sha256=contract_sha256):
+                global_issues.append(
+                    "campaign-start.execution_receipt が manifest run_contract の "
+                    "env_tag/contract_sha256 と不一致 (または欠落)")
     for record in records:
         if _session_event(record):
             event = record.payload.get("event")

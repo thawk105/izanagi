@@ -1143,6 +1143,27 @@ def load_ratified_freeze(root=ROOT) -> RatifiedFreeze:
     )
 
 
+def read_floor_source_blob(ratified: "RatifiedFreeze", root=ROOT) -> bytes:
+    """RatifiedFreeze の floor_source が指す floor artifact の blob bytes を返す (C3-7)。
+
+    世代導入 commit G の tree から 1 回だけ blob を読み、記録 sha256 との一致を確認する
+    (worktree 再読込でなく blob 1 回読み — H-pure と同じ規律)。floor_source blob 自体は
+    load_ratified_freeze の _verify_generation_semantics (V1d) で既に blob 実在 + sha256 +
+    dirty + 履歴不変を検査済みだが、consumer (oracle driver の binary store 消費) が期待
+    binary hash を引くために内容 bytes を取り出す helper を分離する。"""
+    root = Path(root)
+    path, sha = _source_record_path_sha(ratified.document, "floor_source")
+    blob = _blob_at_or_fail(
+        ratified.generation_commit, path, root, reason="floor-source-missing",
+    )
+    if _sha256_hex(blob) != sha:
+        raise RatifiedFreezeError(
+            "floor-source-mismatch",
+            f"floor_source:{path} の blob sha256 が記録と不一致",
+        )
+    return blob
+
+
 def load_legacy_freeze(root=ROOT) -> LegacyFreeze:
     """v1 単一 filename freeze を bytes 定数で束縛して LegacyFreeze を返す (C2-5)。
 

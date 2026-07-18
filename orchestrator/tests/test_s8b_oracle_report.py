@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 from campaign import (  # noqa: E402
+    execution_guard,
     s8b_oracle_judge as judge,
     s8b_oracle_manifest as oracle_manifest,
     s8b_oracle_report as report,
@@ -91,6 +92,7 @@ def _manifest(tmp_path: Path, *, campaign_id: str = "oracle-b0", n: int = 1) -> 
             "ccbench_pin": "pin", "env_tag": "fixture-env", "clocks": 1800,
             "reps": 2, "extime": 1, "verify": "legacy+s2",
             "screening": "off", "bench_max_rounds": 1,
+            "contract_sha256": "0" * 64,
         },
         binding_identity=[
             _binding(holdout_id, configuration_id)
@@ -111,12 +113,25 @@ def _session(layout, event: str, payload: dict) -> None:
     wal.log(layout, "oracle-session", SESSION, "fixture-env", {"event": event, **payload})
 
 
-def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0") -> None:
-    _session(layout, "campaign-start", {
+def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
+                    *, receipt: dict | None = None) -> None:
+    payload = {
         "manifest_sha256": oracle_manifest.manifest_sha256(manifest),
         "block_id": "b0",
         "campaign_id": campaign_id,
-    })
+        # C3-10: manifest run_contract の env_tag/contract_sha256 と一致する execution
+        # receipt を既定で載せる (report が受理する形)。負例は receipt=<改竄> で注入。
+        "execution_receipt": receipt if receipt is not None else {
+            "schema": execution_guard.RECEIPT_SCHEMA,
+            "env_tag": "fixture-env",
+            "contract_sha256": "0" * 64,
+            "attestation": {
+                "hostname": "fixture-host", "boot_id": None,
+                "cpuset": None, "captured_utc": "2026-07-18T00:00:00+00:00",
+            },
+        },
+    }
+    _session(layout, "campaign-start", payload)
 
 
 def _verify(layout, variant: str, tag: str, certified: bool) -> None:
@@ -147,7 +162,12 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
         wal.log(layout, variant, "build_done", "fixture-env", {
             "trace_bin": "trace", "perf_bin": "perf",
         })
-        if outcome == "legacy-red":
+        if outcome == "binary-mismatch":
+            # C3-5: build_done 後・verify/bench 起動前の TOCTOU abort。
+            wal.log(layout, variant, "abort", "fixture-env", {
+                "reason": "bench-binary-mismatch",
+            })
+        elif outcome == "legacy-red":
             _verify(layout, variant, "legacy", False)
             wal.log(layout, variant, "abort", "fixture-env", {
                 "reason": "cycle", "workload": {"tag": "legacy"},
@@ -224,6 +244,7 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
         ("timeout", "timeout", "pass", "missing"),
         ("verify-inconclusive", "verify-inconclusive", "pass", "missing"),
         ("bench-failed", "bench-failed", "pass", "pass"),
+        ("binary-mismatch", "binary-mismatch", "missing", "missing"),
     ],
 )
 def test_failure_outcomes_remain_as_completed_observation_rows(
@@ -265,6 +286,58 @@ def test_verify_inconclusive_wal_stays_observable_and_judges_indeterminate(tmp_p
         row["configuration_id"]
     ]
     assert cell["status"] == "unknown"
+
+
+def test_binary_mismatch_wal_stays_observable_and_judges_indeterminate(tmp_path):
+    """C3-5: binary-mismatch trial が report で observable outcome になり、judge の
+    eligibility へ unknown 伝播する (cell=unknown / overall=indeterminate)。"""
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    mismatch_item = schedule[0]
+    layout = _layout(tmp_path, manifest)
+    for item in schedule:
+        _trial(
+            layout, item,
+            "binary-mismatch" if item is mismatch_item else "committed",
+        )
+
+    observations = report.build_observations(manifest=manifest, output_root=tmp_path)
+    row = observations["rows"][0]
+    verdict = judge.judge_oracle(observations)
+
+    assert row["status"] == "completed"
+    assert row["outcome"] == "binary-mismatch"
+    assert row["legacy_verify"] == "missing" and row["s2_verify"] == "missing"
+    assert verdict["status"] == "indeterminate"
+    cell = verdict["holdouts"][row["holdout_id"]]["configurations"][
+        row["configuration_id"]
+    ]
+    assert cell["status"] == "unknown"
+
+
+def test_receipt_mismatch_is_protocol_violation(tmp_path):
+    """manifest run_contract (v2) が宣言する env_tag/contract_sha256 と campaign-start の
+    execution_receipt が食い違えば全行 protocol_violation (report が receipt を照合する)。"""
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    # contract_sha256 が manifest と不一致な receipt を載せる。
+    _campaign_start(layout, manifest, "oracle-b0", receipt={
+        "schema": execution_guard.RECEIPT_SCHEMA,
+        "env_tag": "fixture-env",
+        "contract_sha256": "1" * 64,
+        "attestation": {
+            "hostname": "h", "boot_id": None, "cpuset": None,
+            "captured_utc": "2026-07-18T00:00:00+00:00",
+        },
+    })
+    for item in schedule:
+        _trial(layout, item, "committed")
+
+    observations = report.build_observations(manifest=manifest, output_root=tmp_path)
+    assert all(row["status"] == "protocol_violation" for row in observations["rows"])
+    assert any("execution_receipt" in (row.get("reason") or "")
+               for row in observations["rows"])
 
 
 @pytest.mark.parametrize("damage", ["missing", "partial"])

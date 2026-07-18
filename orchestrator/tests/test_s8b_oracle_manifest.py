@@ -94,6 +94,7 @@ def _build_manifest(freeze_path, *, schedule=None):
             "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
             "reps": 5, "extime": 3, "verify": "legacy+s2",
             "screening": "off", "bench_max_rounds": 1,
+            "contract_sha256": "0" * 64,
         },
         binding_identity=bindings,
         campaign_ids={block["block_id"]: f"campaign-{block['block_id']}"
@@ -216,6 +217,7 @@ def test_binding_identity_requires_complete_unique_schedule_cell_product(tmp_pat
                 "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
                 "reps": 5, "extime": 3, "verify": "legacy+s2",
                 "screening": "off", "bench_max_rounds": 1,
+                "contract_sha256": "0" * 64,
             },
             binding_identity=bindings,
             campaign_ids={block["block_id"]: f"campaign-{block['block_id']}"
@@ -488,6 +490,7 @@ def _run_contract(bench_max_rounds=1):
         "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
         "reps": 5, "extime": 3, "verify": "legacy+s2",
         "screening": "off", "bench_max_rounds": bench_max_rounds,
+        "contract_sha256": "0" * 64,
     }
 
 

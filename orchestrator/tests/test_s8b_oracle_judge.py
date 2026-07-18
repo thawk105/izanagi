@@ -185,6 +185,26 @@ def test_verify_inconclusive_is_unknown_not_disqualified():
     assert any(reason["code"] == "verify-inconclusive" for reason in cell["reasons"])
 
 
+def test_binary_mismatch_is_unknown_not_disqualified():
+    """C3-5: binary-mismatch outcome の trial は cell を unknown に倒す (計測 binary の
+    真正性が壊れているため disqualify でなく判定不能に伝播)。"""
+    observations = _observations()
+    target = CONFIGURATIONS[-1]
+    for row in observations["rows"]:
+        if row["configuration_id"] == target:
+            row["outcome"] = "binary-mismatch"
+            row["s2_verify"] = "missing"
+            row["legacy_verify"] = "missing"
+            row["bench_values"] = []
+
+    result = judge.judge_oracle(observations)
+    cell = _holdout(result)["configurations"][target]
+
+    assert cell["status"] == "unknown"
+    assert result["status"] == "indeterminate"
+    assert any(reason["code"] == "binary-mismatch" for reason in cell["reasons"])
+
+
 def test_row_shuffle_does_not_change_verdict_json():
     observations = _observations()
     expected = judge.judge_oracle(observations)
