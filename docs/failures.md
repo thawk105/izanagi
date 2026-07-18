@@ -256,6 +256,20 @@
 - 再発検知: 現行の settings 文字列検査と hook script 直叩きでは検知できない。次の新規
   バックグラウンドジョブ型セッションで、daemon version を確認した live 負例を再試験する。
 
+### F22. 実機前提の検収を rc 成功で確定と誤認 — 表記・依存の逐次発見で attempt 10 回 [手順漏れ] [テスト代表性]
+- 事象: Pegasus certification (2026-07-19) が実機固有の未確定前提で 9 回 fail-closed した。qstat の
+  時刻 field 表記 (smoke で rc=0 だけ確認し、表記をパーサと突合しなかった) / PBS_JOBID の `0:`
+  prefix / CMake の PATH 型 `:` 分割 / gflags→glog の依存逐次発見 / perf dispatcher のカーネル
+  不一致 / NFS の renameat2 EINVAL。各回は 10〜210 秒 + 完全 forensic で安価だったが、依存 2 件は
+  全量列挙を先にやれば 1 回で済んだ。
+- 根本原因: smoke 検収を「コマンドが rc=0 で動く」で閉じ、**出力の表記・意味を消費側 (パーサ・
+  照合) と突合するまでやらなかった**。ビルド依存も「最初に踏んだ欠落だけ直す」逐次対応で始めた。
+- 恒久対応: (a) smoke の検収基準を「消費側との突合まで」とする (qstat 表記は実 bytes を fixture 化
+  済み)。(b) 新環境のビルドは configure 前に find_package/依存の全量列挙 (今回 CCBench 分は
+  runbook §7.1 に確定記録)。(c) 実機で確定した事実は pegasus-runbook §7.1 へ都度固定。
+- 再発検知: certification ジョブの forensic (stage 別 failure.json) が発見コストを 1 attempt
+  ~0.01pt に抑える — 逐次発見自体は安全。型として残すのは「rc=0 ≠ 検収完了」。
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —

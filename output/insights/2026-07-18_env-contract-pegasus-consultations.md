@@ -1187,3 +1187,28 @@ FD 常時保持 openat 全面化 (既知限界として記録)
 ## 付録 C: W2-fix 統合レビュー申し送り
 
 - [W5 編入] 契約不変式「attestation_mode==required ⟹ single_process=True」を env_contract __post_init__ へ (oracle 途中 recheck が reservation ゲートに結合している latent gap の構造閉鎖。field 追加なしのため hash churn なし)
+
+## 実測段の経過 (certification attempt 1〜10、2026-07-19)
+
+全 attempt が fail-closed + stage 別 forensic (calibration/job-staging/) で前進。総実走 ~15 分、
+消費 ~0.1pt。発見と修正 (各 commit に対応):
+1. 867863 (6s): qstat 時刻 field が NQSV 表記 `Started Request Time` → パーサ追加 + 実 bytes fixture
+2. 867865 (7s): worktree の submodule 未実体化 (空 dir の rev-parse が親 HEAD を返す罠) → ローカル clone
+3. 867866 (9s): gflags 不在 → 永続 pinned ソースから /scr 使い捨て static build
+4. 867867 (11s): CMake が PATH 型変数の `:` をリスト区切り化し /scr/0:ID パスが分裂 → ジョブ dir 名の `:` 除去
+5. 867868 (10s): glog 不在 (依存全量列挙で最後と確認) → gflags 同型段
+6. 867869 (136s): known-values 照合が raw 表記 vs 正規化表記の別空間比較 → 正規化空間の厳密一致へ (substring の近縁 SKU 面も閉鎖)
+7. 867870 (105s): probe が calibrate を包む timeout ラッパー argv のバイナリパスに自己一致 → argv JSON + execv 間接起動 (除外規律は不変)
+8. 867872 (106s): perf dispatcher がノードカーネル用 linux-tools 不在 → 実体候補を機能 smoke つき選定 + PATH 注入
+9. 867874 (207s): 較正初完走 (下限基準 1M、CV 0.96%) も publish の renameat2 が NFS で EINVAL → link+unlink fallback
+10. **867876 (210s): accepted** — `registered/calibration-753f535a8d024727.json`
+    (sha256=753f535a...cce5a49、clocks 2100、within-run CV 1.17%、bnode011、final-receipt 済み)
+
+並行して xdist 間欠 fail (index.lock 競合 → patch 残骸) を patchharness で恒久対策
+(GIT_OPTIONAL_LOCKS=0 + 有界痕跡リトライ、3 連続全走緑で実証)。型は failures F22 に記録。
+
+## W5 (registry 登録) 結果
+
+pegasus entry 登録 (contract_sha256 = e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01、
+linux-baremetal は不変)。契約不変式 required⟹single_process 追加。意味検証 11 変異 11/11 KILL。
+統合レビュー (opus) = worklog 記載。最終ゲート 1927 passed / 0 failed (rc=0)。
