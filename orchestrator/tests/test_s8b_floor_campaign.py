@@ -502,7 +502,7 @@ def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
             s8b_floor_campaign.run_campaign(
                 _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
                 out_root=out_root, mode="official",
-                measure_fn=_forbid_measure, probe_fn=lambda: (1, ""),
+                measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
                 prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
             )
     assert not out_root.exists()  # 書き込み 0 回
@@ -522,7 +522,7 @@ def test_run_campaign_rejects_unknown_env_tag(tmp_path):
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="env 契約"):
         _run_campaign(protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
                       build_root=tmp_path / "bin", measure_fn=_forbid_measure,
-                      probe_fn=lambda: (1, ""))
+                      probe_fn=lambda: (1, "", ""))
 
 
 def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
@@ -539,7 +539,7 @@ def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
         with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="machine-pin"):
             _run_campaign(protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
                           build_root=tmp_path / "bin", measure_fn=_forbid_measure,
-                          probe_fn=lambda: (1, ""))
+                          probe_fn=lambda: (1, "", ""))
 
 
 def test_run_campaign_rejects_freeze_byte_hash_mismatch(tmp_path):
@@ -550,7 +550,7 @@ def test_run_campaign_rejects_freeze_byte_hash_mismatch(tmp_path):
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="bytes-hash pin"):
         _run_campaign(protocol, tampered, out_root=tmp_path / "out",
                       build_root=tmp_path / "bin", measure_fn=_forbid_measure,
-                      probe_fn=lambda: (1, ""))
+                      probe_fn=lambda: (1, "", ""))
 
 
 def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
@@ -571,7 +571,7 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
          mock.patch.object(s8b_floor_campaign, "measure_point", spy_measure_point):
         s8b_floor_campaign.run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
-            measure_fn=None, probe_fn=lambda: (1, ""), prepare_fn=_fake_prepare,
+            measure_fn=None, probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
             now_fn=lambda: _FIXED_NOW, monotonic_fn=lambda: 0.0,
         )
     assert seen["clocks_per_us"] == contract.clocks_per_us
@@ -592,7 +592,7 @@ def test_partial_reps_invalidates_session_and_burns_retry_then_nulls_pair(tmp_pa
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "nonstock",
                             build_root=tmp_path / "nonstock-bin",
-                            measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                            measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
     result = outcome["result"]
 
     flaky_sessions = [s for s in result["sessions"] if s["cell_id"] == flaky]
@@ -624,7 +624,7 @@ def test_stock_flaky_nulls_entire_holdout_including_scale_ref(tmp_path):
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "stock",
                             build_root=tmp_path / "stock-bin",
-                            measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                            measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
     result = outcome["result"]
     assert result["cells"][stock_flaky]["valid"] is False
     for cfg, floor in result["floors"]["rr79"]["pairs"].items():
@@ -648,7 +648,7 @@ def test_retry_sequence_is_metamorphic_to_other_cells_values(tmp_path):
         measure_fn = _make_measure_fn(reps=5, value_fn=value_fn, partial_for={flaky})
         outcome = _run_campaign(protocol, verified, out_root=tmp_path / f"run{scale}",
                                 build_root=tmp_path / f"bin{scale}",
-                                measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                                measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
         return outcome["result"]
 
     ra = run(1.0)
@@ -677,7 +677,7 @@ def test_probe_competing_invalidates_session_with_raw_stdout_in_journal(tmp_path
 
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
-                            probe_fn=lambda: (0, conflicting))
+                            probe_fn=lambda: (0, conflicting, ""))
     assert measure_fn.calls == []  # 競合検知は measure の前でスキップ
     result = outcome["result"]
     assert all(not s["valid"] for s in result["sessions"])
@@ -701,8 +701,8 @@ def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path
     def probe_fn():
         calls["n"] += 1
         if calls["n"] % 2 == 1:
-            return (1, "")           # pre-probe: 競合なし
-        return (0, "777 ycsb_fixture.exe\n")  # post-probe: 競合
+            return (1, "", "")           # pre-probe: 競合なし
+        return (0, "777 ycsb_fixture.exe\n", "")  # post-probe: 競合
 
     measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid],
                                   raise_for={launch_fail_cell})
@@ -717,11 +717,17 @@ def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path
 
 
 @pytest.mark.parametrize("probe_fn, match", [
-    (lambda: (2, "unexpected rc"), "rc"),
+    # rc>1 (pgrep エラー)・rc==1+付随出力・rc==0+空・rc==1+stderr 非空 (BusyBox 罠) は
+    # いずれも共有分類器が CompetingBenchProbeError を投げ、floor が CampaignAbort へ
+    # 翻訳する (fail-closed)。stderr 経路は floor が seam で stderr を握り潰していた
+    # C4-5 の穴を塞いだ回帰: (rc, stdout, stderr) 3-tuple で実 stderr が分類器へ届く。
+    (lambda: (2, "unexpected rc", ""), "確定できない"),
+    (lambda: (1, "1234 ycsb_fixture.exe", ""), "確定できない"),   # rc==1+出力 → abort
+    (lambda: (0, "", ""), "確定できない"),                        # rc==0+空 → abort
+    (lambda: (1, "", "pgrep: unrecognized option '-af'\n"), "確定できない"),  # BusyBox 罠 → abort
     (lambda: (_ for _ in ()).throw(OSError("pgrep 不在を模す")), "OSError"),
-    (lambda: (0, "not-a-pid ycsb_fixture.exe"), "parse"),
 ])
-def test_probe_unexecutable_or_unparseable_aborts_campaign(tmp_path, probe_fn, match):
+def test_probe_unexecutable_or_inconsistent_aborts_campaign(tmp_path, probe_fn, match):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -742,6 +748,50 @@ def test_probe_unexecutable_or_unparseable_aborts_campaign(tmp_path, probe_fn, m
     assert not (run_dir / "result.json").exists()
 
 
+def test_probe_unparseable_pid_line_invalidates_session_not_abort(tmp_path):
+    """rc==0 で先頭 token が PID 形でない行は、共有分類器が fails-closed で競合側に
+    残す (素性不明を non-competing 扱いにしない)。floor では abort ではなく
+    competing_process による session 無効化になる (共有実装の parse 意味論を継承)。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+
+    outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                            build_root=tmp_path / "bin", measure_fn=measure_fn,
+                            probe_fn=lambda: (0, "not-a-pid ycsb_fixture.exe\n", ""))
+    assert measure_fn.calls == []           # pre-probe 競合検知で measure スキップ
+    result = outcome["result"]
+    assert all(not s["valid"] for s in result["sessions"])
+    assert all(s["excluded_reason"] == "competing_process" for s in result["sessions"])
+
+
+def test_probe_own_descendant_pid_detected_as_competing_b2(tmp_path):
+    """B-2 回帰: floor 側でも子孫除外への逆戻りを検出する。自プロセス (= pytest プロセス)
+    の実子 PID を probe が返しても、own-PID-only 縮小の下では競合として検出され session が
+    無効化される。子孫除外へ戻ると実子が黙って落ち、session が有効になってしまう。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+
+    child = subprocess.Popen(["sleep", "30"])   # 自プロセスの実子 (子孫) を 1 つ起こす
+    try:
+        line = f"{child.pid} /out/s8b-build-cache/gen0/ycsb_child.exe\n"
+        outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
+                                build_root=tmp_path / "bin", measure_fn=measure_fn,
+                                probe_fn=lambda: (0, line, ""))
+    finally:
+        child.kill()
+        child.wait(timeout=5)
+    assert measure_fn.calls == []           # 実子が競合検知され measure スキップ
+    result = outcome["result"]
+    assert all(s["excluded_reason"] == "competing_process" for s in result["sessions"])
+    sample = result["sessions"][0]
+    assert str(child.pid) in sample["probe_before"]["stdout"]
+    assert sample["probe_before"]["competing"]   # 実子が競合として残った
+
+
 # =========================================================================== #
 # 7. performance_anomaly (session 内 CV>10%) / machine_anomaly (セル間 CV>15%)   #
 # =========================================================================== #
@@ -760,7 +810,7 @@ def test_performance_anomaly_invalidates_session_and_nulls_pair(tmp_path):
     measure_fn = _make_measure_fn(reps=5, value_fn=None, reps_fn=reps_fn)
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
-                            probe_fn=lambda: (1, ""))
+                            probe_fn=lambda: (1, "", ""))
     result = outcome["result"]
     anomaly_sessions = [s for s in result["sessions"] if s["cell_id"] == anomaly]
     assert all(s["excluded_reason"] == "performance_anomaly" for s in anomaly_sessions)
@@ -788,7 +838,7 @@ def test_machine_anomaly_valid_cell_but_pair_null(tmp_path):
     measure_fn = _make_measure_fn(reps=5, value_fn=None, reps_fn=reps_fn)
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
-                            probe_fn=lambda: (1, ""))
+                            probe_fn=lambda: (1, "", ""))
     result = outcome["result"]
     assert result["cells"][noisy]["valid"] is True       # 8 session 全て有効
     assert result["cells"][noisy]["n_valid"] == 8
@@ -809,7 +859,7 @@ def test_create_only_rejects_overwrite_journal_appends(tmp_path):
     out_root = tmp_path / "out"
 
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-                            measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                            measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
     run_dir = Path(outcome["run_dir"])
     assert (run_dir / "manifest.json").exists()
     assert (run_dir / "result.json").exists()
@@ -819,7 +869,7 @@ def test_create_only_rejects_overwrite_journal_appends(tmp_path):
     measure_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="既に存在する"):
         _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin2",
-                      measure_fn=measure_fn2, probe_fn=lambda: (1, ""))
+                      measure_fn=measure_fn2, probe_fn=lambda: (1, "", ""))
 
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="既に存在するため上書きしない"):
         s8b_floor_campaign._write_create_only_json(run_dir / "result.json", {"x": 1})
@@ -841,7 +891,7 @@ def test_idempotent_finalization_after_result_json_crash(tmp_path):
     out_root = tmp_path / "out"
     measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-                            measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                            measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
     run_dir = Path(outcome["run_dir"])
     original_result = (run_dir / "result.json").read_bytes()
 
@@ -856,7 +906,7 @@ def test_idempotent_finalization_after_result_json_crash(tmp_path):
     measure_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome2 = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
                              resume_dir=run_dir, measure_fn=measure_fn2,
-                             probe_fn=lambda: (1, ""))
+                             probe_fn=lambda: (1, "", ""))
     assert outcome2["status"] == "completed"
     assert measure_fn2.calls == []  # 全 session 済みなので新規計測なし
     assert (run_dir / "result.json").read_bytes() == original_result  # 上書きされない
@@ -894,7 +944,7 @@ def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
     measure_fn, call_count = _crash_at(4)  # seq0-2 完了、seq3 は start だけ
     with pytest.raises(_SimulatedCrash):
         _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                      measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
     assert call_count["n"] == 4
 
     run_dir = _only_run_dir(out_root)
@@ -912,12 +962,12 @@ def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
     resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="protocol sha256"):
         _run_campaign(mismatched, verified, out_root=out_root, build_root=tmp_path / "bin",
-                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, "", ""))
 
     # 正当な resume は forward-only で完了。
     resume_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-                            resume_dir=run_dir, measure_fn=resume_fn2, probe_fn=lambda: (1, ""))
+                            resume_dir=run_dir, measure_fn=resume_fn2, probe_fn=lambda: (1, "", ""))
     assert outcome["status"] == "completed"
     assert len(resume_fn2.calls) == 96 - 4  # seq4..95 の 92 本だけ新規実行
 
@@ -944,7 +994,7 @@ def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
     measure_fn, _ = _crash_at(4)
     with pytest.raises(_SimulatedCrash):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                      measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
 
     run_dir = _only_run_dir(out_root)
     manifest = json.loads((run_dir / "manifest.json").read_bytes())
@@ -957,14 +1007,14 @@ def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
     resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="バイナリ sha256"):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, "", ""))
     assert resume_fn.calls == []
     assert not (run_dir / "result.json").exists()
 
     binary_path.write_bytes(original)
     resume_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                            resume_dir=run_dir, measure_fn=resume_fn2, probe_fn=lambda: (1, ""))
+                            resume_dir=run_dir, measure_fn=resume_fn2, probe_fn=lambda: (1, "", ""))
     assert outcome["status"] == "completed"
 
 
@@ -978,7 +1028,7 @@ def test_resume_rejects_tampered_manifest_schedule(tmp_path):
     measure_fn, _ = _crash_at(4)
     with pytest.raises(_SimulatedCrash):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                      measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
     run_dir = _only_run_dir(out_root)
 
     manifest_path = run_dir / "manifest.json"
@@ -991,7 +1041,7 @@ def test_resume_rejects_tampered_manifest_schedule(tmp_path):
     resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="schedule"):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, "", ""))
 
 
 def test_resume_rejects_duplicate_session_start(tmp_path):
@@ -1004,7 +1054,7 @@ def test_resume_rejects_duplicate_session_start(tmp_path):
     measure_fn, _ = _crash_at(4)
     with pytest.raises(_SimulatedCrash):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                      measure_fn=measure_fn, probe_fn=lambda: (1, ""))
+                      measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
     run_dir = _only_run_dir(out_root)
 
     # journal に seq0 の session-start を二重に足す (状態機械が duplicate start を拒否)。
@@ -1016,7 +1066,7 @@ def test_resume_rejects_duplicate_session_start(tmp_path):
     resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="duplicate start"):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+                      resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, "", ""))
 
 
 def test_resume_does_not_reissue_retry_slot_after_retry_start_crash(tmp_path):
@@ -1044,7 +1094,7 @@ def test_resume_does_not_reissue_retry_slot_after_retry_start_crash(tmp_path):
 
     with pytest.raises(_SimulatedCrash):
         _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                      measure_fn=first_measure, probe_fn=lambda: (1, ""))
+                      measure_fn=first_measure, probe_fn=lambda: (1, "", ""))
 
     run_dir = _only_run_dir(out_root)
     journal_before = _read_journal_lines(run_dir / "journal.jsonl")
@@ -1055,7 +1105,7 @@ def test_resume_does_not_reissue_retry_slot_after_retry_start_crash(tmp_path):
     # 2 回目 (resume): flaky も正常に測れる。ordinal 1 は再発行されず ordinal 2 が使われる。
     resume_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=build_root,
-                            resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, ""))
+                            resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, "", ""))
     assert outcome["status"] == "completed"
 
     journal_after = _read_journal_lines(run_dir / "journal.jsonl")
@@ -1081,7 +1131,7 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
     measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
-                            probe_fn=lambda: (1, ""))
+                            probe_fn=lambda: (1, "", ""))
     assert outcome["status"] == "completed"
     result = outcome["result"]
 
@@ -1123,7 +1173,7 @@ def test_result_json_records_per_attempt_duration_and_no_absolute_monotonic(tmp_
 
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
-                            probe_fn=lambda: (1, ""), monotonic_fn=monotonic_fn)
+                            probe_fn=lambda: (1, "", ""), monotonic_fn=monotonic_fn)
     result = outcome["result"]
     # 各 attempt に duration_s が記録される (β-10)。
     for a in result["attempts"]:
@@ -1150,7 +1200,7 @@ def test_floor_manifest_binary_sha256_matches_real_file_bytes(tmp_path):
     measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=tmp_path / "out",
                             build_root=tmp_path / "bin", measure_fn=measure_fn,
-                            probe_fn=lambda: (1, ""))
+                            probe_fn=lambda: (1, "", ""))
     assert outcome["status"] == "completed"
     run_dir = _only_run_dir(tmp_path / "out")
     binaries = json.loads((run_dir / "manifest.json").read_bytes())["binaries"]

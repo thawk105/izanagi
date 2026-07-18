@@ -66,7 +66,8 @@ ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
 from calibrator.runner import (  # noqa: E402
-    _self_and_descendant_pids,
+    CompetingBenchProbeError,
+    classify_competing_probe,
     measure_point,
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
@@ -465,48 +466,41 @@ def _read_journal(journal_path: Path) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
-# strict single-tenant probe (規律4, 自前 pgrep)                               #
+# strict single-tenant probe (規律4, runner の共有分類器を消費)                 #
 # --------------------------------------------------------------------------- #
 
-def _default_probe_fn() -> tuple[int, str]:
-    """pgrep -af 'ycsb_.*\\.exe' を 1 回叩き (rc, stdout) を返す (OSError は投げる)。"""
-    result = subprocess.run(
-        ["pgrep", "-af", r"ycsb_.*\.exe"], capture_output=True, text=True,
-    )
-    return result.returncode, result.stdout
+_PROBE_ARGV = ["pgrep", "-af", r"ycsb_.*\.exe"]
 
 
-def strict_probe(probe_fn: Callable[[], tuple[int, str]]) -> dict:
+def _default_probe_fn() -> tuple[int, str, str]:
+    """pgrep -af 'ycsb_.*\\.exe' を 1 回叩き (rc, stdout, stderr) を返す (OSError は投げる)。"""
+    result = subprocess.run(_PROBE_ARGV, capture_output=True, text=True)
+    return result.returncode, result.stdout, result.stderr
+
+
+def strict_probe(probe_fn: Callable[[], tuple[int, str, str]]) -> dict:
     """計測前後の臨界区間 probe。競合検知は lag-free の確定信号 (規律4)。
 
-    rc==1 → マッチ無し = 競合なし。rc==0 → 自プロセス子孫を除外して残れば競合。それ以外の rc
-    (rc>1)・OSError・pid parse 不能 → CampaignAbort (fail-closed)。probe の admission 意味論 (自己
-    子孫除外) は B-2 未裁定のため変えない。生出力は戻り値に含め、呼び手が journal に残す。
+    分類は runner の共有 `classify_competing_probe` に委譲する (C4-5: 二重実装排除)。
+    rc==1+空 → 競合なし / rc==0+PID 行 → 自 PID (`os.getpid()`) を除いて残れば競合 /
+    rc==1+付随出力・rc==0+空・rc>1・負値・**rc==1+stderr 非空 (BusyBox 罠)** →
+    `CompetingBenchProbeError` を CampaignAbort へ翻訳 (fail-closed)。probe_fn は
+    (rc, stdout, stderr) を返す注入シーム (テスト用) で、stderr も分類器へ実値で渡す
+    — runner の `competing_bench_pids` と全く同じ strict 契約を通す (C4-5 統一の要:
+    floor だけが BusyBox ガードを死なせない)。除外は自 PID のみ (B-2 裁定済み —
+    自分の子孫も競合として検出する。worklog 2026-07-18 (6) /
+    docs/phase3-8b-descriptor-design.md §9)。生出力は戻り値に含め、呼び手が journal に残す。
     """
     try:
-        rc, stdout = probe_fn()
+        rc, stdout, stderr = probe_fn()
     except OSError as exc:
         raise CampaignAbort(f"strict probe が OSError: {exc}") from exc
-    if rc == 1:
-        return {"rc": rc, "stdout": stdout, "competing": []}
-    if rc != 0:
-        raise CampaignAbort(f"strict probe の rc が想定外: {rc} (stdout={stdout[:200]!r})")
-
-    excluded = _self_and_descendant_pids(os.getpid())
-    competing: list[str] = []
-    for line in stdout.splitlines():
-        if not line.strip():
-            continue
-        pid_field = line.split(None, 1)[0]
-        try:
-            pid = int(pid_field)
-        except ValueError as exc:
-            raise CampaignAbort(
-                f"strict probe の pgrep 行から pid を parse できない: {line!r}"
-            ) from exc
-        if pid not in excluded:
-            competing.append(line)
-    return {"rc": rc, "stdout": stdout, "competing": competing}
+    try:
+        competing = classify_competing_probe(rc, stdout, stderr, _PROBE_ARGV)
+    except CompetingBenchProbeError as exc:
+        raise CampaignAbort(
+            f"strict probe が競合の有無を確定できない (fail-closed): {exc}") from exc
+    return {"rc": rc, "stdout": stdout, "stderr": stderr, "competing": competing}
 
 
 # --------------------------------------------------------------------------- #
@@ -1324,7 +1318,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
-    ``probe_fn() -> (rc, stdout)`` / ``sleep_fn`` / ``monotonic_fn`` / ``prepare_fn`` /
+    ``probe_fn() -> (rc, stdout, stderr)`` / ``sleep_fn`` / ``monotonic_fn`` / ``prepare_fn`` /
     ``now_fn() -> datetime``。CLI main はこれらを実物で束ねるだけにする。
 
     official mode は §8 未裁定のため **core で無条件拒否する** (δ-3): build・measure・書き込みを

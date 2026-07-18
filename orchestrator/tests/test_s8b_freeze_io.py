@@ -271,7 +271,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     with mock.patch.object(floor.buildcache, "build", fake_build), \
          mock.patch.object(floor, "measure_point", spy_measure_point):
         floor.run_campaign(protocol, verified, out_root=tmp_path / "out", mode="pilot",
-                           measure_fn=None, probe_fn=lambda: (1, ""),
+                           measure_fn=None, probe_fn=lambda: (1, "", ""),
                            prepare_fn=fake_prepare, now_fn=lambda: __import__("datetime")
                            .datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc),
                            monotonic_fn=lambda: 0.0)

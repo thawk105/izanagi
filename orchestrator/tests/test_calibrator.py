@@ -398,7 +398,8 @@ def test_clocks_fallback_recorded_in_result():
 # 8b oracle は build cache を <output_root>/s8b-build-cache に置く
 # (orchestrator/campaign/s8b_oracle_driver.py) ため、`build-variants/` に固定された旧
 # パターンでは孤児 bench を素通りさせていた (docs/failures.md F3)。新パターンは path
-# 非依存 (`ycsb_.*\.exe` のみ) にする代わり、自プロセスの子孫を明示的に除外する。
+# 非依存 (`ycsb_.*\.exe` のみ) にする代わり、自プロセス自身 (os.getpid()) だけを除外する
+# (B-2: 子孫まで除外していた旧実装からの縮小 — 自分の子でも競合として検出する)。
 
 def test_competing_bench_pids_pattern_is_path_independent():
     """pgrep へ渡すパターンが `build-variants/` 接頭辞を要求しないことを固定する
@@ -428,13 +429,15 @@ def test_competing_bench_pids_pattern_is_path_independent():
     assert "build-variants" not in pattern
 
 
-def test_competing_bench_pids_excludes_self_descendant():
-    """`_self_and_descendant_pids` に含まれる PID の行は非競合として除外され、
-    含まれない PID の行だけが「他者/孤児」として残る。"""
+def test_competing_bench_pids_excludes_own_pid_only():
+    """B-2: 除外されるのは自プロセス自身 (os.getpid()) の行**だけ**。自 PID 以外の
+    行 (他者・孤児・自分の子を含む) はすべて競合として残る (子孫まで除外していた旧実装
+    からの縮小 — この振る舞いへの逆戻りを検知する回帰テスト)。"""
     from calibrator import runner
+    own = os.getpid()
     fake_stdout = (
-        "4242 /out/s8b-build-cache/gen0/ycsb_child.exe\n"
-        "9999 /out/s8b-build-cache/gen0/ycsb_orphan.exe\n"
+        f"{own} /out/s8b-build-cache/gen0/ycsb_self.exe\n"
+        "9999 /out/s8b-build-cache/gen0/ycsb_other.exe\n"
     )
 
     def fake_run(cmd, capture_output=True, text=True):
@@ -445,18 +448,40 @@ def test_competing_bench_pids_excludes_self_descendant():
         return _R()
 
     orig_run = runner.subprocess.run
-    orig_desc = runner._self_and_descendant_pids
     runner.subprocess.run = fake_run
-    # 4242 (自分の直前 run の残骸を模す) だけを子孫集合に入れる。
-    runner._self_and_descendant_pids = lambda root_pid: {root_pid, 4242}
     try:
         lines = runner.competing_bench_pids()
     finally:
         runner.subprocess.run = orig_run
-        runner._self_and_descendant_pids = orig_desc
     assert len(lines) == 1
     assert "9999" in lines[0]
-    assert "4242" not in "".join(lines)
+    assert str(own) not in "".join(lines)   # 自 PID 行は除外された
+
+
+def test_competing_bench_pids_non_self_descendant_pid_is_competing():
+    """B-2: 自 PID 以外の PID は「自分の子孫かどうか」に関係なく競合として残る。
+    仮に子孫集合による除外へ逆戻りすると、直前 run 残骸/自分の子が黙って落ちる
+    (孤児 livelock 汚染の再来) — その回帰を固定する。"""
+    from calibrator import runner
+    own = os.getpid()
+    # own+1 は「自 PID ではない」ことだけが本質 (子孫かどうかを問わず残るべき)。
+    other_pid = own + 1
+    fake_stdout = f"{other_pid} /out/s8b-build-cache/gen0/ycsb_x.exe\n"
+
+    def fake_run(cmd, capture_output=True, text=True):
+        class _R:
+            returncode = 0
+            stdout = fake_stdout
+            stderr = ""
+        return _R()
+
+    orig_run = runner.subprocess.run
+    runner.subprocess.run = fake_run
+    try:
+        lines = runner.competing_bench_pids()
+    finally:
+        runner.subprocess.run = orig_run
+    assert len(lines) == 1 and str(other_pid) in lines[0]
 
 
 def test_competing_bench_pids_unparseable_pid_kept_fails_closed():
@@ -667,9 +692,10 @@ def test_competing_bench_pids_real_orphan_under_s8b_build_cache_detected():
             pass
 
 
-def test_competing_bench_pids_real_own_child_excluded():
-    """実プロセスで検証: 自分が起こした直接の子プロセス (bench 相当の cmdline) は
-    子孫として除外され、競合扱いされない (孤児と誤検知の両方が起きないことの対)。"""
+def test_competing_bench_pids_real_own_child_detected():
+    """B-2 反転: 実プロセスで検証。自分が起こした直接の子プロセス (bench 相当の
+    cmdline) は子孫であっても除外されず、競合として検出される (own-PID-only 縮小の
+    本題 — 子孫除外へ逆戻りするとこの子が黙って落ちる)。"""
     if shutil.which("pgrep") is None or not os.path.isdir("/proc"):
         return
     from calibrator import runner
@@ -678,32 +704,9 @@ def test_competing_bench_pids_real_own_child_excluded():
     try:
         time.sleep(0.3)          # execv 完了を待つ
         lines = runner.competing_bench_pids()
-        assert not any(str(child.pid) in ln for ln in lines), (
-            f"自分の直接子 (pid={child.pid}) が誤って競合扱いされた: {lines}")
-    finally:
-        child.kill()
-        child.wait(timeout=5)
-
-
-def test_self_and_descendant_pids_includes_real_child():
-    """`_self_and_descendant_pids` が /proc の ppid チェーンを正しく辿り、実際に
-    fork した直接の子 PID を自分の子孫集合へ含めることを確認する
-    (`/proc/<pid>/stat` の comm 後フィールドは `state ppid ...` の順 — ppid を
-    2 番目でなく先頭と誤読する退行を検知する)。"""
-    if not os.path.isdir("/proc"):
-        return
-    from calibrator import runner
-    child = subprocess.Popen(["sleep", "5"])
-    try:
-        deadline = time.monotonic() + 2
-        found = False
-        while time.monotonic() < deadline:
-            result = runner._self_and_descendant_pids(os.getpid())
-            if child.pid in result:
-                found = True
-                break
-            time.sleep(0.05)
-        assert found, f"実子 PID {child.pid} が子孫集合に含まれなかった"
+        assert any(str(child.pid) in ln for ln in lines), (
+            f"自分の直接子 (pid={child.pid}) が競合として検出されなかった "
+            f"(子孫除外への逆戻り疑い): {lines}")
     finally:
         child.kill()
         child.wait(timeout=5)

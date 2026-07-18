@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from typing import Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence
 
 from .benchparse import (_num, abort_rate as parse_abort_rate, latency_ns as
                          parse_latency_ns, parse_bench_stdout, throughput_tps)
@@ -57,53 +57,6 @@ def settle(threshold: float = 4.0,
         time.sleep(poll_s)
 
 
-def _self_and_descendant_pids(root_pid: int) -> Set[int]:
-    """`root_pid` 自身 + 全子孫 PID を `/proc` から 1 回の走査で集める (F3 admission 強化)。
-
-    自プロセスの子孫だけを「非競合」として除外するための集合。`/proc/<pid>/stat` の
-    comm フィールドは任意バイト列 (括弧含む) を持ちうるため、最後の `)` の後ろから
-    ppid をパースする (man proc(5))。走査できない (権限・レース・非 Linux) 場合は
-    fails-closed — 自分自身以外は子孫と見なさず絞り込まない (規律4: 検知を弱めない)。"""
-    try:
-        entries = os.listdir("/proc")
-    except OSError:
-        return {root_pid}
-    children: Dict[int, List[int]] = {}
-    for entry in entries:
-        if not entry.isdigit():
-            continue
-        pid = int(entry)
-        try:
-            with open(f"/proc/{entry}/stat", encoding="utf-8", errors="replace") as f:
-                stat = f.read()
-        except OSError:
-            continue        # プロセスが走査中に終了しただけ (競合ではない)
-        rparen = stat.rfind(")")
-        if rparen == -1:
-            continue
-        # `)` の直後は " <state> <ppid> ..." — state (1 文字) の次が ppid (man proc(5))。
-        fields = stat[rparen + 2:].split()
-        if len(fields) < 2:
-            continue
-        try:
-            ppid = int(fields[1])
-        except ValueError:
-            continue
-        children.setdefault(ppid, []).append(pid)
-
-    result = {root_pid}
-    frontier = [root_pid]
-    while frontier:
-        nxt = []
-        for p in frontier:
-            for c in children.get(p, []):
-                if c not in result:
-                    result.add(c)
-                    nxt.append(c)
-        frontier = nxt
-    return result
-
-
 # stdout/stderr 抜粋の上限 (WAL abort payload の肥大防止, B-6)。
 _PROBE_EXCERPT_LIMIT = 2000
 
@@ -138,6 +91,56 @@ class CompetingBenchProbeError(RuntimeError):
                 "stderr_excerpt": self.stderr_excerpt}
 
 
+def classify_competing_probe(rc: int, stdout: str, stderr: str,
+                             argv: Sequence[str]) -> List[str]:
+    """pgrep の (rc, stdout, stderr) を strict 契約で分類し、他者/孤児の PID 行を返す。
+
+    競合検知 probe の**単一の分類器** (C4-5: 二重実装の排除)。runner の
+    `competing_bench_pids` と floor campaign の `strict_probe` が共にこれを消費する。
+    raw stdout は呼び手が journal / WAL に残せるよう手を付けずに渡す。
+
+    fail-closed 契約 (B-1): 競合の有無を確定できないときは握りつぶさず
+    `CompetingBenchProbeError` を送出する。無競合と確定できるのは
+    「rc==1 かつ stdout・stderr とも空」のときだけ (procps-ng pgrep の rc 契約:
+    0=一致あり / 1=一致なし / >1=エラー)。BusyBox 等の option 構文エラーが rc==1+空
+    stdout になる罠を stderr 非空で弾く。rc==0 は非空 stdout 必須 (空は
+    inconsistent-output)。それ以外 (rc>1・負値・rc==1 に付随出力) はすべて例外。
+
+    除外 (B-2): 自プロセス **自身 (`os.getpid()`) のみ**を非競合として落とす。
+    自分がこれから起こす bench・直前 subprocess の残骸・二重 fork 孤児は、すべて
+    「他者/孤児」として競合側に残す (自分の子孫まで除外していた旧実装からの縮小 —
+    孤児 livelock 汚染は除外されず検出される)。PID がパースできない行も
+    fails-closed で競合側に残す (素性不明を non-competing 扱いにしない)。"""
+    stdout = stdout or ""
+    stderr = stderr or ""
+    # 無競合の確定信号: rc==1 かつ出力が完全に空。それ以外の rc==1 (付随出力あり) は
+    # 素性が怪しいので下の unexpected-rc に倒す。
+    if rc == 1 and not stdout.strip() and not stderr.strip():
+        return []
+    if rc == 0:
+        lines = [ln for ln in stdout.splitlines() if ln.strip()]
+        if not lines:
+            # 一致ありを示す rc==0 なのに PID が 1 つも無い = 想定外の内部矛盾。
+            raise CompetingBenchProbeError(
+                "inconsistent-output", argv, returncode=rc,
+                stdout=stdout, stderr=stderr)
+        own = os.getpid()
+        others = []
+        for ln in lines:
+            pid_field = ln.split(None, 1)[0]
+            try:
+                pid = int(pid_field)
+            except ValueError:
+                others.append(ln)          # PID 不明 = fails-closed で残す
+                continue
+            if pid != own:                 # B-2: 自 PID 自身のみ除外 (子孫は残す)
+                others.append(ln)
+        return others
+    # rc>1 / 負値 (シグナル終了) / rc==1 に付随出力 → probe 故障。
+    raise CompetingBenchProbeError(
+        "unexpected-rc", argv, returncode=rc, stdout=stdout, stderr=stderr)
+
+
 def competing_bench_pids() -> List[str]:
     """他に走っている ccbench ベンチ (`ycsb_*.exe`) の PID 行 (F3 admission 強化)。
 
@@ -150,20 +153,15 @@ def competing_bench_pids() -> List[str]:
     パターンは binary path 非依存 (`ycsb_.*\\.exe` のみ、path 接頭辞なし)。旧パターン
     `build-variants/.*ycsb_.*\\.exe` は従来ビルド木限定で、8b oracle の
     `<output_root>/s8b-build-cache` 配下の孤児 bench を素通りさせていた (F3、
-    docs/failures.md)。path を落とすと自プロセスの子孫 (このプロセスがこれから起こす bench
-    自身、または直前の subprocess の残骸) も同じパターンに当たりうるので、`/proc` 由来の
-    子孫集合で明示的に除外し「他者/孤児」だけを残す。PID がパースできない行は
-    fails-closed で競合側に残す (素性不明を non-competing 扱いにしない)。
+    docs/failures.md)。path を落とすと自プロセスがこれから起こす bench 自身も同じパターンに
+    当たりうるので、自 PID (`os.getpid()`) だけを除外し「他者/孤児/自分の子」を残す
+    (B-2: 子孫まで除外していた旧実装からの縮小 — 自分の子でも競合として検出する。
+    孤児は除外されず検出される)。
 
-    fail-closed 契約 (B-1): probe が競合の有無を確定できないときは握りつぶさず
-    `CompetingBenchProbeError` を送出する。無競合と確定できるのは
-    「rc==1 かつ stdout・stderr とも空」のときだけ (procps-ng pgrep の rc 契約:
-    0=一致あり / 1=一致なし / >1=エラー)。BusyBox 等の option 構文エラーが rc==1+空
-    stdout になる罠を stderr 非空で弾く。rc==0 は非空 stdout 必須 (空は
-    inconsistent-output)。それ以外 (rc>1・負値・rc==1 に付随出力) はすべて例外。
-    起動失敗 (OSError/SubprocessError) も例外。
+    分類・fail-closed 契約 (B-1) の詳細は `classify_competing_probe` の docstring。
+    起動失敗 (OSError/SubprocessError) は exec-failure として例外にする。
 
-    呼ぶのは自分のベンチが走り出す前 (各測定点の手前)。拾えるのは他者/孤児だけ。"""
+    呼ぶのは自分のベンチが走り出す前 (各測定点の手前)。拾えるのは他者/孤児/自分の子。"""
     argv = ["pgrep", "-af", r"ycsb_.*\.exe"]
     try:
         r = subprocess.run(argv, capture_output=True, text=True)
@@ -174,35 +172,8 @@ def competing_bench_pids() -> List[str]:
     except subprocess.SubprocessError as e:
         raise CompetingBenchProbeError(
             "exec-failure", argv, stderr=str(e)) from e
-    rc = r.returncode
-    stdout = r.stdout or ""
-    stderr = r.stderr or ""
-    # 無競合の確定信号: rc==1 かつ出力が完全に空。それ以外の rc==1 (付随出力あり) は
-    # 素性が怪しいので下の unexpected-rc に倒す。
-    if rc == 1 and not stdout.strip() and not stderr.strip():
-        return []
-    if rc == 0:
-        lines = [ln for ln in stdout.splitlines() if ln.strip()]
-        if not lines:
-            # 一致ありを示す rc==0 なのに PID が 1 つも無い = 想定外の内部矛盾。
-            raise CompetingBenchProbeError(
-                "inconsistent-output", argv, returncode=rc,
-                stdout=stdout, stderr=stderr)
-        excluded = _self_and_descendant_pids(os.getpid())
-        others = []
-        for ln in lines:
-            pid_field = ln.split(None, 1)[0]
-            try:
-                pid = int(pid_field)
-            except ValueError:
-                others.append(ln)          # PID 不明 = fails-closed で残す
-                continue
-            if pid not in excluded:
-                others.append(ln)
-        return others
-    # rc>1 / 負値 (シグナル終了) / rc==1 に付随出力 → probe 故障。
-    raise CompetingBenchProbeError(
-        "unexpected-rc", argv, returncode=rc, stdout=stdout, stderr=stderr)
+    return classify_competing_probe(
+        r.returncode, r.stdout or "", r.stderr or "", argv)
 
 
 def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,
