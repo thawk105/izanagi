@@ -1,0 +1,21 @@
+[
+  "env",
+  "PATH=/scr/0_867876.nqsv/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+  "python3",
+  "/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/calibrate.py",
+  "--certify",
+  "--env-tag",
+  "pegasus",
+  "--threads",
+  "48",
+  "--workload",
+  "ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0",
+  "--binary",
+  "/scr/0_867876.nqsv/ccbench-build/cc/silo/ycsb_silo.exe",
+  "--binary-sha256",
+  "9ef84125ca4b3067ebe346dd155b0e6f412d88b3689a2c5921ccbba4eff5925f",
+  "--receipt-json",
+  "/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/env/pegasus/calibration/job-staging/0:867876.nqsv/acquisition-receipt.json",
+  "--effective-clock-tolerance-pct",
+  "2.0"
+]

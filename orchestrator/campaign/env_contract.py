@@ -131,6 +131,12 @@ class ExecutionEnvironmentContract:
             raise EnvContractError(
                 f"isolation_policy は IsolationPolicy でなければならない: {self.isolation_policy!r}"
             )
+        if (self.attestation_mode == "required"
+                and not self.isolation_policy.single_process):
+            raise EnvContractError(
+                "attestation_mode='required' は isolation_policy.single_process=True "
+                "を必要とする"
+            )
         if not isinstance(self.calibration_ref, CalibrationRef):
             raise EnvContractError(
                 f"calibration_ref は CalibrationRef でなければならない: {self.calibration_ref!r}"
@@ -157,8 +163,7 @@ class ExecutionEnvironmentContract:
 def _build_registry() -> dict:
     """静的 registry を構築する。**env 固有 literal はこの関数の内部にのみ現れる。**
 
-    現在は linux-baremetal (cygnus 値) の 1 エントリのみ。Pegasus entry は D59 の
-    4 条件が満たされる登録段まで足さない。
+    登録済み calibration の bytes と契約値を静的に束縛する。
     """
     return {
         "linux-baremetal": ExecutionEnvironmentContract(
@@ -170,6 +175,20 @@ def _build_registry() -> dict:
             calibration_ref=CalibrationRef(
                 path="output/env/linux-baremetal/calibration/calibration_t48_skew0p9_rr50_rmw0.json",
                 sha256="751304772367418806eb6e63c9715cd430315066420e9e3e4c91bf356195eef5",
+            ),
+        ),
+        "pegasus": ExecutionEnvironmentContract(
+            env_tag="pegasus",
+            clocks_per_us=2100,
+            numactl=(),
+            attestation_mode="required",
+            isolation_policy=IsolationPolicy(single_process=True, allow_resume=False),
+            calibration_ref=CalibrationRef(
+                path=(
+                    "output/env/pegasus/calibration/registered/"
+                    "calibration-753f535a8d024727.json"
+                ),
+                sha256="753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
             ),
         ),
     }

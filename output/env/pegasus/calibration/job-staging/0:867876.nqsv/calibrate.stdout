@@ -1,0 +1,14 @@
+[calibrate] L3 総量検出: 105 MB
+[calibrate] 倍々スイープ開始
+  [sweep] records=1,000,000 threads=48 reps=3 ...
+          miss_rate=2.645% median_tps=3,780,005 wall=3.5s maxrss=517MB
+  [sweep] records=2,000,000 threads=48 reps=3 ...
+          miss_rate=5.679% median_tps=4,522,738 wall=3.8s maxrss=1023MB
+  [sweep] records=4,000,000 threads=48 reps=3 ...
+          miss_rate=10.122% median_tps=5,063,974 wall=4.5s maxrss=1958MB
+  [sweep] 下限基準を充足 (records=1,000,000, working set ≥ L3×4) → スイープ打ち切り
+[calibrate] 飽和: NO (下限基準) → records=1,000,000
+[calibrate] noise floor: records=1,000,000 を 10 回 ...
+[calibrate] noise floor CV = 1.17%
+wrote /home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/env/pegasus/calibration/attempts/0_867876.nqsv/calibration.json
+published /home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json via link-unlink
