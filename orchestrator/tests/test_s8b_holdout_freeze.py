@@ -269,6 +269,103 @@ def _commit_all(root: Path) -> str:
     return _git(root, "rev-parse", "HEAD")
 
 
+def _empty_search_repo(tmp_path: Path) -> Path:
+    """root と ccbench の tmp git repo を作り、実列挙経路を使えるようにする。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init", "-q")
+    ccbench = root / "external/ccbench"
+    ccbench.mkdir(parents=True)
+    _git(ccbench, "init", "-q")
+    return root
+
+
+def _report_bytes(report: dict) -> bytes:
+    return json.dumps(
+        report, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def test_exact_exemption_matching_bytes_is_not_scanned_but_is_enumerated(tmp_path):
+    root = _empty_search_repo(tmp_path)
+    rel = "output/s8b-freeze/active.json"
+    positive_rel = "fixtures/positive.txt"
+    path = root / rel
+    _write(path, _three_axis_text(_axis_value("rr80", "rratio")))
+    _write(root / positive_rel, _positive_text())
+
+    report = M.search_repository(root, exempt_exact={rel: M._sha256(path)})
+
+    assert M.enumerate_repository_files(root) == (positive_rel, rel)
+    assert report["search"]["file_count"] == 2
+    assert report["search"]["excluded_paths"] == []
+    assert report["holdouts"]["rr80"]["conjunction_hits"] == []
+    M._assert_search_pass(report)
+
+
+def test_exact_exemption_hash_mismatch_is_scanned_and_hits(tmp_path):
+    root = _empty_search_repo(tmp_path)
+    rel = "output/s8b-freeze/active.json"
+    _write(root / rel, _three_axis_text(_axis_value("rr80", "rratio")))
+
+    report = M.search_repository(root, exempt_exact={rel: "0" * 64})
+
+    assert report["holdouts"]["rr80"]["conjunction_hits"] == [rel]
+
+
+def test_exact_exemption_unknown_non_hit_file_is_still_scanned(tmp_path):
+    root = _empty_search_repo(tmp_path)
+    rel = "output/s8b-freeze/unknown.json"
+    ratio = _axis_value("rr80", "rratio")
+    _write(root / rel, M.concrete_axis_encodings("rratio", ratio)[0] + "\n")
+    _write(root / "fixtures/positive.txt", _positive_text())
+
+    report = M.search_repository(root, exempt_exact={})
+
+    assert report["holdouts"]["rr80"]["per_axis_counts"] == {
+        "rratio": 1, "skew": 1, "rmw": 1,
+    }
+    assert report["holdouts"]["rr80"]["conjunction_hits"] == []
+    M._assert_search_pass(report)
+
+
+def test_exact_exemption_unknown_hit_file_is_detected(tmp_path):
+    root = _empty_search_repo(tmp_path)
+    rel = "output/s8b-freeze/unknown.json"
+    # concrete 三軸 encoding は helper 内で実行時結合し、test source へ同居させない。
+    _write(root / rel, _three_axis_text(_axis_value("rr20", "rratio")))
+
+    report = M.search_repository(root, exempt_exact={})
+
+    assert report["holdouts"]["rr20"]["conjunction_hits"] == [rel]
+
+
+@pytest.mark.parametrize("exempt_exact", [None, {}])
+def test_similar_freeze_prefix_is_always_scanned(tmp_path, exempt_exact):
+    root = _empty_search_repo(tmp_path)
+    rel = "output/s8b-freeze-evil/hit.json"
+    _write(root / rel, _three_axis_text(_axis_value("rr80", "rratio")))
+
+    report = M.search_repository(root, exempt_exact=exempt_exact)
+
+    assert report["holdouts"]["rr80"]["conjunction_hits"] == [rel]
+
+
+def test_exempt_none_preserves_v1_prefix_report_bytes(tmp_path):
+    root = _empty_search_repo(tmp_path)
+    included = "fixtures/positive.txt"
+    excluded = "output/s8b-freeze/hidden.json"
+    _write(root / included, _positive_text())
+    _write(root / excluded, _three_axis_text(_axis_value("rr80", "rratio")))
+
+    legacy_report = M.search_repository(root, files=[included])
+    default_report = M.search_repository(root, exempt_exact=None)
+
+    assert _report_bytes(default_report) == _report_bytes(legacy_report)
+    assert default_report["search"]["excluded_paths"] == list(M.EXCLUDED_PATHS)
+    assert default_report["holdouts"]["rr80"]["conjunction_hits"] == []
+
+
 def test_verify_rejects_active_generation_worktree_drift(tmp_path):
     # v1 単一 filename freeze は唯一の発効中 (active) 世代。生成後に設計本文を worktree で
     # 改変すると、frozen_at_head 時点の blob が recorded sha256 と一致していても、verify は

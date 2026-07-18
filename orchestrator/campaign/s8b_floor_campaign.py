@@ -85,6 +85,11 @@ from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding,
 )
+from campaign.s8b_launch_cert import (  # noqa: E402
+    LAUNCH_CERT_SCHEMA,
+    LaunchCertError,
+    validate_launch_certificate as _validate_launch_certificate,
+)
 
 # 版名は一括 v2 改版し交差受理を拒否する (β-2/δ-2)。freeze schema は v1 freeze を読むため据置。
 PROTOCOL_SCHEMA = "s8b-floor-protocol/v2"
@@ -93,7 +98,6 @@ SCHEDULE_ALGORITHM = "round-permutation/v2"
 RESULT_SCHEMA = "s8b-floor-result/v2"
 MANIFEST_SCHEMA = "s8b-floor-manifest/v2"
 JOURNAL_SCHEMA = "s8b-floor-journal/v2"
-LAUNCH_CERT_SCHEMA = "s8b-floor-launch-certificate/v1"
 
 # protocol JSON の必須 key (strict: これ以外の key・欠落・型不正・duplicate key はすべて拒否)。
 # v2: blocks / replicates_per_block / min_block_gap_s を削除、session_cv_max / cell_cv_max /
@@ -1017,52 +1021,16 @@ def build_launch_certificate(*, v1_freeze_sha256: str, clean_digest: str,
 def validate_launch_certificate(cert: Mapping, *, expected_v1_freeze_sha256: str,
                                 expected_protocol_sha256: str,
                                 expected_run_id: str) -> dict:
-    """launch certificate の構造・型・UTC・hash pin・run identity を一つのゲートで検証する。"""
-    keys = {
-        "schema", "v1_freeze_sha256", "clean_scan_digest", "protocol_sha256",
-        "started_utc", "campaign_run_id",
-    }
-    if not isinstance(cert, Mapping):
-        raise FloorCampaignError("launch certificate が object でない")
-    actual_keys = set(cert)
-    if actual_keys != keys:
-        raise FloorCampaignError(
-            "launch certificate の key 集合が不一致 "
-            f"(欠落={sorted(keys - actual_keys)} 未知={sorted(actual_keys - keys)})"
-        )
-    if cert.get("schema") != LAUNCH_CERT_SCHEMA:
-        raise FloorCampaignError(
-            f"launch certificate.schema が {LAUNCH_CERT_SCHEMA} でない"
-        )
-    for field in ("v1_freeze_sha256", "clean_scan_digest", "protocol_sha256"):
-        value = cert.get(field)
-        if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
-            raise FloorCampaignError(f"launch certificate.{field} が 64 lower-hex でない")
-    started_utc = cert.get("started_utc")
-    if not isinstance(started_utc, str) or not started_utc:
-        raise FloorCampaignError("launch certificate.started_utc が空でない文字列でない")
+    """共有 leaf の拒否を既存 FloorCampaignError API へ翻訳する。"""
     try:
-        parsed = dt.datetime.fromisoformat(
-            started_utc[:-1] + "+00:00" if started_utc.endswith("Z") else started_utc
+        return _validate_launch_certificate(
+            cert,
+            expected_v1_freeze_sha256=expected_v1_freeze_sha256,
+            expected_protocol_sha256=expected_protocol_sha256,
+            expected_run_id=expected_run_id,
         )
-    except ValueError as exc:
-        raise FloorCampaignError(
-            "launch certificate.started_utc が timezone-aware UTC ISO 形式でない"
-        ) from exc
-    if parsed.tzinfo is None or parsed.utcoffset() != dt.timedelta(0):
-        raise FloorCampaignError(
-            "launch certificate.started_utc が timezone-aware UTC ISO 形式でない"
-        )
-    run_id = cert.get("campaign_run_id")
-    if not isinstance(run_id, str) or not run_id:
-        raise FloorCampaignError("launch certificate.campaign_run_id が空でない文字列でない")
-    if cert["v1_freeze_sha256"] != expected_v1_freeze_sha256:
-        raise FloorCampaignError("launch certificate.v1_freeze_sha256 が expected と不一致")
-    if cert["protocol_sha256"] != expected_protocol_sha256:
-        raise FloorCampaignError("launch certificate.protocol_sha256 が expected と不一致")
-    if run_id != expected_run_id:
-        raise FloorCampaignError("launch certificate.campaign_run_id が expected と不一致")
-    return dict(cert)
+    except LaunchCertError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 def _official_launch_preflight(root: Path, *, v1_freeze_sha256: str,

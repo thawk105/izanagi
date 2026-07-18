@@ -37,6 +37,7 @@ sys.path.insert(0, str(ORCHESTRATOR))
 from campaign import env_contract as ec  # noqa: E402
 from campaign import s8b_floor_campaign  # noqa: E402
 from campaign import s8b_floor_stats  # noqa: E402
+from campaign import s8b_launch_cert  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.p2_2 import ENV_TAG  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
@@ -1380,7 +1381,7 @@ def _valid_launch_certificate() -> dict:
         clean_digest="b" * 64,
         protocol_sha256="c" * 64,
         started_utc="2026-01-01T00:00:00+00:00",
-        campaign_run_id="run-0001",
+        campaign_run_id="20260101T000000Z-cccccccc",
     )
 
 
@@ -1389,7 +1390,7 @@ def _validate_launch(cert):
         cert,
         expected_v1_freeze_sha256="a" * 64,
         expected_protocol_sha256="c" * 64,
-        expected_run_id="run-0001",
+        expected_run_id="20260101T000000Z-cccccccc",
     )
 
 
@@ -1424,8 +1425,16 @@ def test_validate_launch_certificate_rejects_expected_hash_mismatch():
             cert,
             expected_v1_freeze_sha256="0" * 64,
             expected_protocol_sha256="c" * 64,
-            expected_run_id="run-0001",
+            expected_run_id="20260101T000000Z-cccccccc",
         )
+
+
+def test_validate_launch_certificate_translates_leaf_error():
+    cert = _valid_launch_certificate()
+    cert["protocol_sha256"] = "A" * 64
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError) as exc_info:
+        _validate_launch(cert)
+    assert isinstance(exc_info.value.__cause__, s8b_launch_cert.LaunchCertError)
 
 
 def test_official_fresh_issues_certificate_and_binds_wall_ledger(tmp_path, monkeypatch):
@@ -1573,6 +1582,49 @@ def test_official_resume_rejects_renamed_run_dir(tmp_path, monkeypatch):
                 protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
                 measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""), mode="official",
                 resume_dir=renamed,
+            )
+    assert repo_before == _real_output_snapshot()
+
+
+def test_official_resume_rejects_certificate_time_not_bound_to_run_id(
+        tmp_path, monkeypatch):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch):
+        crashing_measure, _ = _crash_at(2)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""),
+                mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        cert_path = run_dir / "launch_certificate.json"
+        cert = json.loads(cert_path.read_bytes())
+        cert["started_utc"] = "2026-01-01T00:00:01+00:00"
+        cert_path.write_text(
+            json.dumps(cert, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        cert_sha = hashlib.sha256(cert_path.read_bytes()).hexdigest()
+        journal_path = run_dir / "journal.jsonl"
+        records = _read_journal_lines(journal_path)
+        for record in records:
+            if record.get("event") in {"launch-start", "campaign-start"}:
+                record["launch_certificate_sha256"] = cert_sha
+        journal_path.write_text(
+            "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
+            encoding="utf-8",
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError, match="秒単位で不一致"):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+                mode="official", resume_dir=run_dir,
             )
     assert repo_before == _real_output_snapshot()
 

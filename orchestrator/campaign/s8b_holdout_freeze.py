@@ -296,11 +296,24 @@ def _scan_one(
 
 def search_repository(
     root: Path = ROOT, files: Optional[Iterable[os.PathLike | str]] = None,
+    exempt_exact: Optional[Mapping[str, str]] = None,
 ) -> Dict:
-    """三軸 conjunction を検索する。files 指定時は git 列挙を注入値で置換する。"""
+    """三軸 conjunction を検索する。files 指定時は git 列挙を注入値で置換する。
+
+    ``exempt_exact`` は launch_validate の (ix)-9 用 API であり、検証済み
+    active-chain artifact だけを repo 相対の exact path + bytes の SHA-256 で
+    scan から免除する。指定時は ``output/s8b-freeze/`` の prefix 除外を無効化し、
+    path が未指定または hash 不一致の file は通常どおり scan する。列挙結果からは
+    免除しない。既定の ``None`` では v1 互換のため従来の prefix 除外を維持する。
+    """
     root = Path(root)
     enumerated = enumerate_repository_files(root) if files is None else tuple(files)
-    rel_paths = tuple(rel for rel in _normalise_files(root, enumerated) if not _is_excluded(rel))
+    enumerated_rel_paths = _normalise_files(root, enumerated)
+    rel_paths = (
+        tuple(rel for rel in enumerated_rel_paths if not _is_excluded(rel))
+        if exempt_exact is None
+        else enumerated_rel_paths
+    )
 
     texts: Dict[str, str] = {}
     skipped = 0
@@ -308,7 +321,22 @@ def search_repository(
         path = root / rel
         if not path.is_file():
             raise FreezeError(f"git が列挙した検索対象が file ではない: {rel}")
-        text = _read_search_text(path)
+        if exempt_exact is not None and rel in exempt_exact:
+            try:
+                payload = path.read_bytes()
+            except OSError as exc:
+                raise FreezeError(f"検索対象を読めない: {path}: {exc}") from exc
+            if hashlib.sha256(payload).hexdigest() == exempt_exact[rel]:
+                continue
+            if b"\0" in payload[:8192]:
+                text = None
+            else:
+                try:
+                    text = payload.decode("utf-8")
+                except UnicodeDecodeError:
+                    text = None
+        else:
+            text = _read_search_text(path)
         if text is None:
             skipped += 1
         else:
@@ -320,7 +348,7 @@ def search_repository(
         "top_level_dirs": top_level_dirs,
         "file_count": len(rel_paths),
         "skipped_binary_count": skipped,
-        "excluded_paths": list(EXCLUDED_PATHS),
+        "excluded_paths": list(EXCLUDED_PATHS) if exempt_exact is None else [],
     }
 
     holdout_results = {}
