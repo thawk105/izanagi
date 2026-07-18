@@ -199,6 +199,51 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
     assert '"-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"' in configure
 
 
+def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    assert 'export TMPDIR="/scr/${PBS_JOBID//:/_}"' in source
+    assert 'export TMPDIR="/scr/$PBS_JOBID"' not in source
+    assert 'ATTEMPT_DIR="$JOB_STAGING_ROOT/$PBS_JOBID"' in source
+
+    cmake_paths = {
+        "GFLAGS_BUILD_DIR": "$TMPDIR/gflags-build",
+        "GFLAGS_INSTALL_DIR": "$TMPDIR/gflags-install",
+        "BUILD_SOURCE": "$TMPDIR/ccbench-source",
+        "BUILD_DIR": "$TMPDIR/ccbench-build",
+    }
+    for name, value in cmake_paths.items():
+        assert f'{name}="{value}"' in source
+    for required in (
+        'cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"',
+        '"-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"',
+        'cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR"',
+        '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+    ):
+        assert required in source
+
+
+def test_certify_colon_job_id_creates_colon_free_job_tmpdir(tmp_path):
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    fragment = source[:source.index("\nREPO_ROOT=")]
+    scr_root = tmp_path / "scr"
+    scr_root.mkdir()
+    fragment = fragment.replace("/scr/", str(scr_root) + "/")
+    fragment += '\nprintf "%s\\n" "$TMPDIR"\n'
+    env = os.environ.copy()
+    env.update({
+        "PBS_JOBID": "0:1234.nqsv",
+        "PBS_O_WORKDIR": str(tmp_path),
+    })
+    result = subprocess.run(
+        ["bash", "-c", fragment], capture_output=True, text=True, env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    job_tmpdir = Path(result.stdout.strip())
+    assert job_tmpdir == scr_root / "0_1234.nqsv"
+    assert ":" not in str(job_tmpdir)
+    assert job_tmpdir.is_dir()
+
+
 def test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain():
     smoke = (TOOL_DIR / "smoke_probe.sh").read_text(encoding="utf-8")
     certify = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")

@@ -22,7 +22,9 @@ if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
 fi
 
 # (i) helper・使い捨て build 専用。永続成果物の唯一コピーは repo output に置く。
-export TMPDIR="/scr/$PBS_JOBID"
+# CMake の PATH 型 cache 値は ':' を ';' に正規化するため、cmake 経路の job dir だけを無害化する。
+# repo 側 job-staging と receipt の PBS_JOBID は raw 値を維持する。
+export TMPDIR="/scr/${PBS_JOBID//:/_}"
 if ! mkdir "$TMPDIR"; then
   echo "TMPDIR already exists or cannot be created (create-only): $TMPDIR" >&2
   exit 2
