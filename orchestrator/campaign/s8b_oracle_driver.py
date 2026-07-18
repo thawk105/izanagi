@@ -30,6 +30,7 @@ from campaign.s8b_materialization import (  # noqa: E402
 )
 from campaign import s1_known_axes_freeze, s8b_holdout_freeze  # noqa: E402
 from campaign.s8b_oracle_manifest import (  # noqa: E402
+    VerifiedManifest,
     config_for_block,
     verify_manifest,
 )
@@ -107,12 +108,18 @@ def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
 
 
 def gate_check(*, freeze_path=None, manifest_path=None, root,
-               verified: Optional["_freeze_io.VerifiedFreeze"] = None) -> GateDecision:
+               verified: Optional["_freeze_io.VerifiedFreeze"] = None,
+               verified_manifest: Optional["VerifiedManifest"] = None) -> GateDecision:
     """実走前の独立 gate を順番に全件検査し、全拒否理由を返す。
 
     ``verified`` (``load_verified_freeze`` の戻り値) を与えた場合は freeze を
     再読込せず、その単一 object の document/sha256 だけを使う (A3-6: verify-use
     間差替えの遮断)。与えない場合は自身で ``load_verified_freeze`` を一度呼ぶ。
+
+    ``verified_manifest`` (``verify_manifest`` の戻り値) を与えた場合は manifest を
+    再検証・再読込せず、その単一 object だけを使う (C2-9: gate と run_block が同一
+    manifest object を共有)。与えない場合 (単体 gate CLI 経路) は自身で
+    ``verify_manifest`` を一度呼ぶ。
     """
     root = Path(root)
     refusals: list[str] = []
@@ -171,28 +178,23 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
 
     if manifest_path is not None:
         manifest_path = Path(manifest_path)
-        try:
-            # A3-6: 検証済み単一 object を渡し、manifest verify 内での freeze 再読込を除く。
-            if freeze is not None and freeze_sha is not None:
+        if freeze is None or freeze_sha is None:
+            # freeze が読めない場合は manifest を freeze に対して検証できない
+            # (freeze byte hash 照合が不能)。freeze 側 refusal は既に積まれている。
+            refusals.append(
+                "manifest-verify: freeze が読めず manifest を検証できない"
+            )
+        elif verified_manifest is None:
+            # 単体 gate 経路: freeze byte hash 照合は verify_manifest 内で担保される
+            # (freeze_document/freeze_sha256 必須)。C2-9 の共有経路では run_block が
+            # 検証済み object を渡すためこの枝には入らない。
+            try:
                 verify_manifest(
                     manifest_path, root=root,
                     freeze_document=freeze, freeze_sha256=freeze_sha,
                 )
-            else:
-                verify_manifest(manifest_path, root=root)
-        except Exception as exc:
-            refusals.append(f"manifest-verify: {type(exc).__name__}: {exc}")
-        try:
-            manifest = _load_json_object(manifest_path)
-            record = manifest.get("freeze")
-            if not isinstance(record, Mapping) or not isinstance(record.get("sha256"), str):
-                raise OracleDriverError("manifest.freeze.sha256 がない")
-            if freeze_sha is None:
-                raise OracleDriverError("freeze が読めず byte sha256 を照合できない")
-            if record["sha256"] != freeze_sha:
-                raise OracleDriverError("manifest と指定 freeze の byte sha256 が不一致")
-        except Exception as exc:
-            refusals.append(f"manifest-freeze-hash: {type(exc).__name__}: {exc}")
+            except Exception as exc:
+                refusals.append(f"manifest-verify: {type(exc).__name__}: {exc}")
 
     return GateDecision(allowed=not refusals, refusals=refusals)
 
@@ -429,27 +431,43 @@ def run_block(
         )
         return {"status": "refused", **asdict(decision)}
 
+    root = Path(root)
+    # C2-9 / A3-6: manifest を厳密 1 回だけ verify し、gate と本体で同一
+    # VerifiedManifest object を共有する (再読込・再検証しない)。verify 失敗時は
+    # verified_manifest=None で gate へ渡し、gate が同一 refusal を集約する。
+    verified_manifest: Optional[VerifiedManifest] = None
+    try:
+        verified_manifest = verify_manifest(
+            Path(manifest_path), root=root,
+            freeze_document=verified.document, freeze_sha256=verified.sha256,
+        )
+    except Exception:
+        verified_manifest = None
+
     decision = gate_check(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
-        verified=verified,
+        verified=verified, verified_manifest=verified_manifest,
     )
     if not decision.allowed:
         return {"status": "refused", **asdict(decision)}
+    if verified_manifest is None:
+        # gate は通ったが manifest を検証できていない (TOCTOU 等) → fail-closed。
+        decision = GateDecision(
+            allowed=False,
+            refusals=["manifest-verify: 検証済み manifest object がない"],
+        )
+        return {"status": "refused", **asdict(decision)}
 
-    root = Path(root)
     output_root = Path(output_root)
     budget_path = Path(budget_path)
     # マーカーは --output-root 非依存 (freeze 正本側)。既定は freeze ファイルと同じ
     # ディレクトリ = production では output/s8b-freeze/ 配下。
     marker_root = Path(marker_root) if marker_root is not None else freeze_path.parent
-    manifest = verify_manifest(
-        Path(manifest_path), root=root,
-        freeze_document=verified.document, freeze_sha256=verified.sha256,
-    )
+    manifest = verified_manifest.document
     freeze = verified.document
     block = config_for_block(manifest, block_id)
     limits = s8b_budget.load_oracle_limits(freeze)
-    manifest_sha = _canonical_sha256(manifest)
+    manifest_sha = verified_manifest.sha256
     freeze_sha = verified.sha256
     schedule_sha = manifest["schedule_sha256"]
     campaign_id = block["campaign_id"]

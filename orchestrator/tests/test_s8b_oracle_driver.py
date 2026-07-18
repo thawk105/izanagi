@@ -18,7 +18,9 @@ import pytest
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 from campaign import pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
 from campaign import s8b_freeze_io  # noqa: E402
 from campaign import s8b_materialization  # noqa: E402
@@ -54,17 +56,10 @@ def _synthetic_freeze(tmp_path: Path, *, total_bench_s: float = 1000.0) -> Path:
     # 現在の source byte を記録して provenance 検査を通す。
     design = ROOT / document["design_source"]["path"]
     document["design_source"]["sha256"] = _sha256(design)
-    holdout_ids = tuple(document["holdouts"])
-    document["floor"] = {
-        "by_holdout": {holdout_id: 0.01 for holdout_id in holdout_ids},
-    }
-    document["budget"] = {
-        "total_bench_s": total_bench_s,
-        "per_holdout_bench_s": {
-            holdout_id: total_bench_s for holdout_id in holdout_ids
-        },
-        "oracle_shared": True,
-    }
+    # strict v2: per-pair floor + budget を共有 fixture で充填する (C3-4)。
+    v2_fixture.fill(
+        document, total_bench_s=total_bench_s, per_holdout_bench_s=total_bench_s,
+    )
     path = tmp_path / "holdout_freeze.json"
     path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n",
                     encoding="utf-8")
@@ -75,9 +70,8 @@ def _floor_only_freeze(tmp_path: Path) -> Path:
     document = _real_document()
     design = ROOT / document["design_source"]["path"]
     document["design_source"]["sha256"] = _sha256(design)
-    document["floor"] = {
-        "by_holdout": {holdout_id: 0.01 for holdout_id in document["holdouts"]},
-    }
+    # floor だけ per-pair で充填し budget は null のまま (v2 refusal 経路の fixture)。
+    document["floor"] = v2_fixture.per_pair_floor(document)
     path = tmp_path / "holdout_freeze_floor_only.json"
     path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n",
                     encoding="utf-8")
@@ -791,8 +785,10 @@ def test_run_block_loads_freeze_once_and_passes_same_object_to_gate(tmp_path):
 
     captured: dict = {}
 
-    def recording_gate(*, freeze_path, manifest_path, root, verified=None):
+    def recording_gate(*, freeze_path, manifest_path, root, verified=None,
+                       verified_manifest=None):
         captured["verified"] = verified
+        captured["verified_manifest"] = verified_manifest
         return driver.GateDecision(True, [])
 
     with mock.patch.object(Path, "read_bytes", counting_read_bytes), \
@@ -813,6 +809,70 @@ def test_run_block_loads_freeze_once_and_passes_same_object_to_gate(tmp_path):
     # gate_check に渡った verified は run_block が load したまさに同一 object。
     assert isinstance(captured["verified"], s8b_freeze_io.VerifiedFreeze)
     assert captured["verified"] is loaded["obj"]
+    # C2-9: gate_check には検証済み VerifiedManifest が渡り (再検証させない)、
+    # run_block はそれを本体でも使い回す (再読込しない)。
+    assert isinstance(captured["verified_manifest"], manifest_module.VerifiedManifest)
+
+
+def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
+    """C2-9 / A3-6 (manifest 側): run_block は manifest を厳密 1 回だけ verify し、
+    その単一 VerifiedManifest object を gate と本体で共有する (verify->use 間の
+    再読込・再検証をしない)。freeze 側の read=1 + 同一 object 固定
+    (test_run_block_loads_freeze_once...) の manifest 版。
+
+    恒真回避: verify_manifest 呼び出し数・manifest byte read 数・gate へ渡った
+    object の identity を同時に固定する。本体が manifest を disk から再読込する
+    (raw re-read) か再検証する (verify_manifest 再呼び出し) 退行はどちらも
+    read>1 / verify>1 で kill される。
+    """
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare_fn = _prepare_factory()
+    manifest_path, _document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_evaluate_factory()
+
+    real_read_text = Path.read_text
+    manifest_reads: list[Path] = []
+
+    def counting_read_text(self, *args, **kwargs):
+        if Path(self) == Path(manifest_path):
+            manifest_reads.append(Path(self))
+        return real_read_text(self, *args, **kwargs)
+
+    real_verify = driver.verify_manifest
+    verify_calls: list[Path] = []
+    captured: dict = {}
+
+    def counting_verify(path, **kwargs):
+        verify_calls.append(Path(path))
+        result = real_verify(path, **kwargs)
+        captured["verified_manifest"] = result
+        return result
+
+    def recording_gate(*, freeze_path, manifest_path, root, verified=None,
+                       verified_manifest=None):
+        captured["gate_manifest"] = verified_manifest
+        return driver.GateDecision(True, [])
+
+    with mock.patch.object(Path, "read_text", counting_read_text), \
+            mock.patch.object(driver, "verify_manifest", counting_verify), \
+            mock.patch.object(driver, "gate_check", recording_gate):
+        result = driver.run_block(
+            manifest_path=manifest_path, block_id="b0",
+            freeze_path=freeze_path, root=ROOT,
+            output_root=tmp_path / "out", budget_path=tmp_path / "budget.json",
+            marker_root=tmp_path / "markers",
+            prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
+
+    assert result["status"] == "completed"
+    # manifest は厳密 1 回だけ verify され (本体は再検証しない)。
+    assert len(verify_calls) == 1
+    # manifest byte read もちょうど 1 回 (本体は verified object を使い再読込しない)。
+    assert len(manifest_reads) == 1
+    # gate へ渡った VerifiedManifest は verify_manifest が返したまさに同一 object。
+    assert isinstance(captured["verified_manifest"], manifest_module.VerifiedManifest)
+    assert captured["gate_manifest"] is captured["verified_manifest"]
 
 
 def test_v6_freeze_swap_after_verify_is_not_observed(tmp_path):
@@ -878,6 +938,49 @@ def test_v6_freeze_swap_after_verify_is_not_observed(tmp_path):
     assert ledger["limits"]["total_bench_s"] == pytest.approx(1000.0)
 
 
+def test_v7_manifest_swap_after_verify_is_not_observed(tmp_path):
+    """V7: gate/本体で共有する VerifiedManifest により、verify 後に manifest bytes を
+    差し替えても差替え後の値 (campaign_id) が一切使われない (C2-9 の manifest 版)。
+
+    verify_manifest 直後に manifest ファイルの campaign_ids を悪性値へ差し替える。
+    単一 object を使う実装では driver は元の verified document だけを使い、
+    result["campaign_id"] は差替え前の値のまま completed になる。もし verify 後に
+    manifest を再読込 (raw) または再検証する構造なら差替え後の campaign_id を観測して
+    FAIL する (verify-use 間 TOCTOU の再現を kill する)。V6 が freeze に対して行うのと
+    同型。
+    """
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_evaluate_factory()
+
+    original_campaign_id = manifest_module.config_for_block(
+        document, "b0")["campaign_id"]
+    poisoned_campaign_id = original_campaign_id + "-POISONED"
+    real_verify = manifest_module.verify_manifest
+
+    def swapping_verify(path, **kwargs):
+        result = real_verify(path, **kwargs)
+        # 検証が通った直後に manifest の campaign_ids を悪性値へ差し替える。
+        malicious = json.loads(manifest_path.read_text(encoding="utf-8"))
+        malicious["campaign_ids"]["b0"] = poisoned_campaign_id
+        manifest_path.write_text(
+            json.dumps(malicious, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return result
+
+    with mock.patch.object(driver, "verify_manifest", swapping_verify):
+        result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
+
+    # 単一 object 実装なら差替え前の campaign_id で completed。再読込/再検証する退行は
+    # 差替え後の POISONED を観測する。
+    assert result["status"] == "completed"
+    assert result["campaign_id"] == original_campaign_id
+    assert result["campaign_id"] != poisoned_campaign_id
+
+
 def test_layer3_strict_consumer_accepts_optional_bench_wall_s():
     schema = json.loads(
         (ORCHESTRATOR / "campaign/layer3_schema.json").read_text(encoding="utf-8")
@@ -893,8 +996,10 @@ def test_layer3_strict_consumer_accepts_optional_bench_wall_s():
 # ---- R6: resume 拒否の強化 (原子的 lock + 実走済みマーカー + truncated WAL 閉鎖) ----
 
 def _campaign_id(manifest_path: Path) -> str:
-    manifest = manifest_module.verify_manifest(manifest_path, root=ROOT)
-    return manifest_module.config_for_block(manifest, "b0")["campaign_id"]
+    # campaign_id の抽出だけが目的なので verify (freeze_document 必須) は経由せず、
+    # plain load + config_for_block で射影する。
+    document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    return manifest_module.config_for_block(document, "b0")["campaign_id"]
 
 
 def test_v2_resume_rejected_at_s1_s2_s3_boundaries(tmp_path):

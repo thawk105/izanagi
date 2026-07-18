@@ -62,65 +62,51 @@ def _binding_entry(*, holdout_id: str, configuration_id: str, genome,
 
 
 # --------------------------------------------------------------------------- #
-# 1. NaN 乖離の characterization (known-drift の可視化)
+# 1. NaN 統一後挙動の characterization (両側拒否)
 # --------------------------------------------------------------------------- #
 #
-# 既知の実装間乖離。manifest 側の canonicalizer (permissive, allow_nan=False 無し、
-# s8b_oracle_manifest._canonical_bytes:46-56) は非有限値 (NaN 等) を "NaN" token
-# として受理し、report 側の canonicalizer (strict, allow_nan=False、
-# s8b_oracle_report._canonical_sha256:56-59) は同じ値を ValueError で拒否する。
-# 統合と manifest 側 strict 化 (allow_nan=False) は v2 / ユーザー裁定材料
-# (2026-07-18 裁定 B-1)。この乖離を「正しい」と主張しない —— 現行挙動を実測固定する
-# だけである。
+# かつては manifest 側 canonicalizer (permissive) が NaN を "NaN" token として受理し、
+# report 側 (strict, allow_nan=False) だけが拒否する既知 drift だった。B-1 裁定で
+# manifest の _canonical_bytes も allow_nan=False へ strict 化したため、両側が非有限値を
+# 拒否する。ここでは統一後の「両側拒否」を実測固定する。
 
 
 def _nan_binding():
-    """非有限値を含む genome と、manifest permissive canonicalizer で整合する sha。"""
+    """非有限値 (NaN) を含む genome を持つ binding entry。
+
+    binding_sha256 は placeholder。manifest 側は再計算 (canonical_sha256) の時点で
+    NaN 拒否に倒れるため、比較値としては使われない。
+    """
     genome = {"weight": float("nan")}
-    projected = {
-        "genome_canonical": genome,
-        "src_token": "src-token",
-        "variant_id": "variant-id",
-        "entry_sha256": _HEX64,
-    }
-    # manifest の permissive canonicalizer で binding_sha256 を計算 (allow_nan=False
-    # 無しなので NaN を受理する)。これが manifest 側の再計算値と一致する。
-    binding_sha256 = manifest_module._canonical_sha256(projected)
     entry = _binding_entry(
         holdout_id="h0", configuration_id="c0", genome=genome,
-        binding_sha256=binding_sha256,
+        binding_sha256=_HEX64,
     )
     return entry, genome
 
 
-def test_nan_binding_accepted_by_manifest_validator():
-    """manifest 経路: 非有限 genome の binding entry を受理する (permissive canonicalizer)。
+def test_nan_binding_rejected_by_manifest_validator():
+    """manifest 経路: 非有限 genome の binding entry を拒否する (strict canonicalizer)。
 
-    manifest の _canonical_sha256 は allow_nan=False を渡さないため NaN を "NaN"
-    token として通す。事前計算した binding_sha256 が再計算値と一致し、
-    _validate_binding_identity は entry を受理して validated list を返す。この検査が
-    赤化したら manifest 側が strict 化された合図 (v2 の期待挙動)。
+    B-1 適用後、manifest の _canonical_sha256 は allow_nan=False を渡すため、
+    _validate_binding_identity の binding_sha256 再計算で ManifestError に倒れる。
+    かつての受理 (permissive) からの反転を固定する。
     """
     entry, _genome = _nan_binding()
     schedule = manifest_module.build_schedule(
         n=1, master_seed="driftguard", block_sizes={"b0": 1},
         holdout_ids=["h0"], configuration_ids=["c0"],
     )
-    validated = manifest_module._validate_binding_identity(
-        [entry], schedule=schedule,
-    )
-    assert len(validated) == 1
-    assert (validated[0]["holdout_id"], validated[0]["configuration_id"]) == ("h0", "c0")
-    assert validated[0]["binding_sha256"] == entry["binding_sha256"]
+    with pytest.raises(manifest_module.ManifestError):
+        manifest_module._validate_binding_identity([entry], schedule=schedule)
 
 
 def test_nan_binding_rejected_by_report_schema_issues():
     """report 経路: 同一 entry を strict canonicalizer が ValueError で拒否する。
 
     report の _canonical_sha256 は allow_nan=False を渡すため、binding_sha256 の
-    再計算 (_binding_schema_issues:275) で json.dumps が ValueError を送出する。
-    これは issue list ではなく例外として観測される (実測固定)。manifest が受理し
-    report が拒否する —— この非同値が現行の known-drift である。
+    再計算で json.dumps が ValueError を送出する。manifest (ManifestError) と report
+    (ValueError) が共に拒否する —— これが統一後の挙動である。
     """
     entry, _genome = _nan_binding()
     with pytest.raises(ValueError):

@@ -14,7 +14,9 @@ import pytest
 ORCH = Path(__file__).resolve().parents[1]
 ROOT = ORCH.parent
 sys.path.insert(0, str(ORCH))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 from campaign import (  # noqa: E402
     s8b_oracle_judge as judge,
     s8b_oracle_manifest as oracle_manifest,
@@ -52,14 +54,8 @@ def _source(path: str) -> dict:
 def _freeze(tmp_path: Path) -> tuple[Path, tuple[str, ...]]:
     document = json.loads(REAL_FREEZE.read_text(encoding="utf-8"))
     holdout_ids = tuple(document["holdouts"])
-    document["floor"] = {
-        "by_holdout": {holdout_id: 0.01 for holdout_id in holdout_ids},
-    }
-    document["budget"] = {
-        "total_bench_s": 100.0,
-        "per_holdout_bench_s": {holdout_id: 50.0 for holdout_id in holdout_ids},
-        "oracle_shared": True,
-    }
+    # strict v2: per-pair floor + budget を共有 fixture で充填する (C3-4)。
+    v2_fixture.fill(document)
     path = tmp_path / "holdout-freeze-fixture.json"
     path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
     return path, holdout_ids

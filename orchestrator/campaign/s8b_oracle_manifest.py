@@ -9,6 +9,7 @@ import math
 import os
 import random
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Sequence
 
@@ -18,6 +19,10 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 SCHEMA_VERSION = "8b-oracle-manifest/v1"
+# freeze の stock 構成名。freeze document 自体に「どれが stock か」の明示 field は
+# ないためハードコードし、per-pair floor 検証時に freeze の構成集合に実在すること
+# (一致検査) を _holdout_configuration_ids で強制する (C3-3/C3-1)。
+STOCK_CONFIGURATION = "stock_common"
 _ROW_KEYS = {
     "block_id", "replicate_index", "schedule_index",
     "holdout_id", "configuration_id",
@@ -43,10 +48,29 @@ class ManifestError(RuntimeError):
     """schedule / manifest を検証できない場合の fail-closed 拒否。"""
 
 
+@dataclass(frozen=True)
+class VerifiedManifest:
+    """verify_manifest の検証済み戻り値 (C2-9)。
+
+    ``document`` は全検査を通過した manifest 文書、``sha256`` はその文書の
+    canonical SHA-256 (= 全 consumer の identity。run_block の
+    ``_canonical_sha256(manifest)`` と同値)。gate と run_block はこの単一 object を
+    共有し manifest を再読込・再検証しない。
+
+    設計判断: raw file bytes は保持しない。manifest の identity は canonical SHA-256
+    に一本化されており (budget 台帳・campaign marker が使うのはこの値)、file byte
+    hash を別 field で持つと未使用の第二 identity を生む。frozen なのは field 束縛の
+    再代入防止であって document dict の深い不変化 (C1-7) は後続 wave の責務。
+    """
+    document: dict
+    sha256: str
+
+
 def _canonical_bytes(value) -> bytes:
     try:
         return json.dumps(
             value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            allow_nan=False,
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
         raise ManifestError(f"canonical JSON に変換できない: {exc}") from exc
@@ -76,9 +100,33 @@ def _file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _reject_json_constant(token: str):
+    """NaN/Infinity/-Infinity リテラルを fail-closed 拒否する (M3)。"""
+    raise ManifestError(f"JSON に非数値定数リテラルがある: {token}")
+
+
+def _reject_duplicate_keys(pairs):
+    """object_pairs_hook: 同名 key の重複を全階層で拒否する (M3/C3-11)。
+
+    Python の dict は last-wins で重複を黙って畳むため、人間レビューへ先頭値を、
+    実行へ末尾値を見せる曖昧性を許す。全 object にこの hook が適用されるので
+    nested object の重複も拒否できる。
+    """
+    seen: Dict = {}
+    for key, value in pairs:
+        if key in seen:
+            raise ManifestError(f"JSON に重複キーがある: {key!r}")
+        seen[key] = value
+    return seen
+
+
 def _load_json_object(path: Path) -> Dict:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_reject_duplicate_keys,
+        )
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ManifestError(f"JSON を読めない: {path}: {exc}") from exc
     if not isinstance(value, dict):
@@ -303,6 +351,10 @@ def _validate_run_contract(run_contract: Mapping) -> dict:
         value = run_contract.get(field)
         if not _is_int(value) or value <= 0:
             raise ManifestError(f"run_contract.{field} が正整数でない")
+    # M5: oracle adapter は必ず bench_max_rounds=1 を明示する (generic
+    # pipeline.evaluate の default=3 とは別)。正整数一般でなく 1 完全一致で pin する。
+    if run_contract.get("bench_max_rounds") != 1:
+        raise ManifestError("run_contract.bench_max_rounds が 1 でない")
     return copy.deepcopy(dict(run_contract))
 
 
@@ -399,6 +451,111 @@ def _validate_binding_identity(binding_identity, *, schedule: Mapping) -> list[d
     return validated
 
 
+def _finite_positive_or_none(value) -> bool:
+    """有限正 float (>0) または None のとき True。bool・非有限・0 以下は False。"""
+    if value is None:
+        return True
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(float(value)) and float(value) > 0
+
+
+def _holdout_configuration_ids(freeze: Mapping, holdout_id: str) -> set:
+    """freeze の当該 holdout の構成集合 (variant_binding.entries の key 集合)。
+
+    stock 構成名 (STOCK_CONFIGURATION) が実在することを併せて検査する
+    (ハードコード名と freeze 記録値の一致検査。C3-1/C3-3)。
+    """
+    holdouts = freeze.get("holdouts")
+    if not isinstance(holdouts, Mapping):
+        raise ManifestError("freeze.holdouts が object でない")
+    entry = holdouts.get(holdout_id)
+    if not isinstance(entry, Mapping):
+        raise ManifestError(f"freeze.holdouts.{holdout_id} が object でない")
+    binding = entry.get("variant_binding")
+    if not isinstance(binding, Mapping):
+        raise ManifestError(
+            f"freeze.holdouts.{holdout_id}.variant_binding が object でない"
+        )
+    entries = binding.get("entries")
+    if not isinstance(entries, Mapping) or not entries:
+        raise ManifestError(
+            f"freeze.holdouts.{holdout_id}.variant_binding.entries が"
+            " 空でない object でない"
+        )
+    config_ids = set(entries)
+    if STOCK_CONFIGURATION not in config_ids:
+        raise ManifestError(
+            f"freeze.holdouts.{holdout_id} の構成集合に stock 構成"
+            f" {STOCK_CONFIGURATION} がない"
+        )
+    return config_ids
+
+
+def _validate_holdout_floor(freeze: Mapping, holdout_id: str, value) -> None:
+    """1 holdout の per-pair floor table を exact 検査する (C3-3)。
+
+    形 = exact 3 keys {pairs, scale_ref, scalar_alt}。scalar (v1 数値) 形・stock key
+    混入・pair 欠落/余分・自己矛盾する相関は全て拒否する。
+    """
+    if not isinstance(value, Mapping) or set(value) != {
+            "pairs", "scale_ref", "scalar_alt"}:
+        raise ManifestError(
+            f"freeze.floor.by_holdout.{holdout_id} が"
+            " exact {pairs, scale_ref, scalar_alt} でない"
+        )
+    pairs = value["pairs"]
+    scale_ref = value["scale_ref"]
+    scalar_alt = value["scalar_alt"]
+
+    expected_pairs = _holdout_configuration_ids(freeze, holdout_id) - {
+        STOCK_CONFIGURATION}
+    if not isinstance(pairs, Mapping) or set(pairs) != expected_pairs:
+        raise ManifestError(
+            f"freeze.floor.by_holdout.{holdout_id}.pairs の key 集合が"
+            " 構成集合−stock と一致しない"
+        )
+    for configuration_id, pair_value in pairs.items():
+        if not _finite_positive_or_none(pair_value):
+            raise ManifestError(
+                f"freeze.floor.by_holdout.{holdout_id}.pairs.{configuration_id}"
+                " が有限正 float or null でない"
+            )
+    if not _finite_positive_or_none(scale_ref):
+        raise ManifestError(
+            f"freeze.floor.by_holdout.{holdout_id}.scale_ref が"
+            " 有限正 float or null でない"
+        )
+    if not _finite_positive_or_none(scalar_alt):
+        raise ManifestError(
+            f"freeze.floor.by_holdout.{holdout_id}.scalar_alt が"
+            " 有限正 float or null でない"
+        )
+
+    pair_values = list(pairs.values())
+    all_pairs_present = bool(pair_values) and all(
+        v is not None for v in pair_values)
+    # 相関 1: scale_ref が null (stock 未確定) ⇒ 全 pair と scalar_alt も null。
+    if scale_ref is None and (
+            any(v is not None for v in pair_values) or scalar_alt is not None):
+        raise ManifestError(
+            f"freeze.floor.by_holdout.{holdout_id}: scale_ref が null なのに"
+            " pair/scalar_alt が非 null"
+        )
+    # 相関 2: scalar_alt は全 pair 非 null なら max(pairs)、いずれか null なら null。
+    if all_pairs_present:
+        if scalar_alt != max(pair_values):
+            raise ManifestError(
+                f"freeze.floor.by_holdout.{holdout_id}.scalar_alt が"
+                " max(pairs) と不一致"
+            )
+    elif scalar_alt is not None:
+        raise ManifestError(
+            f"freeze.floor.by_holdout.{holdout_id}.scalar_alt が"
+            " pair に null を含むのに非 null"
+        )
+
+
 def _validate_execution_snapshot(freeze: Mapping, *, holdout_ids: Sequence[str]) -> None:
     floor = freeze.get("floor")
     budget = freeze.get("budget")
@@ -406,17 +563,15 @@ def _validate_execution_snapshot(freeze: Mapping, *, holdout_ids: Sequence[str])
         raise ManifestError("freeze.floor が null")
     if budget is None:
         raise ManifestError("freeze.budget が null")
-    if not isinstance(floor, Mapping) or not floor:
-        raise ManifestError("freeze.floor が空でない object でない")
+    if not isinstance(floor, Mapping) or set(floor) != {"by_holdout"}:
+        raise ManifestError("freeze.floor が exact {by_holdout} でない")
     if not isinstance(budget, Mapping) or not budget:
         raise ManifestError("freeze.budget が空でない object でない")
     by_holdout = floor.get("by_holdout")
     if not isinstance(by_holdout, Mapping) or set(by_holdout) != set(holdout_ids):
         raise ManifestError("freeze.floor.by_holdout が schedule holdout と一致しない")
     for holdout_id, value in by_holdout.items():
-        if (isinstance(value, bool) or not isinstance(value, (int, float))
-                or not math.isfinite(float(value)) or float(value) < 0):
-            raise ManifestError(f"freeze.floor.by_holdout.{holdout_id} が有限の非負数でない")
+        _validate_holdout_floor(freeze, holdout_id, value)
     total = budget.get("total_bench_s")
     per_holdout = budget.get("per_holdout_bench_s")
     if (isinstance(total, bool) or not isinstance(total, (int, float))
@@ -556,7 +711,8 @@ def _atomic_create_json(path: Path, document: Mapping) -> None:
     )
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            json.dump(document, stream, ensure_ascii=False, indent=2)
+            json.dump(document, stream, ensure_ascii=False, indent=2,
+                      allow_nan=False)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
@@ -583,16 +739,24 @@ def write_manifest(path, manifest) -> None:
     _atomic_create_json(Path(path), manifest)
 
 
-def verify_manifest(path, *, root, freeze_document=None, freeze_sha256=None) -> dict:
+def verify_manifest(path, *, root, freeze_document, freeze_sha256) -> VerifiedManifest:
     """manifest の参照 hash、schedule、block/campaign 束縛を再照合する。
 
-    ``freeze_document`` / ``freeze_sha256`` を与えた場合は freeze を disk から
+    ``freeze_document`` / ``freeze_sha256`` は必須 (C2-7)。freeze を disk から
     再読込せず、hash 検証済みの単一 object (呼び出し元の ``load_verified_freeze``
     の戻り値) だけを使う。verify から use までの freeze byte 差替え (TOCTOU) を
-    consumer 間で断つための A3-6 経路。両者は同時指定を要求する (片方だけは拒否)。
+    consumer 間で断つための A3-6 経路。かつて存在した「freeze を manifest 記載 path
+    から再読込する fallback」は撤去した (差替え窓を残すため)。
+
+    戻り値は ``VerifiedManifest`` (document + canonical SHA-256)。gate と run_block は
+    この単一 object を共有し、再読込・再検証しない (C2-9)。
     """
     path = Path(path)
     root = Path(root)
+    if freeze_document is None or freeze_sha256 is None:
+        raise ManifestError(
+            "verify_manifest には freeze_document と freeze_sha256 が必須"
+        )
     document = _load_json_object(path)
     if set(document) != _MANIFEST_KEYS:
         raise ManifestError("manifest top-level schema が不一致")
@@ -600,21 +764,13 @@ def verify_manifest(path, *, root, freeze_document=None, freeze_sha256=None) -> 
         raise ManifestError("manifest schema_version が不一致")
 
     freeze_record = _source_record(document.get("freeze"), field="freeze")
-    if (freeze_document is None) != (freeze_sha256 is None):
-        raise ManifestError("freeze_document と freeze_sha256 は同時指定する")
-    if freeze_document is not None:
-        # A3-6: 検証済み単一 object を使い freeze を再読込しない。manifest 記載の
-        # byte hash と一致することだけを確認する (差替え検出は呼び出し元の単一 read)。
-        if not isinstance(freeze_document, Mapping):
-            raise ManifestError("freeze_document が object でない")
-        if freeze_sha256 != freeze_record["sha256"]:
-            raise ManifestError("freeze byte sha256 が manifest と不一致")
-        freeze = freeze_document
-    else:
-        freeze_path = _resolve_source(freeze_record["path"], root=root)
-        if _file_sha256(freeze_path) != freeze_record["sha256"]:
-            raise ManifestError("freeze byte sha256 が manifest と不一致")
-        freeze = _load_json_object(freeze_path)
+    # A3-6: 検証済み単一 object を使い freeze を再読込しない。manifest 記載の byte
+    # hash と一致することだけを確認する (差替え検出は呼び出し元の単一 read)。
+    if not isinstance(freeze_document, Mapping):
+        raise ManifestError("freeze_document が object でない")
+    if freeze_sha256 != freeze_record["sha256"]:
+        raise ManifestError("freeze byte sha256 が manifest と不一致")
+    freeze = freeze_document
 
     known_record = _source_record(
         document.get("known_axes_freeze"), field="known_axes_freeze",
@@ -670,7 +826,7 @@ def verify_manifest(path, *, root, freeze_document=None, freeze_sha256=None) -> 
     recorded_id = without_id.pop("manifest_id", None)
     if recorded_id != _manifest_id(without_id):
         raise ManifestError("manifest_id が内容と一致しない")
-    return document
+    return VerifiedManifest(document=document, sha256=_canonical_sha256(document))
 
 
 def config_for_block(manifest, block_id) -> dict:
