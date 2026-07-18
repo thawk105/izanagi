@@ -48,9 +48,7 @@ import contextlib
 import datetime as dt
 import hashlib
 import json
-import math
 import os
-import random
 import re
 import socket
 import subprocess
@@ -73,6 +71,7 @@ from calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
+from campaign import s8b_floor_contract as _floor_contract  # noqa: E402
 from campaign import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
 from campaign import env_contract as _env_contract  # noqa: E402
 from campaign import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
@@ -91,40 +90,28 @@ from campaign.s8b_launch_cert import (  # noqa: E402
     validate_launch_certificate as _validate_launch_certificate,
 )
 
-# 版名は一括 v2 改版し交差受理を拒否する (β-2/δ-2)。freeze schema は v1 freeze を読むため据置。
-PROTOCOL_SCHEMA = "s8b-floor-protocol/v2"
-FREEZE_SCHEMA = "8b-holdout-freeze/v1"
-SCHEDULE_ALGORITHM = "round-permutation/v2"
-RESULT_SCHEMA = "s8b-floor-result/v2"
-MANIFEST_SCHEMA = "s8b-floor-manifest/v2"
-JOURNAL_SCHEMA = "s8b-floor-journal/v2"
+# 共有 leaf の版・承認 pin を既存名で re-export する。
+PROTOCOL_SCHEMA = _floor_contract.PROTOCOL_SCHEMA
+FREEZE_SCHEMA = _floor_contract.FREEZE_SCHEMA
+SCHEDULE_ALGORITHM = _floor_contract.SCHEDULE_ALGORITHM
+RESULT_SCHEMA = _floor_contract.RESULT_SCHEMA
+MANIFEST_SCHEMA = _floor_contract.MANIFEST_SCHEMA
+JOURNAL_SCHEMA = _floor_contract.JOURNAL_SCHEMA
+_PROTOCOL_KEYS = _floor_contract._PROTOCOL_KEYS
+_FREEZE_RECORD_KEYS = _floor_contract._FREEZE_RECORD_KEYS
+_APPROVED_N_SESSIONS = _floor_contract._APPROVED_N_SESSIONS
+_APPROVED_REPS = _floor_contract._APPROVED_REPS
+_APPROVED_RETRY_SLOTS = _floor_contract._APPROVED_RETRY_SLOTS
+_APPROVED_SESSION_CV_MAX = _floor_contract._APPROVED_SESSION_CV_MAX
+_APPROVED_CELL_CV_MAX = _floor_contract._APPROVED_CELL_CV_MAX
+_APPROVED_SCALE_ADEQUACY = _floor_contract._APPROVED_SCALE_ADEQUACY
+_APPROVED_REASONS = list(_floor_contract._APPROVED_REASONS)
 
-# protocol JSON の必須 key (strict: これ以外の key・欠落・型不正・duplicate key はすべて拒否)。
-# v2: blocks / replicates_per_block / min_block_gap_s を削除、session_cv_max / cell_cv_max /
-# scale_adequacy_rel_tolerance を追加 (β-1)。
-_PROTOCOL_KEYS = frozenset({
-    "schema", "formula", "env_tag", "ccbench_pin", "freeze", "stock_configuration",
-    "n_sessions", "reps", "master_seed", "schedule_algorithm", "extime_s",
-    "wired_min_rel_floor", "retry_slots_per_cell",
-    "session_cv_max", "cell_cv_max", "scale_adequacy_rel_tolerance",
-    "allowed_excluded_reasons",
-    # §5-v (F4 実装解釈、親追認事項): 17→18 key。env 契約の同一性 fingerprint を
-    # protocol へ焼き込み cross-field pin する (契約 env と protocol env の乖離を開始前に拒否)。
-    "contract_sha256",
-})
-_FREEZE_RECORD_KEYS = frozenset({"path", "sha256"})
-
-# 承認済み標本設計の凍結数値 (§9 承認状態 2026-07-18)。validate_protocol が完全一致で pin する
-# (別実験への変質を開始前に拒否, β-1)。値の単一源は campaign.s8b_approved (C4-3): ここには
-# literal を残さず束縛のみ (builder と validate_protocol が同一定義を参照する)。
-_APPROVED_N_SESSIONS = s8b_approved.APPROVED_N_SESSIONS
-_APPROVED_REPS = s8b_approved.APPROVED_REPS
-_APPROVED_RETRY_SLOTS = s8b_approved.APPROVED_RETRY_SLOTS
-_APPROVED_SESSION_CV_MAX = s8b_approved.APPROVED_SESSION_CV_MAX
-_APPROVED_CELL_CV_MAX = s8b_approved.APPROVED_CELL_CV_MAX
-_APPROVED_SCALE_ADEQUACY = s8b_approved.APPROVED_SCALE_ADEQUACY
-# 閉じた除外理由表の固定順 (stats が正本)。protocol は完全一致 (固定順) を要求する。
-_APPROVED_REASONS = list(s8b_approved.APPROVED_REASONS)
+# 新しい共有 API は leaf 実体を直接 re-export する。
+canonical_protocol_sha256 = _floor_contract.canonical_protocol_sha256
+project_protocol_for_floor_artifact = _floor_contract.project_protocol_for_floor_artifact
+derive_expected_cells = _floor_contract.derive_expected_cells
+_round_seed = _floor_contract._round_seed
 
 # driver が観測から分類する excluded_reason コード (stats の閉じた表と一致)。
 _REASON_COMPETING = "competing_process"          # preflight/post probe の競合
@@ -222,153 +209,51 @@ def load_protocol(path) -> dict:
 
 
 def _pos_int(value, *, field: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        raise FloorCampaignError(f"protocol.{field} が正整数でない")
-    return value
+    try:
+        return _floor_contract._pos_int(value, field=field)
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 def _non_neg_int(value, *, field: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise FloorCampaignError(f"protocol.{field} が非負整数でない")
-    return value
+    try:
+        return _floor_contract._non_neg_int(value, field=field)
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 def _non_empty_str(value, *, field: str) -> str:
-    if not isinstance(value, str) or not value:
-        raise FloorCampaignError(f"protocol.{field} が空でない文字列でない")
-    return value
+    try:
+        return _floor_contract._non_empty_str(value, field=field)
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 def _pinned(value, expected, *, field: str):
     """承認凍結値との完全一致を要求する (別実験への変質を開始前に拒否, β-1)。"""
-    if value != expected or type(value) is not type(expected):
-        raise FloorCampaignError(
-            f"protocol.{field} が承認凍結値と不一致 (受領 {value!r} != 承認 {expected!r})"
-        )
-    return value
+    try:
+        return _floor_contract._pinned(value, expected, field=field)
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 def validate_protocol(document: Mapping) -> dict:
-    """protocol の必須 key・型・整合を strict に検査し、正規化 dict を返す (fail-closed)。
+    """共有 leaf の full validator を既存 FloorCampaignError API で公開する。"""
 
-    未知 key・欠落・型不正はすべて拒否する。数値の既定値はコードに持たない (入力必須)。
-    ``formula`` は ``s8b_floor_stats.FORMULA_ID`` (v2) と一致検査する (式の版束縛)。承認済み標本
-    設計の凍結数値 (n_sessions=8 / reps=5 / retry_slots=2 / 閾値 3 種 / 除外理由 4 行固定順) は
-    完全一致で pin する (β-1)。承認凍結値の単一源は ``campaign.s8b_approved`` (C4-3)。
+    def contract_sha256_lookup(env_tag: str) -> str:
+        try:
+            return _env_contract.lookup(env_tag).contract_sha256
+        except _env_contract.EnvContractError as exc:
+            raise _floor_contract.FloorContractError(
+                f"protocol.env_tag が env 契約に未登録: {exc}"
+            ) from exc
 
-    ``contract_sha256`` は §5-v の親追認事項 (F4 の実装解釈、schema version bump ではなく凍結前の
-    17→18 key 追加)。``env_contract.lookup(env_tag).contract_sha256`` と完全一致で cross-field pin
-    し、未登録 env_tag は fail-closed で拒否する (契約 env と protocol env の乖離を開始前に止める)。
-    """
-    if not isinstance(document, Mapping):
-        raise FloorCampaignError("protocol が object でない")
-    keys = set(document)
-    if keys != set(_PROTOCOL_KEYS):
-        missing = sorted(set(_PROTOCOL_KEYS) - keys)
-        unknown = sorted(keys - set(_PROTOCOL_KEYS))
-        raise FloorCampaignError(
-            f"protocol の key 集合が不一致 (欠落={missing} 未知={unknown})"
-        )
-
-    if document["schema"] != PROTOCOL_SCHEMA:
-        raise FloorCampaignError(
-            f"protocol.schema が {PROTOCOL_SCHEMA} でない (v1 の交差受理を拒否)"
-        )
-    if document["schedule_algorithm"] != SCHEDULE_ALGORITHM:
-        raise FloorCampaignError(
-            f"protocol.schedule_algorithm が {SCHEDULE_ALGORITHM} でない"
-        )
-
-    formula = _non_empty_str(document["formula"], field="formula")
-    if formula != s8b_floor_stats.FORMULA_ID:
-        raise FloorCampaignError(
-            f"protocol.formula ({formula}) が s8b_floor_stats.FORMULA_ID "
-            f"({s8b_floor_stats.FORMULA_ID}) と不一致"
-        )
-
-    env_tag = _non_empty_str(document["env_tag"], field="env_tag")
-    # §5-v: contract_sha256 を env 契約から cross-field pin する (親追認事項)。env_tag が
-    # env 契約に未登録なら fail-closed (曖昧な fallback なし)。
-    contract_sha256 = _non_empty_str(document["contract_sha256"], field="contract_sha256")
     try:
-        _contract = _env_contract.lookup(env_tag)
-    except _env_contract.EnvContractError as exc:
-        raise FloorCampaignError(f"protocol.env_tag が env 契約に未登録: {exc}") from exc
-    if contract_sha256 != _contract.contract_sha256:
-        raise FloorCampaignError(
-            f"protocol.contract_sha256 が env_contract.lookup({env_tag!r}).contract_sha256 と不一致"
+        return _floor_contract.validate_protocol(
+            document, contract_sha256_lookup=contract_sha256_lookup,
         )
-    ccbench_pin = _non_empty_str(document["ccbench_pin"], field="ccbench_pin")
-    stock_configuration = _non_empty_str(
-        document["stock_configuration"], field="stock_configuration",
-    )
-    master_seed = _non_empty_str(document["master_seed"], field="master_seed")
-
-    freeze_record = document["freeze"]
-    if not isinstance(freeze_record, Mapping) or set(freeze_record) != set(_FREEZE_RECORD_KEYS):
-        raise FloorCampaignError("protocol.freeze schema が {path, sha256} でない")
-    freeze_path = _non_empty_str(freeze_record["path"], field="freeze.path")
-    freeze_sha = freeze_record["sha256"]
-    if (not isinstance(freeze_sha, str) or len(freeze_sha) != 64
-            or any(ch not in "0123456789abcdef" for ch in freeze_sha)):
-        raise FloorCampaignError("protocol.freeze.sha256 が SHA-256 でない")
-
-    # 承認凍結値の完全一致 pin (β-1)。n_sessions/reps/retry_slots は型と値、閾値 3 種は decimal
-    # 文字列として完全一致。
-    n_sessions = _pinned(document["n_sessions"], _APPROVED_N_SESSIONS, field="n_sessions")
-    reps = _pinned(document["reps"], _APPROVED_REPS, field="reps")
-    retry_slots_per_cell = _pinned(
-        document["retry_slots_per_cell"], _APPROVED_RETRY_SLOTS, field="retry_slots_per_cell",
-    )
-    session_cv_max = _pinned(
-        document["session_cv_max"], _APPROVED_SESSION_CV_MAX, field="session_cv_max",
-    )
-    cell_cv_max = _pinned(
-        document["cell_cv_max"], _APPROVED_CELL_CV_MAX, field="cell_cv_max",
-    )
-    scale_adequacy_rel_tolerance = _pinned(
-        document["scale_adequacy_rel_tolerance"], _APPROVED_SCALE_ADEQUACY,
-        field="scale_adequacy_rel_tolerance",
-    )
-
-    extime_s = _pos_int(document["extime_s"], field="extime_s")
-
-    wired_min_rel_floor = document["wired_min_rel_floor"]
-    if (isinstance(wired_min_rel_floor, bool)
-            or not isinstance(wired_min_rel_floor, (int, float))
-            or not math.isfinite(float(wired_min_rel_floor))
-            or not (0.0 < float(wired_min_rel_floor) <= 1.0)):
-        raise FloorCampaignError("protocol.wired_min_rel_floor が (0,1] の有限数でない")
-    wired_min_rel_floor = float(wired_min_rel_floor)
-
-    reasons_raw = document["allowed_excluded_reasons"]
-    if reasons_raw != _APPROVED_REASONS:
-        # 完全一致 (固定順) を要求する。欠落・余分・並べ替えを開始前に拒否 (β-1)。
-        raise FloorCampaignError(
-            f"protocol.allowed_excluded_reasons が承認凍結 4 行 (固定順) と不一致: "
-            f"受領 {reasons_raw!r}"
-        )
-
-    return {
-        "schema": PROTOCOL_SCHEMA,
-        "formula": formula,
-        "env_tag": env_tag,
-        "ccbench_pin": ccbench_pin,
-        "freeze": {"path": freeze_path, "sha256": freeze_sha},
-        "stock_configuration": stock_configuration,
-        "n_sessions": n_sessions,
-        "reps": reps,
-        "master_seed": master_seed,
-        "schedule_algorithm": SCHEDULE_ALGORITHM,
-        "extime_s": extime_s,
-        "wired_min_rel_floor": wired_min_rel_floor,
-        "retry_slots_per_cell": retry_slots_per_cell,
-        "session_cv_max": session_cv_max,
-        "cell_cv_max": cell_cv_max,
-        "scale_adequacy_rel_tolerance": scale_adequacy_rel_tolerance,
-        "allowed_excluded_reasons": list(_APPROVED_REASONS),
-        "contract_sha256": contract_sha256,
-    }
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 # --------------------------------------------------------------------------- #
@@ -567,18 +452,10 @@ def write_protocol_document(path, built: "BuiltProtocol", *, root=ROOT) -> Path:
 # --------------------------------------------------------------------------- #
 
 def _holdout_workload(holdout: Mapping, *, holdout_id: str) -> dict:
-    records = holdout.get("records")
-    threads = holdout.get("threads")
-    workload = holdout.get("ycsb")
-    if (isinstance(records, bool) or not isinstance(records, int) or records <= 0
-            or isinstance(threads, bool) or not isinstance(threads, int) or threads <= 0):
-        raise FloorCampaignError(f"holdout {holdout_id} の records/threads が正整数でない")
-    if not isinstance(workload, Mapping) or not workload:
-        raise FloorCampaignError(f"holdout {holdout_id} の ycsb が空でない object でない")
-    for key, value in workload.items():
-        if not isinstance(key, str) or not isinstance(value, str):
-            raise FloorCampaignError(f"holdout {holdout_id} の ycsb が str→str でない")
-    return {"records": records, "threads": threads, "workload": dict(workload)}
+    try:
+        return _floor_contract._holdout_workload(holdout, holdout_id=holdout_id)
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 def enumerate_cells(freeze: Mapping, *, stock_configuration: str) -> list[dict]:
@@ -587,64 +464,17 @@ def enumerate_cells(freeze: Mapping, *, stock_configuration: str) -> list[dict]:
     構成集合は全 holdout で一致し、stock_configuration を含むことを検査する。
     records/threads/workload は freeze の holdout から取る (POINTS 手書き・rr 値コピー禁止)。
     """
-    holdouts_obj = freeze.get("holdouts")
-    if not isinstance(holdouts_obj, Mapping) or not holdouts_obj:
-        raise FloorCampaignError("freeze.holdouts が空でない object でない")
-    holdout_ids = sorted(holdouts_obj)
-
-    configurations: Optional[list[str]] = None
-    per_holdout: dict[str, dict] = {}
-    for holdout_id in holdout_ids:
-        holdout = holdouts_obj[holdout_id]
-        if not isinstance(holdout, Mapping):
-            raise FloorCampaignError(f"holdout {holdout_id} が object でない")
-        binding = holdout.get("variant_binding")
-        entries = binding.get("entries") if isinstance(binding, Mapping) else None
-        if not isinstance(entries, Mapping) or not entries:
-            raise FloorCampaignError(
-                f"holdout {holdout_id} の variant_binding.entries が空でない object でない"
-            )
-        entry_ids = sorted(entries)
-        if configurations is None:
-            configurations = entry_ids
-        elif entry_ids != configurations:
-            raise FloorCampaignError(
-                f"holdout {holdout_id} の構成集合が他 holdout と不一致"
-            )
-        if stock_configuration not in entries:
-            raise FloorCampaignError(
-                f"holdout {holdout_id} の entries に stock_configuration "
-                f"({stock_configuration}) がない"
-            )
-        per_holdout[holdout_id] = {
-            **_holdout_workload(holdout, holdout_id=holdout_id),
-        }
-
-    assert configurations is not None
-    cells: list[dict] = []
-    for holdout_id in holdout_ids:
-        info = per_holdout[holdout_id]
-        for configuration_id in configurations:
-            cells.append({
-                "cell_id": f"{holdout_id}::{configuration_id}",
-                "holdout_id": holdout_id,
-                "configuration_id": configuration_id,
-                "records": info["records"],
-                "threads": info["threads"],
-                "workload": info["workload"],
-            })
-    return cells
+    try:
+        return _floor_contract.enumerate_cells(
+            freeze, stock_configuration=stock_configuration,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 # --------------------------------------------------------------------------- #
 # schedule v2 (round 単位 seed 置換, 純粋関数)                                  #
 # --------------------------------------------------------------------------- #
-
-def _round_seed(master_seed: str, round_no: int) -> int:
-    """round 種: seed = int.from_bytes(sha256(f"{master_seed}/{r}").digest()[:8], big)。"""
-    payload = f"{master_seed}/{round_no}".encode("utf-8")
-    return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big")
-
 
 def build_schedule(*, cells: list[dict], master_seed: str, n_sessions: int) -> list[dict]:
     """round r=1..n_sessions ごとに 12 セル (cell_id sort・一意) を seed 置換した session 列。
@@ -654,20 +484,12 @@ def build_schedule(*, cells: list[dict], master_seed: str, n_sessions: int) -> l
     エントリは {seq, round, cell_id} のみ (96 スロット一括置換ではなく round 構造を保つ)。入力
     順に依存しないよう cell_id を sort し一意検査する。
     """
-    if not isinstance(n_sessions, int) or isinstance(n_sessions, bool) or n_sessions <= 0:
-        raise FloorCampaignError("build_schedule: n_sessions が正整数でない")
-    cell_ids = sorted(cell["cell_id"] for cell in cells)
-    if len(set(cell_ids)) != len(cell_ids):
-        raise FloorCampaignError("build_schedule: cell_id が重複している")
-    if not cell_ids:
-        raise FloorCampaignError("build_schedule: cells が空")
-    rows: list[dict] = []
-    for round_no in range(1, n_sessions + 1):
-        permuted = list(cell_ids)
-        random.Random(_round_seed(master_seed, round_no)).shuffle(permuted)
-        for cell_id in permuted:
-            rows.append({"seq": len(rows), "round": round_no, "cell_id": cell_id})
-    return rows
+    try:
+        return _floor_contract.build_schedule(
+            cells=cells, master_seed=master_seed, n_sessions=n_sessions,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 # --------------------------------------------------------------------------- #
@@ -1516,21 +1338,9 @@ def _floors_to_dict(hf) -> dict:
 
 def _expected_protocol(protocol: Mapping, cells: list[dict]) -> dict:
     """verify_floor_artifact に渡す外部 expected_protocol (凍結値) を protocol + cells から組む。"""
-    expected_cells: dict[str, list] = {}
-    for cell in cells:
-        expected_cells.setdefault(cell["holdout_id"], []).append(cell["configuration_id"])
-    for holdout_id in expected_cells:
-        expected_cells[holdout_id] = sorted(expected_cells[holdout_id])
-    return {
-        "formula": protocol["formula"],
-        "n_sessions": protocol["n_sessions"],
-        "reps": protocol["reps"],
-        "stock_configuration": protocol["stock_configuration"],
-        "wired_min_rel_floor": protocol["wired_min_rel_floor"],
-        "session_cv_max": protocol["session_cv_max"],
-        "cell_cv_max": protocol["cell_cv_max"],
-        "expected_cells": expected_cells,
-    }
+    expected = project_protocol_for_floor_artifact(protocol)
+    expected["expected_cells"] = _floor_contract.expected_cells_from_cells(cells)
+    return expected
 
 
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
