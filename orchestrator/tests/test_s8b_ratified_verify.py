@@ -28,8 +28,10 @@ _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
 
 
 def _need_v1():
+    # trust root 不在で skip すると本ファイルの攻撃 matrix が丸ごと緑扱いになる (failures F9 型、
+    # codex 相談 2026-07-18 C-10)。実 v1 freeze は repo 同梱の恒久 artifact なので不在 = fail。
     if not _REAL_V1.is_file():
-        pytest.skip("実 v1 freeze が無い")
+        pytest.fail(f"実 v1 freeze が無い (trust root 不在): {_REAL_V1}")
 
 
 # --------------------------------------------------------------------------
@@ -216,7 +218,7 @@ def test_layer1_snapshot_tamper_rejected_unit():
     # holdouts は transition で protected のため、層1 単体を直接駆動して改竄検出を確認する。
     doc = json.loads(_REAL_V1.read_bytes()) if _REAL_V1.is_file() else None
     if doc is None:
-        pytest.skip("実 v1 freeze が無い")
+        pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
     name = next(iter(HF.HOLDOUTS))
     doc["holdouts"][name]["unknownness_check"]["zero_hit_output_sha256"] = "e" * 64
     with pytest.raises(M.RatifiedFreezeError) as ei:

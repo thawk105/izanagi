@@ -1292,7 +1292,7 @@ def _build_v2_repo(tmp_path: Path, out_root: Path, *, mutate_floor_source=None):
     """承認束縛済み active v2 世代 (floor/budget 充填 + floor_source artifact + store) を
     git repo に組む。(root, freeze_path, gen_sha, binaries) を返す。"""
     if not REAL_FREEZE.is_file():
-        pytest.skip("実 v1 freeze が無い")
+        pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
     document = _real_document()
     v2_fixture.fill(document, total_bench_s=1000.0, per_holdout_bench_s=1000.0)
     floor_bytes, binaries = _floor_artifact_and_store(document, out_root)

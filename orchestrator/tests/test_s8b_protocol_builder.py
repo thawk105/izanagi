@@ -103,6 +103,27 @@ def test_builder_document_roundtrips_validate_protocol():
     assert built.document["contract_sha256"] == ec.lookup(_G_ENV).contract_sha256
 
 
+def test_builder_rejects_holdout_conjunction_in_master_seed():
+    _requires_repo()
+    holdout = next(iter(fc._holdout_freeze.HOLDOUTS.values()))
+    ycsb = holdout["ycsb"]
+    axes = (
+        ("rratio", fc._holdout_freeze.RRATIO_KEY),
+        ("skew", fc._holdout_freeze.SKEW_KEY),
+        ("rmw", fc._holdout_freeze.RMW_KEY),
+    )
+    # 実 holdout 値は source literal にせず、正本から取得して実行時に文字列結合する。
+    contaminated_seed = " ".join(
+        fc._holdout_freeze.concrete_axis_encodings(axis, ycsb[key])[0]
+        for axis, key in axes
+    )
+    with pytest.raises(fc.FloorCampaignError, match="conjunction hit"):
+        fc.build_protocol_document(
+            contaminated_seed, _G_ENV, stock_configuration=_G_STOCK,
+            extime_s=_G_EXTIME, wired_min_rel_floor=_G_FLOOR,
+        )
+
+
 # --------------------------------------------------------------------------- #
 # 全 pin field mutation 拒否                                                    #
 # --------------------------------------------------------------------------- #

@@ -135,6 +135,26 @@ class CampaignAbort(FloorCampaignError):
     """臨界区間 (probe 実行不能・rc>1・parse 不能等) の破れで campaign を安全側に中断する (規律4)。"""
 
 
+def _validate_mode(mode) -> str:
+    """core 呼出しの mode を閉じた集合で検証し、path segment への注入を防ぐ。"""
+    if not isinstance(mode, str) or mode not in {"pilot", "official"}:
+        raise FloorCampaignError("mode は exact {'pilot','official'} のいずれかでなければならない")
+    return mode
+
+
+def _assert_official_permitted(mode: str) -> None:
+    """official の production 拒否。テスト専用 seam。
+
+    production flag・環境変数・引数での bypass を作らない。テストは局所的な monkeypatch だけで
+    dormant な official 結線を検証し、production の拒否意味論を変えない。
+    """
+    if mode == "official":
+        raise FloorCampaignError(
+            "official mode は §8 (承認束縛方式) 未裁定のため core で無条件拒否する "
+            "(F6 まで pilot のみ実行可)"
+        )
+
+
 # --------------------------------------------------------------------------- #
 # canonical JSON / hash                                                        #
 # --------------------------------------------------------------------------- #
@@ -461,6 +481,16 @@ def build_protocol_document(master_seed, env_tag, *, stock_configuration,
     # validate_protocol を単一の受理ゲートに通す (builder 自身では判定を持たない)。
     normalized = validate_protocol(document)
     canonical = _canonical_bytes(normalized)
+    # 自由文字列 field (master_seed 等) 経由でも holdout 三軸 conjunction が protocol bytes に
+    # 混入すれば凍結前に拒否する。検索器と同じ判定核を共用し、builder の自己申告にしない。
+    hits = _holdout_freeze.holdout_conjunction_hits(
+        {"floor_protocol.json": canonical.decode("utf-8")}
+    )
+    contaminated = {name: paths for name, paths in hits.items() if paths}
+    if contaminated:
+        raise FloorCampaignError(
+            f"build_protocol_document: canonical bytes に holdout conjunction hit: {contaminated}"
+        )
     return BuiltProtocol(
         document=normalized,
         canonical_bytes=canonical,
@@ -883,31 +913,86 @@ def _write_create_only_json(path: Path, document: Mapping) -> bytes:
 # --------------------------------------------------------------------------- #
 # launch certificate (C2-2) — official 開始時の clean-scan 証明                 #
 #                                                                             #
-# 【状態: 未結線 scaffolding】以下 3 関数は building block として実装・単体検証済み   #
-# だが run_campaign には**まだ結線していない** (下記 official mode の無条件拒否に    #
-# より本 wave では発行経路が存在しない)。official floor を有効化する floor 実走 wave  #
-# で「clean_scan_digest → build_launch_certificate → issue_launch_certificate    #
-# → campaign-start record への cert sha256 束縛 → v2 closure の lineage 照合」を     #
-# 結線することが C2-2 mitigation を発火させる**阻止的前提条件**。それまで verifier      #
-# 側 (s8b_ratified_freeze.launch_validate) は certificate lineage を照合しない —      #
-# certificate 以前に消した痕跡は不可視の open residual (§5-viii)。                   #
+# production の official 拒否は _assert_official_permitted で不変のまま、テスト専用     #
+# seam の内側に発行・journal・resume の dormant 結線を置く。production bypass 面は持たない。#
 # --------------------------------------------------------------------------- #
 
-def clean_scan_digest(root: Path) -> str:
+def _assert_freeze_allowlist(root: Path, freeze_allowlist: Mapping) -> None:
+    """search 除外領域 output/s8b-freeze の全 filesystem file を exact allowlist 検査する。"""
+    if not isinstance(freeze_allowlist, Mapping):
+        raise FloorCampaignError("launch certificate: freeze_allowlist が Mapping でない")
+    for rel, expected in freeze_allowlist.items():
+        if (not isinstance(rel, str) or not rel.startswith("output/s8b-freeze/")
+                or Path(rel).is_absolute() or ".." in Path(rel).parts):
+            raise FloorCampaignError(
+                f"launch certificate: freeze_allowlist path が不正: {rel!r}"
+            )
+        if not isinstance(expected, str) or re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+            raise FloorCampaignError(
+                f"launch certificate: freeze_allowlist sha256 が不正: {rel!r}"
+            )
+
+    freeze_dir = root / "output" / "s8b-freeze"
+    if freeze_dir.is_symlink():
+        raise FloorCampaignError(
+            "launch certificate: output/s8b-freeze が実 directory でない"
+        )
+    if not freeze_dir.exists():
+        return
+    if not freeze_dir.is_dir():
+        raise FloorCampaignError(
+            "launch certificate: output/s8b-freeze が実 directory でない"
+        )
+    try:
+        entries = sorted(freeze_dir.rglob("*"), key=lambda path: path.as_posix())
+        for path in entries:
+            rel = path.relative_to(root).as_posix()
+            if path.is_symlink():
+                raise FloorCampaignError(
+                    f"launch certificate: output/s8b-freeze に symlink がある: {rel}"
+                )
+            if not path.is_file():
+                continue
+            expected = freeze_allowlist.get(rel)
+            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+            if expected is None or actual != expected:
+                raise FloorCampaignError(
+                    "launch certificate: output/s8b-freeze file が allowlist 外または hash 不一致: "
+                    f"{rel}"
+                )
+    except FloorCampaignError:
+        raise
+    except OSError as exc:
+        raise FloorCampaignError(
+            f"launch certificate: output/s8b-freeze を検査できない: {exc}"
+        ) from exc
+
+
+def clean_scan_digest(root: Path, *, freeze_allowlist: Mapping) -> str:
     """発行時点の clean scan を証明する: holdout hit 0 件 + 列挙 digest を返す (fail-closed)。
 
-    search_repository を実行し、いずれの holdout にも conjunction hit が無いこと (未申告
-    先行測定が既に存在しないこと) を確認し、列挙集合の digest を返す。hit があれば
-    FloorCampaignError (clean でない = certificate を発行できない)。"""
-    report = _holdout_freeze.search_repository(Path(root))
-    for name, result in report["holdouts"].items():
-        hits = result.get("conjunction_hits")
-        if hits:
-            raise FloorCampaignError(
-                f"launch certificate: holdout {name} に既存 hit {hits} (clean scan でない)"
-            )
-    files = _holdout_freeze.enumerate_repository_files(Path(root))
-    return hashlib.sha256("\n".join(files).encode("utf-8")).hexdigest()
+    同じ列挙集合を search_repository へ注入し、共有 _assert_search_pass で holdout 全件 0 hit・
+    holdout 集合完全性・陽性対照を検査する。走査後に再列挙して名前集合の変化も拒否する。
+    search_repository が除外する output/s8b-freeze は tracked/untracked を問わず filesystem から
+    全列挙し、exact path + bytes sha256 allowlist 以外を拒否する。
+
+    既知 residual: digest は名前集合だけを束縛するため、走査中に同名 file の内容だけを交換する
+    content TOCTOU はこの証明範囲外である。
+    """
+    root = Path(root)
+    try:
+        files_before = _holdout_freeze.enumerate_repository_files(root)
+        report = _holdout_freeze.search_repository(root, files=files_before)
+        _holdout_freeze._assert_search_pass(report)
+        _assert_freeze_allowlist(root, freeze_allowlist)
+        files_after = _holdout_freeze.enumerate_repository_files(root)
+    except _holdout_freeze.FreezeError as exc:
+        raise FloorCampaignError(f"launch certificate: clean scan 拒否: {exc}") from exc
+    if files_before != files_after:
+        raise FloorCampaignError(
+            "launch certificate: repository file 列挙が走査中に変化した"
+        )
+    return hashlib.sha256("\n".join(files_before).encode("utf-8")).hexdigest()
 
 
 def build_launch_certificate(*, v1_freeze_sha256: str, clean_digest: str,
@@ -927,6 +1012,74 @@ def build_launch_certificate(*, v1_freeze_sha256: str, clean_digest: str,
         "started_utc": started_utc,
         "campaign_run_id": campaign_run_id,
     }
+
+
+def validate_launch_certificate(cert: Mapping, *, expected_v1_freeze_sha256: str,
+                                expected_protocol_sha256: str,
+                                expected_run_id: str) -> dict:
+    """launch certificate の構造・型・UTC・hash pin・run identity を一つのゲートで検証する。"""
+    keys = {
+        "schema", "v1_freeze_sha256", "clean_scan_digest", "protocol_sha256",
+        "started_utc", "campaign_run_id",
+    }
+    if not isinstance(cert, Mapping):
+        raise FloorCampaignError("launch certificate が object でない")
+    actual_keys = set(cert)
+    if actual_keys != keys:
+        raise FloorCampaignError(
+            "launch certificate の key 集合が不一致 "
+            f"(欠落={sorted(keys - actual_keys)} 未知={sorted(actual_keys - keys)})"
+        )
+    if cert.get("schema") != LAUNCH_CERT_SCHEMA:
+        raise FloorCampaignError(
+            f"launch certificate.schema が {LAUNCH_CERT_SCHEMA} でない"
+        )
+    for field in ("v1_freeze_sha256", "clean_scan_digest", "protocol_sha256"):
+        value = cert.get(field)
+        if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise FloorCampaignError(f"launch certificate.{field} が 64 lower-hex でない")
+    started_utc = cert.get("started_utc")
+    if not isinstance(started_utc, str) or not started_utc:
+        raise FloorCampaignError("launch certificate.started_utc が空でない文字列でない")
+    try:
+        parsed = dt.datetime.fromisoformat(
+            started_utc[:-1] + "+00:00" if started_utc.endswith("Z") else started_utc
+        )
+    except ValueError as exc:
+        raise FloorCampaignError(
+            "launch certificate.started_utc が timezone-aware UTC ISO 形式でない"
+        ) from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != dt.timedelta(0):
+        raise FloorCampaignError(
+            "launch certificate.started_utc が timezone-aware UTC ISO 形式でない"
+        )
+    run_id = cert.get("campaign_run_id")
+    if not isinstance(run_id, str) or not run_id:
+        raise FloorCampaignError("launch certificate.campaign_run_id が空でない文字列でない")
+    if cert["v1_freeze_sha256"] != expected_v1_freeze_sha256:
+        raise FloorCampaignError("launch certificate.v1_freeze_sha256 が expected と不一致")
+    if cert["protocol_sha256"] != expected_protocol_sha256:
+        raise FloorCampaignError("launch certificate.protocol_sha256 が expected と不一致")
+    if run_id != expected_run_id:
+        raise FloorCampaignError("launch certificate.campaign_run_id が expected と不一致")
+    return dict(cert)
+
+
+def _official_launch_preflight(root: Path, *, v1_freeze_sha256: str,
+                               protocol_sha256: str, started_utc: str,
+                               campaign_run_id: str,
+                               freeze_allowlist: Mapping) -> dict:
+    """official launch の clean scan と certificate 組立てを行う書込み無しの純粋段。"""
+    clean_digest = clean_scan_digest(
+        Path(root), freeze_allowlist=freeze_allowlist,
+    )
+    return build_launch_certificate(
+        v1_freeze_sha256=v1_freeze_sha256,
+        clean_digest=clean_digest,
+        protocol_sha256=protocol_sha256,
+        started_utc=started_utc,
+        campaign_run_id=campaign_run_id,
+    )
 
 
 def issue_launch_certificate(cert_path: Path, certificate: Mapping) -> str:
@@ -1024,7 +1177,8 @@ class _Runner:
     def __init__(self, *, protocol, cells, cell_by_id, binaries, schedule,
                  journal_path, measure_fn, probe_fn, sleep_fn, monotonic_fn, now_fn,
                  protocol_sha256, freeze_sha256, manifest_sha256,
-                 execution_receipt=None):
+                 execution_receipt=None, launch_certificate_sha256=None,
+                 records=None):
         self.protocol = protocol
         self.cells = cells
         self.cell_by_id = cell_by_id
@@ -1041,11 +1195,13 @@ class _Runner:
         self.manifest_sha256 = manifest_sha256
         # C3-10: 共有 execution guard の receipt (campaign-start journal に記録)。
         self.execution_receipt = execution_receipt
+        self.launch_certificate_sha256 = launch_certificate_sha256
         self.reps = protocol["reps"]
         self.session_cv_max = protocol["session_cv_max"]
         self.retry_slots = protocol["retry_slots_per_cell"]
         self.allowed_reasons = set(protocol["allowed_excluded_reasons"])
-        self.records = _read_journal(journal_path)  # fresh なら []
+        self.records = (_read_journal(journal_path) if records is None
+                        else [dict(record) for record in records])
 
     # --- journal I/O ----------------------------------------------------- #
 
@@ -1292,6 +1448,8 @@ class _Runner:
                 "protocol_sha256": self.protocol_sha256,
                 "freeze_sha256": self.freeze_sha256,
                 "manifest_sha256": self.manifest_sha256,
+                **({"launch_certificate_sha256": self.launch_certificate_sha256}
+                   if self.launch_certificate_sha256 is not None else {}),
                 **_host_provenance(self.now_fn), **_process_identity(),
                 # C3-10: 共有 execution guard の receipt (env_tag + contract_sha256 +
                 # 実行機 attestation)。report/verifier が env 契約と照合する。
@@ -1702,17 +1860,10 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     一切行わない。env 契約 (F4): clocks_per_us / numactl は ``env_contract.lookup(env_tag)`` から
     取る。machine-pin として契約の env_tag が実行機の ``p2_2.ENV_TAG`` と一致することを要求する。
     """
-    # official 拒否は最優先 (build/measure/write の前, δ-3)。
-    # 【C2-2 前提条件】official を有効化する際は、この直後に launch certificate 発行
-    # (clean_scan_digest → build_launch_certificate → issue_launch_certificate) と
-    # campaign-start record への cert sha256 束縛を結線し、verifier 側 (launch_validate)
-    # で closure が certificate 起点 lineage から導出されることを照合するまで有効化しない。
-    # 未結線のまま official を開けると C2-2 の未申告先行測定 fail-open が復活する。
-    if mode == "official":
-        raise FloorCampaignError(
-            "official mode は §8 (承認束縛方式) 未裁定のため core で無条件拒否する "
-            "(F6 まで pilot のみ実行可)"
-        )
+    # mode は path segment に入るため何より先に閉じた集合で検証する。official production 拒否は
+    # 直後の専用 seam で従来どおり最優先 (build/measure/write 前, δ-3)。
+    mode = _validate_mode(mode)
+    _assert_official_permitted(mode)
 
     if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
@@ -1773,12 +1924,45 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             )
 
     out_root = Path(out_root)
+    launch_certificate_sha256 = None
+    resume_records = None
 
     if resume_dir is None:
-        # fresh: run_dir を作り、全 12 セルをビルドし manifest を封印する。
-        run_dir = _fresh_run_dir(out_root, protocol, mode, protocol_sha256, now_fn)
+        # fresh: official は run_dir mkdir より前に clean scan を完了させる。時刻は一度だけ捕捉し、
+        # run id と certificate.started_utc に同じ値を使う。
+        started_at = now_fn()
+        campaign_run_id = _fresh_run_id(protocol_sha256, started_at)
+        certificate = None
+        if mode == "official":
+            certificate = _official_launch_preflight(
+                ROOT,
+                v1_freeze_sha256=freeze_sha256,
+                protocol_sha256=protocol_sha256,
+                started_utc=started_at.isoformat(),
+                campaign_run_id=campaign_run_id,
+                freeze_allowlist={protocol["freeze"]["path"]: freeze_sha256},
+            )
+
+        run_dir = _fresh_run_dir(
+            out_root, protocol, mode, protocol_sha256, started_at,
+        )
         journal_path = run_dir / "journal.jsonl"
         manifest_path = run_dir / "manifest.json"
+        if certificate is not None:
+            launch_certificate_sha256 = issue_launch_certificate(
+                run_dir / "launch_certificate.json", certificate,
+            )
+            validate_launch_certificate(
+                certificate,
+                expected_v1_freeze_sha256=freeze_sha256,
+                expected_protocol_sha256=protocol_sha256,
+                expected_run_id=run_dir.name,
+            )
+            _journal_append(journal_path, {
+                "event": "launch-start", "schema": JOURNAL_SCHEMA,
+                "launch_certificate_sha256": launch_certificate_sha256,
+                "utc": started_at.isoformat(),
+            })
         built = build_cells(
             freeze, cells, ccbench_pin=protocol["ccbench_pin"],
             out_root=out_root, prepare_fn=prepare_fn,
@@ -1814,18 +1998,22 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         # content-addressed store の存在 + hash 一致も再照合する (C3-7)。
         _verify_resume_store(built, out_root)
 
+        resume_records = _read_journal(journal_path)
+        launch_certificate_sha256 = _verify_resume_journal(
+            resume_records, run_dir=run_dir, mode=mode, schedule=schedule,
+            protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+            manifest_sha256=manifest_sha256,
+        )
+
     runner = _Runner(
         protocol=protocol, cells=cells, cell_by_id=cell_by_id, binaries=built,
         schedule=schedule, journal_path=journal_path, measure_fn=measure_fn,
         probe_fn=probe_fn, sleep_fn=sleep_fn, monotonic_fn=monotonic_fn, now_fn=now_fn,
         protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
         manifest_sha256=manifest_sha256, execution_receipt=execution_receipt,
+        launch_certificate_sha256=launch_certificate_sha256,
+        records=resume_records,
     )
-    if resume_dir is not None:
-        _verify_resume_journal(
-            runner.records, schedule=schedule, protocol_sha256=protocol_sha256,
-            freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
-        )
 
     try:
         runner.run()
@@ -1861,11 +2049,15 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     return {"status": "completed", "run_dir": str(run_dir), "result": result}
 
 
+def _fresh_run_id(protocol_sha256: str, started_at: dt.datetime) -> str:
+    return f"{started_at.strftime('%Y%m%dT%H%M%SZ')}-{protocol_sha256[:8]}"
+
+
 def _fresh_run_dir(out_root: Path, protocol: Mapping, mode: str,
-                   protocol_sha256: str, now_fn) -> Path:
-    ts = now_fn().strftime("%Y%m%dT%H%M%SZ")
+                   protocol_sha256: str, started_at: dt.datetime) -> Path:
     base = Path(env_scope_dir(protocol["env_tag"], output_root=str(out_root)))
-    run_dir = base / "calibration" / f"s8b-floor-{mode}" / f"{ts}-{protocol_sha256[:8]}"
+    run_dir = (base / "calibration" / f"s8b-floor-{mode}"
+               / _fresh_run_id(protocol_sha256, started_at))
     try:
         run_dir.mkdir(parents=True, exist_ok=False)
     except FileExistsError as exc:
@@ -1922,15 +2114,19 @@ def _verify_resume_binaries(built: Mapping) -> None:
             )
 
 
-def _verify_resume_journal(records: list[dict], *, schedule: list[dict],
-                           protocol_sha256: str, freeze_sha256: str,
-                           manifest_sha256: str) -> None:
+def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
+                           schedule: list[dict], protocol_sha256: str,
+                           freeze_sha256: str, manifest_sha256: str) -> Optional[str]:
     """resume: journal を状態機械で全件検証する (β-6)。
 
+    official は先頭 launch-start・certificate bytes/意味・campaign-start 束縛を検証する。
+    pilot は launch-start / certificate key / certificate file の混入を拒否する。その後、
     campaign-start の schema 版 + protocol/freeze/manifest hash 一致、completed の再実行拒否、
     session-start の seq 一意 (duplicate start 拒否) + attempt_id 一意 + planned seq の schedule
     cell/round 一致 + retry (cell_id, retry_ordinal) 一意、session 完了→start 対応を検査する。
     """
+    _validate_mode(mode)
+    run_dir = Path(run_dir)
     starts = [r for r in records if r.get("event") == "campaign-start"]
     if not starts:
         raise FloorCampaignError("resume: journal に campaign-start がない")
@@ -1947,6 +2143,74 @@ def _verify_resume_journal(records: list[dict], *, schedule: list[dict],
         raise FloorCampaignError("resume: campaign-start.freeze_sha256 が不一致")
     if cs.get("manifest_sha256") != manifest_sha256:
         raise FloorCampaignError("resume: campaign-start.manifest_sha256 が不一致")
+
+    launch_certificate_sha256: Optional[str] = None
+    launch_starts = [r for r in records if r.get("event") == "launch-start"]
+    cert_path = run_dir / "launch_certificate.json"
+    if mode == "pilot":
+        if launch_starts:
+            raise FloorCampaignError("resume: pilot journal に launch-start が混入している")
+        if "launch_certificate_sha256" in cs:
+            raise FloorCampaignError(
+                "resume: pilot campaign-start に launch_certificate_sha256 が混入している"
+            )
+        if cert_path.exists():
+            raise FloorCampaignError("resume: pilot run_dir に launch_certificate.json が混入している")
+    else:
+        if len(launch_starts) != 1:
+            raise FloorCampaignError("resume: official launch-start はちょうど 1 件でなければならない")
+        launch = launch_starts[0]
+        if not records or records[0].get("event") != "launch-start":
+            raise FloorCampaignError("resume: official launch-start が journal 先頭でない")
+        if launch.get("schema") != JOURNAL_SCHEMA:
+            raise FloorCampaignError(
+                f"resume: launch-start.schema が {JOURNAL_SCHEMA} でない"
+            )
+        launch_certificate_sha256 = launch.get("launch_certificate_sha256")
+        if cs.get("launch_certificate_sha256") != launch_certificate_sha256:
+            raise FloorCampaignError(
+                "resume: campaign-start と launch-start の launch_certificate_sha256 が不一致"
+            )
+        try:
+            cert_bytes = cert_path.read_bytes()
+        except OSError as exc:
+            raise FloorCampaignError(
+                f"resume: launch certificate を読めない: {cert_path}: {exc}"
+            ) from exc
+        actual_cert_sha256 = hashlib.sha256(cert_bytes).hexdigest()
+        if actual_cert_sha256 != launch_certificate_sha256:
+            raise FloorCampaignError(
+                "resume: launch certificate bytes sha256 が launch-start と不一致"
+            )
+
+        def cert_pairs(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise FloorCampaignError(
+                        f"resume: launch certificate に duplicate key: {key}"
+                    )
+                result[key] = value
+            return result
+
+        try:
+            cert = json.loads(
+                cert_bytes.decode("utf-8"), object_pairs_hook=cert_pairs,
+                parse_constant=_reject_json_constant,
+            )
+        except FloorCampaignError:
+            raise
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise FloorCampaignError(
+                f"resume: launch certificate を strict parse できない: {exc}"
+            ) from exc
+        validate_launch_certificate(
+            cert,
+            expected_v1_freeze_sha256=freeze_sha256,
+            expected_protocol_sha256=protocol_sha256,
+            expected_run_id=run_dir.name,
+        )
+
     if any(r.get("event") == "terminal" and r.get("status") == "completed"
            for r in records):
         raise FloorCampaignError("resume: 既に completed 済みの campaign は再実行しない")
@@ -1992,6 +2256,7 @@ def _verify_resume_journal(records: list[dict], *, schedule: list[dict],
             raise FloorCampaignError(
                 f"resume: session 完了 (seq {r.get('seq')}) に対応する start が無い"
             )
+    return launch_certificate_sha256
 
 
 # --------------------------------------------------------------------------- #

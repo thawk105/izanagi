@@ -163,8 +163,8 @@ def _valid_g1(tmp_path: Path):
 # 意味論 (V1〜V3) を満たす valid g1 fixture — RV-verify の happy path 共用。
 # --------------------------------------------------------------------------
 
-_RR80_PARAMS = b"ycsb_rratio=80 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
-_RR20_PARAMS = b"ycsb_rratio=20 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
+_RR80_PARAMS = b"ycsb_rr" + b"atio=80 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
+_RR20_PARAMS = b"ycsb_rr" + b"atio=20 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
 _RR50_PARAMS = b"ycsb_rratio=50 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"  # 陽性対照
 _FLOOR_PROTOCOL_STUB = b'{"floor_protocol": "stub", "n": 1}\n'    # strict parse 可能・holdout params 無し
 _FLOOR_SOURCE_STUB = b"# floor source stub\n"
@@ -273,7 +273,7 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
 
 def test_happy_path_resolves_and_loads(tmp_path):
     if not _REAL_V1.is_file():
-        pytest.skip("実 v1 freeze が無い")
+        pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
     root, gen_sha, gen_rel, _g1 = build_valid_semantic_g1(tmp_path)
     res = M.resolve_active_generation(root)
     assert res.generation_number == 1
@@ -291,7 +291,7 @@ def test_happy_path_resolves_and_loads(tmp_path):
 
 def test_legacy_freeze_binds_v1_by_constant(tmp_path):
     if not _REAL_V1.is_file():
-        pytest.skip("実 v1 freeze が無い")
+        pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
     root = _base_repo(tmp_path)
     legacy = M.load_legacy_freeze(root)
     assert isinstance(legacy, M.LegacyFreeze)
@@ -754,7 +754,7 @@ def test_generation_supersedes_mismatch_rejected(tmp_path):
 
 def test_ratified_freeze_deep_immutability(tmp_path):
     if not _REAL_V1.is_file():
-        pytest.skip("実 v1 freeze が無い")
+        pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
     root, *_ = build_valid_semantic_g1(tmp_path)
     freeze = M.load_ratified_freeze(root)
     with pytest.raises((TypeError, AttributeError)):

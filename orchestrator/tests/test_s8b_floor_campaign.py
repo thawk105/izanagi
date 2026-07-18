@@ -270,6 +270,35 @@ def _read_journal_lines(journal_path: Path) -> list:
            .splitlines() if line.strip()]
 
 
+def _real_output_snapshot() -> tuple:
+    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。"""
+    output = ROOT / "output"
+    if not output.exists():
+        return ()
+    snapshot = []
+    for path in sorted(output.rglob("*"), key=lambda item: item.as_posix()):
+        rel = path.relative_to(output).as_posix()
+        if path.is_symlink():
+            snapshot.append(("symlink", rel, path.readlink().as_posix()))
+        elif path.is_file():
+            snapshot.append(("file", rel, hashlib.sha256(path.read_bytes()).hexdigest()))
+        elif path.is_dir():
+            snapshot.append(("dir", rel))
+    return tuple(snapshot)
+
+
+@contextlib.contextmanager
+def _official_test_seam(monkeypatch, *, clean_digest="d" * 64):
+    """production official 拒否を局所 scope だけで外し、clean scan を tmp-only test stub にする。"""
+    with monkeypatch.context() as scoped:
+        scoped.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda mode: None)
+        scoped.setattr(
+            s8b_floor_campaign, "clean_scan_digest",
+            lambda root, *, freeze_allowlist: clean_digest,
+        )
+        yield scoped
+
+
 # =========================================================================== #
 # 1. schedule 決定性 + freeze 由来セルのみ + golden (独立 reference) + 意図 mutant #
 # =========================================================================== #
@@ -486,6 +515,21 @@ def test_load_resume_manifest_rejects_v1_schema(tmp_path):
 # =========================================================================== #
 # 3. official mode は常に拒否 (§8 未裁定) — CLI + core 直接 (δ-3)               #
 # =========================================================================== #
+
+@pytest.mark.parametrize("mode", ["pilot", "official"])
+def test_validate_mode_accepts_only_known_modes(mode):
+    assert s8b_floor_campaign._validate_mode(mode) == mode
+
+
+@pytest.mark.parametrize("mode", ["", "PILOT", "pilot/../../escape", None, 1])
+def test_validate_mode_rejects_unknown_and_path_traversal(mode, tmp_path):
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="mode"):
+        s8b_floor_campaign.run_campaign(
+            None, None, out_root=out_root, mode=mode,
+        )
+    assert not out_root.exists()
+
 
 def test_main_official_mode_always_refused(tmp_path, capsys):
     protocol_path = tmp_path / "protocol.json"
@@ -1242,24 +1286,351 @@ def test_launch_certificate_create_only_and_journal_binding(tmp_path):
         s8b_floor_campaign.issue_launch_certificate(cert_path, cert)
 
 
-def test_clean_scan_digest_rejects_existing_hit(tmp_path, monkeypatch):
-    # search が既存 holdout hit を返すと clean_scan_digest は certificate 発行を拒否する。
-    def dirty_search(root):
-        return {"holdouts": {"rr80": {"conjunction_hits": ["output/env/leak.json"]},
-                             "rr20": {"conjunction_hits": []}}}
-    monkeypatch.setattr(s8b_floor_campaign._holdout_freeze, "search_repository", dirty_search)
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError):
-        s8b_floor_campaign.clean_scan_digest(tmp_path)
+def _clean_report(*, missing=None, dirty=None, positive_hits=1) -> dict:
+    holdouts = {
+        name: {"conjunction_hits": (["leak.txt"] if name == dirty else [])}
+        for name in s8b_floor_campaign._holdout_freeze.HOLDOUTS
+        if name != missing
+    }
+    return {
+        "holdouts": holdouts,
+        "positive_control": {"hit_count": positive_hits},
+    }
+
+
+def _stub_clean_scan(monkeypatch, *, reports, enumerations) -> None:
+    report_iter = iter(reports)
+    enumeration_iter = iter(enumerations)
+    monkeypatch.setattr(
+        s8b_floor_campaign._holdout_freeze, "enumerate_repository_files",
+        lambda root: next(enumeration_iter),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._holdout_freeze, "search_repository",
+        lambda root, files: next(report_iter),
+    )
 
 
 def test_clean_scan_digest_returns_digest_when_clean(tmp_path, monkeypatch):
-    monkeypatch.setattr(s8b_floor_campaign._holdout_freeze, "search_repository",
-                        lambda root: {"holdouts": {"rr80": {"conjunction_hits": []},
-                                                   "rr20": {"conjunction_hits": []}}})
-    monkeypatch.setattr(s8b_floor_campaign._holdout_freeze, "enumerate_repository_files",
-                        lambda root: ("a.py", "b.py"))
-    digest = s8b_floor_campaign.clean_scan_digest(tmp_path)
+    files = ("a.py", "b.py")
+    _stub_clean_scan(
+        monkeypatch, reports=[_clean_report()], enumerations=[files, files],
+    )
+    digest = s8b_floor_campaign.clean_scan_digest(tmp_path, freeze_allowlist={})
     assert digest == hashlib.sha256("a.py\nb.py".encode("utf-8")).hexdigest()
+
+
+@pytest.mark.parametrize("kind", ["empty", "missing", "dirty", "positive-zero"])
+def test_clean_scan_digest_rejects_incomplete_or_failed_search(tmp_path, monkeypatch, kind):
+    names = tuple(s8b_floor_campaign._holdout_freeze.HOLDOUTS)
+    if kind == "empty":
+        report = {"holdouts": {}, "positive_control": {"hit_count": 1}}
+    elif kind == "missing":
+        report = _clean_report(missing=names[0])
+    elif kind == "dirty":
+        report = _clean_report(dirty=names[0])
+    else:
+        report = _clean_report(positive_hits=0)
+    files = ("a.py",)
+    _stub_clean_scan(monkeypatch, reports=[report], enumerations=[files, files])
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean scan"):
+        s8b_floor_campaign.clean_scan_digest(tmp_path, freeze_allowlist={})
+
+
+def test_clean_scan_digest_rejects_file_enumeration_change(tmp_path, monkeypatch):
+    _stub_clean_scan(
+        monkeypatch, reports=[_clean_report()],
+        enumerations=[("a.py",), ("a.py", "appeared.py")],
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="列挙"):
+        s8b_floor_campaign.clean_scan_digest(tmp_path, freeze_allowlist={})
+
+
+def test_clean_scan_digest_rejects_freeze_file_outside_allowlist(tmp_path, monkeypatch):
+    freeze_dir = tmp_path / "output" / "s8b-freeze"
+    freeze_dir.mkdir(parents=True)
+    (freeze_dir / "unlisted.json").write_bytes(b"no holdout hit")
+    files = ("output/s8b-freeze/unlisted.json",)
+    _stub_clean_scan(
+        monkeypatch, reports=[_clean_report()], enumerations=[files, files],
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="allowlist"):
+        s8b_floor_campaign.clean_scan_digest(tmp_path, freeze_allowlist={})
+
+
+def test_clean_scan_digest_accepts_exact_freeze_allowlist(tmp_path, monkeypatch):
+    payload = b"approved freeze bytes"
+    rel = "output/s8b-freeze/approved.json"
+    path = tmp_path / rel
+    path.parent.mkdir(parents=True)
+    path.write_bytes(payload)
+    files = (rel,)
+    _stub_clean_scan(
+        monkeypatch, reports=[_clean_report()], enumerations=[files, files],
+    )
+    digest = s8b_floor_campaign.clean_scan_digest(
+        tmp_path, freeze_allowlist={rel: hashlib.sha256(payload).hexdigest()},
+    )
+    assert digest == hashlib.sha256(rel.encode("utf-8")).hexdigest()
+
+
+def _valid_launch_certificate() -> dict:
+    return s8b_floor_campaign.build_launch_certificate(
+        v1_freeze_sha256="a" * 64,
+        clean_digest="b" * 64,
+        protocol_sha256="c" * 64,
+        started_utc="2026-01-01T00:00:00+00:00",
+        campaign_run_id="run-0001",
+    )
+
+
+def _validate_launch(cert):
+    return s8b_floor_campaign.validate_launch_certificate(
+        cert,
+        expected_v1_freeze_sha256="a" * 64,
+        expected_protocol_sha256="c" * 64,
+        expected_run_id="run-0001",
+    )
+
+
+def test_validate_launch_certificate_accepts_valid_document():
+    cert = _valid_launch_certificate()
+    assert _validate_launch(cert) == cert
+
+
+@pytest.mark.parametrize("mutation", ["missing", "extra", "schema", "hash", "utc", "run-id"])
+def test_validate_launch_certificate_rejects_invalid_document(mutation):
+    cert = _valid_launch_certificate()
+    if mutation == "missing":
+        cert.pop("clean_scan_digest")
+    elif mutation == "extra":
+        cert["extra"] = True
+    elif mutation == "schema":
+        cert["schema"] = "s8b-floor-launch-certificate/v0"
+    elif mutation == "hash":
+        cert["protocol_sha256"] = "A" * 64
+    elif mutation == "utc":
+        cert["started_utc"] = "2026-01-01T00:00:00+09:00"
+    else:
+        cert["campaign_run_id"] = "renamed-run"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError):
+        _validate_launch(cert)
+
+
+def test_validate_launch_certificate_rejects_expected_hash_mismatch():
+    cert = _valid_launch_certificate()
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="v1_freeze_sha256"):
+        s8b_floor_campaign.validate_launch_certificate(
+            cert,
+            expected_v1_freeze_sha256="0" * 64,
+            expected_protocol_sha256="c" * 64,
+            expected_run_id="run-0001",
+        )
+
+
+def test_official_fresh_issues_certificate_and_binds_wall_ledger(tmp_path, monkeypatch):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    with _official_test_seam(monkeypatch):
+        outcome = _run_campaign(
+            protocol, verified, out_root=tmp_path / "out", build_root=tmp_path / "bin",
+            measure_fn=measure_fn, probe_fn=lambda: (1, "", ""), mode="official",
+        )
+    run_dir = Path(outcome["run_dir"])
+    cert_path = run_dir / "launch_certificate.json"
+    cert = json.loads(cert_path.read_bytes())
+    cert_sha = hashlib.sha256(cert_path.read_bytes()).hexdigest()
+    assert cert["campaign_run_id"] == run_dir.name
+    assert cert["started_utc"] == _FIXED_NOW.isoformat()
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    assert journal[0] == {
+        "event": "launch-start", "schema": s8b_floor_campaign.JOURNAL_SCHEMA,
+        "launch_certificate_sha256": cert_sha, "utc": _FIXED_NOW.isoformat(),
+    }
+    campaign_start = next(r for r in journal if r.get("event") == "campaign-start")
+    assert campaign_start["launch_certificate_sha256"] == cert_sha
+    wall_start = next(r for r in outcome["result"]["wall_ledger"]
+                      if r.get("event") == "campaign-start")
+    assert wall_start["launch_certificate_sha256"] == cert_sha
+    assert repo_before == _real_output_snapshot()
+
+
+def test_official_scan_rejection_has_zero_filesystem_side_effects(tmp_path, monkeypatch):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda mode: None)
+
+        def reject_scan(root, *, freeze_allowlist):
+            raise s8b_floor_campaign.FloorCampaignError("fixture scan hit")
+
+        scoped.setattr(s8b_floor_campaign, "clean_scan_digest", reject_scan)
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="scan hit"):
+            _run_campaign(
+                _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+                out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""), mode="official",
+            )
+    assert not out_root.exists()
+    assert repo_before == _real_output_snapshot()
+
+
+def test_official_build_failure_leaves_durable_launch_start(tmp_path, monkeypatch):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch) as scoped:
+        scoped.setattr(
+            s8b_floor_campaign, "build_cells",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("fixture build crash")),
+        )
+        with pytest.raises(RuntimeError, match="build crash"):
+            _run_campaign(
+                _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+                out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""), mode="official",
+            )
+    journals = list(out_root.rglob("journal.jsonl"))
+    assert len(journals) == 1
+    journal = _read_journal_lines(journals[0])
+    assert [record["event"] for record in journal] == ["launch-start"]
+    assert (journals[0].parent / "launch_certificate.json").is_file()
+    assert not (journals[0].parent / "manifest.json").exists()
+    assert repo_before == _real_output_snapshot()
+
+
+def test_official_resume_validates_certificate_and_completes(tmp_path, monkeypatch):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch):
+        crashing_measure, _ = _crash_at(4)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""), mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        resume_measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+        outcome = _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=resume_measure, probe_fn=lambda: (1, "", ""), mode="official",
+            resume_dir=run_dir,
+        )
+    assert outcome["status"] == "completed"
+    assert repo_before == _real_output_snapshot()
+
+
+def test_official_resume_rejects_tampered_certificate(tmp_path, monkeypatch):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch):
+        crashing_measure, _ = _crash_at(2)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""), mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        cert_path = run_dir / "launch_certificate.json"
+        cert_path.write_bytes(cert_path.read_bytes() + b" ")
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="certificate bytes"):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""), mode="official",
+                resume_dir=run_dir,
+            )
+    assert repo_before == _real_output_snapshot()
+
+
+def test_official_resume_rejects_renamed_run_dir(tmp_path, monkeypatch):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch):
+        crashing_measure, _ = _crash_at(2)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""), mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        renamed = run_dir.with_name("renamed-" + run_dir.name)
+        run_dir.rename(renamed)
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="campaign_run_id"):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""), mode="official",
+                resume_dir=renamed,
+            )
+    assert repo_before == _real_output_snapshot()
+
+
+@pytest.mark.parametrize("contamination", ["certificate-file", "launch-start", "campaign-key"])
+def test_pilot_resume_rejects_launch_certificate_contamination(
+        tmp_path, contamination):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    crashing_measure, _ = _crash_at(2)
+    with pytest.raises(_SimulatedCrash):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""),
+        )
+    run_dir = _only_run_dir(out_root)
+    journal_path = run_dir / "journal.jsonl"
+    if contamination == "certificate-file":
+        (run_dir / "launch_certificate.json").write_text("{}\n", encoding="utf-8")
+    elif contamination == "launch-start":
+        s8b_floor_campaign._journal_append(journal_path, {"event": "launch-start"})
+    else:
+        records = _read_journal_lines(journal_path)
+        next(record for record in records if record.get("event") == "campaign-start")[
+            "launch_certificate_sha256"] = "0" * 64
+        journal_path.write_text(
+            "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
+            encoding="utf-8",
+        )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="pilot"):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""), resume_dir=run_dir,
+        )
+    assert repo_before == _real_output_snapshot()
+
+
+def test_pilot_path_has_no_launch_certificate_changes(tmp_path):
+    repo_before = _real_output_snapshot()
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    outcome = _run_campaign(
+        protocol, verified, out_root=tmp_path / "out", build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""),
+    )
+    run_dir = Path(outcome["run_dir"])
+    assert not (run_dir / "launch_certificate.json").exists()
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    assert journal[0]["event"] == "campaign-start"
+    assert "launch_certificate_sha256" not in journal[0]
+    assert all("launch_certificate_sha256" not in record
+               for record in outcome["result"]["wall_ledger"])
+    assert repo_before == _real_output_snapshot()
 
 
 def test_binary_receipt_mismatch_aborts(tmp_path):
