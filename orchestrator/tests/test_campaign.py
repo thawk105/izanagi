@@ -2766,6 +2766,91 @@ def test_patchharness_apply_revert_roundtrip():
     assert not os.path.exists(newf)
 
 
+def test_patchharness_git_retries_index_lock_then_succeeds():
+    """checkout/apply の index.lock rc=128 だけを 200ms 間隔で retry し、成功時も
+    CompletedProcess の追加属性に回数・理由を残す (silent retry にしない)。"""
+    from campaign import patchharness
+    results = [
+        subprocess.CompletedProcess([], 128, "", "fatal: Unable to create 'index.lock'"),
+        subprocess.CompletedProcess([], 128, "", "fatal: index.lock: File exists"),
+        subprocess.CompletedProcess([], 0, "ok\n", ""),
+    ]
+    calls = []
+    sleeps = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return results.pop(0)
+
+    result = patchharness._git(
+        "/fake/submodule", "checkout", "--", ".", _runner=runner,
+        _sleep=sleeps.append)
+    assert result.returncode == 0
+    assert result.stdout == "ok\n"                 # 既存 output semantics は不変
+    assert result.patchharness_retries == 2
+    assert "index.lock" in result.patchharness_retry_trace
+    assert "2 回" in result.patchharness_retry_trace
+    assert len(calls) == 3
+    assert sleeps == [0.2, 0.2]
+
+
+def test_patchharness_git_non_index_lock_failure_is_not_retried():
+    """同じ rc=128 でも index.lock 以外は従来どおり 1 回で失敗結果を返す。"""
+    from campaign import patchharness
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess([], 128, "", "fatal: bad revision")
+
+    result = patchharness._git(
+        "/fake/submodule", "apply", "variant.patch", _runner=runner,
+        _sleep=lambda _: (_ for _ in ()).throw(AssertionError("sleep must not run")))
+    assert result.returncode == 128
+    assert result.stderr == "fatal: bad revision"
+    assert result.patchharness_retries == 0
+    assert result.patchharness_retry_trace == ""
+    assert len(calls) == 1
+
+
+def test_patchharness_git_index_lock_retry_exhaustion_fails_closed():
+    """index.lock が解けなくても retry は 5 回で打ち切り、rc=128 と痕跡を返す。"""
+    from campaign import patchharness
+    calls = []
+    sleeps = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess([], 128, "", "fatal: index.lock exists")
+
+    result = patchharness._git(
+        "/fake/submodule", "checkout", "--", ".", _runner=runner,
+        _sleep=sleeps.append)
+    assert result.returncode == 128
+    assert result.patchharness_retries == 5
+    assert "5 回" in result.patchharness_retry_trace
+    assert len(calls) == 6                         # 初回 + bounded retry 5 回
+    assert sleeps == [0.2] * 5
+
+
+def test_patchharness_git_disables_optional_locks_in_environment():
+    """全 git 共通経路が親 env を保ったまま GIT_OPTIONAL_LOCKS=0 を上書きする。"""
+    from campaign import patchharness
+    captured = {}
+
+    def runner(command, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess([], 0, "head\n", "")
+
+    result = patchharness._git(
+        "/fake/submodule", "rev-parse", "HEAD", _runner=runner,
+        _sleep=lambda _: None)
+    assert result.returncode == 0
+    assert captured["env"]["GIT_OPTIONAL_LOCKS"] == "0"
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+
+
 def test_patchharness_fails_closed_on_dirty_or_unpinned_tree():
     """apply 前の pinned-clean assert: tracked 改変が残る tree / pin 不一致 / 空 pin には
     patch を当てない (前 variant の revert 漏れ・別セッション残骸との合成を防ぐ)。"""

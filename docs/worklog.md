@@ -685,3 +685,22 @@ insights `2026-07-18_s8b-c22-consultations.md` §10 (相談逐語・裁定表・
 3. その後: protocol JSON 凍結 (master_seed=2026-07-18T17:16:12+09:00 / env_tag=pegasus、AI-Agent:
    none) → 予測封印 → floor 実測 → v2 候補生成 → 承認 → oracle 実走
 4. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-19 (14) — patchharness index.lock 競合の限定・有界 retry (計測なし)
+
+並列 xdist で patchharness の revert と他 worker の読み取り系 Git が index.lock を競合し、
+revert 漏れから実 submodule が dirty になる事故の恒久修正。commit はユーザー指示により作成しない。
+
+- `_git` 全呼び出しへ `GIT_OPTIONAL_LOCKS=0` を付与し、読み取り系 Git の任意 lock を抑止。
+- checkout と実適用 apply に限り、rc=128 かつ stderr に `index.lock` がある場合だけ 200ms 間隔・
+  最大5 retry。stdout/stderr/rc は不変、CompletedProcess の追加属性と最終例外へ retry 痕跡を保持。
+- 注入 runner の4回帰テストを追加。対象 12 passed / rc=0。optional-lock 値、index.lock 限定、
+  retry 上限の3変異を全 kill。check_codex_agents / check_docs / diff check は rc=0。
+- 全走3回は実行 sandbox の Git 管理領域が read-only のため、実 submodule の checkout が
+  `index.lock: Read-only file system` で全回 rc=1 (1896 passed、失敗 1/2/1)。各回後に既存 template
+  patch を逆適用して pinned-clean へ復元。これは一時競合ではなく環境の恒久拒否であり、限定 retry は
+  5回で痕跡付き fail-closed した。書込可能な通常環境での3連続 rc=0 は未実証。
+
+### 次の一手
+1. Git 管理領域を書き込める環境で `python3 tools/run_tests.py` を3回連続実行し、rc=0を確認する。
+2. commit / push は人間が行う。

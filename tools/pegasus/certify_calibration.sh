@@ -632,16 +632,29 @@ if [[ "$remaining" -le 0 ]]; then
 fi
 
 # CLI 名は L4 と凍結共有。override/fallback 用 --clocks-per-us は渡さない。
+CALIBRATE_ARGV_JSON="$ATTEMPT_DIR/calibrate-argv.json"
+calibrate_argv=(
+  python3 "$REPO_ROOT/orchestrator/calibrate.py"
+  --certify
+  --env-tag pegasus
+  --threads 48
+  --workload ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0
+  --binary "$BINARY"
+  --binary-sha256 "$BINARY_SHA"
+  --receipt-json "$ATTEMPT_DIR/acquisition-receipt.json"
+  --effective-clock-tolerance-pct "$PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT"
+)
+python3 - "$CALIBRATE_ARGV_JSON" "${calibrate_argv[@]}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "x", encoding="utf-8") as handle:
+    json.dump(sys.argv[2:], handle, ensure_ascii=False, indent=2)
+    handle.write("\n")
+PY
+
 calibrate_rc=0
-timeout --signal=TERM "$remaining" python3 "$REPO_ROOT/orchestrator/calibrate.py" \
-  --certify \
-  --env-tag pegasus \
-  --threads 48 \
-  --workload ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0 \
-  --binary "$BINARY" \
-  --binary-sha256 "$BINARY_SHA" \
-  --receipt-json "$ATTEMPT_DIR/acquisition-receipt.json" \
-  --effective-clock-tolerance-pct "$PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT" \
+timeout --signal=TERM "$remaining" python3 "$TOOLS/exec_calibrate.py" "$CALIBRATE_ARGV_JSON" \
   >"$ATTEMPT_DIR/calibrate.stdout" 2>"$ATTEMPT_DIR/calibrate.stderr" \
   || calibrate_rc=$?
 

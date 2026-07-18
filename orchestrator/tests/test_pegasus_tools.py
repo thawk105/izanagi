@@ -165,6 +165,51 @@ def test_certify_uses_frozen_cli_names_and_reservation_exports():
     assert '--numactl "$NUMA_POLICY"' not in source
 
 
+def test_exec_calibrate_execs_valid_argv(tmp_path):
+    argv_path = tmp_path / "argv.json"
+    argv_path.write_text(
+        json.dumps(["/bin/echo", "safe", "argv with spaces"]), encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(TOOL_DIR / "exec_calibrate.py"), str(argv_path)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "safe argv with spaces\n"
+
+
+@pytest.mark.parametrize("fixture", ["missing", "invalid"])
+def test_exec_calibrate_rejects_missing_or_invalid_json(tmp_path, fixture):
+    argv_path = tmp_path / "argv.json"
+    if fixture == "invalid":
+        argv_path.write_text("{not-json\n", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(TOOL_DIR / "exec_calibrate.py"), str(argv_path)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+
+
+def _calibrate_timeout_command(source: str) -> str:
+    match = re.search(
+        r"^timeout --signal=TERM .*?(?=\n\s*\|\| calibrate_rc=\$\?)",
+        source,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    return match.group(0)
+
+
+def test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe():
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    command = _calibrate_timeout_command(source)
+    assert 'python3 "$TOOLS/exec_calibrate.py" "$CALIBRATE_ARGV_JSON"' in command
+    assert re.search(r"ycsb", command, re.IGNORECASE) is None
+    assert '"$BINARY"' not in command
+
+
 def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
     policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
     assert policy["gflags_source_path"] == "/home/SFC/tanab/github/gflags"
@@ -769,8 +814,8 @@ GLOG_EXPECTED_HEAD={expected_head}
 
 def test_calibrate_failure_survives_err_trap_and_writes_job_result(tmp_path):
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
-    fragment = source.split("calibrate_rc=0\n", 1)[1]
-    fragment = "calibrate_rc=0\n" + fragment.split(
+    fragment = source.split('CALIBRATE_ARGV_JSON="$ATTEMPT_DIR/calibrate-argv.json"\n', 1)[1]
+    fragment = 'CALIBRATE_ARGV_JSON="$ATTEMPT_DIR/calibrate-argv.json"\n' + fragment.split(
         "# worktree metadata を clean に戻す。", 1)[0]
     attempt = tmp_path / "attempt"
     attempt.mkdir()
@@ -778,6 +823,7 @@ def test_calibrate_failure_survives_err_trap_and_writes_job_result(tmp_path):
 PBS_JOBID=123.server
 remaining=30
 REPO_ROOT={json.dumps(str(tmp_path))}
+TOOLS={json.dumps(str(TOOL_DIR))}
 BINARY=/unused/binary
 BINARY_SHA={'a' * 64}
 PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT=5
@@ -789,6 +835,9 @@ PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT=5
     assert result.returncode == 7, result.stderr
     assert json.loads((attempt / "failure.json").read_text())["stage"] == "calibrate"
     assert json.loads((attempt / "job-result.json").read_text())["calibrate_rc"] == 7
+    argv = json.loads((attempt / "calibrate-argv.json").read_text())
+    assert argv[:2] == ["python3", str(tmp_path / "orchestrator" / "calibrate.py")]
+    assert argv[argv.index("--binary") + 1] == "/unused/binary"
 
 
 def test_qstat_failure_reaches_allocation_unavailable_path(tmp_path):
