@@ -35,6 +35,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
         SelectorOutputError,
         parse_selector_output,
     )
+    from orchestrator.campaign.s8b_ratified_freeze import V1_FREEZE_SHA256
 else:
     from .s8b_descriptor import descriptor_for_holdout
     from .s8b_selector_input import (
@@ -44,6 +45,7 @@ else:
         selector_payload_sha256,
     )
     from .s8b_selector_output import SelectorOutputError, parse_selector_output
+    from .s8b_ratified_freeze import V1_FREEZE_SHA256
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -682,7 +684,11 @@ def write_prediction_freeze(path, document) -> None:
             temporary.unlink(missing_ok=True)
 
 
-def _load_json_object(path: Path) -> dict:
+def _parse_json_object(raw: bytes, *, source) -> dict:
+    """既読の bytes を strict parse する (duplicate key / 非有限定数 / 非 object を拒否)。
+
+    path 読取と parse を分離し、検証した bytes と使用する bytes を同一にできるように
+    する (A3-6: verify-use 間の freeze 差替え遮断)。"""
     def unique_object(pairs):
         result = {}
         for key, value in pairs:
@@ -693,17 +699,25 @@ def _load_json_object(path: Path) -> dict:
 
     try:
         value = json.loads(
-            path.read_text(encoding="utf-8"),
+            raw.decode("utf-8"),
             object_pairs_hook=unique_object,
             parse_constant=lambda token: (_ for _ in ()).throw(
                 ValueError(f"non-finite JSON constant: {token}")
             ),
         )
-    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
-        raise SelectorFreezeError(f"JSON object を読めない: {path}: {exc}") from exc
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise SelectorFreezeError(f"JSON object を読めない: {source}: {exc}") from exc
     if not isinstance(value, dict):
-        raise SelectorFreezeError(f"JSON top-level が object でない: {path}")
+        raise SelectorFreezeError(f"JSON top-level が object でない: {source}")
     return value
+
+
+def _load_json_object(path: Path) -> dict:
+    try:
+        raw = Path(path).read_bytes()
+    except OSError as exc:
+        raise SelectorFreezeError(f"JSON object を読めない: {path}: {exc}") from exc
+    return _parse_json_object(raw, source=path)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -718,10 +732,34 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _load_v1_freeze(path: Path) -> dict:
+    """CLI が読む freeze bytes を一度だけ読み、v1 trust root 照合後に同一 bytes を parse する。
+
+    selector prediction は v1 freeze に対して封印される設計 (selector_basis / derangement は
+    v1 由来) のため、CLI が別 freeze を読むことを fail-closed で拒否する (C2-7 残余)。単一源は
+    ``s8b_ratified_freeze.V1_FREEZE_SHA256``。
+
+    read-once で「照合する bytes」と「consumer が使う bytes」を同一にし、gate 検証後・
+    使用前に freeze を差し替える verify-use 間 TOCTOU を遮断する (A3-6)。かつては
+    bytes 照合と再読込 parse を別々に行い、pin 通過後に別内容へ差し替えると差替え後の
+    freeze から job を組めてしまう窓があった。
+    """
+    try:
+        raw = Path(path).read_bytes()
+    except OSError as exc:
+        raise SelectorFreezeError(f"freeze を読めない: {path}: {exc}") from exc
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != V1_FREEZE_SHA256:
+        raise SelectorFreezeError(
+            f"freeze bytes が v1 trust root と不一致 (C2-7): 実 {actual} != v1 {V1_FREEZE_SHA256}"
+        )
+    return _parse_json_object(raw, source=path)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        freeze = _load_json_object(args.freeze)
+        freeze = _load_v1_freeze(args.freeze)
         if args.command == "plan":
             print(json.dumps(build_prediction_jobs(freeze), ensure_ascii=False, indent=2))
         else:

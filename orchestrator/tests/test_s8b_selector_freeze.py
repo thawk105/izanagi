@@ -12,9 +12,11 @@ from orchestrator.campaign.s8b_descriptor import descriptor_for_holdout
 from orchestrator.campaign.s8b_selector_freeze import (
     SELECTOR_BASIS_VERSION,
     SelectorFreezeError,
+    _load_v1_freeze,
     binding_entry_for_choice,
     build_prediction_freeze,
     build_prediction_jobs,
+    main,
     record_agent_attempt,
     selector_basis_preimage,
     selector_basis_sha256,
@@ -516,3 +518,47 @@ def test_write_prediction_freeze_is_atomic_exclusive_create(tmp_path: Path) -> N
     with pytest.raises(SelectorFreezeError, match="既に存在"):
         write_prediction_freeze(destination, document)
     assert json.loads(destination.read_text(encoding="utf-8")) == document
+
+
+def test_cli_plan_accepts_v1_trust_root_freeze(capsys) -> None:
+    """C2-7 残余: CLI が v1 trust root freeze を読むと plan が成功する (正例)。"""
+    if not FREEZE_PATH.is_file():
+        pytest.skip("v1 freeze 不在")
+    rc = main(["plan", "--freeze", str(FREEZE_PATH)])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "input_payload_sha256" in out  # job 計画が出力された
+
+
+def test_cli_rejects_non_v1_freeze(tmp_path, capsys) -> None:
+    """C2-7 残余: v1 bytes と異なる freeze を CLI が読むと fail-closed で拒否する (負例)。"""
+    forged = tmp_path / "forged_freeze.json"
+    # 実 v1 と異なる bytes (何であれ v1 sha に一致しない)。
+    forged.write_text(json.dumps({"holdouts": {}}), encoding="utf-8")
+    rc = main(["plan", "--freeze", str(forged)])
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "v1 trust root と不一致" in err
+
+
+def test_load_v1_freeze_reads_once_binding_verify_and_use(monkeypatch) -> None:
+    """A3-6 回帰: v1 pin は照合した bytes と parse/使用する bytes を同一にする。
+
+    read_bytes を 2 回呼ぶ設計では、1 回目 (照合) の後・2 回目 (使用) の前に別内容へ
+    差し替えると pin を通過しつつ差替え後 freeze から job を組めてしまう (verify-use
+    TOCTOU)。read-once を call-count == 1 で機械的に固定し、二読み再導入を殺す。
+    既存の正例/負例テストは差替え窓を突けないため本回帰が必要。"""
+    if not FREEZE_PATH.is_file():
+        pytest.skip("v1 freeze 不在")
+    v1_bytes = FREEZE_PATH.read_bytes()
+    forged = b'{"holdouts": {}}'  # v1 と別内容 (2 回目に読めば job が変わる)
+    calls = {"n": 0}
+
+    def fake_read_bytes(self):
+        calls["n"] += 1
+        return v1_bytes if calls["n"] == 1 else forged
+
+    monkeypatch.setattr(Path, "read_bytes", fake_read_bytes)
+    document = _load_v1_freeze(FREEZE_PATH)
+    assert calls["n"] == 1  # 一度しか読まない = 照合 bytes と使用 bytes が同一
+    assert document == json.loads(v1_bytes.decode("utf-8"))

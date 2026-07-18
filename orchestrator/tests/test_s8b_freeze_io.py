@@ -240,6 +240,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         "session_cv_max": "0.10", "cell_cv_max": "0.15",
         "scale_adequacy_rel_tolerance": "0.10",
         "allowed_excluded_reasons": list(floor.s8b_floor_stats.ALLOWED_EXCLUDED_REASONS),
+        "contract_sha256": ec.lookup(ENV_TAG).contract_sha256,
     }
     verified = fio.VerifiedFreeze(document=freeze, sha256=freeze_sha)
     contract = ec.lookup(ENV_TAG)

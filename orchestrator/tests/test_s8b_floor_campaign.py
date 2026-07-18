@@ -126,13 +126,21 @@ def _protocol(*, freeze_sha: str, master_seed: str = "fixture-seed",
               session_cv_max: str = "0.10", cell_cv_max: str = "0.15",
               scale_adequacy_rel_tolerance: str = "0.10",
               allowed_excluded_reasons=None, schema: str = None,
-              formula: str = None, schedule_algorithm: str = None) -> dict:
+              formula: str = None, schedule_algorithm: str = None,
+              contract_sha256: str = None) -> dict:
     """承認凍結値をデフォルトで返す (validate_protocol を通す)。個別 field を override して
-    pin 拒否・版交差拒否を試験する。"""
+    pin 拒否・版交差拒否を試験する。contract_sha256 は None のとき登録済み env_tag なら実 contract
+    から自動導出し、未登録 env_tag では placeholder (0*64) を置く (未登録拒否経路の試験用)。"""
+    if contract_sha256 is None:
+        try:
+            contract_sha256 = ec.lookup(env_tag).contract_sha256
+        except ec.EnvContractError:
+            contract_sha256 = "0" * 64
     return {
         "schema": schema if schema is not None else s8b_floor_campaign.PROTOCOL_SCHEMA,
         "formula": formula if formula is not None else s8b_floor_stats.FORMULA_ID,
         "env_tag": env_tag,
+        "contract_sha256": contract_sha256,
         "ccbench_pin": "0" * 40,
         "freeze": {"path": "output/s8b-freeze/fixture_freeze.json", "sha256": freeze_sha},
         "stock_configuration": _STOCK,
@@ -528,12 +536,15 @@ def test_run_campaign_rejects_unknown_env_tag(tmp_path):
 def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
     """契約の env_tag が実行機の p2_2.ENV_TAG と一致しなければ拒否する (暫定 machine-pin)。"""
     freeze = _freeze_document()
-    protocol = _protocol(freeze_sha=_freeze_sha(freeze), env_tag="foreign-env")
     fake_contract = ec.ExecutionEnvironmentContract(
         env_tag="foreign-env", clocks_per_us=2100, numactl=(),
         isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=True),
         calibration_ref=ec.CalibrationRef(path="output/x.json", sha256="0" * 64),
     )
+    # validate_protocol の contract_sha256 cross-field 検査を通すため mocked contract の
+    # fingerprint を焼く (rejection は後段の machine-pin で起きることを固定する)。
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze), env_tag="foreign-env",
+                         contract_sha256=fake_contract.contract_sha256)
     with mock.patch.object(s8b_floor_campaign._env_contract, "lookup",
                            return_value=fake_contract):
         with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="machine-pin"):

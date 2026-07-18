@@ -55,8 +55,10 @@ import re
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Optional
 
@@ -71,6 +73,7 @@ from calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
+from campaign import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
 from campaign import env_contract as _env_contract  # noqa: E402
 from campaign import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
 from campaign import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
@@ -101,20 +104,23 @@ _PROTOCOL_KEYS = frozenset({
     "wired_min_rel_floor", "retry_slots_per_cell",
     "session_cv_max", "cell_cv_max", "scale_adequacy_rel_tolerance",
     "allowed_excluded_reasons",
+    # §5-v (F4 実装解釈、親追認事項): 17→18 key。env 契約の同一性 fingerprint を
+    # protocol へ焼き込み cross-field pin する (契約 env と protocol env の乖離を開始前に拒否)。
+    "contract_sha256",
 })
 _FREEZE_RECORD_KEYS = frozenset({"path", "sha256"})
 
 # 承認済み標本設計の凍結数値 (§9 承認状態 2026-07-18)。validate_protocol が完全一致で pin する
-# (別実験への変質を開始前に拒否, β-1)。閾値は decimal 文字列で凍結し stats が Fraction 厳密算術で
-# 解釈する (α-9)。
-_APPROVED_N_SESSIONS = 8
-_APPROVED_REPS = 5
-_APPROVED_RETRY_SLOTS = 2
-_APPROVED_SESSION_CV_MAX = "0.10"
-_APPROVED_CELL_CV_MAX = "0.15"
-_APPROVED_SCALE_ADEQUACY = "0.10"
+# (別実験への変質を開始前に拒否, β-1)。値の単一源は campaign.s8b_approved (C4-3): ここには
+# literal を残さず束縛のみ (builder と validate_protocol が同一定義を参照する)。
+_APPROVED_N_SESSIONS = s8b_approved.APPROVED_N_SESSIONS
+_APPROVED_REPS = s8b_approved.APPROVED_REPS
+_APPROVED_RETRY_SLOTS = s8b_approved.APPROVED_RETRY_SLOTS
+_APPROVED_SESSION_CV_MAX = s8b_approved.APPROVED_SESSION_CV_MAX
+_APPROVED_CELL_CV_MAX = s8b_approved.APPROVED_CELL_CV_MAX
+_APPROVED_SCALE_ADEQUACY = s8b_approved.APPROVED_SCALE_ADEQUACY
 # 閉じた除外理由表の固定順 (stats が正本)。protocol は完全一致 (固定順) を要求する。
-_APPROVED_REASONS = list(s8b_floor_stats.ALLOWED_EXCLUDED_REASONS)
+_APPROVED_REASONS = list(s8b_approved.APPROVED_REASONS)
 
 # driver が観測から分類する excluded_reason コード (stats の閉じた表と一致)。
 _REASON_COMPETING = "competing_process"          # preflight/post probe の競合
@@ -224,7 +230,11 @@ def validate_protocol(document: Mapping) -> dict:
     未知 key・欠落・型不正はすべて拒否する。数値の既定値はコードに持たない (入力必須)。
     ``formula`` は ``s8b_floor_stats.FORMULA_ID`` (v2) と一致検査する (式の版束縛)。承認済み標本
     設計の凍結数値 (n_sessions=8 / reps=5 / retry_slots=2 / 閾値 3 種 / 除外理由 4 行固定順) は
-    完全一致で pin する (β-1)。
+    完全一致で pin する (β-1)。承認凍結値の単一源は ``campaign.s8b_approved`` (C4-3)。
+
+    ``contract_sha256`` は §5-v の親追認事項 (F4 の実装解釈、schema version bump ではなく凍結前の
+    17→18 key 追加)。``env_contract.lookup(env_tag).contract_sha256`` と完全一致で cross-field pin
+    し、未登録 env_tag は fail-closed で拒否する (契約 env と protocol env の乖離を開始前に止める)。
     """
     if not isinstance(document, Mapping):
         raise FloorCampaignError("protocol が object でない")
@@ -253,6 +263,17 @@ def validate_protocol(document: Mapping) -> dict:
         )
 
     env_tag = _non_empty_str(document["env_tag"], field="env_tag")
+    # §5-v: contract_sha256 を env 契約から cross-field pin する (親追認事項)。env_tag が
+    # env 契約に未登録なら fail-closed (曖昧な fallback なし)。
+    contract_sha256 = _non_empty_str(document["contract_sha256"], field="contract_sha256")
+    try:
+        _contract = _env_contract.lookup(env_tag)
+    except _env_contract.EnvContractError as exc:
+        raise FloorCampaignError(f"protocol.env_tag が env 契約に未登録: {exc}") from exc
+    if contract_sha256 != _contract.contract_sha256:
+        raise FloorCampaignError(
+            f"protocol.contract_sha256 が env_contract.lookup({env_tag!r}).contract_sha256 と不一致"
+        )
     ccbench_pin = _non_empty_str(document["ccbench_pin"], field="ccbench_pin")
     stock_configuration = _non_empty_str(
         document["stock_configuration"], field="stock_configuration",
@@ -322,7 +343,189 @@ def validate_protocol(document: Mapping) -> dict:
         "cell_cv_max": cell_cv_max,
         "scale_adequacy_rel_tolerance": scale_adequacy_rel_tolerance,
         "allowed_excluded_reasons": list(_APPROVED_REASONS),
+        "contract_sha256": contract_sha256,
     }
+
+
+# --------------------------------------------------------------------------- #
+# protocol builder + writer (承認定数から機械組立て、C4-4/C4-7)                 #
+#                                                                              #
+# 凍結手順 (ユーザー): (1) master_seed / env_tag を確定 → (2) build_protocol_document #
+# で組立て (承認 pin は s8b_approved 単一源から焼く) → (3) write_protocol_document で   #
+# 明示出力先へ書き出し → (4) ユーザーが commit する (AI-Agent: none)。実凍結 (実 repo の #
+# output/s8b-freeze/ への書込み) は AI が行わずユーザー手順で行う。                     #
+# --------------------------------------------------------------------------- #
+
+@dataclass(frozen=True)
+class BuiltProtocol:
+    """組立て済み protocol (validate_protocol 通過済み) と canonical bytes/sha256。"""
+
+    document: dict
+    canonical_bytes: bytes
+    sha256: str
+
+
+def _ccbench_gitlink(root: Path) -> str:
+    """``external/ccbench`` の HEAD gitlink (40 hex commit) を実測する (fail-closed)。"""
+    try:
+        completed = subprocess.run(
+            ["git", "ls-tree", "HEAD", "external/ccbench"],
+            cwd=str(root), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+        )
+        out = completed.stdout.decode("utf-8", "strict")
+    except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
+        raise FloorCampaignError(f"ccbench gitlink を実測できない: {exc}") from exc
+    # 期待形式: "160000 commit <40hex>\texternal/ccbench"
+    fields = out.split()
+    if len(fields) < 3 or fields[0] != "160000" or fields[1] != "commit":
+        raise FloorCampaignError(f"external/ccbench が gitlink (submodule) でない: {out!r}")
+    sha = fields[2]
+    if len(sha) != 40 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise FloorCampaignError(f"ccbench gitlink が 40 桁 hex でない: {sha!r}")
+    return sha
+
+
+def build_protocol_document(master_seed, env_tag, *, stock_configuration,
+                            extime_s, wired_min_rel_floor, root=ROOT) -> BuiltProtocol:
+    """承認定数を単一源から機械組立てし ``validate_protocol`` を通した protocol を返す (C4-7)。
+
+    引数 ``master_seed`` / ``env_tag`` / ``stock_configuration`` / ``extime_s`` /
+    ``wired_min_rel_floor`` は validate_protocol が pin しない自由値であり、**凍結時に
+    ユーザーが確定する欄**である。既定値を持たない (値の発明・追認を禁止する — 欠落は
+    TypeError で落ちる)。
+
+    承認 pin 値 (n_sessions=8 等・閾値・除外理由)・v1 freeze {path, sha256}・ccbench full
+    commit sha は ``campaign.s8b_approved`` を単一源として焼く。**現在値の追認を許さない**
+    (C4-4): 実 v1 bytes が ``APPROVED_FREEZE_SHA256`` と、実 gitlink が ``CCBENCH_FULL_SHA``
+    と一致することを組立て前に検証する。``contract_sha256`` は ``env_tag`` から導出する
+    (validate_protocol が cross-field 照合する、§5-v)。canonical bytes + sha256 も返す。
+
+    凍結手順: master_seed / env_tag を確定 → 本 builder → write_protocol_document で明示
+    出力先へ → ユーザーが commit (AI-Agent: none)。
+    """
+    root = Path(root)
+    if not isinstance(master_seed, str) or not master_seed:
+        raise FloorCampaignError("build_protocol_document: master_seed が空でない str でない")
+    if not isinstance(env_tag, str) or not env_tag:
+        raise FloorCampaignError("build_protocol_document: env_tag が空でない str でない")
+
+    # 実 v1 bytes を承認定数と照合してから焼く (現在値の追認を拒否、C4-4)。
+    v1_path = root / s8b_approved.APPROVED_FREEZE_PATH
+    try:
+        actual_v1 = hashlib.sha256(v1_path.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise FloorCampaignError(f"v1 freeze を読めない: {v1_path}: {exc}") from exc
+    if actual_v1 != s8b_approved.APPROVED_FREEZE_SHA256:
+        raise FloorCampaignError(
+            "v1 freeze bytes が承認定数と不一致 (現在値の追認を拒否): "
+            f"実 {actual_v1} != 承認 {s8b_approved.APPROVED_FREEZE_SHA256}"
+        )
+
+    # 実 gitlink を承認定数と照合してから焼く (現在値の追認を拒否、C4-4)。
+    actual_link = _ccbench_gitlink(root)
+    if actual_link != s8b_approved.CCBENCH_FULL_SHA:
+        raise FloorCampaignError(
+            "ccbench gitlink が承認定数と不一致 (現在値の追認を拒否): "
+            f"実 {actual_link} != 承認 {s8b_approved.CCBENCH_FULL_SHA}"
+        )
+
+    # contract_sha256 は env_tag から導出 (validate_protocol が cross-field 検査する)。
+    try:
+        contract = _env_contract.lookup(env_tag)
+    except _env_contract.EnvContractError as exc:
+        raise FloorCampaignError(f"env_tag が env 契約に未登録: {exc}") from exc
+
+    document = {
+        "schema": PROTOCOL_SCHEMA,
+        "formula": s8b_floor_stats.FORMULA_ID,
+        "env_tag": env_tag,
+        "ccbench_pin": s8b_approved.CCBENCH_FULL_SHA,
+        "freeze": {
+            "path": s8b_approved.APPROVED_FREEZE_PATH,
+            "sha256": s8b_approved.APPROVED_FREEZE_SHA256,
+        },
+        "stock_configuration": stock_configuration,
+        "n_sessions": s8b_approved.APPROVED_N_SESSIONS,
+        "reps": s8b_approved.APPROVED_REPS,
+        "master_seed": master_seed,
+        "schedule_algorithm": SCHEDULE_ALGORITHM,
+        "extime_s": extime_s,
+        "wired_min_rel_floor": wired_min_rel_floor,
+        "retry_slots_per_cell": s8b_approved.APPROVED_RETRY_SLOTS,
+        "session_cv_max": s8b_approved.APPROVED_SESSION_CV_MAX,
+        "cell_cv_max": s8b_approved.APPROVED_CELL_CV_MAX,
+        "scale_adequacy_rel_tolerance": s8b_approved.APPROVED_SCALE_ADEQUACY,
+        "allowed_excluded_reasons": list(s8b_approved.APPROVED_REASONS),
+        "contract_sha256": contract.contract_sha256,
+    }
+    # validate_protocol を単一の受理ゲートに通す (builder 自身では判定を持たない)。
+    normalized = validate_protocol(document)
+    canonical = _canonical_bytes(normalized)
+    return BuiltProtocol(
+        document=normalized,
+        canonical_bytes=canonical,
+        sha256=hashlib.sha256(canonical).hexdigest(),
+    )
+
+
+def _guarded_freeze_dirs(root: Path) -> tuple:
+    """writer が書込みを拒否する実凍結領域の解決済み path (存在しなくても解決)。"""
+    dirs = []
+    for rel in ("output/s8b-freeze", "output/env"):
+        dirs.append((root / rel).resolve())
+    return tuple(dirs)
+
+
+def write_protocol_document(path, built: "BuiltProtocol", *, root=ROOT) -> Path:
+    """``built`` を create-only で書き出す。**default path なし (明示出力先必須)**。
+
+    出力先が実 repo の凍結領域 (``output/s8b-freeze/`` ・ ``output/env/``) 配下なら拒否する
+    (テスト誤爆の第二防壁 — 実凍結はユーザー手順で行い、AI-Agent: none で commit する)。
+    既存 path も拒否する (create-only)。ファイル bytes は canonical bytes と一致し、その
+    sha256 は ``built.sha256`` (= protocol_sha256 の pre-image) に等しい。
+    """
+    if not isinstance(built, BuiltProtocol):
+        raise FloorCampaignError("write_protocol_document: BuiltProtocol でない")
+    destination = Path(path)
+    resolved_parent = destination.parent.resolve()
+    for guarded in _guarded_freeze_dirs(Path(root)):
+        if resolved_parent == guarded or guarded in resolved_parent.parents:
+            raise FloorCampaignError(
+                "実 repo の凍結領域配下への書込みは拒否 (実凍結はユーザー手順): "
+                f"{destination} ⊂ {guarded}"
+            )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=str(destination.parent),
+            prefix=f".{destination.name}.", suffix=".tmp", delete=False,
+        ) as stream:
+            tmp = Path(stream.name)
+            stream.write(built.canonical_bytes)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(tmp, destination)
+        except FileExistsError as exc:
+            raise FloorCampaignError(
+                f"protocol document が既に存在する (create-only): {destination}"
+            ) from exc
+        dir_fd = os.open(destination.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError as exc:
+        if isinstance(exc, FileExistsError):  # pragma: no cover - 上で翻訳済み
+            raise FloorCampaignError(
+                f"protocol document が既に存在する (create-only): {destination}"
+            ) from exc
+        raise FloorCampaignError(f"protocol document を書けない: {destination}: {exc}") from exc
+    finally:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
+    return destination
 
 
 # --------------------------------------------------------------------------- #
