@@ -159,9 +159,9 @@ def test_certify_uses_frozen_cli_names_and_reservation_exports():
     ):
         assert "IZANAGI_RESERVATION_" + field in source
     assert '"required_s": frozen_required_s' in source
-    assert "5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 960" in source
-    assert "build_cap(CCBench=900+gflags=60)(960)" in source
-    assert "finalize_reserve(600)=6490" in source
+    assert "5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080" in source
+    assert "build_cap(CCBench=900+gflags=60+glog=120)(1080)" in source
+    assert "finalize_reserve(600)=6610" in source
     assert '--numactl "$NUMA_POLICY"' not in source
 
 
@@ -174,9 +174,9 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
 
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     gflags_stage = source.index("# (iv-a) pinned-clean gflags")
-    ccbench_stage = source.index("# (iv-b) pinned-clean CCBench")
-    assert gflags_stage < ccbench_stage
-    fragment = source[gflags_stage:ccbench_stage]
+    glog_stage = source.index("# (iv-b) pinned-clean glog")
+    assert gflags_stage < glog_stage
+    fragment = source[gflags_stage:glog_stage]
     for required in (
         '[[ ! -d "$GFLAGS_SOURCE_PATH" ]]',
         'GFLAGS_SOURCE_HEAD=$(git -C "$GFLAGS_SOURCE_PATH" rev-parse HEAD',
@@ -194,9 +194,47 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
         '"$ATTEMPT_DIR/gflags-install.stderr"',
     ):
         assert required in fragment
-    configure = source[source.index("configure_argv=(", ccbench_stage):]
-    assert '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"' in configure
+    configure = source[source.index("configure_argv=(", glog_stage):]
+    assert '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"' in configure
     assert '"-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"' in configure
+
+
+def test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench():
+    policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
+    assert policy["glog_source_path"] == "/home/SFC/tanab/github/glog"
+    assert policy["glog_expected_head"] == (
+        "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
+    )
+
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    gflags_stage = source.index("# (iv-a) pinned-clean gflags")
+    glog_stage = source.index("# (iv-b) pinned-clean glog")
+    ccbench_stage = source.index("# (iv-c) pinned-clean CCBench")
+    assert gflags_stage < glog_stage < ccbench_stage
+    fragment = source[glog_stage:ccbench_stage]
+    for required in (
+        '[[ ! -d "$GLOG_SOURCE_PATH" ]]',
+        'GLOG_SOURCE_HEAD=$(git -C "$GLOG_SOURCE_PATH" rev-parse HEAD',
+        '[[ "$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD" ]]',
+        'status --porcelain --untracked-files=all',
+        'write_failure 2 glog "glog source HEAD mismatch"',
+        '-DBUILD_SHARED_LIBS=OFF',
+        '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
+        '-DWITH_GTEST=OFF',
+        '-DBUILD_TESTING=OFF',
+        '-DWITH_UNWIND=OFF',
+        '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+        '"$ATTEMPT_DIR/glog-configure.stdout"',
+        '"$ATTEMPT_DIR/glog-configure.stderr"',
+        '"$ATTEMPT_DIR/glog-build.stdout"',
+        '"$ATTEMPT_DIR/glog-build.stderr"',
+        '"$ATTEMPT_DIR/glog-install.stdout"',
+        '"$ATTEMPT_DIR/glog-install.stderr"',
+    ):
+        assert required in fragment
+    configure = source[source.index("configure_argv=(", ccbench_stage):]
+    assert '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"' in configure
+    assert '"-DIZANAGI_GLOG_SRC_HEAD=$GLOG_SOURCE_HEAD"' in configure
 
 
 def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():
@@ -208,6 +246,8 @@ def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():
     cmake_paths = {
         "GFLAGS_BUILD_DIR": "$TMPDIR/gflags-build",
         "GFLAGS_INSTALL_DIR": "$TMPDIR/gflags-install",
+        "GLOG_BUILD_DIR": "$TMPDIR/glog-build",
+        "GLOG_INSTALL_DIR": "$TMPDIR/glog-install",
         "BUILD_SOURCE": "$TMPDIR/ccbench-source",
         "BUILD_DIR": "$TMPDIR/ccbench-build",
     }
@@ -216,8 +256,10 @@ def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():
     for required in (
         'cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"',
         '"-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"',
+        'cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"',
+        '"-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"',
         'cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR"',
-        '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+        '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"',
     ):
         assert required in source
 
@@ -549,7 +591,14 @@ def _stub_timeout(tmp_path: Path, rc: int) -> dict[str, str]:
 def _gflags_stage_fragment() -> str:
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     start = source.index("# (iv-a) pinned-clean gflags")
-    end = source.index("# (iv-b) pinned-clean CCBench", start)
+    end = source.index("# (iv-b) pinned-clean glog", start)
+    return source[start:end]
+
+
+def _glog_stage_fragment() -> str:
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index("# (iv-b) pinned-clean glog")
+    end = source.index("# (iv-c) pinned-clean CCBench", start)
     return source[start:end]
 
 
@@ -601,6 +650,41 @@ GFLAGS_EXPECTED_HEAD={expected_head}
     )
     assert result.returncode == 2, result.stderr
     assert json.loads((attempt / "failure.json").read_text())["stage"] == "gflags"
+
+
+def test_glog_head_mismatch_writes_glog_failure(tmp_path):
+    source_repo = tmp_path / "glog"
+    source_repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(source_repo)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_repo), "config", "user.email", "fixture@example.invalid"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source_repo), "config", "user.name", "Fixture"], check=True,
+    )
+    (source_repo / "tracked.txt").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(source_repo), "add", "tracked.txt"], check=True)
+    subprocess.run(["git", "-C", str(source_repo), "commit", "-qm", "fixture"], check=True)
+
+    actual_head = subprocess.run(
+        ["git", "-C", str(source_repo), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    expected_head = "0" * 40
+    assert actual_head != expected_head
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    prefix = f"""ATTEMPT_DIR={json.dumps(str(attempt))}
+GLOG_SOURCE_PATH={json.dumps(str(source_repo))}
+GLOG_EXPECTED_HEAD={expected_head}
+"""
+    result = subprocess.run(
+        ["bash", "-c", _shell_failure_harness(prefix + _glog_stage_fragment())],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 2, result.stderr
+    assert json.loads((attempt / "failure.json").read_text())["stage"] == "glog"
 
 
 def test_calibrate_failure_survives_err_trap_and_writes_job_result(tmp_path):

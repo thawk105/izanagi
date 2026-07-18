@@ -7,8 +7,8 @@
 # C3-7 予約式 (秒):
 # TSC(10) + cooldown_max(1200) + points(5)*sweep_reps(3)*120
 # + noise_reps(10)*120 + 2*sweep_reps(3)*120
-# + build_cap(CCBench=900 + gflags=60)(960)
-# + finalize_reserve(600) = 6490。要求 7200 秒はこれを上回る。
+# + build_cap(CCBench=900 + gflags=60 + glog=120)(1080)
+# + finalize_reserve(600) = 6610。要求 7200 秒はこれを上回る。
 set -Eeuo pipefail
 umask 077
 
@@ -120,9 +120,11 @@ print(p["expected_cpu_model"])
 print(p["expected_physical_cores"])
 print(p["gflags_source_path"])
 print(p["gflags_expected_head"])
+print(p["glog_source_path"])
+print(p["glog_expected_head"])
 PY
 )
-[[ ${#policy_values[@]} -eq 9 ]]
+[[ ${#policy_values[@]} -eq 11 ]]
 PROJECT=${policy_values[0]}
 QUEUE=${policy_values[1]}
 NODES=${policy_values[2]}
@@ -132,6 +134,8 @@ EXPECTED_CPU=${policy_values[5]}
 EXPECTED_CORES=${policy_values[6]}
 GFLAGS_SOURCE_PATH=${policy_values[7]}
 GFLAGS_EXPECTED_HEAD=${policy_values[8]}
+GLOG_SOURCE_PATH=${policy_values[9]}
+GLOG_EXPECTED_HEAD=${policy_values[10]}
 
 if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9._-]+$ ]]; then
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE is missing or unsafe"
@@ -413,7 +417,72 @@ if [[ "$gflags_rc" -ne 0 ]]; then
   exit "$gflags_rc"
 fi
 
-# (iv-b) pinned-clean CCBench + /scr の fresh worktree/build。
+# (iv-b) pinned-clean glog を /scr で static/PIC build/install。gflags の install のみを参照。
+if [[ ! -d "$GLOG_SOURCE_PATH" ]]; then
+  write_failure 2 glog "glog source path missing"
+  exit 2
+fi
+glog_head_rc=0
+GLOG_SOURCE_HEAD=$(git -C "$GLOG_SOURCE_PATH" rev-parse HEAD \
+  2>"$ATTEMPT_DIR/glog-source-head.stderr") || glog_head_rc=$?
+if [[ "$glog_head_rc" -ne 0 ]]; then
+  write_failure "$glog_head_rc" glog "cannot resolve glog source HEAD"
+  exit "$glog_head_rc"
+fi
+printf '%s\n' "$GLOG_SOURCE_HEAD" >"$ATTEMPT_DIR/glog-source-head.stdout"
+if [[ "$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD" ]]; then
+  write_failure 2 glog "glog source HEAD mismatch"
+  exit 2
+fi
+glog_status_rc=0
+GLOG_STATUS=$(git -C "$GLOG_SOURCE_PATH" status --porcelain --untracked-files=all \
+  2>"$ATTEMPT_DIR/glog-source-status.stderr") || glog_status_rc=$?
+if [[ "$glog_status_rc" -ne 0 ]]; then
+  write_failure "$glog_status_rc" glog "cannot inspect glog working tree"
+  exit "$glog_status_rc"
+fi
+printf '%s' "$GLOG_STATUS" >"$ATTEMPT_DIR/glog-source-status.stdout"
+if [[ -n "$GLOG_STATUS" ]]; then
+  write_failure 2 glog "glog working tree is dirty"
+  exit 2
+fi
+
+GLOG_BUILD_DIR="$TMPDIR/glog-build"
+GLOG_INSTALL_DIR="$TMPDIR/glog-install"
+glog_rc=0
+mkdir "$GLOG_BUILD_DIR" || glog_rc=$?
+if [[ "$glog_rc" -ne 0 ]]; then
+  write_failure "$glog_rc" glog "cannot create glog build directory"
+  exit "$glog_rc"
+fi
+glog_configure_argv=(cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
+glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
+glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
+timeout 120 "${glog_configure_argv[@]}" \
+  >"$ATTEMPT_DIR/glog-configure.stdout" 2>"$ATTEMPT_DIR/glog-configure.stderr" || glog_rc=$?
+if [[ "$glog_rc" -ne 0 ]]; then
+  write_failure "$glog_rc" glog "glog configure failed"
+  exit "$glog_rc"
+fi
+timeout 120 "${glog_build_argv[@]}" \
+  >"$ATTEMPT_DIR/glog-build.stdout" 2>"$ATTEMPT_DIR/glog-build.stderr" || glog_rc=$?
+if [[ "$glog_rc" -ne 0 ]]; then
+  write_failure "$glog_rc" glog "glog build failed"
+  exit "$glog_rc"
+fi
+timeout 120 "${glog_install_argv[@]}" \
+  >"$ATTEMPT_DIR/glog-install.stdout" 2>"$ATTEMPT_DIR/glog-install.stderr" || glog_rc=$?
+if [[ "$glog_rc" -ne 0 ]]; then
+  write_failure "$glog_rc" glog "glog install failed"
+  exit "$glog_rc"
+fi
+
+# (iv-c) pinned-clean CCBench + /scr の fresh worktree/build。
 CCBENCH_BASE="$REPO_ROOT/external/ccbench"
 CCBENCH_HEAD=$(git -C "$CCBENCH_BASE" rev-parse HEAD)
 GITLINK=$(git -C "$REPO_ROOT" ls-tree HEAD external/ccbench | awk '{print $3}')
@@ -428,8 +497,9 @@ configure_argv=(cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Rele
   -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0
   -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
   -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0
-  "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
   "-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"
+  "-DIZANAGI_GLOG_SRC_HEAD=$GLOG_SOURCE_HEAD"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
 build_argv=(cmake --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)
 timeout 900 "${configure_argv[@]}" >"$ATTEMPT_DIR/configure.stdout" 2>"$ATTEMPT_DIR/configure.stderr"
@@ -506,11 +576,11 @@ cmake_version = open(os.path.join(root, "cmake.version"), encoding="utf-8").read
 model = profile["cpu"]["model_name_normalized"]
 known_passed = (expected_cpu in model and profile["cores"]["physical"] == int(expected_cores)
                 and topology["cpuset_size"] == int(expected_cores) and topology["ht_off"] is True)
-frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 960 + int(reserve_s)
+frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + int(reserve_s)
 walltime_formula = (
     "TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+"
     "noise_reps(10)*120+2*sweep_reps(3)*120+"
-    "build_cap(CCBench=900+gflags=60)(960)+finalize_reserve(600)=6490"
+    "build_cap(CCBench=900+gflags=60+glog=120)(1080)+finalize_reserve(600)=6610"
 )
 candidate = {
     "qsub": submit["qsub"],
