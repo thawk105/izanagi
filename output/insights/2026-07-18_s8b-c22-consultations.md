@@ -130,6 +130,26 @@ Q-3〜Q-6: B の回答を §5 の推奨案として記載 (裁定はユーザー
     実環境 attestation
   → **env_tag=Pegasus の登録は floor 実測 wave の前段作業** (calibrator を Pegasus 計算ノードで実走)。
     検証器本丸 wave と closure schema 裁定の後、floor を回す直前に行う
+- **ユーザー指摘 (2026-07-18) — ログインノード ≠ 計算ノード:** 現セッションは pegasus02 =
+  ログインノード上。calibration / clocks_per_us / numactl / noise floor は**計算ノード (bnodeXXX) の
+  ジョブ (qsub) で取得する。ログインノードで取っても無意味** (別ハード + 割当ごとに変わる)。含意:
+  - 計算ノードは全 node 同構成 (runbook §1: Xeon Platinum 8468 ×1 / 48 physical core / HT 無効)
+    なので env_tag は `pegasus` 単一・契約 1 つで足りる**前提**。ただしこの前提は実行時に検証しないと
+    割当変動・世代混在・BIOS/microcode 差・thermal throttle で黙って崩れ、異なる環境の測定を混ぜる
+    (規律 1/4、D59「異なる env-tag の throughput を混ぜない」の実質破れ)
+  - **現状の machine-pin / attestation は Pegasus に不十分**: execution_guard.assert_machine_pin は
+    `contract.env_tag == p2_2.ENV_TAG` の文字列一致のみ、build_receipt の attestation は
+    {hostname, boot_id, cpuset, captured_utc} の識別子記録のみで**実測照合をしない**
+    (clocks_per_us / CPU model と実機の突合なし。runbook も「実環境 attestation は未実装」と明記)。
+    cygnus は専有物理機で hostname 固定だったから文字列 pin で足りたが、**Pegasus は共有スケジューラで
+    計算ノードが割当ごとに変動 + 専有非保証 (Exclusive submit=OFF) のため、実測照合 attestation が
+    必須**: 割り当て計算ノードの実測 (CPU model / 実効クロック / core 数 / cache / NUMA) が登録契約と
+    一致するかを floor/oracle 実行直前に検証し、不一致 = fail-closed
+  - machine-pin (p2_2.ENV_TAG 文字列一致) を Pegasus 用に再設計 (文字列一致では実測照合にならない)
+  - 専有非保証 → calibration も floor も割り当て計算ノード上で単独性確認 (pgrep) + 外乱回避/検知/
+    再計測 (failures F3、memory verify-single-tenant-before-measuring)
+  → env_tag=Pegasus の登録段は「値決め」でなく「計算ノード上の実測 + 実測照合 attestation の実装」。
+    calibration の取得場所 (計算ノード) と実行時照合の設計を登録段で同時に固める
 
 **C2-2 検証側 (§5-(ix) として追認リストへ追加提案。裁定まで launch_validate は現状維持):**
 - (ix)-1 journal 実体検証: floor_source と同 dir の journal.jsonl を G の regular blob として必須化し

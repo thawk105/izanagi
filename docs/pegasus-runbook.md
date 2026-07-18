@@ -262,6 +262,14 @@ Pegasus entry を追加する。追加には上記 1〜4 (D59) に加えて次�
 
 - calibration 成果物は `calibration_ref {path, sha256}` の構造化参照で束縛する (自由文不可)。
   env_tag の値はユーザーが確定する
+- **calibration / clocks_per_us / noise floor は割り当て計算ノード (bnodeXXX) 上のジョブで取得する。
+  ログインノード (pegasus0X) の値は計測環境でないため使わない** (2026-07-18 ユーザー指摘)。全 node
+  同構成 (§1) を前提に env_tag は単一で足りるが、計算ノードは割当ごとに変わり専有も保証されない
+  (Exclusive submit=OFF) ため、その前提を実行時に検証する **実測照合 attestation を Pegasus では
+  必須**とする (下記 enforcement の「実環境 attestation」を暫定の env_tag 文字列 machine-pin から
+  格上げ)。照合対象 = CPU model / 実効クロック / core 数 / cache / NUMA が登録契約と一致するか、
+  floor・oracle 実行直前に検査し不一致 = fail-closed。calibration の取得場所と実行時照合を登録段で
+  同時に設計する
 - `isolation_policy` は single_process=True / allow_resume=False で登録する (G12: campaign を
   単一 allocation/node/process で完遂。walltime 不足・途中 kill は WAL を証拠として保存した上で
   全数値を不採用にする)
