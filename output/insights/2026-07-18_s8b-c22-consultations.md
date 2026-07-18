@@ -107,7 +107,29 @@ Q-3〜Q-6: B の回答を §5 の推奨案として記載 (裁定はユーザー
 - (ix)-1 / -2 / -7 / -8 / -9 / -10 = **追認** (推奨案どおり。-2 の「履歴書換え耐性は H 内記録順
   のみ」という限界記載も含めて追認)
 - 未裁定のまま残るもの: 前 wave §5 の (i)〜(viii) (strict-v2-wave-consultations.md)、
-  master_seed / env_tag の受領、guard_agent 防衛候補 (次回 bg セッション再検証待ち)
+  guard_agent 防衛候補 (次回 bg セッション再検証待ち)
+
+**master_seed / env_tag のユーザー確定 (2026-07-18):**
+- **master_seed = `2026-07-18T17:16:12+09:00`** (ユーザーが「今のタイムスタンプで決めて」と委任 →
+  親がメッセージ受領時刻で確定)。build_protocol_document の非空 str 制約 + hit-0 自己検査 (S0) を
+  満たす (3 軸リテラルを含まない)。**発効 = 実 protocol JSON への焼き込みと `AI-Agent: none` 凍結は
+  検証器実装後** (発効なし規律)。この値は確定 = 結果を見た後に選び直さない (事前登録の系)
+- **env_tag = Pegasus** (ユーザー確定: 「Pegasus 使う。正式計測環境云々ではない。複数マシンで動く」)。
+  D59 の「正式計測の正本 env-tag 昇格」議論とは**独立** — env_contract registry へ環境ごとにエントリを
+  足す実務。スラッグ暫定 = `pegasus` (親推奨、slug 文法 [a-z0-9][a-z0-9._-]* 適合。最終確定はユーザー)。
+  **ただし env_tag は値決めだけでは成立しない** — env_contract.py の registry へ Pegasus entry を
+  追加するには実測が必要 (pegasus-runbook §7 登録段が正本):
+  - clocks_per_us (Pegasus 実測) / numactl (Pegasus トポロジ) / calibration_ref {path, sha256}
+    (Pegasus 単独ノードで calibrator 実走した成果物、自由文不可)
+  - isolation_policy = single_process=True / allow_resume=False (G12、runbook 明記)
+  - test 側 ENV_LITERAL_VALUES (test_env_contract.py) への新 env 値追加 (registry↔禁止 literal 同期)
+  - machine-pin (contract.env_tag == p2_2.ENV_TAG。現在 p2_2.ENV_TAG = "linux-baremetal") の
+    Pegasus 実行への扱いを登録段で設計 (現状 pin を変えると cygnus 実行が pin fail する)
+  - 登録時 enforcement (wave3 時点で未実装と記録): walltime 事前予約検査 / WAL・成果物の永続領域
+    allowlist (/scr 拒否) / PID canary probe / build cache の contract_sha256 namespace 分離 /
+    実環境 attestation
+  → **env_tag=Pegasus の登録は floor 実測 wave の前段作業** (calibrator を Pegasus 計算ノードで実走)。
+    検証器本丸 wave と closure schema 裁定の後、floor を回す直前に行う
 
 **C2-2 検証側 (§5-(ix) として追認リストへ追加提案。裁定まで launch_validate は現状維持):**
 - (ix)-1 journal 実体検証: floor_source と同 dir の journal.jsonl を G の regular blob として必須化し

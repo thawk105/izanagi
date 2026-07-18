@@ -611,3 +611,22 @@ V3 テスト・裁定準拠) → 親裁定 → codex 実行 (S0/H) → 親検算
    oracle 移行)。R∥F 並列は決定化 seam API 固定後
 3. guard_agent 再検証は次回新規 bg セッション (hooks/README hook 4 節)
 4. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-18 (11) — master_seed / env_tag のユーザー確定を記録 (発効なし・計測なし)
+
+エントリ (10) 次の一手 1 の一部消化。裁定の正本は insights §5「master_seed / env_tag のユーザー確定」。
+
+- **master_seed = `2026-07-18T17:16:12+09:00`** (ユーザー委任 → 親がメッセージ受領時刻で確定)。
+  非空 str + hit-0 を満たす。実 protocol JSON への焼き込み・`AI-Agent: none` 凍結は検証器実装後
+  (発効なし規律)。事前登録の系として、以後結果を見ても選び直さない
+- **env_tag = Pegasus** (ユーザー確定、スラッグ暫定 `pegasus`)。D59 の正本昇格議論とは独立の、
+  環境ごとの env_contract エントリ追加。値決めだけでは不成立 — Pegasus 単独ノードでの calibration/
+  noise floor 実測 + registry 登録 + isolation_policy (single_process=True/allow_resume=False) +
+  ENV_LITERAL_VALUES 追加 + machine-pin 扱い設計 + enforcement 群 (pegasus-runbook §7 が正本)。
+  **floor 実測 wave の前段作業**として位置づけ (検証器本丸 + closure schema 裁定の後)
+- docs 変更のみ (計測・コード変更なし)。check_docs 緑
+
+### 次の一手
+1. 検証器本丸 wave (エントリ (10) 次の一手 2、§8.3 ロードマップ) — closure schema (i)/(ii) 裁定が律速
+2. floor 実測の直前に Pegasus env_contract 登録段 (calibrator 実走。runbook §7)
+3. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
