@@ -576,3 +576,38 @@ fable 子なし。各レーン敵対レビュー 2 レンズ + 修正 + 再レ�
 3. 次回新規 bg セッションで guard_agent 再検証 (daemon version 確認の上 model 無し Agent 呼び —
    拒否 = version drift / 素通り = bg surface 配送欠落。手順は hooks/README hook 4 節)
 4. 本 branch (worktree-s8b-c22-launch-cert) の push/PR はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-18 (10) — C2-2 検証側: 基盤 2 本 + 実装ロードマップ凍結 (本丸は次 wave、計測なし)
+
+エントリ (9) 次の一手 2 の着手。ユーザー裁定 (A-1=(a) union 導出 / one-shot / pre-start resume /
+eligible=official finalize / 他追認、記録 = insights §5 冒頭) を受け、標準ループ: 親プラン v3 →
+codex gpt-5.6-sol ×3 (V1 検証器本体 / V2→cybersec フィルタ失敗 → V2b fixture 決定性中立言い換え /
+V3 テスト・裁定準拠) → 親裁定 → codex 実行 (S0/H) → 親検算。逐語・裁定・ロードマップ =
+`output/insights/2026-07-18_s8b-c22-consultations.md` §8 に追記凍結。
+
+- commit fd32b8f (S0/H 基盤) + 本 docs 分。S0 = launch cert 共有 leaf module (import 循環回避・
+  run-id↔started_utc 秒一致・raw path 文法)、H = holdout scan の exact 免除 API ((ix)-9 基盤)
+- **重要判明 (V2b 精査): 検証側本丸は multi-wave**。launch_validate を F15 恒真なく実装するには
+  fixture を production 実 bytes 化する必要があり、その前提として production 側の決定化 (provenance/
+  process/receipt/build/repo_root の seam + build path の emission 前正規化 + cert checkpoint seam +
+  eligible finalize semantics) が要る。さらに fixture の closure schema は前 wave §5 (i)/(ii) 未裁定に
+  依存。**検証器を seam 無しで今書くと fixture が stub のままになり F15/恒真ゲート型を作り込む**ため、
+  本 wave は基盤 + 設計凍結で閉じ、本丸 (R/F/fixture/oracle/決定化 seam) は次 wave に送る (規律 5)
+- 検証器の実装契約 (V1 所見) を §8.4 に凍結: equality chain 全辺 (manifest.protocol / freeze 三点 /
+  session==sessions / binaries 一致 / env 全辺 / contract==receipt / 時刻三点) / path-set union の
+  **洗浄封鎖** (journal notes 等の自由記述に三軸を紛れ込ませても path 単位 hit は不変 → 構造化
+  workload field に限定) / G↔worktree 間隙封鎖 (mode 検査併用) / one-shot 強制 / scan exact 免除
+- 実装ロードマップ (V2b の安全順序) を §8.3 に、次回追認リスト追加分を §8.5 に凍結
+- テスト: 1305 → **1363 passed / 23 skipped / 0 failed** (+58、S0/H 分)。check_docs / check_ai_provenance
+  (162 commits) 緑。official 拒否・発効なし規律・既存挙動は不変
+- 工数: codex 相談 3 (max×2/high×1、V2 は 1 回 cybersec フィルタ失敗) + codex 実行 2 (high) + 親
+
+### 次の一手
+1. ユーザー接点: §8.5 の新規追認事項 (full validate 採用 / journal・manifest 導入==G の拡大 /
+   manifest mode 制約 / cert union / launch-start-only 回復方式) + 前 wave §5 (i)〜(viii) +
+   §5-(ix) の残 + master_seed/env_tag。特に **closure schema (i)/(ii) は検証器 fixture の前提**
+2. 検証器本丸 wave: §8.3 ロードマップ順 (characterization test → build portable 化 → provenance
+   seam → repo_root seam → cert checkpoint → eligible finalize → staged builder → 負例移行 →
+   oracle 移行)。R∥F 並列は決定化 seam API 固定後
+3. guard_agent 再検証は次回新規 bg セッション (hooks/README hook 4 節)
+4. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
