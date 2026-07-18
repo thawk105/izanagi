@@ -1,0 +1,18 @@
+{
+  "quality": {
+    "reasons": [
+      "known-values-check-failed",
+      "acquisition-invalid: known-values-check-failed"
+    ],
+    "status": "rejected"
+  },
+  "reservation": {
+    "bench_timeout_s": 120,
+    "cooldown_max_s": 1200,
+    "finalize_reserve_s": 60,
+    "formula": "tsc + cooldown_max + points*sweep_reps*bench_timeout + noise_reps*bench_timeout + 2*sweep_reps*bench_timeout + finalize_reserve",
+    "points": 5,
+    "required_s": 4990,
+    "tsc_s": 10
+  }
+}

@@ -425,6 +425,86 @@ def test_certify_keeps_default_modules_and_uses_system_toolchain():
         assert f"command -v {tool}" in certify
 
 
+def _acquisition_candidate_source() -> str:
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    match = re.search(
+        r"python3 - \"\$ATTEMPT_DIR\" .*? <<'PY'\n(.*?)\nPY\n",
+        source,
+        re.DOTALL,
+    )
+    assert match is not None
+    return match.group(1)
+
+
+def test_known_values_cpu_policy_and_comparison_use_normalized_exact_match():
+    policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
+    expected_cpu = policy["expected_cpu_model"]
+    assert expected_cpu == "Intel Xeon Platinum 8468"
+    assert "(R)" not in expected_cpu
+    assert "(TM)" not in expected_cpu
+
+    source = _acquisition_candidate_source()
+    assert "known_passed = (expected_cpu == model and" in source
+    assert "expected_cpu in model" not in source
+
+
+@pytest.mark.parametrize(
+    "model,expected_passed",
+    [
+        ("Intel Xeon Platinum 8468", True),
+        ("Intel Xeon Platinum 8468H", False),
+    ],
+)
+def test_known_values_cpu_check_rejects_nearby_sku(
+        tmp_path, model, expected_passed):
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    (attempt / "submit-receipt.json").write_text(
+        json.dumps({"qsub": {"request_id": "fixture.server"}}), encoding="utf-8",
+    )
+    (attempt / "topology.json").write_text(
+        json.dumps({"cpuset_size": 48, "ht_off": True}), encoding="utf-8",
+    )
+    (attempt / "attestation-pre.json").write_text(json.dumps({
+        "ok": True,
+        "profile": {
+            "cpu": {"model_name_normalized": model},
+            "cores": {"physical": 48},
+        },
+    }), encoding="utf-8")
+    (attempt / "module-list.stdout").write_text(
+        "intelpython/2022.3.1\n", encoding="utf-8",
+    )
+    (attempt / "module-list.stderr").write_text("", encoding="utf-8")
+    for name, value in (
+        ("compiler.path", "/usr/bin/g++"),
+        ("compiler.version", "g++ fixture"),
+        ("cmake.version", "cmake fixture"),
+    ):
+        (attempt / name).write_text(value + "\n", encoding="utf-8")
+
+    policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
+    argv = [
+        sys.executable, "-", str(attempt), "a" * 40, "b" * 64, "c" * 64,
+        "bnode003", "bnode003", policy["expected_cpu_model"], "48", "7200",
+        "600", "cmake -S source -B build", "cmake --build build",
+    ]
+    env = os.environ.copy()
+    env["PBS_JOBID"] = "0:fixture.server"
+    result = subprocess.run(
+        argv,
+        input=_acquisition_candidate_source(),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    candidate = json.loads(
+        (attempt / "acquisition-candidate.json").read_text(encoding="utf-8"),
+    )
+    assert candidate["known_values_check"]["passed"] is expected_passed
+
+
 @dataclasses.dataclass(frozen=True)
 class _ProbeFixture:
     cores: int

@@ -574,7 +574,7 @@ compiler_path = open(os.path.join(root, "compiler.path"), encoding="utf-8").read
 compiler_version = open(os.path.join(root, "compiler.version"), encoding="utf-8").read().strip()
 cmake_version = open(os.path.join(root, "cmake.version"), encoding="utf-8").read().strip()
 model = profile["cpu"]["model_name_normalized"]
-known_passed = (expected_cpu in model and profile["cores"]["physical"] == int(expected_cores)
+known_passed = (expected_cpu == model and profile["cores"]["physical"] == int(expected_cores)
                 and topology["cpuset_size"] == int(expected_cores) and topology["ht_off"] is True)
 frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + int(reserve_s)
 walltime_formula = (
