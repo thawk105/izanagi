@@ -61,6 +61,29 @@ def test_source_blob_mismatch_rejected(tmp_path):
     assert ei.value.reason == "source-blob-mismatch"
 
 
+def test_design_source_worktree_drift_still_loads(tmp_path):
+    _need_v1()
+    # V5 (陽性テスト): design_source が指す docs 系 file の worktree copy を未 commit で
+    # 改変しても load_ratified_freeze は成功する。V1b は frozen_at_head の **blob bytes** を
+    # 照合するため worktree drift に非依存 (D5' の意図)。design_source は closure でも
+    # floor_protocol/floor_source でも namespace (output/s8b-freeze/) でもないため、dirty
+    # 拒否 (closure-dirty / namespace-dirty) の経路には触れない。
+    #
+    # 変異 = V1b の blob 読みを worktree 読み化 → 改変後 bytes が記録 sha と食い違い
+    # source-blob-mismatch で落ち、この陽性テストが赤になる。
+    root, _gen_sha, _gen_rel, g1 = B.build_valid_semantic_g1(tmp_path)
+    ds_path = g1["design_source"]["path"]         # docs 系 file (closure/namespace 外)
+    assert not ds_path.startswith(M.FREEZE_DIR)    # namespace-dirty 経路に触れないことの前提
+    target = root / ds_path
+    assert target.is_file()
+    # worktree copy に未 commit の drift を注入 (blob は不変のまま)。
+    target.write_bytes(target.read_bytes() + b"\n# uncommitted worktree drift\n")
+
+    freeze = M.load_ratified_freeze(root)          # blob 照合なので成功するのが正
+    assert isinstance(freeze, M.RatifiedFreeze)
+    assert freeze.generation_number == 1
+
+
 def test_frozen_at_head_not_generation_parent_rejected(tmp_path):
     _need_v1()
     def mut(g1):
@@ -149,6 +172,33 @@ def test_transition_gn_to_gn1_allows_floor_change_unit():
     M._assert_transition(prev, nxt, M._TRANSITION_GN_TO_GN1, label="g1→g2")  # 例外なし
 
 
+@pytest.mark.parametrize("field", ["holdouts", "derangement"])
+def test_transition_gn_to_gn1_forbids_measurement_field_rewrite_unit(field):
+    # V4: gN→gN+1 で /holdouts・/derangement (workload identity) を書き換える世代対は拒否する。
+    # 両者は _TRANSITION_GN_TO_GN1 の列挙外 (protected) — 列挙外 pointer の変化は
+    # transition-violation。header (generation_number) だけが allowed で変わる。
+    # `field="holdouts"` は「_TRANSITION_GN_TO_GN1 に /holdouts を追加する」変異を殺す
+    # (allowed に入ると /holdouts の書換えが素通りし、この case が赤になる)。
+    prev = {
+        "generation_number": 1,
+        "holdouts": {"rr80": {"records": 1000000}},
+        "derangement": {"rr80": "rr20"},
+    }
+    nxt = {
+        "generation_number": 2,  # allowed (header) — 変わってよい
+        "holdouts": {"rr80": {"records": 1000000}},
+        "derangement": {"rr80": "rr20"},
+    }
+    # 対象 field の nested leaf を 1 つ書き換える (列挙外の diff)。
+    if field == "holdouts":
+        nxt["holdouts"] = {"rr80": {"records": 2000000}}
+    else:
+        nxt["derangement"] = {"rr80": "rr50"}
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_transition(prev, nxt, M._TRANSITION_GN_TO_GN1, label="g1→g2")
+    assert ei.value.reason == "transition-violation"
+
+
 def test_chain_g2_env_tag_unchanged_loads(tmp_path):
     _need_v1()
     # env_tag を保てば g2 は正常 load される (gN→gN+1 allowed の正常系)。
@@ -202,15 +252,31 @@ def test_declared_closure_hit_absent_from_search_rejected(tmp_path):
 
 def test_per_holdout_no_crosstalk(tmp_path):
     _need_v1()
-    # rr20 の hit を rr80 の期待に流用させない: closure=[f20] のみ宣言し、worktree に rr80 hit を
-    # untracked で置くと rr80 が未申告で落ちる (per-holdout 分離。rr20 は一致)。
+    # V1: per-holdout の hit 集合比較が「どの holdout が不一致か」を正しく帰属することを固定する。
+    #
+    # closure bytes pin + dirty 拒否の下では、全 holdout を束ねた union 比較と per-holdout
+    # 比較は「拒否するか否か」では等価 (未申告 hit が 1 つでもあれば両者とも closure-hit-mismatch)。
+    # 差が出るのは例外に載る**帰属情報**だけ: per-holdout は不一致 holdout 名 (rr80) を前置し、
+    # union は名前を持たない。よってこのテストは reason ではなく帰属 (holdout 名) を検査する。
+    #
+    # 未申告 hit ファイルは holdout 名を含まない名前 (extra_conflict.txt) にする。これで
+    # "rr80" が例外 message に現れる唯一の経路が per-holdout 帰属 (f"{name}: ...") に限定され、
+    # ファイル名の偶然一致で素通りしない。per-holdout→union 化の変異は、帰属が消えて
+    # "rr80" が message から失われるためこのテストで殺せる (下記 assert が赤になる)。
     root, *_ = B.build_valid_semantic_g1(tmp_path)
     freeze = M.load_ratified_freeze(root)
-    # closure は f80/f20 両方宣言済み。ここでは rr80 に別 untracked hit を追加し、rr80 だけ落ちる。
-    (root / "extra_rr80.txt").write_bytes(B._RR80_PARAMS)
+    # closure は f80/f20 両方宣言済み。rr80 params を持つ untracked hit を rr80 名を含まない
+    # ファイル名で追加し、rr80 の hit 集合だけを未申告で不一致にする (rr20 は一致のまま)。
+    (root / "extra_conflict.txt").write_bytes(B._RR80_PARAMS)
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.launch_validate(freeze, root)
-    assert "rr80" in str(ei.value)
+    message = str(ei.value)
+    assert ei.value.reason == "closure-hit-mismatch"
+    # 帰属検査: 不一致は rr80 の hit 集合。ファイル名 (extra_conflict.txt) も未申告 hit の
+    # path も "rr80" を含まないため、message 中の "rr80" は per-holdout 帰属からしか来ない。
+    assert "rr80" in message, message
+    # 未申告ファイルが帰属に載る (per-holdout 検査が現/期待の差を取れている)。
+    assert "extra_conflict.txt" in message, message
 
 
 def test_enumeration_digest_shift_rejected(tmp_path, monkeypatch):
@@ -228,6 +294,18 @@ def test_enumeration_digest_shift_rejected(tmp_path, monkeypatch):
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.launch_validate(freeze, root)
     assert ei.value.reason == "enumeration-shifted"
+
+
+def test_positive_control_not_hit_rejected(tmp_path):
+    _need_v1()
+    # 陽性対照 (rr50) file の内容を無害化する (rr50 params を含まない bytes に差し替える)。
+    # search は worktree を直読みするため、この改変だけで陽性対照が 0 hit になる。
+    root, *_ = B.build_valid_semantic_g1(tmp_path)
+    freeze = M.load_ratified_freeze(root)
+    (root / "positive_control.txt").write_bytes(b"neutralized, no ycsb params here\n")
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "search-not-operational"
 
 
 def test_activation_head_moved_rejected(tmp_path):

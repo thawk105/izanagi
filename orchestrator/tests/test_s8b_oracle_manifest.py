@@ -468,6 +468,17 @@ def test_load_json_object_rejects_duplicate_nested_key(tmp_path):
         manifest._load_json_object(path)
 
 
+def test_canonical_bytes_rejects_nan_value():
+    # M1: _canonical_bytes は allow_nan=False で NaN 値の canonical 化を拒否する。
+    # json.dumps(allow_nan=False) は NaN で ValueError を送出し、_canonical_bytes は
+    # それを ManifestError に翻訳する (from exc で __cause__ に元 ValueError を保持)。
+    # 変異 = allow_nan=False 除去 → json.dumps が "NaN" を吐いて成功し、このテストが赤になる。
+    with pytest.raises(manifest.ManifestError) as ei:
+        manifest._canonical_bytes({"x": float("nan")})
+    # allow_nan=False が発火した証拠として、翻訳元が ValueError であることを固定する。
+    assert isinstance(ei.value.__cause__, ValueError)
+
+
 def test_load_json_object_rejects_nan_literal(tmp_path):
     path = tmp_path / "nan.json"
     path.write_text('{"x": NaN}', encoding="utf-8")

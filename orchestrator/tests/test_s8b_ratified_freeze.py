@@ -60,6 +60,17 @@ def _commit_raw(root: Path, message: str) -> str:
     return _git(root, "rev-parse", "HEAD")
 
 
+def _commit_verbatim(root: Path, message: str) -> str:
+    """message を --cleanup=verbatim で commit する (末尾空白等を byte 単位で保存)。
+
+    git の既定 cleanup (strip/whitespace) は各行の末尾空白を落とすため、末尾空白付き
+    trailer (`AI-Agent: none `) を注入する R3 攻撃では verbatim が必須。"""
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "--cleanup=verbatim", "-F", "-",
+         stdin=message.encode("utf-8"))
+    return _git(root, "rev-parse", "HEAD")
+
+
 def _write(root: Path, rel: str, raw: bytes) -> None:
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -416,6 +427,29 @@ def test_trailer_case_or_space_variant_rejected(tmp_path):
     assert ei.value.reason == "user-commit-trailer"
 
 
+def test_trailer_none_trailing_space_rejected(tmp_path):
+    # R3: approval commit の trailer 行が `AI-Agent: none ` (末尾空白 1 個)。
+    # git interpret-trailers --parse は空白を丸めて "none" を返すため parse 側検査だけでは
+    # 素通りする。_is_none_commit の raw 行 byte-for-byte 検査 (== "AI-Agent: none") のみが
+    # これを拒否できる。この raw 検査を startswith 化する変異はこのテストで殺せる。
+    root = _base_repo(tmp_path)
+    gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
+    approval_raw = _approval_raw(gen_sha)
+    approval_sha = _sha(approval_raw)
+    _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
+    ptr_sha = _sha(ptr_raw)
+    _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
+    # 末尾空白付き trailer を verbatim で保存する (既定 cleanup は空白を落とす)。
+    commit = _commit_verbatim(root, "approve\n\nAI-Agent: none \n")
+    # 前提: raw に末尾空白が保存され、parse 側は "none" に丸める (両立で初めて攻撃が成立)。
+    assert M._raw_ai_agent_lines(M._commit_message(commit, root)) == ["AI-Agent: none "]
+    assert M._parsed_ai_agent_values(M._commit_message(commit, root), root) == ["none"]
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.resolve_active_generation(root)
+    assert ei.value.reason == "user-commit-trailer"
+
+
 def test_approval_commit_with_extra_file_rejected(tmp_path):
     root = _base_repo(tmp_path)
     gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
@@ -746,6 +780,42 @@ def test_namespace_dirty_rejected(tmp_path):
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "namespace-dirty"
+
+
+def _has_hardening_pair(cmd) -> bool:
+    """argv に `-c core.useReplaceRefs=false` の連続対が含まれるか。"""
+    return any(
+        cmd[i] == "-c" and cmd[i + 1] == "core.useReplaceRefs=false"
+        for i in range(len(cmd) - 1)
+    )
+
+
+def test_git_hardening_reaches_argv(tmp_path, monkeypatch):
+    # R7: _GIT_HARDEN の構造 pin + 実効検査。全 git 呼出しが
+    # `-c core.useReplaceRefs=false` を前置し、replace refs による object 解決の
+    # out-of-band 差替えを封じる。定数を空 tuple 化する変異はこのテストで殺せる。
+    root = _base_repo(tmp_path)
+
+    # 構造 pin: 定数そのものが hardening 対を持つ。
+    assert M._GIT_HARDEN == ("-c", "core.useReplaceRefs=false")
+
+    # 実効検査: subprocess.run を捕捉し、実 git 呼出しの argv に対が届いているか。
+    real_run = M.subprocess.run
+    captured: list = []
+
+    def _spy(cmd, *args, **kwargs):
+        captured.append(list(cmd))
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(M.subprocess, "run", _spy)
+    M._capture_head(root)  # _git 経由で複数の git query を発行する
+
+    git_calls = [cmd for cmd in captured if cmd and cmd[0] == "git"]
+    assert git_calls, "git 呼出しが捕捉されていない"
+    assert all(_has_hardening_pair(cmd) for cmd in git_calls), (
+        "git 呼出しに core.useReplaceRefs=false hardening が欠けている: "
+        f"{[cmd for cmd in git_calls if not _has_hardening_pair(cmd)]}"
+    )
 
 
 def test_replace_ref_rejected(tmp_path):
