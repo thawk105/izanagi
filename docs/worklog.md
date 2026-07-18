@@ -453,3 +453,62 @@ protocol JSON / freeze v2 / 承認 record は生成していない。エント�
 2. master_seed / env_tag の値をユーザーから受領 → protocol JSON 凍結 → selector 予測封印 →
    floor 実測 (実行計画テンプレートの充填)
 3. push はユーザー引き渡しのまま (変わらず)
+
+## 2026-07-18 (7) — strict v2 verifier wave (F6a/F7/Lane M/oracle 結線/B-1/B-2/protocol builder の統合、計測なし)
+
+エントリ (6) 次の一手 1 の実行。標準ループ: Explore 4 (sonnet) 実査 → 親プラン → codex
+gpt-5.6-sol reasoning=max ×4 **43 所見 (must-fix 30 / should-fix 13、refuted 0 = 全 real 裁定)** →
+親裁定 → Claude workflow 6 本 34 agents (実装・レビュー・修正 = opus、mutation 実行 = sonnet、
+fable 子なし。各レーン敵対レビュー 2 レンズ + 修正 + 再レビュー) → 親検算・survivor 再投げ 1 回。
+逐語・裁定表・確定プラン v2・追認待ち = `output/insights/2026-07-18_s8b-strict-v2-wave-consultations.md`。
+
+- commit 9 本 + 本 docs 分: 943f7a2 (逐語凍結) / babef37 (P: probe 分類器単一実装 + B-2 自 PID
+  のみ + stderr fail-open 是正) / 8d3642e (M: manifest strict + per-pair + bench_max_rounds=1 +
+  VerifiedManifest) / fad6f0a (RV-core: `s8b_ratified_freeze.py` — approval record・tombstone・
+  active pointer 連鎖・H-pure 検証・全 DAG 履歴不変条件・`AI-Agent: none` 逐語二重判定・型分離。
+  **git replace-refs/grafts 迂回をレビューが実証検出し封鎖**) / de23695 (RV-verify: F7 充填 —
+  source blob 照合・G^==frozen_at_head・transition JSON Pointer 列挙・二層未知性 + per-holdout
+  closure 導出・launch_validate + floor binary receipt/content-addressed store) / a87c107 (O1:
+  driver v2 結線 — active 世代 bytes 一致・store 消費・binary-mismatch 閉表貫通・execution_guard
+  新設・floor machine-pin 置換) / d7ac2d7 (O2: VerifiedPrediction + trusted projector + scale gate +
+  verdict CLI 改修。**既存の実害バグ是正: `_floor_exceeded` の choice_id 直引きは実 oracle 形で
+  常に静かに INDETERMINATE に倒れていた**) / 2ee5d07 (J: `s8b_approved` 承認定数単一源 + protocol
+  builder (実凍結なし) + contract_sha256 key 18 + selector v1 pin read-once) / 23fa0db (W6
+  mutation matrix 30 変異、初回 24 killed → survivor 6 の killer 追加で全滅化)
+- **発効なしの規律を維持:** 実 approval record / active pointer / v2 世代 file / protocol JSON は
+  生成していない (master_seed / env_tag はユーザー記入欄)。official floor の二重拒否も不変
+- **ユーザー追認待ち** (正本 = insights §5 の (i)〜(viii) + 実装判断): W2 = tombstone schema 新規
+  確定 / confirmed_at・confirmed_by の v2 維持 / governance record の導入 commit 一意要求 /
+  世代導入 commit の AI trailer 必須化 / frozen-artifacts manifest の集合確定 (逐語 3 本目追加、
+  ruling-package.md は非含) — W4 = 単一 object 解釈 (verified.document + active hash 束縛) /
+  contract_sha256 の置き場 = oracle manifest run_contract / receipt 照合は v2 manifest のみ発火 /
+  on==off 短絡は scale gate 非適用 / verdict schema v2 bump — W5 = validate_protocol が
+  ccbench_pin・freeze.sha256 を定数 pin しない非対称の受容 (pilot の合成 freeze 要請、official は
+  protocol 凍結 bytes pin が包含)
+- **residual (完了と数えない):** C2-2 launch certificate は素体のみ — **発行の結線 + verifier の
+  lineage 照合は floor 実走 wave の blocking 前提** (結線箇所に注記済み) / reps・extime の束縛 =
+  experiment_numbers 裁定後 / G12 完全強制 = Pegasus 登録段 (runbook §7) / 記録済み限界 =
+  走査中の内容 TOCTOU (名前集合 digest の範囲)・ignored 領域の scan 境界・certificate 以前の削除
+  痕跡・active/revoked 判定の検証 commit H 相対性
+- 実測確認した重要事実: v1 freeze の frozen_at_head (2e20d441…) は**履歴書換えにより dangling**
+  (Claude-Session trailer 廃止の帰結)。v2 は v1 を bytes 定数 (315b1eb8…) で束縛し LegacyFreeze
+  へ型分離、head 検証は migration 注記で免除
+- セッション異常 1 件: W1 の修正 agent が共有 worktree で `git stash` を実行し両レーンの未 commit
+  作業が退避 → stash SHA 固定の `git restore --source` で親が復元し、byte 内容 + 全走 green を
+  再検証して commit 後に drop。以後の全子エージェント拘束に「作業ツリー巻き戻し系 git コマンド
+  禁止」を明示追加 (handoff 経由で次 wave にも引き継ぐ)
+- 親の独立検算: 各 workflow 後の全 suite + 凍結文書 sha256 照合 (150438a4 / 833dce66 / 315b1eb8
+  不変) + スポット diff 検分 + 親直接修正 4 件 (probe 3-tuple 追随漏れ / resume store silent-skip
+  の fail-closed 化 / driver 想定外例外の refusal 契約化 / verdict CLI except 網羅) + mutation
+  30/30 (survivor 6 は「現行緑 → 変異赤 → 復元」確認付き killer で殺した)
+- テスト: 1138 → **1296 passed / 23 skipped / 0 failed** (+158)。check_docs / check_ai_provenance
+  (153 commits) 緑
+- 工数: Explore 4 (sonnet ~558k) + codex 4 (reasoning=max) + workflow 6 本 34 agents (~4.3M、
+  opus 中心) + killer-test agent (opus ~168k) + 親直接 4 修正
+
+### 次の一手
+1. ユーザー接点: 追認事項 (insights §5 + 本エントリの列挙) の裁定 + master_seed / env_tag の受領
+2. その後: protocol JSON 実凍結 (builder 実行 + ユーザー commit + `AI-Agent: none`) → selector
+   予測封印 → floor 実測 (**launch certificate の発行結線 + lineage 照合の実装が blocking 前提**)
+   → v2 候補生成 (AI trailer commit) → ユーザー承認 + active pointer → oracle 実走
+3. push はユーザー引き渡しのまま (変わらず)

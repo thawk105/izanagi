@@ -51,12 +51,13 @@ wave 2 前半完了 (2026-07-17、worklog 参照): floor protocol 凍結案パ�
 相談逐語 = 同 `2026-07-16_s8b-floor-protocol-consultations.md`) + formula v1
 (`orchestrator/campaign/s8b_floor_stats.py`) + floor driver pilot
 (`orchestrator/campaign/s8b_floor_campaign.py`、official mode は承認束縛の §8 裁定まで一律拒否)。
-残 = パッケージのユーザー裁定の残り (F6〜F7 + B-1/B-2 + master_seed/env_tag。F1〜F5 は
-2026-07-18 裁定済み — F1/F4 修正付き、記録 = §9 承認状態。裁定反映の formula v2 + env contract
-実装 wave は worklog 2026-07-18 エントリが正本) → protocol JSON 凍結 + 予測封印 →
-floor 実測 → freeze v2 再凍結 + strict v2 verifier 本体 (v2 前提条件の一覧はパッケージ実装状況節、
-設計素材 = `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`。裁定非依存の先行基盤は
-複数 wave で部分実装済み — 完了と数えない。進捗と残課題の正本 = worklog 末尾の v2 前提条件エントリ)、
+floor protocol パッケージの裁定は 2026-07-18 に完結 (F1〜F7 + B-1/B-2、記録 = §9 承認状態)。
+strict v2 verifier wave (F6a 承認束縛 machinery + F7 検証意味論 + manifest per-pair + oracle 結線 +
+protocol builder) も実装完了 — **発効なし・実凍結なし** (worklog 2026-07-18 (7) が正本。
+逐語・裁定表・追認待ち = `output/insights/2026-07-18_s8b-strict-v2-wave-consultations.md`)。
+残 = ユーザー追認 + master_seed/env_tag 受領 → protocol JSON 実凍結 + 予測封印 → floor 実測
+(launch certificate 結線が blocking 前提) → v2 候補生成 + 承認 → oracle 実走 (進捗と残課題の
+正本 = worklog 末尾エントリ)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
 `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) ~~8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、
