@@ -36,6 +36,7 @@ def _load_hook(name: str):
 GW = _load_hook("guard_write")
 GB = _load_hook("guard_bash")
 GR = _load_hook("guard_read")
+GA = _load_hook("guard_agent")
 
 # template patch (silo-backoff-fixed.patch) と同型の合成骨格。
 _SKELETON = """#pragma once
@@ -575,6 +576,158 @@ def test_read_symlink_into_docs_still_guarded():
         shutil.rmtree(root)
 
 
+# ---------- guard_agent (モデル経済衛生) ----------
+
+def _agent(tool_input, repo_root=""):
+    return GA.decide("Agent", tool_input, repo_root=repo_root)
+
+
+def _mk_agents_fixture():
+    root = tempfile.mkdtemp(prefix="ga_")
+    d = os.path.join(root, ".claude", "agents")
+    os.makedirs(d)
+    with open(os.path.join(d, "pinned.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: pinned\nmodel: sonnet\neffort: low\n---\n本文\n")
+    with open(os.path.join(d, "unpinned.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: unpinned\n---\n本文の model: opus はピンではない\n")
+    with open(os.path.join(d, "no-frontmatter.md"), "w", encoding="utf-8") as f:
+        f.write("model: opus\n")        # 先頭が --- でない = frontmatter 無し
+    # 敵対レビュー反映分 (2026-07-18): パーサ忠実度の固定
+    with open(os.path.join(d, "spacey.md"), "w", encoding="utf-8") as f:
+        f.write("---\nmodel : sonnet\n---\n")   # コロン前空白は YAML として正当なピン
+    with open(os.path.join(d, "bom.md"), "w", encoding="utf-8") as f:
+        f.write("\ufeff---\nmodel: sonnet\n---\n")  # BOM 付きでもピンはピン
+    with open(os.path.join(d, "docend.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: docend\n...\nmodel: opus は本文\n")  # ... は終端
+    return root
+
+
+def test_agent_adhoc_without_model_denied():
+    root = _mk_agents_fixture()
+    try:
+        for ti in ({}, {"prompt": "x", "description": "y"},
+                   {"subagent_type": "general-purpose"},
+                   {"subagent_type": "Explore"},
+                   {"model": ""}, {"model": "   "}, {"model": None},
+                   {"subagent_type": "unpinned"},
+                   {"subagent_type": "no-frontmatter"},
+                   {"subagent_type": "ghost"}):       # 定義ファイル自体が無い
+            ok, why = _agent(ti, repo_root=root)
+            assert not ok, f"暗黙継承 (model 無し) は拒否すべき: {ti}"
+            assert "model" in why, why
+    finally:
+        shutil.rmtree(root)
+
+
+def test_agent_explicit_model_allowed():
+    # 値は問わない (fable 明示も可視・意図的な選択なので通す — 適否は規律領分)
+    for m in ("sonnet", "opus", "haiku", "fable"):
+        ok, why = _agent({"model": m, "prompt": "x"}, repo_root="/nonexistent")
+        assert ok, f"model 明示 {m} は通すべき: {why}"
+
+
+def test_agent_pinned_role_and_fork_allowed():
+    root = _mk_agents_fixture()
+    try:
+        ok, why = _agent({"subagent_type": "pinned"}, repo_root=root)
+        assert ok, f"frontmatter ピンのある named role は通すべき: {why}"
+        ok, why = _agent({"subagent_type": "fork"}, repo_root=root)
+        assert ok, "fork は親モデル構造固定 (override 無効) なので通す"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_agent_role_name_traversal_denied():
+    root = _mk_agents_fixture()
+    try:
+        # agents dir の外に「ピン付き」定義を置いても ../ では参照させない
+        with open(os.path.join(root, ".claude", "evil.md"), "w",
+                  encoding="utf-8") as f:
+            f.write("---\nmodel: sonnet\n---\n")
+        ok, _ = _agent({"subagent_type": "../evil"}, repo_root=root)
+        assert not ok, "path traversal な subagent_type をピン証明に使わせない"
+        ok, _ = _agent({"subagent_type": ".claude/../.claude/agents/pinned"},
+                       repo_root=root)
+        assert not ok, "セパレータ入り subagent_type も同様"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_agent_frontmatter_parser_fidelity():
+    """敵対レビュー反映: YAML が認めるピンは認め、本文の model: 行は誤検出しない。"""
+    root = _mk_agents_fixture()
+    try:
+        ok, why = _agent({"subagent_type": "spacey"}, repo_root=root)
+        assert ok, f"`model :` (コロン前空白) も正当なピン: {why}"
+        ok, why = _agent({"subagent_type": "bom"}, repo_root=root)
+        assert ok, f"BOM 付き frontmatter のピンも認める: {why}"
+        ok, _ = _agent({"subagent_type": "docend"}, repo_root=root)
+        assert not ok, "YAML doc-end `...` 以降の本文 model: をピン扱いしない"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_agent_dir_priority_first_definition_wins():
+    """敵対レビュー反映: 同名 role の衝突では最初に定義を見つけた dir で確定する
+    (harness の同名解決と同じ)。project 側 unpinned + user 側 pinned の組で
+    user 側ピンを理由に許可すると、実際に spawn される project 側 role の
+    暗黙継承を素通ししてしまう。"""
+    base = tempfile.mkdtemp(prefix="ga_dirs_")
+    proj = os.path.join(base, "proj")
+    user = os.path.join(base, "user")
+    os.makedirs(proj)
+    os.makedirs(user)
+    with open(os.path.join(proj, "collide.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: collide\n---\n")            # project 側: 定義あり・ピン無し
+    with open(os.path.join(user, "collide.md"), "w", encoding="utf-8") as f:
+        f.write("---\nmodel: opus\n---\n")              # user 側: 同名でピンあり
+    with open(os.path.join(user, "useronly.md"), "w", encoding="utf-8") as f:
+        f.write("---\nmodel: opus\n---\n")              # user 側にしか無い role
+    orig = GA._agents_dirs
+    GA._agents_dirs = lambda root: [proj, user]
+    try:
+        ok, _ = GA.decide("Agent", {"subagent_type": "collide"}, repo_root=base)
+        assert not ok, "project 側が unpinned で定義する role は user 側ピンで通さない"
+        ok, why = GA.decide("Agent", {"subagent_type": "useronly"}, repo_root=base)
+        assert ok, f"project 側に定義が無ければ user 側ピンで許可: {why}"
+    finally:
+        GA._agents_dirs = orig
+        shutil.rmtree(base)
+
+
+def test_agent_non_agent_tool_ignored():
+    ok, _ = GA.decide("Read", {"file_path": "x"}, repo_root="/nonexistent")
+    assert ok, "Agent 以外のツールは管轄外"
+
+
+def test_agent_all_project_roles_pinned():
+    """方針の悉皆 gate: project の全 named role は frontmatter に model と effort の
+    両ピンを持つ (ピン無し role は guard_agent の許可経路に乗らず、model 無し起動が
+    拒否されるようになる — role を足すならピンも足すことをここで強制する)。"""
+    d = os.path.join(_REPO, ".claude", "agents")
+    roles = sorted(f for f in os.listdir(d) if f.endswith(".md"))
+    assert roles, "project roles が見つからない"
+
+    def _fm_has(md, key):
+        with open(md, encoding="utf-8") as f:
+            if f.readline().strip() != "---":
+                return False
+            for line in f:
+                if line.strip() == "---":
+                    return False
+                if line.startswith(key + ":") and line[len(key) + 1:].strip():
+                    return True
+        return False
+
+    missing = [f for f in roles
+               if not (_fm_has(os.path.join(d, f), "model")
+                       and _fm_has(os.path.join(d, f), "effort"))]
+    assert not missing, f"model/effort ピンの無い role: {missing}"
+    for f in roles:
+        ok, why = GA.decide("Agent", {"subagent_type": f[:-3]})
+        assert ok, f"{f}: ピン済み role が拒否された: {why}"
+
+
 # ---------- 配線と煙テスト ----------
 
 def test_settings_json_wires_all_hooks():
@@ -597,6 +750,8 @@ def test_settings_json_wires_all_hooks():
         f"Write matcher は {write_toks} を全て含むべき (SPEC-3): {matchers}"
     assert any(m == "Bash" for m in matchers)
     assert any(m == "Read" for m in matchers), "guard_read の Read matcher が未配線"
+    assert "guard_agent.py" in cmds
+    assert any(m == "Agent" for m in matchers), "guard_agent の Agent matcher が未配線"
 
 
 def test_hook_scripts_run_as_subprocess():
@@ -624,6 +779,15 @@ def test_hook_scripts_run_as_subprocess():
         ("guard_read", {"tool_name": "Read", "tool_input": {
             "file_path": decisions, "offset": 100, "limit": 50}}, 0),  # 部分読みは許可
         ("guard_read", "壊れた json", 0),                             # 衛生層は fail-open
+        ("guard_agent", {"tool_name": "Agent", "tool_input": {
+            "description": "x", "prompt": "y",
+            "subagent_type": "general-purpose"}}, 2),                 # 暗黙継承は拒否
+        ("guard_agent", {"tool_name": "Agent", "tool_input": {
+            "description": "x", "prompt": "y", "model": "sonnet"}}, 0),  # 明示は許可
+        ("guard_agent", {"tool_name": "Agent", "tool_input": {
+            "description": "x", "prompt": "y",
+            "subagent_type": "verifier"}}, 0),                        # 実 role のピンで許可
+        ("guard_agent", "壊れた json", 0),                            # 経済衛生層は fail-open
     ):
         raw = payload if isinstance(payload, str) else json.dumps(payload)
         r = subprocess.run(

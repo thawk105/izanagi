@@ -30,6 +30,15 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/guard_read.py\""
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/guard_agent.py\""
+          }
+        ]
       }
     ]
   }

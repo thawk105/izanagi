@@ -512,3 +512,26 @@ fable 子なし。各レーン敵対レビュー 2 レンズ + 修正 + 再レ�
    予測封印 → floor 実測 (**launch certificate の発行結線 + lineage 照合の実装が blocking 前提**)
    → v2 候補生成 (AI trailer commit) → ユーザー承認 + active pointer → oracle 実走
 3. push はユーザー引き渡しのまま (変わらず)
+
+## 2026-07-18 (8) — guard_agent hook: model 未指定 Agent 呼び出しの機械拒否 (モデル経済衛生、計測なし)
+
+- 経緯 (本セッション協議): 「codex/claude 子の model・reasoning を難易度整合で明示」を毎回プロンプトで
+  与えるのは非効率 → 調査で「named role は frontmatter ピン済み (機械保証)、ad-hoc 子・Workflow・
+  codex は memory 規律のみ」と判明 → ユーザーが ad-hoc 経路の機械防壁化 (PreToolUse hook) を承認
+- 第 4 hook `hooks/guard_agent.py` = guard_read と同系の fail-open 衛生層 (正しさ防壁ではない)。
+  実装内容は commit 本文と hooks/README.md hook 4 節が正本
+- 敵対レビュー opus×2 (bypass / 偽陽性 + 整合): **critical 0、real 8 (should-fix 3 / nit 5)、全採用
+  修正、refuted 側の攻撃は全て防御確認**。最重要 3 件 = 拒否メッセージが Agent tool に存在しない
+  effort パラメータの明示を案内 (実行不能な対処案内) / `model :` (コロン前空白) ピンの over-deny /
+  agents dir 同名衝突時に user 側ピンで project 側 unpinned role を素通しする潜在 over-allow。
+  逐語・裁定・修正記録 = `output/insights/2026-07-18_guard-agent-adversarial-review.md`
+- repo 外の同期: memory subagent-model-economy に機械防壁の存在と「Workflow agent() / codex exec は
+  引き続き規律の領分」を追記 (セッション末実施)
+- テスト: test_hooks 30 passed / 0 failed / 1 skip (既存 submodule skip)。check_docs 緑
+- 工数: opus reviewer ×2 (63k + 68k subagent tokens)。実装・裁定・修正は親
+
+### 次の一手
+1. **live 発火確認 (残):** hook 設定はセッション起動時 snapshot のため本セッションでは発火検証が
+   構造的に不可。次の新規セッションで model 無し Agent 呼び出しが guard_agent に拒否されることを
+   確認する (拒否メッセージの目安どおり model を足せば 1 回で回復するはず)
+2. 本 branch (worktree-agent-model-guard) の push/PR はユーザー引き渡し (Pegasus 規約)

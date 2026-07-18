@@ -2,11 +2,13 @@
 
 絶対規律1・2 を書き込み時点で機械執行する最小限の hook (guard_write / guard_bash)。auditor の
 事後監査に加えた第二防壁。ECC のように大量の hook は持たない。正しさ防壁はこの2本だけ
-(規律5「盛らない」)。加えて、正しさ規律とは**別系統**のコンテキスト衛生 hook (guard_read =
-D35 の機械執行、hook 3 節) を 1 本だけ持つ (2026-07-15 ユーザー承認、失敗台帳 F18)。
+(規律5「盛らない」)。加えて、正しさ規律とは**別系統**の衛生 hook を 2 本持つ:
+コンテキスト衛生 (guard_read = D35 の機械執行、hook 3 節。2026-07-15 ユーザー承認、
+失敗台帳 F18) と、モデル経済衛生 (guard_agent = subagent model 明示の機械執行、hook 4 節。
+2026-07-18 ユーザー承認)。
 
 **実装ステータス: 実装済・配線済 (Phase 3 タスク3、方針 A)。** `.claude/settings.json` の PreToolUse に
-3 hook を配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash` / `Read`)。方針 A (D30) で hook の責務を
+4 hook を配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash` / `Read` / `Agent`)。方針 A (D30) で hook の責務を
 「明白な直接書き込みを止める最小の第二防壁」に絞り、identity の正直さ (偽 cache hit / `#ifdef`) と
 観測者効果の分離 (TRACE 混入) は**一次防壁 (source_digest)** に委譲した。
 
@@ -88,6 +90,39 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
   のみ。Bash 側は CLAUDE.md 作業の進め方 5 の行動規律)。閾値以下の中型ファイルも見ない
   (D35 の grep 規律の領分)。repo 外・docs/output 外は管轄外
 
+## hook 4: guard_agent.py (PreToolUse: Agent) — モデル経済衛生 (正しさ防壁ではない)
+
+model 未指定の ad-hoc Agent 呼び出し (= セッション主モデル fable の暗黙継承) を止める
+(2026-07-18 ユーザー承認)。fable のレート制限は他モデルよりタイトで、無指定という**不作為**で
+fable 子が量産されると、fable でしか担えない親セッションの裁定・統合が制限に当たる。「子の
+model/effort は難易度に整合させて明示する」は prompt 規律 (memory) だったが、不作為で起きる
+違反は見落としやすいため機械執行に格上げした。guard_read と同じく正しさ防壁ではない。
+
+- **管轄:** Agent tool のみ。止めるのは「model 明示も frontmatter ピンも無い暗黙継承」だけ
+- **model 明示 (非空文字列) は値を問わず許可** — fable 明示も通す。可視・意図的な選択の適否
+  (fable は親の裁定と真に最難の 1〜2 エージェント限定) は規律領分で、hook は不作為のデフォルト
+  だけを塞ぐ
+- **named role は frontmatter の model ピンで許可:** `.claude/agents/<type>.md` (project 側 →
+  user 側 `~/.claude/agents` の順で、**最初に定義を見つけた側で確定** — harness の同名解決と
+  同じ優先順位。project 側が unpinned で定義する role を user 側の同名ピンで通さない) の
+  frontmatter に `model:` があれば呼び出し側の明示は不要 (ピンが harness に機械適用される)。
+  role 名は `[A-Za-z0-9._-]+` に限定し、path traversal で agents dir 外のファイルをピン証明に
+  使わせない。全 project role が model + effort の両ピンを持つことはテストの悉皆 gate
+  (`test_agent_all_project_roles_pinned`) が強制する — role を足すならピンも足す
+- **fork は許可:** fork は構造的に親モデル固定 (model override 無効) で明示のしようがない。
+  `subagent_type: fork` と書くこと自体が可視・意図的な選択
+- **fail-open:** guard_read と同方向 — hook 自身の不具合では起動を止めない (被害はトークンで
+  あって正しさではないため可用性を優先)
+- 既知の限界: **Workflow の script 内 `agent()` は見えない** (Agent tool call ではなく Workflow
+  内部の spawn。script 文字列の lint は brittle で偽陽性の害が大きい — `opts.model` の明示は
+  memory 規律の領分)。**codex exec (Bash 経由) も管轄外** (model/reasoning は CLI フラグ。
+  難易度別割当は同規律の領分)。user 側 `~/.claude/agents` のピンも許可条件に数えるため、
+  project 外の role 定義が持つピンの適否までは判定しない (人間レビュー領分)。**定義ファイルを
+  持たない組み込み・plugin 型** (general-purpose / Explore / `plugin:name` / statusline-setup 等)
+  はピン解決ができず常に model 明示が必要 — LLM 発の呼び出しは 1 回の再試行で回復するが、
+  harness 内部の自動起動フローが model 無しで呼ぶ場合は誤拒否し得る (敵対レビュー 2026-07-18、
+  fail-open は hook 例外時のみでこのケースには効かない)
+
 ## 既知の限界 (正直に)
 
 これは**テキスト検査の第二防壁であり sandbox ではない**。次は原理的に見えず、一次防壁
@@ -119,9 +154,9 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 
 ## テスト
 
-`orchestrator/tests/test_hooks.py` が 3 hook の判定核 (`decide()`) を直叩きし、3 巡の敵対レビューで確定した
+`orchestrator/tests/test_hooks.py` が 4 hook の判定核 (`decide()`) を直叩きし、3 巡の敵対レビューで確定した
 全 finding を回帰固定する (`test_bash_finding_bypasses_all_denied` / `test_bash_round2_bypasses_denied` /
 `test_bash_false_positive_fixes_allowed` / `test_symlinked_output_tree_still_protects` /
-`test_notebookedit_decoy_file_path_denied` 等)。settings.json の配線 (4 tool matcher) と、subprocess として
-stdin JSON → exit code で動く煙テストも含む。一次防壁 (source_digest) の網羅は `test_campaign.py`
+`test_notebookedit_decoy_file_path_denied` 等)。settings.json の配線 (全 matcher) と、subprocess として
+stdin JSON → exit code で動く煙テスト、guard_agent の悉皆 gate (全 project role の model/effort ピン) も含む。一次防壁 (source_digest) の網羅は `test_campaign.py`
 (`test_source_digest_builtin_ifdef_not_aliased_to_stock` = D34 案A の critical 回帰 等)。
