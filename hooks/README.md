@@ -92,7 +92,8 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 
 ## hook 4: guard_agent.py (PreToolUse: Agent) — モデル経済衛生 (正しさ防壁ではない)
 
-model 未指定の ad-hoc Agent 呼び出し (= セッション主モデル fable の暗黙継承) を止める
+model 未指定の ad-hoc Agent 呼び出し (= セッション主モデル fable の暗黙継承) を、PreToolUse が
+配送される surface では止める
 (2026-07-18 ユーザー承認)。fable のレート制限は他モデルよりタイトで、無指定という**不作為**で
 fable 子が量産されると、fable でしか担えない親セッションの裁定・統合が制限に当たる。「子の
 model/effort は難易度に整合させて明示する」は prompt 規律 (memory) だったが、不作為で起きる
@@ -122,6 +123,31 @@ model/effort は難易度に整合させて明示する」は prompt 規律 (mem
   はピン解決ができず常に model 明示が必要 — LLM 発の呼び出しは 1 回の再試行で回復するが、
   harness 内部の自動起動フローが model 無しで呼ぶ場合は誤拒否し得る (敵対レビュー 2026-07-18、
   fail-open は hook 例外時のみでこのケースには効かない)
+
+### hook 4 の live 発火に関する既知の限界
+
+**観測済み事実:** 2026-07-18、Claude Code daemon 2.1.211 のバックグラウンドジョブ型セッション
+(cwd = main checkout、project settings 配線) で、model 未指定の `subagent_type=general-purpose` が
+拒否されず spawn した。同一セッションでは guard_bash が発火しており、hooks 全体の停止ではない。
+同じ payload を手動で stdin に流すと guard_agent は正しく exit 2 になった。一方、Claude Code
+2.1.212 の headless surface と使い捨てプロジェクトによる対照実験では、(a) matcher 無しの logger、
+(b) repo と同形の matcher `Agent`、(c) repo と同一 command 形の guard_agent + 併設 logger の
+いずれでも PreToolUse が `tool_name: "Agent"` として配送された。(c) の model 欠落呼び出しでは
+logger が model 無しを記録し、guard_agent の exit 2 が spawn を阻止し、拒否メッセージも親モデルへ
+逐語で返った。公式 docs でも matcher と payload の tool_name は `Agent` が正しく、hooks 設定は
+live-reload である。したがって worklog 2026-07-18 (8) の snapshot 前提は現行 docs と一致しない。
+
+**未分離の候補:** 不発側は daemon 2.1.211 + バックグラウンドジョブ型 surface、対照側は 2.1.212 +
+headless surface であり、version drift と surface 固有の配送欠落を分離できていない。worktree 由来説は
+不発プローブが worktree 進入前だったため refuted。user/local settings 上書き説は、user settings に
+hooks が無く、同一セッションで guard_bash が発火したため弱い。
+
+**再検証条件:** 次の新規バックグラウンドジョブ型セッションで daemon version を確認し、model 無しの
+Agent 呼び出しを再試験する。拒否されれば version drift、素通りなら同 surface の配送欠落と判定する。
+後者の場合の機械的防衛候補は、`permissions.deny` による Agent 全面拒否 (orchestration 全停止)、
+`CLAUDE_CODE_SUBAGENT_MODEL` による子モデル強制 (named role の frontmatter ピンも上書き)、または
+バックグラウンドジョブ型を使わない foreground 運用である。いずれも副作用を伴うため、適用は
+ユーザー判断とする。
 
 ## 既知の限界 (正直に)
 

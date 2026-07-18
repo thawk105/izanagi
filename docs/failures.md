@@ -244,6 +244,18 @@
   「唯一コピーか」の意味判定が必要になるため恒真化リスクがある (D31 と同型の prompt 規律とし、
   再発時に機械化を再検討)
 
+### F21. guard_agent の配線を live 発火未検証のまま防壁とした [恒真ゲート] [テスト代表性]
+- 事象: 導入 commit e45db19 時点では runtime の live 発火検証が無く、翌セッション (2026-07-18) の
+  実測で、model 未指定の Agent 呼び出しを guard_agent が拒否せず spawn する環境があると判明した。
+  同じ payload の hook 単体実行は exit 2 となり、同一セッションの guard_bash も発火していた。
+- 根本原因: 既存テストは settings の matcher/command 文字列と hook script の stdin 直叩きまでで、
+  runtime が Agent の PreToolUse を実際に配送し、exit 2 を spawn 阻止へ結線する全連鎖を検査して
+  いなかった。設定 presence と判定核の健全性を live 配送の健全性と同一視した。
+- 恒久対応: runtime 配送の恒久検査は未実装。原因分離と次回の再検証条件は
+  `hooks/README.md` hook 4「live 発火に関する既知の限界」を正本とする。
+- 再発検知: 現行の settings 文字列検査と hook script 直叩きでは検知できない。次の新規
+  バックグラウンドジョブ型セッションで、daemon version を確認した live 負例を再試験する。
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
