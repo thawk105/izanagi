@@ -124,13 +124,13 @@ def _schedule() -> dict:
     )
 
 
-def _source(path: str) -> dict:
-    source = ROOT / path
+def _source(path: str, *, root=ROOT) -> dict:
+    source = Path(root) / path
     return {"path": path, "sha256": _sha256(source)}
 
 
 def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
-                    ) -> tuple[Path, dict]:
+                    *, source_root=ROOT, generator_paths=None) -> tuple[Path, dict]:
     freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
     schedule = _schedule()
     bindings = []
@@ -146,6 +146,12 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
                 "configuration_id": configuration_id,
                 **identity,
             })
+    if generator_paths is None:
+        generator_paths = (
+            "orchestrator/campaign/s1_direct_comparison.py",
+            "orchestrator/campaign/s8b_oracle_report.py",
+            "orchestrator/campaign/s8b_oracle_judge.py",
+        )
     document = manifest_module.build_manifest(
         freeze_path=freeze_path,
         schedule=schedule,
@@ -160,9 +166,8 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
         campaign_ids={"b0": "s8b-oracle-fixture-b0"},
         allowed_excluded_reasons=["machine-failure"],
         generator_versions={
-            "materializer": _source("orchestrator/campaign/s1_direct_comparison.py"),
-            "report": _source("orchestrator/campaign/s8b_oracle_report.py"),
-            "judge": _source("orchestrator/campaign/s8b_oracle_judge.py"),
+            role: _source(path, root=source_root)
+            for role, path in zip(("materializer", "report", "judge"), generator_paths)
         },
     )
     path = tmp_path / "oracle_manifest.json"
@@ -252,20 +257,43 @@ def _canned_plan(**kwargs) -> "driver._V2Plan":
     )
 
 
+def _fake_launch_validated(freeze_path: Path):
+    """WAL/budget unit 用の LaunchValidatedFreeze 型境界 fixture。"""
+    raw = Path(freeze_path).read_bytes()
+    document = json.loads(raw)
+    ratified = s8b_ratified_freeze.RatifiedFreeze(
+        document=document, sha256=hashlib.sha256(raw).hexdigest(),
+        generation_number=1, activation_head="f" * 40,
+        generation_commit="e" * 40,
+    )
+    floor = s8b_ratified_freeze.VerifiedFloorArtifact(
+        path="fixture/result.json", raw_bytes=b"{}",
+        sha256=hashlib.sha256(b"{}").hexdigest(), document={},
+    )
+    return s8b_ratified_freeze.LaunchValidatedFreeze(
+        ratified=ratified, activation_head=ratified.activation_head,
+        search_digest="d" * 64, symlink_gitlink_inventory=(),
+        floor_artifact=floor, binaries_by_cell={},
+    )
+
+
 def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
          prepare_fn, evaluate_fn, *, output_root=None, budget_path=None,
          marker_root=None):
     # driver 内部の WAL/budget 契約テストは v2 gate/launch/store/env の実検査を迂回し、
     # future-approved gate + canned v2 plan を代入して WAL・budget・schedule 契約だけを
     # 突く (v2 gate/store/env の実発火は専用テストが git fixture で検査する)。
-    def fake_ratify(_root):
-        raise s8b_ratified_freeze.RatifiedFreezeError("mocked", "canned plan 経路")
+    validated = _fake_launch_validated(freeze_path)
 
     with mock.patch.object(
                 driver, "gate_check",
                 return_value=driver.GateDecision(True, [])), \
             mock.patch.object(
-                driver.s8b_ratified_freeze, "load_ratified_freeze", fake_ratify), \
+                driver.s8b_ratified_freeze, "load_ratified_freeze",
+                return_value=validated.ratified), \
+            mock.patch.object(
+                driver.s8b_ratified_freeze, "launch_validate",
+                return_value=validated), \
             mock.patch.object(driver, "_prepare_v2_execution", _canned_plan):
         return driver.run_block(
             manifest_path=manifest_path, block_id="b0",
@@ -326,6 +354,35 @@ def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
     assert result["status"] == "refused"
     assert any(reason.startswith("freeze-ratify:")
                for reason in result["refusals"])
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+    assert not output_root.exists() and not budget_path.exists()
+
+
+def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_path):
+    """active 解決失敗時も独立 manifest 構造検査の refusal を落とさない。"""
+    freeze_path = _floor_only_freeze(tmp_path)
+    manifest_freeze = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(tmp_path, manifest_freeze, prepare_fn)
+    prepare_fn.calls.clear()
+    document["unexpected_top_level_key"] = True
+    manifest_path.write_text(
+        json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+    )
+    evaluate_fn = _fake_evaluate_factory()
+    output_root = tmp_path / "aggregate-refused-out"
+    budget_path = tmp_path / "aggregate-refused-budget.json"
+
+    result = driver.run_block(
+        manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
+        root=ROOT, output_root=output_root, budget_path=budget_path,
+        prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+    )
+
+    assert result["status"] == "refused" and result["allowed"] is False
+    assert len(result["refusals"]) == 2, result["refusals"]
+    assert any(reason.startswith("freeze-ratify:") for reason in result["refusals"])
+    assert any(reason.startswith("manifest-verify:") for reason in result["refusals"])
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
 
@@ -685,6 +742,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
     script = textwrap.dedent(
         f"""
         import contextlib, hashlib, json, sys
+        from pathlib import Path
         from unittest import mock
         sys.path.insert(0, {str(ORCHESTRATOR)!r})
         from campaign import s8b_oracle_driver as driver
@@ -708,8 +766,18 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
                 cache_root="/tmp/fixture-cache",
             )
 
-        def fake_ratify(_root):
-            raise s8b_ratified_freeze.RatifiedFreezeError("mocked", "x")
+        freeze_raw = Path({str(freeze_path)!r}).read_bytes()
+        ratified = s8b_ratified_freeze.RatifiedFreeze(
+            document=json.loads(freeze_raw),
+            sha256=hashlib.sha256(freeze_raw).hexdigest(), generation_number=1,
+            activation_head="f" * 40, generation_commit="e" * 40)
+        floor = s8b_ratified_freeze.VerifiedFloorArtifact(
+            path="fixture/result.json", raw_bytes=b"{{}}",
+            sha256=hashlib.sha256(b"{{}}").hexdigest(), document={{}})
+        validated = s8b_ratified_freeze.LaunchValidatedFreeze(
+            ratified=ratified, activation_head=ratified.activation_head,
+            search_digest="d" * 64, symlink_gitlink_inventory=(),
+            floor_artifact=floor, binaries_by_cell={{}})
 
         def fake_plan(**kwargs):
             contract = ec.lookup("linux-baremetal")
@@ -725,7 +793,9 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
                 driver, "gate_check",
                 return_value=driver.GateDecision(True, [])), \\
              mock.patch.object(driver.s8b_ratified_freeze,
-                               "load_ratified_freeze", fake_ratify), \\
+                               "load_ratified_freeze", return_value=ratified), \\
+             mock.patch.object(driver.s8b_ratified_freeze,
+                               "launch_validate", return_value=validated), \\
              mock.patch.object(driver, "_prepare_v2_execution", fake_plan), \\
              mock.patch.object(driver, "prepare_cell", fake_prepare):
             rc = driver.main([
@@ -813,14 +883,8 @@ def test_driver_boundary_wraps_freeze_io_error_as_oracle_driver_error(tmp_path):
     assert "非数値定数" in str(wrapped.value)
 
 
-def test_run_block_loads_freeze_once_and_passes_same_object_to_gate(tmp_path):
-    """run_block は freeze bytes を厳密 1 回だけ読み、その単一 VerifiedFreeze object
-    を gate_check(verified=...) へ渡す (verify-use 間 TOCTOU 遮断の実発火)。
-
-    恒真回避: 常時 allowed の gate mock を使わず、gate_check を identity 記録付き
-    wrapper に差し替えて渡された object を捕捉し、run_block が load した同一 object
-    との identity と freeze byte read=1 を同時に固定する。
-    """
+def test_run_block_reuses_launch_validated_and_legacy_loader_is_dead(tmp_path):
+    """同一 LaunchValidatedFreeze を gate / plan へ渡し、旧 loader は呼ばない。"""
     freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
     prepare_fn = _prepare_factory()
     manifest_path, _document = _write_manifest(tmp_path, freeze_path, prepare_fn)
@@ -835,30 +899,33 @@ def test_run_block_loads_freeze_once_and_passes_same_object_to_gate(tmp_path):
             freeze_reads.append(Path(self))
         return real_read_bytes(self)
 
-    loaded: dict = {}
-    real_loader = driver._load_verified_freeze
-
-    def recording_loader(path, expected_hash=None):
-        obj = real_loader(path, expected_hash)
-        loaded["obj"] = obj
-        return obj
-
+    validated = _fake_launch_validated(freeze_path)
     captured: dict = {}
 
     def recording_gate(*, freeze_path, manifest_path, root, verified=None,
-                       verified_manifest=None, ratified=None, ratified_error=None):
-        captured["verified"] = verified
+                       verified_manifest=None, launch_validated=None,
+                       ratified=None, ratified_error=None):
+        captured["launch_validated"] = launch_validated
         captured["verified_manifest"] = verified_manifest
         return driver.GateDecision(True, [])
 
-    def fake_ratify(_root):
-        raise s8b_ratified_freeze.RatifiedFreezeError("mocked", "x")
+    def recording_plan(**kwargs):
+        captured["plan_validated"] = kwargs["validated"]
+        return _canned_plan(**kwargs)
 
     with mock.patch.object(Path, "read_bytes", counting_read_bytes), \
-            mock.patch.object(driver, "_load_verified_freeze", recording_loader), \
+            mock.patch.object(
+                driver, "_load_verified_freeze",
+                side_effect=AssertionError("legacy freeze loader called")), \
+            mock.patch.object(
+                driver._freeze_io, "load_verified_freeze",
+                side_effect=AssertionError("legacy freeze leaf loader called")), \
             mock.patch.object(driver.s8b_ratified_freeze,
-                              "load_ratified_freeze", fake_ratify), \
-            mock.patch.object(driver, "_prepare_v2_execution", _canned_plan), \
+                              "load_ratified_freeze",
+                              return_value=validated.ratified), \
+            mock.patch.object(driver.s8b_ratified_freeze,
+                              "launch_validate", return_value=validated), \
+            mock.patch.object(driver, "_prepare_v2_execution", recording_plan), \
             mock.patch.object(driver, "gate_check", recording_gate):
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0",
@@ -869,12 +936,10 @@ def test_run_block_loads_freeze_once_and_passes_same_object_to_gate(tmp_path):
         )
 
     assert result["status"] == "completed"
-    # freeze byte read はちょうど 1 回 (run_block 冒頭の単一 load。gate/manifest verify
-    # は単一 object を使い回し freeze を再読しない)。
+    # freeze_path は active bytes hash 照合 1 回だけ。document は別 loader で読まない。
     assert len(freeze_reads) == 1
-    # gate_check に渡った verified は run_block が load したまさに同一 object。
-    assert isinstance(captured["verified"], s8b_freeze_io.VerifiedFreeze)
-    assert captured["verified"] is loaded["obj"]
+    assert captured["launch_validated"] is validated
+    assert captured["plan_validated"] is validated
     # C2-9: gate_check には検証済み VerifiedManifest が渡り (再検証させない)、
     # run_block はそれを本体でも使い回す (再読込しない)。
     assert isinstance(captured["verified_manifest"], manifest_module.VerifiedManifest)
@@ -896,6 +961,7 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
     manifest_path, _document = _write_manifest(tmp_path, freeze_path, prepare_fn)
     prepare_fn.calls.clear()
     evaluate_fn = _fake_evaluate_factory()
+    validated = _fake_launch_validated(freeze_path)
 
     real_read_text = Path.read_text
     manifest_reads: list[Path] = []
@@ -916,17 +982,18 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
         return result
 
     def recording_gate(*, freeze_path, manifest_path, root, verified=None,
-                       verified_manifest=None, ratified=None, ratified_error=None):
+                       verified_manifest=None, launch_validated=None,
+                       ratified=None, ratified_error=None):
         captured["gate_manifest"] = verified_manifest
         return driver.GateDecision(True, [])
-
-    def fake_ratify(_root):
-        raise s8b_ratified_freeze.RatifiedFreezeError("mocked", "x")
 
     with mock.patch.object(Path, "read_text", counting_read_text), \
             mock.patch.object(driver, "verify_manifest", counting_verify), \
             mock.patch.object(driver.s8b_ratified_freeze,
-                              "load_ratified_freeze", fake_ratify), \
+                              "load_ratified_freeze",
+                              return_value=validated.ratified), \
+            mock.patch.object(driver.s8b_ratified_freeze,
+                              "launch_validate", return_value=validated), \
             mock.patch.object(driver, "_prepare_v2_execution", _canned_plan), \
             mock.patch.object(driver, "gate_check", recording_gate):
         result = driver.run_block(
@@ -1217,96 +1284,53 @@ def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(tmp_pa
 # ===========================================================================
 # W4: v2 実走 gate (承認束縛 active 世代) の実発火テスト (git fixture)
 #
-# build_valid_semantic_g1 (RV fixture) を拡張し、g1 世代 doc に per-pair floor +
-# budget を充填し、floor_source を「binaries section を持つ floor artifact」に
-# 差し替え、content-addressed store を out_root に組む。root=git repo で run_block を
-# 実行し、gate (freeze==active 世代) / launch_validate / env 契約 / store 消費 /
-# receipt / expected_perf_sha256 伝搬を実際に発火させる。
+# E3a の production-emitter fixture が生成した official result bytes と store をそのまま
+# 使い、gate / launch_validate / env 契約 / store 消費 / receipt 伝搬を発火させる。
 # ===========================================================================
 
-_V2_GENERATORS = (
-    "orchestrator/campaign/s1_direct_comparison.py",
-    "orchestrator/campaign/s8b_oracle_report.py",
-    "orchestrator/campaign/s8b_oracle_judge.py",
-)
+def _build_v2_repo(tmp_path: Path):
+    """E3a production-emitter bytes から oracle 実走 fixture を返す。"""
+    def fill_execution_snapshot(g1):
+        v2_fixture.fill(
+            g1, total_bench_s=1000.0, per_holdout_bench_s=1000.0,
+        )
 
-
-def _collect_source_paths(value, out: set) -> None:
-    if isinstance(value, dict):
-        path = value.get("path")
-        if isinstance(path, str) and isinstance(value.get("sha256"), str):
-            out.add(path)
-        for child in value.values():
-            _collect_source_paths(child, out)
-    elif isinstance(value, list):
-        for child in value:
-            _collect_source_paths(child, out)
-
-
-def _install_repo_sources(root: Path, freeze_document: dict) -> None:
-    """gate (known_axes verify) と manifest (generator_versions) が repo root でも解決
-    できるよう、known_axes freeze が参照する実 source + generator 実 source を複製する。
-
-    複製先を .gitignore に載せ、launch_validate の search が untracked 複製を走査しない
-    ようにする (verify は disk 直読みなので ignored でも sha 照合は成立する)。"""
-    paths: set = set(_V2_GENERATORS)
-    ka_rel = freeze_document["known_axes_freeze"]["path"]
-    ka_doc = json.loads((ROOT / ka_rel).read_text(encoding="utf-8"))
-    _collect_source_paths(ka_doc, paths)
-    gitignore_lines = []
-    for rel in sorted(paths):
-        src = ROOT / rel
-        if not src.is_file():
-            continue
-        dst = root / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        dst.write_bytes(src.read_bytes())
-        gitignore_lines.append(rel + "\n")
-    (root / ".gitignore").write_text("".join(gitignore_lines), encoding="utf-8")
-
-
-def _floor_artifact_and_store(document: dict, out_root: Path):
-    """全 (holdout, configuration) cell 分の store bytes を out_root へ書き、floor artifact
-    (binaries section) bytes と cell→binary_sha256 を返す。"""
-    store_root = out_root / "env" / V2_ENV_TAG / "binaries"
-    store_root.mkdir(parents=True, exist_ok=True)
-    binaries: dict = {}
-    for holdout_id in document["holdouts"]:
-        for configuration_id in CONFIGURATIONS:
-            content = f"perf-binary::{holdout_id}::{configuration_id}".encode("utf-8")
-            sha = hashlib.sha256(content).hexdigest()
-            (store_root / sha).write_bytes(content)
-            binaries[f"{holdout_id}::{configuration_id}"] = {
-                "holdout_id": holdout_id,
-                "configuration_id": configuration_id,
-                "binary_sha256": sha,
-                "bin_hash_short": sha[:16],
-                "store_path": f"env/{V2_ENV_TAG}/binaries/{sha}",
-            }
-    artifact = {"schema_version": "s8b-floor-result/v2", "binaries": binaries}
-    return (json.dumps(artifact, ensure_ascii=False, sort_keys=True).encode("utf-8"),
-            binaries)
-
-
-def _build_v2_repo(tmp_path: Path, out_root: Path, *, mutate_floor_source=None):
-    """承認束縛済み active v2 世代 (floor/budget 充填 + floor_source artifact + store) を
-    git repo に組む。(root, freeze_path, gen_sha, binaries) を返す。"""
-    if not REAL_FREEZE.is_file():
-        pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
-    document = _real_document()
-    v2_fixture.fill(document, total_bench_s=1000.0, per_holdout_bench_s=1000.0)
-    floor_bytes, binaries = _floor_artifact_and_store(document, out_root)
-    if mutate_floor_source is not None:
-        floor_bytes = mutate_floor_source(floor_bytes, binaries)
-
-    def fill_g1(g1):
-        v2_fixture.fill(g1, total_bench_s=1000.0, per_holdout_bench_s=1000.0)
-
-    root, gen_sha, gen_rel, _g1 = ratified_fixture.build_valid_semantic_g1(
-        tmp_path, mutate_g1=fill_g1, floor_source_bytes=floor_bytes,
+    root, ratified, topology = ratified_fixture.load_emitter_g1(
+        tmp_path, mutate_g1=fill_execution_snapshot,
     )
-    _install_repo_sources(root, document)
-    return root, root / gen_rel, gen_sha, binaries
+    return (
+        root, root / topology["generation_path"], ratified.sha256,
+        topology["result"]["binaries"], topology,
+    )
+
+
+def _emitter_manifest(tmp_path: Path, root: Path, freeze_path: Path):
+    freeze = json.loads(freeze_path.read_bytes())
+    generator_paths = (
+        freeze["design_source"]["path"], freeze["generator"]["path"],
+        freeze["known_axes_freeze"]["path"],
+    )
+    with mock.patch.object(manifest_module, "ROOT", root):
+        return _write_manifest(
+            tmp_path, freeze_path, _prepare_factory(), source_root=root,
+            generator_paths=generator_paths,
+        )
+
+
+def _tree_file_snapshot(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): _sha256(path)
+        for path in root.rglob("*") if path.is_file()
+    }
+
+
+def _v2_refusal_reason(result: dict) -> str:
+    assert result["status"] == "refused", result
+    assert len(result["refusals"]) == 1, result["refusals"]
+    prefix = "v2-execution: ["
+    refusal = result["refusals"][0]
+    assert refusal.startswith(prefix) and "]" in refusal[len(prefix):], refusal
+    return refusal[len(prefix):].split("]", 1)[0]
 
 
 def _run_v2(root: Path, freeze_path: Path, manifest_path: Path, prepare_fn,
@@ -1333,9 +1357,9 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     gate 通過・completed。expected_perf_sha256 が cell の store binary sha と一致して
     evaluate に伝搬し、clocks/numactl は env 契約由来 (NUMACTL ハードコード撤去)、
     campaign-start に execution receipt が記録される。"""
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, binaries = _build_v2_repo(tmp_path, out_root)
-    manifest_path, document = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     evaluate_fn = _fake_evaluate_factory()
 
     result = _run_v2(root, freeze_path, manifest_path, _prepare_factory(),
@@ -1359,12 +1383,50 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     )
 
 
+def test_v2_floor_disk_swap_after_launch_uses_same_validated_object(tmp_path):
+    """launch 後の floor disk 差替えを無視し、旧 blob reader も呼ばない。"""
+    root, freeze_path, _gen_sha, _binaries, topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
+    result_path = root / topology["paths"]["result"]
+    original_raw = result_path.read_bytes()
+    real_launch = driver.s8b_ratified_freeze.launch_validate
+    real_prepare = driver._prepare_v2_execution
+    captured = {}
+
+    def launch_then_swap(ratified, launch_root):
+        validated = real_launch(ratified, launch_root)
+        captured["launched"] = validated
+        result_path.write_bytes(b'{"poisoned-after-launch":true}\n')
+        return validated
+
+    def record_prepare(**kwargs):
+        captured["consumed"] = kwargs["validated"]
+        return real_prepare(**kwargs)
+
+    with mock.patch.object(
+            driver.s8b_ratified_freeze, "launch_validate", launch_then_swap), \
+            mock.patch.object(
+                driver.s8b_ratified_freeze, "read_floor_source_blob",
+                side_effect=AssertionError("legacy floor blob reader called")), \
+            mock.patch.object(driver, "_prepare_v2_execution", record_prepare):
+        result = _run_v2(
+            root, freeze_path, manifest_path, _prepare_factory(),
+            _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path,
+        )
+
+    assert result["status"] == "completed", result
+    assert captured["consumed"] is captured["launched"]
+    assert captured["launched"].floor_artifact.raw_bytes == original_raw
+    assert result_path.read_bytes() != original_raw
+
+
 def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
     """与えられた freeze bytes が active 世代と 1 byte でも違えば
     freeze-not-active-generation で拒否 (何も書かない)。"""
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, _bin = _build_v2_repo(tmp_path, out_root)
-    manifest_path, _ = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     # active 世代とは別 bytes の freeze を渡す (floor/budget は充填済み = v2 経路)。
     tampered = tmp_path / "tampered_freeze.json"
     doc = json.loads(freeze_path.read_text(encoding="utf-8"))
@@ -1384,9 +1446,9 @@ def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
 
 def test_v2_launch_validate_failure_is_refused(tmp_path):
     """launch_validate 失敗 (closure 外の未申告 hit) は v2-execution refusal に翻訳。"""
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, _bin = _build_v2_repo(tmp_path, out_root)
-    manifest_path, _ = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     # closure 外の untracked ファイルに rr80 params を仕込む → 未申告 hit で launch_validate 落ち。
     (root / "sneaky.txt").write_bytes(ratified_fixture._RR80_PARAMS)
 
@@ -1402,9 +1464,9 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     (run_block の refusal 契約を破らない・fail-closed で何も書かない)。"""
     from campaign import s8b_holdout_freeze  # noqa: PLC0415
 
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, _bin = _build_v2_repo(tmp_path, out_root)
-    manifest_path, _ = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
 
     def _boom(*_a, **_k):
         # _hf.search_repository / enumerate_repository_files が git/os 失敗を包む型。
@@ -1431,39 +1493,58 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
 
 def test_v2_store_missing_is_refused(tmp_path):
     """store 実体が欠落していれば refusal (再ビルド fallback は書かない)。"""
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, binaries = _build_v2_repo(tmp_path, out_root)
-    manifest_path, _ = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
+    baseline = s8b_ratified_freeze.launch_validate(
+        s8b_ratified_freeze.load_ratified_freeze(root), root,
+    )
+    assert isinstance(baseline, s8b_ratified_freeze.LaunchValidatedFreeze)
     # 1 cell の store 実体を消す。
     victim = next(iter(binaries.values()))
     (out_root / victim["store_path"]).unlink()
+    before = _tree_file_snapshot(out_root)
+    prepare_fn = _prepare_factory()
+    evaluate_fn = _fake_evaluate_factory()
 
-    result = _run_v2(root, freeze_path, manifest_path, _prepare_factory(),
-                     _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path)
-    assert result["status"] == "refused"
-    assert any("store 実体が無い" in r for r in result["refusals"]), result["refusals"]
+    result = _run_v2(root, freeze_path, manifest_path, prepare_fn,
+                     evaluate_fn, out_root=out_root, tmp_path=tmp_path)
+    assert _v2_refusal_reason(result) == "store-missing"
+    assert _tree_file_snapshot(out_root) == before
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+    assert not (tmp_path / "v2-budget.json").exists()
+    assert not (tmp_path / "v2-markers").exists()
 
 
 def test_v2_store_hash_mismatch_is_refused(tmp_path):
     """store 実体の bytes が floor receipt の binary_sha256 と不一致なら refusal。"""
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, binaries = _build_v2_repo(tmp_path, out_root)
-    manifest_path, _ = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
+    baseline = s8b_ratified_freeze.launch_validate(
+        s8b_ratified_freeze.load_ratified_freeze(root), root,
+    )
+    assert isinstance(baseline, s8b_ratified_freeze.LaunchValidatedFreeze)
     victim = next(iter(binaries.values()))
     (out_root / victim["store_path"]).write_bytes(b"corrupted-binary-bytes")
+    before = _tree_file_snapshot(out_root)
+    prepare_fn = _prepare_factory()
+    evaluate_fn = _fake_evaluate_factory()
 
-    result = _run_v2(root, freeze_path, manifest_path, _prepare_factory(),
-                     _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path)
-    assert result["status"] == "refused"
-    assert any("floor receipt と不一致" in r for r in result["refusals"]), \
-        result["refusals"]
+    result = _run_v2(root, freeze_path, manifest_path, prepare_fn,
+                     evaluate_fn, out_root=out_root, tmp_path=tmp_path)
+    assert _v2_refusal_reason(result) == "store-hash-mismatch"
+    assert _tree_file_snapshot(out_root) == before
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+    assert not (tmp_path / "v2-budget.json").exists()
+    assert not (tmp_path / "v2-markers").exists()
 
 
 def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     """run_contract.contract_sha256 が env 契約 lookup 結果と不一致なら refusal。"""
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, _bin = _build_v2_repo(tmp_path, out_root)
-    manifest_path, document = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     # manifest の run_contract.contract_sha256 を別 64hex に差し替えて封を再作成する。
     document = json.loads(manifest_path.read_text(encoding="utf-8"))
     document["run_contract"]["contract_sha256"] = "1" * 64
@@ -1483,9 +1564,9 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
 def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
     """pipeline の bench-binary-mismatch abort (TOCTOU 第二防壁) が driver の
     binary-mismatch terminal outcome に射影される。"""
-    out_root = tmp_path / "out"
-    root, freeze_path, _gen_sha, _bin = _build_v2_repo(tmp_path, out_root)
-    manifest_path, _ = _write_manifest(tmp_path, freeze_path, _prepare_factory())
+    root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     evaluate_fn = _fake_abort_evaluate_factory("bench-binary-mismatch")
 
     result = _run_v2(root, freeze_path, manifest_path, _prepare_factory(),

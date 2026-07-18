@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import posixpath
 import random
 from collections.abc import Callable, Mapping
 from typing import Optional
@@ -59,6 +60,12 @@ _FLOOR_ARTIFACT_PROTOCOL_KEYS = (
     "wired_min_rel_floor",
     "session_cv_max",
     "cell_cv_max",
+)
+
+# calibrator.runner の production command が記録する perf event 集合。runner 側が
+# drift した場合、issuer の raw→portable 射影が fail-closed で止める。
+_RUN_CMD_PERF_EVENTS = (
+    "LLC-load-misses", "LLC-loads", "instructions", "cycles",
 )
 
 
@@ -234,6 +241,51 @@ def project_protocol_for_floor_artifact(protocol: Mapping) -> dict:
     return {key: protocol[key] for key in _FLOOR_ARTIFACT_PROTOCOL_KEYS}
 
 
+def build_portable_run_cmd(
+        *, binary, workload, records, threads, extime_s, clocks_per_us,
+        numactl) -> tuple[str, ...]:
+    """検証・artifact 記録用の portable benchmark argv を決定論的に構築する。
+
+    ``binary`` は out-root 相対の portable store path とし、runtime absolute path は
+    受理しない。workload flag は key の辞書順で固定するため、入力 Mapping の挿入順に
+    依存しない。戻り値は表示・照合専用であり、再実行 API ではない。
+    """
+    if (not isinstance(binary, str) or not binary or binary.startswith("/")
+            or "\\" in binary or "\x00" in binary
+            or posixpath.normpath(binary) != binary
+            or binary in {".", ".."}
+            or any(part in {"", ".", ".."} for part in binary.split("/"))):
+        raise FloorContractError("run_cmd.binary が canonical portable relative path でない")
+    for field, value in {
+            "records": records, "threads": threads, "extime_s": extime_s,
+            "clocks_per_us": clocks_per_us,
+    }.items():
+        if type(value) is not int or value <= 0:
+            raise FloorContractError(f"run_cmd.{field} が正整数でない")
+    if not isinstance(workload, Mapping) or not workload:
+        raise FloorContractError("run_cmd.workload が空でない Mapping でない")
+    for key, value in workload.items():
+        if (not isinstance(key, str) or not key or not isinstance(value, str)
+                or not value or "\x00" in key or "\x00" in value):
+            raise FloorContractError("run_cmd.workload が空でない str→str でない")
+    if not isinstance(numactl, tuple):
+        raise FloorContractError("run_cmd.numactl が tuple でない")
+    if not all(isinstance(token, str) and token and "\x00" not in token
+               for token in numactl):
+        raise FloorContractError("run_cmd.numactl に空または非 str token がある")
+
+    argv = [
+        *numactl,
+        "perf", "stat", "-e", ",".join(_RUN_CMD_PERF_EVENTS), "--", binary,
+        f"-thread_num={threads}",
+        f"-ycsb_tuple_num={records}",
+        f"-extime={extime_s}",
+        f"-clocks_per_us={clocks_per_us}",
+    ]
+    argv.extend(f"-{key}={workload[key]}" for key in sorted(workload))
+    return tuple(argv)
+
+
 def _holdout_workload(holdout: Mapping, *, holdout_id: str) -> dict:
     records = holdout.get("records")
     threads = holdout.get("threads")
@@ -336,3 +388,67 @@ def build_schedule(*, cells: list[dict], master_seed: str, n_sessions: int) -> l
         for cell_id in permuted:
             rows.append({"seq": len(rows), "round": round_no, "cell_id": cell_id})
     return rows
+
+
+_RESUME_STATES = frozenset({
+    "L", "M-prestart", "M-running", "M-finalize-pending",
+})
+
+
+def classify_journal_resume_state(
+        records, *, manifest_exists: bool, result_published: bool,
+        markdown_published: bool) -> str:
+    """L/M resume の構造 substate を fail-closed に分類する共有 pure helper。
+
+    ``L`` は manifest 無し・journal が launch-start 1 件だけ、``M-prestart`` は
+    sealed manifest 有り・campaign-start 無し、``M-running`` は一意 campaign-start
+    有り・terminal 無し、``M-finalize-pending`` は一意 completed terminal が最終 record
+    だが result/md publish が片方以上未完、である。cert bytes/path/time、event ごとの exact
+    schema、manifest/result bytes は issuer/verifier の各境界で別途厳密検証する。
+
+    aborted / artifact-invalid / terminal 重複 / completed 後の record / publish 完了済みは
+    再開可能状態に分類しない。L の自己整合 bundle 全体をゼロから捏造する攻撃は、この
+    journal 内 hash だけでは閉じない（凍結済み保証境界）。
+    """
+    if not isinstance(records, list) or not all(isinstance(r, Mapping) for r in records):
+        raise FloorContractError("resume journal が object record の list でない")
+    for name, value in {
+            "manifest_exists": manifest_exists,
+            "result_published": result_published,
+            "markdown_published": markdown_published,
+    }.items():
+        if type(value) is not bool:
+            raise FloorContractError(f"resume state {name} が bool でない")
+
+    terminals = [r for r in records if r.get("event") == "terminal"]
+    if len(terminals) > 1:
+        raise FloorContractError("resume journal の terminal が重複している")
+    if terminals:
+        terminal = terminals[0]
+        if records[-1] is not terminal:
+            raise FloorContractError("resume journal の terminal が最終 record でない")
+        if terminal.get("status") != "completed":
+            raise FloorContractError("aborted/artifact-invalid terminal は再開できない")
+        if not manifest_exists:
+            raise FloorContractError("completed terminal に sealed manifest がない")
+        if result_published and markdown_published:
+            raise FloorContractError("publish 完了済み campaign は再開できない")
+        return "M-finalize-pending"
+
+    campaign_starts = [r for r in records if r.get("event") == "campaign-start"]
+    if len(campaign_starts) > 1:
+        raise FloorContractError("resume journal の campaign-start が重複している")
+    if not manifest_exists:
+        if (len(records) == 1 and records[0].get("event") == "launch-start"
+                and not result_published and not markdown_published):
+            return "L"
+        raise FloorContractError("manifest 無し journal は厳密な L 状態でない")
+    if result_published or markdown_published:
+        raise FloorContractError("completed terminal 前に result/md が publish されている")
+    if not campaign_starts:
+        if any(r.get("event") != "launch-start" for r in records):
+            raise FloorContractError("M-prestart に launch-start 以外の record がある")
+        if sum(r.get("event") == "launch-start" for r in records) > 1:
+            raise FloorContractError("M-prestart の launch-start が重複している")
+        return "M-prestart"
+    return "M-running"

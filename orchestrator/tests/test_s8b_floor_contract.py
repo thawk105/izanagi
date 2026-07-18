@@ -105,6 +105,7 @@ def test_floor_campaign_directly_reexports_shared_leaf_objects():
         "JOURNAL_SCHEMA",
         "canonical_protocol_sha256",
         "project_protocol_for_floor_artifact",
+        "build_portable_run_cmd",
         "derive_expected_cells",
         "_round_seed",
     ):
@@ -167,6 +168,37 @@ def test_expected_cells_are_derived_from_ratified_freeze_binding():
         "holdout-a": ["stock", "variant"],
         "holdout-b": ["stock", "variant"],
     }
+
+
+def test_portable_run_cmd_has_canonical_workload_order_and_exact_prefix():
+    workload = {"field-z": "value-z", "field-a": "value-a"}
+    argv = s8b_floor_contract.build_portable_run_cmd(
+        binary="output/store/hash/bench", workload=workload,
+        records=100, threads=2, extime_s=3, clocks_per_us=1800,
+        numactl=("numactl", "--interleave=all"),
+    )
+    reversed_argv = s8b_floor_contract.build_portable_run_cmd(
+        binary="output/store/hash/bench",
+        workload=dict(reversed(list(workload.items()))),
+        records=100, threads=2, extime_s=3, clocks_per_us=1800,
+        numactl=("numactl", "--interleave=all"),
+    )
+    assert argv == reversed_argv
+    assert argv[:9] == (
+        "numactl", "--interleave=all", "perf", "stat", "-e",
+        "LLC-load-misses,LLC-loads,instructions,cycles", "--",
+        "output/store/hash/bench", "-thread_num=2",
+    )
+    assert argv[-2:] == ("-field-a=value-a", "-field-z=value-z")
+
+
+@pytest.mark.parametrize("binary", ["/runtime/bench", "output/../bench", "output\\bench"])
+def test_portable_run_cmd_rejects_nonportable_binary(binary):
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="portable"):
+        s8b_floor_contract.build_portable_run_cmd(
+            binary=binary, workload={"field": "value"}, records=1, threads=1,
+            extime_s=1, clocks_per_us=1, numactl=(),
+        )
 
 
 @pytest.mark.parametrize("mutation", ["missing-stock", "configuration-drift"])

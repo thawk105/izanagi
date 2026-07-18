@@ -20,7 +20,10 @@ import contextlib
 import datetime as dt
 import hashlib
 import json
+import os
 import random
+import shlex
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -188,7 +191,9 @@ def _make_fake_build(build_root: Path):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None):
         assert trace is False, "floor 計測は trace-disabled build (規律1)"
-        cell_dir = build_root / src_token.replace("::", "__")
+        # production と同じく渡された cache_root 配下に実体を置き、command には実 root を
+        # 埋め込む（portable projection が未結線でも通る fake にしない）。
+        cell_dir = Path(cache_root) / "fixture" / src_token.replace("::", "__")
         cell_dir.mkdir(parents=True, exist_ok=True)
         binary_path = cell_dir / "ycsb_fixture.exe"
         payload = f"fixture-binary::{src_token}".encode("utf-8")
@@ -200,6 +205,9 @@ def _make_fake_build(build_root: Path):
             build_dir=str(cell_dir), cached=False,
             configure_cmd=f"# fixture configure {src_token}",
             build_cmd="# fixture build",
+            configure_argv=["cmake", "-S", str(ccbench_dir), "-B", str(cell_dir)],
+            build_argv=["cmake", "--build", str(cell_dir)],
+            cache_root=str(cache_root), ccbench_root=str(ccbench_dir),
         )
     return fake_build
 
@@ -212,14 +220,16 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
                   mode="pilot", resume_dir=None, sleep_fn=None, monotonic_fn=None,
                   now_fn=None):
     fake_build = _make_fake_build(build_root)
-    with mock.patch.object(s8b_floor_campaign.buildcache, "build", fake_build):
-        return s8b_floor_campaign.run_campaign(
-            protocol, freeze_doc, out_root=out_root, mode=mode, resume_dir=resume_dir,
-            measure_fn=measure_fn, probe_fn=probe_fn,
-            sleep_fn=sleep_fn or (lambda s: None),
-            monotonic_fn=monotonic_fn or (lambda: 0.0),
-            prepare_fn=_fake_prepare, now_fn=now_fn or (lambda: _FIXED_NOW),
-        )
+    entrypoint = (s8b_floor_campaign._run_campaign_core
+                  if mode == "official" else s8b_floor_campaign.run_campaign)
+    return entrypoint(
+        protocol, freeze_doc, out_root=out_root, mode=mode, resume_dir=resume_dir,
+        measure_fn=measure_fn, probe_fn=probe_fn,
+        sleep_fn=sleep_fn or (lambda s: None),
+        monotonic_fn=monotonic_fn or (lambda: 0.0),
+        prepare_fn=_fake_prepare, now_fn=now_fn or (lambda: _FIXED_NOW),
+        build_fn=fake_build,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -231,6 +241,18 @@ class _FakeScalePoint:
         self.throughputs = list(throughputs)
         self.notes = list(notes)
         self.run_cmd = run_cmd
+
+
+def _shape_faithful_run_cmd(binary, records, threads, workload) -> str:
+    """production repro_command と同じ argv shape の runtime-path fake を返す。"""
+    contract = ec.lookup(ENV_TAG)
+    argv = list(s8b_floor_campaign.build_portable_run_cmd(
+        binary="output/fixture/bench", workload=workload, records=records,
+        threads=threads, extime_s=3, clocks_per_us=contract.clocks_per_us,
+        numactl=contract.numactl,
+    ))
+    argv[argv.index("--") + 1] = str(binary)
+    return shlex.join(argv)
 
 
 def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_reps=None,
@@ -247,13 +269,15 @@ def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_re
         if reps_fn is not None:
             values = reps_fn(cell_id)
             return _FakeScalePoint(throughputs=list(values), notes=[],
-                                   run_cmd=f"./fixture {cell_id}")
+                                   run_cmd=_shape_faithful_run_cmd(
+                                       binary, records, threads, workload))
         n = reps
         if cell_id in partial_for:
             n = partial_reps if partial_reps is not None else max(reps - 1, 0)
         base = value_fn(cell_id)
         return _FakeScalePoint(
-            throughputs=[base] * n, notes=[], run_cmd=f"./fixture {cell_id}",
+            throughputs=[base] * n, notes=[],
+            run_cmd=_shape_faithful_run_cmd(binary, records, threads, workload),
         )
 
     measure_fn.calls = calls
@@ -264,6 +288,36 @@ def _only_run_dir(out_root: Path) -> Path:
     manifests = list(out_root.rglob("manifest.json"))
     assert len(manifests) == 1, manifests
     return manifests[0].parent
+
+
+def test_measure_run_cmd_projection_removes_runtime_root_and_rejects_missing_token(tmp_path):
+    freeze = _freeze_document()
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze)))
+    cell = next(iter(_HOLDOUT_SHAPE.values()))
+    runtime_binary = str(tmp_path / "runtime root" / "bench")
+    portable_binary = "env/fixture/binaries/hash/bench"
+    raw = _shape_faithful_run_cmd(
+        runtime_binary, cell["records"], cell["threads"], cell["ycsb"])
+    projected = s8b_floor_campaign._project_measure_run_cmd(
+        raw, runtime_binary=runtime_binary, portable_binary=portable_binary,
+        workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
+        protocol=protocol,
+    )
+    assert runtime_binary not in projected
+    assert tuple(shlex.split(projected)) == s8b_floor_campaign.build_portable_run_cmd(
+        binary=portable_binary, workload=cell["ycsb"], records=cell["records"],
+        threads=cell["threads"], extime_s=protocol["extime_s"],
+        clocks_per_us=ec.lookup(ENV_TAG).clocks_per_us,
+        numactl=ec.lookup(ENV_TAG).numactl,
+    )
+    missing = shlex.join(shlex.split(raw)[:-1])
+    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="不一致"):
+        s8b_floor_campaign._project_measure_run_cmd(
+            missing, runtime_binary=runtime_binary, portable_binary=portable_binary,
+            workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
+            protocol=protocol,
+        )
 
 
 def _read_journal_lines(journal_path: Path) -> list:
@@ -298,6 +352,125 @@ def _official_test_seam(monkeypatch, *, clean_digest="d" * 64):
             lambda root, *, freeze_allowlist: clean_digest,
         )
         yield scoped
+
+
+def _fixed_host(*, now_fn):
+    return {
+        "hostname": "sentinel-host", "boot_id": "sentinel-boot",
+        "job_id": "sentinel-job", "cpuset": "sentinel-cpuset",
+        "utc": now_fn().isoformat(),
+    }
+
+
+def _fixed_process():
+    return {"pid": 4242, "starttime": 31337, "execution_uuid": "a" * 32}
+
+
+def _fixed_receipt(contract, *, now_fn):
+    return {
+        "schema": s8b_floor_campaign.execution_guard.RECEIPT_SCHEMA,
+        "env_tag": contract.env_tag,
+        "contract_sha256": contract.contract_sha256,
+        "attestation": {
+            "hostname": "sentinel-receipt-host", "boot_id": "sentinel-receipt-boot",
+            "cpuset": "sentinel-receipt-cpuset",
+            "captured_utc": now_fn().isoformat(),
+        },
+    }
+
+
+def _init_real_clean_repo(repo_root: Path, freeze: dict, protocol: dict) -> None:
+    """production clean_scan_digest 用の最小 real git repo（陽性対照は既存生成核を再利用）。"""
+    repo_root.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(repo_root)], check=True)
+    ccbench = repo_root / "external" / "ccbench"
+    ccbench.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(ccbench)], check=True)
+    (ccbench / "anchor.txt").write_text("fixture anchor\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(ccbench), "add", "anchor.txt"], check=True)
+    subprocess.run([
+        "git", "-C", str(ccbench), "-c", "user.name=fixture",
+        "-c", "user.email=fixture@example.invalid", "commit", "-qm", "anchor",
+    ], check=True)
+
+    scanner = s8b_floor_campaign._holdout_freeze
+    positive_values = {
+        "rratio": scanner._POSITIVE_RATIO,
+        "skew": scanner._FIXED_SKEW,
+        "rmw": scanner._FIXED_RMW,
+    }
+    positive = " ".join(
+        scanner.concrete_axis_encodings(axis, positive_values[axis])[0]
+        for axis in ("rratio", "skew", "rmw")
+    )
+    (repo_root / "positive-control.txt").write_text(positive + "\n", encoding="utf-8")
+    freeze_path = repo_root / protocol["freeze"]["path"]
+    freeze_path.parent.mkdir(parents=True)
+    freeze_path.write_bytes(json.dumps(
+        freeze, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8"))
+    subprocess.run(
+        ["git", "-C", str(repo_root), "add", "positive-control.txt",
+         protocol["freeze"]["path"], "external/ccbench"],
+        check=True,
+    )
+
+
+def _deterministic_official_artifacts(base: Path) -> dict:
+    """異なる process/root から同じ production-emitter bytes を作る characterization helper。"""
+    base.mkdir(parents=True, exist_ok=True)
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    repo_root = base / "repo"
+    out_root = base / "out"
+    _init_real_clean_repo(repo_root, freeze, protocol)
+    fake_build = _make_fake_build(base / "ignored-build-root")
+
+    @contextlib.contextmanager
+    def rooted_prepare(cell, ccbench_pin):
+        entry = cell["variant"]
+        holdout_id = entry["holdout_id"]
+        configuration_id = cell["configuration"]
+        cell_id = f"{holdout_id}::{configuration_id}"
+        genome = Genome("silo", dict(entry.get("flags", {})))
+        yield PreparedCell(
+            genome=genome, src_token=cell_id,
+            ccbench_dir=str(base / "prepared trees Ω" / cell_id.replace("::", "__")),
+            cache_root=str(base / "prepared-cache"),
+        )
+
+    outcome = s8b_floor_campaign._run_campaign_core(
+        protocol, verified, out_root=out_root, mode="official",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=rooted_prepare,
+        now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+        process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
+        build_fn=fake_build, repo_root=repo_root,
+    )
+    run_dir = Path(outcome["run_dir"])
+    names = (
+        "launch_certificate.json", "manifest.json", "journal.jsonl", "result.json",
+    )
+    paths = [run_dir / name for name in names]
+    scan_paths = paths + [run_dir / "result.md"]
+    root_needles = [str(base).encode("utf-8"), str(repo_root).encode("utf-8"),
+                    str(out_root).encode("utf-8")]
+    assert all(path.is_file() and path.stat().st_size > 0 for path in scan_paths)
+    assert all(needle not in path.read_bytes()
+               for path in scan_paths for needle in root_needles)
+    assert json.loads(paths[0].read_bytes())["schema"] == s8b_floor_campaign.LAUNCH_CERT_SCHEMA
+    assert json.loads(paths[1].read_bytes())["schema_version"] == s8b_floor_campaign.MANIFEST_SCHEMA
+    assert _read_journal_lines(paths[2])[-1] == {"event": "terminal", "status": "completed"}
+    assert json.loads(paths[3].read_bytes())["schema"] == s8b_floor_campaign.RESULT_SCHEMA
+    return {
+        "run_dir": str(run_dir),
+        "sha256": {name: hashlib.sha256(path.read_bytes()).hexdigest()
+                   for name, path in zip(names, paths)},
+        "inodes": {name: [path.stat().st_dev, path.stat().st_ino]
+                   for name, path in zip(names, paths)},
+    }
 
 
 # =========================================================================== #
@@ -510,7 +683,8 @@ def test_load_resume_manifest_rejects_v1_schema(tmp_path):
         "freeze_sha256": "y", "binaries": {},
     }), encoding="utf-8")
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="schema_version"):
-        s8b_floor_campaign._load_resume_manifest(path, protocol_sha256="x", freeze_sha256="y")
+        s8b_floor_campaign._load_resume_manifest(
+            path, protocol_sha256="x", freeze_sha256="y", out_root=tmp_path)
 
 
 # =========================================================================== #
@@ -543,7 +717,7 @@ def test_main_official_mode_always_refused(tmp_path, capsys):
 
 
 def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
-    """core run_campaign 自体が official を無条件拒否し build/measure/write を 0 回にする (δ-3)。"""
+    """production wrapper は default official も従来どおり拒否し副作用 0。"""
     freeze = _freeze_document()
     out_root = tmp_path / "out"
 
@@ -555,10 +729,34 @@ def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
             s8b_floor_campaign.run_campaign(
                 _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
                 out_root=out_root, mode="official",
-                measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
-                prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
             )
     assert not out_root.exists()  # 書き込み 0 回
+
+
+@pytest.mark.parametrize("seam_name,seam_value", [
+    ("measure_fn", lambda *_args: None),
+    ("probe_fn", lambda: (1, "", "")),
+    ("sleep_fn", lambda _seconds: None),
+    ("monotonic_fn", lambda: 0.0),
+    ("prepare_fn", _fake_prepare),
+    ("now_fn", lambda: _FIXED_NOW),
+    ("host_provenance_fn", _fixed_host),
+    ("process_identity_fn", _fixed_process),
+    ("execution_receipt_fn", _fixed_receipt),
+    ("build_fn", lambda *_args, **_kwargs: None),
+    ("repo_root", Path("sentinel-repo-root")),
+    ("after_certificate_issued_fn", lambda _path: None),
+])
+def test_public_official_rejects_each_nondefault_seam_before_side_effects(
+        tmp_path, seam_name, seam_value):
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=seam_name):
+        s8b_floor_campaign.run_campaign(
+            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+            out_root=out_root, mode="official", **{seam_name: seam_value},
+        )
+    assert not out_root.exists()
 
 
 def _forbid_measure(*_a, **_kw):
@@ -620,7 +818,10 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
     def spy_measure_point(binary, records, threads, clocks_per_us, **kw):
         seen["clocks_per_us"] = clocks_per_us
         seen["numactl"] = kw.get("numactl")
-        return _FakeScalePoint(throughputs=[1000.0] * 5, notes=[], run_cmd="./x")
+        return _FakeScalePoint(
+            throughputs=[1000.0] * 5, notes=[],
+            run_cmd=_shape_faithful_run_cmd(binary, records, threads, kw["workload"]),
+        )
 
     fake_build = _make_fake_build(tmp_path / "bin")
     with mock.patch.object(s8b_floor_campaign.buildcache, "build", fake_build), \
@@ -848,6 +1049,17 @@ def test_probe_own_descendant_pid_detected_as_competing_b2(tmp_path):
     assert sample["probe_before"]["competing"]   # 実子が競合として残った
 
 
+def test_probe_classifier_own_pid_kwarg_is_injectable_and_fail_closed():
+    stdout = "4242 self.exe\n5252 other.exe\n"
+    assert s8b_floor_campaign.classify_competing_probe(
+        0, stdout, "", ["pgrep"], own_pid=4242) == ["5252 other.exe"]
+    assert s8b_floor_campaign.classify_competing_probe(
+        0, stdout, "", ["pgrep"], own_pid=5252) == ["4242 self.exe"]
+    with pytest.raises(s8b_floor_campaign.CompetingBenchProbeError):
+        s8b_floor_campaign.classify_competing_probe(
+            0, stdout, "", ["pgrep"], own_pid=0)
+
+
 # =========================================================================== #
 # 7. performance_anomaly (session 内 CV>10%) / machine_anomaly (セル間 CV>15%)   #
 # =========================================================================== #
@@ -938,9 +1150,30 @@ def test_create_only_rejects_overwrite_journal_appends(tmp_path):
     assert len(after) > len(before)
 
 
+def test_strict_jsonl_rejects_blank_record(tmp_path):
+    journal = tmp_path / "journal.jsonl"
+    journal.write_text('{"event":"x"}\n\n', encoding="utf-8")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="strict JSONL"):
+        s8b_floor_campaign._read_journal(journal)
+
+
+def test_manifest_atomic_publish_never_exposes_partial_destination(tmp_path, monkeypatch):
+    destination = tmp_path / "run" / "manifest.json"
+    destination.parent.mkdir()
+
+    def crash_link(_source, _destination):
+        raise _SimulatedCrash("manifest publish crash")
+
+    monkeypatch.setattr(s8b_floor_campaign.os, "link", crash_link)
+    with pytest.raises(_SimulatedCrash, match="manifest publish"):
+        s8b_floor_campaign._atomic_create_only_json(destination, {"sealed": True})
+    assert not destination.exists()
+    pending = tmp_path / f".{destination.parent.name}.{destination.name}.pending"
+    assert pending.is_file() and pending.stat().st_size > 0
+
+
 def test_idempotent_finalization_after_result_json_crash(tmp_path):
-    """result.json 作成後・md/terminal 前で crash した状態を模し、resume が既存 result.json を
-    hash 検証 + 欠落 md/terminal のみ補完することを固定する (β-11)。"""
+    """completed terminal 後・publish 前 crash を模し、resume は publish だけ完遂する。"""
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -951,24 +1184,168 @@ def test_idempotent_finalization_after_result_json_crash(tmp_path):
     run_dir = Path(outcome["run_dir"])
     original_result = (run_dir / "result.json").read_bytes()
 
-    # crash 状態を再現: result.md を消し、journal から terminal completed 行を除去する。
+    # crash 状態を再現: completed terminal は最終のまま、publish 済み files だけを消す。
+    (run_dir / "result.json").unlink()
     (run_dir / "result.md").unlink()
     journal_path = run_dir / "journal.jsonl"
-    kept = [ln for ln in journal_path.read_text(encoding="utf-8").splitlines()
-            if ln.strip() and json.loads(ln).get("event") != "terminal"]
-    journal_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
 
-    # resume: 既存 result.json はそのまま (hash 一致で skip)、md/terminal を補完。
+    # resume: M-finalize-pending なので runner/resume-start を通らず publish のみ補完。
     measure_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome2 = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
                              resume_dir=run_dir, measure_fn=measure_fn2,
                              probe_fn=lambda: (1, "", ""))
     assert outcome2["status"] == "completed"
     assert measure_fn2.calls == []  # 全 session 済みなので新規計測なし
-    assert (run_dir / "result.json").read_bytes() == original_result  # 上書きされない
-    assert (run_dir / "result.md").exists()  # 欠落 md が補完された
+    assert (run_dir / "result.json").read_bytes() == original_result
+    assert (run_dir / "result.md").exists()
     journal = _read_journal_lines(journal_path)
-    assert any(r.get("event") == "terminal" and r.get("status") == "completed" for r in journal)
+    assert journal[-1] == {"event": "terminal", "status": "completed"}
+    assert not any(r.get("event") == "resume-start" for r in journal)
+
+
+def test_finalize_pending_resume_rejects_tampered_staged_result(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign, "_publish_finalize_files",
+            lambda *_args: (_ for _ in ()).throw(_SimulatedCrash("terminal-after")),
+        )
+        with pytest.raises(_SimulatedCrash, match="terminal-after"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin",
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+                probe_fn=lambda: (1, "", ""),
+            )
+    run_dir = _only_run_dir(out_root)
+    pending = run_dir / ".result.json.pending"
+    pending.write_bytes(pending.read_bytes() + b"tampered")
+
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="staged bytes が再計算と不一致"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", resume_dir=run_dir,
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+        )
+
+
+def test_finalize_pending_resume_rejects_tampered_published_result(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=out_root,
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""),
+    )
+    run_dir = Path(outcome["run_dir"])
+    (run_dir / "result.md").unlink()
+    result_path = run_dir / "result.json"
+    result_path.write_bytes(result_path.read_bytes() + b"tampered")
+
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="publish 済み bytes が再計算と不一致"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", resume_dir=run_dir,
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+        )
+
+
+def test_finalize_completed_terminal_recheck_fires_when_called_without_classify(tmp_path):
+    journal_path = tmp_path / "journal.jsonl"
+    s8b_floor_campaign._journal_append(
+        journal_path, {"event": "terminal", "status": "completed"})
+    s8b_floor_campaign._journal_append(journal_path, {"event": "late"})
+    staged = (
+        tmp_path / ".result.json.pending", b"{}\n",
+        tmp_path / ".result.md.pending", b"result\n",
+    )
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="finalize-pending: completed terminal が一意・最終でない"):
+        s8b_floor_campaign._finalize(
+            tmp_path, staged, journal_path, terminal_already_completed=True)
+
+
+@pytest.mark.parametrize("crash_point", [
+    "result-write-after", "self-check-after", "terminal-before", "terminal-after",
+])
+def test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries(
+        tmp_path, monkeypatch, crash_point):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+
+    with monkeypatch.context() as scoped:
+        if crash_point == "result-write-after":
+            original = s8b_floor_campaign._stage_bytes
+
+            def crash_after_result(path, payload):
+                original(path, payload)
+                if Path(path).name == ".result.json.pending":
+                    raise _SimulatedCrash(crash_point)
+
+            scoped.setattr(s8b_floor_campaign, "_stage_bytes", crash_after_result)
+        elif crash_point == "self-check-after":
+            original = s8b_floor_campaign.s8b_floor_stats.verify_floor_artifact
+
+            def crash_after_self_check(*args, **kwargs):
+                problems = original(*args, **kwargs)
+                assert problems == []
+                raise _SimulatedCrash(crash_point)
+
+            scoped.setattr(
+                s8b_floor_campaign.s8b_floor_stats, "verify_floor_artifact",
+                crash_after_self_check,
+            )
+        elif crash_point == "terminal-before":
+            scoped.setattr(
+                s8b_floor_campaign, "_append_completed_terminal",
+                lambda _path: (_ for _ in ()).throw(_SimulatedCrash(crash_point)),
+            )
+        else:
+            scoped.setattr(
+                s8b_floor_campaign, "_publish_finalize_files",
+                lambda *_args: (_ for _ in ()).throw(_SimulatedCrash(crash_point)),
+            )
+        with pytest.raises(_SimulatedCrash, match=crash_point):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+                probe_fn=lambda: (1, "", ""),
+            )
+
+    run_dir = _only_run_dir(out_root)
+    assert not (run_dir / "result.json").exists()
+    assert not (run_dir / "result.md").exists()
+    before = _read_journal_lines(run_dir / "journal.jsonl")
+    has_terminal = any(r.get("event") == "terminal" for r in before)
+    assert has_terminal is (crash_point == "terminal-after")
+
+    resume_measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+        measure_fn=resume_measure, probe_fn=lambda: (1, "", ""), resume_dir=run_dir,
+    )
+    assert outcome["status"] == "completed"
+    assert resume_measure.calls == []
+    assert outcome["result"]["eligible_for_refreeze"] is False
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    terminals = [r for r in journal if r.get("event") == "terminal"]
+    assert terminals == [{"event": "terminal", "status": "completed"}]
+    assert journal[-1] == terminals[0]
+    assert any(r.get("event") == "resume-start" for r in journal) is (
+        crash_point != "terminal-after")
 
 
 # =========================================================================== #
@@ -979,6 +1356,30 @@ class _SimulatedCrash(Exception):
     """resume テスト専用: 実クラッシュ (measure_fn を包む except に捕まらない例外) を模す。"""
 
 
+@pytest.mark.parametrize(("records", "result_published", "markdown_published", "reason"), [
+    ([{"event": "terminal", "status": "aborted"}], False, False,
+     "aborted/artifact-invalid terminal は再開できない"),
+    ([{"event": "terminal", "status": "artifact-invalid"}], False, False,
+     "aborted/artifact-invalid terminal は再開できない"),
+    ([{"event": "terminal", "status": "completed"},
+      {"event": "terminal", "status": "completed"}], False, False,
+     "resume journal の terminal が重複している"),
+    ([{"event": "terminal", "status": "completed"}, {"event": "late"}], False, False,
+     "resume journal の terminal が最終 record でない"),
+    ([{"event": "terminal", "status": "completed"}], True, True,
+     "publish 完了済み campaign は再開できない"),
+])
+def test_journal_resume_state_rejects_nonresumable_terminals(
+        records, result_published, markdown_published, reason):
+    with pytest.raises(
+            s8b_floor_campaign._floor_contract.FloorContractError, match=reason):
+        s8b_floor_campaign._floor_contract.classify_journal_resume_state(
+            records, manifest_exists=True,
+            result_published=result_published,
+            markdown_published=markdown_published,
+        )
+
+
 def _crash_at(n_crash: int):
     call_count = {"n": 0}
 
@@ -987,7 +1388,10 @@ def _crash_at(n_crash: int):
         if call_count["n"] == n_crash:
             raise _SimulatedCrash("fixture: session 実行中に死ぬ")
         cell_id = _cell_id_from_binary(binary)
-        return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 5, notes=[], run_cmd="./x")
+        return _FakeScalePoint(
+            throughputs=[_BASE_TPS[cell_id]] * 5, notes=[],
+            run_cmd=_shape_faithful_run_cmd(binary, records, threads, workload),
+        )
     return measure_fn, call_count
 
 
@@ -1056,7 +1460,7 @@ def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
     manifest = json.loads((run_dir / "manifest.json").read_bytes())
     binaries = manifest["binaries"]
     tampered_cell = sorted(binaries)[0]
-    binary_path = Path(binaries[tampered_cell]["binary"])
+    binary_path = out_root / binaries[tampered_cell]["binary"]
     original = binary_path.read_bytes()
 
     binary_path.write_bytes(original + b"-tampered")
@@ -1143,9 +1547,13 @@ def test_resume_does_not_reissue_retry_slot_after_retry_start_crash(tmp_path):
             first_measure.flaky_calls += 1
             if first_measure.flaky_calls == 1:
                 return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 4, notes=[],
-                                       run_cmd="./x")
+                                       run_cmd=_shape_faithful_run_cmd(
+                                           binary, records, threads, workload))
             raise _SimulatedCrash("fixture: retry 実行中に死ぬ")
-        return _FakeScalePoint(throughputs=[_BASE_TPS[cell_id]] * 5, notes=[], run_cmd="./x")
+        return _FakeScalePoint(
+            throughputs=[_BASE_TPS[cell_id]] * 5, notes=[],
+            run_cmd=_shape_faithful_run_cmd(binary, records, threads, workload),
+        )
     first_measure.flaky_calls = 0
 
     with pytest.raises(_SimulatedCrash):
@@ -1262,10 +1670,42 @@ def test_floor_manifest_binary_sha256_matches_real_file_bytes(tmp_path):
     binaries = json.loads((run_dir / "manifest.json").read_bytes())["binaries"]
     assert binaries
     for cell_id, rec in binaries.items():
-        actual = hashlib.sha256(Path(rec["binary"]).read_bytes()).hexdigest()
+        actual = hashlib.sha256(
+            (tmp_path / "out" / rec["binary"]).read_bytes()).hexdigest()
         assert rec["binary_sha256"] == actual, cell_id
         assert len(rec["binary_sha256"]) == 64
         assert rec["bin_hash_short"] == rec["binary_sha256"][:16]
+
+
+@pytest.mark.skipif(
+    not ((ROOT / "external" / "ccbench" / ".git").exists()
+         and all(shutil.which(tool) for tool in ("cmake", "gcc-13", "g++-13", "nm"))),
+    reason="slow real-build canary: initialized ccbench + pinned toolchain が必要",
+)
+def test_slow_real_prepare_cell_to_buildcache_canary_one_configuration(tmp_path):
+    """F19: fake でなく実 prepare_cell→buildcache.build を 1 構成だけ通す canary。"""
+    freeze = _freeze_document()
+    cell = next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK)
+        if cell["configuration_id"] == _STOCK
+    )
+    pin = subprocess.run(
+        ["git", "-C", str(ROOT / "external" / "ccbench"), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    with s8b_floor_campaign._prepared_binding(
+            freeze=freeze, holdout_id=cell["holdout_id"],
+            configuration_id=cell["configuration_id"], ccbench_pin=pin,
+            prepare_fn=s8b_floor_campaign.prepare_cell) as (_identity, prepared):
+        result = s8b_floor_campaign.buildcache.build(
+            prepared.genome, ccbench_commit=pin, trace=False,
+            cache_root=str(tmp_path / "cache"), ccbench_dir=prepared.ccbench_dir,
+            src_token=prepared.src_token, jobs=1,
+        )
+    assert Path(result.binary).is_file()
+    assert s8b_floor_campaign.buildcache.is_full_sha256(result.bin_sha256)
+    assert result.configure_argv and result.build_argv
 
 
 # =========================================================================== #
@@ -1375,6 +1815,231 @@ def test_clean_scan_digest_accepts_exact_freeze_allowlist(tmp_path, monkeypatch)
     assert digest == hashlib.sha256(rel.encode("utf-8")).hexdigest()
 
 
+def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    repo_root = tmp_path / "real-repo"
+    _init_real_clean_repo(repo_root, freeze, protocol)
+    expected = s8b_floor_campaign.clean_scan_digest(
+        repo_root, freeze_allowlist={protocol["freeze"]["path"]: _freeze_sha(freeze)},
+    )
+    outcome = s8b_floor_campaign._run_campaign_core(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+        execution_receipt_fn=_fixed_receipt,
+        build_fn=_make_fake_build(tmp_path / "ignored"), repo_root=repo_root,
+    )
+    cert = json.loads((Path(outcome["run_dir"]) / "launch_certificate.json").read_bytes())
+    assert cert["clean_scan_digest"] == expected
+
+
+def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_path):
+    roots = [
+        tmp_path / "短",
+        tmp_path / "a much longer root with spaces Ω",
+    ]
+    environments = [
+        {"PYTHONHASHSEED": "1", "LC_ALL": "C", "TZ": "UTC"},
+        {"PYTHONHASHSEED": "777", "LC_ALL": "C.UTF-8", "TZ": "Asia/Tokyo"},
+    ]
+    script = textwrap.dedent(f"""
+        import importlib.util, json, pathlib, sys
+        spec = importlib.util.spec_from_file_location("floor_test_helper", {str(Path(__file__))!r})
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        print(json.dumps(module._deterministic_official_artifacts(pathlib.Path(sys.argv[1])), sort_keys=True))
+    """)
+    observations = []
+    for root, delta in zip(roots, environments):
+        temp_dir = root / "process-tmp"
+        temp_dir.mkdir(parents=True)
+        env = dict(os.environ)
+        env.update(delta)
+        env["TMPDIR"] = str(temp_dir)
+        completed = subprocess.run(
+            [sys.executable, "-c", script, str(root)], env=env,
+            capture_output=True, text=True, check=True,
+        )
+        observations.append(json.loads(completed.stdout))
+    assert observations[0]["sha256"] == observations[1]["sha256"]
+    for name in observations[0]["inodes"]:
+        assert observations[0]["inodes"][name] != observations[1]["inodes"][name]
+
+
+def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
+    observation = _deterministic_official_artifacts(tmp_path / "sentinel-root")
+    run_dir = Path(observation["run_dir"])
+    manifest = json.loads((run_dir / "manifest.json").read_bytes())
+    result = json.loads((run_dir / "result.json").read_bytes())
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    campaign_start = next(r for r in journal if r.get("event") == "campaign-start")
+
+    # host_provenance_fn / process_identity_fn / execution_receipt_fn の pointer を個別固定。
+    assert campaign_start["hostname"] == "sentinel-host"
+    assert campaign_start["boot_id"] == "sentinel-boot"
+    assert campaign_start["job_id"] == "sentinel-job"
+    assert campaign_start["cpuset"] == "sentinel-cpuset"
+    assert campaign_start["pid"] == 4242
+    assert campaign_start["starttime"] == 31337
+    assert campaign_start["execution_uuid"] == "a" * 32
+    receipt = campaign_start["execution_receipt"]
+    assert receipt["attestation"]["hostname"] == "sentinel-receipt-host"
+    assert receipt["attestation"]["boot_id"] == "sentinel-receipt-boot"
+    assert receipt["attestation"]["cpuset"] == "sentinel-receipt-cpuset"
+
+    # build_fn は exact PortableBuiltRecord に投影され、result と manifest は同じ artifact view。
+    assert result["binaries"] == manifest["binaries"]
+    for cell_id, record in manifest["binaries"].items():
+        assert set(record) == set(s8b_floor_campaign._PORTABLE_BUILT_KEYS), cell_id
+        assert not Path(record["binary"]).is_absolute()
+        assert not Path(record["store_path"]).is_absolute()
+        assert any("${OUT_ROOT}" in token for token in record["configure_argv"])
+        assert any("${CCBENCH_ROOT}" in token for token in record["configure_argv"])
+        assert "configure_cmd" not in record and "build_cmd" not in record
+    assert result["eligible_for_refreeze"] is True
+
+
+def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    repo_root = tmp_path / "default-root"
+    _init_real_clean_repo(repo_root, freeze, protocol)
+    calls = {name: 0 for name in ("host", "process", "receipt", "build", "after")}
+    fake_build = _make_fake_build(tmp_path / "ignored")
+
+    def host_spy(*, now_fn):
+        calls["host"] += 1
+        return _fixed_host(now_fn=now_fn)
+
+    def process_spy():
+        calls["process"] += 1
+        return _fixed_process()
+
+    def receipt_spy(contract, *, now_fn):
+        calls["receipt"] += 1
+        return _fixed_receipt(contract, now_fn=now_fn)
+
+    def build_spy(*args, **kwargs):
+        calls["build"] += 1
+        return fake_build(*args, **kwargs)
+
+    def after_spy(cert_path):
+        calls["after"] += 1
+        assert cert_path.is_file()
+
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", repo_root)
+    monkeypatch.setattr(s8b_floor_campaign, "_host_provenance", host_spy)
+    monkeypatch.setattr(s8b_floor_campaign, "_process_identity", process_spy)
+    monkeypatch.setattr(s8b_floor_campaign.execution_guard, "build_receipt", receipt_spy)
+    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build", build_spy)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_after_certificate_issued_noop", after_spy)
+    outcome = s8b_floor_campaign._run_campaign_core(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+    )
+    assert outcome["status"] == "completed"
+    assert calls == {"host": 1, "process": 1, "receipt": 1, "build": 12, "after": 1}
+
+
+@pytest.mark.parametrize("validator,value", [
+    (s8b_floor_campaign._validate_host_provenance,
+     {"hostname": "h", "boot_id": None, "job_id": None, "cpuset": None}),
+    (s8b_floor_campaign._validate_process_identity,
+     {"pid": 1, "starttime": 2}),
+])
+def test_partial_seam_bundle_is_rejected_by_exact_validator(validator, value):
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="key 集合"):
+        validator(value)
+
+
+def test_partial_execution_receipt_bundle_is_rejected():
+    contract = ec.lookup(ENV_TAG)
+    receipt = _fixed_receipt(contract, now_fn=lambda: _FIXED_NOW)
+    receipt["attestation"].pop("cpuset")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="key 集合"):
+        s8b_floor_campaign._validate_execution_receipt(receipt, contract=contract)
+
+
+def test_portable_projection_rejects_reserved_placeholder_and_exact_key_tamper(tmp_path):
+    binary = tmp_path / "out" / "cache" / "binary.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"binary")
+    sha = hashlib.sha256(binary.read_bytes()).hexdigest()
+    runtime = {
+        "cell": {
+            "cell_id": "cell", "holdout_id": "h", "configuration_id": "c",
+            "binary": str(binary), "binary_sha256": sha, "bin_hash_short": sha[:16],
+            "binding": {}, "configure_argv": ["cmake", "${OUT_ROOT}"],
+            "build_argv": ["cmake", "--build", str(binary.parent)],
+            "cached": False, "store_path": str(tmp_path / "out" / "store" / sha),
+            "_ccbench_root": str(tmp_path / "ccbench"),
+        },
+    }
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="予約 placeholder"):
+        s8b_floor_campaign.project_built_records(runtime, out_root=tmp_path / "out")
+
+    runtime["cell"]["configure_argv"] = ["cmake", "-S", str(tmp_path / "ccbench")]
+    portable = s8b_floor_campaign.project_built_records(
+        runtime, out_root=tmp_path / "out")
+    portable["cell"].pop("cached")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="exact key"):
+        s8b_floor_campaign.resolve_portable_built(
+            portable, out_root=tmp_path / "out")
+
+
+def _valid_portable_built_record() -> dict:
+    sha = "a" * 64
+    return {
+        "cell": {
+            "cell_id": "cell", "holdout_id": "holdout",
+            "configuration_id": "configuration", "binary": "cache/cell/binary.exe",
+            "binary_sha256": sha, "bin_hash_short": sha[:16], "binding": {},
+            "configure_argv": ["cmake", "-S", "${CCBENCH_ROOT}"],
+            "build_argv": ["cmake", "--build", "${OUT_ROOT}/cache/cell"],
+            "cached": False, "store_path": f"store/{sha}",
+        },
+    }
+
+
+@pytest.mark.parametrize(("path", "reason"), [
+    ("a/../b", "portable built binary path component が不正"),
+    ("a//b", "portable built binary path 文法が不正"),
+    ("/abs", "portable built binary path 文法が不正"),
+])
+@pytest.mark.parametrize("entrypoint", ["validate", "resolve"])
+def test_portable_built_rejects_path_traversal_and_noncanonical_paths(
+        tmp_path, path, reason, entrypoint):
+    built = _valid_portable_built_record()
+    built["cell"]["binary"] = path
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=reason):
+        if entrypoint == "validate":
+            s8b_floor_campaign._validate_portable_built(built)
+        else:
+            s8b_floor_campaign.resolve_portable_built(built, out_root=tmp_path)
+
+
+@pytest.mark.parametrize(("field", "value", "reason"), [
+    ("cached", 1, "portable binaries\\[cell\\]\\.cached が bool でない"),
+    ("cached", "true", "portable binaries\\[cell\\]\\.cached が bool でない"),
+    ("binary_sha256", "not-a-sha",
+     "portable binaries\\[cell\\]\\.binary_sha256 が不正"),
+    ("bin_hash_short", "b" * 16,
+     "portable binaries\\[cell\\]\\.bin_hash_short が不一致"),
+    ("binding", [], "portable binaries\\[cell\\]\\.binding が object でない"),
+])
+def test_portable_built_rejects_wrong_scalar_and_mapping_types(field, value, reason):
+    built = _valid_portable_built_record()
+    built["cell"][field] = value
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=reason):
+        s8b_floor_campaign._validate_portable_built(built)
+
+
 def _valid_launch_certificate() -> dict:
     return s8b_floor_campaign.build_launch_certificate(
         v1_freeze_sha256="a" * 64,
@@ -1464,7 +2129,62 @@ def test_official_fresh_issues_certificate_and_binds_wall_ledger(tmp_path, monke
     wall_start = next(r for r in outcome["result"]["wall_ledger"]
                       if r.get("event") == "campaign-start")
     assert wall_start["launch_certificate_sha256"] == cert_sha
+    assert outcome["result"]["eligible_for_refreeze"] is True
     assert repo_before == _real_output_snapshot()
+
+
+def test_checkpoint_callback_is_after_cert_validation_and_before_launch_start(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    observed = []
+
+    def checkpoint(cert_path):
+        observed.append(cert_path)
+        assert json.loads(cert_path.read_bytes())["campaign_run_id"] == cert_path.parent.name
+        assert not (cert_path.parent / "journal.jsonl").exists()
+        raise _SimulatedCrash("checkpoint crash")
+
+    with _official_test_seam(monkeypatch):
+        with pytest.raises(_SimulatedCrash, match="checkpoint"):
+            s8b_floor_campaign._run_campaign_core(
+                protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+                mode="official", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+                monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+                now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
+                after_certificate_issued_fn=checkpoint,
+            )
+    assert len(observed) == 1
+    run_dir = observed[0].parent
+    assert {path.name for path in run_dir.iterdir()} == {"launch_certificate.json"}
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="厳密な L"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+            build_root=tmp_path / "ignored", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), mode="official", resume_dir=run_dir,
+        )
+
+
+def test_checkpoint_raw_hash_recheck_fires_before_launch_start(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+
+    def mutate_cert(cert_path):
+        cert_path.write_bytes(cert_path.read_bytes() + b" ")
+
+    with _official_test_seam(monkeypatch):
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="raw hash"):
+            s8b_floor_campaign._run_campaign_core(
+                protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+                mode="official", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+                monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+                now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
+                after_certificate_issued_fn=mutate_cert,
+            )
+    run_dir = next(path.parent for path in (tmp_path / "out").rglob("launch_certificate.json"))
+    assert not (run_dir / "journal.jsonl").exists()
 
 
 def test_official_scan_rejection_has_zero_filesystem_side_effects(tmp_path, monkeypatch):
@@ -1509,7 +2229,106 @@ def test_official_build_failure_leaves_durable_launch_start(tmp_path, monkeypatc
     assert [record["event"] for record in journal] == ["launch-start"]
     assert (journals[0].parent / "launch_certificate.json").is_file()
     assert not (journals[0].parent / "manifest.json").exists()
+    # 厳密 L を同じ cert/run の下で build から再構築する。
+    resume_measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome = _run_campaign(
+        _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+        out_root=out_root, build_root=tmp_path / "bin",
+        measure_fn=resume_measure, probe_fn=lambda: (1, "", ""), mode="official",
+        resume_dir=journals[0].parent,
+    )
+    assert outcome["status"] == "completed"
+    assert not any(r.get("event") == "resume-start"
+                   for r in _read_journal_lines(journals[0]))
     assert repo_before == _real_output_snapshot()
+
+
+def test_l_resume_rejects_extra_run_dir_file(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch) as scoped:
+        scoped.setattr(
+            s8b_floor_campaign, "build_cells",
+            lambda *args, **kwargs: (_ for _ in ()).throw(_SimulatedCrash("build")),
+        )
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), mode="official",
+            )
+    run_dir = next(path.parent for path in out_root.rglob("journal.jsonl"))
+    (run_dir / "extra.txt").write_text("not permitted\n", encoding="utf-8")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="許可 file 集合"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), mode="official", resume_dir=run_dir,
+        )
+
+
+def test_l_resume_rejects_symlinked_launch_certificate(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch) as scoped:
+        scoped.setattr(
+            s8b_floor_campaign, "build_cells",
+            lambda *args, **kwargs: (_ for _ in ()).throw(_SimulatedCrash("build")),
+        )
+        with pytest.raises(_SimulatedCrash, match="build"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), mode="official",
+            )
+        run_dir = next(path.parent for path in out_root.rglob("journal.jsonl"))
+        cert_path = run_dir / "launch_certificate.json"
+        cert_copy = tmp_path / "launch_certificate-copy.json"
+        cert_copy.write_bytes(cert_path.read_bytes())
+        cert_path.unlink()
+        cert_path.symlink_to(cert_copy)
+
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="resume: launch certificate が regular file でない"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), mode="official", resume_dir=run_dir,
+            )
+
+
+def test_m_prestart_resume_starts_runner_fresh_without_resume_start(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch) as scoped:
+        scoped.setattr(
+            s8b_floor_campaign._Runner, "run",
+            lambda self: (_ for _ in ()).throw(_SimulatedCrash("prestart")),
+        )
+        with pytest.raises(_SimulatedCrash, match="prestart"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin",
+                measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+                probe_fn=lambda: (1, "", ""), mode="official",
+            )
+    run_dir = _only_run_dir(out_root)
+    assert [r["event"] for r in _read_journal_lines(run_dir / "journal.jsonl")] == [
+        "launch-start"]
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=out_root,
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), mode="official", resume_dir=run_dir,
+    )
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    assert outcome["status"] == "completed"
+    assert sum(r.get("event") == "campaign-start" for r in journal) == 1
+    assert not any(r.get("event") == "resume-start" for r in journal)
 
 
 def test_official_resume_validates_certificate_and_completes(tmp_path, monkeypatch):
@@ -1559,6 +2378,69 @@ def test_official_resume_rejects_tampered_certificate(tmp_path, monkeypatch):
                 resume_dir=run_dir,
             )
     assert repo_before == _real_output_snapshot()
+
+
+def test_official_resume_rejects_launch_start_utc_not_bound_to_certificate(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch):
+        crashing_measure, _ = _crash_at(2)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=crashing_measure,
+                probe_fn=lambda: (1, "", ""), mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        journal_path = run_dir / "journal.jsonl"
+        records = _read_journal_lines(journal_path)
+        records[0]["utc"] = "2026-01-01T00:00:01+00:00"
+        journal_path.write_text(
+            "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="resume: launch-start.utc が certificate.started_utc と不一致"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), mode="official", resume_dir=run_dir,
+            )
+
+
+def test_official_resume_rejects_extra_launch_start_key(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch):
+        crashing_measure, _ = _crash_at(2)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=crashing_measure,
+                probe_fn=lambda: (1, "", ""), mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        journal_path = run_dir / "journal.jsonl"
+        records = _read_journal_lines(journal_path)
+        records[0]["extra"] = "unexpected"
+        journal_path.write_text(
+            "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="resume: launch-start の exact key 集合が不一致"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), mode="official", resume_dir=run_dir,
+            )
 
 
 def test_official_resume_rejects_renamed_run_dir(tmp_path, monkeypatch):
@@ -1682,6 +2564,7 @@ def test_pilot_path_has_no_launch_certificate_changes(tmp_path):
     assert "launch_certificate_sha256" not in journal[0]
     assert all("launch_certificate_sha256" not in record
                for record in outcome["result"]["wall_ledger"])
+    assert outcome["result"]["eligible_for_refreeze"] is False
     assert repo_before == _real_output_snapshot()
 
 
@@ -1695,7 +2578,8 @@ def test_binary_receipt_mismatch_aborts(tmp_path):
     binaries = {cell_id: {"binary": str(binf), "binary_sha256": "0" * 64}}  # 記録が偽
     runner = s8b_floor_campaign._Runner(
         protocol=_valid_protocol_dict(), cells=[cell], cell_by_id={cell_id: cell},
-        binaries=binaries, schedule=[], journal_path=tmp_path / "j.jsonl",
+        binaries=binaries, artifact_binaries={cell_id: {"binary": "output/fixture/bench"}},
+        schedule=[], journal_path=tmp_path / "j.jsonl",
         measure_fn=lambda *a: _FakeScalePoint([1.0] * 5, [], "x"),
         probe_fn=lambda: (1, "", ""), sleep_fn=lambda s: None,
         monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
@@ -1748,8 +2632,8 @@ def test_content_addressed_store_create_only(tmp_path):
         # content-addressed: store 名が sha256 で終わる。
         assert stored.name == rec["binary_sha256"]
 
-    # store_binaries は冪等 (既存 store は hash 照合のみ、上書きしない)。
-    built = {cid: dict(rec) for cid, rec in binaries.items()}
+    # emitted artifact record を store へ直接戻さず、out_root 基準で runtime view に解決する。
+    built = s8b_floor_campaign.resolve_portable_built(binaries, out_root=out_root)
     store_root = stored.parent
     s8b_floor_campaign.store_binaries(built, store_root, out_root=out_root)  # 例外なし
 

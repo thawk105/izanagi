@@ -8,7 +8,10 @@ pytest 専用 (tmp_path fixture 依存、README allowlist 記載)。
 from __future__ import annotations
 
 import json
+import hashlib
 import os
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -22,6 +25,9 @@ sys.path.insert(0, _HERE)
 
 from campaign import s8b_ratified_freeze as M  # noqa: E402
 from campaign import s8b_holdout_freeze as HF  # noqa: E402
+from campaign import env_contract as EC  # noqa: E402
+from campaign import s8b_floor_contract as FC  # noqa: E402
+from campaign import s8b_floor_stats as FS  # noqa: E402
 import test_s8b_ratified_freeze as B  # noqa: E402  (fixture 共用)
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
@@ -34,19 +40,641 @@ def _need_v1():
         pytest.fail(f"実 v1 freeze が無い (trust root 不在): {_REAL_V1}")
 
 
+_NEGATIVE_REGISTRY = {
+    "source": {
+        "baseline_validator": "load_ratified_freeze(emitter baseline)",
+        "mutation_stage": "generation document before G",
+        "repaired_deps": (), "invoke_layer": "load_ratified_freeze",
+        "reason": "source-blob-mismatch", "cause": None,
+    },
+    "frozen": {
+        "baseline_validator": "load_ratified_freeze(emitter baseline)",
+        "mutation_stage": "generation document before G",
+        "repaired_deps": (), "invoke_layer": "load_ratified_freeze",
+        "reason": "frozen-at-head-mismatch", "cause": None,
+    },
+    "closure-missing": {
+        "baseline_validator": "load_ratified_freeze(emitter baseline)",
+        "mutation_stage": "generation document before G",
+        "repaired_deps": (), "invoke_layer": "load_ratified_freeze",
+        "reason": "closure-not-in-generation", "cause": None,
+    },
+    "closure-sha": {
+        "baseline_validator": "load_ratified_freeze(emitter baseline)",
+        "mutation_stage": "generation document before G",
+        "repaired_deps": (), "invoke_layer": "load_ratified_freeze",
+        "reason": "closure-sha-mismatch", "cause": None,
+    },
+    "env": {
+        "baseline_validator": "load_ratified_freeze(emitter baseline)",
+        "mutation_stage": "generation document before G",
+        "repaired_deps": (), "invoke_layer": "load_ratified_freeze",
+        "reason": "env-tag-unknown", "cause": None,
+    },
+    "transition": {
+        "baseline_validator": "load_ratified_freeze(emitter baseline)",
+        "mutation_stage": "generation document before G",
+        "repaired_deps": (), "invoke_layer": "load_ratified_freeze",
+        "reason": "transition-violation", "cause": None,
+    },
+    "scan-undeclared": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "worktree after A",
+        "repaired_deps": (), "invoke_layer": "launch_validate",
+        "reason": "closure-hit-mismatch", "cause": None,
+    },
+    "scan-missing": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "search report projection after real search",
+        "repaired_deps": ("real search report",), "invoke_layer": "launch_validate",
+        "reason": "closure-hit-mismatch", "cause": None,
+    },
+    "scan-per-holdout": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "worktree after A",
+        "repaired_deps": (), "invoke_layer": "launch_validate",
+        "reason": "closure-hit-mismatch", "cause": None,
+    },
+    "scan-enumeration": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "search enumeration race",
+        "repaired_deps": (), "invoke_layer": "launch_validate",
+        "reason": "enumeration-shifted", "cause": None,
+    },
+    "scan-positive": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "positive-control worktree bytes after A",
+        "repaired_deps": (), "invoke_layer": "launch_validate",
+        "reason": "search-not-operational", "cause": None,
+    },
+    "closure-namespace": {
+        "baseline_validator": "load_ratified_freeze(emitter artifacts)",
+        "mutation_stage": "G measurement_closure namespace path",
+        "repaired_deps": ("closure sha", "G blob"), "invoke_layer": "launch_validate",
+        "reason": "closure-role-conflict", "cause": None,
+    },
+    "generation-scope": {
+        "baseline_validator": "load_ratified_freeze(otherwise-valid emitter g2)",
+        "mutation_stage": "new C2 + new run artifacts + G2 + A2",
+        "repaired_deps": ("all g2 artifact hashes", "approval pointer chain"),
+        "invoke_layer": "launch_validate",
+        "reason": "certificate-generation-scope", "cause": None,
+    },
+    "coherent-journal-result": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "result document before G",
+        "repaired_deps": ("generation.floor_source.sha256", "G result blob"),
+        "invoke_layer": "launch_validate",
+        "reason": "binding-chain-mismatch", "cause": "result-sessions",
+    },
+    "valid-run-cmd-required": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "journal and result documents before G",
+        "repaired_deps": ("generation.floor_source.sha256", "G result blob"),
+        "invoke_layer": "launch_validate",
+        "reason": "journal-state-invalid", "cause": "run-cmd-required",
+    },
+    "binaries-cell-set": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "manifest and result binaries before G",
+        "repaired_deps": ("manifest/result binaries mirror", "manifest hash chain"),
+        "invoke_layer": "launch_validate",
+        "reason": "manifest-invalid", "cause": "binaries-cell-set",
+    },
+    "binary-cell-binding": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "manifest and result binaries before G",
+        "repaired_deps": ("manifest/result binaries mirror", "manifest hash chain"),
+        "invoke_layer": "launch_validate",
+        "reason": "manifest-invalid", "cause": "binary-cell-binding",
+    },
+    "binary-hash": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "manifest, result, and session receipts before G",
+        "repaired_deps": (
+            "manifest/result binaries mirror", "journal/result binary receipts",
+            "manifest hash chain",
+        ),
+        "invoke_layer": "launch_validate",
+        "reason": "manifest-invalid", "cause": "binary-hash",
+    },
+    "binding-sha": {
+        "baseline_validator": "launch_validate(emitter baseline)",
+        "mutation_stage": "manifest and result binary bindings before G",
+        "repaired_deps": ("manifest/result binaries mirror", "manifest hash chain"),
+        "invoke_layer": "launch_validate",
+        "reason": "manifest-invalid", "cause": "binding-sha",
+    },
+}
+
+
+def _assert_registered_refusal(case_id: str, invoke) -> M.RatifiedFreezeError:
+    case = _NEGATIVE_REGISTRY[case_id]
+    assert set(case) == {
+        "baseline_validator", "mutation_stage", "repaired_deps", "invoke_layer",
+        "reason", "cause",
+    }
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        invoke()
+    assert caught.value.reason == case["reason"]
+    assert caught.value.cause == case["cause"]
+    return caught.value
+
+
+def _assert_emitter_baseline(tmp_path: Path) -> None:
+    root, freeze, _topology = B.load_emitter_g1(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+
+
+# --------------------------------------------------------------------------
+# launch_validate 専用の production-shape 局所 stub (issuer helper 非依存)
+# --------------------------------------------------------------------------
+
+def _lgit(root: Path, *args: str, stdin: bytes | None = None) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, check=True, input=stdin,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout.decode("utf-8").strip()
+
+
+def _lcommit(root: Path, subject: str, agent: str) -> str:
+    _lgit(root, "add", "-A")
+    _lgit(
+        root, "commit", "-q", "-F", "-",
+        stdin=f"{subject}\n\nAI-Agent: {agent}".encode("utf-8"),
+    )
+    return _lgit(root, "rev-parse", "HEAD")
+
+
+def _lwrite(root: Path, rel: str, raw: bytes) -> None:
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+
+
+def _lraw(document) -> bytes:
+    return (json.dumps(document, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
+
+
+def _ljline(document) -> bytes:
+    return (json.dumps(
+        document, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    ) + "\n").encode()
+
+
+def _lsha(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _make_local_ccbench(root: Path) -> None:
+    sub = root / "external" / "ccbench"
+    sub.mkdir(parents=True)
+    _lgit(sub, "init", "-q")
+    _lgit(sub, "config", "user.name", "fixture")
+    _lgit(sub, "config", "user.email", "fixture@example.invalid")
+    (sub / "fixture.txt").write_text("scan fixture\n", encoding="utf-8")
+    _lcommit(sub, "ccbench base", "fixture")
+
+
+def _binding(cell: dict, freeze: dict) -> dict:
+    entry = freeze["holdouts"][cell["holdout_id"]]["variant_binding"]["entries"][
+        cell["configuration_id"]]
+    preimage = {
+        "entry_sha256": _lsha(M._canonical_bytes(entry)),
+        "genome_canonical": f"fixture|{cell['configuration_id']}",
+        "src_token": "fixture-src",
+        "variant_id": _lsha(cell["cell_id"].encode())[:12],
+    }
+    return {**preimage, "binding_sha256": _lsha(M._canonical_bytes(preimage))}
+
+
+def _portable_binaries(cells: list[dict], freeze: dict) -> dict:
+    out = {}
+    for cell in cells:
+        cell_id = cell["cell_id"]
+        binary_sha = _lsha(("binary:" + cell_id).encode())
+        out[cell_id] = {
+            "cell_id": cell_id,
+            "holdout_id": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "binary": f"output/fixture-bin/{binary_sha}/bench",
+            "binary_sha256": binary_sha,
+            "bin_hash_short": binary_sha[:16],
+            "binding": _binding(cell, freeze),
+            "configure_argv": ["cmake", "${CCBENCH_ROOT}"],
+            "build_argv": ["cmake", "--build", "${OUT_ROOT}"],
+            "cached": False,
+            "store_path": f"output/fixture-store/{binary_sha}",
+        }
+    return out
+
+
+def _session_rows(
+        cells: list[dict], schedule: list[dict], binaries: dict,
+        protocol: dict) -> list[dict]:
+    by_id = {cell["cell_id"]: cell for cell in cells}
+    contract = EC.lookup(protocol["env_tag"])
+    rows = []
+    for row in schedule:
+        cell = by_id[row["cell_id"]]
+        seq = row["seq"]
+        rows.append({
+            "event": "session", "kind": "planned", "seq": seq, "round": row["round"],
+            "retry_ordinal": None, "attempt_id": f"{cell['cell_id']}::seq{seq}", "trigger": None,
+            "cell_id": cell["cell_id"], "holdout_id": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"], "records": cell["records"],
+            "threads": cell["threads"], "workload": dict(cell["workload"]),
+            "throughputs": [1000.0] * 5, "reps_expected": 5, "exec_failures": 0,
+            "excluded_reason": None, "retry": False, "session_median": 1000.0,
+            "valid": True, "session_cv": 0.0, "duration_s": 1.0,
+            "run_cmd": shlex.join(FC.build_portable_run_cmd(
+                binary=binaries[cell["cell_id"]]["binary"], workload=cell["workload"],
+                records=cell["records"], threads=cell["threads"],
+                extime_s=protocol["extime_s"], clocks_per_us=contract.clocks_per_us,
+                numactl=contract.numactl,
+            )),
+            "notes": [],
+            "probe_before": {"rc": 1, "stdout": "", "stderr": "", "competing": []},
+            "probe_after": {"rc": 1, "stdout": "", "stderr": "", "competing": []},
+            "binary_sha256_at_measure": binaries[cell["cell_id"]]["binary_sha256"],
+        })
+    return rows
+
+
+def _result_document(protocol: dict, cells: list[dict], binaries: dict,
+                     sessions: list[dict], manifest_sha: str, wall_ledger: list[dict]) -> dict:
+    by_cell = {cell["cell_id"]: [] for cell in cells}
+    for row in sessions:
+        by_cell[row["cell_id"]].append(FS.SessionRecord(
+            cell_id=row["cell_id"], holdout_id=row["holdout_id"],
+            configuration_id=row["configuration_id"], seq=row["seq"],
+            throughputs=tuple(row["throughputs"]), reps_expected=row["reps_expected"],
+            exec_failures=row["exec_failures"], excluded_reason=row["excluded_reason"],
+            retry=row["retry"],
+        ))
+    computed = {}
+    cells_out = {}
+    for cell in cells:
+        stats = FS.cell_stats(
+            by_cell[cell["cell_id"]], n_sessions=protocol["n_sessions"],
+            reps=protocol["reps"], session_cv_max=protocol["session_cv_max"],
+        )
+        computed[cell["cell_id"]] = stats
+        cells_out[cell["cell_id"]] = {
+            "holdout_id": stats.holdout_id, "configuration_id": stats.configuration_id,
+            "n_valid": stats.n_valid, "medians": list(stats.medians), "m": stats.m,
+            "s": stats.s, "valid": stats.valid, "cv": stats.cv, "notes": list(stats.notes),
+        }
+    floors = {}
+    for holdout in sorted({cell["holdout_id"] for cell in cells}):
+        holdout_cells = {cid: value for cid, value in computed.items()
+                         if value.holdout_id == holdout}
+        floor = FS.holdout_floors(
+            holdout_cells, stock_id=f"{holdout}::{protocol['stock_configuration']}",
+            wired_min_rel_floor=protocol["wired_min_rel_floor"],
+            cell_cv_max=protocol["cell_cv_max"],
+        )
+        floors[holdout] = {
+            "pairs": dict(floor.pairs), "scalar_alt": floor.scalar_alt,
+            "scale_ref": floor.scale_ref, "diagnostics": floor.diagnostics,
+        }
+    attempts = [{
+        "seq": r["seq"], "cell_id": r["cell_id"], "kind": r["kind"], "round": r["round"],
+        "retry_ordinal": r["retry_ordinal"], "valid": r["valid"],
+        "excluded_reason": r["excluded_reason"], "session_cv": r["session_cv"],
+        "session_median": r["session_median"], "duration_s": r["duration_s"],
+    } for r in sessions]
+    return {
+        "schema": FC.RESULT_SCHEMA, "formula": protocol["formula"], "mode": "official",
+        "eligible_for_refreeze": True, "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "protocol_sha256": FC.canonical_protocol_sha256(protocol),
+        "freeze_sha256": M.V1_FREEZE_SHA256, "manifest_sha256": manifest_sha,
+        "stock_configuration": protocol["stock_configuration"],
+        "wired_min_rel_floor": protocol["wired_min_rel_floor"], "reps": protocol["reps"],
+        "n_sessions": protocol["n_sessions"],
+        "scale_adequacy_rel_tolerance": protocol["scale_adequacy_rel_tolerance"],
+        "holdouts": sorted({c["holdout_id"] for c in cells}),
+        "configurations": sorted({c["configuration_id"] for c in cells}),
+        "binaries": binaries,
+        "config": FC.project_protocol_for_floor_artifact(protocol),
+        "sessions": json.loads(json.dumps(sessions)), "cells": cells_out, "floors": floors,
+        "wall_ledger": wall_ledger, "excluded": [], "attempts": attempts,
+    }
+
+
+def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
+                                   cert_at_generation=False, executable_role=None):
+    """C(cert only)→G(run artifacts+closure+generation)→A(approval+pointer)→H(no-op)。"""
+    root = tmp_path / "launch-repo"
+    root.mkdir()
+    _lgit(root, "init", "-q")
+    _lgit(root, "config", "user.name", "fixture")
+    _lgit(root, "config", "user.email", "fixture@example.invalid")
+    _make_local_ccbench(root)
+    freeze = json.loads(_REAL_V1.read_bytes())
+    _lwrite(root, M.V1_FREEZE_PATH, _REAL_V1.read_bytes())
+    _lwrite(root, "positive_control.txt", B._RR50_PARAMS)
+    (root / "README.md").write_text("launch fixture\n", encoding="utf-8")
+    base_commit = _lcommit(root, "base", "fixture")
+
+    contract = EC.lookup("linux-baremetal")
+    protocol = {
+        "schema": FC.PROTOCOL_SCHEMA, "formula": FC.FORMULA_ID,
+        "env_tag": contract.env_tag, "ccbench_pin": "fixture-pin",
+        "freeze": {"path": M.V1_FREEZE_PATH, "sha256": M.V1_FREEZE_SHA256},
+        "stock_configuration": "stock_common", "n_sessions": 8, "reps": 5,
+        "master_seed": "fixture-seed", "schedule_algorithm": FC.SCHEDULE_ALGORITHM,
+        "extime_s": 3, "wired_min_rel_floor": 0.9, "retry_slots_per_cell": 2,
+        "session_cv_max": "0.10", "cell_cv_max": "0.15",
+        "scale_adequacy_rel_tolerance": "0.10",
+        "allowed_excluded_reasons": list(FC._APPROVED_REASONS),
+        "contract_sha256": contract.contract_sha256,
+    }
+    protocol = FC.validate_protocol(
+        protocol, contract_sha256_lookup=lambda _env: contract.contract_sha256,
+    )
+    protocol_sha = FC.canonical_protocol_sha256(protocol)
+    run_id = f"20260718T120000Z-{protocol_sha[:8]}"
+    run_dir = f"output/env/{contract.env_tag}/calibration/s8b-floor-official/{run_id}"
+    paths = {
+        "protocol": f"{run_dir}/protocol.json", "cert": f"{run_dir}/launch_certificate.json",
+        "journal": f"{run_dir}/journal.jsonl", "manifest": f"{run_dir}/manifest.json",
+        "result": f"{run_dir}/result.json", "closure80": f"{run_dir}/closure80.txt",
+        "closure20": f"{run_dir}/closure20.txt",
+    }
+    cert = {
+        "schema": "s8b-floor-launch-certificate/v1",
+        "v1_freeze_sha256": M.V1_FREEZE_SHA256,
+        "clean_scan_digest": "0" * 64, "protocol_sha256": protocol_sha,
+        "started_utc": "2026-07-18T12:00:00+00:00", "campaign_run_id": run_id,
+    }
+    if cert_mutate is not None:
+        cert_mutate(cert)
+    cert_raw = _lraw(cert)
+    if cert_at_generation:
+        c_commit = base_commit
+    else:
+        _lwrite(root, paths["cert"], cert_raw)
+        c_commit = _lcommit(root, "launch certificate", "fixture")
+
+    cells = FC.enumerate_cells(freeze, stock_configuration=protocol["stock_configuration"])
+    schedule = FC.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"], n_sessions=protocol["n_sessions"],
+    )
+    binaries = _portable_binaries(cells, freeze)
+    manifest = {
+        "schema_version": FC.MANIFEST_SCHEMA, "protocol_sha256": protocol_sha,
+        "freeze": dict(protocol["freeze"]), "freeze_sha256": M.V1_FREEZE_SHA256,
+        "env_tag": protocol["env_tag"], "ccbench_pin": protocol["ccbench_pin"],
+        "stock_configuration": protocol["stock_configuration"],
+        "schedule_algorithm": protocol["schedule_algorithm"], "master_seed": protocol["master_seed"],
+        "n_sessions": protocol["n_sessions"], "reps": protocol["reps"],
+        "extime_s": protocol["extime_s"], "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"], "cells": cells,
+        "binaries": binaries, "schedule": schedule,
+    }
+    manifest_raw = _lraw(manifest)
+    cert_sha = _lsha(cert_raw)
+    manifest_sha = _lsha(manifest_raw)
+    campaign_start = {
+        "event": "campaign-start", "schema": FC.JOURNAL_SCHEMA,
+        "protocol_sha256": protocol_sha, "freeze_sha256": M.V1_FREEZE_SHA256,
+        "manifest_sha256": manifest_sha, "launch_certificate_sha256": cert_sha,
+        "hostname": "fixture-host", "boot_id": "fixture-boot", "job_id": None,
+        "cpuset": "/", "utc": cert["started_utc"], "pid": 1, "starttime": 1,
+        "execution_uuid": "0" * 32,
+        "execution_receipt": {
+            "schema": "s8b-execution-receipt/v1", "env_tag": protocol["env_tag"],
+            "contract_sha256": protocol["contract_sha256"],
+            "attestation": {"hostname": "fixture-host", "boot_id": "fixture-boot",
+                            "cpuset": "/", "captured_utc": cert["started_utc"]},
+        },
+    }
+    sessions = _session_rows(cells, schedule, binaries, protocol)
+    journal = [{"event": "launch-start", "schema": FC.JOURNAL_SCHEMA,
+                "launch_certificate_sha256": cert_sha, "utc": cert["started_utc"]},
+               campaign_start]
+    for round_no in range(1, protocol["n_sessions"] + 1):
+        rs = {"event": "round-start", "round": round_no, "utc": cert["started_utc"]}
+        journal.append(rs)
+        for row in [s for s in sessions if s["round"] == round_no]:
+            journal.append({
+                "event": "session-start", "seq": row["seq"], "kind": row["kind"],
+                "cell_id": row["cell_id"], "round": row["round"],
+                "retry_ordinal": row["retry_ordinal"], "attempt_id": row["attempt_id"],
+                "trigger": row["trigger"], "started_iso": cert["started_utc"],
+            })
+            journal.append(row)
+        journal.append({"event": "round-complete", "round": round_no,
+                        "utc": cert["started_utc"]})
+    journal.append({"event": "terminal", "status": "completed"})
+    wall_ledger = [r for r in journal if r["event"] in
+                   {"campaign-start", "round-start", "round-complete"}]
+    result = _result_document(protocol, cells, binaries, sessions, manifest_sha, wall_ledger)
+
+    state = {"protocol": protocol, "cert": cert, "manifest": manifest,
+             "journal": journal, "result": result, "paths": paths}
+    if mutate is not None:
+        mutate(state)
+        protocol, cert, manifest, journal, result = (
+            state["protocol"], state["cert"], state["manifest"], state["journal"], state["result"])
+        if state.get("repair_manifest"):
+            repaired_manifest_sha = _lsha(_lraw(manifest))
+            campaign = next(r for r in journal if r["event"] == "campaign-start")
+            campaign["manifest_sha256"] = repaired_manifest_sha
+            result["manifest_sha256"] = repaired_manifest_sha
+            wall_campaign = next(r for r in result["wall_ledger"]
+                                 if r["event"] == "campaign-start")
+            wall_campaign["manifest_sha256"] = repaired_manifest_sha
+    protocol_record_raw = _lraw(protocol)
+    protocol_raw = protocol_record_raw + state.get("post_hash_protocol_suffix", b"")
+    cert_raw = _lraw(cert)
+    manifest_raw = _lraw(manifest)
+    journal_raw = b"".join(_ljline(record) for record in journal)
+    result_raw = _lraw(result)
+    result_record_sha = _lsha(result_raw)
+    post_hash_suffix = state.get("post_hash_result_suffix", b"")
+    if post_hash_suffix:
+        assert isinstance(post_hash_suffix, bytes)
+        result_raw += post_hash_suffix
+    if cert_at_generation:
+        _lwrite(root, paths["cert"], cert_raw)
+    # 通常 mutation は C bytes を変えない。cert_mutate は C の構築前にだけ適用する。
+    assert (root / paths["cert"]).read_bytes() == cert_raw
+    _lwrite(root, paths["protocol"], protocol_raw)
+    _lwrite(root, paths["manifest"], manifest_raw)
+    _lwrite(root, paths["journal"], journal_raw)
+    _lwrite(root, paths["result"], result_raw)
+    closure80_record_raw = B._RR80_PARAMS
+    closure80_raw = closure80_record_raw + state.get("post_hash_closure80_suffix", b"")
+    _lwrite(root, paths["closure80"], closure80_raw)
+    _lwrite(root, paths["closure20"], B._RR20_PARAMS)
+    if executable_role is not None:
+        executable_path = root / paths[executable_role]
+        executable_path.chmod(executable_path.stat().st_mode | 0o111)
+    gen_doc = dict(freeze)
+    gen_doc.update({
+        "schema_version": "8b-holdout-freeze/v2", "generation_number": 1,
+        "supersedes_sha256": M.V1_FREEZE_SHA256, "env_tag": protocol["env_tag"],
+        "floor_protocol": {"path": paths["protocol"], "sha256": _lsha(protocol_record_raw)},
+        "floor_source": {"path": paths["result"], "sha256": result_record_sha},
+        "measurement_closure": [
+            {"canonical_path": paths["closure80"], "sha256": _lsha(closure80_record_raw)},
+            {"canonical_path": paths["closure20"], "sha256": _lsha(B._RR20_PARAMS)},
+        ],
+    })
+    gen_raw = _lraw(gen_doc)
+    gen_path = M._gen_path(1)
+    _lwrite(root, gen_path, gen_raw)
+    g_commit = _lcommit(root, "generation artifacts", "fixture")
+    gen_sha = _lsha(gen_raw)
+    approval_raw = M._canonical_bytes({
+        "generation_sha256": gen_sha, "approver": "user",
+        "approved_at": "2026-07-18T12:01:00Z", "scope": "s8b-holdout",
+    })
+    approval_sha = _lsha(approval_raw)
+    _lwrite(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    pointer_raw = M._canonical_bytes({
+        "generation_number": 1, "path": gen_path, "sha256": gen_sha,
+        "parent_active_sha256": None, "approval_sha256": approval_sha,
+    })
+    pointer_sha = _lsha(pointer_raw)
+    _lwrite(root, f"{M.ACTIVE_DIR}/{pointer_sha}.json", pointer_raw)
+    a_commit = _lcommit(root, "approve generation", "none")
+    (root / "validation-head.txt").write_text("H differs from A\n", encoding="utf-8")
+    h_commit = _lcommit(root, "validation head", "fixture")
+    ratified = M.RatifiedFreeze(
+        document=M._deep_freeze(gen_doc), sha256=gen_sha, generation_number=1,
+        activation_head=h_commit, generation_commit=g_commit,
+    )
+    return root, ratified, {**state, "C": c_commit, "G": g_commit, "A": a_commit, "H": h_commit}
+
+
+def _build_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
+                       cert_at_generation=False, executable_role=None):
+    """決定的観測下の production-emitter bytes を G/A に載せた launch fixture。"""
+    def combined(state):
+        if cert_mutate is not None:
+            cert_mutate(state["cert"])
+        if mutate is not None:
+            mutate(state)
+
+    root, gen_sha, _gen_path, g1, topology = B.build_production_emitter_g1(
+        tmp_path, mutate=combined if (mutate is not None or cert_mutate is not None) else None,
+        cert_at_generation=cert_at_generation, executable_role=executable_role,
+    )
+    ratified = M.RatifiedFreeze(
+        document=M._deep_freeze(g1), sha256=gen_sha, generation_number=1,
+        activation_head=topology["A"], generation_commit=topology["G"],
+    )
+    return root, ratified, topology
+
+
+def _mutate_portable_binary_island(state: dict, case_id: str) -> None:
+    """manifest/result の mirror を保ったまま portable binary 束縛だけを壊す。"""
+    manifest_binaries = state["manifest"]["binaries"]
+    result_binaries = state["result"]["binaries"]
+    assert manifest_binaries == result_binaries
+    cell_id = sorted(manifest_binaries)[0]
+
+    if case_id == "binaries-cell-set":
+        manifest_binaries.pop(cell_id)
+        result_binaries.pop(cell_id)
+    elif case_id == "binary-cell-binding":
+        foreign_cell_id = f"{cell_id}-foreign"
+        manifest_binaries[cell_id]["cell_id"] = foreign_cell_id
+        result_binaries[cell_id]["cell_id"] = foreign_cell_id
+    elif case_id == "binary-hash":
+        bad_sha = "not-a-sha256"
+        for binaries in (manifest_binaries, result_binaries):
+            binaries[cell_id]["binary_sha256"] = bad_sha
+            binaries[cell_id]["bin_hash_short"] = bad_sha[:16]
+        for record in state["journal"]:
+            if record.get("event") == "session" and record["cell_id"] == cell_id:
+                record["binary_sha256_at_measure"] = bad_sha
+        for record in state["result"]["sessions"]:
+            if record["cell_id"] == cell_id:
+                record["binary_sha256_at_measure"] = bad_sha
+    elif case_id == "binding-sha":
+        bad_sha = "0" * 64
+        assert manifest_binaries[cell_id]["binding"]["binding_sha256"] != bad_sha
+        manifest_binaries[cell_id]["binding"]["binding_sha256"] = bad_sha
+        result_binaries[cell_id]["binding"]["binding_sha256"] = bad_sha
+    else:  # pragma: no cover - parametrization is the closed world
+        raise AssertionError(case_id)
+
+    assert manifest_binaries == result_binaries
+    state["repair_manifest"] = True
+
+
+def _edge_node_fixture(edge_to_cut=None) -> dict[str, str]:
+    nodes = {node for edge in M.EQUALITY_CHAIN_ADJACENCY for node in edge}
+    adjacency = {node: set() for node in nodes}
+    for edge in M.EQUALITY_CHAIN_ADJACENCY:
+        if edge == edge_to_cut:
+            continue
+        left, right = edge
+        adjacency[left].add(right)
+        adjacency[right].add(left)
+    values = {}
+    component = 0
+    for node in sorted(nodes):
+        if node in values:
+            continue
+        component += 1
+        stack = [node]
+        while stack:
+            current = stack.pop()
+            if current in values:
+                continue
+            values[current] = f"component-{component}"
+            stack.extend(adjacency[current])
+    return values
+
+
+@pytest.mark.parametrize("edge", M.EQUALITY_CHAIN_ADJACENCY,
+                         ids=lambda edge: f"{edge[0]}--{edge[1]}")
+def test_equality_chain_each_edge_raw_tamper_rejected(edge):
+    """各辺の片側 field だけを壊す raw tamper が必ず発火する。"""
+    nodes = _edge_node_fixture()
+    nodes[edge[1]] = "raw-tamper"
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_equality_adjacency(nodes)
+    assert ei.value.reason == "binding-chain-mismatch"
+
+
+@pytest.mark.parametrize("edge", M.EQUALITY_CHAIN_ADJACENCY,
+                         ids=lambda edge: f"{edge[0]}--{edge[1]}")
+def test_equality_chain_each_edge_coherent_island_rejected(edge):
+    """対象辺以外の関連値を全再束縛した coherent island でも独立 anchor 辺が発火する。"""
+    nodes = _edge_node_fixture(edge)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_equality_adjacency(nodes)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == f"equality-edge:{edge[0]}->{edge[1]}"
+
+
 # --------------------------------------------------------------------------
 # 正常系
 # --------------------------------------------------------------------------
 
 def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
     _need_v1()
-    root, gen_sha, gen_rel, _g1 = B.build_valid_semantic_g1(tmp_path)
-    freeze = M.load_ratified_freeze(root)
-    assert freeze.generation_number == 1
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    assert topology["C"] != topology["G"] != topology["A"]
+    assert topology["H"] == topology["A"]
+    assert _lgit(root, "merge-base", "--is-ancestor", topology["C"], topology["G"]) == ""
+    loaded = M.load_ratified_freeze(root)
+    assert loaded.sha256 == freeze.sha256
     lv = M.launch_validate(freeze, root)
     assert isinstance(lv, M.LaunchValidatedFreeze)
     assert lv.activation_head == freeze.activation_head
     assert lv.ratified is freeze
+    assert isinstance(lv.floor_artifact, M.VerifiedFloorArtifact)
+    assert lv.floor_artifact.path.endswith("/result.json")
+    assert lv.floor_artifact.sha256 == _lsha(lv.floor_artifact.raw_bytes)
+    assert set(lv.binaries_by_cell) == set(topology["manifest"]["binaries"])
 
 
 # --------------------------------------------------------------------------
@@ -55,12 +683,11 @@ def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
 
 def test_source_blob_mismatch_rejected(tmp_path):
     _need_v1()
+    _assert_emitter_baseline(tmp_path / "baseline")
     def mut(g1):
         g1["generator"] = {"path": g1["generator"]["path"], "sha256": "a" * 64}
-    root, *_ = B.build_valid_semantic_g1(tmp_path, mutate_g1=mut)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.load_ratified_freeze(root)
-    assert ei.value.reason == "source-blob-mismatch"
+    root, *_ = B.build_production_emitter_g1(tmp_path / "mutation", mutate_g1=mut)
+    _assert_registered_refusal("source", lambda: M.load_ratified_freeze(root))
 
 
 def test_design_source_worktree_drift_still_loads(tmp_path):
@@ -73,7 +700,7 @@ def test_design_source_worktree_drift_still_loads(tmp_path):
     #
     # 変異 = V1b の blob 読みを worktree 読み化 → 改変後 bytes が記録 sha と食い違い
     # source-blob-mismatch で落ち、この陽性テストが赤になる。
-    root, _gen_sha, _gen_rel, g1 = B.build_valid_semantic_g1(tmp_path)
+    root, _gen_sha, _gen_rel, g1, _topology = B.build_production_emitter_g1(tmp_path)
     ds_path = g1["design_source"]["path"]         # docs 系 file (closure/namespace 外)
     assert not ds_path.startswith(M.FREEZE_DIR)    # namespace-dirty 経路に触れないことの前提
     target = root / ds_path
@@ -88,12 +715,11 @@ def test_design_source_worktree_drift_still_loads(tmp_path):
 
 def test_frozen_at_head_not_generation_parent_rejected(tmp_path):
     _need_v1()
+    _assert_emitter_baseline(tmp_path / "baseline")
     def mut(g1):
         g1["frozen_at_head"] = "0" * 40  # 形式は妥当だが G^ でない
-    root, *_ = B.build_valid_semantic_g1(tmp_path, mutate_g1=mut)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.load_ratified_freeze(root)
-    assert ei.value.reason == "frozen-at-head-mismatch"
+    root, *_ = B.build_production_emitter_g1(tmp_path / "mutation", mutate_g1=mut)
+    _assert_registered_refusal("frozen", lambda: M.load_ratified_freeze(root))
 
 
 def test_generation_commit_merge_rejected(tmp_path):
@@ -108,34 +734,31 @@ def test_generation_commit_merge_rejected(tmp_path):
 
 def test_closure_entry_absent_from_generation_tree_rejected(tmp_path):
     _need_v1()
+    _assert_emitter_baseline(tmp_path / "baseline")
     def mut(g1):
         g1["measurement_closure"].append(
             {"canonical_path": "output/env/floor/missing.json", "sha256": "b" * 64}
         )
-    root, *_ = B.build_valid_semantic_g1(tmp_path, mutate_g1=mut)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.load_ratified_freeze(root)
-    assert ei.value.reason == "closure-not-in-generation"
+    root, *_ = B.build_production_emitter_g1(tmp_path / "mutation", mutate_g1=mut)
+    _assert_registered_refusal("closure-missing", lambda: M.load_ratified_freeze(root))
 
 
 def test_closure_bytes_sha_mismatch_rejected(tmp_path):
     _need_v1()
+    _assert_emitter_baseline(tmp_path / "baseline")
     def mut(g1):
         g1["measurement_closure"][0]["sha256"] = "c" * 64  # bytes は改竄せず記録 sha を偽る
-    root, *_ = B.build_valid_semantic_g1(tmp_path, mutate_g1=mut)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.load_ratified_freeze(root)
-    assert ei.value.reason == "closure-sha-mismatch"
+    root, *_ = B.build_production_emitter_g1(tmp_path / "mutation", mutate_g1=mut)
+    _assert_registered_refusal("closure-sha", lambda: M.load_ratified_freeze(root))
 
 
 def test_env_tag_unknown_rejected(tmp_path):
     _need_v1()
+    _assert_emitter_baseline(tmp_path / "baseline")
     def mut(g1):
         g1["env_tag"] = "mars-rover-unregistered"
-    root, *_ = B.build_valid_semantic_g1(tmp_path, mutate_g1=mut)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.load_ratified_freeze(root)
-    assert ei.value.reason == "env-tag-unknown"
+    root, *_ = B.build_production_emitter_g1(tmp_path / "mutation", mutate_g1=mut)
+    _assert_registered_refusal("env", lambda: M.load_ratified_freeze(root))
 
 
 # --------------------------------------------------------------------------
@@ -151,10 +774,10 @@ def test_env_tag_unknown_rejected(tmp_path):
 ])
 def test_transition_out_of_enumeration_diff_rejected(tmp_path, mut):
     _need_v1()
-    root, *_ = B.build_valid_semantic_g1(tmp_path, mutate_g1=mut)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.load_ratified_freeze(root)
-    assert ei.value.reason == "transition-violation"
+    _assert_emitter_baseline(tmp_path / "baseline")
+    root, *_ = B.build_production_emitter_g1(
+        tmp_path / "mutation", mutate_g1=mut)
+    _assert_registered_refusal("transition", lambda: M.load_ratified_freeze(root))
 
 
 def test_transition_gn_to_gn1_env_tag_change_rejected_unit():
@@ -203,11 +826,12 @@ def test_transition_gn_to_gn1_forbids_measurement_field_rewrite_unit(field):
 
 def test_chain_g2_env_tag_unchanged_loads(tmp_path):
     _need_v1()
-    # env_tag を保てば g2 は正常 load される (gN→gN+1 allowed の正常系)。
-    root, g1_sha, g1_rel, g1 = B.build_valid_semantic_g1(tmp_path)
-    _build_g2(root, g1, g1_sha, mutate_g2=None)
-    freeze = M.load_ratified_freeze(root)
+    # env_tag を保ち、新 C2 と新 run artifacts を持つ g2 は静的 load までは正常。
+    root, g1_sha, _g1_rel, g1, topology = B.build_production_emitter_g1(tmp_path)
+    freeze, g2_topology = B.append_production_emitter_g2(
+        root, g1, g1_sha, topology)
     assert freeze.generation_number == 2
+    assert g2_topology["C2"] != g2_topology["G2"] != g2_topology["A2"]
 
 
 # --------------------------------------------------------------------------
@@ -228,28 +852,40 @@ def test_layer1_snapshot_tamper_rejected_unit():
 
 def test_undeclared_hit_outside_closure_rejected(tmp_path):
     _need_v1()
-    root, *_ = B.build_valid_semantic_g1(tmp_path)
-    freeze = M.load_ratified_freeze(root)
+    root, freeze, _ = _build_launch_repo(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
     # closure 外の untracked ファイルに rr80 params を仕込む → 現 search に未申告 hit が出る。
     (root / "sneaky_measurement.txt").write_bytes(B._RR80_PARAMS)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.launch_validate(freeze, root)
-    assert ei.value.reason == "closure-hit-mismatch"
+    _assert_registered_refusal("scan-undeclared", lambda: M.launch_validate(freeze, root))
 
 
-def test_declared_closure_hit_absent_from_search_rejected(tmp_path):
+def test_declared_closure_hit_absent_from_search_rejected(tmp_path, monkeypatch):
     _need_v1()
-    # closure に「search 対象外 (output/s8b-freeze/ 配下) だが rr80 params を持つ」artifact を
-    # 追加宣言する (V1d は満たす。base コミット済み・sha 一致)。期待 hit に出るが search は
-    # output/s8b-freeze/ を除外するため現 hit に現れない → closure-hit-mismatch。
-    excluded_path = "output/s8b-freeze/hidden_measure.json"
-    root, *_ = B.build_valid_semantic_g1(
-        tmp_path, extra_closure=[(excluded_path, B._RR80_PARAMS)]
+    # 正しい G bytes から導出した declared closure path を scan report だけから 1 件落とす。
+    # expected/current の missing 側比較が実際に発火することを、issuer helper 非依存で固定する。
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    hidden = topology["paths"]["closure80"]
+    real_search = HF.search_repository
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+
+    def missing_declared(r=root, files=None, exempt_exact=None):
+        report = real_search(r, files=files, exempt_exact=exempt_exact)
+        report["holdouts"]["rr80"]["conjunction_hits"].remove(hidden)
+        return report
+
+    monkeypatch.setattr(M._hf, "search_repository", missing_declared)
+    _assert_registered_refusal("scan-missing", lambda: M.launch_validate(freeze, root))
+
+
+def test_extra_closure_in_freeze_namespace_rejected_without_broad_closed_world(tmp_path):
+    _need_v1()
+    root, _gen_sha, _gen_rel, _g1, _topology = B.build_production_emitter_g1(
+        tmp_path,
+        extra_closure=[("output/s8b-freeze/hidden_measure.json", B._RR80_PARAMS)],
     )
     freeze = M.load_ratified_freeze(root)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.launch_validate(freeze, root)
-    assert ei.value.reason == "closure-hit-mismatch"
+    _assert_registered_refusal(
+        "closure-namespace", lambda: M.launch_validate(freeze, root))
 
 
 def test_per_holdout_no_crosstalk(tmp_path):
@@ -265,15 +901,14 @@ def test_per_holdout_no_crosstalk(tmp_path):
     # "rr80" が例外 message に現れる唯一の経路が per-holdout 帰属 (f"{name}: ...") に限定され、
     # ファイル名の偶然一致で素通りしない。per-holdout→union 化の変異は、帰属が消えて
     # "rr80" が message から失われるためこのテストで殺せる (下記 assert が赤になる)。
-    root, *_ = B.build_valid_semantic_g1(tmp_path)
-    freeze = M.load_ratified_freeze(root)
+    root, freeze, _ = _build_launch_repo(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
     # closure は f80/f20 両方宣言済み。rr80 params を持つ untracked hit を rr80 名を含まない
     # ファイル名で追加し、rr80 の hit 集合だけを未申告で不一致にする (rr20 は一致のまま)。
     (root / "extra_conflict.txt").write_bytes(B._RR80_PARAMS)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.launch_validate(freeze, root)
-    message = str(ei.value)
-    assert ei.value.reason == "closure-hit-mismatch"
+    error = _assert_registered_refusal(
+        "scan-per-holdout", lambda: M.launch_validate(freeze, root))
+    message = str(error)
     # 帰属検査: 不一致は rr80 の hit 集合。ファイル名 (extra_conflict.txt) も未申告 hit の
     # path も "rr80" を含まないため、message 中の "rr80" は per-holdout 帰属からしか来ない。
     assert "rr80" in message, message
@@ -283,73 +918,610 @@ def test_per_holdout_no_crosstalk(tmp_path):
 
 def test_enumeration_digest_shift_rejected(tmp_path, monkeypatch):
     _need_v1()
-    root, *_ = B.build_valid_semantic_g1(tmp_path)
-    freeze = M.load_ratified_freeze(root)
+    root, freeze, _ = _build_launch_repo(tmp_path)
     real_search = HF.search_repository
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
 
-    def racing_search(r=root, files=None):
+    def racing_search(r=root, files=None, exempt_exact=None):
         # search 実行中に untracked ファイルを増やし、列挙前後 digest を食い違わせる。
         (Path(r) / "added_mid_scan.txt").write_text("x\n", encoding="utf-8")
-        return real_search(r, files)
+        return real_search(r, files=files, exempt_exact=exempt_exact)
 
     monkeypatch.setattr(M._hf, "search_repository", racing_search)
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.launch_validate(freeze, root)
-    assert ei.value.reason == "enumeration-shifted"
+    _assert_registered_refusal("scan-enumeration", lambda: M.launch_validate(freeze, root))
 
 
 def test_positive_control_not_hit_rejected(tmp_path):
     _need_v1()
     # 陽性対照 (rr50) file の内容を無害化する (rr50 params を含まない bytes に差し替える)。
     # search は worktree を直読みするため、この改変だけで陽性対照が 0 hit になる。
-    root, *_ = B.build_valid_semantic_g1(tmp_path)
-    freeze = M.load_ratified_freeze(root)
+    root, freeze, _ = _build_launch_repo(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
     (root / "positive_control.txt").write_bytes(b"neutralized, no ycsb params here\n")
-    with pytest.raises(M.RatifiedFreezeError) as ei:
-        M.launch_validate(freeze, root)
-    assert ei.value.reason == "search-not-operational"
+    _assert_registered_refusal("scan-positive", lambda: M.launch_validate(freeze, root))
 
 
 def test_activation_head_moved_rejected(tmp_path):
     _need_v1()
-    root, *_ = B.build_valid_semantic_g1(tmp_path)
-    freeze = M.load_ratified_freeze(root)
+    root, freeze, _ = _build_launch_repo(tmp_path)
     # load 後に HEAD を進める (無害な commit)。launch 直前の H 一致再確認で拒否。
     (root / "later.txt").write_text("later\n", encoding="utf-8")
-    B._commit(root, "later commit", "claude")
+    _lcommit(root, "later commit", "fixture")
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.launch_validate(freeze, root)
     assert ei.value.reason == "activation-head-moved"
 
 
-# --------------------------------------------------------------------------
-# g2 / 追加 closure 用の repo ビルダ
-# --------------------------------------------------------------------------
+def test_generation_two_rejected_before_artifact_io(tmp_path, monkeypatch):
+    _need_v1()
+    root, g1_sha, _g1_rel, g1, topology = B.build_production_emitter_g1(
+        tmp_path, generation_strings_escaped=True)
+    g2, _g2_topology = B.append_production_emitter_g2(root, g1, g1_sha, topology)
+    # 静的層の成功を先に固定し、実在する全 g2 artifact より generation scope が先行する。
+    loaded = M.load_ratified_freeze(root)
+    assert loaded.sha256 == g2.sha256 and loaded.generation_number == 2
+    _assert_registered_refusal("generation-scope", lambda: M.launch_validate(g2, root))
 
-def _build_g2(root: Path, g1: dict, g1_sha: str, *, mutate_g2):
-    """有効 g1 repo の上に g2 (+ approval/pointer) を積む。frozen_at_head=G2^、closure は g1 と同じ。"""
-    frozen = B._git(root, "rev-parse", "HEAD")  # G2 の親 = 現 HEAD (approval commit A1)
-    g2 = dict(g1)
-    g2["generation_number"] = 2
-    g2["supersedes_sha256"] = g1_sha
-    g2["frozen_at_head"] = frozen
-    # closure/floor_protocol/floor_source は g1 と同一 (既に G tree/worktree に実在)。
-    if mutate_g2 is not None:
-        mutate_g2(g2)
-    g2_raw = json.dumps(g2, ensure_ascii=False).encode("utf-8")
-    B._write(root, B._gen_rel(2), g2_raw)
-    B._commit(root, "candidate g2", "claude-opus")  # G2
-    g2_sha = B._sha(g2_raw)
-    B._approve_and_point(root, 2, g2_sha, B._gen_rel(2), _pointer_sha_of_g1(root))
-    return g2_sha
+    # 同じ g2 fixture の scope 値だけを一貫して 1 に射影すると full validate が通る。
+    # これにより generation-scope 以外の gate がすべて green なことを pin する。
+    forced = M.RatifiedFreeze(
+        document=g2.document, sha256=g2.sha256, generation_number=1,
+        activation_head=g2.activation_head, generation_commit=g2.generation_commit,
+    )
+    real_resolve = M.resolve_active_generation
+
+    def resolve_with_forced_scope(candidate_root):
+        resolution = real_resolve(candidate_root)
+        return M.ActiveResolution(
+            activation_head=resolution.activation_head,
+            generation_number=1,
+            generation_path=resolution.generation_path,
+            generation_bytes=resolution.generation_bytes,
+            generation_sha256=resolution.generation_sha256,
+            generation_commit=resolution.generation_commit,
+            approval_sha256=resolution.approval_sha256,
+            approval_document=resolution.approval_document,
+            pointer_sha256=resolution.pointer_sha256,
+            pointer_document=resolution.pointer_document,
+        )
+
+    monkeypatch.setattr(M, "resolve_active_generation", resolve_with_forced_scope)
+    assert isinstance(M.launch_validate(forced, root), M.LaunchValidatedFreeze)
 
 
-def _pointer_sha_of_g1(root: Path) -> str:
-    """g1 の active pointer sha (parent chain 用) を H tree から復元する。"""
-    out = B._git(root, "ls-tree", "-r", "--name-only", "HEAD", "--", M.ACTIVE_DIR)
-    ptrs = [line for line in out.splitlines() if line.endswith(".json")]
-    assert len(ptrs) == 1, ptrs
-    return Path(ptrs[0]).stem
+def test_manifest_cells_independent_derivation_rejects_ghost_cell(tmp_path):
+    _need_v1()
+    def mutate(state):
+        ghost = dict(state["manifest"]["cells"][0])
+        ghost["cell_id"] = "ghost::cell"
+        state["manifest"]["cells"].append(ghost)
+        state["repair_manifest"] = True
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "manifest-invalid"
+    assert ei.value.cause == "cells-derivation"
+
+
+def test_manifest_schedule_independent_derivation_rejected(tmp_path):
+    _need_v1()
+    def mutate(state):
+        state["manifest"]["schedule"][0], state["manifest"]["schedule"][1] = (
+            state["manifest"]["schedule"][1], state["manifest"]["schedule"][0])
+        state["repair_manifest"] = True
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "manifest-invalid"
+    assert ei.value.cause == "schedule-derivation"
+
+
+def test_session_start_schedule_bijection_rejected(tmp_path):
+    _need_v1()
+    def mutate(state):
+        first = next(r for r in state["journal"] if r["event"] == "session-start")
+        first["cell_id"] = "ghost::cell"
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "journal-state-invalid"
+    assert ei.value.cause == "planned-schedule"
+
+
+def test_retry_authorization_outside_frozen_budget_rejected(tmp_path):
+    _need_v1()
+    def mutate(state):
+        first = next(r for r in state["journal"] if r["event"] == "session-start")
+        first["kind"] = "retry"
+        first["retry_ordinal"] = 3
+        first["trigger"] = "missing-planned-attempt"
+        first["attempt_id"] = f"{first['cell_id']}::retry3"
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "journal-state-invalid"
+    assert ei.value.cause == "retry-authorization"
+
+
+def test_round_start_complete_state_machine_rejects_duplicate(tmp_path):
+    _need_v1()
+    def mutate(state):
+        terminal = state["journal"].pop()
+        state["journal"].append({
+            "event": "round-complete", "round": 1, "utc": "2026-07-18T12:00:00+00:00",
+        })
+        state["journal"].append(terminal)
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "journal-state-invalid"
+    assert ei.value.cause == "round-state"
+
+
+@pytest.mark.parametrize("terminal_mutation", [
+    lambda journal: journal.insert(-1, {"event": "terminal", "status": "aborted", "reason": "x"}),
+    lambda journal: journal.append({"event": "round-complete", "round": 8,
+                                    "utc": "2026-07-18T12:00:00+00:00"}),
+    lambda journal: journal[-1].__setitem__("status", "aborted"),
+])
+def test_terminal_unique_final_completed_required(tmp_path, terminal_mutation):
+    _need_v1()
+    def mutate(state):
+        terminal_mutation(state["journal"])
+        if state["journal"][-1].get("event") == "terminal" \
+                and state["journal"][-1].get("status") == "aborted":
+            state["journal"][-1]["reason"] = "x"
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "journal-state-invalid"
+
+
+def test_result_unknown_key_strict_schema_rejected(tmp_path):
+    _need_v1()
+    def mutate(state):
+        state["result"]["unknown_free_text"] = "x"
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "schema-keys"
+
+
+def test_eligible_requires_bool_true_not_integer_one(tmp_path):
+    _need_v1()
+    def mutate(state):
+        state["result"]["eligible_for_refreeze"] = 1
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "eligible-flag"
+
+
+def test_verified_floor_artifact_and_binary_index_are_deep_frozen(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    validated = M.launch_validate(freeze, root)
+    first_cell = next(iter(topology["result"]["cells"]))
+    topology["result"]["cells"][first_cell]["valid"] = False
+    assert validated.floor_artifact.document["cells"][first_cell]["valid"] is True
+    with pytest.raises(TypeError):
+        validated.floor_artifact.document["cells"][first_cell]["valid"] = False
+    with pytest.raises(TypeError):
+        validated.binaries_by_cell[first_cell]["cached"] = True
+
+
+@pytest.mark.parametrize(
+    "case_id",
+    ["binaries-cell-set", "binary-cell-binding", "binary-hash", "binding-sha"],
+)
+def test_portable_binary_coherent_island_rejected_by_exact_cause(tmp_path, case_id):
+    _need_v1()
+    _assert_emitter_baseline(tmp_path / "baseline")
+    root, freeze, _ = _build_launch_repo(
+        tmp_path / "mutation",
+        mutate=lambda state: _mutate_portable_binary_island(state, case_id),
+    )
+    _assert_registered_refusal(case_id, lambda: M.launch_validate(freeze, root))
+
+
+def test_production_shape_run_cmd_calls_exact_portable_matcher(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    session = next(r for r in topology["journal"] if r["event"] == "session")
+    assert session["run_cmd"] is not None
+    assert M._run_cmd_matches_portable_session(
+        session, protocol=topology["protocol"], binaries=topology["manifest"]["binaries"],
+    )
+    assert M.launch_validate(freeze, root).floor_artifact.document["sessions"][0]["run_cmd"]
+
+
+def _mutate_run_cmd(state, mutation: str, *, result_only: bool = False) -> None:
+    journal_session = next(r for r in state["journal"] if r["event"] == "session")
+    result_session = next(
+        r for r in state["result"]["sessions"] if r["seq"] == journal_session["seq"])
+    argv = shlex.split(journal_session["run_cmd"])
+    if mutation == "prefix":
+        argv[:0] = ["env", "INJECTED=1"]
+    elif mutation == "binary":
+        argv[argv.index("--") + 1] = "output/foreign-store/bench"
+    elif mutation == "flag-order":
+        workload_count = len(journal_session["workload"])
+        assert workload_count >= 2
+        argv[-workload_count], argv[-workload_count + 1] = (
+            argv[-workload_count + 1], argv[-workload_count])
+    elif mutation == "other-holdout-axis":
+        other = next(
+            r for r in state["journal"]
+            if r.get("event") == "session"
+            and r["holdout_id"] != journal_session["holdout_id"])
+        changed = False
+        for key in sorted(journal_session["workload"]):
+            if journal_session["workload"][key] != other["workload"][key]:
+                old = f"-{key}={journal_session['workload'][key]}"
+                argv[argv.index(old)] = f"-{key}={other['workload'][key]}"
+                changed = True
+                break
+        assert changed
+    else:  # pragma: no cover - test helper closed world
+        raise AssertionError(mutation)
+    mutated = shlex.join(argv)
+    result_session["run_cmd"] = mutated
+    if not result_only:
+        journal_session["run_cmd"] = mutated
+
+
+@pytest.mark.parametrize(
+    "mutation", ["prefix", "binary", "flag-order", "other-holdout-axis"],
+)
+def test_run_cmd_projection_tamper_rejected_end_to_end(tmp_path, mutation):
+    _need_v1()
+    root, freeze, _ = _build_launch_repo(
+        tmp_path, mutate=lambda state: _mutate_run_cmd(state, mutation))
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "journal-state-invalid"
+    assert ei.value.cause == "run-cmd-projection"
+
+
+def test_result_run_cmd_projection_is_independently_rejected(tmp_path):
+    _need_v1()
+    root, freeze, _ = _build_launch_repo(
+        tmp_path, mutate=lambda state: _mutate_run_cmd(
+            state, "prefix", result_only=True))
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "run-cmd-projection"
+
+
+def test_valid_session_requires_run_cmd_even_when_journal_and_result_agree(tmp_path):
+    _need_v1()
+    _assert_emitter_baseline(tmp_path / "baseline")
+
+    def mutate(state):
+        journal_session = next(r for r in state["journal"] if r["event"] == "session")
+        result_session = next(
+            r for r in state["result"]["sessions"] if r["seq"] == journal_session["seq"])
+        assert journal_session["valid"] is True and result_session["valid"] is True
+        journal_session["run_cmd"] = None
+        result_session["run_cmd"] = None
+
+    root, freeze, _ = _build_launch_repo(tmp_path / "mutation", mutate=mutate)
+    _assert_registered_refusal(
+        "valid-run-cmd-required", lambda: M.launch_validate(freeze, root))
+
+
+def test_run_id_timestamp_to_certificate_time_wiring_rejects_coherent_island(tmp_path):
+    """cert と journal の時刻島を一緒にずらしても official path anchor が拒否する。"""
+    _need_v1()
+    shifted = "2026-07-18T12:00:01+00:00"
+    root, freeze, _ = _build_independent_launch_repo(
+        tmp_path, cert_mutate=lambda cert: cert.__setitem__("started_utc", shifted))
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "certificate-invalid"
+
+
+def test_certificate_to_launch_start_time_wiring_rejects_single_field(tmp_path):
+    _need_v1()
+    def mutate(state):
+        state["journal"][0]["utc"] = "2026-07-18T12:00:01+00:00"
+    root, freeze, _ = _build_independent_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.cause == "equality-edge:cert.started_utc->journal.launch-start.utc"
+
+
+def test_result_raw_sha_to_floor_source_wiring_rejects_semantic_island(tmp_path):
+    """同じ parsed result を保つ trailing whitespace tamper でも raw hash anchor が拒否する。"""
+    _need_v1()
+    def mutate(state):
+        state["post_hash_result_suffix"] = b" "
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "result-record-sha"
+
+
+def test_protocol_raw_sha_to_generation_record_wiring_rejects_semantic_island(tmp_path):
+    """generation record を正規 bytes hash に保っても捕捉 raw bytes の差を拒否する。"""
+    _need_v1()
+    root, freeze, _ = _build_independent_launch_repo(
+        tmp_path, mutate=lambda state: state.__setitem__("post_hash_protocol_suffix", b" "))
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "protocol-record-sha"
+
+
+def test_closure_raw_sha_to_generation_record_wiring_rejects_semantic_island(tmp_path):
+    """generation record を元 closure hash に保っても捕捉 raw bytes の差を拒否する。"""
+    _need_v1()
+    root, freeze, _ = _build_independent_launch_repo(
+        tmp_path, mutate=lambda state: state.__setitem__("post_hash_closure80_suffix", b"\n"))
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "closure-record-sha"
+
+
+def test_journal_result_equality_rejects_rehashed_coherent_island(tmp_path):
+    """result と generation SHA を再計算しても、独立 journal anchor が差分を拒否する。"""
+    _need_v1()
+    def mutate(state):
+        state["result"]["sessions"][0]["notes"] = ["coherent-island"]
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    _assert_registered_refusal(
+        "coherent-journal-result", lambda: M.launch_validate(freeze, root))
+
+
+def _first_axis_tokens() -> list[str]:
+    # 3 軸値は既存 redaction 済み fixture bytes からのみ導出する。リテラルを再掲しない。
+    return B._RR80_PARAMS.decode("utf-8").strip().split()
+
+
+def test_single_axis_occurrence_in_free_field_rejected(tmp_path):
+    _need_v1()
+    token = _first_axis_tokens()[0]
+    def mutate(state):
+        journal_session = next(r for r in state["journal"] if r["event"] == "session")
+        result_session = next(r for r in state["result"]["sessions"]
+                              if r["seq"] == journal_session["seq"])
+        journal_session["notes"] = [token]
+        result_session["notes"] = [token]
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "axis-occurrence"
+
+
+def test_three_axes_distributed_across_free_fields_rejected(tmp_path):
+    _need_v1()
+    tokens = _first_axis_tokens()
+    assert len(tokens) == 3
+    def mutate(state):
+        journal_session = next(r for r in state["journal"] if r["event"] == "session")
+        result_session = next(r for r in state["result"]["sessions"]
+                              if r["seq"] == journal_session["seq"])
+        journal_session["notes"] = [tokens[0]]
+        journal_session["probe_before"]["stdout"] = tokens[1]
+        journal_session["probe_after"]["stderr"] = tokens[2]
+        result_session.update(json.loads(json.dumps(journal_session)))
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "axis-occurrence"
+
+
+def test_untracked_symlink_fails_closed_before_scan(tmp_path):
+    _need_v1()
+    root, freeze, _ = _build_launch_repo(tmp_path)
+    (root / "untracked-link").symlink_to(root / "README.md")
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "scan-exemption-invalid"
+    assert ei.value.cause == "untracked-symlink"
+
+
+@pytest.mark.parametrize("bad_path", [
+    "output//x", "output/./x", "output/../x", "output\\x", "output/x\x00y",
+])
+def test_closure_path_raw_posix_grammar_rejected_unit(bad_path):
+    doc = {
+        "floor_protocol": {"path": "output/protocol.json", "sha256": "0" * 64},
+        "floor_source": {"path": "output/result.json", "sha256": "1" * 64},
+        "measurement_closure": [{"canonical_path": bad_path, "sha256": "2" * 64}],
+    }
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._closure_entries(doc)
+    assert ei.value.reason == "closure-path"
+
+
+@pytest.mark.parametrize("raw", [b"text\x00hidden", b"\xff\xfe"])
+def test_closure_is_utf8_without_nul(raw):
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._closure_text(raw)
+    assert ei.value.reason == "closure-nontext"
+
+
+def test_raw_scanner_and_occurrence_validator_equivalent_for_encodings():
+    workload = dict(HF.HOLDOUTS["rr80"]["ycsb"])
+    structured_path = "output/fixture/manifest.json"
+    closure_path = "output/fixture/declared.txt"
+    structured = {"cells": [{"workload": workload}]}
+    hits = M._validate_axis_occurrences(
+        artifacts=[
+            (structured_path, structured, _ljline(structured)),
+            (closure_path, None, B._RR80_PARAMS),
+        ],
+        protocol={"env_tag": "linux-baremetal"},
+        binaries={},
+        closure_paths=frozenset({closure_path}),
+    )
+    raw_hits = HF.holdout_conjunction_hits({
+        structured_path: _ljline(structured).decode(),
+        closure_path: B._RR80_PARAMS.decode(),
+    })
+    assert hits == raw_hits
+    assert structured_path in hits["rr80"]
+    assert closure_path in hits["rr80"]
+
+
+def test_closure_role_collision_with_result_rejected(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    doc = M._plain_json(freeze.document)
+    doc["measurement_closure"][0] = {
+        "canonical_path": topology["paths"]["result"],
+        "sha256": freeze.document["floor_source"]["sha256"],
+    }
+    collided = M.RatifiedFreeze(
+        document=M._deep_freeze(doc), sha256=freeze.sha256,
+        generation_number=1, activation_head=freeze.activation_head,
+        generation_commit=freeze.generation_commit,
+    )
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(collided, root)
+    assert ei.value.reason == "closure-role-conflict"
+
+
+def test_cert_raw_hit_checked_before_cert_schema(tmp_path):
+    _need_v1()
+    def cert_mutate(cert):
+        cert["schema"] = B._RR80_PARAMS.decode("utf-8")
+    root, freeze, _ = _build_independent_launch_repo(
+        tmp_path, cert_mutate=cert_mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "certificate-holdout-hit"
+
+
+def test_certificate_same_commit_as_generation_rejected(tmp_path):
+    _need_v1()
+    root, freeze, _ = _build_independent_launch_repo(
+        tmp_path, cert_at_generation=True)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "cert-lineage"
+
+
+def test_floor_source_introduction_must_be_exact_generation_commit(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    wrong_g = M.RatifiedFreeze(
+        document=freeze.document, sha256=freeze.sha256, generation_number=1,
+        activation_head=freeze.activation_head, generation_commit=topology["A"],
+    )
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(wrong_g, root)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "generation-introduction"
+
+
+def test_validation_head_artifact_change_rejected_even_if_worktree_matches_h(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    journal_path = root / topology["paths"]["journal"]
+    journal_path.write_bytes(journal_path.read_bytes() + b"\n")
+    new_h = _lcommit(root, "tamper journal at H", "fixture")
+    moved = M.RatifiedFreeze(
+        document=freeze.document, sha256=freeze.sha256, generation_number=1,
+        activation_head=new_h, generation_commit=freeze.generation_commit,
+    )
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(moved, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "g-h-worktree-mismatch"
+
+
+def test_worktree_executable_mode_drift_rejected(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    result_path = root / topology["paths"]["result"]
+    result_path.chmod(result_path.stat().st_mode | 0o111)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "g-h-worktree-mismatch"
+
+
+def test_manifest_mode_100755_accepted_when_g_h_worktree_match(tmp_path):
+    _need_v1()
+    root, freeze, _ = _build_launch_repo(tmp_path, executable_role="manifest")
+    validated = M.launch_validate(freeze, root)
+    assert isinstance(validated, M.LaunchValidatedFreeze)
+
+
+def test_worktree_parent_symlink_rejected_component_walk(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    run_dir = (root / topology["paths"]["result"]).parent
+    external = tmp_path / "external-run-dir"
+    run_dir.rename(external)
+    run_dir.symlink_to(external, target_is_directory=True)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "floor-artifact-invalid"
+    assert ei.value.cause == "worktree-symlink"
+
+
+def test_namespace_exemption_requires_exact_h_worktree_bytes(tmp_path):
+    _need_v1()
+    root, freeze, _ = _build_launch_repo(tmp_path)
+    approval = next((root / M.APPROVAL_DIR).glob("*.json"))
+    approval.write_bytes(approval.read_bytes() + b"\n")
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "scan-exemption-invalid"
+    assert ei.value.cause == "namespace-dirty"
+
+
+@pytest.mark.parametrize("raw", [
+    b'{"event":"terminal","event":"terminal","status":"completed"}\n',
+    b'{"event":"terminal","status":NaN}\n',
+    b'{"event":"terminal","status":"completed"}',
+    b'\n',
+])
+def test_strict_jsonl_rejects_duplicate_nan_truncated_and_blank(raw):
+    with pytest.raises(M.RatifiedFreezeError):
+        M._strict_jsonl(raw)
+
+
+def test_binary_receipt_is_derived_from_journal_not_result(tmp_path):
+    _need_v1()
+    def mutate(state):
+        session = next(r for r in state["journal"] if r["event"] == "session")
+        session["binary_sha256_at_measure"] = "f" * 64
+        result_session = next(r for r in state["result"]["sessions"] if r["seq"] == session["seq"])
+        result_session["binary_sha256_at_measure"] = "f" * 64
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "binary-receipt"
+
+
+def test_result_excluded_projection_rederived_from_journal(tmp_path):
+    _need_v1()
+    def mutate(state):
+        state["result"]["excluded"].append({
+            "seq": 0, "cell_id": state["result"]["sessions"][0]["cell_id"],
+            "kind": "planned", "retry": False, "round": 1,
+            "excluded_reason": "performance_anomaly", "session_cv": 1.0,
+        })
+    root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(freeze, root)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "result-excluded"
 
 
 def _build_merge_introduced_g1(tmp_path: Path) -> Path:

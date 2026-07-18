@@ -38,8 +38,10 @@ fail-closed の原則: 縮退・欠測・不正入力・競合はすべて null 
 config の数値はコードに既定値を持たず入力必須にする (F14 対策)。CLI に env・経路・数値の上書き面は
 作らない。
 
-official mode は承認束縛方式が §8 未裁定のため **core (run_campaign) で無条件拒否する** (δ-3)。
-pilot の artifact には ``eligible_for_refreeze: false`` を焼き込む。
+official mode は production ``run_campaign`` wrapper で従来どおり無条件拒否する。private
+``_run_campaign_core`` は staged fixture 専用で、official への全 seam 注入を public wrapper が
+副作用前に拒否する。pilot artifact は ``eligible_for_refreeze: false``、official の private core
+完走 artifact は二相 finalize の completed terminal 後 publish に限って true となる。
 """
 from __future__ import annotations
 
@@ -50,6 +52,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import socket
 import subprocess
 import sys
@@ -111,11 +114,19 @@ _APPROVED_REASONS = list(_floor_contract._APPROVED_REASONS)
 canonical_protocol_sha256 = _floor_contract.canonical_protocol_sha256
 project_protocol_for_floor_artifact = _floor_contract.project_protocol_for_floor_artifact
 derive_expected_cells = _floor_contract.derive_expected_cells
+build_portable_run_cmd = _floor_contract.build_portable_run_cmd
 _round_seed = _floor_contract._round_seed
 
 # driver が観測から分類する excluded_reason コード (stats の閉じた表と一致)。
 _REASON_COMPETING = "competing_process"          # preflight/post probe の競合
 _REASON_LAUNCH = "launch_failure"                # プロセス起動失敗 (全 rep 実行不能)
+
+_PORTABLE_BUILT_KEYS = frozenset({
+    "cell_id", "holdout_id", "configuration_id", "binary", "binary_sha256",
+    "bin_hash_short", "binding", "configure_argv", "build_argv", "cached",
+    "store_path",
+})
+_PORTABLE_PLACEHOLDERS = ("${OUT_ROOT}", "${CCBENCH_ROOT}")
 
 
 class FloorCampaignError(RuntimeError):
@@ -512,10 +523,13 @@ def _read_journal(journal_path: Path) -> list[dict]:
         for lineno, raw in enumerate(stream, start=1):
             raw = raw.strip()
             if not raw:
-                continue
+                raise FloorCampaignError(f"journal 行 {lineno} が空 (strict JSONL 違反)")
             try:
-                value = json.loads(raw)
-            except json.JSONDecodeError as exc:
+                value = json.loads(
+                    raw, object_pairs_hook=_no_duplicate_pairs,
+                    parse_constant=_reject_json_constant,
+                )
+            except (json.JSONDecodeError, FloorCampaignError) as exc:
                 # 末尾切れ (crash) の 1 行。fail-closed: truncated journal の自動続行は
                 # 危険なので拒否する (都合のよい session 再現を許さない)。
                 raise FloorCampaignError(
@@ -596,7 +610,7 @@ def _proc_starttime() -> Optional[int]:
         return None
 
 
-def _host_provenance(now_fn: Callable[[], dt.datetime]) -> dict:
+def _host_provenance(*, now_fn: Callable[[], dt.datetime]) -> dict:
     """G12 capture: hostname / boot_id / job_id / cpuset / UTC。絶対 monotonic は持たない。"""
     return {
         "hostname": socket.gethostname(),
@@ -613,6 +627,93 @@ def _process_identity() -> dict:
         "pid": os.getpid(),
         "starttime": _proc_starttime(),
         "execution_uuid": uuid.uuid4().hex,
+    }
+
+
+def _utc_text(value, *, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise FloorCampaignError(f"{field} が空でない UTC 文字列でない")
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise FloorCampaignError(f"{field} が ISO-8601 UTC でない: {value!r}") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != dt.timedelta(0):
+        raise FloorCampaignError(f"{field} が UTC でない: {value!r}")
+    return value
+
+
+def _nullable_text(value, *, field: str):
+    if value is not None and (not isinstance(value, str) or not value):
+        raise FloorCampaignError(f"{field} が null または空でない str でない")
+    return value
+
+
+def _validate_host_provenance(value) -> dict:
+    keys = {"hostname", "boot_id", "job_id", "cpuset", "utc"}
+    if not isinstance(value, Mapping) or set(value) != keys:
+        raise FloorCampaignError("host_provenance の key 集合が不一致")
+    hostname = value["hostname"]
+    if not isinstance(hostname, str) or not hostname:
+        raise FloorCampaignError("host_provenance.hostname が空でない str でない")
+    return {
+        "hostname": hostname,
+        "boot_id": _nullable_text(value["boot_id"], field="host_provenance.boot_id"),
+        "job_id": _nullable_text(value["job_id"], field="host_provenance.job_id"),
+        "cpuset": _nullable_text(value["cpuset"], field="host_provenance.cpuset"),
+        "utc": _utc_text(value["utc"], field="host_provenance.utc"),
+    }
+
+
+def _validate_process_identity(value) -> dict:
+    keys = {"pid", "starttime", "execution_uuid"}
+    if not isinstance(value, Mapping) or set(value) != keys:
+        raise FloorCampaignError("process_identity の key 集合が不一致")
+    pid = value["pid"]
+    starttime = value["starttime"]
+    execution_uuid = value["execution_uuid"]
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+        raise FloorCampaignError("process_identity.pid が正整数でない")
+    if (starttime is not None
+            and (isinstance(starttime, bool) or not isinstance(starttime, int)
+                 or starttime < 0)):
+        raise FloorCampaignError("process_identity.starttime が null または非負整数でない")
+    if (not isinstance(execution_uuid, str)
+            or re.fullmatch(r"[0-9a-f]{32}", execution_uuid) is None):
+        raise FloorCampaignError("process_identity.execution_uuid が 32 桁 lowercase hex でない")
+    return {"pid": pid, "starttime": starttime, "execution_uuid": execution_uuid}
+
+
+def _validate_execution_receipt(value, *, contract) -> dict:
+    keys = {"schema", "env_tag", "contract_sha256", "attestation"}
+    if not isinstance(value, Mapping) or set(value) != keys:
+        raise FloorCampaignError("execution_receipt の key 集合が不一致")
+    if value["schema"] != execution_guard.RECEIPT_SCHEMA:
+        raise FloorCampaignError("execution_receipt.schema が不一致")
+    if value["env_tag"] != contract.env_tag:
+        raise FloorCampaignError("execution_receipt.env_tag が契約と不一致")
+    if value["contract_sha256"] != contract.contract_sha256:
+        raise FloorCampaignError("execution_receipt.contract_sha256 が契約と不一致")
+    attestation = value["attestation"]
+    akeys = {"hostname", "boot_id", "cpuset", "captured_utc"}
+    if not isinstance(attestation, Mapping) or set(attestation) != akeys:
+        raise FloorCampaignError("execution_receipt.attestation の key 集合が不一致")
+    hostname = attestation["hostname"]
+    if not isinstance(hostname, str) or not hostname:
+        raise FloorCampaignError("execution_receipt.attestation.hostname が空でない str でない")
+    return {
+        "schema": value["schema"],
+        "env_tag": value["env_tag"],
+        "contract_sha256": value["contract_sha256"],
+        "attestation": {
+            "hostname": hostname,
+            "boot_id": _nullable_text(
+                attestation["boot_id"], field="execution_receipt.attestation.boot_id"),
+            "cpuset": _nullable_text(
+                attestation["cpuset"], field="execution_receipt.attestation.cpuset"),
+            "captured_utc": _utc_text(
+                attestation["captured_utc"],
+                field="execution_receipt.attestation.captured_utc"),
+        },
     }
 
 
@@ -662,8 +763,9 @@ def _prepared_binding(
 
 
 def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
-                out_root: Path, prepare_fn) -> dict[str, dict]:
-    """全 12 セルを実行開始前に実体化・ビルドし、binary path と full sha256 を返す。"""
+                out_root: Path, prepare_fn, build_fn=None) -> dict[str, dict]:
+    """全セルを実体化し、runner/store 専用の absolute-path runtime view を返す。"""
+    build_fn = build_fn or buildcache.build
     cache_root = str(out_root / "s8b-build-cache")
     built: dict[str, dict] = {}
     for cell in cells:
@@ -673,12 +775,28 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
                 prepare_fn=prepare_fn) as (identity, prepared):
-            result = buildcache.build(
+            result = build_fn(
                 prepared.genome, ccbench_commit=ccbench_pin, trace=False,
                 cache_root=cache_root, ccbench_dir=prepared.ccbench_dir,
                 src_token=prepared.src_token,
             )
             binary_path = Path(result.binary)
+            configure_argv = getattr(result, "configure_argv", ())
+            build_argv = getattr(result, "build_argv", ())
+            # E0 以前の局所 fake は list-valued legacy field を使っていた。shell 文字列は
+            # 再解析せず拒否し、構造 list/tuple だけを移行入力として認める。
+            if not configure_argv and isinstance(getattr(result, "configure_cmd", None), list):
+                configure_argv = tuple(result.configure_cmd)
+            if not build_argv and isinstance(getattr(result, "build_cmd", None), list):
+                build_argv = tuple(result.build_cmd)
+            if (not isinstance(configure_argv, (list, tuple))
+                    or not all(isinstance(token, str) for token in configure_argv)
+                    or not configure_argv):
+                raise FloorCampaignError("build result.configure_argv が非空 list[str] でない")
+            if (not isinstance(build_argv, (list, tuple))
+                    or not all(isinstance(token, str) for token in build_argv)
+                    or not build_argv):
+                raise FloorCampaignError("build result.build_argv が非空 list[str] でない")
             built[cell["cell_id"]] = {
                 "cell_id": cell["cell_id"],
                 "holdout_id": holdout_id,
@@ -687,11 +805,160 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 "binary_sha256": result.bin_sha256,
                 "bin_hash_short": result.bin_hash,
                 "binding": dict(identity),
-                "configure_cmd": result.configure_cmd,
-                "build_cmd": result.build_cmd,
+                "configure_argv": list(configure_argv),
+                "build_argv": list(build_argv),
                 "cached": result.cached,
+                "_ccbench_root": str(Path(prepared.ccbench_dir).absolute()),
             }
     return built
+
+
+def _portable_relpath(value, *, out_root: Path, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise FloorCampaignError(f"portable built {field} が空でない str でない")
+    path = Path(value)
+    if not path.is_absolute():
+        raise FloorCampaignError(f"runtime built {field} が絶対 path でない: {value!r}")
+    try:
+        rel = path.relative_to(Path(out_root).absolute()).as_posix()
+    except ValueError as exc:
+        raise FloorCampaignError(
+            f"runtime built {field} が out_root 外: {value!r}") from exc
+    _validate_portable_path(rel, field=field)
+    return rel
+
+
+def _validate_portable_path(value, *, field: str) -> str:
+    if (not isinstance(value, str) or not value or value.startswith("/")
+            or "\\" in value or "//" in value or any(ord(ch) < 32 for ch in value)):
+        raise FloorCampaignError(f"portable built {field} path 文法が不正: {value!r}")
+    parts = value.split("/")
+    if any(part in {"", ".", ".."} for part in parts):
+        raise FloorCampaignError(f"portable built {field} path component が不正: {value!r}")
+    return value
+
+
+def _replace_root_component(token: str, root: str, placeholder: str) -> str:
+    """argv token 内の root を path component 境界だけで置換する（表示・照合専用）。"""
+    start = 0
+    while True:
+        index = token.find(root, start)
+        if index < 0:
+            return token
+        end = index + len(root)
+        before_ok = index == 0 or token[index - 1] in "=,:"
+        after_ok = end == len(token) or token[end] == "/"
+        if before_ok and after_ok:
+            token = token[:index] + placeholder + token[end:]
+            start = index + len(placeholder)
+        else:
+            start = index + 1
+
+
+def _portable_argv(argv, *, out_root: Path, ccbench_root: str, field: str) -> list[str]:
+    """absolute root を placeholder 化した表示・照合専用 argv（再実行は禁止）。"""
+    if (not isinstance(argv, (list, tuple)) or not argv
+            or not all(isinstance(token, str) for token in argv)):
+        raise FloorCampaignError(f"runtime built {field} が非空 list[str] でない")
+    roots = [
+        (str(Path(out_root).absolute()), "${OUT_ROOT}"),
+        (str(Path(ccbench_root).absolute()), "${CCBENCH_ROOT}"),
+    ]
+    roots.sort(key=lambda item: len(item[0]), reverse=True)
+    projected = []
+    for raw in argv:
+        if any(marker in raw for marker in _PORTABLE_PLACEHOLDERS):
+            raise FloorCampaignError(
+                f"runtime built {field} raw token に予約 placeholder がある: {raw!r}")
+        token = raw
+        for root, placeholder in roots:
+            token = _replace_root_component(token, root, placeholder)
+        projected.append(token)
+    return projected
+
+
+def _validate_portable_built(built: Mapping) -> dict[str, dict]:
+    if not isinstance(built, Mapping):
+        raise FloorCampaignError("portable binaries が Mapping でない")
+    validated: dict[str, dict] = {}
+    for cell_id in sorted(built):
+        record = built[cell_id]
+        if not isinstance(cell_id, str) or not cell_id:
+            raise FloorCampaignError("portable binaries の cell_id key が不正")
+        if not isinstance(record, Mapping) or set(record) != set(_PORTABLE_BUILT_KEYS):
+            raise FloorCampaignError(f"portable binaries[{cell_id}] の exact key 集合が不一致")
+        if record["cell_id"] != cell_id:
+            raise FloorCampaignError(f"portable binaries[{cell_id}].cell_id が key と不一致")
+        for field in ("holdout_id", "configuration_id"):
+            if not isinstance(record[field], str) or not record[field]:
+                raise FloorCampaignError(f"portable binaries[{cell_id}].{field} が不正")
+        _validate_portable_path(record["binary"], field="binary")
+        _validate_portable_path(record["store_path"], field="store_path")
+        sha = record["binary_sha256"]
+        if not buildcache.is_full_sha256(sha):
+            raise FloorCampaignError(f"portable binaries[{cell_id}].binary_sha256 が不正")
+        if record["bin_hash_short"] != sha[:16]:
+            raise FloorCampaignError(f"portable binaries[{cell_id}].bin_hash_short が不一致")
+        if not isinstance(record["binding"], Mapping):
+            raise FloorCampaignError(f"portable binaries[{cell_id}].binding が object でない")
+        for field in ("configure_argv", "build_argv"):
+            argv = record[field]
+            if (not isinstance(argv, list) or not argv
+                    or not all(isinstance(token, str) for token in argv)):
+                raise FloorCampaignError(f"portable binaries[{cell_id}].{field} が不正")
+        if type(record["cached"]) is not bool:
+            raise FloorCampaignError(f"portable binaries[{cell_id}].cached が bool でない")
+        validated[cell_id] = {
+            key: (dict(value) if key == "binding" else list(value)
+                  if key in {"configure_argv", "build_argv"} else value)
+            for key, value in record.items()
+        }
+    return validated
+
+
+def project_built_records(runtime_built: Mapping, *, out_root: Path) -> dict[str, dict]:
+    """runtime view を manifest/result 用 PortableBuiltRecord へ copy-project する。
+
+    ``configure_argv`` / ``build_argv`` は provenance の表示・照合専用であり、再実行用 API
+    ではない。置換は token 単位・path component 境界・root longest-first で行う。
+    """
+    artifact: dict[str, dict] = {}
+    for cell_id in sorted(runtime_built):
+        rec = runtime_built[cell_id]
+        ccbench_root = rec.get("_ccbench_root")
+        if not isinstance(ccbench_root, str) or not ccbench_root:
+            raise FloorCampaignError(f"runtime binaries[{cell_id}] の ccbench root がない")
+        artifact[cell_id] = {
+            "cell_id": rec["cell_id"],
+            "holdout_id": rec["holdout_id"],
+            "configuration_id": rec["configuration_id"],
+            "binary": _portable_relpath(rec["binary"], out_root=out_root, field="binary"),
+            "binary_sha256": rec["binary_sha256"],
+            "bin_hash_short": rec["bin_hash_short"],
+            "binding": dict(rec["binding"]),
+            "configure_argv": _portable_argv(
+                rec["configure_argv"], out_root=out_root,
+                ccbench_root=ccbench_root, field="configure_argv"),
+            "build_argv": _portable_argv(
+                rec["build_argv"], out_root=out_root,
+                ccbench_root=ccbench_root, field="build_argv"),
+            "cached": rec["cached"],
+            "store_path": _portable_relpath(
+                rec["store_path"], out_root=out_root, field="store_path"),
+        }
+    return _validate_portable_built(artifact)
+
+
+def resolve_portable_built(artifact_built: Mapping, *, out_root: Path) -> dict[str, dict]:
+    """厳密検証済み artifact view を out_root 基準の runtime absolute view に解決する。"""
+    artifact = _validate_portable_built(artifact_built)
+    runtime: dict[str, dict] = {}
+    root = Path(out_root).absolute()
+    for cell_id, rec in artifact.items():
+        runtime[cell_id] = dict(rec)
+        runtime[cell_id]["binary"] = str(root / rec["binary"])
+        runtime[cell_id]["store_path"] = str(root / rec["store_path"])
+    return runtime
 
 
 # --------------------------------------------------------------------------- #
@@ -702,6 +969,7 @@ def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
                       freeze_sha256: str, cells: list[dict],
                       built: Mapping, schedule: list[dict]) -> dict:
     """参照 hash と build identity・schedule を持つ floor manifest を組み立てる (純粋)。"""
+    portable_built = _validate_portable_built(built)
     return {
         "schema_version": MANIFEST_SCHEMA,
         "protocol_sha256": protocol_sha256,
@@ -718,7 +986,7 @@ def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
         "session_cv_max": protocol["session_cv_max"],
         "cell_cv_max": protocol["cell_cv_max"],
         "cells": [dict(cell) for cell in cells],
-        "binaries": {cid: dict(rec) for cid, rec in built.items()},
+        "binaries": portable_built,
         "schedule": [dict(row) for row in schedule],
     }
 
@@ -734,6 +1002,57 @@ def _write_create_only_json(path: Path, document: Mapping) -> bytes:
     except FileExistsError as exc:
         raise FloorCampaignError(f"既に存在するため上書きしない: {path}") from exc
     return payload.encode("utf-8")
+
+
+def _fsync_directory(path: Path) -> None:
+    directory_fd = os.open(Path(path), os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def _stage_bytes(path: Path, payload: bytes) -> None:
+    """決定的 pending file を fsync。既存時は bytes 一致だけを受理する。"""
+    path = Path(path)
+    if path.exists():
+        if not path.is_file() or path.is_symlink() or path.read_bytes() != payload:
+            raise FloorCampaignError(f"staged bytes が再計算と不一致: {path}")
+        return
+    _create_only_bytes(path, payload)
+
+
+def _publish_staged_create_only(pending: Path, destination: Path, payload: bytes) -> None:
+    """fsync 済み pending inode を hard-link で atomic create-only publish する。"""
+    pending = Path(pending)
+    destination = Path(destination)
+    if destination.exists():
+        if (not destination.is_file() or destination.is_symlink()
+                or destination.read_bytes() != payload):
+            raise FloorCampaignError(f"publish 済み bytes が再計算と不一致: {destination}")
+        pending.unlink(missing_ok=True)
+        return
+    if not pending.is_file() or pending.is_symlink() or pending.read_bytes() != payload:
+        raise FloorCampaignError(f"publish 元 staged bytes が無いか不一致: {pending}")
+    try:
+        os.link(pending, destination)
+    except FileExistsError:
+        if destination.read_bytes() != payload:
+            raise FloorCampaignError(f"並行 publish bytes が不一致: {destination}")
+    _fsync_directory(destination.parent)
+    pending.unlink(missing_ok=True)
+
+
+def _atomic_create_only_json(path: Path, document: Mapping) -> bytes:
+    """manifest 用: 一時 file fsync 後に atomic create-only publish する。"""
+    payload = (json.dumps(
+        document, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    path = Path(path)
+    # L run_dir の許可集合を汚さないよう、manifest pending は run_dir の外（同一 FS）に置く。
+    pending = path.parent.parent / f".{path.parent.name}.{path.name}.pending"
+    _stage_bytes(pending, payload)
+    _publish_staged_create_only(pending, path, payload)
+    return payload
 
 
 # --------------------------------------------------------------------------- #
@@ -878,6 +1197,28 @@ def issue_launch_certificate(cert_path: Path, certificate: Mapping) -> str:
     return hashlib.sha256(cert_bytes).hexdigest()
 
 
+def _revalidate_issued_certificate(
+        cert_path: Path, *, expected_v1_freeze_sha256: str,
+        expected_protocol_sha256: str, expected_run_id: str) -> tuple[dict, bytes]:
+    """発行済み raw bytes を strict parse し、同じ exact validator へ再投入する。"""
+    try:
+        raw = Path(cert_path).read_bytes()
+        document = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_no_duplicate_pairs,
+            parse_constant=_reject_json_constant,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, FloorCampaignError) as exc:
+        raise FloorCampaignError(
+            f"発行済み launch certificate を strict 再検証できない: {exc}") from exc
+    normalized = validate_launch_certificate(
+        document,
+        expected_v1_freeze_sha256=expected_v1_freeze_sha256,
+        expected_protocol_sha256=expected_protocol_sha256,
+        expected_run_id=expected_run_id,
+    )
+    return normalized, raw
+
+
 # --------------------------------------------------------------------------- #
 # content-addressed binary store (C3-7) — 計測 bytes を hash 名で永続化         #
 # --------------------------------------------------------------------------- #
@@ -921,10 +1262,7 @@ def store_binaries(built: dict, store_root: Path, *, out_root: Path) -> None:
             actual = _full_sha256(dest)
             if actual != sha:
                 raise FloorCampaignError(f"store 書込後 hash 不一致: {dest} sha256={actual}")
-        try:
-            rec["store_path"] = str(dest.relative_to(out_root))
-        except ValueError:
-            rec["store_path"] = str(dest)
+        rec["store_path"] = str(dest.absolute())
 
 
 def _verify_resume_store(built: Mapping, out_root: Path) -> None:
@@ -954,6 +1292,47 @@ def _verify_resume_store(built: Mapping, out_root: Path) -> None:
 # session 実行エンジン (fresh/resume 共通)                                      #
 # --------------------------------------------------------------------------- #
 
+def _project_measure_run_cmd(
+        raw_run_cmd, *, runtime_binary: str, portable_binary: str,
+        workload: Mapping, records: int, threads: int, protocol: Mapping) -> str:
+    """production raw command を完全照合し portable canonical command へ射影する。
+
+    calibrator は workload Mapping の挿入順で末尾 flag を出すため、raw 側では workload
+    flag の順序だけを非意味的差として許す。それ以外の prefix・perf event・binary・基本
+    flag・token 数は完全一致を要求する。artifact 側は leaf の確定順へ必ず正規化する。
+    """
+    contract = _env_contract.lookup(protocol["env_tag"])
+    try:
+        portable = build_portable_run_cmd(
+            binary=portable_binary, workload=workload, records=records,
+            threads=threads, extime_s=protocol["extime_s"],
+            clocks_per_us=contract.clocks_per_us, numactl=contract.numactl,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise CampaignAbort(f"portable run_cmd を構築できない: {exc}") from exc
+    if not isinstance(raw_run_cmd, str) or not raw_run_cmd:
+        raise CampaignAbort("measure が空でない raw run_cmd を返さなかった")
+    try:
+        raw_argv = tuple(shlex.split(raw_run_cmd))
+    except ValueError as exc:
+        raise CampaignAbort(f"measure raw run_cmd を shlex parse できない: {exc}") from exc
+
+    runtime_expected = list(portable)
+    try:
+        binary_index = runtime_expected.index("--") + 1
+    except ValueError as exc:  # leaf の内部契約破れ。安全側に停止する。
+        raise CampaignAbort("portable run_cmd に binary separator がない") from exc
+    runtime_expected[binary_index] = runtime_binary
+    workload_count = len(workload)
+    prefix_length = len(runtime_expected) - workload_count
+    if (len(raw_argv) != len(runtime_expected)
+            or raw_argv[:prefix_length] != tuple(runtime_expected[:prefix_length])
+            or sorted(raw_argv[prefix_length:]) != sorted(runtime_expected[prefix_length:])):
+        raise CampaignAbort(
+            "measure raw run_cmd が runtime binary/workload/protocol/env contract と不一致"
+        )
+    return shlex.join(portable)
+
 class _Runner:
     """schedule を直列・単一テナントで消化する実行エンジン (fresh/resume 共通)。
 
@@ -964,15 +1343,16 @@ class _Runner:
     (β-5)。retry は失敗が起きた round の末尾で schedule 順に消化する (β-4)。
     """
 
-    def __init__(self, *, protocol, cells, cell_by_id, binaries, schedule,
+    def __init__(self, *, protocol, cells, cell_by_id, binaries, artifact_binaries, schedule,
                  journal_path, measure_fn, probe_fn, sleep_fn, monotonic_fn, now_fn,
                  protocol_sha256, freeze_sha256, manifest_sha256,
                  execution_receipt=None, launch_certificate_sha256=None,
-                 records=None):
+                 records=None, host_provenance_fn=None, process_identity_fn=None):
         self.protocol = protocol
         self.cells = cells
         self.cell_by_id = cell_by_id
         self.binaries = binaries
+        self.artifact_binaries = artifact_binaries
         self.schedule = schedule
         self.journal_path = journal_path
         self.measure_fn = measure_fn
@@ -986,6 +1366,8 @@ class _Runner:
         # C3-10: 共有 execution guard の receipt (campaign-start journal に記録)。
         self.execution_receipt = execution_receipt
         self.launch_certificate_sha256 = launch_certificate_sha256
+        self.host_provenance_fn = host_provenance_fn or _host_provenance
+        self.process_identity_fn = process_identity_fn or _process_identity
         self.reps = protocol["reps"]
         self.session_cv_max = protocol["session_cv_max"]
         self.retry_slots = protocol["retry_slots_per_cell"]
@@ -1125,7 +1507,13 @@ class _Runner:
             projection = _project_scalepoint(scale_point)
             throughputs = projection["throughputs"]
             exec_failures = projection["exec_failures"]
-            run_cmd = getattr(scale_point, "run_cmd", None)
+            run_cmd = _project_measure_run_cmd(
+                getattr(scale_point, "run_cmd", None),
+                runtime_binary=binary,
+                portable_binary=self.artifact_binaries[cell_id]["binary"],
+                workload=cell["workload"], records=cell["records"],
+                threads=cell["threads"], protocol=self.protocol,
+            )
             notes = list(getattr(scale_point, "notes", []) or [])
         else:
             throughputs = []
@@ -1233,6 +1621,9 @@ class _Runner:
     def run(self) -> None:
         fresh = not any(r.get("event") == "campaign-start" for r in self.records)
         if fresh:
+            host = _validate_host_provenance(
+                self.host_provenance_fn(now_fn=self.now_fn))
+            process = _validate_process_identity(self.process_identity_fn())
             self._emit({
                 "event": "campaign-start", "schema": JOURNAL_SCHEMA,
                 "protocol_sha256": self.protocol_sha256,
@@ -1240,7 +1631,7 @@ class _Runner:
                 "manifest_sha256": self.manifest_sha256,
                 **({"launch_certificate_sha256": self.launch_certificate_sha256}
                    if self.launch_certificate_sha256 is not None else {}),
-                **_host_provenance(self.now_fn), **_process_identity(),
+                **host, **process,
                 # C3-10: 共有 execution guard の receipt (env_tag + contract_sha256 +
                 # 実行機 attestation)。report/verifier が env 契約と照合する。
                 **({"execution_receipt": self.execution_receipt}
@@ -1248,9 +1639,11 @@ class _Runner:
             })
         else:
             # resume: 新 process の identity を記録する (γ-5)。result には含めない (決定性維持)。
+            host = _validate_host_provenance(
+                self.host_provenance_fn(now_fn=self.now_fn))
+            process = _validate_process_identity(self.process_identity_fn())
             self._emit({
-                "event": "resume-start", **_host_provenance(self.now_fn),
-                **_process_identity(),
+                "event": "resume-start", **host, **process,
             })
 
         started = self._started_seqs()
@@ -1344,7 +1737,8 @@ def _expected_protocol(protocol: Mapping, cells: list[dict]) -> dict:
 
 
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
-                    manifest_sha256, cells, binaries, records) -> dict:
+                    manifest_sha256, cells, binaries, records,
+                    eligible_for_refreeze=False) -> dict:
     """journal の生 session から floor artifact (result) を組み立てる (formula v2)。
 
     cell_stats / holdout_floors は ``s8b_floor_stats`` (formula v2) が正本。artifact の
@@ -1353,6 +1747,11 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
     wall_ledger は journal から読むだけの純粋関数なので resume を跨いで決定的 (β-11 の冪等
     finalization が hash 照合に依存する)。
     """
+    if type(eligible_for_refreeze) is not bool:
+        raise FloorCampaignError("eligible_for_refreeze が bool でない")
+    if eligible_for_refreeze and mode != "official":
+        raise FloorCampaignError("pilot result は eligible_for_refreeze=True にできない")
+    portable_binaries = _validate_portable_built(binaries)
     n_sessions = protocol["n_sessions"]
     reps = protocol["reps"]
     session_cv_max = protocol["session_cv_max"]
@@ -1434,10 +1833,10 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "schema": RESULT_SCHEMA,
         "formula": protocol["formula"],
         "mode": mode,
-        # official は F6 裁定まで run_campaign core が無条件拒否するため、結果を
-        # 生成できる campaign では恒に False。条件式で書くと「official なら True に
-        # なり得る」という誤読を招くので定数で明示する (レビュー所見)。
-        "eligible_for_refreeze": False,
+        # True bytes は official の二相 finalize staging にだけ組み立てられ、completed terminal
+        # fsync 後に初めて publish される。pilot/abort/invalid/terminal 前 crash は False または
+        # 未 publish のままなので、flag 単独を完走証拠にしない。
+        "eligible_for_refreeze": eligible_for_refreeze,
         "env_tag": protocol["env_tag"],
         "ccbench_pin": protocol["ccbench_pin"],
         "protocol_sha256": protocol_sha256,
@@ -1450,7 +1849,7 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "scale_adequacy_rel_tolerance": protocol["scale_adequacy_rel_tolerance"],
         "holdouts": holdouts,
         "configurations": configurations,
-        "binaries": {cid: dict(rec) for cid, rec in binaries.items()},
+        "binaries": portable_binaries,
         # --- verify_floor_artifact が読む正本フィールド (config は 7 scalar のみ, α-3) ---
         "config": {
             "formula": protocol["formula"],
@@ -1582,33 +1981,51 @@ def _md_bytes(md_text: str) -> bytes:
     return text.encode("utf-8")
 
 
-def _finalize(run_dir: Path, result: Mapping, md_text: str, journal_path: Path) -> None:
-    """既存物は hash 検証 + 欠落分のみ create-only 補完、上書きなし (β-11)。
-
-    result / md は journal の純粋関数なので resume を跨いで決定的。既存 result.json/md が
-    再計算 byte と一致すれば skip、不一致なら fail-closed で拒否 (改竄/非決定の検出)。
-    """
-    result_json = run_dir / "result.json"
-    result_md = run_dir / "result.md"
-    payload = _result_bytes(result)
-    if result_json.exists():
-        if result_json.read_bytes() != payload:
-            raise FloorCampaignError(
-                "finalize: 既存 result.json が再計算と不一致 (改竄/非決定の疑い)"
-            )
-    else:
-        _create_only_bytes(result_json, payload)
-
+def _stage_finalize_files(run_dir: Path, result: Mapping, md_text: str) -> tuple:
+    """phase 1: result/md bytes を deterministic pending file へ fsync する。"""
+    run_dir = Path(run_dir)
+    result_payload = _result_bytes(result)
     md_payload = _md_bytes(md_text)
-    if result_md.exists():
-        if result_md.read_bytes() != md_payload:
-            raise FloorCampaignError("finalize: 既存 result.md が再計算と不一致")
-    else:
-        _create_only_bytes(result_md, md_payload)
+    result_pending = run_dir / ".result.json.pending"
+    md_pending = run_dir / ".result.md.pending"
+    _stage_bytes(result_pending, result_payload)
+    _stage_bytes(md_pending, md_payload)
+    return result_pending, result_payload, md_pending, md_payload
 
-    if not any(r.get("event") == "terminal" and r.get("status") == "completed"
-               for r in _read_journal(journal_path)):
-        _journal_append(journal_path, {"event": "terminal", "status": "completed"})
+
+def _append_completed_terminal(journal_path: Path) -> None:
+    records = _read_journal(journal_path)
+    terminals = [record for record in records if record.get("event") == "terminal"]
+    if terminals:
+        raise FloorCampaignError("finalize: completed terminal 追記前に terminal が既にある")
+    _journal_append(journal_path, {"event": "terminal", "status": "completed"})
+
+
+def _publish_finalize_files(run_dir: Path, staged: tuple) -> None:
+    """phase 3: terminal fsync 後に result/md を atomic create-only publish する。"""
+    result_pending, result_payload, md_pending, md_payload = staged
+    _publish_staged_create_only(result_pending, Path(run_dir) / "result.json", result_payload)
+    _publish_staged_create_only(md_pending, Path(run_dir) / "result.md", md_payload)
+
+
+def _finalize(run_dir: Path, staged: tuple, journal_path: Path, *,
+              terminal_already_completed: bool = False) -> None:
+    """二相 finalize: staged+fsync → completed terminal+fsync → atomic publish。
+
+    terminal→publish 間 crash は ``M-finalize-pending`` として publish だけを再開する。
+    completed terminal は一意かつ journal 最終 record であり、result/md が先に可視になる
+    状態を作らない。``terminal_already_completed=True`` の uniqueness re-check は、通常の
+    classify 済み経路では恒真となる defense-in-depth であり、独立保証には数えない。
+    """
+    if terminal_already_completed:
+        records = _read_journal(journal_path)
+        terminals = [record for record in records if record.get("event") == "terminal"]
+        if (len(terminals) != 1 or terminals[0].get("status") != "completed"
+                or records[-1] is not terminals[0]):
+            raise FloorCampaignError("finalize-pending: completed terminal が一意・最終でない")
+    else:
+        _append_completed_terminal(journal_path)
+    _publish_finalize_files(run_dir, staged)
 
 
 def _create_only_bytes(path: Path, payload: bytes) -> None:
@@ -1625,29 +2042,79 @@ def _create_only_bytes(path: Path, payload: bytes) -> None:
 # run_campaign (注入点)                                                         #
 # --------------------------------------------------------------------------- #
 
+def _after_certificate_issued_noop(cert_path: Path) -> None:
+    return None
+
+
 def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
-                 monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None) -> dict:
+                 monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+                 host_provenance_fn=None, process_identity_fn=None,
+                 execution_receipt_fn=None, build_fn=None, repo_root=None,
+                 after_certificate_issued_fn=None) -> dict:
+    """production wrapper。official の seam 注入を副作用前に構造拒否する。"""
+    mode = _validate_mode(mode)
+    if mode == "official":
+        injected = {
+            "measure_fn": measure_fn is not None,
+            "probe_fn": probe_fn is not None,
+            "sleep_fn": sleep_fn is not time.sleep,
+            "monotonic_fn": monotonic_fn is not time.monotonic,
+            "prepare_fn": prepare_fn is not None,
+            "now_fn": now_fn is not None,
+            "host_provenance_fn": host_provenance_fn is not None,
+            "process_identity_fn": process_identity_fn is not None,
+            "execution_receipt_fn": execution_receipt_fn is not None,
+            "build_fn": build_fn is not None,
+            "repo_root": repo_root is not None,
+            "after_certificate_issued_fn": after_certificate_issued_fn is not None,
+        }
+        non_default = sorted(name for name, present in injected.items() if present)
+        if non_default:
+            raise FloorCampaignError(
+                f"official mode への非 default seam 注入を拒否する: {non_default}")
+    _assert_official_permitted(mode)
+    return _run_campaign_core(
+        protocol, freeze_doc, out_root=out_root, mode=mode, resume_dir=resume_dir,
+        measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
+        monotonic_fn=monotonic_fn, prepare_fn=prepare_fn, now_fn=now_fn,
+        host_provenance_fn=host_provenance_fn,
+        process_identity_fn=process_identity_fn,
+        execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
+        repo_root=repo_root,
+        after_certificate_issued_fn=after_certificate_issued_fn,
+    )
+
+
+def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
+                       measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
+                       monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+                       host_provenance_fn=None, process_identity_fn=None,
+                       execution_receipt_fn=None, build_fn=None, repo_root=None,
+                       after_certificate_issued_fn=None) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
     ``probe_fn() -> (rc, stdout, stderr)`` / ``sleep_fn`` / ``monotonic_fn`` / ``prepare_fn`` /
     ``now_fn() -> datetime``。CLI main はこれらを実物で束ねるだけにする。
 
-    official mode は §8 未裁定のため **core で無条件拒否する** (δ-3): build・measure・書き込みを
-    一切行わない。env 契約 (F4): clocks_per_us / numactl は ``env_contract.lookup(env_tag)`` から
-    取る。machine-pin として契約の env_tag が実行機の ``p2_2.ENV_TAG`` と一致することを要求する。
+    public wrapper を通らない staged builder/test 専用 core。CLI/env bypass は持たず、production
+    public official は wrapper の ``_assert_official_permitted`` と seam 注入拒否を必ず通る。
     """
-    # mode は path segment に入るため何より先に閉じた集合で検証する。official production 拒否は
-    # 直後の専用 seam で従来どおり最優先 (build/measure/write 前, δ-3)。
     mode = _validate_mode(mode)
-    _assert_official_permitted(mode)
 
     if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
     now_fn = now_fn or (lambda: dt.datetime.now(dt.timezone.utc))
     prepare_fn = prepare_fn or prepare_cell
     probe_fn = probe_fn or _default_probe_fn
+    host_provenance_fn = host_provenance_fn or _host_provenance
+    process_identity_fn = process_identity_fn or _process_identity
+    execution_receipt_fn = execution_receipt_fn or execution_guard.build_receipt
+    build_fn = build_fn or buildcache.build
+    repo_root = ROOT if repo_root is None else Path(repo_root)
+    after_certificate_issued_fn = (
+        after_certificate_issued_fn or _after_certificate_issued_noop)
 
     protocol = validate_protocol(protocol)
 
@@ -1665,7 +2132,8 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         execution_guard.assert_machine_pin(contract, machine_env_tag=ENV_TAG)
     except execution_guard.ExecutionGuardError as exc:
         raise FloorCampaignError(str(exc)) from exc
-    execution_receipt = execution_guard.build_receipt(contract, now_fn=now_fn)
+    execution_receipt = _validate_execution_receipt(
+        execution_receipt_fn(contract, now_fn=now_fn), contract=contract)
     # isolation policy: allow_resume=False の env では別 process からの resume を拒否 (γ-5)。
     if resume_dir is not None and not contract.isolation_policy.allow_resume:
         raise FloorCampaignError(
@@ -1704,6 +2172,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     out_root = Path(out_root)
     launch_certificate_sha256 = None
     resume_records = None
+    resume_state = None
 
     if resume_dir is None:
         # fresh: official は run_dir mkdir より前に clean scan を完了させる。時刻は一度だけ捕捉し、
@@ -1713,7 +2182,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         certificate = None
         if mode == "official":
             certificate = _official_launch_preflight(
-                ROOT,
+                repo_root,
                 v1_freeze_sha256=freeze_sha256,
                 protocol_sha256=protocol_sha256,
                 started_utc=started_at.isoformat(),
@@ -1727,70 +2196,129 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         journal_path = run_dir / "journal.jsonl"
         manifest_path = run_dir / "manifest.json"
         if certificate is not None:
-            launch_certificate_sha256 = issue_launch_certificate(
-                run_dir / "launch_certificate.json", certificate,
-            )
-            validate_launch_certificate(
-                certificate,
+            cert_path = run_dir / "launch_certificate.json"
+            launch_certificate_sha256 = issue_launch_certificate(cert_path, certificate)
+            _revalidate_issued_certificate(
+                cert_path,
                 expected_v1_freeze_sha256=freeze_sha256,
                 expected_protocol_sha256=protocol_sha256,
                 expected_run_id=run_dir.name,
             )
+            after_certificate_issued_fn(cert_path)
+            try:
+                cert_raw_after_checkpoint = cert_path.read_bytes()
+            except OSError as exc:
+                raise FloorCampaignError(
+                    f"checkpoint 後に launch certificate を再読できない: {exc}") from exc
+            if hashlib.sha256(cert_raw_after_checkpoint).hexdigest() != launch_certificate_sha256:
+                raise FloorCampaignError(
+                    "checkpoint 後の launch certificate raw hash が発行時と不一致")
             _journal_append(journal_path, {
                 "event": "launch-start", "schema": JOURNAL_SCHEMA,
                 "launch_certificate_sha256": launch_certificate_sha256,
                 "utc": started_at.isoformat(),
             })
-        built = build_cells(
+        runtime_built = build_cells(
             freeze, cells, ccbench_pin=protocol["ccbench_pin"],
-            out_root=out_root, prepare_fn=prepare_fn,
+            out_root=out_root, prepare_fn=prepare_fn, build_fn=build_fn,
         )
         # content-addressed store (C3-7): 計測 bytes を env scope 永続領域へ複製し store_path を記録。
         store_root = Path(env_scope_dir(protocol["env_tag"], output_root=str(out_root))) / "binaries"
-        store_binaries(built, store_root, out_root=out_root)
+        store_binaries(runtime_built, store_root, out_root=out_root)
+        artifact_built = project_built_records(runtime_built, out_root=out_root)
         manifest = assemble_manifest(
             protocol=protocol, protocol_sha256=protocol_sha256,
-            freeze_sha256=freeze_sha256, cells=cells, built=built, schedule=schedule,
+            freeze_sha256=freeze_sha256, cells=cells,
+            built=artifact_built, schedule=schedule,
         )
-        manifest_bytes = _write_create_only_json(manifest_path, manifest)
+        manifest_bytes = _atomic_create_only_json(manifest_path, manifest)
         manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
     else:
-        # resume: 既存 manifest/journal を読み、protocol/freeze/manifest/binary/schedule を照合し
-        # forward-only 続行する。完了 or crash 済み seq は skip、再実行は拒否。
         run_dir = Path(resume_dir)
         journal_path = run_dir / "journal.jsonl"
         manifest_path = run_dir / "manifest.json"
-        manifest, manifest_sha256, built = _load_resume_manifest(
-            manifest_path, protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
-        )
-        # manifest.schedule を権威とし、再導出列との一致を検査する (β-6, 改竄検出)。
-        manifest_schedule = manifest.get("schedule")
-        if not isinstance(manifest_schedule, list):
-            raise FloorCampaignError("resume: manifest.schedule が list でない")
-        if [dict(row) for row in manifest_schedule] != schedule:
-            raise FloorCampaignError(
-                "resume: manifest.schedule が再導出列と不一致 (改竄の疑い, fail-closed)"
-            )
-        # 記録済み binary_sha256 と disk 上バイナリの実 hash を全セル再照合する。
-        _verify_resume_binaries(built)
-        # content-addressed store の存在 + hash 一致も再照合する (C3-7)。
-        _verify_resume_store(built, out_root)
-
         resume_records = _read_journal(journal_path)
+        try:
+            resume_state = _floor_contract.classify_journal_resume_state(
+                resume_records, manifest_exists=manifest_path.is_file(),
+                result_published=(run_dir / "result.json").is_file(),
+                markdown_published=(run_dir / "result.md").is_file(),
+            )
+        except _floor_contract.FloorContractError as exc:
+            raise FloorCampaignError(f"resume state invalid: {exc}") from exc
+
+        if resume_state == "L":
+            launch_certificate_sha256 = _verify_resume_journal(
+                resume_records, run_dir=run_dir, mode=mode, schedule=schedule,
+                protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+                manifest_sha256=None, resume_state=resume_state,
+            )
+            runtime_built = build_cells(
+                freeze, cells, ccbench_pin=protocol["ccbench_pin"],
+                out_root=out_root, prepare_fn=prepare_fn, build_fn=build_fn,
+            )
+            store_root = Path(env_scope_dir(
+                protocol["env_tag"], output_root=str(out_root))) / "binaries"
+            store_binaries(runtime_built, store_root, out_root=out_root)
+            artifact_built = project_built_records(runtime_built, out_root=out_root)
+            manifest = assemble_manifest(
+                protocol=protocol, protocol_sha256=protocol_sha256,
+                freeze_sha256=freeze_sha256, cells=cells,
+                built=artifact_built, schedule=schedule,
+            )
+            manifest_bytes = _atomic_create_only_json(manifest_path, manifest)
+            manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+            resume_state = "M-prestart"
+        else:
+            manifest, manifest_sha256, artifact_built, runtime_built = _load_resume_manifest(
+                manifest_path, protocol_sha256=protocol_sha256,
+                freeze_sha256=freeze_sha256, out_root=out_root,
+            )
+            manifest_schedule = manifest.get("schedule")
+            if not isinstance(manifest_schedule, list):
+                raise FloorCampaignError("resume: manifest.schedule が list でない")
+            if [dict(row) for row in manifest_schedule] != schedule:
+                raise FloorCampaignError(
+                    "resume: manifest.schedule が再導出列と不一致 (改竄の疑い, fail-closed)"
+                )
+            _verify_resume_binaries(runtime_built)
+            _verify_resume_store(runtime_built, out_root)
+
         launch_certificate_sha256 = _verify_resume_journal(
             resume_records, run_dir=run_dir, mode=mode, schedule=schedule,
             protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
-            manifest_sha256=manifest_sha256,
+            manifest_sha256=manifest_sha256, resume_state=resume_state,
         )
 
+    if resume_state == "M-finalize-pending":
+        result = assemble_result(
+            protocol=protocol, mode=mode, protocol_sha256=protocol_sha256,
+            freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
+            cells=cells, binaries=artifact_built, records=resume_records,
+            eligible_for_refreeze=(mode == "official"),
+        )
+        staged = _stage_finalize_files(run_dir, result, _render_result_md(result))
+        problems = s8b_floor_stats.verify_floor_artifact(
+            result, _expected_protocol(protocol, cells),
+            expected_binaries=_journal_expected_binaries(resume_records),
+        )
+        if problems:
+            raise FloorCampaignError(
+                f"finalize-pending artifact self-check が非空: {problems}")
+        _finalize(run_dir, staged, journal_path, terminal_already_completed=True)
+        return {"status": "completed", "run_dir": str(run_dir), "result": result}
+
     runner = _Runner(
-        protocol=protocol, cells=cells, cell_by_id=cell_by_id, binaries=built,
+        protocol=protocol, cells=cells, cell_by_id=cell_by_id, binaries=runtime_built,
+        artifact_binaries=artifact_built,
         schedule=schedule, journal_path=journal_path, measure_fn=measure_fn,
         probe_fn=probe_fn, sleep_fn=sleep_fn, monotonic_fn=monotonic_fn, now_fn=now_fn,
         protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
         manifest_sha256=manifest_sha256, execution_receipt=execution_receipt,
         launch_certificate_sha256=launch_certificate_sha256,
         records=resume_records,
+        host_provenance_fn=host_provenance_fn,
+        process_identity_fn=process_identity_fn,
     )
 
     try:
@@ -1804,8 +2332,12 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     result = assemble_result(
         protocol=protocol, mode=mode, protocol_sha256=protocol_sha256,
         freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
-        cells=cells, binaries=built, records=runner.records,
+        cells=cells, binaries=artifact_built, records=runner.records,
+        eligible_for_refreeze=(mode == "official"),
     )
+
+    # phase 1: result/md bytes を pending file へ fsync。まだ public artifact は存在しない。
+    staged = _stage_finalize_files(run_dir, result, _render_result_md(result))
 
     # 自己検査: verify_floor_artifact(result, expected_protocol) == [] を満たさなければ書かない。
     # C3-6/W3 申し送り: journal receipt (session ごとの実測直前 binary_sha256_at_measure) を
@@ -1823,7 +2355,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         })
         raise FloorCampaignError(f"verify_floor_artifact が非空: {problems}")
 
-    _finalize(run_dir, result, _render_result_md(result), journal_path)
+    _finalize(run_dir, staged, journal_path)
     return {"status": "completed", "run_dir": str(run_dir), "result": result}
 
 
@@ -1844,14 +2376,17 @@ def _fresh_run_dir(out_root: Path, protocol: Mapping, mode: str,
 
 
 def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
-                          freeze_sha256: str) -> tuple[dict, str, dict]:
+                          freeze_sha256: str, out_root: Path) -> tuple:
     try:
         raw = manifest_path.read_bytes()
     except OSError as exc:
         raise FloorCampaignError(f"resume: manifest を読めない: {manifest_path}: {exc}") from exc
     try:
-        manifest = json.loads(raw.decode("utf-8"))
-    except (UnicodeError, json.JSONDecodeError) as exc:
+        manifest = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_no_duplicate_pairs,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeError, json.JSONDecodeError, FloorCampaignError) as exc:
         raise FloorCampaignError(f"resume: manifest を parse できない: {exc}") from exc
     if not isinstance(manifest, Mapping):
         raise FloorCampaignError("resume: manifest が object でない")
@@ -1864,10 +2399,9 @@ def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
         raise FloorCampaignError("resume: protocol sha256 が manifest と不一致")
     if manifest.get("freeze_sha256") != freeze_sha256:
         raise FloorCampaignError("resume: freeze sha256 が manifest と不一致")
-    binaries = manifest.get("binaries")
-    if not isinstance(binaries, Mapping):
-        raise FloorCampaignError("resume: manifest.binaries が不正")
-    return dict(manifest), manifest_sha256, {cid: dict(rec) for cid, rec in binaries.items()}
+    artifact_built = _validate_portable_built(manifest.get("binaries"))
+    runtime_built = resolve_portable_built(artifact_built, out_root=out_root)
+    return dict(manifest), manifest_sha256, artifact_built, runtime_built
 
 
 def _verify_resume_binaries(built: Mapping) -> None:
@@ -1894,7 +2428,8 @@ def _verify_resume_binaries(built: Mapping) -> None:
 
 def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
                            schedule: list[dict], protocol_sha256: str,
-                           freeze_sha256: str, manifest_sha256: str) -> Optional[str]:
+                           freeze_sha256: str, manifest_sha256: Optional[str],
+                           resume_state: str = "M-running") -> Optional[str]:
     """resume: journal を状態機械で全件検証する (β-6)。
 
     official は先頭 launch-start・certificate bytes/意味・campaign-start 束縛を検証する。
@@ -1904,31 +2439,37 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
     cell/round 一致 + retry (cell_id, retry_ordinal) 一意、session 完了→start 対応を検査する。
     """
     _validate_mode(mode)
+    if resume_state not in _floor_contract._RESUME_STATES:
+        raise FloorCampaignError(f"resume state が未知: {resume_state!r}")
     run_dir = Path(run_dir)
     starts = [r for r in records if r.get("event") == "campaign-start"]
-    if not starts:
-        raise FloorCampaignError("resume: journal に campaign-start がない")
-    cs = starts[0]
-    if len(starts) != 1:
-        raise FloorCampaignError("resume: campaign-start が複数ある")
-    if cs.get("schema") != JOURNAL_SCHEMA:
-        raise FloorCampaignError(
-            f"resume: campaign-start.schema が {JOURNAL_SCHEMA} でない (旧版 journal を拒否)"
-        )
-    if cs.get("protocol_sha256") != protocol_sha256:
-        raise FloorCampaignError("resume: campaign-start.protocol_sha256 が不一致")
-    if cs.get("freeze_sha256") != freeze_sha256:
-        raise FloorCampaignError("resume: campaign-start.freeze_sha256 が不一致")
-    if cs.get("manifest_sha256") != manifest_sha256:
-        raise FloorCampaignError("resume: campaign-start.manifest_sha256 が不一致")
+    cs = starts[0] if starts else None
+    if resume_state in {"L", "M-prestart"}:
+        if starts:
+            raise FloorCampaignError(f"resume: {resume_state} に campaign-start がある")
+    else:
+        if len(starts) != 1:
+            raise FloorCampaignError("resume: campaign-start はちょうど 1 件でなければならない")
+        if cs.get("schema") != JOURNAL_SCHEMA:
+            raise FloorCampaignError(
+                f"resume: campaign-start.schema が {JOURNAL_SCHEMA} でない (旧版 journal を拒否)"
+            )
+        if cs.get("protocol_sha256") != protocol_sha256:
+            raise FloorCampaignError("resume: campaign-start.protocol_sha256 が不一致")
+        if cs.get("freeze_sha256") != freeze_sha256:
+            raise FloorCampaignError("resume: campaign-start.freeze_sha256 が不一致")
+        if cs.get("manifest_sha256") != manifest_sha256:
+            raise FloorCampaignError("resume: campaign-start.manifest_sha256 が不一致")
 
     launch_certificate_sha256: Optional[str] = None
     launch_starts = [r for r in records if r.get("event") == "launch-start"]
     cert_path = run_dir / "launch_certificate.json"
     if mode == "pilot":
+        if resume_state == "L":
+            raise FloorCampaignError("resume: pilot は L 状態を持てない")
         if launch_starts:
             raise FloorCampaignError("resume: pilot journal に launch-start が混入している")
-        if "launch_certificate_sha256" in cs:
+        if cs is not None and "launch_certificate_sha256" in cs:
             raise FloorCampaignError(
                 "resume: pilot campaign-start に launch_certificate_sha256 が混入している"
             )
@@ -1944,11 +2485,29 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             raise FloorCampaignError(
                 f"resume: launch-start.schema が {JOURNAL_SCHEMA} でない"
             )
+        if set(launch) != {"event", "schema", "launch_certificate_sha256", "utc"}:
+            raise FloorCampaignError("resume: launch-start の exact key 集合が不一致")
         launch_certificate_sha256 = launch.get("launch_certificate_sha256")
-        if cs.get("launch_certificate_sha256") != launch_certificate_sha256:
+        if not buildcache.is_full_sha256(launch_certificate_sha256):
+            raise FloorCampaignError("resume: launch-start certificate sha256 が不正")
+        _utc_text(launch.get("utc"), field="resume.launch-start.utc")
+        if cs is not None and cs.get("launch_certificate_sha256") != launch_certificate_sha256:
             raise FloorCampaignError(
                 "resume: campaign-start と launch-start の launch_certificate_sha256 が不一致"
             )
+        if cert_path.is_symlink() or not cert_path.is_file():
+            raise FloorCampaignError("resume: launch certificate が regular file でない")
+        if resume_state == "L":
+            try:
+                names = {path.name for path in run_dir.iterdir()}
+            except OSError as exc:
+                raise FloorCampaignError(f"resume: L run_dir を列挙できない: {exc}") from exc
+            if names != {"launch_certificate.json", "journal.jsonl"}:
+                raise FloorCampaignError(
+                    f"resume: L run_dir の許可 file 集合が不一致: {sorted(names)}")
+            if (journal_path := run_dir / "journal.jsonl").is_symlink() \
+                    or not journal_path.is_file():
+                raise FloorCampaignError("resume: L journal が regular file でない")
         try:
             cert_bytes = cert_path.read_bytes()
         except OSError as exc:
@@ -1988,10 +2547,13 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             expected_protocol_sha256=protocol_sha256,
             expected_run_id=run_dir.name,
         )
+        if cert.get("started_utc") != launch.get("utc"):
+            raise FloorCampaignError(
+                "resume: launch-start.utc が certificate.started_utc と不一致")
 
-    if any(r.get("event") == "terminal" and r.get("status") == "completed"
-           for r in records):
-        raise FloorCampaignError("resume: 既に completed 済みの campaign は再実行しない")
+    if resume_state != "M-finalize-pending" and any(
+            r.get("event") == "terminal" for r in records):
+        raise FloorCampaignError("resume: terminal 済み campaign は再実行しない")
 
     sched_by_seq = {row["seq"]: row for row in schedule}
     seen_seq: set = set()

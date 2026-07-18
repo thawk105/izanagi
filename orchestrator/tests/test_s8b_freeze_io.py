@@ -10,6 +10,7 @@ pin している (期待の先決めをしない)。
 from __future__ import annotations
 
 import hashlib
+import shlex
 import json
 import pathlib
 import subprocess
@@ -253,21 +254,30 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
 
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None):
-        d = tmp_path / "bin" / src_token.replace("::", "__")
+        d = Path(cache_root) / "fixture" / src_token.replace("::", "__")
         d.mkdir(parents=True, exist_ok=True)
         b = d / "ycsb.exe"
         payload = src_token.encode()
         b.write_bytes(payload)
         sha = hashlib.sha256(payload).hexdigest()
         return SimpleNamespace(binary=str(b), bin_sha256=sha, bin_hash=sha[:16],
-                               configure_cmd="#", build_cmd="#", cached=False)
+                               configure_cmd="#", build_cmd="#", cached=False,
+                               configure_argv=[
+                                   "cmake", "-S", str(ccbench_dir), "-B", str(d)],
+                               build_argv=["cmake", "--build", str(d)])
 
     seen = {}
 
     def spy_measure_point(binary, records, threads, clocks_per_us, **kw):
         seen["clocks_per_us"] = clocks_per_us
         seen["numactl"] = kw.get("numactl")
-        return SimpleNamespace(throughputs=[1000.0] * 5, notes=[], run_cmd="./x")
+        argv = list(floor.build_portable_run_cmd(
+            binary="output/fixture/bench", workload=kw["workload"], records=records,
+            threads=threads, extime_s=kw["extime"], clocks_per_us=clocks_per_us,
+            numactl=kw.get("numactl")))
+        argv[argv.index("--") + 1] = str(binary)
+        return SimpleNamespace(throughputs=[1000.0] * 5, notes=[],
+                               run_cmd=shlex.join(argv))
 
     with mock.patch.object(floor.buildcache, "build", fake_build), \
          mock.patch.object(floor, "measure_point", spy_measure_point):

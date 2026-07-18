@@ -1461,3 +1461,1099 @@ Q-A の module 移設、Q-E の helper 削除/非公開化、reason の内部翻
     
     拘束: 実 artifact 生成なし (official 拒否不変・全テスト tmp-only)。前 wave §5 (i)〜(viii) の未裁定
     領域に新たに踏み込まない。子/codex は巻き戻し系 git 禁止・三軸リテラル同居禁止。
+
+## §10 検証器本丸 wave (2026-07-18) — プラン v4/v4.1・相談 C1/C2/C3・親裁定
+
+**編集方針:** §6/§8.6 と同じ軸リテラル redaction (機械照合のみ破壊)。逐語は redacted 全文。
+
+### §10.1 経緯
+
+worklog (12) の次の一手 1 の着手。標準ループ: 親プラン v4 起草 (§8.3 ロードマップ 10 段 +
+§8.4 検証鎖契約 + §5 裁定を実行単位 E1/E2/E3a/E3b に展開) → codex gpt-5.6-sol reasoning=max ×3
+並列敵対相談 (C1 = 決定化 seam API・E1 / C2 = launch_validate 検証鎖・E2 / C3 = staged builder・
+負例移行・oracle・変異 matrix・E3) → 親裁定 → プラン v4.1 凍結 (worktree 直下
+`plan-v4-verifier-main-wave.md`、wave 完了時に本ファイルへ全文凍結予定) → E0→E1∥E2→E3a→E3b 実行。
+併走で claude sonnet Explore による現行 fixture/負例テスト棚卸し (裁定資料) を取得。
+
+### §10.2 親裁定表 (要旨 — 全所見 real、スコープ調整のみ)
+
+**C1 (seam API / E1) — 11 所見全採用:**
+- Critical: runtime/artifact 二重 view (projection 単一オブジェクトは runner/resume 誤拒否) /
+  M substate 3 分割 (M-prestart / M-running / M-finalize-pending、aborted 非再開、manifest atomic
+  publish) / 二相 finalize (eligible=True は completed terminal 後の publish 段のみ)
+- High: checkpoint 位置を V2b 正本 (cert 発行直後、launch-start 追記前) へ復帰 — v4 の逸脱を修正 /
+  production wrapper / _run_campaign_core 分離 (official の非 default seam 注入を副作用前拒否) /
+  L 検証辺の追加 (cert raw hash / utc 三点 / path parser / 許可 file 集合 {cert, journal}) /
+  placeholder 文法 (buildcache 非侵入・additive argv API・token 単位・longest-first・予約 token
+  fail-closed、argv 配列 schema 化) / characterization の恒真面 (subprocess env 変動・sentinel
+  pointer 検査・default spy・実 build canary) / ownership 拡張 (test_s8b_materialization.py の
+  golden 移行は E1 所有)
+- Medium: seam signature keyword-only 凍結 + exact validator / probe classifier の実 PID 読み
+  (own_pid kwarg を additive 追加)
+**C2 (検証鎖 / E2) — 9 所見全採用:**
+- Critical: manifest.cells/schedule↔journal の未束縛辺 (expected_cells/schedule 独立導出 +
+  session-start↔schedule 1:1 + terminal 一意/最終/completed) / 洗浄封鎖は軸単位 occurrence
+  (pointer 単位 conjunction は 3 軸分散で突破)。run_cmd 等の正当な軸出現は「検証済み構造化値からの
+  決定的再導出と exact 一致」で許可
+- High: strict exact schema + 射影再導出 (attempts/excluded/wall_ledger) / equality chain の
+  隣接リスト明記 + 辺ごと変異 1:1 / 共有 pure leaf (E0) 新設 — E1∥E2 並列の成立条件 (import 循環
+  floor_campaign→approved→ratified_freeze の回避) / H≠A 区別 (validation_head) + H>A fixture +
+  親 dir symlink 封鎖 (root から lstat) / closure role pairwise disjoint + path 文法強化
+- Medium: journal/manifest の pre-C 導入受理は保証表明記 + 受理正例 (コード条件は追加しない —
+  裁定護持) / VerifiedFloorArtifact 単一 frozen object (同一 raw から一度だけ構築) /
+  reason 優先順 8 段 (generation==1 は artifact I/O より先)
+- F14 指摘: ∀i∈I_entry: C<i は I=={G}∧C<G から恒真 → defense-in-depth 表示。hits(cert)==∅ は
+  raw cert hit 検査を schema 検査より先に置いて到達可能にする
+**C3 (fixture・負例・oracle / E3) — 12 所見全採用 + 変異 matrix 30 案受領:**
+- Critical: 呼称を「決定的観測下の production-emitter bytes」へ縮小 + build seam を単セル
+  (buildcache.build 相当) へ下げ production build_cells/store/projection を通す + 実 build canary /
+  変異ゲート機械化 (mutants.json 事前登録、0 件・未収集・未 import・survivor = fail、builder/
+  oracle も対象、meta-test 付き)
+- High: _commit_exact (diff-tree exact path-set: C=cert のみ / G=裁定 artifact のみ / A=approval
+  のみ) / git 環境完全固定 + tmp root 変動 (長さ・空白・非 ASCII) + root-bytes 混入検査 + blob/
+  tree/commit/mode 比較 / coherent-island 負例 + issuer helper 非依存の独立 fixture (同一 producer/
+  verifier 恒真の対策) / 負例 registry {baseline, stage, repaired deps, layer, exact first reason+
+  cause}、substring・裸 refused 禁止 / otherwise-valid G2 (新 C2 cert chain) / oracle consumer 統一
+  (binaries_by_cell も保持、旧 reader は「呼ばれたら fail」) / **E3a∥E3b 並列は依存グラフ上不成立
+  → 逐次化** (oracle テストが fixture を import、負例本体は test_s8b_ratified_verify.py) /
+  C→J→G→A 受理正例 + 100755 受理正例 (裁定の負空間検証) / eligible 二相 finalize の crash 注入
+- Medium: namespace 拒否は既存契約限定 (resolver broad closed-world 化は裁定パッケージ行き) /
+  store 負例の per-test baseline assert + coverage 移管表
+**Explore 棚卸し (claude sonnet) の裁定材料:** s8b_v2_freeze_fixture.py は oracle 系専用の
+in-memory stub 充填器 (git builder ではない — v4 の所有表を修正) / 現行 fixture は closure を
+base commit 同居 (导入=={G} 実装で happy path 即死 → E2 は正トポロジ局所 stub で unit、実 bytes は
+E3a) / g2 helper は shallow copy 再利用 / git date 未固定 (世代 JSON が commit SHA を含むため
+二重生成一致には固定必須)
+
+**新規追認リスト行き (実装解釈):** PortableBuiltRecord schema (argv 化 + placeholder 文法) /
+closure blob UTF-8・no-NUL 限定 / L 自己整合全体捏造は raw hash で閉じない (外部 anchor 未裁定) /
+M substate + 二相 finalize (L/M 二分類の実装解釈) / 「run artifacts」の G 同梱・免除範囲の限定列挙
+
+### §10.3 相談プロンプト・逐語 (redacted)
+
+#### プロンプト C1
+あなたは敵対的設計レビュアー (read-only)。私は S8b C2-2 検証器本丸 wave のマネージャーで、実装前のプランを攻撃してもらう。目的は「実装後に手戻りになる設計欠陥・検証の空隙・裁定違反」を実装前に潰すこと。
+
+## 対象
+- プラン: `plan-v4-verifier-main-wave.md` (worktree 直下、untracked)。**あなたの担当は §2 (決定化 seam API 凍結案) と E1 スコープ (§8.3 ロードマップ 1〜6)**。§1 の並列設計の E1 に関わる部分も対象。
+- 裁定・契約の正本: `output/insights/2026-07-18_s8b-c22-consultations.md` の §5 (ユーザー裁定 = 変更不可)、§8.2〜§8.4、相談 V2b 逐語 (非決定値の分類表・推奨 seam・安全な実装順序・技術的リスク表)。
+- 実装対象コード: `orchestrator/campaign/s8b_floor_campaign.py` (+ `orchestrator/buildcache.py`)、`orchestrator/tests/test_s8b_floor_campaign.py`、`orchestrator/campaign/s8b_launch_cert.py`、`orchestrator/execution_guard.py`。
+
+## 攻撃観点 (最低限。これ以外も自由に)
+1. seam API の十分性: V2b の非決定値分類表の**全行**が §2 の seam 集合で決定化できるか。漏れている非決定値はどれか (file:line で示す)
+2. portable_build_projection の設計: placeholder 文法の衝突・逆変換不能性・binding chain (manifest sha → journal/result 連鎖) を壊す適用位置の危険・buildcache.py との責務境界
+3. checkpoint 配置: cert 書込み + launch-start 追記の「直後」に callback を呼ぶ設計で、C commit に cert のみが入る保証はあるか。callback 例外時の状態 (journal に launch-start が残った run_dir) は L 状態回復と整合するか
+4. L/M 二状態 resume の意味論: L 検証 (cert 厳密検証 + journal「launch-start 1 件のみ」) に fail-open 面はないか。M との判別が曖昧になる中間状態 (manifest 書きかけ等) はないか
+5. eligible_for_refreeze の finalize semantics: official seam テストとの整合、resume 完走時の扱い
+6. 決定性 characterization test の設計: 2 tmp root 比較で偽陽性/偽陰性になる要素 (git 環境変数、locale、Python hash seed、辞書順序等)
+7. 「production default 委譲・bypass なし」が実際に守られる構造か: seam が production 経路で誤って有効化される・テスト値が漏れ込む経路はないか
+8. 既存テスト (1363 passed) への破壊的影響と移行コスト
+
+## 付帯確認 (プラン §7)
+- 本プラン §2 が発効済み裁定 (プラン §0) を逸脱する箇所・未裁定領域へ踏み込む箇所はないか
+- E1∥E2 並列 (ファイル素集合) の衝突はないか。buildcache.py を E1 が触る場合の共有リスクは
+- failures.md 型タグ (F9/F14 恒真ゲート・F15 テスト代表性・F19 実体化遅延潜伏) の再発面
+
+## 出力形式 (この順で)
+1. `## 所見` — 各所見を `### {severity: Critical|High|Medium|Low / 種別, タイトル}` + 攻撃シナリオ (具体的な入力・状態→誤った受理/拒否) + 根拠 file:line + 提案 (最小修正)
+2. `## 付帯確認への直接回答`
+3. `## 確認済み事項` — 攻撃したが破れなかった点 (恒真回避の証拠として重要)
+
+severity は「実装後に発覚したときの手戻りコスト」基準。所見ゼロの粉飾はするな — 破れなければ破れなかったと書け。
+
+#### プロンプト C2
+あなたは敵対的設計レビュアー (read-only)。私は S8b C2-2 検証器本丸 wave のマネージャーで、実装前のプランを攻撃してもらう。目的は「検証器が閉じたつもりで開いている辺・恒真ゲート・裁定違反」を実装前に潰すこと。
+
+## 対象
+- プラン: `plan-v4-verifier-main-wave.md` (worktree 直下、untracked)。**あなたの担当は §3 (E2 = launch_validate 検証鎖の実装計画)**。§1 の E2 行と §2 の seam API (E2 が依存する契約として) も読め。
+- 裁定・契約の正本: `output/insights/2026-07-18_s8b-c22-consultations.md` の §5 (ユーザー裁定 = 変更不可。特に「検証器実装スコープの確定」)、§8.4 (検証鎖契約 — これが実装契約)、相談 V1 逐語 (所見 1〜8)、相談 V3 逐語。
+- 実装対象コード: `orchestrator/campaign/s8b_ratified_freeze.py` (現行 launch_validate は末尾付近)、`orchestrator/campaign/s8b_launch_cert.py`、`orchestrator/campaign/s8b_holdout_freeze.py` (exempt_exact API)、`orchestrator/tests/test_s8b_ratified_verify.py`、発行側の artifact 形状は `orchestrator/campaign/s8b_floor_campaign.py` (assemble_manifest / assemble_result / journal event 生成部)。
+
+## 攻撃観点 (最低限。これ以外も自由に)
+1. equality chain の残存偽造辺: プラン §3-2 の辺集合で §8.4 の全辺が尽きているか。辺を 1 本外して偽造が通る具体シナリオを構成できるか (どの artifact のどの field を差し替えると受理されるか)
+2. 洗浄封鎖の抜け: journal の自由記述欄の列挙は網羅か (event 別に全 field を issuer コードから列挙して照合せよ)。JSON Pointer 制限の実装は現実的か。「(artifact path, JSON Pointer, holdout) 単位 occurrence 検査」の実装可能性と、やらない場合に残る洗浄面
+3. G/H/worktree 三点一致: activation_head (= A) と G の関係で、H の blob と G の blob の一致検査が恒真または不成立になる条件はないか。artifact が H までに削除/変更された場合の検出
+4. lineage: C≠G・厳密祖先・導入一意・非 merge の検査で残る偽造 (branch 細工・複数導入・revert 再導入)。closure/floor_source 導入=={G} の検査と journal/manifest 非要求 (裁定) の間の空隙が悪さをしないか
+5. one-shot (generation==1) と静的 load gate の分離: g2+ chain が load では通り launch では拒否される、の境界が正しく引けるか。reason 到達順は安定か
+6. eligible 独立導出: 「mode + 一意 completed terminal + 自己検査済み result」で十分か。flag と導出の矛盾検出の意味
+7. scan 免除と期待 hit union: (ix)-3 (a) union (floor_protocol + floor_source + closure + journal + manifest) と hits(cert)==∅ invariant の間で、cert に 3 軸 conjunction を仕込むと何が起きるか。exempt_exact の誤用面
+8. 案A closure schema 強制: 重複 path・sha 不一致・非テキスト blob・空 closure・closure に cert を列挙する等の縁ケース
+9. (ix)-8 型伝搬: LaunchValidatedFreeze 拡張 field の設計。oracle が再 parse しない契約が fail-open にならないか (deep-immutable の保証、bytes と doc の二重保持の一貫性)
+10. Q-B: verify_floor_artifact の結線 (expected_protocol / expected_binaries の導出元) の自己参照円環の有無
+11. reason codes の到達順仕様: 負例テストの expected first reason が実装順に依存して不安定にならないか
+
+## 付帯確認 (プラン §7)
+- 本プラン §3 が発効済み裁定 (プラン §0) を逸脱する箇所・未裁定領域へ踏み込む箇所はないか。特に journal/manifest 導入==G の**非要求** (拡大禁止) と manifest mode「検査のみ」を実装が守れるか
+- E1∥E2 並列の衝突 (E2 が floor_campaign.py を読むが書かない、の徹底可能性)
+- failures.md 型タグ (F9/F14 恒真ゲート・F15 テスト代表性) の再発面
+
+## 出力形式 (この順で)
+1. `## 所見` — 各所見を `### {severity: Critical|High|Medium|Low / 種別, タイトル}` + 攻撃シナリオ (具体的な artifact 改変→誤受理/誤拒否) + 根拠 file:line + 提案 (最小修正)
+2. `## 付帯確認への直接回答`
+3. `## 確認済み事項` — 攻撃したが破れなかった点
+
+注意: 出力に 3 軸ホールドアウトの conjunction リテラルを書く場合は機械照合を破壊する表記 (例: `foo⟦=⟧bar`) を使え。severity は偽造受理リスク基準。所見ゼロの粉飾はするな。
+
+#### プロンプト C3
+あなたは敵対的設計レビュアー (read-only)。私は S8b C2-2 検証器本丸 wave のマネージャーで、実装前のプランを攻撃してもらう。目的は「fixture が本物を代表しない (F15)・負例が狙った reason に届かない・検証が恒真になる」を実装前に潰すこと。
+
+## 対象
+- プラン: `plan-v4-verifier-main-wave.md` (worktree 直下、untracked)。**あなたの担当は §4 (E3a staged builder + 負例移行)・§5 (E3b oracle 移行)・§6 (最終ゲート = 親変異 matrix)**。§1 の並列設計 (E3a∥E3b) も対象。
+- 裁定・契約の正本: `output/insights/2026-07-18_s8b-c22-consultations.md` の §5、§8.3 (ロードマップ 7〜10)、相談 V2b 逐語 (「2. G tree blob として commit する現実的手順」「3. 負例 matrix への影響」「技術的リスク」表)、相談 V3 逐語 ((4) V-7 に追加すべき負例・変異、(6) ファイル素集合)。
+- 実装対象コード: `orchestrator/tests/s8b_v2_freeze_fixture.py` (現行 fixture builder)、`orchestrator/tests/test_s8b_ratified_freeze.py` (mutate_g1 系・builder helper)、`orchestrator/tests/test_s8b_ratified_verify.py`、`orchestrator/campaign/s8b_oracle_driver.py`、`orchestrator/tests/test_s8b_oracle_driver.py`、発行側 `orchestrator/campaign/s8b_floor_campaign.py`。
+
+## 攻撃観点 (最低限。これ以外も自由に)
+1. staged builder の「production bytes」主張の実質: fake になる seam (measure/probe/build/provenance/clock) を全列挙し、それでも「実 bytes」と呼べる根拠 / 呼べなくなる検証項目を特定せよ。fixture 構築が検証項目を自明に満たしてしまう (作った鍵で作った錠を開ける) 恒真面はどこか
+2. 二重生成 SHA 一致テストの実現性: git author/committer date 固定で足りるか。環境差 (umask・core.autocrlf・python version・tmpdir パス長) が bytes に漏れる経路
+3. 負例移行の reason 到達性: 新 lineage/chain 検査の下で、V2b「3. 負例 matrix への影響」の各負例が早期共通 reason に潰れず狙いの reason に届く構成になっているか。expected first reason の維持が不可能な負例はどれか
+4. g2 helper 再設計: run artifacts を G2 新規導入にしたとき、one-shot gate (launch は g1 のみ) と load gate (静的 g2+ 受理) の分離テストが両方とも実質的に発火するか
+5. extra_closure 二分割 (namespace 拒否 / missing-hit) の妥当性と、他に同型の「hardening 後に別 reason が先に出る」テストが残っていないか
+6. oracle 移行: store 消費テストを最後に移す順序の根拠。LaunchValidatedFreeze 消費への切替で oracle 側に残る再 parse・自己導出の経路。raw floor_source_bytes 廃止で失われるテストカバレッジ
+7. **親変異 matrix の設計提案**: 検証器 (launch_validate 検証鎖)・issuer (決定化 seam)・builder に植えるべき意味変異を **10 個以上、具体的に** 提案せよ (どの file のどの検査を、どう反転/削除/緩和するか + どのテストが KILL するはずか)。決定的 checker では捕まらない意味変異を優先
+8. E3a∥E3b 並列のファイル素集合安全性 (共有 import・fixture 依存の衝突)
+
+## 付帯確認 (プラン §7)
+- 本プラン §4〜6 が発効済み裁定 (プラン §0) を逸脱する箇所・未裁定領域へ踏み込む箇所はないか
+- failures.md 型タグ (F9/F14 恒真ゲート・F15 テスト代表性・F19 実体化遅延潜伏) の再発面
+
+## 出力形式 (この順で)
+1. `## 所見` — 各所見を `### {severity: Critical|High|Medium|Low / 種別, タイトル}` + 攻撃シナリオ + 根拠 file:line + 提案 (最小修正)
+2. `## 変異 matrix 提案` — 観点 7 の一覧 (番号付き)
+3. `## 付帯確認への直接回答`
+4. `## 確認済み事項` — 攻撃したが破れなかった点
+
+注意: 出力に 3 軸ホールドアウトの conjunction リテラルを書く場合は機械照合を破壊する表記 (例: `foo⟦=⟧bar`) を使え。所見ゼロの粉飾はするな。
+
+#### 相談 C1 (gpt-5.6-sol reasoning=max, read-only, cwd=worktree)
+
+## 所見
+
+結論は、v4 のまま E1 実装開始は不可です。特に portable build の二重表現、M resume、finalize の3点は、E3a まで進んでから発覚すると staged builder と verifier fixture を作り直す規模になります。
+
+### {severity: Critical / データモデル, portable projection が実行用 path と証拠用 path を同一オブジェクトにしている}
+
+攻撃シナリオ: build が `binary=/tmp/A/out/s8b-build-cache/x.exe` を返し、projection が `s8b-build-cache/x.exe` に変換する。
+
+- projected `built` を runner に渡すと、`Path(binary)` は CWD 相対になり、fresh run が binary hash 検査で誤拒否する。
+- runtime 用の絶対 path を runner に残した場合でも、resume は manifest から projected path しか復元できず、同じ箇所で誤拒否する。
+- projection を store より先に適用すると、`store_binaries` 自体が相対 path を CWD から読む。
+
+根拠: [plan:62-68](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:62)、[fresh runner の binary 使用:1265-1271](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1265)、[store:1071-1075](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1071)、[resume:2063-2078](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:2063)。
+
+提案（最小修正）: API を二重 view として凍結する。
+
+- `runtime_built`: 絶対 path。store・runner・直前 hash 検査専用
+- `artifact_built`: portable 表現。manifest・result 専用
+- fresh の順序を `build(runtime) → store(runtime) → project(copy) → manifest(artifact) → runner(runtime) → result(artifact)` に固定
+- resume は `manifest artifact → 厳密検証 → out_root 基準で runtime copy を解決` とする
+- `result.binaries == manifest.binaries` は artifact view 同士で照合する
+
+### {severity: Critical / 状態機械, `M = 現行 resume` では正当な pre-start crash を拒否し、abort 後の不正再開を許す}
+
+攻撃シナリオA: manifest の fsync 完了直後、`runner.run()` 前に crash。状態は cert + launch-start + sealed manifest だが campaign-start はない。M と分類される一方、現行 resume は campaign-start 必須なので正当な回復を拒否する。
+
+攻撃シナリオB: probe/binary 異常で `terminal: aborted` が追記された M を resume。現行 validator は completed だけを再実行禁止にしているため再開を受理し、最後に completed terminal も追加する。E2 の「terminal 一意・最終」検証で後から拒否され、測定全体が無駄になる。
+
+攻撃シナリオC: manifest 書込み中に crash。最終 path へ直接書いているため partial manifest が存在し、L でも sealed M でもない回復不能状態になる。
+
+根拠: [manifest 書込み:1941-1946](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1941)、[runner 開始:1986](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1986)、[campaign-start 必須:2098-2103](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:2098)、[aborted 追記:1988-1991](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1988)、[completed のみ拒否:2182-2184](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:2182)、[直接 create-only write:904-913](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:904)。
+
+提案（最小修正）: ユーザー裁定の L/M 二分類は維持しつつ、M 内の substate を凍結する。
+
+- `M-prestart`: launch-start + sealed manifest、campaign-start なし。受理して runner を fresh 開始
+- `M-running`: campaign-start 済み。現行 forward-only resume
+- `M-finalize-pending`: completed terminal 済み、result publish 未完
+- aborted / artifact-invalid / duplicate terminal は非再開
+- manifest は fsync 済み一時ファイルから atomic create-only publish し、「存在」と「sealed」を同義に近づける
+- resume と E2 が同じ exact journal state-machine helper を消費する
+
+### {severity: Critical / finalize semantics, `eligible_for_refreeze` は要件を言い直しただけで、True の publish 順序が未設計}
+
+攻撃シナリオ: `assemble_result` を `mode=="official"` で True に変更し、result.json 書込み後・terminal 追記前に crash。completed terminal のない partial result に True が残る。これは V3 が既に指摘した変異そのもので、v4 §2 は実装機構を追加していない。
+
+根拠: [plan:78-79](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:78)、[現 result 組立て:1623-1630](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1623)、[result→md→terminal の順:1775-1801](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1775)、[V3 の既知 finding:1222-1226](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1222)。
+
+提案（最小修正）: 二相 finalize を §2 に明記する。
+
+1. final result bytes と md bytes を計算・自己検査し、一時ファイルへ fsync
+2. completed terminal を一意かつ最終 event として fsync
+3. result/md を atomic create-only publish
+4. 2→3 間の crash は `M-finalize-pending` として、測定や resume-start を追加せず publish のみ完遂
+
+テストは fresh official=True、L/M resume 完走=True、pilot=False、aborted/artifact-invalid=False、terminal 前 crash に final result がないことを固定する。現行の「result が terminal より先に存在する」回帰テストは移行が必要。
+
+### {severity: High / 裁定逸脱・checkpoint, callback の位置が V2b の「cert 発行直後」から launch-start 後へ移動している}
+
+攻撃シナリオA: callback が `git add -A` または run_dir 全体を stage すると、既に存在する journal も C に入る。「C は cert のみ」は callback の善行に依存し、構造保証されない。
+
+攻撃シナリオB: callback が C commit 後の post-check で例外を投げる。journal は既に `[launch-start]` なので、後続 resume はこれを通常 crash の L と誤認して続行できる。`CampaignAbort` という型名だけでは durable な abort にならない。
+
+根拠: plan は cert + launch-start 後としている [plan:69-71](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:69)。一方、正本は cert 発行直後に callback、次に C commit としている [V2b:1024-1027](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1024)、[§8.2:732-734](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:732)。
+
+提案（最小修正）:
+
+- `issue cert → semantic/raw revalidation → callback → cert raw hash 再照合 → launch-start append` に戻す
+- callback 内で事前 index 空、stage 後 path 集合が cert 1件、C の tree diff が cert の add 1件、C に journal がないことを assert
+- callback 例外時は launch-start をまだ書かない。cert-only は L として受理しない
+- callback が cert bytes・run_dir を変更していないことを戻り時に再検証する
+
+### {severity: High / production 境界, 「private seam」は public `run_campaign` keyword であり、official の test-value 注入を構造遮断していない}
+
+攻撃シナリオ: 将来 official core refusal を解除した後、Python caller が `measure_fn=fake_high_tps`、`probe_fn=no_conflict`、`build_cells_fn=fake`、`repo_root=別の clean repo` を渡す。全 artifact を自己整合させられるため、後段 verifier は「実測でない throughput」を区別できない。
+
+現時点では `_assert_official_permitted` が先に拒否するため発火しないが、official fixture は既にその gate を monkeypatch しており、gate 解除時に潜在面がそのまま production 化する。
+
+根拠: [plan:45-59](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:45)、[既存 public seam:1818-1825](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1818)、[現 official gate:149-159](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:149)、[テストの gate/scan monkeypatch:292-300](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_floor_campaign.py:292)。
+
+提案（最小修正）: production wrapper と test core を分ける。
+
+- public production `run_campaign` の official 呼出しは callable/root seam を受け取らず、必ず default bundle を構築
+- `_run_campaign_core(..., seams)` は staged builder とテストだけが使う
+- 少なくとも public official では既存6 seamを含む非 default 注入を副作用前に拒否
+- 各 seam を public official に渡す mutation が全て拒否されるテストを置く
+
+### {severity: High / L 検証空隙, cert raw hash・launch UTC・path/proto8 が L の必須辺に入っていない}
+
+攻撃シナリオ: 正当な L の cert を、`clean_scan_digest` だけ別の lower-hex 値へ変更して再直列化する。`validate_launch_certificate` は clean digest の形式しか見ず、protocol/freeze/run-id/time は一致する。plan の列挙どおり実装すると、journal が保持する旧 cert SHA と新 cert raw bytes の不一致を見ないまま resume を受理する。
+
+同様に、launch-start.utc を別時刻へ変更、run-id の proto8 を protocol hash と異なる値にしても、plan の明記辺だけでは拒否されない。default `_read_journal` を流用すると duplicate key も last-wins になる。
+
+根拠: [plan:73-76](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:73)、[cert validator は clean digest の形式のみ:67-73](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_launch_cert.py:67)、[run-id 時刻検査:111-125](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_launch_cert.py:111)、[現 M の raw hash 辺:2142-2152](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:2142)、[非 strict JSONL reader:685-704](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:685)。
+
+提案（最小修正）: L validator に以下を明記する。
+
+- strict JSON/JSONL parse（duplicate key、NaN/Infinity、未知 key 拒否）
+- `sha256(cert raw) == launch-start.launch_certificate_sha256`
+- `launch-start.utc == cert.started_utc == run-id.ts` の秒単位一致
+- official path parser による env/mode/proto8/basename 完全一致
+- cert/journal が regular file、symlink 不可
+- L run_dir の許可 file 集合を cert+journal のみに固定
+
+自己整合した L 全体をゼロから捏造する脅威まで含めるなら、raw hash だけでは不足し、外部 anchor または再scan方式について追加裁定が必要。
+
+### {severity: High / 正準化仕様, placeholder 文法が非単射で、単一 `ccbench_root` は実 production の source root を表せない}
+
+攻撃シナリオA: out root が `/tmp/a`、source root が `/tmp/a/cc`。単純置換の順序により、同じ path が `${OUT_ROOT}/cc` にも `${CCBENCH_ROOT}` にもなり得て SHA が実装順依存になる。
+
+攻撃シナリオB: root 自体や CMake define に `${OUT_ROOT}` が含まれる。raw 値と placeholder を区別できず逆変換不能になる。
+
+攻撃シナリオC: production `prepare_cell` はセルごとに `/tmp/izanagi_wt_*/wt` を作る。`build_cells` 終了時には各 `prepared.ccbench_dir` が失われており、projection の単一 `ccbench_root` では configure command 内の全乱数 path を消せない。
+
+根拠: [plan:62-67](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:62)、[per-cell checkout:492-493](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s1_direct_comparison.py:492)、[乱数 worktree root:244-245](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/patchharness.py:244)、[command への sub/bdir 埋込み:151-168](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/buildcache.py:151)、[build_cells が source root を捨てる:850-870](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:850)。
+
+提案（最小修正）:
+
+- `buildcache.py` は campaign 非依存なので placeholder を実装しない
+- buildcache は structured argv と実 path を追加で返し、campaign が各セルの実 `prepared.ccbench_dir` と out_root を token 単位で写像する
+- reserved token の escape/reject、root の canonical absolute・component-boundary・longest-first 規則を明記
+- command を再実行可能と主張するなら文字列ではなく argv 配列を artifact schema にする。表示専用なら「逆変換不能・再実行不可」を明記する
+- schema 変更になるため、E2 開始前に `PortableBuiltRecord` の exact keys/types を凍結する
+
+### {severity: High / テスト代表性・恒真ゲート, 2 tmp root equality だけでは seam 未結線と process-level 非決定性を見逃す}
+
+攻撃シナリオ:
+
+- `host_provenance_fn` が無視されても、同一 pytest process では hostname/boot/job/cpuset が両 run で同じなので SHA equality は緑になる。
+- 2 run が同一 interpreter なら `PYTHONHASHSEED` と PID は同じ。set→list 回帰や PID 依存分岐を検出できない。
+- 現 official helper のままなら clean scan は定数 stub、build も既に安定した fake command であり、repo_root と portable projection の production shape を踏まない。
+- 比較 helper が誤って同じ run_dir を2回読む変異でも全 SHA が一致する。
+
+根拠: [plan:80-82](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:80)、[現 fake build:187-203](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_floor_campaign.py:187)、[現 official scan stub:292-300](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_floor_campaign.py:292)、[runner の直呼び provenance:1411-1432](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1411)。
+
+提案（最小修正）:
+
+- road 4 完了後、characterization test を real tmp-repo scan へ必ず移行
+- 各 seam に sentinel を入れ、該当 artifact/JSON pointer に現れることを個別に検査
+- default が呼ばれることも spy で独立検査
+- artifact path が別 inode/別 rootであること、schema・非空 bytes を確認してから SHA 比較
+- 少なくとも別 subprocess で `PYTHONHASHSEED`、`LC_ALL`、`TZ`、`TMPDIR`、scheduler env を変える
+- shape-faithful fake は、渡された絶対 `ccbench_dir`/cache root を command に実際に埋める
+- F19 対策として、別の slow/canary で実 `prepare_cell → buildcache.build` を最低1構成通す
+
+Git commit は E1 の4 artifact SHAには入らない。E3a の C SHA/generation bytes まで再現するテストでは、date だけでなく author/committer name・email・timezone、GPG signing、cleanup/config も固定する必要がある。
+
+### {severity: High / 並列契約・移行, ファイル素集合は字面上 disjoint でも、永続 schema と既存 golden の ownership が欠けている}
+
+攻撃シナリオ: E1 が portable binary schema を変更し、E2 が旧 stub の absolute path/string command 前提で verifier を並列実装する。両ブランは無衝突で merge できるが、E3a の production-bytes 移行時に初めて不一致が発覚する。
+
+また E1 所有表にない `test_s8b_materialization.py` が manifest bytes の exact golden を固定している。portable 化すると full suite が壊れるが、E1 担当の変更範囲外になる。既存 floor testsも manifest binary を絶対 path として直接開き、emitted record を `store_binaries` へ再投入している。
+
+根拠: [plan ownership:30-41](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:30)、[manifest golden:438-499](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_materialization.py:438)、[absolute manifest path 使用:1056-1060](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_floor_campaign.py:1056)、[同:1262-1266](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_floor_campaign.py:1262)、[emitted record 再投入:1751-1755](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_floor_campaign.py:1751)。
+
+提案（最小修正）:
+
+- E1 ownership に `test_s8b_materialization.py` と必要なら `test_s8b_freeze_io.py` を追加
+- E2 開始条件を「引数名凍結」ではなく、portable record exact schema、resolver、journal substate、finalize order の凍結完了にする
+- `execution_guard.py` / `s8b_launch_cert.py` を変更する場合は shared/S0 として並列前に完了
+- `buildcache.py` は全 campaign の共有 producer。変更するなら既存 field を壊さない additive API に限定する
+
+### {severity: Medium / seam API 契約, callable のシグネチャと戻り値 schema が凍結されていない}
+
+攻撃シナリオA: plan の記載どおり `execution_receipt_fn(contract, now_fn)` と位置引数で呼ぶと、production default の `execution_guard.build_receipt` は `now_fn` が keyword-only なので TypeError。テストは独自 seam を注入するため production default だけ赤になる。
+
+攻撃シナリオB: `host_provenance_fn=lambda _: {}`、`process_identity_fn=lambda: {}`、receipt が空 dict を返す。bytes は決定的になり E1 equality は通るが、E3a/E2 の exact journal schema で初めて拒否される。
+
+根拠: [plan:53-56](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:53)、[build_receipt signature:69-70](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/execution_guard.py:69)、[default host/process schema:777-794](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:777)、[receipt schema:77-87](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/execution_guard.py:77)。
+
+提案（最小修正）: keyword-only signature を正確に凍結し、default/injected の両方を同じ exact validator に通す。host/process/receipt/build record は exact key集合・型・UTC・hash・path grammarを検査し、partial seam bundle を拒否する。
+
+### {severity: Medium / 非決定値漏れ, probe 分類が seam 外の実 PID を読む}
+
+攻撃シナリオ: 固定 probe が `(0, "1234 ycsb_fixture.exe\\n", "")` を返す。PID 1234 の process では自分自身として除外され測定を受理し、別 PID の process では競合として session を拒否する。`process_identity_fn` に固定 PID 1234 を返しても、classifier はそれを使わず実 `os.getpid()` を読む。
+
+根拠: [strict_probe 呼出し:734-743](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:734)、[classifier の os.getpid:127-137](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/calibrator/runner.py:127)。
+
+提案（最小修正）: classifier に `own_pid` の keyword-only 引数を追加し、production default は `os.getpid()`、fixture は process identity seam と同じ値を渡す。少なくとも characterization を rc=1 固定に限定するなら、「一般の probe 入力まで完全決定化した API ではない」と保証境界へ明記する。
+
+## 付帯確認への直接回答
+
+### V2b 非決定値表の全行
+
+名目上の担当は全行にありますが、「この API で完全決定化できる」という結論にはなりません。
+
+| V2b の行群 | 担当 | 判定 |
+|---|---|---|
+| cert/run-id/campaign/round/session 時刻 | `now_fn` | 充足 |
+| `duration_s` | `monotonic_fn` | 充足 |
+| throughput/notes/run command/retry | `measure_fn` | fixture は充足 |
+| probe stdout/stderr/rc | `probe_fn` | 出力は固定可。ただし実 PID 分類が seam 外 |
+| schedule | protocol `master_seed` | 充足 |
+| host/boot/job/cpuset | host/receipt seam | 名目上充足。戻り値 schema 検証が必要 |
+| pid/starttime/UUID | process seam | artifact 値は充足。probe 制御 PIDは未充足 |
+| receipt captured UTC/host情報 | receipt seam + `now_fn` | 充足。signature 修正要 |
+| binary path | portable projection | runtime/artifact 二重 view がなく未成立 |
+| configure/build command | placeholder | per-cell tmp root と文法が未成立 |
+| cached | build seam | fixture first-build=False なら充足 |
+| store_path | out_root-relative layout | 現 production layoutでは充足 |
+| clean scan digest | `repo_root` | 充足可能。ただし public official の root 差替えは拒否すべき |
+
+V2b 表外で新たに見つかった非決定入力は、probe classifier の実 PID と、`prepare_cell` がセルごとに作る一時 worktree root です。
+
+### 発効済み裁定との関係
+
+- 明確な逸脱は callback 配置です。V2b/§8.2 の「cert 発行直後」から「launch-start 後」へ変更されています。
+- `${OUT_ROOT}` / `${CCBENCH_ROOT}` の exact 文法、command が再実行可能か表示専用か、portable binary record の型は未裁定です。§8.3 は「relative または placeholder」と選択肢を残しています。永続 artifact schemaになるため、少なくとも manager-level API 凍結が必要です。
+- L/M、official 完走時のみ True、master_seed/env_tag を焼かない点は裁定内です。
+- L の自己整合 artifact をゼロから捏造する脅威まで閉じるなら、外部 anchor/再scan方式は未裁定領域です。
+
+### E1∥E2 並列
+
+ファイル名だけなら、E1 が `floor_campaign.py`、floor test、必要なら `buildcache.py` に留まる限り E2 と直接衝突しません。しかし現状は並列開始不可です。portable record、resume state、finalize order が E2 の verifier 契約そのものだからです。
+
+`buildcache.py` を E1 が触る場合、E2 との merge 衝突より、pipeline・report・他 campaign 全体への共有 API 破壊が主要リスクです。campaign-specific placeholder は buildcache に入れず、structured argv の additive 提供までに留めるべきです。
+
+### failures 型タグ
+
+- F9/F14: 2-run SHA equality だけでは seam が実際に呼ばれたかを証明しない。callback C-only も prose だけでは恒真。
+- F15: 現 official helper は clean scan stub、build fake。production shape の tmp worktree commandや real scanを踏まない。
+- F19: `build_cells_fn` で build 全体を置換すると、実 `prepare_cell → buildcache` の実体化バグが再び本走まで潜伏する。partial manifest、campaign-start append crash、finalize pending も executable crash matrix が必要。
+
+### 既存 1363 passed への影響
+
+少なくとも以下は意図的な移行対象です。
+
+- `test_s8b_materialization.py` の manifest SHA golden
+- manifest binary を絶対 path として開く floor tests
+- emitted manifest record をそのまま `store_binaries` に戻すテスト
+- result-before-terminal crash を正常状態としている idempotent-finalization test
+- official helper の clean scan stub
+- L build-failure testを実 resume 正例・改竄負例へ拡張
+- fresh/M resume の provenance seam 伝播テスト
+
+したがって「既存 test file だけをほぼ不変で追加」という見積りは危険です。portable schemaと二相 finalizeは既存 goldenの意図的な版替えになります。
+
+## 確認済み事項
+
+- V2b 表の時刻、duration、measure、probe出力、schedule、store pathには、少なくとも名目上の決定化入力が割り当てられています。完全に無担当の表行はありません。
+- projection を manifest assembly/hash より前に行う方針自体は正しいです。後処理で binding chainを壊す設計には戻っていません。
+- manifest と result に同一 projected bytesを使う意図も正しいです。問題は runtime viewとの分離不足です。
+- JSON writer は `sort_keys=True`、schedule/cell集合も明示 sort されており、現在の dict挿入順・localeだけで4 artifactが揺れる面は見つかりませんでした。
+- shared launch-cert leaf は exact key集合、UTC aware時刻、run-idとの秒一致を既に強制しています。L/Mから再利用できる堅い部品です。
+- 現在の M resume は cert raw SHAとlaunch-startの束縛を検査しています。この辺はLへ移植すべきで、既存実装自体は破れませんでした。
+- 現時点の production official は mode検査直後に拒否され、CLIにも seam引数はありません。この現在の拒否境界は破れていません。問題は将来gate解除後の構造です。
+- planは master_seed/env_tag焼込み、journal/manifest導入==G、manifestへの新規mode制約へは踏み込んでおらず、これらの裁定境界は維持しています。
+- 本レビューはread-onlyで、ユーザー提示の「1363 passed」をbaselineとして使用しました。テストの再実行・ファイル変更は行っていません。
+#### 相談 C2 (gpt-5.6-sol reasoning=max, read-only, cwd=worktree)
+
+## 所見
+
+### {severity: Critical / binding graph, manifest.cells・schedule と journal の間が開いており、別 workload の floor を受理する}
+
+攻撃シナリオ:
+
+1. `manifest.cells` は正しいまま、journal の全 `session` の `workload`・`records`・`threads` を別条件へ差し替える。
+2. 同じ session dict を `result.sessions` に複写し、`floor_source.sha256` と世代・approval を再構成する。
+3. throughput・cell ID・configuration ID は変えない。
+
+これで `journal sessions == result.sessions` は成立します。ところが `verify_floor_artifact` が読む必須 session field に `workload`・`records`・`threads` は含まれず、別 workload を測ったという偽造を検出しません。別攻撃として `manifest.schedule` だけを任意列へ差し替え、manifest raw hash を journal/result に伝搬しても通ります。
+
+根拠:
+
+- v4 は session↔result と binaries↔manifest しか明記せず、manifest cells/schedule↔journal の辺がありません。[plan:92](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:92)
+- issuer は manifest に `cells` と `schedule` を持たせます。[s8b_floor_campaign.py:879](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:879)
+- journal session は `records`・`threads`・`workload` を持ちます。[s8b_floor_campaign.py:1374](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1374)
+- `verify_floor_artifact` の必須 session field はそれらを含みません。[s8b_floor_stats.py:403](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_stats.py:403)
+- V3 は manifest schedule・start/end・attempt/retry の突合まで要求しています。[consultations:1234](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1234)
+
+提案（最小修正）:
+
+- ratified freeze と full-validated protocol から `expected_cells` を独立導出する。
+- `manifest.cells == expected_cells`、`manifest.schedule == build_schedule(expected_cells, master_seed, n_sessions)` を完全一致。
+- planned `session-start` を schedule の各 row と一対一対応させ、`session` は対応する start と cell/workload/records/threads を完全一致。
+- retry authorization、seq/attempt/retry 一意性も状態機械へ含める。
+- terminal は「completed が一意」ではなく、**terminal 全体が一件だけ・最終 record・status=completed**を要求する。`aborted + completed` は拒否する。
+
+---
+
+### {severity: Critical / 洗浄封鎖, pointer 単位 conjunction 検査では3軸を別 pointerへ分散するだけで突破できる}
+
+攻撃シナリオ:
+
+- `session.notes[0]` に `ycsb_rratio⟦=⟧80`
+- `session.run_cmd` に `ycsb_zipf_skew⟦=⟧0.9`
+- `session.probe_before.stdout` に `ycsb_rmw⟦=⟧0`
+
+と分散します。各 pointer 単独には三軸 conjunction がないため、「pointer ごとに conjunction を拒否」する実装は通ります。一方、現 scanner は file 全体で各軸の存在を bool 化するため journal/result path は hit します。しかしその path は正規 workload によって元から hit 済みなので hit 集合は変わらず、union で洗浄されます。
+
+根拠:
+
+- scanner は軸ごとに `bool(pattern.search(text))` とし、同一 path を一回だけ返します。[s8b_holdout_freeze.py:270](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_holdout_freeze.py:270)
+- v4 は「conjunction を許す JSON Pointer」と書いていますが、軸単位 occurrence を要求していません。[plan:96](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:96)
+
+issuer が生成し得る journal event と field は次のとおりです。
+
+| event | issuer の field |
+|---|---|
+| `launch-start` | `event, schema, launch_certificate_sha256, utc` |
+| `campaign-start` (official) | `event, schema, protocol_sha256, freeze_sha256, manifest_sha256, launch_certificate_sha256, hostname, boot_id, job_id, cpuset, utc, pid, starttime, execution_uuid, execution_receipt` |
+| `resume-start` | `event, hostname, boot_id, job_id, cpuset, utc, pid, starttime, execution_uuid` |
+| `round-start` / `round-complete` | `event, round, utc` |
+| `session-start` | `event, seq, kind, cell_id, round, retry_ordinal, attempt_id, trigger, started_iso` |
+| `session` | `event, kind, seq, round, retry_ordinal, attempt_id, trigger, cell_id, holdout_id, configuration_id, records, threads, workload, throughputs, reps_expected, exec_failures, excluded_reason, retry, session_median, valid, session_cv, duration_s, run_cmd, notes, probe_before, probe_after, binary_sha256_at_measure` |
+| `terminal/completed` | `event, status` |
+| `terminal/aborted` | `event, status, reason` |
+| `terminal/artifact-invalid` | `event, status, problems` |
+
+さらに:
+
+- `execution_receipt = {schema, env_tag, contract_sha256, attestation}`
+- `attestation = {hostname, boot_id, cpuset, captured_utc}`
+- `probe_before/after = {rc, stdout, stderr, competing}`
+
+です。[campaign-start:1414](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1414)、[session-start:1258](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1258)、[session:1374](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1374)、[terminal:1986](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1986)
+
+自由記述面は `notes`、`run_cmd`、probe の `stdout/stderr/competing` だけではありません。hostname/job/cpuset/attestation、`trigger`、binary の command/binding/store path、result の cell notes も対象です。
+
+提案（最小修正）:
+
+- 検査単位を `(artifact path, JSONL record index, JSON Pointer, holdout, axis, encoding)` にする。
+- 「三軸全部が同じ pointer にあるか」ではなく、**各 axis occurrence を個別に**列挙する。
+- 許可するのは、manifest.cells・journal/result sessions の検証済み `workload/<axis-key>`だけ。
+- それ以外の pointer に一軸でも現れたら拒否する。
+- JSON key/value の構造化 encoding と、文字列内 `key=value` encoding の双方について、raw scanner と occurrence validator の同値性テストを置く。
+- 三軸を三つの自由欄へ分散する負例を必須化する。
+
+---
+
+### {severity: High / schema・parser, v4 は result/manifest の strict exact schema と全 deterministic projection を落としている}
+
+攻撃シナリオ:
+
+- `result.schema` を旧版・未知版へ変更する。
+- `manifest.schema_version` を変更する。
+- `result.attempts`、`result.excluded`、`result.wall_ledger` の非cert部分を偽造する。
+- result/manifest の nested object に余分な自由 field を足す。
+- JSONL に duplicate key や NaN を入れる。
+
+raw hash と generation/approval を再構成すれば、現プランの equality subset と `verify_floor_artifact` は通り得ます。特に `verify_floor_artifact` は result top-level schema、attempts、excluded、wall ledger 全体を検査しません。
+
+根拠:
+
+- v4 が exact key schema を明記するのは journal event だけです。[plan:96](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:96)
+- V3 は result strict parse、schema、mode、eligible を明記していました。[consultations:1398](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1398)
+- 現 `_read_journal` は通常の `json.loads` で duplicate key/NaN を拒否しません。[s8b_floor_campaign.py:685](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:685)
+- result の `attempts`、`excluded`、`wall_ledger` は journal/session の決定的射影です。[s8b_floor_campaign.py:1598](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1598)
+
+提案（最小修正）:
+
+- cert/result/manifest は UTF-8、duplicate key、NaN/Infinity 拒否で一度だけ strict parse。
+- journal は空行・truncated line・duplicate key・NaN を拒否する strict JSONL parser。
+- result/manifest は top-level と全 nested record の exact schema を持つ。
+- `result.wall_ledger`、`attempts`、`excluded`、`holdouts`、`configurations`、top-level mirror field を validated journal/protocol から再導出し完全一致。
+- `eligible_for_refreeze` は `is True`/`is False` で型まで検査し、`1 == True` による交差受理を許さない。
+
+---
+
+### {severity: High / equality chain, 「P / freeze三点 / cert三点」という圧縮表記では§8.4の辺を実装者が落とせる}
+
+攻撃シナリオと単独辺の必要性:
+
+| 落とした辺 | 通る改変 |
+|---|---|
+| `P == manifest.protocol_sha256` | manifest の protocol 値を別値へ変更し、manifest raw hashだけを journal/result へ伝搬 |
+| `P[:8] == run-id.proto8` | path/cert の run-id proto8 を任意値に揃え、cert.protocol は P のまま |
+| `V1_FREEZE_PATH == protocol.freeze.path == manifest.freeze.path` | 同じ freeze hashを攻撃者 provenance pathとして申告 |
+| manifest の top-level `freeze_sha256` と nested `freeze.sha256` | 片方だけ別値にしても他の freeze 鎖を維持 |
+| cert raw hash→`result.wall_ledger` campaign-start | raw journal は正しい cert、result の ledger だけ別certを申告 |
+
+§8.4 はこれらを明記していますが、v4 §3-2 は「§8.4列挙どおり」と短縮し、アクセサ単位の辺表を持ちません。[plan:92](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:92)、[契約:766](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:766)
+
+提案（最小修正）:
+
+- §3-2 に§8.4の adjacency list を省略せず転記し、各 node の正確な field accessor を書く。
+- 各辺について「その比較だけを削除する mutant」と「片側 field だけを変更する負例」を一対一対応させる。
+- `sha256(result raw) == generation.floor_source.sha256` は既存静的層に任せる場合も、helper 分離後に保持されることを表へ明記する。
+
+---
+
+### {severity: High / Q-B・並列設計, 外部 expected 値の導出APIがなく、自己参照か循環importの二択になる}
+
+攻撃・誤拒否シナリオ:
+
+- full-validated protocol dict をそのまま `verify_floor_artifact` に渡すと、18 key が「余分な key」となり正当 artifact を必ず拒否します。
+- それを避けて `expected_cells` を result/manifest から作ると、攻撃者が ghost cell を journal/result/manifest の全てに追加し、その自己申告集合を expected として採用できます。
+- E2 が `validate_protocol` を複製すると、片方から formula/n_sessions pin が落ちた時に、全 hash を自己整合させた未承認 protocol が verifier 側だけ通ります。
+
+根拠:
+
+- `verify_floor_artifact` の expected は8 key exactで、`expected_cells` が必須です。[s8b_floor_stats.py:403](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_stats.py:403)、[s8b_floor_stats.py:464](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_stats.py:464)
+- V1 は expected cells を ratified freeze の holdout/variant binding から導くよう明記しています。[consultations:904](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:904)
+- v4 は「expected_protocol は full-validated protocol」としか書いていません。[plan:113](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:113)
+- `validate_protocol`・`enumerate_cells`・`build_schedule` は producer module 内です。[s8b_floor_campaign.py:251](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:251)、[s8b_floor_campaign.py:584](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:584)
+- `floor_campaign → s8b_approved → s8b_ratified_freeze` の循環があります。[s8b_floor_campaign.py:75](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:75)、[s8b_approved.py:24](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_approved.py:24)
+
+提案（最小修正）:
+
+E1∥E2 の前に S0/E0 を追加し、共有 pure leaf に以下を移すべきです。
+
+- protocol full validatorと正規化
+- protocol→`verify_floor_artifact` 用7 scalar projection
+- ratified freeze→expected cells
+- cell列挙とschedule再導出
+- schema/version定数
+
+floor側は例外翻訳wrapperで後方互換を保つ。これをしない限り、E2が `floor_campaign.py` を「読むだけ」で済むという並列前提は成立しません。
+
+---
+
+### {severity: High / G-H-worktree・F14, fixtureでH=Aに潰れるうえ、worktree親symlinkを拒否できない}
+
+攻撃シナリオA（H/A取り違え）:
+
+1. Gで正常journalを置き、Aでapproval/activeを導入する。
+2. A後のcommit Hでjournalを改変または削除する。
+3. worktreeだけG bytesへ戻す。
+
+正しい `G/H/worktree` 検査はH treeとの不一致を拒否します。一方、approval commit AをHとして読む誤実装は、G・A・worktreeが同じになり通ります。E3 builderはAで終わるため、happy fixtureではH=Aとなり、この誤実装を殺せません。
+
+コード上の `activation_head` はapproval commit Aではなく、load開始時に捕捉した**検証HEAD H**です。[s8b_ratified_freeze.py:1031](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_ratified_freeze.py:1031)、[s8b_ratified_freeze.py:1110](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_ratified_freeze.py:1110)。対してbuilder計画はAで終了します。[plan:126](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:126)
+
+攻撃シナリオB（親directory symlink）:
+
+- `output/env/.../run` の親directoryを外部treeへのworktree symlinkへ置換する。
+- leaf `result.json` 等は通常fileなので `leaf.is_symlink()` はFalse、bytesもGと一致させる。
+- 外部tree内の追加fileはGitのuntracked列挙から漏れ得るため、scan対象外の隠し場所になります。
+
+現列挙はuntracked symlinkを明示的に除外し、通常readは親symlinkを追います。[s8b_holdout_freeze.py:197](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_holdout_freeze.py:197)、[s8b_holdout_freeze.py:257](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_holdout_freeze.py:257)
+
+提案（最小修正）:
+
+- 用語を `validation_head` または `H` に固定し、approval commit Aと区別する。
+- H>Aのテストを追加し、journal/manifest/resultの変更・削除・120000化を一件ずつ検査する。
+- worktree pathはleafだけでなくrootから全componentを`lstat`しsymlinkを拒否する。可能ならdirfd + no-follow readを使う。
+- untracked symlinkを黙ってskipせず、scan不能としてfail-closedにする。
+
+---
+
+### {severity: High / closure schema, NUL非テキスト化とrole衝突が未定義}
+
+攻撃シナリオ:
+
+- closure blobの先頭8192 bytes内にNULを置き、その後ろへ三軸表記を入れる。
+- G/H/worktree bytesとshaは全て正しくする。
+
+`_closure_text` と worktree scanner は双方ともこのblobを非テキストとして無視するため、expected/current hitはいずれも空で一致し、洗浄できます。[s8b_ratified_freeze.py:1315](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_ratified_freeze.py:1315)、[s8b_holdout_freeze.py:257](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_holdout_freeze.py:257)
+
+別の問題として、現重複検査はmeasurement closure内だけです。[s8b_ratified_freeze.py:717](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_ratified_freeze.py:717) したがってclosureにmanifest/journal/result/protocol/cert pathを列挙できます。
+
+- manifestをclosureにも列挙すると、本来非要求の「manifest導入==G」がclosure role経由で課され、裁定外の誤拒否になります。
+- certを列挙すると、certのC導入とclosureのG導入が衝突します。
+- roleごとに黙ってdedupすると、どちらのlineage規則を適用したかが不透明になります。
+
+また現canonical checkはabsolute・`..`・外側空白のみで、`.` component、二重slash、backslash、control characterを明示拒否しません。[s8b_ratified_freeze.py:726](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_ratified_freeze.py:726)
+
+提案（最小修正）:
+
+- measurement closure pathを、floor_source・floor_protocol・cert・journal・manifest・result・世代control recordとpairwise disjointにする。
+- raw POSIX canonical parserを使い、`.`, `..`, `//`, `\`, 制御文字を拒否する。
+- closure entryをUTF-8/no-NULに限定して閉じるなら、その制約を明文化する。binary closureを許すなら、現scannerでは閉じられないため別裁定に切り出す。
+- role衝突は専用reasonで拒否し、別roleへ暗黙変換しない。
+
+---
+
+### {severity: Medium / 裁定済み保証境界, journal/manifestはcertより前に導入しても受理される}
+
+攻撃シナリオ:
+
+1. 将来のcert bytes hashをあらかじめ計算し、完成済みjournal/manifestをcommit Jへ置く。
+2. 後のcommit Cでcertを初導入する。
+3. C後のGでresult・floor_source・closure・generationを初導入する。
+
+`C<G`、cert一意、closure/floor_source導入 `{G}`、全hash equality、G/H/worktree一致は成立します。journal/manifestの導入commitを要求しないため、J<Cでも受理されます。これは「journalが実時間にappendされた」証明ではなく、H時点で内容が自己整合している証明だけです。
+
+根拠:
+
+- 裁定はjournal/manifest導入==Gを明示的に非要求としています。[consultations:166](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:166)
+- v4も非要求を守っています。[plan:103](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:103)
+
+提案（最小修正）:
+
+コード条件を追加してはいけません。代わりに保証表へ次を明記してください。
+
+- journal/manifestについて保証するのはraw hash・semantic consistency・G/H/worktree endpoint consistency。
+- C後の実時間生成、append chronology、導入順は保証しない。
+- J<Cを受理する正例を置き、実装者が誤って導入==Gへ拡大しないよう固定する。
+
+強い時間保証が必要なら新裁定です。
+
+---
+
+### {severity: Medium / 型伝搬, bytes・sha・docを独立fieldで持つとoracleへ混成objectを渡せる}
+
+攻撃シナリオ:
+
+- verifierがG bytes B1をhash検査する。
+- parseだけをworktreeから行う実装にし、scan中にworktreeをB2へ差し替えてparse後にB1へ戻す。
+- pre/post hashはB1で一致するが、`raw_bytes/sha256` はB1、`document` はB2となる。
+- oracleは再parseしないため、provenance hashと異なるB2の`store_path`を消費します。
+
+v4はfield群を列挙していますが、同じrawから一度だけ構築するatomic invariantを明記していません。[plan:120](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:120)
+
+現行oracleはlaunch_validateの戻り値を捨て、floor bytesを再parseしています。[s8b_oracle_driver.py:469](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_oracle_driver.py:469)、[s8b_oracle_driver.py:402](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_oracle_driver.py:402)
+
+提案（最小修正）:
+
+APIを次の一objectに固定します。
+
+```python
+@dataclass(frozen=True)
+class VerifiedFloorArtifact:
+    path: str
+    raw_bytes: bytes
+    sha256: str
+    document: Mapping
+```
+
+- `raw_bytes` は一度捕捉したG blob。
+- `sha256 == sha256(raw_bytes)` をその場で確認。
+- `document = deep_freeze(strict_parse(raw_bytes))` とし、別sourceからparseしない。
+- `LaunchValidatedFreeze.floor_artifact` として一個だけ保持する。
+- oracleはその同一objectのみを消費し、旧 `read_floor_source_blob`/`json.loads` 経路を残さない。
+- 元のmutable dictを変更してもdocumentが変わらないことと、旧再読込を復活させるmutantを殺す。
+
+既存 `_deep_freeze` 自体は再帰copyなので利用可能です。[s8b_ratified_freeze.py:570](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_ratified_freeze.py:570)
+
+---
+
+### {severity: Medium / reason仕様, one-shotとfirst reasonの優先順位が未定義}
+
+攻撃・誤拒否シナリオ:
+
+- static loadを通るg2でresultを欠落させる。
+- §3の番号順どおりartifact discoveryを先に行うと `floor-artifact-invalid`。
+- generation checkを先に行う実装では `certificate-generation-scope`。
+
+どちらも拒否ですが、負例のfirst reasonが実装順で揺れます。one-shot checkの削除mutantも、先行するartifact failureによって隠れます。
+
+根拠:
+
+- v4ではartifact検査が1〜5、one-shotが6です。[plan:86](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:86)
+- static loadがg2を受理する既存テストがあります。[test_s8b_ratified_verify.py:204](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_verify.py:204)
+
+提案（最小修正）:
+
+優先順位を明記してください。
+
+1. 引数型・HEAD一致
+2. `generation_number == 1`
+3. path/artifact存在・mode・strict parse
+4. cert/protocol/journal/manifest/result semantic validation
+5. binding graph
+6. lineage
+7. exemption map
+8. occurrence/union/full scan
+
+`certificate-generation-scope` はartifact I/Oより先に固定します。各外向きreasonは低レベル `cause` を保持し、複数不変量を壊す負例はどのreasonを優先するか表にします。
+
+---
+
+### {severity: Medium / F9・F14・F15, E2を現stub上で緑にする計画は新gateを実際には踏めない}
+
+攻撃シナリオ:
+
+- equality edgeやlineage checkを一つ削除する。
+- E2テストは現stubを使うため、official result schema/path/cert/journalへ到達する前に別reasonで落ちるか、helperをmockして通す。
+- 削除mutantが生存したまま「E2 green」となる。
+
+現fixtureはfloor sourceが単なるtext stubで、closure/sourceもGではなくbase commitに置かれます。[test_s8b_ratified_freeze.py:166](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_freeze.py:166)、[test_s8b_ratified_freeze.py:222](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_freeze.py:222)。新しい「closure/floor_source導入==G」を入れた時点でhappy fixtureではありません。それでもv4はE2検証鎖テストを現stub上で書くとしています。[plan:37](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:37)
+
+F14面も二つあります。
+
+- `I_entry == {G}` と `C<G` が成立すれば `∀i∈I_entry: C<i` は論理的に恒真です。独立保証として数えてはいけません。
+- cert exact schemaとfield formatを先に通すと、現schemaで `hits(cert)==∅` は実質的に到達不能な防御です。裁定上は残すべきですが、独立coverageと称してはいけません。
+
+提案（最小修正）:
+
+- E2単体段階は「validator unit tests」と明記し、production-bytes E3a通過までE2を完了扱いしない。
+- 少なくともcorrect topologyのlocal stub（C→G→A）を使い、現base fixtureをそのまま流用しない。
+- 最終matrixは期待mutant数を固定し、0件・未実行・survivorをfailureにする。
+- 冗長gateはdefense-in-depthと表示し、独立保証数へ加算しない。
+- cert hit gateの到達性を持たせるなら、raw cert bytesのhit検査をschema検査より先に置くreason順を明文化する。
+
+## 付帯確認への直接回答
+
+- 発効済み裁定への明示的な逸脱は、v4本文上では見つかりませんでした。full validate採用、one-shot、cert非union、journal/manifest導入非要求はいずれも裁定どおりです。
+- `journal/manifestをG treeで読めること` は `導入commit==G` ではありません。この区別を実装でも維持すれば拡大違反ではありません。
+- manifestのmodeは、G/Hのls-tree modeが`100644`または`100755`であることの検査だけに留める必要があります。`100644`固定、semanticな`manifest.mode`追加、導入==Gはいずれも裁定拡大です。
+- manifest/resultのexact schemaやschedule再導出はissuer shapeの検証であり、manifestのmode裁定拡大ではありません。
+- non-text closureを拒否するか、binary closureを別scanするかは裁定文から一意に決まりません。ここだけは未裁定領域として切り出すべきです。
+- E1∥E2は、ファイル所有だけなら分離されていますが、意味的には現状安全ではありません。protocol/cells/scheduleの共有pure validatorが無いためです。S0/E0でAPI固定後なら、E2が`floor_campaign.py`をread-onlyに保つことは可能です。
+- F9再発面は「mutant 0件・fixture不在・到達不能caseをgreen扱い」。
+- F14再発面は「H=A fixture」「冗長な∀ lineage」「exact schema後のcert hit invariant」。
+- F15再発面は「手書きstubがproductionのmanifest/result/journal hit分布とGit topologyを持たないこと」です。
+- `master_seed/env_tag`の値焼き込みへ§3が踏み込む必要はありません。full validatorは与えられたprotocolの契約を検査するだけに留めるべきです。
+
+## 確認済み事項
+
+- `P = canonical_sha256(full_validate(strict_parse(raw)) の正規化戻り値)` は、別実験の自己整合hashを拒否する正しい境界です。
+- static loadはg2+を維持し、launchだけg1へ限定する分離方針自体は破れませんでした。generation checkの配置だけ要修正です。
+- certについて一意導入・非merge・`C≠G`・厳密祖先を全て実装し、`_immutable_introductions`の全DAG検査を使うなら、兄弟branch、別bytes変異、同一bytes削除再導入、複数導入は拒否できます。
+- closure/floor_sourceの導入集合を厳密に`{G}`とすれば、pre-C導入、delete/re-add、別branch導入を閉じられます。
+- G/H/worktreeをcommit-qualifiedに別々に読み、Hを真のvalidation HEADとして使えば、Hでの削除・変更・symlink modeは検出できます。
+- `exempt_exact` API本体は、exact hash一致だけをskipし、hash不一致を通常scanへ戻します。[s8b_holdout_freeze.py:297](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_holdout_freeze.py:297) 問題はAPIではなく、渡すmapのrole/domainです。
+- certを期待unionへ入れず、raw cert自身のhitを別invariantで拒否する方針は正しいです。
+- measurement closure内の同一path重複とrecorded sha不一致は現実装で拒否されています。
+- 空closureだけからは誤受理を構成できませんでした。implicit unionの5 sourceが全期待hitを担うケースはあり得るため、裁定なしにnon-emptyを強制すべきではありません。
+- journal/manifest導入==Gを要求しないこと、manifest modeをregular membership検査だけにすることは裁定を守っています。
+- read-onlyレビューとしてファイル変更は行っていません。
+#### 相談 C3 (gpt-5.6-sol reasoning=max, read-only, cwd=worktree)
+
+## 所見
+
+### {severity: Critical / F15・F19, production-bytes は production の観測・build bytes ではない}
+
+攻撃シナリオ: `build_cells_fn` が整合した dict と偽 binary を返せば、materialization、`buildcache.build`、binary receipt、command/path projection の欠陥を一度も通らず、manifest/result/journal の SHA は一致する。さらに official は production default で常時拒否され、fixture だけが拒否を解除する。したがって証明できるのは「production emitter/state machine が、固定した合成入力を直列化した bytes」であり、「実 build・実 measure・実 provenance の代表 bytes」ではない。
+
+偽になる seam は次のとおり。
+
+- `measure_fn`: throughput、retry、notes、`run_cmd`、floor 統計
+- `probe_fn`: 競合検知、rc/stdout/stderr
+- `prepare_fn` / `build_cells_fn`: materialization、実 build、binary、command、cache、binding
+- `host_provenance_fn` / `process_identity_fn` / `execution_receipt_fn`: 実機 attestation と process identity
+- `now_fn` / `monotonic_fn` / `sleep_fn`: run-id、時刻辺、duration、時間順
+- `repo_root`: scan 対象母集団
+- official 拒否解除: production 到達可能性そのもの
+
+根拠: [plan:45](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:45)、[plan:124](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:124)、[s8b_floor_campaign.py:149](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:149)、[s8b_floor_campaign.py:842](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:842)、[test_s8b_floor_campaign.py:170](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_floor_campaign.py:170)。
+
+提案（最小修正）:
+
+- 呼称を `production-emitter bytes under deterministic observations` に狭める。
+- `build_cells_fn` ではなく `buildcache.build` 相当の一セル seam に下げ、production `build_cells`、`store_binaries`、projection は必ず通す。
+- SHA golden とは別に、少なくとも一セルの実 `prepare→build→store→runner` canary を最終ゲートへ置く。
+- official default が依然拒否されることを保証境界に明記し、この wave の緑を launch-ready と数えない。
+
+### {severity: Critical / F9・F14, 親変異ゲートが未実行・別 module import・0 mutant でも成立する}
+
+攻撃シナリオ: 検証器の「複製」を作っても pytest が元 module を import すれば、変異は一度も実行されない。あるいは mutant 列挙が空でも「survivor 0」と表示できる。さらに §6 は verifier/issuer だけを明記し、F15 の中心である builder を対象にしていない。
+
+根拠: [plan:149](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:149)、[consultation V3:1252](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1252)、[failures.md:88](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/docs/failures.md:88)。
+
+提案（最小修正）: `mutants.json` を事前登録し、各 mutant に対象 symbol、patch、expected killer test、expected reason を持たせる。次を failure 条件にする。
+
+- mutant 0 件
+- expected test が未収集
+- 変異 module が実際に import されていない
+- syntax/import error だけで落ちた invalid mutant
+- expected test 以外の偶発失敗だけ
+- survivor、timeout、未実行
+
+builder と oracle consumer も必須対象に加える。
+
+### {severity: High / Git topology, 現 helper を再利用すると C=cert-only と G/A の素集合が必ず壊れる}
+
+攻撃シナリオ: callback は cert と launch-start journal の作成後に呼ばれる。一方、現 `_commit` は `git add -A` するため、callback でこれを使うと journal まで C に入る。G/A でも result.md、binary store、build cache、未追跡物を巻き込み得る。
+
+根拠: [plan:69](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:69)、[plan:126](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:126)、[test_s8b_ratified_freeze.py:48](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_freeze.py:48)、[s8b_floor_campaign.py:1919](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1919)、[s8b_floor_campaign.py:1938](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1938)。
+
+提案（最小修正）: `_commit_exact(paths, expected_diff, fixed_env)` を新設し、各 commit 前後で `diff-tree` の exact path set を検査する。
+
+- C: certificate のみ
+- G: 裁定済み closure、floor protocol/source、指定 run artifacts、generation のみ
+- A: approval と active pointer のみ
+
+`result.md`、build cache、store binary を G に含めるかは曖昧な「run artifacts」で済ませず、非対象と明記する。
+
+### {severity: High / 再現性, Git 日時固定だけでは二重生成 SHA は固定できない}
+
+攻撃シナリオ: 同一 Python process・同一 Git config で二つの短い tmp pathを使えば緑になるが、別環境では以下が漏れる。
+
+- `core.autocrlf`: index blob の改行変換
+- umask/core.filemode: raw SHA には出ないが tree mode に出る
+- Python version/hash seed: float JSON 表現、set 由来 list 順
+- tmp path 長・空白・非 ASCII: `binary`、configure/build command、session `run_cmd`、notes、probe output
+- nested ccbench repo の commit date/gitlink OID
+- `GIT_DEFAULT_HASH=sha256`、author/committer identity/timezone
+- 実 buildを使う場合の build-id、埋込絶対 path、timestamp
+
+根拠: [plan:62](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:62)、[plan:131](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:131)、[test_s8b_ratified_freeze.py:41](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_freeze.py:41)、[test_s8b_ratified_freeze.py:177](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_freeze.py:177)、[s8b_floor_campaign.py:1374](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1374)。
+
+提案（最小修正）:
+
+- 全 commit、nested repo を含め author/committer name/email/date/timezone 固定。
+- `git init --object-format=sha1`、`core.autocrlf=false`、`.gitattributes` で artifact を `-text`。
+- 四 artifact だけでなく generation/approval/pointer blob、tree、commit、mode map を比較。
+- tmp roots は長さ・空白・非 ASCII を変え、全 artifact に root bytes が残らないことも検査。
+- 保証を「pin した Python/Git 上の再現性」に限定するか、Python/hash-seed matrix を回す。
+
+### {severity: High / 恒真ゲート, issuer が作った全辺を同じ issuer/verifier が再確認している}
+
+攻撃シナリオ: manifest/result は同じ `built`、cert hash は同じ変数、result.sessions は journal records、floor_source hash は builder が確定 result bytes から生成する。共有 leaf や共通 validator に同じバグがあれば、作った鍵で作った錠を開けたまま全 happy fixture が通る。
+
+根拠: [s8b_launch_cert.py:2](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_launch_cert.py:2)、[s8b_floor_campaign.py:879](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:879)、[s8b_floor_campaign.py:1536](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1536)、[s8b_floor_campaign.py:1994](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1994)。
+
+提案（最小修正）: 各辺に二種類の負例を置く。
+
+1. raw tamper: 一辺だけ壊す。
+2. coherent island: 関連 SHA・自己申告を全部再計算して整合させ、独立 anchor だけを壊す。
+
+protocol/cert/path の負例は issuer helperから導出せず、独立な raw fixture/reference で作る。
+
+### {severity: High / reason 到達性, 移行順だけで mutation stage と first reason が仕様化されていない}
+
+攻撃シナリオ: §4 は「source→frozen→…」という作業順しか持たず、V2b が要求した `mutate_floor_result`、`mutate_manifest`、`mutate_journal` と依存 SHA の修復規則がない。現在も oracle 負例は substring や単なる `refused` を許し、contract mismatch は「どちらの層で落ちてもよい」と明記する。
+
+根拠: [plan:134](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:134)、[consultation V2b:1112](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1112)、[test_s8b_oracle_driver.py:1476](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_oracle_driver.py:1476)。
+
+到達性の判定:
+
+- 維持可能: source、frozen parent、closure missing/SHA、env、transition、merge、undeclared hit、per-holdout、enumeration、positive-control、HEAD moved。
+- 再設計必須: g2 one-shot、missing-hit、journal/manifest/floor-result semantic mutation、store missing/hash、contract mismatch。
+- 維持不能: raw floor bytes の malformed を「oracle parse reason」とする負例。新設計では verifier の `floor-artifact-invalid` 側へ移すべき。
+
+提案（最小修正）: 各ケースを `{baseline validator, mutation stage, repaired dependencies, invoke layer, exact first reason/cause}` で登録し、同一 fixture の mutation 前 baseline 通過を必須にする。`reason in (...)`、substring、単なる refusal は adapter の例外翻訳テスト以外で禁止する。
+
+### {severity: High / one-shot, G2 新規 artifact だけでは load/launch 分離が実発火しない}
+
+攻撃シナリオ: `launch_validate` が artifact discovery・lineage を先に行うと、不完全な G2 は `certificate-generation-scope` より前に共通 chain reason で落ちる。逆に G1 artifact を再利用すると新しい introduction 条件で静的 load が落ちる。
+
+根拠: [plan:103](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:103)、[plan:139](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:139)、[test_s8b_ratified_verify.py:329](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_verify.py:329)、[consultation V3:1324](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1324)。
+
+提案（最小修正）:
+
+- G2 に新しい floor_source/closure/run artifacts と自己整合する新 C2 cert chain を構築する。
+- 同じ repo で `load_ratified_freeze(g2)` 成功を先に assert。
+- `launch_validate(g2)` は exact `certificate-generation-scope`。
+- generation scope check は artifact chain より前の launch precondition として固定。
+- check を除去した mutant が本当に通る「otherwise-valid G2」にする。
+
+### {severity: High / ix-8・F14, oracle が LaunchValidatedFreeze を受け取っても別 object を使い続けられる}
+
+攻撃シナリオ: 現 oracle は `launch_validate` の戻り値を捨て、後で `read_floor_source_blob` と `json.loads` を再実行する。さらに run_block は別 loader の `VerifiedFreeze.document` を budget/manifest consumer に使う。field を dataclass に足すだけでは parser 分裂が残る。
+
+根拠: [s8b_oracle_driver.py:402](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_oracle_driver.py:402)、[s8b_oracle_driver.py:449](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_oracle_driver.py:449)、[s8b_oracle_driver.py:470](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_oracle_driver.py:470)、[s8b_oracle_driver.py:609](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_oracle_driver.py:609)、[plan:142](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:142)。
+
+提案（最小修正）: `LaunchValidatedFreeze` に raw bytes/hash/deep-immutable document に加え、検証済み `binaries_by_cell` index を保持する。oracle は戻り値を捕捉し、v2 の freeze/floor consumer をその object に統一する。テストでは旧 blob reader・JSON parser を「呼ばれたら失敗」にし、launch 後の disk 差替えでも同一 object が使われることを固定する。
+
+### {severity: High / 並列設計, E3a∥E3b はファイル非重複でも依存グラフ上で安全でない}
+
+攻撃シナリオ: E3b の test は E3a 所有の `s8b_v2_freeze_fixture.py` と `test_s8b_ratified_freeze.py` を直接 importする。しかも E3a が移行すべき負例本体は所有表にない `test_s8b_ratified_verify.py` に存在する。E3b が旧 helper API 上で oracle fixture を移行中に、E3a が同 API を置換する。
+
+根拠: [plan:34](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:34)、[test_s8b_oracle_driver.py:23](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_oracle_driver.py:23)、[test_s8b_ratified_verify.py:25](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_ratified_verify.py:25)、[consultation V3:1357](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1357)。
+
+提案（最小修正）:
+
+- E3a 所有へ `test_s8b_ratified_verify.py` を追加する。
+- E3a builder API と production fixture を完成・凍結してから E3b test migration。
+- 並列化するなら E3b は driver 本体だけ先行し、oracle fixture/test は E3a 完了後に分ける。
+- 既存 manifest/report 用 `fill()` API は新 builder と分離し、互換維持する。
+
+### {severity: High / 裁定の負空間, journal/manifest の非 G 導入受理を証明できない}
+
+攻撃シナリオ: baseline が常に journal/manifest を G へ同梱するため、verifier に誤って `intro==G` を追加しても全テストが通る。これは「導入 commit==G は要求しない」という裁定の負空間を検証していない。
+
+根拠: [plan:16](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:16)、[plan:129](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:129)、[裁定:166](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:166)。
+
+提案（最小修正）: happy topology variant `C→J(journal+manifest)→G(result+closure+generation)→A` を追加し、launch acceptance を要求する。同様に regular mode は 100644 だけでなく、artifact ごとに 100755 の受理正例も置く。
+
+### {severity: High / finalize semantics, eligible_for_refreeze の生成時点が未設計}
+
+攻撃シナリオ: result は terminal completed より前に組立て・書込みされる。`mode=="official"` で True にすると、result write 後・terminal 前 crash に True の partial result が残る。happy staged builderだけでは露出しない。
+
+根拠: [s8b_floor_campaign.py:1623](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1623)、[s8b_floor_campaign.py:1775](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1775)、[s8b_floor_campaign.py:1994](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/campaign/s8b_floor_campaign.py:1994)、[consultation V3:1222](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1222)。
+
+提案（最小修正）: 二相 finalize の状態順を仕様化し、result write 後、self-check 後、terminal append 前後の各 crash を注入する。verifier は flag を信じず、mode・唯一かつ最終の completed terminal・自己検査済み result を独立導出する。
+
+### {severity: Medium / 未裁定境界, extra_closure の「namespace 拒否」が broad closed-world 化し得る}
+
+攻撃シナリオ: 「namespace 拒否」を理由に resolver 全体へ未知 file 拒否を入れると、ix-9 の exact path+bytes exemption を超えて新しい受理条件を導入する。V3 は resolver closed-world を別途追認事項としている。
+
+根拠: [plan:136](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:136)、[consultation V3:1286](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1286)、[consultation V3:1318](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1318)。
+
+提案（最小修正）: namespace 負例を既存の canonical path/exact exemption 契約に限定する。広い unknown-file policy が必要なら裁定パッケージへ切り出す。missing-hit は実 search を一度通した後、対象 holdout の一 hit だけを削る report projection seam にする。
+
+### {severity: Medium / oracle test migration, 「store を最後」は作業順であって到達性保証ではない}
+
+攻撃シナリオ: 移行作業を最後にしても、完成後の各 store test が同一 fixture の launch baseline を確認しなければ、後日の builder drift で再び早期 reason に潰れる。raw floor fixture 廃止時に oracle JSON parse branch が残れば未テストコードになる。
+
+根拠: [plan:144](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/plan-v4-verifier-main-wave.md:144)、[consultation V2b:1181](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/insights/2026-07-18_s8b-c22-consultations.md:1181)、[test_s8b_oracle_driver.py:1268](/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/tests/test_s8b_oracle_driver.py:1268)。
+
+提案（最小修正）:
+
+- store mutation 前に同一 fixture の `launch_validate` 成功を assert。
+- store mutation 後は exact structured `store-missing` / `store-hash-mismatch` と zero side effect を要求。
+- invalid UTF-8、duplicate key、NaN、result exact schema、binary record重複等は verifier test へ移す。
+- oracle では raw reader/parser の不使用を negative wiring test にする。
+
+## 変異 matrix 提案
+
+前提として、各 mutant は unmutated baseline green、test collection成功、対象 module import確認後に実行し、期待 test の意味 assertion で KILL された場合だけ合格とする。
+
+1. `s8b_ratified_freeze.py:launch_validate` — `generation_number == 1` を削除、または `>=1` に緩和。`test_launch_rejects_otherwise_valid_g2_first` が `certificate-generation-scope` 不発で KILL。
+
+2. cert lineage — `C != G && is_ancestor(C,G)` を ancestor-or-equal に緩和。C==G fixture が KILL。
+
+3. cert lineage — non-merge 検査を削除。merge C fixture が KILL。
+
+4. closure/floor_source introduction — 全 introduction が G という全称を、いずれか一件だけ G の存在に緩和。delete/re-add、add/add merge fixture が KILL。
+
+5. journal/manifest introduction — 誤って `intro==G` を要求する過剰制約を追加。`C→J→G→A` happy fixture が KILL。
+
+6. G/H/worktree mode — 120000 symlinkを regularとして受理、または 100755 を拒否。symlink負例と100755正例がそれぞれ KILL。
+
+7. protocol acceptance — full `validate_protocol` 呼出しを削り canonical hashだけにする。自己整合だが full schema不正の protocol fixture が KILL。
+
+8. manifest raw hash — raw bytes SHA の代わりに parsed document の再直列化 SHA を使う。空白・key順だけ異なる raw manifest 負例が KILL。
+
+9. cert raw hash — 同様に cert を再直列化して hash。raw cert formatting mutationと束縛値維持の負例が KILL。
+
+10. journal exact schema — unknown key/event を無視する `continue` を復活。自由記述 field・unknown event負例が `journal-state-invalid` 不発で KILL。
+
+11. journal state — terminal の 0/2件、completed非最終、aborted+completed の検査を一つずつ削除。対応する単一負例が KILL。
+
+12. session binding — `journal sessions == result.sessions` を set比較、cell_idだけ比較、または長さ比較に緩和。重複・順序変更・一 field差の負例が KILL。
+
+13. expected union — floor_protocol、floor_source、closure、journal、manifest の追加を一つずつ削除。各 source にだけ unique hit を持つ parameterized fixture が KILL。
+
+14. cert invariant — `hits(cert)==∅` を削除、または cert を unionへ編入。cert-only hit負例が KILL。
+
+15. binary anchor — `expected_binaries` を journal receiptでなく result/manifestから自己導出。result+manifestだけを同時改竄した coherent island が KILL。
+
+16. eligible — `mode=="official"` または flag単独を証拠にする。pilot true、official false、artifact-invalid true、terminal前 crash が KILL。
+
+17. scan exemption — exact path+hashを prefix除外へ緩和、または hash比較を削除。wrong hash、right hash/wrong path、似たprefix、orphan recordが KILL。
+
+18. path/time — `parse_official_run_path` 呼出し、env、proto8、basename、started_utc秒一致の各比較を一つずつ削除。対応する単一 path/time負例が KILL。
+
+19. issuer projection — projection を manifest組立て後へ移動、または configure/build command置換だけ削除。長さ・空白の異なる二 root SHA testとroot-byte scanが KILL。
+
+20. issuer seam defaults — `None` defaultを production関数でなく固定 fakeへ向ける。default delegation identity/call testとproduction-default characterization が KILL。
+
+21. build経路 — `build_cells` を synthetic dict直返しに置換。実一セル `prepare→build→store` canary が KILL。
+
+22. checkpoint — callback をlaunch-start前、manifest後、または二回呼ぶ。callback観測時の `{cert exists, journal exact launch-start, manifest absent, build calls=0}` test が KILL。
+
+23. staged builder — C/G/Aで `git add -A` を使う、certをGで変更する、closureをbaseへ前倒しする。commit exact path-setとintroduction set testが KILL。
+
+24. staged builder raw binding — `floor_source.sha256` をraw result bytesでなくparsed再直列化から計算。非canonical spacingを持つproduction raw result variantが KILL。
+
+25. staged builder determinism — Cだけ日付固定し、base/nested/Aの日時を実時間へ戻す。二重生成のcommit/tree/generation/approval SHA testが KILL。
+
+26. oracle — `launch_validate` の戻り値を捨て、`read_floor_source_blob` を復活。旧readerをraiseさせる wiring testとobject identity testが KILL。
+
+27. oracle — verified floor docを再度 `json.loads`、または mutable dictへcopyして再正規化。launch後disk差替え・permissive parser mutant testが KILL。
+
+28. oracle store — missing storeをskip、hash不一致をwarning、または記録SHAをactualで上書き。store missing/hash exact reason testがKILL。
+
+29. reason translation —低レベル reason を無条件 `binding-chain-mismatch` に潰し causeを捨てる。各負例の `{outer reason, cause}` exact testが KILL。
+
+30. mutation runner 自身 — mutant manifestを空にする、または元moduleをimportする。meta-testが「実行 mutant数>0」「sentinel mutantの対象行到達」を要求してKILL。
+
+## 付帯確認への直接回答
+
+- 発効済み裁定との直接衝突は、プラン本文の normative 条件には概ねない。full protocol validate、cert非union、one-shot、closure/floor_sourceのみintro==G、ix-8型伝搬は裁定どおり。
+- 未裁定へ踏み込む危険は二点ある。
+
+  - extra_closure の「namespace拒否」を resolver broad closed-world 化する場合。
+  - 「run artifacts」を result.md、build cache、store binaryまでG同梱・scan免除対象へ広げる場合。
+
+- journal/manifestをbaselineでG同梱すること自体は許容されるが、verifier要件へ昇格してはいけない。非G導入の受理正例が必要。
+- E3a∥E3b は安全でない。正本の V4→V5 順序どおり、E3a fixture API凍結後にE3b test migrationとするべき。
+- store testを最後にする根拠は「launch baselineが未完成の間はstore reasonへ到達できない」ためで妥当。ただし永続的な到達性保証には各test内baseline assertが必要。
+- raw `floor_source_bytes` 廃止で失うべきものはoracle独自JSON parser coverage。失ってはいけない strict parse/schema/binary-record coverageはlaunch verifier側へ移管する。
+
+failure再発面:
+
+- F9: mutant 0件、test未収集、対象fixture不在、曖昧なgeneric refusal。
+- F14: official拒否をtestだけ解除、seam field存在だけ、LaunchValidatedFreeze戻り値破棄、二重SHAがsanitize済fakeだけ。
+- F15: fake build/measure/probe/receipt、最小repo母集団、同一producer/verifierによる自己整合。
+- F19: 実materialization/build未実行、checkpoint/finalize crash窓未実行、portable pathをserializerだけで検査。
+- 同型としてF21も再発する。helper単体の健全性では issuer→Git→verifier→oracle のlive結線を証明できない。
+
+## 確認済み事項
+
+- base→C→G→A の方向と、CをGの厳密祖先にする設計は正しい。
+- callbackをcert発行・launch-start耐久化後、build前に置く設計はL状態と整合する。
+- closure schemaを `{canonical_path, sha256}` のみにし、hitsをverifier導出する点は自己申告boolを排除できている。
+- cert非unionかつhit空、expected unionの五 source、exact path+bytes exemptionの方針は裁定どおり。
+- full protocol validate、journal receipt由来 expected binaries、measurement/bound artifact helper分離は正しい。
+- g2静的loadとlaunch one-shotを別gateにする設計目的自体は正しい。
+- extra_closureをnamespace系と純missing-hitへ分割する方向は正しい。ただしnamespace規則の拡大禁止とreport-only seamが条件。
+- 現 `s8b_launch_cert.py` のraw POSIX fullmatch、`.`/`..`/backslash拒否、run-id時刻とstarted_utc秒一致は攻撃した範囲で破れなかった。
+- trust root不在をskipせずfailにする既存テストはF9対策として有効。
+
+読み取り専用レビューのため、ファイル変更・テスト実行は行っていません。
+### §10.4 実装結果 (E0〜E3b + fix、全単位レビュー + 変異ゲート通過)
+
+標準ループを 6 実装単位で回した。各単位 = codex 実行 (gpt-5.6-sol high) → 親検算 → opus 敵対
+レビュー 2 レンズ (恒真 F9/F14/F15 + 裁定準拠) → real 所見を codex へ再投げ → 変異裏取り。
+
+- **E0** (commit 9878c80): 共有契約 leaf `s8b_floor_contract.py` 抽出 (full validator / 7-scalar
+  射影 / derive_expected_cells / enumerate+schedule / schema 定数)。import 循環回避で E1∥E2 並列成立
+- **E1** issuer 決定化 (ロードマップ 1〜6): runtime/artifact 二重 view + PortableBuiltRecord /
+  provenance/process/receipt seam + production wrapper 分離 (official 注入拒否) / repo_root seam +
+  実 clean scan / cert checkpoint + L/M substate resume + atomic manifest / 二相 finalize +
+  eligible official-only。レビュー: レンズ B 逸脱ゼロ、レンズ A 実測変異 9 生存 (検査健全・負例欠) →
+  E1-fix で負例補完、8 変異 KILL
+- **E2** launch_validate 検証鎖 (§8.4): equality chain 全辺 adjacency + 辺ごと raw tamper/coherent
+  island 負例 / manifest.cells・schedule 独立導出 + session-start↔schedule 1:1 + terminal 一意 /
+  strict exact schema + 射影再導出 / G/H/worktree 三点 (validation_head≠A) + lstat symlink 拒否 /
+  lineage (journal/manifest 非課金) / one-shot generation==1 / closure role disjoint + UTF-8 no-NUL /
+  VerifiedFloorArtifact atomic。レビュー: レンズ B 逸脱ゼロ、**レンズ A が F15 級の内部矛盾を実測** —
+  occurrence 許可が journal のみ ∧ result.sessions==journal.sessions 必須 → production の run_cmd 入り
+  artifact が永久 reject (fixture の run_cmd=None が隠蔽) + matcher が suffix-only の dead code
+- **E2-fix** (この wave の白眉): run_cmd を共有 leaf 純関数 `build_portable_run_cmd` に一元化
+  (issuer は emission 射影、verifier は journal/result 対称に shlex 完全一致)。parser 分裂を構造的に
+  排除。レビュー: 4 変異 on-point KILL、F15 解消・射影健全を実測確認。Low 1 (valid session の
+  run_cmd=None 両側協調受理) → small-fix
+- **E3a** emitter 駆動 staged builder: `_run_campaign_core` の実 emitter bytes を base→C(cert のみ)→
+  G(裁定 artifact のみ)→A で `_commit_exact` (diff-tree exact path-set)、git 環境完全固定、二重生成で
+  4 artifact+blob+tree+commit+mode 一致、C→J→G→A 受理正例 (裁定の負空間)、otherwise-valid G2、
+  負例 registry。レビュー: 必須 5 変異 KILL、**追加変異で F14 休眠 2 件を実測** (launch_validate の
+  protocol/closure 生ハッシュ再検査が負例欠で if False 化しても全緑) → small-fix
+- **E3b** oracle 消費統一: LaunchValidatedFreeze の VerifiedFloorArtifact + binaries_by_cell のみ消費、
+  旧 read_floor_source_blob/json.loads 廃止 + disk 差替え無効の wiring 負例、store 負例 per-test
+  baseline。レビュー: 4/5 変異 KILL (1 は等価変異)、Medium 1 (`_validate_portable_binaries` の cause
+  に負例ゼロ) → fix-final
+- **small-fix / fix-final**: valid⟹run_cmd 不変条件 + protocol/closure record-sha wiring 負例 +
+  G2 otherwise-valid pin + `_validate_portable_binaries` 4 cause 負例 + manifest 集約 positive control
+
+**最終ゲート**: 全走 1549 passed / 0 failed。check_docs / check_codex_agents 緑。親の変異 matrix
+`mutation_gate.py` (複製 + PYTHONPATH shadow、meta-fail 条件 = 0 件/未収集/未 import/invalid/survivor
+を機械化) で 11 変異 (各単位の正しさゲート中核) を **11/11 KILL**。落とし穴: 同一ファイルを対象にする
+複数変異で `.pyc` mtime 解像度が粗く未変異コードが実行され 1 件が偽 survivor 化 → `PYTHONDONTWRITE
+BYTECODE=1` で解消 (自作変異ハーネスの必須設定)。
+
+**発効なし規律**: master_seed/env_tag の焼き込み・official 実走・floor 実測は本 wave スコープ外。
+official mode の core 拒否は不変 (staged builder は `_run_campaign_core` 経由のテスト専用)。追認リスト
+(§10.2 末尾) は次回ユーザー接点へ。

@@ -7,13 +7,18 @@
 """
 from __future__ import annotations
 
+import contextlib
+import datetime as dt
 import hashlib
 import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -23,6 +28,13 @@ _ROOT = os.path.dirname(_ORCH)
 sys.path.insert(0, _ORCH)
 
 from campaign import s8b_ratified_freeze as M  # noqa: E402
+from campaign import env_contract as EC  # noqa: E402
+from campaign import s8b_floor_campaign as FLOOR  # noqa: E402
+from campaign import s8b_floor_contract as FC  # noqa: E402
+from campaign import s8b_holdout_freeze as HF  # noqa: E402
+from campaign.model import Genome  # noqa: E402
+from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
 
@@ -170,6 +182,558 @@ _FLOOR_PROTOCOL_STUB = b'{"floor_protocol": "stub", "n": 1}\n'    # strict parse
 _FLOOR_SOURCE_STUB = b"# floor source stub\n"
 
 
+# --------------------------------------------------------------------------
+# E3a: 決定的観測下の production-emitter bytes staged builder
+# --------------------------------------------------------------------------
+
+_FIXED_NOW = dt.datetime(2026, 7, 18, 12, 0, tzinfo=dt.timezone.utc)
+_FIXED_GIT_ENV = {
+    "GIT_AUTHOR_NAME": "s8b fixture",
+    "GIT_AUTHOR_EMAIL": "s8b-fixture@example.invalid",
+    "GIT_COMMITTER_NAME": "s8b fixture",
+    "GIT_COMMITTER_EMAIL": "s8b-fixture@example.invalid",
+    "GIT_AUTHOR_DATE": "2026-07-18T12:00:00+0000",
+    "GIT_COMMITTER_DATE": "2026-07-18T12:00:00+0000",
+    "TZ": "UTC",
+}
+
+
+def _fixed_git(root: Path, *args: str, stdin: bytes | None = None) -> str:
+    env = dict(os.environ)
+    env.update(_FIXED_GIT_ENV)
+    return subprocess.run(
+        ["git", "-c", "core.autocrlf=false", *args], cwd=root, check=True,
+        input=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+    ).stdout.decode("utf-8").strip()
+
+
+def _init_fixed_repo(root: Path) -> None:
+    root.mkdir(parents=True)
+    _fixed_git(root, "init", "-q", "--object-format=sha1")
+    _fixed_git(root, "config", "user.name", _FIXED_GIT_ENV["GIT_AUTHOR_NAME"])
+    _fixed_git(root, "config", "user.email", _FIXED_GIT_ENV["GIT_AUTHOR_EMAIL"])
+    _fixed_git(root, "config", "commit.gpgsign", "false")
+    _fixed_git(root, "config", "core.autocrlf", "false")
+    object_format = _fixed_git(root, "rev-parse", "--show-object-format")
+    assert object_format == "sha1"
+
+
+def _fixed_commit_all(root: Path, subject: str, agent: str) -> str:
+    _fixed_git(root, "add", "-A")
+    message = f"{subject}\n\nAI-Agent: {agent}".encode("utf-8")
+    _fixed_git(root, "commit", "-q", "-F", "-", stdin=message)
+    return _fixed_git(root, "rev-parse", "HEAD")
+
+
+def _commit_exact(root: Path, paths, *, subject: str, agent: str) -> str:
+    """指定 path だけを commit し、diff-tree の exact path-set を直後に検査する。"""
+    expected = tuple(sorted(set(paths)))
+    _fixed_git(root, "add", "-A", "--", *paths)
+    staged = tuple(filter(None, _fixed_git(
+        root, "diff", "--cached", "--no-renames", "--name-only",
+        "--diff-filter=ACDMRTUXB",
+    ).splitlines()))
+    assert staged == expected, {
+        "missing": sorted(set(expected) - set(staged)),
+        "extra": sorted(set(staged) - set(expected)),
+    }
+    commit = _fixed_commit_all_staged(root, subject, agent)
+    actual = tuple(filter(None, _fixed_git(
+        root, "diff-tree", "--no-commit-id", "--no-renames", "--name-only", "-r", commit,
+    ).splitlines()))
+    assert actual == expected, (actual, expected)
+    return commit
+
+
+def _fixed_commit_all_staged(root: Path, subject: str, agent: str) -> str:
+    message = f"{subject}\n\nAI-Agent: {agent}".encode("utf-8")
+    _fixed_git(root, "commit", "-q", "-F", "-", stdin=message)
+    return _fixed_git(root, "rev-parse", "HEAD")
+
+
+def _fixed_mode_map(root: Path, commit: str, paths) -> dict[str, str]:
+    modes = {}
+    for rel in paths:
+        row = _fixed_git(root, "ls-tree", commit, "--", rel)
+        assert row, (commit, rel)
+        modes[rel] = row.split(" ", 1)[0]
+    return modes
+
+
+def _assert_no_root_bytes(raws, needles) -> None:
+    for raw in raws:
+        assert all(needle not in raw for needle in needles)
+
+
+def _make_fixed_ccbench(root: Path) -> str:
+    sub = root / "external" / "ccbench"
+    _init_fixed_repo(sub)
+    (sub / ".gitattributes").write_text("* -text\n", encoding="utf-8")
+    (sub / "fixture.txt").write_text("deterministic ccbench fixture\n", encoding="utf-8")
+    commit = _fixed_commit_all(sub, "ccbench fixture", "fixture")
+    assert _fixed_git(sub, "rev-parse", "--show-object-format") == "sha1"
+    return commit
+
+
+def _emitter_protocol(*, ccbench_pin: str, master_seed: str = "fixture-seed") -> dict:
+    contract = EC.lookup("linux-baremetal")
+    return FLOOR.validate_protocol({
+        "schema": FC.PROTOCOL_SCHEMA,
+        "formula": FC.FORMULA_ID,
+        "env_tag": contract.env_tag,
+        "contract_sha256": contract.contract_sha256,
+        "ccbench_pin": ccbench_pin,
+        "freeze": {"path": M.V1_FREEZE_PATH, "sha256": M.V1_FREEZE_SHA256},
+        "stock_configuration": "stock_common",
+        "n_sessions": 8,
+        "reps": 5,
+        "master_seed": master_seed,
+        "schedule_algorithm": FC.SCHEDULE_ALGORITHM,
+        "extime_s": 3,
+        "wired_min_rel_floor": 0.9,
+        "retry_slots_per_cell": 2,
+        "session_cv_max": "0.10",
+        "cell_cv_max": "0.15",
+        "scale_adequacy_rel_tolerance": "0.10",
+        "allowed_excluded_reasons": list(FC._APPROVED_REASONS),
+    })
+
+
+def _fixed_host(*, now_fn):
+    return {
+        "hostname": "fixture-host", "boot_id": "fixture-boot",
+        "job_id": None, "cpuset": "/fixture", "utc": now_fn().isoformat(),
+    }
+
+
+def _fixed_process():
+    return {"pid": 4242, "starttime": 31337, "execution_uuid": "a" * 32}
+
+
+def _fixed_receipt(contract, *, now_fn):
+    return {
+        "schema": FLOOR.execution_guard.RECEIPT_SCHEMA,
+        "env_tag": contract.env_tag,
+        "contract_sha256": contract.contract_sha256,
+        "attestation": {
+            "hostname": "fixture-receipt-host", "boot_id": "fixture-receipt-boot",
+            "cpuset": "/fixture", "captured_utc": now_fn().isoformat(),
+        },
+    }
+
+
+@contextlib.contextmanager
+def _fixed_prepare(cell, ccbench_pin):
+    entry = cell["variant"]
+    configuration = cell["configuration"]
+    flags = dict(entry.get("flags", {}))
+    genome = Genome("silo", flags)
+    entry_token = _sha(M._canonical_bytes(entry))[:16]
+    token = f"fixture::{configuration}::{entry_token}"
+    yield PreparedCell(
+        genome=genome, src_token=token,
+        ccbench_dir=_fixed_prepare.ccbench_dir,
+        cache_root=_fixed_prepare.cache_root,
+    )
+
+
+def _make_emitter_build():
+    def build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
+              jobs=16, ccbench_dir="", src_token=None):
+        assert trace is False
+        cell_dir = Path(cache_root) / "fixture" / hashlib.sha256(
+            src_token.encode("utf-8")).hexdigest()[:16]
+        cell_dir.mkdir(parents=True, exist_ok=True)
+        binary = cell_dir / "ycsb_fixture.exe"
+        payload = f"fixture-binary::{genome.canonical()}::{src_token}".encode("utf-8")
+        binary.write_bytes(payload)
+        sha = _sha(payload)
+        return SimpleNamespace(
+            genome=genome, trace=False, binary=str(binary), bin_sha256=sha,
+            bin_hash=sha[:16], build_dir=str(cell_dir), cached=False,
+            configure_argv=["cmake", "-S", str(ccbench_dir), "-B", str(cell_dir)],
+            build_argv=["cmake", "--build", str(cell_dir)],
+            cache_root=str(cache_root), ccbench_root=str(ccbench_dir),
+        )
+    return build
+
+
+class _EmitterScalePoint:
+    def __init__(self, run_cmd: str):
+        self.throughputs = [1000.0] * 5
+        self.notes = []
+        self.run_cmd = run_cmd
+
+
+def _emitter_measure(binary, records, threads, workload):
+    contract = EC.lookup("linux-baremetal")
+    argv = list(FC.build_portable_run_cmd(
+        binary="output/portable/bench", workload=workload, records=records,
+        threads=threads, extime_s=3, clocks_per_us=contract.clocks_per_us,
+        numactl=contract.numactl,
+    ))
+    argv[argv.index("--") + 1] = str(binary)
+    return _EmitterScalePoint(shlex.join(argv))
+
+
+def _json_bytes(document) -> bytes:
+    return (json.dumps(document, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
+
+
+_JSON_STRING_TOKEN = re.compile(rb'"(?:\\.|[^"\\])*"')
+
+
+def _json_bytes_with_escaped_strings(document) -> bytes:
+    """同じ JSON content の全 string token を Unicode escape で表す scan-neutral bytes。"""
+    raw = _json_bytes(document)
+
+    def escape_token(match: re.Match[bytes]) -> bytes:
+        value = json.loads(match.group().decode("utf-8"))
+        units = []
+        for char in value:
+            codepoint = ord(char)
+            if codepoint <= 0xFFFF:
+                units.append(f"\\u{codepoint:04x}")
+            else:
+                codepoint -= 0x10000
+                units.append(f"\\u{0xD800 + (codepoint >> 10):04x}")
+                units.append(f"\\u{0xDC00 + (codepoint & 0x3FF):04x}")
+        return ('"' + "".join(units) + '"').encode("ascii")
+
+    escaped = _JSON_STRING_TOKEN.sub(escape_token, raw)
+    assert json.loads(escaped) == document
+    return escaped
+
+
+def _jsonl_bytes(records) -> bytes:
+    return b"".join((json.dumps(
+        record, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    ) + "\n").encode() for record in records)
+
+
+def _prepare_emitter_base(root: Path) -> tuple[dict, str, str, bytes, bytes]:
+    _init_fixed_repo(root)
+    ccbench_pin = _make_fixed_ccbench(root)
+    v1_raw = _REAL_V1.read_bytes()
+    v1 = json.loads(v1_raw)
+    _write(root, M.V1_FREEZE_PATH, v1_raw)
+    known_path = v1["known_axes_freeze"]["path"]
+    _write(root, known_path, _real_bytes(known_path))
+    design_path = v1["design_source"]["path"]
+    generator_path = v1["generator"]["path"]
+    design_raw = b"# deterministic design source fixture\n"
+    generator_raw = b"# deterministic generator fixture\n"
+    _write(root, design_path, design_raw)
+    _write(root, generator_path, generator_raw)
+    _write(root, "positive_control.txt", _RR50_PARAMS)
+    _write(root, ".gitattributes", b"* -text\n")
+    _write(root, "README.md", b"production-emitter fixture\n")
+    base = _fixed_commit_all(root, "emitter fixture base", "fixture")
+    assert _fixed_git(root, "status", "--porcelain") == ""
+    return v1, ccbench_pin, base, design_raw, generator_raw
+
+
+def _emitter_artifact_paths(run_dir: Path, root: Path) -> dict[str, str]:
+    rel_dir = run_dir.relative_to(root).as_posix()
+    return {
+        "protocol": f"{rel_dir}/protocol.json",
+        "cert": f"{rel_dir}/launch_certificate.json",
+        "journal": f"{rel_dir}/journal.jsonl",
+        "manifest": f"{rel_dir}/manifest.json",
+        "result": f"{rel_dir}/result.json",
+        "result_md": f"{rel_dir}/result.md",
+        "closure80": f"{rel_dir}/closure80.txt",
+        "closure20": f"{rel_dir}/closure20.txt",
+    }
+
+
+def build_production_emitter_g1(
+        tmp_path: Path, *, mutate=None, mutate_g1=None, extra_closure=None,
+        journal_manifest_before_g=False, executable_role=None,
+        cert_at_generation=False, generation_strings_escaped=False, now=_FIXED_NOW):
+    """決定的観測下の production-emitter bytes で base→C→G→A を構築する。
+
+    build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
+    public official 拒否は変更せず、テスト専用 ``_run_campaign_core`` だけを使う。
+    emitter on-disk bytes と再直列化 bytes の byte-identity を検証するのは cert のみ。
+    manifest/journal/result は parse 後の content 級 fixture として扱う。
+    """
+    root = tmp_path / "repo"
+    v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(root)
+    protocol = _emitter_protocol(ccbench_pin=ccbench_pin)
+    verified = VerifiedFreeze(document=v1, sha256=M.V1_FREEZE_SHA256)
+    out_root = root / "output"
+    _fixed_prepare.ccbench_dir = str(root / "external" / "ccbench")
+    _fixed_prepare.cache_root = str(out_root / "prepared-cache")
+    checkpoint = {}
+
+    def commit_certificate(cert_path: Path):
+        rel = cert_path.relative_to(root).as_posix()
+        if cert_at_generation:
+            checkpoint["C"] = base
+            return
+        checkpoint["C"] = _commit_exact(
+            root, [rel], subject="launch certificate", agent="fixture",
+        )
+
+    outcome = FLOOR._run_campaign_core(
+        protocol, verified, out_root=out_root, mode="official",
+        measure_fn=_emitter_measure, probe_fn=lambda: (1, "", ""),
+        sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+        prepare_fn=_fixed_prepare, now_fn=lambda: now,
+        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+        execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
+        repo_root=root, after_certificate_issued_fn=commit_certificate,
+    )
+    run_dir = Path(outcome["run_dir"])
+    paths = _emitter_artifact_paths(run_dir, root)
+    state = {
+        "protocol": protocol,
+        "cert": json.loads((root / paths["cert"]).read_bytes()),
+        "manifest": json.loads((root / paths["manifest"]).read_bytes()),
+        "journal": [json.loads(line) for line in
+                    (root / paths["journal"]).read_text(encoding="utf-8").splitlines()],
+        "result": json.loads((root / paths["result"]).read_bytes()),
+        "paths": paths,
+    }
+    original_cert = _json_bytes(state["cert"])
+    assert original_cert == (root / paths["cert"]).read_bytes()
+    if mutate is not None:
+        mutate(state)
+        if state.get("repair_manifest"):
+            manifest_sha = _sha(_json_bytes(state["manifest"]))
+            campaign = next(r for r in state["journal"] if r["event"] == "campaign-start")
+            campaign["manifest_sha256"] = manifest_sha
+            state["result"]["manifest_sha256"] = manifest_sha
+            wall = next(r for r in state["result"]["wall_ledger"]
+                        if r["event"] == "campaign-start")
+            wall["manifest_sha256"] = manifest_sha
+
+    protocol_raw = _json_bytes(state["protocol"])
+    cert_raw = _json_bytes(state["cert"])
+    manifest_raw = _json_bytes(state["manifest"])
+    journal_raw = _jsonl_bytes(state["journal"])
+    result_record_raw = _json_bytes(state["result"])
+    result_raw = result_record_raw + state.get("post_hash_result_suffix", b"")
+    _write(root, paths["protocol"], protocol_raw)
+    _write(root, paths["manifest"], manifest_raw)
+    _write(root, paths["journal"], journal_raw)
+    _write(root, paths["result"], result_raw)
+    _write(root, paths["closure80"], _RR80_PARAMS)
+    _write(root, paths["closure20"], _RR20_PARAMS)
+    cert_changed = cert_raw != original_cert
+    if cert_changed:
+        _write(root, paths["cert"], cert_raw)
+    if executable_role is not None:
+        target = root / paths[executable_role]
+        target.chmod(target.stat().st_mode | 0o111)
+
+    result_md_raw = (root / paths["result_md"]).read_bytes()
+    result_md_hits = HF.holdout_conjunction_hits({
+        paths["result_md"]: result_md_raw.decode("utf-8"),
+    })
+    result_md_hit = any(result_md_hits[name] for name in result_md_hits)
+
+    closure_records = [
+        {"canonical_path": paths["closure80"], "sha256": _sha(_RR80_PARAMS)},
+        {"canonical_path": paths["closure20"], "sha256": _sha(_RR20_PARAMS)},
+    ]
+    extra_paths = []
+    for rel, raw in (extra_closure or []):
+        _write(root, rel, raw)
+        closure_records.append({"canonical_path": rel, "sha256": _sha(raw)})
+        extra_paths.append(rel)
+    if result_md_hit:
+        closure_records.append({
+            "canonical_path": paths["result_md"], "sha256": _sha(result_md_raw),
+        })
+
+    if journal_manifest_before_g:
+        j_paths = [paths["journal"], paths["manifest"]]
+        j_commit = _commit_exact(
+            root, j_paths, subject="sealed journal and manifest", agent="fixture",
+        )
+        frozen = j_commit
+    else:
+        j_commit = None
+        frozen = checkpoint["C"]
+
+    g1 = dict(v1)
+    g1.update({
+        "schema_version": "8b-holdout-freeze/v2",
+        "frozen_at_head": frozen,
+        "generation_number": 1,
+        "supersedes_sha256": M.V1_FREEZE_SHA256,
+        "design_source": {"path": v1["design_source"]["path"], "sha256": _sha(design_raw)},
+        "generator": {"path": v1["generator"]["path"], "sha256": _sha(generator_raw)},
+        "env_tag": protocol["env_tag"],
+        "floor_protocol": {"path": paths["protocol"], "sha256": _sha(protocol_raw)},
+        "floor_source": {"path": paths["result"], "sha256": _sha(result_record_raw)},
+        "measurement_closure": closure_records,
+    })
+    if mutate_g1 is not None:
+        mutate_g1(g1)
+    gen_path = _gen_rel(1)
+    gen_raw = (_json_bytes_with_escaped_strings(g1)
+               if generation_strings_escaped else _json_bytes(g1))
+    _write(root, gen_path, gen_raw)
+
+    g_paths = [paths["protocol"], paths["result"], paths["closure80"],
+               paths["closure20"], gen_path, *extra_paths]
+    if not journal_manifest_before_g:
+        g_paths.extend([paths["journal"], paths["manifest"]])
+    if result_md_hit:
+        g_paths.append(paths["result_md"])
+    if cert_at_generation or cert_changed:
+        g_paths.append(paths["cert"])
+    g_commit = _commit_exact(
+        root, g_paths, subject="generation artifacts", agent="fixture",
+    )
+    gen_sha = _sha(gen_raw)
+    approval_raw = _approval_raw(gen_sha)
+    approval_sha = _sha(approval_raw)
+    approval_path = f"{M.APPROVAL_DIR}/{gen_sha}.json"
+    _write(root, approval_path, approval_raw)
+    pointer_raw = _pointer_raw(1, gen_path, gen_sha, None, approval_sha)
+    pointer_sha = _sha(pointer_raw)
+    pointer_path = f"{M.ACTIVE_DIR}/{pointer_sha}.json"
+    _write(root, pointer_path, pointer_raw)
+    a_paths = [approval_path, pointer_path]
+    a_commit = _commit_exact(
+        root, a_paths, subject="approve generation", agent="none",
+    )
+    topology = {
+        **state, "base": base, "C": checkpoint["C"], "J": j_commit,
+        "G": g_commit, "A": a_commit, "H": a_commit,
+        "generation_path": gen_path, "generation_raw": gen_raw,
+        "generation_sha": gen_sha, "approval_path": approval_path,
+        "approval_raw": approval_raw, "pointer_path": pointer_path,
+        "pointer_raw": pointer_raw, "result_md_hit": result_md_hit,
+        "g_paths": tuple(sorted(g_paths)), "a_paths": tuple(sorted(a_paths)),
+    }
+    bound_mode_paths = [paths[key] for key in
+                        ("protocol", "cert", "journal", "manifest", "result",
+                         "closure80", "closure20")]
+    if result_md_hit:
+        bound_mode_paths.append(paths["result_md"])
+    topology["mode_map"] = _fixed_mode_map(root, a_commit, [
+        *bound_mode_paths, gen_path, approval_path, pointer_path,
+    ])
+    needles = (str(tmp_path).encode(), str(root).encode(), str(out_root).encode())
+    _assert_no_root_bytes(
+        (cert_raw, manifest_raw, journal_raw, result_raw, gen_raw,
+         approval_raw, pointer_raw),
+        needles,
+    )
+    return root, gen_sha, gen_path, g1, topology
+
+
+def load_emitter_g1(tmp_path: Path, **kwargs):
+    root, _sha256, _rel, _g1, topology = build_production_emitter_g1(tmp_path, **kwargs)
+    return root, M.load_ratified_freeze(root), topology
+
+
+def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
+                                 topology: dict):
+    """同じ履歴へ新 C2 + 新 run artifacts を持つ otherwise-valid g2 を積む。"""
+    scan_root = root.parent / "g2 clean scan Ω"
+    _scan_v1, scan_pin, _scan_base, _design, _generator = _prepare_emitter_base(scan_root)
+    assert scan_pin == _fixed_git(root / "external" / "ccbench", "rev-parse", "HEAD")
+    protocol = _emitter_protocol(ccbench_pin=scan_pin, master_seed="fixture-seed-g2")
+    v1 = json.loads(_REAL_V1.read_bytes())
+    verified = VerifiedFreeze(document=v1, sha256=M.V1_FREEZE_SHA256)
+    out_root = root / "output"
+    _fixed_prepare.ccbench_dir = str(root / "external" / "ccbench")
+    _fixed_prepare.cache_root = str(out_root / "prepared-cache-g2")
+    checkpoint = {}
+
+    def commit_certificate(cert_path: Path):
+        rel = cert_path.relative_to(root).as_posix()
+        checkpoint["C2"] = _commit_exact(
+            root, [rel], subject="generation two launch certificate", agent="fixture",
+        )
+
+    now = _FIXED_NOW + dt.timedelta(minutes=2)
+    outcome = FLOOR._run_campaign_core(
+        protocol, verified, out_root=out_root, mode="official",
+        measure_fn=_emitter_measure, probe_fn=lambda: (1, "", ""),
+        sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+        prepare_fn=_fixed_prepare, now_fn=lambda: now,
+        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+        execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
+        repo_root=scan_root, after_certificate_issued_fn=commit_certificate,
+    )
+    run_dir = Path(outcome["run_dir"])
+    paths = _emitter_artifact_paths(run_dir, root)
+    protocol_raw = _json_bytes(protocol)
+    _write(root, paths["protocol"], protocol_raw)
+    _write(root, paths["closure80"], _RR80_PARAMS)
+    _write(root, paths["closure20"], _RR20_PARAMS)
+    result_raw = (root / paths["result"]).read_bytes()
+    result_md_raw = (root / paths["result_md"]).read_bytes()
+    result_md_hits = HF.holdout_conjunction_hits({
+        paths["result_md"]: result_md_raw.decode("utf-8"),
+    })
+    result_md_hit = any(result_md_hits[name] for name in result_md_hits)
+    g2 = dict(g1)
+    g2.update({
+        "frozen_at_head": checkpoint["C2"],
+        "generation_number": 2,
+        "supersedes_sha256": g1_sha,
+        "floor_protocol": {"path": paths["protocol"], "sha256": _sha(protocol_raw)},
+        "floor_source": {"path": paths["result"], "sha256": _sha(result_raw)},
+        "measurement_closure": [
+            {"canonical_path": paths["closure80"], "sha256": _sha(_RR80_PARAMS)},
+            {"canonical_path": paths["closure20"], "sha256": _sha(_RR20_PARAMS)},
+        ],
+    })
+    if result_md_hit:
+        g2["measurement_closure"].append({
+            "canonical_path": paths["result_md"], "sha256": _sha(result_md_raw),
+        })
+    gen_path = _gen_rel(2)
+    gen_raw = _json_bytes(g2)
+    _write(root, gen_path, gen_raw)
+    g_paths = [
+        paths["protocol"], paths["result"], paths["journal"], paths["manifest"],
+        paths["closure80"], paths["closure20"], gen_path,
+    ]
+    if result_md_hit:
+        g_paths.append(paths["result_md"])
+    # active g2 の full scan を g1 run artifact の残存 hit に依存させない。g1 の governance
+    # record は履歴に残し、現 worktree の旧 run artifact だけを G2 で退役させる。
+    old_run_paths = set(topology["paths"].values()) & set(topology["g_paths"])
+    retired_candidates = sorted(old_run_paths)
+    for path in retired_candidates:
+        (root / path).unlink()
+    retired_g1_paths = tuple(filter(None, _fixed_git(
+        root, "diff", "--name-only", "--diff-filter=D", "--", *retired_candidates,
+    ).splitlines()))
+    g_paths.extend(retired_g1_paths)
+    g2_commit = _commit_exact(
+        root, g_paths, subject="generation two artifacts", agent="fixture",
+    )
+    g2_sha = _sha(gen_raw)
+    approval_raw = _approval_raw(g2_sha)
+    approval_sha = _sha(approval_raw)
+    approval_path = f"{M.APPROVAL_DIR}/{g2_sha}.json"
+    _write(root, approval_path, approval_raw)
+    parent_pointer_sha = _sha(topology["pointer_raw"])
+    pointer_raw = _pointer_raw(2, gen_path, g2_sha, parent_pointer_sha, approval_sha)
+    pointer_sha = _sha(pointer_raw)
+    pointer_path = f"{M.ACTIVE_DIR}/{pointer_sha}.json"
+    _write(root, pointer_path, pointer_raw)
+    a2 = _commit_exact(
+        root, [approval_path, pointer_path],
+        subject="approve generation two", agent="none",
+    )
+    return M.load_ratified_freeze(root), {
+        "C2": checkpoint["C2"], "G2": g2_commit, "A2": a2,
+        "paths": paths, "g2": g2, "g2_sha": g2_sha,
+        "retired_g1_paths": retired_g1_paths,
+    }
+
+
 def _real_bytes(rel: str) -> bytes:
     return (Path(_ROOT) / rel).read_bytes()
 
@@ -274,7 +838,7 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
 def test_happy_path_resolves_and_loads(tmp_path):
     if not _REAL_V1.is_file():
         pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
-    root, gen_sha, gen_rel, _g1 = build_valid_semantic_g1(tmp_path)
+    root, gen_sha, gen_rel, _g1, topology = build_production_emitter_g1(tmp_path)
     res = M.resolve_active_generation(root)
     assert res.generation_number == 1
     assert res.generation_sha256 == gen_sha
@@ -287,6 +851,94 @@ def test_happy_path_resolves_and_loads(tmp_path):
     assert freeze.sha256 == gen_sha
     assert freeze.activation_head == res.activation_head
     assert freeze.document["schema_version"] == "8b-holdout-freeze/v2"
+    assert topology["result"]["eligible_for_refreeze"] is True
+
+
+def _emitter_observation(tmp_path: Path) -> dict:
+    root, freeze, topology = load_emitter_g1(tmp_path)
+    validated = M.launch_validate(freeze, root)
+    artifact_names = ("cert", "manifest", "journal", "result")
+    artifact_sha = {
+        name: _sha((root / topology["paths"][name]).read_bytes())
+        for name in artifact_names
+    }
+    blob_sha256 = {
+        "generation": _sha(topology["generation_raw"]),
+        "approval": _sha(topology["approval_raw"]),
+        "pointer": _sha(topology["pointer_raw"]),
+    }
+    blob_oids = {
+        name: _fixed_git(root, "rev-parse", f"{topology['A']}:{topology[path_key]}")
+        for name, path_key in (
+            ("generation", "generation_path"),
+            ("approval", "approval_path"),
+            ("pointer", "pointer_path"),
+        )
+    }
+    commits = {name: topology[name] for name in ("base", "C", "G", "A")}
+    trees = {name: _fixed_git(root, "rev-parse", f"{commit}^{{tree}}")
+             for name, commit in commits.items()}
+    return {
+        "artifact_sha": artifact_sha,
+        "blob_sha256": blob_sha256,
+        "blob_oids": blob_oids,
+        "commits": commits,
+        "trees": trees,
+        "mode_map": topology["mode_map"],
+        "result_md_hit": topology["result_md_hit"],
+        "g_paths": topology["g_paths"],
+        "validated_sha": validated.floor_artifact.sha256,
+    }
+
+
+def test_production_emitter_staged_builder_is_git_deterministic_across_roots(tmp_path):
+    """長さ・空白・非 ASCII の異なる root でも bytes/blob/tree/commit/mode が一致する。"""
+    observations = [
+        _emitter_observation(tmp_path / "短"),
+        _emitter_observation(tmp_path / "a much longer root with spaces Ω"),
+    ]
+    assert observations[0] == observations[1]
+    assert observations[0]["result_md_hit"] is False
+    assert observations[0]["validated_sha"] == observations[0]["artifact_sha"]["result"]
+    g_paths = observations[0]["g_paths"]
+    assert not any("s8b-build-cache" in path or "/binaries/" in path for path in g_paths)
+    assert not any(path.endswith("result.md") for path in g_paths)
+
+
+def test_commit_exact_rejects_an_extra_pre_staged_path(tmp_path):
+    root = tmp_path / "exact-negative"
+    _init_fixed_repo(root)
+    _write(root, "README.md", b"base\n")
+    _fixed_commit_all(root, "base", "fixture")
+    _write(root, "expected.txt", b"expected\n")
+    _write(root, "extra.txt", b"extra\n")
+    _fixed_git(root, "add", "extra.txt")
+    with pytest.raises(AssertionError):
+        _commit_exact(
+            root, ["expected.txt"],
+            subject="must not commit", agent="fixture",
+        )
+
+
+def test_root_bytes_scan_rejects_a_leaked_root() -> None:
+    needle = b"/tmp/root with spaces"
+    with pytest.raises(AssertionError):
+        _assert_no_root_bytes([b"prefix:" + needle], [needle])
+
+
+def test_journal_manifest_may_precede_generation_and_executable_mode_is_accepted(tmp_path):
+    """C→J(journal+manifest)→G→A と 100755 は裁定どおり受理される。"""
+    root, freeze, topology = load_emitter_g1(
+        tmp_path, journal_manifest_before_g=True, executable_role="manifest",
+    )
+    assert topology["C"] != topology["J"] != topology["G"] != topology["A"]
+    j_paths = tuple(filter(None, _fixed_git(
+        root, "diff-tree", "--no-commit-id", "--name-only", "-r", topology["J"],
+    ).splitlines()))
+    assert j_paths == tuple(sorted((topology["paths"]["journal"],
+                                    topology["paths"]["manifest"])))
+    assert topology["mode_map"][topology["paths"]["manifest"]] == "100755"
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
 
 
 def test_legacy_freeze_binds_v1_by_constant(tmp_path):

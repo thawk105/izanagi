@@ -55,9 +55,12 @@ floor protocol パッケージの裁定は 2026-07-18 に完結 (F1〜F7 + B-1/B
 strict v2 verifier wave (F6a 承認束縛 machinery + F7 検証意味論 + manifest per-pair + oracle 結線 +
 protocol builder) も実装完了 — **発効なし・実凍結なし** (worklog 2026-07-18 (7) が正本。
 逐語・裁定表・追認待ち = `output/insights/2026-07-18_s8b-strict-v2-wave-consultations.md`)。
-残 = ユーザー追認 + master_seed/env_tag 受領 → protocol JSON 実凍結 + 予測封印 → floor 実測
-(launch certificate 結線が blocking 前提) → v2 候補生成 + 承認 → oracle 実走 (進捗と残課題の
-正本 = worklog 末尾エントリ)、
+C2-2 検証器本丸 wave も実装完了 (2026-07-18、launch certificate lineage の検証鎖 §8.4 + production
+決定化 seam + emitter-bytes fixture + oracle 消費統一) — **発効なし・実凍結なし**。逐語・裁定・実装
+結果 = `output/insights/2026-07-18_s8b-c22-consultations.md` §10、worklog 末尾が正本。
+残 = ユーザー追認 (§10.2 末尾リスト) + master_seed/env_tag 受領 → protocol JSON 実凍結 + 予測封印 →
+floor 実測 (launch certificate 結線が blocking 前提、本 wave で解消) → v2 候補生成 + 承認 → oracle
+実走 (進捗と残課題の正本 = worklog 末尾エントリ)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
 `output/insights/2026-07-16_s8b-freeze-v2-design-material.md`)、(c) ~~8b 二波監査の記録の凍結 — 原文全文 (scratchpad 退避分) は消失を確認 (failures F20) したため、

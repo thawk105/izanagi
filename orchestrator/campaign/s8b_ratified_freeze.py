@@ -24,10 +24,13 @@ fail-closed 原則: あらゆる構造・履歴・provenance の不整合は「a
 """
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import json
 import os
 import re
+import shlex
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,8 +38,16 @@ from types import MappingProxyType
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from campaign import env_contract as _env_contract
+from campaign import execution_guard as _execution_guard
+from campaign import s8b_floor_contract as _floor_contract
+from campaign import s8b_floor_stats as _floor_stats
 from campaign import s8b_holdout_freeze as _hf
 from campaign.s8b_holdout_freeze import TOP_LEVEL_KEYS as V1_TOP_LEVEL_KEYS
+from campaign.s8b_launch_cert import (
+    LaunchCertError as _LaunchCertError,
+    parse_official_run_path as _parse_official_run_path,
+    validate_launch_certificate as _validate_launch_certificate,
+)
 
 # ---------------------------------------------------------------------------
 # 定数 (実 repo には作らない相対 path 規約 + v1 trust root)
@@ -116,6 +127,127 @@ _TRANSITION_GN_TO_GN1 = frozenset({
 })
 
 
+# §8.4 equality chain の accessor 単位 adjacency list。圧縮表記へ戻すと個別辺が
+# 落ちるため、検証実装と edge mutation test の共通索引として省略なしに保持する。
+EQUALITY_CHAIN_ADJACENCY: Tuple[Tuple[str, str], ...] = (
+    ("P", "result.protocol_sha256"),
+    ("result.protocol_sha256", "journal.campaign-start.protocol_sha256"),
+    ("journal.campaign-start.protocol_sha256", "cert.protocol_sha256"),
+    ("cert.protocol_sha256", "manifest.protocol_sha256"),
+    ("P[:8]", "official-path.proto8"),
+    ("V1_FREEZE_SHA256", "result.freeze_sha256"),
+    ("result.freeze_sha256", "journal.campaign-start.freeze_sha256"),
+    ("journal.campaign-start.freeze_sha256", "cert.v1_freeze_sha256"),
+    ("cert.v1_freeze_sha256", "protocol.freeze.sha256"),
+    ("protocol.freeze.sha256", "manifest.freeze_sha256"),
+    ("manifest.freeze_sha256", "manifest.freeze.sha256"),
+    ("V1_FREEZE_PATH", "protocol.freeze.path"),
+    ("protocol.freeze.path", "manifest.freeze.path"),
+    ("sha256(manifest.raw)", "result.manifest_sha256"),
+    ("result.manifest_sha256", "journal.campaign-start.manifest_sha256"),
+    ("sha256(cert.raw)", "journal.launch-start.launch_certificate_sha256"),
+    ("journal.launch-start.launch_certificate_sha256",
+     "journal.campaign-start.launch_certificate_sha256"),
+    ("journal.campaign-start.launch_certificate_sha256",
+     "result.wall_ledger[campaign-start].launch_certificate_sha256"),
+    ("journal[event=session]", "result.sessions"),
+    ("result.binaries", "manifest.binaries"),
+    ("generation.env_tag", "official-path.env_tag"),
+    ("official-path.env_tag", "protocol.env_tag"),
+    ("protocol.env_tag", "result.env_tag"),
+    ("result.env_tag", "manifest.env_tag"),
+    ("manifest.env_tag", "journal.campaign-start.execution_receipt.env_tag"),
+    ("protocol.contract_sha256",
+     "journal.campaign-start.execution_receipt.contract_sha256"),
+    ("official-path.run_id.ts", "cert.started_utc(second)"),
+    ("cert.started_utc", "journal.launch-start.utc"),
+    ("sha256(result.raw)", "generation.floor_source.sha256"),
+)
+
+_PORTABLE_BINARY_KEYS = frozenset({
+    "cell_id", "holdout_id", "configuration_id", "binary", "binary_sha256",
+    "bin_hash_short", "binding", "configure_argv", "build_argv", "cached",
+    "store_path",
+})
+_BINDING_KEYS = frozenset({
+    "genome_canonical", "src_token", "variant_id", "entry_sha256", "binding_sha256",
+})
+_MANIFEST_KEYS = frozenset({
+    "schema_version", "protocol_sha256", "freeze", "freeze_sha256", "env_tag",
+    "ccbench_pin", "stock_configuration", "schedule_algorithm", "master_seed",
+    "n_sessions", "reps", "extime_s", "session_cv_max", "cell_cv_max", "cells",
+    "binaries", "schedule",
+})
+_MANIFEST_CELL_KEYS = frozenset({
+    "cell_id", "holdout_id", "configuration_id", "records", "threads", "workload",
+})
+_SCHEDULE_KEYS = frozenset({"seq", "round", "cell_id"})
+_RESULT_KEYS = frozenset({
+    "schema", "formula", "mode", "eligible_for_refreeze", "env_tag", "ccbench_pin",
+    "protocol_sha256", "freeze_sha256", "manifest_sha256", "stock_configuration",
+    "wired_min_rel_floor", "reps", "n_sessions", "scale_adequacy_rel_tolerance",
+    "holdouts", "configurations", "binaries", "config", "sessions", "cells", "floors",
+    "wall_ledger", "excluded", "attempts",
+})
+_RESULT_CONFIG_KEYS = frozenset({
+    "formula", "n_sessions", "reps", "stock_configuration", "wired_min_rel_floor",
+    "session_cv_max", "cell_cv_max",
+})
+_RESULT_CELL_KEYS = frozenset({
+    "holdout_id", "configuration_id", "n_valid", "medians", "m", "s", "valid", "cv",
+    "notes",
+})
+_RESULT_FLOOR_KEYS = frozenset({"pairs", "scalar_alt", "scale_ref", "diagnostics"})
+_EXCLUDED_KEYS = frozenset({
+    "seq", "cell_id", "kind", "retry", "round", "excluded_reason", "session_cv",
+})
+_ATTEMPT_KEYS = frozenset({
+    "seq", "cell_id", "kind", "round", "retry_ordinal", "valid", "excluded_reason",
+    "session_cv", "session_median", "duration_s",
+})
+
+_JOURNAL_KEYS = {
+    "launch-start": frozenset({
+        "event", "schema", "launch_certificate_sha256", "utc",
+    }),
+    "campaign-start": frozenset({
+        "event", "schema", "protocol_sha256", "freeze_sha256", "manifest_sha256",
+        "launch_certificate_sha256", "hostname", "boot_id", "job_id", "cpuset", "utc",
+        "pid", "starttime", "execution_uuid", "execution_receipt",
+    }),
+    "resume-start": frozenset({
+        "event", "hostname", "boot_id", "job_id", "cpuset", "utc", "pid", "starttime",
+        "execution_uuid",
+    }),
+    "round-start": frozenset({"event", "round", "utc"}),
+    "round-complete": frozenset({"event", "round", "utc"}),
+    "session-start": frozenset({
+        "event", "seq", "kind", "cell_id", "round", "retry_ordinal", "attempt_id",
+        "trigger", "started_iso",
+    }),
+    "session": frozenset({
+        "event", "kind", "seq", "round", "retry_ordinal", "attempt_id", "trigger",
+        "cell_id", "holdout_id", "configuration_id", "records", "threads", "workload",
+        "throughputs", "reps_expected", "exec_failures", "excluded_reason", "retry",
+        "session_median", "valid", "session_cv", "duration_s", "run_cmd", "notes",
+        "probe_before", "probe_after", "binary_sha256_at_measure",
+    }),
+    "terminal-completed": frozenset({"event", "status"}),
+    "terminal-aborted": frozenset({"event", "status", "reason"}),
+    "terminal-artifact-invalid": frozenset({"event", "status", "problems"}),
+}
+_PROBE_KEYS = frozenset({"rc", "stdout", "stderr", "competing"})
+_RECEIPT_KEYS = frozenset({"schema", "env_tag", "contract_sha256", "attestation"})
+_ATTESTATION_KEYS = frozenset({"hostname", "boot_id", "cpuset", "captured_utc"})
+
+_RUN_BASENAMES = {
+    "cert": "launch_certificate.json",
+    "journal": "journal.jsonl",
+    "manifest": "manifest.json",
+    "result": "result.json",
+}
+
+
 # ---------------------------------------------------------------------------
 # 例外 (単一型 + 構造化 reason code)
 # ---------------------------------------------------------------------------
@@ -123,8 +255,9 @@ _TRANSITION_GN_TO_GN1 = frozenset({
 class RatifiedFreezeError(RuntimeError):
     """承認束縛検証の fail-closed 拒否。``reason`` に構造化 reason code を持つ。"""
 
-    def __init__(self, reason: str, detail: str = "") -> None:
+    def __init__(self, reason: str, detail: str = "", *, cause: Optional[str] = None) -> None:
         self.reason = reason
+        self.cause = cause
         super().__init__(f"[{reason}] {detail}" if detail else reason)
 
 
@@ -602,6 +735,19 @@ class LegacyFreeze:
 
 
 @dataclass(frozen=True)
+class VerifiedFloorArtifact:
+    """同一 G blob から一度だけ構築する floor artifact の atomic invariant。
+
+    ``raw_bytes`` を捕捉して直ちに sha256 を照合し、``document`` はその同じ bytes の
+    strict parse 結果を deep-freeze する。worktree や別 read の document と混成しない。
+    """
+    path: str
+    raw_bytes: bytes
+    sha256: str
+    document: Mapping
+
+
+@dataclass(frozen=True)
 class LaunchValidatedFreeze:
     """実走前検証 (full scan 済み) を通した freeze (C2-10 の型分離)。
 
@@ -613,6 +759,8 @@ class LaunchValidatedFreeze:
     activation_head: str
     search_digest: str
     symlink_gitlink_inventory: Tuple[str, ...]
+    floor_artifact: VerifiedFloorArtifact
+    binaries_by_cell: Mapping
 
 
 @dataclass(frozen=True)
@@ -705,6 +853,18 @@ def _source_record_path_sha(document: Mapping, field: str) -> Tuple[str, str]:
     return path, sha
 
 
+def _assert_canonical_relative_path(path: object, *, reason: str, label: str) -> str:
+    """root-relative raw POSIX path を正規化せず exact 文法で検査する。"""
+    if not isinstance(path, str) or not path:
+        raise RatifiedFreezeError(reason, f"{label} が空でない文字列でない")
+    components = path.split("/")
+    if (path.startswith("/") or path.endswith("/") or "//" in path or "\\" in path
+            or "." in components or ".." in components
+            or any(ord(char) < 32 or ord(char) == 127 for char in path)):
+        raise RatifiedFreezeError(reason, f"{label} の raw POSIX path が非正規: {path!r}")
+    return path
+
+
 def _closure_entries(document: Mapping) -> List[Tuple[str, str, str]]:
     """floor_protocol/floor_source/measurement_closure を (kind, path, sha256) 列に正規化する。
 
@@ -726,9 +886,10 @@ def _closure_entries(document: Mapping) -> List[Tuple[str, str, str]]:
         path, sha = item["canonical_path"], item["sha256"]
         if not isinstance(path, str) or not path or not isinstance(sha, str) or not _SHA_RE.match(sha):
             raise RatifiedFreezeError("closure-schema", f"measurement_closure[{index}] の値が不正")
-        # canonical: root-relative・正規化済み・一意 (重複 path は fail-closed)。
-        if path.startswith("/") or ".." in path.split("/") or path != path.strip():
-            raise RatifiedFreezeError("closure-path", f"canonical_path が非正規: {path!r}")
+        # canonical: root-relative・raw POSIX 正規形・一意 (重複 path は fail-closed)。
+        _assert_canonical_relative_path(
+            path, reason="closure-path", label=f"measurement_closure[{index}].canonical_path",
+        )
         if path in seen:
             raise RatifiedFreezeError("closure-duplicate", f"measurement_closure に重複 path: {path}")
         seen.add(path)
@@ -1237,52 +1398,1381 @@ def _assert_search_operational(report: Mapping) -> None:
         )
 
 
+def _plain_json(value):
+    if isinstance(value, Mapping):
+        return {key: _plain_json(child) for key, child in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain_json(child) for child in value]
+    return value
+
+
+def _exact_keys(value, expected: frozenset, *, reason: str, label: str) -> Mapping:
+    if not isinstance(value, Mapping) or set(value) != set(expected):
+        actual = set(value) if isinstance(value, Mapping) else set()
+        raise RatifiedFreezeError(
+            reason, f"{label} exact keys 不一致: {sorted(actual ^ set(expected), key=repr)}",
+            cause="schema-keys",
+        )
+    return value
+
+
+def _assert_equality_adjacency(nodes: Mapping[str, object]) -> None:
+    """``EQUALITY_CHAIN_ADJACENCY`` の全辺を accessor 名で一律検査する。"""
+    expected_nodes = {node for edge in EQUALITY_CHAIN_ADJACENCY for node in edge}
+    if set(nodes) != expected_nodes:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch",
+            f"equality node 集合が不一致: {sorted(set(nodes) ^ expected_nodes)}",
+            cause="equality-node-set",
+        )
+    for left, right in EQUALITY_CHAIN_ADJACENCY:
+        if nodes[left] != nodes[right] or type(nodes[left]) is not type(nodes[right]):
+            raise RatifiedFreezeError(
+                "binding-chain-mismatch", f"equality edge が不一致: {left} != {right}",
+                cause=f"equality-edge:{left}->{right}",
+            )
+
+
+def _strict_jsonl(raw: bytes) -> Tuple[dict, ...]:
+    try:
+        text = raw.decode("utf-8", "strict")
+    except UnicodeError as exc:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "journal が UTF-8 でない", cause="bad-utf8",
+        ) from exc
+    if not text or not text.endswith("\n"):
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "journal が空または末尾改行なし", cause="truncated-jsonl",
+        )
+    records: List[dict] = []
+    for index, line in enumerate(text.splitlines()):
+        if not line:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"journal[{index}] が空行", cause="blank-jsonl-line",
+            )
+        records.append(_strict_load(line.encode("utf-8"), what=f"journal[{index}]"))
+    return tuple(records)
+
+
+def _require_utc(value: object, *, reason: str, label: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise RatifiedFreezeError(reason, f"{label} が空でない UTC str でない", cause="utc-type")
+    try:
+        parsed = dt.datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
+    except ValueError as exc:
+        raise RatifiedFreezeError(reason, f"{label} が ISO-8601 でない", cause="utc-format") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != dt.timedelta(0):
+        raise RatifiedFreezeError(reason, f"{label} が UTC でない", cause="utc-zone")
+    return value
+
+
+def _validate_host_process_fields(record: Mapping, *, label: str) -> None:
+    if not isinstance(record["hostname"], str) or not record["hostname"]:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", f"{label}.hostname が空でない str でない",
+            cause="host-provenance",
+        )
+    for key in ("boot_id", "job_id", "cpuset"):
+        if record[key] is not None and (not isinstance(record[key], str) or not record[key]):
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"{label}.{key} が null/str でない",
+                cause="host-provenance",
+            )
+    _require_utc(record["utc"], reason="journal-state-invalid", label=f"{label}.utc")
+    if type(record["pid"]) is not int or record["pid"] <= 0:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", f"{label}.pid が正整数でない", cause="process-identity",
+        )
+    if (record["starttime"] is not None
+            and (type(record["starttime"]) is not int or record["starttime"] < 0)):
+        raise RatifiedFreezeError(
+            "journal-state-invalid", f"{label}.starttime が null/非負整数でない",
+            cause="process-identity",
+        )
+    if (not isinstance(record["execution_uuid"], str)
+            or re.fullmatch(r"[0-9a-f]{32}", record["execution_uuid"]) is None):
+        raise RatifiedFreezeError(
+            "journal-state-invalid", f"{label}.execution_uuid が 32 lower-hex でない",
+            cause="process-identity",
+        )
+
+
+def _tree_mode_oid(commit: str, path: str, root: Path) -> Tuple[str, str]:
+    out = _git(["ls-tree", "-z", commit, "--", path], root)
+    chunks = [chunk for chunk in out.split(b"\0") if chunk]
+    if len(chunks) != 1:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"{commit}:{path} が一意な tree entry でない",
+            cause="artifact-missing",
+        )
+    try:
+        meta, sep, actual_path = chunks[0].decode("utf-8", "strict").partition("\t")
+    except UnicodeError as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"{commit}:{path} の path が UTF-8 でない",
+            cause="bad-path-utf8",
+        ) from exc
+    mode, typ, oid = meta.split(" ")
+    if not sep or actual_path != path or typ != "blob" or mode not in ("100644", "100755"):
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"{commit}:{path} が regular blob でない (mode={mode})",
+            cause="artifact-mode",
+        )
+    return mode, oid
+
+
+def _read_worktree_nofollow(root: Path, path: str) -> bytes:
+    """root から component ごとに lstat し、leaf は O_NOFOLLOW で一度だけ読む。"""
+    _assert_canonical_relative_path(path, reason="floor-artifact-invalid", label=path)
+    try:
+        root_st = root.lstat()
+    except OSError as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"repo root を lstat できない: {root}",
+            cause="worktree-lstat",
+        ) from exc
+    if stat.S_ISLNK(root_st.st_mode) or not stat.S_ISDIR(root_st.st_mode):
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"repo root が実 directory でない: {root}",
+            cause="worktree-symlink",
+        )
+    current = root
+    components = path.split("/")
+    for index, component in enumerate(components):
+        current = current / component
+        try:
+            st = current.lstat()
+        except OSError as exc:
+            raise RatifiedFreezeError(
+                "floor-artifact-invalid", f"worktree artifact を lstat できない: {path}",
+                cause="worktree-lstat",
+            ) from exc
+        if stat.S_ISLNK(st.st_mode):
+            raise RatifiedFreezeError(
+                "floor-artifact-invalid", f"worktree path component が symlink: {current}",
+                cause="worktree-symlink",
+            )
+        if index < len(components) - 1 and not stat.S_ISDIR(st.st_mode):
+            raise RatifiedFreezeError(
+                "floor-artifact-invalid", f"worktree parent が directory でない: {current}",
+                cause="worktree-component",
+            )
+        if index == len(components) - 1 and not stat.S_ISREG(st.st_mode):
+            raise RatifiedFreezeError(
+                "floor-artifact-invalid", f"worktree leaf が regular file でない: {current}",
+                cause="worktree-mode",
+            )
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(current, flags)
+        try:
+            chunks: List[bytes] = []
+            while True:
+                chunk = os.read(fd, 1024 * 1024)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            return b"".join(chunks)
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"worktree artifact を no-follow read できない: {path}",
+            cause="worktree-read",
+        ) from exc
+
+
+def _capture_g_h_worktree(
+        *, generation_commit: str, validation_head: str, path: str, root: Path,
+) -> Tuple[bytes, str]:
+    """G/H/worktree の bytes+regular mode 三点一致を捕捉する。"""
+    g_mode, _ = _tree_mode_oid(generation_commit, path, root)
+    h_mode, _ = _tree_mode_oid(validation_head, path, root)
+    g_raw = _blob_bytes(generation_commit, path, root)
+    h_raw = _blob_bytes(validation_head, path, root)
+    wt_raw = _read_worktree_nofollow(root, path)
+    try:
+        wt_stat = (root / path).lstat()
+    except OSError as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"worktree mode を再取得できない: {path}",
+            cause="worktree-lstat",
+        ) from exc
+    wt_mode = "100755" if wt_stat.st_mode & 0o111 else "100644"
+    if g_mode != h_mode or h_mode != wt_mode or g_raw != h_raw or h_raw != wt_raw:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"G/H/worktree bytes+mode が一致しない: {path}",
+            cause="g-h-worktree-mismatch",
+        )
+    return g_raw, g_mode
+
+
+def _validate_portable_binaries(
+        binaries: object, *, cells_by_id: Mapping[str, Mapping], ratified: RatifiedFreeze,
+) -> Dict[str, dict]:
+    if not isinstance(binaries, Mapping) or set(binaries) != set(cells_by_id):
+        raise RatifiedFreezeError(
+            "manifest-invalid", "binaries の cell 集合が expected cells と不一致",
+            cause="binaries-cell-set",
+        )
+    out: Dict[str, dict] = {}
+    for cell_id, raw in binaries.items():
+        rec = _exact_keys(
+            raw, _PORTABLE_BINARY_KEYS, reason="manifest-invalid", label=f"binaries[{cell_id}]",
+        )
+        cell = cells_by_id[cell_id]
+        for key in ("cell_id", "holdout_id", "configuration_id"):
+            if rec[key] != cell[key]:
+                raise RatifiedFreezeError(
+                    "manifest-invalid", f"binaries[{cell_id}].{key} が cell と不一致",
+                    cause="binary-cell-binding",
+                )
+        sha = rec["binary_sha256"]
+        if (not isinstance(sha, str) or _SHA_RE.fullmatch(sha) is None
+                or rec["bin_hash_short"] != sha[:16]):
+            raise RatifiedFreezeError(
+                "manifest-invalid", f"binaries[{cell_id}] の hash identity が不正",
+                cause="binary-hash",
+            )
+        for key in ("binary", "store_path"):
+            _assert_canonical_relative_path(
+                rec[key], reason="manifest-invalid", label=f"binaries[{cell_id}].{key}",
+            )
+        for key in ("configure_argv", "build_argv"):
+            argv = rec[key]
+            if (not isinstance(argv, list) or not argv
+                    or any(not isinstance(token, str) or not token for token in argv)):
+                raise RatifiedFreezeError(
+                    "manifest-invalid", f"binaries[{cell_id}].{key} が non-empty list[str] でない",
+                    cause="binary-argv",
+                )
+        if type(rec["cached"]) is not bool:
+            raise RatifiedFreezeError(
+                "manifest-invalid", f"binaries[{cell_id}].cached が bool でない",
+                cause="binary-cached-type",
+            )
+        binding = _exact_keys(
+            rec["binding"], _BINDING_KEYS, reason="manifest-invalid",
+            label=f"binaries[{cell_id}].binding",
+        )
+        for key in ("genome_canonical", "src_token", "variant_id"):
+            if not isinstance(binding[key], str) or not binding[key]:
+                raise RatifiedFreezeError(
+                    "manifest-invalid", f"binaries[{cell_id}].binding.{key} が空でない str でない",
+                    cause="binding-type",
+                )
+        for key in ("entry_sha256", "binding_sha256"):
+            if not isinstance(binding[key], str) or _SHA_RE.fullmatch(binding[key]) is None:
+                raise RatifiedFreezeError(
+                    "manifest-invalid", f"binaries[{cell_id}].binding.{key} が SHA-256 でない",
+                    cause="binding-type",
+                )
+        preimage = {key: binding[key] for key in sorted(_BINDING_KEYS - {"binding_sha256"})}
+        if binding["binding_sha256"] != _sha256_hex(_canonical_bytes(preimage)):
+            raise RatifiedFreezeError(
+                "manifest-invalid", f"binaries[{cell_id}].binding_sha256 が再計算不一致",
+                cause="binding-sha",
+            )
+        try:
+            entry = ratified.document["holdouts"][cell["holdout_id"]]["variant_binding"]["entries"][
+                cell["configuration_id"]]
+        except (KeyError, TypeError) as exc:
+            raise RatifiedFreezeError(
+                "manifest-invalid", f"binaries[{cell_id}] の freeze binding が無い",
+                cause="binding-entry",
+            ) from exc
+        if binding["entry_sha256"] != _sha256_hex(_canonical_bytes(_plain_json(entry))):
+            raise RatifiedFreezeError(
+                "manifest-invalid", f"binaries[{cell_id}].entry_sha256 が freeze entry と不一致",
+                cause="binding-entry-sha",
+            )
+        out[cell_id] = _plain_json(rec)
+    return out
+
+
+def _validate_manifest(
+        document: dict, *, protocol: Mapping, protocol_sha256: str,
+        ratified: RatifiedFreeze,
+) -> Tuple[list[dict], list[dict], Dict[str, dict]]:
+    _exact_keys(document, _MANIFEST_KEYS, reason="manifest-invalid", label="manifest")
+    if document["schema_version"] != _floor_contract.MANIFEST_SCHEMA:
+        raise RatifiedFreezeError(
+            "manifest-invalid", "manifest.schema_version が v2 でない", cause="manifest-schema",
+        )
+    expected_mirrors = {
+        "protocol_sha256": protocol_sha256,
+        "freeze": _plain_json(protocol["freeze"]),
+        "freeze_sha256": V1_FREEZE_SHA256,
+        "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "stock_configuration": protocol["stock_configuration"],
+        "schedule_algorithm": protocol["schedule_algorithm"],
+        "master_seed": protocol["master_seed"],
+        "n_sessions": protocol["n_sessions"],
+        "reps": protocol["reps"],
+        "extime_s": protocol["extime_s"],
+        "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"],
+    }
+    for key, expected in expected_mirrors.items():
+        if document[key] != expected or type(document[key]) is not type(expected):
+            raise RatifiedFreezeError(
+                "binding-chain-mismatch", f"manifest.{key} が protocol/anchor と不一致",
+                cause=f"manifest-{key}",
+            )
+    try:
+        expected_cells = _floor_contract.enumerate_cells(
+            ratified.document, stock_configuration=protocol["stock_configuration"],
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise RatifiedFreezeError(
+            "manifest-invalid", f"freeze から cells を導出できない: {exc}",
+            cause="expected-cells",
+        ) from exc
+    cells = document["cells"]
+    if not isinstance(cells, list):
+        raise RatifiedFreezeError("manifest-invalid", "manifest.cells が list でない", cause="cells-type")
+    for index, cell in enumerate(cells):
+        _exact_keys(
+            cell, _MANIFEST_CELL_KEYS, reason="manifest-invalid", label=f"manifest.cells[{index}]",
+        )
+    if cells != expected_cells:
+        raise RatifiedFreezeError(
+            "manifest-invalid", "manifest.cells が freeze からの独立導出と不一致",
+            cause="cells-derivation",
+        )
+    cells_by_id = {cell["cell_id"]: cell for cell in expected_cells}
+    if len(cells_by_id) != len(expected_cells):
+        raise RatifiedFreezeError("manifest-invalid", "cell_id が重複", cause="cell-id-duplicate")
+    try:
+        expected_schedule = _floor_contract.build_schedule(
+            cells=expected_cells, master_seed=protocol["master_seed"],
+            n_sessions=protocol["n_sessions"],
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise RatifiedFreezeError(
+            "manifest-invalid", f"schedule を独立導出できない: {exc}", cause="schedule-derive",
+        ) from exc
+    schedule = document["schedule"]
+    if not isinstance(schedule, list):
+        raise RatifiedFreezeError(
+            "manifest-invalid", "manifest.schedule が list でない", cause="schedule-type",
+        )
+    for index, row in enumerate(schedule):
+        _exact_keys(row, _SCHEDULE_KEYS, reason="manifest-invalid", label=f"schedule[{index}]")
+    if schedule != expected_schedule:
+        raise RatifiedFreezeError(
+            "manifest-invalid", "manifest.schedule が独立再導出と不一致",
+            cause="schedule-derivation",
+        )
+    binaries = _validate_portable_binaries(
+        document["binaries"], cells_by_id=cells_by_id, ratified=ratified,
+    )
+    return expected_cells, expected_schedule, binaries
+
+
+def _journal_schema_key(record: Mapping) -> str:
+    event = record.get("event")
+    if event == "terminal":
+        return f"terminal-{record.get('status')}"
+    return event if isinstance(event, str) else ""
+
+
+def _validate_journal(
+        records: Tuple[dict, ...], *, protocol: Mapping, schedule: list[dict],
+        cells: list[dict], binaries: Mapping[str, Mapping], cert_sha256: str,
+        manifest_sha256: str,
+) -> dict:
+    if not records:
+        raise RatifiedFreezeError("journal-state-invalid", "journal が空", cause="journal-empty")
+    for index, record in enumerate(records):
+        key = _journal_schema_key(record)
+        expected = _JOURNAL_KEYS.get(key)
+        if expected is None:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"journal[{index}] event/status が未知: {key!r}",
+                cause="journal-event",
+            )
+        _exact_keys(
+            record, expected, reason="journal-state-invalid", label=f"journal[{index}]/{key}",
+        )
+        if key == "launch-start":
+            _require_utc(
+                record["utc"], reason="journal-state-invalid", label="launch-start.utc",
+            )
+        if key == "campaign-start":
+            _validate_host_process_fields(record, label="campaign-start")
+            receipt = _exact_keys(
+                record["execution_receipt"], _RECEIPT_KEYS,
+                reason="journal-state-invalid", label="campaign-start.execution_receipt",
+            )
+            _exact_keys(
+                receipt["attestation"], _ATTESTATION_KEYS,
+                reason="journal-state-invalid", label="execution_receipt.attestation",
+            )
+            if receipt["schema"] != _execution_guard.RECEIPT_SCHEMA:
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", "execution_receipt.schema が不正",
+                    cause="receipt-schema",
+                )
+            if (not isinstance(receipt["env_tag"], str)
+                    or _SHA_RE.fullmatch(receipt["contract_sha256"]) is None):
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", "execution_receipt env/hash 型が不正",
+                    cause="receipt-type",
+                )
+            attestation = receipt["attestation"]
+            if not isinstance(attestation["hostname"], str) or not attestation["hostname"]:
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", "receipt attestation.hostname が不正",
+                    cause="receipt-attestation",
+                )
+            for nullable in ("boot_id", "cpuset"):
+                if (attestation[nullable] is not None
+                        and (not isinstance(attestation[nullable], str) or not attestation[nullable])):
+                    raise RatifiedFreezeError(
+                        "journal-state-invalid", f"receipt attestation.{nullable} が不正",
+                        cause="receipt-attestation",
+                    )
+            _require_utc(
+                attestation["captured_utc"], reason="journal-state-invalid",
+                label="receipt.attestation.captured_utc",
+            )
+        if key == "resume-start":
+            _validate_host_process_fields(record, label=f"resume-start[{index}]")
+        if key in {"round-start", "round-complete"} and type(record["round"]) is not int:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"journal[{index}].round が int でない",
+                cause="round-type",
+            )
+        if key in {"round-start", "round-complete"}:
+            _require_utc(
+                record["utc"], reason="journal-state-invalid", label=f"journal[{index}].utc",
+            )
+        if key == "session":
+            for probe_key in ("probe_before", "probe_after"):
+                probe = record[probe_key]
+                if probe is not None:
+                    _exact_keys(
+                        probe, _PROBE_KEYS, reason="journal-state-invalid",
+                        label=f"journal[{index}].{probe_key}",
+                    )
+
+    launch = [(i, r) for i, r in enumerate(records) if r["event"] == "launch-start"]
+    starts = [(i, r) for i, r in enumerate(records) if r["event"] == "campaign-start"]
+    terminals = [(i, r) for i, r in enumerate(records) if r["event"] == "terminal"]
+    if len(launch) != 1 or launch[0][0] != 0:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "launch-start が一意な先頭 record でない",
+            cause="launch-start-order",
+        )
+    if len(starts) != 1:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "campaign-start が一意でない", cause="campaign-start-count",
+        )
+    if len(terminals) != 1 or terminals[0][0] != len(records) - 1 \
+            or terminals[0][1].get("status") != "completed":
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "terminal が一意・最終・completed でない",
+            cause="terminal-state",
+        )
+    campaign = starts[0][1]
+    mirrors = {
+        "protocol_sha256": _floor_contract.canonical_protocol_sha256(protocol),
+        "freeze_sha256": V1_FREEZE_SHA256,
+        "manifest_sha256": manifest_sha256,
+        "launch_certificate_sha256": cert_sha256,
+    }
+    for key, expected in mirrors.items():
+        if campaign[key] != expected:
+            raise RatifiedFreezeError(
+                "binding-chain-mismatch", f"campaign-start.{key} が不一致",
+                cause=f"campaign-start-{key}",
+            )
+    if launch[0][1]["schema"] != _floor_contract.JOURNAL_SCHEMA \
+            or campaign["schema"] != _floor_contract.JOURNAL_SCHEMA:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "journal schema が v2 でない", cause="journal-schema",
+        )
+
+    cell_by_id = {cell["cell_id"]: cell for cell in cells}
+    planned_by_seq = {row["seq"]: row for row in schedule}
+    expected_rounds = set(range(1, protocol["n_sessions"] + 1))
+    round_starts = {
+        round_no: [(i, r) for i, r in enumerate(records)
+                   if r["event"] == "round-start" and r["round"] == round_no]
+        for round_no in expected_rounds
+    }
+    round_completes = {
+        round_no: [(i, r) for i, r in enumerate(records)
+                   if r["event"] == "round-complete" and r["round"] == round_no]
+        for round_no in expected_rounds
+    }
+    seen_round_values = {
+        r["round"] for r in records if r["event"] in {"round-start", "round-complete"}
+    }
+    if seen_round_values != expected_rounds:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "round event 集合が protocol.n_sessions と不一致",
+            cause="round-set",
+        )
+    for round_no in sorted(expected_rounds):
+        if len(round_starts[round_no]) != 1 or len(round_completes[round_no]) != 1 \
+                or round_starts[round_no][0][0] >= round_completes[round_no][0][0]:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"round {round_no} の start/complete が一意順序でない",
+                cause="round-state",
+            )
+        if round_no > 1 and round_completes[round_no - 1][0][0] >= round_starts[round_no][0][0]:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"round {round_no - 1} と {round_no} が forward-only でない",
+                cause="round-order",
+            )
+    session_starts: Dict[int, Tuple[int, dict]] = {}
+    attempt_ids: set = set()
+    retry_slots: Dict[str, set] = {}
+    for index, record in enumerate(records):
+        if record["event"] != "session-start":
+            continue
+        seq = record["seq"]
+        if isinstance(seq, bool) or not isinstance(seq, int) or seq < 0 or seq in session_starts:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session-start seq が不正/重複: {seq!r}",
+                cause="session-seq",
+            )
+        if not isinstance(record["attempt_id"], str) or record["attempt_id"] in attempt_ids:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", "attempt_id が不正/重複", cause="attempt-id",
+            )
+        attempt_ids.add(record["attempt_id"])
+        _require_utc(
+            record["started_iso"], reason="journal-state-invalid",
+            label=f"session-start[{seq}].started_iso",
+        )
+        if not isinstance(record["cell_id"], str) or not record["cell_id"]:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session-start[{seq}].cell_id が不正",
+                cause="session-cell-id",
+            )
+        session_starts[seq] = (index, record)
+        if type(record["round"]) is not int or record["round"] not in expected_rounds:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session-start round が不正: {record['round']!r}",
+                cause="session-round",
+            )
+        kind = record["kind"]
+        if kind == "planned":
+            row = planned_by_seq.get(seq)
+            if (row is None or record["cell_id"] != row["cell_id"]
+                    or record["round"] != row["round"] or record["retry_ordinal"] is not None
+                    or record["trigger"] is not None
+                    or record["attempt_id"] != f"{record['cell_id']}::seq{seq}"):
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", f"planned session-start が schedule[{seq}] と不一致",
+                    cause="planned-schedule",
+                )
+        elif kind == "retry":
+            ordinal = record["retry_ordinal"]
+            if (seq in planned_by_seq or isinstance(ordinal, bool) or not isinstance(ordinal, int)
+                    or seq < len(schedule)
+                    or not 1 <= ordinal <= protocol["retry_slots_per_cell"]
+                    or record["attempt_id"] != f"{record['cell_id']}::retry{ordinal}"):
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", "retry authorization の seq/ordinal が不正",
+                    cause="retry-authorization",
+                )
+            used = retry_slots.setdefault(record["cell_id"], set())
+            if ordinal in used:
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", "(cell_id,retry_ordinal) が重複",
+                    cause="retry-slot-duplicate",
+                )
+            used.add(ordinal)
+        else:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session-start.kind が未知: {kind!r}",
+                cause="session-kind",
+            )
+        start_index = round_starts[record["round"]][0][0]
+        complete_index = round_completes[record["round"]][0][0]
+        if not start_index < index < complete_index:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session-start[{seq}] が round 境界外",
+                cause="session-round-order",
+            )
+    if set(planned_by_seq) != {seq for seq, (_, rec) in session_starts.items()
+                               if rec["kind"] == "planned"}:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "session-start と schedule row が 1:1 でない",
+            cause="schedule-start-bijection",
+        )
+
+    sessions: List[dict] = []
+    seen_session_seq: set = set()
+    receipts: Dict[str, str] = {}
+    for index, record in enumerate(records):
+        if record["event"] != "session":
+            continue
+        seq = record["seq"]
+        start = session_starts.get(seq)
+        if start is None or start[0] >= index or seq in seen_session_seq:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session[{seq}] の start 対応/順序が不正",
+                cause="session-start-pairing",
+            )
+        seen_session_seq.add(seq)
+        start_rec = start[1]
+        for key in ("kind", "seq", "round", "retry_ordinal", "attempt_id", "trigger", "cell_id"):
+            if record[key] != start_rec[key] or type(record[key]) is not type(start_rec[key]):
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", f"session[{seq}].{key} が start と不一致",
+                    cause="session-start-field",
+                )
+        cell = cell_by_id.get(record["cell_id"])
+        if cell is None:
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session[{seq}] の cell が expected に無い",
+                cause="session-cell",
+            )
+        for key in ("holdout_id", "configuration_id", "records", "threads", "workload"):
+            if record[key] != cell[key] or type(record[key]) is not type(cell[key]):
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", f"session[{seq}].{key} が manifest cell と不一致",
+                    cause="session-workload-binding",
+                )
+        if record["valid"] is True and not isinstance(record.get("run_cmd"), str):
+            raise RatifiedFreezeError(
+                "journal-state-invalid",
+                f"valid session[{seq}].run_cmd が文字列でない",
+                cause="run-cmd-required",
+            )
+        if not _run_cmd_matches_portable_session(
+                record, protocol=protocol, binaries=binaries):
+            raise RatifiedFreezeError(
+                "journal-state-invalid",
+                f"session[{seq}].run_cmd が portable canonical argv と不一致",
+                cause="run-cmd-projection",
+            )
+        if record["retry"] is not (record["kind"] == "retry"):
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"session[{seq}].retry の bool identity が不正",
+                cause="session-retry-flag",
+            )
+        measured = record["binary_sha256_at_measure"]
+        if measured != binaries[record["cell_id"]]["binary_sha256"]:
+            raise RatifiedFreezeError(
+                "binding-chain-mismatch", f"session[{seq}] の binary receipt が manifest と不一致",
+                cause="binary-receipt",
+            )
+        previous = receipts.get(record["cell_id"])
+        if previous is not None and previous != measured:
+            raise RatifiedFreezeError(
+                "binding-chain-mismatch", f"cell {record['cell_id']} の receipt が session 間で不一致",
+                cause="binary-receipt-drift",
+            )
+        receipts[record["cell_id"]] = measured
+        sessions.append(record)
+    sessions_by_attempt = {record["attempt_id"]: record for record in sessions}
+    for _seq, (_index, record) in session_starts.items():
+        if record["kind"] != "retry":
+            continue
+        trigger = sessions_by_attempt.get(record["trigger"])
+        if (trigger is None or trigger["kind"] != "planned" or trigger["valid"] is not False
+                or trigger["cell_id"] != record["cell_id"]
+                or trigger["round"] != record["round"]):
+            raise RatifiedFreezeError(
+                "journal-state-invalid", "retry trigger が同一 cell/round の invalid planned でない",
+                cause="retry-trigger",
+            )
+    for cell_id, ordinals in retry_slots.items():
+        if sorted(ordinals) != list(range(1, len(ordinals) + 1)):
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"retry ordinal が 1 起点連続でない: {cell_id}",
+                cause="retry-ordinal-gap",
+            )
+    return {
+        "launch": launch[0][1], "campaign": campaign, "terminal": terminals[0][1],
+        "sessions": sessions, "records": records, "receipts": receipts,
+    }
+
+
+def _validate_result(
+        document: dict, *, protocol: Mapping, cells: list[dict], binaries: Mapping[str, Mapping],
+        journal: Mapping,
+) -> None:
+    _exact_keys(document, _RESULT_KEYS, reason="floor-artifact-invalid", label="result")
+    if document["schema"] != _floor_contract.RESULT_SCHEMA:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "result.schema が v2 でない", cause="result-schema",
+        )
+    _exact_keys(
+        document["config"], _RESULT_CONFIG_KEYS, reason="floor-artifact-invalid",
+        label="result.config",
+    )
+    for cell_id, cell_stats in document["cells"].items() \
+            if isinstance(document["cells"], Mapping) else ():
+        _exact_keys(
+            cell_stats, _RESULT_CELL_KEYS, reason="floor-artifact-invalid",
+            label=f"result.cells[{cell_id}]",
+        )
+    if not isinstance(document["floors"], Mapping):
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "result.floors が object でない", cause="floors-type",
+        )
+    for holdout, floor in document["floors"].items():
+        _exact_keys(
+            floor, _RESULT_FLOOR_KEYS, reason="floor-artifact-invalid",
+            label=f"result.floors[{holdout}]",
+        )
+    if not isinstance(document["excluded"], list) or not isinstance(document["attempts"], list):
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "result excluded/attempts が list でない",
+            cause="projection-type",
+        )
+    for index, row in enumerate(document["excluded"]):
+        _exact_keys(
+            row, _EXCLUDED_KEYS, reason="floor-artifact-invalid",
+            label=f"result.excluded[{index}]",
+        )
+    for index, row in enumerate(document["attempts"]):
+        _exact_keys(
+            row, _ATTEMPT_KEYS, reason="floor-artifact-invalid",
+            label=f"result.attempts[{index}]",
+        )
+    result_sessions = document["sessions"] if isinstance(document["sessions"], list) else ()
+    for index, record in enumerate(result_sessions):
+        if (not isinstance(record, Mapping)
+                or not _run_cmd_matches_portable_session(
+                    record, protocol=protocol, binaries=binaries)):
+            raise RatifiedFreezeError(
+                "floor-artifact-invalid",
+                f"result.sessions[{index}].run_cmd が portable canonical argv と不一致",
+                cause="run-cmd-projection",
+            )
+
+    expected_protocol = _floor_contract.project_protocol_for_floor_artifact(protocol)
+    # cells は直前に ratified freeze から独立導出・manifest と exact 照合済み。
+    # result/manifest の自己申告集合から expected を作らない。
+    expected_protocol["expected_cells"] = _floor_contract.expected_cells_from_cells(cells)
+    problems = _floor_stats.verify_floor_artifact(
+        document, expected_protocol, expected_binaries=journal["receipts"],
+    )
+    if problems:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"verify_floor_artifact: {problems[0]}",
+            cause="floor-projection",
+        )
+
+    sessions = journal["sessions"]
+    excluded = [
+        {
+            "seq": r["seq"], "cell_id": r["cell_id"], "kind": r["kind"],
+            "retry": r["retry"], "round": r["round"],
+            "excluded_reason": r["excluded_reason"], "session_cv": r["session_cv"],
+        }
+        for r in sessions if not r["valid"]
+    ]
+    attempts = [
+        {
+            "seq": r["seq"], "cell_id": r["cell_id"], "kind": r["kind"],
+            "round": r["round"], "retry_ordinal": r["retry_ordinal"],
+            "valid": r["valid"], "excluded_reason": r["excluded_reason"],
+            "session_cv": r["session_cv"], "session_median": r["session_median"],
+            "duration_s": r["duration_s"],
+        }
+        for r in sessions
+    ]
+    wall_ledger = [
+        _plain_json(record) for record in journal["records"]
+        if record["event"] in {"campaign-start", "round-start", "round-complete"}
+    ]
+    mirrors = {
+        "formula": protocol["formula"], "mode": "official", "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "protocol_sha256": _floor_contract.canonical_protocol_sha256(protocol),
+        "freeze_sha256": V1_FREEZE_SHA256,
+        "stock_configuration": protocol["stock_configuration"],
+        "wired_min_rel_floor": protocol["wired_min_rel_floor"], "reps": protocol["reps"],
+        "n_sessions": protocol["n_sessions"],
+        "scale_adequacy_rel_tolerance": protocol["scale_adequacy_rel_tolerance"],
+        "holdouts": sorted({cell["holdout_id"] for cell in cells}),
+        "configurations": sorted({cell["configuration_id"] for cell in cells}),
+        "binaries": _plain_json(binaries), "sessions": _plain_json(sessions),
+        "wall_ledger": wall_ledger, "excluded": excluded, "attempts": attempts,
+    }
+    for key, expected in mirrors.items():
+        if document[key] != expected or type(document[key]) is not type(expected):
+            raise RatifiedFreezeError(
+                "binding-chain-mismatch", f"result.{key} が journal/protocol 再導出と不一致",
+                cause=f"result-{key}",
+            )
+    if document["eligible_for_refreeze"] is not True:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "eligible_for_refreeze が bool True でない",
+            cause="eligible-flag",
+        )
+
+
+def _json_pointer_token(token: object) -> str:
+    return str(token).replace("~", "~0").replace("/", "~1")
+
+
+def _walk_json(value, pointer: str = ""):
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            child_pointer = pointer + "/" + _json_pointer_token(key)
+            yield child_pointer, key, child
+            yield from _walk_json(child, child_pointer)
+    elif isinstance(value, (list, tuple)):
+        for index, child in enumerate(value):
+            child_pointer = pointer + f"/{index}"
+            yield child_pointer, index, child
+            yield from _walk_json(child, child_pointer)
+
+
+def _run_cmd_matches_portable_session(
+        record: Mapping, *, protocol: Mapping,
+        binaries: Mapping[str, Mapping]) -> bool:
+    """session.run_cmd が検証済み構造値からの leaf 再構築と完全一致するか返す。"""
+    run_cmd = record.get("run_cmd")
+    if run_cmd is None:
+        return True
+    if not isinstance(run_cmd, str):
+        return False
+    cell_id = record.get("cell_id")
+    binary_record = binaries.get(cell_id) if isinstance(cell_id, str) else None
+    if not isinstance(binary_record, Mapping):
+        return False
+    try:
+        tokens = shlex.split(run_cmd)
+        contract = _env_contract.lookup(protocol["env_tag"])
+        expected = _floor_contract.build_portable_run_cmd(
+            binary=binary_record["binary"], workload=record["workload"],
+            records=record["records"], threads=record["threads"],
+            extime_s=protocol["extime_s"], clocks_per_us=contract.clocks_per_us,
+            numactl=contract.numactl,
+        )
+    except (ValueError, KeyError, TypeError, _floor_contract.FloorContractError,
+            _env_contract.EnvContractError):
+        return False
+    return tuple(tokens) == expected
+
+
+def _validate_axis_occurrences(
+        *, artifacts: Sequence[Tuple[str, object, Optional[bytes]]], protocol: Mapping,
+        binaries: Mapping[str, Mapping], closure_paths: frozenset = frozenset(),
+) -> Dict[str, list]:
+    """軸 occurrence を path/record-index/pointer/holdout/axis/encoding 単位で検査する。"""
+    axis_keys = {
+        "rratio": _hf.RRATIO_KEY, "skew": _hf.SKEW_KEY, "rmw": _hf.RMW_KEY,
+    }
+    per_holdout_paths = {name: {axis: set() for axis in axis_keys} for name in _hf.HOLDOUTS}
+    raw_texts: Dict[str, str] = {}
+    for path, document, raw in artifacts:
+        if raw is not None:
+            try:
+                raw_texts[path] = raw.decode("utf-8", "strict")
+            except UnicodeError as exc:
+                raise RatifiedFreezeError(
+                    "floor-artifact-invalid", f"scan union artifact が UTF-8 でない: {path}",
+                    cause="union-nontext",
+                ) from exc
+        if path in closure_paths:
+            text = raw_texts.get(path, "")
+            for holdout, frozen in _hf.HOLDOUTS.items():
+                workload = frozen["ycsb"]
+                expressions = _hf._expressions(
+                    workload[_hf.RRATIO_KEY], workload[_hf.SKEW_KEY], workload[_hf.RMW_KEY],
+                )
+                for axis, expression in expressions.items():
+                    if re.search(expression, text):
+                        per_holdout_paths[holdout][axis].add(path)
+        records = document if isinstance(document, tuple) else (document,)
+        for record_index, record in enumerate(records):
+            if not isinstance(record, Mapping):
+                continue
+            for pointer, key, value in _walk_json(record):
+                for holdout, frozen in _hf.HOLDOUTS.items():
+                    workload = frozen["ycsb"]
+                    expressions = _hf._expressions(
+                        workload[_hf.RRATIO_KEY], workload[_hf.SKEW_KEY], workload[_hf.RMW_KEY],
+                    )
+                    for axis, axis_key in axis_keys.items():
+                        occurred = False
+                        encoding = ""
+                        if key == axis_key and value == workload[axis_key]:
+                            occurred, encoding = True, "json-field"
+                        if isinstance(value, str):
+                            expression = expressions[axis]
+                            if re.search(expression, value):
+                                occurred, encoding = True, "string"
+                        if not occurred:
+                            continue
+                        per_holdout_paths[holdout][axis].add(path)
+                        allowed = path in closure_paths
+                        if encoding == "json-field":
+                            if path.endswith("manifest.json") and re.fullmatch(
+                                    r"/cells/[0-9]+/workload/[^/]+", pointer):
+                                allowed = True
+                            elif path.endswith("result.json") and re.fullmatch(
+                                    r"/sessions/[0-9]+/workload/[^/]+", pointer):
+                                allowed = True
+                            elif path.endswith("journal.jsonl") and record.get("event") == "session" \
+                                    and re.fullmatch(r"/workload/[^/]+", pointer):
+                                allowed = True
+                        cmd_record = None
+                        if (path.endswith("journal.jsonl")
+                                and record.get("event") == "session"
+                                and pointer == "/run_cmd"):
+                            cmd_record = record
+                        elif path.endswith("result.json"):
+                            match = re.fullmatch(r"/sessions/([0-9]+)/run_cmd", pointer)
+                            sessions = record.get("sessions")
+                            if match and isinstance(sessions, list):
+                                index = int(match.group(1))
+                                if index < len(sessions) and isinstance(sessions[index], Mapping):
+                                    cmd_record = sessions[index]
+                        if (cmd_record is not None
+                                and _run_cmd_matches_portable_session(
+                                    cmd_record, protocol=protocol, binaries=binaries)):
+                            allowed = True
+                        if not allowed:
+                            raise RatifiedFreezeError(
+                                "floor-artifact-invalid",
+                                "unauthorized axis occurrence: "
+                                f"({path}, record={record_index}, pointer={pointer}, "
+                                f"holdout={holdout}, axis={axis}, encoding={encoding})",
+                                cause="axis-occurrence",
+                            )
+    raw_hits = _hf.holdout_conjunction_hits(raw_texts)
+    occurrence_hits = {
+        holdout: sorted(set.intersection(*[paths for paths in axes.values()]))
+        for holdout, axes in per_holdout_paths.items()
+    }
+    if occurrence_hits != raw_hits:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "raw scanner と occurrence validator が非同値",
+            cause="occurrence-scanner-drift",
+        )
+    return raw_hits
+
+
+def _assert_no_untracked_symlink(root: Path) -> None:
+    raw = _git(["ls-files", "-z", "--others", "--exclude-standard"], root)
+    for part in raw.split(b"\0"):
+        if not part:
+            continue
+        try:
+            rel = part.decode("utf-8", "strict")
+        except UnicodeError as exc:
+            raise RatifiedFreezeError(
+                "scan-exemption-invalid", "untracked path が UTF-8 でない",
+                cause="untracked-path-utf8",
+            ) from exc
+        current = root
+        for component in rel.split("/"):
+            current = current / component
+            try:
+                st = current.lstat()
+            except OSError as exc:
+                raise RatifiedFreezeError(
+                    "scan-exemption-invalid", f"untracked path を lstat できない: {rel}",
+                    cause="untracked-lstat",
+                ) from exc
+            if stat.S_ISLNK(st.st_mode):
+                raise RatifiedFreezeError(
+                    "scan-exemption-invalid", f"untracked symlink は scan 不能: {rel}",
+                    cause="untracked-symlink",
+                )
+
+
+def _active_chain_exempt_exact(
+        ratified: RatifiedFreeze, *, head: str, root: Path,
+) -> Dict[str, str]:
+    """H で再解決した active chain の exact record だけを scan 免除する。"""
+    try:
+        resolution = resolve_active_generation(root)
+    except RatifiedFreezeError as exc:
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", f"active chain を再解決できない: {exc}",
+            cause=exc.reason,
+        ) from exc
+    if (resolution.activation_head != head
+            or resolution.generation_number != ratified.generation_number
+            or resolution.generation_sha256 != ratified.sha256
+            or resolution.generation_commit != ratified.generation_commit):
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", "RatifiedFreeze と H active chain が不一致",
+            cause="active-chain-mismatch",
+        )
+    paths = {
+        V1_FREEZE_PATH,
+        resolution.generation_path,
+        f"{APPROVAL_DIR}/{resolution.generation_sha256}.json",
+        f"{ACTIVE_DIR}/{resolution.pointer_sha256}.json",
+    }
+    exempt: Dict[str, str] = {}
+    namespace = {path: (mode, oid) for mode, oid, path in _list_namespace(head, root)}
+    if not paths <= set(namespace):
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", f"active chain record が H namespace に無い: {sorted(paths-set(namespace))}",
+            cause="exemption-missing",
+        )
+    for path in sorted(paths):
+        mode, _oid = namespace[path]
+        if mode not in ("100644", "100755"):
+            raise RatifiedFreezeError(
+                "scan-exemption-invalid", f"namespace exemption が regular でない: {path}",
+                cause="exemption-mode",
+            )
+        raw = _blob_bytes(head, path, root)
+        if _read_worktree_nofollow(root, path) != raw:
+            raise RatifiedFreezeError(
+                "scan-exemption-invalid", f"namespace exemption bytes が H/worktree で不一致: {path}",
+                cause="exemption-bytes",
+            )
+        exempt[path] = _sha256_hex(raw)
+    return exempt
+
+
 def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreeze:
-    """実走直前の未知性層2 検証を通し LaunchValidatedFreeze へ昇格する (C2-4/C2-8/C2-10)。
+    """§8.4 の全 binding graph と未知性層2を通して実走型へ昇格する。
 
-    - HEAD が ratified.activation_head と一致すること (静的検証後の状態移動を拒否)。
-    - 列挙前後の digest 一致 (走査中のファイル追加/削除を露出、C2-8)。digest は列挙
-      **ファイル名集合**の sha256 であり、内容 TOCTOU (列挙後・当該 read 前の空白化→復元)
-      は検出しない。この窓は single-tenant 前提 (計測前の単独性確認) に依存する既知残余で、
-      §5-viii の限界。full-repo 内容 hash は C2-3 で退けた GB 級 scan コストなので採らない。
-    - 現時点 search_repository を再実行し、**holdout ごと**に conjunction hit path 集合が
-      「closure から導出した期待 hit 集合」と完全一致すること (C2-4: 予告 bool を持たず、
-      verifier が同一 G bytes から導出)。closure 外の新規 hit / 導出されたのに現れない hit で
-      fail-closed。
-    - 陽性対照 (rr50) が hit すること (_assert_search_operational)。
+    reason 優先順は §2.8 固定: (1) 引数型/HEAD、(2) generation==1、(3) path・
+    存在・mode・strict parse、(4) semantic、(5) binding、(6) lineage、(7) exact
+    exemption、(8) occurrence/union/full scan。cert raw hit は到達可能性を保つため cert
+    schema より先に検査する。
 
-    C2-2 (launch certificate 起点 lineage の照合) はここでは**課さない**。certificate /
-    journal 束縛 / floor artifact は official floor 実走の産物だが official mode は core で
-    無条件拒否 (δ-3、§8 未裁定) のため本 wave では生成されず、照合対象が存在しない。closure の
-    lineage anchor は既に header の floor_source (result artifact) であり、新 top-level field は
-    ratified v2 header (§4-2 exact 列挙) に無いので追加しない。official floor を有効化する
-    floor 実走 wave で certificate 発行→journal 束縛→closure lineage 照合を結線するまで、
-    「certificate 以前に消した痕跡」は原理的に不可視の open residual (§5-viii)。
+    保証境界: cert C の一意導入・非 merge・C<G と closure/floor_source の導入集合
+    ``{G}`` は H 内の記録順だけを保証する。実時間順・通常の履歴再構成への耐性は保証しない。
+    floor_protocol/journal/manifest は raw hash・semantic consistency・G/H/worktree endpoint を検査するが、
+    導入 commit や C 後の append chronology を課さない (裁定どおり)。
+    ``∀i in I_entry: C<i`` は I_entry=={G} と C<G から従う defense-in-depth であり、独立保証に
+    数えない。
 
-    oracle driver への結線は W4。本レーンは launch_validate までを API として完成させる。"""
+    TOCTOU は component lstat + leaf O_NOFOLLOW、一度捕捉した小 artifact の scan 後再読で
+    縮小する。full repository content hash は行わないため、その他の同名 file 内容交換には
+    single-tenant 前提が残る。
+    """
     root = Path(root)
+    if not isinstance(ratified, RatifiedFreeze):
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "ratified が RatifiedFreeze でない", cause="argument-type",
+        )
     head = _capture_head(root)
     if head != ratified.activation_head:
         raise RatifiedFreezeError(
             "activation-head-moved",
             f"HEAD ({head}) が ratified.activation_head ({ratified.activation_head}) と不一致",
         )
+    if ratified.generation_number != 1:
+        raise RatifiedFreezeError(
+            "certificate-generation-scope", "launch certificate は generation_number==1 専用",
+        )
 
-    # closure bytes (G blob) から期待 hit を導出する (1 回だけ読む、C2-8)。
+    # --- 3: path / G-H-worktree capture / raw cert hit / strict parse ---
     gen_commit = ratified.generation_commit
-    closure = ratified.document.get("measurement_closure")
-    texts: Dict[str, str] = {}
-    for item in closure:
-        path = item["canonical_path"]
-        blob = _blob_bytes(gen_commit, path, root)
-        text = _closure_text(blob)
-        if text is not None:
-            texts[path] = text
-    expected_hits = _hf.holdout_conjunction_hits(texts)
+    protocol_path, protocol_record_sha = _source_record_path_sha(
+        ratified.document, "floor_protocol",
+    )
+    result_path, result_record_sha = _source_record_path_sha(ratified.document, "floor_source")
+    _assert_canonical_relative_path(
+        protocol_path, reason="floor-artifact-invalid", label="floor_protocol.path",
+    )
+    _assert_canonical_relative_path(
+        result_path, reason="floor-artifact-invalid", label="floor_source.path",
+    )
+    try:
+        result_path_info = _parse_official_run_path(result_path, expected_basename="result.json")
+    except _LaunchCertError as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"result official path が不正: {exc}", cause="result-path",
+        ) from exc
+    run_dir = result_path.rsplit("/", 1)[0]
+    role_paths = {
+        role: f"{run_dir}/{basename}" for role, basename in _RUN_BASENAMES.items()
+    }
+    role_paths["result"] = result_path
+    for role, path in role_paths.items():
+        _assert_canonical_relative_path(
+            path, reason="floor-artifact-invalid", label=f"{role}.path",
+        )
 
-    # 現時点 search 再実行を列挙前後 digest で挟む (C2-8)。
+    closure_entries = _closure_entries(ratified.document)
+    measurement = [(path, sha) for kind, path, sha in closure_entries
+                   if kind == "measurement_closure"]
+    dedicated = {
+        protocol_path, result_path, role_paths["cert"], role_paths["journal"],
+        role_paths["manifest"], _gen_path(ratified.generation_number),
+    }
+    for path, _sha in measurement:
+        if path in dedicated or path.startswith(FREEZE_DIR + "/"):
+            raise RatifiedFreezeError(
+                "closure-role-conflict", f"measurement_closure path が専用 role と衝突: {path}",
+            )
+    if len(dedicated) != 6:
+        raise RatifiedFreezeError("closure-role-conflict", "bound artifact role path が衝突")
+
+    bound_paths = [protocol_path, *role_paths.values(), *[path for path, _ in measurement]]
+    captured: Dict[str, bytes] = {}
+    captured_modes: Dict[str, str] = {}
+    for path in dict.fromkeys(bound_paths):
+        raw, mode = _capture_g_h_worktree(
+            generation_commit=gen_commit, validation_head=head, path=path, root=root,
+        )
+        captured[path] = raw
+        captured_modes[path] = mode
+    if _sha256_hex(captured[protocol_path]) != protocol_record_sha:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "floor_protocol raw hash が generation record と不一致",
+            cause="protocol-record-sha",
+        )
+    if _sha256_hex(captured[result_path]) != result_record_sha:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "floor_source raw hash が generation record と不一致",
+            cause="result-record-sha",
+        )
+    for path, expected_sha in measurement:
+        if _sha256_hex(captured[path]) != expected_sha:
+            raise RatifiedFreezeError(
+                "floor-artifact-invalid", f"measurement_closure sha が不一致: {path}",
+                cause="closure-record-sha",
+            )
+        _closure_text(captured[path])  # UTF-8/no-NUL を fail-closed で強制。
+
+    cert_raw = captured[role_paths["cert"]]
+    try:
+        cert_text = cert_raw.decode("utf-8", "strict")
+    except UnicodeError as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "cert が UTF-8 でない", cause="cert-utf8",
+        ) from exc
+    cert_hits = _hf.holdout_conjunction_hits({role_paths["cert"]: cert_text})
+    if any(cert_hits.values()):
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "hits(cert) が空でない", cause="certificate-holdout-hit",
+        )
+
+    protocol_doc = _strict_load(captured[protocol_path], what="floor_protocol")
+    cert_doc = _strict_load(cert_raw, what="launch certificate")
+    manifest_doc = _strict_load(captured[role_paths["manifest"]], what="manifest")
+    result_doc = _strict_load(captured[result_path], what="floor result")
+    journal_records = _strict_jsonl(captured[role_paths["journal"]])
+
+    # --- 4: semantic validation ---
+    try:
+        protocol = _floor_contract.validate_protocol(
+            protocol_doc,
+            contract_sha256_lookup=lambda env: _env_contract.lookup(env).contract_sha256,
+        )
+    except (_floor_contract.FloorContractError, _env_contract.EnvContractError) as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"floor protocol full validation 失敗: {exc}",
+            cause="protocol-invalid",
+        ) from exc
+    protocol_sha = _floor_contract.canonical_protocol_sha256(protocol)
+    if protocol["freeze"] != {"path": V1_FREEZE_PATH, "sha256": V1_FREEZE_SHA256}:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "protocol.freeze が v1 trust root と不一致",
+            cause="protocol-freeze",
+        )
+    try:
+        cert = _validate_launch_certificate(
+            cert_doc, expected_v1_freeze_sha256=V1_FREEZE_SHA256,
+            expected_protocol_sha256=protocol_sha,
+            expected_run_id=result_path_info["run_id"],
+        )
+    except _LaunchCertError as exc:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", f"launch certificate invalid: {exc}",
+            cause="certificate-invalid",
+        ) from exc
+    cells, schedule, binaries = _validate_manifest(
+        manifest_doc, protocol=protocol, protocol_sha256=protocol_sha, ratified=ratified,
+    )
+    cert_sha = _sha256_hex(cert_raw)
+    manifest_sha = _sha256_hex(captured[role_paths["manifest"]])
+    journal = _validate_journal(
+        journal_records, protocol=protocol, schedule=schedule, cells=cells,
+        binaries=binaries, cert_sha256=cert_sha, manifest_sha256=manifest_sha,
+    )
+    _validate_result(
+        result_doc, protocol=protocol, cells=cells, binaries=binaries, journal=journal,
+    )
+
+    # --- 5: §8.4 binding graph (adjacency list の全辺) ---
+    wall_campaigns = [row for row in result_doc["wall_ledger"]
+                      if row.get("event") == "campaign-start"]
+    if len(wall_campaigns) != 1:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "result.wall_ledger campaign-start が一意でない",
+            cause="wall-ledger-campaign",
+        )
+    try:
+        cert_second = dt.datetime.fromisoformat(
+            cert["started_utc"][:-1] + "+00:00"
+            if cert["started_utc"].endswith("Z") else cert["started_utc"]
+        ).astimezone(dt.timezone.utc).replace(microsecond=0).isoformat()
+    except (TypeError, ValueError) as exc:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "cert.started_utc を正規化できない",
+            cause="cert-started-utc",
+        ) from exc
+    path_second = result_path_info["ts"].astimezone(dt.timezone.utc).isoformat()
+    equality_nodes = {
+        "P": protocol_sha,
+        "result.protocol_sha256": result_doc["protocol_sha256"],
+        "journal.campaign-start.protocol_sha256": journal["campaign"]["protocol_sha256"],
+        "cert.protocol_sha256": cert["protocol_sha256"],
+        "manifest.protocol_sha256": manifest_doc["protocol_sha256"],
+        "P[:8]": protocol_sha[:8],
+        "official-path.proto8": result_path_info["proto8"],
+        "V1_FREEZE_SHA256": V1_FREEZE_SHA256,
+        "result.freeze_sha256": result_doc["freeze_sha256"],
+        "journal.campaign-start.freeze_sha256": journal["campaign"]["freeze_sha256"],
+        "cert.v1_freeze_sha256": cert["v1_freeze_sha256"],
+        "protocol.freeze.sha256": protocol["freeze"]["sha256"],
+        "manifest.freeze_sha256": manifest_doc["freeze_sha256"],
+        "manifest.freeze.sha256": manifest_doc["freeze"]["sha256"],
+        "V1_FREEZE_PATH": V1_FREEZE_PATH,
+        "protocol.freeze.path": protocol["freeze"]["path"],
+        "manifest.freeze.path": manifest_doc["freeze"]["path"],
+        "sha256(manifest.raw)": manifest_sha,
+        "result.manifest_sha256": result_doc["manifest_sha256"],
+        "journal.campaign-start.manifest_sha256": journal["campaign"]["manifest_sha256"],
+        "sha256(cert.raw)": cert_sha,
+        "journal.launch-start.launch_certificate_sha256":
+            journal["launch"]["launch_certificate_sha256"],
+        "journal.campaign-start.launch_certificate_sha256":
+            journal["campaign"]["launch_certificate_sha256"],
+        "result.wall_ledger[campaign-start].launch_certificate_sha256":
+            wall_campaigns[0]["launch_certificate_sha256"],
+        "journal[event=session]": _plain_json(journal["sessions"]),
+        "result.sessions": result_doc["sessions"],
+        "result.binaries": result_doc["binaries"],
+        "manifest.binaries": manifest_doc["binaries"],
+        "generation.env_tag": ratified.document["env_tag"],
+        "official-path.env_tag": result_path_info["env_tag"],
+        "protocol.env_tag": protocol["env_tag"],
+        "result.env_tag": result_doc["env_tag"],
+        "manifest.env_tag": manifest_doc["env_tag"],
+        "journal.campaign-start.execution_receipt.env_tag":
+            journal["campaign"]["execution_receipt"]["env_tag"],
+        "protocol.contract_sha256": protocol["contract_sha256"],
+        "journal.campaign-start.execution_receipt.contract_sha256":
+            journal["campaign"]["execution_receipt"]["contract_sha256"],
+        "official-path.run_id.ts": path_second,
+        "cert.started_utc(second)": cert_second,
+        "cert.started_utc": cert["started_utc"],
+        "journal.launch-start.utc": journal["launch"]["utc"],
+        "sha256(result.raw)": _sha256_hex(captured[result_path]),
+        "generation.floor_source.sha256": result_record_sha,
+    }
+    _assert_equality_adjacency(equality_nodes)
+
+    if result_path_info["proto8"] != protocol_sha[:8]:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "official path proto8 != P[:8]", cause="path-proto8",
+        )
+    if ratified.document.get("env_tag") != result_path_info["env_tag"] \
+            or result_path_info["env_tag"] != protocol["env_tag"]:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "generation/path/protocol env が不一致", cause="env-chain",
+        )
+    if manifest_doc["protocol_sha256"] != protocol_sha \
+            or result_doc["protocol_sha256"] != protocol_sha \
+            or cert["protocol_sha256"] != protocol_sha:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "protocol hash chain が不一致", cause="protocol-chain",
+        )
+    if (manifest_doc["freeze_sha256"] != V1_FREEZE_SHA256
+            or manifest_doc["freeze"] != protocol["freeze"]
+            or result_doc["freeze_sha256"] != V1_FREEZE_SHA256
+            or journal["campaign"]["freeze_sha256"] != V1_FREEZE_SHA256):
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "freeze hash/path chain が不一致", cause="freeze-chain",
+        )
+    if result_doc["manifest_sha256"] != manifest_sha:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "result.manifest_sha256 != sha256(manifest.raw)",
+            cause="manifest-chain",
+        )
+    if journal["launch"]["launch_certificate_sha256"] != cert_sha \
+            or journal["campaign"]["launch_certificate_sha256"] != cert_sha:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "cert raw hash chain が不一致", cause="cert-chain",
+        )
+    if journal["launch"]["utc"] != cert["started_utc"]:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "launch-start.utc != cert.started_utc",
+            cause="launch-time-chain",
+        )
+    receipt = journal["campaign"]["execution_receipt"]
+    if (receipt["env_tag"] != protocol["env_tag"]
+            or receipt["contract_sha256"] != protocol["contract_sha256"]):
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "execution receipt env/contract chain が不一致",
+            cause="receipt-chain",
+        )
+    if result_doc["binaries"] != manifest_doc["binaries"]:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "result.binaries != manifest.binaries",
+            cause="binaries-chain",
+        )
+
+    verified_floor = VerifiedFloorArtifact(
+        path=result_path, raw_bytes=captured[result_path], sha256=result_record_sha,
+        document=_deep_freeze(result_doc),
+    )
+
+    # --- 6: lineage (journal/manifest の introduction 条件は意図的に課さない) ---
+    graph = _commit_graph(head, root)
+    _cert_mode, cert_oid = _tree_mode_oid(head, role_paths["cert"], root)
+    cert_intro = _immutable_introductions(graph, role_paths["cert"], cert_oid, root)
+    cert_commit = _unique_introduction(cert_intro, role_paths["cert"])
+    if len(graph.parents.get(cert_commit, ())) > 1:
+        raise RatifiedFreezeError("binding-chain-mismatch", "cert introduction が merge", cause="cert-merge")
+    if cert_commit == gen_commit or not _git_ok(
+            ["merge-base", "--is-ancestor", cert_commit, gen_commit], root):
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", "cert C が G の厳密祖先でない", cause="cert-lineage",
+        )
+    for path in [result_path, *[path for path, _ in measurement]]:
+        _mode, oid = _tree_mode_oid(head, path, root)
+        introductions = _immutable_introductions(graph, path, oid, root)
+        if set(introductions) != {gen_commit}:
+            raise RatifiedFreezeError(
+                "binding-chain-mismatch", f"{path} の introduction set != {{G}}",
+                cause="generation-introduction",
+            )
+
+    # --- 7: verified exact exemption ---
+    _assert_no_untracked_symlink(root)
+    exempt_exact = _active_chain_exempt_exact(ratified, head=head, root=root)
+
+    # --- 8: occurrence / expected union / full scan ---
+    closure_paths = frozenset(path for path, _ in measurement)
+    occurrence_artifacts: List[Tuple[str, object, Optional[bytes]]] = [
+        (protocol_path, protocol_doc, captured[protocol_path]),
+        (result_path, result_doc, captured[result_path]),
+        (role_paths["journal"], journal_records, captured[role_paths["journal"]]),
+        (role_paths["manifest"], manifest_doc, captured[role_paths["manifest"]]),
+    ]
+    for path, _sha in measurement:
+        occurrence_artifacts.append((path, None, captured[path]))
+    expected_hits = _validate_axis_occurrences(
+        artifacts=occurrence_artifacts, protocol=protocol, binaries=binaries,
+        closure_paths=closure_paths,
+    )
+
     digest_before = _enumeration_digest(root)
-    report = _hf.search_repository(root)
+    try:
+        report = _hf.search_repository(root, exempt_exact=exempt_exact)
+    except _hf.FreezeError as exc:
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", f"repository scan を完遂できない: {exc}",
+            cause="scan-failed",
+        ) from exc
     digest_after = _enumeration_digest(root)
     if digest_before != digest_after:
         raise RatifiedFreezeError(
@@ -1303,22 +2793,33 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
                 f"(未申告={undeclared} 消失={missing})",
             )
 
+    # 小さい bound artifact を scan 後に no-follow で再捕捉し、内容交換窓を縮小する。
+    for path, before in captured.items():
+        after = _read_worktree_nofollow(root, path)
+        after_stat = (root / path).lstat()
+        after_mode = "100755" if after_stat.st_mode & 0o111 else "100644"
+        if after != before or after_mode != captured_modes[path]:
+            raise RatifiedFreezeError(
+                "floor-artifact-invalid", f"scan 前後で bound artifact が変化: {path}",
+                cause="artifact-toctou",
+            )
+
     inventory = _symlink_gitlink_inventory(head, root)
     return LaunchValidatedFreeze(
         ratified=ratified,
         activation_head=head,
         search_digest=digest_after,
         symlink_gitlink_inventory=inventory,
+        floor_artifact=verified_floor,
+        binaries_by_cell=_deep_freeze(binaries),
     )
 
 
-def _closure_text(blob: bytes) -> Optional[str]:
-    """closure blob を検索テキストへ復号する (search の _read_search_text と同判定)。
-
-    NUL を含む / UTF-8 でない blob は非テキストとして None (search と同じく hit 対象外)。"""
-    if b"\0" in blob[:8192]:
-        return None
+def _closure_text(blob: bytes) -> str:
+    """closure blob は UTF-8/no-NUL に限定する (binary closure は未裁定のため fail-closed)。"""
+    if b"\0" in blob:
+        raise RatifiedFreezeError("closure-nontext", "closure blob が NUL を含む")
     try:
         return blob.decode("utf-8")
-    except UnicodeError:
-        return None
+    except UnicodeError as exc:
+        raise RatifiedFreezeError("closure-nontext", "closure blob が UTF-8 でない") from exc

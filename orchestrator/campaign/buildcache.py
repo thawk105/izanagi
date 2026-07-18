@@ -129,6 +129,12 @@ class BuildResult:
     cached: bool            # キャッシュヒットで再ビルドを省いたか
     configure_cmd: str = ""  # このバイナリを作る cmake configure (実験再現用)
     build_cmd: str = ""      # cmake --build (実験再現用)
+    # campaign artifact が shell 文字列を再解析せず portable 表示を作るための additive API。
+    # 既存 configure_cmd/build_cmd は互換維持し、実行・cache 挙動には使わない。
+    configure_argv: tuple[str, ...] = ()
+    build_argv: tuple[str, ...] = ()
+    cache_root: str = ""
+    ccbench_root: str = ""
 
     @property
     def bin_hash(self) -> str:
@@ -177,7 +183,10 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
             _assert_no_trace_symbols(binary)     # 規律1: 既存 perf binary も継続検査
         return BuildResult(genome=genome, trace=trace, binary=binary,
                            bin_sha256=full_sha256(binary), build_dir=bdir, cached=True,
-                           configure_cmd=cfg_str, build_cmd=build_str)
+                           configure_cmd=cfg_str, build_cmd=build_str,
+                           configure_argv=tuple(cfg), build_argv=tuple(build_cmd),
+                           cache_root=os.path.abspath(root),
+                           ccbench_root=os.path.abspath(sub))
 
     _clear_stale_build_dir(bdir, binary)
     _run(cfg, "configure")
@@ -195,7 +204,10 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
         _assert_no_trace_symbols(binary)         # 規律1: 新規 perf binary に trace 漏れが無いか
     return BuildResult(genome=genome, trace=trace, binary=binary,
                        bin_sha256=full_sha256(binary), build_dir=bdir, cached=False,
-                       configure_cmd=cfg_str, build_cmd=build_str)
+                       configure_cmd=cfg_str, build_cmd=build_str,
+                       configure_argv=tuple(cfg), build_argv=tuple(build_cmd),
+                       cache_root=os.path.abspath(root),
+                       ccbench_root=os.path.abspath(sub))
 
 
 def _recheck_src_token(genome: Genome, ccbench_commit: str, sub: str, cxx: str,

@@ -653,3 +653,35 @@ V3 テスト・裁定準拠) → 親裁定 → codex 実行 (S0/H) → 親検算
 3. その後: protocol JSON 凍結 (master_seed=2026-07-18T17:16:12+09:00 / env_tag=pegasus を焼く、
    AI-Agent: none) → 予測封印 → floor 実測 → v2 候補生成 → 承認 → oracle 実走
 4. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-18 (13) — C2-2 検証器本丸 wave 実装完了 (発効なし・計測なし)
+
+エントリ (12) 次の一手 1 の消化。標準ループ ([[orchestration-loop-pattern]]) を 6 実装単位で。正本 =
+insights `2026-07-18_s8b-c22-consultations.md` §10 (相談逐語・裁定表・実装結果)。
+
+- **相談**: codex gpt-5.6-sol reasoning=max ×3 並列敵対相談 (C1 seam・E1 / C2 検証鎖・E2 / C3
+  fixture・oracle・変異 matrix)。計 32 所見 + 変異 30 案。**全所見 real 採用** (スコープ調整のみ)。
+  重要裁定: E0 共有 leaf 新設 (E1∥E2 の import 循環回避) / E3a∥E3b は依存グラフ上不成立で逐次化 /
+  callback 位置を V2b 正本へ復帰 / manifest.cells↔journal 辺・軸単位 occurrence の追加
+- **実装**: E0 (契約 leaf、commit 9878c80) → E1 (issuer 決定化) ∥ E2 (launch_validate 検証鎖) →
+  E2-fix → E3a (emitter staged builder) → E3b (oracle 統一) → small-fix → fix-final。
+  実行=codex (gpt-5.6-sol high)、レビュー=claude opus 2 レンズ/単位 (恒真 + 裁定準拠)
+- **レビューが捕らえた real 欠陥** (0-findings を変異で裏取りする規律の実証): E2 の **F15 級内部
+  矛盾** (production run_cmd 入り artifact が occurrence 非対称で永久 reject、fixture が隠蔽) →
+  run_cmd を共有 leaf 純関数に一元化して parser 分裂を構造排除 / E3a の **F14 休眠 2 件**
+  (protocol/closure 生ハッシュ再検査が負例欠) / E1 の負例欠 9 件 / E3b の binaries cause 負例欠
+- **最終ゲート**: 全走 1549 passed / 0 failed (+186)。check_docs/check_codex_agents 緑。親の変異
+  matrix (複製 + PYTHONPATH shadow + PYTHONDONTWRITEBYTECODE、meta-fail 条件機械化) で各単位の
+  正しさゲート中核 **11 変異を 11/11 KILL**
+- **発効なし規律**: official core 拒否は不変 (staged builder は _run_campaign_core 経由のテスト専用)。
+  master_seed/env_tag 焼き込み・floor 実測は次段。新規追認リスト (§10.2 末尾) は次回ユーザー接点へ
+- 工数: codex 相談 3 (max) + codex 実行 8 (high: E0/E1/E2/E2-fix/E3a/E3b/small-fix/fix-final) +
+  claude opus レビュー 7 (E1×2/E2×2/E2-fix/E3a/E3b) + 親 (裁定・検算・変異ゲート・freeze_io spy 修正)
+
+### 次の一手
+1. ユーザー接点: §10.2 末尾の新規追認リスト (PortableBuiltRecord schema / closure blob UTF-8 no-NUL /
+   L 自己整合捏造の外部 anchor / M substate + 二相 finalize / run artifacts の G 同梱範囲)
+2. floor 前段: Pegasus env_contract 登録 (計算ノード実測 + 実測照合 attestation、pegasus-runbook §7)
+3. その後: protocol JSON 凍結 (master_seed=2026-07-18T17:16:12+09:00 / env_tag=pegasus、AI-Agent:
+   none) → 予測封印 → floor 実測 → v2 候補生成 → 承認 → oracle 実走
+4. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)

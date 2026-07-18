@@ -92,7 +92,8 @@ class CompetingBenchProbeError(RuntimeError):
 
 
 def classify_competing_probe(rc: int, stdout: str, stderr: str,
-                             argv: Sequence[str]) -> List[str]:
+                             argv: Sequence[str], *,
+                             own_pid: Optional[int] = None) -> List[str]:
     """pgrep の (rc, stdout, stderr) を strict 契約で分類し、他者/孤児の PID 行を返す。
 
     競合検知 probe の**単一の分類器** (C4-5: 二重実装の排除)。runner の
@@ -111,6 +112,11 @@ def classify_competing_probe(rc: int, stdout: str, stderr: str,
     「他者/孤児」として競合側に残す (自分の子孫まで除外していた旧実装からの縮小 —
     孤児 livelock 汚染は除外されず検出される)。PID がパースできない行も
     fails-closed で競合側に残す (素性不明を non-competing 扱いにしない)。"""
+    if own_pid is None:
+        own_pid = os.getpid()
+    if isinstance(own_pid, bool) or not isinstance(own_pid, int) or own_pid <= 0:
+        raise CompetingBenchProbeError(
+            "invalid-own-pid", argv, stdout=stdout or "", stderr=stderr or "")
     stdout = stdout or ""
     stderr = stderr or ""
     # 無競合の確定信号: rc==1 かつ出力が完全に空。それ以外の rc==1 (付随出力あり) は
@@ -124,7 +130,6 @@ def classify_competing_probe(rc: int, stdout: str, stderr: str,
             raise CompetingBenchProbeError(
                 "inconsistent-output", argv, returncode=rc,
                 stdout=stdout, stderr=stderr)
-        own = os.getpid()
         others = []
         for ln in lines:
             pid_field = ln.split(None, 1)[0]
@@ -133,7 +138,7 @@ def classify_competing_probe(rc: int, stdout: str, stderr: str,
             except ValueError:
                 others.append(ln)          # PID 不明 = fails-closed で残す
                 continue
-            if pid != own:                 # B-2: 自 PID 自身のみ除外 (子孫は残す)
+            if pid != own_pid:             # B-2: 自 PID 自身のみ除外 (子孫は残す)
                 others.append(ln)
         return others
     # rc>1 / 負値 (シグナル終了) / rc==1 に付随出力 → probe 故障。

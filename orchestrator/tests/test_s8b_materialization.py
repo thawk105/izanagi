@@ -427,11 +427,13 @@ def test_materialization_does_not_import_oracle_or_floor():
 
 class _FakeBuildResult:
     def __init__(self, canonical: str):
-        self.binary = f"/fixed/bin/{canonical}"
+        self.binary = f"/tmp/out/fixed/bin/{canonical}"
         self.bin_sha256 = "0" * 64
-        self.bin_hash = "0" * 12
+        self.bin_hash = "0" * 16
         self.configure_cmd = ["cfg", canonical]
         self.build_cmd = ["build", canonical]
+        self.configure_argv = ["cfg", "/tmp/cc", "/tmp/out", canonical]
+        self.build_argv = ["build", "/tmp/out", canonical]
         self.cached = True
 
 
@@ -469,6 +471,9 @@ def test_floor_manifest_golden_stable():
         built = floor.build_cells(
             freeze, cells, ccbench_pin="pin-x",
             out_root=Path("/tmp/out"), prepare_fn=prepare_fn)
+    for record in built.values():
+        record["store_path"] = "/tmp/out/store/" + record["binary_sha256"]
+    built = floor.project_built_records(built, out_root=Path("/tmp/out"))
 
     # 共有 producer が生成した binding が build 記録に載っていること。
     assert built["H1::stock"]["binding"]["binding_sha256"] == (
@@ -495,7 +500,7 @@ def test_floor_manifest_golden_stable():
     payload = json.dumps(
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     assert hashlib.sha256(payload.encode("utf-8")).hexdigest() == (
-        "47f012a17916f4fa9064add4a340b2bf140ee5f45b6fa0d729e8e8290de1b771"
+        "9b7d1f899d4e5885aa19c4d970dc05ffb8fff3c75adfd9f81705fd55f660a99f"
     )
 
 

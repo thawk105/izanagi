@@ -22,6 +22,7 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
+from campaign import s8b_oracle_manifest as _oracle_manifest  # noqa: E402
 from campaign import env_contract as _env_contract  # noqa: E402
 from campaign import execution_guard  # noqa: E402
 from campaign import s8b_ratified_freeze  # noqa: E402
@@ -81,6 +82,19 @@ def _canonical_sha256(value) -> str:
     return hashlib.sha256(_canonical_bytes(value)).hexdigest()
 
 
+def _mutable_json_tree(value):
+    """deep-frozen JSON tree を legacy manifest verifier の入力 shape へ射影する。
+
+    検証や再 parse は行わず、Mapping→dict / tuple→list の container 型だけを戻す。
+    oracle の freeze/floor consumer 自体は LaunchValidatedFreeze の同一 object を使う。
+    """
+    if isinstance(value, Mapping):
+        return {key: _mutable_json_tree(child) for key, child in value.items()}
+    if isinstance(value, tuple):
+        return [_mutable_json_tree(child) for child in value]
+    return value
+
+
 def _load_json_object(path: Path) -> dict:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -105,6 +119,28 @@ def _load_verified_freeze(path, expected_hash: Optional[str] = None):
         raise OracleDriverError(str(exc)) from exc
 
 
+def _manifest_structural_refusal(path: Path) -> Optional[str]:
+    """active 解決不能時にも freeze 非依存の manifest 構造異常を集約する。
+
+    実走の full verify は引き続き ``verify_manifest`` 1 回だけ。ここでは top-level /
+    schedule / binding schema だけを同 module の validator で検査し、freeze bytes や
+    floor artifact を別 loader で読まない。
+    """
+    try:
+        document = _oracle_manifest._load_json_object(Path(path))
+        if set(document) != _oracle_manifest._MANIFEST_KEYS:
+            raise _oracle_manifest.ManifestError("manifest top-level schema が不一致")
+        if document.get("schema_version") != _oracle_manifest.SCHEMA_VERSION:
+            raise _oracle_manifest.ManifestError("manifest schema_version が不一致")
+        _oracle_manifest._validate_schedule(document.get("schedule"))
+        _oracle_manifest._validate_binding_identity(
+            document.get("binding_identity"), schedule=document["schedule"],
+        )
+    except Exception as exc:  # noqa: BLE001 (構造検査不能も refusal として集約)
+        return f"manifest-verify: {type(exc).__name__}: {exc}"
+    return None
+
+
 def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
     path = Path(path_text)
     return path if path.is_absolute() else root / path
@@ -113,11 +149,16 @@ def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
 def gate_check(*, freeze_path=None, manifest_path=None, root,
                verified: Optional["_freeze_io.VerifiedFreeze"] = None,
                verified_manifest: Optional["VerifiedManifest"] = None,
+               launch_validated: Optional[
+                   "s8b_ratified_freeze.LaunchValidatedFreeze"
+               ] = None,
                ratified: Optional["s8b_ratified_freeze.RatifiedFreeze"] = None,
                ratified_error: Optional[str] = None) -> GateDecision:
     """実走前の独立 gate を順番に全件検査し、全拒否理由を返す。
 
-    ``verified`` (``load_verified_freeze`` の戻り値) を与えた場合は freeze を
+    ``launch_validated`` を与えた実走経路では、その同一 object の ratified document /
+    sha256 だけを使う。``verified`` (legacy ``load_verified_freeze`` の戻り値) を
+    与えた gate 単体経路では freeze を
     再読込せず、その単一 object の document/sha256 だけを使う (A3-6: verify-use
     間差替えの遮断)。与えない場合は自身で ``load_verified_freeze`` を一度呼ぶ。
 
@@ -139,7 +180,10 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
     freeze: Optional[dict] = None
     freeze_sha: Optional[str] = None
 
-    if verified is not None:
+    if launch_validated is not None:
+        freeze = launch_validated.ratified.document
+        freeze_sha = launch_validated.ratified.sha256
+    elif verified is not None:
         freeze = verified.document
         freeze_sha = verified.sha256
     else:
@@ -165,7 +209,8 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
         else:
             # v2 (floor/budget 充填済み) freeze: 与えられた bytes が承認束縛済みの
             # active 世代そのものであることを sha256 完全一致で要求する。
-            active = ratified
+            active = (launch_validated.ratified
+                      if launch_validated is not None else ratified)
             error = ratified_error
             if active is None and error is None:
                 # 単体 gate CLI 経路: 自身で active 世代を解決する。
@@ -399,81 +444,21 @@ def _store_sha256(out_root, store_path: str) -> Optional[str]:
     return hashlib.sha256(data).hexdigest()
 
 
-def _floor_binaries_by_cell(ratified, root) -> dict:
-    """RatifiedFreeze の floor_source が指す floor artifact の binaries section を、
-    (holdout_id, configuration_id) → {binary_sha256, store_path} へ正規化する (C3-7)。
-
-    cell 対応の同定は文字列 cell_id でなく (holdout_id, configuration_id) の組で行う。"""
-    try:
-        blob = s8b_ratified_freeze.read_floor_source_blob(ratified, root)
-    except s8b_ratified_freeze.RatifiedFreezeError as exc:
-        raise OracleDriverError(
-            f"floor_source 取得失敗: [{exc.reason}] {exc}"
-        ) from exc
-    try:
-        artifact = json.loads(blob.decode("utf-8"))
-    except (UnicodeError, json.JSONDecodeError) as exc:
-        raise OracleDriverError(f"floor artifact を parse できない: {exc}") from exc
-    binaries = artifact.get("binaries") if isinstance(artifact, Mapping) else None
-    if not isinstance(binaries, Mapping) or not binaries:
-        raise OracleDriverError("floor artifact に binaries section が無い")
-    out: dict = {}
-    for cell_id, rec in binaries.items():
-        if not isinstance(rec, Mapping):
-            raise OracleDriverError(f"floor artifact binaries[{cell_id}] が object でない")
-        holdout = rec.get("holdout_id")
-        config = rec.get("configuration_id")
-        binary_sha = rec.get("binary_sha256")
-        store_path = rec.get("store_path")
-        if not (isinstance(holdout, str) and holdout
-                and isinstance(config, str) and config):
-            raise OracleDriverError(
-                f"floor artifact binaries[{cell_id}] の cell identity 不正"
-            )
-        if not (isinstance(binary_sha, str) and len(binary_sha) == 64
-                and all(ch in "0123456789abcdef" for ch in binary_sha)):
-            raise OracleDriverError(
-                f"floor artifact binaries[{cell_id}].binary_sha256 が 64hex でない"
-            )
-        if not (isinstance(store_path, str) and store_path):
-            raise OracleDriverError(
-                f"floor artifact binaries[{cell_id}].store_path が無い"
-            )
-        key = (holdout, config)
-        if key in out:
-            raise OracleDriverError(f"floor artifact に cell 重複: {key}")
-        out[key] = {"binary_sha256": binary_sha, "store_path": store_path}
-    return out
-
-
-def _prepare_v2_execution(*, ratified, run_contract, schedule, out_root,
-                          root) -> _V2Plan:
+def _prepare_v2_execution(*, validated, run_contract, schedule,
+                          out_root) -> _V2Plan:
     """v2 実走前検査を一括で行い _V2Plan を返す (run marker 作成前・第一防壁)。
 
-    順に: (1) launch_validate (未知性層2 の full scan、活性 HEAD 一致)、(2) run
-    contract の env 導出 (env_tag が RatifiedFreeze と一致・env 契約 lookup・
+    ``validated`` は run_block が一度だけ launch_validate して得た同一 object であり、
+    floor artifact の再読込・再 parse・再正規化は行わない。順に: (1) 型境界、
+    (2) run contract の env 導出 (env_tag が RatifiedFreeze と一致・env 契約 lookup・
     contract_sha256/clocks 完全一致・machine-pin)、(3) 共有 guard receipt 生成、
-    (4) binary store 消費 (schedule 全行の (holdout, configuration) 別 store 実体の
+    (4) ``validated.binaries_by_cell`` だけを使う binary store 消費 (schedule 全行の store 実体の
     存在 + full sha256 一致)。いずれの不整合も OracleDriverError (呼び出し元が refusal
     に翻訳)。事前 store 検査が第一防壁、pipeline の expected_perf_sha256 照合が TOCTOU
     第二防壁という関係で使う (perf_sha_by_cell を返す)。"""
-    if ratified is None:
-        raise OracleDriverError("active 世代が解決されていない (v2 実走の前提破れ)")
-
-    # (1) 未知性層2 (full scan) + 活性 HEAD 一致 (run marker 前に通す)。
-    # launch_validate は内部で _hf (s8b_holdout_freeze) の git/os 走査を呼ぶため、
-    # RatifiedFreezeError 以外 (FreezeError・OSError・subprocess 失敗・report 構造の
-    # KeyError 等) が漏れうる。それらも fail-closed で OracleDriverError へ翻訳し、
-    # run_block の refusal 契約 (stack trace でなく構造化拒否) を破らない。sibling の
-    # load_ratified_freeze 経路 (run_block の generic fallback) と対称にする。
-    try:
-        s8b_ratified_freeze.launch_validate(ratified, root)
-    except s8b_ratified_freeze.RatifiedFreezeError as exc:
-        raise OracleDriverError(f"launch-validate: [{exc.reason}] {exc}") from exc
-    except Exception as exc:  # noqa: BLE001 (fail-closed: 走査不能 = 実走前提破れ)
-        raise OracleDriverError(
-            f"launch-validate: {type(exc).__name__}: {exc}"
-        ) from exc
+    if not isinstance(validated, s8b_ratified_freeze.LaunchValidatedFreeze):
+        raise OracleDriverError("LaunchValidatedFreeze が無い (v2 実走の前提破れ)")
+    ratified = validated.ratified
 
     # (2) env 導出 (C3-9 部分): run_contract.env_tag == RatifiedFreeze.env_tag。
     env_tag = run_contract.get("env_tag")
@@ -505,11 +490,12 @@ def _prepare_v2_execution(*, ratified, run_contract, schedule, out_root,
     receipt = execution_guard.build_receipt(contract)
 
     # (4) binary store 消費 (C3-7): 全 schedule 行分の store 実体 + hash を検査。
-    expected = _floor_binaries_by_cell(ratified, root)
+    expected = validated.binaries_by_cell
     perf_sha_by_cell: dict = {}
     for row in schedule:
         cell = (row["holdout_id"], row["configuration_id"])
-        rec = expected.get(cell)
+        cell_id = f"{cell[0]}::{cell[1]}"
+        rec = expected.get(cell_id)
         if rec is None:
             raise OracleDriverError(
                 f"floor artifact に schedule cell の binary receipt が無い: {cell}"
@@ -517,11 +503,12 @@ def _prepare_v2_execution(*, ratified, run_contract, schedule, out_root,
         actual = _store_sha256(out_root, rec["store_path"])
         if actual is None:
             raise OracleDriverError(
-                f"floor 計測 binary の store 実体が無い: {rec['store_path']} (cell={cell})"
+                f"[store-missing] floor 計測 binary の store 実体が無い: "
+                f"{rec['store_path']} (cell={cell})"
             )
         if actual != rec["binary_sha256"]:
             raise OracleDriverError(
-                f"store binary sha256 が floor receipt と不一致: "
+                f"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: "
                 f"{rec['store_path']} (cell={cell})"
             )
         perf_sha_by_cell[cell] = rec["binary_sha256"]
@@ -607,34 +594,61 @@ def run_block(
     internal-error(1) > protocol_violation(3) > budget-refused(2) > completed(0)。
     """
     freeze_path = Path(freeze_path)
-    # A3-6: freeze bytes を一度だけ読み hash 検証 + strict parse した単一 object を、
-    # gate・manifest verify・budget limits・perf 三軸の全 consumer で共有する。
-    # verify から use までの間に freeze byte を差し替えても差替え後の値は使われない。
+    root = Path(root)
+    # E3b: active 世代を一度だけ解決して launch validation 済み型へ昇格する。
+    # 以後の freeze / floor / binary consumer はこの同一 object だけを使う。
     try:
-        verified = _load_verified_freeze(freeze_path)
-    except OracleDriverError as exc:
-        decision = GateDecision(
+        ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        refusals = [f"freeze-ratify: [{exc.reason}] {exc}"]
+        manifest_refusal = _manifest_structural_refusal(Path(manifest_path))
+        if manifest_refusal is not None:
+            refusals.append(manifest_refusal)
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False, refusals=refusals,
+        ))}
+    except Exception as exc:  # noqa: BLE001 (fail-closed: active 解決不能)
+        refusals = [f"freeze-ratify: {type(exc).__name__}: {exc}"]
+        manifest_refusal = _manifest_structural_refusal(Path(manifest_path))
+        if manifest_refusal is not None:
+            refusals.append(manifest_refusal)
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False, refusals=refusals,
+        ))}
+    try:
+        validated = s8b_ratified_freeze.launch_validate(ratified, root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False,
+            refusals=[f"v2-execution: launch-validate: [{exc.reason}] {exc}"],
+        ))}
+    except Exception as exc:  # noqa: BLE001 (fail-closed: 走査不能)
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False,
+            refusals=[f"v2-execution: launch-validate: {type(exc).__name__}: {exc}"],
+        ))}
+
+    # CLI で指定された freeze bytes 自体も active generation と一致させる。ただし
+    # document は parse せず、consumer は validated.ratified.document のみを使う。
+    try:
+        requested_freeze_sha = hashlib.sha256(freeze_path.read_bytes()).hexdigest()
+    except OSError as exc:
+        return {"status": "refused", **asdict(GateDecision(
             allowed=False,
             refusals=[f"holdout-freeze-verify: {type(exc).__name__}: {exc}"],
-        )
-        return {"status": "refused", **asdict(decision)}
+        ))}
+    if requested_freeze_sha != validated.ratified.sha256:
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False,
+            refusals=[
+                "freeze-not-active-generation: 与えられた freeze bytes sha256 が"
+                "承認束縛済み active 世代と不一致"
+            ],
+        ))}
 
-    root = Path(root)
-    # v2 (floor/budget が両方 null でない) freeze は承認束縛済み active 世代を 1 回だけ
-    # 解決し、gate へ渡してその bytes sha256 一致を要求する (RatifiedFreezeError は
-    # 例外として漏らさず構造化 refusal に翻訳する)。v1 (両 null) は gate が floor-null/
-    # budget-null で倒すため active 解決に入らない。
-    is_v2 = (verified.document.get("floor") is not None
-             or verified.document.get("budget") is not None)
-    ratified: Optional["s8b_ratified_freeze.RatifiedFreeze"] = None
-    ratified_error: Optional[str] = None
-    if is_v2:
-        try:
-            ratified = s8b_ratified_freeze.load_ratified_freeze(root)
-        except s8b_ratified_freeze.RatifiedFreezeError as exc:
-            ratified_error = f"[{exc.reason}] {exc}"
-        except Exception as exc:  # noqa: BLE001 (fail-closed: 解決不能 = active なし)
-            ratified_error = f"{type(exc).__name__}: {exc}"
+    # deep-frozen ratified document から legacy consumer 用 container view を一度だけ
+    # 作る。disk 再読・JSON 再 parse は行わず、この view を全 legacy consumer で共有する。
+    freeze_document = _mutable_json_tree(validated.ratified.document)
 
     # C2-9 / A3-6: manifest を厳密 1 回だけ verify し、gate と本体で同一
     # VerifiedManifest object を共有する (再読込・再検証しない)。verify 失敗時は
@@ -643,15 +657,15 @@ def run_block(
     try:
         verified_manifest = verify_manifest(
             Path(manifest_path), root=root,
-            freeze_document=verified.document, freeze_sha256=verified.sha256,
+            freeze_document=freeze_document,
+            freeze_sha256=validated.ratified.sha256,
         )
     except Exception:
         verified_manifest = None
 
     decision = gate_check(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
-        verified=verified, verified_manifest=verified_manifest,
-        ratified=ratified, ratified_error=ratified_error,
+        launch_validated=validated, verified_manifest=verified_manifest,
     )
     if not decision.allowed:
         return {"status": "refused", **asdict(decision)}
@@ -669,11 +683,11 @@ def run_block(
     # ディレクトリ = production では output/s8b-freeze/ 配下。
     marker_root = Path(marker_root) if marker_root is not None else freeze_path.parent
     manifest = verified_manifest.document
-    freeze = verified.document
+    freeze = freeze_document
     block = config_for_block(manifest, block_id)
     limits = s8b_budget.load_oracle_limits(freeze)
     manifest_sha = verified_manifest.sha256
-    freeze_sha = verified.sha256
+    freeze_sha = validated.ratified.sha256
     schedule_sha = manifest["schedule_sha256"]
     campaign_id = block["campaign_id"]
     run_contract = block["run_contract"]
@@ -687,8 +701,8 @@ def run_block(
     # 不整合も refusal に翻訳し、run marker・WAL・budget を一切書かずに倒す。
     try:
         plan = _prepare_v2_execution(
-            ratified=ratified, run_contract=run_contract,
-            schedule=block["schedule"], out_root=output_root, root=root,
+            validated=validated, run_contract=run_contract,
+            schedule=block["schedule"], out_root=output_root,
         )
     except OracleDriverError as exc:
         return {"status": "refused", **asdict(GateDecision(
