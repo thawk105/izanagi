@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 import sys
 from collections import Counter
@@ -101,15 +100,15 @@ def _cell(rows: Sequence[Mapping], n: int, duplicate_indices: set[int]) -> dict:
         if row.get("excluded_reason") is not None:
             reasons.append(_reason("excluded", "excluded_reason が null でない"))
         values = row.get("bench_values")
-        if (not isinstance(values, Sequence) or isinstance(values, (str, bytes, bytearray))
-                or not values):
+        if (not isinstance(values, Sequence)
+                or isinstance(values, (str, bytes, bytearray)) or not values):
             reasons.append(_reason("bench-values", "bench_values が空または array でない"))
             continue
-        if any(isinstance(value, bool) or not isinstance(value, (int, float))
-               or not math.isfinite(float(value)) for value in values):
+        projected = _artifacts.project_finite_float_sequence(values)
+        if projected is None:
             reasons.append(_reason("non-finite", "bench_values に非有限値または非数値がある"))
             continue
-        trial_medians.append(float(statistics.median(float(value) for value in values)))
+        trial_medians.append(float(statistics.median(projected)))
     if reasons:
         return _unknown(reasons)
     return {

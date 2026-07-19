@@ -862,7 +862,15 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
     assert out["schema_version"] == "8b-combined-verdict/v2"
 
 
-def test_cli_rejects_exploration_oracle_without_output(tmp_path, monkeypatch):
+@pytest.mark.parametrize("schema", [
+    None,
+    "unknown/v1",
+    artifacts.OFFICIAL_OBSERVATIONS_SCHEMA,
+    artifacts.EXPLORATION_ARTIFACT_SCHEMA,
+])
+def test_cli_rejects_non_verdict_oracle_schema_without_output(
+    tmp_path, monkeypatch, schema,
+):
     freeze_doc = _v2_freeze_document()
     protocol_path = tmp_path / "protocol.json"
     protocol_sha = _write_json(protocol_path, {"scale_adequacy_rel_tolerance": "0.10"})
@@ -874,14 +882,8 @@ def test_cli_rejects_exploration_oracle_without_output(tmp_path, monkeypatch):
         H1: {"on": "c01", "off": "c06", "swapped": "c06"},
         H2: {"on": "c06", "off": "c06", "swapped": "c01"},
     })), encoding="utf-8")
-    oracle_path = tmp_path / "oracle.exploration.json"
-    oracle_path.write_text(json.dumps({
-        "schema_version": artifacts.EXPLORATION_ARTIFACT_SCHEMA,
-        "artifact_role": "verdict",
-        "campaign_id": "trial-a",
-        "measurement_hint": {"extime_s": 3, "reps": 3},
-        "payload": {},
-    }), encoding="utf-8")
+    oracle_path = tmp_path / "oracle.invalid.json"
+    oracle_path.write_text(json.dumps({"schema_version": schema}), encoding="utf-8")
     output = tmp_path / "must-not-exist.json"
     monkeypatch.setattr(
         verdict, "verify_prediction",

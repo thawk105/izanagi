@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -22,7 +21,7 @@ from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign import s8b_experiment_numbers as _experiment_numbers  # noqa: E402
 from campaign import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E402
-from campaign.layout import campaign_layout  # noqa: E402
+from campaign.layout import CampaignLayout, campaign_layout  # noqa: E402
 
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
@@ -54,8 +53,8 @@ class ReportError(ValueError):
     """manifest または WAL が report 契約を満たさない。"""
 
 
-def _reject_exploration_output_root(output_root: Path) -> None:
-    """realpath 後の namespace marker を検査し official/exploration 混同を拒否する。"""
+def _resolve_official_output_root(output_root: Path) -> Path:
+    """namespace marker を検査し、後段が使う唯一の resolved root を返す。"""
     try:
         resolved = Path(output_root).resolve()
     except OSError as exc:
@@ -64,7 +63,7 @@ def _reject_exploration_output_root(output_root: Path) -> None:
     if marker.is_symlink():
         raise ReportError("output_root namespace marker が symlink")
     if not marker.exists():
-        return
+        return resolved
     try:
         document = _artifacts.strict_load_json_object(marker)
     except _artifacts.OracleArtifactTypeError as exc:
@@ -72,6 +71,33 @@ def _reject_exploration_output_root(output_root: Path) -> None:
     if document == {"namespace": "exploration"}:
         raise ReportError("exploration namespace を official report output_root に指定できない")
     raise ReportError("output_root namespace marker が official namespace と一致しない")
+
+
+def _resolved_campaign_layout(
+    campaign_id: str, resolved_output_root: Path,
+) -> CampaignLayout:
+    """official root 配下の symlink-free campaign を resolved path へ固定する。"""
+    try:
+        unresolved = campaign_layout(campaign_id, output_root=str(resolved_output_root))
+    except ValueError as exc:
+        raise ReportError(str(exc)) from exc
+    campaigns_root = resolved_output_root / "campaigns"
+    campaign_root = Path(unresolved.root)
+    for component in (campaigns_root, campaign_root):
+        if component.is_symlink():
+            raise ReportError(f"campaign path component が symlink: {component}")
+    try:
+        resolved_campaign_root = campaign_root.resolve()
+        resolved_campaign_root.relative_to(campaigns_root)
+    except (OSError, ValueError) as exc:
+        raise ReportError(
+            "resolved campaign root が official output_root/campaigns 配下でない"
+        ) from exc
+    if resolved_campaign_root.parent != campaigns_root:
+        raise ReportError(
+            "resolved campaign root が official output_root/campaigns 直下でない"
+        )
+    return CampaignLayout(root=str(resolved_campaign_root))
 
 
 def _is_int(value: object) -> bool:
@@ -499,17 +525,15 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
         issues.append(f"bench_done が一意でない: {len(benches)}")
     elif len(benches) == 1:
         raw_values = _safe_payload(benches[0]).get("tps")
-        if (not isinstance(raw_values, Sequence)
-                or isinstance(raw_values, (str, bytes, bytearray)) or not raw_values
-                or any(isinstance(value, bool) or not isinstance(value, (int, float))
-                       or not math.isfinite(float(value)) for value in raw_values)):
+        projected = _artifacts.project_finite_float_sequence(raw_values)
+        if projected is None:
             issues.append("bench_done.tps が空または非有限値を含む")
-        elif len(raw_values) != expected_reps:
+        elif len(projected) != expected_reps:
             issues.append(
                 "bench_done.tps 件数が official reps と不一致: "
-                f"actual={len(raw_values)}, expected={expected_reps}")
+                f"actual={len(projected)}, expected={expected_reps}")
         else:
-            bench_values = [float(value) for value in raw_values]
+            bench_values = projected
 
     counts = {stage: sum(record.stage == stage for record in pipeline_records)
               for stage in _outcome_stage_contract.PIPELINE_STAGES}
@@ -668,10 +692,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                      expected_reps: int,
                      manifest_issues: Sequence[str]) -> list[dict]:
     bases = [_base_row(item) for item in rows]
-    try:
-        layout = campaign_layout(campaign_id, output_root=str(output_root))
-    except ValueError as exc:
-        return [{**base, "status": "protocol_violation", "reason": str(exc)} for base in bases]
+    layout = _resolved_campaign_layout(campaign_id, output_root)
     root = Path(layout.root)
     if not root.is_dir():
         return [{**base, "status": "campaign-incomplete", "bench_values": [],
@@ -847,7 +868,7 @@ def build_observations(
     if type(manifest) not in {_artifacts.OfficialManifest, _artifacts.LegacyManifest}:
         raise _artifacts.OracleArtifactTypeError(
             "build_observations は OfficialManifest/LegacyManifest exact type のみ受理する")
-    _reject_exploration_output_root(Path(output_root))
+    resolved_output_root = _resolve_official_output_root(Path(output_root))
     manifest_kind = (
         "official" if type(manifest) is _artifacts.OfficialManifest else "legacy"
     )
@@ -869,7 +890,7 @@ def build_observations(
         if grouped[campaign_id]:
             ordinals, items = zip(*grouped[campaign_id])
             assessed = _assess_campaign(items, campaign_id, manifest, manifest_sha,
-                                        allowed_excluded, Path(output_root),
+                                        allowed_excluded, resolved_output_root,
                                         expected_reps, manifest_issues)
             for ordinal, row in zip(ordinals, assessed):
                 by_ordinal[ordinal] = row

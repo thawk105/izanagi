@@ -357,6 +357,25 @@ def test_committed_bench_requires_exact_manifest_reps(tmp_path, actual_reps):
     assert f"actual={actual_reps}, expected=5" in row["reason"]
 
 
+def test_huge_integer_tps_is_row_level_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    pipeline = _valid_committed_pipeline()
+    pipeline[4] = ("bench_done", {"tps": [10**400] * 5, "median_tps": 0.0})
+    pipeline[5] = (
+        "commit", {"fitness_tps": 0.0, "verify_configs": ["legacy", "s2"]},
+    )
+    _manual_trial(layout, item, "committed", pipeline)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["bench_values"] == []
+    assert "bench_done.tps が空または非有限値を含む" in row["reason"]
+
+
 def test_run_contract_reps_must_match_approved_leaf_even_when_tps_matches(tmp_path):
     manifest = _manifest(tmp_path)
     manifest["run_contract"]["reps"] = 4
@@ -465,6 +484,57 @@ def test_report_rejects_exploration_namespace_and_symlink_alias(tmp_path):
     for output_root in (exploration_root, alias):
         with pytest.raises(report.ReportError, match="exploration namespace"):
             report.build_observations(manifest=manifest, output_root=output_root)
+
+
+def test_report_rejects_campaign_symlink_to_exploration_namespace(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    exploration = exploration_campaign_layout(
+        "oracle-b0", output_root=str(tmp_path),
+    ).ensure()
+    _campaign_start(exploration, manifest)
+    _trial(exploration, item, "committed")
+    _finish_campaign(exploration, manifest)
+    official_root = tmp_path / "official"
+    campaigns = official_root / "campaigns"
+    campaigns.mkdir(parents=True)
+    (campaigns / "oracle-b0").symlink_to(
+        Path(exploration.root), target_is_directory=True,
+    )
+
+    with pytest.raises(report.ReportError, match="campaign path component が symlink"):
+        report.build_observations(manifest=manifest, output_root=official_root)
+
+
+def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    trusted_root = tmp_path / "trusted"
+    trusted = _layout(trusted_root, manifest)
+    _trial(trusted, item, "committed", tps=(1.0, 2.0, 3.0, 4.0, 5.0))
+    _finish_campaign(trusted, manifest)
+    attacker_root = tmp_path / "attacker"
+    attacker = _layout(attacker_root, manifest)
+    _trial(attacker, item, "committed", tps=(91.0, 92.0, 93.0, 94.0, 95.0))
+    _finish_campaign(attacker, manifest)
+    alias = tmp_path / "official-alias"
+    alias.symlink_to(trusted_root, target_is_directory=True)
+    original_resolver = report._resolve_official_output_root
+
+    def resolve_then_swap(output_root):
+        resolved = original_resolver(output_root)
+        alias.unlink()
+        alias.symlink_to(attacker_root, target_is_directory=True)
+        return resolved
+
+    with mock.patch.object(
+        report, "_resolve_official_output_root", side_effect=resolve_then_swap,
+    ):
+        observations = report.build_observations(
+            manifest=manifest, output_root=alias,
+        )
+
+    assert observations["rows"][0]["bench_values"] == [1.0, 2.0, 3.0, 4.0, 5.0]
 
 
 def test_report_cli_rejects_exploration_output_root_without_output(tmp_path):

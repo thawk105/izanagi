@@ -114,6 +114,44 @@ def test_role_loaders_reject_duplicate_schema_version(loader):
         loader(payload)
 
 
+@pytest.mark.parametrize(
+    ("loader", "official_schema"),
+    [
+        (artifacts.load_official_manifest, artifacts.OFFICIAL_MANIFEST_SCHEMA),
+        (artifacts.load_official_observations, artifacts.OFFICIAL_OBSERVATIONS_SCHEMA),
+        (artifacts.load_official_verdict, artifacts.OFFICIAL_VERDICT_SCHEMA),
+    ],
+)
+@pytest.mark.parametrize(
+    "tail",
+    [',"value":1e999', ',"nested":{"values":[1e999]}'],
+    ids=["top-level", "nested"],
+)
+def test_role_loaders_reject_exponent_overflow(loader, official_schema, tail):
+    run_contract = ',"run_contract":{}' if loader is artifacts.load_official_manifest else ""
+    payload = (
+        f'{{"schema_version":"{official_schema}"{run_contract}{tail}}}'
+    ).encode()
+
+    with pytest.raises(artifacts.OracleArtifactTypeError, match="有限でない"):
+        loader(payload)
+
+
+@pytest.mark.parametrize(
+    ("loader", "other_official_schema"),
+    [
+        (artifacts.load_official_observations, artifacts.OFFICIAL_VERDICT_SCHEMA),
+        (artifacts.load_official_verdict, artifacts.OFFICIAL_OBSERVATIONS_SCHEMA),
+    ],
+)
+def test_observations_and_verdict_loaders_reject_unknown_schema(
+    loader, other_official_schema,
+):
+    for rejected in (None, "unknown/v1", other_official_schema):
+        with pytest.raises(artifacts.OracleArtifactTypeError, match="schema_version"):
+            loader(json.dumps({"schema_version": rejected}).encode())
+
+
 def test_manifest_loader_separates_official_and_legacy_markers():
     official = artifacts.load_official_manifest(json.dumps({
         "schema_version": artifacts.OFFICIAL_MANIFEST_SCHEMA,

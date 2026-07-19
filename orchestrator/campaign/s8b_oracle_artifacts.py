@@ -10,8 +10,9 @@ import し、同名 class が別 module identity で複製されることを避�
 from __future__ import annotations
 
 import json
+import math
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TypeAlias
 
@@ -60,6 +61,13 @@ def _reject_json_constant(token: str):
     raise OracleArtifactTypeError(f"JSON に非数値定数リテラルがある: {token}")
 
 
+def _parse_finite_json_float(token: str) -> float:
+    value = float(token)
+    if not math.isfinite(value):
+        raise OracleArtifactTypeError(f"JSON に有限でない浮動小数点値がある: {token}")
+    return value
+
+
 def _reject_duplicate_keys(pairs):
     document: dict = {}
     for key, value in pairs:
@@ -91,6 +99,7 @@ def strict_load_json_object(source: JsonSource) -> dict:
         value = json.loads(
             text,
             parse_constant=_reject_json_constant,
+            parse_float=_parse_finite_json_float,
             object_pairs_hook=_reject_duplicate_keys,
         )
     except json.JSONDecodeError as exc:
@@ -98,6 +107,25 @@ def strict_load_json_object(source: JsonSource) -> dict:
     if type(value) is not dict:
         raise OracleArtifactTypeError(f"JSON top-level が object でない: {label}")
     return value
+
+
+def project_finite_float_sequence(value: object) -> list[float] | None:
+    """数値 array を各要素一度だけ float 化する。不正・overflow は None。"""
+    if (not isinstance(value, Sequence)
+            or isinstance(value, (str, bytes, bytearray)) or not value):
+        return None
+    projected: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            return None
+        try:
+            number = float(item)
+        except (OverflowError, TypeError, ValueError):
+            return None
+        if not math.isfinite(number):
+            return None
+        projected.append(number)
+    return projected
 
 
 def load_official_manifest(source: JsonSource) -> OfficialManifest | LegacyManifest:

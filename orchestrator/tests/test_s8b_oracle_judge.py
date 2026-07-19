@@ -42,7 +42,9 @@ def _observations(
                     "binding_ok": True,
                     "legacy_verify": "pass",
                     "s2_verify": "pass",
-                    "bench_values": [value, value + 2.0],
+                    "bench_values": [
+                        value, value + 1.0, value + 2.0, value + 3.0, value + 4.0,
+                    ],
                     "excluded_reason": None,
                     "screen_outcome": "not_enabled",
                     "reason": None,
@@ -79,8 +81,11 @@ def test_exact_maximum_tie_is_not_broken_by_a_floor():
     observations = _observations()
     for row in observations["rows"]:
         if row["configuration_id"] == CONFIGURATIONS[-2]:
-            row["bench_values"] = [50.0 + (row["schedule_index"] % 2),
-                                   52.0 + (row["schedule_index"] % 2)]
+            offset = float(row["schedule_index"] % 2)
+            row["bench_values"] = [
+                50.0 + offset, 51.0 + offset, 52.0 + offset,
+                53.0 + offset, 54.0 + offset,
+            ]
 
     result = judge.judge_oracle(observations)
 
@@ -109,6 +114,18 @@ def test_quality_rule_violations_are_indeterminate(damage):
     assert _holdout(result)["verdict"] == "indeterminate"
     assert any(cell["status"] == "unknown"
                for cell in _holdout(result)["configurations"].values())
+
+
+def test_huge_integer_bench_value_is_indeterminate():
+    observations = _observations()
+    observations["rows"][0]["bench_values"] = [10**400]
+
+    result = judge.judge_oracle(observations)
+    cell = _holdout(result)["configurations"][CONFIGURATIONS[0]]
+
+    assert result["status"] == "indeterminate"
+    assert cell["status"] == "unknown"
+    assert any(reason["code"] == "non-finite" for reason in cell["reasons"])
 
 
 def test_correctness_red_disqualifies_and_high_score_cannot_win():
@@ -237,13 +254,13 @@ def test_deleting_every_row_for_one_expected_holdout_is_indeterminate():
 def _asymmetric_observations() -> artifacts.OfficialObservations:
     """median と mean が乖離する非対称配置 (V9 — C-A #3 の変異 kill 恒久化)。
 
-    - c-low: 各 trial [10, 10, 40] → median 10 / mean 20。trial_medians [10,10,10]。
-    - c-high: 各 trial [15, 15, 15] → median 15 / mean 15。
+    - c-low: 各 trial [10, 10, 10, 10, 60] → median 10 / mean 20。
+    - c-high: 各 trial [15, 15, 15, 15, 15] → median 15 / mean 15。
     median 集約なら winner=c-high、mean 置換なら c-low が 20 で勝つ (winner 反転)。
     """
     configs = {
-        "c-low": [10.0, 10.0, 40.0],
-        "c-high": [15.0, 15.0, 15.0],
+        "c-low": [10.0, 10.0, 10.0, 10.0, 60.0],
+        "c-high": [15.0, 15.0, 15.0, 15.0, 15.0],
     }
     rows = []
     index = 0
@@ -317,15 +334,15 @@ def test_judge_rejects_valid_raw_and_exploration_observation_types():
             judge.judge_oracle(untyped)
 
 
-def test_judge_cli_rejects_exploration_input_without_output(tmp_path):
-    source = tmp_path / "observations.exploration.json"
-    source.write_text(json.dumps({
-        "schema_version": artifacts.EXPLORATION_ARTIFACT_SCHEMA,
-        "artifact_role": "observations",
-        "campaign_id": "trial-a",
-        "measurement_hint": {"extime_s": 3, "reps": 3},
-        "payload": {},
-    }), encoding="utf-8")
+@pytest.mark.parametrize("schema", [
+    None,
+    "unknown/v1",
+    artifacts.OFFICIAL_VERDICT_SCHEMA,
+    artifacts.EXPLORATION_ARTIFACT_SCHEMA,
+])
+def test_judge_cli_rejects_non_observations_schema_without_output(tmp_path, schema):
+    source = tmp_path / "observations.invalid.json"
+    source.write_text(json.dumps({"schema_version": schema}), encoding="utf-8")
     output = tmp_path / "must-not-exist.json"
 
     rc = judge.main(["judge", "--input", str(source), "--out", str(output)])
