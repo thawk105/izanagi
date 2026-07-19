@@ -2557,3 +2557,27 @@ BYTECODE=1` で解消 (自作変異ハーネスの必須設定)。
 **発効なし規律**: master_seed/env_tag の焼き込み・official 実走・floor 実測は本 wave スコープ外。
 official mode の core 拒否は不変 (staged builder は `_run_campaign_core` 経由のテスト専用)。追認リスト
 (§10.2 末尾) は次回ユーザー接点へ。
+
+## §10.5 ユーザー裁定記録 — 新規追認リスト 5 項の承認 (2026-07-19)
+
+§10.2 末尾で起票した「新規追認リスト行き (実装解釈)」5 項を、2026-07-19 にユーザーが**全項承認**
+(推奨どおり、変更要求なし)。提示材料 = 本ファイル §10 各節 + 実装コードの突合抽出 (opus 独立調査、
+根拠 file:line つき)。これにより C2-2 wave の実装解釈は全て発効済み裁定と同格になる。
+
+1. **PortableBuiltRecord schema (argv 化 + placeholder 文法)** — 承認。exact 11 key / 二重 view
+   (runtime/artifact) / `${OUT_ROOT}`・`${CCBENCH_ROOT}` の 2 札 + component 境界置換 / 予約 token
+   衝突 fail-closed / **表示・照合専用 (再実行用 API ではない)** を恒久 schema として確定
+2. **closure blob の UTF-8・no-NUL 限定** — 承認。binary closure は fail-closed 拒否のまま
+   (緩和には binary 用 scanner の新設計 + 再裁定が前提)
+3. **L 自己整合全体捏造は raw hash で閉じない** — 承認 (保証境界の明文確定)。外部 anchor
+   (署名 tag / WORM 等) は導入しない。第三者証明が必要になった時点で別 wave として再裁定
+4. **M substate + 二相 finalize** — 承認。L / M-prestart / M-running / M-finalize-pending の分類、
+   二相 finalize (pending 書込 + 自己検査 → terminal 確定 → atomic 公開)、eligible_for_refreeze =
+   official 完走時のみ true、を確定
+5. **run artifacts の G 同梱・免除範囲の限定列挙** — 承認。G 同梱必須 = result + measurement_closure
+   のみ / cert は C<G / journal・manifest は導入順序不問 (コードに条件を足さず保証表に明記) /
+   scan 免除 = active chain 4 record の exact path+bytes のみ / 期待 hit union と許可 occurrence
+   pointer の現行列挙、を確定
+
+protocol JSON 実凍結の前提はこれで全て充足 (master_seed / env_tag は worklog (11)、Pegasus env
+登録は worklog 2026-07-19 (1))。

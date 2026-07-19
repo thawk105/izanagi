@@ -739,3 +739,18 @@ worklog (13) 次の一手 2 の消化。標準ループ ([[orchestration-loop-pa
 3. 次 wave 冒頭で: s1 freeze 系テストの submodule 読取 isolation (patch 窓を読む既存フレーク、
    W5 レビュー所見) + テストの patch 適用を tmp worktree へ隔離する恒久対策
 4. push / PR はユーザー引き渡し (Pegasus 規約)。branch = worktree-s8b-env-contract-pegasus
+
+## 2026-07-19 (2) — 追認リスト 5 項のユーザー承認を記録 (発効なし・計測なし)
+
+worklog (13)・(14) 次の一手 1 の消化。C2-2 wave 起票の「新規追認リスト」5 項 (PortableBuiltRecord
+schema / closure UTF-8・no-NUL / L 全体捏造は保証外と明文化 / M substate + 二相 finalize / run
+artifacts の G 同梱・免除の限定列挙) を、2026-07-19 にユーザーが**全項承認** (推奨どおり)。記録の
+正本 = insights `2026-07-18_s8b-c22-consultations.md` §10.5。提示材料は実装コード突合の独立抽出
+(opus) に基づく平易化資料。
+
+### 次の一手
+1. protocol JSON 実凍結 (master_seed=2026-07-18T17:16:12+09:00 / env_tag=pegasus) → 予測封印
+   — 前提は全充足 (追認 5 項 = §10.5、env 登録 = worklog (1))
+2. floor 実測 (claims/ 事前作成 + IZANAGI_RESERVATION_* export、runbook §7.1)
+3. 次 wave 冒頭: s1 freeze 系テストの submodule 読取 isolation + patch 適用の tmp worktree 隔離
+4. push はユーザー引き渡し (Pegasus 規約)
