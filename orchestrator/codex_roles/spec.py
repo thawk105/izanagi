@@ -614,8 +614,11 @@ def load_role_specs(root: Path | None = None) -> dict[str, RoleSpec]:
                 f"{label}.codex: demanding opus role は gpt-5.6-sol/high 固定"
             )
         if name == "verifier" and (codex_model, codex_effort) != (
-                "gpt-5.6-sol", "high"):
-            raise RoleSpecError(f"{label}.codex: verifierはgpt-5.6-sol/high固定")
+                "gpt-5.6-terra", "medium"):
+            # 正しさの番人の codex 列は黙って動かさない (両方向の drift を機械検出)。
+            # 値は 2026-07-19 ユーザー裁定で claude 側階層 (sonnet/medium) と整合 (D61)。
+            raise RoleSpecError(
+                f"{label}.codex: verifierはgpt-5.6-terra/medium固定 (D61)")
         if entry["fresh_context"] is not True:
             raise RoleSpecError(f"{label}.fresh_context: safe adapter は true 固定")
         forbidden = _string_list(

@@ -754,3 +754,28 @@ artifacts の G 同梱・免除の限定列挙) を、2026-07-19 にユーザー
 2. floor 実測 (claims/ 事前作成 + IZANAGI_RESERVATION_* export、runbook §7.1)
 3. 次 wave 冒頭: s1 freeze 系テストの submodule 読取 isolation + patch 適用の tmp worktree 隔離
 4. push はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-19 (3) — エージェント model/effort 経済監査と是正 (計測なし、branch model-economy-tuning)
+
+ユーザー相談「claude/codex 子の設定が無駄に高度な箇所はないか (Claude トークン消費が速い)」からの
+監査 wave。監査 = Claude workflow 11 agents (finder 4 / 敵対検証 6 / 抜け 1)、是正のレビュー =
+Claude workflow 9 agents + codex exec 2 レーン (gpt-5.6-sol/high)。フラグ・裁定の要旨の正本 =
+output/insights/2026-07-19_agent-model-economy-audit.md、設計決定 = D61。
+
+- ユーザー裁定 2 件: (a) 親セッション既定 (fable[1m]/xhigh) の opus/high への引き下げを承認 —
+  ~/.claude/settings.json の AI 編集は auto-mode classifier に拒否されたため手動変更を引き渡し。
+  (b) verifier の codex 列を terra/medium へ再ピン (D61。専用固定ルールは削除せず新値で維持)
+- 棄却 finding 4 件 (codex 相談 max 定型 / s6 opus ハードコード / profiler opus / opus tool-less 群)
+  と codex adapter 一律説の反証は insight に凍結
+- セッション異常・正直な記録: 監査 finder 1 体 (opus/high) が縮退出力 `summary:"test"` (他 2 系で
+  裏取り済み)。codex scanner レーン初回は OpenAI 安全フィルタが「攻撃」表現を誤検知して失敗 →
+  中立表現で完走。親の誤報告 2 件 (truncate grep 由来の「sonnet 系 3 role 一律 sol/high」説、
+  verifier 高頻度説) はレビューが検出し訂正 — verifier 頻度の誤りは codex レーンのみが検出しており、
+  製品またぎ二重レビューの実益例
+- 素材: 正しさ番人の設定変更は「機械ルールの削除でなく新値での再ピン」で防壁構造を保存する (D61)。
+  経済最適化圧力が正しさ側の防壁を素通りで壊さない形
+
+### 次の一手
+1. ユーザー: ~/.claude/settings.json の手動変更 (model: "opus" / effortLevel: "high")
+2. ユーザー: branch model-economy-tuning の push / PR 判断 (Pegasus 規約で AI は push しない)
+3. 新 workflow script は起動前に `python3 tools/check_workflow_models.py` で自己検査 (memory 更新済み)
