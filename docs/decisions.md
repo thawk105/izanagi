@@ -2405,3 +2405,38 @@ tmp-only / immutable reader まで直列化し critical path を過大化する�
 source 順変更で到達し得る 1 node を外す利得 (数百 ms) が再 flake リスクに見合わない。
 
 **研究状態への影響:** なし (テスト運用の変更のみ。速度は loadgroup 9.3s vs load 11.2s で退行なし)。
+
+## D64. 公式実験数値の単一 authority leaf — extime/reps の一致検査と abort reason 閉表の全分岐化 (2026-07-20)
+
+**背景:** ユーザー裁定 (2026-07-19): 公式実験は extime=5 秒 / reps=5、floor と oracle は結合
+(単一 authority)、実装は一致検査、探索は 3 秒 3 回目安で検証器の対象外。従来は floor がローカル
+literal `_APPROVED_REPS=5` + extime 任意正整数、oracle manifest は reps/extime とも任意正整数受理
+(999 実測、X3-52 erratum)、report の abort reason 閉表は bench-failed 分岐のみだった。敵対相談
+2 本 (B-004 wave C-A/C-B) で (i) 新 leaf 単独では builder/`s8b_approved` の別 literal が残り単一
+authority にならない、(ii) 等値 golden は literal 再導入を識別できない、(iii) 閉表を数値 leaf に
+同居させると reason 契約が四分裂する、が同定された。
+
+**決定:** (1) stdlib-only の数値 leaf `s8b_experiment_numbers.py` (APPROVED_EXTIME_S=5 /
+APPROVED_REPS=5) を新設し、floor `validate_protocol` と oracle `_validate_run_contract` の両検証器
+が module-qualified で参照する (一致は transitively 成立)。(2) `s8b_approved` は import 束縛の
+再輸出のみで literal を持たない。(3) 配線の実在は monkeypatch 伝播テスト + fresh subprocess
+再輸出テストで固定し、「leaf 参照を literal に戻す」変異を殺す (等値検査のみでは恒真)。
+(4) abort reason 閉表 (timeout={trace-timeout} / build-failed={build-error, identity-error} /
+verify-inconclusive 5 種) は数値 leaf でなく `s8b_abort_reason_contract` に追加し、issuer
+(driver `_outcome_for`) と verifier (report) が同一 leaf を参照する。report は timeout/build-failed
+にも sole-abort 連言を課し、verify-inconclusive は membership 前に str 型 guard (unhashable
+クラッシュ閉鎖)。(5) 探索経路のための bypass は official validator に設けない。
+
+**却下した対案:** 凍結 protocol object を manifest 検査へ引き回す深い配線 (C2-6 案) — 可動部が
+増える。authority object 導出 (approved-waves §U3 推奨 (b)) — leaf pin が同じ一致性をより少ない
+配線で与えるため今回は不採用 (experiment_numbers の他 field 裁定時に再考)。
+
+**残余 (裁定パッケージ、正本 = `output/insights/2026-07-20_b004-experiment-numbers-consultations.md`):**
+report→judge→verdict の manifest 検証迂回 + 探索 namespace 隔離 / reps=5 の観測証拠件数意味論 /
+gate-check preflight 偽緑 / 段階順序 truth-table / 全 stage payload 非 Mapping クラッシュ。
+
+**D63 erratum (併記):** REAL_REPO_SERIAL_NODES に、snapshot テストの結線監査 meta-テスト
+`test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root`
+自身が列挙されておらず、writer の ccbench patch 窓と並走して間欠赤になり得た (B-004 wave の
+テスト追加で顕在化、実測 2/3)。正本 + 独立 golden の両側へ追加して閉鎖 (全走 7 連続緑)。
+

@@ -905,3 +905,40 @@ U4:4、全 real] → 親変異 matrix + 受入実測 → 再投げ 4 回)。comm
    TypeError)
 3. C (backlog-guard-mechanism): 変わらず (前エントリ参照 — 機構形式のユーザー裁定待ち)
 4. ユーザー: branch approved-waves の push 判断 (AI は push しない。基点 aba3774 = main)
+
+## 2026-07-20 (1) — B-004 wave 実装完了: 公式実験数値 pin (extime=5/reps=5) + report 隣接 3 穴 (branch approved-waves、計測なし)
+
+worklog (8) 次の一手 1・2。**ユーザー裁定 (2026-07-19、会話はコンテキストクリア済みのためここが
+記録の正本): 公式実験は extime=5 秒 / reps=5。floor と oracle は結合 (単一 authority) で実装は
+一致検査。試行錯誤 (探索) は 3 秒 3 回目安で検証器の対象外。oracle 側 reps (X3-52 erratum) と
+隣接 3 穴 (P_timeout_reason / P_build_reason / P_reason_type_crash) も同時承認。**
+
+標準ループ (プラン v1 [handoff 控え] → codex 敵対相談 2 本並列 [gpt-5.6-sol max、14 所見
+real 14/refuted 0、プラン v1 に NO-GO] → プラン v2 → 実行 = codex 並列 2 worktree → レビュー =
+codex 並列 2 本 [所見 E1:3 / E2:1、全 real] → fix 再投 2 → 親変異 matrix N1〜N14 全 KILL +
+受入全走 7 連続緑)。設計判断 = D64。相談・実行・レビュー・fix の逐語と変異実測の正本 =
+`output/insights/2026-07-20_b004-experiment-numbers-consultations.md`。
+
+- **裁定パッケージ 5 件** (承認 scope 超えのため実装せず、同 insights に凍結): report→judge→
+  verdict の manifest 検証迂回 + 探索 namespace 隔離 (high) / reps=5 の観測証拠件数意味論 /
+  gate-check preflight 偽緑 / 段階順序 truth-table / payload 非 Mapping クラッシュ
+- B-057 発火 → 変異 12 本を実装前事前登録 + レビュー起因 2 本追加。レビュー前は N13/N14 相当が
+  実測 survivor (floor reps re-literal / s8b_approved 再輸出恒真) → fix 後 14/14 KILL。
+  B-056 発火 → coverage baseline/final 観測 (同水準、新 leaf 2 本 100%、gate 化なし)
+- **D63 列挙漏れを補完** (D64 に erratum 併記): 結線監査 meta-テスト自身が real-repo 競合面なのに
+  直列 group 外で、統合後の全走で間欠赤 (2/3、failing node はログ保存 — (8) 異常 (ii) の教訓を
+  適用)。二重台帳の両側更新で閉鎖、片側のみの変更は監査が実測検出 (恒真化防止が設計どおり機能)
+- golden SHA は相談予測・実装再計算・レビュー独立再構成の三重一致。codex 相談で安全フィルタ
+  発火ゼロ (防御的表現の運用知見を適用)
+- 工数: codex 相談 2 (max) + 実行 2 (high) + レビュー 2 (high) + fix 2 (medium)、親 = fable
+  (裁定・統合・変異ゲート・flake 真因同定)
+
+### 次の一手
+
+1. **ユーザー裁定 (裁定パッケージ 5 件)**: 上記 insights の §裁定パッケージ。推奨順 = P-A1 の (b)
+   探索 namespace 隔離 (小) → P-B5/P-B6 (report 証拠 truth-table と payload guard、同一分岐群の
+   隣接 wave) → P-A2 (reps 意味論) → P-A5 (gate-check)
+2. C (backlog-guard-mechanism): 変わらず (前エントリ参照 — 機構形式のユーザー裁定待ち)
+3. ユーザー: branch approved-waves の push 判断 (AI は push しない。基点 aba3774 = main、
+   本 wave 分を含め未 push)
+
