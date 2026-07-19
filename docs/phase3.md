@@ -62,8 +62,9 @@ C2-2 検証器本丸 wave も実装完了 (2026-07-18、launch certificate linea
 ジョブ実測 (attempt 10 で accepted、CV 1.17%) + registry 登録 (attestation_mode=required)。実機で
 確定した運用事実は pegasus-runbook §7.1、経緯の正本 = worklog 末尾 +
 `output/insights/2026-07-18_env-contract-pegasus-consultations.md`。
-残 = ユーザー追認 (§10.2 末尾リスト) → protocol JSON 実凍結 + 予測封印 →
-floor 実測 (launch certificate 結線・env 登録の blocking は両方解消済み) → v2 候補生成 + 承認 → oracle
+追認リスト 5 項も **2026-07-19 に全項承認済み** (記録 = 同 insights §10.5)。
+残 = protocol JSON 実凍結 + 予測封印 →
+floor 実測 (前提はすべて充足) → v2 候補生成 + 承認 → oracle
 実走 (進捗と残課題の正本 = worklog 末尾エントリ)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
