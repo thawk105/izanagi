@@ -2440,3 +2440,46 @@ gate-check preflight 偽緑 / 段階順序 truth-table / 全 stage payload 非 M
 自身が列挙されておらず、writer の ccbench patch 窓と並走して間欠赤になり得た (B-004 wave の
 テスト追加で顕在化、実測 2/3)。正本 + 独立 golden の両側へ追加して閉鎖 (全走 7 連続緑)。
 
+
+## D65. 探索/公式の namespace・型隔離 (Stage 0) と report 証拠検査の閉表化 — 裁定パッケージ 5 件の実装 (2026-07-20)
+
+**背景:** ユーザー裁定 (worklog 2026-07-20 (2)(3)): P-A1 は (b) 探索成果物の別 namespace/書式隔離を
+先行し (a) 検査必須化は段階導入、P-A2 は「reps=5 = 成功した測定値 5 個」、P-A5/B5/B6 は推奨案承認。
+プラン起草を codex に委譲するハイブリッド標準ループの初回試行で実装 (敵対相談 25 所見 → プラン v2、
+レビュー 9 所見 → fix。逐語 = `output/insights/2026-07-20_wave2-adjudicated-package-loop.md`)。
+
+**決定:**
+(1) **artifact 型は JSON 互換 runtime marker であり provenance 証明ではない。** `s8b_oracle_artifacts.py`
+に Official*/LegacyManifest/ExplorationArtifact を非継承で置き、official consumer (report/judge/combined
+verdict) は exact type gate + strict parse (duplicate key・非有限・1e999 拒否) + 有限 float 射影で受ける。
+schema 定数は本 leaf が単一 authority。
+(2) **official namespace は不変、探索は `output/exploration/campaigns/`。** exploration root には
+namespace.json role marker を書き、official report は resolved root の marker 検査 + campaign root の
+containment/symlink component 検査で拒否 (blocklist 型。allowlist 必須化 = marker 無し root の拒否は
+P-A1(a) の段階導入に残す)。
+(3) **段階 truth-table は abort reason 閉表と別 leaf** (`s8b_outcome_stage_contract.py`)。段階の
+存在・順序 (verify_sequence) ・abort workload frontier (4 状態: absent/invalid/legacy/s2) は形の契約、
+reason 閉表は語彙の契約で、変更理由が異なる。report は StageEvidence を一度だけ射影し matches() を
+module-qualified で呼ぶ。
+(4) **P-A2 は report 側の証拠検査** (expected_reps = APPROVED_REPS 恒常参照、宣言 reps の一致も検査、
+legacy でも免除しない)。runner の require_all_reps 既定は探索/汎用経路の契約として不変。
+(5) **P-A5 は第二の部分 validator を作らず launch_validate を再利用。** public gate_check は v2 で
+必ず自己検証 (launch_validated 注入口を public から除去、run-block 専用 private は caller を静的固定)。
+(6) **P-A1(a) の段階導入 (未実装):** Stage 1 = report official API を VerifiedManifest のみ受理 +
+verify_manifest 必須化、Stage 2 = verified upstream identity の連鎖 (observations→judge→combined の
+hash 再束縛)、Stage 3 = legacy (schema/run_contract 欠落) 受理の廃止 — manifest v2 bump とは区別する。
+各段階は個別にユーザー承認を得る。
+
+**残存リスク (Stage 0 の限定保証):** 本 wave が閉じるのは「正規探索 producer 成果物の誤投入・交差
+受理」まで。official schema を名乗る手書き JSON や schema-less legacy は依然 report を通る (= (a) の
+責務)。意味論 leaf (outcome_stage_contract / artifacts) は oracle manifest の generator pin の外
+(裁定パッケージ P-C3)。rep の「成功」は暫定的に「有限 tps が parse された rep」であり rc=0 を含意
+しない (P-C1)。正当な prepare retry の report 偽陽性は既存挙動として残置 (P-C2)。
+
+**scope 訂正:** E1 の sys.path bootstrap で s8b_verdict.py の直接実行 (既存 ModuleNotFoundError) が
+修復された。V13 (CLI 実 subprocess テスト) の enabler として維持し記録で訂正。
+
+**検収:** 対象テスト群 + 全走 7 連続緑 (2111 passed / 19 skipped)。変異 matrix 22/22 KILLED
+(machine-readable 台帳 = `output/insights/2026-07-20_wave2-mutation-ledger.json`、B-057)。coverage
+観測 (B-056、gate 化なし): report 76→83% / judge 77→84% / 他は同水準。研究結果・実測値への影響なし
+(公式計測・freeze 再発行・artifact 発効なし)。

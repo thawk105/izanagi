@@ -1,0 +1,258 @@
+{
+ "schema": "wave2-mutation-ledger/v1",
+ "measured_at_head": "a89e2b89f295ff602bd20f86db433ec1d8f16cbc",
+ "harness": "apply(str.replace x1, old 一意性 assert) -> killer pytest -> restore -> sha256 一致 assert。PYTHONDONTWRITEBYTECODE=1",
+ "result": "22/22 KILLED, survivors: []",
+ "notes": [
+  "M15 の kill は launch_validate 呼出回数 0 の検出 (配線テスト)。構築 TypeError ではないことを個別確認",
+  "RM1/RM2 は敵対レビュー R1-4 が提示した生存しうる変異。fix (F4) 前は未固定、fix 後の負例が実測 KILL",
+  "M12/M13 は review fix (a89e2b8) による行移動で old 文字列を更新して再実測 (意味は事前登録どおり)",
+  "総数 22 = 事前登録 18 軸を a/b 分割で 20 本 + レビュー起因 2 本"
+ ],
+ "mutants": [
+  {
+   "id": "M1",
+   "file": "orchestrator/campaign/layout.py",
+   "old": "        root=os.path.join(root, \"exploration\", \"campaigns\", cid),",
+   "new": "        root=os.path.join(root, \"campaigns\", cid),",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_artifacts.py::test_exploration_package_uses_disjoint_namespace_schema_and_accepts_three_by_three_hint"
+   ],
+   "note": "探索成果物を official campaigns と同じパスへ流すように緩める。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M2",
+   "file": "orchestrator/campaign/s8b_oracle_exploration.py",
+   "old": "        \"schema_version\": _artifacts.EXPLORATION_ARTIFACT_SCHEMA,",
+   "new": "        \"schema_version\": _artifacts.OFFICIAL_MANIFEST_SCHEMA,",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_artifacts.py::test_exploration_package_uses_disjoint_namespace_schema_and_accepts_three_by_three_hint"
+   ],
+   "note": "探索 builder が official manifest schema を名乗るようにする。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M3",
+   "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+   "old": "    if type(manifest) is not _artifacts.OfficialManifest:",
+   "new": "    if not isinstance(manifest, Mapping):",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_write_manifest_rejects_exploration_and_legacy_artifact_types"
+   ],
+   "note": "official exact type 要求を任意 Mapping 受理へ緩和する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M4",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "    if type(manifest) not in {_artifacts.OfficialManifest, _artifacts.LegacyManifest}:",
+   "new": "    if not isinstance(manifest, Mapping):",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_rejects_valid_raw_and_exploration_manifest_types"
+   ],
+   "note": "manifest marker 型 gate を任意 Mapping 受理へ緩和する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M5",
+   "file": "orchestrator/campaign/s8b_oracle_judge.py",
+   "old": "    if type(observations) is not _artifacts.OfficialObservations:",
+   "new": "    if False:",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_rejects_valid_raw_and_exploration_observation_types"
+   ],
+   "note": "OfficialObservations exact type gate を無条件通過させる。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M6",
+   "file": "orchestrator/campaign/s8b_verdict.py",
+   "old": "    if type(oracle) is not _artifacts.OfficialVerdict:",
+   "new": "    if False:",
+   "killers": [
+    "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_valid_raw_and_exploration_oracle_types"
+   ],
+   "note": "OfficialVerdict exact type gate を無条件通過させる。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M7",
+   "file": "orchestrator/campaign/s8b_outcome_stage_contract.py",
+   "old": "    \"build-failed\": (_evidence(\n        build_done=0, verify_sequence=(), bench_done=0,\n        abort=1, commit=0, abort_workload=\"absent\",\n    ),),",
+   "new": "    \"build-failed\": (_evidence(\n        build_done=0, verify_sequence=((\"legacy\", \"pass\"),), bench_done=0,\n        abort=1, commit=0, abort_workload=\"absent\",\n    ),),",
+   "killers": [
+    "orchestrator/tests/test_s8b_outcome_stage_contract.py::test_outcome_stage_truth_table_matches_independent_golden",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_impossible_declared_outcome_histories_are_protocol_violations[build-failed-with-verify]"
+   ],
+   "note": "build-failed で legacy verify pass を許容するよう truth-table を緩める。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M8",
+   "file": "orchestrator/campaign/s8b_outcome_stage_contract.py",
+   "old": "        _evidence(\n            build_done=1, verify_sequence=((\"legacy\", \"pass\"),), bench_done=0,\n            abort=1, commit=0, abort_workload=\"s2\",\n        ),\n    ),\n    \"bench-failed\"",
+   "new": "        _evidence(\n            build_done=1, verify_sequence=((\"legacy\", \"pass\"),), bench_done=1,\n            abort=1, commit=0, abort_workload=\"s2\",\n        ),\n    ),\n    \"bench-failed\"",
+   "killers": [
+    "orchestrator/tests/test_s8b_outcome_stage_contract.py::test_outcome_stage_truth_table_matches_independent_golden",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_impossible_declared_outcome_histories_are_protocol_violations[timeout-with-bench]"
+   ],
+   "note": "S2 frontier の timeout で bench_done 済み証拠を許容する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M9a",
+   "file": "orchestrator/campaign/s8b_outcome_stage_contract.py",
+   "old": "        _evidence(\n            build_done=1, verify_sequence=((\"legacy\", \"pass\"),), bench_done=0,\n            abort=1, commit=0, abort_workload=\"s2\",\n        ),\n    ),\n    \"bench-failed\"",
+   "new": "        _evidence(\n            build_done=1, verify_sequence=((\"legacy\", \"pass\"),), bench_done=0,\n            abort=1, commit=0, abort_workload=\"legacy\",\n        ),\n    ),\n    \"bench-failed\"",
+   "killers": [
+    "orchestrator/tests/test_s8b_outcome_stage_contract.py::test_outcome_stage_truth_table_matches_independent_golden"
+   ],
+   "note": "S2 到達後 timeout の abort workload 期待を legacy に緩める。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M9b",
+   "file": "orchestrator/campaign/s8b_outcome_stage_contract.py",
+   "old": "        _evidence(\n            build_done=1, verify_sequence=((\"legacy\", \"pass\"),), bench_done=0,\n            abort=1, commit=0, abort_workload=\"s2\",\n        ),\n    ),\n    \"bench-failed\"",
+   "new": "        _evidence(\n            build_done=1, verify_sequence=((\"legacy\", \"pass\"),), bench_done=0,\n            abort=1, commit=0, abort_workload=\"absent\",\n        ),\n    ),\n    \"bench-failed\"",
+   "killers": [
+    "orchestrator/tests/test_s8b_outcome_stage_contract.py::test_outcome_stage_truth_table_matches_independent_golden"
+   ],
+   "note": "S2 到達後 timeout でも abort workload 欠落を許容する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M10",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "    if not _outcome_stage_contract.matches(outcome, stage_evidence):",
+   "new": "    if not True:",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_reads_outcome_stage_contract_leaf"
+   ],
+   "note": "outcome と段階証拠の照合結果を恒真化する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M11a",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "        if not isinstance(getattr(record, \"payload\", None), Mapping):",
+   "new": "        if stage != \"bench_done\" and not isinstance(getattr(record, \"payload\", None), Mapping):",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_pipeline_payload_is_row_level_protocol_violation[bench-done]"
+   ],
+   "note": "全 pipeline payload 型走査から bench_done を除外する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M11b",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "        raw_values = _safe_payload(benches[0]).get(\"tps\")",
+   "new": "        raw_values = benches[0].payload.get(\"tps\")",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_non_mapping_pipeline_payload_emits_observation"
+   ],
+   "note": "bench payload の安全射影を外し、payload へ直接 get する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M12",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "        elif len(projected) != expected_reps:\n            issues.append(\n                \"bench_done.tps 件数が official reps と不一致: \"\n                f\"actual={len(projected)}, expected={expected_reps}\")\n        else:",
+   "new": "        else:",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_committed_bench_requires_exact_manifest_reps[4]"
+   ],
+   "note": "bench tps 件数の official reps 一致検査を恒偽分岐にする。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M13",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "        elif len(projected) != expected_reps:",
+   "new": "        elif len(projected) < expected_reps:",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_committed_bench_requires_exact_manifest_reps[6]"
+   ],
+   "note": "不足だけを拒否し、official reps を超える tps 件数を許容する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M14",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "    expected_reps = _experiment_numbers.APPROVED_REPS",
+   "new": "    expected_reps = (manifest.get(\"run_contract\", {}).get(\"reps\", _experiment_numbers.APPROVED_REPS) if isinstance(manifest.get(\"run_contract\"), Mapping) else _experiment_numbers.APPROVED_REPS)",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_reps_must_match_approved_leaf_even_when_tps_matches"
+   ],
+   "note": "run_contract が object の場合に自己申告 reps を期待件数として採用する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M15",
+   "file": "orchestrator/campaign/s8b_oracle_driver.py",
+   "old": "        validated = s8b_ratified_freeze.launch_validate(candidate, root)",
+   "new": "        validated = s8b_ratified_freeze.LaunchValidatedFreeze(ratified=candidate, activation_head=candidate.activation_head, search_digest=\"\", symlink_gitlink_inventory=(), floor_artifact=None, binaries_by_cell={})",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation"
+   ],
+   "note": "launch_validate を呼ばず、candidate を型互換 wrapper に包んで検証済み扱いする。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M16",
+   "file": "orchestrator/campaign/s8b_floor_contract.py",
+   "old": "    extime_s = _pinned(\n        document[\"extime_s\"], _experiment_numbers.APPROVED_EXTIME_S, field=\"extime_s\",\n    )",
+   "new": "    extime_s = _pos_int(document[\"extime_s\"], field=\"extime_s\")",
+   "killers": [
+    "orchestrator/tests/test_s8b_floor_contract.py::test_leaf_full_validator_rejects_nonapproved_extime"
+   ],
+   "note": "extime_s の承認値 pin を任意の正整数受理へ緩和する。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M17",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA",
+   "new": "SCHEMA_VERSION = \"8b-oracle-observations/v1\"",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_artifacts.py::test_oracle_schema_aliases_are_sourced_from_artifact_leaf"
+   ],
+   "note": "observations schema の leaf 再輸出を同値 local literal に戻す。",
+   "result": "KILLED"
+  },
+  {
+   "id": "M18",
+   "file": "orchestrator/campaign/s8b_oracle_report.py",
+   "old": "PIPELINE_STAGES = _outcome_stage_contract.PIPELINE_STAGES",
+   "new": "PIPELINE_STAGES = frozenset({\"build_start\", \"build_done\", \"verify_done\", \"bench_done\", \"abort\", \"commit\"})",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_reexports_outcome_and_pipeline_authorities_without_reliteralizing"
+   ],
+   "note": "PIPELINE_STAGES の leaf 再輸出を同値 local literal に戻す。",
+   "result": "KILLED"
+  },
+  {
+   "id": "RM1",
+   "file": "orchestrator/campaign/s8b_oracle_artifacts.py",
+   "old": "    if document.get(\"schema_version\") != OFFICIAL_OBSERVATIONS_SCHEMA:",
+   "new": "    if document.get(\"schema_version\") == EXPLORATION_ARTIFACT_SCHEMA:",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_artifacts.py"
+   ],
+   "note": "R1-4: observations loader の未知 schema 受理化",
+   "result": "KILLED"
+  },
+  {
+   "id": "RM2",
+   "file": "orchestrator/campaign/s8b_oracle_artifacts.py",
+   "old": "    if document.get(\"schema_version\") != OFFICIAL_VERDICT_SCHEMA:",
+   "new": "    if document.get(\"schema_version\") == EXPLORATION_ARTIFACT_SCHEMA:",
+   "killers": [
+    "orchestrator/tests/test_s8b_oracle_artifacts.py"
+   ],
+   "note": "R1-4: verdict loader の未知 schema 受理化",
+   "result": "KILLED"
+  }
+ ]
+}

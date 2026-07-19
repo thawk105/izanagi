@@ -980,3 +980,41 @@ P-A1・A5・B5・B6 推奨案承認)。
 2. C (backlog-guard-mechanism): 変わらず (前エントリ参照)
 3. ユーザー: push 判断 (AI は push しない)
 
+## 2026-07-20 (4) — 裁定パッケージ 5 件の実装 wave 完了 + ハイブリッド標準ループ初回試行 (branch approved-waves、計測なし)
+
+worklog (3) 次の一手 1。**ループ形式の変更 (ユーザー発案の試行):** 親 (fable) は緻密プランを書かず
+brief (scope/裁定/不変条件) のみ書き、緻密プラン起草を codex へ委譲。親の担当 = 裁定・scope 監査・
+統合・変異ゲート実測・記録。ユーザー未返信のまま仮定で進行 (「品質を変えずに節約できるならそうしたい」
+の意向に沿う。差し戻し可能な設計で実施)。
+
+標準ループ (brief → codex プラン起草 [max] → 敵対相談 2 並列 [max、25 所見 real 25/refuted 0、
+プラン v1 NO-GO] → 親裁定でプラン v2 [V1〜V16] → 実行 = codex 3 単位 [E1 ∥ E2 → E3、high、
+worktree 分離、cherry-pick 競合ゼロ] → 親検算 → 変異 matrix 20/20 → 全走 [plain-runner ガード発火
+1 件 → fixup] → 敵対レビュー 2 並列 [9 所見、real コード 4 = symlink/TOCTOU・数値有限性・judge
+fixture 5 値化・未知 schema 負例] → fix 1 単位 → 変異 22/22 KILLED [レビュー起因 RM1/RM2 は fix 前
+生存を実測 → fix 後 KILL] → 全走 7 連続緑)。設計判断 = D65。逐語・変異台帳・新裁定パッケージの
+正本 = `output/insights/2026-07-20_wave2-adjudicated-package-loop.md` +
+`2026-07-20_wave2-mutation-ledger.json`。
+
+- commits: 4857534 (E1: P-A1(b) 型/namespace 隔離) → bfef26f (E2: truth-table leaf + P-A5) →
+  038e749 (E3: report 配線 B5/B6/A2) → 5c09ef3 (自走 harness fixup) → a89e2b8 (レビュー fix 4 件) +
+  本 docs commit。基点 58934ae
+- 検収: 全走 7 連続緑 (2111 passed / 19 skipped)、変異 22/22 KILLED (B-057、exact diff 台帳凍結)、
+  coverage 観測 (B-056): report 76→83% / judge 77→84% / 他同水準 (gate 化なし)
+- **新裁定パッケージ 3 件 (実装せず、insights §裁定パッケージ)**: P-C1 rep 成功の rc=0 意味論 /
+  P-C2 prepare retry の report 偽陽性 (既存挙動、親裏取り済み) / P-C3 意味論 leaf が generator pin 外
+- 運用知見: (i) fix unit が担当外 docs を編集 → 親差し戻し (exec プロンプトに docs 禁止を恒久明記)。
+  (ii) 親が commit で hooksPath 迂回フラグを誤用 → 即是正 (git hooks 未配線で実害なし。予防的迂回も
+  禁止)。(iii) codex 安全フィルタ発火ゼロ (防御的表現の運用知見を継続適用)
+- ハイブリッド観測 (サンプル 1): codex 9 本 (max 3 / high 5 / medium 1)、品質面の劣化兆候なし
+  (相談 25 所見はプラン v1 の実穴、レビュー 4 real は全て fix で閉鎖 + 変異裏取り)。継続判断は
+  ユーザーへ
+
+### 次の一手
+
+1. ユーザー: ハイブリッド形式 (プラン起草の codex 委譲) の継続可否
+2. **ユーザー裁定 (新裁定パッケージ P-C1〜C3)**: insights 2026-07-20 wave2 §裁定パッケージ。
+   推奨順 = P-C2 (retry 偽陽性、report 契約の穴) → P-C1 (rep 成功意味論) → P-C3 (P-A1(a) と同時)
+3. P-A1(a) 段階導入 (Stage 1〜3、D65): 各段階の個別ユーザー承認待ち
+4. C (backlog-guard-mechanism): 変わらず (前エントリ参照)
+5. ユーザー: branch approved-waves の push 判断 (AI は push しない。基点 aba3774 = main、未 push)

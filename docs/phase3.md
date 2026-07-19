@@ -454,6 +454,13 @@ worklog 全読しないと発掘できない状態を解消するためここに
 
 ### 裁定・完了記録
 
+- **(完了 2026-07-20) oracle 後処理裁定パッケージ P-A1(b)/P-B5/P-B6/P-A2/P-A5** (D64 残余、
+  裁定の正本 = worklog 2026-07-20 (2)(3)、設計判断 = D65) — 探索 namespace/型隔離 (Stage 0)、
+  outcome 段階 truth-table leaf、全 stage payload guard、reps=5 証拠件数検査、standalone gate-check
+  の launch_validate 必須化。受入 = 対象テスト + 全走 7 連続緑 (2111 passed) + 変異 22/22 KILLED
+  (台帳 = `output/insights/2026-07-20_wave2-mutation-ledger.json`)。ループ逐語と新裁定パッケージ
+  P-C1〜C3 = `output/insights/2026-07-20_wave2-adjudicated-package-loop.md`。P-A1(a) は D65 の
+  段階導入条件へ (worklog 参照)。
 - **D39 決定 1 の wording 訂正** (B-035, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 裁定 2026-07-19: 独立検証性低下を明記する erratum として D39 へ反映。証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **locked strategy-review-freeze worktree 残骸** (B-038, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 裁定 2026-07-19: 現物不在・過去の処分証拠なしを terminal 記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **user settings の model=fable→opus** (B-050, 出所 `docs/worklog.md`) — 裁定 2026-07-19: fable 既定の継続は意図的として終了し、opus は監査・統合時だけ個別指定。証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
