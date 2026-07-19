@@ -465,24 +465,10 @@ def test_verify_requires_commit_pin_resolvable_in_root_repo(tmp_path: Path) -> N
         verify_prediction_freeze(forged, freeze=freeze, root=tmp_path)
 
 
-def test_selector_basis_ignores_floor_budget_but_binds_variant_entries() -> None:
+def test_selector_basis_preimage_is_versioned_and_backward_compatible() -> None:
+    """test_selector_basis_ignores_floor_budget_but_binds_variant_entries を統合 (固定 baseline 検査を含む上位集合)。"""
     freeze = _freeze()
     baseline = selector_basis_sha256(freeze)
-
-    floor_budget_changed = copy.deepcopy(freeze)
-    floor_budget_changed["floor"] = {"future": 1}
-    floor_budget_changed["budget"] = {"future": 2}
-    assert selector_basis_sha256(floor_budget_changed) == baseline
-
-    binding_changed = copy.deepcopy(freeze)
-    target = next(iter(binding_changed["holdouts"]))
-    key = next(iter(CHOICE_TO_BINDING.values()))
-    binding_changed["holdouts"][target]["variant_binding"]["entries"][key]["future"] = 1
-    assert selector_basis_sha256(binding_changed) != baseline
-
-
-def test_selector_basis_preimage_is_versioned_and_backward_compatible() -> None:
-    freeze = _freeze()
     preimage = selector_basis_preimage(freeze)
 
     # 拡張点が機械可読: version tag が preimage に含まれ、hash はそれに束縛される。
@@ -500,6 +486,7 @@ def test_selector_basis_preimage_is_versioned_and_backward_compatible() -> None:
     floor_budget_changed["floor"] = {"future": 1}
     floor_budget_changed["budget"] = {"future": 2}
     assert selector_basis_sha256(floor_budget_changed) == selector_basis_sha256(freeze)
+    assert selector_basis_sha256(floor_budget_changed) == baseline
     assert "floor" not in preimage and "budget" not in preimage
 
     binding_changed = copy.deepcopy(freeze)
@@ -507,6 +494,7 @@ def test_selector_basis_preimage_is_versioned_and_backward_compatible() -> None:
     key = next(iter(CHOICE_TO_BINDING.values()))
     binding_changed["holdouts"][target]["variant_binding"]["entries"][key]["future"] = 1
     assert selector_basis_sha256(binding_changed) != selector_basis_sha256(freeze)
+    assert selector_basis_sha256(binding_changed) != baseline
 
 
 def test_write_prediction_freeze_is_atomic_exclusive_create(tmp_path: Path) -> None:

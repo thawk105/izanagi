@@ -360,6 +360,13 @@ def test_snapshot_accepts_valid_per_pair_floor():
     _snapshot(_v2_document())  # 正例: 例外なし
 
 
+def test_snapshot_rejects_oracle_shared_false():
+    document = copy.deepcopy(_v2_document())
+    document["budget"]["oracle_shared"] = False
+    with pytest.raises(manifest.ManifestError, match="oracle_shared が true でない"):
+        _snapshot(document)
+
+
 def test_snapshot_accepts_explicit_null_pair():
     # 明示 null: pair 1 件を null にし、scalar_alt も null (相関充足)。scale_ref は
     # 非 null (stock 有効) のまま。判定不能 pair を持つ正常 freeze を受理する。
@@ -369,6 +376,16 @@ def test_snapshot_accepts_explicit_null_pair():
     floor_h["pairs"][a_pair] = None
     floor_h["scalar_alt"] = None
     _snapshot(document)
+
+
+def test_snapshot_rejects_null_pair_with_nonnull_scalar_alt():
+    document = copy.deepcopy(_v2_document())
+    _holdout, floor_h = _first_holdout_floor(document)
+    a_pair = sorted(floor_h["pairs"])[0]
+    floor_h["pairs"][a_pair] = None
+    with pytest.raises(
+            manifest.ManifestError, match="pair に null を含むのに非 null"):
+        _snapshot(document)
 
 
 def test_snapshot_accepts_all_null_holdout():
@@ -506,7 +523,10 @@ def _run_contract(bench_max_rounds=1):
 
 
 def test_run_contract_accepts_bench_max_rounds_one():
-    manifest._validate_run_contract(_run_contract(1))  # 例外なし
+    source = _run_contract(1)
+    validated = manifest._validate_run_contract(source)  # 例外なし
+    assert validated["bench_max_rounds"] == 1
+    assert validated is not source
 
 
 def test_run_contract_rejects_bench_max_rounds_two():

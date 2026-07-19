@@ -270,6 +270,17 @@
 - 再発検知: certification ジョブの forensic (stage 別 failure.json) が発見コストを 1 attempt
   ~0.01pt に抑える — 逐次発見自体は安全。型として残すのは「rc=0 ≠ 検収完了」。
 
+### F23. codex exec の stdin 未クローズ — 並列レビュー 3 本が 100 分沈黙 [手順漏れ]
+- 事象: バックグラウンド起動した codex exec (プロンプトは引数渡し) が「Reading additional input
+  from stdin...」で停止し、敵対レビュー 3 本が約 100 分無進捗 (2026-07-19)。ユーザーの指摘で発覚。
+- 根本原因: codex exec は「引数プロンプト + パイプ stdin」のとき stdin を <stdin> ブロックとして
+  追記読みし、EOF まで待つ。先行の相談・実行ラウンドは環境の偶然で stdin が即 EOF だったため
+  同じ起動形が動いてしまい、危険な形が固定化した。
+- 恒久対応: codex exec のバッチ起動は常に `< /dev/null` を明示し、投入前にプロンプトファイルの
+  非空を検査する (空 + /dev/null は「空指示実行」の退化形になるため)。長時間サブプロセスは
+  起動直後にログの先頭進捗を 1 回確認する。
+- 再発検知: ログ末尾の「Reading additional input from stdin」を停止指標として grep する。
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —

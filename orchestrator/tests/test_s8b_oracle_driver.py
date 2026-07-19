@@ -1633,6 +1633,7 @@ def test_v7_manifest_swap_after_verify_is_not_observed(tmp_path):
 
 
 def test_layer3_strict_consumer_accepts_optional_bench_wall_s():
+    """layer3_schema.json の runs 定義で bench_wall_s の型と非必須性を構造として pin する。layer3_report._validate_schema / build_report は呼ばない。"""
     schema = json.loads(
         (ORCHESTRATOR / "campaign/layer3_schema.json").read_text(encoding="utf-8")
     )

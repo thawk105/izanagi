@@ -8,6 +8,7 @@ choice (c01..c06) とは名前空間が異なる (C3-1)。テストは choice→
 """
 from __future__ import annotations
 
+from copy import deepcopy
 import hashlib
 import json
 import sys
@@ -629,6 +630,14 @@ def _valid_off_stock_rows() -> list[dict]:
 
 def test_off_stock_check_accepts_valid_static_default():
     verdict._assert_off_stock_and_catalog({"rows": _valid_off_stock_rows()})
+
+
+def test_off_stock_check_rejects_non_static_default_decision_method():
+    rows = deepcopy(_valid_off_stock_rows())
+    off = next(r for r in rows if r["arm"] == "off")
+    off["decision_method"] = "selector_agent"
+    with pytest.raises(verdict.VerdictError, match="static_default"):
+        verdict._assert_off_stock_and_catalog({"rows": rows})
 
 
 def test_off_stock_check_rejects_non_stock_off():
