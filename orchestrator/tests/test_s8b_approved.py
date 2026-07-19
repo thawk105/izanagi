@@ -5,8 +5,9 @@
   ``external/ccbench`` gitlink と完全一致することを固定する (定数の追認を許さない)。
 - v1 trust root: s8b_ratified_freeze の ``V1_*`` を単一源として再輸出していること
   (import 束縛の identity) を drift-killer として固定する。
-- 承認 pin: floor_campaign の内部束縛と s8b_floor_stats の除外理由表が同一源から来る
-  ことを固定する (二重リテラルの再発防止)。
+- 承認実験数値: s8b_experiment_numbers を単一源として再輸出していることを固定する。
+- その他の承認 pin: floor_campaign の内部束縛と s8b_floor_stats の除外理由表が同一源から
+  来ることを固定する (二重リテラルの再発防止)。
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ sys.path.insert(0, str(ORCHESTRATOR))
 
 from campaign import pin  # noqa: E402
 from campaign import s8b_approved  # noqa: E402
+from campaign import s8b_experiment_numbers  # noqa: E402
 from campaign import s8b_floor_campaign  # noqa: E402
 from campaign import s8b_floor_stats  # noqa: E402
 from campaign import s8b_ratified_freeze  # noqa: E402
@@ -86,6 +88,11 @@ def test_floor_campaign_pins_are_single_sourced():
     # 除外理由表は s8b_floor_stats が正本 (再輸出は tuple、順序を保つ)。
     assert s8b_approved.APPROVED_REASONS == tuple(s8b_floor_stats.ALLOWED_EXCLUDED_REASONS)
     assert list(s8b_floor_campaign._APPROVED_REASONS) == list(s8b_approved.APPROVED_REASONS)
+
+
+def test_experiment_numbers_are_single_sourced_from_leaf():
+    assert s8b_approved.APPROVED_EXTIME_S == s8b_experiment_numbers.APPROVED_EXTIME_S == 5
+    assert s8b_approved.APPROVED_REPS == s8b_experiment_numbers.APPROVED_REPS == 5
 
 
 def _run():

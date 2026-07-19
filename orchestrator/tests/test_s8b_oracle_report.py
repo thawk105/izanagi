@@ -41,6 +41,7 @@ SESSION = report.SESSION_STAGE
 GENOME = "Silo|BACK_OFF=1"
 SRC_TOKEN = "source-digest"
 VARIANT = "same-variant"
+_DEFAULT_ABORT_PAYLOAD = object()
 
 
 def _canonical_sha256(value) -> str:
@@ -95,7 +96,7 @@ def _manifest(tmp_path: Path, *, campaign_id: str = "oracle-b0", n: int = 1) -> 
         run_contract={
             "ccbench_pin": "pin", "env_tag": contract.env_tag,
             "clocks": contract.clocks_per_us,
-            "reps": 2, "extime": 1, "verify": "legacy+s2",
+            "reps": 5, "extime": 5, "verify": "legacy+s2",
             "screening": "off", "bench_max_rounds": 1,
             "contract_sha256": contract.contract_sha256,
         },
@@ -152,7 +153,10 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            attempt: int = 1, tps: tuple[float, ...] = (10.0, 12.0),
            screen_marker: bool = False,
            excluded_reason: str | None = None,
-           bench_abort_payload: object | None = None) -> None:
+           abort_payload: object = _DEFAULT_ABORT_PAYLOAD) -> None:
+    def selected_abort_payload(default: object) -> object:
+        return default if abort_payload is _DEFAULT_ABORT_PAYLOAD else abort_payload
+
     identity = {
         "schedule_index": item["schedule_index"],
         "holdout_id": item["holdout_id"],
@@ -164,40 +168,39 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
         "genome": GENOME, "src_token": SRC_TOKEN,
     })
     if outcome == "build-failed":
-        wal.log(layout, variant, "abort", "fixture-env", {"reason": "build-error"})
+        wal.log(layout, variant, "abort", "fixture-env",
+                selected_abort_payload({"reason": "build-error"}))
     else:
         wal.log(layout, variant, "build_done", "fixture-env", {
             "trace_bin": "trace", "perf_bin": "perf",
         })
         if outcome == "binary-mismatch":
             # C3-5: build_done 後・verify/bench 起動前の TOCTOU abort。
-            wal.log(layout, variant, "abort", "fixture-env", {
-                "reason": "bench-binary-mismatch",
-            })
+            wal.log(layout, variant, "abort", "fixture-env",
+                    selected_abort_payload({"reason": "bench-binary-mismatch"}))
         elif outcome == "legacy-red":
             _verify(layout, variant, "legacy", False)
-            wal.log(layout, variant, "abort", "fixture-env", {
+            wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
                 "reason": "cycle", "workload": {"tag": "legacy"},
-            })
+            }))
         else:
             _verify(layout, variant, "legacy", True)
             if outcome in {"timeout", "verify-inconclusive"}:
-                wal.log(layout, variant, "abort", "fixture-env", {
+                wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
                     "reason": ("trace-timeout" if outcome == "timeout" else "trace-empty"),
                     "workload": {"tag": "s2"},
-                })
+                }))
             elif outcome == "s2-red":
                 _verify(layout, variant, "s2", False)
-                wal.log(layout, variant, "abort", "fixture-env", {
+                wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
                     "reason": "cycle", "workload": {"tag": "s2"},
-                })
+                }))
             else:
                 _verify(layout, variant, "s2", True)
                 if outcome == "bench-failed":
                     wal.log(
                         layout, variant, "abort", "fixture-env",
-                        ({"reason": "bench-no-throughput"}
-                         if bench_abort_payload is None else bench_abort_payload),
+                        selected_abort_payload({"reason": "bench-no-throughput"}),
                     )
                 else:
                     payload = {"tps": list(tps), "median_tps": sum(tps) / len(tps)}
@@ -309,6 +312,118 @@ def test_bench_failed_abort_reason_contract_is_closed_literal_set():
     })
 
 
+def test_other_abort_reason_contracts_are_closed_literal_sets():
+    assert abort_reason_contract.TIMEOUT_ABORT_REASONS == frozenset({
+        "trace-timeout",
+    })
+    assert abort_reason_contract.BUILD_FAILED_ABORT_REASONS == frozenset({
+        "build-error",
+        "identity-error",
+    })
+    assert abort_reason_contract.VERIFY_INCONCLUSIVE_ABORT_REASONS == frozenset({
+        "trace-run-nonzero-exit",
+        "trace-empty",
+        "trace-no-abort-counts",
+        "trace-parse-error",
+        "verify-competing-tenant",
+    })
+
+
+@pytest.mark.parametrize(
+    ("outcome", "abort_payload", "expected_reason"),
+    [
+        pytest.param(
+            "timeout", {"reason": "bench-no-throughput"},
+            "timeout 宣言と abort reason 証拠が一致しない",
+            id="timeout-outside-closed-set",
+        ),
+        pytest.param(
+            "timeout", {},
+            "timeout 宣言と abort reason 証拠が一致しない",
+            id="timeout-missing-reason",
+        ),
+        pytest.param(
+            "timeout", {"reason": None},
+            "timeout 宣言と abort reason 証拠が一致しない",
+            id="timeout-none-reason",
+        ),
+        pytest.param(
+            "timeout", {"reason": ["trace-timeout"]},
+            "timeout 宣言と abort reason 証拠が一致しない",
+            id="timeout-reason-list",
+        ),
+        pytest.param(
+            "build-failed", {"reason": "trace-timeout"},
+            "build-failed 宣言と abort reason 証拠が一致しない",
+            id="build-failed-outside-closed-set",
+        ),
+        pytest.param(
+            "build-failed", ["not-a-mapping"],
+            "build-failed 宣言と abort reason 証拠が一致しない",
+            id="build-failed-payload-list",
+        ),
+        pytest.param(
+            "verify-inconclusive", {"reason": ["trace-empty"]},
+            "verify-inconclusive 宣言と missing verify/abort 証拠が一致しない",
+            id="verify-inconclusive-reason-list",
+        ),
+    ],
+)
+def test_terminal_outcomes_reject_invalid_abort_reason_without_crashing(
+        tmp_path, outcome, abort_payload, expected_reason):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, outcome, abort_payload=abort_payload)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert expected_reason in row["reason"]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reason"),
+    [
+        pytest.param("timeout", "trace-timeout", id="timeout-trace-timeout"),
+        pytest.param("build-failed", "build-error", id="build-failed-build-error"),
+        pytest.param("build-failed", "identity-error", id="build-failed-identity-error"),
+        pytest.param(
+            "verify-inconclusive", "trace-run-nonzero-exit",
+            id="verify-inconclusive-trace-run-nonzero-exit",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-empty",
+            id="verify-inconclusive-trace-empty",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-no-abort-counts",
+            id="verify-inconclusive-trace-no-abort-counts",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-parse-error",
+            id="verify-inconclusive-trace-parse-error",
+        ),
+        pytest.param(
+            "verify-inconclusive", "verify-competing-tenant",
+            id="verify-inconclusive-verify-competing-tenant",
+        ),
+    ],
+)
+def test_terminal_outcomes_accept_closed_abort_reason(tmp_path, outcome, reason):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, outcome, abort_payload={"reason": reason})
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "completed"
+    assert row["reason"] is None
+
+
 @pytest.mark.parametrize(
     "abort_payload",
     [
@@ -325,7 +440,7 @@ def test_bench_failed_rejects_invalid_abort_reason_without_crashing(
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
-    _trial(layout, item, "bench-failed", bench_abort_payload=abort_payload)
+    _trial(layout, item, "bench-failed", abort_payload=abort_payload)
     _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
@@ -346,7 +461,7 @@ def test_bench_failed_accepts_closed_abort_reason(tmp_path, reason):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
-    _trial(layout, item, "bench-failed", bench_abort_payload={"reason": reason})
+    _trial(layout, item, "bench-failed", abort_payload={"reason": reason})
     _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]

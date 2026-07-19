@@ -164,7 +164,7 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
         schedule=schedule,
         run_contract={
             "ccbench_pin": "fixture-pin", "env_tag": contract.env_tag,
-            "clocks": contract.clocks_per_us, "reps": 1, "extime": 1,
+            "clocks": contract.clocks_per_us, "reps": 5, "extime": 5,
             "verify": "legacy+s2", "screening": "off",
             "bench_max_rounds": 1,
             "contract_sha256": contract.contract_sha256,
@@ -867,7 +867,7 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
         0.25 * len(document["schedule"]["rows"])
     )
     assert reservation["reserved_bench_s"] == pytest.approx(
-        float(len(document["schedule"]["rows"]))
+        25.0 * len(document["schedule"]["rows"])
     )
     assert not list((tmp_path / "markers").glob("*.claim"))  # mode=none 回帰
 
@@ -996,7 +996,7 @@ def test_v8_bulk_reservation_unavailable_runs_nothing(tmp_path):
     )
     assert ledger["reservation"]["status"] == "exhausted"
     assert ledger["reservation"]["reserved_bench_s"] == pytest.approx(
-        float(len(document["schedule"]["rows"]))
+        25.0 * len(document["schedule"]["rows"])
     )
     assert ledger["entries"] == []
 
@@ -1004,17 +1004,17 @@ def test_v8_bulk_reservation_unavailable_runs_nothing(tmp_path):
 def test_reservation_envelope_exceeded_is_fail_closed(tmp_path):
     """実測 bench が予約枠を超過したら fail-closed で error に倒す (protocol violation)。
 
-    reservation 枠 = 行数×(extime×reps×rounds)=行数×1。1 行目の実測 1.5 で単 holdout 枠
-    (6 行×1=6) は超えないが、全 12 行を 1.5 で回すと総枠 12 を超える経路がある。ここでは
-    per-holdout 枠超過 (h の 6 行×1.5=9 > 予約 6) を fixture で発火させる。
+    reservation 枠 = 行数×(extime×reps×rounds)=行数×25。1 行目の実測 26 で単 holdout 枠
+    (6 行×25=150) は超えないが、全 12 行を 26 で回すと総枠 300 を超える経路がある。ここでは
+    per-holdout 枠超過 (h の 6 行×26=156 > 予約 150) を fixture で発火させる。
     """
     freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
     prepare_fn = _prepare_factory()
     manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
     prepare_fn.calls.clear()
-    # 各 trial の実測 bench_wall_s=1.5 > per-row 予約 1.0。holdout 枠 (6 行×1=6) を
-    # 5 行目 (実測累計 7.5) で超える。
-    evaluate_fn = _fake_evaluate_factory(bench_wall_s=1.5)
+    # 各 trial の実測 bench_wall_s=26 > per-row 予約 25。holdout 枠 (6 行×25=150) を
+    # 同一 holdout の 6 行目 (実測累計 156) で超える。
+    evaluate_fn = _fake_evaluate_factory(bench_wall_s=26.0)
 
     result = _run(tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn)
 

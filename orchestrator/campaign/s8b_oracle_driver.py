@@ -415,7 +415,7 @@ def _outcome_for(result, abort_payload: Mapping) -> str:
     verdict = str(getattr(result, "verdict", "") or "")
     if abort_payload.get("verify") is not None or (verdict and verdict != "serializable"):
         return "correctness-red"
-    if reason in {"build-error", "identity-error"}:
+    if reason in _abort_reason_contract.BUILD_FAILED_ABORT_REASONS:
         return "build-failed"
     if reason == "bench-binary-mismatch":
         # C3-5: 事前 store 検査 (第一防壁) を抜けた TOCTOU 差替えを pipeline 照合
@@ -423,11 +423,9 @@ def _outcome_for(result, abort_payload: Mapping) -> str:
         # 既存の build/verify/bench バケツのどれにも適合しない専用 terminal を新設し、
         # report の閉表・証拠 truth table・judge の unknown 伝播まで一貫して通す。
         return "binary-mismatch"
-    if reason == "trace-timeout":
+    if reason in _abort_reason_contract.TIMEOUT_ABORT_REASONS:
         return "timeout"
-    if reason in {
-            "trace-run-nonzero-exit", "trace-empty", "trace-no-abort-counts",
-            "trace-parse-error", "verify-competing-tenant"}:
+    if reason in _abort_reason_contract.VERIFY_INCONCLUSIVE_ABORT_REASONS:
         return "verify-inconclusive"
     if reason in _abort_reason_contract.BENCH_FAILED_ABORT_REASONS:
         return "bench-failed"

@@ -160,7 +160,7 @@ def _protocol(*, freeze_sha: str, master_seed: str = "fixture-seed",
         "master_seed": master_seed,
         "schedule_algorithm": (schedule_algorithm if schedule_algorithm is not None
                                else s8b_floor_campaign.SCHEDULE_ALGORITHM),
-        "extime_s": 3,
+        "extime_s": 5,
         "wired_min_rel_floor": wired_min_rel_floor,
         "retry_slots_per_cell": retry_slots_per_cell,
         "session_cv_max": session_cv_max,
@@ -272,7 +272,7 @@ def _shape_faithful_run_cmd(binary, records, threads, workload) -> str:
     contract = ec.lookup(ENV_TAG)
     argv = list(s8b_floor_campaign.build_portable_run_cmd(
         binary="output/fixture/bench", workload=workload, records=records,
-        threads=threads, extime_s=3, clocks_per_us=contract.clocks_per_us,
+        threads=threads, extime_s=5, clocks_per_us=contract.clocks_per_us,
         numactl=contract.numactl,
     ))
     argv[argv.index("--") + 1] = str(binary)
@@ -1169,7 +1169,7 @@ def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
                  if record.get("event") == "reservation-preflight"]
     assert preflight == [{
         "event": "reservation-preflight",
-        "required_s": 27000,
+        "required_s": 28200,
         "safety_margin_s": 600,
         "formula": s8b_floor_campaign._FLOOR_RESERVATION_FORMULA,
         "build_cap_per_cell_s": 900,

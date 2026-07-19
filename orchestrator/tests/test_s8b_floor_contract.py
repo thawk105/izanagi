@@ -36,7 +36,7 @@ def _protocol() -> dict:
         "reps": 5,
         "master_seed": "fixture-seed",
         "schedule_algorithm": s8b_floor_contract.SCHEDULE_ALGORITHM,
-        "extime_s": 3,
+        "extime_s": 5,
         "wired_min_rel_floor": 0.05,
         "retry_slots_per_cell": 2,
         "session_cv_max": "0.10",
@@ -92,7 +92,7 @@ print(json.dumps(sorted(
         stderr=subprocess.PIPE,
         text=True,
     )
-    assert json.loads(completed.stdout) == []
+    assert json.loads(completed.stdout) == ["campaign.s8b_experiment_numbers"]
 
 
 def test_floor_campaign_directly_reexports_shared_leaf_objects():
@@ -142,6 +142,22 @@ def test_leaf_full_validator_rejects_contract_hash_mismatch():
     protocol = _protocol()
     protocol["contract_sha256"] = "c" * 64
     with pytest.raises(s8b_floor_contract.FloorContractError, match="contract_sha256"):
+        s8b_floor_contract.validate_protocol(
+            protocol, contract_sha256_lookup=_lookup_contract_sha256,
+        )
+
+
+def test_leaf_full_validator_rejects_nonapproved_extime():
+    protocol = _protocol()
+    protocol["extime_s"] = 3
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="extime_s"):
+        s8b_floor_contract.validate_protocol(
+            protocol, contract_sha256_lookup=_lookup_contract_sha256,
+        )
+
+    protocol = _protocol()
+    protocol["extime_s"] = 7
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="extime_s"):
         s8b_floor_contract.validate_protocol(
             protocol, contract_sha256_lookup=_lookup_contract_sha256,
         )

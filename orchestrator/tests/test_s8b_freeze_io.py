@@ -237,7 +237,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         "freeze": {"path": "output/s8b-freeze/fx.json", "sha256": freeze_sha},
         "stock_configuration": "stock_common", "n_sessions": 8, "reps": 5,
         "master_seed": "seed", "schedule_algorithm": floor.SCHEDULE_ALGORITHM,
-        "extime_s": 3, "wired_min_rel_floor": 0.05, "retry_slots_per_cell": 2,
+        "extime_s": 5, "wired_min_rel_floor": 0.05, "retry_slots_per_cell": 2,
         "session_cv_max": "0.10", "cell_cv_max": "0.15",
         "scale_adequacy_rel_tolerance": "0.10",
         "allowed_excluded_reasons": list(floor.s8b_floor_stats.ALLOWED_EXCLUDED_REASONS),

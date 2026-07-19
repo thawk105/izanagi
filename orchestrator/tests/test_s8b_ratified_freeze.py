@@ -290,7 +290,7 @@ def _emitter_protocol(*, ccbench_pin: str, master_seed: str = "fixture-seed") ->
         "reps": 5,
         "master_seed": master_seed,
         "schedule_algorithm": FC.SCHEDULE_ALGORITHM,
-        "extime_s": 3,
+        "extime_s": 5,
         "wired_min_rel_floor": 0.9,
         "retry_slots_per_cell": 2,
         "session_cv_max": "0.10",
@@ -375,7 +375,7 @@ def _emitter_measure(binary, records, threads, workload):
     contract = EC.lookup("linux-baremetal")
     argv = list(FC.build_portable_run_cmd(
         binary="output/portable/bench", workload=workload, records=records,
-        threads=threads, extime_s=3, clocks_per_us=contract.clocks_per_us,
+        threads=threads, extime_s=5, clocks_per_us=contract.clocks_per_us,
         numactl=contract.numactl,
     ))
     argv[argv.index("--") + 1] = str(binary)

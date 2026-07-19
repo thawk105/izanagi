@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """S8b floor protocol / cell / schedule の共有 validation leaf。
 
-stdlib のみに依存し、campaign 内の他 module は import しない。発行側と検証側が同じ
-protocol 正規化、``verify_floor_artifact`` 用射影、freeze 由来セル集合、決定的 schedule を
-循環 import なしで利用するための単一源である。
+stdlib と ``s8b_experiment_numbers`` のみに依存し、campaign 内のそれ以外の module は
+import しない。発行側と検証側が同じ protocol 正規化、``verify_floor_artifact`` 用射影、
+freeze 由来セル集合、決定的 schedule を循環 import なしで利用するための単一源である。
 
 ``validate_protocol`` の ``contract_sha256_lookup`` は env registry の単一源を leaf 内へ複製
 しないための注入点であり、runtime bypass ではない。呼び手は検証対象 ``env_tag`` に対応する
@@ -18,6 +18,8 @@ import posixpath
 import random
 from collections.abc import Callable, Mapping
 from typing import Optional
+
+from campaign import s8b_experiment_numbers as _experiment_numbers
 
 
 # 版名は一括 v2 改版し交差受理を拒否する。freeze schema は v1 freeze を読むため据置。
@@ -40,7 +42,6 @@ _FREEZE_RECORD_KEYS = frozenset({"path", "sha256"})
 
 # 承認済み標本設計の凍結値。共有 validator が別実験への変質を開始前に拒否する。
 _APPROVED_N_SESSIONS = 8
-_APPROVED_REPS = 5
 _APPROVED_RETRY_SLOTS = 2
 _APPROVED_SESSION_CV_MAX = "0.10"
 _APPROVED_CELL_CV_MAX = "0.15"
@@ -166,7 +167,9 @@ def validate_protocol(
     n_sessions = _pinned(
         document["n_sessions"], _APPROVED_N_SESSIONS, field="n_sessions",
     )
-    reps = _pinned(document["reps"], _APPROVED_REPS, field="reps")
+    reps = _pinned(
+        document["reps"], _experiment_numbers.APPROVED_REPS, field="reps",
+    )
     retry_slots_per_cell = _pinned(
         document["retry_slots_per_cell"], _APPROVED_RETRY_SLOTS,
         field="retry_slots_per_cell",
@@ -182,7 +185,9 @@ def validate_protocol(
         field="scale_adequacy_rel_tolerance",
     )
 
-    extime_s = _pos_int(document["extime_s"], field="extime_s")
+    extime_s = _pinned(
+        document["extime_s"], _experiment_numbers.APPROVED_EXTIME_S, field="extime_s",
+    )
 
     wired_min_rel_floor = document["wired_min_rel_floor"]
     if (isinstance(wired_min_rel_floor, bool)

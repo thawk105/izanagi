@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-"""承認済み固定値の単一源 (C4-3/C4-4)。
+"""承認済み固定値の集約・再輸出 (C4-3/C4-4)。
 
 protocol builder (``s8b_floor_campaign.build_protocol_document``) と
-``validate_protocol`` の双方がこの 1 モジュールを参照し、承認凍結値の二重リテラルを
-残さない。値は **発明しない** — 既に承認済みの pin と、実測した trust root だけを集約する。
+``validate_protocol`` は数値の正本 ``s8b_experiment_numbers`` を参照し、承認凍結値の
+二重リテラルを残さない。値は **発明しない** — 既に承認済みの pin と、実測した trust
+root だけを集約する。
 
-- 標本設計 pin (n_sessions=8 / reps=5 / retry_slots=2 / 閾値 3 種 / 除外理由表) は §9
+- 公式実験数値 (extime_s=5 / reps=5) の正本は ``s8b_experiment_numbers``
+  (ユーザー裁定 2026-07-19)。ここは import 束縛だけを再輸出する。
+- その他の標本設計 pin (n_sessions=8 / retry_slots=2 / 閾値 3 種 / 除外理由表) は §9
   承認状態 (2026-07-18) の凍結値。閾値は decimal 文字列で凍結し stats が Fraction 厳密
   算術で解釈する (α-9)。除外理由表の正本は ``s8b_floor_stats`` (ここは固定順を再輸出する
   だけで独立の literal を持たない)。
@@ -21,12 +24,16 @@ import しない (循環回避)。
 """
 from __future__ import annotations
 
+from campaign import s8b_experiment_numbers as _experiment_numbers
 from campaign import s8b_floor_stats
 from campaign.s8b_ratified_freeze import V1_FREEZE_PATH, V1_FREEZE_SHA256
 
-# --- 標本設計 pin (§9 承認状態 2026-07-18) --- #
+# --- 公式実験数値 pin (単一源 = s8b_experiment_numbers、裁定 2026-07-19) --- #
+APPROVED_EXTIME_S = _experiment_numbers.APPROVED_EXTIME_S
+APPROVED_REPS = _experiment_numbers.APPROVED_REPS
+
+# --- その他の標本設計 pin (§9 承認状態 2026-07-18) --- #
 APPROVED_N_SESSIONS = 8
-APPROVED_REPS = 5
 APPROVED_RETRY_SLOTS = 2
 APPROVED_SESSION_CV_MAX = "0.10"
 APPROVED_CELL_CV_MAX = "0.15"

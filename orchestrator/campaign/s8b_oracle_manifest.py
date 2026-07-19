@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Sequence
 
+from campaign import s8b_experiment_numbers as _experiment_numbers
+
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
@@ -359,6 +361,16 @@ def _validate_run_contract(run_contract: Mapping) -> dict:
     # pipeline.evaluate の default=3 とは別)。正整数一般でなく 1 完全一致で pin する。
     if run_contract.get("bench_max_rounds") != 1:
         raise ManifestError("run_contract.bench_max_rounds が 1 でない")
+    if run_contract.get("reps") != _experiment_numbers.APPROVED_REPS:
+        raise ManifestError(
+            "run_contract.reps が承認凍結値でない: "
+            f"{_experiment_numbers.APPROVED_REPS}"
+        )
+    if run_contract.get("extime") != _experiment_numbers.APPROVED_EXTIME_S:
+        raise ManifestError(
+            "run_contract.extime が承認凍結値でない: "
+            f"{_experiment_numbers.APPROVED_EXTIME_S}"
+        )
     return copy.deepcopy(dict(run_contract))
 
 

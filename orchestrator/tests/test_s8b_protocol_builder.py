@@ -40,7 +40,7 @@ from tests.skiputil import Skip, skip  # noqa: E402
 _G_SEED = "golden-master-seed"
 _G_ENV = "linux-baremetal"
 _G_STOCK = "stock_common"
-_G_EXTIME = 3
+_G_EXTIME = 5
 _G_FLOOR = 0.05
 
 # 独立 golden (期待 canonical bytes/sha256 をテスト側に literal で保持)。
@@ -50,7 +50,7 @@ _GOLDEN_BYTES = (
     b'"ccbench_pin":"d706650cdb31e442bef45b9b4216951d4fb40969",'
     b'"cell_cv_max":"0.15",'
     b'"contract_sha256":"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7",'
-    b'"env_tag":"linux-baremetal","extime_s":3,"formula":"s8b-floor-stats/v2",'
+    b'"env_tag":"linux-baremetal","extime_s":5,"formula":"s8b-floor-stats/v2",'
     b'"freeze":{"path":"output/s8b-freeze/holdout_freeze.json",'
     b'"sha256":"315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"},'
     b'"master_seed":"golden-master-seed","n_sessions":8,"reps":5,'
@@ -59,7 +59,7 @@ _GOLDEN_BYTES = (
     b'"session_cv_max":"0.10","stock_configuration":"stock_common",'
     b'"wired_min_rel_floor":0.05}'
 )
-_GOLDEN_SHA = "317314d87fa5ce10f2dc11991f705ba3e57ad7d0ea225a7ba72585e3a8ec259d"
+_GOLDEN_SHA = "03b7393a00f4e161475fa7142e0c4ed58a4d83d46bd653d3133a6de5b5bd3f9f"
 
 
 def _requires_repo() -> None:

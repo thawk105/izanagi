@@ -92,7 +92,7 @@ def _build_manifest(freeze_path, *, schedule=None):
         schedule=schedule,
         run_contract={
             "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
-            "reps": 5, "extime": 3, "verify": "legacy+s2",
+            "reps": 5, "extime": 5, "verify": "legacy+s2",
             "screening": "off", "bench_max_rounds": 1,
             "contract_sha256": "0" * 64,
         },
@@ -215,7 +215,7 @@ def test_binding_identity_requires_complete_unique_schedule_cell_product(tmp_pat
             schedule=schedule,
             run_contract={
                 "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
-                "reps": 5, "extime": 3, "verify": "legacy+s2",
+                "reps": 5, "extime": 5, "verify": "legacy+s2",
                 "screening": "off", "bench_max_rounds": 1,
                 "contract_sha256": "0" * 64,
             },
@@ -516,7 +516,7 @@ def test_load_json_object_rejects_infinity_literal(tmp_path):
 def _run_contract(bench_max_rounds=1):
     return {
         "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
-        "reps": 5, "extime": 3, "verify": "legacy+s2",
+        "reps": 5, "extime": 5, "verify": "legacy+s2",
         "screening": "off", "bench_max_rounds": bench_max_rounds,
         "contract_sha256": "0" * 64,
     }
@@ -532,6 +532,20 @@ def test_run_contract_accepts_bench_max_rounds_one():
 def test_run_contract_rejects_bench_max_rounds_two():
     with pytest.raises(manifest.ManifestError, match="bench_max_rounds"):
         manifest._validate_run_contract(_run_contract(2))
+
+
+def test_run_contract_rejects_extime_three():
+    source = _run_contract()
+    source["extime"] = 3
+    with pytest.raises(manifest.ManifestError, match="extime"):
+        manifest._validate_run_contract(source)
+
+
+def test_run_contract_rejects_reps_999():
+    source = _run_contract()
+    source["reps"] = 999
+    with pytest.raises(manifest.ManifestError, match="reps"):
+        manifest._validate_run_contract(source)
 
 
 def test_verify_manifest_requires_freeze_document(tmp_path):

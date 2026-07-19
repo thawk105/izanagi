@@ -32,10 +32,6 @@ OUTCOMES = {
 # build_done 後・trace/bench 起動前に発火するため build/verify/bench 証拠のどれにも
 # 適合しない (専用の証拠 truth table を _assess_window に持つ)。
 BINARY_MISMATCH_REASON = "bench-binary-mismatch"
-VERIFY_INCONCLUSIVE_REASONS = {
-    "trace-run-nonzero-exit", "trace-empty", "trace-no-abort-counts",
-    "trace-parse-error", "verify-competing-tenant",
-}
 PIPELINE_STAGES = {
     "build_start", "build_done", "verify_done", "bench_done", "abort", "commit",
 }
@@ -447,17 +443,27 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
         if not (counts["build_done"] == 0 and counts["abort"] == 1
                 and counts["commit"] == 0):
             issues.append("build-failed 宣言と pipeline 証拠が一致しない")
+        if not (
+                len(abort_records) == 1
+                and isinstance(abort_records[0].payload, Mapping)
+                and isinstance(abort_records[0].payload.get("reason"), str)
+                and abort_records[0].payload.get("reason")
+                in _abort_reason_contract.BUILD_FAILED_ABORT_REASONS):
+            issues.append("build-failed 宣言と abort reason 証拠が一致しない")
     elif outcome in {"timeout", "bench-failed"}:
         if not (counts["abort"] == 1 and counts["commit"] == 0):
             issues.append(f"{outcome} 宣言と abort 証拠が一致しない")
+        allowed_reasons = {
+            "timeout": _abort_reason_contract.TIMEOUT_ABORT_REASONS,
+            "bench-failed": _abort_reason_contract.BENCH_FAILED_ABORT_REASONS,
+        }[outcome]
+        if not (
+                len(abort_records) == 1
+                and isinstance(abort_records[0].payload, Mapping)
+                and isinstance(abort_records[0].payload.get("reason"), str)
+                and abort_records[0].payload.get("reason") in allowed_reasons):
+            issues.append(f"{outcome} 宣言と abort reason 証拠が一致しない")
         if outcome == "bench-failed":
-            if not (
-                    len(abort_records) == 1
-                    and isinstance(abort_records[0].payload, Mapping)
-                    and isinstance(abort_records[0].payload.get("reason"), str)
-                    and abort_records[0].payload.get("reason")
-                    in _abort_reason_contract.BENCH_FAILED_ABORT_REASONS):
-                issues.append("bench-failed 宣言と abort reason 証拠が一致しない")
             if not (legacy == "pass" and s2 == "pass"):
                 issues.append("bench-failed より前の verify が両方 pass でない")
     elif outcome == "binary-mismatch":
@@ -481,7 +487,9 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
             else None
         )
         if not (counts["abort"] == 1 and counts["commit"] == 0
-                and abort_reason in VERIFY_INCONCLUSIVE_REASONS
+                and isinstance(abort_reason, str)
+                and abort_reason
+                in _abort_reason_contract.VERIFY_INCONCLUSIVE_ABORT_REASONS
                 and "red" not in (legacy, s2)
                 and "missing" in (legacy, s2)):
             issues.append("verify-inconclusive 宣言と missing verify/abort 証拠が一致しない")

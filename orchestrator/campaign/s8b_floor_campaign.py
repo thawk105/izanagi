@@ -113,7 +113,7 @@ JOURNAL_SCHEMA = _floor_contract.JOURNAL_SCHEMA
 _PROTOCOL_KEYS = _floor_contract._PROTOCOL_KEYS
 _FREEZE_RECORD_KEYS = _floor_contract._FREEZE_RECORD_KEYS
 _APPROVED_N_SESSIONS = _floor_contract._APPROVED_N_SESSIONS
-_APPROVED_REPS = _floor_contract._APPROVED_REPS
+_APPROVED_REPS = s8b_approved.APPROVED_REPS
 _APPROVED_RETRY_SLOTS = _floor_contract._APPROVED_RETRY_SLOTS
 _APPROVED_SESSION_CV_MAX = _floor_contract._APPROVED_SESSION_CV_MAX
 _APPROVED_CELL_CV_MAX = _floor_contract._APPROVED_CELL_CV_MAX
@@ -331,10 +331,11 @@ def build_protocol_document(master_seed, env_tag, *, stock_configuration,
                             extime_s, wired_min_rel_floor, root=ROOT) -> BuiltProtocol:
     """承認定数を単一源から機械組立てし ``validate_protocol`` を通した protocol を返す (C4-7)。
 
-    引数 ``master_seed`` / ``env_tag`` / ``stock_configuration`` / ``extime_s`` /
-    ``wired_min_rel_floor`` は validate_protocol が pin しない自由値であり、**凍結時に
-    ユーザーが確定する欄**である。既定値を持たない (値の発明・追認を禁止する — 欠落は
-    TypeError で落ちる)。
+    ``extime_s`` は validator が承認 leaf の pin で強制する。引数は凍結時の確認用であり、
+    承認値以外は ``validate_protocol`` が拒否する。それ以外の引数
+    ``master_seed`` / ``env_tag`` / ``stock_configuration`` / ``wired_min_rel_floor`` は
+    validate_protocol が pin しない自由値で、**凍結時にユーザーが確定する欄**である。
+    既定値を持たない (値の発明・追認を禁止する — 欠落は TypeError で落ちる)。
 
     承認 pin 値 (n_sessions=8 等・閾値・除外理由)・v1 freeze {path, sha256}・ccbench full
     commit sha は ``campaign.s8b_approved`` を単一源として焼く。**現在値の追認を許さない**

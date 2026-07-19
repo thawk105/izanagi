@@ -389,7 +389,7 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
         "freeze": {"path": M.V1_FREEZE_PATH, "sha256": M.V1_FREEZE_SHA256},
         "stock_configuration": "stock_common", "n_sessions": 8, "reps": 5,
         "master_seed": "fixture-seed", "schedule_algorithm": FC.SCHEDULE_ALGORITHM,
-        "extime_s": 3, "wired_min_rel_floor": 0.9, "retry_slots_per_cell": 2,
+        "extime_s": 5, "wired_min_rel_floor": 0.9, "retry_slots_per_cell": 2,
         "session_cv_max": "0.10", "cell_cv_max": "0.15",
         "scale_adequacy_rel_tolerance": "0.10",
         "allowed_excluded_reasons": list(FC._APPROVED_REASONS),
