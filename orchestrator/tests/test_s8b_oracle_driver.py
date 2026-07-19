@@ -2,10 +2,12 @@
 """8b oracle driver の gate、binding、budget、WAL 契約を検査する。"""
 from __future__ import annotations
 
+import ast
 import contextlib
 import copy
 import dataclasses
 import hashlib
+import inspect
 import json
 import os
 import shutil
@@ -32,6 +34,7 @@ from campaign import pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # n
 from campaign import s8b_freeze_io  # noqa: E402
 from campaign import s8b_materialization  # noqa: E402
 from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
+from campaign import s8b_oracle_report as report_module  # noqa: E402
 from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign import s8b_run_marker  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
@@ -205,16 +208,16 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
                 "workload": {"tag": tag},
             })
         wal.log(layout, variant, "bench_done", env_tag, {
-            "tps": [10.0, 12.0], "median_tps": 11.0,
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0], "median_tps": 12.0,
             "bench_wall_s": bench_wall_s,
         })
         wal.log(layout, variant, "commit", env_tag, {
-            "fitness_tps": 11.0,
+            "fitness_tps": 12.0,
             "verify_configs": [pipeline.LEGACY_TAG, pipeline.S2_TAG],
         })
         return pipeline.EvalResult(
             genome=genome, variant=variant, certified=True, aborted=False,
-            fitness_tps=11.0,
+            fitness_tps=12.0,
         )
 
     fake_evaluate.calls = calls
@@ -340,7 +343,7 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
     validated = _fake_launch_validated(freeze_path)
 
     with mock.patch.object(
-                driver, "gate_check",
+                driver, "_gate_check_validated",
                 return_value=driver.GateDecision(True, [])), \
             mock.patch.object(
                 driver.s8b_ratified_freeze, "load_ratified_freeze",
@@ -388,7 +391,7 @@ def _run_required_preflight(
     output_root = tmp_path / "required-out"
     budget_path = tmp_path / "required-budget.json"
     marker_root = tmp_path / "required-markers"
-    with mock.patch.object(driver, "gate_check",
+    with mock.patch.object(driver, "_gate_check_validated",
                            return_value=driver.GateDecision(True, [])), \
             mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
                               return_value=validated.ratified), \
@@ -470,7 +473,7 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
         )
 
     issuer = receipt_side_effect or default_issuer
-    with mock.patch.object(driver, "gate_check",
+    with mock.patch.object(driver, "_gate_check_validated",
                            return_value=driver.GateDecision(True, [])), \
             mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
                               return_value=fixture["validated"].ratified), \
@@ -715,7 +718,7 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
             raise driver.OracleDriverError("fixture stop after global claim")
 
         try:
-            with mock.patch.object(driver, "gate_check",
+            with mock.patch.object(driver, "_gate_check_validated",
                                    return_value=driver.GateDecision(True, [])), \
                     mock.patch.object(driver.s8b_ratified_freeze,
                                       "load_ratified_freeze", return_value=ratified), \
@@ -1302,7 +1305,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
 
         driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
         with mock.patch.object(
-                driver, "gate_check",
+                driver, "_gate_check_validated",
                 return_value=driver.GateDecision(True, [])), \\
              mock.patch.object(driver.s8b_ratified_freeze,
                                "load_ratified_freeze", return_value=ratified), \\
@@ -1438,7 +1441,7 @@ def test_run_block_reuses_launch_validated_and_legacy_loader_is_dead(tmp_path):
             mock.patch.object(driver.s8b_ratified_freeze,
                               "launch_validate", return_value=validated), \
             mock.patch.object(driver, "_prepare_v2_execution", recording_plan), \
-            mock.patch.object(driver, "gate_check", recording_gate):
+            mock.patch.object(driver, "_gate_check_validated", recording_gate):
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=ROOT,
@@ -1507,7 +1510,7 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
             mock.patch.object(driver.s8b_ratified_freeze,
                               "launch_validate", return_value=validated), \
             mock.patch.object(driver, "_prepare_v2_execution", _canned_plan), \
-            mock.patch.object(driver, "gate_check", recording_gate):
+            mock.patch.object(driver, "_gate_check_validated", recording_gate):
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=ROOT,
@@ -1801,15 +1804,23 @@ def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(tmp_pa
 # 使い、gate / launch_validate / env 契約 / store 消費 / receipt 伝搬を発火させる。
 # ===========================================================================
 
-def _build_v2_repo(tmp_path: Path):
+def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5):
     """E3a production-emitter bytes から oracle 実走 fixture を返す。"""
     def fill_execution_snapshot(g1):
         v2_fixture.fill(
             g1, total_bench_s=1000.0, per_holdout_bench_s=1000.0,
         )
 
+    mutate = None
+    if floor_extime_s != 5:
+        def mutate(state):
+            # production emitter が正式 bytes を生成した後の protocol だけを変更する。
+            # raw hash と generation record は emitter 自身が再構築するため、static
+            # ratified loader は通り、full launch validation の数値 pin だけを攻撃できる。
+            state["protocol"]["extime_s"] = floor_extime_s
+
     root, ratified, topology = ratified_fixture.load_emitter_g1(
-        tmp_path, mutate_g1=fill_execution_snapshot,
+        tmp_path, mutate=mutate, mutate_g1=fill_execution_snapshot,
     )
     return (
         root, root / topology["generation_path"], ratified.sha256,
@@ -1865,6 +1876,99 @@ def _run_v2(root: Path, freeze_path: Path, manifest_path: Path, prepare_fn,
         )
 
 
+def _assert_extime_launch_refusal(decision):
+    assert not decision.allowed
+    assert len(decision.refusals) == 1
+    refusal = decision.refusals[0]
+    assert refusal.startswith("v2-execution: launch-validate:")
+    assert "protocol.extime_s" in refusal
+    assert "受領 3" in refusal and "承認 5" in refusal
+
+
+def test_v2_standalone_gate_check_requires_full_floor_validation(tmp_path):
+    """standalone v2 gate は self-load / injected static freeze を full validate する。"""
+    real_load = driver.s8b_ratified_freeze.load_ratified_freeze
+    real_launch = driver.s8b_ratified_freeze.launch_validate
+
+    valid_root, valid_freeze, _sha, _bins, _topology = _build_v2_repo(
+        tmp_path / "valid", floor_extime_s=5,
+    )
+    load_results = []
+    launch_calls = []
+
+    def recording_load(root):
+        loaded = real_load(root)
+        load_results.append(loaded)
+        return loaded
+
+    def recording_launch(candidate, root):
+        launch_calls.append((candidate, root))
+        return real_launch(candidate, root)
+
+    with mock.patch.object(driver.s1_known_axes_freeze, "verify",
+                           lambda *a, **k: None), \
+            mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
+                              side_effect=recording_load), \
+            mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
+                              side_effect=recording_launch):
+        valid = driver.gate_check(freeze_path=valid_freeze, root=valid_root)
+    assert valid.allowed, valid.refusals
+    assert len(load_results) == 1 and len(launch_calls) == 1
+    assert launch_calls[0][0] is load_results[0]
+    assert launch_calls[0][1] == valid_root
+
+    bad_root, bad_freeze, _sha, _bins, _topology = _build_v2_repo(
+        tmp_path / "bad", floor_extime_s=3,
+    )
+    load_results.clear()
+    launch_calls.clear()
+    with mock.patch.object(driver.s1_known_axes_freeze, "verify",
+                           lambda *a, **k: None), \
+            mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
+                              side_effect=recording_load), \
+            mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
+                              side_effect=recording_launch):
+        bad_self_load = driver.gate_check(
+            freeze_path=bad_freeze, root=bad_root,
+        )
+    _assert_extime_launch_refusal(bad_self_load)
+    assert len(load_results) == 1 and len(launch_calls) == 1
+    assert launch_calls[0][0] is load_results[0]
+    assert launch_calls[0][1] == bad_root
+
+    injected = real_load(bad_root)
+    launch_calls.clear()
+    with mock.patch.object(driver.s1_known_axes_freeze, "verify",
+                           lambda *a, **k: None), \
+            mock.patch.object(
+                driver.s8b_ratified_freeze, "load_ratified_freeze",
+                side_effect=AssertionError("injected RatifiedFreeze を再 load した")), \
+            mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
+                              side_effect=recording_launch):
+        bad_injected = driver.gate_check(
+            freeze_path=bad_freeze, root=bad_root, ratified=injected,
+        )
+    _assert_extime_launch_refusal(bad_injected)
+    assert launch_calls == [(injected, bad_root)]
+
+
+def test_private_validated_gate_has_only_run_block_as_production_caller():
+    """public gate に validated bypass を再導入せず、private caller を本線だけに固定。"""
+    assert "launch_validated" not in inspect.signature(driver.gate_check).parameters
+    tree = ast.parse(inspect.getsource(driver))
+    callers = []
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if any(
+                isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Name)
+                and child.func.id == "_gate_check_validated"
+                for child in ast.walk(node)):
+            callers.append(node.name)
+    assert callers == ["run_block"]
+
+
 def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     """v2 正常系: freeze==active 世代 + launch_validate 成立 + store 全一致 →
     gate 通過・completed。expected_perf_sha256 が cell の store binary sha と一致して
@@ -1895,6 +1999,29 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
         receipt, env_tag=V2_ENV_TAG, contract_sha256=contract.contract_sha256,
         attestation_mode="none",
     )
+
+
+def test_v2_completed_driver_campaign_is_accepted_by_report(tmp_path):
+    """driver の completed WAL は report で 5 個の bench 証拠として読める。"""
+    root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
+    result = _run_v2(
+        root, freeze_path, manifest_path, _prepare_factory(),
+        _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path,
+    )
+    assert result["status"] == "completed", result
+
+    observations_path = tmp_path / "observations.json"
+    assert report_module.main([
+        "report", "--manifest", str(manifest_path),
+        "--output-root", str(out_root), "--out", str(observations_path),
+    ]) == 0
+    observations = json.loads(observations_path.read_bytes())
+    assert len(observations["rows"]) == len(document["schedule"]["rows"])
+    assert all(row["status"] == "completed" for row in observations["rows"])
+    assert all(row["bench_values"] == [10.0, 11.0, 12.0, 13.0, 14.0]
+               for row in observations["rows"])
 
 
 @pytest.mark.skipif(

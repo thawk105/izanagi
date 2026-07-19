@@ -57,6 +57,7 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
     "test_s8b_oracle_driver.py::test_tampered_freeze_fails_source_verification",
     "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+    "test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
 })

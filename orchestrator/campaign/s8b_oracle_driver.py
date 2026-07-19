@@ -162,15 +162,17 @@ def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
     return path if path.is_absolute() else root / path
 
 
-def gate_check(*, freeze_path=None, manifest_path=None, root,
-               verified: Optional["_freeze_io.VerifiedFreeze"] = None,
-               verified_manifest: Optional["VerifiedManifest"] = None,
-               launch_validated: Optional[
-                   "s8b_ratified_freeze.LaunchValidatedFreeze"
-               ] = None,
-               ratified: Optional["s8b_ratified_freeze.RatifiedFreeze"] = None,
-               ratified_error: Optional[str] = None) -> GateDecision:
-    """実走前の独立 gate を順番に全件検査し、全拒否理由を返す。
+def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
+                     verified: Optional["_freeze_io.VerifiedFreeze"] = None,
+                     verified_manifest: Optional["VerifiedManifest"] = None,
+                     launch_validated: Optional[
+                         "s8b_ratified_freeze.LaunchValidatedFreeze"
+                     ] = None,
+                     ratified: Optional[
+                         "s8b_ratified_freeze.RatifiedFreeze"
+                     ] = None,
+                     ratified_error: Optional[str] = None) -> GateDecision:
+    """検証済み入力を共通の gate predicates へ通す内部実装。
 
     ``launch_validated`` を与えた実走経路では、その同一 object の ratified document /
     sha256 だけを使う。``verified`` (legacy ``load_verified_freeze`` の戻り値) を
@@ -284,6 +286,102 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
                 refusals.append(f"manifest-verify: {type(exc).__name__}: {exc}")
 
     return GateDecision(allowed=not refusals, refusals=refusals)
+
+
+def gate_check(*, freeze_path=None, manifest_path=None, root,
+               verified: Optional["_freeze_io.VerifiedFreeze"] = None,
+               verified_manifest: Optional["VerifiedManifest"] = None,
+               ratified: Optional["s8b_ratified_freeze.RatifiedFreeze"] = None,
+               ratified_error: Optional[str] = None) -> GateDecision:
+    """standalone gate。v2 freeze は必ず full launch validation を実行する。
+
+    ``RatifiedFreeze`` の注入は active static loader の代替候補にすぎず、検証済み型の
+    注入口にはしない。v2 候補は同一 object のまま ``launch_validate`` へ厳密 1 回
+    渡し、失敗は単一の ``v2-execution: launch-validate:`` refusal へ変換する。
+    """
+    root = Path(root)
+    if ratified_error is not None:
+        return GateDecision(
+            allowed=False, refusals=[f"freeze-ratify: {ratified_error}"],
+        )
+
+    loaded = verified
+    if loaded is None:
+        try:
+            loaded = _load_verified_freeze(Path(freeze_path))
+        except Exception:
+            # 従来どおり freeze / known axes / floor / budget / manifest の refusal を
+            # 集約する。core が loader 例外を構造化する。
+            return _gate_check_core(
+                freeze_path=freeze_path, manifest_path=manifest_path, root=root,
+                verified_manifest=verified_manifest, ratified=ratified,
+            )
+
+    freeze = loaded.document
+    is_v2 = (isinstance(freeze, Mapping)
+             and (freeze.get("floor") is not None
+                  or freeze.get("budget") is not None))
+    if not is_v2:
+        return _gate_check_core(
+            freeze_path=freeze_path, manifest_path=manifest_path, root=root,
+            verified=loaded, verified_manifest=verified_manifest,
+            ratified=ratified,
+        )
+
+    candidate = ratified
+    if candidate is None:
+        try:
+            candidate = s8b_ratified_freeze.load_ratified_freeze(root)
+        except s8b_ratified_freeze.RatifiedFreezeError as exc:
+            return _gate_check_core(
+                freeze_path=freeze_path, manifest_path=manifest_path, root=root,
+                verified=loaded, verified_manifest=verified_manifest,
+                ratified_error=f"[{exc.reason}] {exc}",
+            )
+        except Exception as exc:  # noqa: BLE001 (fail-closed)
+            return _gate_check_core(
+                freeze_path=freeze_path, manifest_path=manifest_path, root=root,
+                verified=loaded, verified_manifest=verified_manifest,
+                ratified_error=f"{type(exc).__name__}: {exc}",
+            )
+    try:
+        validated = s8b_ratified_freeze.launch_validate(candidate, root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        return GateDecision(
+            allowed=False,
+            refusals=[f"v2-execution: launch-validate: [{exc.reason}] {exc}"],
+        )
+    except Exception as exc:  # noqa: BLE001 (fail-closed)
+        return GateDecision(
+            allowed=False,
+            refusals=[
+                f"v2-execution: launch-validate: {type(exc).__name__}: {exc}"
+            ],
+        )
+    return _gate_check_core(
+        freeze_path=freeze_path, manifest_path=manifest_path, root=root,
+        verified=loaded, verified_manifest=verified_manifest,
+        launch_validated=validated,
+    )
+
+
+def _gate_check_validated(
+        *, freeze_path=None, manifest_path=None, root,
+        launch_validated: "s8b_ratified_freeze.LaunchValidatedFreeze",
+        verified_manifest: Optional["VerifiedManifest"] = None) -> GateDecision:
+    """run-block 専用 gate。呼出側が得た同一 validated object を再検証しない。"""
+    if type(launch_validated) is not s8b_ratified_freeze.LaunchValidatedFreeze:
+        return GateDecision(
+            allowed=False,
+            refusals=[
+                "v2-execution: launch-validate: validated freeze object の型が不正"
+            ],
+        )
+    return _gate_check_core(
+        freeze_path=freeze_path, manifest_path=manifest_path, root=root,
+        launch_validated=launch_validated,
+        verified_manifest=verified_manifest,
+    )
 
 
 @contextlib.contextmanager
@@ -847,7 +945,7 @@ def run_block(
     except Exception:
         verified_manifest = None
 
-    decision = gate_check(
+    decision = _gate_check_validated(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
         launch_validated=validated, verified_manifest=verified_manifest,
     )
