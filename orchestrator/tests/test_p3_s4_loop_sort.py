@@ -30,7 +30,7 @@ from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E40
 from critic.digest import load_diff_rejections                      # noqa: E402
 
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (sort marker) を写した fixture。silo-sort-variant.patch
-# と同型 (hole = #if 枝全体、backoff の単一行 hole と異なり複数行)。
+# と同型 (hole = #if 枝全体、実テンプレ原文の `// coder 編集面` も回帰保存)。
 _TEMPLATE = """#pragma once
 #include "storage.hh"
 
@@ -43,7 +43,7 @@ class TxExecutor {
     // EVOLVE-BLOCK-BEGIN silo-writeset-sort
     // izanagi Phase 3 (D41/phase3.md): coder の編集面はこの #if 枝のみ。
 #if SORT_VARIANT
-    sort(write_set_.begin(), write_set_.end());
+    sort(write_set_.begin(), write_set_.end());  // coder 編集面
 #else
     sort(write_set_.begin(), write_set_.end());
 #endif
@@ -59,6 +59,8 @@ _SRC_REL = S.SOURCE_REL
 _G = Genome("silo", {**S._BASE, "SORT_VARIANT": 1})
 _CLEAN_IMPL = ("    sort(write_set_.begin(), write_set_.end(),\n"
               "         [](const auto& a, const auto& b) { return a.key_ < b.key_; });")
+_NON_SWO_IMPL = ("    sort(write_set_.begin(), write_set_.end(),\n"
+                 "         [](const auto& a, const auto& b) { return &a != &b; });")
 
 
 def _mk_template_dir() -> str:
@@ -147,13 +149,17 @@ def test_quarantine_and_audit_raises_on_digest_mismatch():
 
 
 def test_quarantine_and_audit_rejects_auditor_verdict_reject():
-    """auditor.verdict='reject' (digest 一致) → auditor-violation subtype で diff-quarantine
-    経路に相乗り reject (既存 consumer をそのまま再利用、auditor.md 型5 対策)。"""
+    """コメントなしの実 non-SWO comparator は検疫を通り、auditor 型14で reject。
+
+    コメント byte 拒否が non-SWO の意味検査を吸収して意図の branch を死なせない。
+    auditor.verdict='reject' (digest 一致) は auditor-violation subtype で既存の
+    diff-quarantine consumer に相乗りする (auditor.md 型5 対策)。
+    """
     d = _mk_template_dir()
-    digest = _digest_for(d)
+    digest = _digest_for(d, _NON_SWO_IMPL)
     auditor = S.AuditorVerdict(verdict="reject", diff_digest=digest,
                                violations=[{"type": 14, "note": "非SWO疑い"}])
-    coder = S.CoderProposalSort(axis=S.MARKER_ID, implementation=_CLEAN_IMPL)
+    coder = S.CoderProposalSort(axis=S.MARKER_ID, implementation=_NON_SWO_IMPL)
     state = L.LoopState(start_ts=time.monotonic())
     lay = _tmp_layout("auditreject")
     gate = S._quarantine_and_audit(d, coder, auditor, _G, lay, state, _planner(), write=False)

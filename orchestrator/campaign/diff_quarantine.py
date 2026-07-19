@@ -11,9 +11,10 @@ coder (LLM) が合成した #if 枝コードを orchestrator がテンプレフ�
   「変更行 ⊆ hole の物理行域」「フレーム行 (マーカー・#if/#else/#endif・stock 枝) は
   byte 不変 (= '+'/'-' に現れない)」を検査する。これは C++ レキサ回避 (backslash-newline
   splice 等) の影響を受けない — diff の行構造と固定行を見るだけだから。
-- **内容検査 (`#` 指令・マーカー文字列の拒否) = 二次的な best-effort。** 明白な指令注入を
-  早期に構造化 reject するが、**完全性は当モジュールに載せない。** テキスト検査の完全性は
-  原理的に破れる (GW2R-1 の backslash-newline splice が実証、D33)。意味的逸脱の完全性は
+- **内容検査 (`#` 指令・マーカー文字列・コメント delimiter byte・行末 backslash の拒否) =
+  二次的な保守 gate。** コメント構文を解析せず、文字列・raw string 内も byte 一致で拒否する。
+  明白な注入を早期に構造化 reject するが、**C++ 意味論の完全性は当モジュールに載せない。**
+  テキスト検査だけで翻訳フェーズ全体を再現する試みは原理的に破れる (GW2R-1、D33)。意味的逸脱の完全性は
   一次防壁 = source_digest の preprocess 後ハッシュ + #include 行 HEAD 固定 + build 出口の
   TOCTOU 再照合 (fails-closed) と、auditor + 規律6 が担う。当モジュールは text-gate を
   単一障害点にしない。
@@ -27,6 +28,7 @@ rejection は S4 rejection digest の新型 (rejection_type="diff-quarantine") �
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -36,7 +38,7 @@ from typing import Dict, List, Optional, Tuple
 class DiffRejectSubtype(Enum):
     """S4 diff-quarantine の rejection サブタイプ (構造化診断用)。"""
     FRAME_ALTERED = "frame-altered"      # フレーム (マーカー/#if/#else/#endif/stock 枝) を触った
-    HOLE_ESCAPE = "hole-escape"          # hole 内に生の前処理指令・マーカー文字列が混入 (二次検査)
+    HOLE_ESCAPE = "hole-escape"          # hole 内に禁止指令・マーカー・delimiter/splice が混入
     OUTSIDE_REGION = "outside-region"    # EVOLVE-BLOCK 領域外 (別行・別ファイル) に変更あり
     MALFORMED = "malformed"              # diff がパース不能 / HEAD と行が不整合 (fail-closed)
 
@@ -52,10 +54,29 @@ _DIRECTIVE_RE = re.compile(r'^\s*(?:#|%:|\?\?=)')
 # 偽 BEGIN/END 指令だけは将来の再 parse を混乱させ得るので、そこだけ弾く。
 _MARKER_RE = re.compile(r'EVOLVE-BLOCK-(?:BEGIN|END)')
 
+# hole 内の内容検査は C++ のコメント構文を解釈しない。delimiter byte が文字列・raw
+# string 内にあっても拒否する保守則とし、物理行末 backslash も line splice の入口として
+# 閉じる (D33: text gate に翻訳フェーズの完全再現を載せない)。
+_LINE_COMMENT_DELIMITER = "//"
+_BLOCK_COMMENT_OPEN_DELIMITER = "/*"
+# テンプレ原文は人間レビュー済みの designated source なので、物理行内で閉じる `//`
+# は許可する。一方、coder 生成の挿入行は非信頼入力であり、文字列等との区別もせず
+# `//` を含めて保守的に拒否する。テンプレ側でも後続の挿入行へ字句文脈を漏らし得る
+# block comment delimiter は禁止し、line splice は別途行末 byte で拒否する。
+_TEMPLATE_CONTEXT_LEAK_DELIMITERS = ("/*", "*/")
+
+_BRANCH_DIRECTIVE = "content-directive"
+_BRANCH_MARKER = "content-marker"
+_BRANCH_LINE_COMMENT = "content-comment-line"
+_BRANCH_BLOCK_COMMENT = "content-comment-block"
+_BRANCH_LINE_SPLICE = "content-line-splice"
+_BRANCH_TEMPLATE_COMMENT = "template-hole-comment-delimiter"
+_BRANCH_TEMPLATE_SPLICE = "template-hole-line-splice"
+
 
 @dataclass
 class TemplateMarker:
-    """テンプレの EVOLVE-BLOCK マーカー領域 (1-indexed 行番号 + 固定行の逐語テキスト)。"""
+    """テンプレの EVOLVE-BLOCK マーカー領域 (1-indexed 行番号 + 原文テキスト)。"""
     marker_id: str                    # 例 "silo-backoff-magnitude"
     source_rel: str                   # EVOLVE_BLOCK_SOURCES の相対パス 例 "include/backoff.hh"
     begin_line: int                   # "EVOLVE-BLOCK-BEGIN <id>" の行
@@ -64,6 +85,7 @@ class TemplateMarker:
     endif_line: int                   # "#endif" の行
     end_line: int                     # "EVOLVE-BLOCK-END <id>" の行
     frame_text: Dict[int, str] = field(default_factory=dict)  # フレーム行番号 -> 逐語テキスト
+    hole_text: Dict[int, str] = field(default_factory=dict)   # hole 原文行番号 -> 逐語テキスト
 
     @property
     def hole_first(self) -> int:
@@ -238,7 +260,10 @@ class DiffQuarantine:
     1. 変更ファイルは marker.source_rel のみ (他ファイル改変 = outside-region)。
     2. フレーム行 (マーカー・#if・#else・stock 枝・#endif) は byte 不変 ('+'/'-' に出ない)。
     3. 変更行 (削除 source 行・挿入 anchor) はすべて hole 内部。
-    4. (二次・best-effort) hole 内挿入行に生の前処理指令・マーカー文字列が無い。
+    4. (二次・保守 byte gate) hole 内挿入行に生指令・マーカー・コメント delimiter・
+       行末 backslash が無い。
+    5. テンプレ hole 原文には文脈漏洩する block comment delimiter・行末 backslash が無い
+       (`//` は信頼済み原文の物理行内で閉じるため許可)。
     """
 
     def __init__(self, template_marker: TemplateMarker, working_diff: str,
@@ -288,6 +313,56 @@ class DiffQuarantine:
             "evidence": evidence,
         }
 
+    @staticmethod
+    def _line_evidence(branch: str, line_label: str, line_number: int,
+                       content: str) -> str:
+        """拒否行を逐語再掲せず、位置・byte 長・短縮 digest だけを返す。"""
+        content_bytes = content.encode("utf-8")
+        content_sha = hashlib.sha256(content_bytes).hexdigest()[:12]
+        return (f"branch={branch} {line_label}={line_number} "
+                f"byte_length={len(content_bytes)} sha256_12={content_sha}")
+
+    def _content_evidence(self, branch: str, w: _WalkLine) -> str:
+        """hole 挿入行用の非逐語 evidence。"""
+        return self._line_evidence(branch, "anchor_line", w.anchor, w.content)
+
+    def _check_template_hole_invariant(self) -> Optional[Dict]:
+        """テンプレ hole 原文に文脈漏洩 delimiter / line splice が無いことを検査する。
+
+        head_text があればそれを正本とし、無い縮退モードでは parse_template_file が保持した
+        hole_text を使う。`/*` / `*/` または行末 backslash があれば、後続の coder 挿入行を
+        token なしでコメント化し得るため、空 diff を含め MALFORMED で fail-closed にする。
+        `//` は信頼済み原文の物理行内で完結するため許可する (行末 backslash との組合せは
+        splice 検査が拒否)。非信頼の coder 挿入行では従来どおり `//` 自体も拒否する。
+        """
+        if self.head_lines is not None:
+            hole_lines = []
+            for src_ln in range(self.marker.hole_first, self.marker.hole_last + 1):
+                if 1 <= src_ln <= len(self.head_lines):
+                    hole_lines.append((src_ln, self.head_lines[src_ln - 1]))
+        else:
+            hole_lines = sorted(self.marker.hole_text.items())
+
+        for src_ln, content in hole_lines:
+            content = content.rstrip("\r")
+            if any(delimiter in content
+                   for delimiter in _TEMPLATE_CONTEXT_LEAK_DELIMITERS):
+                return self._mk_digest(
+                    DiffRejectSubtype.MALFORMED,
+                    "テンプレ hole 原文に文脈漏洩する block comment delimiter byte を検出 "
+                    "(fail-closed)",
+                    f"template hole src 行 {src_ln}",
+                    self._line_evidence(
+                        _BRANCH_TEMPLATE_COMMENT, "source_line", src_ln, content))
+            if content.endswith("\\"):
+                return self._mk_digest(
+                    DiffRejectSubtype.MALFORMED,
+                    "テンプレ hole 原文に行末 backslash を検出 (fail-closed)",
+                    f"template hole src 行 {src_ln}",
+                    self._line_evidence(
+                        _BRANCH_TEMPLATE_SPLICE, "source_line", src_ln, content))
+        return None
+
     def _check_head_anchor(self, h: DiffHunk) -> Optional[Dict]:
         """ハンクの context/削除行が申告 source 行番号の HEAD 内容と一致するか検証。
 
@@ -325,7 +400,16 @@ class DiffQuarantine:
             return DiffQuarantineResult(passed=False, subtype=DiffRejectSubtype.MALFORMED,
                                         reason=d["reason"], digest=d, violations=[d])
 
-        # (0b) 真に空の diff = 変更なし。何も逸脱していない (no-op 判定は orchestrator の責務)。
+        # (0b) テンプレ hole 原文の安全な字句境界を先に確認する。空 diff でも汚染済み
+        #      テンプレを安全と扱わない。
+        template_bad = self._check_template_hole_invariant()
+        if template_bad is not None:
+            return DiffQuarantineResult(
+                passed=False, subtype=DiffRejectSubtype.MALFORMED,
+                reason=template_bad["reason"], digest=template_bad,
+                violations=[template_bad])
+
+        # (0c) 真に空の diff = 変更なし。何も逸脱していない (no-op 判定は orchestrator の責務)。
         if not self.hunks:
             return DiffQuarantineResult(passed=True)
 
@@ -372,19 +456,41 @@ class DiffQuarantine:
                             f"anchor src 行 {w.anchor}",
                             f"挿入行 (anchor src {w.anchor}) が hole 外: {w.content!r}"))
                         continue
-                    # hole 内挿入 — 二次検査 (best-effort): 生指令・マーカー文字列。
+                    # hole 内挿入 — 二次検査。C++ 構文を解釈せず、保守的な byte 規則で
+                    # 生指令・マーカー・コメント delimiter・物理 line splice を拒否する。
                     if _DIRECTIVE_RE.match(w.content):
                         violations.append(self._mk_digest(
                             DiffRejectSubtype.HOLE_ESCAPE,
-                            "hole 内に生の前処理指令 (#if/#else/#endif/#define/#include 等) を検出",
+                            ("hole 内に生の前処理指令 (#if/#else/#endif/#define/#include 等) を検出 "
+                             "(完全性は source_digest preprocess ハッシュが担保)"),
                             f"anchor src 行 {w.anchor}",
-                            f"指令行: {w.content!r} (完全性は source_digest preprocess ハッシュが担保)"))
+                            self._content_evidence(_BRANCH_DIRECTIVE, w)))
                     elif _MARKER_RE.search(w.content):
                         violations.append(self._mk_digest(
                             DiffRejectSubtype.HOLE_ESCAPE,
                             "hole 内に EVOLVE-BLOCK-BEGIN/END マーカー指令を検出 (フレーム偽装)",
                             f"anchor src 行 {w.anchor}",
-                            f"マーカー偽装行: {w.content!r}"))
+                            self._content_evidence(_BRANCH_MARKER, w)))
+                    elif _LINE_COMMENT_DELIMITER in w.content:
+                        violations.append(self._mk_digest(
+                            DiffRejectSubtype.HOLE_ESCAPE,
+                            ("hole 内に禁止コメント delimiter byte を検出 "
+                             "(文字列・raw string 内も保守的に拒否)"),
+                            f"anchor src 行 {w.anchor}",
+                            self._content_evidence(_BRANCH_LINE_COMMENT, w)))
+                    elif _BLOCK_COMMENT_OPEN_DELIMITER in w.content:
+                        violations.append(self._mk_digest(
+                            DiffRejectSubtype.HOLE_ESCAPE,
+                            ("hole 内に禁止コメント delimiter byte を検出 "
+                             "(文字列・raw string 内も保守的に拒否)"),
+                            f"anchor src 行 {w.anchor}",
+                            self._content_evidence(_BRANCH_BLOCK_COMMENT, w)))
+                    elif w.content.endswith("\\"):
+                        violations.append(self._mk_digest(
+                            DiffRejectSubtype.HOLE_ESCAPE,
+                            "hole 内に行末 backslash を検出 (物理行 splice を fail-closed で拒否)",
+                            f"anchor src 行 {w.anchor}",
+                            self._content_evidence(_BRANCH_LINE_SPLICE, w)))
 
         if not violations:
             return DiffQuarantineResult(passed=True)
@@ -502,6 +608,7 @@ def parse_template_file(template_path: str, marker_id: str) -> Optional[Template
         return None
 
     # hole (合成枝) 行はフレームでない → frame_text から除外。
+    hole_text = {hl: lines[hl - 1] for hl in range(if_line + 1, else_line)}
     for hl in range(if_line + 1, else_line):
         frame_text.pop(hl, None)
 
@@ -519,6 +626,7 @@ def parse_template_file(template_path: str, marker_id: str) -> Optional[Template
         endif_line=endif_line,
         end_line=end_line,
         frame_text=frame_text,
+        hole_text=hole_text,
     )
 
 

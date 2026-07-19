@@ -458,6 +458,12 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **locked strategy-review-freeze worktree 残骸** (B-038, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 裁定 2026-07-19: 現物不在・過去の処分証拠なしを terminal 記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **user settings の model=fable→opus** (B-050, 出所 `docs/worklog.md`) — 裁定 2026-07-19: fable 既定の継続は意図的として終了し、opus は監査・統合時だけ個別指定。証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **writable 環境で全走 3 連続 rc=0** (B-054, 出所 `docs/worklog.md`) — 裁定 2026-07-19: 3 走各 1899 passed と commit ancestry を根拠に完了記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
+- **(完了 2026-07-19) EVOLVE hole の禁止 delimiter byte 規則** (2026-07-19 棚卸しの昇格 B-001、
+  worklog 2026-07-19 (7) 承認、D62) — 挿入行の `//`・`/*`・行末 backslash を機械 reject (文字列内も
+  拒否する保守則)、テンプレ原文は文脈漏洩 delimiter (`/*` `*/` 行末 backslash) のみ禁止、content 系
+  HOLE_ESCAPE evidence を非逐語化し raw WAL + critic digest の sentinel 非再掲を E2E 固定、coder
+  契約 4 本 + role ledger 同期。親変異 M1〜M4 = 4/4 KILLED + レビュー所見 3 件是正。残余
+  (文字列・識別子の自然言語面) は残存リスク節へ。
 - **(完了 2026-07-19) oracle report の bench-failed abort reason 閉表検査** (2026-07-19 棚卸しの昇格 B-003、
   worklog 2026-07-19 (7) 承認) — `s8b_oracle_report.py` の bench-failed 分岐に単一連言 (abort 1 件 ∧
   payload Mapping ∧ reason が str ∧ 閉表内) を追加。閉表は issuer/verifier 共有の stdlib-only leaf
@@ -479,6 +485,10 @@ worklog 全読しないと発掘できない状態を解消するためここに
 分離するなら項単位で tail の有無を確認する)
 
 - 純 timing first target は**新規性が薄い** (機構の配線実証が主目的、性能新規性は sort 以降)。意図的トレードオフ。
+- **hole 挿入行の自然言語混入面は comment-delimiter 経路のみ閉鎖 (2026-07-19、B-001/D62)**: 文字列
+  リテラル・識別子名に載る自然言語は検疫で閉じない (一般検出は偽陽性が原理的に大きく D33 と衝突)。
+  auditor / critic への残余混入面として存続。緩和 = 規律6 (入力はデータ)、auditor の人間 gate、
+  必要なら軸別 token allowlist・射影の非逐語化を別項目で設計。
 - **S2 non-blocking の根拠に空振り認証リスク (解消 2026-07-06、後続段 1、D36)**: 「純 timing は workload 依存
   パスを持たない」は厳密には不正確 (static backoff は abort 時にのみ実行される競合依存パス) だが、完了条件 2 の
   「verify run の abort > 0 を WAL で確認」で空振り認証を防止済み。S2 構成自体は後続段 1 で確定 (gate 3 点

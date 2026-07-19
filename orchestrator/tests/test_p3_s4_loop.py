@@ -22,9 +22,10 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import p3_s4_loop as L                               # noqa: E402
+from campaign import wal                                           # noqa: E402
 from campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import Genome                                 # noqa: E402
+from campaign.model import Genome, STAGE_ABORT                    # noqa: E402
 from critic.digest import (DIFF_QUARANTINE_REASON,                 # noqa: E402
                            load_diff_rejections,
                            load_liveness_rejections, render_rejections)
@@ -91,16 +92,19 @@ def test_quarantine_rejects_directive_in_hole():
                            source_rel=_SRC_REL, write=False)
     assert not res.passed
     assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE
+    assert "branch=content-directive" in res.digest["evidence"]
 
 
 def test_quarantine_rejects_marker_forgery_in_hole():
     """hole 内の EVOLVE-BLOCK-BEGIN/END 指令はフレーム偽装 → HOLE_ESCAPE reject。"""
     d = _mk_template_dir()
     res, *_ = L.quarantine(d,
-                           "double now_backoff = 20.0; // EVOLVE-BLOCK-END x",
+                           'const char* marker = "EVOLVE-BLOCK-END demo";\n'
+                           "double now_backoff = 20.0;",
                            source_rel=_SRC_REL, write=False)
     assert not res.passed
     assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE
+    assert "branch=content-marker" in res.digest["evidence"]
 
 
 def test_quarantine_fails_closed_on_broken_template():
@@ -166,6 +170,39 @@ def test_render_rejections_diff_section_has_no_perf_tokens():
     assert "diff-quarantine:hole-escape" in out
     for tok in ("throughput", "fitness", "ops/sec", "tps"):
         assert tok not in out.lower()
+
+
+def test_comment_reject_wal_to_critic_digest_does_not_repeat_payload():
+    """コメント payload は reject 後の WAL→critic 描画にも逐語で再掲しない。"""
+    sentinel = "QPROBE_7f3a4"
+    implementation = f"double now_backoff = 20.0; // {sentinel}"
+    d = _mk_template_dir()
+    res, *_ = L.quarantine(d, implementation, source_rel=_SRC_REL, write=False)
+    assert not res.passed
+    assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE
+    assert "branch=content-comment-line" in res.digest["evidence"]
+
+    lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s4loop_comment_redact_"))
+    lay.ensure()
+    L.record_diff_reject(lay, _G, implementation, res)
+    raw_records = wal.read_records(lay)
+    raw_payloads = json.dumps([r.payload for r in raw_records], ensure_ascii=False)
+    assert sentinel not in raw_payloads
+    reject_records = [
+        r for r in raw_records
+        if r.stage == STAGE_ABORT
+        and r.payload.get("reason") == DIFF_QUARANTINE_REASON
+    ]
+    assert len(reject_records) == 1
+    assert set(reject_records[0].payload) == {
+        "reason", "genome", "diff_quarantine",
+    }
+
+    loaded = load_diff_rejections(lay)
+    assert len(loaded) == 1
+    out = render_rejections([], [], {}, None, diff_rejections=loaded)
+    assert "diff-quarantine:hole-escape" in out
+    assert sentinel not in out
 
 
 def test_render_rejections_diff_only_not_all_green():

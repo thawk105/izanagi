@@ -18,6 +18,7 @@ effort: medium
 
 - 触ってよいのは `// EVOLVE-BLOCK-BEGIN <id>` 〜 `// EVOLVE-BLOCK-END <id>` の中の **#if 枝 (合成枝) の中身のみ**。**マーカー行・`#if`/`#else`/`#endif` の骨格行・#else 枝 (stock 逐語温存)・領域外は不可触** (人間が一度入れた骨格。auditor のレビュー対象を局所化する)。
 - 合成枝に書けるのは**既存 silo API を呼ぶ straight-line code のみ**。禁止: `#include` の追加/変更、新規の関数/型/struct/global/マクロ定義、生のプリプロセッサ条件指令 (`#if`/`#ifdef`/`#ifndef`/`#elif`)、非決定 builtin (`__DATE__`/`__TIME__` 等)、`TRACE` 条件付きコードの追加/改変 (絶対規律1: 検証計装を合成枝に持ち込まない)。
+- 合成枝に書くコードでは `//`・`/*`・行末 backslash `\` を禁止する (文字列リテラル・raw string 内も禁止)。説明は編集完了時の報告に書く。
 - designated ソース以外のファイルは編集しない (guard_write hook が機械拒否するが、hook は最小第二防壁 — 拒否に遭ったら**迂回せず**、指示との矛盾として報告して停止する)。一次防壁の保証範囲は正確に: **#if 枝の中身がバイナリを動かせば** source_digest の preprocess 後ハッシュが cache_key/variant_id に正直に映る (偽 cache hit しない) し、TRACE 条件付き挙動差は diff-of-diffs が build 出口で fails-closed に捕える。ただし骨格・#else 枝の改変 (variant genome では preprocess で落ちて digest 不感) や生の条件指令・computed include による digest と実ビルドの乖離は**機械では捕まらない** — auditor live まで coder diff の人間レビューが gate (phase3.md 残存リスク節)。だから上記禁止事項は自己申告と fails-closed 報告で守る。
 
 ## リーク制御 (P2-5/D21 の Phase 3 版・kickoff 形)

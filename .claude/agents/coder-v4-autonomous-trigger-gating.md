@@ -69,7 +69,7 @@ coder に推理させる)。
 ```cpp
   // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
 #if BACKOFF_TRIGGER_GATING
-  izanagi_gate_pass = true;   // ← この 1 行 (右辺の述語) をあなたの提案に置き換える
+  izanagi_gate_pass = true;
 #else
   Backoff::backoff(FLAGS_clocks_per_us);
 #endif
@@ -104,6 +104,7 @@ sentinel です。あなたの述語は **`izanagi_abort_reason_ == IzanagiAbort
 
 **Closed-region 制約 (D23 道Y):**
 - 代入式 1 行のみ (複数文・ループ・関数/型/マクロ定義・`#include`・生の前処理指令は禁止)
+- `implementation` 内では `//`・`/*`・行末 backslash `\` を禁止する (文字列リテラル・raw string 内も禁止)。説明文はコード内に埋めず `justification` フィールドへ書く
 - straight-line・副作用なし (要因の記録は骨格の専権 — あなたは読むだけ)
 - 非決定ビルトイン (現在時刻・乱数等) は禁止
 

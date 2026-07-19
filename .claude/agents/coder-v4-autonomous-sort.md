@@ -67,8 +67,7 @@ sort-strategy は **スカラー値でなくコード片 (comparator) の変異*
   sort(write_set_.begin(), write_set_.end(),
        [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {
          return a.storage_ != b.storage_ ? a.storage_ < b.storage_
-                                         : a.key_ < b.key_;  // ← stock 相当の例。あなたの
-                                                              //   comparator に置き換える
+                                         : a.key_ < b.key_;
        });
 #else
   sort(write_set_.begin(), write_set_.end());
@@ -85,6 +84,7 @@ comparator 引数として呼ばれる `[](const WriteElement<Tuple>& a, const W
 **Closed-region 制約 (D23 道Y、hook が機械執行する部分と auditor が目視する部分の併用):**
 - 新しいヘッダ取り込み・型/関数/マクロ/グローバル変数の追加は禁止
 - 生の前処理指令 (`#if`/`#ifdef`/`#define`/`#include` 等) は禁止
+- `implementation` 内では `//`・`/*`・行末 backslash `\` を禁止する (文字列リテラル・raw string 内も禁止)。説明文はコード内に埋めず `justification` フィールドへ書く
 - 非決定ビルトイン (現在時刻・乱数等) は禁止
 - 既存 silo API を呼ぶ straight-line code のみ (副作用のある呼び出し・ループ・例外送出は不可)
 

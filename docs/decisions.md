@@ -2347,3 +2347,32 @@ claude 側の難易度階層と揃える。adapter は休眠中 (D55: runtime ac
 **同期:** manifest.json の codex 列、review_ledger.py の `ROLE_MANIFEST_SHA256["verifier"]`、
 adapter の renderer 期待バイト再生成、`test_verifier_codex_mapping` の期待値反転 (sol/high への
 変異を検出) を同一 commit で更新。
+
+## D62. EVOLVE hole の禁止 delimiter byte 規則 — コメント経路の機械拒否と evidence 非逐語化 (2026-07-19)
+
+**背景:** hole 内コメント (`//`, `/*`) は diff 検疫を素通りし、coder 由来の自然言語が auditor へ
+逐語で届く既知の混入経路だった (2026-07-12 insight で対策推奨度「高」、B-001 として 2026-07-19
+ユーザー承認 = worklog (7))。敵対相談 (approved-waves C1) で、(i) コメント「構文」の認識は D33 の
+とおり不可能かつ罠、(ii) 行継続 backslash による splice 迂回、(iii) reject した行が WAL → critic
+digest へ逐語再送され注入先が移るだけになる盲点、が同定された。
+
+**決定:** (1) hole への**挿入行**は `//`・`/*` を行内のどこかに含む、または行末が backslash なら
+機械 reject する (HOLE_ESCAPE)。文字列リテラル・raw string 内も拒否する**禁止 delimiter byte 規則**
+であり、コメント解析ではない (D33 整合の保守側倒し。URL 等の偽陽性は意図した仕様として回帰で固定)。
+(2) テンプレ hole **原文**には「文脈漏洩する delimiter」のみ禁止する — `/*`・`*/`・行末 backslash は
+fail-closed (MALFORMED)、`//` 行コメントは許可 (行内で完結し文脈を漏らさない。原文は人間レビュー済み
+designated source = 信頼済み中核で、注入脅威は coder 挿入行のみ。実運用 sort テンプレの
+`// coder 編集面` はこの区別で受理される)。(3) content 系 HOLE_ESCAPE の evidence は非逐語
+(branch 識別子 + anchor + 行 byte 長 + sha256 先頭 12hex) とし、raw WAL と critic digest 描画の
+両面で sentinel 非再掲を E2E 固定する。(4) coder 契約 4 本に同禁止を明記 (kickoff coder は
+「説明は編集完了時の報告へ」、自律 coder 3 本は justification へ誘導)。契約変更に伴い
+review_ledger の SOURCE_FILE_SHA256 と role-adapters を明示更新した。
+
+**却下案:** (a) auditor 射影でのコメント構造的除去 — 検疫通過後の WAL・ログ等他経路に残り、除去の
+恒真化リスクも高い。(b) 文脈認識 parser で文字列内 `//` を許容 — D33 の再演。(c) 自然言語の一般
+検出 — 偽陽性が原理的に大きく採らない。
+
+**残存リスク (明記):** 文字列リテラル・識別子名に載る自然言語は本規則で閉じない (phase3 残存
+リスク節に登載)。完了主張は「literal comment-delimiter 経路の閉鎖」に限定する。
+
+**研究状態への影響:** なし (検疫の強化のみ。計測・主張・凍結に触れない。実テンプレ・patch は不変)。

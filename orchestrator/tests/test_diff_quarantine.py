@@ -11,7 +11,9 @@ CRLF・no-newline) を合成 diff で固定する。
 from __future__ import annotations
 
 import atexit
+import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -99,6 +101,18 @@ def _run_after_edit(repo, new_content):
     return res
 
 
+def _assert_hole_escape(res, branch):
+    """HOLE_ESCAPE の型と非逐語 evidence schema を branch ごとに固定する。"""
+    assert not res.passed
+    assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE, res.digest
+    assert res.digest is not None
+    evidence = res.digest["evidence"]
+    assert f"branch={branch}" in evidence, evidence
+    assert "anchor_line=" in evidence, evidence
+    assert re.search(r"\bbyte_length=\d+\b", evidence), evidence
+    assert re.search(r"\bsha256_12=[0-9a-f]{12}\b", evidence), evidence
+
+
 # ===== parse_template_file =====
 
 def test_parse_template_line_numbers():
@@ -120,6 +134,48 @@ def test_parse_missing_marker_returns_none():
     repo = _mk_git_repo()
     p = os.path.join(repo, "include", "backoff.hh")
     assert parse_template_file(p, "no-such-marker") is None
+
+
+def test_template_hole_trusted_line_comment_passes():
+    """実 sort テンプレ形の `// coder 編集面` は行内で閉じる信頼済み原文として許可。"""
+    d = tempfile.mkdtemp(prefix="izanagi_diffq_template_line_comment_")
+    atexit.register(shutil.rmtree, d, ignore_errors=True)
+    p = os.path.join(d, "backoff.hh")
+    template = _TEMPLATE.replace(_HOLE_ORIG, _HOLE_ORIG + "  // coder 編集面")
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(template)
+    m = parse_template_file(p, "silo-backoff-magnitude")
+    assert m is not None
+    m.source_rel = _FILE_REL
+    # 自律ループの head_text 経路と、parse 済み hole_text を使う縮退経路の双方を固定する。
+    for route, head_text in (("head_text", template), ("hole_text", None)):
+        res = DiffQuarantine(m, "", head_text=head_text).validate()
+        assert res.passed, f"route={route}: {res.digest}"
+
+
+def test_template_hole_context_leak_delimiters_and_splice_fail_closed():
+    """テンプレ原文の block comment 文脈/splice は空 diff でも拒否する。"""
+    cases = (
+        (_HOLE_ORIG + " /* note", "template-hole-comment-delimiter"),
+        (_HOLE_ORIG + " */", "template-hole-comment-delimiter"),
+        (_HOLE_ORIG + " " + "\\", "template-hole-line-splice"),
+    )
+    d = tempfile.mkdtemp(prefix="izanagi_diffq_template_invariant_")
+    atexit.register(shutil.rmtree, d, ignore_errors=True)
+    p = os.path.join(d, "backoff.hh")
+    for hole_line, branch in cases:
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(_TEMPLATE.replace(_HOLE_ORIG, hole_line))
+        m = parse_template_file(p, "silo-backoff-magnitude")
+        assert m is not None
+        m.source_rel = _FILE_REL
+        template = _TEMPLATE.replace(_HOLE_ORIG, hole_line)
+        # production の head_text 経路を先に、parse 済み hole_text の縮退経路も続けて固定する。
+        for route, head_text in (("head_text", template), ("hole_text", None)):
+            res = DiffQuarantine(m, "", head_text=head_text).validate()
+            assert not res.passed, f"route={route} hole_line={hole_line!r}"
+            assert res.subtype is DiffRejectSubtype.MALFORMED, res.digest
+            assert f"branch={branch}" in res.digest["evidence"], res.digest
 
 
 # ===== 正常系 (PASS) =====
@@ -210,8 +266,7 @@ def test_directive_injection_in_hole_rejected():
                "#define SNEAK 1")
     new = _TEMPLATE.replace(_HOLE_ORIG, payload)
     res = _run_after_edit(repo, new)
-    assert not res.passed
-    assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE, res.digest
+    _assert_hole_escape(res, "content-directive")
 
 
 def test_include_injection_in_hole_rejected():
@@ -220,18 +275,16 @@ def test_include_injection_in_hole_rejected():
                "    double now_backoff = 10.0;")
     new = _TEMPLATE.replace(_HOLE_ORIG, payload)
     res = _run_after_edit(repo, new)
-    assert not res.passed
-    assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE, res.digest
+    _assert_hole_escape(res, "content-directive")
 
 
 def test_marker_string_in_hole_rejected():
     repo = _mk_git_repo()
-    payload = ("    // EVOLVE-BLOCK-END silo-backoff-magnitude\n"
+    payload = ('    const char* marker = "EVOLVE-BLOCK-END demo";\n'
                "    double now_backoff = 10.0;")
     new = _TEMPLATE.replace(_HOLE_ORIG, payload)
     res = _run_after_edit(repo, new)
-    assert not res.passed
-    assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE, res.digest
+    _assert_hole_escape(res, "content-marker")
 
 
 def test_digraph_directive_in_hole_rejected():
@@ -241,8 +294,80 @@ def test_digraph_directive_in_hole_rejected():
                "%:define SNEAK 1")
     new = _TEMPLATE.replace(_HOLE_ORIG, payload)
     res = _run_after_edit(repo, new)
-    assert not res.passed
-    assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE, res.digest
+    _assert_hole_escape(res, "content-directive")
+
+
+def test_line_comment_delimiter_in_hole_rejected():
+    repo = _mk_git_repo()
+    new = _TEMPLATE.replace(_HOLE_ORIG, "    double now_backoff = 10.0; // note")
+    res = _run_after_edit(repo, new)
+    _assert_hole_escape(res, "content-comment-line")
+
+
+def test_block_comment_open_delimiter_in_hole_rejected():
+    repo = _mk_git_repo()
+    new = _TEMPLATE.replace(_HOLE_ORIG, "    double now_backoff = 10.0; /* note */")
+    res = _run_after_edit(repo, new)
+    _assert_hole_escape(res, "content-comment-block")
+
+
+def test_line_ending_backslash_in_hole_rejected():
+    repo = _mk_git_repo()
+    payload = "    double now_backoff = 10.0; " + "\\"
+    new = _TEMPLATE.replace(_HOLE_ORIG, payload)
+    res = _run_after_edit(repo, new)
+    _assert_hole_escape(res, "content-line-splice")
+
+
+def test_split_block_comment_via_line_splice_rejected():
+    repo = _mk_git_repo()
+    payload = ("    /" + "\\" + "\n"
+               "    * note */\n"
+               "    double now_backoff = 10.0;")
+    new = _TEMPLATE.replace(_HOLE_ORIG, payload)
+    res = _run_after_edit(repo, new)
+    _assert_hole_escape(res, "content-line-splice")
+
+
+def test_url_string_comment_delimiter_rejected_conservatively():
+    # 文字列リテラル内でも `//` は誤 reject ではなく、意図した保守性として拒否する。
+    repo = _mk_git_repo()
+    payload = ('    const char* u = "https://example.invalid/a";\n'
+               "    double now_backoff = 10.0;")
+    new = _TEMPLATE.replace(_HOLE_ORIG, payload)
+    res = _run_after_edit(repo, new)
+    _assert_hole_escape(res, "content-comment-line")
+
+
+def test_hole_escape_evidence_does_not_repeat_payload():
+    sentinel = "QPROBE_7f3a4"
+    splice_line = f"    double {sentinel} = 10.0; " + "\\"
+    cases = (
+        (f"#define {sentinel} 1\n    double now_backoff = 10.0;",
+         "content-directive", f"#define {sentinel} 1"),
+        (f'    const char* marker = "EVOLVE-BLOCK-END {sentinel}";\n'
+         "    double now_backoff = 10.0;",
+         "content-marker", f'    const char* marker = "EVOLVE-BLOCK-END {sentinel}";'),
+        (f"    double now_backoff = 10.0; // {sentinel}",
+         "content-comment-line", f"    double now_backoff = 10.0; // {sentinel}"),
+        (f"    double now_backoff = 10.0; /* {sentinel} */",
+         "content-comment-block", f"    double now_backoff = 10.0; /* {sentinel} */"),
+        (splice_line, "content-line-splice", splice_line),
+    )
+    for payload, branch, rejected_line in cases:
+        repo = _mk_git_repo()
+        new = _TEMPLATE.replace(_HOLE_ORIG, payload)
+        res = _run_after_edit(repo, new)
+        _assert_hole_escape(res, branch)
+        assert sentinel not in (res.reason or "")
+        assert sentinel not in res.digest["reason"]
+        assert sentinel not in res.digest["evidence"]
+        assert sentinel not in str(res.digest)
+        assert sentinel not in str(res.violations)
+        line_bytes = rejected_line.encode("utf-8")
+        expected_sha = hashlib.sha256(line_bytes).hexdigest()[:12]
+        assert f"byte_length={len(line_bytes)}" in res.digest["evidence"]
+        assert f"sha256_12={expected_sha}" in res.digest["evidence"]
 
 
 # ===== rejection digest の構造 (REAL finding #1: explicit reason field) =====
@@ -428,28 +553,28 @@ def test_count_overflow_body_fail_closed():
 
 
 def test_incidental_marker_mention_in_hole_passes():
-    # 末尾コメントが "EVOLVE-BLOCK" を偶発的に含んでも BEGIN/END 指令でなければ通す
+    # 通常文字列が bare "EVOLVE-BLOCK" を含んでも BEGIN/END 指令でなければ通す
     # (bare 部分文字列一致による誤 reject の回帰。marker 偽装は BEGIN/END のみ弾く)。
     repo = _mk_git_repo()
-    payload = "    double now_backoff = 10.0;  // tuned near the EVOLVE-BLOCK region"
+    payload = ('    const char* label = "EVOLVE-BLOCK region";\n'
+               "    double now_backoff = 10.0;")
     new = _TEMPLATE.replace(_HOLE_ORIG, payload)
     res = _run_after_edit(repo, new)
     assert res.passed, res.digest
 
 
 def test_content_check_conservative_by_design():
-    # 内容検査は行頭 # を C++ 文脈 (コメント/文字列) に関係なく保守的に弾く = 設計通りの安全側倒し
+    # 内容検査は行頭 # を C++ raw string 文脈でも保守的に弾く = 設計通りの安全側倒し
     # (D33: text 検査の文脈認識化は不可能かつ罠)。coder は hole 行を # で始めない規約。
     # これは「誤 reject でなく意図した保守性」であることを固定する回帰。
     repo = _mk_git_repo()
-    payload = ("    /* multi-line\n"
-               "#define LOOKS_LIKE_DIRECTIVE_IN_COMMENT 1\n"
-               "    */\n"
+    payload = ('    const char* directive = R"raw(\n'
+               "#define LOOKS_LIKE_DIRECTIVE 1\n"
+               ')raw";\n'
                "    double now_backoff = 10.0;")
     new = _TEMPLATE.replace(_HOLE_ORIG, payload)
     res = _run_after_edit(repo, new)
-    assert not res.passed
-    assert res.subtype is DiffRejectSubtype.HOLE_ESCAPE, res.digest
+    _assert_hole_escape(res, "content-directive")
 
 
 # ===== 二重 runner (pytest 非依存) =====
