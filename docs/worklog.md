@@ -779,3 +779,22 @@ output/insights/2026-07-19_agent-model-economy-audit.md、設計決定 = D61。
 1. ユーザー: ~/.claude/settings.json の手動変更 (model: "opus" / effortLevel: "high")
 2. ユーザー: branch model-economy-tuning の push / PR 判断 (Pegasus 規約で AI は push しない)
 3. 新 workflow script は起動前に `python3 tools/check_workflow_models.py` で自己検査 (memory 更新済み)
+
+## 2026-07-19 (4) — test runner の並列度を環境自動追従に (ユーザー指示、branch test-runner-autoscale)
+
+`tools/run_tests.py` の固定 `-n 8` を `min(使えるコア数, 32)` の自動追従へ。「使えるコア数」は
+`os.process_cpu_count()` / `sched_getaffinity` で cgroup・CPU affinity を尊重するため、PBS ジョブ内
+では割り当て分、素のマシンではコア数どおり、共有 login node でも上限 32 で頭打ち (全コアを掴まない
+行儀を自動で満たす)。上限根拠は再実測 (約1946 テストで -n 8/16/32/96 = 18.7/14.6/10.5/13.0s。
+worklog 2026-07-17 の推奨 8 はテスト 996 件時点の値で、倍増した現行では頭打ちが 32 付近へ移動。96 は
+worker 起動コストで 32 より遅い)。明示上書き = `-n <数>` (最優先) / `IZANAGI_TEST_NPROC=max|<数>`。
+
+- 動機: ユーザーが「毎日 -n を手調整したくない、環境のコア数に追従させたい」と指示。文字どおりの
+  全 96 コアは安定 (2 連続 clean) だが 32 より遅く共有機で無作法なため、追従 + 上限 32 を既定にし、
+  `IZANAGI_TEST_NPROC=max` で文字どおり全コアも選べる形にした
+- positive control: `orchestrator/tests/test_run_tests_nproc.py` (affinity 上界・cap・max 解除・数値
+  上書き・不正値フォールバックを入力別 pin)。ランナー経由の全スイート = 自動 -n 32 で 12.6s / 1957 passed
+- 索引の腐敗回避: tests/README.md の「並列度 8 / -n auto を使わない」記述を自動追従版へ更新済み
+
+### 次の一手
+1. ユーザー: branch test-runner-autoscale の push 判断 (Pegasus 規約で AI は push しない)
