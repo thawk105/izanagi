@@ -22,6 +22,7 @@ from campaign import (  # noqa: E402
     env_contract,
     execution_guard,
     s8b_abort_reason_contract as abort_reason_contract,
+    s8b_outcome_stage_contract as outcome_stage_contract,
     s8b_oracle_judge as judge,
     s8b_oracle_manifest as oracle_manifest,
     s8b_oracle_report as report,
@@ -151,12 +152,21 @@ def _verify(layout, variant: str, tag: str, certified: bool) -> None:
 
 
 def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
-           attempt: int = 1, tps: tuple[float, ...] = (10.0, 12.0),
+           attempt: int = 1,
+           tps: tuple[float, ...] = (10.0, 11.0, 12.0, 13.0, 14.0),
            screen_marker: bool = False,
            excluded_reason: str | None = None,
+           verify_frontier: str = "s2",
            abort_payload: object = _DEFAULT_ABORT_PAYLOAD) -> None:
     def selected_abort_payload(default: object) -> object:
-        return default if abort_payload is _DEFAULT_ABORT_PAYLOAD else abort_payload
+        if abort_payload is _DEFAULT_ABORT_PAYLOAD:
+            return default
+        if isinstance(default, dict) and isinstance(abort_payload, dict):
+            merged = dict(abort_payload)
+            if "workload" in default and "workload" not in merged:
+                merged["workload"] = default["workload"]
+            return merged
+        return abort_payload
 
     identity = {
         "schedule_index": item["schedule_index"],
@@ -185,33 +195,42 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                 "reason": "cycle", "workload": {"tag": "legacy"},
             }))
         else:
-            _verify(layout, variant, "legacy", True)
-            if outcome in {"timeout", "verify-inconclusive"}:
+            if (outcome in {"timeout", "verify-inconclusive"}
+                    and verify_frontier == "legacy"):
                 wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
                     "reason": ("trace-timeout" if outcome == "timeout" else "trace-empty"),
-                    "workload": {"tag": "s2"},
-                }))
-            elif outcome == "s2-red":
-                _verify(layout, variant, "s2", False)
-                wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
-                    "reason": "cycle", "workload": {"tag": "s2"},
+                    "workload": {"tag": "legacy"},
                 }))
             else:
-                _verify(layout, variant, "s2", True)
-                if outcome == "bench-failed":
-                    wal.log(
-                        layout, variant, "abort", "fixture-env",
-                        selected_abort_payload({"reason": "bench-no-throughput"}),
-                    )
+                _verify(layout, variant, "legacy", True)
+                if outcome in {"timeout", "verify-inconclusive"}:
+                    wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
+                        "reason": (
+                            "trace-timeout" if outcome == "timeout" else "trace-empty"
+                        ),
+                        "workload": {"tag": "s2"},
+                    }))
+                elif outcome == "s2-red":
+                    _verify(layout, variant, "s2", False)
+                    wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
+                        "reason": "cycle", "workload": {"tag": "s2"},
+                    }))
                 else:
-                    payload = {"tps": list(tps), "median_tps": sum(tps) / len(tps)}
-                    if screen_marker:
-                        payload["screening"] = True
-                    wal.log(layout, variant, "bench_done", "fixture-env", payload)
-                    wal.log(layout, variant, "commit", "fixture-env", {
-                        "fitness_tps": sum(tps) / len(tps),
-                        "verify_configs": ["legacy", "s2"],
-                    })
+                    _verify(layout, variant, "s2", True)
+                    if outcome == "bench-failed":
+                        wal.log(
+                            layout, variant, "abort", "fixture-env",
+                            selected_abort_payload({"reason": "bench-no-throughput"}),
+                        )
+                    else:
+                        payload = {"tps": list(tps), "median_tps": sum(tps) / len(tps)}
+                        if screen_marker:
+                            payload["screening"] = True
+                        wal.log(layout, variant, "bench_done", "fixture-env", payload)
+                        wal.log(layout, variant, "commit", "fixture-env", {
+                            "fitness_tps": sum(tps) / len(tps),
+                            "verify_configs": ["legacy", "s2"],
+                        })
     declared = {
         "legacy-red": "correctness-red",
         "s2-red": "correctness-red",
@@ -258,12 +277,50 @@ def _finish_campaign(layout, manifest: dict, *, status: str = "completed",
     })
 
 
+def _manual_trial(layout, item: dict, outcome: str,
+                  pipeline: list[tuple[str, object]]) -> None:
+    identity = {
+        "schedule_index": item["schedule_index"],
+        "holdout_id": item["holdout_id"],
+        "configuration_id": item["configuration_id"],
+        "attempt": 1,
+    }
+    _session(layout, "trial-start", identity)
+    for stage, payload in pipeline:
+        wal.log(layout, VARIANT, stage, "fixture-env", payload)
+    _session(layout, "trial-result", {
+        **identity,
+        "outcome": outcome,
+        "excluded_reason": None,
+        "screen_outcome": "not_enabled",
+    })
+
+
+def _valid_committed_pipeline() -> list[tuple[str, object]]:
+    return [
+        ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+        ("build_done", {"trace_bin": "trace", "perf_bin": "perf"}),
+        ("verify_done", {
+            "verdict": "serializable", "certified": True,
+            "workload": {"tag": "legacy"},
+        }),
+        ("verify_done", {
+            "verdict": "serializable", "certified": True,
+            "workload": {"tag": "s2"},
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0], "median_tps": 12.0,
+        }),
+        ("commit", {"fitness_tps": 12.0, "verify_configs": ["legacy", "s2"]}),
+    ]
+
+
 def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path):
     manifest = _manifest(tmp_path, n=2)
     schedule = manifest["schedule"]["rows"]
     layout = _layout(tmp_path, manifest)
-    _trial(layout, schedule[0], "committed", tps=(10.0, 12.0))
-    _trial(layout, schedule[1], "committed", tps=(20.0, 24.0))
+    _trial(layout, schedule[0], "committed", tps=(10.0, 11.0, 12.0, 13.0, 14.0))
+    _trial(layout, schedule[1], "committed", tps=(20.0, 21.0, 22.0, 23.0, 24.0))
     _finish_campaign(layout, manifest)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
@@ -273,10 +330,86 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
     assert observations["manifest_kind"] == "official"
     assert [row["status"] for row in observations["rows"][:2]] == ["completed", "completed"]
     assert [row["bench_values"] for row in observations["rows"][:2]] == [
-        [10.0, 12.0], [20.0, 24.0],
+        [10.0, 11.0, 12.0, 13.0, 14.0],
+        [20.0, 21.0, 22.0, 23.0, 24.0],
     ]
     assert all(row["binding_ok"] for row in observations["rows"][:2])
     assert len(observations["expected_cells"]) == len(schedule)
+
+
+def test_report_reexports_outcome_and_pipeline_authorities_without_reliteralizing():
+    assert report.OUTCOMES is outcome_stage_contract.OUTCOMES
+    assert report.PIPELINE_STAGES is outcome_stage_contract.PIPELINE_STAGES
+
+
+@pytest.mark.parametrize("actual_reps", [3, 4, 6])
+def test_committed_bench_requires_exact_manifest_reps(tmp_path, actual_reps):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed", tps=tuple(float(i) for i in range(actual_reps)))
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["bench_values"] == []
+    assert f"actual={actual_reps}, expected=5" in row["reason"]
+
+
+def test_run_contract_reps_must_match_approved_leaf_even_when_tps_matches(tmp_path):
+    manifest = _manifest(tmp_path)
+    manifest["run_contract"]["reps"] = 4
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed", tps=(1.0, 2.0, 3.0, 4.0))
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["bench_values"] == []
+    assert "run_contract.reps が APPROVED_REPS と不一致" in row["reason"]
+    assert "actual=4, expected=5" in row["reason"]
+
+
+@pytest.mark.parametrize(
+    ("damage", "expected_reason"),
+    [
+        pytest.param(["not-an-object"], "run_contract が object でない", id="not-object"),
+        pytest.param(True, "run_contract.reps が非 bool の正整数でない", id="bool-reps"),
+        pytest.param(0, "run_contract.reps が非 bool の正整数でない", id="zero-reps"),
+    ],
+)
+def test_run_contract_reps_declaration_is_fail_closed(tmp_path, damage, expected_reason):
+    manifest = _manifest(tmp_path)
+    if isinstance(damage, list):
+        manifest["run_contract"] = damage
+    else:
+        manifest["run_contract"]["reps"] = damage
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert all(expected_reason in row["reason"] for row in rows)
+
+
+def test_staged_legacy_manifest_still_requires_five_bench_values(tmp_path):
+    document = dict(_manifest(tmp_path))
+    document.pop("run_contract")
+    legacy = artifacts.load_official_manifest(json.dumps(document).encode())
+    item = legacy["schedule"]["rows"][0]
+    layout = _layout(tmp_path, legacy)
+    _trial(layout, item, "committed", tps=(1.0, 2.0, 3.0, 4.0))
+    _finish_campaign(layout, legacy)
+
+    row = report.build_observations(manifest=legacy, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["bench_values"] == []
+    assert "actual=4, expected=5" in row["reason"]
 
 
 def test_report_rejects_valid_raw_and_exploration_manifest_types(tmp_path):
@@ -377,6 +510,242 @@ def test_failure_outcomes_remain_as_completed_observation_rows(
     assert row["outcome"] == expected_outcome
     assert row["legacy_verify"] == legacy
     assert row["s2_verify"] == s2
+
+
+@pytest.mark.parametrize("outcome", ["timeout", "verify-inconclusive"])
+@pytest.mark.parametrize("verify_frontier", ["legacy", "s2"])
+def test_timeout_and_verify_inconclusive_accept_both_verify_frontiers(
+        tmp_path, outcome, verify_frontier):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, outcome, verify_frontier=verify_frontier)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "completed"
+    assert row["outcome"] == outcome
+    if verify_frontier == "legacy":
+        assert (row["legacy_verify"], row["s2_verify"]) == ("missing", "missing")
+    else:
+        assert (row["legacy_verify"], row["s2_verify"]) == ("pass", "missing")
+
+
+@pytest.mark.parametrize(
+    ("case", "outcome", "pipeline"),
+    [
+        pytest.param(
+            "build-failed-with-verify", "build-failed",
+            [
+                ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+                ("verify_done", {
+                    "verdict": "serializable", "certified": True,
+                    "workload": {"tag": "legacy"},
+                }),
+                ("abort", {"reason": "build-error"}),
+            ],
+            id="build-failed-with-verify",
+        ),
+        pytest.param(
+            "timeout-with-bench", "timeout",
+            [
+                ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+                ("build_done", {"trace_bin": "trace", "perf_bin": "perf"}),
+                ("verify_done", {
+                    "verdict": "serializable", "certified": True,
+                    "workload": {"tag": "legacy"},
+                }),
+                ("bench_done", {
+                    "tps": [1.0, 2.0, 3.0, 4.0, 5.0], "median_tps": 3.0,
+                }),
+                ("abort", {
+                    "reason": "trace-timeout", "workload": {"tag": "s2"},
+                }),
+            ],
+            id="timeout-with-bench",
+        ),
+    ],
+)
+def test_impossible_declared_outcome_histories_are_protocol_violations(
+        tmp_path, case, outcome, pipeline):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, outcome, pipeline)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation", case
+    assert "段階証拠が一致しない" in row["reason"]
+    assert f"outcome='{outcome}'" in row["reason"]
+    assert "StageEvidence(" in row["reason"]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "pipeline"),
+    [
+        pytest.param(
+            "committed",
+            [
+                ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+                ("build_done", {}),
+                ("verify_done", {
+                    "verdict": "serializable", "certified": True,
+                    "workload": {"tag": "s2"},
+                }),
+                ("verify_done", {
+                    "verdict": "serializable", "certified": True,
+                    "workload": {"tag": "legacy"},
+                }),
+                ("bench_done", {"tps": [1, 2, 3, 4, 5]}),
+                ("commit", {}),
+            ],
+            id="reversed-committed",
+        ),
+        pytest.param(
+            "correctness-red",
+            [
+                ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+                ("build_done", {}),
+                ("verify_done", {
+                    "verdict": "cycle", "certified": False,
+                    "workload": {"tag": "s2"},
+                }),
+                ("verify_done", {
+                    "verdict": "serializable", "certified": True,
+                    "workload": {"tag": "legacy"},
+                }),
+                ("abort", {"reason": "cycle", "workload": {"tag": "s2"}}),
+            ],
+            id="reversed-s2-red",
+        ),
+        pytest.param(
+            "timeout",
+            [
+                ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+                ("build_done", {}),
+                ("verify_done", {
+                    "verdict": "serializable", "certified": True,
+                    "workload": {"tag": "s2"},
+                }),
+                ("verify_done", {
+                    "verdict": "serializable", "certified": True,
+                    "workload": {"tag": "legacy"},
+                }),
+                ("abort", {"reason": "trace-timeout", "workload": {"tag": "s2"}}),
+            ],
+            id="legacy-after-s2-timeout",
+        ),
+    ],
+)
+def test_reversed_verify_sequences_are_protocol_violations(tmp_path, outcome, pipeline):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, outcome, pipeline)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "verify_sequence=" in row["reason"]
+
+
+def test_pipeline_physical_order_remains_an_independent_guard(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    pipeline = _valid_committed_pipeline()
+    pipeline[0], pipeline[1] = pipeline[1], pipeline[0]
+    _manual_trial(layout, item, "committed", pipeline)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "pipeline event の物理順序が不正" in row["reason"]
+    assert "段階証拠が一致しない" not in row["reason"]
+
+
+@pytest.mark.parametrize("abort_workload", [{"tag": "legacy"}, None])
+def test_abort_workload_tag_must_match_verify_frontier(
+        tmp_path, abort_workload):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    abort_payload = {"reason": "trace-timeout"}
+    if abort_workload is not None:
+        abort_payload["workload"] = abort_workload
+    _manual_trial(layout, item, "timeout", [
+        ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+        ("build_done", {}),
+        ("verify_done", {
+            "verdict": "serializable", "certified": True,
+            "workload": {"tag": "legacy"},
+        }),
+        ("abort", abort_payload),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "段階証拠が一致しない" in row["reason"]
+
+
+@pytest.mark.parametrize(
+    "workload",
+    [
+        pytest.param(["s2"], id="list"),
+        pytest.param({"tag": None}, id="none-tag"),
+        pytest.param({"tag": "s2", "extra": True}, id="extra-key"),
+    ],
+)
+def test_invalid_nested_abort_workload_is_an_independent_issue(tmp_path, workload):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "timeout", abort_payload={
+        "reason": "trace-timeout", "workload": workload,
+    })
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "abort.workload は exact {tag: legacy|s2} object" in row["reason"]
+
+
+def test_correctness_red_abort_reason_must_equal_sole_red_verdict(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "s2-red", abort_payload={"reason": "different"})
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "sole red verify verdict/abort reason 連鎖" in row["reason"]
+
+
+def test_report_reads_outcome_stage_contract_leaf(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    matcher = mock.Mock(return_value=False)
+
+    with mock.patch.object(report._outcome_stage_contract, "matches", matcher):
+        observations = report.build_observations(manifest=manifest, output_root=tmp_path)
+
+    assert matcher.call_count == len(manifest["schedule"]["rows"])
+    assert all(
+        type(call.args[1]) is outcome_stage_contract.StageEvidence
+        for call in matcher.call_args_list
+    )
+    assert all(row["status"] == "protocol_violation" for row in observations["rows"])
 
 
 def test_bench_failed_abort_reason_contract_is_closed_literal_set():
@@ -727,7 +1096,10 @@ def test_definitive_red_survives_later_committed_retry(tmp_path):
         "schedule_index": item["schedule_index"], "attempt": 2,
         "reason": "transient retry",
     })
-    _trial(layout, item, "committed", attempt=2, tps=(1000.0, 1002.0))
+    _trial(
+        layout, item, "committed", attempt=2,
+        tps=(1000.0, 1001.0, 1002.0, 1003.0, 1004.0),
+    )
     _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
@@ -847,6 +1219,89 @@ def test_expected_cells_keep_deleted_holdout_indeterminate(tmp_path):
     assert judge.judge_oracle(observations)["status"] == "indeterminate"
 
 
+@pytest.mark.parametrize(
+    ("stage", "outcome", "target_ordinal"),
+    [
+        pytest.param("build_start", "committed", 0, id="build-start"),
+        pytest.param("build_done", "committed", 1, id="build-done"),
+        pytest.param("verify_done", "committed", 2, id="verify-done"),
+        pytest.param("bench_done", "committed", 4, id="bench-done"),
+        pytest.param("commit", "committed", 5, id="commit"),
+        pytest.param("abort", "build-failed", 1, id="abort"),
+    ],
+)
+def test_non_mapping_pipeline_payload_is_row_level_protocol_violation(
+        tmp_path, stage, outcome, target_ordinal):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    if stage == "abort":
+        pipeline = [
+            ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
+            ("abort", ["not-a-mapping"]),
+        ]
+    else:
+        pipeline = _valid_committed_pipeline()
+        index = next(i for i, (candidate, _) in enumerate(pipeline)
+                     if candidate == stage)
+        pipeline[index] = (stage, ["not-a-mapping"])
+    _manual_trial(layout, item, outcome, pipeline)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert (f"pipeline[{target_ordinal}] {stage}.payload が object でない"
+            in row["reason"])
+    if stage == "bench_done":
+        assert row["bench_values"] == []
+
+
+def test_cli_non_mapping_pipeline_payload_emits_observation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    pipeline = _valid_committed_pipeline()
+    pipeline[4] = ("bench_done", ["not-a-mapping"])
+    _manual_trial(layout, item, "committed", pipeline)
+    _finish_campaign(layout, manifest)
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    output = tmp_path / "observations.json"
+
+    rc = report.main([
+        "report", "--manifest", str(manifest_path),
+        "--output-root", str(tmp_path), "--out", str(output),
+    ])
+
+    assert rc == 0
+    observations = json.loads(output.read_text(encoding="utf-8"))
+    row = observations["rows"][0]
+    assert row["status"] == "protocol_violation"
+    assert "pipeline[4] bench_done.payload が object でない" in row["reason"]
+    assert row["bench_values"] == []
+
+
+def test_non_mapping_payload_outranks_missing_campaign_terminal(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    pipeline = _valid_committed_pipeline()
+    pipeline[0] = ("build_start", ["not-a-mapping"])
+    _manual_trial(layout, item, "committed", pipeline)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    target = next(row for row in rows
+                  if row["schedule_index"] == item["schedule_index"])
+    assert target["status"] == "protocol_violation"
+    assert "pipeline[0] build_start.payload が object でない" in target["reason"]
+    assert all(
+        row["status"] == "campaign-incomplete"
+        for row in rows if row["schedule_index"] != item["schedule_index"]
+    )
+
+
 def test_terminal_missing_makes_every_row_campaign_incomplete(tmp_path):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
@@ -868,7 +1323,7 @@ def test_aborted_terminal_status_alone_hides_fully_covered_completed_rows(tmp_pa
     schedule = manifest["schedule"]["rows"]
     layout = _layout(tmp_path, manifest)
     for item in schedule:
-        _trial(layout, item, "committed", tps=(100.0, 102.0))
+        _trial(layout, item, "committed", tps=(100.0, 101.0, 102.0, 103.0, 104.0))
     _finish_campaign(
         layout, manifest, status="aborted", fill_missing=False,
         scheduled_rows=len(schedule), completed_rows=len(schedule),
@@ -886,7 +1341,7 @@ def test_terminal_scheduled_rows_mismatch_alone_hides_all_rows(tmp_path):
     schedule = manifest["schedule"]["rows"]
     layout = _layout(tmp_path, manifest)
     for item in schedule:
-        _trial(layout, item, "committed", tps=(100.0, 102.0))
+        _trial(layout, item, "committed", tps=(100.0, 101.0, 102.0, 103.0, 104.0))
     _finish_campaign(
         layout, manifest, fill_missing=False,
         scheduled_rows=len(schedule) + 1, completed_rows=len(schedule),
@@ -926,7 +1381,7 @@ def test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers(
     schedule = manifest["schedule"]["rows"]
     layout = _layout(tmp_path, manifest)
     for item in (schedule[:1] if damage == "coverage" else schedule):
-        _trial(layout, item, "committed", tps=(100.0, 102.0))
+        _trial(layout, item, "committed", tps=(100.0, 101.0, 102.0, 103.0, 104.0))
     if damage == "aborted":
         _finish_campaign(layout, manifest, status="aborted", fill_missing=False,
                          completed_rows=len(schedule) - 1)
@@ -962,13 +1417,16 @@ def test_only_manifest_campaign_is_read_and_missing_owned_campaign_is_reported(t
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
     owned = _layout(tmp_path, manifest)
-    _trial(owned, item, "committed", tps=(7.0, 9.0))
+    _trial(owned, item, "committed", tps=(7.0, 7.5, 8.0, 8.5, 9.0))
     _finish_campaign(owned, manifest)
     external = _layout(tmp_path, manifest, "outside-manifest")
-    _trial(external, item, "committed", tps=(9000.0, 9002.0))
+    _trial(
+        external, item, "committed",
+        tps=(9000.0, 9000.5, 9001.0, 9001.5, 9002.0),
+    )
     _finish_campaign(external, manifest)
     rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
-    assert rows[0]["bench_values"] == [7.0, 9.0]
+    assert rows[0]["bench_values"] == [7.0, 7.5, 8.0, 8.5, 9.0]
 
     shutil.rmtree(Path(owned.root))
     missing = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]

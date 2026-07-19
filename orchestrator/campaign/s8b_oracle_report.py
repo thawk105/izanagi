@@ -20,22 +20,19 @@ from campaign import env_attestation, env_contract  # noqa: E402
 from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
 from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
+from campaign import s8b_experiment_numbers as _experiment_numbers  # noqa: E402
+from campaign import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
 SESSION_STAGE = "s8b-oracle-session"
-OUTCOMES = {
-    "committed", "correctness-red", "build-failed", "timeout", "bench-failed",
-    "verify-inconclusive", "binary-mismatch",
-}
+OUTCOMES = _outcome_stage_contract.OUTCOMES
 # C3-5: bench-binary-mismatch abort が射影される terminal outcome の abort reason。
 # build_done 後・trace/bench 起動前に発火するため build/verify/bench 証拠のどれにも
-# 適合しない (専用の証拠 truth table を _assess_window に持つ)。
+# 適合しない。段階証拠は outcome stage contract leaf、固定 reason はここで検査する。
 BINARY_MISMATCH_REASON = "bench-binary-mismatch"
-PIPELINE_STAGES = {
-    "build_start", "build_done", "verify_done", "bench_done", "abort", "commit",
-}
+PIPELINE_STAGES = _outcome_stage_contract.PIPELINE_STAGES
 EVENT_KEYS = {
     "campaign-start": {"manifest_sha256", "block_id", "campaign_id"},
     "trial-start": {"schedule_index", "holdout_id", "configuration_id", "attempt"},
@@ -87,7 +84,9 @@ def _canonical_sha256(value: Mapping) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _validate_manifest(manifest: Mapping) -> tuple[list[Mapping], set[str], str, int]:
+def _validate_manifest(
+        manifest: Mapping,
+) -> tuple[list[Mapping], set[str], str, int, int, list[str]]:
     if not isinstance(manifest, Mapping):
         raise ReportError("manifest は object でなければならない")
     missing = [key for key in ("campaign_ids", "schedule", "allowed_excluded_reasons")
@@ -120,7 +119,23 @@ def _validate_manifest(manifest: Mapping) -> tuple[list[Mapping], set[str], str,
         manifest_sha = s8b_oracle_manifest.manifest_sha256(manifest)
     except s8b_oracle_manifest.ManifestError as exc:
         raise ReportError(f"manifest canonical hash を再計算できない: {exc}") from exc
-    return schedule, set(allowed), manifest_sha, n
+    expected_reps = _experiment_numbers.APPROVED_REPS
+    run_contract_issues: list[str] = []
+    if "run_contract" in manifest:
+        run_contract = manifest["run_contract"]
+        if not isinstance(run_contract, Mapping):
+            run_contract_issues.append("manifest.run_contract が object でない")
+        else:
+            declared_reps = run_contract.get("reps")
+            if not _is_int(declared_reps) or declared_reps <= 0:
+                run_contract_issues.append(
+                    "manifest.run_contract.reps が非 bool の正整数でない")
+            elif declared_reps != expected_reps:
+                run_contract_issues.append(
+                    "manifest.run_contract.reps が APPROVED_REPS と不一致: "
+                    f"actual={declared_reps}, expected={expected_reps}")
+    return (schedule, set(allowed), manifest_sha, n, expected_reps,
+            run_contract_issues)
 
 
 def _campaign_index(raw: object) -> tuple[dict[str, str], set[str]]:
@@ -345,8 +360,55 @@ def _verify_state(records: Sequence[object], tag: str) -> tuple[str, list[str]]:
     return "missing", [f"verify_done[{tag}].certified が bool でない"]
 
 
+def _safe_payload(record: object) -> Mapping:
+    payload = getattr(record, "payload", None)
+    return payload if isinstance(payload, Mapping) else {}
+
+
+def _pipeline_payload_issues(records: Sequence[object]) -> dict[int, str]:
+    """全 pipeline record の payload 型違反を record identity へ束縛する。"""
+    issues: dict[int, str] = {}
+    ordinal = 0
+    for record in records:
+        stage = getattr(record, "stage", None)
+        if not isinstance(stage, str) or stage not in _outcome_stage_contract.PIPELINE_STAGES:
+            continue
+        if not isinstance(getattr(record, "payload", None), Mapping):
+            issues[id(record)] = f"pipeline[{ordinal}] {stage}.payload が object でない"
+        ordinal += 1
+    return issues
+
+
+def _verify_evidence(record: object) -> tuple[str, str]:
+    payload = _safe_payload(record)
+    workload = payload.get("workload")
+    tag = workload.get("tag") if isinstance(workload, Mapping) else None
+    workload_state = tag if isinstance(tag, str) else "invalid"
+    certified = payload.get("certified")
+    verify_state = "pass" if certified is True else "red" if certified is False else "invalid"
+    return workload_state, verify_state
+
+
+def _abort_workload_evidence(abort_records: Sequence[object]) -> tuple[str, list[str]]:
+    if not abort_records:
+        return "absent", []
+    if len(abort_records) != 1:
+        return "invalid", []
+    payload = _safe_payload(abort_records[0])
+    if "workload" not in payload:
+        return "absent", []
+    workload = payload["workload"]
+    if (not isinstance(workload, Mapping) or set(workload) != {"tag"}
+            or workload.get("tag") not in {"legacy", "s2"}):
+        return "invalid", [
+            "abort.workload は exact {tag: legacy|s2} object でなければならない"
+        ]
+    return str(workload["tag"]), []
+
+
 def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
-                   allowed_excluded: set[str]) -> dict:
+                   allowed_excluded: set[str], expected_reps: int,
+                   payload_issues: Sequence[str] = ()) -> dict:
     row = _base_row(item)
     start = window[0].payload
     results = [record.payload for record in window if _session_event(record, "trial-result")]
@@ -370,7 +432,8 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     outcome = result.get("outcome")
     excluded = result.get("excluded_reason")
     screen_outcome = result.get("screen_outcome")
-    if not isinstance(outcome, str) or outcome not in OUTCOMES:
+    if (not isinstance(outcome, str)
+            or outcome not in _outcome_stage_contract.OUTCOMES):
         issues.append(f"trial-result.outcome が不正: {outcome!r}")
         outcome = None
     if excluded is not None and (
@@ -383,7 +446,8 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
 
     pipeline_records = [record for record in window
                         if isinstance(getattr(record, "stage", None), str)
-                        and record.stage in PIPELINE_STAGES]
+                        and record.stage in _outcome_stage_contract.PIPELINE_STAGES]
+    issues.extend(payload_issues)
     if any(_screen_marker(record.payload) for record in pipeline_records):
         issues.append("screening=off の trial 区間に screen marker がある")
     variant_values = [record.variant for record in pipeline_records]
@@ -404,10 +468,11 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
         binding_ok = False
     if binding_ok:
         build = builds[0]
+        build_payload = _safe_payload(build)
         checks = (
             ("variant_id", build.variant),
-            ("src_token", build.payload.get("src_token")),
-            ("genome_canonical", build.payload.get("genome")),
+            ("src_token", build_payload.get("src_token")),
+            ("genome_canonical", build_payload.get("genome")),
         )
         for key, actual in checks:
             if expected_binding[key] != actual:
@@ -423,7 +488,8 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     for record in pipeline_records:
         if record.stage != "verify_done":
             continue
-        workload = record.payload.get("workload") if isinstance(record.payload, Mapping) else None
+        payload = _safe_payload(record)
+        workload = payload.get("workload")
         tag = workload.get("tag") if isinstance(workload, Mapping) else None
         if not isinstance(tag, str) or tag not in {"legacy", "s2"}:
             issues.append("verify_done.workload.tag が legacy/s2 でない")
@@ -432,17 +498,21 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     if len(benches) > 1:
         issues.append(f"bench_done が一意でない: {len(benches)}")
     elif len(benches) == 1:
-        raw_values = benches[0].payload.get("tps")
+        raw_values = _safe_payload(benches[0]).get("tps")
         if (not isinstance(raw_values, Sequence)
                 or isinstance(raw_values, (str, bytes, bytearray)) or not raw_values
                 or any(isinstance(value, bool) or not isinstance(value, (int, float))
                        or not math.isfinite(float(value)) for value in raw_values)):
             issues.append("bench_done.tps が空または非有限値を含む")
+        elif len(raw_values) != expected_reps:
+            issues.append(
+                "bench_done.tps 件数が official reps と不一致: "
+                f"actual={len(raw_values)}, expected={expected_reps}")
         else:
             bench_values = [float(value) for value in raw_values]
 
     counts = {stage: sum(record.stage == stage for record in pipeline_records)
-              for stage in ("build_start", "build_done", "abort", "commit")}
+              for stage in _outcome_stage_contract.PIPELINE_STAGES}
     abort_records = [record for record in pipeline_records if record.stage == "abort"]
     if counts["build_start"] != 1:
         issues.append(f"build_start が一意でない: {counts['build_start']}")
@@ -452,68 +522,70 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     if positions != sorted(positions):
         issues.append("pipeline event の物理順序が不正")
 
-    if outcome == "committed":
-        if not (counts["build_done"] == 1 and legacy == "pass" and s2 == "pass"
-                and len(benches) == 1 and bench_values and counts["commit"] == 1
-                and counts["abort"] == 0):
-            issues.append("committed 宣言と pipeline 完了証拠が一致しない")
-    elif outcome == "correctness-red":
-        if not ("red" in (legacy, s2) and counts["abort"] == 1 and counts["commit"] == 0):
-            issues.append("correctness-red 宣言と verify/abort 証拠が一致しない")
+    abort_workload, abort_workload_issues = _abort_workload_evidence(abort_records)
+    issues.extend(abort_workload_issues)
+    verify_sequence = tuple(
+        _verify_evidence(record) for record in pipeline_records
+        if record.stage == "verify_done"
+    )
+    stage_evidence = _outcome_stage_contract.StageEvidence(
+        build_start=counts["build_start"],
+        build_done=counts["build_done"],
+        verify_sequence=verify_sequence,
+        bench_done=counts["bench_done"],
+        abort=counts["abort"],
+        commit=counts["commit"],
+        abort_workload=abort_workload,
+    )
+    if not _outcome_stage_contract.matches(outcome, stage_evidence):
+        issues.append(
+            "trial-result.outcome と段階証拠が一致しない: "
+            f"outcome={outcome!r}, evidence={stage_evidence!r}")
+
+    abort_reason = (
+        _safe_payload(abort_records[0]).get("reason")
+        if len(abort_records) == 1 else None
+    )
+    if outcome == "correctness-red":
+        red_records = [
+            record for record in pipeline_records
+            if record.stage == "verify_done"
+            and _safe_payload(record).get("certified") is False
+        ]
+        red_verdict = (
+            _safe_payload(red_records[0]).get("verdict")
+            if len(red_records) == 1 else None
+        )
+        if (len(red_records) != 1 or not isinstance(red_verdict, str)
+                or not red_verdict or abort_reason != red_verdict):
+            issues.append(
+                "correctness-red 宣言と sole red verify verdict/abort reason 連鎖が一致しない")
     elif outcome == "build-failed":
-        if not (counts["build_done"] == 0 and counts["abort"] == 1
-                and counts["commit"] == 0):
-            issues.append("build-failed 宣言と pipeline 証拠が一致しない")
         if not (
                 len(abort_records) == 1
-                and isinstance(abort_records[0].payload, Mapping)
-                and isinstance(abort_records[0].payload.get("reason"), str)
-                and abort_records[0].payload.get("reason")
+                and isinstance(abort_reason, str)
+                and abort_reason
                 in _abort_reason_contract.BUILD_FAILED_ABORT_REASONS):
             issues.append("build-failed 宣言と abort reason 証拠が一致しない")
     elif outcome in {"timeout", "bench-failed"}:
-        if not (counts["abort"] == 1 and counts["commit"] == 0):
-            issues.append(f"{outcome} 宣言と abort 証拠が一致しない")
         allowed_reasons = {
             "timeout": _abort_reason_contract.TIMEOUT_ABORT_REASONS,
             "bench-failed": _abort_reason_contract.BENCH_FAILED_ABORT_REASONS,
         }[outcome]
         if not (
                 len(abort_records) == 1
-                and isinstance(abort_records[0].payload, Mapping)
-                and isinstance(abort_records[0].payload.get("reason"), str)
-                and abort_records[0].payload.get("reason") in allowed_reasons):
-            issues.append(f"{outcome} 宣言と abort reason 証拠が一致しない")
-        if outcome == "bench-failed":
-            if not (legacy == "pass" and s2 == "pass"):
-                issues.append("bench-failed より前の verify が両方 pass でない")
-    elif outcome == "binary-mismatch":
-        # C3-5: build_done 後・verify/bench 起動前の TOCTOU abort。build は完了して
-        # いるが verify は一切走らず (両 tag missing)、bench も無い。abort reason は
-        # bench-binary-mismatch 固定。この証拠形以外は protocol violation。
-        abort_reason = (
-            abort_records[0].payload.get("reason")
-            if len(abort_records) == 1 and isinstance(abort_records[0].payload, Mapping)
-            else None
-        )
-        if not (counts["build_done"] == 1 and counts["abort"] == 1
-                and counts["commit"] == 0 and abort_reason == BINARY_MISMATCH_REASON
-                and legacy == "missing" and s2 == "missing"
-                and not benches):
-            issues.append("binary-mismatch 宣言と build 後 abort 証拠が一致しない")
-    elif outcome == "verify-inconclusive":
-        abort_reason = (
-            abort_records[0].payload.get("reason")
-            if len(abort_records) == 1 and isinstance(abort_records[0].payload, Mapping)
-            else None
-        )
-        if not (counts["abort"] == 1 and counts["commit"] == 0
                 and isinstance(abort_reason, str)
-                and abort_reason
-                in _abort_reason_contract.VERIFY_INCONCLUSIVE_ABORT_REASONS
-                and "red" not in (legacy, s2)
-                and "missing" in (legacy, s2)):
-            issues.append("verify-inconclusive 宣言と missing verify/abort 証拠が一致しない")
+                and abort_reason in allowed_reasons):
+            issues.append(f"{outcome} 宣言と abort reason 証拠が一致しない")
+    elif outcome == "binary-mismatch":
+        if abort_reason != BINARY_MISMATCH_REASON:
+            issues.append("binary-mismatch 宣言と固定 abort reason 証拠が一致しない")
+    elif outcome == "verify-inconclusive":
+        if (not isinstance(abort_reason, str)
+                or abort_reason
+                not in _abort_reason_contract.VERIFY_INCONCLUSIVE_ABORT_REASONS):
+            issues.append(
+                "verify-inconclusive 宣言と missing verify/abort 証拠が一致しない")
 
     row.update(
         attempt=start.get("attempt", row["attempt"]), status="completed", outcome=outcome,
@@ -592,7 +664,9 @@ def _campaign_terminal_issue(records: Sequence[object], rows: Sequence[Mapping])
 
 
 def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mapping,
-                     manifest_sha: str, allowed_excluded: set[str], output_root: Path) -> list[dict]:
+                     manifest_sha: str, allowed_excluded: set[str], output_root: Path,
+                     expected_reps: int,
+                     manifest_issues: Sequence[str]) -> list[dict]:
     bases = [_base_row(item) for item in rows]
     try:
         layout = campaign_layout(campaign_id, output_root=str(output_root))
@@ -610,14 +684,53 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                  "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
                 for base in bases]
 
+    payload_issue_by_record = _pipeline_payload_issues(records)
+    windows = _trial_windows(records)
+    payload_issues_by_index: dict[int, list[str]] = {}
+    attributed_payload_issue_ids: set[int] = set()
+    for window in windows:
+        index = window[0].payload.get("schedule_index")
+        if not _is_int(index):
+            continue
+        window_issues = [
+            payload_issue_by_record[id(record)] for record in window
+            if id(record) in payload_issue_by_record
+        ]
+        if window_issues:
+            payload_issues_by_index.setdefault(index, []).extend(window_issues)
+            attributed_payload_issue_ids.update(
+                id(record) for record in window
+                if id(record) in payload_issue_by_record
+            )
+    unbound_payload_issues = [
+        issue for record_id, issue in payload_issue_by_record.items()
+        if record_id not in attributed_payload_issue_ids
+    ]
+
     terminal_issue = _campaign_terminal_issue(records, rows)
     if terminal_issue is not None:
-        return [{**base, "status": "campaign-incomplete", "bench_values": [],
-                 "reason": terminal_issue} for base in bases]
+        output = []
+        for item, base in zip(rows, bases):
+            payload_issues = [
+                *unbound_payload_issues,
+                *payload_issues_by_index.get(item["schedule_index"], ()),
+            ]
+            if payload_issues:
+                output.append({
+                    **base, "status": "protocol_violation", "bench_values": [],
+                    "reason": "; ".join(dict.fromkeys(payload_issues)),
+                })
+            else:
+                output.append({
+                    **base, "status": "campaign-incomplete", "bench_values": [],
+                    "reason": terminal_issue,
+                })
+        return output
 
     campaign_starts = [record.payload for record in records
                        if _session_event(record, "campaign-start")]
-    global_issues: list[str] = []
+    global_issues: list[str] = list(manifest_issues)
+    global_issues.extend(unbound_payload_issues)
     if len(campaign_starts) != 1:
         global_issues.append(f"campaign-start が一意でない: {len(campaign_starts)}")
     else:
@@ -657,12 +770,13 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                 global_issues.append(f"deviation: {record.payload.get('message')!r}")
     first_trial = next((index for index, record in enumerate(records)
                         if _session_event(record, "trial-start")), len(records))
-    if any(isinstance(record.stage, str) and record.stage in PIPELINE_STAGES
+    if any(isinstance(record.stage, str)
+           and record.stage in _outcome_stage_contract.PIPELINE_STAGES
            for record in records[:first_trial]):
         global_issues.append("trial-start より前に未束縛の pipeline event がある")
 
     windows_by_index: dict[int, list[list[object]]] = {}
-    for window in _trial_windows(records):
+    for window in windows:
         index = window[0].payload.get("schedule_index")
         if _is_int(index):
             windows_by_index.setdefault(index, []).append(window)
@@ -674,9 +788,11 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
             f"trial-start.schedule_index が schedule 外: {orphan_indices!r}")
     output: list[dict] = []
     for item, base in zip(rows, bases):
+        row_payload_issues = payload_issues_by_index.get(item["schedule_index"], [])
         if global_issues:
+            reasons = [*row_payload_issues, *global_issues]
             output.append({**base, "status": "protocol_violation",
-                           "reason": "; ".join(dict.fromkeys(global_issues))})
+                           "reason": "; ".join(dict.fromkeys(reasons))})
             continue
         windows = windows_by_index.get(item["schedule_index"], [])
         if not windows:
@@ -689,7 +805,11 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                            "reason": f"trial attempt が不正または重複: {attempts!r}"})
             continue
         assessed = [
-            _assess_window(item, window, manifest, allowed_excluded)
+            _assess_window(
+                item, window, manifest, allowed_excluded, expected_reps,
+                [payload_issue_by_record[id(record)] for record in window
+                 if id(record) in payload_issue_by_record],
+            )
             for window in sorted(windows, key=lambda window: window[0].payload["attempt"])
         ]
         outcomes = [summary for row in assessed
@@ -731,7 +851,8 @@ def build_observations(
     manifest_kind = (
         "official" if type(manifest) is _artifacts.OfficialManifest else "legacy"
     )
-    schedule, allowed_excluded, manifest_sha, n = _validate_manifest(manifest)
+    (schedule, allowed_excluded, manifest_sha, n, expected_reps,
+     manifest_issues) = _validate_manifest(manifest)
     by_block, campaign_ids = _campaign_index(manifest["campaign_ids"])
     grouped: dict[str, list[tuple[int, Mapping]]] = {
         campaign_id: [] for campaign_id in campaign_ids}
@@ -748,7 +869,8 @@ def build_observations(
         if grouped[campaign_id]:
             ordinals, items = zip(*grouped[campaign_id])
             assessed = _assess_campaign(items, campaign_id, manifest, manifest_sha,
-                                        allowed_excluded, Path(output_root))
+                                        allowed_excluded, Path(output_root),
+                                        expected_reps, manifest_issues)
             for ordinal, row in zip(ordinals, assessed):
                 by_ordinal[ordinal] = row
     for ordinal, item, reason in detached:
