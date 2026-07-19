@@ -824,3 +824,31 @@ output/insights/2026-07-19_test-suite-hygiene-survey.md。プラン v1 の前提
 2. protocol_builder の repo-tree snapshot テストの xdist 耐性 (tracked のみ比較 or 直列化 marker) —
    処置裁定は backlog-triage (B) の棚卸し表へ
 3. (変わらず) B=backlog-triage は A 完了により着手条件の一部が満ち、ユーザー GO 待ち
+
+## 2026-07-19 (6) — B=未消化タスク棚卸し: 裁定パッケージ完成 (branch backlog-triage、計測なし、発効なし)
+
+標準ループで B1 (裁定パッケージ作成) を完遂: codex 敵対相談 3 本 (22 所見、CC-1 の前提のみ refuted、
+残り 21 real) → 掃引 6 単位 (worklog 3 ファイル + insights 59 ファイル + 台帳裏取り、原子 462+追補 5 項目) →
+表起草 → 敵対レビュー 3 本 (20 所見、全 real) → codex fix + 親検算。成果物 =
+output/insights/2026-07-19_backlog-triage.md (**裁定行 59、全行未裁定・発効なし**)。相談・裁定の逐語 =
+output/insights/2026-07-19_backlog-triage-consultations.md。
+
+- 着手判断: worklog (5) の「GO 待ち」の後にユーザーが発した新規の包括的ループ指示を B への GO と
+  解釈 (個別明示 GO ではない)。許可範囲は裁定パッケージ作成まで (処置確定・phase 反映・C 着手を含まない)。
+  着手条件「A/B/C 以外 handoff 空」は observability handoff 残存で字義未充足のまま続行した逸脱
+  (稼働セッションなし・編集面の直列化可を確認)
+- 素材: 発掘の主要例 — hole 内コメント機械拒否 (injection 経路、insight 高推奨→3 回申し送り後に脱落、
+  B-001)・ermia 台帳前提の消滅 (live path 再導出で要再定義、B-014)・§5-(viii) 限界受入の持ち越し脱落
+  (B-005)。台帳 calibration 行は K 感度/thread 再較正の独立 2 タスクに分離、K 感度は発火条件が既に真
+- レビューが親掃引の誤りも検出: 3 連続 rc=0 (B-054) は完了済みの巻き戻し誤判定 → 完了に訂正。
+  優先閲覧段落は台帳規約 (優先度はユーザーのもの) 違反 → 削除
+- 付随変更: C handoff の着手条件を「B handoff 消滅 + 裁定反映済み」へ精密化、output/README.md に
+  凍結スナップショット責務 1 文、failures F24 (完了検知のログ本文 grep 誤検知、ユーザー指摘) 追記
+- セッション内対応: ユーザー依頼で claude.ai コネクタを settings.local.json で無効化 (コンテキスト固定費 32k 削減)
+
+### 次の一手
+
+1. ユーザー: output/insights/2026-07-19_backlog-triage.md の 59 行の裁定 (裁定が B2 と C の前提)
+2. 裁定後 B2: 生存項目を phase3 見送り台帳・worklog へ反映し、B handoff を削除 (→ C 着手条件成立)
+3. ユーザー: branch backlog-triage の push 判断 (Pegasus 規約で AI は push しない)
+4. (変わらず) test-hygiene の push 判断は worklog (5) 参照。xdist flake の処置裁定は棚卸し表 B-051 へ登載済み
