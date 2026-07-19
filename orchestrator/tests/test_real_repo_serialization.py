@@ -29,6 +29,9 @@ from skiputil import Skip, skip  # noqa: E402
 # import / 導出すると、正本の node 増減が付与側と期待側へ同時伝播して恒真化する。
 _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
+    # snapshot テストの結線監査 meta-テスト (本ファイル)。実 ROOT で builder を実走し
+    # repo tree snapshot を取るため writer の patch 窓と同じ競合面 (D63 列挙漏れの補完)。
+    "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",

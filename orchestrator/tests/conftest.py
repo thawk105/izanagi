@@ -47,6 +47,9 @@ if "TMPDIR" not in os.environ and _shm_usable():
 REAL_REPO_SERIAL_NODES = frozenset({
     # 親 working tree の tracked + untracked snapshot。
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
+    # 上記 snapshot テストの結線監査 meta-テスト。実 ROOT で builder を実走し repo tree
+    # snapshot を取るため、writer の patch 窓と同じ競合面にある (D63 列挙漏れの補完)。
+    "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
 
     # 実 external/ccbench に patch を apply/revert する writer。
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
