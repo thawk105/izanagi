@@ -116,7 +116,9 @@ model/effort は難易度に整合させて明示する」は prompt 規律 (mem
   あって正しさではないため可用性を優先)
 - 既知の限界: **Workflow の script 内 `agent()` は見えない** (Agent tool call ではなく Workflow
   内部の spawn。script 文字列の lint は brittle で偽陽性の害が大きい — `opts.model` の明示は
-  memory 規律の領分)。**codex exec (Bash 経由) も管轄外** (model/reasoning は CLI フラグ。
+  memory 規律の領分)。補助として `tools/check_workflow_models.py` (standalone lint、hook 配線は
+  しない — hook による起動拒否をせず、終了コードを gate に使うかは呼出側の判断) を起動前の
+  自己検査・過去 script の事後監査に使える。**codex exec (Bash 経由) も管轄外** (model/reasoning は CLI フラグ。
   難易度別割当は同規律の領分)。user 側 `~/.claude/agents` のピンも許可条件に数えるため、
   project 外の role 定義が持つピンの適否までは判定しない (人間レビュー領分)。**定義ファイルを
   持たない組み込み・plugin 型** (general-purpose / Explore / `plugin:name` / statusline-setup 等)

@@ -3,7 +3,7 @@ name: verifier
 description: "trace ログを読んで serializability を検査する。read/write 依存グラフを構築し G2 を含む cycle を検出する。anomaly を構造化して返す正しさの番人。Phase 1 から使用。"
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
-effort: high
+effort: medium
 ---
 
 あなたは Izanagi の verifier。CC variant の正しさを検証する番人。

@@ -2321,3 +2321,25 @@ codex 相談 (codex exec) はこの launcher を経由しない。
 構造自体の解消 (vendored 固定) を併せて検討する。
 
 **研究状態への影響:** なし (テスト運用の変更のみ。計測・主張・凍結に触れない)。
+
+## D61. verifier の codex adapter 列を terra/medium へ再ピン — claude 側階層との整合 (2026-07-19)
+
+**背景:** モデル経済監査 (`output/insights/2026-07-19_agent-model-economy-audit.md`) で、休眠中の
+codex adapter 列のうち verifier だけが `gpt-5.6-sol` / reasoning `high` のまま残っていることを
+確認した (calibrator / coder は導入時から `gpt-5.6-terra` / `medium` に段付け済み)。verifier の
+claude 側は sonnet/medium (同日、effort high→medium を同監査で是正) であり、codex 列だけが
+最上位という非対称になっていた。旧固定 (spec.py の「verifierはgpt-5.6-sol/high固定」) に文書化
+された根拠は無く、D54 初版の「有効化候補 3 role を sol/high で統一」した構成の名残と推定される。
+
+**決定 (2026-07-19 ユーザー裁定):** verifier の codex 列を `gpt-5.6-terra` / `medium` に変更し、
+claude 側の難易度階層と揃える。adapter は休眠中 (D55: runtime activation blocked) のため今日の
+コストは変わらないが、adapter は将来再開時の契約の正本であり、安い役割が最上位設定で走る事故を
+契約段階で防ぐ。spec.py の verifier 専用固定ルールは**削除せず新値で再ピン**する — このルールは
+正しさの番人の設定が黙って動かされないための機械防壁として機能しており (引き上げ・引き下げの
+両方向の drift を検出)、値だけを裁定で更新する。opus role の sol/high 固定は不変。serializability
+判定の実体は決定的な verify.py であり、codex 列の段付けは正しさゲートの強度を変えない (規律2 に
+非抵触)。
+
+**同期:** manifest.json の codex 列、review_ledger.py の `ROLE_MANIFEST_SHA256["verifier"]`、
+adapter の renderer 期待バイト再生成、`test_verifier_codex_mapping` の期待値反転 (sol/high への
+変異を検出) を同一 commit で更新。

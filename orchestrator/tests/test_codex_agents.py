@@ -422,16 +422,17 @@ def test_codex_model_and_effort_cannot_be_omitted_or_inherited():
             shutil.rmtree(root)
 
 
-def test_verifier_codex_mapping_is_explicitly_sol_high():
-    for key, value in (("model", "gpt-5.6-terra"),
-                       ("model_reasoning_effort", "medium")):
+def test_verifier_codex_mapping_is_explicitly_pinned():
+    # D61 (2026-07-19 ユーザー裁定): terra/medium へ再ピン。方向を問わず drift を検出する
+    for key, value in (("model", "gpt-5.6-sol"),
+                       ("model_reasoning_effort", "high")):
         root = _fixture()
         try:
             manifest = _manifest(root)
             manifest["roles"]["verifier"]["codex"][key] = value
             _write_manifest(root, manifest)
             with _reviewed_role_entry(root, "verifier"):
-                assert any("verifierはgpt-5.6-sol/high固定" in finding
+                assert any("verifierはgpt-5.6-terra/medium固定" in finding
                            for finding in CCA.check(root))
         finally:
             shutil.rmtree(root)

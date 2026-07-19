@@ -25,7 +25,7 @@ SOURCE_FILE_SHA256 = {
     "planner-v4": "0a52dd4feada41167aa62711cc8cf1ad81e306ad706e99825b9709595b412ef2",
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
     "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
-    "verifier": "e244dff1273053878dd34fc26f6b96acc3faff466e3b2bdbf9a80920820ba8e0",
+    "verifier": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",
 }
 
 # ``manifest.json`` の各 ``roles.<name>`` entry 全体を固定する独立 pin。schema 単体だけでなく
@@ -44,7 +44,7 @@ ROLE_MANIFEST_SHA256 = {
     "planner-v4": "9e142881783337414af0c8d239541fc8f2b0a2892b160d58940602c93615dd17",
     "profiler": "61a3cc067886a042bcf076fc1b2494bf26bb5e6e64bcd6a6e8bc01a77071ec30",
     "selector-8b": "8d1a101ca21c17dab7cc529ceda263f2ec77dbc09b290a838cfddc88346f8631",
-    "verifier": "18216687be26dbb5de59d4cf84691c85f50820fbd4af33edef18ad947493884e",
+    "verifier": "2d36ee3afec401942fc3e66d521ddbf9d1cc54b81d98090d883f5f49d8f94a8f",
 }
 
 # ``spec.DEVELOPER_INSTRUCTION_TEMPLATE`` exact UTF-8 bytes の独立 pin。

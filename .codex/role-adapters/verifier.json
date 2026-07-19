@@ -110,8 +110,8 @@
     "type": "object"
   },
   "mode": "static-dormant",
-  "model": "gpt-5.6-sol",
-  "model_reasoning_effort": "high",
+  "model": "gpt-5.6-terra",
+  "model_reasoning_effort": "medium",
   "output_schema": {
     "additionalProperties": false,
     "properties": {
@@ -209,8 +209,8 @@
       }
     },
     "output_schema_sha256": "1b9803e741452465e08073580992818a4cb57afe5134583ae196083ee200c7ce",
-    "role_manifest_sha256": "18216687be26dbb5de59d4cf84691c85f50820fbd4af33edef18ad947493884e",
-    "source_file_sha256": "e244dff1273053878dd34fc26f6b96acc3faff466e3b2bdbf9a80920820ba8e0"
+    "role_manifest_sha256": "2d36ee3afec401942fc3e66d521ddbf9d1cc54b81d98090d883f5f49d8f94a8f",
+    "source_file_sha256": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f"
   },
   "role": "verifier",
   "runtime_activation": {
@@ -221,15 +221,15 @@
   },
   "runtime_boundary": "static-only-runtime-blocked",
   "schema_version": "izanagi.codex-role-adapter/v1",
-  "semantic_digest": "792150c86566a1c35e86103040c0c68cf0af987c226b6ec2a01357dd092af6f7",
+  "semantic_digest": "20a8ff69055c054a1b6627df7d383454ff90deff59a25ab7d20b43ddf6b0243b",
   "semantic_projection_mode": "mediated-projection",
   "semantic_projection_mode_semantics": "tool-lowering-classification-only; does-not-prove-semantic-equivalence-or-consumer-wiring",
   "source": {
     "description": "trace ログを読んで serializability を検査する。read/write 依存グラフを構築し G2 を含む cycle を検出する。anomaly を構造化して返す正しさの番人。Phase 1 から使用。",
-    "effort": "high",
+    "effort": "medium",
     "model": "sonnet",
     "path": ".claude/agents/verifier.md",
-    "sha256": "e244dff1273053878dd34fc26f6b96acc3faff466e3b2bdbf9a80920820ba8e0",
+    "sha256": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",
     "tools": [
       "Read",
       "Grep",
