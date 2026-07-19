@@ -148,3 +148,7 @@ def test_invalid_verify_state_matches_no_row():
         bench_done=0, abort=1, commit=0, abort_workload="legacy",
     )
     assert all(not contract.matches(outcome, evidence) for outcome in contract.OUTCOMES)
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))

@@ -213,3 +213,7 @@ def test_exploration_cli_packages_three_by_three_without_official_output(tmp_pat
     }
     assert not (tmp_path / "campaigns").exists()
     assert set(tmp_path.glob("*.json")) == {input_path}
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))
