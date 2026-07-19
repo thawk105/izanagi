@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import dataclasses
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 from unittest import mock
 
@@ -23,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
+from campaign import env_attestation  # noqa: E402
 from campaign import execution_guard  # noqa: E402
 from campaign import pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
 from campaign import s8b_freeze_io  # noqa: E402
@@ -33,6 +37,7 @@ from campaign import s8b_run_marker  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
 
 REAL_FREEZE = ROOT / "output/s8b-freeze/holdout_freeze.json"
@@ -130,7 +135,8 @@ def _source(path: str, *, root=ROOT) -> dict:
 
 
 def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
-                    *, source_root=ROOT, generator_paths=None) -> tuple[Path, dict]:
+                    *, source_root=ROOT, generator_paths=None,
+                    contract=None) -> tuple[Path, dict]:
     freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
     schedule = _schedule()
     bindings = []
@@ -152,15 +158,16 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
             "orchestrator/campaign/s8b_oracle_report.py",
             "orchestrator/campaign/s8b_oracle_judge.py",
         )
+    contract = contract or ec.lookup(V2_ENV_TAG)
     document = manifest_module.build_manifest(
         freeze_path=freeze_path,
         schedule=schedule,
         run_contract={
-            "ccbench_pin": "fixture-pin", "env_tag": V2_ENV_TAG,
-            "clocks": ec.lookup(V2_ENV_TAG).clocks_per_us, "reps": 1, "extime": 1,
+            "ccbench_pin": "fixture-pin", "env_tag": contract.env_tag,
+            "clocks": contract.clocks_per_us, "reps": 1, "extime": 1,
             "verify": "legacy+s2", "screening": "off",
             "bench_max_rounds": 1,
-            "contract_sha256": _contract_sha256(),
+            "contract_sha256": contract.contract_sha256,
         },
         binding_identity=bindings,
         campaign_ids={"b0": "s8b-oracle-fixture-b0"},
@@ -257,10 +264,12 @@ def _canned_plan(**kwargs) -> "driver._V2Plan":
     )
 
 
-def _fake_launch_validated(freeze_path: Path):
+def _fake_launch_validated(freeze_path: Path, *, env_tag=None):
     """WAL/budget unit 用の LaunchValidatedFreeze 型境界 fixture。"""
     raw = Path(freeze_path).read_bytes()
     document = json.loads(raw)
+    if env_tag is not None:
+        document["env_tag"] = env_tag
     ratified = s8b_ratified_freeze.RatifiedFreeze(
         document=document, sha256=hashlib.sha256(raw).hexdigest(),
         generation_number=1, activation_head="f" * 40,
@@ -274,6 +283,51 @@ def _fake_launch_validated(freeze_path: Path):
         ratified=ratified, activation_head=ratified.activation_head,
         search_digest="d" * 64, symlink_gitlink_inventory=(),
         floor_artifact=floor, binaries_by_cell={},
+    )
+
+
+def _required_contract(repo_root: Path):
+    document = copy.deepcopy(_valid_calibration_v2())
+    raw = json.dumps(
+        document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    artifact = repo_root / "calibration.json"
+    artifact.write_bytes(raw)
+    contract = ec.ExecutionEnvironmentContract(
+        env_tag=document["env_tag"], clocks_per_us=document["clocks_per_us"],
+        numactl=(), attestation_mode="required",
+        isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=False),
+        calibration_ref=ec.CalibrationRef(
+            path=artifact.name, sha256=hashlib.sha256(raw).hexdigest(),
+        ),
+    )
+    verified = env_attestation.load_verified_calibration(contract, repo_root)
+    return contract, verified
+
+
+def _reservation_env(*, requested_s: int = 100_000) -> dict[str, str]:
+    started = time.time() - 10
+    boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+    return {
+        "PBS_JOBID": "fixture.server",
+        "IZANAGI_RESERVATION_JOB_ID": "fixture.server",
+        "IZANAGI_RESERVATION_REQUESTED_S": str(requested_s),
+        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
+        "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested_s),
+        "IZANAGI_RESERVATION_HOST": "fixture-host",
+        "IZANAGI_RESERVATION_BOOT_ID": boot_id,
+        "IZANAGI_RESERVATION_SCRIPT_SHA256": "a" * 64,
+        "IZANAGI_RESERVATION_NONCE": "fixture-nonce",
+    }
+
+
+def _durable_policy(path: Path):
+    candidate = Path(path).absolute()
+    approved = candidate
+    while not approved.exists():
+        approved = approved.parent
+    return driver.DurableRootPolicy(
+        approved_roots=(approved.resolve(),), forbidden_roots=(),
     )
 
 
@@ -305,6 +359,141 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
         )
 
 
+def _run_required_preflight(
+        tmp_path: Path, *, receipt_issuer=None, verified_override=None,
+        environ: dict[str, str] | None = None):
+    """run_block production entry から required preflight を実発火する。"""
+    contract, verified = _required_contract(tmp_path)
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, manifest_document = _write_manifest(
+        tmp_path, freeze_path, prepare_fn, contract=contract,
+    )
+    verified_manifest = manifest_module.VerifiedManifest(
+        document=manifest_document,
+        sha256=manifest_module.manifest_sha256(manifest_document),
+    )
+    validated = _fake_launch_validated(freeze_path, env_tag=contract.env_tag)
+    issuer = receipt_issuer
+    if issuer is None:
+        original = execution_guard.attest_and_build_receipt
+
+        def issuer(receipt_contract, receipt_verified):
+            return original(
+                receipt_contract, receipt_verified,
+                probe_fn=lambda: receipt_verified.attestation_profile,
+            )
+
+    env = _reservation_env() if environ is None else environ
+    output_root = tmp_path / "required-out"
+    budget_path = tmp_path / "required-budget.json"
+    marker_root = tmp_path / "required-markers"
+    with mock.patch.object(driver, "gate_check",
+                           return_value=driver.GateDecision(True, [])), \
+            mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
+                              return_value=validated.ratified), \
+            mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
+                              return_value=validated), \
+            mock.patch.object(driver, "verify_manifest", return_value=verified_manifest), \
+            mock.patch.object(driver._env_contract, "lookup", return_value=contract), \
+            mock.patch.object(driver, "MACHINE_ENV_TAG", contract.env_tag), \
+            mock.patch.object(driver._env_attestation, "load_verified_calibration",
+                              return_value=(verified_override or verified)), \
+            mock.patch.object(driver.execution_guard, "attest_and_build_receipt",
+                              side_effect=issuer), \
+            mock.patch.dict(os.environ, env, clear=True):
+        result = driver.run_block(
+            manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
+            root=tmp_path, output_root=output_root, budget_path=budget_path,
+            marker_root=marker_root, prepare_fn=prepare_fn,
+            evaluate_fn=_fake_evaluate_factory(),
+        )
+    return result, output_root, budget_path, marker_root, contract, verified
+
+
+def _required_plan(contract, verified, schedule, environ):
+    original = execution_guard.attest_and_build_receipt
+    receipt = original(
+        contract, verified, probe_fn=lambda: verified.attestation_profile,
+    )
+    binding = driver._reservation.read_binding(environ)
+    check = driver._reservation.check_reservation(
+        binding, required_s=driver._reservation_required_s(schedule),
+        safety_margin_s=driver.ORACLE_RESERVATION_SAFETY_MARGIN_S,
+        environ=environ,
+    )
+    return driver._V2Plan(
+        contract=contract, receipt=receipt,
+        perf_sha_by_cell={
+            (row["holdout_id"], row["configuration_id"]): "0" * 64
+            for row in schedule
+        },
+        verified_calibration=verified, reservation_check=check,
+    )
+
+
+def _required_run_fixture(tmp_path: Path):
+    contract, verified = _required_contract(tmp_path)
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(
+        tmp_path, freeze_path, prepare_fn, contract=contract,
+    )
+    prepare_fn.calls.clear()
+    validated = _fake_launch_validated(freeze_path, env_tag=contract.env_tag)
+    verified_manifest = manifest_module.VerifiedManifest(
+        document=document, sha256=manifest_module.manifest_sha256(document),
+    )
+    environ = _reservation_env()
+    plan = _required_plan(contract, verified, document["schedule"]["rows"], environ)
+    marker_root = tmp_path / "required-marker-root"
+    marker_root.mkdir()
+    output_root = tmp_path / "required-run-out"
+    (output_root / "claims").mkdir(parents=True, mode=0o700)
+    return {
+        "root": tmp_path,
+        "contract": contract, "verified": verified, "freeze_path": freeze_path,
+        "manifest_path": manifest_path, "document": document,
+        "prepare_fn": prepare_fn, "validated": validated,
+        "verified_manifest": verified_manifest, "environ": environ, "plan": plan,
+        "marker_root": marker_root, "output_root": output_root,
+        "budget_path": tmp_path / "required-run-budget.json",
+    }
+
+
+def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=None):
+    original_issuer = execution_guard.attest_and_build_receipt
+
+    def default_issuer(contract, verified):
+        return original_issuer(
+            contract, verified, probe_fn=lambda: verified.attestation_profile,
+        )
+
+    issuer = receipt_side_effect or default_issuer
+    with mock.patch.object(driver, "gate_check",
+                           return_value=driver.GateDecision(True, [])), \
+            mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
+                              return_value=fixture["validated"].ratified), \
+            mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
+                              return_value=fixture["validated"]), \
+            mock.patch.object(driver, "verify_manifest",
+                              return_value=fixture["verified_manifest"]), \
+            mock.patch.object(driver, "_prepare_v2_execution",
+                              return_value=fixture["plan"]), \
+            mock.patch.object(driver.execution_guard, "attest_and_build_receipt",
+                              side_effect=issuer), \
+            mock.patch.dict(os.environ, fixture["environ"], clear=True):
+        return driver.run_block(
+            manifest_path=fixture["manifest_path"], block_id="b0",
+            freeze_path=fixture["freeze_path"], root=fixture["root"],
+            output_root=fixture["output_root"], budget_path=fixture["budget_path"],
+            marker_root=fixture["marker_root"], prepare_fn=fixture["prepare_fn"],
+            evaluate_fn=_fake_evaluate_factory(),
+            durable_root_policy=(durable_policy
+                                 or _durable_policy(fixture["output_root"])),
+        )
+
+
 def test_real_freeze_gate_lists_floor_and_budget_null():
     decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
     assert not decision.allowed
@@ -330,6 +519,243 @@ def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_pa
     assert result["status"] == "refused" and result["allowed"] is False
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
+
+
+def _assert_required_refusal_has_zero_side_effects(result, output_root, budget_path,
+                                                    marker_root):
+    assert result["status"] == "refused" and result["allowed"] is False, result
+    assert not output_root.exists()
+    assert not budget_path.exists()
+    assert not marker_root.exists()
+
+
+def test_required_binding_missing_refuses_at_production_entry_without_side_effects(tmp_path):
+    result, out, budget, markers, _contract, _verified = _run_required_preflight(
+        tmp_path, environ={},
+    )
+    _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
+    assert "reservation binding" in result["refusals"][0]
+
+
+def test_required_v1_receipt_refuses_at_production_entry_without_side_effects(tmp_path):
+    def v1_issuer(contract, _verified):
+        return execution_guard.build_receipt(contract)
+
+    result, out, budget, markers, _contract, _verified = _run_required_preflight(
+        tmp_path, receipt_issuer=v1_issuer,
+    )
+    _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
+    assert "receipt" in result["refusals"][0]
+
+
+def test_required_verified_calibration_from_other_contract_is_refused_without_side_effects(
+        tmp_path):
+    _contract, verified = _required_contract(tmp_path)
+    wrong_verified = dataclasses.replace(verified, sha256="b" * 64)
+    result, out, budget, markers, _contract, _verified = _run_required_preflight(
+        tmp_path, verified_override=wrong_verified,
+    )
+    _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
+    assert "verified calibration" in result["refusals"][0]
+
+
+def test_required_secondary_calibration_identity_recheck_fires_with_monkeypatched_loader(
+        tmp_path):
+    contract, verified = _required_contract(tmp_path)
+    assert verified.calibration is not None
+    drifted = dataclasses.replace(
+        verified,
+        calibration=dataclasses.replace(verified.calibration, env_tag="drifted-env"),
+    )
+    result, out, budget, markers, _contract, _verified = _run_required_preflight(
+        tmp_path, verified_override=drifted,
+    )
+    _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
+    assert "別 contract" in result["refusals"][0]
+
+
+def test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed(tmp_path):
+    fixture = _required_run_fixture(tmp_path)
+    (fixture["output_root"] / "claims").rmdir()
+    before = _tree_file_snapshot(fixture["output_root"])
+
+    result = _run_required_fixture(fixture)
+
+    assert result["status"] == "refused" and result["allowed"] is False
+    assert "provisioning" in result["refusals"][0]
+    assert _tree_file_snapshot(fixture["output_root"]) == before
+    assert not fixture["budget_path"].exists()
+
+
+def test_required_oracle_claim_root_outside_durable_approval_is_fail_closed(tmp_path):
+    fixture = _required_run_fixture(tmp_path)
+    unrelated = tmp_path / "unrelated-approved-root"
+    unrelated.mkdir()
+    policy = driver.DurableRootPolicy(
+        approved_roots=(unrelated.resolve(),), forbidden_roots=(),
+    )
+    before = _tree_file_snapshot(fixture["output_root"])
+
+    result = _run_required_fixture(fixture, durable_policy=policy)
+
+    assert result["status"] == "refused" and result["allowed"] is False
+    assert "approved root" in result["refusals"][0]
+    assert _tree_file_snapshot(fixture["output_root"]) == before
+    assert not fixture["budget_path"].exists()
+
+
+def test_required_existing_claim_refuses_production_entry_without_new_side_effects(tmp_path):
+    fixture = _required_run_fixture(tmp_path)
+    identity = driver._execution_identity(fixture["plan"])
+    driver._acquire_g12_claim(
+        plan=fixture["plan"], claim_root=fixture["output_root"] / "claims",
+        manifest_sha256=fixture["verified_manifest"].sha256,
+        freeze_sha256=fixture["validated"].ratified.sha256,
+        schedule_sha256=fixture["document"]["schedule_sha256"],
+        campaign_id=fixture["document"]["campaign_ids"]["b0"], identity=identity,
+    )
+    before = _tree_file_snapshot(fixture["output_root"])
+
+    result = _run_required_fixture(fixture)
+
+    assert result["status"] == "refused" and result["allowed"] is False
+    assert "claim" in result["refusals"][0]
+    assert _tree_file_snapshot(fixture["output_root"]) == before
+    assert not fixture["budget_path"].exists()
+
+
+def test_required_recheck_real_reservation_shortfall_writes_aborted_terminal(tmp_path):
+    fixture = _required_run_fixture(tmp_path)
+    fixture["plan"].reservation_check = dataclasses.replace(
+        fixture["plan"].reservation_check,
+        monotonic_deadline=time.monotonic() + 1.0,
+    )
+    result = _run_required_fixture(fixture)
+
+    assert result["status"] == "error"
+    deviation = next(event for event in result["events"] if event["event"] == "deviation")
+    assert deviation["kind"] == "execution-guard-lost"
+    assert "reservation" in deviation["message"]
+    terminals = [event for event in result["events"]
+                 if event["event"] == "campaign-terminal"]
+    assert len(terminals) == 1
+    assert terminals[0]["status"] == "aborted"
+    assert terminals[0]["completed_rows"] == 0
+    assert terminals[0]["scheduled_rows"] == len(fixture["document"]["schedule"]["rows"])
+
+
+def test_required_recheck_real_receipt_validation_catches_midcampaign_drift(tmp_path):
+    fixture = _required_run_fixture(tmp_path)
+    valid = execution_guard.attest_and_build_receipt(
+        fixture["contract"], fixture["verified"],
+        probe_fn=lambda: fixture["verified"].attestation_profile,
+    )
+    drifted = copy.deepcopy(valid)
+    drifted["contract_sha256"] = "0" * 64
+
+    result = _run_required_fixture(
+        fixture, receipt_side_effect=mock.Mock(return_value=drifted),
+    )
+
+    assert result["status"] == "error"
+    deviation = next(event for event in result["events"] if event["event"] == "deviation")
+    assert deviation["kind"] == "execution-guard-lost"
+    assert "attestation receipt" in deviation["message"]
+    terminal = result["events"][-1]
+    assert terminal["event"] == "campaign-terminal"
+    assert terminal["status"] == "aborted" and terminal["completed_rows"] == 0
+
+
+def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    shared_out_root = tmp_path / "shared-oracle-output-root"
+    claim_root = shared_out_root / "claims"
+    claim_root.mkdir(parents=True)
+    marker_root = tmp_path / "shared-oracle-marker-root"
+    marker_root.mkdir()
+    script = textwrap.dedent(
+        f"""
+        import dataclasses, hashlib, json, sys, time
+        from pathlib import Path
+        from unittest import mock
+        sys.path.insert(0, {str(ORCHESTRATOR)!r})
+        from campaign import env_contract, execution_guard
+        from campaign.durable_root import DurableRootPolicy
+        from campaign import s8b_oracle_driver as driver
+        from campaign import s8b_oracle_manifest, s8b_ratified_freeze
+
+        freeze_path = Path({str(freeze_path)!r})
+        raw = freeze_path.read_bytes()
+        ratified = s8b_ratified_freeze.RatifiedFreeze(
+            document=json.loads(raw), sha256=hashlib.sha256(raw).hexdigest(),
+            generation_number=1, activation_head="f" * 40, generation_commit="e" * 40)
+        floor = s8b_ratified_freeze.VerifiedFloorArtifact(
+            path="fixture/result.json", raw_bytes=b"{{}}",
+            sha256=hashlib.sha256(b"{{}}").hexdigest(), document={{}})
+        validated = s8b_ratified_freeze.LaunchValidatedFreeze(
+            ratified=ratified, activation_head=ratified.activation_head,
+            search_digest="d" * 64, symlink_gitlink_inventory=(),
+            floor_artifact=floor, binaries_by_cell={{}})
+        manifest = json.loads(Path({str(manifest_path)!r}).read_bytes())
+        verified_manifest = s8b_oracle_manifest.VerifiedManifest(
+            document=manifest, sha256=s8b_oracle_manifest.manifest_sha256(manifest))
+        base = env_contract.lookup("linux-baremetal")
+        required = dataclasses.replace(
+            base, attestation_mode="required",
+            isolation_policy=env_contract.IsolationPolicy(
+                single_process=True, allow_resume=False))
+        plan = driver._V2Plan(
+            contract=required, receipt=execution_guard.build_receipt(required),
+            perf_sha_by_cell={{}})
+
+        def won_claim_then_stop(*_args, **_kwargs):
+            time.sleep(0.25)
+            raise driver.OracleDriverError("fixture stop after global claim")
+
+        try:
+            with mock.patch.object(driver, "gate_check",
+                                   return_value=driver.GateDecision(True, [])), \
+                    mock.patch.object(driver.s8b_ratified_freeze,
+                                      "load_ratified_freeze", return_value=ratified), \
+                    mock.patch.object(driver.s8b_ratified_freeze,
+                                      "launch_validate", return_value=validated), \
+                    mock.patch.object(driver, "verify_manifest",
+                                      return_value=verified_manifest), \
+                    mock.patch.object(driver, "_prepare_v2_execution",
+                                      return_value=plan), \
+                    mock.patch.object(driver, "_ensure_campaign",
+                                      side_effect=won_claim_then_stop):
+                result = driver.run_block(
+                    manifest_path={str(manifest_path)!r}, block_id="b0",
+                    freeze_path={str(freeze_path)!r}, root={str(ROOT)!r},
+                    output_root={str(shared_out_root)!r},
+                    budget_path={str(tmp_path / 'subprocess-budget.json')!r},
+                    marker_root={str(marker_root)!r},
+                    durable_root_policy=DurableRootPolicy(
+                        approved_roots=(Path({str(shared_out_root)!r}).resolve(),),
+                        forbidden_roots=()))
+            print(json.dumps(result, sort_keys=True))
+        except driver.OracleDriverError as exc:
+            print(json.dumps({{"status": "claim-won", "error": str(exc)}}, sort_keys=True))
+        """
+    )
+    processes = [
+        subprocess.Popen(
+            [sys.executable, "-c", script], stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True,
+        )
+        for _ in range(2)
+    ]
+    results = []
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=10)
+        assert process.returncode == 0, stderr
+        results.append(json.loads(stdout))
+
+    assert sorted(result["status"] for result in results) == ["claim-won", "refused"]
+    assert len(list(claim_root.glob("*.claim"))) == 1
 
 
 def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
@@ -402,12 +828,21 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
     assert session_events == ["campaign-start", *(
         event for _row in document["schedule"]["rows"]
         for event in ("trial-start", "trial-result")
-    )]
+    ), "campaign-terminal"]
+    terminal = result["events"][-1]
+    assert terminal["status"] == "completed"
+    assert terminal["scheduled_rows"] == terminal["completed_rows"] == len(
+        document["schedule"]["rows"]
+    )
+    assert set(terminal["execution_identity"]) == {
+        "job", "host", "boot", "pid", "starttime",
+    }
     assert len(evaluate_fn.calls) == len(document["schedule"]["rows"])
     for call in evaluate_fn.calls:
         kwargs = call["kwargs"]
         assert kwargs["do_bench"] is True
         assert kwargs["screening"] is None
+        assert kwargs["env_contract"] is ec.lookup(V2_ENV_TAG)
         assert len(kwargs["extra_correctness"]) == 1
         tag, workload = kwargs["extra_correctness"][0]
         assert tag == pipeline.S2_TAG
@@ -434,6 +869,79 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
     assert reservation["reserved_bench_s"] == pytest.approx(
         float(len(document["schedule"]["rows"]))
     )
+    assert not list((tmp_path / "markers").glob("*.claim"))  # mode=none 回帰
+
+
+def test_campaign_terminal_driver_guard_rejects_second_terminal(tmp_path):
+    layout = campaign_layout("oracle-terminal-double", output_root=str(tmp_path)).ensure()
+    identity = {
+        "job": "j", "host": "h", "boot": "b", "pid": 1, "starttime": 2,
+    }
+    driver._append_campaign_terminal(
+        layout, V2_ENV_TAG, status="completed", scheduled_rows=1,
+        completed_rows=1, execution_identity=identity,
+    )
+    with pytest.raises(driver.OracleDriverError, match="二重"):
+        driver._append_campaign_terminal(
+            layout, V2_ENV_TAG, status="aborted", scheduled_rows=1,
+            completed_rows=0, execution_identity=identity,
+        )
+    terminals = [event for event in driver._session_events(layout)
+                 if event["event"] == "campaign-terminal"]
+    assert len(terminals) == 1 and terminals[0]["status"] == "completed"
+
+
+def test_oracle_pipeline_contract_keyword_is_mandatory_positive_control(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    base = _fake_evaluate_factory()
+
+    def requires_contract(genome, layout, env_tag, ccbench_commit, perf,
+                          clocks_per_us, *, env_contract, **kwargs):
+        assert env_contract is ec.lookup(V2_ENV_TAG)
+        return base(
+            genome, layout, env_tag, ccbench_commit, perf, clocks_per_us,
+            env_contract=env_contract, **kwargs,
+        )
+
+    result = _run(
+        tmp_path, freeze_path, manifest_path, prepare_fn, requires_contract,
+    )
+    assert result["status"] == "completed"
+
+
+def test_build_result_contract_mismatch_aborts_campaign_before_measurement(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    guard_failures = []
+
+    def fake_evaluate(genome, *_args, **_kwargs):
+        # driver の production evaluate 境界内で build_v2 result guard を発火する。
+        try:
+            pipeline.buildcache.build_v2()
+        except AssertionError as exc:
+            guard_failures.append(str(exc))
+            raise
+        raise AssertionError("contract guard did not reject")
+
+    wrong = pipeline.buildcache.BuildResult(
+        genome=Genome("silo", {}), trace=True, binary="/tmp/not-run",
+        bin_sha256="0" * 64, build_dir="/tmp/not-run", cached=True,
+        contract_sha256="f" * 64,
+    )
+    with mock.patch.object(pipeline.buildcache, "build_v2", return_value=wrong):
+        result = _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn, fake_evaluate,
+        )
+
+    assert result["status"] == "error"
+    assert guard_failures and "BuildResult.contract_sha256" in guard_failures[0]
+    terminal = next(event for event in result["events"]
+                    if event["event"] == "campaign-terminal")
+    assert terminal["status"] == "aborted"
+    assert terminal["completed_rows"] == 0
 
 
 def test_binding_mismatch_refuses_only_that_row_before_evaluate(tmp_path):
@@ -471,8 +979,11 @@ def test_v8_bulk_reservation_unavailable_runs_nothing(tmp_path):
     assert result["completed_trials"] == 0
     events = result["events"]
     assert [event["event"] for event in events] == [
-        "campaign-start", "budget-exhausted-before-attempt",
+        "campaign-start", "budget-exhausted-before-attempt", "campaign-terminal",
     ]
+    assert events[-1]["status"] == "aborted"
+    assert events[-1]["scheduled_rows"] == len(document["schedule"]["rows"])
+    assert events[-1]["completed_rows"] == 0
     # 一行も走らせない: prepare も evaluate も trial-start も発火しない。
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not any(event["event"] == "trial-start" for event in events)
@@ -681,9 +1192,10 @@ def test_v3_all_rows_binding_refused_is_protocol_violation(tmp_path):
     }
     # terminal event が耐久化される。
     events = [event["event"] for event in result["events"]]
-    assert events[-1] == "protocol-violation"
+    assert events[-2:] == ["protocol-violation", "campaign-terminal"]
     terminal = result["events"][-1]
-    assert terminal["completed_trials"] == 0
+    assert terminal["status"] == "aborted"
+    assert terminal["completed_rows"] == 0
     assert terminal["scheduled_rows"] == len(rows)
     # protocol_violation では精算しない (reservation は held のまま非解放)。
     ledger = s8b_budget.read_ledger(
@@ -1380,7 +1892,61 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     receipt = start["execution_receipt"]
     assert execution_guard.receipt_matches_contract(
         receipt, env_tag=V2_ENV_TAG, contract_sha256=contract.contract_sha256,
+        attestation_mode="none",
     )
+
+
+@pytest.mark.skipif(
+    not ((ROOT / "external" / "ccbench" / ".git").exists()
+         and all(shutil.which(tool) for tool in ("cmake", "gcc-13", "g++-13", "nm"))),
+    reason="slow oracle real-build v2 control: initialized ccbench + pinned toolchain が必要",
+)
+def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
+    """oracle evaluate 境界で fake build を使わず trace/perf の実 build_v2 を通す。"""
+    from test_campaign import _green_vr  # 局所 import: verifier fixture のみ共有
+
+    freeze = _real_document()
+    holdout_id = next(iter(freeze["holdouts"]))
+    configuration_id = "stock_common"
+    pin = subprocess.run(
+        ["git", "-C", str(ROOT / "external" / "ccbench"), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    contract = ec.lookup(V2_ENV_TAG)
+    built = []
+    real_build_v2 = pipeline.buildcache.build_v2
+
+    def recording_build_v2(*args, **kwargs):
+        result = real_build_v2(*args, **kwargs)
+        built.append(result)
+        return result
+
+    with driver._prepared_binding(
+            freeze=freeze, holdout_id=holdout_id,
+            configuration_id=configuration_id, ccbench_pin=pin,
+            prepare_fn=driver.prepare_cell) as (_identity, prepared), \
+            mock.patch.object(pipeline.buildcache, "build_v2", recording_build_v2), \
+            mock.patch.object(pipeline, "_run_trace", return_value=(1, 0, 1)), \
+            mock.patch.object(pipeline, "verify_trace_dir", side_effect=lambda _p: _green_vr()), \
+            driver._assert_v2_build_contract(contract):
+        layout = campaign_layout(
+            "oracle-real-v2-build-control", output_root=str(tmp_path / "wal"),
+        ).ensure()
+        result = pipeline.evaluate(
+            prepared.genome, layout, contract.env_tag, pin,
+            pipeline.PerfConfig(records=1000, threads=2),
+            contract.clocks_per_us, do_bench=False,
+            src_token=prepared.src_token, ccbench_dir=prepared.ccbench_dir,
+            cache_root=str(tmp_path / "cache"), env_contract=contract,
+            log=lambda _message: None,
+        )
+
+    assert result.certified and not result.aborted
+    assert len(built) == 2 and {item.trace for item in built} == {False, True}
+    assert all(Path(item.binary).is_file() for item in built)
+    assert all(item.contract_sha256 == contract.contract_sha256 for item in built)
+    assert all(Path(item.ccbench_root) == Path(prepared.ccbench_dir).absolute()
+               for item in built)
 
 
 def test_v2_floor_disk_swap_after_launch_uses_same_validated_object(tmp_path):

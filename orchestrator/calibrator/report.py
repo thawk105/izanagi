@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from .model import (CalibrationResult, NoiseFloor, ScalePoint,
-                    ScaleSensitivity, SaturationResult)
+from .model import (CalibrationResult, CertificationEvidence, NoiseFloor,
+                    ScalePoint, ScaleSensitivity, SaturationResult)
 
 
 def _point_to_dict(p: ScalePoint) -> Dict[str, Any]:
@@ -82,6 +82,51 @@ def result_to_dict(r: CalibrationResult) -> Dict[str, Any]:
         "sweep": [_point_to_dict(p) for p in r.sweep],
         "notes": r.notes,
     }
+
+
+def certification_quality_reasons(
+        result: CalibrationResult,
+        evidence: CertificationEvidence) -> list[str]:
+    """C3-1 の accepted 8 条件を一つずつ評価し、安定した reason code を返す。"""
+    reasons: list[str] = []
+    if not evidence.tsc_measured:
+        reasons.append("tsc-not-measured")
+    if not evidence.cooldown_settled:
+        reasons.append("cooldown-not-settled")
+
+    if not evidence.all_subprocesses_succeeded or not evidence.measurements or any(
+            len(item.point.throughputs) != item.expected_reps
+            for item in evidence.measurements):
+        reasons.append("reps-incomplete")
+
+    required_metrics_missing = False
+    for item in evidence.measurements:
+        point = item.point
+        counters = point.counters
+        if (point.maxrss_kb is None or counters.llc_load_misses is None
+                or counters.llc_loads is None or counters.instructions is None
+                or counters.cycles is None):
+            required_metrics_missing = True
+            break
+    l3_missing = not result.saturation or result.saturation.l3_bytes is None
+    if required_metrics_missing or l3_missing:
+        reasons.append("required-metrics-missing")
+
+    saturation = result.saturation
+    if (saturation is None or saturation.records <= 0
+            or not (saturation.saturated or saturation.lower_bound_selected)
+            or saturation.cache_floor_warning):
+        reasons.append("selection-invalid")
+
+    noise = result.noise_floor
+    if noise is None or noise.cv is None or noise.cv > 0.05:
+        reasons.append("within-run-cv-invalid")
+
+    if not evidence.all_windows_isolated:
+        reasons.append("isolation-window-failed")
+    if not evidence.post_static_matches:
+        reasons.append("post-attestation-mismatch")
+    return reasons
 
 
 def _pct(x) -> str:

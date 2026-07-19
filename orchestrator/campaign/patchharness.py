@@ -35,10 +35,31 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from typing import List
 
 
-def _git(sub: str, *args: str) -> subprocess.CompletedProcess:
+_INDEX_LOCK_RETRIES = 5
+_INDEX_LOCK_RETRY_INTERVAL_S = 0.2
+
+
+def _writes_checkout_or_apply(args: tuple[str, ...]) -> bool:
+    """この harness が working-tree を更新する checkout/apply 呼び出しか。"""
+    if not args:
+        return False
+    if args[0] == "checkout":
+        return True
+    # patch_files() の --numstat は読み取りなので retry 対象にしない。
+    return args[0] == "apply" and "--numstat" not in args
+
+
+def _retry_trace(result: subprocess.CompletedProcess) -> str:
+    """_git の bounded retry 痕跡。stdout/stderr 自体は変更しない。"""
+    return getattr(result, "patchharness_retry_trace", "")
+
+
+def _git(sub: str, *args: str, _runner=subprocess.run,
+         _sleep=time.sleep) -> subprocess.CompletedProcess:
     """submodule で git を回す。起動不能は RuntimeError (identity 核なので fails-closed)。
 
     `-c core.quotepath=false` を常に渡し、非 ASCII パスの C-style quote (`"include/\\346..."`)
@@ -46,9 +67,31 @@ def _git(sub: str, *args: str) -> subprocess.CompletedProcess:
     文字列だと残骸削除と leftovers 検査が両方素通りする (2026-07-03 敵対検証 low)。制御文字は
     quotepath=false でも quote されうるが、coder の非 ASCII/制御文字ファイル名追加は #include
     死角 assert (include 行 HEAD 固定) と EVOLVE-BLOCK 制約で手前で止まる。"""
+    command = ["git", "-C", sub, "-c", "core.quotepath=false", *args]
+    env = os.environ.copy()
+    # Git 公式の optional-lock 抑止。status/rev-parse 等の読み取りが index の refresh
+    # lock を取って、checkout/apply と競合するのを防ぐ。書き込みに必要な lock は抑止しない。
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    retries = 0
     try:
-        return subprocess.run(["git", "-C", sub, "-c", "core.quotepath=false", *args],
-                              capture_output=True, text=True)
+        while True:
+            result = _runner(command, capture_output=True, text=True, env=env)
+            retryable = (
+                _writes_checkout_or_apply(args)
+                and result.returncode == 128
+                and "index.lock" in (result.stderr or "")
+            )
+            if not retryable or retries >= _INDEX_LOCK_RETRIES:
+                # CompletedProcess の stdout/stderr/returncode は従来どおり保ち、追加属性で
+                # retry を可視化する。呼び手が例外化するときは _retry_trace() を併記する。
+                result.patchharness_retries = retries
+                result.patchharness_retry_trace = (
+                    f"patchharness: index.lock 競合で {retries} 回リトライ"
+                    if retries else ""
+                )
+                return result
+            retries += 1
+            _sleep(_INDEX_LOCK_RETRY_INTERVAL_S)
     except (OSError, subprocess.SubprocessError) as e:
         raise RuntimeError(
             f"patchharness: git 起動失敗 ({e}) — working-tree の状態を確定できず "
@@ -150,9 +193,10 @@ def apply_patch(patch_path: str, sub: str) -> None:
     """patch を working-tree に適用する (index は触らない = HEAD/pin 不動)。"""
     r = _git(sub, "apply", patch_path)
     if r.returncode != 0:
+        retry_note = f"\n  {_retry_trace(r)}" if _retry_trace(r) else ""
         raise RuntimeError(
             f"patchharness: git apply 失敗 ({patch_path}, rc={r.returncode})。\n"
-            f"  {r.stderr.strip()[-500:]}")
+            f"  {r.stderr.strip()[-500:]}{retry_note}")
 
 
 def revert_worktree(sub: str, files: List[str]) -> None:
@@ -164,10 +208,11 @@ def revert_worktree(sub: str, files: List[str]) -> None:
     assert し、破れていたら停止 (自動修復で上書きしない、規律6)。"""
     r = _git(sub, "checkout", "--", ".")
     if r.returncode != 0:
+        retry_note = f"\n  {_retry_trace(r)}" if _retry_trace(r) else ""
         raise RuntimeError(
             f"patchharness: revert (git checkout -- .) 失敗 (rc={r.returncode}) — "
             f"working-tree が汚染されたまま。人間が復旧すること。\n"
-            f"  {r.stderr.strip()[-300:]}")
+            f"  {r.stderr.strip()[-300:]}{retry_note}")
     for rel in files:
         exists_in_head = _git(sub, "cat-file", "-e", f"HEAD:{rel}").returncode == 0
         p = os.path.join(sub, rel)

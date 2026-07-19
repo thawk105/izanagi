@@ -32,6 +32,7 @@ from campaign import env_contract as EC  # noqa: E402
 from campaign import s8b_floor_campaign as FLOOR  # noqa: E402
 from campaign import s8b_floor_contract as FC  # noqa: E402
 from campaign import s8b_holdout_freeze as HF  # noqa: E402
+from campaign.durable_root import DurableRootPolicy  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
@@ -339,8 +340,11 @@ def _fixed_prepare(cell, ccbench_pin):
 
 def _make_emitter_build():
     def build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
-              jobs=16, ccbench_dir="", src_token=None):
+              jobs=16, ccbench_dir="", src_token=None, contract=None,
+              timeout_s=None):
         assert trace is False
+        assert ccbench_dir == _fixed_prepare.ccbench_dir
+        assert timeout_s == 900
         cell_dir = Path(cache_root) / "fixture" / hashlib.sha256(
             src_token.encode("utf-8")).hexdigest()[:16]
         cell_dir.mkdir(parents=True, exist_ok=True)
@@ -348,12 +352,14 @@ def _make_emitter_build():
         payload = f"fixture-binary::{genome.canonical()}::{src_token}".encode("utf-8")
         binary.write_bytes(payload)
         sha = _sha(payload)
+        source_root = ccbench_dir or _fixed_prepare.ccbench_dir
         return SimpleNamespace(
             genome=genome, trace=False, binary=str(binary), bin_sha256=sha,
             bin_hash=sha[:16], build_dir=str(cell_dir), cached=False,
-            configure_argv=["cmake", "-S", str(ccbench_dir), "-B", str(cell_dir)],
+            configure_argv=["cmake", "-S", str(source_root), "-B", str(cell_dir)],
             build_argv=["cmake", "--build", str(cell_dir)],
-            cache_root=str(cache_root), ccbench_root=str(ccbench_dir),
+            cache_root=str(cache_root), ccbench_root=str(source_root),
+            contract_sha256=contract.contract_sha256,
         )
     return build
 
@@ -417,6 +423,8 @@ def _prepare_emitter_base(root: Path) -> tuple[dict, str, str, bytes, bytes]:
     v1_raw = _REAL_V1.read_bytes()
     v1 = json.loads(v1_raw)
     _write(root, M.V1_FREEZE_PATH, v1_raw)
+    calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
+    _write(root, calibration_path, _real_bytes(calibration_path))
     known_path = v1["known_axes_freeze"]["path"]
     _write(root, known_path, _real_bytes(known_path))
     design_path = v1["design_source"]["path"]
@@ -484,6 +492,9 @@ def build_production_emitter_g1(
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
         execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
         repo_root=root, after_certificate_issued_fn=commit_certificate,
+        durable_root_policy=DurableRootPolicy(
+            approved_roots=(root.resolve(),), forbidden_roots=(),
+        ),
     )
     run_dir = Path(outcome["run_dir"])
     paths = _emitter_artifact_paths(run_dir, root)
@@ -662,6 +673,9 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
         execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
         repo_root=scan_root, after_certificate_issued_fn=commit_certificate,
+        durable_root_policy=DurableRootPolicy(
+            approved_roots=(root.resolve(),), forbidden_roots=(),
+        ),
     )
     run_dir = Path(outcome["run_dir"])
     paths = _emitter_artifact_paths(run_dir, root)

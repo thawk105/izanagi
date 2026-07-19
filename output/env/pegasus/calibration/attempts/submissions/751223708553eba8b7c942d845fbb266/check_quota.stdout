@@ -1,0 +1,9 @@
+USER:tanab home quota
+Disk quotas for prj 31609 (pid 31609):
+      Filesystem  kbytes   bquota  blimit  bgrace   files   iquota  ilimit  igrace
+           /home 5473588  104857600 157286400       -   41623        0       0       -
+
+GROUP:SFC work quota
+Disk quotas for prj 1030410 (pid 1030410):
+      Filesystem  kbytes   bquota  blimit  bgrace   files   iquota  ilimit  igrace
+           /work 185016212  10737418240 16106127360       -  209068        0       0       -

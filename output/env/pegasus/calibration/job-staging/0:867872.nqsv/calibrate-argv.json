@@ -1,0 +1,19 @@
+[
+  "python3",
+  "/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/calibrate.py",
+  "--certify",
+  "--env-tag",
+  "pegasus",
+  "--threads",
+  "48",
+  "--workload",
+  "ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0",
+  "--binary",
+  "/scr/0_867872.nqsv/ccbench-build/cc/silo/ycsb_silo.exe",
+  "--binary-sha256",
+  "851713e88c49a4ead78193e412cca4d191e34ab189c9d62c70358ed4da68d696",
+  "--receipt-json",
+  "/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/env/pegasus/calibration/job-staging/0:867872.nqsv/acquisition-receipt.json",
+  "--effective-clock-tolerance-pct",
+  "2.0"
+]

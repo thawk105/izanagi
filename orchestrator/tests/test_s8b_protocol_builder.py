@@ -48,7 +48,7 @@ _GOLDEN_BYTES = (
     b'"nonfinite_or_partial_output","performance_anomaly"],'
     b'"ccbench_pin":"d706650cdb31e442bef45b9b4216951d4fb40969",'
     b'"cell_cv_max":"0.15",'
-    b'"contract_sha256":"a5d3e7b226c38aab17a757df926ae8f581c7d29b94b3345d9ab613cd99e470a7",'
+    b'"contract_sha256":"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7",'
     b'"env_tag":"linux-baremetal","extime_s":3,"formula":"s8b-floor-stats/v2",'
     b'"freeze":{"path":"output/s8b-freeze/holdout_freeze.json",'
     b'"sha256":"315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"},'
@@ -58,7 +58,7 @@ _GOLDEN_BYTES = (
     b'"session_cv_max":"0.10","stock_configuration":"stock_common",'
     b'"wired_min_rel_floor":0.05}'
 )
-_GOLDEN_SHA = "3179f06e8399c6d001dee7d7a13524fd73661100b3aa2690adb076a6d3df06e4"
+_GOLDEN_SHA = "317314d87fa5ce10f2dc11991f705ba3e57ad7d0ea225a7ba72585e3a8ec259d"
 
 
 def _requires_repo() -> None:

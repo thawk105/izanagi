@@ -1,0 +1,28 @@
+++ date
++ echo '=== early debug Sun Jul 19 02:22:56 JST 2026 ==='
+=== early debug Sun Jul 19 02:22:56 JST 2026 ===
++ echo PBS_JOBID=0:867864.nqsv
+PBS_JOBID=0:867864.nqsv
++ echo PBS_O_WORKDIR=/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert
+PBS_O_WORKDIR=/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert
++ env
++ grep -E 'IZANAGI|PEGASUS'
+PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT=2.0
+IZANAGI_SUBMISSION_NONCE=debugnonce123
++ ls -ld /scr/0:867864.nqsv
+ls: cannot access '/scr/0:867864.nqsv': No such file or directory
++ echo 'scr jobdir ABSENT'
+scr jobdir ABSENT
++ mkdir /scr/0:867864.nqsv
++ echo 'mkdir rc=0'
+mkdir rc=0
++ ls -ld /scr/0:867864.nqsv
+drwxr-xr-x 2 tanab SFC 6 Jul 19 02:22 /scr/0:867864.nqsv
++ [[ 0:867864.nqsv =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]
++ echo 'regex rc=0'
+regex rc=0
++ bash --version
++ head -1
+GNU bash, version 5.1.16(1)-release (x86_64-pc-linux-gnu)
++ echo '=== done ==='
+=== done ===

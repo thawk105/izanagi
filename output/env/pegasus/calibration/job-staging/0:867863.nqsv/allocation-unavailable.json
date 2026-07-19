@@ -1,0 +1,8 @@
+{
+  "assigned_host_qstat": "bnode003",
+  "hostname_observed": "bnode003",
+  "pbs_jobid": "0:867863.nqsv",
+  "qstat_rc": 0,
+  "recorded_epoch": 1784394958,
+  "scheduler_started_epoch": "unavailable"
+}

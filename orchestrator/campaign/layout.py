@@ -22,6 +22,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+from typing import BinaryIO, Optional
+
+from .durable_root import (
+    DurableRootError,
+    DurableRootPolicy,
+    WriteCapability,
+    resolve_policy_root,
+)
 
 
 def repo_output_root() -> str:
@@ -31,6 +40,125 @@ def repo_output_root() -> str:
     here = os.path.dirname(os.path.abspath(__file__))     # <repo>/orchestrator/campaign
     repo = os.path.dirname(os.path.dirname(here))         # <repo>
     return os.path.join(repo, "output")
+
+
+def default_durable_root_policy() -> DurableRootPolicy:
+    """shared code の既定 durable allowlist。機械固有 path は注入側だけが持つ。"""
+    root = Path(repo_output_root()).resolve(strict=True)
+    return DurableRootPolicy(approved_roots=(root,), forbidden_roots=())
+
+
+def authorize_output_root(
+    output_root: str = "", *, policy: Optional[DurableRootPolicy] = None,
+) -> WriteCapability:
+    """未作成の output root を包含する approved root の capability を返す。
+
+    directory 作成前の admission に使う。実際の file open 前には、作成済みの
+    run/store directory を :func:`write_capability_for_directory` で再解決し、mount ID
+    もその leaf まで再検査する。
+    """
+    policy = policy or default_durable_root_policy()
+    if not isinstance(policy, DurableRootPolicy):
+        raise DurableRootError("policy は DurableRootPolicy でなければならない")
+    candidate = Path(output_root or repo_output_root())
+    if not candidate.is_absolute():
+        candidate = candidate.absolute()
+    try:
+        desired = candidate.resolve(strict=False)
+        approved = tuple(root.resolve(strict=True) for root in policy.approved_roots)
+    except OSError as exc:
+        raise DurableRootError("output/approved root を解決できない") from exc
+    matching = [root for root in approved if desired == root or desired.is_relative_to(root)]
+    if not matching:
+        raise DurableRootError("output_root が approved root 配下でない")
+    root = max(matching, key=lambda item: len(item.parts))
+    return resolve_policy_root(policy, str(root)).acquire_write_capability()
+
+
+def ensure_directory_with_capability(
+    capability: WriteCapability, directory: Path,
+) -> Path:
+    """capability root 配下だけに directory component を作る。symlink は辿らない。"""
+    if not isinstance(capability, WriteCapability):
+        raise DurableRootError("write capability が必要")
+    target = Path(directory)
+    if not target.is_absolute():
+        target = target.absolute()
+    try:
+        relative = target.relative_to(capability.root)
+    except ValueError as exc:
+        raise DurableRootError("作成先 directory が capability root 外") from exc
+    current = capability.root
+    for part in relative.parts:
+        current = current / part
+        capability._verify_identity()
+        try:
+            os.mkdir(current, 0o700)
+        except FileExistsError:
+            if current.is_symlink() or not current.is_dir():
+                raise DurableRootError(
+                    f"directory component が通常 directory でない: {current}"
+                )
+        except OSError as exc:
+            raise DurableRootError(f"directory を作成できない: {current}") from exc
+    return target
+
+
+def write_capability_for_directory(
+    directory: Path, *, policy: Optional[DurableRootPolicy] = None,
+) -> WriteCapability:
+    """作成済み mutating entry root を policy/mount 検査して capability 化する。"""
+    policy = policy or default_durable_root_policy()
+    return resolve_policy_root(
+        policy, str(Path(directory)),
+    ).acquire_write_capability()
+
+
+def open_with_write_capability(
+    capability: WriteCapability, path: Path, mode: str,
+) -> BinaryIO:
+    """WriteCapability を必須化した binary open (append/create/truncate)。
+
+    leaf capability の ``open_for_write`` は truncate 専用なので、append-only journal と
+    create-only artifact が同じ admission/identity/O_NOFOLLOW 防壁を使えるよう mode を
+    閉じた集合で補う。read-only entry はこの API を通さない。
+    """
+    if not isinstance(capability, WriteCapability):
+        raise DurableRootError("write capability が必要")
+    if mode not in {"ab", "xb", "wb"}:
+        raise DurableRootError(f"未対応 write mode: {mode!r}")
+    target = Path(path)
+    if not target.is_absolute():
+        target = target.absolute()
+    try:
+        relative = target.relative_to(capability.root)
+        parent = (capability.root / relative.parent).resolve(strict=True)
+    except (OSError, ValueError) as exc:
+        raise DurableRootError("write target の親が capability root 外/未作成") from exc
+    if not parent.is_relative_to(capability.root) or not parent.is_dir():
+        raise DurableRootError("write target の親が capability root 外または directory でない")
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise DurableRootError("O_NOFOLLOW が利用できない")
+    flags = os.O_WRONLY | os.O_CREAT | nofollow
+    if mode == "ab":
+        flags |= os.O_APPEND
+    elif mode == "xb":
+        flags |= os.O_EXCL
+    else:
+        flags |= os.O_TRUNC
+    capability._verify_identity()
+    try:
+        fd = os.open(parent / relative.name, flags, 0o600)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        raise DurableRootError(f"write target を安全に open できない: {target}") from exc
+    try:
+        return os.fdopen(fd, "wb" if mode == "xb" else mode)
+    except Exception:
+        os.close(fd)
+        raise
 
 
 @dataclass(frozen=True)

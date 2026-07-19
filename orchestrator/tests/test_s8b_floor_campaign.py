@@ -17,6 +17,7 @@ manifest.schedule 権威 + attempt registry / env contract 結線 / duration 台
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import datetime as dt
 import hashlib
 import json
@@ -27,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -38,6 +40,8 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 
 from campaign import env_contract as ec  # noqa: E402
+from campaign import campaign_claim, reservation  # noqa: E402
+from campaign import env_attestation  # noqa: E402
 from campaign import s8b_floor_campaign  # noqa: E402
 from campaign import s8b_floor_stats  # noqa: E402
 from campaign import s8b_launch_cert  # noqa: E402
@@ -45,6 +49,9 @@ from campaign.model import Genome  # noqa: E402
 from campaign.p2_2 import ENV_TAG  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -189,8 +196,12 @@ def _fake_prepare(cell, ccbench_pin):
 
 def _make_fake_build(build_root: Path):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
-                   jobs=16, ccbench_dir="", src_token=None):
+                   jobs=16, ccbench_dir="", src_token=None, contract=None,
+                   timeout_s=None):
         assert trace is False, "floor 計測は trace-disabled build (規律1)"
+        assert ccbench_dir, "prepare_cell の隔離 ccbench_dir を build_v2 へ渡す"
+        assert timeout_s == 900, "floor v2 build hard timeout を固定する"
+        effective_ccbench = ccbench_dir or "/fixture/ccbench"
         # production と同じく渡された cache_root 配下に実体を置き、command には実 root を
         # 埋め込む（portable projection が未結線でも通る fake にしない）。
         cell_dir = Path(cache_root) / "fixture" / src_token.replace("::", "__")
@@ -205,11 +216,23 @@ def _make_fake_build(build_root: Path):
             build_dir=str(cell_dir), cached=False,
             configure_cmd=f"# fixture configure {src_token}",
             build_cmd="# fixture build",
-            configure_argv=["cmake", "-S", str(ccbench_dir), "-B", str(cell_dir)],
+            configure_argv=["cmake", "-S", effective_ccbench, "-B", str(cell_dir)],
             build_argv=["cmake", "--build", str(cell_dir)],
-            cache_root=str(cache_root), ccbench_root=str(ccbench_dir),
+            cache_root=str(cache_root), ccbench_root=effective_ccbench,
+            contract_sha256=(contract.contract_sha256 if contract is not None else None),
         )
     return fake_build
+
+
+def _durable_policy(out_root: Path):
+    """tmp output を明示注入するテスト専用 allowlist (production 既定は repo output)。"""
+    candidate = Path(out_root).absolute()
+    approved = candidate
+    while not approved.exists():
+        approved = approved.parent
+    return s8b_floor_campaign.DurableRootPolicy(
+        approved_roots=(approved.resolve(),), forbidden_roots=(),
+    )
 
 
 def _cell_id_from_binary(binary: str) -> str:
@@ -229,6 +252,7 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         monotonic_fn=monotonic_fn or (lambda: 0.0),
         prepare_fn=_fake_prepare, now_fn=now_fn or (lambda: _FIXED_NOW),
         build_fn=fake_build,
+        durable_root_policy=_durable_policy(Path(out_root)),
     )
 
 
@@ -342,6 +366,83 @@ def _real_output_snapshot() -> tuple:
     return tuple(snapshot)
 
 
+def _tree_snapshot(root: Path) -> tuple:
+    if not root.exists():
+        return ()
+    rows = []
+    for path in sorted(root.rglob("*"), key=lambda item: item.as_posix()):
+        rel = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            rows.append(("symlink", rel, path.readlink().as_posix()))
+        elif path.is_file():
+            rows.append(("file", rel, hashlib.sha256(path.read_bytes()).hexdigest()))
+        else:
+            rows.append(("dir", rel))
+    return tuple(rows)
+
+
+def _install_required_contract(tmp_path: Path, monkeypatch):
+    """production calibration/v2 reader + issuer を通す required env fixture。"""
+    repo_root = tmp_path / "required-repo"
+    repo_root.mkdir()
+    document = _valid_calibration_v2_document()
+    raw = json.dumps(
+        document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    (repo_root / "calibration.json").write_bytes(raw)
+    contract = ec.ExecutionEnvironmentContract(
+        env_tag=document["env_tag"], clocks_per_us=document["clocks_per_us"],
+        numactl=ec.lookup(ENV_TAG).numactl, attestation_mode="required",
+        isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=False),
+        calibration_ref=ec.CalibrationRef(
+            path="calibration.json", sha256=hashlib.sha256(raw).hexdigest(),
+        ),
+    )
+    monkeypatch.setattr(s8b_floor_campaign._env_contract, "lookup", lambda _tag: contract)
+    verified = env_attestation.load_verified_calibration(contract, repo_root)
+    monkeypatch.setattr(
+        s8b_floor_campaign.env_attestation, "probe",
+        lambda: verified.attestation_profile,
+    )
+
+    requested_s = 100_000
+    started = time.time() - 1.0
+    boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+    binding_values = {
+        "IZANAGI_RESERVATION_JOB_ID": "fixture-job",
+        "IZANAGI_RESERVATION_REQUESTED_S": str(requested_s),
+        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
+        "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested_s),
+        "IZANAGI_RESERVATION_HOST": "fixture-host",
+        "IZANAGI_RESERVATION_BOOT_ID": boot_id,
+        "IZANAGI_RESERVATION_SCRIPT_SHA256": "d" * 64,
+        "IZANAGI_RESERVATION_NONCE": "fixture-nonce",
+        "PBS_JOBID": "fixture-job",
+    }
+    for key, value in binding_values.items():
+        monkeypatch.setenv(key, value)
+    freeze = _freeze_document()
+    protocol = _protocol(
+        freeze_sha=_freeze_sha(freeze), env_tag=contract.env_tag,
+        contract_sha256=contract.contract_sha256,
+    )
+    return {
+        "repo_root": repo_root,
+        "contract": contract,
+        "verified": verified,
+        "freeze": freeze,
+        "protocol": protocol,
+        "out_root": tmp_path / "required-out",
+        "binding_values": binding_values,
+    }
+
+
+def _provision_claim_root(ctx) -> Path:
+    root = ctx["out_root"] / "claims"
+    root.mkdir(parents=True, mode=0o700)
+    return root
+
+
 @contextlib.contextmanager
 def _official_test_seam(monkeypatch, *, clean_digest="d" * 64):
     """production official 拒否を局所 scope だけで外し、clean scan を tmp-only test stub にする。"""
@@ -409,9 +510,14 @@ def _init_real_clean_repo(repo_root: Path, freeze: dict, protocol: dict) -> None
     freeze_path.write_bytes(json.dumps(
         freeze, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8"))
+    contract = ec.lookup(protocol["env_tag"])
+    calibration_path = repo_root / contract.calibration_ref.path
+    calibration_path.parent.mkdir(parents=True, exist_ok=True)
+    calibration_path.write_bytes((ROOT / contract.calibration_ref.path).read_bytes())
     subprocess.run(
         ["git", "-C", str(repo_root), "add", "positive-control.txt",
-         protocol["freeze"]["path"], "external/ccbench"],
+         protocol["freeze"]["path"], contract.calibration_ref.path,
+         "external/ccbench"],
         check=True,
     )
 
@@ -448,6 +554,7 @@ def _deterministic_official_artifacts(base: Path) -> dict:
         now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
         process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
         build_fn=fake_build, repo_root=repo_root,
+        durable_root_policy=_durable_policy(out_root),
     )
     run_dir = Path(outcome["run_dir"])
     names = (
@@ -517,6 +624,36 @@ def test_build_schedule_rejects_duplicate_cell_ids():
     dup = [{"cell_id": "c"}, {"cell_id": "c"}]
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="重複"):
         s8b_floor_campaign.build_schedule(cells=dup, master_seed="x", n_sessions=1)
+
+
+def test_floor_reservation_budget_matches_frozen_formula_exactly():
+    cells = [{"cell_id": "a"}, {"cell_id": "b"}]
+    schedule = [
+        {"cell_id": cell_id}
+        for _round in range(3)
+        for cell_id in ("a", "b")
+    ]
+    protocol = {"extime_s": 7, "reps": 4, "retry_slots_per_cell": 2}
+    # 2 * (900 + (3 + 2) * (7 * 4 + 120)) = 3280; finalize margin = 600。
+    assert s8b_floor_campaign._floor_reservation_budget(
+        protocol=protocol, cells=cells, schedule=schedule,
+    ) == (3280, 600)
+
+
+@pytest.mark.parametrize(
+    "schedule,match",
+    [
+        ([{"cell_id": "a"}, {"cell_id": "missing"}], "未知 cell"),
+        ([{"cell_id": "a"}, {"cell_id": "a"}, {"cell_id": "b"}], "不均一"),
+    ],
+)
+def test_floor_reservation_budget_rejects_unknown_or_nonuniform_schedule(
+        schedule, match):
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=match):
+        s8b_floor_campaign._floor_reservation_budget(
+            protocol={"extime_s": 7, "reps": 4, "retry_slots_per_cell": 2},
+            cells=[{"cell_id": "a"}, {"cell_id": "b"}], schedule=schedule,
+        )
 
 
 # --- golden: 独立 reference (production を import しない) で導出した literal ---
@@ -746,6 +883,8 @@ def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
     ("build_fn", lambda *_args, **_kwargs: None),
     ("repo_root", Path("sentinel-repo-root")),
     ("after_certificate_issued_fn", lambda _path: None),
+    ("durable_root_policy", s8b_floor_campaign.DurableRootPolicy(
+        approved_roots=(ROOT.resolve(),), forbidden_roots=())),
 ])
 def test_public_official_rejects_each_nondefault_seam_before_side_effects(
         tmp_path, seam_name, seam_value):
@@ -781,6 +920,7 @@ def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
     freeze = _freeze_document()
     fake_contract = ec.ExecutionEnvironmentContract(
         env_tag="foreign-env", clocks_per_us=2100, numactl=(),
+        attestation_mode="none",
         isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=True),
         calibration_ref=ec.CalibrationRef(path="output/x.json", sha256="0" * 64),
     )
@@ -788,12 +928,288 @@ def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
     # fingerprint を焼く (rejection は後段の machine-pin で起きることを固定する)。
     protocol = _protocol(freeze_sha=_freeze_sha(freeze), env_tag="foreign-env",
                          contract_sha256=fake_contract.contract_sha256)
+    verified = s8b_floor_campaign.env_attestation.load_verified_calibration(
+        ec.lookup(ENV_TAG), ROOT,
+    )
     with mock.patch.object(s8b_floor_campaign._env_contract, "lookup",
-                           return_value=fake_contract):
+                           return_value=fake_contract), mock.patch.object(
+            s8b_floor_campaign.env_attestation, "load_verified_calibration",
+            return_value=verified):
         with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="machine-pin"):
             _run_campaign(protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
                           build_root=tmp_path / "bin", measure_fn=_forbid_measure,
                           probe_fn=lambda: (1, "", ""))
+
+
+def test_required_binding_missing_rejected_by_production_entry_without_side_effects(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    for key in list(ctx["binding_values"]):
+        monkeypatch.delenv(key, raising=False)
+    out_root = ctx["out_root"]
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="reservation preflight"):
+        s8b_floor_campaign.run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=out_root, mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(out_root),
+        )
+    assert not out_root.exists()
+
+
+def test_required_v1_receipt_mode_mismatch_rejected_without_side_effects(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+
+    def v1_issuer(contract, _verified, *, now_fn):
+        return _fixed_receipt(contract, now_fn=now_fn)
+
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="attestation_mode"):
+        s8b_floor_campaign.run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            execution_receipt_fn=v1_issuer,
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+    assert not ctx["out_root"].exists()
+
+
+def test_required_attestation_comparison_failure_has_zero_side_effects(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    observed = dataclasses.replace(
+        ctx["verified"].attestation_profile,
+        cpu=dataclasses.replace(
+            ctx["verified"].attestation_profile.cpu, vendor="DifferentVendor",
+        ),
+    )
+    monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", lambda: observed)
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="comparisons failed"):
+        s8b_floor_campaign.run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+    assert not ctx["out_root"].exists()
+
+
+def test_required_calibration_sha_mismatch_has_zero_side_effects(tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    bad_contract = dataclasses.replace(
+        ctx["contract"],
+        calibration_ref=dataclasses.replace(
+            ctx["contract"].calibration_ref, sha256="0" * 64,
+        ),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract, "lookup", lambda _tag: bad_contract,
+    )
+    protocol = _protocol(
+        freeze_sha=_freeze_sha(ctx["freeze"]), env_tag=bad_contract.env_tag,
+        contract_sha256=bad_contract.contract_sha256,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="sha256 不一致"):
+        s8b_floor_campaign.run_campaign(
+            protocol, _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+    assert not ctx["out_root"].exists()
+
+
+def test_required_existing_claim_reports_owner_and_changes_nothing(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    protocol = s8b_floor_campaign.validate_protocol(ctx["protocol"])
+    identity = s8b_floor_campaign._fresh_run_id(
+        s8b_floor_campaign._canonical_sha256(protocol), _FIXED_NOW,
+    )
+    claim_root = _provision_claim_root(ctx)
+    existing = campaign_claim.ClaimRecord(
+        campaign_identity=identity, job_id="existing-job", host="existing-host",
+        boot_id="existing-boot", pid=999, proc_starttime=123,
+        created_utc=_FIXED_NOW.isoformat(),
+    )
+    campaign_claim.acquire_claim(claim_root, existing)
+    before = _tree_snapshot(ctx["out_root"])
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="existing-job"):
+        s8b_floor_campaign.run_campaign(
+            protocol, _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+    assert _tree_snapshot(ctx["out_root"]) == before
+
+
+def test_required_missing_preprovisioned_claim_root_is_side_effect_free(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="provisioning"):
+        s8b_floor_campaign.run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+    assert not ctx["out_root"].exists()
+
+
+def test_required_reservation_loss_is_typed_campaign_terminal_with_no_values(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    _provision_claim_root(ctx)
+    ticks = iter((0.0, 200_000.0))
+    monotonic_fn = lambda: next(ticks)
+    measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    with pytest.raises(reservation.ReservationError, match="残時間が不足"):
+        s8b_floor_campaign.run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            monotonic_fn=monotonic_fn, now_fn=lambda: _FIXED_NOW,
+            repo_root=ctx["repo_root"], build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+    journals = list(ctx["out_root"].rglob("journal.jsonl"))
+    assert len(journals) == 1
+    records = _read_journal_lines(journals[0])
+    assert records[-1]["status"] == "reservation-lost"
+    assert records[-1]["bench_values"] == []
+    assert records[-1]["numeric_values_eligible"] is False
+    assert not any(record.get("event") == "session" for record in records)
+    assert not any(record.get("event") == "session-start" for record in records)
+    assert measure.calls == []
+    assert not (journals[0].parent / "result.json").exists()
+
+
+def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_clock(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    _provision_claim_root(ctx)
+
+    class Clock:
+        def __init__(self):
+            self.values = iter((0.0, 200_000.0))
+
+        def __call__(self):
+            return next(self.values)
+
+    clock = Clock()
+    captured = []
+    original = reservation.ReservationCheck.recheck
+
+    def recheck_spy(self, *, required_s=None, safety_margin_s=None,
+                    monotonic_now_fn=time.monotonic):
+        captured.append((required_s, safety_margin_s, monotonic_now_fn))
+        return original(
+            self, required_s=required_s, safety_margin_s=safety_margin_s,
+            monotonic_now_fn=monotonic_now_fn,
+        )
+
+    with mock.patch.object(reservation.ReservationCheck, "recheck", recheck_spy), \
+            pytest.raises(reservation.ReservationError, match="残時間が不足"):
+        s8b_floor_campaign.run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot",
+            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            monotonic_fn=clock, now_fn=lambda: _FIXED_NOW,
+            repo_root=ctx["repo_root"], build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+
+    cells = s8b_floor_campaign.enumerate_cells(
+        ctx["freeze"], stock_configuration=ctx["protocol"]["stock_configuration"],
+    )
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells, master_seed=ctx["protocol"]["master_seed"],
+        n_sessions=ctx["protocol"]["n_sessions"],
+    )
+    expected_attempts = len(schedule) + len(cells) * ctx["protocol"]["retry_slots_per_cell"]
+    expected_required = expected_attempts * (
+        ctx["protocol"]["extime_s"] * ctx["protocol"]["reps"] + 120
+    )
+    assert captured == [(expected_required, 600, clock)]
+
+
+def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    claim_root = _provision_claim_root(ctx)
+    measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+
+    outcome = s8b_floor_campaign.run_campaign(
+        ctx["protocol"], _verified_freeze(ctx["freeze"]),
+        out_root=ctx["out_root"], mode="pilot", measure_fn=measure,
+        probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+        monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
+        repo_root=ctx["repo_root"], build_fn=_make_fake_build(tmp_path / "bin"),
+        durable_root_policy=_durable_policy(ctx["out_root"]),
+    )
+
+    assert outcome["status"] == "completed"
+    journal = _read_journal_lines(Path(outcome["run_dir"]) / "journal.jsonl")
+    preflight = [record for record in journal
+                 if record.get("event") == "reservation-preflight"]
+    assert preflight == [{
+        "event": "reservation-preflight",
+        "required_s": 27000,
+        "safety_margin_s": 600,
+        "formula": s8b_floor_campaign._FLOOR_RESERVATION_FORMULA,
+        "build_cap_per_cell_s": 900,
+        "verify_cap_per_attempt_s": 120,
+        "finalize_reserve_s": 600,
+    }]
+    start = next(record for record in journal if record.get("event") == "campaign-start")
+    assert s8b_floor_campaign.execution_guard.receipt_matches_contract(
+        start["execution_receipt"], env_tag=ctx["contract"].env_tag,
+        contract_sha256=ctx["contract"].contract_sha256,
+        attestation_mode="required", verified_calibration=ctx["verified"],
+    )
+    claims = list(claim_root.glob("*.claim"))
+    assert len(claims) == 1
+    assert set(json.loads(claims[0].read_text(encoding="utf-8"))) == {
+        "campaign_identity", "job_id", "host", "boot_id", "pid",
+        "proc_starttime", "created_utc",
+    }
+    assert journal[-1] == {"event": "terminal", "status": "completed"}
+
+
+def test_floor_legacy_build_fallback_hits_contract_provenance_assert(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    _provision_claim_root(ctx)
+    fake_v2_shape = _make_fake_build(tmp_path / "bin")
+
+    def legacy_fallback(genome, **kwargs):
+        kwargs.pop("contract")
+        return fake_v2_shape(genome, contract=None, **kwargs)
+
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="legacy build"):
+        s8b_floor_campaign.run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=legacy_fallback,
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
 
 
 def test_run_campaign_rejects_freeze_byte_hash_mismatch(tmp_path):
@@ -824,15 +1240,56 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
         )
 
     fake_build = _make_fake_build(tmp_path / "bin")
-    with mock.patch.object(s8b_floor_campaign.buildcache, "build", fake_build), \
-         mock.patch.object(s8b_floor_campaign, "measure_point", spy_measure_point):
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+             mock.patch.object(s8b_floor_campaign, "measure_point", spy_measure_point):
         s8b_floor_campaign.run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
             measure_fn=None, probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
             now_fn=lambda: _FIXED_NOW, monotonic_fn=lambda: 0.0,
+            durable_root_policy=_durable_policy(tmp_path / "out"),
         )
     assert seen["clocks_per_us"] == contract.clocks_per_us
     assert seen["numactl"] == list(contract.numactl)
+
+
+def test_floor_default_durable_policy_rejects_external_output_without_side_effects(tmp_path):
+    freeze = _freeze_document()
+    out_root = tmp_path / "outside-default-approval"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="durable output root"):
+        s8b_floor_campaign.run_campaign(
+            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+            out_root=out_root, mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW,
+            build_fn=_make_fake_build(tmp_path / "bin"),
+        )
+    assert not out_root.exists()
+
+
+def test_floor_journal_manifest_and_binary_store_open_through_capability(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    out_root = tmp_path / "capability-out"
+    calls = []
+    real_open = s8b_floor_campaign.open_with_write_capability
+
+    def open_spy(capability, path, mode):
+        calls.append((Path(path).name, mode, Path(path)))
+        return real_open(capability, path, mode)
+
+    monkeypatch.setattr(s8b_floor_campaign, "open_with_write_capability", open_spy)
+    _run_campaign(
+        _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+        out_root=out_root, build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""),
+    )
+    assert any(name == "journal.jsonl" and mode == "ab" for name, mode, _ in calls)
+    assert any(name.startswith(".") and ".tmp." in name and mode == "xb"
+               for name, mode, _ in calls)
+    assert any(name.endswith("manifest.json.pending") and mode == "xb"
+               for name, mode, _ in calls)
+    assert all(path.is_relative_to(out_root) for _, _, path in calls)
 
 
 # =========================================================================== #
@@ -983,6 +1440,8 @@ def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path
     (lambda: (0, "", ""), "確定できない"),                        # rc==0+空 → abort
     (lambda: (1, "", "pgrep: unrecognized option '-af'\n"), "確定できない"),  # BusyBox 罠 → abort
     (lambda: (_ for _ in ()).throw(OSError("pgrep 不在を模す")), "OSError"),
+    (lambda: (_ for _ in ()).throw(subprocess.TimeoutExpired("pgrep", 120)),
+     "有限時間"),
 ])
 def test_probe_unexecutable_or_inconsistent_aborts_campaign(tmp_path, probe_fn, match):
     freeze = _freeze_document()
@@ -1003,6 +1462,22 @@ def test_probe_unexecutable_or_inconsistent_aborts_campaign(tmp_path, probe_fn, 
     terminal = [r for r in journal if r.get("event") == "terminal"]
     assert terminal and terminal[-1]["status"] == "aborted"
     assert not (run_dir / "result.json").exists()
+
+
+def test_default_probe_uses_frozen_verify_timeout(monkeypatch):
+    seen = {}
+
+    def run_spy(argv, **kwargs):
+        seen["argv"] = argv
+        seen["timeout"] = kwargs.get("timeout")
+        return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+    monkeypatch.setattr(s8b_floor_campaign.subprocess, "run", run_spy)
+    assert s8b_floor_campaign._default_probe_fn() == (1, "", "")
+    assert seen == {
+        "argv": s8b_floor_campaign._PROBE_ARGV,
+        "timeout": s8b_floor_campaign._FLOOR_VERIFY_CAP_PER_ATTEMPT_S,
+    }
 
 
 def test_probe_unparseable_pid_line_invalidates_session_not_abort(tmp_path):
@@ -1289,8 +1764,8 @@ def test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries(
         if crash_point == "result-write-after":
             original = s8b_floor_campaign._stage_bytes
 
-            def crash_after_result(path, payload):
-                original(path, payload)
+            def crash_after_result(path, payload, **kwargs):
+                original(path, payload, **kwargs)
                 if Path(path).name == ".result.json.pending":
                     raise _SimulatedCrash(crash_point)
 
@@ -1308,10 +1783,11 @@ def test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries(
                 crash_after_self_check,
             )
         elif crash_point == "terminal-before":
-            scoped.setattr(
-                s8b_floor_campaign, "_append_completed_terminal",
-                lambda _path: (_ for _ in ()).throw(_SimulatedCrash(crash_point)),
-            )
+                scoped.setattr(
+                    s8b_floor_campaign, "_append_completed_terminal",
+                    lambda _path, **_kwargs: (_ for _ in ()).throw(
+                        _SimulatedCrash(crash_point)),
+                )
         else:
             scoped.setattr(
                 s8b_floor_campaign, "_publish_finalize_files",
@@ -1708,6 +2184,40 @@ def test_slow_real_prepare_cell_to_buildcache_canary_one_configuration(tmp_path)
     assert result.configure_argv and result.build_argv
 
 
+@pytest.mark.skipif(
+    not ((ROOT / "external" / "ccbench" / ".git").exists()
+         and all(shutil.which(tool) for tool in ("cmake", "gcc-13", "g++-13", "nm"))),
+    reason="slow real-build v2 canary: initialized ccbench + pinned toolchain が必要",
+)
+def test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration(tmp_path):
+    """F19 v2: 実 prepare_cell の隔離 tree を build_v2 が直接 build する。"""
+    freeze = _freeze_document()
+    cell = next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK)
+        if cell["configuration_id"] == _STOCK
+    )
+    pin = subprocess.run(
+        ["git", "-C", str(ROOT / "external" / "ccbench"), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    contract = ec.lookup(ENV_TAG)
+    with s8b_floor_campaign._prepared_binding(
+            freeze=freeze, holdout_id=cell["holdout_id"],
+            configuration_id=cell["configuration_id"], ccbench_pin=pin,
+            prepare_fn=s8b_floor_campaign.prepare_cell) as (_identity, prepared):
+        result = s8b_floor_campaign.buildcache.build_v2(
+            prepared.genome, contract=contract, ccbench_commit=pin, trace=False,
+            cache_root=str(tmp_path / "cache"), ccbench_dir=prepared.ccbench_dir,
+            src_token=prepared.src_token, cc=s8b_floor_campaign.buildcache.DEFAULT_CC,
+            cxx=s8b_floor_campaign.buildcache.DEFAULT_CXX, timeout_s=900,
+        )
+    assert Path(result.binary).is_file()
+    assert result.contract_sha256 == contract.contract_sha256
+    assert Path(result.ccbench_root) == Path(prepared.ccbench_dir).absolute()
+    assert s8b_floor_campaign.buildcache.is_full_sha256(result.bin_sha256)
+
+
 # =========================================================================== #
 # V4 — launch certificate (C2-2) / binary receipt (C3-6) / store (C3-7)         #
 # =========================================================================== #
@@ -1831,6 +2341,7 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
         execution_receipt_fn=_fixed_receipt,
         build_fn=_make_fake_build(tmp_path / "ignored"), repo_root=repo_root,
+        durable_root_policy=_durable_policy(tmp_path / "out"),
     )
     cert = json.loads((Path(outcome["run_dir"]) / "launch_certificate.json").read_bytes())
     assert cert["clean_scan_digest"] == expected
@@ -1907,8 +2418,21 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     repo_root = tmp_path / "default-root"
     _init_real_clean_repo(repo_root, freeze, protocol)
-    calls = {name: 0 for name in ("host", "process", "receipt", "build", "after")}
+    calls = {name: 0 for name in (
+        "calibration", "machine_pin", "host", "process", "receipt", "build", "after",
+    )}
     fake_build = _make_fake_build(tmp_path / "ignored")
+    real_load = s8b_floor_campaign.env_attestation.load_verified_calibration
+    real_pin = s8b_floor_campaign.execution_guard.assert_machine_pin
+
+    def calibration_spy(contract, root):
+        calls["calibration"] += 1
+        assert contract.attestation_mode == "none"
+        return real_load(contract, root)
+
+    def machine_pin_spy(contract, *, machine_env_tag):
+        calls["machine_pin"] += 1
+        return real_pin(contract, machine_env_tag=machine_env_tag)
 
     def host_spy(*, now_fn):
         calls["host"] += 1
@@ -1931,10 +2455,16 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
         assert cert_path.is_file()
 
     monkeypatch.setattr(s8b_floor_campaign, "ROOT", repo_root)
+    monkeypatch.setattr(
+        s8b_floor_campaign.env_attestation, "load_verified_calibration", calibration_spy,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign.execution_guard, "assert_machine_pin", machine_pin_spy,
+    )
     monkeypatch.setattr(s8b_floor_campaign, "_host_provenance", host_spy)
     monkeypatch.setattr(s8b_floor_campaign, "_process_identity", process_spy)
     monkeypatch.setattr(s8b_floor_campaign.execution_guard, "build_receipt", receipt_spy)
-    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build", build_spy)
+    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build_spy)
     monkeypatch.setattr(
         s8b_floor_campaign, "_after_certificate_issued_noop", after_spy)
     outcome = s8b_floor_campaign._run_campaign_core(
@@ -1942,9 +2472,13 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
         measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
         probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
         monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+        durable_root_policy=_durable_policy(tmp_path / "out"),
     )
     assert outcome["status"] == "completed"
-    assert calls == {"host": 1, "process": 1, "receipt": 1, "build": 12, "after": 1}
+    assert calls == {
+        "calibration": 1, "machine_pin": 1, "host": 1, "process": 1,
+        "receipt": 1, "build": 12, "after": 1,
+    }
 
 
 @pytest.mark.parametrize("validator,value", [
@@ -1962,7 +2496,7 @@ def test_partial_execution_receipt_bundle_is_rejected():
     contract = ec.lookup(ENV_TAG)
     receipt = _fixed_receipt(contract, now_fn=lambda: _FIXED_NOW)
     receipt["attestation"].pop("cpuset")
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="key 集合"):
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="整合しない"):
         s8b_floor_campaign._validate_execution_receipt(receipt, contract=contract)
 
 
@@ -2154,6 +2688,7 @@ def test_checkpoint_callback_is_after_cert_validation_and_before_launch_start(
                 monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
                 now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
                 after_certificate_issued_fn=checkpoint,
+                durable_root_policy=_durable_policy(tmp_path / "out"),
             )
     assert len(observed) == 1
     run_dir = observed[0].parent
@@ -2182,6 +2717,7 @@ def test_checkpoint_raw_hash_recheck_fires_before_launch_start(tmp_path, monkeyp
                 monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
                 now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
                 after_certificate_issued_fn=mutate_cert,
+                durable_root_policy=_durable_policy(tmp_path / "out"),
             )
     run_dir = next(path.parent for path in (tmp_path / "out").rglob("launch_certificate.json"))
     assert not (run_dir / "journal.jsonl").exists()

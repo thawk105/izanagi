@@ -8,12 +8,14 @@ pytest 専用 (tmp_path fixture 依存、README allowlist 記載)。
 from __future__ import annotations
 
 import json
+import dataclasses
 import hashlib
 import os
 import shlex
 import subprocess
 import sys
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -374,6 +376,8 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
     _make_local_ccbench(root)
     freeze = json.loads(_REAL_V1.read_bytes())
     _lwrite(root, M.V1_FREEZE_PATH, _REAL_V1.read_bytes())
+    calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
+    _lwrite(root, calibration_path, (Path(_ROOT) / calibration_path).read_bytes())
     _lwrite(root, "positive_control.txt", B._RR50_PARAMS)
     (root / "README.md").write_text("launch fixture\n", encoding="utf-8")
     base_commit = _lcommit(root, "base", "fixture")
@@ -937,8 +941,16 @@ def test_positive_control_not_hit_rejected(tmp_path):
     # search は worktree を直読みするため、この改変だけで陽性対照が 0 hit になる。
     root, freeze, _ = _build_launch_repo(tmp_path)
     assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+    contract = EC.lookup("linux-baremetal")
+    verified_calibration = M._env_attestation.load_verified_calibration(contract, root)
     (root / "positive_control.txt").write_bytes(b"neutralized, no ycsb params here\n")
-    _assert_registered_refusal("scan-positive", lambda: M.launch_validate(freeze, root))
+    # calibration v1 自体にも rr50 workload が記録されるため、search positive control
+    # の独立 fixture ではその検索 hit だけを中立化する。consumer admission は改変前に
+    # 実 bytes から得た verified 値を固定し、このテストの攻撃面を scan に限定する。
+    (root / contract.calibration_ref.path).write_bytes(b"neutralized calibration scan input\n")
+    with mock.patch.object(M._env_attestation, "load_verified_calibration",
+                           return_value=verified_calibration):
+        _assert_registered_refusal("scan-positive", lambda: M.launch_validate(freeze, root))
 
 
 def test_activation_head_moved_rejected(tmp_path):
@@ -1522,6 +1534,44 @@ def test_result_excluded_projection_rederived_from_journal(tmp_path):
         M.launch_validate(freeze, root)
     assert ei.value.reason == "binding-chain-mismatch"
     assert ei.value.cause == "result-excluded"
+
+
+def test_ratified_journal_required_consumer_passes_contract_mode_and_verified(tmp_path):
+    """required receipt dispatch は validate_receipt_v2 単独でなく契約再検算 API を通る。"""
+    _need_v1()
+    root, ratified, topology = _build_launch_repo(tmp_path)
+    paths = topology["paths"]
+    protocol = json.loads((root / paths["protocol"]).read_bytes())
+    manifest_raw = (root / paths["manifest"]).read_bytes()
+    manifest = json.loads(manifest_raw)
+    cert_raw = (root / paths["cert"]).read_bytes()
+    records = M._strict_jsonl((root / paths["journal"]).read_bytes())
+    protocol_sha = FC.canonical_protocol_sha256(protocol)
+    cells, schedule, binaries = M._validate_manifest(
+        manifest, protocol=protocol, protocol_sha256=protocol_sha, ratified=ratified,
+    )
+    base = EC.lookup(protocol["env_tag"])
+    required = dataclasses.replace(
+        base, attestation_mode="required",
+        isolation_policy=EC.IsolationPolicy(single_process=True, allow_resume=False),
+    )
+    verified = object()
+    receipt_spy = mock.Mock(return_value=False)
+
+    with mock.patch.object(M._env_contract, "lookup", return_value=required), \
+            mock.patch.object(M._env_attestation, "load_verified_calibration",
+                              return_value=verified), \
+            mock.patch.object(M._execution_guard, "receipt_matches_contract", receipt_spy):
+        with pytest.raises(M.RatifiedFreezeError) as excinfo:
+            M._validate_journal(
+                records, protocol=protocol, schedule=schedule, cells=cells,
+                binaries=binaries, cert_sha256=hashlib.sha256(cert_raw).hexdigest(),
+                manifest_sha256=hashlib.sha256(manifest_raw).hexdigest(), root=root,
+            )
+
+    assert excinfo.value.cause == "receipt-contract"
+    assert receipt_spy.call_args.kwargs["attestation_mode"] == "required"
+    assert receipt_spy.call_args.kwargs["verified_calibration"] is verified
 
 
 def _build_merge_introduced_g1(tmp_path: Path) -> Path:

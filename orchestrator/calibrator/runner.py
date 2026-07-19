@@ -14,11 +14,14 @@ control, calibrator.md / orchestrator-design.md)。
 from __future__ import annotations
 
 import os
+import re
+import select
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
-from typing import Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence
 
 from .benchparse import (_num, abort_rate as parse_abort_rate, latency_ns as
                          parse_latency_ns, parse_bench_stdout, throughput_tps)
@@ -33,6 +36,25 @@ def _maxrss_kb(metrics: Dict[str, str]):
 
 # 飽和シグナルに要る最小イベント + IPC 確認用。
 PERF_EVENTS = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+
+# C2-5/C3-7: composite probe は bench と同じ process pattern を一度だけ観測する。
+COMPOSITE_PROBE_TIMEOUT_S = 10.0
+CANARY_START_TIMEOUT_S = 5.0
+CANARY_STOP_TIMEOUT_S = 5.0
+
+
+class CompositeProbeViolation(RuntimeError):
+    """canary 不可視、競合検出、または canary lifecycle 異常による fatal gate。"""
+
+    def __init__(self, kind: str, detail: str, *, competitors: Optional[List[str]] = None):
+        self.kind = kind
+        self.detail = detail
+        self.competitors = list(competitors or [])
+        super().__init__(f"composite probe violation ({kind}): {detail}")
+
+    def as_reason(self) -> str:
+        suffix = "" if not self.competitors else f" competitors={self.competitors!r}"
+        return f"probe-{self.kind}: {self.detail}{suffix}"
 
 
 def settle(threshold: float = 4.0,
@@ -181,6 +203,125 @@ def competing_bench_pids() -> List[str]:
         r.returncode, r.stdout or "", r.stderr or "", argv)
 
 
+_NONCE_RE = re.compile(r"[A-Za-z0-9_-]{8,128}")
+
+
+def _proc_starttime(pid: int) -> str:
+    """Linux /proc stat の starttime を読む。PID reuse を fail-closed で弾く。"""
+    try:
+        with open(f"/proc/{pid}/stat", encoding="ascii") as f:
+            fields = f.read().split()
+    except OSError as exc:
+        raise CompositeProbeViolation("canary-starttime", str(exc)) from exc
+    if len(fields) <= 21 or not fields[21].isdigit():
+        raise CompositeProbeViolation("canary-starttime", "invalid /proc stat")
+    return fields[21]
+
+
+def composite_competing_probe(
+        *, nonce: str,
+        subprocess_runner: Callable[..., object] = subprocess.run,
+        popen_factory: Callable[..., subprocess.Popen] = subprocess.Popen,
+        probe_timeout_s: float = COMPOSITE_PROBE_TIMEOUT_S) -> Dict[str, object]:
+    """nonce canary を生かしたまま pgrep を一度だけ実行する composite gate。
+
+    C2-5 の凍結契約: ``ycsb_.*\\.exe`` に一致する blocking child を pipe で起動同期し、
+    同じ pgrep の出力に exact PID と nonce を含む行が見えることを要求する。その行だけを
+    除外し、残りはすべて競合とする。低水準 ``classify_competing_probe`` の rc 契約は
+    変更しない。canary は成功・失敗を問わず finally で terminate/wait する。
+    """
+    if type(nonce) is not str or _NONCE_RE.fullmatch(nonce) is None:
+        raise CompositeProbeViolation("invalid-nonce", repr(nonce))
+
+    ready_r, ready_w = os.pipe()
+    release_r, release_w = os.pipe()
+    child: Optional[subprocess.Popen] = None
+    starttime = ""
+    canary_name = f"ycsb_calibrator_canary_{nonce}.exe"
+    script = (
+        "import os,sys; "
+        "os.write(int(sys.argv[1]),b'1'); "
+        "os.read(int(sys.argv[2]),1)"
+    )
+    try:
+        try:
+            child = popen_factory(
+                [sys.executable, "-c", script, str(ready_w), str(release_r), canary_name],
+                pass_fds=(ready_w, release_r), close_fds=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise CompositeProbeViolation("canary-start", str(exc)) from exc
+        os.close(ready_w)
+        ready_w = -1
+        os.close(release_r)
+        release_r = -1
+        readable, _, _ = select.select([ready_r], [], [], CANARY_START_TIMEOUT_S)
+        if not readable or os.read(ready_r, 1) != b"1" or child.poll() is not None:
+            raise CompositeProbeViolation("canary-sync", "blocking child did not become ready")
+        starttime = _proc_starttime(child.pid)
+
+        argv = ["pgrep", "-af", r"ycsb_.*\.exe"]
+        try:
+            raw = subprocess_runner(
+                argv, capture_output=True, text=True, timeout=probe_timeout_s,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise CompetingBenchProbeError(
+                "exec-failure", argv, errno=getattr(exc, "errno", None), stderr=str(exc),
+            ) from exc
+        lines = classify_competing_probe(
+            raw.returncode, raw.stdout or "", raw.stderr or "", argv,
+        )
+        matches = []
+        for index, line in enumerate(lines):
+            fields = line.split(None, 1)
+            if (fields and fields[0] == str(child.pid)
+                    and line.count(canary_name) == 1):
+                matches.append(index)
+        if len(matches) != 1:
+            raise CompositeProbeViolation(
+                "visibility", f"expected one exact canary line, observed {len(matches)}",
+            )
+        competitors = [line for index, line in enumerate(lines) if index != matches[0]]
+        if competitors:
+            raise CompositeProbeViolation(
+                "competition", "non-canary ycsb process observed", competitors=competitors,
+            )
+        if child.poll() is not None or _proc_starttime(child.pid) != starttime:
+            raise CompositeProbeViolation("canary-lifecycle", "PID/starttime changed during probe")
+        return {
+            "status": "passed", "canary_pid": child.pid,
+            "canary_nonce": nonce, "canary_starttime": starttime,
+            "argv": argv,
+        }
+    finally:
+        for fd in (ready_r, ready_w, release_r):
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        try:
+            os.write(release_w, b"x")
+        except OSError:
+            pass
+        try:
+            os.close(release_w)
+        except OSError:
+            pass
+        if child is not None:
+            try:
+                child.terminate()
+            except OSError:
+                pass
+            try:
+                child.wait(timeout=CANARY_STOP_TIMEOUT_S)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait(timeout=CANARY_STOP_TIMEOUT_S)
+
+
 def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,
                numactl: Optional[Sequence[str]]) -> List[str]:
     cmd: List[str] = []
@@ -205,7 +346,9 @@ def repro_command(binary: str, gflags: Sequence[str],
 def run_once(binary: str, gflags: Sequence[str],
              numactl: Optional[Sequence[str]] = None,
              timeout_s: float = 120.0,
-             extra_env: Optional[Dict[str, str]] = None):
+             extra_env: Optional[Dict[str, str]] = None,
+             strict_returncode: bool = False,
+             subprocess_runner: Callable[..., object] = subprocess.run):
     """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。
 
     extra_env (D36 決定4-5): verify run にのみ設定される環境変数 (IZANAGI_TRACE_DIR
@@ -222,9 +365,12 @@ def run_once(binary: str, gflags: Sequence[str],
         os.makedirs(os.path.join(tmp, "log"), exist_ok=True)
         env = dict(os.environ, **extra_env) if extra_env else None
         t0 = time.monotonic()
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=timeout_s, cwd=tmp, env=env)
+        proc = subprocess_runner(cmd, capture_output=True, text=True,
+                                 timeout=timeout_s, cwd=tmp, env=env)
         wall = time.monotonic() - t0
+        if strict_returncode and proc.returncode != 0:
+            raise RuntimeError(
+                f"ccbench failed. rc={proc.returncode} stderr={(proc.stderr or '')[:400]}")
         metrics = parse_bench_stdout(proc.stdout)
         perf_text = ""
         if os.path.exists(perf_out):
@@ -246,7 +392,11 @@ def measure_point(binary: str, records: int, threads: int,
                   workload: Optional[Dict[str, str]] = None,
                   numactl: Optional[Sequence[str]] = None,
                   settle_first: bool = False,
-                  extra_env: Optional[Dict[str, str]] = None) -> ScalePoint:
+                  extra_env: Optional[Dict[str, str]] = None,
+                  timeout_s: float = 120.0,
+                  require_all_reps: bool = False,
+                  require_complete_metrics: bool = False,
+                  subprocess_runner: Callable[..., object] = subprocess.run) -> ScalePoint:
     """1 測定点を reps 回反復して ScalePoint を組む。
 
     throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
@@ -277,16 +427,41 @@ def measure_point(binary: str, records: int, threads: int,
         # 全体を捨てず、握り潰さず notes に構造化記録して残り rep で median を取る
         # (reps>=2 の冗長性を活かす)。except: pass にはしない (沈黙させない)。
         try:
-            metrics, counters, wall = run_once(binary, base_flags, numactl=numactl,
-                                               extra_env=extra_env)
+            run_kwargs = {
+                "numactl": numactl, "extra_env": extra_env,
+                "timeout_s": timeout_s,
+            }
+            # 非 certify の既存 monkeypatch seam/signature を変えない。
+            if require_all_reps or require_complete_metrics:
+                run_kwargs["strict_returncode"] = require_all_reps
+                run_kwargs["subprocess_runner"] = subprocess_runner
+            metrics, counters, wall = run_once(binary, base_flags, **run_kwargs)
         except (RuntimeError, subprocess.TimeoutExpired) as e:
+            if require_all_reps:
+                raise RuntimeError(
+                    f"rep{i}/{reps} fatal at records={records} threads={threads}: "
+                    f"{type(e).__name__}: {str(e)[:200]}") from e
             n_exec_fail += 1
             pt.notes.append(f"rep{i} failed: {type(e).__name__}: {str(e)[:200]}")
             continue
         tps = throughput_tps(metrics)
+        maxrss = _maxrss_kb(metrics)
+        if require_complete_metrics:
+            missing = []
+            if tps is None:
+                missing.append("throughput")
+            for name in ("llc_load_misses", "llc_loads", "instructions", "cycles"):
+                if getattr(counters, name) is None:
+                    missing.append(name)
+            if maxrss is None:
+                missing.append("maxrss")
+            if missing:
+                raise RuntimeError(
+                    f"rep{i}/{reps} missing required metrics at records={records}: "
+                    + ",".join(missing))
         if tps is not None:
             pt.throughputs.append(tps)
-        rep_results.append((tps, counters, wall, _maxrss_kb(metrics),
+        rep_results.append((tps, counters, wall, maxrss,
                             parse_abort_rate(metrics), parse_latency_ns(metrics)))
     if n_exec_fail:
         pt.notes.append(f"{n_exec_fail}/{reps} reps failed to execute")

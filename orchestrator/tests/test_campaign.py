@@ -25,6 +25,7 @@ sys.path.insert(0, _ORCH)
 
 from campaign import (buildcache, genome, ident, pin, pipeline,  # noqa: E402
                       source_digest, wal)
+from campaign import env_contract as ec                          # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout      # noqa: E402
 from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
 from campaign.model import (CampaignConfig, Genome,              # noqa: E402
@@ -449,6 +450,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             super().__init__()
             self.trace = []
             self.events = []
+            self.builds = []
+            self.build_roots = []
 
     bench_calls = CallEvidence()
     saved = {}
@@ -472,6 +475,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                         "llc_miss_rate": 0.2, "ipc": 1.5})
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
+        bench_calls.builds.append(("legacy", trace, None))
         if build_raises:
             raise RuntimeError("build boom")
         bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)
@@ -479,8 +483,25 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                      binary="/nonexistent/ycsb.exe", cached=False,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
+    def fake_build_v2(genome, *, contract, ccbench_commit, trace, src_token,
+                      cc, cxx, cache_root, ccbench_dir=""):
+        bench_calls.builds.append(("v2", trace, contract.contract_sha256))
+        bench_calls.build_roots.append(ccbench_dir)
+        if build_raises:
+            raise RuntimeError("build boom")
+        bin_sha256 = ("da" if trace else "db") * 32
+        return types.SimpleNamespace(
+            bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
+            binary="/nonexistent/ycsb.exe", cached=False,
+            configure_cmd="<cfg-v2>", build_cmd="<build-v2>",
+            contract_sha256=contract.contract_sha256,
+        )
+
     patch("buildcache", types.SimpleNamespace(
-        build=fake_build, is_full_sha256=buildcache.is_full_sha256))
+        build=fake_build, build_v2=fake_build_v2,
+        is_full_sha256=buildcache.is_full_sha256,
+        _ccbench_dir=buildcache._ccbench_dir,
+        DEFAULT_CC=buildcache.DEFAULT_CC, DEFAULT_CXX=buildcache.DEFAULT_CXX))
     # source_digest は identity 核 (実 git/g++ 依存)。pipeline の段階遷移テストでは
     # mock し stock 固定 (source_digest 自体は専用テストで実機検証する)。
     patch("source_digest", types.SimpleNamespace(
@@ -555,6 +576,37 @@ def test_pipeline_green_commits_with_fitness():
     assert STAGE_COMMIT in st.stages_seen
     commit = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_COMMIT][-1]
     assert "screened" not in commit.payload
+
+
+def test_pipeline_env_contract_opt_in_uses_v2_for_trace_and_perf_only():
+    lay = _tmp_layout()
+    contract = ec.lookup("linux-baremetal")
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, env_contract=contract, log=lambda *a: None,
+        )
+    assert result.certified and not result.aborted
+    assert calls.builds == [
+        ("v2", True, contract.contract_sha256),
+        ("v2", False, contract.contract_sha256),
+    ]
+
+
+def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds():
+    lay = _tmp_layout()
+    contract = ec.lookup("linux-baremetal")
+    prepared_tree = "/approved/prepared-cell-tree"
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, env_contract=contract, ccbench_dir=prepared_tree,
+            log=lambda *a: None,
+        )
+    assert result.certified and not result.aborted
+    assert calls.build_roots == [prepared_tree, prepared_tree]
 
 
 def test_pipeline_records_leading_indicators_in_wal():
@@ -1969,6 +2021,8 @@ def test_source_digest_stock_roundtrip():
     head = _ccbench_head_or_skip()
     if head is None:
         skip("submodule 未 init — src_token roundtrip は実 working-tree が要る")
+    if not shutil.which("g++-13"):
+        skip("g++-13 不在 — preprocess 実測は計測ホスト (linux-baremetal) 限定")
     for g in genome.SILO_SPACE.enumerate():
         st = source_digest.src_token(g, head)
         assert st == source_digest.STOCK, g.canonical()
@@ -2487,6 +2541,7 @@ def test_buildresult_is_frozen():
         genome=Genome("silo", {}), trace=False, binary="/x",
         bin_sha256="a" * 64, build_dir="/d", cached=False)
     assert br.bin_hash == "a" * 16
+    assert br.contract_sha256 is None
     try:
         br.bin_sha256 = "b" * 64
         assert False, "frozen dataclass は書き換え不能であるべき"
@@ -2709,6 +2764,91 @@ def test_patchharness_apply_revert_roundtrip():
     with open(hh, encoding="utf-8") as f:
         assert f.read() == _FAKE_BACKOFF_HH
     assert not os.path.exists(newf)
+
+
+def test_patchharness_git_retries_index_lock_then_succeeds():
+    """checkout/apply の index.lock rc=128 だけを 200ms 間隔で retry し、成功時も
+    CompletedProcess の追加属性に回数・理由を残す (silent retry にしない)。"""
+    from campaign import patchharness
+    results = [
+        subprocess.CompletedProcess([], 128, "", "fatal: Unable to create 'index.lock'"),
+        subprocess.CompletedProcess([], 128, "", "fatal: index.lock: File exists"),
+        subprocess.CompletedProcess([], 0, "ok\n", ""),
+    ]
+    calls = []
+    sleeps = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return results.pop(0)
+
+    result = patchharness._git(
+        "/fake/submodule", "checkout", "--", ".", _runner=runner,
+        _sleep=sleeps.append)
+    assert result.returncode == 0
+    assert result.stdout == "ok\n"                 # 既存 output semantics は不変
+    assert result.patchharness_retries == 2
+    assert "index.lock" in result.patchharness_retry_trace
+    assert "2 回" in result.patchharness_retry_trace
+    assert len(calls) == 3
+    assert sleeps == [0.2, 0.2]
+
+
+def test_patchharness_git_non_index_lock_failure_is_not_retried():
+    """同じ rc=128 でも index.lock 以外は従来どおり 1 回で失敗結果を返す。"""
+    from campaign import patchharness
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess([], 128, "", "fatal: bad revision")
+
+    result = patchharness._git(
+        "/fake/submodule", "apply", "variant.patch", _runner=runner,
+        _sleep=lambda _: (_ for _ in ()).throw(AssertionError("sleep must not run")))
+    assert result.returncode == 128
+    assert result.stderr == "fatal: bad revision"
+    assert result.patchharness_retries == 0
+    assert result.patchharness_retry_trace == ""
+    assert len(calls) == 1
+
+
+def test_patchharness_git_index_lock_retry_exhaustion_fails_closed():
+    """index.lock が解けなくても retry は 5 回で打ち切り、rc=128 と痕跡を返す。"""
+    from campaign import patchharness
+    calls = []
+    sleeps = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess([], 128, "", "fatal: index.lock exists")
+
+    result = patchharness._git(
+        "/fake/submodule", "checkout", "--", ".", _runner=runner,
+        _sleep=sleeps.append)
+    assert result.returncode == 128
+    assert result.patchharness_retries == 5
+    assert "5 回" in result.patchharness_retry_trace
+    assert len(calls) == 6                         # 初回 + bounded retry 5 回
+    assert sleeps == [0.2] * 5
+
+
+def test_patchharness_git_disables_optional_locks_in_environment():
+    """全 git 共通経路が親 env を保ったまま GIT_OPTIONAL_LOCKS=0 を上書きする。"""
+    from campaign import patchharness
+    captured = {}
+
+    def runner(command, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess([], 0, "head\n", "")
+
+    result = patchharness._git(
+        "/fake/submodule", "rev-parse", "HEAD", _runner=runner,
+        _sleep=lambda _: None)
+    assert result.returncode == 0
+    assert captured["env"]["GIT_OPTIONAL_LOCKS"] == "0"
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
 
 
 def test_patchharness_fails_closed_on_dirty_or_unpinned_tree():

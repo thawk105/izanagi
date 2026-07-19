@@ -8,6 +8,7 @@ import json
 import shutil
 import sys
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -18,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 from campaign import (  # noqa: E402
+    env_contract,
     execution_guard,
     s8b_oracle_judge as judge,
     s8b_oracle_manifest as oracle_manifest,
@@ -85,14 +87,16 @@ def _manifest(tmp_path: Path, *, campaign_id: str = "oracle-b0", n: int = 1) -> 
         n=n, master_seed="report-fixture", block_sizes={"b0": n},
         holdout_ids=holdout_ids, configuration_ids=CONFIGURATIONS,
     )
+    contract = env_contract.lookup("linux-baremetal")
     return oracle_manifest.build_manifest(
         freeze_path=freeze_path,
         schedule=schedule,
         run_contract={
-            "ccbench_pin": "pin", "env_tag": "fixture-env", "clocks": 1800,
+            "ccbench_pin": "pin", "env_tag": contract.env_tag,
+            "clocks": contract.clocks_per_us,
             "reps": 2, "extime": 1, "verify": "legacy+s2",
             "screening": "off", "bench_max_rounds": 1,
-            "contract_sha256": "0" * 64,
+            "contract_sha256": contract.contract_sha256,
         },
         binding_identity=[
             _binding(holdout_id, configuration_id)
@@ -115,6 +119,7 @@ def _session(layout, event: str, payload: dict) -> None:
 
 def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
                     *, receipt: dict | None = None) -> None:
+    contract = env_contract.lookup("linux-baremetal")
     payload = {
         "manifest_sha256": oracle_manifest.manifest_sha256(manifest),
         "block_id": "b0",
@@ -123,8 +128,8 @@ def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
         # receipt を既定で載せる (report が受理する形)。負例は receipt=<改竄> で注入。
         "execution_receipt": receipt if receipt is not None else {
             "schema": execution_guard.RECEIPT_SCHEMA,
-            "env_tag": "fixture-env",
-            "contract_sha256": "0" * 64,
+            "env_tag": contract.env_tag,
+            "contract_sha256": contract.contract_sha256,
             "attestation": {
                 "hostname": "fixture-host", "boot_id": None,
                 "cpuset": None, "captured_utc": "2026-07-18T00:00:00+00:00",
@@ -217,12 +222,41 @@ def _layout(tmp_path: Path, manifest: dict, campaign_id: str = "oracle-b0"):
     return layout
 
 
+def _finish_campaign(layout, manifest: dict, *, status: str = "completed",
+                     fill_missing: bool = True, scheduled_rows: int | None = None,
+                     completed_rows: int | None = None) -> None:
+    """新 campaign-terminal 契約へ追随する WAL fixture builder。"""
+    schedule = manifest["schedule"]["rows"]
+    if fill_missing:
+        records = wal.read_records(layout)
+        covered = {
+            record.payload.get("schedule_index") for record in records
+            if record.stage == SESSION and record.payload.get("event") == "trial-result"
+        }
+        for item in schedule:
+            if item["schedule_index"] not in covered:
+                _trial(layout, item, "committed")
+    _session(layout, "campaign-terminal", {
+        "status": status,
+        "scheduled_rows": len(schedule) if scheduled_rows is None else scheduled_rows,
+        "completed_rows": (
+            len(schedule) if completed_rows is None and status == "completed"
+            else (0 if completed_rows is None else completed_rows)
+        ),
+        "execution_identity": {
+            "job": "fixture-job", "host": "fixture-host", "boot": "fixture-boot",
+            "pid": 123, "starttime": 456,
+        },
+    })
+
+
 def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path):
     manifest = _manifest(tmp_path, n=2)
     schedule = manifest["schedule"]["rows"]
     layout = _layout(tmp_path, manifest)
     _trial(layout, schedule[0], "committed", tps=(10.0, 12.0))
     _trial(layout, schedule[1], "committed", tps=(20.0, 24.0))
+    _finish_campaign(layout, manifest)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
 
@@ -253,6 +287,7 @@ def test_failure_outcomes_remain_as_completed_observation_rows(
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
     _trial(layout, item, case)
+    _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
 
@@ -272,6 +307,7 @@ def test_verify_inconclusive_wal_stays_observable_and_judges_indeterminate(tmp_p
             layout, item,
             "verify-inconclusive" if item is inconclusive_item else "committed",
         )
+    _finish_campaign(layout, manifest, fill_missing=False)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
     row = observations["rows"][0]
@@ -300,6 +336,7 @@ def test_binary_mismatch_wal_stays_observable_and_judges_indeterminate(tmp_path)
             layout, item,
             "binary-mismatch" if item is mismatch_item else "committed",
         )
+    _finish_campaign(layout, manifest, fill_missing=False)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
     row = observations["rows"][0]
@@ -333,11 +370,62 @@ def test_receipt_mismatch_is_protocol_violation(tmp_path):
     })
     for item in schedule:
         _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest, fill_missing=False)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
     assert all(row["status"] == "protocol_violation" for row in observations["rows"])
     assert any("execution_receipt" in (row.get("reason") or "")
                for row in observations["rows"])
+
+
+def test_manifest_contract_sha256_mismatch_with_registry_is_protocol_violation(
+        tmp_path):
+    """R8: env_tag は実在するが manifest contract hash だけが registry と違う。"""
+    manifest = _manifest(tmp_path)
+    contract = env_contract.lookup("linux-baremetal")
+    manifest["run_contract"]["env_tag"] = contract.env_tag
+    manifest["run_contract"]["contract_sha256"] = "f" * 64
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(manifest=manifest, output_root=tmp_path)
+
+    assert all(row["status"] == "protocol_violation"
+               for row in observations["rows"])
+    assert all("registry contract" in (row.get("reason") or "")
+               for row in observations["rows"])
+
+
+def test_required_receipt_consumer_derives_mode_and_passes_verified_calibration(tmp_path):
+    manifest = _manifest(tmp_path)
+    base = env_contract.lookup("linux-baremetal")
+    required = env_contract.ExecutionEnvironmentContract(
+        env_tag=base.env_tag, clocks_per_us=base.clocks_per_us,
+        numactl=base.numactl, attestation_mode="required",
+        isolation_policy=env_contract.IsolationPolicy(
+            single_process=True, allow_resume=False,
+        ),
+        calibration_ref=base.calibration_ref,
+    )
+    manifest["run_contract"]["contract_sha256"] = required.contract_sha256
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, receipt=execution_guard.build_receipt(required))
+    _finish_campaign(layout, manifest)
+    verified = object()
+    receipt_spy = mock.Mock(return_value=False)
+
+    with mock.patch.object(report.env_contract, "lookup", return_value=required), \
+            mock.patch.object(report.env_attestation, "load_verified_calibration",
+                              return_value=verified), \
+            mock.patch.object(report.execution_guard, "receipt_matches_contract",
+                              receipt_spy):
+        observations = report.build_observations(
+            manifest=manifest, output_root=tmp_path,
+        )
+
+    assert all(row["status"] == "protocol_violation" for row in observations["rows"])
+    assert receipt_spy.call_args.kwargs["attestation_mode"] == "required"
+    assert receipt_spy.call_args.kwargs["verified_calibration"] is verified
 
 
 @pytest.mark.parametrize("damage", ["missing", "partial"])
@@ -357,6 +445,7 @@ def test_missing_or_partial_expected_binding_is_protocol_violation(tmp_path, dam
         entry.pop("src_token")
     layout = _layout(tmp_path, manifest)
     _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
 
@@ -375,6 +464,7 @@ def test_definitive_red_survives_later_committed_retry(tmp_path):
         "reason": "transient retry",
     })
     _trial(layout, item, "committed", attempt=2, tps=(1000.0, 1002.0))
+    _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
 
@@ -396,6 +486,7 @@ def test_trial_window_with_phantom_schedule_index_is_protocol_violation(
     _trial(layout, phantom, phantom_outcome)
     for item in schedule:
         _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest, fill_missing=False)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
 
@@ -415,6 +506,7 @@ def test_allowed_excluded_reason_row_stays_reported_and_judges_unknown(tmp_path)
             _trial(layout, item, "timeout", excluded_reason="machine-fault")
         else:
             _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest, fill_missing=False)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
     row = observations["rows"][0]
@@ -436,6 +528,7 @@ def test_excluded_reason_outside_allowed_list_is_protocol_violation(tmp_path):
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
     _trial(layout, item, "timeout", excluded_reason="power-outage")
+    _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
 
@@ -448,6 +541,7 @@ def test_correctness_red_with_excluded_reason_is_protocol_violation(tmp_path):
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
     _trial(layout, item, "legacy-red", excluded_reason="machine-fault")
+    _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
 
@@ -460,6 +554,7 @@ def test_manifest_hash_is_recomputed_independently_after_tampering(tmp_path):
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
     _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest)
     tampered = copy.deepcopy(manifest)
     tampered["allowed_excluded_reasons"].append("tampered")
     tampered["manifest_sha256"] = oracle_manifest.manifest_sha256(manifest)
@@ -475,6 +570,7 @@ def test_expected_cells_keep_deleted_holdout_indeterminate(tmp_path):
     layout = _layout(tmp_path, manifest)
     for item in manifest["schedule"]["rows"]:
         _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest, fill_missing=False)
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
     assert judge.judge_oracle(observations)["status"] == "determinate"
     holdouts = {entry["holdout_id"] for entry in observations["expected_cells"]}
@@ -487,7 +583,7 @@ def test_expected_cells_keep_deleted_holdout_indeterminate(tmp_path):
     assert judge.judge_oracle(observations)["status"] == "indeterminate"
 
 
-def test_schedule_row_without_trial_start_is_not_started_with_reason(tmp_path):
+def test_terminal_missing_makes_every_row_campaign_incomplete(tmp_path):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
@@ -495,11 +591,94 @@ def test_schedule_row_without_trial_start_is_not_started_with_reason(tmp_path):
         "schedule_index": item["schedule_index"], "reason": "budget exhausted",
     })
 
-    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
 
-    assert row["status"] == "not-started"
-    assert row["outcome"] is None
-    assert "budget-refused" in row["reason"]
+    assert all(row["status"] == "campaign-incomplete" for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all("campaign-terminal" in row["reason"] for row in rows)
+
+
+def test_aborted_terminal_status_alone_hides_fully_covered_completed_rows(tmp_path):
+    """R5: counts/coverage/deviation が全て正常でも status=aborted 単独で全数を隠す。"""
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    layout = _layout(tmp_path, manifest)
+    for item in schedule:
+        _trial(layout, item, "committed", tps=(100.0, 102.0))
+    _finish_campaign(
+        layout, manifest, status="aborted", fill_missing=False,
+        scheduled_rows=len(schedule), completed_rows=len(schedule),
+    )
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+    assert all(row["status"] == "campaign-incomplete" for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all("status='aborted'" in row["reason"] for row in rows)
+
+
+def test_terminal_scheduled_rows_mismatch_alone_hides_all_rows(tmp_path):
+    """R2: completed_rows/coverage/status は正常で scheduled_rows だけが違う。"""
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    layout = _layout(tmp_path, manifest)
+    for item in schedule:
+        _trial(layout, item, "committed", tps=(100.0, 102.0))
+    _finish_campaign(
+        layout, manifest, fill_missing=False,
+        scheduled_rows=len(schedule) + 1, completed_rows=len(schedule),
+    )
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+    assert all(row["status"] == "campaign-incomplete" for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all("scheduled_rows" in row["reason"] for row in rows)
+
+
+def test_campaign_terminal_rejects_extra_top_level_key(tmp_path):
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    layout = _layout(tmp_path, manifest)
+    for item in schedule:
+        _trial(layout, item, "committed")
+    _session(layout, "campaign-terminal", {
+        "status": "completed", "scheduled_rows": len(schedule),
+        "completed_rows": len(schedule),
+        "execution_identity": {
+            "job": "j", "host": "h", "boot": "b", "pid": 1, "starttime": 2,
+        },
+        "unexpected": "must-fail",
+    })
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+    assert all(row["status"] == "campaign-incomplete" for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all("top-level key" in row["reason"] for row in rows)
+
+
+@pytest.mark.parametrize("damage", ["aborted", "double", "under-covered", "coverage"])
+def test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers(
+        tmp_path, damage):
+    manifest = _manifest(tmp_path)
+    schedule = manifest["schedule"]["rows"]
+    layout = _layout(tmp_path, manifest)
+    for item in (schedule[:1] if damage == "coverage" else schedule):
+        _trial(layout, item, "committed", tps=(100.0, 102.0))
+    if damage == "aborted":
+        _finish_campaign(layout, manifest, status="aborted", fill_missing=False,
+                         completed_rows=len(schedule) - 1)
+    elif damage == "under-covered":
+        _finish_campaign(layout, manifest, fill_missing=False,
+                         completed_rows=len(schedule) - 1)
+    elif damage == "double":
+        _finish_campaign(layout, manifest, fill_missing=False)
+        _finish_campaign(layout, manifest, status="aborted", fill_missing=False)
+    else:
+        _finish_campaign(layout, manifest, fill_missing=False)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "campaign-incomplete" for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
 
 
 def test_screen_marker_is_protocol_violation(tmp_path):
@@ -507,6 +686,7 @@ def test_screen_marker_is_protocol_violation(tmp_path):
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
     _trial(layout, item, "committed", screen_marker=True)
+    _finish_campaign(layout, manifest)
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
 
@@ -519,12 +699,14 @@ def test_only_manifest_campaign_is_read_and_missing_owned_campaign_is_reported(t
     item = manifest["schedule"]["rows"][0]
     owned = _layout(tmp_path, manifest)
     _trial(owned, item, "committed", tps=(7.0, 9.0))
+    _finish_campaign(owned, manifest)
     external = _layout(tmp_path, manifest, "outside-manifest")
     _trial(external, item, "committed", tps=(9000.0, 9002.0))
+    _finish_campaign(external, manifest)
     rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
     assert rows[0]["bench_values"] == [7.0, 9.0]
 
     shutil.rmtree(Path(owned.root))
     missing = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
-    assert missing["status"] == "missing-campaign"
+    assert missing["status"] == "campaign-incomplete"
     assert missing["reason"]

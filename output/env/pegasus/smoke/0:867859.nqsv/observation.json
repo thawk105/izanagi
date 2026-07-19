@@ -1,0 +1,10 @@
+{
+  "error": {
+    "message": "PID namespace を決定できない: [Errno 13] Permission denied: '/proc/1/ns/pid'",
+    "stage": "probe",
+    "type": "AttestationError"
+  },
+  "observed_epoch": 1784388884,
+  "ok": false,
+  "schema_version": "pegasus-probe-output/v1"
+}

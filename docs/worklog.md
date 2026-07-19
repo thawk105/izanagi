@@ -685,3 +685,57 @@ insights `2026-07-18_s8b-c22-consultations.md` §10 (相談逐語・裁定表・
 3. その後: protocol JSON 凍結 (master_seed=2026-07-18T17:16:12+09:00 / env_tag=pegasus、AI-Agent:
    none) → 予測封印 → floor 実測 → v2 候補生成 → 承認 → oracle 実走
 4. 本 branch の push/PR はユーザー引き渡し (Pegasus 規約)
+
+## 2026-07-19 (14) — patchharness index.lock 競合の限定・有界 retry (計測なし)
+
+並列 xdist で patchharness の revert と他 worker の読み取り系 Git が index.lock を競合し、
+revert 漏れから実 submodule が dirty になる事故の恒久修正。commit はユーザー指示により作成しない。
+
+- `_git` 全呼び出しへ `GIT_OPTIONAL_LOCKS=0` を付与し、読み取り系 Git の任意 lock を抑止。
+- checkout と実適用 apply に限り、rc=128 かつ stderr に `index.lock` がある場合だけ 200ms 間隔・
+  最大5 retry。stdout/stderr/rc は不変、CompletedProcess の追加属性と最終例外へ retry 痕跡を保持。
+- 注入 runner の4回帰テストを追加。対象 12 passed / rc=0。optional-lock 値、index.lock 限定、
+  retry 上限の3変異を全 kill。check_codex_agents / check_docs / diff check は rc=0。
+- 全走3回は実行 sandbox の Git 管理領域が read-only のため、実 submodule の checkout が
+  `index.lock: Read-only file system` で全回 rc=1 (1896 passed、失敗 1/2/1)。各回後に既存 template
+  patch を逆適用して pinned-clean へ復元。これは一時競合ではなく環境の恒久拒否であり、限定 retry は
+  5回で痕跡付き fail-closed した。書込可能な通常環境での3連続 rc=0 は未実証。
+
+### 次の一手
+1. Git 管理領域を書き込める環境で `python3 tools/run_tests.py` を3回連続実行し、rc=0を確認する。
+2. commit / push は人間が行う。
+
+## 2026-07-19 (1) — Pegasus env_contract 登録段 wave 完了 (実測 = 較正のみ、性能計測なし)
+
+worklog (13) 次の一手 2 の消化。標準ループ ([[orchestration-loop-pattern]]) ×4 巡。正本 = insights
+`2026-07-18_env-contract-pegasus-consultations.md` (相談逐語・親裁定表・実装結果・attempt 経過・
+プラン/所見台帳付録)。運用事実の固定先 = pegasus-runbook §7.1、失敗型 = failures F22。
+
+- **相談**: codex gpt-5.6-sol reasoning=max ×3 並列敵対 (attestation 設計 / enforcement 4 点 /
+  較正ジョブ)。全所見 real 採用 (縮小 2)。hybrid 方式 (契約 attestation_mode + calibration/v2 同居)
+  等を裁定
+- **実装**: codex 12 単位 + 実機対応 fix 7 単位 (計 19、gpt-5.6-sol high/medium)。opus レビュー 17
+  本 (2 レンズ/単位 + 統合 3)、変異ゲート累計 100+ 変異 KILL。レビューが捕らえた主要 real 欠陥:
+  walltime 完全一致の統合不整合 (実機必 reject) / visibility gate 未接続 / host 照合 fail-open 実証 /
+  shell ERR trap で拒否 forensic 消失 / build_v2×隔離 worktree seam / report status gate の数値漏出
+  実証。xdist 間欠 fail (index.lock→patch 残骸) も恒久対策 (GIT_OPTIONAL_LOCKS=0 + 有界痕跡リトライ)
+- **実測**: smoke ×6 で前提凍結 (tolerance 2.0% / numactl none / システム toolchain / kthreadd 指標 /
+  request_id 正規化)。certification attempt 1〜10 (総実走 ~15 分、~0.1pt) — 9 回 fail-closed で実機
+  前提を逐次確定し (F22 に型記録)、**attempt 10 (867876) が accepted**:
+  `registered/calibration-753f535a8d024727.json` (clocks 2100 / records 1M 下限基準 / within-run
+  CV 1.17% / bnode011 / final-receipt 済み)
+- **登録**: registry へ pegasus entry (contract_sha256 = e576e9cd...、attestation_mode=required、
+  single_process=True/allow_resume=False、linux-baremetal 不変)。契約不変式 required⟹single_process
+  追加。W5 統合レビュー = commit 可 (12/12 変異正当 KILL、sha/golden 独立再計算一致)
+- **最終ゲート**: 全走 1927 passed / 0 failed (rc=0、ベースライン +378)。check_docs /
+  check_codex_agents / check_ai_provenance 緑
+- **発効なし規律**: official mode 拒否・linux-baremetal 正本据え置き不変。本登録は bootstrap 登録
+  であり正式比較可能を意味しない (between-run floor は floor 実測段の入口で)
+
+### 次の一手
+1. ユーザー接点: §10.2 追認リスト 5 項 (前 wave 起票、protocol 凍結の前提) + 本 wave 新規追認なし
+2. protocol JSON 実凍結 (master_seed=2026-07-18T17:16:12+09:00 / env_tag=pegasus) → 予測封印 →
+   floor 実測 (claims/ 事前作成 + IZANAGI_RESERVATION_* export、runbook §7.1)
+3. 次 wave 冒頭で: s1 freeze 系テストの submodule 読取 isolation (patch 窓を読む既存フレーク、
+   W5 レビュー所見) + テストの patch 適用を tmp worktree へ隔離する恒久対策
+4. push / PR はユーザー引き渡し (Pegasus 規約)。branch = worktree-s8b-env-contract-pegasus

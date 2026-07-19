@@ -1,0 +1,64 @@
++ uname -r
+5.15.0-173-generic
++ ls /usr/lib/linux-tools/
+5.15.0-100-generic
+5.15.0-135-generic
++ ls -d /usr/lib/linux-tools-5.15.0-100 /usr/lib/linux-tools-5.15.0-135
+/usr/lib/linux-tools-5.15.0-100
+/usr/lib/linux-tools-5.15.0-135
++ cat /proc/sys/kernel/perf_event_paranoid
+cat: /proc/sys/kernel/perf_event_paranoid: Cannot allocate memory
++ for p in /usr/lib/linux-tools/*/perf /usr/lib/linux-tools-*/perf
++ '[' -x /usr/lib/linux-tools/5.15.0-100-generic/perf ']'
++ echo '== /usr/lib/linux-tools/5.15.0-100-generic/perf'
+== /usr/lib/linux-tools/5.15.0-100-generic/perf
++ /usr/lib/linux-tools/5.15.0-100-generic/perf --version
++ head -1
+perf version 5.15.143
++ /usr/lib/linux-tools/5.15.0-100-generic/perf stat -e cache-misses,instructions -- sleep 0.1
++ tail -4
+       0.000919000 seconds user
+       0.000000000 seconds sys
+
+
++ for p in /usr/lib/linux-tools/*/perf /usr/lib/linux-tools-*/perf
++ '[' -x /usr/lib/linux-tools/5.15.0-135-generic/perf ']'
++ echo '== /usr/lib/linux-tools/5.15.0-135-generic/perf'
+== /usr/lib/linux-tools/5.15.0-135-generic/perf
++ /usr/lib/linux-tools/5.15.0-135-generic/perf --version
++ head -1
+perf version 5.15.178
++ /usr/lib/linux-tools/5.15.0-135-generic/perf stat -e cache-misses,instructions -- sleep 0.1
++ tail -4
+       0.000000000 seconds user
+       0.000754000 seconds sys
+
+
++ for p in /usr/lib/linux-tools/*/perf /usr/lib/linux-tools-*/perf
++ '[' -x /usr/lib/linux-tools-5.15.0-100/perf ']'
++ echo '== /usr/lib/linux-tools-5.15.0-100/perf'
+== /usr/lib/linux-tools-5.15.0-100/perf
++ /usr/lib/linux-tools-5.15.0-100/perf --version
++ head -1
+perf version 5.15.143
++ /usr/lib/linux-tools-5.15.0-100/perf stat -e cache-misses,instructions -- sleep 0.1
++ tail -4
+       0.000000000 seconds user
+       0.000720000 seconds sys
+
+
++ for p in /usr/lib/linux-tools/*/perf /usr/lib/linux-tools-*/perf
++ '[' -x /usr/lib/linux-tools-5.15.0-135/perf ']'
++ echo '== /usr/lib/linux-tools-5.15.0-135/perf'
+== /usr/lib/linux-tools-5.15.0-135/perf
++ /usr/lib/linux-tools-5.15.0-135/perf --version
++ head -1
+perf version 5.15.178
++ /usr/lib/linux-tools-5.15.0-135/perf stat -e cache-misses,instructions -- sleep 0.1
++ tail -4
+       0.000769000 seconds user
+       0.000000000 seconds sys
+
+
++ echo done
+done

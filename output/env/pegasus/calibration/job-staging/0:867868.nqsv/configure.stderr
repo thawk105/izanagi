@@ -1,0 +1,8 @@
+CMake Error at /system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/lib/python3.9/site-packages/cmake/data/share/cmake-3.25/Modules/FindPackageHandleStandardArgs.cmake:230 (message):
+  Could NOT find glog (missing: glog_LIBRARY_FILE glog_INCLUDE_DIR)
+Call Stack (most recent call first):
+  /system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/lib/python3.9/site-packages/cmake/data/share/cmake-3.25/Modules/FindPackageHandleStandardArgs.cmake:600 (_FPHSA_FAILURE_MESSAGE)
+  cmake/Findglog.cmake:9 (find_package_handle_standard_args)
+  CMakeLists.txt:34 (find_package)
+
+

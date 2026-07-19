@@ -8,6 +8,8 @@ import datetime as dt
 import hashlib
 import json
 import math
+import os
+import socket
 import subprocess
 import sys
 import time
@@ -21,12 +23,17 @@ ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from campaign import campaign_claim as _campaign_claim  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign import s8b_oracle_manifest as _oracle_manifest  # noqa: E402
 from campaign import env_contract as _env_contract  # noqa: E402
+from campaign import env_attestation as _env_attestation  # noqa: E402
 from campaign import execution_guard  # noqa: E402
+from campaign import reservation as _reservation  # noqa: E402
 from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root  # noqa: E402
+from campaign.layout import write_capability_for_directory  # noqa: E402
+from campaign.durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
 from campaign.p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
@@ -48,6 +55,14 @@ _BINDING_KEYS = {
     "genome_canonical", "src_token", "variant_id", "entry_sha256",
     "binding_sha256",
 }
+
+# C2-2: oracle の完走予約式。schedule や CLI から上書きできない凍結定数である。
+# per-attempt cap は build + legacy/S2 verify + bench + materialize/cleanup を含む
+# end-to-end 上限。最大 1 retry と terminal/fsync 用 reserve を別項で数える。
+ORACLE_MAX_ATTEMPTS = 2
+ORACLE_PER_ATTEMPT_CAP_S = 30 * 60
+ORACLE_FINALIZE_RESERVE_S = 600
+ORACLE_RESERVATION_SAFETY_MARGIN_S = 0
 
 
 class OracleDriverError(RuntimeError):
@@ -430,6 +445,19 @@ class _V2Plan:
     contract: "_env_contract.ExecutionEnvironmentContract"
     receipt: dict
     perf_sha_by_cell: dict
+    verified_calibration: Optional["_env_attestation.VerifiedCalibration"] = None
+    reservation_check: Optional["_reservation.ReservationCheck"] = None
+
+
+def _reservation_required_s(schedule: Sequence[Mapping]) -> int:
+    """validated schedule の行数だけから worst-case 秒数を導出する。"""
+    if (not isinstance(schedule, Sequence)
+            or isinstance(schedule, (str, bytes, bytearray)) or not schedule):
+        raise OracleDriverError("reservation 導出対象 schedule が空または sequence でない")
+    return (
+        len(schedule) * ORACLE_MAX_ATTEMPTS * ORACLE_PER_ATTEMPT_CAP_S
+        + ORACLE_FINALIZE_RESERVE_S
+    )
 
 
 def _store_sha256(out_root, store_path: str) -> Optional[str]:
@@ -445,7 +473,7 @@ def _store_sha256(out_root, store_path: str) -> Optional[str]:
 
 
 def _prepare_v2_execution(*, validated, run_contract, schedule,
-                          out_root) -> _V2Plan:
+                          out_root, repo_root=ROOT, environ=None) -> _V2Plan:
     """v2 実走前検査を一括で行い _V2Plan を返す (run marker 作成前・第一防壁)。
 
     ``validated`` は run_block が一度だけ launch_validate して得た同一 object であり、
@@ -487,7 +515,44 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
         raise OracleDriverError(
             "run_contract.clocks が env 契約 clocks_per_us と不一致"
         )
-    receipt = execution_guard.build_receipt(contract)
+    try:
+        verified = _env_attestation.load_verified_calibration(contract, Path(repo_root))
+        if verified.sha256 != contract.calibration_ref.sha256:
+            raise OracleDriverError("verified calibration sha256 が contract ref と不一致")
+        if contract.attestation_mode == "required":
+            calibration = verified.calibration
+            if (calibration is None or calibration.env_tag != contract.env_tag
+                    or calibration.clocks_per_us != contract.clocks_per_us):
+                raise OracleDriverError("verified calibration が別 contract に属する")
+        if contract.attestation_mode == "required":
+            receipt = execution_guard.attest_and_build_receipt(contract, verified)
+        else:
+            # mode=none は既存 v1 issuer を不変に保つ。
+            receipt = execution_guard.build_receipt(contract)
+        if not execution_guard.receipt_matches_contract(
+                receipt, env_tag=contract.env_tag,
+                contract_sha256=contract.contract_sha256,
+                attestation_mode=contract.attestation_mode,
+                verified_calibration=(verified if contract.attestation_mode == "required"
+                                      else None)):
+            raise OracleDriverError("execution receipt の契約再検算に失敗")
+    except (_env_attestation.AttestationError,
+            execution_guard.ExecutionGuardError) as exc:
+        raise OracleDriverError(f"execution attestation 失敗: {exc}") from exc
+
+    reservation_check = None
+    if _reservation.is_reservation_required(contract.isolation_policy):
+        env = os.environ if environ is None else environ
+        try:
+            binding = _reservation.read_binding(env)
+            reservation_check = _reservation.check_reservation(
+                binding,
+                required_s=_reservation_required_s(schedule),
+                safety_margin_s=ORACLE_RESERVATION_SAFETY_MARGIN_S,
+                environ=env,
+            )
+        except _reservation.ReservationError as exc:
+            raise OracleDriverError(f"reservation binding 検査失敗: {exc}") from exc
 
     # (4) binary store 消費 (C3-7): 全 schedule 行分の store 実体 + hash を検査。
     expected = validated.binaries_by_cell
@@ -514,7 +579,127 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
         perf_sha_by_cell[cell] = rec["binary_sha256"]
     return _V2Plan(
         contract=contract, receipt=receipt, perf_sha_by_cell=perf_sha_by_cell,
+        verified_calibration=verified, reservation_check=reservation_check,
     )
+
+
+def _execution_identity(plan: _V2Plan) -> dict:
+    """terminal/claim で共有する job/host/boot/process identity。"""
+    binding = plan.reservation_check.binding if plan.reservation_check is not None else None
+    attestation = plan.receipt.get("attestation")
+    hostname = binding.host if binding is not None else (
+        attestation.get("hostname") if isinstance(attestation, Mapping) else socket.gethostname()
+    )
+    boot_id = binding.boot_id if binding is not None else (
+        attestation.get("boot_id") if isinstance(attestation, Mapping) else None
+    )
+    return {
+        "job": binding.job_id if binding is not None else (os.environ.get("PBS_JOBID") or "unbound"),
+        "host": hostname or socket.gethostname(),
+        "boot": boot_id or "unavailable",
+        "pid": os.getpid(),
+        "starttime": _campaign_claim.read_proc_starttime(),
+    }
+
+
+def _claim_identity(*, manifest_sha256: str, freeze_sha256: str,
+                    schedule_sha256: str, campaign_id: str) -> str:
+    return _canonical_sha256({
+        "manifest_sha256": manifest_sha256,
+        "freeze_sha256": freeze_sha256,
+        "schedule_sha256": schedule_sha256,
+        "campaign_id": campaign_id,
+    })
+
+
+def _acquire_g12_claim(*, plan: _V2Plan, claim_root: Path,
+                       manifest_sha256: str, freeze_sha256: str,
+                       schedule_sha256: str, campaign_id: str,
+                       identity: Mapping) -> None:
+    """required single-process contract の global one-shot claim を取得する。
+
+    ``claim_root`` は共有 durable ``out_root/claims`` でなければならない。複数 clone
+    間の排他は clone が同じ out_root を共有するときだけ成立する。
+    """
+    if not _reservation.is_reservation_required(plan.contract.isolation_policy):
+        return
+    record = _campaign_claim.ClaimRecord(
+        campaign_identity=_claim_identity(
+            manifest_sha256=manifest_sha256, freeze_sha256=freeze_sha256,
+            schedule_sha256=schedule_sha256, campaign_id=campaign_id,
+        ),
+        job_id=str(identity["job"]), host=str(identity["host"]),
+        boot_id=str(identity["boot"]), pid=int(identity["pid"]),
+        proc_starttime=int(identity["starttime"]), created_utc=_iso_now(),
+    )
+    try:
+        _campaign_claim.acquire_claim(claim_root, record)
+    except _campaign_claim.ClaimError as exc:
+        raise OracleDriverError(f"G12 campaign claim 取得失敗: {exc}") from exc
+
+
+def _append_campaign_terminal(layout, env_tag: str, *, status: str,
+                              scheduled_rows: int, completed_rows: int,
+                              execution_identity: Mapping) -> None:
+    """exactly-one campaign terminal を WAL へ耐久化する。"""
+    if status not in {"completed", "aborted"}:
+        raise OracleDriverError(f"campaign terminal status が不正: {status!r}")
+    existing = [event for event in _session_events(layout)
+                if event.get("event") == "campaign-terminal"]
+    if existing:
+        raise OracleDriverError("campaign-terminal を二重に書こうとした")
+    _append_session(layout, env_tag, "campaign-terminal", {
+        "status": status,
+        "scheduled_rows": scheduled_rows,
+        "completed_rows": completed_rows,
+        "execution_identity": dict(execution_identity),
+    })
+
+
+def _recheck_required_execution(plan: _V2Plan, *, remaining_rows: int) -> None:
+    """各 schedule 行の直前に reservation と required attestation を再検査する。"""
+    if plan.reservation_check is None:
+        return
+    required_s = (
+        remaining_rows * ORACLE_MAX_ATTEMPTS * ORACLE_PER_ATTEMPT_CAP_S
+        + ORACLE_FINALIZE_RESERVE_S
+    )
+    try:
+        plan.reservation_check = plan.reservation_check.ensure_remaining(
+            required_s=required_s,
+            safety_margin_s=ORACLE_RESERVATION_SAFETY_MARGIN_S,
+        )
+        refreshed = execution_guard.attest_and_build_receipt(
+            plan.contract, plan.verified_calibration,
+        )
+        if not execution_guard.receipt_matches_contract(
+                refreshed, env_tag=plan.contract.env_tag,
+                contract_sha256=plan.contract.contract_sha256,
+                attestation_mode=plan.contract.attestation_mode,
+                verified_calibration=plan.verified_calibration):
+            raise OracleDriverError("途中 attestation receipt の契約再検算に失敗")
+    except (_reservation.ReservationError, execution_guard.ExecutionGuardError) as exc:
+        raise OracleDriverError(f"途中 execution guard 失敗: {exc}") from exc
+
+
+@contextlib.contextmanager
+def _assert_v2_build_contract(contract: "_env_contract.ExecutionEnvironmentContract"):
+    """pipeline が得た全 BuildResult の contract provenance を driver 側でも assert する。"""
+    original = pipeline.buildcache.build_v2
+
+    def checked(*args, **kwargs):
+        result = original(*args, **kwargs)
+        assert result.contract_sha256 == contract.contract_sha256, (
+            "pipeline BuildResult.contract_sha256 が oracle contract と不一致: "
+            f"{result.contract_sha256!r} != {contract.contract_sha256!r}"
+        )
+        return result
+
+    pipeline.buildcache.build_v2 = checked
+    try:
+        yield
+    finally:
+        pipeline.buildcache.build_v2 = original
 
 
 def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
@@ -566,7 +751,8 @@ def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
 
 def run_block(
         *, manifest_path, block_id, freeze_path, root, output_root, budget_path,
-        marker_root=None, evaluate_fn=None, prepare_fn=None) -> dict:
+        marker_root=None, evaluate_fn=None, prepare_fn=None,
+        durable_root_policy: Optional[DurableRootPolicy] = None) -> dict:
     """一つの immutable block を直列実行し、terminal status を耐久化して返す。
 
     gate 拒否時は一切書き込まず ``status="refused"`` を返す。
@@ -702,7 +888,7 @@ def run_block(
     try:
         plan = _prepare_v2_execution(
             validated=validated, run_contract=run_contract,
-            schedule=block["schedule"], out_root=output_root,
+            schedule=block["schedule"], out_root=output_root, repo_root=root,
         )
     except OracleDriverError as exc:
         return {"status": "refused", **asdict(GateDecision(
@@ -712,6 +898,30 @@ def run_block(
         return {"status": "refused", **asdict(GateDecision(
             allowed=False,
             refusals=[f"v2-execution-unexpected: {type(exc).__name__}: {exc}"],
+        ))}
+
+    try:
+        execution_identity = _execution_identity(plan)
+        claim_root = output_root / "claims"
+        if _reservation.is_reservation_required(plan.contract.isolation_policy):
+            if claim_root.is_symlink() or not claim_root.is_dir():
+                raise OracleDriverError(
+                    f"G12 campaign claim root が durable out_root 下に事前 provisioning "
+                    f"済みでない: {claim_root}"
+                )
+            write_capability_for_directory(
+                claim_root, policy=durable_root_policy,
+            )
+        _acquire_g12_claim(
+            plan=plan, claim_root=claim_root,
+            manifest_sha256=manifest_sha, freeze_sha256=freeze_sha,
+            schedule_sha256=schedule_sha, campaign_id=campaign_id,
+            identity=execution_identity,
+        )
+    except (OracleDriverError, _campaign_claim.ClaimError, DurableRootError) as exc:
+        # claim 競合は既存 claim 以外を作らず、WAL/marker/budget より前に拒否する。
+        return {"status": "refused", **asdict(GateDecision(
+            allowed=False, refusals=[f"v2-execution: {exc}"],
         ))}
 
     _ensure_campaign(
@@ -764,6 +974,10 @@ def run_block(
             "reason": str(exc),
             "reserved_bench_s": reserved_bench_s,
         })
+        _append_campaign_terminal(
+            layout, env_tag, status="aborted", scheduled_rows=len(schedule),
+            completed_rows=0, execution_identity=execution_identity,
+        )
         return {
             "status": "budget_exhausted_before_attempt",
             "allowed": True,
@@ -783,6 +997,16 @@ def run_block(
     error_stopped = False
     error_message: Optional[str] = None
     for position, row in enumerate(schedule):
+        try:
+            _recheck_required_execution(plan, remaining_rows=len(schedule) - position)
+        except OracleDriverError as exc:
+            _append_session(layout, env_tag, "deviation", {
+                "message": str(exc), "kind": "execution-guard-lost",
+                "schedule_index": row["schedule_index"],
+            })
+            error_stopped = True
+            error_message = str(exc)
+            break
         schedule_index = row["schedule_index"]
         holdout_id = row["holdout_id"]
         configuration_id = row["configuration_id"]
@@ -825,31 +1049,33 @@ def run_block(
                     before = len(wal.read_records(layout))
                     evaluate_started = True
                     try:
-                        result = evaluate_fn(
-                            prepared_for_eval.genome, layout, env_tag,
-                            run_contract["ccbench_pin"], perf,
-                            # C3-9: clocks/numactl は env 契約 lookup 結果を使う
-                            # (NUMACTL ハードコード撤去)。
-                            plan.contract.clocks_per_us,
-                            numactl=list(plan.contract.numactl),
-                            correctness=None,
-                            extra_correctness=[(
-                                pipeline.S2_TAG, pipeline.s2_correctness_workload(),
-                            )],
-                            do_bench=True,
-                            do_settle=True,
-                            src_token=prepared_for_eval.src_token,
-                            log=lambda _message: None,
-                            ccbench_dir=prepared_for_eval.ccbench_dir,
-                            cache_root=prepared_for_eval.cache_root,
-                            screening=None,
-                            bench_max_rounds=run_contract["bench_max_rounds"],
-                            # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
-                            # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
-                            expected_perf_sha256=plan.perf_sha_by_cell[
-                                (holdout_id, configuration_id)
-                            ],
-                        )
+                        with _assert_v2_build_contract(plan.contract):
+                            result = evaluate_fn(
+                                prepared_for_eval.genome, layout, env_tag,
+                                run_contract["ccbench_pin"], perf,
+                                # C3-9: clocks/numactl は env 契約 lookup 結果を使う
+                                # (NUMACTL ハードコード撤去)。
+                                plan.contract.clocks_per_us,
+                                numactl=list(plan.contract.numactl),
+                                correctness=None,
+                                extra_correctness=[(
+                                    pipeline.S2_TAG, pipeline.s2_correctness_workload(),
+                                )],
+                                do_bench=True,
+                                do_settle=True,
+                                src_token=prepared_for_eval.src_token,
+                                log=lambda _message: None,
+                                ccbench_dir=prepared_for_eval.ccbench_dir,
+                                cache_root=prepared_for_eval.cache_root,
+                                screening=None,
+                                bench_max_rounds=run_contract["bench_max_rounds"],
+                                env_contract=plan.contract,
+                                # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
+                                # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
+                                expected_perf_sha256=plan.perf_sha_by_cell[
+                                    (holdout_id, configuration_id)
+                                ],
+                            )
                     except Exception as exc:
                         result = pipeline.EvalResult(
                             genome=prepared_for_eval.genome,
@@ -966,6 +1192,13 @@ def run_block(
             "scheduled_rows": len(schedule),
         })
         status = "protocol_violation"
+
+    _append_campaign_terminal(
+        layout, env_tag,
+        status="completed" if status == "completed" else "aborted",
+        scheduled_rows=len(schedule), completed_rows=completed,
+        execution_identity=execution_identity,
+    )
 
     return {
         "status": status,

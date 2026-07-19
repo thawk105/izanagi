@@ -1,0 +1,8 @@
+{
+  "message": "command failed at line 435",
+  "pbs_jobid": "0:867868.nqsv",
+  "rc": 1,
+  "recorded_epoch": 1784398425,
+  "schema_version": "pegasus-job-failure/v1",
+  "stage": "shell"
+}

@@ -17,7 +17,22 @@ import shutil
 import statistics
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from typing import Optional
+
+
+TSC_BUILD_TIMEOUT_S = 30.0
+TSC_SAMPLE_TIMEOUT_S = 5.0
+
+
+@dataclass(frozen=True)
+class TscMeasurement:
+    """C3-10 の凍結座標: raw 5標本、median、nearest-even int。"""
+
+    raw_samples_mhz: list[float]
+    median_mhz: float
+    clocks_per_us_int: int
+    source: str = "clock_gettime-monotonic/rdtscp"
 
 _C_SRC = r"""
 #include <stdio.h>
@@ -55,17 +70,20 @@ def _build_helper(workdir: str) -> Optional[str]:
     out = os.path.join(workdir, "tsc_probe")
     with open(src, "w") as f:
         f.write("#include <stdlib.h>\n" + _C_SRC)
-    r = subprocess.run([cc, "-O2", "-o", out, src],
-                       capture_output=True, text=True)
+    r = subprocess.run(
+        [cc, "-O2", "-o", out, src], capture_output=True, text=True,
+        timeout=TSC_BUILD_TIMEOUT_S,
+    )
     if r.returncode != 0:
         return None
     return out
 
 
-def measure_clocks_per_us(rounds: int = 5, interval: float = 0.3) -> Optional[int]:
-    """TSC 周波数を MHz 整数で返す。計測不能なら None。
+def measure_tsc(rounds: int = 5, interval: float = 0.3, *,
+                require_all: bool = True) -> Optional[TscMeasurement]:
+    """TSC の raw/median/nearest-even を返す。計測不能なら None。
 
-    `rounds` 回測って中央値 → 整数 MHz に丸める (CCBench の gflag は整数)。
+    certification の schema 契約により production は正確に 5 回で呼ぶ。
     """
     tmp = tempfile.mkdtemp(prefix="izanagi_tsc_")
     try:
@@ -74,15 +92,28 @@ def measure_clocks_per_us(rounds: int = 5, interval: float = 0.3) -> Optional[in
             return None
         vals = []
         for _ in range(rounds):
-            r = subprocess.run([helper, str(interval)],
-                               capture_output=True, text=True)
+            r = subprocess.run(
+                [helper, str(interval)], capture_output=True, text=True,
+                timeout=TSC_SAMPLE_TIMEOUT_S,
+            )
             if r.returncode == 0:
                 try:
                     vals.append(float(r.stdout.strip()))
                 except ValueError:
                     pass
-        if not vals:
+        if not vals or (require_all and len(vals) != rounds):
             return None
-        return int(round(statistics.median(vals)))
+        median = float(statistics.median(vals))
+        return TscMeasurement(
+            raw_samples_mhz=vals, median_mhz=median,
+            clocks_per_us_int=int(round(median)),
+        )
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def measure_clocks_per_us(rounds: int = 5, interval: float = 0.3) -> Optional[int]:
+    """後方互換 API。TSC 周波数を MHz 整数で返し、計測不能なら None。"""
+    # Legacy mode historically accepted the median of the successful subset.
+    measured = measure_tsc(rounds=rounds, interval=interval, require_all=False)
+    return None if measured is None else measured.clocks_per_us_int

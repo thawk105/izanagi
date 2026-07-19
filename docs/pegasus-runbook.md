@@ -287,6 +287,32 @@ Izanagi の性能計測では、trace-enabled の正しさ検証と trace-disabl
 既存の隔離・評価経路を使う。計測機と環境タグの現行方針は `docs/roadmap.md` §5 および
 `docs/orchestrator-design.md`「環境タグ」を正本とする。
 
+### 7.1 登録段の実装完了と実機で確定した事実 (2026-07-19)
+
+env_contract registry へ `pegasus` entry を登録済み (clocks_per_us=2100 / numactl なし (NUMA 1
+node) / single_process=True / allow_resume=False / attestation_mode=required / calibration_ref =
+`output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json`)。certification
+ジョブは `tools/pegasus/` 一式 (submit_certify.sh → certify_calibration.sh → collect_receipt.py)
+で再現できる。実機で確定した注意点 (attempt 1〜10 の実測、forensic = 同 calibration/job-staging/):
+
+- `$PBS_JOBID` は `0:NNN.nqsv` 形式。qstat -f へは先頭 `0:` を除いた形で渡す。receipt 照合も
+  正規化形 (先頭 `0:` のみ除去) で行う
+- qstat -f の開始時刻 field は `Started Request Time = <日時>` (PBS 系の stime ではない)
+- **/scr 配下のパスに `:` を含めない** (CMake が PATH 型変数の `:` をリスト区切りとして `;` 化
+  する)。ジョブ dir は `${PBS_JOBID//:/_}` 形で作る
+- 計算ノードに gflags / glog は無い。永続領域の pinned ソース (`~/github/gflags` v2.2.2、
+  `~/github/glog` v0.5.0) から /scr で使い捨て static build する (certify が自動実行)
+- perf は dispatcher (/usr/bin/perf) がカーネル不一致で使えない。実体
+  (/usr/lib/linux-tools/<版>/perf) を policy.json の候補から機能 smoke つきで選定し PATH 注入
+  する (ノードにより導入版が異なる: 実測では bnode 側 5.15.0-100/135、ログイン側 101/136/173)
+- /home (共有 FS) では renameat2(RENAME_NOREPLACE) が EINVAL — publish は link+unlink fallback
+  (no-replace 意味論は不変)
+- PID namespace の host 判定は /proc/1/ns が非 root で読めないため /proc/2/comm==kthreadd 指標
+  (comm はプロセス側で詐称可能 — 正直なコンテナには fail-closed、既知限界)
+- git worktree で運用する場合は CCBench submodule の実体化 (ローカル clone) が必要
+- floor/oracle を Pegasus で走らせる際は out_root 配下 `claims/` の事前作成と
+  IZANAGI_RESERVATION_* の export (certify_calibration.sh 参照) が必要 (floor 実測は次段)
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した

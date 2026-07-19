@@ -1,0 +1,8 @@
+{
+  "message": "command failed at line 433",
+  "pbs_jobid": "0:867867.nqsv",
+  "rc": 1,
+  "recorded_epoch": 1784397658,
+  "schema_version": "pegasus-job-failure/v1",
+  "stage": "shell"
+}

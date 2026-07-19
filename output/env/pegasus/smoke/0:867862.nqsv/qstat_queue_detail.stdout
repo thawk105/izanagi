@@ -1,0 +1,149 @@
+Execution Queue: gen_S@nqsv
+    Run State    = Active
+    Submit State = Enable
+    Scheduler ID   = 1
+    Scheduler Name = JM
+    Job Server Number = {
+        10*   11*   12*   15*   17*   18*   19*   20*   22*   23* 
+        25*   27*   28*   29*   31*   33*   34*   36*   38*   40* 
+        45*   50*   56*   58*   61*   64*   65*   69*   70*   77* 
+        79*   80*   81*   83*   89*   96*   97*   99*  100*  101* 
+       102*  103*  104*  106*  108*  109*  110*  112*  114*  116* 
+       118*  119*  120*  121*  122*  124*  125*  126*  127*  128* 
+       129*  130*  131*  132*  133*  134*  136*  137*  138*  140* 
+       141*  142*  144*  145*  146*  149*  113*    3*    4*    5* 
+         6*   44*    2*   57*  111*   54*   60*  117*  123*  147* 
+        90*   52*   21*   24*   26*   30*   32*   66*   85*  115* 
+       135*  143*  139*   13*   14*   16*  105*  107*    1*    7* 
+         8*    9*   35*   37*   39*   41*   42*   43*   46*   47* 
+        48*   49*   51*   53*   55*   59*   62*   63*   67*   68* 
+        71*   72*   73*   74*   75*   76*   78*   82*   84*   86* 
+        87*   88*   91*   92*   93*   94*   95*   98*  148* 
+    }
+    Node Group Name = {
+      (UNBIND)
+    }
+    Use Supplementary Groups ID for Access Privileges Check = ON
+    Access User list  = {
+      root     
+    }
+    Access Group list  = {
+      NEC-GRP01 NEC-GRP02 NEC-GRP03 NEC-GRP04 NEC-GRP05 VBENCH   T2GPU    GOSAT    
+      CHEMINFO LBM      MODTC    CCSCLB   LFDEMGPU SCALELLM NNHEA    MBSLM    
+      ENDOLAB  YAMATP   RIBSIM   HIROSHIM INSITU   IDHUB    NBBG     VALAWARE 
+      TRG2     DAISM    CVLABPJ  NEC-GRP00 TAUTSURO VISLICOT CGG2     TRGG     
+      MECH_LLM IDCHT001 IDCHT002 BINDS2022 AICEL    HP250157 FWSM     IDCHT003 
+      YOSHIDAT FEM01    PROTEING DDIPM    LOOKY    NUCPV25  BBSKB    HAIRDESC 
+      IMSRG25  KASYS    RIST_APP IDEDHPCP ICE2026  HP260103 BRAIN3D  GEOPINN  
+      MEMTSC   KOJIAI   SFC      HP260146 NEMURI   IDCHT004 XRAYDIFF MASKGTTS 
+      PACCSIST 
+    }
+    Refuse submission = {
+      (none)
+    }
+    NUMA Control = ON
+    NUMA option = {
+      Core Bind Policy = concentration
+      Memory Allocation Policy = localalloc
+    }
+    Submit CPU Unit = any
+    NUMA Unit Check = OFF
+    Hold Privilege    = (none)
+    Suspend Privilege = (none)
+    Queue Priority = 30
+    Submit Number Limit       = UNLIMITED
+    Submit User Number Limit  = UNLIMITED
+    Submit Group Number Limit = 200
+    Subrequest Number Limit = 1000
+    Checkpoint Interval = 0
+    Auto Bind JobServer = ON
+    Restart File Directory = /var/opt/nec/nqsv/jsv/rstfdir
+    qattach command = Enable
+    Rerun default = No
+    IntelMPI Process Manager = hydra
+    Hook Function = OFF
+    Exclusive submit = OFF
+    UserExit Timeout = OFF
+    UserPP Timeout = 900
+    File Stageout = ON
+    Delete Failed Urgent Request = OFF
+    Partial Process Swapping = ON
+    GPU-CPU Affinity = OFF
+    GPU-CPU Affinity CPU per GPU = 1
+    NEC MPI Process Manager = mpd
+    Range of Jobs Limit per Batch Request (min,max) = 1,31
+    Range of Request Priority = {
+      manager     (min,max) = -1024,1023
+      operator    (min,max) = -1024,1023
+      specialuser (min,max) = -1024,1023
+      user        (min,max) = -1024,1023
+    }
+    Defined VE Number     = 1
+    Submit VE Node Range (min,max) = 0,UNLIMITED
+    Total Request         = 22
+    Arriving Request      = 0
+    Waiting Request       = 0
+    Queued Request        = 0
+    Pre-running Request   = 0
+    Running Request       = 22
+    Post-running Request  = 0
+    Exiting Request       = 0
+    Held Request          = 0
+    Holding Request       = 0
+    Suspending Request    = 0
+    Suspended Request     = 0
+    Resuming Request      = 0
+    Migrating Request     = 0
+    Staging Request       = 0
+  UserExit Script:
+    Pre-running  = {
+      1st = cleaning_hosts
+      2nd = setting_hosts
+      3rd = setting_beeond
+      4th = setting_pmem
+    }
+    Post-running = {
+      1st = beeond_stop
+      2nd = request_report
+      3rd = setting_hosts
+    }
+  Custom Resources:
+    Share           : Range (min,max) = 1,1          Std = 1          : Permit Unused = No
+  Logical Host Resource Ranges:
+    VE Node Number        = Min:         0 Max: UNLIMITED Warn:       --- Std:         0
+    CPU Number            = Min:        48 Max:        48 Warn:       --- Std:        48
+    GPU Number            = Min:         0 Max: UNLIMITED Warn:       --- Std:         0
+    CPU Time              = Min:        0S Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+    Memory Size           = Min:        0B Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+    Virtual Memory Size   = Min:        0B Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+    VE CPU Time           = Min:        0S Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+    VE Memory Size        = Min:        0B Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+    Stdout Size           = Min:        0B Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+    Stderr Size           = Min:        0B Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+  Logical Host HCA Resource Ranges:
+    For I/O               = Min:         0 Max: UNLIMITED Std:         0
+    For MPI               = Min:         0 Max: UNLIMITED Std:         0
+    For ALL               = Min:         0 Max: UNLIMITED Std:         0
+  VE Node Resource Ranges:
+    VE CPU Time           = Min:        0S Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+    VE Memory Size        = Min:        0B Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED
+  Resources Limits:
+    (Per-Req) Elapse Time Limit       = Max:    86400S Warn:    86400S Std:    86400S 
+    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Job) CPU Number              = Max:        48 Warn:       --- Std:        48 
+    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Job) GPU Number              = Max: UNLIMITED Warn:       --- Std:         0 
+    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- Std:    262144 
+    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED Std: UNLIMITED 
+  Kernel Parameter:
+    Resource Sharing Group     = 0
+    Nice Value                 = 0
+

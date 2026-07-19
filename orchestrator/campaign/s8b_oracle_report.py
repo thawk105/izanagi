@@ -13,8 +13,10 @@ from typing import Optional
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
+ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
+from campaign import env_attestation, env_contract  # noqa: E402
 from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 
@@ -46,7 +48,11 @@ EVENT_KEYS = {
     "budget-refused": {"schedule_index", "reason"},
     "binding-refused": {"schedule_index", "reason"},
     "deviation": {"message"},
+    "campaign-terminal": {
+        "status", "scheduled_rows", "completed_rows", "execution_identity",
+    },
 }
+_EXECUTION_IDENTITY_KEYS = {"job", "host", "boot", "pid", "starttime"}
 
 
 class ReportError(ValueError):
@@ -193,6 +199,25 @@ def _event_contract_issues(payload: Mapping) -> list[str]:
                                    "holdout_id", "configuration_id", "reason", "message"}:
         if not isinstance(payload.get(key), str) or not payload[key]:
             issues.append(f"session event {event}.{key} が非空文字列でない")
+    if event == "campaign-terminal":
+        expected_keys = {"event", *EVENT_KEYS[event]}
+        if set(payload) != expected_keys:
+            issues.append("campaign-terminal の top-level key 集合が不正")
+        if payload.get("status") not in {"completed", "aborted"}:
+            issues.append("campaign-terminal.status が completed/aborted でない")
+        for key in ("scheduled_rows", "completed_rows"):
+            if not _is_int(payload.get(key)) or payload[key] < 0:
+                issues.append(f"campaign-terminal.{key} が非負整数でない")
+        identity = payload.get("execution_identity")
+        if not isinstance(identity, Mapping) or set(identity) != _EXECUTION_IDENTITY_KEYS:
+            issues.append("campaign-terminal.execution_identity の key 集合が不正")
+        else:
+            for key in ("job", "host", "boot"):
+                if not isinstance(identity[key], str) or not identity[key]:
+                    issues.append(f"campaign-terminal.execution_identity.{key} が不正")
+            for key in ("pid", "starttime"):
+                if not _is_int(identity[key]) or identity[key] <= 0:
+                    issues.append(f"campaign-terminal.execution_identity.{key} が不正")
     return issues
 
 
@@ -479,21 +504,8 @@ PIPELINE_ORDER = {
 }
 
 
-def _not_started_reason(records: Sequence[object], item: Mapping) -> Optional[str]:
-    reasons: list[str] = []
-    for record in records:
-        if not _session_event(record):
-            continue
-        payload = record.payload
-        if (payload.get("event") in {"trial-skipped", "budget-refused", "binding-refused"}
-                and payload.get("schedule_index") == item.get("schedule_index")):
-            reason = payload.get("reason")
-            reasons.append(f"{payload.get('event')}: {reason if isinstance(reason, str) else '理由なし'}")
-    return "; ".join(reasons) or None
-
-
 def _receipt_expectations(manifest: Mapping):
-    """manifest run_contract から (env_tag, contract_sha256) を取り出す (v2 のみ)。
+    """manifest run_contract から env contract と verified calibration を導出する。
 
     run_contract を持たない (legacy) manifest では None を返し receipt 検査を課さない。
     v2 (env_tag + contract_sha256 が揃う) manifest でのみ receipt 照合を発火させる。"""
@@ -504,7 +516,40 @@ def _receipt_expectations(manifest: Mapping):
     contract_sha256 = run_contract.get("contract_sha256")
     if (isinstance(env_tag, str) and env_tag
             and isinstance(contract_sha256, str) and contract_sha256):
-        return env_tag, contract_sha256
+        try:
+            contract = env_contract.lookup(env_tag)
+            if contract.contract_sha256 != contract_sha256:
+                raise ReportError("manifest contract_sha256 が registry contract と不一致")
+            verified = env_attestation.load_verified_calibration(contract, ROOT)
+        except (env_contract.EnvContractError, env_attestation.AttestationError) as exc:
+            raise ReportError(f"manifest env contract を検証できない: {exc}") from exc
+        return contract, verified
+    return None
+
+
+def _campaign_terminal_issue(records: Sequence[object], rows: Sequence[Mapping]) -> Optional[str]:
+    """all-or-nothing 公開 gate。未完 campaign の理由を返す。"""
+    terminals = [record.payload for record in records
+                 if _session_event(record, "campaign-terminal")]
+    if len(terminals) != 1:
+        return f"campaign-terminal が一意でない: {len(terminals)}"
+    terminal = terminals[0]
+    schema_issues = _event_contract_issues(terminal)
+    if schema_issues:
+        return "; ".join(schema_issues)
+    if terminal.get("status") != "completed":
+        return f"campaign-terminal.status={terminal.get('status')!r}"
+    scheduled = len(rows)
+    if terminal.get("scheduled_rows") != scheduled:
+        return "campaign-terminal.scheduled_rows が manifest campaign 行数と不一致"
+    if terminal.get("completed_rows") != scheduled:
+        return "campaign-terminal.completed_rows が manifest campaign 行数と不一致"
+    results = [record.payload for record in records if _session_event(record, "trial-result")]
+    actual_indices = [payload.get("schedule_index") for payload in results]
+    expected_indices = [row.get("schedule_index") for row in rows]
+    if (any(not _is_int(index) for index in actual_indices)
+            or not set(expected_indices).issubset(set(actual_indices))):
+        return "campaign-terminal completed だが trial-result の全 schedule 被覆がない"
     return None
 
 
@@ -517,8 +562,8 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         return [{**base, "status": "protocol_violation", "reason": str(exc)} for base in bases]
     root = Path(layout.root)
     if not root.is_dir():
-        return [{**base, "status": "missing-campaign",
-                 "reason": f"manifest campaign directory がない: {campaign_id}"}
+        return [{**base, "status": "campaign-incomplete", "bench_values": [],
+                 "reason": f"campaign-terminal がない (campaign directory 欠落): {campaign_id}"}
                 for base in bases]
     try:
         records = wal.read_records(layout)
@@ -526,6 +571,11 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         return [{**base, "status": "protocol_violation",
                  "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
                 for base in bases]
+
+    terminal_issue = _campaign_terminal_issue(records, rows)
+    if terminal_issue is not None:
+        return [{**base, "status": "campaign-incomplete", "bench_values": [],
+                 "reason": terminal_issue} for base in bases]
 
     campaign_starts = [record.payload for record in records
                        if _session_event(record, "campaign-start")]
@@ -544,15 +594,23 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         # C3-10: manifest が v2 run_contract (env_tag + contract_sha256) を宣言する場合、
         # campaign-start の execution_receipt が env_tag/contract_sha256 と一致し、実行機
         # attestation を持つことを要求する (受理が恒真にならないよう存在と一致を両方検査)。
-        expectations = _receipt_expectations(manifest)
+        try:
+            expectations = _receipt_expectations(manifest)
+        except ReportError as exc:
+            global_issues.append(str(exc))
+            expectations = None
         if expectations is not None:
-            env_tag, contract_sha256 = expectations
+            contract, verified = expectations
             if not execution_guard.receipt_matches_contract(
                     start.get("execution_receipt"),
-                    env_tag=env_tag, contract_sha256=contract_sha256):
+                    env_tag=contract.env_tag,
+                    contract_sha256=contract.contract_sha256,
+                    attestation_mode=contract.attestation_mode,
+                    verified_calibration=(verified if contract.attestation_mode == "required"
+                                          else None)):
                 global_issues.append(
                     "campaign-start.execution_receipt が manifest run_contract の "
-                    "env_tag/contract_sha256 と不一致 (または欠落)")
+                    "env_tag/contract_sha256/attestation と不一致 (または欠落)")
     for record in records:
         if _session_event(record):
             event = record.payload.get("event")
@@ -584,9 +642,6 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
             continue
         windows = windows_by_index.get(item["schedule_index"], [])
         if not windows:
-            reason = _not_started_reason(records, item)
-            if reason:
-                base["reason"] = reason
             output.append(base)
             continue
         attempts = [window[0].payload.get("attempt") for window in windows]

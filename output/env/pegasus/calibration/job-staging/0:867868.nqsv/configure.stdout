@@ -1,0 +1,12 @@
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /scr/0_867868.nqsv/gflags-install/lib/libgflags.a  
+-- Configuring incomplete, errors occurred!
+See also "/scr/0_867868.nqsv/ccbench-build/CMakeFiles/CMakeOutput.log".
