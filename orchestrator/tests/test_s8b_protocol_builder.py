@@ -33,6 +33,7 @@ sys.path.insert(0, str(ORCHESTRATOR))
 from campaign import env_contract as ec  # noqa: E402
 from campaign import s8b_approved  # noqa: E402
 from campaign import s8b_floor_campaign as fc  # noqa: E402
+from tests import repo_tree_util  # noqa: E402
 from tests.skiputil import Skip, skip  # noqa: E402
 
 # 固定 golden 引数。env_tag は登録済み linux-baremetal、freeze/ccbench は実 repo を要求する。
@@ -256,26 +257,74 @@ def test_writer_rejects_non_built_protocol(tmp_path):
 # 実 repo tree 不変                                                             #
 # --------------------------------------------------------------------------- #
 
-def _git_status() -> str:
-    return subprocess.run(
-        ["git", "status", "--porcelain"], cwd=str(ROOT),
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
-    ).stdout.decode("utf-8", "replace")
+@pytest.mark.parametrize(
+    "relative_dest",
+    [Path("protocol.json"), Path("nested/protocol.json")],
+    ids=["top-level", "nested"],
+)
+def test_build_and_write_leave_repo_tree_unchanged(tmp_path, relative_dest):
+    # 2 instance は top-level/nested writer の双方を踏むと同時に、real-repo 収集監査が
+    # parameter suffix 単位で欠落を検出するための positive control になる。
+    def action():
+        built = _build_golden()
+        fc.write_protocol_document(tmp_path / relative_dest, built, root=tmp_path)
+        # 実 repo 凍結領域への書込みは拒否されること (副作用ゼロ) も併せて踏む。
+        with pytest.raises(fc.FloorCampaignError):
+            fc.write_protocol_document(
+                ROOT / "output" / "s8b-freeze" / "nope.json", built)
 
-
-def test_build_and_write_leave_repo_tree_unchanged(tmp_path):
     try:
-        before = _git_status()
-    except (OSError, subprocess.CalledProcessError):
+        repo_tree_util.assert_repo_tree_unchanged(ROOT, action)
+    except repo_tree_util.RepoTreeSnapshotError:
         skip("git status 実行不能")
-    built = _build_golden()
-    fc.write_protocol_document(tmp_path / "protocol.json", built, root=tmp_path)
-    # 実 repo 凍結領域への書込みは拒否されること (副作用ゼロ) も併せて踏む。
-    with pytest.raises(fc.FloorCampaignError):
-        fc.write_protocol_document(
-            ROOT / "output" / "s8b-freeze" / "nope.json", built)
-    after = _git_status()
-    assert before == after, f"実 repo tree が変化した:\nbefore={before!r}\nafter={after!r}"
+
+
+def _snapshot_positive_control_repo(root: Path) -> tuple[Path, Path]:
+    root.mkdir()
+    subprocess.run(
+        ["git", "init", "-q"], cwd=str(root),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    tracked = root / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "tracked.txt"], cwd=str(root),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    existing_untracked = root / "scratch" / "first.txt"
+    existing_untracked.parent.mkdir()
+    existing_untracked.write_text("first\n", encoding="utf-8")
+    return tracked, existing_untracked
+
+
+def test_repo_tree_unchanged_detector_positive_controls(tmp_path):
+    # これは検出器の positive control であり、SUT の E2E 漏出注入ではない。
+    # 各 action は独立した tmp git repo だけを変え、実 repo は汚さない。
+    cases = (
+        ("tracked-change", "tracked.txt",
+         lambda tracked, _untracked: tracked.write_text("changed\n", encoding="utf-8")),
+        ("new-untracked", "new.txt",
+         lambda tracked, _untracked: (tracked.parent / "new.txt").write_text(
+             "new\n", encoding="utf-8")),
+        ("second-in-untracked-dir", "scratch/second.txt",
+         lambda _tracked, untracked: (untracked.parent / "second.txt").write_text(
+             "second\n", encoding="utf-8")),
+        ("tracked-deletion", "tracked.txt",
+         lambda tracked, _untracked: tracked.unlink()),
+    )
+    for label, expected_path, mutate in cases:
+        repo = tmp_path / label
+        tracked, existing_untracked = _snapshot_positive_control_repo(repo)
+        try:
+            repo_tree_util.assert_repo_tree_unchanged(
+                repo, lambda: mutate(tracked, existing_untracked),
+            )
+        except AssertionError as exc:
+            assert expected_path in str(exc), (
+                f"{label}: 差分 path が失敗メッセージにない: {exc}"
+            )
+        else:
+            raise AssertionError(f"{label}: repo tree 変化を検出しなかった")
 
 
 def _run():
@@ -289,6 +338,8 @@ def _run():
             if "tmp_path" in inspect.signature(fn).parameters:
                 tmp = tempfile.mkdtemp(prefix="izanagi_protobuilder_")
                 kwargs["tmp_path"] = Path(tmp)
+            if "relative_dest" in inspect.signature(fn).parameters:
+                kwargs["relative_dest"] = Path("protocol.json")
             fn(**kwargs)
             print(f"PASS {fn.__name__}")
             passed += 1

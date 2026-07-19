@@ -449,8 +449,8 @@ worklog 全読しないと発掘できない状態を解消するためここに
 ### テスト衛生
 
 - **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
-- **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
-- **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (baseline/final を観測値として記録、gate 化なし。worklog 参照)。
+- **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。
 
 ### 裁定・完了記録
 
@@ -458,6 +458,13 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **locked strategy-review-freeze worktree 残骸** (B-038, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 裁定 2026-07-19: 現物不在・過去の処分証拠なしを terminal 記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **user settings の model=fable→opus** (B-050, 出所 `docs/worklog.md`) — 裁定 2026-07-19: fable 既定の継続は意図的として終了し、opus は監査・統合時だけ個別指定。証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **writable 環境で全走 3 連続 rc=0** (B-054, 出所 `docs/worklog.md`) — 裁定 2026-07-19: 3 走各 1899 passed と commit ancestry を根拠に完了記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
+- **(完了 2026-07-19) 実 repo 接触テストの xdist 単一直列 group 化** (2026-07-19 棚卸しの昇格
+  B-051/052/053、worklog 2026-07-19 (7) 承認、D63) — 競合閉包 26 node を conftest 正本リスト +
+  collection hook で単一 `xdist_group("real-repo")` 化、収集監査 (instance 単位・独立 golden)、
+  runner の `--dist loadgroup` 既定化、snapshot 保証を porcelain -z uall raw bytes helper +
+  positive control 4 種へ強化。受入 = 全走緑 + 対象反復 17/17 + worker 同載証拠 (-n2/-n32) +
+  `--dist load` 対照で flake 実再現 (競合相手 = submodule patch 窓を同定)。変異 6/6 KILLED。
+  排他保証は単一 runner invocation 内 (再発時は worktree 隔離 = 裁定済み escalation)。
 - **(完了 2026-07-19) EVOLVE hole の禁止 delimiter byte 規則** (2026-07-19 棚卸しの昇格 B-001、
   worklog 2026-07-19 (7) 承認、D62) — 挿入行の `//`・`/*`・行末 backslash を機械 reject (文字列内も
   拒否する保守則)、テンプレ原文は文脈漏洩 delimiter (`/*` `*/` 行末 backslash) のみ禁止、content 系

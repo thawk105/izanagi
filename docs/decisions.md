@@ -2376,3 +2376,32 @@ review_ledger の SOURCE_FILE_SHA256 と role-adapters を明示更新した。
 リスク節に登載)。完了主張は「literal comment-delimiter 経路の閉鎖」に限定する。
 
 **研究状態への影響:** なし (検疫の強化のみ。計測・主張・凍結に触れない。実テンプレ・patch は不変)。
+
+## D63. テストランナーの分配方式 — 実 repo 接触テストの xdist 単一直列 group (2026-07-19)
+
+**背景:** xdist 並列既定下で実 repo tree snapshot テストの flake (4 走中 1) と、実 submodule を
+patch する writer / patch 窓を読む reader の競合が既知だった (B-051〜053、2026-07-19 ユーザー裁定 =
+「xdist 直列 group 化。worktree 隔離は再発時」= worklog (7))。実装後の対照実験で、`--dist load`
+(直列化なし) では snapshot テストが別 worker の submodule patch 窓を観測して実際に赤くなることを
+確認 (競合相手の同定)。
+
+**決定:** (1) 実 working tree の可変状態 (親 repo full status / 共有 submodule worktree) に触る node
+の競合閉包 (26 node、うち 1 node は source 順依存の意図的 over-approximation) を
+`orchestrator/tests/conftest.py` の正本リストで管理し、collection hook (tryfirst) から単一
+`xdist_group("real-repo")` を付与する (decorator 不使用 = pytest-free 二重 runner 契約の保存。
+二個目の xdist_group は禁止 — group 名結合で排他が壊れる)。(2) 収集監査テストが parameter instance
+単位で正本リスト + テスト内独立 golden との完全一致を機械検査し、SUT の snapshot helper 結線は
+「実処理が guard action 内で走った」まで monkeypatch guard で束縛する。(3) `tools/run_tests.py` は
+xdist 使用時に `--dist loadgroup` を既定付与する (純関数 `_build_pytest_command`、xdist>=2.5 の
+capability 検査、ユーザー引数後勝ち契約は維持し別 `--dist` は警告付き opt-out)。(4) snapshot 保証は
+`git status --porcelain -z --untracked-files=all` の raw bytes 比較 helper へ統合する (untracked
+directory 圧縮の盲点を閉じる。tracked 変更 / 新規 untracked / 既存 untracked dir 内 2 個目 / 削除の
+positive control 4 種)。(5) 本 group の排他保証は**単一 runner invocation 内**に限る — 外部 session
+由来の再発を観測したら、裁定済みの worktree 隔離へ進む。
+
+**却下案:** (a) read/patch の group 分割 — reader と writer が別 worker で並走し保証が消える。
+(b) tracked-only 比較への弱化 — 保証契約違反 (B-051 acceptance)。(c) module 一括 mark —
+tmp-only / immutable reader まで直列化し critical path を過大化する。(d) 最小閉包の厳守 (25 node) —
+source 順変更で到達し得る 1 node を外す利得 (数百 ms) が再 flake リスクに見合わない。
+
+**研究状態への影響:** なし (テスト運用の変更のみ。速度は loadgroup 9.3s vs load 11.2s で退行なし)。
