@@ -871,3 +871,37 @@ output/insights/2026-07-19_backlog-triage-consultations.md。
 2. **テスト衛生 wave**: B-051〜053 の xdist 直列 group 化 (承認済み・未着手。worktree 隔離は再発時)
 3. **C (backlog-guard-mechanism)**: 第 1 条件成立。残る条件 = 機構形式のユーザー裁定 (推奨 = ID + 機械検査)
 4. ユーザー: branch backlog-triage の push 判断 (AI は push しない)
+
+## 2026-07-19 (8) — 承認済み 2 wave 実装: 防壁 (B-001/003) + テスト衛生 (B-051〜053)、B-004 は裁定パッケージ化 (branch approved-waves、計測なし)
+
+worklog (7) 次の一手 1・2。標準ループ (プラン → codex 敵対相談 4 本 [gpt-5.6-sol max、32 所見
+real 32/refuted 0] → 実行 = codex 並列 3 worktree → レビュー = codex 並列 [所見 U1:3 / U2:0 /
+U4:4、全 real] → 親変異 matrix + 受入実測 → 再投げ 4 回)。commit 216078e (B-003)、e427194
+(B-001、D62)、7489b99 (B-051〜053、D63)。相談・レビュー・実行報告の逐語と実測の正本 =
+`output/insights/2026-07-19_approved-waves-consultations.md`。
+
+- **U3 = B-004 は NO-GO → 裁定パッケージ** (同 insights §U3): (a) 定数 pin は承認 extime 値が不在
+  (experiment_numbers 未裁定) で「値の発明」、(b) freeze 一致検査も floor extime_s ≡ oracle extime の
+  authority 未裁定を要する。**X3-52 erratum**: 「reps 束縛完了」は floor 側のみの証拠で oracle
+  manifest は reps=999 も受理 (実測) — oracle 側 reps は unresolved
+- B-057 発火 → 変異 11 件を実装前に事前登録。初版で 2 件生存 (U4 収集監査の自己参照恒真 [F15 型] +
+  SUT 結線 guard 不在) → 是正後 全 KILL。B-056 発火 → coverage baseline/final 観測 (gate 化なし)
+- 対照実験で B-051 の競合相手を同定: `--dist load` では snapshot が別 worker の submodule patch 窓
+  (CCBench submodule) を観測して赤。loadgroup 直列化で対象反復 17/17×2 + 全走連続緑
+- 異常記録: (i) codex 相談 C1 初回投が OpenAI 安全フィルタで途中終了 (98k tokens 浪費) —
+  敵対プロンプトのセキュリティ語彙は防御的表現へ言い換える (再投で完走)。(ii) 統合直後の全走 1 回に
+  1 fail、**ログを tail のみで破棄し node 不明** (親の運用ミス)。直後の同条件 7 連続 + 反復 17/17 は
+  全緑。再発時は failing node ID の保存を第一とする。(iii) codex sandbox は submodule gitdir が
+  read-only で patch 復元不能 — exec worktree の submodule 復元は親が実施する運用
+- 工数: codex 相談 4 + 実行 3 + fix 4 + レビュー 3 (全 gpt-5.6-sol)、親 = fable (裁定・変異・統合)
+
+### 次の一手
+
+1. **ユーザー裁定 (B-004 パッケージ)**: experiment_numbers の extime/reps 値と floor/oracle の
+   同一性 authority (推奨 = authority object 導出の一致検査、insights §U3)。X3-52 の oracle 側 reps
+   unresolved の再裁定を同梱
+2. **ユーザー裁定 (U2 残余 3 述語)**: P_timeout_reason / P_build_reason / P_reason_type_crash
+   (insights §U3 隣接残余。timeout/build-failed の reason 非検査と verify-inconclusive の unhashable
+   TypeError)
+3. C (backlog-guard-mechanism): 変わらず (前エントリ参照 — 機構形式のユーザー裁定待ち)
+4. ユーザー: branch approved-waves の push 判断 (AI は push しない。基点 aba3774 = main)
