@@ -796,6 +796,12 @@ def test_transition_gn_to_gn1_env_tag_change_rejected_unit():
 
 def test_transition_gn_to_gn1_allows_floor_change_unit():
     # 逆に floor/floor_protocol/measurement_closure/header は gN→gN+1 で変わってよい (正常系)。
+    # 裁定根拠: docs/phase3-8b-descriptor-design.md:381 の F5。
+    assert {
+        "/floor", "/floor_protocol", "/floor_source", "/measurement_closure",
+        "/generation_number",
+    } <= M._TRANSITION_GN_TO_GN1
+    assert "/env_tag" not in M._TRANSITION_GN_TO_GN1
     prev = {"env_tag": "linux-baremetal", "floor": None, "generation_number": 1}
     nxt = {"env_tag": "linux-baremetal", "floor": {"rr80": 1.0}, "generation_number": 2}
     M._assert_transition(prev, nxt, M._TRANSITION_GN_TO_GN1, label="g1→g2")  # 例外なし
@@ -1467,9 +1473,11 @@ def test_worktree_executable_mode_drift_rejected(tmp_path):
 
 def test_manifest_mode_100755_accepted_when_g_h_worktree_match(tmp_path):
     _need_v1()
-    root, freeze, _ = _build_launch_repo(tmp_path, executable_role="manifest")
+    root, freeze, topology = _build_launch_repo(tmp_path, executable_role="manifest")
     validated = M.launch_validate(freeze, root)
     assert isinstance(validated, M.LaunchValidatedFreeze)
+    assert topology["mode_map"][topology["paths"]["manifest"]] == "100755"
+    assert validated.ratified is freeze
 
 
 def test_worktree_parent_symlink_rejected_component_walk(tmp_path):

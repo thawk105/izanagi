@@ -798,3 +798,29 @@ worker 起動コストで 32 より遅い)。明示上書き = `-n <数>` (最�
 
 ### 次の一手
 1. ユーザー: branch test-runner-autoscale の push 判断 (Pegasus 規約で AI は push しない)
+
+## 2026-07-19 (5) — テストスイート衛生 wave (branch test-hygiene、計測なし)
+
+handoff 2026-07-19-test-hygiene.md を標準ループ (codex 敵対相談 3 本 → 並列実行 5 単位 → 敵対
+レビュー 3 本 → 親検算) で完遂。相談 13 + レビュー 13 の全 26 所見 real (refuted 0)。逐語と親裁定は
+output/insights/2026-07-19_test-hygiene-consultations.md、調査正本と実行証跡は
+output/insights/2026-07-19_test-suite-hygiene-survey.md。プラン v1 の前提 2 つが相談で反転した
+(「逐語上位集合」不成立 → 固定 baseline 追加後に削除 / 弱テスト 10 件中 4 件は raise-only 契約
+どおりで強化不要)。親検算は gen_S 計算ノードで mutant matrix 10 件 (8 判別 + 2 非判別を明示、
+全件復元後 green) + node-ID 集合 gate (1976→1978、削除 1・追加 3 のみ) + 全スイート緑。
+
+- 素材: 敵対相談がプラン前提を反転させた実例 2 件 (上記)。盲検でなく事前登録 mutant + 第一失敗行
+  記録で「新アサートのみ赤」を機械判定した初の wave
+- flake 所見: test_s8b_protocol_builder の repo-tree snapshot テストが xdist 並列下で 4 走中 1 flake
+  (git status --porcelain 前後比較が untracked 出入りに脆弱)。本 wave の diff から独立
+- 逸脱: 着手条件「3 プラン以外 handoff 空」字義未充足のまま続行 (observability handoff 残存、
+  稼働セッションなし確認、包括的ループ指示を GO と解釈 — 個別明示 GO ではない)
+- セッション異常: codex exec の stdin 未クローズで敵対レビュー 3 本が 100 分停止 (F23 登載)
+- 環境知見は survey insight 実行証跡節に固定 (計算ノード python、pygments、PYTHONPATH)
+
+### 次の一手
+
+1. ユーザー: branch test-hygiene の push 判断 (Pegasus 規約で AI は push しない)
+2. protocol_builder の repo-tree snapshot テストの xdist 耐性 (tracked のみ比較 or 直列化 marker) —
+   処置裁定は backlog-triage (B) の棚卸し表へ
+3. (変わらず) B=backlog-triage は A 完了により着手条件の一部が満ち、ユーザー GO 待ち
