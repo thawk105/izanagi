@@ -24,6 +24,7 @@ for _p in (str(REPO_ROOT), str(ORCH), str(_HERE)):
         sys.path.insert(0, _p)
 
 from campaign import s8b_verdict as verdict  # noqa: E402
+from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from campaign.s8b_selector_input import (  # noqa: E402
     CHOICE_TO_BINDING,
     STATIC_DEFAULT_CHOICE_ID,
@@ -73,7 +74,7 @@ def make_prediction(holdouts: dict) -> dict:
     }
 
 
-def make_oracle(holdouts: dict) -> dict:
+def make_oracle(holdouts: dict) -> artifacts.OfficialVerdict:
     """holdouts = {h: {"verdict":..., "configs": {choice_id: median|dict}}} から oracle verdict を作る。
 
     configs の key は choice_id で書くが、oracle 文書へは binding_key (構成名) へ翻訳して格納する
@@ -101,14 +102,14 @@ def make_oracle(holdouts: dict) -> dict:
             "configurations": configurations,
             "reasons": [],
         }
-    return {
+    return artifacts.OfficialVerdict({
         "schema_version": verdict.ORACLE_SCHEMA,
         "manifest_sha256": "manifest-sha",
         "n_per_cell": 2,
         "status": "determinate",
         "reasons": [],
         "holdouts": out_holdouts,
-    }
+    })
 
 
 def make_floor(pairs: dict, scale_ref) -> dict:
@@ -615,6 +616,26 @@ def test_judge_combined_rejects_unverified_raw_dict():
             expected_holdouts=EXPECTED, scale_tolerance=TOL)
 
 
+def test_judge_combined_rejects_valid_raw_and_exploration_oracle_types():
+    prediction = verdict.VerifiedPrediction(document=make_prediction({
+        H1: {"on": "c01", "off": "c06", "swapped": "c02"},
+        H2: {"on": "c02", "off": "c06", "swapped": "c01"},
+    }))
+    official = make_oracle({
+        H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
+        H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
+    })
+    floor = make_floor(
+        {H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0},
+    )
+    for untyped in (dict(official), artifacts.ExplorationArtifact(official)):
+        with pytest.raises(verdict.VerdictError, match="OfficialVerdict"):
+            verdict.judge_combined(
+                prediction=prediction, oracle=untyped, floor_by_holdout=floor,
+                expected_holdouts=EXPECTED, scale_tolerance=TOL,
+            )
+
+
 # ---- VerifiedPrediction: off=stock / catalog 合法性の機械検査 ------------------
 
 def _valid_off_stock_rows() -> list[dict]:
@@ -839,6 +860,42 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
     # scale_ref 50 と stock median 50 が一致 → adequate、100−50=50>10 → HOLDS。
     assert out["holdouts"][H1]["oracle_floor_exceeded"] == verdict.HOLDS
     assert out["schema_version"] == "8b-combined-verdict/v2"
+
+
+def test_cli_rejects_exploration_oracle_without_output(tmp_path, monkeypatch):
+    freeze_doc = _v2_freeze_document()
+    protocol_path = tmp_path / "protocol.json"
+    protocol_sha = _write_json(protocol_path, {"scale_adequacy_rel_tolerance": "0.10"})
+    freeze_doc["floor_protocol"] = {"path": "protocol.json", "sha256": protocol_sha}
+    freeze_path = tmp_path / "freeze.json"
+    freeze_sha = _write_json(freeze_path, freeze_doc)
+    prediction_path = tmp_path / "prediction.json"
+    prediction_path.write_text(json.dumps(make_prediction({
+        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
+        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
+    })), encoding="utf-8")
+    oracle_path = tmp_path / "oracle.exploration.json"
+    oracle_path.write_text(json.dumps({
+        "schema_version": artifacts.EXPLORATION_ARTIFACT_SCHEMA,
+        "artifact_role": "verdict",
+        "campaign_id": "trial-a",
+        "measurement_hint": {"extime_s": 3, "reps": 3},
+        "payload": {},
+    }), encoding="utf-8")
+    output = tmp_path / "must-not-exist.json"
+    monkeypatch.setattr(
+        verdict, "verify_prediction",
+        lambda document, *, freeze, root: verdict.VerifiedPrediction(document=document),
+    )
+
+    rc = verdict.main([
+        "judge", "--prediction", str(prediction_path), "--oracle", str(oracle_path),
+        "--freeze", str(freeze_path), "--freeze-sha256", freeze_sha,
+        "--root", str(tmp_path), "--out", str(output),
+    ])
+
+    assert rc == 2
+    assert not output.exists()
 
 
 def test_cli_rejects_freeze_sha_mismatch(tmp_path, monkeypatch):

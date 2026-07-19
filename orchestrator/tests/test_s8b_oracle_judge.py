@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import random
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ ORCH = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ORCH))
 
 from campaign import s8b_oracle_judge as judge  # noqa: E402
+from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 
 
 # 注意: holdout の三軸 conjunction は JSON 形の静止リテラルにしない。
@@ -20,7 +22,9 @@ from campaign import s8b_oracle_judge as judge  # noqa: E402
 CONFIGURATIONS = tuple(f"c{i}" for i in range(6))
 
 
-def _observations(*, n: int = 2, holdouts: tuple[str, ...] = ("rr80",)) -> dict:
+def _observations(
+    *, n: int = 2, holdouts: tuple[str, ...] = ("rr80",),
+) -> artifacts.OfficialObservations:
     rows = []
     index = 0
     for holdout_id in holdouts:
@@ -44,8 +48,9 @@ def _observations(*, n: int = 2, holdouts: tuple[str, ...] = ("rr80",)) -> dict:
                     "reason": None,
                 })
                 index += 1
-    return {
+    return artifacts.OfficialObservations({
         "schema_version": judge.INPUT_SCHEMA,
+        "manifest_kind": "official",
         "manifest_sha256": "manifest-sha",
         "n_per_cell": n,
         "expected_cells": [{
@@ -54,7 +59,7 @@ def _observations(*, n: int = 2, holdouts: tuple[str, ...] = ("rr80",)) -> dict:
             "configuration_id": row["configuration_id"],
         } for row in rows],
         "rows": rows,
-    }
+    })
 
 
 def _holdout(verdict: dict) -> dict:
@@ -64,6 +69,7 @@ def _holdout(verdict: dict) -> dict:
 def test_complete_data_has_unique_best():
     result = judge.judge_oracle(_observations())
 
+    assert type(result) is artifacts.OfficialVerdict
     assert _holdout(result)["verdict"] == "unique-best"
     assert _holdout(result)["winner_configuration_id"] == CONFIGURATIONS[-1]
     assert result["status"] == "determinate"
@@ -228,7 +234,7 @@ def test_deleting_every_row_for_one_expected_holdout_is_indeterminate():
     assert any(reason["code"] == "expected-cell-mismatch" for reason in result["reasons"])
 
 
-def _asymmetric_observations() -> dict:
+def _asymmetric_observations() -> artifacts.OfficialObservations:
     """median と mean が乖離する非対称配置 (V9 — C-A #3 の変異 kill 恒久化)。
 
     - c-low: 各 trial [10, 10, 40] → median 10 / mean 20。trial_medians [10,10,10]。
@@ -260,8 +266,9 @@ def _asymmetric_observations() -> dict:
                 "reason": None,
             })
             index += 1
-    return {
+    return artifacts.OfficialObservations({
         "schema_version": judge.INPUT_SCHEMA,
+        "manifest_kind": "official",
         "manifest_sha256": "manifest-sha",
         "n_per_cell": 3,
         "expected_cells": [{
@@ -270,7 +277,7 @@ def _asymmetric_observations() -> dict:
             "configuration_id": row["configuration_id"],
         } for row in rows],
         "rows": rows,
-    }
+    })
 
 
 def test_v9_asymmetric_fixture_pins_median_aggregation():
@@ -301,3 +308,27 @@ def test_v9_median_to_mean_mutation_flips_winner(monkeypatch):
     assert mutated_holdout["configurations"]["c-low"]["median_of_medians"] == 20.0
     assert mutated_holdout["winner_configuration_id"] == "c-low"
     assert mutated != baseline
+
+
+def test_judge_rejects_valid_raw_and_exploration_observation_types():
+    official = _observations()
+    for untyped in (dict(official), artifacts.ExplorationArtifact(official)):
+        with pytest.raises(artifacts.OracleArtifactTypeError, match="exact type"):
+            judge.judge_oracle(untyped)
+
+
+def test_judge_cli_rejects_exploration_input_without_output(tmp_path):
+    source = tmp_path / "observations.exploration.json"
+    source.write_text(json.dumps({
+        "schema_version": artifacts.EXPLORATION_ARTIFACT_SCHEMA,
+        "artifact_role": "observations",
+        "campaign_id": "trial-a",
+        "measurement_hint": {"extime_s": 3, "reps": 3},
+        "payload": {},
+    }), encoding="utf-8")
+    output = tmp_path / "must-not-exist.json"
+
+    rc = judge.main(["judge", "--input", str(source), "--out", str(output)])
+
+    assert rc == 2
+    assert not output.exists()

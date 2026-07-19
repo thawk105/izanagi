@@ -12,9 +12,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Optional
 
+_ORCHESTRATOR = Path(__file__).resolve().parent.parent
+if str(_ORCHESTRATOR) not in sys.path:
+    sys.path.insert(0, str(_ORCHESTRATOR))
 
-INPUT_SCHEMA = "8b-oracle-observations/v1"
-OUTPUT_SCHEMA = "8b-oracle-verdict/v1"
+from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
+
+INPUT_SCHEMA = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
+OUTPUT_SCHEMA = _artifacts.OFFICIAL_VERDICT_SCHEMA
 _EXPECTED_CELL_KEYS = {"schedule_index", "holdout_id", "configuration_id"}
 
 
@@ -115,18 +120,19 @@ def _cell(rows: Sequence[Mapping], n: int, duplicate_indices: set[int]) -> dict:
     }
 
 
-def judge_oracle(observations: Mapping) -> dict:
+def judge_oracle(
+    observations: _artifacts.OfficialObservations,
+) -> _artifacts.OfficialVerdict:
     """holdout ごとの oracle verdict を返す純関数。
 
     集約は各 trial の bench rep 中央値を構成ごとにさらに中央値へ畳む
     median of medians とする。この集約規則はまだ再凍結されておらず、実測開始前に
     明示的な再凍結が必要である。floor は入力にも argmax の tie-break にも使わない。
     """
+    if type(observations) is not _artifacts.OfficialObservations:
+        raise _artifacts.OracleArtifactTypeError(
+            "judge_oracle は OfficialObservations exact type のみ受理する")
     top_reasons: list[dict] = []
-    if not isinstance(observations, Mapping):
-        return {"schema_version": OUTPUT_SCHEMA, "manifest_sha256": None,
-                "n_per_cell": None, "status": "indeterminate", "reasons": [
-                    _reason("input-type", "observations が object でない")], "holdouts": {}}
     if observations.get("schema_version") != INPUT_SCHEMA:
         top_reasons.append(_reason("schema-version", "observations schema_version が不一致"))
     manifest_sha = observations.get("manifest_sha256")
@@ -251,7 +257,7 @@ def judge_oracle(observations: Mapping) -> dict:
     overall = ("indeterminate" if top_reasons or not holdouts
                or any(value["verdict"] == "indeterminate" for value in holdouts.values())
                else "determinate")
-    return {
+    return _artifacts.OfficialVerdict({
         "schema_version": OUTPUT_SCHEMA,
         "manifest_sha256": manifest_sha,
         "n_per_cell": n,
@@ -259,7 +265,7 @@ def judge_oracle(observations: Mapping) -> dict:
         "reasons": sorted((dict(reason) for reason in top_reasons),
                           key=lambda reason: (reason["code"], reason["message"])),
         "holdouts": holdouts,
-    }
+    })
 
 
 def _write_create_only(path: Path, value: Mapping) -> None:
@@ -280,9 +286,10 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        observations = json.loads(args.input.read_text(encoding="utf-8"))
+        observations = _artifacts.load_official_observations(args.input)
         _write_create_only(args.out, judge_oracle(observations))
-    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+    except (OSError, json.JSONDecodeError, _artifacts.OracleArtifactTypeError,
+            TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0

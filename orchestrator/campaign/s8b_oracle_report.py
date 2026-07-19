@@ -18,11 +18,12 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import env_attestation, env_contract  # noqa: E402
 from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
+from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 
 
-SCHEMA_VERSION = "8b-oracle-observations/v1"
+SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
 SESSION_STAGE = "s8b-oracle-session"
 OUTCOMES = {
     "committed", "correctness-red", "build-failed", "timeout", "bench-failed",
@@ -54,6 +55,26 @@ _EXECUTION_IDENTITY_KEYS = {"job", "host", "boot", "pid", "starttime"}
 
 class ReportError(ValueError):
     """manifest または WAL が report 契約を満たさない。"""
+
+
+def _reject_exploration_output_root(output_root: Path) -> None:
+    """realpath 後の namespace marker を検査し official/exploration 混同を拒否する。"""
+    try:
+        resolved = Path(output_root).resolve()
+    except OSError as exc:
+        raise ReportError("output_root を解決できない") from exc
+    marker = resolved / "namespace.json"
+    if marker.is_symlink():
+        raise ReportError("output_root namespace marker が symlink")
+    if not marker.exists():
+        return
+    try:
+        document = _artifacts.strict_load_json_object(marker)
+    except _artifacts.OracleArtifactTypeError as exc:
+        raise ReportError(f"output_root namespace marker が不正: {exc}") from exc
+    if document == {"namespace": "exploration"}:
+        raise ReportError("exploration namespace を official report output_root に指定できない")
+    raise ReportError("output_root namespace marker が official namespace と一致しない")
 
 
 def _is_int(value: object) -> bool:
@@ -698,8 +719,18 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
     return output
 
 
-def build_observations(*, manifest: Mapping, output_root: Path) -> dict:
+def build_observations(
+    *, manifest: _artifacts.OfficialManifest | _artifacts.LegacyManifest,
+    output_root: Path,
+) -> _artifacts.OfficialObservations:
     """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。"""
+    if type(manifest) not in {_artifacts.OfficialManifest, _artifacts.LegacyManifest}:
+        raise _artifacts.OracleArtifactTypeError(
+            "build_observations は OfficialManifest/LegacyManifest exact type のみ受理する")
+    _reject_exploration_output_root(Path(output_root))
+    manifest_kind = (
+        "official" if type(manifest) is _artifacts.OfficialManifest else "legacy"
+    )
     schedule, allowed_excluded, manifest_sha, n = _validate_manifest(manifest)
     by_block, campaign_ids = _campaign_index(manifest["campaign_ids"])
     grouped: dict[str, list[tuple[int, Mapping]]] = {
@@ -730,13 +761,14 @@ def build_observations(*, manifest: Mapping, output_root: Path) -> dict:
         "holdout_id": item["holdout_id"],
         "configuration_id": item["configuration_id"],
     } for item in schedule]
-    return {
+    return _artifacts.OfficialObservations({
         "schema_version": SCHEMA_VERSION,
+        "manifest_kind": manifest_kind,
         "manifest_sha256": manifest_sha,
         "n_per_cell": n,
         "expected_cells": expected_cells,
         "rows": rows,
-    }
+    })
 
 
 def _write_create_only(path: Path, value: Mapping) -> None:
@@ -758,10 +790,11 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+        manifest = _artifacts.load_official_manifest(args.manifest)
         observations = build_observations(manifest=manifest, output_root=args.output_root)
         _write_create_only(args.out, observations)
-    except (OSError, json.JSONDecodeError, ReportError, TypeError, ValueError) as exc:
+    except (OSError, json.JSONDecodeError, _artifacts.OracleArtifactTypeError,
+            ReportError, TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0

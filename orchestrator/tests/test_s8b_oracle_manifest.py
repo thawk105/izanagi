@@ -19,6 +19,7 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 sys.path.insert(0, str(_HERE))
 
 from campaign import s8b_oracle_manifest as manifest  # noqa: E402
+from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 
 
@@ -187,11 +188,24 @@ def test_write_is_create_only_and_valid_manifest_verifies(tmp_path):
     path = tmp_path / "oracle_manifest.json"
     manifest.write_manifest(path, document)
     verified = _verify(path, freeze_path)
+    assert type(document) is artifacts.OfficialManifest
     assert isinstance(verified, manifest.VerifiedManifest)
+    assert type(verified.document) is artifacts.OfficialManifest
     assert verified.document == document
     assert verified.sha256 == _canonical_sha256(document)
     with pytest.raises(manifest.ManifestError, match="既に存在"):
         manifest.write_manifest(path, document)
+
+
+def test_write_manifest_rejects_exploration_and_legacy_artifact_types(tmp_path):
+    exploration = artifacts.ExplorationArtifact({
+        "schema_version": artifacts.EXPLORATION_ARTIFACT_SCHEMA,
+    })
+    legacy = artifacts.LegacyManifest({"campaign_ids": {}})
+    for document in (exploration, legacy, dict(exploration)):
+        with pytest.raises(artifacts.OracleArtifactTypeError, match="OfficialManifest"):
+            manifest.write_manifest(tmp_path / "must-not-exist.json", document)
+    assert not (tmp_path / "must-not-exist.json").exists()
 
 
 @pytest.mark.parametrize("damage", ["missing-key", "duplicate-cell", "wrong-cell"])

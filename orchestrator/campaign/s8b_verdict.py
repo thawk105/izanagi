@@ -61,6 +61,12 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Optional
 
+_ORCHESTRATOR_FOR_IMPORT = Path(__file__).resolve().parents[1]
+if str(_ORCHESTRATOR_FOR_IMPORT) not in sys.path:
+    sys.path.insert(0, str(_ORCHESTRATOR_FOR_IMPORT))
+
+from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
+
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
     if str(_ROOT_FOR_IMPORT) not in sys.path:
@@ -107,9 +113,9 @@ else:
 
 # schema v2: per-pair floor / scale gate / protocol_violations の導入で出力形が
 # 変わったため v1 から bump した (namespace 修正・scale 状態・floor evidence の per-pair 化)。
-SCHEMA_VERSION = "8b-combined-verdict/v2"
+SCHEMA_VERSION = _artifacts.COMBINED_VERDICT_SCHEMA
 PREDICTION_SCHEMA = "8b-selector-prediction-freeze/v1"
-ORACLE_SCHEMA = "8b-oracle-verdict/v1"
+ORACLE_SCHEMA = _artifacts.OFFICIAL_VERDICT_SCHEMA
 
 # 三値: 成立 / 不成立 / 判定不能。
 HOLDS = "holds"
@@ -547,7 +553,7 @@ def _conjunction(verdicts: Sequence[str]) -> str:
     return REFUTED
 
 
-def judge_combined(*, prediction: VerifiedPrediction, oracle: Mapping,
+def judge_combined(*, prediction: VerifiedPrediction, oracle: _artifacts.OfficialVerdict,
                    floor_by_holdout: Mapping, expected_holdouts: object,
                    scale_tolerance: object) -> dict:
     """検証済み prediction・oracle verdict・per-pair floor から §6 の 3 条件と結論を判定する。
@@ -565,6 +571,9 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: Mapping,
     if not isinstance(prediction, VerifiedPrediction):
         raise VerdictError(
             "judge_combined は VerifiedPrediction のみ受理する (未検証 object は渡せない)")
+    if type(oracle) is not _artifacts.OfficialVerdict:
+        raise VerdictError(
+            "judge_combined は OfficialVerdict exact type のみ受理する")
     tolerance = _tolerance_fraction(scale_tolerance)
     if tolerance is None or tolerance < 0:
         raise VerdictError(
@@ -838,7 +847,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         prediction_document = _load_json_object(args.prediction)
         verified_prediction = verify_prediction(
             prediction_document, freeze=freeze_document, root=args.root)
-        oracle = _load_json_object(args.oracle)
+        oracle = _artifacts.load_official_verdict(args.oracle)
 
         verdict = judge_combined(
             prediction=verified_prediction, oracle=oracle,
@@ -846,7 +855,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             scale_tolerance=scale_tolerance)
         _write_create_only(args.out, verdict)
     except (OSError, json.JSONDecodeError, TypeError, ValueError,
-            VerdictError, FreezeIOError, ManifestError, SelectorFreezeError,
+            VerdictError, _artifacts.OracleArtifactTypeError,
+            FreezeIOError, ManifestError, SelectorFreezeError,
             SelectorInputError, DescriptorError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

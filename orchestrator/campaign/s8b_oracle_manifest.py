@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Sequence
 
+from campaign import s8b_oracle_artifacts as _artifacts
 from campaign import s8b_experiment_numbers as _experiment_numbers
 
 
@@ -20,7 +21,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
-SCHEMA_VERSION = "8b-oracle-manifest/v1"
+SCHEMA_VERSION = _artifacts.OFFICIAL_MANIFEST_SCHEMA
 # freeze の stock 構成名。freeze document 自体に「どれが stock か」の明示 field は
 # ないためハードコードし、per-pair floor 検証時に freeze の構成集合に実在すること
 # (一致検査) を _holdout_configuration_ids で強制する (C3-3/C3-1)。
@@ -64,7 +65,7 @@ class VerifiedManifest:
     hash を別 field で持つと未使用の第二 identity を生む。frozen なのは field 束縛の
     再代入防止であって document dict の深い不変化 (C1-7) は後続 wave の責務。
     """
-    document: dict
+    document: _artifacts.OfficialManifest
     sha256: str
 
 
@@ -102,38 +103,11 @@ def _file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _reject_json_constant(token: str):
-    """NaN/Infinity/-Infinity リテラルを fail-closed 拒否する (M3)。"""
-    raise ManifestError(f"JSON に非数値定数リテラルがある: {token}")
-
-
-def _reject_duplicate_keys(pairs):
-    """object_pairs_hook: 同名 key の重複を全階層で拒否する (M3/C3-11)。
-
-    Python の dict は last-wins で重複を黙って畳むため、人間レビューへ先頭値を、
-    実行へ末尾値を見せる曖昧性を許す。全 object にこの hook が適用されるので
-    nested object の重複も拒否できる。
-    """
-    seen: Dict = {}
-    for key, value in pairs:
-        if key in seen:
-            raise ManifestError(f"JSON に重複キーがある: {key!r}")
-        seen[key] = value
-    return seen
-
-
 def _load_json_object(path: Path) -> Dict:
     try:
-        value = json.loads(
-            path.read_text(encoding="utf-8"),
-            parse_constant=_reject_json_constant,
-            object_pairs_hook=_reject_duplicate_keys,
-        )
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ManifestError(f"JSON を読めない: {path}: {exc}") from exc
-    if not isinstance(value, dict):
-        raise ManifestError(f"JSON top-level が object でない: {path}")
-    return value
+        return _artifacts.strict_load_json_object(path)
+    except _artifacts.OracleArtifactTypeError as exc:
+        raise ManifestError(str(exc)) from exc
 
 
 def _is_int(value) -> bool:
@@ -642,7 +616,7 @@ def _manifest_id(document_without_id: Mapping) -> str:
 def build_manifest(
     *, freeze_path, schedule, run_contract, binding_identity, campaign_ids,
     allowed_excluded_reasons, generator_versions, campaign_config_preimages=None,
-) -> dict:
+) -> _artifacts.OfficialManifest:
     """参照 hash と実走契約だけを持つ 8b oracle manifest を組み立てる。"""
     freeze_path = Path(freeze_path)
     freeze = _load_json_object(freeze_path)
@@ -715,7 +689,7 @@ def build_manifest(
         "generator_versions": _validate_generators(generator_versions, root=ROOT),
     }
     document["manifest_id"] = _manifest_id(document)
-    return document
+    return _artifacts.OfficialManifest(document)
 
 
 def _atomic_create_json(path: Path, document: Mapping) -> None:
@@ -750,8 +724,9 @@ def _atomic_create_json(path: Path, document: Mapping) -> None:
 
 def write_manifest(path, manifest) -> None:
     """manifest を create-only の同一 filesystem atomic link で封印する。"""
-    if not isinstance(manifest, Mapping):
-        raise ManifestError("manifest が object でない")
+    if type(manifest) is not _artifacts.OfficialManifest:
+        raise _artifacts.OracleArtifactTypeError(
+            "write_manifest は OfficialManifest exact type のみ受理する")
     _atomic_create_json(Path(path), manifest)
 
 
@@ -842,7 +817,8 @@ def verify_manifest(path, *, root, freeze_document, freeze_sha256) -> VerifiedMa
     recorded_id = without_id.pop("manifest_id", None)
     if recorded_id != _manifest_id(without_id):
         raise ManifestError("manifest_id が内容と一致しない")
-    return VerifiedManifest(document=document, sha256=_canonical_sha256(document))
+    official = _artifacts.OfficialManifest(document)
+    return VerifiedManifest(document=official, sha256=_canonical_sha256(official))
 
 
 def config_for_block(manifest, block_id) -> dict:

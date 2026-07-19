@@ -27,7 +27,8 @@ from campaign import (  # noqa: E402
     s8b_oracle_report as report,
     wal,
 )
-from campaign.layout import campaign_layout  # noqa: E402
+from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from campaign.layout import campaign_layout, exploration_campaign_layout  # noqa: E402
 
 
 # 注意: holdout の三軸 conjunction はテストへ静止させない。
@@ -267,13 +268,87 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
 
     observations = report.build_observations(manifest=manifest, output_root=tmp_path)
 
+    assert type(observations) is artifacts.OfficialObservations
     assert observations["schema_version"] == report.SCHEMA_VERSION
+    assert observations["manifest_kind"] == "official"
     assert [row["status"] for row in observations["rows"][:2]] == ["completed", "completed"]
     assert [row["bench_values"] for row in observations["rows"][:2]] == [
         [10.0, 12.0], [20.0, 24.0],
     ]
     assert all(row["binding_ok"] for row in observations["rows"][:2])
     assert len(observations["expected_cells"]) == len(schedule)
+
+
+def test_report_rejects_valid_raw_and_exploration_manifest_types(tmp_path):
+    official = _manifest(tmp_path)
+    for untyped in (dict(official), artifacts.ExplorationArtifact(official)):
+        with pytest.raises(artifacts.OracleArtifactTypeError, match="exact type"):
+            report.build_observations(manifest=untyped, output_root=tmp_path)
+
+
+def test_staged_legacy_v1_without_run_contract_remains_accepted(tmp_path):
+    document = dict(_manifest(tmp_path))
+    document.pop("run_contract")
+    legacy = artifacts.load_official_manifest(json.dumps(document).encode())
+
+    observations = report.build_observations(manifest=legacy, output_root=tmp_path)
+
+    assert type(legacy) is artifacts.LegacyManifest
+    assert type(observations) is artifacts.OfficialObservations
+    assert observations["manifest_kind"] == "legacy"
+
+
+def test_report_cli_rejects_exploration_manifest_without_output(tmp_path):
+    exploration_root = tmp_path / "isolated"
+    layout = exploration_campaign_layout(
+        "trial-a", output_root=str(exploration_root),
+    ).ensure()
+    manifest_path = Path(layout.reports_dir) / "manifest.exploration.json"
+    manifest_path.write_text(json.dumps({
+        "schema_version": artifacts.EXPLORATION_ARTIFACT_SCHEMA,
+        "artifact_role": "manifest",
+        "campaign_id": "trial-a",
+        "measurement_hint": {"extime_s": 3, "reps": 3},
+        "payload": {},
+    }), encoding="utf-8")
+    output = tmp_path / "must-not-exist.json"
+
+    rc = report.main([
+        "report", "--manifest", str(manifest_path),
+        "--output-root", str(tmp_path), "--out", str(output),
+    ])
+
+    assert rc == 2
+    assert not output.exists()
+
+
+def test_report_rejects_exploration_namespace_and_symlink_alias(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = exploration_campaign_layout("trial-a", output_root=str(tmp_path)).ensure()
+    exploration_root = Path(layout.root).parents[1]
+    alias = tmp_path / "exploration-alias"
+    alias.symlink_to(exploration_root, target_is_directory=True)
+
+    for output_root in (exploration_root, alias):
+        with pytest.raises(report.ReportError, match="exploration namespace"):
+            report.build_observations(manifest=manifest, output_root=output_root)
+
+
+def test_report_cli_rejects_exploration_output_root_without_output(tmp_path):
+    manifest = _manifest(tmp_path)
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    layout = exploration_campaign_layout("trial-a", output_root=str(tmp_path)).ensure()
+    output = tmp_path / "must-not-exist.json"
+
+    rc = report.main([
+        "report", "--manifest", str(manifest_path),
+        "--output-root", str(Path(layout.root).parents[1]),
+        "--out", str(output),
+    ])
+
+    assert rc == 2
+    assert not output.exists()
 
 
 @pytest.mark.parametrize(

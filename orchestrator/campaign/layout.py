@@ -201,15 +201,92 @@ class CampaignLayout:
         return self
 
 
-def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
+def _campaign_slug(campaign_id: str) -> str:
     cid = str(campaign_id)
     # campaign-id は slug (人間入力由来) を含む。パス区切り/相対参照が混じると
-    # output/campaigns/ の外へ書き出しうる → 関所で弾く (path traversal 防御)。
+    # namespace の外へ書き出しうる → 関所で弾く (path traversal 防御)。
     if (not cid or cid in (".", "..") or cid.startswith(".")
             or os.sep in cid or (os.altsep and os.altsep in cid)):
         raise ValueError(f"不正な campaign_id (パス区切り/相対参照を含む): {cid!r}")
+    return cid
+
+
+def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
+    cid = _campaign_slug(campaign_id)
     root = output_root or repo_output_root()
     return CampaignLayout(root=os.path.join(root, "campaigns", cid))
+
+
+_EXPLORATION_NAMESPACE_BYTES = b'{"namespace":"exploration"}\n'
+
+
+@dataclass(frozen=True)
+class ExplorationCampaignLayout:
+    """official CampaignLayout と継承関係を持たない探索専用 layout。"""
+    root: str                   # output/exploration/campaigns/<id>/
+
+    @property
+    def lock_file(self) -> str:
+        return os.path.join(self.root, "campaign.lock")
+
+    @property
+    def spec_dir(self) -> str:
+        return os.path.join(self.root, "spec")
+
+    @property
+    def runs_dir(self) -> str:
+        return os.path.join(self.root, "runs")
+
+    @property
+    def wal_file(self) -> str:
+        return os.path.join(self.runs_dir, "wal.jsonl")
+
+    @property
+    def variants_dir(self) -> str:
+        return os.path.join(self.root, "variants")
+
+    @property
+    def reports_dir(self) -> str:
+        return os.path.join(self.root, "reports")
+
+    @property
+    def insights_dir(self) -> str:
+        return os.path.join(self.root, "insights")
+
+    @property
+    def namespace_file(self) -> str:
+        return os.path.join(os.path.dirname(os.path.dirname(self.root)), "namespace.json")
+
+    def ensure(self) -> "ExplorationCampaignLayout":
+        for d in (self.root, self.spec_dir, self.runs_dir, self.variants_dir,
+                  self.reports_dir, self.insights_dir):
+            os.makedirs(d, exist_ok=True)
+        marker = Path(self.namespace_file)
+        if marker.is_symlink():
+            raise ValueError("exploration namespace marker が symlink")
+        try:
+            with marker.open("xb") as stream:
+                stream.write(_EXPLORATION_NAMESPACE_BYTES)
+                stream.flush()
+                os.fsync(stream.fileno())
+        except FileExistsError:
+            try:
+                existing = marker.read_bytes()
+            except OSError as exc:
+                raise ValueError("exploration namespace marker を読めない") from exc
+            if existing != _EXPLORATION_NAMESPACE_BYTES:
+                raise ValueError("exploration namespace marker が exact contract と不一致")
+        return self
+
+
+def exploration_campaign_layout(
+    campaign_id: str, output_root: str = "",
+) -> ExplorationCampaignLayout:
+    cid = _campaign_slug(campaign_id)
+    root = output_root or repo_output_root()
+    return ExplorationCampaignLayout(
+        root=os.path.join(root, "exploration", "campaigns", cid),
+    )
 
 
 def env_scope_dir(env_tag: str, output_root: str = "") -> str:
