@@ -21,6 +21,7 @@ import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 from campaign import (  # noqa: E402
     env_contract,
     execution_guard,
+    s8b_abort_reason_contract as abort_reason_contract,
     s8b_oracle_judge as judge,
     s8b_oracle_manifest as oracle_manifest,
     s8b_oracle_report as report,
@@ -150,7 +151,8 @@ def _verify(layout, variant: str, tag: str, certified: bool) -> None:
 def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            attempt: int = 1, tps: tuple[float, ...] = (10.0, 12.0),
            screen_marker: bool = False,
-           excluded_reason: str | None = None) -> None:
+           excluded_reason: str | None = None,
+           bench_abort_payload: object | None = None) -> None:
     identity = {
         "schedule_index": item["schedule_index"],
         "holdout_id": item["holdout_id"],
@@ -192,9 +194,11 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
             else:
                 _verify(layout, variant, "s2", True)
                 if outcome == "bench-failed":
-                    wal.log(layout, variant, "abort", "fixture-env", {
-                        "reason": "bench-no-throughput",
-                    })
+                    wal.log(
+                        layout, variant, "abort", "fixture-env",
+                        ({"reason": "bench-no-throughput"}
+                         if bench_abort_payload is None else bench_abort_payload),
+                    )
                 else:
                     payload = {"tps": list(tps), "median_tps": sum(tps) / len(tps)}
                     if screen_marker:
@@ -295,6 +299,76 @@ def test_failure_outcomes_remain_as_completed_observation_rows(
     assert row["outcome"] == expected_outcome
     assert row["legacy_verify"] == legacy
     assert row["s2_verify"] == s2
+
+
+def test_bench_failed_abort_reason_contract_is_closed_literal_set():
+    assert abort_reason_contract.BENCH_FAILED_ABORT_REASONS == frozenset({
+        "bench-competing-tenant",
+        "bench-no-throughput",
+        "bench-cv-undefined",
+    })
+
+
+@pytest.mark.parametrize(
+    "abort_payload",
+    [
+        pytest.param({"reason": "trace-timeout"}, id="outside-closed-set"),
+        pytest.param({}, id="missing-reason"),
+        pytest.param({"reason": None}, id="none-reason"),
+        pytest.param({"reason": ""}, id="empty-reason"),
+        pytest.param(["not-a-mapping"], id="payload-list"),
+        pytest.param({"reason": ["bench-no-throughput"]}, id="reason-list"),
+    ],
+)
+def test_bench_failed_rejects_invalid_abort_reason_without_crashing(
+        tmp_path, abort_payload):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "bench-failed", bench_abort_payload=abort_payload)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "bench-failed 宣言と abort reason 証拠が一致しない" in row["reason"]
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "bench-competing-tenant",
+        "bench-no-throughput",
+        "bench-cv-undefined",
+    ],
+)
+def test_bench_failed_accepts_closed_abort_reason(tmp_path, reason):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "bench-failed", bench_abort_payload={"reason": reason})
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "completed"
+    assert row["reason"] is None
+
+
+def test_bench_failed_duplicate_abort_remains_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "bench-failed")
+    wal.log(layout, VARIANT, "abort", "fixture-env", {
+        "reason": "bench-no-throughput",
+    })
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "terminal pipeline event が重複" in row["reason"]
 
 
 def test_verify_inconclusive_wal_stays_observable_and_judges_indeterminate(tmp_path):

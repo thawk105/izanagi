@@ -23,6 +23,7 @@ ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign import campaign_claim as _campaign_claim  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign import s8b_oracle_manifest as _oracle_manifest  # noqa: E402
@@ -428,8 +429,7 @@ def _outcome_for(result, abort_payload: Mapping) -> str:
             "trace-run-nonzero-exit", "trace-empty", "trace-no-abort-counts",
             "trace-parse-error", "verify-competing-tenant"}:
         return "verify-inconclusive"
-    if reason in {
-            "bench-competing-tenant", "bench-no-throughput", "bench-cv-undefined"}:
+    if reason in _abort_reason_contract.BENCH_FAILED_ABORT_REASONS:
         return "bench-failed"
     raise _UnknownAbortReason(reason)
 

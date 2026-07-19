@@ -458,6 +458,12 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **locked strategy-review-freeze worktree 残骸** (B-038, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 裁定 2026-07-19: 現物不在・過去の処分証拠なしを terminal 記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **user settings の model=fable→opus** (B-050, 出所 `docs/worklog.md`) — 裁定 2026-07-19: fable 既定の継続は意図的として終了し、opus は監査・統合時だけ個別指定。証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **writable 環境で全走 3 連続 rc=0** (B-054, 出所 `docs/worklog.md`) — 裁定 2026-07-19: 3 走各 1899 passed と commit ancestry を根拠に完了記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
+- **(完了 2026-07-19) oracle report の bench-failed abort reason 閉表検査** (2026-07-19 棚卸しの昇格 B-003、
+  worklog 2026-07-19 (7) 承認) — `s8b_oracle_report.py` の bench-failed 分岐に単一連言 (abort 1 件 ∧
+  payload Mapping ∧ reason が str ∧ 閉表内) を追加。閉表は issuer/verifier 共有の stdlib-only leaf
+  `s8b_abort_reason_contract.py` に置き、テストは leaf 非依存の golden 閉表を持つ (負例 6 種 + 変異
+  3/3 KILLED)。timeout / build-failed の同型穴と verify-inconclusive の型堅牢性は scope 外の残余として
+  worklog 次の一手へ (要ユーザー裁定)。
 - **(完了 2026-07-15) ftruncate-xor insight の還元判断欄の追随** (worklog 2026-07-10 (19) 由来) —
   ユーザー承認を受け、insight (2026-06-19) に WAL ftruncate XOR の PR #116 master マージ完了を
   日付付きで追記訂正した。別件 ODR 違反の PR #118 と合わせ、探索由来の上流還元 2 件が完了済み。

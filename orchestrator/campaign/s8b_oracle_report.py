@@ -18,6 +18,7 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import env_attestation, env_contract  # noqa: E402
 from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
+from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 
 
@@ -449,8 +450,16 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     elif outcome in {"timeout", "bench-failed"}:
         if not (counts["abort"] == 1 and counts["commit"] == 0):
             issues.append(f"{outcome} 宣言と abort 証拠が一致しない")
-        if outcome == "bench-failed" and not (legacy == "pass" and s2 == "pass"):
-            issues.append("bench-failed より前の verify が両方 pass でない")
+        if outcome == "bench-failed":
+            if not (
+                    len(abort_records) == 1
+                    and isinstance(abort_records[0].payload, Mapping)
+                    and isinstance(abort_records[0].payload.get("reason"), str)
+                    and abort_records[0].payload.get("reason")
+                    in _abort_reason_contract.BENCH_FAILED_ABORT_REASONS):
+                issues.append("bench-failed 宣言と abort reason 証拠が一致しない")
+            if not (legacy == "pass" and s2 == "pass"):
+                issues.append("bench-failed より前の verify が両方 pass でない")
     elif outcome == "binary-mismatch":
         # C3-5: build_done 後・verify/bench 起動前の TOCTOU abort。build は完了して
         # いるが verify は一切走らず (両 tag missing)、bench も無い。abort reason は
