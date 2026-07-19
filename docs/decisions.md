@@ -1076,6 +1076,10 @@ working_diff, head_text=base_text)` に渡す。これで骨格挿入自体は d
 「HEAD 内容」だが実体は working_diff の削除/context 行の照合基準ゆえ base_text を渡して
 アンカー検証 (行番号詐称封じ) が成立する — 検証は弱まらない。
 
+**(erratum 2026-07-19)** 決定 1 の「`head_text=base_text` でも検証は弱まらない」は不正確 —
+`head_text=base_text` は独立検証性を下げる。2026-07-08 監査の anchor finding。裁定は棚卸し B-035
+(`output/insights/2026-07-19_backlog-triage.md`)。
+
 **決定 2 — 停止条件の三形式 (design v1 §4 確定):** (a) **収束** = 同一方向かつ magnitude=small
 が 3 連続 (`CONVERGE_STREAK`)。段階的 magnitude 変化 (small→medium→large) は「異なる提案」
 として収束と扱わない。(b) **逆方向枯渇** = critic が逆方向を 2 回以上推奨 (`REVERSE_STREAK`)

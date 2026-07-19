@@ -64,7 +64,8 @@ C2-2 検証器本丸 wave も実装完了 (2026-07-18、launch certificate linea
 `output/insights/2026-07-18_env-contract-pegasus-consultations.md`。
 追認リスト 5 項も **2026-07-19 に全項承認済み** (記録 = 同 insights §10.5)。
 残 = protocol JSON 実凍結 + 予測封印 →
-floor 実測 (前提はすべて充足) → v2 候補生成 + 承認 → oracle
+**floor 実測開始前 gate: §5-(viii) 残存限界 (certificate 前削除・ignored 領域・内容 TOCTOU 等) の一覧をユーザーが読み受諾** →
+floor 実測 (既存前提はすべて充足) → v2 候補生成 + 承認 → oracle
 実走 (進捗と残課題の正本 = worklog 末尾エントリ)、
 (b) floor/budget の再実測 → holdout freeze v2 の再凍結 (それまで oracle driver の run 系が gate
 拒否のままなのは設計どおり。実測 env は D59 の env-tag 境界に従う。設計素材 =
@@ -388,11 +389,75 @@ worklog の過去エントリの「次の一手」に載ったまま現行正本
 worklog 全読しないと発掘できない状態を解消するためここに台帳化する (2026-07-05)。**着手義務はない** —
 拾うときは該当タスクに昇格させ、捨てるときは理由をここに書く:
 
-- **balanced での backoff profile 対照** (worklog 2026-06-28) — write-heavy の [P0] は閉じたが balanced の対照 profile は未取得。
-- **over-throttle 有用 IPC 低下の機序分離** (同上) — MLP 低下 vs cache 余熱のどちらかは未分離。
-- **mocc trace-hook** (worklog 2026-06-19) — visible reads の trace 検証 + verifier 2nd エンジン化。S1 発火時に吸収するのが自然。
-- **ermia cross-check** (worklog 2026-06-18) — si 赤 / ermia 緑 の同一エンジン ablation。同上 (版 ID 写像の罠は ccbench-anatomy.md §8 に昇格済み)。
-- **calibration の K 感度・thread 数変更時の再 calibration** (worklog 2026-06-18) — 後続段 6 前提タスク (b) の protocol 別 calibration が部分吸収する。
+### 正しさ・防壁系
+
+- **trigger-loop runbook の verify abort>0 確認** (B-002, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — trigger-loop runbook を再利用し abort>0 gate が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **critic digest への unstable / CV 伝搬** (B-006, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — critic loop が承認され安定性が次提案を左右するのに digest field が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **Gate1 √2 閾値意味論** (B-007, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — Gate1 比較を認証主張に使い √2 意味論が未追認の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **fresh background session での guard_agent 再検証** (B-008, 出所 `docs/worklog.md`) — 新しい background job session の開始時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **guard_agent 防衛候補の裁定** (B-009, 出所 `docs/worklog.md`) — B-008 の再検証で model 無し spawn が通った時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **fairness allowlist 反転** (B-010, 出所 `output/insights/2026-07-12_strategy-review-headline-axis.md`) — sort-strategy が headline 候補となり fairness 字句規則が allowlist でない時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **間接 thid_ gallery 追記** (B-058, 出所 `output/insights/2026-07-12_strategy-review-headline-axis.md`) — sort-strategy が headline 候補となり間接 address 型 fixture が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **range predicate の P record** (B-028, 出所 `output/insights/2026-06-18_phantom-predicate-out-of-scope.md`) — range/predicate workload を承認し trace schema に P record が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **predicate anti-dependency 検出** (B-029, 出所 `output/insights/2026-06-18_phantom-predicate-out-of-scope.md`) — B-028 が発火し predicate rw 検出が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+
+### 研究・計測系
+
+- **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **over-throttle 有用 IPC 低下の機序分離** (B-012, 出所 `docs/phase3.md`) — MLP または cache 余熱への因果帰属を対外説明・consumer が採る時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **mocc trace-hook / verifier 第2 protocol** (B-013, 出所 `docs/phase3.md`) — 旧 headline 2 / 段 7 cross-protocol で mocc を採る時、または visible-invisible correctness ablation を承認した時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **ermia cross-check の再定義 (前提消滅・要再定義)** (B-014, 出所 `docs/phase3.md`) — si と ermia を cross-check protocol 集合へ再採用する時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **calibration 下限 K 感度** (B-015, 出所 `docs/archive/worklog-phase1-2.md`) — 裁定 2026-07-19: K=4 を設計定数として明示承認し、感度主張は行わず終了。論文の機序図または K=4 依存主張の凍結直前に再評価、証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
+- **thread 数変更時の再 calibration** (B-016, 出所 `docs/archive/worklog-phase1-2.md`) — 承認 performance thread に qualifying calibration が無く live floor carrier も無い時。裁定 2026-07-19 保留承認、between-run floor は現行チェックポイントの floor 実測工程が部分的に運ぶ。述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **Threats to Validity の集約** (B-017, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 対外 claim set の凍結直前に限界索引が未集約の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **backoff +38%/+11% の別 boot 再現** (B-018, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 当該値を対外主張へ採り別 boot 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **critic 軸提案の再現率測定** (B-019, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — critic 提案の再現性を claim / gate に使い replay report が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **backoff 再現の rounds≥3** (B-020, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — cross-round 再現性を主張し qualifying round が 3 未満の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **stock 第2・3位 base 上の fix5/fix10 一般性** (B-021, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — stock base 横断の改善を主張し第2・3位 base 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **backoff 動作点 thread/skew/records 拡張** (B-022, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — 単一点を越える動作領域を主張し登録 sweep が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **backoff ピーク位置 fix2/3/5/7 reps≥15** (B-023, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — backoff peak を名指す主張に qualifying grid が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **待ち方と待ち量の直交化 (SMT 分離)** (B-024, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — wait shape / amount へ因果帰属し直交 SMT ablation が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **backoff rmw=1 一点測定** (B-025, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — backoff claim を rmw=true まで広げ qualifying point が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **calibration maxrss 固定オーバヘッド控除** (B-026, 出所 `output/insights/2026-06-18_calibration-no-cache-miss-saturation.md`) — 固定 overhead が maxrss の 5%以上で控除により selected N が変わる時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **calibration sweep の 1m 未満拡張** (B-027, 出所 `output/insights/2026-06-18_calibration-no-cache-miss-saturation.md`) — K 感度の再評価で左打切りが示され最小測定点が 1m の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **axis-proposer 用の既存軸台帳** (B-030, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 発火述語は未定義で、入力文書・axis/hole 集合・review 失敗判定の定義時に再評価。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **共有相手決定時の review snapshot** (B-031, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 外部研究相手と問いを凍結し curated snapshot が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+
+### プロセス文書系
+
+- **CLAUDE.md 作業手順 5 への provenance pointer 配線** (B-032, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — hot path への provenance pointer を承認し現行導線に無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **workflow 要旨返し規律** (B-059, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — workflow 出力を context 境界越しに使い必須 summary schema が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **fan-out 3 本以上の multi-agent 規則** (B-033, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 比較可能な 5 run 以上で独立 task が 3 未満かつ起動・統合・手戻り時間が並列短縮を上回る時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **ultracode 常時オンの見直し** (B-034, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 既定利用が rate/cost 制約を生むか監査品質差を実測した時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **Codex runtime の nested tool exact allowlist** (B-036, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — native runtime 再開をユーザーが承認し exact allowlist または denied-event E2E が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **Codex hook adapter と parity test** (B-037, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 安定した Codex tool-input contract が得られ parity test が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **07-12 (6) の無名「ほか should-fix」** (B-039, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 一次資料から未包含の named should-fix が復元された時。裁定 2026-07-19 保留承認 (現状は裏取り不能)、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **S6 盲検で入力構成への言及禁止** (B-040, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 新しい blind proposal 設計で入力構成への言及禁止が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **S6 c1「軸」定義の明文化** (B-041, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — c1 / axis を rubric で再利用し作用点と政策集合の意味論が未固定の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **Phase 1〜2 failures 4 件の回収** (B-042, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 新 review が Phase 1/2 または該当 failure path を対象にし 4 件が未索引の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **新 workflow 起動前の model lint 継続規則** (B-043, 出所 `docs/worklog.md`) — workflow script を追加・変更し候補へ model lint を未実行の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+
+### 外部環境系
+
+- **資金提供元回答の送付判断** (B-044, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 回答がなお期待され承認文面があり送付確認が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **ソルバ・量子質問への回答作成** (B-045, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 質問がなお open で現行回答が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **他マシン clone の reset / reclone** (B-046, 出所 `docs/worklog.md`) — rewrite 前 history を含む clone を再利用する時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **GitHub PR 本文の session URL 監査** (B-047, 出所 `docs/worklog.md`) — GitHub 接続と対象 PR があり URL 監査記録が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **GitHub refs/pull の Support GC** (B-048, 出所 `docs/worklog.md`) — 物理消去を要求し refs/pull が旧 object を保持して Support 処置が未完の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **fetch --prune 後の tracking ref 最終整合** (B-049, 出所 `docs/worklog.md`) — 実 fetch --prune の実行直前に、実行後の最終 tracking-ref 検査が未設定の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+
+### テスト衛生
+
+- **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+
+### 裁定・完了記録
+
+- **D39 決定 1 の wording 訂正** (B-035, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 裁定 2026-07-19: 独立検証性低下を明記する erratum として D39 へ反映。証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
+- **locked strategy-review-freeze worktree 残骸** (B-038, 出所 `docs/archive/worklog-phase3-0714-0716.md`) — 裁定 2026-07-19: 現物不在・過去の処分証拠なしを terminal 記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
+- **user settings の model=fable→opus** (B-050, 出所 `docs/worklog.md`) — 裁定 2026-07-19: fable 既定の継続は意図的として終了し、opus は監査・統合時だけ個別指定。証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
+- **writable 環境で全走 3 連続 rc=0** (B-054, 出所 `docs/worklog.md`) — 裁定 2026-07-19: 3 走各 1899 passed と commit ancestry を根拠に完了記録。証拠と証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - **(完了 2026-07-15) ftruncate-xor insight の還元判断欄の追随** (worklog 2026-07-10 (19) 由来) —
   ユーザー承認を受け、insight (2026-06-19) に WAL ftruncate XOR の PR #116 master マージ完了を
   日付付きで追記訂正した。別件 ODR 違反の PR #118 と合わせ、探索由来の上流還元 2 件が完了済み。

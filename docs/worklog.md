@@ -852,3 +852,22 @@ output/insights/2026-07-19_backlog-triage-consultations.md。
 2. 裁定後 B2: 生存項目を phase3 見送り台帳・worklog へ反映し、B handoff を削除 (→ C 着手条件成立)
 3. ユーザー: branch backlog-triage の push 判断 (Pegasus 規約で AI は push しない)
 4. (変わらず) test-hygiene の push 判断は worklog (5) 参照。xdist flake の処置裁定は棚卸し表 B-051 へ登載済み
+
+## 2026-07-19 (7) — B2=未消化タスク棚卸しのユーザー裁定反映完了 (branch backlog-triage、計測なし)
+
+ユーザー裁定により棚卸し 59 行が全件確定 (**本エントリが裁定の正本**)。証拠・述語の凍結 =
+`output/insights/2026-07-19_backlog-triage.md` (本文不変)。
+
+- **49 一括承認**: 条件付き保留は発火条件付きで見送り台帳へ、完了確認 B-038/B-054 は terminal 記録
+- **昇格 8**: B-001/003/004/005/035/051/052/053。B-005 (floor 前受諾 gate) と B-035 (D39 erratum) は
+  本反映で完了、残 6 件は承認済み・未着手
+- **代替 2**: B-015 = K=4 を設計定数として感度主張なしで終了 (論文の機序図・K=4 依存主張の凍結直前に
+  再評価)。B-050 = fable 既定継続は意図的、opus は監査・統合時の個別指定のみ
+- B handoff は B2 完遂として削除。反映は codex 全数レビューで検証 (59/59 分類正、所見 5 は表現のみ・是正済み)
+
+### 次の一手
+
+1. **防壁 wave**: B-001 + B-003 + B-004 の実装 (承認済み・未着手)
+2. **テスト衛生 wave**: B-051〜053 の xdist 直列 group 化 (承認済み・未着手。worktree 隔離は再発時)
+3. **C (backlog-guard-mechanism)**: 第 1 条件成立。残る条件 = 機構形式のユーザー裁定 (推奨 = ID + 機械検査)
+4. ユーザー: branch backlog-triage の push 判断 (AI は push しない)
