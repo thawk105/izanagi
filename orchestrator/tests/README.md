@@ -16,15 +16,20 @@ campaign 系は書き込みごとに flush+fsync するため、一時 dir が�
 ### 並列実行 — 推奨の起動方法
 
 ```
-python3 tools/run_tests.py            # スイート全体。xdist 無ければ --user へ自動導入し -n 8
+python3 tools/run_tests.py            # スイート全体。xdist 無ければ --user へ自動導入し自動並列度で
 python3 tools/run_tests.py <pytest引数>  # 対象・-n の上書きはそのまま渡る
+IZANAGI_TEST_NPROC=max python3 tools/run_tests.py  # 上限を外し全 affinity コア
 ```
 
 pytest-xdist は**必須依存にしない** — 自動導入に失敗する環境 (オフライン等) では
 ランナーが直列にフォールバックし、`python3 -m pytest orchestrator/tests` 直叩きも
-従来どおり使える。並列度 8 の根拠と実測は worklog 2026-07-17 (最遅単体テストと
-worker 起動コストで頭打ちになるため上げても得しない)。共有マシン (ログイン
-ノード等) では全コアを掴む `-n auto` を使わない。
+従来どおり使える。並列度は `min(使えるコア数, 上限32)` で環境に自動追従する
+(手調整を無くすため。2026-07-19)。「使えるコア数」は cgroup / CPU affinity を尊重する
+ので、**PBS ジョブ内では割り当て分だけ、素のマシンではコア数どおり**になり、共有ノードの
+login shell でも上限 32 で頭打ちになる (全コアを掴まない行儀を自動で満たす)。上限の根拠は
+実測 (worklog 2026-07-19: 約1946 テストで -n 8/16/32/96 = 18.7/14.6/10.5/13.0s。32 以降は
+worker 起動コストが利得を食い 96 は 32 より遅い)。明示上書きは `-n <数>` (最優先) と
+環境変数 `IZANAGI_TEST_NPROC`。
 
 ## 二重 runner
 
