@@ -207,10 +207,13 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
                 "verdict": "serializable", "certified": True,
                 "workload": {"tag": tag},
             })
-        wal.log(layout, variant, "bench_done", env_tag, {
+        bench_payload = {
             "tps": [10.0, 11.0, 12.0, 13.0, 14.0], "median_tps": 12.0,
             "bench_wall_s": bench_wall_s,
-        })
+        }
+        if kwargs.get("record_rep_returncodes") is True:
+            bench_payload["rep_returncodes"] = [0, 0, 0, 0, 0]
+        wal.log(layout, variant, "bench_done", env_tag, bench_payload)
         wal.log(layout, variant, "commit", env_tag, {
             "fitness_tps": 12.0,
             "verify_configs": [pipeline.LEGACY_TAG, pipeline.S2_TAG],
@@ -1126,8 +1129,9 @@ def test_transient_prepare_failure_retries_once(tmp_path):
     retrying_prepare = _prepare_factory(fail_first=True)
     evaluate_fn = _fake_evaluate_factory()
 
+    output_root = tmp_path / "out"
     result = _run(tmp_path, freeze_path, manifest_path,
-                  retrying_prepare, evaluate_fn)
+                  retrying_prepare, evaluate_fn, output_root=output_root)
 
     prefix = [event["event"] for event in result["events"][:5]]
     assert prefix == [
@@ -1135,6 +1139,14 @@ def test_transient_prepare_failure_retries_once(tmp_path):
     ]
     assert result["events"][2]["attempt"] == 2
     assert len(evaluate_fn.calls) == len(document["schedule"]["rows"])
+    observations_path = tmp_path / "retry-observations.json"
+    assert report_module.main([
+        "report", "--manifest", str(manifest_path),
+        "--output-root", str(output_root), "--out", str(observations_path),
+    ]) == 0
+    observations = json.loads(observations_path.read_bytes())
+    assert all(row["status"] == "completed" for row in observations["rows"])
+    assert all(row["lifecycle_ok"] is True for row in observations["rows"])
 
 
 def test_tampered_freeze_fails_source_verification(tmp_path):
@@ -2001,8 +2013,8 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     )
 
 
-def test_v2_completed_driver_campaign_is_accepted_by_report(tmp_path):
-    """driver の completed WAL は report で 5 個の bench 証拠として読める。"""
+def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
+    """driver adapter の completed WAL は report で 5 個の bench 証拠として読める。"""
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
     out_root = root / "output"
     manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
@@ -2020,8 +2032,108 @@ def test_v2_completed_driver_campaign_is_accepted_by_report(tmp_path):
     observations = json.loads(observations_path.read_bytes())
     assert len(observations["rows"]) == len(document["schedule"]["rows"])
     assert all(row["status"] == "completed" for row in observations["rows"])
+    assert all(row["lifecycle_ok"] is True for row in observations["rows"])
     assert all(row["bench_values"] == [10.0, 11.0, 12.0, 13.0, 14.0]
                for row in observations["rows"])
+
+
+def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path):
+    """M-P5: driver opt-in から run_once までを通し、subprocess だけを fake にする。"""
+    from calibrator import runner as calibrator_runner
+
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(
+        tmp_path, freeze_path, prepare_fn,
+    )
+    prepare_fn.calls.clear()
+    output_root = tmp_path / "producer-flow-out"
+    subprocess_calls = []
+    evaluate_flags = []
+    evaluate_errors = []
+
+    def fake_subprocess(cmd, **kwargs):
+        subprocess_calls.append(list(cmd))
+        perf_path = Path(cmd[cmd.index("-o") + 1])
+        perf_path.write_text(
+            "10,,LLC-load-misses\n"
+            "100,,LLC-loads\n"
+            "300,,instructions\n"
+            "200,,cycles\n",
+            encoding="utf-8",
+        )
+        return type("Completed", (), {
+            "returncode": 0,
+            "stdout": (
+                "throughput[tps]:\t1000\n"
+                "maxrss:\t100 kB\n"
+                "abort_counts_:\t1\n"
+                "commit_counts_:\t1000\n"
+                "latency[ns]:\t10\n"
+            ),
+            "stderr": "",
+        })()
+
+    real_measure_point = calibrator_runner.measure_point
+
+    def measure_with_fake_subprocess(*args, **kwargs):
+        return real_measure_point(
+            *args, **kwargs, require_complete_metrics=True,
+            subprocess_runner=fake_subprocess,
+        )
+
+    def integrated_evaluate(genome, layout, env_tag, ccbench_commit, perf,
+                            clocks_per_us, **kwargs):
+        opted_in = kwargs.get("record_rep_returncodes") is True
+        evaluate_flags.append(opted_in)
+        variant = pipeline.variant_id(genome, kwargs["src_token"])
+
+        def abort(reason, note, extra=None):
+            wal.log(layout, variant, pipeline.STAGE_ABORT, env_tag,
+                    {"reason": reason, **(extra or {})})
+            return pipeline.EvalResult(
+                genome=genome, variant=variant, certified=False, aborted=True,
+                notes=[note],
+            )
+
+        try:
+            aborted, bench = pipeline._run_bench(
+                "/fake/ycsb.exe", perf, clocks_per_us, kwargs["numactl"], False,
+                layout, variant, env_tag, abort, log=lambda _message: None,
+                bench_max_rounds=kwargs["bench_max_rounds"],
+                record_rep_returncodes=opted_in,
+            )
+        except Exception as exc:
+            evaluate_errors.append(f"{type(exc).__name__}: {exc}")
+            raise
+        if aborted is not None:
+            return aborted
+        assert bench is not None
+        return pipeline.EvalResult(
+            genome=genome, variant=variant, certified=True, aborted=False,
+            fitness_tps=bench.median_tps,
+        )
+
+    with mock.patch.object(pipeline, "measure_point", measure_with_fake_subprocess), \
+            mock.patch.object(pipeline, "competing_bench_pids", return_value=[]), \
+            mock.patch.dict(os.environ, {
+                "IZANAGI_BENCH_LOCK": str(tmp_path / "producer-flow.lock"),
+            }):
+        result = _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn,
+            integrated_evaluate, output_root=output_root,
+        )
+
+    assert not evaluate_errors, evaluate_errors
+    assert result["status"] == "completed", result
+    assert evaluate_flags == [True] * len(document["schedule"]["rows"])
+    assert len(subprocess_calls) == 5 * len(evaluate_flags)
+    layout = campaign_layout(result["campaign_id"], output_root=str(output_root))
+    bench_records = [record for record in wal.read_records(layout)
+                     if record.stage == pipeline.STAGE_BENCH_DONE]
+    assert len(bench_records) == len(evaluate_flags)
+    assert all(record.payload["rep_returncodes"] == [0, 0, 0, 0, 0]
+               for record in bench_records)
 
 
 @pytest.mark.skipif(

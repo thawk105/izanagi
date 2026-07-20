@@ -1171,6 +1171,7 @@ def run_block(
                                 expected_perf_sha256=plan.perf_sha_by_cell[
                                     (holdout_id, configuration_id)
                                 ],
+                                record_rep_returncodes=True,
                             )
                     except Exception as exc:
                         result = pipeline.EvalResult(

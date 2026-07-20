@@ -440,7 +440,8 @@ def _red_vr():
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    aborts=7, abort_rate=0.03, build_raises=False,
                    high_variance=False, unstable=False, competing=None,
-                   trace_timeout=False, probe_raises=None):
+                   trace_timeout=False, probe_raises=None,
+                   bench_rounds=None, round_binding="unique"):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。
@@ -453,7 +454,29 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             self.builds = []
             self.build_roots = []
 
+    class ScriptedPoint:
+        """ScalePoint 同様、値等価だが identity は別にできる round fixture。"""
+        def __init__(self, round_median):
+            self.throughputs = ([] if round_median is None else
+                                [round_median, round_median])
+            self.run_cmd = "<run>"
+            self._median = round_median
+
+        def leading_indicators(self):
+            return {"throughput_tps": self._median,
+                    "abort_rate": abort_rate, "latency_ns": 1000.0,
+                    "llc_miss_rate": 0.2, "ipc": 1.5}
+
+        def __eq__(self, other):
+            return (isinstance(other, ScriptedPoint)
+                    and self.throughputs == other.throughputs
+                    and self.run_cmd == other.run_cmd)
+
     bench_calls = CallEvidence()
+    round_specs = list(bench_rounds or [{
+        "median": median, "cv": cv, "rep_returncodes": [0, 0, 0, 0, 0],
+    }])
+    shared_point = {"value": None}
     saved = {}
 
     def patch(name, val):
@@ -465,14 +488,18 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         yield
 
     def fake_measure(*a, **k):
+        index = len(bench_calls)
+        spec = round_specs[index]
         bench_calls.append(1)                            # 実 bench が走った証跡
         bench_calls.events.append("bench")
-        return types.SimpleNamespace(
-            throughputs=([] if median is None else [median, median]),
-            run_cmd="<run>",
-            leading_indicators=lambda: {"throughput_tps": median,
-                                        "abort_rate": abort_rate, "latency_ns": 1000.0,
-                                        "llc_miss_rate": 0.2, "ipc": 1.5})
+        if "rep_returncodes" in k:
+            k["rep_returncodes"].extend(spec["rep_returncodes"])
+        point = ScriptedPoint(spec["median"])
+        if round_binding == "duplicate":
+            if shared_point["value"] is None:
+                shared_point["value"] = point
+            return shared_point["value"]
+        return point
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
         bench_calls.builds.append(("legacy", trace, None))
@@ -524,15 +551,25 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
     def fake_remeasure(measure_fn, settle_fn=None, **k):
-        # 自動再測定を 1 ラウンドに畳む。measure_fn を呼ぶことで実 bench の証跡を残し、
-        # 実 noise_floor 同様 throughput が空なら median=None。median/cv/unstable は引数で操作。
-        pt = measure_fn()
+        # scripted round を全て通し、実装と同じく CV が厳密に低い最初の点を採る。
+        points = [measure_fn() for _ in round_specs]
+        best_index = 0
+        for index in range(1, len(round_specs)):
+            new_cv = round_specs[index]["cv"]
+            best_cv = round_specs[best_index]["cv"]
+            if new_cv is not None and (best_cv is None or new_cv < best_cv):
+                best_index = index
+        selected = round_specs[best_index]
+        pt = points[best_index]
+        if round_binding == "unmatched":
+            pt = ScriptedPoint(selected["median"])
         nf = types.SimpleNamespace(
-            median=(median if pt.throughputs else None), cv=cv,
+            median=(selected["median"] if pt.throughputs else None),
+            cv=selected["cv"],
             high_variance=high_variance)
-        return types.SimpleNamespace(point=pt, nf=nf, rounds=1,
+        return types.SimpleNamespace(point=pt, nf=nf, rounds=len(points),
                                      stable=not unstable, unstable=unstable,
-                                     cv_history=[cv])
+                                     cv_history=[spec["cv"] for spec in round_specs])
 
     patch("bench_lock", fake_lock)
     patch("settle", lambda *a, **k: {"settled": True})
@@ -551,7 +588,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             setattr(pipeline, k, v)
 
 
-def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None, **mock_kw):
+def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
+          record_rep_returncodes=False, **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
     if screening is not None and wal.read_lock(lay) is None:
         cfg = _cfg(search_config={**_cfg().search_config,
@@ -562,7 +600,9 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None, **mock_
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             do_bench=do_bench, screening=screening,
-            expected_perf_sha256=expected_perf_sha256, log=lambda *a: None)
+            expected_perf_sha256=expected_perf_sha256,
+            record_rep_returncodes=record_rep_returncodes,
+            log=lambda *a: None)
     return r, calls
 
 
@@ -622,8 +662,80 @@ def test_pipeline_records_leading_indicators_in_wal():
                        "llc_miss_rate", "ipc"}
     assert li["abort_rate"] == 0.03 and li["ipc"] == 1.5
     assert "screening" not in bench[0].payload
+    assert "rep_returncodes" not in bench[0].payload
     assert isinstance(bench[0].payload.get("bench_wall_s"), float)
     assert bench[0].payload["bench_wall_s"] >= 0.0
+
+
+def test_pipeline_records_returncodes_from_best_middle_round():
+    """M-P2: 最終でなく、CV 最良の中間 round に属する rc だけを記録する。"""
+    lay = _tmp_layout()
+    rounds = [
+        {"median": 100.0, "cv": 0.09, "rep_returncodes": [0, 0, 0, 0, 0]},
+        {"median": 200.0, "cv": 0.06, "rep_returncodes": [0, 0, 4, 0, 0]},
+        {"median": 300.0, "cv": 0.07, "rep_returncodes": [0, 0, 0, 0, 0]},
+    ]
+
+    result, _ = _eval(
+        lay, certified=True, record_rep_returncodes=True,
+        bench_rounds=rounds, unstable=True,
+    )
+
+    assert result.certified and not result.aborted
+    bench = next(rec for rec in wal.read_records(lay)
+                 if rec.stage == STAGE_BENCH_DONE)
+    assert bench.payload["median_tps"] == 200.0
+    assert bench.payload["rep_returncodes"] == [0, 0, 4, 0, 0]
+
+
+def test_pipeline_cv_tie_keeps_first_round_returncodes_by_identity():
+    """M-P3: CV 同値では dataclass 等値でなく、先に採用した点の identity へ結ぶ。"""
+    lay = _tmp_layout()
+    rounds = [
+        {"median": 100.0, "cv": 0.06, "rep_returncodes": [0, 1, 0, 0, 0]},
+        {"median": 100.0, "cv": 0.06, "rep_returncodes": [0, 0, 0, 0, 0]},
+    ]
+
+    result, _ = _eval(
+        lay, certified=True, record_rep_returncodes=True,
+        bench_rounds=rounds, unstable=True,
+    )
+
+    assert result.certified and not result.aborted
+    bench = next(rec for rec in wal.read_records(lay)
+                 if rec.stage == STAGE_BENCH_DONE)
+    assert bench.payload["rep_returncodes"] == [0, 1, 0, 0, 0]
+
+
+def _assert_returncode_round_binding_rejected(round_binding, expected_matches):
+    lay = _tmp_layout()
+    rounds = [
+        {"median": 100.0, "cv": 0.08, "rep_returncodes": [0, 0, 0, 0, 0]},
+        {"median": 100.0, "cv": 0.07, "rep_returncodes": [0, 0, 0, 0, 0]},
+    ]
+
+    result, _ = _eval(
+        lay, certified=True, record_rep_returncodes=True,
+        bench_rounds=rounds, unstable=True, round_binding=round_binding,
+    )
+
+    assert result.aborted
+    records = wal.read_records(lay)
+    assert not any(rec.stage == STAGE_BENCH_DONE for rec in records)
+    assert not any(rec.stage == STAGE_COMMIT for rec in records)
+    abort = [rec for rec in records if rec.stage == STAGE_ABORT][-1]
+    assert abort.payload["reason"] == "bench-returncodes-round-unbound"
+    assert abort.payload["matching_rounds"] == expected_matches
+
+
+def test_pipeline_unmatched_returncode_round_aborts_before_bench_done():
+    """M-P4: 採用点への identity 対応が 0 件なら WAL 性能値を書かない。"""
+    _assert_returncode_round_binding_rejected("unmatched", 0)
+
+
+def test_pipeline_duplicate_returncode_round_aborts_before_bench_done():
+    """M-P4: 採用点への identity 対応が複数なら WAL 性能値を書かない。"""
+    _assert_returncode_round_binding_rejected("duplicate", 2)
 
 
 # _mock_pipeline の fake_build が返す full sha256 (trace=False=perf 側)。

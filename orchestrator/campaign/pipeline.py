@@ -204,6 +204,13 @@ class _BenchResult:
     leading_indicators: Dict
 
 
+@dataclass(frozen=True)
+class _BenchRound:
+    """1 回の measure_point と、その rep 実行順 return code の対応。"""
+    point: object
+    rep_returncodes: List[int]
+
+
 def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                numactl: Optional[Sequence[str]], do_settle: bool,
                layout: CampaignLayout, variant: str, env_tag: str,
@@ -211,6 +218,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                log=print, screening: bool = False,
                bench_payload_extra: Optional[Dict] = None,
                bench_max_rounds: int = 3,
+               record_rep_returncodes: bool = False,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
@@ -228,11 +236,28 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
     # できなくする (値の中身までは踏み込まない — 残りは auditor の静的検査が担う)。
     dummy_tdir = tempfile.mkdtemp(prefix="izanagi_eval_notrace_")
 
+    measured_rounds: List[_BenchRound] = []
+
     def _measure():
-        return measure_point(perf_binary, perf.records, perf.threads, clocks_per_us,
-                             extime=perf.extime, reps=perf.reps,
-                             workload=perf.workload, numactl=numactl,
-                             extra_env={"IZANAGI_TRACE_DIR": dummy_tdir})
+        if not record_rep_returncodes:
+            return measure_point(
+                perf_binary, perf.records, perf.threads, clocks_per_us,
+                extime=perf.extime, reps=perf.reps,
+                workload=perf.workload, numactl=numactl,
+                extra_env={"IZANAGI_TRACE_DIR": dummy_tdir},
+            )
+        rep_returncodes: List[int] = []
+        point = measure_point(
+            perf_binary, perf.records, perf.threads, clocks_per_us,
+            extime=perf.extime, reps=perf.reps,
+            workload=perf.workload, numactl=numactl,
+            extra_env={"IZANAGI_TRACE_DIR": dummy_tdir},
+            rep_returncodes=rep_returncodes,
+        )
+        measured_rounds.append(_BenchRound(
+            point=point, rep_returncodes=rep_returncodes,
+        ))
+        return point
 
     bench_wall_s = 0.0
     try:
@@ -272,6 +297,18 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
     finally:
         shutil.rmtree(dummy_tdir, ignore_errors=True)
     pt, nf = rem.point, rem.nf
+    selected_returncodes: Optional[List[int]] = None
+    if record_rep_returncodes:
+        selected_rounds = [item for item in measured_rounds if rem.point is item.point]
+        if len(selected_rounds) != 1:
+            return abort(
+                "bench-returncodes-round-unbound",
+                "採用 bench round と rep return code の対応が一意でない → reject",
+                {"matching_rounds": len(selected_rounds),
+                 "measured_rounds": len(measured_rounds),
+                 "bench_wall_s": bench_wall_s},
+            ), None
+        selected_returncodes = list(selected_rounds[0].rep_returncodes)
     if nf is None or nf.median is None:
         # 全 rep で throughput が取れず測定不能 → fitness 無しの COMMIT を書かない。
         # 半端な評価を terminal commit にして永久 skip させない (A: atomicity)。
@@ -310,6 +347,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
     }
     if screening:
         bench_payload["screening"] = True
+    if selected_returncodes is not None:
+        bench_payload["rep_returncodes"] = selected_returncodes
     if bench_payload_extra:
         bench_payload.update(bench_payload_extra)
     wal.log(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
@@ -332,7 +371,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              screening: Optional[ScreeningConfig] = None,
              bench_max_rounds: int = 3,
              expected_perf_sha256: Optional[str] = None,
-             env_contract: Optional[ExecutionEnvironmentContract] = None) -> EvalResult:
+             env_contract: Optional[ExecutionEnvironmentContract] = None,
+             record_rep_returncodes: bool = False) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -357,6 +397,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     `env_contract` は v2 consumer 専用の opt-in。指定時だけ contract namespace の
     `build_v2` を使い、未指定 caller (p3 loop を含む) は legacy build の呼出し形も
     namespace も不変に保つ。
+
+    `record_rep_returncodes` も既定 False の opt-in。True の official oracle 経路だけ、
+    採用した再測定 round と identity で一意に対応する rep rc を bench_done に残す。
 
     `screening` (D58) を指定したときだけ full bench を verify より前へ移し、明白な
     劣位点を uncertified のまま棄却する。COMMIT は従来どおり全 verify 構成通過後だけ。
@@ -586,7 +629,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         aborted_result, bench = _run_bench(
             pf.binary, perf, clocks_per_us, numactl, do_settle,
             layout, v, env_tag, _abort, log, screening=True,
-            bench_max_rounds=bench_max_rounds)
+            bench_max_rounds=bench_max_rounds,
+            record_rep_returncodes=record_rep_returncodes)
         if aborted_result is not None:
             return aborted_result
         assert bench is not None
@@ -670,7 +714,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 pf.binary, perf, clocks_per_us, numactl, do_settle,
                 layout, v, env_tag, _abort, log,
                 bench_payload_extra=screening_disabled_payload,
-                bench_max_rounds=bench_max_rounds)
+                bench_max_rounds=bench_max_rounds,
+                record_rep_returncodes=record_rep_returncodes)
             if aborted_result is not None:
                 return aborted_result
         assert bench is not None

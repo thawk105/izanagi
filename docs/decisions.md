@@ -2520,3 +2520,57 @@ flock + O_APPEND + 冪等 event_id を採用)。campaign WAL の読み出し契�
 実測 = 31/32 KILLED + M30 は二重防壁の等価変異と判明し両層同時 (M30c) で KILLED (単層 M30a/M30b の
 生存は冗長防壁のマスクであることを実測で確認)。逐語・台帳 =
 `output/insights/2026-07-20_task-run-ledger-consultations.md` + 同 `-mutation-ledger.json`。
+
+## D67. attempt lifecycle の閉表化と rep returncode の証拠化 — 「証拠 truth table」の 2 つの穴を塞ぐ (2026-07-20)
+
+**決定:** worklog (8) のユーザー裁定 (P-C2 = 推奨案、P-C1 = (b)) を実装する。s8b oracle report の
+「証拠 truth table を検証する」契約に空いていた 2 つの穴を、いずれも**厳格化方向のみ**で塞ぐ。
+
+(1) **P-C2 — attempt lifecycle の閉表化 (per-row DFA)。** 従来は正当な transient prepare retry
+(driver:1204-1210 が `S(i,1) → R(i,2) → S(i,2) → pipeline → T(i,2)` を発行する) を
+protocol_violation と誤判定していた (attempt 1 の window に trial-result が無いため invalid になり、
+成功した attempt 2 を「過去 attempt が invalid」で上書きしていた)。**当初案の「trial-result が 0 件の
+window だけを特例で免責する」局所修正は敵対相談で却下した** — それでは lifecycle が閉じず、
+`S(i,1)→P→T(i,1)→R(i,2)→S(i,2)→P→T(i,2)` のような**正規 driver には作れない列**を report が受理し、
+偽造 attempt 2 の性能値が正式標本になる危険側の偽陰性が残るため (driver:1263 が trial-result 後に
+必ず `row_done=True; break` するので 1 行 = trial-result ちょうど 1 件)。採用した DFA は受理形を
+`S1 → pipeline → T1` と `S1 → R(next=2) → S2 → pipeline → T2` の二形に限定し、**retry と
+trial-result の双方を窓へ全単射に束縛**する (未束縛・start 前・対応 start なし・identity 不一致・
+schedule 外は赤)。attempt 集合は `frozenset({1})` / `frozenset({1,2})` の厳密一致、順序と隣接性は
+単一の physical-topology 述語、trial-result は全 pipeline evidence より物理的に後ろであることを要求する。
+(2) **lifecycle と definitive-red の同時表現。** lifecycle 違反時に status を白へ戻さず
+protocol_violation とし、reason に correctness-red と lifecycle 違反の**双方**を残す。global issue が
+あっても resultful window の評価を先に行い、red が出力から消えないようにする (規律3)。
+既存 `test_definitive_red_survives_later_committed_retry` が固定していた列は正規 driver に作れない列
+であり、新契約では protocol_violation。anti-masking の意図 (緑が赤を隠さない) は a fortiori で保たれる。
+(3) **P-C1(b) — rep returncode の証拠化。** 従来は official 経路が `require_all_reps` を渡さず
+`strict_returncode` が未設定のため、rc≠0 でも tps が parse できれば report の件数検査 (5/5) を通った。
+`run_once` に**末尾 optional の out-list** を足し (3-tuple と既存 monkeypatch seam は不変)、subprocess
+完了直後・strict 判定より前に rc を記録する。`bench_done.rep_returncodes` を report が検査し
+(非 bool int・件数 = APPROVED_REPS・全ゼロ)、tps と rc の**双方**が成立して初めて `bench_values` を
+公開する。欠落は補完せず赤 (legacy manifest も免除しない)。
+(4) **採用ラウンドと rc の対応は object 同一性で引く。** `remeasure_until_stable` は最終ラウンドでなく
+**最小 CV のラウンド**の ScalePoint 参照を返すため、index や dataclass equality で引くと tps と rc が
+別ラウンドになり「5 件とも rc=0」が恒真化する。`(point, rep_returncodes)` を束ねた wrapper を保持し
+`rem.point is item.point` で選び、一致がちょうど 1 件でなければ `bench_done` を書かず fail-closed。
+(5) **layer3 との互換。** 公開 flag 経由で generic campaign が新 key を出すと、`_view_row` が payload を
+素通しする一方 `layer3_schema.json` の `runs.items` が `additionalProperties: false` のため落ちる。
+schema に optional `rep_returncodes` を追加し、**文字列 presence でなく実 `_view_row`→`build_report()`
+を通す**検証テストで固定した。(実 official WAL は `s8b-oracle-session` stage が layer3 の stage 白名簿で
+先に弾かれるため現行経路では layer3 へ流れない — 当初 high と見積もった衝突は敵対相談で反証された。)
+(6) **脅威境界 (明記):** この閉表は**正直だがバグりうる producer に対する構造検査**であり、
+**任意改竄への真正性証明ではない**。WAL の duplicate key 最後勝ち・hash chain 不在は本 wave の scope
+外であり、report の module docstring にも明記した。「証明可能」「改竄不能」とは書かない。
+(7) **scope 外 → 裁定パッケージ (実装しない、ユーザー裁定待ち):** campaign-terminal の物理位置が
+未検査 (terminal 前置の列が completed になる) / session record の issuer (`variant`) と `env_tag` が
+未照合 (既存 fixture 自体が manifest と不一致の env を使っている) / WAL 改竄耐性 (duplicate key
+拒否・hash chain)。いずれも敵対相談で real と判定したが、ユーザー裁定の scope (prepare retry の
+偽陽性と rc の証拠化) の外にあり、terminal-last のような条件は driver が terminal 後に書く record との
+整合検証を要するため拙速に入れると今回直した型の偽陽性を作る。
+(8) **プロセス:** ハイブリッド標準ループ (brief → codex プラン起草 max → 敵対相談 2 並列 max
+[プラン v1 NO-GO] → 親裁定 → 実装 codex 2 単位並列 high → 敵対レビュー 2 並列 [4 所見、2 本が独立に
+同一箇所へ収束、全 real] → fix 1 単位 max → 変異 matrix)。変異は実装前事前登録 (B-057)、実測 =
+**18/18 KILLED・全て帰属成立**。ただし**初回集計で 2 件を誤って「実効」と数えた** — 受理集合を変えない
+変異が理由文字列の変化だけで赤くなっていた (過剰決定 fixture)。レビューの指摘と親の追試で判明し、
+ゲートの構造分離と単一理由 fixture への差し替えで是正した。経緯は
+`output/insights/2026-07-20_pc2-pc1b-mutation-ledger.md` の erratum。逐語 = 同 `-loop.md`。

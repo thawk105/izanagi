@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""8b oracle session WAL を全 schedule 行の observations へ射影する。"""
+"""8b oracle session WAL を全 schedule 行の observations へ射影する。
+
+この構造検査の脅威モデルは、正直だがバグりうる producer である。任意改竄に対する
+真正性の保証ではない。WAL の duplicate key が最後勝ちになる問題と hash chain の不在は
+本 wave の scope 外である。
+"""
 from __future__ import annotations
 
 import argparse
@@ -47,6 +52,18 @@ EVENT_KEYS = {
     },
 }
 _EXECUTION_IDENTITY_KEYS = {"job", "host", "boot", "pid", "starttime"}
+_TRIAL_IDENTITY_KEYS = (
+    "schedule_index", "holdout_id", "configuration_id", "attempt",
+)
+_ROW_LIFECYCLE_EVENTS = frozenset({
+    "trial-start", "trial-result", "retry", "trial-skipped",
+    "budget-refused", "binding-refused",
+})
+# campaign-terminal 等は row の S -> pipeline -> T lifecycle の外で検査する。
+# この分離により、最後の trial-result 後の campaign-terminal は row tail とみなさない。
+_CAMPAIGN_LEVEL_EVENTS = frozenset({
+    "campaign-start", "campaign-terminal", "deviation",
+})
 
 
 class ReportError(ValueError):
@@ -227,6 +244,7 @@ def _base_row(item: Mapping) -> dict:
         "schedule_index": index, "block_id": block, "holdout_id": holdout,
         "configuration_id": configuration, "attempt": attempt,
         "status": "not-started", "outcome": None, "binding_ok": False,
+        "lifecycle_ok": False,
         "legacy_verify": "missing", "s2_verify": "missing", "bench_values": [],
         "excluded_reason": None, "screen_outcome": "not_enabled",
         "attempt_verify_outcomes": [],
@@ -287,6 +305,201 @@ def _trial_windows(records: Sequence[object]) -> list[list[object]]:
         stop = starts[pos + 1] if pos + 1 < len(starts) else len(records)
         windows.append(list(records[start:stop]))
     return windows
+
+
+def _pipeline_event(record: object) -> bool:
+    stage = getattr(record, "stage", None)
+    return (isinstance(stage, str)
+            and stage in _outcome_stage_contract.PIPELINE_STAGES)
+
+
+def _row_lifecycle_event(record: object) -> bool:
+    return (_session_event(record)
+            and record.payload.get("event") in _ROW_LIFECYCLE_EVENTS)
+
+
+def _campaign_level_event(record: object) -> bool:
+    return (_session_event(record)
+            and record.payload.get("event") in _CAMPAIGN_LEVEL_EVENTS)
+
+
+def _terminal_result_binding(
+    item: Mapping,
+    window: Sequence[object],
+    record_ordinals: Mapping[int, int],
+) -> tuple[Mapping, list[str], list[str]]:
+    """terminal window の T を start identity と物理順へ一意に束縛する。"""
+    start = window[0].payload
+    result_records = [
+        record for record in window if _session_event(record, "trial-result")
+    ]
+    identity_issues: list[str] = []
+    lifecycle_issues: list[str] = []
+    if len(result_records) != 1:
+        identity_issues.append(f"trial-result が一意でない: {len(result_records)}")
+    result_record = result_records[-1] if result_records else None
+    result = result_record.payload if result_record is not None else {}
+
+    for key in _TRIAL_IDENTITY_KEYS:
+        if key != "attempt" or key in item:
+            if start.get(key) != item.get(key):
+                identity_issues.append(f"trial-start.{key} が schedule と不一致")
+        if result.get(key) != start.get(key):
+            identity_issues.append(f"trial-result.{key} が trial-start と不一致")
+
+    if len(result_records) == 1:
+        result_ordinal = record_ordinals[id(result_record)]
+        if any(
+            record_ordinals[id(record)] > result_ordinal
+            for record in window
+            if _pipeline_event(record)
+        ):
+            # 「全 pipeline evidence より後ろ」と「T 後に pipeline がない」は
+            # 同じ ordinal 述語であり、二重 gate にしない。
+            lifecycle_issues.append(
+                "trial-result が全 pipeline evidence より物理的に後ろでない"
+            )
+        if any(
+            record_ordinals[id(record)] > result_ordinal
+            for record in window
+            if record is not result_record and _row_lifecycle_event(record)
+        ):
+            # campaign-level event は上の明示集合によりここへ入らない。
+            lifecycle_issues.append("trial-result 後に row-scoped session event がある")
+    return result, identity_issues, lifecycle_issues
+
+
+def _attempt_lifecycle_plan(
+    item: Mapping,
+    windows: Sequence[Sequence[object]],
+    all_windows: Sequence[Sequence[object]],
+    record_ordinals: Mapping[int, int],
+) -> dict:
+    """一 schedule 行の二形 DFA を WAL の物理順のまま検査する。"""
+    attempts = [window[0].payload.get("attempt") for window in windows]
+    plan = {
+        "valid": False,
+        "reason": None,
+        "terminal_window": None,
+        "retried_summaries": [],
+        "claimed_retry_ids": set(),
+        "accounted_result_ids": {
+            id(record)
+            for window in windows
+            for record in window
+            if _session_event(record, "trial-result")
+        },
+    }
+    if any(not _is_int(attempt) for attempt in attempts):
+        plan["reason"] = (
+            "attempt lifecycle の attempt 集合が {1} / {1,2} と厳密一致しない: "
+            f"{attempts!r}"
+        )
+        return plan
+
+    # 方針 (i): 集合述語は frozenset だけを見て、物理順を再検査しない。
+    # attempt 番号で window を対応付けた後、下の ordinal 述語だけが順序を担う。
+    # これにより順序 gate の変異を、集合/形状 gate から独立に帰属できる。
+    attempt_set = frozenset(attempts)
+    if attempt_set not in {frozenset({1}), frozenset({1, 2})}:
+        plan["reason"] = (
+            "attempt lifecycle の attempt 集合が {1} / {1,2} と厳密一致しない: "
+            f"{attempts!r}"
+        )
+        return plan
+    if len(attempts) != len(attempt_set):
+        plan["reason"] = f"attempt lifecycle の attempt が重複: {attempts!r}"
+        return plan
+
+    windows_by_attempt = {
+        window[0].payload["attempt"]: window for window in windows
+    }
+    if attempt_set == frozenset({1}):
+        terminal = windows_by_attempt[1]
+        _, identity_issues, ordering_issues = _terminal_result_binding(
+            item, terminal, record_ordinals,
+        )
+        binding_issues = [*identity_issues, *ordering_issues]
+        if binding_issues:
+            plan["reason"] = binding_issues[0]
+            return plan
+        plan.update(valid=True, terminal_window=terminal)
+        return plan
+
+    first = windows_by_attempt[1]
+    second = windows_by_attempt[2]
+    retries = [record for record in first if _session_event(record, "retry")]
+    plan["claimed_retry_ids"].update(id(record) for record in retries)
+    if len(retries) != 1:
+        plan["reason"] = f"attempt 1 retry record が一意でない: {len(retries)}"
+        return plan
+    if any(_session_event(record, "trial-result") for record in first[1:]):
+        plan["reason"] = "attempt 1 retry window が result-less でない"
+        return plan
+    if any(_pipeline_event(record) for record in first[1:]):
+        plan["reason"] = "attempt 1 retry window に pipeline record が混在"
+        return plan
+    retry_shape_records = [
+        record for record in first
+        if not _pipeline_event(record) and not _campaign_level_event(record)
+    ]
+    if len(retry_shape_records) != 2:
+        # pipeline は直前の専用述語だけで検査する。ここは S/retry 以外の
+        # 非 campaign-level record を捕らえる exact-shape gate である。
+        plan["reason"] = (
+            "attempt 1 retry window が [trial-start, retry] ちょうど 2 record でない"
+        )
+        return plan
+
+    first_start = first[0].payload
+    for key in ("schedule_index", "holdout_id", "configuration_id"):
+        if first_start.get(key) != item.get(key):
+            plan["reason"] = f"attempt 1 trial-start.{key} が schedule と不一致"
+            return plan
+    retry = retries[0].payload
+    if retry.get("schedule_index") != item.get("schedule_index"):
+        plan["reason"] = "retry.schedule_index が schedule と不一致"
+        return plan
+    if retry.get("attempt") != 2:
+        plan["reason"] = "retry.attempt が next attempt=2 と不一致"
+        return plan
+
+    _, identity_issues, ordering_issues = _terminal_result_binding(
+        item, second, record_ordinals,
+    )
+    terminal_binding_issues = [*identity_issues, *ordering_issues]
+    if terminal_binding_issues:
+        plan["reason"] = terminal_binding_issues[0]
+        return plan
+
+    physical_ordinals = {
+        id(window[0]): ordinal for ordinal, window in enumerate(all_windows)
+    }
+    first_ordinal = physical_ordinals[id(first[0])]
+    second_ordinal = physical_ordinals[id(second[0])]
+    # 順方向と隣接性は一つの physical-topology 述語で受理集合を決める。
+    # 内側の分岐は診断文の選択だけで、第二の reject gate ではない。
+    if second_ordinal != first_ordinal + 1:
+        plan["reason"] = (
+            f"attempt lifecycle の物理順が 1→2 でない: {attempts!r}"
+            if second_ordinal < first_ordinal
+            else "attempt 2 が attempt 1 の物理的直後でない"
+        )
+        return plan
+
+    plan.update(
+        valid=True,
+        terminal_window=second,
+        retried_summaries=[{
+            "attempt": 1,
+            "status": "retried",
+            "outcome": None,
+            "binding_ok": False,
+            "legacy_verify": "missing",
+            "s2_verify": "missing",
+        }],
+    )
+    return plan
 
 
 def _screen_marker(value: object) -> bool:
@@ -434,26 +647,16 @@ def _abort_workload_evidence(abort_records: Sequence[object]) -> tuple[str, list
 
 def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
                    allowed_excluded: set[str], expected_reps: int,
+                   record_ordinals: Mapping[int, int],
                    payload_issues: Sequence[str] = ()) -> dict:
     row = _base_row(item)
     start = window[0].payload
-    results = [record.payload for record in window if _session_event(record, "trial-result")]
-    issues: list[str] = []
-    identity = ("schedule_index", "holdout_id", "configuration_id", "attempt")
-    for key in identity:
-        if key == "attempt" and key not in item:
-            continue
-        expected = item.get(key)
-        if start.get(key) != expected:
-            issues.append(f"trial-start.{key} が schedule と不一致")
-    if len(results) != 1:
-        issues.append(f"trial-result が一意でない: {len(results)}")
-        result: Mapping = results[-1] if results else {}
-    else:
-        result = results[0]
-    for key in identity:
-        if result.get(key) != start.get(key):
-            issues.append(f"trial-result.{key} が trial-start と不一致")
+    result, result_identity_issues, _ = _terminal_result_binding(
+        item, window, record_ordinals,
+    )
+    # lifecycle order/tail は DFA 側で status を赤にする。ここでは pipeline の
+    # definitive-red assessment を lifecycle 違反で失わないよう identity だけを加える。
+    issues: list[str] = list(result_identity_issues)
 
     outcome = result.get("outcome")
     excluded = result.get("excluded_reason")
@@ -524,8 +727,10 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     if len(benches) > 1:
         issues.append(f"bench_done が一意でない: {len(benches)}")
     elif len(benches) == 1:
-        raw_values = _safe_payload(benches[0]).get("tps")
+        bench_payload = _safe_payload(benches[0])
+        raw_values = bench_payload.get("tps")
         projected = _artifacts.project_finite_float_sequence(raw_values)
+        tps_ok = False
         if projected is None:
             issues.append("bench_done.tps が空または非有限値を含む")
         elif len(projected) != expected_reps:
@@ -533,6 +738,24 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
                 "bench_done.tps 件数が official reps と不一致: "
                 f"actual={len(projected)}, expected={expected_reps}")
         else:
+            tps_ok = True
+
+        raw_returncodes = bench_payload.get("rep_returncodes")
+        returncodes_ok = False
+        if (not isinstance(raw_returncodes, Sequence)
+                or isinstance(raw_returncodes, (str, bytes, bytearray))):
+            issues.append("bench_done.rep_returncodes が array でない")
+        elif any(not _is_int(value) for value in raw_returncodes):
+            issues.append("bench_done.rep_returncodes に非 int または bool がある")
+        elif len(raw_returncodes) != expected_reps:
+            issues.append(
+                "bench_done.rep_returncodes 件数が official reps と不一致: "
+                f"actual={len(raw_returncodes)}, expected={expected_reps}")
+        elif any(value != 0 for value in raw_returncodes):
+            issues.append("bench_done.rep_returncodes に非ゼロがある")
+        else:
+            returncodes_ok = True
+        if tps_ok and returncodes_ok:
             bench_values = projected
 
     counts = {stage: sum(record.stage == stage for record in pipeline_records)
@@ -613,7 +836,8 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
 
     row.update(
         attempt=start.get("attempt", row["attempt"]), status="completed", outcome=outcome,
-        binding_ok=binding_ok, legacy_verify=legacy, s2_verify=s2,
+        binding_ok=binding_ok, lifecycle_ok=True,
+        legacy_verify=legacy, s2_verify=s2,
         bench_values=bench_values, excluded_reason=excluded,
         screen_outcome=screen_outcome if isinstance(screen_outcome, str) else "not_enabled",
         attempt_verify_outcomes=[{
@@ -705,6 +929,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                  "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
                 for base in bases]
 
+    record_ordinals = {id(record): ordinal for ordinal, record in enumerate(records)}
     payload_issue_by_record = _pipeline_payload_issues(records)
     windows = _trial_windows(records)
     payload_issues_by_index: dict[int, list[str]] = {}
@@ -789,6 +1014,17 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
             global_issues.extend(_event_contract_issues(record.payload))
             if event == "deviation":
                 global_issues.append(f"deviation: {record.payload.get('message')!r}")
+    terminal_ordinal = next(
+        index for index, record in enumerate(records)
+        if _session_event(record, "campaign-terminal")
+    )
+    if any(
+        _row_lifecycle_event(record) or _pipeline_event(record)
+        for record in records[terminal_ordinal + 1:]
+    ):
+        global_issues.append(
+            "campaign-terminal より後に row-scoped/pipeline event がある"
+        )
     first_trial = next((index for index, record in enumerate(records)
                         if _session_event(record, "trial-start")), len(records))
     if any(isinstance(record.stage, str)
@@ -807,55 +1043,166 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
     if orphan_indices:
         global_issues.append(
             f"trial-start.schedule_index が schedule 外: {orphan_indices!r}")
+
+    lifecycle_plans = {
+        item["schedule_index"]: _attempt_lifecycle_plan(
+            item, windows_by_index.get(item["schedule_index"], []), windows,
+            record_ordinals,
+        )
+        for item in rows
+    }
+    claimed_retry_ids = {
+        retry_id
+        for plan in lifecycle_plans.values()
+        for retry_id in plan["claimed_retry_ids"]
+    }
+    retry_owner_by_id = {
+        id(record): window[0].payload.get("schedule_index")
+        for window in windows
+        for record in window
+        if _session_event(record, "retry")
+    }
+    lifecycle_global_issues: list[str] = []
+    for record in records:
+        if not _session_event(record, "retry") or id(record) in claimed_retry_ids:
+            continue
+        index = record.payload.get("schedule_index")
+        owner_index = retry_owner_by_id.get(id(record))
+        target_index = owner_index if owner_index in lifecycle_plans else index
+        if index not in lifecycle_plans:
+            reason = (
+                f"schedule 外の retry が attempt lifecycle に束縛されない: {index!r}"
+            )
+        else:
+            reason = "retry が正当な attempt lifecycle に束縛されない"
+        if target_index in lifecycle_plans:
+            plan = lifecycle_plans[target_index]
+            plan["valid"] = False
+            if plan["reason"] is None:
+                plan["reason"] = reason
+        else:
+            lifecycle_global_issues.append(reason)
+
+    accounted_result_ids = {
+        result_id
+        for plan in lifecycle_plans.values()
+        for result_id in plan["accounted_result_ids"]
+    }
+    result_owner_by_id = {
+        id(record): window[0].payload.get("schedule_index")
+        for window in windows
+        for record in window
+        if _session_event(record, "trial-result")
+    }
+    for record in records:
+        if (not _session_event(record, "trial-result")
+                or id(record) in accounted_result_ids):
+            continue
+        index = record.payload.get("schedule_index")
+        owner_index = result_owner_by_id.get(id(record))
+        target_index = owner_index if owner_index in lifecycle_plans else index
+        if index not in lifecycle_plans:
+            reason = (
+                "schedule 外の trial-result が attempt lifecycle に束縛されない: "
+                f"{index!r}"
+            )
+        else:
+            reason = "trial-result が正当な attempt lifecycle に束縛されない"
+        if target_index in lifecycle_plans:
+            plan = lifecycle_plans[target_index]
+            plan["valid"] = False
+            if plan["reason"] is None:
+                plan["reason"] = reason
+        else:
+            lifecycle_global_issues.append(reason)
+
+    if lifecycle_global_issues:
+        for plan in lifecycle_plans.values():
+            plan["valid"] = False
+
     output: list[dict] = []
     for item, base in zip(rows, bases):
+        plan = lifecycle_plans[item["schedule_index"]]
+        row_windows = windows_by_index.get(item["schedule_index"], [])
         row_payload_issues = payload_issues_by_index.get(item["schedule_index"], [])
-        if global_issues:
-            reasons = [*row_payload_issues, *global_issues]
-            output.append({**base, "status": "protocol_violation",
-                           "reason": "; ".join(dict.fromkeys(reasons))})
-            continue
-        windows = windows_by_index.get(item["schedule_index"], [])
-        if not windows:
-            output.append(base)
-            continue
-        attempts = [window[0].payload.get("attempt") for window in windows]
-        if (any(not _is_int(attempt) or attempt < 0 for attempt in attempts)
-                or len(attempts) != len(set(attempts))):
-            output.append({**base, "status": "protocol_violation",
-                           "reason": f"trial attempt が不正または重複: {attempts!r}"})
-            continue
+        resultful_windows = [
+            window for window in row_windows
+            if any(_session_event(record, "trial-result") for record in window)
+        ]
         assessed = [
             _assess_window(
                 item, window, manifest, allowed_excluded, expected_reps,
+                record_ordinals,
                 [payload_issue_by_record[id(record)] for record in window
                  if id(record) in payload_issue_by_record],
             )
-            for window in sorted(windows, key=lambda window: window[0].payload["attempt"])
+            for window in resultful_windows
         ]
-        outcomes = [summary for row in assessed
-                    for summary in row["attempt_verify_outcomes"]]
+        outcomes = [
+            *plan["retried_summaries"],
+            *(
+                summary
+                for assessed_row in assessed
+                for summary in assessed_row["attempt_verify_outcomes"]
+            ),
+        ]
         definitive_reds = [
-            row for row in assessed
-            if row["status"] == "completed"
-            and row["binding_ok"] is True
-            and row["outcome"] == "correctness-red"
-            and "red" in (row["legacy_verify"], row["s2_verify"])
+            assessed_row for assessed_row in assessed
+            if assessed_row["status"] == "completed"
+            and assessed_row["binding_ok"] is True
+            and assessed_row["outcome"] == "correctness-red"
+            and "red" in (
+                assessed_row["legacy_verify"], assessed_row["s2_verify"])
         ]
+        assessed_by_start = {
+            id(window[0]): assessed_row
+            for window, assessed_row in zip(resultful_windows, assessed)
+        }
+        terminal_assessed = (
+            assessed_by_start.get(id(plan["terminal_window"][0]))
+            if plan["terminal_window"] is not None else None
+        )
+        preferred = (definitive_reds[-1] if definitive_reds
+                     else terminal_assessed
+                     if terminal_assessed is not None
+                     else assessed[-1] if assessed else base)
+
+        forced_protocol_violation = bool(
+            global_issues or lifecycle_global_issues or not plan["valid"]
+        )
+        if not forced_protocol_violation:
+            chosen = dict(preferred)
+            chosen["attempt_verify_outcomes"] = outcomes
+            output.append(chosen)
+            continue
+
+        # resultful window は global/lifecycle issue より先に全件 assessment 済み。
+        # そのため definitive red と attempt summary を保持したまま、campaign・
+        # lifecycle・row-local の各理由を protocol_violation へ合成できる。
+        local_reasons = [
+            str(assessed_row["reason"])
+            for assessed_row in assessed
+            if assessed_row.get("reason")
+        ]
+        reasons = [*row_payload_issues, *global_issues, *lifecycle_global_issues]
+        if plan["reason"]:
+            reasons.append(str(plan["reason"]))
+        elif not plan["valid"] and not lifecycle_global_issues:
+            reasons.append("attempt lifecycle が二形のいずれにも一致しない")
+        reasons.extend(local_reasons)
         if definitive_reds:
-            chosen = definitive_reds[-1]
-        else:
-            chosen = assessed[-1]
-            invalid_attempts = [row for row in assessed if row["status"] != "completed"]
-            if invalid_attempts and chosen["status"] == "completed":
-                chosen = dict(chosen)
-                chosen["status"] = "protocol_violation"
-                chosen["reason"] = "; ".join(dict.fromkeys(
-                    str(row.get("reason") or "過去 attempt が protocol_violation")
-                    for row in invalid_attempts
-                ))
-        chosen = dict(chosen)
-        chosen["attempt_verify_outcomes"] = outcomes
+            reasons.append(
+                "definitive correctness-red を検出: "
+                f"attempt={definitive_reds[-1]['attempt']}"
+            )
+        chosen = dict(preferred)
+        chosen.update(
+            status="protocol_violation",
+            lifecycle_ok=plan["valid"] and not lifecycle_global_issues,
+            bench_values=[],
+            reason="; ".join(dict.fromkeys(reasons)),
+            attempt_verify_outcomes=outcomes,
+        )
         output.append(chosen)
     return output
 

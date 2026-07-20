@@ -44,9 +44,9 @@ def _record(stage, variant="v1", **payload):
     return {"ts": 1.0, "stage": stage, "variant": variant, "env_tag": "test-env", "payload": payload}
 
 
-def _bench(variant="v1"):
+def _bench(variant="v1", **extra):
     return _record("bench_done", variant, tps=[1.0], median_tps=1.0, cv=0.0,
-                   rounds=1, leading_indicators={})
+                   rounds=1, leading_indicators={}, **extra)
 
 
 def test_real_campaign_schema_bijection_views_and_no_matching_floor(tmp_path):
@@ -78,6 +78,19 @@ def test_campaign_without_loop_state_has_empty_absent_whiteboard(tmp_path):
     assert report["whiteboard"] == []
     assert report["whiteboard_provenance"] == "absent"
     assert not any(ref.startswith("wb:") for ref in report["source_refs"])
+
+
+def test_bench_rep_returncodes_passes_real_view_and_schema(tmp_path):
+    """M-P10: bench event の新 key が _view_row を経ても実 schema 検証を通る。"""
+    campaign, output_root = _campaign(
+        tmp_path, [_bench(rep_returncodes=[0, 0, 0, 0, 0])],
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["runs"][0]["rep_returncodes"] == [0, 0, 0, 0, 0]
 
 
 @pytest.mark.parametrize("state", ["not-json", json.dumps({"whiteboard": {}})])

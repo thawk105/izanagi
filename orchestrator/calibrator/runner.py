@@ -348,12 +348,15 @@ def run_once(binary: str, gflags: Sequence[str],
              timeout_s: float = 120.0,
              extra_env: Optional[Dict[str, str]] = None,
              strict_returncode: bool = False,
-             subprocess_runner: Callable[..., object] = subprocess.run):
+             subprocess_runner: Callable[..., object] = subprocess.run,
+             rep_returncodes: Optional[List[int]] = None):
     """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。
 
     extra_env (D36 決定4-5): verify run にのみ設定される環境変数 (IZANAGI_TRACE_DIR
     等) を perf run にも対称に設定するための差し込み口。既定 None は環境変数を
-    一切足さず (親プロセスの環境をそのまま継承)、既存呼び出し元の挙動を変えない。"""
+    一切足さず (親プロセスの環境をそのまま継承)、既存呼び出し元の挙動を変えない。
+    rep_returncodes を指定した場合は subprocess 完了直後、出力や strict rc の検査より
+    前に return code を追記する。戻り値の 3-tuple は変えない。"""
     tmp = tempfile.mkdtemp(prefix="izanagi_run_")     # TMPDIR=/home 配下
     try:
         perf_out = os.path.join(tmp, "perf.csv")
@@ -367,6 +370,8 @@ def run_once(binary: str, gflags: Sequence[str],
         t0 = time.monotonic()
         proc = subprocess_runner(cmd, capture_output=True, text=True,
                                  timeout=timeout_s, cwd=tmp, env=env)
+        if rep_returncodes is not None:
+            rep_returncodes.append(proc.returncode)
         wall = time.monotonic() - t0
         if strict_returncode and proc.returncode != 0:
             raise RuntimeError(
@@ -396,7 +401,8 @@ def measure_point(binary: str, records: int, threads: int,
                   timeout_s: float = 120.0,
                   require_all_reps: bool = False,
                   require_complete_metrics: bool = False,
-                  subprocess_runner: Callable[..., object] = subprocess.run) -> ScalePoint:
+                  subprocess_runner: Callable[..., object] = subprocess.run,
+                  rep_returncodes: Optional[List[int]] = None) -> ScalePoint:
     """1 測定点を reps 回反復して ScalePoint を組む。
 
     throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
@@ -405,6 +411,9 @@ def measure_point(binary: str, records: int, threads: int,
     settle_first は既定 False。admission control の静定待ちは campaign 冒頭で
     1 回行えば足り、点ごとに待つと load EMA の残像で無駄に時間を食う (settle の
     docstring 参照)。冒頭の 1 回は呼び手 (calibrate) が担う。
+
+    rep_returncodes 未指定時は run_once へ同名 kwarg を送らず、既存 monkeypatch seam を
+    保つ。指定時だけ各 rep の subprocess 完了順 rc を同じ list に蓄積する。
     """
     if settle_first:
         settle()
@@ -435,6 +444,8 @@ def measure_point(binary: str, records: int, threads: int,
             if require_all_reps or require_complete_metrics:
                 run_kwargs["strict_returncode"] = require_all_reps
                 run_kwargs["subprocess_runner"] = subprocess_runner
+            if rep_returncodes is not None:
+                run_kwargs["rep_returncodes"] = rep_returncodes
             metrics, counters, wall = run_once(binary, base_flags, **run_kwargs)
         except (RuntimeError, subprocess.TimeoutExpired) as e:
             if require_all_reps:

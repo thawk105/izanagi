@@ -44,6 +44,7 @@ GENOME = "Silo|BACK_OFF=1"
 SRC_TOKEN = "source-digest"
 VARIANT = "same-variant"
 _DEFAULT_ABORT_PAYLOAD = object()
+_MISSING_RETURN_CODES = object()
 
 
 def _canonical_sha256(value) -> str:
@@ -154,6 +155,7 @@ def _verify(layout, variant: str, tag: str, certified: bool) -> None:
 def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            attempt: int = 1,
            tps: tuple[float, ...] = (10.0, 11.0, 12.0, 13.0, 14.0),
+           rep_returncodes: object = (0, 0, 0, 0, 0),
            screen_marker: bool = False,
            excluded_reason: str | None = None,
            verify_frontier: str = "s2",
@@ -223,7 +225,16 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                             selected_abort_payload({"reason": "bench-no-throughput"}),
                         )
                     else:
-                        payload = {"tps": list(tps), "median_tps": sum(tps) / len(tps)}
+                        payload = {
+                            "tps": list(tps),
+                            "median_tps": sum(tps) / len(tps),
+                        }
+                        if rep_returncodes is not _MISSING_RETURN_CODES:
+                            payload["rep_returncodes"] = (
+                                list(rep_returncodes)
+                                if isinstance(rep_returncodes, tuple)
+                                else rep_returncodes
+                            )
                         if screen_marker:
                             payload["screening"] = True
                         wal.log(layout, variant, "bench_done", "fixture-env", payload)
@@ -296,6 +307,48 @@ def _manual_trial(layout, item: dict, outcome: str,
     })
 
 
+def _trial_start(layout, item: dict, attempt: int, **identity_overrides) -> None:
+    identity = {
+        "schedule_index": item["schedule_index"],
+        "holdout_id": item["holdout_id"],
+        "configuration_id": item["configuration_id"],
+        "attempt": attempt,
+        **identity_overrides,
+    }
+    _session(layout, "trial-start", identity)
+
+
+def _retry(layout, item: dict, next_attempt: int = 2, **payload_overrides) -> None:
+    _session(layout, "retry", {
+        "schedule_index": item["schedule_index"],
+        "attempt": next_attempt,
+        "reason": "transient prepare failure",
+        **payload_overrides,
+    })
+
+
+def _append_pipeline(layout, pipeline: list[tuple[str, object]] | None = None) -> None:
+    for stage, payload in pipeline or _valid_committed_pipeline():
+        wal.log(layout, VARIANT, stage, "fixture-env", payload)
+
+
+def _trial_result(layout, item: dict, attempt: int,
+                  outcome: str = "committed", **identity_overrides) -> None:
+    identity = {
+        "schedule_index": item["schedule_index"],
+        "holdout_id": item["holdout_id"],
+        "configuration_id": item["configuration_id"],
+        "attempt": attempt,
+        **identity_overrides,
+    }
+    _session(layout, "trial-result", {
+        **identity,
+        "outcome": outcome,
+        "excluded_reason": None,
+        "screen_outcome": "not_enabled",
+    })
+
+
 def _valid_committed_pipeline() -> list[tuple[str, object]]:
     return [
         ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
@@ -310,6 +363,7 @@ def _valid_committed_pipeline() -> list[tuple[str, object]]:
         }),
         ("bench_done", {
             "tps": [10.0, 11.0, 12.0, 13.0, 14.0], "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
         }),
         ("commit", {"fitness_tps": 12.0, "verify_configs": ["legacy", "s2"]}),
     ]
@@ -329,6 +383,7 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
     assert observations["schema_version"] == report.SCHEMA_VERSION
     assert observations["manifest_kind"] == "official"
     assert [row["status"] for row in observations["rows"][:2]] == ["completed", "completed"]
+    assert all(row["lifecycle_ok"] is True for row in observations["rows"][:2])
     assert [row["bench_values"] for row in observations["rows"][:2]] == [
         [10.0, 11.0, 12.0, 13.0, 14.0],
         [20.0, 21.0, 22.0, 23.0, 24.0],
@@ -362,7 +417,11 @@ def test_huge_integer_tps_is_row_level_protocol_violation(tmp_path):
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
     pipeline = _valid_committed_pipeline()
-    pipeline[4] = ("bench_done", {"tps": [10**400] * 5, "median_tps": 0.0})
+    pipeline[4] = ("bench_done", {
+        "tps": [10**400] * 5,
+        "median_tps": 0.0,
+        "rep_returncodes": [0, 0, 0, 0, 0],
+    })
     pipeline[5] = (
         "commit", {"fitness_tps": 0.0, "verify_configs": ["legacy", "s2"]},
     )
@@ -628,6 +687,7 @@ def test_timeout_and_verify_inconclusive_accept_both_verify_frontiers(
                 }),
                 ("bench_done", {
                     "tps": [1.0, 2.0, 3.0, 4.0, 5.0], "median_tps": 3.0,
+                    "rep_returncodes": [0, 0, 0, 0, 0],
                 }),
                 ("abort", {
                     "reason": "trace-timeout", "workload": {"tag": "s2"},
@@ -669,7 +729,10 @@ def test_impossible_declared_outcome_histories_are_protocol_violations(
                     "verdict": "serializable", "certified": True,
                     "workload": {"tag": "legacy"},
                 }),
-                ("bench_done", {"tps": [1, 2, 3, 4, 5]}),
+                ("bench_done", {
+                    "tps": [1, 2, 3, 4, 5],
+                    "rep_returncodes": [0, 0, 0, 0, 0],
+                }),
                 ("commit", {}),
             ],
             id="reversed-committed",
@@ -1157,7 +1220,432 @@ def test_missing_or_partial_expected_binding_is_protocol_violation(tmp_path, dam
     assert "binding" in row["reason"]
 
 
-def test_definitive_red_survives_later_committed_retry(tmp_path):
+def _assert_single_lifecycle_reason(row: dict, expected: str) -> None:
+    assert row["status"] == "protocol_violation"
+    assert row["lifecycle_ok"] is False
+    assert row["reason"] == expected
+    assert row["bench_values"] == []
+
+
+def test_valid_prepare_retry_uses_attempt_two_and_records_retried_summary(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _retry(layout, item)
+    _trial(layout, item, "committed", attempt=2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "completed"
+    assert row["lifecycle_ok"] is True
+    assert row["attempt"] == 2
+    assert [summary["status"] for summary in row["attempt_verify_outcomes"]] == [
+        "retried", "completed",
+    ]
+    assert [summary["attempt"] for summary in row["attempt_verify_outcomes"]] == [1, 2]
+
+
+def test_retry_absent_double_attempt_has_one_lifecycle_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed", attempt=1)
+    _trial(layout, item, "committed", attempt=2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(row, "attempt 1 retry record が一意でない: 0")
+
+
+def test_duplicate_retry_has_one_lifecycle_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _retry(layout, item)
+    _retry(layout, item)
+    _trial(layout, item, "committed", attempt=2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(row, "attempt 1 retry record が一意でない: 2")
+
+
+def test_resultful_window_retry_is_unbound_for_one_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _append_pipeline(layout)
+    _retry(layout, item)
+    _trial_result(layout, item, 1)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "retry が正当な attempt lifecycle に束縛されない",
+    )
+
+
+def test_retry_before_first_start_is_unbound_for_one_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _retry(layout, item)
+    _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "retry が正当な attempt lifecycle に束縛されない",
+    )
+
+
+def test_retry_after_terminal_result_is_row_scoped_tail_for_one_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed")
+    _retry(layout, item)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "trial-result 後に row-scoped session event がある",
+    )
+
+
+def test_attempt_gap_has_one_lifecycle_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _retry(layout, item, next_attempt=3)
+    _trial(layout, item, "committed", attempt=3)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row,
+        "attempt lifecycle の attempt 集合が {1} / {1,2} と厳密一致しない: [1, 3]",
+    )
+
+
+def test_attempt_physical_order_must_match_numeric_order(tmp_path):
+    """集合・retry・terminal は正しく、attempt window の物理順だけを壊す。"""
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed", attempt=2)
+    _trial_start(layout, item, 1)
+    _retry(layout, item)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "attempt lifecycle の物理順が 1→2 でない: [2, 1]",
+    )
+
+
+def test_single_attempt_99_is_not_aliased_to_schedule_default(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed", attempt=99)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row,
+        "attempt lifecycle の attempt 集合が {1} / {1,2} と厳密一致しない: [99]",
+    )
+
+
+def test_retry_attempt_one_rejects_pipeline_record_for_one_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    wal.log(layout, VARIANT, "build_start", "fixture-env", {
+        "genome": GENOME, "src_token": SRC_TOKEN,
+    })
+    _retry(layout, item)
+    _trial(layout, item, "committed", attempt=2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "attempt 1 retry window に pipeline record が混在",
+    )
+
+
+def test_attempt_one_two_three_chain_has_one_lifecycle_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _retry(layout, item, next_attempt=2)
+    _trial_start(layout, item, 2)
+    _retry(layout, item, next_attempt=3)
+    _trial(layout, item, "committed", attempt=3)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row,
+        "attempt lifecycle の attempt 集合が {1} / {1,2} と厳密一致しない: [1, 2, 3]",
+    )
+
+
+def test_retry_successor_must_be_physically_adjacent(tmp_path):
+    manifest = _manifest(tmp_path)
+    first, interleaved = manifest["schedule"]["rows"][:2]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, first, 1)
+    _retry(layout, first)
+    _trial(layout, interleaved, "committed")
+    _trial(layout, first, "committed", attempt=2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "attempt 2 が attempt 1 の物理的直後でない",
+    )
+
+
+def test_retry_successor_identity_must_match_predecessor(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _retry(layout, item)
+    mixed_configuration = f"{item['configuration_id']}-mixed"
+    _trial_start(layout, item, 2, configuration_id=mixed_configuration)
+    _append_pipeline(layout)
+    _trial_result(layout, item, 2, configuration_id=mixed_configuration)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row,
+        "trial-start.configuration_id が schedule と不一致",
+    )
+
+
+def test_retry_payload_schedule_index_must_match_row(tmp_path):
+    manifest = _manifest(tmp_path)
+    first, other = manifest["schedule"]["rows"][:2]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, first, 1)
+    _retry(layout, first, schedule_index=other["schedule_index"])
+    _trial(layout, first, "committed", attempt=2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(row, "retry.schedule_index が schedule と不一致")
+
+
+def test_retry_payload_next_attempt_must_be_exactly_two(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _retry(layout, item, next_attempt=3)
+    _trial(layout, item, "committed", attempt=2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "retry.attempt が next attempt=2 と不一致",
+    )
+
+
+def test_orphan_retry_for_schedule_outside_is_global_lifecycle_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    orphan_index = max(row["schedule_index"] for row in manifest["schedule"]["rows"]) + 1
+    _retry(layout, item, schedule_index=orphan_index)
+    _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row,
+        f"schedule 外の retry が attempt lifecycle に束縛されない: {orphan_index!r}",
+    )
+
+
+def test_trial_result_before_first_start_is_not_silently_ignored(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_result(layout, item, 2)
+    _trial(layout, item, "committed", attempt=1)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "trial-result が正当な attempt lifecycle に束縛されない",
+    )
+    assert row["outcome"] == "committed"
+    assert [summary["attempt"] for summary in row["attempt_verify_outcomes"]] == [1]
+
+
+def test_trial_result_attempt_must_match_owning_start(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _append_pipeline(layout)
+    _trial_result(layout, item, 2)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "trial-result.attempt が trial-start と不一致",
+    )
+
+
+def test_duplicate_trial_result_is_not_bijective(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _append_pipeline(layout)
+    _trial_result(layout, item, 1)
+    _trial_result(layout, item, 1)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(row, "trial-result が一意でない: 2")
+
+
+def test_trial_result_must_follow_all_pipeline_evidence(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial_start(layout, item, 1)
+    _trial_result(layout, item, 1)
+    _append_pipeline(layout)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "trial-result が全 pipeline evidence より物理的に後ろでない",
+    )
+
+
+def test_row_scoped_session_event_after_trial_result_is_rejected(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed")
+    _session(layout, "trial-skipped", {
+        "schedule_index": item["schedule_index"], "reason": "late duplicate",
+    })
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    _assert_single_lifecycle_reason(
+        row, "trial-result 後に row-scoped session event がある",
+    )
+
+
+def test_global_issue_does_not_mask_definitive_correctness_red(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "legacy-red")
+    _session(layout, "deviation", {"message": "fixture deviation"})
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["lifecycle_ok"] is True
+    assert row["outcome"] == "correctness-red"
+    assert row["legacy_verify"] == "red"
+    assert row["bench_values"] == []
+    assert row["reason"].split("; ") == [
+        "deviation: 'fixture deviation'",
+        "definitive correctness-red を検出: attempt=1",
+    ]
+    assert [summary["outcome"] for summary in row["attempt_verify_outcomes"]] == [
+        "correctness-red",
+    ]
+
+
+def test_global_issue_composes_row_local_assessment_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed", rep_returncodes=[0, 0, 9, 0, 0])
+    _session(layout, "deviation", {"message": "fixture deviation"})
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["lifecycle_ok"] is True
+    assert row["bench_values"] == []
+    assert row["reason"].split("; ") == [
+        "deviation: 'fixture deviation'",
+        "bench_done.rep_returncodes に非ゼロがある",
+    ]
+    assert [summary["attempt"] for summary in row["attempt_verify_outcomes"]] == [1]
+
+
+def test_global_orphan_retry_does_not_mask_other_definitive_red(tmp_path):
+    """schedule 外 retry と別 row の correctness-red を同じ reason に残す。"""
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    orphan_index = max(row["schedule_index"] for row in manifest["schedule"]["rows"]) + 1
+    _retry(layout, item, schedule_index=orphan_index)
+    _trial(layout, item, "legacy-red")
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["lifecycle_ok"] is False
+    assert row["outcome"] == "correctness-red"
+    assert row["legacy_verify"] == "red"
+    assert row["bench_values"] == []
+    assert row["reason"].split("; ") == [
+        f"schedule 外の retry が attempt lifecycle に束縛されない: {orphan_index!r}",
+        "definitive correctness-red を検出: attempt=1",
+    ]
+    assert [summary["outcome"] for summary in row["attempt_verify_outcomes"]] == [
+        "correctness-red",
+    ]
+
+
+def test_definitive_red_survives_later_committed_retry_as_protocol_violation(tmp_path):
+    """Malformed retry でも lifecycle を白化せず、anti-masking の red も同時に残す。"""
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
@@ -1174,12 +1662,59 @@ def test_definitive_red_survives_later_committed_retry(tmp_path):
 
     row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
 
-    assert row["status"] == "completed"
+    assert row["status"] == "protocol_violation"
+    assert row["lifecycle_ok"] is False
     assert row["outcome"] == "correctness-red"
     assert row["legacy_verify"] == "red"
+    assert row["bench_values"] == []
+    assert row["reason"].split("; ") == [
+        "attempt 1 retry window が result-less でない",
+        "definitive correctness-red を検出: attempt=1",
+    ]
     assert [attempt["outcome"] for attempt in row["attempt_verify_outcomes"]] == [
         "correctness-red", "committed",
     ]
+
+
+@pytest.mark.parametrize(
+    ("rep_returncodes", "expected_reason"),
+    [
+        pytest.param(
+            _MISSING_RETURN_CODES,
+            "bench_done.rep_returncodes が array でない",
+            id="missing",
+        ),
+        pytest.param(
+            [0, 0, 9, 0, 0],
+            "bench_done.rep_returncodes に非ゼロがある",
+            id="nonzero",
+        ),
+        pytest.param(
+            [0, 0, 0, 0],
+            "bench_done.rep_returncodes 件数が official reps と不一致: actual=4, expected=5",
+            id="short",
+        ),
+        pytest.param(
+            [0, 0, True, 0, 0],
+            "bench_done.rep_returncodes に非 int または bool がある",
+            id="bool",
+        ),
+    ],
+)
+def test_bench_returncodes_are_strict_and_do_not_publish_tps(
+        tmp_path, rep_returncodes, expected_reason):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed", rep_returncodes=rep_returncodes)
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["lifecycle_ok"] is True
+    assert row["reason"] == expected_reason
+    assert row["bench_values"] == []
 
 
 @pytest.mark.parametrize("phantom_outcome", ["legacy-red", "committed"])

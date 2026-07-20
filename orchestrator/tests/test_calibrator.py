@@ -326,6 +326,65 @@ def test_noise_floor_single_sample():
 
 # ===== measure_point: rep 失敗の握り (規律3) =====
 
+def _completed_process(returncode, stdout=_BENCH):
+    return type("Completed", (), {
+        "returncode": returncode,
+        "stdout": stdout,
+        "stderr": "injected stderr",
+    })()
+
+
+def test_run_once_records_rc_and_keeps_three_tuple_when_not_strict():
+    """M-P1a: rc 収集を opt-in しても既存 3-tuple 契約は変えない。"""
+    from calibrator import runner
+    returncodes = []
+
+    result = runner.run_once(
+        "dummy", [], strict_returncode=False,
+        subprocess_runner=lambda *args, **kwargs: _completed_process(7),
+        rep_returncodes=returncodes,
+    )
+
+    assert len(result) == 3
+    assert returncodes == [7]
+
+
+def test_run_once_records_rc_before_strict_failure():
+    """M-P1b: strict nonzero が例外になっても、発生済み rc は失わない。"""
+    from calibrator import runner
+    returncodes = []
+
+    try:
+        runner.run_once(
+            "dummy", [], strict_returncode=True,
+            subprocess_runner=lambda *args, **kwargs: _completed_process(9),
+            rep_returncodes=returncodes,
+        )
+    except RuntimeError as exc:
+        assert "ccbench failed. rc=9" in str(exc)
+    else:
+        raise AssertionError("strict nonzero return code が拒否されなかった")
+    assert returncodes == [9]
+
+
+def test_run_once_records_rc_before_metrics_parse_failure():
+    """M-P1c: stdout metrics が空でも、完了した subprocess の rc は失わない。"""
+    from calibrator import runner
+    returncodes = []
+
+    try:
+        runner.run_once(
+            "dummy", [],
+            subprocess_runner=lambda *args, **kwargs: _completed_process(0, stdout=""),
+            rep_returncodes=returncodes,
+        )
+    except RuntimeError as exc:
+        assert "produced no metrics" in str(exc)
+    else:
+        raise AssertionError("空 metrics が拒否されなかった")
+    assert returncodes == [0]
+
+
 def test_measure_point_survives_partial_rep_failure():
     """一部 rep が run_once 例外でも、残り rep で median を取り notes に構造化記録する。
 
