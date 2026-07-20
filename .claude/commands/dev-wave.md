@@ -6,6 +6,10 @@ disable-model-invocation: true
 
 あなたはこの開発 wave のマネージャーである。これは izanagi **の開発作業**を進めるループであり、CC 合成 campaign (システム側のループ) にワークロードを入力して回すものではない。
 
+**この wave のユーザー向け出力はすべて日本語で書く — wave の第一声から。** 起動直後の方針宣言・各段の
+進捗報告・裁定・最終報告・`result:` 行のいずれも例外ではない。英語で書き始めてから日本語へ切り替えるのも
+違反とする (ユーザー指示 2026-07-21)。作業言語の方針はドキュメントだけでなく報告にも及ぶ。
+
 CLAUDE.md のクラス 3 起動手順 (worklog 末尾・現行 phase doc・handoff・git status) に従い、今回の作業を選ぶ。引数があればそれを対象とする: $ARGUMENTS
 
 進め方 (各段の逐語は最終的に output/insights へ凍結する):
@@ -32,6 +36,5 @@ CLAUDE.md のクラス 3 起動手順 (worklog 末尾・現行 phase doc・hando
 - プロンプト・ログ・patch は job tmp 直下でなく wave 専用サブディレクトリに置く (過去 wave の同名残骸との衝突防止)
 - read-only sandbox の codex は pytest を実行できない (書込可能 tmp が無い)。相談・レビューには静的検査で足りる旨を伝え、テスト green の主張は求めない (実測は親が行う)
 - task-run 台帳 pilot 中は wave 自身を記録する: 開始時に `python3 tools/task_run.py start`、受入走は `IZANAGI_TASK_RUN_ID=<id>` 付き、check 系は `tools/task_run_check.py`、終了時に `finish` (詳細正本 = output/task-runs/README.md)
-- **ユーザーへの進捗・完了報告も日本語で書く** (作業言語の方針はドキュメントだけでなく報告にも及ぶ)
 - **ファイル削除を伴う wave では、受入全走の前に `git add -A` して削除を stage する** (`git ls-files` を使う freeze 系テストが、未 stage の削除を「列挙されたのに実在しない」と見て偽の赤を出す)
 - **裁定した手順と実際に実行した手順が食い違ったら、worklog には実行された方を書く** (裁定文をそのまま書くと一次資料と逆の工程記録が残り、レビューで検出される)
