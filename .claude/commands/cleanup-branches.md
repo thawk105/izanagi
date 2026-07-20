@@ -34,6 +34,11 @@ submodule (external/ccbench) の gitlink を含む worktree は `git worktree re
 共有されており、main checkout の submodule まで未初期化になる (F26)。誤って実行した場合は
 `git submodule update --init external/ccbench` で復元する (ローカル .git/modules から即時)。
 
+セッション自身が EnterWorktree で作った worktree を畳む場合の注意: ExitWorktree の remove は、
+コミットが main へ ff 済みでも「未取り込みで失われる」と誤警告することがある (2026-07-20 実測)。
+`discard_changes: true` で押し切らず、main が当該コミットを含むことを `git log` で確認のうえ
+`action: keep` で抜け、本節の手動手順 (detach → branch -d → 削除 → prune) で畳む。
+
 ## 4. 事後検査
 
 - `git worktree list` / `git branch` が期待どおりか
@@ -46,3 +51,13 @@ submodule (external/ccbench) の gitlink を含む worktree は `git worktree re
 リモートブランチの削除 (`git push origin --delete <b>`) と main の push は行わず、対象を列挙して
 ユーザーに提示する。削除しなかったブランチ・worktree はその理由 (ahead>0、dirty 等) と併せて報告する。
 記録はセッションの通常規律 (worklog) に従う。
+
+## 6. スキル自己改善 (発火条件つき、/dev-wave 段 8 と同型)
+
+今回の実行で**スキル記載と実挙動の食い違い・新しい罠・手順の不足を実測した場合のみ**発火する
+(毎回の文面いじりはしない)。発火したら同セッション内で:
+
+- 本スキルの該当節を実測に合わせて更新する
+- 台帳との整合を同時に取る — 新しい罠は failures.md へ F 追記、既存 F26 の型の再発なら
+  同エントリへ「再発: 日付」追記 (台帳の運用規則どおり)
+- スキル編集 + 台帳追記を 1 コミットにまとめ、worklog に 1 行残す

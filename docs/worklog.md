@@ -1144,3 +1144,23 @@ main push (ユーザー) → 本 commit の順。
 4. ユーザー: 本 commit 後の main push + リモートブランチ削除の可否
    (origin/approved-waves・origin/worktree-s8b-ruling-prep。push 操作のため AI は行わない)
 5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
+
+## 2026-07-20 (11) — /cleanup-branches に自己改善段を追加 (ユーザー指示、計測なし)
+
+/dev-wave 段 8 と同型の「スキル自己改善」を §6 として追加 (発火条件つき — 記載と実挙動の
+食い違い・新しい罠・手順不足を実測した場合のみ。failures 台帳との整合と 1 コミット化を規定)。
+併せて初回実行 (worklog (10)) で得た未記載の知見を §3 に反映: ExitWorktree remove は ff 済み
+コミットでも「未取り込み」と誤警告することがある — discard で押し切らず keep → 手動手順で畳む。
+
+- 運用知見: EnterWorktree の fresh 基点は origin/main のため、ローカル main が push 前だと
+  worktree に直近コミットが無い状態で始まる — 基点確認 (`git log --oneline -1`) を worktree
+  作成直後に行う (本セッションで実測、reset --hard で復旧)
+
+### 次の一手
+
+1. **承認済み実装 wave (次セッション、クラス 3)**: P-C2 + P-C1(b) (worklog (8) 参照)
+2. **承認済み実装 wave**: C = backlog-guard (worklog (8) 参照)
+3. P-A1(a) Stage 1 の承認待ち (承認時に P-C3 を同梱)
+4. ユーザー: main push (99bce0c + 本 commit の 2 件先行) + リモートブランチ削除の可否
+   (origin/approved-waves・origin/worktree-s8b-ruling-prep)
+5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
