@@ -663,3 +663,27 @@ worklog (13)(14) 次の一手 1(a) の承認済み実装 wave。ハイブリッ�
 3. B-008 の再試験条件: 変わらず (前エントリ参照)
 4. 限界受け入れ (viii) = floor 実測直前に最終承認 / task-run pilot 配線提案 = 10 run または 08-03
    到達時に提示 (現在 3 run)
+
+## 2026-07-20 (16) — /dev-wave の fresh-context 終端契約 (D69、計測なし)
+
+ユーザーの問題提起を受け、開発 wave ごとの context 初期化は妥当と判断した。ただし skill 内自己再帰や
+literal な無限ループではなく、1 wave を受入・commit・local main 取り込みまで閉じて外側から fresh
+process/session を起動する安全側の終端契約だけを反映した。現行 Claude Code 2.1.214 と公式 docs を照合し、
+組み込み `/loop` は同一 session 維持のため不採用。
+外部 bounded supervisor は予算・最大 wave 数・permission mode が未確定なので未実装。サブエージェント利用なし。
+検査は `check_codex_agents` / `check_docs` / `git diff --check` が全て rc=0。
+
+### 次の一手
+
+1. **承認済み実装 wave (この順)**: (a) C = backlog-guard (正本 = handoff
+   2026-07-19-backlog-guard-mechanism.md + worklog (8)) → (b) ruling-B 単独 (session record の
+   issuer/env_tag 照合) → (c) P-A1(a) Stage 1 + P-C3 同梱
+2. **ユーザー裁定待ち (ruling-A/C wave の裁定パッケージ 6 件、いずれも real。正本 = D68 (8))**:
+   (a) campaign WAL の hash chain / 外部 anchor / (b) WAL の byte 単位 record framing と resume の物理修復 /
+   (c) S-1 freeze 再発行 / (d) 宣言済み未使用 campaign の未評価 / (e) 未知 stage の trial 前置 /
+   (f) payload 型を writer で強制するか
+3. B-008 の再試験条件: 変わらず (worklog (14) 参照)
+4. 限界受け入れ (viii) = floor 実測直前に最終承認 / task-run pilot 配線提案 = 10 run または 08-03
+   到達時に提示 (現在 3 run)
+5. 外部 continuous-wave supervisor は、ユーザーが `max-waves`・予算・wall-clock・permission mode を
+   指定した時だけ別 wave で実装する

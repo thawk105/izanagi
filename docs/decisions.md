@@ -2632,3 +2632,25 @@ multibyte 途中切れの `UnicodeDecodeError`、`os.write()` の short write �
 診断保存 pin とした (D67 (8) erratum と同型の誤集計を事前に回避)。事前登録した C02 と A02 も
 レビュー指摘により無効 kill / 過剰決定として取り下げ。全走 **2304 passed / 26 skipped**。
 逐語 = `output/insights/2026-07-20_ruling-ac-loop.md`、変異台帳 = 同 `-mutation-ledger.md`。
+
+## D69. 開発 wave の context 境界 — 1 wave 1 fresh context、local main 取り込み後に外側から再起動 (2026-07-20)
+
+**背景:** `/dev-wave` は plan・敵対相談・並列実装・レビュー・変異・全受入を 1 session に積むため、複数 wave を
+同じ会話で続けると D31 の「短命でも途切れない構造」に反し、auto-compaction 後の要約欠落と入力 context の
+累積を招く。ユーザーから、wave 完了時に local main へ修正を入れ、context を空にして次 wave へ進む反復の
+妥当性を問われた。
+
+**決定:** `/dev-wave` の正常終端を「監査済み全 commit と受入結果を揃える → clean・基準 commit 不変・
+fast-forward 可能・commit 集合一致を再検査 → local main へ `--ff-only` 取り込み → 次 wave の再開情報を返して
+session 終了」とする。push と remote branch 操作は従来どおり人間境界。side effect を持つ skill なので
+`disable-model-invocation: true` とし、人間による明示起動だけを許す。
+
+context の切替えは skill 自身に担わせない。対話時は人間が `/clear` 後に次の `/dev-wave` を起動する。
+Claude Code の組み込み `/loop` は同じ session を維持するため不採用。無人継続は skill 外の supervisor が
+wave ごとに新規 `claude -p` process を起動する形だけを候補とし、literal な無限ループは禁止する。
+supervisor を実装する場合は `max-waves`・金額/トークン予算・wall-clock deadline と、裁定待ち・検査赤・
+dirty/diverged main・想定外 commit・process 異常・task-run/handoff 不整合の fail-closed 停止を必須にする。
+自然言語の完了宣言だけでは継続しない。
+
+**見送り:** 外部 supervisor 自体は本変更では作らない。予算値・最大 wave 数・permission mode という人間の
+運用選択が未確定で、skill の手順明確化とは異なる実行機構だからである。
