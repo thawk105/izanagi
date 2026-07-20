@@ -575,3 +575,43 @@ worklog (12) 次の一手 1(a)。/rulings 経由のユーザー裁定 (ここが
 6. **B-008 (guard_agent 再検証) の発火条件が成立**: 見送り台帳の述語「新しい background job session
    の開始時」に本セッションが該当する (2026-07-20 の /rulings で確認)。拾うか見送り継続かは未裁定
 7. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
+
+## 2026-07-20 (14) — 裁定待ち一括裁定 + B-008 実施 (version drift 確定) + 運用方針の変更 (計測なし)
+
+/rulings 経由のユーザー一括裁定 (ここが記録の正本)。裁定 6 件 + 標準指示 1 件。
+
+- **1 push: 解決済み** — ユーザーが push 済み。親が実測確認 (`origin/main` = `1824c93`、差分 0)。
+  **ただしリモートブランチ 2 本 (origin/approved-waves・origin/worktree-s8b-ruling-prep) の削除は
+  未確認** — この環境は fetch の認証を持たず、ローカル追跡参照には 2 本が残ったままのため、削除の
+  有無を確定できない。次の一手へ持ち越す
+- **2 掃除: 承認** → 本セッションで実施 (wave 用 worktree 3 つとローカルブランチ 3 本)
+- **3 次 wave: 推奨順で確定** = ruling-A + ruling-C を先、backlog-guard を次
+- **標準指示 (新規、恒久): この水準の裁定は今後 AI が自動で行う。** 対象 = 掃除・順序決めなど、
+  推奨が明確で可逆な運用判断。**対象外 = 設計の択一・正しさ防壁の変更・scope 拡張**で、これらは
+  従来どおり裁定パッケージとしてユーザーへ返す。/rulings の索引には引き続き全件を載せる
+  (見えない裁定待ちを作らないため) が、運用系は「実施済み」として報告する
+- **4 P-A1(a) Stage 1: 承認** (P-C3 同梱)。公式 report API を検証済み manifest のみ受理へ狭め、
+  raw Mapping / schema 分類器からの流入経路を廃止する
+- **5 ruling-B: 承認、単独 wave** (session record の issuer/env_tag 照合。既存 fixture 群への
+  波及が広いため他と混ぜない)
+- **6 B-008: 実施 → 消化。判定 = version drift。** 新規 background job session (daemon
+  **2.1.214**) で model 無し `Agent` を 1 回 probe → **guard_agent が PreToolUse で拒否、spawn なし**
+  (拒否メッセージも逐語で親へ返達)。2.1.211 の不発は surface 固有の配送欠落ではなく version drift と
+  確定。これにより **B-009 (追加防衛候補の裁定) も不要化** (価値は素通り時にのみ発生する条件付き
+  候補だったため)。F21 の「恒真ゲート」懸念は本 probe で解消したが、**2.1.214 の 1 点観測**であり
+  daemon 更新で再 drift しうる。反映先 3 箇所を更新: `hooks/README.md` hook 4「再検証の結果」/
+  見送り台帳の B-008・B-009 を消化・不要化 / 本エントリ
+- **7 限界受け入れ (viii)・8 pilot 配線提案: 推奨どおり据え置き** (いずれも発火条件・到達条件の
+  手前。7 = floor 実測直前、8 = 10 run または 08-03)
+
+### 次の一手
+
+1. **承認済み実装 wave (次セッション、クラス 3、この順)**: (a) ruling-A + ruling-C 同梱 →
+   (b) C = backlog-guard → (c) ruling-B 単独 → (d) P-A1(a) Stage 1 + P-C3 同梱。正本 =
+   D67 (7) / handoff 2026-07-19-backlog-guard-mechanism.md / insights wave2 §7 + worklog (13)(14)
+2. **ユーザー: リモートブランチ 2 本の削除可否** (origin/approved-waves・
+   origin/worktree-s8b-ruling-prep)。本セッションからは fetch 認証がなく削除済みか確認できない
+3. B-008 の再試験条件: daemon の major/minor が上がった新規 background session で同じ probe
+   (手順の正本 = `hooks/README.md`)
+4. 限界受け入れ (viii) = floor 実測直前に最終承認 / task-run pilot 配線提案 = 10 run または
+   08-03 到達時に提示 (現在 2 run)

@@ -394,8 +394,10 @@ worklog 全読しないと発掘できない状態を解消するためここに
 - **trigger-loop runbook の verify abort>0 確認** (B-002, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — trigger-loop runbook を再利用し abort>0 gate が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - **critic digest への unstable / CV 伝搬** (B-006, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — critic loop が承認され安定性が次提案を左右するのに digest field が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - **Gate1 √2 閾値意味論** (B-007, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — Gate1 比較を認証主張に使い √2 意味論が未追認の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
-- **fresh background session での guard_agent 再検証** (B-008, 出所 `docs/worklog.md`) — 新しい background job session の開始時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
-- **guard_agent 防衛候補の裁定** (B-009, 出所 `docs/worklog.md`) — B-008 の再検証で model 無し spawn が通った時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- ~~**fresh background session での guard_agent 再検証** (B-008)~~ — **消化 (2026-07-20)**。発火条件 (新規 background job session) が成立しユーザー裁定で実施。daemon 2.1.214 で model 無し `Agent` を probe し **拒否発火・spawn なし** を確認 → 2.1.211 の不発は **version drift** と判定。結果の正本 = `hooks/README.md` hook 4「再検証の結果」+ worklog 2026-07-20 (14)。
+- ~~**guard_agent 防衛候補の裁定** (B-009)~~ — **不要化 (2026-07-20)**。価値は B-008 の素通り時にのみ発生する条件付き候補だったが、B-008 が拒否成功のため発生しない。daemon 更新で再 drift した場合に復活しうる。
+
+  (B-008 は 1 点観測のため、daemon の major/minor が上がった新規 background session で同じ probe を再試験する — 手順の正本は `hooks/README.md`。)
 - **fairness allowlist 反転** (B-010, 出所 `output/insights/2026-07-12_strategy-review-headline-axis.md`) — sort-strategy が headline 候補となり fairness 字句規則が allowlist でない時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - **間接 thid_ gallery 追記** (B-058, 出所 `output/insights/2026-07-12_strategy-review-headline-axis.md`) — sort-strategy が headline 候補となり間接 address 型 fixture が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - **range predicate の P record** (B-028, 出所 `output/insights/2026-06-18_phantom-predicate-out-of-scope.md`) — range/predicate workload を承認し trace schema に P record が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
