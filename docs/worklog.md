@@ -609,8 +609,11 @@ worklog (12) 次の一手 1(a)。/rulings 経由のユーザー裁定 (ここが
 1. **承認済み実装 wave (次セッション、クラス 3、この順)**: (a) ruling-A + ruling-C 同梱 →
    (b) C = backlog-guard → (c) ruling-B 単独 → (d) P-A1(a) Stage 1 + P-C3 同梱。正本 =
    D67 (7) / handoff 2026-07-19-backlog-guard-mechanism.md / insights wave2 §7 + worklog (13)(14)
-2. **ユーザー: リモートブランチ 2 本の削除可否** (origin/approved-waves・
-   origin/worktree-s8b-ruling-prep)。本セッションからは fetch 認証がなく削除済みか確認できない
+2. ~~ユーザー: リモートブランチ 2 本の削除可否~~ **解決 (2026-07-20)** — ユーザー観測により
+   origin 側で削除済みと確認。本セッションは remote への鍵を持たず (`ls-remote` は
+   `Permission denied (publickey)`) 自力検証できないため、**ユーザー観測を根拠に**古くなった
+   ローカル追跡参照 2 本を `git branch -rd` で掃除した (追跡参照の削除のみ。remote は無操作)。
+   結果: 追跡参照は `origin/main` のみ
 3. B-008 の再試験条件: daemon の major/minor が上がった新規 background session で同じ probe
    (手順の正本 = `hooks/README.md`)
 4. 限界受け入れ (viii) = floor 実測直前に最終承認 / task-run pilot 配線提案 = 10 run または
