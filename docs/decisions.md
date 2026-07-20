@@ -2710,3 +2710,70 @@ terminal (取り消し線付き 2 件・裁定・完了記録節 10 件) には�
 - **worklog を 2 エントリ書いて初回から実データ発火させる (プラン初版の二段 land)**:
   `handoff/README.md`「作業中は追記せず正常終了時に 1 回だけ吸収」に抵触。かつ (2) の
   「2 エントリ同時追加で遷移を飛ばせる」穴そのものの形だった
+
+## D71. S-1 freeze 再発行は依存閉包に阻まれる — 実装せず裁定へ差し戻す (2026-07-21)
+
+**決定: [T-005] (S-1 freeze の再発行) を本 wave では実装しない。** canonical 成果物
+(`output/s1-freeze/known_axes_freeze.json` / `measurement_freeze.json` /
+`output/s8b-freeze/holdout_freeze.json`) を 1 byte も変更していない。承認済み実装 wave として
+着手したが、実測により **承認された scope の中では完了できない**ことが判明したため差し戻す。
+
+(1) **破損の実体は 1 点。** `known_axes_freeze.json` の内容は現行 generator で**完全再構成できる**
+(記録値を override して `build_document()` を回すと entries / 63 source record / generator sha が
+一致)。落ちている検査は `frozen_at_head` の ancestry (`s1_known_axes_freeze.py:747-754`) だけである。
+
+(2) **しかし bytes を変えられない。** freeze の bytes を変えると正規の道が 3 方向すべて塞がる。
+(a) holdout を放置すると `holdout_freeze.json` の `known_axes_freeze.sha256` が外れ、
+`s8b_holdout_freeze.py:641` の worktree 完全一致照合が拒否する。
+(b) holdout を上書きすると `s8b_ratified_freeze.py:62` の `V1_FREEZE_SHA256` (v1 trust root を
+bytes でハードコード固定) が壊れる。この値は `EQUALITY_CHAIN_ADJACENCY` で result / journal /
+cert / manifest の等式連鎖に織り込まれている。
+(c) v2 世代で追随しようにも `_TRANSITION_V1_TO_G1` (`:115-120`) の許可 JSON Pointer 集合に
+**`/known_axes_freeze/sha256` が無く**、列挙外は前世代と厳密一致が要求されるため transition
+verifier が拒否する。
+
+(3) **holdout の再生成は AI が単独で行える操作ではない。** `s8b_holdout_freeze.build_document`
+(`:507-567`) は空でない人間確認者名 `confirmed_by` を必須とし (`:516-519`)、`search_repository` で
+holdout 未言及性を全 worktree (未追跡ファイルを含む) に対し再検査する (`:521-522`)。標本 H1/H2 と
+variant binding は定数・最近傍規則から決まるので不変だが、検索 snapshot・確認者・日時・HEAD が
+成果物に入るため、再生成は「known bytes の hash だけを追随させる」操作ではない。
+
+(4) **anchor の貼り替え案 (親の provisional 裁定 P2) は不成立。** generator を変更した後・push 前に
+`origin/main` を anchor にすると、freeze は新しい generator SHA を記録する一方
+`git show <anchor>:<generator-path>` は旧 bytes を返す。`frozen_at_head` が source closure を
+指さなくなるため「provenance anchor の貼り替え」という枠組み自体が虚偽になる。加えて local
+remote-tracking ref は publication の証明ではない (stale / 偽造で fail-open しうる)。
+
+(5) **対応台帳で literal pin を置き換える案も採らない。** 同じ producer が freeze と台帳の両方を
+書くため、「壊れた成果物 + それに合わせて更新された台帳」を拒否する**第三の独立値**が消える。
+`test_frozen_artifacts.py` の `FROZEN_MANIFEST` literal pin はその第三の値であり、外すと
+正しさゲートが正味で弱くなる (規律 2 に抵触)。台帳を作るなら一回限りの receipt とし、
+新 hash と receipt hash を `FROZEN_MANIFEST` へ再 pin する形にする。
+
+(6) **主張の格下げ。** 「published commit へ anchor する」は publication の保証ではなく
+**到達可能性 (reachability) の改善**にすぎない。`frozen_at_head` を provenance anchor と呼ぶのは
+過大であり、source closure の同一性は 63 の source record 側が担っている。
+
+(7) **付随して判明した未記録の問題** (いずれも本 wave の実測)。
+(a) **holdout freeze は 2026-07-18 から無効**だった — `docs/phase3-8b-descriptor-design.md` が
+floor protocol 裁定記録の commit 群で更新され `design_source` sha256 が外れた。宣言済み pin の
+ドリフトが 3 日間検出されなかった (F9 型)。
+(b) **dangling `frozen_at_head` は freeze 族に共通**で、S-1 の歴代 5 世代と holdout の計 6 個すべてが
+repo に存在しない。wave branch で生成し rebase で SHA が書き換わる運用が原因。
+(c) **D68 (7) の隠蔽パターンが `test_s1_measurement_freeze.py:91,98,113` に現存する** —
+production generator の現行 hash を動的に注入し `K.build_document` を fixture の echo へ置換する
+ため、generator 変更をテストが吸収してしまう。
+(d) **oracle 系テストは refusal の増加を検出できない** — `test_s8b_oracle_driver.py` は
+floor-null / budget-null / status=refused / rc=2 しか要求しないため、holdout の拒否理由が
+1 件増えても全走は赤くならない。
+
+(8) **事前登録変異 M1..M5 は 5 件すべて欠陥だった** (実測前に両レンズが独立に指摘)。単層変異が
+等価変異になるもの (M4)、先行検査に食われて受理集合が変わらないもの (M1・M5)、過剰決定で
+kill 帰属が成立しないもの (M3)、baseline と mutant の期待が逆転しているもの (M2)。
+**変異の事前登録は「どこを変えるか」だけでなく「その変異が受理集合を変える単一理由になるか」を
+コードで裏取りしてから確定する**こと。
+
+(9) **scope 外 → 裁定パッケージ (実装しない):** S-1 freeze 再発行の可否そのもの / 許容 JSON Pointer
+差分契約の確定 / legacy holdout を歴史成果物として据え置くか s8b trust root ごと移行するか /
+`test_s1_measurement_freeze.py` の fixture 隠蔽の是正 / oracle テストの refusal exact 検査。
+正本は worklog の裁定パッケージ節。

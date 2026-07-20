@@ -846,3 +846,81 @@ worklog (15) 次の一手 1(a) の承認済み実装 wave。ハイブリッド�
 9. [T-010] B-008 の再試験条件: 変わらず (前エントリ参照)
 10. [T-011] 限界受け入れ (viii) = floor 実測直前に最終承認 (裁定 2026-07-21: 据え置き)
 11. [T-012] task-run pilot 配線提案 = 10 run または 08-03 到達時に提示 (現在 4 run)
+
+## 2026-07-21 (3) — [T-005] S-1 freeze 再発行は依存閉包に阻まれ差し戻し (D71、branch worktree-dev-wave-ruling-ac、計測なし)
+
+worklog (2) 次の一手 1 の承認済み実装 wave として着手したが、**実測により承認 scope の中では完了
+できないと判明したため実装せず差し戻した**。ハイブリッド標準ループ (/dev-wave) で実施。
+設計判断は D71、逐語は `output/insights/2026-07-21_s1-freeze-reissue-loop.md`。
+ここには git に入らない情報だけを書く。
+
+- **canonical 成果物は 1 byte も変更していない。** `output/s1-freeze/` の 2 本と
+  `output/s8b-freeze/holdout_freeze.json` は着手前と同一。本 wave の commit は docs と skill のみ
+- **敵対相談 2 本がいずれも独立に NO-GO。** レンズは正しさ境界 / 整合・実効性。両者が別経路で
+  同じ閉包 (S-1 → holdout → v1 trust root → v2 transition table) に到達した
+- **親の provisional 裁定 8 件のうち 6 件が否認された** (P1/P2/P5/P6/P7/P8)。brief を攻撃対象に
+  含める規律が効いた 2 回目の実例。特に P2 (published commit へ anchor を貼り替える) は、
+  「push 前の anchor は新 generator bytes を含まない」という単純な事実で崩れた。**親が自分の案の
+  実行順序を最後まで辿っていなかった**のが原因
+- **親の brief の事実誤認を 2 件、相談が検出した。** (a) F11「freeze 内世代連鎖は本 repo で未裁定」
+  → 誤り。`s8b_ratified_freeze.py` に generation / approval / active pointer / transition が実装済みで、
+  v1 が世代 field を拒むのは型分離。この誤った根拠の上に P4′ を立てていた。
+  (b) F17 の二状態モデル → 誤り。holdout は再発行前から既に落ちている (親が実測で自己訂正済み)
+- **事前登録変異 M1..M5 は 5 件すべて欠陥**で、変異実測に到達しなかった。単層変異が等価変異
+  (M4)、先行検査に食われて受理集合が変わらない (M1・M5)、過剰決定 (M3)、baseline と mutant の
+  期待が逆転 (M2)。**5 件中 5 件が机上で誤っていた** — 変異の事前登録はコードでの裏取りを要する
+- **submodule 未 init が真の破損を隠していた。** worktree には submodule が入らないため、
+  最初の verify は「source が存在しない」で ancestry より手前で落ちていた。
+  `git submodule update --init` を先に実行して初めて実体が見えた
+- **ユーザー指摘への対応を wave 冒頭で実施** — `/dev-wave` が英語で始まる問題。日本語規律を
+  skill 冒頭へ格上げし第一声を明示的に対象化した (commit `f2f3756`)
+- 検収: `check_docs` 違反なし、S-1 freeze 系テスト green (`3 passed / 3 skipped`、skip は submodule
+  依存)。**実装差分が無いため変異 matrix と受入全走は本 wave の対象外**
+- エージェント工数: codex 3 本 (プラン 1 / 相談 2、いずれも gpt-5.6-sol、プラン max・相談 max)、
+  claude 子 1 本 (構造地図、sonnet)。**実装子・レビュー子は起動していない** (実装が無いため)
+- task-run: `20260720-s1-freeze-reissue-e5aef5fe` (pilot 5 本目)
+
+### 消化した ID
+
+- なし。[T-005] は完了せず、性格を「承認済み実装 wave」から「**ユーザー裁定待ち**」へ変更して
+  次の一手に残す (D71 (9))。承認は新事実により前提を失ったため、再承認が要る
+
+### 次の一手
+
+1. [T-005] **ユーザー裁定待ちへ差し戻し (2026-07-21、D71)**: S-1 freeze 再発行の可否。実行すると
+   holdout の `known_axes_freeze.sha256` が外れ、上書きは `V1_FREEZE_SHA256` (v1 trust root) を壊し、
+   v2 追随は `_TRANSITION_V1_TO_G1` に `/known_axes_freeze/sha256` が無いため拒否される。
+   **正規の道が 3 方向とも塞がっている**。推奨 = 単独では実行せず [T-063] [T-064] と束ねて裁定する
+2. [T-063] **裁定待ち (新規)**: 再発行の**許容 JSON Pointer 差分契約**を確定する。親の当初案
+   「差分は `frozen_at_head` と `python_version` のみ」は成立しない (known bytes が変われば
+   measurement の `/implementation_hashes/known_axes_freeze/sha256` も必ず変わる)。推奨 =
+   exact な許容 pointer 集合をユーザーが確定し、それ以外は厳密一致とする
+3. [T-064] **裁定待ち (新規)**: legacy holdout freeze を**歴史成果物として据え置く**か、
+   **s8b trust root ごと移行する**か。据え置くなら oracle 非復旧を明記する。移行するなら
+   `V1_FREEZE_SHA256`・transition table・protocol golden まで含む別 wave が要る。
+   holdout 再生成は `confirmed_by` (人間確認者名) を必須とするため **AI 単独では実行できない**
+4. [T-065] **実装待ち (新規、要裁定)**: holdout freeze が **2026-07-18 から無効**である
+   (`design_source` sha256 のドリフト、F9 型)。floor protocol 裁定記録の commit 群が
+   `docs/phase3-8b-descriptor-design.md` を更新したことが原因。3 日間検出されなかった
+5. [T-066] **実装待ち (新規、要裁定)**: `test_s1_measurement_freeze.py` に
+   **D68 (7) の隠蔽パターンが現存**する (production generator の現行 hash を動的注入 +
+   `K.build_document` を fixture の echo へ置換)。防壁変更にあたるため裁定へ回す
+6. [T-067] **実装待ち (新規、要裁定)**: oracle 系テストが **refusal の増加を検出できない**
+   (`test_s8b_oracle_driver.py` は floor-null / budget-null / status=refused / rc=2 しか要求しない)。
+   拒否理由の exact 検査へ強化する
+7. [T-068] **裁定待ち (新規)**: dangling `frozen_at_head` は **freeze 族共通の病**。S-1 の歴代 5 世代と
+   holdout の計 6 個すべてが repo に存在しない。wave branch で生成 → rebase で SHA 書換え、が原因。
+   恒久対応は [T-063] と同時に決める必要がある
+8. [T-004] **承認済み実装 wave (単独 wave、[T-007] [T-008] を同梱)**: WAL の byte 単位 record framing と
+   resume の物理修復。末尾断片が物理ファイルに残り次の `O_APPEND` が直結する。基準 HEAD から存在し
+   全 campaign へ波及する。**本 wave が実装に至らなかったため、次に着手すべきはこれ**
+9. [T-008] **裁定確定 (2026-07-21): payload 型を writer 側でも強制する**。[T-004] の wave に同梱
+10. [T-007] **裁定確定 (2026-07-21): 未知 stage は拒否する** (fail-closed)。[T-004] の wave に同梱
+11. [T-001] **承認済み実装 wave**: ruling-B 単独 (session record の issuer/env_tag 照合)
+12. [T-002] **承認済み実装 wave ([T-006] を同梱)**: P-A1(a) Stage 1 + P-C3
+13. [T-009] **裁定確定 (2026-07-21)**: 実装子の規律免除を `AGENTS.md` へ 1 段落追記する
+14. [T-060] **[T-003] 裁定の実装分**: WAL に関する記述から「改竄耐性」「改竄不能」「証明可能」を
+    使わない運用を明文化する (脅威境界の正本 = D68 (6))
+15. [T-010] B-008 の再試験条件: 変わらず
+16. [T-011] 限界受け入れ (viii) = floor 実測直前に最終承認 (据え置き)
+17. [T-012] task-run pilot 配線提案 = 10 run または 08-03 到達時に提示 (現在 5 run)
