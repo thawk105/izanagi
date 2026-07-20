@@ -14,6 +14,7 @@ from __future__ import annotations
 import re
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -76,6 +77,46 @@ ARCHIVE_README = ARCHIVE_DIR / "README.md"
 # 閾値超過 = ローテーションの合図 (手順の正本は worklog.md 冒頭)。
 WORKLOG = REPO / "docs" / "worklog.md"
 WORKLOG_ROTATE_BYTES = 100_000
+PHASE3 = REPO / "docs" / "phase3.md"
+
+# --- 「次の一手」ID 保存則 (D69) ---
+# 1〜999 は 3 桁固定、1000 以上は冗長な先頭ゼロなしを正規形とする。
+TASK_ID_PATTERN = r"\[T-(?:0(?:0[1-9]|[1-9][0-9])|[1-9][0-9]{2,})\]"
+TASK_ID_AT_HEAD_RE = re.compile(rf"^(?P<id>{TASK_ID_PATTERN})(?=$|[ \t])")
+TASK_ID_LIKE_AT_HEAD_RE = re.compile(r"^\[T-[^\]\n]*\]")
+TASK_ID_LIKE_RE = re.compile(r"\[T-[^\]\n]*\]")
+TOP_LEVEL_ITEM_RE = re.compile(
+    r"^(?:[1-9][0-9]*\.|-)[ \t]+(?P<text>[^\n]*)$", re.MULTILINE
+)
+FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,}).*$")
+WORKLOG_H2_RE = re.compile(r"^##[ \t]+(?P<title>[^\n]+?)[ \t]*$", re.MULTILINE)
+ROTATION_RE = re.compile(r"^## ローテーション[^\n]*$", re.MULTILINE)
+WORKLOG_ENTRY_TITLE_RE = re.compile(
+    r"\d{4}-\d{2}-\d{2} \([1-9][0-9]*\) — .+"
+)
+ARCHIVE_WORKLOG_ENTRY_TITLE_RE = re.compile(
+    r"(?P<date>\d{4}-\d{2}-\d{2})"
+    r"(?: \((?P<order>[1-9][0-9]*|続き[0-9]*)\))? — .+"
+)
+NEXT_ACTION_RE = re.compile(
+    r"^### 次の一手(?:[ \t][^\n]*)?$\n?(?P<body>.*?)(?=^###[ \t]|^##[ \t]|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+DEFERRED_LEDGER_HEADING_RE = re.compile(
+    r"^## 見送り台帳(?:[ \t][^\n]*)?$", re.MULTILINE
+)
+COMPLETION_RECORD_HEADING_RE = re.compile(
+    r"^### 裁定・完了記録(?:[ \t][^\n]*)?$", re.MULTILINE
+)
+
+
+@dataclass
+class _ArchiveWorklog:
+    path: Path
+    text: str
+    entries: list[tuple[str, str, int]]
+    next_actions: list[tuple[str, int] | None]
+    sources: list[set[str]]
 
 # --- 参照実在性 (2026-07-11 追加、docs 整備) ---
 # living docs 中の「実在しない D 番号」「実在しないファイルパス」への参照 = 腐敗。
@@ -100,6 +141,487 @@ def _current_pin() -> str | None:
         return None
     m = re.search(r'^CURRENT_PIN\s*=\s*"([0-9a-f]{7,40})"', pin_py.read_text(), re.MULTILINE)
     return m.group(1) if m else None
+
+
+def _line_number(text: str, offset: int) -> int:
+    return text.count("\n", 0, offset) + 1
+
+
+def _extract_current_entries(
+    text: str, findings: list[str]
+) -> list[tuple[str, str, int]] | None:
+    """現行 worklog の entry を構造検証して抽出する。失敗は空集合にしない。"""
+
+    rotations = list(ROTATION_RE.finditer(text))
+    if len(rotations) != 1:
+        findings.append(
+            f"docs/worklog.md: `## ローテーション` が {len(rotations)} 件 — "
+            "一意に entry 範囲を抽出できない"
+        )
+        return None
+
+    rotation = rotations[0]
+    h2s = [m for m in WORKLOG_H2_RE.finditer(text) if m.start() > rotation.start()]
+    invalid = [m for m in h2s if WORKLOG_ENTRY_TITLE_RE.fullmatch(m.group("title")) is None]
+    for m in invalid:
+        findings.append(
+            f"docs/worklog.md:{_line_number(text, m.start())}: ローテーション以後の H2 "
+            f"{m.group('title')!r} が worklog entry title に full-match しない"
+        )
+    if invalid:
+        return None
+    if not h2s:
+        findings.append(
+            "docs/worklog.md: ローテーション以後の worklog エントリが 0 件 — "
+            "保存則検査が蒸発している"
+        )
+        return None
+
+    entries: list[tuple[str, str, int]] = []
+    for i, h2 in enumerate(h2s):
+        body_end = h2s[i + 1].start() if i + 1 < len(h2s) else len(text)
+        entries.append((h2.group("title"), text[h2.end():body_end], h2.end()))
+    return entries
+
+
+def _extract_archive_entries(
+    path: Path, text: str, findings: list[str]
+) -> list[tuple[str, str, int]] | None:
+    """ローテーション済み worklog の entry を抽出する。archive 自体に marker はない。"""
+
+    rel = path.relative_to(REPO)
+    h2s = list(WORKLOG_H2_RE.finditer(text))
+    if not h2s:
+        findings.append(
+            f"{rel}: 日付付き worklog entry が 0 件 — archive の遷移を検査できない"
+        )
+        return None
+
+    invalid = [
+        m for m in h2s
+        if ARCHIVE_WORKLOG_ENTRY_TITLE_RE.fullmatch(m.group("title")) is None
+    ]
+    for m in invalid:
+        findings.append(
+            f"{rel}:{_line_number(text, m.start())}: H2 {m.group('title')!r} が "
+            "archive worklog entry title に full-match しない"
+        )
+    if invalid:
+        return None
+
+    entries: list[tuple[str, str, int]] = []
+    for i, h2 in enumerate(h2s):
+        body_end = h2s[i + 1].start() if i + 1 < len(h2s) else len(text)
+        entries.append((h2.group("title"), text[h2.end():body_end], h2.end()))
+    return entries
+
+
+def _extract_next_action(
+    rel: str,
+    whole_text: str,
+    entry: tuple[str, str, int],
+    findings: list[str],
+) -> tuple[str, int] | None:
+    """entry の「次の一手」を一意抽出する。0/複数を必ず finding にする。"""
+
+    title, body, body_offset = entry
+    sections = list(NEXT_ACTION_RE.finditer(body))
+    if len(sections) != 1:
+        findings.append(
+            f"{rel}: エントリ {title!r} の `### 次の一手` が {len(sections)} 件 — "
+            "source を一意に抽出できない"
+        )
+        return None
+    section = sections[0]
+    return section.group("body"), body_offset + section.start("body")
+
+
+def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
+    """HTML comment を同じ長さの空白へ置換し、行をまたぐ状態を返す。"""
+
+    visible: list[str] = []
+    cursor = 0
+    while cursor < len(line):
+        if in_comment:
+            end = line.find("-->", cursor)
+            if end < 0:
+                visible.append(" " * (len(line) - cursor))
+                cursor = len(line)
+            else:
+                end += len("-->")
+                visible.append(" " * (end - cursor))
+                cursor = end
+                in_comment = False
+            continue
+
+        start = line.find("<!--", cursor)
+        if start < 0:
+            visible.append(line[cursor:])
+            cursor = len(line)
+        else:
+            visible.append(line[cursor:start])
+            cursor = start
+            in_comment = True
+    return "".join(visible), in_comment
+
+
+def _top_level_items(body: str) -> list[tuple[str, int]]:
+    """code fence / HTML comment 外にあるトップレベル項目と offset を返す。"""
+
+    items: list[tuple[str, int]] = []
+    in_comment = False
+    fence: tuple[str, int] | None = None
+    offset = 0
+    for raw_line in body.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        if fence is not None:
+            marker_char, marker_len = fence
+            stripped = line.lstrip(" \t")
+            indent = len(line) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
+            offset += len(raw_line)
+            continue
+
+        # fence opener の info string 内にある `<!--` は comment 開始ではない。
+        # comment 継続中でない行は opener を先に判定する。
+        if not in_comment:
+            fence_match = FENCE_OPEN_RE.fullmatch(line)
+            if fence_match is not None:
+                marker = fence_match.group("marker")
+                fence = (marker[0], len(marker))
+                offset += len(raw_line)
+                continue
+
+        visible, in_comment = _mask_html_comments(line, in_comment)
+        fence_match = FENCE_OPEN_RE.fullmatch(visible)
+        if fence_match is not None:
+            marker = fence_match.group("marker")
+            fence = (marker[0], len(marker))
+            offset += len(raw_line)
+            continue
+
+        item = TOP_LEVEL_ITEM_RE.fullmatch(visible)
+        if item is not None:
+            items.append((item.group("text"), offset))
+        offset += len(raw_line)
+    return items
+
+
+def _top_level_ids(body: str) -> list[str]:
+    """トップレベル list item の先頭にある有効 ID だけを返す。"""
+
+    ids: list[str] = []
+    for item_text, _ in _top_level_items(body):
+        match = TASK_ID_AT_HEAD_RE.match(item_text)
+        if match:
+            ids.append(match.group("id"))
+    return ids
+
+
+def _validate_next_action_items(
+    rel: str,
+    whole_text: str,
+    entry: tuple[str, str, int],
+    section: tuple[str, int],
+    findings: list[str],
+    *,
+    latest: bool = False,
+) -> None:
+    """ID 導入済み entry の次の一手について ID 完備性と重複を検査する。"""
+
+    title, _, _ = entry
+    section_body, section_offset = section
+    label = "末尾エントリ" if latest else f"エントリ {title!r}"
+    seen: set[str] = set()
+    for item_text, item_offset in _top_level_items(section_body):
+        valid = TASK_ID_AT_HEAD_RE.match(item_text)
+        lineno = _line_number(whole_text, section_offset + item_offset)
+        if valid is None:
+            invalid = TASK_ID_LIKE_AT_HEAD_RE.match(item_text)
+            if invalid is not None:
+                findings.append(
+                    f"{rel}:{lineno}: {label} の `### 次の一手` のトップレベル"
+                    f"項目先頭 ID {invalid.group(0)!r} が不正形式"
+                )
+            else:
+                findings.append(
+                    f"{rel}:{lineno}: {label} の `### 次の一手` の "
+                    "トップレベル項目先頭に有効な [T-NNN] ID がない"
+                )
+            continue
+
+        task_id = valid.group("id")
+        if task_id in seen:
+            findings.append(
+                f"{rel}:{lineno}: {label} の `### 次の一手` 内で ID {task_id} が重複"
+            )
+        seen.add(task_id)
+
+
+def _archive_entry_point(title: str) -> tuple[str, int | None]:
+    """archive entry title から、ファイル間順序に使える日付・明示連番を返す。"""
+
+    match = ARCHIVE_WORKLOG_ENTRY_TITLE_RE.fullmatch(title)
+    if match is None:  # _extract_archive_entries が先に full-match を保証する。
+        raise ValueError(f"invalid archive entry title: {title!r}")
+    order = match.group("order")
+    return match.group("date"), int(order) if order and order.isdigit() else None
+
+
+def _entry_point_is_before(left_title: str, right_title: str) -> bool:
+    """日付または同日の明示連番から left < right を証明できるときだけ True。"""
+
+    left_date, left_order = _archive_entry_point(left_title)
+    right_date, right_order = _archive_entry_point(right_title)
+    if left_date != right_date:
+        return left_date < right_date
+    return (
+        left_order is not None
+        and right_order is not None
+        and left_order < right_order
+    )
+
+
+def _archive_is_before(left: _ArchiveWorklog, right: _ArchiveWorklog) -> bool:
+    return _entry_point_is_before(left.entries[-1][0], right.entries[0][0])
+
+
+def _extract_deferred_ledger(
+    text: str, findings: list[str]
+) -> tuple[str, int] | None:
+    """見送り台帳を完了記録の手前まで抽出する (完了済み ID を sink にしない)。"""
+
+    ledgers = list(DEFERRED_LEDGER_HEADING_RE.finditer(text))
+    completions = list(COMPLETION_RECORD_HEADING_RE.finditer(text))
+    if len(ledgers) != 1:
+        findings.append(
+            f"docs/phase3.md: `## 見送り台帳` が {len(ledgers)} 件 — sink を一意に抽出できない"
+        )
+    if len(completions) != 1:
+        findings.append(
+            "docs/phase3.md: `### 裁定・完了記録` が "
+            f"{len(completions)} 件 — 見送り台帳 sink の終端を一意に抽出できない"
+        )
+    if len(ledgers) != 1 or len(completions) != 1:
+        return None
+
+    ledger = ledgers[0]
+    completion = completions[0]
+    if completion.start() <= ledger.end():
+        findings.append(
+            "docs/phase3.md: `### 裁定・完了記録` が `## 見送り台帳` より後にない — "
+            "見送り台帳 sink の範囲を抽出できない"
+        )
+        return None
+    # 見出し行を [^\n]* で止めてから範囲を切る。DOTALL 下の `.` に見出し以後を
+    # 飲ませると body が空になるため、見出し suffix に `.*` は使わない。
+    body_start = ledger.end()
+    if body_start < len(text) and text[body_start] == "\n":
+        body_start += 1
+    return text[body_start:completion.start()], body_start
+
+
+def _check_backlog_guard(findings: list[str]) -> None:
+    """worklog の次アクション保存則と見送り台帳の ID 構造を検査する。"""
+
+    worklog_text: str | None = None
+    phase3_text: str | None = None
+    if not WORKLOG.exists():
+        findings.append("docs/worklog.md: ファイルが不在 — 次の一手の保存則を検査できない")
+    else:
+        worklog_text = WORKLOG.read_text()
+    if not PHASE3.exists():
+        findings.append("docs/phase3.md: ファイルが不在 — 見送り台帳 sink を検査できない")
+    else:
+        phase3_text = PHASE3.read_text()
+
+    ledger_ids: set[str] = set()
+    if phase3_text is not None:
+        ledger = _extract_deferred_ledger(phase3_text, findings)
+        if ledger is not None:
+            ledger_body, ledger_offset = ledger
+            seen: set[str] = set()
+            for item_text, item_offset in _top_level_items(ledger_body):
+                lineno = _line_number(phase3_text, ledger_offset + item_offset)
+                if item_text.startswith("~~"):
+                    terminal_id = TASK_ID_LIKE_RE.search(item_text)
+                    if terminal_id is not None:
+                        findings.append(
+                            f"docs/phase3.md:{lineno}: 見送り台帳の取り消し線項目に "
+                            f"ID {terminal_id.group(0)!r} がある"
+                        )
+                    continue
+
+                valid = TASK_ID_AT_HEAD_RE.match(item_text)
+                if valid:
+                    task_id = valid.group("id")
+                    if task_id in seen:
+                        findings.append(
+                            f"docs/phase3.md:{lineno}: "
+                            f"見送り台帳の ID {task_id} が重複"
+                        )
+                    seen.add(task_id)
+                    ledger_ids.add(task_id)
+                else:
+                    invalid = TASK_ID_LIKE_AT_HEAD_RE.match(item_text)
+                    if invalid is None:
+                        findings.append(
+                            f"docs/phase3.md:{lineno}: 見送り台帳の生存項目先頭に"
+                            "有効な [T-NNN] ID がない"
+                        )
+                        continue
+                    token = invalid.group(0)
+                    findings.append(
+                        f"docs/phase3.md:{lineno}: "
+                        f"見送り台帳の項目先頭 ID {token!r} が不正形式"
+                    )
+
+    if worklog_text is None:
+        return
+    entries = _extract_current_entries(worklog_text, findings)
+    if entries is None:
+        return
+
+    next_actions: list[tuple[str, int] | None] = [
+        _extract_next_action("docs/worklog.md", worklog_text, entry, findings)
+        for entry in entries
+    ]
+    sources = [set(_top_level_ids(section[0])) if section is not None else set()
+               for section in next_actions]
+    if not any(sources):
+        findings.append(
+            "docs/worklog.md: 現行 worklog に有効 ID を持つエントリが 1 件もない — "
+            "保存則検査が蒸発している"
+        )
+
+    for i, (entry, section) in enumerate(zip(entries, next_actions)):
+        if section is None:
+            continue
+        if _top_level_ids(entry[1]) or i == len(entries) - 1:
+            _validate_next_action_items(
+                "docs/worklog.md",
+                worklog_text,
+                entry,
+                section,
+                findings,
+                latest=i == len(entries) - 1,
+            )
+
+    def check_transition(
+        source_entry: tuple[str, str, int],
+        source_ids: set[str],
+        sink_entry: tuple[str, str, int],
+        source_rel: str,
+    ) -> None:
+        if not source_ids:
+            return
+        sink_ids = set(_top_level_ids(sink_entry[1])) | ledger_ids
+        for task_id in sorted(source_ids):
+            if task_id not in sink_ids:
+                findings.append(
+                    f"{source_rel}: エントリ {source_entry[0]!r} の次の一手 ID {task_id} が "
+                    f"後続エントリ {sink_entry[0]!r} のトップレベル項目にも "
+                    "docs/phase3.md の見送り台帳にもない"
+                )
+
+    for i in range(len(entries) - 1):
+        if next_actions[i] is not None:
+            check_transition(entries[i], sources[i], entries[i + 1], "docs/worklog.md")
+
+    archive_worklogs: list[_ArchiveWorklog] = []
+    for archive_path in sorted(ARCHIVE_DIR.glob("worklog-*.md"), key=lambda path: path.name):
+        archive_text = archive_path.read_text()
+        archive_entries = _extract_archive_entries(archive_path, archive_text, findings)
+        if archive_entries is None:
+            continue
+
+        archive_rel = str(archive_path.relative_to(REPO))
+        archive_next_actions: list[tuple[str, int] | None] = []
+        archive_sources: list[set[str]] = []
+        for i, entry in enumerate(archive_entries):
+            raw_sections = list(NEXT_ACTION_RE.finditer(entry[1]))
+            entry_has_id = bool(_top_level_ids(entry[1]))
+            # ID 導入前の古い archive には inline の「次の一手」しかない entry がある。
+            # source が存在しない非末尾 entry だけは空遷移として扱い、ID を持つ entry、
+            # archive 境界を担う末尾 entry、複数節は構造を必ず検査する。
+            must_extract = entry_has_id or i == len(archive_entries) - 1 or len(raw_sections) > 1
+            if len(raw_sections) == 1 or must_extract:
+                section = _extract_next_action(
+                    archive_rel, archive_text, entry, findings
+                )
+            else:
+                section = None
+            archive_next_actions.append(section)
+            source_ids = set(_top_level_ids(section[0])) if section is not None else set()
+            archive_sources.append(source_ids)
+            if entry_has_id and section is not None:
+                _validate_next_action_items(
+                    archive_rel, archive_text, entry, section, findings
+                )
+
+        archive = _ArchiveWorklog(
+            archive_path,
+            archive_text,
+            archive_entries,
+            archive_next_actions,
+            archive_sources,
+        )
+        archive_worklogs.append(archive)
+        for i in range(len(archive_entries) - 1):
+            if archive_next_actions[i] is not None:
+                check_transition(
+                    archive_entries[i],
+                    archive_sources[i],
+                    archive_entries[i + 1],
+                    archive_rel,
+                )
+
+    archive_worklogs.sort(
+        key=lambda archive: (
+            _archive_entry_point(archive.entries[0][0])[0],
+            _archive_entry_point(archive.entries[0][0])[1] is None,
+            _archive_entry_point(archive.entries[0][0])[1] or 0,
+            archive.path.name,
+        )
+    )
+    ambiguous_order = False
+    for i, left in enumerate(archive_worklogs):
+        for right in archive_worklogs[i + 1:]:
+            if _archive_is_before(left, right):
+                continue
+            ambiguous_order = True
+            findings.append(
+                "docs/archive: archive worklog の順序を一意に決定できない — "
+                f"{left.path.name} の末尾 {left.entries[-1][0]!r} と "
+                f"{right.path.name} の先頭 {right.entries[0][0]!r} が同日または範囲重複"
+            )
+
+    if archive_worklogs and not ambiguous_order:
+        for left, right in zip(archive_worklogs, archive_worklogs[1:]):
+            check_transition(
+                left.entries[-1],
+                left.sources[-1],
+                right.entries[0],
+                str(left.path.relative_to(REPO)),
+            )
+
+        latest_archive = archive_worklogs[-1]
+        if not _entry_point_is_before(latest_archive.entries[-1][0], entries[0][0]):
+            findings.append(
+                "docs/archive: 最終 archive と現行 worklog 先頭の順序を一意に決定できない — "
+                f"{latest_archive.path.name} の末尾 {latest_archive.entries[-1][0]!r} / "
+                f"docs/worklog.md の先頭 {entries[0][0]!r}"
+            )
+        else:
+            check_transition(
+                latest_archive.entries[-1],
+                latest_archive.sources[-1],
+                entries[0],
+                str(latest_archive.path.relative_to(REPO)),
+            )
 
 
 def main() -> int:
@@ -170,6 +692,8 @@ def main() -> int:
                 if doc.name == "ccbench-anatomy.md" and (REPO / "external" / "ccbench" / p).exists():
                     continue
                 findings.append(f"{rel}:{lineno}: 実在しないパス参照: {p!r}")
+
+    _check_backlog_guard(findings)
 
     archive_readme_text = ARCHIVE_README.read_text()
     archive_section = re.search(
