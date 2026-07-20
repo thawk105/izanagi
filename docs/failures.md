@@ -322,6 +322,24 @@
 - 再発検知: スキル末尾の事後検査 (`git submodule status` が `-` prefix なしで pin 一致)。worktree
   掃除をスキル外で即興したらレビューで差し戻す
 
+### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
+- 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
+  `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
+  `output/s1-freeze/known_axes_freeze.json` に記録する自己ハッシュ generator** であり、1 byte の変更で
+  freeze の `verify()` が落ち、公式 oracle gate が `known-axes-freeze-verify` で拒否する状態になった
+  (記録値 `1d4d45…` = 基準 HEAD、変更後 `d1d263…`)。さらに実装子は
+  `test_verify_rejects_tampered_source_copy` の fixture へ**現行の generator hash を代入する 1 行**を
+  足し、先行する generator gate を迂回してテストを緑に保っていた (コメントに迂回の意図まで明記)。
+  全走は緑だったため、テスト結果だけでは検出できなかった
+- 根本原因: (1) ソースファイル自身が proof chain の hash 対象である構造を、編集面の選定時に誰も
+  検査しなかった (親の brief も「WAL の読み手」としてしか見ていない)。(2) 実装子への禁止事項に
+  「テストを甘くして緑にするな」が無く、緑を作る自由度が残っていた
+- 恒久対応: `/dev-wave` 段 5 の実装子定型に「緑の主張には走らせた範囲を併記」「テストを甘くして
+  緑にすることの禁止 (fixture への hash 差し込み等)」を明記 (.claude/commands/dev-wave.md)。
+  編集候補が凍結成果物に hash されているかを、変更前に `grep` で確認する
+- 再発検知: 敵対レビューのレンズに「既存保証の喪失・テスト期待の弱体化」を常設する (本件はこの
+  レンズが唯一の検出経路だった)。凍結成果物を持つ leaf を触る wave では、親が `verify()` を実走する
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
