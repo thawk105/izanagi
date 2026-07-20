@@ -26,7 +26,13 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import hashlib
+import json
+import shutil
+import tempfile
+import time
 from importlib import metadata
+from pathlib import Path
 from typing import Optional, Sequence
 
 from packaging.version import InvalidVersion, Version
@@ -38,6 +44,45 @@ _DEFAULT_TARGET = os.path.join(_REPO, "orchestrator", "tests")
 # 環境変数 IZANAGI_TEST_NPROC=max で外せる。
 _NPROC_CAP = 32
 _MIN_XDIST_VERSION = Version("2.5")
+
+_TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
+_TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
+_TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
+_TEST_TRIGGER_ENV = "IZANAGI_TEST_TRIGGER"
+_TRIGGERS = frozenset({
+    "baseline", "after-change", "after-failure", "final", "review-fix",
+    "unspecified",
+})
+
+# V14: only this closed table is known not to narrow test selection.  Any
+# positional argument, selector, malformed option, or unknown option is
+# conservatively targeted.
+_NONSELECT_FLAGS = frozenset({
+    "-s", "--disable-warnings", "--strict-config", "--strict-markers",
+    "--continue-on-collection-errors", "--keep-duplicates", "--no-header",
+    "--no-summary", "--full-trace", "--setup-only", "--setup-show",
+    "--setup-plan", "--trace-config", "--version", "--help",
+})
+_NONSELECT_VALUE_OPTIONS = frozenset({
+    "-n", "--numprocesses", "--dist", "--color", "--tb", "--capture",
+    "--junitxml", "--junit-prefix", "--rootdir", "--confcutdir",
+    "--basetemp", "--durations", "--durations-min", "--verbosity",
+    "--show-capture", "--import-mode", "--log-level", "--log-format",
+    "--log-date-format", "--log-cli-level", "--log-cli-format",
+    "--log-cli-date-format", "--log-file", "--log-file-mode",
+    "--log-file-level", "--log-file-format", "--log-file-date-format",
+    "--override-ini", "-o", "-p",
+})
+_SELECT_FLAGS = frozenset({
+    "-k", "-m", "--lf", "--last-failed", "--ff", "--failed-first",
+    "--deselect", "--ignore", "--ignore-glob", "-x", "--exitfirst",
+    "--maxfail", "--stepwise", "--sw", "--stepwise-skip", "--new-first",
+    "--nf", "--collect-only", "--co", "--pyargs",
+})
+_NO_EXECUTION_FLAGS = frozenset({
+    "--help", "--version", "--setup-only", "--setup-plan", "--collect-only",
+    "--co", "--fixtures", "--fixtures-per-test", "--markers", "--trace-config",
+})
 
 
 def _available_cpus() -> int:
@@ -178,6 +223,186 @@ def _build_pytest_command(
     return cmd + user_args
 
 
+def _is_full_suite(args: Sequence[str], pytest_addopts: Optional[str] = None) -> bool:
+    """Return true only for the closed, conservative V14 full-suite shape."""
+
+    addopts = os.environ.get("PYTEST_ADDOPTS") if pytest_addopts is None else pytest_addopts
+    if addopts is not None and addopts.strip():
+        return False
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--":
+            return False
+        option = token.split("=", 1)[0]
+        if option in _NO_EXECUTION_FLAGS:
+            return False
+        if option in _SELECT_FLAGS or token.startswith("-k") or token.startswith("-m"):
+            return False
+        if token in _NONSELECT_FLAGS or (
+            len(token) >= 2 and token[0] == "-" and set(token[1:]) <= {"q", "v"}
+        ):
+            i += 1
+            continue
+        if option in _NONSELECT_VALUE_OPTIONS:
+            if "=" in token:
+                if not token.split("=", 1)[1]:
+                    return False
+                i += 1
+                continue
+            if option == "-n" and token != "-n":
+                # Handled below by the compact -nVALUE spelling.
+                return False
+            if i + 1 >= len(args):
+                return False
+            i += 2
+            continue
+        if token.startswith("-n") and token != "-n" and len(token) > 2:
+            i += 1
+            continue
+        return False
+    return True
+
+
+def _normalized_fingerprint_args(args: Sequence[str]) -> list[str]:
+    """Normalize repo-local path spelling before hashing; never persist argv."""
+
+    repo = Path(_REPO).resolve()
+    normalized: list[str] = []
+    for token in args:
+        path_part, separator, node_part = token.partition("::")
+        try:
+            candidate = Path(path_part)
+            if candidate.is_absolute():
+                path_part = candidate.resolve(strict=False).relative_to(repo).as_posix()
+        except (OSError, ValueError):
+            pass
+        normalized.append(path_part + (separator + node_part if separator else ""))
+    return normalized
+
+
+def _suite_identity(
+    args: Sequence[str], pytest_addopts: Optional[str] = None,
+) -> tuple[str, str]:
+    """Derive a privacy-safe suite kind/ID from wrapper inputs only."""
+
+    addopts = os.environ.get("PYTEST_ADDOPTS") if pytest_addopts is None else pytest_addopts
+    if _is_full_suite(args, addopts):
+        return "full", "pytest-orchestrator-full"
+    projection = {
+        "args": _normalized_fingerprint_args(args),
+        # Selection text is reduced to a digest before entering the projection.
+        "addopts_digest": (
+            hashlib.sha256(addopts.encode("utf-8")).hexdigest()[:12]
+            if addopts and addopts.strip() else None
+        ),
+    }
+    raw = json.dumps(projection, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "targeted", f"pytest-targeted-{hashlib.sha256(raw).hexdigest()[:12]}"
+
+
+def _private_sidecar() -> tuple[Path, Path]:
+    """Create a repo-external 0700 directory; the hook creates the file."""
+
+    directory = Path(tempfile.mkdtemp(prefix="izanagi-task-run-", dir="/tmp")).resolve()
+    os.chmod(directory, 0o700)
+    repo = Path(_REPO).resolve()
+    if directory == repo or repo in directory.parents:
+        raise OSError("sidecar directory unexpectedly resides in repository")
+    return directory, directory / "pytest-stats.json"
+
+
+def _record_task_run(
+    *, task_run_id: str, root: Path, suite_id: str, suite_kind: str,
+    duration_s: float, exit_status: int, trigger: str, sidecar: Optional[Path],
+) -> None:
+    """Best-effort single E1 call; never emit output or catch interrupts."""
+
+    counts = None
+    digest = None
+    if _REPO not in sys.path:
+        sys.path.insert(0, _REPO)
+    if sidecar is not None:
+        try:
+            from tools.task_runs.pytest_stats import read_sidecar
+
+            stats = read_sidecar(sidecar)
+            if stats is not None:
+                counts, digest = stats
+        except Exception:
+            pass
+    try:
+        from tools.task_runs import record_test_run
+
+        record_test_run(
+            root, task_run_id, suite_id=suite_id, suite_kind=suite_kind,
+            duration_s=duration_s, exit_status=exit_status, counts=counts,
+            trigger=trigger, collected_node_digest=digest,
+        )
+    except Exception:
+        pass
+
+
+def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) -> int:
+    recording_ready = True
+    try:
+        suite_kind, suite_id = _suite_identity(args)
+    except Exception:
+        recording_ready = False
+        suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"
+    trigger = os.environ.get(_TEST_TRIGGER_ENV, "unspecified")
+    if trigger not in _TRIGGERS:
+        trigger = "unspecified"
+    root = Path(os.environ.get(
+        _TASK_RUNS_ROOT_ENV, os.path.join(_REPO, "output", "task-runs"),
+    ))
+    sidecar_dir: Optional[Path] = None
+    sidecar: Optional[Path] = None
+    child_env = None
+    try:
+        sidecar_dir, sidecar = _private_sidecar()
+        child_env = os.environ.copy()
+        child_env[_TASK_RUN_SIDECAR_ENV] = str(sidecar)
+    except Exception:
+        sidecar_dir = None
+        sidecar = None
+
+    try:
+        try:
+            started = time.monotonic()
+        except Exception:
+            started = None
+            recording_ready = False
+        if child_env is None:
+            rc = subprocess.call(list(cmd))
+        else:
+            rc = subprocess.call(list(cmd), env=child_env)
+        if started is not None:
+            try:
+                duration_s = time.monotonic() - started
+            except Exception:
+                recording_ready = False
+                duration_s = 0.0
+        else:
+            duration_s = 0.0
+        if recording_ready:
+            try:
+                _record_task_run(
+                    task_run_id=task_run_id, root=root, suite_id=suite_id,
+                    suite_kind=suite_kind, duration_s=duration_s, exit_status=rc,
+                    trigger=trigger, sidecar=sidecar,
+                )
+            except Exception:
+                pass
+        return rc
+    finally:
+        if sidecar_dir is not None:
+            try:
+                shutil.rmtree(sidecar_dir)
+            except Exception:
+                pass
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     use_xdist = False
@@ -211,7 +436,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default_nproc=default_nproc,
         has_target=any(_is_target(arg) for arg in args),
     )
-    return subprocess.call(cmd)
+    task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
+    if not task_run_id:
+        return subprocess.call(cmd)
+    return _call_and_record(cmd, args, task_run_id)
 
 
 if __name__ == "__main__":

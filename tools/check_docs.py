@@ -27,6 +27,8 @@ LIVING_DOCS = [
     REPO / "AGENTS.md",                         # Codex 用の共有規律入口
     REPO / "CLAUDE.md",
     REPO / ".codex" / "agents" / "README.md", # Codex runtime adapter の生きた運用文書
+    REPO / "output" / "README.md",              # 成果物 namespace の生きた地図
+    REPO / "output" / "task-runs" / "README.md",  # 開発観測台帳の生きた運用正本
     REPO / "docs" / "README.md",                  # docs の地図 (2026-07-11 fc-05 で CLAUDE.md から委譲)
     REPO / "docs" / "ai-provenance.md",           # commit provenance の共有規約
     REPO / "docs" / "roadmap.md",

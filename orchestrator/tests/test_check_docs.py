@@ -119,12 +119,54 @@ def test_missing_enumerated_doc_only_fires_own_finding():
         shutil.rmtree(root, ignore_errors=True)
 
 
-# ===== 現実 repo は違反なし (回帰: 本修正が実 repo を壊さない) =====
+# ===== V19a: output の生きた README を検査網へ固定 =====
+
+def test_output_readmes_are_enumerated_and_valid_fixture_is_clean():
+    expected = {"output/README.md", "output/task-runs/README.md"}
+    assert expected <= set(_enumerated_rels())
+    root = _build_min_repo()
+    try:
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_broken_reference_in_task_runs_readme_is_positive_control():
+    """対象を列挙しただけの恒真化を防ぎ、本文 lint が実際に発火することを固定。"""
+
+    root = _build_min_repo()
+    try:
+        victim = "output/task-runs/README.md"
+        _write(root, victim, "# task-runs\n\n壊れた参照: tools/definitely-missing.py\n")
+        res = _run_check(root)
+        assert res.returncode == 1, f"壊れた参照が赤にならなかった:\n{res.stdout}"
+        assert victim in res.stdout, res.stdout
+        assert "実在しないパス参照" in res.stdout, res.stdout
+        assert "tools/definitely-missing.py" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_missing_task_runs_readme_is_violation():
+    root = _build_min_repo()
+    try:
+        victim = "output/task-runs/README.md"
+        os.remove(os.path.join(root, victim))
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert victim in res.stdout, res.stdout
+        assert "列挙対象が不在" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
 
 def test_real_repo_clean():
     res = subprocess.run(
         [sys.executable, os.path.join(_REPO, "tools", "check_docs.py")],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert res.returncode == 0, f"実 repo で違反が出た:\n{res.stdout}\n{res.stderr}"
     assert "違反なし" in res.stdout, res.stdout

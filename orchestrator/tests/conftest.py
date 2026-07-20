@@ -97,6 +97,22 @@ REAL_REPO_SERIAL_NODES = frozenset({
 #   だけを読む。実 output / snapshot 系もこの reader/writer 競合面には含めない。
 
 
+@pytest.fixture(autouse=True)
+def _isolate_task_run_recording_env(monkeypatch):
+    """外側 run が task-run 記録付きでも、テスト自身は記録 env を観測しない。
+
+    wrapper (tools/run_tests.py) は pytest 起動前に env を読むため記録は影響を受けない。
+    テストが記録経路を検査するときは自分で env を設定する (dogfooding で実測した汚染の隔離)。
+    """
+    for name in (
+        "IZANAGI_TASK_RUN_ID",
+        "IZANAGI_TASK_RUNS_ROOT",
+        "IZANAGI_TASK_RUN_SIDECAR",
+        "IZANAGI_TEST_TRIGGER",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 def _real_repo_node_id(item) -> str:
     """Collected item を正本の ``module::function`` 形へ正規化する。"""
     function = getattr(item, "originalname", None) or item.name.split("[", 1)[0]
@@ -114,3 +130,40 @@ def pytest_collection_modifyitems(items) -> None:
         if list(item.iter_markers(name="xdist_group")):
             continue
         item.add_marker(pytest.mark.xdist_group("real-repo"))
+
+
+def pytest_collection_finish(session) -> None:
+    """Opt-in task-run stats collection; observation must never affect pytest."""
+    if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
+        return
+    try:
+        from tools.task_runs import pytest_stats
+
+        pytest_stats.note_collection(session)
+    except Exception:
+        pass
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_xdist_node_collection_finished(node, ids) -> None:
+    """Collect controller-visible node IDs without persisting their names."""
+    if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
+        return
+    try:
+        from tools.task_runs import pytest_stats
+
+        pytest_stats.note_xdist_collection(node, ids)
+    except Exception:
+        pass
+
+
+def pytest_sessionfinish(session, exitstatus) -> None:
+    """Create the private aggregate sidecar on the controller only."""
+    if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
+        return
+    try:
+        from tools.task_runs import pytest_stats
+
+        pytest_stats.write_session_stats(session)
+    except Exception:
+        pass

@@ -1,0 +1,327 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/schemas/task-run-v1.json",
+  "title": "Izanagi task-run/v1 records",
+  "oneOf": [
+    {"$ref": "#/definitions/pilot"},
+    {"$ref": "#/definitions/task"},
+    {"$ref": "#/definitions/event"}
+  ],
+  "definitions": {
+    "safe_slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "task_run_id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}-[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?-[0-9a-f]{8}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "duration": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000
+    },
+    "nullable_count": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "pilot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "pilot_started_at", "max_task_runs", "max_days"],
+      "properties": {
+        "schema_version": {"const": "task-run/v1"},
+        "pilot_started_at": {"$ref": "#/definitions/timestamp"},
+        "max_task_runs": {"const": 10},
+        "max_days": {"const": 14}
+      }
+    },
+    "measurement_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode", "max_task_runs", "max_days", "writer_failure", "token_values",
+        "token_estimates", "sensitive_content", "test_recording"
+      ],
+      "properties": {
+        "mode": {"const": "pilot"},
+        "max_task_runs": {"const": 10},
+        "max_days": {"const": 14},
+        "writer_failure": {"const": "fail-open"},
+        "token_values": {"const": "actual-or-null"},
+        "token_estimates": {"const": "prohibited"},
+        "sensitive_content": {"const": "prohibited"},
+        "test_recording": {"const": "explicit-opt-in"}
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "task_run_id", "objective", "task_class", "task_kind",
+        "started_at", "base_commit", "base_commit_source", "authority", "measurement_policy"
+      ],
+      "properties": {
+        "schema_version": {"const": "task-run/v1"},
+        "task_run_id": {"$ref": "#/definitions/task_run_id"},
+        "objective": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "pattern": "^(?!.*://)[^\\r\\n]+$"
+        },
+        "task_class": {"enum": [1, 2, 3]},
+        "task_kind": {
+          "enum": ["implementation", "audit-review", "investigation", "documentation", "integration", "other"]
+        },
+        "started_at": {"$ref": "#/definitions/timestamp"},
+        "base_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "base_commit_source": {"const": "git-observed"},
+        "authority": {"const": "development-observation-not-evidence"},
+        "measurement_policy": {"$ref": "#/definitions/measurement_policy"}
+      }
+    },
+    "measurement_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {
+        "timestamp": {"const": "system-clock"},
+        "duration": {"enum": ["monotonic-clock", "timestamp-delta", "caller-supplied", "not-applicable"]},
+        "metrics": {"enum": ["wrapper-observed", "tool-reported", "git-observed", "caller-supplied", "not-exposed", "not-applicable"]},
+        "tokens": {"enum": ["api-reported", "product-reported", "not-exposed", "not-applicable"]}
+      }
+    },
+    "tokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_tokens", "output_tokens", "cached_tokens", "total_tokens"],
+      "properties": {
+        "input_tokens": {"$ref": "#/definitions/nullable_count"},
+        "output_tokens": {"$ref": "#/definitions/nullable_count"},
+        "cached_tokens": {"$ref": "#/definitions/nullable_count"},
+        "total_tokens": {"$ref": "#/definitions/nullable_count"}
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "task_run_id", "seq", "timestamp", "event", "event_id",
+        "measurement_source"
+      ],
+      "properties": {
+        "schema_version": {"const": "task-run/v1"},
+        "task_run_id": {"$ref": "#/definitions/task_run_id"},
+        "seq": {"type": "integer", "minimum": 1},
+        "timestamp": {"$ref": "#/definitions/timestamp"},
+        "event": {"enum": ["stage_start", "stage_end", "agent_run", "test_run", "wait", "finding_summary", "commit", "rework", "task_end"]},
+        "event_id": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+        "measurement_source": {"$ref": "#/definitions/measurement_source"},
+        "recording_duration_s": {
+          "allOf": [{"$ref": "#/definitions/duration"}],
+          "description": "Elapsed append pre-write processing, including root/pilot reads, existing-stream validation, git checks, and serialization; excludes event write and fsync."
+        },
+        "stage_id": {"type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
+        "stage": {"enum": ["planning", "research", "implementation", "test", "review", "documentation", "integration", "other"]},
+        "outcome": {"enum": ["completed", "failed", "interrupted", "blocked", "abandoned"]},
+        "duration_s": {"$ref": "#/definitions/duration"},
+        "agent_run_id": {"$ref": "#/definitions/safe_slug"},
+        "product": {"$ref": "#/definitions/safe_slug"},
+        "model": {"$ref": "#/definitions/safe_slug"},
+        "reasoning": {"$ref": "#/definitions/safe_slug"},
+        "role": {"enum": ["author", "reviewer", "researcher", "manager", "integrator"]},
+        "scope": {"type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
+        "status": {"enum": ["completed", "failed", "cancelled", "timed-out"]},
+        "tokens": {"$ref": "#/definitions/tokens"},
+        "suite_id": {"$ref": "#/definitions/safe_slug"},
+        "suite_kind": {"enum": ["targeted", "full", "docs-check", "provenance-check", "static-check"]},
+        "collected": {"$ref": "#/definitions/nullable_count"},
+        "passed": {"$ref": "#/definitions/nullable_count"},
+        "failed": {"$ref": "#/definitions/nullable_count"},
+        "skipped": {"$ref": "#/definitions/nullable_count"},
+        "exit_status": {"type": "integer"},
+        "trigger": {"enum": ["baseline", "after-change", "after-failure", "final", "review-fix", "unspecified"]},
+        "collected_node_digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{12}$"},
+        "wait_kind": {"enum": ["user", "approval", "scheduler", "resource", "tool", "external", "other"]},
+        "review_id": {"$ref": "#/definitions/safe_slug"},
+        "review_kind": {"enum": ["self", "independent", "user", "automated"]},
+        "real": {"type": "integer", "minimum": 0},
+        "refuted": {"type": "integer", "minimum": 0},
+        "unresolved": {"type": "integer", "minimum": 0},
+        "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "relation": {"enum": ["authored", "integrated", "referenced"]},
+        "rework_id": {"$ref": "#/definitions/safe_slug"},
+        "cause": {"enum": ["test-failure", "review-finding", "requirement-change", "integration-conflict", "implementation-defect", "other"]}
+      },
+      "dependencies": {
+        "stage_id": {"properties": {"event": {"enum": ["stage_start", "stage_end", "agent_run", "test_run", "finding_summary", "rework"]}}},
+        "stage": {"properties": {"event": {"enum": ["stage_start", "stage_end"]}}},
+        "outcome": {"properties": {"event": {"enum": ["stage_end", "task_end"]}}},
+        "duration_s": {"properties": {"event": {"enum": ["stage_end", "agent_run", "test_run", "wait", "rework"]}}},
+        "agent_run_id": {"properties": {"event": {"const": "agent_run"}}},
+        "product": {"properties": {"event": {"const": "agent_run"}}},
+        "model": {"properties": {"event": {"const": "agent_run"}}},
+        "reasoning": {"properties": {"event": {"const": "agent_run"}}},
+        "role": {"properties": {"event": {"const": "agent_run"}}},
+        "scope": {"properties": {"event": {"const": "agent_run"}}},
+        "status": {"properties": {"event": {"const": "agent_run"}}},
+        "tokens": {"properties": {"event": {"const": "agent_run"}}},
+        "suite_id": {"properties": {"event": {"const": "test_run"}}},
+        "suite_kind": {"properties": {"event": {"const": "test_run"}}},
+        "collected": {"properties": {"event": {"const": "test_run"}}},
+        "passed": {"properties": {"event": {"const": "test_run"}}},
+        "failed": {"properties": {"event": {"const": "test_run"}}},
+        "skipped": {"properties": {"event": {"const": "test_run"}}},
+        "exit_status": {"properties": {"event": {"const": "test_run"}}},
+        "trigger": {"properties": {"event": {"const": "test_run"}}},
+        "collected_node_digest": {"properties": {"event": {"const": "test_run"}}},
+        "wait_kind": {"properties": {"event": {"const": "wait"}}},
+        "review_id": {"properties": {"event": {"const": "finding_summary"}}},
+        "review_kind": {"properties": {"event": {"const": "finding_summary"}}},
+        "real": {"properties": {"event": {"const": "finding_summary"}}},
+        "refuted": {"properties": {"event": {"const": "finding_summary"}}},
+        "unresolved": {"properties": {"event": {"const": "finding_summary"}}},
+        "commit_sha": {"properties": {"event": {"const": "commit"}}},
+        "relation": {"properties": {"event": {"const": "commit"}}},
+        "rework_id": {"properties": {"event": {"const": "rework"}}},
+        "cause": {"properties": {"event": {"const": "rework"}}}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"event": {"const": "stage_start"}}},
+          "then": {
+            "required": ["stage_id", "stage"],
+            "properties": {"measurement_source": {"$ref": "#/definitions/source_stage_start"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "stage_end"}}},
+          "then": {
+            "required": ["stage_id", "stage", "outcome", "duration_s"],
+            "properties": {"outcome": {"enum": ["completed", "failed", "interrupted"]}, "measurement_source": {"$ref": "#/definitions/source_stage_end"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "agent_run"}}},
+          "then": {
+            "required": ["stage_id", "agent_run_id", "product", "model", "reasoning", "role", "scope", "status", "duration_s", "tokens"],
+            "properties": {"measurement_source": {"$ref": "#/definitions/source_agent"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "test_run"}}},
+          "then": {
+            "required": ["stage_id", "suite_id", "suite_kind", "duration_s", "collected", "passed", "failed", "skipped", "exit_status", "trigger", "collected_node_digest"],
+            "properties": {"measurement_source": {"$ref": "#/definitions/source_test"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "wait"}}},
+          "then": {
+            "required": ["wait_kind", "duration_s"],
+            "properties": {"measurement_source": {"$ref": "#/definitions/source_wait"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "finding_summary"}}},
+          "then": {
+            "required": ["stage_id", "review_id", "review_kind", "real", "refuted", "unresolved"],
+            "properties": {"measurement_source": {"$ref": "#/definitions/source_finding"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "commit"}}},
+          "then": {
+            "required": ["commit_sha", "relation"],
+            "properties": {"measurement_source": {"$ref": "#/definitions/source_commit"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "rework"}}},
+          "then": {
+            "required": ["stage_id", "rework_id", "cause", "duration_s"],
+            "properties": {"measurement_source": {"$ref": "#/definitions/source_rework"}}
+          }
+        },
+        {
+          "if": {"properties": {"event": {"const": "task_end"}}},
+          "then": {
+            "required": ["outcome"],
+            "properties": {"outcome": {"enum": ["completed", "blocked", "abandoned", "interrupted"]}, "measurement_source": {"$ref": "#/definitions/source_task_end"}}
+          }
+        }
+      ]
+    },
+    "source_stage_start": {"$ref": "#/definitions/source_na"},
+    "source_stage_end": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "timestamp-delta"}, "metrics": {"const": "not-applicable"}, "tokens": {"const": "not-applicable"}}
+    },
+    "source_agent": {
+      "oneOf": [
+        {"$ref": "#/definitions/source_agent_caller"},
+        {"$ref": "#/definitions/source_agent_wrapper"}
+      ]
+    },
+    "source_agent_caller": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "caller-supplied"}, "metrics": {"const": "caller-supplied"}, "tokens": {"enum": ["product-reported", "not-exposed"]}}
+    },
+    "source_agent_wrapper": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "monotonic-clock"}, "metrics": {"const": "wrapper-observed"}, "tokens": {"enum": ["product-reported", "not-exposed"]}}
+    },
+    "source_test": {
+      "oneOf": [
+        {"$ref": "#/definitions/source_test_caller"},
+        {"$ref": "#/definitions/source_test_wrapper"},
+        {"$ref": "#/definitions/source_test_tool"}
+      ]
+    },
+    "source_test_caller": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "caller-supplied"}, "metrics": {"const": "caller-supplied"}, "tokens": {"const": "not-applicable"}}
+    },
+    "source_test_wrapper": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "monotonic-clock"}, "metrics": {"const": "wrapper-observed"}, "tokens": {"const": "not-applicable"}}
+    },
+    "source_test_tool": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "monotonic-clock"}, "metrics": {"const": "tool-reported"}, "tokens": {"const": "not-applicable"}}
+    },
+    "source_wait": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "caller-supplied"}, "metrics": {"const": "not-applicable"}, "tokens": {"const": "not-applicable"}}
+    },
+    "source_finding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "not-applicable"}, "metrics": {"const": "caller-supplied"}, "tokens": {"const": "not-applicable"}}
+    },
+    "source_commit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "not-applicable"}, "metrics": {"const": "git-observed"}, "tokens": {"const": "not-applicable"}}
+    },
+    "source_rework": {"$ref": "#/definitions/source_wait"},
+    "source_task_end": {"$ref": "#/definitions/source_na"},
+    "source_na": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamp", "duration", "metrics", "tokens"],
+      "properties": {"timestamp": {"const": "system-clock"}, "duration": {"const": "not-applicable"}, "metrics": {"const": "not-applicable"}, "tokens": {"const": "not-applicable"}}
+    }
+  }
+}
