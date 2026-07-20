@@ -79,7 +79,7 @@ WORKLOG = REPO / "docs" / "worklog.md"
 WORKLOG_ROTATE_BYTES = 100_000
 PHASE3 = REPO / "docs" / "phase3.md"
 
-# --- 「次の一手」ID 保存則 (D69) ---
+# --- 「次の一手」ID 保存則 (D70) ---
 # 1〜999 は 3 桁固定、1000 以上は冗長な先頭ゼロなしを正規形とする。
 TASK_ID_PATTERN = r"\[T-(?:0(?:0[1-9]|[1-9][0-9])|[1-9][0-9]{2,})\]"
 TASK_ID_AT_HEAD_RE = re.compile(rf"^(?P<id>{TASK_ID_PATTERN})(?=$|[ \t])")
