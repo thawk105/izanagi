@@ -1098,3 +1098,26 @@ main へ be3a455 として取り込み済み (push はしない)。
 3. P-A1(a) Stage 1 の承認待ち (承認時に P-C3 を同梱)
 4. ユーザー: approved-waves の push (未 push。意図的保留か失敗かの確認から)
 5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
+
+## 2026-07-20 (9) — 全ブランチ棚卸し + approved-waves を main へ統合 (計測なし)
+
+ユーザー指示「worktree/branch を全確認し、main に入れられるものを全て入れる」。
+
+- 棚卸し: 未マージは approved-waves のみ (8 ahead / 3 behind)。backlog-triage /
+  model-economy-tuning / test-hygiene / test-runner-autoscale / worktree-s8b-env-contract-pegasus /
+  origin/worktree-s8b-ruling-prep は全て ahead=0 (取り込み済み。ブランチ削除はユーザー判断に委ねる)
+- behind 3 コミットは commands 変更の main への cherry-pick 複製 (内容同一) と確認 → main を
+  approved-waves へマージ (競合ゼロ、merge-tree 予行 + 実マージで裏取り) → main を fast-forward
+- 検収: 全テスト 2248 passed / 19 skipped、check_docs 違反なし
+- push はしない (Pegasus 規約)。統合後の main はローカルのみ先行 (origin/main = be3a455)
+
+### 次の一手
+
+1. **承認済み実装 wave (次セッション、クラス 3)**: P-C2 + P-C1(b) — report 契約の隣接工事として
+   1 wave 同梱を推奨。正本 = insights 2026-07-20 wave2 §裁定パッケージ + worklog (8)
+2. **承認済み実装 wave**: C = backlog-guard (ID + 機械検査)。正本 = handoff
+   2026-07-19-backlog-guard-mechanism.md + worklog (8)
+3. P-A1(a) Stage 1 の承認待ち (承認時に P-C3 を同梱)
+4. ユーザー: main の push (統合後ローカルのみ先行。approved-waves ブランチと取り込み済み 5 ブランチの
+   削除可否も合わせて判断)
+5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
