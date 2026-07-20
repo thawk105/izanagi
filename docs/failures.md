@@ -308,6 +308,20 @@
 - 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
   更新漏れも併せて見る
 
+### F26. worktree 掃除での submodule 起因の二重の罠 — remove 無条件拒否と deinit の設定共有 [手順漏れ]
+- 事象: 2026-07-20 のブランチ・worktree 掃除で、(1) submodule (external/ccbench) の gitlink を
+  index に含む worktree は `git worktree remove` が無条件拒否 (`--force` でも submodule を空にした
+  後でも不可)、(2) 回避を試みた worktree 側での `git submodule deinit` が、worktree 間で共有される
+  `submodule.*` 登録を消し、**main checkout の external/ccbench まで未初期化にした** (実害 = 一時的。
+  `git submodule update --init` でローカル .git/modules から即復元し、pin (d706650) 一致を確認済み)
+- 根本原因: git の worktree × submodule の仕様 2 点 (remove の gitlink 無条件拒否、submodule 登録
+  config の worktree 間共有) を知らず、即興で deinit を挟んだ
+- 恒久対応: `/cleanup-branches` スキル (.claude/commands/cleanup-branches.md) に安全手順を固定 —
+  deinit を使わず「detach → ディレクトリ削除 → `git worktree prune`」(git 文書化済みの回避)、
+  事後に `git submodule status` で main checkout の初期化状態を検査
+- 再発検知: スキル末尾の事後検査 (`git submodule status` が `-` prefix なしで pin 一致)。worktree
+  掃除をスキル外で即興したらレビューで差し戻す
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —

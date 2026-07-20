@@ -1121,3 +1121,26 @@ main へ be3a455 として取り込み済み (push はしない)。
 4. ユーザー: main の push (統合後ローカルのみ先行。approved-waves ブランチと取り込み済み 5 ブランチの
    削除可否も合わせて判断)
 5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
+
+## 2026-07-20 (10) — ブランチ・worktree 掃除の実施 + F26 台帳化 + /cleanup-branches スキル新設 (ユーザー指示、計測なし)
+
+worklog (9) 次の一手 4 のうちローカル分をユーザーが裁定 (削除)。同一セッションで掃除 →
+main push (ユーザー) → 本 commit の順。
+
+- 掃除: ローカルブランチ 6 本 (approved-waves + 取り込み済み 5 本) と worktree
+  s8b-c22-launch-cert を削除、ローカルは main 1 本に統一。main はユーザーが push 済み (a71057b)
+- 掃除中に submodule 起因の罠 2 件を実測 (remove 無条件拒否・deinit の設定共有で main checkout の
+  external/ccbench が一時未初期化 → update --init で復元済み) → **failures F26 に台帳化**
+- **`/cleanup-branches` スキル新設** (.claude/commands/cleanup-branches.md): 棚卸し → 安全条件
+  (ahead=0 のみ、-D 禁止) → F26 対応の worktree 削除手順 (deinit 禁止) → 事後検査 →
+  push 系のユーザー引き渡し、の最小チェックリスト。ユーザー裁定 = 「failures 追記が本筋、
+  スキルは最小」の推奨を承認
+
+### 次の一手
+
+1. **承認済み実装 wave (次セッション、クラス 3)**: P-C2 + P-C1(b) (worklog (8) 参照)
+2. **承認済み実装 wave**: C = backlog-guard (worklog (8) 参照)
+3. P-A1(a) Stage 1 の承認待ち (承認時に P-C3 を同梱)
+4. ユーザー: 本 commit 後の main push + リモートブランチ削除の可否
+   (origin/approved-waves・origin/worktree-s8b-ruling-prep。push 操作のため AI は行わない)
+5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
