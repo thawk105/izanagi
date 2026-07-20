@@ -541,3 +541,37 @@ worklog (8) 次の一手 1 の承認済み実装 wave。ハイブリッド標準
 4. ユーザー: main push (99bce0c 以降 + 本 wave の 2 件先行) + リモートブランチ削除の可否
    (origin/approved-waves・origin/worktree-s8b-ruling-prep)
 5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
+
+## 2026-07-20 (13) — ruling-A のユーザー裁定確定 (発効なし・計測なし・実装は次セッション)
+
+worklog (12) 次の一手 1(a)。/rulings 経由のユーザー裁定 (ここが記録の正本)。
+
+- **ruling-A: 推奨案で確定 — ruling-C と同梱で 1 wave。** campaign-terminal の物理位置を検査する
+  (完了宣言は WAL の最後、宣言より後の record は違反、宣言は最後の trial-result より後)。
+  ruling-C (WAL 改竄耐性 = duplicate key 最後勝ち・hash chain 不在) を同じ wave に束ねる —
+  どちらも「WAL を読む入口の堅牢化」で編集面とテスト土台が近いため。ruling-B (session record の
+  issuer / env_tag 照合) は既存 fixture 群への波及が広いので**混ぜない** (未裁定のまま)
+- **裁定前に親が実測し、D67 (7) の懸念を解消した**: D67 (7) は「terminal-last を課すと driver が
+  terminal 後に書く record との整合検証が要る」として scope 外にしていたが、正規 driver は**両経路とも
+  campaign-terminal が WAL への最後の書き込み**である (`s8b_oracle_driver.py:1073` = 予算切れ中断、
+  `:1293` = 正常完了。いずれも直後が `return` で追記なし)。budget 台帳の settle は宣言より前かつ
+  別ファイルのため WAL 順序に影響しない。よって「terminal は WAL の最後」規則は正規 producer の実挙動と
+  一致し、**今回直した型の偽陽性を新たに作る恐れは否定された**
+- 着手が安い時期である根拠: official campaign の WAL はまだ 1 件も生成されていないため、既存記録の
+  適合棚卸しが不要
+
+### 次の一手
+
+1. **承認済み実装 wave (次セッション、クラス 3)**: ruling-A + ruling-C 同梱。正本 = D67 (7) +
+   本エントリ。terminal 物理位置の検査は上記実測 (driver:1073/1293 が最後の書き込み) を前提にする
+2. **承認済み実装 wave**: C = backlog-guard (ID + 機械検査)。正本 = handoff
+   2026-07-19-backlog-guard-mechanism.md + worklog (8)
+3. **ユーザー裁定待ち**: ruling-B (session record の issuer/env_tag 照合。既存 report fixture 自体が
+   manifest と異なる env を使っており波及が広い) — 単独 wave を推奨
+4. P-A1(a) Stage 1 の承認待ち (承認時に P-C3 を同梱)
+5. ユーザー: main push (origin より 3 件先行) + リモートブランチ削除の可否
+   (origin/approved-waves・origin/worktree-s8b-ruling-prep) + 本 wave の worktree 3 つとローカル
+   ブランチ 3 本 (worktree-dev-wave-pc2-pc1b・wave-pc2-unit1・wave-pc1-unit2) の掃除可否
+6. **B-008 (guard_agent 再検証) の発火条件が成立**: 見送り台帳の述語「新しい background job session
+   の開始時」に本セッションが該当する (2026-07-20 の /rulings で確認)。拾うか見送り継続かは未裁定
+7. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
