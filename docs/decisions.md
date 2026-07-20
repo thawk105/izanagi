@@ -2483,3 +2483,40 @@ hash 再束縛)、Stage 3 = legacy (schema/run_contract 欠落) 受理の廃止 
 (machine-readable 台帳 = `output/insights/2026-07-20_wave2-mutation-ledger.json`、B-057)。coverage
 観測 (B-056、gate 化なし): report 76→83% / judge 77→84% / 他は同水準。研究結果・実測値への影響なし
 (公式計測・freeze 再発行・artifact 発効なし)。
+
+## D66. AI 開発作業の task-run 台帳 (pilot) — 開発観測 namespace の新設と D13 の明示補正 (2026-07-20)
+
+**決定:** handoff 2026-07-19 (AI 開発作業の統計記録) を実装し、`output/task-runs/` に task-run 台帳
+v1 (`task-run/v1`) を pilot 導入する (10 run または 14 日、詳細正本 = `output/task-runs/README.md`)。
+実装 = `tools/task_runs/` package + `tools/task_run.py` / `task_run_check.py` / `task_run_report.py` CLI +
+`tools/run_tests.py` の opt-in 配線。設計判断は次のとおり。
+
+(1) **D13 の明示補正:** D13 の二軸 (campaign / env) は**実験証拠**の分類である。`task-runs/` は
+そのどちらでもない**開発運用 namespace** (開発プロセスの観測) であり、proof chain・fitness・benchmark の
+証拠として参照することを禁止する。全 task.json に const
+`"authority": "development-observation-not-evidence"` を必須化し、root の realpath が証拠 namespace
+(campaigns/env/s1-freeze/s8b-freeze/s6-rounds/runs) 配下なら writer が拒否する。あわせて
+`output/README.md` の tree に D65 の `exploration/` が未掲載だった欠落を補正した。
+(2) **主キーは task_run_id** (ユーザー裁定 2026-07-19)。commit ID 主キーは「commit されなかった試行の
+消失 = 生存者バイアス」のため却下。commit は後続 event。token・料金は commit trailer に載せない
+(D53 は不変。trailer の母集団 = 採用寄与のみ、台帳 agent_run の母集団 = failed/不採用含む — 別物)。
+(3) **書く側 fail-open / 読む側 fail-closed。** 記録失敗は作業本体を止めない (run_tests は child rc を
+置換しない。SIGINT/SystemExit は再送出)。validate / report は fail-closed — 壊れた run は必ず赤、
+report は damaged 1 件で既定拒否 (--diagnostic のみ破損開示つき診断 report)。silent skip 経路なし。
+(4) **自己申告の遮断:** seq / timestamp / event_id / measurement_source は writer が経路から決める。
+汎用 CLI は caller-supplied 固定、強 source (wrapper-observed / git-observed / monotonic-clock) は
+wrapper 専用 API のみ。base_commit は writer が `git rev-parse HEAD` を実測 (GIT_* env 除去 +
+toplevel 照合)、commit event は `git cat-file -e` で実在確認。
+(5) **主張の格下げで閉じた項目:** append-only は crash-consistency 契約であり改竄検出ではない
+(hash chain は作らない。外部 anchor は git 履歴)。report から「削れる工程」の自動推奨を撤去
+(観測表のみ。削減判断はユーザー裁定 — 正しさ gate の削減候補化は規律 2/3 違反のため構造的に排除)。
+時間分解は非排他の観測値 (負の unclassified は flag、clamp しない)。
+(6) **却下案:** CLAUDE.md への導線配線 (pilot 実証前の常設化は盛りすぎ — worklog 次の一手に置き、
+実証後にユーザー提案)。単一所有 writer 契約 (手動 CLI / run_tests / 親統合の複数プロセスが実在するため
+flock + O_APPEND + 冪等 event_id を採用)。campaign WAL の読み出し契約 (末尾壊れ行の黙認) の流用。
+(7) **プロセス:** ハイブリッド標準ループ (brief → codex プラン起草 max → 敵対相談 2 並列 max
+[48 must-fix、プラン v1 NO-GO] → 親裁定 V1〜V26 → 実装 codex 3 単位 E1→E2∥E3 high → 敵対レビュー
+2 並列 [27 所見、全 real] → fix 1 単位 → 変異 matrix)。変異は実装前事前登録 M01〜M32 (B-057)、
+実測 = 31/32 KILLED + M30 は二重防壁の等価変異と判明し両層同時 (M30c) で KILLED (単層 M30a/M30b の
+生存は冗長防壁のマスクであることを実測で確認)。逐語・台帳 =
+`output/insights/2026-07-20_task-run-ledger-consultations.md` + 同 `-mutation-ledger.json`。

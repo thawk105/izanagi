@@ -41,7 +41,8 @@
 - `orchestrator/` — 探索・評価・campaign 駆動の Python 実装 (構成と安定核は `orchestrator/README.md` が正本)
 - `patches/` — CCBench への意図的 patch (positive control・合成 variant・診断計器)。来歴は `patches/README.md` が正本
 - `src/` — coder 向け仕様 (`coder-spec.md` §1-2 が現役、`coder-leakproof-context.md` = リーク遮断入力の正本)
-- `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`
+- `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`。
+  AI 開発作業の統計記録 (task-run 台帳、開発プロセス観測 — D66) は `output/task-runs/README.md` が詳細正本
 - `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
   Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
   `check_ai_provenance.py` = commit trailer 監査 / `plotting/` = campaign の論文品質作図、規約は

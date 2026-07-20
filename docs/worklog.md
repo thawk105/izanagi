@@ -1018,3 +1018,40 @@ fixture 5 値化・未知 schema 負例] → fix 1 単位 → 変異 22/22 KILLE
 3. P-A1(a) 段階導入 (Stage 1〜3、D65): 各段階の個別ユーザー承認待ち
 4. C (backlog-guard-mechanism): 変わらず (前エントリ参照)
 5. ユーザー: branch approved-waves の push 判断 (AI は push しない。基点 aba3774 = main、未 push)
+
+## 2026-07-20 (5) — task-run 台帳 pilot 実装 wave (D66) + /dev-wave 改善 (branch approved-waves、計測なし)
+
+handoff 2026-07-19 (AI 開発作業の統計記録) の実装。worklog (4) 次の一手は全件ユーザー裁定待ちのため、
+唯一の非ブロック作業を選定 (次の一手 1 のハイブリッド継続は /dev-wave 起動自体を継続意思と解釈 —
+明示裁定があれば上書き)。標準ループ (brief → codex プラン起草 [max] → 敵対相談 2 並列 [max、48
+must-fix、プラン v1 NO-GO] → 親裁定 プラン v2 = V1〜V26 + 変異事前登録 M01〜M32 [B-057] → 実装 =
+codex 3 単位 E1→E2∥E3 [high、worktree 分離、競合ゼロ] → 敵対レビュー 2 並列 [high、27 所見 全 real、
+refuted 0] → fix 1 単位 [F-1〜F-21] → 親変異 matrix 実測 31/32 KILLED + M30 等価変異は両層同時
+M30c で KILLED → 受入全走 7 連続緑 2248 passed/19 skipped)。設計判断 = D66。逐語・変異台帳の正本 =
+`output/insights/2026-07-20_task-run-ledger-consultations.md` + 同 `-mutation-ledger.json`。
+
+- commits: 349cf4e (実装一式) → bd5e67b (/dev-wave 改善) + 本 docs commit。基点 9cbe36a。
+  異常記録: 初回積載 (139edd2/224817c/c104962) は AI-Agent trailer と Co-Authored-By の間の空行で
+  trailer block が分断され provenance 監査 3 違反 → 未 push のためメッセージのみ修正して積み直し
+  (tree 不変)。台帳の commit event は旧 SHA 2 件が append-only で残存し、新 SHA を追記で訂正
+- **pilot 発足 + dogfooding**: init-pilot + 実 FS selfcheck 合格 → 本 wave 自身を run 1 として記録
+  (`20260720-dev-wave-taskrun-ledger-fb468b60`、test_run 17 件 [red→green 1 周を実записи] + check 2 件 +
+  commit 2 件、completed)。dogfooding が実運用縫い目 2 件を fail-closed 発火で捕捉 → 親 fixup:
+  (i) root 直下 README.md が unknown 扱いで start 拒否 (validator 許容列挙と文書 layout の不一致)、
+  (ii) 記録付き外側 run の env が既存 golden テストの subprocess mock を汚染 (conftest に autouse
+  隔離 fixture)。両方とも回帰テスト同梱、fix 後に変異 matrix + 全走を再走済み
+- **/dev-wave 改善 (ユーザー指示 2026-07-20)**: wave 実測の観測 4 点 (-o 作法化 / wave 専用 tmp /
+  read-only sandbox の pytest 不能 / 依存単位・意図的赤・等価変異の扱い) + pilot 自己記録の導線を
+  スキルへ反映 (bd5e67b)。main へのローカル取り込みはユーザー指示に従い本セッションで実施 (push はしない)
+- 工数: codex 7 本 (max 3 / high 4)、親 = fable (裁定 2 回・統合・変異ゲート実測・dogfooding・記録)
+
+### 次の一手
+
+1. **task-run pilot 運用中 (〜10 run または 08-03)**: クラス 2/3 の実装・統合セッションは
+   `python3 tools/task_run.py start` で記録を開始し、受入走に `IZANAGI_TASK_RUN_ID` を付け、
+   `finish` で閉じる。手順の詳細正本 = `output/task-runs/README.md` (CLAUDE.md へは配線しない —
+   pilot 実証後にユーザー提案)
+2. **ユーザー裁定 (新裁定パッケージ P-C1〜C3)**: 変わらず (worklog (4) 参照)
+3. P-A1(a) 段階導入 (Stage 1〜3、D65): 各段階の個別ユーザー承認待ち (変わらず)
+4. C (backlog-guard-mechanism): 変わらず (機構形式のユーザー裁定待ち)
+5. ユーザー: branch approved-waves の push 判断 (AI は push しない。基点 aba3774 = main、未 push)

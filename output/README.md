@@ -20,6 +20,8 @@ output/
 ├── s1-budget/                    S-1 計測の時間台帳 (time_ledger.json)
 ├── s6-rounds/                    S-2/S-3 提案ラウンドの匿名化・採点・集計 provenance
 ├── s8b-freeze/                   段 8b holdout freeze (holdout_freeze.json)
+├── exploration/                  探索 (非公式) 成果物の隔離 namespace (D65。campaigns/ を含む。official が型で拒否)
+├── task-runs/                    AI 開発作業の統計記録 (開発プロセス観測。証拠ではない — D66、詳細 task-runs/README.md)
 └── reports/                      campaign 横断の材料レポート (s_prime_final_report.md, s1_direct_comparison/)
 ```
 
@@ -34,6 +36,9 @@ output/
 
 - **campaign スコープ (入力依存)**: fitness・材料レポートは入力 workload ごとに変わる。campaign-id は spec の**中身** + ccbench-commit + 探索 config のハッシュなので、入力が変われば別 campaign になる (honest-by-construction)。
 - **env スコープ (入力非依存)**: calibration (レコード数・noise floor) と profile は「測定の物差し」であって variant の fitness ではない。(env, thread数, 代表 workload) ごとに決まり入力非依存なので campaign と分ける。
+- **二軸の外 (D66)**: `task-runs/` は実験証拠の二軸に属さない開発運用 namespace (開発プロセスの観測)。
+  proof chain・fitness・benchmark の証拠として参照してはならず、`exploration/` と同様に official 側は
+  型・path 検査で拒否する。
 
 ## proof chain の扱い
 
