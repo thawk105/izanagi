@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -139,6 +141,88 @@ def test_unknown_stage_fails_closed(tmp_path):
     campaign, output_root = _campaign(tmp_path, [_record("unknown-stage")])
     with pytest.raises(layer3_report.Layer3ReportError, match="未知"):
         layer3_report.build_report(campaign, generated_from_head="fixed", output_root=output_root)
+
+
+def test_nested_duplicate_wal_key_fails_closed_for_one_reason(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")])
+    (campaign / "runs/wal.jsonl").write_bytes(
+        b'{"variant":"v1","stage":"build_start","env_tag":"test-env",'
+        b'"ts":1,"payload":{"genome":"g","src_token":"s",'
+        b'"details":{"fitness_tps":1,"fitness_tps":2}}}\n',
+    )
+    with pytest.raises(layer3_report.Layer3ReportError, match="WAL record が不正") as exc_info:
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root)
+    assert isinstance(exc_info.value.__cause__, layer3_report.wal.WalDuplicateKeyError)
+    assert "duplicate key" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("raw_line", "expected_cause"),
+    [
+        pytest.param(
+            b'{"variant":"v1","stage":"build_start","env_tag":"test-env","ts":1}\n',
+            "missing=['payload']", id="missing-key",
+        ),
+        pytest.param(
+            b'{"variant":"v1","stage":"build_start","env_tag":"test-env",'
+            b'"ts":1,"payload":{},"extra":true}\n',
+            "unknown=['extra']", id="unknown-key",
+        ),
+        pytest.param(
+            b'{"variant":"v1","stage":1,"env_tag":"test-env",'
+            b'"ts":1,"payload":{}}\n',
+            "WAL stage must be a string", id="wrong-type",
+        ),
+        pytest.param(
+            b'{"variant":"v1","stage":"build_start","env_tag":"test-env",'
+            b'"ts":1,"payload":["bad"]}\n',
+            "WAL payload must be a JSON object", id="non-object-payload",
+        ),
+    ],
+)
+def test_wal_wrapper_preserves_specific_parser_diagnosis(
+        tmp_path, raw_line, expected_cause):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")])
+    (campaign / "runs/wal.jsonl").write_bytes(raw_line)
+
+    with pytest.raises(layer3_report.Layer3ReportError) as exc_info:
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root)
+
+    assert expected_cause in str(exc_info.value)
+
+
+def test_wal_blank_between_records_uses_shared_strict_contract(tmp_path):
+    campaign, output_root = _campaign(tmp_path, [
+        _record("build_start", variant="v1", genome="g", src_token="s"),
+        _record("build_start", variant="v2", genome="h", src_token="t"),
+    ])
+    wal_path = campaign / "runs/wal.jsonl"
+    lines = wal_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    wal_path.write_text(lines[0] + "\n" + lines[1], encoding="utf-8")
+
+    with pytest.raises(
+            layer3_report.Layer3ReportError, match="WAL line must not be empty",
+    ) as exc_info:
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root)
+    assert isinstance(exc_info.value.__cause__, layer3_report.wal.WalLineError)
+
+
+def test_direct_script_starts_with_clean_pythonpath(tmp_path):
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    env["PYTHONNOUSERSITE"] = "1"
+    completed = subprocess.run(
+        [sys.executable, str(Path(layer3_report.__file__).resolve()), "--help"],
+        cwd=tmp_path, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "campaign_dir" in completed.stdout
 
 
 def test_body_event_omission_is_detected(tmp_path, monkeypatch):

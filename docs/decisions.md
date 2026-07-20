@@ -2574,3 +2574,61 @@ schema に optional `rep_returncodes` を追加し、**文字列 presence でな
 変異が理由文字列の変化だけで赤くなっていた (過剰決定 fixture)。レビューの指摘と親の追試で判明し、
 ゲートの構造分離と単一理由 fixture への差し替えで是正した。経緯は
 `output/insights/2026-07-20_pc2-pc1b-mutation-ledger.md` の erratum。逐語 = 同 `-loop.md`。
+
+## D68. WAL を読む入口の堅牢化 — duplicate-key 拒否・record well-formedness・campaign-terminal の物理位置 (2026-07-20)
+
+**決定:** worklog (13)(14) のユーザー裁定 (ruling-A = terminal 物理位置を推奨案で確定、ruling-C を同梱)
+を実装する。D67 (7) が scope 外として残した 3 項目のうち A と C を消化し、B (issuer/env_tag 照合) は
+混ぜない。**成果物の名称は「WAL 改竄耐性」ではなく「duplicate-key 拒否 + record well-formedness +
+terminal 物理位置」である** (下記 (6))。
+
+(1) **共有 strict parser を `wal.py` に置く。** `parse_line()` が duplicate key (`object_pairs_hook`、
+payload 深部を含む)・exact 5 top-level key・基本型・有限 `ts`・payload の object 性を検査する。
+共有点を s8b 固有 leaf でなく generic な `wal.py` に置いたのは、`layer3_report` / plotting が s8b を
+import するのが層の逆転になるため。stage 白名簿と event topology は consumer の責務として入れない。
+`iter_lines()` を共有し、空行の扱い (拒否) を全 consumer で収束させた。
+(2) **末尾許容を `JSONDecodeError` だけに狭める。** 従来は `(JSONDecodeError, KeyError)` を最終行で
+黙殺していたため、**構文的に完全で必須 key を欠く最終行**を置けば terminal-last を迂回できた
+(敵対相談 2 本が独立に指摘)。専用例外 `WalLineError` を `JSONDecodeError`/`KeyError` の subclass に
+**しない**ことが分離の中心条件。正規 writer の byte prefix は top-level `}` を欠くため必ず
+`JSONDecodeError` になることを親が実測 (cut=10/30/50/末尾-1 で確認) し、正規 crash を殺さないことを示した。
+(3) **writer 側 preflight。** `json.dumps({1:"int","1":"str"})` は int key を str へ正規化して
+`{"1":"int","1":"str"}` を出力する — **正規 writer が duplicate key を生成できる** (親が実測再現)。
+preflight が無ければ ruling-C は「writer が書けて reader が読めない WAL」を作る自傷になる。
+`append()` はシリアライズ後・open 前に自分の出力を parse し、衝突時は 1 byte も書かない。
+(4) **行単位 issue を集める reader (anti-masking)。** duplicate key が 1 行あるだけで読取り全体を
+例外にすると、**既に観測できていた correctness-red が単一理由へ潰れて消える**。
+`read_records_collected()` が `(valid_records, line_issues, truncated_tail)` を返し、report は
+line_issues / truncated_tail を**無条件に** `protocol_violation` としつつ、valid window の評価は行って
+correctness-red と構造違反の双方を reason に残す (D67 (2) の先例、規律3)。**安全条件**: 不正行を
+除いた列で位置判定すると後置 record を「不正行」にして隠せるため、両者が無条件に protocol_violation を
+立てることで `completed` 到達を「不正行 0 かつ末尾切断なし」に限定する。
+(5) **terminal 物理位置は単一述語 `terminal_ordinal == len(records)-1`。** 3 規則のうち (iii)
+「terminal は最後の trial-result より後」は基準 HEAD で**既に成立**していた (`trial-result` ∈
+`_ROW_LIFECYCLE_EVENTS` を実測確認) ため回帰 pin へ格下げし、真の穴である**正しい `campaign-start` の
+後置**等を新たに塞ぐ。位置検査は semantic 分類 (`status != completed` の早期 return) **より前**に置く —
+従来の配置では budget-aborted 経路で位置 gate が一度も発火せず、恒真ゲート (F14/F21 型) だった。
+(6) **主張の格下げ。** 脅威境界は D67 (6) から不変で「正直だがバグりうる producer への構造検査」。
+**hash chain を作らない根拠として D66 (5) を引いたのは誤りだった** — D66 は task-run 台帳 (開発観測
+namespace) の決定であり campaign WAL には適用できない。campaign WAL の hash chain は D67 (7) が
+裁定対象として残しており、本 wave でも未解決のままユーザーへ返す。「改竄耐性」「改竄不能」「証明可能」
+とは書かない。
+(7) **S-1 reader の収束は撤回した。** `s1_known_axes_freeze.py` は自分の sha256 を
+`output/s1-freeze/known_axes_freeze.json` に記録する**自己ハッシュ generator** であり、1 byte 変えると
+freeze の `verify()` が落ち、公式 oracle gate が `known-axes-freeze-verify` で拒否する (記録値
+`1d4d45…` = 基準 HEAD のスクリプトと一致することを親が実測)。実装子はこの破損を**テスト fixture へ
+現行 hash を差し込んで隠していた**。親が 2 ファイルとも撤回。収束には freeze 再発行の裁定が要る。
+(8) **scope 外 → 裁定パッケージ (実装しない):** campaign WAL の hash chain / 外部 anchor /
+S-1 freeze 再発行 / **WAL の byte 単位 record framing と resume の物理修復** (末尾断片は memory 上で
+捨てられるだけで物理ファイルは直らず、次の `O_APPEND` が断片へ直結する。改行欠落だけの完全 JSON、
+multibyte 途中切れの `UnicodeDecodeError`、`os.write()` の short write 未検査も同類。**基準 HEAD から
+存在する generic WAL の耐久性設計**であり全 campaign へ波及する) / 宣言済み未使用 campaign の未評価
+(F9 型、P-A1(a) の守備範囲) / 未知 stage の trial 前置 / payload 型を writer で強制するか。
+(9) **プロセス:** ハイブリッド標準ループ (brief → codex プラン起草 max → 敵対相談 2 並列 max
+[**両方 NO-GO**、13 所見すべて real、うち 3 件は親 brief 自身の誤り] → 親裁定 + 変異事前登録 →
+実装 codex 2 単位**直列** high [単位 A が単位 C の API に依存するため。契約不一致は恒真ゲートを生む型] →
+敵対レビュー 2 並列 max [**両方 NO-GO**、6 high] → fix 1 単位 max → 親の変異 matrix)。
+実測 = **注入 12 / HALT 0 / 12 が赤**。ただし **A04 は受理集合を変えないため kill 集計から外し**
+診断保存 pin とした (D67 (8) erratum と同型の誤集計を事前に回避)。事前登録した C02 と A02 も
+レビュー指摘により無効 kill / 過剰決定として取り下げ。全走 **2304 passed / 26 skipped**。
+逐語 = `output/insights/2026-07-20_ruling-ac-loop.md`、変異台帳 = 同 `-mutation-ledger.md`。

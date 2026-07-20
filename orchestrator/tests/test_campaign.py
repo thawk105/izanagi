@@ -11,6 +11,7 @@ import atexit
 import ast
 import contextlib
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -338,9 +339,121 @@ def test_wal_tolerates_truncated_last_line():
     # 追記中クラッシュを模す: 壊れた半端な JSON を末尾に足す
     with open(lay.wal_file, "a", encoding="utf-8") as f:
         f.write('{"variant":"v5","stage":"build_st')     # 切れた行
+    records, truncated_tail = wal.read_records_checked(lay)
+    assert [record.variant for record in records] == ["v4"]
+    assert truncated_tail is True
     states = wal.replay(lay)                              # 例外を投げず
     assert states["v4"].committed
     assert "v5" not in states                             # 壊れた行は捨てる
+
+
+def test_wal_complete_invalid_final_line_is_not_treated_as_crash_prefix():
+    lay = _layout(); lay.ensure()
+    wal.log(lay, "v4", STAGE_COMMIT, "linux-baremetal")
+    with open(lay.wal_file, "ab") as f:
+        # JSON として完全だが payload が無い raw record。最終行でも黙殺しない。
+        f.write(b'{"variant":"v5","stage":"build_start",'
+                b'"env_tag":"linux-baremetal","ts":1}\n')
+    # C02 は受理集合を変えないため kill 集計には含めず、例外階層の防壁 pin とする。
+    assert not issubclass(wal.WalLineError, (KeyError, json.JSONDecodeError))
+    try:
+        wal.read_records(lay)
+        assert False, "構文的に完全な契約違反を最終行でも拒否すべき"
+    except wal.WalLineError as exc:
+        assert "keys must be exactly" in str(exc)
+
+
+def test_wal_parse_line_rejects_nested_duplicate_and_unknown_top_level_key():
+    nested_duplicate = (
+        '{"variant":"v","stage":"commit","env_tag":"e","ts":1,'
+        '"payload":{"metrics":{"tps":1,"tps":2}}}'
+    )
+    try:
+        wal.parse_line(nested_duplicate)
+        assert False, "nested duplicate key を拒否すべき"
+    except wal.WalDuplicateKeyError as exc:
+        assert "tps" in str(exc)
+
+    unknown = (
+        '{"variant":"v","stage":"commit","env_tag":"e","ts":1,'
+        '"payload":{},"unknown":true}'
+    )
+    try:
+        wal.parse_line(unknown)
+        assert False, "未知 top-level key を拒否すべき"
+    except wal.WalLineError as exc:
+        assert "unknown" in str(exc)
+
+
+def test_wal_parse_line_rejects_invalid_basic_types_and_nonfinite_ts():
+    bad_fragments = [
+        '"variant":1,"stage":"commit","env_tag":"e","ts":1,"payload":{}',
+        '"variant":"v","stage":1,"env_tag":"e","ts":1,"payload":{}',
+        '"variant":"v","stage":"commit","env_tag":1,"ts":1,"payload":{}',
+        '"variant":"v","stage":"commit","env_tag":"e","ts":true,"payload":{}',
+        '"variant":"v","stage":"commit","env_tag":"e","ts":NaN,"payload":{}',
+    ]
+    for bad_fragment in bad_fragments:
+        try:
+            wal.parse_line("{" + bad_fragment + "}")
+            assert False, "基本型または有限性の違反を拒否すべき: " + bad_fragment
+        except wal.WalLineError:
+            pass
+
+
+def test_wal_parse_line_requires_object_payload_and_checks_nested_duplicates_first():
+    try:
+        wal.parse_line(
+            '{"variant":"v","stage":"commit","env_tag":"e","ts":1,'
+            '"payload":["not-a-mapping"]}')
+        assert False, "非 object payload を拒否すべき"
+    except wal.WalLineError as exc:
+        assert "payload must be a JSON object" in str(exc)
+
+    try:
+        wal.parse_line('{"variant":"v","stage":"commit","env_tag":"e","ts":1,'
+                       '"payload":[{"tps":1,"tps":2}]}')
+        assert False, "list payload の中の duplicate key も拒否すべき"
+    except wal.WalDuplicateKeyError:
+        pass
+
+
+def test_wal_log_keeps_baseline_falsy_payload_normalization():
+    lay = _layout(); lay.ensure()
+    record = wal.log(lay, "v", STAGE_COMMIT, "test", payload=[])
+    assert record.payload == {}
+    assert wal.read_records(lay)[0].payload == {}
+
+
+def test_wal_blank_line_is_rejected_but_collected_reader_keeps_valid_records():
+    lay = _layout(); lay.ensure()
+    wal.log(lay, "before", STAGE_COMMIT, "test")
+    wal.log(lay, "after", STAGE_COMMIT, "test")
+    with open(lay.wal_file, encoding="utf-8") as stream:
+        lines = stream.readlines()
+    with open(lay.wal_file, "w", encoding="utf-8") as stream:
+        stream.writelines([lines[0], "\n", lines[1]])
+
+    try:
+        wal.read_records_checked(lay)
+        assert False, "正常 record 間の空行を拒否すべき"
+    except wal.WalLineError as exc:
+        assert "must not be empty" in str(exc)
+
+    records, line_issues, truncated_tail = wal.read_records_collected(lay)
+    assert [record.variant for record in records] == ["before", "after"]
+    assert line_issues == [(2, "WalLineError: WAL line must not be empty")]
+    assert truncated_tail is False
+
+
+def test_wal_writer_rejects_json_key_collision_before_writing():
+    lay = _layout(); lay.ensure()
+    try:
+        wal.log(lay, "v", STAGE_COMMIT, "test", {1: "int", "1": "str"})
+        assert False, "JSON key 正規化後の衝突を writer が拒否すべき"
+    except wal.WalDuplicateKeyError as exc:
+        assert "duplicate key" in str(exc)
+    assert not os.path.exists(lay.wal_file)
 
 
 def test_wal_records_by_stage_last_wins_per_stage():

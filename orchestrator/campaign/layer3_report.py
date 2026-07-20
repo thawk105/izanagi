@@ -26,6 +26,7 @@ import json
 import os
 import stat
 import subprocess
+import sys
 import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -38,6 +39,11 @@ SCHEMA_VERSION = "layer3-material-report/v2"
 GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
 STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "commit", "abort"))
 _HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(_HERE.parent))
+
+from campaign import wal  # noqa: E402
+
+
 _SCHEMA_PATH = _HERE / "layer3_schema.json"
 _DEFAULT_OUTPUT_ROOT = _HERE.parents[1] / "output"
 
@@ -77,26 +83,23 @@ def _read_wal(path: Path) -> List[Dict[str, Any]]:
         raise Layer3ReportError("WAL が存在しない: %s" % path)
     records: List[Dict[str, Any]] = []
     try:
-        with path.open(encoding="utf-8") as stream:
-            for lineno, line in enumerate(stream, 1):
-                if not line.strip():
-                    raise Layer3ReportError("WAL に空行がある: line %d" % lineno)
-                record = json.loads(line)
-                if not isinstance(record, dict):
-                    raise Layer3ReportError("WAL record が object でない: line %d" % lineno)
-                required = {"ts", "stage", "variant", "env_tag", "payload"}
-                if set(record) != required:
-                    raise Layer3ReportError("WAL record のキーが不正: line %d" % lineno)
-                if record["stage"] not in STAGES:
-                    raise Layer3ReportError("未知の WAL stage: %r" % record["stage"])
-                if (not isinstance(record["variant"], str)
-                        or not isinstance(record["env_tag"], str)
-                        or not isinstance(record["payload"], dict)
-                        or isinstance(record["ts"], bool)
-                        or not isinstance(record["ts"], (int, float))):
-                    raise Layer3ReportError("WAL record の型が不正: line %d" % lineno)
-                records.append(record)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        for lineno, line, _is_last in wal.iter_lines(path):
+            try:
+                parsed = wal.parse_line(line)
+            except (json.JSONDecodeError, wal.WalLineError) as exc:
+                raise Layer3ReportError(
+                    "WAL record が不正: line %d: %s: %s"
+                    % (lineno, type(exc).__name__, exc)
+                ) from exc
+            record = {
+                "variant": parsed.variant, "stage": parsed.stage,
+                "env_tag": parsed.env_tag, "ts": parsed.ts,
+                "payload": parsed.payload,
+            }
+            if record["stage"] not in STAGES:
+                raise Layer3ReportError("未知の WAL stage: %r" % record["stage"])
+            records.append(record)
+    except (OSError, UnicodeDecodeError) as exc:
         raise Layer3ReportError("WAL を読めない: %s" % path) from exc
     if not records:
         raise Layer3ReportError("WAL が空である")

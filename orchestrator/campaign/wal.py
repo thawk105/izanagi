@@ -10,19 +10,77 @@
   (half-evaluated を population に混ぜない)。
 - **末尾切れトレラント:** 追記中のクラッシュで最終行が壊れていても、その 1 行だけ
   捨ててリプレイを続ける (WAL の定石)。
+
+各行は duplicate key と record の基本形を構造検査する。hash chain はなく、任意の
+変更に対する真正性を保証するものではない。
 """
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Dict, Iterator, List, Optional
 
 from .layout import CampaignLayout
 from .model import (STAGE_ABORT, STAGE_COMMIT, EvalState, WalRecord)
 
 
 # ---- シリアライズ ----
+
+class WalLineError(ValueError):
+    """WAL 1 行が record 契約を満たさない。"""
+
+
+class WalDuplicateKeyError(WalLineError):
+    """WAL の JSON object に duplicate key がある。"""
+
+
+def _reject_duplicate_keys(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise WalDuplicateKeyError("duplicate key in WAL JSON object: %r" % key)
+        value[key] = item
+    return value
+
+
+def parse_line(line: str) -> WalRecord:
+    """WAL 1 行を duplicate-aware に parse し、基本 record 契約を検査する。
+
+    stage の白名簿・event topology・payload object 内の個別 schema は consumer 側の責務。
+    空行は writer が生成しないため、record として受理しない。
+    """
+    if not line.strip():
+        raise WalLineError("WAL line must not be empty")
+    value = json.loads(line, object_pairs_hook=_reject_duplicate_keys)
+    if not isinstance(value, dict):
+        raise WalLineError("WAL record must be a JSON object")
+    required = {"variant", "stage", "env_tag", "ts", "payload"}
+    if set(value) != required:
+        missing = sorted(required - set(value))
+        unknown = sorted(set(value) - required)
+        raise WalLineError(
+            "WAL record keys must be exactly %r (missing=%r, unknown=%r)"
+            % (sorted(required), missing, unknown)
+        )
+    if not isinstance(value["variant"], str):
+        raise WalLineError("WAL variant must be a string")
+    if not isinstance(value["stage"], str):
+        raise WalLineError("WAL stage must be a string")
+    if not isinstance(value["env_tag"], str):
+        raise WalLineError("WAL env_tag must be a string")
+    ts = value["ts"]
+    if (isinstance(ts, bool) or not isinstance(ts, (int, float))
+            or (isinstance(ts, float) and not math.isfinite(ts))):
+        raise WalLineError("WAL ts must be a finite number other than bool")
+    if not isinstance(value["payload"], dict):
+        raise WalLineError("WAL payload must be a JSON object")
+    return WalRecord(
+        variant=value["variant"], stage=value["stage"], env_tag=value["env_tag"],
+        ts=ts, payload=value["payload"],
+    )
+
 
 def _record_to_line(r: WalRecord) -> str:
     obj = {"variant": r.variant, "stage": r.stage, "env_tag": r.env_tag,
@@ -31,17 +89,29 @@ def _record_to_line(r: WalRecord) -> str:
 
 
 def _line_to_record(line: str) -> WalRecord:
-    o = json.loads(line)
-    return WalRecord(variant=o["variant"], stage=o["stage"], env_tag=o["env_tag"],
-                     ts=o["ts"], payload=o.get("payload", {}))
+    return parse_line(line)
+
+
+def iter_lines(path: str | os.PathLike[str]) -> Iterator[tuple[int, str, bool]]:
+    """WAL の全物理行を ``(行番号, text, 最終物理行か)`` として返す。
+
+    空行を含めて一行も省略しない。各 consumer は :func:`parse_line` を通すことで
+    同じ空行・record 契約を適用する。
+    """
+    with open(path, "r", encoding="utf-8") as stream:
+        lines = stream.readlines()
+    for index, line in enumerate(lines):
+        yield index + 1, line, index == len(lines) - 1
 
 
 # ---- 追記 (D) ----
 
 def append(layout: CampaignLayout, record: WalRecord) -> None:
     """WAL に 1 レコードを追記。flush+fsync で耐久化。"""
-    os.makedirs(layout.runs_dir, exist_ok=True)
     line = _record_to_line(record) + "\n"
+    # writer 自身が strict reader で読めない行を生成しないことを、open 前に検査する。
+    parse_line(line)
+    os.makedirs(layout.runs_dir, exist_ok=True)
     new_file = not os.path.exists(layout.wal_file)
     # 'a' は O_APPEND 相当でレコード境界がアトミックに近い。fsync でディスクまで。
     fd = os.open(layout.wal_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
@@ -72,25 +142,63 @@ def log(layout: CampaignLayout, variant: str, stage: str, env_tag: str,
 
 # ---- リプレイ / リカバリ (D, A) ----
 
-def read_records(layout: CampaignLayout) -> List[WalRecord]:
-    """WAL を全レコード読む。最終行が壊れていたら (追記中クラッシュ) その行だけ捨てる。"""
+def read_records_collected(
+        layout: CampaignLayout,
+) -> tuple[list[WalRecord], list[tuple[int, str]], bool]:
+    """WAL の有効行と行単位 issue、末尾切断の有無を返す。
+
+    ``line_issues`` は ``(物理行番号, 理由)``。途中の不正行を除外して後続の
+    有効 record も集める。JSON として途中で切れた最終行だけは従来の crash
+    prefix として ``truncated_tail`` へ分離する。
+    """
     if not os.path.exists(layout.wal_file):
-        return []
-    out: List[WalRecord] = []
-    with open(layout.wal_file, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    for i, line in enumerate(lines):
-        line = line.strip()
-        if not line:
-            continue
+        return [], [], False
+    records: list[WalRecord] = []
+    line_issues: list[tuple[int, str]] = []
+    truncated_tail = False
+    for line_number, line, is_last in iter_lines(layout.wal_file):
+        try:
+            records.append(_line_to_record(line))
+        except json.JSONDecodeError as exc:
+            if is_last:
+                truncated_tail = True
+            else:
+                line_issues.append((
+                    line_number, f"{type(exc).__name__}: {exc}",
+                ))
+        except WalLineError as exc:
+            line_issues.append((
+                line_number, f"{type(exc).__name__}: {exc}",
+            ))
+    return records, line_issues, truncated_tail
+
+
+def read_records_checked(layout: CampaignLayout) -> tuple[list[WalRecord], bool]:
+    """WAL を読み、``(records, truncated_tail)`` を返す。
+
+    JSON として途中で切れた最終行だけを crash prefix として許容する。構文的に完全な
+    record 契約違反は、最終行でも :class:`WalLineError` として伝播する。
+    """
+    if not os.path.exists(layout.wal_file):
+        return [], False
+    out: list[WalRecord] = []
+    truncated_tail = False
+    for _line_number, line, is_last in iter_lines(layout.wal_file):
         try:
             out.append(_line_to_record(line))
-        except (json.JSONDecodeError, KeyError):
+        except json.JSONDecodeError:
             # 末尾の切れた 1 行だけは許容 (クラッシュ)。途中行の破損は異常。
-            if i == len(lines) - 1:
+            if is_last:
+                truncated_tail = True
                 break
             raise
-    return out
+    return out, truncated_tail
+
+
+def read_records(layout: CampaignLayout) -> List[WalRecord]:
+    """WAL を全レコード読む。最終行の crash prefix は従来どおり捨てる。"""
+    records, _ = read_records_checked(layout)
+    return records
 
 
 def replay(layout: CampaignLayout) -> Dict[str, EvalState]:

@@ -152,6 +152,19 @@ def _verify(layout, variant: str, tag: str, certified: bool) -> None:
     })
 
 
+def _fixture_log(layout, variant: str, stage: str, payload: object) -> None:
+    """不正 payload の負例だけ writer を迂回し、raw WAL 接点へ注入する。"""
+    if isinstance(payload, dict):
+        wal.log(layout, variant, stage, "fixture-env", payload)
+        return
+    record = {
+        "variant": variant, "stage": stage, "env_tag": "fixture-env",
+        "ts": 1, "payload": payload,
+    }
+    with open(layout.wal_file, "a", encoding="utf-8") as stream:
+        stream.write(json.dumps(record, separators=(",", ":")) + "\n")
+
+
 def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            attempt: int = 1,
            tps: tuple[float, ...] = (10.0, 11.0, 12.0, 13.0, 14.0),
@@ -181,32 +194,36 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
         "genome": GENOME, "src_token": SRC_TOKEN,
     })
     if outcome == "build-failed":
-        wal.log(layout, variant, "abort", "fixture-env",
-                selected_abort_payload({"reason": "build-error"}))
+        _fixture_log(
+            layout, variant, "abort",
+            selected_abort_payload({"reason": "build-error"}),
+        )
     else:
         wal.log(layout, variant, "build_done", "fixture-env", {
             "trace_bin": "trace", "perf_bin": "perf",
         })
         if outcome == "binary-mismatch":
             # C3-5: build_done 後・verify/bench 起動前の TOCTOU abort。
-            wal.log(layout, variant, "abort", "fixture-env",
-                    selected_abort_payload({"reason": "bench-binary-mismatch"}))
+            _fixture_log(
+                layout, variant, "abort",
+                selected_abort_payload({"reason": "bench-binary-mismatch"}),
+            )
         elif outcome == "legacy-red":
             _verify(layout, variant, "legacy", False)
-            wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
+            _fixture_log(layout, variant, "abort", selected_abort_payload({
                 "reason": "cycle", "workload": {"tag": "legacy"},
             }))
         else:
             if (outcome in {"timeout", "verify-inconclusive"}
                     and verify_frontier == "legacy"):
-                wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
+                _fixture_log(layout, variant, "abort", selected_abort_payload({
                     "reason": ("trace-timeout" if outcome == "timeout" else "trace-empty"),
                     "workload": {"tag": "legacy"},
                 }))
             else:
                 _verify(layout, variant, "legacy", True)
                 if outcome in {"timeout", "verify-inconclusive"}:
-                    wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
+                    _fixture_log(layout, variant, "abort", selected_abort_payload({
                         "reason": (
                             "trace-timeout" if outcome == "timeout" else "trace-empty"
                         ),
@@ -214,14 +231,14 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                     }))
                 elif outcome == "s2-red":
                     _verify(layout, variant, "s2", False)
-                    wal.log(layout, variant, "abort", "fixture-env", selected_abort_payload({
+                    _fixture_log(layout, variant, "abort", selected_abort_payload({
                         "reason": "cycle", "workload": {"tag": "s2"},
                     }))
                 else:
                     _verify(layout, variant, "s2", True)
                     if outcome == "bench-failed":
-                        wal.log(
-                            layout, variant, "abort", "fixture-env",
+                        _fixture_log(
+                            layout, variant, "abort",
                             selected_abort_payload({"reason": "bench-no-throughput"}),
                         )
                     else:
@@ -266,7 +283,7 @@ def _finish_campaign(layout, manifest: dict, *, status: str = "completed",
     """新 campaign-terminal 契約へ追随する WAL fixture builder。"""
     schedule = manifest["schedule"]["rows"]
     if fill_missing:
-        records = wal.read_records(layout)
+        records, _line_issues, _truncated_tail = wal.read_records_collected(layout)
         covered = {
             record.payload.get("schedule_index") for record in records
             if record.stage == SESSION and record.payload.get("event") == "trial-result"
@@ -298,7 +315,7 @@ def _manual_trial(layout, item: dict, outcome: str,
     }
     _session(layout, "trial-start", identity)
     for stage, payload in pipeline:
-        wal.log(layout, VARIANT, stage, "fixture-env", payload)
+        _fixture_log(layout, VARIANT, stage, payload)
     _session(layout, "trial-result", {
         **identity,
         "outcome": outcome,
@@ -1825,18 +1842,18 @@ def test_expected_cells_keep_deleted_holdout_indeterminate(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("stage", "outcome", "target_ordinal"),
+    ("stage", "outcome"),
     [
-        pytest.param("build_start", "committed", 0, id="build-start"),
-        pytest.param("build_done", "committed", 1, id="build-done"),
-        pytest.param("verify_done", "committed", 2, id="verify-done"),
-        pytest.param("bench_done", "committed", 4, id="bench-done"),
-        pytest.param("commit", "committed", 5, id="commit"),
-        pytest.param("abort", "build-failed", 1, id="abort"),
+        pytest.param("build_start", "committed", id="build-start"),
+        pytest.param("build_done", "committed", id="build-done"),
+        pytest.param("verify_done", "committed", id="verify-done"),
+        pytest.param("bench_done", "committed", id="bench-done"),
+        pytest.param("commit", "committed", id="commit"),
+        pytest.param("abort", "build-failed", id="abort"),
     ],
 )
-def test_non_mapping_pipeline_payload_is_row_level_protocol_violation(
-        tmp_path, stage, outcome, target_ordinal):
+def test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation(
+        tmp_path, stage, outcome):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
@@ -1853,13 +1870,13 @@ def test_non_mapping_pipeline_payload_is_row_level_protocol_violation(
     _manual_trial(layout, item, outcome, pipeline)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
 
-    assert row["status"] == "protocol_violation"
-    assert (f"pipeline[{target_ordinal}] {stage}.payload が object でない"
-            in row["reason"])
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert all("WalLineError: WAL payload must be a JSON object" in row["reason"]
+               for row in rows)
     if stage == "bench_done":
-        assert row["bench_values"] == []
+        assert all(row["bench_values"] == [] for row in rows)
 
 
 def test_cli_non_mapping_pipeline_payload_emits_observation(tmp_path):
@@ -1883,11 +1900,11 @@ def test_cli_non_mapping_pipeline_payload_emits_observation(tmp_path):
     observations = json.loads(output.read_text(encoding="utf-8"))
     row = observations["rows"][0]
     assert row["status"] == "protocol_violation"
-    assert "pipeline[4] bench_done.payload が object でない" in row["reason"]
+    assert "WalLineError: WAL payload must be a JSON object" in row["reason"]
     assert row["bench_values"] == []
 
 
-def test_non_mapping_payload_outranks_missing_campaign_terminal(tmp_path):
+def test_non_mapping_payload_and_missing_terminal_are_both_reported(tmp_path):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
@@ -1897,14 +1914,10 @@ def test_non_mapping_payload_outranks_missing_campaign_terminal(tmp_path):
 
     rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
 
-    target = next(row for row in rows
-                  if row["schedule_index"] == item["schedule_index"])
-    assert target["status"] == "protocol_violation"
-    assert "pipeline[0] build_start.payload が object でない" in target["reason"]
-    assert all(
-        row["status"] == "campaign-incomplete"
-        for row in rows if row["schedule_index"] != item["schedule_index"]
-    )
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert all("WalLineError: WAL payload must be a JSON object" in row["reason"]
+               for row in rows)
+    assert all("campaign-terminal が一意でない: 0" in row["reason"] for row in rows)
 
 
 def test_terminal_missing_makes_every_row_campaign_incomplete(tmp_path):
@@ -1958,6 +1971,190 @@ def test_terminal_scheduled_rows_mismatch_alone_hides_all_rows(tmp_path):
     assert all("scheduled_rows" in row["reason"] for row in rows)
 
 
+def test_complete_invalid_raw_final_line_is_rejected(tmp_path):
+    """完全な JSON だが必須 key がない raw 最終行を crash prefix 扱いしない。"""
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(
+            b'{"variant":"late","stage":"build_start",'
+            b'"env_tag":"fixture-env","ts":1}\n'
+        )
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert len({row["reason"] for row in rows}) == 1
+    assert all("WalLineError" in row["reason"] for row in rows)
+    assert all("keys must be exactly" in row["reason"] for row in rows)
+
+
+def test_session_non_object_payload_before_terminal_is_unconditional_violation(tmp_path):
+    """F1: pipeline guard 対象外の session record でも共有 payload gate が発火する。"""
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    for item in manifest["schedule"]["rows"]:
+        _trial(layout, item, "committed")
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(
+            b'{"variant":"oracle-session","stage":"s8b-oracle-session",'
+            b'"env_tag":"fixture-env","ts":1,"payload":["bad"]}\n'
+        )
+    _finish_campaign(layout, manifest, fill_missing=False)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert len({row["reason"] for row in rows}) == 1
+    assert all("WalLineError: WAL payload must be a JSON object" in row["reason"]
+               for row in rows)
+
+
+def test_invalid_line_after_terminal_cannot_hide_its_physical_position(tmp_path):
+    """F3: 不正行を valid 列から除外しても line issue 自体が必ず赤を立てる。"""
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(
+            b'{"variant":"late","stage":"build_start","stage":"commit",'
+            b'"env_tag":"fixture-env","ts":1,"payload":{}}\n'
+        )
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert all("WalDuplicateKeyError" in row["reason"] for row in rows)
+    assert all(len(row["reason"].split("; ")) == 1 for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
+
+
+def test_invalid_line_does_not_mask_definitive_correctness_red(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "legacy-red")
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(
+            b'{"variant":"oracle-session","stage":"s8b-oracle-session",'
+            b'"env_tag":"fixture-env","ts":1,"payload":{"event":"deviation",'
+            b'"message":"first","message":"second"}}\n'
+        )
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["outcome"] == "correctness-red"
+    assert row["legacy_verify"] == "red"
+    assert "WalDuplicateKeyError" in row["reason"]
+    assert "definitive correctness-red を検出: attempt=1" in row["reason"]
+    assert row["bench_values"] == []
+
+
+def test_truncated_tail_does_not_mask_definitive_correctness_red(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "legacy-red")
+    _finish_campaign(layout, manifest)
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(b'{"variant":"late","stage":"build_start"')
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["outcome"] == "correctness-red"
+    assert row["legacy_verify"] == "red"
+    assert "WAL の末尾 record が途中で切れている" in row["reason"]
+    assert "definitive correctness-red を検出: attempt=1" in row["reason"]
+    assert row["bench_values"] == []
+
+
+def test_blank_line_between_valid_records_is_unconditional_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    for item in manifest["schedule"]["rows"]:
+        _trial(layout, item, "committed")
+    with open(layout.wal_file, "a", encoding="utf-8") as stream:
+        stream.write("\n")
+    _finish_campaign(layout, manifest, fill_missing=False)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert all("WalLineError: WAL line must not be empty" in row["reason"]
+               for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
+
+
+def test_truncated_raw_tail_after_completed_terminal_is_one_protocol_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(
+            b'{"variant":"oracle-session","stage":"s8b-oracle-session",'
+            b'"env_tag":"fixture-env","ts":1,"payload":{"event":"deviation"'
+        )
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert {row["reason"] for row in rows} == {
+        "WAL の末尾 record が途中で切れている",
+    }
+    assert all(row["bench_values"] == [] for row in rows)
+
+
+def test_campaign_start_after_completed_terminal_is_one_position_reason(tmp_path):
+    """campaign-start の件数・内容を正常に保ち、物理位置だけを壊す。"""
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _finish_campaign(layout, manifest)
+    _campaign_start(layout, manifest)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert {row["reason"] for row in rows} == {
+        "campaign-terminal が WAL の最終 record でない",
+    }
+    assert all(row["bench_values"] == [] for row in rows)
+
+
+def test_aborted_terminal_with_later_record_keeps_position_and_status_reasons(tmp_path):
+    """A02 は受理集合 kill でなく、位置と意味の anti-masking 回帰 pin とする。"""
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _finish_campaign(layout, manifest, status="aborted")
+    _campaign_start(layout, manifest)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert {row["reason"] for row in rows} == {
+        "campaign-terminal が WAL の最終 record でない; "
+        "campaign-terminal.status='aborted'",
+    }
+    assert all(row["bench_values"] == [] for row in rows)
+
+
+def test_trial_result_after_campaign_terminal_remains_rejected_regression_pin(tmp_path):
+    """旧部分 gate でも捕捉済みの順序違反は、変異 kill に数えない回帰 pin。"""
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    _trial_result(layout, item, attempt=1)
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert all(row["bench_values"] == [] for row in rows)
+
+
 def test_campaign_terminal_rejects_extra_top_level_key(tmp_path):
     manifest = _manifest(tmp_path)
     schedule = manifest["schedule"]["rows"]
@@ -2001,7 +2198,14 @@ def test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers(
 
     rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
 
-    assert all(row["status"] == "campaign-incomplete" for row in rows)
+    if damage == "double":
+        assert all(row["status"] == "protocol_violation" for row in rows)
+        assert {row["reason"] for row in rows} == {
+            "campaign-terminal が WAL の最終 record でない; "
+            "campaign-terminal が一意でない: 2",
+        }
+    else:
+        assert all(row["status"] == "campaign-incomplete" for row in rows)
     assert all(row["bench_values"] == [] for row in rows)
 
 

@@ -618,3 +618,48 @@ worklog (12) 次の一手 1(a)。/rulings 経由のユーザー裁定 (ここが
    (手順の正本 = `hooks/README.md`)
 4. 限界受け入れ (viii) = floor 実測直前に最終承認 / task-run pilot 配線提案 = 10 run または
    08-03 到達時に提示 (現在 2 run)
+
+## 2026-07-20 (15) — ruling-A + ruling-C 実装 wave (D68、branch worktree-dev-wave-ruling-ac、計測なし)
+
+worklog (13)(14) 次の一手 1(a) の承認済み実装 wave。ハイブリッド標準ループ (/dev-wave) で実施。
+実装内容は D68、逐語は insights。ここには git に入らない情報だけを書く。
+
+- **敵対相談 2 本・敵対レビュー 2 本がいずれも NO-GO。** 相談 13 所見・レビュー 6 high は全て real
+  (refuted 0)。**うち 3 件は親 brief 自身の誤り**で、brief を攻撃対象に含める規律が実際に効いた:
+  (a) 「正規 writer は duplicate key を生成できない」→ 偽 (`json.dumps({1:"int","1":"str"})` が
+  int key を str へ正規化して衝突。親が実測再現)、(b)「第二の reader は layer3」→ 実際は S-1 freeze と
+  plotting も独立に WAL を読む、(c) hash chain 却下の根拠に D66 を引いたが D66 は task-run 台帳の
+  決定で campaign WAL には適用できない
+- **親の裁定ミスを 1 件、レビューが差し戻した。** 親は「reader で payload 型を落とすと D65 の行単位
+  Mapping guard が到達不能になる」として検査を外したが、D65 の guard は **pipeline 限定**であり
+  session record の非 Mapping payload は素通りしていた。しかも**親が入れたテストがその穴を機械固定**
+  していた。レビュー 2 本が独立に指摘し、共有 parser で必須化 + 行単位 issue reader へ作り替えて是正
+- **実装子の「赤なし」報告が全走で 10 件の赤だった** (単位 C)。実走範囲が 4 ファイルに限られており、
+  主張の射程が曖昧だった。以降の実装子プロンプトに「緑の主張には走らせた範囲を必ず併記」を入れ、
+  /dev-wave の定型にも反映 (段 8)
+- **実装子がテスト fixture へ現行 hash を差し込んで破損を隠していた** (単位 C、S-1 freeze)。
+  `s1_known_axes_freeze.py` は自己ハッシュ generator であり変更が freeze の `verify()` を壊す。
+  親が実測確認のうえ 2 ファイルとも撤回。詳細 = D68 (7)
+- 検収: **2304 passed / 26 skipped / 赤 0**、既存 WAL 30 ファイル 3,086 record の parse 回帰 0、
+  check_docs 違反なし。**変異 注入 12 / HALT 0 / 12 が赤**。ただし **A04 は受理集合を変えないため
+  kill 集計から外した** (診断保存 pin)。事前登録の C02・A02 もレビュー指摘で無効 kill / 過剰決定と
+  判明し取り下げ。ハーネスは C09 で実際に HALT を発火させ、注入されなかった変異の誤報を防いだ
+- エージェント工数: codex 7 本 (プラン 1 / 相談 2 / 実装 2 / レビュー 2 / fix 1、いずれも gpt-5.6-sol。
+  相談・レビュー・fix は max、実装は high)。親の直接編集あり (payload 判断の試行 2 回 + S-1 撤回) —
+  レビューには親作ハンクと明示して精査させた
+- task-run: `20260720-ruling-ac-wal-terminal-43708d1e` (pilot 3 本目)
+
+### 次の一手
+
+1. **承認済み実装 wave (この順)**: (a) C = backlog-guard (正本 = handoff
+   2026-07-19-backlog-guard-mechanism.md + worklog (8)) → (b) ruling-B 単独 (session record の
+   issuer/env_tag 照合) → (c) P-A1(a) Stage 1 + P-C3 同梱
+2. **ユーザー裁定待ち (本 wave の裁定パッケージ 6 件、いずれも real。正本 = D68 (8))**:
+   (a) campaign WAL の hash chain / 外部 anchor — **D66 は根拠にならないと判明**したので改めて裁定が要る /
+   (b) **WAL の byte 単位 record framing と resume の物理修復** (末尾断片が物理ファイルに残り次の
+   `O_APPEND` が直結する。基準 HEAD から存在し全 campaign へ波及) / (c) S-1 freeze 再発行 (これが無いと
+   S-1 reader を共有 parser へ収束できない) / (d) 宣言済み未使用 campaign の未評価 = F9 型 (P-A1(a) の
+   守備範囲) / (e) 未知 stage の trial 前置 / (f) payload 型を writer で強制するか
+3. B-008 の再試験条件: 変わらず (前エントリ参照)
+4. 限界受け入れ (viii) = floor 実測直前に最終承認 / task-run pilot 配線提案 = 10 run または 08-03
+   到達時に提示 (現在 3 run)

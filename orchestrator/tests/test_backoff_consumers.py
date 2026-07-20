@@ -6,6 +6,9 @@ import importlib.util
 import json
 import os
 import sys
+from pathlib import Path
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -88,3 +91,36 @@ def test_plot_backoff_excludes_and_reports_uncertified_bench_done(tmp_path, caps
         prov = json.load(f)
     assert prov["inputs"][0]["excluded_uncertified_bench_done"] == \
         ["v-certified", "v-screen"]
+
+
+def test_plot_backoff_rejects_duplicate_tps_before_it_reaches_plot_data(tmp_path):
+    plot = _load_plot_module()
+    layout = _fixture_layout(tmp_path)
+    wal_path = Path(layout.wal_file)
+    lines = wal_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        record = json.loads(line)
+        if record["variant"] == "v-certified" and record["stage"] == STAGE_BENCH_DONE:
+            lines[index] = (
+                '{"variant":"v-certified","stage":"bench_done","env_tag":"test",'
+                '"ts":1,"payload":{"median_tps":123456,'
+                '"tps":[123456],"tps":[999999]}}\n'
+            )
+            break
+    else:
+        raise AssertionError("fixture に certified BENCH_DONE がない")
+    wal_path.write_bytes("".join(lines).encode("utf-8"))
+
+    with pytest.raises(plot.campaign_wal.WalDuplicateKeyError, match="tps"):
+        plot.load_campaign(layout.root)
+
+
+def test_plot_backoff_rejects_blank_line_between_records(tmp_path):
+    plot = _load_plot_module()
+    layout = _fixture_layout(tmp_path)
+    wal_path = Path(layout.wal_file)
+    lines = wal_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    wal_path.write_text("".join([lines[0], "\n", *lines[1:]]), encoding="utf-8")
+
+    with pytest.raises(plot.campaign_wal.WalLineError, match="must not be empty"):
+        plot.load_campaign(layout.root)

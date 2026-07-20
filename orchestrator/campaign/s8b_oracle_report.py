@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """8b oracle session WAL を全 schedule 行の observations へ射影する。
 
-この構造検査の脅威モデルは、正直だがバグりうる producer である。任意改竄に対する
-真正性の保証ではない。WAL の duplicate key が最後勝ちになる問題と hash chain の不在は
-本 wave の scope 外である。
+この構造検査の脅威モデルは、正直だがバグりうる producer である。WAL 各行の
+duplicate key と record の基本形を検査し、campaign-terminal が物理的な最終 record
+であることを要求する。hash chain はなく、任意の変更に対する真正性の保証ではない。
 """
 from __future__ import annotations
 
@@ -911,6 +911,17 @@ def _campaign_terminal_issue(records: Sequence[object], rows: Sequence[Mapping])
     return None
 
 
+def _campaign_terminal_position_issue(records: Sequence[object]) -> Optional[str]:
+    """terminal が存在する場合、その最初の 1 件が物理的な最終 record か検査する。"""
+    terminal_ordinal = next((
+        index for index, record in enumerate(records)
+        if _session_event(record, "campaign-terminal")
+    ), None)
+    if terminal_ordinal is not None and terminal_ordinal != len(records) - 1:
+        return "campaign-terminal が WAL の最終 record でない"
+    return None
+
+
 def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mapping,
                      manifest_sha: str, allowed_excluded: set[str], output_root: Path,
                      expected_reps: int,
@@ -923,11 +934,24 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                  "reason": f"campaign-terminal がない (campaign directory 欠落): {campaign_id}"}
                 for base in bases]
     try:
-        records = wal.read_records(layout)
+        records, line_issues, truncated_tail = wal.read_records_collected(layout)
     except Exception as exc:
         return [{**base, "status": "protocol_violation",
                  "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
                 for base in bases]
+
+    terminal_protocol_issues = [
+        issue for issue in (
+            _campaign_terminal_position_issue(records),
+        )
+        if issue is not None
+    ]
+    terminal_protocol_issues.extend(
+        f"WAL record が不正: line {line_number}: {reason}"
+        for line_number, reason in line_issues
+    )
+    if truncated_tail:
+        terminal_protocol_issues.append("WAL の末尾 record が途中で切れている")
 
     record_ordinals = {id(record): ordinal for ordinal, record in enumerate(records)}
     payload_issue_by_record = _pipeline_payload_issues(records)
@@ -961,10 +985,13 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                 *unbound_payload_issues,
                 *payload_issues_by_index.get(item["schedule_index"], ()),
             ]
-            if payload_issues:
+            protocol_issues = [*payload_issues, *terminal_protocol_issues]
+            if protocol_issues:
                 output.append({
                     **base, "status": "protocol_violation", "bench_values": [],
-                    "reason": "; ".join(dict.fromkeys(payload_issues)),
+                    "reason": "; ".join(dict.fromkeys([
+                        *protocol_issues, terminal_issue,
+                    ])),
                 })
             else:
                 output.append({
@@ -977,6 +1004,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                        if _session_event(record, "campaign-start")]
     global_issues: list[str] = list(manifest_issues)
     global_issues.extend(unbound_payload_issues)
+    global_issues.extend(terminal_protocol_issues)
     if len(campaign_starts) != 1:
         global_issues.append(f"campaign-start が一意でない: {len(campaign_starts)}")
     else:
@@ -1014,17 +1042,6 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
             global_issues.extend(_event_contract_issues(record.payload))
             if event == "deviation":
                 global_issues.append(f"deviation: {record.payload.get('message')!r}")
-    terminal_ordinal = next(
-        index for index, record in enumerate(records)
-        if _session_event(record, "campaign-terminal")
-    )
-    if any(
-        _row_lifecycle_event(record) or _pipeline_event(record)
-        for record in records[terminal_ordinal + 1:]
-    ):
-        global_issues.append(
-            "campaign-terminal より後に row-scoped/pipeline event がある"
-        )
     first_trial = next((index for index, record in enumerate(records)
                         if _session_event(record, "trial-start")), len(records))
     if any(isinstance(record.stage, str)

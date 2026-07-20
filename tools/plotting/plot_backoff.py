@@ -21,6 +21,12 @@ provenance ヘッダに「どの campaign のどの commit / ファイルから�
 """
 import sys, os, json, re, glob, hashlib, datetime
 
+# この script を cwd/PYTHONPATH に依存せず直接起動できるよう、repo 内の共有 WAL parser
+# への import root を __file__ から解決する。plotting 独自の JSON reader は持たない。
+_ORCHESTRATOR=os.path.abspath(os.path.join(os.path.dirname(__file__),"..","..","orchestrator"))
+if _ORCHESTRATOR not in sys.path: sys.path.insert(0,_ORCHESTRATOR)
+from campaign import wal as campaign_wal
+
 np=mpl=plt=FixedLocator=FixedFormatter=NullLocator=None
 
 def _load_plot_deps():
@@ -112,10 +118,10 @@ def load_campaign(cdir):
     dat_path=dat_paths[0]
 
     recs=[]
-    with open(wal_path) as fh:
-        for line in fh:
-            line=line.strip()
-            if line.startswith("{"): recs.append(json.loads(line))
+    for _,line,_ in campaign_wal.iter_lines(wal_path):
+        parsed=campaign_wal.parse_line(line)
+        recs.append({"variant":parsed.variant,"stage":parsed.stage,
+                     "env_tag":parsed.env_tag,"ts":parsed.ts,"payload":parsed.payload})
     genome={x["variant"]:_parse_genome(x["payload"]["genome"])
             for x in recs if x.get("stage")=="build_start"}
     thread_nums=set()
