@@ -293,6 +293,21 @@
   自己マッチ (pgrep が監視シェル自身や snapshot ラッパに一致) に注意する。
 - 再発検知: 監視スクリプトに「ログ本文 grep で完了判定」する行が入っていたらレビューで差し戻す。
 
+### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
+- 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
+  message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
+  2 回目 = 本文と trailer の間の空行欠落 → 本文と同一段落になり trailer 比率不足で不認識 +
+  件名 1 行に全文が畳まれた worklog commit)。check_ai_provenance が両回とも検出し、未 push のため
+  メッセージのみ修正して積み直し (tree 不変)。台帳 (task-runs) の commit event には旧 SHA が
+  append-only で残存
+- 根本原因: git の trailer 認識規則 (「最終段落のみ・段落内の trailer 行比率」) を意識せず、
+  heredoc で message を手組みした
+- 恒久対応: commit message は「件名 / 空行 / 本文 / 空行 / trailer block (AI-Agent 行と
+  Co-Authored-By を空行なしで連続)」の 4 段構成で作る。commit 直後に `check_ai_provenance` を回す
+  (規約どおり) — 違反が出たら push 前にメッセージだけ積み直す
+- 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
+  更新漏れも併せて見る
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
