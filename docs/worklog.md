@@ -1076,3 +1076,25 @@ main へ be3a455 として取り込み済み (push はしない)。
 ### 次の一手
 
 変わらず (worklog (5) 参照)
+
+## 2026-07-20 (8) — P-C1/C2/C3・C の ユーザー裁定確定 + push 現況 (発効なし・計測なし・実装は次セッション)
+
+ユーザー裁定 (本セッション /rulings 経由、ここが記録の正本):
+
+- **P-C2: 推奨案で確定** — 正当な prepare retry の attempt lifecycle を閉表化 (trial-result なし +
+  retry 1 件 + 次 attempt 番号一致の window を正当 retried として扱う) + 正例テスト
+- **P-C1: (b) で確定** — rep ごとの rc を WAL に記録し、report が 5 件とも rc=0 を検査
+- **P-C3: 推奨どおり P-A1(a) 段階導入と同時に実施** (generator pin の transitive 拡張)
+- **C (backlog-guard-mechanism): 推奨案 (ID + 機械検査) で確定** — handoff の着手条件が全て成立
+- push 現況 (親が実測): **main は push 済み** (origin/main = be3a455、ローカルと一致)。
+  **approved-waves は未 push** (origin に ref なし。本日 3 wave 分 10 commit はローカルのみ)
+
+### 次の一手
+
+1. **承認済み実装 wave (次セッション、クラス 3)**: P-C2 + P-C1(b) — report 契約の隣接工事として
+   1 wave 同梱を推奨。正本 = insights 2026-07-20 wave2 §裁定パッケージ + 本エントリ
+2. **承認済み実装 wave**: C = backlog-guard (ID + 機械検査)。正本 = handoff
+   2026-07-19-backlog-guard-mechanism.md + 本エントリ
+3. P-A1(a) Stage 1 の承認待ち (承認時に P-C3 を同梱)
+4. ユーザー: approved-waves の push (未 push。意図的保留か失敗かの確認から)
+5. task-run pilot 運用中 (worklog (5) 次の一手 1 参照)
