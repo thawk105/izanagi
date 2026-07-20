@@ -13,8 +13,13 @@ CLAUDE.md のクラス 3 起動手順 (worklog 末尾・現行 phase doc・hando
 2. **プラン起草 (codex)。** brief と関連コードの所在を渡し、codex (gpt-5.6-sol / reasoning=max / sandbox=read-only) に file:line 粒度のプランを起草させる
 3. **敵対相談 (codex 並列)。** プランを攻撃対象として、レンズを分けた敵対相談を並列で投げる (max。例: 正しさ境界レンズ / 整合・実効性レンズ)。プランを守る側に回らせない
 4. **裁定 (親)。** 所見の real/refuted、採用/不採用、scope 内/外を裁定してプラン v2 を確定する。scope 外の real 所見は実装せず「裁定パッケージ」(設計択一 + 所見 + 推奨案) としてユーザーへ返す。実装前に変異テストを事前登録する (B-057)
-5. **実装 (codex 並列)。** ファイル所有が素集合になるよう単位分割し、worktree を分けて並列投入する (reasoning=high / workspace-write)。**実装子が編集してよいのはコードとテストだけ — docs の編集と git commit は禁止**。統合 commit・変異 matrix の実測・受入全走は親が行う
-6. **レビュー (codex 並列)。** 実装 wave では必ずレンズを分けた敵対レビュー 2 本を並列で投げる。real 所見の fix は codex に再投し、fix 後は変異 matrix と受入を再走する。**所見ゼロは変異で裏取りするまで緑と数えない**
+5. **実装 (codex 並列)。** ファイル所有が素集合になるよう単位分割し、worktree を分けて並列投入する (reasoning=high / workspace-write)。単位間に依存 (他単位のテストが先行単位の成果物を import する等) があれば、先行単位を完了させ所有ファイル限定 patch (`git add -A && git diff --cached -- <所有パス>` → `git apply`) で展開してから残りを並列にする。**実装子が編集してよいのはコードとテストだけ — docs の編集と git commit は禁止**。他単位/親の成果物が land するまで意図的に赤になるテストは xfail 化を禁止し、赤の内訳を完了報告に明記させる。統合 commit・変異 matrix の実測・受入全走は親が行う
+6. **レビュー (codex 並列)。** 実装 wave では必ずレンズを分けた敵対レビュー 2 本を並列で投げる。real 所見の fix は codex に再投し (投入前に統合状態の snapshot patch を退避)、fix 後は変異 matrix と受入を再走する。**所見ゼロは変異で裏取りするまで緑と数えない**。変異が生存したら まず他層のマスク (等価変異) を疑い、実効ゲートへ再照準して両層同時変異まで裏取りし、結果を台帳へ erratum として残す
 7. **記録 (親)。** worklog への吸収、insights への逐語・変異台帳の凍結、decisions への設計判断を親が一括で書く。commit には AI-Agent trailer を付け、push はしない (ユーザー判断)
 
-運用の作法: codex は `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包んで起動し、完了判定は `.done` ファイルのみで行う (ログ本文 grep は禁止 — docs/failures.md F23/F24)。投入前にプロンプトファイルの非空を検査する。
+運用の作法:
+
+- codex は `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包んで起動し、完了判定は `.done` ファイルのみ (ログ本文 grep は禁止 — docs/failures.md F23/F24)、成果物は `-o` の最終メッセージファイルから読む。投入前にプロンプトファイルの非空を検査する
+- プロンプト・ログ・patch は job tmp 直下でなく wave 専用サブディレクトリに置く (過去 wave の同名残骸との衝突防止)
+- read-only sandbox の codex は pytest を実行できない (書込可能 tmp が無い)。相談・レビューには静的検査で足りる旨を伝え、テスト green の主張は求めない (実測は親が行う)
+- task-run 台帳 pilot 中は wave 自身を記録する: 開始時に `python3 tools/task_run.py start`、受入走は `IZANAGI_TASK_RUN_ID=<id>` 付き、check 系は `tools/task_run_check.py`、終了時に `finish` (詳細正本 = output/task-runs/README.md)
