@@ -34,6 +34,7 @@
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-s*.md`・`phase3-8b-*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。段ごとの内訳は phase3.md から辿る (段番号をここに列挙しない — 段の追加で腐るため)
+- `freeze-permanent-design.md` — freeze 族の恒久設計パッケージ ([T-080]、第 1 設計段。R1..R16 のユーザー裁定待ち)
 
 ## docs/ の外
 

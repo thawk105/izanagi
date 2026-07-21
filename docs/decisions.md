@@ -2985,3 +2985,41 @@ fix ラウンド 2 (N1/N4〜N12 + client cap 必須化) → 親の受入全走�
 変異 = kill 8 件 (M1〜M8、受理集合または fail-closed 挙動が期待方向へ変化) + diagnostic
 pin 1 件 (M10、受理集合不変で拒否理由のみ変化)。段 8 で F32 (変異ハーネスの二重走行汚染と
 未追跡ファイルに恒真な `git diff` 復元検査) を台帳へ追記し、dev-wave skill の変異作法へ反映。
+
+## D75. freeze 族恒久設計は第 1 設計段パッケージとして起草し R1..R16 の裁定へ返す (2026-07-22)
+
+**決定: [T-080] は `docs/freeze-permanent-design.md` (第 1 設計段パッケージ) を成果物とし、
+実装しない。** コード・凍結成果物・テストは 0 byte 変更。裁定は R1..R16 (骨格 R1..R9 +
+運用境界 R10..R16)。工程は三段 — 本パッケージ (骨格と政策) → 第 2 設計段 (exact schema 化と
+変異事前登録) → 実装 wave 群。逐語は `output/insights/2026-07-22_t080-freeze-permanent-design.md`。
+
+(1) **骨格。** gate/metadata の型分離、checker 自己 pin の全廃 (実装 record の raw pin 24 件は
+[T-074] の部分修正として R7 で明示裁定)、v3 measurement への観測値・判定・効果量の凍結と独立参照
+実装による再計算 gate (有限 conformance vector 単独案は相談 2 本が独立に BLOCKER で棄却)、
+`frozen_at_head` の field 廃止 + receipt 層での導入 commit G / 生成基準 H_gen (=G^) / 入力 tree の
+非自己参照束縛、G/R/literal×2/A/X の commit topology (人間承認 A は bundle digest 束縛・
+diff allowlist・AI-Agent: none)、active-bundle pointer (g0=legacy bootstrap) による原子的発効、
+FROZEN_MANIFEST は旧 8 件維持 + 新 4 件追加 + exact key-set 検査。
+
+(2) **erratum 2 件 (本 wave の実測)。** (a) D71 (7)(b) の「freeze 計 6 個」は known 発行数 + holdout
+の数え方で、artifact 履歴の実体は **9 blob / 7 distinct anchor** (measurement 独立発行 3 回を
+落としていた)。9/9 dangling。(b) D72 (3) の「12 pointer」は現行コードと不一致 — `_TRANSITION_V1_TO_G1`
+は **13 pointer** (`/schema_version` を含む)。
+
+(3) **known の source closure は宣言より狭い。** generator は `campaign.lock` を読み、`pipeline.py` →
+`model.py`・`source_digest.py` に依存するが、いずれも 63 source record に無い。新形式は「宣言済み
+closure + 列挙 snapshot + 機械補助 + レビュー」を恒久形とし、機械的完全証明は不可能と明示 (R16)。
+
+(4) **検証プロセスと教訓。** codex 草案 → 敵対相談 2 (max、両 NO-GO) → 親裁定 (refuted 0) →
+親起草 v2 → 敵対レビュー 2 (max、両 NO-GO、計 30 所見) → 全所見反映 → 修正検証 (NO-GO、残 6 条件) →
+6 条件反映 → 最終チェック (**6/6 充足** + 軽微 4 件、即時反映)。親合成の主要な誤り 3 つ —
+(a) 現行 schema に存在しない入力 (`cells` に観測値が無い) を前提に再計算 gate を書いた、
+(b) 検証時 HEAD と生成基準 commit を同名 `H` で混同した、(c) family 判定を Holm と誤記 (現行は
+intersection–union の max)。**設計 doc の gate 記述は「その入力が成果物のどの field に実在するか」を
+書く前に実物 JSON で確認する** (恒久教訓)。
+
+(5) **再裁定停止点。** [T-068] は発効 X と同時にのみ処理 (R10)、[T-077] は同席再 pin の十分性 (R11)、
+[T-078] は外部固定 fixture 契約の充足性 (R12) — いずれも本 wave では閉じていない。
+
+(6) **実装差分が無いため、変異 matrix の実測と受入全走は本 wave の対象外** (D72 (12) と同じ扱い)。
+check_docs は緑。変異の事前登録は第 2 設計段の残課題に含めた。
