@@ -34,6 +34,7 @@ CLAUDE.md のクラス 3 起動手順 (worklog 末尾・現行 phase doc・hando
 
 - codex は `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包んで起動し、完了判定は `.done` ファイルのみ (ログ本文 grep は禁止 — docs/failures.md F23/F24)、成果物は `-o` の最終メッセージファイルから読む。投入前にプロンプトファイルの非空を検査する
 - プロンプト・ログ・patch は job tmp 直下でなく wave 専用サブディレクトリに置く (過去 wave の同名残骸との衝突防止)
+- **プロンプトファイルの本文に防護ツリーのパス文字列 (WAL・campaign.lock・output/campaigns・external/ccbench 等) が入る場合は、Bash heredoc でなく Write ツールで作る** — guard_bash は防護パスと不透明構文 (heredoc/`$()`) の同居を分類不能として fail-closed 拒否する。hook は迂回せずツールを替える (2026-07-22 実績)
 - read-only sandbox の codex は pytest を実行できない (書込可能 tmp が無い)。相談・レビューには静的検査で足りる旨を伝え、テスト green の主張は求めない (実測は親が行う)
 - task-run 台帳 pilot 中は wave 自身を記録する: 開始時に `python3 tools/task_run.py start --slug <slug> --objective "<1 行>" --task-class 3 --task-kind <implementation|documentation|…>` (4 引数すべて必須。`--task` は `--task-class`/`--task-kind` と曖昧になり usage エラー)、受入走は `IZANAGI_TASK_RUN_ID=<id>` 付き、check 系は `tools/task_run_check.py`、終了時に `finish --outcome <completed|…> <id>` (詳細正本 = output/task-runs/README.md)
 - **凍結成果物 (freeze / oracle gate / proof chain) に触る wave では、最初に submodule を init する** (`git submodule update --init`)。worktree には submodule が自動で入らず、未 init のままだと freeze 系の検査が「source が存在しない」で真の破損より手前で落ち、テストも skip に化ける。**真の破損が見えないまま「破損なし」と誤報しうる**
