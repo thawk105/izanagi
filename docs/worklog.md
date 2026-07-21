@@ -924,3 +924,76 @@ worklog (2) 次の一手 1 の承認済み実装 wave として着手したが�
 15. [T-010] B-008 の再試験条件: 変わらず
 16. [T-011] 限界受け入れ (viii) = floor 実測直前に最終承認 (据え置き)
 17. [T-012] task-run pilot 配線提案 = 10 run または 08-03 到達時に提示 (現在 5 run)
+
+## 2026-07-21 (4) — `/loop-w` bounded supervisor の実装設計 (提案のみ、計測なし)
+
+ユーザー要望に基づき、task ごとに context を切った fresh `claude -p` で `/dev-wave` を最大 N 回だけ
+直列実行する supervisor の実装案を作成した。実装・real model 呼出し・local main 取り込みはまだ行って
+いない。作業は main と分離した branch `codex/dev-waves-supervisor-design`、worktree
+`.codex/worktrees/dev-waves-supervisor-design` で実施した。
+
+- 実行鎖はユーザー訂正どおり **Claude project skill `/loop-w N` → external Python supervisor daemon →
+  wave ごとの fresh `claude -p` → `/dev-wave --supervised-manifest ...`**。Codex CLI は設計・実装作業者で
+  あって runtime chain には含めない
+- 新規入口は公式推奨の `.claude/skills/loop-w/SKILL.md`。副作用を伴うため
+  `disable-model-invocation: true` とし、人間だけが起動する。skill 名制約に従い `_` でなく `-` を使う
+- skill 配下から child Claude を直接 nested spawn しない。Bash tool 配下の公式 marker
+  `CLAUDECODE=1` を daemon 起動拒否条件にし、環境変数 unset で迂回しない。skill は Claude の外で
+  起動済み daemon の Unix socket client に限定する
+- daemon は exact local main SHA から専用 Git worktree を自前作成し、stdin `/dev/null`、explicit
+  `--permission-mode auto`、structured output schema、per-wave budget/timeout 付きで 1 child だけ起動する。
+  auto 不可時に dangerous bypass へ fallback しない
+- child final / exit code を単独では信頼しない。structured receipt と main の clean/ff/commit 集合、
+  worklog ID 保存則、handoff、task-run pilot、submodule、check/provenance を独立照合し、1 件でも不一致なら
+  次 wave を起動しない。push、rebase、merge、force、自動 retry、自動 worktree cleanup はしない
+- supervisor が見た値と行った操作は `output/dev-wave-supervisor/runtime/<run-id>/` の gitignored private
+  runtime へ記録する。`events.jsonl` を append-only control WAL、raw stdout/stderr、worker structural exit、
+  sanitized receipt/check/summary を分離し、WAL write/fsync failure は fail-closed にする
+- crash-after-land を含む recovery、PID/process-group kill、resource bounds、closed reason code、fake Claude
+  + temp Git repo の integration、各 gate の mutation matrix、max-waves=1 から 3 への段階導入まで設計した
+- 提案の正本は `output/insights/2026-07-21_dev-waves-supervisor-design.md`。冒頭を
+  `status: unadjudicated / authority: none / default_effect: no-state-change` とし、現行状態へ効かないことを
+  明示した
+- 公式 Claude Code docs とローカル 2.1.214 `--help` を照合した。サブエージェント利用なし。検査は
+  `check_codex_agents` / `check_docs` / `git diff --check` が初回 rc=0。real `claude -p` は未実行
+
+### 次の一手
+
+1. [T-069] **ユーザー裁定待ち**: bounded supervisor 設計の 4 択 — daemon は v1 foreground 起動、child は explicit auto (不可なら停止)、pilot 中は session persistence を保持、timeout/cost 値は実装前に明示指定、という推奨を採るか。採用後は fake child の機械層から別実装 wave で着手する
+2. [T-005] **ユーザー裁定待ちへ差し戻し (2026-07-21、D71)**: S-1 freeze 再発行の可否。実行すると
+   holdout の `known_axes_freeze.sha256` が外れ、上書きは `V1_FREEZE_SHA256` (v1 trust root) を壊し、
+   v2 追随は `_TRANSITION_V1_TO_G1` に `/known_axes_freeze/sha256` が無いため拒否される。
+   **正規の道が 3 方向とも塞がっている**。推奨 = 単独では実行せず [T-063] [T-064] と束ねて裁定する
+3. [T-063] **裁定待ち (新規)**: 再発行の**許容 JSON Pointer 差分契約**を確定する。親の当初案
+   「差分は `frozen_at_head` と `python_version` のみ」は成立しない (known bytes が変われば
+   measurement の `/implementation_hashes/known_axes_freeze/sha256` も必ず変わる)。推奨 =
+   exact な許容 pointer 集合をユーザーが確定し、それ以外は厳密一致とする
+4. [T-064] **裁定待ち (新規)**: legacy holdout freeze を**歴史成果物として据え置く**か、
+   **s8b trust root ごと移行する**か。据え置くなら oracle 非復旧を明記する。移行するなら
+   `V1_FREEZE_SHA256`・transition table・protocol golden まで含む別 wave が要る。
+   holdout 再生成は `confirmed_by` (人間確認者名) を必須とするため **AI 単独では実行できない**
+5. [T-065] **実装待ち (新規、要裁定)**: holdout freeze が **2026-07-18 から無効**である
+   (`design_source` sha256 のドリフト、F9 型)。floor protocol 裁定記録の commit 群が
+   `docs/phase3-8b-descriptor-design.md` を更新したことが原因。3 日間検出されなかった
+6. [T-066] **実装待ち (新規、要裁定)**: `test_s1_measurement_freeze.py` に
+   **D68 (7) の隠蔽パターンが現存**する (production generator の現行 hash を動的注入 +
+   `K.build_document` を fixture の echo へ置換)。防壁変更にあたるため裁定へ回す
+7. [T-067] **実装待ち (新規、要裁定)**: oracle 系テストが **refusal の増加を検出できない**
+   (`test_s8b_oracle_driver.py` は floor-null / budget-null / status=refused / rc=2 しか要求しない)。
+   拒否理由の exact 検査へ強化する
+8. [T-068] **裁定待ち (新規)**: dangling `frozen_at_head` は **freeze 族共通の病**。S-1 の歴代 5 世代と
+   holdout の計 6 個すべてが repo に存在しない。wave branch で生成 → rebase で SHA 書換え、が原因。
+   恒久対応は [T-063] と同時に決める必要がある
+9. [T-004] **承認済み実装 wave (単独 wave、[T-007] [T-008] を同梱)**: WAL の byte 単位 record framing と
+   resume の物理修復。末尾断片が物理ファイルに残り次の `O_APPEND` が直結する。基準 HEAD から存在し
+   全 campaign へ波及する。**本 wave が実装に至らなかったため、次に着手すべきはこれ**
+10. [T-008] **裁定確定 (2026-07-21): payload 型を writer 側でも強制する**。[T-004] の wave に同梱
+11. [T-007] **裁定確定 (2026-07-21): 未知 stage は拒否する** (fail-closed)。[T-004] の wave に同梱
+12. [T-001] **承認済み実装 wave**: ruling-B 単独 (session record の issuer/env_tag 照合)
+13. [T-002] **承認済み実装 wave ([T-006] を同梱)**: P-A1(a) Stage 1 + P-C3
+14. [T-009] **裁定確定 (2026-07-21)**: 実装子の規律免除を `AGENTS.md` へ 1 段落追記する
+15. [T-060] **[T-003] 裁定の実装分**: WAL に関する記述から「改竄耐性」「改竄不能」「証明可能」を
+    使わない運用を明文化する (脅威境界の正本 = D68 (6))
+16. [T-010] B-008 の再試験条件: 変わらず
+17. [T-011] 限界受け入れ (viii) = floor 実測直前に最終承認 (据え置き)
+18. [T-012] task-run pilot 配線提案 = 10 run または 08-03 到達時に提示 (現在 5 run)
