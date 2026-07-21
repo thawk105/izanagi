@@ -53,6 +53,33 @@ CONFIGURATIONS = (
 V2_ENV_TAG = "linux-baremetal"
 
 
+def _assert_exact_refusals(actual, expected: set[str]) -> None:
+    """refusal 集合の完全一致を要求する。
+
+    len も比較するため、同一 refusal の重複追加も検出する
+    (set 比較だけでは重複を落としてしまう)。
+    """
+    assert len(actual) == len(expected), actual
+    assert set(actual) == expected, actual
+
+
+def _assert_refusal_reasons(actual, expected_prefixes: list[str]) -> None:
+    """件数の完全一致 + 理由 prefix の 1:1 対応を要求する。
+
+    実 repo の working tree bytes に依存する診断 payload (sha256 の実測値など) を
+    期待値へ焼き込むと、無関係な正当編集で false red になる。理由の同一性と件数は
+    厳密に固定しつつ、揮発する payload 部分だけを期待値から外す。
+    完全一致が使える hermetic fixture では `_assert_exact_refusals` を使うこと。
+    """
+    assert len(actual) == len(expected_prefixes), actual
+    remaining = list(expected_prefixes)
+    for reason in actual:
+        match = [p for p in remaining if reason.startswith(p)]
+        assert len(match) == 1, (reason, remaining)
+        remaining.remove(match[0])
+    assert not remaining, remaining
+
+
 def _contract_sha256() -> str:
     return ec.lookup(V2_ENV_TAG).contract_sha256
 
@@ -503,8 +530,14 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
 def test_real_freeze_gate_lists_floor_and_budget_null():
     decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
     assert not decision.allowed
-    assert any(reason.startswith("floor-null:") for reason in decision.refusals)
-    assert any(reason.startswith("budget-null:") for reason in decision.refusals)
+    _assert_refusal_reasons(decision.refusals, [
+        "holdout-freeze-verify: FreezeError: design_source sha256 不一致: "
+        "recorded=",
+        "known-axes-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の "
+        "commit ancestor でない: ",
+        "floor-null: freeze.floor が null",
+        "budget-null: freeze.budget が null",
+    ])
 
 
 def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_path):
@@ -540,7 +573,10 @@ def test_required_binding_missing_refuses_at_production_entry_without_side_effec
         tmp_path, environ={},
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
-    assert "reservation binding" in result["refusals"][0]
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: reservation binding 検査失敗: "
+        "必須環境変数 IZANAGI_RESERVATION_JOB_ID がない",
+    })
 
 
 def test_required_v1_receipt_refuses_at_production_entry_without_side_effects(tmp_path):
@@ -551,7 +587,9 @@ def test_required_v1_receipt_refuses_at_production_entry_without_side_effects(tm
         tmp_path, receipt_issuer=v1_issuer,
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
-    assert "receipt" in result["refusals"][0]
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: execution receipt の契約再検算に失敗",
+    })
 
 
 def test_required_verified_calibration_from_other_contract_is_refused_without_side_effects(
@@ -562,7 +600,9 @@ def test_required_verified_calibration_from_other_contract_is_refused_without_si
         tmp_path, verified_override=wrong_verified,
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
-    assert "verified calibration" in result["refusals"][0]
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: verified calibration sha256 が contract ref と不一致",
+    })
 
 
 def test_required_secondary_calibration_identity_recheck_fires_with_monkeypatched_loader(
@@ -577,7 +617,9 @@ def test_required_secondary_calibration_identity_recheck_fires_with_monkeypatche
         tmp_path, verified_override=drifted,
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
-    assert "別 contract" in result["refusals"][0]
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: verified calibration が別 contract に属する",
+    })
 
 
 def test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed(tmp_path):
@@ -588,7 +630,11 @@ def test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed(tmp_pa
     result = _run_required_fixture(fixture)
 
     assert result["status"] == "refused" and result["allowed"] is False
-    assert "provisioning" in result["refusals"][0]
+    claim_root = (fixture["output_root"] / "claims").resolve()
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: G12 campaign claim root が durable out_root 下に"
+        f"事前 provisioning 済みでない: {claim_root}",
+    })
     assert _tree_file_snapshot(fixture["output_root"]) == before
     assert not fixture["budget_path"].exists()
 
@@ -605,7 +651,9 @@ def test_required_oracle_claim_root_outside_durable_approval_is_fail_closed(tmp_
     result = _run_required_fixture(fixture, durable_policy=policy)
 
     assert result["status"] == "refused" and result["allowed"] is False
-    assert "approved root" in result["refusals"][0]
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: candidate が approved root 配下でない",
+    })
     assert _tree_file_snapshot(fixture["output_root"]) == before
     assert not fixture["budget_path"].exists()
 
@@ -625,7 +673,11 @@ def test_required_existing_claim_refuses_production_entry_without_new_side_effec
     result = _run_required_fixture(fixture)
 
     assert result["status"] == "refused" and result["allowed"] is False
-    assert "claim" in result["refusals"][0]
+    # claim 所有 PID は実行 process に依存するため、その直前までを厳密に固定する。
+    _assert_refusal_reasons(result["refusals"], [
+        "v2-execution: G12 campaign claim 取得失敗: "
+        "campaign claim は既に ",
+    ])
     assert _tree_file_snapshot(fixture["output_root"]) == before
     assert not fixture["budget_path"].exists()
 
@@ -784,8 +836,10 @@ def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
     )
 
     assert result["status"] == "refused"
-    assert any(reason.startswith("freeze-ratify:")
-               for reason in result["refusals"])
+    _assert_exact_refusals(result["refusals"], {
+        "freeze-ratify: [no-active] [no-active] live active pointer が無い "
+        "(v2 未発効)",
+    })
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
 
@@ -812,9 +866,11 @@ def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_pa
     )
 
     assert result["status"] == "refused" and result["allowed"] is False
-    assert len(result["refusals"]) == 2, result["refusals"]
-    assert any(reason.startswith("freeze-ratify:") for reason in result["refusals"])
-    assert any(reason.startswith("manifest-verify:") for reason in result["refusals"])
+    _assert_exact_refusals(result["refusals"], {
+        "freeze-ratify: [no-active] [no-active] live active pointer が無い "
+        "(v2 未発効)",
+        "manifest-verify: ManifestError: manifest top-level schema が不一致",
+    })
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
 
@@ -1150,6 +1206,9 @@ def test_transient_prepare_failure_retries_once(tmp_path):
 
 
 def test_tampered_freeze_fails_source_verification(tmp_path):
+    """現状は positive control として機能せず、改変は発火理由ではない。
+    真の単一理由 tamper 検査は先行する design/generator drift の修復まで構成不能で、
+    これは既知破損の characterization である。"""
     freeze_path = _synthetic_freeze(tmp_path)
     document = json.loads(freeze_path.read_text(encoding="utf-8"))
     document["floor"] = None
@@ -1161,8 +1220,14 @@ def test_tampered_freeze_fails_source_verification(tmp_path):
     decision = driver.gate_check(freeze_path=freeze_path, root=ROOT)
 
     assert not decision.allowed
-    assert any(reason.startswith("holdout-freeze-verify:")
-               for reason in decision.refusals)
+    _assert_refusal_reasons(decision.refusals, [
+        "holdout-freeze-verify: FreezeError: generator sha256 不一致: "
+        "recorded=",
+        "known-axes-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の "
+        "commit ancestor でない: ",
+        "floor-null: freeze.floor が null",
+        "budget-null: freeze.budget が null",
+    ])
 
 
 def test_exit_code_priority_table():
@@ -2246,8 +2311,10 @@ def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
         evaluate_fn=_fake_evaluate_factory(),
     )
     assert result["status"] == "refused"
-    assert any(r.startswith("freeze-not-active-generation")
-               for r in result["refusals"]), result["refusals"]
+    _assert_exact_refusals(result["refusals"], {
+        "freeze-not-active-generation: 与えられた freeze bytes sha256 が"
+        "承認束縛済み active 世代と不一致",
+    })
 
 
 def test_v2_launch_validate_failure_is_refused(tmp_path):
@@ -2261,7 +2328,11 @@ def test_v2_launch_validate_failure_is_refused(tmp_path):
     result = _run_v2(root, freeze_path, manifest_path, _prepare_factory(),
                      _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path)
     assert result["status"] == "refused"
-    assert any("launch-validate" in r for r in result["refusals"]), result["refusals"]
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: launch-validate: [closure-hit-mismatch] "
+        "[closure-hit-mismatch] rr80: 現 hit が closure 導出と不一致 "
+        "(未申告=['sneaky.txt'] 消失=[])",
+    })
 
 
 def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
@@ -2290,8 +2361,9 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
         )
 
     assert result["status"] == "refused", result
-    assert any("launch-validate" in r and "FreezeError" in r
-               for r in result["refusals"]), result["refusals"]
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: launch-validate: FreezeError: git enumerate 失敗 (模擬)",
+    })
     # fail-closed: run marker / WAL / budget を一切書いていない。
     assert not (tmp_path / "v2-budget.json").exists()
     assert not (tmp_path / "v2-markers").exists()
