@@ -114,10 +114,15 @@ submodule の cleanliness・repo identity の再照合を含む) → 同 wave �
 
 ## real 開放前に必要なユーザー裁定 (裁定パッケージ、worklog 参照)
 
-1. per-wave / total の timeout・cost 具体値と、client 宣言値への絶対上限値
+**前提 (裁定 2026-07-22):** 運用は subscription のみで、API 課金は予定しない。設計 §4.1 の
+「正確な金額上限を表せない認証形」に該当するため、**max-waves と時間上限 (per-wave/total
+timeout・process timeout) が必須上限の正本**であり、USD 系の上限は enforceable な防壁として
+扱わない (「金額を保証した」とは記録しない)。real 開放は据え置き ([T-079] 裁定)。
+再発火時に確定するのは次の 3 点。
+
+1. per-wave / total の timeout と max-waves の具体値 (subscription 前提。USD 上限は主要件でない)
 2. real child の settings/hook 必須政策 (現行 `.claude/settings.json` に push deny は無い)
-3. [T-069]「実装前に明示指定」の読みの確認
-4. 上記「v1 が主張しないこと」の受諾確認
+3. 上記「v1 が主張しないこと」の受諾確認
 
 ## CLI (実 parser から転記)
 
