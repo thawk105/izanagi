@@ -1,8 +1,9 @@
 # freeze 族の恒久設計 (第 1 設計段パッケージ、[T-080])
 
 **状態: 裁定確定 (2026-07-22) — R1..R16 の全項をユーザーが推奨案で承認** (R7 は (b) の生成基準 tree
-照合。記録の正本 = worklog 2026-07-22 (3))。本書は新形式の設計正本であり、次の作業は第 2 設計段
-(§13 の exact schema 化)。本書は [T-074] (checker を pin しない設計への移行、2026-07-22 承認) と
+照合。記録の正本 = worklog 2026-07-22 (3))。本書は新形式の設計正本である。**第 2 設計段は
+`docs/freeze-permanent-design-s2.md` で起草済み (2026-07-22。未了は同書冒頭の状態行が正本 —
+ユーザー裁定 U-A1 と conformance 期待出力 literal の確定 (W-a 開始前 gate) の 2 件)**。本書は [T-074] (checker を pin しない設計への移行、2026-07-22 承認) と
 [T-075] (dangling `frozen_at_head` の生成手順による根絶、同日承認) の実作業であり、起草時点で
 コード・凍結成果物は 1 byte も変えていない。工程は三段である — **本書 (骨格と政策の裁定) →
 第 2 設計段 (§13 の exact schema 化と変異事前登録) → 実装 wave 群**。§11 の裁定は骨格と政策を確定する
@@ -112,8 +113,12 @@ path として git 上の追加 (`--diff-filter=A`) は各 family 1 回だけで
 (+ この 4 つからの transitive 依存で出力に影響するもの) — を record へ追加する。ただし **closure の
 完全性は機械的に証明できない** (trace は実行された分岐しか観測せず、glob による列挙は「無いこと」への
 依存を含む)。よって新形式の立場は「**宣言済み closure**」である: (i) 宣言した record は全件 bytes 照合、
-(ii) 列挙依存は holdout の `search.file_enumeration` と同型の**列挙 snapshot** として凍結、(iii) 宣言の
-過不足は実装 wave で import graph + I/O trace を**補助として**洗い、最終判断はレビューで行う。
+(ii) 列挙依存は H_gen tree の exact glob から得た member path と各 member の再導出 disposition を
+全件保持する **member snapshot** として凍結する (snapshot は exact
+`{enumeration_id, algorithm, pattern, members, file_count}` — enumeration ID・algorithm・
+exact pattern・path 昇順の `{path, disposition}`・`file_count` を持つ。説明文字列や件数だけを集合の代用にしない — 現行 holdout
+`search.file_enumeration` は member を持たない説明文字列であり同型流用は不可。2026-07-22 訂正)、
+(iii) 宣言の過不足は実装 wave で import graph + I/O trace を**補助として**洗い、最終判断はレビューで行う。
 最終的な record 数は生成時に確定する (「63 + 4」を事前確定しない)。24 record / 6 実装ファイルの
 raw code pin の扱いは R7 (worktree 照合を維持するか、生成基準 tree (§6 の H_gen) の blob 照合へ
 置換するか)。
@@ -264,16 +269,21 @@ candidate は wave branch 上で作ってよいが、**canonical への publish 
 位置 (local main) でのみ行う**。
 
 **R (receipt、AI 可、G の後)**: G の導入情報 (§6 の G/H_gen/blob) を記録した transition receipt を
-独立 commit で追加する。receipt に自己申告 (`verified: true` 等) は置かない。
+独立 commit で追加する。receipt に自己申告 (`verified: true` 等) は置かない。なお現行
+`s8b_ratified_freeze.py` が与える下限は generation introduction / approval / pointer / revocation /
+cancellation の parser・履歴検査であり、freeze-family transition receipt は現行機構の拡張ではなく
+第 2 設計段で定義する完全新設 schema である (2026-07-22 訂正 — 相談 Y-27)。
 
 **literal 面の更新 (R の後、A の前、2 commit に分離)**: production root registry の更新 commit と
 `FROZEN_MANIFEST` の更新 commit を**別 commit** にする (単一 commit が両 literal 面を書くことを禁止、
 相談 A-2/レビュー R1-8 対応)。この時点では全て `registered-inactive` (§4 の型 — **登録済み・人間承認
 前**) であり official 挙動は変わらない。
 
-**A (人間承認)**: 人間が **bundle digest** を承認する。digest の定義: 対象 4 hash (known g1 /
-measurement g1 / holdout g1 の raw sha256 + receipt の raw sha256) を固定順で並べた canonical JSON に
-domain separator を付けた sha256 (exact 符号化は第 2 設計段)。A commit は G/R/literal commit と
+**A (人間承認)**: 人間が **bundle digest** を承認する。digest の定義: 対象 7 hash (known g1 /
+measurement g1 / holdout g1 の raw sha256 + receipt の raw sha256 + verification / projection /
+WAL-audit の 3 report の raw sha256) を固定順で並べた canonical JSON に domain separator を付けた
+sha256 (exact 符号化は第 2 設計段 `docs/freeze-permanent-design-s2.md` §S2-2。起草時の「4 hash」は
+report 束縛の欠落 — 相談 X-2/レビューで 7 component へ強化。2026-07-22 訂正)。A commit は G/R/literal commit と
 pairwise 非同一で、それらの後裔であり、**diff は approval record 1 ファイルの追加のみ**、
 `AI-Agent: none`。現行機構 (`s8b_ratified_freeze.py:1160` 付近) は「approval + pointer の 2 追加」を
 許す**類似の** allowlist 検査であり同一ではない — 新設計では pointer 更新は X に分離する。A 承認後の
@@ -350,8 +360,9 @@ legacy lane 用に残すかは R10。三件とも本書では閉じない。
   `test_s8b_budget.py`、`test_s8b_oracle_report.py`、`test_s8b_protocol_builder.py`、
   `test_s8b_selector_input.py`、`orchestrator/tests/README.md`
 - **hooks**: `hooks/guard_write.py` (§7 step 0)、`hooks/README.md`
-- **docs 面**: `docs/README.md` (本書の登録)、`tools/check_docs.py` の LIVING_DOCS への本書追加
-  (tools はコードのため実装 wave で行う)
+- **docs 面**: `docs/README.md` (本書の登録 — 第 2 設計段 wave で完了)。LIVING_DOCS への追加は
+  行わない — 設計段 doc は段完了で凍結する design 族であり編入対象外 (2026-07-22 訂正。
+  check_docs.py の design 族の扱いと同じ整理)
 
 ## 10. 過去 failure 型の再発防止 (実装 wave の受入条件)
 
@@ -434,14 +445,18 @@ legacy lane 用に残すかは R10。三件とも本書では閉じない。
   (`test_real_repo_serialization.py` を含む — 挙動保存の検証をこの wave 内で行い、後段へ遅らせない)
 - **W-e**: G/R/literal×2/A の実行 (人間同席 wave。receipt・root registry・`test_frozen_artifacts.py`
   を所有)
-- **W-f**: X (発効、R10 と同時) + 統合記録 — `orchestrator/tests/README.md`、
-  `docs/README.md`/`tools/check_docs.py` 登録、phase doc/worklog/decisions
+- **W-f**: X (発効、R10 と同時) + 統合記録 — `orchestrator/tests/README.md`、phase doc/worklog/
+  decisions (docs/README.md 登録と check_docs 系は第 2 設計段 wave で完了済み — 2026-07-22 訂正)
 
 依存: W-0 → W-a → W-b/W-c (並列可) → **W-d (pointer 化) → W-e (生成・承認)** → W-f (発効)。
 §8 の step 順 (2 dormant → 3 pointer 化 → 4..7 G/R/literal/A → 8 X) と一致させる。
 `pre_oracle_head` (`s8b_selector_freeze.py`) の内容 pin 化は W-e/W-f の前提タスクとして別掲する (§13)。
 
 ## 13. 第 2 設計段の残課題 (R1..R16 裁定後、実装 wave 前に仕様化)
+
+**第 2 設計段の exact 仕様は `docs/freeze-permanent-design-s2.md` を正本とする** (2026-07-22 起草。
+未了は同書冒頭の状態行が正本 — ユーザー裁定 U-A1 と conformance 期待出力 literal の確定 (W-a 開始前
+gate) の 2 件。それ以外の以下の列挙は同書で閉じた。以下は起草時の残課題リストとして凍結保持する)。
 
 1. lineage/approval/active pointer/receipt の exact schema — 件数・一意性・fork/gap/revocation/
    rollback/**approval の失効 (expiry)** の拒否規則、複数 approved bundle からの一意選択、全 family の
@@ -467,6 +482,10 @@ legacy lane 用に残すかは R10。三件とも本書では閉じない。
 | `s1_stats.py` の任意 bytes drift | 凍結入出力の再導出に影響しない変更 (入力検証・将来入力のみの破損等) | 独立実装の受入 vector + 相互変異 (§5)。完全ではない |
 | holdout verify 時点の live hit | snapshot 一致だが現在 repo に hit がある状態 | launch 時 live scan (§3.3)。static には受理する交換 |
 | (現行も拒否できない) 壊れた extractor + 追随成果物の同時投入 | 同左 | 承認分離 (§7)・golden・レビュー。機械 oracle は無い (§5 の限界) |
+| G 後の current worktree source drift (現行 known verifier は current worktree 照合で拒否) | H_gen tree の宣言 closure が一致するため新 static verify は受理しうる | レビュー + 実行環境規律 (launch/audit 層に source drift を検査する層は無い)。R7 (b) の直接帰結 (2026-07-22 第 2 設計段で明文化) |
+| `frozen_at_head` の dangling (現行は verify 不能 = 拒否) | field 廃止により該当検査自体が無い | receipt の G/H_gen 束縛が非自己参照で代替。R1 裁定の帰結 (同上) |
+| `pre_oracle_head` の後継: 現行検査は「実在 commit であること」のみ (意図時点との一致は現行も検査しない) | tree 内容同値 (prediction basis) で受理 | prediction の G_pred/H_pred semantic closure 束縛 — commit 実在検査より強い側面と、identity を持たない側面の交換 (同上) |
+| generation search 直前だけ untracked regular hit を除去し、search 直後に復元する操作 | tracked start snapshot は不変のため、G/R/Q/A が「hit なし」confirmation を受理しうる | launch 時 live scan が最終実走を拒否する。generation confirmation 自体の偽承認は残余 — 隔離 tree 生成や untracked 連続監視は本設計の主張に含めない (2026-07-22 第 2 設計段 R1-11) |
 
 **限界**:
 
@@ -478,3 +497,6 @@ legacy lane 用に残すかは R10。三件とも本書では閉じない。
 - 履歴書換えは receipt の G/H_gen 記録を壊す (fail-closed 検出、§6)。修復は人間承認の新 receipt
 - 悪意ある checker を成果物側から防ぐ設計ではない。防壁は独立再計算 (§5)・相互変異・レビュー分離・
   closed-world registry の組合せである
+- 実走時に実際に使用した orchestrator code・binary・`external/ccbench` gitlink identity は active
+  bundle identity へ完全には機械束縛されない。static provenance は H_gen、live safety は
+  launch/audit が受け持ち、残余はレビューと実行環境規律で回収する

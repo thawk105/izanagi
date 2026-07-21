@@ -3023,3 +3023,44 @@ intersection–union の max)。**設計 doc の gate 記述は「その入力�
 
 (6) **実装差分が無いため、変異 matrix の実測と受入全走は本 wave の対象外** (D72 (12) と同じ扱い)。
 check_docs は緑。変異の事前登録は第 2 設計段の残課題に含めた。
+
+## D76. freeze 族第 2 設計段 — §13 全項を統合裁定で exact 化、未了は U-A1 + conformance literal の 2 件 (2026-07-22)
+
+**決定: [T-080] 第 2 設計段は `docs/freeze-permanent-design-s2.md` を正本とし、実装しない (設計 wave、
+コード・凍結成果物 0 byte 変更)。** 第 1 設計段 §13 の 10 項目すべてを実装 wave が一意に実装できる
+exact 度へ展開し、変異テスト事前登録は「candidate」状態 49 件として登録した (B-057 確定は各実装 wave
+開始時のコード読解後 — F28 の「確認できない変異は登録しない」と整合させる 2 状態設計)。
+
+(1) **統合裁定の要点 (逐語は insights、正本は s2 doc)。** receipt は A 草案基底 + audit 入力束縛のみ
+(自己申告 status を置かない)、人間承認は 3 report (verification/projection/WAL-audit) の canonical
+bytes hash を束縛し bundle digest を 7 component 化、3 report + generation search report は
+content-addressed tracked artifact (導入 commit Q を topology へ追加)、check registry は §4 四型ごとに
+分離 (candidate 型に literal-root 検査を置かない)、reason code は単一 grammar
+`<namespace>.<snake_case>` + 173 行 TSV (field pointer・直接依存・単一 reason)、known 世代遷移は
+「H_gen 再列挙からの再導出一致のみ変更可」、writer CLI は record 種別ごとの専用 subcommand
+(単一 file、W-c 所有)、conftest は data-file 読込構造で一回だけ変更 (各 wave の node 追加は wave 所有
+data file)、新設テストは全件自走 harness 必須、REQUIRED_FREEZE_NODES は 42 node literal + 実在 file
+のみ読む reader + W-e 実装/W-f 実行の final check で wave 単独 green と完全性を両立。
+
+(2) **レビュー間衝突の裁定。** legacy g0 adapter の gate は raw root 照合 + strict parse + 型変換のみ
+(R2 方向)。full verifier 委譲 (R1 案) は現物 3 legacy が dangling anchor / design_source drift で全滅
+するため g0 bundle が構築不能 — 挙動保存 (§8 step 3) と矛盾する。g0 は source/head の現在有効性を
+主張しない (第 1 段 §8 step 1 の明文どおり)。
+
+(3) **C1 の tree manifest は G から M へ降格し `prediction_basis_tree` へ改名** (checker pin の間接
+再導入と HARKing 機械排除の過大主張を排除 — 相談 X-8/X-25)。
+
+(4) **第 1 段正本への波及は「裁定済み帰結の明文化 + レビュー所見の訂正」として親が適用** (§7-A
+7 component、§7-R receipt 新規性、§9/§12 check_docs 行、§14 損失 4 行 + 限界 1 行、§3.1 member
+snapshot、§13 ポインタ)。設計段 doc は「段完了で凍結する design 族」として LIVING_DOCS へ編入しない
+(check_docs.py の phase3-s*-design-* と同じ整理)。
+
+(5) **ユーザー裁定へ返す: U-A1 (approval expiry の意味)。** 推奨 = 未発効の activation window +
+committer time は backdate 可能という限界の明記 (機械 gate は static 検査に限り、真正性は人間承認の
+運用規律)。lease 案を選ぶ場合の追加設計面は s2 §S2-11 に列挙済み。**W-c 実装 wave の開始条件。**
+
+(6) **検証プロセス。** 草案 4 本 → 相談 2 本 (NO-GO 53 所見) → 統合 → レビュー 2 本 (NO-GO 29 所見) →
+fix → 検証 3 巡 (26/29 → 残 7 → 残 2 → GO)。所見の反映対応表を s2 doc 末尾に保持。教訓: (a) 統合起草
+は「exact schema の相互参照」(TSV pointer が report schema の実 field を指すか、依存配列が registry
+出現順か) で新規誤りを作る — 機械照合可能な契約は fix 検証で全行再計数させる。(b) 多段 wave の共有
+manifest は「実在 file のみ読む + final exact check の分離」で wave 単独 green と完全性が両立する。

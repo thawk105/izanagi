@@ -821,3 +821,52 @@ dev-wave (task-run `20260721-t080-freeze-redesign-55164b11`)。成果物 =
 15. [T-011] **裁定確定: 据え置き**。限界受け入れ (viii) は floor 実測直前に発火。現時点未発火
 16. [T-012] **裁定確定: 試験運用を継続**。task-run pilot 配線提案は 10 run または 08-03 到達で提示。
     **現在 9 run** (本エントリは wave でないため加算しない)
+
+## 2026-07-22 (4) — [T-080] 第 2 設計段パッケージ確定 — §13 全項の exact 化 + 変異事前登録候補 (D76、branch worktree-dev-wave-ruling-ac、計測なし)
+
+- 成果物: `docs/freeze-permanent-design-s2.md` 新設 (第 2 設計段パッケージ、~3100 行。段完了で凍結する
+  design 族 = LIVING_DOCS 非編入)。§13 の 10 項目を exact 化 — lineage/receipt/approval/pointer/
+  revocation/cancellation schema、bundle digest 7 component 符号化、observations/analysis_results、
+  observation 伝播 + legacy g0 adapter registry、check-ID registry (173 行 TSV・四型分離・単一 reason
+  grammar)、§7-G guard + writer CLI 契約、prediction_basis_tree (pre_oracle_head 後継)、source closure
+  宣言 (member snapshot)、W-0..W-f exact 所有表 (93 行・全一意)、変異事前登録候補 49 件
+  (candidate/confirmed の 2 状態 — B-057 確定は各実装 wave 開始時のコード読解後、F28 整合)
+- 第 1 段正本への波及 (適用済み、案文は s2 §S2-12 に凍結): §7-A digest 4→7 component 訂正、§7-R
+  receipt 新規性訂正 (Y-27)、§9/§12 の check_docs 行訂正、§14 損失 4 行 + 限界 1 行追記 (R7(b)/R1 の
+  裁定済み帰結の明文化 + untracked 一時除去の残余)、§3.1 member snapshot 訂正、§13 ポインタ化
+- 工程: brief (P1..P5) → codex 草案 4 本並列 → 敵対相談 X/Y (両 NO-GO、計 53 所見) → 親裁定
+  (rulings-v2、J1..J28) → 統合起草 (89KB) → 親正本化 → 敵対レビュー R1/R2 (両 NO-GO、計 29 所見) →
+  fix + 親ハンク訂正 → 検証 3 巡 (26/29 → 残 7 反映 → 残 2 反映 → **GO**)。逐語 =
+  `output/insights/2026-07-22_t080-freeze-design-stage2.md`
+- レビュー間衝突 1 件の親裁定: legacy g0 adapter は raw root 照合 + strict parse のみ (R2 方向を採用。
+  full verifier 委譲は現物 3 legacy が dangling/drift で全滅するため g0 bundle が構築不能)
+- 実装差分なし (設計 wave) — 変異 matrix 実測と受入全走は対象外 (D75 (6) と同じ射程)。docs-check 緑
+  (台帳記録つき)
+- **ユーザー裁定パッケージ: U-A1 — approval expiry の意味** (設計択一 + 所見 + 推奨案は
+  s2 doc §S2-11 が正本)。(a) 未発効の activation window (A→X の有効期限。**推奨** — backdate 限界を
+  明記し機械 gate は static 検査に限る) / (b) 発効後 lease (X 後も期限で失効 — 選ぶ場合は clock
+  capture・use-time 再検査・伝播 field の追加設計が必要)。**W-c 実装 wave の開始条件**
+- 未了 2 件 (s2 冒頭状態行が正本): U-A1 (ユーザー) + conformance 期待出力 literal の確定 (W-a 開始前
+  gate、決定権者 = W-a 実装 wave の親)
+
+### 次の一手
+
+1. [T-080] **U-A1 の裁定 (ユーザー)** → 裁定後に s2 doc の最終 patch → 実装 wave W-0 (hook 契約) から
+   W-0→W-a→W-b/W-c→W-d→W-e→W-f の順に開始 (所有表 = s2 §S2-8)
+2. [T-004] **承認済み実装 wave ([T-007] [T-008] 同梱)**: WAL の byte 単位 record framing と resume の
+   物理修復。**実装 wave としては引き続きこれが最優先** (T-080 実装 wave 群と独立に着手可)
+3. [T-008] **裁定確定: payload 型を writer 側でも強制する**。[T-004] に同梱
+4. [T-007] **裁定確定: 未知 stage は拒否する** (fail-closed)。[T-004] に同梱
+5. [T-068] **裁定確定 (R10)**: 発効 X と同時に閉じる。それまで開いたまま
+6. [T-077] **裁定確定 (R11)**: g1 発行時の人間同席再 pin で解消。発効まで開いたまま
+7. [T-078] **裁定確定 (R12)**: 外部固定 fixture 契約で再定義。実装 (W-e) まで開いたまま
+8. [T-066] **承認済み実装 wave (未実装・未消化)**: 恒真隠蔽除去。変わらず (2026-07-21 (8) 参照)
+9. [T-067] **部分消化・継続**: exact 化の残り。変わらず (2026-07-21 (8) 参照)
+10. [T-001] **承認済み実装 wave**: ruling-B 単独 (session record の issuer/env_tag 照合)
+11. [T-002] **承認済み実装 wave ([T-006] 同梱)**: P-A1(a) Stage 1 + P-C3
+12. [T-009] **裁定確定**: 実装子の規律免除を `AGENTS.md` へ 1 段落追記する
+13. [T-060] **[T-003] 裁定の実装分**: WAL 記述から「改竄耐性」等を使わない運用を明文化する
+14. [T-010] B-008 の再試験条件: 変わらず
+15. [T-011] **裁定確定: 据え置き**。限界受け入れ (viii) は floor 実測直前に発火。現時点未発火
+16. [T-012] **task-run pilot が 10 run 到達 — 配線提案の提示条件が発火**。次のクラス 2/3 セッションで
+    ユーザーへ配線提案を提示する

@@ -34,7 +34,8 @@
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-s*.md`・`phase3-8b-*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。段ごとの内訳は phase3.md から辿る (段番号をここに列挙しない — 段の追加で腐るため)
-- `freeze-permanent-design.md` — freeze 族の恒久設計の正本 ([T-080]、R1..R16 承認済み 2026-07-22。次 = 第 2 設計段 §13)
+- `freeze-permanent-design.md` — freeze 族の恒久設計の正本 ([T-080]、R1..R16 承認済み 2026-07-22)
+- `freeze-permanent-design-s2.md` — 第 2 設計段パッケージ (§13 の exact 化 + 変異事前登録候補。段完了で凍結する design 族。未了事項は同書冒頭の状態行が正本)
 
 ## docs/ の外
 
