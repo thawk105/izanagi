@@ -397,6 +397,28 @@
   要約が落としている制約が無いかを確認する。要約と本文が食い違う場合は本文を優先する
 - 再発検知: 段 1 の実測確認の定型に「元 decision の制約列挙との突き合わせ」を含める
 
+### F32. 変異ハーネスの二重走行汚染と、未追跡ファイルに恒真な `git diff` 復元検査 [恒真ゲート] [手順漏れ]
+
+- 事象: [T-076] の変異 matrix で、旧セッションが起動した `mutation_harness.py` が session
+  teardown 後も OS process として生存し、新セッションの走行と衝突して production を変異させた
+  まま残した (daemon/git_state/schema に計 3 回)。復元検査は `git diff -- <path>` を使っていたが、
+  対象は**未追跡ファイル**のため diff は常に空を返し、残留変異を検出できなかった (恒真ゲート)
+- 誘発要因: (i) 生存プロセスの確認に BRE の `\|` を `pgrep -f` へ渡し、`\|` が literal 扱いで
+  偽陰性になった。(ii) M8 (nested-launch 検査の除去) が「拒否 → 無期限 serve」に化けて pytest
+  全体が 900s hang し、finally での復元前に SIGTERM で殺された (SIGTERM は Python の finally を
+  走らせない)
+- 恒久対応:
+  1. **復元検査は内容比較で行う** (`path.read_text() == source`)。`git diff` は未追跡・
+     未 stage のファイルに対して恒真になるため使わない
+  2. **ハーネスに flock の単一走行 guard を入れる** (`LOCK_EX|LOCK_NB`、取得失敗で abort)。
+     これで旧セッションの生存プロセスとの二重走行を機械的に防ぐ
+  3. **hang しうる変異は部分集合 + timeout で隔離**し、timeout はその変異の記録
+     (fail-closed→fail-open の証拠) として扱い、ハーネス全体を落とさない
+  4. プロセス生存確認に `pgrep -f` を使うなら **ERE (`-P` か素の literal)** にする。
+     BRE の `\|` は使わない
+- 再発検知: 変異・fault 注入ハーネスの設計時に「復元検査が対象ファイルの追跡状態に依存して
+  恒真化しないか」「二重走行を機械的に排除しているか」をレンズに含める (段 6 の作法)
+
 ## 未回収
 
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —

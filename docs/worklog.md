@@ -620,3 +620,67 @@ worklog (5) 次の一手 2 の裁定確定分として着手したが、**段 1 
     直前に発火する。現時点では未発火
 18. [T-012] **裁定確定 (2026-07-21): 試験運用を継続**。task-run pilot 配線提案は 10 run または
     08-03 到達で提示する。**現在 7 run** (本 wave を加算)
+
+## 2026-07-21 (9) — [T-076] bounded dev-wave supervisor 機械層を実装 (D74、branch worktree-dev-wave-ruling-ac、計測なし)
+
+`/dev-wave` 1 回。[T-069] 裁定 (worklog 2026-07-21 (7)) の実装分 [T-076] を実装した。逐語・変異台帳 =
+`output/insights/2026-07-21_t076-supervisor-mech-layer.md`、設計判断 = D74、運用契約 =
+`output/dev-wave-supervisor/README.md`。**追加のみ** — 既存 production・凍結成果物は 1 byte も
+変更していない。
+
+- **成果物:** `tools/dev_waves.py` + `tools/dev_waves/` 10 module + `test_dev_waves_*.py` 11 本
+  (203 node、全て二重 runner) + 運用 README + `.gitignore` 2 行。受入全走 =
+  **2554 passed / 19 skipped / 0 failed** (rc=0、task-run 台帳付き、親が実走)。基準 2351 + 新規 203 で
+  完全一致。**collected-node 三点比較**で before=2370 / new=203 / after=2573、既存 node の消失 0・
+  期待外の追加 0 (テスト蒸発を緑と数えていないことの機械裏取り)
+- **敵対相談 2 本・敵対レビュー 2 本・焦点再レビュー 1 本がいずれも NO-GO を返した。** 相談は
+  brief と初版プランを、レビューは統合実装を攻撃した。親の brief の「8 flag」表現の誤り
+  (session persistence 裁定との衝突) と caller 前提を相談が検出、状態機械の到達不能辺・orphan child・
+  WAL 単一 writer 欠如・total budget 超過・trust root 漏れ (段 19 導入の runner 2 本) をレビューが検出。
+  fix 2 ラウンドで解消
+- **変異 = kill 8 件 (M1〜M8) + diagnostic pin 1 件 (M10)。** kill 判定は「受理集合または fail-closed
+  挙動が期待方向へ変化」。M2 (検証ゲート除去) は 36 node が赤 = 中枢ゲート、M8 (nested 検査除去) は
+  「拒否 → 無期限 serve」化を hang で立証、M10 は受理集合不変・拒否理由のみ変化のため kill 外。
+  台帳は insight に凍結
+- **変異ハーネスの二重走行汚染 (erratum、F32 として台帳追記)。** 旧セッション起動のハーネスが
+  teardown 後も生存し二重走行で production を変異させたまま残した。原因は (i) `pgrep -f` へ BRE の
+  `\|` を渡した偽陰性、(ii) M8 の無期限 hang で pytest が SIGTERM 死 (finally 不発)、(iii) `git diff`
+  復元検査が**未追跡ファイルに恒真**。すべて wave 正本から hash 比較で復元し、ハーネスを flock guard +
+  内容比較復元 + hang 隔離へ改修。dev-wave skill の変異作法にも反映 (段 8)
+- **real `claude -p` の起動経路は本層に存在しない。** worker は fake handshake `dev-waves-fake/v1` を
+  要求し、real Claude Code は応答しないため起動できない。real 開放には後続 wave と real 開放前の
+  ユーザー裁定パッケージ ([T-079]) が要る
+- **task-run pilot に本 wave を記録した** (`20260721-t076-supervisor-mech-layer-f79fdfd9`、
+  outcome=completed)。full run は 2 回 (統合直後・fix 後)、いずれも task-run ID 付き
+
+### 消化した ID
+
+- [T-076] **消化 — bounded supervisor 機械層を実装** (fake child 層まで、D74)。real 開放は未着手で
+  [T-079] のユーザー裁定待ち。
+
+### 次の一手
+
+1. [T-079] **裁定パッケージ (新規、real 開放の前提)**: supervisor の real `claude -p` を開放するか。
+   材料 = per-wave/total の timeout・cost 具体値と絶対上限 / real child の settings・hook 必須政策
+   (現行 `.claude/settings.json` に push deny は無い — 新事実) / [T-069]「実装前に明示指定」の読みの
+   確認 / v1 非目標 (同一 UID 防御なし等、D74 (5)) の受諾。正本 = `output/dev-wave-supervisor/README.md`
+2. [T-068] **ユーザー再裁定待ち (新事実あり)**: 方式 B を実装するか。変わらず (2026-07-21 (8) 参照)
+3. [T-077] **裁定パッケージ**: holdout freeze の 2 重ドリフト。変わらず (前エントリ参照)
+4. [T-066] **承認済み実装 wave (未実装・未消化)**: 恒真隠蔽除去。変わらず (前エントリ参照)
+5. [T-067] **部分消化・継続**: exact 化の残り。変わらず (前エントリ参照)
+6. [T-078] **裁定パッケージ**: 壊れた positive control tamper 検査。変わらず (前エントリ参照)
+7. [T-004] **承認済み実装 wave ([T-007] [T-008] 同梱)**: WAL の byte 単位 record framing と resume の
+   物理修復。凍結成果物に触れないため単独着手でき、**実装 wave としては引き続きこれが最優先**
+8. [T-008] **裁定確定: payload 型を writer 側でも強制する**。[T-004] に同梱
+9. [T-007] **裁定確定: 未知 stage は拒否する** (fail-closed)。[T-004] に同梱
+10. [T-074] **裁定パッケージ (恒久設計、据え置き)**: 「成果物が自分を検証する checker を pin する」
+    設計の是非。変わらず (前エントリ参照)
+11. [T-075] **裁定パッケージ (原因側、据え置き)**: dangling `frozen_at_head` の原因。変わらず
+12. [T-001] **承認済み実装 wave**: ruling-B 単独 (session record の issuer/env_tag 照合)
+13. [T-002] **承認済み実装 wave ([T-006] 同梱)**: P-A1(a) Stage 1 + P-C3
+14. [T-009] **裁定確定**: 実装子の規律免除を `AGENTS.md` へ 1 段落追記する
+15. [T-060] **[T-003] 裁定の実装分**: WAL 記述から「改竄耐性」等を使わない運用を明文化する
+16. [T-010] B-008 の再試験条件: 変わらず
+17. [T-011] **裁定確定: 据え置き**。限界受け入れ (viii) は floor 実測直前に発火。現時点未発火
+18. [T-012] **裁定確定: 試験運用を継続**。task-run pilot 配線提案は 10 run または 08-03 到達で提示。
+    **現在 8 run** (本 wave を加算)

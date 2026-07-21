@@ -2933,3 +2933,55 @@ holdout freeze の 2 重ドリフトの扱い (design + generator。checker 自�
 親裁定 + 変異事前登録 → 実装 (high) → 敵対レビュー 2 並列 (max、**両方 NO-GO**、
 うち 2 件は親自身の裁定の誤り) → 修正ラウンド → 親の受入全走と変異実測。
 受入は変更前後とも **2351 passed / 19 skipped / 0 failed** (rc=0、親が shim なしで実走)。
+---
+## D74. bounded dev-wave supervisor の機械層を実装 — fake child 限定、real は未開放 (2026-07-21)
+
+**決定: [T-076] として bounded dev-wave supervisor (`/loop-w` の実装機構) の機械層を実装する。**
+段階導入 (設計 `output/insights/2026-07-21_dev-waves-supervisor-design.md` §13) のステップ 2 =
+fake child + temp Git repo で全 failure injection を実走する層まで。real `claude -p`・課金・
+network は使わない。裁定は [T-069] (worklog 2026-07-21 (7))。運用契約の正本は
+`output/dev-wave-supervisor/README.md`、逐語と変異台帳は
+`output/insights/2026-07-21_t076-supervisor-mech-layer.md`。凍結成果物は 1 byte も変更していない。
+
+(1) **成果物:** 新規 `tools/dev_waves.py` + `tools/dev_waves/` 10 module + `test_dev_waves_*.py`
+11 本 (203 node、全て二重 runner 対応) + 運用 README + `.gitignore` 2 行。既存 production・
+凍結成果物への変更は無い (追加のみ)。受入全走 = **2554 passed / 19 skipped / 0 failed**
+(基準 2351 + 新規 203、task-run 台帳付き、collected-node 三点比較で消失 0・期待外追加 0)。
+
+(2) **状態機械の追補 (設計 §6 への追加):** 許可辺に `STOPPING → COMPLETED` を
+**reason `no-actionable-task` に限って**追加する。それ以外の正常無作業でない停止は
+`BLOCKED | FAILED | INTERRUPTED`。検査不合格の wave は receipt の outcome にかかわらず
+terminal `FAILED` とし、outcome→terminal の写像は全検査合格時にのみ適用する。
+
+(3) **supervised worktree の配置 (設計 §4.2 への追加):** `.claude/worktrees/` でなく
+`output/dev-wave-supervisor/runtime/<run-id>/worktrees/wNNN` (gitignored) に作る。
+`.claude/worktrees/` は fresh clone で `.git/info/exclude` に依存し、依存が無い clone では
+worktree 作成直後に main が untracked dirty 化して clean gate を壊すため (敵対相談で検出)。
+
+(4) **trust root の範囲:** check script 群は `tools/check_*.py`・`tools/task_runs`・
+`tools/run_tests.py`・`tools/task_run_check.py`・テスト木を wave 開始時 (before SHA) の
+git object から digest を取り、wave が変更していたら `trust-root-changed` で停止する。
+check の実行は監査対象 SHA の隔離 checkout で行う (段 19 の runner 変更で追加した 2 本を
+trust root に含めないと自己承認できる、という再レビュー所見 N1 への対応)。
+
+(5) **v1 の明示非目標 (README が正本):** 同一 UID からの防御なし / 敵対的 nested-launch の
+遮断なし (`CLAUDECODE` 検査は事故防止 guard) / commit の意味的監査なし / Git の完全 TOCTOU
+遮断なし / 孤児 grandchild の完全回収なし / NFS crash durability 非主張 / child の実支出・
+runtime 外書込みの拘束なし / 金額保証の記録なし / real CLI との exact argv 適合は未証明。
+これらは real 開放前のユーザー裁定パッケージ (README) で受諾を仰ぐ。
+
+(6) **real 開放前のユーザー裁定 (未消化、パッケージとして返す):** per-wave/total の
+timeout・cost 具体値と絶対上限 / real child の settings・hook 必須政策 (現行
+`.claude/settings.json` に push deny は無い — 新事実) / [T-069]「実装前に明示指定」の読みの
+確認 / 上記 (5) の非目標受諾。real `claude -p` の起動経路は本層に存在しない
+(worker は fake handshake `dev-waves-fake/v1` を要求し、real Claude Code は応答しないため)。
+
+(7) **プロセス:** brief (裁定前提を実測確認) → codex プラン起草 (max) → 敵対相談 2 並列
+(max、**両方 NO-GO** — P2/P4/P5/P6 否認、brief の「8 flag」誤り、状態機械の到達不能辺、
+orphan child、WAL 単一 writer 欠如、変異事前登録の F28 再発を検出) → 親裁定 (プラン v2 差分
+21 項目) + 変異事前登録 → 実装 (high、3 段素集合分割) → 敵対レビュー 2 並列 (max、**両方
+NO-GO** 各 15 所見) → fix ラウンド 1 (19 項目) → 焦点再レビュー (max、**NO-GO** N1〜N12) →
+fix ラウンド 2 (N1/N4〜N12 + client cap 必須化) → 親の受入全走・変異 matrix。
+変異 = kill 8 件 (M1〜M8、受理集合または fail-closed 挙動が期待方向へ変化) + diagnostic
+pin 1 件 (M10、受理集合不変で拒否理由のみ変化)。段 8 で F32 (変異ハーネスの二重走行汚染と
+未追跡ファイルに恒真な `git diff` 復元検査) を台帳へ追記し、dev-wave skill の変異作法へ反映。

@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/dev-waves/receipt-v1.schema.json",
+  "title": "Izanagi dev-wave child receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "supervisor_run_id",
+    "wave_index",
+    "outcome",
+    "stop_reason",
+    "base_main_sha",
+    "landed_main_sha",
+    "selected_task_ids",
+    "next_task_ids",
+    "landed_commits",
+    "child_task_run_id"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "supervisor_run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "wave_index": {"type": "integer", "minimum": 1, "maximum": 9223372036854775807},
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "no-actionable-task",
+        "user-ruling-required",
+        "blocked",
+        "failed"
+      ]
+    },
+    "stop_reason": {
+      "type": "string",
+      "enum": [
+        "invalid-args",
+        "daemon-busy",
+        "nested-launch-environment",
+        "main-not-found",
+        "main-not-clean",
+        "main-moved",
+        "code-dirty",
+        "claude-unavailable",
+        "flag-unavailable",
+        "fake-handshake-failed",
+        "settings-invalid",
+        "trust-root-changed",
+        "budget-invalid",
+        "runtime-io-failure",
+        "request-conflict",
+        "foreign-lease",
+        "poisoned",
+        "invalid-run",
+        "spawn-failed",
+        "permission-abort",
+        "timeout",
+        "nonzero-exit",
+        "log-limit",
+        "output-invalid",
+        "receipt-invalid",
+        "main-unchanged",
+        "main-dirty",
+        "main-not-ff",
+        "commit-mismatch",
+        "task-run-incomplete",
+        "worklog-invalid",
+        "handoff-leaked",
+        "check-failed",
+        "provenance-failed",
+        "submodule-dirty",
+        "remote-ref-changed",
+        "wave-completed",
+        "max-waves-reached",
+        "no-actionable-task",
+        "user-ruling-required",
+        "signal-received",
+        "ambiguous-recovery"
+      ]
+    },
+    "base_main_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "landed_main_sha": {
+      "anyOf": [
+        {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        {"type": "null"}
+      ]
+    },
+    "selected_task_ids": {
+      "type": "array",
+      "maxItems": 1000,
+      "uniqueItems": true,
+      "items": {"type": "string", "maxLength": 64, "pattern": "^T-[0-9]{3,}$"}
+    },
+    "next_task_ids": {
+      "type": "array",
+      "maxItems": 1000,
+      "uniqueItems": true,
+      "items": {"type": "string", "maxLength": 64, "pattern": "^T-[0-9]{3,}$"}
+    },
+    "landed_commits": {
+      "type": "array",
+      "maxItems": 1000,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+    },
+    "child_task_run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"outcome": {"const": "completed"}}},
+      "then": {
+        "properties": {
+          "stop_reason": {"const": "wave-completed"},
+          "landed_main_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "selected_task_ids": {"minItems": 1},
+          "landed_commits": {"minItems": 1}
+        }
+      },
+      "else": {
+        "properties": {
+          "landed_main_sha": {"type": "null"},
+          "landed_commits": {"maxItems": 0}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "no-actionable-task"}}},
+      "then": {"properties": {"stop_reason": {"const": "no-actionable-task"}}}
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "user-ruling-required"}}},
+      "then": {"properties": {"stop_reason": {"const": "user-ruling-required"}}}
+    }
+  ]
+}
