@@ -2846,3 +2846,90 @@ byte 不変のまま公式 gate の拒否だけを解消できる。ただし判
 (12) **実装差分が無いため、変異 matrix の実測と受入全走は本 wave の対象外。** 事前登録した
 変異は実装が無いため実行していない。段 1 の実測 (F12) で「保持する検査は単一理由で赤くなる」ことは
 確認済みだが、これは変異実測の代替ではない。
+
+## D73. [T-067] だけを実装し、S-1 系 2 件は新事実つきでユーザー再裁定へ戻す (2026-07-21)
+
+**決定: [T-067] (oracle 拒否理由の exact 化) のみ実装する。[T-068] (方式 B) と [T-066] (恒真隠蔽除去) は
+実装せず、新しい判断材料を添えてユーザー再裁定へ戻す。** 凍結成果物と production コードは
+1 byte も変更していない。逐語と変異台帳は
+`output/insights/2026-07-21_t067-exact-refusal-and-s1-repackage.md`。
+
+(1) **holdout freeze の破損は 1 件でなく 2 件だった** (本 wave の実測)。D71 (7)(a) は
+`design_source` の drift だけを記録していたが、`generator` も外れている
+(記録 `1910fff3…` / 実際 `41c0b6a7…`)。`s8b_holdout_freeze.verify_document` の検査順は
+design → known_axes → generator で fail-fast のため、**design を修復すると次に generator が現れる**。
+checker 自身が freeze 後に編集されており、S-1 と同じ**自己ハッシュ構造**に入っている (D72 (2) と同型)。
+
+(2) **ancestry の後段 2 検査が恒久的にマスクされる** (新事実)。`s1_known_axes_freeze.verify_document()`
+の検査順は … → **ancestry** → `ccbench_pin` 照合 → `build_document` 機械再構成照合であり、
+後段 2 検査は現在どちらも PASS する (実測)。`verify()` は ancestry で abort するため、
+**例外を握り潰す素朴な格下げでは後段 2 検査が二度と実行されない**。ancestry は dangling である限り
+必ず先に落ちるので、将来 `ccbench_pin` がドリフトしても「ancestry 失敗」に見えて格下げされる =
+**恒久的 fail-open**。D72 (9) はエラー文字列一致の弱点と直接 caller の残存破損を挙げていたが、
+この後段マスクは記録していない。
+
+(3) **ancestry 判別は git 障害と非 commit object を巻き込む** (新事実)。`s1_known_axes_freeze.py:751-754`
+が `_run_git` の `FreezeError` を丸ごと ancestry 文言へ貼り替えるため、git 不在・repo 破損・
+権限エラー・**実在 blob SHA (非 commit)** がすべて同じ文言になる。ゆえに格下げで新たに受理される集合は
+D72 (8) が書いた「不存在 SHA と実在非 ancestor」の 2 件では**足りない** — 意図外の 2 件
+(非 commit object、git 操作障害) が加わる。judge 用の分類は
+「不存在 commit」と「`merge-base --is-ancestor` rc=1」だけを格下げし、git-error と
+wrong-object-type は拒否する形が要る。
+
+(4) **observation の構造化伝播は裁定条件だが、現状の伝播先が無い** (新事実)。D72 (8) は
+「observation を report / calibration / oracle へ構造化伝播すること」を格下げの条件としていた。
+実測では耐久 WAL の `campaign-start`、`s8b_oracle_report.py`、`s8b_oracle_judge.py` のいずれにも
+gate observation の格納先が無い。条件を満たすには単位が driver 2 ファイルでは閉じない。
+
+(5) **親の理由付けに誤りがあった (erratum)。** 段 4 で親は「格下げしても `allowed=False` のままだから
+前提が覆った・利得ゼロ」と裁定したが、**4→3 で `allowed=False` のままであることは裁定時点で既知**
+(worklog 2026-07-21 (7) の [T-067] 項が明記) であり新事実ではない。段 1 でも親自身が確認済みだった。
+敵対レビュー 2 本が独立にこの自己矛盾を指摘した。**実装を止める根拠は (2)(3)(4) であって
+「利得ゼロ」ではない。** ゆえに [T-068] は「親が不採用として消化」ではなく
+**新事実によるユーザー再裁定待ち**として戻す。**承認済み裁定を親が独断で失効させない。**
+
+(6) **[T-066] を設計択一として返したのも誤りだった (erratum)。** ユーザー裁定は
+「外部固定の期待値へ置き換える」と既に方向を選んでいる。親が挙げた代案 (b)
+「measurement テストから known_axes 検証を切り離す」は、production の measurement builder が
+known-axes 検証を**統合契約として実行している**ため承認内容と非同値であり、択一は成立しない。
+残るのは (a) 外部 I/O・git 値だけを固定して実 extractor と再構成を動かし独立 golden と比較する形。
+**[T-066] は消化扱いにせず、未実装のまま次 wave へ持ち越す。**
+
+(7) **[T-067] の実装と実測。** `orchestrator/tests/test_s8b_oracle_driver.py` の 1 ファイルのみ変更。
+helper 2 種を導入した — `_assert_exact_refusals` (件数 + 集合の完全一致、hermetic fixture 用、11 箇所)、
+`_assert_refusal_reasons` (件数 + 理由 prefix の 1:1 対応、実 repo 依存で揮発する箇所用、3 箇所)。
+`result["refusals"][0]` に対する部分一致は 0 件になった。**node 名は維持した** —
+`conftest.py` と `test_real_repo_serialization.py` の golden 2 面に literal で固定されており、
+改名すると別ファイルが赤くなる (実測確認)。
+
+(8) **揮発する診断 payload を期待値へ焼き込まない。** 初回実装は refusal 文字列に実 working tree の
+sha256 (`actual=5fbdd7ef…`) を焼き込んでおり、`docs/phase3-8b-descriptor-design.md` の正当な編集で
+**false red** になる状態だった (敵対レビューが指摘)。理由の同一性と件数は厳密に固定しつつ、
+揮発する payload だけを期待値から外す形へ修正した。**修正が効いていることを実測で確認した** —
+当該 doc に 1 行追記してもテストは緑のまま (doc は復元済み)。
+
+(9) **変異は kill に数えない — diagnostic sensitivity pin として記録する (erratum)。**
+事前登録した M1 (unique な refusal を「追加」) は `len` と `set` を同時に壊す**過剰決定**だったため、
+件数保存の置換変異 **M1'** へ差し替えた。M1' は `set` 層、M2 (重複 append) は `len` 層だけが歯になる。
+両変異とも新テストのみが検出し**旧テストは緑**で、これが [T-067] が買った検出力そのものである。
+M2 の帰属は両層同時変異で確定した (`len` 比較あり → 赤 / 除去 → 緑)。
+ただし**両変異とも `allowed` を変えない** (前後とも `False`) ため、dev-wave の kill 基準
+「受理集合または fail-closed 挙動が期待方向へ変わった」を満たさない。**kill 集計外**とする。
+変わるのは規律 3 が要求する構造化された拒否理由集合であり、その pin としては有効である。
+
+(10) **[T-067] は部分消化。** `_v2_refusal_reason()` parser 経由の検査、extime helper の部分一致、
+`status == "refused"` だけで理由集合を固定していない 2 テストが残る。
+`test_required_existing_claim_refuses…` は所有 PID が単独走 (`2`) と xdist 走 (`35`) で**変動する**ため
+意図的に prefix 検査とした。
+
+(11) **scope 外 → 裁定パッケージ (実装しない):** 方式 B の再裁定 ((2)(3)(4) が新材料) /
+holdout freeze の 2 重ドリフトの扱い (design + generator。checker 自己 pin のため通常の修復が効かない) /
+[T-066] の実装 (方向は確定済み、未実装) / [T-067] の残り部分一致 /
+`test_tampered_freeze_fails_source_verification` が壊れた positive control であること
+(改変行を消しても結果が変わらない。真の単一理由 tamper 検査は先行 drift の修復まで構成できない)。
+正本は worklog の裁定パッケージ節。
+
+(12) **プロセス:** brief → codex プラン起草 (max) → 敵対相談 2 並列 (max、**両方 NO-GO**) →
+親裁定 + 変異事前登録 → 実装 (high) → 敵対レビュー 2 並列 (max、**両方 NO-GO**、
+うち 2 件は親自身の裁定の誤り) → 修正ラウンド → 親の受入全走と変異実測。
+受入は変更前後とも **2351 passed / 19 skipped / 0 failed** (rc=0、親が shim なしで実走)。
