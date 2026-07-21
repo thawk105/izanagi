@@ -2777,3 +2777,72 @@ kill 帰属が成立しないもの (M3)、baseline と mutant の期待が逆�
 差分契約の確定 / legacy holdout を歴史成果物として据え置くか s8b trust root ごと移行するか /
 `test_s1_measurement_freeze.py` の fixture 隠蔽の是正 / oracle テストの refusal exact 検査。
 正本は worklog の裁定パッケージ節。
+
+## D72. `frozen_at_head` の格下げは自己 hash blocker で D71 の閉包へ戻る — 再び実装せず差し戻す (2026-07-21)
+
+**決定: [T-068] (格下げ) / [T-005] (再発行) / [T-063] (差分契約) の束ね wave を実装しない。**
+canonical 成果物は 1 byte も変更していない。[T-005] は **2 wave 連続の差し戻し**である。
+逐語は `output/insights/2026-07-21_s1-freeze-downgrade-loop.md`。
+
+(1) **裁定の前提が実測で覆った。** worklog 2026-07-21 (5) は「[T-068] の格下げを採れば
+`known-axes-freeze-verify` は現行ファイルのまま通り、再発行そのものが不要になる」と記録していた。
+親は段 1 でこれを **runtime monkeypatch** により確認したが、この模擬は**実差分をモデル化していない**。
+
+(2) **自己 hash blocker。** `known_axes_freeze.json` の `/generator/sha256` は
+`s1_known_axes_freeze.py` の**全 bytes の sha256** であり、その照合は ancestry より前
+(`s1_known_axes_freeze.py:724`) に走る。ゆえに **ancestry を格下げするために当該ファイルを
+編集した瞬間に generator hash が外れ、ancestry へ到達する前に落ちる**。実測: 1 行追加で
+`1d4d45a3de4926c6…` → `93174926b84ac9ec…`、`verify()` は `generator sha256 不一致` で失敗。
+SHA-256 の第二原像を作らない限り「canonical 不変」「generator 全 bytes 照合の維持」
+「同ファイル内 verifier の変更」の三条件は**両立しない**。
+
+(3) **ゆえに格下げは D71 の閉包を回避できず、そこへ戻る。** bytes を変えざるを得ないため、
+D71 (2)(c) が既に記録していた制約 — `_TRANSITION_V1_TO_G1` の許可 pointer 集合に
+`/known_axes_freeze/sha256` が無い — が**再び発火する**。実測でも同 frozenset は 12 pointer で
+当該 pointer を含まない。known bytes を変えると将来の g1 は `source-blob-mismatch` で
+**構造的に生成不能**になる (敵対相談 2 本が独立に到達)。
+
+(4) **worklog の裁定要約が D71 の制約を落としていた。** D71 (2)(c) は本 blocker を記録済みだったが、
+worklog (5) の「格下げすれば再発行不要」という要約はそれを迂回する前提に立っていた。
+**裁定要約は元 decision の制約を継承しているか、着手前に元文へ当たって確認する** (恒久教訓)。
+
+(5) **`FROZEN_MANIFEST` を親も codex プランも見落としていた。** `test_frozen_artifacts.py:33` は
+`known_axes_freeze.json` = `354f4b87…`、`measurement_freeze.json` = `203de36b…` を pin しており、
+4 pointer transition はこれを必ず赤にする。D71 自身が「一回限りの receipt と再 pin」を要求していた。
+
+(6) **許容 JSON Pointer の列挙 ([T-063]) は起草できた。** S-1 JSON 内で機械的に必ず変わるのは
+**ちょうど 4 つ** — known `/generator/sha256`、measurement `/generator/sha256`、
+measurement `/implementation_hashes/s1_measurement_freeze/sha256`、
+measurement `/implementation_hashes/known_axes_freeze/sha256`。依存は DAG (known → measurement)。
+敵対相談 2 本とも「**S-1 JSON の semantic 差分としては過不足なし**」と判定した。
+ただし **repository transition の変更面はこれより広い** (manifest 2 hash・receipt・
+oracle manifest fixture・ratified g1・real-repo serial group)。この区別を混同してはならない。
+
+(7) **`V1_FREEZE_SHA256` は S-1 ではない。** 実測で `output/s8b-freeze/holdout_freeze.json` の
+bytes (`315b1eb8…`) を pin している。S-1 側 transition は v1 trust root には触れない。
+D71 (2)(b) の懸念は S-1 単独の transition には当たらない (holdout を上書きする場合にのみ当たる)。
+
+(8) **格下げが失う保証の正確な範囲。** 親は当初「格下げ後は別の実在 ancestor へ差し替えても
+受理される」を新たな喪失として挙げたが、**差分としては誤り** — 現行実装も任意の ancestor を
+既に受理する。格下げで新たに失うのは「**存在しない SHA**」と「**実在する非 ancestor**」の拒否だけである。
+CC variant の誤選択へ結び付ける反例は両相談とも構成できなかった (規律 2 抵触なし) が、
+`s1_verify_extime_calibration.py:193` 経由で **calibration provenance へ偽 SHA が流れる事故**は
+具体的に構成できる (real)。ゆえに格下げを行うなら observation の構造化伝播が条件になる。
+
+(9) **消費側格下げという第三の選択肢がある。** `s8b_oracle_driver.py` はどの freeze 成果物からも
+pin されていない (実測)。消費側で ancestry 失敗を参考情報扱いにすれば canonical も checker も
+byte 不変のまま公式 gate の拒否だけを解消できる。ただし判別が**エラー文字列一致**に依存し
+(専用例外型の追加は pin されたファイルの編集を要する)、`verify()` の直接 caller では破損が残る。
+
+(10) **根本原因は「成果物が自分を検証する checker を pin している」設計。** checker のバグ修正・
+仕様変更が必ず canonical 再発行を強制する。「凍結」と称しながらコード保守に対して凍結できていない。
+通常の設計は入力と出力を pin し checker は pin しない。恒久的な設計判断としてユーザーへ返す。
+
+(11) **scope 外 → 裁定パッケージ (実装しない):** v1→g1 の許可 pointer に
+`/known_axes_freeze/sha256` を加えるか / 一回限りの transition receipt と `FROZEN_MANIFEST` 再 pin を
+承認するか / `frozen_at_head` を未検証 metadata と明記し observation を構造化伝播するか (あるいは
+消費側格下げを採るか) / checker self-pin 設計の分離。正本は worklog の裁定パッケージ節。
+
+(12) **実装差分が無いため、変異 matrix の実測と受入全走は本 wave の対象外。** 事前登録した
+変異は実装が無いため実行していない。段 1 の実測 (F12) で「保持する検査は単一理由で赤くなる」ことは
+確認済みだが、これは変異実測の代替ではない。
