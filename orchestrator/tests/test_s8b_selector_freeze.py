@@ -152,6 +152,15 @@ def _policy() -> dict:
     }
 
 
+def _make_missing(row: dict) -> None:
+    row["status"] = "missing"
+    for field in (
+        "choice_id", "rationale", "raw_response_path", "raw_sha256",
+        "parser_error_code", "agent_provenance",
+    ):
+        row[field] = None
+
+
 def _document(
     freeze: dict,
     rows: list[dict] | None = None,
@@ -274,6 +283,110 @@ def test_build_prediction_freeze_rejects_tagged_union_violations() -> None:
         _document(freeze, agent_static)
 
 
+def test_missing_agent_row_with_null_provenance_builds_and_verifies(
+    tmp_path: Path,
+) -> None:
+    freeze = _freeze()
+    head = _fixture_head(tmp_path)
+    sources = _sources(tmp_path)
+    rows = _rows(
+        freeze, role_sha256=sources["role"]["sha256"], root=tmp_path,
+    )
+    missing = next(row for row in rows if row["arm"] == "on")
+    _make_missing(missing)
+
+    document = build_prediction_freeze(
+        freeze=freeze,
+        rows=rows,
+        generated_at="2026-07-16T00:00:00Z",
+        pre_oracle_head=head,
+        sources=sources,
+        execution_policy=_policy(),
+    )
+
+    assert len(document["rows"]) == 6
+    frozen_missing = next(
+        row for row in document["rows"]
+        if row["target_holdout"] == missing["target_holdout"]
+        and row["arm"] == missing["arm"]
+    )
+    assert frozen_missing["status"] == "missing"
+    assert all(frozen_missing[field] is None for field in (
+        "choice_id", "rationale", "raw_response_path", "raw_sha256",
+        "parser_error_code", "agent_provenance",
+    ))
+    verify_prediction_freeze(document, freeze=freeze, root=tmp_path)
+
+
+def test_missing_agent_row_rejects_provenance_in_build_and_verify(
+    tmp_path: Path,
+) -> None:
+    freeze = _freeze()
+    sources = _sources(tmp_path)
+    rows = _rows(
+        freeze, role_sha256=sources["role"]["sha256"], root=tmp_path,
+    )
+    missing = next(row for row in rows if row["arm"] == "on")
+    provenance = copy.deepcopy(missing["agent_provenance"])
+    _make_missing(missing)
+    missing["agent_provenance"] = provenance
+    with pytest.raises(SelectorFreezeError, match="agent_provenance は null 固定"):
+        build_prediction_freeze(
+            freeze=freeze,
+            rows=rows,
+            generated_at="2026-07-16T00:00:00Z",
+            pre_oracle_head=_fixture_head(tmp_path),
+            sources=sources,
+            execution_policy=_policy(),
+        )
+
+    good_rows = _rows(
+        freeze, role_sha256=sources["role"]["sha256"], root=tmp_path,
+    )
+    good_missing = next(row for row in good_rows if row["arm"] == "on")
+    _make_missing(good_missing)
+    document = build_prediction_freeze(
+        freeze=freeze,
+        rows=good_rows,
+        generated_at="2026-07-16T00:00:00Z",
+        pre_oracle_head=_fixture_head(tmp_path),
+        sources=sources,
+        execution_policy=_policy(),
+    )
+    frozen_missing = next(
+        row for row in document["rows"]
+        if row["target_holdout"] == good_missing["target_holdout"]
+        and row["arm"] == good_missing["arm"]
+    )
+    frozen_missing["agent_provenance"] = provenance
+    _rehash(document)
+    with pytest.raises(SelectorFreezeError, match="agent_provenance は null 固定"):
+        verify_prediction_freeze(document, freeze=freeze, root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("choice_id", "c01"),
+        ("rationale", "forbidden"),
+        ("raw_response_path", "selector-runs/forbidden.json"),
+        ("raw_sha256", "0" * 64),
+        ("parser_error_code", "forbidden"),
+    ),
+)
+def test_missing_agent_row_rejects_non_null_result_fields(
+    field: str, value: str,
+) -> None:
+    freeze = _freeze()
+    rows = _rows(freeze)
+    missing = next(row for row in rows if row["arm"] == "on")
+    _make_missing(missing)
+    missing[field] = value
+
+    with pytest.raises(SelectorFreezeError, match="missing"):
+        _document(freeze, rows)
+
+
 def test_swapped_expectations_are_derived_only_from_deranged_on_rows() -> None:
     freeze = _freeze()
     document = _document(freeze)
@@ -287,6 +400,28 @@ def test_swapped_expectations_are_derived_only_from_deranged_on_rows() -> None:
     for target, source in freeze["derangement"].items():
         assert expectations[target]["source_on_holdout"] == source
         assert expectations[target]["expected_choice_id"] == on_choices[source]
+
+
+def test_swapped_expectation_propagates_missing_on_choice_as_null() -> None:
+    freeze = _freeze()
+    rows = _rows(freeze)
+    missing = next(row for row in rows if row["arm"] == "on")
+    _make_missing(missing)
+
+    document = _document(freeze, rows)
+    target = next(
+        target for target, source in freeze["derangement"].items()
+        if source == missing["target_holdout"]
+    )
+    expectation = next(
+        item for item in document["swapped_follow_expectations"]
+        if item["target_holdout"] == target
+    )
+    assert expectation == {
+        "target_holdout": target,
+        "source_on_holdout": missing["target_holdout"],
+        "expected_choice_id": None,
+    }
 
 
 def test_verify_detects_body_row_derangement_and_basis_tampering(tmp_path: Path) -> None:

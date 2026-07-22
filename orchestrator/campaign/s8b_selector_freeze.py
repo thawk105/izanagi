@@ -479,10 +479,16 @@ def _normalise_rows(
                 raise SelectorFreezeError("agent row に static_default を指定してはならない")
             if row["decision_method"] != AGENT_DECISION_METHOD:
                 raise SelectorFreezeError("agent row の decision_method が不正")
-            row["agent_provenance"] = _validate_agent_provenance(
-                row["agent_provenance"], field=f"rows[{index}].agent_provenance",
-                role_file_sha256=role_file_sha256,
-            )
+            if status == "missing":
+                if row["agent_provenance"] is not None:
+                    raise SelectorFreezeError(
+                        "missing agent row の agent_provenance は null 固定"
+                    )
+            else:
+                row["agent_provenance"] = _validate_agent_provenance(
+                    row["agent_provenance"], field=f"rows[{index}].agent_provenance",
+                    role_file_sha256=role_file_sha256,
+                )
             if status in {"valid", "invalid"}:
                 _nonempty_string(
                     row["raw_response_path"], field=f"rows[{index}].raw_response_path"
