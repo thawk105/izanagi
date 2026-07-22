@@ -920,3 +920,52 @@ wave 完了後にユーザーが push 予定)。本エントリは [T-004] 実�
 17. [T-082] **承認済み実装 wave (裁定 2026-07-22)**: prefix 容認 reader 約 25 caller (critic digest /
     p2_2_report / replay.py / backoff_repro / p3 系ほか) の用途別移行。対象列挙 = [T-004] wave の
     相談所見 X5/Y2 と insights (次エントリで凍結)
+
+## 2026-07-22 (6) — [T-004] WAL byte framing + resume 物理修復を実装 ([T-007][T-008] 同梱、D77、branch worktree-dev-wave-ruling-ac、計測なし)
+
+worklog (5) 次の一手 2 の承認済み実装 wave。ハイブリッド標準ループ (/dev-wave) で完了。
+設計判断は D77、逐語 = `output/insights/2026-07-22_t004-wal-framing-loop.md`、変異台帳 = 同
+`-mutation-ledger.md`、ハーネスバグは F33。
+
+- 段 1 実測で裁定前提 6 種を全確認 (前提の覆りなし)。特に「末尾断片への追記は黙って消える
+  fail-open 喪失」を実測で確定してから設計に入った
+- 相談 X/Y・レビュー R1/R2 の **4 本すべて NO-GO** (計 42 所見)。親裁定で全件 real/refuted/scope を
+  確定し、blocker はすべて fix で反映 (中心 = fresh-reject 自己封鎖・repair/append の flock 排他・
+  identity 照合前 repair 禁止・WalAppendError の end-to-end 保全・親 sentinel の証拠喪失再設計)。
+  R1/R2 の衝突 1 件 (M14b) は親がコードで裁定 (R1 採用 = 私の 1 巡目 kill 帰属は誤分類、erratum)
+- 親直書き hunk (s1_report 継ぎ目) はレビュー名指しの結果 2 本から real 所見を受け、fix で
+  「prefix 解析継続 + 両 anomaly 併記」へ再設計された — 親 hunk の名指しレビューが実際に機能した
+- 変異 matrix: erratum 4 件 (誤帰属 3 + F33 ハーネスバグ) を経て **18 変異全件が設計どおり**
+  (acceptance 8 kill / durability 6 kill / wiring 1 kill / 診断 pin 2 / 等価 1、未説明 SURVIVED 0)
+- 検収 (親の独立実測): 全走 **2618 passed / 18 skipped / 0 failed**、実 WAL 回帰 30 本 / 3,086
+  record 完全一致 (PASS)、`check_docs` 違反なし。既存の lock 無し guided campaign が今後
+  evaluate-resume 不能になるのは裁定済みの意図的 breaking change (D77 (2))
+- 工数: codex 8 走 (プラン 1・相談 2・実装 3・レビュー 2・fix 1 = 計 9 走)。実装単位の sandbox 起因
+  偽赤 (submodule index.lock) は 3 単位とも親環境で不再現を確認
+
+### 消化した ID
+
+- [T-004] WAL byte framing + resume 物理修復 — **実装完了・検収済み** (D77)
+- [T-008] payload 型の writer 側強制 — **実装完了** ([T-004] に同梱、D77 (4))
+- [T-007] 未知 stage の fail-closed 拒否 — **実装完了** ([T-004] に同梱、D77 (4))
+
+### 次の一手
+
+1. [T-080] **U-A1 裁定確定 (a)** → s2 doc の最終 patch (U-A1 反映 + 整合確認) → 実装 wave W-0 (hook 契約)
+   から W-0→W-a→W-b/W-c→W-d→W-e→W-f の順に開始 (所有表 = s2 §S2-8)。**次の実装 wave はここから**
+2. [T-068] **裁定確定 (R10)**: 発効 X と同時に閉じる。それまで開いたまま
+3. [T-077] **裁定確定 (R11)**: g1 発行時の人間同席再 pin で解消。発効まで開いたまま
+4. [T-078] **裁定確定 (R12)**: 外部固定 fixture 契約で再定義。実装 (W-e) まで開いたまま
+5. [T-066] **承認済み実装 wave (未実装・未消化)**: 恒真隠蔽除去。変わらず (2026-07-21 (8) 参照)
+6. [T-067] **部分消化・継続**: exact 化の残り。変わらず (2026-07-21 (8) 参照)
+7. [T-001] **承認済み実装 wave**: ruling-B 単独 (session record の issuer/env_tag 照合)
+8. [T-002] **承認済み実装 wave ([T-006] 同梱)**: P-A1(a) Stage 1 + P-C3
+9. [T-009] **裁定確定**: 実装子の規律免除を `AGENTS.md` へ 1 段落追記する
+10. [T-060] **[T-003] 裁定の実装分**: WAL 記述から「改竄耐性」等を使わない運用を明文化する
+11. [T-010] B-008 の再試験条件: 変わらず
+12. [T-011] **裁定確定: 据え置き**。限界受け入れ (viii) は floor 実測直前に発火。現時点未発火
+13. [T-012] **裁定確定: 最終 report 生成・pilot 凍結を執行済み**。継続/縮小/撤去と CLAUDE.md 配線は
+    report 提示後のユーザー裁定待ち (report = `output/task-runs/reports/20260720-20260722_task-efficiency.md`)
+14. [T-082] **承認済み実装 wave (裁定 2026-07-22)**: prefix 容認 reader の用途別移行。対象は
+    [T-004] wave がコード上にマーカーを付けた caller 群 (replay / p2_2_report / critic digest /
+    backoff_repro ほか)。変わらず

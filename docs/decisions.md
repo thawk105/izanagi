@@ -3064,3 +3064,50 @@ fix → 検証 3 巡 (26/29 → 残 7 → 残 2 → GO)。所見の反映対応�
 は「exact schema の相互参照」(TSV pointer が report schema の実 field を指すか、依存配列が registry
 出現順か) で新規誤りを作る — 機械照合可能な契約は fix 検証で全行再計数させる。(b) 多段 wave の共有
 manifest は「実在 file のみ読む + final exact check の分離」で wave 単独 green と完全性が両立する。
+
+## D77. generic WAL の byte framing・resume 物理修復・writer 型強制 — [T-004][T-007][T-008] の実装 (2026-07-22)
+
+**決定:** 承認済み実装 wave として、generic WAL (`wal.py`) の耐久性設計 (D68 (8) scope-out) を実装した。
+記録 frame は `b"\n"` 終端 bytes と定義し、無終端 tail は内容 (完全 JSON・multibyte 途中切れ・任意
+断片) によらず crash 遺物 = truncated_tail、終端済み行の decode/JSON/record 契約違反は crash 遺物と
+みなさず fail-closed に扱う (正規 writer は行内に生改行 byte を出せないことをコード読解と実測で確認)。
+逐語 = `output/insights/2026-07-22_t004-wal-framing-loop.md`、変異台帳 = 同 `-mutation-ledger.md`。
+
+(1) **物理修復は明示関数 + 証拠先行。** `repair_truncated_tail()` は flock(LOCK_EX) 下で最終 frame
+境界を後方 chunk 走査し、**receipt JSON (cut offset / removed bytes / streaming sha256 / 128B preview)
+を runs_dir へ fsync してから ftruncate** する。`append()` は自動修復せず、無終端 tail への追記を
+`WalAppendError` (phase=tail-gate) で拒否する — 破壊操作は明示経路のみ。
+(2) **identity 照合前の修復禁止と原子的 lock。** `ident.ensure_campaign_identity()` (repair なし) と
+`ensure_resumable_wal()` (照合後 repair) を新設。lock 作成は `acquire_lock_atomic` (O_EXCL +
+file/dir fsync) のみ、**lock 不在 + WAL bytes ありは fail-closed 拒否** (identity 不明の WAL を採用・
+破壊しない)。reject を書きうる 5 系統 (p3 base/sort/trigger、s6、s8a) は最初の WAL write 前に
+identity-only preflight を通す (fresh-reject 自己封鎖の防止、レビュー両本の blocker)。guided は
+cmd_start で meta 由来 config の lock を確立する — **既存の lock 無し guided campaign は今後
+evaluate-resume 不能 (読取りは可) の意図的 breaking change**。
+(3) **書込の耐久契約。** append は検証 + UTF-8 encode を open 前に完了 (拒否時の filesystem 副作用
+ゼロ)、O_RDWR|O_APPEND|O_CREAT|O_NOFOLLOW|O_CLOEXEC + flock、末尾 1 byte gate、short-write 完遂
+loop (0 進捗は WalAppendError)、file fsync + **flock 解放前の runs dir fsync (毎回)**。os.close 失敗も
+WalAppendError へ写像。**WAL I/O 例外 (WalAppendError/WalFramingError) を捕捉した consumer は同じ WAL
+へ診断を追記せず伝播する** (loop/screening/S-1/s8b/s6/s8a。s6/s8a は sweep 全体を停止)。
+(4) **T-007/T-008。** stage 白名簿 8 種 (pipeline 6 + `s1-session` + `s8b-oracle-session`) を model.py
+に集約し parse_line と writer の両層で拒否 (writer 層は preflight に支配される冗長ゲート = 等価変異
+M06b として台帳記録)。payload は serialize 前に深部検査 — isinstance ベース (dict subclass 容認)、
+非 str key・tuple/set/bytes・非有限 float (`1e999` overflow 含む)・lone surrogate を構造化拒否、cycle
+は active recursion stack (共有 DAG 容認)。reader も parse_constant + decoded 深部検査で NaN/Inf を
+拒否。実 WAL 30 本 / 3,086 record で回帰ゼロを実測 (非有限 0・改行欠落 0・undecodable 0)。
+(5) **黙殺 reader の bounded 移行。** 公式 report 系 (s1_report / s1_direct dry-run / layer3 / plot)
+は checked/collected 化し、s1_report は torn tail・line_issues を**構造化 reason に併記しつつ prefix
+解析を継続する** (D68 (4) の anti-masking と同じ原則。当初の親 sentinel 短絡は R2 が証拠喪失として
+blocker 指摘し再設計)。s8b report には inert-record 拒否 (session でも pipeline でもない record →
+protocol violation) を追加。**残り約 25 の prefix 容認 caller は [T-082] (承認済み) で段階移行**し、
+現時点はコード上にマーカーを明記。`wal_bytes_present` は FileNotFoundError のみ False、他の OSError
+は伝播 (EIO で新 identity を作る事故の防止)。
+(6) **scope 境界。** 本 wave の射程は共有 `wal.py` を使う consumer に限る。`s1_known_axes_freeze.py`
+の raw WAL reader は freeze の自己 hash pin 下にあり (D68 (7) 既録)、収束は S-1 系再裁定の守備範囲。
+campaign 種別 stage profile は作らない ([T-081] 裁定)。runs dir symlink 経由の攻撃はレビュー所見
+だが**脅威境界外として refuted** (D68 (6): 改竄耐性は謳わない)。hash chain は不変 ([T-003])。
+(7) **プロセス実績。** 相談 X/Y・レビュー R1/R2 の 4 本すべて NO-GO → 親裁定で全 42 所見を
+real/refuted/scope 裁定。R1/R2 衝突 1 件 (M14b の kill 妥当性) は親がコードで R1 側に裁定。変異
+matrix は erratum 4 件 (誤帰属 3 + ハーネスバグ 1 = F33) を経て 18 変異全件が設計どおり
+(acceptance 8 / durability 6 / wiring 1 / 診断 pin 2 / 等価 1、未説明 SURVIVED 0)。
+受入 = 全走 2618 passed / 0 failed + WAL 回帰 PASS。
