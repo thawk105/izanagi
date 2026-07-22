@@ -8,6 +8,16 @@ root だけを集約する。
 
 - 公式実験数値 (extime_s=5 / reps=5) の正本は ``s8b_experiment_numbers``
   (ユーザー裁定 2026-07-19)。ここは import 束縛だけを再輸出する。
+- ``APPROVED_MASTER_SEED`` は worklog 2026-07-18 (11) のユーザー委任により、親が
+  メッセージ受領時刻で確定した事前登録値。以後選び直さない。
+- ``APPROVED_ENV_TAG`` は同じ worklog 2026-07-18 (11) のユーザー裁定 (Pegasus、
+  slug ``pegasus``)。環境契約への登録は 2026-07-19 に完了済み。
+- ``APPROVED_STOCK_CONFIGURATION`` は 2026-07-18 の F1 パッケージ承認で確定した
+  stock 構成 (``output/insights/2026-07-16_s8b-floor-protocol-package.md``) で、v1
+  holdout freeze の variant binding key に実在する値。
+- ``APPROVED_WIRED_MIN_REL_FLOOR`` は同じ F1 パッケージ承認の 3.0% 値
+  (``output/insights/2026-07-16_s8b-floor-protocol-package.md`` の F1)。canonical
+  protocol bytes の型を固定するため float literal で保持する。
 - その他の標本設計 pin (n_sessions=8 / retry_slots=2 / 閾値 3 種 / 除外理由表) は §9
   承認状態 (2026-07-18) の凍結値。閾値は decimal 文字列で凍結し stats が Fraction 厳密
   算術で解釈する (α-9)。除外理由表の正本は ``s8b_floor_stats`` (ここは固定順を再輸出する
@@ -31,6 +41,12 @@ from campaign.s8b_ratified_freeze import V1_FREEZE_PATH, V1_FREEZE_SHA256
 # --- 公式実験数値 pin (単一源 = s8b_experiment_numbers、裁定 2026-07-19) --- #
 APPROVED_EXTIME_S = _experiment_numbers.APPROVED_EXTIME_S
 APPROVED_REPS = _experiment_numbers.APPROVED_REPS
+
+# --- protocol 自由値 pin (ユーザー裁定 / F1 パッケージ承認 2026-07-18) --- #
+APPROVED_MASTER_SEED = "2026-07-18T17:16:12+09:00"
+APPROVED_ENV_TAG = "pegasus"
+APPROVED_STOCK_CONFIGURATION = "stock_common"
+APPROVED_WIRED_MIN_REL_FLOOR = 0.03
 
 # --- その他の標本設計 pin (§9 承認状態 2026-07-18) --- #
 APPROVED_N_SESSIONS = 8

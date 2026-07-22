@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +21,7 @@ ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 
+from campaign import env_contract  # noqa: E402
 from campaign import pin  # noqa: E402
 from campaign import s8b_approved  # noqa: E402
 from campaign import s8b_experiment_numbers  # noqa: E402
@@ -93,6 +95,38 @@ def test_floor_campaign_pins_are_single_sourced():
 def test_experiment_numbers_are_single_sourced_from_leaf():
     assert s8b_approved.APPROVED_EXTIME_S == s8b_experiment_numbers.APPROVED_EXTIME_S == 5
     assert s8b_approved.APPROVED_REPS == s8b_experiment_numbers.APPROVED_REPS == 5
+
+
+def test_approved_protocol_free_values_match_rulings():
+    # 独立 literal で裁定値を固定し、実装側の現在値を追認しない。
+    assert s8b_approved.APPROVED_MASTER_SEED == "2026-07-18T17:16:12+09:00"
+    assert s8b_approved.APPROVED_ENV_TAG == "pegasus"
+    assert s8b_approved.APPROVED_STOCK_CONFIGURATION == "stock_common"
+    assert s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR == 0.03
+    # canonical JSON bytes を変えないよう、F1 承認値は float 型まで固定する。
+    assert type(s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR) is float
+
+
+def test_approved_stock_configuration_exists_in_every_v1_holdout():
+    freeze_path = ROOT / "output/s8b-freeze/holdout_freeze.json"
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    holdouts = freeze["holdouts"]
+    assert holdouts, "v1 freeze の holdouts が空"
+    for holdout_id, holdout in holdouts.items():
+        entries = holdout["variant_binding"]["entries"]
+        assert s8b_approved.APPROVED_STOCK_CONFIGURATION in entries, \
+            f"{holdout_id} の variant_binding.entries に承認 stock 構成がない"
+
+
+def test_approved_env_tag_is_registered_in_env_contract():
+    contract = env_contract.lookup(s8b_approved.APPROVED_ENV_TAG)
+    assert contract.env_tag == "pegasus"
+
+
+def test_approved_master_seed_has_builder_required_form():
+    seed = s8b_approved.APPROVED_MASTER_SEED
+    assert isinstance(seed, str)
+    assert seed
 
 
 def _run():
