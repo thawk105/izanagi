@@ -136,6 +136,21 @@ def _campaign_t080_value(
     )
 
 
+def _t080_epoch_identity(
+        resolution: "_t080_migration.ReceiptResolution") -> tuple[object, ...]:
+    """campaign-start 境界で再照合する receipt epoch の決定論 identity。"""
+    raw_sha256 = (
+        hashlib.sha256(resolution.receipt_raw).hexdigest()
+        if isinstance(resolution.receipt_raw, bytes) else None
+    )
+    return (
+        resolution.state,
+        resolution.introduction_commit,
+        raw_sha256,
+        resolution.validation_head,
+    )
+
+
 def _t080_adapter_refusals(
         *, resolution: "_t080_migration.ReceiptResolution",
         freeze: Mapping, freeze_sha256: str, freeze_path: Path,
@@ -1175,6 +1190,16 @@ def run_block(
         # claim 競合は既存 claim 以外を作らず、WAL/marker/budget より前に拒否する。
         decision = _make_gate_decision(
             t080_resolution, refusals=[f"v2-execution: {exc}"],
+        )
+        return {"status": "refused", **asdict(decision)}
+
+    campaign_start_resolution = _resolve_t080_receipt(root=root)
+    if _t080_epoch_identity(campaign_start_resolution) != _t080_epoch_identity(t080_resolution):
+        decision = _make_gate_decision(
+            t080_resolution,
+            refusals=[
+                "migration-receipt-verify: receipt epoch が campaign-start 前に変化した"
+            ],
         )
         return {"status": "refused", **asdict(decision)}
 

@@ -278,7 +278,7 @@ def _copy_t080_basis_file(root: Path, relative: str) -> None:
 
 def _t080_stub_free_e2e_repo(
         tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
-        extra_r_path: bool = False,
+        extra_r_path: bool = False, issue_receipt: bool = True,
         ) -> tuple[Path, Path, dict]:
     """production builder/verifier/gate を一度も stub しない T-080 発行 repo。"""
     root = tmp_path / "t080-stub-free-e2e"
@@ -286,6 +286,13 @@ def _t080_stub_free_e2e_repo(
     _run_git(root, "init", "-q")
     _run_git(root, "config", "user.name", "T080 E2E Human")
     _run_git(root, "config", "user.email", "t080-e2e@example.invalid")
+
+    # subprocess が import closure を host から補えないよう orchestrator 全体を配置する。
+    shutil.copytree(
+        ROOT / "orchestrator", root / "orchestrator",
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    shutil.copytree(ROOT / "output", root / "output")
 
     known = json.loads((ROOT / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
     source_paths: set[str] = set()
@@ -320,27 +327,91 @@ def _t080_stub_free_e2e_repo(
     _run_git(root / migration.CCBENCH_REL, "checkout", "-q", known["ccbench_pin"])
     _run_git(root, "add", "-A")
     _run_git(root, "commit", "-q", "-m", "T080 migration basis", "-m", "AI-Agent: none")
-    basis = _run_git(root, "rev-parse", "HEAD")
+    _run_git(root, "rev-parse", "HEAD")
 
-    draft = root / migration.DRAFT_REL
     receipt = root / migration.RECEIPT_REL
-    migration.draft_receipt(basis=basis, out=migration.DRAFT_REL, root=root)
-    migration.validate_draft(path=migration.DRAFT_REL, root=root)
-    document = migration.finalize_receipt(
-        draft=migration.DRAFT_REL,
-        confirmed_by="t080.e2e.human",
-        confirmed_at="2026-07-22T12:34:56Z",
-        out=migration.RECEIPT_REL,
-        root=root,
+    if not issue_receipt:
+        return root, receipt, {}
+    child = textwrap.dedent("""
+        import json
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        root = Path(sys.argv[1]).resolve()
+        sys.path[0] = str(root)
+        from orchestrator.campaign import s1_known_axes_freeze as known
+        from orchestrator.campaign import s8b_holdout_freeze as holdout
+        from orchestrator.campaign import s8b_oracle_driver as driver
+        from orchestrator.campaign import t080_freeze_migration as migration
+
+        sys.path.insert(0, str(root))
+        modules = (
+            migration, known, holdout, driver,
+            driver._t080_migration,
+            driver.s1_known_axes_freeze,
+            driver.s8b_holdout_freeze,
+        )
+        assert Path(sys.path[0]).resolve() == root
+        module_files = tuple(Path(module.__file__).resolve() for module in modules)
+        assert all(path.is_relative_to(root) for path in module_files), module_files
+        module_roots = (migration.ROOT.resolve(), known.ROOT.resolve(), holdout.ROOT.resolve())
+        assert module_roots == (root, root, root), module_roots
+
+        basis = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        ).stdout.strip()
+        migration.draft_receipt(
+            basis=basis, out=migration.DRAFT_REL, root=root,
+        )
+        migration.validate_draft(path=migration.DRAFT_REL, root=root)
+        document = migration.finalize_receipt(
+            draft=migration.DRAFT_REL,
+            confirmed_by="t080.e2e.human",
+            confirmed_at="2026-07-22T12:34:56Z",
+            out=migration.RECEIPT_REL,
+            root=root,
+        )
+        (root / migration.DRAFT_REL).unlink()
+        subprocess.run(
+            ["git", "add", migration.RECEIPT_REL], cwd=root, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        if sys.argv[3] == "1":
+            (root / "r-extra.txt").write_text("extra in R\\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "add", "r-extra.txt"], cwd=root, check=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "activate T080 receipt", "-m", sys.argv[2]],
+            cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        resolution = migration.verify_receipt(root=root)
+        decision = driver.gate_check(
+            freeze_path=root / migration.HOLDOUT_REL, root=root,
+        )
+        if sys.argv[2] == "AI-Agent: none" and sys.argv[3] == "0":
+            assert resolution.state == "active-valid" and resolution.refusals == ()
+            assert decision.allowed is False
+            assert len(decision.refusals) == 2
+            assert all(
+                refusal.startswith(("floor-null:", "budget-null:"))
+                for refusal in decision.refusals
+            )
+        else:
+            assert resolution.state == "invalid"
+        print(json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    """)
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", child, str(root), r_trailer,
+         "1" if extra_r_path else "0"],
+        cwd=root, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, env={**os.environ, "PYTHONPATH": "", "PYTHONNOUSERSITE": "1"},
     )
-    draft.unlink()
-    _run_git(root, "add", migration.RECEIPT_REL)
-    if extra_r_path:
-        (root / "r-extra.txt").write_text("extra in R\n", encoding="utf-8")
-        _run_git(root, "add", "r-extra.txt")
-    _run_git(
-        root, "commit", "-q", "-m", "activate T080 receipt", "-m", r_trailer,
-    )
+    assert completed.returncode == 0, completed.stderr
+    document = json.loads(completed.stdout)
     return root, receipt, document
 
 
@@ -561,10 +632,30 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
     _run_git(root, "add", "-u", migration.RECEIPT_REL)
     _run_git(root, "commit", "-q", "-m", "delete receipt", "-m", "AI-Agent: none")
     basis = _run_git(root, "rev-parse", "HEAD")
-    with pytest.raises(migration.MigrationError) as caught:
-        migration.draft_receipt(basis=basis, out=migration.DRAFT_REL, root=root)
-    assert caught.value.reason == "receipt.invalid"
-    assert "issued-but-missing" in caught.value.detail
+    child = textwrap.dedent("""
+        import json
+        import sys
+        from pathlib import Path
+        root = Path(sys.argv[1]).resolve()
+        sys.path[0] = str(root)
+        from orchestrator.campaign import t080_freeze_migration as migration
+        try:
+            migration.draft_receipt(
+                basis=sys.argv[2], out=migration.DRAFT_REL, root=root,
+            )
+        except migration.MigrationError as exc:
+            print(json.dumps({"reason": exc.reason, "detail": exc.detail}))
+        else:
+            raise AssertionError("post-R 再発行が拒否されなかった")
+    """)
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", child, str(root), basis],
+        cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, env={**os.environ, "PYTHONPATH": "", "PYTHONNOUSERSITE": "1"},
+    )
+    refusal = json.loads(completed.stdout)
+    assert refusal["reason"] == "receipt.invalid"
+    assert "issued-but-missing" in refusal["detail"]
 
 
 @contextlib.contextmanager
@@ -1238,7 +1329,7 @@ def test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate():
         assert isinstance(t080_value, ast.Name) and t080_value.id == "t080_campaign_value"
         categories.append(status or "terminal-status-variable")
     assert categories == [
-        *("refused-via-gate-decision" for _ in range(12)),
+        *("refused-via-gate-decision" for _ in range(13)),
         "budget_exhausted_before_attempt",
         "terminal-status-variable",
     ]
@@ -1274,7 +1365,7 @@ def test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_r
             _fake_evaluate_factory(),
         )
 
-    assert verify_call.call_count == 1
+    assert verify_call.call_count == 2
     expected_campaign_value = (
         observation if with_observation else {
             "state": "never-issued", "validation_head": "c" * 40,
@@ -1283,6 +1374,52 @@ def test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_r
     assert result["t080_freeze_migration_observation"] == expected_campaign_value
     start = next(event for event in result["events"] if event["event"] == "campaign-start")
     assert start["t080_freeze_migration_observation"] == expected_campaign_value
+
+
+def test_run_block_rejects_receipt_epoch_drift_before_campaign_start_g4(tmp_path):
+    initial = migration.ReceiptResolution(
+        "never-issued", (), None, "c" * 40,
+    )
+    changed = migration.ReceiptResolution(
+        "never-issued", (), None, "d" * 40,
+    )
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    evaluate_fn = _fake_evaluate_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    output_root = tmp_path / "epoch-drift-out"
+    budget_path = tmp_path / "epoch-drift-budget.json"
+
+    with mock.patch.object(
+            migration, "verify_receipt", side_effect=[initial, changed]) as verify_call:
+        result = _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn,
+            output_root=output_root, budget_path=budget_path,
+        )
+
+    assert verify_call.call_count == 2
+    assert result["status"] == "refused" and result["allowed"] is False
+    assert result["refusals"] == [
+        "migration-receipt-verify: receipt epoch が campaign-start 前に変化した"
+    ]
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+    assert not budget_path.exists()
+    assert (not list(output_root.rglob("wal.jsonl"))) if output_root.exists() else True
+
+
+def test_t080_epoch_identity_covers_state_introduction_raw_and_head_g4():
+    baseline = migration.ReceiptResolution(
+        "active-valid", (), {}, "c" * 40, "a" * 40, {}, b"receipt-a",
+    )
+    variants = (
+        dataclasses.replace(baseline, state="invalid"),
+        dataclasses.replace(baseline, introduction_commit="b" * 40),
+        dataclasses.replace(baseline, receipt_raw=b"receipt-b"),
+        dataclasses.replace(baseline, validation_head="d" * 40),
+    )
+    identity = driver._t080_epoch_identity(baseline)
+    assert all(driver._t080_epoch_identity(item) != identity for item in variants)
 
 
 def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_path):
@@ -2015,6 +2152,44 @@ def test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7(tmp_pa
         "generator sha256 不一致: "
         f"recorded={recorded} actual={actual}"
     )
+
+
+def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
+    root, _receipt_path, _document = _t080_stub_free_e2e_repo(
+        tmp_path, issue_receipt=False,
+    )
+    freeze = json.loads((root / migration.HOLDOUT_REL).read_text(encoding="utf-8"))
+
+    def historical_bytes(relative: str, expected: str) -> bytes:
+        commits = _run_git(ROOT, "log", "--format=%H", "--", relative).splitlines()
+        for commit in commits:
+            completed = subprocess.run(
+                ["git", "show", f"{commit}:{relative}"], cwd=ROOT,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            if (completed.returncode == 0
+                    and hashlib.sha256(completed.stdout).hexdigest() == expected):
+                return completed.stdout
+        raise AssertionError(f"recorded bytes が Git 履歴にない: {relative} {expected}")
+
+    for field in ("design_source", "generator"):
+        record = freeze[field]
+        target = root / record["path"]
+        target.write_bytes(historical_bytes(record["path"], record["sha256"]))
+    generator = root / freeze["generator"]["path"]
+    generator.write_bytes(generator.read_bytes() + b"# driver-gate-generator-tamper\n")
+
+    decision = driver.gate_check(
+        freeze_path=root / migration.HOLDOUT_REL, root=root,
+    )
+
+    generator_refusals = [
+        refusal for refusal in decision.refusals
+        if (refusal.startswith("holdout-freeze-verify: ")
+            and "generator sha256 不一致" in refusal)
+    ]
+    assert decision.allowed is False
+    assert len(generator_refusals) == 1, decision.refusals
 
 
 def test_exit_code_priority_table():

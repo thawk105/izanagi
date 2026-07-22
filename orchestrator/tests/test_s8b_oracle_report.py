@@ -47,6 +47,7 @@ VARIANT = "same-variant"
 _DEFAULT_ABORT_PAYLOAD = object()
 _MISSING_RETURN_CODES = object()
 _T080_ABSENT = object()
+_T080_DEFAULT = object()
 
 
 @pytest.fixture(autouse=True)
@@ -204,7 +205,7 @@ def _session(layout, event: str, payload: dict) -> None:
 
 def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
                     *, block_id: str = "b0", receipt: dict | None = None,
-                    t080_observation: object = _T080_ABSENT) -> None:
+                    t080_observation: object = _T080_DEFAULT) -> None:
     contract = env_contract.lookup("linux-baremetal")
     payload = {
         "manifest_sha256": oracle_manifest.manifest_sha256(manifest),
@@ -222,7 +223,11 @@ def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
             },
         },
     }
-    if t080_observation is not _T080_ABSENT:
+    if t080_observation is _T080_DEFAULT:
+        payload["t080_freeze_migration_observation"] = {
+            "state": "never-issued", "validation_head": "0" * 40,
+        }
+    elif t080_observation is not _T080_ABSENT:
         payload["t080_freeze_migration_observation"] = t080_observation
     _session(layout, "campaign-start", payload)
 
@@ -2436,13 +2441,21 @@ def test_pre_r_campaign_start_absent_or_null_is_allowed(tmp_path, t080_value):
     )
 
     assert observations["t080_freeze_migration_observation"] is None
-    assert {row["status"] for row in observations["rows"]} == {"completed"}
-    assert all(
-        not (row.get("reason") or "").startswith(
-            "t080-freeze-migration-observation: "
+    if t080_value is _T080_ABSENT:
+        assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
+        assert all(
+            "t080-freeze-migration-observation: campaign-start に T-080 key がない"
+            in (row.get("reason") or "")
+            for row in observations["rows"]
         )
-        for row in observations["rows"]
-    )
+    else:
+        assert {row["status"] for row in observations["rows"]} == {"completed"}
+        assert all(
+            not (row.get("reason") or "").startswith(
+                "t080-freeze-migration-observation: "
+            )
+            for row in observations["rows"]
+        )
 
 
 def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
@@ -2476,8 +2489,48 @@ def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
     )
     assert roots == [repo_root, repo_root, repo_root]
     assert damaged["t080_freeze_migration_observation"] is None
-    assert {row["status"] for row in damaged["rows"]} == {"completed"}
-    assert judge.judge_oracle(damaged)["status"] == "determinate"
+    assert {row["status"] for row in damaged["rows"]} == {"protocol_violation"}
+    assert all(
+        (row.get("reason") or "").count(
+            "t080-freeze-migration-observation: campaign-start に T-080 key がない"
+        ) == 1
+        for row in damaged["rows"]
+    )
+    assert judge.judge_oracle(damaged)["status"] == "indeterminate"
+
+
+def test_historical_receipt_derivation_failure_invalidates_all_campaign_rows_g2(
+    tmp_path, monkeypatch,
+):
+    envelope = _t080_envelope()
+    history = report._t080.ReceiptResolution(
+        "invalid", (), None, envelope["validation_head"],
+        "d" * 40, {"migration_basis_commit": envelope["migration_basis_commit"]}, b"{}",
+    )
+    monkeypatch.setattr(
+        report._t080, "inspect_receipt_history", lambda **_kwargs: history,
+    )
+    monkeypatch.setattr(
+        report._t080, "_verify_historical_receipt_derivation",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            report._t080.MigrationError("receipt.derivation_mismatch", "tampered R")
+        ),
+    )
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, t080_observation=envelope)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert observations["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
+    assert all(
+        "receipt.derivation_mismatch" in (row.get("reason") or "")
+        for row in observations["rows"]
+    )
 
 
 def test_post_r_null_is_protocol_violation_for_every_campaign_row(

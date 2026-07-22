@@ -199,6 +199,7 @@ def _expected_historical_envelope(
             or history.receipt_raw is None or history.refusals
             or history.state == "issued-but-missing"):
         raise ValueError("validation_head で receipt 履歴が有効でない")
+    _t080._verify_historical_receipt_derivation(history.receipt, Path(repo_root))
     ancestries = (
         _t080._classify_ancestry(
             _t080.KNOWN_AXES_RECORDED_HEAD, validation_head, Path(repo_root),
@@ -226,9 +227,9 @@ def _campaign_t080_observation(
         return _T080CampaignObservation("unavailable")
     start = starts[0]
     if _T080_KEY not in start:
-        # R 導入前の歴史 WAL だけが持つ旧 grammar。WAL 真正性境界の
-        # 残余として許容するが、新規 producer は必ずkeyを書く。
-        return _T080CampaignObservation("absent")
+        return _T080CampaignObservation(
+            "malformed", issue=_t080_reason("campaign-start に T-080 key がない"),
+        )
     value = start[_T080_KEY]
     if value is None:
         return _T080CampaignObservation(

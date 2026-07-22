@@ -623,6 +623,27 @@ def _assert_repository_root(root: Path) -> None:
         raise MigrationError("receipt.basis_invalid", "--show-toplevel が指定 root と不一致")
 
 
+def _assert_cli_root(root: Path) -> None:
+    """書込み CLI が、この module と同じ実 repository だけを対象にする。"""
+    from orchestrator.campaign import s1_known_axes_freeze as known_module
+    from orchestrator.campaign import s8b_holdout_freeze as holdout_module
+
+    try:
+        resolved = Path(root).resolve(strict=True)
+        expected = ROOT.resolve(strict=True)
+        module_roots = (
+            Path(known_module.ROOT).resolve(strict=True),
+            Path(holdout_module.ROOT).resolve(strict=True),
+        )
+    except OSError as exc:
+        raise MigrationError("receipt.basis_invalid", "CLI root を解決できない") from exc
+    if resolved != expected or any(module_root != expected for module_root in module_roots):
+        raise MigrationError(
+            "receipt.basis_invalid",
+            "CLI root と T-080/S-1/holdout module root が一致しない",
+        )
+
+
 def _object_type(oid: str, root: Path) -> Optional[str]:
     out = _git(
         ["cat-file", "--batch-check=%(objectname) %(objecttype)"], root,
@@ -1097,6 +1118,29 @@ def _verify_receipt_derivation(
     _assert_deterministic_fields(receipt, expected)
 
 
+def _verify_historical_receipt_derivation(
+    receipt: Mapping[str, object], root: Path,
+) -> None:
+    """worktree を信じず、H_mig の凍結 artifact と source blob だけで再導出する。"""
+    basis = str(receipt.get("migration_basis_commit", ""))
+    try:
+        known_raw = _basis_blob(basis, KNOWN_AXES_REL, Path(root))
+        holdout_raw = _basis_blob(basis, HOLDOUT_REL, Path(root))
+        if (_sha256(known_raw) != KNOWN_AXES_RAW_SHA256
+                or _sha256(holdout_raw) != HOLDOUT_RAW_SHA256):
+            raise MigrationError(
+                "receipt.derivation_mismatch",
+                "H_mig の凍結 artifact bytes が固定 root と不一致",
+            )
+        known = _strict_load(known_raw, what="historical known_axes")
+        holdout = _strict_load(holdout_raw, what="historical holdout")
+        _verify_receipt_derivation(receipt, known, holdout, Path(root))
+    except MigrationError as exc:
+        if exc.reason == "receipt.derivation_mismatch":
+            raise
+        raise MigrationError("receipt.derivation_mismatch", str(exc)) from exc
+
+
 def _distances(graph: CommitGraph, basis: str) -> Mapping[str, int]:
     distances = {basis: 0}
     queue = deque([basis])
@@ -1469,6 +1513,7 @@ def draft_receipt(
     holdout_search_assertion: Optional[Callable[[Mapping[str, object]], None]] = None,
 ) -> Mapping[str, object]:
     root = Path(root)
+    _assert_cli_root(root)
     _capture_draft_basis(basis, root)
     _, known, _, holdout = _artifact_documents(root)
     repins, metadata = _derive_repins_and_metadata(basis, known, holdout, root)
@@ -1526,6 +1571,7 @@ def _validate_repin_report_git(receipt: Mapping[str, object], root: Path) -> Non
 
 def validate_draft(*, path: Path | str = DRAFT_REL, root: Path = ROOT) -> Mapping[str, object]:
     root = Path(root)
+    _assert_cli_root(root)
     rel = _repo_relative(Path(path), root)
     head = _capture_head(root)
     raw = _read_nofollow(root, rel)
@@ -1554,6 +1600,7 @@ def finalize_receipt(
     out: Path | str = RECEIPT_REL, root: Path = ROOT,
 ) -> Mapping[str, object]:
     root = Path(root)
+    _assert_cli_root(root)
     if _repo_relative(Path(out), root) != RECEIPT_REL:
         raise MigrationError("receipt.invalid", "finalize 出力は active path 固定")
     receipt = copy.deepcopy(validate_draft(path=draft, root=root))
@@ -1708,20 +1755,62 @@ def _verify_known_pairing(
         raise MigrationError("known_axes.pairing", str(exc)) from exc
 
 
-def _verify_holdout_live_scan(root: Path) -> Mapping[str, object]:
+def _verify_holdout_live_scan(
+    root: Path, holdout_doc: Mapping[str, object],
+) -> Mapping[str, object]:
     """holdout 層 2 を公開 scan API だけで再検証する。
 
-    holdout の schema・層 1・binding は凍結 JSON の raw-byte pin によって
-    migration basis 時の検証済み内容が固定される。gate では経時変化する
-    層 2 だけを live に再実行し、legacy verifier や他 module 属性は差し替えない。
+    凍結 document の検索式・照合規約・候補対応を live report に束縛してから
+    層 2 の pass 条件を検査する。legacy verifier や他 module 属性は差し替えない。
     """
     from orchestrator.campaign import s8b_holdout_freeze as holdout_module
-    report = holdout_module.search_repository(root)
     try:
+        report = holdout_module.search_repository(root)
+        frozen_holdouts = holdout_doc.get("holdouts")
+        live_holdouts = report.get("holdouts") if isinstance(report, Mapping) else None
+        candidate_names = {"rr80", "rr20"}
+        if (not isinstance(frozen_holdouts, Mapping)
+                or not isinstance(live_holdouts, Mapping)
+                or set(frozen_holdouts) != candidate_names
+                or set(live_holdouts) != candidate_names):
+            raise MigrationError(
+                "holdout.unknownness_layer2", "rr80/rr20 candidate 集合が不一致",
+            )
+        if report.get("match_convention") != holdout_doc.get("match_convention"):
+            raise MigrationError(
+                "holdout.unknownness_layer2", "match_convention が凍結記録値と不一致",
+            )
+        for name in ("rr80", "rr20"):
+            frozen = frozen_holdouts[name]
+            live = live_holdouts[name]
+            unknownness = frozen.get("unknownness_check") if isinstance(frozen, Mapping) else None
+            if (not isinstance(live, Mapping) or not isinstance(unknownness, Mapping)
+                    or live.get("candidate_id") != frozen.get("candidate_id")):
+                raise MigrationError(
+                    "holdout.unknownness_layer2", f"{name} candidate 対応が不一致",
+                )
+            if live.get("expressions") != unknownness.get("expressions"):
+                raise MigrationError(
+                    "holdout.unknownness_layer2", f"{name} expressions が凍結記録値と不一致",
+                )
         holdout_module._assert_search_pass(report)
+    except MigrationError:
+        raise
     except Exception as exc:
-        raise MigrationError("holdout.unknownness_layer2", str(exc)) from exc
+        raise MigrationError(
+            "holdout.unknownness_layer2", f"{type(exc).__name__}: {exc}",
+        ) from exc
     return report
+
+
+def _gate_check_call(reason: str, check: Callable[[], object]) -> object:
+    """gate の想定外例外を検査固有 reason へ正規化する。"""
+    try:
+        return check()
+    except MigrationError:
+        raise
+    except Exception as exc:
+        raise MigrationError(reason, f"{type(exc).__name__}: {exc}") from exc
 
 
 def _make_observation(
@@ -1771,46 +1860,72 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
     refusals: List[str] = list(history.refusals)
     known = holdout = None
     try:
-        _known_raw, known = _load_artifact(
-            root, KNOWN_AXES_REL, KNOWN_AXES_RAW_SHA256,
-            "known_axes.artifact_bytes", "known_axes",
+        _known_raw, known = _gate_check_call(
+            "known_axes.artifact_bytes",
+            lambda: _load_artifact(
+                root, KNOWN_AXES_REL, KNOWN_AXES_RAW_SHA256,
+                "known_axes.artifact_bytes", "known_axes",
+            ),
         )
     except MigrationError as exc:
         _append_refusal(refusals, KNOWN_PREFIX, exc.reason, exc.detail)
     try:
-        _holdout_raw, holdout = _load_artifact(
-            root, HOLDOUT_REL, HOLDOUT_RAW_SHA256,
-            "holdout.artifact_bytes", "holdout",
+        _holdout_raw, holdout = _gate_check_call(
+            "holdout.artifact_bytes",
+            lambda: _load_artifact(
+                root, HOLDOUT_REL, HOLDOUT_RAW_SHA256,
+                "holdout.artifact_bytes", "holdout",
+            ),
         )
     except MigrationError as exc:
         _append_refusal(refusals, HOLDOUT_PREFIX, exc.reason, exc.detail)
-    ancestries = (
-        _classify_ancestry(KNOWN_AXES_RECORDED_HEAD, head, root, artifact="known_axes"),
-        _classify_ancestry(HOLDOUT_RECORDED_HEAD, head, root, artifact="holdout"),
-    )
+    ancestries: List[AncestryResult] = []
+    for artifact, recorded in (
+        ("known_axes", KNOWN_AXES_RECORDED_HEAD),
+        ("holdout", HOLDOUT_RECORDED_HEAD),
+    ):
+        try:
+            ancestry = _gate_check_call(
+                f"{artifact}.ancestry_git_error",
+                lambda artifact=artifact, recorded=recorded: _classify_ancestry(
+                    recorded, head, root, artifact=artifact,
+                ),
+            )
+            assert isinstance(ancestry, AncestryResult)
+        except MigrationError as exc:
+            ancestry = AncestryResult("git-error", recorded, None, exc.reason)
+        ancestries.append(ancestry)
     for ancestry, prefix in zip(ancestries, (KNOWN_PREFIX, HOLDOUT_PREFIX)):
         if ancestry.refusal_reason:
             _append_refusal(refusals, prefix, ancestry.refusal_reason)
-    checks: List[Callable[[], object]] = [
-        lambda: _validate_positive_control(root),
-        lambda: _verify_holdout_live_scan(root),
+    checks: List[Tuple[str, Callable[[], object]]] = [
+        ("holdout.positive_control", lambda: _validate_positive_control(root)),
     ]
+    if holdout is not None:
+        checks.append((
+            "holdout.unknownness_layer2",
+            lambda: _verify_holdout_live_scan(root, holdout),
+        ))
     if known is not None:
-        checks.append(lambda: _verify_ccbench_current(known, root))
+        checks.append((
+            "known_axes.ccbench_current", lambda: _verify_ccbench_current(known, root),
+        ))
     if receipt is not None and known is not None:
-        checks.append(lambda: _verify_ccbench_basis_from_receipt(receipt, known, root))
-        checks.append(lambda: _verify_known_closure(receipt, known, root))
-        checks.append(lambda: _verify_known_schema(receipt, known))
-        checks.append(lambda: _verify_known_pairing(receipt, known))
+        checks.extend((
+            ("known_axes.ccbench_gitlink", lambda: _verify_ccbench_basis_from_receipt(receipt, known, root)),
+            ("known_axes.source_closure", lambda: _verify_known_closure(receipt, known, root)),
+            ("known_axes.schema", lambda: _verify_known_schema(receipt, known)),
+            ("known_axes.pairing", lambda: _verify_known_pairing(receipt, known)),
+        ))
     if receipt is not None and known is not None and holdout is not None:
         checks.extend((
-            lambda: _verify_holdout_closure(receipt, known, holdout, root),
-            lambda: _verify_metadata_closure(receipt, known, holdout, root),
-            lambda: _verify_receipt_derivation(receipt, known, holdout, root),
+            ("holdout.design_closure", lambda: _verify_holdout_closure(receipt, known, holdout, root)),
+            ("receipt.repin_invalid", lambda: _verify_metadata_closure(receipt, known, holdout, root)),
+            ("receipt.derivation_mismatch", lambda: _verify_receipt_derivation(receipt, known, holdout, root)),
         ))
-    for check in checks:
+    for reason, check in checks:
         try:
-            check()
+            _gate_check_call(reason, check)
         except MigrationError as exc:
             prefix = RECEIPT_PREFIX
             if exc.reason.startswith("known_axes."):
@@ -1886,20 +2001,20 @@ def static_gate_adapter(
             _append_refusal(refusals, prefix, reason)
     # resolution 時にも全検査済みだが、caller が別 raw を渡した場合の closure を再確認する。
     independent = (
-        lambda: _verify_known_closure(receipt, known_doc, Path(root)),
-        lambda: _verify_holdout_closure(receipt, known_doc, holdout_doc, Path(root)),
-        lambda: _verify_metadata_closure(receipt, known_doc, holdout_doc, Path(root)),
-        lambda: _verify_reconstruction_static(receipt, known_doc, holdout_doc),
-        lambda: _verify_ccbench_current(known_doc, Path(root)),
-        lambda: _verify_ccbench_basis_from_receipt(receipt, known_doc, Path(root)),
-        lambda: _validate_positive_control(Path(root)),
-        lambda: _verify_known_schema(receipt, known_doc),
-        lambda: _verify_known_pairing(receipt, known_doc),
-        lambda: _verify_holdout_live_scan(Path(root)),
+        ("known_axes.source_closure", lambda: _verify_known_closure(receipt, known_doc, Path(root))),
+        ("holdout.design_closure", lambda: _verify_holdout_closure(receipt, known_doc, holdout_doc, Path(root))),
+        ("receipt.repin_invalid", lambda: _verify_metadata_closure(receipt, known_doc, holdout_doc, Path(root))),
+        ("receipt.reconstruction_invalid", lambda: _verify_reconstruction_static(receipt, known_doc, holdout_doc)),
+        ("known_axes.ccbench_current", lambda: _verify_ccbench_current(known_doc, Path(root))),
+        ("known_axes.ccbench_gitlink", lambda: _verify_ccbench_basis_from_receipt(receipt, known_doc, Path(root))),
+        ("holdout.positive_control", lambda: _validate_positive_control(Path(root))),
+        ("known_axes.schema", lambda: _verify_known_schema(receipt, known_doc)),
+        ("known_axes.pairing", lambda: _verify_known_pairing(receipt, known_doc)),
+        ("holdout.unknownness_layer2", lambda: _verify_holdout_live_scan(Path(root), holdout_doc)),
     )
-    for check in independent:
+    for reason, check in independent:
         try:
-            check()
+            _gate_check_call(reason, check)
         except MigrationError as exc:
             prefix = RECEIPT_PREFIX
             if exc.reason.startswith("known_axes."):

@@ -435,6 +435,67 @@ def test_live_scan_evidence_ignores_only_scope_counters_not_acceptance_f2():
     assert migration._live_scan_sha256(report) != migration._live_scan_sha256(acceptance)
 
 
+def test_live_scan_is_bound_to_frozen_expressions_match_convention_and_candidates_g1():
+    holdout = json.loads((_ROOT / migration.HOLDOUT_REL).read_text(encoding="utf-8"))
+    report = {
+        "match_convention": holdout["match_convention"],
+        "holdouts": {
+            name: {
+                "candidate_id": entry["candidate_id"],
+                "expressions": copy.deepcopy(entry["unknownness_check"]["expressions"]),
+                "conjunction_hits": [],
+            }
+            for name, entry in holdout["holdouts"].items()
+        },
+        "positive_control": {"hit_count": 1},
+    }
+    original = holdout_module.search_repository
+    current = copy.deepcopy(report)
+    try:
+        holdout_module.search_repository = lambda _root: copy.deepcopy(current)
+        migration._verify_holdout_live_scan(_ROOT, holdout)
+        mutations = (
+            lambda value: value.update(match_convention="drifted"),
+            lambda value: value["holdouts"].pop("rr20"),
+            lambda value: value["holdouts"]["rr80"].update(candidate_id="H2"),
+            lambda value: value["holdouts"]["rr80"]["expressions"].update(rratio="drifted"),
+        )
+        for mutate in mutations:
+            current = copy.deepcopy(report)
+            mutate(current)
+            _expect_reason(
+                lambda: migration._verify_holdout_live_scan(_ROOT, holdout),
+                "holdout.unknownness_layer2",
+            )
+    finally:
+        holdout_module.search_repository = original
+
+
+def test_gate_normalizes_unexpected_check_exceptions_and_continues_g5():
+    temp, root = _repo_with_schema_valid_receipt()
+    originals = _patch_full_gate_to_pass()
+    reached = []
+    try:
+        migration._validate_positive_control = lambda *_args: (_ for _ in ()).throw(OSError("positive"))
+        migration._verify_holdout_live_scan = lambda *_args: (_ for _ in ()).throw(
+            holdout_module.FreezeError("scan")
+        )
+        migration._verify_ccbench_current = lambda *_args: (_ for _ in ()).throw(ValueError("ccbench"))
+        migration._verify_known_schema = lambda *_args: reached.append("known-schema")
+        result = migration.verify_receipt(root=root)
+        reasons = {item.split("[", 1)[1].split("]", 1)[0] for item in result.refusals}
+        assert reasons == {
+            "holdout.positive_control",
+            "holdout.unknownness_layer2",
+            "known_axes.ccbench_current",
+        }
+        assert reached == ["known-schema"]
+        assert result.state == "invalid"
+    finally:
+        _restore_functions(originals)
+        temp.cleanup()
+
+
 def _restore_functions(original):
     for name, value in original.items():
         setattr(migration, name, value)
