@@ -37,7 +37,10 @@ from orchestrator.campaign.s8b_prediction_runner import (
     materialize_predictions,
     resolve_journal,
 )
-from orchestrator.campaign.s8b_selector_freeze import verify_prediction_freeze
+from orchestrator.campaign.s8b_selector_freeze import (
+    build_prediction_jobs,
+    verify_prediction_freeze,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 FREEZE_PATH = ROOT / "output/s8b-freeze/holdout_freeze.json"
@@ -654,6 +657,61 @@ def test_claude_headless_rejects_reused_session_and_uses_fresh_cwd(tmp_path) -> 
     assert first_cwd != second_cwd
     assert list(first_cwd.iterdir()) == []
     assert list(second_cwd.iterdir()) == []
+
+
+def test_drive_resume_rejects_session_id_already_in_journal(tmp_path) -> None:
+    """fresh provider でも durable journal の child_id を復元して再利用を拒否する。"""
+    artifact_root = tmp_path / "artifacts"
+    executable = _executable(tmp_path)
+    runner = _FakeSubprocessRunner(_envelope(session_id="resumed-session"))
+    provider = ClaudeHeadlessProvider(
+        artifact_root=artifact_root,
+        role_file=ROOT / ".claude/agents/selector-8b.md",
+        executable=executable, runner=runner,
+        environ={"HOME": "/fixture/home"},
+    )
+    binding = _binding(
+        role_sha256=provider.role_file_sha256,
+        provider_kind=provider.provider_kind,
+        executable_path=provider.executable,
+        executable_sha256=provider.executable_sha256,
+    )
+    journal = _journal(tmp_path / "journal.jsonl", binding)
+    first_job = next(
+        job for job in build_prediction_jobs(_freeze())
+        if (job["target_holdout"], job["arm"]) == FIRST_AGENT_CELL
+    )
+    journal.append({
+        "record_type": "claim",
+        "target_holdout": first_job["target_holdout"],
+        "arm": first_job["arm"],
+        "decision_method": "selector_agent",
+        "input_payload_sha256": first_job["input_payload_sha256"],
+        "payload_path": "artifacts/payload_rr20_on.json",
+        "claimed_at": "2026-07-22T00:01:00+00:00",
+    })
+    prior_receipt = _provenance(provider.role_file_sha256, "prior")
+    prior_receipt["child_id"] = "resumed-session"
+    journal.append({
+        "record_type": "invocation",
+        "target_holdout": first_job["target_holdout"],
+        "arm": first_job["arm"],
+        "status": "valid",
+        "choice_id": "c01",
+        "rationale": "既存セルの解決済み応答",
+        "parser_error_code": None,
+        "raw_response_path": "artifacts/raw_rr20_on.txt",
+        "raw_sha256": "b" * 64,
+        "receipt": prior_receipt,
+    })
+
+    with pytest.raises(PredictionRunnerError, match="session_id 重複"):
+        drive_journal(
+            freeze=_freeze(), journal=journal, artifact_root=artifact_root,
+            root=tmp_path, binding=binding, provider=provider,
+        )
+    assert len(runner.calls) == 1
+    assert _invocation_count(journal) == 1
 
 
 def _provider_with_raw_runner(tmp_path: Path, runner) -> tuple[ClaudeHeadlessProvider, dict]:

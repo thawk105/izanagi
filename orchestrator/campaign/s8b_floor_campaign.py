@@ -497,7 +497,10 @@ def write_protocol_document(path, built: "BuiltProtocol", *, root=ROOT) -> Path:
 
 def freeze_protocol(*, confirm_user_freeze: bool, root=ROOT, isatty_fn=None,
                     receipt_verify_fn=None, after_write_fn=None) -> dict:
-    """人間の対話 shell 専用に、承認値だけから protocol を固定 path へ実凍結する。
+    """対話 shell の誤操作防壁付きで、承認値だけから protocol を固定 path へ実凍結する。
+
+    isatty は actor 認証ではなく、PTY 割当・module 直呼びで迂回可能な誤操作防壁である。
+    実効の正本は規律、guard_write hook、AI provenance 監査の組合せに置く。
 
     ``root`` と三つの callable は tmp repository で防壁を実発火させるテスト seam。
     CLI はいずれも注入せず、固定 ``ROOT`` と実 stdin/T-080 verifier を使用する。
@@ -1259,16 +1262,19 @@ def _atomic_create_only_json(
 
 def _floor_preflight_freeze_allowlist(
         root: Path, *, freeze_path: str, freeze_sha256: str,
-        protocol_sha256: str) -> dict[str, str]:
+        protocol_sha256: str,
+        _read_bytes: Optional[Callable[[Path], bytes]] = None) -> dict[str, str]:
     """official preflight が免除する実在 file を exact path + bytes hash で列挙する。
 
     protocol は呼出し時点の canonical ``protocol_sha256`` を期待値に使い、clean scan
-    側の実 bytes 照合で drift を拒否する。selector prediction と journal は official の
-    必須入力として、allowlist 構成前に v1 freeze に対する意味検証まで終える。selector
-    証拠は filesystem 上に実在する file だけを列挙し、directory prefix の免除は作らない。
+    側の実 bytes 照合で drift を拒否する。selector prediction は allowlist 構成前に
+    v1 freeze に対する意味検証まで終え、その read-once bytes を hash 値へ直接束縛する。
+    journal も必須入力として実在確認時の bytes を直接束縛する。selector 証拠は filesystem
+    上に実在する file だけを列挙し、directory prefix の免除は作らない。
     """
     root = Path(root)
     allowlist: dict[str, str] = {}
+    read_bytes = (lambda path: path.read_bytes()) if _read_bytes is None else _read_bytes
 
     prediction_path = root / _SELECTOR_PREDICTIONS_REL
     if prediction_path.is_symlink() or not prediction_path.is_file():
@@ -1277,8 +1283,8 @@ def _floor_preflight_freeze_allowlist(
         )
     freeze_file = root / freeze_path
     try:
-        freeze_bytes = freeze_file.read_bytes()
-        prediction_bytes = prediction_path.read_bytes()
+        freeze_bytes = read_bytes(freeze_file)
+        prediction_bytes = read_bytes(prediction_path)
     except OSError as exc:
         raise FloorCampaignError(
             f"launch refusal: prediction/freeze bytes を読めない: {exc}"
@@ -1303,13 +1309,19 @@ def _floor_preflight_freeze_allowlist(
         raise FloorCampaignError(
             "launch refusal: official は selector-runs/journal.jsonl 必須"
         )
+    try:
+        journal_bytes = read_bytes(journal_path)
+    except OSError as exc:
+        raise FloorCampaignError(
+            f"launch refusal: selector journal bytes を読めない: {exc}"
+        ) from exc
 
     def add_if_file(rel: str, expected_sha256: Optional[str] = None) -> None:
         path = root / rel
         if not path.is_file():
             return
         try:
-            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+            actual = hashlib.sha256(read_bytes(path)).hexdigest()
         except OSError as exc:
             raise FloorCampaignError(
                 f"launch certificate: freeze allowlist 対象を読めない: {rel}: {exc}"
@@ -1318,7 +1330,11 @@ def _floor_preflight_freeze_allowlist(
 
     add_if_file(freeze_path, freeze_sha256)
     add_if_file(_FLOOR_PROTOCOL_REL, protocol_sha256)
-    add_if_file(_SELECTOR_PREDICTIONS_REL)
+    # verify した read-once bytes 自体を allowlist 値へ束縛する。path の再読はしない。
+    allowlist[_SELECTOR_PREDICTIONS_REL] = hashlib.sha256(prediction_bytes).hexdigest()
+    allowlist[journal_path.relative_to(root).as_posix()] = hashlib.sha256(
+        journal_bytes
+    ).hexdigest()
 
     runs_dir = root / _SELECTOR_RUNS_REL
     if runs_dir.exists():
@@ -1329,7 +1345,7 @@ def _floor_preflight_freeze_allowlist(
                 f"launch certificate: selector-runs を列挙できない: {exc}"
             ) from exc
         for path in entries:
-            if path.is_file():
+            if path.is_file() and path != journal_path:
                 add_if_file(path.relative_to(root).as_posix())
     return allowlist
 

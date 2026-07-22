@@ -601,12 +601,34 @@ def drive_journal(
         if known_cells != binding.known_cells:
             raise PredictionRunnerError("freeze の固定6セルが run_header 束縛と不一致")
         statuses = resolve_journal(journal.read_records(), binding=binding)
+        observed_child_ids: set[str] = set()
+        for status in statuses.values():
+            if status.kind != "resolved":
+                continue
+            invocation = status.invocation
+            assert invocation is not None
+            receipt = invocation.get("receipt")
+            child_id = receipt.get("child_id") if isinstance(receipt, Mapping) else None
+            if not isinstance(child_id, str) or not child_id:
+                raise PredictionRunnerError(
+                    "既存 invocation receipt の child_id は空でない str 必須"
+                )
+            if child_id in observed_child_ids:
+                raise PredictionRunnerError(
+                    "既存 invocation receipt に session_id 重複を観測"
+                )
+            observed_child_ids.add(child_id)
         provider_kind = getattr(provider, "provider_kind", None)
         role_sha = getattr(provider, "role_file_sha256", None)
         if provider_kind is not None and provider_kind != binding.provider_kind:
             raise PredictionRunnerError("provider kind が run_header と不一致")
         if role_sha is not None and role_sha != binding.role_file_sha256:
             raise PredictionRunnerError("provider role sha が run_header と不一致")
+        seed_session_ids = getattr(provider, "seed_observed_session_ids", None)
+        if seed_session_ids is not None:
+            if not callable(seed_session_ids):
+                raise PredictionRunnerError("provider session_id 復元 seam が callable でない")
+            seed_session_ids(observed_child_ids)
 
         for job in jobs:
             cell = (job["target_holdout"], job["arm"])
@@ -656,6 +678,16 @@ def drive_journal(
                 raise PredictionRunnerError("provider は ProviderResponse を返さねばならない")
             if not isinstance(response.raw_response, str):
                 raise PredictionRunnerError("provider raw_response は str 必須")
+            if not isinstance(response.provenance, Mapping):
+                raise PredictionRunnerError("provider provenance は Mapping 必須")
+            response_child_id = response.provenance.get("child_id")
+            if not isinstance(response_child_id, str) or not response_child_id:
+                raise PredictionRunnerError("provider provenance.child_id は空でない str 必須")
+            if response_child_id in observed_child_ids:
+                raise PredictionRunnerError(
+                    "fresh context に反する session_id 重複を観測"
+                )
+            observed_child_ids.add(response_child_id)
             raw_bytes = response.raw_response.encode("utf-8")
             raw_path = artifact_root / f"raw_{job['target_holdout']}_{arm}.txt"
             raw_sha256 = _write_bytes_bound(raw_path, raw_bytes)
@@ -883,6 +915,15 @@ class ClaudeHeadlessProvider:
             "--mcp-config", str(self.mcp_config_path),
             "--no-session-persistence",
         ]
+
+    def seed_observed_session_ids(self, session_ids: set[str]) -> None:
+        """resume 前の journal に durable 記録済みの session_id を観測集合へ復元する。"""
+        if not isinstance(session_ids, set) or any(
+            not isinstance(session_id, str) or not session_id
+            for session_id in session_ids
+        ):
+            raise PredictionRunnerError("復元 session_id 集合が不正")
+        self._observed_session_ids.update(session_ids)
 
     def __call__(self, *, target_holdout: str, arm: str, payload: Mapping) -> ProviderResponse:
         payload_bytes = _canonical_json_bytes(payload)

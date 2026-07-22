@@ -2424,10 +2424,25 @@ def test_floor_preflight_allowlist_hashes_verified_prediction_and_selector_run_f
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(raw)
+    prediction_path = tmp_path / s8b_floor_campaign._SELECTOR_PREDICTIONS_REL
+    verified_prediction_bytes = prediction_path.read_bytes()
+    journal_path = (
+        tmp_path / s8b_floor_campaign._SELECTOR_RUNS_REL / "journal.jsonl"
+    )
+    read_counts: dict[Path, int] = {}
+
+    def read_bytes_once_for_verified_inputs(path: Path) -> bytes:
+        path = Path(path)
+        read_counts[path] = read_counts.get(path, 0) + 1
+        if path in {prediction_path, journal_path} and read_counts[path] > 1:
+            raise AssertionError(f"検証済み input を再読した: {path}")
+        return path.read_bytes()
+
     allowlist = s8b_floor_campaign._floor_preflight_freeze_allowlist(
         tmp_path, freeze_path=freeze_rel,
         freeze_sha256=freeze_sha,
         protocol_sha256=protocol_sha,
+        _read_bytes=read_bytes_once_for_verified_inputs,
     )
     expected_paths = {
         freeze_rel,
@@ -2441,6 +2456,11 @@ def test_floor_preflight_allowlist_hashes_verified_prediction_and_selector_run_f
         digest == hashlib.sha256((tmp_path / rel).read_bytes()).hexdigest()
         for rel, digest in allowlist.items()
     )
+    assert allowlist[s8b_floor_campaign._SELECTOR_PREDICTIONS_REL] == (
+        hashlib.sha256(verified_prediction_bytes).hexdigest()
+    )
+    assert read_counts[prediction_path] == 1
+    assert read_counts[journal_path] == 1
     assert all(not rel.endswith("/") for rel in allowlist)
 
 

@@ -32,6 +32,7 @@ from campaign import env_contract as EC  # noqa: E402
 from campaign import s8b_floor_campaign as FLOOR  # noqa: E402
 from campaign import s8b_floor_contract as FC  # noqa: E402
 from campaign import s8b_holdout_freeze as HF  # noqa: E402
+from campaign import s8b_prediction_runner as PR  # noqa: E402
 from campaign.durable_root import DurableRootPolicy  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
@@ -460,9 +461,11 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
     """official preflight の prediction 必須化を満たす hermetic 封印一式を注入する。
 
     all-missing の 6 行文書 (agent 4 行 = missing・provenance null、off 2 行 = static c06)
-    を実 API (build/write_prediction_freeze) で組む。emitter fixture は選択実験の代表
-    bytes ではない — preflight の必須検査 (実在 + verify_prediction_freeze 通過 +
-    journal 実在) を満たす最小形。注入済み root では no-op (g2 追記 builder と両立)。
+    と journal (run_header + 4 claim + 2 static_terminal) を実 API で組む。この封印一式は
+    production seal 由来ではない (emitter fixture の protocol は合成であり、seed tree に
+    floor_protocol.json blob は無い)。official preflight の受理集合検査専用であり、
+    protocol→seal→commit→floor の実 topology は oracle 結線 wave の E2E が別途担う。
+    注入済み root では no-op (g2 追記 builder と両立)。
     """
     predictions_path = root / "output/s8b-freeze/selector_predictions.json"
     if predictions_path.exists():
@@ -510,8 +513,55 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
     )
     SF.write_prediction_freeze(predictions_path, document)
     journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
-    journal_path.parent.mkdir(parents=True, exist_ok=True)
-    journal_path.write_bytes(b"{}\n")
+    journal = PR.PredictionJournal(journal_path)
+    jobs = SF.build_prediction_jobs(freeze)
+    binding = PR.JournalBinding(
+        pre_oracle_head=pre_oracle_head,
+        protocol_sha256=hashlib.sha256(b"emitter fixture protocol").hexdigest(),
+        freeze_sha256=hashlib.sha256(
+            (root / _PREDICTION_SOURCE_PATHS["holdout_freeze"]).read_bytes()
+        ).hexdigest(),
+        provider_kind="emitter-fixture",
+        role_file_sha256=sources["role"]["sha256"],
+        parser_module_sha256=hashlib.sha256(b"emitter fixture parser").hexdigest(),
+        claude_executable_path="/fixture/claude",
+        claude_executable_sha256=hashlib.sha256(b"emitter fixture claude").hexdigest(),
+        known_cells=frozenset(
+            (job["target_holdout"], job["arm"]) for job in jobs
+        ),
+    )
+    PR.ensure_run_header(
+        journal, binding=binding, created_at="2026-07-22T00:00:00+00:00",
+    )
+    for job in jobs:
+        if job["arm"] == "off":
+            journal.append({
+                "record_type": "static_terminal",
+                "target_holdout": job["target_holdout"],
+                "arm": job["arm"],
+                "decision_method": job["decision_method"],
+                "choice_id": job["choice_id"],
+            })
+            continue
+        journal.append({
+            "record_type": "claim",
+            "target_holdout": job["target_holdout"],
+            "arm": job["arm"],
+            "decision_method": job["decision_method"],
+            "input_payload_sha256": job["input_payload_sha256"],
+            "payload_path": (
+                "output/s8b-freeze/selector-runs/"
+                f"payload_{job['target_holdout']}_{job['arm']}.json"
+            ),
+            "claimed_at": "2026-07-22T00:01:00+00:00",
+        })
+    records = journal.read_records()
+    assert sum(record["record_type"] == "run_header" for record in records) == 1
+    assert sum(record["record_type"] == "claim" for record in records) == 4
+    assert sum(record["record_type"] == "static_terminal" for record in records) == 2
+    statuses = PR.resolve_journal(records, binding=binding)
+    assert sum(status.kind == "claimed_missing" for status in statuses.values()) == 4
+    assert sum(status.kind == "static" for status in statuses.values()) == 2
 
 
 def _emitter_artifact_paths(run_dir: Path, root: Path) -> dict[str, str]:
