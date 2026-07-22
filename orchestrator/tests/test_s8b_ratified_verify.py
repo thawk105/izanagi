@@ -30,6 +30,7 @@ from campaign import s8b_holdout_freeze as HF  # noqa: E402
 from campaign import env_contract as EC  # noqa: E402
 from campaign import s8b_floor_contract as FC  # noqa: E402
 from campaign import s8b_floor_stats as FS  # noqa: E402
+from campaign import s8b_selector_freeze as SF  # noqa: E402
 import test_s8b_ratified_freeze as B  # noqa: E402  (fixture 共用)
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
@@ -1369,8 +1370,7 @@ def test_selector_exact_exemption_rejects_undeclared_selector_run_hit(tmp_path):
     _need_v1()
     orphan = "output/s8b-freeze/selector-runs/envelope_orphan.json"
     root, freeze, _ = _build_launch_repo(
-        tmp_path,
-        selector_extra_files=[(orphan, B._RR80_PARAMS)],
+        tmp_path, selector_extra_files=[(orphan, B._RR80_PARAMS)],
     )
     exempt = M._selector_evidence_exempt_exact(head=freeze.activation_head, root=root)
     assert orphan not in exempt
@@ -1432,16 +1432,74 @@ def test_selector_exact_exemption_rejects_coherent_wrong_raw_sha(tmp_path):
     assert caught.value.cause == "selector-evidence-hash"
 
 
+def test_selector_exact_exemption_rejects_prediction_source_blob_hash_mismatch(
+        tmp_path):
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    predictions = root / "output/s8b-freeze/selector_predictions.json"
+    document = json.loads(predictions.read_bytes())
+    document["sources"]["builder"]["sha256"] = "0" * 64
+    _rehash_selector_prediction(document)
+    predictions.write_bytes(B._json_bytes(document))
+    head = B._fixed_commit_all(root, "bad selector source hash", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-evidence-hash"
+
+
+def test_selector_exact_exemption_rejects_self_declared_wrong_protocol_sha(tmp_path):
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    records = [json.loads(line) for line in journal_path.read_text().splitlines()]
+    records[0]["protocol_sha256"] = "0" * 64
+    journal_path.write_bytes(B._jsonl_bytes(records))
+    head = B._fixed_commit_all(root, "self declared wrong protocol", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-declaration-invalid"
+
+
+def test_selector_launch_projection_ignores_current_choice_semantics(
+        tmp_path, monkeypatch):
+    _need_v1()
+    root, freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    baseline = M._selector_evidence_exempt_exact(
+        head=freeze.activation_head, root=root,
+    )
+    monkeypatch.setattr(SF, "CHOICE_TO_BINDING", {"future": "future-binding"})
+    monkeypatch.setattr(SF, "STATIC_DEFAULT_CHOICE_ID", "future-default")
+    monkeypatch.setattr(
+        SF, "selector_basis_sha256",
+        lambda _freeze: (_ for _ in ()).throw(AssertionError("launch must not rederive basis")),
+    )
+    monkeypatch.setattr(
+        SF, "_derive_swapped_expectations",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("launch must not rederive swap")),
+    )
+    assert M._selector_evidence_exempt_exact(
+        head=freeze.activation_head, root=root,
+    ) == baseline
+
+
 def test_selector_exact_exemption_rejects_nonancestor_pre_oracle_head(tmp_path):
     _need_v1()
     root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
-    empty_tree = B._git(root, "mktree", stdin=b"")
-    unrelated = B._git(root, "commit-tree", empty_tree, stdin=b"unrelated\n")
     predictions = root / "output/s8b-freeze/selector_predictions.json"
     document = json.loads(predictions.read_bytes())
+    source_tree = B._git(
+        root, "rev-parse", f"{document['pre_oracle_head']}^{{tree}}",
+    )
+    unrelated = B._git(root, "commit-tree", source_tree, stdin=b"unrelated\n")
     document["pre_oracle_head"] = unrelated
     _rehash_selector_prediction(document)
     predictions.write_bytes(B._json_bytes(document))
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    records = [json.loads(line) for line in journal_path.read_text().splitlines()]
+    records[0]["pre_oracle_head"] = unrelated
+    journal_path.write_bytes(B._jsonl_bytes(records))
     head = B._fixed_commit_all(root, "non ancestor prediction", "fixture")
     with pytest.raises(M.RatifiedFreezeError) as caught:
         M._selector_evidence_exempt_exact(head=head, root=root)

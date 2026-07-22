@@ -335,7 +335,7 @@ def _fsync_directory(path: Path) -> None:
         os.close(fd)
 
 
-def _validate_header(record: Mapping, *, binding: JournalBinding) -> None:
+def _validate_header_schema(record: Mapping) -> None:
     if set(record) != _HEADER_KEYS:
         raise PredictionRunnerError(
             "run_header schema 不一致: "
@@ -345,6 +345,25 @@ def _validate_header(record: Mapping, *, binding: JournalBinding) -> None:
     if record.get("record_type") != "run_header" or record.get("seq") != 1:
         raise PredictionRunnerError("journal 最初の record は seq=1 の run_header 必須")
     _validate_timestamp(record.get("created_at"), field="run_header.created_at")
+    if (not isinstance(record.get("pre_oracle_head"), str)
+            or _GIT_SHA_RE.fullmatch(record["pre_oracle_head"]) is None):
+        raise PredictionRunnerError("run_header.pre_oracle_head が不正")
+    for field in (
+        "protocol_sha256", "freeze_sha256", "role_file_sha256",
+        "parser_module_sha256", "claude_executable_sha256",
+    ):
+        value = record.get(field)
+        if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+            raise PredictionRunnerError(f"run_header.{field} が不正")
+    if not isinstance(record.get("provider_kind"), str) or not record["provider_kind"].strip():
+        raise PredictionRunnerError("run_header.provider_kind が不正")
+    executable = record.get("claude_executable_path")
+    if not isinstance(executable, str) or not Path(executable).is_absolute():
+        raise PredictionRunnerError("run_header.claude_executable_path が不正")
+
+
+def _validate_header(record: Mapping, *, binding: JournalBinding) -> None:
+    _validate_header_schema(record)
     for field, expected in binding.header_values().items():
         if record.get(field) != expected:
             raise PredictionRunnerError(
@@ -525,6 +544,108 @@ def resolve_journal(
                 cell[0], cell[1], "resolved", claim=claim,
                 envelope=envelopes.get(cell), invocation=invocation,
             )
+    return statuses
+
+
+_LAUNCH_BOUND_HEADER_FIELDS = frozenset({
+    "pre_oracle_head", "protocol_sha256", "freeze_sha256",
+    "role_file_sha256", "parser_module_sha256",
+})
+
+
+def resolve_journal_for_launch(
+    records: Sequence[Mapping], *, expected_header: Mapping,
+    known_cells: frozenset[tuple[str, str]],
+) -> dict[tuple[str, str], CellStatus]:
+    """launch の歴史 blob 射影で journal を検証する。
+
+    ``expected_header`` の5項だけが pre-oracle tree / prediction / v1 から独立に
+    錨定される。provider kind と executable provenance は journal 内部の運転記録であり、
+    selector evidence の免除判定には load-bearing でないため、schema 検査だけを行う。
+    現在 checkout の choice mapping / static default 値も参照しない。
+    """
+    if set(expected_header) != _LAUNCH_BOUND_HEADER_FIELDS:
+        raise PredictionRunnerError("launch journal expected_header の key 集合が不正")
+    if not records:
+        raise PredictionRunnerError("journal に必須 run_header がない")
+    header = records[0]
+    _validate_header_schema(header)
+    for field, expected in expected_header.items():
+        if header.get(field) != expected:
+            raise PredictionRunnerError(
+                f"run_header.{field} が歴史 blob 束縛と不一致: "
+                f"recorded={header.get(field)!r} expected={expected!r}"
+            )
+    for index, record in enumerate(records, start=1):
+        seq = record.get("seq")
+        if isinstance(seq, bool) or seq != index:
+            raise PredictionRunnerError(
+                f"journal[{index - 1}].seq が append 順と不一致: {seq!r} != {index}"
+            )
+
+    claims: dict[tuple[str, str], Mapping] = {}
+    envelopes: dict[tuple[str, str], Mapping] = {}
+    invocations: dict[tuple[str, str], Mapping] = {}
+    statics: dict[tuple[str, str], Mapping] = {}
+    for index, record in enumerate(records[1:], start=1):
+        record_type = _validate_record_shape(record, index=index)
+        cell = (record["target_holdout"], record["arm"])
+        if cell not in known_cells:
+            raise PredictionRunnerError(
+                f"protocol violation: freeze cell 外の journal record: {cell!r}"
+            )
+        is_off = cell[1] == OFF_ARM
+        if record_type == "claim":
+            if is_off or cell in claims:
+                raise PredictionRunnerError(f"protocol violation: claim が不正/重複: {cell!r}")
+            if (not isinstance(record.get("decision_method"), str)
+                    or not record["decision_method"].strip()):
+                raise PredictionRunnerError(f"journal[{index}]: claim decision_method 不正")
+            claims[cell] = record
+        elif record_type == "envelope":
+            if is_off or cell not in claims or cell in envelopes or cell in invocations:
+                raise PredictionRunnerError(
+                    f"protocol violation: envelope の順序/重複が不正: {cell!r}"
+                )
+            if (not isinstance(record.get("envelope_path"), str)
+                    or not record["envelope_path"]
+                    or not isinstance(record.get("envelope_sha256"), str)
+                    or _SHA256_RE.fullmatch(record["envelope_sha256"]) is None):
+                raise PredictionRunnerError(
+                    f"journal[{index}]: envelope path/sha256 が不正"
+                )
+            envelopes[cell] = record
+        elif record_type == "invocation":
+            if is_off or cell not in claims or cell in invocations:
+                raise PredictionRunnerError(
+                    f"protocol violation: invocation の順序/重複が不正: {cell!r}"
+                )
+            if cell not in envelopes:
+                raise PredictionRunnerError(
+                    f"protocol violation: envelope 宣言なき invocation: {cell!r}"
+                )
+            invocations[cell] = record
+        else:
+            if (not is_off or cell in claims or cell in statics
+                    or not isinstance(record.get("decision_method"), str)
+                    or not record["decision_method"].strip()
+                    or not isinstance(record.get("choice_id"), str)
+                    or not record["choice_id"].strip()):
+                raise PredictionRunnerError(
+                    f"protocol violation: static terminal が不正/重複: {cell!r}"
+                )
+            statics[cell] = record
+
+    statuses: dict[tuple[str, str], CellStatus] = {
+        cell: CellStatus(cell[0], cell[1], "static", static=record)
+        for cell, record in statics.items()
+    }
+    for cell, claim in claims.items():
+        invocation = invocations.get(cell)
+        statuses[cell] = CellStatus(
+            cell[0], cell[1], "claimed_missing" if invocation is None else "resolved",
+            claim=claim, envelope=envelopes.get(cell), invocation=invocation,
+        )
     return statuses
 
 
@@ -1158,6 +1279,16 @@ def _assert_selector_run_declarations(
     """selector-runs の実在 file と journal 宣言を双方向 exact で照合する。"""
     records = journal.read_records()
     resolve_journal(records, binding=binding)
+    _assert_selector_run_declarations_from_validated_records(
+        root=root, journal=journal, records=records,
+    )
+
+
+def _assert_selector_run_declarations_from_validated_records(
+        *, root: Path, journal: PredictionJournal,
+        records: Sequence[Mapping],
+) -> None:
+    """独立 verifier 済み records の path/hash 宣言だけを filesystem と照合する。"""
     selector_root = journal.path.parent
     journal_rel = _relative_artifact(journal.path, root=root)
     declared: dict[str, str | None] = {journal_rel: None}

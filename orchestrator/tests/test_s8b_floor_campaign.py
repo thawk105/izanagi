@@ -155,7 +155,7 @@ def _protocol(*, freeze_sha: str, master_seed: str = "fixture-seed",
         "env_tag": env_tag,
         "contract_sha256": contract_sha256,
         "ccbench_pin": "0" * 40,
-        "freeze": {"path": "output/s8b-freeze/fixture_freeze.json", "sha256": freeze_sha},
+        "freeze": {"path": "output/fixture_freeze.json", "sha256": freeze_sha},
         "stock_configuration": _STOCK,
         "n_sessions": n_sessions,
         "reps": reps,
@@ -524,6 +524,7 @@ def _init_real_clean_repo(repo_root: Path, freeze: dict, protocol: dict) -> None
         freeze, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8"))
     bounded_freeze_path = repo_root / s8b_floor_campaign._HOLDOUT_FREEZE_REL
+    bounded_freeze_path.parent.mkdir(parents=True, exist_ok=True)
     bounded_freeze_path.write_bytes(freeze_path.read_bytes())
     contract = ec.lookup(protocol["env_tag"])
     calibration_path = repo_root / contract.calibration_ref.path
@@ -2281,7 +2282,7 @@ def _stub_clean_scan(monkeypatch, *, reports, enumerations) -> None:
 
 def _expected_clean_digest(files, allowlist) -> str:
     preimage = {
-        "schema": "s8b-clean-scan-digest/v2",
+        "schema": "s8b-clean-scan-digest/v3",
         "repository_files": list(files),
         "freeze_allowlist": [
             {"path": path, "sha256": allowlist[path]}
@@ -2329,7 +2330,7 @@ def test_clean_scan_digest_rejects_file_enumeration_change(tmp_path, monkeypatch
 
 
 def test_clean_scan_digest_rejects_freeze_file_outside_allowlist(tmp_path, monkeypatch):
-    rel = "output/s8b-freeze/selector-runs/undeclared.json"
+    rel = "output/s8b-freeze/unlisted.json"
     path = tmp_path / rel
     path.parent.mkdir(parents=True)
     path.write_bytes(b"no holdout hit")
@@ -2337,7 +2338,7 @@ def test_clean_scan_digest_rejects_freeze_file_outside_allowlist(tmp_path, monke
     _stub_clean_scan(
         monkeypatch, reports=[_clean_report()], enumerations=[files, files],
     )
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="allowlist"):
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="未知 file"):
         s8b_floor_campaign.clean_scan_digest(tmp_path, freeze_allowlist={})
 
 
@@ -2410,6 +2411,7 @@ def test_clean_scan_digest_rejects_allowlist_entry_deleted_after_construction(
     "output/s8b-freeze//floor_protocol.json",
     "output/./s8b-freeze/floor_protocol.json",
     "output/s8b-freeze/floor_protocol.json\x00",
+    "output/s8b-freeze/floor_protocol.json\x85",
     "output/s8b-freeze/\udcff.json",
 ])
 def test_clean_scan_digest_rejects_noncanonical_allowlist_path(
@@ -2423,18 +2425,50 @@ def test_clean_scan_digest_rejects_noncanonical_allowlist_path(
         )
 
 
-def test_clean_scan_digest_leaves_chain_record_directories_to_chain_validator(
+def test_clean_scan_digest_binds_recognized_chain_record_path_and_bytes(
         tmp_path, monkeypatch):
-    chain_file = tmp_path / "output/s8b-freeze/approvals/record.json"
+    rel = f"output/s8b-freeze/approvals/{'a' * 64}.json"
+    chain_file = tmp_path / rel
     chain_file.parent.mkdir(parents=True)
     chain_file.write_bytes(b"chain-owned")
-    files = ("output/s8b-freeze/approvals/record.json",)
+    files = (rel,)
     _stub_clean_scan(
         monkeypatch, reports=[_clean_report()], enumerations=[files, files],
     )
     assert s8b_floor_campaign.clean_scan_digest(
         tmp_path, freeze_allowlist={},
-    ) == _expected_clean_digest(files, {})
+    ) == _expected_clean_digest(files, {
+        rel: hashlib.sha256(chain_file.read_bytes()).hexdigest(),
+    })
+
+
+def test_clean_scan_digest_rejects_unknown_chain_filename(tmp_path, monkeypatch):
+    rel = "output/s8b-freeze/approvals/record.json"
+    chain_file = tmp_path / rel
+    chain_file.parent.mkdir(parents=True)
+    chain_file.write_bytes(b"not a named chain record")
+    files = (rel,)
+    _stub_clean_scan(
+        monkeypatch, reports=[_clean_report()], enumerations=[files, files],
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="未知 file"):
+        s8b_floor_campaign.clean_scan_digest(tmp_path, freeze_allowlist={})
+
+
+def test_clean_scan_digest_rejects_symlink_anywhere_in_freeze_namespace(
+        tmp_path, monkeypatch):
+    target = tmp_path / "target.json"
+    target.write_bytes(b"target")
+    rel = f"output/s8b-freeze/approvals/{'b' * 64}.json"
+    link = tmp_path / rel
+    link.parent.mkdir(parents=True)
+    link.symlink_to(target)
+    files = (rel,)
+    _stub_clean_scan(
+        monkeypatch, reports=[_clean_report()], enumerations=[files, files],
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="symlink"):
+        s8b_floor_campaign.clean_scan_digest(tmp_path, freeze_allowlist={})
 
 
 def _install_valid_prediction_preflight_fixture(
@@ -2452,6 +2486,10 @@ def _install_valid_prediction_preflight_fixture(
         destination = root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / relative, destination)
+    parser_rel = s8b_prediction_runner._PARSER_MODULE_PATH.as_posix()
+    parser_path = root / parser_rel
+    parser_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / parser_rel, parser_path)
     protocol_path = root / s8b_floor_campaign._FLOOR_PROTOCOL_REL
     protocol_path.parent.mkdir(parents=True, exist_ok=True)
     protocol_path.write_bytes(b"canonical-protocol")
@@ -2477,7 +2515,7 @@ def _install_valid_prediction_preflight_fixture(
         freeze_sha256=freeze_sha,
         provider_kind=s8b_prediction_runner.PROVIDER_KIND_CLAUDE_HEADLESS,
         role_file_sha256=role_sha,
-        parser_module_sha256="d" * 64,
+        parser_module_sha256=hashlib.sha256(parser_path.read_bytes()).hexdigest(),
         claude_executable_path="/fixture/claude",
         claude_executable_sha256="e" * 64,
         known_cells=frozenset(
@@ -3124,6 +3162,31 @@ def test_official_preflight_rejects_digest_shift_between_independent_scans(
             freeze_allowlist={},
         )
     assert len(calls) == 2
+
+
+def test_second_scan_digest_shift_persists_claim_but_issues_no_certificate(
+        tmp_path, monkeypatch):
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    claim_root = _provision_claim_root(ctx)
+    digests = iter(("b" * 64, "d" * 64))
+    monkeypatch.setattr(
+        s8b_floor_campaign, "clean_scan_digest",
+        lambda root, *, freeze_allowlist: next(digests),
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
+        s8b_floor_campaign._run_campaign_core(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+            process_identity_fn=_fixed_process,
+            build_fn=_make_fake_build(tmp_path / "bin"), repo_root=ctx["repo_root"],
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+            _floor_preflight_fn=lambda *args, **kwargs: {},
+        )
+    assert len(list(claim_root.glob("*.claim"))) == 1
+    assert not list(ctx["out_root"].rglob("launch_certificate.json"))
 
 
 def test_revalidate_issued_certificate_accepts_independent_clean_digest(tmp_path):

@@ -703,6 +703,130 @@ def _validate_prediction_document(
     return projected, rows
 
 
+def _validate_prediction_document_for_launch(
+    document: Mapping, *, freeze: Mapping,
+) -> tuple[dict, list[dict]]:
+    """seal 時の意味定数を再導出せず、launch に必要な構造射影だけを検証する。
+
+    ``body_sha256`` が seal 時の selector basis / choice mapping / static default /
+    swapped expectations を文書内で束縛する。launch はそれらを現在 checkout の定数で
+    再解釈せず、top-level exact schema、freeze 由来 cell 集合、row tagged-union の
+    null/non-null 形状だけを検査する。
+    """
+    if not isinstance(document, Mapping) or set(document) != _DOCUMENT_KEYS:
+        raise SelectorFreezeError("prediction freeze top-level schema が不一致")
+    projected = copy.deepcopy(dict(document))
+    if projected.get("schema_version") != SCHEMA_VERSION:
+        raise SelectorFreezeError("prediction freeze schema_version が不一致")
+    recorded_body_sha = _sha256_string(projected.get("body_sha256"), field="body_sha256")
+    body = {
+        key: copy.deepcopy(value) for key, value in projected.items()
+        if key != "body_sha256"
+    }
+    if _canonical_sha256(body) != recorded_body_sha:
+        raise SelectorFreezeError("prediction freeze body_sha256 が不一致")
+    _nonempty_string(projected.get("generated_at"), field="generated_at")
+    if (not isinstance(projected.get("pre_oracle_head"), str)
+            or _GIT_SHA_RE.fullmatch(projected["pre_oracle_head"]) is None):
+        raise SelectorFreezeError("pre_oracle_head が不正")
+    _sha256_string(
+        projected.get("selector_basis_sha256"), field="selector_basis_sha256",
+    )
+    sources = _validate_sources(projected.get("sources"))
+    _holdouts, _derangement, targets = _freeze_axes(freeze)
+    expected_cells = {(target, arm) for target in targets for arm in ARMS}
+    raw_rows = projected.get("rows")
+    if isinstance(raw_rows, (str, bytes)) or not isinstance(raw_rows, Sequence):
+        raise SelectorFreezeError("rows は配列でなければならない")
+    if len(raw_rows) != len(expected_cells):
+        raise SelectorFreezeError(f"prediction row はちょうど{len(expected_cells)}行必要")
+
+    rows: list[dict] = []
+    observed: set[tuple[str, str]] = set()
+    for index, raw in enumerate(raw_rows):
+        if not isinstance(raw, Mapping) or set(raw) != _ROW_KEYS:
+            keys = set(raw) if isinstance(raw, Mapping) else set()
+            raise SelectorFreezeError(
+                f"rows[{index}] schema 不一致: "
+                f"missing={sorted(_ROW_KEYS - keys)} unknown={sorted(keys - _ROW_KEYS)}"
+            )
+        row = copy.deepcopy(dict(raw))
+        target, arm = row["target_holdout"], row["arm"]
+        if not isinstance(target, str) or not isinstance(arm, str):
+            raise SelectorFreezeError(f"rows[{index}] の target/arm は文字列必須")
+        cell = (target, arm)
+        if cell not in expected_cells or cell in observed:
+            raise SelectorFreezeError(f"prediction cell が未知または重複: {cell!r}")
+        observed.add(cell)
+        _nonempty_string(row["decision_method"], field=f"rows[{index}].decision_method")
+        status = row["status"]
+        if status not in {"valid", "invalid", "missing"}:
+            raise SelectorFreezeError(f"rows[{index}].status が不正")
+
+        if arm == "off":
+            if (row["descriptor_source_holdout"] is not None
+                    or row["input_payload_sha256"] is not None
+                    or status != "valid"):
+                raise SelectorFreezeError("off row の tagged-union 形状が不正")
+            _nonempty_string(row["choice_id"], field=f"rows[{index}].choice_id")
+            _nonempty_string(row["binding_key"], field=f"rows[{index}].binding_key")
+            _sha256_string(
+                row["binding_entry_sha256"],
+                field=f"rows[{index}].binding_entry_sha256",
+            )
+            if any(row[field] is not None for field in (
+                "rationale", "raw_response_path", "raw_sha256",
+                "parser_error_code", "agent_provenance",
+            )):
+                raise SelectorFreezeError("off row に agent output がある")
+        else:
+            _nonempty_string(
+                row["descriptor_source_holdout"],
+                field=f"rows[{index}].descriptor_source_holdout",
+            )
+            _sha256_string(
+                row["input_payload_sha256"],
+                field=f"rows[{index}].input_payload_sha256",
+            )
+            if status == "missing":
+                if any(row[field] is not None for field in (
+                    "choice_id", "binding_key", "binding_entry_sha256", "rationale",
+                    "raw_response_path", "raw_sha256", "parser_error_code",
+                    "agent_provenance",
+                )):
+                    raise SelectorFreezeError("missing row の result field は null 固定")
+            else:
+                if not isinstance(row["agent_provenance"], Mapping):
+                    raise SelectorFreezeError("resolved row の agent_provenance が object でない")
+                _nonempty_string(
+                    row["raw_response_path"], field=f"rows[{index}].raw_response_path",
+                )
+                _sha256_string(row["raw_sha256"], field=f"rows[{index}].raw_sha256")
+                if status == "invalid":
+                    if any(row[field] is not None for field in (
+                        "choice_id", "binding_key", "binding_entry_sha256", "rationale",
+                    )):
+                        raise SelectorFreezeError("invalid row の choice/binding/rationale は null 固定")
+                    _nonempty_string(
+                        row["parser_error_code"],
+                        field=f"rows[{index}].parser_error_code",
+                    )
+                else:
+                    _nonempty_string(row["choice_id"], field=f"rows[{index}].choice_id")
+                    _nonempty_string(row["binding_key"], field=f"rows[{index}].binding_key")
+                    _sha256_string(
+                        row["binding_entry_sha256"],
+                        field=f"rows[{index}].binding_entry_sha256",
+                    )
+                    _nonempty_string(row["rationale"], field=f"rows[{index}].rationale")
+                    if row["parser_error_code"] is not None:
+                        raise SelectorFreezeError("valid row の parser_error_code は null 固定")
+        rows.append(row)
+    if observed != expected_cells:
+        raise SelectorFreezeError("prediction cell 集合が freeze axes と不一致")
+    return projected, rows
+
+
 def _validate_prediction_document_bytes(
         raw: bytes, *, freeze: Mapping, source="selector_predictions.json",
 ) -> tuple[dict, list[dict]]:

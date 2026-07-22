@@ -151,14 +151,15 @@ def parse_official_run_path(path_str: str, *, expected_basename: str) -> dict:
     if (not isinstance(expected_basename, str) or not expected_basename
             or expected_basename in {".", ".."}
             or "/" in expected_basename or "\\" in expected_basename
-            or any(ord(char) < 32 or ord(char) == 127 for char in expected_basename)):
+            or any(ord(char) < 32 or 127 <= ord(char) <= 159
+                   for char in expected_basename)):
         raise LaunchCertError("expected_basename が単一の安全な basename でない")
 
     # Path/PurePosixPath へ渡す前の raw 文字列で拒否する。正規化による交差受理を作らない。
     components = path_str.split("/")
     if (path_str.startswith("/") or path_str.endswith("/") or "//" in path_str
             or "\\" in path_str or "." in components or ".." in components
-            or any(ord(char) < 32 or ord(char) == 127 for char in path_str)):
+            or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in path_str)):
         raise LaunchCertError("official path の raw POSIX 表記が不正")
 
     match = _OFFICIAL_PATH_RE.fullmatch(path_str)

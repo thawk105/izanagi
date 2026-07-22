@@ -422,6 +422,7 @@ def _jsonl_bytes(records) -> bytes:
 def _prepare_emitter_base(
         root: Path, *, selector_valid_cell: bool = False,
         selector_extra_files=(), selector_payload_hit: bool = False,
+        master_seed: str = "fixture-seed",
 ) -> tuple[dict, str, str, bytes, bytes]:
     _init_fixed_repo(root)
     ccbench_pin = _make_fixed_ccbench(root)
@@ -447,6 +448,17 @@ def _prepare_emitter_base(
             continue
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes((Path(_ROOT) / relative).read_bytes())
+    parser_destination = root / _PREDICTION_PARSER_PATH
+    parser_destination.parent.mkdir(parents=True, exist_ok=True)
+    parser_destination.write_bytes((Path(_ROOT) / _PREDICTION_PARSER_PATH).read_bytes())
+    protocol_raw = FLOOR._canonical_bytes(
+        _emitter_protocol(ccbench_pin=ccbench_pin, master_seed=master_seed)
+    )
+    _write(root, FLOOR._FLOOR_PROTOCOL_REL, protocol_raw)
+    protocol_hits = HF.holdout_conjunction_hits({
+        FLOOR._FLOOR_PROTOCOL_REL: protocol_raw.decode("utf-8"),
+    })
+    assert all(not paths for paths in protocol_hits.values()), protocol_hits
     # official preflight の prediction 必須化 (protocol → prediction → floor の機構強制)
     # を満たす封印一式を base commit に含める。pre_oracle_head の commit pin は実在
     # commit を要求するため、seed commit を先に切って参照する (namespace clean 検査は
@@ -454,14 +466,8 @@ def _prepare_emitter_base(
     seed = _fixed_commit_all(root, "emitter fixture seed", "fixture")
     _install_emitter_selector_prediction(
         root, pre_oracle_head=seed, production_valid=selector_valid_cell,
+        selector_payload_hit=selector_payload_hit,
     )
-    for relative, raw in selector_extra_files:
-        _write(root, relative, raw)
-    if selector_payload_hit:
-        payload = root / "output/s8b-freeze/selector-runs/payload_rr20_on.json"
-        if not payload.is_file():
-            raise AssertionError("selector_payload_hit は production valid fixture 専用")
-        payload.write_bytes(_RR80_PARAMS)
     base = _fixed_commit_all(root, "emitter fixture base", "fixture")
     assert _fixed_git(root, "status", "--porcelain") == ""
     return v1, ccbench_pin, base, design_raw, generator_raw
@@ -474,18 +480,20 @@ _PREDICTION_SOURCE_PATHS = {
     "input_schema": "orchestrator/campaign/s8b_selector_catalog.json",
     "output_schema": "orchestrator/campaign/s8b_selector_output_schema.json",
 }
+_PREDICTION_PARSER_PATH = "orchestrator/campaign/s8b_selector_output.py"
 
 
 def _install_emitter_selector_prediction(
         root: Path, *, pre_oracle_head: str, production_valid: bool = False,
+        selector_payload_hit: bool = False,
 ) -> None:
     """official preflight の prediction 必須化を満たす hermetic 封印一式を注入する。
 
     all-missing の 6 行文書 (agent 4 行 = missing・provenance null、off 2 行 = static c06)
     と journal (run_header + 4 claim + 2 static_terminal) を実 API で組む。この封印一式は
-    production seal 由来ではない (emitter fixture の protocol は合成であり、seed tree に
-    floor_protocol.json blob は無い)。official preflight の受理集合検査専用であり、
-    protocol→seal→commit→floor の実 topology は oracle 結線 wave の E2E が別途担う。
+    production seal 由来ではないが、合成 protocol の canonical bytes を seed tree に置き、
+    protocol commit→seal と同じ topology を模倣する。official preflight の受理集合検査専用であり、
+    production protocol の実 pin は oracle 結線 wave の E2E が別途担う。
     注入済み root では no-op (g2 追記 builder と両立)。
     """
     predictions_path = root / "output/s8b-freeze/selector_predictions.json"
@@ -514,7 +522,9 @@ def _install_emitter_selector_prediction(
     jobs = SF.build_prediction_jobs(freeze)
     binding = PR.JournalBinding(
         pre_oracle_head=pre_oracle_head,
-        protocol_sha256=hashlib.sha256(b"emitter fixture protocol").hexdigest(),
+        protocol_sha256=hashlib.sha256(
+            (root / FLOOR._FLOOR_PROTOCOL_REL).read_bytes()
+        ).hexdigest(),
         freeze_sha256=hashlib.sha256(
             (root / _PREDICTION_SOURCE_PATHS["holdout_freeze"]).read_bytes()
         ).hexdigest(),
@@ -522,7 +532,9 @@ def _install_emitter_selector_prediction(
             PR.PROVIDER_KIND_CLAUDE_HEADLESS if production_valid else "emitter-fixture"
         ),
         role_file_sha256=sources["role"]["sha256"],
-        parser_module_sha256=hashlib.sha256(b"emitter fixture parser").hexdigest(),
+        parser_module_sha256=hashlib.sha256(
+            (root / _PREDICTION_PARSER_PATH).read_bytes()
+        ).hexdigest(),
         claude_executable_path="/fixture/claude",
         claude_executable_sha256=hashlib.sha256(b"emitter fixture claude").hexdigest(),
         known_cells=frozenset(
@@ -604,6 +616,27 @@ def _install_emitter_selector_prediction(
             }, binding=binding,
         )
         (journal_path.parent / ".lock").unlink()
+        if selector_payload_hit:
+            payload_rel = "output/s8b-freeze/selector-runs/payload_rr20_on.json"
+            payload_sha = hashlib.sha256(_RR80_PARAMS).hexdigest()
+            (root / payload_rel).write_bytes(_RR80_PARAMS)
+            records = journal.read_records()
+            claim = next(record for record in records if (
+                record["record_type"] == "claim"
+                and record["target_holdout"] == "rr20"
+                and record["arm"] == "on"
+            ))
+            claim["input_payload_sha256"] = payload_sha
+            journal_path.write_bytes(_jsonl_bytes(records))
+            row = next(row for row in document["rows"] if (
+                row["target_holdout"] == "rr20" and row["arm"] == "on"
+            ))
+            row["input_payload_sha256"] = payload_sha
+            document["body_sha256"] = SF._canonical_sha256({
+                key: value for key, value in document.items() if key != "body_sha256"
+            })
+            predictions_path.write_bytes(_json_bytes(document))
+            journal = PR.PredictionJournal(journal_path)
         PR._assert_selector_run_declarations(
             root=root, journal=journal, binding=binding,
         )
@@ -631,16 +664,20 @@ def _install_emitter_selector_prediction(
             "raw_response_path": None, "raw_sha256": None,
             "parser_error_code": None, "agent_provenance": None,
         })
+        payload_path = (
+            "output/s8b-freeze/selector-runs/"
+            f"payload_{job['target_holdout']}_{job['arm']}.json"
+        )
+        payload_raw = PR._canonical_json_bytes(PR._payload_for_job(freeze, job))
+        assert hashlib.sha256(payload_raw).hexdigest() == job["input_payload_sha256"]
+        _write(root, payload_path, payload_raw)
         journal.append({
             "record_type": "claim",
             "target_holdout": job["target_holdout"],
             "arm": job["arm"],
             "decision_method": job["decision_method"],
             "input_payload_sha256": job["input_payload_sha256"],
-            "payload_path": (
-                "output/s8b-freeze/selector-runs/"
-                f"payload_{job['target_holdout']}_{job['arm']}.json"
-            ),
+            "payload_path": payload_path,
             "claimed_at": "2026-07-22T00:01:00+00:00",
         })
     document = SF.build_prediction_freeze(
@@ -711,6 +748,18 @@ def build_production_emitter_g1(
             root, [rel], subject="launch certificate", agent="fixture",
         )
 
+    def payload_hit_preflight(repo_root: Path, **_kwargs) -> dict[str, str]:
+        paths = set(FLOOR._PREFLIGHT_FIXED_FILES)
+        paths.update(
+            path.relative_to(repo_root).as_posix()
+            for path in (repo_root / FLOOR._SELECTOR_RUNS_REL).iterdir()
+            if path.is_file() and not path.is_symlink()
+        )
+        return {
+            rel: hashlib.sha256((repo_root / rel).read_bytes()).hexdigest()
+            for rel in paths
+        }
+
     outcome = FLOOR._run_campaign_core(
         protocol, verified, out_root=out_root, mode="official",
         measure_fn=_emitter_measure, probe_fn=lambda: (1, "", ""),
@@ -722,7 +771,12 @@ def build_production_emitter_g1(
         durable_root_policy=DurableRootPolicy(
             approved_roots=(root.resolve(),), forbidden_roots=(),
         ),
+        _floor_preflight_fn=(payload_hit_preflight if selector_payload_hit else None),
     )
+    selector_mutation_paths = []
+    for relative, raw in selector_extra_files:
+        _write(root, relative, raw)
+        selector_mutation_paths.append(relative)
     run_dir = Path(outcome["run_dir"])
     paths = _emitter_artifact_paths(run_dir, root)
     state = {
@@ -817,7 +871,7 @@ def build_production_emitter_g1(
     _write(root, gen_path, gen_raw)
 
     g_paths = [paths["protocol"], paths["result"], paths["closure80"],
-               paths["closure20"], gen_path, *extra_paths]
+               paths["closure20"], gen_path, *extra_paths, *selector_mutation_paths]
     if not journal_manifest_before_g:
         g_paths.extend([paths["journal"], paths["manifest"]])
     if result_md_hit:
@@ -875,7 +929,9 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
                                  topology: dict):
     """同じ履歴へ新 C2 + 新 run artifacts を持つ otherwise-valid g2 を積む。"""
     scan_root = root.parent / "g2 clean scan Ω"
-    _scan_v1, scan_pin, _scan_base, _design, _generator = _prepare_emitter_base(scan_root)
+    _scan_v1, scan_pin, _scan_base, _design, _generator = _prepare_emitter_base(
+        scan_root, master_seed="fixture-seed-g2",
+    )
     assert scan_pin == _fixed_git(root / "external" / "ccbench", "rev-parse", "HEAD")
     protocol = _emitter_protocol(ccbench_pin=scan_pin, master_seed="fixture-seed-g2")
     v1 = json.loads(_REAL_V1.read_bytes())

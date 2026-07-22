@@ -71,6 +71,8 @@ ACTIVE_CANCEL_DIR = "output/s8b-freeze/active-cancellations"
 _SELECTOR_PREDICTIONS_PATH = "output/s8b-freeze/selector_predictions.json"
 _SELECTOR_JOURNAL_PATH = "output/s8b-freeze/selector-runs/journal.jsonl"
 _SELECTOR_RUNS_DIR = "output/s8b-freeze/selector-runs"
+_SELECTOR_PROTOCOL_PATH = "output/s8b-freeze/floor_protocol.json"
+_SELECTOR_PARSER_PATH = "orchestrator/campaign/s8b_selector_output.py"
 _SELECTOR_SOURCE_PATHS = {
     "holdout_freeze": V1_FREEZE_PATH,
     "builder": "orchestrator/campaign/s8b_selector_input.py",
@@ -872,7 +874,7 @@ def _assert_canonical_relative_path(path: object, *, reason: str, label: str) ->
     components = path.split("/")
     if (path.startswith("/") or path.endswith("/") or "//" in path or "\\" in path
             or "." in components or ".." in components
-            or any(ord(char) < 32 or ord(char) == 127 for char in path)):
+            or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in path)):
         raise RatifiedFreezeError(reason, f"{label} の raw POSIX path が非正規: {path!r}")
     return path
 
@@ -2532,7 +2534,7 @@ def _selector_evidence_exempt_exact(*, head: str, root: Path) -> Dict[str, str]:
         fail("H tree の v1 freeze bytes が定数と不一致", "selector-declaration-invalid")
     try:
         v1 = _strict_load(v1_raw, what="selector basis v1 freeze")
-        prediction_document, rows = _selector_freeze._validate_prediction_document(
+        prediction_document, rows = _selector_freeze._validate_prediction_document_for_launch(
             prediction_document, freeze=v1,
         )
     except (RatifiedFreezeError, _selector_freeze.SelectorFreezeError) as exc:
@@ -2575,34 +2577,50 @@ def _selector_evidence_exempt_exact(*, head: str, root: Path) -> Dict[str, str]:
                 "selector-evidence-hash",
             )
 
+    def pre_oracle_blob_sha(path: str, *, label: str) -> str:
+        entry = _selector_tree_entry(pre_oracle_head, path, root)
+        if entry is None:
+            fail(
+                f"{label} が pre_oracle_head にない: {path}",
+                "selector-evidence-missing",
+            )
+        assert entry is not None
+        mode, _oid = entry
+        if mode != "100644":
+            fail(
+                f"{label} の pre_oracle_head mode が 100644 でない: {path}",
+                "selector-evidence-mode",
+            )
+        return _sha256_hex(_blob_bytes(pre_oracle_head, path, root))
+
+    protocol_sha256 = pre_oracle_blob_sha(
+        _SELECTOR_PROTOCOL_PATH, label="selector protocol",
+    )
+    parser_module_sha256 = pre_oracle_blob_sha(
+        _SELECTOR_PARSER_PATH, label="selector parser module",
+    )
+
     journal_raw = add_exempt(_SELECTOR_JOURNAL_PATH)
     try:
         records = _strict_jsonl(journal_raw)
         if not records:
             raise _prediction_runner.PredictionRunnerError("journal が空")
-        header = records[0]
-        _, derangement, targets = _selector_freeze._freeze_axes(v1)
+        _, _, targets = _selector_freeze._freeze_axes(v1)
         known_cells = frozenset((target, arm) for target in targets
                                 for arm in _selector_freeze.ARMS)
-        binding = _prediction_runner.JournalBinding(
-            pre_oracle_head=header.get("pre_oracle_head"),
-            protocol_sha256=header.get("protocol_sha256"),
-            freeze_sha256=header.get("freeze_sha256"),
-            provider_kind=header.get("provider_kind"),
-            role_file_sha256=header.get("role_file_sha256"),
-            parser_module_sha256=header.get("parser_module_sha256"),
-            claude_executable_path=header.get("claude_executable_path"),
-            claude_executable_sha256=header.get("claude_executable_sha256"),
+        statuses = _prediction_runner.resolve_journal_for_launch(
+            records,
+            expected_header={
+                "pre_oracle_head": pre_oracle_head,
+                "protocol_sha256": protocol_sha256,
+                "freeze_sha256": V1_FREEZE_SHA256,
+                "role_file_sha256": sources["role"]["sha256"],
+                "parser_module_sha256": parser_module_sha256,
+            },
             known_cells=known_cells,
         )
-        statuses = _prediction_runner.resolve_journal(records, binding=binding)
     except (RatifiedFreezeError, _prediction_runner.PredictionRunnerError) as exc:
         fail(f"selector journal 検証失敗: {exc}", "selector-declaration-invalid", exc)
-    if (binding.pre_oracle_head != pre_oracle_head
-            or binding.freeze_sha256 != V1_FREEZE_SHA256
-            or binding.role_file_sha256 != sources["role"]["sha256"]):
-        fail("selector journal run_header が prediction/V1/source と不一致",
-             "selector-declaration-invalid")
 
     row_by_cell = {(row["target_holdout"], row["arm"]): row for row in rows}
     if set(row_by_cell) != known_cells:

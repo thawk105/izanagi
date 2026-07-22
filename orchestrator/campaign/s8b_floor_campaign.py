@@ -129,12 +129,20 @@ _HOLDOUT_FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
 _SELECTOR_PREDICTIONS_REL = "output/s8b-freeze/selector_predictions.json"
 _SELECTOR_RUNS_REL = "output/s8b-freeze/selector-runs"
 _SELECTOR_JOURNAL_REL = f"{_SELECTOR_RUNS_REL}/journal.jsonl"
+_SELECTOR_PARSER_REL = "orchestrator/campaign/s8b_selector_output.py"
 _PREFLIGHT_FIXED_FILES = frozenset({
     _FLOOR_PROTOCOL_REL,
     _HOLDOUT_FREEZE_REL,
     _SELECTOR_PREDICTIONS_REL,
     _SELECTOR_JOURNAL_REL,
 })
+_CHAIN_RECORD_PATTERNS = (
+    re.compile(r"output/s8b-freeze/holdout_freeze\.v2\.g[1-9][0-9]*\.json"),
+    re.compile(r"output/s8b-freeze/approvals/[0-9a-f]{64}\.json"),
+    re.compile(r"output/s8b-freeze/revocations/[0-9a-f]{64}\.json"),
+    re.compile(r"output/s8b-freeze/active/[0-9a-f]{64}\.json"),
+    re.compile(r"output/s8b-freeze/active-cancellations/[0-9a-f]{64}\.json"),
+)
 
 # 新しい共有 API は leaf 実体を直接 re-export する。
 canonical_protocol_sha256 = _floor_contract.canonical_protocol_sha256
@@ -1028,7 +1036,8 @@ def _portable_relpath(value, *, out_root: Path, field: str) -> str:
 
 def _validate_portable_path(value, *, field: str) -> str:
     if (not isinstance(value, str) or not value or value.startswith("/")
-            or "\\" in value or "//" in value or any(ord(ch) < 32 for ch in value)):
+            or "\\" in value or "//" in value
+            or any(ord(ch) < 32 or 127 <= ord(ch) <= 159 for ch in value)):
         raise FloorCampaignError(f"portable built {field} path 文法が不正: {value!r}")
     parts = value.split("/")
     if any(part in {"", ".", ".."} for part in parts):
@@ -1270,6 +1279,35 @@ def _atomic_create_only_json(
 # seam の内側に発行・journal・resume の dormant 結線を置く。production bypass 面は持たない。#
 # --------------------------------------------------------------------------- #
 
+def _pre_oracle_blob(root: Path, commit: str, rel: str, *, label: str) -> bytes:
+    """pre-oracle commit の exact 100644 blob を worktree 非依存で読む。"""
+    try:
+        listed = subprocess.run(
+            ["git", "ls-tree", "-z", commit, "--", rel], cwd=root, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        ).stdout
+        entries = [entry for entry in listed.split(b"\0") if entry]
+        if len(entries) != 1:
+            raise FloorCampaignError(
+                f"launch refusal: {label} が pre_oracle_head に exact 1 blob ない"
+            )
+        meta, separator, actual = entries[0].decode("utf-8", "strict").partition("\t")
+        mode, kind, _oid = meta.split(" ")
+        if not separator or actual != rel or mode != "100644" or kind != "blob":
+            raise FloorCampaignError(
+                f"launch refusal: {label} が pre_oracle_head の 100644 blob でない"
+            )
+        return subprocess.run(
+            ["git", "cat-file", "blob", f"{commit}:{rel}"], cwd=root, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        ).stdout
+    except FloorCampaignError:
+        raise
+    except (OSError, UnicodeError, ValueError, subprocess.CalledProcessError) as exc:
+        raise FloorCampaignError(
+            f"launch refusal: {label} の pre_oracle blob を検証できない: {exc}"
+        ) from exc
+
 def _floor_preflight_freeze_allowlist(
         root: Path, *, freeze_path: str, freeze_sha256: str,
         protocol_sha256: str,
@@ -1338,24 +1376,51 @@ def _floor_preflight_freeze_allowlist(
         journal = _CapturedSelectorJournal(
             root / _SELECTOR_JOURNAL_REL, records,
         )
-        header = records[0]
-        binding = _prediction_runner.JournalBinding(
-            pre_oracle_head=prediction["pre_oracle_head"],
-            protocol_sha256=protocol_sha256,
-            freeze_sha256=freeze_sha256,
-            provider_kind=header.get("provider_kind"),
-            role_file_sha256=prediction["sources"]["role"]["sha256"],
-            parser_module_sha256=header.get("parser_module_sha256"),
-            claude_executable_path=header.get("claude_executable_path"),
-            claude_executable_sha256=header.get("claude_executable_sha256"),
-            known_cells=frozenset(
-                (row["target_holdout"], row["arm"]) for row in rows
-            ),
+        pre_oracle_head = prediction["pre_oracle_head"]
+        historical_protocol = _pre_oracle_blob(
+            root, pre_oracle_head, _FLOOR_PROTOCOL_REL, label="floor protocol",
         )
-        _prediction_runner.resolve_journal(records, binding=binding)
+        if historical_protocol != captured[_FLOOR_PROTOCOL_REL]:
+            raise FloorCampaignError(
+                "launch refusal: floor protocol が pre_oracle_head/worktree で不一致"
+            )
+        parser_sha256 = hashlib.sha256(_pre_oracle_blob(
+            root, pre_oracle_head, _SELECTOR_PARSER_REL,
+            label="selector parser module",
+        )).hexdigest()
+        known_cells = frozenset(
+            (row["target_holdout"], row["arm"]) for row in rows
+        )
+        _prediction_runner.resolve_journal_for_launch(
+            records,
+            expected_header={
+                "pre_oracle_head": pre_oracle_head,
+                "protocol_sha256": hashlib.sha256(historical_protocol).hexdigest(),
+                "freeze_sha256": freeze_sha256,
+                "role_file_sha256": prediction["sources"]["role"]["sha256"],
+                "parser_module_sha256": parser_sha256,
+            },
+            known_cells=known_cells,
+        )
+        # official preflight は seal 時の full verifier lane を維持する。launch ratified
+        # projection と異なり、現在の decision/static 意味定数もここでは照合する。
+        for record in records[1:]:
+            if (record.get("record_type") == "claim"
+                    and record.get("decision_method")
+                    != _selector_freeze.AGENT_DECISION_METHOD):
+                raise _prediction_runner.PredictionRunnerError(
+                    "official journal claim decision_method が不一致"
+                )
+            if record.get("record_type") == "static_terminal" and (
+                record.get("decision_method") != _selector_freeze.STATIC_DECISION_METHOD
+                or record.get("choice_id") != _selector_freeze.STATIC_DEFAULT_CHOICE_ID
+            ):
+                raise _prediction_runner.PredictionRunnerError(
+                    "official journal static terminal が現在意味定数と不一致"
+                )
         # 単位 A の正本 helper が宣言集合と filesystem 集合の双方向 exact を検査する。
-        _prediction_runner._assert_selector_run_declarations(
-            root=root, journal=journal, binding=binding,
+        _prediction_runner._assert_selector_run_declarations_from_validated_records(
+            root=root, journal=journal, records=records,
         )
     except (IndexError, KeyError, TypeError,
             _prediction_runner.PredictionRunnerError) as exc:
@@ -1453,7 +1518,7 @@ def _validate_freeze_allowlist_path(rel: object) -> str:
     components = rel.split("/")
     if (rel.startswith("/") or rel.endswith("/") or "//" in rel
             or "\\" in rel or "." in components or ".." in components
-            or any(ord(char) < 32 or ord(char) == 127 for char in rel)):
+            or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in rel)):
         raise FloorCampaignError(
             f"launch certificate: freeze_allowlist path が不正: {rel!r}"
         )
@@ -1465,8 +1530,10 @@ def _validate_freeze_allowlist_path(rel: object) -> str:
     return rel
 
 
-def _assert_freeze_allowlist(root: Path, freeze_allowlist: Mapping) -> None:
-    """固定4 file + selector-runs の allowlist と実在集合を双方向 exact 検査する。"""
+def _assert_freeze_allowlist(
+    root: Path, freeze_allowlist: Mapping,
+) -> dict[str, str]:
+    """freeze namespace 全 file を固定/selector/chain の3集合で被覆する。"""
     if not isinstance(freeze_allowlist, Mapping):
         raise FloorCampaignError("launch certificate: freeze_allowlist が Mapping でない")
     for rel, expected in freeze_allowlist.items():
@@ -1476,7 +1543,8 @@ def _assert_freeze_allowlist(root: Path, freeze_allowlist: Mapping) -> None:
                 f"launch certificate: freeze_allowlist sha256 が不正: {rel!r}"
             )
 
-    actual: set[str] = set()
+    bounded_actual: set[str] = set()
+    chain_records: dict[str, str] = {}
     try:
         for rel in ("output", "output/s8b-freeze"):
             directory = root / rel
@@ -1488,38 +1556,35 @@ def _assert_freeze_allowlist(root: Path, freeze_allowlist: Mapping) -> None:
                 raise FloorCampaignError(
                     f"launch certificate: preflight 親が実 directory でない: {rel}"
                 )
-        for rel in sorted(_PREFLIGHT_FIXED_FILES):
-            path = root / rel
-            if path.is_symlink():
-                raise FloorCampaignError(
-                    f"launch certificate: preflight scope に symlink がある: {rel}"
-                )
-            if path.is_file():
-                actual.add(rel)
-        runs_dir = root / _SELECTOR_RUNS_REL
-        if runs_dir.is_symlink():
-            raise FloorCampaignError(
-                "launch certificate: selector-runs が実 directory でない"
-            )
-        if runs_dir.exists() and not runs_dir.is_dir():
-            raise FloorCampaignError(
-                "launch certificate: selector-runs が実 directory でない"
-            )
-        if runs_dir.is_dir():
-            for path in sorted(runs_dir.rglob("*"), key=lambda item: item.as_posix()):
+        namespace_root = root / "output/s8b-freeze"
+        if namespace_root.is_dir():
+            for path in sorted(namespace_root.rglob("*"), key=lambda item: item.as_posix()):
                 rel = path.relative_to(root).as_posix()
                 if path.is_symlink():
                     raise FloorCampaignError(
-                        f"launch certificate: selector-runs に symlink がある: {rel}"
+                        f"launch certificate: freeze namespace に symlink がある: {rel}"
                     )
-                if path.is_file():
-                    actual.add(rel)
+                if path.is_dir():
+                    continue
+                if not path.is_file():
+                    raise FloorCampaignError(
+                        f"launch certificate: freeze namespace に非通常 file がある: {rel}"
+                    )
+                if (rel in _PREFLIGHT_FIXED_FILES
+                        or rel.startswith(_SELECTOR_RUNS_REL + "/")):
+                    bounded_actual.add(rel)
+                elif any(pattern.fullmatch(rel) for pattern in _CHAIN_RECORD_PATTERNS):
+                    chain_records[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+                else:
+                    raise FloorCampaignError(
+                        f"launch certificate: freeze namespace に未知 file がある: {rel}"
+                    )
         expected_paths = set(freeze_allowlist)
-        if actual != expected_paths:
+        if bounded_actual != expected_paths:
             raise FloorCampaignError(
                 "launch certificate: preflight scope と allowlist が不一致: "
-                f"missing={sorted(expected_paths - actual)} "
-                f"undeclared={sorted(actual - expected_paths)}"
+                f"missing={sorted(expected_paths - bounded_actual)} "
+                f"undeclared={sorted(bounded_actual - expected_paths)}"
             )
         for rel, expected in freeze_allowlist.items():
             path = root / rel
@@ -1539,6 +1604,7 @@ def _assert_freeze_allowlist(root: Path, freeze_allowlist: Mapping) -> None:
         raise FloorCampaignError(
             f"launch certificate: output/s8b-freeze を検査できない: {exc}"
         ) from exc
+    return chain_records
 
 
 def clean_scan_digest(root: Path, *, freeze_allowlist: Mapping) -> str:
@@ -1546,9 +1612,9 @@ def clean_scan_digest(root: Path, *, freeze_allowlist: Mapping) -> str:
 
     同じ列挙集合を search_repository へ注入し、共有 _assert_search_pass で holdout 全件 0 hit・
     holdout 集合完全性・陽性対照を検査する。走査後に再列挙して名前集合の変化も拒否する。
-    search_repository が除外する output/s8b-freeze のうち preflight scope (固定4 file +
-    selector-runs/) は tracked/untracked を問わず filesystem から全列挙し、exact path + bytes
-    sha256 allowlist 以外を拒否する。chain record dirs は既存 chain validator の管轄に残す。
+    search_repository が除外する output/s8b-freeze は tracked/untracked を問わず全列挙し、
+    固定4 file・journal 宣言 selector-runs・既存命名規則の chain record の3集合で被覆する。
+    未知 file と全集合の symlink は拒否し、chain record も path + bytes hash を digest に含める。
 
     既知 residual: allowlist file は path→sha256 を束縛するが、走査中に同名 file の内容を交換して
     検査後に戻す content TOCTOU はこの証明範囲外である。
@@ -1558,7 +1624,7 @@ def clean_scan_digest(root: Path, *, freeze_allowlist: Mapping) -> str:
         files_before = _holdout_freeze.enumerate_repository_files(root)
         report = _holdout_freeze.search_repository(root, files=files_before)
         _holdout_freeze._assert_search_pass(report)
-        _assert_freeze_allowlist(root, freeze_allowlist)
+        chain_records = _assert_freeze_allowlist(root, freeze_allowlist)
         files_after = _holdout_freeze.enumerate_repository_files(root)
     except _holdout_freeze.FreezeError as exc:
         raise FloorCampaignError(f"launch certificate: clean scan 拒否: {exc}") from exc
@@ -1566,12 +1632,13 @@ def clean_scan_digest(root: Path, *, freeze_allowlist: Mapping) -> str:
         raise FloorCampaignError(
             "launch certificate: repository file 列挙が走査中に変化した"
         )
+    namespace_allowlist = {**freeze_allowlist, **chain_records}
     preimage = {
-        "schema": "s8b-clean-scan-digest/v2",
+        "schema": "s8b-clean-scan-digest/v3",
         "repository_files": list(files_before),
         "freeze_allowlist": [
-            {"path": path, "sha256": freeze_allowlist[path]}
-            for path in sorted(freeze_allowlist)
+            {"path": path, "sha256": namespace_allowlist[path]}
+            for path in sorted(namespace_allowlist)
         ],
     }
     try:

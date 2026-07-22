@@ -103,6 +103,7 @@ def test_parse_official_run_path_returns_typed_components():
         _VALID_PATH.replace("output/env", "output//env"),
         _VALID_PATH.replace("output/env", r"output\env"),
         _VALID_PATH.replace("output/env", "output/\x00env"),
+        _VALID_PATH.replace("output/env", "output/\x85env"),
         _VALID_PATH.replace("linux-baremetal", "Linux-baremetal"),
         _VALID_PATH.replace("20260718T123456Z", "20260718T12345Z"),
         _VALID_PATH.replace("20260718T123456Z", "20260230T123456Z"),
@@ -111,7 +112,7 @@ def test_parse_official_run_path_returns_typed_components():
     ],
     ids=[
         "absolute", "trailing-slash", "dot", "dot-dot", "double-slash",
-        "backslash", "control", "invalid-env", "invalid-ts-width",
+        "backslash", "control-c0", "control-c1", "invalid-env", "invalid-ts-width",
         "invalid-ts-date", "short-proto8", "uppercase-proto8",
     ],
 )
