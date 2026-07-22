@@ -45,6 +45,7 @@ from campaign import env_attestation  # noqa: E402
 from campaign import s8b_floor_campaign  # noqa: E402
 from campaign import s8b_floor_stats  # noqa: E402
 from campaign import s8b_launch_cert  # noqa: E402
+from campaign import s8b_selector_freeze  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.p2_2 import ENV_TAG  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
@@ -245,6 +246,10 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
     fake_build = _make_fake_build(build_root)
     entrypoint = (s8b_floor_campaign._run_campaign_core
                   if mode == "official" else s8b_floor_campaign.run_campaign)
+    extra = (
+        {"_floor_preflight_fn": _fixture_floor_preflight}
+        if mode == "official" and resume_dir is None else {}
+    )
     return entrypoint(
         protocol, freeze_doc, out_root=out_root, mode=mode, resume_dir=resume_dir,
         measure_fn=measure_fn, probe_fn=probe_fn,
@@ -253,7 +258,14 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         prepare_fn=_fake_prepare, now_fn=now_fn or (lambda: _FIXED_NOW),
         build_fn=fake_build,
         durable_root_policy=_durable_policy(Path(out_root)),
+        **extra,
     )
+
+
+def _fixture_floor_preflight(
+        root, *, freeze_path, freeze_sha256, protocol_sha256):
+    """prediction 順序以外を検査する private-core テスト用の引数注入 seam。"""
+    return {freeze_path: freeze_sha256}
 
 
 # --------------------------------------------------------------------------- #
@@ -555,6 +567,7 @@ def _deterministic_official_artifacts(base: Path) -> dict:
         process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
         build_fn=fake_build, repo_root=repo_root,
         durable_root_policy=_durable_policy(out_root),
+        _floor_preflight_fn=_fixture_floor_preflight,
     )
     run_dir = Path(outcome["run_dir"])
     names = (
@@ -2325,47 +2338,149 @@ def test_clean_scan_digest_accepts_exact_freeze_allowlist(tmp_path, monkeypatch)
     assert digest == hashlib.sha256(rel.encode("utf-8")).hexdigest()
 
 
-def test_floor_preflight_allowlist_hashes_protocol_predictions_and_all_selector_run_files(
-        tmp_path):
-    payloads = {
-        "output/s8b-freeze/fixture_freeze.json": b"holdout-freeze",
-        s8b_floor_campaign._FLOOR_PROTOCOL_REL: b"canonical-protocol",
-        s8b_floor_campaign._SELECTOR_PREDICTIONS_REL: b"selector-predictions",
-        "output/s8b-freeze/selector-runs/run-1/journal.jsonl": b"journal\n",
-        "output/s8b-freeze/selector-runs/run-1/payload.json": b"payload",
-        "output/s8b-freeze/selector-runs/run-1/raw/stdout.txt": b"raw-output",
-        "output/s8b-freeze/selector-runs/run-1/envelope.json": b"envelope",
+def _install_valid_prediction_preflight_fixture(
+        root: Path, *, include_journal: bool = True) -> tuple[str, str, str]:
+    freeze_rel = "output/s8b-freeze/holdout_freeze.json"
+    source_paths = {
+        "holdout_freeze": freeze_rel,
+        "builder": "orchestrator/campaign/s8b_selector_input.py",
+        "role": ".claude/agents/selector-8b.md",
+        "input_schema": "orchestrator/campaign/s8b_selector_catalog.json",
+        "output_schema": "orchestrator/campaign/s8b_selector_output_schema.json",
     }
-    for rel, raw in payloads.items():
+    for relative in source_paths.values():
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+    protocol_path = root / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_path.parent.mkdir(parents=True, exist_ok=True)
+    protocol_path.write_bytes(b"canonical-protocol")
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+    subprocess.run([
+        "git", "-C", str(root), "-c", "user.name=fixture",
+        "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
+        "commit", "-qm", "prediction preflight fixture",
+    ], check=True)
+    head = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], check=True,
+        text=True, stdout=subprocess.PIPE,
+    ).stdout.strip()
+    freeze = json.loads((root / freeze_rel).read_bytes())
+    jobs = s8b_selector_freeze.build_prediction_jobs(freeze)
+    rows = []
+    for job in jobs:
+        if job["arm"] == "off":
+            rows.append({
+                **job, "status": "valid", "choice_id": "c06", "rationale": None,
+                "raw_response_path": None, "raw_sha256": None,
+                "parser_error_code": None, "agent_provenance": None,
+            })
+        else:
+            rows.append({
+                **job, "status": "missing", "choice_id": None, "rationale": None,
+                "raw_response_path": None, "raw_sha256": None,
+                "parser_error_code": None, "agent_provenance": None,
+            })
+    sources = {
+        name: {
+            "path": relative,
+            "sha256": hashlib.sha256((root / relative).read_bytes()).hexdigest(),
+        }
+        for name, relative in source_paths.items()
+    }
+    prediction = s8b_selector_freeze.build_prediction_freeze(
+        freeze=freeze, rows=rows, generated_at="2026-07-22T00:00:00+00:00",
+        pre_oracle_head=head, sources=sources,
+        execution_policy={
+            "attempts_per_agent_cell": 1, "retry": False,
+            "reuse_equal_payload_output": False, "fresh_context": True,
+            "declared_tools": [],
+        },
+    )
+    s8b_selector_freeze.write_prediction_freeze(
+        root / s8b_floor_campaign._SELECTOR_PREDICTIONS_REL, prediction,
+    )
+    if include_journal:
+        journal = root / s8b_floor_campaign._SELECTOR_RUNS_REL / "journal.jsonl"
+        journal.parent.mkdir(parents=True, exist_ok=True)
+        journal.write_bytes(b"{}\n")
+    freeze_sha = hashlib.sha256((root / freeze_rel).read_bytes()).hexdigest()
+    protocol_sha = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
+    return freeze_rel, freeze_sha, protocol_sha
+
+
+def test_floor_preflight_allowlist_hashes_verified_prediction_and_selector_run_files(
+        tmp_path):
+    freeze_rel, freeze_sha, protocol_sha = _install_valid_prediction_preflight_fixture(
+        tmp_path,
+    )
+    extra_payloads = {
+        "output/s8b-freeze/selector-runs/payload_rr20_on.json": b"payload",
+        "output/s8b-freeze/selector-runs/raw_rr20_on.txt": b"raw-output",
+        "output/s8b-freeze/selector-runs/envelope_rr20_on.json": b"envelope",
+    }
+    for rel, raw in extra_payloads.items():
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(raw)
-    freeze_rel = "output/s8b-freeze/fixture_freeze.json"
-    protocol_sha = hashlib.sha256(payloads[s8b_floor_campaign._FLOOR_PROTOCOL_REL]).hexdigest()
     allowlist = s8b_floor_campaign._floor_preflight_freeze_allowlist(
         tmp_path, freeze_path=freeze_rel,
-        freeze_sha256=hashlib.sha256(payloads[freeze_rel]).hexdigest(),
+        freeze_sha256=freeze_sha,
         protocol_sha256=protocol_sha,
     )
-    assert allowlist == {
-        rel: hashlib.sha256(raw).hexdigest() for rel, raw in payloads.items()
+    expected_paths = {
+        freeze_rel,
+        s8b_floor_campaign._FLOOR_PROTOCOL_REL,
+        s8b_floor_campaign._SELECTOR_PREDICTIONS_REL,
+        "output/s8b-freeze/selector-runs/journal.jsonl",
+        *extra_payloads,
     }
+    assert set(allowlist) == expected_paths
+    assert all(
+        digest == hashlib.sha256((tmp_path / rel).read_bytes()).hexdigest()
+        for rel, digest in allowlist.items()
+    )
     assert all(not rel.endswith("/") for rel in allowlist)
 
 
-def test_floor_preflight_allowlist_omits_nonexistent_optional_files(tmp_path):
-    freeze_rel = "output/s8b-freeze/fixture_freeze.json"
-    freeze = tmp_path / freeze_rel
-    freeze.parent.mkdir(parents=True)
-    freeze.write_bytes(b"holdout-freeze")
-    freeze_sha = hashlib.sha256(freeze.read_bytes()).hexdigest()
-    allowlist = s8b_floor_campaign._floor_preflight_freeze_allowlist(
-        tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
-        protocol_sha256="a" * 64,
+def test_floor_preflight_requires_prediction_before_allowlist(tmp_path):
+    freeze_rel = "output/s8b-freeze/holdout_freeze.json"
+    freeze_path = tmp_path / freeze_rel
+    freeze_path.parent.mkdir(parents=True)
+    shutil.copy2(ROOT / freeze_rel, freeze_path)
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="predictions.json 必須"):
+        s8b_floor_campaign._floor_preflight_freeze_allowlist(
+            tmp_path, freeze_path=freeze_rel,
+            freeze_sha256=hashlib.sha256(freeze_path.read_bytes()).hexdigest(),
+            protocol_sha256="a" * 64,
+        )
+
+
+def test_floor_preflight_rejects_prediction_that_fails_verification(tmp_path):
+    freeze_rel, freeze_sha, protocol_sha = _install_valid_prediction_preflight_fixture(
+        tmp_path,
     )
-    assert allowlist == {freeze_rel: freeze_sha}
-    assert s8b_floor_campaign._FLOOR_PROTOCOL_REL not in allowlist
-    assert s8b_floor_campaign._SELECTOR_PREDICTIONS_REL not in allowlist
+    prediction_path = tmp_path / s8b_floor_campaign._SELECTOR_PREDICTIONS_REL
+    prediction = json.loads(prediction_path.read_bytes())
+    prediction["generated_at"] = "tampered"
+    prediction_path.write_text(json.dumps(prediction), encoding="utf-8")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="verify 不通過"):
+        s8b_floor_campaign._floor_preflight_freeze_allowlist(
+            tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+            protocol_sha256=protocol_sha,
+        )
+
+
+def test_floor_preflight_requires_selector_journal(tmp_path):
+    freeze_rel, freeze_sha, protocol_sha = _install_valid_prediction_preflight_fixture(
+        tmp_path, include_journal=False,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="journal.jsonl 必須"):
+        s8b_floor_campaign._floor_preflight_freeze_allowlist(
+            tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+            protocol_sha256=protocol_sha,
+        )
 
 
 def test_pilot_does_not_apply_official_freeze_allowlist_scan(tmp_path):
@@ -2407,6 +2522,7 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
         execution_receipt_fn=_fixed_receipt,
         build_fn=_make_fake_build(tmp_path / "ignored"), repo_root=repo_root,
         durable_root_policy=_durable_policy(tmp_path / "out"),
+        _floor_preflight_fn=_fixture_floor_preflight,
     )
     cert = json.loads((Path(outcome["run_dir"]) / "launch_certificate.json").read_bytes())
     assert cert["clean_scan_digest"] == expected
@@ -2538,6 +2654,7 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
         probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
         monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
         durable_root_policy=_durable_policy(tmp_path / "out"),
+        _floor_preflight_fn=_fixture_floor_preflight,
     )
     assert outcome["status"] == "completed"
     assert calls == {
@@ -2754,6 +2871,7 @@ def test_checkpoint_callback_is_after_cert_validation_and_before_launch_start(
                 now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
                 after_certificate_issued_fn=checkpoint,
                 durable_root_policy=_durable_policy(tmp_path / "out"),
+                _floor_preflight_fn=_fixture_floor_preflight,
             )
     assert len(observed) == 1
     run_dir = observed[0].parent
@@ -2783,6 +2901,7 @@ def test_checkpoint_raw_hash_recheck_fires_before_launch_start(tmp_path, monkeyp
                 now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
                 after_certificate_issued_fn=mutate_cert,
                 durable_root_policy=_durable_policy(tmp_path / "out"),
+                _floor_preflight_fn=_fixture_floor_preflight,
             )
     run_dir = next(path.parent for path in (tmp_path / "out").rglob("launch_certificate.json"))
     assert not (run_dir / "journal.jsonl").exists()

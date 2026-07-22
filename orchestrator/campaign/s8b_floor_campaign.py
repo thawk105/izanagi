@@ -84,6 +84,7 @@ from campaign import campaign_claim, reservation  # noqa: E402
 from campaign.durable_root import DurableRootError, DurableRootPolicy, WriteCapability  # noqa: E402
 from campaign import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
+from campaign import s8b_selector_freeze as _selector_freeze  # noqa: E402
 from campaign.layout import (  # noqa: E402
     authorize_output_root,
     ensure_directory_with_capability,
@@ -1262,11 +1263,46 @@ def _floor_preflight_freeze_allowlist(
     """official preflight が免除する実在 file を exact path + bytes hash で列挙する。
 
     protocol は呼出し時点の canonical ``protocol_sha256`` を期待値に使い、clean scan
-    側の実 bytes 照合で drift を拒否する。selector 証拠は filesystem 上に実在する file
-    だけを列挙し、directory prefix の免除は作らない。
+    側の実 bytes 照合で drift を拒否する。selector prediction と journal は official の
+    必須入力として、allowlist 構成前に v1 freeze に対する意味検証まで終える。selector
+    証拠は filesystem 上に実在する file だけを列挙し、directory prefix の免除は作らない。
     """
     root = Path(root)
     allowlist: dict[str, str] = {}
+
+    prediction_path = root / _SELECTOR_PREDICTIONS_REL
+    if prediction_path.is_symlink() or not prediction_path.is_file():
+        raise FloorCampaignError(
+            "launch refusal: official は selector_predictions.json 必須"
+        )
+    freeze_file = root / freeze_path
+    try:
+        freeze_bytes = freeze_file.read_bytes()
+        prediction_bytes = prediction_path.read_bytes()
+    except OSError as exc:
+        raise FloorCampaignError(
+            f"launch refusal: prediction/freeze bytes を読めない: {exc}"
+        ) from exc
+    if hashlib.sha256(freeze_bytes).hexdigest() != _selector_freeze.V1_FREEZE_SHA256:
+        raise FloorCampaignError(
+            "launch refusal: prediction 検証対象が v1 freeze bytes でない"
+        )
+    try:
+        freeze_for_prediction = json.loads(freeze_bytes.decode("utf-8"))
+        prediction = json.loads(prediction_bytes.decode("utf-8"))
+        _selector_freeze.verify_prediction_freeze(
+            prediction, freeze=freeze_for_prediction, root=root,
+        )
+    except (UnicodeError, json.JSONDecodeError,
+            _selector_freeze.SelectorFreezeError) as exc:
+        raise FloorCampaignError(
+            f"launch refusal: selector prediction verify 不通過: {exc}"
+        ) from exc
+    journal_path = root / _SELECTOR_RUNS_REL / "journal.jsonl"
+    if journal_path.is_symlink() or not journal_path.is_file():
+        raise FloorCampaignError(
+            "launch refusal: official は selector-runs/journal.jsonl 必須"
+        )
 
     def add_if_file(rel: str, expected_sha256: Optional[str] = None) -> None:
         path = root / rel
@@ -2392,7 +2428,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        host_provenance_fn=None, process_identity_fn=None,
                        execution_receipt_fn=None, build_fn=None, repo_root=None,
                        after_certificate_issued_fn=None,
-                       durable_root_policy=None) -> dict:
+                       durable_root_policy=None, _floor_preflight_fn=None) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
@@ -2567,7 +2603,11 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         campaign_run_id = _fresh_run_id(protocol_sha256, started_at)
         certificate = None
         if mode == "official":
-            freeze_allowlist = _floor_preflight_freeze_allowlist(
+            floor_preflight_fn = (
+                _floor_preflight_freeze_allowlist
+                if _floor_preflight_fn is None else _floor_preflight_fn
+            )
+            freeze_allowlist = floor_preflight_fn(
                 repo_root,
                 freeze_path=protocol["freeze"]["path"],
                 freeze_sha256=freeze_sha256,

@@ -12,6 +12,7 @@ import io
 import json
 import shutil
 import subprocess
+import tempfile
 from dataclasses import replace
 from types import SimpleNamespace
 from pathlib import Path
@@ -54,7 +55,8 @@ def _freeze() -> dict:
 def _binding(
     *, pre_oracle_head: str = "2" * 40, role_sha256: str = "0" * 64,
     protocol_sha256: str = "1" * 64, freeze_sha256: str | None = None,
-    provider_kind: str = "fixture",
+    provider_kind: str = "fixture", executable_path: str = "/fixture/claude",
+    executable_sha256: str = "7" * 64,
 ) -> JournalBinding:
     return JournalBinding(
         pre_oracle_head=pre_oracle_head,
@@ -65,6 +67,9 @@ def _binding(
         parser_module_sha256=hashlib.sha256(
             (ROOT / "orchestrator/campaign/s8b_selector_output.py").read_bytes()
         ).hexdigest(),
+        claude_executable_path=executable_path,
+        claude_executable_sha256=executable_sha256,
+        known_cells=frozenset(AGENT_CELLS | OFF_CELLS),
     )
 
 
@@ -147,6 +152,8 @@ def test_run_header_is_first_record_and_matches_binding(tmp_path) -> None:
         "provider_kind": binding.provider_kind,
         "role_file_sha256": binding.role_file_sha256,
         "parser_module_sha256": binding.parser_module_sha256,
+        "claude_executable_path": binding.claude_executable_path,
+        "claude_executable_sha256": binding.claude_executable_sha256,
         "created_at": "2026-07-22T00:00:00+00:00",
     }
     assert resolve_journal(records, binding=binding) == {}
@@ -175,6 +182,8 @@ def test_resolve_rejects_headerless_journal(tmp_path) -> None:
         ("provider_kind", "other-provider"),
         ("role_file_sha256", "5" * 64),
         ("parser_module_sha256", "6" * 64),
+        ("claude_executable_path", "/fixture/other-claude"),
+        ("claude_executable_sha256", "8" * 64),
     ],
 )
 def test_run_header_mismatch_is_rejected(tmp_path, field, replacement) -> None:
@@ -346,6 +355,19 @@ def test_unknown_record_type_is_rejected(tmp_path) -> None:
     journal = _journal(tmp_path / "journal.jsonl", binding)
     journal.append({"record_type": "bogus", "target_holdout": "rr20", "arm": "on"})
     with pytest.raises(PredictionRunnerError, match="record_type"):
+        resolve_journal(journal.read_records(), binding=binding)
+
+
+def test_journal_record_for_seventh_cell_is_rejected(tmp_path) -> None:
+    binding = _binding()
+    journal = _journal(tmp_path / "journal.jsonl", binding)
+    journal.append({
+        "record_type": "claim", "target_holdout": "rr99", "arm": "on",
+        "decision_method": "selector_agent", "input_payload_sha256": "a" * 64,
+        "payload_path": "artifacts/payload_rr99_on.json",
+        "claimed_at": "2026-07-22T00:00:00Z",
+    })
+    with pytest.raises(PredictionRunnerError, match="固定6セル外"):
         resolve_journal(journal.read_records(), binding=binding)
 
 
@@ -530,6 +552,16 @@ def test_claude_headless_argv_stdin_env_and_neutral_cwd(tmp_path) -> None:
     )
 
 
+def test_claude_headless_places_cli_surfaces_outside_repository(tmp_path) -> None:
+    provider, _, _, _ = _provider_call(tmp_path, _envelope())
+    assert provider.neutral_root.is_relative_to(Path(tempfile.gettempdir()).resolve())
+    assert not provider.neutral_root.is_relative_to(ROOT.resolve())
+    assert not provider.neutral_root.is_relative_to(tmp_path.resolve())
+    assert provider.mcp_config_path.parent == provider.neutral_root
+    assert provider.neutral_cwd is not None
+    assert provider.neutral_cwd.parent == provider.neutral_root
+
+
 def test_claude_headless_provenance_uses_envelope_measurements(tmp_path) -> None:
     provider, _, response, _ = _provider_call(tmp_path, _envelope())
     assert set(response.provenance) == {
@@ -565,12 +597,54 @@ def test_claude_headless_rejects_invalid_envelope(tmp_path, overrides, message) 
         _provider_call(tmp_path, _envelope(**overrides))
 
 
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"num_turns": 1.0}, "num_turns"),
+        ({"modelUsage": {"claude-opus-4-6": 1}}, "各 record"),
+        ({"modelUsage": {"claude-opus-4-6": {"inputTokens": 1}}}, "outputTokens"),
+        ({"modelUsage": {"claude-opus-4-6": {
+            "inputTokens": 0, "outputTokens": 1,
+        }}}, "inputTokens"),
+    ],
+)
+def test_claude_headless_rejects_invalid_provenance_measurements(
+        tmp_path, overrides, message) -> None:
+    with pytest.raises(PredictionRunnerError, match=message):
+        _provider_call(tmp_path, _envelope(**overrides))
+
+
 def test_claude_headless_rejects_observed_server_tool_use(tmp_path) -> None:
     with pytest.raises(PredictionRunnerError, match="server tool use"):
         _provider_call(
             tmp_path,
             _envelope(usage={"server_tool_use": {"web_search_requests": 1}}),
         )
+
+
+def test_claude_headless_rejects_reused_session_and_uses_fresh_cwd(tmp_path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    runner = _FakeSubprocessRunner(_envelope(session_id="duplicate-session"))
+    provider = ClaudeHeadlessProvider(
+        artifact_root=artifact_root,
+        role_file=ROOT / ".claude/agents/selector-8b.md",
+        executable=_executable(tmp_path), runner=runner,
+        environ={"HOME": "/fixture/home"},
+    )
+    payload = _payload_for_first_job()
+    payload_bytes = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    _write_bytes_bound(artifact_root / "payload_rr20_on.json", payload_bytes)
+    _write_bytes_bound(artifact_root / "payload_rr20_swapped.json", payload_bytes)
+    provider(target_holdout="rr20", arm="on", payload=payload)
+    first_cwd = Path(runner.calls[0][1]["cwd"])
+    with pytest.raises(PredictionRunnerError, match="session_id 重複"):
+        provider(target_holdout="rr20", arm="swapped", payload=payload)
+    second_cwd = Path(runner.calls[1][1]["cwd"])
+    assert first_cwd != second_cwd
+    assert list(first_cwd.iterdir()) == []
+    assert list(second_cwd.iterdir()) == []
 
 
 def _provider_with_raw_runner(tmp_path: Path, runner) -> tuple[ClaudeHeadlessProvider, dict]:
@@ -720,6 +794,47 @@ def test_write_bytes_bound_detects_real_file_readback_mismatch(tmp_path) -> None
     with pytest.raises(PredictionRunnerError, match="read-back bytes 不一致"):
         _write_bytes_bound(destination, b"expected", _read_back=corrupt_real_file)
     assert destination.read_bytes() == b"corrupted-after-fsync"
+
+
+def test_drive_journal_rejects_mismatched_existing_payload(tmp_path) -> None:
+    freeze = _freeze()
+    binding = _binding()
+    journal = _journal(tmp_path / "journal.jsonl", binding)
+    artifact_root = tmp_path / "artifacts"
+    artifact_root.mkdir()
+    (artifact_root / "payload_rr20_on.json").write_bytes(b"not-canonical-payload")
+    provider = _RecordingProvider()
+    with pytest.raises(PredictionRunnerError, match="既存 payload artifact bytes"):
+        drive_journal(
+            freeze=freeze, journal=journal, artifact_root=artifact_root,
+            root=tmp_path, binding=binding, provider=provider,
+        )
+    assert provider.called == []
+    assert not any(
+        record.get("record_type") == "claim"
+        for record in journal.read_records()
+    )
+
+
+def test_drive_journal_accepts_matching_existing_payload_on_resume(tmp_path) -> None:
+    freeze = _freeze()
+    binding = _binding()
+    journal = _journal(tmp_path / "journal.jsonl", binding)
+    artifact_root = tmp_path / "artifacts"
+    artifact_root.mkdir()
+    payload = _payload_for_first_job()
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    (artifact_root / "payload_rr20_on.json").write_bytes(canonical)
+    provider = _RecordingProvider()
+    statuses = drive_journal(
+        freeze=freeze, journal=journal, artifact_root=artifact_root,
+        root=tmp_path, binding=binding, provider=provider,
+    )
+    assert statuses[FIRST_AGENT_CELL].kind == "resolved"
+    assert set(provider.called) == AGENT_CELLS
+    assert (artifact_root / "payload_rr20_on.json").read_bytes() == canonical
 
 
 # ------------------------------------------------------------- materialize 統合
@@ -890,6 +1005,19 @@ class _SealRunner:
         )
 
 
+class _CrashOnceSealRunner(_SealRunner):
+    def __init__(self):
+        super().__init__()
+        self.crashed = False
+
+    def __call__(self, argv, **kwargs):
+        if not self.crashed:
+            self.calls.append((list(argv), dict(kwargs)))
+            self.crashed = True
+            raise RuntimeError("simulated claim crash")
+        return super().__call__(argv, **kwargs)
+
+
 def test_seal_requires_explicit_provider_before_any_claim(tmp_path) -> None:
     root, head = _seal_repo(tmp_path)
     output = io.StringIO()
@@ -951,6 +1079,91 @@ def test_seal_rejects_protocol_blob_not_equal_to_rederived_bytes(tmp_path) -> No
     assert not journal_path.exists()
 
 
+@pytest.mark.parametrize("dirty_kind", ["untracked", "tracked"])
+def test_seal_rejects_dirty_path_outside_selector_runs(tmp_path, dirty_kind) -> None:
+    root, head = _seal_repo(tmp_path)
+    if dirty_kind == "untracked":
+        (root / "dirty-outside.txt").write_bytes(b"dirty")
+    else:
+        tracked = root / "orchestrator/campaign/s8b_selector_input.py"
+        tracked.write_bytes(tracked.read_bytes() + b"\n# dirty\n")
+    output = io.StringIO()
+    error = io.StringIO()
+    assert main(
+        ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+        root=root, claude_executable=_executable(tmp_path),
+        stdout=output, stderr=error,
+    ) == 1
+    assert "selector-runs 外" in error.getvalue()
+    assert not (root / "output/s8b-freeze/selector-runs/journal.jsonl").exists()
+
+
+def test_seal_claim_crash_resumes_and_seals_six_rows_with_missing(tmp_path) -> None:
+    root, head = _seal_repo(tmp_path)
+    executable = _executable(tmp_path)
+    runner = _CrashOnceSealRunner()
+    with pytest.raises(RuntimeError, match="simulated claim crash"):
+        main(
+            ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+            root=root, provider_runner=runner, claude_executable=executable,
+            stdout=io.StringIO(), stderr=io.StringIO(),
+        )
+    journal = PredictionJournal(
+        root / "output/s8b-freeze/selector-runs/journal.jsonl",
+    )
+    records_after_crash = journal.read_records()
+    assert sum(record["record_type"] == "claim" for record in records_after_crash) == 1
+    assert not any(record["record_type"] == "invocation" for record in records_after_crash)
+
+    output = io.StringIO()
+    error = io.StringIO()
+    assert main(
+        ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+        root=root, provider_runner=runner, claude_executable=executable,
+        stdout=output, stderr=error,
+    ) == 0, error.getvalue()
+    document = json.loads(
+        (root / "output/s8b-freeze/selector_predictions.json").read_bytes()
+    )
+    assert len(document["rows"]) == 6
+    missing = [row for row in document["rows"] if row["status"] == "missing"]
+    assert len(missing) == 1
+    assert missing[0]["choice_id"] is None
+    assert missing[0]["agent_provenance"] is None
+    assert len(runner.calls) == 4
+
+
+def test_seal_sources_use_bytes_read_before_invocations(tmp_path) -> None:
+    root, head = _seal_repo(tmp_path)
+    executable = _executable(tmp_path)
+    builder_path = root / "orchestrator/campaign/s8b_selector_input.py"
+    initial_builder = builder_path.read_bytes()
+
+    class _MutatingSourceRunner(_SealRunner):
+        def __call__(self, argv, **kwargs):
+            if not self.calls:
+                builder_path.write_bytes(b"replacement-after-seal-start\n")
+            return super().__call__(argv, **kwargs)
+
+    output = io.StringIO()
+    error = io.StringIO()
+    assert main(
+        ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+        root=root, provider_runner=_MutatingSourceRunner(),
+        claude_executable=executable, stdout=output, stderr=error,
+    ) == 1
+    assert "disk reload prediction verify" in error.getvalue()
+    document = json.loads(
+        (root / "output/s8b-freeze/selector_predictions.json").read_bytes()
+    )
+    assert document["sources"]["builder"]["sha256"] == hashlib.sha256(
+        initial_builder
+    ).hexdigest()
+    assert document["sources"]["builder"]["sha256"] != hashlib.sha256(
+        builder_path.read_bytes()
+    ).hexdigest()
+
+
 def test_seal_success_runs_four_agents_two_static_and_reloads_destination(tmp_path) -> None:
     root, head = _seal_repo(tmp_path)
     executable = _executable(tmp_path)
@@ -980,5 +1193,9 @@ def test_seal_success_runs_four_agents_two_static_and_reloads_destination(tmp_pa
         root / "output/s8b-freeze/selector-runs/journal.jsonl",
     ).read_records()
     assert records[0]["record_type"] == "run_header"
+    assert records[0]["claude_executable_path"] == str(executable.resolve())
+    assert records[0]["claude_executable_sha256"] == hashlib.sha256(
+        executable.read_bytes()
+    ).hexdigest()
     assert sum(record["record_type"] == "invocation" for record in records) == 4
     assert sum(record["record_type"] == "static_terminal" for record in records) == 2

@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -75,7 +76,7 @@ _CELL_RECORD_TYPES = {"claim", "invocation", "static_terminal"}
 _HEADER_KEYS = {
     "record_type", "seq", "schema", "pre_oracle_head", "protocol_sha256",
     "freeze_sha256", "provider_kind", "role_file_sha256", "parser_module_sha256",
-    "created_at",
+    "claude_executable_path", "claude_executable_sha256", "created_at",
 }
 _CLAIM_KEYS = {
     "record_type", "seq", "target_holdout", "arm", "decision_method",
@@ -143,6 +144,9 @@ class JournalBinding:
     provider_kind: str
     role_file_sha256: str
     parser_module_sha256: str
+    claude_executable_path: str
+    claude_executable_sha256: str
+    known_cells: frozenset[tuple[str, str]]
 
     def __post_init__(self) -> None:
         if not isinstance(self.pre_oracle_head, str) or _GIT_SHA_RE.fullmatch(
@@ -151,13 +155,23 @@ class JournalBinding:
             raise PredictionRunnerError("pre_oracle_head は40桁 lowercase hex 必須")
         for field in (
             "protocol_sha256", "freeze_sha256", "role_file_sha256",
-            "parser_module_sha256",
+            "parser_module_sha256", "claude_executable_sha256",
         ):
             value = getattr(self, field)
             if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
                 raise PredictionRunnerError(f"{field} は64桁 lowercase hex 必須")
         if not isinstance(self.provider_kind, str) or not self.provider_kind.strip():
             raise PredictionRunnerError("provider_kind は空でない文字列必須")
+        if (not isinstance(self.claude_executable_path, str)
+                or not Path(self.claude_executable_path).is_absolute()):
+            raise PredictionRunnerError("claude_executable_path は絶対 path 必須")
+        if (not isinstance(self.known_cells, frozenset) or len(self.known_cells) != 6
+                or any(
+                    not isinstance(cell, tuple) or len(cell) != 2
+                    or not all(isinstance(value, str) and value for value in cell)
+                    for cell in self.known_cells
+                )):
+            raise PredictionRunnerError("known_cells は固定6セルの frozenset 必須")
 
     def header_values(self) -> dict[str, str]:
         return {
@@ -168,6 +182,8 @@ class JournalBinding:
             "provider_kind": self.provider_kind,
             "role_file_sha256": self.role_file_sha256,
             "parser_module_sha256": self.parser_module_sha256,
+            "claude_executable_path": self.claude_executable_path,
+            "claude_executable_sha256": self.claude_executable_sha256,
         }
 
 
@@ -424,6 +440,10 @@ def resolve_journal(
     for index, record in enumerate(records[1:], start=1):
         rt = _validate_record_shape(record, index=index)
         cell = (record["target_holdout"], record["arm"])
+        if cell not in binding.known_cells:
+            raise PredictionRunnerError(
+                f"protocol violation: 固定6セル外の journal record: {cell!r}"
+            )
         arm = record["arm"]
         if rt == "claim":
             if arm not in AGENT_ARMS:
@@ -517,6 +537,22 @@ def _write_bytes_bound(
     return _sha256(data)
 
 
+def _accept_or_create_payload(path: Path, data: bytes) -> str:
+    """再開時は同一 bytes の既存 payload だけを受理し、それ以外は拒否する。"""
+    path = Path(path)
+    if path.exists() or path.is_symlink():
+        if path.is_symlink() or not path.is_file():
+            raise PredictionRunnerError(f"既存 payload artifact が実 file でない: {path}")
+        try:
+            observed = path.read_bytes()
+        except OSError as exc:
+            raise PredictionRunnerError(f"既存 payload artifact を読めない: {path}: {exc}") from exc
+        if observed != data:
+            raise PredictionRunnerError(f"既存 payload artifact bytes が期待値と不一致: {path}")
+        return _sha256(data)
+    return _write_bytes_bound(path, data)
+
+
 def _relative_artifact(path: Path, *, root: Path) -> str:
     try:
         return str(path.resolve().relative_to(root.resolve()))
@@ -559,6 +595,11 @@ def drive_journal(
         artifact_root = Path(artifact_root)
         root = Path(root)
         jobs = build_prediction_jobs(freeze)
+        known_cells = frozenset(
+            (job["target_holdout"], job["arm"]) for job in jobs
+        )
+        if known_cells != binding.known_cells:
+            raise PredictionRunnerError("freeze の固定6セルが run_header 束縛と不一致")
         statuses = resolve_journal(journal.read_records(), binding=binding)
         provider_kind = getattr(provider, "provider_kind", None)
         role_sha = getattr(provider, "role_file_sha256", None)
@@ -596,7 +637,7 @@ def drive_journal(
             if _sha256(payload_bytes) != selector_payload_sha256(payload):
                 raise PredictionRunnerError("送信 payload bytes sha と selector payload sha が不一致")
             payload_path = artifact_root / f"payload_{job['target_holdout']}_{arm}.json"
-            _write_bytes_bound(payload_path, payload_bytes)
+            _accept_or_create_payload(payload_path, payload_bytes)
             journal.append({
                 "record_type": "claim",
                 "target_holdout": job["target_holdout"],
@@ -771,6 +812,7 @@ class ClaudeHeadlessProvider:
 
     def __init__(
         self, *, artifact_root: Path, role_file: Path = ROOT / _ROLE_PATH,
+        role_bytes: bytes | None = None, repository_root: Path = ROOT,
         executable: str | os.PathLike[str] = "claude",
         runner: Callable[..., Any] = subprocess.run,
         environ: Mapping[str, str] | None = None,
@@ -783,9 +825,16 @@ class ClaudeHeadlessProvider:
             raise PredictionRunnerError(f"claude executable を解決できない: {executable}")
         self.executable = str(Path(resolved).resolve(strict=True))
         try:
-            role_bytes = Path(role_file).read_bytes()
+            self.executable_sha256 = _sha256(Path(self.executable).read_bytes())
         except OSError as exc:
-            raise PredictionRunnerError(f"selector role を read-once できない: {role_file}") from exc
+            raise PredictionRunnerError(f"claude executable bytes を読めない: {self.executable}") from exc
+        if role_bytes is None:
+            try:
+                role_bytes = Path(role_file).read_bytes()
+            except OSError as exc:
+                raise PredictionRunnerError(f"selector role を read-once できない: {role_file}") from exc
+        elif not isinstance(role_bytes, bytes):
+            raise PredictionRunnerError("selector role read-once 値は bytes 必須")
         frontmatter, body = _parse_role_frontmatter(role_bytes)
         self.role_file_sha256 = _sha256(role_bytes)
         self.inline_agents_json = _canonical_json_bytes({
@@ -796,7 +845,15 @@ class ClaudeHeadlessProvider:
                 "model": frontmatter["model"],
             }
         }).decode("utf-8")
-        self.mcp_config_path = self.artifact_root / "empty-mcp-config.json"
+        self.neutral_root = Path(tempfile.mkdtemp(prefix="s8b-selector-")).resolve(strict=True)
+        repository_root = Path(repository_root).resolve()
+        try:
+            self.neutral_root.relative_to(repository_root)
+        except ValueError:
+            pass
+        else:
+            raise PredictionRunnerError("neutral root は repository 外でなければならない")
+        self.mcp_config_path = self.neutral_root / "empty-mcp-config.json"
         mcp_bytes = b'{"mcpServers":{}}'
         if self.mcp_config_path.is_symlink():
             raise PredictionRunnerError("empty MCP config に symlink を許可しない")
@@ -805,14 +862,8 @@ class ClaudeHeadlessProvider:
                 raise PredictionRunnerError("既存 empty MCP config が固定 bytes と不一致")
         else:
             _write_bytes_bound(self.mcp_config_path, mcp_bytes)
-        self.neutral_cwd = self.artifact_root / "neutral-cwd"
-        if self.neutral_cwd.is_symlink():
-            raise PredictionRunnerError("neutral cwd に symlink を許可しない")
-        self.neutral_cwd.mkdir(mode=0o700, exist_ok=True)
-        if not self.neutral_cwd.is_dir():
-            raise PredictionRunnerError("neutral cwd が実 directory でない")
-        if any(self.neutral_cwd.iterdir()):
-            raise PredictionRunnerError("neutral cwd は空でなければならない")
+        self.neutral_cwd: Path | None = None
+        self._observed_session_ids: set[str] = set()
         source_env = os.environ if environ is None else environ
         self.env = {key: source_env[key] for key in CLAUDE_ENV_ALLOWLIST if key in source_env}
         if "HOME" not in self.env:
@@ -846,10 +897,17 @@ class ClaudeHeadlessProvider:
         if artifact_bytes != payload_bytes:
             raise PredictionRunnerError("payload artifact と stdin bytes が不一致")
 
+        neutral_cwd = Path(tempfile.mkdtemp(prefix="cwd-", dir=self.neutral_root))
+        if neutral_cwd.is_symlink() or not neutral_cwd.is_dir():
+            raise PredictionRunnerError("neutral cwd が実 directory でない")
+        if any(neutral_cwd.iterdir()):
+            raise PredictionRunnerError("neutral cwd は invocation ごとに空でなければならない")
+        self.neutral_cwd = neutral_cwd
+
         started_at = _now_iso()
         try:
             completed = self._runner(
-                list(self.argv), input=payload_bytes, cwd=str(self.neutral_cwd),
+                list(self.argv), input=payload_bytes, cwd=str(neutral_cwd),
                 env=dict(self.env), timeout=CLAUDE_TIMEOUT_S, check=False,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
@@ -873,7 +931,7 @@ class ClaudeHeadlessProvider:
         if envelope.get("is_error") is not False:
             raise PredictionRunnerError("claude envelope is_error は false 固定")
         num_turns = envelope.get("num_turns")
-        if isinstance(num_turns, bool) or num_turns != 1:
+        if type(num_turns) is not int or num_turns != 1:
             raise PredictionRunnerError("claude envelope num_turns は 1 固定")
         if envelope.get("permission_denials") != []:
             raise PredictionRunnerError("claude envelope permission_denials は [] 固定")
@@ -886,12 +944,21 @@ class ClaudeHeadlessProvider:
         model_usage = envelope.get("modelUsage")
         if not isinstance(model_usage, Mapping):
             raise PredictionRunnerError("claude envelope modelUsage は object 必須")
+        if any(not isinstance(record, Mapping) for record in model_usage.values()):
+            raise PredictionRunnerError("claude envelope modelUsage の各 record は object 必須")
         opus_slugs = [
             key for key in model_usage
             if isinstance(key, str) and key.startswith("claude-opus-")
         ]
         if len(opus_slugs) != 1:
             raise PredictionRunnerError("modelUsage の主 claude-opus- slug が一意でない")
+        opus_usage = model_usage[opus_slugs[0]]
+        for token_key in ("inputTokens", "outputTokens"):
+            token_count = opus_usage.get(token_key)
+            if type(token_count) is not int or token_count <= 0:
+                raise PredictionRunnerError(
+                    f"modelUsage の主 claude-opus- record は正の {token_key} 必須"
+                )
         usage = envelope.get("usage")
         server_tool_use = usage.get("server_tool_use") if isinstance(usage, Mapping) else None
         if not isinstance(server_tool_use, Mapping):
@@ -901,6 +968,9 @@ class ClaudeHeadlessProvider:
                 raise PredictionRunnerError("usage.server_tool_use count schema が不正")
             if count != 0:
                 raise PredictionRunnerError("server tool use を観測したため拒否")
+        if session_id in self._observed_session_ids:
+            raise PredictionRunnerError("fresh context に反する session_id 重複を観測")
+        self._observed_session_ids.add(session_id)
         return ProviderResponse(
             raw_response=result,
             provenance={
@@ -933,15 +1003,40 @@ def _git_bytes(root: Path, args: Sequence[str]) -> bytes:
     return completed.stdout
 
 
-def _source_records(root: Path, *, frozen_bytes: Mapping[str, bytes]) -> dict:
+def _read_source_bytes(root: Path) -> dict[str, bytes]:
     result = {}
     for name, relative in _SOURCE_PATHS.items():
         try:
-            raw = frozen_bytes[name] if name in frozen_bytes else (root / relative).read_bytes()
+            result[name] = (root / relative).read_bytes()
         except OSError as exc:
-            raise PredictionRunnerError(f"source を読めない: {relative}: {exc}") from exc
+            raise PredictionRunnerError(f"source を read-once できない: {relative}: {exc}") from exc
+    return result
+
+
+def _source_records(*, frozen_bytes: Mapping[str, bytes]) -> dict:
+    result = {}
+    for name, relative in _SOURCE_PATHS.items():
+        if name not in frozen_bytes or not isinstance(frozen_bytes[name], bytes):
+            raise PredictionRunnerError(f"source read-once bytes がない: {name}")
+        raw = frozen_bytes[name]
         result[name] = {"path": str(relative), "sha256": _sha256(raw)}
     return result
+
+
+def _assert_seal_worktree_clean(root: Path) -> None:
+    raw = _git_bytes(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])
+    allowed_prefix = _JOURNAL_PATH.parent.as_posix() + "/"
+    for entry in raw.split(b"\0"):
+        if not entry:
+            continue
+        if not entry.startswith(b"?? "):
+            raise PredictionRunnerError("seal は selector-runs 外の clean worktree 必須")
+        try:
+            path = entry[3:].decode("utf-8")
+        except UnicodeError as exc:
+            raise PredictionRunnerError("git status path が UTF-8 でない") from exc
+        if not path.startswith(allowed_prefix):
+            raise PredictionRunnerError("seal は selector-runs 外の clean worktree 必須")
 
 
 def _derive_protocol_bytes(root: Path) -> bytes:
@@ -977,11 +1072,11 @@ def seal(
         raise PredictionRunnerError(
             f"--pre-oracle-head が現在 HEAD と不一致: {pre_oracle_head} != {actual_head}"
         )
-    if _git_bytes(root, ["status", "--porcelain"]):
-        raise PredictionRunnerError("seal は clean worktree 必須")
+    _assert_seal_worktree_clean(root)
     predictions_path = root / _PREDICTIONS_PATH
     if predictions_path.exists() or predictions_path.is_symlink():
         raise PredictionRunnerError("selector_predictions.json が既に存在する")
+    source_bytes = _read_source_bytes(root)
     if provider_kind == "unwired":
         raise PredictionRunnerError(
             "実走には --provider claude-headless の明示 opt-in が必要"
@@ -998,8 +1093,8 @@ def seal(
             "HEAD floor_protocol.json blob bytes が承認定数からの canonical 再導出と不一致"
         )
     try:
-        freeze_bytes = (root / _FREEZE_PATH).read_bytes()
-        role_bytes = (root / _ROLE_PATH).read_bytes()
+        freeze_bytes = source_bytes["holdout_freeze"]
+        role_bytes = source_bytes["role"]
         parser_bytes = (root / _PARSER_MODULE_PATH).read_bytes()
     except OSError as exc:
         raise PredictionRunnerError(f"seal source を read-once できない: {exc}") from exc
@@ -1014,6 +1109,7 @@ def seal(
     artifact_root = root / _JOURNAL_PATH.parent
     provider = ClaudeHeadlessProvider(
         artifact_root=artifact_root, role_file=root / _ROLE_PATH,
+        role_bytes=role_bytes, repository_root=root,
         executable=claude_executable, runner=provider_runner,
     )
     if provider.role_file_sha256 != _sha256(role_bytes):
@@ -1025,6 +1121,12 @@ def seal(
         provider_kind=provider.provider_kind,
         role_file_sha256=provider.role_file_sha256,
         parser_module_sha256=_sha256(parser_bytes),
+        claude_executable_path=provider.executable,
+        claude_executable_sha256=provider.executable_sha256,
+        known_cells=frozenset(
+            (job["target_holdout"], job["arm"])
+            for job in build_prediction_jobs(freeze)
+        ),
     )
     journal = PredictionJournal(root / _JOURNAL_PATH)
     ensure_run_header(journal, binding=binding)
@@ -1032,9 +1134,7 @@ def seal(
         freeze=freeze, journal=journal, artifact_root=artifact_root,
         root=root, binding=binding, provider=provider,
     )
-    sources = _source_records(
-        root, frozen_bytes={"holdout_freeze": freeze_bytes, "role": role_bytes},
-    )
+    sources = _source_records(frozen_bytes=source_bytes)
     document = materialize_predictions(
         freeze=freeze, journal=journal, predictions_path=predictions_path,
         generated_at=_now_iso(), pre_oracle_head=pre_oracle_head,
