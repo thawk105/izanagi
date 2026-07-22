@@ -3111,3 +3111,102 @@ real/refuted/scope 裁定。R1/R2 衝突 1 件 (M14b の kill 妥当性) は親�
 matrix は erratum 4 件 (誤帰属 3 + ハーネスバグ 1 = F33) を経て 18 変異全件が設計どおり
 (acceptance 8 / durability 6 / wiring 1 / 診断 pin 2 / 等価 1、未説明 SURVIVED 0)。
 受入 = 全走 2618 passed / 0 failed + WAL 回帰 PASS。
+
+## D78. 一回限りの移行契約 (T-080 最小抽出) の実装 — 機構実装済み・人間 receipt 発行待ち (2026-07-22)
+
+**決定: [T-083] (a) が定めた「一回限りの移行契約」を、承認済み W 列設計 (D75/D76) の最小抽出として
+実装する。** [T-068][T-077][T-078] を統合し、恒久一般化 (g1 bundle・active pointer・revocation・
+check registry・writer CLI) は oracle 後の W 列に残す。凍結成果物 3 JSON と legacy checker 2 本を
+含む no-touch 12 file は 1 byte も変更していない。成果 commit = a0e090f (U0 core) / 689af34
+(U1..U4 統合) / a1f2db6 (fix ラウンド 1) / 6767695 (fix ラウンド 2)。逐語・変異台帳 =
+`output/insights/2026-07-22_t080-migration-contract.md`。**発効はしていない** — 公式 gate は
+receipt 発行 (人間) まで現行 4 拒否のまま (状態中立記録、下記 (9))。
+
+(1) **構成。** 新設 `orchestrator/campaign/t080_freeze_migration.py` (single-file adapter) が
+sidecar receipt (`output/t080-migration/legacy-freeze-repin.receipt.json`、
+schema `izanagi-t080-legacy-freeze-repin/v1`) の draft/validate-draft/finalize/verify CLI と
+4 状態機械 (never-issued / active-valid / issued-but-missing / invalid、H_v reachable history から
+判定・発効後削除は明示 refusal)、D73 (3) の ancestry 4 分類、hardened Git (useReplaceRefs=false・
+shallow/replace/graft/alternates 拒否・GIT_* env 除去・merge-base rc 保持)、63/12/51 source closure
+(H_mig blob 照合 = R7 (b) の legacy 前倒し適用)、repin_report (provenance_resolved/diff 数値)、
+静的 gate adapter を提供する。oracle driver は receipt を最外層で 1 回解決し、GateDecision へ必須
+observation field (factory 集約 + AST 検査)、campaign-start へ epoch record
+({state: never-issued, validation_head} | 17-item envelope) を常設する。
+
+(2) **機械再構成の充足形。** 再構成 (S-1 build_document 一致 + holdout projected verify) は
+draft/validate-draft/finalize 時 (worktree == H_mig 必須・clean 必須) に現行 in-tree コードで実走し、
+失敗なら receipt bytes を生成しない。verify (gate) は旧コードを再実行せず、決定論 field
+(artifacts/repins/metadata/repin_report/projected hash) を H_mig blob から全再導出して byte 一致を
+要求する (`receipt.derivation_mismatch`)。**gate で再構成を繰り返さない理由**: H_mig snapshot 上の
+旧 Python 実行は任意コード実行の攻撃面になる (敵対相談 BLOCKER)。ccbench_pin 照合 (current
+submodule HEAD + H_mig gitlink) と unknownness 層2 live scan は gate 内で毎回実行され、D73 (2) の
+「後段検査の恒久マスク」は生じない。**層2 は凍結検索式に束縛した**: live report の holdout 集合・
+match_convention・candidate_id・expressions を凍結 doc 記録値と exact 照合してから
+_assert_search_pass を実行する (焦点再レビュー FR4 — 検索式 drift の fail-open を封鎖)。
+
+(3) **検査意味論の移行。** receipt 有効時: source closure / design_source は H_mig blob 照合、
+generator (checker 自己 hash) は両 freeze とも M 化 (metadata observation、R11・T-074 (a) の履行)、
+dangling ancestry は typed observation (不存在 commit / 非 ancestor のみ。git 障害・非 commit object
+は拒否のまま)、schema/pairing/層1/binding は byte-pin + 静的検査で維持。receipt 不在時 (現在):
+現行挙動を byte 単位で保存 (real-repo golden が 4 拒否 exact を pin)。receipt 不正/発効後削除:
+明示 refusal (silent legacy fallback なし)。gate 検査は fail-fast せず全層の refusal と observation
+を蓄積する (想定外例外も検査固有 reason へ正規化)。
+
+(4) **observation の伝播。** D72 (8) の受け皿: GateDecision (refusals 空 + active-valid のときのみ
+17-item envelope、それ以外 null)・WAL campaign-start (epoch record 常設。**key 欠落は epoch 非依存で
+当該 campaign 全 row protocol_violation** — 公式 gate は一度も通っておらず歴史 WAL が実在しないため
+歴史許容を置かない)・oracle report (per-campaign に R の ancestor 判定 + R blob への derivation 検査 +
+envelope 照合。violation は campaign-local)。judge は無変更 (protocol_violation row 経由で
+indeterminate へ倒れる既存機構)。gate-attempt 耐久台帳は**不採用** — R commit 自体が発効の耐久記録で
+あり、G2/G3 (1 cycle 前 blocker 限定・族一般化禁止) に対して過剰。
+
+(5) **人間同席の充足形。** receipt の confirmed_by (`^[A-Za-z0-9._-]{1,64}$`) / confirmed_at +
+人間 commit R (non-merge・parent = H_mig・diff = receipt 1 file・trailer `AI-Agent: none`)。
+人間は opaque hash でなく repin_report (13 件の旧→新 hash・provenance_resolved commit・diff 行数) を
+確認する (R14 の「digest + 添付レポート確認」と同型)。署名 commit は D75 §14 限界「人間承認は暗号
+署名ではない」の承認済み裁定により導入しない。
+
+(6) **残余の明文化 (受理集合上の限界 — 発効承認の材料)。**
+- (a) **builder 実走の実在は機械検証されない**: 決定論 field の byte 一致 + finalize の fail-closed +
+  人間確認に依存する。二段 commit topology (draft の事前 commit 束縛) は G2/G3 で過剰と裁定
+  (焦点再レビュー FR3 は refuted — F-2 裁定時に明示受容済みの残余)
+- (b) holdout `live_scan_sha256` は post-R 再導出不能 (64hex 形式のみ検査)
+- (c) never-issued epoch record の validation_head は producer (現行 driver コード) 信頼。WAL 改竄は
+  D68 (6) の脅威境界外
+- (d) H_mig 後の current worktree source drift の受理は D75 §14 損失表 5 行目 (R7 (b) 帰結) の
+  **承認済み損失**の legacy 前倒し適用であり、新規裁定事項ではない
+- (e) E2E の隔離は subprocess (sys.path/cwd/module __file__ assert) まで。実行 module の依存 closure
+  全体の H_mig 束縛 (相談 A2 の完全形) は未実装 — draft の checker 2 file + 13 repin path の
+  H_mig blob 直接照合 + root==ROOT fail-closed で部分回収
+- (f) real-repo active golden の observed 値 (H_mig blob hash 13 件) は H_mig 確定まで literal pin
+  不能 — hermetic E2E が独立 literal で pin し、real-repo は再導出値と照合
+- (g) legacy 直接 caller (s1_verify_extime_calibration / s1_report / s1_direct_comparison /
+  s1_measurement_freeze) は legacy strict のまま (D72 (9) 既知の残存破損は現状維持 — T-083 の
+  official-consumer 限定と整合)。receipt 存在下でも T-080 経路を通らないことをテストで pin
+  (stub 検出器 + import/source scan の二層。lambda 注入による深さの限界は insights §11 に記録)
+
+(7) **receipt lifecycle / W-X retirement。** path は恒久 namespace `output/freeze-migrations/`
+(S2-1.13 未知 file 拒否) と衝突しない `output/t080-migration/` に隔離。W-X 発効時に T-080 adapter は
+撤去対象、receipt は歴史成果物として byte 不変で残し、g1 bundle が pin を引き継ぐ。in-place
+supersede 機能は持たない — push 後に欠陥が見つかった場合は別 path/schema の人間裁定 wave で
+supersede する。push 前なら R を reset で落とし新 H_mig から再発行。
+
+(8) **検証プロセス。** brief (前提実測: gate 4 拒否・S-1 12/63 drift・両 anchor 不存在 commit・
+機械再構成の悪化を実物照合) → codex プラン v1 → 敵対相談 2 (max、両 NO-GO、27 所見) → 親裁定
+J1..J13 (snapshot 実行全廃・4 状態機械・namespace 隔離ほか。refuted 0) → プラン v2 → 実装 5 単位
+(U0 直列 + U1..U4 worktree 並列、所有素集合、収束 55 node 追加・消失 0) → 敵対レビュー 2 (max、
+両 NO-GO、17 所見) → fix 指令 F-1..F-8 (monkeypatch 全廃は `_verify_head(current_head=…)` の等価比較
+仕様の実測発見による) → 焦点再レビュー (max、NO-GO、closed 4 / partial 11 / regressed 2 +
+FR1..FR10) → fix 指令 G-1..G-7。**変異 matrix (親実測)**: 1 巡目 12 KILLED + M07 帰属不成立
+(二重防御マスク) + M13 等価除外 → gate 単層化 (F-1) で M13 復活・M07 両層化 → 2 巡目 14/14 KILLED
+(unexpected 0) → fix2 後 16/16 (M15 = 検索式束縛・M16 = key-absent 拒否を追加) を最終実測
+(結果は insights §13)。受入 = 全走 2697 passed / 18 skipped / 0 failed (baseline 2618 + 79)、
+base からの node 消失 0、no-touch 12 file 無変更を git diff で機械確認。
+
+(9) **状態中立記録と発効手順。** docs は「機構実装済み・receipt 発行待ち。発効後の期待 = gate 拒否
+{floor-null, budget-null} の 2 件 exact」と記す (R 前後どちらでも虚偽にならない)。発効はユーザーの
+draft 確認 → finalize → R commit → post-R 受入 (rc=2 + exact assert + 全走 + 3 check) —
+手順の正本は worklog 2026-07-22 (10) の引き渡しパッケージ。[T-068] は R commit をもって
+「移行契約により superseded」として閉じる。[T-077] は R の design_source 再 pin + generator M 化で、
+[T-078] は S2-4.6 承認値の外部固定 fixture (predicate 単独 mutant 1→0→1 実証済み) で閉じる —
+いずれも **R commit 時点で確定** (それまで開いたまま)。

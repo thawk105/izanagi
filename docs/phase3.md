@@ -86,6 +86,9 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 承認 → oracle 実走 → 層3 実レポート。W 列の恒久一般化 (revocation・expiry・全世代・check registry)
 は oracle 後に再開する (承認済み設計 D75/D76 は破棄しない)。正本 = worklog 2026-07-22 (9)、裁定
 パッケージ = `output/insights/2026-07-22_direction-audit-recovery-plan.md`。
+**移行契約 wave は 2026-07-22 に実装完了 (D78) — 機構実装済み・人間 receipt 発行待ち。** 発効後の
+公式 gate 期待 = {floor-null, budget-null} の 2 拒否 exact (receipt 発行手順の正本 = worklog
+2026-07-22 (10) の引き渡しパッケージ)。次 wave = protocol JSON 実凍結 + 予測封印。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 

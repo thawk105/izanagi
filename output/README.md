@@ -21,6 +21,7 @@ output/
 ├── s6-rounds/                    S-2/S-3 提案ラウンドの匿名化・採点・集計 provenance
 ├── s8b-freeze/                   段 8b holdout freeze (holdout_freeze.json)
 ├── exploration/                  探索 (非公式) 成果物の隔離 namespace (D65。campaigns/ を含む。official が型で拒否)
+├── t080-migration/               一回限りの移行契約 receipt (D78。hooks 保護外・4 状態機械と履歴検証が正 — 発効は人間 R commit のみ)
 ├── task-runs/                    AI 開発作業の統計記録 (開発プロセス観測。証拠ではない — D66、詳細 task-runs/README.md)
 ├── dev-wave-supervisor/          bounded dev-wave supervisor の運用契約 (README.md) と private runtime (runtime/ は gitignored、control WAL・raw child 出力。[T-076]、D74)
 └── reports/                      campaign 横断の材料レポート (s_prime_final_report.md, s1_direct_comparison/)
