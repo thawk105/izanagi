@@ -15,12 +15,17 @@ build/verify/bench を伴わない機械部分のみ:
 """
 from __future__ import annotations
 
+import contextlib
+import errno
 import itertools
 import json
 import os
 import re
 import sys
 import tempfile
+from pathlib import Path
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -30,6 +35,7 @@ from campaign import ident                                        # noqa: E402
 from campaign import pipeline                                     # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign import s6_sort_sweep as W                           # noqa: E402
+from campaign import wal                                         # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 
@@ -199,6 +205,30 @@ def test_all_candidates_pass_quarantine():
         assert res.passed, f"{name}: 機械生成候補が検疫 reject — {res.reason}"
 
 
+def test_s6_reject_writer_fails_closed_on_unframed_tail():
+    layout = _tmp_layout()
+    with open(layout.wal_file, "wb") as stream:
+        stream.write(b'{"unframed":')
+    before = open(layout.wal_file, "rb").read()
+    implementation = W.CANDIDATES[0][2]
+    rejection = L.DiffQuarantineResult(
+        passed=False, digest={"subtype": "fixture-reject"},
+    )
+
+    try:
+        L.record_diff_reject(
+            layout, W._genome(1), implementation, rejection, env_tag=W.ENV_TAG,
+        )
+        assert False, "s6 reject が unframed tail へ追記されてはならない"
+    except wal.WalAppendError as exc:
+        assert exc.phase == "tail-gate"
+        assert isinstance(exc.cause, wal.WalFramingError)
+
+    assert open(layout.wal_file, "rb").read() == before
+    assert not any(name.startswith("wal-tail-repair-")
+                   for name in os.listdir(layout.runs_dir))
+
+
 # ==== campaign identity =======================================================
 
 def test_workload_and_trial_baked_into_identity():
@@ -236,6 +266,77 @@ def test_genome_flags():
 def _tmp_layout():
     from campaign.layout import CampaignLayout
     return CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s6sweep_lay_")).ensure()
+
+
+def _install_public_reject_sweep_fakes(monkeypatch, layout):
+    from campaign import patchharness
+
+    root = tempfile.mkdtemp(prefix="izanagi_s6_public_sweep_")
+    os.makedirs(os.path.join(root, "external", "ccbench"))
+    rejection = L.DiffQuarantineResult(
+        passed=False, digest={"subtype": "fixture-reject"},
+    )
+    monkeypatch.setattr(W, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(W, "_repo_root", lambda: root)
+    monkeypatch.setattr(W, "campaign_layout", lambda _campaign_id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_args: None)
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        L, "quarantine", lambda *_args, **_kwargs: (rejection, "", "", ""),
+    )
+
+
+def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
+    layout = _tmp_layout()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    first, second = [name for name, _category, _impl in W.CANDIDATES[:2]]
+
+    first_result = W.run_sweep(
+        "balanced", names=[first], isolate=False, log=lambda _line: None,
+    )
+    assert first_result[first]["outcome"] == "quarantine-reject"
+    cfg = W.config_for("balanced")
+    assert wal.read_lock(layout) == ident.canonical_preimage(cfg)
+
+    resumed = W.run_sweep(
+        "balanced", names=[second], isolate=False, log=lambda _line: None,
+    )
+    assert resumed[second]["outcome"] == "quarantine-reject"
+    assert len(wal.read_records(layout)) == 4
+
+
+def test_public_sweep_partial_write_eio_stops_before_next_candidate(
+        monkeypatch):
+    layout = _tmp_layout()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    names = [name for name, _category, _impl in W.CANDIDATES[:2]]
+    real_write = wal.os.write
+    wal_calls = []
+
+    def partial_then_eio(fd, data):
+        try:
+            path = os.readlink("/proc/self/fd/%d" % fd)
+        except OSError:
+            path = ""
+        if path == layout.wal_file:
+            wal_calls.append(len(data))
+            if len(wal_calls) == 1:
+                return real_write(fd, data[:7])
+            raise OSError(errno.EIO, "injected partial WAL write EIO")
+        return real_write(fd, data)
+
+    monkeypatch.setattr(wal.os, "write", partial_then_eio)
+    with pytest.raises(wal.WalAppendError) as excinfo:
+        W.run_sweep(
+            "balanced", names=names, isolate=False, log=lambda _line: None,
+        )
+    assert excinfo.value.phase == "write"
+    assert excinfo.value.written_bytes == 7 < excinfo.value.total_bytes
+    assert len(wal_calls) == 2
+    assert Path(layout.wal_file).read_bytes() and b"\n" not in Path(layout.wal_file).read_bytes()
 
 
 def test_replay_outcome_distinguishes_commit_and_abort():

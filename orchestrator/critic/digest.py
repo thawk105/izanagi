@@ -198,6 +198,7 @@ def load_workload(layout: CampaignLayout) -> List[GenomeLI]:
     genome_of: Dict[str, str] = {}
     li_of: Dict[str, Dict] = {}
     committed: set = set()
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
@@ -231,6 +232,7 @@ def load_rejections(layout: CampaignLayout) -> List[Rejection]:
     genome_of: Dict[str, str] = {}
     srctok_of: Dict[str, str] = {}
     out: List[Rejection] = []
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
@@ -269,6 +271,7 @@ def load_liveness_rejections(
     srctok_of: Dict[str, str] = {}
     out: List[LivenessRejection] = []
     other: Counter = Counter()
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
@@ -304,6 +307,7 @@ def load_screen_rejections(layout: CampaignLayout) -> List[ScreenRejection]:
     genome_of: Dict[str, str] = {}
     srctok_of: Dict[str, str] = {}
     out: List[ScreenRejection] = []
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
@@ -334,6 +338,7 @@ def load_diff_rejections(layout: CampaignLayout) -> List[DiffQuarantineRejection
     genome_of: Dict[str, str] = {}
     srctok_of: Dict[str, str] = {}
     out: List[DiffQuarantineRejection] = []
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
@@ -396,6 +401,7 @@ def load_verify_abort_signals(layout: CampaignLayout) -> List[VerifyAbortSignal]
     genome_of: Dict[str, str] = {}
     srctok_of: Dict[str, str] = {}
     seen: Dict[str, Dict] = {}
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))

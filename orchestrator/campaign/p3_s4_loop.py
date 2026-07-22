@@ -623,6 +623,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
     layout.ensure()
+    # reject も campaign の初回 WAL write なので、repair 無しの identity gate を先行する。
+    ident.ensure_campaign_identity(cfg, layout)
 
     if not do_build:
         # dry-run: 骨格を一時適用せず、骨格入りソースを合成して検疫だけ試す経路は

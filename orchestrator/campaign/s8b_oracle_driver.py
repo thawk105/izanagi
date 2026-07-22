@@ -22,7 +22,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from campaign import model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign import campaign_claim as _campaign_claim  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
@@ -49,7 +49,7 @@ from campaign.s8b_oracle_manifest import (  # noqa: E402
 )
 
 
-SESSION_STAGE = "s8b-oracle-session"
+SESSION_STAGE = model.STAGE_S8B_ORACLE_SESSION
 DEFAULT_FREEZE_PATH = ROOT / "output/s8b-freeze/holdout_freeze.json"
 DEFAULT_BUDGET_PATH = ROOT / "output/s8b-budget/time_ledger.json"
 _BINDING_KEYS = {
@@ -1173,6 +1173,9 @@ def run_block(
                                 ],
                                 record_rep_returncodes=True,
                             )
+                    except (wal.WalAppendError, wal.WalFramingError):
+                        # 不確かな同一 WAL へ trial-result/deviation を重ねない。
+                        raise
                     except Exception as exc:
                         result = pipeline.EvalResult(
                             genome=prepared_for_eval.genome,
@@ -1196,6 +1199,9 @@ def run_block(
                         error_message = str(exc)
                         row_done = True
                         break
+            except (wal.WalAppendError, wal.WalFramingError):
+                # materializer 境界でも元の構造化 WAL 例外を保全する。
+                raise
             except Exception as exc:
                 if evaluate_started:
                     _append_session(layout, env_tag, "deviation", {

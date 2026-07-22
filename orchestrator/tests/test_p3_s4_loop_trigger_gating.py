@@ -18,9 +18,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import p3_s4_loop as L                                # noqa: E402
+from campaign import ident, p3_s4_loop as L                         # noqa: E402
 from campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
+from campaign import wal                                            # noqa: E402
 from campaign.auditor_gate import AuditorGateFailure, AuditorVerdict  # noqa: E402
 from campaign.layout import CampaignLayout                          # noqa: E402
 from campaign.model import Genome                                   # noqa: E402
@@ -393,9 +394,15 @@ def _pinned_clean_sub_or_skip():
 
 
 def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
-    """--run-iteration 実経路 (funnel) で entry が焼かれる。reject 経路 (do_build=False、
-    実 submodule 要 — pinned-clean でなければ skip)。"""
-    sub = _pinned_clean_sub_or_skip()
+    """fresh reject 後も次候補の public funnel が identity を照合して resume する。"""
+    import contextlib
+    from campaign import patchharness
+
+    sub = _mk_template_dir()
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
     lay = _tmp_layout("driveprov")
     cfg, perf = T.default_cfg(), T.default_perf()
     bad = T.CoderProposalTriggerGating(axis=T.MARKER_ID,
@@ -404,18 +411,37 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     out = T.drive_iteration(cfg, perf, _planner(), bad, au, None, sub, do_build=False,
                             layout=lay, proposal_path="/scratch/prop1.json")
     assert out["ran"] is True and out["outcome"] == "rejected" and out["iteration"] == 1
+    assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
+    next_bad = T.CoderProposalTriggerGating(
+        axis=T.MARKER_ID, implementation="#define EVIL_NEXT 1\n" + _CLEAN_IMPL,
+    )
+    resumed = T.drive_iteration(
+        cfg, perf, _planner(), next_bad, au, None, sub, do_build=False,
+        layout=lay, proposal_path="/scratch/prop2.json",
+    )
+    assert resumed["iteration"] == 2 and resumed["outcome"] == "rejected"
     with open(T._provenance_path(lay), encoding="utf-8") as f:
         prov = json.load(f)
     assert prov["entries"]["1"]["outcome"] == "rejected"
     assert prov["entries"]["1"]["proposal_path"] == "/scratch/prop1.json"
+    assert prov["entries"]["2"]["proposal_path"] == "/scratch/prop2.json"
     st = L.load_loop_state(lay)
-    assert st.iteration == 1 and st.whiteboard[0].result == "rejected"
+    assert st.iteration == 2 and [e.result for e in st.whiteboard] == [
+        "rejected", "rejected",
+    ]
 
 
 def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
     """provenance entry が書けない iteration は checkpoint を前進させない (FC-1(b) 裁定 —
     「WAL/checkpoint は進んだが記録なし」の中途半端を作らない)。"""
-    sub = _pinned_clean_sub_or_skip()
+    import contextlib
+    from campaign import patchharness
+
+    sub = _mk_template_dir()
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
     lay = _tmp_layout("provblock")
     cfg, perf = T.default_cfg(), T.default_perf()
     bad = T.CoderProposalTriggerGating(axis=T.MARKER_ID,

@@ -62,6 +62,7 @@ class GRow:
 
 def _collect(layout) -> dict:
     rows: dict = {}
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         g = rows.setdefault(r.variant, GRow(r.variant))
         p = r.payload

@@ -15,7 +15,9 @@ import hashlib
 import json
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+from .layout import CampaignLayout
 from .model import CampaignConfig, CampaignId
+from . import wal
 
 if TYPE_CHECKING:
     from .pipeline import ScreeningConfig
@@ -104,6 +106,10 @@ def campaign_id(cfg: CampaignConfig) -> CampaignId:
 class IdentityMismatch(Exception):
     """ハッシュ一致だが格納済み lock と現在 config の中身が相違 (衝突/改竄)。"""
 
+    def __init__(self, message: str, *, reason: str = "lock-mismatch"):
+        super().__init__(message)
+        self.reason = reason
+
 
 def verify_against_lock(cfg: CampaignConfig, stored_preimage: str) -> None:
     """再開時の関所: 現在 config の正準 pre-image が格納済み lock と一致するか。
@@ -117,3 +123,53 @@ def verify_against_lock(cfg: CampaignConfig, stored_preimage: str) -> None:
             "campaign.lock と現在 config の正準 pre-image が不一致。"
             "ハッシュ衝突か config ドリフト。黙ってマージせず停止する。\n"
             f"  stored : {stored_preimage}\n  current: {cur}")
+
+
+def ensure_resumable_wal(
+        cfg: CampaignConfig, layout: CampaignLayout,
+) -> wal.WalTailRepairResult:
+    """identity を確定してからに限り WAL の無終端 tail を物理修復する。
+
+    lock の無い既存 WAL は、どの config の記録か照合できないため修復も追記も
+    しない。初回 campaign (lock 無し・WAL byte 無し) だけは原子的に lock を
+    作成し、その後に機構層の repair を呼ぶ。
+    """
+    ensure_campaign_identity(cfg, layout)
+    return wal.repair_truncated_tail(layout)
+
+
+def ensure_campaign_identity(
+        cfg: CampaignConfig, layout: CampaignLayout,
+) -> bool:
+    """repair を行わず campaign.lock を原子的に確立・照合する。
+
+    戻り値はこの呼び出しが lock を新規獲得したときだけ True。lock 無しで WAL
+    byte がある場合は identity 不明のため拒否する。既存 lock との競合敗者は
+    lock を再読して同一 config なら False を返す。
+    """
+    stored = wal.read_lock(layout)
+    if stored is not None:
+        verify_against_lock(cfg, stored)
+        return False
+
+    # lock 作成前に WAL の lstat/open/fstat を行う。EIO 等は fail-closed に伝播する。
+    if wal.wal_bytes_present(layout):
+        raise IdentityMismatch(
+            "campaign.lock が無い既存 WAL は identity を照合できないため "
+            "resume/repair を拒否する。WAL bytes は変更していない。",
+            reason="missing-lock-with-wal-bytes",
+        )
+
+    preimage = canonical_preimage(cfg)
+    if wal.acquire_lock_atomic(layout, preimage):
+        return True
+
+    # 並行 winner が作った lock だけを正本として読み、敗者は何も書かない。
+    stored = wal.read_lock(layout)
+    if stored is None:
+        raise IdentityMismatch(
+            "campaign.lock の原子的獲得に失敗し、既存 lock も読めない。",
+            reason="lock-create-failed",
+        )
+    verify_against_lock(cfg, stored)
+    return False

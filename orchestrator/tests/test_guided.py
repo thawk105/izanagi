@@ -7,16 +7,20 @@ pytest でも 素の `python orchestrator/tests/test_guided.py` でも走る。
 from __future__ import annotations
 
 import atexit
+import contextlib
+import io
+import json
 import os
 import shutil
 import sys
 import tempfile
+import types
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import replay, wal                                  # noqa: E402
+from campaign import guided, ident, replay, wal                   # noqa: E402
 from campaign.genome import SILO_SPACE                            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
@@ -202,6 +206,139 @@ def test_winner_tied_set_transitive_chain():
     land = {a: _gr(a, 100.0), b: _gr(b, 98.0), c: _gr(c, 96.0), d: _gr(d, 50.0)}
     tied = replay.winner_tied_set(land, between_run_cv=0.03)
     assert tied == {a, b, c}, tied            # 連結で 3 つ、far は除外
+
+
+def test_cmd_evaluate_repairs_committed_tail_before_four_new_frames():
+    root = _tmp_layout().root
+    trial = "balanced-s-resume"
+    layout = guided._trial_layout(trial, root)
+    layout.ensure()
+    meta = {"tag": "balanced", "workload": {"ycsb_rratio": "50"},
+            "seed": "7", "trial": trial}
+    guided._write_meta(layout, meta)
+    ident.ensure_resumable_wal(guided._trial_config(meta, trial), layout)
+    first, second = SILO_SPACE.enumerate()[:2]
+    guided._log_eval(layout, _gr(first.canonical(), 100.0))
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(b'{"partial":')
+
+    saved_load = guided.replay.load_landscape
+    saved_eval = guided.replay.replay_evaluate
+    saved_print = guided._print_state
+    guided.replay.load_landscape = lambda tag: {}
+    guided.replay.replay_evaluate = lambda landscape, genome: _gr(
+        genome.canonical(), 90.0)
+    guided._print_state = lambda *args: None
+    try:
+        rc = guided.cmd_evaluate(types.SimpleNamespace(
+            trial=trial, root=root, genome=replay.genome_label(second.flags)))
+    finally:
+        guided.replay.load_landscape = saved_load
+        guided.replay.replay_evaluate = saved_eval
+        guided._print_state = saved_print
+    records, truncated = wal.read_records_checked(layout)
+    assert rc == 0 and truncated is False
+    assert len(records) == 8
+    assert [record.variant for record in records[:4]] == [first.canonical()] * 4
+    assert [record.variant for record in records[4:]] == [second.canonical()] * 4
+    assert len([name for name in os.listdir(layout.runs_dir)
+                if name.startswith("wal-tail-repair-")]) == 1
+
+
+def test_cmd_evaluate_checks_meta_trial_before_repair():
+    root = _tmp_layout().root
+    requested = "requested"
+    layout = guided._trial_layout(requested, root)
+    layout.ensure()
+    guided._write_meta(layout, {
+        "tag": "balanced", "workload": {}, "seed": "1", "trial": "other"})
+    with open(layout.wal_file, "wb") as stream:
+        stream.write(b"unframed")
+    before = open(layout.wal_file, "rb").read()
+    try:
+        guided.cmd_evaluate(types.SimpleNamespace(
+            trial=requested, root=root, genome="B0-L-W0"))
+        raise AssertionError("meta trial mismatch を拒否すべき")
+    except ValueError as exc:
+        assert "trial が引数と不一致" in str(exc)
+    assert open(layout.wal_file, "rb").read() == before
+    assert not os.path.exists(layout.lock_file)
+
+
+def test_cmd_start_acquires_lock_before_winner_writes_meta():
+    root = _tmp_layout().root
+    trial = "balanced-start-winner"
+    args = types.SimpleNamespace(
+        trial=trial, root=root, workload="balanced", seed="7",
+    )
+    layout = guided._trial_layout(trial, root)
+    real_write_meta = guided._write_meta
+    saved = (
+        guided.replay.load_landscape,
+        guided.replay.assert_complete,
+        guided.replay.replay_evaluate,
+        guided._print_state,
+    )
+
+    def checked_write_meta(candidate_layout, meta):
+        assert wal.read_lock(candidate_layout) == ident.canonical_preimage(
+            guided._trial_config(meta, trial))
+        real_write_meta(candidate_layout, meta)
+
+    guided._write_meta = checked_write_meta
+    guided.replay.load_landscape = lambda _tag: {}
+    guided.replay.assert_complete = lambda _landscape, _tag: None
+    guided.replay.replay_evaluate = lambda _landscape, genome: _gr(
+        genome.canonical(), 100.0)
+    guided._print_state = lambda *_args: None
+    try:
+        rc = guided.cmd_start(args)
+    finally:
+        guided._write_meta = real_write_meta
+        (guided.replay.load_landscape,
+         guided.replay.assert_complete,
+         guided.replay.replay_evaluate,
+         guided._print_state) = saved
+    assert rc == 0
+    assert os.path.exists(guided._meta_path(layout))
+    assert len(wal.read_records(layout)) == 4
+
+
+def test_cmd_start_atomic_loser_is_structured_and_touches_no_meta_or_wal():
+    root = _tmp_layout().root
+    trial = "balanced-start-loser"
+    args = types.SimpleNamespace(
+        trial=trial, root=root, workload="balanced", seed="7",
+    )
+    layout = guided._trial_layout(trial, root).ensure()
+    meta = {"tag": "balanced", "workload": guided._workload_of("balanced"),
+            "seed": "7", "trial": trial}
+    assert ident.ensure_campaign_identity(
+        guided._trial_config(meta, trial), layout) is True
+
+    stderr = io.StringIO()
+    with contextlib.redirect_stderr(stderr):
+        rc = guided.cmd_start(args)
+    rejection = json.loads(stderr.getvalue())
+    assert rc == 2
+    assert rejection["reason"] == "campaign-lock-already-acquired"
+    assert not os.path.exists(guided._meta_path(layout))
+    assert not os.path.exists(layout.wal_file)
+
+
+def test_cmd_start_existing_wal_is_rejected_before_lock_and_meta():
+    root = _tmp_layout().root
+    trial = "balanced-start-existing-wal"
+    layout = guided._trial_layout(trial, root).ensure()
+    with open(layout.wal_file, "wb") as stream:
+        stream.write(b"existing")
+    stderr = io.StringIO()
+    with contextlib.redirect_stderr(stderr):
+        rc = guided.cmd_start(types.SimpleNamespace(
+            trial=trial, root=root, workload="balanced", seed="7"))
+    assert rc == 2 and "既存" in stderr.getvalue()
+    assert not os.path.exists(layout.lock_file)
+    assert not os.path.exists(guided._meta_path(layout))
 
 
 def _run():

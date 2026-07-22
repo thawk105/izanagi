@@ -298,6 +298,8 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                     f"{n_points} 点 (screening opt-in, campaign {layout.root}) ===")
                 prov[IDENT_NAME] = baseline_entry
                 _write_provenance(layout, tag, trial, effective, prov)
+            # quarantine reject が最初の WAL write でも self-seal しないよう先行する。
+            ident.ensure_campaign_identity(cfg, layout)
             for name in sel_names:
                 if screening_enabled and name == IDENT_NAME:
                     continue
@@ -305,6 +307,9 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                     entry = _eval_one(name, effective, cfg, perf, layout, sub,
                                       patch, cache_root, log=log,
                                       screening=active_screening)
+                except (wal.WalAppendError, wal.WalFramingError):
+                    # 壊れた同一 WAL に driver-error/reject を重ねず sweep 全体を止める。
+                    raise
                 except Exception as e:
                     # driver 層 (applied/quarantine/resolve) の例外も候補単位で隔離 —
                     # 1 点の transient 失敗で全走を落とし成果ゼロにしない (s6 と同型)。

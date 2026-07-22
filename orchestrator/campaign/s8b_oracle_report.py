@@ -20,7 +20,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import env_attestation, env_contract  # noqa: E402
+from campaign import env_attestation, env_contract, model  # noqa: E402
 from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
 from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
@@ -30,7 +30,7 @@ from campaign.layout import CampaignLayout, campaign_layout  # noqa: E402
 
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
-SESSION_STAGE = "s8b-oracle-session"
+SESSION_STAGE = model.STAGE_S8B_ORACLE_SESSION
 OUTCOMES = _outcome_stage_contract.OUTCOMES
 # C3-5: bench-binary-mismatch abort が射影される terminal outcome の abort reason。
 # build_done 後・trace/bench 起動前に発火するため build/verify/bench 証拠のどれにも
@@ -311,6 +311,16 @@ def _pipeline_event(record: object) -> bool:
     stage = getattr(record, "stage", None)
     return (isinstance(stage, str)
             and stage in _outcome_stage_contract.PIPELINE_STAGES)
+
+
+def _inert_record_issues(records: Sequence[object]) -> list[str]:
+    """8b protocol の session / pipeline のどちらにも属さない record を列挙する。"""
+    return [
+        ("WAL record が session event / pipeline stage のどちらにも分類されない: "
+         f"ordinal={ordinal} stage={getattr(record, 'stage', None)!r}")
+        for ordinal, record in enumerate(records)
+        if not _session_event(record) and not _pipeline_event(record)
+    ]
 
 
 def _row_lifecycle_event(record: object) -> bool:
@@ -950,6 +960,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         f"WAL record が不正: line {line_number}: {reason}"
         for line_number, reason in line_issues
     )
+    terminal_protocol_issues.extend(_inert_record_issues(records))
     if truncated_tail:
         terminal_protocol_issues.append("WAL の末尾 record が途中で切れている")
 

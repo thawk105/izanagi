@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import json
+import os
 import sys
 import types
 from pathlib import Path
@@ -15,7 +17,7 @@ sys.path.insert(0, str(ORCH))
 
 from campaign import pipeline, wal  # noqa: E402
 from campaign.layout import CampaignLayout  # noqa: E402
-from campaign.model import Genome  # noqa: E402
+from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign import s1_direct_comparison as S  # noqa: E402
 
@@ -185,6 +187,7 @@ def test_schedule_mutation_refused_and_deviation_recorded(tmp_path):
     freeze_path = _write_freeze(tmp_path, document)
     layout = S.layout_for(document, "floor", output_root=str(tmp_path / "out"))
     layout.ensure()
+    wal.write_lock(layout, S.ident.canonical_preimage(S.config_for(document, "floor")))
     schedule = S.schedule_for_role(document, "floor")
     S._append_event(layout, S._base_event(schedule[0], "v0", 0))
     S._append_event(layout, S._base_event(schedule[0], "v0-duplicate", 0))
@@ -436,8 +439,10 @@ def test_develop_calls_legacy_plus_s2_without_bench_18_times(tmp_path):
             (pipeline.S2_TAG, pipeline.s2_correctness_workload().flags)]
 
 
-def test_s1_session_unknown_stage_is_safe_for_existing_wal_consumers(tmp_path):
+def test_s1_session_stage_is_in_shared_wal_contract(tmp_path):
     layout = CampaignLayout(str(tmp_path / "campaign")).ensure()
+    # '-' 入り literal を CPython が自動 intern しないことに依存し、再 literal 化を検出する。
+    assert S.SESSION_STAGE is STAGE_S1_SESSION
     wal.log(layout, "v1", S.SESSION_STAGE, S.ENV_TAG, {"event": "session-start"})
     states = wal.replay(layout)
     assert states["v1"].stages_seen == [S.SESSION_STAGE]
@@ -451,6 +456,101 @@ def test_completed_campaign_resume_does_not_evaluate_again(tmp_path):
     calls = []
     assert _run(tmp_path, "develop", lambda *a, **k: calls.append(1)) == S.EXIT_OK
     assert calls == []
+
+
+def test_resume_repairs_tail_before_retry_and_session_result(tmp_path):
+    document = _freeze()
+    output_root = str(tmp_path / "out")
+    layout = S.layout_for(document, "develop", output_root=output_root).ensure()
+    cfg = S.config_for(document, "develop")
+    wal.write_lock(layout, S.ident.canonical_preimage(cfg))
+    first = S.schedule_for_role(document, "develop")[0]
+    S._append_event(layout, S._base_event(first, "interrupted", 0))
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(b'{"torn":')
+    messages = []
+
+    rc = S.run_role(
+        "develop", freeze_path=_write_freeze(tmp_path, document),
+        budget_path=tmp_path / "time_ledger.json", output_root=output_root,
+        verify_document=lambda doc: None, evaluate_fn=_green,
+        prepare_cell_fn=_prepared, single_tenant_fn=lambda: None,
+        monotonic=_Clock(), log=messages.append)
+    records, truncated = wal.read_records_checked(layout)
+    events = S.read_session_ledger(layout)
+    assert rc == S.EXIT_OK and truncated is False
+    assert len(records) > 4
+    assert any('"status": "repaired"' in message for message in messages)
+    assert any(event.get("event") == "retry" and event.get("attempt") == 1
+               for event in events)
+    assert any(event.get("event") == "session-result"
+               and event.get("schedule_index") == 0
+               and event.get("attempt") == 1 for event in events)
+
+
+def test_run_role_partial_wal_write_eio_preserves_error_and_stops_followup(
+        tmp_path, monkeypatch):
+    document = _freeze()
+    freeze_path = _write_freeze(tmp_path, document)
+    output_root = str(tmp_path / "out")
+    layout = S.layout_for(document, "develop", output_root=output_root)
+    real_write = wal.os.write
+    injection = {"active": False, "calls": 0}
+
+    def partial_then_eio(fd, data):
+        try:
+            path = os.readlink("/proc/self/fd/%d" % fd)
+        except OSError:
+            path = ""
+        if injection["active"] and path == layout.wal_file:
+            injection["calls"] += 1
+            if injection["calls"] == 1:
+                return real_write(fd, data[:7])
+            raise OSError(errno.EIO, "injected S-1 partial WAL write EIO")
+        return real_write(fd, data)
+
+    def fail_inside_evaluate(genome, candidate_layout, env_tag, *_args, **_kwargs):
+        injection["active"] = True
+        wal.log(candidate_layout, "evaluate-write", STAGE_BUILD_START, env_tag, {})
+        raise AssertionError("WalAppendError の後へ到達してはならない")
+
+    monkeypatch.setattr(wal.os, "write", partial_then_eio)
+    with pytest.raises(wal.WalAppendError) as excinfo:
+        S.run_role(
+            "develop", freeze_path=freeze_path,
+            budget_path=tmp_path / "time_ledger.json", output_root=output_root,
+            verify_document=lambda _doc: None, evaluate_fn=fail_inside_evaluate,
+            prepare_cell_fn=_prepared, single_tenant_fn=lambda: None,
+            monotonic=_Clock(), log=lambda _message: None,
+        )
+    assert excinfo.value.phase == "write"
+    assert excinfo.value.written_bytes == 7 < excinfo.value.total_bytes
+    records, issues, truncated = wal.read_records_collected(layout)
+    assert issues == [] and truncated is True and injection["calls"] == 2
+    events = S.session_events_from_records(records)
+    assert [event.get("event") for event in events] == [
+        "campaign-start", "session-start",
+    ]
+
+
+def test_dry_run_refuses_unframed_tail_without_physical_change(tmp_path):
+    document = _freeze()
+    output_root = str(tmp_path / "out")
+    layout = S.layout_for(document, "develop", output_root=output_root).ensure()
+    S._append_event(
+        layout, S._base_event(S.schedule_for_role(document, "develop")[0], "v", 0))
+    with open(layout.wal_file, "ab") as stream:
+        stream.write("途中".encode("utf-8")[:4])
+    before = Path(layout.wal_file).read_bytes()
+
+    with pytest.raises(S.ScheduleDeviation, match="newline 終端の無い tail"):
+        S.run_role(
+            "develop", dry_run=True, freeze_path=_write_freeze(tmp_path, document),
+            budget_path=tmp_path / "time_ledger.json", output_root=output_root,
+            verify_document=lambda doc: None, log=lambda message: None)
+    assert Path(layout.wal_file).read_bytes() == before
+    assert not list(Path(layout.runs_dir).glob("wal-tail-repair-*.json"))
+    assert not Path(layout.lock_file).exists()
 
 
 def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatch):

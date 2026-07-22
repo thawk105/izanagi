@@ -120,6 +120,7 @@ def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:
     bench_of: Dict[str, dict] = {}
     certified_of: Dict[str, bool] = {}
     committed: set = set()
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(lay):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))

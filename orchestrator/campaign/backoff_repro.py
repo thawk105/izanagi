@@ -74,6 +74,7 @@ def _bench_tps(layout, v: str) -> Optional[float]:
     """campaign WAL から certified variant の median tps だけを引く。"""
     pending_tps = None
     certified_tps = None
+    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in wal.read_records(layout):
         if r.variant != v:
             continue

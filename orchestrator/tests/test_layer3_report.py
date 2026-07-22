@@ -13,7 +13,7 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import layer3_report  # noqa: E402
+from campaign import layer3_report, model  # noqa: E402
 
 
 ROOT = _HERE.parent.parent
@@ -139,8 +139,19 @@ def test_relative_and_absolute_campaign_paths_are_byte_identical(tmp_path, monke
 
 def test_unknown_stage_fails_closed(tmp_path):
     campaign, output_root = _campaign(tmp_path, [_record("unknown-stage")])
-    with pytest.raises(layer3_report.Layer3ReportError, match="未知"):
+    with pytest.raises(layer3_report.Layer3ReportError, match="unknown WAL stage") as exc_info:
         layer3_report.build_report(campaign, generated_from_head="fixed", output_root=output_root)
+    assert isinstance(exc_info.value.__cause__, layer3_report.wal.WalLineError)
+
+
+def test_shared_known_session_stage_is_outside_layer3_semantic_subset(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record(model.STAGE_S1_SESSION, event="session-start")],
+    )
+    with pytest.raises(layer3_report.Layer3ReportError, match="未知の WAL stage"):
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
 
 
 def test_nested_duplicate_wal_key_fails_closed_for_one_reason(tmp_path):
@@ -210,6 +221,26 @@ def test_wal_blank_between_records_uses_shared_strict_contract(tmp_path):
         layer3_report.build_report(
             campaign, generated_from_head="fixed", output_root=output_root)
     assert isinstance(exc_info.value.__cause__, layer3_report.wal.WalLineError)
+
+
+@pytest.mark.parametrize("tail_kind", ["complete-json", "multibyte-partial"])
+def test_unframed_wal_tail_is_translated_with_framing_cause(tmp_path, tail_kind):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    wal_path = campaign / "runs/wal.jsonl"
+    if tail_kind == "complete-json":
+        wal_path.write_bytes(wal_path.read_bytes()[:-1])
+    else:
+        with wal_path.open("ab") as stream:
+            stream.write(b'{"variant":"broken-\xe3\x81')
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="WAL framing") as exc_info:
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+
+    assert isinstance(exc_info.value.__cause__, layer3_report.wal.WalFramingError)
 
 
 def test_direct_script_starts_with_clean_pythonpath(tmp_path):

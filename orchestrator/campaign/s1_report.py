@@ -27,16 +27,16 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import pipeline, s1_stats, wal  # noqa: E402
+from campaign import model, pipeline, s1_stats, wal  # noqa: E402
 from campaign.layout import repo_output_root  # noqa: E402
 from campaign.s1_direct_comparison import (  # noqa: E402
     BUDGET_REL,
     FREEZE_REL,
     layout_for,
     read_budget,
-    read_session_ledger,
     schedule_for_role,
-    validate_session_ledger,
+    session_events_from_records,
+    validate_session_events,
 )
 
 
@@ -171,7 +171,7 @@ def bind_left_target(
 
 
 def _event(record, name: str) -> bool:
-    return (record.stage == "s1-session" and isinstance(record.payload, dict)
+    return (record.stage == model.STAGE_S1_SESSION and isinstance(record.payload, dict)
             and record.payload.get("event") == name)
 
 
@@ -337,9 +337,35 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
     try:
         schedule = schedule_for_role(document, role)
         layout = layout_for(document, role, output_root=output_root)
-        events = read_session_ledger(layout)
-        next_index = validate_session_ledger(layout, schedule)
-        _validate_event_metadata(events, schedule, role)
+        # 物理問題を収集する read は 1 回だけ。問題があっても valid prefix の解析を続ける。
+        records, line_issues, truncated_tail = wal.read_records_collected(layout)
+        if truncated_tail:
+            schedule_gate["reasons"].append(_reason(
+                "wal_truncated_tail",
+                "WAL の末尾 record が newline 終端されていない",
+                campaign=role,
+            ))
+        if line_issues:
+            schedule_gate["reasons"].append(_reason(
+                "wal_line_issues",
+                "WAL に終端済みの decode/JSON/record 契約違反行がある",
+                campaign=role,
+                count=len(line_issues),
+                first_issues=[
+                    {"line_number": line_number, "reason": reason}
+                    for line_number, reason in line_issues[:5]
+                ],
+            ))
+
+        events = session_events_from_records(records)
+        next_index: Optional[int] = None
+        try:
+            next_index = validate_session_events(events, schedule)
+            _validate_event_metadata(events, schedule, role)
+        except Exception as exc:
+            schedule_gate["reasons"].append(_reason(
+                "schedule_ledger_invalid", str(exc), campaign=role,
+                error_type=type(exc).__name__))
         starts = [event for event in events if event.get("event") == "session-start"]
         schedule_gate.update(
             expected_sessions=len(schedule), recorded_attempt_starts=len(starts),
@@ -348,15 +374,12 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
                 (event.get("ts") for event in events
                  if event.get("event") == "campaign-start"), None),
             next_index=next_index)
-        if next_index != len(schedule):
+        if next_index is not None and next_index != len(schedule):
             schedule_gate["reasons"].append(_reason(
                 "schedule_incomplete", "ledger が凍結 schedule を完走していない",
                 campaign=role, next_index=next_index, expected=len(schedule)))
-        else:
-            schedule_gate["status"] = "pass"
 
         by_index = {item.schedule_index: item for item in schedule}
-        records = wal.read_records(layout)
         used_commit_ids = set()
         for segment in _session_segments(records):
             start = segment[0].payload
@@ -385,6 +408,8 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
             retries.append(retry)
         budget_refusals = [dict(event) for event in events
                            if event.get("event") == "budget-refused"]
+        if not schedule_gate["reasons"] and next_index == len(schedule):
+            schedule_gate["status"] = "pass"
     except Exception as exc:  # report は hard gate 失敗自体を出力する。
         schedule_gate["status"] = "fail"
         schedule_gate["reasons"].append(_reason(

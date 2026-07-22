@@ -11,6 +11,7 @@ Phase 1 は探索 = 列挙 (全 genome)。Phase 2 で LLM 誘導の選択/変異
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
@@ -54,14 +55,19 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     if cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2:
         extra_correctness = [(S2_TAG, s2_correctness_workload())]
 
-    # 同一性: 初回は lock を書く、再開は照合 (黙ってマージしない関所, D13)
-    pre = ident.canonical_preimage(cfg)
-    existing = wal.read_lock(layout)
-    if existing is not None:
-        ident.verify_against_lock(cfg, existing)     # 不一致なら IdentityMismatch
-    else:
-        wal.write_lock(layout, pre)
+    # 同一性を照合した後に限り、replay 前に無終端 tail を物理修復する。
+    repair = ident.ensure_resumable_wal(cfg, layout)
     log(f"[campaign] {cid}  ({layout.root})")
+    if repair.status == "repaired":
+        log("[campaign] WAL tail repair: " + json.dumps({
+            "status": repair.status,
+            "original_size": repair.original_size,
+            "final_size": repair.final_size,
+            "removed_bytes": repair.removed_bytes,
+            "removed_sha256": repair.removed_sha256,
+            "preview": repair.preview,
+            "receipt_path": repair.receipt_path,
+        }, ensure_ascii=False, sort_keys=True))
 
     # リカバリ: terminal な variant はスキップ
     states = wal.replay(layout)
@@ -130,6 +136,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。
+            if isinstance(e, (wal.WalAppendError, wal.WalFramingError)):
+                # WAL I/O が壊れた同じ台帳へ診断を重ねない。元の構造化例外を保つ。
+                raise
             wal.log(layout, v, STAGE_ABORT, env_tag,
                     {"reason": f"eval-exception: {type(e).__name__}: {e}"})
             log(f"[campaign] {v} 評価中に例外 → abort 隔離して継続: {e}")

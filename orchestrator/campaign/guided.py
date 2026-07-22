@@ -31,11 +31,12 @@ from typing import List
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import replay, wal                                  # noqa: E402
+from campaign import ident, replay, wal                           # noqa: E402
 from campaign.genome import SILO_SPACE                            # noqa: E402
 from campaign.layout import CampaignLayout, repo_output_root      # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
-                            STAGE_COMMIT, STAGE_VERIFY_DONE)
+from campaign.model import (CampaignConfig, STAGE_BENCH_DONE,     # noqa: E402
+                            STAGE_BUILD_START, STAGE_COMMIT,
+                            STAGE_VERIFY_DONE)
 from campaign.p2_2 import BETWEEN_RUN_CV, ENV_TAG, WORKLOADS      # noqa: E402
 from campaign.search_baselines import reached_cost               # noqa: E402
 from critic.online_digest import online_digest_text              # noqa: E402
@@ -68,6 +69,44 @@ def _write_meta(layout: CampaignLayout, meta: dict) -> None:
     os.makedirs(layout.root, exist_ok=True)
     with open(_meta_path(layout), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
+
+
+def _trial_config(meta: dict, trial: str) -> CampaignConfig:
+    """guided trial の meta を identity lock の正準 pre-image へ射影する。"""
+    required = {"tag", "workload", "seed", "trial"}
+    if not isinstance(meta, dict) or set(meta) != required:
+        raise ValueError("guided meta schema が exact 4 keys でない")
+    if meta.get("trial") != trial:
+        raise ValueError(
+            f"guided meta trial が引数と不一致: stored={meta.get('trial')!r}, "
+            f"requested={trial!r}")
+    tag = meta["tag"]
+    workload = meta["workload"]
+    seed = meta["seed"]
+    if not isinstance(tag, str) or not isinstance(workload, dict):
+        raise ValueError("guided meta の tag/workload 型が不正")
+    return CampaignConfig(
+        spec_slug="p2-5-guided", search_tag="critic-replay",
+        spec_content="P2-5 critic-in-the-loop replay trial",
+        ccbench_commit="p2-2-replay-landscape",
+        search_config={"tag": tag, "workload": workload, "seed": str(seed)},
+        trial=trial,
+    )
+
+
+def _surface_repair(result: wal.WalTailRepairResult) -> None:
+    if result.status == "repaired":
+        print(json.dumps({
+            "wal_tail_repair": {
+                "status": result.status,
+                "original_size": result.original_size,
+                "final_size": result.final_size,
+                "removed_bytes": result.removed_bytes,
+                "removed_sha256": result.removed_sha256,
+                "preview": result.preview,
+                "receipt_path": result.receipt_path,
+            }
+        }, ensure_ascii=False, sort_keys=True))
 
 
 def _evaluated_canon(layout: CampaignLayout) -> List[str]:
@@ -109,14 +148,25 @@ def _print_state(layout: CampaignLayout, tag: str, workload: dict) -> None:
 
 def cmd_start(args) -> int:
     layout = _trial_layout(args.trial, args.root)
+    # lstat/fstat の失敗を os.path.exists で False に畳まず、lock より先に拒否する。
+    wal.wal_bytes_present(layout)
     if os.path.exists(layout.wal_file):
         print(f"trial {args.trial!r} は既存。別 trial 名を使うか dir を消せ。", file=sys.stderr)
         return 2
     layout.ensure()
     tag = args.workload
     workload = _workload_of(tag)
-    _write_meta(layout, {"tag": tag, "workload": workload,
-                         "seed": args.seed, "trial": args.trial})
+    meta = {"tag": tag, "workload": workload,
+            "seed": args.seed, "trial": args.trial}
+    # 既存 WAL 拒否 → lock 原子獲得 → meta の順。競合敗者は meta/WAL に触れない。
+    if not ident.ensure_campaign_identity(_trial_config(meta, args.trial), layout):
+        print(json.dumps({
+            "rejected": "campaign.lock は別 start が先に獲得済み",
+            "reason": "campaign-lock-already-acquired",
+            "trial": args.trial,
+        }, ensure_ascii=False, sort_keys=True), file=sys.stderr)
+        return 2
+    _write_meta(layout, meta)
     landscape = replay.load_landscape(tag)        # P2-2 の実 landscape (real output root)
     replay.assert_complete(landscape, tag)
     rng = random.Random(int(args.seed))           # 初手 = seed 固定ランダム (critic 信号なし)
@@ -132,6 +182,8 @@ def cmd_evaluate(args) -> int:
         print(f"trial {args.trial!r} が無い。先に start せよ。", file=sys.stderr)
         return 2
     meta = _read_meta(layout)
+    cfg = _trial_config(meta, args.trial)  # trial exact 検査より前に repair しない
+    _surface_repair(ident.ensure_resumable_wal(cfg, layout))
     tag, workload = meta["tag"], meta["workload"]
     landscape = replay.load_landscape(tag)
     evaluated = set(_evaluated_canon(layout))

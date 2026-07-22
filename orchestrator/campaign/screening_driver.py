@@ -57,13 +57,17 @@ def load_between_run_floor(workload: Dict[str, str], calibration_dir: str = "") 
     return float(floor)
 
 
-def _ensure_campaign_lock(cfg: CampaignConfig, layout: CampaignLayout) -> None:
-    preimage = ident.canonical_preimage(cfg)
-    stored = wal.read_lock(layout)
-    if stored is None:
-        wal.write_lock(layout, preimage)
-    else:
-        ident.verify_against_lock(cfg, stored)
+def _surface_repair(result: wal.WalTailRepairResult, log) -> None:
+    if result.status == "repaired":
+        log("[screening] WAL tail repair: " + json.dumps({
+            "status": result.status,
+            "original_size": result.original_size,
+            "final_size": result.final_size,
+            "removed_bytes": result.removed_bytes,
+            "removed_sha256": result.removed_sha256,
+            "preview": result.preview,
+            "receipt_path": result.receipt_path,
+        }, ensure_ascii=False, sort_keys=True))
 
 
 def prepare_screening_campaign(
@@ -71,7 +75,7 @@ def prepare_screening_campaign(
         measure_baseline: Callable[[CampaignConfig, CampaignLayout], None], *,
         calibration_dir: str = "", output_root: str = "", k: float = 1.5,
         high_abort_factor: float = 2.0,
-        reanchor_threshold_s: float = 1800.0) -> PreparedScreening:
+        reanchor_threshold_s: float = 1800.0, log=print) -> PreparedScreening:
     """identity焼き込み→同一campaign baseline実測→runtime config生成を一括実行する。"""
     if not baseline_ref:
         raise ValueError("baseline_ref が欠落")
@@ -88,7 +92,7 @@ def prepare_screening_campaign(
         baseline_ref, floor, k, high_abort_factor)
     cfg = replace(base_cfg, search_config={**base_cfg.search_config, **policy})
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root).ensure()
-    _ensure_campaign_lock(cfg, layout)
+    _surface_repair(ident.ensure_resumable_wal(cfg, layout), log)
 
     before = sum(1 for rec in wal.read_records(layout)
                  if rec.variant == baseline_ref and rec.stage == STAGE_BENCH_DONE)
@@ -127,7 +131,7 @@ def evaluate_candidate(
         do_settle: bool = False, force: bool = False, log=print,
         ccbench_dir: str = "", cache_root: str = "") -> Optional[EvalResult]:
     """sweep候補を1点評価する。forceはbaseline再アンカー専用。"""
-    _ensure_campaign_lock(cfg, layout)
+    _surface_repair(ident.ensure_resumable_wal(cfg, layout), log)
     src_tok = src_token if src_token is not None else source_digest.resolve(
         genome, cfg.ccbench_commit, ccbench_dir)
     vid = variant_id(genome, src_tok)
@@ -149,6 +153,8 @@ def evaluate_candidate(
     except (KeyboardInterrupt, SystemExit):
         raise
     except Exception as exc:  # candidate固有失敗をWALへ隔離。loop.pyと同じ境界。
+        if isinstance(exc, (wal.WalAppendError, wal.WalFramingError)):
+            raise
         wal.log(layout, vid, STAGE_ABORT, env_tag,
                 {"reason": f"eval-exception: {type(exc).__name__}: {exc}"})
         return EvalResult(genome=genome, variant=vid, certified=False, aborted=True,

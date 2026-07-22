@@ -21,6 +21,7 @@ import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 from campaign import (  # noqa: E402
     env_contract,
     execution_guard,
+    model,
     s8b_abort_reason_contract as abort_reason_contract,
     s8b_outcome_stage_contract as outcome_stage_contract,
     s8b_oracle_judge as judge,
@@ -410,6 +411,8 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
 
 
 def test_report_reexports_outcome_and_pipeline_authorities_without_reliteralizing():
+    # '-' 入り literal を CPython が自動 intern しないことに依存し、再 literal 化を検出する。
+    assert report.SESSION_STAGE is model.STAGE_S8B_ORACLE_SESSION
     assert report.OUTCOMES is outcome_stage_contract.OUTCOMES
     assert report.PIPELINE_STAGES is outcome_stage_contract.PIPELINE_STAGES
 
@@ -1615,6 +1618,26 @@ def test_global_issue_does_not_mask_definitive_correctness_red(tmp_path):
     ]
 
 
+def test_foreign_known_stage_is_inert_record_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    wal.log(layout, "foreign-session", model.STAGE_S1_SESSION, "fixture-env", {
+        "event": "session-start",
+    })
+    _trial(layout, item, "committed")
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["bench_values"] == []
+    assert row["reason"].split("; ") == [
+        ("WAL record が session event / pipeline stage のどちらにも分類されない: "
+         "ordinal=1 stage='s1-session'"),
+    ]
+
+
 def test_global_issue_composes_row_local_assessment_reason(tmp_path):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
@@ -2053,6 +2076,27 @@ def test_invalid_line_does_not_mask_definitive_correctness_red(tmp_path):
     assert row["bench_values"] == []
 
 
+def test_terminated_json_syntax_issue_does_not_mask_definitive_correctness_red(
+        tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "legacy-red")
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(b'{"variant":}\n')
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert row["outcome"] == "correctness-red"
+    assert row["legacy_verify"] == "red"
+    assert "JSONDecodeError" in row["reason"]
+    assert "definitive correctness-red を検出: attempt=1" in row["reason"]
+    assert "末尾 record が途中" not in row["reason"]
+    assert row["bench_values"] == []
+
+
 def test_truncated_tail_does_not_mask_definitive_correctness_red(tmp_path):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]
@@ -2098,6 +2142,27 @@ def test_truncated_raw_tail_after_completed_terminal_is_one_protocol_reason(tmp_
             b'{"variant":"oracle-session","stage":"s8b-oracle-session",'
             b'"env_tag":"fixture-env","ts":1,"payload":{"event":"deviation"'
         )
+
+    rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
+
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert {row["reason"] for row in rows} == {
+        "WAL の末尾 record が途中で切れている",
+    }
+    assert all(row["bench_values"] == [] for row in rows)
+
+
+def test_complete_json_without_newline_after_terminal_is_one_protocol_reason(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    tail = json.dumps({
+        "variant": "oracle-session", "stage": SESSION,
+        "env_tag": "fixture-env", "ts": 1,
+        "payload": {"event": "deviation", "message": "unframed"},
+    }, separators=(",", ":")).encode("utf-8")
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(tail)
 
     rows = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"]
 

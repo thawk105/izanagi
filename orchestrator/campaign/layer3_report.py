@@ -99,6 +99,10 @@ def _read_wal(path: Path) -> List[Dict[str, Any]]:
             if record["stage"] not in STAGES:
                 raise Layer3ReportError("未知の WAL stage: %r" % record["stage"])
             records.append(record)
+    except wal.WalFramingError as exc:
+        raise Layer3ReportError(
+            "WAL framing が不正: %s: %s" % (path, exc)
+        ) from exc
     except (OSError, UnicodeDecodeError) as exc:
         raise Layer3ReportError("WAL を読めない: %s" % path) from exc
     if not records:

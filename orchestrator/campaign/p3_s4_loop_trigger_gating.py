@@ -393,6 +393,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
     layout.ensure()
+    # auditor/syntax/diff reject より先に、repair 無しで campaign identity を確立する。
+    ident.ensure_campaign_identity(cfg, layout)
 
     with applied(_template_patch_path(_repo_root()), PIN, sub):
         gate = _quarantine_and_audit(sub, coder, auditor, genome, layout, state, planner,

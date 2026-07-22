@@ -6,6 +6,7 @@ import ast
 import contextlib
 import copy
 import dataclasses
+import errno
 import hashlib
 import inspect
 import json
@@ -30,7 +31,7 @@ import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
 from campaign import env_attestation  # noqa: E402
 from campaign import execution_guard  # noqa: E402
-from campaign import pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
+from campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
 from campaign import s8b_freeze_io  # noqa: E402
 from campaign import s8b_materialization  # noqa: E402
 from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
@@ -533,8 +534,8 @@ def test_real_freeze_gate_lists_floor_and_budget_null():
     _assert_refusal_reasons(decision.refusals, [
         "holdout-freeze-verify: FreezeError: design_source sha256 不一致: "
         "recorded=",
-        "known-axes-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の "
-        "commit ancestor でない: ",
+        "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
+        "orchestrator/campaign/s8a_trigger_sweep.py recorded=",
         "floor-null: freeze.floor が null",
         "budget-null: freeze.budget が null",
     ])
@@ -1223,8 +1224,8 @@ def test_tampered_freeze_fails_source_verification(tmp_path):
     _assert_refusal_reasons(decision.refusals, [
         "holdout-freeze-verify: FreezeError: generator sha256 不一致: "
         "recorded=",
-        "known-axes-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の "
-        "commit ancestor でない: ",
+        "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
+        "orchestrator/campaign/s8a_trigger_sweep.py recorded=",
         "floor-null: freeze.floor が null",
         "budget-null: freeze.budget が null",
     ])
@@ -1814,6 +1815,86 @@ def test_atomic_one_shot_lock_rejects_second_start(tmp_path):
     assert prepare_fn.calls == []
 
 
+def test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver(
+        tmp_path, monkeypatch):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    output_root = tmp_path / "eio-out"
+    layout = campaign_layout(
+        _campaign_id(manifest_path), output_root=str(output_root),
+    )
+    real_lstat = wal.os.lstat
+
+    def fail_wal_lstat(path, *args, **kwargs):
+        if os.fspath(path) == os.fspath(layout.wal_file):
+            raise OSError(errno.EIO, "injected s8b WAL lstat EIO")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(wal.os, "lstat", fail_wal_lstat)
+    with pytest.raises(OSError) as excinfo:
+        _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn,
+            _fake_evaluate_factory(), output_root=output_root,
+            marker_root=tmp_path / "eio-markers",
+        )
+    assert excinfo.value.errno == errno.EIO
+    assert prepare_fn.calls == []
+    assert not os.path.exists(layout.lock_file)
+    assert not os.path.exists(layout.wal_file)
+
+
+def test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up(
+        tmp_path, monkeypatch):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    output_root = tmp_path / "fsync-out"
+    layout = campaign_layout(
+        _campaign_id(manifest_path), output_root=str(output_root),
+    )
+    real_fsync = wal.os.fsync
+    injection = {"active": False, "calls": 0}
+
+    def fail_target_fsync(fd):
+        try:
+            path = os.readlink("/proc/self/fd/%d" % fd)
+        except OSError:
+            path = ""
+        if injection["active"] and path == layout.wal_file:
+            injection["calls"] += 1
+            raise OSError(errno.EIO, "injected s8b full-frame fsync EIO")
+        return real_fsync(fd)
+
+    def fail_inside_evaluate(genome, candidate_layout, env_tag, *_args, **kwargs):
+        injection["active"] = True
+        variant = pipeline.variant_id(genome, kwargs["src_token"])
+        wal.log(candidate_layout, variant, model.STAGE_BUILD_START, env_tag, {
+            "genome": genome.canonical(), "src_token": kwargs["src_token"],
+        })
+        raise AssertionError("WalAppendError の後へ到達してはならない")
+
+    monkeypatch.setattr(wal.os, "fsync", fail_target_fsync)
+    with pytest.raises(wal.WalAppendError) as excinfo:
+        _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn,
+            fail_inside_evaluate, output_root=output_root,
+            marker_root=tmp_path / "fsync-markers",
+        )
+    assert excinfo.value.phase == "fsync"
+    assert excinfo.value.written_bytes == excinfo.value.total_bytes
+    assert injection["calls"] == 1
+    records, truncated = wal.read_records_checked(layout)
+    assert truncated is False
+    assert [record.payload.get("event") for record in records
+            if record.stage == driver.SESSION_STAGE] == [
+                "campaign-start", "trial-start",
+            ]
+    assert records[-1].stage == model.STAGE_BUILD_START
+
+
 def test_v4_marker_fires_across_output_root_change(tmp_path):
     """V4: 実走済みマーカーが --output-root 非依存に発火し、別 output-root での再走を拒否。"""
     freeze_path = _synthetic_freeze(tmp_path)
@@ -1846,8 +1927,32 @@ def test_v4_marker_fires_across_output_root_change(tmp_path):
     assert prepare_b.calls == []
 
 
-def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(tmp_path):
-    """V5: campaign-start 1 行だけの途中切断 WAL (parse 可能 record 0 件) でも拒否。
+@pytest.mark.parametrize(
+    "tail",
+    [
+        pytest.param(
+            b'{"variant":"oracle-session","stage":"s8b-oracle-session"',
+            id="fragment",
+        ),
+        pytest.param(
+            json.dumps({
+                "variant": "oracle-session",
+                "stage": model.STAGE_S8B_ORACLE_SESSION,
+                "env_tag": "fixture-env",
+                "ts": 1,
+                "payload": {"event": "campaign-start"},
+            }, separators=(",", ":")).encode("utf-8"),
+            id="complete-json-without-newline",
+        ),
+        pytest.param(
+            b'{"variant":"oracle-\xe3\x81',
+            id="multibyte-partial",
+        ),
+    ],
+)
+def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(
+        tmp_path, tail):
+    """V5: newline 無終端 WAL (parse 可能 record 0 件) は内容によらず拒否。
 
     read_records は末尾切れの 1 行を捨てて [] を返す。resume 判定を「parse 可能 record」
     でなく「byte の存在」で行うことで、この truncated WAL 迂回を閉じる (fail-closed)。
@@ -1860,9 +1965,8 @@ def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(tmp_pa
     output_root = tmp_path / "out"
     layout = campaign_layout(_campaign_id(manifest_path), output_root=str(output_root))
     layout.ensure()
-    # campaign-start 1 行だけの途中切断 (JSON 未完 = parse 不能) を書き込む。
-    with open(layout.wal_file, "w", encoding="utf-8") as stream:
-        stream.write('{"variant":"oracle-session","stage":"s8b-oracle-session"')
+    with open(layout.wal_file, "wb") as stream:
+        stream.write(tail)
     assert wal.read_records(layout) == []          # parse 可能 record 0 件
     assert os.path.getsize(layout.wal_file) > 0     # だが byte は存在する
 
@@ -1872,6 +1976,11 @@ def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(tmp_pa
              marker_root=tmp_path / "markers-v5")
     assert "WAL byte" in str(excinfo.value)
     assert prepare_fn.calls == []
+
+
+def test_session_stage_reexports_shared_model_authority():
+    # '-' 入り literal を CPython が自動 intern しないことに依存し、再 literal 化を検出する。
+    assert driver.SESSION_STAGE is model.STAGE_S8B_ORACLE_SESSION
 
 
 # ===========================================================================

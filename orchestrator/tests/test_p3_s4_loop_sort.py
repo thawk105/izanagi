@@ -20,8 +20,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import p3_s4_loop as L                                # noqa: E402
+from campaign import ident, p3_s4_loop as L                         # noqa: E402
 from campaign import p3_s4_loop_sort as S                           # noqa: E402
+from campaign import wal                                            # noqa: E402
 from campaign.diff_quarantine import DiffRejectSubtype              # noqa: E402
 from campaign.layout import CampaignLayout                          # noqa: E402
 from campaign.model import Genome                                   # noqa: E402
@@ -340,35 +341,38 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted():
 
 
 def test_drive_iteration_checkpoint_survives_across_calls():
-    """入口停止しない設定で drive の checkpoint 継続を確認 (do_build=False の reject 経路、
-    実 submodule 要 — d706650 で pinned-clean でなければ skip)。"""
-    import subprocess
-    root = os.path.dirname(_ORCH)
-    sub = os.path.join(root, "external", "ccbench")
-    try:
-        head = subprocess.check_output(["git", "-C", sub, "rev-parse", "--short", "HEAD"],
-                                       text=True).strip()
-        dirty = subprocess.check_output(["git", "-C", sub, "status", "--porcelain"],
-                                        text=True).strip()
-    except Exception:
-        import pytest
-        pytest.skip("submodule 未取得")
-    if not head.startswith(S.PIN[:7]) or dirty:
-        import pytest
-        pytest.skip(f"submodule が pinned-clean でない (head={head} dirty={bool(dirty)}, "
-                    f"要求 pin={S.PIN})")
+    """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
+    import contextlib
+    from unittest import mock
+    from campaign import patchharness
+
+    sub = _mk_template_dir()
     lay = _tmp_layout("drivereject")
     cfg, perf = S.default_cfg(), S.default_perf()
     pl = _planner()
     bad_impl = "#define EVIL 1\n" + _CLEAN_IMPL
     cd = S.CoderProposalSort(axis=S.MARKER_ID, implementation=bad_impl)
     au = S.AuditorVerdict(verdict="pass", diff_digest="irrelevant-hole-escape-precedes-gate")
-    out1 = S.drive_iteration(cfg, perf, pl, cd, au, None, sub, do_build=False, layout=lay)
+    with mock.patch.object(
+            patchharness, "applied",
+            side_effect=lambda *_a, **_k: contextlib.nullcontext()):
+        out1 = S.drive_iteration(
+            cfg, perf, pl, cd, au, None, sub, do_build=False, layout=lay,
+        )
     assert out1["ran"] is True and out1["outcome"] == "rejected" and out1["iteration"] == 1
+    assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 1 and st.whiteboard[0].result == "rejected"
-    out2 = S.drive_iteration(cfg, perf, pl, cd, au, None, sub, do_build=False, layout=lay)
-    assert out2["iteration"] == 2
+    next_cd = S.CoderProposalSort(
+        axis=S.MARKER_ID, implementation="#define EVIL_NEXT 1\n" + _CLEAN_IMPL,
+    )
+    with mock.patch.object(
+            patchharness, "applied",
+            side_effect=lambda *_a, **_k: contextlib.nullcontext()):
+        out2 = S.drive_iteration(
+            cfg, perf, pl, next_cd, au, None, sub, do_build=False, layout=lay,
+        )
+    assert out2["iteration"] == 2 and out2["outcome"] == "rejected"
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 2 and st.iteration == 2
 

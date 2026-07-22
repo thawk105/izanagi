@@ -28,7 +28,7 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import ident, source_digest, wal  # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
-from campaign.model import CampaignConfig, Genome  # noqa: E402
+from campaign.model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign import pipeline  # noqa: E402
 
@@ -39,7 +39,7 @@ NUMACTL = ["numactl", "--interleave=all"]
 TOTAL_BUDGET_S = 43_200.0
 RETRY_RESERVE_S = 7_200.0
 MAX_RETRIES = 2
-SESSION_STAGE = "s1-session"
+SESSION_STAGE = STAGE_S1_SESSION
 FREEZE_REL = "output/s1-freeze/measurement_freeze.json"
 BUDGET_REL = "output/s1-budget/time_ledger.json"
 
@@ -229,21 +229,17 @@ def layout_for(document: Mapping, role: str, output_root: str = "") -> CampaignL
     return campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
 
 
-def _ensure_campaign(cfg: CampaignConfig, layout: CampaignLayout) -> None:
+def _ensure_campaign(
+        cfg: CampaignConfig, layout: CampaignLayout,
+) -> wal.WalTailRepairResult:
     layout.ensure()
-    stored = wal.read_lock(layout)
-    if stored is None:
-        wal.write_lock(layout, ident.canonical_preimage(cfg))
-        stored = wal.read_lock(layout)
-    if stored is None:
-        raise DriverError("campaign.lock を作成できない")
-    ident.verify_against_lock(cfg, stored)
+    return ident.ensure_resumable_wal(cfg, layout)
 
 
-def read_session_ledger(layout: CampaignLayout) -> List[Dict]:
-    """S-1 session event の読み口。B2b は WAL の物理表現をここから先へ漏らさない。"""
+def session_events_from_records(records: Sequence) -> List[Dict]:
+    """既読 WAL records から S-1 session event を構築する純関数。"""
     out: List[Dict] = []
-    for record in wal.read_records(layout):
+    for record in records:
         if record.stage != SESSION_STAGE:
             continue
         if not isinstance(record.payload, dict):
@@ -252,6 +248,15 @@ def read_session_ledger(layout: CampaignLayout) -> List[Dict]:
         event.setdefault("wal_ts", record.ts)
         out.append(event)
     return out
+
+
+def read_session_ledger(layout: CampaignLayout) -> List[Dict]:
+    """S-1 session event の読み口。B2b は WAL の物理表現をここから先へ漏らさない。"""
+    records, truncated_tail = wal.read_records_checked(layout)
+    if truncated_tail:
+        raise ScheduleDeviation(
+            "s1-session WAL に newline 終端の無い tail がある")
+    return session_events_from_records(records)
 
 
 def _append_event(layout: CampaignLayout, event: Mapping) -> None:
@@ -286,7 +291,12 @@ def validate_session_ledger(
     戻り値は次に実行する schedule_index。最後の attempt が start のままなら同じ index を
     retry 候補として返す。順序逸脱・重複・prefix 内欠落は自動修復しない。
     """
-    events = read_session_ledger(layout)
+    return validate_session_events(read_session_ledger(layout), schedule)
+
+
+def validate_session_events(
+        events: Sequence[Mapping], schedule: Sequence[ScheduledCell]) -> int:
+    """既に構築済みの events が schedule prefix 契約を満たすか検査する純関数。"""
     prior_deviation = next((e for e in events if e.get("event") == "deviation"), None)
     if prior_deviation is not None:
         raise ScheduleDeviation(
@@ -541,7 +551,10 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
 
 
 def _abort_payload(layout: CampaignLayout, variant: str) -> Dict:
-    records = [r.payload for r in wal.read_records(layout)
+    all_records, truncated_tail = wal.read_records_checked(layout)
+    if truncated_tail:
+        raise DriverError("S-1 WAL に newline 終端の無い tail がある")
+    records = [r.payload for r in all_records
                if r.variant == variant and r.stage == "abort"]
     return dict(records[-1]) if records else {}
 
@@ -606,29 +619,46 @@ def run_role(
     cfg = config_for(document, role)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
 
-    try:
-        next_index = validate_session_ledger(layout, schedule)
-    except ScheduleDeviation as exc:
-        if not dry_run:
-            layout.ensure()
-            if not any(e.get("event") == "deviation" for e in read_session_ledger(layout)):
-                _record_deviation(layout, role, str(exc))
-            append_budget_entry(
-                budget_path, role=role, started_iso=_iso_now(), wall_s=0.0,
-                phase=ROLE_TO_PHASE[role], note=f"schedule-deviation: {exc}")
-        raise
     if dry_run:
+        # dry-run は checked reader の refusal を返すが、repair/receipt/lock 作成はしない。
+        next_index = validate_session_ledger(layout, schedule)
         log(f"dry-run: role={role} sessions={len(schedule)} next={next_index} schedule照合済み")
         return EXIT_OK
 
     if single_tenant_fn is None:
         from campaign.p2_2 import _assert_single_tenant
         single_tenant_fn = _assert_single_tenant
+    try:
+        repair = _ensure_campaign(cfg, layout)
+        if repair.status == "repaired":
+            log("S-1 WAL tail repair: " + json.dumps({
+                "status": repair.status,
+                "original_size": repair.original_size,
+                "final_size": repair.final_size,
+                "removed_bytes": repair.removed_bytes,
+                "removed_sha256": repair.removed_sha256,
+                "preview": repair.preview,
+                "receipt_path": repair.receipt_path,
+            }, ensure_ascii=False, sort_keys=True))
+    except Exception as exc:
+        append_budget_entry(
+            budget_path, role=role, started_iso=_iso_now(),
+            wall_s=max(0.0, monotonic() - process_started), phase=ROLE_TO_PHASE[role],
+            note=f"campaign-overhead: preflight-failure {type(exc).__name__}: {exc}")
+        raise
+    try:
+        next_index = validate_session_ledger(layout, schedule)
+    except ScheduleDeviation as exc:
+        if not any(e.get("event") == "deviation" for e in read_session_ledger(layout)):
+            _record_deviation(layout, role, str(exc))
+        append_budget_entry(
+            budget_path, role=role, started_iso=_iso_now(), wall_s=0.0,
+            phase=ROLE_TO_PHASE[role], note=f"schedule-deviation: {exc}")
+        raise
     if _has_global_verifier_red(budget_path):
         return EXIT_VERIFIER_RED
     try:
         single_tenant_fn()
-        _ensure_campaign(cfg, layout)
     except Exception as exc:
         append_budget_entry(
             budget_path, role=role, started_iso=_iso_now(),
@@ -727,10 +757,16 @@ def run_role(
                         result = evaluate_fn(
                             prepared.genome, layout, ENV_TAG, cfg.ccbench_commit, perf,
                             CLOCKS_PER_US, **kwargs)
+                    except (wal.WalAppendError, wal.WalFramingError):
+                        # 不確かな同一 WAL に retry/session-result を重ねない。
+                        raise
                     except Exception as exc:  # evaluate の例外は閉じた retry 対象 (a)。
                         status, reason = "retryable", f"{type(exc).__name__}: {exc}"
                     else:
                         status, reason = _result_classification(result, layout)
+            except (wal.WalAppendError, wal.WalFramingError):
+                # evaluate/cleanup 境界でも deviation や retry を追記せず上位へ保全する。
+                raise
             except DriverError:
                 # freeze 値・gate predicate・quarantine の契約違反は機械故障でない。
                 raise

@@ -11,7 +11,7 @@ import pytest
 ORCH = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ORCH))
 
-from campaign import pipeline, s1_direct_comparison as driver, wal  # noqa: E402
+from campaign import model, pipeline, s1_direct_comparison as driver, wal  # noqa: E402
 from campaign import s1_report as report  # noqa: E402
 
 
@@ -196,6 +196,20 @@ def test_floor_cmp_is_preregistered_pure_function():
         report.floor_cmp(float("nan"), 0.01)
 
 
+def test_session_event_uses_shared_model_authority(monkeypatch):
+    monkeypatch.setattr(model, "STAGE_S1_SESSION", "shared-session-fixture")
+    canonical = model.WalRecord(
+        "v", "shared-session-fixture", "test", 1,
+        {"event": "session-start"},
+    )
+    reliteralized = model.WalRecord(
+        "v", "s1-session", "test", 1, {"event": "session-start"},
+    )
+
+    assert report._event(canonical, "session-start")
+    assert not report._event(reliteralized, "session-start")
+
+
 def test_left_system_greater_is_bound_to_target_left():
     comparison = _freeze()["comparisons"][0]
     observations = {
@@ -242,6 +256,58 @@ def test_schedule_order_mutation_invalidates_campaign_comparisons(tmp_path):
                for item in result["comparisons"])
     assert any(reason["code"] == "schedule_ledger_invalid"
                for reason in _comparison(result)["reasons"])
+
+
+def test_unframed_wal_tail_fails_but_keeps_completed_prefix_evidence(tmp_path):
+    document, freeze_path, budget_path = _fixture(tmp_path)
+    layout = driver.layout_for(
+        document, "block1", output_root=str(tmp_path / "output"),
+    )
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(b'{"variant":"unframed"')
+
+    result = _generate(tmp_path, document, freeze_path, budget_path)
+
+    gate = result["hard_gates"]["schedule"]["block1"]
+    expected = len(driver.schedule_for_role(document, "block1"))
+    assert gate["status"] == "fail"
+    assert [reason["code"] for reason in gate["reasons"]] == [
+        "wal_truncated_tail",
+    ]
+    assert gate["expected_sessions"] == expected
+    assert gate["recorded_attempt_starts"] == expected
+    assert gate["recorded_initial_starts"] == expected
+    assert gate["next_index"] == expected
+    assert result["hard_gates"]["certified"]["accepted_samples"]["block1"] == expected
+    assert result["hard_gates"]["certified"]["rejected_or_unbound_commits"]["block1"] == 0
+    assert all(item["judgment"] == report.INDETERMINATE
+               for item in result["comparisons"])
+
+
+def test_line_issue_and_unframed_tail_are_both_reported_with_prefix_kept(tmp_path):
+    document, freeze_path, budget_path = _fixture(tmp_path)
+    layout = driver.layout_for(
+        document, "block1", output_root=str(tmp_path / "output"),
+    )
+    with open(layout.wal_file, "ab") as stream:
+        stream.write(b'{"variant":}\n{"variant":"unframed"')
+
+    result = _generate(tmp_path, document, freeze_path, budget_path)
+
+    gate = result["hard_gates"]["schedule"]["block1"]
+    expected = len(driver.schedule_for_role(document, "block1"))
+    assert gate["status"] == "fail"
+    assert [reason["code"] for reason in gate["reasons"]] == [
+        "wal_truncated_tail", "wal_line_issues",
+    ]
+    line_reason = gate["reasons"][1]
+    assert line_reason["count"] == 1
+    assert len(line_reason["first_issues"]) == 1
+    assert line_reason["first_issues"][0]["reason"].startswith("JSONDecodeError: ")
+    assert gate["expected_sessions"] == expected
+    assert gate["recorded_attempt_starts"] == expected
+    assert gate["next_index"] == expected
+    assert result["hard_gates"]["certified"]["accepted_samples"]["block1"] == expected
 
 
 def test_floor_cell_with_seven_sessions_makes_comparison_indeterminate(tmp_path):

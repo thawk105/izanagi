@@ -124,3 +124,24 @@ def test_plot_backoff_rejects_blank_line_between_records(tmp_path):
 
     with pytest.raises(plot.campaign_wal.WalLineError, match="must not be empty"):
         plot.load_campaign(layout.root)
+
+
+@pytest.mark.parametrize("tail_kind", ["complete-json", "multibyte-partial"])
+def test_plot_backoff_rejects_unframed_tail_without_returning_partial_data(
+        tmp_path, tail_kind):
+    plot = _load_plot_module()
+    layout = _fixture_layout(tmp_path)
+    wal_path = Path(layout.wal_file)
+    if tail_kind == "complete-json":
+        tail = json.dumps({
+            "variant": "late", "stage": STAGE_BUILD_START,
+            "env_tag": "test", "ts": 1,
+            "payload": {"genome": "silo|BACK_OFF=1,BACKOFF_FIXED=999"},
+        }, separators=(",", ":")).encode("utf-8")
+    else:
+        tail = b'{"variant":"late-\xe3\x81'
+    with wal_path.open("ab") as stream:
+        stream.write(tail)
+
+    with pytest.raises(plot.campaign_wal.WalFramingError):
+        plot.load_campaign(layout.root)

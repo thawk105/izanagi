@@ -26,6 +26,9 @@ STAGE_COMMIT = "commit"
 STAGE_ABORT = "abort"        # 段で失格 (verifier red 等)。commit と同じく終端だが不採用
 STAGES = (STAGE_BUILD_START, STAGE_BUILD_DONE, STAGE_VERIFY_DONE,
           STAGE_BENCH_DONE, STAGE_COMMIT, STAGE_ABORT)
+STAGE_S1_SESSION = "s1-session"
+STAGE_S8B_ORACLE_SESSION = "s8b-oracle-session"
+WAL_STAGES = STAGES + (STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION)
 
 
 @dataclass(frozen=True)
@@ -91,7 +94,7 @@ class WalRecord:
     (実 fitness) の record を併存させ、射影時に env でフィルタする。
     """
     variant: str                # Genome.canonical() のハッシュ (variant の id)
-    stage: str                  # STAGES のいずれか
+    stage: str                  # generic WAL wire contract = WAL_STAGES のいずれか
     env_tag: str                # linux-baremetal / mac-devcontainer (必須)
     ts: float                   # 追記時刻 (provenance。同一性キーではない)
     payload: Dict = field(default_factory=dict)  # 段ごとの内容 (binary hash / verdict / tps 等)

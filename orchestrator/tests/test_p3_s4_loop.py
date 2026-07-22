@@ -21,7 +21,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import p3_s4_loop as L                               # noqa: E402
+from campaign import ident, p3_s4_loop as L                        # noqa: E402
+from campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
+from campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from campaign import wal                                           # noqa: E402
 from campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
@@ -143,6 +145,33 @@ def test_record_and_load_diff_rejection_roundtrip():
     assert dq.subtype == "hole-escape"
     assert dq.genome == _G.canonical()
     assert dq.reason and dq.evidence            # 構造 (理由・証拠) が保たれている
+
+
+def test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail():
+    d = _mk_template_dir()
+    implementation = "#define X 1\ndouble now_backoff = 20.0;"
+    res, *_ = L.quarantine(d, implementation, source_rel=_SRC_REL, write=False)
+    assert not res.passed
+
+    for caller, env_tag in (
+            ("p3-base", L.ENV_TAG),
+            ("p3-sort", SORT_LOOP.ENV_TAG),
+            ("p3-trigger", TRIGGER_LOOP.ENV_TAG)):
+        lay = CampaignLayout(root=tempfile.mkdtemp(prefix=f"izanagi_{caller}_")).ensure()
+        with open(lay.wal_file, "wb") as stream:
+            stream.write(b'{"unframed":')
+        before = open(lay.wal_file, "rb").read()
+
+        try:
+            L.record_diff_reject(lay, _G, implementation, res, env_tag=env_tag)
+            raise AssertionError(f"{caller}: unframed tail への reject append が通った")
+        except wal.WalAppendError as exc:
+            assert exc.phase == "tail-gate"
+            assert isinstance(exc.cause, wal.WalFramingError)
+
+        assert open(lay.wal_file, "rb").read() == before
+        assert not any(name.startswith("wal-tail-repair-")
+                       for name in os.listdir(lay.runs_dir))
 
 
 def test_diff_reject_not_double_counted_in_liveness_other():
@@ -577,36 +606,41 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted():
 
 
 def test_drive_iteration_checkpoint_survives_across_calls():
-    """入口停止しない設定で drive の checkpoint 継続を確認 (do_build=False の reject 経路)。
-    coder が hole-escape 提案 → run_one_iteration dry が reject → whiteboard に rejected 1 件 →
-    checkpoint に焼かれ、2 回目の drive がそれを拾う。submodule (pinned-clean) に触れる E2E。"""
-    import subprocess
-    # この test は実 submodule (applied path) を要するため、pinned-clean でなければ skip。
-    root = os.path.dirname(_ORCH)
-    sub = os.path.join(root, "external", "ccbench")
-    try:
-        head = subprocess.check_output(["git", "-C", sub, "rev-parse", "--short", "HEAD"],
-                                       text=True).strip()
-        dirty = subprocess.check_output(["git", "-C", sub, "status", "--porcelain"],
-                                        text=True).strip()
-    except Exception:
-        import pytest
-        pytest.skip("submodule 未取得")
-    if not head.startswith(L.PIN[:7]) or dirty:
-        import pytest
-        pytest.skip(f"submodule が pinned-clean でない (head={head} dirty={bool(dirty)})")
+    """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
+    import contextlib
+    from campaign import patchharness
+
+    sub = tempfile.mkdtemp(prefix="izanagi_s4loop_public_")
+    os.makedirs(os.path.join(sub, "include"))
+    with open(os.path.join(sub, L.SOURCE_REL), "w", encoding="utf-8") as stream:
+        stream.write(_TEMPLATE)
     lay = _tmp_layout("drivereject")
     cfg, perf = L.default_cfg(), L.default_perf()
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
     # hole-escape (行頭 #define) → diff 検疫 reject。value と literal は整合させる。
     cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,
                          implementation="#define EVIL 1\ndouble now_backoff = 20.0;")
-    out1 = L.drive_iteration(cfg, perf, pl, cd, None, sub, do_build=False, layout=lay)
+    with unittest.mock.patch.object(
+            patchharness, "applied",
+            side_effect=lambda *_a, **_k: contextlib.nullcontext()):
+        out1 = L.drive_iteration(
+            cfg, perf, pl, cd, None, sub, do_build=False, layout=lay,
+        )
     assert out1["ran"] is True and out1["outcome"] == "rejected" and out1["iteration"] == 1
+    assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 1 and st.whiteboard[0].result == "rejected"
-    out2 = L.drive_iteration(cfg, perf, pl, cd, None, sub, do_build=False, layout=lay)
-    assert out2["iteration"] == 2
+    next_cd = L.CoderProposal(
+        axis=L.MARKER_ID, value=30.0,
+        implementation="#define EVIL_NEXT 1\ndouble now_backoff = 30.0;",
+    )
+    with unittest.mock.patch.object(
+            patchharness, "applied",
+            side_effect=lambda *_a, **_k: contextlib.nullcontext()):
+        out2 = L.drive_iteration(
+            cfg, perf, pl, next_cd, None, sub, do_build=False, layout=lay,
+        )
+    assert out2["iteration"] == 2 and out2["outcome"] == "rejected"
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 2 and st.iteration == 2
 

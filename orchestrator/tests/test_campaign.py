@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import atexit
 import ast
+import collections
 import contextlib
+import errno
+import fcntl
 import hashlib
 import json
 import os
@@ -17,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import types
 
@@ -31,7 +35,9 @@ from campaign.layout import CampaignLayout, campaign_layout      # noqa: E402
 from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
 from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
-                            STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE)
+                            STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE,
+                            STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION,
+                            STAGES, WAL_STAGES)
 from campaign.pipeline import (EvalResult, PerfConfig,           # noqa: E402
                                ScreeningConfig)
 from skiputil import Skip, skip                                  # noqa: E402
@@ -287,6 +293,135 @@ def test_identity_mismatch_guard():
         pass
 
 
+def test_ensure_campaign_identity_uses_atomic_lock_and_loser_only_verifies():
+    cfg = _cfg()
+    lay = _layout()
+    saved_write_lock = wal.write_lock
+
+    def forbidden_write_lock(*_args, **_kwargs):
+        raise AssertionError("非原子 write_lock を呼んではならない")
+
+    wal.write_lock = forbidden_write_lock
+    try:
+        assert ident.ensure_campaign_identity(cfg, lay) is True
+        assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
+        assert ident.ensure_campaign_identity(cfg, lay) is False
+    finally:
+        wal.write_lock = saved_write_lock
+
+
+def test_ensure_campaign_identity_propagates_wal_lstat_eio_before_lock():
+    cfg = _cfg()
+    lay = _layout()
+    saved_lstat = wal.os.lstat
+
+    def fail_target(path):
+        if os.fspath(path) == os.fspath(lay.wal_file):
+            raise OSError(errno.EIO, "injected WAL lstat EIO")
+        return saved_lstat(path)
+
+    wal.os.lstat = fail_target
+    caught = None
+    try:
+        try:
+            ident.ensure_campaign_identity(cfg, lay)
+        except OSError as exc:
+            caught = exc
+    finally:
+        wal.os.lstat = saved_lstat
+    assert caught is not None and caught.errno == errno.EIO
+    assert not os.path.exists(lay.lock_file)
+
+
+def test_ensure_campaign_identity_rejects_symlink_and_nonregular_wal_before_lock():
+    cfg = _cfg()
+
+    symlinked = _layout(); symlinked.ensure()
+    target = os.path.join(symlinked.root, "target")
+    with open(target, "wb") as stream:
+        stream.write(b"target-bytes")
+    os.symlink(target, symlinked.wal_file)
+    try:
+        ident.ensure_campaign_identity(cfg, symlinked)
+        assert False, "symlink WAL を lock 作成前に拒否すべき"
+    except OSError as exc:
+        assert exc.errno == errno.EINVAL
+    assert open(target, "rb").read() == b"target-bytes"
+    assert not os.path.exists(symlinked.lock_file)
+
+    nonregular = _layout(); nonregular.ensure()
+    os.mkdir(nonregular.wal_file)
+    try:
+        ident.ensure_campaign_identity(cfg, nonregular)
+        assert False, "非 regular WAL を lock 作成前に拒否すべき"
+    except OSError as exc:
+        assert exc.errno == errno.EINVAL
+    assert not os.path.exists(nonregular.lock_file)
+
+
+def test_ensure_campaign_identity_fstat_rejects_lstat_open_race_to_nonregular():
+    cfg = _cfg()
+    lay = _layout(); lay.ensure()
+    regular = os.path.join(lay.root, "regular-stat-source")
+    with open(regular, "wb") as stream:
+        stream.write(b"regular")
+    os.mkdir(lay.wal_file)
+    regular_info = os.lstat(regular)
+    real_lstat = wal.os.lstat
+
+    def stale_regular_lstat(path):
+        if os.fspath(path) == os.fspath(lay.wal_file):
+            return regular_info
+        return real_lstat(path)
+
+    wal.os.lstat = stale_regular_lstat
+    try:
+        try:
+            ident.ensure_campaign_identity(cfg, lay)
+            assert False, "lstat 後に非 regular へ替わった WAL を fstat で拒否すべき"
+        except OSError as exc:
+            assert exc.errno == errno.EINVAL
+    finally:
+        wal.os.lstat = real_lstat
+    assert not os.path.exists(lay.lock_file)
+
+
+def test_ensure_resumable_wal_rejects_missing_lock_with_bytes_unchanged():
+    cfg = _cfg()
+    lay = _layout(); lay.ensure()
+    with open(lay.wal_file, "wb") as stream:
+        stream.write(b'{"unowned":true}')
+    before = open(lay.wal_file, "rb").read()
+    try:
+        ident.ensure_resumable_wal(cfg, lay)
+        assert False, "lock の無い既存 WAL bytes を拒否すべき"
+    except ident.IdentityMismatch as exc:
+        assert exc.reason == "missing-lock-with-wal-bytes"
+    assert open(lay.wal_file, "rb").read() == before
+    assert not os.path.exists(lay.lock_file)
+    assert not [name for name in os.listdir(lay.runs_dir)
+                if name.startswith("wal-tail-repair-")]
+
+
+def test_ensure_resumable_wal_lock_mismatch_does_not_repair_bytes():
+    stored_cfg = _cfg(spec_content="stored")
+    requested_cfg = _cfg(spec_content="requested")
+    lay = _layout(); lay.ensure()
+    wal.write_lock(lay, ident.canonical_preimage(stored_cfg))
+    wal.log(lay, "v", STAGE_BUILD_START, "test")
+    with open(lay.wal_file, "ab") as stream:
+        stream.write(b"torn-tail")
+    before = open(lay.wal_file, "rb").read()
+    try:
+        ident.ensure_resumable_wal(requested_cfg, lay)
+        assert False, "lock mismatch を拒否すべき"
+    except ident.IdentityMismatch as exc:
+        assert exc.reason == "lock-mismatch"
+    assert open(lay.wal_file, "rb").read() == before
+    assert not [name for name in os.listdir(lay.runs_dir)
+                if name.startswith("wal-tail-repair-")]
+
+
 # ===== WAL / recovery / atomicity (D, A) =====
 
 def _tmpdir(prefix: str) -> str:
@@ -418,11 +553,19 @@ def test_wal_parse_line_requires_object_payload_and_checks_nested_duplicates_fir
         pass
 
 
-def test_wal_log_keeps_baseline_falsy_payload_normalization():
-    lay = _layout(); lay.ensure()
-    record = wal.log(lay, "v", STAGE_COMMIT, "test", payload=[])
+def test_wal_log_rejects_falsy_nonobject_payload_but_none_means_empty_object():
+    rejected = _layout()
+    try:
+        wal.log(rejected, "v", STAGE_COMMIT, "test", payload=[])
+        assert False, "falsy list を empty object に正規化してはならない"
+    except wal.WalPayloadTypeError as exc:
+        assert exc.path == "payload"
+    assert not os.path.exists(rejected.runs_dir)
+
+    accepted = _layout()
+    record = wal.log(accepted, "v", STAGE_COMMIT, "test", payload=None)
     assert record.payload == {}
-    assert wal.read_records(lay)[0].payload == {}
+    assert wal.read_records(accepted)[0].payload == {}
 
 
 def test_wal_blank_line_is_rejected_but_collected_reader_keeps_valid_records():
@@ -446,14 +589,523 @@ def test_wal_blank_line_is_rejected_but_collected_reader_keeps_valid_records():
     assert truncated_tail is False
 
 
-def test_wal_writer_rejects_json_key_collision_before_writing():
-    lay = _layout(); lay.ensure()
+def test_wal_writer_rejects_nonstring_json_key_before_writing():
+    lay = _layout()
     try:
-        wal.log(lay, "v", STAGE_COMMIT, "test", {1: "int", "1": "str"})
-        assert False, "JSON key 正規化後の衝突を writer が拒否すべき"
-    except wal.WalDuplicateKeyError as exc:
-        assert "duplicate key" in str(exc)
+        wal.log(lay, "v", STAGE_COMMIT, "test", {1: "int-key"})
+        assert False, "non-string key を serialize 前に拒否すべき"
+    except wal.WalPayloadTypeError as exc:
+        assert exc.path == "payload[<key>]"
     assert not os.path.exists(lay.wal_file)
+    assert not os.path.exists(lay.runs_dir)
+
+
+def _raw_wal_record(variant="raw", stage=STAGE_COMMIT, payload=None) -> bytes:
+    return json.dumps({
+        "variant": variant,
+        "stage": stage,
+        "env_tag": "test",
+        "ts": 1,
+        "payload": {} if payload is None else payload,
+    }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def test_wal_unterminated_complete_json_is_always_truncated_tail():
+    lay = _layout(); lay.ensure()
+    with open(lay.wal_file, "wb") as stream:
+        stream.write(_raw_wal_record())
+    checked, truncated = wal.read_records_checked(lay)
+    collected, issues, collected_truncated = wal.read_records_collected(lay)
+    assert checked == [] and truncated is True
+    assert collected == [] and issues == [] and collected_truncated is True
+    try:
+        list(wal.iter_lines(lay.wal_file))
+        assert False, "strict adapter は無終端 tail を拒否すべき"
+    except wal.WalFramingError:
+        pass
+
+
+def test_wal_multibyte_partial_tail_is_not_decoded():
+    lay = _layout(); lay.ensure()
+    wal.log(lay, "before", STAGE_COMMIT, "test")
+    with open(lay.wal_file, "ab") as stream:
+        stream.write(b'{"variant":"broken","payload":"\xe3\x81')
+    checked, truncated = wal.read_records_checked(lay)
+    collected, issues, collected_truncated = wal.read_records_collected(lay)
+    assert [record.variant for record in checked] == ["before"]
+    assert truncated is True
+    assert [record.variant for record in collected] == ["before"]
+    assert issues == [] and collected_truncated is True
+
+
+def test_wal_terminated_invalid_utf8_is_line_issue_not_tail():
+    lay = _layout(); lay.ensure()
+    with open(lay.wal_file, "wb") as stream:
+        stream.write(b"\xff\n")
+    try:
+        wal.read_records_checked(lay)
+        assert False, "newline 終端済み UTF-8 違反は伝播すべき"
+    except UnicodeDecodeError:
+        pass
+    records, issues, truncated = wal.read_records_collected(lay)
+    assert records == [] and truncated is False and len(issues) == 1
+    assert issues[0][0] == 1
+    assert issues[0][1].startswith("UnicodeDecodeError: ")
+
+
+def test_wal_terminated_invalid_json_is_line_issue_not_tail():
+    lay = _layout(); lay.ensure()
+    with open(lay.wal_file, "wb") as stream:
+        stream.write(b'{"variant":}\n')
+    try:
+        wal.read_records_checked(lay)
+        assert False, "newline 終端済み JSON 違反は伝播すべき"
+    except json.JSONDecodeError:
+        pass
+    records, issues, truncated = wal.read_records_collected(lay)
+    assert records == [] and truncated is False and len(issues) == 1
+    assert issues[0][0] == 1
+    assert issues[0][1].startswith("JSONDecodeError: ")
+
+
+def test_wal_append_rejects_every_unterminated_tail_without_changing_bytes():
+    tails = (
+        b'{"variant":"fragment"',
+        _raw_wal_record(variant="complete"),
+        b'{"variant":"multibyte-\xe3\x81',
+    )
+    for tail in tails:
+        lay = _layout(); lay.ensure()
+        wal.log(lay, "before", STAGE_COMMIT, "test")
+        with open(lay.wal_file, "ab") as stream:
+            stream.write(tail)
+        before = open(lay.wal_file, "rb").read()
+        try:
+            wal.log(lay, "after", STAGE_COMMIT, "test")
+            assert False, "unframed tail への append を拒否すべき"
+        except wal.WalAppendError as exc:
+            assert exc.phase == "tail-gate"
+            assert exc.wal_path == lay.wal_file
+            assert exc.written_bytes == 0 < exc.total_bytes
+            assert isinstance(exc.cause, wal.WalFramingError)
+        assert open(lay.wal_file, "rb").read() == before
+
+
+def test_wal_repair_tail_then_append_restores_independent_frames():
+    lay = _layout(); lay.ensure()
+    wal.log(lay, "before", STAGE_COMMIT, "test")
+    framed = open(lay.wal_file, "rb").read()
+    tail = b'{"variant":"torn"'
+    with open(lay.wal_file, "ab") as stream:
+        stream.write(tail)
+    result = wal.repair_truncated_tail(lay)
+    assert result.status == "repaired"
+    assert result.original_size == len(framed) + len(tail)
+    assert result.final_size == len(framed)
+    assert result.removed_bytes == len(tail)
+    assert result.removed_sha256 == hashlib.sha256(tail).hexdigest()
+    assert len(result.preview.encode("utf-8")) <= 256
+    assert result.receipt_path and os.path.isfile(result.receipt_path)
+    wal.log(lay, "after", STAGE_COMMIT, "test")
+    records, truncated = wal.read_records_checked(lay)
+    assert [record.variant for record in records] == ["before", "after"]
+    assert truncated is False
+
+
+def test_wal_repair_without_any_newline_truncates_to_zero():
+    lay = _layout(); lay.ensure()
+    tail = _raw_wal_record()
+    with open(lay.wal_file, "wb") as stream:
+        stream.write(tail)
+    result = wal.repair_truncated_tail(lay)
+    assert result.status == "repaired"
+    assert result.original_size == len(tail) and result.final_size == 0
+    assert result.removed_bytes == len(tail)
+    assert open(lay.wal_file, "rb").read() == b""
+
+
+def test_wal_repair_missing_empty_and_framed_are_noops():
+    missing = _layout()
+    result = wal.repair_truncated_tail(missing)
+    assert result == wal.WalTailRepairResult(
+        "missing", 0, 0, 0, None, "", None)
+    assert not os.path.exists(missing.runs_dir)
+
+    empty = _layout(); empty.ensure()
+    open(empty.wal_file, "wb").close()
+    result = wal.repair_truncated_tail(empty)
+    assert result == wal.WalTailRepairResult(
+        "noop", 0, 0, 0, None, "", None)
+
+    framed = _layout(); framed.ensure()
+    wal.log(framed, "v", STAGE_COMMIT, "test")
+    size = os.path.getsize(framed.wal_file)
+    result = wal.repair_truncated_tail(framed)
+    assert result == wal.WalTailRepairResult(
+        "noop", size, size, 0, None, "", None)
+
+
+def test_wal_repair_receipt_is_durable_and_complete_before_truncate():
+    lay = _layout(); lay.ensure()
+    wal.log(lay, "before", STAGE_COMMIT, "test")
+    final_size = os.path.getsize(lay.wal_file)
+    removed = b"torn-tail\x00\xff"
+    with open(lay.wal_file, "ab") as stream:
+        stream.write(removed)
+
+    real_ftruncate = wal.os.ftruncate
+    real_fsync = wal.os.fsync
+    observed = {"receipt_before_truncate": False,
+                "receipt_fsync_before_truncate": False,
+                "wal_fsync_after": False}
+    wal_fd = {"value": None}
+
+    def checked_ftruncate(fd, size):
+        receipts = [name for name in os.listdir(lay.runs_dir)
+                    if name.startswith("wal-tail-repair-")]
+        assert len(receipts) == 1
+        with open(os.path.join(lay.runs_dir, receipts[0]), encoding="utf-8") as stream:
+            receipt = json.load(stream)
+        assert receipt["cut_offset"] == final_size
+        assert receipt["removed_bytes"] == len(removed)
+        assert receipt["removed_sha256"] == hashlib.sha256(removed).hexdigest()
+        assert observed["receipt_fsync_before_truncate"]
+        observed["receipt_before_truncate"] = True
+        wal_fd["value"] = fd
+        return real_ftruncate(fd, size)
+
+    def tracked_fsync(fd):
+        try:
+            fd_path = os.readlink("/proc/self/fd/%d" % fd)
+        except OSError:
+            fd_path = ""
+        if (not observed["receipt_before_truncate"]
+                and os.path.basename(fd_path).startswith("wal-tail-repair-")):
+            observed["receipt_fsync_before_truncate"] = True
+        if wal_fd["value"] == fd:
+            observed["wal_fsync_after"] = True
+        return real_fsync(fd)
+
+    wal.os.ftruncate = checked_ftruncate
+    wal.os.fsync = tracked_fsync
+    try:
+        result = wal.repair_truncated_tail(lay)
+    finally:
+        wal.os.ftruncate = real_ftruncate
+        wal.os.fsync = real_fsync
+    assert result.status == "repaired"
+    assert observed == {"receipt_before_truncate": True,
+                        "receipt_fsync_before_truncate": True,
+                        "wal_fsync_after": True}
+
+
+def test_wal_append_completes_short_writes_and_rejects_zero_progress():
+    lay = _layout()
+    real_write = wal.os.write
+
+    def short_write(fd, data):
+        return real_write(fd, data[:7])
+
+    wal.os.write = short_write
+    try:
+        wal.log(lay, "short", STAGE_COMMIT, "test", {"text": "あ"})
+    finally:
+        wal.os.write = real_write
+    records, truncated = wal.read_records_checked(lay)
+    assert [record.variant for record in records] == ["short"]
+    assert truncated is False
+    assert open(lay.wal_file, "rb").read().count(b"\n") == 1
+
+    zero = _layout()
+    wal.os.write = lambda _fd, _data: 0
+    try:
+        try:
+            wal.log(zero, "zero", STAGE_COMMIT, "test")
+            assert False, "zero-progress write を成功扱いしてはならない"
+        except wal.WalAppendError as exc:
+            assert exc.phase == "write"
+            assert exc.written_bytes == 0 < exc.total_bytes
+            assert isinstance(exc.cause, OSError)
+    finally:
+        wal.os.write = real_write
+    assert open(zero.wal_file, "rb").read() == b""
+
+
+def test_wal_append_fsyncs_directory_under_flock_on_every_append():
+    lay = _layout()
+    real_flock = wal.fcntl.flock
+    real_fsync = wal.os.fsync
+    real_close = wal.os.close
+    locked = set()
+    dir_fsyncs = []
+
+    def tracked_flock(fd, operation):
+        result = real_flock(fd, operation)
+        if operation & fcntl.LOCK_EX:
+            locked.add(fd)
+        return result
+
+    def tracked_fsync(fd):
+        try:
+            path = os.readlink("/proc/self/fd/%d" % fd)
+        except OSError:
+            path = ""
+        if path == lay.runs_dir:
+            wal_fds = [held for held in locked
+                       if os.path.exists("/proc/self/fd/%d" % held)
+                       and os.readlink("/proc/self/fd/%d" % held) == lay.wal_file]
+            assert wal_fds, "runs dir fsync 時に WAL flock が解放済み"
+            dir_fsyncs.append(fd)
+        return real_fsync(fd)
+
+    def tracked_close(fd):
+        try:
+            return real_close(fd)
+        finally:
+            locked.discard(fd)
+
+    wal.fcntl.flock = tracked_flock
+    wal.os.fsync = tracked_fsync
+    wal.os.close = tracked_close
+    try:
+        wal.log(lay, "first", STAGE_COMMIT, "test")
+        wal.log(lay, "second", STAGE_COMMIT, "test")
+    finally:
+        wal.fcntl.flock = real_flock
+        wal.os.fsync = real_fsync
+        wal.os.close = real_close
+    assert len(dir_fsyncs) == 2
+
+
+def test_wal_append_maps_wal_close_failure_to_structured_error():
+    lay = _layout()
+    real_close = wal.os.close
+    injected = {"done": False}
+
+    def fail_after_wal_close(fd):
+        try:
+            path = os.readlink("/proc/self/fd/%d" % fd)
+        except OSError:
+            path = ""
+        result = real_close(fd)
+        if path == lay.wal_file and not injected["done"]:
+            injected["done"] = True
+            raise OSError(errno.EIO, "injected WAL close EIO")
+        return result
+
+    wal.os.close = fail_after_wal_close
+    caught = None
+    try:
+        try:
+            wal.log(lay, "close-failure", STAGE_COMMIT, "test")
+        except wal.WalAppendError as exc:
+            caught = exc
+    finally:
+        wal.os.close = real_close
+    assert caught is not None
+    assert caught.phase == "close"
+    assert caught.written_bytes == caught.total_bytes
+    assert isinstance(caught.cause, OSError) and caught.cause.errno == errno.EIO
+    assert [record.variant for record in wal.read_records(lay)] == ["close-failure"]
+
+
+def test_wal_repair_hashes_large_removed_tail_incrementally():
+    lay = _layout(); lay.ensure()
+    wal.log(lay, "before", STAGE_COMMIT, "test")
+    tail = b"streamed-tail-without-newline-" * 6000
+    with open(lay.wal_file, "ab") as stream:
+        stream.write(tail)
+
+    real_sha256 = wal.hashlib.sha256
+    constructor_sizes = []
+    update_sizes = []
+
+    class TrackingDigest:
+        def __init__(self, initial=b""):
+            constructor_sizes.append(len(initial))
+            self._inner = real_sha256()
+            if initial:
+                self.update(initial)
+
+        def update(self, chunk):
+            update_sizes.append(len(chunk))
+            self._inner.update(chunk)
+
+        def hexdigest(self):
+            return self._inner.hexdigest()
+
+    wal.hashlib.sha256 = TrackingDigest
+    try:
+        result = wal.repair_truncated_tail(lay)
+    finally:
+        wal.hashlib.sha256 = real_sha256
+    assert result.status == "repaired"
+    assert result.removed_bytes == len(tail)
+    assert result.removed_sha256 == real_sha256(tail).hexdigest()
+    assert result.preview == tail[:128].hex()
+    assert constructor_sizes == [0]
+    assert len(update_sizes) >= 3 and max(update_sizes) <= 65536
+    assert sum(update_sizes) == len(tail)
+
+
+def test_wal_reader_stage_contract_is_exact_and_unknown_stage_fails_closed():
+    assert STAGES == (
+        STAGE_BUILD_START, STAGE_BUILD_DONE, STAGE_VERIFY_DONE,
+        STAGE_BENCH_DONE, STAGE_COMMIT, STAGE_ABORT,
+    )
+    assert WAL_STAGES == STAGES + (
+        STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION,
+    )
+    assert len(WAL_STAGES) == 8 and len(set(WAL_STAGES)) == 8
+    raw = _raw_wal_record(stage="sess1on-typo").decode("utf-8")
+    try:
+        wal.parse_line(raw)
+        assert False, "unknown stage を reader が拒否すべき"
+    except wal.WalLineError as exc:
+        assert "unknown WAL stage" in str(exc)
+
+
+def test_wal_writer_stage_contract_is_exact_and_unknown_stage_fails_closed():
+    lay = _layout()
+    try:
+        wal.log(lay, "v", "sess1on-typo", "test")
+        assert False, "unknown stage を writer が拒否すべき"
+    except wal.WalLineError as exc:
+        assert "unknown WAL stage" in str(exc)
+    assert not os.path.exists(lay.runs_dir)
+
+    for bad_record in (
+            wal.WalRecord(1, STAGE_COMMIT, "test", 1, {}),
+            wal.WalRecord("v", STAGE_COMMIT, "test", float("nan"), {})):
+        lay = _layout()
+        try:
+            wal.append(lay, bad_record)
+            assert False, "basic record 違反を open 前に拒否すべき"
+        except wal.WalLineError:
+            pass
+        assert not os.path.exists(lay.runs_dir)
+
+
+def test_wal_payload_deep_type_rejections_happen_before_open():
+    cycle = []
+    cycle.append(cycle)
+    invalid = (
+        ({"outer": {1: "bad"}}, "payload[\"outer\"][<key>]"),
+        ({"outer": (1, 2)}, "payload[\"outer\"]"),
+        ({"outer": {1, 2}}, "payload[\"outer\"]"),
+        ({"outer": b"bytes"}, "payload[\"outer\"]"),
+        ({"outer": cycle}, "payload[\"outer\"][0]"),
+        ({"outer": float("nan")}, "payload[\"outer\"]"),
+        ({"outer": float("inf")}, "payload[\"outer\"]"),
+        ({"outer": "\ud800"}, "payload[\"outer\"]"),
+    )
+    for payload, expected_path in invalid:
+        lay = _layout()
+        try:
+            wal.log(lay, "v", STAGE_COMMIT, "test", payload)
+            assert False, "invalid payload を拒否すべき: %r" % (payload,)
+        except wal.WalPayloadTypeError as exc:
+            assert exc.path == expected_path
+        assert not os.path.exists(lay.runs_dir)
+
+
+def test_wal_payload_accepts_ordered_dict_native_tree_and_shared_dag():
+    shared = [1, {"finite": 1.25, "ok": True, "none": None}]
+    payload = collections.OrderedDict((
+        ("left", shared),
+        ("right", shared),
+        ("text", "日本語"),
+    ))
+    lay = _layout()
+    wal.log(lay, "v", STAGE_COMMIT, "test", payload)
+    record = wal.read_records(lay)[0]
+    assert record.payload == {
+        "left": shared, "right": shared, "text": "日本語",
+    }
+
+
+def test_wal_reader_rejects_raw_nonfinite_payload_constants_and_overflow():
+    for token in ("NaN", "Infinity", "-Infinity"):
+        raw = (_raw_wal_record().decode("utf-8")
+               .replace('"payload":{}', '"payload":{"bad":%s}' % token))
+        try:
+            wal.parse_line(raw)
+            assert False, "raw non-finite constant を拒否すべき"
+        except wal.WalPayloadTypeError as exc:
+            assert exc.path is None
+            assert token in str(exc)
+    overflow = (_raw_wal_record().decode("utf-8")
+                .replace('"payload":{}', '"payload":{"bad":1e999}'))
+    try:
+        wal.parse_line(overflow)
+        assert False, "JSON overflow 由来の inf を拒否すべき"
+    except wal.WalPayloadTypeError as exc:
+        assert exc.path == 'payload["bad"]'
+
+
+def test_wal_exception_hierarchy_and_append_attributes_are_separate():
+    assert issubclass(wal.WalFramingError, wal.WalLineError)
+    assert issubclass(wal.WalPayloadTypeError, wal.WalLineError)
+    for error_type in (wal.WalLineError, wal.WalFramingError,
+                       wal.WalPayloadTypeError, wal.WalAppendError):
+        assert not issubclass(error_type, (json.JSONDecodeError, KeyError))
+    assert not issubclass(wal.WalAppendError, wal.WalLineError)
+
+
+def test_wal_append_and_repair_wait_for_exclusive_flock():
+    append_layout = _layout(); append_layout.ensure()
+    wal.log(append_layout, "before", STAGE_COMMIT, "test")
+    held = os.open(append_layout.wal_file, os.O_RDWR)
+    fcntl.flock(held, fcntl.LOCK_EX)
+    append_started = threading.Event()
+    append_done = threading.Event()
+    append_errors = []
+
+    def append_worker():
+        append_started.set()
+        try:
+            wal.log(append_layout, "after", STAGE_COMMIT, "test")
+        except BaseException as exc:  # noqa: BLE001 - worker 診断を親で検査
+            append_errors.append(exc)
+        finally:
+            append_done.set()
+
+    thread = threading.Thread(target=append_worker)
+    thread.start()
+    assert append_started.wait(1.0)
+    assert not append_done.wait(0.05)
+    fcntl.flock(held, fcntl.LOCK_UN)
+    os.close(held)
+    thread.join(2.0)
+    assert append_done.is_set() and append_errors == []
+    assert [r.variant for r in wal.read_records(append_layout)] == ["before", "after"]
+
+    repair_layout = _layout(); repair_layout.ensure()
+    wal.log(repair_layout, "before", STAGE_COMMIT, "test")
+    with open(repair_layout.wal_file, "ab") as stream:
+        stream.write(b"tail")
+    held = os.open(repair_layout.wal_file, os.O_RDWR)
+    fcntl.flock(held, fcntl.LOCK_EX)
+    repair_started = threading.Event()
+    repair_done = threading.Event()
+    repair_results = []
+
+    def repair_worker():
+        repair_started.set()
+        try:
+            repair_results.append(wal.repair_truncated_tail(repair_layout))
+        finally:
+            repair_done.set()
+
+    thread = threading.Thread(target=repair_worker)
+    thread.start()
+    assert repair_started.wait(1.0)
+    assert not repair_done.wait(0.05)
+    fcntl.flock(held, fcntl.LOCK_UN)
+    os.close(held)
+    thread.join(2.0)
+    assert repair_done.is_set()
+    assert len(repair_results) == 1 and repair_results[0].status == "repaired"
 
 
 def test_wal_records_by_stage_last_wins_per_stage():
@@ -3235,6 +3887,89 @@ def test_patchharness_checkout_leak_raises():
     finally:
         patchharness._worktree_paths = saved
     assert not os.path.exists(captured["path"])     # 実体は正しく破棄されている (leak は偽装のみ)
+
+
+def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
+    from campaign import loop as L
+
+    out_root = _tmpdir("izanagi_loop_tail_resume_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="tail-resume", ccbench_commit="deadbeef")
+    layout = campaign_layout(str(ident.campaign_id(cfg)), out_root).ensure()
+    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.log(layout, "prior", STAGE_COMMIT, "test-env", {"fitness_tps": 1.0})
+    with open(layout.wal_file, "ab") as stream:
+        stream.write("途中".encode("utf-8")[:4])
+    genome = Genome("silo", {"BACK_OFF": 1})
+    messages = []
+
+    def fake_eval(candidate, candidate_layout, env_tag, *args, **kwargs):
+        records, truncated = wal.read_records_checked(candidate_layout)
+        assert truncated is False and [r.variant for r in records] == ["prior"]
+        variant = pipeline.variant_id(candidate, kwargs["src_token"])
+        wal.log(candidate_layout, variant, STAGE_BUILD_START, env_tag,
+                {"genome": candidate.canonical()})
+        wal.log(candidate_layout, variant, STAGE_COMMIT, env_tag,
+                {"fitness_tps": 2.0})
+        return EvalResult(genome=candidate, variant=variant, certified=True,
+                          aborted=False, fitness_tps=2.0)
+
+    saved_eval, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    try:
+        summary = L.run_campaign(
+            cfg, [genome], PerfConfig(records=1, threads=1), "test-env", 1800,
+            do_bench=False, output_root=out_root, log=messages.append)
+    finally:
+        L.evaluate, L.source_digest = saved_eval, saved_sd
+    records, truncated = wal.read_records_checked(layout)
+    repair_messages = [m for m in messages if "WAL tail repair:" in m]
+    assert summary.committed == 1 and truncated is False
+    assert [r.stage for r in records] == [
+        STAGE_COMMIT, STAGE_BUILD_START, STAGE_COMMIT]
+    assert len(repair_messages) == 1
+    repair_payload = json.loads(repair_messages[0].split(": ", 1)[1])
+    assert repair_payload["status"] == "repaired"
+    assert repair_payload["removed_bytes"] == 4
+    assert len(repair_payload["removed_sha256"]) == 64
+    assert os.path.exists(repair_payload["receipt_path"])
+
+
+def test_loop_does_not_append_abort_after_wal_io_error():
+    from campaign import loop as L
+
+    failures = (
+        wal.WalAppendError("fixture-wal", 20, 7, "write", OSError("disk")),
+        wal.WalFramingError("unframed"),
+    )
+    for index, failure in enumerate(failures):
+        out_root = _tmpdir("izanagi_loop_wal_error_")
+        cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                             spec_content=f"wal-error-{index}",
+                             ccbench_commit="deadbeef")
+        genome = Genome("silo", {"BACK_OFF": 1})
+
+        def fail(*args, **kwargs):
+            raise failure
+
+        saved_eval, saved_sd = L.evaluate, L.source_digest
+        L.evaluate = fail
+        L.source_digest = _sd_mock("stock")
+        caught = None
+        try:
+            try:
+                L.run_campaign(
+                    cfg, [genome], PerfConfig(records=1, threads=1),
+                    "test-env", 1800, do_bench=False, output_root=out_root,
+                    log=lambda message: None)
+            except (wal.WalAppendError, wal.WalFramingError) as exc:
+                caught = exc
+        finally:
+            L.evaluate, L.source_digest = saved_eval, saved_sd
+        layout = campaign_layout(str(ident.campaign_id(cfg)), out_root)
+        assert caught is failure
+        assert wal.read_records(layout) == []
 
 
 def _run():

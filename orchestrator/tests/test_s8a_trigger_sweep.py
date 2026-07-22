@@ -15,6 +15,8 @@ build/verify/bench を伴わない機械部分のみ (test_s6_sort_sweep.py と�
 """
 from __future__ import annotations
 
+import contextlib
+import errno
 import itertools
 import json
 import os
@@ -33,6 +35,8 @@ from campaign import ident                                         # noqa: E402
 from campaign import pipeline                                      # noqa: E402
 from campaign import p3_s4_loop as L                               # noqa: E402
 from campaign import s8a_trigger_sweep as W                        # noqa: E402
+from campaign import wal                                           # noqa: E402
+from campaign.model import STAGE_BUILD_START                       # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 
@@ -166,6 +170,34 @@ def test_all_candidates_pass_quarantine():
         assert res.passed, f"{name}: 機械生成候補が検疫 reject — {res.reason}"
 
 
+def test_s8a_reject_writer_fails_closed_on_unframed_tail():
+    from campaign.layout import CampaignLayout
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_s8a_reject_gate_")
+    ).ensure()
+    with open(layout.wal_file, "wb") as stream:
+        stream.write(b'{"unframed":')
+    before = open(layout.wal_file, "rb").read()
+    implementation = W.candidates(EFF3)[0][2]
+    rejection = L.DiffQuarantineResult(
+        passed=False, digest={"subtype": "fixture-reject"},
+    )
+
+    try:
+        L.record_diff_reject(
+            layout, W._genome(1), implementation, rejection, env_tag=W.ENV_TAG,
+        )
+        assert False, "s8a reject が unframed tail へ追記されてはならない"
+    except wal.WalAppendError as exc:
+        assert exc.phase == "tail-gate"
+        assert isinstance(exc.cause, wal.WalFramingError)
+
+    assert open(layout.wal_file, "rb").read() == before
+    assert not any(name.startswith("wal-tail-repair-")
+                   for name in os.listdir(layout.runs_dir))
+
+
 def test_quarantine_scope_does_not_police_hole_content():
     """検疫の守備範囲の固定 (実測 2026-07-11): DiffQuarantine は hole 域の封じ込め
     (フレーム・hole 外の改変拒否) を守るのであって、hole 域**内**の内容の質 (1 行性・
@@ -223,6 +255,86 @@ def test_genome_flags():
     g0 = W._genome(0).flags
     assert g1["BACKOFF_TRIGGER_GATING"] == 1 and g0["BACKOFF_TRIGGER_GATING"] == 0
     assert g1["BACK_OFF"] == 1 and g0["BACK_OFF"] == 1
+
+
+def _install_public_reject_sweep_fakes(monkeypatch, layout):
+    from campaign import patchharness
+
+    root = tempfile.mkdtemp(prefix="izanagi_s8a_public_sweep_")
+    os.makedirs(os.path.join(root, "external", "ccbench"))
+    rejection = L.DiffQuarantineResult(
+        passed=False, digest={"subtype": "fixture-reject"},
+    )
+    monkeypatch.setattr(W, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(W, "load_effective_reasons", lambda: EFF3)
+    monkeypatch.setattr(W, "_repo_root", lambda: root)
+    monkeypatch.setattr(W, "campaign_layout", lambda _campaign_id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_args: None)
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        L, "quarantine", lambda *_args, **_kwargs: (rejection, "", "", ""),
+    )
+
+
+def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
+    from campaign.layout import CampaignLayout
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_s8a_public_resume_")
+    ).ensure()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    first, second = [name for name, _category, _impl in W.candidates(EFF3)[:2]]
+
+    first_result = W.run_sweep(
+        "balanced", names=[first], isolate=False, log=lambda _line: None,
+    )
+    assert first_result[first]["outcome"] == "quarantine-reject"
+    cfg = W.config_for("balanced", EFF3)
+    assert wal.read_lock(layout) == ident.canonical_preimage(cfg)
+
+    resumed = W.run_sweep(
+        "balanced", names=[second], isolate=False, log=lambda _line: None,
+    )
+    assert resumed[second]["outcome"] == "quarantine-reject"
+    assert len(wal.read_records(layout)) == 4
+
+
+def test_public_sweep_full_frame_fsync_eio_stops_before_next_candidate(
+        monkeypatch):
+    from campaign.layout import CampaignLayout
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_s8a_public_fsync_")
+    ).ensure()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    names = [name for name, _category, _impl in W.candidates(EFF3)[:2]]
+    real_fsync = wal.os.fsync
+    wal_fsyncs = []
+
+    def fail_wal_fsync(fd):
+        try:
+            path = os.readlink("/proc/self/fd/%d" % fd)
+        except OSError:
+            path = ""
+        if path == layout.wal_file:
+            wal_fsyncs.append(fd)
+            raise OSError(errno.EIO, "injected full-frame WAL fsync EIO")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(wal.os, "fsync", fail_wal_fsync)
+    with pytest.raises(wal.WalAppendError) as excinfo:
+        W.run_sweep(
+            "balanced", names=names, isolate=False, log=lambda _line: None,
+        )
+    assert excinfo.value.phase == "fsync"
+    assert excinfo.value.written_bytes == excinfo.value.total_bytes
+    assert len(wal_fsyncs) == 1
+    records, truncated = wal.read_records_checked(layout)
+    assert truncated is False and len(records) == 1
+    assert records[0].stage == STAGE_BUILD_START
 
 
 # ==== 頻度実測 (必須前提 (a)) 消費の fails-closed ==============================
