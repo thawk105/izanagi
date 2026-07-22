@@ -436,9 +436,82 @@ def _prepare_emitter_base(root: Path) -> tuple[dict, str, str, bytes, bytes]:
     _write(root, "positive_control.txt", _RR50_PARAMS)
     _write(root, ".gitattributes", b"* -text\n")
     _write(root, "README.md", b"production-emitter fixture\n")
+    # official preflight の prediction 必須化 (protocol → prediction → floor の機構強制)
+    # を満たす封印一式を base commit に含める。pre_oracle_head の commit pin は実在
+    # commit を要求するため、seed commit を先に切って参照する (namespace clean 検査は
+    # untracked の selector 証拠を dirty とみなすので、base の外に置けない)。
+    seed = _fixed_commit_all(root, "emitter fixture seed", "fixture")
+    _install_emitter_selector_prediction(root, pre_oracle_head=seed)
     base = _fixed_commit_all(root, "emitter fixture base", "fixture")
     assert _fixed_git(root, "status", "--porcelain") == ""
     return v1, ccbench_pin, base, design_raw, generator_raw
+
+
+_PREDICTION_SOURCE_PATHS = {
+    "holdout_freeze": "output/s8b-freeze/holdout_freeze.json",
+    "builder": "orchestrator/campaign/s8b_selector_input.py",
+    "role": ".claude/agents/selector-8b.md",
+    "input_schema": "orchestrator/campaign/s8b_selector_catalog.json",
+    "output_schema": "orchestrator/campaign/s8b_selector_output_schema.json",
+}
+
+
+def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) -> None:
+    """official preflight の prediction 必須化を満たす hermetic 封印一式を注入する。
+
+    all-missing の 6 行文書 (agent 4 行 = missing・provenance null、off 2 行 = static c06)
+    を実 API (build/write_prediction_freeze) で組む。emitter fixture は選択実験の代表
+    bytes ではない — preflight の必須検査 (実在 + verify_prediction_freeze 通過 +
+    journal 実在) を満たす最小形。注入済み root では no-op (g2 追記 builder と両立)。
+    """
+    predictions_path = root / "output/s8b-freeze/selector_predictions.json"
+    if predictions_path.exists():
+        return
+    from campaign import s8b_selector_freeze as SF
+
+    for relative in _PREDICTION_SOURCE_PATHS.values():
+        destination = root / relative
+        if destination.exists():
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((Path(_ROOT) / relative).read_bytes())
+    freeze = json.loads(
+        (root / _PREDICTION_SOURCE_PATHS["holdout_freeze"]).read_bytes()
+    )
+    rows = []
+    for job in SF.build_prediction_jobs(freeze):
+        if job["arm"] == "off":
+            rows.append({
+                **job, "status": "valid", "rationale": None,
+                "raw_response_path": None, "raw_sha256": None,
+                "parser_error_code": None, "agent_provenance": None,
+            })
+        else:
+            rows.append({
+                **job, "status": "missing", "choice_id": None, "rationale": None,
+                "raw_response_path": None, "raw_sha256": None,
+                "parser_error_code": None, "agent_provenance": None,
+            })
+    sources = {
+        name: {
+            "path": rel,
+            "sha256": hashlib.sha256((root / rel).read_bytes()).hexdigest(),
+        }
+        for name, rel in _PREDICTION_SOURCE_PATHS.items()
+    }
+    document = SF.build_prediction_freeze(
+        freeze=freeze, rows=rows, generated_at="2026-07-22T00:00:00+00:00",
+        pre_oracle_head=pre_oracle_head, sources=sources,
+        execution_policy={
+            "attempts_per_agent_cell": 1, "retry": False,
+            "reuse_equal_payload_output": False, "fresh_context": True,
+            "declared_tools": [],
+        },
+    )
+    SF.write_prediction_freeze(predictions_path, document)
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    journal_path.parent.mkdir(parents=True, exist_ok=True)
+    journal_path.write_bytes(b"{}\n")
 
 
 def _emitter_artifact_paths(run_dir: Path, root: Path) -> dict[str, str]:
