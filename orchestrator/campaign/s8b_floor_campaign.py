@@ -74,6 +74,7 @@ from calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
+from campaign import t080_freeze_migration as _t080_migration  # noqa: E402
 from campaign import s8b_floor_contract as _floor_contract  # noqa: E402
 from campaign import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
 from campaign import env_contract as _env_contract  # noqa: E402
@@ -119,6 +120,10 @@ _APPROVED_SESSION_CV_MAX = _floor_contract._APPROVED_SESSION_CV_MAX
 _APPROVED_CELL_CV_MAX = _floor_contract._APPROVED_CELL_CV_MAX
 _APPROVED_SCALE_ADEQUACY = _floor_contract._APPROVED_SCALE_ADEQUACY
 _APPROVED_REASONS = list(_floor_contract._APPROVED_REASONS)
+
+_FLOOR_PROTOCOL_REL = "output/s8b-freeze/floor_protocol.json"
+_SELECTOR_PREDICTIONS_REL = "output/s8b-freeze/selector_predictions.json"
+_SELECTOR_RUNS_REL = "output/s8b-freeze/selector-runs"
 
 # 新しい共有 API は leaf 実体を直接 re-export する。
 canonical_protocol_sha256 = _floor_contract.canonical_protocol_sha256
@@ -429,24 +434,11 @@ def _guarded_freeze_dirs(root: Path) -> tuple:
     return tuple(dirs)
 
 
-def write_protocol_document(path, built: "BuiltProtocol", *, root=ROOT) -> Path:
-    """``built`` を create-only で書き出す。**default path なし (明示出力先必須)**。
-
-    出力先が実 repo の凍結領域 (``output/s8b-freeze/`` ・ ``output/env/``) 配下なら拒否する
-    (テスト誤爆の第二防壁 — 実凍結はユーザー手順で行い、AI-Agent: none で commit する)。
-    既存 path も拒否する (create-only)。ファイル bytes は canonical bytes と一致し、その
-    sha256 は ``built.sha256`` (= protocol_sha256 の pre-image) に等しい。
-    """
+def _write_protocol_document_create_only(destination: Path, built: "BuiltProtocol") -> Path:
+    """canonical bytes を同一 directory の tmp から create-only link で確定する。"""
     if not isinstance(built, BuiltProtocol):
         raise FloorCampaignError("write_protocol_document: BuiltProtocol でない")
-    destination = Path(path)
-    resolved_parent = destination.parent.resolve()
-    for guarded in _guarded_freeze_dirs(Path(root)):
-        if resolved_parent == guarded or guarded in resolved_parent.parents:
-            raise FloorCampaignError(
-                "実 repo の凍結領域配下への書込みは拒否 (実凍結はユーザー手順): "
-                f"{destination} ⊂ {guarded}"
-            )
+    destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     tmp = None
     try:
@@ -479,6 +471,103 @@ def write_protocol_document(path, built: "BuiltProtocol", *, root=ROOT) -> Path:
         if tmp is not None:
             tmp.unlink(missing_ok=True)
     return destination
+
+
+def write_protocol_document(path, built: "BuiltProtocol", *, root=ROOT) -> Path:
+    """``built`` を create-only で書き出す。**default path なし (明示出力先必須)**。
+
+    出力先が実 repo の凍結領域 (``output/s8b-freeze/`` ・ ``output/env/``) 配下なら拒否する
+    (テスト誤爆の第二防壁 — 実凍結はユーザー手順で行い、AI-Agent: none で commit する)。
+    既存 path も拒否する (create-only)。ファイル bytes は canonical bytes と一致し、その
+    sha256 は ``built.sha256`` (= protocol_sha256 の pre-image) に等しい。
+    """
+    destination = Path(path)
+    if not isinstance(built, BuiltProtocol):
+        raise FloorCampaignError("write_protocol_document: BuiltProtocol でない")
+    resolved_parent = destination.parent.resolve()
+    for guarded in _guarded_freeze_dirs(Path(root)):
+        if resolved_parent == guarded or guarded in resolved_parent.parents:
+            raise FloorCampaignError(
+                "実 repo の凍結領域配下への書込みは拒否 (実凍結はユーザー手順): "
+                f"{destination} ⊂ {guarded}"
+            )
+    return _write_protocol_document_create_only(destination, built)
+
+
+def freeze_protocol(*, confirm_user_freeze: bool, root=ROOT, isatty_fn=None,
+                    receipt_verify_fn=None, after_write_fn=None) -> dict:
+    """人間の対話 shell 専用に、承認値だけから protocol を固定 path へ実凍結する。
+
+    ``root`` と三つの callable は tmp repository で防壁を実発火させるテスト seam。
+    CLI はいずれも注入せず、固定 ``ROOT`` と実 stdin/T-080 verifier を使用する。
+    """
+    if confirm_user_freeze is not True:
+        raise FloorCampaignError(
+            "freeze-protocol は --confirm-user-freeze の明示確認が必須"
+        )
+    tty_check = sys.stdin.isatty if isatty_fn is None else isatty_fn
+    if not callable(tty_check) or tty_check() is not True:
+        raise FloorCampaignError(
+            "実凍結は人間の対話 shell から実行する (stdin が tty でないため拒否)"
+        )
+
+    root = Path(root)
+    verifier = _t080_migration.verify_receipt if receipt_verify_fn is None else receipt_verify_fn
+    try:
+        receipt = verifier(root=root)
+    except _t080_migration.MigrationError as exc:
+        raise FloorCampaignError(f"T-080 receipt 検証失敗: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001 (外部 verifier seam も fail-closed)
+        raise FloorCampaignError(f"T-080 receipt 検証失敗: {exc}") from exc
+    if (getattr(receipt, "state", None) != "active-valid"
+            or tuple(getattr(receipt, "refusals", ()))
+            or not isinstance(
+                getattr(receipt, "t080_freeze_migration_observation", None), Mapping
+            )):
+        raise FloorCampaignError(
+            "T-080 receipt が発効状態でない: "
+            f"state={getattr(receipt, 'state', None)!r}, "
+            f"refusals={list(getattr(receipt, 'refusals', ()))}"
+        )
+
+    built = build_protocol_document(
+        s8b_approved.APPROVED_MASTER_SEED,
+        s8b_approved.APPROVED_ENV_TAG,
+        stock_configuration=s8b_approved.APPROVED_STOCK_CONFIGURATION,
+        extime_s=s8b_approved.APPROVED_EXTIME_S,
+        wired_min_rel_floor=s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR,
+        root=root,
+    )
+    destination = root / _FLOOR_PROTOCOL_REL
+    _write_protocol_document_create_only(destination, built)
+    if after_write_fn is not None:
+        after_write_fn(destination)
+
+    try:
+        raw = destination.read_bytes()
+        actual_sha256 = hashlib.sha256(raw).hexdigest()
+        reparsed = validate_protocol(load_protocol(destination))
+    except (OSError, FloorCampaignError) as exc:
+        raise FloorCampaignError(
+            f"post-write 検証失敗。自動削除しないため commit 禁止: {exc}"
+        ) from exc
+    problems = []
+    if raw != built.canonical_bytes:
+        problems.append("read-back bytes が canonical bytes と不一致")
+    if actual_sha256 != built.sha256:
+        problems.append("read-back sha256 が builder sha256 と不一致")
+    if reparsed != built.document:
+        problems.append("strict re-parse + validate_protocol が builder document と不一致")
+    if problems:
+        raise FloorCampaignError(
+            "post-write 検証失敗。自動削除しないため commit 禁止: " + "; ".join(problems)
+        )
+    return {
+        "status": "frozen",
+        "path": _FLOOR_PROTOCOL_REL,
+        "byte_length": len(raw),
+        "sha256": actual_sha256,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -1166,6 +1255,48 @@ def _atomic_create_only_json(
 # production の official 拒否は _assert_official_permitted で不変のまま、テスト専用     #
 # seam の内側に発行・journal・resume の dormant 結線を置く。production bypass 面は持たない。#
 # --------------------------------------------------------------------------- #
+
+def _floor_preflight_freeze_allowlist(
+        root: Path, *, freeze_path: str, freeze_sha256: str,
+        protocol_sha256: str) -> dict[str, str]:
+    """official preflight が免除する実在 file を exact path + bytes hash で列挙する。
+
+    protocol は呼出し時点の canonical ``protocol_sha256`` を期待値に使い、clean scan
+    側の実 bytes 照合で drift を拒否する。selector 証拠は filesystem 上に実在する file
+    だけを列挙し、directory prefix の免除は作らない。
+    """
+    root = Path(root)
+    allowlist: dict[str, str] = {}
+
+    def add_if_file(rel: str, expected_sha256: Optional[str] = None) -> None:
+        path = root / rel
+        if not path.is_file():
+            return
+        try:
+            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as exc:
+            raise FloorCampaignError(
+                f"launch certificate: freeze allowlist 対象を読めない: {rel}: {exc}"
+            ) from exc
+        allowlist[rel] = actual if expected_sha256 is None else expected_sha256
+
+    add_if_file(freeze_path, freeze_sha256)
+    add_if_file(_FLOOR_PROTOCOL_REL, protocol_sha256)
+    add_if_file(_SELECTOR_PREDICTIONS_REL)
+
+    runs_dir = root / _SELECTOR_RUNS_REL
+    if runs_dir.exists():
+        try:
+            entries = sorted(runs_dir.rglob("*"), key=lambda path: path.as_posix())
+        except OSError as exc:
+            raise FloorCampaignError(
+                f"launch certificate: selector-runs を列挙できない: {exc}"
+            ) from exc
+        for path in entries:
+            if path.is_file():
+                add_if_file(path.relative_to(root).as_posix())
+    return allowlist
+
 
 def _assert_freeze_allowlist(root: Path, freeze_allowlist: Mapping) -> None:
     """search 除外領域 output/s8b-freeze の全 filesystem file を exact allowlist 検査する。"""
@@ -2436,13 +2567,19 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         campaign_run_id = _fresh_run_id(protocol_sha256, started_at)
         certificate = None
         if mode == "official":
+            freeze_allowlist = _floor_preflight_freeze_allowlist(
+                repo_root,
+                freeze_path=protocol["freeze"]["path"],
+                freeze_sha256=freeze_sha256,
+                protocol_sha256=protocol_sha256,
+            )
             certificate = _official_launch_preflight(
                 repo_root,
                 v1_freeze_sha256=freeze_sha256,
                 protocol_sha256=protocol_sha256,
                 started_utc=started_at.isoformat(),
                 campaign_run_id=campaign_run_id,
-                freeze_allowlist={protocol["freeze"]["path"]: freeze_sha256},
+                freeze_allowlist=freeze_allowlist,
             )
 
         run_dir = _fresh_run_dir(
@@ -2956,6 +3093,15 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _freeze_protocol_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog=f"{Path(sys.argv[0]).name} freeze-protocol",
+        description="承認済み固定値から floor protocol を人間が実凍結する",
+    )
+    parser.add_argument("--confirm-user-freeze", action="store_true", required=True)
+    return parser
+
+
 def _resolve_freeze_path(freeze_path_text: str) -> Path:
     path = Path(freeze_path_text)
     return path if path.is_absolute() else ROOT / path
@@ -2970,7 +3116,22 @@ def _load_verified_freeze(path, expected_hash=None):
 
 
 def main(argv=None) -> int:
-    args = _parser().parse_args(argv)
+    cli_argv = list(sys.argv[1:] if argv is None else argv)
+    if cli_argv and cli_argv[0] == "freeze-protocol":
+        freeze_args = _freeze_protocol_parser().parse_args(cli_argv[1:])
+        try:
+            outcome = freeze_protocol(
+                confirm_user_freeze=freeze_args.confirm_user_freeze,
+            )
+        except FloorCampaignError as exc:
+            print(json.dumps({
+                "status": "error", "error": f"{type(exc).__name__}: {exc}",
+            }, ensure_ascii=False))
+            return 1
+        print(json.dumps(outcome, ensure_ascii=False))
+        return 0
+
+    args = _parser().parse_args(cli_argv)
 
     # official は §8 未裁定につき CLI でも拒否する (core も二重に拒否する, δ-3)。
     if args.mode == "official":

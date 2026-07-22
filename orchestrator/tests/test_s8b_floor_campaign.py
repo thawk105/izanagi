@@ -2325,6 +2325,71 @@ def test_clean_scan_digest_accepts_exact_freeze_allowlist(tmp_path, monkeypatch)
     assert digest == hashlib.sha256(rel.encode("utf-8")).hexdigest()
 
 
+def test_floor_preflight_allowlist_hashes_protocol_predictions_and_all_selector_run_files(
+        tmp_path):
+    payloads = {
+        "output/s8b-freeze/fixture_freeze.json": b"holdout-freeze",
+        s8b_floor_campaign._FLOOR_PROTOCOL_REL: b"canonical-protocol",
+        s8b_floor_campaign._SELECTOR_PREDICTIONS_REL: b"selector-predictions",
+        "output/s8b-freeze/selector-runs/run-1/journal.jsonl": b"journal\n",
+        "output/s8b-freeze/selector-runs/run-1/payload.json": b"payload",
+        "output/s8b-freeze/selector-runs/run-1/raw/stdout.txt": b"raw-output",
+        "output/s8b-freeze/selector-runs/run-1/envelope.json": b"envelope",
+    }
+    for rel, raw in payloads.items():
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(raw)
+    freeze_rel = "output/s8b-freeze/fixture_freeze.json"
+    protocol_sha = hashlib.sha256(payloads[s8b_floor_campaign._FLOOR_PROTOCOL_REL]).hexdigest()
+    allowlist = s8b_floor_campaign._floor_preflight_freeze_allowlist(
+        tmp_path, freeze_path=freeze_rel,
+        freeze_sha256=hashlib.sha256(payloads[freeze_rel]).hexdigest(),
+        protocol_sha256=protocol_sha,
+    )
+    assert allowlist == {
+        rel: hashlib.sha256(raw).hexdigest() for rel, raw in payloads.items()
+    }
+    assert all(not rel.endswith("/") for rel in allowlist)
+
+
+def test_floor_preflight_allowlist_omits_nonexistent_optional_files(tmp_path):
+    freeze_rel = "output/s8b-freeze/fixture_freeze.json"
+    freeze = tmp_path / freeze_rel
+    freeze.parent.mkdir(parents=True)
+    freeze.write_bytes(b"holdout-freeze")
+    freeze_sha = hashlib.sha256(freeze.read_bytes()).hexdigest()
+    allowlist = s8b_floor_campaign._floor_preflight_freeze_allowlist(
+        tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+        protocol_sha256="a" * 64,
+    )
+    assert allowlist == {freeze_rel: freeze_sha}
+    assert s8b_floor_campaign._FLOOR_PROTOCOL_REL not in allowlist
+    assert s8b_floor_campaign._SELECTOR_PREDICTIONS_REL not in allowlist
+
+
+def test_pilot_does_not_apply_official_freeze_allowlist_scan(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    repo_root = tmp_path / "pilot-repo"
+    _init_real_clean_repo(repo_root, freeze, protocol)
+    rogue = repo_root / "output" / "s8b-freeze" / "not-allowlisted.txt"
+    rogue.write_bytes(b"pilot must not run official preflight")
+    out_root = tmp_path / "pilot-out"
+    outcome = s8b_floor_campaign.run_campaign(
+        protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+        now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+        process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
+        build_fn=_make_fake_build(tmp_path / "pilot-build"), repo_root=repo_root,
+        durable_root_policy=_durable_policy(out_root),
+    )
+    assert outcome["status"] == "completed"
+    assert rogue.read_bytes() == b"pilot must not run official preflight"
+
+
 def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
