@@ -88,7 +88,10 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 パッケージ = `output/insights/2026-07-22_direction-audit-recovery-plan.md`。
 **移行契約 wave は 2026-07-22 に実装完了 (D78) — 機構実装済み・人間 receipt 発行待ち。** 発効後の
 公式 gate 期待 = {floor-null, budget-null} の 2 拒否 exact (receipt 発行手順の正本 = worklog
-2026-07-22 (10) の引き渡しパッケージ)。次 wave = protocol JSON 実凍結 + 予測封印。
+2026-07-22 (10) の引き渡しパッケージ)。**protocol JSON 実凍結 + 予測封印の機構も 2026-07-23 に
+実装完了 (wave2、D79)** — 人間 CLI (freeze-protocol) と selector 実走配線 (seal CLI) を引き渡し済み。
+残 = ユーザー手番 (receipt 発行 → protocol 実凍結、手順 = worklog 2026-07-22 (10) + 2026-07-23 (1))
+→ AI の予測封印実走 wave → [T-011] 受諾 → floor 実測 (blocking 前提 = D79 (7))。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 

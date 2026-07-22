@@ -3210,3 +3210,98 @@ draft 確認 → finalize → R commit → post-R 受入 (rc=2 + exact assert + 
 「移行契約により superseded」として閉じる。[T-077] は R の design_source 再 pin + generator M 化で、
 [T-078] は S2-4.6 承認値の外部固定 fixture (predicate 単独 mutant 1→0→1 実証済み) で閉じる —
 いずれも **R commit 時点で確定** (それまで開いたまま)。
+
+## D79. protocol 実凍結の人間 CLI + selector 予測封印の実走配線 (wave2、2026-07-22)
+
+**背景。** 科学レーン第 2 手 (T-083 (a))。strict v2 wave (D 系列 2026-07-18) で protocol builder と
+selector freeze/runner の機構は実装済みだったが、(a) 実凍結はユーザー工程の実行可能な導線が無く、
+(b) selector 実走は PRODUCTION_PROVIDER = unwired sentinel で未配線、(c) R3 裁定の missing 意味論
+(claim-crash セルは choice_id=null で凍結) が実装と乖離 (missing があると freeze 全体拒否) していた。
+本 wave は実凍結・実走そのものは行わず (receipt → protocol commit のユーザー手番が先行)、両工程を
+実行可能にして引き渡す。正本: 逐語・変異台帳 = `output/insights/2026-07-22_wave2-protocol-seal.md`、
+手順パッケージ = worklog 2026-07-22 (11)。
+
+(1) **missing 意味論の v1 確定。** `_normalise_rows` は missing row の `agent_provenance` を
+**null 固定**で受理する (8-field 付き missing は拒否)。R3 裁定 (ruling-package §R3、承認済み) の
+実装であり新規緩和ではない。SCHEMA_VERSION は bump しない — v1 prediction 文書は実走前で 1 つも
+存在せず、「v1 の意味を承認どおり確定」の変更。runner の build_rows_from_journal も missing 行込み
+6 行文書を組む (旧「missing なら freeze 不能」テストは誤固定として書き換え)。
+
+(2) **protocol 自由値の承認定数単一源化。** APPROVED_MASTER_SEED (2026-07-18T17:16:12+09:00) /
+APPROVED_ENV_TAG (pegasus) / APPROVED_STOCK_CONFIGURATION (stock_common) /
+APPROVED_WIRED_MIN_REL_FLOOR (0.03、float — canonical bytes 固定のため型まで凍結) を s8b_approved
+へ集約。canonical 774 bytes / sha256 261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac
+を親が独立再導出で確認 (protocol JSON の期待値として手順パッケージに焼いた)。
+
+(3) **freeze-protocol 人間 CLI。** `python3 -m campaign.s8b_floor_campaign freeze-protocol
+--confirm-user-freeze` — 引数から自由値を取らず承認定数のみで組む (誤値経路の封鎖)。防壁 3 段 =
+confirm flag + **stdin isatty 検査** + **T-080 receipt active-valid 検査** (T-083 (a) の
+receipt → protocol 順序の機構強制)。出力先は正規 path 固定・create-only、post-write は destination
+read-back で bytes/sha256/re-parse の 3 点検証 (失敗時は自動削除せず commit 禁止を明示)。
+**isatty は actor 認証ではなく誤操作防壁 + 明示迂回を要する障壁** (レビュー指摘の性格付け確定 —
+PTY 割当や module 直呼びで迂回可能)。C4-7「AI は実凍結しない」の実効の正本は従来どおり
+規律 + guard_write hook + AI provenance 監査であり、本 CLI はその意図 (人間が凍結する) の導線
+実装。公開 write_protocol_document の凍結領域拒否は不変。非 tty からの実行拒否は live 発火確認済み。
+
+(4) **selector 実走配線 (ClaudeHeadlessProvider + seal CLI)。** 構成は親の実測で確定:
+- inline agents (`--agents` JSON を role bytes から構成) — 読んだ bytes と使われる role が同一に
+  なり role 差し替え TOCTOU が構造的に消える。`--bare` は不採用 (inline agents ごと skip する
+  リスク)
+- cwd = **repo 外** tempfile (CLAUDE.md auto-discovery / git status 文脈の遮断)、
+  `--setting-sources ""`、`--strict-mcp-config` + 空 mcp config ファイル、
+  `--no-session-persistence`、env は allowlist (PATH/HOME/LANG/LC_ALL/TERM)、実行体は絶対 path
+- envelope は **必須 field の意味検証 + 未知 field 許容** (実測 20 keys、CLI 更新耐性 —
+  未知 field 全拒否は false red)。num_turns 厳密 int / modelUsage record 型 + token 実績 /
+  session_id セル間重複拒否 / permission_denials 空 / server_tool_use 全 0
+- provenance 実測化: child_id = envelope session_id、model = modelUsage 実 slug、envelope raw
+  bytes を artifact 保存
+- journal 証拠鎖: 先頭 run_header (schema / pre_oracle_head / protocol sha / freeze sha /
+  provider 種別 / role sha / parser sha / **実行体 path+sha**) を必須化し全経路で照合 — fake
+  provider 洗浄・HEAD 付け替え・journal 差し替え・実行体差し替えを封鎖。6 セル外 record は
+  protocol violation。flock は drive_journal 内蔵。at-most-once・再試行なし・fallback なしは不変
+- seal CLI: `--provider claude-headless` 明示 opt-in (unwired 既定は拒否)、HEAD 完全一致 +
+  clean tree (selector-runs 配下の自作 untracked のみ許容 — claim-crash 再開の R3 経路を保証)、
+  resume 時は journal の invocation receipt から session_id 観測集合を復元して crash 跨ぎの
+  重複を拒否 (fresh_context 記録の実効化)、
+  **HEAD の protocol blob == 承認定数からの canonical 再導出** (存在でなく bytes 一致)、freeze
+  read-once bytes の v1 trust root 照合 (builder 承認定数照合が先行する**冗長ゲート** —
+  verify-use TOCTOU 遮断)、sources 5 本の read-once 前倒し、封印後に destination reload +
+  verify_prediction_freeze
+
+(5) **official preflight の拡張。** freeze_allowlist を実在 file の exact path+hash 列挙へ
+(protocol / predictions / selector-runs、prefix 免除なし) + **prediction 実在 +
+verify_prediction_freeze 通過 + journal 実在の必須化** (protocol → prediction → floor の裁定順序の
+機構強制)。prediction/journal の allowlist 値は **verify した read-once bytes の sha を直接束縛**
+し path 再読をしない (verify↔allowlist 間の差し替え窓の封鎖)。official の無条件拒否集合・pilot
+挙動は不変。
+
+(6) **運用制約の発見 (手順に反映)。** `_assert_namespace_clean` は output/s8b-freeze 配下の
+untracked を dirty 拒否する — **seal 実走と証拠 commit は一体で行う** (seal → 即 AI commit)。
+commit 前の状態では ratified 系検査が拒否する (fail-closed 方向で安全)。
+
+(7) **残余 (backlog、発火条件つき)。**
+- launch_validate の exact exemption に selector 証拠が無く、正当な rationale/payload の三軸語 hit
+  で oracle が refusal になりうる — **oracle 結線 wave の blocking 前提** (証拠 artifact の置き場所
+  再設計を含む)
+- preflight allowlist の certificate 束縛 (path→hash を clean_scan_digest へ) — **official 解禁前に
+  MUST 昇格**
+- verifier の pre_oracle_head blob 照合・prediction 文書への journal 束縛 — FROZEN_MANIFEST 逐次
+  pin (protocol commit 直後 + prediction commit 同梱) と oracle 側 execution_guard 検証で代替。
+  oracle 結線 wave で再評価
+- protocol→seal→commit→floor の完全同型 E2E は実 protocol JSON が存在しない現状では構造的に
+  作れない (emitter fixture は「production seal 由来ではない」と明記済み) — **oracle 結線 wave の
+  blocking 前提**
+- seal 内部 reload verify は等価変異 (外部 verify と重なる) — 冗長ゲートと記録、変異登録から除外
+- advisory flock の限界 (rename 迂回等) は単一運用者モデルの残存限界
+
+(8) **検証プロセス。** brief (P1..P7 攻撃対象明記 + 前提実測 + G1 生死確認) → codex プラン (max)
+→ 敵対相談 2 (max、REJECT/NO-GO、計 28 所見) → 親裁定 (missing 意味論・5 値 pin・receipt gate・
+文脈隔離・証拠鎖を scope 内へ) → 実装 4 単位 (S→A→R→F、worktree 分離、所有素集合) + 親ハンク 2
+(v1 冗長ゲート・変異帰属テスト) → 敵対レビュー 2 (max、REJECT/NO-GO、計 13 所見) → fix FIX-1..7 →
+FIX-7 の下流波及 72 テストを親の全走が検出し fixture 追随 (親ハンク 4) → 焦点再レビュー (max、
+closed 6 / partial 4 + 新規 3) → fix2 FIX2-1..4 → 変異 matrix 3 巡 (1 巡目 12/12 KILLED + 帰属
+erratum 3 件 (M1 診断差先行 / M6 記載乖離 / M13 置換不足) → 2 巡目 12/12 → fix2 後最終
+**12/12 KILLED・survived 0・injection failed 0**)。受入 = 全走 **2764 passed / 18 skipped /
+0 failed** (baseline 2697 + 67)、node 消失 0 (base 2715 → 2782)、check 3 種緑。task-run start は
+pilot 凍結どおり拒否 (fail-closed 実績)。isatty 防壁と freeze-protocol dispatch は非 tty からの
+live 発火 (拒否・書き込みゼロ) を親が実測確認。

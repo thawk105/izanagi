@@ -182,3 +182,102 @@ push 後は履歴を書き換えず、別 path の人間裁定 wave で supersed
 12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価
 13. [T-012] 延期 (同): pilot 凍結維持。本 wave の task-run start は凍結どおり拒否された (fail-closed 実績)
 14. [T-082] 延期 (同): 公式 consumer の必要分は本 wave で充足、全 caller 移行は 1 cycle 後
+
+## 2026-07-23 (1) — wave2: protocol 実凍結の人間 CLI + selector 予測封印の実走配線 (D79、branch worktree-dev-wave-ruling-ac、計測なし)
+
+/dev-wave 1 回 (科学レーン第 2 手 — worklog (10) 次の一手 1 の「次 wave」)。実凍結の実行と
+予測封印の実走は行っていない (ユーザー手番 receipt → protocol commit が先行)。両工程を実行
+可能にして引き渡す。設計判断の正本 = D79、逐語・変異台帳 =
+`output/insights/2026-07-22_wave2-protocol-seal.md`。成果 commit = e8e0bd4 / 5a2e2f5 / 605958d /
+868f1d0 / 48e3e0f / e0fedd8 / 65b5c64 / d7ed08f / f6f2d32 / d4b6271 (+ 本 docs 分)。
+
+- **中身**: (1) missing 意味論の v1 確定 — R3 裁定「missing セルは choice_id=null で凍結」の実装
+  (provenance null 固定、SCHEMA bump なし)。(2) protocol 自由値 4 種の承認定数単一源化
+  (master_seed / pegasus / stock_common / 0.03 — canonical 774 bytes / sha256 261cec1c… を親が
+  独立再導出確認)。(3) freeze-protocol 人間 CLI (承認定数のみ・confirm + isatty + T-080 receipt
+  active 検査。isatty は誤操作防壁であり認証ではない — D79 (3))。(4) selector 実走配線 =
+  ClaudeHeadlessProvider (inline agents で role TOCTOU 遮断・repo 外 cwd・env allowlist・envelope
+  意味検証 + 未知 field 許容・provenance 実測化) + journal run_header 証拠鎖 + seal CLI (opt-in・
+  protocol blob 承認再導出照合・reload verify)。(5) official preflight の prediction 必須化 +
+  exact allowlist (verify 済み bytes 直接束縛)。PRODUCTION_PROVIDER sentinel・official 拒否集合・
+  凍結 3 JSON (0 byte) は不変
+- **検証**: 敵対相談 2 (REJECT/NO-GO・28 所見 — R3 乖離・5 値 pin 欠如・preflight allowlist
+  1 件のみ等を検出) → 親裁定 → 実装 4 単位 (S→A→R→F、worktree 分離) + 親ハンク 2 → 敵対
+  レビュー 2 (REJECT/NO-GO・13 所見) → FIX-1..7 → **FIX-7 の下流波及 72 テストを親の全走が検出**
+  (実装子の限定実走は親の全走を代替しない、の再実例) → fixture 追随 (親ハンク 4) → 焦点再
+  レビュー (closed 6 / partial 4 + 新規 3) → FIX2-1..4。親の実測 = G1 生死確認 (合成 payload、
+  本番 payload 不使用)・envelope 実形 20 keys・isatty live 発火・--mcp-config 可変長引数の罠
+- **変異 matrix (親実測、3 巡)**: 事前登録 12 件 (M10 は等価変異のため登録見送り — 台帳に理由
+  明記)。1 巡目 12/12 KILLED だが帰属 erratum 3 件 (M1 = 診断差先行 → テストを 2 段検査へ /
+  M6 = 記載乖離 → 束縛照合ループ除去に訂正 / M13 = 置換不足 → 拡大) → 最終 (fix2 後)
+  **12/12 KILLED・survived 0・injection failed 0**
+- **受入 (親環境)**: 全走 **2764 passed / 18 skipped / 0 failed** (baseline 2697 + 67)。
+  collected-node 三点比較 = base 2715 → 2782、消失 0。check_docs / check_codex_agents /
+  check_ai_provenance (288 commits) 緑。task-run start は pilot 凍結どおり拒否 (fail-closed 実績)
+- **運用制約の発見**: `_assert_namespace_clean` は output/s8b-freeze 配下の untracked を dirty
+  拒否する — **seal 実走と証拠 commit は一体で行う** (下記手順 (iii) に反映済み)
+
+### ユーザー引き渡し (ii) — protocol 実凍結 (receipt 発行後の clean main で、所要 ~3 分)
+
+前提: worklog 2026-07-22 (10) の receipt 発行 (R commit) が完了していること。**対話 shell で
+直打ちする** (パイプ・リダイレクト・script 経由は isatty 検査が拒否する)。
+
+```bash
+set -euo pipefail
+# 1. 実凍結 (承認定数のみから組立て。receipt 未発効なら機構が拒否する)
+PYTHONPATH=orchestrator python3 -m campaign.s8b_floor_campaign freeze-protocol --confirm-user-freeze
+# 期待: {"status":"frozen","path":"output/s8b-freeze/floor_protocol.json","byte_length":774,"sha256":"261cec1c…"}
+
+# 2. 独立照合
+test "$(wc -c < output/s8b-freeze/floor_protocol.json)" -eq 774
+printf '%s  %s\n' '261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac' \
+  'output/s8b-freeze/floor_protocol.json' | sha256sum -c -
+
+# 3. commit (この 1 file のみ・AI-Agent: none)
+git add -- output/s8b-freeze/floor_protocol.json
+git diff --cached --name-only   # floor_protocol.json 1 行だけであること
+git commit -m '[protocol] freeze floor protocol (s8b-floor-protocol/v2)' -m 'AI-Agent: none'
+```
+
+失敗時: 「post-write 検証失敗。自動削除しないため commit 禁止」が出たら commit せず停止して
+AI に調査を依頼 (ファイルは残る)。commit 前なら rm で消してやり直してよい。
+
+### 親 AI 引き渡し (iii) — selector 予測封印 (protocol commit 後・floor データ閲覧前)
+
+次 wave の AI が実行: (1) FROZEN_MANIFEST へ floor_protocol.json を pin する commit →
+(2) `PYTHONPATH=orchestrator python3 -m campaign.s8b_prediction_runner seal --provider
+claude-headless --pre-oracle-head "$(git rev-parse HEAD)"` (clean tree 必須。claude 実呼び出し
+4 セル ~5 分) → (3) `PYTHONPATH=orchestrator python3 -m campaign.s8b_selector_freeze verify
+--path output/s8b-freeze/selector_predictions.json` → (4) **即座に** predictions +
+selector-runs 一式 + FROZEN_MANIFEST 更新を AI trailer commit (namespace clean 検査は
+commit 前の状態を拒否する — seal と commit は一体)。claim-crash が起きたら再試行せず、
+missing 行込みの封印 (R3 どおり) をそのまま commit する。
+
+### 消化した ID
+
+- 科学レーン第 2 手 (protocol JSON 実凍結 + 予測封印) の**機構は完了** — 残 = ユーザー手番
+  (receipt → protocol 凍結) と AI 実走 (予測封印)。floor 実測はその後
+
+### 次の一手
+
+1. [T-080] **receipt 発行 (ユーザー、worklog (10) 手順) → 続けて protocol 実凍結 (ユーザー、
+   本エントリ (ii)) → protocol commit 後に予測封印の実走 wave (AI、本エントリ (iii) —
+   manifest pin → seal → 証拠 commit。M6 台帳 erratum の残余もそこで吸収)** — ユーザー 2 手番は
+   同じ機会に実行できる (receipt → protocol の順)
+2. [T-068] R commit で「移行契約により superseded」として確定的に閉じる (D78 (9))。それまで開いたまま
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる (同上)。それまで開いたまま
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる (同上)。それまで開いたまま
+5. [T-011] floor 実測直前に発火 — §5-(viii) 残存限界のユーザー受諾。floor 実測は Pegasus 単独。
+   **floor 実測 wave の blocking 前提 (D79 (7)) はこの手前で消化**: launch_validate の exemption
+   拡張 (selector 証拠の三軸語 hit — 置き場所再設計含む) / certificate の allowlist 束縛
+   (official 解禁前 MUST) / protocol→seal→commit→floor の統合 E2E / 検証側 lineage 照合
+   (worklog 2026-07-18 (9) §5-(ix) 系、変わらず)
+6. [T-066] 恒真隠蔽除去: freeze 公開前に並行実装。変わらず
+7. [T-067] 部分消化・継続: exact 化の残余は D73 (10) から変わらず
+8. [T-001] ruling-B 単独: floor と並行、公式 report 発行前まで。変わらず
+9. [T-002] P-A1(a) Stage 1 + P-C3 ([T-006] 同梱): 同上。変わらず
+10. [T-009] 延期 (T-083 (a) 処置表): AGENTS.md 追記は 1 cycle 後。変わらず
+11. [T-060] 延期 (同): WAL 用語運用の明文化は 1 cycle 後。変わらず
+12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
+13. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
+14. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず
