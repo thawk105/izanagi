@@ -903,6 +903,36 @@ def test_seal_requires_explicit_provider_before_any_claim(tmp_path) -> None:
     assert not journal_path.exists()
 
 
+def test_seal_rejects_tampered_freeze_before_any_claim(tmp_path) -> None:
+    """差し替え freeze からの封印は claim 前に fail-closed で拒否される。
+
+    v1 freeze 改変はニ層で検出される: 先行 = protocol 再導出時の builder 承認定数照合
+    (APPROVED_FREEZE_SHA256)、後段 = seal read-once bytes の v1 trust root 照合
+    (verify-use 間 TOCTOU 遮断の冗長ゲート、C2-7)。この fixture は先行層で落ちるため
+    後段単独の検出力の証拠にはならない (変異裏取りは両層同時変異で行う)。"""
+    root, _ = _seal_repo(tmp_path)
+    freeze_path = root / "output/s8b-freeze/holdout_freeze.json"
+    freeze_path.write_bytes(freeze_path.read_bytes() + b"\n")
+    _fixture_git(root, "add", str(freeze_path.relative_to(root)))
+    _fixture_git(
+        root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-q", "-m", "tamper freeze",
+    )
+    head = _fixture_git(root, "rev-parse", "HEAD")
+    output = io.StringIO()
+    error = io.StringIO()
+    runner = _SealRunner()
+    assert main(
+        ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+        root=root, provider_runner=runner, claude_executable=tmp_path / "absent-claude",
+        stdout=output, stderr=error,
+    ) == 1
+    assert "不一致" in error.getvalue()
+    assert runner.calls == []
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    assert not journal_path.exists()
+
+
 def test_seal_rejects_protocol_blob_not_equal_to_rederived_bytes(tmp_path) -> None:
     root, head = _seal_repo(tmp_path, protocol_mismatch=True)
     output = io.StringIO()

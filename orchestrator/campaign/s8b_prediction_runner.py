@@ -30,6 +30,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign.s8b_selector_freeze import (
         AGENT_DECISION_METHOD,
         STATIC_DECISION_METHOD,
+        V1_FREEZE_SHA256,
         build_prediction_freeze,
         build_prediction_jobs,
         record_agent_attempt,
@@ -46,6 +47,7 @@ else:
     from .s8b_selector_freeze import (
         AGENT_DECISION_METHOD,
         STATIC_DECISION_METHOD,
+        V1_FREEZE_SHA256,
         build_prediction_freeze,
         build_prediction_jobs,
         record_agent_attempt,
@@ -1001,6 +1003,13 @@ def seal(
         parser_bytes = (root / _PARSER_MODULE_PATH).read_bytes()
     except OSError as exc:
         raise PredictionRunnerError(f"seal source を read-once できない: {exc}") from exc
+    # selector prediction は v1 freeze に対して封印される (C2-7)。read-once した bytes を
+    # v1 trust root と照合し、差し替え freeze からの封印を fail-closed で拒否する。
+    if _sha256(freeze_bytes) != V1_FREEZE_SHA256:
+        raise PredictionRunnerError(
+            "holdout freeze bytes が v1 trust root と不一致 (C2-7): "
+            f"実 {_sha256(freeze_bytes)} != v1 {V1_FREEZE_SHA256}"
+        )
     freeze = _parse_json_object(freeze_bytes, source=root / _FREEZE_PATH)
     artifact_root = root / _JOURNAL_PATH.parent
     provider = ClaudeHeadlessProvider(
