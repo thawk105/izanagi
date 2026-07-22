@@ -46,6 +46,18 @@ SRC_TOKEN = "source-digest"
 VARIANT = "same-variant"
 _DEFAULT_ABORT_PAYLOAD = object()
 _MISSING_RETURN_CODES = object()
+_T080_ABSENT = object()
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_t080_never_issued(monkeypatch):
+    """実 repository の receipt 発行状態から既存 report test を分離する。"""
+    resolution = report._t080.ReceiptResolution(
+        "never-issued", (), None, "0" * 40,
+    )
+    monkeypatch.setattr(
+        report._t080, "verify_receipt", lambda *, root: resolution,
+    )
 
 
 def _canonical_sha256(value) -> str:
@@ -53,6 +65,67 @@ def _canonical_sha256(value) -> str:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _t080_envelope(marker: str = "a") -> dict:
+    """揮発する実 HEAD を使わない exact observation fixture。"""
+    sha1 = marker * 40
+    sha256 = marker * 64
+    items = [{
+        "artifact": spec.artifact,
+        "kind": "source-repin",
+        "subject": spec.json_pointer,
+        "recorded": spec.recorded_sha256,
+        "observed": sha256,
+        "status": "repinned-to-basis-blob",
+    } for spec in report._t080.SOURCE_REPIN_SPECS]
+    items.extend({
+        "artifact": spec.artifact,
+        "kind": "generator-metadata",
+        "subject": spec.json_pointer,
+        "recorded": spec.recorded_sha256,
+        "observed": sha256,
+        "status": "metadata-only",
+    } for spec in report._t080.METADATA_SPECS)
+    items.extend((
+        {
+            "artifact": "known_axes", "kind": "ancestry",
+            "subject": "/frozen_at_head",
+            "recorded": report._t080.KNOWN_AXES_RECORDED_HEAD,
+            "observed": None, "status": "missing-commit",
+        },
+        {
+            "artifact": "holdout", "kind": "ancestry",
+            "subject": "/frozen_at_head",
+            "recorded": report._t080.HOLDOUT_RECORDED_HEAD,
+            "observed": None, "status": "missing-commit",
+        },
+    ))
+    return {
+        "schema_version": report._t080.OBSERVATION_SCHEMA_VERSION,
+        "migration_id": report._t080.MIGRATION_ID,
+        "receipt": {
+            "path": report._t080.RECEIPT_REL,
+            "raw_sha256": sha256,
+        },
+        "migration_basis_commit": sha1,
+        "validation_head": sha1,
+        "items": items,
+    }
+
+
+def _mock_t080_resolution(monkeypatch, state: str, observation: dict | None = None):
+    roots: list[Path] = []
+    resolution = report._t080.ReceiptResolution(
+        state, (), observation, "f" * 40,
+    )
+
+    def verify_receipt(*, root):
+        roots.append(Path(root))
+        return resolution
+
+    monkeypatch.setattr(report._t080, "verify_receipt", verify_receipt)
+    return roots
 
 
 def _source(path: str) -> dict:
@@ -124,11 +197,12 @@ def _session(layout, event: str, payload: dict) -> None:
 
 
 def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
-                    *, receipt: dict | None = None) -> None:
+                    *, block_id: str = "b0", receipt: dict | None = None,
+                    t080_observation: object = _T080_ABSENT) -> None:
     contract = env_contract.lookup("linux-baremetal")
     payload = {
         "manifest_sha256": oracle_manifest.manifest_sha256(manifest),
-        "block_id": "b0",
+        "block_id": block_id,
         "campaign_id": campaign_id,
         # C3-10: manifest run_contract の env_tag/contract_sha256 と一致する execution
         # receipt を既定で載せる (report が受理する形)。負例は receipt=<改竄> で注入。
@@ -142,6 +216,8 @@ def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
             },
         },
     }
+    if t080_observation is not _T080_ABSENT:
+        payload["t080_freeze_migration_observation"] = t080_observation
     _session(layout, "campaign-start", payload)
 
 
@@ -304,6 +380,31 @@ def _finish_campaign(layout, manifest: dict, *, status: str = "completed",
             "pid": 123, "starttime": 456,
         },
     })
+
+
+def _finish_campaign_rows(layout, rows: list[dict]) -> None:
+    """複数 campaign の横断契約テスト用に、所有 row だけを完了する。"""
+    for item in rows:
+        _trial(layout, item, "committed")
+    _session(layout, "campaign-terminal", {
+        "status": "completed",
+        "scheduled_rows": len(rows),
+        "completed_rows": len(rows),
+        "execution_identity": {
+            "job": "fixture-job", "host": "fixture-host", "boot": "fixture-boot",
+            "pid": 123, "starttime": 456,
+        },
+    })
+
+
+def _two_campaign_manifest(tmp_path: Path) -> dict:
+    manifest = _manifest(tmp_path)
+    rows = copy.deepcopy(manifest["schedule"]["rows"][:2])
+    rows[0]["block_id"] = "b0"
+    rows[1]["block_id"] = "b1"
+    manifest["schedule"]["rows"] = rows
+    manifest["campaign_ids"] = {"b0": "oracle-b0", "b1": "oracle-b1"}
+    return manifest
 
 
 def _manual_trial(layout, item: dict, outcome: str,
@@ -2306,3 +2407,197 @@ def test_only_manifest_campaign_is_read_and_missing_owned_campaign_is_reported(t
     missing = report.build_observations(manifest=manifest, output_root=tmp_path)["rows"][0]
     assert missing["status"] == "campaign-incomplete"
     assert missing["reason"]
+
+
+@pytest.mark.parametrize(
+    "t080_value",
+    [pytest.param(_T080_ABSENT, id="historical-absent"), pytest.param(None, id="null")],
+)
+def test_pre_r_campaign_start_absent_or_null_is_allowed(tmp_path, t080_value):
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, t080_observation=t080_value)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert observations["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in observations["rows"]} == {"completed"}
+    assert all(
+        not (row.get("reason") or "").startswith(
+            "t080-freeze-migration-observation: "
+        )
+        for row in observations["rows"]
+    )
+
+
+def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
+    tmp_path, monkeypatch,
+):
+    envelope = _t080_envelope()
+    repo_root = tmp_path / "temporary-repo"
+    roots = _mock_t080_resolution(monkeypatch, "active-valid", envelope)
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, t080_observation=envelope)
+    _finish_campaign(layout, manifest)
+
+    baseline = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=repo_root,
+    )
+    assert baseline["t080_freeze_migration_observation"] == envelope
+    assert judge.judge_oracle(baseline)["status"] == "determinate"
+
+    lines = Path(layout.wal_file).read_text(encoding="utf-8").splitlines()
+    rewritten = []
+    for line in lines:
+        record = json.loads(line)
+        if record.get("payload", {}).get("event") == "campaign-start":
+            record["payload"].pop("t080_freeze_migration_observation")
+        rewritten.append(json.dumps(record, ensure_ascii=False, separators=(",", ":")))
+    Path(layout.wal_file).write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+
+    damaged = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=repo_root,
+    )
+    exact_reason = (
+        "t080-freeze-migration-observation: "
+        "active receipt だが campaign-start key が欠落"
+    )
+    assert roots == [repo_root, repo_root]
+    assert damaged["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in damaged["rows"]} == {"protocol_violation"}
+    assert {row["reason"] for row in damaged["rows"]} == {exact_reason}
+    assert all(row["bench_values"] == [] for row in damaged["rows"])
+    assert judge.judge_oracle(damaged)["status"] == "indeterminate"
+
+
+def test_post_r_null_is_protocol_violation_for_every_campaign_row(
+    tmp_path, monkeypatch,
+):
+    envelope = _t080_envelope()
+    _mock_t080_resolution(monkeypatch, "active-valid", envelope)
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, t080_observation=None)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
+    assert {row["reason"] for row in observations["rows"]} == {
+        "t080-freeze-migration-observation: "
+        "active receipt だが campaign-start 値が null",
+    }
+
+
+def test_malformed_t080_envelope_is_fail_closed(tmp_path, monkeypatch):
+    envelope = _t080_envelope()
+    malformed = copy.deepcopy(envelope)
+    malformed["schema_version"] = "unknown/v1"
+    _mock_t080_resolution(monkeypatch, "active-valid", envelope)
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, t080_observation=malformed)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert observations["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
+    assert {row["reason"] for row in observations["rows"]} == {
+        "t080-freeze-migration-observation: malformed envelope: "
+        "schema_version が不正",
+    }
+
+
+def test_campaign_canonical_envelope_mismatch_is_protocol_violation(
+    tmp_path, monkeypatch,
+):
+    first = _t080_envelope("a")
+    second = _t080_envelope("b")
+    _mock_t080_resolution(monkeypatch, "active-valid", first)
+    manifest = _two_campaign_manifest(tmp_path)
+    by_campaign = {
+        "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], first),
+        "oracle-b1": ("b1", [manifest["schedule"]["rows"][1]], second),
+    }
+    for campaign_id, (block_id, rows, envelope) in by_campaign.items():
+        layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
+        _campaign_start(
+            layout, manifest, campaign_id, block_id=block_id,
+            t080_observation=envelope,
+        )
+        _finish_campaign_rows(layout, rows)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert observations["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
+    assert {row["reason"] for row in observations["rows"]} == {
+        "t080-freeze-migration-observation: "
+        "campaign 間で canonical envelope が不一致",
+    }
+
+
+def test_matching_canonical_envelopes_are_copied_to_report_sibling(
+    tmp_path, monkeypatch,
+):
+    envelope = _t080_envelope()
+    reordered = json.loads(json.dumps(envelope, sort_keys=True))
+    _mock_t080_resolution(monkeypatch, "active-valid", envelope)
+    manifest = _two_campaign_manifest(tmp_path)
+    by_campaign = {
+        "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], envelope),
+        "oracle-b1": ("b1", [manifest["schedule"]["rows"][1]], reordered),
+    }
+    for campaign_id, (block_id, rows, value) in by_campaign.items():
+        layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
+        _campaign_start(
+            layout, manifest, campaign_id, block_id=block_id,
+            t080_observation=value,
+        )
+        _finish_campaign_rows(layout, rows)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert observations["schema_version"] == "8b-oracle-observations/v1"
+    assert observations["t080_freeze_migration_observation"] == envelope
+    assert {row["status"] for row in observations["rows"]} == {"completed"}
+
+
+def test_pre_r_null_and_object_mixture_is_protocol_violation(tmp_path):
+    envelope = _t080_envelope()
+    manifest = _two_campaign_manifest(tmp_path)
+    by_campaign = {
+        "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], envelope),
+        "oracle-b1": ("b1", [manifest["schedule"]["rows"][1]], None),
+    }
+    for campaign_id, (block_id, rows, value) in by_campaign.items():
+        layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
+        _campaign_start(
+            layout, manifest, campaign_id, block_id=block_id,
+            t080_observation=value,
+        )
+        _finish_campaign_rows(layout, rows)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert observations["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
+    assert {row["reason"] for row in observations["rows"]} == {
+        "t080-freeze-migration-observation: "
+        "campaign 間で null/key-absent と object が混在",
+    }

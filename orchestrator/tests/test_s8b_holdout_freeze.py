@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import shutil
@@ -15,9 +16,12 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
+sys.path.insert(0, _HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import s8b_holdout_freeze as M  # noqa: E402
+from campaign import t080_freeze_migration as T080  # noqa: E402
+import t080_fixture_roots as FIXTURE_ROOTS  # noqa: E402
 
 
 def _axis_value(holdout_name: str, axis: str) -> str:
@@ -46,6 +50,56 @@ def _write(path: Path, text: str) -> str:
 
 def _positive_text(encoding: int = 0) -> str:
     return _three_axis_text(M._POSITIVE_RATIO, encoding)
+
+
+def _positive_fixture_report() -> dict:
+    """外部固定 fixture だけを明示注入し、repo 全体は検索しない。"""
+    return M.search_repository(
+        FIXTURE_ROOTS.REPO_ROOT,
+        files=[FIXTURE_ROOTS.POSITIVE_CONTROL_PATH],
+    )
+
+
+def test_t080_positive_control_fixture_raw_bytes_match_test_pin():
+    payload = FIXTURE_ROOTS.POSITIVE_CONTROL_FILE.read_bytes()
+
+    assert hashlib.sha256(payload).hexdigest() == FIXTURE_ROOTS.POSITIVE_CONTROL_SHA256
+
+
+def test_t080_positive_control_test_pins_match_production_literals():
+    # raw bytes の hash node を独立させたうえで、別値源の三 literal を相互固定する。
+    assert FIXTURE_ROOTS.POSITIVE_CONTROL_SHA256 == T080.POSITIVE_CONTROL_SHA256
+    assert FIXTURE_ROOTS.POSITIVE_CONTROL_PATH == T080.POSITIVE_CONTROL_PATH
+    assert FIXTURE_ROOTS.POSITIVE_CONTROL_ROOT_KEY == T080.POSITIVE_CONTROL_ROOT_KEY
+
+
+def test_t080_positive_control_kills_predicate_only_rr51_mutant(monkeypatch):
+    baseline = _positive_fixture_report()["positive_control"]
+    assert baseline["hit_count"] == 1
+    assert baseline["hit_paths"] == [FIXTURE_ROOTS.POSITIVE_CONTROL_PATH]
+
+    original_expressions = M._expressions
+
+    def rr51_positive_expressions(rratio: str, skew: str, rmw: str) -> dict:
+        expressions = original_expressions(rratio, skew, rmw)
+        if rratio == M._POSITIVE_RATIO:
+            expressions["rratio"] = M.RRATIO_TEMPLATE.replace("<v>", "5" + "1")
+        return expressions
+
+    with monkeypatch.context() as mutant:
+        mutant.setattr(M, "_expressions", rr51_positive_expressions)
+        mutated = _positive_fixture_report()["positive_control"]
+
+    assert mutated["hit_count"] == 0
+    assert mutated["hit_paths"] == []
+    assert mutated["expressions"]["rratio"] != baseline["expressions"]["rratio"]
+    assert mutated["expressions"]["skew"] == baseline["expressions"]["skew"]
+    assert mutated["expressions"]["rmw"] == baseline["expressions"]["rmw"]
+
+    reverted = _positive_fixture_report()["positive_control"]
+    assert reverted["hit_count"] == 1
+    assert reverted["hit_paths"] == [FIXTURE_ROOTS.POSITIVE_CONTROL_PATH]
+    assert reverted["expressions"] == baseline["expressions"]
 
 
 def _known_axes() -> dict:

@@ -152,6 +152,25 @@ def test_observations_and_verdict_loaders_reject_unknown_schema(
             loader(json.dumps({"schema_version": rejected}).encode())
 
 
+def test_observations_loader_preserves_t080_sibling_field_exactly():
+    sibling = {
+        "schema_version": "izanagi-t080-freeze-migration-observation/v1",
+        "sentinel": {"nested": [None, "preserved"]},
+    }
+    document = {
+        "schema_version": artifacts.OFFICIAL_OBSERVATIONS_SCHEMA,
+        "t080_freeze_migration_observation": sibling,
+    }
+
+    loaded = artifacts.load_official_observations(
+        json.dumps(document, ensure_ascii=False).encode("utf-8"),
+    )
+
+    assert type(loaded) is artifacts.OfficialObservations
+    assert loaded == document
+    assert loaded["t080_freeze_migration_observation"] == sibling
+
+
 def test_manifest_loader_separates_official_and_legacy_markers():
     official = artifacts.load_official_manifest(json.dumps({
         "schema_version": artifacts.OFFICIAL_MANIFEST_SCHEMA,

@@ -2,6 +2,7 @@
 """S-1 直接比較 driver の positive control (実 build/bench・subprocess なし)。"""
 from __future__ import annotations
 
+import ast
 import contextlib
 import errno
 import json
@@ -20,6 +21,7 @@ from campaign.layout import CampaignLayout  # noqa: E402
 from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign import s1_direct_comparison as S  # noqa: E402
+from campaign import t080_freeze_migration as T080  # noqa: E402
 
 
 def _freeze() -> dict:
@@ -123,6 +125,41 @@ def test_modified_freeze_is_refused_before_campaign_start(tmp_path):
             verify_document=reject, evaluate_fn=lambda *a, **k: calls.append(1),
             prepare_cell_fn=_prepared, single_tenant_fn=lambda: None)
     assert calls == []
+
+
+def test_receipt_exists_but_direct_comparison_loader_stays_legacy_strict(
+        tmp_path, monkeypatch):
+    from campaign.s1_measurement_freeze import FreezeError
+
+    receipt = tmp_path / T080.RECEIPT_REL
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(T080, "ROOT", tmp_path)
+
+    def adapter_must_not_run(*_args, **_kwargs):
+        pytest.fail("direct comparison legacy 経路が T-080 adapter を呼んだ")
+
+    monkeypatch.setattr(T080, "verify_receipt", adapter_must_not_run)
+    monkeypatch.setattr(T080, "static_gate_adapter", adapter_must_not_run)
+    assert (T080.ROOT / T080.RECEIPT_REL).is_file()
+
+    with pytest.raises(
+            FreezeError,
+            match="known_axes_freeze 照合失敗: source sha256 不一致"):
+        S.load_verified_freeze()
+
+
+def test_direct_comparison_production_module_does_not_import_t080_adapter():
+    source = Path(S.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            imports.append(node.module or "")
+            imports.extend(alias.name for alias in node.names)
+    assert not [name for name in imports if "t080_freeze_migration" in name]
 
 
 def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch):

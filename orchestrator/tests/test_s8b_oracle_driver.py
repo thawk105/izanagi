@@ -38,6 +38,7 @@ from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
 from campaign import s8b_oracle_report as report_module  # noqa: E402
 from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign import s8b_run_marker  # noqa: E402
+from campaign import t080_freeze_migration as migration  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
@@ -79,6 +80,169 @@ def _assert_refusal_reasons(actual, expected_prefixes: list[str]) -> None:
         assert len(match) == 1, (reason, remaining)
         remaining.remove(match[0])
     assert not remaining, remaining
+
+
+def _never_issued_resolution():
+    """Git 状態機械を対象にしない既存 fixture 用の未発行 resolution。"""
+    return migration.ReceiptResolution(
+        state="never-issued", refusals=(),
+        t080_freeze_migration_observation=None,
+        validation_head="0" * 40,
+    )
+
+
+def _run_git(root: Path, *args: str) -> str:
+    """hermetic T-080 fixture 用の最小 Git runner。"""
+    return subprocess.run(
+        ["git", *args], cwd=root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    ).stdout.strip()
+
+
+def _t080_receipt_document(basis: str, *, invalid_confirmation: bool = False) -> dict:
+    """U1 が必要とする active schema の receipt を自ファイル内で構成する。"""
+    repins = [
+        {
+            "artifact": spec.artifact,
+            "json_pointer": spec.json_pointer,
+            "path": spec.path,
+            "recorded_sha256": spec.recorded_sha256,
+            "migration_blob_sha256": "b" * 64,
+        }
+        for spec in migration.SOURCE_REPIN_SPECS
+    ]
+    metadata = [
+        {
+            "artifact": spec.artifact,
+            "json_pointer": spec.json_pointer,
+            "path": spec.path,
+            "recorded_sha256": spec.recorded_sha256,
+            "migration_blob_sha256": "c" * 64,
+            "disposition": "metadata-only",
+        }
+        for spec in migration.METADATA_SPECS
+    ]
+    report = [
+        {
+            **record,
+            "provenance": {
+                "status": "provenance_unverified",
+                "commit": None,
+                "distance_from_basis": None,
+            },
+            "diff_summary": {
+                "status": "diff_unverified",
+                "path": record["path"],
+                "old_line_count": None,
+                "new_line_count": 1,
+                "added_lines": None,
+                "deleted_lines": None,
+            },
+        }
+        for record in repins
+    ]
+    return {
+        "schema_version": migration.SCHEMA_VERSION,
+        "migration_id": migration.MIGRATION_ID,
+        "migration_basis_commit": basis,
+        "artifacts": {
+            "known_axes": {
+                "path": migration.KNOWN_AXES_REL,
+                "raw_sha256": migration.KNOWN_AXES_RAW_SHA256,
+                "recorded_frozen_at_head": migration.KNOWN_AXES_RECORDED_HEAD,
+            },
+            "holdout": {
+                "path": migration.HOLDOUT_REL,
+                "raw_sha256": migration.HOLDOUT_RAW_SHA256,
+                "recorded_frozen_at_head": migration.HOLDOUT_RECORDED_HEAD,
+            },
+        },
+        "source_repins": repins,
+        "metadata_fields": metadata,
+        "reconstruction": {
+            "known_axes": {
+                "status": "pass",
+                "projected_document_sha256": "d" * 64,
+                "rebuilt_document_sha256": "d" * 64,
+            },
+            "holdout": {
+                "status": "pass",
+                "projected_document_sha256": "e" * 64,
+                "live_scan_sha256": "f" * 64,
+            },
+        },
+        "repin_report": report,
+        "confirmed_by": "invalid confirmation" if invalid_confirmation else "human.test",
+        "confirmed_at": "2026-07-22T12:34:56Z",
+    }
+
+
+def _t080_repo(tmp_path: Path, *, receipt: str) -> tuple[Path, Path]:
+    """legacy artifact と任意の receipt 状態を持つ hermetic Git repo を作る。"""
+    root = tmp_path / f"t080-{receipt}"
+    root.mkdir()
+    _run_git(root, "init", "-q")
+    _run_git(root, "config", "user.name", "T080 U1 Test")
+    _run_git(root, "config", "user.email", "t080-u1@example.invalid")
+    for relative in (
+        migration.KNOWN_AXES_REL,
+        migration.HOLDOUT_REL,
+    ):
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, target)
+    (root / "base.txt").write_text("base\n", encoding="utf-8")
+    _run_git(root, "add", "-A")
+    _run_git(root, "commit", "-q", "-m", "basis", "-m", "AI-Agent: none")
+    basis = _run_git(root, "rev-parse", "HEAD")
+    if receipt != "never-issued":
+        document = _t080_receipt_document(
+            basis, invalid_confirmation=(receipt == "invalid"),
+        )
+        path = root / migration.RECEIPT_REL
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(migration._canonical_bytes(document))
+        _run_git(root, "add", migration.RECEIPT_REL)
+        _run_git(
+            root, "commit", "-q", "-m", "introduce receipt",
+            "-m", "AI-Agent: none",
+        )
+    return root, root / migration.HOLDOUT_REL
+
+
+@contextlib.contextmanager
+def _t080_static_checks_pass():
+    """U1 の結線に直交する U0 の重い静的検査だけを合格へ固定する。"""
+    with mock.patch.multiple(
+        migration,
+        _validate_repin_report_git=mock.DEFAULT,
+        _validate_positive_control=mock.DEFAULT,
+        _verify_ccbench_live=mock.DEFAULT,
+        _verify_closure=mock.DEFAULT,
+        _verify_reconstruction_static=mock.DEFAULT,
+        _verify_live_and_static_documents=mock.DEFAULT,
+    ) as patched:
+        for name, mocked in patched.items():
+            mocked.return_value = {} if name == "_verify_live_and_static_documents" else None
+        yield
+
+
+_LEGACY_HOLDOUT_REFUSAL = "holdout-freeze-verify: FreezeError: fixture holdout drift"
+_LEGACY_KNOWN_REFUSAL = "known-axes-freeze-verify: FreezeError: fixture known drift"
+_FLOOR_REFUSAL = "floor-null: freeze.floor が null"
+_BUDGET_REFUSAL = "budget-null: freeze.budget が null"
+
+
+@contextlib.contextmanager
+def _legacy_four_refusals():
+    """legacy 2 診断を安定 payload にし、floor/budget と合わせて exact 化する。"""
+    with mock.patch.object(
+            driver.s8b_holdout_freeze, "verify",
+            side_effect=driver.s8b_holdout_freeze.FreezeError("fixture holdout drift")), \
+            mock.patch.object(
+                driver.s1_known_axes_freeze, "verify",
+                side_effect=driver.s1_known_axes_freeze.FreezeError("fixture known drift")):
+        yield
 
 
 def _contract_sha256() -> str:
@@ -375,7 +539,7 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
 
     with mock.patch.object(
                 driver, "_gate_check_validated",
-                return_value=driver.GateDecision(True, [])), \
+                return_value=driver.GateDecision(True, [], None)), \
             mock.patch.object(
                 driver.s8b_ratified_freeze, "load_ratified_freeze",
                 return_value=validated.ratified), \
@@ -423,7 +587,9 @@ def _run_required_preflight(
     budget_path = tmp_path / "required-budget.json"
     marker_root = tmp_path / "required-markers"
     with mock.patch.object(driver, "_gate_check_validated",
-                           return_value=driver.GateDecision(True, [])), \
+                           return_value=driver.GateDecision(True, [], None)), \
+            mock.patch.object(driver, "_resolve_t080_receipt",
+                              return_value=_never_issued_resolution()), \
             mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
                               return_value=validated.ratified), \
             mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
@@ -505,7 +671,9 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
 
     issuer = receipt_side_effect or default_issuer
     with mock.patch.object(driver, "_gate_check_validated",
-                           return_value=driver.GateDecision(True, [])), \
+                           return_value=driver.GateDecision(True, [], None)), \
+            mock.patch.object(driver, "_resolve_t080_receipt",
+                              return_value=_never_issued_resolution()), \
             mock.patch.object(driver.s8b_ratified_freeze, "load_ratified_freeze",
                               return_value=fixture["validated"].ratified), \
             mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
@@ -529,16 +697,158 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
 
 
 def test_real_freeze_gate_lists_floor_and_budget_null():
+    resolution = migration.verify_receipt(root=ROOT)
+    if resolution.state in {"issued-but-missing", "invalid"}:
+        pytest.fail(f"実 repo の T-080 receipt 状態が受入不能: {resolution.state}")
+
     decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
     assert not decision.allowed
-    _assert_refusal_reasons(decision.refusals, [
-        "holdout-freeze-verify: FreezeError: design_source sha256 不一致: "
-        "recorded=",
-        "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
-        "orchestrator/campaign/s8a_trigger_sweep.py recorded=",
-        "floor-null: freeze.floor が null",
-        "budget-null: freeze.budget が null",
-    ])
+    if resolution.state == "never-issued":
+        _assert_refusal_reasons(decision.refusals, [
+            "holdout-freeze-verify: FreezeError: design_source sha256 不一致: "
+            "recorded=",
+            "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
+            "orchestrator/campaign/s8a_trigger_sweep.py recorded=",
+            _FLOOR_REFUSAL,
+            _BUDGET_REFUSAL,
+        ])
+        assert decision.t080_freeze_migration_observation is None
+    else:
+        _assert_exact_refusals(decision.refusals, {
+            _FLOOR_REFUSAL,
+            _BUDGET_REFUSAL,
+        })
+        observation = decision.t080_freeze_migration_observation
+        assert observation is not None
+        assert observation["schema_version"] == migration.OBSERVATION_SCHEMA_VERSION
+        assert len(observation["items"]) == 17
+
+
+@pytest.mark.parametrize("receipt_state", ["never-issued", "active-valid", "invalid"])
+def test_t080_gate_hermetic_primary_states_exact(tmp_path, receipt_state):
+    fixture_state = {
+        "never-issued": "never-issued",
+        "active-valid": "active-valid",
+        "invalid": "invalid",
+    }[receipt_state]
+    root, freeze_path = _t080_repo(tmp_path, receipt=fixture_state)
+    verify_spy = mock.patch.object(
+        migration, "verify_receipt", wraps=migration.verify_receipt,
+    )
+    with _t080_static_checks_pass(), verify_spy as verify_call:
+        if receipt_state == "active-valid":
+            legacy_context = contextlib.ExitStack()
+            legacy_context.enter_context(mock.patch.object(
+                driver.s8b_holdout_freeze, "verify",
+                side_effect=AssertionError("active-valid で legacy holdout verifier を呼んだ"),
+            ))
+            legacy_context.enter_context(mock.patch.object(
+                driver.s1_known_axes_freeze, "verify",
+                side_effect=AssertionError("active-valid で legacy known verifier を呼んだ"),
+            ))
+        else:
+            legacy_context = _legacy_four_refusals()
+        with legacy_context:
+            decision = driver.gate_check(freeze_path=freeze_path, root=root)
+
+    assert verify_call.call_count == 1
+    if receipt_state == "never-issued":
+        _assert_exact_refusals(decision.refusals, {
+            _LEGACY_HOLDOUT_REFUSAL,
+            _LEGACY_KNOWN_REFUSAL,
+            _FLOOR_REFUSAL,
+            _BUDGET_REFUSAL,
+        })
+        assert decision.t080_freeze_migration_observation is None
+    elif receipt_state == "active-valid":
+        _assert_exact_refusals(decision.refusals, {_FLOOR_REFUSAL, _BUDGET_REFUSAL})
+        observation = decision.t080_freeze_migration_observation
+        assert observation is not None and len(observation["items"]) == 17
+    else:
+        _assert_exact_refusals(decision.refusals, {
+            "migration-receipt-verify: [receipt.confirmation_invalid] "
+            "confirmed_by の形式が不正",
+            _LEGACY_HOLDOUT_REFUSAL,
+            _LEGACY_KNOWN_REFUSAL,
+            _FLOOR_REFUSAL,
+            _BUDGET_REFUSAL,
+        })
+        assert decision.t080_freeze_migration_observation is None
+
+
+def test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate():
+    """factory 外の直接構築と run_block return の observation 欠落を AST で拒否する。"""
+    tree = ast.parse(inspect.getsource(driver))
+    constructors = []
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if any(
+                isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Name)
+                and child.func.id == "GateDecision"
+                for child in ast.walk(node)):
+            constructors.append(node.name)
+    assert constructors == ["_make_gate_decision"]
+
+    run_node = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_block"
+    )
+    checked = 0
+    for returned in (node for node in ast.walk(run_node) if isinstance(node, ast.Return)):
+        if not isinstance(returned.value, ast.Dict):
+            continue
+        checked += 1
+        literal_keys = {
+            key.value for key in returned.value.keys
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        }
+        via_asdict = any(
+            key is None
+            and isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id == "asdict"
+            for key, value in zip(returned.value.keys, returned.value.values)
+        )
+        assert via_asdict or "t080_freeze_migration_observation" in literal_keys
+    assert checked >= 3
+
+
+@pytest.mark.parametrize("with_observation", [False, True])
+def test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result(
+        tmp_path, with_observation):
+    envelope = {
+        "schema_version": migration.OBSERVATION_SCHEMA_VERSION,
+        "migration_id": migration.MIGRATION_ID,
+        "receipt": {"path": migration.RECEIPT_REL, "raw_sha256": "a" * 64},
+        "migration_basis_commit": "b" * 40,
+        "validation_head": "c" * 40,
+        "items": [],
+    }
+    observation = envelope if with_observation else None
+    resolution = migration.ReceiptResolution(
+        state="active-valid" if with_observation else "never-issued", refusals=(),
+        t080_freeze_migration_observation=observation,
+        validation_head="c" * 40,
+        receipt={} if with_observation else None,
+    )
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+
+    with mock.patch.object(
+            migration, "verify_receipt", return_value=resolution) as verify_call:
+        result = _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn,
+            _fake_evaluate_factory(),
+        )
+
+    assert verify_call.call_count == 1
+    assert result["t080_freeze_migration_observation"] == observation
+    start = next(event for event in result["events"] if event["event"] == "campaign-start")
+    assert start["t080_freeze_migration_observation"] == observation
 
 
 def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_path):
@@ -775,7 +1085,7 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
 
         try:
             with mock.patch.object(driver, "_gate_check_validated",
-                                   return_value=driver.GateDecision(True, [])), \
+                                   return_value=driver.GateDecision(True, [], None)), \
                     mock.patch.object(driver.s8b_ratified_freeze,
                                       "load_ratified_freeze", return_value=ratified), \
                     mock.patch.object(driver.s8b_ratified_freeze,
@@ -1207,28 +1517,46 @@ def test_transient_prepare_failure_retries_once(tmp_path):
 
 
 def test_tampered_freeze_fails_source_verification(tmp_path):
-    """現状は positive control として機能せず、改変は発火理由ではない。
-    真の単一理由 tamper 検査は先行する design/generator drift の修復まで構成不能で、
-    これは既知破損の characterization である。"""
-    freeze_path = _synthetic_freeze(tmp_path)
-    document = json.loads(freeze_path.read_text(encoding="utf-8"))
-    document["floor"] = None
-    document["budget"] = None
-    document["confirmed_by"] = document["confirmed_by"] + "-tampered"
-    freeze_path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n",
-                           encoding="utf-8")
+    """valid receipt 下の confirmed_by 単独改変を legacy verifier が拒否する。"""
+    root, canonical_freeze = _t080_repo(tmp_path, receipt="active-valid")
+    freeze_path = tmp_path / "tampered-holdout-freeze.json"
+    document = json.loads(canonical_freeze.read_text(encoding="utf-8"))
+    document["confirmed_by"] += "-tampered"
+    freeze_path.write_text(
+        json.dumps(document, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    search_report = {
+        "holdouts": {
+            name: {
+                "expressions": entry["unknownness_check"]["expressions"],
+                "conjunction_hits": [],
+            }
+            for name, entry in document["holdouts"].items()
+        },
+        "positive_control": {
+            "expressions": document["positive_control"]["expressions"],
+            "hit_count": 1,
+        },
+    }
 
-    decision = driver.gate_check(freeze_path=freeze_path, root=ROOT)
+    with _t080_static_checks_pass(), \
+            mock.patch.object(driver.s8b_holdout_freeze, "_verify_source"), \
+            mock.patch.object(driver.s8b_holdout_freeze, "_verify_head"), \
+            mock.patch.object(driver.s8b_holdout_freeze, "search_repository",
+                              return_value=search_report), \
+            mock.patch.object(driver.s1_known_axes_freeze, "verify"):
+        decision = driver.gate_check(freeze_path=freeze_path, root=root)
 
     assert not decision.allowed
-    _assert_refusal_reasons(decision.refusals, [
-        "holdout-freeze-verify: FreezeError: generator sha256 不一致: "
-        "recorded=",
-        "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
-        "orchestrator/campaign/s8a_trigger_sweep.py recorded=",
-        "floor-null: freeze.floor が null",
-        "budget-null: freeze.budget が null",
-    ])
+    first_holdout = next(iter(document["holdouts"]))
+    _assert_exact_refusals(decision.refusals, {
+        "holdout-freeze-verify: FreezeError: "
+        f"holdouts.{first_holdout}.unknownness_check.confirmed_by 不一致",
+        _FLOOR_REFUSAL,
+        _BUDGET_REFUSAL,
+    })
+    assert decision.t080_freeze_migration_observation is not None
 
 
 def test_exit_code_priority_table():
@@ -1384,7 +1712,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
         with mock.patch.object(
                 driver, "_gate_check_validated",
-                return_value=driver.GateDecision(True, [])), \\
+                return_value=driver.GateDecision(True, [], None)), \\
              mock.patch.object(driver.s8b_ratified_freeze,
                                "load_ratified_freeze", return_value=ratified), \\
              mock.patch.object(driver.s8b_ratified_freeze,
@@ -1495,12 +1823,13 @@ def test_run_block_reuses_launch_validated_and_legacy_loader_is_dead(tmp_path):
     validated = _fake_launch_validated(freeze_path)
     captured: dict = {}
 
-    def recording_gate(*, freeze_path, manifest_path, root, verified=None,
+    def recording_gate(*, freeze_path, manifest_path, root, t080_resolution=None,
+                       verified=None,
                        verified_manifest=None, launch_validated=None,
                        ratified=None, ratified_error=None):
         captured["launch_validated"] = launch_validated
         captured["verified_manifest"] = verified_manifest
-        return driver.GateDecision(True, [])
+        return driver.GateDecision(True, [], None)
 
     def recording_plan(**kwargs):
         captured["plan_validated"] = kwargs["validated"]
@@ -1574,11 +1903,12 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
         captured["verified_manifest"] = result
         return result
 
-    def recording_gate(*, freeze_path, manifest_path, root, verified=None,
+    def recording_gate(*, freeze_path, manifest_path, root, t080_resolution=None,
+                       verified=None,
                        verified_manifest=None, launch_validated=None,
                        ratified=None, ratified_error=None):
         captured["gate_manifest"] = verified_manifest
-        return driver.GateDecision(True, [])
+        return driver.GateDecision(True, [], None)
 
     with mock.patch.object(Path, "read_text", counting_read_text), \
             mock.patch.object(driver, "verify_manifest", counting_verify), \

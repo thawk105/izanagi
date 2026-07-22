@@ -1,0 +1,3 @@
+ycsb_rratio=50
+ycsb_zipf_skew=0.9
+ycsb_rmw=0

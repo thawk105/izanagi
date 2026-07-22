@@ -2,6 +2,7 @@
 """S-1 measurement freeze v2 の統合テストと改竄 positive control。"""
 from __future__ import annotations
 
+import ast
 import copy
 import json
 import os
@@ -16,6 +17,7 @@ sys.path.insert(0, _ORCH)
 
 from campaign import s1_known_axes_freeze as K  # noqa: E402
 from campaign import s1_measurement_freeze as M  # noqa: E402
+from campaign import t080_freeze_migration as T080  # noqa: E402
 
 
 @pytest.fixture
@@ -259,3 +261,36 @@ def test_s1b_pairing_rejects_mismatched_flags(freeze_env):
             source_resolver=freeze_env["resolver"],
             known_source_resolver=freeze_env["known_resolver"],
         )
+
+
+def test_receipt_exists_but_measurement_verify_stays_legacy_strict(
+        tmp_path, monkeypatch):
+    receipt = tmp_path / T080.RECEIPT_REL
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(T080, "ROOT", tmp_path)
+
+    def adapter_must_not_run(*_args, **_kwargs):
+        pytest.fail("measurement legacy 経路が T-080 adapter を呼んだ")
+
+    monkeypatch.setattr(T080, "verify_receipt", adapter_must_not_run)
+    monkeypatch.setattr(T080, "static_gate_adapter", adapter_must_not_run)
+    assert (T080.ROOT / T080.RECEIPT_REL).is_file()
+
+    with pytest.raises(
+            M.FreezeError,
+            match="known_axes_freeze 照合失敗: source sha256 不一致"):
+        M.verify(M.FREEZE_PATH)
+
+
+def test_measurement_production_module_does_not_import_t080_adapter():
+    source = Path(M.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            imports.append(node.module or "")
+            imports.extend(alias.name for alias in node.names)
+    assert not [name for name in imports if "t080_freeze_migration" in name]

@@ -8,8 +8,10 @@ duplicate key と record の基本形を検査し、campaign-terminal が物理�
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import hashlib
 import json
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -26,6 +28,7 @@ from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign import s8b_experiment_numbers as _experiment_numbers  # noqa: E402
 from campaign import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E402
+from campaign import t080_freeze_migration as _t080  # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout  # noqa: E402
 
 
@@ -64,10 +67,149 @@ _ROW_LIFECYCLE_EVENTS = frozenset({
 _CAMPAIGN_LEVEL_EVENTS = frozenset({
     "campaign-start", "campaign-terminal", "deviation",
 })
+_T080_KEY = "t080_freeze_migration_observation"
+_T080_REASON_PREFIX = "t080-freeze-migration-observation: "
+_T080_TOP_KEYS = frozenset({
+    "schema_version", "migration_id", "receipt", "migration_basis_commit",
+    "validation_head", "items",
+})
+_T080_ITEM_KEYS = frozenset({
+    "artifact", "kind", "subject", "recorded", "observed", "status",
+})
+_SHA1_RE = re.compile(r"[0-9a-f]{40}")
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 
 class ReportError(ValueError):
     """manifest または WAL が report 契約を満たさない。"""
+
+
+@dataclasses.dataclass(frozen=True)
+class _T080CampaignObservation:
+    """1 campaign の campaign-start にある T-080 値の分類。"""
+
+    kind: str
+    canonical: Optional[bytes] = None
+    envelope: Optional[Mapping] = None
+    issue: Optional[str] = None
+
+
+def _t080_reason(detail: str) -> str:
+    return f"{_T080_REASON_PREFIX}{detail}"
+
+
+def _t080_hex(value: object, pattern: re.Pattern[str]) -> bool:
+    return isinstance(value, str) and pattern.fullmatch(value) is not None
+
+
+def _canonical_t080_envelope(value: object) -> bytes:
+    """T-080 observation の exact 6-field envelope を検査して canonical 化する。"""
+    if not isinstance(value, Mapping) or set(value) != _T080_TOP_KEYS:
+        raise ValueError("envelope top-level key 集合が不正")
+    if value.get("schema_version") != _t080.OBSERVATION_SCHEMA_VERSION:
+        raise ValueError("schema_version が不正")
+    if value.get("migration_id") != _t080.MIGRATION_ID:
+        raise ValueError("migration_id が不正")
+    receipt = value.get("receipt")
+    if (not isinstance(receipt, Mapping)
+            or set(receipt) != {"path", "raw_sha256"}
+            or receipt.get("path") != _t080.RECEIPT_REL
+            or not _t080_hex(receipt.get("raw_sha256"), _SHA256_RE)):
+        raise ValueError("receipt が不正")
+    if not _t080_hex(value.get("migration_basis_commit"), _SHA1_RE):
+        raise ValueError("migration_basis_commit が不正")
+    if not _t080_hex(value.get("validation_head"), _SHA1_RE):
+        raise ValueError("validation_head が不正")
+
+    items = value.get("items")
+    if not isinstance(items, list) or len(items) != 17:
+        raise ValueError("items が exact 17 件でない")
+    expected = [
+        *(("source-repin", "repinned-to-basis-blob") for _ in range(13)),
+        *(("generator-metadata", "metadata-only") for _ in range(2)),
+        ("ancestry", None),
+        ("ancestry", None),
+    ]
+    for index, (item, (expected_kind, expected_status)) in enumerate(zip(items, expected)):
+        if not isinstance(item, Mapping) or set(item) != _T080_ITEM_KEYS:
+            raise ValueError(f"items[{index}] key 集合が不正")
+        if item.get("artifact") not in {"known_axes", "holdout"}:
+            raise ValueError(f"items[{index}].artifact が不正")
+        if item.get("kind") != expected_kind:
+            raise ValueError(f"items[{index}].kind が不正")
+        if not isinstance(item.get("subject"), str) or not item["subject"]:
+            raise ValueError(f"items[{index}].subject が不正")
+        if expected_kind != "ancestry":
+            spec = (
+                _t080.SOURCE_REPIN_SPECS[index]
+                if index < 13 else _t080.METADATA_SPECS[index - 13]
+            )
+            if (item.get("artifact"), item.get("subject"), item.get("recorded")) != (
+                spec.artifact, spec.json_pointer, spec.recorded_sha256,
+            ):
+                raise ValueError(f"items[{index}] 固定値が不正")
+            if item.get("status") != expected_status:
+                raise ValueError(f"items[{index}].status が不正")
+            if (not _t080_hex(item.get("recorded"), _SHA256_RE)
+                    or not _t080_hex(item.get("observed"), _SHA256_RE)):
+                raise ValueError(f"items[{index}] hash が不正")
+            continue
+        status = item.get("status")
+        if status not in {"missing-commit", "not-ancestor", "ancestor"}:
+            raise ValueError(f"items[{index}].status が不正")
+        if not _t080_hex(item.get("recorded"), _SHA1_RE):
+            raise ValueError(f"items[{index}].recorded が不正")
+        observed = item.get("observed")
+        if ((status == "missing-commit" and observed is not None)
+                or (status != "missing-commit" and not _t080_hex(observed, _SHA1_RE))):
+            raise ValueError(f"items[{index}].observed が不正")
+    if items[15].get("artifact") != "known_axes" or items[16].get("artifact") != "holdout":
+        raise ValueError("ancestry items の順序が不正")
+    if (items[15].get("recorded"), items[16].get("recorded")) != (
+        _t080.KNOWN_AXES_RECORDED_HEAD, _t080.HOLDOUT_RECORDED_HEAD,
+    ):
+        raise ValueError("ancestry items の固定値が不正")
+    try:
+        return _t080._canonical_bytes(value)
+    except _t080.MigrationError as exc:
+        raise ValueError("canonical bytes に変換できない") from exc
+
+
+def _campaign_t080_observation(
+    records: Sequence[object], *, receipt_active: bool,
+) -> _T080CampaignObservation:
+    starts = [record.payload for record in records
+              if _session_event(record, "campaign-start")]
+    if len(starts) != 1:
+        return _T080CampaignObservation("unavailable")
+    start = starts[0]
+    if _T080_KEY not in start:
+        issue = (_t080_reason("active receipt だが campaign-start key が欠落")
+                 if receipt_active else None)
+        return _T080CampaignObservation("absent", issue=issue)
+    value = start[_T080_KEY]
+    if value is None:
+        issue = (_t080_reason("active receipt だが campaign-start 値が null")
+                 if receipt_active else None)
+        return _T080CampaignObservation("null", issue=issue)
+    try:
+        canonical = _canonical_t080_envelope(value)
+    except (TypeError, ValueError) as exc:
+        return _T080CampaignObservation(
+            "malformed", issue=_t080_reason(f"malformed envelope: {exc}"),
+        )
+    return _T080CampaignObservation("envelope", canonical, value)
+
+
+def _force_protocol_violation(rows: Sequence[dict], issue: str) -> None:
+    """既存理由を保持しつつ campaign 横断の protocol 違反を全 row へ課す。"""
+    for row in rows:
+        reasons = [reason for reason in (row.get("reason"), issue) if reason]
+        row.update(
+            status="protocol_violation",
+            bench_values=[],
+            reason="; ".join(dict.fromkeys(reasons)),
+        )
 
 
 def _resolve_official_output_root(output_root: Path) -> Path:
@@ -935,20 +1077,25 @@ def _campaign_terminal_position_issue(records: Sequence[object]) -> Optional[str
 def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mapping,
                      manifest_sha: str, allowed_excluded: set[str], output_root: Path,
                      expected_reps: int,
-                     manifest_issues: Sequence[str]) -> list[dict]:
+                     manifest_issues: Sequence[str], *,
+                     receipt_active: bool) -> tuple[list[dict], _T080CampaignObservation]:
     bases = [_base_row(item) for item in rows]
     layout = _resolved_campaign_layout(campaign_id, output_root)
     root = Path(layout.root)
     if not root.is_dir():
-        return [{**base, "status": "campaign-incomplete", "bench_values": [],
-                 "reason": f"campaign-terminal がない (campaign directory 欠落): {campaign_id}"}
-                for base in bases]
+        return ([{**base, "status": "campaign-incomplete", "bench_values": [],
+                  "reason": f"campaign-terminal がない (campaign directory 欠落): {campaign_id}"}
+                 for base in bases], _T080CampaignObservation("unavailable"))
     try:
         records, line_issues, truncated_tail = wal.read_records_collected(layout)
     except Exception as exc:
-        return [{**base, "status": "protocol_violation",
-                 "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
-                for base in bases]
+        return ([{**base, "status": "protocol_violation",
+                  "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
+                 for base in bases], _T080CampaignObservation("unavailable"))
+
+    t080_observation = _campaign_t080_observation(
+        records, receipt_active=receipt_active,
+    )
 
     terminal_protocol_issues = [
         issue for issue in (
@@ -963,6 +1110,8 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
     terminal_protocol_issues.extend(_inert_record_issues(records))
     if truncated_tail:
         terminal_protocol_issues.append("WAL の末尾 record が途中で切れている")
+    if t080_observation.issue is not None:
+        terminal_protocol_issues.append(t080_observation.issue)
 
     record_ordinals = {id(record): ordinal for ordinal, record in enumerate(records)}
     payload_issue_by_record = _pipeline_payload_issues(records)
@@ -1009,7 +1158,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                     **base, "status": "campaign-incomplete", "bench_values": [],
                     "reason": terminal_issue,
                 })
-        return output
+        return output, t080_observation
 
     campaign_starts = [record.payload for record in records
                        if _session_event(record, "campaign-start")]
@@ -1232,17 +1381,27 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
             attempt_verify_outcomes=outcomes,
         )
         output.append(chosen)
-    return output
+    return output, t080_observation
 
 
 def build_observations(
     *, manifest: _artifacts.OfficialManifest | _artifacts.LegacyManifest,
     output_root: Path,
+    repo_root: Path = ROOT,
 ) -> _artifacts.OfficialObservations:
     """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。"""
     if type(manifest) not in {_artifacts.OfficialManifest, _artifacts.LegacyManifest}:
         raise _artifacts.OracleArtifactTypeError(
             "build_observations は OfficialManifest/LegacyManifest exact type のみ受理する")
+    try:
+        receipt_resolution = _t080.verify_receipt(root=Path(repo_root))
+    except _t080.MigrationError as exc:
+        raise ReportError(f"T-080 receipt を検証できない: {exc}") from exc
+    if receipt_resolution.state not in {
+        "never-issued", "active-valid", "issued-but-missing", "invalid",
+    }:
+        raise ReportError("T-080 receipt state を分類できない")
+    receipt_active = receipt_resolution.state == "active-valid"
     resolved_output_root = _resolve_official_output_root(Path(output_root))
     manifest_kind = (
         "official" if type(manifest) is _artifacts.OfficialManifest else "legacy"
@@ -1261,18 +1420,54 @@ def build_observations(
             continue
         grouped[campaign_id].append((ordinal, item))
     by_ordinal: dict[int, dict] = {}
+    t080_by_campaign: dict[str, _T080CampaignObservation] = {}
     for campaign_id in sorted(grouped):
         if grouped[campaign_id]:
             ordinals, items = zip(*grouped[campaign_id])
-            assessed = _assess_campaign(items, campaign_id, manifest, manifest_sha,
-                                        allowed_excluded, resolved_output_root,
-                                        expected_reps, manifest_issues)
+            assessed, t080_observation = _assess_campaign(
+                items, campaign_id, manifest, manifest_sha,
+                allowed_excluded, resolved_output_root,
+                expected_reps, manifest_issues,
+                receipt_active=receipt_active,
+            )
+            t080_by_campaign[campaign_id] = t080_observation
             for ordinal, row in zip(ordinals, assessed):
                 by_ordinal[ordinal] = row
     for ordinal, item, reason in detached:
         base = _base_row(item)
         base.update(status="protocol_violation", reason=reason)
         by_ordinal[ordinal] = base
+
+    campaign_observations = list(t080_by_campaign.values())
+    malformed_issues = list(dict.fromkeys(
+        item.issue for item in campaign_observations
+        if item.kind == "malformed" and item.issue is not None
+    ))
+    for issue in malformed_issues:
+        _force_protocol_violation(list(by_ordinal.values()), issue)
+
+    kinds = {item.kind for item in campaign_observations}
+    if "envelope" in kinds and kinds & {"absent", "null"}:
+        _force_protocol_violation(
+            list(by_ordinal.values()),
+            _t080_reason("campaign 間で null/key-absent と object が混在"),
+        )
+    canonical_values = {
+        item.canonical for item in campaign_observations
+        if item.kind == "envelope" and item.canonical is not None
+    }
+    if len(canonical_values) > 1:
+        _force_protocol_violation(
+            list(by_ordinal.values()),
+            _t080_reason("campaign 間で canonical envelope が不一致"),
+        )
+
+    t080_report_observation = None
+    if (campaign_observations
+            and all(item.kind == "envelope" for item in campaign_observations)
+            and len(canonical_values) == 1):
+        canonical = next(iter(canonical_values))
+        t080_report_observation = json.loads(canonical.decode("utf-8"))
     rows = [by_ordinal[ordinal] for ordinal in range(len(schedule))]
     expected_cells = [{
         "schedule_index": item["schedule_index"],
@@ -1286,6 +1481,7 @@ def build_observations(
         "n_per_cell": n,
         "expected_cells": expected_cells,
         "rows": rows,
+        _T080_KEY: t080_report_observation,
     })
 
 

@@ -2,10 +2,12 @@
 """S-1 検証相 extime 校正の純ロジックテスト (subprocess 実走なし)。"""
 from __future__ import annotations
 
+import ast
 import json
 import math
 import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +17,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import s1_verify_extime_calibration as M  # noqa: E402
+from campaign import t080_freeze_migration as T080  # noqa: E402
 
 
 def _candidate(extime: int, wall: float, *, verdict: str = "serializable",
@@ -127,3 +130,38 @@ def test_measure_candidate_removes_trace_when_verifier_fails(monkeypatch):
     with pytest.raises(M.CalibrationError, match="mock verifier failure"):
         M._measure_candidate("/nonexistent/ycsb.exe", 3)
     assert removed == [("/tmp/fake-s1-trace", True)]
+
+
+def test_receipt_exists_but_calibration_target_stays_legacy_strict(
+        tmp_path, monkeypatch):
+    receipt = tmp_path / T080.RECEIPT_REL
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(T080, "ROOT", tmp_path)
+
+    def adapter_must_not_run(*_args, **_kwargs):
+        pytest.fail("calibration legacy 経路が T-080 adapter を呼んだ")
+
+    monkeypatch.setattr(T080, "verify_receipt", adapter_must_not_run)
+    monkeypatch.setattr(T080, "static_gate_adapter", adapter_must_not_run)
+    assert (T080.ROOT / T080.RECEIPT_REL).is_file()
+
+    with M.s1_known_axes_freeze.FREEZE_PATH.open(encoding="utf-8") as stream:
+        freeze = json.load(stream)
+    with pytest.raises(
+            M.s1_known_axes_freeze.FreezeError,
+            match="source sha256 不一致"):
+        M.validated_target(freeze)
+
+
+def test_calibration_production_module_does_not_import_t080_adapter():
+    source = Path(M.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            imports.append(node.module or "")
+            imports.extend(alias.name for alias in node.names)
+    assert not [name for name in imports if "t080_freeze_migration" in name]
