@@ -51,3 +51,7 @@ CLAUDE.md のクラス 3 起動手順 (worklog 末尾・現行 phase doc・hando
 - **ファイル削除を伴う wave では、受入全走の前に `git add -A` して削除を stage する** (`git ls-files` を使う freeze 系テストが、未 stage の削除を「列挙されたのに実在しない」と見て偽の赤を出す)
 - **裁定した手順と実際に実行した手順が食い違ったら、worklog には実行された方を書く** (裁定文をそのまま書くと一次資料と逆の工程記録が残り、レビューで検出される)
 - **設計 wave で gate・検証を新設する記述を書く前に、その gate の入力が成果物の実物 (JSON 等) のどの field に実在するかを確認する** — 現行 schema に無い入力 (例: 観測値を持たない `cells`) を前提に「再計算して一致を検査する」と書くと、実行不能な設計がレビューまで素通りする (親起草がこれをやり、レビュー 2 本が独立に BLOCKER にした実績がある。D75 (4))。同名の識別子を二義で使わない (検証時 HEAD と生成基準 commit を同じ `H` と書いて混同した実績も同 wave)
+- **no-touch 対象の検査関数を再利用したくなったら、monkeypatch を書く前に正規の注入 seam (resolver・`current_head` のような迂回パラメータ) が既に無いかを対象の実装まで読む** — production 内 cross-module monkeypatch をレビュー BLOCKER で全廃した際、`_verify_head(current_head=…)` が等価比較のみで ancestry を呼ばない仕様を親が実測で発見し、patch ゼロで置換できた実績がある (D78)。monkeypatch は最後の手段
+- **fix ラウンドを挟む wave では、変異 spec の anchor (old 逐語) は fix 完了後の最終 commit で再検証してから本走する** — ハーネスの起草は先行してよいが、中間 commit 基準の spec は fix で stale になる (本 wave で 3 回の spec 更新が要った)。単層変異が他層にマスクされて帰属不成立になったら、両層同時変異へ再照準し、1 巡目の結果は erratum として台帳に残す
+- **fix ラウンド後の焦点再レビューには「所見ごとの closed / partial / regressed 対応表」を要求する** — fix が root cause を閉じたか表面だけかの判定が一覧で返り、regressed (fix が前より悪化させた面) の検出に実効があった (D78 の key-absent 逆行を検出した実績)
+- **commit の AI-Agent trailer と Co-Authored-By は同一の末尾段落に置く (間に空行を入れない)** — 空行で分断すると git が trailer 段落と解釈せず、`check_ai_provenance.py` が「trailer がない」と検出する。commit 後の監査で 5 commit の message-only 積み直しになった実績がある (tree 同一を `git diff` 空で機械確認し、docs の hash 参照は新系列へ更新 + 逐語には対応表 erratum を付す)
