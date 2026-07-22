@@ -3742,3 +3742,392 @@ validate_specs()
 - check_docs / check_codex_agents: 全段階緑。task-run 台帳は pilot 凍結により start 拒否 (fail-closed 仕様、[T-012] 裁定どおり) のため本 wave は台帳なし
 - 実装子の sandbox 全走は一貫して +8 skipped (submodule index.lock 制約) — 親環境の独立全走で毎回 18 skipped に収束することを確認 (偽赤/偽 skip の切り分け実績)
 - plan v2 U5 の orchestrator/tests/README.md 追記は省略 (二重 runner 節が新テストの走らせ方を既に汎用に覆う — 逸脱として記録)
+
+### §13.4 変異ハーネス本体 (wt-mut/t080_mutation_harness.py 逐語 — 再現用)
+
+```python
+#!/usr/bin/env python3
+"""T-080 M01..M16 変異 matrix の単一走行ハーネス。
+
+本ファイルを引数なしで起動しても変異は適用しない。親セッションが baseline を
+確認した後、明示的に ``--run`` を与えた場合だけ production を一時変更する。
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import difflib
+import fcntl
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import Iterable, Mapping, Sequence
+
+from t080_mutation_specs import PENDING_NODE, SPECS, MutationSpec, validate_specs
+
+
+HERE = Path(__file__).resolve().parent
+LOCK_PATH = HERE / ".t080_mutation_harness.lock"
+DEFAULT_JSON = HERE / "t080_mutation_results.json"
+DEFAULT_MARKDOWN = HERE / "t080_mutation_results.md"
+SURVIVOR_DIR = HERE / "t080_mutation_survivors"
+PYTEST_PREFIX = [
+    "python3", "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider",
+]
+ANSI_RE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+
+
+class HarnessError(RuntimeError):
+    """変異結果ではなく、ハーネス契約自体が壊れた。"""
+
+
+def _replacement_pairs(spec: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
+    """単層 string と将来の multi-site sequence を同じ累積経路へ正規化する。"""
+    old, new = spec["old"], spec["new"]
+    if isinstance(old, str) and isinstance(new, str):
+        return ((old, new),)
+    if (isinstance(old, Sequence) and not isinstance(old, (str, bytes))
+            and isinstance(new, Sequence) and not isinstance(new, (str, bytes))):
+        pairs = tuple(zip(old, new))
+        if len(pairs) != len(old) or len(pairs) != len(new):
+            raise HarnessError(f"{spec['id']}: old/new の置換数が不一致")
+        if pairs and all(isinstance(a, str) and isinstance(b, str) for a, b in pairs):
+            return pairs
+    raise HarnessError(f"{spec['id']}: old/new は str または同長 str sequence が必要")
+
+
+def _target(spec: Mapping[str, object]) -> Path:
+    path = (HERE / str(spec["file"])).resolve()
+    try:
+        path.relative_to(HERE)
+    except ValueError as exc:
+        raise HarnessError(f"{spec['id']}: repo root 外の対象: {path}") from exc
+    if not path.is_file():
+        raise HarnessError(f"{spec['id']}: 対象 file がない: {path}")
+    return path
+
+
+def _mutated_content(spec: Mapping[str, object], original: str) -> tuple[str, str]:
+    """F33: 各置換を originals でなく累積内容へ順番に適用する。"""
+    cumulative = original
+    pairs = _replacement_pairs(spec)
+    if not pairs:
+        raise HarnessError(f"{spec['id']}: 置換が空")
+    for index, (old, new) in enumerate(pairs, 1):
+        count = cumulative.count(old)
+        if count != 1:
+            raise HarnessError(
+                f"{spec['id']} replacement {index}: 累積内容中の old 件数={count} (期待=1)"
+            )
+        cumulative = cumulative.replace(old, new, 1)
+    diff = "".join(difflib.unified_diff(
+        original.splitlines(keepends=True),
+        cumulative.splitlines(keepends=True),
+        fromfile=f"a/{spec['file']}",
+        tofile=f"b/{spec['file']}",
+    ))
+    _assert_injection(spec, original, cumulative, diff, pairs)
+    return cumulative, diff
+
+
+def _assert_injection(
+    spec: Mapping[str, object], original: str, mutated: str, diff: str,
+    pairs: Sequence[tuple[str, str]],
+) -> None:
+    """F33: diff と最終内容の双方で全 site の注入実在を検査する。"""
+    if original == mutated or not diff:
+        raise HarnessError(f"{spec['id']}: mutated diff が空")
+    diff_lines = diff.splitlines()
+    if not any(line.startswith("-") and not line.startswith("---") for line in diff_lines):
+        raise HarnessError(f"{spec['id']}: diff に削除行がない")
+    if not any(line.startswith("+") and not line.startswith("+++") for line in diff_lines):
+        raise HarnessError(f"{spec['id']}: diff に追加行がない")
+    for index, (old, new) in enumerate(pairs, 1):
+        if old in mutated:
+            raise HarnessError(f"{spec['id']} replacement {index}: 注入後も old が残存")
+        if new not in mutated or mutated.count(new) <= original.count(new):
+            raise HarnessError(f"{spec['id']} replacement {index}: new の注入を確認できない")
+
+
+def _strip_ansi(value: str) -> str:
+    return ANSI_RE.sub("", value)
+
+
+def _failed_nodes(output: str) -> set[str]:
+    """pytest の ``FAILED <node> - <err>`` から `` - `` の手前を抽出する。"""
+    nodes: set[str] = set()
+    for raw_line in _strip_ansi(output).splitlines():
+        line = raw_line.strip()
+        if not line.startswith("FAILED "):
+            continue
+        payload = line[len("FAILED "):]
+        if " - " not in payload:
+            continue
+        node, _error = payload.split(" - ", 1)
+        if node:
+            nodes.add(node)
+    return nodes
+
+
+def _timeout_text(exc: subprocess.TimeoutExpired) -> str:
+    chunks = []
+    for value in (exc.stdout, exc.stderr):
+        if isinstance(value, bytes):
+            chunks.append(value.decode("utf-8", "replace"))
+        elif isinstance(value, str):
+            chunks.append(value)
+    return _strip_ansi("\n".join(chunks))
+
+
+def _save_survivor_diff(mutation_id: str, diff: str) -> str:
+    SURVIVOR_DIR.mkdir(exist_ok=True)
+    path = SURVIVOR_DIR / f"{mutation_id}.diff"
+    path.write_text(diff, encoding="utf-8")
+    return path.relative_to(HERE).as_posix()
+
+
+def _run_one(spec: MutationSpec) -> dict[str, object]:
+    path = _target(spec)
+    original = path.read_text(encoding="utf-8")
+    mutated, diff = _mutated_content(spec, original)
+    expected = set(spec["expected_red"])
+    command = [*PYTEST_PREFIX, *map(str, spec["targeted_test_files"])]
+    started = dt.datetime.now(dt.timezone.utc)
+    result: dict[str, object]
+    try:
+        path.write_text(mutated, encoding="utf-8")
+        # write 後にも実在を再検査してから pytest を起動する。
+        on_disk = path.read_text(encoding="utf-8")
+        if on_disk != mutated:
+            raise HarnessError(f"{spec['id']}: mutated 内容の write/read back が不一致")
+        _assert_injection(spec, original, on_disk, diff, _replacement_pairs(spec))
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=HERE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+                timeout=300 if spec["hang_risk"] else None,
+            )
+        except subprocess.TimeoutExpired as exc:
+            if not spec["hang_risk"]:
+                raise
+            result = {
+                "id": spec["id"],
+                "kind": spec["kind"],
+                "status": "TIMEOUT_AS_EVIDENCE",
+                "expected_red": sorted(expected),
+                "actual_red": [],
+                "expected_reason": spec["expected_reason"],
+                "pytest_returncode": None,
+                "command": command,
+                "timeout_seconds": 300,
+                "output": _timeout_text(exc),
+            }
+        else:
+            output = _strip_ansi(completed.stdout + completed.stderr)
+            actual = _failed_nodes(output)
+            if completed.returncode not in {0, 1}:
+                status = "HARNESS_ERROR"
+            elif actual == expected:
+                status = "KILLED"
+            elif completed.returncode == 0 and not actual:
+                status = "SURVIVED"
+            else:
+                status = "ATTRIBUTION_FAIL"
+            result = {
+                "id": spec["id"],
+                "kind": spec["kind"],
+                "status": status,
+                "expected_red": sorted(expected),
+                "actual_red": sorted(actual),
+                "missing_expected_red": sorted(expected - actual),
+                "unexpected_red": sorted(actual - expected),
+                "expected_reason": spec["expected_reason"],
+                "pytest_returncode": completed.returncode,
+                "command": command,
+                "timeout_seconds": 300 if spec["hang_risk"] else None,
+                "output": output,
+            }
+            if status == "SURVIVED":
+                result["mutated_diff"] = _save_survivor_diff(str(spec["id"]), diff)
+    finally:
+        path.write_text(original, encoding="utf-8")
+        # F32: git diff ではなく実内容比較で復元を証明する。
+        if path.read_text(encoding="utf-8") != original:
+            raise HarnessError(f"{spec['id']}: finally 復元後の内容比較に失敗")
+    elapsed = (dt.datetime.now(dt.timezone.utc) - started).total_seconds()
+    result["elapsed_seconds"] = round(elapsed, 3)
+    result["file"] = spec["file"]
+    return result
+
+
+def _collected_test_nodes(test_files: Sequence[str]) -> set[str]:
+    """test 本体を走らせず、pytest collection で parameter ID まで実在確認する。"""
+    command = [*PYTEST_PREFIX, "--collect-only", *test_files]
+    completed = subprocess.run(
+        command,
+        cwd=HERE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+    if completed.returncode != 0:
+        output = _strip_ansi(completed.stdout + completed.stderr)
+        raise HarnessError(
+            f"expected node の pytest collection に失敗 (rc={completed.returncode})\n{output}"
+        )
+    return {
+        line.strip() for line in _strip_ansi(completed.stdout).splitlines()
+        if "::test_" in line
+    }
+
+
+def dry_run(specs: Iterable[MutationSpec]) -> list[dict[str, object]]:
+    """production を書き換えず old 一意性と expected node の収集実在を確認する。"""
+    specs = tuple(specs)
+    test_files = tuple(dict.fromkeys(
+        str(test_file)
+        for spec in specs
+        for test_file in spec["targeted_test_files"]
+    ))
+    collected = _collected_test_nodes(test_files)
+    checks = []
+    for spec in specs:
+        original = _target(spec).read_text(encoding="utf-8")
+        # 累積適用 helper 自体を使うが、結果は disk へ書かない。
+        _mutated_content(spec, original)
+        missing_nodes = sorted(
+            node for node in set(spec["expected_red"])
+            if str(node) not in collected
+        )
+        if missing_nodes:
+            raise HarnessError(f"{spec['id']}: expected node が pytest collection にない: {missing_nodes}")
+        checks.append({
+            "id": spec["id"],
+            "file": spec["file"],
+            "replacement_count": len(_replacement_pairs(spec)),
+            "old_unique": True,
+            "expected_nodes_defined": True,
+        })
+    return checks
+
+
+def _write_results(results: Sequence[Mapping[str, object]], json_path: Path, md_path: Path) -> None:
+    payload = {
+        "schema_version": "t080-mutation-results/v1",
+        "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "results": list(results),
+        "pending_node": PENDING_NODE,
+    }
+    json_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    lines = [
+        "# T-080 変異 matrix 実測結果",
+        "",
+        "| ID | 判定 | 期待 red | 実 red | 秒 |",
+        "|---|---|---:|---:|---:|",
+    ]
+    for item in results:
+        lines.append(
+            f"| {item['id']} | {item['status']} | {len(item['expected_red'])} | "
+            f"{len(item['actual_red'])} | {item['elapsed_seconds']} |"
+        )
+    for item in results:
+        lines.extend([
+            "",
+            f"## {item['id']} — {item['status']}",
+            "",
+            f"- 期待理由: {item['expected_reason']}",
+            f"- 期待 red: {', '.join(item['expected_red']) or 'なし'}",
+            f"- 実 red: {', '.join(item['actual_red']) or 'なし'}",
+        ])
+        if item.get("unexpected_red"):
+            lines.append(f"- 期待外 red: {', '.join(item['unexpected_red'])}")
+        if item.get("missing_expected_red"):
+            lines.append(f"- 欠落した期待 red: {', '.join(item['missing_expected_red'])}")
+        if item.get("mutated_diff"):
+            lines.append(f"- SURVIVED diff: `{item['mutated_diff']}`")
+    if PENDING_NODE:
+        lines.extend(["", "## PENDING_NODE", ""])
+        for mutation_id, reason in sorted(PENDING_NODE.items()):
+            lines.append(f"- {mutation_id}: {reason}")
+    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _selected(ids: Sequence[str]) -> tuple[MutationSpec, ...]:
+    by_id = {str(spec["id"]): spec for spec in SPECS}
+    if not ids:
+        return tuple(SPECS)
+    unknown = sorted(set(ids) - set(by_id))
+    if unknown:
+        raise HarnessError(f"未知または PENDING_NODE の mutation id: {unknown}")
+    return tuple(by_id[item] for item in ids)
+
+
+def _lock_guard():
+    stream = LOCK_PATH.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        stream.close()
+        raise HarnessError(f"別の T-080 mutation harness が走行中: {LOCK_PATH}")
+    return stream
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="T-080 mutation matrix harness")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
+        "--dry-run", action="store_true",
+        help="書換え・test 実行なし（pytest collection のみ）で spec を検査",
+    )
+    mode.add_argument("--run", action="store_true", help="一時変異と targeted pytest を実走")
+    parser.add_argument("--id", action="append", default=[], help="対象 ID（複数指定可）")
+    parser.add_argument("--json", type=Path, default=DEFAULT_JSON)
+    parser.add_argument("--markdown", type=Path, default=DEFAULT_MARKDOWN)
+    args = parser.parse_args(argv)
+
+    validate_specs()
+    specs = _selected(args.id)
+    guard = _lock_guard()
+    try:
+        checks = dry_run(specs)
+        if args.dry_run:
+            print(json.dumps(
+                {"checks": checks, "pending_node": PENDING_NODE},
+                ensure_ascii=False,
+                indent=2,
+            ))
+            return 0
+        results = []
+        for spec in specs:
+            print(f"[{spec['id']}] targeted mutation を開始", flush=True)
+            result = _run_one(spec)
+            results.append(result)
+            print(f"[{spec['id']}] {result['status']}", flush=True)
+        _write_results(results, args.json, args.markdown)
+        accepted = {"KILLED", "TIMEOUT_AS_EVIDENCE"}
+        return 0 if all(item["status"] in accepted for item in results) else 1
+    finally:
+        fcntl.flock(guard.fileno(), fcntl.LOCK_UN)
+        guard.close()
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except HarnessError as exc:
+        print(f"HARNESS_ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+```
