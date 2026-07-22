@@ -3305,3 +3305,71 @@ erratum 3 件 (M1 診断差先行 / M6 記載乖離 / M13 置換不足) → 2 �
 0 failed** (baseline 2697 + 67)、node 消失 0 (base 2715 → 2782)、check 3 種緑。task-run start は
 pilot 凍結どおり拒否 (fail-closed 実績)。isatty 防壁と freeze-protocol dispatch は非 tty からの
 live 発火 (拒否・書き込みゼロ) を親が実測確認。
+
+## D80. floor 実測 blocking 前提 2 件のコード機構 — selector 証拠の H 錨定 exact exemption + preflight allowlist の certificate 束縛 (wave3、2026-07-23)
+
+D79 (7) の blocking 前提 4 件のうち protocol JSON 非依存の 2 件を実装した。**全消化ではない**
+(実 pin・完全同型 E2E・lineage 照合は oracle 結線 wave の残余)。逐語・変異台帳 =
+`output/insights/2026-07-23_wave3-floor-prereq.md`。
+
+(1) **selector 証拠の exact exemption (§5-(ix)-9 追認方向の実装)。** launch_validate に
+`_selector_evidence_exempt_exact` を追加し、active chain と併合 (key 交差拒否)。免除集合 =
+{selector_predictions.json, journal.jsonl, valid/invalid row の raw, journal 宣言済み envelope}。
+**payload は免除しない** (正当 payload は構造上 hit せず、tamper は scan で拒否させる —
+characterization test で固定)。各対象は H tree regular blob 100644 + H bytes == worktree bytes
+(O_NOFOLLOW) + 宣言 sha256 == sha256(H bytes) + 重複拒否。predictions 不在なら空集合 (従来挙動)。
+cert raw hit 無条件拒否・namespace-dirty・history-mutated の優先順は不変。
+
+(2) **H 錨定・drift-free の証拠鎖検証。** launch 側検証は「strict duplicate-key 拒否 parse +
+top-level exact schema + body_sha256 + row tagged-union 形状 + cell 集合 (freeze 軸のみ) +
+journal↔rows↔envelope 相互対応 (schema 版数固定・decision_method/choice_id は封印文書同士の
+直接等値)」に限定し、**現在コードの意味定数 (catalog・descriptor schema・CHOICE_TO_BINDING・
+STATIC_DEFAULT_CHOICE_ID・basis/swapped 再導出) を呼ばない** — seal 後の正当な後続変更で封印済み
+証拠が拒否される F29/F31 型の結合を構造的に排除。外部錨 = pre_oracle_head ∈ ancestors(H)、
+sources 5 file + protocol + parser module の `pre_oracle_head:path` git blob 照合 (worktree 非依存)。
+意味検証 (raw 再 parse・現在定数照合) は seal 時の full verifier lane に残る (受理集合不変)。
+
+(3) **runner の envelope 宣言 record。** envelope 書き込み直後 (意味検証前) に journal へ
+path + sha256 の宣言 record を追記。検証失敗 cell の孤児 envelope も宣言済みになり、免除は
+宣言 record があるものに限る。seal は commit 前に「selector-runs 配下の journal 宣言なき実在
+ファイル」を fail-closed 検出し、正常終了時に `.lock` を削除する。
+
+(4) **preflight allowlist の certificate 束縛 (official 解禁前 MUST の昇格)。** allowlist は
+宣言由来の有界集合 (必須 4 file 不在 = fail-closed、raw/envelope は journal 宣言から導出、
+freeze namespace 全体を固定 4 + 宣言 selector-runs + 正規 chain record の 3 集合で被覆し、
+未知ファイル・全 symlink・phantom entry を拒否)。`clean_scan_digest` は versioned canonical JSON
+preimage (`s8b-clean-scan-digest/v3`、repository_files + allowlist path→sha256 + chain record) の
+sha256 へ。cert は identity/strict 分離 — `validate_launch_certificate` のシグネチャ・意味は不変
+(resume/ratified caller 無変更)、新設 strict validator (expected_clean_scan_digest 厳密一致) を
+発行経路と発行直後再検証のみが使う。発行前に独立 2 回 scan し 2 回目を expected とする (証明書
+自身の値を expected にする恒真の禁止)。EQUALITY_CHAIN_ADJACENCY への node 追加なし (digest は
+等値辺でなく独立再計算照合)。
+
+(5) **検証プロセス。** brief (P1..P6 + G1 生死確認: conjunction 証拠の初回 commit 導入が
+closure-hit-mismatch で拒否されることを実走確認) → codex プラン (max) → 敵対相談 2 (max、
+NO-GO×2、計 must 12) → 親裁定 v2 (P2 差替え = H 錨定 drift-free、P6 反転 = payload 非免除、
+C02/C06 後半/C07 は D79 (7) 第 3 項どおり scope 外) → 実装 2 単位 (A→B 直列、worktree 分離) →
+**親の全走が統合破損 83 件を検出** (B の必須 file 検査 × emitter fixture の protocol 欠如。
+実装子の限定実走は親の全走を代替しない、の再々実例) → 敵対レビュー 2 (max、NO-GO×2 —
+R1/I-01 namespace 盲点 + 負例書換えによる coverage 喪失、R2/I-03 binding 恒真、I-02 意味定数
+依存) → fix1 (FIXW-1..7) → 焦点再レビュー (closed 9 / regressed 1 — fix1 が journal 射影を
+弱めすぎた N-01/N-02 を対応表が検出) → fix2 (schema 版数固定 + journal↔row 直接等値)。
+
+(6) **変異 matrix (B-057)。** 事前登録 M1-M10 (裁定 v2) + M11/M12 (fix2 の新ゲート)。最終
+(437334a) **12/12 KILLED・survived 0・injection failed 0**。帰属 erratum: M9 の 1 巡目登録は
+空 tree 非 ancestor で不成立 → 同一 tree 化して単一理由化 (レビュー A R3)。M7 は kill 基準を
+「拒否 + cert 不発行」へ改定 (claim 先行永続は at-most-once 設計)。M4 は helper-leaf kill。
+M2 は受理集合拡大の直接捕捉を手動裏取り。
+
+(7) **親ハンク = wave2 台帳 defang (5d2be97)。** wave2 の docs commit (441babc) が凍結逐語台帳に
+三軸語 conjunction を逐語引用し、repo scan invariant + oracle driver 系 11 テストを main で
+赤にしていた (受入全走が docs commit 前で未検出 — failures F34)。**L642 のみ «» defang + erratum
+付記、原文 = git 履歴 441babc** (凍結逐語への例外編集としてこの D と worklog を正本参照とする)。
+レビュー A が名指し検査で妥当性を確認。
+
+(8) **残余 (ユーザー裁定パッケージ、oracle 結線 wave へ)。** (a) 初回導入捏造の完全閉鎖 (C02 —
+自己整合 bundle + FROZEN pin 同時 commit は本 wave の ancestry/journal/envelope/sources 錨定でも
+排除できない。D79 (7) 第 3 項の execution_guard 検証・lineage 再評価と同梱を推奨)、(b) durable
+digest preimage artifact + resume/ratified の歴史的 cert 照合 (C06 後半 — official dormant +
+実行 gate は cert 非依存のため影響限定)、(c) content TOCTOU (C07 — [T-011] 受諾リスト記載済み、
+追加処置なし推奨)。

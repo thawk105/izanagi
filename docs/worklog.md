@@ -281,3 +281,71 @@ missing 行込みの封印 (R3 どおり) をそのまま commit する。
 12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
 13. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
 14. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-23 (2) — wave3: floor 実測 blocking 前提 2 件のコード機構 (D80、branch worktree-dev-wave-ruling-ac、計測なし)
+
+/dev-wave 1 回 (次の一手 1 がユーザー手番待ちのため、次の一手 5 の blocking 前提から protocol
+JSON 非依存の 2 件を選択)。**D79 (7) 4 件中 2 件のコード機構完了** — 実 pin・完全同型 E2E・
+lineage 照合は oracle 結線 wave の残余であり、blocking 前提の全消化ではない。設計判断の正本 =
+D80、逐語・変異台帳 = `output/insights/2026-07-23_wave3-floor-prereq.md`。成果 commit =
+5d2be97 / 8835fa7 / 6c89323 / af8ff49 / 437334a (+ 本 docs 分)。
+
+- **中身**: (1) launch_validate の selector 証拠 exact exemption (§5-(ix)-9 追認方向) —
+  predictions/journal/raw/宣言済み envelope を H 錨定 (100644・H==worktree bytes・宣言 sha 一致・
+  重複拒否) で免除、payload は非免除 (characterization 固定)。(2) H 錨定 drift-free 証拠鎖 —
+  ancestry・sources+protocol+parser の pre_oracle_head blob 照合・journal↔rows↔envelope 相互
+  対応 (schema 版数固定・decision_method/choice_id は封印文書同士の直接等値)。現在意味定数への
+  依存を launch 射影から排除 (F29/F31 型結合の構造的排除)。(3) runner: envelope 書き込み直後の
+  journal 宣言 record・seal の未宣言ファイル fail-closed・.lock 削除。(4) preflight allowlist の
+  宣言由来有界化 + freeze namespace 全被覆 (未知ファイル/symlink/phantom 拒否・chain record も
+  digest へ) + clean_scan_digest v3 canonical preimage + cert の identity/strict 分離 (既存
+  caller 無変更)・発行前独立 2 回 scan
+- **main の既存回帰を発見・修復**: wave2 docs commit 441babc の凍結台帳 L642 の三軸語 conjunction
+  逐語引用が repo scan invariant + oracle driver 系 11 テストを赤にしていた (受入全走が docs
+  commit 前で未検出 — failures F34 新設)。**L642 のみ «» defang + erratum 付記 (5d2be97、原文 =
+  441babc)**。凍結逐語への例外編集の正本参照 = D80 (7) と本エントリ
+- **検証**: 敵対相談 2 (NO-GO×2・must 12 — 捏造 bundle の免除・rglob 無上限 allowlist・
+  verify_prediction_freeze の source 結合等) → 親裁定 v2 (P2 差替え/P6 反転/scope 外 3 件) →
+  実装 2 単位 (A→B 直列・worktree 分離) → **親の全走が統合破損 83 件を検出** (実装子の限定実走は
+  親の全走を代替しない、の再々実例) → 敵対レビュー 2 (NO-GO×2・must 3 系統 + 親ハンク名指し
+  検査 = 所見なし) → fix1 (FIXW-1..7) → 焦点再レビュー (closed 9 / **regressed 1** — fix1 の
+  journal 射影弱めすぎ N-01/N-02 を対応表が検出) → fix2 (schema 版数固定 + journal↔row 直接
+  等値)。G1 生死確認は brief 前に実測済み (conjunction 証拠の初回 commit 導入 →
+  closure-hit-mismatch、2 軸のみ → 通過、事後改竄は namespace-dirty/history-mutated が先行)
+- **変異 matrix (親実測、B-057)**: 事前登録 M1-M10 + fix2 で M11/M12 追加。最終 (437334a)
+  **12/12 KILLED・survived 0・injection failed 0・復元検査全緑**。帰属 erratum 3 件 (M9 空 tree
+  不成立→同一 tree 化 / M7 基準改定「拒否 + cert 不発行」/ M4 helper-leaf kill) + M2 の受理集合
+  拡大直接捕捉を手動裏取り — 台帳詳細は insights
+- **受入 (親環境)**: 全走 **2815 passed / 18 skipped / 0 failed** (baseline 2764+18)。collected 三点比較 = base
+  2782 → 2833 (+51)、真の消失 0 ([control] は c0/c1 へ分割)。check_docs / check_codex_agents /
+  check_ai_provenance (295 commits) 緑。task-run start は pilot 凍結どおり拒否 (fail-closed —
+  「final report により凍結済み」の新文言。発火条件の再提示は最終報告へ)
+
+### 消化した ID・残余
+
+- D79 (7) blocking 前提: **(a) exemption 拡張 + (b) cert 束縛 = コード機構完了** (本 wave)。
+  残 = (c) 統合 E2E (実 protocol JSON 後)・(d) lineage 照合 (§5-(i)〜(viii) 系裁定待ち、
+  oracle 結線 wave で再評価) — 変わらず
+- scope 外 real 所見 → **ユーザー裁定パッケージ 3 件** (D80 (8)): 初回導入捏造の完全閉鎖 /
+  durable digest preimage + resume・ratified の歴史的 cert 照合 / content TOCTOU (受諾リスト
+  記載済み・追加処置なし推奨)。いずれも oracle 結線 wave での D79 (7) 第 3 項再評価と同梱を推奨
+
+### 次の一手
+
+1. [T-080] **receipt 発行 (ユーザー、worklog (10) 手順) → protocol 実凍結 (ユーザー、worklog
+   2026-07-23 (1) (ii)) → 予測封印の実走 wave (AI、同 (iii))** — 変わらず (本 wave はこれと独立)
+2. [T-068] R commit で「移行契約により superseded」として確定的に閉じる (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる (同上)。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる (同上)。変わらず
+5. [T-011] floor 実測直前に発火。**blocking 前提の残 = 統合 E2E (protocol 凍結後) と lineage
+   照合 (oracle 結線 wave 再評価)。exemption 拡張と cert 束縛のコード機構は本 wave で完了**。
+   D80 (8) の裁定パッケージ 3 件はこの手前で裁定
+6. [T-066] 恒真隠蔽除去: freeze 公開前に並行実装。変わらず
+7. [T-067] 部分消化・継続: exact 化の残余は D73 (10) から変わらず
+8. [T-001] ruling-B 単独: floor と並行、公式 report 発行前まで。変わらず
+9. [T-002] P-A1(a) Stage 1 + P-C3 ([T-006] 同梱): 同上。変わらず
+10. [T-009] 延期 (T-083 (a) 処置表): AGENTS.md 追記は 1 cycle 後。変わらず
+11. [T-060] 延期 (同): WAL 用語運用の明文化は 1 cycle 後。変わらず
+12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
+13. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
+14. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず

@@ -91,7 +91,9 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 2026-07-22 (10) の引き渡しパッケージ)。**protocol JSON 実凍結 + 予測封印の機構も 2026-07-23 に
 実装完了 (wave2、D79)** — 人間 CLI (freeze-protocol) と selector 実走配線 (seal CLI) を引き渡し済み。
 残 = ユーザー手番 (receipt 発行 → protocol 実凍結、手順 = worklog 2026-07-22 (10) + 2026-07-23 (1))
-→ AI の予測封印実走 wave → [T-011] 受諾 → floor 実測 (blocking 前提 = D79 (7))。
+→ AI の予測封印実走 wave → [T-011] 受諾 → floor 実測 (blocking 前提 = D79 (7))。**D79 (7) のうち
+exemption 拡張 + cert 束縛のコード機構は 2026-07-23 に実装完了 (wave3、D80) — 残 = 統合 E2E
+(protocol 凍結後) と lineage 照合 (oracle 結線 wave 再評価)。**
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 

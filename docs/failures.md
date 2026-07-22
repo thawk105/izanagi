@@ -441,3 +441,21 @@
   2. **SURVIVED は「注入の実在」を mutated 内容の diff で確認するまで equivalent と結論しない**
      (同上)。両層変異には kill 期待を必ず事前登録する (期待の無い変異は生存が黙って通る)
 - 記録: worklog 2026-07-22 (6)、erratum = `output/insights/2026-07-22_t004-wal-framing-mutation-ledger.md`
+
+### F34. 受入全走の後に積んだ docs commit が repo scan invariant を破り、main が赤のまま次 wave まで残った [手順漏れ]
+
+- 事象: wave2 は受入全走を fix2 commit (d4b6271) で緑にした後、docs commit (441babc) で凍結逐語
+  台帳に三軸語 conjunction の逐語引用を追加した。全走は docs commit 後に再実行されず、repo scan
+  invariant + oracle driver 系 11 テストが main で赤のまま残り、次 wave (wave3) の実装子の全走が
+  検出した
+- 誘発要因: 「docs だけの commit はテストに影響しない」という暗黙仮定。repo scan invariant は
+  repo の**全ファイル bytes** への不変量であり、docs / insights も走査対象。逐語凍結は「攻撃例の
+  引用」を含みやすく、この不変量と構造的に衝突しやすい
+- 検出できた理由: 実装子の定型 (緑主張に実走範囲併記) + 親の独立全走。単体テストの限定実走では
+  検出されない位置だった
+- 恒久対応:
+  1. **docs を含むあらゆる記録 commit の後に repo scan invariant (+影響テスト) を再走してから
+     wave を閉じる** (`.claude/commands/dev-wave.md` 段 7 定型へ追記、2026-07-23)
+  2. **逐語・台帳を insights へ凍結する前に三軸語 conjunction (軸 template の生値) を機械検査し、
+     hit があれば defang + erratum で凍結する** (同上)
+- 記録: worklog 2026-07-23 (2)、defang erratum = wave2 台帳 L642 (原文 = 441babc)、D80 (7)
