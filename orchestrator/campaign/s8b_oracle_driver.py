@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -116,7 +117,22 @@ def _make_gate_decision(
         refusals=merged,
         t080_freeze_migration_observation=(
             resolution.t080_freeze_migration_observation
+            if (not merged and resolution.state == "active-valid") else None
         ),
+    )
+
+
+def _campaign_t080_value(
+        resolution: "_t080_migration.ReceiptResolution") -> Mapping[str, object]:
+    """campaign-start/run result 用の耐久 epoch record を作る。"""
+    if (resolution.state == "active-valid" and not resolution.refusals
+            and resolution.t080_freeze_migration_observation is not None):
+        return resolution.t080_freeze_migration_observation
+    if (resolution.state == "never-issued" and not resolution.refusals
+            and re.fullmatch(r"[0-9a-f]{40}", resolution.validation_head)):
+        return {"state": "never-issued", "validation_head": resolution.validation_head}
+    raise OracleDriverError(
+        "T-080 campaign epoch を active-valid/never-issued のどちらにも固定できない"
     )
 
 
@@ -1090,6 +1106,13 @@ def run_block(
             refusals=["manifest-verify: 検証済み manifest object がない"],
         )
         return {"status": "refused", **asdict(decision)}
+    try:
+        t080_campaign_value = _campaign_t080_value(t080_resolution)
+    except OracleDriverError as exc:
+        decision = _make_gate_decision(
+            t080_resolution, refusals=[f"migration-receipt-verify: {exc}"],
+        )
+        return {"status": "refused", **asdict(decision)}
 
     output_root = Path(output_root)
     budget_path = Path(budget_path)
@@ -1163,9 +1186,7 @@ def run_block(
         "manifest_sha256": manifest_sha,
         "block_id": block_id,
         "campaign_id": campaign_id,
-        "t080_freeze_migration_observation": (
-            t080_resolution.t080_freeze_migration_observation
-        ),
+        "t080_freeze_migration_observation": t080_campaign_value,
         # C3-10: 共有 execution guard/receipt を run 記録に残す (report が manifest の
         # env_tag/contract_sha256 と照合する)。
         "execution_receipt": plan.receipt,
@@ -1216,9 +1237,7 @@ def run_block(
             "status": "budget_exhausted_before_attempt",
             "allowed": True,
             "refusals": [],
-            "t080_freeze_migration_observation": (
-                t080_resolution.t080_freeze_migration_observation
-            ),
+            "t080_freeze_migration_observation": t080_campaign_value,
             "campaign_id": campaign_id,
             "manifest_sha256": manifest_sha,
             "freeze_sha256": freeze_sha,
@@ -1448,9 +1467,7 @@ def run_block(
         "status": status,
         "allowed": True,
         "refusals": [],
-        "t080_freeze_migration_observation": (
-            t080_resolution.t080_freeze_migration_observation
-        ),
+        "t080_freeze_migration_observation": t080_campaign_value,
         "campaign_id": campaign_id,
         "manifest_sha256": manifest_sha,
         "freeze_sha256": freeze_sha,

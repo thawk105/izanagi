@@ -20,7 +20,6 @@ import re
 import stat
 import subprocess
 import sys
-import threading
 from collections import deque
 from pathlib import Path, PurePosixPath
 from typing import Callable, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
@@ -152,6 +151,7 @@ class ReceiptResolution:
     validation_head: str
     introduction_commit: Optional[str] = None
     receipt: Optional[Mapping[str, object]] = None
+    receipt_raw: Optional[bytes] = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -548,7 +548,11 @@ def _git_env() -> Dict[str, str]:
     return env
 
 
-_GIT_HARDEN = ("-c", "core.useReplaceRefs=false")
+_GIT_HARDEN = (
+    "-c", "core.useReplaceRefs=false",
+    "-c", "core.fsmonitor=false",
+    "-c", "core.untrackedCache=false",
+)
 
 
 def _git(args: Sequence[str], root: Path, *, stdin: Optional[bytes] = None) -> bytes:
@@ -607,6 +611,16 @@ def _capture_head(root: Path) -> str:
     if _object_type(head, root) != "commit":
         raise MigrationError("receipt.git_error", "HEAD が commit でない")
     return head
+
+
+def _assert_repository_root(root: Path) -> None:
+    try:
+        actual = Path(_git_text(["rev-parse", "--show-toplevel"], root)).resolve(strict=True)
+        expected = Path(root).resolve(strict=True)
+    except OSError as exc:
+        raise MigrationError("receipt.basis_invalid", "repository root を確定できない") from exc
+    if actual != expected:
+        raise MigrationError("receipt.basis_invalid", "--show-toplevel が指定 root と不一致")
 
 
 def _object_type(oid: str, root: Path) -> Optional[str]:
@@ -777,7 +791,7 @@ def _descendants_of(graph: CommitGraph, ancestor: str) -> frozenset[str]:
 def _history_touches_path(commit: str, path: str, root: Path) -> bool:
     out = _git_text(
         [
-            "diff-tree", "--root", "--no-commit-id", "--name-status", "-r",
+            "diff-tree", "--root", "--no-commit-id", "--name-status", "-m", "-r",
             "-M", "-C", "--find-copies-harder", commit,
         ], root,
     )
@@ -821,6 +835,9 @@ def _assert_introduction_topology(
     parents = graph.parents.get(commit, ())
     if len(parents) != 1 or parents[0] != receipt.get("migration_basis_commit"):
         raise MigrationError("receipt.basis_invalid", "R の唯一 parent が H_mig でない")
+    mode, kind, _oid = _tree_entry(commit, RECEIPT_REL, root)
+    if (mode, kind) != ("100644", "blob"):
+        raise MigrationError("receipt.introduction_diff", "R receipt mode/type が 100644 blob でない")
     out = _git_text(
         ["diff-tree", "--no-commit-id", "--name-status", "-r", "-M", "-C", commit], root,
     )
@@ -908,26 +925,61 @@ def _verify_closure(
     receipt: Mapping[str, object], known_doc: Mapping[str, object], holdout_doc: Mapping[str, object],
     root: Path,
 ) -> None:
+    _verify_known_closure(receipt, known_doc, root)
+    _verify_holdout_closure(receipt, known_doc, holdout_doc, root)
+    _verify_metadata_closure(receipt, known_doc, holdout_doc, root)
+
+
+def _closure_basis_and_pin(
+    receipt: Mapping[str, object], known_doc: Mapping[str, object], root: Path,
+) -> Tuple[str, str]:
     basis = str(receipt["migration_basis_commit"])
     if _object_type(basis, root) != "commit":
         raise MigrationError("receipt.basis_invalid", "H_mig が commit でない")
     ccbench_pin = known_doc.get("ccbench_pin")
     _require_hex(ccbench_pin, _SHA1_RE, "known_axes.schema", "ccbench_pin")
-    _verify_ccbench_basis(basis, ccbench_pin, root)
+    return basis, str(ccbench_pin)
+
+
+def _verify_known_closure(
+    receipt: Mapping[str, object], known_doc: Mapping[str, object], root: Path,
+) -> None:
+    basis, ccbench_pin = _closure_basis_and_pin(receipt, known_doc, root)
 
     _classify_source_closure(
         known_doc,
         lambda path: _sha256(_basis_blob(basis, path, root, ccbench_pin=ccbench_pin)),
     )
-    repins = receipt["source_repins"]
-    for record in repins:
-        target = known_doc if record["artifact"] == "known_axes" else holdout_doc
-        if _resolve_pointer(target, record["json_pointer"]) != record["recorded_sha256"]:
+    for record in receipt["source_repins"]:
+        if record["artifact"] != "known_axes":
+            continue
+        if _resolve_pointer(known_doc, record["json_pointer"]) != record["recorded_sha256"]:
             raise MigrationError("receipt.repin_invalid", "recorded_sha256 が artifact pointer と不一致")
         actual = _sha256(_basis_blob(basis, record["path"], root, ccbench_pin=ccbench_pin))
         if actual != record["migration_blob_sha256"]:
-            reason = "known_axes.source_closure" if record["artifact"] == "known_axes" else "holdout.design_closure"
-            raise MigrationError(reason, "migration blob hash が H_mig blob と不一致")
+            raise MigrationError("known_axes.source_closure", "migration blob hash が H_mig blob と不一致")
+
+
+def _verify_holdout_closure(
+    receipt: Mapping[str, object], known_doc: Mapping[str, object],
+    holdout_doc: Mapping[str, object], root: Path,
+) -> None:
+    basis, ccbench_pin = _closure_basis_and_pin(receipt, known_doc, root)
+    for record in receipt["source_repins"]:
+        if record["artifact"] != "holdout":
+            continue
+        if _resolve_pointer(holdout_doc, record["json_pointer"]) != record["recorded_sha256"]:
+            raise MigrationError("receipt.repin_invalid", "recorded_sha256 が artifact pointer と不一致")
+        actual = _sha256(_basis_blob(basis, record["path"], root, ccbench_pin=ccbench_pin))
+        if actual != record["migration_blob_sha256"]:
+            raise MigrationError("holdout.design_closure", "migration blob hash が H_mig blob と不一致")
+
+
+def _verify_metadata_closure(
+    receipt: Mapping[str, object], known_doc: Mapping[str, object],
+    holdout_doc: Mapping[str, object], root: Path,
+) -> None:
+    basis, ccbench_pin = _closure_basis_and_pin(receipt, known_doc, root)
     for record in receipt["metadata_fields"]:
         target = known_doc if record["artifact"] == "known_axes" else holdout_doc
         if _resolve_pointer(target, record["json_pointer"]) != record["recorded_sha256"]:
@@ -968,6 +1020,81 @@ def _verify_reconstruction_static(
         raise MigrationError("receipt.reconstruction_invalid", "known rebuilt hash が静的再計算と不一致")
     if reconstruction["holdout"]["projected_document_sha256"] != holdout_sha:
         raise MigrationError("receipt.reconstruction_invalid", "holdout projected hash が静的再計算と不一致")
+
+
+def _expected_artifacts() -> Mapping[str, object]:
+    return {
+        "known_axes": {
+            "path": KNOWN_AXES_REL,
+            "raw_sha256": KNOWN_AXES_RAW_SHA256,
+            "recorded_frozen_at_head": KNOWN_AXES_RECORDED_HEAD,
+        },
+        "holdout": {
+            "path": HOLDOUT_REL,
+            "raw_sha256": HOLDOUT_RAW_SHA256,
+            "recorded_frozen_at_head": HOLDOUT_RECORDED_HEAD,
+        },
+    }
+
+
+def _derive_deterministic_fields(
+    receipt: Mapping[str, object], known_doc: Mapping[str, object],
+    holdout_doc: Mapping[str, object], root: Path,
+) -> Mapping[str, object]:
+    """receipt の決定論 field を H_mig と凍結 artifact から全再導出する。"""
+    basis = str(receipt["migration_basis_commit"])
+    repins, metadata = _derive_repins_and_metadata(basis, known_doc, holdout_doc, root)
+    derived_receipt = {
+        "migration_basis_commit": basis,
+        "source_repins": repins,
+        "metadata_fields": metadata,
+    }
+    projected_known, projected_holdout = _project_documents(
+        derived_receipt, known_doc, holdout_doc,
+    )
+    known_sha = _sha256(_canonical_bytes(_without_generator_sha(projected_known)))
+    holdout_sha = _sha256(_canonical_bytes(projected_holdout))
+    return {
+        "artifacts": _expected_artifacts(),
+        "source_repins": repins,
+        "metadata_fields": metadata,
+        "repin_report": _build_repin_report(basis, repins, root),
+        "reconstruction": {
+            "known_axes": {
+                "projected_document_sha256": known_sha,
+                "rebuilt_document_sha256": known_sha,
+            },
+            "holdout": {"projected_document_sha256": holdout_sha},
+        },
+    }
+
+
+def _assert_deterministic_fields(
+    receipt: Mapping[str, object], expected: Mapping[str, object],
+) -> None:
+    for field in ("artifacts", "source_repins", "metadata_fields", "repin_report"):
+        if receipt.get(field) != expected[field]:
+            raise MigrationError(
+                "receipt.derivation_mismatch", f"{field} が H_mig 再導出値と不一致",
+            )
+    recorded_reconstruction = receipt.get("reconstruction", {})
+    expected_reconstruction = expected["reconstruction"]
+    for artifact, fields in expected_reconstruction.items():
+        recorded = recorded_reconstruction.get(artifact, {})
+        for field, value in fields.items():
+            if recorded.get(field) != value:
+                raise MigrationError(
+                    "receipt.derivation_mismatch",
+                    f"reconstruction.{artifact}.{field} が H_mig 再導出値と不一致",
+                )
+
+
+def _verify_receipt_derivation(
+    receipt: Mapping[str, object], known_doc: Mapping[str, object],
+    holdout_doc: Mapping[str, object], root: Path,
+) -> None:
+    expected = _derive_deterministic_fields(receipt, known_doc, holdout_doc, root)
+    _assert_deterministic_fields(receipt, expected)
 
 
 def _distances(graph: CommitGraph, basis: str) -> Mapping[str, int]:
@@ -1124,9 +1251,6 @@ def _draft_reconstruct_known_axes(
     }
 
 
-_HOLDOUT_VERIFY_LOCK = threading.Lock()
-
-
 def _draft_reconstruct_holdout(
     legacy: Mapping[str, object], repins: Sequence[Mapping[str, object]],
     metadata: Sequence[Mapping[str, object]], *, root: Path,
@@ -1147,22 +1271,42 @@ def _draft_reconstruct_holdout(
             _set_pointer(projected, record["json_pointer"], record["migration_blob_sha256"])
     report = searcher(root)
     search_assertion(report)
-    # 現行 verifier を実走しつつ、同じ repository scan を二度発火させない。
-    if verifier is holdout_module.verify_document:
-        with _HOLDOUT_VERIFY_LOCK:
-            original = holdout_module.search_repository
-            holdout_module.search_repository = lambda *_args, **_kwargs: report
-            try:
-                verifier(projected, root=root, current_head=legacy["frozen_at_head"])
-            finally:
-                holdout_module.search_repository = original
-    else:
-        verifier(projected, root=root, current_head=legacy["frozen_at_head"])
+    # draft だけは verifier 自身の live scan もそのまま実行する。
+    # 他 module の属性差替えは並行 caller を fail-open にするため行わない。
+    verifier(projected, root=root, current_head=legacy["frozen_at_head"])
     return {
         "status": "pass",
         "projected_document_sha256": _sha256(_canonical_bytes(projected)),
-        "live_scan_sha256": _sha256(_canonical_bytes(report)),
+        # draft/receipt 自身の追加で search.file_count は変わる。受理集合に
+        # 直結する scan 結果だけを束縛し、validate/finalize で再導出可能にする。
+        "live_scan_sha256": _live_scan_sha256(report),
     }
+
+
+def _live_scan_sha256(report: Mapping[str, object]) -> str:
+    semantic = {
+        "match_convention": report.get("match_convention"),
+        "holdouts": report.get("holdouts"),
+        "positive_control": report.get("positive_control"),
+    }
+    return _sha256(_canonical_bytes(semantic))
+
+
+def _rerun_draft_reconstruction(
+    receipt: Mapping[str, object], known: Mapping[str, object],
+    holdout: Mapping[str, object], root: Path,
+) -> None:
+    """stored の自己申告に依存せず draft 時の二つの実走を再現する。"""
+    actual = {
+        "known_axes": _draft_reconstruct_known_axes(known, receipt["source_repins"]),
+        "holdout": _draft_reconstruct_holdout(
+            holdout, receipt["source_repins"], receipt["metadata_fields"], root=root,
+        ),
+    }
+    if actual != receipt["reconstruction"]:
+        raise MigrationError(
+            "receipt.reconstruction_invalid", "stored reconstruction が再実走値と不一致",
+        )
 
 
 def _parse_status_z(raw: bytes) -> Tuple[Tuple[str, str], ...]:
@@ -1195,8 +1339,36 @@ def _worktree_status(root: Path) -> Tuple[Tuple[str, str], ...]:
     return _parse_status_z(raw)
 
 
+def _verify_worktree_basis_files(
+    basis: str, root: Path, *, paths: Optional[Sequence[str]] = None,
+) -> None:
+    """draft が実行する source の現物 bytes/mode を H_mig に直接束縛する。"""
+    if paths is None:
+        paths = (
+            "orchestrator/campaign/s1_known_axes_freeze.py",
+            "orchestrator/campaign/s8b_holdout_freeze.py",
+            *(spec.path for spec in SOURCE_REPIN_SPECS),
+        )
+    for rel in dict.fromkeys(paths):
+        if not _canonical_relative(rel):
+            raise MigrationError("receipt.basis_invalid", f"basis source path が不正: {rel!r}")
+        mode, kind, oid = _tree_entry(basis, rel, root)
+        if kind != "blob" or mode not in {"100644", "100755"}:
+            raise MigrationError("receipt.basis_invalid", f"H_mig source mode/type が不正: {rel}")
+        raw = _read_nofollow(root, rel)
+        if raw != _git(["cat-file", "blob", oid], root):
+            raise MigrationError("receipt.basis_invalid", f"worktree bytes が H_mig blob と不一致: {rel}")
+        try:
+            worktree_mode = (root / rel).lstat().st_mode
+        except OSError as exc:
+            raise MigrationError("receipt.basis_invalid", f"worktree mode を読めない: {rel}") from exc
+        if bool(worktree_mode & 0o111) != (mode == "100755"):
+            raise MigrationError("receipt.basis_invalid", f"worktree executable mode が H_mig と不一致: {rel}")
+
+
 def _capture_draft_basis(basis: str, root: Path) -> str:
     _require_hex(basis, _SHA1_RE, "receipt.basis_invalid", "--basis")
+    _assert_repository_root(root)
     head = _capture_head(root)
     if head != basis:
         raise MigrationError("receipt.basis_invalid", "HEAD と --basis が不一致")
@@ -1205,6 +1377,7 @@ def _capture_draft_basis(basis: str, root: Path) -> str:
     state = inspect_receipt_history(root=root, validation_head=head)
     if state.state != "never-issued":
         raise MigrationError("receipt.invalid", f"draft は never-issued でのみ許可: {state.state}")
+    _verify_worktree_basis_files(basis, root)
     known = _strict_load(_read_nofollow(root, KNOWN_AXES_REL), what="known_axes")
     pin = _require_hex(known.get("ccbench_pin"), _SHA1_RE, "known_axes.schema", "ccbench_pin")
     _verify_ccbench_basis(basis, pin, root)
@@ -1319,16 +1492,7 @@ def draft_receipt(
         "schema_version": SCHEMA_VERSION,
         "migration_id": MIGRATION_ID,
         "migration_basis_commit": basis,
-        "artifacts": {
-            "known_axes": {
-                "path": KNOWN_AXES_REL, "raw_sha256": KNOWN_AXES_RAW_SHA256,
-                "recorded_frozen_at_head": KNOWN_AXES_RECORDED_HEAD,
-            },
-            "holdout": {
-                "path": HOLDOUT_REL, "raw_sha256": HOLDOUT_RAW_SHA256,
-                "recorded_frozen_at_head": HOLDOUT_RECORDED_HEAD,
-            },
-        },
+        "artifacts": _expected_artifacts(),
         "source_repins": repins,
         "metadata_fields": metadata,
         "reconstruction": reconstruction,
@@ -1337,7 +1501,7 @@ def draft_receipt(
         "confirmed_at": None,
     }
     validate_receipt_schema(receipt, confirmation="draft")
-    _verify_reconstruction_static(receipt, known, holdout)
+    _verify_receipt_derivation(receipt, known, holdout, root)
     raw = _canonical_bytes(receipt)
     out_path = root / _repo_relative(Path(out), root)
     try:
@@ -1369,16 +1533,18 @@ def validate_draft(*, path: Path | str = DRAFT_REL, root: Path = ROOT) -> Mappin
     validate_receipt_schema(receipt, confirmation="draft")
     if receipt["migration_basis_commit"] != head:
         raise MigrationError("receipt.basis_invalid", "draft H_mig と current HEAD が不一致")
+    _assert_repository_root(root)
     status = _worktree_status(root)
     if status != (("??", rel),):
         raise MigrationError("receipt.basis_invalid", "dirty は指定 draft 1 file だけでなければならない")
+    _verify_worktree_basis_files(head, root)
     history = inspect_receipt_history(root=root, validation_head=head)
     if history.state != "never-issued":
         raise MigrationError("receipt.invalid", "active receipt が発行済み")
     _, known, _, holdout = _artifact_documents(root)
     _verify_closure(receipt, known, holdout, root)
-    _verify_repin_report_git(receipt, root)
-    _verify_reconstruction_static(receipt, known, holdout)
+    _verify_receipt_derivation(receipt, known, holdout, root)
+    _rerun_draft_reconstruction(receipt, known, holdout, root)
     _assert_receipt_does_not_pollute_scan(root)
     return receipt
 
@@ -1410,14 +1576,20 @@ def finalize_receipt(
 
 def inspect_receipt_history(
     *, root: Path = ROOT, validation_head: Optional[str] = None,
+    check_worktree: bool = True,
 ) -> ReceiptResolution:
     """schema/gate 検査前までの 4 状態機械を実行する。"""
     root = Path(root)
     head = validation_head or _capture_head(root)
     graph = _commit_graph(head, root)
+    # OID 列挙は reachable graph 全体を batch で行い、mode は R 発見後の
+    # descendants にだけ追加照合する。never-issued で commit 数分の
+    # ls-tree を発行しない。
     oids = _blob_oid_by_commit(graph, RECEIPT_REL, root)
     introductions = _introduction_candidates(graph, oids)
-    presence = _worktree_presence(root, RECEIPT_REL)
+    presence = _worktree_presence(root, RECEIPT_REL) if check_worktree else (
+        "regular" if oids.get(head) is not None else "absent"
+    )
     if not introductions:
         if oids.get(head) is None and presence == "absent":
             return ReceiptResolution("never-issued", (), None, head)
@@ -1432,55 +1604,71 @@ def inspect_receipt_history(
         )
     introduction = introductions[0]
     expected_oid = oids[introduction]
-    descendants = _descendants_of(graph, introduction)
-    if any(oids.get(commit) != expected_oid for commit in descendants):
-        return ReceiptResolution(
-            "issued-but-missing", (_format_refusal(RECEIPT_PREFIX, "receipt.history_mutated"),),
-            None, head, introduction,
-        )
-    if any(
-        commit != introduction and _history_touches_path(commit, RECEIPT_REL, root)
-        for commit in descendants
-    ):
-        return ReceiptResolution(
-            "issued-but-missing", (_format_refusal(RECEIPT_PREFIX, "receipt.history_mutated"),),
-            None, head, introduction,
-        )
-    if oids.get(head) != expected_oid or presence != "regular":
-        return ReceiptResolution(
-            "issued-but-missing", (_format_refusal(RECEIPT_PREFIX, "receipt.issued_but_missing"),),
-            None, head, introduction,
-        )
+    assert expected_oid is not None
+    expected_mode, expected_kind, tree_oid = _tree_entry(introduction, RECEIPT_REL, root)
+    if expected_kind != "blob" or tree_oid != expected_oid:
+        raise MigrationError("receipt.history_mutated", "R tree entry が batch OID と不一致")
     try:
-        r_raw = _git(["cat-file", "blob", str(expected_oid)], root)
-        worktree_raw = _read_nofollow(root, RECEIPT_REL)
+        r_raw = _git(["cat-file", "blob", expected_oid], root)
     except MigrationError:
         return ReceiptResolution(
             "issued-but-missing", (_format_refusal(RECEIPT_PREFIX, "receipt.issued_but_missing"),),
             None, head, introduction,
         )
-    if worktree_raw != r_raw:
-        return ReceiptResolution(
-            "issued-but-missing", (_format_refusal(RECEIPT_PREFIX, "receipt.issued_but_missing"),),
-            None, head, introduction,
-        )
+
+    descendants = _descendants_of(graph, introduction)
+    refusals: List[str] = []
+    issued_but_missing = False
+    if any(oids.get(commit) != expected_oid for commit in descendants):
+        _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
+        issued_but_missing = True
+    for commit in descendants:
+        if oids.get(commit) != expected_oid:
+            continue
+        mode, kind, oid = _tree_entry(commit, RECEIPT_REL, root)
+        if (mode, kind, oid) != (expected_mode, "blob", expected_oid):
+            _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
+            issued_but_missing = True
+            break
+    if any(
+        commit != introduction and _history_touches_path(commit, RECEIPT_REL, root)
+        for commit in descendants
+    ):
+        _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
+        issued_but_missing = True
+    if oids.get(head) != expected_oid or presence != "regular":
+        _append_refusal(refusals, RECEIPT_PREFIX, "receipt.issued_but_missing")
+        issued_but_missing = True
+    elif check_worktree:
+        try:
+            worktree_raw = _read_nofollow(root, RECEIPT_REL)
+            if worktree_raw != r_raw:
+                raise MigrationError("receipt.issued_but_missing", "worktree bytes が R blob と不一致")
+        except MigrationError:
+            _append_refusal(refusals, RECEIPT_PREFIX, "receipt.issued_but_missing")
+            issued_but_missing = True
+
+    receipt: Optional[Mapping[str, object]] = None
     try:
         receipt = _load_canonical(r_raw)
         validate_receipt_schema(receipt, confirmation="active")
     except MigrationError as exc:
+        _append_refusal(refusals, RECEIPT_PREFIX, exc.reason, exc.detail)
         return ReceiptResolution(
-            "invalid", (_format_refusal(RECEIPT_PREFIX, exc.reason, exc.detail),),
-            None, head, introduction,
+            "issued-but-missing" if issued_but_missing else "invalid",
+            tuple(refusals), None, head, introduction, None, r_raw,
         )
     try:
         _assert_introduction_topology(introduction, receipt, graph, root)
     except MigrationError as exc:
-        # schema が読める限り、anchor topology 拒否後も closure 等を継続できるよう保持する。
+        _append_refusal(refusals, RECEIPT_PREFIX, exc.reason, exc.detail)
+    if issued_but_missing:
         return ReceiptResolution(
-            "invalid", (_format_refusal(RECEIPT_PREFIX, exc.reason, exc.detail),),
-            None, head, introduction, receipt,
+            "issued-but-missing", tuple(refusals), None, head, introduction, receipt, r_raw,
         )
-    return ReceiptResolution("invalid", (), None, head, introduction, receipt)
+    return ReceiptResolution(
+        "invalid", tuple(refusals), None, head, introduction, receipt, r_raw,
+    )
 
 
 def _validate_positive_control(root: Path) -> None:
@@ -1492,47 +1680,47 @@ def _validate_positive_control(root: Path) -> None:
         raise MigrationError("holdout.positive_control", "positive fixture raw root 不一致")
 
 
-def _verify_live_and_static_documents(
-    receipt: Mapping[str, object], known: Mapping[str, object], holdout: Mapping[str, object], root: Path,
-) -> Mapping[str, object]:
+def _verify_known_schema(
+    receipt: Mapping[str, object], known: Mapping[str, object],
+) -> None:
     from orchestrator.campaign import s1_known_axes_freeze as known_module
-    from orchestrator.campaign import s8b_holdout_freeze as holdout_module
-    projected_known, projected_holdout = _project_documents(receipt, known, holdout)
+    projected_known = copy.deepcopy(known)
+    for record in receipt["source_repins"]:
+        if record["artifact"] == "known_axes":
+            _set_pointer(projected_known, record["json_pointer"], record["migration_blob_sha256"])
     try:
         known_module._validate_schema(projected_known)
     except Exception as exc:
         raise MigrationError("known_axes.schema", str(exc)) from exc
+
+
+def _verify_known_pairing(
+    receipt: Mapping[str, object], known: Mapping[str, object],
+) -> None:
+    from orchestrator.campaign import s1_known_axes_freeze as known_module
+    projected_known = copy.deepcopy(known)
+    for record in receipt["source_repins"]:
+        if record["artifact"] == "known_axes":
+            _set_pointer(projected_known, record["json_pointer"], record["migration_blob_sha256"])
     try:
         known_module.assert_s1b_pairing(projected_known)
     except Exception as exc:
         raise MigrationError("known_axes.pairing", str(exc)) from exc
+
+
+def _verify_holdout_live_scan(root: Path) -> Mapping[str, object]:
+    """holdout 層 2 を公開 scan API だけで再検証する。
+
+    holdout の schema・層 1・binding は凍結 JSON の raw-byte pin によって
+    migration basis 時の検証済み内容が固定される。gate では経時変化する
+    層 2 だけを live に再実行し、legacy verifier や他 module 属性は差し替えない。
+    """
+    from orchestrator.campaign import s8b_holdout_freeze as holdout_module
     report = holdout_module.search_repository(root)
     try:
         holdout_module._assert_search_pass(report)
     except Exception as exc:
         raise MigrationError("holdout.unknownness_layer2", str(exc)) from exc
-    # source/head は H_mig blob classifier の責務。static schema/binding/層1は現行 verifier を使う。
-    with _HOLDOUT_VERIFY_LOCK:
-        original_source = holdout_module._verify_source
-        original_head = holdout_module._verify_head
-        original_search = holdout_module.search_repository
-        holdout_module._verify_source = lambda *_args, **_kwargs: None
-        holdout_module._verify_head = lambda *_args, **_kwargs: None
-        holdout_module.search_repository = lambda *_args, **_kwargs: report
-        try:
-            holdout_module.verify_document(
-                projected_holdout, root=root, current_head=holdout["frozen_at_head"],
-            )
-        except Exception as exc:
-            text = str(exc)
-            reason = "holdout.binding" if "binding" in text else (
-                "holdout.unknownness_layer1" if "unknownness" in text or "zero_hit" in text else "holdout.schema"
-            )
-            raise MigrationError(reason, text) from exc
-        finally:
-            holdout_module._verify_source = original_source
-            holdout_module._verify_head = original_head
-            holdout_module.search_repository = original_search
     return report
 
 
@@ -1577,9 +1765,7 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
         raise MigrationError("receipt.invalid", "verify path は active path 固定")
     head = _capture_head(root)
     history = inspect_receipt_history(root=root, validation_head=head)
-    if history.state in {"never-issued", "issued-but-missing"}:
-        return history
-    if history.receipt is None:
+    if history.state == "never-issued":
         return history
     receipt = history.receipt
     refusals: List[str] = list(history.refusals)
@@ -1606,16 +1792,21 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
         if ancestry.refusal_reason:
             _append_refusal(refusals, prefix, ancestry.refusal_reason)
     checks: List[Callable[[], object]] = [
-        lambda: _validate_repin_report_git(receipt, root),
         lambda: _validate_positive_control(root),
+        lambda: _verify_holdout_live_scan(root),
     ]
     if known is not None:
-        checks.append(lambda: _verify_ccbench_live(receipt, known, root))
-    if known is not None and holdout is not None:
+        checks.append(lambda: _verify_ccbench_current(known, root))
+    if receipt is not None and known is not None:
+        checks.append(lambda: _verify_ccbench_basis_from_receipt(receipt, known, root))
+        checks.append(lambda: _verify_known_closure(receipt, known, root))
+        checks.append(lambda: _verify_known_schema(receipt, known))
+        checks.append(lambda: _verify_known_pairing(receipt, known))
+    if receipt is not None and known is not None and holdout is not None:
         checks.extend((
-            lambda: _verify_closure(receipt, known, holdout, root),
-            lambda: _verify_reconstruction_static(receipt, known, holdout),
-            lambda: _verify_live_and_static_documents(receipt, known, holdout, root),
+            lambda: _verify_holdout_closure(receipt, known, holdout, root),
+            lambda: _verify_metadata_closure(receipt, known, holdout, root),
+            lambda: _verify_receipt_derivation(receipt, known, holdout, root),
         ))
     for check in checks:
         try:
@@ -1627,24 +1818,38 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
             elif exc.reason.startswith("holdout."):
                 prefix = HOLDOUT_PREFIX
             _append_refusal(refusals, prefix, exc.reason, exc.detail)
-    try:
-        receipt_raw = _read_nofollow(root, RECEIPT_REL)
-        observation = _make_observation(receipt, receipt_raw, head, ancestries)
-    except MigrationError as exc:
-        _append_refusal(refusals, RECEIPT_PREFIX, exc.reason, exc.detail)
-        observation = None
-    state = "active-valid" if not refusals else "invalid"
+    observation = None
+    if not refusals and receipt is not None and history.receipt_raw is not None:
+        try:
+            observation = _make_observation(receipt, history.receipt_raw, head, ancestries)
+        except MigrationError as exc:
+            _append_refusal(refusals, RECEIPT_PREFIX, exc.reason, exc.detail)
+    state = "active-valid" if not refusals else (
+        "issued-but-missing" if history.state == "issued-but-missing" else "invalid"
+    )
     if state == "invalid" and not refusals:
         _append_refusal(refusals, RECEIPT_PREFIX, "receipt.invalid")
     return ReceiptResolution(
-        state, tuple(refusals), observation, head, history.introduction_commit, receipt,
+        state, tuple(refusals), observation, head, history.introduction_commit,
+        receipt, history.receipt_raw,
     )
 
 
 def _verify_ccbench_live(receipt: Mapping[str, object], known: Mapping[str, object], root: Path) -> None:
+    _verify_ccbench_current(known, root)
+    _verify_ccbench_basis_from_receipt(receipt, known, root)
+
+
+def _verify_ccbench_current(known: Mapping[str, object], root: Path) -> None:
     pin = str(known.get("ccbench_pin"))
     if _current_ccbench_head(root) != pin:
         raise MigrationError("known_axes.ccbench_current", "current ccbench HEAD が legacy pin と不一致")
+
+
+def _verify_ccbench_basis_from_receipt(
+    receipt: Mapping[str, object], known: Mapping[str, object], root: Path,
+) -> None:
+    pin = str(known.get("ccbench_pin"))
     _verify_ccbench_basis(str(receipt["migration_basis_commit"]), pin, root)
 
 
@@ -1657,7 +1862,7 @@ def static_gate_adapter(
     artifact を渡す。発火条件外では refusal を増やさず legacy verifier へ委譲する。
     """
     if resolution.state != "active-valid" or resolution.receipt is None:
-        return AdapterResult(resolution.refusals, resolution.t080_freeze_migration_observation)
+        return AdapterResult(resolution.refusals, None)
     receipt = resolution.receipt
     known_doc = _strict_load(known_raw, what="known_axes")
     holdout_doc = _strict_load(holdout_raw, what="holdout")
@@ -1669,7 +1874,8 @@ def static_gate_adapter(
         and known_record.get("sha256") == KNOWN_AXES_RAW_SHA256
     )
     if not fires:
-        return AdapterResult(resolution.refusals, resolution.t080_freeze_migration_observation)
+        observation = resolution.t080_freeze_migration_observation if not resolution.refusals else None
+        return AdapterResult(resolution.refusals, observation)
     refusals = list(resolution.refusals)
     checks = (
         (KNOWN_PREFIX, "known_axes.artifact_bytes", _sha256(known_raw) == KNOWN_AXES_RAW_SHA256),
@@ -1680,11 +1886,16 @@ def static_gate_adapter(
             _append_refusal(refusals, prefix, reason)
     # resolution 時にも全検査済みだが、caller が別 raw を渡した場合の closure を再確認する。
     independent = (
-        lambda: _verify_closure(receipt, known_doc, holdout_doc, Path(root)),
+        lambda: _verify_known_closure(receipt, known_doc, Path(root)),
+        lambda: _verify_holdout_closure(receipt, known_doc, holdout_doc, Path(root)),
+        lambda: _verify_metadata_closure(receipt, known_doc, holdout_doc, Path(root)),
         lambda: _verify_reconstruction_static(receipt, known_doc, holdout_doc),
-        lambda: _verify_ccbench_live(receipt, known_doc, Path(root)),
+        lambda: _verify_ccbench_current(known_doc, Path(root)),
+        lambda: _verify_ccbench_basis_from_receipt(receipt, known_doc, Path(root)),
         lambda: _validate_positive_control(Path(root)),
-        lambda: _verify_live_and_static_documents(receipt, known_doc, holdout_doc, Path(root)),
+        lambda: _verify_known_schema(receipt, known_doc),
+        lambda: _verify_known_pairing(receipt, known_doc),
+        lambda: _verify_holdout_live_scan(Path(root)),
     )
     for check in independent:
         try:
@@ -1696,7 +1907,8 @@ def static_gate_adapter(
             elif exc.reason.startswith("holdout."):
                 prefix = HOLDOUT_PREFIX
             _append_refusal(refusals, prefix, exc.reason, exc.detail)
-    return AdapterResult(tuple(refusals), resolution.t080_freeze_migration_observation)
+    observation = resolution.t080_freeze_migration_observation if not refusals else None
+    return AdapterResult(tuple(refusals), observation)
 
 
 def _parser() -> argparse.ArgumentParser:

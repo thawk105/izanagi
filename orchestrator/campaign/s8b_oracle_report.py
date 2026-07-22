@@ -76,6 +76,7 @@ _T080_TOP_KEYS = frozenset({
 _T080_ITEM_KEYS = frozenset({
     "artifact", "kind", "subject", "recorded", "observed", "status",
 })
+_T080_NEVER_KEYS = frozenset({"state", "validation_head"})
 _SHA1_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
@@ -175,8 +176,49 @@ def _canonical_t080_envelope(value: object) -> bytes:
         raise ValueError("canonical bytes に変換できない") from exc
 
 
+def _canonical_t080_never_issued(value: object) -> bytes:
+    if (not isinstance(value, Mapping) or set(value) != _T080_NEVER_KEYS
+            or value.get("state") != "never-issued"
+            or not _t080_hex(value.get("validation_head"), _SHA1_RE)):
+        raise ValueError("never-issued record が不正")
+    return _t080._canonical_bytes(value)
+
+
+def _history_at_validation_head(
+    *, repo_root: Path, validation_head: str,
+) -> "_t080.ReceiptResolution":
+    return _t080.inspect_receipt_history(
+        root=Path(repo_root), validation_head=validation_head, check_worktree=False,
+    )
+
+
+def _expected_historical_envelope(
+    history: "_t080.ReceiptResolution", *, repo_root: Path, validation_head: str,
+) -> Mapping[str, object]:
+    if (history.introduction_commit is None or history.receipt is None
+            or history.receipt_raw is None or history.refusals
+            or history.state == "issued-but-missing"):
+        raise ValueError("validation_head で receipt 履歴が有効でない")
+    ancestries = (
+        _t080._classify_ancestry(
+            _t080.KNOWN_AXES_RECORDED_HEAD, validation_head, Path(repo_root),
+            artifact="known_axes",
+        ),
+        _t080._classify_ancestry(
+            _t080.HOLDOUT_RECORDED_HEAD, validation_head, Path(repo_root),
+            artifact="holdout",
+        ),
+    )
+    if any(item.refusal_reason for item in ancestries):
+        raise ValueError("validation_head で ancestry を再導出できない")
+    return _t080._make_observation(
+        history.receipt, history.receipt_raw, validation_head, ancestries,
+    )
+
+
 def _campaign_t080_observation(
-    records: Sequence[object], *, receipt_active: bool,
+    records: Sequence[object], *, repo_root: Path,
+    current_receipt_invalid: bool,
 ) -> _T080CampaignObservation:
     starts = [record.payload for record in records
               if _session_event(record, "campaign-start")]
@@ -184,17 +226,42 @@ def _campaign_t080_observation(
         return _T080CampaignObservation("unavailable")
     start = starts[0]
     if _T080_KEY not in start:
-        issue = (_t080_reason("active receipt だが campaign-start key が欠落")
-                 if receipt_active else None)
-        return _T080CampaignObservation("absent", issue=issue)
+        # R 導入前の歴史 WAL だけが持つ旧 grammar。WAL 真正性境界の
+        # 残余として許容するが、新規 producer は必ずkeyを書く。
+        return _T080CampaignObservation("absent")
     value = start[_T080_KEY]
     if value is None:
-        issue = (_t080_reason("active receipt だが campaign-start 値が null")
-                 if receipt_active else None)
-        return _T080CampaignObservation("null", issue=issue)
+        return _T080CampaignObservation(
+            "malformed", issue=_t080_reason("bare null は現行 grammar で禁止"),
+        )
+    if isinstance(value, Mapping) and value.get("state") == "never-issued":
+        try:
+            canonical = _canonical_t080_never_issued(value)
+            validation_head = str(value["validation_head"])
+            history = _history_at_validation_head(
+                repo_root=repo_root, validation_head=validation_head,
+            )
+            if history.state != "never-issued":
+                raise ValueError("never-issued だが validation_head の履歴に R が存在する")
+        except (TypeError, ValueError, _t080.MigrationError) as exc:
+            return _T080CampaignObservation(
+                "malformed", issue=_t080_reason(f"invalid never-issued record: {exc}"),
+            )
+        return _T080CampaignObservation("never-issued", canonical, value)
     try:
         canonical = _canonical_t080_envelope(value)
-    except (TypeError, ValueError) as exc:
+        validation_head = str(value["validation_head"])
+        history = _history_at_validation_head(
+            repo_root=repo_root, validation_head=validation_head,
+        )
+        expected = _expected_historical_envelope(
+            history, repo_root=repo_root, validation_head=validation_head,
+        )
+        if canonical != _canonical_t080_envelope(expected):
+            raise ValueError("envelope が R blob/Git 再導出値と不一致")
+        if current_receipt_invalid:
+            raise ValueError("report 生成時の receipt が issued-but-missing/invalid")
+    except (TypeError, ValueError, _t080.MigrationError) as exc:
         return _T080CampaignObservation(
             "malformed", issue=_t080_reason(f"malformed envelope: {exc}"),
         )
@@ -1078,7 +1145,9 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                      manifest_sha: str, allowed_excluded: set[str], output_root: Path,
                      expected_reps: int,
                      manifest_issues: Sequence[str], *,
-                     receipt_active: bool) -> tuple[list[dict], _T080CampaignObservation]:
+                     repo_root: Path,
+                     current_receipt_invalid: bool,
+                     ) -> tuple[list[dict], _T080CampaignObservation]:
     bases = [_base_row(item) for item in rows]
     layout = _resolved_campaign_layout(campaign_id, output_root)
     root = Path(layout.root)
@@ -1094,7 +1163,8 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                  for base in bases], _T080CampaignObservation("unavailable"))
 
     t080_observation = _campaign_t080_observation(
-        records, receipt_active=receipt_active,
+        records, repo_root=repo_root,
+        current_receipt_invalid=current_receipt_invalid,
     )
 
     terminal_protocol_issues = [
@@ -1394,14 +1464,17 @@ def build_observations(
         raise _artifacts.OracleArtifactTypeError(
             "build_observations は OfficialManifest/LegacyManifest exact type のみ受理する")
     try:
-        receipt_resolution = _t080.verify_receipt(root=Path(repo_root))
+        receipt_resolution = _t080.inspect_receipt_history(root=Path(repo_root))
     except _t080.MigrationError as exc:
         raise ReportError(f"T-080 receipt を検証できない: {exc}") from exc
     if receipt_resolution.state not in {
         "never-issued", "active-valid", "issued-but-missing", "invalid",
     }:
         raise ReportError("T-080 receipt state を分類できない")
-    receipt_active = receipt_resolution.state == "active-valid"
+    current_receipt_invalid = (
+        receipt_resolution.state == "issued-but-missing"
+        or (receipt_resolution.state == "invalid" and bool(receipt_resolution.refusals))
+    )
     resolved_output_root = _resolve_official_output_root(Path(output_root))
     manifest_kind = (
         "official" if type(manifest) is _artifacts.OfficialManifest else "legacy"
@@ -1428,7 +1501,8 @@ def build_observations(
                 items, campaign_id, manifest, manifest_sha,
                 allowed_excluded, resolved_output_root,
                 expected_reps, manifest_issues,
-                receipt_active=receipt_active,
+                repo_root=Path(repo_root),
+                current_receipt_invalid=current_receipt_invalid,
             )
             t080_by_campaign[campaign_id] = t080_observation
             for ordinal, row in zip(ordinals, assessed):
@@ -1439,33 +1513,18 @@ def build_observations(
         by_ordinal[ordinal] = base
 
     campaign_observations = list(t080_by_campaign.values())
-    malformed_issues = list(dict.fromkeys(
-        item.issue for item in campaign_observations
-        if item.kind == "malformed" and item.issue is not None
-    ))
-    for issue in malformed_issues:
-        _force_protocol_violation(list(by_ordinal.values()), issue)
-
-    kinds = {item.kind for item in campaign_observations}
-    if "envelope" in kinds and kinds & {"absent", "null"}:
-        _force_protocol_violation(
-            list(by_ordinal.values()),
-            _t080_reason("campaign 間で null/key-absent と object が混在"),
-        )
     canonical_values = {
         item.canonical for item in campaign_observations
-        if item.kind == "envelope" and item.canonical is not None
+        if (item.kind == "envelope" and item.canonical is not None
+            and item.issue is None)
     }
-    if len(canonical_values) > 1:
-        _force_protocol_violation(
-            list(by_ordinal.values()),
-            _t080_reason("campaign 間で canonical envelope が不一致"),
-        )
 
     t080_report_observation = None
     if (campaign_observations
             and all(item.kind == "envelope" for item in campaign_observations)
-            and len(canonical_values) == 1):
+            and all(item.issue is None for item in campaign_observations)
+            and len(canonical_values) == 1
+            and not current_receipt_invalid):
         canonical = next(iter(canonical_values))
         t080_report_observation = json.loads(canonical.decode("utf-8"))
     rows = [by_ordinal[ordinal] for ordinal in range(len(schedule))]

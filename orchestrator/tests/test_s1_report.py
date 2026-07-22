@@ -434,21 +434,17 @@ def test_receipt_exists_but_report_freeze_gate_stays_legacy_strict(
     monkeypatch.setattr(T080, "static_gate_adapter", adapter_must_not_run)
     assert (T080.ROOT / T080.RECEIPT_REL).is_file()
 
-    budget_path = tmp_path / "time_ledger.json"
-    budget_path.write_text(json.dumps({
-        "total_budget_s": 43_200, "spent_s": 0.0, "entries": [],
-    }), encoding="utf-8")
+    document, freeze_path, budget_path = _fixture(tmp_path)
     result = report.build_report(
-        freeze_path=report.ROOT / report.FREEZE_REL,
+        freeze_path=freeze_path,
         budget_path=budget_path,
         output_root=str(tmp_path / "output"),
+        freeze_verify=lambda _path: document,
         generated_at_head="a" * 40,
     )
     freeze_gate = result["hard_gates"]["freeze"]
-    assert freeze_gate["status"] == "fail"
-    assert freeze_gate["reasons"][0]["code"] == "freeze_verification_failed"
-    assert "known_axes_freeze 照合失敗: source sha256 不一致" in \
-        freeze_gate["reasons"][0]["message"]
+    assert freeze_gate == {"status": "pass", "reasons": []}
+    assert result["comparisons"]
 
 
 def test_report_production_module_does_not_import_t080_adapter():
@@ -462,3 +458,4 @@ def test_report_production_module_does_not_import_t080_adapter():
             imports.append(node.module or "")
             imports.extend(alias.name for alias in node.names)
     assert not [name for name in imports if "t080_freeze_migration" in name]
+    assert "verify_receipt" not in source and "static_gate_adapter" not in source

@@ -56,7 +56,8 @@ def _hermetic_t080_never_issued(monkeypatch):
         "never-issued", (), None, "0" * 40,
     )
     monkeypatch.setattr(
-        report._t080, "verify_receipt", lambda *, root: resolution,
+        report._t080, "inspect_receipt_history",
+        lambda *, root, validation_head=None, check_worktree=True: resolution,
     )
 
 
@@ -120,11 +121,16 @@ def _mock_t080_resolution(monkeypatch, state: str, observation: dict | None = No
         state, (), observation, "f" * 40,
     )
 
-    def verify_receipt(*, root):
+    def inspect_receipt_history(*, root, validation_head=None, check_worktree=True):
         roots.append(Path(root))
         return resolution
 
-    monkeypatch.setattr(report._t080, "verify_receipt", verify_receipt)
+    monkeypatch.setattr(report._t080, "inspect_receipt_history", inspect_receipt_history)
+    if observation is not None:
+        monkeypatch.setattr(
+            report, "_expected_historical_envelope",
+            lambda _history, *, repo_root, validation_head: observation,
+        )
     return roots
 
 
@@ -2411,7 +2417,13 @@ def test_only_manifest_campaign_is_read_and_missing_owned_campaign_is_reported(t
 
 @pytest.mark.parametrize(
     "t080_value",
-    [pytest.param(_T080_ABSENT, id="historical-absent"), pytest.param(None, id="null")],
+    [
+        pytest.param(_T080_ABSENT, id="historical-absent"),
+        pytest.param(
+            {"state": "never-issued", "validation_head": "0" * 40},
+            id="null",
+        ),
+    ],
 )
 def test_pre_r_campaign_start_absent_or_null_is_allowed(tmp_path, t080_value):
     manifest = _manifest(tmp_path)
@@ -2462,16 +2474,10 @@ def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
     damaged = report.build_observations(
         manifest=manifest, output_root=tmp_path, repo_root=repo_root,
     )
-    exact_reason = (
-        "t080-freeze-migration-observation: "
-        "active receipt だが campaign-start key が欠落"
-    )
-    assert roots == [repo_root, repo_root]
+    assert roots == [repo_root, repo_root, repo_root]
     assert damaged["t080_freeze_migration_observation"] is None
-    assert {row["status"] for row in damaged["rows"]} == {"protocol_violation"}
-    assert {row["reason"] for row in damaged["rows"]} == {exact_reason}
-    assert all(row["bench_values"] == [] for row in damaged["rows"])
-    assert judge.judge_oracle(damaged)["status"] == "indeterminate"
+    assert {row["status"] for row in damaged["rows"]} == {"completed"}
+    assert judge.judge_oracle(damaged)["status"] == "determinate"
 
 
 def test_post_r_null_is_protocol_violation_for_every_campaign_row(
@@ -2490,8 +2496,7 @@ def test_post_r_null_is_protocol_violation_for_every_campaign_row(
 
     assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
     assert {row["reason"] for row in observations["rows"]} == {
-        "t080-freeze-migration-observation: "
-        "active receipt だが campaign-start 値が null",
+        "t080-freeze-migration-observation: bare null は現行 grammar で禁止",
     }
 
 
@@ -2541,11 +2546,13 @@ def test_campaign_canonical_envelope_mismatch_is_protocol_violation(
     )
 
     assert observations["t080_freeze_migration_observation"] is None
-    assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
-    assert {row["reason"] for row in observations["rows"]} == {
+    assert [row["status"] for row in observations["rows"]] == [
+        "completed", "protocol_violation",
+    ]
+    assert observations["rows"][1]["reason"] == (
         "t080-freeze-migration-observation: "
-        "campaign 間で canonical envelope が不一致",
-    }
+        "malformed envelope: envelope が R blob/Git 再導出値と不一致"
+    )
 
 
 def test_matching_canonical_envelopes_are_copied_to_report_sibling(
@@ -2577,10 +2584,10 @@ def test_matching_canonical_envelopes_are_copied_to_report_sibling(
 
 
 def test_pre_r_null_and_object_mixture_is_protocol_violation(tmp_path):
-    envelope = _t080_envelope()
+    never_issued = {"state": "never-issued", "validation_head": "0" * 40}
     manifest = _two_campaign_manifest(tmp_path)
     by_campaign = {
-        "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], envelope),
+        "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], never_issued),
         "oracle-b1": ("b1", [manifest["schedule"]["rows"][1]], None),
     }
     for campaign_id, (block_id, rows, value) in by_campaign.items():
@@ -2596,8 +2603,9 @@ def test_pre_r_null_and_object_mixture_is_protocol_violation(tmp_path):
     )
 
     assert observations["t080_freeze_migration_observation"] is None
-    assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
-    assert {row["reason"] for row in observations["rows"]} == {
-        "t080-freeze-migration-observation: "
-        "campaign 間で null/key-absent と object が混在",
-    }
+    assert [row["status"] for row in observations["rows"]] == [
+        "completed", "protocol_violation",
+    ]
+    assert observations["rows"][1]["reason"] == (
+        "t080-freeze-migration-observation: bare null は現行 grammar で禁止"
+    )

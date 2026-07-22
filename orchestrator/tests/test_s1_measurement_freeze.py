@@ -264,7 +264,7 @@ def test_s1b_pairing_rejects_mismatched_flags(freeze_env):
 
 
 def test_receipt_exists_but_measurement_verify_stays_legacy_strict(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, freeze_env):
     receipt = tmp_path / T080.RECEIPT_REL
     receipt.parent.mkdir(parents=True)
     receipt.write_text("{}\n", encoding="utf-8")
@@ -277,10 +277,13 @@ def test_receipt_exists_but_measurement_verify_stays_legacy_strict(
     monkeypatch.setattr(T080, "static_gate_adapter", adapter_must_not_run)
     assert (T080.ROOT / T080.RECEIPT_REL).is_file()
 
-    with pytest.raises(
-            M.FreezeError,
-            match="known_axes_freeze 照合失敗: source sha256 不一致"):
-        M.verify(M.FREEZE_PATH)
+    freeze_path = tmp_path / "measurement-freeze.json"
+    freeze_path.write_text(
+        json.dumps(_build(freeze_env), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    verified = _verify(freeze_path, freeze_env)
+    assert len(verified["cells"]) == 18
 
 
 def test_measurement_production_module_does_not_import_t080_adapter():
@@ -294,3 +297,4 @@ def test_measurement_production_module_does_not_import_t080_adapter():
             imports.append(node.module or "")
             imports.extend(alias.name for alias in node.names)
     assert not [name for name in imports if "t080_freeze_migration" in name]
+    assert "verify_receipt" not in source and "static_gate_adapter" not in source

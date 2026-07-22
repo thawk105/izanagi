@@ -54,6 +54,26 @@ CONFIGURATIONS = (
 # p2_2.ENV_TAG と一致する = machine-pin を満たす)。
 V2_ENV_TAG = "linux-baremetal"
 
+_T080_SOURCE_GOLDEN = (
+    ("known_axes", "/entries/balanced/ident_all/sources/3/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
+    ("known_axes", "/entries/balanced/sort_best/sources/5/sha256", "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2"),
+    ("known_axes", "/entries/balanced/sort_best/sources/6/sha256", "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4"),
+    ("known_axes", "/entries/balanced/system_gate/sources/4/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
+    ("known_axes", "/entries/read-heavy/ident_all/sources/3/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
+    ("known_axes", "/entries/read-heavy/sort_best/sources/2/sha256", "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2"),
+    ("known_axes", "/entries/read-heavy/sort_best/sources/3/sha256", "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4"),
+    ("known_axes", "/entries/read-heavy/system_gate/sources/4/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
+    ("known_axes", "/entries/write-heavy/ident_all/sources/3/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
+    ("known_axes", "/entries/write-heavy/sort_best/sources/5/sha256", "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2"),
+    ("known_axes", "/entries/write-heavy/sort_best/sources/6/sha256", "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4"),
+    ("known_axes", "/entries/write-heavy/system_gate/sources/4/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
+    ("holdout", "/design_source/sha256", "1829af7fec4140fedaceae7c35ed5349e6d478e9d688de77a70f3be845a4a27d"),
+)
+_T080_METADATA_GOLDEN = (
+    ("known_axes", "/generator/sha256", "1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0"),
+    ("holdout", "/generator/sha256", "1910fff38edf0e58f5bff221c29660a8f85dd0ed1b5c980234ec1af098584e5f"),
+)
+
 
 def _assert_exact_refusals(actual, expected: set[str]) -> None:
     """refusal 集合の完全一致を要求する。
@@ -97,6 +117,45 @@ def _run_git(root: Path, *args: str) -> str:
         ["git", *args], cwd=root, check=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
     ).stdout.strip()
+
+
+def _independent_t080_receipt_blob(root: Path) -> tuple[str, bytes] | None:
+    commits = _run_git(
+        root, "log", "--reverse", "--format=%H", "--", migration.RECEIPT_REL,
+    ).splitlines()
+    if not commits:
+        return None
+    introduction = commits[0]
+    raw = subprocess.run(
+        ["git", "show", f"{introduction}:{migration.RECEIPT_REL}"],
+        cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout
+    return introduction, raw
+
+
+def _independent_ancestry_item(
+        root: Path, *, artifact: str, recorded: str, validation_head: str) -> dict:
+    kind = subprocess.run(
+        ["git", "cat-file", "-t", recorded], cwd=root,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    if kind.returncode != 0:
+        status, observed = "missing-commit", None
+    else:
+        assert kind.stdout.strip() == "commit"
+        ancestry = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", recorded, validation_head],
+            cwd=root, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        assert ancestry.returncode in {0, 1}
+        status, observed = (
+            ("ancestor", validation_head) if ancestry.returncode == 0
+            else ("not-ancestor", validation_head)
+        )
+    return {
+        "artifact": artifact, "kind": "ancestry", "subject": "/frozen_at_head",
+        "recorded": recorded, "observed": observed, "status": status,
+    }
 
 
 def _t080_receipt_document(basis: str, *, invalid_confirmation: bool = False) -> dict:
@@ -210,6 +269,304 @@ def _t080_repo(tmp_path: Path, *, receipt: str) -> tuple[Path, Path]:
     return root, root / migration.HOLDOUT_REL
 
 
+def _copy_t080_basis_file(root: Path, relative: str) -> None:
+    source = ROOT / relative
+    target = root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+
+
+def _t080_stub_free_e2e_repo(
+        tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
+        extra_r_path: bool = False,
+        ) -> tuple[Path, Path, dict]:
+    """production builder/verifier/gate を一度も stub しない T-080 発行 repo。"""
+    root = tmp_path / "t080-stub-free-e2e"
+    root.mkdir()
+    _run_git(root, "init", "-q")
+    _run_git(root, "config", "user.name", "T080 E2E Human")
+    _run_git(root, "config", "user.email", "t080-e2e@example.invalid")
+
+    known = json.loads((ROOT / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
+    source_paths: set[str] = set()
+
+    def collect(value) -> None:
+        if isinstance(value, dict):
+            if isinstance(value.get("path"), str) and isinstance(value.get("sha256"), str):
+                source_paths.add(value["path"])
+            for child in value.values():
+                collect(child)
+        elif isinstance(value, list):
+            for child in value:
+                collect(child)
+
+    collect(known)
+    required = {
+        migration.KNOWN_AXES_REL,
+        migration.HOLDOUT_REL,
+        "orchestrator/campaign/s1_known_axes_freeze.py",
+        "orchestrator/campaign/s8b_holdout_freeze.py",
+        "docs/phase3-8b-descriptor-design.md",
+        migration.POSITIVE_CONTROL_PATH,
+        *(path for path in source_paths if not path.startswith("external/ccbench/")),
+    }
+    for relative in sorted(required):
+        _copy_t080_basis_file(root, relative)
+
+    _run_git(
+        root, "-c", "protocol.file.allow=always", "submodule", "add", "-q",
+        str(ROOT / migration.CCBENCH_REL), migration.CCBENCH_REL,
+    )
+    _run_git(root / migration.CCBENCH_REL, "checkout", "-q", known["ccbench_pin"])
+    _run_git(root, "add", "-A")
+    _run_git(root, "commit", "-q", "-m", "T080 migration basis", "-m", "AI-Agent: none")
+    basis = _run_git(root, "rev-parse", "HEAD")
+
+    draft = root / migration.DRAFT_REL
+    receipt = root / migration.RECEIPT_REL
+    migration.draft_receipt(basis=basis, out=migration.DRAFT_REL, root=root)
+    migration.validate_draft(path=migration.DRAFT_REL, root=root)
+    document = migration.finalize_receipt(
+        draft=migration.DRAFT_REL,
+        confirmed_by="t080.e2e.human",
+        confirmed_at="2026-07-22T12:34:56Z",
+        out=migration.RECEIPT_REL,
+        root=root,
+    )
+    draft.unlink()
+    _run_git(root, "add", migration.RECEIPT_REL)
+    if extra_r_path:
+        (root / "r-extra.txt").write_text("extra in R\n", encoding="utf-8")
+        _run_git(root, "add", "r-extra.txt")
+    _run_git(
+        root, "commit", "-q", "-m", "activate T080 receipt", "-m", r_trailer,
+    )
+    return root, receipt, document
+
+
+def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
+    root, _receipt_path, document = _t080_stub_free_e2e_repo(tmp_path)
+    assert tuple(
+        (item["artifact"], item["json_pointer"], item["recorded_sha256"])
+        for item in document["source_repins"]
+    ) == _T080_SOURCE_GOLDEN
+    assert tuple(
+        (item["artifact"], item["json_pointer"], item["recorded_sha256"])
+        for item in document["metadata_fields"]
+    ) == _T080_METADATA_GOLDEN
+    resolution = migration.verify_receipt(root=root)
+    assert resolution.state == "active-valid"
+    assert resolution.refusals == ()
+    assert resolution.t080_freeze_migration_observation is not None
+    assert len(resolution.t080_freeze_migration_observation["items"]) == 17
+
+    decision = driver.gate_check(
+        freeze_path=root / migration.HOLDOUT_REL, root=root,
+    )
+    _assert_exact_refusals(decision.refusals, {_FLOOR_REFUSAL, _BUDGET_REFUSAL})
+    assert decision.allowed is False
+    assert decision.t080_freeze_migration_observation is None
+
+    # 同じ R blob/H_v から report が envelope を byte-exact に再導出する。
+    record = dataclasses.make_dataclass(
+        "Record", [("stage", str), ("payload", dict)],
+    )(report_module.SESSION_STAGE, {
+        "event": "campaign-start",
+        "t080_freeze_migration_observation": resolution.t080_freeze_migration_observation,
+    })
+    classified = report_module._campaign_t080_observation(
+        [record], repo_root=root, current_receipt_invalid=False,
+    )
+    assert classified.kind == "envelope" and classified.issue is None
+    assert json.loads(classified.canonical) == resolution.t080_freeze_migration_observation
+
+    (root / migration.RECEIPT_REL).unlink()
+    current = migration.inspect_receipt_history(root=root)
+    assert current.state == "issued-but-missing"
+    invalidated = report_module._campaign_t080_observation(
+        [record], repo_root=root, current_receipt_invalid=True,
+    )
+    assert invalidated.kind == "malformed"
+    assert invalidated.issue == (
+        "t080-freeze-migration-observation: malformed envelope: "
+        "report 生成時の receipt が issued-but-missing/invalid"
+    )
+
+
+@pytest.mark.parametrize(
+    "defect, expected_reason",
+    [
+        ("known-artifact", "known_axes.artifact_bytes"),
+        ("holdout-artifact", "holdout.artifact_bytes"),
+        ("ccbench-current", "known_axes.ccbench_current"),
+        ("unknownness-layer2", "holdout.unknownness_layer2"),
+    ],
+)
+def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
+        tmp_path, defect, expected_reason):
+    root, _receipt_path, _document = _t080_stub_free_e2e_repo(tmp_path)
+    if defect == "known-artifact":
+        path = root / migration.KNOWN_AXES_REL
+        path.write_bytes(path.read_bytes() + b" ")
+    elif defect == "holdout-artifact":
+        path = root / migration.HOLDOUT_REL
+        path.write_bytes(path.read_bytes() + b" ")
+    elif defect == "ccbench-current":
+        submodule = root / migration.CCBENCH_REL
+        tree = _run_git(submodule, "rev-parse", "HEAD^{tree}")
+        commit_env = dict(os.environ)
+        commit_env.update({
+            "GIT_AUTHOR_NAME": "T080 E2E", "GIT_AUTHOR_EMAIL": "t080@example.invalid",
+            "GIT_COMMITTER_NAME": "T080 E2E", "GIT_COMMITTER_EMAIL": "t080@example.invalid",
+        })
+        replacement = subprocess.run(
+            ["git", "commit-tree", tree], cwd=submodule, input="same tree\n",
+            check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=commit_env,
+        ).stdout.strip()
+        _run_git(submodule, "checkout", "-q", replacement)
+    else:
+        (root / "rr80-known.txt").write_text(
+            "ycsb_" + "rratio=8" + "0\n"
+            + "ycsb_" + "zipf_skew=0" + ".9\n"
+            + "ycsb_" + "rmw=" + "0\n",
+            encoding="utf-8",
+        )
+    result = migration.verify_receipt(root=root)
+    assert result.state == "invalid"
+    assert len(result.refusals) == 1, result.refusals
+    assert result.refusals[0].startswith(
+        (migration.KNOWN_PREFIX if expected_reason.startswith("known_axes.")
+         else migration.HOLDOUT_PREFIX)
+        + f": [{expected_reason}]"
+    )
+    assert result.t080_freeze_migration_observation is None
+
+
+def test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5(tmp_path):
+    root, _receipt_path, receipt = _t080_stub_free_e2e_repo(tmp_path)
+    known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
+    holdout = json.loads((root / migration.HOLDOUT_REL).read_text(encoding="utf-8"))
+
+    def exact_reason(call, reason):
+        with pytest.raises(migration.MigrationError) as caught:
+            call()
+        assert caught.value.reason == reason
+
+    bad_known_closure = copy.deepcopy(receipt)
+    bad_known_closure["source_repins"][0]["migration_blob_sha256"] = "0" * 64
+    exact_reason(
+        lambda: migration._verify_known_closure(bad_known_closure, known, root),
+        "known_axes.source_closure",
+    )
+    bad_holdout_closure = copy.deepcopy(receipt)
+    bad_holdout_closure["source_repins"][-1]["migration_blob_sha256"] = "0" * 64
+    exact_reason(
+        lambda: migration._verify_holdout_closure(
+            bad_holdout_closure, known, holdout, root,
+        ),
+        "holdout.design_closure",
+    )
+    bad_metadata = copy.deepcopy(receipt)
+    bad_metadata["metadata_fields"][0]["migration_blob_sha256"] = "0" * 64
+    exact_reason(
+        lambda: migration._verify_metadata_closure(bad_metadata, known, holdout, root),
+        "receipt.repin_invalid",
+    )
+    bad_schema = copy.deepcopy(known)
+    bad_schema["unexpected"] = "tampered"
+    exact_reason(
+        lambda: migration._verify_known_schema(receipt, bad_schema),
+        "known_axes.schema",
+    )
+    bad_pairing = copy.deepcopy(known)
+    bad_pairing["s1b_pairing"] = []
+    exact_reason(
+        lambda: migration._verify_known_pairing(receipt, bad_pairing),
+        "known_axes.pairing",
+    )
+    exact_reason(
+        lambda: migration._verify_ccbench_basis(
+            receipt["migration_basis_commit"], "0" * 40, root,
+        ),
+        "known_axes.ccbench_gitlink",
+    )
+    bad_reconstruction = copy.deepcopy(receipt)
+    bad_reconstruction["reconstruction"]["known_axes"][
+        "projected_document_sha256"
+    ] = "0" * 64
+    exact_reason(
+        lambda: migration._verify_reconstruction_static(
+            bad_reconstruction, known, holdout,
+        ),
+        "receipt.reconstruction_invalid",
+    )
+    positive = root / migration.POSITIVE_CONTROL_PATH
+    original_positive = positive.read_bytes()
+    positive.write_bytes(original_positive + b"tamper")
+    try:
+        exact_reason(
+            lambda: migration._validate_positive_control(root),
+            "holdout.positive_control",
+        )
+    finally:
+        positive.write_bytes(original_positive)
+    blob = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"], cwd=root, input=b"not commit",
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout.decode().strip()
+    ancestry = migration._classify_ancestry(
+        blob, _run_git(root, "rev-parse", "HEAD"), root, artifact="known_axes",
+    )
+    assert ancestry.refusal_reason == "known_axes.ancestry_object_type"
+
+
+@pytest.mark.parametrize(
+    "defect, expected_reason",
+    [
+        ("bad-trailer", "receipt.user_commit_trailer"),
+        ("extra-r-path", "receipt.introduction_diff"),
+        ("modify-revert", "receipt.history_mutated"),
+    ],
+)
+def test_t080_full_valid_history_defects_have_one_baseline_reason_f28(
+        tmp_path, defect, expected_reason):
+    root, receipt_path, _document = _t080_stub_free_e2e_repo(
+        tmp_path,
+        r_trailer=("AI-Agent: codex" if defect == "bad-trailer" else "AI-Agent: none"),
+        extra_r_path=(defect == "extra-r-path"),
+    )
+    if defect == "modify-revert":
+        original = receipt_path.read_bytes()
+        changed = json.loads(original)
+        changed["confirmed_at"] = "2026-07-22T12:34:57Z"
+        receipt_path.write_bytes(migration._canonical_bytes(changed))
+        _run_git(root, "add", migration.RECEIPT_REL)
+        _run_git(root, "commit", "-q", "-m", "modify receipt", "-m", "AI-Agent: none")
+        receipt_path.write_bytes(original)
+        _run_git(root, "add", migration.RECEIPT_REL)
+        _run_git(root, "commit", "-q", "-m", "revert receipt", "-m", "AI-Agent: none")
+    result = migration.verify_receipt(root=root)
+    assert result.state in {"invalid", "issued-but-missing"}
+    assert len(result.refusals) == 1, result.refusals
+    assert result.refusals[0].startswith(
+        f"{migration.RECEIPT_PREFIX}: [{expected_reason}]"
+    )
+    assert result.t080_freeze_migration_observation is None
+
+
+def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(tmp_path):
+    root, receipt_path, _document = _t080_stub_free_e2e_repo(tmp_path)
+    receipt_path.unlink()
+    _run_git(root, "add", "-u", migration.RECEIPT_REL)
+    _run_git(root, "commit", "-q", "-m", "delete receipt", "-m", "AI-Agent: none")
+    basis = _run_git(root, "rev-parse", "HEAD")
+    with pytest.raises(migration.MigrationError) as caught:
+        migration.draft_receipt(basis=basis, out=migration.DRAFT_REL, root=root)
+    assert caught.value.reason == "receipt.invalid"
+    assert "issued-but-missing" in caught.value.detail
+
+
 @contextlib.contextmanager
 def _t080_static_checks_pass():
     """U1 の結線に直交する U0 の重い静的検査だけを合格へ固定する。"""
@@ -217,13 +574,19 @@ def _t080_static_checks_pass():
         migration,
         _validate_repin_report_git=mock.DEFAULT,
         _validate_positive_control=mock.DEFAULT,
-        _verify_ccbench_live=mock.DEFAULT,
-        _verify_closure=mock.DEFAULT,
+        _verify_ccbench_current=mock.DEFAULT,
+        _verify_ccbench_basis_from_receipt=mock.DEFAULT,
+        _verify_known_closure=mock.DEFAULT,
+        _verify_holdout_closure=mock.DEFAULT,
+        _verify_metadata_closure=mock.DEFAULT,
         _verify_reconstruction_static=mock.DEFAULT,
-        _verify_live_and_static_documents=mock.DEFAULT,
+        _verify_receipt_derivation=mock.DEFAULT,
+        _verify_known_schema=mock.DEFAULT,
+        _verify_known_pairing=mock.DEFAULT,
+        _verify_holdout_live_scan=mock.DEFAULT,
     ) as patched:
         for name, mocked in patched.items():
-            mocked.return_value = {} if name == "_verify_live_and_static_documents" else None
+            mocked.return_value = {} if name == "_verify_holdout_live_scan" else None
         yield
 
 
@@ -697,13 +1060,10 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
 
 
 def test_real_freeze_gate_lists_floor_and_budget_null():
-    resolution = migration.verify_receipt(root=ROOT)
-    if resolution.state in {"issued-but-missing", "invalid"}:
-        pytest.fail(f"実 repo の T-080 receipt 状態が受入不能: {resolution.state}")
-
+    independent = _independent_t080_receipt_blob(ROOT)
     decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
     assert not decision.allowed
-    if resolution.state == "never-issued":
+    if independent is None:
         _assert_refusal_reasons(decision.refusals, [
             "holdout-freeze-verify: FreezeError: design_source sha256 不一致: "
             "recorded=",
@@ -714,14 +1074,56 @@ def test_real_freeze_gate_lists_floor_and_budget_null():
         ])
         assert decision.t080_freeze_migration_observation is None
     else:
+        _introduction, raw = independent
+        receipt = json.loads(raw)
+        resolution = migration.verify_receipt(root=ROOT)
+        assert resolution.state == "active-valid", resolution
         _assert_exact_refusals(decision.refusals, {
             _FLOOR_REFUSAL,
             _BUDGET_REFUSAL,
         })
         observation = decision.t080_freeze_migration_observation
-        assert observation is not None
-        assert observation["schema_version"] == migration.OBSERVATION_SCHEMA_VERSION
-        assert len(observation["items"]) == 17
+        assert observation is None
+        actual = resolution.t080_freeze_migration_observation
+        validation_head = _run_git(ROOT, "rev-parse", "HEAD")
+        expected_items = []
+        for record, (artifact, pointer, recorded) in zip(
+                receipt["source_repins"], _T080_SOURCE_GOLDEN):
+            expected_items.append({
+                "artifact": artifact, "kind": "source-repin", "subject": pointer,
+                "recorded": recorded, "observed": record["migration_blob_sha256"],
+                "status": "repinned-to-basis-blob",
+            })
+        for record, (artifact, pointer, recorded) in zip(
+                receipt["metadata_fields"], _T080_METADATA_GOLDEN):
+            expected_items.append({
+                "artifact": artifact, "kind": "generator-metadata", "subject": pointer,
+                "recorded": recorded, "observed": record["migration_blob_sha256"],
+                "status": "metadata-only",
+            })
+        expected_items.extend((
+            _independent_ancestry_item(
+                ROOT, artifact="known_axes",
+                recorded="2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1",
+                validation_head=validation_head,
+            ),
+            _independent_ancestry_item(
+                ROOT, artifact="holdout",
+                recorded="2e20d441aaf7ae267e941ecda09e4b53050943cf",
+                validation_head=validation_head,
+            ),
+        ))
+        assert actual == {
+            "schema_version": "izanagi-t080-freeze-migration-observation/v1",
+            "migration_id": "T-080",
+            "receipt": {
+                "path": "output/t080-migration/legacy-freeze-repin.receipt.json",
+                "raw_sha256": hashlib.sha256(raw).hexdigest(),
+            },
+            "migration_basis_commit": receipt["migration_basis_commit"],
+            "validation_head": validation_head,
+            "items": expected_items,
+        }
 
 
 @pytest.mark.parametrize("receipt_state", ["never-issued", "active-valid", "invalid"])
@@ -762,8 +1164,7 @@ def test_t080_gate_hermetic_primary_states_exact(tmp_path, receipt_state):
         assert decision.t080_freeze_migration_observation is None
     elif receipt_state == "active-valid":
         _assert_exact_refusals(decision.refusals, {_FLOOR_REFUSAL, _BUDGET_REFUSAL})
-        observation = decision.t080_freeze_migration_observation
-        assert observation is not None and len(observation["items"]) == 17
+        assert decision.t080_freeze_migration_observation is None
     else:
         _assert_exact_refusals(decision.refusals, {
             "migration-receipt-verify: [receipt.confirmation_invalid] "
@@ -791,15 +1192,23 @@ def test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate():
             constructors.append(node.name)
     assert constructors == ["_make_gate_decision"]
 
+    assert sum(
+        1 for node in ast.walk(tree)
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id == "GateDecision")
+    ) == 1
+
     run_node = next(
         node for node in tree.body
         if isinstance(node, ast.FunctionDef) and node.name == "run_block"
     )
-    checked = 0
-    for returned in (node for node in ast.walk(run_node) if isinstance(node, ast.Return)):
-        if not isinstance(returned.value, ast.Dict):
-            continue
-        checked += 1
+    categories = []
+    returns = sorted(
+        (node for node in ast.walk(run_node) if isinstance(node, ast.Return)),
+        key=lambda node: node.lineno,
+    )
+    for returned in returns:
+        assert isinstance(returned.value, ast.Dict), returned.lineno
         literal_keys = {
             key.value for key in returned.value.keys
             if isinstance(key, ast.Constant) and isinstance(key.value, str)
@@ -811,8 +1220,28 @@ def test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate():
             and value.func.id == "asdict"
             for key, value in zip(returned.value.keys, returned.value.values)
         )
-        assert via_asdict or "t080_freeze_migration_observation" in literal_keys
-    assert checked >= 3
+        status = next((
+            value.value for key, value in zip(returned.value.keys, returned.value.values)
+            if (isinstance(key, ast.Constant) and key.value == "status"
+                and isinstance(value, ast.Constant))
+        ), None)
+        if via_asdict:
+            assert status == "refused"
+            categories.append("refused-via-gate-decision")
+            continue
+        assert "t080_freeze_migration_observation" in literal_keys
+        t080_value = next(
+            value for key, value in zip(returned.value.keys, returned.value.values)
+            if isinstance(key, ast.Constant)
+            and key.value == "t080_freeze_migration_observation"
+        )
+        assert isinstance(t080_value, ast.Name) and t080_value.id == "t080_campaign_value"
+        categories.append(status or "terminal-status-variable")
+    assert categories == [
+        *("refused-via-gate-decision" for _ in range(12)),
+        "budget_exhausted_before_attempt",
+        "terminal-status-variable",
+    ]
 
 
 @pytest.mark.parametrize("with_observation", [False, True])
@@ -846,9 +1275,14 @@ def test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_r
         )
 
     assert verify_call.call_count == 1
-    assert result["t080_freeze_migration_observation"] == observation
+    expected_campaign_value = (
+        observation if with_observation else {
+            "state": "never-issued", "validation_head": "c" * 40,
+        }
+    )
+    assert result["t080_freeze_migration_observation"] == expected_campaign_value
     start = next(event for event in result["events"] if event["event"] == "campaign-start")
-    assert start["t080_freeze_migration_observation"] == observation
+    assert start["t080_freeze_migration_observation"] == expected_campaign_value
 
 
 def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_path):
@@ -1556,7 +1990,31 @@ def test_tampered_freeze_fails_source_verification(tmp_path):
         _FLOOR_REFUSAL,
         _BUDGET_REFUSAL,
     })
-    assert decision.t080_freeze_migration_observation is not None
+    assert decision.t080_freeze_migration_observation is None
+
+
+def test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7(tmp_path):
+    root = tmp_path / "legacy-generator"
+    generator = root / driver.s8b_holdout_freeze.SCRIPT_REL
+    generator.parent.mkdir(parents=True)
+    generator.write_bytes((ROOT / driver.s8b_holdout_freeze.SCRIPT_REL).read_bytes())
+    recorded = hashlib.sha256(generator.read_bytes()).hexdigest()
+    document = {
+        "generator": {
+            "path": driver.s8b_holdout_freeze.SCRIPT_REL,
+            "sha256": recorded,
+        },
+    }
+    generator.write_bytes(generator.read_bytes() + b"# generator-only-tamper\n")
+    actual = hashlib.sha256(generator.read_bytes()).hexdigest()
+    with pytest.raises(driver.s8b_holdout_freeze.FreezeError) as caught:
+        driver.s8b_holdout_freeze._verify_source(
+            document, "generator", root, driver.s8b_holdout_freeze.SCRIPT_REL,
+        )
+    assert str(caught.value) == (
+        "generator sha256 不一致: "
+        f"recorded={recorded} actual={actual}"
+    )
 
 
 def test_exit_code_priority_table():
@@ -2528,12 +2986,10 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     )
     assert result["status"] == "completed", result
 
-    observations_path = tmp_path / "observations.json"
-    assert report_module.main([
-        "report", "--manifest", str(manifest_path),
-        "--output-root", str(out_root), "--out", str(observations_path),
-    ]) == 0
-    observations = json.loads(observations_path.read_bytes())
+    loaded_manifest = report_module._artifacts.load_official_manifest(manifest_path)
+    observations = report_module.build_observations(
+        manifest=loaded_manifest, output_root=out_root, repo_root=root,
+    )
     assert len(observations["rows"]) == len(document["schedule"]["rows"])
     assert all(row["status"] == "completed" for row in observations["rows"])
     assert all(row["lifecycle_ok"] is True for row in observations["rows"])

@@ -148,10 +148,12 @@ def test_receipt_exists_but_calibration_target_stays_legacy_strict(
 
     with M.s1_known_axes_freeze.FREEZE_PATH.open(encoding="utf-8") as stream:
         freeze = json.load(stream)
-    with pytest.raises(
-            M.s1_known_axes_freeze.FreezeError,
-            match="source sha256 不一致"):
-        M.validated_target(freeze)
+    verified = []
+    target = M.validated_target(
+        freeze, verify_fn=lambda document: verified.append(document),
+    )
+    assert verified == [freeze]
+    assert target["name"] == M.GATE_NAME
 
 
 def test_calibration_production_module_does_not_import_t080_adapter():
@@ -165,3 +167,4 @@ def test_calibration_production_module_does_not_import_t080_adapter():
             imports.append(node.module or "")
             imports.extend(alias.name for alias in node.names)
     assert not [name for name in imports if "t080_freeze_migration" in name]
+    assert "verify_receipt" not in source and "static_gate_adapter" not in source

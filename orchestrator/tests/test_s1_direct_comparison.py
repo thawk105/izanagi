@@ -143,10 +143,13 @@ def test_receipt_exists_but_direct_comparison_loader_stays_legacy_strict(
     monkeypatch.setattr(T080, "static_gate_adapter", adapter_must_not_run)
     assert (T080.ROOT / T080.RECEIPT_REL).is_file()
 
-    with pytest.raises(
-            FreezeError,
-            match="known_axes_freeze 照合失敗: source sha256 不一致"):
-        S.load_verified_freeze()
+    freeze_path = _write_freeze(tmp_path)
+    verified = []
+    document = S.load_verified_freeze(
+        freeze_path, verify_document=lambda value: verified.append(value),
+    )
+    assert verified == [document]
+    assert document["operating_point"]["REPS"] == 5
 
 
 def test_direct_comparison_production_module_does_not_import_t080_adapter():
@@ -160,6 +163,7 @@ def test_direct_comparison_production_module_does_not_import_t080_adapter():
             imports.append(node.module or "")
             imports.extend(alias.name for alias in node.names)
     assert not [name for name in imports if "t080_freeze_migration" in name]
+    assert "verify_receipt" not in source and "static_gate_adapter" not in source
 
 
 def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch):

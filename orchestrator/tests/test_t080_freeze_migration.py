@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import ast
 import hashlib
 import io
 import json
@@ -335,18 +336,103 @@ def _repo_with_schema_valid_receipt(*, extra_path: bool = False, trailer: str = 
 def _patch_full_gate_to_pass():
     names = (
         "_load_artifact", "_validate_repin_report_git", "_validate_positive_control",
-        "_verify_ccbench_live", "_verify_closure", "_verify_reconstruction_static",
-        "_verify_live_and_static_documents",
+        "_verify_ccbench_current", "_verify_ccbench_basis_from_receipt",
+        "_verify_known_closure", "_verify_holdout_closure", "_verify_metadata_closure",
+        "_verify_reconstruction_static",
+        "_verify_receipt_derivation", "_verify_known_schema", "_verify_known_pairing",
+        "_verify_holdout_live_scan",
     )
     original = {name: getattr(migration, name) for name in names}
     migration._load_artifact = lambda *_args, **_kwargs: (b"{}", {})
     migration._validate_repin_report_git = lambda *_args, **_kwargs: None
     migration._validate_positive_control = lambda *_args, **_kwargs: None
-    migration._verify_ccbench_live = lambda *_args, **_kwargs: None
-    migration._verify_closure = lambda *_args, **_kwargs: None
+    migration._verify_ccbench_current = lambda *_args, **_kwargs: None
+    migration._verify_ccbench_basis_from_receipt = lambda *_args, **_kwargs: None
+    migration._verify_known_closure = lambda *_args, **_kwargs: None
+    migration._verify_holdout_closure = lambda *_args, **_kwargs: None
+    migration._verify_metadata_closure = lambda *_args, **_kwargs: None
     migration._verify_reconstruction_static = lambda *_args, **_kwargs: None
-    migration._verify_live_and_static_documents = lambda *_args, **_kwargs: {}
+    migration._verify_receipt_derivation = lambda *_args, **_kwargs: None
+    migration._verify_known_schema = lambda *_args, **_kwargs: None
+    migration._verify_known_pairing = lambda *_args, **_kwargs: None
+    migration._verify_holdout_live_scan = lambda *_args, **_kwargs: {}
     return original
+
+
+def test_production_has_no_cross_module_attribute_assignment_f1():
+    source = Path(migration.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    forbidden = []
+    for node in ast.walk(tree):
+        targets = []
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for target in targets:
+            if isinstance(target, ast.Attribute):
+                owner = target.value
+                if isinstance(owner, ast.Name) and owner.id.endswith("_module"):
+                    forbidden.append((owner.id, target.attr, node.lineno))
+    assert forbidden == []
+    assert "_verify_live_and_static_documents" not in source
+
+
+def test_deterministic_fields_and_reconstruction_rerun_reject_mismatch_f2():
+    receipt = _valid_receipt()
+    expected = {
+        field: copy.deepcopy(receipt[field])
+        for field in ("artifacts", "source_repins", "metadata_fields", "repin_report")
+    }
+    expected["reconstruction"] = {
+        "known_axes": {
+            "projected_document_sha256": "d" * 64,
+            "rebuilt_document_sha256": "d" * 64,
+        },
+        "holdout": {"projected_document_sha256": "e" * 64},
+    }
+    migration._assert_deterministic_fields(receipt, expected)
+    receipt["repin_report"][0]["diff_summary"]["new_line_count"] = 2
+    _expect_reason(
+        lambda: migration._assert_deterministic_fields(receipt, expected),
+        "receipt.derivation_mismatch",
+    )
+
+    stored = {
+        "source_repins": [], "metadata_fields": [],
+        "reconstruction": {
+            "known_axes": {"status": "pass", "projected_document_sha256": "1" * 64,
+                           "rebuilt_document_sha256": "1" * 64},
+            "holdout": {"status": "pass", "projected_document_sha256": "2" * 64,
+                        "live_scan_sha256": "3" * 64},
+        },
+    }
+    originals = migration._draft_reconstruct_known_axes, migration._draft_reconstruct_holdout
+    rerun_known = copy.deepcopy(stored["reconstruction"]["known_axes"])
+    rerun_holdout = copy.deepcopy(stored["reconstruction"]["holdout"])
+    try:
+        migration._draft_reconstruct_known_axes = lambda *_args, **_kwargs: copy.deepcopy(rerun_known)
+        migration._draft_reconstruct_holdout = lambda *_args, **_kwargs: copy.deepcopy(rerun_holdout)
+        migration._rerun_draft_reconstruction(stored, {}, {}, Path("."))
+        stored["reconstruction"]["holdout"]["live_scan_sha256"] = "4" * 64
+        _expect_reason(
+            lambda: migration._rerun_draft_reconstruction(stored, {}, {}, Path(".")),
+            "receipt.reconstruction_invalid",
+        )
+    finally:
+        migration._draft_reconstruct_known_axes, migration._draft_reconstruct_holdout = originals
+
+
+def test_live_scan_evidence_ignores_only_scope_counters_not_acceptance_f2():
+    report = {
+        "match_convention": "m", "search": {"file_count": 1},
+        "holdouts": {"rr80": {"conjunction_hits": []}},
+        "positive_control": {"hit_count": 1},
+    }
+    scope_only = copy.deepcopy(report)
+    scope_only["search"]["file_count"] = 2
+    assert migration._live_scan_sha256(report) == migration._live_scan_sha256(scope_only)
+    acceptance = copy.deepcopy(report)
+    acceptance["holdouts"]["rr80"]["conjunction_hits"] = ["known.txt"]
+    assert migration._live_scan_sha256(report) != migration._live_scan_sha256(acceptance)
 
 
 def _restore_functions(original):
@@ -396,7 +482,7 @@ def test_invalid_r_topology_keeps_independent_ccbench_refusal_j4():
         history = migration.inspect_receipt_history(root=root)
         assert history.state == "invalid" and len(history.refusals) == 1
         assert "receipt.introduction_diff" in history.refusals[0]
-        migration._verify_ccbench_live = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        migration._verify_ccbench_current = lambda *_args, **_kwargs: (_ for _ in ()).throw(
             migration.MigrationError("known_axes.ccbench_current", "mismatch")
         )
         result = migration.verify_receipt(root=root)
@@ -438,7 +524,10 @@ def test_state_modify_then_revert_is_issued_but_missing():
         _commit_all(root, "revert receipt bytes")
         result = migration.inspect_receipt_history(root=root)
         assert result.state == "issued-but-missing"
-        assert len(result.refusals) == 1 and "receipt.history_mutated" in result.refusals[0]
+        assert len(result.refusals) == 2
+        assert "receipt.history_mutated" in result.refusals[0]
+        assert "receipt.schema_invalid" in result.refusals[1]
+        assert result.t080_freeze_migration_observation is None
     finally:
         temp.cleanup()
 
@@ -456,6 +545,72 @@ def test_state_delete_then_readd_same_bytes_is_issued_but_missing():
         assert "multiple_introduction" in result.refusals[0]
     finally:
         temp.cleanup()
+
+
+def test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4():
+    temp, root, _introduction, _raw = _repo_with_receipt()
+    try:
+        path = root / migration.RECEIPT_REL
+        path.chmod(0o755)
+        _commit_all(root, "change receipt mode")
+        result = migration.inspect_receipt_history(root=root)
+        assert result.state == "issued-but-missing"
+        assert any("receipt.history_mutated" in refusal for refusal in result.refusals)
+    finally:
+        temp.cleanup()
+
+    captured = []
+    original = migration._git_text
+    try:
+        migration._git_text = lambda args, _root: captured.append(tuple(args)) or ""
+        assert migration._history_touches_path("a" * 40, migration.RECEIPT_REL, Path(".")) is False
+    finally:
+        migration._git_text = original
+    assert captured and "-m" in captured[0] and "-r" in captured[0]
+
+
+def test_issued_but_missing_continues_independent_checks_and_observation_is_null_f4():
+    temp, root = _repo_with_schema_valid_receipt()
+    original = _patch_full_gate_to_pass()
+    try:
+        (root / migration.RECEIPT_REL).unlink()
+        migration._verify_holdout_live_scan = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            migration.MigrationError("holdout.unknownness_layer2", "hit")
+        )
+        result = migration.verify_receipt(root=root)
+        assert result.state == "issued-but-missing"
+        assert len(result.refusals) == 2
+        assert "receipt.issued_but_missing" in result.refusals[0]
+        assert "holdout.unknownness_layer2" in result.refusals[1]
+        assert result.t080_freeze_migration_observation is None
+        assert result.receipt_raw == migration._canonical_bytes(result.receipt)
+    finally:
+        _restore_functions(original)
+        temp.cleanup()
+
+
+def test_static_adapter_discards_clean_envelope_when_any_check_refuses_f4():
+    known_raw = (migration.ROOT / migration.KNOWN_AXES_REL).read_bytes()
+    holdout_raw = (migration.ROOT / migration.HOLDOUT_REL).read_bytes()
+    receipt = _valid_receipt()
+    resolution = migration.ReceiptResolution(
+        "active-valid", (), {"clean": True}, "a" * 40,
+        receipt=receipt, receipt_raw=migration._canonical_bytes(receipt),
+    )
+    original = _patch_full_gate_to_pass()
+    try:
+        migration._verify_ccbench_current = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            migration.MigrationError("known_axes.ccbench_current", "drift")
+        )
+        result = migration.static_gate_adapter(
+            resolution=resolution, known_raw=known_raw, holdout_raw=holdout_raw,
+            root=migration.ROOT,
+        )
+        assert len(result.refusals) == 1
+        assert "known_axes.ccbench_current" in result.refusals[0]
+        assert result.t080_freeze_migration_observation is None
+    finally:
+        _restore_functions(original)
 
 
 def test_draft_precondition_rejects_head_mismatch_dirty_and_post_r_reissue():
@@ -577,6 +732,36 @@ def test_git_environment_injection_is_removed():
                     os.environ.pop(name, None)
                 else:
                     os.environ[name] = value
+
+
+def test_draft_basis_source_bytes_mode_root_and_git_cache_hardening_f3():
+    with tempfile.TemporaryDirectory(prefix="izanagi_t080_basis_bytes_") as temp:
+        root = Path(temp)
+        _init_repo(root)
+        source = root / "checker.py"
+        source.write_bytes(b"print('basis')\n")
+        basis = _commit_all(root, "add checker")
+        migration._verify_worktree_basis_files(basis, root, paths=("checker.py",))
+
+        source.write_bytes(b"print('tampered')\n")
+        _expect_reason(
+            lambda: migration._verify_worktree_basis_files(basis, root, paths=("checker.py",)),
+            "receipt.basis_invalid",
+        )
+        source.write_bytes(b"print('basis')\n")
+        source.chmod(0o755)
+        _expect_reason(
+            lambda: migration._verify_worktree_basis_files(basis, root, paths=("checker.py",)),
+            "receipt.basis_invalid",
+        )
+
+        child = root / "child"
+        child.mkdir()
+        _expect_reason(lambda: migration._assert_repository_root(child), "receipt.basis_invalid")
+
+    harden = migration._GIT_HARDEN
+    assert "core.fsmonitor=false" in harden
+    assert "core.untrackedCache=false" in harden
 
 
 def test_ccbench_current_and_basis_gitlink_have_independent_reasons_m11_m12():
