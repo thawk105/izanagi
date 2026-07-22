@@ -344,6 +344,8 @@ def _validate_header_schema(record: Mapping) -> None:
         )
     if record.get("record_type") != "run_header" or record.get("seq") != 1:
         raise PredictionRunnerError("journal 最初の record は seq=1 の run_header 必須")
+    if record.get("schema") != JOURNAL_SCHEMA_VERSION:
+        raise PredictionRunnerError("run_header.schema が不正")
     _validate_timestamp(record.get("created_at"), field="run_header.created_at")
     if (not isinstance(record.get("pre_oracle_head"), str)
             or _GIT_SHA_RE.fullmatch(record["pre_oracle_head"]) is None):
@@ -556,6 +558,7 @@ _LAUNCH_BOUND_HEADER_FIELDS = frozenset({
 def resolve_journal_for_launch(
     records: Sequence[Mapping], *, expected_header: Mapping,
     known_cells: frozenset[tuple[str, str]],
+    prediction_rows_by_cell: Mapping[tuple[str, str], Mapping],
 ) -> dict[tuple[str, str], CellStatus]:
     """launch の歴史 blob 射影で journal を検証する。
 
@@ -566,6 +569,8 @@ def resolve_journal_for_launch(
     """
     if set(expected_header) != _LAUNCH_BOUND_HEADER_FIELDS:
         raise PredictionRunnerError("launch journal expected_header の key 集合が不正")
+    if set(prediction_rows_by_cell) != known_cells:
+        raise PredictionRunnerError("launch prediction row の cell 集合が不正")
     if not records:
         raise PredictionRunnerError("journal に必須 run_header がない")
     header = records[0]
@@ -599,7 +604,9 @@ def resolve_journal_for_launch(
             if is_off or cell in claims:
                 raise PredictionRunnerError(f"protocol violation: claim が不正/重複: {cell!r}")
             if (not isinstance(record.get("decision_method"), str)
-                    or not record["decision_method"].strip()):
+                    or not record["decision_method"].strip()
+                    or record["decision_method"]
+                    != prediction_rows_by_cell[cell].get("decision_method")):
                 raise PredictionRunnerError(f"journal[{index}]: claim decision_method 不正")
             claims[cell] = record
         elif record_type == "envelope":
@@ -630,7 +637,11 @@ def resolve_journal_for_launch(
                     or not isinstance(record.get("decision_method"), str)
                     or not record["decision_method"].strip()
                     or not isinstance(record.get("choice_id"), str)
-                    or not record["choice_id"].strip()):
+                    or not record["choice_id"].strip()
+                    or record["decision_method"]
+                    != prediction_rows_by_cell[cell].get("decision_method")
+                    or record["choice_id"]
+                    != prediction_rows_by_cell[cell].get("choice_id")):
                 raise PredictionRunnerError(
                     f"protocol violation: static terminal が不正/重複: {cell!r}"
                 )

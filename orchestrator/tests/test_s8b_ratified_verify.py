@@ -1462,6 +1462,53 @@ def test_selector_exact_exemption_rejects_self_declared_wrong_protocol_sha(tmp_p
     assert caught.value.cause == "selector-declaration-invalid"
 
 
+def test_selector_launch_rejects_wrong_journal_schema_value(tmp_path):
+    """M11: key 集合と他の束縛が正しい journal でも schema 値 drift は拒否する。"""
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(
+        tmp_path, selector_valid_cell=True,
+    )
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    records = [json.loads(line) for line in journal_path.read_text().splitlines()]
+    records[0]["schema"] = "8b-prediction-journal/future"
+    journal_path.write_bytes(B._jsonl_bytes(records))
+    head = B._fixed_commit_all(root, "wrong selector journal schema", "fixture")
+
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-declaration-invalid"
+
+
+@pytest.mark.parametrize(
+    ("record_type", "field", "replacement"),
+    [
+        ("claim", "decision_method", "future-agent-method"),
+        ("static_terminal", "decision_method", "future-static-method"),
+        ("static_terminal", "choice_id", "future-static-choice"),
+    ],
+    ids=("claim-decision-method", "static-decision-method", "static-choice-id"),
+)
+def test_selector_launch_rejects_journal_row_decision_drift(
+        tmp_path, record_type, field, replacement):
+    """M12: 非空で shape-valid な journal 値も封印 prediction row と違えば拒否する。"""
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(
+        tmp_path, selector_valid_cell=True,
+    )
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    records = [json.loads(line) for line in journal_path.read_text().splitlines()]
+    record = next(row for row in records if row["record_type"] == record_type)
+    record[field] = replacement
+    journal_path.write_bytes(B._jsonl_bytes(records))
+    head = B._fixed_commit_all(root, "selector journal row drift", "fixture")
+
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-declaration-invalid"
+
+
 def test_selector_launch_projection_ignores_current_choice_semantics(
         tmp_path, monkeypatch):
     _need_v1()

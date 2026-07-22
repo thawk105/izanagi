@@ -2608,6 +2608,7 @@ def _selector_evidence_exempt_exact(*, head: str, root: Path) -> Dict[str, str]:
         _, _, targets = _selector_freeze._freeze_axes(v1)
         known_cells = frozenset((target, arm) for target in targets
                                 for arm in _selector_freeze.ARMS)
+        row_by_cell = {(row["target_holdout"], row["arm"]): row for row in rows}
         statuses = _prediction_runner.resolve_journal_for_launch(
             records,
             expected_header={
@@ -2618,11 +2619,11 @@ def _selector_evidence_exempt_exact(*, head: str, root: Path) -> Dict[str, str]:
                 "parser_module_sha256": parser_module_sha256,
             },
             known_cells=known_cells,
+            prediction_rows_by_cell=row_by_cell,
         )
     except (RatifiedFreezeError, _prediction_runner.PredictionRunnerError) as exc:
         fail(f"selector journal 検証失敗: {exc}", "selector-declaration-invalid", exc)
 
-    row_by_cell = {(row["target_holdout"], row["arm"]): row for row in rows}
     if set(row_by_cell) != known_cells:
         fail("selector rows の cell 集合が freeze axes と不一致",
              "selector-declaration-invalid")

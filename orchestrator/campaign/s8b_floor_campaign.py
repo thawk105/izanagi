@@ -1401,23 +1401,10 @@ def _floor_preflight_freeze_allowlist(
                 "parser_module_sha256": parser_sha256,
             },
             known_cells=known_cells,
+            prediction_rows_by_cell={
+                (row["target_holdout"], row["arm"]): row for row in rows
+            },
         )
-        # official preflight は seal 時の full verifier lane を維持する。launch ratified
-        # projection と異なり、現在の decision/static 意味定数もここでは照合する。
-        for record in records[1:]:
-            if (record.get("record_type") == "claim"
-                    and record.get("decision_method")
-                    != _selector_freeze.AGENT_DECISION_METHOD):
-                raise _prediction_runner.PredictionRunnerError(
-                    "official journal claim decision_method が不一致"
-                )
-            if record.get("record_type") == "static_terminal" and (
-                record.get("decision_method") != _selector_freeze.STATIC_DECISION_METHOD
-                or record.get("choice_id") != _selector_freeze.STATIC_DEFAULT_CHOICE_ID
-            ):
-                raise _prediction_runner.PredictionRunnerError(
-                    "official journal static terminal が現在意味定数と不一致"
-                )
         # 単位 A の正本 helper が宣言集合と filesystem 集合の双方向 exact を検査する。
         _prediction_runner._assert_selector_run_declarations_from_validated_records(
             root=root, journal=journal, records=records,
