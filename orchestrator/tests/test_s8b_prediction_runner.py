@@ -909,7 +909,9 @@ def test_seal_rejects_tampered_freeze_before_any_claim(tmp_path) -> None:
     v1 freeze 改変はニ層で検出される: 先行 = protocol 再導出時の builder 承認定数照合
     (APPROVED_FREEZE_SHA256)、後段 = seal read-once bytes の v1 trust root 照合
     (verify-use 間 TOCTOU 遮断の冗長ゲート、C2-7)。この fixture は先行層で落ちるため
-    後段単独の検出力の証拠にはならない (変異裏取りは両層同時変異で行う)。"""
+    後段単独の検出力の証拠にはならない (変異裏取りは両層同時変異で行う)。executable は
+    実行可能 fake を使う — 両層とも無効化されたとき preflight でなく封印進行そのもので
+    赤くなる (rc==1 が破れる) 形を保つため。"""
     root, _ = _seal_repo(tmp_path)
     freeze_path = root / "output/s8b-freeze/holdout_freeze.json"
     freeze_path.write_bytes(freeze_path.read_bytes() + b"\n")
@@ -924,7 +926,7 @@ def test_seal_rejects_tampered_freeze_before_any_claim(tmp_path) -> None:
     runner = _SealRunner()
     assert main(
         ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
-        root=root, provider_runner=runner, claude_executable=tmp_path / "absent-claude",
+        root=root, provider_runner=runner, claude_executable=_executable(tmp_path),
         stdout=output, stderr=error,
     ) == 1
     assert "不一致" in error.getvalue()

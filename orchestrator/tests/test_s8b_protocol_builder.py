@@ -328,6 +328,22 @@ def test_freeze_protocol_confirm_flag_is_required(tmp_path):
     assert exc_info.value.code == 2
 
 
+def test_freeze_protocol_non_tty_is_refused_even_with_active_receipt(tmp_path):
+    """isatty 防壁の受理集合検査: receipt が active でも非 tty なら凍結は成立しない。
+
+    CLI の pipe-stdin テストは実 repo で receipt 段より手前に落ちるため、isatty 検査を
+    無効化しても別層拒否で rc が同値になりうる。ここでは他の全前提を成立させた上で
+    isatty だけを False にし、「destination が生まれない」ことを受理集合として固定する
+    (変異 kill の帰属をこのテストが担う)。"""
+    repo = _init_freeze_protocol_repo(tmp_path)
+    with pytest.raises(fc.FloorCampaignError, match="対話 shell"):
+        fc.freeze_protocol(
+            confirm_user_freeze=True, root=repo,
+            isatty_fn=lambda: False, receipt_verify_fn=_active_receipt,
+        )
+    assert not (repo / fc._FLOOR_PROTOCOL_REL).exists()
+
+
 def test_freeze_protocol_cli_rejects_pipe_stdin():
     completed = subprocess.run(
         [
