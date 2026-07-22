@@ -557,6 +557,163 @@ def _derive_swapped_expectations(freeze: Mapping, rows: Sequence[Mapping]) -> li
     ]
 
 
+def _validate_prediction_rows_structure(
+        freeze: Mapping, rows: Any, *, role_file_sha256: str,
+) -> list[dict]:
+    """catalog/payload/raw I/O なしで 6-cell tagged union の形だけを検証する。"""
+    _, derangement, targets = _freeze_axes(freeze)
+    expected_cells = [(target, arm) for target in targets for arm in ARMS]
+    if isinstance(rows, (str, bytes)) or not isinstance(rows, Sequence):
+        raise SelectorFreezeError("rows は配列でなければならない")
+    if len(rows) != len(expected_cells):
+        raise SelectorFreezeError(f"prediction row はちょうど{len(expected_cells)}行必要")
+
+    projected: list[dict] = []
+    observed: set[tuple[str, str]] = set()
+    for index, raw in enumerate(rows):
+        if not isinstance(raw, Mapping) or set(raw) != _ROW_KEYS:
+            keys = set(raw) if isinstance(raw, Mapping) else set()
+            raise SelectorFreezeError(
+                f"rows[{index}] schema 不一致: "
+                f"missing={sorted(_ROW_KEYS - keys)} unknown={sorted(keys - _ROW_KEYS)}"
+            )
+        row = copy.deepcopy(dict(raw))
+        target, arm = row["target_holdout"], row["arm"]
+        if not isinstance(target, str) or not isinstance(arm, str):
+            raise SelectorFreezeError(f"rows[{index}] の target/arm は文字列でなければならない")
+        cell = (target, arm)
+        if cell not in set(expected_cells):
+            raise SelectorFreezeError(f"未知 prediction cell: {cell!r}")
+        if cell in observed:
+            raise SelectorFreezeError(f"prediction cell 重複: {cell!r}")
+        observed.add(cell)
+        expected_source = None if arm == "off" else (
+            target if arm == "on" else derangement[target]
+        )
+        if row["descriptor_source_holdout"] != expected_source:
+            raise SelectorFreezeError(
+                f"rows[{index}].descriptor_source_holdout が freeze axes と不一致"
+            )
+        status = row["status"]
+        if status not in {"valid", "invalid", "missing"}:
+            raise SelectorFreezeError(f"rows[{index}].status が不正")
+
+        if arm == "off":
+            if (row["decision_method"] != STATIC_DECISION_METHOD
+                    or row["input_payload_sha256"] is not None
+                    or status != "valid"
+                    or row["choice_id"] != STATIC_DEFAULT_CHOICE_ID):
+                raise SelectorFreezeError("off row は payload なしの valid static default 固定")
+            if any(row[field] is not None for field in (
+                "rationale", "raw_response_path", "raw_sha256",
+                "parser_error_code", "agent_provenance",
+            )):
+                raise SelectorFreezeError("off row に agent provenance/output を記録してはならない")
+        else:
+            if row["decision_method"] != AGENT_DECISION_METHOD:
+                raise SelectorFreezeError("agent row の decision_method が不正")
+            _sha256_string(
+                row["input_payload_sha256"], field=f"rows[{index}].input_payload_sha256",
+            )
+            if status == "missing":
+                if row["agent_provenance"] is not None:
+                    raise SelectorFreezeError(
+                        "missing agent row の agent_provenance は null 固定"
+                    )
+                if any(row[field] is not None for field in (
+                    "choice_id", "rationale", "raw_response_path", "raw_sha256",
+                    "parser_error_code",
+                )):
+                    raise SelectorFreezeError("missing agent row の result field は null 固定")
+            else:
+                _validate_agent_provenance(
+                    row["agent_provenance"], field=f"rows[{index}].agent_provenance",
+                    role_file_sha256=role_file_sha256,
+                )
+                _nonempty_string(
+                    row["raw_response_path"], field=f"rows[{index}].raw_response_path",
+                )
+                _sha256_string(row["raw_sha256"], field=f"rows[{index}].raw_sha256")
+                if status == "valid":
+                    if row["choice_id"] not in CHOICE_TO_BINDING:
+                        raise SelectorFreezeError("valid agent row の choice_id が不正")
+                    _nonempty_string(row["rationale"], field=f"rows[{index}].rationale")
+                    if row["parser_error_code"] is not None:
+                        raise SelectorFreezeError("valid agent row に parser error がある")
+                else:
+                    if row["choice_id"] is not None or row["rationale"] is not None:
+                        raise SelectorFreezeError("invalid agent row は choice/rationale null 固定")
+                    _nonempty_string(
+                        row["parser_error_code"], field=f"rows[{index}].parser_error_code",
+                    )
+
+        if row["choice_id"] is None:
+            if row["binding_key"] is not None or row["binding_entry_sha256"] is not None:
+                raise SelectorFreezeError("choice null row の binding は null 固定")
+        else:
+            _nonempty_string(row["binding_key"], field=f"rows[{index}].binding_key")
+            _sha256_string(
+                row["binding_entry_sha256"], field=f"rows[{index}].binding_entry_sha256",
+            )
+        projected.append(row)
+
+    if [
+        (row["target_holdout"], row["arm"]) for row in projected
+    ] != expected_cells:
+        raise SelectorFreezeError("prediction rows が freeze axes の canonical 順でない")
+    return projected
+
+
+def _validate_prediction_document(
+        document: Mapping, *, freeze: Mapping, validate_swapped: bool = True,
+) -> tuple[dict, list[dict]]:
+    """prediction object の純構造・文書内 hash・freeze basis を検証する。"""
+    if not isinstance(document, Mapping) or set(document) != _DOCUMENT_KEYS:
+        raise SelectorFreezeError("prediction freeze top-level schema が不一致")
+    projected = copy.deepcopy(dict(document))
+    if projected.get("schema_version") != SCHEMA_VERSION:
+        raise SelectorFreezeError("prediction freeze schema_version が不一致")
+    recorded_body_sha = _sha256_string(projected.get("body_sha256"), field="body_sha256")
+    body = {key: copy.deepcopy(value) for key, value in projected.items()
+            if key != "body_sha256"}
+    if _canonical_sha256(body) != recorded_body_sha:
+        raise SelectorFreezeError("prediction freeze body_sha256 が不一致")
+    if projected.get("selector_basis_sha256") != selector_basis_sha256(freeze):
+        raise SelectorFreezeError("selector_basis_sha256 が holdout freeze と不一致")
+    _, derangement, _ = _freeze_axes(freeze)
+    if projected.get("derangement") != dict(derangement):
+        raise SelectorFreezeError("prediction derangement が holdout freeze と不一致")
+    if projected.get("static_default") != {
+        "rule_version": STATIC_DEFAULT_RULE_VERSION,
+        "choice_id": STATIC_DEFAULT_CHOICE_ID,
+    }:
+        raise SelectorFreezeError("static_default 契約が不一致")
+    _nonempty_string(projected.get("generated_at"), field="generated_at")
+    if (not isinstance(projected.get("pre_oracle_head"), str)
+            or _GIT_SHA_RE.fullmatch(projected["pre_oracle_head"]) is None):
+        raise SelectorFreezeError("pre_oracle_head が不正")
+    sources = _validate_sources(projected.get("sources"))
+    _validate_execution_policy(projected.get("execution_policy"))
+    rows = _validate_prediction_rows_structure(
+        freeze, projected.get("rows"), role_file_sha256=sources["role"]["sha256"],
+    )
+    expected = _derive_swapped_expectations(freeze, rows)
+    if validate_swapped and projected.get("swapped_follow_expectations") != expected:
+        raise SelectorFreezeError("swapped_follow_expectations の再導出結果が不一致")
+    return projected, rows
+
+
+def _validate_prediction_document_bytes(
+        raw: bytes, *, freeze: Mapping, source="selector_predictions.json",
+) -> tuple[dict, list[dict]]:
+    """strict duplicate-key parse 後に純構造 helper を適用する。"""
+    if not isinstance(raw, bytes):
+        raise SelectorFreezeError("prediction freeze raw は bytes 必須")
+    return _validate_prediction_document(
+        _parse_json_object(raw, source=source), freeze=freeze,
+    )
+
+
 def build_prediction_freeze(
     *,
     freeze: Mapping,
@@ -601,47 +758,26 @@ def verify_prediction_freeze(document, *, freeze: Mapping, root=ROOT) -> None:
     commit pin は形式に加え ``root`` の repo での実在を要求し (C2-R4)、
     agent raw 応答は strict parser で再 parse して記録値と照合する (C2-R2)。
     """
-    if not isinstance(document, Mapping) or set(document) != _DOCUMENT_KEYS:
-        raise SelectorFreezeError("prediction freeze top-level schema が不一致")
-    if document.get("schema_version") != SCHEMA_VERSION:
-        raise SelectorFreezeError("prediction freeze schema_version が不一致")
-    recorded_body_sha = _sha256_string(document.get("body_sha256"), field="body_sha256")
-    body = {key: copy.deepcopy(value) for key, value in document.items()
-            if key != "body_sha256"}
-    if _canonical_sha256(body) != recorded_body_sha:
-        raise SelectorFreezeError("prediction freeze body_sha256 が不一致")
-    if document.get("selector_basis_sha256") != selector_basis_sha256(freeze):
-        raise SelectorFreezeError("selector_basis_sha256 が holdout freeze と不一致")
-    _, derangement, _ = _freeze_axes(freeze)
-    if document.get("derangement") != dict(derangement):
-        raise SelectorFreezeError("prediction derangement が holdout freeze と不一致")
-    if document.get("static_default") != {
-        "rule_version": STATIC_DEFAULT_RULE_VERSION,
-        "choice_id": STATIC_DEFAULT_CHOICE_ID,
-    }:
-        raise SelectorFreezeError("static_default 契約が不一致")
-    _nonempty_string(document.get("generated_at"), field="generated_at")
-    if (not isinstance(document.get("pre_oracle_head"), str)
-            or _GIT_SHA_RE.fullmatch(document["pre_oracle_head"]) is None):
-        raise SelectorFreezeError("pre_oracle_head が不正")
-    _verify_commit_pin(
-        document["pre_oracle_head"], repo=Path(root), field="pre_oracle_head",
+    validated, _structural_rows = _validate_prediction_document(
+        document, freeze=freeze, validate_swapped=False,
     )
-    sources = _validate_sources(document.get("sources"))
+    _verify_commit_pin(
+        validated["pre_oracle_head"], repo=Path(root), field="pre_oracle_head",
+    )
+    sources = _validate_sources(validated.get("sources"))
     for name, record in sources.items():
         _verify_file_record(record, root=Path(root), field=f"sources.{name}")
-    _validate_execution_policy(document.get("execution_policy"))
     normalised_rows = _normalise_rows(
-        freeze, document.get("rows"), role_file_sha256=sources["role"]["sha256"],
+        freeze, validated.get("rows"), role_file_sha256=sources["role"]["sha256"],
     )
-    if normalised_rows != document.get("rows"):
+    if normalised_rows != validated.get("rows"):
         raise SelectorFreezeError("prediction rows が canonical trusted 解決結果でない")
     for index, row in enumerate(normalised_rows):
         if row["status"] not in {"valid", "invalid"} or row["arm"] == "off":
             continue
         _reparse_agent_raw(row, root=Path(root), field=f"rows[{index}].raw_response")
     expected = _derive_swapped_expectations(freeze, normalised_rows)
-    if document.get("swapped_follow_expectations") != expected:
+    if validated.get("swapped_follow_expectations") != expected:
         raise SelectorFreezeError("swapped_follow_expectations の再導出結果が不一致")
 
 

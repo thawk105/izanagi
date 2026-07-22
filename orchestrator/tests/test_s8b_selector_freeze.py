@@ -13,6 +13,7 @@ from orchestrator.campaign.s8b_selector_freeze import (
     SELECTOR_BASIS_VERSION,
     SelectorFreezeError,
     _load_v1_freeze,
+    _validate_prediction_document_bytes,
     binding_entry_for_choice,
     build_prediction_freeze,
     build_prediction_jobs,
@@ -494,6 +495,77 @@ def test_verify_binds_role_raw_and_exact_agent_provenance_to_files(tmp_path: Pat
     with pytest.raises(SelectorFreezeError, match="agent_provenance schema"):
         verify_prediction_freeze(
             provenance_document, freeze=freeze, root=provenance_root,
+        )
+
+
+def test_prediction_structure_validation_is_stable_across_live_source_drift(
+        tmp_path: Path, monkeypatch,
+) -> None:
+    freeze = _freeze()
+    head = _fixture_head(tmp_path)
+    document = _document(freeze, root=tmp_path, pre_oracle_head=head)
+    raw = json.dumps(document, ensure_ascii=False).encode("utf-8")
+    monkeypatch.setattr(
+        "orchestrator.campaign.s8b_selector_freeze.build_prediction_jobs",
+        lambda _freeze: (_ for _ in ()).throw(AssertionError("must not build jobs")),
+    )
+    monkeypatch.setattr(
+        "orchestrator.campaign.s8b_selector_freeze.descriptor_for_holdout",
+        lambda _entry: (_ for _ in ()).throw(AssertionError("must not build descriptor")),
+    )
+    monkeypatch.setattr(
+        "orchestrator.campaign.s8b_selector_freeze.parse_selector_output",
+        lambda _raw: (_ for _ in ()).throw(AssertionError("must not parse raw")),
+    )
+    validated, rows = _validate_prediction_document_bytes(
+        raw, freeze=freeze, source="fixture prediction",
+    )
+    assert validated == document
+    assert rows == document["rows"]
+
+    role_path = tmp_path / document["sources"]["role"]["path"]
+    role_path.write_bytes(role_path.read_bytes() + b"\nlive drift\n")
+    validated_after, rows_after = _validate_prediction_document_bytes(
+        raw, freeze=freeze, source="fixture prediction",
+    )
+    assert validated_after == validated
+    assert rows_after == rows
+    with pytest.raises(SelectorFreezeError, match="sources.role.sha256"):
+        verify_prediction_freeze(document, freeze=freeze, root=tmp_path)
+
+
+def test_prediction_structure_does_not_rederive_input_payload_sha(tmp_path: Path) -> None:
+    freeze = _freeze()
+    document = _document(
+        freeze, root=tmp_path, pre_oracle_head=_fixture_head(tmp_path),
+    )
+    row = next(row for row in document["rows"] if row["arm"] != "off")
+    row["input_payload_sha256"] = "0" * 64
+    _rehash(document)
+    raw = json.dumps(document, ensure_ascii=False).encode("utf-8")
+    validated, _rows = _validate_prediction_document_bytes(raw, freeze=freeze)
+    assert next(
+        item for item in validated["rows"]
+        if item["target_holdout"] == row["target_holdout"] and item["arm"] == row["arm"]
+    )["input_payload_sha256"] == "0" * 64
+    with pytest.raises(SelectorFreezeError, match="input_payload_sha256"):
+        verify_prediction_freeze(document, freeze=freeze, root=tmp_path)
+
+
+def test_prediction_structure_validation_rejects_duplicate_keys(tmp_path: Path) -> None:
+    freeze = _freeze()
+    document = _document(
+        freeze, root=tmp_path, pre_oracle_head=_fixture_head(tmp_path),
+    )
+    raw = json.dumps(document, ensure_ascii=False, separators=(",", ":"))
+    duplicated = raw.replace(
+        '"schema_version":',
+        '"schema_version":"duplicate","schema_version":',
+        1,
+    ).encode("utf-8")
+    with pytest.raises(SelectorFreezeError, match="duplicate JSON key"):
+        _validate_prediction_document_bytes(
+            duplicated, freeze=freeze, source="duplicate prediction",
         )
 
 

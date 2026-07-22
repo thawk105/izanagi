@@ -68,6 +68,17 @@ REVOCATION_DIR = "output/s8b-freeze/revocations"
 ACTIVE_DIR = "output/s8b-freeze/active"
 ACTIVE_CANCEL_DIR = "output/s8b-freeze/active-cancellations"
 
+_SELECTOR_PREDICTIONS_PATH = "output/s8b-freeze/selector_predictions.json"
+_SELECTOR_JOURNAL_PATH = "output/s8b-freeze/selector-runs/journal.jsonl"
+_SELECTOR_RUNS_DIR = "output/s8b-freeze/selector-runs"
+_SELECTOR_SOURCE_PATHS = {
+    "holdout_freeze": V1_FREEZE_PATH,
+    "builder": "orchestrator/campaign/s8b_selector_input.py",
+    "role": ".claude/agents/selector-8b.md",
+    "input_schema": "orchestrator/campaign/s8b_selector_catalog.json",
+    "output_schema": "orchestrator/campaign/s8b_selector_output_schema.json",
+}
+
 # path 正規形パーサ (連番飛び・不正 filename を構造的に拒否する)。
 _GEN_RE = re.compile(r"^output/s8b-freeze/holdout_freeze\.v2\.g([1-9][0-9]*)\.json$")
 _APPROVAL_RE = re.compile(r"^output/s8b-freeze/approvals/([0-9a-f]{64})\.json$")
@@ -2412,6 +2423,264 @@ def _assert_no_untracked_symlink(root: Path) -> None:
                 )
 
 
+def _selector_tree_entry(head: str, path: str, root: Path) -> Tuple[str, str] | None:
+    """H:path の exact tree entry を返す。不存在だけ None、曖昧/非 blob は拒否。"""
+    out = _git(["ls-tree", "-z", head, "--", path], root)
+    chunks = [chunk for chunk in out.split(b"\0") if chunk]
+    if not chunks:
+        return None
+    if len(chunks) != 1:
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", f"selector evidence tree entry が一意でない: {path}",
+            cause="selector-evidence-path",
+        )
+    try:
+        meta, sep, actual = chunks[0].decode("utf-8", "strict").partition("\t")
+        mode, typ, oid = meta.split(" ")
+    except (UnicodeError, ValueError) as exc:
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", f"selector evidence tree entry が不正: {path}",
+            cause="selector-evidence-path",
+        ) from exc
+    if not sep or actual != path or typ != "blob":
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", f"selector evidence が exact blob でない: {path}",
+            cause="selector-evidence-path",
+        )
+    return mode, oid
+
+
+def _selector_evidence_exempt_exact(*, head: str, root: Path) -> Dict[str, str]:
+    """H 錨定の selector 証拠鎖を検証し、exact path→H-bytes hash を返す。"""
+    predictions_entry = _selector_tree_entry(head, _SELECTOR_PREDICTIONS_PATH, root)
+    if predictions_entry is None:
+        return {}
+
+    try:
+        from campaign import s8b_prediction_runner as _prediction_runner
+        from campaign import s8b_selector_freeze as _selector_freeze
+    except ImportError as exc:  # pragma: no cover - package installation failure
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid", f"selector verifier を import できない: {exc}",
+            cause="selector-declaration-invalid",
+        ) from exc
+
+    def fail(message: str, cause: str, exc: BaseException | None = None):
+        error = RatifiedFreezeError("scan-exemption-invalid", message, cause=cause)
+        if exc is None:
+            raise error
+        raise error from exc
+
+    def h_blob_100644(path: str) -> bytes:
+        _assert_canonical_relative_path(
+            path, reason="scan-exemption-invalid", label="selector evidence path",
+        )
+        entry = _selector_tree_entry(head, path, root)
+        if entry is None:
+            fail(f"selector evidence が H tree にない: {path}", "selector-evidence-missing")
+        assert entry is not None
+        mode, _oid = entry
+        if mode != "100644":
+            fail(
+                f"selector evidence の H mode が 100644 でない: {path} ({mode})",
+                "selector-evidence-mode",
+            )
+        try:
+            return _blob_bytes(head, path, root)
+        except RatifiedFreezeError as exc:
+            fail(f"selector evidence の H bytes を読めない: {path}",
+                 "selector-evidence-missing", exc)
+
+    exempt: Dict[str, str] = {}
+
+    def add_exempt(path: str, *, declared_sha256: str | None = None) -> bytes:
+        if path in exempt:
+            fail(f"selector evidence path が重複: {path}", "selector-evidence-duplicate")
+        raw = h_blob_100644(path)
+        try:
+            worktree = _read_worktree_nofollow(root, path)
+        except RatifiedFreezeError as exc:
+            fail(
+                f"selector evidence worktree bytes を no-follow で読めない: {path}",
+                "selector-evidence-bytes", exc,
+            )
+        if worktree != raw:
+            fail(
+                f"selector evidence bytes が H/worktree で不一致: {path}",
+                "selector-evidence-bytes",
+            )
+        actual_sha = _sha256_hex(raw)
+        if declared_sha256 is not None and declared_sha256 != actual_sha:
+            fail(
+                f"selector evidence 宣言 sha256 が H bytes と不一致: {path}",
+                "selector-evidence-hash",
+            )
+        exempt[path] = actual_sha
+        return raw
+
+    predictions_raw = add_exempt(_SELECTOR_PREDICTIONS_PATH)
+    try:
+        prediction_document = _selector_freeze._parse_json_object(
+            predictions_raw, source=f"{head}:{_SELECTOR_PREDICTIONS_PATH}",
+        )
+    except _selector_freeze.SelectorFreezeError as exc:
+        fail(f"selector prediction strict parse 失敗: {exc}",
+             "selector-declaration-invalid", exc)
+
+    v1_raw = h_blob_100644(V1_FREEZE_PATH)
+    if _sha256_hex(v1_raw) != V1_FREEZE_SHA256:
+        fail("H tree の v1 freeze bytes が定数と不一致", "selector-declaration-invalid")
+    try:
+        v1 = _strict_load(v1_raw, what="selector basis v1 freeze")
+        prediction_document, rows = _selector_freeze._validate_prediction_document(
+            prediction_document, freeze=v1,
+        )
+    except (RatifiedFreezeError, _selector_freeze.SelectorFreezeError) as exc:
+        fail(f"selector prediction 構造/basis 検証失敗: {exc}",
+             "selector-declaration-invalid", exc)
+
+    pre_oracle_head = prediction_document["pre_oracle_head"]
+    if not _git_ok(["merge-base", "--is-ancestor", pre_oracle_head, head], root):
+        fail(
+            "selector prediction pre_oracle_head が H の ancestor でない",
+            "selector-declaration-invalid",
+        )
+
+    sources = prediction_document["sources"]
+    if set(sources) != set(_SELECTOR_SOURCE_PATHS):
+        fail("selector sources の name 集合が固定集合と不一致",
+             "selector-declaration-invalid")
+    for name, expected_path in _SELECTOR_SOURCE_PATHS.items():
+        record = sources[name]
+        if record["path"] != expected_path:
+            fail(f"selector sources.{name}.path が固定 path と不一致",
+                 "selector-evidence-path")
+        entry = _selector_tree_entry(pre_oracle_head, expected_path, root)
+        if entry is None:
+            fail(
+                f"selector source が pre_oracle_head にない: {expected_path}",
+                "selector-evidence-missing",
+            )
+        assert entry is not None
+        mode, _oid = entry
+        if mode != "100644":
+            fail(
+                f"selector source の pre_oracle_head mode が 100644 でない: {expected_path}",
+                "selector-evidence-mode",
+            )
+        source_raw = _blob_bytes(pre_oracle_head, expected_path, root)
+        if _sha256_hex(source_raw) != record["sha256"]:
+            fail(
+                f"selector sources.{name}.sha256 が pre_oracle_head blob と不一致",
+                "selector-evidence-hash",
+            )
+
+    journal_raw = add_exempt(_SELECTOR_JOURNAL_PATH)
+    try:
+        records = _strict_jsonl(journal_raw)
+        if not records:
+            raise _prediction_runner.PredictionRunnerError("journal が空")
+        header = records[0]
+        _, derangement, targets = _selector_freeze._freeze_axes(v1)
+        known_cells = frozenset((target, arm) for target in targets
+                                for arm in _selector_freeze.ARMS)
+        binding = _prediction_runner.JournalBinding(
+            pre_oracle_head=header.get("pre_oracle_head"),
+            protocol_sha256=header.get("protocol_sha256"),
+            freeze_sha256=header.get("freeze_sha256"),
+            provider_kind=header.get("provider_kind"),
+            role_file_sha256=header.get("role_file_sha256"),
+            parser_module_sha256=header.get("parser_module_sha256"),
+            claude_executable_path=header.get("claude_executable_path"),
+            claude_executable_sha256=header.get("claude_executable_sha256"),
+            known_cells=known_cells,
+        )
+        statuses = _prediction_runner.resolve_journal(records, binding=binding)
+    except (RatifiedFreezeError, _prediction_runner.PredictionRunnerError) as exc:
+        fail(f"selector journal 検証失敗: {exc}", "selector-declaration-invalid", exc)
+    if (binding.pre_oracle_head != pre_oracle_head
+            or binding.freeze_sha256 != V1_FREEZE_SHA256
+            or binding.role_file_sha256 != sources["role"]["sha256"]):
+        fail("selector journal run_header が prediction/V1/source と不一致",
+             "selector-declaration-invalid")
+
+    row_by_cell = {(row["target_holdout"], row["arm"]): row for row in rows}
+    if set(row_by_cell) != known_cells:
+        fail("selector rows の cell 集合が freeze axes と不一致",
+             "selector-declaration-invalid")
+
+    declared_paths = set(exempt)
+    for cell in sorted(known_cells):
+        row = row_by_cell[cell]
+        status = statuses.get(cell)
+        if status is None:
+            fail(f"selector journal に cell がない: {cell!r}",
+                 "selector-declaration-invalid")
+        assert status is not None
+        target, arm = cell
+        if arm == "off":
+            if status.kind != "static" or row["status"] != "valid":
+                fail(f"selector journal/off row が不一致: {cell!r}",
+                     "selector-declaration-invalid")
+            continue
+        claim = status.claim
+        if claim is None:
+            fail(f"selector agent cell に claim がない: {cell!r}",
+                 "selector-declaration-invalid")
+        expected_payload = f"{_SELECTOR_RUNS_DIR}/payload_{target}_{arm}.json"
+        if (claim["payload_path"] != expected_payload
+                or claim["input_payload_sha256"] != row["input_payload_sha256"]):
+            fail(f"selector claim と row/payload path が不一致: {cell!r}",
+                 "selector-declaration-invalid")
+
+        if status.kind == "claimed_missing":
+            if row["status"] != "missing":
+                fail(f"selector missing journal/row が不一致: {cell!r}",
+                     "selector-declaration-invalid")
+        elif status.kind == "resolved":
+            invocation = status.invocation
+            assert invocation is not None
+            expected_raw = f"{_SELECTOR_RUNS_DIR}/raw_{target}_{arm}.txt"
+            if (row["status"] not in {"valid", "invalid"}
+                    or invocation["status"] != row["status"]
+                    or invocation["choice_id"] != row["choice_id"]
+                    or invocation["rationale"] != row["rationale"]
+                    or invocation["parser_error_code"] != row["parser_error_code"]
+                    or invocation["receipt"] != row["agent_provenance"]
+                    or invocation["raw_response_path"] != row["raw_response_path"]
+                    or invocation["raw_sha256"] != row["raw_sha256"]
+                    or row["raw_response_path"] != expected_raw):
+                fail(f"selector invocation と prediction row が不一致: {cell!r}",
+                     "selector-declaration-invalid")
+            if expected_raw in declared_paths:
+                fail(f"selector raw path が重複: {expected_raw}",
+                     "selector-evidence-duplicate")
+            add_exempt(expected_raw, declared_sha256=row["raw_sha256"])
+            declared_paths.add(expected_raw)
+        else:
+            fail(f"selector journal cell status が不正: {cell!r}",
+                 "selector-declaration-invalid")
+
+        envelope = status.envelope
+        if envelope is not None:
+            expected_envelope = f"{_SELECTOR_RUNS_DIR}/envelope_{target}_{arm}.json"
+            if envelope["envelope_path"] != expected_envelope:
+                fail(f"selector envelope path が cell と不一致: {cell!r}",
+                     "selector-evidence-path")
+            if expected_envelope in declared_paths:
+                fail(f"selector envelope path が重複: {expected_envelope}",
+                     "selector-evidence-duplicate")
+            add_exempt(
+                expected_envelope,
+                declared_sha256=envelope["envelope_sha256"],
+            )
+            declared_paths.add(expected_envelope)
+        elif status.kind == "resolved":
+            fail(f"resolved selector cell に envelope 宣言がない: {cell!r}",
+                 "selector-declaration-invalid")
+    return exempt
+
+
 def _active_chain_exempt_exact(
         ratified: RatifiedFreeze, *, head: str, root: Path,
 ) -> Dict[str, str]:
@@ -2466,7 +2735,7 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
 
     reason 優先順は §2.8 固定: (1) 引数型/HEAD、(2) generation==1、(3) path・
     存在・mode・strict parse、(4) semantic、(5) binding、(6) lineage、(7) exact
-    exemption、(8) occurrence/union/full scan。cert raw hit は到達可能性を保つため cert
+    exemption (active-chain + selector evidence)、(8) occurrence/union/full scan。cert raw hit は到達可能性を保つため cert
     schema より先に検査する。
 
     保証境界: cert C の一意導入・非 merge・C<G と closure/floor_source の導入集合
@@ -2775,7 +3044,16 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
 
     # --- 7: verified exact exemption ---
     _assert_no_untracked_symlink(root)
-    exempt_exact = _active_chain_exempt_exact(ratified, head=head, root=root)
+    active_exempt = _active_chain_exempt_exact(ratified, head=head, root=root)
+    selector_exempt = _selector_evidence_exempt_exact(head=head, root=root)
+    overlap = set(active_exempt) & set(selector_exempt)
+    if overlap:
+        raise RatifiedFreezeError(
+            "scan-exemption-invalid",
+            f"active-chain と selector evidence exemption が衝突: {sorted(overlap)}",
+            cause="selector-evidence-duplicate",
+        )
+    exempt_exact = {**active_exempt, **selector_exempt}
 
     # --- 8: occurrence / expected union / full scan ---
     closure_paths = frozenset(path for path, _ in measurement)

@@ -693,6 +693,13 @@ def test_drive_resume_rejects_session_id_already_in_journal(tmp_path) -> None:
     prior_receipt = _provenance(provider.role_file_sha256, "prior")
     prior_receipt["child_id"] = "resumed-session"
     journal.append({
+        "record_type": "envelope",
+        "target_holdout": first_job["target_holdout"],
+        "arm": first_job["arm"],
+        "envelope_path": "artifacts/envelope_rr20_on.json",
+        "envelope_sha256": "a" * 64,
+    })
+    journal.append({
         "record_type": "invocation",
         "target_holdout": first_job["target_holdout"],
         "arm": first_job["arm"],
@@ -743,6 +750,27 @@ def test_claude_headless_rejects_duplicate_envelope_key(tmp_path) -> None:
     provider, payload = _provider_with_raw_runner(tmp_path, _DuplicateRunner())
     with pytest.raises(PredictionRunnerError, match="duplicate key"):
         provider(target_holdout="rr20", arm="on", payload=payload)
+
+
+def test_envelope_is_declared_immediately_before_semantic_validation(tmp_path) -> None:
+    provider, payload = _provider_with_raw_runner(
+        tmp_path,
+        _FakeSubprocessRunner(_envelope(is_error=True)),
+    )
+    declarations = []
+
+    def record(**values):
+        declarations.append(values)
+
+    provider.bind_envelope_recorder(record)
+    with pytest.raises(PredictionRunnerError, match="is_error"):
+        provider(target_holdout="rr20", arm="on", payload=payload)
+    assert len(declarations) == 1
+    declaration = declarations[0]
+    assert declaration["target_holdout"] == "rr20"
+    assert declaration["arm"] == "on"
+    raw = declaration["envelope_path"].read_bytes()
+    assert declaration["envelope_sha256"] == hashlib.sha256(raw).hexdigest()
 
 
 def test_claude_headless_nonzero_and_timeout_are_fail_closed(tmp_path) -> None:
@@ -1265,4 +1293,34 @@ def test_seal_success_runs_four_agents_two_static_and_reloads_destination(tmp_pa
         executable.read_bytes()
     ).hexdigest()
     assert sum(record["record_type"] == "invocation" for record in records) == 4
+    assert sum(record["record_type"] == "envelope" for record in records) == 4
     assert sum(record["record_type"] == "static_terminal" for record in records) == 2
+    assert not (root / "output/s8b-freeze/selector-runs/.lock").exists()
+    for cell in AGENT_CELLS:
+        record_types = [
+            record["record_type"] for record in records
+            if (record.get("target_holdout"), record.get("arm")) == cell
+        ]
+        assert record_types == ["claim", "envelope", "invocation"]
+
+
+def test_seal_rejects_undeclared_selector_run_file_before_success(tmp_path) -> None:
+    root, head = _seal_repo(tmp_path)
+    executable = _executable(tmp_path)
+
+    class _OrphaningRunner(_SealRunner):
+        def __call__(self, argv, **kwargs):
+            result = super().__call__(argv, **kwargs)
+            if len(self.calls) == 1:
+                orphan = root / "output/s8b-freeze/selector-runs/orphan.txt"
+                orphan.write_bytes(b"not declared by any journal record\n")
+            return result
+
+    output = io.StringIO()
+    error = io.StringIO()
+    assert main(
+        ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+        root=root, provider_runner=_OrphaningRunner(), claude_executable=executable,
+        stdout=output, stderr=error,
+    ) == 1
+    assert "宣言集合が実在 file と不一致" in error.getvalue()

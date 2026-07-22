@@ -12,7 +12,7 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import s8b_descriptor, s8b_selector_input  # noqa: E402
+from campaign import s8b_descriptor, s8b_holdout_freeze, s8b_selector_input  # noqa: E402
 
 
 FREEZE_PATH = _HERE.parents[1] / "output/s8b-freeze/holdout_freeze.json"
@@ -83,6 +83,17 @@ def test_payload_recursively_excludes_arm_holdout_binding_and_provenance_names()
     for descriptor in _descriptors():
         payload = s8b_selector_input.build_selector_payload(descriptor)
         assert forbidden.isdisjoint(_all_strings(payload))
+
+
+def test_canonical_selector_payloads_have_no_holdout_conjunction_hit():
+    rendered = {
+        f"payload-{index}.json": _canonical_bytes(
+            s8b_selector_input.build_selector_payload(descriptor)
+        ).decode("utf-8")
+        for index, descriptor in enumerate(_descriptors())
+    }
+    hits = s8b_holdout_freeze.holdout_conjunction_hits(rendered)
+    assert all(not paths for paths in hits.values())
 
 
 def test_payload_validation_is_strict_and_hash_is_canonical():

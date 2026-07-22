@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import datetime as dt
 import hashlib
 import json
@@ -418,7 +419,10 @@ def _jsonl_bytes(records) -> bytes:
     ) + "\n").encode() for record in records)
 
 
-def _prepare_emitter_base(root: Path) -> tuple[dict, str, str, bytes, bytes]:
+def _prepare_emitter_base(
+        root: Path, *, selector_valid_cell: bool = False,
+        selector_extra_files=(), selector_payload_hit: bool = False,
+) -> tuple[dict, str, str, bytes, bytes]:
     _init_fixed_repo(root)
     ccbench_pin = _make_fixed_ccbench(root)
     v1_raw = _REAL_V1.read_bytes()
@@ -437,12 +441,27 @@ def _prepare_emitter_base(root: Path) -> tuple[dict, str, str, bytes, bytes]:
     _write(root, "positive_control.txt", _RR50_PARAMS)
     _write(root, ".gitattributes", b"* -text\n")
     _write(root, "README.md", b"production-emitter fixture\n")
+    for relative in _PREDICTION_SOURCE_PATHS.values():
+        destination = root / relative
+        if destination.exists():
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((Path(_ROOT) / relative).read_bytes())
     # official preflight の prediction 必須化 (protocol → prediction → floor の機構強制)
     # を満たす封印一式を base commit に含める。pre_oracle_head の commit pin は実在
     # commit を要求するため、seed commit を先に切って参照する (namespace clean 検査は
     # untracked の selector 証拠を dirty とみなすので、base の外に置けない)。
     seed = _fixed_commit_all(root, "emitter fixture seed", "fixture")
-    _install_emitter_selector_prediction(root, pre_oracle_head=seed)
+    _install_emitter_selector_prediction(
+        root, pre_oracle_head=seed, production_valid=selector_valid_cell,
+    )
+    for relative, raw in selector_extra_files:
+        _write(root, relative, raw)
+    if selector_payload_hit:
+        payload = root / "output/s8b-freeze/selector-runs/payload_rr20_on.json"
+        if not payload.is_file():
+            raise AssertionError("selector_payload_hit は production valid fixture 専用")
+        payload.write_bytes(_RR80_PARAMS)
     base = _fixed_commit_all(root, "emitter fixture base", "fixture")
     assert _fixed_git(root, "status", "--porcelain") == ""
     return v1, ccbench_pin, base, design_raw, generator_raw
@@ -457,7 +476,9 @@ _PREDICTION_SOURCE_PATHS = {
 }
 
 
-def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) -> None:
+def _install_emitter_selector_prediction(
+        root: Path, *, pre_oracle_head: str, production_valid: bool = False,
+) -> None:
     """official preflight の prediction 必須化を満たす hermetic 封印一式を注入する。
 
     all-missing の 6 行文書 (agent 4 行 = missing・provenance null、off 2 行 = static c06)
@@ -481,20 +502,6 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
     freeze = json.loads(
         (root / _PREDICTION_SOURCE_PATHS["holdout_freeze"]).read_bytes()
     )
-    rows = []
-    for job in SF.build_prediction_jobs(freeze):
-        if job["arm"] == "off":
-            rows.append({
-                **job, "status": "valid", "rationale": None,
-                "raw_response_path": None, "raw_sha256": None,
-                "parser_error_code": None, "agent_provenance": None,
-            })
-        else:
-            rows.append({
-                **job, "status": "missing", "choice_id": None, "rationale": None,
-                "raw_response_path": None, "raw_sha256": None,
-                "parser_error_code": None, "agent_provenance": None,
-            })
     sources = {
         name: {
             "path": rel,
@@ -502,16 +509,6 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
         }
         for name, rel in _PREDICTION_SOURCE_PATHS.items()
     }
-    document = SF.build_prediction_freeze(
-        freeze=freeze, rows=rows, generated_at="2026-07-22T00:00:00+00:00",
-        pre_oracle_head=pre_oracle_head, sources=sources,
-        execution_policy={
-            "attempts_per_agent_cell": 1, "retry": False,
-            "reuse_equal_payload_output": False, "fresh_context": True,
-            "declared_tools": [],
-        },
-    )
-    SF.write_prediction_freeze(predictions_path, document)
     journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
     journal = PR.PredictionJournal(journal_path)
     jobs = SF.build_prediction_jobs(freeze)
@@ -521,7 +518,9 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
         freeze_sha256=hashlib.sha256(
             (root / _PREDICTION_SOURCE_PATHS["holdout_freeze"]).read_bytes()
         ).hexdigest(),
-        provider_kind="emitter-fixture",
+        provider_kind=(
+            PR.PROVIDER_KIND_CLAUDE_HEADLESS if production_valid else "emitter-fixture"
+        ),
         role_file_sha256=sources["role"]["sha256"],
         parser_module_sha256=hashlib.sha256(b"emitter fixture parser").hexdigest(),
         claude_executable_path="/fixture/claude",
@@ -533,8 +532,92 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
     PR.ensure_run_header(
         journal, binding=binding, created_at="2026-07-22T00:00:00+00:00",
     )
+    if production_valid:
+        class FakeEnvelopeRunner:
+            def __init__(self):
+                self.calls = 0
+
+            def __call__(self, argv, **kwargs):
+                self.calls += 1
+                rationale = (
+                    _RR80_PARAMS.decode("utf-8").strip()
+                    if self.calls == 1 else "descriptor と機構を比較した"
+                )
+                raw_result = json.dumps({
+                    "schema_version": "8b-selector-output/v1",
+                    "choice_id": "c01",
+                    "rationale": rationale,
+                }, ensure_ascii=False, separators=(",", ":"))
+                envelope = {
+                    "type": "result", "subtype": "success", "is_error": False,
+                    "num_turns": 1, "permission_denials": [], "result": raw_result,
+                    "session_id": f"emitter-session-{self.calls}",
+                    "modelUsage": {
+                        "claude-opus-fixture": {"inputTokens": 10, "outputTokens": 5},
+                    },
+                    "usage": {"server_tool_use": {"web_search_requests": 0}},
+                    "duration_ms": 1, "duration_api_ms": 1, "total_cost_usd": 0,
+                    "stop_reason": "end_turn", "uuid": f"fixture-{self.calls}",
+                    "errors": [], "structured_output": None, "input_tokens": 10,
+                    "output_tokens": 5, "cache_read_input_tokens": 0,
+                    "future_cli_field": {"unknown": "allowed"},
+                }
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout=json.dumps(
+                        envelope, ensure_ascii=False, separators=(",", ":"),
+                    ).encode("utf-8"),
+                    stderr=b"",
+                )
+
+        provider = PR.ClaudeHeadlessProvider(
+            artifact_root=journal_path.parent,
+            role_file=root / _PREDICTION_SOURCE_PATHS["role"],
+            role_bytes=(root / _PREDICTION_SOURCE_PATHS["role"]).read_bytes(),
+            repository_root=root, executable=sys.executable,
+            runner=FakeEnvelopeRunner(), environ={"HOME": "/fixture/home"},
+        )
+        binding = dataclasses.replace(
+            binding,
+            role_file_sha256=provider.role_file_sha256,
+            claude_executable_path=provider.executable,
+            claude_executable_sha256=provider.executable_sha256,
+        )
+        # header は provider の実測値で作る必要があるため、初期 header を作り直す。
+        journal_path.unlink()
+        journal = PR.PredictionJournal(journal_path)
+        PR.ensure_run_header(
+            journal, binding=binding, created_at="2026-07-22T00:00:00+00:00",
+        )
+        PR.drive_journal(
+            freeze=freeze, journal=journal, artifact_root=journal_path.parent,
+            root=root, binding=binding, provider=provider,
+        )
+        document = PR.materialize_predictions(
+            freeze=freeze, journal=journal, predictions_path=predictions_path,
+            generated_at="2026-07-22T00:10:00+00:00",
+            pre_oracle_head=pre_oracle_head, sources=sources,
+            execution_policy={
+                "attempts_per_agent_cell": 1, "retry": False,
+                "reuse_equal_payload_output": False, "fresh_context": True,
+                "declared_tools": [],
+            }, binding=binding,
+        )
+        (journal_path.parent / ".lock").unlink()
+        PR._assert_selector_run_declarations(
+            root=root, journal=journal, binding=binding,
+        )
+        assert len(document["rows"]) == 6
+        return
+
+    rows = []
     for job in jobs:
         if job["arm"] == "off":
+            rows.append({
+                **job, "status": "valid", "rationale": None,
+                "raw_response_path": None, "raw_sha256": None,
+                "parser_error_code": None, "agent_provenance": None,
+            })
             journal.append({
                 "record_type": "static_terminal",
                 "target_holdout": job["target_holdout"],
@@ -543,6 +626,11 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
                 "choice_id": job["choice_id"],
             })
             continue
+        rows.append({
+            **job, "status": "missing", "choice_id": None, "rationale": None,
+            "raw_response_path": None, "raw_sha256": None,
+            "parser_error_code": None, "agent_provenance": None,
+        })
         journal.append({
             "record_type": "claim",
             "target_holdout": job["target_holdout"],
@@ -555,6 +643,16 @@ def _install_emitter_selector_prediction(root: Path, *, pre_oracle_head: str) ->
             ),
             "claimed_at": "2026-07-22T00:01:00+00:00",
         })
+    document = SF.build_prediction_freeze(
+        freeze=freeze, rows=rows, generated_at="2026-07-22T00:00:00+00:00",
+        pre_oracle_head=pre_oracle_head, sources=sources,
+        execution_policy={
+            "attempts_per_agent_cell": 1, "retry": False,
+            "reuse_equal_payload_output": False, "fresh_context": True,
+            "declared_tools": [],
+        },
+    )
+    SF.write_prediction_freeze(predictions_path, document)
     records = journal.read_records()
     assert sum(record["record_type"] == "run_header" for record in records) == 1
     assert sum(record["record_type"] == "claim" for record in records) == 4
@@ -581,7 +679,9 @@ def _emitter_artifact_paths(run_dir: Path, root: Path) -> dict[str, str]:
 def build_production_emitter_g1(
         tmp_path: Path, *, mutate=None, mutate_g1=None, extra_closure=None,
         journal_manifest_before_g=False, executable_role=None,
-        cert_at_generation=False, generation_strings_escaped=False, now=_FIXED_NOW):
+        cert_at_generation=False, generation_strings_escaped=False, now=_FIXED_NOW,
+        selector_valid_cell=False, selector_extra_files=(),
+        selector_payload_hit=False):
     """決定的観測下の production-emitter bytes で base→C→G→A を構築する。
 
     build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
@@ -590,7 +690,11 @@ def build_production_emitter_g1(
     manifest/journal/result は parse 後の content 級 fixture として扱う。
     """
     root = tmp_path / "repo"
-    v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(root)
+    v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(
+        root, selector_valid_cell=selector_valid_cell,
+        selector_extra_files=selector_extra_files,
+        selector_payload_hit=selector_payload_hit,
+    )
     protocol = _emitter_protocol(ccbench_pin=ccbench_pin)
     verified = VerifiedFreeze(document=v1, sha256=M.V1_FREEZE_SHA256)
     out_root = root / "output"

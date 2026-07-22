@@ -72,7 +72,7 @@ CLAUDE_TIMEOUT_S = 1200
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _GIT_SHA_RE = re.compile(r"[0-9a-f]{40}")
-_CELL_RECORD_TYPES = {"claim", "invocation", "static_terminal"}
+_CELL_RECORD_TYPES = {"claim", "envelope", "invocation", "static_terminal"}
 _HEADER_KEYS = {
     "record_type", "seq", "schema", "pre_oracle_head", "protocol_sha256",
     "freeze_sha256", "provider_kind", "role_file_sha256", "parser_module_sha256",
@@ -85,6 +85,10 @@ _CLAIM_KEYS = {
 _INVOCATION_KEYS = {
     "record_type", "seq", "target_holdout", "arm", "status", "choice_id",
     "rationale", "parser_error_code", "raw_response_path", "raw_sha256", "receipt",
+}
+_ENVELOPE_KEYS = {
+    "record_type", "seq", "target_holdout", "arm",
+    "envelope_path", "envelope_sha256",
 }
 _STATIC_KEYS = {
     "record_type", "seq", "target_holdout", "arm", "decision_method", "choice_id",
@@ -193,6 +197,7 @@ class CellStatus:
     arm: str
     kind: str
     claim: Mapping[str, Any] | None = None
+    envelope: Mapping[str, Any] | None = None
     invocation: Mapping[str, Any] | None = None
     static: Mapping[str, Any] | None = None
 
@@ -405,6 +410,7 @@ def _validate_record_shape(record: Mapping, *, index: int) -> str:
         raise PredictionRunnerError(f"journal[{index}] の record_type が不正: {rt!r}")
     expected = {
         "claim": _CLAIM_KEYS,
+        "envelope": _ENVELOPE_KEYS,
         "invocation": _INVOCATION_KEYS,
         "static_terminal": _STATIC_KEYS,
     }[rt]
@@ -435,6 +441,7 @@ def resolve_journal(
             )
 
     claims: dict[tuple[str, str], Mapping] = {}
+    envelopes: dict[tuple[str, str], Mapping] = {}
     invocations: dict[tuple[str, str], Mapping] = {}
     statics: dict[tuple[str, str], Mapping] = {}
     for index, record in enumerate(records[1:], start=1):
@@ -453,11 +460,40 @@ def resolve_journal(
             if record.get("decision_method") != AGENT_DECISION_METHOD:
                 raise PredictionRunnerError(f"journal[{index}]: claim decision_method 不正")
             claims[cell] = record
+        elif rt == "envelope":
+            if arm not in AGENT_ARMS:
+                raise PredictionRunnerError(
+                    f"journal[{index}]: envelope は agent arm 専用: {cell!r}"
+                )
+            if cell not in claims:
+                raise PredictionRunnerError(
+                    f"protocol violation: claim なき envelope: {cell!r}"
+                )
+            if cell in envelopes:
+                raise PredictionRunnerError(
+                    f"protocol violation: 二重 envelope 宣言: {cell!r}"
+                )
+            if cell in invocations:
+                raise PredictionRunnerError(
+                    f"protocol violation: invocation 後の envelope 宣言: {cell!r}"
+                )
+            if (not isinstance(record.get("envelope_path"), str)
+                    or not record["envelope_path"]
+                    or not isinstance(record.get("envelope_sha256"), str)
+                    or _SHA256_RE.fullmatch(record["envelope_sha256"]) is None):
+                raise PredictionRunnerError(
+                    f"journal[{index}]: envelope path/sha256 が不正"
+                )
+            envelopes[cell] = record
         elif rt == "invocation":
             if cell not in claims:
                 raise PredictionRunnerError(f"protocol violation: claim なき invocation: {cell!r}")
             if cell in invocations:
                 raise PredictionRunnerError(f"protocol violation: 二重 invocation: {cell!r}")
+            if binding.provider_kind == PROVIDER_KIND_CLAUDE_HEADLESS and cell not in envelopes:
+                raise PredictionRunnerError(
+                    f"protocol violation: envelope 宣言なき invocation: {cell!r}"
+                )
             invocations[cell] = record
         else:
             if arm != OFF_ARM:
@@ -480,10 +516,14 @@ def resolve_journal(
     for cell, claim in claims.items():
         invocation = invocations.get(cell)
         if invocation is None:
-            statuses[cell] = CellStatus(cell[0], cell[1], "claimed_missing", claim=claim)
+            statuses[cell] = CellStatus(
+                cell[0], cell[1], "claimed_missing", claim=claim,
+                envelope=envelopes.get(cell),
+            )
         else:
             statuses[cell] = CellStatus(
-                cell[0], cell[1], "resolved", claim=claim, invocation=invocation,
+                cell[0], cell[1], "resolved", claim=claim,
+                envelope=envelopes.get(cell), invocation=invocation,
             )
     return statuses
 
@@ -624,6 +664,24 @@ def drive_journal(
             raise PredictionRunnerError("provider kind が run_header と不一致")
         if role_sha is not None and role_sha != binding.role_file_sha256:
             raise PredictionRunnerError("provider role sha が run_header と不一致")
+        bind_envelope_recorder = getattr(provider, "bind_envelope_recorder", None)
+        if bind_envelope_recorder is not None:
+            if not callable(bind_envelope_recorder):
+                raise PredictionRunnerError("provider envelope recorder seam が callable でない")
+
+            def record_envelope(
+                    *, target_holdout: str, arm: str, envelope_path: Path,
+                    envelope_sha256: str,
+            ) -> None:
+                journal.append({
+                    "record_type": "envelope",
+                    "target_holdout": target_holdout,
+                    "arm": arm,
+                    "envelope_path": _relative_artifact(envelope_path, root=root),
+                    "envelope_sha256": envelope_sha256,
+                })
+
+            bind_envelope_recorder(record_envelope)
         seed_session_ids = getattr(provider, "seed_observed_session_ids", None)
         if seed_session_ids is not None:
             if not callable(seed_session_ids):
@@ -901,6 +959,7 @@ class ClaudeHeadlessProvider:
         if "HOME" not in self.env:
             raise PredictionRunnerError("claude 認証に必要な HOME が allowlist env にない")
         self._runner = runner
+        self._envelope_recorder: Callable[..., None] | None = None
         self.argv = [
             self.executable,
             "-p",
@@ -915,6 +974,12 @@ class ClaudeHeadlessProvider:
             "--mcp-config", str(self.mcp_config_path),
             "--no-session-persistence",
         ]
+
+    def bind_envelope_recorder(self, recorder: Callable[..., None]) -> None:
+        """drive の journal 追記 seam を束縛する (direct leaf 呼出しでは任意)。"""
+        if not callable(recorder):
+            raise PredictionRunnerError("envelope recorder は callable 必須")
+        self._envelope_recorder = recorder
 
     def seed_observed_session_ids(self, session_ids: set[str]) -> None:
         """resume 前の journal に durable 記録済みの session_id を観測集合へ復元する。"""
@@ -961,7 +1026,14 @@ class ClaudeHeadlessProvider:
         if not isinstance(stdout, bytes):
             raise PredictionRunnerError("claude envelope stdout は bytes 必須")
         envelope_path = self.artifact_root / f"envelope_{target_holdout}_{arm}.json"
-        _write_bytes_bound(envelope_path, stdout)
+        envelope_sha256 = _write_bytes_bound(envelope_path, stdout)
+        if self._envelope_recorder is not None:
+            self._envelope_recorder(
+                target_holdout=target_holdout,
+                arm=arm,
+                envelope_path=envelope_path,
+                envelope_sha256=envelope_sha256,
+            )
         if getattr(completed, "returncode", None) != 0:
             raise PredictionRunnerError(
                 f"claude headless invocation nonzero rc: {getattr(completed, 'returncode', None)!r}"
@@ -1080,6 +1152,82 @@ def _assert_seal_worktree_clean(root: Path) -> None:
             raise PredictionRunnerError("seal は selector-runs 外の clean worktree 必須")
 
 
+def _assert_selector_run_declarations(
+        *, root: Path, journal: PredictionJournal, binding: JournalBinding,
+) -> None:
+    """selector-runs の実在 file と journal 宣言を双方向 exact で照合する。"""
+    records = journal.read_records()
+    resolve_journal(records, binding=binding)
+    selector_root = journal.path.parent
+    journal_rel = _relative_artifact(journal.path, root=root)
+    declared: dict[str, str | None] = {journal_rel: None}
+
+    def declare(path: str, sha256: str) -> None:
+        if path in declared:
+            raise PredictionRunnerError(f"selector-runs 宣言 path が重複: {path}")
+        declared[path] = sha256
+
+    for record in records:
+        record_type = record.get("record_type")
+        target = record.get("target_holdout")
+        arm = record.get("arm")
+        if record_type == "claim":
+            expected = (
+                f"{_JOURNAL_PATH.parent.as_posix()}/payload_{target}_{arm}.json"
+            )
+            if record["payload_path"] != expected:
+                raise PredictionRunnerError("selector-runs payload 宣言 path が cell と不一致")
+            declare(record["payload_path"], record["input_payload_sha256"])
+        elif record_type == "invocation":
+            expected = f"{_JOURNAL_PATH.parent.as_posix()}/raw_{target}_{arm}.txt"
+            if record["raw_response_path"] != expected:
+                raise PredictionRunnerError("selector-runs raw 宣言 path が cell と不一致")
+            declare(record["raw_response_path"], record["raw_sha256"])
+        elif record_type == "envelope":
+            expected = (
+                f"{_JOURNAL_PATH.parent.as_posix()}/envelope_{target}_{arm}.json"
+            )
+            if record["envelope_path"] != expected:
+                raise PredictionRunnerError("selector-runs envelope 宣言 path が cell と不一致")
+            declare(record["envelope_path"], record["envelope_sha256"])
+
+    actual: set[str] = set()
+    try:
+        entries = list(selector_root.iterdir())
+    except OSError as exc:
+        raise PredictionRunnerError(f"selector-runs を列挙できない: {exc}") from exc
+    for entry in entries:
+        try:
+            st = entry.lstat()
+        except OSError as exc:
+            raise PredictionRunnerError(f"selector-runs entry を lstat できない: {entry}") from exc
+        if entry.is_symlink() or not entry.is_file():
+            raise PredictionRunnerError(
+                f"selector-runs に通常 file でない entry がある: {entry}"
+            )
+        actual.add(_relative_artifact(entry, root=root))
+    missing = set(declared) - actual
+    undeclared = actual - set(declared)
+    if missing or undeclared:
+        raise PredictionRunnerError(
+            "selector-runs 宣言集合が実在 file と不一致: "
+            f"missing={sorted(missing)} undeclared={sorted(undeclared)}"
+        )
+    for relative, expected_sha256 in declared.items():
+        if expected_sha256 is None:
+            continue
+        try:
+            raw = (root / relative).read_bytes()
+        except OSError as exc:
+            raise PredictionRunnerError(
+                f"selector-runs 宣言 file を読めない: {relative}: {exc}"
+            ) from exc
+        if _sha256(raw) != expected_sha256:
+            raise PredictionRunnerError(
+                f"selector-runs 宣言 sha256 が実 bytes と不一致: {relative}"
+            )
+
+
 def _derive_protocol_bytes(root: Path) -> bytes:
     try:
         if __package__ in {None, ""}:  # pragma: no cover
@@ -1192,6 +1340,13 @@ def seal(
         raise PredictionRunnerError(f"disk reload prediction verify 失敗: {exc}") from exc
     if reloaded != document:
         raise PredictionRunnerError("disk reload 文書が in-memory 文書と不一致")
+    lock_path = journal.path.parent / ".lock"
+    try:
+        lock_path.unlink()
+        _fsync_directory(lock_path.parent)
+    except OSError as exc:
+        raise PredictionRunnerError(f"seal 完了時に .lock を削除できない: {exc}") from exc
+    _assert_selector_run_declarations(root=root, journal=journal, binding=binding)
     return reloaded
 
 

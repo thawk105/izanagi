@@ -109,6 +109,18 @@ _NEGATIVE_REGISTRY = {
         "repaired_deps": (), "invoke_layer": "launch_validate",
         "reason": "search-not-operational", "cause": None,
     },
+    "selector-undeclared-hit": {
+        "baseline_validator": "launch_validate(emitter selector evidence)",
+        "mutation_stage": "selector evidence initial base commit",
+        "repaired_deps": (), "invoke_layer": "launch_validate",
+        "reason": "closure-hit-mismatch", "cause": None,
+    },
+    "selector-payload-hit": {
+        "baseline_validator": "launch_validate(production-shaped selector evidence)",
+        "mutation_stage": "selector payload initial base commit",
+        "repaired_deps": (), "invoke_layer": "launch_validate",
+        "reason": "closure-hit-mismatch", "cause": None,
+    },
     "closure-namespace": {
         "baseline_validator": "load_ratified_freeze(emitter artifacts)",
         "mutation_stage": "G measurement_closure namespace path",
@@ -556,7 +568,9 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
 
 
 def _build_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
-                       cert_at_generation=False, executable_role=None):
+                       cert_at_generation=False, executable_role=None,
+                       selector_valid_cell=False, selector_extra_files=(),
+                       selector_payload_hit=False):
     """決定的観測下の production-emitter bytes を G/A に載せた launch fixture。"""
     def combined(state):
         if cert_mutate is not None:
@@ -567,6 +581,9 @@ def _build_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
     root, gen_sha, _gen_path, g1, topology = B.build_production_emitter_g1(
         tmp_path, mutate=combined if (mutate is not None or cert_mutate is not None) else None,
         cert_at_generation=cert_at_generation, executable_role=executable_role,
+        selector_valid_cell=selector_valid_cell,
+        selector_extra_files=selector_extra_files,
+        selector_payload_hit=selector_payload_hit,
     )
     ratified = M.RatifiedFreeze(
         document=M._deep_freeze(g1), sha256=gen_sha, generation_number=1,
@@ -1300,6 +1317,203 @@ def test_journal_result_equality_rejects_rehashed_coherent_island(tmp_path):
 def _first_axis_tokens() -> list[str]:
     # 3 軸値は既存 redaction 済み fixture bytes からのみ導出する。リテラルを再掲しない。
     return B._RR80_PARAMS.decode("utf-8").strip().split()
+
+
+def _rehash_selector_prediction(document: dict) -> None:
+    body = {key: value for key, value in document.items() if key != "body_sha256"}
+    raw = json.dumps(
+        body, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")
+    document["body_sha256"] = hashlib.sha256(raw).hexdigest()
+
+
+def test_selector_exact_exemption_accepts_declared_three_axis_evidence(tmp_path):
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(
+        tmp_path, selector_valid_cell=True,
+    )
+    raw_path = "output/s8b-freeze/selector-runs/raw_rr20_on.txt"
+    envelope_path = "output/s8b-freeze/selector-runs/envelope_rr20_on.json"
+    payload_path = "output/s8b-freeze/selector-runs/payload_rr20_on.json"
+    hits = HF.holdout_conjunction_hits({
+        raw_path: (root / raw_path).read_text(encoding="utf-8"),
+        envelope_path: (root / envelope_path).read_text(encoding="utf-8"),
+    })
+    assert raw_path in hits["rr80"]
+    assert envelope_path in hits["rr80"]
+
+    exempt = M._selector_evidence_exempt_exact(head=topology["A"], root=root)
+    assert raw_path in exempt
+    assert envelope_path in exempt
+    assert payload_path not in exempt
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+
+
+def test_selector_exact_exemption_absent_prediction_is_noop(tmp_path):
+    root = tmp_path / "no-selector"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+         "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q", "-m", "empty"],
+        cwd=root, check=True,
+    )
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, check=True, text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
+    assert M._selector_evidence_exempt_exact(head=head, root=root) == {}
+
+
+def test_selector_exact_exemption_rejects_undeclared_selector_run_hit(tmp_path):
+    _need_v1()
+    orphan = "output/s8b-freeze/selector-runs/envelope_orphan.json"
+    root, freeze, _ = _build_launch_repo(
+        tmp_path,
+        selector_extra_files=[(orphan, B._RR80_PARAMS)],
+    )
+    exempt = M._selector_evidence_exempt_exact(head=freeze.activation_head, root=root)
+    assert orphan not in exempt
+    _assert_registered_refusal(
+        "selector-undeclared-hit", lambda: M.launch_validate(freeze, root),
+    )
+
+
+def test_selector_payload_is_not_exempt_and_conjunction_is_scanned(tmp_path):
+    _need_v1()
+    payload = "output/s8b-freeze/selector-runs/payload_rr20_on.json"
+    root, freeze, _ = _build_launch_repo(
+        tmp_path, selector_valid_cell=True, selector_payload_hit=True,
+    )
+    exempt = M._selector_evidence_exempt_exact(head=freeze.activation_head, root=root)
+    assert payload not in exempt
+    _assert_registered_refusal(
+        "selector-payload-hit", lambda: M.launch_validate(freeze, root),
+    )
+
+
+def test_selector_exact_exemption_rejects_declared_sha_mismatch(tmp_path):
+    _need_v1()
+    root, _freeze, topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    records = [json.loads(line) for line in journal_path.read_text().splitlines()]
+    envelope = next(record for record in records if record["record_type"] == "envelope")
+    envelope["envelope_sha256"] = "0" * 64
+    journal_path.write_bytes(B._jsonl_bytes(records))
+    head = B._fixed_commit_all(root, "bad envelope declaration", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-evidence-hash"
+
+
+def test_selector_exact_exemption_rejects_coherent_wrong_raw_sha(tmp_path):
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    predictions = root / "output/s8b-freeze/selector_predictions.json"
+    document = json.loads(predictions.read_bytes())
+    row = next(row for row in document["rows"] if row["arm"] != "off")
+    row["raw_sha256"] = "0" * 64
+    _rehash_selector_prediction(document)
+    predictions.write_bytes(B._json_bytes(document))
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    records = [json.loads(line) for line in journal_path.read_text().splitlines()]
+    invocation = next(record for record in records if (
+        record["record_type"] == "invocation"
+        and record["target_holdout"] == row["target_holdout"]
+        and record["arm"] == row["arm"]
+    ))
+    invocation["raw_sha256"] = row["raw_sha256"]
+    journal_path.write_bytes(B._jsonl_bytes(records))
+    head = B._fixed_commit_all(root, "coherent wrong raw sha", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-evidence-hash"
+
+
+def test_selector_exact_exemption_rejects_nonancestor_pre_oracle_head(tmp_path):
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    empty_tree = B._git(root, "mktree", stdin=b"")
+    unrelated = B._git(root, "commit-tree", empty_tree, stdin=b"unrelated\n")
+    predictions = root / "output/s8b-freeze/selector_predictions.json"
+    document = json.loads(predictions.read_bytes())
+    document["pre_oracle_head"] = unrelated
+    _rehash_selector_prediction(document)
+    predictions.write_bytes(B._json_bytes(document))
+    head = B._fixed_commit_all(root, "non ancestor prediction", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-declaration-invalid"
+
+
+def test_selector_exact_exemption_rejects_journal_rows_mismatch(tmp_path):
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    journal_path = root / "output/s8b-freeze/selector-runs/journal.jsonl"
+    records = [json.loads(line) for line in journal_path.read_text().splitlines()]
+    invocation = next(record for record in records if record["record_type"] == "invocation")
+    invocation["rationale"] = "journal-only mismatch"
+    journal_path.write_bytes(B._jsonl_bytes(records))
+    head = B._fixed_commit_all(root, "journal row mismatch", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-declaration-invalid"
+
+
+def test_selector_exact_exemption_rejects_duplicate_key_document(tmp_path):
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    predictions = root / "output/s8b-freeze/selector_predictions.json"
+    raw = predictions.read_text(encoding="utf-8")
+    predictions.write_text(raw.replace(
+        '"schema_version":',
+        '"schema_version":"duplicate","schema_version":',
+        1,
+    ), encoding="utf-8")
+    head = B._fixed_commit_all(root, "duplicate prediction key", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-declaration-invalid"
+
+
+def test_selector_exact_exemption_rejects_h_worktree_bytes_mismatch(tmp_path):
+    _need_v1()
+    root, freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    raw_path = root / "output/s8b-freeze/selector-runs/raw_rr20_on.txt"
+    raw_path.write_bytes(raw_path.read_bytes() + b"\nworktree drift\n")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=freeze.activation_head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-evidence-bytes"
+
+
+def test_selector_exact_exemption_rejects_worktree_symlink(tmp_path):
+    _need_v1()
+    root, freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    raw_path = root / "output/s8b-freeze/selector-runs/raw_rr20_on.txt"
+    raw_path.unlink()
+    raw_path.symlink_to(root / "README.md")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=freeze.activation_head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-evidence-bytes"
+
+
+def test_selector_exact_exemption_rejects_executable_h_mode(tmp_path):
+    _need_v1()
+    root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
+    raw_path = root / "output/s8b-freeze/selector-runs/raw_rr20_on.txt"
+    raw_path.chmod(0o755)
+    head = B._fixed_commit_all(root, "executable selector raw", "fixture")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._selector_evidence_exempt_exact(head=head, root=root)
+    assert caught.value.reason == "scan-exemption-invalid"
+    assert caught.value.cause == "selector-evidence-mode"
 
 
 def test_single_axis_occurrence_in_free_field_rejected(tmp_path):
