@@ -298,11 +298,20 @@ def test_production_provider_refuses_before_claiming(tmp_path) -> None:
     binding = _binding()
     journal = _journal(tmp_path / "journal.jsonl", binding)
 
-    with pytest.raises(PredictionRunnerError, match="未解禁"):
+    # 拒否 (何らかの PredictionRunnerError) と「claim ゼロ」を独立に検査する。
+    # メッセージを固定しない: sentinel の pre-claim 拒否を除去する変異では
+    # unwired_provider が claim 書込み後に別メッセージで raise するため、
+    # raises(match=...) だけだと診断文字列差が先に赤くなり、受理集合
+    # (journal 汚染の有無) への帰属が成立しない。
+    raised = False
+    try:
         drive_journal(
             freeze=freeze, journal=journal, artifact_root=tmp_path / "artifacts",
             root=tmp_path, binding=binding, provider=PRODUCTION_PROVIDER,
         )
+    except PredictionRunnerError:
+        raised = True
+    assert raised, "production provider が拒否されなかった"
 
     # off arm の static terminal は書かれ得るが、agent セルの claim は 1 件もない。
     records = journal.read_records()
