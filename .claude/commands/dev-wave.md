@@ -24,6 +24,14 @@ CLAUDE.md のクラス 3 起動手順 (worklog 末尾・現行 phase doc・hando
 8. **スキル自己改善 (親)。** wave 開始時に専用 handoff へ「dev-wave 改善候補」節を作り、本スキルの作法の欠落・無駄・失敗を気づいた時点でメモする。記録 (段 7) の後に候補を大小で裁定する — **小さい改善** (作法・定型・表現・手順の明確化など、段構成・実装子の権限・正しさ防壁・裁定境界を変えないもの) は本ファイルへ自律反映して単独 commit にし、段 9 で他の監査済み wave 成果と一緒に main へローカル取り込みする (push はしない)。**大きい変更**は反映せず、裁定パッケージとしてユーザーへ返す。候補ゼロならこの段は無言でスキップする (ユーザー指示 2026-07-20)
 9. **wave 終端・local main 取り込み (親)。** 実装・記録・スキル自己改善の全 commit と受入結果が揃ってから、wave 専用 branch の commit を local main へ取り込む。main worktree が clean、main が wave 開始時の基準 commit から予期せず動いていない、取り込みが fast-forward 可能、取り込む commit 集合が本 wave の監査済み成果だけ、の全条件を再確認し、満たす場合だけ `--ff-only` で進める。1 条件でも欠ければ rebase・force・他セッション差分の巻き込みをせず停止してユーザーへ返す。push と remote branch 操作はしない。取り込み後の main HEAD、次タスク、停止条件、再開コマンドを最終報告へ書き、このセッションでは新しい wave を始めない
 
+**計画 gate 5 述語 ([T-084] ユーザー裁定 2026-07-22 — 段 1 の brief と段 4 の裁定で適用する。根拠 = `output/insights/2026-07-22_waste-inventory-verbatim.md` §再発防止規則):**
+
+- **G1 生死実験先行:** 新しい探索軸・大型機構の本格実装前に、既存 driver または 100 行以内の使い捨て driver で最安の生死確認 (例: floor 超が 2 run 再現) を要求する。生死確認前の専用機構・LLM driver 構築は brief で却下する
+- **G2 初回 cycle 前 blocker の限定:** 最初の E2E 1 cycle 前の hardening は、correctness 判定・selected/tie・数値・proof 参照・試行欠落を実際に変える欠陥だけを blocker とする。それ以外は 1 cycle 後へ送る
+- **G3 族一般化には独立 2 例:** 単発事故への対処は局所修復または一回限りの migration を既定とし、族全体への制度一般化は同型欠陥が異なる producer/consumer で 2 件再現した場合に限る
+- **G4 phase 発火条件の gate 化:** 発火条件付き機能 (例: 8c) の実装は、発火条件を満たす既存 artifact path または計測 ID を brief に書けない限り着手しない (設計メモ止まり)
+- **G5 所見の影響 1 行:** レビュー must-fix には「放置すると成果物 (certified 選択 / レポート / 台帳) のどの値・受理集合・参照がどう変わるか」の 1 行を必須とし、書けない所見は nit/backlog 化して追加 review wave を起動しない
+
 連続 wave の境界:
 
 - **1 wave = 1 fresh context** とする。対話運用では段 9 の報告後に人間が `/clear <完了 wave 名>`、続けて報告にある `/dev-wave <次タスク>` を実行する。`/clear` は skill 内から実行せず、本 skill を自己再帰させない

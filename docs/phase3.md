@@ -76,6 +76,17 @@ floor 実測 (既存前提はすべて充足) → v2 候補生成 + 承認 → o
 + 第 3 波監査 `2026-07-16_s8b-third-wave-audit.md`、記録 = worklog 2026-07-16 (9)、commit 4bde427)**、(d) 8b + 層3の 1 cycle 後に
 必要性を計測して 8c、さらにその後に段 7 / Phase 3.5 を再判断する。
 
+**2026-07-22 改訂 ([T-083] 裁定 = 最短復帰案 (a) 採用):** [T-080] W-0→W-f の全完了を floor 実測の
+前提から外す。プロセス系 (supervisor real 開放・dev-wave 自己改善・task-run 拡張・[T-082] 全 caller
+移行・新規裁定パッケージ化) は 8b + 層3 の 1 cycle 完走まで freeze し、新規 T 番号は「実走を不可能に
+する blocker」に限る。次の実装 wave = **一回限りの移行契約** (freeze gate 復旧の最小抽出 — dangling
+ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、holdout 二重 drift は人間同席 receipt
+で再 pin。[T-068]/[T-077]/[T-078] はここへ統合)。以降は protocol JSON 実凍結 → 予測封印 → [T-011]
+受諾 → floor 実測 (**Pegasus 単独** — cygnus は frozen/standby、roadmap §5 可搬性節) → v2 候補生成 +
+承認 → oracle 実走 → 層3 実レポート。W 列の恒久一般化 (revocation・expiry・全世代・check registry)
+は oracle 後に再開する (承認済み設計 D75/D76 は破棄しない)。正本 = worklog 2026-07-22 (9)、裁定
+パッケージ = `output/insights/2026-07-22_direction-audit-recovery-plan.md`。
+
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
 - セッション開始時に読むのは 3 箇所だけ: **現行チェックポイント**、**must 表** (`grep -n "^## 現行 Phase 3 must" docs/phase3.md` で位置特定) と、
