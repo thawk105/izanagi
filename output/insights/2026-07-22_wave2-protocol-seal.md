@@ -639,7 +639,7 @@ claim 後の timeout・nonzero・起動失敗は例外で `drive_journal` 全体
 4. **拡張 allowlist が downstream `launch_validate` に伝播せず、strict-valid raw が oracle を止める**
 
 `launch_validate` の exact exemption は active-chain 4 path だけで、selector prediction/runs を含まない。[exemption](/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-ruling-ac/orchestrator/campaign/s8b_ratified_freeze.py:2415) その状態で repo 全体を走査し、closure 外 hit を拒否する。[scan](/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-ruling-ac/orchestrator/campaign/s8b_ratified_freeze.py:2795)  
-例えば rationale が `ycsb_rratio=20 ycsb_zipf_skew=0.9 ycsb_rmw=0` の応答は strict parser 上 valid だが、raw artifact は rr20 conjunction hit になる。oracle driver は `launch_validate` 失敗を marker/WAL 作成前の refusal にする。[oracle consumer](/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-ruling-ac/orchestrator/campaign/s8b_oracle_driver.py:1059)
+例えば rationale が `ycsb_rratio=«20» ycsb_zipf_skew=«0.9» ycsb_rmw=«0»` (erratum 2026-07-23: 本行の逐語が実際に repo scan の rr20 conjunction hit となり invariant テストを赤にしたため «» で defang した。原文逐語は git 履歴 441babc にある。皮肉にもこの引用自体が本所見の実証になった) の応答は strict parser 上 valid だが、raw artifact は rr20 conjunction hit になる。oracle driver は `launch_validate` 失敗を marker/WAL 作成前の refusal にする。[oracle consumer](/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-ruling-ac/orchestrator/campaign/s8b_oracle_driver.py:1059)
 
 **成果物影響:** 正当に `status=valid` で凍結された selector 応答の内容次第で oracle 全試行が欠落し、oracle 台帳・結合レポート・certified 判定が生成されない。
 
