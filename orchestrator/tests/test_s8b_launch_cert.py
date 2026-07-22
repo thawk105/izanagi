@@ -47,6 +47,34 @@ def test_validate_launch_certificate_accepts_same_second_time_origin():
     assert _validate(cert) == cert
 
 
+def test_validate_launch_certificate_identity_does_not_require_clean_digest_expected():
+    cert = _certificate()
+    cert["clean_scan_digest"] = "d" * 64
+    assert _validate(cert) == cert
+
+
+def test_validate_launch_certificate_strict_accepts_independent_clean_digest():
+    cert = _certificate()
+    assert s8b_launch_cert.validate_launch_certificate_strict(
+        cert,
+        expected_v1_freeze_sha256="a" * 64,
+        expected_clean_scan_digest="b" * 64,
+        expected_protocol_sha256="c" * 64,
+        expected_run_id=_RUN_ID,
+    ) == cert
+
+
+def test_validate_launch_certificate_strict_rejects_clean_scan_digest_mismatch():
+    with pytest.raises(s8b_launch_cert.LaunchCertError, match="clean_scan_digest"):
+        s8b_launch_cert.validate_launch_certificate_strict(
+            _certificate(),
+            expected_v1_freeze_sha256="a" * 64,
+            expected_clean_scan_digest="d" * 64,
+            expected_protocol_sha256="c" * 64,
+            expected_run_id=_RUN_ID,
+        )
+
+
 def test_validate_launch_certificate_rejects_different_run_id_second():
     cert = _certificate(started_utc="2026-07-18T12:34:57+00:00")
     with pytest.raises(s8b_launch_cert.LaunchCertError, match="秒単位で不一致"):

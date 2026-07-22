@@ -126,6 +126,24 @@ def validate_launch_certificate(
     return dict(cert)
 
 
+def validate_launch_certificate_strict(
+        cert: Mapping, *, expected_v1_freeze_sha256: str,
+        expected_clean_scan_digest: str, expected_protocol_sha256: str,
+        expected_run_id: str) -> dict:
+    """identity 検証に加え、発行前の独立 clean scan 値へ厳密に束縛する。"""
+    normalized = validate_launch_certificate(
+        cert,
+        expected_v1_freeze_sha256=expected_v1_freeze_sha256,
+        expected_protocol_sha256=expected_protocol_sha256,
+        expected_run_id=expected_run_id,
+    )
+    if normalized["clean_scan_digest"] != expected_clean_scan_digest:
+        raise LaunchCertError(
+            "launch certificate.clean_scan_digest が expected と不一致"
+        )
+    return normalized
+
+
 def parse_official_run_path(path_str: str, *, expected_basename: str) -> dict:
     """raw POSIX official artifact path を正規化せず exact 文法で parse する。"""
     if not isinstance(path_str, str) or not path_str:
