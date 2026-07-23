@@ -218,6 +218,134 @@ def test_prepare_backoff_fixed_best_refuses_flag_value_mismatch(tmp_path, monkey
             pass
 
 
+def _capture_prepare_quarantine(tmp_path, monkeypatch, cell):
+    from campaign import patchharness
+    from campaign import p3_s4_loop as loop_axis
+
+    worktree = tmp_path / "worktree"
+    calls = []
+
+    def fake_quarantine(sub, implementation, *, marker_id, source_rel, write):
+        calls.append({
+            "sub": sub,
+            "implementation": implementation,
+            "marker_id": marker_id,
+            "source_rel": source_rel,
+            "write": write,
+        })
+        return types.SimpleNamespace(passed=True), "base", "edited", "diff"
+
+    monkeypatch.setattr(
+        patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *args, **kwargs: _fixture_checkout(worktree))
+    monkeypatch.setattr(S.source_digest, "resolve", lambda *args: "fixture-source")
+    monkeypatch.setattr(loop_axis, "quarantine", fake_quarantine)
+
+    with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
+        pass
+
+    assert len(calls) == 1
+    assert calls[0]["sub"] == str(worktree)
+    assert calls[0]["write"] is True
+    return calls[0]
+
+
+def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
+        tmp_path, monkeypatch):
+    from campaign import p3_s4_loop_sort as sort_axis
+
+    comparator = (
+        "\n  sort(write_set_.begin(), write_set_.end(),\n"
+        "       [](const WriteElement& lhs, const WriteElement& rhs) {\n"
+        "         return lhs.get_tid() < rhs.get_tid();\n"
+        "       });  \n"
+    )
+    cell = {
+        "configuration": "sort_best",
+        "variant": {
+            "comparator": comparator,
+            "flags": {
+                "BACK_OFF": 1,
+                "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+                "NO_WAIT_OF_TICTOC": 0,
+                "SORT_VARIANT": 1,
+                "WAL": 0,
+            },
+        },
+    }
+
+    received = _capture_prepare_quarantine(tmp_path, monkeypatch, cell)
+
+    assert received["implementation"] == cell["variant"]["comparator"]
+    assert received["marker_id"] == sort_axis.MARKER_ID
+    assert received["source_rel"] == sort_axis.SOURCE_REL
+
+
+def test_prepare_system_gate_passes_predicate_verbatim_to_quarantine(
+        tmp_path, monkeypatch):
+    from campaign import axis_trigger_gating as gate_axis
+
+    predicate = (
+        "\n  izanagi_gate_pass = izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kReadValiLocked;  \n"
+    )
+    cell = {
+        "configuration": "system_gate",
+        "variant": {
+            "gate_predicate": predicate,
+            "flags": {
+                "BACKOFF_TRIGGER_GATING": 1,
+                "BACK_OFF": 1,
+                "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+                "NO_WAIT_OF_TICTOC": 0,
+                "WAL": 0,
+            },
+        },
+    }
+
+    received = _capture_prepare_quarantine(tmp_path, monkeypatch, cell)
+
+    assert received["implementation"] == cell["variant"]["gate_predicate"]
+    assert received["marker_id"] == gate_axis.MARKER_ID
+    assert received["source_rel"] == gate_axis.SOURCE_REL
+
+
+def test_prepare_ident_all_passes_predicate_verbatim_to_quarantine(
+        tmp_path, monkeypatch):
+    from campaign import axis_trigger_gating as gate_axis
+
+    predicate = (
+        "\n    izanagi_gate_pass = izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == "
+        "IzanagiAbortReason::kNodeVali;  \n"
+    )
+    cell = {
+        "configuration": "ident_all",
+        "variant": {
+            "gate_predicate": predicate,
+            "flags": {
+                "BACKOFF_TRIGGER_GATING": 1,
+                "BACK_OFF": 1,
+                "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+                "NO_WAIT_OF_TICTOC": 0,
+                "WAL": 0,
+            },
+        },
+    }
+
+    received = _capture_prepare_quarantine(tmp_path, monkeypatch, cell)
+
+    assert received["implementation"] == cell["variant"]["gate_predicate"]
+    assert received["marker_id"] == gate_axis.MARKER_ID
+    assert received["source_rel"] == gate_axis.SOURCE_REL
+
+
 def test_s1_v2_trial_does_not_reuse_v1_campaign_id():
     campaign_id = str(S.ident.campaign_id(S.config_for(_freeze(), "develop")))
     assert campaign_id != "s1-direct-develop-direct-comparison-7bccdf1a"

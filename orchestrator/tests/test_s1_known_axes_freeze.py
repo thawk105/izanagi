@@ -18,29 +18,14 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import s1_known_axes_freeze as M  # noqa: E402
+from s1_expected_goldens import (  # noqa: E402
+    EXPECTED_BACKOFF,
+    EXPECTED_P2,
+    EXPECTED_SORT,
+    EXPECTED_SWEEP_US,
+    assert_known_axes_goldens,
+)
 from skiputil import Skip, skip  # noqa: E402
-
-EXPECTED_STOCK_COMMON = {
-    "BACK_OFF": 1,
-    "NO_WAIT_LOCKING_IN_VALIDATION": 1,
-    "NO_WAIT_OF_TICTOC": 0,
-    "WAL": 0,
-}
-EXPECTED_TRIGGER_FLAGS = {
-    "BACK_OFF": 1,
-    "NO_WAIT_LOCKING_IN_VALIDATION": 1,
-    "NO_WAIT_OF_TICTOC": 0,
-    "WAL": 0,
-    "BACKOFF_TRIGGER_GATING": 1,
-}
-
-
-def _assert_exact_int_flags(actual, expected, label):
-    """dict の key 集合 + 値の型 (bool を int として誤認しない) + 値を厳密に固定する。"""
-    assert isinstance(actual, dict) and set(actual) == set(expected), (label, actual, expected)
-    for key, exp in expected.items():
-        val = actual[key]
-        assert type(val) is int and val == exp, (label, key, val, exp)
 
 _SUBMODULE_DIR = M.ROOT / "external" / "ccbench"
 
@@ -65,26 +50,23 @@ def _require_submodule_sources():
 def test_generate_selects_registered_expected_points():
     _require_submodule_sources()
     doc = M.build_document()
+    assert_known_axes_goldens(doc)
     entries = doc["entries"]
-    for workload, (variant, fitness) in M.EXPECTED_P2.items():
+    for workload, expected in EXPECTED_P2.items():
         selected = entries[workload]["p2_2_flag_opt"]
-        assert selected["variant"] == variant
-        assert selected["reference_fitness_tps"] == fitness
-    for workload, backoff_us in M.EXPECTED_BACKOFF.items():
-        assert entries[workload]["backoff_fixed_best"]["backoff_us"] == backoff_us
-    for workload, name in M.EXPECTED_SORT.items():
-        assert entries[workload]["sort_best"]["name"] == name
-    assert entries["read-heavy"]["sort_best"]["name"] == "sk_ad"
-    for workload in M.WORKLOADS:
-        _assert_exact_int_flags(
-            entries[workload]["stock_common"]["flags"], EXPECTED_STOCK_COMMON,
-            f"stock_common.flags[{workload}]")
-        _assert_exact_int_flags(
-            entries[workload]["system_gate"]["flags"], EXPECTED_TRIGGER_FLAGS,
-            f"system_gate.flags[{workload}]")
-        _assert_exact_int_flags(
-            entries[workload]["ident_all"]["flags"], EXPECTED_TRIGGER_FLAGS,
-            f"ident_all.flags[{workload}]")
+        assert selected["variant"] == expected["variant"]
+        assert selected["reference_fitness_tps"] == expected["reference_fitness_tps"]
+    for workload, expected in EXPECTED_BACKOFF.items():
+        assert entries[workload]["backoff_fixed_best"]["backoff_us"] == expected["backoff_us"]
+    for workload, expected in EXPECTED_SORT.items():
+        assert entries[workload]["sort_best"]["name"] == expected["name"]
+    assert entries["read-heavy"]["sort_best"]["name"] == EXPECTED_SORT["read-heavy"]["name"]
+
+
+def test_backoff_sweep_grid_matches_registered_golden():
+    from campaign import backoff_sweep
+
+    assert tuple(backoff_sweep.SWEEP_US) == EXPECTED_SWEEP_US
 
 
 def test_build_document_is_self_consistent_and_detects_tamper():
@@ -111,28 +93,62 @@ def test_generate_refuses_existing_freeze(tmp_path):
 
 
 def test_verify_rejects_one_byte_freeze_tamper(tmp_path):
-    original = M.FREEZE_PATH.read_bytes()
+    _require_submodule_sources()
+    doc = M.build_document()
+    serialized = json.dumps(doc, ensure_ascii=False, indent=2) + "\n"
+    path = tmp_path / "known_axes_freeze.json"
+    path.write_text(serialized, encoding="utf-8")
+    original = path.read_bytes()
     assert b'"sp_dd"' in original
     tampered = original.replace(b'"sp_dd"', b'"xp_dd"', 1)
     assert len(tampered) == len(original)
-    path = tmp_path / "known_axes_freeze.json"
     path.write_bytes(tampered)
-    with pytest.raises(M.FreezeError):
+    with pytest.raises(M.FreezeError) as excinfo:
         M.verify(path)
+    assert str(excinfo.value) == "freeze JSON の内容が現行 generator による機械再構成と不一致"
 
 
 def test_verify_rejects_tampered_source_copy(tmp_path):
-    doc = json.loads(M.FREEZE_PATH.read_text(encoding="utf-8"))
-    target_rel = doc["entries"]["balanced"]["p2_2_flag_opt"]["sources"][0]["path"]
-    copied = tmp_path / "wal.jsonl"
+    _require_submodule_sources()
+    doc = M.build_document()
+    target_rel = doc["entries"]["balanced"]["system_gate"]["sources"][0]["path"]
+    copied = tmp_path / Path(target_rel).name
     shutil.copyfile(M.ROOT / target_rel, copied)
     copied.write_bytes(copied.read_bytes() + b" ")
 
     def resolver(path_rel: str) -> Path:
         return copied if path_rel == target_rel else M.ROOT / path_rel
 
-    with pytest.raises(M.FreezeError, match="source sha256 不一致"):
+    with pytest.raises(M.FreezeError) as excinfo:
         M.verify_document(doc, source_resolver=resolver)
+    assert str(excinfo.value).startswith(f"source sha256 不一致: {target_rel}")
+
+
+def test_verify_rejects_generator_sha_tamper():
+    _require_submodule_sources()
+    doc = M.build_document()
+    doc["generator"]["sha256"] = "0" * 64
+    with pytest.raises(M.FreezeError) as excinfo:
+        M.verify_document(doc)
+    assert str(excinfo.value).startswith("generator sha256 不一致")
+
+
+def test_verify_rejects_non_ancestor_head():
+    _require_submodule_sources()
+    doc = M.build_document()
+    doc["frozen_at_head"] = "f" * 40
+    with pytest.raises(M.FreezeError) as excinfo:
+        M.verify_document(doc)
+    assert "現行 HEAD の commit ancestor でない" in str(excinfo.value)
+
+
+def test_verify_rejects_foreign_ccbench_pin():
+    _require_submodule_sources()
+    doc = M.build_document()
+    doc["ccbench_pin"] = "0" * 40
+    with pytest.raises(M.FreezeError) as excinfo:
+        M.verify_document(doc)
+    assert str(excinfo.value).startswith("ccbench_pin 不一致")
 
 
 def test_s1b_pairing_rejects_mismatched_flags():

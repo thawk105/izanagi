@@ -13,129 +13,65 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
+sys.path.insert(0, _HERE)
 sys.path.insert(0, _ORCH)
 
+import s1_expected_goldens  # noqa: E402
 from campaign import s1_known_axes_freeze as K  # noqa: E402
 from campaign import s1_measurement_freeze as M  # noqa: E402
 from campaign import t080_freeze_migration as T080  # noqa: E402
+from skiputil import skip  # noqa: E402
+
+
+_SUBMODULE_DIR = K.ROOT / "external" / "ccbench"
+
+
+def _submodule_initialized(sub: Path = _SUBMODULE_DIR) -> bool:
+    """external/ccbench が init 済みかを gitlink `.git` の存在だけで判定する。"""
+    return (sub / ".git").exists()
+
+
+def _require_submodule_sources() -> None:
+    """実 known-axes 生成に必要な submodule が未 init の場合だけ skip する。"""
+    if not _submodule_initialized():
+        skip(
+            "submodule 未 init (external/ccbench に .git 無し) — "
+            "build_document は実 ccbench ソースが要る"
+        )
+
+
+@pytest.fixture(scope="module")
+def real_known_axes_doc():
+    """外部 golden と自己検証を通した実 known-axes 文書を module 内で共有する。"""
+    _require_submodule_sources()
+    doc = K.build_document()
+    s1_expected_goldens.assert_known_axes_goldens(doc)
+    K.verify_document(doc)
+    return doc
 
 
 @pytest.fixture
-def freeze_env(tmp_path, monkeypatch):
-    """実 freeze の安全性契約だけを保った最小の同型 fixture を作る。
-
-    known-axes の本番材料や s1_stats.py 本体をテストに焼き込むと、
-    並行タスクの正当な変更で B1 のテストまで腐るため tmp に隔離する。
-    """
-    material_source = tmp_path / "known-material.txt"
-    material_source.write_text("fixture material\n", encoding="utf-8")
-    source_rel = "fixture/known-material.txt"
-    source = {
-        "path": source_rel,
-        "sha256": K._sha256(material_source),
-        "key": "minimal fixture source",
-    }
-
-    entries = {}
-    for workload in M.WORKLOADS:
-        common_flags = {
-            "BACK_OFF": 1,
-            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
-            "NO_WAIT_OF_TICTOC": 0,
-            "WAL": 0,
-            "BACKOFF_TRIGGER_GATING": 1,
-        }
-        entries[workload] = {
-            "system_gate": {
-                "name": {"balanced": "g_rl", "write-heavy": "g_rt",
-                         "read-heavy": "g_rl"}[workload],
-                "flags": copy.deepcopy(common_flags),
-                "gate_predicate": f"gate predicate for {workload}",
-                "sources": [copy.deepcopy(source)],
-            },
-            "ident_all": {
-                "name": "ident_all",
-                "flags": copy.deepcopy(common_flags),
-                "gate_predicate": "ident_all predicate",
-                "sources": [copy.deepcopy(source)],
-            },
-            "p2_2_flag_opt": {
-                "variant": f"fixture-p2-{workload}",
-                "flags": {"BACK_OFF": 0},
-                "sources": [copy.deepcopy(source)],
-            },
-            "backoff_fixed_best": {
-                "backoff_us": 5,
-                "flags": {"BACK_OFF": 1, "BACKOFF_FIXED": 5},
-                "sources": [copy.deepcopy(source)],
-            },
-            "sort_best": {
-                "name": "fixture_sort",
-                "flags": {"SORT_VARIANT": 1},
-                "comparator": "a < b",
-                "sources": [copy.deepcopy(source)],
-            },
-            "stock_common": {
-                "flags": {"BACK_OFF": 1},
-                "sources": [copy.deepcopy(source)],
-            },
-        }
-
-    pairings = [
-        {
-            "workload": workload,
-            "gate_on": entries[workload]["system_gate"]["name"],
-            "gate_off": "ident_all",
-            "flags_identical": True,
-        }
-        for workload in M.WORKLOADS
-    ]
-    known_doc = {
-        "what": "minimal known-axes fixture",
-        "frozen_at_head": K._run_git(["rev-parse", "HEAD"]),
-        "ccbench_pin": K._run_git(
-            ["rev-parse", "HEAD"], K.ROOT / "external/ccbench"),
-        "generator": {
-            "path": K.SCRIPT_REL,
-            "sha256": K._sha256(K.ROOT / K.SCRIPT_REL),
-        },
-        "python_version": sys.version,
-        "selection_rules": {
-            "p2_2": "fixture", "backoff_fixed": "fixture", "sort": "fixture",
-            "system_gate": "fixture", "stock_common": "fixture",
-        },
-        "entries": entries,
-        "s1b_pairing": pairings,
-        "reference_values_note": "fixture",
-    }
+def freeze_env(tmp_path, real_known_axes_doc):
+    """実 known-axes 文書を毎テスト fresh なファイルへ直列化する。"""
     known_path = tmp_path / "known_axes_freeze.json"
     known_path.write_text(
-        json.dumps(known_doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-    # known_axes.verify_document の最終機械再構成も通した上で、
-    # 本番の長大な WAL 選定を fixture に混ぜない。
-    monkeypatch.setattr(
-        K, "build_document", lambda **_kwargs: copy.deepcopy(known_doc))
+        json.dumps(real_known_axes_doc, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     stats_path = tmp_path / "s1_stats.py"
     stats_path.write_text("# dummy stats implementation\n", encoding="utf-8")
-
-    def known_resolver(path_rel: str) -> Path:
-        if path_rel == source_rel:
-            return material_source
-        return K.ROOT / path_rel
 
     def resolver(path_rel: str) -> Path:
         return {
             M.KNOWN_AXES_REL: known_path,
             M.STATS_REL: stats_path,
             M.SCRIPT_REL: M.SCRIPT_PATH,
-        }.get(path_rel, M.ROOT / path_rel)
+        }[path_rel]
 
     return {
         "known_path": known_path,
         "stats_path": stats_path,
-        "known_resolver": known_resolver,
         "resolver": resolver,
     }
 
@@ -144,7 +80,6 @@ def _build(env) -> dict:
     return M.build_document(
         known_axes_path=env["known_path"],
         stats_path=env["stats_path"],
-        known_source_resolver=env["known_resolver"],
     )
 
 
@@ -153,7 +88,6 @@ def _generate(path: Path, env) -> dict:
         path,
         known_axes_path=env["known_path"],
         stats_path=env["stats_path"],
-        known_source_resolver=env["known_resolver"],
     )
 
 
@@ -161,13 +95,17 @@ def _verify(path: Path, env) -> dict:
     return M.verify(
         path,
         source_resolver=env["resolver"],
-        known_source_resolver=env["known_resolver"],
     )
 
 
-def test_generate_builds_registered_cells_comparisons_and_schedule(freeze_env):
+def test_generate_builds_registered_cells_comparisons_and_schedule(
+        freeze_env, real_known_axes_doc):
     doc = _build(freeze_env)
     assert len(doc["cells"]) == 18
+    for cell in doc["cells"].values():
+        assert cell["variant"] == real_known_axes_doc["entries"][
+            cell["workload"]
+        ][cell["configuration"]]
     assert len(doc["comparisons"]) == 12
     assert sum(c["family"] == "S-1a" for c in doc["comparisons"]) == 9
     assert sum(c["family"] == "S-1b" for c in doc["comparisons"]) == 3
@@ -199,8 +137,11 @@ def test_verify_rejects_one_byte_freeze_tamper(tmp_path, freeze_env):
     assert tampered != original
     assert len(tampered) == len(original)
     path.write_bytes(tampered)
-    with pytest.raises(M.FreezeError):
+    with pytest.raises(M.FreezeError) as excinfo:
         _verify(path, freeze_env)
+    assert str(excinfo.value) == (
+        "freeze JSON の内容が現行 generator による機械再構成と不一致"
+    )
 
 
 def test_verify_rejects_one_byte_workload_flag_tamper(tmp_path, freeze_env):
@@ -259,8 +200,26 @@ def test_s1b_pairing_rejects_mismatched_flags(freeze_env):
         M.verify_document(
             forged,
             source_resolver=freeze_env["resolver"],
-            known_source_resolver=freeze_env["known_resolver"],
         )
+
+
+def test_build_document_rejects_tampered_known_axes_semantics(
+        tmp_path, real_known_axes_doc):
+    tampered = copy.deepcopy(real_known_axes_doc)
+    tampered["what"] = "TAMPERED"
+    known_path = tmp_path / "known_axes_freeze.json"
+    known_path.write_text(
+        json.dumps(tampered, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    stats_path = tmp_path / "s1_stats.py"
+    stats_path.write_text("# dummy stats implementation\n", encoding="utf-8")
+
+    with pytest.raises(M.FreezeError) as excinfo:
+        M.build_document(known_axes_path=known_path, stats_path=stats_path)
+    message = str(excinfo.value)
+    assert message.startswith("known_axes_freeze 照合失敗:")
+    assert "機械再構成と不一致" in message
 
 
 def test_receipt_exists_but_measurement_verify_stays_legacy_strict(
@@ -298,3 +257,25 @@ def test_measurement_production_module_does_not_import_t080_adapter():
             imports.extend(alias.name for alias in node.names)
     assert not [name for name in imports if "t080_freeze_migration" in name]
     assert "verify_receipt" not in source and "static_gate_adapter" not in source
+
+
+def test_build_schedule_is_deterministic_and_balanced_without_submodule():
+    first = M.build_schedule(M.MASTER_SEED)
+    second = M.build_schedule(M.MASTER_SEED)
+    assert first == second
+    total = 0
+    for rounds in first.values():
+        for order in rounds:
+            assert len(order) == 18
+            assert len(set(order)) == 18
+            total += len(order)
+    assert total == 288
+
+
+def test_build_comparisons_structure_without_submodule():
+    comparisons = M._build_comparisons()
+    assert len(comparisons) == 12
+    assert sum(c["family"] == "S-1a" for c in comparisons) == 9
+    assert sum(c["family"] == "S-1b" for c in comparisons) == 3
+    assert {c["alternative"] for c in comparisons} == {"greater"}
+    assert all("stock_common" in c["note"] for c in comparisons)

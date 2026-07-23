@@ -71,10 +71,25 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
     "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze",
     "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
-    # 意図的な over-approximation: 現行 freeze の source 順では先行する不一致で
-    # 止まるが、source 順の変更時は共有 submodule source に到達し得るため保持する。
     "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy",
     "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+    "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin",
+
+    # measurement freeze は module fixture で実 known-axes 材料 (共有 submodule source
+    # 含む) から K.build_document を実走する reader ([T-066] echo 除去後)。
+    "test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule",
+    "test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze",
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper",
+    "test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper",
+    "test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper",
+    "test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible",
+    "test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+    "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict",
+    "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics",
 
     # root=実 repo の oracle gate が known-axes verify を間接呼出しする reader。
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
@@ -89,8 +104,9 @@ REAL_REPO_SERIAL_NODES = frozenset({
 })
 
 # 意図的な除外（正本リストの境界）:
-# - test_s1_measurement_freeze.py 全 8 node 等、git object / HEAD だけを読むものは
-#   mutable worktree の patch 窓を読まない。
+# - test_s1_measurement_freeze.py のうち fixture 非利用 3 node (AST import 検査 +
+#   hermetic seam 2 件) は実 repo / 共有 submodule を読まない。fixture 消費 node は
+#   [T-066] echo 除去後は実材料 reader なので上記に列挙済み。
 # - test_campaign.py::test_patchharness_* は tmp repo、slow oracle canary は
 #   patchharness の隔離 worktree を使い、共有 submodule worktree を patch しない。
 # - source_digest allowlist は subprocess を fake 化しており、lock-path gate は実 output
