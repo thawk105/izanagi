@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
-"""S-1 known-axes freeze の test-local 外部固定 golden (D82 / [T-066] 継続 wave)。
+"""S-1 known-axes / measurement freeze の test-local 外部固定 golden ([T-066] 継続 wave、D82)。
 
 このファイルは test 専用の独立 golden 台帳である。production
 (orchestrator/campaign/**) から import してはならず、値を canonical freeze や
 現行コードから実行時に導出してもいけない (恒真化するため)。literal は
-output/s1-freeze/known_axes_freeze.json の記録値と機械照合した上で凍結した
-(照合手順は D82 / output/insights の変異台帳を参照)。
+output/s1-freeze/known_axes_freeze.json と measurement_freeze.json の記録値と
+機械照合した上で凍結した (照合手順・変異台帳は D82 と本 wave の insights を参照)。
+
+意図的に pin しない値 (裁定 P2、正当編集で false red になる揮発値):
+- 編集可能ファイル (orchestrator/campaign/*.py, docs/*, output/insights/*) の sha256
+  (64hex 形状のみ検査。bytes の歴史的 pin は canonical freeze + FROZEN_MANIFEST 側が担う)
+- external/ccbench 配下の sha256 (ccbench_pin 検査が別途ある。lines は literal 固定 —
+  pin bump 時だけ裁定つきで更新する)
+- 各 entry の note 文 (散文。key の存在は key-set で固定、値は pin しない)
 
 更新契約: 値の変更は「上流の選定・実装が正当に変わった」ことを worklog/decisions で
 裁定してから行う。テストを緑にするための書き換えは規律 2 違反。
@@ -17,6 +24,8 @@ CONFIGURATIONS = (
     "system_gate", "ident_all", "p2_2_flag_opt", "backoff_fixed_best",
     "sort_best", "stock_common",
 )
+
+_ABSENT = object()
 
 # backoff sweep の静的 grid (semantic slice golden — 事後の候補集合縮小を検出する)
 EXPECTED_SWEEP_US = (2, 5, 10, 25, 50, 100)
@@ -109,6 +118,8 @@ EXPECTED_BACKOFF = {'balanced': {'backoff_us': 5,
                                                                    'WAL': 0},
                                                          'reference_fitness_tps': 1052528.0}}}}
 
+# 欠落 key (read-heavy の reference_fitness_tps / remeasure_reference) は literal にも無い。
+# 対応する実 doc の key 欠落は EXPECTED_CONFIG_KEYS が固定する。
 EXPECTED_SORT = {'balanced': {'comparator': '  sort(write_set_.begin(), write_set_.end(),\n'
                             '       [](const WriteElement<Tuple>& a, const '
                             'WriteElement<Tuple>& b) -> bool {\n'
@@ -123,7 +134,6 @@ EXPECTED_SORT = {'balanced': {'comparator': '  sort(write_set_.begin(), write_se
                         'SORT_VARIANT': 1,
                         'WAL': 0},
               'name': 'sp_dd',
-              'reference_fitness_tps': None,
               'remeasure_reference': {'argmax_name': 'sk_aa',
                                       'reference_fitness_tps': 921457.0}},
  'read-heavy': {'comparator': '  sort(write_set_.begin(), write_set_.end(),\n'
@@ -138,9 +148,7 @@ EXPECTED_SORT = {'balanced': {'comparator': '  sort(write_set_.begin(), write_se
                           'NO_WAIT_OF_TICTOC': 0,
                           'SORT_VARIANT': 1,
                           'WAL': 0},
-                'name': 'sk_ad',
-                'reference_fitness_tps': None,
-                'remeasure_reference': None},
+                'name': 'sk_ad'},
  'write-heavy': {'comparator': '  sort(write_set_.begin(), write_set_.end(),\n'
                                '       [](const WriteElement<Tuple>& a, const '
                                'WriteElement<Tuple>& b) -> bool {\n'
@@ -154,7 +162,6 @@ EXPECTED_SORT = {'balanced': {'comparator': '  sort(write_set_.begin(), write_se
                            'SORT_VARIANT': 1,
                            'WAL': 0},
                  'name': 'sk_ad',
-                 'reference_fitness_tps': None,
                  'remeasure_reference': {'argmax_name': 'sk_ad',
                                          'reference_fitness_tps': 1098674.0}}}
 
@@ -187,6 +194,60 @@ EXPECTED_GATES = {'balanced': {'flags': {'BACKOFF_TRIGGER_GATING': 1,
                  'name': 'g_rt'}}
 
 EXPECTED_IDENT_ALL_PREDICATE = 'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;'
+
+# workload×configuration ごとの entry key 集合 (None と欠落を同一視しない防壁)。
+EXPECTED_CONFIG_KEYS = {('balanced', 'backoff_fixed_best'): frozenset({'backoff_us',
+                                                'flags',
+                                                'reference_fitness_tps',
+                                                'reference_points',
+                                                'sources'}),
+ ('balanced', 'ident_all'): frozenset({'name', 'sources', 'gate_predicate', 'flags'}),
+ ('balanced', 'p2_2_flag_opt'): frozenset({'flags',
+                                           'label',
+                                           'reference_fitness_tps',
+                                           'sources',
+                                           'variant'}),
+ ('balanced', 'sort_best'): frozenset({'comparator',
+                                       'flags',
+                                       'name',
+                                       'note',
+                                       'remeasure_reference',
+                                       'sources'}),
+ ('balanced', 'stock_common'): frozenset({'sources', 'flags'}),
+ ('balanced', 'system_gate'): frozenset({'name', 'sources', 'gate_predicate', 'flags'}),
+ ('read-heavy', 'backoff_fixed_best'): frozenset({'backoff_us',
+                                                  'flags',
+                                                  'reference_fitness_tps',
+                                                  'reference_points',
+                                                  'sources'}),
+ ('read-heavy', 'ident_all'): frozenset({'name', 'sources', 'gate_predicate', 'flags'}),
+ ('read-heavy', 'p2_2_flag_opt'): frozenset({'flags',
+                                             'label',
+                                             'reference_fitness_tps',
+                                             'sources',
+                                             'variant'}),
+ ('read-heavy', 'sort_best'): frozenset({'note', 'flags', 'comparator', 'name', 'sources'}),
+ ('read-heavy', 'stock_common'): frozenset({'sources', 'flags'}),
+ ('read-heavy', 'system_gate'): frozenset({'name', 'sources', 'gate_predicate', 'flags'}),
+ ('write-heavy', 'backoff_fixed_best'): frozenset({'backoff_us',
+                                                   'flags',
+                                                   'reference_fitness_tps',
+                                                   'reference_points',
+                                                   'sources'}),
+ ('write-heavy', 'ident_all'): frozenset({'name', 'sources', 'gate_predicate', 'flags'}),
+ ('write-heavy', 'p2_2_flag_opt'): frozenset({'flags',
+                                              'label',
+                                              'reference_fitness_tps',
+                                              'sources',
+                                              'variant'}),
+ ('write-heavy', 'sort_best'): frozenset({'comparator',
+                                          'flags',
+                                          'name',
+                                          'note',
+                                          'remeasure_reference',
+                                          'sources'}),
+ ('write-heavy', 'stock_common'): frozenset({'sources', 'flags'}),
+ ('write-heavy', 'system_gate'): frozenset({'name', 'sources', 'gate_predicate', 'flags'})}
 
 # workload×configuration ごとの source record 並び (path, key, lines の有無)。
 EXPECTED_SOURCE_LAYOUT = {('balanced', 'backoff_fixed_best'): (('output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/runs/wal.jsonl',
@@ -374,9 +435,6 @@ EXPECTED_SOURCE_LAYOUT = {('balanced', 'backoff_fixed_best'): (('output/campaign
                                    False))}
 
 # output/campaigns 配下 (防護ツリー・不変成果物) のみ bytes hash を pin する。
-# 編集可能ファイル (orchestrator/campaign/*.py, docs/*, output/insights/*) と
-# external/ccbench の sha256 は pin しない (正当編集/pin bump で false red になるため。
-# 形式は 64hex のみ検査する)。
 PINNED_CAMPAIGN_SHA256 = {'output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/runs/wal.jsonl': '8ac3f47e55274fada20e6518eea9cbb0e822170eeda1b424df99e76e11fd789c',
  'output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/runs/wal.jsonl': 'c74d5837a4facd071704a515f905d1d638463878850661cf217b96cd694774dc',
  'output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/runs/wal.jsonl': '9c179331a7171969ac6f4ed2b1d09e4afbf52378cfbac7bd133696a6589fe926',
@@ -398,7 +456,144 @@ PINNED_CAMPAIGN_SHA256 = {'output/campaigns/backoff-sweep-silo-balanced-sweep-48
  'output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8/reports/s8a_trigger_sweep_provenance.json': '4518376a154d1fe290eee05803168dd6ed107a0e3dbeca74aca962d47ab7b71f',
  'output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb/reports/s8a_trigger_sweep_provenance.json': '3b0bdf7735ef292281c575d71cf8699fcb071aadc6dcb6ed394eed9a5cd2d441'}
 
+# lines を持つ source (external/ccbench の CMake 抜粋) の行内容 literal。
+# 固定 ccbench pin (d706650) に対する値で、pin bump 時だけ裁定つきで更新する。
+EXPECTED_SOURCE_LINES = {'external/ccbench/cc/silo/CMakeLists.txt': ['5:     '
+                                             'NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}',
+                                             '6:     '
+                                             'NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}',
+                                             '10:     WAL=${CCBENCH_WAL}'],
+ 'external/ccbench/cmake/Options.cmake': ['20: set(CCBENCH_BACK_OFF      1 CACHE STRING '
+                                          '"exponential backoff on abort")',
+                                          '27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 '
+                                          'CACHE STRING "")',
+                                          '28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 '
+                                          'CACHE STRING "")',
+                                          '47: set(CCBENCH_WAL                           0 '
+                                          'CACHE STRING "silo")',
+                                          '63:     BACK_OFF=${CCBENCH_BACK_OFF}']}
+
+# ---- measurement freeze 側 golden (canonical measurement_freeze.json と機械照合済み) ----
+
+EXPECTED_MASTER_SEED = 20260715
+
+EXPECTED_SCHEDULE_HASH = 'b76333da5db1945908641679773bf7ef307ac2dc2bb3462a171b15be235ae150'
+
+EXPECTED_COMPARISONS = [{'alternative': 'greater',
+  'comparison_id': 'S-1a:balanced:p2_2_flag_opt',
+  'family': 'S-1a',
+  'left_cell': 'balanced:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'balanced:p2_2_flag_opt',
+  'workload': 'balanced'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:balanced:backoff_fixed_best',
+  'family': 'S-1a',
+  'left_cell': 'balanced:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'balanced:backoff_fixed_best',
+  'workload': 'balanced'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:balanced:sort_best',
+  'family': 'S-1a',
+  'left_cell': 'balanced:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'balanced:sort_best',
+  'workload': 'balanced'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:write-heavy:p2_2_flag_opt',
+  'family': 'S-1a',
+  'left_cell': 'write-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'write-heavy:p2_2_flag_opt',
+  'workload': 'write-heavy'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:write-heavy:backoff_fixed_best',
+  'family': 'S-1a',
+  'left_cell': 'write-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'write-heavy:backoff_fixed_best',
+  'workload': 'write-heavy'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:write-heavy:sort_best',
+  'family': 'S-1a',
+  'left_cell': 'write-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'write-heavy:sort_best',
+  'workload': 'write-heavy'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:read-heavy:p2_2_flag_opt',
+  'family': 'S-1a',
+  'left_cell': 'read-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'read-heavy:p2_2_flag_opt',
+  'workload': 'read-heavy'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:read-heavy:backoff_fixed_best',
+  'family': 'S-1a',
+  'left_cell': 'read-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'read-heavy:backoff_fixed_best',
+  'workload': 'read-heavy'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1a:read-heavy:sort_best',
+  'family': 'S-1a',
+  'left_cell': 'read-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'read-heavy:sort_best',
+  'workload': 'read-heavy'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1b:balanced:gate_on_vs_gate_off',
+  'family': 'S-1b',
+  'left_cell': 'balanced:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'balanced:ident_all',
+  'workload': 'balanced'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1b:write-heavy:gate_on_vs_gate_off',
+  'family': 'S-1b',
+  'left_cell': 'write-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'write-heavy:ident_all',
+  'workload': 'write-heavy'},
+ {'alternative': 'greater',
+  'comparison_id': 'S-1b:read-heavy:gate_on_vs_gate_off',
+  'family': 'S-1b',
+  'left_cell': 'read-heavy:system_gate',
+  'note': 'stock_common は併記用の文脈セルであり、検定比較対には含めない。',
+  'right_cell': 'read-heavy:ident_all',
+  'workload': 'read-heavy'}]
+
 _HEX = set("0123456789abcdef")
+
+# 内部整合の import 時検査: gates の flags は共通 trigger flags と一致していなければ
+# 台帳自体が矛盾している (dead literal 化の防止)。
+for _wl in WORKLOADS:
+    assert EXPECTED_GATES[_wl]["flags"] == EXPECTED_TRIGGER_FLAGS, _wl
+# pin 集合と layout 参照集合の完全一致 (campaign path の pin 漏れ/余剰の防止)。
+assert set(PINNED_CAMPAIGN_SHA256) == {
+    p for layout in EXPECTED_SOURCE_LAYOUT.values()
+    for (p, _k, _l) in layout if p.startswith("output/campaigns/")
+}
+assert set(EXPECTED_SOURCE_LINES) == {
+    p for layout in EXPECTED_SOURCE_LAYOUT.values()
+    for (p, _k, has_lines) in layout if has_lines
+}
+
+
+def assert_json_exact(actual, expected, label):
+    """型厳密 (bool≠int≠float)・dict key-set・list 順序込みの再帰完全一致。"""
+    assert type(actual) is type(expected), (label, type(actual), type(expected), actual, expected)
+    if isinstance(expected, dict):
+        assert set(actual) == set(expected), (label, sorted(actual), sorted(expected))
+        for key in expected:
+            assert_json_exact(actual[key], expected[key], f"{label}.{key}")
+    elif isinstance(expected, list):
+        assert len(actual) == len(expected), (label, len(actual), len(expected))
+        for i, (a, x) in enumerate(zip(actual, expected)):
+            assert_json_exact(a, x, f"{label}[{i}]")
+    else:
+        assert actual == expected, (label, actual, expected)
 
 
 def assert_exact_int_flags(actual, expected, label):
@@ -413,49 +608,54 @@ def _assert_sha256_shape(value, label):
     assert isinstance(value, str) and len(value) == 64 and set(value) <= _HEX, (label, value)
 
 
+def _expected_field(table, wl, key):
+    return table[wl][key] if key in table[wl] else _ABSENT
+
+
+def _assert_field(entry, table, wl, key, label):
+    expected = _expected_field(table, wl, key)
+    if expected is _ABSENT:
+        assert key not in entry, (label, key, "expected absent")
+    else:
+        assert key in entry, (label, key, "expected present")
+        assert_json_exact(entry[key], expected, f"{label}.{key}")
+
+
 def assert_known_axes_semantic_goldens(doc):
-    """entries の意味内容 (flags/name/label/variant/comparator/predicate/選定値) を
-    外部固定 literal と完全一致で検査する。"""
+    """entries の意味内容を外部固定 literal と型厳密・key-set 込みで検査する。"""
     entries = doc["entries"]
     assert set(entries) == set(WORKLOADS), sorted(entries)
     for wl in WORKLOADS:
         entry = entries[wl]
         assert set(entry) == set(CONFIGURATIONS), (wl, sorted(entry))
-        assert_exact_int_flags(entry["stock_common"]["flags"], EXPECTED_STOCK_COMMON,
-                               f"stock_common.flags[{wl}]")
+        for cfg in CONFIGURATIONS:
+            assert set(entry[cfg]) == set(EXPECTED_CONFIG_KEYS[(wl, cfg)]), (
+                wl, cfg, sorted(entry[cfg]), sorted(EXPECTED_CONFIG_KEYS[(wl, cfg)]))
+        assert_json_exact(entry["stock_common"]["flags"], EXPECTED_STOCK_COMMON,
+                          f"stock_common.flags[{wl}]")
         gate = entry["system_gate"]
-        assert gate["name"] == EXPECTED_GATES[wl]["name"], (wl, gate["name"])
-        assert gate["gate_predicate"] == EXPECTED_GATES[wl]["gate_predicate"], (wl, gate["gate_predicate"])
-        assert_exact_int_flags(gate["flags"], EXPECTED_TRIGGER_FLAGS, f"system_gate.flags[{wl}]")
+        assert_json_exact(gate["name"], EXPECTED_GATES[wl]["name"], f"system_gate.name[{wl}]")
+        assert_json_exact(gate["gate_predicate"], EXPECTED_GATES[wl]["gate_predicate"],
+                          f"system_gate.gate_predicate[{wl}]")
+        assert_json_exact(gate["flags"], EXPECTED_GATES[wl]["flags"], f"system_gate.flags[{wl}]")
         ident = entry["ident_all"]
-        assert ident["name"] == "ident_all", (wl, ident["name"])
-        assert ident["gate_predicate"] == EXPECTED_IDENT_ALL_PREDICATE, (wl, ident["gate_predicate"])
-        assert_exact_int_flags(ident["flags"], EXPECTED_TRIGGER_FLAGS, f"ident_all.flags[{wl}]")
+        assert_json_exact(ident["name"], "ident_all", f"ident_all.name[{wl}]")
+        assert_json_exact(ident["gate_predicate"], EXPECTED_IDENT_ALL_PREDICATE,
+                          f"ident_all.gate_predicate[{wl}]")
+        assert_json_exact(ident["flags"], EXPECTED_TRIGGER_FLAGS, f"ident_all.flags[{wl}]")
         p2 = entry["p2_2_flag_opt"]
-        assert p2["variant"] == EXPECTED_P2[wl]["variant"], (wl, p2["variant"])
-        assert p2["label"] == EXPECTED_P2[wl]["label"], (wl, p2["label"])
-        assert p2["reference_fitness_tps"] == EXPECTED_P2[wl]["reference_fitness_tps"], (wl, p2)
-        assert_exact_int_flags(p2["flags"], EXPECTED_P2[wl]["flags"], f"p2_2.flags[{wl}]")
+        for key in ("variant", "label", "reference_fitness_tps", "flags"):
+            _assert_field(p2, EXPECTED_P2, wl, key, f"p2_2[{wl}]")
         backoff = entry["backoff_fixed_best"]
-        assert backoff["backoff_us"] == EXPECTED_BACKOFF[wl]["backoff_us"], (wl, backoff["backoff_us"])
-        assert backoff["reference_fitness_tps"] == EXPECTED_BACKOFF[wl]["reference_fitness_tps"], (wl, backoff)
-        assert_exact_int_flags(backoff["flags"], EXPECTED_BACKOFF[wl]["flags"], f"backoff.flags[{wl}]")
-        expected_refs = EXPECTED_BACKOFF[wl]["reference_points"]
-        assert set(backoff["reference_points"]) == set(expected_refs), (wl, backoff["reference_points"])
-        for name, ref in backoff["reference_points"].items():
-            assert_exact_int_flags(ref["flags"], expected_refs[name]["flags"],
-                                   f"backoff.reference_points[{name}].flags[{wl}]")
-            assert ref["reference_fitness_tps"] == expected_refs[name]["reference_fitness_tps"], (wl, name, ref)
+        for key in ("backoff_us", "reference_fitness_tps", "flags", "reference_points"):
+            _assert_field(backoff, EXPECTED_BACKOFF, wl, key, f"backoff[{wl}]")
         sort = entry["sort_best"]
-        assert sort["name"] == EXPECTED_SORT[wl]["name"], (wl, sort["name"])
-        assert sort["comparator"] == EXPECTED_SORT[wl]["comparator"], (wl, sort["comparator"])
-        assert_exact_int_flags(sort["flags"], EXPECTED_SORT[wl]["flags"], f"sort.flags[{wl}]")
-        assert sort.get("reference_fitness_tps") == EXPECTED_SORT[wl]["reference_fitness_tps"], (wl, sort)
-        assert sort.get("remeasure_reference") == EXPECTED_SORT[wl]["remeasure_reference"], (wl, sort)
+        for key in ("name", "comparator", "flags", "reference_fitness_tps", "remeasure_reference"):
+            _assert_field(sort, EXPECTED_SORT, wl, key, f"sort[{wl}]")
 
 
 def assert_known_axes_source_goldens(doc):
-    """source record の並び (path/key/lines 有無)・exact key-set・campaign sha pin を検査する。"""
+    """source record の並び・exact key-set・campaign sha pin・lines literal を検査する。"""
     entries = doc["entries"]
     for wl in WORKLOADS:
         for cfg in CONFIGURATIONS:
@@ -467,9 +667,13 @@ def assert_known_axes_source_goldens(doc):
                     else {"path", "sha256", "key"}
                 assert set(s) == expected_keys, (wl, cfg, sorted(s))
                 _assert_sha256_shape(s["sha256"], (wl, cfg, s["path"]))
-                pinned = PINNED_CAMPAIGN_SHA256.get(s["path"])
                 if s["path"].startswith("output/campaigns/"):
-                    assert pinned is not None and s["sha256"] == pinned, (wl, cfg, s["path"], s["sha256"])
+                    pinned = PINNED_CAMPAIGN_SHA256.get(s["path"])
+                    assert pinned is not None and s["sha256"] == pinned, (
+                        wl, cfg, s["path"], s["sha256"])
+                if "lines" in s:
+                    assert_json_exact(s["lines"], EXPECTED_SOURCE_LINES[s["path"]],
+                                      f"lines[{s['path']}]")
 
 
 def assert_known_axes_goldens(doc):
