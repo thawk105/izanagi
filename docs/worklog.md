@@ -340,7 +340,78 @@ D80、逐語・変異台帳 = `output/insights/2026-07-23_wave3-floor-prereq.md`
 5. [T-011] floor 実測直前に発火。**blocking 前提の残 = 統合 E2E (protocol 凍結後) と lineage
    照合 (oracle 結線 wave 再評価)。exemption 拡張と cert 束縛のコード機構は本 wave で完了**。
    D80 (8) の裁定パッケージ 3 件はこの手前で裁定
-6. [T-066] 恒真隠蔽除去: freeze 公開前に並行実装。変わらず
+6. [T-066] **部分消化。** stock_common・system_gate/ident_all の flags golden 化と自己無矛盾
+   positive control は本 wave (2026-07-23 (3)) で完了。comparator/predicate/source record の
+   独立 golden 化と `test_s1_measurement_freeze.py` の恒真 fixture 本体は未消化のまま — 詳細は
+   同エントリと D81
+7. [T-067] 部分消化・継続: exact 化の残余は D73 (10) から変わらず
+8. [T-001] ruling-B 単独: floor と並行、公式 report 発行前まで。変わらず
+9. [T-002] P-A1(a) Stage 1 + P-C3 ([T-006] 同梱): 同上。変わらず
+10. [T-009] 延期 (T-083 (a) 処置表): AGENTS.md 追記は 1 cycle 後。変わらず
+11. [T-060] 延期 (同): WAL 用語運用の明文化は 1 cycle 後。変わらず
+12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
+13. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
+14. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-23 (3) — [T-066] 部分消化: stock_common・system_gate/ident_all の flags golden 化 (D81、branch worktree-dev-wave-ruling-ac、計測なし)
+
+/dev-wave 1 回 (次の一手 6 [T-066] は floor と独立に並行実装可)。生死実験で恒真隠蔽を実測確認
+(`_stock_common()` 破壊 → `test_s1_measurement_freeze.py` 0 件赤) してから着手。設計判断・逐語・
+変異台帳の正本 = D81・`output/insights/2026-07-23_t066-stock-common-trigger-flags-golden.md`。
+成果 commit = 58010d4。
+
+- **中身**: `test_s1_known_axes_freeze.py` へ test-local `EXPECTED_STOCK_COMMON`/
+  `EXPECTED_TRIGGER_FLAGS` + 型厳密 (`type is int`) 比較 helper を追加し、stock_common (4 flags) と
+  system_gate/ident_all (5 flags) の golden 欠落を閉じた。実 `build_document()` の自己無矛盾性 +
+  単一フィールド改竄検出の positive control も追加。production ファイルは無変更 (self-hash
+  blocker のため、`campaign/s1_known_axes_freeze.py` へ定数を足すと generator.sha256 が変わり
+  既存凍結を壊すことを実測で確認し、test-local 定数へ変更した)
+- **敵対レビュー (段6) が親裁定の技術的根拠の誤りを検出**: 「comparator/predicate/source の
+  独立 golden 化は dangling frozen_at_head (D71(7)(a)) により到達不能」という scope-out 根拠は
+  誤りだった。正しくは D71(7)(b)、`if doc != expected_doc` は761行目でなく765行目、かつ現行
+  worktree の canonical file は ancestry でなく S-1 source drift (`s8a_trigger_sweep.py` 等) で
+  先に止まる。より重要な点として、test-owned な `build_document()`(引数なし)は canonical file の
+  ドリフトに非依存で `verify_document()` に自己無矛盾で通ることを実測確認し、fix ラウンドで
+  self-consistency + tamper 検出の positive control を追加した
+- **T-066 は未完了と明記**: comparator・predicate・source record (path/sha256/key/lines)・
+  p2_2/backoff_fixed/sort の flags 等は依然として外部固定 golden が無く、sort comparator を
+  名前を保ったまま差し替える攻撃が現行の全 assertion (今回追加分含む) を通過することを両レビューが
+  実測した。`test_s1_measurement_freeze.py` の `K.build_document` monkeypatch echo 本体も無変更
+- **新事実の追記**: `test_verify_rejects_one_byte_freeze_tamper` (canonical file 対象) は
+  S-1 source drift により無改竄でも同じ理由で red になる可能性が高く、positive control として
+  false green の疑いがある (本 wave では検証・修正せず棚卸しのみ)
+- **受入 (親環境、repo root から)**: fix 前 2815 passed/18 skipped (baseline 一致)、fix 後
+  **2816 passed / 18 skipped / 0 failed** (新規テスト1件分の増加のみ、退行 0)。凍結成果物
+  (`known_axes_freeze.json`=`354f4b87…`・`measurement_freeze.json`=`203de36b…`・
+  `holdout_freeze.json`=`315b1eb8…`) sha256 は実装前後で不変。repo scan invariant
+  (`test_s8b_repo_scan_invariant.py`) も docs commit 前に再走し緑
+- **事故と復旧**: 受入全走を最初 `orchestrator/` cwd で実行し無関係な2件 (`test_run_tests_task_run.py`、
+  nested pytest subprocess の plugin import パス依存) が偽赤化。`git stash push -u -m <tag>` で
+  差分退避 → repo root で再現無し確認 → `git stash apply <sha>` で復元 → `stash drop` で片付け、
+  以後は repo root から実行して解消 (baseline と一致)。変異検証の一時バックアップに使った `/tmp`
+  ファイルが共有ジョブ環境で他プロセスに削除される事故も発生したが、対象が git 管理下だったため
+  `git diff`/`git checkout` で問題なく復元できた
+- **検証**: brief 前生死実験 (実測) → codex プラン起草 (max、self-hash 衝突を検出) → 親裁定 v1.1
+  (test-local 定数へ変更) → 敵対相談 2 (max、正しさ境界/整合実効性、両方で計 5+4 所見) → 親裁定
+  v1.2 (system_gate/ident_all を scope に追加、型厳密比較導入、comparator 等は scope 外と裁定) →
+  実装 (codex high、1 単位) → 親の変異 M1-M3 実測 (単一理由で kill、復元確認) → 親の受入全走
+  (baseline 一致) → 敵対レビュー 2 (max、両方 NO-GO — scope-out 根拠の事実誤認を検出) → 親が
+  自分で裏取り (誤りを確認) → fix ラウンド (self-consistency positive control 追加、codex high) →
+  親の受入全走・repo scan invariant 再走
+
+### 次の一手
+
+1. [T-080] receipt 発行 (ユーザー、worklog (10) 手順) → protocol 実凍結 (ユーザー、worklog
+   2026-07-23 (1) (ii)) → 予測封印の実走 wave (AI、同 (iii))。変わらず (本 wave はこれと独立)
+2. [T-068] R commit で「移行契約により superseded」として確定的に閉じる (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる (同上)。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる (同上)。変わらず
+5. [T-011] floor 実測直前に発火。blocking 前提の残 = 統合 E2E (protocol 凍結後) と lineage
+   照合 (oracle 結線 wave 再評価)。D80 (8) の裁定パッケージ 3 件はこの手前で裁定。変わらず
+6. [T-066] **部分消化。** stock_common・system_gate/ident_all の flags golden 化と自己無矛盾
+   positive control は完了 (本エントリ)。comparator/predicate/source record の独立 golden 化と
+   `test_s1_measurement_freeze.py` の恒真 fixture 本体、および D81 (7) の新事実棚卸し
+   (`test_verify_rejects_one_byte_freeze_tamper` の positive control 疑義) は次 wave へ持ち越し
 7. [T-067] 部分消化・継続: exact 化の残余は D73 (10) から変わらず
 8. [T-001] ruling-B 単独: floor と並行、公式 report 発行前まで。変わらず
 9. [T-002] P-A1(a) Stage 1 + P-C3 ([T-006] 同梱): 同上。変わらず

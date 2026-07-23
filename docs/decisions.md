@@ -3373,3 +3373,74 @@ M2 は受理集合拡大の直接捕捉を手動裏取り。
 digest preimage artifact + resume/ratified の歴史的 cert 照合 (C06 後半 — official dormant +
 実行 gate は cert 非依存のため影響限定)、(c) content TOCTOU (C07 — [T-011] 受諾リスト記載済み、
 追加処置なし推奨)。
+
+## D81. [T-066] stock_common・system_gate/ident_all の flags golden 化 — comparator/predicate/source は未消化のまま scope 外 (2026-07-23)
+
+**決定: [T-066] のうち stock_common (4 flags) と system_gate/ident_all (5 flags) の golden 欠落
+だけを閉じる。** comparator・predicate・source record・p2_2/backoff_fixed/sort の flags 等の
+独立 golden 化、および `test_s1_measurement_freeze.py` の `K.build_document` monkeypatch echo
+本体は未消化のまま次 wave へ持ち越す。逐語・変異台帳は
+`output/insights/2026-07-23_t066-stock-common-trigger-flags-golden.md`。凍結成果物
+(`output/s1-freeze/*.json`, `output/s8b-freeze/*.json`) は 1 byte も変更していない。
+
+(1) **生死実験で恒真隠蔽を確認した。** `_stock_common()` の戻り値 (`flags.BACK_OFF`) を
+build_document() 内で意図的に破壊し、campaign/s1/s8b/oracle 関連の全テストを実走した。
+`test_s1_measurement_freeze.py` (16 tests) は 0 件赤 — `K.build_document` の monkeypatch echo に
+完全に吸収され、意味内容の破壊を一切検出しなかった。他ファイルの赤 12 件は大半が
+generator sha256 自己ハッシュ不一致 (ファイルを編集した事実そのものへの反応) であり、
+stock_common の意味検査が落ちたのではなかった。D71(7)(c) が指摘した隠蔽パターンが現在も
+現存することを確認した。
+
+(2) **production ファイルへ定数を足すと self-hash blocker で既存凍結が壊れる (D72 と同型)。**
+`campaign/s1_known_axes_freeze.py` に `EXPECTED_STOCK_COMMON` を module-level 定数として追加すると
+生成した生成物の bytes が変わり、その sha256 (`generator.sha256`) が既存の凍結済み
+`known_axes_freeze.json` の pin と不一致になる (実測: `1d4d45a3…` → `a37987e6…`)。
+**test-local 定数 (`test_s1_known_axes_freeze.py` 側) へ配置することで production 無変更のまま
+閉じられることを確認し、この形へ変更した。**
+
+(3) **敵対相談 2 本 (段3) が system_gate/ident_all の同種欠落を検出した。** `_trigger_entries()`
+の flags 検査は `s8a_trigger_sweep._genome(1).flags` と `axis_trigger_gating._BASE` の相互一致
+だけで、外部固定 golden が無い。`_BASE["WAL"]` を 0→1 に変異させても両者が一致したまま
+`build_document()` が成功することを実測した。stock_common と同型の欠落と認め、同じ
+test-local golden + 型厳密比較 (`type(v) is int`、bool を int のサブクラスとして誤認しない)
+で閉じることを scope に追加した。
+
+(4) **敵対レビュー 2 本 (段6) が親裁定の scope-out 根拠の事実誤認を検出した。** 親は当初
+「comparator/predicate/source の独立 golden 化は dangling `frozen_at_head` (誤って D71(7)(a) と
+引用、正しくは D71(7)(b)) により到達不能」と裁定したが、これは誤りだった。現行 worktree で
+canonical file の `verify()` を実走すると、ancestry 検査より先に S-1 source drift
+(`s8a_trigger_sweep.py` の記録 hash 不一致) で止まることを実測した。さらに重要な点として、
+**test-owned な `build_document()` (引数なし、実 HEAD/実 ccbench_pin を使用) は canonical file の
+ドリフト状態に非依存で `verify_document()` に自己無矛盾で通る**ことを実測確認した
+(`doc = M.build_document(); M.verify_document(doc)` → 例外なし。`doc["what"]` 改竄で FreezeError)。
+これを受けて fix ラウンドで self-consistency + 単一フィールド改竄検出の positive control
+(`test_build_document_is_self_consistent_and_detects_tamper`) を追加した。
+
+(5) **self-consistency はタンパー検出であり、抽出ロジックの regression 検出ではない (親の整理)。**
+`verify_document()` の全文再構成比較は同じ `build_document()` を再度呼んで比較するため、
+`build_document()` 自体に恒常的なバグがあっても二重生成は自明に一致し、self-consistency は
+green のままになる。comparator・predicate・source の**真の regression 検出**には、stock_common と
+同じ「外部固定 literal golden」技法を追加のフィールドへ拡張する以外の道はない。両レビューは
+in-memory 変異で、sort comparator 差替え (`sp_dd` の名を保ったまま実装だけ変える)・
+system_gate/ident_all predicate 差替え・source record 偽装・P2/backoff flags 破壊が、
+現行の全 assertion (本 wave 追加分を含む) を通過することを実測した。
+
+(6) **scope-out は取り消さず、根拠だけを訂正して次 wave へ持ち越す。** 上記 (4)(5) により
+「到達不能だから scope 外」という根拠は誤りだったが、「stock_common/system_gate/ident_all の
+範囲を超える comparator/predicate/source の全面 golden 化は、本 wave の小さい追加という枠を
+超える規模の作業」という scope 判断自体は妥当なため据え置く。次 wave (T-066 継続) では
+以下を要件に含める: comparator/predicate/source record への外部固定 golden の拡張、
+sort comparator 差替え攻撃への対処。
+
+(7) **新事実として棚卸し (実装しない):** `test_verify_rejects_one_byte_freeze_tamper`
+(canonical file 対象) は、S-1 source drift により無改竄でも同じ理由で red になる可能性が高く、
+positive control として false green の疑いがある。本 wave では検証・修正しない。
+
+(8) **プロセス:** brief 前生死実験 (実測) → codex プラン起草 (max、self-hash 衝突を検出) →
+親裁定 v1.1 (production 無変更へ変更) → 敵対相談 2 並列 (max、正しさ境界/整合実効性) → 親裁定
+v1.2 (system_gate/ident_all を scope 追加) → 実装 (codex high、1 単位、production 無変更) →
+親の変異 M1-M3 実測 (単一理由で kill、都度 git checkout で復元) → 親の受入全走 (2815 passed、
+baseline 一致) → 敵対レビュー 2 並列 (max、**両方 NO-GO** — scope-out 根拠の事実誤認) → 親が
+自分で裏取り (D71(7)(b)・行番号・source drift 優先順位・test-owned self-consistency を実測確認) →
+fix ラウンド (self-consistency positive control 追加、codex high) → 親の受入全走
+(2816 passed、退行 0)・repo scan invariant 再走。
