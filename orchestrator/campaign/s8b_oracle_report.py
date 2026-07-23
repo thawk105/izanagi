@@ -1342,8 +1342,8 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
     campaign_starts = [record.payload for record in records
                        if _session_event(record, "campaign-start")]
     # 通常評価経路では先に合成して correctness-red 診断を materialize する。
-    # build_observations の中央 post-process も全 issue を再適用するため、
-    # early return 行を含む全 row の taint はそちらで完結する。
+    # run-contract 等の issue はここで適用し、ghost issue だけは中央 post-process が
+    # early return 行を含む全 row に適用する。
     global_issues: list[str] = list(manifest_issue_messages)
     global_issues.extend(unbound_payload_issues)
     global_issues.extend(terminal_protocol_issues)

@@ -769,25 +769,27 @@ def test_run_contract_reps_must_match_approved_leaf_even_when_tps_matches(tmp_pa
     manifest = _schema_less_legacy(manifest)
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
-    _trial(layout, item, "committed", tps=(1.0, 2.0, 3.0, 4.0))
+    _trial(layout, item, "committed", tps=(1.0, 2.0, 3.0, 4.0, 5.0))
     _finish_campaign(layout, manifest)
 
     observations = report.build_observations(
         manifest=manifest, output_root=tmp_path,
     )
     row = observations["rows"][0]
+    expected_reason = (
+        "manifest.run_contract.reps が APPROVED_REPS と不一致: "
+        "actual=4, expected=5"
+    )
 
     assert row["status"] == "protocol_violation"
     assert row["bench_values"] == []
-    assert "run_contract.reps が APPROVED_REPS と不一致" in row["reason"]
-    assert "actual=4, expected=5" in row["reason"]
+    assert row["reason"] == expected_reason
+    assert "bench_done.tps 件数" not in row["reason"]
+    assert "bench_done.rep_returncodes 件数" not in row["reason"]
     assert observations["manifest_issues"] == [{
         "code": "run-contract-reps-not-approved",
         "campaign_id": None,
-        "message": (
-            "manifest.run_contract.reps が APPROVED_REPS と不一致: "
-            "actual=4, expected=5"
-        ),
+        "message": expected_reason,
     }]
     assert "campaign-start.manifest_sha256" not in row["reason"]
 
