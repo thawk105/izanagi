@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
 """8b oracle session WAL を全 schedule 行の observations へ射影する。
 
-この構造検査の脅威モデルは、正直だがバグりうる producer である。WAL 各行の
-duplicate key と record の基本形を検査し、campaign-terminal が物理的な最終 record
-であることを要求する。hash chain はなく、任意の変更に対する真正性の保証ではない。
+正規 driver は単一の env_tag を全 session append に渡し、issuer には共有定数
+``"oracle-session"`` を使うため、正規 producer は session identity 検査に抵触しない。
+この検査は正規だがバグりうる、または内容を変更されうる WAL に対する構造検査であり、
+対象は session record の identity だけである。性能証拠である pipeline record の env は
+検査しない。manifest が ``run_contract.env_tag`` を非空文字列で宣言する場合に限り、
+session env とその未検証の宣言値との一致を課す。legacy manifest、または env_tag が
+欠落・空・非文字列の場合は campaign 内一貫性だけを課す。完全な manifest env authority
+は P-A1(a)/[T-002] の責務である。WAL 各行の duplicate key と record の基本形も検査し、
+campaign-terminal が物理的な最終 record であることを要求する。hash chain や外部
+anchor はなく、任意改変に対する真正性の保証ではない。
 """
 from __future__ import annotations
 
@@ -34,6 +41,7 @@ from campaign.layout import CampaignLayout, campaign_layout  # noqa: E402
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
 SESSION_STAGE = model.STAGE_S8B_ORACLE_SESSION
+SESSION_ISSUER = model.S8B_ORACLE_SESSION_ISSUER
 OUTCOMES = _outcome_stage_contract.OUTCOMES
 # C3-5: bench-binary-mismatch abort が射影される terminal outcome の abort reason。
 # build_done 後・trace/bench 起動前に発火するため build/verify/bench 証拠のどれにも
@@ -467,6 +475,43 @@ def _session_event(record: object, event: Optional[str] = None) -> bool:
     return (getattr(record, "stage", None) == SESSION_STAGE
             and isinstance(payload, Mapping)
             and (event is None or payload.get("event") == event))
+
+
+def _session_identity_issues(records, manifest) -> list[str]:
+    session_records = [
+        (ordinal, record) for ordinal, record in enumerate(records)
+        if record.stage == SESSION_STAGE
+    ]
+    if not session_records:
+        return []
+
+    issues: list[str] = []
+    mismatches = sorted(
+        (ordinal, record.variant) for ordinal, record in session_records
+        if record.variant != SESSION_ISSUER
+    )
+    if mismatches:
+        issues.append(
+            "oracle session record.variant が issuer と不一致: "
+            f"expected={SESSION_ISSUER!r}, mismatches={mismatches!r}"
+        )
+
+    values = sorted({record.env_tag for _, record in session_records})
+    if len(values) > 1:
+        issues.append(
+            f"oracle session record.env_tag が campaign 内で一意でない: values={values!r}"
+        )
+
+    run_contract = manifest.get("run_contract")
+    if isinstance(run_contract, Mapping):
+        expected = run_contract.get("env_tag")
+        if (isinstance(expected, str) and expected
+                and any(value != expected for value in values)):
+            issues.append(
+                "oracle session record.env_tag が manifest.run_contract.env_tag と不一致: "
+                f"expected={expected!r}, values={values!r}"
+            )
+    return issues
 
 
 def _event_contract_issues(payload: Mapping) -> list[str]:
@@ -1167,6 +1212,9 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         records, repo_root=repo_root,
         current_receipt_invalid=current_receipt_invalid,
     )
+    session_identity_issues = _session_identity_issues(records, manifest)
+    if session_identity_issues:
+        t080_observation = _T080CampaignObservation("unavailable", issue=t080_observation.issue)
 
     terminal_protocol_issues = [
         issue for issue in (
@@ -1179,6 +1227,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         for line_number, reason in line_issues
     )
     terminal_protocol_issues.extend(_inert_record_issues(records))
+    terminal_protocol_issues.extend(session_identity_issues)
     if truncated_tail:
         terminal_protocol_issues.append("WAL の末尾 record が途中で切れている")
     if t080_observation.issue is not None:

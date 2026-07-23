@@ -52,6 +52,7 @@ from campaign.s8b_oracle_manifest import (  # noqa: E402
 
 
 SESSION_STAGE = model.STAGE_S8B_ORACLE_SESSION
+SESSION_ISSUER = model.S8B_ORACLE_SESSION_ISSUER
 DEFAULT_FREEZE_PATH = ROOT / "output/s8b-freeze/holdout_freeze.json"
 DEFAULT_BUDGET_PATH = ROOT / "output/s8b-budget/time_ledger.json"
 _BINDING_KEYS = {
@@ -602,7 +603,7 @@ def _expected_binding(manifest: Mapping, holdout_id: str,
 
 def _append_session(layout, env_tag: str, event: str, payload: Mapping) -> None:
     wal.log(
-        layout, "oracle-session", SESSION_STAGE, env_tag,
+        layout, SESSION_ISSUER, SESSION_STAGE, env_tag,
         {"event": event, **dict(payload)},
     )
 

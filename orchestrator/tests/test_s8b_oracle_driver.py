@@ -8,6 +8,7 @@ import copy
 import dataclasses
 import errno
 import hashlib
+import importlib
 import inspect
 import json
 import os
@@ -2944,6 +2945,30 @@ def test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records(
 def test_session_stage_reexports_shared_model_authority():
     # '-' 入り literal を CPython が自動 intern しないことに依存し、再 literal 化を検出する。
     assert driver.SESSION_STAGE is model.STAGE_S8B_ORACLE_SESSION
+
+
+def test_session_issuer_alias_and_append_use_model_authority(tmp_path, monkeypatch):
+    sentinel = "".join(("sentinel", "-session-issuer"))
+    try:
+        with monkeypatch.context() as scoped:
+            scoped.setattr(model, "S8B_ORACLE_SESSION_ISSUER", sentinel)
+            importlib.reload(driver)
+            assert driver.SESSION_ISSUER is model.S8B_ORACLE_SESSION_ISSUER
+
+            layout = campaign_layout(
+                "issuer-authority", output_root=str(tmp_path),
+            ).ensure()
+            driver._append_session(
+                layout, "linux-baremetal", "campaign-start",
+                {"campaign_id": "issuer-authority"},
+            )
+            records = wal.read_records(layout)
+
+            assert len(records) == 1
+            assert records[0].variant == sentinel
+            assert records[0].stage == model.STAGE_S8B_ORACLE_SESSION
+    finally:
+        importlib.reload(driver)
 
 
 # ===========================================================================

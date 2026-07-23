@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import importlib
 import json
 import shutil
 import sys
@@ -48,6 +49,13 @@ _DEFAULT_ABORT_PAYLOAD = object()
 _MISSING_RETURN_CODES = object()
 _T080_ABSENT = object()
 _T080_DEFAULT = object()
+_ISSUER_IDENTITY_ISSUE = "oracle session record.variant が issuer と不一致"
+_ENV_CONSISTENCY_ISSUE = (
+    "oracle session record.env_tag が campaign 内で一意でない"
+)
+_MANIFEST_ENV_ISSUE = (
+    "oracle session record.env_tag が manifest.run_contract.env_tag と不一致"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -200,7 +208,40 @@ def _manifest(tmp_path: Path, *, campaign_id: str = "oracle-b0", n: int = 1) -> 
 
 
 def _session(layout, event: str, payload: dict) -> None:
-    wal.log(layout, "oracle-session", SESSION, "fixture-env", {"event": event, **payload})
+    wal.log(
+        layout, "oracle-session", SESSION, "linux-baremetal",
+        {"event": event, **payload},
+    )
+
+
+def _rewrite_session_identity(
+        layout, *, event=None, variant=None, env_tag=None) -> None:
+    """完成済み valid WAL の session record identity だけを負例へ書き換える。"""
+    assert variant is not None or env_tag is not None
+    lines = Path(layout.wal_file).read_text(encoding="utf-8").splitlines()
+    rewritten = []
+    rewrite_count = 0
+    for line in lines:
+        record = json.loads(line)
+        payload = record.get("payload")
+        if (
+                record.get("stage") == SESSION
+                and (
+                    event is None
+                    or isinstance(payload, dict) and payload.get("event") == event
+                )):
+            if variant is not None:
+                record["variant"] = variant
+            if env_tag is not None:
+                record["env_tag"] = env_tag
+            rewrite_count += 1
+        rewritten.append(
+            json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+        )
+    assert rewrite_count > 0, (event, variant, env_tag)
+    Path(layout.wal_file).write_text(
+        "\n".join(rewritten) + "\n", encoding="utf-8",
+    )
 
 
 def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
@@ -639,6 +680,229 @@ def test_staged_legacy_v1_without_run_contract_remains_accepted(tmp_path):
     assert type(legacy) is artifacts.LegacyManifest
     assert type(observations) is artifacts.OfficialObservations
     assert observations["manifest_kind"] == "legacy"
+
+
+def test_session_identity_wrong_issuer_rejects_completed_campaign_only_for_issuer(
+        tmp_path):
+    manifest = _manifest(tmp_path, n=2)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    _rewrite_session_identity(
+        layout, event="campaign-start", variant="tampered-session",
+    )
+
+    rows = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )["rows"]
+
+    assert {row["status"] for row in rows} == {"protocol_violation"}
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all(row["reason"].startswith(_ISSUER_IDENTITY_ISSUE) for row in rows)
+    assert all("'tampered-session'" in row["reason"] for row in rows)
+    assert all("; " not in row["reason"] for row in rows)
+
+
+def test_session_identity_checks_non_boundary_trial_record(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    _rewrite_session_identity(
+        layout, event="trial-result", variant="tampered-session",
+    )
+
+    rows = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )["rows"]
+
+    assert {row["status"] for row in rows} == {"protocol_violation"}
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all(row["reason"].startswith(_ISSUER_IDENTITY_ISSUE) for row in rows)
+    assert all("'tampered-session'" in row["reason"] for row in rows)
+    assert all("; " not in row["reason"] for row in rows)
+
+
+def test_session_identity_wrong_v2_env_rejects_only_manifest_mismatch(tmp_path):
+    manifest = _manifest(tmp_path, n=2)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    _rewrite_session_identity(layout, env_tag="tampered-env")
+
+    records = wal.read_records(layout)
+    campaign_start = next(
+        record for record in records
+        if record.stage == SESSION
+        and record.payload.get("event") == "campaign-start"
+    )
+    assert campaign_start.payload["execution_receipt"]["env_tag"] == "linux-baremetal"
+
+    rows = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )["rows"]
+
+    assert {row["status"] for row in rows} == {"protocol_violation"}
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all(row["reason"].startswith(_MANIFEST_ENV_ISSUE) for row in rows)
+    assert all("'tampered-env'" in row["reason"] for row in rows)
+    assert all("; " not in row["reason"] for row in rows)
+
+
+def test_session_identity_mixed_legacy_env_rejects_only_inconsistency(tmp_path):
+    document = dict(_manifest(tmp_path, n=2))
+    document.pop("run_contract")
+    legacy = artifacts.load_official_manifest(json.dumps(document).encode())
+    layout = _layout(tmp_path, legacy)
+    _finish_campaign(layout, legacy)
+    _rewrite_session_identity(
+        layout, event="campaign-terminal", env_tag="tampered-env",
+    )
+
+    rows = report.build_observations(
+        manifest=legacy, output_root=tmp_path,
+    )["rows"]
+
+    assert {row["status"] for row in rows} == {"protocol_violation"}
+    assert all(row["bench_values"] == [] for row in rows)
+    assert all(row["reason"].startswith(_ENV_CONSISTENCY_ISSUE) for row in rows)
+    assert all("'tampered-env'" in row["reason"] for row in rows)
+    assert all("; " not in row["reason"] for row in rows)
+
+
+def test_session_identity_issuer_is_only_protocol_trigger_without_terminal(tmp_path):
+    manifest = _manifest(tmp_path, n=2)
+    layout = _layout(tmp_path, manifest)
+
+    baseline = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )["rows"]
+    assert {row["status"] for row in baseline} == {"campaign-incomplete"}
+
+    _rewrite_session_identity(
+        layout, event="campaign-start", variant="tampered-session",
+    )
+    damaged = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )["rows"]
+
+    assert {row["status"] for row in damaged} == {"protocol_violation"}
+    assert all(row["bench_values"] == [] for row in damaged)
+    assert all(row["reason"].startswith(_ISSUER_IDENTITY_ISSUE) for row in damaged)
+    assert all("'tampered-session'" in row["reason"] for row in damaged)
+    assert all(
+        row["reason"].endswith("campaign-terminal が一意でない: 0")
+        for row in damaged
+    )
+
+
+def test_session_identity_rejection_taints_t080_report_observation(
+        tmp_path, monkeypatch):
+    envelope = _t080_envelope()
+    _mock_t080_resolution(monkeypatch, "active-valid", envelope)
+    manifest = _manifest(tmp_path)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, t080_observation=envelope)
+    _finish_campaign(layout, manifest)
+
+    baseline = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+    assert baseline["t080_freeze_migration_observation"] == envelope
+
+    _rewrite_session_identity(
+        layout, event="campaign-start", variant="tampered-session",
+    )
+    damaged = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    assert damaged["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in damaged["rows"]} == {"protocol_violation"}
+    assert all(
+        row["reason"].startswith(_ISSUER_IDENTITY_ISSUE)
+        for row in damaged["rows"]
+    )
+    assert all("'tampered-session'" in row["reason"] for row in damaged["rows"])
+    assert all("; " not in row["reason"] for row in damaged["rows"])
+
+
+def test_session_identity_rejection_preserves_malformed_t080_issue(
+        tmp_path, monkeypatch):
+    envelope = _t080_envelope()
+    malformed = copy.deepcopy(envelope)
+    malformed["schema_version"] = "unknown/v1"
+    _mock_t080_resolution(monkeypatch, "active-valid", envelope)
+    manifest = _manifest(tmp_path, n=2)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    _campaign_start(layout, manifest, t080_observation=malformed)
+    _finish_campaign(layout, manifest)
+    _rewrite_session_identity(
+        layout, event="campaign-start", variant="tampered-session",
+    )
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path, repo_root=tmp_path / "repo",
+    )
+
+    t080_issue = (
+        "t080-freeze-migration-observation: malformed envelope: "
+        "schema_version が不正"
+    )
+    assert observations["t080_freeze_migration_observation"] is None
+    assert {row["status"] for row in observations["rows"]} == {
+        "protocol_violation",
+    }
+    assert all(row["bench_values"] == [] for row in observations["rows"])
+    assert all(
+        _ISSUER_IDENTITY_ISSUE in row["reason"]
+        for row in observations["rows"]
+    )
+    assert all(
+        "'tampered-session'" in row["reason"]
+        for row in observations["rows"]
+    )
+    assert all(t080_issue in row["reason"] for row in observations["rows"])
+    assert all(row["reason"].count("; ") == 1 for row in observations["rows"])
+
+
+def test_session_identity_legacy_accepts_consistent_unregistered_env(tmp_path):
+    document = dict(_manifest(tmp_path))
+    document.pop("run_contract")
+    legacy = artifacts.load_official_manifest(json.dumps(document).encode())
+    layout = _layout(tmp_path, legacy)
+    _finish_campaign(layout, legacy)
+    _rewrite_session_identity(layout, env_tag="legacy-fixture-env")
+
+    records = wal.read_records(layout)
+
+    assert {
+        record.env_tag for record in records if record.stage == SESSION
+    } == {"legacy-fixture-env"}
+    assert report._session_identity_issues(records, legacy) == []
+
+
+def test_report_session_issuer_alias_and_identity_use_model_authority(
+        tmp_path, monkeypatch):
+    sentinel = "".join(("sentinel", "-session-issuer"))
+    try:
+        with monkeypatch.context() as scoped:
+            scoped.setattr(model, "S8B_ORACLE_SESSION_ISSUER", sentinel)
+            importlib.reload(report)
+            assert report.SESSION_ISSUER is model.S8B_ORACLE_SESSION_ISSUER
+
+            manifest = _manifest(tmp_path)
+            layout = _layout(tmp_path, manifest)
+            _finish_campaign(layout, manifest)
+            rows = report.build_observations(
+                manifest=manifest, output_root=tmp_path,
+            )["rows"]
+
+            assert {row["status"] for row in rows} == {"protocol_violation"}
+            assert all(
+                row["reason"].startswith(_ISSUER_IDENTITY_ISSUE) for row in rows
+            )
+            assert all(repr(sentinel) in row["reason"] for row in rows)
+            assert all("; " not in row["reason"] for row in rows)
+    finally:
+        importlib.reload(report)
 
 
 def test_report_cli_rejects_exploration_manifest_without_output(tmp_path):
