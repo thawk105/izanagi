@@ -420,3 +420,62 @@ D80、逐語・変異台帳 = `output/insights/2026-07-23_wave3-floor-prereq.md`
 12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
 13. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
 14. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-23 (4) — [T-066] 消化完了: 外部固定 golden 全面拡張・measurement 恒真 fixture 除去・consumer 逐語結線 (D82、branch worktree-dev-wave-ruling-ac、計測なし)
+
+/dev-wave 1 回 (次の一手 6 [T-066] 残余)。brief 前実測で D81 (7) 疑義を確定 (canonical への
+verify は無改竄でも改竄でも同一の source drift 理由で FreezeError = tamper test は false-green)
+してから着手。設計判断・逐語・変異台帳の正本 = D82・
+`output/insights/2026-07-23_t066-golden-continuation-verbatim.md`。
+成果 commit = d50f714 / 4c01a05 / 6982579 / e2217c4 (基準 1a41090)。
+
+- **中身**: (a) test 専用 golden 台帳 `orchestrator/tests/s1_expected_goldens.py` を新設 —
+  comparator/predicate 逐語・全 flags・SWEEP_US・source layout + exact key-set・campaign 20 path
+  bytes pin・CMake lines literal・measurement 側 (comparisons 12 対・master_seed・schedule_hash)。
+  canonical 両凍結と機械照合して生成し、独立性を AST guard 化。型厳密比較 (bool≠int≠float、
+  None≠欠落)。(b) measurement の D68 (7) 型隠蔽 (K.build_document echo + generator hash 動的注入)
+  を全削除し、実材料 module fixture + function スコープ複製へ再設計。M→K 結線検査・cells 射影
+  厳密化・pin.CURRENT_PIN 結線・hermetic seam 2 件を追加。(c) known-axes の false-green tamper
+  2 件を fresh doc + 理由厳密化へ修正し、negative control 3 件 (generator sha / 非 ancestor head /
+  ccbench pin) を新設。(d) prepare_cell → quarantine の逐語受け渡し検査 (canonical 実値
+  parameterize 込み) を新設。(e) conftest + serialization 両面へ known-axes 4 + measurement
+  10 node を登録 (前 wave の self-consistency 未登録も同時に閉鎖)。production・凍結成果物は
+  1 byte も無変更
+- **変異 matrix**: 11 変異全 kill、全て新テストのみが検出 (HEAD テストとの差分実証)。K.py bytes
+  変更が HEAD の canonical 依存テストへ落とす false-reason 赤は MU-CTRL (comment のみ対照) で
+  分離。diagnostic sensitivity pin 枠は空
+- **受入 (親環境、repo root)**: 統合後 2826 → fix 後 **2832 passed / 18 skipped / 0 failed**
+  (baseline 2816 + 新規 16、退行 0)。1 回目全走で test_dev_waves_integration に /dev/shm 一過性
+  偽赤 1 件 — 単独・全走再走とも緑で環境起因と裁定。凍結 3 JSON sha256 不変。repo scan
+  invariant + 三軸語検査 (insights 凍結前) とも hit ゼロ緑
+- **検証**: brief 前実測 (E1・golden/canonical 全一致・baseline) → codex プラン (max) → 敵対相談
+  2 並列 (max、両 NO-GO 計 19 所見: consumer 境界・SWEEP_US・M→K 結線等を採用、pin 相互一致は
+  既存 test_s8b_approved で refuted、時間懸念は実測 0.08s で refuted) → 裁定 v2 + 変異事前登録
+  9 件 → 親ハンク (golden 台帳) → 実装 3 単位並列 → 親 integration → 敵対レビュー 2 並列 (max、
+  両 NO-GO、must-fix 13 → 採用 10 / P2 維持・裁定パッケージ・nit 据置) → helper v2 + fix 3 単位
+  並列 → 変異再走 (MU-J/MU-K 追加) → 焦点再レビュー 1 本 (**GO**、closed 11 / partial 4 =
+  裁定どおり / regressed 0)
+- **裁定パッケージ (ユーザーへ、D82 (9))**: fresh clone / CI で submodule 未 init のとき
+  measurement 統合検査 10 node が可視 skip になる現状を hard-fail 化するか。推奨 = 現状維持
+  (可視 skip は既裁定の方針で、hermetic seam 2 件が部分緩和。変えるなら infra 側の裁定)
+
+### 次の一手
+
+1. [T-080] receipt 発行 (ユーザー) → protocol 実凍結 (ユーザー) → 予測封印の実走 wave (AI)。
+   変わらず (worklog 2026-07-23 (1))
+2. [T-068] R commit で「移行契約により superseded」として確定的に閉じる (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる (同上)。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる (同上)。変わらず
+5. [T-011] floor 実測直前に発火。blocking 前提の残 = 統合 E2E (protocol 凍結後) と lineage
+   照合 (oracle 結線 wave 再評価)。D80 (8) の裁定パッケージ 3 件はこの手前で裁定。変わらず
+6. [T-066] **消化完了 (本エントリ、D82)。** backlog nit のみ残置 (fake quarantine signature・
+   skip 判定重複・素 runner の pytest 依存 — いずれも既存条件)。新規裁定パッケージ 1 件
+   (submodule 未 init の可視 skip を hard-fail 化するか — 推奨: 現状維持)
+7. [T-067] 部分消化・継続: exact 化の残余は D73 (10) から変わらず
+8. [T-001] ruling-B 単独: floor と並行、公式 report 発行前まで。変わらず
+9. [T-002] P-A1(a) Stage 1 + P-C3 ([T-006] 同梱): 同上。変わらず
+10. [T-009] 延期 (T-083 (a) 処置表): AGENTS.md 追記は 1 cycle 後。変わらず
+11. [T-060] 延期 (同): WAL 用語運用の明文化は 1 cycle 後。変わらず
+12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
+13. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
+14. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず

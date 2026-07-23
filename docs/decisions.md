@@ -3444,3 +3444,82 @@ baseline 一致) → 敵対レビュー 2 並列 (max、**両方 NO-GO** — sco
 自分で裏取り (D71(7)(b)・行番号・source drift 優先順位・test-owned self-consistency を実測確認) →
 fix ラウンド (self-consistency positive control 追加、codex high) → 親の受入全走
 (2816 passed、退行 0)・repo scan invariant 再走。
+
+## D82. [T-066] 消化完了 — 外部固定 golden の全面拡張・measurement 恒真 fixture の除去・consumer 逐語結線 (2026-07-23)
+
+**決定: [T-066] (恒真隠蔽除去、裁定 2026-07-21) と D81 (6) の持ち越し要件を全て消化した。**
+production コードと凍結成果物は 1 byte も変更していない (テスト + テスト用 golden 台帳のみ)。
+逐語・変異台帳 = `output/insights/2026-07-23_t066-golden-continuation-verbatim.md`。
+commit 系列 = d50f714 → 4c01a05 → 6982579 → e2217c4 (基準 1a41090)。
+
+(1) **D81 (7) の疑義は実測で確定し、修正した。** canonical `known_axes_freeze.json` への
+`verify()` は無改竄コピーでも sp_dd→xp_dd 改竄版でも同一理由 (`source sha256 不一致:
+s8a_trigger_sweep.py` — 既存 S-1 source drift) で FreezeError になり、
+`test_verify_rejects_one_byte_freeze_tamper` は改竄検出を一切検査しない false-green だった。
+段6 レビューが `test_verify_rejects_tampered_source_copy` も同型と指摘し (drift の
+「source sha256 不一致」が改竄対象と無関係に match する)、両方を fresh doc
+(`build_document()` 生成 → tmp 書き出し → 改竄) + 理由の厳密化 (前者は「機械再構成と不一致」の
+完全一致、後者は対象 path つき prefix) へ差し替えた。
+
+(2) **外部固定 golden 台帳 `orchestrator/tests/s1_expected_goldens.py` を新設した (test 専用)。**
+comparator 逐語 (sp_dd/sk_ad)・gate/ident predicate 逐語・p2/backoff/sort/stock flags・
+SWEEP_US semantic slice・source layout (path/key/lines 有無の順序付き tuple)・entry 別 exact
+key-set・output/campaigns 配下 20 path の bytes pin・external CMake 抜粋の lines 内容 literal・
+measurement 側 (comparisons 12 対全 field・master_seed・schedule_hash) を literal 固定。値は
+canonical 両凍結 (`known_axes_freeze.json` / `measurement_freeze.json`) の記録値と生成スクリプトで
+機械照合してから凍結した (現行コード恒真化の回避。現行 build_document() の comparator/predicate は
+canonical と全件一致 — drift は module 自己 hash のみで抽出内容は不変であることを実測確認)。
+比較は型厳密 (`assert_json_exact`、bool≠int≠float)・None と欠落を区別 (`_ABSENT`)。
+
+(3) **意図的に pin しない値を裁定した (P2)。** 編集可能ファイル (orchestrator/campaign/*.py・
+docs/*・output/insights/*) の sha256 は正当編集で false red になるため 64hex 形状のみ検査
+(bytes の歴史 pin は canonical freeze + FROZEN_MANIFEST 側の責務)。external/ccbench の sha256 も
+pin しない (ccbench_pin 検査が別途、lines は literal — pin bump 時のみ裁定つき更新)。各 entry の
+note 散文は key 存在のみ固定。台帳の独立性は機械 guard 化した (helper の import は `__future__`
+のみ / production が台帳を参照しないことの AST 検査)。
+
+(4) **measurement の D68 (7) 型隠蔽 (K.build_document echo + generator hash 動的注入) を全削除した。**
+新 fixture は module スコープで実材料から `K.build_document()` → golden 照合 →
+`K.verify_document()` (self-consistency、D81 (4)) を 1 回行い、immutable doc だけを共有する。
+tmp ファイル (known JSON 複製・dummy stats) は function スコープで毎テスト複製 (改竄の
+cross-test 汚染防止)。M→K 結線検査 (known doc の意味改竄を `known_axes_freeze 照合失敗:` で
+拒否)・cells 射影の known entry 型厳密一致・known doc pin と `pin.CURRENT_PIN` の prefix 結線を
+追加。submodule 未 init 環境向けに hermetic seam 2 件 (build_schedule 決定性・comparisons 構造) を
+残した。実行コスト実測 = K.build/K.verify/M.build 各 0.08s (段3 の時間懸念は refuted)。
+
+(5) **consumer 境界 (prepare_cell → quarantine) の逐語受け渡し検査を新設した。** freeze/golden が
+正しくても driver が別実装を差し込む regression は従来の全テストを素通りしていた (相談所見、
+親 grep で確認)。sort_best comparator / system_gate / ident_all predicate の verbatim 検査
+(実行前 deepcopy snapshot 比較 + 入力 dict 非破壊 assert + canonical 実値 5 ケースの parameterize)。
+
+(6) **変異 matrix 11 件全 kill (テスト強化 wave の新旧差分実証)。** 全変異を新テスト (e2217c4) と
+HEAD テスト (1a41090) の両方に適用し「新テストのみが検出」を差分で示した。K.py の bytes 変更が
+HEAD の canonical 依存テストを false-reason で赤くする問題は **MU-CTRL (comment のみの対照変異)**
+で分離した — 対照設計により bytes 感度赤を意味検出と誤計上しない。diagnostic sensitivity pin
+枠は空 (全 kill が受理集合の変化)。ハーネス = flock・anchor 一意性 assert・内容比較復元 (F32/F33)。
+
+(7) **real-repo xdist group の既存欠落も閉じた。** 前 wave 追加の self-consistency テストが
+conftest/serialization 両面に未登録だった。今回 known-axes 4 node + measurement 10 node を両面へ
+登録し、境界コメントを echo 除去後の実態へ更新した。
+
+(8) **refuted 所見の記録:** (a) K/M の ccbench pin 相互一致の欠落 (相談) —
+`test_s8b_approved.py:53-64` が CURRENT_PIN の prefix 一致を gitlink/full SHA へ既に検査しており
+攻撃経路 (pin-only 誤更新) は既存検出。production verifier での相互一致は backlog。(b) 実行時間
+懸念 (相談) — 実測 0.08s/回で refuted。
+
+(9) **scope 外 → 裁定パッケージ (実装しない):** fresh clone / CI で submodule 未 init のとき
+measurement 統合検査 10 node が可視 skip になる現状を hard-fail 化するか (推奨 = 現状維持:
+可視 skip 方針は既裁定で、hermetic seam が部分緩和。変更は infra 裁定)。backlog (nit):
+fake quarantine の signature 厳密性・skip 判定の 2 ファイル重複・素 runner の pytest import 依存
+(いずれも既存条件、本 wave の退行ではない)。
+
+(10) **プロセス:** brief 前実測 (E1 = D81 (7) 疑義の確定、golden 候補と canonical の全一致確認、
+baseline 全走 2816) → codex プラン (max、conftest/serialization 二面と source-copy false-green を
+検出) → 敵対相談 2 並列 (max、両 NO-GO、計 19 所見 — consumer 境界・SWEEP_US・M→K 結線・
+negative control 等を検出) → 親裁定 v2 + 変異事前登録 9 件 (単一理由をコード読解で確認) →
+親ハンク (golden 台帳、canonical 機械照合で生成) → 実装 3 単位並列 (codex high、worktree 分離・
+所有素集合) → 親 integration (conftest+serialization) → 受入全走 2826 → 変異 matrix 1 巡目
+(9/9 kill) → 敵対レビュー 2 並列 (max、両 NO-GO、must-fix 13) → 親裁定 (採用/不採用/据置) →
+helper v2 (親) + fix 3 単位並列 → 受入全走 2832 (dev_waves の /dev/shm 一過性偽赤 1 件は単独・
+全走再走で緑と裁定) → 変異 matrix 再走 (MU-J/MU-K 追加、11/11 kill) → 焦点再レビュー 1 本
+(**GO**、closed 11 / partial 4 = 裁定どおり / regressed 0)。
