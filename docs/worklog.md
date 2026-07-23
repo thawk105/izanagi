@@ -479,3 +479,59 @@ verify は無改竄でも改竄でも同一の source drift 理由で FreezeErro
 12. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
 13. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
 14. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-23 (5) — [T-001] ruling-B 消化: oracle session record の issuer/env_tag 照合 (session-only 防御 gate)、pipeline-env を新事実裁定パッケージへ (D83、branch worktree-dev-wave-ruling-ac、計測なし)
+
+/dev-wave 1 回 ([T-001] ruling-B、承認済み単独 wave)。正本 = D83・
+`output/insights/2026-07-23_ruling-b-verbatim.md`・同 `-mutation-ledger.json`。
+code commit = 59b0e4d (基準 1ce9a2a)。
+
+- **中身**: oracle report consumer (`s8b_oracle_report.py`) に session record (SESSION_STAGE) の
+  record-level identity 検査 `_session_identity_issues` を追加。fail-closed で (a) 全 session record の
+  issuer=共有定数 `model.S8B_ORACLE_SESSION_ISSUER` ("oracle-session")、(b) campaign 内 env_tag 一貫
+  (常時)、(c) manifest.run_contract.env_tag が非空 str のときその値と一致、を検査し違反を
+  protocol_violation へ (terminal 有/無の両経路)。driver:605 の literal も同定数へ (WAL bytes 同値)。
+  identity 違反時は T-080 observation を unavailable 化 (provenance 漏れ防止)、ただし元 malformed-T080
+  issue は保持 (規律3 anti-masking)。docstring に honest な枠組み (正規 producer は踏まない防御 gate・
+  pipeline env 非検査・manifest authority は [T-002]・真正性証明でない) を明記
+- **変異 matrix**: 5 kill (issuer/manifest-env/consistency/T-080-taint/全SESSION record全称性) + 1
+  diagnostic-sensitivity-pin (注入点 = 受理集合不変で status のみ変化ゆえ kill 外) + 1 equivalent
+  (driver 定数化)。**全変異で HEAD テスト (99件) は 1 件も検出せず** = 検出力は全て新テストが買った
+- **受入 (親環境、repo root)**: 全走 **2842 passed / 18 skipped / 0 failed** (baseline 2832 + 新 8 →
+  fix で +2 = 2842、退行 0)。report.py は committed へ内容比較で clean 復元。repo scan invariant 緑
+  (逐語凍結後の三軸語 hit 増なし)
+- **検証**: brief 前実測 (gate 実在・覆す事実なし) → codex プラン (max) → 敵対相談 2 並列 (max、両
+  NO-GO、pipeline-env へ収束) → 裁定 + 変異事前登録 → 実装 A→B (high) → 全走 2840 → 敵対レビュー 2
+  並列 (max、両 NO-GO、must-fix 5 採用 + 裁定パッケージ 3) → fix 1 単位 (max) → 全走 2842 → 統合
+  commit → 変異本走 → 焦点再レビュー (**GO**、closed 5 / regressed 0)
+- **裁定パッケージ (ユーザーへ、D83 (5))**: **PKG-1 (新事実、要裁定)** = pipeline record env が未検査で
+  性能証拠 (bench_done.tps) の env 整合性を session-only では保証できない (敵対相談 2 + レビュー 2 が
+  独立指摘)。正式裁定は session record のみ (2026-07-20(14)) ゆえ黙って拡張せず新事実付きで戻す。
+  設計択一 = (a) 独立 wave で pipeline env 照合 / (b) 射影 env フィルタ / (c) [T-002] 上流固定、推奨=(a)。
+  **PKG-2** = manifest 真正性検証は [T-002] 担当 (下記次の一手)。**PKG-3** = 親 brief の「env フィルタを
+  変えない」前提は偽 (フィルタ不在) — D83 で訂正
+
+### 消化した ID
+
+- [T-001] **ruling-B 消化 (D83)。** session-only の防御 gate を実装。承認済み単独 wave を実行順どおり消化
+- [T-066] 既に D82 で消化 (前エントリ次の一手に残置していたため保存則で明示)
+
+### 次の一手
+
+1. [T-080] receipt 発行 (ユーザー) → protocol 実凍結 (ユーザー) → 予測封印の実走 wave (AI)。変わらず
+2. [T-068] R commit で「移行契約により superseded」として確定的に閉じる (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる (同上)。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる (同上)。変わらず
+5. [T-011] floor 実測直前に発火。blocking 前提の残 = 統合 E2E (protocol 凍結後) と lineage 照合。
+   D80 (8) の裁定パッケージ 3 件はこの手前で裁定。変わらず
+6. [T-067] 部分消化・継続: exact 化の残余は D73 (10) から変わらず
+7. [T-002] P-A1(a) Stage 1 + P-C3 ([T-006] 同梱): 公式 report API を VerifiedManifest のみ受理へ。
+   **ruling-B の env authority (manifest 宣言 env) の真正性検証はここに依存 (PKG-2)。** 変わらず
+8. [T-085] **新規裁定パッケージ (PKG-1、要裁定)**: pipeline record env 未検査で性能証拠の env 整合性が
+   session-only では未保証。設計択一 (a)独立 wave で pipeline env 照合 (推奨) / (b)射影 env フィルタ /
+   (c)[T-002] 上流固定。正式裁定は session record のみゆえ黙って拡張せず新事実付きで戻す
+9. [T-009] 延期 (T-083 (a) 処置表): AGENTS.md 追記は 1 cycle 後。変わらず
+10. [T-060] 延期 (同): WAL 用語運用の明文化は 1 cycle 後。変わらず
+11. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
+12. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
+13. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず

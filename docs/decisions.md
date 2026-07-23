@@ -3523,3 +3523,49 @@ negative control 等を検出) → 親裁定 v2 + 変異事前登録 9 件 (単�
 helper v2 (親) + fix 3 単位並列 → 受入全走 2832 (dev_waves の /dev/shm 一過性偽赤 1 件は単独・
 全走再走で緑と裁定) → 変異 matrix 再走 (MU-J/MU-K 追加、11/11 kill) → 焦点再レビュー 1 本
 (**GO**、closed 11 / partial 4 = 裁定どおり / regressed 0)。
+
+## D83. [T-001] ruling-B — oracle session record の issuer/env_tag 照合 (session-only 防御 gate)、pipeline-env を新事実裁定パッケージへ (2026-07-23)
+
+**決定: oracle report consumer に session record (SESSION_STAGE) の record-level identity 検査を
+fail-closed で追加する (session-only)。pipeline record env・manifest 真正性は scope 外の裁定パッケージ
+としてユーザーへ返す。** 逐語・変異台帳の正本 =
+`output/insights/2026-07-23_ruling-b-verbatim.md` / 同 `-mutation-ledger.json`。code commit = 59b0e4d。
+
+(1) **承認済み裁定の実装。** worklog 2026-07-20 (14) 項5「ruling-B 承認、単独 wave」+ 実行順
+「backlog-guard → ruling-B → P-A1(a)」。次の一手 ID 順でも [T-067] は裁定パッケージ+揮発 payload
+リスクで失格、[T-001] が先頭。
+
+(2) **検査の形。** `_session_identity_issues(records, manifest)` が `record.stage == SESSION_STAGE`
+の全 record を record-level で走査し、(a) issuer=共有定数 `model.S8B_ORACLE_SESSION_ISSUER`
+("oracle-session")、(b) campaign 内 env_tag 一貫 (常時)、(c) manifest.run_contract.env_tag が非空 str
+のときその値と一致、を検査。違反を `terminal_protocol_issues` へ入れ terminal 有/無の両経路で
+protocol_violation にする。driver:605 の literal も同定数へ (WAL bytes 同値)。
+
+(3) **正直な枠組み (docstring)。** 実 run では driver が run_contract.env_tag を単一変数で全 session
+append に通すため正規 producer は本検査を踏まない。本検査は「正規だがバグりうる/改変されうる WAL への
+構造検査」であり真正性証明ではない (D68 と同枠、「証明可能/改竄不能」不使用)。
+
+(4) **T-080 observation の taint (規律3)。** identity 違反時は T-080 observation を unavailable 化して
+拒否 record の provenance 漏れを止める。ただし**元の malformed-T080 issue は保持**して診断を消さない
+(`_T080CampaignObservation("unavailable", issue=元)`。anti-masking のレビュー must-fix)。
+
+(5) **scope 外 → 裁定パッケージ (実装せず、ユーザー再裁定待ち)。** **PKG-1 (新事実):** pipeline record の
+env が未検査で、性能証拠 (bench_done.tps) の env 整合性を session-only では保証できない。敵対相談 2 本 +
+レビュー 2 本が独立に指摘。正式裁定は session record のみ (worklog 2026-07-20(14)) ゆえ黙って拡張せず
+新事実付きで戻す。**PKG-2:** manifest 自体の真正性検証 ([T-002] P-A1(a) Stage 1) に依存。**PKG-3:**
+親 brief の「性能経路の env フィルタを変えない」前提は偽 (oracle report に env フィルタは無い) — 訂正。
+
+(6) **不変条件の維持。** 凍結成果物 (FROZEN_MANIFEST 8件) は不変。oracle manifest は report.py の source
+SHA を `_GENERATOR_KEYS={materializer,report,judge}` で pin するが、凍結 oracle manifest は repo に存在
+せず現 report SHA も未 pin、テストは動的生成、floor 未実行で durable manifest も無いため編集は凍結物を
+壊さない (durable manifest 発行後は再発行要と注記)。
+
+(7) **変異 matrix (最終コード)。** 5 kill (issuer/manifest-env/consistency/T-080-taint/全SESSION record
+全称性) + 1 diagnostic-sensitivity-pin (注入点 = 受理集合不変・status のみ変化ゆえ kill 集計外) + 1
+equivalent (driver 定数化)。**全変異で HEAD テスト (基準 1ce9a2a の 99 件) は 1 件も検出せず** =
+検出力は全て新テストが買った (テスト強化 wave の差分実証)。台帳 = JSON。
+
+(8) **プロセス。** brief 前実測 → codex プラン (max) → 敵対相談 2 並列 (max、両 NO-GO、pipeline-env へ収束)
+→ 親裁定 + 変異事前登録 → 実装 A→B (high) → 親 integration・全走 2840 → 敵対レビュー 2 並列 (max、両
+NO-GO、must-fix 5) → 親裁定 (採用 5 / 裁定パッケージ 3) → fix 1 単位 (max) → 全走 2842 (退行0) → 統合
+commit → 変異本走 → 焦点再レビュー (**GO**、closed 5 / regressed 0)。
