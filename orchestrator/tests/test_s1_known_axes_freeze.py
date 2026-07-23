@@ -20,6 +20,28 @@ sys.path.insert(0, _ORCH)
 from campaign import s1_known_axes_freeze as M  # noqa: E402
 from skiputil import Skip, skip  # noqa: E402
 
+EXPECTED_STOCK_COMMON = {
+    "BACK_OFF": 1,
+    "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+    "NO_WAIT_OF_TICTOC": 0,
+    "WAL": 0,
+}
+EXPECTED_TRIGGER_FLAGS = {
+    "BACK_OFF": 1,
+    "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+    "NO_WAIT_OF_TICTOC": 0,
+    "WAL": 0,
+    "BACKOFF_TRIGGER_GATING": 1,
+}
+
+
+def _assert_exact_int_flags(actual, expected, label):
+    """dict の key 集合 + 値の型 (bool を int として誤認しない) + 値を厳密に固定する。"""
+    assert isinstance(actual, dict) and set(actual) == set(expected), (label, actual, expected)
+    for key, exp in expected.items():
+        val = actual[key]
+        assert type(val) is int and val == exp, (label, key, val, exp)
+
 _SUBMODULE_DIR = M.ROOT / "external" / "ccbench"
 
 
@@ -53,6 +75,31 @@ def test_generate_selects_registered_expected_points():
     for workload, name in M.EXPECTED_SORT.items():
         assert entries[workload]["sort_best"]["name"] == name
     assert entries["read-heavy"]["sort_best"]["name"] == "sk_ad"
+    for workload in M.WORKLOADS:
+        _assert_exact_int_flags(
+            entries[workload]["stock_common"]["flags"], EXPECTED_STOCK_COMMON,
+            f"stock_common.flags[{workload}]")
+        _assert_exact_int_flags(
+            entries[workload]["system_gate"]["flags"], EXPECTED_TRIGGER_FLAGS,
+            f"system_gate.flags[{workload}]")
+        _assert_exact_int_flags(
+            entries[workload]["ident_all"]["flags"], EXPECTED_TRIGGER_FLAGS,
+            f"ident_all.flags[{workload}]")
+
+
+def test_build_document_is_self_consistent_and_detects_tamper():
+    """独立 golden 全体の代替ではなく、実 build_document() の自己無矛盾性
+    (二重生成の一致) と単一フィールド改竄の検出を確認する positive control。
+    凍結成果物 (output/s1-freeze/known_axes_freeze.json) の現状ドリフトに非依存 —
+    frozen_at_head/ccbench_pin は現在の実 HEAD を使うため、常に自身の ancestor になる。
+    """
+    _require_submodule_sources()
+    doc = M.build_document()
+    M.verify_document(doc)
+    tampered = copy.deepcopy(doc)
+    tampered["what"] = "TAMPERED"
+    with pytest.raises(M.FreezeError, match="機械再構成と不一致"):
+        M.verify_document(tampered)
 
 
 def test_generate_refuses_existing_freeze(tmp_path):
