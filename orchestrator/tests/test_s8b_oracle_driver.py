@@ -302,7 +302,19 @@ def _t080_stub_free_e2e_repo(
         ROOT / "orchestrator", root / "orchestrator",
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
-    shutil.copytree(ROOT / "output", root / "output")
+
+    def ignore_t080_migration_artifacts(directory, _names):
+        if Path(directory) == ROOT / "output" / "t080-migration":
+            return {
+                Path(migration.RECEIPT_REL).name,
+                Path(migration.DRAFT_REL).name,
+            }
+        return set()
+
+    shutil.copytree(
+        ROOT / "output", root / "output",
+        ignore=ignore_t080_migration_artifacts,
+    )
 
     known = json.loads((ROOT / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
     source_paths: set[str] = set()
@@ -337,7 +349,11 @@ def _t080_stub_free_e2e_repo(
     _run_git(root / migration.CCBENCH_REL, "checkout", "-q", known["ccbench_pin"])
     _run_git(root, "add", "-A")
     _run_git(root, "commit", "-q", "-m", "T080 migration basis", "-m", "AI-Agent: none")
-    _run_git(root, "rev-parse", "HEAD")
+    basis_history = migration.inspect_receipt_history(root=root, check_worktree=True)
+    assert basis_history.state == "never-issued", (
+        "T-080 E2E fixture basis は never-issued 必須: "
+        f"observed={basis_history.state}"
+    )
 
     receipt = root / migration.RECEIPT_REL
     if not issue_receipt:
@@ -1623,6 +1639,18 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
     freeze_path = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
     manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    receipt_root = tmp_path / "receipt-free-repo"
+    receipt_root.mkdir()
+    _run_git(receipt_root, "init", "-q", "--object-format=sha1")
+    _run_git(receipt_root, "config", "user.name", "S8B G12 Test")
+    _run_git(receipt_root, "config", "user.email", "s8b-g12@example.invalid")
+    _run_git(receipt_root, "config", "commit.gpgsign", "false")
+    _run_git(receipt_root, "config", "core.autocrlf", "false")
+    assert _run_git(receipt_root, "rev-parse", "--show-object-format") == "sha1"
+    _run_git(
+        receipt_root, "commit", "-q", "--allow-empty",
+        "-m", "receipt-free basis", "-m", "AI-Agent: none",
+    )
     shared_out_root = tmp_path / "shared-oracle-output-root"
     claim_root = shared_out_root / "claims"
     claim_root.mkdir(parents=True)
@@ -1683,7 +1711,7 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
                                       side_effect=won_claim_then_stop):
                 result = driver.run_block(
                     manifest_path={str(manifest_path)!r}, block_id="b0",
-                    freeze_path={str(freeze_path)!r}, root={str(ROOT)!r},
+                    freeze_path={str(freeze_path)!r}, root={str(receipt_root)!r},
                     output_root={str(shared_out_root)!r},
                     budget_path={str(tmp_path / 'subprocess-budget.json')!r},
                     marker_root={str(marker_root)!r},
@@ -1695,18 +1723,26 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
             print(json.dumps({{"status": "claim-won", "error": str(exc)}}, sort_keys=True))
         """
     )
-    processes = [
-        subprocess.Popen(
-            [sys.executable, "-c", script], stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, text=True,
-        )
-        for _ in range(2)
-    ]
+    processes = []
     results = []
-    for process in processes:
-        stdout, stderr = process.communicate(timeout=10)
-        assert process.returncode == 0, stderr
-        results.append(json.loads(stdout))
+    try:
+        for _ in range(2):
+            processes.append(subprocess.Popen(
+                [sys.executable, "-c", script], stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True,
+            ))
+        for process in processes:
+            stdout, stderr = process.communicate(timeout=10)
+            assert process.returncode == 0, stderr
+            results.append(json.loads(stdout))
+    finally:
+        for process in processes:
+            try:
+                if process.poll() is None:
+                    process.kill()
+                process.wait()
+            except Exception:
+                pass
 
     assert sorted(result["status"] for result in results) == ["claim-won", "refused"]
     assert len(list(claim_root.glob("*.claim"))) == 1
@@ -2198,18 +2234,31 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
         target.write_bytes(historical_bytes(record["path"], record["sha256"]))
     generator = root / freeze["generator"]["path"]
     generator.write_bytes(generator.read_bytes() + b"# driver-gate-generator-tamper\n")
+    generator_refusal = (
+        "holdout-freeze-verify: FreezeError: generator sha256 不一致: "
+        f"recorded={freeze['generator']['sha256']} "
+        f"actual={hashlib.sha256(generator.read_bytes()).hexdigest()}"
+    )
 
     decision = driver.gate_check(
         freeze_path=root / migration.HOLDOUT_REL, root=root,
     )
 
-    generator_refusals = [
+    known_prefix = (
+        "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
+    )
+    known_matches = [
         refusal for refusal in decision.refusals
-        if (refusal.startswith("holdout-freeze-verify: ")
-            and "generator sha256 不一致" in refusal)
+        if refusal.startswith(known_prefix)
     ]
     assert decision.allowed is False
-    assert len(generator_refusals) == 1, decision.refusals
+    assert len(decision.refusals) == 4, decision.refusals
+    assert len(known_matches) == 1, decision.refusals
+    assert set(decision.refusals) - set(known_matches) == {
+        generator_refusal,
+        _FLOOR_REFUSAL,
+        _BUDGET_REFUSAL,
+    }, decision.refusals
 
 
 def test_exit_code_priority_table():
