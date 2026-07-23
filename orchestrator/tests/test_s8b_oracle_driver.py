@@ -54,6 +54,15 @@ CONFIGURATIONS = (
 # driver v2 実走 fixture の env (env_contract registry の唯一の登録 env かつ
 # p2_2.ENV_TAG と一致する = machine-pin を満たす)。
 V2_ENV_TAG = "linux-baremetal"
+GENERATOR_SOURCES = {
+    "materializer": "orchestrator/campaign/s1_direct_comparison.py",
+    "report": "orchestrator/campaign/s8b_oracle_report.py",
+    "judge": "orchestrator/campaign/s8b_oracle_judge.py",
+    "outcome_stage_contract": (
+        "orchestrator/campaign/s8b_outcome_stage_contract.py"
+    ),
+    "artifacts": "orchestrator/campaign/s8b_oracle_artifacts.py",
+}
 
 _T080_SOURCE_GOLDEN = (
     ("known_axes", "/entries/balanced/ident_all/sources/3/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
@@ -803,11 +812,7 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
                 **identity,
             })
     if generator_paths is None:
-        generator_paths = (
-            "orchestrator/campaign/s1_direct_comparison.py",
-            "orchestrator/campaign/s8b_oracle_report.py",
-            "orchestrator/campaign/s8b_oracle_judge.py",
-        )
+        generator_paths = GENERATOR_SOURCES
     contract = contract or ec.lookup(V2_ENV_TAG)
     document = manifest_module.build_manifest(
         freeze_path=freeze_path,
@@ -823,8 +828,8 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
         campaign_ids={"b0": "s8b-oracle-fixture-b0"},
         allowed_excluded_reasons=["machine-failure"],
         generator_versions={
-            role: _source(path, root=source_root)
-            for role, path in zip(("materializer", "report", "judge"), generator_paths)
+            role: _source(generator_paths[role], root=source_root)
+            for role in GENERATOR_SOURCES
         },
     )
     path = tmp_path / "oracle_manifest.json"
@@ -1022,9 +1027,12 @@ def _run_required_preflight(
     manifest_path, manifest_document = _write_manifest(
         tmp_path, freeze_path, prepare_fn, contract=contract,
     )
-    verified_manifest = manifest_module.VerifiedManifest(
-        document=manifest_document,
-        sha256=manifest_module.manifest_sha256(manifest_document),
+    verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
+    verified_manifest = manifest_module.verify_manifest(
+        manifest_path,
+        root=ROOT,
+        freeze_document=verified_freeze.document,
+        freeze_sha256=verified_freeze.sha256,
     )
     validated = _fake_launch_validated(freeze_path, env_tag=contract.env_tag)
     issuer = receipt_issuer
@@ -1096,8 +1104,12 @@ def _required_run_fixture(tmp_path: Path):
     )
     prepare_fn.calls.clear()
     validated = _fake_launch_validated(freeze_path, env_tag=contract.env_tag)
-    verified_manifest = manifest_module.VerifiedManifest(
-        document=document, sha256=manifest_module.manifest_sha256(document),
+    verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
+    verified_manifest = manifest_module.verify_manifest(
+        manifest_path,
+        root=ROOT,
+        freeze_document=verified_freeze.document,
+        freeze_sha256=verified_freeze.sha256,
     )
     environ = _reservation_env()
     plan = _required_plan(contract, verified, document["schedule"]["rows"], environ)
@@ -1639,9 +1651,10 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
             ratified=ratified, activation_head=ratified.activation_head,
             search_digest="d" * 64, symlink_gitlink_inventory=(),
             floor_artifact=floor, binaries_by_cell={{}})
-        manifest = json.loads(Path({str(manifest_path)!r}).read_bytes())
-        verified_manifest = s8b_oracle_manifest.VerifiedManifest(
-            document=manifest, sha256=s8b_oracle_manifest.manifest_sha256(manifest))
+        verified_manifest = s8b_oracle_manifest.verify_manifest(
+            Path({str(manifest_path)!r}), root=Path({str(ROOT)!r}),
+            freeze_document=json.loads(raw),
+            freeze_sha256=hashlib.sha256(raw).hexdigest())
         base = env_contract.lookup("linux-baremetal")
         required = dataclasses.replace(
             base, attestation_mode="required",
@@ -2062,15 +2075,20 @@ def test_probe_error_reason_is_fail_closed_unknown_abort(tmp_path, reason):
 
 
 def test_transient_prepare_failure_retries_once(tmp_path):
-    freeze_path = _synthetic_freeze(tmp_path)
-    stable_prepare = _prepare_factory()
-    manifest_path, document = _write_manifest(tmp_path, freeze_path, stable_prepare)
+    root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(
+        tmp_path,
+    )
+    manifest_path, document = _emitter_manifest(
+        tmp_path, root, freeze_path,
+    )
     retrying_prepare = _prepare_factory(fail_first=True)
     evaluate_fn = _fake_evaluate_factory()
 
-    output_root = tmp_path / "out"
-    result = _run(tmp_path, freeze_path, manifest_path,
-                  retrying_prepare, evaluate_fn, output_root=output_root)
+    output_root = root / "output"
+    result = _run_v2(
+        root, freeze_path, manifest_path, retrying_prepare, evaluate_fn,
+        out_root=output_root, tmp_path=tmp_path,
+    )
 
     prefix = [event["event"] for event in result["events"][:5]]
     assert prefix == [
@@ -2082,6 +2100,7 @@ def test_transient_prepare_failure_retries_once(tmp_path):
     assert report_module.main([
         "report", "--manifest", str(manifest_path),
         "--output-root", str(output_root), "--out", str(observations_path),
+        "--repo-root", str(root),
     ]) == 0
     observations = json.loads(observations_path.read_bytes())
     assert all(row["status"] == "completed" for row in observations["rows"])
@@ -3003,11 +3022,11 @@ def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5):
 
 
 def _emitter_manifest(tmp_path: Path, root: Path, freeze_path: Path):
-    freeze = json.loads(freeze_path.read_bytes())
-    generator_paths = (
-        freeze["design_source"]["path"], freeze["generator"]["path"],
-        freeze["known_axes_freeze"]["path"],
-    )
+    generator_paths = dict(GENERATOR_SOURCES)
+    for role, relative_path in generator_paths.items():
+        source = root / relative_path
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(f"hermetic generator fixture: {role}\n".encode("utf-8"))
     with mock.patch.object(manifest_module, "ROOT", root):
         return _write_manifest(
             tmp_path, freeze_path, _prepare_factory(), source_root=root,
@@ -3186,7 +3205,15 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     )
     assert result["status"] == "completed", result
 
-    loaded_manifest = report_module._artifacts.load_official_manifest(manifest_path)
+    launch_validated = s8b_ratified_freeze.launch_validate(
+        s8b_ratified_freeze.load_ratified_freeze(root), root,
+    )
+    loaded_manifest = manifest_module.verify_manifest(
+        manifest_path,
+        root=root,
+        freeze_document=launch_validated.ratified.document,
+        freeze_sha256=launch_validated.ratified.sha256,
+    )
     observations = report_module.build_observations(
         manifest=loaded_manifest, output_root=out_root, repo_root=root,
     )

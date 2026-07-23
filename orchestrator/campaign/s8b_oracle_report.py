@@ -22,7 +22,7 @@ import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
@@ -34,7 +34,9 @@ from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
 from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign import s8b_experiment_numbers as _experiment_numbers  # noqa: E402
+from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
 from campaign import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E402
+from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign import t080_freeze_migration as _t080  # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout  # noqa: E402
 
@@ -91,6 +93,14 @@ _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 class ReportError(ValueError):
     """manifest または WAL が report 契約を満たさない。"""
+
+
+class _ManifestIssue(TypedDict):
+    """manifest 全域を taint する安定した構造化診断。"""
+
+    code: str
+    campaign_id: Optional[str]
+    message: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -347,7 +357,7 @@ def _canonical_sha256(value: Mapping) -> str:
 
 def _validate_manifest(
         manifest: Mapping,
-) -> tuple[list[Mapping], set[str], str, int, int, list[str]]:
+) -> tuple[list[Mapping], set[str], str, int, int, list[_ManifestIssue]]:
     if not isinstance(manifest, Mapping):
         raise ReportError("manifest は object でなければならない")
     missing = [key for key in ("campaign_ids", "schedule", "allowed_excluded_reasons")
@@ -381,27 +391,44 @@ def _validate_manifest(
     except s8b_oracle_manifest.ManifestError as exc:
         raise ReportError(f"manifest canonical hash を再計算できない: {exc}") from exc
     expected_reps = _experiment_numbers.APPROVED_REPS
-    run_contract_issues: list[str] = []
+    run_contract_issues: list[_ManifestIssue] = []
     if "run_contract" in manifest:
         run_contract = manifest["run_contract"]
         if not isinstance(run_contract, Mapping):
-            run_contract_issues.append("manifest.run_contract が object でない")
+            run_contract_issues.append({
+                "code": "run-contract-not-object",
+                "campaign_id": None,
+                "message": "manifest.run_contract が object でない",
+            })
         else:
             declared_reps = run_contract.get("reps")
             if not _is_int(declared_reps) or declared_reps <= 0:
-                run_contract_issues.append(
-                    "manifest.run_contract.reps が非 bool の正整数でない")
+                run_contract_issues.append({
+                    "code": "run-contract-reps-not-positive-int",
+                    "campaign_id": None,
+                    "message": (
+                        "manifest.run_contract.reps が非 bool の正整数でない"
+                    ),
+                })
             elif declared_reps != expected_reps:
-                run_contract_issues.append(
-                    "manifest.run_contract.reps が APPROVED_REPS と不一致: "
-                    f"actual={declared_reps}, expected={expected_reps}")
+                run_contract_issues.append({
+                    "code": "run-contract-reps-not-approved",
+                    "campaign_id": None,
+                    "message": (
+                        "manifest.run_contract.reps が APPROVED_REPS と不一致: "
+                        f"actual={declared_reps}, expected={expected_reps}"
+                    ),
+                })
     return (schedule, set(allowed), manifest_sha, n, expected_reps,
             run_contract_issues)
 
 
-def _campaign_index(raw: object) -> tuple[dict[str, str], set[str]]:
+def _campaign_index(
+    raw: object, schedule: Sequence[Mapping],
+) -> tuple[dict[str, str], set[str], list[_ManifestIssue]]:
     by_block: dict[str, str] = {}
     ids: set[str] = set()
+    declaration_issues: list[_ManifestIssue] = []
     if isinstance(raw, Mapping):
         for block, value in raw.items():
             campaign_id = value.get("campaign_id") if isinstance(value, Mapping) else value
@@ -409,24 +436,56 @@ def _campaign_index(raw: object) -> tuple[dict[str, str], set[str]]:
                 raise ReportError("campaign_ids mapping の block/campaign_id が不正")
             by_block[block] = campaign_id
             ids.add(campaign_id)
+            if not any(row.get("block_id") == block for row in schedule):
+                declaration_issues.append({
+                    "code": "campaign-without-schedule-row",
+                    "campaign_id": campaign_id,
+                    "message": (
+                        "manifest.campaign_ids の宣言に schedule row がない: "
+                        f"block_id={block!r}, campaign_id={campaign_id!r}"
+                    ),
+                })
     elif (isinstance(raw, Sequence) and not isinstance(raw, (str, bytes, bytearray))):
+        declared_ids: list[str] = []
         for value in raw:
             if isinstance(value, str) and value:
-                ids.add(value)
+                campaign_id = value
             elif isinstance(value, Mapping):
                 block = value.get("block_id")
                 campaign_id = value.get("campaign_id")
                 if not isinstance(block, str) or not isinstance(campaign_id, str) or not campaign_id:
                     raise ReportError("campaign_ids entry の block_id/campaign_id が不正")
                 by_block[block] = campaign_id
-                ids.add(campaign_id)
             else:
                 raise ReportError("campaign_ids は文字列または object の array でなければならない")
+            ids.add(campaign_id)
+            declared_ids.append(campaign_id)
     else:
         raise ReportError("campaign_ids は mapping または array でなければならない")
     if not ids:
         raise ReportError("campaign_ids が空")
-    return by_block, ids
+    if not isinstance(raw, Mapping):
+        for campaign_id in dict.fromkeys(declared_ids):
+            has_row = False
+            for row in schedule:
+                try:
+                    has_row = (
+                        _campaign_for_row(row, by_block, ids) == campaign_id
+                    )
+                except ReportError:
+                    continue
+                if has_row:
+                    break
+            if not has_row:
+                declaration_issues.append({
+                    "code": "campaign-without-schedule-row",
+                    "campaign_id": campaign_id,
+                    "message": (
+                        "manifest.campaign_ids の宣言に schedule row がない: "
+                        f"campaign_id={campaign_id!r}"
+                    ),
+                })
+    return by_block, ids, declaration_issues
 
 
 def _campaign_for_row(row: Mapping, by_block: Mapping[str, str], ids: set[str]) -> str:
@@ -1190,7 +1249,7 @@ def _campaign_terminal_position_issue(records: Sequence[object]) -> Optional[str
 def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mapping,
                      manifest_sha: str, allowed_excluded: set[str], output_root: Path,
                      expected_reps: int,
-                     manifest_issues: Sequence[str], *,
+                     manifest_issue_messages: Sequence[str], *,
                      repo_root: Path,
                      current_receipt_invalid: bool,
                      ) -> tuple[list[dict], _T080CampaignObservation]:
@@ -1282,7 +1341,10 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
 
     campaign_starts = [record.payload for record in records
                        if _session_event(record, "campaign-start")]
-    global_issues: list[str] = list(manifest_issues)
+    # 通常評価経路では先に合成して correctness-red 診断を materialize する。
+    # build_observations の中央 post-process も全 issue を再適用するため、
+    # early return 行を含む全 row の taint はそちらで完結する。
+    global_issues: list[str] = list(manifest_issue_messages)
     global_issues.extend(unbound_payload_issues)
     global_issues.extend(terminal_protocol_issues)
     if len(campaign_starts) != 1:
@@ -1505,14 +1567,30 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
 
 
 def build_observations(
-    *, manifest: _artifacts.OfficialManifest | _artifacts.LegacyManifest,
+    *, manifest: (
+        s8b_oracle_manifest.VerifiedManifest | _artifacts.LegacyManifest
+    ),
     output_root: Path,
     repo_root: Path = ROOT,
 ) -> _artifacts.OfficialObservations:
     """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。"""
-    if type(manifest) not in {_artifacts.OfficialManifest, _artifacts.LegacyManifest}:
+    if type(manifest) not in {
+            s8b_oracle_manifest.VerifiedManifest, _artifacts.LegacyManifest}:
         raise _artifacts.OracleArtifactTypeError(
-            "build_observations は OfficialManifest/LegacyManifest exact type のみ受理する")
+            "build_observations は VerifiedManifest/LegacyManifest exact type のみ受理する")
+    if type(manifest) is s8b_oracle_manifest.VerifiedManifest:
+        document = manifest.document
+        manifest_kind = "official"
+        (schedule, allowed_excluded, _legacy_sha, n, expected_reps,
+         manifest_issues) = _validate_manifest(document)
+        if _canonical_sha256(document) != manifest.sha256:
+            raise ReportError(
+                "VerifiedManifest document canonical hash が sha256 と不一致"
+            )
+        manifest_sha = manifest.sha256
+    else:
+        document = manifest
+        manifest_kind = "legacy"
     try:
         receipt_resolution = _t080.inspect_receipt_history(root=Path(repo_root))
     except _t080.MigrationError as exc:
@@ -1526,12 +1604,21 @@ def build_observations(
         or (receipt_resolution.state == "invalid" and bool(receipt_resolution.refusals))
     )
     resolved_output_root = _resolve_official_output_root(Path(output_root))
-    manifest_kind = (
-        "official" if type(manifest) is _artifacts.OfficialManifest else "legacy"
+    if type(manifest) is _artifacts.LegacyManifest:
+        (schedule, allowed_excluded, manifest_sha, n, expected_reps,
+         manifest_issues) = _validate_manifest(document)
+    by_block, campaign_ids, declaration_issues = _campaign_index(
+        document["campaign_ids"], schedule,
     )
-    (schedule, allowed_excluded, manifest_sha, n, expected_reps,
-     manifest_issues) = _validate_manifest(manifest)
-    by_block, campaign_ids = _campaign_index(manifest["campaign_ids"])
+    manifest_issues.extend(declaration_issues)
+    ghost_issues = [
+        issue for issue in manifest_issues
+        if issue["code"] == "campaign-without-schedule-row"
+    ]
+    assessed_manifest_issue_messages = [
+        issue["message"] for issue in manifest_issues
+        if issue["code"] != "campaign-without-schedule-row"
+    ]
     grouped: dict[str, list[tuple[int, Mapping]]] = {
         campaign_id: [] for campaign_id in campaign_ids}
     detached: list[tuple[int, Mapping, str]] = []
@@ -1548,9 +1635,10 @@ def build_observations(
         if grouped[campaign_id]:
             ordinals, items = zip(*grouped[campaign_id])
             assessed, t080_observation = _assess_campaign(
-                items, campaign_id, manifest, manifest_sha,
+                items, campaign_id, document, manifest_sha,
                 allowed_excluded, resolved_output_root,
-                expected_reps, manifest_issues,
+                expected_reps,
+                assessed_manifest_issue_messages,
                 repo_root=Path(repo_root),
                 current_receipt_invalid=current_receipt_invalid,
             )
@@ -1574,10 +1662,13 @@ def build_observations(
             and all(item.kind == "envelope" for item in campaign_observations)
             and all(item.issue is None for item in campaign_observations)
             and len(canonical_values) == 1
-            and not current_receipt_invalid):
+            and not current_receipt_invalid
+            and not ghost_issues):
         canonical = next(iter(canonical_values))
         t080_report_observation = json.loads(canonical.decode("utf-8"))
     rows = [by_ordinal[ordinal] for ordinal in range(len(schedule))]
+    for issue in ghost_issues:
+        _force_protocol_violation(rows, issue["message"])
     expected_cells = [{
         "schedule_index": item["schedule_index"],
         "holdout_id": item["holdout_id"],
@@ -1590,6 +1681,7 @@ def build_observations(
         "n_per_cell": n,
         "expected_cells": expected_cells,
         "rows": rows,
+        "manifest_issues": [dict(issue) for issue in manifest_issues],
         _T080_KEY: t080_report_observation,
     })
 
@@ -1607,6 +1699,7 @@ def _parser() -> argparse.ArgumentParser:
     report.add_argument("--manifest", type=Path, required=True)
     report.add_argument("--output-root", type=Path, required=True)
     report.add_argument("--out", type=Path, required=True)
+    report.add_argument("--repo-root", type=Path, default=ROOT)
     return parser
 
 
@@ -1614,9 +1707,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
         manifest = _artifacts.load_official_manifest(args.manifest)
-        observations = build_observations(manifest=manifest, output_root=args.output_root)
+        root = Path(args.repo_root)
+        if type(manifest) is _artifacts.OfficialManifest:
+            ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+            launch_validated = s8b_ratified_freeze.launch_validate(
+                ratified, root,
+            )
+            manifest = s8b_oracle_manifest.verify_manifest(
+                args.manifest,
+                root=root,
+                freeze_document=launch_validated.ratified.document,
+                freeze_sha256=launch_validated.ratified.sha256,
+            )
+        observations = build_observations(
+            manifest=manifest, output_root=args.output_root, repo_root=root,
+        )
         _write_create_only(args.out, observations)
     except (OSError, json.JSONDecodeError, _artifacts.OracleArtifactTypeError,
+            s8b_ratified_freeze.RatifiedFreezeError,
+            s8b_oracle_manifest.ManifestError, _freeze_io.FreezeIOError,
             ReportError, TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

@@ -11,6 +11,7 @@ import random
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Dict, Mapping, Sequence
 
 from campaign import s8b_oracle_artifacts as _artifacts
@@ -40,7 +41,16 @@ _RUN_CONTRACT_KEYS = {
     "ccbench_pin", "env_tag", "clocks", "reps", "extime", "verify",
     "screening", "bench_max_rounds", "contract_sha256",
 }
-_GENERATOR_KEYS = {"materializer", "report", "judge"}
+_GENERATOR_SOURCES = MappingProxyType({
+    "materializer": "orchestrator/campaign/s1_direct_comparison.py",
+    "report": "orchestrator/campaign/s8b_oracle_report.py",
+    "judge": "orchestrator/campaign/s8b_oracle_judge.py",
+    "outcome_stage_contract": (
+        "orchestrator/campaign/s8b_outcome_stage_contract.py"
+    ),
+    "artifacts": "orchestrator/campaign/s8b_oracle_artifacts.py",
+})
+_GENERATOR_KEYS = frozenset(_GENERATOR_SOURCES)
 _BINDING_KEYS = {
     "holdout_id", "configuration_id", "entry_sha256", "genome_canonical",
     "src_token", "variant_id", "binding_sha256",
@@ -51,22 +61,60 @@ class ManifestError(RuntimeError):
     """schedule / manifest を検証できない場合の fail-closed 拒否。"""
 
 
-@dataclass(frozen=True)
-class VerifiedManifest:
-    """verify_manifest の検証済み戻り値 (C2-9)。
+def _verified_manifest_api():
+    seal = object()
 
-    ``document`` は全検査を通過した manifest 文書、``sha256`` はその文書の
-    canonical SHA-256 (= 全 consumer の identity。run_block の
-    ``_canonical_sha256(manifest)`` と同値)。gate と run_block はこの単一 object を
-    共有し manifest を再読込・再検証しない。
+    @dataclass(frozen=True, init=False)
+    class VerifiedManifest:
+        """verify_manifest の構造検査通過 token。provenance 証明ではない。
 
-    設計判断: raw file bytes は保持しない。manifest の identity は canonical SHA-256
-    に一本化されており (budget 台帳・campaign marker が使うのはこの値)、file byte
-    hash を別 field で持つと未使用の第二 identity を生む。frozen なのは field 束縛の
-    再代入防止であって document dict の深い不変化 (C1-7) は後続 wave の責務。
-    """
-    document: _artifacts.OfficialManifest
-    sha256: str
+        freeze の権威性は caller の責務であり、公式 CLI は active ratified 束縛で
+        担う。in-process の ``object.__new__`` 等による偽造は信頼境界外。
+        """
+
+        document: _artifacts.OfficialManifest
+        sha256: str
+
+        def __init__(self, document, sha256, *, _seal=None):
+            if _seal is not seal:
+                raise ManifestError(
+                    "VerifiedManifest は verify_manifest の検証結果からのみ構築できる"
+                )
+            if type(document) is not _artifacts.OfficialManifest:
+                raise ManifestError(
+                    "VerifiedManifest.document は OfficialManifest exact type でなければならない"
+                )
+            if (not isinstance(sha256, str) or len(sha256) != 64
+                    or any(character not in "0123456789abcdef"
+                           for character in sha256)):
+                raise ManifestError(
+                    "VerifiedManifest.sha256 は lowercase 64 hex でなければならない"
+                )
+            object.__setattr__(self, "document", document)
+            object.__setattr__(self, "sha256", sha256)
+
+    def seal_verifier(function):
+        def verified(path, *, root, freeze_document, freeze_sha256):
+            return function(
+                path, root=root, freeze_document=freeze_document,
+                freeze_sha256=freeze_sha256, _seal=seal,
+            )
+
+        verified.__name__ = function.__name__
+        verified.__qualname__ = function.__qualname__
+        verified.__doc__ = function.__doc__
+        verified.__annotations__ = {
+            key: (VerifiedManifest if key == "return" else value)
+            for key, value in function.__annotations__.items()
+            if key != "_seal"
+        }
+        return verified
+
+    return VerifiedManifest, seal_verifier
+
+
+VerifiedManifest, _seal_verified_manifest = _verified_manifest_api()
+del _verified_manifest_api
 
 
 def _canonical_bytes(value) -> bytes:
@@ -81,6 +129,18 @@ def _canonical_bytes(value) -> bytes:
 
 def _canonical_sha256(value) -> str:
     return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+
+
+def _mutable_json_tree(value):
+    """deep-frozen ratified JSON view を既存 validator 用 container へ射影する。"""
+    if isinstance(value, Mapping):
+        return {
+            key: _mutable_json_tree(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_mutable_json_tree(item) for item in value]
+    return value
 
 
 def manifest_sha256(document: Mapping) -> str:
@@ -349,14 +409,31 @@ def _validate_run_contract(run_contract: Mapping) -> dict:
 
 
 def _validate_generators(generator_versions: Mapping, *, root: Path) -> dict:
-    if not isinstance(generator_versions, Mapping) or set(generator_versions) != _GENERATOR_KEYS:
-        raise ManifestError("generator_versions schema が不一致")
+    if not isinstance(generator_versions, Mapping):
+        raise ManifestError("generator_versions が mapping でない")
+    actual_keys = set(generator_versions)
+    missing = sorted(_GENERATOR_KEYS - actual_keys)
+    extra = sorted(
+        actual_keys - _GENERATOR_KEYS,
+        key=lambda value: (type(value).__name__, repr(value)),
+    )
+    if missing or extra:
+        raise ManifestError(
+            f"generator_versions key 集合が不一致: "
+            f"missing={missing!r} extra={extra!r}"
+        )
     root = root.resolve()
     validated = {}
     for key in sorted(_GENERATOR_KEYS):
         record = _source_record(
             generator_versions[key], field=f"generator_versions.{key}",
         )
+        canonical_path = _GENERATOR_SOURCES[key]
+        if record["path"] != canonical_path:
+            raise ManifestError(
+                f"generator_versions.{key}.path が canonical path と不一致: "
+                f"{record['path']!r} != {canonical_path!r}"
+            )
         resolved = _resolve_source(record["path"], root=root).resolve()
         try:
             resolved.relative_to(root)
@@ -730,12 +807,17 @@ def write_manifest(path, manifest) -> None:
     _atomic_create_json(Path(path), manifest)
 
 
-def verify_manifest(path, *, root, freeze_document, freeze_sha256) -> VerifiedManifest:
+@_seal_verified_manifest
+def verify_manifest(
+    path, *, root, freeze_document, freeze_sha256, _seal,
+) -> VerifiedManifest:
     """manifest の参照 hash、schedule、block/campaign 束縛を再照合する。
 
     ``freeze_document`` / ``freeze_sha256`` は必須 (C2-7)。freeze を disk から
-    再読込せず、hash 検証済みの単一 object (呼び出し元の ``load_verified_freeze``
-    の戻り値) だけを使う。verify から use までの freeze byte 差替え (TOCTOU) を
+    再読込せず、hash 検証済みの単一 object だけを使う。通常 caller は
+    ``load_verified_freeze`` の戻り値を渡し、公式 report CLI は active ratified
+    経路の ``load_ratified_freeze`` → ``launch_validate`` が返した同一
+    document/sha256 を渡す。verify から use までの freeze byte 差替え (TOCTOU) を
     consumer 間で断つための A3-6 経路。かつて存在した「freeze を manifest 記載 path
     から再読込する fallback」は撤去した (差替え窓を残すため)。
 
@@ -761,7 +843,7 @@ def verify_manifest(path, *, root, freeze_document, freeze_sha256) -> VerifiedMa
         raise ManifestError("freeze_document が object でない")
     if freeze_sha256 != freeze_record["sha256"]:
         raise ManifestError("freeze byte sha256 が manifest と不一致")
-    freeze = freeze_document
+    freeze = _mutable_json_tree(freeze_document)
 
     known_record = _source_record(
         document.get("known_axes_freeze"), field="known_axes_freeze",
@@ -818,7 +900,12 @@ def verify_manifest(path, *, root, freeze_document, freeze_sha256) -> VerifiedMa
     if recorded_id != _manifest_id(without_id):
         raise ManifestError("manifest_id が内容と一致しない")
     official = _artifacts.OfficialManifest(document)
-    return VerifiedManifest(document=official, sha256=_canonical_sha256(official))
+    return VerifiedManifest(
+        document=official, sha256=_canonical_sha256(official), _seal=_seal,
+    )
+
+
+del _seal_verified_manifest
 
 
 def config_for_block(manifest, block_id) -> dict:

@@ -32,6 +32,15 @@ ROW_KEYS = {
     "block_id", "replicate_index", "schedule_index",
     "holdout_id", "configuration_id",
 }
+GENERATOR_SOURCES = {
+    "materializer": "orchestrator/campaign/s1_direct_comparison.py",
+    "report": "orchestrator/campaign/s8b_oracle_report.py",
+    "judge": "orchestrator/campaign/s8b_oracle_judge.py",
+    "outcome_stage_contract": (
+        "orchestrator/campaign/s8b_outcome_stage_contract.py"
+    ),
+    "artifacts": "orchestrator/campaign/s8b_oracle_artifacts.py",
+}
 
 
 # 注意: holdout の workload 三軸はテストへ静止させない。
@@ -59,9 +68,16 @@ def _canonical_sha256(value) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _source(path):
-    source = _ROOT / path
+def _source(path, *, root=_ROOT):
+    source = Path(root) / path
     return {"path": path, "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
+
+
+def _generator_versions(*, root=_ROOT):
+    return {
+        key: _source(path, root=root)
+        for key, path in GENERATOR_SOURCES.items()
+    }
 
 
 def _binding(holdout_id: str, configuration_id: str) -> dict:
@@ -81,7 +97,7 @@ def _binding(holdout_id: str, configuration_id: str) -> dict:
     }
 
 
-def _build_manifest(freeze_path, *, schedule=None):
+def _build_manifest(freeze_path, *, schedule=None, generator_root=_ROOT):
     schedule = schedule or _schedule()
     bindings = [
         _binding(holdout_id, configuration_id)
@@ -101,11 +117,7 @@ def _build_manifest(freeze_path, *, schedule=None):
         campaign_ids={block["block_id"]: f"campaign-{block['block_id']}"
                       for block in schedule["blocks"]},
         allowed_excluded_reasons=["machine-failure"],
-        generator_versions={
-            "materializer": _source("orchestrator/campaign/s1_direct_comparison.py"),
-            "report": _source("orchestrator/campaign/s8b_oracle_report.py"),
-            "judge": _source("orchestrator/campaign/s8b_oracle_judge.py"),
-        },
+        generator_versions=_generator_versions(root=generator_root),
     )
 
 
@@ -197,6 +209,53 @@ def test_write_is_create_only_and_valid_manifest_verifies(tmp_path):
         manifest.write_manifest(path, document)
 
 
+def test_verified_manifest_public_constructor_is_rejected(tmp_path):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    message = (
+        "VerifiedManifest は verify_manifest の検証結果からのみ構築できる"
+    )
+
+    with pytest.raises(manifest.ManifestError, match=message):
+        manifest.VerifiedManifest(
+            document=document, sha256=_canonical_sha256(document),
+        )
+
+    class VerifiedManifestSubclass(manifest.VerifiedManifest):
+        pass
+
+    with pytest.raises(manifest.ManifestError, match=message):
+        VerifiedManifestSubclass(
+            document=document, sha256=_canonical_sha256(document),
+        )
+    with pytest.raises(manifest.ManifestError, match=message):
+        manifest.VerifiedManifest(
+            document=dict(document), sha256=_canonical_sha256(document),
+        )
+    assert not hasattr(manifest, "_SEAL")
+
+
+def test_verified_manifest_sealed_constructor_rejects_non_lowercase_hash(
+        tmp_path, monkeypatch):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    path = tmp_path / "oracle_manifest.json"
+    manifest.write_manifest(path, document)
+    original = manifest._canonical_sha256
+
+    def uppercase_final_official_hash(value):
+        digest = original(value)
+        if type(value) is artifacts.OfficialManifest:
+            return digest.upper()
+        return digest
+
+    monkeypatch.setattr(
+        manifest, "_canonical_sha256", uppercase_final_official_hash,
+    )
+    with pytest.raises(manifest.ManifestError, match="lowercase 64 hex"):
+        _verify(path, freeze_path)
+
+
 def test_write_manifest_rejects_exploration_and_legacy_artifact_types(tmp_path):
     exploration = artifacts.ExplorationArtifact({
         "schema_version": artifacts.EXPLORATION_ARTIFACT_SCHEMA,
@@ -237,12 +296,7 @@ def test_binding_identity_requires_complete_unique_schedule_cell_product(tmp_pat
             campaign_ids={block["block_id"]: f"campaign-{block['block_id']}"
                           for block in schedule["blocks"]},
             allowed_excluded_reasons=["machine-failure"],
-            generator_versions={
-                "materializer": _source(
-                    "orchestrator/campaign/s1_direct_comparison.py"),
-                "report": _source("orchestrator/campaign/s8b_oracle_report.py"),
-                "judge": _source("orchestrator/campaign/s8b_oracle_judge.py"),
-            },
+            generator_versions=_generator_versions(),
         )
 
 
@@ -261,12 +315,9 @@ def test_campaign_config_preimage_hash_is_bound_and_tampering_is_rejected(tmp_pa
         _verify(path, freeze_path)
 
 
-def test_generator_hash_must_match_real_root_file_at_build_and_verify(tmp_path):
-    freeze_path = _freeze_copy(tmp_path)
-    document = _build_manifest(freeze_path)
-    false_generators = copy.deepcopy(document["generator_versions"])
-    false_generators["report"]["sha256"] = "0" * 64
-    with pytest.raises(manifest.ManifestError, match="実 byte hash"):
+def _assert_generator_versions_rejected(
+        tmp_path, freeze_path, document, generator_versions, message):
+    with pytest.raises(manifest.ManifestError, match=message):
         manifest.build_manifest(
             freeze_path=freeze_path,
             schedule=document["schedule"],
@@ -274,14 +325,184 @@ def test_generator_hash_must_match_real_root_file_at_build_and_verify(tmp_path):
             binding_identity=document["binding_identity"],
             campaign_ids=document["campaign_ids"],
             allowed_excluded_reasons=document["allowed_excluded_reasons"],
-            generator_versions=false_generators,
+            generator_versions=generator_versions,
         )
 
-    document["generator_versions"] = false_generators
+    tampered = copy.deepcopy(document)
+    tampered["generator_versions"] = generator_versions
     path = tmp_path / "generator-tampered.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-    with pytest.raises(manifest.ManifestError, match="実 byte hash"):
+    path.write_text(json.dumps(tampered), encoding="utf-8")
+    with pytest.raises(manifest.ManifestError, match=message):
         _verify(path, freeze_path)
+
+
+def test_generator_versions_exact_five_canonical_paths_and_hashes_verify(tmp_path):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    path = tmp_path / "oracle-manifest-five-generators.json"
+    manifest.write_manifest(path, document)
+    verified = _verify(path, freeze_path)
+
+    assert set(verified.document["generator_versions"]) == set(GENERATOR_SOURCES)
+    for key, canonical_path in GENERATOR_SOURCES.items():
+        record = verified.document["generator_versions"][key]
+        assert record["path"] == canonical_path
+        assert record["sha256"] == hashlib.sha256(
+            (_ROOT / canonical_path).read_bytes()
+        ).hexdigest()
+
+
+def test_legacy_three_key_generator_authority_is_rejected_directly_at_build(
+        tmp_path):
+    freeze_path = _freeze_copy(tmp_path)
+    schedule = _schedule(n=1)
+    three_key_generators = {
+        key: _source(GENERATOR_SOURCES[key])
+        for key in ("materializer", "report", "judge")
+    }
+
+    with pytest.raises(
+            manifest.ManifestError,
+            match=(
+                r"missing=\['artifacts', 'outcome_stage_contract'\] "
+                r"extra=\[\]"
+            )):
+        manifest.build_manifest(
+            freeze_path=freeze_path,
+            schedule=schedule,
+            run_contract={
+                "ccbench_pin": "pin",
+                "env_tag": "test-env",
+                "clocks": 1800,
+                "reps": 5,
+                "extime": 5,
+                "verify": "legacy+s2",
+                "screening": "off",
+                "bench_max_rounds": 1,
+                "contract_sha256": "0" * 64,
+            },
+            binding_identity=[
+                _binding(holdout_id, configuration_id)
+                for holdout_id in _holdout_ids()
+                for configuration_id in CONFIGURATION_IDS
+            ],
+            campaign_ids={"b0": "campaign-b0"},
+            allowed_excluded_reasons=["machine-failure"],
+            generator_versions=three_key_generators,
+        )
+
+
+@pytest.mark.parametrize("key", tuple(GENERATOR_SOURCES))
+def test_generator_hash_must_match_real_root_file_at_build_and_verify(
+        tmp_path, key):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    false_generators = copy.deepcopy(document["generator_versions"])
+    false_generators[key]["sha256"] = "0" * 64
+    _assert_generator_versions_rejected(
+        tmp_path, freeze_path, document, false_generators, "実 byte hash",
+    )
+
+
+@pytest.mark.parametrize(
+    ("missing_key", "message"),
+    [
+        (
+            "outcome_stage_contract",
+            r"missing=\['outcome_stage_contract'\] extra=\[\]",
+        ),
+        ("artifacts", r"missing=\['artifacts'\] extra=\[\]"),
+    ],
+)
+def test_generator_versions_missing_required_key_is_rejected_at_build_and_verify(
+        tmp_path, missing_key, message):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    generator_versions = copy.deepcopy(document["generator_versions"])
+    generator_versions.pop(missing_key)
+    _assert_generator_versions_rejected(
+        tmp_path, freeze_path, document, generator_versions, message,
+    )
+
+
+def test_generator_versions_extra_key_is_rejected_at_build_and_verify(tmp_path):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    generator_versions = copy.deepcopy(document["generator_versions"])
+    generator_versions["unexpected"] = _source("orchestrator/campaign/wal.py")
+    _assert_generator_versions_rejected(
+        tmp_path,
+        freeze_path,
+        document,
+        generator_versions,
+        r"missing=\[\] extra=\['unexpected'\]",
+    )
+
+
+@pytest.mark.parametrize(
+    "damage",
+    ["swapped-paths", "unrelated-artifacts", "absolute-artifacts"],
+)
+def test_generator_path_must_match_key_canonical_binding_at_build_and_verify(
+        tmp_path, damage):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    generator_versions = copy.deepcopy(document["generator_versions"])
+    if damage == "swapped-paths":
+        generator_versions["materializer"], generator_versions["report"] = (
+            generator_versions["report"],
+            generator_versions["materializer"],
+        )
+    elif damage == "unrelated-artifacts":
+        generator_versions["artifacts"] = _source(
+            "orchestrator/campaign/wal.py"
+        )
+    else:
+        generator_versions["artifacts"]["path"] = str(
+            (_ROOT / GENERATOR_SOURCES["artifacts"]).resolve()
+        )
+    _assert_generator_versions_rejected(
+        tmp_path, freeze_path, document, generator_versions, "canonical path",
+    )
+
+
+def test_verify_rehashes_each_canonical_generator_in_supplied_root(
+        tmp_path, monkeypatch):
+    root_a = tmp_path / "root-a"
+    root_b = tmp_path / "root-b"
+    known_axes_path = "output/s1-freeze/known_axes_freeze.json"
+    for fixture_root in (root_a, root_b):
+        for relative_path in (*GENERATOR_SOURCES.values(), known_axes_path):
+            target = fixture_root / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((_ROOT / relative_path).read_bytes())
+
+    freeze_document = json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
+    v2_fixture.fill(freeze_document)
+    freeze_path = root_a / "output/s8b-freeze/holdout_freeze.json"
+    freeze_path.parent.mkdir(parents=True)
+    freeze_path.write_text(
+        json.dumps(freeze_document, ensure_ascii=False), encoding="utf-8",
+    )
+    monkeypatch.setattr(manifest, "ROOT", root_a)
+    document = _build_manifest(
+        freeze_path, generator_root=root_a,
+    )
+    manifest_path = tmp_path / "root-a-manifest.json"
+    manifest.write_manifest(manifest_path, document)
+
+    artifacts_path_b = root_b / GENERATOR_SOURCES["artifacts"]
+    artifacts_path_b.write_bytes(artifacts_path_b.read_bytes() + b"x")
+    freeze_bytes = freeze_path.read_bytes()
+    with pytest.raises(
+            manifest.ManifestError,
+            match=r"generator_versions\.artifacts\.sha256 が実 byte hash と不一致"):
+        manifest.verify_manifest(
+            manifest_path,
+            root=root_b,
+            freeze_document=json.loads(freeze_bytes.decode("utf-8")),
+            freeze_sha256=hashlib.sha256(freeze_bytes).hexdigest(),
+        )
 
 
 def test_verify_detects_freeze_byte_tampering(tmp_path):
