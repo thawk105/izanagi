@@ -535,3 +535,61 @@ code commit = 59b0e4d (基準 1ce9a2a)。
 11. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
 12. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
 13. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-23 (6) — [T-002] 消化: P-A1(a) Stage 1 + P-C3 + [T-006] — 公式 report API の verified 化 (D84、branch worktree-dev-wave-ruling-ac、計測なし)
+
+/dev-wave 1 回 (引数「早く正規路線に行けるようタスクを選んで」→ 正規路線の AI 手番はユーザー手番
+待ちのため、承認済み実行順 (D83 (1)) の第 3 手 = [T-002] を選定)。正本 = D84・
+`output/insights/2026-07-23_t002-stage1-verbatim.md`・同 `-mutation-ledger.json`。
+code commit = 0c2a573 + 34ce18b (基準 7b6d472)。
+
+- **中身**: (a) Stage 1 — `build_observations` の受理 = {VerifiedManifest, LegacyManifest} exact。
+  VerifiedManifest は closure seal + 使用時**全** canonical hash 照合 (self-hash 除外版による
+  top-level 注入すり抜けをレビューが live 実証 → fix)。CLI は D65 承認本文どおり active ratified
+  freeze 自己解決 → launch_validate → 同一 document/sha を verify_manifest へ (--freeze 引数なし、
+  --repo-root seam)。(b) P-C3 — `_GENERATOR_SOURCES` (key→canonical path、5 leaf) を authority に
+  exact key set + path 束縛 + 実 hash 検査。非恒真検証 (root A→B) をテスト固定。(c) T-006 —
+  宣言レベル ghost 検出 (mapping=block ごと/list=id ごと) + 構造化 manifest_issues (top-level
+  additive) + ghost のみ中央 taint + T-080 sibling None (metamorphic 固定)
+- **裁定の要点**: 親 brief P2 (--freeze 任意パス) は D65 承認本文の制約 (active ratified +
+  launch_validate) を落とした過小実装 (F31 型) — 相談 2 本が独立指摘し訂正。相談 C2-M6 (全 row
+  taint が red を隠す) は judge の binary-mismatch 先例 + D68 (4) で反証採用。レビュー R2-4 は
+  親裁定 R6 の契約誤り (run-contract issue の early-return 波及は HEAD に無い) を検出 → ghost のみ
+  中央適用へ訂正。実装子の raw string campaign_ids 受理拡大 (親プロンプトの曖昧語が誘発) は fix で
+  拒否へ復元
+- **変異 matrix**: 事前登録 MUT-1..8 (全て受理集合の期待方向 kill、可用性 kill 不成立 — F28 対策で
+  MUT-1 compound 化/MUT-2 legacy 降格化/MUT-3 3-key 直接 witness 新設)。最終 commit (34ce18b) で
+  8/8 KILLED・witness 全命中・SURVIVED 0。1 巡目のハーネス欠陥 (pytest -q に -rf なし → FAILED 行
+  0 で全件誤分類) は erratum として台帳へ
+- **受入 (親環境、repo root)**: 全走 **2878 passed / 18 skipped / 0 failed** (baseline 2842 + 36、
+  退行 0)。check_ai_provenance 312 件違反なし。三軸語 scan hit 0 (positive control 57)。凍結成果物
+  (FROZEN_MANIFEST 8 件・s1/s8b freeze) は 1 byte も不変。発行済み oracle manifest 0 件を機械確認
+  済みのため SCHEMA_VERSION 据え置き (D79 (1) 同型)
+- **検証**: brief 前実測 → codex プラン (max) → 敵対相談 2 並列 (max、両 NO-GO) → 裁定 v2 + 変異
+  事前登録 → 実装 3 直列単位 (high) → 統合・全走 → 敵対レビュー 2 並列 (max、両 NO-GO、must 14)
+  → fix (closed 6/6 主張) → 統合 commit → 変異本走 → 焦点再レビュー (NO-GO、closed 4/partial 2/
+  regressed 0) → fix2 → 最終全走 + 変異再走 (8/8 KILLED)
+
+### 消化した ID
+
+- [T-002] **P-A1(a) Stage 1 + P-C3 + [T-006] 消化 (D84)。** 承認済み実装 wave を実行順どおり消化。
+  Stage 2 (observations→judge→combined の hash 連鎖)・Stage 3 (legacy 廃止) は D65 の段階設計
+  どおり未着手のまま残る (各段階は個別にユーザー承認)
+
+### 次の一手
+
+1. [T-080] receipt 発行 (ユーザー) → protocol 実凍結 (ユーザー) → 予測封印の実走 wave (AI)。変わらず
+2. [T-068] R commit で「移行契約により superseded」として確定的に閉じる (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる (同上)。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる (同上)。変わらず
+5. [T-011] floor 実測直前に発火。blocking 前提の残 = 統合 E2E (protocol 凍結後) と lineage 照合
+   (oracle 結線 wave 再評価)。D80 (8) の裁定パッケージ 3 件はこの手前で裁定。変わらず
+6. [T-067] 部分消化・継続: exact 化の残余は D73 (10) から変わらず
+7. [T-085] **裁定パッケージ (PKG-1、要裁定)**: pipeline record env 未検査 (D83 (5))。変わらず。
+   なお ruling-B の env authority の真正性は本 wave の Stage 1 で manifest 検証必須化まで前進した
+   が、manifest 発行主体の連鎖 (Stage 2) は未着手
+8. [T-009] 延期 (T-083 (a) 処置表): AGENTS.md 追記は 1 cycle 後。変わらず
+9. [T-060] 延期 (同): WAL 用語運用の明文化は 1 cycle 後。変わらず
+10. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
+11. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
+12. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず

@@ -1,0 +1,531 @@
+{
+ "schema": "t002-stage1-mutation-ledger/v1",
+ "wave": "[T-002] P-A1(a) Stage 1 + P-C3 + T-006",
+ "date": "2026-07-23",
+ "final_code_commit": "34ce18b",
+ "integration_commit": "0c2a573",
+ "base_commit": "7b6d472",
+ "kill_criterion": "登録 witness テストが受理集合の期待方向 (受理拡大/緩和) で赤くなること。可用性 kill は不成立 (裁定 R8、F28 対策)",
+ "harness": {
+  "targets": [
+   "orchestrator/tests/test_s8b_oracle_manifest.py",
+   "orchestrator/tests/test_s8b_oracle_report.py"
+  ],
+  "guards": [
+   "flock 単一走行",
+   "累積適用 + 置換ごと一意性 assert",
+   "復元 = read_text()==git show HEAD 内容 (finally + 事後の二重検査)",
+   "赤テスト node 名と FAILED 理由行の機械記録 (pytest -q -rf + ANSI 除去)"
+  ]
+ },
+ "registrations": [
+  {
+   "id": "MUT-1",
+   "claim": "API 型 gate が未検証 OfficialManifest を再受理 (受理集合拡大)",
+   "witness_expected": [
+    "test_build_observations_rejects_unverified_official_manifest"
+   ],
+   "replacements": [
+    {
+     "old": "    if type(manifest) not in {\n            s8b_oracle_manifest.VerifiedManifest, _artifacts.LegacyManifest}:\n        raise _artifacts.OracleArtifactTypeError(\n            \"build_observations は VerifiedManifest/LegacyManifest exact type のみ受理する\")\n",
+     "new": "    if type(manifest) not in {\n            s8b_oracle_manifest.VerifiedManifest, _artifacts.OfficialManifest,\n            _artifacts.LegacyManifest}:\n        raise _artifacts.OracleArtifactTypeError(\n            \"build_observations は VerifiedManifest/LegacyManifest exact type のみ受理する\")\n"
+    },
+    {
+     "old": "    if type(manifest) is _artifacts.LegacyManifest:\n        (schedule, allowed_excluded, manifest_sha, n, expected_reps,\n         manifest_issues) = _validate_manifest(document)\n",
+     "new": "    if type(manifest) is not s8b_oracle_manifest.VerifiedManifest:\n        (schedule, allowed_excluded, manifest_sha, n, expected_reps,\n         manifest_issues) = _validate_manifest(document)\n"
+    },
+    {
+     "old": "    else:\n        document = manifest\n        manifest_kind = \"legacy\"\n",
+     "new": "    elif type(manifest) is _artifacts.OfficialManifest:\n        document = manifest\n        manifest_kind = \"official\"\n    else:\n        document = manifest\n        manifest_kind = \"legacy\"\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-2",
+   "claim": "CLI が official を legacy に降格して verify を迂回 (受理集合拡大)",
+   "witness_expected": [
+    "test_cli_verify_failure_returns_two_without_output"
+   ],
+   "replacements": [
+    {
+     "old": "        if type(manifest) is _artifacts.OfficialManifest:\n            ratified = s8b_ratified_freeze.load_ratified_freeze(root)\n            launch_validated = s8b_ratified_freeze.launch_validate(\n                ratified, root,\n            )\n            manifest = s8b_oracle_manifest.verify_manifest(\n                args.manifest,\n                root=root,\n                freeze_document=launch_validated.ratified.document,\n                freeze_sha256=launch_validated.ratified.sha256,\n            )\n",
+     "new": "        if type(manifest) is _artifacts.OfficialManifest:\n            manifest = _artifacts.LegacyManifest(dict(manifest))\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-3",
+   "claim": "generator authority が 3-key へ縮退し旧 3-key 文書を再受理 (受理集合拡大)",
+   "witness_expected": [
+    "test_legacy_three_key_generator_authority_is_rejected_directly_at_build"
+   ],
+   "replacements": [
+    {
+     "old": "_GENERATOR_SOURCES = MappingProxyType({\n    \"materializer\": \"orchestrator/campaign/s1_direct_comparison.py\",\n    \"report\": \"orchestrator/campaign/s8b_oracle_report.py\",\n    \"judge\": \"orchestrator/campaign/s8b_oracle_judge.py\",\n    \"outcome_stage_contract\": (\n        \"orchestrator/campaign/s8b_outcome_stage_contract.py\"\n    ),\n    \"artifacts\": \"orchestrator/campaign/s8b_oracle_artifacts.py\",\n})\n",
+     "new": "_GENERATOR_SOURCES = MappingProxyType({\n    \"materializer\": \"orchestrator/campaign/s1_direct_comparison.py\",\n    \"report\": \"orchestrator/campaign/s8b_oracle_report.py\",\n    \"judge\": \"orchestrator/campaign/s8b_oracle_judge.py\",\n})\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-4",
+   "claim": "key→canonical path 束縛の除去で cross-wire を受理 (受理集合拡大)",
+   "witness_expected": [
+    "test_generator_path_must_match_key_canonical_binding_at_build_and_verify"
+   ],
+   "replacements": [
+    {
+     "old": "        canonical_path = _GENERATOR_SOURCES[key]\n        if record[\"path\"] != canonical_path:\n            raise ManifestError(\n                f\"generator_versions.{key}.path が canonical path と不一致: \"\n                f\"{record['path']!r} != {canonical_path!r}\"\n            )\n",
+     "new": "        canonical_path = _GENERATOR_SOURCES[key]\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-5",
+   "claim": "seal 検査の除去で公開 constructor 偽造を受理 (受理集合拡大)",
+   "witness_expected": [
+    "test_verified_manifest_public_constructor_is_rejected"
+   ],
+   "replacements": [
+    {
+     "old": "        def __init__(self, document, sha256, *, _seal=None):\n            if _seal is not seal:\n                raise ManifestError(\n                    \"VerifiedManifest は verify_manifest の検証結果からのみ構築できる\"\n                )\n",
+     "new": "        def __init__(self, document, sha256, *, _seal=None):\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-6",
+   "claim": "使用時全 canonical hash 照合の除去で post-verify 改変を受理 (受理集合拡大)",
+   "witness_expected": [
+    "test_build_observations_rejects_verified_document_hash_drift"
+   ],
+   "replacements": [
+    {
+     "old": "        if _canonical_sha256(document) != manifest.sha256:\n            raise ReportError(\n                \"VerifiedManifest document canonical hash が sha256 と不一致\"\n            )\n        manifest_sha = manifest.sha256\n",
+     "new": "        manifest_sha = manifest.sha256\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-7",
+   "claim": "ghost 検出 (mapping/list 両分岐) の除去で宣言未評価 campaign が再び無言通過 (受理集合拡大)",
+   "witness_expected": [
+    "test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse",
+    "test_string_list_campaign_declaration_detects_ghost_per_campaign_id"
+   ],
+   "replacements": [
+    {
+     "old": "            if not any(row.get(\"block_id\") == block for row in schedule):\n                declaration_issues.append({\n                    \"code\": \"campaign-without-schedule-row\",\n                    \"campaign_id\": campaign_id,\n                    \"message\": (\n                        \"manifest.campaign_ids の宣言に schedule row がない: \"\n                        f\"block_id={block!r}, campaign_id={campaign_id!r}\"\n                    ),\n                })\n",
+     "new": ""
+    },
+    {
+     "old": "            if not has_row:\n                declaration_issues.append({\n                    \"code\": \"campaign-without-schedule-row\",\n                    \"campaign_id\": campaign_id,\n                    \"message\": (\n                        \"manifest.campaign_ids の宣言に schedule row がない: \"\n                        f\"campaign_id={campaign_id!r}\"\n                    ),\n                })\n",
+     "new": ""
+    }
+   ]
+  },
+  {
+   "id": "MUT-8",
+   "claim": "ghost 時の T-080 sibling None guard の除去で部分観測から全体観測を発行 (受理集合拡大)",
+   "witness_expected": [
+    "test_t080_sibling_metamorphic"
+   ],
+   "replacements": [
+    {
+     "old": "            and not current_receipt_invalid\n            and not ghost_issues):\n",
+     "new": "            and not current_receipt_invalid):\n"
+    }
+   ]
+  }
+ ],
+ "results_final_run3_on_34ce18b": [
+  {
+   "id": "MUT-1",
+   "claim": "API 型 gate が未検証 OfficialManifest を再受理 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_build_observations_rejects_unverified_official_manifest"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_unverified_official_manifest"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_unverified_official_manifest - Failed: DID NOT RAISE OracleArtifactTypeError"
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_unverified_official_manifest",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_rejects_valid_raw_and_exploration_manifest_types",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_unverified_official_manifest_is_rejected_immediately_after_tampering"
+   ],
+   "pytest_rc": 1
+  },
+  {
+   "id": "MUT-2",
+   "claim": "CLI が official を legacy に降格して verify を迂回 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_cli_verify_failure_returns_two_without_output"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_verify_failure_returns_two_without_output"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_cli_verify_failure_returns_two_without_output - assert 0 == 2"
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_official_resolves_ratified_freeze_and_verifies",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_verify_failure_returns_two_without_output"
+   ],
+   "pytest_rc": 1
+  },
+  {
+   "id": "MUT-3",
+   "claim": "generator authority が 3-key へ縮退し旧 3-key 文書を再受理 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_legacy_three_key_generator_authority_is_rejected_directly_at_build"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_legacy_three_key_generator_authority_is_rejected_directly_at_build"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_legacy_three_key_generator_authority_is_rejected_directly_at_build - Failed: DID NOT RAISE ManifestError"
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_schedule_rows_and_manifest_holdout_references_do_not_copy_workload",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_write_is_create_only_and_valid_manifest_verifies",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_sealed_constructor_rejects_non_lowercase_hash",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_campaign_config_preimage_hash_is_bound_and_tampering_is_rejected",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_exact_five_canonical_paths_and_hashes_verify",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_legacy_three_key_generator_authority_is_rejected_directly_at_build",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[materializer]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[report]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[judge]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[outcome_stage_contract]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[artifacts]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[outcome_stage_contract-missing=\\\\['outcome_stage_contract'\\\\] extra=\\\\[\\\\]]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[artifacts-missing=\\\\['artifacts'\\\\] extra=\\\\[\\\\]]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_extra_key_is_rejected_at_build_and_verify",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_rehashes_each_canonical_generator_in_supplied_root",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[schedule-hash-schedule_sha256]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[campaign-empty-campaign ID]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[binding-schema-binding_identity entry schema]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_v1_two_block_manifest_is_rejected_at_build_and_verify",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_requires_freeze_document",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_success_uses_real_manifest_and_binds_physical_trial_intervals",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_accepts_actual_verify_manifest_result",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_unverified_official_manifest",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[nested-field]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-injection]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-deletion]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_committed_bench_requires_exact_manifest_reps[3]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_committed_bench_requires_exact_manifest_reps[4]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_committed_bench_requires_exact_manifest_reps[6]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_huge_integer_tps_is_row_level_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_reps_must_match_approved_leaf_even_when_tps_matches",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_reps_declaration_is_fail_closed[not-object]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_reps_declaration_is_fail_closed[bool-reps]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_reps_declaration_is_fail_closed[zero-reps]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_issue_does_not_override_missing_terminal_head_behavior",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_staged_legacy_manifest_still_requires_five_bench_values",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_rejects_valid_raw_and_exploration_manifest_types",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_staged_legacy_v1_without_run_contract_remains_accepted",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_wrong_issuer_rejects_completed_campaign_only_for_issuer",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_checks_non_boundary_trial_record",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_wrong_v2_env_rejects_only_manifest_mismatch",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_mixed_legacy_env_rejects_only_inconsistency",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_issuer_is_only_protocol_trigger_without_terminal",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_rejection_taints_t080_report_observation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_rejection_preserves_malformed_t080_issue",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_identity_legacy_accepts_consistent_unregistered_env",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_session_issuer_alias_and_identity_use_model_authority",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_official_resolves_ratified_freeze_and_verifies",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_verify_failure_returns_two_without_output",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_legacy_skips_freeze_resolution",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_legacy_subprocess_creates_output",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_rejects_exploration_namespace_and_symlink_alias",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_rejects_campaign_symlink_to_exploration_namespace",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_reuses_resolved_output_root_after_namespace_check",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_rejects_exploration_output_root_without_output",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_failure_outcomes_remain_as_completed_observation_rows[build-failed-build-failed-missing-missing]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_failure_outcomes_remain_as_completed_observation_rows[legacy-red-correctness-red-red-missing]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_failure_outcomes_remain_as_completed_observation_rows[s2-red-correctness-red-pass-red]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_failure_outcomes_remain_as_completed_observation_rows[timeout-timeout-pass-missing]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_failure_outcomes_remain_as_completed_observation_rows[verify-inconclusive-verify-inconclusive-pass-missing]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_failure_outcomes_remain_as_completed_observation_rows[bench-failed-bench-failed-pass-pass]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_failure_outcomes_remain_as_completed_observation_rows[binary-mismatch-binary-mismatch-missing-missing]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_timeout_and_verify_inconclusive_accept_both_verify_frontiers[legacy-timeout]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_timeout_and_verify_inconclusive_accept_both_verify_frontiers[legacy-verify-inconclusive]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_timeout_and_verify_inconclusive_accept_both_verify_frontiers[s2-timeout]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_timeout_and_verify_inconclusive_accept_both_verify_frontiers[s2-verify-inconclusive]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_impossible_declared_outcome_histories_are_protocol_violations[build-failed-with-verify]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_impossible_declared_outcome_histories_are_protocol_violations[timeout-with-bench]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_reversed_verify_sequences_are_protocol_violations[reversed-committed]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_reversed_verify_sequences_are_protocol_violations[reversed-s2-red]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_reversed_verify_sequences_are_protocol_violations[legacy-after-s2-timeout]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_pipeline_physical_order_remains_an_independent_guard",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_abort_workload_tag_must_match_verify_frontier[abort_workload0]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_abort_workload_tag_must_match_verify_frontier[None]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_invalid_nested_abort_workload_is_an_independent_issue[list]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_invalid_nested_abort_workload_is_an_independent_issue[none-tag]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_invalid_nested_abort_workload_is_an_independent_issue[extra-key]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_correctness_red_abort_reason_must_equal_sole_red_verdict",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_reads_outcome_stage_contract_leaf",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_reject_invalid_abort_reason_without_crashing[timeout-outside-closed-set]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_reject_invalid_abort_reason_without_crashing[timeout-missing-reason]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_reject_invalid_abort_reason_without_crashing[timeout-none-reason]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_reject_invalid_abort_reason_without_crashing[timeout-reason-list]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_reject_invalid_abort_reason_without_crashing[build-failed-outside-closed-set]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_reject_invalid_abort_reason_without_crashing[build-failed-payload-list]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_reject_invalid_abort_reason_without_crashing[verify-inconclusive-reason-list]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[timeout-trace-timeout]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[build-failed-build-error]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[build-failed-identity-error]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[verify-inconclusive-trace-run-nonzero-exit]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[verify-inconclusive-trace-empty]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[verify-inconclusive-trace-no-abort-counts]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[verify-inconclusive-trace-parse-error]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_outcomes_accept_closed_abort_reason[verify-inconclusive-verify-competing-tenant]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_rejects_invalid_abort_reason_without_crashing[outside-closed-set]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_rejects_invalid_abort_reason_without_crashing[missing-reason]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_rejects_invalid_abort_reason_without_crashing[none-reason]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_rejects_invalid_abort_reason_without_crashing[empty-reason]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_rejects_invalid_abort_reason_without_crashing[payload-list]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_rejects_invalid_abort_reason_without_crashing[reason-list]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_accepts_closed_abort_reason[bench-competing-tenant]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_accepts_closed_abort_reason[bench-no-throughput]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_accepts_closed_abort_reason[bench-cv-undefined]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_failed_duplicate_abort_remains_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_verify_inconclusive_wal_stays_observable_and_judges_indeterminate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_binary_mismatch_wal_stays_observable_and_judges_indeterminate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_receipt_mismatch_is_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_manifest_contract_sha256_mismatch_with_registry_is_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_required_receipt_consumer_derives_mode_and_passes_verified_calibration",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_missing_or_partial_expected_binding_is_protocol_violation[missing]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_missing_or_partial_expected_binding_is_protocol_violation[partial]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_valid_prepare_retry_uses_attempt_two_and_records_retried_summary",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_absent_double_attempt_has_one_lifecycle_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_duplicate_retry_has_one_lifecycle_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_resultful_window_retry_is_unbound_for_one_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_before_first_start_is_unbound_for_one_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_after_terminal_result_is_row_scoped_tail_for_one_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_attempt_gap_has_one_lifecycle_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_attempt_physical_order_must_match_numeric_order",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_single_attempt_99_is_not_aliased_to_schedule_default",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_attempt_one_rejects_pipeline_record_for_one_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_attempt_one_two_three_chain_has_one_lifecycle_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_successor_must_be_physically_adjacent",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_successor_identity_must_match_predecessor",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_payload_schedule_index_must_match_row",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_retry_payload_next_attempt_must_be_exactly_two",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_orphan_retry_for_schedule_outside_is_global_lifecycle_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_trial_result_before_first_start_is_not_silently_ignored",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_trial_result_attempt_must_match_owning_start",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_duplicate_trial_result_is_not_bijective",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_trial_result_must_follow_all_pipeline_evidence",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_row_scoped_session_event_after_trial_result_is_rejected",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_global_issue_does_not_mask_definitive_correctness_red",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_foreign_known_stage_is_inert_record_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_global_issue_composes_row_local_assessment_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_global_orphan_retry_does_not_mask_other_definitive_red",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_definitive_red_survives_later_committed_retry_as_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_returncodes_are_strict_and_do_not_publish_tps[missing]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_returncodes_are_strict_and_do_not_publish_tps[nonzero]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_returncodes_are_strict_and_do_not_publish_tps[short]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_bench_returncodes_are_strict_and_do_not_publish_tps[bool]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_trial_window_with_phantom_schedule_index_is_protocol_violation[legacy-red]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_trial_window_with_phantom_schedule_index_is_protocol_violation[committed]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_allowed_excluded_reason_row_stays_reported_and_judges_unknown",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_excluded_reason_outside_allowed_list_is_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_correctness_red_with_excluded_reason_is_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_unverified_official_manifest_is_rejected_immediately_after_tampering",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_legacy_manifest_hash_is_recomputed_independently_after_tampering",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_expected_cells_keep_deleted_holdout_indeterminate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation[build-start]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation[build-done]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation[verify-done]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation[bench-done]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation[commit]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation[abort]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_non_mapping_pipeline_payload_emits_observation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_non_mapping_payload_and_missing_terminal_are_both_reported",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_missing_makes_every_row_campaign_incomplete",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_aborted_terminal_status_alone_hides_fully_covered_completed_rows",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_scheduled_rows_mismatch_alone_hides_all_rows",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_complete_invalid_raw_final_line_is_rejected",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_session_non_object_payload_before_terminal_is_unconditional_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_invalid_line_after_terminal_cannot_hide_its_physical_position",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_invalid_line_does_not_mask_definitive_correctness_red",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminated_json_syntax_issue_does_not_mask_definitive_correctness_red",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_truncated_tail_does_not_mask_definitive_correctness_red",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_blank_line_between_valid_records_is_unconditional_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_truncated_raw_tail_after_completed_terminal_is_one_protocol_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_complete_json_without_newline_after_terminal_is_one_protocol_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_campaign_start_after_completed_terminal_is_one_position_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_aborted_terminal_with_later_record_keeps_position_and_status_reasons",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_trial_result_after_campaign_terminal_remains_rejected_regression_pin",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_campaign_terminal_rejects_extra_top_level_key",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers[aborted]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers[double]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers[under-covered]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers[coverage]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_screen_marker_is_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_declared_campaign_without_schedule_row_is_structured_and_taints_all_real_rows",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_string_list_campaign_declaration_detects_ghost_per_campaign_id",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_single_string_campaign_declaration_is_rejected",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_only_ghost_campaign_is_visible_without_synthetic_row",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_ghost_campaign_extends_existing_manifest_issues",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_ghost_campaign_does_not_mask_definitive_correctness_red",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_ghost_issue_reaches_early_return_rows",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_t080_sibling_metamorphic",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_all_declared_campaigns_with_rows_keep_completed_result_and_no_manifest_issues",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_only_manifest_campaign_is_read_and_missing_owned_campaign_is_reported",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_pre_r_campaign_start_absent_or_null_is_allowed[historical-absent]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_pre_r_campaign_start_absent_or_null_is_allowed[null]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_historical_receipt_derivation_failure_invalidates_all_campaign_rows_g2",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_post_r_null_is_protocol_violation_for_every_campaign_row",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_malformed_t080_envelope_is_fail_closed",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_campaign_canonical_envelope_mismatch_is_protocol_violation",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_matching_canonical_envelopes_are_copied_to_report_sibling",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_pre_r_null_and_object_mixture_is_protocol_violation"
+   ],
+   "pytest_rc": 1
+  },
+  {
+   "id": "MUT-4",
+   "claim": "key→canonical path 束縛の除去で cross-wire を受理 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_generator_path_must_match_key_canonical_binding_at_build_and_verify"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts]"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths] - Failed: DID NOT RAISE ManifestError",
+    "FAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts] - Failed: DID NOT RAISE ManifestError",
+    "FAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts] - Failed: DID NOT RAISE ManifestError"
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts]",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts]"
+   ],
+   "pytest_rc": 1
+  },
+  {
+   "id": "MUT-5",
+   "claim": "seal 検査の除去で公開 constructor 偽造を受理 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_verified_manifest_public_constructor_is_rejected"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected - Failed: DID NOT RAISE ManifestError"
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected"
+   ],
+   "pytest_rc": 1
+  },
+  {
+   "id": "MUT-6",
+   "claim": "使用時全 canonical hash 照合の除去で post-verify 改変を受理 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_build_observations_rejects_verified_document_hash_drift"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[nested-field]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-injection]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-deletion]"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[nested-field] - Failed: DID NOT RAISE ReportError",
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-injection] - Failed: DID NOT RAISE ReportError",
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-deletion] - Failed: DID NOT RAISE ReportError"
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[nested-field]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-injection]",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_rejects_verified_document_hash_drift[top-level-deletion]"
+   ],
+   "pytest_rc": 1
+  },
+  {
+   "id": "MUT-7",
+   "claim": "ghost 検出 (mapping/list 両分岐) の除去で宣言未評価 campaign が再び無言通過 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse",
+    "test_string_list_campaign_declaration_detects_ghost_per_campaign_id"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_string_list_campaign_declaration_detects_ghost_per_campaign_id"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse - assert [] == [{'code': 'ca...cle-shared'\"}]",
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_string_list_campaign_declaration_detects_ghost_per_campaign_id - assert [] == [{'code': 'ca...acle-ghost'\"}]"
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_declared_campaign_without_schedule_row_is_structured_and_taints_all_real_rows",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_string_list_campaign_declaration_detects_ghost_per_campaign_id",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_only_ghost_campaign_is_visible_without_synthetic_row",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_ghost_campaign_extends_existing_manifest_issues",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_ghost_campaign_does_not_mask_definitive_correctness_red",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_ghost_issue_reaches_early_return_rows",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_t080_sibling_metamorphic"
+   ],
+   "pytest_rc": 1
+  },
+  {
+   "id": "MUT-8",
+   "claim": "ghost 時の T-080 sibling None guard の除去で部分観測から全体観測を発行 (受理集合拡大)",
+   "verdict": "KILLED",
+   "witness_expected": [
+    "test_t080_sibling_metamorphic"
+   ],
+   "witness_hits": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_t080_sibling_metamorphic"
+   ],
+   "witness_failure_lines": [
+    "FAILED orchestrator/tests/test_s8b_oracle_report.py::test_t080_sibling_metamorphic - AssertionError: assert {'items': [{'artifact': 'known_axes', 'kind': 'sourc..."
+   ],
+   "all_failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_report.py::test_t080_sibling_metamorphic"
+   ],
+   "pytest_rc": 1
+  }
+ ],
+ "summary": "8/8 KILLED (witness 全命中・SURVIVED 0・injection failed 0)。witness 失敗理由は全件受理方向 (DID NOT RAISE / rc 2→0 / issue 空 / sibling 非 None)",
+ "errata": [
+  {
+   "run": 1,
+   "defect": "pytest -q を -rf なしで起動したため FAILED 要約行が出力されず、8 変異全てを witness 0 件のまま KILLED-OFF-TARGET と誤分類した (rc=1 は取得できていたが node 帰属不能)。ANSI 除去 regex も raw string 誤り (バックスラッシュ二重化) で無効だった",
+   "resolution": "-rf を明示、regex を実 ESC バイトへ修正"
+  },
+  {
+   "run": 2,
+   "note": "統合 commit 0c2a573 基準で 8/8 KILLED。ただし fix2 (34ce18b) が report.py のコメント 1 箇所とテスト fixture を変更したため、最終 commit 基準の run 3 を正本とする (anchor 一意性は run 3 の assert で再確認済み)"
+  }
+ ],
+ "notes": [
+  "MUT-1 は dispatch 3 置換の累積 compound (単置換では legacy 専用初期化の未束縛変数で availability kill になる — 焦点再レビュー RR-1 の指摘どおり)。witness 失敗理由 DID NOT RAISE で受理方向を機械確認",
+  "MUT-3 の total red 203 は witness (3-key 直接受理) の kill に加え 5-key fixture 群の可用性赤 202 件が併発。kill の根拠は witness のみに帰属",
+  "MUT-4/MUT-6 の witness 複数命中は parametrize 展開分 (swapped-paths / nested-field 等)",
+  "MUT-5 (seal) と MUT-8 (T-080 guard) は総赤 1 件 = 単一理由の kill"
+ ]
+}

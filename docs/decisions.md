@@ -3569,3 +3569,78 @@ equivalent (driver 定数化)。**全変異で HEAD テスト (基準 1ce9a2a �
 → 親裁定 + 変異事前登録 → 実装 A→B (high) → 親 integration・全走 2840 → 敵対レビュー 2 並列 (max、両
 NO-GO、must-fix 5) → 親裁定 (採用 5 / 裁定パッケージ 3) → fix 1 単位 (max) → 全走 2842 (退行0) → 統合
 commit → 変異本走 → 焦点再レビュー (**GO**、closed 5 / regressed 0)。
+
+## D84. [T-002] P-A1(a) Stage 1 + P-C3 + [T-006] — 公式 report API の verified 化 (2026-07-23)
+
+**決定: 公式 report API の official 分岐を verify_manifest 通過必須へ狭め (Stage 1)、oracle manifest の
+generator pin を key→canonical path 束縛付き 5 leaf authority へ拡張し (P-C3)、宣言済み・schedule row
+なし campaign の無言スキップを fail-closed 可視化する ([T-006]、F9 型)。** 承認済み実装 wave
+(archive worklog 0721-0722 (2) 項 6、実行順 = D83 (1) の第 3 手)。code commit = 0c2a573 (基準 7b6d472)。
+逐語・変異台帳 = `output/insights/2026-07-23_t002-stage1-verbatim.md` / 同 `-mutation-ledger.json`。
+
+(1) **Stage 1 の形。** `build_observations` の受理 = {VerifiedManifest, LegacyManifest} exact
+(未検証 OfficialManifest の直接受理を廃止)。VerifiedManifest は (a) closure 保持 seal (module 属性に
+置かない — module._SEAL 読取り迂回の遮断、相談指摘) 付き `init=False` constructor で通常偽造を拒否、
+(b) 使用時に document の**全 canonical hash** == .sha256 を receipt/Git/output-root 読取りより前に
+照合。(b) は当初 self-hash 除外版 `manifest_sha256()` を使っており、top-level `manifest_sha256` 注入が
+素通りする穴をレビューが live 実証 → 全 hash 照合へ修正 (fix)。
+
+(2) **CLI は D65 承認本文の逐語実装。** 「CLI は active ratified freeze を解決して launch_validate を
+通し、その同一 freeze document/sha256 を verify_manifest へ渡す」— worklog 要約はこの制約を落として
+おり、親 brief の当初案 (--freeze 任意パス) は承認の過小実装だった (F31 型。敵対相談 2 本が独立指摘、
+親が D65 逐語 (insights wave2-adjudicated-package-loop §7) を開いて確定)。実装: `--freeze` 引数は
+作らず、official 分類時に `load_ratified_freeze(root)` → `launch_validate(ratified, root)` → 同一
+document/sha を `verify_manifest` へ。root seam = `--repo-root` (default ROOT)。legacy 分類は freeze
+解決を呼ばず従来どおり (縮退も拡大もしない)。
+
+(3) **P-C3 = 「pin する」の意味を key→path 束縛まで実装。** `_GENERATOR_SOURCES` (immutable、
+materializer/report/judge + outcome_stage_contract/artifacts の 5 entry、canonical repo 相対 path) を
+唯一の authority とし、`_validate_generators` は exact key set (決定的 missing/extra 診断) +
+record.path == canonical path (cross-wire・絶対 path 拒否) + 実 byte hash 一致を検査。相談 2 本が
+「key 名追加だけでは無関係ファイルを指しても通る」と独立指摘したのを採用。非恒真検証 (root A で
+build → leaf 1 byte 差の root B で verify → 拒否) をテストで固定。主張は指定 5 leaf の pin に限定
+(transitive closure は謳わない)。SCHEMA_VERSION は据え置き (発行済み oracle manifest 0 件を output/
+全域 grep で機械確認 — D79 (1) の「v1 の意味を確定」と同型)。durable manifest 発行後にこの決定を
+変える場合は再発行が要る。
+
+(4) **[T-006] = 宣言レベル検出 + ghost 限定の中央 taint。** ghost 検出は集合潰し前の宣言構造で行う
+(mapping 形 = block ごと、値重複 collapse に非依存 / list 形 = campaign id ごと)。構造化
+`manifest_issues` ({code, campaign_id, message}、run-contract 3 code も安定化) を observations
+top-level へ常時出力 (additive field — judge は `.get()` 参照のみで不拒否を親が実測確認)。
+**ghost issue のみ**全 row 構築後の中央 post-process で protocol_violation 化 (early return 経路にも
+届く)。当初案の「全 manifest_issues を中央適用」は、基準 HEAD で run-contract issue が early-return
+row (campaign-incomplete) に届いていなかった事実とレビューが突合して**親裁定の契約誤りと判明**
+(レビュー R2-4) — run-contract issue は HEAD の経路 (通常評価 row のみ) を bit 単位で維持へ訂正。
+ghost 時は report-level T-080 sibling を None 化 (D83 unavailable taint と同型、metamorphic テストで
+非 None → None を固定)。raw string campaign_ids の受理拡大 (実装子の逸脱、親プロンプトの
+「list/文字列形」という曖昧語が誘発) は fix で従来の ReportError へ復元。
+
+(5) **反証記録 (採用しなかった must)。** (a) 「全 row taint は correctness-red の disqualified を
+indeterminate へ弱め anti-masking 違反」(相談 2 M6) — judge の binary-mismatch 先例コメント
+(「disqualify でなく unknown に倒す — 壊れた計測から結論を採らない」) と D68 (4) の全域 taint 設計に
+より反証。indeterminate は受理でなく拒否であり、red は reason に無条件併記される (テスト固定)。
+judge 優先順位の変更は Stage 2 領域。(b) 「terminal 欠落 + ghost で red window が消える」(レビュー
+R1-3) — terminal 欠落時に window 評価が走らないのは基準 HEAD からの early-return 設計であり本 wave の
+退行でない。組合せ pin テスト (ghost reason は届くが window fields は None のまま) を追加して現状を
+凍結し、改廃は将来の裁定に委ねる。
+
+(6) **正直な限界 (Stage 1 が閉じる範囲)。** 閉じたのは「report official 分岐の構造検査必須化 + CLI の
+active ratified 束縛」まで。WAL 真正性・observations/verdict の下流 provenance 連鎖は Stage 2、
+legacy 受理 (schema_version 剥がしによる降格経路を含む — D65 残存リスク既記載) の閉鎖は Stage 3 の
+裁定領域として残る。in-process の object.__new__ 等による偽造は信頼境界外 (D68 (6) と同枠、docstring
+明記)。legacy の row 側 leniency (単一 campaign fallback の未宣言 block 吸収等) も Stage 0 設計の
+まま残置。
+
+(7) **変異 matrix (B-057)。** 事前登録 MUT-1..8 (裁定 R8 — 全て受理集合の期待方向変化で kill 判定、
+可用性 kill は不成立として再設計済み: MUT-1 は dispatch 3 置換の累積、MUT-2 は verify 迂回でなく
+legacy 降格、MUT-3 は 3-key 直接受理 witness)。結果は mutation-ledger JSON が正本。
+
+(8) **プロセス。** brief 前実測 (G1 生死 2 件・pin 元列挙・write-path 棚卸し) → codex プラン (max、
+P1/P6 OVERRIDE) → 敵対相談 2 並列 (max、両 NO-GO、must 16) → 親裁定 v2 (F31 型の過小実装を訂正、
+--freeze 廃止で相談 M3 消滅) → 実装 3 直列単位 (high、一枚岩否認を採用) → 親統合・全走 → 敵対
+レビュー 2 並列 (max、両 NO-GO、must 14、うち 1 件は親裁定の契約誤り検出) → fix 1 単位 (max) →
+全走 2878/18/0 → 統合 commit 0c2a573 → 変異本走 → 焦点再レビュー (**NO-GO、closed 4 / partial 2 /
+regressed 0**: reps 負例の過剰決定と MUT-1 spec の台帳未凍結) → fix2 (reps 負例の単一理由化 +
+コメント整合、34ce18b) → 最終全走 + 変異 matrix を最終 commit で再走 (台帳が正本)。D80 の fix2
+先例に従い、fix2 後は追加レビューでなく matrix + 受入を最終 gate とした。変異ハーネス 1 巡目の
+欠陥 (pytest -q に -rf なしで FAILED 行が出ず全件 KILLED-OFF-TARGET と誤分類) は台帳 erratum に記録。
