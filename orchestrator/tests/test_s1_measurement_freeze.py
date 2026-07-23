@@ -43,8 +43,18 @@ def _require_submodule_sources() -> None:
 @pytest.fixture(scope="module")
 def real_known_axes_doc():
     """外部 golden と自己検証を通した実 known-axes 文書を module 内で共有する。"""
+    from campaign import pin
+
     _require_submodule_sources()
     doc = K.build_document()
+    ccbench_pin = doc["ccbench_pin"]
+    assert len(ccbench_pin) == 40 and all(
+        c in "0123456789abcdef" for c in ccbench_pin
+    ), f"ccbench_pin が 40 桁 full SHA でない: {ccbench_pin}"
+    assert ccbench_pin.startswith(pin.CURRENT_PIN), (
+        f"ccbench worktree HEAD {ccbench_pin} が CURRENT_PIN "
+        f"{pin.CURRENT_PIN} を prefix に持たない"
+    )
     s1_expected_goldens.assert_known_axes_goldens(doc)
     K.verify_document(doc)
     return doc
@@ -103,13 +113,24 @@ def test_generate_builds_registered_cells_comparisons_and_schedule(
     doc = _build(freeze_env)
     assert len(doc["cells"]) == 18
     for cell in doc["cells"].values():
-        assert cell["variant"] == real_known_axes_doc["entries"][
-            cell["workload"]
-        ][cell["configuration"]]
+        s1_expected_goldens.assert_json_exact(
+            cell["variant"],
+            real_known_axes_doc["entries"][cell["workload"]][
+                cell["configuration"]
+            ],
+            f"cells.{cell['workload']}:{cell['configuration']}.variant",
+        )
     assert len(doc["comparisons"]) == 12
     assert sum(c["family"] == "S-1a" for c in doc["comparisons"]) == 9
     assert sum(c["family"] == "S-1b" for c in doc["comparisons"]) == 3
     assert {c["alternative"] for c in doc["comparisons"]} == {"greater"}
+    s1_expected_goldens.assert_json_exact(
+        doc["comparisons"],
+        s1_expected_goldens.EXPECTED_COMPARISONS,
+        "comparisons",
+    )
+    assert doc["master_seed"] == s1_expected_goldens.EXPECTED_MASTER_SEED
+    assert doc["schedule_hash"] == s1_expected_goldens.EXPECTED_SCHEDULE_HASH
     assert sum(len(order) for rounds in doc["schedule"].values()
                for order in rounds) == 288
     assert doc["operating_point"] == {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import contextlib
 import errno
 import json
@@ -13,7 +14,9 @@ from pathlib import Path
 
 import pytest
 
-ORCH = Path(__file__).resolve().parents[1]
+TESTS = Path(__file__).resolve().parent
+ORCH = TESTS.parent
+sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(ORCH))
 
 from campaign import pipeline, wal  # noqa: E402
@@ -22,6 +25,11 @@ from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: 
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign import s1_direct_comparison as S  # noqa: E402
 from campaign import t080_freeze_migration as T080  # noqa: E402
+from s1_expected_goldens import (  # noqa: E402
+    EXPECTED_GATES,
+    EXPECTED_IDENT_ALL_PREDICATE,
+    EXPECTED_SORT,
+)
 
 
 def _freeze() -> dict:
@@ -218,10 +226,12 @@ def test_prepare_backoff_fixed_best_refuses_flag_value_mismatch(tmp_path, monkey
             pass
 
 
-def _capture_prepare_quarantine(tmp_path, monkeypatch, cell):
+def _capture_prepare_quarantine(
+        tmp_path, monkeypatch, cell, implementation_key):
     from campaign import patchharness
     from campaign import p3_s4_loop as loop_axis
 
+    expected = copy.deepcopy(cell)
     worktree = tmp_path / "worktree"
     calls = []
 
@@ -248,19 +258,35 @@ def _capture_prepare_quarantine(tmp_path, monkeypatch, cell):
     assert len(calls) == 1
     assert calls[0]["sub"] == str(worktree)
     assert calls[0]["write"] is True
+    assert calls[0]["implementation"] == expected["variant"][implementation_key]
+    assert cell == expected
     return calls[0]
 
 
+@pytest.mark.parametrize(
+    "comparator",
+    [
+        pytest.param(
+            "\n  sort(write_set_.begin(), write_set_.end(),\n"
+            "       [](const WriteElement& lhs, const WriteElement& rhs) {\n"
+            "         return lhs.get_tid() < rhs.get_tid();\n"
+            "       });  \n",
+            id="synthetic-whitespace-sentinel",
+        ),
+        pytest.param(
+            EXPECTED_SORT["balanced"]["comparator"],
+            id="canonical-balanced-sp-dd",
+        ),
+        pytest.param(
+            EXPECTED_SORT["write-heavy"]["comparator"],
+            id="canonical-write-heavy-sk-ad",
+        ),
+    ],
+)
 def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, comparator):
     from campaign import p3_s4_loop_sort as sort_axis
 
-    comparator = (
-        "\n  sort(write_set_.begin(), write_set_.end(),\n"
-        "       [](const WriteElement& lhs, const WriteElement& rhs) {\n"
-        "         return lhs.get_tid() < rhs.get_tid();\n"
-        "       });  \n"
-    )
     cell = {
         "configuration": "sort_best",
         "variant": {
@@ -275,22 +301,36 @@ def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
         },
     }
 
-    received = _capture_prepare_quarantine(tmp_path, monkeypatch, cell)
+    received = _capture_prepare_quarantine(
+        tmp_path, monkeypatch, cell, "comparator")
 
-    assert received["implementation"] == cell["variant"]["comparator"]
     assert received["marker_id"] == sort_axis.MARKER_ID
     assert received["source_rel"] == sort_axis.SOURCE_REL
 
 
+@pytest.mark.parametrize(
+    "predicate",
+    [
+        pytest.param(
+            "\n  izanagi_gate_pass = izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kReadValiLocked;  \n",
+            id="synthetic-whitespace-sentinel",
+        ),
+        pytest.param(
+            EXPECTED_GATES["balanced"]["gate_predicate"],
+            id="canonical-balanced-g-rl",
+        ),
+        pytest.param(
+            EXPECTED_GATES["write-heavy"]["gate_predicate"],
+            id="canonical-write-heavy-g-rt",
+        ),
+    ],
+)
 def test_prepare_system_gate_passes_predicate_verbatim_to_quarantine(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, predicate):
     from campaign import axis_trigger_gating as gate_axis
 
-    predicate = (
-        "\n  izanagi_gate_pass = izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kReadValiLocked;  \n"
-    )
     cell = {
         "configuration": "system_gate",
         "variant": {
@@ -305,26 +345,36 @@ def test_prepare_system_gate_passes_predicate_verbatim_to_quarantine(
         },
     }
 
-    received = _capture_prepare_quarantine(tmp_path, monkeypatch, cell)
+    received = _capture_prepare_quarantine(
+        tmp_path, monkeypatch, cell, "gate_predicate")
 
-    assert received["implementation"] == cell["variant"]["gate_predicate"]
     assert received["marker_id"] == gate_axis.MARKER_ID
     assert received["source_rel"] == gate_axis.SOURCE_REL
 
 
+@pytest.mark.parametrize(
+    "predicate",
+    [
+        pytest.param(
+            "\n    izanagi_gate_pass = izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kNodeVali;  \n",
+            id="synthetic-whitespace-sentinel",
+        ),
+        pytest.param(
+            EXPECTED_IDENT_ALL_PREDICATE,
+            id="canonical-ident-all",
+        ),
+    ],
+)
 def test_prepare_ident_all_passes_predicate_verbatim_to_quarantine(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, predicate):
     from campaign import axis_trigger_gating as gate_axis
 
-    predicate = (
-        "\n    izanagi_gate_pass = izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == "
-        "IzanagiAbortReason::kNodeVali;  \n"
-    )
     cell = {
         "configuration": "ident_all",
         "variant": {
@@ -339,9 +389,9 @@ def test_prepare_ident_all_passes_predicate_verbatim_to_quarantine(
         },
     }
 
-    received = _capture_prepare_quarantine(tmp_path, monkeypatch, cell)
+    received = _capture_prepare_quarantine(
+        tmp_path, monkeypatch, cell, "gate_predicate")
 
-    assert received["implementation"] == cell["variant"]["gate_predicate"]
     assert received["marker_id"] == gate_axis.MARKER_ID
     assert received["source_rel"] == gate_axis.SOURCE_REL
 

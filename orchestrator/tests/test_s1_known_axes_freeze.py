@@ -2,6 +2,7 @@
 """S-1 既知軸 freeze の統合テストと改竄 positive control。"""
 from __future__ import annotations
 
+import ast
 import copy
 import inspect
 import json
@@ -15,6 +16,7 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
+sys.path.insert(0, _HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import s1_known_axes_freeze as M  # noqa: E402
@@ -67,6 +69,35 @@ def test_backoff_sweep_grid_matches_registered_golden():
     from campaign import backoff_sweep
 
     assert tuple(backoff_sweep.SWEEP_US) == EXPECTED_SWEEP_US
+
+
+def test_goldens_helper_is_independent_of_production():
+    helper_path = Path(_HERE) / "s1_expected_goldens.py"
+    tree = ast.parse(helper_path.read_text(encoding="utf-8"), filename=str(helper_path))
+    imports = [
+        node for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+    ]
+    unexpected_imports = [
+        ast.unparse(node)
+        for node in imports
+        if not isinstance(node, ast.ImportFrom) or node.module != "__future__"
+    ]
+    assert unexpected_imports == [], (
+        "golden helper は __future__ 以外を import してはならない: "
+        f"{unexpected_imports}"
+    )
+
+    campaign_dir = Path(_ORCH) / "campaign"
+    consumers = sorted(
+        path.name
+        for path in campaign_dir.glob("*.py")
+        if "s1_expected_goldens" in path.read_text(encoding="utf-8")
+    )
+    assert consumers == [], (
+        "production は test-local golden helper を参照してはならない: "
+        f"{consumers}"
+    )
 
 
 def test_build_document_is_self_consistent_and_detects_tamper():
@@ -131,6 +162,7 @@ def test_verify_rejects_generator_sha_tamper():
     with pytest.raises(M.FreezeError) as excinfo:
         M.verify_document(doc)
     assert str(excinfo.value).startswith("generator sha256 不一致")
+    assert "0" * 64 in str(excinfo.value)
 
 
 def test_verify_rejects_non_ancestor_head():
@@ -140,6 +172,7 @@ def test_verify_rejects_non_ancestor_head():
     with pytest.raises(M.FreezeError) as excinfo:
         M.verify_document(doc)
     assert "現行 HEAD の commit ancestor でない" in str(excinfo.value)
+    assert "f" * 40 in str(excinfo.value)
 
 
 def test_verify_rejects_foreign_ccbench_pin():
@@ -149,6 +182,7 @@ def test_verify_rejects_foreign_ccbench_pin():
     with pytest.raises(M.FreezeError) as excinfo:
         M.verify_document(doc)
     assert str(excinfo.value).startswith("ccbench_pin 不一致")
+    assert "0" * 40 in str(excinfo.value)
 
 
 def test_s1b_pairing_rejects_mismatched_flags():
