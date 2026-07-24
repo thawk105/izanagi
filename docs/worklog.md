@@ -919,3 +919,61 @@ D 番号なし ([T-067] 正本は D73、設計判断は insight)。
 11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 12. [T-012] 延期: pilot 凍結維持。変わらず
 13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-25 (2) — [T-088] official 解禁の設計確定 — 両レンズ NO-GO・親裁定 4 件否定 (設計のみ・コード 0 byte、branch worktree-dev-wave-e2e-real-seal、計測なし)
+
+/dev-wave 1 回。段 4 で「**実装しない**」と裁定し `4→7→8→9`。**実装差分がないため変異 matrix と
+受入全走は射程外**。正本 = `output/insights/2026-07-25_t088-official-unlock-design.md` (裁定パッケージ)
++ 同 `-verbatim.md` (逐語 3 本)。D 番号なし (未裁定を decisions へ書かない — 承認後に起票する)。
+
+- **最重要 (B-01、次の一手の前提訂正)**: 前エントリまでの「R receipt **発行待ち**」は **stale**。
+  receipt はユーザーが 2026-07-24 に発行済み — `8bec195` (`AI-Agent: none`、receipt 1 ファイル +1 行)
+  で、/rulings 記録 commit `0c03609` の**祖先**。protocol 実凍結 `c8cbd17` は receipt が active-valid
+  でなければ機械拒否される (`s8b_floor_campaign.py:537-553`) ため、凍結成立が発効の機械証明。
+  → [T-068]/[T-077]/[T-078] は blocker 解消済み・承認済みとして繰り上げる (要ユーザー確認 = U-5)。
+  見落とし経路 = 「承認待ち」を列挙する際に**既実行かを一次資料 (git) で照合しなかった**こと。
+- **検証** (レンズ各 1 本、計 2 本): codex プラン (max) → 敵対相談 2 (max) → 親裁定。
+  **両レンズとも NO-GO** (A: BLOCKER 7 + MUST 5 / B: BLOCKER 5 + MUST 4 + SHOULD 2)。
+  real 21・partial 1 (A-06 の「B-005 未裁定」部分は 2026-07-24 (6) の受諾で **refuted**)。
+- **親の provisional 裁定 8 件のうち 4 件が否定された** — (P2) guard は誤記でなく意図的 dormant 防壁
+  かつ floor protocol の承認束縛裁定は「v2 世代承認」であって launch 認可ではない / (P5) 二重評価は
+  TOCTOU 増、単一 admission predicate にすべき / (P6) 提案 receipt は campaign 認可でなく revision
+  activation / (P8) `AI-Agent: none` は人間証明でなく第二防壁に数えられない。(P1)(P4)(P7) は両レンズ支持。
+- **親が独立裏取りした real 3 件**: `script_sha256` は `IZANAGI_RESERVATION_SCRIPT_SHA256` からの
+  自己申告で wrapper hash 照合は恒真化可能 (`reservation.py:118-126`) / `cert C が G の厳密祖先でない`
+  拒否が実在し activation 手順に C が欠落 (`s8b_ratified_freeze.py:3047-3053`、ただし失効が効くのは
+  C 作成後の retry のみ) / `_run_campaign_core` の production caller は guard 付き wrapper 唯一。
+- **裁定した設計 v2 = 最小案**: wrapper-only wave を先行 → job-scoped submission artifact →
+  **単一** admission predicate へ置換 → CLI は固定拒否削除 + rc=2 翻訳のみ。certificate v1・ratified・
+  resume は不変。plan が提案した新 module 2 本・certificate v2・ratified 追加・完全 negative matrix は
+  **DW-G04 / DW-G02 / 規律 5 / [T-083] freeze により延期**。
+- **前提実測の限界 (正直な記録)**: DW-S01 の「実際にファイルを編集して測る」は、guard の raise 実削除
+  までは成功 (`git diff --stat` 1 file 1+/5-) したが、**guard 無効状態でのテスト実行を harness の
+  permission classifier が拒否**した。clean tree では同コマンドが通る (復元後 `-k official` 29 passed)。
+  DW-O19 手順で即復元・内容一致確認済。よって解除後の実挙動は未実測で、根拠は静的読解と模擬のみ。
+- **検査**: repo scan invariant (三軸語 conjunction) **1 passed**・`check_docs.py` 違反なし・
+  ベースライン `test_s8b_floor_campaign.py` 197 passed / 2 skipped。docs commit 後に再走 <反映>。
+
+### 消化した ID
+- [T-088] **消化** (設計確定 = 裁定パッケージ発行。実装は U-1〜U-4 の裁定後に別 wave)。
+
+### 次の一手
+1. [T-088] **ユーザー裁定待ち (U-1〜U-5)**。U-1 = guard を correctness gate でなく期限付き activation
+   lock と再分類してよいか (解禁は official 受理集合を空集合から非空へ厳密拡大する)。**U-1 未承認なら
+   以降すべて停止**。U-2 順序 / U-3 人間認可の形 / U-4 延期の確認 / U-5 次の一手の繰り上げ
+2. [T-068] **繰り上げ**: R receipt 発行済みにより blocker 解消。承認済みで着手可能 (D78 (9))
+3. [T-077] **繰り上げ**: 同上。design_source 再 pin + generator M 化
+4. [T-078] **繰り上げ**: 同上。S2-4.6 承認 fixture で閉じる
+5. [T-011] 科学レーン floor 実測。残 gate = [T-088] 裁定 → PBS floor wrapper (未実装) → 実行 revision
+   束縛 → lineage (oracle 結線 wave)。R receipt と §5-(viii) 受諾は充足済み
+6. [T-090] **新規**: `VerifiedFreeze.document` が mutable `dict` のまま返る (`s8b_freeze_io.py:30-38`)。
+   `RatifiedFreeze` の再帰的不変化 (`s8b_ratified_freeze.py:717-733`) と非対称で、result が正しい v1
+   SHA を掲げつつ異なる cell schedule の値を保持し得る。1 cycle 後の hardening 候補。延期
+7. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+8. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+9. [T-089] 二重 reason-tag 描画は production 診断欠陥候補。延期。変わらず
+10. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+11. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+12. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+13. [T-012] 延期: pilot 凍結維持。変わらず
+14. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

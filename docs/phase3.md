@@ -86,14 +86,17 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 承認 → oracle 実走 → 層3 実レポート。W 列の恒久一般化 (revocation・expiry・全世代・check registry)
 は oracle 後に再開する (承認済み設計 D75/D76 は破棄しない)。正本 = worklog 2026-07-22 (9)、裁定
 パッケージ = `output/insights/2026-07-22_direction-audit-recovery-plan.md`。
-**移行契約 wave は 2026-07-22 に実装完了 (D78) — 機構実装済み・人間 receipt 発行待ち。** 発効後の
-公式 gate 期待 = {floor-null, budget-null} の 2 拒否 exact (receipt 発行手順の正本 = worklog
-2026-07-22 (10) の引き渡しパッケージ)。**protocol JSON 実凍結 + 予測封印の機構も 2026-07-23 に
-実装完了 (wave2、D79)** — 人間 CLI (freeze-protocol) と selector 実走配線 (seal CLI) を引き渡し済み。
-残 = ユーザー手番 (receipt 発行 → protocol 実凍結、手順 = worklog 2026-07-22 (10) + 2026-07-23 (1))
-→ AI の予測封印実走 wave → [T-011] 受諾 → floor 実測 (blocking 前提 = D79 (7))。**D79 (7) のうち
-exemption 拡張 + cert 束縛のコード機構は 2026-07-23 に実装完了 (wave3、D80) — 残 = 統合 E2E
-(protocol 凍結後) と lineage 照合 (oracle 結線 wave 再評価)。**
+**移行契約 wave は 2026-07-22 に実装完了 (D78)。人間 receipt は 2026-07-24 に発行済み**
+(`8bec195` = ユーザーの `AI-Agent: none` commit、`output/t080-migration/legacy-freeze-repin.receipt.json`)。
+発効後の公式 gate 期待 = {floor-null, budget-null} の 2 拒否 exact。**protocol JSON 実凍結 + 予測封印の
+機構も 2026-07-23 に実装完了 (wave2、D79)** — 人間 CLI (freeze-protocol) と selector 実走配線
+(seal CLI) を引き渡し済み。**protocol 実凍結もユーザーが 2026-07-24 に実行済み** (`c8cbd17`。実凍結は
+receipt が active-valid でなければ機械拒否されるため、凍結成立自体が receipt 発効の機械証明でもある)。
+予測封印実走と [T-011] の §5-(viii) 受諾も完了 (worklog 2026-07-24 (2) / (6))。**D79 (7) のうち
+exemption 拡張 + cert 束縛のコード機構は 2026-07-23 に実装完了 (wave3、D80)、統合 E2E は 2026-07-24 に
+部分閉鎖 — 残 = lineage 照合 (oracle 結線 wave 再評価)。** 残る floor 実測前 gate = official guard 解禁の
+設計裁定 ([T-088]、裁定パッケージ = `output/insights/2026-07-25_t088-official-unlock-design.md`) →
+Pegasus PBS floor wrapper (未実装) → 実行 revision 束縛。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
