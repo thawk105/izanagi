@@ -982,3 +982,69 @@ D 番号なし ([T-067] 正本は D73、設計判断は insight)。
 12. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 13. [T-012] 延期: pilot 凍結維持。変わらず
 14. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-25 (3) — [T-068][T-077][T-078] を R 発効により確定的に closure (docs-only・コード 0 byte、branch worktree-dev-wave-e2e-real-seal、計測なし)
+
+/dev-wave 1 回。段 4 で「**実装しない**」と裁定し `4→7→8→9`。**実装差分がないため変異 matrix と
+受入全走は射程外**。正本 = D78 (10) + `output/insights/2026-07-25_t068-t077-t078-closure.md`
+(closure evidence) + 同 `-verbatim.md` (逐語 3 本)。新 D 番号なし (D78 (9) の発火実績なので追記)。
+
+- **[T-088] は着手せず**: U-1 (official guard を activation lock と再分類してよいか = 防壁の性格変更) が
+  ユーザー裁定待ちのため停止条件に従った。代わりに承認済みで blocker 解消済みの 3 件を処理した。
+  U-5 (次の一手の繰り上げ) は承認済み裁定に対する既知事実なので、親判断で確定して本エントリで消化する
+  ([T-088] とは別原子として分離 — レンズ B の指摘)。
+- **検証** (レンズ各 1 本、計 2 本): codex プラン (max) → 敵対相談 2 (max) → 親裁定。**両レンズとも
+  NO-GO** (A: BLOCKER 3・MUST 5・SHOULD 1 / B: BLOCKER 2・MUST 4・SHOULD 2・NIT 1)。
+  **親の provisional 裁定 8 件のうち 3 件が否定** — (P2) 「状態中立契約への conformance」は説明が誤りで
+  実際は事実訂正 / (P6) [T-068] の理由付けが不正確 (元は `frozen_at_head` **ancestry** の格下げであり、
+  消えた 2 拒否は source/design **drift**。直接根拠は D78 (9) の明示 supersede) / (P7) failures 本文の
+  直接修正は追記専用契約の違反。(P8) は部分 refuted。
+- **両レンズ収束の決定打 2 件**: (a) **decisions は追記型記録なので D78 既存本文の in-place 置換は
+  禁止** (`tools/check_docs.py` が「書いた時点で凍結」と分類) → プランの置換案 4 件を全部不採用にし
+  additive な (10) だけにした。(b) **receipt 発行日は 2026-07-23** (`8bec195` = 21:49:33 +0900、
+  `confirmed_at=2026-07-23T12:49:16Z`) であり 3 箇所の `2026-07-24` は誤記。**プラン起草 codex 自身が
+  置換案へ誤日付を再転写しており、同一 wave 内で誤りの自走が実証された**。`c8cbd17` (protocol 実凍結)
+  の 07-24 は正しいので一括置換はしていない。
+- **erratum 2 件を台帳へ**: F1 (日付誤記) に「再発: 2026-07-25」、F35 に本文不変の erratum を追記
+  (F35 は「一次資料に照合せよ」の教訓なのに本文自身が一次資料未確認だった)。
+- **F36 新設**: 受入・検査の結果欄の `<反映>` プレースホルダが独立 3 wave + insight 1 本で残存し、
+  F34 恒久対応の実行が空証明になっていた。**retroactive に埋めない** (捏造になる)。ただし全走値
+  2919/18 自体は T-086/T-067 の insight に現存し、欠けているのは記録 commit **後**の検査結果だけ。
+- **実測** (すべて public API): `verify` rc=0 / `active-valid` / refusals 空 / observation 17 item、
+  `gate-check` rc=2 / `allowed=false` / 拒否 {floor-null, budget-null} の 2 件 exact /
+  GateDecision observation = `null` (refusal 残存中は envelope を載せない設計の帰結。receipt
+  resolution 側の 17 item と混同しない)。baseline 全走 2919 passed / 18 skipped / 0 failed (239s)。
+- **検査**: repo scan invariant (三軸語 conjunction) 1 passed・`check_docs` 違反なし・
+  `check_ai_provenance` 333 件違反なし (いずれも記録 commit 後に再走した実測値は下記)。
+
+### 消化した ID
+- [T-068] **消化** — R commit をもって「移行契約により superseded」(D78 (9)(10))。
+- [T-077] **消化** — R の design_source 再 pin + generator M 化。holdout generator は recorded ≠ observed
+  でも通る = M 化が非恒真に効いている。
+- [T-078] **消化** — S2-4.6 承認値の外部固定 fixture + predicate 単独 mutant 1→0→1。
+- U-5 (次の一手の繰り上げ) **消化** — 3 件の繰り上げを本エントリで確定。ID なし ([T-088] の子でなく
+  独立原子として処理)。
+
+### 次の一手
+1. [T-088] **ユーザー裁定待ち (U-1〜U-4)**。U-1 = official guard を correctness gate でなく期限付き
+   activation lock と再分類してよいか。**U-1 未承認なら以降すべて停止**。U-5 は消化済み。変わらず
+2. [T-011] 科学レーン floor 実測。残 gate = [T-088] 裁定 → PBS floor wrapper (未実装) → 実行 revision
+   束縛 → lineage。変わらず
+3. [T-091] **新規**: `_verify_receipt_derivation` を public `verify_receipt()` 経由で撃つ negative test が
+   無い (期待テストは内部関数直呼びと consumer へのエラー注入 mock のみ、full-gate fixture は当該関数を
+   no-op stub 化)。今日の判定値は変えないため 1 cycle 後の hardening へ。延期
+4. [T-092] **新規**: real-repo gate test が R の OID を pin せず、履歴除去で pre-R 4 拒否分岐を正解化する。
+   通常の追加 commit 経由の削除は production が拒否するので fail-open ではない。1 cycle 後。延期
+5. [T-093] **新規**: D78 (6)(f) の observed 15 件は H_mig 確定により独立 literal pin が可能になった。
+   現状は期待値を receipt 自身から組み立てている。1 cycle 後。延期
+6. [T-094] **新規**: リテラル placeholder の機械検出 (F36 恒久対応 2)。族条件は満たすが、既存 4 件の
+   allowlist と対象ファイル族・引用/verbatim 除外の設計が先。裁定パッケージへ。延期
+7. [T-090] `VerifiedFreeze.document` が mutable `dict` のまま返る hardening 候補。1 cycle 後。変わらず
+8. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+9. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+10. [T-089] 二重 reason-tag 描画は production 診断欠陥候補。延期。変わらず
+11. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+12. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+13. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+14. [T-012] 延期: pilot 凍結維持。変わらず
+15. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

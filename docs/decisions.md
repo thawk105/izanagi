@@ -3211,6 +3211,38 @@ draft 確認 → finalize → R commit → post-R 受入 (rc=2 + exact assert + 
 [T-078] は S2-4.6 承認値の外部固定 fixture (predicate 単独 mutant 1→0→1 実証済み) で閉じる —
 いずれも **R commit 時点で確定** (それまで開いたまま)。
 
+(10) **発効実績と closure の確定 (R = 2026-07-23、確認 wave = 2026-07-25)。** decisions は追記型
+記録なので (1)〜(9) の本文は歴史として残し、以後の状態は本項が supersede する。
+
+- **発効。** R commit `8bec195d096f852fd2b47070aa18a3b151613f0a` (trailer `AI-Agent: none`、変更は
+  receipt 1 file の追加のみ、author/committer とも **2026-07-23 21:49:33 +0900**)。receipt は
+  `confirmed_by=thawk105` / `confirmed_at=2026-07-23T12:49:16Z`、raw sha256
+  `b84f783218496f0750ed583a317be474a2207b3fe5661a67fab54b2d53723e3c`、
+  `migration_basis_commit=f04ae50b3c7be800885447be514b59f2405a4e83`。
+- **確認時実測** (validation_head `1b9abd1`)。`verify_receipt` は `active-valid` / refusal 空。receipt
+  resolution の observation は 17 item (source-repin 13 = `repinned-to-basis-blob`、generator-metadata
+  2 = `metadata-only`、ancestry 2 = `missing-commit`)。公式 gate は `allowed=False`、拒否は
+  {floor-null, budget-null} の **2 件 exact**。**GateDecision 側の observation は `None`** — refusal が
+  残る間は envelope を載せない (4) の帰結であり、17 item は receipt resolution 側にある。両者を混同しない。
+- **closure。** (9) の条件は R で発火した。3 件を **R 時点で閉鎖済み**と確定する。[T-068] の直接根拠は
+  (9) の明示的 supersede であって「drift 拒否 2 件が消えたから方式 B と同値」ではない — 元の [T-068] は
+  `frozen_at_head` ancestry の格下げであり、移行契約は ancestry の typed 化と source repin の両方を
+  実装した。[T-077] は design_source 再 pin + generator M 化、[T-078] は S2-4.6 外部固定 fixture と
+  predicate 単独 mutant 1→0→1。完全 OID・digest・再現コマンド・task→predicate→evidence 対応は
+  `output/insights/2026-07-25_t068-t077-t078-closure.md` を正本とし、散文だけを closure の根拠にしない。
+- **残余は closure で解消しない。** (6) (a)〜(g) はすべて現存する。とくに (a) builder 実走の非機械検証、
+  (b) `live_scan_sha256` の形式検査のみ、(f) observed 値の独立 literal pin 不在は未解消である。
+  「全機械証拠が充足した」とは記録しない。確認 wave の敵対相談が新たに指摘した検出力の穴 (public
+  `verify_receipt()` 経由で derivation 検査の無効化を撃つ負例が無い / real-repo test が R の OID を
+  pin しない / (f) は H_mig 確定により独立 pin が可能になった) は、最初の E2E 1 cycle 前の hardening を
+  限定する gate に従って別 ID へ起票し、1 cycle 後へ送った。
+- **本項は official mode を解禁しない。** T-080 移行契約の発効 (legacy freeze の repin) と official mode
+  の activation (`_assert_official_permitted` の解除) は別事象である。後者は未裁定で official の受理集合は
+  空集合のまま。正本は `output/insights/2026-07-25_t088-official-unlock-design.md`。
+- **erratum ((9) の自己評価)。** (9) は「R 前後どちらでも虚偽にならない」と書いたが、見出しと冒頭の
+  「発行待ち」「発効はしていない」は R 後に虚偽になる無条件断定だった。状態中立の意図は達成されて
+  いない。本項がその事実訂正である。
+
 ## D79. protocol 実凍結の人間 CLI + selector 予測封印の実走配線 (wave2、2026-07-22)
 
 **背景。** 科学レーン第 2 手 (T-083 (a))。strict v2 wave (D 系列 2026-07-18) で protocol builder と

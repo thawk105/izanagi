@@ -16,7 +16,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 ユーザー承認 (2026-06-29)。decisions D22。**絶対規律 (特に 1/2/3/5/6) はここで初めて load-bearing になる**
 (LLM が正しさを破りうるコードを書く)。
 
-## 現行チェックポイント (2026-07-18 更新)
+## 現行チェックポイント (2026-07-25 更新)
 
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。ただし現行の反復は
   人間がセッション間を運ぶ **human-supervised loop** であり、無人の進化探索ではない。
@@ -86,9 +86,12 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 承認 → oracle 実走 → 層3 実レポート。W 列の恒久一般化 (revocation・expiry・全世代・check registry)
 は oracle 後に再開する (承認済み設計 D75/D76 は破棄しない)。正本 = worklog 2026-07-22 (9)、裁定
 パッケージ = `output/insights/2026-07-22_direction-audit-recovery-plan.md`。
-**移行契約 wave は 2026-07-22 に実装完了 (D78)。人間 receipt は 2026-07-24 に発行済み**
+**移行契約 wave は 2026-07-22 に実装完了 (D78)。人間 receipt は 2026-07-23 に発行済み**
 (`8bec195` = ユーザーの `AI-Agent: none` commit、`output/t080-migration/legacy-freeze-repin.receipt.json`)。
-発効後の公式 gate 期待 = {floor-null, budget-null} の 2 拒否 exact。**protocol JSON 実凍結 + 予測封印の
+発効後の公式 gate 期待 = {floor-null, budget-null} の 2 拒否 exact (実測で確認済み)。
+**この R により [T-068] / [T-077] / [T-078] は R 時点で閉鎖済みと確定した** (D78 (10)。機械再確認の
+正本 = `output/insights/2026-07-25_t068-t077-t078-closure.md`)。移行契約の発効は official mode の
+解禁ではない — official の受理集合は空集合のままである。**protocol JSON 実凍結 + 予測封印の
 機構も 2026-07-23 に実装完了 (wave2、D79)** — 人間 CLI (freeze-protocol) と selector 実走配線
 (seal CLI) を引き渡し済み。**protocol 実凍結もユーザーが 2026-07-24 に実行済み** (`c8cbd17`。実凍結は
 receipt が active-valid でなければ機械拒否されるため、凍結成立自体が receipt 発効の機械証明でもある)。
