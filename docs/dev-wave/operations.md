@@ -110,7 +110,7 @@ nested subprocess の import path による偽赤を、差分の回帰として�
 
 発火: tracked file を一時変異し `git checkout --` で復元する直前。
 復元の正本は `git diff` と `git checkout --` とし、外部 backup に頼らない。
-編集前後で `git diff --stat` が単一行の変更だけであることを必ず確認してから `git checkout --` で復元する。
+編集前後で `git diff --stat` が対象ファイルの意図した単一変異だけ (単一 entry が複数行ならその複数行に限り、他ファイル・意図外の変更なし) であることを必ず確認してから `git checkout --` で復元する。
 この方式の本走は統合 commit 後だけに限定し、commit 前の実装へ実行してはならない。
 復元後は内容を commit 済み内容と比較する。
 
