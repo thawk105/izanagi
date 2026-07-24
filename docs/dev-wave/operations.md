@@ -13,6 +13,8 @@
 
 発火: prompt、log、patch を作る直前。すべて wave 専用 subdirectory に置き、
 job tmp 直下や過去 wave の同名 artifact と共有しない。専用場所を確保できなければ作成を止める。
+親 brief と前段の子成果物は同 subdirectory のファイルへ置き、prompt へ全文複製せず絶対パスで読ませる。
+その prompt には読めなければ即停止する指示を入れ、context 無しの子出力をレビュー結果と数えない。
 
 ## DW-O03 — 防護パスを含む prompt
 
