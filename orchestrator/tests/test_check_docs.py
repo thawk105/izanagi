@@ -16,10 +16,13 @@ _ENUMERATED_DOCS から導出するので docs の増減で腐らない。
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -83,6 +86,138 @@ def _write_backlog_docs(
     _write(root, os.path.join("docs", "phase3.md"), phase3_text)
 
 
+def _write_command_guard_docs(root: str) -> None:
+    def refs(pairs: set[tuple[str, str]] | frozenset[tuple[str, str]]) -> str:
+        grouped: dict[str, list[str]] = {}
+        for path, section in sorted(pairs):
+            grouped.setdefault(path, []).append(section)
+        chunks = []
+        for path, sections in grouped.items():
+            if path == "docs/skill-self-improvement.md":
+                chunks.append(f"`{path}` の全節")
+            elif (
+                path == "docs/dev-wave/operations.md"
+                and sections == [f"DW-O{i:02d}" for i in range(1, 21)]
+            ):
+                chunks.append(f"`{path}`: `DW-O01`〜`DW-O20`")
+            else:
+                ids = ", ".join(f"`{section}`" for section in sections)
+                chunks.append(f"`{path}`: {ids}")
+        return "; ".join(chunks)
+
+    stage_rows = []
+    for key, pairs in check_docs.STAGE_DISPATCH_CONTRACT.items():
+        display_key = (
+            f"{key} preflight" if key in {"段 2", "段 3", "段 8"} else key
+        )
+        grouped: dict[str, set[tuple[str, str]]] = {}
+        for path, section in pairs:
+            grouped.setdefault(path, set()).add((path, section))
+        for path, path_pairs in sorted(grouped.items()):
+            if key == "段 6" and path == "docs/dev-wave/workers.md":
+                s05 = {
+                    pair for pair in path_pairs
+                    if pair[1].startswith("DW-S05-")
+                }
+                s06 = path_pairs - s05
+                stage_rows.append(f"| {display_key} | {refs(s05)} |")
+                stage_rows.append(f"| {display_key} | {refs(s06)} |")
+            else:
+                stage_rows.append(f"| {display_key} | {refs(path_pairs)} |")
+    condition_rows = "\n".join(
+        f"| {key} | synthetic | {refs(pairs)} |"
+        for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
+    )
+    dev_wave = f"""---
+description: synthetic dev-wave
+argument-hint: [synthetic]
+disable-model-invocation: true
+---
+
+$ARGUMENTS
+
+条件には最遅読了段がある。`DW-O08`、`DW-O09`、`DW-O10` は段 1 brief 前、
+`DW-O13` は段 2 プラン前が期限である。期限後に成立したら成果物を invalidate し、
+前者は段 1 brief、後者は段 2 から再実行する。巻き戻し後は段・条件を再評価し、
+旧成果物を流用してはならない。
+
+## 段 dispatch
+
+| 段 | 参照 |
+|---|---|
+{chr(10).join(stage_rows)}
+
+段 6 で fix を codex へ再投する子は、`DW-S05-A`、`DW-S05-B`、`DW-S05-C` を
+全文継承する。段 6 時点で成立している全条件の `DW-Oxx` も fix 操作の直前に読む。
+
+## 条件 dispatch
+
+| # | 条件 | 参照 |
+|---|---|---|
+{condition_rows}
+"""
+    cleanup = """---
+description: synthetic cleanup
+argument-hint: [synthetic]
+---
+
+$ARGUMENTS
+docs/skill-self-improvement.md
+"""
+    rulings = """---
+description: synthetic rulings
+argument-hint: [synthetic]
+---
+
+$ARGUMENTS
+docs/skill-self-improvement.md
+"""
+    _write(root, ".claude/commands/dev-wave.md", dev_wave)
+    _write(root, ".claude/commands/cleanup-branches.md", cleanup)
+    _write(root, ".claude/commands/rulings.md", rulings)
+
+    for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
+        text = "# synthetic reference\n\n" + "\n\n".join(
+            f"## {section} — synthetic\n\nbody"
+            for section in sorted(sections)
+        ) + "\n"
+        _write(root, rel, text)
+
+    self_doc = """# synthetic self
+
+## 発火 gate
+
+body
+
+## routing
+
+body
+
+## command 入口の編集条件
+
+body
+
+## command 別の終端
+
+### dev-wave
+
+body
+
+### cleanup-branches
+
+body
+
+### rulings
+
+body
+
+## 検査と commit 境界
+
+body
+"""
+    _write(root, "docs/skill-self-improvement.md", self_doc)
+
+
 def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:
     res = _run_check(root)
     assert res.returncode == 1, f"違反 fixture が赤にならなかった:\n{res.stdout}\n{res.stderr}"
@@ -116,6 +251,7 @@ def _build_min_repo() -> str:
            "# archive\n\n## 現在の収容物\n\n(なし)\n")
     # backlog guard の必須構造。phase3.md は上の列挙 placeholder を上書きする。
     _write_backlog_docs(root)
+    _write_command_guard_docs(root)
     return root
 
 
@@ -124,6 +260,12 @@ def _run_check(root: str) -> subprocess.CompletedProcess:
         [sys.executable, os.path.join(root, "tools", "check_docs.py")],
         capture_output=True, text=True,
     )
+
+
+def _violation_count(res: subprocess.CompletedProcess) -> int:
+    match = re.search(r"^check_docs: (\d+) 件の違反$", res.stdout, re.MULTILINE)
+    assert match is not None, f"違反件数 header を解析できない:\n{res.stdout}"
+    return int(match.group(1))
 
 
 # ===== baseline: 合成 repo は違反なし (positive control の土台) =====
@@ -138,6 +280,377 @@ def test_synthetic_repo_baseline_clean():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def _read(root: str, rel: str) -> str:
+    with open(os.path.join(root, rel), encoding="utf-8") as f:
+        return f.read()
+
+
+def _pad_to_bytes(root: str, rel: str, target: int) -> None:
+    text = _read(root, rel)
+    current = len(text.encode("utf-8"))
+    assert current <= target
+    _write(root, rel, text + ("\n" * (target - current)))
+
+
+def _rewrite_matching_lines(
+    root: str,
+    rel: str,
+    predicate,
+    rewrite,
+    expected: int = 1,
+) -> None:
+    lines = _read(root, rel).splitlines(keepends=True)
+    matched = sum(1 for line in lines if predicate(line))
+    assert matched == expected, (rel, matched, expected)
+    _write(
+        root,
+        rel,
+        "".join(
+            rewrite(line) if predicate(line) else line
+            for line in lines
+        ),
+    )
+
+
+def _mutate_command_guard(root: str, case: str) -> None:
+    if case == "command_byte_over":
+        _pad_to_bytes(
+            root,
+            ".claude/commands/cleanup-branches.md",
+            check_docs.COMMAND_LIMITS[
+                ".claude/commands/cleanup-branches.md"
+            ].max_bytes + 1,
+        )
+    elif case == "reference_byte_over":
+        _pad_to_bytes(
+            root,
+            "docs/dev-wave/mutation.md",
+            check_docs.REFERENCE_LIMITS[
+                "docs/dev-wave/mutation.md"
+            ].max_bytes + 1,
+        )
+    elif case == "self_byte_over":
+        _pad_to_bytes(
+            root,
+            "docs/skill-self-improvement.md",
+            check_docs.SELF_LIMITS[
+                "docs/skill-self-improvement.md"
+            ].max_bytes + 1,
+        )
+    elif case == "long_line":
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel) + ("x" * 111) + "\n")
+    elif case == "unregistered_command":
+        _write(root, ".claude/commands/extra.md", "# extra\n")
+    elif case == "registered_command_deleted":
+        os.remove(os.path.join(root, ".claude/commands/cleanup-branches.md"))
+    elif case == "arguments_missing":
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace("$ARGUMENTS", "arguments"))
+    elif case == "frontmatter_key_changed":
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace(
+            "argument-hint:", "argument-hint-renamed:", 1
+        ))
+    elif case == "frontmatter_duplicate":
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace(
+            "description: synthetic cleanup",
+            "description: synthetic cleanup\ndescription: duplicate",
+            1,
+        ))
+    elif case == "frontmatter_malformed":
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace("---", "not-frontmatter", 1))
+    elif case == "disable_value_changed":
+        rel = ".claude/commands/dev-wave.md"
+        _write(root, rel, _read(root, rel).replace(
+            "disable-model-invocation: true",
+            "disable-model-invocation: false",
+            1,
+        ))
+    elif case == "reference_section_deleted":
+        rel = "docs/dev-wave/mutation.md"
+        _write(root, rel, _read(root, rel).replace(
+            "## DW-M05 — synthetic", "### removed DW-M05", 1
+        ))
+    elif case == "reference_section_duplicated":
+        rel = "docs/dev-wave/mutation.md"
+        _write(root, rel, _read(root, rel) + "\n## DW-M05 — duplicate\n")
+    elif case == "stage2_operations_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 2 preflight |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: "",
+        )
+    elif case == "stage3_o13_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 3 preflight |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: line.replace(", `DW-O13`", ""),
+        )
+    elif case == "stage6_s05_inheritance_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 6 |")
+            and "`DW-S05-A`" in line,
+            lambda line: "",
+        )
+    elif case == "stage6_all_operations_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 6 |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: "",
+        )
+    elif case == "stage8_operations_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 8 preflight |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: "",
+        )
+    elif case == "stage8_self_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 8 preflight |")
+            and "`docs/skill-self-improvement.md`" in line,
+            lambda line: "",
+        )
+    elif case == "condition_o13_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 13 |"),
+            lambda line: "",
+        )
+    elif case == "condition_all_operations_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: re.match(r"^\| (?:0[1-9]|1[0-9]|20) \|", line)
+            is not None,
+            lambda line: "",
+            expected=20,
+        )
+    elif case == "condition_supervisor_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 22 |"),
+            lambda line: "",
+        )
+    elif case == "self_heading_deleted":
+        rel = "docs/skill-self-improvement.md"
+        _write(root, rel, _read(root, rel).replace(
+            "## routing\n", "", 1
+        ))
+    elif case == "self_h3_deleted":
+        rel = "docs/skill-self-improvement.md"
+        _write(root, rel, _read(root, rel).replace(
+            "### cleanup-branches\n", "", 1
+        ))
+    elif case == "self_long_line":
+        rel = "docs/skill-self-improvement.md"
+        _write(root, rel, _read(root, rel) + ("x" * 101) + "\n")
+    elif case == "self_reference_deleted":
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace(
+            "docs/skill-self-improvement.md", "self contract omitted", 1
+        ))
+    elif case == "reference_orphan_h2":
+        rel = "docs/dev-wave/operations.md"
+        _write(root, rel, _read(root, rel) + "\n## DW-X99 — orphan\n\nbody\n")
+    elif case == "dispatch_heading_duplicated":
+        rel = ".claude/commands/dev-wave.md"
+        _write(root, rel, _read(root, rel) + "\n## 段 dispatch\n\n")
+    elif case == "dispatch_heading_missing":
+        rel = ".claude/commands/dev-wave.md"
+        _write(root, rel, _read(root, rel).replace(
+            "## 条件 dispatch", "## 条件 dispatch omitted", 1
+        ))
+    elif case == "d2_rollback_body_deleted":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        changed = re.sub(
+            r"条件には最遅読了段がある。.*?旧成果物を流用してはならない。\n\n",
+            "",
+            text,
+            count=1,
+            flags=re.DOTALL,
+        )
+        assert changed != text
+        _write(root, rel, changed)
+    elif case == "d4_inheritance_body_deleted":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        changed = re.sub(
+            r"段 6 で fix を codex へ再投する子は、.*?"
+            r"fix 操作の直前に読む。\n\n",
+            "",
+            text,
+            count=1,
+            flags=re.DOTALL,
+        )
+        assert changed != text
+        _write(root, rel, changed)
+    elif case == "fifth_reference":
+        _write(root, "docs/dev-wave/extra.md", "# extra\n")
+    elif case == "nested_reference":
+        _write(root, "docs/dev-wave/appendix/extra.md", "# extra\n")
+    elif case == "non_md_reference":
+        _write(root, "docs/dev-wave/extra.txt", "extra\n")
+    elif case == "aggregate_over":
+        for rel, limit in check_docs.REFERENCE_LIMITS.items():
+            _pad_to_bytes(root, rel, limit.max_bytes - 1)
+    elif case == "invalid_utf8":
+        path = os.path.join(root, "docs/dev-wave/core.md")
+        with open(path, "wb") as f:
+            f.write(b"\xff")
+    elif case == "symlink":
+        path = os.path.join(root, "docs/dev-wave/core.md")
+        os.remove(path)
+        os.symlink("workers.md", path)
+    elif case == "non_regular":
+        path = os.path.join(root, "docs/dev-wave/mutation.md")
+        os.remove(path)
+        os.mkfifo(path)
+    elif case == "registered_reference_deleted":
+        os.remove(os.path.join(root, "docs/dev-wave/operations.md"))
+    elif case == "dispatch_allowlist":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| wave 開始 |"),
+            lambda line: line.removesuffix(" |\n")
+            + "; `docs/failures.md` |\n",
+        )
+    else:
+        raise AssertionError(f"unknown case: {case}")
+
+
+_COMMAND_GUARD_CASES = [
+    "command_byte_over",
+    "reference_byte_over",
+    "self_byte_over",
+    "long_line",
+    "unregistered_command",
+    "registered_command_deleted",
+    "arguments_missing",
+    "frontmatter_key_changed",
+    "frontmatter_duplicate",
+    "frontmatter_malformed",
+    "disable_value_changed",
+    "reference_section_deleted",
+    "reference_section_duplicated",
+    "stage2_operations_deleted",
+    "stage3_o13_deleted",
+    "stage6_s05_inheritance_deleted",
+    "stage6_all_operations_deleted",
+    "stage8_operations_deleted",
+    "stage8_self_deleted",
+    "condition_o13_deleted",
+    "condition_all_operations_deleted",
+    "condition_supervisor_deleted",
+    "self_heading_deleted",
+    "self_h3_deleted",
+    "self_long_line",
+    "self_reference_deleted",
+    "reference_orphan_h2",
+    "dispatch_heading_duplicated",
+    "dispatch_heading_missing",
+    "d2_rollback_body_deleted",
+    "d4_inheritance_body_deleted",
+    "fifth_reference",
+    "nested_reference",
+    "non_md_reference",
+    "aggregate_over",
+    "invalid_utf8",
+    "symlink",
+    "non_regular",
+    "registered_reference_deleted",
+    "dispatch_allowlist",
+]
+
+_COMMAND_GUARD_NEEDLES = {
+    "command_byte_over": "bytes > 予算",
+    "reference_byte_over": "bytes > 予算",
+    "self_byte_over": "bytes > 予算",
+    "long_line": "最長行予算",
+    "unregistered_command": "command byte予算が未登録",
+    "registered_command_deleted": "予算登録済み command が不在",
+    "arguments_missing": "$ARGUMENTS が 0 件",
+    "frontmatter_key_changed": "frontmatter key 集合が契約と不一致",
+    "frontmatter_duplicate": "frontmatter key 重複",
+    "frontmatter_malformed": "frontmatter を一意に解析できない",
+    "disable_value_changed": "disable-model-invocation は 'true' 必須",
+    "reference_section_deleted": "H2 見出し DW-M05 が 0 件",
+    "reference_section_duplicated": "H2 見出し DW-M05 が 2 件",
+    "stage2_operations_deleted": "段 dispatch '段 2' が契約と不一致",
+    "stage3_o13_deleted": "段 dispatch '段 3' が契約と不一致",
+    "stage6_s05_inheritance_deleted": "段 dispatch '段 6' が契約と不一致",
+    "stage6_all_operations_deleted": "段 dispatch '段 6' が契約と不一致",
+    "stage8_operations_deleted": "段 dispatch '段 8' が契約と不一致",
+    "stage8_self_deleted": "段 dispatch '段 8' が契約と不一致",
+    "condition_o13_deleted": "条件 dispatch '13' が契約と不一致",
+    "condition_all_operations_deleted": "条件 dispatch '01' が契約と不一致",
+    "condition_supervisor_deleted": "条件 dispatch '22' が契約と不一致",
+    "self_heading_deleted": "H2 見出し 'routing' が 0 件",
+    "self_h3_deleted": "H3 見出し 'cleanup-branches' が 0 件",
+    "self_long_line": "最長行予算",
+    "self_reference_deleted": "docs/skill-self-improvement.md への到達性がない",
+    "reference_orphan_h2": "dispatch 契約にない孤児 H2",
+    "dispatch_heading_duplicated": "段/条件 dispatch 表を一意に抽出できない",
+    "dispatch_heading_missing": "段/条件 dispatch 表を一意に抽出できない",
+    "d2_rollback_body_deleted": "D2 巻き戻し構造",
+    "d4_inheritance_body_deleted": "D4 fix 子の段5全文継承",
+    "fifth_reference": "docs/dev-wave/** の予算未登録実体",
+    "nested_reference": "docs/dev-wave/** の予算未登録実体",
+    "non_md_reference": "docs/dev-wave/** の予算未登録実体",
+    "aggregate_over": "hard ceiling",
+    "invalid_utf8": "invalid UTF-8",
+    "symlink": "symlink または regular file 以外",
+    "non_regular": "symlink または regular file 以外",
+    "registered_reference_deleted": "登録済み dev-wave reference が不在",
+    "dispatch_allowlist": "規範 dispatch の参照先が allowlist 外",
+}
+_COMMAND_GUARD_EXPECTED_COUNTS = {
+    case: 1 for case in _COMMAND_GUARD_CASES
+}
+_COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = 20
+
+
+@pytest.mark.parametrize("case", _COMMAND_GUARD_CASES)
+def test_command_docs_guard_positive_controls(case):
+    """各 finding 分岐は baseline からケース別の期待件数だけ増える。"""
+
+    root = _build_min_repo()
+    try:
+        baseline = _run_check(root)
+        assert baseline.returncode == 0, baseline.stdout
+        _mutate_command_guard(root, case)
+        res = _run_check(root)
+        assert res.returncode == 1, (
+            f"{case}: positive control が赤にならなかった:\n{res.stdout}\n{res.stderr}"
+        )
+        assert _violation_count(res) == _COMMAND_GUARD_EXPECTED_COUNTS[case], (
+            f"{case}: baseline との差分件数が期待値と違う:\n{res.stdout}"
+        )
+        assert _COMMAND_GUARD_NEEDLES[case] in res.stdout, (
+            f"{case}: 対応する finding 分岐が発火していない:\n{res.stdout}"
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 # ===== positive control: 列挙対象を 1 個消すと違反が出る (F9 の核心) =====
 
 def test_missing_enumerated_doc_is_violation():
@@ -145,7 +658,13 @@ def test_missing_enumerated_doc_is_violation():
     try:
         rels = _enumerated_rels()
         assert rels, "列挙対象が空 — _ENUMERATED_DOCS の抽出に失敗している"
-        victim = rels[len(rels) // 2]           # 真ん中の 1 個を選ぶ (端の特異性を避ける)
+        governed = {
+            *check_docs.REFERENCE_LIMITS,
+            *check_docs.SELF_LIMITS,
+        }
+        candidates = [rel for rel in rels if rel not in governed]
+        assert candidates, "command guard 外の LIVING_DOCS 対象がない"
+        victim = candidates[len(candidates) // 2]
         os.remove(os.path.join(root, victim))
         res = _run_check(root)
         assert res.returncode == 1, f"列挙対象不在なのに fail しなかった:\n{res.stdout}"
@@ -164,9 +683,9 @@ def test_missing_enumerated_doc_only_fires_own_finding():
         os.remove(os.path.join(root, victim))
         res = _run_check(root)
         assert res.returncode == 1, res.stdout
-        # "check_docs: N 件の違反" の N がちょうど 1 であること。
-        header = next((l for l in res.stdout.splitlines() if "件の違反" in l), "")
-        assert "1 件の違反" in header, f"不在検査以外も発火している:\n{res.stdout}"
+        assert _violation_count(res) == 1, (
+            f"不在検査以外も発火している:\n{res.stdout}"
+        )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -1062,16 +1581,26 @@ def _run():
            if k.startswith("test_") and callable(v)]
     passed = failed = 0
     for fn in fns:
-        try:
-            fn()
-            print(f"PASS {fn.__name__}")
-            passed += 1
-        except AssertionError as e:
-            print(f"FAIL {fn.__name__}: {e}")
-            failed += 1
-        except Exception as e:  # noqa: BLE001
-            print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
-            failed += 1
+        calls = (
+            [(case, (case,)) for case in _COMMAND_GUARD_CASES]
+            if fn is test_command_docs_guard_positive_controls
+            else [(fn.__name__, ())]
+        )
+        for label, args in calls:
+            display = (
+                f"{fn.__name__}[{label}]"
+                if args else fn.__name__
+            )
+            try:
+                fn(*args)
+                print(f"PASS {display}")
+                passed += 1
+            except AssertionError as e:
+                print(f"FAIL {display}: {e}")
+                failed += 1
+            except Exception as e:  # noqa: BLE001
+                print(f"ERROR {display}: {type(e).__name__}: {e}")
+                failed += 1
     print(f"\n{passed} passed, {failed} failed")
     return 1 if failed else 0
 

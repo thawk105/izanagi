@@ -21,6 +21,10 @@
 - `ai-provenance.md` — commit ごとの AI 製品・モデル・推論深度・役割を記録する `AI-Agent` trailer 規約
 - `failures.md` — 失敗台帳。起こした問題の型別索引と恒久対応の実体ポインタ (2026-07-13 新設。
   問題発生時は worklog と同時に追記、再発は既存エントリに「再発:」追記)
+- `dev-wave/core.md` / `workers.md` / `mutation.md` / `operations.md` — `/dev-wave` 入口から
+  段・条件ごとに読む living runbook。親段、worker 権限、変異、条件付き運用の正本
+- `skill-self-improvement.md` — dev-wave / cleanup-branches / rulings 共通の自己改善 gate、
+  routing、入口編集条件、command 別終端、検査・commit 境界
 - `handoff/` — セッションの WAL (中断引き継ぎ + 並行セッションの宣言板。運用は同 README)
 - `archive/` — 凍結記録 (監査台帳・worklog 過去分・凍結文書)。ファイル名は移動前と不変、規約は同 README
 - `agent-architecture.md` — サブエージェント構成・製品別 adapter・権限・規律の正本

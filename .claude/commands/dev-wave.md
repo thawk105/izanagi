@@ -4,57 +4,107 @@ argument-hint: [任意: 対象タスク。省略時は worklog 末尾の「次�
 disable-model-invocation: true
 ---
 
-あなたはこの開発 wave のマネージャーである。これは izanagi **の開発作業**を進めるループであり、CC 合成 campaign (システム側のループ) にワークロードを入力して回すものではない。
+あなたは izanagi の開発 wave の manager である。これは開発作業のループであり、
+CC 合成 campaign の実行ループではない。
 
-**この wave のユーザー向け出力はすべて日本語で書く — wave の第一声から。** 起動直後の方針宣言・各段の
-進捗報告・裁定・最終報告・`result:` 行のいずれも例外ではない。英語で書き始めてから日本語へ切り替えるのも
-違反とする (ユーザー指示 2026-07-21)。作業言語の方針はドキュメントだけでなく報告にも及ぶ。
+## 入力と開始
 
-CLAUDE.md のクラス 3 起動手順 (worklog 末尾・現行 phase doc・handoff・git status) に従い、今回の作業を選ぶ。引数があればそれを対象とする: $ARGUMENTS
+- 第一声から進捗、裁定、最終報告、`result:` まで、ユーザー向け出力はすべて日本語にする。
+- `CLAUDE.md` のクラス 3 起動手順を実行し、引数があれば対象にする: $ARGUMENTS
+- wave 開始時に `docs/skill-self-improvement.md` の「発火 gate」と「dev-wave」を読み、
+  専用 handoff に「dev-wave 改善候補」節を作る。
+- 無人継続の外部 supervisor は、最初の `claude -p` spawn 前に
+  `docs/dev-wave/core.md` の `DW-CTX` を読む。
 
-進め方 (各段の逐語は最終的に output/insights へ凍結する):
+## 読み込み契約
 
-1. **brief (親)。** 緻密なプランは書かない。scope、確定済みユーザー裁定、不変条件、成果物の形、並列分割の方針だけを 10〜30 行で書く。**判断が割れうる前提は「親の provisional 裁定」として番号を振って列挙し、攻撃対象だと明記する** ((P1)(P2)… の形。番号があると相談側が一件ずつ否認/採用を返すので、親の誤りが個別に落ちてこない)。**brief を書く前に、承認済み裁定の前提を実測で確認する** — 「承認済み実装 wave」であっても、裁定時に見えていなかった事実で前提が覆ることがある (裁定は「script 変更を可能にするための再発行」だったが、実測では成果物が既に検証不能で公式 gate が拒否中だった、という実績がある)。前提が覆ったら brief に「裁定の前提が変わった」と明記し、段 4 で scope を裁定し直す。**実測では「何を模擬したか」を必ず明示し、模擬と実差分の差を書く** — コード変更を伴う裁定前提の検証は、monkeypatch で迂回して測るのではなく**実際にファイルを編集して測り、直後に復元する**。自己 hash・自己参照・自己 pin を持つ対象では、模擬による実測を根拠にしてはいけない (「格下げすれば現行 bytes のまま通る」と正しく測ったが、実際には verifier 自身の bytes が成果物に pin されており、格下げのために編集した瞬間に別の検査で落ちた、という実績がある。F29)。**あわせて、裁定要約が参照している decision 本文を必ず開き、要約が落としている制約が無いかを突き合わせる** (worklog の要約が元 decision の制約を落としており、迂回できたつもりで同じ依存閉包へ戻った実績がある。F31)
-2. **プラン起草 (codex)。** brief と関連コードの所在を渡し、codex (gpt-5.6-sol / reasoning=max / sandbox=read-only) に file:line 粒度のプランを起草させる
-3. **敵対相談 (codex 並列)。** プランを攻撃対象として、レンズを分けた敵対相談を並列で投げる (max。例: 正しさ境界レンズ / 整合・実効性レンズ)。プランを守る側に回らせない。**gate・検査を新設する wave では、レンズに「その gate の scope が、成果物が実際に効く層を外していないか」を必ず含める** — session record の env だけ検査しても性能証拠を持つ pipeline record の env が無防備なら env 整合性は false comfort になる、という型を早期に炙り出す (本 wave で相談 2 + レビュー 2 が独立にこの scope 所見へ収束した)。scope 外と裁定した層は「実装したふり」をせず裁定パッケージへ。**親の brief 自身も攻撃対象に含めると明記する** (brief の file:line や前提の誤りは、そのまま実装子の所有範囲・変異位置の誤指定になる)
-4. **裁定 (親)。** 所見の real/refuted、採用/不採用、scope 内/外を裁定してプラン v2 を確定する。scope 外の real 所見は実装せず「裁定パッケージ」(設計択一 + 所見 + 推奨案) としてユーザーへ返す。実装前に変異テストを事前登録する (B-057)。**事前登録では「どこを変えるか」だけでなく「その変異が受理集合を変える単一理由になるか」をコードを読んで確認する** — (i) その位置より手前で同じ入力を落とす検査が無いこと、(ii) 無効化したとき赤くなる理由が 1 つに絞れること。確認できない変異は登録せず実効ゲートへ再照準する (多層防御・自己ハッシュ・下流照合があるコードでは単層変異が等価変異や過剰決定になりやすく、事前登録 5 件が全件無効だった実績がある。F28)。**この段で「実装しない」と裁定した場合は段 5・6 を飛ばし、段 7 の記録と段 8・9 へ進んでよい** — 否認された設計の上に部分実装を積まない。その場合 worklog には「実装差分が無いため変異 matrix と受入全走は対象外」と射程を明記する。**承認済み裁定を「前提が覆った」として止める前に、その事実が裁定文・worklog に既に記録されていないかを必ず確認する** — 既知の事実を新事実として扱い、ユーザー承認済みの裁定を親が独断で失効させてはならない。止めてよいのは**裁定時点で見えていなかった事実**を根拠にする場合だけであり、その場合も「親が不採用として消化」ではなく**新事実つきのユーザー再裁定待ち**として戻す (既知の 4→3 を「利得ゼロ」と言い換えて承認済み wave を止めかけ、敵対レビュー 2 本が独立に自己矛盾を指摘した実績がある)。**同様に、裁定が既に実装方向まで選んでいる項目を「設計択一だから」と裁定へ戻さない** — 代案が承認内容と非同値なら択一は成立しない。戻す前に代案が本当に等価かをコードで確認する
-5. **実装 (codex 並列)。** ファイル所有が素集合になるよう単位分割し、worktree を分けて並列投入する (reasoning=high / workspace-write)。単位間に依存 (他単位のテストが先行単位の成果物を import する等) があれば、先行単位を完了させ所有ファイル限定 patch (`git add -A && git diff --cached -- <所有パス>` → `git apply`) で展開してから残りを並列にする。**実装子が編集してよいのはコードとテストだけ — docs の編集と git commit は禁止**。他単位/親の成果物が land するまで意図的に赤になるテストは xfail 化を禁止し、赤の内訳を完了報告に明記させる。統合 commit・変異 matrix の実測・受入全走は親が行う。あわせて次の 2 つを実装子プロンプトの定型に入れる — (a) **緑の主張には走らせた範囲を必ず併記させる** (「赤なし」が数ファイルだけの実走を根拠にしていて親の全走で 10 件出た実績がある。実装子の実走は親の全走を代替しない)、(b) **テストを甘くして緑にすることの禁止**を明示する (fixture へ現行 hash を差し込んで先行ゲートを迂回し、実成果物の破損を隠した実績がある)。(c) **期待値に揮発する診断 payload を焼き込ませない** — 実 working tree の sha256 など、無関係な正当編集で変わる値を期待文字列へ含めると false red になる。理由の同一性と件数は厳密に固定し、揮発部分だけを期待値から外す (hermetic fixture では完全一致でよい)。修正したら「揮発源を実際に編集しても緑のままか」を実測で裏取りする。(d) **完了報告に「所有外への波及可能性」の自己申告を含めさせる** — 変更した関数・検査を消費する下流 (所有外の caller・共有 fixture・consumer テスト) を静的に列挙させる。所有外を実走できない拘束下では波及は申告でしか見えず、公式 gate の受理集合を変える変更が下流 72 テストを赤にしたのを親の全走まで誰も知らなかった実績がある (wave2)。(e) **指示に無い受理集合の変更 (拡大・縮小) を禁止する** — scope の形態列挙は現行の受理/拒否の実挙動を先に明記してから書く。親プロンプトの「list/文字列形」という曖昧な列挙が、従来 ReportError だった raw string 入力の新規受理分岐を実装子に書かせた実績がある ([T-002] wave、レビューが受理集合拡大として検出)。**親の docs が先に land していない状態で実装子を起動する場合は、期待して赤くなる finding の集合を事前に明示し、「これ以外が出たら回帰」と伝える** (期待赤の集合が未定義だと、親が実装子の赤を期待差分と回帰に切り分けられない)
-6. **レビュー (codex 並列)。** 実装 wave では必ずレンズを分けた敵対レビュー 2 本を並列で投げる。**親が直接書いたハンクがあれば、その所在を名指しでレビュー対象に挙げる** (親の判断はレビューを経ていない唯一の差分であり、実際にそこが誤っていた実績がある)。real 所見の fix は codex に再投し (投入前に統合状態の snapshot patch を退避)、fix 後は変異 matrix と受入を再走する。**fix の再投前に、所見群を「編集が必要なファイル集合」でグルーピングし、所有が素集合に分かれるなら段 5 と同じ規律 (worktree 分離・所有素集合・所有ファイル限定 patch 展開) で並列投入する** — 一枚岩 fix の判断自体は正当でありうるが (所見が相互依存する・全体で 1 つの設計変更の場合)、**無検討の一枚岩は不可**とし、検討結果 (分割案または単一化の理由 1 行) を handoff に残す (must 5 系統 + 統合破損 83 件を単発 46 分の一枚岩にし、分割検討自体をしていなかった実績がある。wave3)。横断所見 (同一規則を複数ファイルへ一貫適用する類) は 1 単位へ寄せるか親ハンク化する。並列 fix 後の焦点再レビューは統合後に 1 本でよい (fix 単位ごとの個別レビューはしない)。**所見ゼロは変異で裏取りするまで緑と数えない**。変異が生存したら まず他層のマスク (等価変異) を疑い、実効ゲートへ再照準して両層同時変異まで裏取りし、結果を台帳へ erratum として残す。**「殺した」の判定基準は「テストが赤くなった」ではなく「受理集合または fail-closed 挙動が期待方向へ変わった」である** — 診断文字列だけが変わって赤くなる kill は帰属不成立として数えない。kill を数える前に対象 fixture が単一理由か (他の独立条件でも赤くならないか) を確認し、過剰決定なら fixture を単一理由へ差し替えるか、当該条件を冗長ゲートと明記して単独変異の証拠から外す。変異ハーネスは置換対象が 1 箇所でなければ停止させ、**注入されなかった変異を緑と誤報しない**構造にする。**同一ファイルへの複数置換 (両層変異) は累積適用し、置換ごとに累積後の内容で一意性を assert する** — 置換を毎回元内容から適用すると後の置換が前を上書きして消え、単層しか注入されないまま偽 SURVIVED になる (F33)。**SURVIVED は mutated 内容の diff で注入の実在を確認するまで equivalent と結論しない**。両層変異には kill 期待を必ず事前登録する (期待の無い変異は生存が黙って通る)。**変異後の復元検査は対象ファイルの内容比較で行う** (`read_text() == 元ソース`) — `git diff` は**未追跡・未 stage のファイルに対して恒真** (常に空) になり、残留変異を見逃す (F32)。**ハーネスには単一走行 guard を入れる** (flock 等)。旧セッションが起動したハーネスが teardown 後も process として生存し、二重走行で production を変異させたまま残した実績がある (F32)。生存プロセスの確認に `pgrep -f` を使うなら ERE か literal にする (BRE の `\|` は literal 扱いで偽陰性)。**hang しうる変異** (例: fail-closed 拒否を除去すると無期限ループ化するもの) は部分集合 + timeout で隔離し、timeout はその変異の fail-closed→fail-open 証拠として記録してハーネス全体を落とさない。SIGTERM は Python の finally を走らせないため、timeout 時も復元が効く構造 (subprocess timeout + 親側 finally) にする。**ハーネスは rc だけで判定せず、赤くなったテスト名を毎回記録する** — 単一理由かの判定は名前が取れて初めて機械的に行える。pytest の出力を解析するなら `-rf` を明示する (`-q` だけでは FAILED 要約行自体が出力されず、rc=1 なのに全変異が帰属不能になった実績がある。本 wave の台帳 erratum)。ANSI 色コードを除去し、`FAILED <node> - <error>` から `FAILED ` を剥がして ` - ` 手前まで取る (`split(" ")[0]` は `FAILED` を返して node 名を取り落とす)。**受理集合を変えないが構造化シグナル (拒否理由集合など) の pin としては有効な変異は、kill でなく「diagnostic sensitivity pin」として台帳の別枠に記録する** — kill 集計に混ぜない。この枠が無いと、正当だが kill でない変異を kill として数える誘惑が生まれる。**テスト強化だけの wave では、変異を「新テスト」と「変更前テスト (git HEAD 版)」の両方に対して走らせ、新テストのみが検出することを差分で示す** — これが強化で買った検出力そのものであり、片側だけの実測では何も証明していない
-7. **記録 (親)。** worklog への吸収、insights への逐語・変異台帳の凍結、decisions への設計判断を親が一括で書く。commit には AI-Agent trailer を付け、push はしない (ユーザー判断)。**逐語・台帳を insights へ凍結する前に、凍結対象ファイルへ三軸語 conjunction (軸 template の生値) の機械検査をかけ、hit があれば defang + erratum で凍結する** — 攻撃例の逐語引用は repo scan invariant と構造的に衝突する (wave2 台帳の引用 1 行が main の 11 テストを赤にした実績。F34)。**docs を含むあらゆる記録 commit の後に repo scan invariant (+影響テスト) を再走してから wave を閉じる** — 「docs だけの commit はテストに影響しない」は偽 (同 F34。invariant は repo 全ファイルの bytes への不変量)
-8. **スキル自己改善 (親)。** wave 開始時に専用 handoff へ「dev-wave 改善候補」節を作り、本スキルの作法の欠落・無駄・失敗を気づいた時点でメモする。記録 (段 7) の後に候補を大小で裁定する — **小さい改善** (作法・定型・表現・手順の明確化など、段構成・実装子の権限・正しさ防壁・裁定境界を変えないもの) は本ファイルへ自律反映して単独 commit にし、段 9 で他の監査済み wave 成果と一緒に main へローカル取り込みする (push はしない)。**大きい変更**は反映せず、裁定パッケージとしてユーザーへ返す。候補ゼロならこの段は無言でスキップする (ユーザー指示 2026-07-20)
-9. **wave 終端・local main 取り込み (親)。** 実装・記録・スキル自己改善の全 commit と受入結果が揃ってから、wave 専用 branch の commit を local main へ取り込む。main worktree が clean、main が wave 開始時の基準 commit から予期せず動いていない、取り込みが fast-forward 可能、取り込む commit 集合が本 wave の監査済み成果だけ、の全条件を再確認し、満たす場合だけ `--ff-only` で進める。1 条件でも欠ければ rebase・force・他セッション差分の巻き込みをせず停止してユーザーへ返す。push と remote branch 操作はしない。取り込み後の main HEAD、次タスク、停止条件、再開コマンドを最終報告へ書き、このセッションでは新しい wave を始めない
+以下の参照節は command の命令の一部である。wave 開始時、段 1〜9 の各段へ入る直前、
+および条件を成立させる操作の直前に条件を再評価し、表で指定した節を読む。
+前段の推測や F/D 番号の記憶で代用してはならない。参照先が不在・読めない・節が一意でない場合、
+期限までに読了していない場合は、その段や操作へ進まず fail-closed で停止する。
 
-**計画 gate 5 述語 ([T-084] ユーザー裁定 2026-07-22 — 段 1 の brief と段 4 の裁定で適用する。根拠 = `output/insights/2026-07-22_waste-inventory-verbatim.md` §再発防止規則):**
+条件には最遅読了段がある。`DW-O08`、`DW-O09`、`DW-O10` は段 1 brief 前、
+`DW-O13` は段 2 プラン前が期限である。期限後に成立が判明したら、それまでの成果物を invalidate し、
+前者は段 1 brief、後者は段 2 から再実行する。巻き戻し後も段・条件を再評価し、旧 brief、plan、
+review を流用してはならない。
 
-- **G1 生死実験先行:** 新しい探索軸・大型機構の本格実装前に、既存 driver または 100 行以内の使い捨て driver で最安の生死確認 (例: floor 超が 2 run 再現) を要求する。生死確認前の専用機構・LLM driver 構築は brief で却下する
-- **G2 初回 cycle 前 blocker の限定:** 最初の E2E 1 cycle 前の hardening は、correctness 判定・selected/tie・数値・proof 参照・試行欠落を実際に変える欠陥だけを blocker とする。それ以外は 1 cycle 後へ送る
-- **G3 族一般化には独立 2 例:** 単発事故への対処は局所修復または一回限りの migration を既定とし、族全体への制度一般化は同型欠陥が異なる producer/consumer で 2 件再現した場合に限る
-- **G4 phase 発火条件の gate 化:** 発火条件付き機能 (例: 8c) の実装は、発火条件を満たす既存 artifact path または計測 ID を brief に書けない限り着手しない (設計メモ止まり)
-- **G5 所見の影響 1 行:** レビュー must-fix には「放置すると成果物 (certified 選択 / レポート / 台帳) のどの値・受理集合・参照がどう変わるか」の 1 行を必須とし、書けない所見は nit/backlog 化して追加 review wave を起動しない
+## 凍結境界
 
-連続 wave の境界:
+- 状態機械は段 1〜9。通常遷移は `1→2→3→4→5→6→7→8→9` とする。
+- 実装子はコードとテストだけを編集し、docs 編集と commit をしない。親だけが統合 commit、
+  変異 matrix、受入全走、記録、local main 取り込みを行う。
+- push と remote branch 操作はしない。local main 取り込みは全条件成立時の `--ff-only` だけとする。
+- 規定の停止条件、検査赤、権限・scope・参照の不整合を迂回しない。
+- 1 wave は 1 fresh context とし、command を自己再帰させず、段 9 後に新しい wave を始めない。
 
-- **1 wave = 1 fresh context** とする。対話運用では段 9 の報告後に人間が `/clear <完了 wave 名>`、続けて報告にある `/dev-wave <次タスク>` を実行する。`/clear` は skill 内から実行せず、本 skill を自己再帰させない
-- 無人継続が必要なら、本 skill の外側の supervisor が wave ごとに新しい `claude -p` process を起動する。組み込み `/loop` は同じ session を維持するため、この用途には使わない
-- supervisor は無限ループにしない。`max-waves`・金額/トークン予算・wall-clock deadline を必須にし、次タスクなし、ユーザー裁定待ち、テスト/check/変異の赤、dirty/diverged main、取り込み不能、想定外 commit、Claude process の非 0 終了・timeout、task-run/handoff の不整合で fail-closed 停止する。自然言語の「完了」だけを継続根拠にせず、Git HEAD・cleanliness・検査結果・task-run の終了状態を照合する
+## 9 段状態機械
 
-運用の作法:
+1. **brief (親):** scope、裁定、不変条件、成果物、分割方針を確定する。
+2. **プラン起草 (codex):** read-only codex に file:line 粒度の案を作らせる。
+3. **敵対相談 (codex 並列):** plan と親 brief を異なるレンズで攻撃させる。
+4. **裁定 (親):** real/refuted、採否、scope、plan v2、変異事前登録を確定する。
+   「実装しない」と裁定した場合だけ段 5・6 を飛ばし、`4→7→8→9` とする。
+5. **実装 (codex 並列):** 所有を分離し、実装子の権限境界を守って実装する。
+6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。
+7. **記録 (親):** worklog、insights、decisions、commit、記録後検査を完了する。
+8. **スキル自己改善 (親):** 共有契約で候補を routing する。候補ゼロなら無言で通過する。
+9. **終端・local main (親):** 監査済み成果だけを条件付きで ff-only 取り込みして終了する。
 
-- codex は `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包んで起動し、完了判定は `.done` ファイルのみ (ログ本文 grep は禁止 — docs/failures.md F23/F24)、成果物は `-o` の最終メッセージファイルから読む。投入前にプロンプトファイルの非空を検査する
-- プロンプト・ログ・patch は job tmp 直下でなく wave 専用サブディレクトリに置く (過去 wave の同名残骸との衝突防止)
-- **プロンプトファイルの本文に防護ツリーのパス文字列 (WAL・campaign.lock・output/campaigns・external/ccbench 等) が入る場合は、Bash heredoc でなく Write ツールで作る** — guard_bash は防護パスと不透明構文 (heredoc/`$()`) の同居を分類不能として fail-closed 拒否する。hook は迂回せずツールを替える (2026-07-22 実績)。**commit message も同様** — 防護パス文字列を含むメッセージを heredoc + `-m "$(cat <<EOF...)"` で渡すと同じ理由で拒否される。Write でメッセージファイルを作り `git commit -F <file>` を使う (2026-07-23 実績)
-- read-only sandbox の codex は pytest を実行できない (書込可能 tmp が無い)。相談・レビューには静的検査で足りる旨を伝え、テスト green の主張は求めない (実測は親が行う)
-- workspace-write の実装子でも sandbox は submodule の `.git/**/index.lock` を作れず、real-repo 系テストの fixture 復元 (`git checkout`) が失敗して**偽赤 + 同 worker の連鎖赤**になりうる (2026-07-22 に 3 単位すべてで発現)。実装子の全走赤は鵜呑みにせず、親環境の独立全走で再現するか確認してから帰属する
-- task-run 台帳 pilot 中は wave 自身を記録する: 開始時に `python3 tools/task_run.py start --slug <slug> --objective "<1 行>" --task-class 3 --task-kind <implementation|documentation|…>` (4 引数すべて必須。`--task` は `--task-class`/`--task-kind` と曖昧になり usage エラー)、受入走は `IZANAGI_TASK_RUN_ID=<id>` 付き、check 系は `tools/task_run_check.py`、終了時に `finish --outcome <completed|…> <id>` (詳細正本 = output/task-runs/README.md)。start が「pilot の max_task_runs に到達」等で拒否されたら fail-closed の仕様 — 上限を触らず台帳なしで wave を進め、提示条件の発火 (最終 report 生成など) を最終報告でユーザーへ返す
-- **凍結成果物 (freeze / oracle gate / proof chain) に触る wave では、最初に submodule を init する** (`git submodule update --init`)。worktree には submodule が自動で入らず、未 init のままだと freeze 系の検査が「source が存在しない」で真の破損より手前で落ち、テストも skip に化ける。**真の破損が見えないまま「破損なし」と誤報しうる**
-- **凍結成果物の bytes を変えうる wave では、着手前に pin 元を全列挙する** — `grep -rn "<成果物パス>" --include=*.py` で、その成果物を bytes で pin している台帳・テスト・trust root をすべて洗い出し、brief の不変条件へ書く。`FROZEN_MANIFEST` (`orchestrator/tests/test_frozen_artifacts.py`) は既定の確認対象に含める。**あわせて generator hash pin — manifest が成果物の source ファイルの SHA を pin する台帳 (例 oracle manifest の `_GENERATOR_SOURCES` — key→canonical path 束縛付き 5 leaf、D84) — も既定の確認対象に含める。** 編集対象の production ファイルがこの型の generator として pin されると、既存 manifest の verify が壊れうる (FROZEN_MANIFEST だけ見ると数え落とす。本 wave で report.py が oracle manifest の report generator として SHA pin される事実を親 preflight が取り落とし敵対相談・レビューが検出。凍結 manifest が repo に無く source hash も未 pin なら非 blocker だが、durable manifest 発行後なら再発行が要る)。verifier と直接参照元だけを数えると、**成果物そのものを全 bytes hash で pin している台帳を数え落とす** (親も codex プランも見落とし、敵対相談 2 本が blocker として検出した実績がある。F30)。**あわせて、対象 producer が書き込む全ファイル種 (write-path) も棚卸しして brief に列挙する** — 参照 (pin) 側だけ数えると生成側の漏れに気づけない (brief が 4 種と書いた selector 証拠は実際には envelope・lock 込みの 6 種で、免除設計の穴として codex プランと相談が指摘した実績がある)
-- **ファイル削除を伴う wave では、受入全走の前に `git add -A` して削除を stage する** (`git ls-files` を使う freeze 系テストが、未 stage の削除を「列挙されたのに実在しない」と見て偽の赤を出す)
-- **裁定した手順と実際に実行した手順が食い違ったら、worklog には実行された方を書く** (裁定文をそのまま書くと一次資料と逆の工程記録が残り、レビューで検出される)
-- **設計 wave で gate・検証を新設する記述を書く前に、その gate の入力が成果物の実物 (JSON 等) のどの field に実在するかを確認する** — 現行 schema に無い入力 (例: 観測値を持たない `cells`) を前提に「再計算して一致を検査する」と書くと、実行不能な設計がレビューまで素通りする (親起草がこれをやり、レビュー 2 本が独立に BLOCKER にした実績がある。D75 (4))。同名の識別子を二義で使わない (検証時 HEAD と生成基準 commit を同じ `H` と書いて混同した実績も同 wave)
-- **no-touch 対象の検査関数を再利用したくなったら、monkeypatch を書く前に正規の注入 seam (resolver・`current_head` のような迂回パラメータ) が既に無いかを対象の実装まで読む** — production 内 cross-module monkeypatch をレビュー BLOCKER で全廃した際、`_verify_head(current_head=…)` が等価比較のみで ancestry を呼ばない仕様を親が実測で発見し、patch ゼロで置換できた実績がある (D78)。monkeypatch は最後の手段
-- **fix ラウンドを挟む wave では、変異 spec の anchor (old 逐語) は fix 完了後の最終 commit で再検証してから本走する** — ハーネスの起草は先行してよいが、中間 commit 基準の spec は fix で stale になる (本 wave で 3 回の spec 更新が要った)。単層変異が他層にマスクされて帰属不成立になったら、両層同時変異へ再照準し、1 巡目の結果は erratum として台帳に残す
-- **fix ラウンド後の焦点再レビューには「所見ごとの closed / partial / regressed 対応表」を要求する** — fix が root cause を閉じたか表面だけかの判定が一覧で返り、regressed (fix が前より悪化させた面) の検出に実効があった (D78 の key-absent 逆行を検出した実績)
-- **commit の AI-Agent trailer と Co-Authored-By は同一の末尾段落に置く (間に空行を入れない)** — 空行で分断すると git が trailer 段落と解釈せず、`check_ai_provenance.py` が「trailer がない」と検出する。commit 後の監査で 5 commit の message-only 積み直しになった実績がある (tree 同一を `git diff` 空で機械確認し、docs の hash 参照は新系列へ更新 + 逐語には対応表 erratum を付す)
-- **親が受入全走やテスト単体実行を行う際は、必ず repo root を cwd にする** — サブモジュールを含む一部テストは、nested pytest subprocess の plugin import パスが cwd 依存で変わり、`orchestrator/` を cwd にすると自分の差分と無関係な既存テストが偽赤化する (実績: `test_run_tests_task_run.py` が2件偽赤、repo root からの再実行で解消・baseline と一致確認)。原因不明の赤が出たら、まず cwd を疑ってから差分を疑う
-- **git 管理下のファイルを一時的に mutation 検証で編集するときは、復元の正本を `git diff`/`git checkout --` にする (`/tmp` への手動バックアップに頼らない)** — job tmp を含む `/tmp` は並行 bg job と共有されており、バックアップ用に置いたコピーが他プロセスに削除される事故が実際に起きた。tracked ファイルなら編集前後で `git diff --stat` が単一行の変更だけであることを確認してから `git checkout --` で復元すれば、外部バックアップは不要かつより確実。**ただし `git checkout --` で復元するハーネスの本走は統合 commit の後に行う** — 未 commit の実装 (working tree のみの差分) に `git checkout --` を掛けると HEAD へ revert され実装ごと失うため、commit 済みの成果物へ復元する前提で組み、commit 前に走らせない (本 wave の敵対レビューが未 commit 実装への git checkout 復元欠陥を検出。復元後の内容比較 `read_text()==commit 済み内容` が防壁になる)
-- **worktree で clean-tree を要求する実行 (seal 等の `_assert_seal_worktree_clean` 型 gate) を回す wave では、専用 handoff を worktree 内 `docs/handoff/` に置かない** — untracked な handoff が clean 検査に引っかかり、実行が前提検査で止まる (当該 gate は許可 prefix 外の untracked を一切拒否する)。job tmp か main checkout 側の `docs/handoff/` に置いて worktree を clean に保つ。生存保証は narration と job tmp が担う。__pycache__ は gitignore 済みで問題ないが、docs/handoff は ignore されない点に注意 (2026-07-24 予測封印 wave 実績)
+## 段 dispatch
+
+| 入る直前 | 必ず読む節 |
+|---|---|
+| wave 開始 | `docs/dev-wave/core.md`: `DW-C00`, `DW-CTX`, `DW-STOP` |
+| 段 1 | `docs/dev-wave/core.md`: `DW-S01`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05` |
+| 段 2 preflight | `docs/dev-wave/workers.md`: `DW-S02`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05` |
+| 段 3 preflight | `docs/dev-wave/workers.md`: `DW-S03`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05`, `DW-O13` |
+| 段 4 | `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`; `docs/dev-wave/mutation.md`: `DW-M01` |
+| 段 5 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C`; 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O20` |
+| 段 6 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
+| 段 6 | `docs/dev-wave/workers.md`: `DW-S06-A`, `DW-S06-B`, `DW-S06-C` |
+| 段 6 | `docs/dev-wave/core.md`: `DW-G05` |
+| 段 6 | `docs/dev-wave/mutation.md`: `DW-M02`, `DW-M03`, `DW-M04`, `DW-M05`, `DW-M06`, `DW-M07`, `DW-M08` |
+| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O20` |
+| 段 7 | `docs/dev-wave/core.md`: `DW-S07`; 成立した条件の `docs/dev-wave/operations.md`: `DW-O12`, `DW-O17`, `DW-O18`, `DW-O19` |
+| 段 8 preflight | `docs/dev-wave/core.md`: `DW-S08`; `docs/skill-self-improvement.md` の全節 |
+| 段 8 preflight | commit するなら `docs/dev-wave/operations.md`: `DW-O17`; 防護パス message なら `DW-O04` |
+| 段 9 | `docs/dev-wave/core.md`: `DW-S09`, `DW-CTX`, `DW-STOP` |
+
+段 6 で fix を codex へ再投する子は、段 5 の実装子契約 `DW-S05-A`、`DW-S05-B`、`DW-S05-C` を
+全文継承する。段 6 時点で成立している全条件の `DW-Oxx` も、fix 操作の直前に読む。
+
+## 条件 dispatch
+
+| # | 発火条件 | 読む節 |
+|---|---|---|
+| 01 | codex subprocess を起動する直前 | `docs/dev-wave/operations.md`: `DW-O01`（F23/F24） |
+| 02 | prompt・log・patch を作る直前 | `docs/dev-wave/operations.md`: `DW-O02` |
+| 03 | prompt に防護パス文字列を含めて作る直前 | `docs/dev-wave/operations.md`: `DW-O03` |
+| 04 | commit message に防護パス文字列を含めて作る直前 | `docs/dev-wave/operations.md`: `DW-O04` |
+| 05 | read-only codex に相談・レビューさせる直前 | `docs/dev-wave/operations.md`: `DW-O05` |
+| 06 | workspace-write 子で submodule 系テストを扱う直前 | `docs/dev-wave/operations.md`: `DW-O06` |
+| 07 | task-run pilot が有効な wave の開始前 | `docs/dev-wave/operations.md`: `DW-O07` |
+| 08 | freeze / oracle gate / proof chain に触る可能性が判明 | `docs/dev-wave/operations.md`: `DW-O08`（最遅: 段 1 前） |
+| 09 | 凍結成果物の bytes を変えうる可能性が判明 | `docs/dev-wave/operations.md`: `DW-O09`（最遅: 段 1 前） |
+| 10 | 09 が成立し producer の出力 bytes が変わりうる | `docs/dev-wave/operations.md`: `DW-O10`（最遅: 段 1 前） |
+| 11 | ファイル削除を伴うと判明 | `docs/dev-wave/operations.md`: `DW-O11` |
+| 12 | 裁定手順と実行手順が食い違った時点 | `docs/dev-wave/operations.md`: `DW-O12` |
+| 13 | gate・検証を新設する可能性が生じた時点 | `docs/dev-wave/operations.md`: `DW-O13`（最遅: 段 2 前） |
+| 14 | no-touch 対象へ monkeypatch を検討する直前 | `docs/dev-wave/operations.md`: `DW-O14` |
+| 15 | fix 後に変異を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O15`; `docs/dev-wave/mutation.md`: `DW-M07` |
+| 16 | fix 後の焦点再レビューを行う直前 | `docs/dev-wave/operations.md`: `DW-O16` |
+| 17 | commit を作る直前 | `docs/dev-wave/operations.md`: `DW-O17` |
+| 18 | 親がテスト・受入を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O18` |
+| 19 | tracked file を一時変異する直前 | `docs/dev-wave/operations.md`: `DW-O19` |
+| 20 | clean-tree gate を worktree で走らせる直前 | `docs/dev-wave/operations.md`: `DW-O20` |
+| 21 | 無人継続を構成し最初の process を起動する前 | `docs/dev-wave/core.md`: `DW-CTX` |
+| 22 | supervisor を使用する前 | `docs/dev-wave/core.md`: `DW-CTX` |
+
+各条件の詳細は参照節だけを正本とし、事故の物語は `docs/failures.md` の F 番号へ置く。
+入口や reference へ同じ物語を再掲しない。
+
+## 終端
+
+段 8 で許される自動修正も、専用 commit、予算検査、関連検査を完了してから段 9 の
+「本 wave の監査済み commit 集合」に含める。段 9 の条件が一つでも欠ければ rebase、force、
+他 session 差分の巻き込みをせず停止し、main HEAD、次タスク、停止理由、再開コマンドを報告する。

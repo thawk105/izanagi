@@ -691,3 +691,45 @@ code 変更なし)。正本 = `output/insights/2026-07-24_t080-prediction-seal.m
 11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 12. [T-012] 延期: pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
 13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-24 (3) — command/reference anti-bloat 実装 (branch skills-anti-bloat、計測なし)
+
+ユーザー依頼 (2026-07-24): dev-wave コマンドの肥大化 (4 日で約 3KB→30KB) を質を落とさず解消し、
+二度と肥大化しない恒久機構を設ける。cleanup-branches / rulings も自己改善能力は保ちつつ同型化。
+codex を起草・実装・敵対レビューに使い、親 (Claude) が brief・裁定・独立検証・統合を担った。
+
+- **分割**: dev-wave を fail-closed dispatcher へ (29,880→8,420 bytes, 72% 減、最長行 2,314→137 字)。
+  段別/条件別手順を `docs/dev-wave/{core,workers,mutation,operations}.md` へ、自己改善規律を
+  3 command 共通の `docs/skill-self-improvement.md` へ分離。事故譚は failures の F 番号へポインタ化し、
+  各 F の恒久対応欄へ現行実体 back-ref を追記。入口は「読み込み契約」で段・条件ごとに参照節を
+  fail-closed dispatch し、義務は逐語強度で保存 (凍結不変集合 INV-01..51 + 落ちた MUST 4 件を復元)。
+- **恒久 teeth**: `tools/check_docs.py` に byte・最長行・interface・段別/条件別 dispatch 完全一致・
+  孤児見出し・規範 allowlist・`docs/dev-wave/**` 再帰閉包を追加 (肥大と構造孤児化を赤にする)。
+  義務本文の lint 化はせず、文言保存は敵対監査・人間レビューの領分と正本に明記 (check_docs の
+  既存境界に整合)。予算超過は「可視・可審査な予算 bump commit」に強制する。自己改善の入口
+  無条件追記 (肥大化の根) は廃止し、教訓を正本へ routing する契約へ置換。
+- **手順**: codex 設計草案 → 敵対レビュー 2 (設計) → 実装 → 敵対レビュー 2 (成果物) → FIX-1〜6 →
+  親独立検証。レビューは checker の恒真化リスク (段別 dispatch 潰し・SELF 契約外・孤児逃がし) と
+  実義務の弱化 (両層変異裏取りの「必要なら」化) を摘出し、全件 hardening / 復元した。
+- **親独立検証**: check_docs 違反なし。受入全走 **311 passed** (repo scan invariant=F34 緑・
+  dev_waves supervisor 9 本・check_docs 87〈positive control +15〉・codex_agents)。checker 自体を
+  敵対 mutation テスト — 段 6 の S05 継承行削除 → 赤、孤児 H2 追加 → 赤、いずれも sha256 で復元確認。
+- 作業ツリーはユーザー規約どおり親が commit し、push はしない (ユーザー審査へ引き渡す)。
+
+### 次の一手
+
+前エントリ (2026-07-24 (2)) の科学レーンから変わらず。本作業は command hygiene の独立実装:
+
+1. [T-080] 科学レーン第 2 手完了。残工程は floor 実測 (下記 5)
+2. [T-068] R commit で「移行契約により superseded」確定 (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる。変わらず
+5. [T-011] floor 実測直前に発火 (統合 E2E + lineage 照合)。Pegasus 単独。変わらず
+6. [T-086] PKG-2: FROZEN_MANIFEST の exact key-set / lineage durable assert。変わらず
+7. [T-085] 裁定パッケージ PKG-1: pipeline record env 未検査 (D83 (5))。変わらず
+8. [T-067] 部分消化・継続: exact 化の残余 (D73 (10))。変わらず
+9. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+10. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+12. [T-012] 延期: pilot 凍結維持。変わらず
+13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

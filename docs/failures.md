@@ -279,6 +279,7 @@
 - 恒久対応: codex exec のバッチ起動は常に `< /dev/null` を明示し、投入前にプロンプトファイルの
   非空を検査する (空 + /dev/null は「空指示実行」の退化形になるため)。長時間サブプロセスは
   起動直後にログの先頭進捗を 1 回確認する。
+- 現行実体: `docs/dev-wave/operations.md` の `DW-O01`。
 - 再発検知: ログ末尾の「Reading additional input from stdin」を停止指標として grep する。
 
 ### F24. サブプロセス完了検知をログ本文 grep に頼り誤検知 — 偽完了 2 回 + 空振りタイムアウト 2 回 [手順漏れ]
@@ -291,6 +292,7 @@
 - 恒久対応: バッチ起動は `bash -c '<cmd>; echo $? > <log>.done'` のラッパで包み、監視は `.done`
   ファイルの存在 + exit code だけを見る (本文 grep をしない)。プロセス生存確認を併用する場合は
   自己マッチ (pgrep が監視シェル自身や snapshot ラッパに一致) に注意する。
+- 現行実体: `docs/dev-wave/operations.md` の `DW-O01`。
 - 再発検知: 監視スクリプトに「ログ本文 grep で完了判定」する行が入っていたらレビューで差し戻す。
 
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
@@ -305,6 +307,7 @@
 - 恒久対応: commit message は「件名 / 空行 / 本文 / 空行 / trailer block (AI-Agent 行と
   Co-Authored-By を空行なしで連続)」の 4 段構成で作る。commit 直後に `check_ai_provenance` を回す
   (規約どおり) — 違反が出たら push 前にメッセージだけ積み直す
+- 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
 - 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
   更新漏れも併せて見る
 
@@ -314,11 +317,16 @@
   後でも不可)、(2) 回避を試みた worktree 側での `git submodule deinit` が、worktree 間で共有される
   `submodule.*` 登録を消し、**main checkout の external/ccbench まで未初期化にした** (実害 = 一時的。
   `git submodule update --init` でローカル .git/modules から即復元し、pin (d706650) 一致を確認済み)
+- 追加事象: 同日の ExitWorktree は、作成した worktree の commit を main へ fast-forward 済みでも
+  「未取り込みで失われる」と誤警告した。`discard_changes: true` では押し切らず、`git log` で
+  main が当該 commit を含むと確認し、`action: keep` で抜けて手動の安全手順で畳んだ。
 - 根本原因: git の worktree × submodule の仕様 2 点 (remove の gitlink 無条件拒否、submodule 登録
   config の worktree 間共有) を知らず、即興で deinit を挟んだ
 - 恒久対応: `/cleanup-branches` スキル (.claude/commands/cleanup-branches.md) に安全手順を固定 —
   deinit を使わず「detach → ディレクトリ削除 → `git worktree prune`」(git 文書化済みの回避)、
   事後に `git submodule status` で main checkout の初期化状態を検査
+- 現行実体: `.claude/commands/cleanup-branches.md` §3。dev-wave では
+  `docs/dev-wave/operations.md` の `DW-O06`（submodule 系 test）と `DW-O08`（初期化）。
 - 再発検知: スキル末尾の事後検査 (`git submodule status` が `-` prefix なしで pin 一致)。worktree
   掃除をスキル外で即興したらレビューで差し戻す
 
@@ -337,6 +345,8 @@
 - 恒久対応: `/dev-wave` 段 5 の実装子定型に「緑の主張には走らせた範囲を併記」「テストを甘くして
   緑にすることの禁止 (fixture への hash 差し込み等)」を明記 (.claude/commands/dev-wave.md)。
   編集候補が凍結成果物に hash されているかを、変更前に `grep` で確認する
+- 現行実体: `docs/dev-wave/workers.md` の `DW-S05-C` と
+  `docs/dev-wave/operations.md` の `DW-O09`。
 - 再発検知: 敵対レビューのレンズに「既存保証の喪失・テスト期待の弱体化」を常設する (本件はこの
   レンズが唯一の検出経路だった)。凍結成果物を持つ leaf を触る wave では、親が `verify()` を実走する
 
@@ -384,6 +394,7 @@
 - 恒久対応: 凍結成果物 (freeze / oracle gate / proof chain) の bytes を変える可能性のある wave では、
   着手前に `grep -rn "<成果物パス>" --include=*.py` で **pin 元を全列挙**し、brief の不変条件へ書く。
   `FROZEN_MANIFEST` は既定のチェック対象に含める
+- 現行実体: `docs/dev-wave/operations.md` の `DW-O09`。
 - 再発検知: 段 1 の実測に「この成果物を bytes で pin しているのは誰か」の列挙を含める
 
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
@@ -416,6 +427,7 @@
      (fail-closed→fail-open の証拠) として扱い、ハーネス全体を落とさない
   4. プロセス生存確認に `pgrep -f` を使うなら **ERE (`-P` か素の literal)** にする。
      BRE の `\|` は使わない
+- 現行実体: `docs/dev-wave/mutation.md` の `DW-M05` と `DW-M06`。
 - 再発検知: 変異・fault 注入ハーネスの設計時に「復元検査が対象ファイルの追跡状態に依存して
   恒真化しないか」「二重走行を機械的に排除しているか」をレンズに含める (段 6 の作法)
 
@@ -440,6 +452,7 @@
      (`.claude/commands/dev-wave.md` の変異ハーネス作法へ追記、2026-07-22)
   2. **SURVIVED は「注入の実在」を mutated 内容の diff で確認するまで equivalent と結論しない**
      (同上)。両層変異には kill 期待を必ず事前登録する (期待の無い変異は生存が黙って通る)
+- 現行実体: `docs/dev-wave/mutation.md` の `DW-M04`。
 - 記録: worklog 2026-07-22 (6)、erratum = `output/insights/2026-07-22_t004-wal-framing-mutation-ledger.md`
 
 ### F34. 受入全走の後に積んだ docs commit が repo scan invariant を破り、main が赤のまま次 wave まで残った [手順漏れ]
@@ -458,4 +471,5 @@
      wave を閉じる** (`.claude/commands/dev-wave.md` 段 7 定型へ追記、2026-07-23)
   2. **逐語・台帳を insights へ凍結する前に三軸語 conjunction (軸 template の生値) を機械検査し、
      hit があれば defang + erratum で凍結する** (同上)
+- 現行実体: `docs/dev-wave/core.md` の `DW-S07`。
 - 記録: worklog 2026-07-23 (2)、defang erratum = wave2 台帳 L642 (原文 = 441babc)、D80 (7)

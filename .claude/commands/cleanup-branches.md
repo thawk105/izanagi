@@ -21,23 +21,20 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
   ユーザーに確認してから
 - 自分がその worktree の中で作業している場合は、先に main checkout 側へ抜けてから操作する
 
-## 3. worktree の削除手順 (F26 の罠 2 件に対応)
+## 3. worktree の削除手順 (F26)
 
-submodule (external/ccbench) の gitlink を含む worktree は `git worktree remove` が**無条件拒否**
-する (`--force` でも不可)。git 文書化済みの回避手順を使う:
+submodule の gitlink を含む worktree は `git worktree remove` を使わず、F26 の安全手順を使う:
 
 1. `git -C <worktree> checkout --detach` (ブランチを解放)
 2. `git branch -d <branch>` (取り込み済み確認の上で)
 3. ディレクトリを削除して `git worktree prune`
 
-**`git submodule deinit` は使わない** — submodule 登録 (`submodule.*` config) は worktree 間で
-共有されており、main checkout の submodule まで未初期化になる (F26)。誤って実行した場合は
-`git submodule update --init external/ccbench` で復元する (ローカル .git/modules から即時)。
+**`git submodule deinit` は使わない**。誤って実行した場合は
+`git submodule update --init external/ccbench` で復元する。事象と原因の正本は `docs/failures.md` F26。
 
-セッション自身が EnterWorktree で作った worktree を畳む場合の注意: ExitWorktree の remove は、
-コミットが main へ ff 済みでも「未取り込みで失われる」と誤警告することがある (2026-07-20 実測)。
-`discard_changes: true` で押し切らず、main が当該コミットを含むことを `git log` で確認のうえ
-`action: keep` で抜け、本節の手動手順 (detach → branch -d → 削除 → prune) で畳む。
+ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
+`git log` で確認し、`action: keep` で抜け、本節の手動手順
+(detach → branch -d → 削除 → prune) で畳む。関連事象は F26。
 
 ## 4. 事後検査
 
@@ -52,12 +49,8 @@ submodule (external/ccbench) の gitlink を含む worktree は `git worktree re
 ユーザーに提示する。削除しなかったブランチ・worktree はその理由 (ahead>0、dirty 等) と併せて報告する。
 記録はセッションの通常規律 (worklog) に従う。
 
-## 6. スキル自己改善 (発火条件つき、/dev-wave 段 8 と同型)
+## 6. スキル自己改善 (発火条件つき)
 
-今回の実行で**スキル記載と実挙動の食い違い・新しい罠・手順の不足を実測した場合のみ**発火する
-(毎回の文面いじりはしない)。発火したら同セッション内で:
-
-- 本スキルの該当節を実測に合わせて更新する
-- 台帳との整合を同時に取る — 新しい罠は failures.md へ F 追記、既存 F26 の型の再発なら
-  同エントリへ「再発: 日付」追記 (台帳の運用規則どおり)
-- スキル編集 + 台帳追記を 1 コミットにまとめ、worklog に 1 行残す
+今回の実行でスキル記載と実挙動の食い違い・新しい罠・手順不足を実測した場合だけ発火する。
+発火したら `docs/skill-self-improvement.md` を読み、`cleanup-branches` の routing と commit 契約に従う。
+発火しなければ本文を変更しない。

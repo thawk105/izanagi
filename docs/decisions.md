@@ -3644,3 +3644,34 @@ regressed 0**: reps 負例の過剰決定と MUT-1 spec の台帳未凍結) → 
 コメント整合、34ce18b) → 最終全走 + 変異 matrix を最終 commit で再走 (台帳が正本)。D80 の fix2
 先例に従い、fix2 後は追加レビューでなく matrix + 受入を最終 gate とした。変異ハーネス 1 巡目の
 欠陥 (pytest -q に -rf なしで FAILED 行が出ず全件 KILLED-OFF-TARGET と誤分類) は台帳 erratum に記録。
+
+## D85. dev-wave 系 command の anti-bloat 恒久化 — 薄い dispatcher + reference 分離 + 自己改善 routing 契約 + check_docs teeth (2026-07-24)
+
+ユーザー依頼で `/dev-wave` の肥大化 (4 日で約 3KB→30KB、最長行 2,314 字) を質を落とさず解消し、
+再肥大化しない恒久機構を設けた。cleanup-branches / rulings も同型化。D69 の context 境界と併存する
+harness 規律。
+
+(1) **根因と是正。** 段 8 スキル自己改善が「小改善を本体へ無条件追記」する正のフィードバックだった。
+これを廃止し、教訓は正本 (failures / decisions / reference) へ routing、入口本文への追加は「常に読まれねば
+dispatch が成立しない新規命令 かつ 既存へ統合不可 かつ 予算内」に限る契約 (`docs/skill-self-improvement.md`)
+へ置換した。3 command が同契約を参照する。
+
+(2) **構造。** `.claude/commands/dev-wave.md` を fail-closed dispatcher (8,420 bytes、72% 減) にし、段別/条件別の
+実行手順を `docs/dev-wave/{core,workers,mutation,operations}.md`、自己改善規律を共通の
+`docs/skill-self-improvement.md` へ分離。事故譚は failures の F 番号へポインタ化 (各 F に現行実体 back-ref)。
+入口の「読み込み契約」が段・条件ごとに参照節を fail-closed dispatch し、後発条件には最遅読了段と巻き戻しを
+課す。義務は逐語強度で保存 (凍結不変集合 INV-01..51 + terse 化で落ちた MUST 4 件を復元)。`.claude/skills/`
+移行は今回せず (規律5)、dispatch 違反の実測が出た場合の次段候補に留める。
+
+(3) **恒久 teeth と境界。** `tools/check_docs.py` が byte・最長行・interface・段別/条件別 dispatch 完全一致・
+孤児見出し・規範 allowlist・`docs/dev-wave/**` 再帰閉包を検査し、肥大と構造孤児化を赤にする。予算超過は
+禁止でなく「可視・可審査な予算 bump commit」に強制する。**義務本文 (文言) の保存は lint 化しない** —
+check_docs の既存境界どおり意味保存は敵対監査・人間レビューの領分 (逐語 contract は正当な言い換えで
+誤爆する脆い gate になる)。恒久性は「checker (肥大+構造) + 自己改善 routing 契約 + レビュー (意味)」の
+多層で担う。
+
+(4) **プロセスと検証。** codex 設計草案 → 敵対レビュー 2 (設計、NO-GO) → 実装 → 敵対レビュー 2 (成果物、
+checker 恒真化リスクと実義務弱化を摘出) → FIX-1〜6 → 親独立検証。受入全走 311 passed (repo scan
+invariant=F34・dev_waves supervisor・check_docs 87〈positive control +15〉・codex_agents)。checker 自体を
+敵対 mutation テスト (段 6 dispatch 行削除→赤、孤児 H2→赤) で恒真ゲートでないことを実証。記録 =
+worklog 2026-07-24 (3)、branch skills-anti-bloat。
