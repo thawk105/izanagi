@@ -84,6 +84,35 @@ FROZEN_MANIFEST = {
         "925b5e1155509da7bcca0df775622d2cf2f7c04559a7bf462912f8641af42ed3",
 }
 
+# seal 82803d6d 時点の現行 23 件だけを固定する暫定・独立 key-set pin。
+# manifest-only 編集 (同数 path 差し替え) に対する運用 sentinel であり、独立改竄境界でも、
+# 恒久 freeze-family membership (D76 恒久形は別ファイル golden を要求) でもない。
+FROZEN_KEYSET_PROVISIONAL_82803D6D = frozenset({
+    "output/s1-freeze/known_axes_freeze.json",
+    "output/s1-freeze/measurement_freeze.json",
+    "output/s8b-freeze/holdout_freeze.json",
+    "output/s8b-freeze/floor_protocol.json",
+    "output/insights/2026-07-16_s8b-floor-protocol-package.md",
+    "output/insights/2026-07-16_s8b-freeze-v2-design-material.md",
+    "output/insights/2026-07-16_s8b-floor-protocol-consultations.md",
+    "output/insights/2026-07-16_s8b-freeze-consultations.md",
+    "output/insights/2026-07-16_s8b-ruling-prep-consultations.md",
+    "output/s8b-freeze/selector_predictions.json",
+    "output/s8b-freeze/selector-runs/envelope_rr20_on.json",
+    "output/s8b-freeze/selector-runs/envelope_rr20_swapped.json",
+    "output/s8b-freeze/selector-runs/envelope_rr80_on.json",
+    "output/s8b-freeze/selector-runs/envelope_rr80_swapped.json",
+    "output/s8b-freeze/selector-runs/journal.jsonl",
+    "output/s8b-freeze/selector-runs/payload_rr20_on.json",
+    "output/s8b-freeze/selector-runs/payload_rr20_swapped.json",
+    "output/s8b-freeze/selector-runs/payload_rr80_on.json",
+    "output/s8b-freeze/selector-runs/payload_rr80_swapped.json",
+    "output/s8b-freeze/selector-runs/raw_rr20_on.txt",
+    "output/s8b-freeze/selector-runs/raw_rr20_swapped.txt",
+    "output/s8b-freeze/selector-runs/raw_rr80_on.txt",
+    "output/s8b-freeze/selector-runs/raw_rr80_swapped.txt",
+})
+
 
 def _sha256(path: str) -> str:
     h = hashlib.sha256()
@@ -116,6 +145,12 @@ def test_manifest_shape_is_exact():
         assert rel.startswith("output/"), f"repo-relative path でない: {rel}"
         assert len(sha) == 64 and all(c in "0123456789abcdef" for c in sha), \
             f"64hex sha256 でない: {rel}={sha}"
+    actual_keys = frozenset(FROZEN_MANIFEST)
+    assert actual_keys == FROZEN_KEYSET_PROVISIONAL_82803D6D, (
+        "FROZEN_MANIFEST の key-set 不一致 (同数 path 差し替え検出):"
+        f"\nmissing_from_manifest={sorted(FROZEN_KEYSET_PROVISIONAL_82803D6D - actual_keys)}"
+        f"\nunexpected_in_manifest={sorted(actual_keys - FROZEN_KEYSET_PROVISIONAL_82803D6D)}"
+    )
 
 
 def _run():
