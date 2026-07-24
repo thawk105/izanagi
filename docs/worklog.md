@@ -841,3 +841,38 @@ production・凍結 bytes・guard・calibration 無変更)。正本 = `output/in
 10. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 11. [T-012] 延期: pilot 凍結維持。変わらず
 12. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-24 (6) — /rulings: 裁定待ち 5 件をユーザーが推奨どおり一括裁定 (計測なし)
+
+/rulings 1 回。前エントリ (5) 後に索引化した裁定待ち 5 件 (+[T-011] 小判断 3) を、ユーザーが
+「これらは推奨で決めます」と一括裁定。read-only 収集 → ユーザー裁定 → 本記録 (クラス 2 昇格)。
+実行系 (R receipt 発行・push) は D78 設計と Pegasus 規約によりユーザー手番で、AI は実行しない。
+
+- **R receipt (D78)**: 発行を**承認** (ユーザー手番)。freeze gate を {floor-null, budget-null} へ復旧し
+  [T-068]/[T-077]/[T-078] を解除。手順 = worklog 2026-07-22 (10) 引き渡しパッケージ。AI は発行しない。
+- **[T-011] floor 受諾**: (2a) official guard (`_assert_official_permitted`) 解除は設計判断として確定する
+  方向を**承認** → [T-088] へ分離・採番。(2b) §5-(viii) 残存限界一覧を**受諾** (floor 実測前 gate クリア)。
+  (2c) lineage 照合は oracle 結線 wave で再評価。
+- **[T-085] PKG-1**: pipeline record env 検査の追加を**採用**。ただし floor 実測後の hardening wave で
+  実施 (今は floor 前提整備が優先)。
+- **push**: local main (d45e5c4、未 push 3 commit) の push を**承認** → ユーザー実行 (`git push origin main`。
+  AI は push しない = Pegasus 規約)。
+- **[T-087]**: post-seal 23 vs 恒久 12 の整合は W-e (恒久形・別ファイル golden) 着手時に決める (**延期承認**)。
+
+### 次の一手
+
+1. [T-011] floor 実測。2b §5-(viii) 受諾済。残 = R receipt 発行 + [T-088] 設計 + ops (PBS wrapper・
+   revision 束縛) + 2c lineage (oracle 結線 wave)
+2. [T-068] R receipt 発行後に「移行契約により superseded」確定 (D78 (9))。承認済 (発行待ち)
+3. [T-077] R receipt 発行後に design_source 再 pin + generator M 化で閉じる。承認済 (発行待ち)
+4. [T-078] R receipt 発行後に S2-4.6 承認 fixture で閉じる。承認済 (発行待ち)
+5. [T-085] PKG-1 採用裁定済 (ユーザー) → floor 実測後の hardening wave で実装
+6. [T-067] 部分消化・継続: exact 化の残余 (D73 (10))。変わらず
+7. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+8. [T-088] **新規**: official guard (`_assert_official_permitted`) 解除の設計判断確定 (floor gate 2a、
+   ユーザー承認 = 解除方針を設計として確定する方向)。設計は future dev-wave、実装前に防壁変更として再確認
+9. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+10. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+12. [T-012] 延期: pilot 凍結維持。変わらず
+13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
