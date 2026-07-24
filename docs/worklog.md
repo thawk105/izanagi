@@ -1014,8 +1014,14 @@ D 番号なし ([T-067] 正本は D73、設計判断は insight)。
   `gate-check` rc=2 / `allowed=false` / 拒否 {floor-null, budget-null} の 2 件 exact /
   GateDecision observation = `null` (refusal 残存中は envelope を載せない設計の帰結。receipt
   resolution 側の 17 item と混同しない)。baseline 全走 2919 passed / 18 skipped / 0 failed (239s)。
-- **検査**: repo scan invariant (三軸語 conjunction) 1 passed・`check_docs` 違反なし・
-  `check_ai_provenance` 333 件違反なし (いずれも記録 commit 後に再走した実測値は下記)。
+- **検査**: 記録 commit **前** = repo scan invariant (三軸語 conjunction) 1 passed・`check_docs`
+  違反なし・`check_ai_provenance` 333 件違反なし。記録 commit **後の再走** (F34) = repo scan
+  invariant + real-repo serialization **4 passed**・`check_docs` 違反なし・`check_ai_provenance`
+  **334 件違反なし**。初回 commit は trailer の `role=planner` が許可値外で provenance が赤になり、
+  慣行どおり `role=author; scope=closure-plan` 等へ直して amend した (迂回せず修正)。
+- **自己捕捉 (F36 の初回適用)**: 本エントリの検査欄を最初「実測値は下記」とだけ書いて値を伴わない
+  前方参照にしており、**新設した F36 と同型の空証明を自分で作りかけた**。記録 commit 後の再走で
+  気づき、上の実測値で埋めた。テンプレートを先に書く運用の危険がそのまま再現した。
 
 ### 消化した ID
 - [T-068] **消化** — R commit をもって「移行契約により superseded」(D78 (9)(10))。
