@@ -733,3 +733,62 @@ codex を起草・実装・敵対レビューに使い、親 (Claude) が brief�
 11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 12. [T-012] 延期: pilot 凍結維持。変わらず
 13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-24 (4) — 統合 E2E: 実 seal を official floor 経路に通す (D79(7) 部分閉鎖、branch worktree-dev-wave-e2e-real-seal、計測なし)
+
+/dev-wave 1 回 (路線復帰狙い)。**D79(7) の「protocol→seal→commit→floor 完全同型 E2E」の欠落**を、実凍結済み
+seal bytes を official floor 経路の test seam に通す統合テストで**部分的に**埋めた。code commit = 6b4fbdf
+(test-only、production・凍結成果物 bytes・guard・calibration 無変更、+699/-8 の 1 本)。正本 =
+`output/insights/2026-07-24_e2e-real-seal.md` + 同 `-mutation-ledger.json`。D 番号なし (test-only、設計判断は
+insight に記録)。
+
+- **タスク選定の 2 段訂正 (忠実報告)**: 統合 E2E 選定 → 生死確認で floor 不可分に見え「gate パッケージ」へ
+  pivot (ユーザー裁定) → gate パッケージ整備中に codex 2 レンズが私の枠組みを訂正 ((a) guard は F6 裁定後の
+  意図的 dormant で「stale 誤記」でない、(b) 統合 E2E は worklog:585「protocol 凍結後 unblock 済み・floor
+  直前 blocking 前提」= 建てられる定義済み作業) → ユーザーへ訂正・再提示 → 「統合 E2E を実装」を選択。
+- **実装**: 実 committed HEAD を tmp clone、実 protocol/predictions/journal を production preflight に通し
+  `_run_campaign_core` (mode=official) 直呼び (guard は public 経路のみ = test seam 正当)。probe は実
+  calibration の clean in-tolerance 観測 (48 標本、実 comparator/issuer/consumer/v2 receipt は production)。
+  reservation/claim/preflight/allowlist/clean_scan 二重/cert/full verifier/resolver/floor result/最終自己
+  検査 の実 gate を通過 (spy 純委譲)。workload rratio/floor/schedule/build src_token を seal から独立照合。
+  producer tripwire + 16 frozen+calibration の前後 snapshot 比較。
+- **検証**: codex プラン (max) → 敵対相談 2 (max、両者独立に reservation/claim gate 欠落を検出) → 親裁定 →
+  実装 (high) → fix1 (probe faithfulness、実装子が正直に赤報告→親が comparator 精読して in-tolerance 化) →
+  敵対レビュー 2 (max、**核心 sound = bypass/stub/frozen 破損なし confirmed**、検出力弱点摘出) → fix2 (独立
+  期待値・honest 分類・probe 忠実化) → **親 empirical 変異 matrix**。
+- **変異 matrix (empirical が静的分析を訂正)**: **MK-workload = 排他的新検出力** (real seal の workload
+  misrouting を既存 196 テスト全通過の中で新テストだけが検出 = 本テストの固有価値)。MK-build-src (45 既存も
+  破る過剰決定)・MK-digest (既存 3 件も検出) は新検出力に数えない。gate 呼出し spy は diagnostic invocation
+  pin (kill でない、teeth は HEAD negative が担保)。台帳が正本。
+- **受入**: <受入全走結果を反映> / check_docs / check_ai_provenance (324) / repo scan invariant (F34) 緑 <反映>。
+- **限定 (D79(7) 部分閉鎖)**: producer seal/provider 実走/commit 作成なしの consumer replay = 「歴史
+  anchor→floor replay」。R3 (初回導入捏造)/R4 (HOME 盲検境界) 残存。journal↔row は characterization であり
+  enforcement でない。
+
+### 消化した ID
+
+- [T-011] **統合 E2E を部分消化** (実 seal を official 経路に通す consumer replay E2E)。残 = lineage 照合
+  (C02/R3/R4)・official guard 解除・PBS wrapper・§5-viii 受諾 (下記次の一手)。
+
+### 次の一手
+
+前エントリ (2026-07-24 (3)) から、floor 実測前の実像を精緻化 (gate パッケージ調査 + 本 E2E の知見):
+
+1. [T-011] 科学レーン floor 実測。**発火前の残 gate**: (a) official guard (_assert_official_permitted)
+   解除の設計判断 (F6 後の意図的 dormant、typo でない)・要 T 番号化, (b) Pegasus PBS floor wrapper
+   (untracked), (c) 実行 revision 束縛, (d) §5-(viii) 残存限界の最終受諾 (B-005 未裁定), (e) lineage 照合
+   (C02/R3/R4、repo 内で閉じず外部 attestation/署名を要す)。統合 E2E の consumer replay は本 wave で land。
+2. [T-068] R commit で「移行契約により superseded」確定 (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる。変わらず
+5. [T-086] PKG-2: FROZEN_MANIFEST の exact key-set / lineage durable assert。本 commit OID 82803d6d 保持・
+   下流 ratification 前に導入が条件。変わらず
+6. [T-085] 裁定パッケージ PKG-1: pipeline record env 未検査 (D83 (5))。変わらず
+7. [T-067] 部分消化・継続: exact 化の残余 (D73 (10))。変わらず
+8. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+9. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+10. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+11. [T-012] 延期: pilot 凍結維持。変わらず
+12. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+13. [T-080] 科学レーン第 2 手 (protocol 実凍結 + 予測封印) 完了。統合 E2E は本エントリで部分消化、
+    残 floor 実測は [T-011] へ集約。
