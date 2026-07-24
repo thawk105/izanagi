@@ -63,6 +63,10 @@ GENERATOR_SOURCES = {
     ),
     "artifacts": "orchestrator/campaign/s8b_oracle_artifacts.py",
 }
+_NO_ACTIVE_REFUSAL = (
+    "freeze-ratify: [no-active] [no-active] live active pointer が無い "
+    "(v2 未発効)"
+)
 
 _T080_SOURCE_GOLDEN = (
     ("known_axes", "/entries/balanced/ident_all/sources/3/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
@@ -1467,6 +1471,7 @@ def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_pa
     )
 
     assert result["status"] == "refused" and result["allowed"] is False
+    _assert_exact_refusals(result["refusals"], {_NO_ACTIVE_REFUSAL})
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
 
@@ -1744,6 +1749,7 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
             except Exception:
                 pass
 
+    # loser reason は競合タイミング依存で非決定のため status のみ固定する。
     assert sorted(result["status"] for result in results) == ["claim-won", "refused"]
     assert len(list(claim_root.glob("*.claim"))) == 1
 
@@ -1768,10 +1774,7 @@ def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
     )
 
     assert result["status"] == "refused"
-    _assert_exact_refusals(result["refusals"], {
-        "freeze-ratify: [no-active] [no-active] live active pointer が無い "
-        "(v2 未発効)",
-    })
+    _assert_exact_refusals(result["refusals"], {_NO_ACTIVE_REFUSAL})
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
 
@@ -1799,8 +1802,7 @@ def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_pa
 
     assert result["status"] == "refused" and result["allowed"] is False
     _assert_exact_refusals(result["refusals"], {
-        "freeze-ratify: [no-active] [no-active] live active pointer が無い "
-        "(v2 未発効)",
+        _NO_ACTIVE_REFUSAL,
         "manifest-verify: ManifestError: manifest top-level schema が不一致",
     })
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
@@ -2439,7 +2441,8 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
 
 
 def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
-    """gate 拒否 (real freeze の floor/budget null) は CLI 実行で rc 2。"""
+    """gate 拒否 (real freeze に active generation 無し) を CLI 実行が rc 2 +
+    stdout JSON の refusal へ transport する。"""
     manifest_freeze = _synthetic_freeze(tmp_path)
     manifest_prepare = _prepare_factory()
     manifest_path, _ = _write_manifest(tmp_path, manifest_freeze, manifest_prepare)
@@ -2464,6 +2467,10 @@ def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
         [sys.executable, "-c", script], capture_output=True, text=True,
     )
     assert proc.returncode == 2, (proc.returncode, proc.stdout, proc.stderr)
+    payload = json.loads(proc.stdout)
+    assert payload["status"] == "refused"
+    assert payload["allowed"] is False
+    _assert_exact_refusals(payload["refusals"], {_NO_ACTIVE_REFUSAL})
     assert not output_root.exists() and not budget_path.exists()
 
 
@@ -3090,13 +3097,21 @@ def _tree_file_snapshot(root: Path) -> dict[str, str]:
     }
 
 
-def _v2_refusal_reason(result: dict) -> str:
-    assert result["status"] == "refused", result
-    assert len(result["refusals"]) == 1, result["refusals"]
-    prefix = "v2-execution: ["
-    refusal = result["refusals"][0]
-    assert refusal.startswith(prefix) and "]" in refusal[len(prefix):], refusal
-    return refusal[len(prefix):].split("]", 1)[0]
+def _unique_store_victim(binaries: dict) -> dict:
+    victims = [
+        rec for rec in binaries.values()
+        if sum(
+            candidate["store_path"] == rec["store_path"]
+            for candidate in binaries.values()
+        ) == 1
+    ]
+    assert victims, binaries
+    victim = victims[0]
+    assert sum(
+        candidate["store_path"] == victim["store_path"]
+        for candidate in binaries.values()
+    ) == 1
+    return victim
 
 
 def _run_v2(root: Path, freeze_path: Path, manifest_path: Path, prepare_fn,
@@ -3120,11 +3135,11 @@ def _run_v2(root: Path, freeze_path: Path, manifest_path: Path, prepare_fn,
 
 def _assert_extime_launch_refusal(decision):
     assert not decision.allowed
-    assert len(decision.refusals) == 1
-    refusal = decision.refusals[0]
-    assert refusal.startswith("v2-execution: launch-validate:")
-    assert "protocol.extime_s" in refusal
-    assert "受領 3" in refusal and "承認 5" in refusal
+    _assert_exact_refusals(decision.refusals, {
+        "v2-execution: launch-validate: [floor-artifact-invalid] "
+        "[floor-artifact-invalid] floor protocol full validation 失敗: "
+        "protocol.extime_s が承認凍結値と不一致 (受領 3 != 承認 5)",
+    })
 
 
 def test_v2_standalone_gate_check_requires_full_floor_validation(tmp_path):
@@ -3550,7 +3565,7 @@ def test_v2_store_missing_is_refused(tmp_path):
     )
     assert isinstance(baseline, s8b_ratified_freeze.LaunchValidatedFreeze)
     # 1 cell の store 実体を消す。
-    victim = next(iter(binaries.values()))
+    victim = _unique_store_victim(binaries)
     (out_root / victim["store_path"]).unlink()
     before = _tree_file_snapshot(out_root)
     prepare_fn = _prepare_factory()
@@ -3558,7 +3573,12 @@ def test_v2_store_missing_is_refused(tmp_path):
 
     result = _run_v2(root, freeze_path, manifest_path, prepare_fn,
                      evaluate_fn, out_root=out_root, tmp_path=tmp_path)
-    assert _v2_refusal_reason(result) == "store-missing"
+    assert result["status"] == "refused" and result["allowed"] is False
+    cell = (victim["holdout_id"], victim["configuration_id"])
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: [store-missing] floor 計測 binary の store 実体が無い: "
+        f"{victim['store_path']} (cell={cell})",
+    })
     assert _tree_file_snapshot(out_root) == before
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not (tmp_path / "v2-budget.json").exists()
@@ -3574,7 +3594,7 @@ def test_v2_store_hash_mismatch_is_refused(tmp_path):
         s8b_ratified_freeze.load_ratified_freeze(root), root,
     )
     assert isinstance(baseline, s8b_ratified_freeze.LaunchValidatedFreeze)
-    victim = next(iter(binaries.values()))
+    victim = _unique_store_victim(binaries)
     (out_root / victim["store_path"]).write_bytes(b"corrupted-binary-bytes")
     before = _tree_file_snapshot(out_root)
     prepare_fn = _prepare_factory()
@@ -3582,7 +3602,12 @@ def test_v2_store_hash_mismatch_is_refused(tmp_path):
 
     result = _run_v2(root, freeze_path, manifest_path, prepare_fn,
                      evaluate_fn, out_root=out_root, tmp_path=tmp_path)
-    assert _v2_refusal_reason(result) == "store-hash-mismatch"
+    assert result["status"] == "refused" and result["allowed"] is False
+    cell = (victim["holdout_id"], victim["configuration_id"])
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: [store-hash-mismatch] store binary sha256 が floor receipt "
+        f"と不一致: {victim['store_path']} (cell={cell})",
+    })
     assert _tree_file_snapshot(out_root) == before
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not (tmp_path / "v2-budget.json").exists()
@@ -3594,9 +3619,19 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
     out_root = root / "output"
     manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
-    # manifest の run_contract.contract_sha256 を別 64hex に差し替えて封を再作成する。
+    # env_tag は維持し、manifest 内部だけ整合する別 contract_sha256 へ再封する。
     document = json.loads(manifest_path.read_text(encoding="utf-8"))
-    document["run_contract"]["contract_sha256"] = "1" * 64
+    original_sha256 = document["run_contract"]["contract_sha256"]
+    document["run_contract"]["contract_sha256"] = (
+        ("0" if original_sha256[0] != "0" else "1") + original_sha256[1:]
+    )
+    document["campaign_config_preimages"] = (
+        manifest_module._campaign_config_preimages(
+            schedule=document["schedule"],
+            run_contract=document["run_contract"],
+            campaign_ids=document["campaign_ids"],
+        )
+    )
     document["manifest_id"] = manifest_module._manifest_id(
         {k: v for k, v in document.items() if k != "manifest_id"})
     bad_manifest = tmp_path / "bad_manifest.json"
@@ -3605,9 +3640,10 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
 
     result = _run_v2(root, freeze_path, bad_manifest, _prepare_factory(),
                      _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path)
-    # contract_sha256 改竄は manifest 検証 (freeze snapshot 不変) では捕まらず driver の
-    # env 導出で捕捉されるか、あるいは manifest 検証段で捕捉される。いずれも refused。
-    assert result["status"] == "refused", result
+    assert result["status"] == "refused" and result["allowed"] is False
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: run_contract.contract_sha256 が env 契約 lookup 結果と不一致",
+    })
 
 
 def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
