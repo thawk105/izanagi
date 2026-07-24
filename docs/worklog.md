@@ -1062,3 +1062,45 @@ D 番号なし ([T-067] 正本は D73、設計判断は insight)。
 13. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 14. [T-012] 延期: pilot 凍結維持。変わらず
 15. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-25 (4) — /rulings: 裁定待ち 5 件をユーザーが推奨どおり一括裁定 — official 解禁を承認 (D86 起票、計測なし)
+
+/rulings 1 回。前エントリ (3) 後に索引化した裁定待ち 9 件のうち詳説 5 件を、ユーザーが
+「全部推奨通りで」と一括裁定。read-only 収集 → ユーザー裁定 → 本記録 (クラス 2 昇格)。
+実行系 (push) は Pegasus 規約によりユーザー手番で、AI は実行しない。**本記録に実装は含まない**。
+
+- **[T-088] official 解禁**: U-1 を**承認** — `_assert_official_permitted` を correctness gate ではなく
+  **期限つき activation lock** と再分類する。併せて U-2 = (a) wrapper-only wave 先行、U-3 = (a) 明示
+  qsub + job-scoped submission artifact (新 Git receipt を作らない)、U-4 = 一括延期 を承認。
+  前エントリ (2) が「D 番号なし (未裁定を decisions へ書かない — **承認後に起票する**)」と明記して
+  いたため、承認を受けて **D86 を起票**した。解禁は official 受理集合を空集合から非空へ厳密拡大する
+  ので、実装 wave の段 1 で防壁変更として再確認する。
+- **[T-094]**: 機械検出を**採用**し設計も確定 — 検出は `<反映>` / `<受入結果を反映>` /
+  `<受入全走結果を反映>` の exact 3 文字列、対象は `docs/worklog.md` と verbatim でない
+  `output/insights/*.md`、既存 4 件は行 digest で例外登録。F36 恒久対応 2 の実体化。
+- **[T-091]/[T-092]/[T-093]/[T-089]/[T-090]**: 延期を**追認**。床値実測後の hardening wave で一括処理。
+- **push**: local main (`5932010`、未 push 7 commit) の push を**承認** → ユーザー実行
+  (`git push origin main`。AI は push しない = Pegasus 規約。前例 = 2026-07-24 (6))。
+- **見送り台帳**: 発火条件が成立している項は今回**確認できず** (35 項すべて未発火の保留承認)。
+- **検査**: 記録 commit 後の再走 = repo scan invariant + real-repo serialization 4 passed・
+  `check_docs` 違反なし・`check_ai_provenance` 337 件違反なし。
+
+### 次の一手
+1. [T-088] **承認済み・着手可能**: official 解禁の実装。順序 = wrapper-only wave 先行 → 実 artifact
+   確認 → 単一 admission predicate へ置換 → CLI は固定拒否削除 + rc=2 翻訳。設計正本 = D86 +
+   `output/insights/2026-07-25_t088-official-unlock-design.md` §4。実装 wave の段 1 で防壁変更として再確認
+2. [T-011] 科学レーン floor 実測。残 gate = [T-088] 実装 → PBS floor wrapper (未実装) → 実行 revision
+   束縛 → lineage (oracle 結線 wave)。変わらず
+3. [T-094] **承認済み・着手可能**: placeholder 機械検出を上記確定設計で実装 (F36 恒久対応 2)
+4. [T-091] 延期追認: `_verify_receipt_derivation` を public 経路で撃つ negative test。hardening wave へ
+5. [T-092] 延期追認: real-repo test の R OID pin。hardening wave へ
+6. [T-093] 延期追認: observed 15 件の独立 literal pin。hardening wave へ
+7. [T-089] 延期追認: 二重 reason-tag 描画 (production 診断欠陥候補)。hardening wave へ
+8. [T-090] 延期追認: `VerifiedFreeze.document` が mutable dict のまま返る。hardening wave へ
+9. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+10. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+11. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+12. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+13. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+14. [T-012] 延期: pilot 凍結維持。変わらず
+15. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

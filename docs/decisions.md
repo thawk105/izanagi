@@ -3707,3 +3707,46 @@ checker 恒真化リスクと実義務弱化を摘出) → FIX-1〜6 → 親独�
 invariant=F34・dev_waves supervisor・check_docs 87〈positive control +15〉・codex_agents)。checker 自体を
 敵対 mutation テスト (段 6 dispatch 行削除→赤、孤児 H2→赤) で恒真ゲートでないことを実証。記録 =
 worklog 2026-07-24 (3)、branch skills-anti-bloat。
+
+## D86. official mode 解禁の設計裁定 — guard を期限つき activation lock と再分類し、wrapper-only 先行の最小案を採る (2026-07-25)
+
+**決定: `_assert_official_permitted` を「正しさゲート」ではなく期限つき activation lock と再分類し、
+解禁は最小案で実装する。** 2026-07-25 にユーザーが U-1〜U-4 を推奨どおり一括承認した
+(worklog 2026-07-25 (4))。設計・所見の正本 =
+`output/insights/2026-07-25_t088-official-unlock-design.md`、逐語 = 同 `-verbatim.md`。
+**本裁定は設計のみで、実装していない (コード 0 byte)** — 実装は別 wave。設計 wave 側で D 番号を
+振らず「承認後に起票する」と保留していた分の履行である (worklog 2026-07-25 (2))。
+
+(1) **前提 (U-1)。** 解禁は official の受理集合を**空集合から非空へ厳密に拡大する**行為であり、
+guard は誤記ではなく意図的な dormant 防壁である。したがって「correctness gate ではなく activation
+lock」への再分類そのものが防壁の性格変更であり、ユーザーの明示承認を前提条件とした。承認は得たが、
+**実装 wave の段 1 で防壁変更として再確認する**義務は残る。絶対規律 2 (正しさゲートを緩める変異を
+許さない) は本再分類によって緩まない — 再分類の対象は起動可否のロックであって anomaly 判定ではない。
+
+(2) **順序 (U-2 = (a))。** wrapper-only wave を先行させ、実 artifact を確認してから admission を
+再裁定する。plan が提案した新 module 2 本・certificate v2・ratified 追加・完全 negative matrix は、
+条件付き機能の発火 gate・初回 cycle 前 blocker の限定・段階導入の規律・[T-083] freeze により延期する。
+
+(3) **人間認可の形 (U-3 = (a))。** 明示 `qsub` + job-scoped submission artifact を authorization とし、
+**新しい Git launch receipt は作らない**。`AI-Agent: none` は人間性の暗号学的証明ではないため、
+第二防壁として数えない (規約 attestation にとどまる)。
+
+(4) **admission は単一 predicate に統合する。** 二重評価は TOCTOU を増やすため採らない。CLI 側は
+固定拒否の削除と rc=2 の翻訳だけを行い、certificate v1・ratified・resume は不変とする。
+
+(5) **延期 (U-4)。** selector exact helper 抽出 / launch certificate v2 / ratified verifier 追加 /
+resume authorization / private permit 型 + AST pin / 完全 negative matrix / reason-code 体系一般化 は、
+1 cycle 後または oracle 結線 wave へ送る。
+
+(6) **承認時点で生きている real 所見 (実装 wave が引き継ぐ)。** `script_sha256` は環境変数からの
+自己申告で wrapper hash 照合を恒真化しうる / 「cert C が G の厳密祖先でない」拒否が実在するのに
+activation 手順に C が欠落している (失効が効くのは C 作成後の retry のみ) / `_run_campaign_core` の
+production caller は guard 付き wrapper が唯一である。いずれも親が独立に裏取りした。
+
+(7) **検証プロセス。** codex プラン (max) → 敵対相談 2 (max、**両レンズとも NO-GO**、
+A: BLOCKER 7 + MUST 5 / B: BLOCKER 5 + MUST 4 + SHOULD 2、real 21・partial 1) → 親裁定。
+**親の provisional 裁定 8 件のうち 4 件が否定された** — guard は意図的 dormant 防壁である /
+二重評価は単一 admission predicate にすべき / 提案 receipt は campaign 認可でなく revision activation /
+`AI-Agent: none` は人間証明でない。前提実測の限界として、guard の raise 実削除までは成功したが
+**guard 無効状態でのテスト実行を harness の permission classifier が拒否**したため、解除後の実挙動は
+未実測であり根拠は静的読解と模擬にとどまる (設計正本 §7 に記録)。
