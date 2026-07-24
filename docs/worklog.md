@@ -641,3 +641,53 @@ D 番号なし (test-only、設計判断は insight の発火条件つき残余�
 10. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 11. [T-012] 延期: pilot 凍結維持。変わらず
 12. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-24 (2) — [T-080] selector 予測封印 実走 (科学レーン AI 手番、branch worktree-t080-prediction-seal、計測なし)
+
+/dev-wave 1 回 (科学レーン第 2 手の AI 側工程)。protocol 実凍結 (c8cbd17、ユーザー手番) の後、
+selector の**盲検予測を封印**した。機構は wave2 (D79) 配線済みで本 wave は実行 (新規 production
+code 変更なし)。正本 = `output/insights/2026-07-24_t080-prediction-seal.md` (材料レポート)・
+同 `-verbatim.md` (plan + 相談2 + レビュー2 逐語)・同 `-mutation-ledger.json`。
+
+- **成果**: commit A=7766407 (FROZEN_MANIFEST へ floor_protocol.json pin、件数 8→9、seal 前の
+  clean 基準)。commit B=82803d6d (seal + prediction/selector-runs 13 を pin、件数 9→23)。
+- **封印**: seal rc=0/status:sealed。pre_oracle_head=7766407 (HEAD 完全一致)、protocol 承認定数
+  再導出と HEAD blob 照合・holdout v1 trust root 照合・reload verify・宣言照合まで seal 内通過。
+  body_sha256=69c7ad3e…、file sha=5884c83f…。4 agent (opus-4-8/high) + 2 static = 6 行、missing
+  ゼロ。盲検 = descriptor + 固定6候補のみ (3 キー固定 + forbidden-key scan)。独立 verify (step3) 緑。
+- **検証**: codex 起草プラン → 敵対相談 2 レンズ (正しさ+盲検 / freeze-pin+consumer、P1-P6 裁定) →
+  執行 (fail-fast・seal rc=0 gate・commit 機械閉包: staged 集合厳密一致/untracked なし/HEAD blob==
+  manifest sha/三集合一致) → 敵対レビュー 2 レンズ。**両レビューが provenance 誤記 (R1/F2) へ独立収束**
+  → headless selector を `model=claude-opus-4-8; reasoning=high` へ message-only amend (tree 同一)。
+  親ハンク・trust chain・consumer 波及は refuted/closed。
+- **変異**: FROZEN_MANIFEST ゲート (sha256 直接 recompute-compare、多層マスクなし) に単層 2 件 —
+  MUT-1 (prediction sha 改変)・MUT-2 (件数 23→22) とも KILLED、SURVIVED 0。台帳が正本。
+- **受入**: 全走 **2878 passed / 18 skipped / 0 failed** (baseline 一致・回帰ゼロ)。中心 96 passed。
+  check_docs / check_codex_agents / check_ai_provenance (320) 緑。repo scan invariant 緑 (F34)。
+- **残余**: R2 (manifest exact key-set 未検査) は durable assert 化を [T-086] PKG-2 へ繰延 (本
+  commit OID 82803d6d 保持・下流 ratification 前が条件)。R3/R4 = 初回導入捏造・HOME 盲検境界の
+  既知残余 (D80 同型)、実走は genuine (session ID 一意・token/cost 実在・実行体 bytes 一致)。
+
+### 消化した ID
+
+- [T-080] **科学レーン第 2 手 完了** — protocol 実凍結 (c8cbd17、ユーザー) + 予測封印
+  (82803d6d、AI)。floor 実測はこの後 ([T-011])。
+
+### 次の一手
+
+1. [T-080] 科学レーン第 2 手 **完了** (protocol 実凍結 + 予測封印)。残工程は floor 実測 (下記 5)
+2. [T-068] R commit で「移行契約により superseded」確定 (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる。変わらず
+5. [T-011] floor 実測直前に発火 (統合 E2E + lineage 照合)。予測は封印済で floor が予測を変えられ
+   ない盲検が成立。**初回導入捏造 (R3) / HOME 盲検境界 (R4) の残余をここで lineage 照合として扱う**。
+   Pegasus 単独。変わらず
+6. [T-086] **PKG-2 (新規)**: FROZEN_MANIFEST の exact key-set / lineage を durable assert 化
+   (同数 path 差し替え検出)。本 commit OID 82803d6d 保持・下流 ratification 前に導入が条件
+7. [T-085] 裁定パッケージ PKG-1: pipeline record env 未検査 (D83 (5))。変わらず
+8. [T-067] 部分消化・継続: exact 化の残余 (D73 (10))。変わらず
+9. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+10. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+12. [T-012] 延期: pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
+13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

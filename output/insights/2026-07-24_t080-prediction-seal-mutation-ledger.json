@@ -1,0 +1,38 @@
+{
+  "wave": "2026-07-24 T-080 selector 予測封印 (執行 wave)",
+  "target_commit": "82803d6d245d80a82954d61e065404fb15b3eeab",
+  "base_commit": "c8cbd17c111b965b8a0c36bf9e25b39ae32f8645",
+  "gate_under_test": "orchestrator/tests/test_frozen_artifacts.py (FROZEN_MANIFEST 凍結ゲート)",
+  "note": "本 wave は production code を変えない執行 wave。唯一の受理集合変更は FROZEN_MANIFEST への selector 証拠 pin。凍結ゲートは sha256 の直接 recompute-compare であり多層マスク構造を持たない (等価変異/過剰決定の余地なし) ため、単層変異 2 件で kill を実証する。復元は commit 済み tracked file を git checkout し read_text 内容一致で検証 (F32)。",
+  "single_run_guard": "対象は commit 済み tracked file。復元は git checkout + 内容一致比較で検証済み。並行ハーネスは起動していない。",
+  "mutations": [
+    {
+      "id": "MUT-1",
+      "layer": "match test (bytes 改変検出)",
+      "anchor": "manifest 内 selector_predictions.json の sha256 (5884c83f… の先頭 1 文字を 0 へ)",
+      "expect": "test_frozen_artifacts_match_manifest が赤 (recompute した実 bytes sha と不一致)",
+      "result": "KILLED",
+      "observed": "FAIL test_frozen_artifacts_match_manifest: 凍結成果物の sha256 不一致",
+      "single_reason": true,
+      "restore": "git checkout -- ; read_text == HEAD:file を確認",
+      "kill_criterion": "受理集合 (bytes 不変検査) が期待方向へ変化 (改変を fail-closed 検出)"
+    },
+    {
+      "id": "MUT-2",
+      "layer": "shape test (数え落とし検出)",
+      "anchor": "len(FROZEN_MANIFEST) == 23 を == 22 へ",
+      "expect": "test_manifest_shape_is_exact が赤 (実 dict 23 件と不一致)",
+      "result": "KILLED",
+      "observed": "FAIL test_manifest_shape_is_exact: 凍結対象は 23 件 (…)",
+      "single_reason": true,
+      "restore": "git checkout -- ; read_text == HEAD:file を確認",
+      "kill_criterion": "件数不変検査が期待方向へ変化 (エントリ数え落としを検出)"
+    }
+  ],
+  "residual_gap": {
+    "id": "R2 (レビュー2)",
+    "desc": "test_manifest_shape_is_exact は exact key-set を検査せず、同数 path 差し替え (旧 pin を未知 path へ) を検出しない。本 commit の証拠鎖は (i) reviews による 23/23 独立 recompute、(ii) 親の HEAD blob==manifest sha 照合、(iii) 実ファイル集合==journal 宣言==manifest key 集合の三点一致で担保。durable な key-set/lineage assert 化は裁定パッケージへ繰延 (条件: 本 commit OID 82803d6d を保持し、パッケージを下流 ratification より前に導入)。",
+    "disposition": "deferred-to-ruling-package"
+  },
+  "summary": "2/2 KILLED, SURVIVED 0, injection failed 0"
+}
