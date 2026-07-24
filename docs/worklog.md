@@ -876,3 +876,46 @@ production・凍結 bytes・guard・calibration 無変更)。正本 = `output/in
 11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 12. [T-012] 延期: pilot 凍結維持。変わらず
 13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 (test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)
+
+/dev-wave 1 回。D73(10) の refusal 集合未 pin 残余を test-only で消化。code commit = e9014d0
+(+64/-28、production・凍結成果物 bytes・guard・calibration・受理集合 無変更)。正本 =
+`output/insights/2026-07-25_t067-exact-residual.md` + 同 `-mutation-ledger.json` + 同 `-verbatim.md`。
+D 番号なし ([T-067] 正本は D73、設計判断は insight)。
+
+- **中核 (項3 wrong-layer masking 除去)**: contract_sha256 mismatch テストは env-contract 不一致を謳うが
+  旧 fixture は manifest-preimage で先に落ち env-guard 未到達 = 退行しても永久緑の masking。preimage 再封で
+  env-guard 到達させ reason を exact 化 (Level 2)。env-guard 期待値は env_tag キーの別レジストリ由来で
+  manifest 独立ゆえ恒真でない (親独立確認)。
+- **他**: store×2 (bespoke parser 廃・一意 victim 動的構成 exact)、extime (全文 exact)、run_block/CLI の
+  no-active (`_NO_ACTIVE_REFUSAL` 定数、CLI は stdout JSON transport pin)。PID・subprocess race loser は
+  reason 非決定ゆえ意図的 partial 維持。
+- **検証** (レンズ各 2 本): codex プラン (xhigh) → 敵対相談 2 → 親裁定 → 実装 (high) → 敵対レビュー 2
+  (must-fix 0) → 変異 matrix。相談/レビューが親の当初 lean を 3 点訂正: store は prefix でなく exact が
+  負債返済 (refuted churn)、項3 は「実装しない」でなく Level 2 (refuted)、extime は over-determination でない
+  (P3 refuted)。私の victim/cell 懸念も refuted (portable record が cell field を必須 key に持つ)。
+- **変異 matrix (新 HEAD e9014d0 vs 旧 HEAD~1 0c03609)**: 全 6 EXCLUSIVE。**M4 (env-guard 無効化) = 唯一の
+  実 kill** (status refused→completed 反転、旧テストは masking で緑)。M1/M2/M3/M4'/M8 = 排他 diagnostic pin。
+  項6 no-active は sibling 既検出 = 非排他 (node 契約完備)。台帳が正本。
+- **受入**: 全走 **2919 passed / 18 skipped / 0 failed** (234s、回帰ゼロ)。check_docs / check_ai_provenance /
+  repo scan invariant (F34) は本 docs commit 後に再走 <反映>。
+
+### 消化した ID
+- [T-067] **消化** (exact 化残余 D73(10))。残る partial (PID・subprocess race loser) は reason 非決定ゆえ
+  意図的で、返済すべき負債でない。
+
+### 次の一手
+1. [T-011] 科学レーン floor 実測。変わらず (発火前の残 gate = R receipt + [T-088] 設計 + ops + lineage)
+2. [T-068] R receipt 発行後に superseded 確定 (D78 (9))。承認済 (発行待ち)
+3. [T-077] R receipt 発行後に design_source 再 pin + generator M 化。承認済 (発行待ち)
+4. [T-078] R receipt 発行後に S2-4.6 承認 fixture で閉じる。承認済 (発行待ち)
+5. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+6. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+7. [T-088] official guard (`_assert_official_permitted`) 解除の設計確定 (floor gate 2a)。実装前に防壁変更として再確認。変わらず
+8. [T-089] **新規**: 二重 reason-tag 描画 (`[floor-artifact-invalid]`/`[no-active]` の冗長二重、`RatifiedFreezeError.__init__` + driver 両付け) = production 診断欠陥候補。診断文字列のみ冗長で受理値不変。修正は別 production task、修正時に exact 期待値を同時更新。延期。
+9. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+10. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+12. [T-012] 延期: pilot 凍結維持。変わらず
+13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
