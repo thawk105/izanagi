@@ -1,0 +1,1 @@
+{"schema_version":"8b-selector-output/v1","choice_id":"c03","rationale":"read_ratio 20% かつ rmw=0 で書き込み主体、skew 0.9 の高競合を 48 スレッドで捌く構成。write_set_ordering は書き込みロック取得順序を統一してデッドロック起因の abort を減らし、高競合・書き込み偏重下でのスループット最大化に最も適合する。"}

@@ -1,0 +1,1 @@
+{"schema_version":"8b-selector-output/v1","choice_id":"c03","rationale":"高スキュー(0.9)かつ書き込み主体(read20%/rmw0)で48スレッドという高競合・書き込み集中条件では、write_set_ordering が書き込み順序を固定してデッドロック起因のアボートを抑制し、直列化可能性を保ちつつスループットを最大化できるため。"}

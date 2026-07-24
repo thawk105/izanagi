@@ -1,0 +1,190 @@
+{
+  "schema_version": "8b-selector-prediction-freeze/v1",
+  "generated_at": "2026-07-24T02:19:34.376521+00:00",
+  "pre_oracle_head": "776640790752a969baee9246b2531b5dde49244d",
+  "sources": {
+    "builder": {
+      "path": "orchestrator/campaign/s8b_selector_input.py",
+      "sha256": "820461466c717299b85960560de3e23096708d2b79be5e5fc523e6c774067066"
+    },
+    "holdout_freeze": {
+      "path": "output/s8b-freeze/holdout_freeze.json",
+      "sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
+    },
+    "input_schema": {
+      "path": "orchestrator/campaign/s8b_selector_catalog.json",
+      "sha256": "2ca8e29cb567ce81fafdb06de092b4b5428b3ad197468409e32a7db82abb552f"
+    },
+    "output_schema": {
+      "path": "orchestrator/campaign/s8b_selector_output_schema.json",
+      "sha256": "9ee8d85fc54a8755a25bfe9db451e4d71ee1da1f04360fb70d52dfbd163034e8"
+    },
+    "role": {
+      "path": ".claude/agents/selector-8b.md",
+      "sha256": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c"
+    }
+  },
+  "selector_basis_sha256": "779c639649d7013c12e0f509de6cac69ddd6f4fa6f1fc614012ebc2eca591b46",
+  "execution_policy": {
+    "attempts_per_agent_cell": 1,
+    "retry": false,
+    "reuse_equal_payload_output": false,
+    "fresh_context": true,
+    "declared_tools": []
+  },
+  "static_default": {
+    "rule_version": "stock-common-v1",
+    "choice_id": "c06"
+  },
+  "derangement": {
+    "rr80": "rr20",
+    "rr20": "rr80"
+  },
+  "rows": [
+    {
+      "status": "valid",
+      "arm": "on",
+      "descriptor_source_holdout": "rr20",
+      "agent_provenance": {
+        "child_id": "9f04049e-eef9-4415-a615-110c8c9b7541",
+        "declared_tools": [],
+        "finished_at": "2026-07-24T02:19:05.059859+00:00",
+        "fresh_context": true,
+        "model": "claude-opus-4-8",
+        "observed_tool_events": [],
+        "role_file_sha256": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
+        "started_at": "2026-07-24T02:18:56.821094+00:00"
+      },
+      "parser_error_code": null,
+      "input_payload_sha256": "bedc2c4961cc91361319a19642472583245342b8df10617fda3512aa0d5bbb55",
+      "raw_sha256": "28fe26abf5b666952d0b23c05b7a5443455fbdba10e97af307b0b023025143c5",
+      "choice_id": "c03",
+      "rationale": "高スキュー(0.9)かつ書き込み主体(read20%/rmw0)で48スレッドという高競合・書き込み集中条件では、write_set_ordering が書き込み順序を固定してデッドロック起因のアボートを抑制し、直列化可能性を保ちつつスループットを最大化できるため。",
+      "binding_entry_sha256": "8302f087b622515355465ea69a2ee907f81c6f2f2629564531c83aa7054eadf6",
+      "raw_response_path": "output/s8b-freeze/selector-runs/raw_rr20_on.txt",
+      "target_holdout": "rr20",
+      "binding_key": "sort_best",
+      "decision_method": "selector_agent"
+    },
+    {
+      "status": "valid",
+      "arm": "off",
+      "descriptor_source_holdout": null,
+      "agent_provenance": null,
+      "parser_error_code": null,
+      "input_payload_sha256": null,
+      "raw_sha256": null,
+      "choice_id": "c06",
+      "rationale": null,
+      "binding_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "raw_response_path": null,
+      "target_holdout": "rr20",
+      "binding_key": "stock_common",
+      "decision_method": "static_default"
+    },
+    {
+      "status": "valid",
+      "arm": "swapped",
+      "descriptor_source_holdout": "rr80",
+      "agent_provenance": {
+        "child_id": "ec0ddd51-a838-4d80-8141-9c614b4add14",
+        "declared_tools": [],
+        "finished_at": "2026-07-24T02:19:15.222612+00:00",
+        "fresh_context": true,
+        "model": "claude-opus-4-8",
+        "observed_tool_events": [],
+        "role_file_sha256": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
+        "started_at": "2026-07-24T02:19:05.118485+00:00"
+      },
+      "parser_error_code": null,
+      "input_payload_sha256": "f894acc13008681d79ceb0e786f79d562742eee7305c8b4f3056526df61955c2",
+      "raw_sha256": "9b23d5703596a98070fb9cd7161a35ba162a1dbb0c2173f09af10c0d499700f8",
+      "choice_id": "c03",
+      "rationale": "高スキュー(0.9)・48スレッドの高競合下でスループット最大化を狙うには、write_set_ordering で書き込み順序を統一しデッドロック起因のアボートを削減するのが最も適合する。read 80%・rmw=0 でも書き込み衝突の順序制御が競合解消に効き、backoff や reason gate 系より安定した TPS が見込める。",
+      "binding_entry_sha256": "8302f087b622515355465ea69a2ee907f81c6f2f2629564531c83aa7054eadf6",
+      "raw_response_path": "output/s8b-freeze/selector-runs/raw_rr20_swapped.txt",
+      "target_holdout": "rr20",
+      "binding_key": "sort_best",
+      "decision_method": "selector_agent"
+    },
+    {
+      "status": "valid",
+      "arm": "on",
+      "descriptor_source_holdout": "rr80",
+      "agent_provenance": {
+        "child_id": "8aa0af3f-36eb-4cdf-9abd-f3611b3f1362",
+        "declared_tools": [],
+        "finished_at": "2026-07-24T02:19:25.706147+00:00",
+        "fresh_context": true,
+        "model": "claude-opus-4-8",
+        "observed_tool_events": [],
+        "role_file_sha256": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
+        "started_at": "2026-07-24T02:19:15.301305+00:00"
+      },
+      "parser_error_code": null,
+      "input_payload_sha256": "f894acc13008681d79ceb0e786f79d562742eee7305c8b4f3056526df61955c2",
+      "raw_sha256": "20691240bef7f84215441955279b1cd1a2cda941d7c86062f1aecd2eaae98381",
+      "choice_id": "c04",
+      "rationale": "高スキュー(0.9)・48スレッドの高競合かつ読み込み80%・rmw=0の構成では、不要なアボートを選択的に抑える subset_abort_reason_gate が無駄な再試行を減らしスループットを最大化しやすい。全アボート理由を一律ゲートする c05 は正当なアボートまで阻害し serializable/S2 の正しさを崩す恐れがあり、固定バックオフや書込集合順序は読み偏重・rmw無しの本ワークロードでは効果が薄い。",
+      "binding_entry_sha256": "6b174daaade66de4113fa71267b4a1954bb2009e9dc54aa21c066402023f8a53",
+      "raw_response_path": "output/s8b-freeze/selector-runs/raw_rr80_on.txt",
+      "target_holdout": "rr80",
+      "binding_key": "system_gate",
+      "decision_method": "selector_agent"
+    },
+    {
+      "status": "valid",
+      "arm": "off",
+      "descriptor_source_holdout": null,
+      "agent_provenance": null,
+      "parser_error_code": null,
+      "input_payload_sha256": null,
+      "raw_sha256": null,
+      "choice_id": "c06",
+      "rationale": null,
+      "binding_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "raw_response_path": null,
+      "target_holdout": "rr80",
+      "binding_key": "stock_common",
+      "decision_method": "static_default"
+    },
+    {
+      "status": "valid",
+      "arm": "swapped",
+      "descriptor_source_holdout": "rr20",
+      "agent_provenance": {
+        "child_id": "c734f0ae-c571-4e24-b76f-3cba8cf26652",
+        "declared_tools": [],
+        "finished_at": "2026-07-24T02:19:34.358214+00:00",
+        "fresh_context": true,
+        "model": "claude-opus-4-8",
+        "observed_tool_events": [],
+        "role_file_sha256": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
+        "started_at": "2026-07-24T02:19:25.781229+00:00"
+      },
+      "parser_error_code": null,
+      "input_payload_sha256": "bedc2c4961cc91361319a19642472583245342b8df10617fda3512aa0d5bbb55",
+      "raw_sha256": "925b5e1155509da7bcca0df775622d2cf2f7c04559a7bf462912f8641af42ed3",
+      "choice_id": "c03",
+      "rationale": "read_ratio 20% かつ rmw=0 で書き込み主体、skew 0.9 の高競合を 48 スレッドで捌く構成。write_set_ordering は書き込みロック取得順序を統一してデッドロック起因の abort を減らし、高競合・書き込み偏重下でのスループット最大化に最も適合する。",
+      "binding_entry_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+      "raw_response_path": "output/s8b-freeze/selector-runs/raw_rr80_swapped.txt",
+      "target_holdout": "rr80",
+      "binding_key": "sort_best",
+      "decision_method": "selector_agent"
+    }
+  ],
+  "swapped_follow_expectations": [
+    {
+      "target_holdout": "rr20",
+      "source_on_holdout": "rr80",
+      "expected_choice_id": "c04"
+    },
+    {
+      "target_holdout": "rr80",
+      "source_on_holdout": "rr20",
+      "expected_choice_id": "c03"
+    }
+  ],
+  "body_sha256": "69c7ad3ea05ee652fc761aa96a6f03ff4f07ba2a50d41d2c0027c215a6e64a5a"
+}

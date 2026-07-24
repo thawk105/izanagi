@@ -1,0 +1,1 @@
+{"schema_version":"8b-selector-output/v1","choice_id":"c03","rationale":"高スキュー(0.9)・48スレッドの高競合下でスループット最大化を狙うには、write_set_ordering で書き込み順序を統一しデッドロック起因のアボートを削減するのが最も適合する。read 80%・rmw=0 でも書き込み衝突の順序制御が競合解消に効き、backoff や reason gate 系より安定した TPS が見込める。"}
