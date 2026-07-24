@@ -952,7 +952,12 @@ D 番号なし ([T-067] 正本は D73、設計判断は insight)。
   permission classifier が拒否**した。clean tree では同コマンドが通る (復元後 `-k official` 29 passed)。
   DW-O19 手順で即復元・内容一致確認済。よって解除後の実挙動は未実測で、根拠は静的読解と模擬のみ。
 - **検査**: repo scan invariant (三軸語 conjunction) **1 passed**・`check_docs.py` 違反なし・
-  ベースライン `test_s8b_floor_campaign.py` 197 passed / 2 skipped。docs commit 後に再走 <反映>。
+  ベースライン `test_s8b_floor_campaign.py` 197 passed / 2 skipped。記録 commit `3799a65` の**後**に
+  再走して repo scan invariant + real-repo serialization 4 passed・check_ai_provenance 332 件違反なし (F34)。
+- **段 8 自己改善 (候補 3・採用 2)**: (1) 完了済み人間手番の「発行待ち」繰り越し → **F35 新設** +
+  `DW-S01` へ照合義務を統合。(2) 実編集での前提実測を環境が拒否した場合の記録義務を `DW-S01` へ統合。
+  (3) 一般 Agent 起動時の model 明示義務は `hooks/README.md` が正本で重複複製になるため**不採用**。
+  「発行待ち表記と receipt 実在の機械照合」は未実装のまま裁定パッケージ候補として残す (F35 恒久対応 2)。
 
 ### 消化した ID
 - [T-088] **消化** (設計確定 = 裁定パッケージ発行。実装は U-1〜U-4 の裁定後に別 wave)。

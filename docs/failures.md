@@ -473,3 +473,26 @@
      hit があれば defang + erratum で凍結する** (同上)
 - 現行実体: `docs/dev-wave/core.md` の `DW-S07`。
 - 記録: worklog 2026-07-23 (2)、defang erratum = wave2 台帳 L642 (原文 = 441babc)、D80 (7)
+
+### F35. 完了済みの人間手番を「発行待ち」として繰り越し、依存 3 タスクを不要に blocked 扱いした [ドリフト] [手順漏れ]
+
+- 事象: ユーザーは 2026-07-24 に R receipt を発行済み (`8bec195` = `AI-Agent: none` commit、
+  変更は receipt 1 ファイル)。にもかかわらず、その**後**に書かれた worklog 2 エントリが
+  [T-068]/[T-077]/[T-078] を「R receipt 発行後に…承認済 (発行待ち)」として繰り越し続け、
+  さらに /rulings は既に実行済みの発行を「承認」として再裁定した。[T-088] の dev-wave で
+  敵対相談が指摘し、親が git で確定するまで 1 日以上 stale が残った
+- 誘発要因: 「承認」と「実行」を別々に追跡していなかった。次の一手の項目は前エントリから
+  文面ごと繰り越されるため、一度書かれた「発行待ち」は誰かが一次資料に当たるまで自走し続ける。
+  承認を記録する側 (/rulings) が「その手番は既に済んでいないか」を照合していなかった
+- 検出できた理由: dev-wave 段 3 の敵対相談に「親 brief 自身も攻撃対象」と明記していたこと。
+  レンズ B が brief の前提 (「R receipt が残 gate」) を否定し、親が `git log` と
+  `merge-base --is-ancestor`、および protocol 実凍結が receipt の active-valid を機械要求する事実
+  (`orchestrator/campaign/s8b_floor_campaign.py` の `freeze_protocol`) で裏取りした
+- 恒久対応:
+  1. **「人間手番待ち」と繰り越された前提は、brief 前の実測で git と実成果物に照合して未実行を
+     確認する。既実行なら stale と裁定し依存項目を繰り上げる** (`docs/dev-wave/core.md` の
+     `DW-S01` へ統合、2026-07-25)
+  2. 「発行待ち」表記と receipt 実在の機械照合は `tools/check_docs.py` への追加候補として
+     裁定パッケージへ送る (本台帳では宣言に留めない — 未実装であることを明示する)
+- 現行実体: `docs/dev-wave/core.md` の `DW-S01`。
+- 記録: worklog 2026-07-25 (2)、裁定パッケージ = `output/insights/2026-07-25_t088-official-unlock-design.md` §1
