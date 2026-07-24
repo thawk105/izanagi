@@ -3,8 +3,8 @@
 
 「凍結対象の sha256 不変を毎 commit 照合」の対象を曖昧語 (「相談逐語 3 本」等) でなく
 exact path→sha256 の manifest として固定し、テストで全件一致を強制する。s1 freeze 2 本
-+ v1 holdout freeze + 2026-07-16 の裁定資料 2 本と相談逐語 3 本を列挙する
-(プラン §横断規律 line 140 の enumeration に整合)。
++ v1 holdout freeze + floor protocol + 2026-07-16 の裁定資料 2 本と相談逐語 3 本を
+列挙する (プラン §横断規律 line 140 の enumeration に整合)。
 
 sha256 は実物から採取して埋めた値であり、凍結ファイルの改変・移動・削除を機械検出する。
 自走 harness を持つため pytest 非依存で走る (二重 runner 規律)。
@@ -25,6 +25,8 @@ from skiputil import Skip  # noqa: E402  (二重 runner 契約: _run が捕捉�
 # 凍結成果物の exact path (repo-relative) → sha256。実物から採取済み。
 # - s1-freeze 2 本 (known_axes は B-2 holdout freeze から直接参照される)
 # - v1 holdout freeze (v2 連鎖の trust root、C2-5)
+# - floor protocol (floor データ閲覧前の盲検 protocol trust root、s8b-floor-protocol/v2。
+#   seal が承認定数からの canonical 再導出と HEAD blob を照合する対象)
 # - 2026-07-16 裁定資料 2 本 (F6 = 択 a / F7 = 推奨案の正本、不変)
 # - 2026-07-16 相談逐語 3 本 (裁定資料に対応する codex 敵対相談の逐語。プラン line 140 =
 #   「相談逐語 3 本」。名称に -consultations を持つ凍結 insight = floor-protocol /
@@ -37,6 +39,8 @@ FROZEN_MANIFEST = {
         "203de36b9749b9021d1b944d26fad4c8ed617a0fdd1438435cb67e90a0efcf7a",
     "output/s8b-freeze/holdout_freeze.json":
         "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+    "output/s8b-freeze/floor_protocol.json":
+        "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac",
     "output/insights/2026-07-16_s8b-floor-protocol-package.md":
         "150438a4ce2d0e5cab772c3eb9bfa05f44307a5dae5e47a1034778a3e3d9f6ba",
     "output/insights/2026-07-16_s8b-freeze-v2-design-material.md":
@@ -74,7 +78,8 @@ def test_frozen_artifacts_match_manifest():
 
 def test_manifest_shape_is_exact():
     """manifest が exact path→64hex sha256 で、重複や不正 hex を持たない。"""
-    assert len(FROZEN_MANIFEST) == 8, "凍結対象は 8 件 (s1 2 + v1 1 + 裁定資料 2 + 逐語 3)"
+    assert len(FROZEN_MANIFEST) == 9, \
+        "凍結対象は 9 件 (s1 2 + v1 1 + protocol 1 + 裁定資料 2 + 逐語 3)"
     for rel, sha in FROZEN_MANIFEST.items():
         assert rel.startswith("output/"), f"repo-relative path でない: {rel}"
         assert len(sha) == 64 and all(c in "0123456789abcdef" for c in sha), \
