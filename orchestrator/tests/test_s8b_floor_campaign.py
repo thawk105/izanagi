@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """s8b floor campaign driver (``campaign.s8b_floor_campaign``) の契約テスト (formula v2)。
 
-ccbench submodule はこのマシンに無いため、実ビルド・実 bench は一切呼ばない。
+実ビルド・実 bench は一切呼ばない。
 ``prepare_fn``/``buildcache.build``/``measure_fn``/``probe_fn``/``sleep_fn``/
 ``monotonic_fn``/``now_fn`` を全て注入し、合成 freeze fixture (holdout rr79/rr23 × 6 構成、
 stock_common 含む) で全経路を回す。rr79/rr23 は実在 freeze の rr80/rr20 と records/threads/
 workload を意図的に変え、「freeze から来た値」であることをテスト内で判別できるようにしてある
-(δ-15: 新規テストは synthetic 軸のみ。holdout 実軸 literal を新規に書かない)。
+(δ-15: 原則 synthetic 軸のみ。固定 seal の consumer replay 1 本だけは実 freeze bytes を読む)。
 
 floor の式そのものの mutation-killing テストは ``test_s8b_floor_stats.py`` が正本。本ファイルは
 driver 側の配線 (schedule 決定性・golden + 意図 mutant / protocol 承認凍結値 pin + 版交差拒否 /
@@ -280,12 +280,13 @@ class _FakeScalePoint:
         self.run_cmd = run_cmd
 
 
-def _shape_faithful_run_cmd(binary, records, threads, workload) -> str:
+def _shape_faithful_run_cmd(
+        binary, records, threads, workload, *, env_tag=ENV_TAG, extime_s=5) -> str:
     """production repro_command と同じ argv shape の runtime-path fake を返す。"""
-    contract = ec.lookup(ENV_TAG)
+    contract = ec.lookup(env_tag)
     argv = list(s8b_floor_campaign.build_portable_run_cmd(
         binary="output/fixture/bench", workload=workload, records=records,
-        threads=threads, extime_s=5, clocks_per_us=contract.clocks_per_us,
+        threads=threads, extime_s=extime_s, clocks_per_us=contract.clocks_per_us,
         numactl=contract.numactl,
     ))
     argv[argv.index("--") + 1] = str(binary)
@@ -293,31 +294,43 @@ def _shape_faithful_run_cmd(binary, records, threads, workload) -> str:
 
 
 def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_reps=None,
-                     reps_fn=None):
+                     reps_fn=None, env_tag=ENV_TAG, extime_s=5):
     raise_for = set(raise_for)
     partial_for = set(partial_for)
     calls: list = []
+    call_details: list = []
 
     def measure_fn(binary, records, threads, workload):
         cell_id = _cell_id_from_binary(binary)
         calls.append(cell_id)
+        call_details.append({
+            "cell_id": cell_id,
+            "records": records,
+            "threads": threads,
+            "workload": dict(workload),
+        })
         if cell_id in raise_for:
             raise RuntimeError(f"fixture: 実行不能を模す ({cell_id})")
         if reps_fn is not None:
             values = reps_fn(cell_id)
             return _FakeScalePoint(throughputs=list(values), notes=[],
                                    run_cmd=_shape_faithful_run_cmd(
-                                       binary, records, threads, workload))
+                                       binary, records, threads, workload,
+                                       env_tag=env_tag, extime_s=extime_s))
         n = reps
         if cell_id in partial_for:
             n = partial_reps if partial_reps is not None else max(reps - 1, 0)
         base = value_fn(cell_id)
         return _FakeScalePoint(
             throughputs=[base] * n, notes=[],
-            run_cmd=_shape_faithful_run_cmd(binary, records, threads, workload),
+            run_cmd=_shape_faithful_run_cmd(
+                binary, records, threads, workload,
+                env_tag=env_tag, extime_s=extime_s,
+            ),
         )
 
     measure_fn.calls = calls
+    measure_fn.call_details = call_details
     return measure_fn
 
 
@@ -392,6 +405,145 @@ def _tree_snapshot(root: Path) -> tuple:
         else:
             rows.append(("dir", rel))
     return tuple(rows)
+
+
+def _git_stdout(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    ).stdout
+
+
+def _clone_committed_head_with_ccbench(destination: Path, *, ccbench_pin: str) -> Path:
+    """ネットワークを使わず、committed HEAD と初期化済み submodule を複製する。"""
+    subprocess.run(
+        ["git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(destination)],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    source_submodule = ROOT / "external" / "ccbench"
+    assert source_submodule.is_dir()
+    assert _git_stdout(source_submodule, "rev-parse", "HEAD").strip() == ccbench_pin
+    cloned_submodule = destination / "external" / "ccbench"
+    subprocess.run(
+        [
+            "git", "clone", "--quiet", "--no-hardlinks",
+            str(source_submodule), str(cloned_submodule),
+        ],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "checkout", "--quiet", "--detach", ccbench_pin],
+        cwd=cloned_submodule, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    return destination
+
+
+def _bytes_snapshot(root: Path, relative_paths) -> tuple:
+    rows = []
+    for relative in sorted(relative_paths):
+        path = root / relative
+        assert path.is_file() and not path.is_symlink()
+        rows.append((relative, path.read_bytes()))
+    return tuple(rows)
+
+
+def _independent_real_seal_rratios(freeze: dict) -> dict[str, str]:
+    """enumerate_cells を使わず、seal bytes から cell→rratio を直接射影する。"""
+    expected = {}
+    for holdout_id, holdout in freeze["holdouts"].items():
+        rratio = holdout["ycsb"]["ycsb_rratio"]
+        for configuration_id in holdout["variant_binding"]["entries"]:
+            expected[f"{holdout_id}::{configuration_id}"] = rratio
+    return dict(sorted(expected.items()))
+
+
+def _independent_constant_tps_floors(
+        freeze: dict, *, stock_configuration: str,
+        throughput: float, wired_min_rel_floor: float,
+) -> dict[str, dict]:
+    """全 session 同一 TPS (= noise 0) の floor を stats 実装なしで計算する。"""
+    floor = max(0.0, throughput * wired_min_rel_floor)
+    expected = {}
+    for holdout_id, holdout in freeze["holdouts"].items():
+        configurations = sorted(holdout["variant_binding"]["entries"])
+        expected[holdout_id] = {
+            "pairs": {
+                configuration: floor
+                for configuration in configurations
+                if configuration != stock_configuration
+            },
+            "scalar_alt": floor,
+            "scale_ref": throughput,
+        }
+    return expected
+
+
+def _make_real_freeze_prepare(
+        freeze: dict, cells: list[dict], *, ccbench_pin: str,
+        ccbench_dir: Path, cache_root: Path,
+):
+    """実 freeze entry を別 snapshot と照合する test-only materializer。"""
+    entries = {
+        (holdout_id, configuration): entry
+        for holdout_id, holdout in freeze["holdouts"].items()
+        for configuration, entry in holdout["variant_binding"]["entries"].items()
+    }
+    entry_bytes = {
+        key: json.dumps(
+            entry, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")
+        for key, entry in entries.items()
+    }
+    expected_cell_ids = {cell["cell_id"] for cell in cells}
+    calls = []
+
+    @contextlib.contextmanager
+    def prepare(cell, observed_ccbench_pin):
+        assert observed_ccbench_pin == ccbench_pin
+        assert isinstance(cell, dict) and set(cell) == {"configuration", "variant"}
+        configuration = cell["configuration"]
+        entry = cell["variant"]
+        matches = [key for key, expected in entries.items() if expected is entry]
+        assert len(matches) == 1
+        holdout_id, expected_configuration = matches[0]
+        assert configuration == expected_configuration
+        assert entry_bytes[(holdout_id, configuration)] == json.dumps(
+            entry, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")
+        cell_id = f"{holdout_id}::{configuration}"
+        assert cell_id in expected_cell_ids
+        calls.append((cell_id, observed_ccbench_pin))
+        yield PreparedCell(
+            genome=Genome("silo", dict(entry.get("flags", {}))),
+            src_token=cell_id,
+            ccbench_dir=str(ccbench_dir),
+            cache_root=str(cache_root),
+        )
+
+    prepare.calls = calls
+    return prepare
+
+
+def _install_real_seal_reservation(monkeypatch) -> dict[str, str]:
+    requested_s = 100_000
+    started = time.time() - 1.0
+    values = {
+        "IZANAGI_RESERVATION_JOB_ID": "real-seal-fixture-job",
+        "IZANAGI_RESERVATION_REQUESTED_S": str(requested_s),
+        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
+        "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested_s),
+        "IZANAGI_RESERVATION_HOST": "real-seal-fixture-host",
+        "IZANAGI_RESERVATION_BOOT_ID": Path(
+            "/proc/sys/kernel/random/boot_id"
+        ).read_text(encoding="ascii").strip(),
+        "IZANAGI_RESERVATION_SCRIPT_SHA256": "7" * 64,
+        "IZANAGI_RESERVATION_NONCE": "real-seal-fixture-nonce",
+        "PBS_JOBID": "real-seal-fixture-job",
+    }
+    for key, value in values.items():
+        monkeypatch.setenv(key, value)
+    return values
 
 
 def _install_required_contract(tmp_path: Path, monkeypatch):
@@ -689,6 +841,19 @@ _GOLDEN_ROUND_SHA256 = {
     2: "08d1ced78e622f342a644e022acd5ceb8846d9a1ea24779b83b417ca5e253a54",
 }
 
+# 固定 seal の master_seed/range(1, 9) を別経路で sha256 した golden。
+_REAL_SEAL_MASTER_SEED = "2026-07-18T17:16:12+09:00"
+_REAL_SEAL_ROUND_SHA256 = {
+    1: "448385cc866b3058921124dc146edd3adb0556fe0da2ebb1503982f07c1d0a0d",
+    2: "857cf054e7bf2dbcd6591f78bb08ce44f9bb5dca38fb3465e502e86f3872f812",
+    3: "dc64336e50fd9512a14c4db6532165b7d5137d8737678cccf43b6cfd7e5bfdd3",
+    4: "ed705f04ca37b12bd32e715b2e535866e98a44c153f50e0906f207b074d2071e",
+    5: "d351cc8aca948110e360904a8fdd0ccb7e882832e3595697d17e9eb99a5bbcde",
+    6: "e7c917db935ee6691cfd5d3bb733862371f718553a7aca32a464946310730297",
+    7: "1a4d6497557bf9f17eb291fc496b491cfa2b80bd503826ef47e69ba571437b7f",
+    8: "d8f355434a5608a2bbaaa3fb1b4541673760903574093c731eed4d8d95a3d0a9",
+}
+
 
 def _ref_round_perm(round_no: int) -> list:
     """spec を独立実装: hex → 先頭 8 byte big-endian → Random.shuffle。"""
@@ -697,6 +862,24 @@ def _ref_round_perm(round_no: int) -> list:
     perm = list(_GOLDEN_SORTED)
     random.Random(seed).shuffle(perm)
     return perm
+
+
+def _real_seal_schedule_golden(cell_ids) -> list[dict]:
+    """固定 seal の hard-coded round SHA から schedule spec を独立導出する。"""
+    sorted_cell_ids = sorted(cell_ids)
+    rows = []
+    for round_no, digest_hex in _REAL_SEAL_ROUND_SHA256.items():
+        assert hashlib.sha256(
+            f"{_REAL_SEAL_MASTER_SEED}/{round_no}".encode("utf-8")
+        ).hexdigest() == digest_hex
+        seed = int.from_bytes(bytes.fromhex(digest_hex)[:8], "big")
+        permuted = list(sorted_cell_ids)
+        random.Random(seed).shuffle(permuted)
+        for cell_id in permuted:
+            rows.append({
+                "seq": len(rows), "round": round_no, "cell_id": cell_id,
+            })
+    return rows
 
 
 def test_round_seed_matches_independent_sha256_slice_endian():
@@ -2817,6 +3000,514 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     )
     cert = json.loads((Path(outcome["run_dir"]) / "launch_certificate.json").read_bytes())
     assert cert["clean_scan_digest"] == expected
+
+
+def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
+    """固定 seal の consumer replay を official core test seam で通す。
+
+    producer の seal()/provider 実走や commit 作成は行わず、D79(7) の部分閉鎖だけを
+    characterization する。R3 の初回捏造と R4 の HOME 盲検境界は残り、closed とはしない。
+    journal↔prediction row の直接 assertion は固定 seal の characterization であり、
+    resolver が強制する claim=decision_method・invocation=順序/重複の範囲を拡張しない。
+    probe fixture は実 calibration + 実 issuer/consumer + fixture observation であって、
+    物理 Pegasus の実 attestation ではない。
+
+    verify/resolver/revalidate/receipt-consumer/self-check の call-count spy は、gate が
+    呼ばれたことだけを pin する diagnostic invocation pin であり mutation kill ではない。
+    gate の teeth (無効入力拒否) は既存 HEAD negative tests が担保する。本テストの新規 kill は、
+    workload rratio・floor・build src_token・clean digest の独立期待値 assertion が捕捉する
+    受理集合変化に限る。
+    """
+    seal_commit = "82803d6d245d80a82954d61e065404fb15b3eeab"
+    pre_oracle_head = "776640790752a969baee9246b2531b5dde49244d"
+    ccbench_pin = "d706650cdb31e442bef45b9b4216951d4fb40969"
+    protocol_sha256 = "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac"
+    freeze_sha256 = "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
+    prediction_sha256 = "5884c83f010f73914fe121e9eb7b2fe047a4739087a984d17287cfa338fd73f1"
+    journal_sha256 = "d41135998cff3047cf792047239a3147a1154929e560b4a2e413e4ac14f9e000"
+    calibration_sha256 = (
+        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49"
+    )
+    contract_sha256 = (
+        "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+    )
+
+    clone_root = _clone_committed_head_with_ccbench(
+        tmp_path / "committed-head", ccbench_pin=ccbench_pin,
+    )
+    out_root = tmp_path / "campaign-output"
+    claim_root = out_root / "claims"
+    build_workspace = tmp_path / "prepared-build-workspace"
+    planned_run_root = out_root / "env" / "pegasus" / "calibration" / "s8b-floor-official"
+    planned_build_cache = out_root / "s8b-build-cache"
+    claim_root.mkdir(parents=True, mode=0o700)
+    build_workspace.mkdir()
+
+    # production が作る三つの leaf は sibling scope で、source/clone の外に閉じる。
+    generated_roots = (planned_run_root, planned_build_cache, claim_root, build_workspace)
+    for generated in generated_roots:
+        assert generated.is_relative_to(tmp_path)
+        assert not generated.is_relative_to(clone_root)
+        assert not generated.is_relative_to(ROOT)
+    for left in (planned_run_root, planned_build_cache, claim_root):
+        for right in (planned_run_root, planned_build_cache, claim_root):
+            if left != right:
+                assert not left.is_relative_to(right)
+
+    source_head = _git_stdout(ROOT, "rev-parse", "HEAD").strip()
+    assert _git_stdout(clone_root, "rev-parse", "HEAD").strip() == source_head
+    assert _git_stdout(clone_root, "rev-parse", "--is-shallow-repository").strip() == "false"
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", seal_commit, "HEAD"],
+        cwd=clone_root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    assert _git_stdout(clone_root, "rev-parse", f"{seal_commit}^").strip() == pre_oracle_head
+    gitlink_fields = _git_stdout(
+        clone_root, "ls-tree", "HEAD", "external/ccbench",
+    ).split()
+    assert gitlink_fields[:3] == ["160000", "commit", ccbench_pin]
+    assert _git_stdout(
+        clone_root / "external" / "ccbench", "rev-parse", "HEAD",
+    ).strip() == ccbench_pin
+
+    protocol_path = clone_root / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    freeze_path = clone_root / s8b_floor_campaign._HOLDOUT_FREEZE_REL
+    prediction_path = clone_root / s8b_floor_campaign._SELECTOR_PREDICTIONS_REL
+    journal_path = clone_root / s8b_floor_campaign._SELECTOR_JOURNAL_REL
+    protocol_raw = protocol_path.read_bytes()
+    protocol = s8b_floor_campaign.load_protocol(protocol_path)
+    expected_protocol = {
+        "schema": "s8b-floor-protocol/v2",
+        "formula": "s8b-floor-stats/v2",
+        "env_tag": "pegasus",
+        "contract_sha256": contract_sha256,
+        "ccbench_pin": ccbench_pin,
+        "freeze": {
+            "path": "output/s8b-freeze/holdout_freeze.json",
+            "sha256": freeze_sha256,
+        },
+        "stock_configuration": "stock_common",
+        "n_sessions": 8,
+        "reps": 5,
+        "master_seed": "2026-07-18T17:16:12+09:00",
+        "schedule_algorithm": "round-permutation/v2",
+        "extime_s": 5,
+        "wired_min_rel_floor": 0.03,
+        "retry_slots_per_cell": 2,
+        "session_cv_max": "0.10",
+        "cell_cv_max": "0.15",
+        "scale_adequacy_rel_tolerance": "0.10",
+        "allowed_excluded_reasons": [
+            "competing_process", "launch_failure",
+            "nonfinite_or_partial_output", "performance_anomaly",
+        ],
+    }
+    assert protocol == expected_protocol
+    assert hashlib.sha256(protocol_raw).hexdigest() == protocol_sha256
+    assert s8b_floor_campaign._canonical_sha256(protocol) == protocol_sha256
+    assert hashlib.sha256(freeze_path.read_bytes()).hexdigest() == freeze_sha256
+    assert hashlib.sha256(prediction_path.read_bytes()).hexdigest() == prediction_sha256
+    assert hashlib.sha256(journal_path.read_bytes()).hexdigest() == journal_sha256
+
+    freeze = s8b_floor_campaign._load_verified_freeze(
+        freeze_path, expected_hash=freeze_sha256,
+    )
+    prediction = json.loads(prediction_path.read_bytes())
+    records = s8b_floor_campaign._parse_selector_journal_bytes(
+        journal_path.read_bytes(),
+    )
+    assert prediction["pre_oracle_head"] == pre_oracle_head
+    assert prediction["body_sha256"] == (
+        "69c7ad3ea05ee652fc761aa96a6f03ff4f07ba2a50d41d2c0027c215a6e64a5a"
+    )
+    assert prediction["selector_basis_sha256"] == (
+        "779c639649d7013c12e0f509de6cac69ddd6f4fa6f1fc614012ebc2eca591b46"
+    )
+    record_counts = {
+        kind: sum(record["record_type"] == kind for record in records)
+        for kind in ("run_header", "claim", "envelope", "invocation", "static_terminal")
+    }
+    assert len(records) == 15
+    assert record_counts == {
+        "run_header": 1, "claim": 4, "envelope": 4,
+        "invocation": 4, "static_terminal": 2,
+    }
+
+    declared_paths = {
+        record[field]
+        for record in records
+        for kind, field in (
+            ("claim", "payload_path"),
+            ("envelope", "envelope_path"),
+            ("invocation", "raw_response_path"),
+        )
+        if record["record_type"] == kind
+    }
+    frozen_paths = {
+        s8b_floor_campaign._HOLDOUT_FREEZE_REL,
+        s8b_floor_campaign._FLOOR_PROTOCOL_REL,
+        s8b_floor_campaign._SELECTOR_PREDICTIONS_REL,
+        s8b_floor_campaign._SELECTOR_JOURNAL_REL,
+        *declared_paths,
+    }
+    assert len(declared_paths) == 12
+    assert len(frozen_paths) == 16
+    calibration_rel = ec.lookup("pegasus").calibration_ref.path
+    assert hashlib.sha256((clone_root / calibration_rel).read_bytes()).hexdigest() == (
+        calibration_sha256
+    )
+    snapshot_paths = frozen_paths | {calibration_rel}
+    source_before = _bytes_snapshot(ROOT, snapshot_paths)
+    clone_before = _bytes_snapshot(clone_root, snapshot_paths)
+    assert source_before == clone_before
+
+    seal_targets = {
+        s8b_floor_campaign._SELECTOR_PREDICTIONS_REL,
+        s8b_floor_campaign._SELECTOR_JOURNAL_REL,
+        *declared_paths,
+    }
+    seal_diff = [
+        tuple(line.split("\t", 1))
+        for line in _git_stdout(
+            clone_root, "diff-tree", "--no-commit-id", "--name-status", "-r",
+            seal_commit, "--", "output/s8b-freeze",
+        ).splitlines()
+    ]
+    assert len(seal_diff) == 14
+    assert {status for status, _path in seal_diff} == {"A"}
+    assert {path for _status, path in seal_diff} == seal_targets
+    assert _git_stdout(
+        clone_root, "diff", "--name-only", f"{seal_commit}..HEAD", "--",
+        *sorted(seal_targets),
+    ) == ""
+
+    # 固定 seal の追加 characterization。official resolver の enforcement 主張ではない。
+    rows_by_cell = {
+        (row["target_holdout"], row["arm"]): row for row in prediction["rows"]
+    }
+    by_type_cell = {
+        (record["record_type"], record.get("target_holdout"), record.get("arm")): record
+        for record in records[1:]
+    }
+    for cell, row in rows_by_cell.items():
+        if cell[1] == "off":
+            static = by_type_cell[("static_terminal", *cell)]
+            assert static["decision_method"] == row["decision_method"]
+            assert static["choice_id"] == row["choice_id"]
+            continue
+        claim = by_type_cell[("claim", *cell)]
+        envelope_record = by_type_cell[("envelope", *cell)]
+        invocation = by_type_cell[("invocation", *cell)]
+        assert claim["decision_method"] == row["decision_method"]
+        assert claim["input_payload_sha256"] == row["input_payload_sha256"]
+        assert hashlib.sha256(
+            (clone_root / claim["payload_path"]).read_bytes()
+        ).hexdigest() == claim["input_payload_sha256"]
+        assert hashlib.sha256(
+            (clone_root / invocation["raw_response_path"]).read_bytes()
+        ).hexdigest() == invocation["raw_sha256"] == row["raw_sha256"]
+        assert {
+            key: invocation[key]
+            for key in ("status", "choice_id", "rationale", "parser_error_code",
+                        "raw_response_path", "raw_sha256")
+        } == {
+            key: row[key]
+            for key in ("status", "choice_id", "rationale", "parser_error_code",
+                        "raw_response_path", "raw_sha256")
+        }
+        assert invocation["receipt"] == row["agent_provenance"]
+        envelope_raw = (clone_root / envelope_record["envelope_path"]).read_bytes()
+        assert hashlib.sha256(envelope_raw).hexdigest() == envelope_record["envelope_sha256"]
+        envelope = json.loads(envelope_raw)
+        raw_response = (clone_root / invocation["raw_response_path"]).read_bytes()
+        assert envelope["result"].encode("utf-8") == raw_response
+        assert envelope["session_id"] == invocation["receipt"]["child_id"]
+        parsed_raw = json.loads(raw_response)
+        assert parsed_raw["choice_id"] == invocation["choice_id"]
+        assert parsed_raw["rationale"] == invocation["rationale"]
+
+    contract = ec.lookup("pegasus")
+    assert contract.contract_sha256 == contract_sha256
+    verified_calibration = env_attestation.load_verified_calibration(
+        contract, clone_root,
+    )
+    probe_calls = []
+
+    def attestation_probe():
+        """calibration 由来の clean な in-tolerance runtime 観測を返す。
+
+        実 calibration・comparator・issuer/consumer は production を通すが、
+        これは物理 Pegasus の実 attestation ではない。
+        """
+        from statistics import median
+
+        probe_calls.append(True)
+        calibration_profile = verified_calibration.attestation_profile
+        calibration_clock = calibration_profile.effective_clock
+        calibration_samples = list(calibration_clock.samples_mhz)
+        calibration_median = median(calibration_samples)
+        allowed_delta = (
+            abs(calibration_median) * calibration_clock.tolerance_pct / 100.0
+        )
+        lower = calibration_median - allowed_delta
+        upper = calibration_median + allowed_delta
+        clean_samples = [
+            min(max(sample, lower), upper)
+            for sample in calibration_samples
+        ]
+        assert len(clean_samples) == calibration_profile.cores.logical == 48
+        assert all(lower <= sample <= upper for sample in clean_samples)
+        assert any(sample != calibration_median for sample in clean_samples)
+        clean_clock = dataclasses.replace(
+            calibration_clock,
+            samples_mhz=clean_samples,
+            tolerance_pct=100.0,
+        )
+        return dataclasses.replace(
+            calibration_profile, effective_clock=clean_clock,
+        )
+
+    monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", attestation_probe)
+    reservation_values = _install_real_seal_reservation(monkeypatch)
+
+    def producer_tripwire(*_args, **_kwargs):
+        raise AssertionError("consumer replay が producer を呼んだ")
+
+    monkeypatch.setattr(s8b_prediction_runner, "seal", producer_tripwire)
+    monkeypatch.setattr(s8b_prediction_runner, "drive_journal", producer_tripwire)
+    monkeypatch.setattr(
+        s8b_prediction_runner.ClaudeHeadlessProvider, "__call__", producer_tripwire,
+    )
+
+    verify_original = s8b_selector_freeze.verify_prediction_freeze
+    resolver_original = s8b_prediction_runner.resolve_journal_for_launch
+    preflight_original = s8b_floor_campaign._floor_preflight_freeze_allowlist
+    clean_original = s8b_floor_campaign.clean_scan_digest
+    revalidate_original = s8b_floor_campaign._revalidate_issued_certificate
+    receipt_consumer_original = s8b_floor_campaign._validate_execution_receipt
+    self_check_original = s8b_floor_stats.verify_floor_artifact
+    verify_calls = []
+    resolver_calls = []
+    preflight_calls = []
+    clean_calls = []
+    revalidate_calls = []
+    receipt_consumer_calls = []
+    self_check_calls = []
+
+    def verify_spy(*args, **kwargs):
+        verify_calls.append((args, kwargs))
+        return verify_original(*args, **kwargs)
+
+    def resolver_spy(*args, **kwargs):
+        resolver_calls.append((args, kwargs))
+        return resolver_original(*args, **kwargs)
+
+    def preflight_spy(*args, **kwargs):
+        result = preflight_original(*args, **kwargs)
+        preflight_calls.append(result)
+        return result
+
+    def clean_spy(*args, **kwargs):
+        result = clean_original(*args, **kwargs)
+        clean_calls.append(result)
+        return result
+
+    def revalidate_spy(*args, **kwargs):
+        revalidate_calls.append((args, kwargs))
+        return revalidate_original(*args, **kwargs)
+
+    def receipt_consumer_spy(*args, **kwargs):
+        receipt_consumer_calls.append((args, kwargs))
+        return receipt_consumer_original(*args, **kwargs)
+
+    def self_check_spy(*args, **kwargs):
+        self_check_calls.append((args, kwargs))
+        return self_check_original(*args, **kwargs)
+
+    monkeypatch.setattr(s8b_selector_freeze, "verify_prediction_freeze", verify_spy)
+    monkeypatch.setattr(s8b_prediction_runner, "resolve_journal_for_launch", resolver_spy)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_floor_preflight_freeze_allowlist", preflight_spy,
+    )
+    monkeypatch.setattr(s8b_floor_campaign, "clean_scan_digest", clean_spy)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_revalidate_issued_certificate", revalidate_spy,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_validate_execution_receipt", receipt_consumer_spy,
+    )
+    monkeypatch.setattr(s8b_floor_stats, "verify_floor_artifact", self_check_spy)
+
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze.document, stock_configuration="stock_common",
+    )
+    expected_rratios = _independent_real_seal_rratios(freeze.document)
+    expected_cell_ids = list(expected_rratios)
+    assert {
+        cell["cell_id"]: cell["workload"]["ycsb_rratio"]
+        for cell in cells
+    } == expected_rratios
+    prepare = _make_real_freeze_prepare(
+        freeze.document, cells, ccbench_pin=ccbench_pin,
+        ccbench_dir=clone_root / "external" / "ccbench",
+        cache_root=build_workspace,
+    )
+    build_calls = []
+    fake_build = _make_fake_build(build_workspace)
+
+    def recording_build(genome, ccbench_commit, trace, **kwargs):
+        assert trace is False
+        assert ccbench_commit == ccbench_pin
+        build_calls.append({
+            "ccbench_commit": ccbench_commit,
+            "trace": trace,
+            "src_token": kwargs.get("src_token"),
+            "ccbench_dir": kwargs.get("ccbench_dir"),
+        })
+        return fake_build(genome, ccbench_commit, trace, **kwargs)
+
+    measure = _make_measure_fn(
+        reps=5, value_fn=lambda _cell_id: 1000.0,
+        env_tag="pegasus", extime_s=5,
+    )
+    outcome = s8b_floor_campaign._run_campaign_core(
+        protocol, freeze, out_root=out_root, mode="official",
+        measure_fn=measure, probe_fn=lambda: (1, "", ""),
+        sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+        prepare_fn=prepare, now_fn=lambda: _FIXED_NOW,
+        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+        execution_receipt_fn=None, build_fn=recording_build,
+        repo_root=clone_root, durable_root_policy=_durable_policy(out_root),
+        _floor_preflight_fn=None,
+    )
+
+    assert outcome["status"] == "completed"
+    assert len(verify_calls) == 1
+    assert len(resolver_calls) == 1
+    assert len(preflight_calls) == 1
+    assert len(revalidate_calls) == 1
+    assert len(receipt_consumer_calls) == 1
+    assert len(self_check_calls) == 1
+    assert len(clean_calls) == 2
+    allowlist = preflight_calls[0]
+    expected_allowlist = {
+        relative: hashlib.sha256((clone_root / relative).read_bytes()).hexdigest()
+        for relative in frozen_paths
+    }
+    expected_clean_digest = _expected_clean_digest(
+        s8b_floor_campaign._holdout_freeze.enumerate_repository_files(clone_root),
+        expected_allowlist,
+    )
+    assert allowlist == expected_allowlist
+    assert clean_calls == [expected_clean_digest, expected_clean_digest]
+    assert probe_calls == [True]
+
+    assert len(prepare.calls) == len(cells) == 12
+    assert sorted(cell_id for cell_id, _pin in prepare.calls) == expected_cell_ids
+    assert len(build_calls) == 12
+    assert sorted(call["src_token"] for call in build_calls) == expected_cell_ids
+    assert {call["ccbench_commit"] for call in build_calls} == {ccbench_pin}
+    assert {call["trace"] for call in build_calls} == {False}
+    assert {
+        Path(call["ccbench_dir"]).resolve() for call in build_calls
+    } == {(clone_root / "external" / "ccbench").resolve()}
+    assert len(measure.call_details) == 12 * 8
+    assert all(
+        call["workload"]["ycsb_rratio"] == expected_rratios[call["cell_id"]]
+        for call in measure.call_details
+    )
+
+    run_dir = Path(outcome["run_dir"])
+    manifest = json.loads((run_dir / "manifest.json").read_bytes())
+    expected_schedule = _real_seal_schedule_golden(expected_cell_ids)
+    assert manifest["schedule"] == expected_schedule
+    assert manifest["master_seed"] == _REAL_SEAL_MASTER_SEED
+    assert manifest["ccbench_pin"] == ccbench_pin
+    assert manifest["protocol_sha256"] == protocol_sha256
+    assert manifest["freeze_sha256"] == freeze_sha256
+    assert {
+        cell["cell_id"]: cell["workload"]["ycsb_rratio"]
+        for cell in manifest["cells"]
+    } == expected_rratios
+
+    result = outcome["result"]
+    assert result["eligible_for_refreeze"] is True
+    assert result["mode"] == "official"
+    assert result["env_tag"] == "pegasus"
+    assert result["ccbench_pin"] == ccbench_pin
+    assert result["protocol_sha256"] == protocol_sha256
+    assert result["freeze_sha256"] == freeze_sha256
+    assert result["manifest_sha256"] == hashlib.sha256(
+        (run_dir / "manifest.json").read_bytes()
+    ).hexdigest()
+    assert result["wired_min_rel_floor"] == 0.03
+    assert result["config"]["wired_min_rel_floor"] == 0.03
+    assert result["n_sessions"] == 8
+    assert result["reps"] == 5
+    assert all(
+        session["throughputs"] == [1000.0] * 5 and session["session_cv"] == 0.0
+        for session in result["sessions"]
+    )
+    assert all(
+        session["workload"]["ycsb_rratio"] == expected_rratios[session["cell_id"]]
+        for session in result["sessions"]
+    )
+    expected_floors = _independent_constant_tps_floors(
+        freeze.document, stock_configuration="stock_common",
+        throughput=1000.0, wired_min_rel_floor=0.03,
+    )
+    assert {
+        holdout_id: {
+            "pairs": floor["pairs"],
+            "scalar_alt": floor["scalar_alt"],
+            "scale_ref": floor["scale_ref"],
+        }
+        for holdout_id, floor in result["floors"].items()
+    } == expected_floors
+    assert all(
+        floor["scalar_alt"] == 30.0 and floor["scale_ref"] == 1000.0
+        and set(floor["pairs"].values()) == {30.0}
+        for floor in result["floors"].values()
+    )
+
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    launch = next(record for record in journal if record.get("event") == "launch-start")
+    campaign_start = next(
+        record for record in journal if record.get("event") == "campaign-start"
+    )
+    reservation_start = next(
+        record for record in journal if record.get("event") == "reservation-preflight"
+    )
+    certificate_raw = (run_dir / "launch_certificate.json").read_bytes()
+    certificate = json.loads(certificate_raw)
+    certificate_raw_sha256 = hashlib.sha256(certificate_raw).hexdigest()
+    assert certificate["clean_scan_digest"] == expected_clean_digest
+    assert certificate["protocol_sha256"] == protocol_sha256
+    assert certificate["v1_freeze_sha256"] == freeze_sha256
+    assert launch["launch_certificate_sha256"] == certificate_raw_sha256
+    assert campaign_start["launch_certificate_sha256"] == certificate_raw_sha256
+    assert reservation_start["required_s"] == 28_200
+    assert reservation_start["safety_margin_s"] == 600
+    assert s8b_floor_campaign.execution_guard.receipt_matches_contract(
+        campaign_start["execution_receipt"],
+        env_tag="pegasus", contract_sha256=contract_sha256,
+        attestation_mode="required", verified_calibration=verified_calibration,
+    )
+    assert campaign_start["execution_receipt"]["schema"] == (
+        s8b_floor_campaign.execution_guard.RECEIPT_SCHEMA_V2
+    )
+    assert journal[-1] == {"event": "terminal", "status": "completed"}
+
+    claims = list(claim_root.glob("*.claim"))
+    assert len(claims) == 1
+    claim = json.loads(claims[0].read_bytes())
+    assert claim["job_id"] == reservation_values["IZANAGI_RESERVATION_JOB_ID"]
+    assert claim["host"] == reservation_values["IZANAGI_RESERVATION_HOST"]
+    assert claim["boot_id"] == reservation_values["IZANAGI_RESERVATION_BOOT_ID"]
+
+    assert _bytes_snapshot(ROOT, snapshot_paths) == source_before
+    assert _bytes_snapshot(clone_root, snapshot_paths) == clone_before
+    assert source_before == clone_before
 
 
 def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_path):
