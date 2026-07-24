@@ -792,3 +792,52 @@ insight に記録)。
 12. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
 13. [T-080] 科学レーン第 2 手 (protocol 実凍結 + 予測封印) 完了。統合 E2E は本エントリで部分消化、
     残 floor 実測は [T-011] へ集約。
+
+## 2026-07-24 (5) — [T-086] PKG-2: FROZEN_MANIFEST exact key-set 暫定 assert (test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)
+
+/dev-wave 1 回。残余 R2 (manifest exact key-set 未検査 = 同数 path 差し替えが件数 23 のまま非検出) を、
+現行 23 件への additive・test-only な独立 key-set pin で閉じた。code commit = fb9956c (+35 行、
+production・凍結 bytes・guard・calibration 無変更)。正本 = `output/insights/2026-07-24_t086-keyset.md`
++ 同 `-mutation-ledger.json` + 同 `-verbatim.md`。D 番号なし (test-only、設計判断は insight)。
+
+- **実装**: `FROZEN_KEYSET_PROVISIONAL_82803D6D` (23 path 独立 frozenset literal) + set 等価 assert を
+  `test_manifest_shape_is_exact` 末尾へ。新 test node なし (D76 の 42-node baseline 保持)。導出
+  (`frozenset(MAN)`/glob) 禁止で恒真化回避。主張は「狭義 R2 = manifest membership」限定 (広義 lineage =
+  ancestry/attestation は別 E2E/scope 外)。命名・コメントで暫定・運用 sentinel・非改竄境界・非恒久
+  membership を明示。
+- **検証**: codex プラン (max) → 敵対相談 2 レンズ (max: 正しさ境界 / 整合・scope) → 親裁定 → 実装
+  (high) → 敵対レビュー 2 レンズ (max、**両者 real 0 / refuted 5**、lens1 は変異発火で裏取り) → 親変異 matrix。
+- **相談で精緻化した real 所見**: (a) 定数を汎用名でなく seal 固有名へ (同一ファイル pin は運用 sentinel
+  止まり、改竄境界主張不可)、(b) 変異除去側を seal 期 `selector_predictions.json` へ (seal lineage を代表)、
+  (c) brief の「R1..R16 裁定待ち」→「承認済 (D76)・未実装」訂正。**却下**: membership gap
+  (ruling-package.md は過去に意図的除外、自称 = 編集上の凍結 ≠ byte-pin)、disk 閉包 (狭義 R2 に不要)、
+  群件数 assert (冗長)。
+- **変異 matrix**: MUT = `selector_predictions.json` → `output/README.md` 同数 swap。**KILLED**
+  (match/shape=PASS・key-set assert のみ FAIL = 排他帰属、F28 の 2 条件充足)。負制御 pristine 全緑。
+  SURVIVED 0 / injection failed 0。台帳が正本。
+- **受入**: 全走 **2919 passed / 18 skipped / 0 failed**。check_ai_provenance 326 緑。check_docs /
+  repo scan invariant (F34) は本 docs commit 後に再走 <反映>。
+
+### 消化した ID
+
+- [T-086] **PKG-2 消化** (FROZEN_MANIFEST exact key-set 暫定 assert)。残 = post-seal 23 vs 恒久 12 の
+  再整合を [T-087] へ分離。
+- [T-080] 完了済 (前エントリで確定、科学レーン第 2 手)。本エントリで再掲不要。
+
+### 次の一手
+
+1. [T-011] 科学レーン floor 実測。変わらず (前エントリ参照: 発火前の残 gate a-e)
+2. [T-068] R commit で「移行契約により superseded」確定 (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる。変わらず
+5. [T-085] 裁定パッケージ PKG-1: pipeline record env 未検査 (D83 (5))。変わらず
+6. [T-067] 部分消化・継続: exact 化の残余 (D73 (10))。変わらず
+7. [T-087] **裁定パッケージ (新規)**: post-seal FROZEN_MANIFEST 23 件 vs 恒久設計 12 件 (D75 W-e =
+   旧 8 + 新 4) の未整合。将来期待集合 (12/27/他) と暫定 pin (`FROZEN_KEYSET_PROVISIONAL_82803D6D`) の
+   廃止・移行条件が未裁定。恒久形 (W-e、別ファイル golden) 実装時に暫定 pin を撤去し 12/W-e 集合へ
+   再整合する要。
+8. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+9. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+10. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+11. [T-012] 延期: pilot 凍結維持。変わらず
+12. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

@@ -1,0 +1,24 @@
+{
+  "wave": "2026-07-24 [T-086] PKG-2 FROZEN_MANIFEST exact key-set 暫定 assert",
+  "target": "orchestrator/tests/test_frozen_artifacts.py",
+  "code_commit": "fb9956c",
+  "new_assert": "test_manifest_shape_is_exact 末尾: set(FROZEN_MANIFEST) == FROZEN_KEYSET_PROVISIONAL_82803D6D (23 path 独立 frozenset literal)",
+  "method": "統合 commit 後に tracked file を一時変異し git checkout -- で復元 (DW-O19)。復元は read_text==committed で検証 (DW-M05)。flock 単一走行。",
+  "negative_control": "pristine 23 件で match/shape/key-set の 3 系統すべて緑 (偽陽性なし)",
+  "mutations": [
+    {
+      "id": "MUT",
+      "description": "FROZEN_MANIFEST から output/s8b-freeze/selector_predictions.json (seal 82803d6d で追加の証拠) を除去し output/README.md (sha 83a6fb26cfd6daf9273dafdf2f0bdfe7d66fa2e23060d08e5f9b92d5ead13657) を追加。件数 23 維持 (同数 path 差し替え)。",
+      "position": "FROZEN_MANIFEST dict の単一 entry (置換一意性 assert 済)",
+      "single_reason": "手前に同入力を落とす検査なし — match=PASS (README 実在+sha 一致)、shape の len==23/prefix/64hex=PASS。赤理由は key-set assert のみ (DW-M01 (i)(ii) 充足)。",
+      "kill_semantics": "変異前は同数差し替えが受理されていた (誤受理)。assert 追加後は拒否 = 受理集合が期待方向へ狭まる (DW-M03 kill、診断赤でない)。",
+      "representativeness": "除去側が seal 期 (82803d6d) 追加の証拠 = seal lineage 保護を代表 (相談 lens2-10)。",
+      "expected": "KILLED",
+      "result": "KILLED",
+      "observed": "match=PASS / shape=FAIL (key-set 不一致: missing=selector_predictions.json, unexpected=README.md)。復元後 read_text==committed かつ git status clean を検証。"
+    }
+  ],
+  "survived": 0,
+  "injection_failed": 0,
+  "notes": "同一ファイル内 pin の限界 (manifest と定数の協調編集は通る) は運用 sentinel として明示。改竄境界の主張はしない。恒久形 (D76) は別ファイル golden で分離。"
+}
