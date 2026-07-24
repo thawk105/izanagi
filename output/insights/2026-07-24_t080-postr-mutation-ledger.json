@@ -1,0 +1,57 @@
+{
+  "wave": "T-080-postr-test-debt-fix",
+  "date": "2026-07-24",
+  "code_commit": "c9d71fd",
+  "base_commit": "8bec195",
+  "kind": "test-only recovery",
+  "harness": "mutation_harness.py (flock + anchor 一意 assert + 注入 diff 確認 + git checkout 復元 + read_text==HEAD 内容比較 + -rf node 名記録)",
+  "mutations": [
+    {
+      "id": "MUT-1",
+      "layer": "test",
+      "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+      "old": "ignore=ignore_t080_migration_artifacts,",
+      "new": "ignore=None,",
+      "verdict": "KILLED",
+      "failed_count": 11,
+      "duration_s": 47.9,
+      "reason": "全 11 node が never-issued guard Assertion 'observed=invalid' で単一理由赤",
+      "differential": {
+        "base_8bec195": "10 failed + 1 passed (never_issued_generator_tamper 緑)",
+        "head_plus_mut": "11 failed (全 guard)",
+        "new_detection": 1,
+        "new_detection_node": "test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+        "diagnostic_localization": 10
+      }
+    },
+    {
+      "id": "MUT-2",
+      "layer": "production",
+      "file": "orchestrator/campaign/campaign_claim.py",
+      "old": "flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL",
+      "new": "flags = os.O_WRONLY | os.O_CREAT",
+      "verdict": "KILLED",
+      "failed_count": 1,
+      "duration_s": 1.1,
+      "reason": "G12 statuses assert 破れ ['claim-won','claim-won'] == ['claim-won','refused'] (単一理由、glob assert より先行)。fail-closed 排他→fail-open を検出",
+      "note": "基準 8bec195 では同 node が timeout で claim 層未到達 = hermetic 化 (E3/E4) が検出力を回復"
+    },
+    {
+      "id": "REC-1",
+      "layer": "test",
+      "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+      "old": "freeze_path={str(freeze_path)!r}, root={str(receipt_root)!r},",
+      "new": "freeze_path={str(freeze_path)!r}, root={str(ROOT)!r},",
+      "verdict": "not-counted (recovery/diagnostic evidence)",
+      "failed_count": 1,
+      "duration_s": 10.8,
+      "reason": "G12 communicate(timeout=10) の TimeoutExpired (本ホスト receipt walk >10s)。環境束縛で高速ホストでは成立しない — semantic kill として数えない。子は E5 の finally で回収"
+    }
+  ],
+  "summary": {
+    "killed": 2,
+    "not_counted": 1,
+    "survived": 0,
+    "all_restored": true
+  }
+}

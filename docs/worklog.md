@@ -593,3 +593,51 @@ code commit = 0c2a573 + 34ce18b (基準 7b6d472)。
 10. [T-010] 延期 (同): B-008 再試験は 1 cycle 後に再評価。変わらず
 11. [T-012] 延期 (同): pilot 凍結維持 (本 wave の task-run start も凍結どおり拒否)。変わらず
 12. [T-082] 延期 (同): 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-24 (1) — [T-080] post-R テスト負債 11 件 fix (test-only、branch worktree-dev-wave-ruling-ac、計測なし)
+
+R commit (8bec195) の legacy freeze migration receipt 発効で赤化した `test_s8b_oracle_driver.py`
+11 node を test-only で復旧 ([T-067] 由来の real-repo 2 状態 exact 化負債の顕在化)。code commit =
+c9d71fd (基準 8bec195、+67/-18 の 1 本のみ、production・凍結成果物・output/・external/ccbench 無変更)。
+D 番号なし (test-only、設計判断は insight の発火条件つき残余に記録)。正本 =
+`output/insights/2026-07-24_t080-postr-test-debt-fix.md` (§監査後記 込み)・同 `-mutation-ledger.json`・
+`2026-07-24_t080-postr-audit-verbatim.md`。
+
+- **消化の経緯**: 別 job の前セッションが impl (c9d71fd、dev-wave codex ループ) を land 後、bg job への
+  spoof 注入で停止し `~/tmp/p1.txt` で引き継いだ。本 job (c4f664a6) はユーザー指示で独立検証・監査して
+  消化。p1.txt は注入形状 (記憶汚染誘導・main 書換のロンダリング・既成事実埋め込み) と判定しデータ扱い・
+  不実行、実 git 状態を独立検証してから着手。「working tree に worklog 新エントリがあるはず」は実態と
+  食い違い (未作成) → 本エントリを新規執筆
+- **独立実測 (親、cwd=worktree)**: 全走 2878 passed / 18 skipped / 0 failed (受入主張と一致、退行 0)、
+  check_ai_provenance 316 件違反なし。docs commit 後に test_s8b_repo_scan_invariant を再走 (F34: 後付け
+  記録 bytes の認証)
+- **敵対監査 (codex 2 レンズ、gpt-5.6-sol/max/read-only、独立コンテキスト、insight/台帳を非採用で審査)**:
+  正しさ境界レンズ・整合/consumer/揮発/F型レンズとも **GO、コード blocker 0**。E3/E4 の reward-hack 疑い
+  (G12 子が receipt-free root で claim 競合を回避?) は early-return が verify_receipt() 内に閉じ実 claim
+  (`_acquire_g12_claim`→O_EXCL) が走ることのコード追跡で refuted。real 所見 = 記録精度/手順 3 件のみ
+  (コード正しさでない): hermetic/決定論的 の語彙過大 (errata、insight §監査後記)、F34 手順ギャップ
+  (repo-scan 再走で closure)、E6 inline set の helper 委譲 (minor 残余)
+- **変異 matrix (前セッション本走、台帳が正本)**: MUT-1/MUT-2 KILLED・REC-1 kill 集計外・SURVIVED 0。
+  帰属は codex B が静的に妥当と確認 (本走の再実行はせず、実測値は環境束縛で非再認証)
+
+### 消化した ID
+
+- [T-080] **post-R テスト負債 11 件 fix 消化 (test-only)。** R 発効で顕在化した負債を解消。[T-080]
+  本体 (protocol 実凍結) は未着手のまま (ユーザー手番)
+
+### 次の一手
+
+前エントリ (2026-07-23 (6)) から変わらず — 本 wave は test-only の負債解消で下記いずれも前進なし:
+
+1. [T-080] receipt 発行 → protocol 実凍結 (ユーザー) → 予測封印の実走 (AI)。変わらず
+2. [T-068] R commit で「移行契約により superseded」確定 (D78 (9))。変わらず
+3. [T-077] R の design_source 再 pin + generator M 化で閉じる。変わらず
+4. [T-078] S2-4.6 承認 fixture — R commit 時点で閉じる。変わらず
+5. [T-011] floor 実測直前に発火 (統合 E2E + lineage 照合、D80 (8) 裁定 3 件は手前)。変わらず
+6. [T-067] 部分消化・継続: exact 化の残余 (D73 (10))。変わらず
+7. [T-085] 裁定パッケージ PKG-1: pipeline record env 未検査 (D83 (5))。変わらず
+8. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+9. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+10. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+11. [T-012] 延期: pilot 凍結維持。変わらず
+12. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
