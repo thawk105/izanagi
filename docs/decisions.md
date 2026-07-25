@@ -3790,3 +3790,59 @@ byte-level で区別できない。D86(3) の「人間の明示 qsub を authori
 **相談・レビュー・再レビューの 5 本すべてが NO-GO**、親の provisional 裁定 8 件のうち 4 件が否定された。
 最終変異は 12/12 KILLED (初回 SURVIVED だった 1 件は第 2 検査による mask で、共通述語を撃つ最小一階
 変異では KILLED。初回結果は台帳に erratum として残した)。受入全走 = 2968 passed / 18 skipped。
+
+## D88. [T-094] リテラル placeholder の機械検出 — 対象 3 族の raw text 検査、除外機構ゼロ、H2 エントリ scope 束縛 (2026-07-25)
+
+**決定: F36 恒久対応 2 を `tools/check_docs.py` の exact-literal gate として実体化する。**
+実装正本 = `output/insights/2026-07-25_t094-placeholder-gate.md`、逐語 = 同 `-verbatim.md`、
+変異台帳 = 同 `-mutation-ledger.json`。commit = `8ba4aed`。
+検出対象の 3 バイト列は本文へ再掲せず、`tools/check_docs.py` の `LITERAL_PLACEHOLDERS` を正本とし、
+以下では宣言順に LP-1 / LP-2 / LP-3 と呼ぶ (この gate の自己発火を避ける実務でもある)。
+
+(1) **対象族は `docs/worklog.md` + `docs/archive/worklog-*.md` + `output/insights/*.md` とする。**
+worklog 2026-07-25 (4) の裁定は対象を worklog.md と「verbatim でない insights」としていたが、
+実測で真の placeholder 4 行のうち **2 行が archive worklog** にあり、対象族内に収まらなかった。
+archive を追加して受理集合を狭める方向の拡張であり、裁定の目的 (F36 恒久対応) を強化する。
+
+(2) **除外機構を持たない。** inline code / code fence 内も検出する。段 3・段 6 の 6 本の敵対
+レビューが一致して、装飾による除外は「記録者が装飾を 1 つ付けるだけの opt-out」であり規律 2 に
+反する受理集合拡大だと判定した。親の provisional 裁定 P2 / P4 は否定された。
+
+(3) **`-verbatim.md` suffix による除外もしない。** suffix は誰でも作れる全ファイル除外スイッチで
+あり、実在 106 Markdown のうち 47 件以上が逐語または逐語混合で suffix 分類と一致しない
+(`-consultations.md` 16 件、`-loop.md` 7 件を含む)。将来の逐語は凍結前の defang で処理する (下記 6)。
+
+(4) **台帳 key は `(scope, 行 digest)`。** worklog 族は `worklog-entry:` + 直前 H2 見出し行の digest、
+insights は `insights-path:` + 相対 path。行番号は持たない。
+親の当初案 (path 非依存 multiset) は「旧行を消して同じ bytes を新レコードへ置けば総数不変で緑」=
+例外権の譲渡を許すため否定され、次に採った path 束縛も「同一ファイル内の別エントリへの replay を
+遮断できない」として regressed と判定された。H2 scope はその両方を塞ぎ、副産物として
+**正規のローテーション (H2 エントリごと archive へ移動) では台帳を変更しなくてよい**性質を持つ。
+H2 判定は既存 `WORKLOG_H2_RE` を唯一の正本とし (タブ区切り H2 の見落としを塞ぐ)、
+worklog 族全体で H2 raw bytes の一意性を検査する。
+
+(5) **台帳の閉性と増補権限。** debts 4 / mentions 5 の総 occurrence を独立定数で pin し、
+test-local な exact map で照合する。**新規 hit に例外を認めない。台帳への追加はユーザーの明示裁定のみ**
+とする。既知 9 行は「固定した」だけで**解消していない** — retroactive な埋め戻しは F36 が禁じる。
+
+(6) **射程を限定して記録する。** 保証するのは LP-1〜LP-3 の exact な出現と対象 3 族の raw text だけ
+である。意味的に同じ別表記、HTML entity、**F36 の再発型である予測値の先書き**、対象 3 族の外
+(phase / decisions / failures / handoff / `*-mutation-ledger.json` / campaign JSON) は保証しない。
+F36 全体を閉じたと書いてはならない。拡張は [T-097]〜[T-100] の裁定パッケージへ送る。
+逐語の凍結では、gate の自己発火を避けるため**全角山括弧への 1:1 可逆置換 + 置換後 0 hit の機械検査 +
+原文 SHA-256 と byte 数の併記**を行う (本 wave の逐語 13 本・27 箇所に適用した)。
+
+(7) **併せて直した既存欠陥 2 件。** (a) 読取失敗が後続 checker の無防備な `read_text()` で traceback に
+なり集約報告と違反件数が失われていた欠陥を、読取不能を「不明」として扱い依存検査だけを停止する
+共通 safe-reader で塞いだ (停止範囲は worklog 族 / insights 族で分離し、構造抽出の失敗も
+「不明」として扱う)。(b) symlink / 非 regular file を追跡して外部 bytes を読む経路を、
+final component だけでなく repo 内の親 component まで検査して塞いだ。
+
+(8) **検証プロセス。** codex プラン (max) → 敵対相談 2 (max) → 親裁定 → 実装 1 単位 →
+敵対レビュー 2 (max) → fix → 焦点再レビュー (max) → fix round 2 → 焦点再レビュー 2 (max) →
+fix round 3 → 統合 commit → 変異本走。**相談・レビュー・再レビューの 6 本すべてが NO-GO**、
+親の provisional 裁定 6 件のうち 4 件が否定され、親が採った代案 1 件も regressed と判定された。
+最終変異は 13/13 KILLED (expected node hit 12/13、erratum 3 件を台帳に同梱)。
+受入全走 = 2994 passed / 18 skipped。
+
+AI-Agent 記録の正本は commit message とし、本項へ重複させない。

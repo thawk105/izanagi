@@ -345,3 +345,71 @@ DW-G04 の発火条件ではなく、実 submit artifact の確認は人間の�
 15. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 16. [T-012] 延期: pilot 凍結維持。変わらず
 17. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-25 (6) — [T-094] リテラル placeholder の機械検出を新設 (D88、branch worktree-dev-wave-t094-placeholder-gate、計測なし)
+
+dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対応 2 を実体化した。検出対象の
+バイト列は本エントリへ再掲せず、`tools/check_docs.py` の `LITERAL_PLACEHOLDERS` を正本として
+宣言順に LP-1 / LP-2 / LP-3 と呼ぶ (この gate の自己発火を避ける実務。D88(6))。
+
+- [T-094] **消化 (D88)。** 承認済みだった機械検出を実装し、対象族・台帳の閉性・除外なし方針を確定した。
+  F36 の恒久対応 2 は「この exact-literal gate だけ」を実体とし、F36 全体は閉じていない。
+- **成果物**: `tools/check_docs.py` (+621 行、`_check_literal_placeholder_guard` と 2 台帳)、
+  `orchestrator/tests/test_check_docs.py` (+1372 行、74 test 関数・189 assert)。commit = `8ba4aed`。
+  対象族 = `docs/worklog.md` + `docs/archive/worklog-*.md` + `output/insights/*.md` の **raw text**。
+- **裁定前提の齟齬 2 件を親が段 1 で実測**: (i) 真の placeholder 4 行のうち **2 行が archive
+  worklog** にあり、裁定文の対象族に収まらなかった (archive を追加 = D88(1))。(ii) 対象族内に
+  説明的言及が 3 行あり、「既存 4 件の allowlist」だけでは偽陽性が残る (台帳を債務 4 / 言及 5 の
+  2 本に分離 = D88(5))。
+- **敵対レビュー 6 本すべて NO-GO**。親の provisional 裁定 6 件のうち 4 件 (装飾による除外 2 件、
+  path 非依存台帳、D 起票不要) が否定され、親が代わりに採った path 束縛も **regressed** と判定
+  された。最終形は H2 エントリ scope 束縛で、正規のローテーションでは台帳を変更しなくてよい。
+- **併せて直した既存欠陥 2 件** (D88(7)): 読取失敗が後続 checker の無防備な読取で traceback になり
+  集約報告と違反件数が失われていた欠陥、および symlink / 非 regular を追跡して外部 bytes を読む経路。
+- **正直な限界** (D88(6)): 既知 9 行は台帳で固定しただけで**解消していない**。意味的に同じ別表記、
+  HTML entity、**F36 の再発型である予測値の先書き**、対象 3 族の外 (phase / decisions / failures /
+  handoff / `*-mutation-ledger.json` / campaign JSON) は保証しない。
+- **記録**: 材料レポート `output/insights/2026-07-25_t094-placeholder-gate.md`、逐語 `-verbatim.md`
+  (13 本・27 箇所を全角山括弧へ可逆 defang、原文 SHA-256 併記、置換後 0 hit を機械検査)、
+  変異台帳 `-mutation-ledger.json` (erratum 3 件同梱)。
+- **検査**: 受入全走 = 2994 passed / 18 skipped (赤 0)。焦点 `test_check_docs.py` = 113 passed。
+  `check_docs` 単独 rc=0。波及先 consumer = 177 passed。変異本走 = 13/13 KILLED
+  (expected node hit 12/13、単独理由 10 件中 9 件 HIT)。`check_ai_provenance` = 346 件・違反なし。
+  三軸語 conjunction (repo scan invariant) = 1 passed。
+- **親が独立に実測して子の報告と照合**: 対象族 115 ファイルの hit = 9 logical lines で digest 9/9 一致、
+  worklog 族の H2 = 234 件すべて一意、repo 内 symlink 0 件、対象族に CR byte 0 件。
+- **変異 harness の自己捕捉 2 件**: (i) pytest の `path::test_name` 形式に対し関数名の完全一致で
+  照合したため 13/13 KILLED でも expected node hit が 0/13 と記録された (初回結果は erratum として
+  同梱)。(ii) M4 の期待 node 登録が誤っていた (総数 pin 定数を変える変異に、台帳本体の exact map を
+  照合する node を登録していた)。
+
+### 次の一手
+1. [T-088] **段階 1 の閉鎖は人間手番** (変わらず): `tools/pegasus/submit_floor.sh --dry-run` で receipt を
+   確認し、続けて明示実行して実 job ID を得る。期待は driver rc=2 (official guard 生存)。
+   手順は `tools/pegasus/README.md` §5 と `output/insights/2026-07-25_t088-floor-wrapper.md` §6
+2. [T-097] **裁定待ち (新規)**: placeholder 検出の対象族拡張 — `docs/phase3.md` / `decisions.md` /
+   `failures.md` / `*-mutation-ledger.json` / handoff。変異台帳 JSON は実際に受入結果を記録しており
+   同型欠陥が残る。claim-bearing artifact 族の定義が必要。正本 =
+   `output/insights/2026-07-25_t094-placeholder-gate.md` §7
+3. [T-098] **裁定待ち (新規)**: campaign selector の `rationale` が sentinel を非空文字列として受理し
+   freeze へ seal する (`orchestrator/campaign/s8b_selector_output.py`)。producer validator で拒否するか
+4. [T-099] **裁定待ち (新規)**: 凍結成果物に将来 placeholder が入った場合の専用 waiver 契約。
+   bytes 修正は freeze 違反・実測値を埋めるのは捏造・一般台帳へ足すのは gate 弱体化の三択になる
+5. [T-100] **裁定待ち (新規)**: 検出語彙の拡張 (別表記・HTML entity) と、予測値先書きの構造的検出
+   (結果欄に実走 artifact 参照を必須化する別 checker)。F36 の再発クラスは本 gate では閉じない
+6. [T-095] 裁定待ち: D86(3) の「人間の明示 qsub を authorization とする」文言と、submission record が
+   人間性を証明しない実体の差。変わらず
+7. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+8. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage
+9. [T-091] 延期追認: `_verify_receipt_derivation` を public 経路で撃つ negative test。hardening wave へ
+10. [T-092] 延期追認: real-repo test の R OID pin。hardening wave へ
+11. [T-093] 延期追認: observed 15 件の独立 literal pin。hardening wave へ
+12. [T-089] 延期追認: 二重 reason-tag 描画 (production 診断欠陥候補)。hardening wave へ
+13. [T-090] 延期追認: `VerifiedFreeze.document` が mutable dict のまま返る。hardening wave へ
+14. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+15. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+16. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+17. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+18. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+19. [T-012] 延期: pilot 凍結維持。変わらず
+20. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

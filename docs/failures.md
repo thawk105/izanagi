@@ -540,6 +540,18 @@
   **プレースホルダより悪い変種である** — 空欄は空だと見えるが、予測した具体値は実測と見分けがつかない。
   恒久対応 1 (`DW-S07` の「実測前なら欄を作らず」) は文言としては本件を既に禁じており、
   不足は文言ではなく遵守。予測値の先書きが同条に含まれることを本追記で顕在化させる
+- **恒久対応 2 の現行実体 (2026-07-25、[T-094]、D88)**: `tools/check_docs.py` の
+  `_check_literal_placeholder_guard` を `main()` に結線し、`LITERAL_PLACEHOLDERS` の各要素が
+  独立に効くことを positive control で固定した (実装 = commit `8ba4aed`、材料レポート =
+  `output/insights/2026-07-25_t094-placeholder-gate.md`)
+- **射程は限定される**: 保証するのは同定数の 3 要素の exact な出現と、対象 3 族
+  (`docs/worklog.md`、`docs/archive/worklog-*.md`、`output/insights/*.md`) の raw text だけである。
+  既知の債務 4 行と説明的言及 5 行は台帳で固定しただけで**解消していない** —
+  `check_docs` の「違反なし」は「未許可 hit がない」の意味であって「placeholder が存在しない」
+  ではない
+- **この exact-literal gate だけを「実体化済み」とする。** 意味的に同じ別表記、HTML entity、
+  **本台帳の再発である予測値の先書き**、対象 3 族の外 (phase/decisions/failures/handoff/JSON) は
+  保証しない。それらの拡張は [T-097]〜[T-100] の裁定パッケージへ送った
 
 ### F37. 検査の rc をパイプで握り潰し、予算違反のまま commit した [恒真ゲート] [手順漏れ]
 
