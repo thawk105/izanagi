@@ -87,6 +87,104 @@ _T080_METADATA_GOLDEN = (
     ("known_axes", "/generator/sha256", "1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0"),
     ("holdout", "/generator/sha256", "1910fff38edf0e58f5bff221c29660a8f85dd0ed1b5c980234ec1af098584e5f"),
 )
+_T080_REAL_REPO_SOURCE_GOLDEN = (
+    (
+        "known_axes", "/entries/balanced/ident_all/sources/3/sha256",
+        "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+        "orchestrator/campaign/s8a_trigger_sweep.py",
+        "8c3abd486b0b280c4e7ea6938147360fdacd1454d3eadb84ae1d663c9f395311",
+    ),
+    (
+        "known_axes", "/entries/balanced/sort_best/sources/5/sha256",
+        "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+        "orchestrator/campaign/s6_sort_sweep.py",
+        "28270e905785c787f1eb74cebcf34f8feb98e1e7cec738dee14611c9ab3dad1a",
+    ),
+    (
+        "known_axes", "/entries/balanced/sort_best/sources/6/sha256",
+        "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+        "orchestrator/campaign/p3_s4_loop_sort.py",
+        "0e716a6cda268e3d158774c344d002a8daf49fa7dd4ab9bbb1bb5c9e0d30d8b0",
+    ),
+    (
+        "known_axes", "/entries/balanced/system_gate/sources/4/sha256",
+        "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+        "orchestrator/campaign/s8a_trigger_sweep.py",
+        "8c3abd486b0b280c4e7ea6938147360fdacd1454d3eadb84ae1d663c9f395311",
+    ),
+    (
+        "known_axes", "/entries/read-heavy/ident_all/sources/3/sha256",
+        "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+        "orchestrator/campaign/s8a_trigger_sweep.py",
+        "8c3abd486b0b280c4e7ea6938147360fdacd1454d3eadb84ae1d663c9f395311",
+    ),
+    (
+        "known_axes", "/entries/read-heavy/sort_best/sources/2/sha256",
+        "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+        "orchestrator/campaign/s6_sort_sweep.py",
+        "28270e905785c787f1eb74cebcf34f8feb98e1e7cec738dee14611c9ab3dad1a",
+    ),
+    (
+        "known_axes", "/entries/read-heavy/sort_best/sources/3/sha256",
+        "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+        "orchestrator/campaign/p3_s4_loop_sort.py",
+        "0e716a6cda268e3d158774c344d002a8daf49fa7dd4ab9bbb1bb5c9e0d30d8b0",
+    ),
+    (
+        "known_axes", "/entries/read-heavy/system_gate/sources/4/sha256",
+        "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+        "orchestrator/campaign/s8a_trigger_sweep.py",
+        "8c3abd486b0b280c4e7ea6938147360fdacd1454d3eadb84ae1d663c9f395311",
+    ),
+    (
+        "known_axes", "/entries/write-heavy/ident_all/sources/3/sha256",
+        "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+        "orchestrator/campaign/s8a_trigger_sweep.py",
+        "8c3abd486b0b280c4e7ea6938147360fdacd1454d3eadb84ae1d663c9f395311",
+    ),
+    (
+        "known_axes", "/entries/write-heavy/sort_best/sources/5/sha256",
+        "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+        "orchestrator/campaign/s6_sort_sweep.py",
+        "28270e905785c787f1eb74cebcf34f8feb98e1e7cec738dee14611c9ab3dad1a",
+    ),
+    (
+        "known_axes", "/entries/write-heavy/sort_best/sources/6/sha256",
+        "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+        "orchestrator/campaign/p3_s4_loop_sort.py",
+        "0e716a6cda268e3d158774c344d002a8daf49fa7dd4ab9bbb1bb5c9e0d30d8b0",
+    ),
+    (
+        "known_axes", "/entries/write-heavy/system_gate/sources/4/sha256",
+        "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1",
+        "orchestrator/campaign/s8a_trigger_sweep.py",
+        "8c3abd486b0b280c4e7ea6938147360fdacd1454d3eadb84ae1d663c9f395311",
+    ),
+    (
+        "holdout", "/design_source/sha256",
+        "1829af7fec4140fedaceae7c35ed5349e6d478e9d688de77a70f3be845a4a27d",
+        "docs/phase3-8b-descriptor-design.md",
+        "5fbdd7ef2028ebbdd1187fb601c427d6b3b1250b4f86611f3ddfbd7f9be23cae",
+    ),
+)
+_T080_REAL_REPO_METADATA_GOLDEN = (
+    (
+        "known_axes", "/generator/sha256",
+        "1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0",
+        "orchestrator/campaign/s1_known_axes_freeze.py",
+        "1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0",
+    ),
+    (
+        "holdout", "/generator/sha256",
+        "1910fff38edf0e58f5bff221c29660a8f85dd0ed1b5c980234ec1af098584e5f",
+        "orchestrator/campaign/s8b_holdout_freeze.py",
+        "41c0b6a7b348acb0960b354f80ab79ba3376d4214a73f11d5ee739b04337d4b0",
+    ),
+)
+
+_T080_RECEIPT_INTRODUCTION = "8bec195d096f852fd2b47070aa18a3b151613f0a"
+_T080_RECEIPT_RAW_SHA256 = "b84f783218496f0750ed583a317be474a2207b3fe5661a67fab54b2d53723e3c"
+_T080_MIGRATION_BASIS = "f04ae50b3c7be800885447be514b59f2405a4e83"
 
 
 def _assert_exact_refusals(actual, expected: set[str]) -> None:
@@ -125,12 +223,34 @@ def _never_issued_resolution():
     )
 
 
+def _sanitized_git_env() -> dict[str, str]:
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    env.update({
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_OPTIONAL_LOCKS": "0",
+    })
+    return env
+
+
 def _run_git(root: Path, *args: str) -> str:
     """hermetic T-080 fixture 用の最小 Git runner。"""
     return subprocess.run(
         ["git", *args], cwd=root, check=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        env=_sanitized_git_env(),
     ).stdout.strip()
+
+
+def _git_blob_sha256(root: Path, commit: str, path: str) -> str:
+    """test 側だけで Git blob の内容 SHA-256 を導出する。"""
+    raw = subprocess.run(
+        ["git", "cat-file", "blob", f"{commit}:{path}"],
+        cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=_sanitized_git_env(),
+    ).stdout
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _independent_t080_receipt_blob(root: Path) -> tuple[str, bytes] | None:
@@ -143,6 +263,7 @@ def _independent_t080_receipt_blob(root: Path) -> tuple[str, bytes] | None:
     raw = subprocess.run(
         ["git", "show", f"{introduction}:{migration.RECEIPT_REL}"],
         cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=_sanitized_git_env(),
     ).stdout
     return introduction, raw
 
@@ -152,6 +273,7 @@ def _independent_ancestry_item(
     kind = subprocess.run(
         ["git", "cat-file", "-t", recorded], cwd=root,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        env=_sanitized_git_env(),
     )
     if kind.returncode != 0:
         status, observed = "missing-commit", None
@@ -160,6 +282,7 @@ def _independent_ancestry_item(
         ancestry = subprocess.run(
             ["git", "merge-base", "--is-ancestor", recorded, validation_head],
             cwd=root, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=_sanitized_git_env(),
         )
         assert ancestry.returncode in {0, 1}
         status, observed = (
@@ -293,6 +416,7 @@ def _copy_t080_basis_file(root: Path, relative: str) -> None:
 def _t080_stub_free_e2e_repo(
         tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
         extra_r_path: bool = False, issue_receipt: bool = True,
+        distinct_basis_blob: bool = False,
         ) -> tuple[Path, Path, dict]:
     """production builder/verifier/gate を一度も stub しない T-080 発行 repo。"""
     root = tmp_path / "t080-stub-free-e2e"
@@ -345,6 +469,13 @@ def _t080_stub_free_e2e_repo(
     }
     for relative in sorted(required):
         _copy_t080_basis_file(root, relative)
+    if distinct_basis_blob:
+        # real-repo 固定値を返す退化を検出できるよう、この fixture の basis だけを
+        # 安全な非実行 blob で意図的に分岐させる。期待値は下で Git から独立導出する。
+        descriptor = root / "docs/phase3-8b-descriptor-design.md"
+        descriptor.write_bytes(
+            descriptor.read_bytes() + b"\n<!-- T-093 fixture-local basis blob -->\n"
+        )
 
     _run_git(
         root, "-c", "protocol.file.allow=always", "submodule", "add", "-q",
@@ -364,9 +495,23 @@ def _t080_stub_free_e2e_repo(
         return root, receipt, {}
     child = textwrap.dedent("""
         import json
+        import os
         import subprocess
         import sys
         from pathlib import Path
+
+        def _sanitized_git_env():
+            env = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith("GIT_")
+            }
+            env.update({
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_GLOBAL": os.devnull,
+                "GIT_TERMINAL_PROMPT": "0",
+                "GIT_OPTIONAL_LOCKS": "0",
+            })
+            return env
 
         root = Path(sys.argv[1]).resolve()
         sys.path[0] = str(root)
@@ -391,6 +536,7 @@ def _t080_stub_free_e2e_repo(
         basis = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=root, check=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env=_sanitized_git_env(),
         ).stdout.strip()
         migration.draft_receipt(
             basis=basis, out=migration.DRAFT_REL, root=root,
@@ -407,16 +553,19 @@ def _t080_stub_free_e2e_repo(
         subprocess.run(
             ["git", "add", migration.RECEIPT_REL], cwd=root, check=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=_sanitized_git_env(),
         )
         if sys.argv[3] == "1":
             (root / "r-extra.txt").write_text("extra in R\\n", encoding="utf-8")
             subprocess.run(
                 ["git", "add", "r-extra.txt"], cwd=root, check=True,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env=_sanitized_git_env(),
             )
         subprocess.run(
             ["git", "commit", "-q", "-m", "activate T080 receipt", "-m", sys.argv[2]],
             cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=_sanitized_git_env(),
         )
         resolution = migration.verify_receipt(root=root)
         decision = driver.gate_check(
@@ -438,7 +587,12 @@ def _t080_stub_free_e2e_repo(
         [sys.executable, "-I", "-B", "-c", child, str(root), r_trailer,
          "1" if extra_r_path else "0"],
         cwd=root, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, env={**os.environ, "PYTHONPATH": "", "PYTHONNOUSERSITE": "1"},
+        text=True,
+        env={
+            **_sanitized_git_env(),
+            "PYTHONPATH": "",
+            "PYTHONNOUSERSITE": "1",
+        },
     )
     assert completed.returncode == 0, completed.stderr
     document = json.loads(completed.stdout)
@@ -446,7 +600,9 @@ def _t080_stub_free_e2e_repo(
 
 
 def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
-    root, _receipt_path, document = _t080_stub_free_e2e_repo(tmp_path)
+    root, _receipt_path, document = _t080_stub_free_e2e_repo(
+        tmp_path, distinct_basis_blob=True,
+    )
     assert tuple(
         (item["artifact"], item["json_pointer"], item["recorded_sha256"])
         for item in document["source_repins"]
@@ -459,7 +615,29 @@ def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
     assert resolution.state == "active-valid"
     assert resolution.refusals == ()
     assert resolution.t080_freeze_migration_observation is not None
-    assert len(resolution.t080_freeze_migration_observation["items"]) == 17
+    items = resolution.t080_freeze_migration_observation["items"]
+    assert len(items) == 17
+    fixture_basis = _run_git(root, "rev-parse", "HEAD^")
+    basis_golden = tuple(
+        (kind, artifact, pointer, path)
+        for kind, golden in (
+            ("source-repin", _T080_REAL_REPO_SOURCE_GOLDEN),
+            ("generator-metadata", _T080_REAL_REPO_METADATA_GOLDEN),
+        )
+        for artifact, pointer, _recorded, path, _real_observed in golden
+    )
+    observed_by_path = {
+        path: _git_blob_sha256(root, fixture_basis, path)
+        for path in dict.fromkeys(path for _kind, _artifact, _pointer, path in basis_golden)
+    }
+    expected_blob_observations = tuple(
+        (artifact, kind, pointer, observed_by_path[path])
+        for kind, artifact, pointer, path in basis_golden
+    )
+    assert tuple(
+        (item["artifact"], item["kind"], item["subject"], item["observed"])
+        for item in items[:15]
+    ) == expected_blob_observations
 
     decision = driver.gate_check(
         freeze_path=root / migration.HOLDOUT_REL, root=root,
@@ -515,7 +693,7 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
     elif defect == "ccbench-current":
         submodule = root / migration.CCBENCH_REL
         tree = _run_git(submodule, "rev-parse", "HEAD^{tree}")
-        commit_env = dict(os.environ)
+        commit_env = _sanitized_git_env()
         commit_env.update({
             "GIT_AUTHOR_NAME": "T080 E2E", "GIT_AUTHOR_EMAIL": "t080@example.invalid",
             "GIT_COMMITTER_NAME": "T080 E2E", "GIT_COMMITTER_EMAIL": "t080@example.invalid",
@@ -615,6 +793,7 @@ def test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5(tmp_path)
     blob = subprocess.run(
         ["git", "hash-object", "-w", "--stdin"], cwd=root, input=b"not commit",
         check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=_sanitized_git_env(),
     ).stdout.decode().strip()
     ancestry = migration._classify_ancestry(
         blob, _run_git(root, "rev-parse", "HEAD"), root, artifact="known_axes",
@@ -681,7 +860,12 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
     completed = subprocess.run(
         [sys.executable, "-I", "-B", "-c", child, str(root), basis],
         cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, env={**os.environ, "PYTHONPATH": "", "PYTHONNOUSERSITE": "1"},
+        text=True,
+        env={
+            **_sanitized_git_env(),
+            "PYTHONPATH": "",
+            "PYTHONNOUSERSITE": "1",
+        },
     )
     refusal = json.loads(completed.stdout)
     assert refusal["reason"] == "receipt.invalid"
@@ -1185,69 +1369,65 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
 
 def test_real_freeze_gate_lists_floor_and_budget_null():
     independent = _independent_t080_receipt_blob(ROOT)
+    assert independent is not None, (
+        "real-repo T-080 gate test には full history が必要 (R が履歴に無い)"
+    )
+    introduction, raw = independent
+    assert introduction == _T080_RECEIPT_INTRODUCTION
+    assert hashlib.sha256(raw).hexdigest() == _T080_RECEIPT_RAW_SHA256
     decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
     assert not decision.allowed
-    if independent is None:
-        _assert_refusal_reasons(decision.refusals, [
-            "holdout-freeze-verify: FreezeError: design_source sha256 不一致: "
-            "recorded=",
-            "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
-            "orchestrator/campaign/s8a_trigger_sweep.py recorded=",
-            _FLOOR_REFUSAL,
-            _BUDGET_REFUSAL,
-        ])
-        assert decision.t080_freeze_migration_observation is None
-    else:
-        _introduction, raw = independent
-        receipt = json.loads(raw)
-        resolution = migration.verify_receipt(root=ROOT)
-        assert resolution.state == "active-valid", resolution
-        _assert_exact_refusals(decision.refusals, {
-            _FLOOR_REFUSAL,
-            _BUDGET_REFUSAL,
-        })
-        observation = decision.t080_freeze_migration_observation
-        assert observation is None
-        actual = resolution.t080_freeze_migration_observation
-        validation_head = _run_git(ROOT, "rev-parse", "HEAD")
-        expected_items = []
-        for record, (artifact, pointer, recorded) in zip(
-                receipt["source_repins"], _T080_SOURCE_GOLDEN):
-            expected_items.append({
-                "artifact": artifact, "kind": "source-repin", "subject": pointer,
-                "recorded": recorded, "observed": record["migration_blob_sha256"],
-                "status": "repinned-to-basis-blob",
-            })
-        for record, (artifact, pointer, recorded) in zip(
-                receipt["metadata_fields"], _T080_METADATA_GOLDEN):
-            expected_items.append({
-                "artifact": artifact, "kind": "generator-metadata", "subject": pointer,
-                "recorded": recorded, "observed": record["migration_blob_sha256"],
-                "status": "metadata-only",
-            })
-        expected_items.extend((
-            _independent_ancestry_item(
-                ROOT, artifact="known_axes",
-                recorded="2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1",
-                validation_head=validation_head,
-            ),
-            _independent_ancestry_item(
-                ROOT, artifact="holdout",
-                recorded="2e20d441aaf7ae267e941ecda09e4b53050943cf",
-                validation_head=validation_head,
-            ),
-        ))
-        assert actual == {
-            "schema_version": "izanagi-t080-freeze-migration-observation/v1",
-            "migration_id": "T-080",
-            "receipt": {
-                "path": "output/t080-migration/legacy-freeze-repin.receipt.json",
-                "raw_sha256": hashlib.sha256(raw).hexdigest(),
-            },
-            "migration_basis_commit": receipt["migration_basis_commit"],
-            "validation_head": validation_head,
-            "items": expected_items,
+    resolution = migration.verify_receipt(root=ROOT)
+    assert resolution.state == "active-valid", resolution
+    _assert_exact_refusals(decision.refusals, {
+        _FLOOR_REFUSAL,
+        _BUDGET_REFUSAL,
+    })
+    observation = decision.t080_freeze_migration_observation
+    assert observation is None
+    actual = resolution.t080_freeze_migration_observation
+    validation_head = _run_git(ROOT, "rev-parse", "HEAD")
+    expected_items = [
+        {
+            "artifact": artifact, "kind": "source-repin", "subject": pointer,
+            "recorded": recorded, "observed": observed,
+            "status": "repinned-to-basis-blob",
         }
+        for artifact, pointer, recorded, _path, observed
+        in _T080_REAL_REPO_SOURCE_GOLDEN
+    ]
+    expected_items.extend(
+        {
+            "artifact": artifact, "kind": "generator-metadata", "subject": pointer,
+            "recorded": recorded, "observed": observed,
+            "status": "metadata-only",
+        }
+        for artifact, pointer, recorded, _path, observed
+        in _T080_REAL_REPO_METADATA_GOLDEN
+    )
+    expected_items.extend((
+        _independent_ancestry_item(
+            ROOT, artifact="known_axes",
+            recorded="2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1",
+            validation_head=validation_head,
+        ),
+        _independent_ancestry_item(
+            ROOT, artifact="holdout",
+            recorded="2e20d441aaf7ae267e941ecda09e4b53050943cf",
+            validation_head=validation_head,
+        ),
+    ))
+    assert actual == {
+        "schema_version": "izanagi-t080-freeze-migration-observation/v1",
+        "migration_id": "T-080",
+        "receipt": {
+            "path": "output/t080-migration/legacy-freeze-repin.receipt.json",
+            "raw_sha256": _T080_RECEIPT_RAW_SHA256,
+        },
+        "migration_basis_commit": _T080_MIGRATION_BASIS,
+        "validation_head": validation_head,
+        "items": expected_items,
+    }
 
 
 @pytest.mark.parametrize("receipt_state", ["never-issued", "active-valid", "invalid"])
@@ -2224,6 +2404,7 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
             completed = subprocess.run(
                 ["git", "show", f"{commit}:{relative}"], cwd=ROOT,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env=_sanitized_git_env(),
             )
             if (completed.returncode == 0
                     and hashlib.sha256(completed.stdout).hexdigest() == expected):
@@ -3402,6 +3583,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
     pin = subprocess.run(
         ["git", "-C", str(ROOT / "external" / "ccbench"), "rev-parse", "HEAD"],
         capture_output=True, text=True, check=True,
+        env=_sanitized_git_env(),
     ).stdout.strip()
     contract = ec.lookup(V2_ENV_TAG)
     built = []

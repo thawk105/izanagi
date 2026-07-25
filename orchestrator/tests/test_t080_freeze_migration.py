@@ -15,6 +15,7 @@ import tempfile
 import traceback
 import unittest
 from pathlib import Path
+from typing import Callable
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -316,12 +317,56 @@ def _repo_with_receipt() -> tuple[tempfile.TemporaryDirectory, Path, str, bytes]
     return temp, root, introduction, raw
 
 
-def _repo_with_schema_valid_receipt(*, extra_path: bool = False, trailer: str = "AI-Agent: none"):
+def _repo_with_schema_valid_receipt(
+    *, extra_path: bool = False, trailer: str = "AI-Agent: none",
+    derivation_ready: bool = False,
+    mutate_receipt: Callable[[dict], None] | None = None,
+):
     temp = tempfile.TemporaryDirectory(prefix="izanagi_t080_active_")
     root = Path(temp.name)
     basis = _init_repo(root)
+    known = holdout = None
+    if derivation_ready:
+        derivation_paths = {
+            *(spec.path for spec in migration.SOURCE_REPIN_SPECS),
+            *(spec.path for spec in migration.METADATA_SPECS),
+        }
+        assert len(derivation_paths) == 6
+        basis_paths = {
+            migration.KNOWN_AXES_REL,
+            migration.HOLDOUT_REL,
+            *derivation_paths,
+        }
+        for rel in sorted(basis_paths):
+            target = root / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((_ROOT / rel).read_bytes())
+        known = migration._strict_load(
+            (root / migration.KNOWN_AXES_REL).read_bytes(), what="known_axes",
+        )
+        holdout = migration._strict_load(
+            (root / migration.HOLDOUT_REL).read_bytes(), what="holdout",
+        )
+        _run_git(root, "add", "--", *sorted(basis_paths))
+        _run_git(
+            root, "update-index", "--add", "--cacheinfo",
+            f"160000,{known['ccbench_pin']},{migration.CCBENCH_REL}",
+        )
+        _run_git(root, "commit", "-q", "-m", "derivation basis", "-m", "AI-Agent: none")
+        basis = _run_git(root, "rev-parse", "HEAD").decode().strip()
     receipt = _valid_receipt()
     receipt["migration_basis_commit"] = basis
+    if derivation_ready:
+        assert known is not None and holdout is not None
+        derived = migration._derive_deterministic_fields(receipt, known, holdout, root)
+        for field in ("artifacts", "source_repins", "metadata_fields", "repin_report"):
+            receipt[field] = copy.deepcopy(derived[field])
+        for artifact in ("known_axes", "holdout"):
+            receipt["reconstruction"][artifact].update(
+                copy.deepcopy(derived["reconstruction"][artifact])
+            )
+    if mutate_receipt is not None:
+        mutate_receipt(receipt)
     path = root / migration.RECEIPT_REL
     path.parent.mkdir(parents=True)
     path.write_bytes(migration._canonical_bytes(receipt))
@@ -419,6 +464,48 @@ def test_deterministic_fields_and_reconstruction_rerun_reject_mismatch_f2():
         )
     finally:
         migration._draft_reconstruct_known_axes, migration._draft_reconstruct_holdout = originals
+
+
+def test_public_gate_rejects_tampered_holdout_projected_hash_t091():
+    mutation_calls = 0
+
+    def mutate_receipt(receipt: dict) -> None:
+        nonlocal mutation_calls
+        mutation_calls += 1
+        reconstruction = receipt["reconstruction"]["holdout"]
+        original = reconstruction["projected_document_sha256"]
+        replacement = "1" if original[0] == "0" else "0"
+        reconstruction["projected_document_sha256"] = replacement + original[1:]
+
+    temp, root = _repo_with_schema_valid_receipt(
+        derivation_ready=True, mutate_receipt=mutate_receipt,
+    )
+    originals = _patch_full_gate_to_pass()
+    try:
+        for name in (
+            "_load_artifact", "_validate_repin_report_git",
+            "_verify_reconstruction_static", "_verify_receipt_derivation",
+            "_verify_ccbench_basis_from_receipt", "_verify_known_schema",
+            "_verify_known_pairing", "_verify_holdout_closure",
+            "_verify_metadata_closure",
+        ):
+            setattr(migration, name, originals[name])
+        # 下の 4 gate は stub のままなので、それらとの gate 間相互作用は未検証である:
+        # _verify_known_closure / _validate_positive_control /
+        # _verify_ccbench_current / _verify_holdout_live_scan。
+        # 以下の ordered 1-tuple は「この 4 gate が pass 固定」の条件下での保証であり、
+        # 「全 gate を検証した」ことを意味しない。
+        result = migration.verify_receipt(root=root)
+        assert mutation_calls == 1
+        assert result.refusals == (
+            "migration-receipt-verify: [receipt.derivation_mismatch] "
+            "reconstruction.holdout.projected_document_sha256 が H_mig 再導出値と不一致",
+        )
+        assert result.state == "invalid"
+        assert result.t080_freeze_migration_observation is None
+    finally:
+        _restore_functions(originals)
+        temp.cleanup()
 
 
 def test_live_scan_evidence_ignores_only_scope_counters_not_acceptance_f2():
