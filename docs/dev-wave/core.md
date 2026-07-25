@@ -78,8 +78,8 @@ worklog には、実装差分がないため変異 matrix と受入全走が対�
 ## DW-S07 — 段 7 記録
 
 親が worklog への吸収、insights への逐語・変異台帳の凍結、decisions への設計判断を一括して行う。
-逐語・台帳を凍結する前に、対象へ三軸語 conjunction（軸 template の生値）の機械検査を行い、
-hit があれば defang と erratum を施す。docs を含むあらゆる記録 commit の後に、
+逐語・台帳を凍結する前に、全 gate の検出語（三軸語・placeholder）を機械検査し、
+hit があれば可逆 defang と erratum を施す（原文 hash 併記、D88）。docs を含むあらゆる記録 commit の後に、
 repo scan invariant と影響テストを再走してから wave を閉じる（F34）。
 受入・検査の結果欄にプレースホルダや値を伴わない前方参照を残したまま記録 commit を作らない。
 実測前なら欄を作らず、実測できなかったなら「未実施」と書く。再走で得た値はその場で埋める（F36）。

@@ -400,19 +400,24 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
    bytes 修正は freeze 違反・実測値を埋めるのは捏造・一般台帳へ足すのは gate 弱体化の三択になる
 5. [T-100] **裁定待ち (新規)**: 検出語彙の拡張 (別表記・HTML entity) と、予測値先書きの構造的検出
    (結果欄に実走 artifact 参照を必須化する別 checker)。F36 の再発クラスは本 gate では閉じない
-6. [T-095] 裁定待ち: D86(3) の「人間の明示 qsub を authorization とする」文言と、submission record が
+6. [T-101] **裁定待ち (新規、dev-wave 自己改善)**: 予算に収まらず reference へ統合できなかった作法 2 件 —
+   (a) 背景 job の cwd が既に worktree のとき `EnterWorktree` が新規作成を拒否する場合の扱い
+   (本 wave は前 wave の worktree で branch だけ切り、ディレクトリ名と branch 名が食い違った)、
+   (b) 焦点再レビューが NO-GO を返し続ける場合の収束条件 (本 wave は fix 3 巡の後、親が変異で
+   裏取りして閉じた)。`docs/dev-wave/**` は 23986/24000 で追記余地がなく、予算値は上げない
+7. [T-095] 裁定待ち: D86(3) の「人間の明示 qsub を authorization とする」文言と、submission record が
    人間性を証明しない実体の差。変わらず
-7. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
-8. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage
-9. [T-091] 延期追認: `_verify_receipt_derivation` を public 経路で撃つ negative test。hardening wave へ
-10. [T-092] 延期追認: real-repo test の R OID pin。hardening wave へ
-11. [T-093] 延期追認: observed 15 件の独立 literal pin。hardening wave へ
-12. [T-089] 延期追認: 二重 reason-tag 描画 (production 診断欠陥候補)。hardening wave へ
-13. [T-090] 延期追認: `VerifiedFreeze.document` が mutable dict のまま返る。hardening wave へ
-14. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-15. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-16. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-17. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-18. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-19. [T-012] 延期: pilot 凍結維持。変わらず
-20. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+8. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+9. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage
+10. [T-091] 延期追認: `_verify_receipt_derivation` を public 経路で撃つ negative test。hardening wave へ
+11. [T-092] 延期追認: real-repo test の R OID pin。hardening wave へ
+12. [T-093] 延期追認: observed 15 件の独立 literal pin。hardening wave へ
+13. [T-089] 延期追認: 二重 reason-tag 描画 (production 診断欠陥候補)。hardening wave へ
+14. [T-090] 延期追認: `VerifiedFreeze.document` が mutable dict のまま返る。hardening wave へ
+15. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+16. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+17. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+18. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+19. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+20. [T-012] 延期: pilot 凍結維持。変わらず
+21. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
