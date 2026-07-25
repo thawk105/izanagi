@@ -132,7 +132,7 @@ if [[ ! -f "$POLICY" || -L "$POLICY" ]]; then
 fi
 policy_output=""
 policy_rc=0
-policy_output=$(python3 - "$POLICY" <<'PY'
+policy_output=$(python3 -I -B - "$POLICY" <<'PY'
 import json
 import sys
 
@@ -194,12 +194,25 @@ if ! git -C "$REPO_ROOT" diff --cached --quiet HEAD --; then
   exit 2
 fi
 untracked_outside_output=0
+untracked_list=$(mktemp "${TMPDIR:-/tmp}/izanagi-floor-untracked.XXXXXX") || {
+  echo "cannot create temporary untracked-path record" >&2
+  exit 2
+}
+untracked_git_rc=0
+git -C "$REPO_ROOT" ls-files --others --exclude-standard -z \
+  >"$untracked_list" || untracked_git_rc=$?
+if [[ "$untracked_git_rc" -ne 0 ]]; then
+  rm -f -- "$untracked_list"
+  echo "cannot inspect untracked repository content" >&2
+  exit "$untracked_git_rc"
+fi
 while IFS= read -r -d '' untracked; do
   if [[ "$untracked" != output/* ]]; then
     printf 'untracked path outside output/: %q\n' "$untracked" >&2
     untracked_outside_output=1
   fi
-done < <(git -C "$REPO_ROOT" ls-files --others --exclude-standard -z)
+done <"$untracked_list"
+rm -f -- "$untracked_list"
 if [[ "$untracked_outside_output" -ne 0 ]]; then
   echo "untracked content outside output/; floor submission aborted" >&2
   exit 2
@@ -255,7 +268,7 @@ for staging_path in "$ATTEMPTS_ROOT" "$SUBMISSIONS_ROOT"; do
   fi
 done
 
-NONCE=$(python3 - <<'PY'
+NONCE=$(python3 -I -B - <<'PY'
 import secrets
 print(secrets.token_hex(16))
 PY
@@ -305,7 +318,7 @@ else
 fi
 
 PREPARED_AT=$(date +%s)
-python3 - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT_RELATIVE" \
+python3 -I -B - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT_RELATIVE" \
   "$JOB_SCRIPT_SHA256" "$NONCE" "$PREPARED_AT" "$PROJECT" "$QUEUE" "$NODES" \
   "$WALLTIME_S" "$DRY_RUN" <<'PY'
 import json
@@ -407,7 +420,7 @@ else
     echo "qsub failed; see submission record at $SUBMISSION_DIR" >&2
     exit "$qsub_rc"
   fi
-  REQUEST_ID=$(python3 - "$SUBMISSION_DIR/qsub.stdout" <<'PY'
+  REQUEST_ID=$(python3 -I -B - "$SUBMISSION_DIR/qsub.stdout" <<'PY'
 import re
 import sys
 
@@ -428,7 +441,7 @@ PY
   }
 fi
 
-python3 - "$SUBMISSION_DIR/pre-submit.json" \
+python3 -I -B - "$SUBMISSION_DIR/pre-submit.json" \
   "$SUBMISSION_DIR/submit-receipt.json" "$REQUEST_ID" "$SUBMITTED_AT" <<'PY'
 import json
 import sys

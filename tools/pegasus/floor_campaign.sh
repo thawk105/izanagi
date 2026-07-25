@@ -25,18 +25,6 @@ if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
 fi
 
 unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
-PY_COMMAND=$(command -v python3) || {
-  echo "python3 is unavailable" >&2
-  exit 2
-}
-PY=$(realpath -e -- "$PY_COMMAND") || {
-  echo "cannot resolve python3 executable" >&2
-  exit 2
-}
-if [[ ! -x "$PY" ]]; then
-  echo "resolved python3 is not executable" >&2
-  exit 2
-fi
 
 export TMPDIR="/scr/${PBS_JOBID//:/_}"
 if ! mkdir "$TMPDIR"; then
@@ -129,7 +117,7 @@ write_failure() {
   local writer_rc=0
   if [[ "$failure_written" -eq 0 ]]; then
     failure_written=1
-    "$PY" -E -s -B - "$ATTEMPT_DIR/failure.json" "$PBS_JOBID" "$rc" "$stage" "$message" <<'PY' \
+    "$PY" -I -B - "$ATTEMPT_DIR/failure.json" "$PBS_JOBID" "$rc" "$stage" "$message" <<'PY' \
       || writer_rc=$?
 import json
 import sys
@@ -157,6 +145,30 @@ PY
   fi
   return 0
 }
+write_interpreter_failure() {
+  local message=$1
+  if ! printf 'stage=interpreter\nrc=2\nmessage=%s\n' "$message" \
+      >"$ATTEMPT_DIR/failure-interpreter.txt"; then
+    echo "cannot write interpreter failure marker: $message" >&2
+  fi
+}
+
+PY_COMMAND=$(command -v python3) || {
+  write_interpreter_failure "python3 is unavailable"
+  echo "python3 is unavailable" >&2
+  exit 2
+}
+PY=$(realpath -e -- "$PY_COMMAND") || {
+  write_interpreter_failure "cannot resolve python3 executable"
+  echo "cannot resolve python3 executable" >&2
+  exit 2
+}
+if [[ ! -x "$PY" ]]; then
+  write_interpreter_failure "resolved python3 is not executable"
+  echo "resolved python3 is not executable" >&2
+  exit 2
+fi
+
 on_err() {
   local rc=$?
   local line=${BASH_LINENO[0]:-unknown}
@@ -178,7 +190,7 @@ trap 'on_signal TERM 15' TERM
 trap 'on_signal HUP 1' HUP
 
 printf '%s\n' "$PY" >"$ATTEMPT_DIR/python3.realpath"
-"$PY" -E -s -B --version >"$ATTEMPT_DIR/python3.version" 2>&1
+"$PY" -I -B --version >"$ATTEMPT_DIR/python3.version" 2>&1
 
 # 出典: certify_calibration.sh:105-141 @ e9b6f69
 if [[ ! -f "$POLICY" || -L "$POLICY" ]]; then
@@ -187,7 +199,7 @@ if [[ ! -f "$POLICY" || -L "$POLICY" ]]; then
 fi
 policy_output=""
 policy_rc=0
-policy_output=$("$PY" -E -s -B - "$POLICY" <<'PY'
+policy_output=$("$PY" -I -B - "$POLICY" <<'PY'
 import json
 import re
 import sys
@@ -280,7 +292,7 @@ if ! assert_safe_output_path "$SUBMIT_SOURCE"; then
   exit 2
 fi
 copy_rc=0
-"$PY" -E -s -B - "$SUBMIT_SOURCE" "$ATTEMPT_DIR/submit-receipt.json" <<'PY' || copy_rc=$?
+"$PY" -I -B - "$SUBMIT_SOURCE" "$ATTEMPT_DIR/submit-receipt.json" <<'PY' || copy_rc=$?
 import os
 import shutil
 import stat
@@ -306,7 +318,7 @@ if [[ "$copy_rc" -ne 0 ]]; then
 fi
 
 receipt_rc=0
-"$PY" -E -s -B - "$ATTEMPT_DIR/submit-receipt.json" "$IZANAGI_SUBMISSION_NONCE" \
+"$PY" -I -B - "$ATTEMPT_DIR/submit-receipt.json" "$IZANAGI_SUBMISSION_NONCE" \
   "$PBS_JOBID" "$PROJECT" "$QUEUE" "$NODES" "$REQUESTED_S_POLICY" "$REPO_ROOT" <<'PY' \
   || receipt_rc=$?
 import json
@@ -413,7 +425,7 @@ if [[ ! "$EXECUTING_SCRIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   write_failure 2 source_identity "cannot hash executing job script bytes"
   exit 2
 fi
-RECEIPT_SCRIPT_SHA256=$("$PY" -E -s -B - "$ATTEMPT_DIR/submit-receipt.json" <<'PY'
+RECEIPT_SCRIPT_SHA256=$("$PY" -I -B - "$ATTEMPT_DIR/submit-receipt.json" <<'PY'
 import json
 import sys
 print(json.load(open(sys.argv[1], encoding="utf-8"))["job_script_sha256"])
@@ -429,7 +441,7 @@ if [[ ! "$CURRENT_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   write_failure 2 source_identity "current source commit is not lowercase 40 hex"
   exit 2
 fi
-RECEIPT_SOURCE_COMMIT=$("$PY" -E -s -B - "$ATTEMPT_DIR/submit-receipt.json" <<'PY'
+RECEIPT_SOURCE_COMMIT=$("$PY" -I -B - "$ATTEMPT_DIR/submit-receipt.json" <<'PY'
 import json
 import sys
 print(json.load(open(sys.argv[1], encoding="utf-8"))["source_commit"])
@@ -482,7 +494,7 @@ printf '%s\n' "$HOSTNAME_SHORT" >"$ATTEMPT_DIR/hostname.stdout"
 printf '%s\n' "$HOSTNAME_FQDN" >"$ATTEMPT_DIR/hostname-f.stdout"
 
 qstat_parse_rc=0
-qstat_output=$("$PY" -E -s -B - "$ATTEMPT_DIR/qstat-f.stdout" "$qstat_rc" <<'PY'
+qstat_output=$("$PY" -I -B - "$ATTEMPT_DIR/qstat-f.stdout" "$qstat_rc" <<'PY'
 import re
 import subprocess
 import sys
@@ -559,7 +571,7 @@ if [[ "$qstat_rc" -ne 0 || "$ASSIGNED_HOST" == unavailable \
     || "$SCHEDULER_STARTED_EPOCH" == unavailable \
     || "$SCHEDULER_ELAPSE_LIMIT_S" == unavailable \
     || "$SCHEDULER_REMAINING_ELAPSE_S" == unavailable ]]; then
-  "$PY" -E -s -B - "$ATTEMPT_DIR/allocation-unavailable.json" "$PBS_JOBID" "$qstat_rc" \
+  "$PY" -I -B - "$ATTEMPT_DIR/allocation-unavailable.json" "$PBS_JOBID" "$qstat_rc" \
     "$ASSIGNED_HOST" "$SCHEDULER_STARTED_EPOCH" "$SCHEDULER_ELAPSE_LIMIT_S" \
     "$SCHEDULER_REMAINING_ELAPSE_S" <<'PY'
 import json
@@ -588,7 +600,7 @@ PY
   exit 2
 fi
 
-"$PY" -E -s -B - "$ATTEMPT_DIR/scheduler-elapse.json" "$PBS_JOBID" \
+"$PY" -I -B - "$ATTEMPT_DIR/scheduler-elapse.json" "$PBS_JOBID" \
   "$SCHEDULER_ELAPSE_LIMIT_S" "$SCHEDULER_REMAINING_ELAPSE_S" \
   "$REQUESTED_S_POLICY" <<'PY'
 import json
@@ -641,7 +653,7 @@ export IZANAGI_RESERVATION_HOST="$HOSTNAME_OBSERVED"
 export IZANAGI_RESERVATION_BOOT_ID="$BOOT_ID"
 export IZANAGI_RESERVATION_SCRIPT_SHA256="$JOB_SCRIPT_SHA256"
 export IZANAGI_RESERVATION_NONCE="$IZANAGI_SUBMISSION_NONCE"
-"$PY" -E -s -B - "$ATTEMPT_DIR/reservation.json" <<'PY'
+"$PY" -I -B - "$ATTEMPT_DIR/reservation.json" <<'PY'
 import json
 import os
 import sys
@@ -824,7 +836,7 @@ if [[ ${CMAKE_PREFIX_PATH+x} ]]; then
   CMAKE_PREFIX_PATH_PREVIOUS_VALUE=$CMAKE_PREFIX_PATH
 fi
 export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"
-"$PY" -E -s -B - "$ATTEMPT_DIR/cmake-prefix-path.json" "$CMAKE_PREFIX_PATH_PREVIOUSLY_SET" \
+"$PY" -I -B - "$ATTEMPT_DIR/cmake-prefix-path.json" "$CMAKE_PREFIX_PATH_PREVIOUSLY_SET" \
   "$CMAKE_PREFIX_PATH_PREVIOUS_VALUE" "$CMAKE_PREFIX_PATH" <<'PY'
 import json
 import sys
@@ -861,7 +873,7 @@ if [[ "$driver_setup_rc" -ne 0 ]]; then
 fi
 printf '%s\n' "launch-attempted" >"$ATTEMPT_DIR/floor-driver.launch-attempted"
 driver_rc=0
-"$PY" -E -s -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py" \
+"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py" \
   --mode official \
   --protocol "$REPO_ROOT/$PROTOCOL_PATH" \
   >&"$DRIVER_STDOUT_FD" 2>&"$DRIVER_STDERR_FD" || driver_rc=$?
@@ -870,7 +882,7 @@ exec {DRIVER_STDERR_FD}>&-
 
 # 出典: certify_calibration.sh:734-762 @ e9b6f69
 job_result_writer_rc=0
-"$PY" -E -s -B - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$driver_rc" \
+"$PY" -I -B - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$driver_rc" \
   "$PROTOCOL_PATH" "$CURRENT_COMMIT" "$JOB_SCRIPT_SHA256" \
   "$EXECUTING_SCRIPT_SHA256" "$IZANAGI_SUBMISSION_NONCE" "$REQUESTED_S" <<'PY' \
   || job_result_writer_rc=$?

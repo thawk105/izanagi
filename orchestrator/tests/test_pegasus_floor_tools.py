@@ -110,13 +110,59 @@ def _hms_seconds(value: str) -> int:
     return hours * 3600 + minutes * 60 + seconds
 
 
+def _git_env(repo: Path) -> dict[str, str]:
+    home = repo.parent / "git-home"
+    home.mkdir(exist_ok=True)
+    env = os.environ.copy()
+    env.pop("GIT_CONFIG_PARAMETERS", None)
+    env.pop("GIT_TEMPLATE_DIR", None)
+    for name in tuple(env):
+        if name.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")):
+            env.pop(name)
+    env.update(
+        {
+            "HOME": str(home),
+            "XDG_CONFIG_HOME": str(home / "xdg"),
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_SYSTEM": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_ATTR_NOSYSTEM": "1",
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "core.hooksPath",
+            "GIT_CONFIG_VALUE_0": "",
+        }
+    )
+    return env
+
+
+def _git_command(repo: Path, *args: str) -> list[str]:
+    return [
+        "git",
+        "-c",
+        "core.hooksPath=",
+        "-C",
+        str(repo),
+        *args,
+    ]
+
+
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["git", "-C", str(repo), *args],
+        _git_command(repo, *args),
         check=True,
         capture_output=True,
         text=True,
+        env=_git_env(repo),
     )
+
+
+def _git_bytes(repo: Path, *args: str) -> bytes:
+    return subprocess.run(
+        _git_command(repo, *args),
+        check=True,
+        capture_output=True,
+        env=_git_env(repo),
+    ).stdout
 
 
 def _fixture_repo(tmp_path: Path) -> Path:
@@ -132,7 +178,11 @@ def _fixture_repo(tmp_path: Path) -> Path:
     output = repo / "output"
     output.mkdir()
     (output / ".tracked-fixture").write_text("clean\n", encoding="utf-8")
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(
+        ["git", "-c", "core.hooksPath=", "init", "-q", str(repo)],
+        check=True,
+        env=_git_env(repo),
+    )
     _git(repo, "config", "user.email", "fixture@example.invalid")
     _git(repo, "config", "user.name", "Fixture")
     _git(repo, "add", ".")
@@ -190,7 +240,7 @@ def _submit(
     bin_dir: Path,
     *arguments: str,
 ) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
+    env = _git_env(repo)
     env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     return subprocess.run(
         ["bash", str(repo / "tools" / "pegasus" / "submit_floor.sh"), *arguments],
@@ -228,6 +278,36 @@ def test_floor_shell_syntax(script: Path) -> None:
         ["bash", "-n", str(script)], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_fixture_git_environment_ignores_external_config_and_hooks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    external_home = tmp_path / "external-home"
+    hooks = external_home / "hooks"
+    hooks.mkdir(parents=True)
+    sentinel = tmp_path / "external-hook-ran"
+    pre_commit = hooks / "pre-commit"
+    pre_commit.write_text(
+        "#!/bin/sh\n"
+        f"printf ran > {shlex.quote(str(sentinel))}\n"
+        "exit 91\n",
+        encoding="utf-8",
+    )
+    pre_commit.chmod(0o755)
+    external_config = external_home / "gitconfig"
+    external_config.write_text(
+        "[core]\n"
+        f"\thooksPath = {hooks}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(external_home))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(external_config))
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(external_config))
+
+    repo = _fixture_repo(tmp_path)
+    assert (repo / ".git").is_dir()
+    assert not sentinel.exists()
 
 
 def test_floor_pbs_directives_match_policy() -> None:
@@ -284,18 +364,12 @@ def test_floor_job_binds_repo_blob_hash(tmp_path: Path) -> None:
     shutil.copy2(repo_job, spooled_job)
     source_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
     blob_sha = hashlib.sha256(
-        subprocess.run(
-            [
-                "git",
-                "-C",
-                str(repo),
-                "cat-file",
-                "blob",
-                source_commit + ":tools/pegasus/floor_campaign.sh",
-            ],
-            check=True,
-            capture_output=True,
-        ).stdout
+        _git_bytes(
+            repo,
+            "cat-file",
+            "blob",
+            source_commit + ":tools/pegasus/floor_campaign.sh",
+        )
     ).hexdigest()
     _git(repo, "update-index", "--assume-unchanged", "tools/pegasus/floor_campaign.sh")
     repo_job.write_text(
@@ -332,8 +406,59 @@ def test_floor_job_binds_repo_blob_hash(tmp_path: Path) -> None:
         ["bash", "-c", prefix + _source_identity_fragment(), str(spooled_job)],
         capture_output=True,
         text=True,
+        env=_git_env(repo),
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_floor_job_rejects_working_tree_script_that_differs_from_blob(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    relative = "tools/pegasus/floor_campaign.sh"
+    repo_job = repo / relative
+    source_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "update-index", "--assume-unchanged", relative)
+    repo_job.write_text(
+        repo_job.read_text(encoding="utf-8") + "\n# hidden spooled mutation\n",
+        encoding="utf-8",
+    )
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    spooled_job = tmp_path / "spooled-floor_campaign.sh"
+    shutil.copy2(repo_job, spooled_job)
+    mutated_sha = hashlib.sha256(spooled_job.read_bytes()).hexdigest()
+
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    (attempt / "submit-receipt.json").write_text(
+        json.dumps(
+            {
+                "source_commit": source_commit,
+                "job_script_sha256": mutated_sha,
+            }
+        ),
+        encoding="utf-8",
+    )
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"TMPDIR={shlex.quote(str(scratch))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "write_failure() { return 0; }",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _source_identity_fragment(), str(spooled_job)],
+        capture_output=True,
+        text=True,
+        env=_git_env(repo),
+    )
+    assert result.returncode == 2, result.stderr
 
 
 def test_floor_job_binds_scheduler_elapse_limit() -> None:
@@ -356,10 +481,55 @@ def test_floor_job_uses_scheduler_requested_seconds() -> None:
 
 def test_floor_job_hardens_interpreter() -> None:
     source = JOB.read_text(encoding="utf-8")
+    submit = SUBMIT.read_text(encoding="utf-8")
     assert "unset PYTHONPATH PYTHONHOME PYTHONSTARTUP" in source
     assert 'PY=$(realpath -e -- "$PY_COMMAND")' in source
-    assert '"$PY" -E -s -B --version' in source
-    assert '"$PY" -E -s -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"' in source
+    assert '"$PY" -I -B --version' in source
+    assert '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"' in source
+    assert "-E -s -B" not in source
+    assert source.count('"$PY" -I -B') == 14
+    assert len(re.findall(r"(?<![A-Za-z0-9_])python3(?=\s)", submit)) == 5
+    assert submit.count("python3 -I -B") == 5
+    assert re.search(r"(?<![A-Za-z0-9_])python3\s+(?!-I -B)", submit) is None
+
+
+def test_floor_job_records_interpreter_resolution_failure_after_attempt_creation(
+    tmp_path: Path,
+) -> None:
+    source = JOB.read_text(encoding="utf-8")
+    attempt_index = source.index('ATTEMPT_DIR="$JOB_STAGING_ROOT/$PBS_JOBID"')
+    writer_index = source.index("write_failure() {")
+    resolution_index = source.index("PY_COMMAND=$(command -v python3)")
+    assert attempt_index < writer_index < resolution_index
+
+    start = source.index("write_interpreter_failure() {")
+    end = source.index("on_err() {", start)
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    empty_path = tmp_path / "empty-bin"
+    empty_path.mkdir()
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            "set -o noclobber",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["/bin/bash", "-c", prefix + source[start:end]],
+        capture_output=True,
+        text=True,
+        env={"PATH": str(empty_path)},
+    )
+    assert result.returncode == 2
+    assert (attempt / "failure-interpreter.txt").read_text(
+        encoding="utf-8"
+    ) == (
+        "stage=interpreter\n"
+        "rc=2\n"
+        "message=python3 is unavailable\n"
+    )
 
 
 def _dependency_build_fragment() -> str:
@@ -369,6 +539,15 @@ def _dependency_build_fragment() -> str:
         'PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"', start
     )
     return source[start:end]
+
+
+def _read_stub_calls(path: Path) -> list[list[str]]:
+    payload = path.read_bytes()
+    assert payload.endswith(b"\x1e")
+    return [
+        [argument.decode("utf-8") for argument in record.split(b"\0") if argument]
+        for record in payload[:-1].split(b"\x1e")
+    ]
 
 
 def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> None:
@@ -381,9 +560,14 @@ def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> Non
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     head = "a" * 40
+    git_log = tmp_path / "git-calls.bin"
+    cmake_log = tmp_path / "cmake-calls.bin"
+    timeout_log = tmp_path / "timeout-calls.bin"
     git_stub = bin_dir / "git"
     git_stub.write_text(
         "#!/bin/sh\n"
+        f"printf '%s\\0' \"$@\" >> {shlex.quote(str(git_log))}\n"
+        f"printf '\\036' >> {shlex.quote(str(git_log))}\n"
         "case \" $* \" in\n"
         f"  *' rev-parse HEAD '*) printf '%s\\n' {head} ;;\n"
         "  *' status --porcelain --untracked-files=all '*) : ;;\n"
@@ -393,11 +577,20 @@ def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> Non
     )
     git_stub.chmod(0o755)
     cmake_stub = bin_dir / "cmake"
-    cmake_stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    cmake_stub.write_text(
+        "#!/bin/sh\n"
+        f"printf '%s\\0' \"$@\" >> {shlex.quote(str(cmake_log))}\n"
+        f"printf '\\036' >> {shlex.quote(str(cmake_log))}\n",
+        encoding="utf-8",
+    )
     cmake_stub.chmod(0o755)
     timeout_stub = bin_dir / "timeout"
     timeout_stub.write_text(
-        "#!/bin/sh\nshift\n\"$@\"\n",
+        "#!/bin/sh\n"
+        f"printf '%s\\0' \"$@\" >> {shlex.quote(str(timeout_log))}\n"
+        f"printf '\\036' >> {shlex.quote(str(timeout_log))}\n"
+        "shift\n"
+        "\"$@\"\n",
         encoding="utf-8",
     )
     timeout_stub.chmod(0o755)
@@ -417,7 +610,7 @@ def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> Non
             "",
         ]
     )
-    env = os.environ.copy()
+    env = _git_env(tmp_path / "repo")
     env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     result = subprocess.run(
         [
@@ -438,6 +631,75 @@ def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> Non
     assert prefix_record["effective_value"] == (
         str(scratch / "gflags-install") + ":" + str(scratch / "glog-install")
     )
+    compiler = str(Path("/bin/true").resolve())
+    gflags_configure = [
+        "-S",
+        str(gflags_source),
+        "-B",
+        str(scratch / "gflags-build"),
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DBUILD_SHARED_LIBS=OFF",
+        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+        "-DREGISTER_INSTALL_PREFIX=OFF",
+        "-DCMAKE_INSTALL_PREFIX=" + str(scratch / "gflags-install"),
+        "-DCMAKE_C_COMPILER=" + compiler,
+        "-DCMAKE_CXX_COMPILER=" + compiler,
+    ]
+    gflags_build = ["--build", str(scratch / "gflags-build"), "-j", "48"]
+    gflags_install = ["--install", str(scratch / "gflags-build")]
+    glog_configure = [
+        "-S",
+        str(glog_source),
+        "-B",
+        str(scratch / "glog-build"),
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DBUILD_SHARED_LIBS=OFF",
+        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+        "-DWITH_GTEST=OFF",
+        "-DBUILD_TESTING=OFF",
+        "-DWITH_UNWIND=OFF",
+        "-DCMAKE_PREFIX_PATH=" + str(scratch / "gflags-install"),
+        "-DCMAKE_INSTALL_PREFIX=" + str(scratch / "glog-install"),
+        "-DCMAKE_C_COMPILER=" + compiler,
+        "-DCMAKE_CXX_COMPILER=" + compiler,
+    ]
+    glog_build = ["--build", str(scratch / "glog-build"), "-j", "48"]
+    glog_install = ["--install", str(scratch / "glog-build")]
+    cmake_calls = [
+        gflags_configure,
+        gflags_build,
+        gflags_install,
+        glog_configure,
+        glog_build,
+        glog_install,
+    ]
+    assert _read_stub_calls(cmake_log) == cmake_calls
+    assert _read_stub_calls(timeout_log) == [
+        [limit, "cmake", *call]
+        for limit, call in zip(
+            ("60", "60", "60", "120", "120", "120"),
+            cmake_calls,
+            strict=True,
+        )
+    ]
+    assert _read_stub_calls(git_log) == [
+        ["-C", str(gflags_source), "rev-parse", "HEAD"],
+        [
+            "-C",
+            str(gflags_source),
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+        ],
+        ["-C", str(glog_source), "rev-parse", "HEAD"],
+        [
+            "-C",
+            str(glog_source),
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+        ],
+    ]
 
 
 def test_floor_job_exports_exact_reservation_fields() -> None:
@@ -456,7 +718,7 @@ def test_floor_job_invokes_fixed_official_cli_without_bypass() -> None:
     end = source.index("# 出典: certify_calibration.sh:734-762", start)
     invocation = source[start:end]
     assert (
-        '"$PY" -E -s -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"'
+        '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"'
         in invocation
     )
     assert "--mode official" in invocation
@@ -547,18 +809,12 @@ def test_submit_floor_dry_run_is_scheduler_free_and_writes_exact_receipts(
     assert pre["job_script_path"] == "tools/pegasus/floor_campaign.sh"
     assert type(pre["job_script_sha256"]) is str
     assert type(receipt["job_script_sha256"]) is str
-    committed_job = subprocess.run(
-        [
-            "git",
-            "-C",
-            str(repo),
-            "cat-file",
-            "blob",
-            pre["source_commit"] + ":tools/pegasus/floor_campaign.sh",
-        ],
-        check=True,
-        capture_output=True,
-    ).stdout
+    committed_job = _git_bytes(
+        repo,
+        "cat-file",
+        "blob",
+        pre["source_commit"] + ":tools/pegasus/floor_campaign.sh",
+    )
     assert pre["job_script_sha256"] == hashlib.sha256(committed_job).hexdigest()
     assert receipt["job_script_path"] == pre["job_script_path"]
     assert receipt["job_script_sha256"] == pre["job_script_sha256"]
@@ -707,6 +963,32 @@ def test_submit_floor_untracked_outside_output_fails_before_side_effects(
     assert not sentinel.exists()
 
 
+def test_submit_floor_git_untracked_scan_failure_is_fail_closed(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    real_git = shutil.which("git")
+    assert real_git is not None
+    git_stub = bin_dir / "git"
+    git_stub.write_text(
+        "#!/bin/sh\n"
+        "case \" $* \" in\n"
+        "  *' ls-files --others --exclude-standard -z '*) exit 73 ;;\n"
+        "esac\n"
+        f"exec {shlex.quote(real_git)} \"$@\"\n",
+        encoding="utf-8",
+    )
+    git_stub.chmod(0o755)
+
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 73
+    assert "cannot inspect untracked repository content" in result.stderr
+    assert not (repo / "output" / "env").exists()
+    assert not (repo / "output" / "claims").exists()
+    assert not sentinel.exists()
+
+
 @pytest.mark.parametrize(
     "kind", ["symlink", "regular-file", "mode-0755"], ids=str
 )
@@ -769,7 +1051,7 @@ def test_submit_floor_rejects_symlink_invocation(tmp_path: Path) -> None:
     bin_dir, sentinel = _sentinel_bin(tmp_path)
     link = tmp_path / "submit-floor-link"
     link.symlink_to(repo / "tools" / "pegasus" / "submit_floor.sh")
-    env = os.environ.copy()
+    env = _git_env(repo)
     env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     result = subprocess.run(
         ["bash", str(link), "--dry-run"],
@@ -793,7 +1075,7 @@ def test_submit_floor_real_submission_requires_fixed_repo_script(
     _git(repo, "add", "tools/other/submit_floor.sh")
     _git(repo, "commit", "-qm", "track relocated submit script")
     bin_dir, sentinel = _sentinel_bin(tmp_path)
-    env = os.environ.copy()
+    env = _git_env(repo)
     env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     result = subprocess.run(
         ["bash", str(relocated)],
@@ -873,7 +1155,7 @@ def test_submit_floor_rejects_symlinked_staging_ancestor(tmp_path: Path) -> None
 def _qstat_parser_code() -> str:
     source = JOB.read_text(encoding="utf-8")
     marker = (
-        'qstat_output=$("$PY" -E -s -B - "$ATTEMPT_DIR/qstat-f.stdout" '
+        'qstat_output=$("$PY" -I -B - "$ATTEMPT_DIR/qstat-f.stdout" '
         '"$qstat_rc" <<\'PY\'\n'
     )
     start = source.index(marker) + len(marker)
@@ -1127,6 +1409,63 @@ def test_floor_driver_failure_propagates_rc(
         assert failure_call.read_text(encoding="utf-8").startswith(
             f"{driver_rc}|floor_driver|"
         )
+
+
+def test_floor_driver_fd_setup_failure_does_not_mark_launch(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    driver_ran = tmp_path / "driver-ran"
+    driver.write_text(
+        "from pathlib import Path\n"
+        f"Path({str(driver_ran)!r}).write_text('ran', encoding='utf-8')\n"
+        "raise SystemExit(7)\n",
+        encoding="utf-8",
+    )
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    stdout_sentinel = "preexisting stdout\n"
+    (attempt / "floor-driver.stdout").write_text(
+        stdout_sentinel, encoding="utf-8"
+    )
+    failure_call = attempt / "failure-call.txt"
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            "set -o noclobber",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "write_failure() {",
+            f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
+            "}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _driver_tail()],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode not in {0, 7}
+    assert failure_call.read_text(encoding="utf-8").split("|", 2)[:2] == [
+        str(result.returncode),
+        "floor_driver_setup",
+    ]
+    assert (attempt / "floor-driver.stdout").read_text(
+        encoding="utf-8"
+    ) == stdout_sentinel
+    assert not (attempt / "floor-driver.launch-attempted").exists()
+    assert not (attempt / "job-result.json").exists()
+    assert not driver_ran.exists()
 
 
 def test_floor_job_result_writer_failure_preserves_driver_rc(
