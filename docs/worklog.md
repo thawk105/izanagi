@@ -460,7 +460,9 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
   一括承認で黙って閉じる経路を作らない)。
 - **検査 (記録 commit 前の実測)**: `check_docs` rc=0 (違反なし)、焦点 = `test_check_docs.py` +
   repo scan invariant + real-repo serialization の **117 passed**、`check_ai_provenance` =
-  **350 件・違反なし**。記録 commit 後の再走は後続 commit で反映する (F34)。
+  **350 件・違反なし**。
+- **記録後検査 (F34)**: 記録 commit (`58b8793`) の後に再走 = `check_docs` rc=0、焦点 **117 passed**、
+  `check_ai_provenance` = **351 件・違反なし**。
 
 ### 次の一手
 1. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
