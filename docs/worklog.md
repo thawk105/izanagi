@@ -468,6 +468,9 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
   **350 件・違反なし**。
 - **記録後検査 (F34)**: 記録 commit (`58b8793`) の後に再走 = `check_docs` rc=0、焦点 **117 passed**、
   `check_ai_provenance` = **351 件・違反なし**。
+- **自己改善 commit 後の再走 (F34)**: `check_docs` rc=0、焦点 **117 passed**、
+  `check_ai_provenance` = **353 件・違反なし**。自己改善の初回編集は最長行予算 180 を 207 で超えて
+  赤になり、規則を 3 行へ分割して解消した (`check_docs` が機械捕捉)。
 
 ### 次の一手
 1. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
