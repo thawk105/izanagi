@@ -312,6 +312,8 @@ DW-G04 の発火条件ではなく、実 submit artifact の確認は人間の�
 - **記録後検査 (F34)**: 本記録 commit の後に再走 = repo scan invariant + real-repo serialization +
   凍結成果物 + 焦点 3 ファイル = 110 passed。`check_ai_provenance` = 341 件・違反なし。
   `check_docs` = 違反なし。
+- **段 8 の docs commit 後の再走 (F34)**: 受入全走 = 2968 passed / 18 skipped (赤 0)、
+  `check_ai_provenance` = 344 件・違反なし、`check_docs` = 違反なし。
 - **段 8 で自己捕捉した失敗 (F37 新設)**: 自己改善 commit の前に `check_docs` を `| tail` へ通したため
   pipeline の rc が `tail` のものになり、`docs/dev-wave/**` の byte 予算違反 (24379 > 24000) を
   報告していたのに `&&` の右辺が実行されて commit が入った (`419fa70`)。予算値は上げず、入口と
