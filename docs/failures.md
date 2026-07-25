@@ -590,3 +590,27 @@
   手順の正本を hash でなく記述に置くことで、amend による hash 変化と独立にする
 - 現行実体: `docs/dev-wave/core.md` の `DW-S07`。
 - 記録: worklog 2026-07-26 (2)、材料レポート = `output/insights/2026-07-26_t098-selector-lp-reject.md`
+
+### F39. 「凍結 bytes を触らない」を安全条件と誤認し、ファイル追加が承認済み手番を割ることを見落とした [誤前提] [防壁の射程誤認]
+
+- 事象: `/dev-wave クロスプロトコル対応` の段 1 で、親は cross-protocol 実装が凍結成果物と衝突すると
+  実測し、「`genome.py` を編集せず ccbench gitlink も前進させなければ凍結 bytes は 1 byte も変わらない
+  = 安全」という回避路を brief の不変条件に据えた。段 3 のレンズ B がこれを否定した —
+  floor launch certificate の `clean_scan_digest` は**実 repository file 一覧を preimage に含む**
+  (`orchestrator/campaign/s8b_floor_campaign.py:1597-1639`)。新規 patch / driver / PBS script を
+  commit するだけで、承認済み・未実行の [T-088] receipt の `source_commit` と `clean_scan_digest` が
+  承認時点から変わる。親は段 2 待機中に (P6) を「解決済み」と handoff へ凍結までしていた
+- 根本原因: 凍結の単位を **bytes** だとだけ理解し、**ファイル集合**もまた凍結の preimage に入ることを
+  見落とした。`DW-O09` の pin 閉包列挙は `FROZEN_MANIFEST`・generator source hash pin・
+  key→canonical path 束縛を既定対象に挙げるが、いずれも「特定ファイルの中身」を pin する台帳であり、
+  **「どのファイルが存在するか」を pin する digest** が既定対象に無い。
+  grep 対象がファイルパスでなく digest 名になるため、パス名での閉包検索に掛からない
+- 検出できた理由: 段 3 の敵対レンズが `s8b_floor_campaign.py` の launch certificate 生成経路まで
+  読んだため。親の pin 閉包検索 (`grep -rn "<成果物パス>" --include=*.py`) では原理的に出ない
+- 実害: なし。実装前 (段 4 裁定前) に検出され、コードは 0 byte も書いていない。
+  ただし親は誤前提を handoff に「解決済み」と記録しており、段 3 が無ければ実装へ進んでいた
+- 恒久対応: 未実施。`DW-O09` の既定対象へ「ファイル集合を pin する digest」を加える改訂が要るが、
+  `docs/dev-wave/**` は hard ceiling 24000 に対し 23987 (余裕 13 bytes) で収まらない。
+  [T-109] の裁定パッケージと併せてユーザー裁定へ送る ([T-101] / [T-104] / [T-108] と同じ形)
+- 現行実体: なし (裁定待ち)。
+- 記録: worklog 2026-07-26 (3)、材料レポート = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §3.4

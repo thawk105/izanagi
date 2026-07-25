@@ -685,3 +685,87 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 21. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 22. [T-012] 延期: pilot 凍結維持。変わらず
 23. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-26 (3) — [T-109] クロスプロトコル対応: 実装可能性を調査し「実装しない」と裁定 (設計のみ・コード 0 byte、branch worktree-dev-wave-t091-093-hardening、計測なし)
+
+/dev-wave 1 回 (引数「クロスプロトコル対応」)。段 4 で **実装しない**と裁定し `DW-S04` の
+`4→7→8→9` を採った。**実装差分がないため変異 matrix と受入全走は対象外**である。
+材料レポート = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md`、
+逐語 = 同 `-consultations.md` (原文 sha256 併記) を正本とする。
+
+- **裁定の骨子**: cross-protocol の実装経路が**すべて**ユーザー承認済みの決定で塞がっている。
+  (i) D86(3)/D87 が AI の `qsub` を明示禁止するため、生死実験の実測自体が人間手番、
+  (ii) D16 に trace-hook の out-of-tree patch 例外はなく (却下リストに「全て patch」がある)、
+  branch へ置けば gitlink 前進で承認定数 `CCBENCH_FULL_SHA` と衝突、
+  (iii) D32 (ユーザー承認 2026-07-03) が cross-protocol を主実験後へ降格し一歩目をカタログ化試作と定める。
+- **最重要の発見 — 凍結 bytes を触らなくても承認済み手番は割れる。** 親は当初「`genome.py` を触らず
+  gitlink も動かさなければ無害」と考えたが誤り。floor launch certificate の `clean_scan_digest` は
+  **実 repository file 一覧を preimage に含む** (`s8b_floor_campaign.py:1597-1639`)。patch/driver を
+  commit するだけで [T-088] receipt の `source_commit` と `clean_scan_digest` が承認時点から変わる。
+  `submit_floor.sh:181-245` は `output/` 外の untracked と未 commit script を明示拒否し、
+  PBS ログの既定戻り先 (投入 dir) がこれに抵触する。
+- **素材: 移植順序は protocol の系統でなく版 ID の安定性で決まる。** OCC 同士の silo→tictoc は
+  直感的に近いが、tictoc は validation の rts 拡張が delta overflow 時に**新版を書かずに wts を前進**
+  させる (`cc/tictoc/transaction.cc:425-440`)。mocc は hybrid だが bitfield 抽出は恒等。
+  ただしその恒等性も **UPDATE-only 限定**で、`absent`・INSERT/reinsert・scan で前提が崩れる。
+- **素材: 「移植した」と「同じ強度で検証できる」は別である。** `Integrity.clean()` の 9 カウンタのうち
+  `lock_coverage_violations` と `permutation_violations` は **silo の `#if TRACE` assert が emit する
+  X 行 / P 行だけが検出源**。si 型の最小 hook を移植すると同 2 項は常時 0 の恒真ゲートになり、
+  同じ lockskip を silo は indeterminate、mocc は certified としうる受理集合の非対称が生じる。
+- **親 brief の誤りを 10 件 real と認めた。** P4 (AI qsub 可) / P5 (D16 例外) / P1・P2 (一歩目は S1) /
+  P6 (patches 追加は無害) / P7 (live 軸 2 本) / 実測2 (verifier に silo 出現 0) /
+  実測3 (`is_clean()` が 4 カウンタ) / 実測6 (恒等写像) / R-1 (手動 cmake は gate 迂回でない)。
+  特に R-1 は親が段 2 の blocker 指摘に反論したものだが、レンズ A が「s5 の手動 build は trusted な
+  HEAD 済み hook の上に broken 差分を重ねるもので、新規 hook を作る本件と非同型」と否定した。
+- **エージェント工数**: codex 子 3 本 (プラン 1・敵対レンズ 2)。**3 本すべて NO-GO**。
+  段 2 が blocker 2 件、段 3 が must-fix 17 件。実装子・レビュー子は起動していない (実装しない裁定のため)。
+- **検査**: 逐語・材料レポート凍結前に検出語 gate を機械検査した = literal placeholder **hit 0**
+  (語彙 3 件)、三軸 conjunction **hit 0** (holdout rr80/rr20 の両方、走査 3 ファイル)。
+  可逆 defang と erratum は不要だった。`check_docs` rc=0。
+- **スキル自己改善 (gate 発火・候補 3 / 採用 1 / 裁定送り 2)**: 採用は **F39 の起票** (routing 1) —
+  「凍結 bytes を触らない」を安全条件と誤認し、ファイル追加が `clean_scan_digest` 経由で
+  承認済み手番を割ることを見落とした near miss。実害なし (段 3 が実装前に検出) だが、
+  親は誤前提を handoff へ「解決済み」と凍結までしていた。残り 2 件 (`DW-S01` の依存棚卸しが
+  別ノード実行を扱っていない / 同節に「未実行の承認済み手番を自分の変更が失効させないか」の
+  逆向き照合が無い) と F39 の恒久対応は、`docs/dev-wave/**` が上限 24000 に対し 23987
+  (余裕 13 bytes) で収まらないため [T-109] に束ねて裁定へ送る (前例 = [T-101] / [T-104] / [T-108])。
+
+### 次の一手
+1. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
+   続けて明示実行して実 job ID を得る。期待は driver rc=2 (official guard 生存)。
+   **[T-109] により優先度が上がった** — 本手番より先に repo へファイルを足すと
+   `source_commit` / `clean_scan_digest` が変わり再承認が要る
+2. [T-109] **新規・裁定待ち (本 wave の成果)**: クロスプロトコル対応の裁定パッケージ 6 件 —
+   (a) D16 の prototype 例外 (一回限りの trace-hook patch) の可否、(b) [T-088] との順序
+   (**AI 推奨 = [T-088] を先に完了**)、(c) 最小 trace-hook smoke の scope、
+   (d) observer-effect baseline の protocol 拡張 (手動 cmake 経路が規律 1 の機械防壁を通らない)、
+   (e) MOCC lock coverage package、(f) 本物の cross-protocol package の順序 (D32 の一歩目 =
+   カタログ化試作)。正本 = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §5。
+   併せて dev-wave 自己改善 3 件も同裁定に束ねる — (g) F39 の恒久対応 (`DW-O09` の pin 閉包既定対象へ
+   「ファイル集合を pin する digest」を追加)、(h) `DW-S01` の依存棚卸しが別ノード実行を扱っておらず
+   ログインノードの値で偽充足しうる、(i) `DW-S01` に「未実行の承認済み手番を自分の変更が失効させないか」
+   の逆向き照合が無い (F35 は stale 検出の一方向のみ)。いずれも予算 13 bytes に収まらない
+3. [T-106] 裁定待ち: ratified proof chain が selector raw を再 parse しない。**(a) 現状維持 + 射程明記**
+   を推奨。変わらず
+4. [T-107] 裁定待ち: 出力 schema と selector role が新しい受理集合を表現していない。変わらず
+5. [T-105] scope 外 real 所見: `tools/dev_waves/daemon.py` の `_run_artifact_bytes` が
+   `FileNotFoundError` を素通しする。変わらず
+6. [T-102] scope 外 real 所見: production の git runner が ambient `GIT_*` を継承する。変わらず
+7. [T-103] 未着手: never-issued 状態の real artifact 由来 refusal vector を別 node で撃つテスト。変わらず
+8. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage。変わらず
+9. [T-097] 裁定待ち: placeholder 検出の対象族拡張。変わらず
+10. [T-099] 裁定待ち: 凍結成果物に placeholder が入った場合の専用 waiver 契約。変わらず
+11. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
+12. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+13. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+14. [T-104] 裁定待ち (dev-wave 自己改善): 予算値の引き上げ可否の独立審査か reference 再編か。変わらず
+15. [T-108] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+16. [T-089] 測定後の hardening と裁定 (前倒し対象外): 二重 reason-tag 描画。変わらず
+17. [T-090] 測定後の hardening と裁定 (前倒し対象外): `VerifiedFreeze.document` が mutable dict。変わらず
+18. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+19. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+20. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+21. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+22. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+23. [T-012] 延期: pilot 凍結維持。変わらず
+24. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
