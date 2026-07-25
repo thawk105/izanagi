@@ -13,7 +13,9 @@
 """
 from __future__ import annotations
 
+import hashlib
 import re
+import stat
 import sys
 import time
 from dataclasses import dataclass
@@ -84,6 +86,54 @@ ARCHIVE_README = ARCHIVE_DIR / "README.md"
 # 閾値超過 = ローテーションの合図 (手順の正本は worklog.md 冒頭)。
 WORKLOG = REPO / "docs" / "worklog.md"
 WORKLOG_ROTATE_BYTES = 100_000
+INSIGHTS_DIR = REPO / "output" / "insights"
+
+# F36 恒久対応 2。正規表現への一般化は裁定で却下済み
+# (日本語メタ変数と欠陥説明の引用を誤検出するため)。
+LITERAL_PLACEHOLDERS = (
+    "<反映>",
+    "<受入結果を反映>",
+    "<受入全走結果を反映>",
+)
+
+# F36 が retroactive な埋め戻しを禁じる、埋め戻し失敗の歴史的債務。
+# key は scope -> 行 digest。worklog 族は H2 エントリ見出しに束縛するため、
+# エントリごと archive へ移す正規のローテーションでは台帳を変更しなくてよい。
+# 行だけを別エントリへ移す replay は赤になる。insights を移動・改名する場合は、
+# 同じ種別・digest・count の key を移す (追加・増数ではない)。
+KNOWN_PLACEHOLDER_DEBTS = {
+    "worklog-entry:4926160d0e41c9e972953e535dcce8cc1744eff78b13277cc91d722dc06129f2": {
+        "37c4a1747e10844c9c4deb2281e644bd655cc80409b80c09c0a840297d6e8ef0": 1,
+    },
+    "worklog-entry:0885598e3ddffd2a6a5c0424c3e6a65ba24f67048374cf3eefc064247e746eb7": {
+        "3beb84d709104086993083d461c6b511b63ffd595f2037c28f5c5ae91e046327": 1,
+    },
+    "worklog-entry:be893df535111cf91c64c141d38afa482dbca6f0a8a829a55b36ac72d8dc79bc": {
+        "37c4a1747e10844c9c4deb2281e644bd655cc80409b80c09c0a840297d6e8ef0": 1,
+    },
+    "insights-path:output/insights/2026-07-24_e2e-real-seal.md": {
+        "c022f2e9ee8cfaf2237eafa5c30e0c772a368c953e5ccf03a29233028bbe52fd": 1,
+    },
+}
+
+# placeholder そのものを説明する既存行。歴史的債務とは意味を混ぜない。
+KNOWN_PLACEHOLDER_MENTIONS = {
+    "worklog-entry:1241aea6de50f3519f1cb497ff8b0fc07d4b4c2b76f35047d091bfb893aa685a": {
+        "abdbb38938a76268b5cf63c13309339f58f0cc996deaa13db39c3786e2f3b866": 1,
+    },
+    "worklog-entry:825788c80a8f458dd12f5682450f134950c37fb0ea6ebbdaddfb26d9f9e95511": {
+        "80101b39632c395324f424bc9929db7a5c5b76c66b21d61e30afd52434f097ce": 1,
+        "9162d9fc17d08b52b54c4f4b1adb96a3b614ed4d944ac955de27bb0ea5b539e5": 1,
+    },
+    "insights-path:output/insights/2026-07-25_t068-t077-t078-closure-verbatim.md": {
+        "90d8e1f6a7f7229085d78f91ddc7bc91155bbe1ec39b44aaae2b2809daaaf5d9": 1,
+        "c66c4f6e14de10c369167108971c74fd0d1462b6a4489792efae907c5d02875c": 1,
+    },
+}
+
+# 新規 hit に例外を認めない。台帳への追加はユーザーの明示裁定のみ。
+EXPECTED_KNOWN_PLACEHOLDER_DEBTS = 4
+EXPECTED_KNOWN_PLACEHOLDER_MENTIONS = 5
 PHASE3 = REPO / "docs" / "phase3.md"
 
 # --- command / reference anti-bloat ---
@@ -302,7 +352,56 @@ D_REF = re.compile(r"\bD(\d{1,3})\b")
 PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude|\.codex)/[\w.\-/]+\.[A-Za-z0-9]+")
 
 
-def _current_pin() -> str | None:
+def _safe_read_text(
+    path: Path,
+    findings: list[str],
+    failure_prefix: str,
+    *,
+    newline: str | None = None,
+    unsafe_path_prefix: str | None = None,
+    invalid_utf8_prefix: str | None = None,
+) -> str | None:
+    """読取不能を集約 finding に変換し、symlink / 非 regular は開かない。"""
+
+    try:
+        # final component だけでなく repo 内の親 component も検査する。
+        # 例えば docs/archive が symlink のとき README.md 自体は symlink ではないため、
+        # path.is_symlink() だけでは外部 target を開いてしまう。
+        candidate = path
+        while True:
+            if candidate.is_symlink():
+                findings.append(
+                    f"{unsafe_path_prefix or failure_prefix} "
+                    f"(symlink を含む path は読まない: {candidate})"
+                )
+                return None
+            if candidate == REPO or candidate.parent == candidate:
+                break
+            candidate = candidate.parent
+
+        mode = path.lstat().st_mode
+        if not stat.S_ISREG(mode):
+            findings.append(
+                f"{unsafe_path_prefix or failure_prefix} "
+                f"(regular file でないため読まない: {path})"
+            )
+            return None
+        with path.open("r", encoding="utf-8", newline=newline) as stream:
+            return stream.read()
+    except UnicodeDecodeError as exc:
+        findings.append(
+            f"{invalid_utf8_prefix or failure_prefix} "
+            f"({type(exc).__name__}: {exc})"
+        )
+        return None
+    except OSError as exc:
+        findings.append(
+            f"{failure_prefix} ({type(exc).__name__}: {exc})"
+        )
+        return None
+
+
+def _current_pin(findings: list[str]) -> str | None:
     """pin.CURRENT_PIN の現在値を pin.py から抽出する (import せず正規表現 — 単体スクリプトのため)。
 
     living docs にこの値の literal が書かれると pin 前進で黙って腐る (2026-07-12 監査:
@@ -313,7 +412,14 @@ def _current_pin() -> str | None:
     pin_py = REPO / "orchestrator" / "campaign" / "pin.py"
     if not pin_py.exists():
         return None
-    m = re.search(r'^CURRENT_PIN\s*=\s*"([0-9a-f]{7,40})"', pin_py.read_text(), re.MULTILINE)
+    text = _safe_read_text(
+        pin_py,
+        findings,
+        "orchestrator/campaign/pin.py: pin literal 検査の読取失敗",
+    )
+    if text is None:
+        return None
+    m = re.search(r'^CURRENT_PIN\s*=\s*"([0-9a-f]{7,40})"', text, re.MULTILINE)
     return m.group(1) if m else None
 
 
@@ -598,24 +704,301 @@ def _extract_deferred_ledger(
     return text[body_start:completion.start()], body_start
 
 
-def _check_backlog_guard(findings: list[str]) -> None:
+def _literal_placeholder_targets(
+    findings: list[str],
+) -> tuple[list[Path], set[Path], bool, bool]:
+    """リテラル placeholder の対象 3 族を fail-closed で列挙する。"""
+
+    targets: list[Path] = []
+    blocked: set[Path] = set()
+    worklog_complete = True
+    insights_complete = True
+    if not WORKLOG.exists():
+        findings.append(
+            "docs/worklog.md: placeholder 検査の列挙対象が不在 — "
+            "台帳照合と worklog H2 一意性検査を停止"
+        )
+        worklog_complete = False
+    elif WORKLOG.is_symlink() or not WORKLOG.is_file():
+        findings.append(
+            "docs/worklog.md: placeholder 検査の列挙対象が regular file でない — "
+            "台帳照合と worklog H2 一意性検査を停止"
+        )
+        blocked.add(WORKLOG)
+        worklog_complete = False
+    else:
+        targets.append(WORKLOG)
+
+    families = (
+        (ARCHIVE_DIR, "docs/archive", "worklog-*.md"),
+        (INSIGHTS_DIR, "output/insights", "*.md"),
+    )
+    for directory, rel, pattern in families:
+        if directory.is_symlink():
+            findings.append(
+                f"{rel}: placeholder 検査の対象 directory が symlink — "
+                "対象族に依存する後続検査を停止"
+            )
+            blocked.add(directory)
+            if directory == ARCHIVE_DIR:
+                worklog_complete = False
+            else:
+                insights_complete = False
+            continue
+        if not directory.exists():
+            findings.append(
+                f"{rel}: placeholder 検査の対象 directory が不在 — "
+                "対象族に依存する後続検査を停止"
+            )
+            blocked.add(directory)
+            if directory == ARCHIVE_DIR:
+                worklog_complete = False
+            else:
+                insights_complete = False
+            continue
+        if not directory.is_dir():
+            findings.append(
+                f"{rel}: placeholder 検査の対象が directory でない — "
+                "対象族に依存する後続検査を停止"
+            )
+            blocked.add(directory)
+            if directory == ARCHIVE_DIR:
+                worklog_complete = False
+            else:
+                insights_complete = False
+            continue
+        members = sorted(directory.glob(pattern))
+        if not members:
+            findings.append(
+                f"{rel}/{pattern}: placeholder 検査の対象族に実体がない — "
+                "対象族に依存する後続検査を停止"
+            )
+            blocked.add(directory)
+            if directory == ARCHIVE_DIR:
+                worklog_complete = False
+            else:
+                insights_complete = False
+            continue
+        regular_members = []
+        for member in members:
+            member_rel = member.relative_to(REPO)
+            if member.is_symlink() or not member.is_file():
+                findings.append(
+                    f"{member_rel}: placeholder 検査の対象 member が regular file でない — "
+                    "対象族に依存する後続検査を停止"
+                )
+                blocked.add(member)
+                if directory == ARCHIVE_DIR:
+                    worklog_complete = False
+                else:
+                    insights_complete = False
+                continue
+            regular_members.append(member)
+        if not regular_members:
+            findings.append(
+                f"{rel}/{pattern}: placeholder 検査の対象族に regular file がない — "
+                "対象族に依存する後続検査を停止"
+            )
+            blocked.add(directory)
+            if directory == ARCHIVE_DIR:
+                worklog_complete = False
+            else:
+                insights_complete = False
+            continue
+        targets.extend(regular_members)
+    return targets, blocked, worklog_complete, insights_complete
+
+
+def _placeholder_logical_lines(text: str) -> list[str]:
+    """CRLF / LF / CR だけを改行とし、終端だけを除いた論理行を返す。"""
+
+    return re.split(r"\r\n|\n|\r", text)
+
+
+def _placeholder_line_digest(line: str) -> str:
+    """strip・Unicode 正規化なしの論理行 UTF-8 bytes を digest 化する。"""
+
+    return hashlib.sha256(line.encode("utf-8")).hexdigest()
+
+
+def _placeholder_scope(rel: str, h2_line: str | None) -> str:
+    if rel == "docs/worklog.md" or re.fullmatch(
+        r"docs/archive/worklog-[^/]+\.md", rel
+    ):
+        if h2_line is None:
+            return "worklog-entry:<none>"
+        return f"worklog-entry:{_placeholder_line_digest(h2_line)}"
+    return f"insights-path:{rel}"
+
+
+def _check_literal_placeholder_guard(findings: list[str]) -> set[Path]:
+    """F36 の exact 3 文字列を Markdown 解釈なしの raw text で検査する。"""
+
+    ledgers = (
+        ("KNOWN_PLACEHOLDER_DEBTS", KNOWN_PLACEHOLDER_DEBTS),
+        ("KNOWN_PLACEHOLDER_MENTIONS", KNOWN_PLACEHOLDER_MENTIONS),
+    )
+    observed: dict[str, dict[tuple[str, str], int]] = {
+        name: {} for name, _ in ledgers
+    }
+    targets, blocked, worklog_complete, insights_complete = _literal_placeholder_targets(
+        findings
+    )
+    h2_locations: dict[str, list[tuple[str, int]]] = {}
+
+    for path in targets:
+        rel = str(path.relative_to(REPO))
+        text = _safe_read_text(
+            path,
+            findings,
+            f"{rel}: placeholder 検査の読取失敗 — "
+            "当該対象に依存する後続検査を停止",
+            newline="",
+        )
+        if text is None:
+            blocked.add(path)
+            if rel == "docs/worklog.md" or rel.startswith("docs/archive/worklog-"):
+                worklog_complete = False
+            else:
+                insights_complete = False
+            continue
+
+        preceding_h2: str | None = None
+        is_worklog = (
+            rel == "docs/worklog.md"
+            or re.fullmatch(r"docs/archive/worklog-[^/]+\.md", rel) is not None
+        )
+        for lineno, line in enumerate(_placeholder_logical_lines(text), 1):
+            h2_match = WORKLOG_H2_RE.match(line) if is_worklog else None
+            if h2_match is not None:
+                h2_locations.setdefault(line, []).append((rel, lineno))
+            counts = {
+                token: line.count(token)
+                for token in LITERAL_PLACEHOLDERS
+                if token in line
+            }
+            if counts:
+                digest = _placeholder_line_digest(line)
+                scope = _placeholder_scope(rel, preceding_h2)
+                registered = False
+                for ledger_name, ledger in ledgers:
+                    if digest not in ledger.get(scope, {}):
+                        continue
+                    key = (scope, digest)
+                    ledger_observed = observed[ledger_name]
+                    ledger_observed[key] = ledger_observed.get(key, 0) + 1
+                    registered = True
+                if not registered:
+                    detail = ", ".join(
+                        f"{token!r}={count}" for token, count in counts.items()
+                    )
+                    findings.append(
+                        f"{rel}:{lineno}: 未許可のリテラル placeholder ({detail})"
+                    )
+            if h2_match is not None:
+                preceding_h2 = line
+
+    if not worklog_complete:
+        findings.append(
+            "placeholder guard: worklog 族の入力が不明 — "
+            "worklog scope の台帳照合と worklog H2 一意性検査を停止"
+        )
+    if not insights_complete:
+        findings.append(
+            "placeholder guard: insights 族の入力が不明 — "
+            "insights-path scope の台帳照合を停止"
+        )
+
+    if worklog_complete:
+        for h2_line, locations in h2_locations.items():
+            if len(locations) < 2:
+                continue
+            rendered = ", ".join(
+                f"{rel}:{lineno}" for rel, lineno in locations
+            )
+            findings.append(
+                "worklog 族の H2 raw bytes が重複 — "
+                f"{h2_line!r}: {rendered}"
+            )
+
+    expected_totals = (
+        ("KNOWN_PLACEHOLDER_DEBTS", KNOWN_PLACEHOLDER_DEBTS,
+         EXPECTED_KNOWN_PLACEHOLDER_DEBTS),
+        ("KNOWN_PLACEHOLDER_MENTIONS", KNOWN_PLACEHOLDER_MENTIONS,
+         EXPECTED_KNOWN_PLACEHOLDER_MENTIONS),
+    )
+    for ledger_name, ledger, pinned_total in expected_totals:
+        registered_total = sum(
+            count for entries in ledger.values() for count in entries.values()
+        )
+        if registered_total != pinned_total:
+            findings.append(
+                f"{ledger_name}: 台帳 occurrence 総数が固定値と不一致 — "
+                f"expected={pinned_total}, actual={registered_total}"
+            )
+        for scope, entries in ledger.items():
+            if scope.startswith("worklog-entry:") and not worklog_complete:
+                continue
+            if scope.startswith("insights-path:") and not insights_complete:
+                continue
+            for digest, expected in entries.items():
+                actual = observed[ledger_name].get((scope, digest), 0)
+                if actual != expected:
+                    findings.append(
+                        f"{scope}: {ledger_name} の登録 digest {digest} が観測数不一致 — "
+                        f"expected={expected}, actual={actual}"
+                    )
+    return blocked
+
+
+_UNREAD = object()
+
+
+def _check_backlog_guard(
+    findings: list[str],
+    *,
+    previously_unreadable: frozenset[Path] | set[Path] = frozenset(),
+    phase3_text: str | None | object = _UNREAD,
+) -> None:
     """worklog の次アクション保存則と見送り台帳の ID 構造を検査する。"""
 
     worklog_text: str | None = None
-    phase3_text: str | None = None
-    if not WORKLOG.exists():
+    if WORKLOG in previously_unreadable:
+        findings.append(
+            "docs/worklog.md: placeholder 検査で読取不能と判定済み — "
+            "次の一手の保存則を停止"
+        )
+        worklog_text = None
+    elif not WORKLOG.exists():
         findings.append("docs/worklog.md: ファイルが不在 — 次の一手の保存則を検査できない")
     else:
-        worklog_text = WORKLOG.read_text()
-    if not PHASE3.exists():
-        findings.append("docs/phase3.md: ファイルが不在 — 見送り台帳 sink を検査できない")
-    else:
-        phase3_text = PHASE3.read_text()
+        worklog_text = _safe_read_text(
+            WORKLOG,
+            findings,
+            "docs/worklog.md: 次の一手の保存則を検査するための読取失敗",
+        )
+    if phase3_text is _UNREAD:
+        if not PHASE3.exists():
+            findings.append("docs/phase3.md: ファイルが不在 — 見送り台帳 sink を検査できない")
+            phase3_text = None
+        else:
+            phase3_text = _safe_read_text(
+                PHASE3,
+                findings,
+                "docs/phase3.md: 見送り台帳 sink を検査するための読取失敗 — "
+                "見送り台帳に依存する遷移検査を停止",
+            )
 
-    ledger_ids: set[str] = set()
+    ledger_ids: set[str] | None = None
     if phase3_text is not None:
         ledger = _extract_deferred_ledger(phase3_text, findings)
-        if ledger is not None:
+        if ledger is None:
+            findings.append(
+                "docs/phase3.md: 見送り台帳 sink の構造抽出失敗 — "
+                "見送り台帳に依存する worklog 遷移検査を停止"
+            )
+        else:
+            ledger_ids = set()
             ledger_body, ledger_offset = ledger
             seen: set[str] = set()
             for item_text, item_offset in _top_level_items(ledger_body):
@@ -690,7 +1073,7 @@ def _check_backlog_guard(findings: list[str]) -> None:
         sink_entry: tuple[str, str, int],
         source_rel: str,
     ) -> None:
-        if not source_ids:
+        if not source_ids or ledger_ids is None:
             return
         sink_ids = set(_top_level_ids(sink_entry[1])) | ledger_ids
         for task_id in sorted(source_ids):
@@ -706,13 +1089,47 @@ def _check_backlog_guard(findings: list[str]) -> None:
             check_transition(entries[i], sources[i], entries[i + 1], "docs/worklog.md")
 
     archive_worklogs: list[_ArchiveWorklog] = []
-    for archive_path in sorted(ARCHIVE_DIR.glob("worklog-*.md"), key=lambda path: path.name):
-        archive_text = archive_path.read_text()
+    archive_blocked = any(
+        path == ARCHIVE_DIR or ARCHIVE_DIR in path.parents
+        for path in previously_unreadable
+    )
+    archive_input_complete = not archive_blocked
+    if archive_blocked:
+        findings.append(
+            "docs/archive: placeholder 検査で archive worklog 族の入力が読取不能 — "
+            "archive 族全体に依存する順序・境界遷移検査を停止"
+        )
+    archive_paths = (
+        []
+        if ARCHIVE_DIR.is_symlink() or not ARCHIVE_DIR.is_dir()
+        else sorted(ARCHIVE_DIR.glob("worklog-*.md"), key=lambda path: path.name)
+    )
+    for archive_path in archive_paths:
+        if archive_path in previously_unreadable:
+            archive_input_complete = False
+            continue
+        if archive_path.is_symlink() or not archive_path.is_file():
+            archive_input_complete = False
+            continue
+        archive_rel = str(archive_path.relative_to(REPO))
+        archive_text = _safe_read_text(
+            archive_path,
+            findings,
+            f"{archive_rel}: archive worklog 遷移検査の読取失敗 — "
+            "archive 族全体に依存する順序・境界遷移検査を停止",
+        )
+        if archive_text is None:
+            archive_input_complete = False
+            continue
         archive_entries = _extract_archive_entries(archive_path, archive_text, findings)
         if archive_entries is None:
+            archive_input_complete = False
+            findings.append(
+                f"{archive_rel}: archive entry の構造抽出失敗 — "
+                "archive 族全体に依存する順序・境界遷移検査を停止"
+            )
             continue
 
-        archive_rel = str(archive_path.relative_to(REPO))
         archive_next_actions: list[tuple[str, int] | None] = []
         archive_sources: list[set[str]] = []
         for i, entry in enumerate(archive_entries):
@@ -762,18 +1179,19 @@ def _check_backlog_guard(findings: list[str]) -> None:
         )
     )
     ambiguous_order = False
-    for i, left in enumerate(archive_worklogs):
-        for right in archive_worklogs[i + 1:]:
-            if _archive_is_before(left, right):
-                continue
-            ambiguous_order = True
-            findings.append(
-                "docs/archive: archive worklog の順序を一意に決定できない — "
-                f"{left.path.name} の末尾 {left.entries[-1][0]!r} と "
-                f"{right.path.name} の先頭 {right.entries[0][0]!r} が同日または範囲重複"
-            )
+    if archive_input_complete:
+        for i, left in enumerate(archive_worklogs):
+            for right in archive_worklogs[i + 1:]:
+                if _archive_is_before(left, right):
+                    continue
+                ambiguous_order = True
+                findings.append(
+                    "docs/archive: archive worklog の順序を一意に決定できない — "
+                    f"{left.path.name} の末尾 {left.entries[-1][0]!r} と "
+                    f"{right.path.name} の先頭 {right.entries[0][0]!r} が同日または範囲重複"
+                )
 
-    if archive_worklogs and not ambiguous_order:
+    if archive_input_complete and archive_worklogs and not ambiguous_order:
         for left, right in zip(archive_worklogs, archive_worklogs[1:]):
             check_transition(
                 left.entries[-1],
@@ -949,10 +1367,17 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
 
     unreadable: set[Path] = set()
     command_dir = REPO / ".claude" / "commands"
-    actual_commands = (
-        {path for path in command_dir.glob("*.md")}
-        if command_dir.is_dir() else set()
-    )
+    if command_dir.is_symlink():
+        findings.append(
+            ".claude/commands: command directory が symlink — "
+            "外部 member を列挙・読取しない"
+        )
+        actual_commands: set[Path] = set()
+    else:
+        actual_commands = (
+            {path for path in command_dir.glob("*.md")}
+            if command_dir.is_dir() else set()
+        )
     expected_commands = {REPO / rel for rel in COMMAND_LIMITS}
     extra_commands = sorted(actual_commands - expected_commands)
     missing_commands = sorted(expected_commands - actual_commands)
@@ -998,26 +1423,29 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         path = REPO / rel
         if path in unreadable:
             continue
-        if path.is_symlink() or not path.is_file():
-            findings.append(
+        text = _safe_read_text(
+            path,
+            findings,
+            f"{rel}: 文書検査の読取失敗",
+            newline="",
+            unsafe_path_prefix=(
                 f"{rel}: symlink または regular file 以外 — "
                 "予算・interface 検査対象として受理しない"
-            )
+            ),
+            invalid_utf8_prefix=(
+                f"{rel}: invalid UTF-8 — 文書検査を継続できない"
+            ),
+        )
+        if text is None:
             unreadable.add(path)
             continue
-        raw = path.read_bytes()
-        sizes[rel] = len(raw)
-        if len(raw) > limit.max_bytes:
+        size = len(text.encode("utf-8"))
+        sizes[rel] = size
+        if size > limit.max_bytes:
             findings.append(
-                f"{rel}: {len(raw)} bytes > 予算 {limit.max_bytes} bytes — "
+                f"{rel}: {size} bytes > 予算 {limit.max_bytes} bytes — "
                 "安全義務を削らず既存 reference へ統合する。予算増加は独立審査にする"
             )
-        try:
-            text = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            findings.append(f"{rel}: invalid UTF-8 — 文書検査を継続できない")
-            unreadable.add(path)
-            continue
         decoded[rel] = text
         if limit.max_line_chars is not None:
             for lineno, line in enumerate(text.splitlines(), 1):
@@ -1174,7 +1602,7 @@ def main() -> int:
 
     guard_unreadable = _check_command_docs_guard(findings)
 
-    current_pin = _current_pin()
+    current_pin = _current_pin(findings)
     if current_pin is None:
         findings.append(
             "tools/check_docs.py: pin.CURRENT_PIN を抽出できない (pin.py 不在か形式変更) — "
@@ -1182,14 +1610,23 @@ def main() -> int:
         )
 
     # decisions.md の D 見出し重複 (grep index の壊れ)
-    d_heads = re.findall(
-        r"^## D(\d+)\b", (REPO / "docs" / "decisions.md").read_text(), re.MULTILINE
+    decisions_text = _safe_read_text(
+        REPO / "docs" / "decisions.md",
+        findings,
+        "docs/decisions.md: D 見出し検査の読取失敗 — "
+        "D 見出し重複検査と living docs の D 参照実在性検査を停止",
+    )
+    d_heads = (
+        re.findall(r"^## D(\d+)\b", decisions_text, re.MULTILINE)
+        if decisions_text is not None
+        else []
     )
     dups = {n for n in d_heads if d_heads.count(n) > 1}
     for n in sorted(dups, key=int):
         findings.append(f"docs/decisions.md: D{n} の見出しが重複 — grep index が壊れる")
-    known_d = {int(n) for n in d_heads}
+    known_d = {int(n) for n in d_heads} if decisions_text is not None else None
 
+    phase3_text: str | None | object = _UNREAD
     for doc in LIVING_DOCS:
         if doc in guard_unreadable:
             continue
@@ -1203,7 +1640,21 @@ def main() -> int:
                 )
             continue
         rel = doc.relative_to(REPO)
-        for lineno, line in enumerate(doc.read_text().splitlines(), 1):
+        failure_prefix = f"{rel}: living docs 検査の読取失敗"
+        if doc == PHASE3:
+            failure_prefix += (
+                " — 見送り台帳に依存する worklog 遷移検査を停止"
+            )
+        doc_text = _safe_read_text(
+            doc,
+            findings,
+            failure_prefix,
+        )
+        if doc == PHASE3:
+            phase3_text = doc_text
+        if doc_text is None:
+            continue
+        for lineno, line in enumerate(doc_text.splitlines(), 1):
             for pat in LINE_REF_STRICT:
                 m = pat.search(line)
                 if m:
@@ -1227,11 +1678,13 @@ def main() -> int:
                     "`pin.CURRENT_PIN` への記号参照に直す (値の正本は pin.py)"
                 )
             # 実在しない D 番号への参照 (decisions.md の見出しが正)
-            for m in D_REF.finditer(line):
-                if int(m.group(1)) not in known_d:
-                    findings.append(
-                        f"{rel}:{lineno}: 実在しない D 参照: {m.group(0)!r} (decisions.md に見出しなし)"
-                    )
+            if known_d is not None:
+                for m in D_REF.finditer(line):
+                    if int(m.group(1)) not in known_d:
+                        findings.append(
+                            f"{rel}:{lineno}: 実在しない D 参照: {m.group(0)!r} "
+                            "(decisions.md に見出しなし)"
+                        )
             # 実在しないファイルパスへの参照 (改名・移動の腐敗検出)。
             # ccbench-anatomy.md は冒頭宣言どおり external/ccbench/ 相対パスも許容
             for m in PATH_REF.finditer(line):
@@ -1242,17 +1695,45 @@ def main() -> int:
                     continue
                 findings.append(f"{rel}:{lineno}: 実在しないパス参照: {p!r}")
 
-    _check_backlog_guard(findings)
-
-    archive_readme_text = ARCHIVE_README.read_text()
-    archive_section = re.search(
-        r"^## 現在の収容物\s*$\n(?P<body>.*?)(?=^## |\Z)",
-        archive_readme_text,
-        re.MULTILINE | re.DOTALL,
+    placeholder_unreadable = _check_literal_placeholder_guard(findings)
+    _check_backlog_guard(
+        findings,
+        previously_unreadable=placeholder_unreadable,
+        phase3_text=phase3_text,
     )
-    if archive_section is None:
-        findings.append("docs/archive/README.md: 「現在の収容物」節がない — archive の索引を検査できない")
+
+    archive_readme_text: str | None = None
+    if not ARCHIVE_README.exists():
+        findings.append(
+            "docs/archive/README.md: ファイルが不在 — archive の索引を検査できない"
+        )
+    elif ARCHIVE_README.is_symlink() or not ARCHIVE_README.is_file():
+        findings.append(
+            "docs/archive/README.md: regular file でない — archive の索引を検査できない"
+        )
     else:
+        archive_readme_text = _safe_read_text(
+            ARCHIVE_README,
+            findings,
+            "docs/archive/README.md: archive 索引の読取失敗",
+        )
+
+    if archive_readme_text is not None:
+        archive_section = re.search(
+            r"^## 現在の収容物\s*$\n(?P<body>.*?)(?=^## |\Z)",
+            archive_readme_text,
+            re.MULTILINE | re.DOTALL,
+        )
+        if archive_section is None:
+            findings.append(
+                "docs/archive/README.md: 「現在の収容物」節がない — "
+                "archive の索引を検査できない"
+            )
+            archive_section = None
+    else:
+        archive_section = None
+
+    if archive_readme_text is not None and archive_section is not None:
         # 到達性 = archive の実在物を README の索引から辿れること。git-history-only の墓標は
         # working tree に実在しないことが契約なので、索引から実在物への逆方向検査を免除する。
         for archived in sorted(ARCHIVE_DIR.iterdir()):
@@ -1272,7 +1753,11 @@ def main() -> int:
                         "docs/archive/ に実在しない (削除済みなら git-history-only の墓標行にする)"
                     )
 
-    wl_size = WORKLOG.stat().st_size if WORKLOG.exists() else 0
+    wl_size = (
+        WORKLOG.lstat().st_size
+        if WORKLOG.exists() and not WORKLOG.is_symlink() and WORKLOG.is_file()
+        else 0
+    )
     if wl_size > WORKLOG_ROTATE_BYTES:
         findings.append(
             f"docs/worklog.md: {wl_size // 1000}KB > 閾値 {WORKLOG_ROTATE_BYTES // 1000}KB — "
@@ -1286,7 +1771,13 @@ def main() -> int:
             if f.name == "README.md":
                 continue
             rel = f.relative_to(REPO)
-            text = f.read_text()
+            text = _safe_read_text(
+                f,
+                findings,
+                f"{rel}: handoff 検査の読取失敗",
+            )
+            if text is None:
+                continue
             # 行数上限は撤廃 (2026-07-11 ユーザー指示: 手戻り防止が読み込みコストに優先。
             # 正本 = handoff/README.md 運用ルール)
             status_line = next((l for l in text.splitlines() if "状態:" in l), None)

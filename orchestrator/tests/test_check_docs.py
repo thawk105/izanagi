@@ -15,6 +15,9 @@ _ENUMERATED_DOCS から導出するので docs の増減で腐らない。
 """
 from __future__ import annotations
 
+import contextlib
+import importlib.util
+import io
 import os
 import re
 import shutil
@@ -32,16 +35,70 @@ sys.path.insert(0, os.path.join(_REPO, "tools"))
 import check_docs  # noqa: E402
 
 
-_CLEAN_WORKLOG = """# synthetic worklog
+_PLACEHOLDER_DEBT_WORKLOG = (
+    "  repo scan invariant (F34) は本 docs commit 後に再走 <反映>。"
+)
+_PLACEHOLDER_DEBT_ARCHIVE_ACCEPTANCE = (
+    "- **受入**: <受入全走結果を反映> / check_docs / check_ai_provenance (324) / "
+    "repo scan invariant (F34) 緑 <反映>。"
+)
+_PLACEHOLDER_MENTION_WORKLOG_F36 = (
+    "- **F36 新設**: 受入・検査の結果欄の `<反映>` プレースホルダが独立 3 wave + insight 1 本で残存し、"
+)
+_PLACEHOLDER_MENTION_WORKLOG_T094_A = (
+    "- **[T-094]**: 機械検出を**採用**し設計も確定 — 検出は `<反映>` / `<受入結果を反映>` /"
+)
+_PLACEHOLDER_MENTION_WORKLOG_T094_B = (
+    "  `<受入全走結果を反映>` の exact 3 文字列、対象は `docs/worklog.md` と verbatim でない"
+)
+_PLACEHOLDER_DEBT_INSIGHT = (
+    "- 受入全走: <受入結果を反映>。check_docs / check_ai_provenance (324) / "
+    "repo scan invariant (F34): <反映>。"
+)
+_PLACEHOLDER_MENTION_INSIGHT_A = (
+    "   4件の `<反映>` は F34 恒久対応の実行証拠にならない。`check_docs` も意味的な反映漏れを検出しないと明記する "
+    "(`tools/check_docs.py:7-10`)。独立3 wave は族一般化条件を満たす (`docs/dev-wave/core.md:45-48`) ため、"
+    "P8 の「新 gate なので見送る」は根拠不足。  "
+)
+_PLACEHOLDER_MENTION_INSIGHT_B = (
+    "  裁定パッケージでは、候補検出対象を少なくとも `<反映>`、`<受入結果を反映>`、"
+    "`<受入全走結果を反映>` の exact literal、対象を `docs/worklog.md`、"
+    "`docs/archive/worklog-*.md`、非-verbatim の `output/insights/*.md` とし、既存四件は path だけでなく"
+    "「含有行 digest + token count」で固定する案を比較すべきである。単なる `<[^>]*反映[^>]*>` は"
+    "日本語メタ変数や欠陥説明の引用を誤検出する。"
+)
+_PLACEHOLDER_ARCHIVE_NAME = "worklog-phase3-0722-0724.md"
+
+_PLACEHOLDER_WORKLOG_ENTRIES = f"""## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 (test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)
+
+{_PLACEHOLDER_DEBT_WORKLOG}
+
+### 次の一手
+
+## 2026-07-25 (3) — [T-068][T-077][T-078] を R 発効により確定的に closure (docs-only・コード 0 byte、branch worktree-dev-wave-e2e-real-seal、計測なし)
+
+{_PLACEHOLDER_MENTION_WORKLOG_F36}
+
+### 次の一手
+
+## 2026-07-25 (4) — /rulings: 裁定待ち 5 件をユーザーが推奨どおり一括裁定 — official 解禁を承認 (D86 起票、計測なし)
+
+{_PLACEHOLDER_MENTION_WORKLOG_T094_A}
+{_PLACEHOLDER_MENTION_WORKLOG_T094_B}
+
+### 次の一手
+"""
+
+_CLEAN_WORKLOG = f"""# synthetic worklog
 
 ## ローテーション
 
-## 2026-01-01 (1) — first
+## 2026-08-01 (1) — first
 
 ### 次の一手
 1. [T-001] carry
 
-## 2026-01-02 (2) — second
+## 2026-08-02 (2) — second
 
 - [T-001] consumed
 
@@ -72,6 +129,13 @@ def _write(root: str, rel: str, content: str) -> None:
         f.write(content)
 
 
+def _write_bytes(root: str, rel: str, content: bytes) -> None:
+    path = os.path.join(root, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(content)
+
+
 def _enumerated_rels() -> list[str]:
     """check_docs 本体の _ENUMERATED_DOCS を実 REPO 相対パスへ落とす (増減に追従)。"""
     return sorted(str(p.relative_to(check_docs.REPO)) for p in check_docs._ENUMERATED_DOCS)
@@ -84,6 +148,14 @@ def _write_backlog_docs(
 ) -> None:
     _write(root, os.path.join("docs", "worklog.md"), worklog_text)
     _write(root, os.path.join("docs", "phase3.md"), phase3_text)
+
+
+def _archive_readme(*names: str) -> str:
+    all_names = (_PLACEHOLDER_ARCHIVE_NAME, *names)
+    return (
+        "# archive\n\n## 現在の収容物\n\n"
+        + "".join(f"- `{name}`\n" for name in all_names)
+    )
 
 
 def _write_command_guard_docs(root: str) -> None:
@@ -248,17 +320,45 @@ def _build_min_repo() -> str:
     _write(root, os.path.join("docs", "decisions.md"),
            "## D1 placeholder decision\n\n本文。\n")
     _write(root, os.path.join("docs", "archive", "README.md"),
-           "# archive\n\n## 現在の収容物\n\n(なし)\n")
+           _archive_readme())
+    _write(
+        root,
+        os.path.join("docs", "archive", _PLACEHOLDER_ARCHIVE_NAME),
+        "# synthetic archive\n\n"
+        "## 2026-07-24 (4) — 統合 E2E: 実 seal を official floor 経路に通す (D79(7) 部分閉鎖、branch worktree-dev-wave-e2e-real-seal、計測なし)\n\n"
+        f"{_PLACEHOLDER_DEBT_ARCHIVE_ACCEPTANCE}\n"
+        "\n"
+        "## 2026-07-24 (5) — [T-086] PKG-2: FROZEN_MANIFEST exact key-set 暫定 assert (test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)\n\n"
+        f"{_PLACEHOLDER_DEBT_WORKLOG}\n\n"
+        "### 次の一手\n\n"
+        f"{_PLACEHOLDER_WORKLOG_ENTRIES}",
+    )
+    _write(
+        root,
+        os.path.join("output", "insights", "2026-07-24_e2e-real-seal.md"),
+        f"{_PLACEHOLDER_DEBT_INSIGHT}\n",
+    )
+    _write(
+        root,
+        os.path.join(
+            "output",
+            "insights",
+            "2026-07-25_t068-t077-t078-closure-verbatim.md",
+        ),
+        f"{_PLACEHOLDER_MENTION_INSIGHT_A}\n"
+        f"{_PLACEHOLDER_MENTION_INSIGHT_B}\n",
+    )
     # backlog guard の必須構造。phase3.md は上の列挙 placeholder を上書きする。
     _write_backlog_docs(root)
     _write_command_guard_docs(root)
     return root
 
 
-def _run_check(root: str) -> subprocess.CompletedProcess:
+def _run_check(root: str, *, timeout: float | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, os.path.join(root, "tools", "check_docs.py")],
         capture_output=True, text=True,
+        timeout=timeout,
     )
 
 
@@ -276,6 +376,1150 @@ def test_synthetic_repo_baseline_clean():
         res = _run_check(root)
         assert res.returncode == 0, f"baseline が違反ありになった:\n{res.stdout}\n{res.stderr}"
         assert "違反なし" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _load_fixture_checker(root: str):
+    module_name = f"_check_docs_fixture_{id(root)}"
+    path = os.path.join(root, "tools", "check_docs.py")
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _placeholder_findings(root: str) -> list[str]:
+    module = _load_fixture_checker(root)
+    findings: list[str] = []
+    module._check_literal_placeholder_guard(findings)
+    return findings
+
+
+def _assert_placeholder_violation(root: str, *needles: str) -> list[str]:
+    findings = _placeholder_findings(root)
+    assert findings, "placeholder 違反 fixture が赤にならなかった"
+    rendered = "\n".join(findings)
+    for needle in needles:
+        assert needle in rendered, f"{needle!r} が finding にない:\n{rendered}"
+    return findings
+
+
+def _assert_other_checkers_clean(root: str) -> None:
+    module = _load_fixture_checker(root)
+    module._check_literal_placeholder_guard = lambda findings: set()
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        rc = module.main()
+    assert rc == 0, output.getvalue()
+
+
+def test_placeholder_guard_each_literal_independently_fires():
+    literals = (
+        "<反映>",
+        "<受入結果を反映>",
+        "<受入全走結果を反映>",
+    )
+    for literal in literals:
+        root = _build_min_repo()
+        try:
+            _write(
+                root,
+                "output/insights/independent.md",
+                f"independent control: {literal}\n",
+            )
+            findings = _assert_placeholder_violation(
+                root, "未許可のリテラル placeholder", repr(literal)
+            )
+            assert len(findings) == 1, findings
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_main_propagates_finding_to_rc():
+    root = _build_min_repo()
+    try:
+        rel = "output/insights/2026-07-24_e2e-real-seal.md"
+        _write(root, rel, _read(root, rel) + "main wiring control: <反映>\n")
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert "check_docs: 1 件の違反" in res.stdout, res.stdout
+        assert "未許可のリテラル placeholder" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_new_literal_is_violation_in_each_family():
+    cases = (
+        ("docs/worklog.md", "worklog control: <反映>\n"),
+        (
+            "docs/archive/worklog-phase3-0722-0724.md",
+            "archive control: <受入結果を反映>\n",
+        ),
+        (
+            "output/insights/2026-07-24_e2e-real-seal.md",
+            "insight control: <受入全走結果を反映>\n",
+        ),
+    )
+    for rel, addition in cases:
+        root = _build_min_repo()
+        try:
+            _write(root, rel, _read(root, rel) + addition)
+            findings = _assert_placeholder_violation(
+                root, rel, "未許可のリテラル placeholder"
+            )
+            assert len(findings) == 1, findings
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_detects_new_family_member():
+    cases = (
+        (
+            "docs/archive/worklog-new.md",
+            "# new archive\n\n"
+            "## 2025-12-30 (1) — new archive\n\n"
+            "new archive member: <反映>\n\n"
+            "### 次の一手\n"
+            "1. legacy item\n",
+        ),
+        (
+            "output/insights/new-insight.md",
+            "new insight member: <反映>\n",
+        ),
+    )
+    for rel, content in cases:
+        root = _build_min_repo()
+        try:
+            _write(root, rel, content)
+            if rel.startswith("docs/archive/"):
+                readme_rel = "docs/archive/README.md"
+                _write(
+                    root,
+                    readme_rel,
+                    _read(root, readme_rel) + "- `worklog-new.md`\n",
+                )
+            _assert_other_checkers_clean(root)
+            findings = _assert_placeholder_violation(
+                root, rel, "未許可のリテラル placeholder"
+            )
+            assert len(findings) == 1, findings
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_registered_line_removal_is_violation():
+    root = _build_min_repo()
+    try:
+        rel = "output/insights/2026-07-24_e2e-real-seal.md"
+        _write(root, rel, _read(root, rel).replace(
+            _PLACEHOLDER_DEBT_INSIGHT + "\n", "", 1
+        ))
+        findings = _assert_placeholder_violation(
+            root,
+            rel,
+            "KNOWN_PLACEHOLDER_DEBTS",
+            "expected=1, actual=0",
+        )
+        assert len(findings) == 1, findings
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_registered_line_content_change_is_violation():
+    root = _build_min_repo()
+    try:
+        rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        changed = _PLACEHOLDER_DEBT_WORKLOG.replace("repo scan", "Repo scan", 1)
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(_PLACEHOLDER_DEBT_WORKLOG, changed, 1),
+        )
+        findings = _assert_placeholder_violation(
+            root,
+            rel,
+            "未許可のリテラル placeholder",
+            "KNOWN_PLACEHOLDER_DEBTS",
+            "expected=1, actual=0",
+        )
+        assert len(findings) == 2, findings
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_registered_line_duplication_is_violation():
+    root = _build_min_repo()
+    try:
+        rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        heading = (
+            "## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 "
+            "(test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)"
+        )
+        original = f"{heading}\n\n{_PLACEHOLDER_DEBT_WORKLOG}\n"
+        duplicated = (
+            f"{heading}\n\n{_PLACEHOLDER_DEBT_WORKLOG}\n"
+            f"{_PLACEHOLDER_DEBT_WORKLOG}\n"
+        )
+        text = _read(root, rel)
+        assert original in text
+        _write(root, rel, text.replace(original, duplicated, 1))
+        findings = _assert_placeholder_violation(
+            root,
+            "worklog-entry:4926160d0e41c9e972953e535dcce8cc1744eff78b13277cc91d722dc06129f2",
+            "37c4a1747e10844c9c4deb2281e644bd655cc80409b80c09c0a840297d6e8ef0",
+            "expected=1, actual=2",
+        )
+        assert len(findings) == 1, findings
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_same_file_record_replay_is_violation():
+    root = _build_min_repo()
+    try:
+        rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        source_heading = (
+            "## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 "
+            "(test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)"
+        )
+        target_heading = (
+            "## 2026-07-25 (4) — /rulings: 裁定待ち 5 件をユーザーが推奨どおり"
+            "一括裁定 — official 解禁を承認 (D86 起票、計測なし)"
+        )
+        text = _read(root, rel)
+        source = f"{source_heading}\n\n{_PLACEHOLDER_DEBT_WORKLOG}\n"
+        target = f"{target_heading}\n\n"
+        assert source in text and target in text
+        text = text.replace(source, f"{source_heading}\n", 1)
+        text = text.replace(
+            target,
+            f"{target_heading}\n\n{_PLACEHOLDER_DEBT_WORKLOG}\n",
+            1,
+        )
+        _write(root, rel, text)
+        findings = _assert_placeholder_violation(
+            root,
+            rel,
+            "未許可のリテラル placeholder",
+            "worklog-entry:4926160d0e41c9e972953e535dcce8cc1744eff78b13277cc91d722dc06129f2",
+            "expected=1, actual=0",
+        )
+        assert len(findings) == 2, findings
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_duplicate_worklog_h2_is_violation():
+    root = _build_min_repo()
+    try:
+        rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        heading = (
+            "## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 "
+            "(test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)"
+        )
+        text = _read(root, rel)
+        assert text.count(heading) == 1
+        _write(root, rel, text + f"\n{heading}\n")
+        findings = _placeholder_findings(root)
+        assert len(findings) == 1, findings
+        rendered = findings[0]
+        assert "worklog 族の H2 raw bytes が重複" in rendered
+        assert heading in rendered
+        assert rendered.count(rel) == 2, rendered
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        tab_heading = "##\t2026-07-30 (1) — tab-separated duplicate"
+        _write(
+            root,
+            rel,
+            _read(root, rel)
+            + f"\n{tab_heading}\n\nbody\n\n{tab_heading}\n",
+        )
+        findings = _placeholder_findings(root)
+        assert len(findings) == 1, findings
+        rendered = findings[0]
+        assert "worklog 族の H2 raw bytes が重複" in rendered
+        assert repr(tab_heading) in rendered
+        assert rendered.count(rel) == 2, rendered
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_h2_collision_replay_is_violation():
+    root = _build_min_repo()
+    try:
+        source_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        replay_rel = "docs/archive/worklog-h2-collision.md"
+        heading = (
+            "## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 "
+            "(test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)"
+        )
+        source = _read(root, source_rel)
+        registered = f"{heading}\n\n{_PLACEHOLDER_DEBT_WORKLOG}\n"
+        assert registered in source
+        _write(
+            root,
+            source_rel,
+            source.replace(
+                registered,
+                f"{heading}\n",
+                1,
+            ),
+        )
+        _write(
+            root,
+            replay_rel,
+            f"# collision replay\n\n{heading}\n\n"
+            f"{_PLACEHOLDER_DEBT_WORKLOG}\n\n### 次の一手\n",
+        )
+        findings = _placeholder_findings(root)
+        assert len(findings) == 1, findings
+        rendered = findings[0]
+        assert "worklog 族の H2 raw bytes が重複" in rendered
+        assert source_rel in rendered and replay_rel in rendered
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        source_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        replay_rel = "docs/archive/worklog-tab-scope-replay.md"
+        heading = (
+            "## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 "
+            "(test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)"
+        )
+        source = _read(root, source_rel)
+        registered = f"{heading}\n\n{_PLACEHOLDER_DEBT_WORKLOG}\n"
+        assert registered in source
+        _write(
+            root,
+            source_rel,
+            source.replace(registered, f"{heading}\n", 1),
+        )
+        tab_heading = heading.replace("## ", "##\t", 1)
+        _write(
+            root,
+            replay_rel,
+            f"# tab scope replay\n\n{tab_heading}\n\n"
+            f"{_PLACEHOLDER_DEBT_WORKLOG}\n\n### 次の一手\n",
+        )
+        findings = _placeholder_findings(root)
+        rendered = "\n".join(findings)
+        assert len(findings) == 2, findings
+        assert "未許可のリテラル placeholder" in rendered
+        assert "expected=1, actual=0" in rendered
+        assert "worklog 族の H2 raw bytes が重複" not in rendered
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_entry_rotation_keeps_ledger_green():
+    registered_heading = (
+        "## 2026-07-25 (4) — /rulings: 裁定待ち 5 件をユーザーが推奨どおり"
+        "一括裁定 — official 解禁を承認 (D86 起票、計測なし)"
+    )
+    first_current_heading = "## 2026-08-01 (1) — first"
+    original_first_heading = (
+        "## 2026-07-24 (4) — 統合 E2E: 実 seal を official floor 経路に通す "
+        "(D79(7) 部分閉鎖、branch worktree-dev-wave-e2e-real-seal、計測なし)"
+    )
+
+    def place_registered_entry_in_current(root: str) -> str:
+        archive_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        worklog_rel = "docs/worklog.md"
+        archive = _read(root, archive_rel)
+        start = archive.index(registered_heading)
+        entry = archive[start:]
+        _write(root, archive_rel, archive[:start])
+
+        assert entry.rstrip().endswith("### 次の一手")
+        entry = entry.rstrip() + "\n1. [T-099] rotation handoff\n\n"
+        worklog = _read(root, worklog_rel)
+        marker = first_current_heading
+        assert marker in worklog
+        worklog = worklog.replace(
+            first_current_heading,
+            f"{first_current_heading}\n\n- [T-099] rotation sink",
+            1,
+        )
+        _write(
+            root,
+            worklog_rel,
+            worklog.replace(first_current_heading, entry + first_current_heading, 1),
+        )
+        baseline = _run_check(root)
+        current_res = baseline
+        assert current_res.returncode == 0, current_res.stdout
+        return entry
+
+    # H2 を現行 worklog に残し、登録行だけを後続 H2 へ移す対は赤。
+    root = _build_min_repo()
+    try:
+        entry = place_registered_entry_in_current(root)
+        worklog = _read(root, "docs/worklog.md")
+        assert entry in worklog
+        worklog = worklog.replace(
+            _PLACEHOLDER_MENTION_WORKLOG_T094_A + "\n",
+            "",
+            1,
+        )
+        worklog = worklog.replace(
+            first_current_heading,
+            f"{first_current_heading}\n\n{_PLACEHOLDER_MENTION_WORKLOG_T094_A}",
+            1,
+        )
+        _write(root, "docs/worklog.md", worklog)
+
+        # baseline にない archive member と README 索引を作り、非空遷移も成立させる。
+        new_name = "worklog-rotation-prelude.md"
+        _write(
+            root,
+            f"docs/archive/{new_name}",
+            "# rotation prelude\n\n"
+            "## 2026-07-23 (1) — rotation prelude\n\n"
+            "### 次の一手\n"
+            "1. [T-098] archive boundary control\n",
+        )
+        archive_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        archive = _read(root, archive_rel)
+        assert original_first_heading in archive
+        _write(
+            root,
+            archive_rel,
+            archive.replace(
+                original_first_heading,
+                f"{original_first_heading}\n\n- [T-098] archive boundary sink",
+                1,
+            ).replace(
+                "## 2026-07-24 (5) — [T-086] PKG-2:",
+                "### 次の一手\n\n## 2026-07-24 (5) — [T-086] PKG-2:",
+                1,
+            ),
+        )
+        _write(root, "docs/archive/README.md", _archive_readme(new_name))
+        _assert_other_checkers_clean(root)
+        replay_res = _run_check(root)
+        assert replay_res.returncode == 1, replay_res.stdout
+        assert "未許可のリテラル placeholder" in replay_res.stdout
+        assert "expected=1, actual=0" in replay_res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # H2 + 本文の全体を新規 archive member へ移す対は緑。
+    root = _build_min_repo()
+    try:
+        entry = place_registered_entry_in_current(root)
+        worklog = _read(root, "docs/worklog.md")
+        assert entry in worklog
+        _write(root, "docs/worklog.md", worklog.replace(entry, "", 1))
+        new_name = "worklog-rotation-new.md"
+        _write(root, f"docs/archive/{new_name}", "# rotation\n\n" + entry)
+        _write(root, "docs/archive/README.md", _archive_readme(new_name))
+        rotated_res = _run_check(root)
+        assert rotated_res.returncode == 0, rotated_res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_allowlist_is_path_bound():
+    root = _build_min_repo()
+    try:
+        source = "output/insights/2026-07-24_e2e-real-seal.md"
+        moved = "output/insights/moved.md"
+        _write(root, source, _read(root, source).replace(
+            _PLACEHOLDER_DEBT_INSIGHT + "\n", "", 1
+        ))
+        _write(root, moved, _PLACEHOLDER_DEBT_INSIGHT + "\n")
+        findings = _assert_placeholder_violation(
+            root,
+            source,
+            moved,
+            "未許可のリテラル placeholder",
+            "expected=1, actual=0",
+        )
+        assert len(findings) == 2, findings
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_backticked_literal_is_still_detected():
+    root = _build_min_repo()
+    try:
+        rel = "output/insights/markdown-context.md"
+        _write(
+            root,
+            rel,
+            "inline `<反映>` control\n"
+            "```text\n"
+            "<受入結果を反映>\n"
+            "```\n",
+        )
+        findings = _assert_placeholder_violation(
+            root, rel, "未許可のリテラル placeholder"
+        )
+        assert len(findings) == 2, findings
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_verbatim_named_file_is_not_exempt():
+    root = _build_min_repo()
+    try:
+        rel = "output/insights/new-verbatim.md"
+        _write(root, rel, "verbatim suffix control: <反映>\n")
+        findings = _assert_placeholder_violation(
+            root, rel, "未許可のリテラル placeholder"
+        )
+        assert len(findings) == 1, findings
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_ledger_size_is_pinned():
+    root = _build_min_repo()
+    try:
+        module = _load_fixture_checker(root)
+        debts = sum(
+            count
+            for entries in module.KNOWN_PLACEHOLDER_DEBTS.values()
+            for count in entries.values()
+        )
+        mentions = sum(
+            count
+            for entries in module.KNOWN_PLACEHOLDER_MENTIONS.values()
+            for count in entries.values()
+        )
+        assert debts == 4
+        assert mentions == 5
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_ledger_entries_are_pinned_exactly():
+    expected = {
+        (
+            "KNOWN_PLACEHOLDER_DEBTS",
+            "worklog-entry:4926160d0e41c9e972953e535dcce8cc1744eff78b13277cc91d722dc06129f2",
+            "37c4a1747e10844c9c4deb2281e644bd655cc80409b80c09c0a840297d6e8ef0",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_DEBTS",
+            "worklog-entry:0885598e3ddffd2a6a5c0424c3e6a65ba24f67048374cf3eefc064247e746eb7",
+            "3beb84d709104086993083d461c6b511b63ffd595f2037c28f5c5ae91e046327",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_DEBTS",
+            "worklog-entry:be893df535111cf91c64c141d38afa482dbca6f0a8a829a55b36ac72d8dc79bc",
+            "37c4a1747e10844c9c4deb2281e644bd655cc80409b80c09c0a840297d6e8ef0",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_DEBTS",
+            "insights-path:output/insights/2026-07-24_e2e-real-seal.md",
+            "c022f2e9ee8cfaf2237eafa5c30e0c772a368c953e5ccf03a29233028bbe52fd",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_MENTIONS",
+            "worklog-entry:1241aea6de50f3519f1cb497ff8b0fc07d4b4c2b76f35047d091bfb893aa685a",
+            "abdbb38938a76268b5cf63c13309339f58f0cc996deaa13db39c3786e2f3b866",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_MENTIONS",
+            "worklog-entry:825788c80a8f458dd12f5682450f134950c37fb0ea6ebbdaddfb26d9f9e95511",
+            "80101b39632c395324f424bc9929db7a5c5b76c66b21d61e30afd52434f097ce",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_MENTIONS",
+            "worklog-entry:825788c80a8f458dd12f5682450f134950c37fb0ea6ebbdaddfb26d9f9e95511",
+            "9162d9fc17d08b52b54c4f4b1adb96a3b614ed4d944ac955de27bb0ea5b539e5",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_MENTIONS",
+            "insights-path:output/insights/2026-07-25_t068-t077-t078-closure-verbatim.md",
+            "90d8e1f6a7f7229085d78f91ddc7bc91155bbe1ec39b44aaae2b2809daaaf5d9",
+        ): 1,
+        (
+            "KNOWN_PLACEHOLDER_MENTIONS",
+            "insights-path:output/insights/2026-07-25_t068-t077-t078-closure-verbatim.md",
+            "c66c4f6e14de10c369167108971c74fd0d1462b6a4489792efae907c5d02875c",
+        ): 1,
+    }
+    actual = {}
+    for ledger_name, ledger in (
+        ("KNOWN_PLACEHOLDER_DEBTS", check_docs.KNOWN_PLACEHOLDER_DEBTS),
+        ("KNOWN_PLACEHOLDER_MENTIONS", check_docs.KNOWN_PLACEHOLDER_MENTIONS),
+    ):
+        for scope, entries in ledger.items():
+            for digest, count in entries.items():
+                actual[(ledger_name, scope, digest)] = count
+    assert actual == expected
+
+
+def test_placeholder_guard_digest_line_boundary_contract():
+    root = _build_min_repo()
+    try:
+        module = _load_fixture_checker(root)
+        base = "digest プレースホルダ <反映>".encode("utf-8")
+        lf_line = module._placeholder_logical_lines(
+            (base + b"\n").decode("utf-8")
+        )[0]
+        crlf_line = module._placeholder_logical_lines(
+            (base + b"\r\n").decode("utf-8")
+        )[0]
+        variants = (
+            base + b" ",
+            b"\xef\xbb\xbf" + base,
+            "digest プレースホルダ <反映>".encode("utf-8"),
+            base + b"\x0b" + "追記".encode("utf-8"),
+        )
+        baseline_digest = module._placeholder_line_digest(lf_line)
+        assert module._placeholder_line_digest(crlf_line) == baseline_digest
+        for variant in variants:
+            logical = module._placeholder_logical_lines(
+                variant.decode("utf-8")
+            )
+            assert len(logical) == 1
+            assert module._placeholder_line_digest(logical[0]) != baseline_digest
+
+        archive_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        archive_bytes = _read(root, archive_rel).encode("utf-8")
+        _write_bytes(root, archive_rel, archive_bytes.replace(b"\n", b"\r\n"))
+        assert _placeholder_findings(root) == []
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    mutations = (
+        _PLACEHOLDER_MENTION_WORKLOG_F36 + " ",
+        "\ufeff" + _PLACEHOLDER_MENTION_WORKLOG_F36,
+        _PLACEHOLDER_MENTION_WORKLOG_F36.replace(
+            "プレースホルダ", "プレースホルダ", 1
+        ),
+        _PLACEHOLDER_MENTION_WORKLOG_F36 + "\v追記",
+    )
+    for changed in mutations:
+        root = _build_min_repo()
+        try:
+            rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+            text = _read(root, rel)
+            assert _PLACEHOLDER_MENTION_WORKLOG_F36 in text
+            _write(
+                root,
+                rel,
+                text.replace(_PLACEHOLDER_MENTION_WORKLOG_F36, changed, 1),
+            )
+            findings = _assert_placeholder_violation(
+                root,
+                "未許可のリテラル placeholder",
+                "expected=1, actual=0",
+            )
+            assert len(findings) == 2, findings
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_missing_target_family_is_violation():
+    cases = (
+        ("output/insights", "output/insights: placeholder 検査の対象 directory が不在"),
+        (
+            "docs/archive/worklog-phase3-0722-0724.md",
+            "docs/archive/worklog-*.md: placeholder 検査の対象族に実体がない",
+        ),
+    )
+    for rel, expected in cases:
+        root = _build_min_repo()
+        try:
+            path = os.path.join(root, rel)
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+            _assert_placeholder_violation(root, expected)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        shutil.rmtree(os.path.join(root, "docs", "archive"))
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert (
+            "docs/archive: placeholder 検査の対象 directory が不在"
+            in res.stdout
+        ), res.stdout
+        assert "docs/archive/README.md: ファイルが不在" in res.stdout, res.stdout
+        assert "Traceback" not in res.stderr, res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_read_failures_are_aggregated_without_traceback():
+    cases = ("worklog-directory", "archive-invalid-utf8")
+    for case in cases:
+        root = _build_min_repo()
+        try:
+            if case == "worklog-directory":
+                path = os.path.join(root, "docs", "worklog.md")
+                os.remove(path)
+                os.mkdir(path)
+                expected = (
+                    "docs/worklog.md: placeholder 検査の列挙対象が regular file でない"
+                )
+            else:
+                rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+                _write_bytes(root, rel, b"\xff")
+                expected = f"{rel}: placeholder 検査の読取失敗"
+            res = _run_check(root)
+            assert res.returncode == 1, (case, res.stdout, res.stderr)
+            assert re.search(
+                r"^check_docs: \d+ 件の違反$", res.stdout, re.MULTILINE
+            ), res.stdout
+            assert expected in res.stdout, res.stdout
+            assert res.stdout.count(expected) == 1, res.stdout
+            assert "KNOWN_PLACEHOLDER_DEBTS の登録 digest" not in res.stdout
+            assert "KNOWN_PLACEHOLDER_MENTIONS の登録 digest" not in res.stdout
+            assert "Traceback" not in res.stdout, res.stdout
+            assert "Traceback" not in res.stderr, res.stderr
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_unreadable_insight_does_not_mask_worklog_mismatch():
+    root = _build_min_repo()
+    try:
+        rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        archive = _read(root, rel)
+        registered = f"{_PLACEHOLDER_DEBT_WORKLOG}\n"
+        assert archive.count(registered) == 2
+        _write(
+            root,
+            rel,
+            archive.replace(registered, registered * 2, 1),
+        )
+        _write_bytes(root, "output/insights/unrelated.md", b"\xff")
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert "output/insights/unrelated.md: placeholder 検査の読取失敗" in res.stdout
+        assert "insights-path scope の台帳照合を停止" in res.stdout
+        assert "KNOWN_PLACEHOLDER_DEBTS の登録 digest" in res.stdout
+        assert "expected=1, actual=2" in res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_safe_reader_dependency_failures_do_not_emit_derived_findings():
+    # decisions.md: 正当な D1 参照を「実在しない D」と派生誤判定しない。
+    root = _build_min_repo()
+    try:
+        _write(root, "README.md", "# living\n\nD1 を参照する。\n")
+        _write_bytes(root, "docs/decisions.md", b"\xff")
+        res = _run_check(root)
+        prefix = "docs/decisions.md: D 見出し検査の読取失敗"
+        assert res.returncode == 1, res.stdout
+        assert res.stdout.count(prefix) == 1, res.stdout
+        assert "実在しない D 参照" not in res.stdout, res.stdout
+        assert "検査を停止" in res.stdout, res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # 通常経路では、実在しない D 参照の本来の finding が発火する。
+    root = _build_min_repo()
+    try:
+        _write(root, "README.md", "# living\n\nD999 を参照する。\n")
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert "実在しない D 参照: 'D999'" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # phase3.md: ledger だけが sink の T-001 を消失扱いしない。
+    root = _build_min_repo()
+    try:
+        worklog = _read(root, "docs/worklog.md")
+        _write(
+            root,
+            "docs/worklog.md",
+            worklog.replace("- [T-001] consumed\n", "", 1),
+        )
+        _write_bytes(root, "docs/phase3.md", b"\xff")
+        res = _run_check(root)
+        prefix = "docs/phase3.md: living docs 検査の読取失敗"
+        assert res.returncode == 1, res.stdout
+        assert res.stdout.count(prefix) == 1, res.stdout
+        assert "次の一手 ID [T-001]" not in res.stdout, res.stdout
+        assert "検査を停止" in res.stdout, res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # 通常の見送り台帳構造では、sink にない遷移の本来の finding が発火する。
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/worklog.md",
+            _CLEAN_WORKLOG.replace("[T-001] carry", "[T-777] carry", 1),
+        )
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert "次の一手 ID [T-777]" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # 見送り台帳の構造抽出失敗は空集合でなく未知状態として遷移検査を止める。
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/worklog.md",
+            _CLEAN_WORKLOG.replace("[T-001] carry", "[T-777] carry", 1),
+        )
+        _write(
+            root,
+            "docs/phase3.md",
+            _CLEAN_PHASE3.replace("## 見送り台帳 (synthetic)", "## broken ledger"),
+        )
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert "見送り台帳 sink の構造抽出失敗" in res.stdout, res.stdout
+        assert "見送り台帳に依存する worklog 遷移検査を停止" in res.stdout
+        assert "次の一手 ID [T-777]" not in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # archive 1 件が不明なら、読めた非隣接 archive 同士を比較しない。
+    root = _build_min_repo()
+    try:
+        archive_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        archive = _read(root, archive_rel)
+        assert archive.rstrip().endswith("### 次の一手")
+        _write(
+            root,
+            archive_rel,
+            archive.rstrip() + "\n1. [T-777] unreadable middle sink\n",
+        )
+        unreadable_name = "worklog-archive-unreadable.md"
+        later_name = "worklog-archive-later.md"
+        _write_bytes(root, f"docs/archive/{unreadable_name}", b"\xff")
+        _write(
+            root,
+            f"docs/archive/{later_name}",
+            "# later archive\n\n"
+            "## 2026-07-27 (1) — later archive\n\n"
+            "### 次の一手\n",
+        )
+        _write(
+            root,
+            "docs/archive/README.md",
+            _archive_readme(unreadable_name, later_name),
+        )
+        res = _run_check(root)
+        prefix = (
+            f"docs/archive/{unreadable_name}: "
+            "placeholder 検査の読取失敗"
+        )
+        assert res.returncode == 1, res.stdout
+        assert res.stdout.count(prefix) == 1, res.stdout
+        assert "次の一手 ID [T-777]" not in res.stdout, res.stdout
+        assert "検査を停止" in res.stdout, res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # 通常の archive 構造では、archive 境界遷移の本来の finding が発火する。
+    root = _build_min_repo()
+    try:
+        archive_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        later_name = "worklog-archive-structure-later.md"
+        _write(
+            root,
+            archive_rel,
+            _read(root, archive_rel).rstrip()
+            + "\n1. [T-778] archive positive control\n",
+        )
+        _write(
+            root,
+            f"docs/archive/{later_name}",
+            "# later archive\n\n"
+            "## 2026-07-27 (1) — later archive\n\n"
+            "### 次の一手\n",
+        )
+        _write(root, "docs/archive/README.md", _archive_readme(later_name))
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert "次の一手 ID [T-778]" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # archive entry の構造抽出失敗時は、読めた非隣接 archive を比較しない。
+    root = _build_min_repo()
+    try:
+        archive_rel = f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+        malformed_name = "worklog-archive-structure-malformed.md"
+        later_name = "worklog-archive-structure-later.md"
+        _write(
+            root,
+            archive_rel,
+            _read(root, archive_rel).rstrip()
+            + "\n1. [T-778] archive positive control\n",
+        )
+        _write(
+            root,
+            f"docs/archive/{malformed_name}",
+            "# readable but no worklog H2\n",
+        )
+        _write(
+            root,
+            f"docs/archive/{later_name}",
+            "# later archive\n\n"
+            "## 2026-07-27 (1) — later archive\n\n"
+            "### 次の一手\n",
+        )
+        _write(
+            root,
+            "docs/archive/README.md",
+            _archive_readme(malformed_name, later_name),
+        )
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert "archive entry の構造抽出失敗" in res.stdout, res.stdout
+        assert "archive 族全体に依存する順序・境界遷移検査を停止" in res.stdout
+        assert "次の一手 ID [T-778]" not in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_safe_reader_rejects_worklog_symlink_and_fifo_without_hang():
+    root = _build_min_repo()
+    external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_")
+    try:
+        worklog = os.path.join(root, "docs", "worklog.md")
+        external_rel = "external-worklog.md"
+        _write(
+            external,
+            external_rel,
+            "# external\n\n"
+            "## EXTERNAL-SENTINEL\n\n"
+            "external unauthorized: <受入結果を反映>\n",
+        )
+        os.remove(worklog)
+        os.symlink(os.path.join(external, external_rel), worklog)
+        res = _run_check(root, timeout=5)
+        assert res.returncode == 1, res.stdout
+        assert re.search(r"^check_docs: \d+ 件の違反$", res.stdout, re.MULTILINE)
+        assert "docs/worklog.md" in res.stdout
+        assert "次の一手の保存則を停止" in res.stdout
+        assert "EXTERNAL-SENTINEL" not in res.stdout, res.stdout
+        assert "未許可のリテラル placeholder" not in res.stdout, res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+        shutil.rmtree(external, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        worklog = os.path.join(root, "docs", "worklog.md")
+        os.remove(worklog)
+        os.mkfifo(worklog)
+        res = _run_check(root, timeout=5)
+        assert res.returncode == 1, res.stdout
+        assert re.search(r"^check_docs: \d+ 件の違反$", res.stdout, re.MULTILINE)
+        assert "docs/worklog.md" in res.stdout
+        assert "regular file" in res.stdout
+        assert "次の一手の保存則を停止" in res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # placeholder 列挙を経由しない decisions.md で safe-reader 単独の拒否を固定する。
+    root = _build_min_repo()
+    external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_")
+    try:
+        decisions = os.path.join(root, "docs", "decisions.md")
+        _write(
+            external,
+            "external-decisions.md",
+            "## D4242 EXTERNAL-SAFE-READER-SENTINEL\n"
+            "## D4242 EXTERNAL-SAFE-READER-SENTINEL\n",
+        )
+        os.remove(decisions)
+        os.symlink(
+            os.path.join(external, "external-decisions.md"),
+            decisions,
+        )
+        res = _run_check(root, timeout=5)
+        assert res.returncode == 1, res.stdout
+        assert "docs/decisions.md: D 見出し検査の読取失敗" in res.stdout
+        assert "symlink を含む path は読まない" in res.stdout
+        assert "D4242 の見出しが重複" not in res.stdout, res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+        shutil.rmtree(external, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        decisions = os.path.join(root, "docs", "decisions.md")
+        os.remove(decisions)
+        os.mkfifo(decisions)
+        res = _run_check(root, timeout=5)
+        assert res.returncode == 1, res.stdout
+        assert "docs/decisions.md: D 見出し検査の読取失敗" in res.stdout
+        assert "regular file でないため読まない" in res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_rejects_symlinked_target_directories():
+    cases = (
+        (
+            "docs/archive",
+            _PLACEHOLDER_ARCHIVE_NAME,
+            "",
+            "docs/archive: placeholder 検査の対象 directory が symlink",
+        ),
+        (
+            "output/insights",
+            "2026-07-24_e2e-real-seal.md",
+            _PLACEHOLDER_DEBT_INSIGHT + "\n",
+            "output/insights: placeholder 検査の対象 directory が symlink",
+        ),
+    )
+    for rel, member, content, expected in cases:
+        root = _build_min_repo()
+        external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_")
+        try:
+            if rel == "docs/archive":
+                content = _read(
+                    root, f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}"
+                )
+                _write(
+                    external,
+                    "README.md",
+                    "# EXTERNAL-ARCHIVE-README-SENTINEL\n\n"
+                    "## 現在の収容物\n",
+                )
+            _write(external, member, content)
+            external_marker = (
+                "worklog-external-unapproved.md"
+                if rel == "docs/archive"
+                else "external-unapproved.md"
+            )
+            _write(
+                external,
+                external_marker,
+                "# external\n\n## EXTERNAL-DIRECTORY-SENTINEL\n\n"
+                "external unauthorized: <受入結果を反映>\n",
+            )
+            path = os.path.join(root, rel)
+            shutil.rmtree(path)
+            os.symlink(external, path)
+            findings = _assert_placeholder_violation(root, expected)
+            assert findings
+            res = _run_check(root, timeout=5)
+            assert res.returncode == 1, res.stdout
+            assert expected in res.stdout, res.stdout
+            assert external_marker not in res.stdout, res.stdout
+            assert "EXTERNAL-DIRECTORY-SENTINEL" not in res.stdout, res.stdout
+            assert "EXTERNAL-ARCHIVE-README-SENTINEL" not in res.stdout, res.stdout
+            assert "未許可のリテラル placeholder" not in res.stdout, res.stdout
+            assert "Traceback" not in res.stdout + res.stderr
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+            shutil.rmtree(external, ignore_errors=True)
+
+
+def test_placeholder_guard_rejects_symlinked_and_non_regular_members():
+    cases = (
+        (
+            f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}",
+            "archive-symlink",
+        ),
+        (
+            "output/insights/2026-07-24_e2e-real-seal.md",
+            "insight-symlink",
+        ),
+        (
+            f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}",
+            "archive-directory",
+        ),
+        (
+            "output/insights/2026-07-24_e2e-real-seal.md",
+            "insight-directory",
+        ),
+        (
+            f"docs/archive/{_PLACEHOLDER_ARCHIVE_NAME}",
+            "archive-fifo",
+        ),
+        (
+            "output/insights/2026-07-24_e2e-real-seal.md",
+            "insight-fifo",
+        ),
+    )
+    for rel, case in cases:
+        root = _build_min_repo()
+        external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_")
+        try:
+            content = _read(root, rel)
+            path = os.path.join(root, rel)
+            os.remove(path)
+            if case.endswith("symlink"):
+                target = os.path.join(external, "registered.md")
+                _write(
+                    external,
+                    "registered.md",
+                    content + "\nexternal unauthorized: <受入結果を反映>\n",
+                )
+                os.symlink(target, path)
+            elif case.endswith("fifo"):
+                os.mkfifo(path)
+            else:
+                os.mkdir(path)
+            findings = _assert_placeholder_violation(
+                root,
+                rel,
+                "placeholder 検査の対象 member が regular file でない",
+            )
+            assert findings
+            res = _run_check(root, timeout=5)
+            assert res.returncode == 1, res.stdout
+            assert rel in res.stdout, res.stdout
+            assert (
+                "placeholder 検査の対象 member が regular file でない"
+                in res.stdout
+            ), res.stdout
+            assert "未許可のリテラル placeholder" not in res.stdout, res.stdout
+            assert "Traceback" not in res.stdout + res.stderr
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+            shutil.rmtree(external, ignore_errors=True)
+
+
+def test_placeholder_guard_non_exact_literals_are_not_detected():
+    """exact 3 文字列は確定裁定であり、意味的に同じ別表記・HTML entity・
+    予測値の先書きは本 gate の射程外である (裁定パッケージ [T-100])。
+    """
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "output/insights/non-exact.md",
+            "<結果を反映>\n"
+            "<反映済み>\n"
+            "&lt;反映&gt;\n"
+            "受入結果を反映\n"
+            "検査は 123 passed と予測する\n",
+        )
+        assert _placeholder_findings(root) == []
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -628,6 +1872,32 @@ _COMMAND_GUARD_EXPECTED_COUNTS = {
 _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = 20
 
 
+def test_command_docs_guard_rejects_symlinked_commands_directory():
+    root = _build_min_repo()
+    external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_commands_")
+    try:
+        command_dir = os.path.join(root, ".claude", "commands")
+        shutil.copytree(command_dir, external, dirs_exist_ok=True)
+        _write(
+            external,
+            "EXTERNAL-COMMAND-SENTINEL.md",
+            "# EXTERNAL-COMMAND-SENTINEL\n",
+        )
+        shutil.rmtree(command_dir)
+        os.symlink(external, command_dir)
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert re.search(
+            r"^check_docs: \d+ 件の違反$", res.stdout, re.MULTILINE
+        ), res.stdout
+        assert ".claude/commands: command directory が symlink" in res.stdout
+        assert "EXTERNAL-COMMAND-SENTINEL" not in res.stdout, res.stdout
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+        shutil.rmtree(external, ignore_errors=True)
+
+
 @pytest.mark.parametrize("case", _COMMAND_GUARD_CASES)
 def test_command_docs_guard_positive_controls(case):
     """各 finding 分岐は baseline からケース別の期待件数だけ増える。"""
@@ -774,7 +2044,7 @@ def test_backlog_guard_entry_title_must_fullmatch():
     root = _build_min_repo()
     try:
         worklog = _CLEAN_WORKLOG.replace(
-            "## 2026-01-02 (2) — second", "## 補助見出し (entry ではない)"
+            "## 2026-08-02 (2) — second", "## 補助見出し (entry ではない)"
         )
         _write_backlog_docs(root, worklog_text=worklog)
         _assert_violation(root, "worklog entry title に full-match しない")
@@ -904,19 +2174,19 @@ def test_backlog_guard_id_bearing_middle_entry_requires_ids_on_all_items():
 
 ## ローテーション
 
-## 2026-01-01 (1) — first
+## 2026-08-01 (1) — first
 
 ### 次の一手
 1. [T-001] carry
 
-## 2026-01-02 (2) — second
+## 2026-08-02 (2) — second
 
 - [T-001] consumed
 
 ### 次の一手
 1. missing ID
 
-## 2026-01-03 (3) — third
+## 2026-08-03 (3) — third
 
 ### 次の一手
 1. [T-003] latest
@@ -924,7 +2194,7 @@ def test_backlog_guard_id_bearing_middle_entry_requires_ids_on_all_items():
         _write_backlog_docs(root, worklog_text=worklog)
         _assert_violation(
             root,
-            "エントリ '2026-01-02 (2) — second'",
+            "エントリ '2026-08-02 (2) — second'",
             "項目先頭に有効な [T-NNN] ID がない",
         )
     finally:
@@ -938,12 +2208,12 @@ def test_backlog_guard_id_bearing_middle_entry_rejects_duplicate_ids():
 
 ## ローテーション
 
-## 2026-01-01 (1) — first
+## 2026-08-01 (1) — first
 
 ### 次の一手
 1. [T-001] carry
 
-## 2026-01-02 (2) — second
+## 2026-08-02 (2) — second
 
 - [T-001] consumed
 
@@ -951,7 +2221,7 @@ def test_backlog_guard_id_bearing_middle_entry_rejects_duplicate_ids():
 1. [T-002] first
 2. [T-002] duplicate
 
-## 2026-01-03 (3) — third
+## 2026-08-03 (3) — third
 
 - [T-002] consumed
 
@@ -961,7 +2231,7 @@ def test_backlog_guard_id_bearing_middle_entry_rejects_duplicate_ids():
         _write_backlog_docs(root, worklog_text=worklog)
         _assert_violation(
             root,
-            "エントリ '2026-01-02 (2) — second'",
+            "エントリ '2026-08-02 (2) — second'",
             "`### 次の一手` 内で ID [T-002] が重複",
         )
     finally:
@@ -1070,19 +2340,19 @@ def test_backlog_guard_source_is_only_next_action_in_three_entry_chain():
 
 ## ローテーション
 
-## 2026-01-01 (1) — first
+## 2026-08-01 (1) — first
 
 ### 次の一手
 1. [T-001] carry
 
-## 2026-01-02 (2) — second
+## 2026-08-02 (2) — second
 
 - [T-001] consumed
 
 ### 次の一手
 1. [T-002] carry
 
-## 2026-01-03 (3) — third
+## 2026-08-03 (3) — third
 
 - [T-002] consumed
 
@@ -1216,19 +2486,19 @@ def test_backlog_guard_checks_all_adjacent_transitions():
 
 ## ローテーション
 
-## 2026-01-01 (1) — first
+## 2026-08-01 (1) — first
 
 ### 次の一手
 1. [T-001] dropped in middle
 
-## 2026-01-02 (2) — second
+## 2026-08-02 (2) — second
 
 - [T-900] unrelated
 
 ### 次の一手
 1. [T-002] carried
 
-## 2026-01-03 (3) — third
+## 2026-08-03 (3) — third
 
 - [T-002] consumed
 
@@ -1249,7 +2519,7 @@ def test_backlog_guard_checks_latest_archive_rotation_boundary():
 
 ## ローテーション
 
-## 2026-01-02 (2) — current first
+## 2026-08-02 (2) — current first
 
 ### 次の一手
 1. [T-002] current
@@ -1257,7 +2527,7 @@ def test_backlog_guard_checks_latest_archive_rotation_boundary():
         archive_name = "worklog-synthetic-latest.md"
         archive = """# archive
 
-## 2026-01-01 (1) — archive last
+## 2026-08-01 (1) — archive last
 
 ### 次の一手
 1. [T-001] lost at rotation
@@ -1267,7 +2537,7 @@ def test_backlog_guard_checks_latest_archive_rotation_boundary():
         _write(
             root,
             os.path.join("docs", "archive", "README.md"),
-            f"# archive\n\n## 現在の収容物\n\n- `{archive_name}`\n",
+            _archive_readme(archive_name),
         )
         _assert_violation(root, archive_name, "次の一手 ID [T-001]", "current first")
     finally:
@@ -1281,7 +2551,7 @@ def test_backlog_guard_checks_archive_internal_transitions():
 
 ## ローテーション
 
-## 2026-01-03 (3) — current
+## 2026-08-03 (3) — current
 
 - [T-002] consumed
 
@@ -1291,12 +2561,12 @@ def test_backlog_guard_checks_archive_internal_transitions():
         archive_name = "worklog-synthetic.md"
         archive = """# archive
 
-## 2026-01-01 (1) — archive first
+## 2026-08-01 (1) — archive first
 
 ### 次の一手
 1. [T-001] lost inside archive
 
-## 2026-01-02 (2) — archive second
+## 2026-08-02 (2) — archive second
 
 ### 次の一手
 1. [T-002] carried to current
@@ -1306,7 +2576,7 @@ def test_backlog_guard_checks_archive_internal_transitions():
         _write(
             root,
             os.path.join("docs", "archive", "README.md"),
-            f"# archive\n\n## 現在の収容物\n\n- `{archive_name}`\n",
+            _archive_readme(archive_name),
         )
         _assert_violation(root, archive_name, "次の一手 ID [T-001]", "archive second")
     finally:
@@ -1320,7 +2590,7 @@ def test_backlog_guard_id_bearing_archive_entry_requires_ids_on_all_items():
 
 ## ローテーション
 
-## 2026-01-03 (3) — current
+## 2026-08-03 (3) — current
 
 ### 次の一手
 1. [T-003] current
@@ -1328,12 +2598,12 @@ def test_backlog_guard_id_bearing_archive_entry_requires_ids_on_all_items():
         archive_name = "worklog-synthetic.md"
         archive = """# archive
 
-## 2026-01-01 (1) — archive first
+## 2026-08-01 (1) — archive first
 
 ### 次の一手
 1. [T-001] carry
 
-## 2026-01-02 (2) — archive second
+## 2026-08-02 (2) — archive second
 
 - [T-001] consumed
 
@@ -1345,12 +2615,12 @@ def test_backlog_guard_id_bearing_archive_entry_requires_ids_on_all_items():
         _write(
             root,
             os.path.join("docs", "archive", "README.md"),
-            f"# archive\n\n## 現在の収容物\n\n- `{archive_name}`\n",
+            _archive_readme(archive_name),
         )
         _assert_violation(
             root,
             archive_name,
-            "エントリ '2026-01-02 (2) — archive second'",
+            "エントリ '2026-08-02 (2) — archive second'",
             "項目先頭に有効な [T-NNN] ID がない",
         )
     finally:
@@ -1364,7 +2634,7 @@ def test_backlog_guard_checks_boundaries_between_all_archives():
 
 ## ローテーション
 
-## 2026-01-03 (3) — current
+## 2026-08-03 (3) — current
 
 - [T-002] consumed
 
@@ -1375,14 +2645,14 @@ def test_backlog_guard_checks_boundaries_between_all_archives():
         second_name = "worklog-second.md"
         first = """# first archive
 
-## 2026-01-01 (1) — first archive last
+## 2026-08-01 (1) — first archive last
 
 ### 次の一手
 1. [T-001] lost between archives
 """
         second = """# second archive
 
-## 2026-01-02 (2) — second archive first
+## 2026-08-02 (2) — second archive first
 
 ### 次の一手
 1. [T-002] carried to current
@@ -1393,8 +2663,7 @@ def test_backlog_guard_checks_boundaries_between_all_archives():
         _write(
             root,
             os.path.join("docs", "archive", "README.md"),
-            "# archive\n\n## 現在の収容物\n\n"
-            f"- `{first_name}`\n- `{second_name}`\n",
+            _archive_readme(first_name, second_name),
         )
         _assert_violation(root, first_name, "次の一手 ID [T-001]", "second archive first")
     finally:
@@ -1408,7 +2677,7 @@ def test_backlog_guard_latest_archive_is_selected_by_entry_date():
 
 ## ローテーション
 
-## 2026-02-02 (2) — current
+## 2026-09-02 (2) — current
 
 ### 次の一手
 1. [T-002] current
@@ -1424,7 +2693,7 @@ def test_backlog_guard_latest_archive_is_selected_by_entry_date():
 """
         newer = """# newer
 
-## 2026-02-01 (1) — newer
+## 2026-09-01 (1) — newer
 
 ### 次の一手
 1. [T-001] lost from chronologically latest archive
@@ -1435,8 +2704,7 @@ def test_backlog_guard_latest_archive_is_selected_by_entry_date():
         _write(
             root,
             os.path.join("docs", "archive", "README.md"),
-            "# archive\n\n## 現在の収容物\n\n"
-            f"- `{older_name}`\n- `{newer_name}`\n",
+            _archive_readme(older_name, newer_name),
         )
         res = _assert_violation(root, newer_name, "次の一手 ID [T-001]")
         assert older_name not in res.stdout, res.stdout
@@ -1451,7 +2719,7 @@ def test_backlog_guard_same_day_archives_use_entry_ordinal_not_filename():
 
 ## ローテーション
 
-## 2026-02-02 (3) — current
+## 2026-09-02 (3) — current
 
 - [T-002] consumed
 
@@ -1462,14 +2730,14 @@ def test_backlog_guard_same_day_archives_use_entry_ordinal_not_filename():
         late_name = "worklog-a-late.md"
         early = """# early
 
-## 2026-02-01 (1) — early
+## 2026-09-01 (1) — early
 
 ### 次の一手
 1. [T-001] carry across archive boundary
 """
         late = """# late
 
-## 2026-02-01 (2) — late
+## 2026-09-01 (2) — late
 
 - [T-001] consumed
 
@@ -1482,8 +2750,7 @@ def test_backlog_guard_same_day_archives_use_entry_ordinal_not_filename():
         _write(
             root,
             os.path.join("docs", "archive", "README.md"),
-            "# archive\n\n## 現在の収容物\n\n"
-            f"- `{late_name}`\n- `{early_name}`\n",
+            _archive_readme(late_name, early_name),
         )
         res = _run_check(root)
         assert res.returncode == 0, res.stdout
@@ -1498,7 +2765,7 @@ def test_backlog_guard_ambiguous_same_day_archive_order_is_violation():
 
 ## ローテーション
 
-## 2026-02-02 (2) — current
+## 2026-09-02 (2) — current
 
 - [T-001] consumed
 
@@ -1509,7 +2776,7 @@ def test_backlog_guard_ambiguous_same_day_archive_order_is_violation():
         second_name = "worklog-z.md"
         archive = """# archive
 
-## 2026-02-01 (1) — same ordinal
+## 2026-09-01 (1) — same ordinal
 
 ### 次の一手
 1. [T-001] carry
@@ -1520,8 +2787,7 @@ def test_backlog_guard_ambiguous_same_day_archive_order_is_violation():
         _write(
             root,
             os.path.join("docs", "archive", "README.md"),
-            "# archive\n\n## 現在の収容物\n\n"
-            f"- `{first_name}`\n- `{second_name}`\n",
+            _archive_readme(first_name, second_name),
         )
         _assert_violation(
             root,
@@ -1541,11 +2807,11 @@ def test_backlog_guard_latest_archive_structure_is_fail_closed():
             "entry title に full-match しない",
         ),
         "zero next": (
-            "# archive\n\n## 2026-01-01 (1) — last\n\n本文。\n",
+            "# archive\n\n## 2026-08-01 (1) — last\n\n本文。\n",
             "`### 次の一手` が 0 件",
         ),
         "multiple next": (
-            "# archive\n\n## 2026-01-01 (1) — last\n\n"
+            "# archive\n\n## 2026-08-01 (1) — last\n\n"
             "### 次の一手\n1. [T-001] first\n\n"
             "### 次の一手 (duplicate)\n1. [T-002] second\n",
             "`### 次の一手` が 2 件",
@@ -1559,7 +2825,7 @@ def test_backlog_guard_latest_archive_structure_is_fail_closed():
             _write(
                 root,
                 os.path.join("docs", "archive", "README.md"),
-                f"# archive\n\n## 現在の収容物\n\n- `{archive_name}`\n",
+                _archive_readme(archive_name),
             )
             _assert_violation(root, archive_name, expected)
         finally:
