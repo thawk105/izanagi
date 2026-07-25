@@ -89,8 +89,7 @@ resolver や `current_head` 等の正規注入 seam がないか確認する。m
 
 ## DW-O15 — fix 後の変異
 
-発火: fix round 後に変異を走らせる直前。最終 commit で anchor を再検証し、
-mask 時は両層変異へ再照準する。初回結果を消さず erratum とする。詳細は `DW-M07` に従う。
+発火: fix round 後に変異を走らせる直前。手順は `DW-M07` に従う（同節を複製しない）。
 
 ## DW-O16 — fix 後の焦点再レビュー
 

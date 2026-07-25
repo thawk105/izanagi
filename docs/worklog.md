@@ -533,6 +533,15 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 - **検査 (記録 commit 前の実測)**: 受入全走 **2995 passed / 18 skipped / 0 failed**
   (baseline `be40317` = 2994 passed / 18 skipped、node 消失 0)、`check_docs` rc=0、
   `check_ai_provenance` = 355 件・違反なし。
+- **記録後検査 (F34)**: 記録 commit (`2e6b2ee`) の後に再走 = `check_docs` rc=0、
+  焦点 (`test_check_docs` + repo scan invariant + real-repo serialization) **117 passed**、
+  `check_ai_provenance` = **356 件・違反なし**。
+- **スキル自己改善 (gate 発火・候補 3 / 採用 1 / 裁定送り 2)**: 採用は `DW-M01` への 1 行
+  (テスト強化 wave は `DW-M08` の新旧両走も事前登録する)。今回この導線が無く、親が気づかなければ
+  片走で M7 の先取り KILL を新規検出力と誤記録する経路が開いていた。予算は hard ceiling 24000 に対し
+  HEAD 時点で 23986 (余裕 14 bytes) だったため、`DW-O15` が `DW-M07` 本文を複製していた無駄を
+  取り (条件 dispatch は両節を同時に読ませる) 場所を作った。事故は発生していないので failures /
+  decisions は変更しない。残り 2 件は予算に収まらず [T-104] として裁定へ送る (前例 = [T-101])。
 
 ### 次の一手
 1. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
@@ -552,14 +561,19 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 8. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
 9. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
 10. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
-11. [T-089] **測定後の hardening と裁定** (前倒し対象外): 二重 reason-tag 描画。修正時に exact 期待値を
+11. [T-104] **新規・裁定待ち (dev-wave 自己改善)**: 予算に収まらなかった作法 2 件 —
+    (i) decision 本文と要約の食い違いが別集合を指す場合に双方を brief へ書き分ける規則 (`DW-S01`)、
+    (ii) 段 1 の前提実測を下流の子出力の独立検証に使える形で残す規則 (`DW-S01`)。
+    `docs/dev-wave/**` は hard ceiling 24000 に対し 23966 で余裕 34 bytes しかない。
+    [T-101] と併せ、予算値の引き上げ可否を独立審査するか、reference の再編で場所を作るかの裁定が要る
+12. [T-089] **測定後の hardening と裁定** (前倒し対象外): 二重 reason-tag 描画。修正時に exact 期待値を
     同時更新する。変わらず
-12. [T-090] **測定後の hardening と裁定** (前倒し対象外): `VerifiedFreeze.document` が mutable dict の
+13. [T-090] **測定後の hardening と裁定** (前倒し対象外): `VerifiedFreeze.document` が mutable dict の
     まま返る (`s8b_freeze_io.py:30-38`)。変わらず
-13. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-14. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-15. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-16. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-17. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-18. [T-012] 延期: pilot 凍結維持。変わらず
-19. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+14. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+15. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+16. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+17. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+18. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+19. [T-012] 延期: pilot 凍結維持。変わらず
+20. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
