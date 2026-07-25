@@ -120,3 +120,4 @@ nested subprocess の import path による偽赤を、差分の回帰として�
 
 発火: worktree で clean-tree gate を走らせる前。専用 handoff を対象 worktree の外へ置く。
 untracked handoff を残したまま gate を走らせず、job tmp または main checkout 側で生存性を確保する。
+背景 job が worktree 隔離下にある場合、harness が main checkout への書込を拒否するため job tmp を使う。
