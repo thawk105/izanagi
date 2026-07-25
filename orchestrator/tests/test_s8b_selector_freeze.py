@@ -34,6 +34,11 @@ from orchestrator.campaign.s8b_selector_input import (
 ROOT = Path(__file__).resolve().parents[2]
 FREEZE_PATH = ROOT / "output/s8b-freeze/holdout_freeze.json"
 ARMS = {"on", "off", "swapped"}
+_LITERAL_PLACEHOLDERS = (
+    "<反映>",
+    "<受入結果を反映>",
+    "<受入全走結果を反映>",
+)
 
 
 def _freeze() -> dict:
@@ -242,6 +247,27 @@ def test_record_agent_attempt_valid_and_invalid_never_falls_back() -> None:
     assert invalid["parser_error_code"]
     assert invalid["raw_sha256"]
     assert STATIC_DEFAULT_CHOICE_ID not in invalid.values()
+
+
+@pytest.mark.parametrize(
+    "raw",
+    (
+        *(_raw("c02", rationale=placeholder) for placeholder in _LITERAL_PLACEHOLDERS),
+        _raw("c02", rationale=_LITERAL_PLACEHOLDERS[0])
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e"),
+    ),
+    ids=("lp-1", "lp-2", "lp-3", "json-angle-escape"),
+)
+def test_record_agent_attempt_rejects_literal_placeholder_rationale(raw) -> None:
+    job = next(job for job in build_prediction_jobs(_freeze()) if job["arm"] == "on")
+    attempt = record_agent_attempt(job=job, raw_output=raw)
+
+    assert attempt["status"] == "invalid"
+    assert attempt["choice_id"] is None
+    assert attempt["parser_error_code"] == "rationale_placeholder"
+    assert attempt["raw_sha256"] == hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    assert "rationale" not in attempt
 
 
 def test_binding_resolution_is_target_local_and_unknown_choice_fails() -> None:

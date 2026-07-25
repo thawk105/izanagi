@@ -11,6 +11,11 @@ from typing import Any
 ALLOWED_CHOICE_IDS = ("c01", "c02", "c03", "c04", "c05", "c06")
 _REQUIRED_KEYS = {"schema_version", "choice_id", "rationale"}
 _MAX_RATIONALE_LENGTH = 2000
+_RATIONALE_LITERAL_PLACEHOLDERS = (
+    "<反映>",
+    "<受入結果を反映>",
+    "<受入全走結果を反映>",
+)
 
 
 @dataclass(frozen=True)
@@ -114,6 +119,14 @@ def parse_selector_output(raw: str) -> SelectorDecision:
         raise SelectorOutputError("rationale_blank", "rationale は空白のみであってはならない")
     if len(rationale) > _MAX_RATIONALE_LENGTH:
         raise SelectorOutputError("rationale_too_long", "rationale が最大長を超過")
+    if any(
+        placeholder in rationale
+        for placeholder in _RATIONALE_LITERAL_PLACEHOLDERS
+    ):
+        raise SelectorOutputError(
+            "rationale_placeholder",
+            "rationale に literal placeholder を含めてはならない",
+        )
 
     return SelectorDecision(
         choice_id=choice_id,

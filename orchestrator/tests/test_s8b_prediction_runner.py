@@ -1024,6 +1024,99 @@ def test_materialize_seals_predictions_and_verifies(tmp_path) -> None:
         )
 
 
+def test_placeholder_rationale_is_invalid_in_journal_and_materialized_rows(
+    tmp_path,
+) -> None:
+    """LP rationale を journal と materialized row の双方で invalid に保つ。"""
+    freeze = _freeze()
+    root = tmp_path
+    head = _fixture_head(root)
+    sources = _sources(root)
+    binding = _binding(pre_oracle_head=head, role_sha256=sources["role"]["sha256"])
+    journal = _journal(root / "journal.jsonl", binding)
+
+    raw_by_cell = {
+        ("rr20", "on"): _valid_raw(rationale="<反映>"),
+        ("rr20", "swapped"): _valid_raw(rationale="<受入結果を反映>"),
+        ("rr80", "on"): _valid_raw(rationale="<受入全走結果を反映>"),
+        ("rr80", "swapped"): _valid_raw(rationale="<反映>")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e"),
+    }
+    assert set(raw_by_cell) == AGENT_CELLS
+    assert "<反映>" not in raw_by_cell[("rr80", "swapped")]
+    assert (
+        json.loads(raw_by_cell[("rr80", "swapped")])["rationale"]
+        == "<反映>"
+    )
+
+    class _PlaceholderProvider(_RecordingProvider):
+        def __call__(self, *, target_holdout, arm, payload):
+            cell = (target_holdout, arm)
+            self.called.append(cell)
+            return ProviderResponse(
+                raw_response=raw_by_cell[cell],
+                provenance=_provenance(
+                    self.role_sha256,
+                    f"{target_holdout}-{arm}",
+                ),
+            )
+
+    provider = _PlaceholderProvider(role_sha256=sources["role"]["sha256"])
+    drive_journal(
+        freeze=freeze,
+        journal=journal,
+        artifact_root=root / "artifacts",
+        root=root,
+        binding=binding,
+        provider=provider,
+    )
+    assert set(provider.called) == AGENT_CELLS
+
+    invocations = {
+        (record["target_holdout"], record["arm"]): record
+        for record in journal.read_records()
+        if record.get("record_type") == "invocation"
+    }
+    assert set(invocations) == AGENT_CELLS
+    for cell, raw in raw_by_cell.items():
+        invocation = invocations[cell]
+        assert invocation["status"] == "invalid"
+        assert invocation["choice_id"] is None
+        assert invocation["rationale"] is None
+        assert invocation["parser_error_code"] == "rationale_placeholder"
+        assert (
+            invocation["raw_sha256"]
+            == hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        )
+
+    predictions_path = root / "output/s8b-freeze/selector_predictions.json"
+    document = materialize_predictions(
+        freeze=freeze,
+        journal=journal,
+        predictions_path=predictions_path,
+        generated_at="2026-07-16T00:00:00Z",
+        pre_oracle_head=head,
+        sources=sources,
+        execution_policy=_policy(),
+        binding=binding,
+    )
+    agent_rows = {
+        (row["target_holdout"], row["arm"]): row
+        for row in document["rows"]
+        if row["arm"] != "off"
+    }
+    assert set(agent_rows) == AGENT_CELLS
+    for cell, raw in raw_by_cell.items():
+        row = agent_rows[cell]
+        assert row["status"] == "invalid"
+        assert row["choice_id"] is None
+        assert row["rationale"] is None
+        assert row["parser_error_code"] == "rationale_placeholder"
+        assert row["raw_sha256"] == hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    verify_prediction_freeze(document, freeze=freeze, root=root)
+
+
 # -------------------------------------------------------------------- seal CLI
 
 def _fixture_git(root: Path, *args: str) -> str:
