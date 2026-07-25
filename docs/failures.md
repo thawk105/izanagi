@@ -569,3 +569,24 @@
   reference 記述の削除で収める (安全義務の削除・弱化はしない)
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
 - 記録: worklog 2026-07-25 (5)
+
+### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
+
+- 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
+  両方守ると、**再走値は記録 commit を作った後にしか書けない**。値を同 commit へ `--amend` で
+  埋めた結果 hash が変わり、欄に書いた「記録 commit (`<旧 hash>`) の後に再走」の hash が
+  **その amend 自身によって存在しない object を指す**ようになった。worklog 2026-07-26 (2) の
+  記録中に発生し、同 wave 内で自己参照を外して是正した (未 land)
+- 根本原因: 二つの恒久対応が要求する順序 (記録 commit → 再走 → 値の記入) が、
+  値の記入先である欄に**その commit 自身を指す参照**を置くと循環する。
+  前 wave (worklog 2026-07-26 (1)) の欄も同型の自己参照を持つが、そちらは amend 前後の hash が
+  たまたま台帳に残らなかったため無検出だった
+- 検出できた理由: 親が amend 直後に `git log` で hash の変化を確認し、worklog の記述と突き合わせた。
+  `check_docs` は hash の実在を検査しないため機械検出はされない
+- **retroactive に直さない**: 既 land のエントリは erratum の対象であり、本件は未 land のため
+  その場で是正した。過去エントリの hash は改稿しない
+- 恒久対応: **再走値は amend で埋め、その欄に記録 commit hash の自己参照を書かない**
+  (`docs/dev-wave/core.md` の `DW-S07` へ統合、2026-07-26)。
+  手順の正本を hash でなく記述に置くことで、amend による hash 変化と独立にする
+- 現行実体: `docs/dev-wave/core.md` の `DW-S07`。
+- 記録: worklog 2026-07-26 (2)、材料レポート = `output/insights/2026-07-26_t098-selector-lp-reject.md`

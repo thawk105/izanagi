@@ -82,7 +82,7 @@ worklog には、実装差分がないため変異 matrix と受入全走が対�
 hit があれば可逆 defang と erratum を施す（原文 hash 併記、D88）。docs を含むあらゆる記録 commit の後に、
 repo scan invariant と影響テストを再走してから wave を閉じる（F34）。
 受入・検査の結果欄にプレースホルダや値を伴わない前方参照を残したまま記録 commit を作らない。
-実測前なら欄を作らず、実測できなかったなら「未実施」と書く。再走で得た値はその場で埋める（F36）。
+実測前なら欄を作らず、実測できなかったなら「未実施」と書く。再走値は amend で埋め、hash 自己参照を書かない（F36）。
 AI provenance、worklog、push の境界は `CLAUDE.md` と `docs/ai-provenance.md` を正本とする。
 
 ## DW-S08 — 段 8 自己改善
