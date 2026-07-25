@@ -97,9 +97,10 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 receipt が active-valid でなければ機械拒否されるため、凍結成立自体が receipt 発効の機械証明でもある)。
 予測封印実走と [T-011] の §5-(viii) 受諾も完了 (worklog 2026-07-24 (2) / (6))。**D79 (7) のうち
 exemption 拡張 + cert 束縛のコード機構は 2026-07-23 に実装完了 (wave3、D80)、統合 E2E は 2026-07-24 に
-部分閉鎖 — 残 = lineage 照合 (oracle 結線 wave 再評価)。** 残る floor 実測前 gate = official guard 解禁の
-設計裁定 ([T-088]、裁定パッケージ = `output/insights/2026-07-25_t088-official-unlock-design.md`) →
-Pegasus PBS floor wrapper (未実装) → 実行 revision 束縛。
+部分閉鎖 — 残 = lineage 照合 (oracle 結線 wave 再評価)。** 残る floor 実測前 gate = official guard 解禁
+([T-088]。設計は 2026-07-25 にユーザー承認済 = D86) → **Pegasus PBS floor wrapper は 2026-07-25 に
+実装完了 (D87)、ただし実 submit artifact は未確認**（AI は `qsub` しない。人間の明示投入が段階 1 の
+完了条件） → 単一 admission predicate + CLI rc 翻訳 (段階 3・4、未着手) → 実行 revision 束縛。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 

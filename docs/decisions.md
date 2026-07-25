@@ -3750,3 +3750,43 @@ A: BLOCKER 7 + MUST 5 / B: BLOCKER 5 + MUST 4 + SHOULD 2、real 21・partial 1) 
 `AI-Agent: none` は人間証明でない。前提実測の限界として、guard の raise 実削除までは成功したが
 **guard 無効状態でのテスト実行を harness の permission classifier が拒否**したため、解除後の実挙動は
 未実測であり根拠は静的読解と模擬にとどまる (設計正本 §7 に記録)。
+
+## D87. floor 専用 PBS wrapper の実装裁定 — walltime 36000・scheduler 実 limit 束縛・依存 build 同梱、段階 1 は人間 qsub まで OPEN (2026-07-25)
+
+**決定: D86(2) の wrapper-only wave を実装し、実装過程で判明した 4 点について D86 時点の設計を改訂する。**
+実装正本 = `output/insights/2026-07-25_t088-floor-wrapper.md`、逐語 = 同 `-verbatim.md`、
+変異台帳 = 同 `-mutation-ledger.json`。commit = `b2b6e5c` + `82c9055`。
+`orchestrator/campaign/s8b_floor_campaign.py` は 1 byte も変更していないため、**official の受理集合は
+空集合のまま**である (D86(1) が課した「実装 wave の段 1 で防壁変更として再確認する」義務は、
+本 wave が admission を変えないことの確認として履行した)。
+
+(1) **段階 1 は本 wave では閉じない。** dry-run が作る synthetic ID は DW-G04 の発火条件ではない。
+実 submit artifact ID の確認は人間の明示 `qsub` を待ち、それまで [T-088] 段階 1 は OPEN とする。
+AI は `qsub` しない (D86(3))。両敵対レンズが親の当初裁定 (dry-run で完了) を否定した。
+
+(2) **walltime = 36000 秒 (10:00:00)。** driver の envelope は実 protocol + 実 freeze からの実測で
+`required 28200 + finalize 600 = 28800` であり、28800 ちょうどでは開始直後の reservation preflight が
+境界で落ちる。さらに `buildcache` は configure と build に**各々** 900 秒を適用し、測定は rep ごと
+120 秒 × 5 rep であるため、driver の envelope 定数は見積であって hard cap ではない。この差を
+walltime の余裕で吸収する。driver 定数側の是正は本 wave の scope 外 (別 prerequisite)。
+
+(3) **`IZANAGI_RESERVATION_REQUESTED_S` の出所を policy から scheduler 実値へ変える。** job は
+qstat の `(Per-Req) Elapse Time Limit` を parse し、policy の `floor_walltime_s` と一致しなければ
+fail-closed で停止する。policy 自己申告を reservation の根拠にしない。
+
+(4) **依存 build を job script に含める。** floor driver の build 経路 `buildcache._v2_commands` は
+`-DCMAKE_PREFIX_PATH` を渡さない一方、CCBench は gflags/glog を `REQUIRED` で要求し、計算ノードには
+存在しない。CMake が環境変数 `CMAKE_PREFIX_PATH` を尊重することを親が最小 project で実測し、job が
+gflags/glog を build/install して export する形を採った。これが無ければ解禁後の初回実走が build 失敗で
+10 時間の allocation を捨てる。**この欠落は敵対レンズ 2 本とも検出せず、親の独立実測だけが捕捉した。**
+
+(5) **submission record は authorization ではない。** 人間が実行しても AI が実行しても生成物は
+byte-level で区別できない。D86(3) の「人間の明示 qsub を authorization とする」という文言と実体の
+差は解消していない。**schema・コメント・出力文言で authorization と呼ばないことだけを規律とし**、
+文言の再確認はユーザー裁定へ返す。
+
+(6) **検証プロセス。** codex プラン (max) → 敵対相談 2 (max) → 親裁定 → 実装 2 単位 (逐次) →
+敵対レビュー 2 (max) → fix → 統合 commit → 変異 → 焦点再レビュー (max) → fix round 2 → 変異本走。
+**相談・レビュー・再レビューの 5 本すべてが NO-GO**、親の provisional 裁定 8 件のうち 4 件が否定された。
+最終変異は 12/12 KILLED (初回 SURVIVED だった 1 件は第 2 検査による mask で、共通述語を撃つ最小一階
+変異では KILLED。初回結果は台帳に erratum として残した)。受入全走 = 2968 passed / 18 skipped。

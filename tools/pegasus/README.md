@@ -135,5 +135,30 @@ required-mode の floor / oracle job は、承認済み durable `out_root` の�
 
 floor job ではセル数・schedule・build/verify cap から導出した `required_s` と finalize margin を
 journal の `reservation-preflight` に記録する。oracle job も凍結済み最大 attempt envelope を各行前に
-monotonic 再検査する。floor の実走と専用 PBS wrapper の投入は次 wave であり、この wave では
-provisioning/export 契約と driver 結線だけを成立させる。
+monotonic 再検査する。
+
+## 5. floor 専用 wrapper (2026-07-25 実装、実 artifact 未確認)
+
+`submit_floor.sh` (ログインノード) と `floor_campaign.sh` (計算ノード) が floor 実走の資材である。
+`submit_certify.sh` / `certify_calibration.sh` と同型で、移植ブロックには出典コメントを付けている。
+`collect_receipt.py` は calibration 固有の入力を必須とするため floor では使わない。
+
+```bash
+tools/pegasus/submit_floor.sh --dry-run   # scheduler を一切呼ばない。副作用あり (下記)
+tools/pegasus/submit_floor.sh             # 人間が明示的に実行する。内部で qsub する
+```
+
+- `--repo-root` / `--attempts-root` / `--job-script` の override は `--dry-run` 専用で、実投入では拒否する。
+- dry-run でも submission staging と `output/claims` (mode 0700) を作る。副作用ゼロではない。
+- 生成物: `output/env/pegasus/floor/attempts/submissions/<nonce>/` (pre-submit / submit-receipt) と
+  `output/env/pegasus/floor/job-staging/<PBS_JOBID>/` (reservation・qstat raw・job-result・failure)。
+- walltime は policy の `floor_walltime_s` (36000 = 10:00:00)。driver が導出する envelope
+  (required 28200 + finalize 600 = 28800) を上回る値であり、job は qstat の
+  `(Per-Req) Elapse Time Limit` と policy の一致を fail-closed で検査する。
+- job は gflags/glog を pin + clean 検査つきで build し `CMAKE_PREFIX_PATH` を export してから
+  driver を起動する。floor driver の build 経路は `-DCMAKE_PREFIX_PATH` を渡さないため、
+  この環境変数が依存を渡す唯一の seam である。
+- **submit receipt は submission の記録であり、人間性の証明ではない。** 実行者が人間か AI かは
+  生成物から区別できない。authorization として扱ってはならない。
+- **現時点では driver が official guard により必ず rc=2 で拒否する。** wrapper はこの rc を
+  `job-result.json` と `failure.json` に忠実に記録し、同じ rc で終了する。成功と偽らない。

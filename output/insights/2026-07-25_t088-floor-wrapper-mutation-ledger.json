@@ -1,0 +1,382 @@
+{
+  "generated_epoch": 1784944334,
+  "round": "final",
+  "head": "82c9055",
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "tools/pegasus/policy.json",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_pbs_directives_match_policy",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_policy_covers_derived_reservation_envelope",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_dry_run_is_scheduler_free_and_writes_exact_receipts",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_qstat_value_drives_policy_check[policy-match-36000]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_qstat_value_drives_policy_check[policy-mismatch]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_receipt_round_trips_through_job_validator[producer-receipt-accepted]"
+      ],
+      "expected_kill": "test_floor_policy_covers_derived_reservation_envelope",
+      "restored_by_content": true
+    },
+    {
+      "id": "M2",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_pbs_directives_match_policy"
+      ],
+      "expected_kill": "test_floor_pbs_directives_match_policy",
+      "restored_by_content": true
+    },
+    {
+      "id": "M3",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_binds_executing_script_bytes",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_binds_repo_blob_hash",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_working_tree_script_that_differs_from_blob"
+      ],
+      "expected_kill": "test_floor_job_binds_executing_script_bytes",
+      "restored_by_content": true
+    },
+    {
+      "id": "M4",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_binds_scheduler_elapse_limit",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_qstat_value_drives_policy_check[policy-mismatch]"
+      ],
+      "expected_kill": "test_floor_job_binds_scheduler_elapse_limit",
+      "restored_by_content": true
+    },
+    {
+      "id": "M5",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_hardens_interpreter",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_invokes_fixed_official_cli_without_bypass"
+      ],
+      "expected_kill": "test_floor_job_hardens_interpreter",
+      "restored_by_content": true
+    },
+    {
+      "id": "M6",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_does_not_swallow_driver_rc",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_driver_failure_propagates_rc[rc-2]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_driver_failure_propagates_rc[rc-7]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_result_writer_failure_preserves_driver_rc"
+      ],
+      "expected_kill": "test_floor_driver_failure_propagates_rc",
+      "restored_by_content": true
+    },
+    {
+      "id": "M7",
+      "file": "tools/pegasus/submit_floor.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_qsub_exports_nonce_only",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_non_dry_run_success_writes_real_submission_record"
+      ],
+      "expected_kill": "test_submit_floor_qsub_exports_nonce_only",
+      "restored_by_content": true
+    },
+    {
+      "id": "N1",
+      "file": "tools/pegasus/submit_floor.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_unsafe_existing_claim_root[symlink]"
+      ],
+      "expected_kill": "test_submit_floor_rejects_unsafe_existing_claim_root",
+      "restored_by_content": true
+    },
+    {
+      "id": "M9",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_builds_and_exports_dependency_prefixes"
+      ],
+      "expected_kill": "test_floor_job_builds_and_exports_dependency_prefixes",
+      "restored_by_content": true
+    },
+    {
+      "id": "M10",
+      "file": "tools/pegasus/submit_floor.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_overrides_in_real_submission[repo-root]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_overrides_in_real_submission[attempts-root]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_overrides_in_real_submission[job-script]"
+      ],
+      "expected_kill": "test_submit_floor_rejects_overrides_in_real_submission",
+      "restored_by_content": true
+    },
+    {
+      "id": "N2",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_binds_repo_blob_hash",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_working_tree_script_that_differs_from_blob"
+      ],
+      "expected_kill": "blob",
+      "restored_by_content": true
+    },
+    {
+      "id": "N3",
+      "file": "tools/pegasus/floor_campaign.sh",
+      "status": "KILLED",
+      "injected": true,
+      "layers": 1,
+      "rc": 1,
+      "failing_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_driver_fd_setup_failure_does_not_mark_launch"
+      ],
+      "expected_kill": "setup",
+      "restored_by_content": true
+    }
+  ],
+  "baseline": {
+    "rc": 0,
+    "failing_nodes": []
+  },
+  "post_restore": {
+    "rc": 0,
+    "failing_nodes": []
+  },
+  "errata_rounds": {
+    "round1_pre_fix2": {
+      "generated_epoch": 1784942195,
+      "baseline": {
+        "rc": 0,
+        "failing_nodes": []
+      },
+      "mutations": [
+        {
+          "id": "M1",
+          "file": "tools/pegasus/policy.json",
+          "status": "KILLED",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_pbs_directives_match_policy",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_policy_covers_derived_reservation_envelope",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_dry_run_is_scheduler_free_and_writes_exact_receipts",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_qstat_value_drives_policy_check[policy-match-36000]",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_qstat_value_drives_policy_check[policy-mismatch]",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_receipt_round_trips_through_job_validator[producer-receipt-accepted]"
+          ],
+          "expected_kill": "test_floor_policy_covers_derived_reservation_envelope",
+          "restored_by_content": true
+        },
+        {
+          "id": "M2",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "KILLED",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_pbs_directives_match_policy"
+          ],
+          "expected_kill": "test_floor_pbs_directives_match_policy",
+          "restored_by_content": true
+        },
+        {
+          "id": "M3",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "KILLED",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_binds_executing_script_bytes",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_binds_repo_blob_hash"
+          ],
+          "expected_kill": "test_floor_job_binds_executing_script_bytes",
+          "restored_by_content": true
+        },
+        {
+          "id": "M4",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "KILLED",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_binds_scheduler_elapse_limit",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_qstat_value_drives_policy_check[policy-mismatch]"
+          ],
+          "expected_kill": "test_floor_job_binds_scheduler_elapse_limit",
+          "restored_by_content": true
+        },
+        {
+          "id": "M5",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "KILLED",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_hardens_interpreter",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_invokes_fixed_official_cli_without_bypass"
+          ],
+          "expected_kill": "test_floor_job_hardens_interpreter",
+          "restored_by_content": true
+        },
+        {
+          "id": "M6",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "ANCHOR-NOT-UNIQUE",
+          "occurrences": 0,
+          "expected_kill": "test_floor_driver_failure_propagates_rc"
+        },
+        {
+          "id": "M7",
+          "file": "tools/pegasus/submit_floor.sh",
+          "status": "KILLED",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_qsub_exports_nonce_only",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_non_dry_run_success_writes_real_submission_record"
+          ],
+          "expected_kill": "test_submit_floor_qsub_exports_nonce_only",
+          "restored_by_content": true
+        },
+        {
+          "id": "M8",
+          "file": "tools/pegasus/submit_floor.sh",
+          "status": "SURVIVED",
+          "injected": true,
+          "rc": 0,
+          "failing_nodes": [],
+          "expected_kill": "test_submit_floor_rejects_unsafe_existing_claim_root",
+          "restored_by_content": true
+        },
+        {
+          "id": "M9",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "RED-ELSEWHERE",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_builds_and_exports_dependency_prefixes"
+          ],
+          "expected_kill": "test_floor_job_exports_build_prefix_path",
+          "restored_by_content": true
+        },
+        {
+          "id": "M10",
+          "file": "tools/pegasus/submit_floor.sh",
+          "status": "KILLED",
+          "injected": true,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_overrides_in_real_submission[repo-root]",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_overrides_in_real_submission[attempts-root]",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_overrides_in_real_submission[job-script]"
+          ],
+          "expected_kill": "test_submit_floor_rejects_overrides_in_real_submission",
+          "restored_by_content": true
+        }
+      ],
+      "post_restore": {
+        "rc": 0,
+        "failing_nodes": []
+      }
+    },
+    "round2_reaim": {
+      "generated_epoch": 1784942300,
+      "round": "reaim",
+      "mutations": [
+        {
+          "id": "M6-reaim",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "KILLED",
+          "injected": true,
+          "layers": 1,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_does_not_swallow_driver_rc",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_driver_failure_propagates_rc[rc-2]",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_driver_failure_propagates_rc[rc-7]",
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_result_writer_failure_preserves_driver_rc"
+          ],
+          "expected_kill": "test_floor_driver_failure_propagates_rc",
+          "restored_by_content": true
+        },
+        {
+          "id": "M8-reaim",
+          "file": "tools/pegasus/submit_floor.sh",
+          "status": "KILLED",
+          "injected": true,
+          "layers": 2,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_rejects_unsafe_existing_claim_root[symlink]"
+          ],
+          "expected_kill": "test_submit_floor_rejects_unsafe_existing_claim_root",
+          "restored_by_content": true
+        },
+        {
+          "id": "M9-reaim",
+          "file": "tools/pegasus/floor_campaign.sh",
+          "status": "KILLED",
+          "injected": true,
+          "layers": 1,
+          "rc": 1,
+          "failing_nodes": [
+            "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_builds_and_exports_dependency_prefixes"
+          ],
+          "expected_kill": "test_floor_job_builds_and_exports_dependency_prefixes",
+          "restored_by_content": true
+        }
+      ],
+      "baseline": {
+        "rc": 0,
+        "failing_nodes": []
+      },
+      "post_restore": {
+        "rc": 0,
+        "failing_nodes": []
+      }
+    }
+  }
+}
