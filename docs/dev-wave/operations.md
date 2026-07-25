@@ -102,6 +102,7 @@ mask 時は両層変異へ再照準する。初回結果を消さず erratum と
 発火: commit を作る直前。件名、本文、末尾 trailer block を分け、
 `AI-Agent` と `Co-Authored-By` を空行なしの同一最終段落へ置く（F25）。
 詳細は `docs/ai-provenance.md` に従い、commit 後の監査を省略しない。
+検査の rc はパイプに通さず単独で取り、赤のまま commit しない（F37）。
 
 ## DW-O18 — 親のテスト cwd
 

@@ -5,9 +5,8 @@
 
 ## DW-C00 — manager の範囲
 
-dev-wave は izanagi の開発作業を進める 1 wave の manager であり、CC 合成 campaign の実行ループではない。
-第一声、進捗、裁定、最終報告、`result:` を含むユーザー向け出力は、すべて最初から日本語で書く。
-`CLAUDE.md` のクラス 3 起動手順を実行し、command 引数があれば worklog の候補より優先する。
+dev-wave は izanagi の開発作業を進める 1 wave の manager である。範囲・言語・起動手順は入口に従い、
+command 引数があれば worklog の候補より優先する。
 入口の読み込み契約、段 dispatch、条件 dispatch は本書を含む reference の実行時契約である。
 
 ## DW-STOP — fail-closed 停止条件
@@ -99,17 +98,15 @@ routing を適用する。事故を伴わない明確化・無駄取りも能力
 main worktree が clean、main が wave 開始基準から予期せず動いていない、fast-forward 可能、
 取り込む集合が本 wave の監査済み成果だけ、の全条件を再確認する。すべて満たす場合だけ
 `--ff-only` で local main へ取り込む。一つでも欠ければ rebase・force・他 session 差分の巻き込みをせず停止する。
-push と remote branch 操作はしない。main HEAD、次タスク、停止条件、再開コマンドを最終報告し、
-同じ session で新しい wave を始めない。
+main HEAD、次タスク、停止条件、再開コマンドを最終報告する。
 
 ## DW-CTX — fresh context と外部 supervisor
 
-1 wave は 1 fresh context とする。対話運用では段 9 後に人間が `/clear <完了 wave 名>` を実行し、
-続けて報告された `/dev-wave <次タスク>` を起動する。command 内から `/clear` を実行せず、
-command を自己再帰させない（D69）。
+対話運用では段 9 後に人間が `/clear <完了 wave 名>` を実行し、
+続けて報告された `/dev-wave <次タスク>` を起動する。command 内から `/clear` を実行しない（D69）。
 
 無人継続は command 外部の supervisor が wave ごとに新しい `claude -p` process を起動し、
-組み込み `/loop` は使わない。外部 supervisor は最初の spawn より前に本節を読む。
+組み込み `/loop` は使わない。
 supervisor は `max-waves`、金額/トークン予算、wall-clock deadline を必須とし、無限ループにしない。
 次タスクなし、ユーザー裁定待ち、テスト/check/変異の赤、dirty/diverged main、取り込み不能、
 想定外 commit、process の非 0 終了・timeout、task-run/handoff 不整合で fail-closed 停止する。
