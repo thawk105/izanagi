@@ -381,6 +381,11 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 - **記録後検査 (F34)**: 本記録 commit (`fecdd4a`) の後に再走 = repo scan invariant + real-repo
   serialization + 凍結成果物 + 焦点 = **119 passed**。`check_docs` rc=0。
   `check_ai_provenance` = **347 件・違反なし**。
+- **段 8 の docs commit 後の再走 (F34)**: 受入全走 = 2994 passed / 18 skipped (赤 0)、
+  `check_docs` rc=0、`check_ai_provenance` = 349 件・違反なし。
+- **段 8 自己改善 (候補 3・採用 1)**: `DW-S07` の凍結前機械検査を「三軸語 conjunction」だけと
+  読める文言から全 gate の検出語へ一般化し、可逆 defang と原文 hash 併記を明示した
+  (commit `7d0d51f`、予算は上げず 23986/24000 に縮約)。残り 2 件は予算に収まらず [T-101] へ。
 - **変異 harness の自己捕捉 2 件**: (i) pytest の `path::test_name` 形式に対し関数名の完全一致で
   照合したため 13/13 KILLED でも expected node hit が 0/13 と記録された (初回結果は erratum として
   同梱)。(ii) M4 の期待 node 登録が誤っていた (総数 pin 定数を変える変異に、台帳本体の exact map を
