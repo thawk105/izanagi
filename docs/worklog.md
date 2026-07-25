@@ -501,3 +501,65 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 18. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 19. [T-012] 延期: pilot 凍結維持。変わらず
 20. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-26 (1) — [T-091][T-092][T-093] receipt gate の検出力を独立 oracle へ引き上げ (テストのみ・本番 0 byte、branch worktree-dev-wave-t091-093-hardening、計測なし)
+
+/dev-wave 1 回。2026-07-25 (7) でユーザーが前倒しを承認した hardening 3 件を消化した。
+**本番コードは 1 byte も変えていない**ので、certified 選択・gate の受理集合・凍結成果物の bytes は
+不変であり、変わったのは検出力だけである。材料レポートと逐語は
+`output/insights/2026-07-26_t091-t093-hardening.md` / 同 `-verbatim.md`、変異台帳は
+同ディレクトリの `2026-07-26_t091-t093-mutation-ledger.json` を正本とする。
+
+- [T-091] **消化**。改竄 receipt を public `verify_receipt()` 経由で撃つ負例を新設。fixture は
+  導出値反映後・canonical 化前に改竄 callback を 1 回だけ適用する (commit 後改竄では
+  `receipt.issued_but_missing` が先に出て証拠にならない)。**stub のまま残した 4 gate を
+  テスト内に明記**し、「全 gate を検証した」とは主張しない。
+- [T-092] **消化**。real-repo test を post-R 固定にし R OID・R blob raw sha256・H_mig を literal pin。
+  R 不在時は skip でなく明示 fail。削除した pre-R 分岐は post-R では**到達不能**であることを
+  親が実測し、敵対相談 A-6「既存検査を弱める」を**部分 refuted**と裁定した。
+- [T-093] **消化**。observed 15 cell を real-repo 専用の新定数へ literal pin し receipt からの zip を廃止。
+  既存 3 要素 golden は不変 (同ファイルの stub-free E2E が 3 要素で比較しており、その basis は
+  current source の複製のため H_mig literal を混ぜられない = 敵対相談 A-1/B-1)。
+- **素材: literal 化だけでは検出力にならなかった。** 敵対相談 A-3 が「単一 real-repo vector では
+  production が receipt を無視して実 repo の値を返す退化を検出できない (期待値が恒真化する)」と指摘。
+  親は hermetic E2E の basis blob を fixture 内で分岐させる**第 2 vector**へ設計変更し、
+  これが変異 M6 として実際に KILL した。当初案のままなら T-093 は固有帰属を持てなかった。
+- **変異 matrix (親実測、統合 commit 後)**: 事前登録 M1〜M7 の **7/7 が実測と一致**。
+  M1-M4=T-091 / M5=T-092 / M6=T-093 はいずれも新テストのみ KILL・旧テスト SURVIVE。
+  M7 は事前登録どおり**帰属不成立** (新旧とも KILL) で新規検出力に計上しない。
+  DW-M08 に従い各変異を新テストと変更前 HEAD 版テストの双方へ全走させた。
+- **エージェント工数**: codex 子 9 本 (プラン 1・敵対相談 2・実装 2・レビュー 2・fix 1・焦点再 1)。
+  段 3 は両レンズ NO-GO・所見 14、段 6 は A=GO / B=NO-GO・所見 4、焦点再は closed 3 / partial 1。
+- **検査 (記録 commit 前の実測)**: 受入全走 **2995 passed / 18 skipped / 0 failed**
+  (baseline `be40317` = 2994 passed / 18 skipped、node 消失 0)、`check_docs` rc=0、
+  `check_ai_provenance` = 355 件・違反なし。
+
+### 次の一手
+1. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
+   続けて明示実行して実 job ID を得る。期待は driver rc=2 (official guard 生存)。手順は
+   `tools/pegasus/README.md` §5 と `output/insights/2026-07-25_t088-floor-wrapper.md` §6。変わらず
+2. [T-098] **承認済み・着手可能**: 選択理由欄の LP 族拒否を producer validator へ追加
+   (`s8b_selector_output.py`)。検出語彙は `tools/check_docs.py` の台帳と共有するか要設計。変わらず
+3. [T-102] **新規 (scope 外 real 所見)**: production の git runner が ambient `GIT_*` を継承する
+   (`s1_known_axes_freeze.py:89`、`s8b_holdout_freeze.py:147`)。poisoned env の敵対走で 2 failed を
+   実測済み。本 wave は本番 0 byte のため未修正。本番コードに触るので測定前後の扱いに裁定が要る
+4. [T-103] **新規 (敵対相談 A-6 の対案、scope 外)**: never-issued 状態の real artifact 由来
+   refusal vector を別 node で撃つテストの新設。pre-R 分岐削除で失った実効検出力は 0 だが、
+   検出力の**追加**として価値がある
+5. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage。変わらず
+6. [T-097] 裁定待ち: placeholder 検出の対象族拡張 (claim-bearing artifact 族の定義)。変わらず
+7. [T-099] 裁定待ち: 凍結成果物に placeholder が入った場合の専用 waiver 契約。変わらず
+8. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
+9. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+10. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+11. [T-089] **測定後の hardening と裁定** (前倒し対象外): 二重 reason-tag 描画。修正時に exact 期待値を
+    同時更新する。変わらず
+12. [T-090] **測定後の hardening と裁定** (前倒し対象外): `VerifiedFreeze.document` が mutable dict の
+    まま返る (`s8b_freeze_io.py:30-38`)。変わらず
+13. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+14. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+15. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+16. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+17. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+18. [T-012] 延期: pilot 凍結維持。変わらず
+19. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

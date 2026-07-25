@@ -3243,6 +3243,31 @@ draft 確認 → finalize → R commit → post-R 受入 (rc=2 + exact assert + 
   「発行待ち」「発効はしていない」は R 後に虚偽になる無条件断定だった。状態中立の意図は達成されて
   いない。本項がその事実訂正である。
 
+(11) **検出力の穴 3 件の解消 (hardening wave = 2026-07-26、commit `df2be19`)。** 本項は (6)(f) と
+(10) の当該残余記述だけを supersede する。歴史として (1)〜(10) の本文は改稿しない。
+
+- **(6)(f) は解消した。** real-repo active golden の observed は receipt からの導出をやめ、
+  **source-repin 13 + generator-metadata 2 = 15 cell を独立 literal で pin** した。値は
+  `git cat-file blob "<H_mig>:<path>" | sha256sum` から親が独立導出したもので、production の
+  `migration_blob_sha256` は git blob OID ではなく H_mig 時点の内容 sha256 である。
+  (6)(f) 本文は 13 件と書いたが、これは H_mig blob hash の件数であり、observed が非 None の
+  item 数は 15 である (ancestry 2 件は `observed is None`)。両者は別集合であって矛盾ではない。
+- **(10) が挙げた残り 2 件も解消した。** public `verify_receipt()` 経由で derivation 検査の
+  無効化を撃つ負例を新設し、real-repo test は R OID・R blob raw sha256・H_mig を literal pin した
+  (R 不在時は skip せず明示 fail)。
+- **単なる literal 化では足りなかった。** 単一 real-repo vector だけでは、production が receipt を
+  無視して実 repo の値を常に返す退化を検出できない (期待値が恒真化する)。hermetic stub-free E2E の
+  basis blob を fixture 内で分岐させ、fixture 自身の git から独立導出した値と突き合わせる
+  **第 2 vector**を置いて初めて、この退化が固有 mutant (M6) として KILL された。
+- **受理集合は変えていない。** 本 wave は本番コード 0 byte。gate の拒否 {floor-null, budget-null} も
+  observation の 17 item 構造も不変で、変わったのは検出力だけである。
+- **残余は依然として現存する。** (6)(a)〜(e)(g) は未解消。とくに (a) builder 実走の非機械検証と
+  (b) `live_scan_sha256` の形式検査のみは変わらない。加えて本 wave 固有の残余として、
+  T-091 の負例は 4 gate (`_verify_known_closure` / `_validate_positive_control` /
+  `_verify_ccbench_current` / `_verify_holdout_live_scan`) を stub 固定した条件下の保証であり、
+  それらとの gate 間相互作用は未検証である。正本は
+  `output/insights/2026-07-26_t091-t093-hardening.md` と同 mutation ledger。
+
 ## D79. protocol 実凍結の人間 CLI + selector 予測封印の実走配線 (wave2、2026-07-22)
 
 **背景。** 科学レーン第 2 手 (T-083 (a))。strict v2 wave (D 系列 2026-07-18) で protocol builder と
