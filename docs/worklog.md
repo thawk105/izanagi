@@ -378,6 +378,9 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
   三軸語 conjunction (repo scan invariant) = 1 passed。
 - **親が独立に実測して子の報告と照合**: 対象族 115 ファイルの hit = 9 logical lines で digest 9/9 一致、
   worklog 族の H2 = 234 件すべて一意、repo 内 symlink 0 件、対象族に CR byte 0 件。
+- **記録後検査 (F34)**: 本記録 commit (`fecdd4a`) の後に再走 = repo scan invariant + real-repo
+  serialization + 凍結成果物 + 焦点 = **119 passed**。`check_docs` rc=0。
+  `check_ai_provenance` = **347 件・違反なし**。
 - **変異 harness の自己捕捉 2 件**: (i) pytest の `path::test_name` 形式に対し関数名の完全一致で
   照合したため 13/13 KILLED でも expected node hit が 0/13 と記録された (初回結果は erratum として
   同梱)。(ii) M4 の期待 node 登録が誤っていた (総数 pin 定数を変える変異に、台帳本体の exact map を
