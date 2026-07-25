@@ -3751,6 +3751,16 @@ A: BLOCKER 7 + MUST 5 / B: BLOCKER 5 + MUST 4 + SHOULD 2、real 21・partial 1) 
 **guard 無効状態でのテスト実行を harness の permission classifier が拒否**したため、解除後の実挙動は
 未実測であり根拠は静的読解と模擬にとどまる (設計正本 §7 に記録)。
 
+(8) **erratum — 認可の実体と記録の書き分け (2026-07-25、[T-095] ユーザー裁定)。** (3) の
+「明示 `qsub` + job-scoped submission artifact を authorization とする」は、認可の**実体**が
+submission artifact に宿ると読めるが、実装後の実測ではその artifact は人間が実行しても AI が
+実行しても byte-level で区別できない (`output/insights/2026-07-25_t088-floor-wrapper.md` §5-1)。
+よって認可の実体は**ユーザーの明示指示**であり、submission artifact はその指示が実行された
+**記録**にとどまる。artifact の存在を認可の証明として扱ってはならない —
+「記録があるから認可済み」という fail-open の読みを閉じる。これは (3) の帰結
+(新しい Git launch receipt は作らない) を変えず、防壁も増やさない。同じ論理は (3) が
+`AI-Agent: none` について既に述べた「人間性の暗号学的証明ではない」の適用先を広げたものである。
+
 ## D87. floor 専用 PBS wrapper の実装裁定 — walltime 36000・scheduler 実 limit 束縛・依存 build 同梱、段階 1 は人間 qsub まで OPEN (2026-07-25)
 
 **決定: D86(2) の wrapper-only wave を実装し、実装過程で判明した 4 点について D86 時点の設計を改訂する。**

@@ -484,8 +484,8 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 ### テスト衛生
 
 - [T-057] **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
-- [T-058] **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (baseline/final を観測値として記録、gate 化なし。worklog 参照)。
-- [T-059] **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。
+- [T-058] **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (baseline/final を観測値として記録、gate 化なし。worklog 参照)。2026-07-25 に**再発火** ([T-094] の gate 新設 = 述語 `safety_gate_changed` 成立、同 wave は網羅率を観測していない)。ユーザー裁定 = 発火の記録のみ残し、観測の実施は 1 cycle 完走後 (プロセス系 freeze の対象、worklog 2026-07-25 (7))。
+- [T-059] **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。2026-07-25 に**再発火** ([T-094] の reject gate 新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が 13 変異を実装前に事前登録し 13/13 KILL と復元後 green を記録したため真時 action は実質履行済み (worklog 2026-07-25 (7))。
 
 ### 裁定・完了記録
 
