@@ -577,3 +577,97 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 18. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 19. [T-012] 延期: pilot 凍結維持。変わらず
 20. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-26 (2) — [T-098] selector の選択理由欄で literal placeholder を fail-closed 拒否 (本番 13 行、branch worktree-dev-wave-t091-093-hardening、計測なし)
+
+/dev-wave 1 回。2026-07-25 (7) でユーザーが承認した「生成側で拒否」を実装した。本番差分は
+`s8b_selector_output.py` の 13 行だけで、受理集合は「長さ 1〜2000 の既存受理文字列のうち LP を
+含むもの」だけ縮小する。凍結成果物の bytes は不変。材料レポートと逐語は
+`output/insights/2026-07-26_t098-selector-lp-reject.md` / 同 `-verbatim.md`、変異台帳は
+同 `-mutation-ledger.json` を正本とする。commit = `ef9ef76`。
+表記は D88 (6) を継承し、検出 3 語は LP-1 / LP-2 / LP-3 の記号参照で書く。
+
+- [T-098] **消化**。`parse_selector_output` に decode 済み `rationale` の LP 包含を拒否する
+  fail-closed gate を追加した。新 code は `rationale_placeholder` の 1 個で、検査位置は
+  `rationale_blank` / `rationale_too_long` の後。既存 code と既存拒否挙動は不変。
+  語彙は parser 内に別名で持ち、本番から docs lint を import しない (parser bytes は selector
+  journal header に pin される資産のため)。
+- **裁定前提は成立**。親が実装前に実コードへ 6 パターンを投入し **6/6 受理**を実測した。
+  既存 seal 済み 6 rows に LP は 0 件で、`_reparse_agent_raw` の再 parse 結果は不変。
+- **親 brief の誤りを訂正 (段 3 レンズ A の A-1、real)**。brief は「floor / ratified の両検証は
+  `pre_oracle_head` blob 射影なので worktree 編集に不感」と書いたが、これは parser の **hash pin** に
+  だけ当てはまる。floor は `s8b_floor_campaign.py:1365-1367` で `verify_prediction_freeze` を呼び
+  **現行 parser で raw を再 parse する**。既存 6 rows が無事なのは**データ依存**であって構造保証ではない。
+- **素材: 正例が検出力になった。** 当初設計は負例だけだった。レビューが「承認外の**過剰拒否**も
+  受理集合の改変である」と指摘し、全角山括弧・HTML entity・token 内空白・非承認の類似語・片側
+  delimiter 欠落の**受理を固定する正例**を追加した。これらは変異 S2 / S7 / S8 で実際に KILL しており、
+  正例なしでは検出できなかった。負例だけを数えて「検出力」と呼ぶ設計は片肺だった。
+- **語彙束縛は 2 度否定された。** 親案 (ast でトップレベル `Assign` を 1 個取り docs と parser を等号
+  照合) は `LITERAL_PLACEHOLDERS += (...)` を静かに取りこぼす (B-4)。改訂案 (テスト内独立 3 語との
+  三者照合 + Store 個数検査) も `globals()["…"] += (…)` を捕まえられない (RB-2)。最終形は
+  **ast 検査 + テストからの実行時 import による実効値照合**の併用。両経路は変異 S1 / S11 で実測 KILL。
+- **変異 matrix (親実測、統合 commit 後)**: 事前登録 **23/23 が実測と一致**。帰属成立 22 件
+  (新テストのみ KILL・変更前 HEAD 版テストは SURVIVE)、非帰属 control 1 件 (N1 = 最大長 3000、
+  新旧とも KILL のため新規検出力に計上しない)。`DW-M08` に従い全 23 件を新旧両走した。
+  harness は flock 単一走行・アンカー一意性 assert・注入 diffstat・内容比較による復元検査を持ち、
+  全走後の tree は clean。
+- **エージェント工数**: codex 子 9 本 (プラン 1・敵対相談 2・実装 1・レビュー 2・fix 2・焦点再 1)。
+  段 3 は両レンズ NO-GO・所見 11、段 6 は A=GO 所見なし / B=NO-GO 所見 4、焦点再は closed 4 /
+  partial 1 + 残存誤実装 2 で NO-GO、fix 巡 2 で全 closed。**相談・レビュー・再レビュー 4 本すべてが NO-GO**。
+- **検査 (統合 commit 直前の実測)**: 受入全走 **3058 passed / 18 skipped / 0 failed**
+  (基線 `c129e73` = 2995 passed / 18 skipped、node 消失 0)、`check_docs` rc=0、
+  `check_ai_provenance` = 358 件・違反なし。
+- **受入で 1 度だけ出た赤を差分へ帰属しなかった。** fix 巡 1 後の全走で
+  `test_dev_waves_integration.py::test_artifact_aggregate_cap_stops_before_next_wave_side_effect` が
+  `FileNotFoundError` で赤になった。単独再走 3/3 passed のフレークで、差分 4 ファイルに
+  `tools/dev_waves/` を含まないため帰属しない。原因は [T-105] として起票した。
+- **記録後検査 (F34)**: 記録 commit を作った直後に再走した = `check_docs` rc=0、
+  `check_ai_provenance` = **359 件・違反なし**、焦点 (`test_check_docs` + selector output /
+  selector freeze / prediction runner) **288 passed**。
+  実測値を本欄へ埋めるため同 commit を `--amend` したので、記録 commit の hash は amend 後の値である
+  (本欄は自己参照を持たない。手順の正本はこの記述であり、amend 前の hash は破棄されている)。
+
+### 次の一手
+1. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
+   続けて明示実行して実 job ID を得る。期待は driver rc=2 (official guard 生存)。手順は
+   `tools/pegasus/README.md` §5 と `output/insights/2026-07-25_t088-floor-wrapper.md` §6。変わらず
+2. [T-106] **新規・裁定待ち (scope 外 real 所見)**: ratified proof chain が selector raw を再 parse
+   しない (`s8b_ratified_freeze.py` に `verify_prediction_freeze` / `parse_selector_output` の呼び出しが
+   grep 0 件)。floor は新 gate を実行するため両者で受理が分岐する。選択肢 = (a) 現状維持 + 射程の明記、
+   (b) ratified にも再 parse を入れる (歴史射影の設計変更)、(c) 封印時点の parser 判定を artifact へ
+   刻む。**(a) を推奨** — 生成経路は本 wave で閉じたので残余は偽造 evidence という別の脅威モデル。
+   正本 = `output/insights/2026-07-26_t098-selector-lp-reject.md` §6-2 / §7
+3. [T-107] **新規・裁定待ち (scope 外 real 所見)**: 出力 schema と selector role が新しい受理集合を
+   表現していない。両者は封印済み prediction の `sources` に sha pin されるため bytes 変更が既存
+   freeze の検証を割る。選択肢 = (a) parser-authoritative 契約の明文化、(b) versioned schema/role
+   への移行。[T-106] の受理差を固定する境界テスト新設も同じ裁定に従属する
+4. [T-105] **新規 (scope 外 real 所見)**: `tools/dev_waves/daemon.py:626-638` の
+   `_run_artifact_bytes` が `os.walk` の列挙後に `path.lstat()` するため、atomic-write の一時ファイル
+   (`*.tmp.<pid>.<tid>`) が列挙と lstat の間に消えると `FileNotFoundError` が素通しされ
+   `DevWavesError` の fail-closed にならない。本 wave の受入で 1 度発現し単独再走 3/3 passed を実測。
+   本番コードに触るので測定前後の扱いに裁定が要る
+5. [T-102] **scope 外 real 所見**: production の git runner が ambient `GIT_*` を継承する
+   (`s1_known_axes_freeze.py:89`、`s8b_holdout_freeze.py:147`)。本番コードに触るので測定前後の
+   扱いに裁定が要る。変わらず
+6. [T-103] **未着手**: never-issued 状態の real artifact 由来 refusal vector を別 node で撃つ
+   テストの新設。検出力の追加として価値がある。変わらず
+7. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage。変わらず
+8. [T-097] 裁定待ち: placeholder 検出の対象族拡張 (claim-bearing artifact 族の定義)。変わらず
+9. [T-099] 裁定待ち: 凍結成果物に placeholder が入った場合の専用 waiver 契約。変わらず
+10. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
+11. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+12. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+13. [T-104] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。`docs/dev-wave/**` は
+    hard ceiling 24000 に対し 23966 で余裕 34 bytes。予算値の引き上げ可否の独立審査か reference
+    再編かの裁定が要る。変わらず
+14. [T-089] **測定後の hardening と裁定** (前倒し対象外): 二重 reason-tag 描画。修正時に exact 期待値を
+    同時更新する。変わらず
+15. [T-090] **測定後の hardening と裁定** (前倒し対象外): `VerifiedFreeze.document` が mutable dict の
+    まま返る (`s8b_freeze_io.py:30-38`)。変わらず
+16. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+17. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+18. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+19. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+20. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+21. [T-012] 延期: pilot 凍結維持。変わらず
+22. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず

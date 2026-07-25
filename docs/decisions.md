@@ -3881,3 +3881,56 @@ fix round 3 → 統合 commit → 変異本走。**相談・レビュー・再�
 受入全走 = 2994 passed / 18 skipped。
 
 AI-Agent 記録の正本は commit message とし、本項へ重複させない。
+
+## D89. [T-098] selector rationale の literal placeholder 拒否 — parser-authoritative、語彙の三者照合、floor/ratified の受理差を明記 (2026-07-26)
+
+**決定: 段 8b selector の `rationale` に対する literal placeholder 拒否を、生成側 parser
+(`orchestrator/campaign/s8b_selector_output.py`) の受理集合縮小として実体化する。**
+実装正本 = `output/insights/2026-07-26_t098-selector-lp-reject.md`、逐語 = 同 `-verbatim.md`、
+変異台帳 = 同 `-mutation-ledger.json`。commit = `ef9ef76`。
+検出 3 語は本文へ再掲せず D88 (6) の表記規約を継承して LP-1 / LP-2 / LP-3 と呼ぶ。
+
+(1) **受理集合は縮小のみで、位置は既存検査の後。** 拒否対象は decode 済み `rationale` が
+LP を substring として含む入力だけであり、新 code は `rationale_placeholder` の 1 個。
+`rationale_blank` / `rationale_too_long` の**後**に置くことで既存 code と既存拒否挙動を保存する。
+副作用として長さ 2000 超の LP は従来どおり `rationale_too_long` に吸収されるため、
+**新 code の件数を「LP 出現件数」と読んではならない** — 「長さ検査まで到達した exact LP の主拒否理由」である。
+
+(2) **語彙は parser-local に持ち、本番から docs lint を import しない。** parser の bytes は
+selector journal header の `parser_module_sha256` に pin される証拠鎖資産であり、
+頻繁に変わる docs lint への依存は pin の安定性を壊す。定数名は `check_docs` 側と別名にして
+同名識別子の二義化を避ける (D75 の趣旨)。
+
+(3) **一致はテスト側の三者照合で束縛する。** テスト内に独立記述した承認済み 3 語を基準に、
+`tools/check_docs.py` の値と parser の値の**双方**を順序込みの等号で照合する。
+親の当初案 (ast でトップレベル `Assign` を 1 個取り docs と parser を直接等号照合) は
+`LITERAL_PLACEHOLDERS += (...)` を静かに取りこぼすため否定され、改訂案 (三者照合 + Store 個数検査) も
+`globals()["…"] += (…)` を捕まえられないと判定された。最終形は **ast のソース形状検査
+(対象名への Store がトップレベル `Assign` ちょうど 1 個) と、テストからの実行時 import による
+実効値照合の併用**である。両経路は変異で実測 KILL した。
+
+(4) **承認外の過剰拒否も受理集合の改変として扱う。** 全角山括弧・HTML entity・token 内の空白や
+U+200B・片側 delimiter 欠落・非承認の類似語が**受理され続けること**を正例で固定する。
+これは検出語彙の拡張ではなく、D88 が却下した一般化を実装が勝手に持ち込まないための境界固定である。
+負例だけでは「ASCII 山括弧語を広く拒否する」誤実装を検出できない。拡張は [T-100] の裁定対象のまま。
+
+(5) **schema と role は no-touch。** 両者は封印済み prediction の `sources` に sha pin され、
+`verify_prediction_freeze` → `_verify_file_record` が worktree から再読して照合するため、
+bytes 変更は既存 freeze の検証を割る。したがって受理集合の正本は **parser-authoritative** である。
+この非対称を解消するか (契約の明文化か versioned schema/role への移行か) は裁定パッケージへ送る。
+
+(6) **floor と ratified で受理が分岐することを明記する。** floor は launch preflight で
+`verify_prediction_freeze` を呼び現行 parser で raw を再 parse するため新 gate を**実行する**。
+ratified は `pre_oracle_head` blob 射影による再現性を優先した構造検査であり、
+`verify_prediction_freeze` / `parse_selector_output` を**呼ばない**。
+生成経路は本決定で閉じるため残余は「手で偽造した evidence」という別の脅威モデルだが、
+「certified 選択の rationale が LP でないこと」を ratified 単独では独立再検証できない。
+現状維持 + 射程の明記を推奨とし、設計変更の可否は裁定パッケージへ送る。
+
+(7) **検証プロセス。** codex プラン (max) → 敵対相談 2 (max) → 親裁定 → 実装 1 単位 →
+敵対レビュー 2 (max) → fix → 焦点再レビュー (max) → fix round 2 → 統合 commit → 変異本走。
+**相談・レビュー・再レビューの 4 本すべてが NO-GO**、親の provisional 裁定のうち語彙束縛機構は
+2 度否定された。最終変異は事前登録 23/23 一致 (帰属 22 / 非帰属 control 1)。
+受入全走 = 3058 passed / 18 skipped。
+
+AI-Agent 記録の正本は commit message とし、本項へ重複させない。
