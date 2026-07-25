@@ -1,0 +1,1179 @@
+# -*- coding: utf-8 -*-
+"""floor 専用 PBS 資材を、実 scheduler と実 repository/output に触れず検査する。"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import shlex
+import shutil
+import stat
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+
+from orchestrator.campaign import reservation, s8b_floor_campaign
+
+
+TOOL_DIR = REPO / "tools" / "pegasus"
+SUBMIT = TOOL_DIR / "submit_floor.sh"
+JOB = TOOL_DIR / "floor_campaign.sh"
+POLICY = TOOL_DIR / "policy.json"
+PROTOCOL = REPO / "output" / "s8b-freeze" / "floor_protocol.json"
+FREEZE = REPO / "output" / "s8b-freeze" / "holdout_freeze.json"
+
+PRE_KEYS = {
+    "schema_version",
+    "source_commit",
+    "job_script_path",
+    "job_script_sha256",
+    "nonce",
+    "prepared_at",
+    "request",
+    "preflight",
+    "dry_run",
+}
+RECEIPT_KEYS = {
+    "schema_version",
+    "source_commit",
+    "job_script_path",
+    "job_script_sha256",
+    "job_id",
+    "nonce",
+    "submitted_at",
+    "request",
+    "preflight",
+    "dry_run",
+}
+REQUEST_KEYS = {"project", "queue", "nodes", "elapstim_req_s"}
+PREFLIGHT_KEYS = {"qstat_Q", "pegasusinfo", "rbudgetcheck", "check_quota"}
+CAPTURE_KEYS = {"rc", "stdout_raw", "stderr_raw"}
+JOB_RESULT_KEYS = {
+    "schema_version",
+    "pbs_jobid",
+    "driver_rc",
+    "mode",
+    "protocol_path",
+    "source_commit",
+    "job_script_sha256",
+    "executing_script_sha256",
+    "nonce",
+    "reservation_requested_s",
+    "completed_epoch",
+}
+RESERVATION_KEYS = {
+    "job_id",
+    "requested_s",
+    "scheduler_started_epoch",
+    "deadline_epoch",
+    "host",
+    "boot_id",
+    "script_sha256",
+    "nonce",
+    "recorded_epoch",
+}
+
+
+def _pbs_directives(path: Path) -> dict[str, str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert lines and lines[0].startswith("#!")
+    directives: dict[str, str] = {}
+    header_open = True
+    commented = re.compile(r"^\s*(?:#{2,}\s*PBS|#\s+#PBS)(?:\s|$)")
+    for line_number, line in enumerate(lines[1:], 2):
+        if commented.match(line):
+            raise AssertionError(f"commented-out PBS directive at {path}:{line_number}")
+        if header_open and (not line.strip() or line.startswith("#")):
+            if not line.startswith("#PBS "):
+                continue
+            option, value = line[len("#PBS ") :].split(maxsplit=1)
+            assert option not in directives, (
+                f"duplicate PBS directive {option} at {path}:{line_number}"
+            )
+            directives[option] = value
+            continue
+        header_open = False
+        assert not line.startswith("#PBS "), (
+            f"late PBS directive at {path}:{line_number}"
+        )
+    return directives
+
+
+def _hms_seconds(value: str) -> int:
+    hours, minutes, seconds = (int(part) for part in value.split(":"))
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _fixture_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    tools = repo / "tools" / "pegasus"
+    tools.mkdir(parents=True)
+    for source in (SUBMIT, JOB, POLICY):
+        shutil.copy2(source, tools / source.name)
+    calibrator = repo / "orchestrator" / "calibrator"
+    calibrator.mkdir(parents=True)
+    for name in ("__init__.py", "schema_v2.py"):
+        shutil.copy2(REPO / "orchestrator" / "calibrator" / name, calibrator / name)
+    output = repo / "output"
+    output.mkdir()
+    (output / ".tracked-fixture").write_text("clean\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    _git(repo, "config", "user.email", "fixture@example.invalid")
+    _git(repo, "config", "user.name", "Fixture")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "fixture")
+    return repo
+
+
+def _sentinel_bin(tmp_path: Path, *, failures: dict[str, int] | None = None) -> tuple[Path, Path]:
+    failures = failures or {}
+    bin_dir = tmp_path / "sentinel-bin"
+    bin_dir.mkdir(exist_ok=True)
+    log = tmp_path / "sentinel.log"
+    for name in ("qstat", "pegasusinfo", "rbudgetcheck", "check_quota", "qsub"):
+        script = bin_dir / name
+        script.write_text(
+            "#!/bin/sh\n"
+            f"printf '%s\\n' {shlex.quote(name)} >> {shlex.quote(str(log))}\n"
+            f"printf '%s stdout\\n' {shlex.quote(name)}\n"
+            f"printf '%s stderr\\n' {shlex.quote(name)} >&2\n"
+            f"exit {failures.get(name, 99)}\n",
+            encoding="utf-8",
+        )
+        script.chmod(0o755)
+    return bin_dir, log
+
+
+def _successful_bin(tmp_path: Path) -> tuple[Path, Path, Path]:
+    bin_dir = tmp_path / "successful-bin"
+    bin_dir.mkdir(exist_ok=True)
+    for name in ("qstat", "pegasusinfo", "rbudgetcheck", "check_quota"):
+        script = bin_dir / name
+        script.write_text(
+            "#!/bin/sh\n"
+            f"printf '%s stdout\\n' {shlex.quote(name)}\n"
+            f"printf '%s stderr\\n' {shlex.quote(name)} >&2\n",
+            encoding="utf-8",
+        )
+        script.chmod(0o755)
+    qsub_args = tmp_path / "qsub.args"
+    qsub_cwd = tmp_path / "qsub.cwd"
+    qsub = bin_dir / "qsub"
+    qsub.write_text(
+        "#!/bin/sh\n"
+        f"printf '%s\\0' \"$@\" > {shlex.quote(str(qsub_args))}\n"
+        f"printf '%s\\n' \"$PWD\" > {shlex.quote(str(qsub_cwd))}\n"
+        "printf '%s\\n' 'Request 98765.nqsv submitted.'\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+    return bin_dir, qsub_args, qsub_cwd
+
+
+def _submit(
+    repo: Path,
+    bin_dir: Path,
+    *arguments: str,
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
+    return subprocess.run(
+        ["bash", str(repo / "tools" / "pegasus" / "submit_floor.sh"), *arguments],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+
+def _only_submission(repo: Path, attempts_relative: str) -> Path:
+    submissions = repo / attempts_relative / "submissions"
+    found = list(submissions.glob("*"))
+    assert len(found) == 1
+    return found[0]
+
+
+def _assert_capture_schema(preflight: object, *, dry_run: bool) -> None:
+    assert type(preflight) is dict and set(preflight) == PREFLIGHT_KEYS
+    for capture in preflight.values():
+        assert type(capture) is dict and set(capture) == CAPTURE_KEYS
+        assert type(capture["rc"]) is int
+        assert type(capture["stdout_raw"]) is str
+        assert type(capture["stderr_raw"]) is str
+        if dry_run:
+            assert capture == {
+                "rc": 0,
+                "stdout_raw": "not run (--dry-run)\n",
+                "stderr_raw": "",
+            }
+
+
+@pytest.mark.parametrize("script", [SUBMIT, JOB], ids=lambda path: path.name)
+def test_floor_shell_syntax(script: Path) -> None:
+    result = subprocess.run(
+        ["bash", "-n", str(script)], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_floor_pbs_directives_match_policy() -> None:
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    directives = _pbs_directives(JOB)
+    assert directives == {
+        "-A": policy["project"],
+        "-q": policy["queue"],
+        "-l": "elapstim_req=" + policy["floor_walltime"],
+        "-b": str(policy["nodes"]),
+    }
+    assert _hms_seconds(policy["floor_walltime"]) == policy["floor_walltime_s"]
+
+
+def test_floor_policy_covers_derived_reservation_envelope() -> None:
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
+    freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"]
+    )
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells,
+        master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    required_s, finalize_s = s8b_floor_campaign._floor_reservation_budget(
+        protocol=protocol, cells=cells, schedule=schedule
+    )
+    assert policy["floor_walltime_s"] > required_s + finalize_s
+    assert _hms_seconds(policy["floor_walltime"]) == policy["floor_walltime_s"]
+
+
+def test_floor_job_binds_executing_script_bytes() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert 'EXECUTING_SCRIPT_SHA256=$(sha256sum "$0"' in source
+    assert (
+        '[[ "$EXECUTING_SCRIPT_SHA256" != "$RECEIPT_SCRIPT_SHA256" ]]' in source
+    )
+    assert "executing job script hash differs from submit receipt" in source
+
+
+def _source_identity_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index('SCRIPT_RELATIVE_PATH="tools/pegasus/floor_campaign.sh"')
+    end = source.index("# 出典: certify_calibration.sh:210-318", start)
+    return source[start:end]
+
+
+def test_floor_job_binds_repo_blob_hash(tmp_path: Path) -> None:
+    repo = _fixture_repo(tmp_path)
+    repo_job = repo / "tools" / "pegasus" / "floor_campaign.sh"
+    spooled_job = tmp_path / "spooled-floor_campaign.sh"
+    shutil.copy2(repo_job, spooled_job)
+    source_commit = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    blob_sha = hashlib.sha256(
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "cat-file",
+                "blob",
+                source_commit + ":tools/pegasus/floor_campaign.sh",
+            ],
+            check=True,
+            capture_output=True,
+        ).stdout
+    ).hexdigest()
+    _git(repo, "update-index", "--assume-unchanged", "tools/pegasus/floor_campaign.sh")
+    repo_job.write_text(
+        repo_job.read_text(encoding="utf-8") + "\n# hidden working-tree mutation\n",
+        encoding="utf-8",
+    )
+    assert _git(repo, "status", "--porcelain").stdout == ""
+
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    (attempt / "submit-receipt.json").write_text(
+        json.dumps(
+            {
+                "source_commit": source_commit,
+                "job_script_sha256": blob_sha,
+            }
+        ),
+        encoding="utf-8",
+    )
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"TMPDIR={shlex.quote(str(scratch))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "write_failure() { return 0; }",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _source_identity_fragment(), str(spooled_job)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_floor_job_binds_scheduler_elapse_limit() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert r"\s*\(Per-Req\)\s+Elapse Time Limit" in source
+    assert "SCHEDULER_ELAPSE_LIMIT_S" in source
+    assert (
+        '[[ "$SCHEDULER_ELAPSE_LIMIT_S" -ne "$REQUESTED_S_POLICY" ]]' in source
+    )
+    assert "scheduler Elapse Time Limit differs from floor policy" in source
+
+
+def test_floor_job_uses_scheduler_requested_seconds() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert 'REQUESTED_S="$SCHEDULER_ELAPSE_LIMIT_S"' in source
+    assert (
+        'export IZANAGI_RESERVATION_REQUESTED_S="$REQUESTED_S"' in source
+    )
+
+
+def test_floor_job_hardens_interpreter() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert "unset PYTHONPATH PYTHONHOME PYTHONSTARTUP" in source
+    assert 'PY=$(realpath -e -- "$PY_COMMAND")' in source
+    assert '"$PY" -E -s -B --version' in source
+    assert '"$PY" -E -s -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"' in source
+
+
+def _dependency_build_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index('if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]')
+    end = source.index(
+        'PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"', start
+    )
+    return source[start:end]
+
+
+def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> None:
+    attempt = tmp_path / "attempt"
+    scratch = tmp_path / "scratch"
+    gflags_source = tmp_path / "gflags"
+    glog_source = tmp_path / "glog"
+    for path in (attempt, scratch, gflags_source, glog_source):
+        path.mkdir()
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    head = "a" * 40
+    git_stub = bin_dir / "git"
+    git_stub.write_text(
+        "#!/bin/sh\n"
+        "case \" $* \" in\n"
+        f"  *' rev-parse HEAD '*) printf '%s\\n' {head} ;;\n"
+        "  *' status --porcelain --untracked-files=all '*) : ;;\n"
+        "  *) exit 91 ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    git_stub.chmod(0o755)
+    cmake_stub = bin_dir / "cmake"
+    cmake_stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    cmake_stub.chmod(0o755)
+    timeout_stub = bin_dir / "timeout"
+    timeout_stub.write_text(
+        "#!/bin/sh\nshift\n\"$@\"\n",
+        encoding="utf-8",
+    )
+    timeout_stub.chmod(0o755)
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"TMPDIR={shlex.quote(str(scratch))}",
+            f"GFLAGS_SOURCE_PATH={shlex.quote(str(gflags_source))}",
+            f"GLOG_SOURCE_PATH={shlex.quote(str(glog_source))}",
+            f"GFLAGS_EXPECTED_HEAD={head}",
+            f"GLOG_EXPECTED_HEAD={head}",
+            f"PY={shlex.quote(sys.executable)}",
+            "CC_PATH=/bin/true",
+            "CXX_PATH=/bin/true",
+            "write_failure() { return 0; }",
+            "",
+        ]
+    )
+    env = os.environ.copy()
+    env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            prefix
+            + _dependency_build_fragment()
+            + '\n[[ "$CMAKE_PREFIX_PATH" == "$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR" ]]\n',
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    prefix_record = json.loads(
+        (attempt / "cmake-prefix-path.json").read_text(encoding="utf-8")
+    )
+    assert prefix_record["effective_value"] == (
+        str(scratch / "gflags-install") + ":" + str(scratch / "glog-install")
+    )
+
+
+def test_floor_job_exports_exact_reservation_fields() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    actual = set(
+        re.findall(
+            r"^export (IZANAGI_RESERVATION_[A-Z0-9_]+)=", source, re.MULTILINE
+        )
+    )
+    assert actual == set(reservation._ENV_FIELDS.values())
+
+
+def test_floor_job_invokes_fixed_official_cli_without_bypass() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index('PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"')
+    end = source.index("# 出典: certify_calibration.sh:734-762", start)
+    invocation = source[start:end]
+    assert (
+        '"$PY" -E -s -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"'
+        in invocation
+    )
+    assert "--mode official" in invocation
+    assert '--protocol "$REPO_ROOT/$PROTOCOL_PATH"' in invocation
+    assert "--resume" not in source
+    assert "pilot" not in source.lower()
+    assert "eval " not in source
+
+
+def test_floor_job_does_not_swallow_driver_rc() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert "|| true" not in source
+    assert "|| driver_rc=$?" in source
+    assert 'exit "$driver_rc"' in source
+    assert not re.search(
+        r'if \[\[ "\$driver_rc" -eq (?:2|7) \]\]; then\s+exit 0', source
+    )
+
+
+def test_submit_floor_qsub_exports_nonce_only() -> None:
+    source = SUBMIT.read_text(encoding="utf-8")
+    match = re.search(r'^export_spec="([^"]+)"$', source, re.MULTILINE)
+    assert match is not None
+    assert match.group(1) == "IZANAGI_SUBMISSION_NONCE=$NONCE"
+    assert 'qsub_cmd=(qsub -v "$export_spec" "$JOB_SCRIPT")' in source
+    assert "IZANAGI_RESERVATION_" not in match.group(1)
+
+
+def test_floor_scripts_use_create_only_leaves_and_json() -> None:
+    submit = SUBMIT.read_text(encoding="utf-8")
+    job = JOB.read_text(encoding="utf-8")
+    assert 'mkdir "$SUBMISSION_DIR"' in submit
+    assert 'mkdir -p "$SUBMISSION_DIR"' not in submit
+    assert 'mkdir "$ATTEMPT_DIR"' in job
+    assert 'mkdir -p "$ATTEMPT_DIR"' not in job
+    assert "set -o noclobber" in submit
+    assert "set -o noclobber" in job
+    assert submit.count('"x", encoding="utf-8"') >= 2
+    assert job.count('"x", encoding="utf-8"') >= 4
+    assert '"xb"' in job
+
+
+def test_submit_floor_dry_run_is_scheduler_free_and_writes_exact_receipts(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    attempts = repo / "output" / "dry-attempts"
+    job = repo / "tools" / "pegasus" / "floor_campaign.sh"
+    result = _submit(
+        repo,
+        bin_dir,
+        "--dry-run",
+        "--repo-root",
+        str(repo),
+        "--attempts-root",
+        str(attempts),
+        "--job-script",
+        str(job),
+    )
+    assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
+    submission = _only_submission(repo, "output/dry-attempts")
+    pre = json.loads((submission / "pre-submit.json").read_text(encoding="utf-8"))
+    receipt = json.loads(
+        (submission / "submit-receipt.json").read_text(encoding="utf-8")
+    )
+    assert set(pre) == PRE_KEYS
+    assert set(receipt) == RECEIPT_KEYS
+    assert pre["schema_version"] == "pegasus-floor-pre-submit/v1"
+    assert receipt["schema_version"] == "pegasus-floor-submit-receipt/v1"
+    assert type(pre["schema_version"]) is str
+    assert type(receipt["schema_version"]) is str
+    assert pre["dry_run"] is True and receipt["dry_run"] is True
+    assert type(pre["prepared_at"]) is int and pre["prepared_at"] > 0
+    assert type(receipt["submitted_at"]) is int and receipt["submitted_at"] > 0
+    assert type(pre["nonce"]) is str and type(receipt["nonce"]) is str
+    assert re.fullmatch(r"[0-9a-f]{32}", pre["nonce"])
+    assert receipt["nonce"] == pre["nonce"]
+    assert type(receipt["job_id"]) is str
+    assert receipt["job_id"] == "dry-run-" + pre["nonce"]
+    assert type(pre["source_commit"]) is str
+    assert type(receipt["source_commit"]) is str
+    assert re.fullmatch(r"[0-9a-f]{40}", pre["source_commit"])
+    assert receipt["source_commit"] == pre["source_commit"]
+    assert type(pre["job_script_path"]) is str
+    assert type(receipt["job_script_path"]) is str
+    assert pre["job_script_path"] == "tools/pegasus/floor_campaign.sh"
+    assert type(pre["job_script_sha256"]) is str
+    assert type(receipt["job_script_sha256"]) is str
+    committed_job = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "cat-file",
+            "blob",
+            pre["source_commit"] + ":tools/pegasus/floor_campaign.sh",
+        ],
+        check=True,
+        capture_output=True,
+    ).stdout
+    assert pre["job_script_sha256"] == hashlib.sha256(committed_job).hexdigest()
+    assert receipt["job_script_path"] == pre["job_script_path"]
+    assert receipt["job_script_sha256"] == pre["job_script_sha256"]
+    assert type(pre["request"]) is dict and set(pre["request"]) == REQUEST_KEYS
+    assert type(pre["request"]["project"]) is str
+    assert type(pre["request"]["queue"]) is str
+    assert type(pre["request"]["nodes"]) is int
+    assert type(pre["request"]["elapstim_req_s"]) is int
+    assert pre["request"] == {
+        "project": "SFC",
+        "queue": "gen_S",
+        "nodes": 1,
+        "elapstim_req_s": 36000,
+    }
+    assert receipt["request"] == pre["request"]
+    _assert_capture_schema(pre["preflight"], dry_run=True)
+    assert receipt["preflight"] == pre["preflight"]
+    assert (submission / "qsub.stdout").read_text(encoding="utf-8") == (
+        "dry-run: qsub was not executed\n"
+    )
+    claims = repo / "output" / "claims"
+    assert claims.is_dir() and not claims.is_symlink()
+    assert stat.S_IMODE(claims.stat().st_mode) == 0o700
+    assert "authorization" not in result.stdout.lower()
+
+
+def test_submit_floor_rejects_hidden_worktree_job_script_drift(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    relative = "tools/pegasus/floor_campaign.sh"
+    job = repo / relative
+    _git(repo, "update-index", "--assume-unchanged", relative)
+    job.write_text(
+        job.read_text(encoding="utf-8") + "\n# hidden working-tree mutation\n",
+        encoding="utf-8",
+    )
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 2
+    assert not (repo / "output" / "env").exists()
+    assert not (repo / "output" / "claims").exists()
+    assert not sentinel.exists()
+
+
+def _successful_submission(
+    tmp_path: Path,
+) -> tuple[Path, Path, Path, Path]:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, qsub_args, qsub_cwd = _successful_bin(tmp_path)
+    result = _submit(repo, bin_dir)
+    assert result.returncode == 0, result.stderr
+    submission = _only_submission(
+        repo, "output/env/pegasus/floor/attempts"
+    )
+    return repo, submission, qsub_args, qsub_cwd
+
+
+def test_submit_floor_non_dry_run_success_writes_real_submission_record(
+    tmp_path: Path,
+) -> None:
+    repo, submission, qsub_args_path, qsub_cwd_path = _successful_submission(
+        tmp_path
+    )
+    receipt = json.loads(
+        (submission / "submit-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["dry_run"] is False
+    assert receipt["job_id"] == "98765.nqsv"
+    qsub_args = [
+        item.decode("utf-8")
+        for item in qsub_args_path.read_bytes().split(b"\0")
+        if item
+    ]
+    assert qsub_args == [
+        "-v",
+        "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"],
+        str(repo / "tools" / "pegasus" / "floor_campaign.sh"),
+    ]
+    assert qsub_cwd_path.read_text(encoding="utf-8").strip() == str(repo)
+    claims = repo / "output" / "claims"
+    assert claims.is_dir() and not claims.is_symlink()
+    assert stat.S_IMODE(claims.stat().st_mode) == 0o700
+
+
+def test_submit_floor_second_dry_run_uses_distinct_create_only_nonce(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    for _ in range(2):
+        result = _submit(repo, bin_dir, "--dry-run")
+        assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
+    submissions = list(
+        (repo / "output" / "env" / "pegasus" / "floor" / "attempts" / "submissions").glob("*")
+    )
+    assert len(submissions) == 2
+    nonces = {path.name for path in submissions}
+    assert len(nonces) == 2
+    assert all(re.fullmatch(r"[0-9a-f]{32}", nonce) for nonce in nonces)
+    assert all((path / "pre-submit.json").is_file() for path in submissions)
+    assert all((path / "submit-receipt.json").is_file() for path in submissions)
+
+
+def test_submit_floor_dirty_source_fails_before_side_effects(tmp_path: Path) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    job = repo / "tools" / "pegasus" / "floor_campaign.sh"
+    job.write_text(job.read_text(encoding="utf-8") + "\n# dirty\n", encoding="utf-8")
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 2
+    assert "tracked working tree bytes are dirty" in result.stderr
+    assert not (repo / "output" / "env").exists()
+    assert not (repo / "output" / "claims").exists()
+    assert not sentinel.exists()
+
+
+def test_submit_floor_tracked_output_mutation_fails_before_side_effects(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    tracked = repo / "output" / ".tracked-fixture"
+    tracked.write_text("mutated\n", encoding="utf-8")
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 2
+    assert "tracked working tree bytes are dirty" in result.stderr
+    assert not (repo / "output" / "env").exists()
+    assert not (repo / "output" / "claims").exists()
+    assert not sentinel.exists()
+
+
+def test_submit_floor_untracked_outside_output_fails_before_side_effects(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    (repo / "unexpected.txt").write_text("untracked\n", encoding="utf-8")
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 2
+    assert "untracked content outside output/" in result.stderr
+    assert not (repo / "output" / "env").exists()
+    assert not (repo / "output" / "claims").exists()
+    assert not sentinel.exists()
+
+
+@pytest.mark.parametrize(
+    "kind", ["symlink", "regular-file", "mode-0755"], ids=str
+)
+def test_submit_floor_rejects_unsafe_existing_claim_root(
+    tmp_path: Path, kind: str
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    claims = repo / "output" / "claims"
+    if kind == "symlink":
+        # containment 自体は満たし、symlink component 拒否だけを発火させる。
+        target = repo / "output" / "claim-target"
+        target.mkdir(mode=0o700)
+        target.chmod(0o700)
+        claims.symlink_to(target, target_is_directory=True)
+    elif kind == "regular-file":
+        claims.write_text("sentinel\n", encoding="utf-8")
+    else:
+        claims.mkdir(mode=0o755)
+        claims.chmod(0o755)
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 2
+    assert not sentinel.exists()
+    receipts = list((repo / "output").glob("**/submit-receipt.json"))
+    assert receipts == []
+    if kind == "symlink":
+        assert claims.is_symlink()
+    elif kind == "regular-file":
+        assert claims.read_text(encoding="utf-8") == "sentinel\n"
+    else:
+        assert stat.S_IMODE(claims.stat().st_mode) == 0o755
+
+
+@pytest.mark.parametrize(
+    "protected_relative",
+    ["output/s8b-freeze/floor-attempts", "output/campaigns/floor-attempts"],
+    ids=["freeze", "campaigns"],
+)
+def test_submit_floor_rejects_protected_output_namespaces(
+    tmp_path: Path, protected_relative: str
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    result = _submit(
+        repo,
+        bin_dir,
+        "--dry-run",
+        "--repo-root",
+        str(repo),
+        "--attempts-root",
+        str(repo / protected_relative),
+    )
+    assert result.returncode == 2
+    assert not (repo / protected_relative).exists()
+    assert not sentinel.exists()
+
+
+def test_submit_floor_rejects_symlink_invocation(tmp_path: Path) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    link = tmp_path / "submit-floor-link"
+    link.symlink_to(repo / "tools" / "pegasus" / "submit_floor.sh")
+    env = os.environ.copy()
+    env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
+    result = subprocess.run(
+        ["bash", str(link), "--dry-run"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 2
+    assert not sentinel.exists()
+    assert not (repo / "output" / "env").exists()
+
+
+def test_submit_floor_real_submission_requires_fixed_repo_script(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    relocated_dir = repo / "tools" / "other"
+    relocated_dir.mkdir()
+    relocated = relocated_dir / "submit_floor.sh"
+    shutil.copy2(repo / "tools" / "pegasus" / "submit_floor.sh", relocated)
+    _git(repo, "add", "tools/other/submit_floor.sh")
+    _git(repo, "commit", "-qm", "track relocated submit script")
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    env = os.environ.copy()
+    env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
+    result = subprocess.run(
+        ["bash", str(relocated)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 2
+    assert not sentinel.exists()
+    assert not (repo / "output" / "env").exists()
+
+
+@pytest.mark.parametrize(
+    "option",
+    ["--repo-root", "--attempts-root", "--job-script"],
+    ids=["repo-root", "attempts-root", "job-script"],
+)
+def test_submit_floor_rejects_overrides_in_real_submission(
+    tmp_path: Path, option: str
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    values = {
+        "--repo-root": str(repo),
+        "--attempts-root": str(repo / "output" / "alternate"),
+        "--job-script": str(repo / "tools" / "pegasus" / "floor_campaign.sh"),
+    }
+    result = _submit(repo, bin_dir, option, values[option])
+    assert result.returncode == 2
+    assert "overrides require --dry-run" in result.stderr
+    assert not sentinel.exists()
+    assert not (repo / "output" / "env").exists()
+    assert not (repo / "output" / "claims").exists()
+
+
+def test_submit_floor_preflight_failure_records_and_stops_before_qsub(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(
+        tmp_path,
+        failures={
+            "qstat": 0,
+            "pegasusinfo": 0,
+            "rbudgetcheck": 9,
+            "check_quota": 0,
+            "qsub": 99,
+        },
+    )
+    result = _submit(repo, bin_dir)
+    assert result.returncode == 3
+    assert "preflight captures failed" in result.stderr
+    calls = sentinel.read_text(encoding="utf-8").splitlines()
+    assert calls == ["qstat", "pegasusinfo", "rbudgetcheck", "check_quota"]
+    submission = _only_submission(
+        repo, "output/env/pegasus/floor/attempts"
+    )
+    pre = json.loads((submission / "pre-submit.json").read_text(encoding="utf-8"))
+    assert pre["preflight"]["rbudgetcheck"]["rc"] == 9
+    assert not (submission / "submit-receipt.json").exists()
+    assert not (repo / "output" / "claims").exists()
+
+
+def test_submit_floor_rejects_symlinked_staging_ancestor(tmp_path: Path) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (repo / "output" / "env").symlink_to(outside, target_is_directory=True)
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 2
+    assert "unsafe submission path" in result.stderr
+    assert list(outside.iterdir()) == []
+    assert not sentinel.exists()
+
+
+def _qstat_parser_code() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    marker = (
+        'qstat_output=$("$PY" -E -s -B - "$ATTEMPT_DIR/qstat-f.stdout" '
+        '"$qstat_rc" <<\'PY\'\n'
+    )
+    start = source.index(marker) + len(marker)
+    end = source.index("\nPY\n) || qstat_parse_rc=$?", start)
+    return source[start:end]
+
+
+def test_floor_job_qstat_parser_accepts_real_nqsv_fields(tmp_path: Path) -> None:
+    # 実 job 0:867874.nqsv の qstat-f.stdout から必要 field を抜粋した fixture。
+    fixture = tmp_path / "qstat-f.stdout"
+    fixture.write_text(
+        "    Started Request Time = Sun Jul 19 04:40:27 2026\n"
+        "  Execution Hosts(JSVNO):\n"
+        "    bnode048(48)\n"
+        "    Remaining Elapse = 7199S\n"
+        "    (Per-Req) Elapse Time Limit       = Max:     7200S Warn:     7200S \n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "-", str(fixture), "0"],
+        input=_qstat_parser_code(),
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    host, started, limit_s, remaining_s = result.stdout.splitlines()
+    assert host == "bnode048"
+    assert started.isdigit() and int(started) > 1_000_000_000
+    assert limit_s == "7200"
+    assert remaining_s == "7199"
+
+
+def _qstat_policy_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index("qstat_parse_rc=0")
+    end = source.index(
+        'if [[ "$ASSIGNED_HOST" == "$HOSTNAME_SHORT" ]]', start
+    )
+    return source[start:end]
+
+
+@pytest.mark.parametrize(
+    ("scheduler_limit_s", "expected_rc"),
+    [(36000, 0), (35999, 2)],
+    ids=["policy-match-36000", "policy-mismatch"],
+)
+def test_floor_job_qstat_value_drives_policy_check(
+    tmp_path: Path, scheduler_limit_s: int, expected_rc: int
+) -> None:
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    (attempt / "qstat-f.stdout").write_text(
+        "    Started Request Time = 1784412345\n"
+        "  Execution Hosts(JSVNO):\n"
+        "    bnode048(48)\n"
+        "    Remaining Elapse = 35000S\n"
+        "    (Per-Req) Elapse Time Limit       = "
+        f"Max: {scheduler_limit_s}S Warn: {scheduler_limit_s}S\n",
+        encoding="utf-8",
+    )
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "qstat_rc=0",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"REQUESTED_S_POLICY={policy['floor_walltime_s']}",
+            "write_failure() { return 0; }",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _qstat_policy_fragment()],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == expected_rc, result.stderr
+    scheduler_record = json.loads(
+        (attempt / "scheduler-elapse.json").read_text(encoding="utf-8")
+    )
+    assert scheduler_record["scheduler_elapse_limit_s"] == scheduler_limit_s
+    assert scheduler_record["policy_floor_walltime_s"] == 36000
+    assert scheduler_record["policy_match"] is (expected_rc == 0)
+
+
+def _receipt_validator_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index("receipt_rc=0")
+    end = source.index("# 出典: certify_calibration.sh:174-208", start)
+    return source[start:end]
+
+
+@pytest.mark.parametrize(
+    ("pbs_jobid", "accepted"),
+    [("0:98765.nqsv", True), ("0:98766.nqsv", False)],
+    ids=["producer-receipt-accepted", "different-job-rejected"],
+)
+def test_submit_receipt_round_trips_through_job_validator(
+    tmp_path: Path, pbs_jobid: str, accepted: bool
+) -> None:
+    repo, submission, _, _ = _successful_submission(tmp_path)
+    receipt = json.loads(
+        (submission / "submit-receipt.json").read_text(encoding="utf-8")
+    )
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"ATTEMPT_DIR={shlex.quote(str(submission))}",
+            f"PY={shlex.quote(sys.executable)}",
+            f"IZANAGI_SUBMISSION_NONCE={receipt['nonce']}",
+            f"PBS_JOBID={shlex.quote(pbs_jobid)}",
+            "PROJECT=SFC",
+            "QUEUE=gen_S",
+            "NODES=1",
+            "REQUESTED_S_POLICY=36000",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            "write_failure() { return 0; }",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _receipt_validator_fragment()],
+        capture_output=True,
+        text=True,
+    )
+    assert (result.returncode == 0) is accepted, result.stderr
+
+
+def _driver_tail() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    return source[source.index('PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"') :]
+
+
+def _reservation_writer_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index(
+        'export IZANAGI_RESERVATION_JOB_ID="$PBS_JOBID"'
+    )
+    end = source.index("# 出典: certify_calibration.sh:347-357", start)
+    return source[start:end]
+
+
+def test_floor_reservation_record_has_exact_schema(tmp_path: Path) -> None:
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    script_sha = "b" * 64
+    nonce = "d" * 32
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            "REQUESTED_S=36000",
+            "SCHEDULER_STARTED_EPOCH=1784412345",
+            "DEADLINE_EPOCH=1784448345",
+            "HOSTNAME_OBSERVED=bnode048",
+            "BOOT_ID=11111111-2222-3333-4444-555555555555",
+            f"JOB_SCRIPT_SHA256={script_sha}",
+            f"IZANAGI_SUBMISSION_NONCE={nonce}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _reservation_writer_fragment()],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    record = json.loads(
+        (attempt / "reservation.json").read_text(encoding="utf-8")
+    )
+    assert set(record) == RESERVATION_KEYS
+    assert record == {
+        "job_id": "0:fixture.nqsv",
+        "requested_s": 36000,
+        "scheduler_started_epoch": 1784412345,
+        "deadline_epoch": 1784448345,
+        "host": "bnode048",
+        "boot_id": "11111111-2222-3333-4444-555555555555",
+        "script_sha256": script_sha,
+        "nonce": nonce,
+        "recorded_epoch": record["recorded_epoch"],
+    }
+    assert type(record["recorded_epoch"]) is int and record["recorded_epoch"] > 0
+
+
+@pytest.mark.parametrize("driver_rc", [0, 2, 7], ids=lambda rc: f"rc-{rc}")
+def test_floor_driver_failure_propagates_rc(
+    tmp_path: Path, driver_rc: int
+) -> None:
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    driver.write_text(
+        "import os\nraise SystemExit(int(os.environ['STUB_DRIVER_RC']))\n",
+        encoding="utf-8",
+    )
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    failure_call = attempt / "failure-call.txt"
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "export STUB_DRIVER_RC=" + str(driver_rc),
+            "write_failure() {",
+            f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
+            "}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _driver_tail()],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == driver_rc, result.stderr
+    job_result = json.loads((attempt / "job-result.json").read_text(encoding="utf-8"))
+    assert set(job_result) == JOB_RESULT_KEYS
+    assert job_result == {
+        "schema_version": "pegasus-floor-job-result/v1",
+        "pbs_jobid": "0:fixture.nqsv",
+        "driver_rc": driver_rc,
+        "mode": "official",
+        "protocol_path": "output/s8b-freeze/floor_protocol.json",
+        "source_commit": "a" * 40,
+        "job_script_sha256": "b" * 64,
+        "executing_script_sha256": "c" * 64,
+        "nonce": "d" * 32,
+        "reservation_requested_s": 36000,
+        "completed_epoch": job_result["completed_epoch"],
+    }
+    assert (
+        type(job_result["completed_epoch"]) is int
+        and job_result["completed_epoch"] > 0
+    )
+    if driver_rc == 0:
+        assert not failure_call.exists()
+    else:
+        assert failure_call.read_text(encoding="utf-8").startswith(
+            f"{driver_rc}|floor_driver|"
+        )
+
+
+def test_floor_job_result_writer_failure_preserves_driver_rc(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    driver.write_text("raise SystemExit(7)\n", encoding="utf-8")
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    sentinel = '{"preexisting": true}\n'
+    (attempt / "job-result.json").write_text(sentinel, encoding="utf-8")
+    failure_call = attempt / "failure-call.txt"
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "write_failure() {",
+            f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" >> {shlex.quote(str(failure_call))}",
+            "}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _driver_tail()],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 7, result.stderr
+    assert (attempt / "job-result.json").read_text(encoding="utf-8") == sentinel
+    failures = failure_call.read_text(encoding="utf-8").splitlines()
+    assert failures[0].split("|", 2)[:2] == ["1", "job_result"]
+    assert failures[1].split("|", 2)[:2] == ["7", "floor_driver"]
+
+
+def _run() -> int:
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    sys.exit(_run())

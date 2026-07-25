@@ -6,6 +6,8 @@
   "smoke_walltime_s": 600,
   "certify_walltime": "02:00:00",
   "certify_walltime_s": 7200,
+  "floor_walltime": "10:00:00",
+  "floor_walltime_s": 36000,
   "finalize_reserve_s": 600,
   "expected_cpu_model": "Intel Xeon Platinum 8468",
   "expected_physical_cores": 48,
