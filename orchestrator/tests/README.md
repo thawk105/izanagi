@@ -31,6 +31,25 @@ login shell でも上限 32 で頭打ちになる (全コアを掴まない行�
 worker 起動コストが利得を食い 96 は 32 より遅い)。明示上書きは `-n <数>` (最優先) と
 環境変数 `IZANAGI_TEST_NPROC`。
 
+### 実 repo の T-080 receipt 解決は process 内で 1 回に畳む ([T-057])
+
+`t080_freeze_migration.verify_receipt(root=<実 repo>)` は 1 回 **22.4 秒**かかる
+(git subprocess 1845 本。`cat-file blob` 1607 本は異なる oid が 52 個しかない重複で、
+コストは repo の commit 数に比例して伸びる)。oracle driver 系テストは `root=ROOT` を渡して
+これを 50〜75 回払っており、全走時間の 9 割を占めていた。
+
+`real_repo_receipt_memo.py` (テストではなく支援モジュール) が実解決値を process 内で共有する。
+使うときの規律は同モジュールの docstring が正本。要点は 3 つ:
+
+- **canned 値を作らない。** 初回 miss は必ず本番 `verify_receipt` へ委譲し、戻り object を
+  そのまま返す (テストが観測する値は導入前と同一 = 受理集合を変えない)。
+- **解決の回数・世代差 (epoch drift)・tamper 自体を検査する node では使わない。** 該当は
+  `_run(..., memo_receipt=False)` で明示的に opt-out する。
+- **patch 先はテストが import する module object** (`campaign.s8b_oracle_driver`)。
+  `orchestrator.campaign.s8b_oracle_driver` は同一ファイルでも別 object で、そちらを patch すると
+  memo が発火しない静かな空振りになる。`test_s8b_binding_driftguards.py` の positive control が
+  この空振り・canned 値・guard 欠落を殺す。
+
 ## 二重 runner
 
 中核の machine 非依存テストは pytest でも素の `python3 orchestrator/tests/test_*.py`

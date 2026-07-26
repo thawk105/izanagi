@@ -320,13 +320,21 @@ def _clear_receipt_memo():
 
 def test_receipt_memo_delegates_to_production_verifier_exactly_once():
     """memo は本番 verify_receipt を root=実 repo でちょうど 1 回呼び、戻り object を
-    再構築せずそのまま返す (canned 値・deepcopy への退行を殺す)。"""
-    sentinel = object()
+    再構築せずそのまま返す (canned 値・deepcopy への退行を殺す)。
+
+    memo が包むのは本番 `_resolve_t080_receipt` なので、その内側の
+    `t080_freeze_migration.verify_receipt` を stub して委譲を観測する
+    (= 例外 → 構造化 refusal の翻訳経路も本番のまま通る)。
+    """
+    resolution = driver_fixtures.migration.ReceiptResolution(
+        state="never-issued", refusals=(), t080_freeze_migration_observation=None,
+        validation_head="c" * 40,
+    )
     seen: list[Path] = []
 
     def fake_verify(*, root):
         seen.append(Path(root))
-        return sentinel
+        return resolution
 
     _clear_receipt_memo()
     try:
@@ -338,7 +346,7 @@ def test_receipt_memo_delegates_to_production_verifier_exactly_once():
         _clear_receipt_memo()
 
     assert seen == [receipt_memo.ROOT], seen
-    assert first is sentinel and second is sentinel
+    assert first is resolution and second is resolution
 
 
 def test_receipt_memo_patches_the_driver_module_the_tests_import():
@@ -350,12 +358,15 @@ def test_receipt_memo_patches_the_driver_module_the_tests_import():
     spy の呼び出し回数 (2) も同時に固定し、回数を観測しているテストの計数が memo で
     壊れないことを示す。
     """
-    sentinel = object()
+    resolution = driver_fixtures.migration.ReceiptResolution(
+        state="never-issued", refusals=(), t080_freeze_migration_observation=None,
+        validation_head="d" * 40,
+    )
     calls = {"real": 0}
 
     def fake_verify(*, root):
         calls["real"] += 1
-        return sentinel
+        return resolution
 
     _clear_receipt_memo()
     try:
@@ -367,7 +378,7 @@ def test_receipt_memo_patches_the_driver_module_the_tests_import():
     finally:
         _clear_receipt_memo()
 
-    assert got_a is sentinel and got_b is sentinel
+    assert got_a is resolution and got_b is resolution
     assert spy.call_count == 2, spy.call_args_list
     assert calls["real"] == 1, calls
 

@@ -45,11 +45,18 @@ if str(ORCHESTRATOR) not in sys.path:
 from campaign import s8b_oracle_driver as driver  # noqa: E402
 from campaign import t080_freeze_migration as migration  # noqa: E402
 
+# import 時点の本番実装を捕まえる。`migration.verify_receipt` を直接呼ぶのではなく
+# **本番の resolver そのもの**を memo することで、MigrationError → 構造化 refusal の翻訳を含めて
+# 挙動が完全に一致する (memo 経由と patch 前で観測される値が同一)。
+# patch は `driver._resolve_t080_receipt` を差し替えるが、ここで捕まえた参照は差し替え前の
+# 本番実装なので再帰しない。
+_PRODUCTION_RESOLVE = driver._resolve_t080_receipt
+
 
 @functools.lru_cache(maxsize=1)
 def real_repo_receipt():
     """実 repo の T-080 receipt 解決。process 内で実評価はちょうど 1 回。"""
-    return migration.verify_receipt(root=ROOT)
+    return _PRODUCTION_RESOLVE(root=ROOT)
 
 
 def memo_resolver(*, root):
