@@ -769,3 +769,72 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 22. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 23. [T-012] 延期: pilot 凍結維持。変わらず
 24. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-26 (4) — /rulings: 裁定待ち 16 件を索引化しユーザーが 4 件を裁定 + 再承認コストの誤報告を訂正 (docs-only・コード 0 byte、branch worktree-dev-wave-t091-093-hardening、計測なし)
+
+`/rulings` 1 回。索引 16 件・詳説 5 件を提示し、ユーザーが 4 件を裁定した。あわせて、直前エントリ
+2026-07-26 (3) が報告した「ファイル追加が [T-088] の承認前提を変える」を**過大報告として訂正**する。
+
+- **ユーザー裁定 (2026-07-26)**:
+  - **[T-106] = (a) 現状維持 + 射程の明記。** ratified 側に再 parse を入れず、適用範囲を文書化する。
+  - **[T-107] = (a) parser-authoritative 契約の明文化。** 出力 schema と selector role の bytes は変えない。
+  - **[T-105] = 計測後に回す。** 本番コードに触るため [T-011] の後。
+  - **[T-109] の順序 = クロスプロトコル対応を先行してよい (親の推奨を却下)。** 判断の前提として
+    ユーザーが再承認コストを問い、親が実測して「不要」と回答した (下記訂正)。作業は新セッションで行う。
+- **訂正 (erratum) — 直前エントリの「承認前提が変わる」は過大報告だった。**
+  `clean_scan_digest()` (`s8b_floor_campaign.py:1597-1639`) は**投入時にその場で計算して記録する値**で、
+  承認済み定数との照合を持たない。`s8b_approved.py` の承認定数一覧 (`:42-67`) に
+  `clean_scan_digest` も `source_commit` も無い。`source_commit` は `submit_floor.sh:183` の
+  `git rev-parse --verify HEAD` を投入時に取るだけで、同一投入内の pre/receipt 一致
+  (`test_pegasus_floor_tools.py:806`) しか見ていない。
+  `submit_floor.sh:181-245` が実際に要求するのは (i) tracked 作業ツリーが clean、(ii) index が clean、
+  (iii) `output/` 外に untracked が無い、(iv) job script が tracked かつ作業ツリー bytes = commit 済み
+  blob、の 4 点であり、**いずれも人間の再署名ではない**。
+  したがって **repo へファイルを足しても [T-088] の再承認は発生しない。**
+  親は段 3 レンズ B の指摘を裏取りせずに受け入れ、worklog・材料レポート・F39 へ書いた。
+  **retroactive に直さない** (F38 の前例に従う) — 既 land エントリは本 erratum で訂正する。
+- **訂正後も残る真の制約 (こちらは実在する)**:
+  - **gitlink 前進は別物。** submodule ブランチへ置くと `CCBENCH_FULL_SHA` (承認定数、
+    「現在値の追認を拒否」) と衝突し、`test_ccbench_full_sha_matches_real_gitlink` が赤になる。
+    解消にはユーザーによる新 pin の承認と、`known_axes_freeze` / `floor_protocol` の再凍結を要する。
+    **これは実際に手間がかかる。**
+  - 新規ファイルは三軸 conjunction に一致してはならない (本 wave の 4 ファイルは hit 0 を実測済み)。
+  - `output/s8b-freeze/` 配下に未知 file を置けない。
+  - PBS ログの既定戻り先は投入 dir なので、`#PBS -o/-e` を `output/` 配下へ向ける必要がある。
+- **F39 の射程も縮む。** 「ファイル追加が承認済み手番を割る」の部分は誤りで、正しくは
+  「ファイル集合が digest の preimage に入るのは事実だが、その digest は事前承認されていない」。
+  F39 本文の恒久対応 (`DW-O09` へ「ファイル集合を pin する digest」を加える) は、
+  **pin 一般の見落としとしては依然有効**だが、緊急度は下がる。[T-109]-(g) として裁定へ残す。
+
+### 次の一手
+1. [T-109] **新セッションで着手 (ユーザー裁定済み)**: `/dev-wave クロスプロトコル対応` を再実行する。
+   **着手前に (a) の裁定が要る** — trace-hook の置き場所を out-of-tree patch (D16 の一回限りの例外)
+   とするか、submodule ブランチ (gitlink 前進 → 承認定数の再承認 + 再凍結) とするか。
+   **AI 推奨 = patch 例外を許す** (ブランチ側は再承認と再凍結という実コストが確定しているため)。
+   残る (c)〜(i) は次セッションの段 1 で scope 化する。正本 =
+   `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §5
+2. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` → 明示実行。
+   期待は driver rc=2。**[T-109] との順序制約は解消した** (再承認は不要) ため、どちらが先でもよい
+3. [T-106] **裁定済み → 実施待ち**: (a) 現状維持 + 射程の明記。ratified が selector raw を再 parse
+   しない事実と、その適用範囲を文書化する
+4. [T-107] **裁定済み → 実施待ち**: (a) parser-authoritative 契約の明文化。[T-106] と同じ wave で扱う
+5. [T-105] **裁定済み → [T-011] の後**: `_run_artifact_bytes` の `FileNotFoundError` 素通し修正
+6. [T-102] scope 外 real 所見: production の git runner が ambient `GIT_*` を継承する。変わらず
+7. [T-103] 未着手: never-issued 状態の real artifact 由来 refusal vector を別 node で撃つテスト。変わらず
+8. [T-011] 科学レーン floor 実測。残 gate = [T-088] → 段階 3・4 → 実行 revision 束縛 → lineage。変わらず
+9. [T-097] 裁定待ち: placeholder 検出の対象族拡張。変わらず
+10. [T-099] 裁定待ち: 凍結成果物に placeholder が入った場合の専用 waiver 契約。変わらず
+11. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
+12. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+13. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+14. [T-104] 裁定待ち (dev-wave 自己改善): 予算値の引き上げ可否の独立審査か reference 再編か。変わらず
+15. [T-108] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+16. [T-089] 測定後の hardening と裁定 (前倒し対象外): 二重 reason-tag 描画。変わらず
+17. [T-090] 測定後の hardening と裁定 (前倒し対象外): `VerifiedFreeze.document` が mutable dict。変わらず
+18. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+19. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+20. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。**条件見直しを /rulings で提起済み** (16 番)
+21. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。同上
+22. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。同上
+23. [T-012] 延期: pilot 凍結維持。同上
+24. [T-082] 延期: 全 caller 移行は 1 cycle 後。同上
