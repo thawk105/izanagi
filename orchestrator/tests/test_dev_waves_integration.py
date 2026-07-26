@@ -189,20 +189,14 @@ def _temporary_repo(
     return TemporaryRepo(root, main, remote, submodule, fake, digest, scenario_digest)
 
 
-# [T-117] 負荷耐性の締切。実測: `-n 16`〜`-n 48` の全走では 1 wave (実 git 操作 +
-# python check 2 本) が既定 5 秒・check 15 秒を超え、run が completed の代わりに failed /
-# TIMEOUT へ倒れて 4 走中 3 走で 1 件赤になっていた (worklog 2026-07-26 (14)、本 wave の
-# L1_n16/n32 でも再現)。**時間そのものを検査する node は明示値を渡しており** (sleep_timeout
-# 系の `per_wave_timeout=1/10`、total 予算系)、既定値の引き上げはそれらを緩めない。
-# 有界の決定的条件待ちなので余裕を持たせても flaky にはならない (`_wait_state` と同じ理由)。
-def _profile(check_timeout: int = 60) -> SupervisorProfile:
+def _profile(check_timeout: int = 15) -> SupervisorProfile:
     checks = (
         CheckSpec("docs", (sys.executable, "tools/check_docs.py"), check_timeout),
         CheckSpec("fixed", (sys.executable, "tools/check_ok.py"), check_timeout),
     )
     return SupervisorProfile(
         "default", "fake-model", "low", checks,
-        max_waves=4, max_per_wave_timeout_s=90, max_total_timeout_s=360,
+        max_waves=4, max_per_wave_timeout_s=10, max_total_timeout_s=30,
         max_per_wave_budget_usd=Decimal("1"), max_total_budget_usd=Decimal("3"),
         max_wave_output_bytes=512 * 1024, max_run_bytes=8 * 1024 * 1024,
         allowed_models=("fake-model",),
@@ -211,13 +205,13 @@ def _profile(check_timeout: int = 60) -> SupervisorProfile:
 
 def _supervisor(repo: TemporaryRepo, *, dependencies: SupervisorDependencies | None = None) -> Supervisor:
     return Supervisor(SupervisorConfig(
-        str(repo.main), str(repo.fake), repo.fake_digest, _profile(), 60, 0.1,
+        str(repo.main), str(repo.fake), repo.fake_digest, _profile(), 15, 0.1,
         runtime_dir=str(repo.runtime), audit_max_bytes=64 * 1024,
     ), dependencies)
 
 
 def _request(repo: TemporaryRepo, *, waves: int = 1, request_id: str | None = None,
-             per_wave_timeout: int = 30, total_timeout: int | None = None,
+             per_wave_timeout: int = 5, total_timeout: int | None = None,
              per_wave_budget: str = "1", total_budget: str | None = None,
              output_bytes: int = 256 * 1024,
              run_bytes: int = 8 * 1024 * 1024) -> SubmitRequest:
@@ -233,7 +227,7 @@ def _request(repo: TemporaryRepo, *, waves: int = 1, request_id: str | None = No
     )
 
 
-def _wait_terminal(supervisor: Supervisor, run_id: str, timeout_s: float = 180.0):
+def _wait_terminal(supervisor: Supervisor, run_id: str, timeout_s: float = 20.0):
     deadline = time.monotonic() + timeout_s
     seen = []
     while time.monotonic() < deadline:
@@ -248,7 +242,7 @@ def _wait_terminal(supervisor: Supervisor, run_id: str, timeout_s: float = 180.0
 def _wait_state(supervisor: Supervisor, run_id: str, state: RunState, wave: int) -> None:
     # xdist 高並列下では wave 1 (実 git 操作 + check) が 10 秒を超えうる。
     # 有界の決定的条件待ちであり、余裕を持たせても flaky にはならない。
-    deadline = time.monotonic() + 180
+    deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         status = supervisor.status(run_id)
         if status.state is state and status.wave_index == wave:
@@ -274,16 +268,15 @@ def _start_real_daemon(
         "from tools.dev_waves.daemon import Supervisor,SupervisorConfig,SupervisorDependencies,SupervisorProfile\n"
         "from tools.dev_waves.git_state import resolve_repo_identity\n"
         "from tools.dev_waves.schema import PROTOCOL_VERSION,ResourceLimits,SubmitRequest\n"
-        # [T-117] 実 daemon 子側の check 締切も負荷耐性を持たせる (親側と同値)。
-        "checks=(CheckSpec('docs',(sys.executable,'tools/check_docs.py'),60),"
-        "CheckSpec('fixed',(sys.executable,'tools/check_ok.py'),60))\n"
+        "checks=(CheckSpec('docs',(sys.executable,'tools/check_docs.py'),15),"
+        "CheckSpec('fixed',(sys.executable,'tools/check_ok.py'),15))\n"
         "p=SupervisorProfile('default','fake-model','low',checks,max_waves=4,"
         "max_per_wave_timeout_s=30,max_total_timeout_s=90,"
         "max_per_wave_budget_usd=Decimal('1'),max_total_budget_usd=Decimal('3'),"
         "max_wave_output_bytes=524288,max_run_bytes=8388608,allowed_models=('fake-model',))\n"
         "def crash(phase,_run,_wave):\n"
         "  if sys.argv[7]=='1' and phase=='after-accepted': os.kill(os.getpid(),signal.SIGKILL)\n"
-        "s=Supervisor(SupervisorConfig(sys.argv[1],sys.argv[2],sys.argv[3],p,60,0.1,"
+        "s=Supervisor(SupervisorConfig(sys.argv[1],sys.argv[2],sys.argv[3],p,15,0.1,"
         "runtime_dir=sys.argv[4],audit_max_bytes=65536),"
         "SupervisorDependencies(crash_hook=crash))\n"
         "n=int(sys.argv[5]); identity=resolve_repo_identity(sys.argv[1]).digest\n"
@@ -422,8 +415,8 @@ def test_three_wave_success_uses_distinct_pid_start_and_session_markers_without_
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, ["success", "success", "success"])
             supervisor = _supervisor(repo)
-            submitted = supervisor.submit(_request(repo, waves=3, total_timeout=90, total_budget="3"))
-            status, _seen = _wait_terminal(supervisor, submitted.run_id)
+            submitted = supervisor.submit(_request(repo, waves=3, total_timeout=15, total_budget="3"))
+            status, _seen = _wait_terminal(supervisor, submitted.run_id, 30)
             assert status.state is RunState.COMPLETED
             records = _invocations(repo)
             assert len(records) == 3
@@ -587,7 +580,7 @@ def test_independent_gate_failure_stops_next_wave(scenario: str, reason: ReasonC
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, [scenario, "success"])
             supervisor = _supervisor(repo)
-            submitted = supervisor.submit(_request(repo, waves=2, total_timeout=60, total_budget="2"))
+            submitted = supervisor.submit(_request(repo, waves=2, total_timeout=10, total_budget="2"))
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
             assert status.reason is reason
             assert len(_invocations(repo)) == 1
@@ -606,7 +599,7 @@ def test_same_request_id_and_digest_returns_same_run_after_disconnect_and_restar
             second = restarted.submit(request)
             assert second.run_id == first.run_id
             conflict = _request(repo, waves=2, request_id=request.client_request_id,
-                                total_timeout=60, total_budget="2")
+                                total_timeout=10, total_budget="2")
             with pytest.raises(Exception) as captured:
                 restarted.submit(conflict)
             assert getattr(captured.value, "code", None) is ReasonCode.REQUEST_CONFLICT
@@ -634,12 +627,12 @@ def test_active_check_failure_occurs_only_after_passive_gates() -> None:
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, ["success"])
             checks = (
-                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 60),
-                CheckSpec("injected", (sys.executable, "tools/check_fail.py"), 60),
+                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 15),
+                CheckSpec("injected", (sys.executable, "tools/check_fail.py"), 15),
             )
             profile = SupervisorProfile(
                 "default", "fake-model", "low", checks,
-                max_waves=1, max_per_wave_timeout_s=90, max_total_timeout_s=90,
+                max_waves=1, max_per_wave_timeout_s=10, max_total_timeout_s=10,
                 max_per_wave_budget_usd=Decimal("1"), max_total_budget_usd=Decimal("1"),
                 max_wave_output_bytes=512 * 1024, max_run_bytes=8 * 1024 * 1024,
                 allowed_models=("fake-model",),
@@ -670,8 +663,8 @@ def test_dedicated_provenance_and_code_dirty_reasons_are_wired(
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, ["success"])
             checks = (
-                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 60),
-                CheckSpec(check_name, (sys.executable, "tools/check_fail.py"), 60),
+                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 15),
+                CheckSpec(check_name, (sys.executable, "tools/check_fail.py"), 15),
             )
             base = _profile()
             profile = SupervisorProfile(
@@ -970,7 +963,7 @@ def test_budget_accumulates_across_waves_and_deadline_boundary_is_clipped() -> N
                 {"scenario": "success", "cost": 0.6},
             ])
             supervisor = _supervisor(repo)
-            request = _request(repo, waves=2, total_timeout=60,
+            request = _request(repo, waves=2, total_timeout=10,
                                per_wave_budget="1", total_budget="1")
             submitted = supervisor.submit(request)
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
@@ -1090,9 +1083,8 @@ def test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child(
             repo = _temporary_repo(root, [scenario, "success"])
             supervisor = _supervisor(repo)
             submitted = supervisor.submit(_request(
-                # [T-117] total は既定 (waves × per_wave) に委ねる。旧既定 5 秒を
-                # 直書きすると schema 制約 total >= per_wave を破る。
-                repo, waves=waves, total_budget=str(waves),
+                repo, waves=waves, total_timeout=waves * 5,
+                total_budget=str(waves),
             ))
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
             assert (status.state, status.reason) == (terminal, reason)
