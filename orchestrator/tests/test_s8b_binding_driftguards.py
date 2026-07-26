@@ -42,6 +42,7 @@ from campaign import s8b_oracle_report as report_module  # noqa: E402
 # の定義位置には依存しない。
 import test_s8b_oracle_driver as driver_fixtures  # noqa: E402
 import real_repo_receipt_memo as receipt_memo  # noqa: E402
+import real_repo_ratified_memo as ratified_memo  # noqa: E402
 
 
 _HEX64 = "a" * 64
@@ -262,7 +263,8 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
 
     # [T-057] 対象は binding schema 不一致の fail-closed 挙動。実 repo receipt の解決は
     # incidental (1 回 22.4 秒) なので process 内 memo と共有する。
-    with receipt_memo.patch_driver_resolver():
+    # [T-117] 同様に active 世代解決 (1 回 4.4 秒) も incidental なので memo する。
+    with receipt_memo.patch_driver_resolver(), ratified_memo.patch_ratified_loader():
         result = driver.run_block(
             manifest_path=broken_path, block_id="b0", freeze_path=freeze_path,
             root=ROOT, output_root=output_root, budget_path=budget_path,
@@ -295,7 +297,8 @@ def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_p
     freeze_path, broken_path = _broken_binding_manifest(tmp_path)
 
     # [T-057] 同上。gate 単体経路でも receipt 解決は incidental。
-    with receipt_memo.patch_driver_resolver():
+    # [T-117] active 世代解決も同様 (対象は manifest-verify refusal の積み上げ)。
+    with receipt_memo.patch_driver_resolver(), ratified_memo.patch_ratified_loader():
         decision = driver.gate_check(
             freeze_path=freeze_path, manifest_path=broken_path, root=ROOT,
         )
@@ -415,6 +418,101 @@ def test_receipt_memo_session_cache_round_trip_preserves_the_resolution(tmp_path
 
     path.write_bytes(b"not a pickle")
     assert receipt_memo._cache_load(path) is None
+
+
+#
+# 5. [T-117] real-repo active 世代 memo の positive control —— `real_repo_ratified_memo`
+#    が「本番 loader へ委譲する」「本番例外 object をそのまま再送出する (型・reason を
+#    落とさない)」「テストが import する module object を patch する」「実 repo 以外を
+#    拒否する」ことを、実 repo を歩かずに (本番 loader を stub して) 固定する。
+#    control は共有 memo を clear せず、stub 由来の別 cache を注入して検査する
+#    (clear すると同一 worker の opt-in node が 4.4 秒を再び払う)。
+
+
+def _stub_outcome(patcher, loader):
+    """本番 loader を `loader` に差し替えた**別 cache** を memo へ注入する。"""
+    calls: list[Path] = []
+
+    def recording(root):
+        calls.append(Path(root))
+        return loader(root)
+
+    patcher.setattr(ratified_memo, "_outcome",
+                    ratified_memo.new_outcome_cache(recording))
+    return calls
+
+
+def test_ratified_memo_delegates_to_production_loader_exactly_once():
+    """memo は本番 loader を root=実 repo でちょうど 1 回呼び、戻り object をそのまま返す。"""
+    sentinel = object()
+
+    with pytest.MonkeyPatch.context() as patcher:
+        calls = _stub_outcome(patcher, lambda root: sentinel)
+        first = ratified_memo.real_repo_ratified()
+        second = ratified_memo.real_repo_ratified()
+
+    assert calls == [ratified_memo.ROOT], calls
+    assert first is sentinel and second is sentinel
+
+
+@pytest.mark.parametrize("factory", [
+    lambda: driver.s8b_ratified_freeze.RatifiedFreezeError("no-active", "live active 無し"),
+    lambda: RuntimeError("走査不能"),
+])
+def test_ratified_memo_reraises_the_production_exception_object(factory):
+    """本番が送出した例外を、型・reason・message を落とさず同一 object で再送出する。
+
+    本番 gate は `RatifiedFreezeError` と他 `Exception` で refusal 文字列を書き分ける
+    ため、型を潰す退行 (共通例外へ翻訳する等) は refusal を変える。canned な例外を
+    作る退行も、委譲回数 1 の検査と合わせて殺す。
+    """
+    error = factory()
+
+    def raising(root):
+        raise error
+
+    with pytest.MonkeyPatch.context() as patcher:
+        calls = _stub_outcome(patcher, raising)
+        with pytest.raises(type(error)) as first:
+            ratified_memo.real_repo_ratified()
+        with pytest.raises(type(error)) as second:
+            ratified_memo.real_repo_ratified()
+
+    assert calls == [ratified_memo.ROOT], calls
+    assert first.value is error and second.value is error
+    if isinstance(error, driver.s8b_ratified_freeze.RatifiedFreezeError):
+        assert first.value.reason == error.reason
+
+
+def test_ratified_memo_patches_the_module_object_the_driver_uses():
+    """patch 先は本番 driver が保持する `driver.s8b_ratified_freeze`。
+
+    別 module object (`orchestrator.campaign....`) を patch する退行では memo が
+    1 度も発火せず、本番 loader の呼び出しが 2 回に戻るのでここが赤になる。spy の
+    呼び出し回数 (2) も固定し、回数を観測するテストの計数が memo で壊れないことを示す。
+    """
+    sentinel = object()
+
+    with pytest.MonkeyPatch.context() as patcher:
+        calls = _stub_outcome(patcher, lambda root: sentinel)
+        with ratified_memo.patch_ratified_loader() as spy:
+            got_a = driver.s8b_ratified_freeze.load_ratified_freeze(ROOT)
+            got_b = driver.s8b_ratified_freeze.load_ratified_freeze(ROOT)
+
+    assert got_a is sentinel and got_b is sentinel
+    assert spy.call_count == 2, spy.call_args_list
+    assert calls == [ratified_memo.ROOT], calls
+    # patch が外れた後は本番 loader が戻っている (patch の漏れ残りを殺す)。
+    assert (driver.s8b_ratified_freeze.load_ratified_freeze
+            is ratified_memo._PRODUCTION_LOAD)
+
+
+def test_ratified_memo_refuses_roots_other_than_the_real_repository(tmp_path):
+    """tmp / tamper 経路へ patch が漏れたら、実 repo の cached 結果で偽緑にせず赤で止める。"""
+    with pytest.raises(AssertionError):
+        ratified_memo.memo_loader(tmp_path)
+    with pytest.raises(AssertionError):
+        ratified_memo.memo_loader(root=tmp_path)
 
 
 if __name__ == "__main__":

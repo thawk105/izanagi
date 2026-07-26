@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import os
 import subprocess
@@ -275,6 +276,40 @@ def test_protocol_builder_repo_tree_guard_is_wired_to_real_root():
     assert all(action is guarded_action for action in writer_actions), (
         "2 回の write_protocol_document が同一 guard action 内で実行されていない"
     )
+
+
+def test_ratified_memo_has_a_real_resolution_payer():
+    """active 世代解決の実走を毎 session 保証する正本 payer が memo を使わない ([T-117])。
+
+    `real_repo_ratified_memo` は実 repo の `load_ratified_freeze` (git 39 本・4.4 秒) を
+    process 内 1 回へ畳む。畳んだ node が増えても「解決失敗 → freeze-ratify refusal」の
+    実走査を必ず 1 node が担う、という不変条件をここで固定する。全 node が memo へ
+    移る退行 (= 実履歴走査が node 順序次第でしか走らなくなる) を殺す。
+    """
+    _require_pytest()
+    from tests import test_s8b_binding_driftguards as driftguard_tests
+    from tests import test_s8b_oracle_driver as driver_tests
+
+    payer = driver_tests.test_nonnull_floor_without_active_generation_is_refused
+    payer_source = inspect.getsource(payer)
+    for token in ("ratified_memo", "patch_ratified_loader"):
+        assert token not in payer_source, (
+            f"正本 payer {payer.__name__} が active 世代 memo を使っている: {token}"
+        )
+    assert "root=ROOT" in payer_source, (
+        f"正本 payer {payer.__name__} が実 repo root を渡していない"
+    )
+
+    opted_in = (
+        driver_tests.test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing,
+        driver_tests.test_active_resolution_and_manifest_structure_refusals_are_aggregated,
+        driftguard_tests.test_run_block_broken_binding_manifest_refuses_and_writes_nothing,
+        driftguard_tests.test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal,
+    )
+    for function in opted_in:
+        assert "patch_ratified_loader" in inspect.getsource(function), (
+            f"opt-in 面 {function.__name__} が memo を使っていない (配線の取り残し)"
+        )
 
 
 def _require_loadgroup_capability() -> None:

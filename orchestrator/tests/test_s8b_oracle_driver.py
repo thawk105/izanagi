@@ -29,6 +29,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import real_repo_ratified_memo as ratified_memo  # noqa: E402
 import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
@@ -1700,7 +1701,10 @@ def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_pa
     budget_path = tmp_path / "refused-budget.json"
 
     # [T-057] 対象は no-active refusal。実 repo receipt 解決は incidental なので memo する。
-    with receipt_memo.patch_driver_resolver():
+    # [T-117] active 世代解決 (1 回 4.4 秒) も incidental — 対象は「refusal なら 1 byte も
+    # 書かない」であり、解決そのものの検出力は
+    # test_nonnull_floor_without_active_generation_is_refused (memo 非使用) が持つ。
+    with receipt_memo.patch_driver_resolver(), ratified_memo.patch_ratified_loader():
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0", freeze_path=REAL_FREEZE,
             root=ROOT, output_root=output_root, budget_path=budget_path,
@@ -2005,6 +2009,10 @@ def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
     budget_path = tmp_path / "v2-refused-budget.json"
 
     # [T-057] 対象は active 世代の解決失敗の翻訳。receipt 解決は incidental なので memo する。
+    # [T-117] **この node は active 世代解決を memo しない正本 payer** である。実 repo の
+    # 履歴走査 (git 39 本・4.4 秒) を node 順序に依らず毎 session 必ず 1 回走らせ、
+    # 「解決失敗 → freeze-ratify refusal」の検出力を memo に委ねない (規律 2)。
+    # 不変条件は test_real_repo_serialization.py の payer 検査が機械固定する。
     with receipt_memo.patch_driver_resolver():
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
@@ -2034,7 +2042,8 @@ def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_pa
     budget_path = tmp_path / "aggregate-refused-budget.json"
 
     # [T-057] 対象は refusal の集約。receipt 解決は incidental なので memo する。
-    with receipt_memo.patch_driver_resolver():
+    # [T-117] active 世代解決も incidental (対象は manifest 構造 refusal を落とさないこと)。
+    with receipt_memo.patch_driver_resolver(), ratified_memo.patch_ratified_loader():
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
             root=ROOT, output_root=output_root, budget_path=budget_path,
