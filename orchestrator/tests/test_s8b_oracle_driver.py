@@ -27,6 +27,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
@@ -1195,22 +1196,32 @@ def _durable_policy(path: Path):
 
 def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
          prepare_fn, evaluate_fn, *, output_root=None, budget_path=None,
-         marker_root=None):
+         marker_root=None, memo_receipt: bool = True):
     # driver 内部の WAL/budget 契約テストは v2 gate/launch/store/env の実検査を迂回し、
     # future-approved gate + canned v2 plan を代入して WAL・budget・schedule 契約だけを
     # 突く (v2 gate/store/env の実発火は専用テストが git fixture で検査する)。
+    #
+    # [T-057] root=ROOT のため run_block は実 repo の T-080 receipt を解決する
+    # (1 回 22.4 秒 = git subprocess 1845 本、commit 数に比例)。この経路の consumer は
+    # receipt 解決が incidental (対象は WAL / budget / schedule 契約) なので、実解決値を
+    # process 内 memo で共有する。**解決の回数や世代差そのものを検査する node は
+    # `memo_receipt=False` を渡すこと** (memo はその機序を消す)。
     validated = _fake_launch_validated(freeze_path)
 
-    with mock.patch.object(
-                driver, "_gate_check_validated",
-                return_value=driver.GateDecision(True, [], None)), \
-            mock.patch.object(
-                driver.s8b_ratified_freeze, "load_ratified_freeze",
-                return_value=validated.ratified), \
-            mock.patch.object(
-                driver.s8b_ratified_freeze, "launch_validate",
-                return_value=validated), \
-            mock.patch.object(driver, "_prepare_v2_execution", _canned_plan):
+    with contextlib.ExitStack() as stack:
+        if memo_receipt:
+            stack.enter_context(receipt_memo.patch_driver_resolver())
+        stack.enter_context(mock.patch.object(
+            driver, "_gate_check_validated",
+            return_value=driver.GateDecision(True, [], None)))
+        stack.enter_context(mock.patch.object(
+            driver.s8b_ratified_freeze, "load_ratified_freeze",
+            return_value=validated.ratified))
+        stack.enter_context(mock.patch.object(
+            driver.s8b_ratified_freeze, "launch_validate",
+            return_value=validated))
+        stack.enter_context(
+            mock.patch.object(driver, "_prepare_v2_execution", _canned_plan))
         return driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=ROOT,
@@ -1375,9 +1386,13 @@ def test_real_freeze_gate_lists_floor_and_budget_null():
     introduction, raw = independent
     assert introduction == _T080_RECEIPT_INTRODUCTION
     assert hashlib.sha256(raw).hexdigest() == _T080_RECEIPT_RAW_SHA256
-    decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
+    # [T-057] この node は実 repo receipt の observation 自体が検査対象。実解決は memo の
+    # 初回 miss として必ず本番 verify_receipt へ委譲されるので (canned 値は作らない)、
+    # 検出力は変わらず gate_check 側の重複解決 (同 22.4 秒) だけが畳まれる。
+    with receipt_memo.patch_driver_resolver():
+        decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
     assert not decision.allowed
-    resolution = migration.verify_receipt(root=ROOT)
+    resolution = receipt_memo.real_repo_receipt()
     assert resolution.state == "active-valid", resolution
     _assert_exact_refusals(decision.refusals, {
         _FLOOR_REFUSAL,
@@ -1573,9 +1588,10 @@ def test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_r
 
     with mock.patch.object(
             migration, "verify_receipt", return_value=resolution) as verify_call:
+        # [T-057] 解決回数そのものが検査対象 (下の call_count == 2)。memo は畳んでしまう。
         result = _run(
             tmp_path, freeze_path, manifest_path, prepare_fn,
-            _fake_evaluate_factory(),
+            _fake_evaluate_factory(), memo_receipt=False,
         )
 
     assert verify_call.call_count == 2
@@ -1606,9 +1622,11 @@ def test_run_block_rejects_receipt_epoch_drift_before_campaign_start_g4(tmp_path
 
     with mock.patch.object(
             migration, "verify_receipt", side_effect=[initial, changed]) as verify_call:
+        # [T-057] campaign-start 前後で**別々の解決**が起きることが検査対象。
+        # memo は 2 回目を畳んで drift 検出を消すため opt-out する。
         result = _run(
             tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn,
-            output_root=output_root, budget_path=budget_path,
+            output_root=output_root, budget_path=budget_path, memo_receipt=False,
         )
 
     assert verify_call.call_count == 2
@@ -1644,11 +1662,13 @@ def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_pa
     output_root = tmp_path / "refused-out"
     budget_path = tmp_path / "refused-budget.json"
 
-    result = driver.run_block(
-        manifest_path=manifest_path, block_id="b0", freeze_path=REAL_FREEZE,
-        root=ROOT, output_root=output_root, budget_path=budget_path,
-        prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
-    )
+    # [T-057] 対象は no-active refusal。実 repo receipt 解決は incidental なので memo する。
+    with receipt_memo.patch_driver_resolver():
+        result = driver.run_block(
+            manifest_path=manifest_path, block_id="b0", freeze_path=REAL_FREEZE,
+            root=ROOT, output_root=output_root, budget_path=budget_path,
+            prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
 
     assert result["status"] == "refused" and result["allowed"] is False
     _assert_exact_refusals(result["refusals"], {_NO_ACTIVE_REFUSAL})
@@ -1947,11 +1967,13 @@ def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
     output_root = tmp_path / "v2-refused-out"
     budget_path = tmp_path / "v2-refused-budget.json"
 
-    result = driver.run_block(
-        manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
-        root=ROOT, output_root=output_root, budget_path=budget_path,
-        prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
-    )
+    # [T-057] 対象は active 世代の解決失敗の翻訳。receipt 解決は incidental なので memo する。
+    with receipt_memo.patch_driver_resolver():
+        result = driver.run_block(
+            manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
+            root=ROOT, output_root=output_root, budget_path=budget_path,
+            prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
 
     assert result["status"] == "refused"
     _assert_exact_refusals(result["refusals"], {_NO_ACTIVE_REFUSAL})
@@ -1974,11 +1996,13 @@ def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_pa
     output_root = tmp_path / "aggregate-refused-out"
     budget_path = tmp_path / "aggregate-refused-budget.json"
 
-    result = driver.run_block(
-        manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
-        root=ROOT, output_root=output_root, budget_path=budget_path,
-        prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
-    )
+    # [T-057] 対象は refusal の集約。receipt 解決は incidental なので memo する。
+    with receipt_memo.patch_driver_resolver():
+        result = driver.run_block(
+            manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
+            root=ROOT, output_root=output_root, budget_path=budget_path,
+            prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
 
     assert result["status"] == "refused" and result["allowed"] is False
     _assert_exact_refusals(result["refusals"], {
@@ -2725,7 +2749,9 @@ def test_run_block_reuses_launch_validated_and_legacy_loader_is_dead(tmp_path):
         captured["plan_validated"] = kwargs["validated"]
         return _canned_plan(**kwargs)
 
-    with mock.patch.object(Path, "read_bytes", counting_read_bytes), \
+    # [T-057] 対象は loader identity と read 回数。receipt 解決は incidental なので memo する。
+    with receipt_memo.patch_driver_resolver(), \
+            mock.patch.object(Path, "read_bytes", counting_read_bytes), \
             mock.patch.object(
                 driver, "_load_verified_freeze",
                 side_effect=AssertionError("legacy freeze loader called")), \
@@ -2800,7 +2826,9 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
         captured["gate_manifest"] = verified_manifest
         return driver.GateDecision(True, [], None)
 
-    with mock.patch.object(Path, "read_text", counting_read_text), \
+    # [T-057] 対象は manifest verify / read 回数。receipt 解決は incidental なので memo する。
+    with receipt_memo.patch_driver_resolver(), \
+            mock.patch.object(Path, "read_text", counting_read_text), \
             mock.patch.object(driver, "verify_manifest", counting_verify), \
             mock.patch.object(driver.s8b_ratified_freeze,
                               "load_ratified_freeze",

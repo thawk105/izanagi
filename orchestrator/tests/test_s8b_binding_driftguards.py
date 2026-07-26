@@ -41,6 +41,7 @@ from campaign import s8b_oracle_report as report_module  # noqa: E402
 # (編集はしない)。helper は freeze/manifest を公開 API 経由で構築するため、loader
 # の定義位置には依存しない。
 import test_s8b_oracle_driver as driver_fixtures  # noqa: E402
+import real_repo_receipt_memo as receipt_memo  # noqa: E402
 
 
 _HEX64 = "a" * 64
@@ -259,11 +260,14 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
     budget_path = tmp_path / "b-budget.json"
     marker_root = tmp_path / "b-markers"
 
-    result = driver.run_block(
-        manifest_path=broken_path, block_id="b0", freeze_path=freeze_path,
-        root=ROOT, output_root=output_root, budget_path=budget_path,
-        marker_root=marker_root, prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
-    )
+    # [T-057] 対象は binding schema 不一致の fail-closed 挙動。実 repo receipt の解決は
+    # incidental (1 回 22.4 秒) なので process 内 memo と共有する。
+    with receipt_memo.patch_driver_resolver():
+        result = driver.run_block(
+            manifest_path=broken_path, block_id="b0", freeze_path=freeze_path,
+            root=ROOT, output_root=output_root, budget_path=budget_path,
+            marker_root=marker_root, prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
 
     assert result["status"] == "refused"
     assert result["allowed"] is False
@@ -290,14 +294,88 @@ def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_p
     """
     freeze_path, broken_path = _broken_binding_manifest(tmp_path)
 
-    decision = driver.gate_check(
-        freeze_path=freeze_path, manifest_path=broken_path, root=ROOT,
-    )
+    # [T-057] 同上。gate 単体経路でも receipt 解決は incidental。
+    with receipt_memo.patch_driver_resolver():
+        decision = driver.gate_check(
+            freeze_path=freeze_path, manifest_path=broken_path, root=ROOT,
+        )
 
     assert decision.allowed is False
     assert any(r.startswith("manifest-verify:")
                and "binding_identity entry schema が不一致" in r
                for r in decision.refusals), decision.refusals
+
+
+#
+# 4. [T-057] real-repo receipt memo の positive control —— 上記 2 群が使う
+#    `real_repo_receipt_memo` が「本番 verify_receipt へ委譲する」「テストが import する
+#    module object を patch する」「実 repo 以外を拒否する」ことを、実 repo を歩かずに
+#    (実 verifier を stub して) 固定する。memo が canned 値・別 module object・guard 無しへ
+#    退行すると、これらが赤になる。
+
+
+def _clear_receipt_memo():
+    receipt_memo.real_repo_receipt.cache_clear()
+
+
+def test_receipt_memo_delegates_to_production_verifier_exactly_once():
+    """memo は本番 verify_receipt を root=実 repo でちょうど 1 回呼び、戻り object を
+    再構築せずそのまま返す (canned 値・deepcopy への退行を殺す)。"""
+    sentinel = object()
+    seen: list[Path] = []
+
+    def fake_verify(*, root):
+        seen.append(Path(root))
+        return sentinel
+
+    _clear_receipt_memo()
+    try:
+        with pytest.MonkeyPatch.context() as patcher:
+            patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
+            first = receipt_memo.real_repo_receipt()
+            second = receipt_memo.real_repo_receipt()
+    finally:
+        _clear_receipt_memo()
+
+    assert seen == [receipt_memo.ROOT], seen
+    assert first is sentinel and second is sentinel
+
+
+def test_receipt_memo_patches_the_driver_module_the_tests_import():
+    """patch 先は `campaign.s8b_oracle_driver` (テストが使う側)。
+
+    同一ファイルでも `orchestrator.campaign.s8b_oracle_driver` は別 module object であり、
+    そちらを patch すると memo は 1 度も発火せず静かに空振りする。その退行では
+    実 verifier の呼び出しが 2 回に戻るのでここが赤になる。
+    spy の呼び出し回数 (2) も同時に固定し、回数を観測しているテストの計数が memo で
+    壊れないことを示す。
+    """
+    sentinel = object()
+    calls = {"real": 0}
+
+    def fake_verify(*, root):
+        calls["real"] += 1
+        return sentinel
+
+    _clear_receipt_memo()
+    try:
+        with pytest.MonkeyPatch.context() as patcher:
+            patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
+            with receipt_memo.patch_driver_resolver() as spy:
+                got_a = driver._resolve_t080_receipt(root=ROOT)
+                got_b = driver._resolve_t080_receipt(root=ROOT)
+    finally:
+        _clear_receipt_memo()
+
+    assert got_a is sentinel and got_b is sentinel
+    assert spy.call_count == 2, spy.call_args_list
+    assert calls["real"] == 1, calls
+
+
+def test_receipt_memo_refuses_roots_other_than_the_real_repository(tmp_path):
+    """tmp / tamper 経路へ patch が漏れたら、cached な valid 値で偽緑にせず赤で止める。"""
+    with pytest.raises(AssertionError):
+        receipt_memo.memo_resolver(root=tmp_path)
 
 
 if __name__ == "__main__":
