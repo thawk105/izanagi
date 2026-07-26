@@ -44,7 +44,12 @@ def _fake(root: Path, body: str) -> Path:
     return path
 
 
-def _spec(root: Path, fake: Path, *, timeout: int = 3, output_cap: int = 100_000,
+# [T-117] 既定 per-wave 締切は負荷耐性を持たせる。実測 (`-n 32` 全走): 子 (python
+# interpreter 起動) が 3 秒の締切に間に合わず、`stdout_bytes=0` で kill されて
+# 出力上限の境界検査が赤になった (worklog 2026-07-26 (14) の flake 3、本 wave でも再現)。
+# **締切そのものを検査する node は `timeout=1` を明示**しており (sleep する子で必ず
+# 発火する)、既定値の引き上げはそれらを緩めない。
+def _spec(root: Path, fake: Path, *, timeout: int = 60, output_cap: int = 100_000,
           file_cap: int = 100_000) -> WorkerSpec:
     schema_text = canonical_bytes(load_receipt_schema()).decode("utf-8")
     return WorkerSpec(
