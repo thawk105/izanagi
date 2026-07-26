@@ -196,3 +196,75 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 30. [T-082] 延期: prefix 容認 reader の用途別移行。**本番コードのため測定後**。変わらず
 31. [T-057] **完了 (本エントリ)**: 全走 132 秒 / 0 failed を実測し、見送り台帳の述語
     `full_suite_duration_s > 180` を解消した
+
+## 2026-07-26 (14) — [T-057] 続き: ユーザー裁定で本番 git 畳み込みと fixture 再利用も実施し全走 75 秒へ (本番 1 ファイル、branch worktree-dev-wave-t057-test-speed、計測 = 全走時間のみ)
+
+2026-07-26 (13) の続き。ユーザーが「10 倍近く早くできないか」と問い、内訳を提示した上で
+**「今すぐ両方やる」と裁定**したため、(13) で裁定へ返していた [T-116] (本番) と、
+残 tail の fixture 再利用 (テスト) を同セッションで実施した。
+一次資料 = `output/insights/2026-07-26_t057-test-suite-speed.md` §12〜§14 (更新)。
+
+- **本番 (`t080_freeze_migration`, commit 37397f5)**: receipt 検証の git 呼び出しを
+  **1855 → 241 本、25.0 秒 → 9.1 秒**。意味を変えない 3 点に限定 —
+  (1) `cat-file blob` の内容を (root, spec) で memo (git object は content-addressed)、
+  (2) batch-check の結果を (root, path, commit 集合) で memo、
+  (3) descendant ごとの `diff-tree` を**コマンドと解析を変えずに**並行実行。
+  **出力は byte 同一を実測**: 変更前実装 (`git checkout HEAD` で戻して実行) と変更後で
+  state / refusals / validation_head / introduction_commit / observation / receipt / receipt_raw を
+  正規化した JSON の sha256 が一致 (`98dc760a…`)。等価性テスト (merge / rename / 無関係 commit を
+  含む合成履歴で並行版 == 逐次版、負例 control 付き) と memo の control を追加した。
+- **テスト (commit 6d3f2d2)**: `_t080_stub_free_e2e_repo` (46MB / 4396 entries、1 回 15.5 秒) を
+  引数ごとに process 内 1 回だけ組み、各テストへ実体コピー (0.3 秒) を渡す。
+  `-k t080` の 14 本が **155 秒 → 69 秒**。
+- **全走 (計算ノード bnode003 48 core 専有)**: 132 秒 → 76 秒 (本番 fix) → **75 秒** (fixture 再利用)。
+  `-n 16` = 74 秒、`-n 48` = 77 秒。**修正前 413〜586 秒に対し 5.4〜7.9 倍、
+  worklog 記録のログインノード 1811 秒に対し約 24 倍。**
+- **最終形の律速が確定した**: **real-repo loadgroup の直列 69 秒**。43 item を単一 worker に固定して
+  いるため並列度を変えても 74〜77 秒で動かない。fixture 再利用は work を 105 秒削ったが wall は
+  変えなかった (同じ理由)。次の lever = reader/writer 分離で 30 秒台が見込める → [T-117]。
+- **失敗の記録 2 件 (どちらも親の手順ミス、実測で判明)**:
+  (a) 全走中に `output/insights/` を編集し、`test_s8b_floor_campaign` の「実 repo の output/ が
+  1 byte も変わらない」検査を 8 件赤にした (テストは正しい。差分の退行ではない)。
+  (b) 計測 job script の `git checkout -- .` が**未コミットの実装を 2 回巻き戻した**
+  (fixture 再利用と insight 追記)。実装は測る前に commit する。
+- **負荷依存 flake は残る**: `test_dev_waves_cli.py::test_export_is_create_only_...` が
+  全走 4 回中 3 回で 1 件落ちた (単体では 4/4 緑、t080 経路を使わないため本番変更とは無関係)。
+  [T-117] の対象。
+- **検査**: 全走 74 秒 / 0 failed (job 871580 P3)、`check_docs` rc=0、
+  `check_ai_provenance` 違反なし。
+
+### 次の一手
+
+1. [T-117] **着手可能・本タスクの直接の続き**: real-repo loadgroup の reader/writer 分離
+   (直列 69 秒 = 現在の床)。dev_waves supervisor 系の timing flake、`_NPROC_CAP` の再評価も含む
+2. [T-096] **裁定済み → 着手可能 (条件つき)**: driver 側 timeout を予約式と整合させる。
+   **受入全走が 75 秒になったので検査コストはさらに下がった**
+3. [T-102] **裁定済み → [T-096] と同じ wave**: production `_run_git` 2 箇所の ambient env 継承
+4. [T-118] **着手可能 (衛生)**: `/dev/shm` の残留 temp dir 40,280 個 (production の mkdtemp 後始末漏れ)
+5. [T-088] **人間手番 (承認済み・未実行)**: floor 投入。**[T-096] の修正後**
+6. [T-109] **着手可能 (裁定完了)**: `/dev-wave クロスプロトコル対応`。変わらず
+7. [T-113] **裁定済み → 着手可能**: root-isolation 変異の control を新設する
+8. [T-110] **裁定済み → 着手可能**: 受理集合を変える改修の手続義務を規約化する
+9. [T-104] **裁定済み → 着手可能**: dev-wave reference の再編。**軽量版を既定とする裁定の反映も含める**
+10. [T-101] **裁定済み → [T-104] の後**: 作法 2 件を採用する
+11. [T-108] **裁定済み → [T-104] の後**: 作法 2 件を採用する
+12. [T-111] **裁定済み → [T-104] の後**: 作法 2 件を採用する
+13. [T-097] **裁定済み → 着手可能**: 変異台帳 JSON を placeholder 検出の対象族へ足す
+14. [T-100] **裁定済み → 着手可能**: 検出語彙へ表記ゆれ・HTML entity を足す
+15. [T-099] **裁定済み → 着手可能**: 凍結成果物の placeholder は止める仕様を明記する
+16. [T-009] **着手可能**: dev-wave 実装子の規律の所在を AGENTS.md へ明文化する
+17. [T-060] **着手可能**: WAL 用語運用の明文化
+18. [T-012] **着手可能**: task-run pilot の凍結解除可否を再評価する
+19. [T-103] **裁定済み → 1 cycle 後**: never-issued 検査は先送り。変わらず
+20. [T-089] **裁定済み → 測定後**: 二重 reason-tag 描画。変わらず
+21. [T-090] **裁定済み → 測定後**: `VerifiedFreeze.document` が mutable。変わらず
+22. [T-112] **裁定済み → 床値実測の後**: `s1_known_axes_freeze` の root 束縛が不完全。変わらず
+23. [T-114] **裁定済み → 一巡後**: never-issued の全層 scope 漏れ。変わらず
+24. [T-105] **裁定済み → [T-011] の後**: `_run_artifact_bytes` の `FileNotFoundError` 素通し。変わらず
+25. [T-011] 科学レーン floor 実測。残 gate = [T-096] → [T-088] → 段階 3・4 → 実行 revision 束縛
+26. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+27. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+28. [T-010] 延期: B-008 再試験は新規 background session が発火条件。変わらず
+29. [T-082] 延期: prefix 容認 reader の用途別移行。**本番コードのため測定後**。変わらず
+30. [T-116] **完了 (本エントリ)**: 本番 git 畳み込みを実施。25.0 秒 → 9.1 秒・byte 同一
+31. [T-057] **完了 (2026-07-26 (13) と本エントリ)**: 全走 75 秒 / 0 failed。変わらず

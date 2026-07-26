@@ -1,7 +1,12 @@
 # [T-057] テストスイート全走が遅い原因の実測と修正 (2026-07-26)
 
-worklog 2026-07-26 (13) の一次資料。計測環境・実測値・棄却した仮説・変異結果・先送り項目を置く。
-実装は `orchestrator/tests/` のみ (本番コード 0 byte)。
+worklog 2026-07-26 (13) と (14) の一次資料。計測環境・実測値・棄却した仮説・変異結果・
+先送り項目を置く。
+
+**改訂 (同日、ユーザー裁定「今すぐ両方やる」)**: 当初はテストのみ (本番 0 byte) で 132 秒まで
+短縮したが、ユーザーがさらなる短縮を求めたため、本番 `t080_freeze_migration` の git 呼び出し
+畳み込み (§12) と T-080 E2E fixture の再利用 (§13) を追加した。本番修正の出力は byte 同一を実測。
+§8 の「本番 0 byte」は §12 より前の段階の記述である。
 
 ## 1. 計測環境
 
@@ -129,18 +134,88 @@ S1〜S3 の変異対象は本 wave で新設したモジュールであり、変
 
 ## 10. 先送り・裁定へ返す項目
 
-- **[T-116] 本番 `_build_repin_report` の blob 再取得 30.9 倍** → 裁定パッケージ。
-  production 非改変の wrapper で実測すると `verify_receipt` は **21.9 秒 → 13.1 秒 (1.7 倍)**、
-  結果は byte 同一 (state / refusals / validation_head / observation)。`cat-file blob` の実発行は
-  1607 → 52 本。残りは `diff-tree --root` 58 本 (8.5 秒) 等。テスト側 memo とは独立に効き、
-  CLI 子プロセス経路 (makespan 下限の 81 秒) にも効く唯一の手。
-  worklog 2026-07-26 (12) の条件 (本番に触る改善は裁定へ返す) に従い本 wave では実装していない。
-- **[T-117] 残 tail と負荷依存 flake 2 件**: CLI 子プロセス系 (81 秒 / 30 秒)、
-  `_t080_stub_free_e2e_repo` 系 7 本 (各 20〜27 秒。17 秒が subprocess 待ち、fork 779 本)、
-  §6 の flake 2 と 3。
+- **[T-116] 本番 `_build_repin_report` の blob 再取得 30.9 倍** → 裁定パッケージとして起票したが、
+  **同日ユーザーが「今すぐ両方やる」と裁定したため本 wave で実施した (§12)**。起票時の見積りは
+  production 非改変の wrapper 実測で `verify_receipt` 21.9 秒 → 13.1 秒 (1.7 倍・byte 同一)。
+  実装後の実測は **25.0 秒 → 9.1 秒 (2.7 倍)** で、見積りより効いたのは §12 が blob 重複除去に加えて
+  batch-check の memo と `diff-tree` の並行化も含むため。
+- **[T-117] 残 tail と負荷依存 flake** (§14 で更新): 最終形の律速は
+  **real-repo loadgroup の直列 69 秒**で、reader/writer 分離が次の lever。
+  dev_waves supervisor 系の timing 依存 flake (§6 の 2 件 + §14 の 1 件) は未修正。
+  `_NPROC_CAP` の再評価も含む (実測は -n 16/32/48 で 74〜77 秒と差が小さい)。
 - **[T-118] `/dev/shm` の残留 temp dir 40,280 個**: production の `mkdtemp` 後始末漏れ (衛生)。
 
-## 11. ワークフローの逸脱 (正直な記録)
+
+## 12. 追加 (本番): receipt 検証の git 呼び出しを 1855 → 241 本に畳んだ
+
+commit `37397f5`。ユーザー裁定「今すぐ両方やる」により §10 の [T-116] を本 wave で実施した。
+**意味を変えない 3 点**に限定した。
+
+1. `_cat_blob` — `cat-file blob <spec>` の内容を (root, spec) で memo。git object は
+   content-addressed なので同じ spec の内容は不変で、結果は変わらない。
+2. `_blob_oid_by_commit` — (root, path, commit 集合) が同じなら batch-check 結果も同じなので memo。
+   repin key ごとに同一の全 commit 走査を繰り返していた。
+3. `_any_history_touches_path` — descendant ごとの `diff-tree` は独立な read-only クエリなので、
+   **コマンドと解析を一切変えず**並行実行 (最大 8)。True が 1 つでも True (逐次 `any` と同値)、
+   例外は True が無い場合だけ commit 順で最初のものを送出 (呼び出し元の frozenset は元々順序不定)。
+
+実測 (ログインノード・単一 process、同一 repo / 同一 HEAD):
+
+| | 時間 | git 呼び出し |
+|---|---|---|
+| 変更前 (`git checkout HEAD` で戻して実行) | **25.0 秒** | 1855 本 |
+| 変更後 | **9.1 秒** | 241 本 |
+
+**出力は byte 同一**: state / refusals / validation_head / introduction_commit / observation /
+receipt / receipt_raw の sha256 を正規化した JSON の sha256 が前後で一致 (`98dc760a…`)。
+実験後はファイルを元テキストとの内容一致で復元した。
+
+追加テスト 2 本 (`test_t080_freeze_migration.py`、どちらも合成 repo で hermetic):
+
+- `test_history_touches_batch_is_equivalent_to_sequential_any` — merge / rename / 無関係 commit を
+  含む履歴で、全体・部分集合・空・単一のすべてで並行版 == 逐次版 (負例 control 付き)。
+  並行化で検出力が落ちる / 過剰拒否になる退行を殺す。
+- `test_cat_blob_memoizes_per_object_without_changing_bytes` — memo の発火回数と、別 spec に
+  別の値を返すこと。
+
+## 13. 追加 (テスト): T-080 E2E fixture を引数ごとに 1 回だけ組む
+
+commit `6d3f2d2`。`_t080_stub_free_e2e_repo` は 46MB / 4396 entries の repo を組むのに
+**15.5 秒**かかり、12 回の呼び出しのうち同一引数が 7 回あって毎回作り直していた。
+引数 (r_trailer / extra_r_path / issue_receipt / distinct_basis_blob) を key に process 内で base を
+1 回組み、各テストへは**実体コピー (実測 0.3 秒)** を渡す。テストが repo を破壊的に変異させる
+(ファイル追記・submodule への commit・削除) ため hardlink 共有はしない。document は deepcopy。
+base は `atexit` で消す。
+
+実測 (`-k t080` の 14 本、単一 process): **155 秒 → 69 秒**。同一引数の 2 本目以降が 15 秒 → 1.3 秒。
+
+## 14. 全走の推移と最終形の律速 (計算ノード 48 core 専有)
+
+| 状態 | `-n 32` | 備考 |
+|---|---|---|
+| 修正前 | 413 秒 (cold) / 586 秒 (warm) | 3 回とも 1 件ずつ別の flake で赤 |
+| テスト側 memo のみ | 132 秒 | 0 failed。`-n 48` = 132 秒、`-n 16` = 91 秒 |
+| + 本番 git 畳み込み | 76 秒 (cold) / 76 秒 (warm) | `-n 16` = 74 秒、`-n 48` = 77 秒 (job 871579) |
+| **+ fixture 再利用 (最終形)** | **75 秒** (cold) / 75 秒 (warm) | `-n 16` = **74 秒**、`-n 48` = 77 秒 (job 871580) |
+
+**最終形の律速 = real-repo loadgroup の直列 69 秒** (job 871580 の P3 / P4 の duration 集計)。
+43 item を単一 worker に固定しているため、全走 74〜77 秒はほぼこの床である
+(work 合計は `-n 16` で 605 秒、最重 node は 24.7 秒)。**並列度を変えても 74〜77 秒で動かない**のは
+この直列鎖が理由。次の lever は reader/writer 分離 (reader を共有ロックで並列化し、submodule へ
+patch する writer 4 本だけを排他にする) で、そこまで行けば max(最重 node 25 秒, work/N) ≈ 30 秒台が
+見込める → [T-117]。
+
+fixture 再利用は **work を 105 秒削ったが wall は変えなかった** (76 → 75 秒)。上記の直列鎖が
+支配しているためで、work の削減は CPU 負荷と flake の起きにくさに効く。
+
+**計測中に repo を編集してはいけない (実測した事故)**: job 871580 の P1 で 9 件赤になったが、
+うち 8 件は `test_s8b_floor_campaign` の「実 repo の `output/` が 1 byte も変わらない」検査で、
+原因は**親が全走中に本 insight ファイルを編集したこと**だった (差分は本ファイルの sha256)。
+テストは正しく検知しており差分の退行ではない。同ジョブの P3 は 0 failed。
+**同じ理由で、計測 job の `git checkout -- .` による掃除は未コミットの実装を巻き戻す** —
+本作業では 2 回踏んだ (fixture 再利用と本 insight の追記)。実装は測る前に commit する。
+
+## 15. ワークフローの逸脱 (正直な記録)
 
 本作業は `/dev-wave` として開始したが、段 3 (敵対相談 2 本) の途中でユーザーが中断を指示し、
 軽量ワークフロー (実測 → 実装 → 検証 → commit) へ切り替えた。したがって
