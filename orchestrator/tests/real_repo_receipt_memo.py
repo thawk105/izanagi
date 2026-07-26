@@ -13,6 +13,10 @@ duration 合計 3694 秒の 90% がこの解決だった。commit を積むほ�
 - canned な `ReceiptResolution` を作らない。最初の miss は必ず本番の
   `verify_receipt(root=ROOT)` へ委譲し、戻り値を再構築・deepcopy せずそのまま返す。
   したがってテストが観測する値は memo 導入前と同一である。
+- xdist では worker ごとに process が分かれるので、process memo だけだと worker 数だけ
+  実解決が走る。`-n 32` では 32 本が同時に走って 1 回 22 秒が **129 秒**へ膨らむのを実測した。
+  そのため session 限定 (xdist run ID + HEAD で key 付け) の cache を repo 外の一時領域へ置き、
+  flock 下で 1 セッション 1 回に落とす。cache が読めない・型が違う場合は実解決へ倒す。
 - ROOT 以外を渡されたら即 `AssertionError`。tmp repo / tamper 検出系へ patch が漏れた
   場合に「cached な valid 値で偽緑」にせず赤で止める (fail-closed)。
 - patch 先は**テストが実際に import する module object** = `campaign.s8b_oracle_driver`。
@@ -32,9 +36,17 @@ duration 合計 3694 秒の 90% がこの解決だった。commit を積むほ�
 """
 from __future__ import annotations
 
+import fcntl
 import functools
+import os
+import pickle
+import re
+import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
+from typing import Optional
 from unittest import mock
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
@@ -53,10 +65,107 @@ from campaign import t080_freeze_migration as migration  # noqa: E402
 _PRODUCTION_RESOLVE = driver._resolve_t080_receipt
 
 
+_RUN_ID_ENV = "PYTEST_XDIST_TESTRUNUID"
+_CACHE_PREFIX = "izanagi-t057-receipt-"
+_CACHE_STALE_S = 6 * 3600
+
+
+def _resolve_now():
+    """本番 resolver をそのまま 1 回呼ぶ (memo なし)。"""
+    return _PRODUCTION_RESOLVE(root=ROOT)
+
+
+def _repo_head() -> Optional[str]:
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, timeout=30, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out if re.fullmatch(r"[0-9a-f]{40}", out) else None
+
+
+def _session_cache_path() -> Optional[Path]:
+    """xdist の 1 セッションに閉じた cache パス。非 xdist なら None。
+
+    xdist では worker ごとに process が分かれるため、process memo だけでは worker 数だけ
+    実解決が走る。**-n 32 では 32 本の解決が同時に走って 1 回 22 秒が 129 秒へ膨らむ**
+    (計算ノードで実測)。これを 1 セッション 1 回へ落とすため、repo 外の一時領域へ
+    session 限定の cache を置く。key は xdist の run ID + HEAD なので、別セッション・
+    別 commit と混ざらない。
+    """
+    run_id = os.environ.get(_RUN_ID_ENV, "")
+    if not re.fullmatch(r"[0-9a-zA-Z]{8,64}", run_id):
+        return None
+    head = _repo_head()
+    if head is None:
+        return None
+    return Path(tempfile.gettempdir()) / f"{_CACHE_PREFIX}{run_id}-{head}.pickle"
+
+
+def _cache_load(path: Path):
+    """cache を読む。読めない・型が違うなら None (呼び出し側が実解決へ倒す)。"""
+    try:
+        value = pickle.loads(path.read_bytes())
+    except Exception:
+        return None
+    return value if isinstance(value, migration.ReceiptResolution) else None
+
+
+def _cache_store(path: Path, resolution) -> None:
+    """同一 dir 内の tmp へ書いてから rename する (部分書き込みを読ませない)。"""
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_bytes(pickle.dumps(resolution))
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+
+def _prune_stale_caches(directory: Path) -> None:
+    """古い session cache を捨てる (一時領域へ無限に溜めない)。"""
+    cutoff = time.time() - _CACHE_STALE_S
+    try:
+        entries = list(directory.glob(f"{_CACHE_PREFIX}*"))
+    except OSError:
+        return
+    for entry in entries:
+        try:
+            if entry.stat().st_mtime < cutoff:
+                entry.unlink()
+        except OSError:
+            pass
+
+
 @functools.lru_cache(maxsize=1)
 def real_repo_receipt():
-    """実 repo の T-080 receipt 解決。process 内で実評価はちょうど 1 回。"""
-    return _PRODUCTION_RESOLVE(root=ROOT)
+    """実 repo の T-080 receipt 解決。実評価は 1 process 1 回、xdist では 1 session 1 回。"""
+    path = _session_cache_path()
+    if path is None:
+        return _resolve_now()
+    lock = path.with_name(f"{path.name}.lock")
+    try:
+        handle = open(lock, "a+b")
+    except OSError:
+        return _resolve_now()
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        cached = _cache_load(path) if path.exists() else None
+        if cached is not None:
+            return cached
+        resolution = _resolve_now()
+        _prune_stale_caches(path.parent)
+        _cache_store(path, resolution)
+        return resolution
+    finally:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
 
 
 def memo_resolver(*, root):

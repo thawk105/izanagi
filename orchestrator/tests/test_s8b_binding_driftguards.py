@@ -339,6 +339,8 @@ def test_receipt_memo_delegates_to_production_verifier_exactly_once():
     _clear_receipt_memo()
     try:
         with pytest.MonkeyPatch.context() as patcher:
+            # session cache (xdist 用) を切って process 内経路だけを検査する。
+            patcher.setattr(receipt_memo, "_session_cache_path", lambda: None)
             patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
             first = receipt_memo.real_repo_receipt()
             second = receipt_memo.real_repo_receipt()
@@ -371,6 +373,8 @@ def test_receipt_memo_patches_the_driver_module_the_tests_import():
     _clear_receipt_memo()
     try:
         with pytest.MonkeyPatch.context() as patcher:
+            # session cache (xdist 用) を切って process 内経路だけを検査する。
+            patcher.setattr(receipt_memo, "_session_cache_path", lambda: None)
             patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
             with receipt_memo.patch_driver_resolver() as spy:
                 got_a = driver._resolve_t080_receipt(root=ROOT)
@@ -387,6 +391,30 @@ def test_receipt_memo_refuses_roots_other_than_the_real_repository(tmp_path):
     """tmp / tamper 経路へ patch が漏れたら、cached な valid 値で偽緑にせず赤で止める。"""
     with pytest.raises(AssertionError):
         receipt_memo.memo_resolver(root=tmp_path)
+
+
+def test_receipt_memo_session_cache_round_trip_preserves_the_resolution(tmp_path):
+    """xdist 用 session cache は値を保存し、壊れた cache では実解決へ倒す。
+
+    worker 間共有は pickle 往復になるため、observation・refusals・raw bytes が
+    落ちないことを固定する (frozen dataclass の等値比較)。cache が読めない場合に
+    None を返す (= 呼び出し側が実解決へ倒す) ことも同時に固定する。
+    """
+    resolution = driver_fixtures.migration.ReceiptResolution(
+        state="active-valid",
+        refusals=("floor-null: x",),
+        t080_freeze_migration_observation={"items": [{"a": 1}], "validation_head": "c" * 40},
+        validation_head="c" * 40,
+        introduction_commit="a" * 40,
+        receipt={"confirmed_by": "human.test"},
+        receipt_raw=b"receipt-bytes",
+    )
+    path = tmp_path / "cache.pickle"
+    receipt_memo._cache_store(path, resolution)
+    assert receipt_memo._cache_load(path) == resolution
+
+    path.write_bytes(b"not a pickle")
+    assert receipt_memo._cache_load(path) is None
 
 
 if __name__ == "__main__":
