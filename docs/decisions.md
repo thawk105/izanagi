@@ -3934,3 +3934,66 @@ ratified は `pre_oracle_head` blob 射影による再現性を優先した構�
 受入全走 = 3058 passed / 18 skipped。
 
 AI-Agent 記録の正本は commit message とし、本項へ重複させない。
+
+## D90. [T-106][T-107] selector の parser-authoritative 契約を確定 — ratified 非再 parse の射程と parser 感応 2 層 (2026-07-26)
+
+**決定: D89 (5)(6) が裁定パッケージへ送っていた 2 択を、2026-07-26 のユーザー裁定で確定する。**
+[T-106] = (a) 現状維持 + 射程の明記 (ratified 側に再 parse を入れない)。
+[T-107] = (a) parser-authoritative 契約の明文化 (出力 schema と selector role の bytes は変えない)。
+本決定は D89 の事実を再掲せず、**確定した契約・補完した射程・機械的固定**だけを書く。
+材料正本 = `output/insights/2026-07-26_t106-t107-parser-authoritative.md`。
+検出 3 語は D88 (6) の表記規約を継承し LP-1 / LP-2 / LP-3 と記号参照する。
+
+(1) **契約 (規範)。** raw 受理集合の唯一の正本は **parser module**
+`orchestrator/campaign/s8b_selector_output.py` とする。関数 `parse_selector_output` 単体ではなく
+module 全体を正本とするのは、受理集合が定数 (`ALLOWED_CHOICE_IDS`、最大長、LP 集合) と decode helper に
+依存し、関数本体を触らずに受理集合を動かせるためである。
+prediction 文書に記録された `status` / `choice_id` / `rationale` / `parser_error_code` を、
+raw 受理可否の**独立な正本として扱ってはならない** — これらは parser 判定の記録であって根拠ではない。
+parser の受理集合変更だけを理由に、role・両 schema・既存 prediction・既存 freeze の bytes を
+**追随変更してはならない**。それらの変更や versioned schema/role への移行は本契約から導出されず、
+別件のユーザー裁定を要する。
+
+(2) **なぜ schema/role を正本にできないか (実測)。** 両者は封印済み prediction の `sources` に
+sha pin され、`verify_prediction_freeze` → `_verify_file_record` が worktree から再読して照合する。
+親が実ファイルへ 1 byte 追記して実測した結果、role は `sources.role.sha256 が実ファイルと不一致`、
+output_schema は `sources.output_schema.sha256 が実ファイルと不一致` で既存封印の検証が実際に割れた
+(いずれも `git checkout --` 復元後に PASS)。模擬ではない。
+
+(3) **射程は 2 層である (D89 の補完)。** D89 (6) は floor だけを挙げていたが、
+`parse_selector_output` の直接呼び出しは repo 全体で 2 箇所だけであり、感応層は次の 2 つである。
+**生成層** = `record_agent_attempt` (parser 判定が journal の記録値になる)。
+**検証層** = `_reparse_agent_raw` (`verify_prediction_freeze` から行ごとに呼ばれ記録値と再照合する)。
+検証層の消費者は floor launch preflight・prediction runner の seal reload・verdict の prediction 検証・
+selector-freeze verify CLI の 4 つ。**このうち floor は dormant** である
+(official mode は core で無条件拒否される。承認済みの解禁作業は [T-088] 系で進行中)。
+
+(4) **ratified は非消費者だが「何もしない」のではない。** ratified は journal と prediction row の
+記録値どうしを相互照合し (status / choice_id / rationale / parser_error_code / receipt / raw path /
+raw sha)、raw・envelope の bytes hash と parser・role・protocol の `pre_oracle_head` blob sha を照合する。
+**していないのは raw テキストの再 parse だけ**である。ただし ratified は selector freeze module を
+import し、それが parser module を module-level で import するため、**parser の import 可能性には感応する**
+(syntax error や top-level raise は全 ratified launch を倒す)。非感応なのは raw 分類の意味論だけである。
+
+(5) **機械的固定と、固定しないものの明示。** 受理差を
+`test_selector_parser_classification_boundary_at_ratified_launch` で固定した。
+負例 (parser 拒否 raw を valid と記録 → ratified 受理・verify 拒否)、
+**誤 error code での記録も拒否**、**正直な invalid 記録は受理** (承認外の過剰拒否を撃つ正例)、
+post-A の evidence 書換えは `history-mutated` で拒否、を assert する。
+本テストは**受理集合テスト**であり、certified 選択値・材料レポート・試行台帳の値は直接守らない
+(`s8b_verdict.py` に `rationale` の出現は 0 件で、combined verdict は choice と
+`prediction_body_sha256` を使う)。この限界を承知のうえで採る。
+
+(6) **本決定が導入しない統治。** 段 3 の敵対相談は、当初案にあった「全受理集合変更に新 D を必須とする」
+「新 consumer は必ず `verify_prediction_freeze` を経由させる」「consumer 閉集合を恒久的に更新する」を
+**ユーザー裁定 2 件の射程外の新設統治**と判定した。親はこれを採用して**削除**した。
+consumer 閉集合を AST で固定するテストも、構文形状しか固定せず (`if False`・alias・`getattr`・
+例外握り潰しを見逃す一方、無害な refactor で偽赤になる) 不採用とした。消費者の列挙は本項 (3) の散文に置く。
+
+(7) **検証プロセス。** codex プラン (max) → 敵対相談 2 (max) → 親裁定 → 実装 1 → 敵対レビュー 2 (max)
+→ fix → 焦点再レビュー (max)。**相談 2・レビュー 2・焦点再 1 のすべてが NO-GO。**
+レビューは実在の検出漏れ (error code 比較が無防備) と偽 KILL (private 関数直呼び) を発見し、
+親の実測の過大表現 (「ratified は blob sha だけ照合」) も訂正させた。
+変異は事前登録 5/5 一致 (帰属 3 / 非帰属 control 2)。事前登録の誤り 3 件は材料正本 §8 に erratum として残す。
+
+AI-Agent 記録の正本は commit message とし、本項へ重複させない。

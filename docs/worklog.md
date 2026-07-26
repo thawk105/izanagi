@@ -838,3 +838,82 @@ dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対�
 22. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。同上
 23. [T-012] 延期: pilot 凍結維持。同上
 24. [T-082] 延期: 全 caller 移行は 1 cycle 後。同上
+
+## 2026-07-26 (5) — [T-106][T-107] parser-authoritative 契約を確定し受理差を境界テストで固定 (テストのみ・本番 0 byte、branch worktree-dev-wave-t091-093-hardening、計測なし)
+
+/dev-wave 1 回。2026-07-26 にユーザーが裁定した (a)/(a) を実施した。差分は
+`test_s8b_ratified_verify.py` の 199 行 (純追加) だけで、production・schema・role・凍結成果物の
+bytes は不変、受理集合は拡大も縮小もしない。設計裁定は D90、材料は
+`output/insights/2026-07-26_t106-t107-parser-authoritative.md`、逐語は同 `-verbatim.md`、
+変異台帳は同 `-mutation-ledger.json`。実装 commit = `c4efa3b`。
+検出 3 語は D88 (6) を継承し LP-1 / LP-2 / LP-3 の記号参照で書く。
+
+- [T-106] **消化**。ratified に再 parse を入れず、射程を D90 (3)(4) に明記した。
+- [T-107] **消化**。受理集合の正本を **parser module** (関数単体でなく module) と明文化した。
+  定数・helper で受理集合が動くため関数名では抜け道が残る、という段 3 の指摘 (A-5) を採用した。
+- **裁定前提は実ファイル編集で実測した (模擬なし)**。role と output_schema に 1 byte 追記すると
+  既存封印 prediction の検証が実際に割れ (`sources.*.sha256 が実ファイルと不一致`)、
+  `git checkout --` 復元後に緑へ戻ることを確認した。これが [T-107] の根拠である。
+- **親の実測を段 3 が訂正した (A-6、real)**。親は「ratified は parser の blob sha を照合するだけ」と
+  書いたが、ratified は selector freeze module を import し、それが parser module を module-level で
+  import する。**ratified は parser の import 可能性には感応**し、非感応なのは raw 分類の意味論だけ。
+- **D89 の射程漏れを補完した**。D89 は floor だけを挙げていたが、parser 感応は生成層
+  (`record_agent_attempt`) と検証層 (`verify_prediction_freeze`) の 2 層で、検証層の消費者は 4 経路。
+  **うち floor は dormant** (official が core で無条件拒否される)。
+- **scope 外として 2 件を不採用にした**。consumer 閉集合の AST テスト (構文形状しか固定せず
+  `if False`・alias・`getattr` を見逃す一方、無害な refactor で偽赤になる) と、D90 の統治機構
+  (「全受理集合変更に新 D 必須」「新 consumer は必ず verify 経由」)。後者はユーザー裁定 2 件の射程外の
+  新設で、DW-G03 の独立 2 例も無い。裁定パッケージへ送る ([T-110])。
+- **素材: レビューが実在の検出漏れを見つけた。** 当初実装は private 関数 `_reparse_agent_raw` を
+  直呼びして「status 照合の変異を殺す」と主張していたが、公開経路では `valid` 行の
+  `parser_error_code` が手前で `None` に強制されるため**等価変異**であり、偽の KILL だった (RA-1)。
+  実効的な変異 (記録 error code の照合を消す) は当時**誰も捕まえていなかった**。公開経路の負例
+  (`invalid` + 誤 code) へ差し替えた結果、この変異が新テスト固有の KILL になった。
+- **変異 matrix (親実測、統合 commit 前)**: 事前登録 **5/5 が実測と一致**。帰属 3 (S3 = 記録 error code の
+  照合、S4 = 正例による過剰拒否検出、S6 = 診断シグナル pin)、非帰属 control 2 (S1 / S2 は既存テストも
+  KILL)。control は**変更前 Git HEAD のテスト集合**とし、本差分が純追加であることを利用して
+  新 node の `--deselect` で exact に再現した。harness は アンカー一意性 assert・注入 diffstat 記録・
+  `git checkout --` 復元 + 内容一致検査・flock 単一走行を持ち、全走後の tree は clean。
+- **事前登録の誤りが 3 件あり、erratum として台帳に残した** (材料 §8)。S3 の等価変異 (RA-1 が検出)、
+  S5 の到達不能 (RA-2 が検出。`_fixed_commit_all` へ戻すと直後の base commit が空 commit で先に落ちる)、
+  S6 の期待値誤り (親の誤り。本走で判明)。**S1 が非帰属だった**ことも収穫で、ratified に再 parse を
+  足すと既存 42 node が落ちる — この性質は本 wave 以前から既存テスト群が厚く守っていた。
+- **エージェント工数**: codex 子 6 本 (プラン 1・敵対相談 2・実装 1・レビュー 2 は max/high、fix 1・
+  焦点再 1)。**相談 2 本・レビュー 2 本・焦点再 1 本のすべてが NO-GO**。親の provisional 裁定は
+  (P2) が否定され、「delta 4 点」も水増し (実質 3 点) と判定された。
+- **検査 (統合 commit 直前の実測)**: 受入全走 **3059 passed / 18 skipped / 0 failed** (1811.26s)。
+  基線 3058 (前 wave 実績) に対し +1 = 本 wave の新テスト 1 本、node 消失 0。`check_docs` rc=0。
+- **task-run pilot は非発火** ([T-012] で凍結維持のため。DW-O07 の発火条件を満たさない)。
+
+### 次の一手
+1. [T-109] **新セッションで着手 (ユーザー裁定済み)**: `/dev-wave クロスプロトコル対応` を再実行する。
+   **着手前に (a) の裁定が要る** — trace-hook の置き場所を out-of-tree patch (D16 の一回限りの例外)
+   とするか、submodule ブランチ (gitlink 前進 → 承認定数の再承認 + 再凍結) とするか。
+   **AI 推奨 = patch 例外を許す**。正本 = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §5
+2. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` → 明示実行。
+   期待は driver rc=2。[T-109] との順序制約は解消済み。変わらず
+3. [T-110] **新規・裁定待ち**: 本 wave が scope 外として不採用にした 2 件の扱い。
+   (i) parser 感応 consumer の閉集合を機械的に固定するか (現行 AST 案は構文形状しか固定できず不採用。
+   到達意味論を固定する別機構が要る)、(ii) 受理集合変更時の手続義務 (新 D・境界テスト同時更新) を
+   制度化するか。どちらも DW-G03 の独立 2 例が無いため、制度化には裁定が要る。正本 =
+   `output/insights/2026-07-26_t106-t107-parser-authoritative.md` §6 と D90 (6)
+4. [T-105] **裁定済み → [T-011] の後**: `_run_artifact_bytes` の `FileNotFoundError` 素通し修正。変わらず
+5. [T-102] scope 外 real 所見: production の git runner が ambient `GIT_*` を継承する。変わらず
+6. [T-103] 未着手: never-issued 状態の real artifact 由来 refusal vector を別 node で撃つテスト。変わらず
+7. [T-011] 科学レーン floor 実測。残 gate = [T-088] → 段階 3・4 → 実行 revision 束縛 → lineage。変わらず
+8. [T-097] 裁定待ち: placeholder 検出の対象族拡張。変わらず
+9. [T-099] 裁定待ち: 凍結成果物に placeholder が入った場合の専用 waiver 契約。変わらず
+10. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
+11. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+12. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+13. [T-104] 裁定待ち (dev-wave 自己改善): 予算値の引き上げ可否の独立審査か reference 再編か。変わらず
+14. [T-108] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+15. [T-089] 測定後の hardening と裁定 (前倒し対象外): 二重 reason-tag 描画。変わらず
+16. [T-090] 測定後の hardening と裁定 (前倒し対象外): `VerifiedFreeze.document` が mutable dict。変わらず
+17. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+18. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+19. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+20. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+21. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+22. [T-012] 延期: pilot 凍結維持。変わらず
+23. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
