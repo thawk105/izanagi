@@ -1076,6 +1076,98 @@ def test_cli_draft_validate_and_finalize_expected_refusals_return_two():
             assert result["state"] == "invalid" and len(result["refusals"]) == 1
 
 
+def test_history_touches_batch_is_equivalent_to_sequential_any():
+    """[T-057] 並行版 `_any_history_touches_path` は逐次 `any(...)` と同値。
+
+    merge・rename・無関係 commit を含む履歴で、全体・部分集合・空集合・単一要素の
+    すべてについて逐次版と一致することを固定する。並行化で「触っているのに False」
+    (検出力の喪失) や「触っていないのに True」(過剰拒否) になる退行を殺す。
+    負例 control として、対象 path を触らない commit だけの部分集合が False になることも要求する。
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "repo"
+        root.mkdir()
+        _init_repo(root)
+        (root / "a.txt").write_text("a1\n", encoding="utf-8")
+        c1 = _commit_all(root, "add a")
+        (root / "target.txt").write_text("t1\n", encoding="utf-8")
+        c2 = _commit_all(root, "add target")
+        (root / "a.txt").write_text("a2\n", encoding="utf-8")
+        c3 = _commit_all(root, "modify a only")
+        _run_git(root, "checkout", "-q", "-b", "side", c1)
+        (root / "b.txt").write_text("b1\n", encoding="utf-8")
+        c4 = _commit_all(root, "add b on side")
+        _run_git(root, "checkout", "-q", "-B", "main", c3)
+        _run_git(root, "merge", "-q", "--no-ff", "-m", "merge side", c4)
+        c5 = _run_git(root, "rev-parse", "HEAD").decode().strip()
+        (root / "target.txt").write_text("t2\n", encoding="utf-8")
+        c6 = _commit_all(root, "modify target")
+        _run_git(root, "mv", "a.txt", "renamed_a.txt")
+        c7 = _commit_all(root, "rename a")
+
+        touching = (c2, c6)
+        non_touching = (c1, c3, c4, c5, c7)
+        for subset in (
+            (),
+            (c1,),
+            (c2,),
+            non_touching,
+            touching,
+            (c1, c2, c3, c4, c5, c6, c7),
+            (c7, c6, c5, c4, c3, c2, c1),
+        ):
+            expected = any(
+                migration._history_touches_path(commit, "target.txt", root)
+                for commit in subset
+            )
+            actual = migration._any_history_touches_path(subset, "target.txt", root)
+            assert actual == expected, (subset, actual, expected)
+        assert migration._any_history_touches_path(
+            non_touching, "target.txt", root) is False
+        assert migration._any_history_touches_path(touching, "target.txt", root) is True
+
+
+def test_cat_blob_memoizes_per_object_without_changing_bytes():
+    """[T-057] `_cat_blob` は (root, spec) 単位で memo し、内容を変えない。
+
+    git object は content-addressed なので memo は結果を変えないが、
+    「memo が効いていない」(速度退行) と「別 spec の値を返す」(致命的) の両方を殺す。
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "repo"
+        root.mkdir()
+        _init_repo(root)
+        (root / "one.txt").write_text("one\n", encoding="utf-8")
+        (root / "two.txt").write_text("two\n", encoding="utf-8")
+        _commit_all(root, "add two files")
+        oid_one = _run_git(root, "rev-parse", "HEAD:one.txt").decode().strip()
+        oid_two = _run_git(root, "rev-parse", "HEAD:two.txt").decode().strip()
+
+        saved_cache = dict(migration._BLOB_CACHE)
+        real_git = migration._git
+        calls: list[tuple[str, ...]] = []
+
+        def counting(args, git_root, *, stdin=None):
+            calls.append(tuple(args))
+            return real_git(args, git_root, stdin=stdin)
+
+        migration._BLOB_CACHE.clear()
+        migration._git = counting
+        try:
+            first = migration._cat_blob(oid_one, root)
+            second = migration._cat_blob(oid_one, root)
+            other = migration._cat_blob(oid_two, root)
+        finally:
+            migration._git = real_git
+            migration._BLOB_CACHE.clear()
+            migration._BLOB_CACHE.update(saved_cache)
+
+        assert first == b"one\n" and second == b"one\n", (first, second)
+        assert other == b"two\n", other
+        blob_calls = [args for args in calls if args[:2] == ("cat-file", "blob")]
+        assert len(blob_calls) == 2, blob_calls
+
+
 def _run():
     fns = [value for name, value in sorted(globals().items())
            if name.startswith("test_") and callable(value)]

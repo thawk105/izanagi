@@ -9,6 +9,7 @@ unknownness scan だけを検査する。
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import copy
 import dataclasses
 import datetime as dt
@@ -568,6 +569,29 @@ def _git(args: Sequence[str], root: Path, *, stdin: Optional[bytes] = None) -> b
     return completed.stdout
 
 
+_BLOB_CACHE: Dict[Tuple[str, str], bytes] = {}
+_BLOB_CACHE_MAX = 512
+
+
+def _cat_blob(spec: str, root: Path) -> bytes:
+    """``git cat-file blob <spec>`` の内容を process 内で memo する ([T-057])。
+
+    git object は content-addressed なので、同じ ``<oid>`` / ``<commit>:<path>`` に対する
+    内容は不変であり、memo は結果を変えない。実測では receipt 検証 1 回の
+    ``cat-file blob`` 1607 本のうち**異なる oid は 52 個だけ** (30.9 倍の重複) で、
+    これが検証時間 22.4 秒の 9.2 秒を占めていた (commit 数に比例して伸びる)。
+    """
+    key = (str(root), spec)
+    hit = _BLOB_CACHE.get(key)
+    if hit is not None:
+        return hit
+    raw = _git(["cat-file", "blob", spec], root)
+    if len(_BLOB_CACHE) >= _BLOB_CACHE_MAX:
+        _BLOB_CACHE.clear()
+    _BLOB_CACHE[key] = raw
+    return raw
+
+
 def _git_text(args: Sequence[str], root: Path, *, stdin: Optional[bytes] = None) -> str:
     try:
         return _git(args, root, stdin=stdin).decode("utf-8", "strict").strip()
@@ -672,9 +696,19 @@ def _commit_graph(head: str, root: Path) -> CommitGraph:
     return CommitGraph(tuple(commits), parents)
 
 
+_OID_MAP_CACHE: Dict[Tuple[str, str, Tuple[str, ...]], Dict[str, Optional[str]]] = {}
+_OID_MAP_CACHE_MAX = 64
+
+
 def _blob_oid_by_commit(graph: CommitGraph, path: str, root: Path) -> Dict[str, Optional[str]]:
     if not graph.commits:
         return {}
+    # [T-057] (commit 集合, path) が同じなら batch-check の結果も同じ (git object は不変)。
+    # repin key ごとに同一の全 commit 走査を繰り返していたため memo する。
+    cache_key = (str(root), path, graph.commits)
+    cached = _OID_MAP_CACHE.get(cache_key)
+    if cached is not None:
+        return dict(cached)
     stdin = "".join(f"{commit}:{path}\n" for commit in graph.commits).encode("utf-8")
     lines = _git(["cat-file", "--batch-check"], root, stdin=stdin).decode("utf-8", "strict").splitlines()
     if len(lines) != len(graph.commits):
@@ -688,6 +722,9 @@ def _blob_oid_by_commit(graph: CommitGraph, path: str, root: Path) -> Dict[str, 
             result[commit] = tokens[0]
         else:
             raise MigrationError("receipt.history_mutated", f"{path} が blob でない: {commit}")
+    if len(_OID_MAP_CACHE) >= _OID_MAP_CACHE_MAX:
+        _OID_MAP_CACHE.clear()
+    _OID_MAP_CACHE[cache_key] = dict(result)
     return result
 
 
@@ -700,7 +737,7 @@ def _blob_bytes_at(commit: str, path: str, root: Path) -> bytes:
     oid = _blob_oid_at(commit, path, root)
     if oid is None:
         raise MigrationError("receipt.basis_invalid", f"{commit}:{path} が存在しない")
-    return _git(["cat-file", "blob", oid], root)
+    return _cat_blob(oid, root)
 
 
 def _tree_entry(commit: str, path: str, root: Path) -> Tuple[str, str, str]:
@@ -724,7 +761,7 @@ def _basis_blob(commit: str, path: str, root: Path, *, ccbench_pin: Optional[str
     if path.startswith(prefix):
         if ccbench_pin is None:
             raise MigrationError("known_axes.ccbench_gitlink", "ccbench pin がない")
-        return _git(["cat-file", "blob", f"{ccbench_pin}:{path[len(prefix):]}"], root / CCBENCH_REL)
+        return _cat_blob(f"{ccbench_pin}:{path[len(prefix):]}", root / CCBENCH_REL)
     return _blob_bytes_at(commit, path, root)
 
 
@@ -807,6 +844,42 @@ def _descendants_of(graph: CommitGraph, ancestor: str) -> frozenset[str]:
                 seen.add(child)
                 queue.append(child)
     return frozenset(seen)
+
+
+def _any_history_touches_path(commits: Iterable[str], path: str, root: Path) -> bool:
+    """`_history_touches_path` を commit 集合へ適用する ([T-057])。
+
+    各 commit のクエリは互いに独立な read-only の `git diff-tree` なので、
+    **コマンドと解析を一切変えずに**並行実行する (逐次版は 1 本 0.15 秒 ×
+    descendant 数で、receipt 検証 22.4 秒のうち 8.5 秒を占めていた)。
+    True が 1 つでもあれば True (逐次版の `any` と同じ)。例外は、True が無い場合だけ
+    commit 順で最初のものを送出する (呼び出し元の frozenset は元々順序不定)。
+    """
+    targets = sorted(commits)
+    if not targets:
+        return False
+    if len(targets) == 1:
+        return _history_touches_path(targets[0], path, root)
+    error: Optional[MigrationError] = None
+    touched = False
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(8, len(targets))) as pool:
+        futures = [
+            (commit, pool.submit(_history_touches_path, commit, path, root))
+            for commit in targets
+        ]
+        for commit, future in futures:
+            try:
+                if future.result():
+                    touched = True
+            except MigrationError as exc:
+                if error is None:
+                    error = exc
+    if touched:
+        return True
+    if error is not None:
+        raise error
+    return False
 
 
 def _history_touches_path(commit: str, path: str, root: Path) -> bool:
@@ -1189,13 +1262,13 @@ def _build_repin_report(
             for commit, oid in oids.items():
                 if oid is None or commit not in distances:
                     continue
-                raw = _git(["cat-file", "blob", oid], root)
+                raw = _cat_blob(oid, root)
                 if _sha256(raw) == key[1]:
                     candidates.append((distances[commit], commit, oid))
             new = _blob_bytes_at(basis, key[0], root)
             if candidates:
                 distance, commit, oid = min(candidates, key=lambda value: (value[0], value[1]))
-                old = _git(["cat-file", "blob", oid], root)
+                old = _cat_blob(oid, root)
                 provenance = {
                     "status": "provenance_resolved", "commit": commit,
                     "distance_from_basis": distance,
@@ -1400,7 +1473,7 @@ def _verify_worktree_basis_files(
         if kind != "blob" or mode not in {"100644", "100755"}:
             raise MigrationError("receipt.basis_invalid", f"H_mig source mode/type が不正: {rel}")
         raw = _read_nofollow(root, rel)
-        if raw != _git(["cat-file", "blob", oid], root):
+        if raw != _cat_blob(oid, root):
             raise MigrationError("receipt.basis_invalid", f"worktree bytes が H_mig blob と不一致: {rel}")
         try:
             worktree_mode = (root / rel).lstat().st_mode
@@ -1656,7 +1729,7 @@ def inspect_receipt_history(
     if expected_kind != "blob" or tree_oid != expected_oid:
         raise MigrationError("receipt.history_mutated", "R tree entry が batch OID と不一致")
     try:
-        r_raw = _git(["cat-file", "blob", expected_oid], root)
+        r_raw = _cat_blob(expected_oid, root)
     except MigrationError:
         return ReceiptResolution(
             "issued-but-missing", (_format_refusal(RECEIPT_PREFIX, "receipt.issued_but_missing"),),
@@ -1677,9 +1750,9 @@ def inspect_receipt_history(
             _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
             issued_but_missing = True
             break
-    if any(
-        commit != introduction and _history_touches_path(commit, RECEIPT_REL, root)
-        for commit in descendants
+    if _any_history_touches_path(
+        (commit for commit in descendants if commit != introduction),
+        RECEIPT_REL, root,
     ):
         _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
         issued_but_missing = True
