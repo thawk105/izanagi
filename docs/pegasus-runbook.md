@@ -251,6 +251,12 @@ Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境と
 上の確認は他ユーザーのプロセスを拾って意味をなさない。正式な性能比較へ使うまでは、Pegasus
 上の throughput を既存の `linux-baremetal` 測定値へ混ぜない。正式採用には次が必要になる。
 
+**repo のコードを走らせるジョブは interpreter 版をジョブ内で検査してから使う。** 計算ノードの
+`python3` はログインノードより古いことがある (2026-07-27 実測: bnode010 の `python3` は 3.9 で、
+`match` 文を含む `tools/dev_waves/daemon.py` が SyntaxError になった。同ノードに
+`/usr/bin/python3.10` は在る)。検査せずに投げたジョブは全段 0 データで返り、実測したつもりの
+空振りになる。版を検査して満たす実体を選ぶか、満たさなければジョブを fail-closed で止める。
+
 1. Pegasus 専用の環境タグを決める
 2. その環境で calibration と noise floor を取り直す
 3. thread/process binding と要求 node 数を固定する
