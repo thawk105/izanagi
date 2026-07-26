@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import atexit
 import contextlib
 import copy
 import dataclasses
@@ -15,6 +16,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 import time
 from pathlib import Path
@@ -414,7 +416,42 @@ def _copy_t080_basis_file(root: Path, relative: str) -> None:
     shutil.copyfile(source, target)
 
 
+_T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
+
+
 def _t080_stub_free_e2e_repo(
+        tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
+        extra_r_path: bool = False, issue_receipt: bool = True,
+        distinct_basis_blob: bool = False,
+        ) -> tuple[Path, Path, dict]:
+    """`_build_t080_stub_free_e2e_repo` を process 内で引数ごとに 1 回だけ組む ([T-057])。
+
+    この fixture は 36MB / 2300 ファイルの copytree + `git submodule add` + 子 python での
+    draft→finalize→commit→verify で **1 回 15〜22 秒**かかり、そのうち同一引数の組み合わせが
+    7 回作り直されていた (実測: 本番 git 畳み込み後に残った tail の最大要因)。
+    base を 1 回だけ組み、各テストへは独立した実体コピーを渡す。
+
+    テストは受け取った repo を破壊的に変異させる (ファイル追記・submodule への commit・削除) ため、
+    **コピーは共有しない実体**でなければならない。返す document も deepcopy して渡す。
+    """
+    key = (r_trailer, extra_r_path, issue_receipt, distinct_basis_blob)
+    cached = _T080_E2E_BASE_CACHE.get(key)
+    if cached is None:
+        base_parent = Path(tempfile.mkdtemp(prefix="izanagi-t080-e2e-base-"))
+        atexit.register(shutil.rmtree, base_parent, ignore_errors=True)
+        base_root, _receipt, document = _build_t080_stub_free_e2e_repo(
+            base_parent, r_trailer=r_trailer, extra_r_path=extra_r_path,
+            issue_receipt=issue_receipt, distinct_basis_blob=distinct_basis_blob,
+        )
+        cached = (base_root, document)
+        _T080_E2E_BASE_CACHE[key] = cached
+    base_root, document = cached
+    root = tmp_path / base_root.name
+    shutil.copytree(base_root, root, symlinks=True)
+    return root, root / migration.RECEIPT_REL, copy.deepcopy(document)
+
+
+def _build_t080_stub_free_e2e_repo(
         tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
         extra_r_path: bool = False, issue_receipt: bool = True,
         distinct_basis_blob: bool = False,
