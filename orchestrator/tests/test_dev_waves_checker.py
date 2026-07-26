@@ -65,7 +65,9 @@ def _fixture(
     _git(repo, "config", "user.email", "test@example.invalid")
     (repo / ".gitignore").write_text("\n", encoding="utf-8")
     (repo / "tools").mkdir()
-    shutil.copytree(_ROOT / "tools" / "task_runs", repo / "tools" / "task_runs")
+    # [T-057] 並列 worker の .pyc 書き込みと競合しないよう `__pycache__` を除外する。
+    shutil.copytree(_ROOT / "tools" / "task_runs", repo / "tools" / "task_runs",
+                    ignore=shutil.ignore_patterns("__pycache__"))
     (repo / "tools/check_docs.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
     (repo / "tools/run_tests.py").write_text("raise SystemExit(1)\n", encoding="utf-8")
     (repo / "tools/task_run_check.py").write_text("raise SystemExit(1)\n", encoding="utf-8")

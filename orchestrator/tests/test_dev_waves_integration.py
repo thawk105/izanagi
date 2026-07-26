@@ -124,7 +124,9 @@ class TemporaryRepo:
 def _copy_task_run_surface(main: Path) -> None:
     (main / "tools").mkdir()
     shutil.copy2(_REPO / "tools" / "task_run.py", main / "tools" / "task_run.py")
-    shutil.copytree(_REPO / "tools" / "task_runs", main / "tools" / "task_runs")
+    # [T-057] 並列 worker の .pyc 書き込みと競合しないよう `__pycache__` を除外する。
+    shutil.copytree(_REPO / "tools" / "task_runs", main / "tools" / "task_runs",
+                    ignore=shutil.ignore_patterns("__pycache__"))
 
 
 def _temporary_repo(

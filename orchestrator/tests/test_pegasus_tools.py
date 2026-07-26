@@ -1007,7 +1007,11 @@ def test_submit_dry_run_does_not_resolve_cluster_commands(tmp_path):
     fixture_repo = tmp_path / "repo"
     fixture_tools = fixture_repo / "tools" / TOOL_DIR.name
     fixture_tools.parent.mkdir(parents=True)
-    shutil.copytree(TOOL_DIR, fixture_tools)
+    # [T-057] `__pycache__` を除外する。並列 worker が同じ module を import すると CPython が
+    # `x.cpython-310.pyc.<tmp>` を作って rename するため、それを拾った copytree が
+    # 「途中で消えた」で落ちる (計算ノードの全走で実測した flake)。
+    shutil.copytree(TOOL_DIR, fixture_tools,
+                    ignore=shutil.ignore_patterns("__pycache__"))
     subprocess.run(["git", "init", "-q", str(fixture_repo)], check=True)
     subprocess.run(["git", "-C", str(fixture_repo), "config", "user.email", "fixture@example.invalid"], check=True)
     subprocess.run(["git", "-C", str(fixture_repo), "config", "user.name", "Fixture"], check=True)
