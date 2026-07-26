@@ -235,6 +235,31 @@ def test_verified_state_reads_state_and_identity_from_one_stat():
         process.wait()
 
 
+def test_a_child_that_never_led_its_own_group_is_never_signalled():
+    """The PID must also be the PGID before any group-wide signal.
+
+    ``_preexec`` calls ``setpgid(0, 0)`` before it stops, so a verified child
+    always leads its own group.  Without that binding the recorded PID doubles
+    as a PGID that belongs to somebody else, and resuming or terminating
+    "the child" would signal an unrelated group.
+    """
+    process = subprocess.Popen(
+        ["/bin/sleep", "5"], start_new_session=False, stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        identity = read_pid_identity(process.pid)
+        _state, pgid, _start = worker_mod._proc_stat(process.pid)
+        assert pgid != process.pid, "fixture failed to inherit a foreign group"
+        assert worker_mod._verified_state(identity) is None
+        assert worker_mod._identity_matches(identity) is False
+        assert terminate_verified_group(identity, 0.01) is False
+        assert process.poll() is None
+    finally:
+        process.kill()
+        process.wait()
+
+
 def test_worker_process_spawn_is_noninteractive_and_runs_one_spec():
     with _fresh_dir() as tmp:
         root = Path(tmp)

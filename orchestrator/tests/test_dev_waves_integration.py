@@ -1058,8 +1058,11 @@ def test_vanished_rewrite_scratch_is_skipped_but_lost_artifact_fails_closed() ->
             assert not (run / scratch).exists()
 
             # Anything else is create-only: losing it is a typed failure, not a
-            # bare FileNotFoundError escaping the measurement.
-            for name in (STATUS_NAME, "events.jsonl", "durable-artifact.json"):
+            # bare FileNotFoundError escaping the measurement.  The last name
+            # wears the scratch suffix over a base that is never rewritten, so
+            # a recognizer that matched on shape alone would wrongly skip it.
+            for name in (STATUS_NAME, "events.jsonl", "durable-artifact.json",
+                         f"events.jsonl.tmp.{os.getpid()}.1"):
                 with _vanishing_entry(run, name, 4096):
                     with pytest.raises(DevWavesError) as captured:
                         supervisor._run_artifact_bytes(submitted.run_id)
