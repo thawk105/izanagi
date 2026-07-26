@@ -48,8 +48,8 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 ## DW-O08 — freeze 族の初期化
 
 発火: freeze、oracle gate、proof chain に触る可能性が判明した時点。最遅読了は段 1 brief 前。
-最初に `git submodule update --init` を行う。期限後に判明したら既存 brief 以降を invalidate し、
-段 1 brief から再実行する。未初期化による skip や手前の赤を破損なしと報告してはならない。
+最初に `git submodule update --init` を行う。
+未初期化による skip や手前の赤を破損なしと報告してはならない。
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
@@ -58,13 +58,11 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 bytes を pin する台帳・test・trust root を全列挙する。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛を既定対象に含め、
 durable manifest が未発行か、発行済みで再発行が必要かを区別して brief の不変条件へ書く（F27/F30、D84）。
-期限後に判明したら brief 以降を invalidate し、段 1 brief から再実行する。
 
 ## DW-O10 — producer write-path
 
 発火: `DW-O09` が成立し、対象 producer の出力 bytes が変わりうる時だけ。最遅読了は段 1 brief 前。
 producer が書く全ファイル種を棚卸しして brief に列挙する。非凍結 producer 一般へ拡張しない。
-期限後に判明したら brief 以降を invalidate し、段 1 brief から再実行する。
 
 ## DW-O11 — ファイル削除
 
@@ -80,7 +78,6 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 
 発火: gate・検証を新設する可能性が生じた時点。最遅読了は段 2 のプラン起草前。
 設計を書く前に入力が実成果物のどの field に存在するかを確認し、同名識別子を二義化しない（D75）。
-段 2 後に判明したら段 2 以降の成果物を invalidate し、段 2 から再実行する。
 
 ## DW-O14 — no-touch と monkeypatch
 
