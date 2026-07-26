@@ -1350,6 +1350,205 @@ def test_selector_exact_exemption_accepts_declared_three_axis_evidence(tmp_path)
     assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
 
 
+def test_selector_parser_classification_boundary_at_ratified_launch(
+        tmp_path, monkeypatch):
+    _need_v1()
+    prediction_rel = "output/s8b-freeze/selector_predictions.json"
+    journal_rel = "output/s8b-freeze/selector-runs/journal.jsonl"
+    raw_rel = "output/s8b-freeze/selector-runs/raw_rr20_on.txt"
+    envelope_rel = "output/s8b-freeze/selector-runs/envelope_rr20_on.json"
+    boundary_paths = [prediction_rel, journal_rel, raw_rel, envelope_rel]
+    boundary = {}
+    install_prediction = B._install_emitter_selector_prediction
+
+    def install_parser_boundary(root, **kwargs):
+        install_prediction(root, **kwargs)
+        prediction_path = root / prediction_rel
+        document = json.loads(prediction_path.read_bytes())
+        row = next(
+            row for row in document["rows"]
+            if row["raw_response_path"] == raw_rel
+        )
+        rejected_rationale = f"{row['rationale']} <反映>"
+        rejected_raw = json.dumps({
+            "schema_version": "8b-selector-output/v1",
+            "choice_id": row["choice_id"],
+            "rationale": rejected_rationale,
+        }, ensure_ascii=False, separators=(",", ":"))
+        raw_sha256 = hashlib.sha256(rejected_raw.encode("utf-8")).hexdigest()
+        (root / raw_rel).write_bytes(rejected_raw.encode("utf-8"))
+        row["rationale"] = rejected_rationale
+        row["raw_sha256"] = raw_sha256
+
+        records = [
+            json.loads(line)
+            for line in (root / journal_rel).read_text(
+                encoding="utf-8",
+            ).splitlines()
+        ]
+        invocation = next(record for record in records if (
+            record["record_type"] == "invocation"
+            and record["target_holdout"] == row["target_holdout"]
+            and record["arm"] == row["arm"]
+        ))
+        invocation["rationale"] = rejected_rationale
+        invocation["raw_sha256"] = raw_sha256
+
+        envelope = json.loads((root / envelope_rel).read_bytes())
+        envelope["result"] = rejected_raw
+        envelope_raw = B._json_bytes(envelope)
+        (root / envelope_rel).write_bytes(envelope_raw)
+        envelope_record = next(record for record in records if (
+            record["record_type"] == "envelope"
+            and record["target_holdout"] == row["target_holdout"]
+            and record["arm"] == row["arm"]
+        ))
+        envelope_record["envelope_sha256"] = hashlib.sha256(
+            envelope_raw
+        ).hexdigest()
+
+        _rehash_selector_prediction(document)
+        prediction_path.write_bytes(B._json_bytes(document))
+        (root / journal_rel).write_bytes(B._jsonl_bytes(records))
+        boundary["raw"] = rejected_raw
+        boundary["commit"] = B._commit_exact(
+            root,
+            boundary_paths,
+            subject="parser classification boundary",
+            agent="fixture",
+        )
+
+    monkeypatch.setattr(
+        B, "_install_emitter_selector_prediction", install_parser_boundary,
+    )
+
+    def ratified_only_preflight(repo_root, **_kwargs):
+        paths = set(B.FLOOR._PREFLIGHT_FIXED_FILES)
+        paths.update(
+            path.relative_to(repo_root).as_posix()
+            for path in (repo_root / B.FLOOR._SELECTOR_RUNS_REL).iterdir()
+            if path.is_file() and not path.is_symlink()
+        )
+        return {
+            rel: hashlib.sha256((repo_root / rel).read_bytes()).hexdigest()
+            for rel in paths
+        }
+
+    run_campaign_core = B.FLOOR._run_campaign_core
+
+    def build_without_floor_selector_verify(*args, **kwargs):
+        kwargs["_floor_preflight_fn"] = ratified_only_preflight
+        return run_campaign_core(*args, **kwargs)
+
+    monkeypatch.setattr(
+        B.FLOOR, "_run_campaign_core", build_without_floor_selector_verify,
+    )
+    root, _freeze, topology = _build_launch_repo(
+        tmp_path, selector_valid_cell=True,
+    )
+    document = json.loads((root / prediction_rel).read_bytes())
+    with pytest.raises(SF.SelectorOutputError) as parser_error:
+        SF.parse_selector_output(boundary["raw"])
+    assert parser_error.value.code == "rationale_placeholder"
+    committed_paths = tuple(filter(None, B._fixed_git(
+        root,
+        "diff-tree", "--no-commit-id", "--no-renames", "--name-only", "-r",
+        boundary["commit"],
+    ).splitlines()))
+    assert committed_paths == tuple(sorted(boundary_paths))
+
+    ratified = M.load_ratified_freeze(root)
+    assert ratified.activation_head == topology["A"]
+    # check=True の無例外完了をもって boundary commit が A の祖先であることを検査する。
+    B._fixed_git(
+        root, "merge-base", "--is-ancestor", boundary["commit"],
+        ratified.activation_head,
+    )
+    assert isinstance(
+        M.launch_validate(ratified, root),
+        M.LaunchValidatedFreeze,
+    )
+
+    with pytest.raises(SF.SelectorFreezeError) as verification_error:
+        SF.verify_prediction_freeze(
+            document,
+            freeze=json.loads(
+                (root / document["sources"]["holdout_freeze"]["path"]).read_bytes()
+            ),
+            root=root,
+        )
+    assert str(verification_error.value).count(
+        "invalid:rationale_placeholder"
+    ) == 1
+
+    wrong_code_document = json.loads(B._json_bytes(document))
+    wrong_code_row = next(
+        row for row in wrong_code_document["rows"]
+        if row["raw_response_path"] == raw_rel
+    )
+    wrong_code_row.update({
+        "status": "invalid",
+        "choice_id": None,
+        "binding_key": None,
+        "binding_entry_sha256": None,
+        "rationale": None,
+        "parser_error_code": "invalid_json",
+    })
+    selector_freeze = json.loads(
+        (root / wrong_code_document["sources"]["holdout_freeze"]["path"]).read_bytes()
+    )
+    wrong_code_document["swapped_follow_expectations"] = (
+        SF._derive_swapped_expectations(
+            selector_freeze, wrong_code_document["rows"],
+        )
+    )
+    _rehash_selector_prediction(wrong_code_document)
+    with pytest.raises(SF.SelectorFreezeError) as wrong_code_error:
+        SF.verify_prediction_freeze(
+            wrong_code_document, freeze=selector_freeze, root=root,
+        )
+    assert str(wrong_code_error.value).count(
+        "invalid:rationale_placeholder"
+    ) == 1
+    assert str(wrong_code_error.value).count(
+        "parser_error_code='invalid_json'"
+    ) == 1
+
+    honest_document = json.loads(B._json_bytes(document))
+    honest_row = next(
+        row for row in honest_document["rows"]
+        if row["raw_response_path"] == raw_rel
+    )
+    honest_row.update({
+        "status": "invalid",
+        "choice_id": None,
+        "binding_key": None,
+        "binding_entry_sha256": None,
+        "rationale": None,
+        "parser_error_code": "rationale_placeholder",
+    })
+    honest_document["swapped_follow_expectations"] = SF._derive_swapped_expectations(
+        selector_freeze, honest_document["rows"],
+    )
+    _rehash_selector_prediction(honest_document)
+    assert SF.verify_prediction_freeze(
+        honest_document, freeze=selector_freeze, root=root,
+    ) is None
+
+    # A 後の selector evidence 書換えは、意味検証より先に H-pure 履歴検査が拒否する。
+    (root / raw_rel).write_bytes((boundary["raw"] + " ").encode("utf-8"))
+    post_a_commit = B._commit_exact(
+        root,
+        [raw_rel],
+        subject="mutate selector evidence after approval",
+        agent="fixture",
+    )
+    assert B._fixed_git(root, "rev-parse", f"{post_a_commit}^") == topology["A"]
+    with pytest.raises(M.RatifiedFreezeError) as post_a_error:
+        M.load_ratified_freeze(root)
+    assert post_a_error.value.reason == "history-mutated"
+
+
 def test_selector_exact_exemption_absent_prediction_is_noop(tmp_path):
     root = tmp_path / "no-selector"
     root.mkdir()
