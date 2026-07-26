@@ -257,6 +257,16 @@ provenance は worklog 2026-07-14 (3)。
 
 > **後続の拡張:** この 3 分類は後に patch 行きへ 2 類が追加された — **第4類「合成 variant」(D18、`BACKOFF_FIXED`)** と **第5類「診断計器」(D20、`BACKOFF_NOINLINE`)**。いずれも default で stock と挙動完全一致 (inert) ゆえ broken-silo と同じく patch に隔離する。
 
+> **一回限りの試作例外 (ユーザー裁定 2026-07-26、[T-109] (a)):** cross-protocol 対応の**最初の
+> trace-hook 試作に限り**、上表の「trace-hook → `izanagi-trace` ブランチ」を適用せず
+> **out-of-tree patch** に置いてよい。理由はブランチ側が gitlink 前進を伴い、承認定数
+> `CCBENCH_FULL_SHA` と衝突して**ユーザーによる新 pin の再承認 + `known_axes_freeze` /
+> `floor_protocol` の再凍結**という実コストを確定的に発生させるためで、試作段階でこれを払う
+> 必要がないと裁定された (調査の正本 = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §5)。
+> **射程は試作 1 回限り**であり、D16 の分岐表そのものは改訂しない。試作が本採用へ進む時点で
+> ブランチ移送を再裁定する。patch は既存 3 類と同じく inert (`#if TRACE` 下) であることを要し、
+> 観測者効果の絶対規律 1 を緩めない。
+
 **背景:** タスク4b で pinning バグ (anatomy §7) を修正したのを機に「ccbench の改変をどう扱うか」を再検討。`thawk105/ccbench` は本プロジェクトの fork (origin=master、別 upstream remote なし) で改変は低摩擦。D6 は全改変を patches/ に隔離していたが、3 種の改変は性質が異なり一律扱いは最適でないと判明。
 
 **理由:**
