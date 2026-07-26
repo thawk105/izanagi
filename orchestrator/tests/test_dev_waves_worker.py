@@ -108,6 +108,133 @@ def test_sigstop_identity_is_durable_before_fake_exec_and_environment_is_closed(
         assert (root / "child-start.json").stat().st_mtime_ns <= marker.stat().st_mtime_ns
 
 
+def _slow_child_stop(seconds: float):
+    """Widen the window between the child closing its exec pipe and stopping.
+
+    ``Popen`` returns once ``_preexec`` has closed the exec-error pipe, several
+    statements before it raises ``SIGSTOP`` on itself.  Delaying only the
+    child's own stop makes that window deterministic without changing when the
+    parent is released, which is exactly the race the parent must survive.
+    """
+    parent = os.getpid()
+    real_kill = os.kill
+
+    def slow_kill(pid: int, sig: int) -> None:
+        if os.getpid() != parent and sig == signal.SIGSTOP:
+            time.sleep(seconds)
+        return real_kill(pid, sig)
+
+    return mock.patch.object(worker_mod.os, "kill", slow_kill)
+
+
+def test_cont_waits_for_the_child_to_be_observed_stopped():
+    with _fresh_dir() as tmp:
+        root = Path(tmp)
+        fake = _fake(root, "print('{}',end='')\n")
+        with _slow_child_stop(1.0):
+            result = run_worker(_spec(root, fake), termination_grace_s=0.05)
+        # Without the wait the SIGCONT lands before the stop, is discarded, and
+        # the child sits stopped with no output until the wave deadline.
+        assert result.reason is None, result.reason
+        assert result.timed_out is False and result.stdout_bytes == 2
+        assert (root / "stdout.json").read_text() == "{}"
+
+
+def test_observed_stop_precedes_every_cont_signal():
+    with _fresh_dir() as tmp:
+        root = Path(tmp)
+        fake = _fake(root, "print('{}',end='')\n")
+        order: list[str] = []
+        real_await = worker_mod._await_stopped_child
+        real_kill = os.kill
+        parent = os.getpid()
+
+        def recording_await(identity, *args, **kwargs):
+            state = real_await(identity, *args, **kwargs)
+            order.append(f"observed:{state}")
+            return state
+
+        def recording_kill(pid: int, sig: int) -> None:
+            if os.getpid() == parent and sig == signal.SIGCONT:
+                order.append("cont")
+            elif os.getpid() != parent and sig == signal.SIGSTOP:
+                time.sleep(0.2)
+            return real_kill(pid, sig)
+
+        with mock.patch.object(worker_mod, "_await_stopped_child", recording_await), \
+                mock.patch.object(worker_mod.os, "kill", recording_kill):
+            result = run_worker(_spec(root, fake), termination_grace_s=0.05)
+        assert result.reason is None, result.reason
+        assert order == ["observed:T", "cont"], order
+
+
+def test_stop_handshake_is_bounded_and_fails_closed_when_no_stop_arrives():
+    identity = PidIdentity(os.getpid(), "boot-a", 1)
+    with mock.patch.object(worker_mod, "_verified_state", return_value="R"):
+        started = time.monotonic()
+        try:
+            worker_mod._await_stopped_child(identity, timeout_s=0.05)
+        except DevWavesError as exc:
+            elapsed = time.monotonic() - started
+            assert exc.code is ReasonCode.AMBIGUOUS_RECOVERY
+            assert exc.detail["kind"] == "stop-handshake-timeout"
+            assert elapsed < 5.0, elapsed
+        else:
+            raise AssertionError("a child that never stops was resumed")
+
+
+def test_stop_handshake_rejects_a_child_whose_identity_stopped_matching():
+    with mock.patch.object(worker_mod, "_verified_state", return_value=None):
+        try:
+            worker_mod._await_stopped_child(PidIdentity(os.getpid(), "boot-a", 1))
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.AMBIGUOUS_RECOVERY
+            assert exc.detail["kind"] == "identity-mismatch-before-cont"
+        else:
+            raise AssertionError("an unverified pid was resumed")
+
+
+def test_child_that_died_before_stopping_is_not_signalled():
+    for state in ("Z", "X"):
+        killed = []
+        real_kill = os.kill
+
+        def recording_kill(pid: int, sig: int) -> None:
+            killed.append(sig)
+            return real_kill(pid, sig)
+
+        with mock.patch.object(worker_mod, "_verified_state", return_value=state), \
+                mock.patch.object(worker_mod.os, "kill", recording_kill):
+            worker_mod._signal_cont_verified(PidIdentity(os.getpid(), "boot-a", 1))
+        assert killed == [], (state, killed)
+
+
+def test_verified_state_reads_state_and_identity_from_one_stat():
+    process = subprocess.Popen(
+        ["/bin/sleep", "5"], start_new_session=True, stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        identity = read_pid_identity(process.pid)
+        # A just-spawned child is running or sleeping; neither is a stop.
+        assert worker_mod._verified_state(identity) in ("R", "S", "D")
+        os.kill(process.pid, signal.SIGSTOP)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if worker_mod._verified_state(identity) == "T":
+                break
+            time.sleep(0.005)
+        assert worker_mod._verified_state(identity) == "T"
+        reused = PidIdentity(identity.pid, identity.boot_id, identity.start_ticks + 1)
+        assert worker_mod._verified_state(reused) is None
+        assert worker_mod._verified_state(
+            PidIdentity(identity.pid, "0" * 36, identity.start_ticks)
+        ) is None
+    finally:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+
+
 def test_worker_process_spawn_is_noninteractive_and_runs_one_spec():
     with _fresh_dir() as tmp:
         root = Path(tmp)

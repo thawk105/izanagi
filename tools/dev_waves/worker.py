@@ -34,6 +34,12 @@ from .schema import (
 _HANDSHAKE_PREFIX = "dev-waves-fake/v1 "
 _REAL_VERSION_RE = re.compile(r"^(?:Claude Code\s+)?\d+\.\d+(?:\.\d+)?(?:\s|$)", re.I)
 _COPY_CHUNK = 64 * 1024
+# Group-stop is the only stop ``_preexec`` can produce; ptrace-stop ("t") is not
+# ours, so waiting past it into the bounded failure is the safe direction.
+_CHILD_STOPPED_STATE = "T"
+_CHILD_EXITED_STATES = frozenset({"Z", "X", "x"})
+_STOP_HANDSHAKE_TIMEOUT_S = 5.0
+_STOP_HANDSHAKE_POLL_S = 0.0002
 
 
 @dataclass(frozen=True)
@@ -95,7 +101,7 @@ def _read_boot_id() -> str:
     return value
 
 
-def _proc_stat(pid: int) -> tuple[int, int]:
+def _proc_stat(pid: int) -> tuple[str, int, int]:
     raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
     end = raw.rfind(")")
     if end < 1:
@@ -104,24 +110,37 @@ def _proc_stat(pid: int) -> tuple[int, int]:
     # fields[0] is field 3 (state), fields[2] field 5 (pgrp), fields[19] field 22.
     if len(fields) <= 19:
         raise OSError("short proc stat")
-    return int(fields[2]), int(fields[19])
+    return fields[0], int(fields[2]), int(fields[19])
 
 
 def read_pid_identity(pid: int) -> PidIdentity:
     """Read the Linux boot/start tuple used before every signal operation."""
     if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
         raise ValueError("pid must be a positive integer")
-    _pgid, start_ticks = _proc_stat(pid)
+    _state, _pgid, start_ticks = _proc_stat(pid)
     return PidIdentity(pid=pid, boot_id=_read_boot_id(), start_ticks=start_ticks)
 
 
-def _identity_matches(identity: PidIdentity) -> bool:
+def _verified_state(identity: PidIdentity) -> Optional[str]:
+    """Return the process state, but only while the recorded identity verifies.
+
+    State and identity come from one ``/proc/<pid>/stat`` read so a PID reused
+    between the two can never present another process's state as our child's.
+    """
     try:
-        current = read_pid_identity(identity.pid)
-        pgid, _start = _proc_stat(identity.pid)
+        state, pgid, start_ticks = _proc_stat(identity.pid)
+        boot_id = _read_boot_id()
     except (OSError, ValueError):
-        return False
-    return current == identity and pgid == identity.pid
+        return None
+    if start_ticks != identity.start_ticks or boot_id != identity.boot_id:
+        return None
+    if pgid != identity.pid:
+        return None
+    return state
+
+
+def _identity_matches(identity: PidIdentity) -> bool:
+    return _verified_state(identity) is not None
 
 
 def _group_members(pgid: int) -> tuple[tuple[int, int], ...]:
@@ -136,7 +155,7 @@ def _group_members(pgid: int) -> tuple[tuple[int, int], ...]:
                 continue
             pid = int(entry.name)
             try:
-                process_group, start_ticks = _proc_stat(pid)
+                _state, process_group, start_ticks = _proc_stat(pid)
             except (OSError, ValueError):
                 continue
             if process_group == pgid:
@@ -383,11 +402,39 @@ def _spawn_stopped(spec: WorkerSpec, executable_fd: int) -> subprocess.Popen[byt
     )
 
 
+def _await_stopped_child(
+    identity: PidIdentity, timeout_s: float = _STOP_HANDSHAKE_TIMEOUT_S,
+) -> str:
+    """Return the child's state once it is observed stopped, or fail closed.
+
+    ``Popen`` returns as soon as the child closes the exec-error pipe, which
+    ``_preexec`` does *before* stopping itself, so the parent can reach this
+    point while the child is still running towards its own ``SIGSTOP``.  A
+    ``SIGCONT`` delivered inside that window is discarded -- the kernel has no
+    stop to undo -- and the child then stays stopped until the wave deadline
+    kills it with no output at all.  Every resume therefore waits for an
+    observed stop first.
+    """
+    deadline = _boottime_ns() + int(timeout_s * 1_000_000_000)
+    while True:
+        state = _verified_state(identity)
+        if state is None:
+            raise DevWavesError(ReasonCode.AMBIGUOUS_RECOVERY, {
+                "label": "child", "kind": "identity-mismatch-before-cont",
+            })
+        if state == _CHILD_STOPPED_STATE or state in _CHILD_EXITED_STATES:
+            return state
+        if _boottime_ns() >= deadline:
+            raise DevWavesError(ReasonCode.AMBIGUOUS_RECOVERY, {
+                "label": "child", "kind": "stop-handshake-timeout",
+            })
+        time.sleep(_STOP_HANDSHAKE_POLL_S)
+
+
 def _signal_cont_verified(identity: PidIdentity) -> None:
-    if not _identity_matches(identity):
-        raise DevWavesError(ReasonCode.AMBIGUOUS_RECOVERY, {
-            "label": "child", "kind": "identity-mismatch-before-cont",
-        })
+    if _await_stopped_child(identity) in _CHILD_EXITED_STATES:
+        # Died before the handshake; the exit path below reports it verbatim.
+        return
     os.kill(identity.pid, signal.SIGCONT)
 
 

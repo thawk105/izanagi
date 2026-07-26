@@ -36,6 +36,8 @@ from tools.dev_waves.daemon import (
     SupervisorProfile,
 )
 from tools.dev_waves.git_state import resolve_repo_identity, snapshot_repo
+from tools.dev_waves.ledger import STATUS_NAME, cache_transient_name
+import tools.dev_waves.daemon as daemon_mod
 from tools.dev_waves.protocol import exchange
 from tools.dev_waves.protocol import bind_repo_socket
 from tools.dev_waves.schema import (
@@ -1011,6 +1013,76 @@ def test_max_run_bytes_counts_wal_and_all_artifacts_but_excludes_git_worktree() 
             assert worktree.is_dir()
             (worktree / "excluded-large.bin").write_bytes(b"x" * (cap + 1))
             assert supervisor._run_artifact_bytes(submitted.run_id) == measured
+
+
+@contextlib.contextmanager
+def _vanishing_entry(run: Path, name: str, size: int) -> Iterator[None]:
+    """Make ``name`` exist when ``os.walk`` lists it and be gone at ``lstat``.
+
+    This is the real failure shape: the ledger thread renames its rewrite
+    scratch away between the supervisor's listing of a directory and the stat
+    of each entry in it.
+    """
+    victim = run / name
+    victim.write_bytes(b"x" * size)
+    real_walk = os.walk
+
+    def vanishing_walk(top, *args, **kwargs):
+        for directory, names, files in real_walk(top, *args, **kwargs):
+            if Path(directory) == run and victim.name in files:
+                victim.unlink()
+            yield directory, names, files
+
+    with mock.patch.object(daemon_mod.os, "walk", vanishing_walk):
+        yield
+
+
+def test_vanished_rewrite_scratch_is_skipped_but_lost_artifact_fails_closed() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        with _isolated_process_environment(root):
+            repo = _temporary_repo(root, ["success"])
+            supervisor = _supervisor(repo)
+            submitted = supervisor.submit(_request(
+                repo, output_bytes=64 * 1024, run_bytes=512 * 1024,
+            ))
+            status, _seen = _wait_terminal(supervisor, submitted.run_id)
+            assert status.state is RunState.COMPLETED
+            run = repo.runtime / submitted.run_id
+            measured = supervisor._run_artifact_bytes(submitted.run_id)
+
+            # The ledger's own scratch owes no bytes once it has been renamed.
+            scratch = cache_transient_name(STATUS_NAME)
+            with _vanishing_entry(run, scratch, 4096):
+                assert supervisor._run_artifact_bytes(submitted.run_id) == measured
+            assert not (run / scratch).exists()
+
+            # Anything else is create-only: losing it is a typed failure, not a
+            # bare FileNotFoundError escaping the measurement.
+            for name in (STATUS_NAME, "events.jsonl", "durable-artifact.json"):
+                with _vanishing_entry(run, name, 4096):
+                    with pytest.raises(DevWavesError) as captured:
+                        supervisor._run_artifact_bytes(submitted.run_id)
+                assert captured.value.code is ReasonCode.RUNTIME_IO_FAILURE
+                assert captured.value.detail["kind"] == "vanished-artifact"
+
+
+def test_capacity_gate_stays_closed_when_an_artifact_vanishes_mid_measure() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        with _isolated_process_environment(root):
+            repo = _temporary_repo(root, ["success"])
+            supervisor = _supervisor(repo)
+            submitted = supervisor.submit(_request(
+                repo, output_bytes=64 * 1024, run_bytes=512 * 1024,
+            ))
+            status, _seen = _wait_terminal(supervisor, submitted.run_id)
+            assert status.state is RunState.COMPLETED
+            run = repo.runtime / submitted.run_id
+            with _vanishing_entry(run, "durable-artifact.json", 4096):
+                with pytest.raises(DevWavesError) as captured:
+                    supervisor._enforce_run_capacity(submitted.run_id, 512 * 1024)
+            assert captured.value.code is ReasonCode.RUNTIME_IO_FAILURE
 
 
 def test_artifact_aggregate_cap_stops_before_next_wave_side_effect() -> None:

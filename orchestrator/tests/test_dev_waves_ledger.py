@@ -667,6 +667,63 @@ def test_open_revalidates_immutable_manifest_binding():
         )
 
 
+def test_cache_transient_names_round_trip_and_exclude_create_only_artifacts():
+    """A reader can tell this module's rewrite scratch from a real artifact.
+
+    The recognizer is the inverse of the writer, so a cached name added to one
+    side without the other cannot silently make a create-only artifact look
+    disposable, nor a scratch file look like a loss.
+    """
+    assert ledger.CACHED_NAMES == frozenset({ledger.STATUS_NAME, ledger.SUMMARY_NAME})
+    for name in ledger.CACHED_NAMES:
+        transient = ledger.cache_transient_name(name)
+        assert transient.startswith(name + ".tmp.")
+        assert ledger.is_cache_transient_name(transient)
+        assert not ledger.is_cache_transient_name(name)
+    # Create-only artifacts never have a transient form, in either direction.
+    for name in (ledger.EVENTS_NAME, ledger.MANIFEST_NAME, ledger.POISON_NAME):
+        assert not ledger.is_cache_transient_name(f"{name}.tmp.1.2")
+        try:
+            ledger.cache_transient_name(name)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"{name} was given a transient form")
+    # Shapes that only resemble the writer's output are not accepted.
+    for forged in (
+        f"{ledger.STATUS_NAME}.tmp.1",
+        f"{ledger.STATUS_NAME}.tmp.x.2",
+        f"{ledger.STATUS_NAME}.tmp.1.2.3.extra",
+        f"{ledger.STATUS_NAME}.tmp.1.2 ",
+        f"evil/{ledger.STATUS_NAME}.tmp.1.2",
+    ):
+        assert not ledger.is_cache_transient_name(forged), forged
+
+
+def test_atomic_cache_writes_only_the_recognized_transient_name():
+    with tempfile.TemporaryDirectory(prefix="izanagi_ledger_transient_") as temp:
+        root = Path(temp)
+        run_fd = os.open(str(root), os.O_RDONLY | os.O_DIRECTORY)
+        seen = []
+        try:
+            def watching_write(fd, payload):
+                seen.extend(
+                    name for name in os.listdir(str(root))
+                    if name != ledger.STATUS_NAME
+                )
+                return os.write(fd, payload)
+
+            ledger._atomic_cache_at(
+                run_fd, ledger.STATUS_NAME, b"{}\n",
+                write=watching_write, fsync=os.fsync,
+            )
+        finally:
+            os.close(run_fd)
+        assert seen and all(ledger.is_cache_transient_name(name) for name in seen), seen
+        assert (root / ledger.STATUS_NAME).read_bytes() == b"{}\n"
+        assert os.listdir(str(root)) == [ledger.STATUS_NAME]
+
+
 def _run():
     functions = [
         value for name, value in sorted(globals().items())

@@ -47,6 +47,12 @@ SUMMARY_NAME = "summary.md"
 POISON_NAME = "emergency-stop.json"
 LOCK_NAME = "control.lock"
 
+# The only names inside a run directory that are rewritten rather than created
+# once, and therefore the only ones whose scratch file legitimately vanishes
+# while another thread walks the tree.
+CACHED_NAMES = frozenset({STATUS_NAME, SUMMARY_NAME})
+_CACHE_TRANSIENT_RE = re.compile(r"\A(?P<base>.+)\.tmp\.[0-9]+\.[0-9]+\Z")
+
 EVENT_TYPES = frozenset({
     "run_created",
     "state_transition",
@@ -265,6 +271,23 @@ def _create_file_at(
         os.close(fd)
 
 
+def cache_transient_name(name: str) -> str:
+    """Return the scratch name written before the ``os.replace`` of ``name``."""
+    if name not in CACHED_NAMES:
+        raise ValueError("only cached names have a transient form")
+    return f"{name}.tmp.{os.getpid()}.{threading.get_ident()}"
+
+
+def is_cache_transient_name(name: str) -> bool:
+    """True only for a scratch name ``_atomic_cache_at`` can have created.
+
+    Readers of a live run directory use this to tell the benign disappearance
+    of a rewrite scratch from a create-only artifact going missing under them.
+    """
+    match = _CACHE_TRANSIENT_RE.match(name)
+    return bool(match) and match.group("base") in CACHED_NAMES
+
+
 def _atomic_cache_at(
     run_fd: int,
     name: str,
@@ -273,8 +296,7 @@ def _atomic_cache_at(
     write: WriteFunction,
     fsync: FsyncFunction,
 ) -> None:
-    suffix = f".tmp.{os.getpid()}.{threading.get_ident()}"
-    temporary = name + suffix
+    temporary = cache_transient_name(name)
     fd = _open_regular_at(
         run_fd, temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode=0o600,
     )

@@ -55,6 +55,7 @@ from .ledger import (
     SideEffectIntent,
     SignalRelay,
     discover_runs,
+    is_cache_transient_name,
     replay_run,
 )
 from .protocol import bind_repo_socket, receive_request, send_frame
@@ -622,6 +623,12 @@ class Supervisor:
         are intentionally outside ``max_run_bytes`` because Git object and
         checkout growth is bounded by the repository rather than artifact I/O.
         Symlinks and non-regular objects inside a run fail closed.
+
+        The ledger thread rewrites its cached status and summary underneath this
+        walk, so the scratch name it renames away owes no bytes and is skipped.
+        Every other artifact is create-only: one going missing between listing
+        and ``lstat`` is tampering or a defect, and fails closed rather than
+        escaping as an untyped ``FileNotFoundError``.
         """
         total = 0
         root = self.layout.run_dir(run_id)
@@ -629,7 +636,14 @@ class Supervisor:
             names[:] = [name for name in names if name != "worktrees"]
             for name in files:
                 path = Path(directory) / name
-                info = path.lstat()
+                try:
+                    info = path.lstat()
+                except FileNotFoundError:
+                    if is_cache_transient_name(name):
+                        continue
+                    raise DevWavesError(ReasonCode.RUNTIME_IO_FAILURE, {
+                        "label": "max_run_bytes", "kind": "vanished-artifact",
+                    }) from None
                 if not stat.S_ISREG(info.st_mode):
                     raise DevWavesError(ReasonCode.RUNTIME_IO_FAILURE, {
                         "label": "max_run_bytes", "kind": "non-regular-artifact",
