@@ -50,458 +50,6 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 アーカイブは凍結 (訂正注記のみ追記可)。既存アーカイブの一覧は `docs/archive/README.md`。
 
 ---
-## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 (test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)
-
-/dev-wave 1 回。D73(10) の refusal 集合未 pin 残余を test-only で消化。code commit = e9014d0
-(+64/-28、production・凍結成果物 bytes・guard・calibration・受理集合 無変更)。正本 =
-`output/insights/2026-07-25_t067-exact-residual.md` + 同 `-mutation-ledger.json` + 同 `-verbatim.md`。
-D 番号なし ([T-067] 正本は D73、設計判断は insight)。
-
-- **中核 (項3 wrong-layer masking 除去)**: contract_sha256 mismatch テストは env-contract 不一致を謳うが
-  旧 fixture は manifest-preimage で先に落ち env-guard 未到達 = 退行しても永久緑の masking。preimage 再封で
-  env-guard 到達させ reason を exact 化 (Level 2)。env-guard 期待値は env_tag キーの別レジストリ由来で
-  manifest 独立ゆえ恒真でない (親独立確認)。
-- **他**: store×2 (bespoke parser 廃・一意 victim 動的構成 exact)、extime (全文 exact)、run_block/CLI の
-  no-active (`_NO_ACTIVE_REFUSAL` 定数、CLI は stdout JSON transport pin)。PID・subprocess race loser は
-  reason 非決定ゆえ意図的 partial 維持。
-- **検証** (レンズ各 2 本): codex プラン (xhigh) → 敵対相談 2 → 親裁定 → 実装 (high) → 敵対レビュー 2
-  (must-fix 0) → 変異 matrix。相談/レビューが親の当初 lean を 3 点訂正: store は prefix でなく exact が
-  負債返済 (refuted churn)、項3 は「実装しない」でなく Level 2 (refuted)、extime は over-determination でない
-  (P3 refuted)。私の victim/cell 懸念も refuted (portable record が cell field を必須 key に持つ)。
-- **変異 matrix (新 HEAD e9014d0 vs 旧 HEAD~1 0c03609)**: 全 6 EXCLUSIVE。**M4 (env-guard 無効化) = 唯一の
-  実 kill** (status refused→completed 反転、旧テストは masking で緑)。M1/M2/M3/M4'/M8 = 排他 diagnostic pin。
-  項6 no-active は sibling 既検出 = 非排他 (node 契約完備)。台帳が正本。
-- **受入**: 全走 **2919 passed / 18 skipped / 0 failed** (234s、回帰ゼロ)。check_docs / check_ai_provenance /
-  repo scan invariant (F34) は本 docs commit 後に再走 <反映>。
-
-### 消化した ID
-- [T-067] **消化** (exact 化残余 D73(10))。残る partial (PID・subprocess race loser) は reason 非決定ゆえ
-  意図的で、返済すべき負債でない。
-
-### 次の一手
-1. [T-011] 科学レーン floor 実測。変わらず (発火前の残 gate = R receipt + [T-088] 設計 + ops + lineage)
-2. [T-068] R receipt 発行後に superseded 確定 (D78 (9))。承認済 (発行待ち)
-3. [T-077] R receipt 発行後に design_source 再 pin + generator M 化。承認済 (発行待ち)
-4. [T-078] R receipt 発行後に S2-4.6 承認 fixture で閉じる。承認済 (発行待ち)
-5. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-6. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-7. [T-088] official guard (`_assert_official_permitted`) 解除の設計確定 (floor gate 2a)。実装前に防壁変更として再確認。変わらず
-8. [T-089] **新規**: 二重 reason-tag 描画 (`[floor-artifact-invalid]`/`[no-active]` の冗長二重、`RatifiedFreezeError.__init__` + driver 両付け) = production 診断欠陥候補。診断文字列のみ冗長で受理値不変。修正は別 production task、修正時に exact 期待値を同時更新。延期。
-9. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-10. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-11. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-12. [T-012] 延期: pilot 凍結維持。変わらず
-13. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
-
-## 2026-07-25 (2) — [T-088] official 解禁の設計確定 — 両レンズ NO-GO・親裁定 4 件否定 (設計のみ・コード 0 byte、branch worktree-dev-wave-e2e-real-seal、計測なし)
-
-/dev-wave 1 回。段 4 で「**実装しない**」と裁定し `4→7→8→9`。**実装差分がないため変異 matrix と
-受入全走は射程外**。正本 = `output/insights/2026-07-25_t088-official-unlock-design.md` (裁定パッケージ)
-+ 同 `-verbatim.md` (逐語 3 本)。D 番号なし (未裁定を decisions へ書かない — 承認後に起票する)。
-
-- **最重要 (B-01、次の一手の前提訂正)**: 前エントリまでの「R receipt **発行待ち**」は **stale**。
-  receipt はユーザーが 2026-07-24 に発行済み — `8bec195` (`AI-Agent: none`、receipt 1 ファイル +1 行)
-  で、/rulings 記録 commit `0c03609` の**祖先**。protocol 実凍結 `c8cbd17` は receipt が active-valid
-  でなければ機械拒否される (`s8b_floor_campaign.py:537-553`) ため、凍結成立が発効の機械証明。
-  → [T-068]/[T-077]/[T-078] は blocker 解消済み・承認済みとして繰り上げる (要ユーザー確認 = U-5)。
-  見落とし経路 = 「承認待ち」を列挙する際に**既実行かを一次資料 (git) で照合しなかった**こと。
-- **検証** (レンズ各 1 本、計 2 本): codex プラン (max) → 敵対相談 2 (max) → 親裁定。
-  **両レンズとも NO-GO** (A: BLOCKER 7 + MUST 5 / B: BLOCKER 5 + MUST 4 + SHOULD 2)。
-  real 21・partial 1 (A-06 の「B-005 未裁定」部分は 2026-07-24 (6) の受諾で **refuted**)。
-- **親の provisional 裁定 8 件のうち 4 件が否定された** — (P2) guard は誤記でなく意図的 dormant 防壁
-  かつ floor protocol の承認束縛裁定は「v2 世代承認」であって launch 認可ではない / (P5) 二重評価は
-  TOCTOU 増、単一 admission predicate にすべき / (P6) 提案 receipt は campaign 認可でなく revision
-  activation / (P8) `AI-Agent: none` は人間証明でなく第二防壁に数えられない。(P1)(P4)(P7) は両レンズ支持。
-- **親が独立裏取りした real 3 件**: `script_sha256` は `IZANAGI_RESERVATION_SCRIPT_SHA256` からの
-  自己申告で wrapper hash 照合は恒真化可能 (`reservation.py:118-126`) / `cert C が G の厳密祖先でない`
-  拒否が実在し activation 手順に C が欠落 (`s8b_ratified_freeze.py:3047-3053`、ただし失効が効くのは
-  C 作成後の retry のみ) / `_run_campaign_core` の production caller は guard 付き wrapper 唯一。
-- **裁定した設計 v2 = 最小案**: wrapper-only wave を先行 → job-scoped submission artifact →
-  **単一** admission predicate へ置換 → CLI は固定拒否削除 + rc=2 翻訳のみ。certificate v1・ratified・
-  resume は不変。plan が提案した新 module 2 本・certificate v2・ratified 追加・完全 negative matrix は
-  **DW-G04 / DW-G02 / 規律 5 / [T-083] freeze により延期**。
-- **前提実測の限界 (正直な記録)**: DW-S01 の「実際にファイルを編集して測る」は、guard の raise 実削除
-  までは成功 (`git diff --stat` 1 file 1+/5-) したが、**guard 無効状態でのテスト実行を harness の
-  permission classifier が拒否**した。clean tree では同コマンドが通る (復元後 `-k official` 29 passed)。
-  DW-O19 手順で即復元・内容一致確認済。よって解除後の実挙動は未実測で、根拠は静的読解と模擬のみ。
-- **検査**: repo scan invariant (三軸語 conjunction) **1 passed**・`check_docs.py` 違反なし・
-  ベースライン `test_s8b_floor_campaign.py` 197 passed / 2 skipped。記録 commit `3799a65` の**後**に
-  再走して repo scan invariant + real-repo serialization 4 passed・check_ai_provenance 332 件違反なし (F34)。
-- **段 8 自己改善 (候補 3・採用 2)**: (1) 完了済み人間手番の「発行待ち」繰り越し → **F35 新設** +
-  `DW-S01` へ照合義務を統合。(2) 実編集での前提実測を環境が拒否した場合の記録義務を `DW-S01` へ統合。
-  (3) 一般 Agent 起動時の model 明示義務は `hooks/README.md` が正本で重複複製になるため**不採用**。
-  「発行待ち表記と receipt 実在の機械照合」は未実装のまま裁定パッケージ候補として残す (F35 恒久対応 2)。
-
-### 消化した ID
-- [T-088] **消化** (設計確定 = 裁定パッケージ発行。実装は U-1〜U-4 の裁定後に別 wave)。
-
-### 次の一手
-1. [T-088] **ユーザー裁定待ち (U-1〜U-5)**。U-1 = guard を correctness gate でなく期限付き activation
-   lock と再分類してよいか (解禁は official 受理集合を空集合から非空へ厳密拡大する)。**U-1 未承認なら
-   以降すべて停止**。U-2 順序 / U-3 人間認可の形 / U-4 延期の確認 / U-5 次の一手の繰り上げ
-2. [T-068] **繰り上げ**: R receipt 発行済みにより blocker 解消。承認済みで着手可能 (D78 (9))
-3. [T-077] **繰り上げ**: 同上。design_source 再 pin + generator M 化
-4. [T-078] **繰り上げ**: 同上。S2-4.6 承認 fixture で閉じる
-5. [T-011] 科学レーン floor 実測。残 gate = [T-088] 裁定 → PBS floor wrapper (未実装) → 実行 revision
-   束縛 → lineage (oracle 結線 wave)。R receipt と §5-(viii) 受諾は充足済み
-6. [T-090] **新規**: `VerifiedFreeze.document` が mutable `dict` のまま返る (`s8b_freeze_io.py:30-38`)。
-   `RatifiedFreeze` の再帰的不変化 (`s8b_ratified_freeze.py:717-733`) と非対称で、result が正しい v1
-   SHA を掲げつつ異なる cell schedule の値を保持し得る。1 cycle 後の hardening 候補。延期
-7. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-8. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-9. [T-089] 二重 reason-tag 描画は production 診断欠陥候補。延期。変わらず
-10. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-11. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-12. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-13. [T-012] 延期: pilot 凍結維持。変わらず
-14. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
-
-## 2026-07-25 (3) — [T-068][T-077][T-078] を R 発効により確定的に closure (docs-only・コード 0 byte、branch worktree-dev-wave-e2e-real-seal、計測なし)
-
-/dev-wave 1 回。段 4 で「**実装しない**」と裁定し `4→7→8→9`。**実装差分がないため変異 matrix と
-受入全走は射程外**。正本 = D78 (10) + `output/insights/2026-07-25_t068-t077-t078-closure.md`
-(closure evidence) + 同 `-verbatim.md` (逐語 3 本)。新 D 番号なし (D78 (9) の発火実績なので追記)。
-
-- **[T-088] は着手せず**: U-1 (official guard を activation lock と再分類してよいか = 防壁の性格変更) が
-  ユーザー裁定待ちのため停止条件に従った。代わりに承認済みで blocker 解消済みの 3 件を処理した。
-  U-5 (次の一手の繰り上げ) は承認済み裁定に対する既知事実なので、親判断で確定して本エントリで消化する
-  ([T-088] とは別原子として分離 — レンズ B の指摘)。
-- **検証** (レンズ各 1 本、計 2 本): codex プラン (max) → 敵対相談 2 (max) → 親裁定。**両レンズとも
-  NO-GO** (A: BLOCKER 3・MUST 5・SHOULD 1 / B: BLOCKER 2・MUST 4・SHOULD 2・NIT 1)。
-  **親の provisional 裁定 8 件のうち 3 件が否定** — (P2) 「状態中立契約への conformance」は説明が誤りで
-  実際は事実訂正 / (P6) [T-068] の理由付けが不正確 (元は `frozen_at_head` **ancestry** の格下げであり、
-  消えた 2 拒否は source/design **drift**。直接根拠は D78 (9) の明示 supersede) / (P7) failures 本文の
-  直接修正は追記専用契約の違反。(P8) は部分 refuted。
-- **両レンズ収束の決定打 2 件**: (a) **decisions は追記型記録なので D78 既存本文の in-place 置換は
-  禁止** (`tools/check_docs.py` が「書いた時点で凍結」と分類) → プランの置換案 4 件を全部不採用にし
-  additive な (10) だけにした。(b) **receipt 発行日は 2026-07-23** (`8bec195` = 21:49:33 +0900、
-  `confirmed_at=2026-07-23T12:49:16Z`) であり 3 箇所の `2026-07-24` は誤記。**プラン起草 codex 自身が
-  置換案へ誤日付を再転写しており、同一 wave 内で誤りの自走が実証された**。`c8cbd17` (protocol 実凍結)
-  の 07-24 は正しいので一括置換はしていない。
-- **erratum 2 件を台帳へ**: F1 (日付誤記) に「再発: 2026-07-25」、F35 に本文不変の erratum を追記
-  (F35 は「一次資料に照合せよ」の教訓なのに本文自身が一次資料未確認だった)。
-- **F36 新設**: 受入・検査の結果欄の `<反映>` プレースホルダが独立 3 wave + insight 1 本で残存し、
-  F34 恒久対応の実行が空証明になっていた。**retroactive に埋めない** (捏造になる)。ただし全走値
-  2919/18 自体は T-086/T-067 の insight に現存し、欠けているのは記録 commit **後**の検査結果だけ。
-- **実測** (すべて public API): `verify` rc=0 / `active-valid` / refusals 空 / observation 17 item、
-  `gate-check` rc=2 / `allowed=false` / 拒否 {floor-null, budget-null} の 2 件 exact /
-  GateDecision observation = `null` (refusal 残存中は envelope を載せない設計の帰結。receipt
-  resolution 側の 17 item と混同しない)。baseline 全走 2919 passed / 18 skipped / 0 failed (239s)。
-- **検査**: 記録 commit **前** = repo scan invariant (三軸語 conjunction) 1 passed・`check_docs`
-  違反なし・`check_ai_provenance` 333 件違反なし。記録 commit **後の再走** (F34) = repo scan
-  invariant + real-repo serialization **4 passed**・`check_docs` 違反なし・`check_ai_provenance`
-  **334 件違反なし**。初回 commit は trailer の `role=planner` が許可値外で provenance が赤になり、
-  慣行どおり `role=author; scope=closure-plan` 等へ直して amend した (迂回せず修正)。
-- **自己捕捉 (F36 の初回適用)**: 本エントリの検査欄を最初「実測値は下記」とだけ書いて値を伴わない
-  前方参照にしており、**新設した F36 と同型の空証明を自分で作りかけた**。記録 commit 後の再走で
-  気づき、上の実測値で埋めた。テンプレートを先に書く運用の危険がそのまま再現した。
-- **段 8 自己改善 (候補 6・採用 3)**: (1) プレースホルダ・値なし前方参照を残して記録 commit しない →
-  `DW-S07` へ統合 (F36 の恒久対応 1 = 台帳のポインタ実体)。(2) 記録する属性 (日付・hash・件数) も
-  周辺記述から転写せず一次資料の field から取る → `DW-S01` へ統合 (F1 の再発を受けて)。(3) 親 brief と
-  前段の子成果物は wave 専用 subdirectory のファイルに置き prompt へ全文複製せず絶対パスで読ませる +
-  読めなければ停止させる → `DW-O02` へ統合 (context 無しの子出力をレビューと数えない)。
-  **不採用 3**: trailer の role 対応表は `docs/ai-provenance.md` が正本で重複複製になる /
-  `DW-O20` と handoff 契約の緊張は同節が既に解決済み / 親の provisional 裁定の否定率は設計どおりの挙動。
-  command 入口 (`.claude/commands/dev-wave.md`) は 0 byte 変更。
-
-### 消化した ID
-- [T-068] **消化** — R commit をもって「移行契約により superseded」(D78 (9)(10))。
-- [T-077] **消化** — R の design_source 再 pin + generator M 化。holdout generator は recorded ≠ observed
-  でも通る = M 化が非恒真に効いている。
-- [T-078] **消化** — S2-4.6 承認値の外部固定 fixture + predicate 単独 mutant 1→0→1。
-- U-5 (次の一手の繰り上げ) **消化** — 3 件の繰り上げを本エントリで確定。ID なし ([T-088] の子でなく
-  独立原子として処理)。
-
-### 次の一手
-1. [T-088] **ユーザー裁定待ち (U-1〜U-4)**。U-1 = official guard を correctness gate でなく期限付き
-   activation lock と再分類してよいか。**U-1 未承認なら以降すべて停止**。U-5 は消化済み。変わらず
-2. [T-011] 科学レーン floor 実測。残 gate = [T-088] 裁定 → PBS floor wrapper (未実装) → 実行 revision
-   束縛 → lineage。変わらず
-3. [T-091] **新規**: `_verify_receipt_derivation` を public `verify_receipt()` 経由で撃つ negative test が
-   無い (期待テストは内部関数直呼びと consumer へのエラー注入 mock のみ、full-gate fixture は当該関数を
-   no-op stub 化)。今日の判定値は変えないため 1 cycle 後の hardening へ。延期
-4. [T-092] **新規**: real-repo gate test が R の OID を pin せず、履歴除去で pre-R 4 拒否分岐を正解化する。
-   通常の追加 commit 経由の削除は production が拒否するので fail-open ではない。1 cycle 後。延期
-5. [T-093] **新規**: D78 (6)(f) の observed 15 件は H_mig 確定により独立 literal pin が可能になった。
-   現状は期待値を receipt 自身から組み立てている。1 cycle 後。延期
-6. [T-094] **新規**: リテラル placeholder の機械検出 (F36 恒久対応 2)。族条件は満たすが、既存 4 件の
-   allowlist と対象ファイル族・引用/verbatim 除外の設計が先。裁定パッケージへ。延期
-7. [T-090] `VerifiedFreeze.document` が mutable `dict` のまま返る hardening 候補。1 cycle 後。変わらず
-8. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-9. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-10. [T-089] 二重 reason-tag 描画は production 診断欠陥候補。延期。変わらず
-11. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-12. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-13. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-14. [T-012] 延期: pilot 凍結維持。変わらず
-15. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
-
-## 2026-07-25 (4) — /rulings: 裁定待ち 5 件をユーザーが推奨どおり一括裁定 — official 解禁を承認 (D86 起票、計測なし)
-
-/rulings 1 回。前エントリ (3) 後に索引化した裁定待ち 9 件のうち詳説 5 件を、ユーザーが
-「全部推奨通りで」と一括裁定。read-only 収集 → ユーザー裁定 → 本記録 (クラス 2 昇格)。
-実行系 (push) は Pegasus 規約によりユーザー手番で、AI は実行しない。**本記録に実装は含まない**。
-
-- **[T-088] official 解禁**: U-1 を**承認** — `_assert_official_permitted` を correctness gate ではなく
-  **期限つき activation lock** と再分類する。併せて U-2 = (a) wrapper-only wave 先行、U-3 = (a) 明示
-  qsub + job-scoped submission artifact (新 Git receipt を作らない)、U-4 = 一括延期 を承認。
-  前エントリ (2) が「D 番号なし (未裁定を decisions へ書かない — **承認後に起票する**)」と明記して
-  いたため、承認を受けて **D86 を起票**した。解禁は official 受理集合を空集合から非空へ厳密拡大する
-  ので、実装 wave の段 1 で防壁変更として再確認する。
-- **[T-094]**: 機械検出を**採用**し設計も確定 — 検出は `<反映>` / `<受入結果を反映>` /
-  `<受入全走結果を反映>` の exact 3 文字列、対象は `docs/worklog.md` と verbatim でない
-  `output/insights/*.md`、既存 4 件は行 digest で例外登録。F36 恒久対応 2 の実体化。
-- **[T-091]/[T-092]/[T-093]/[T-089]/[T-090]**: 延期を**追認**。床値実測後の hardening wave で一括処理。
-- **push**: local main (`5932010`、未 push 7 commit) の push を**承認** → ユーザー実行
-  (`git push origin main`。AI は push しない = Pegasus 規約。前例 = 2026-07-24 (6))。
-- **見送り台帳**: 発火条件が成立している項は今回**確認できず** (35 項すべて未発火の保留承認)。
-- **検査**: 記録 commit 後の再走 = repo scan invariant + real-repo serialization 4 passed・
-  `check_docs` 違反なし・`check_ai_provenance` 337 件違反なし。
-
-### 次の一手
-1. [T-088] **承認済み・着手可能**: official 解禁の実装。順序 = wrapper-only wave 先行 → 実 artifact
-   確認 → 単一 admission predicate へ置換 → CLI は固定拒否削除 + rc=2 翻訳。設計正本 = D86 +
-   `output/insights/2026-07-25_t088-official-unlock-design.md` §4。実装 wave の段 1 で防壁変更として再確認
-2. [T-011] 科学レーン floor 実測。残 gate = [T-088] 実装 → PBS floor wrapper (未実装) → 実行 revision
-   束縛 → lineage (oracle 結線 wave)。変わらず
-3. [T-094] **承認済み・着手可能**: placeholder 機械検出を上記確定設計で実装 (F36 恒久対応 2)
-4. [T-091] 延期追認: `_verify_receipt_derivation` を public 経路で撃つ negative test。hardening wave へ
-5. [T-092] 延期追認: real-repo test の R OID pin。hardening wave へ
-6. [T-093] 延期追認: observed 15 件の独立 literal pin。hardening wave へ
-7. [T-089] 延期追認: 二重 reason-tag 描画 (production 診断欠陥候補)。hardening wave へ
-8. [T-090] 延期追認: `VerifiedFreeze.document` が mutable dict のまま返る。hardening wave へ
-9. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-10. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-11. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-12. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-13. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-14. [T-012] 延期: pilot 凍結維持。変わらず
-15. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
-
-## 2026-07-25 (5) — [T-088] 段階 1: floor 専用 PBS wrapper を実装 (D87、branch worktree-dev-wave-t088-floor-wrapper、計測なし)
-
-dev-wave 1 本。D86(2) が定めた順序の第 1 段 (wrapper-only wave) を実装した。
-`orchestrator/campaign/s8b_floor_campaign.py` は 1 byte も変更していないため、**official の受理集合は
-空集合のまま**である (D86(1) の「実装 wave の段 1 で防壁変更として再確認」は、本 wave が admission を
-変えないことの確認として履行)。**本 wave は段階 1 の完了を主張しない** — dry-run の synthetic ID は
-DW-G04 の発火条件ではなく、実 submit artifact の確認は人間の明示 `qsub` を待つ。
-
-- **成果物**: `tools/pegasus/submit_floor.sh` (新規)、`tools/pegasus/floor_campaign.sh` (新規)、
-  `tools/pegasus/policy.json` (`floor_walltime` / `floor_walltime_s` を追加)、
-  `orchestrator/tests/test_pegasus_floor_tools.py` (新規 49 テスト)。commit = `b2b6e5c` + `82c9055`。
-- **親が独立に実測した設計入力 3 件** (両敵対レンズとも未検出): (i) driver の envelope は実 protocol +
-  実 freeze から `required 28200 + finalize 600 = 28800` 秒 = 8.0 時間ちょうど、(ii) floor driver の
-  build 経路は `-DCMAKE_PREFIX_PATH` を渡さないが CCBench は gflags/glog を `REQUIRED` で要求し
-  計算ノードに存在しない、(iii) CMake は環境変数 `CMAKE_PREFIX_PATH` を尊重する (最小 project で実証)。
-  (ii)(iii) が無ければ解禁後の初回実走が build 失敗で 10 時間の allocation を捨てていた。
-- **親の provisional 裁定 8 件のうち 4 件が否定された** (D87): dry-run 完了の主張 / walltime 29400 /
-  実装子の並列化 / `REQUESTED_S` の policy 由来。**相談・レビュー・再レビューの 5 本すべてが NO-GO**。
-- **実装した束縛**: 実行中 bytes (`sha256sum "$0"`) と commit blob の二重照合 / scheduler の実
-  `Elapse Time Limit` との一致検査 / receipt `job_id` と `PBS_JOBID` の一致 (replay 遮断) /
-  interpreter の isolated mode (`-I -B`) / path component の symlink 検査 + 凍結・campaign namespace の
-  除外 / driver rc と起動前失敗の分離 / git 失敗を clean と扱わない。
-- **正直な限界**: submission record は authorization ではない (人間と AI の生成物が区別不能) /
-  driver の予算定数は hard cap でない / PATH 由来ツールの実体は未検証 / 実 PBS 上では未実行。
-- **記録**: 材料レポート `output/insights/2026-07-25_t088-floor-wrapper.md`、逐語 `-verbatim.md`、
-  変異台帳 `-mutation-ledger.json` (初回・再照準ラウンドを erratum として同梱)。
-- **検査**: 受入全走 = 2968 passed / 18 skipped (赤 0)。焦点 3 ファイル = 104 passed。
-  変異本走 = 12/12 KILLED。`check_ai_provenance` = 340 件・違反なし。
-  三軸語 conjunction の機械検査 = 子出力 11 本すべて 0 hit。
-  fix round 1 直後の全走で `test_dev_waves_worker.py::test_stdout_stderr_have_one_combined_cap` が
-  1 件赤になったが、単独 4/4 緑・同 commit の再走で再現せず、並列負荷下の timing flaky と判定した。
-- **記録後検査 (F34)**: 本記録 commit の後に再走 = repo scan invariant + real-repo serialization +
-  凍結成果物 + 焦点 3 ファイル = 110 passed。`check_ai_provenance` = 341 件・違反なし。
-  `check_docs` = 違反なし。
-- **段 8 の docs commit 後の再走 (F34)**: 受入全走 = 2968 passed / 18 skipped (赤 0)、
-  `check_ai_provenance` = 344 件・違反なし、`check_docs` = 違反なし。
-- **段 8 で自己捕捉した失敗 (F37 新設)**: 自己改善 commit の前に `check_docs` を `| tail` へ通したため
-  pipeline の rc が `tail` のものになり、`docs/dev-wave/**` の byte 予算違反 (24379 > 24000) を
-  報告していたのに `&&` の右辺が実行されて commit が入った (`419fa70`)。予算値は上げず、入口と
-  重複する reference 記述の削除で 23960 bytes へ収めた。恒久対応は DW-O17 へ統合した。
-
-### 次の一手
-1. [T-088] **段階 1 の閉鎖は人間手番**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
-   続けて `tools/pegasus/submit_floor.sh` を明示実行して実 job ID を得る。期待は driver rc=2
-   (official guard 生存) で、`job-result.json` の `driver_rc=2` が記録されれば wrapper 配線の実機確認が
-   完了し、DW-G04 の発火条件が満たされる。手順は `tools/pegasus/README.md` §5 と材料レポート §6。
-   実 artifact 確認後に段階 3・4 (単一 admission predicate + CLI rc 翻訳) へ着手できる
-2. [T-095] **裁定待ち (新規)**: D86(3) の「人間の明示 qsub を authorization とする」文言と、
-   submission record が人間性を証明しない (人間と AI の生成物が byte-level で区別不能) という実体の差。
-   文言の再確認または修正。正本 = `output/insights/2026-07-25_t088-floor-wrapper.md` §5-1 / §7-1
-3. [T-096] **裁定待ち (新規)**: driver 予算定数の hard cap 化。`buildcache` は configure と build に
-   各々 900 秒を適用し、測定は rep ごと 120 秒 × 5 rep のため、envelope の 900/セル・145/attempt は
-   見積であって上限でない。独立 prerequisite wave で driver 側を直すか walltime を厚く取り続けるかの択一
-4. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage
-5. [T-094] 承認済み・着手可能: placeholder 機械検出 (F36 恒久対応 2)
-6. [T-091] 延期追認: `_verify_receipt_derivation` を public 経路で撃つ negative test。hardening wave へ
-7. [T-092] 延期追認: real-repo test の R OID pin。hardening wave へ
-8. [T-093] 延期追認: observed 15 件の独立 literal pin。hardening wave へ
-9. [T-089] 延期追認: 二重 reason-tag 描画 (production 診断欠陥候補)。hardening wave へ
-10. [T-090] 延期追認: `VerifiedFreeze.document` が mutable dict のまま返る。hardening wave へ
-11. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-12. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-13. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-14. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-15. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-16. [T-012] 延期: pilot 凍結維持。変わらず
-17. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
-
-## 2026-07-25 (6) — [T-094] リテラル placeholder の機械検出を新設 (D88、branch worktree-dev-wave-t094-placeholder-gate、計測なし)
-
-dev-wave 1 本。worklog 2026-07-25 (4) で承認済みだった F36 恒久対応 2 を実体化した。検出対象の
-バイト列は本エントリへ再掲せず、`tools/check_docs.py` の `LITERAL_PLACEHOLDERS` を正本として
-宣言順に LP-1 / LP-2 / LP-3 と呼ぶ (この gate の自己発火を避ける実務。D88(6))。
-
-- [T-094] **消化 (D88)。** 承認済みだった機械検出を実装し、対象族・台帳の閉性・除外なし方針を確定した。
-  F36 の恒久対応 2 は「この exact-literal gate だけ」を実体とし、F36 全体は閉じていない。
-- **成果物**: `tools/check_docs.py` (+621 行、`_check_literal_placeholder_guard` と 2 台帳)、
-  `orchestrator/tests/test_check_docs.py` (+1372 行、74 test 関数・189 assert)。commit = `8ba4aed`。
-  対象族 = `docs/worklog.md` + `docs/archive/worklog-*.md` + `output/insights/*.md` の **raw text**。
-- **裁定前提の齟齬 2 件を親が段 1 で実測**: (i) 真の placeholder 4 行のうち **2 行が archive
-  worklog** にあり、裁定文の対象族に収まらなかった (archive を追加 = D88(1))。(ii) 対象族内に
-  説明的言及が 3 行あり、「既存 4 件の allowlist」だけでは偽陽性が残る (台帳を債務 4 / 言及 5 の
-  2 本に分離 = D88(5))。
-- **敵対レビュー 6 本すべて NO-GO**。親の provisional 裁定 6 件のうち 4 件 (装飾による除外 2 件、
-  path 非依存台帳、D 起票不要) が否定され、親が代わりに採った path 束縛も **regressed** と判定
-  された。最終形は H2 エントリ scope 束縛で、正規のローテーションでは台帳を変更しなくてよい。
-- **併せて直した既存欠陥 2 件** (D88(7)): 読取失敗が後続 checker の無防備な読取で traceback になり
-  集約報告と違反件数が失われていた欠陥、および symlink / 非 regular を追跡して外部 bytes を読む経路。
-- **正直な限界** (D88(6)): 既知 9 行は台帳で固定しただけで**解消していない**。意味的に同じ別表記、
-  HTML entity、**F36 の再発型である予測値の先書き**、対象 3 族の外 (phase / decisions / failures /
-  handoff / `*-mutation-ledger.json` / campaign JSON) は保証しない。
-- **記録**: 材料レポート `output/insights/2026-07-25_t094-placeholder-gate.md`、逐語 `-verbatim.md`
-  (13 本・27 箇所を全角山括弧へ可逆 defang、原文 SHA-256 併記、置換後 0 hit を機械検査)、
-  変異台帳 `-mutation-ledger.json` (erratum 3 件同梱)。
-- **検査**: 受入全走 = 2994 passed / 18 skipped (赤 0)。焦点 `test_check_docs.py` = 113 passed。
-  `check_docs` 単独 rc=0。波及先 consumer = 177 passed。変異本走 = 13/13 KILLED
-  (expected node hit 12/13、単独理由 10 件中 9 件 HIT)。`check_ai_provenance` = 346 件・違反なし。
-  三軸語 conjunction (repo scan invariant) = 1 passed。
-- **親が独立に実測して子の報告と照合**: 対象族 115 ファイルの hit = 9 logical lines で digest 9/9 一致、
-  worklog 族の H2 = 234 件すべて一意、repo 内 symlink 0 件、対象族に CR byte 0 件。
-- **記録後検査 (F34)**: 本記録 commit (`fecdd4a`) の後に再走 = repo scan invariant + real-repo
-  serialization + 凍結成果物 + 焦点 = **119 passed**。`check_docs` rc=0。
-  `check_ai_provenance` = **347 件・違反なし**。
-- **段 8 の docs commit 後の再走 (F34)**: 受入全走 = 2994 passed / 18 skipped (赤 0)、
-  `check_docs` rc=0、`check_ai_provenance` = 349 件・違反なし。
-- **段 8 自己改善 (候補 3・採用 1)**: `DW-S07` の凍結前機械検査を「三軸語 conjunction」だけと
-  読める文言から全 gate の検出語へ一般化し、可逆 defang と原文 hash 併記を明示した
-  (commit `7d0d51f`、予算は上げず 23986/24000 に縮約)。残り 2 件は予算に収まらず [T-101] へ。
-- **変異 harness の自己捕捉 2 件**: (i) pytest の `path::test_name` 形式に対し関数名の完全一致で
-  照合したため 13/13 KILLED でも expected node hit が 0/13 と記録された (初回結果は erratum として
-  同梱)。(ii) M4 の期待 node 登録が誤っていた (総数 pin 定数を変える変異に、台帳本体の exact map を
-  照合する node を登録していた)。
-
-### 次の一手
-1. [T-088] **段階 1 の閉鎖は人間手番** (変わらず): `tools/pegasus/submit_floor.sh --dry-run` で receipt を
-   確認し、続けて明示実行して実 job ID を得る。期待は driver rc=2 (official guard 生存)。
-   手順は `tools/pegasus/README.md` §5 と `output/insights/2026-07-25_t088-floor-wrapper.md` §6
-2. [T-097] **裁定待ち (新規)**: placeholder 検出の対象族拡張 — `docs/phase3.md` / `decisions.md` /
-   `failures.md` / `*-mutation-ledger.json` / handoff。変異台帳 JSON は実際に受入結果を記録しており
-   同型欠陥が残る。claim-bearing artifact 族の定義が必要。正本 =
-   `output/insights/2026-07-25_t094-placeholder-gate.md` §7
-3. [T-098] **裁定待ち (新規)**: campaign selector の `rationale` が sentinel を非空文字列として受理し
-   freeze へ seal する (`orchestrator/campaign/s8b_selector_output.py`)。producer validator で拒否するか
-4. [T-099] **裁定待ち (新規)**: 凍結成果物に将来 placeholder が入った場合の専用 waiver 契約。
-   bytes 修正は freeze 違反・実測値を埋めるのは捏造・一般台帳へ足すのは gate 弱体化の三択になる
-5. [T-100] **裁定待ち (新規)**: 検出語彙の拡張 (別表記・HTML entity) と、予測値先書きの構造的検出
-   (結果欄に実走 artifact 参照を必須化する別 checker)。F36 の再発クラスは本 gate では閉じない
-6. [T-101] **裁定待ち (新規、dev-wave 自己改善)**: 予算に収まらず reference へ統合できなかった作法 2 件 —
-   (a) 背景 job の cwd が既に worktree のとき `EnterWorktree` が新規作成を拒否する場合の扱い
-   (本 wave は前 wave の worktree で branch だけ切り、ディレクトリ名と branch 名が食い違った)、
-   (b) 焦点再レビューが NO-GO を返し続ける場合の収束条件 (本 wave は fix 3 巡の後、親が変異で
-   裏取りして閉じた)。`docs/dev-wave/**` は 23986/24000 で追記余地がなく、予算値は上げない
-7. [T-095] 裁定待ち: D86(3) の「人間の明示 qsub を authorization とする」文言と、submission record が
-   人間性を証明しない実体の差。変わらず
-8. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
-9. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage
-10. [T-091] 延期追認: `_verify_receipt_derivation` を public 経路で撃つ negative test。hardening wave へ
-11. [T-092] 延期追認: real-repo test の R OID pin。hardening wave へ
-12. [T-093] 延期追認: observed 15 件の独立 literal pin。hardening wave へ
-13. [T-089] 延期追認: 二重 reason-tag 描画 (production 診断欠陥候補)。hardening wave へ
-14. [T-090] 延期追認: `VerifiedFreeze.document` が mutable dict のまま返る。hardening wave へ
-15. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-16. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-17. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-18. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-19. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-20. [T-012] 延期: pilot 凍結維持。変わらず
-21. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
-
-## 2026-07-25 (7) — /rulings: 裁定待ち 12 件を索引化し 7 件をユーザーが一括裁定 — hardening のテスト前倒しを承認 (docs-only・コード 0 byte、branch worktree-dev-wave-t094-placeholder-gate、計測なし)
-
-/rulings 1 回。直前の `/dev-wave` が「候補 21 件すべてが人間手番・裁定待ち・実測後送り・cycle 後送り」
-で着手可能 scope ゼロと判定し、段 1 に入らず fail-closed 停止した (DW-STOP)。その塞がりを解く裁定を
-収集した。read-only 収集 → ユーザーが「すべて推奨通りにする」と一括裁定 → 本記録 (クラス 2 昇格)。
-**本記録に実装は含まない** (コード 0 byte)。実行系 (floor 投入・push) は Pegasus 規約でユーザー手番。
-
-- [T-095] **消化 (D86 erratum)。** 「明示 `qsub` + submission artifact を authorization とする」を
-  文言修正と裁定。認可の実体は**ユーザーの明示指示**であり、artifact はその指示が実行された記録に
-  とどまる (人間実行と AI 実行の生成物は byte-level で区別不能 = 材料レポート §5-1 の実測)。
-  D86 に (8) erratum を追記し、「記録があるから認可済み」の fail-open な読みを閉じた。防壁は増やさない。
-- [T-091] / [T-092] / [T-093] **前倒しを承認** — 2026-07-25 (4) の条件付き追認 (「床値実測後の
-  hardening wave で一括処理」) を**部分改訂**した。床値実測が人間手番で止まり AI 手番が空になったため、
-  親が 5 件を交絡リスクで二分した。テストのみ 3 件は本番コードを 1 byte も変えず測定への交絡がないので
-  前倒し可、本番コードに触る [T-089] / [T-090] は測定直前の変更が原因切り分けを濁すため据え置き。
-- [T-098] **生成側で拒否を承認。** 選択理由欄の検査は型・非空白・最大長のみで、LP 族の文字列は非空の
-  ため通ることを親が実測 (`orchestrator/campaign/s8b_selector_output.py:110-116`)。seal 後は bytes 修正が
-  freeze 違反になるため、producer validator が唯一の安価な阻止点。実装は次 wave。
-- [T-058] / [T-059] **見送り台帳 2 項の発火を確認 (今回初)。** [T-094] の gate 新設が両項の述語
-  (`safety_gate_changed` / `validator_or_rejection_gate_changed`) を成立させた。[T-058] = 発火記録のみ残し
-  網羅率観測は 1 cycle 完走後、[T-059] = 前 wave の 13 変異事前登録 + 13/13 KILL で真時 action が実質
-  履行済みのため追認のみ。両項の台帳行へ発火記録を追記した。2026-07-25 (4) の「35 項すべて未発火」は
-  本エントリで 2 項が発火に転じた。
-- [T-088] は**裁定でなく人間手番**。未実行を親が実測で確定した (F35 照合) —
-  `output/env/pegasus/floor/` 不在、`output/claims` 不在、git に受領 commit なし。既実行なら stale と
-  裁定して依存項目を繰り上げる規則だが、その条件は成立しなかった。
-- **push**: local main (`ce2111d`、未 push 12 commit) の push を**承認** → ユーザー実行
-  (AI は push しない = Pegasus 規約。前例 = 2026-07-25 (4))。
-- **裁定待ちのまま残した 5 件**: [T-097] / [T-099] / [T-100] / [T-096] / [T-101]。索引には出したが詳説
-  5 件に入らず AI 推奨を出していないため、「すべて推奨通り」の射程外として**閉じない** (推奨なき項目を
-  一括承認で黙って閉じる経路を作らない)。
-- **スキル自己改善 (rulings gate 発火・採用 2)**: 今回 2 つの収集漏れを実測した — (i) 見送り台帳の
-  述語照合に方法がなく、発火済み 2 項が偶然でしか surface しない (前回「35 項すべて未発火」は今回の
-  未発火を意味しない)、(ii) 条件付き追認項の前提が未成立で後続が塞がった場合を裁定待ちに立てる規則が
-  なく、本セッション最大の裁定 (hardening 前倒し) はどの規則からも導かれなかった。`rulings.md` の
-  収集節へ照合方法と項 6 を追加した。事故は発生していないため failures / decisions は変更しない。
-- **検査 (記録 commit 前の実測)**: `check_docs` rc=0 (違反なし)、焦点 = `test_check_docs.py` +
-  repo scan invariant + real-repo serialization の **117 passed**、`check_ai_provenance` =
-  **350 件・違反なし**。
-- **記録後検査 (F34)**: 記録 commit (`58b8793`) の後に再走 = `check_docs` rc=0、焦点 **117 passed**、
-  `check_ai_provenance` = **351 件・違反なし**。
-- **自己改善 commit 後の再走 (F34)**: `check_docs` rc=0、焦点 **117 passed**、
-  `check_ai_provenance` = **353 件・違反なし**。自己改善の初回編集は最長行予算 180 を 207 で超えて
-  赤になり、規則を 3 行へ分割して解消した (`check_docs` が機械捕捉)。
-
-### 次の一手
-1. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` で receipt を確認し、
-   続けて明示実行して実 job ID を得る。期待は driver rc=2 (official guard 生存)。手順は
-   `tools/pegasus/README.md` §5 と `output/insights/2026-07-25_t088-floor-wrapper.md` §6
-2. [T-091] **承認済み・着手可能 (前倒し)**: `_verify_receipt_derivation` を public `verify_receipt()`
-   経由で撃つ negative test。現状の期待テストは内部関数直呼びと consumer へのエラー注入 mock のみ
-3. [T-092] **承認済み・着手可能 (前倒し)**: real-repo gate test の R OID pin。現状は履歴除去で pre-R の
-   4 拒否分岐が正解化する
-4. [T-093] **承認済み・着手可能 (前倒し)**: D78 (6)(f) の observed 15 件の独立 literal pin。現状は
-   期待値を receipt 自身から組み立てている
-5. [T-098] **承認済み・着手可能**: 選択理由欄の LP 族拒否を producer validator へ追加
-   (`s8b_selector_output.py`)。検出語彙は `tools/check_docs.py` の台帳と共有するか要設計
-6. [T-011] 科学レーン floor 実測。残 gate = 上記 1 → 段階 3・4 → 実行 revision 束縛 → lineage。変わらず
-7. [T-097] 裁定待ち: placeholder 検出の対象族拡張 (claim-bearing artifact 族の定義)。変わらず
-8. [T-099] 裁定待ち: 凍結成果物に placeholder が入った場合の専用 waiver 契約。変わらず
-9. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
-10. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
-11. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
-12. [T-089] **測定後の hardening と裁定** (前倒し対象外): 二重 reason-tag 描画。修正時に exact 期待値を
-    同時更新する
-13. [T-090] **測定後の hardening と裁定** (前倒し対象外): `VerifiedFreeze.document` が mutable dict の
-    まま返る (`s8b_freeze_io.py:30-38`)
-14. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
-15. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
-16. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
-17. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
-18. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
-19. [T-012] 延期: pilot 凍結維持。変わらず
-20. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
-
 ## 2026-07-26 (1) — [T-091][T-092][T-093] receipt gate の検出力を独立 oracle へ引き上げ (テストのみ・本番 0 byte、branch worktree-dev-wave-t091-093-hardening、計測なし)
 
 /dev-wave 1 回。2026-07-25 (7) でユーザーが前倒しを承認した hardening 3 件を消化した。
@@ -930,3 +478,106 @@ bytes は不変、受理集合は拡大も縮小もしない。設計裁定は D
 22. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
 23. [T-012] 延期: pilot 凍結維持。変わらず
 24. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
+
+## 2026-07-26 (6) — [T-103] never-issued vector: 調査の結果「実装しない」と裁定 (設計のみ・コード 0 byte、branch worktree-dev-wave-t091-093-hardening、計測なし)
+
+/dev-wave 1 回 (引数なし)。worklog 候補から唯一の AI 手番として [T-103] を選び、段 4 で
+**実装しない**と裁定して `DW-S04` の `4→7→8→9` を採った。**実装差分がないため変異 matrix と
+受入全走は対象外**である。材料レポート = `output/insights/2026-07-26_t103-never-issued-vector.md`、
+逐語 = 同 `-verbatim.md` (原文 SHA-256・byte 数・defang 箇所を併記)。
+
+- **裁定の骨子は `DW-G02`。** 初回 E2E cycle 前の hardening は correctness 判定・selected/tie・数値・
+  proof 参照・試行欠落を実際に変える欠陥だけを blocker とし、それ以外は 1 cycle 後へ送る。
+  レンズ B が層ごとに棚卸しした結果、T-103 が守るのは **standalone gate の診断文字列だけ**だった。
+  実 freeze は v1 (floor/budget が null) なので active-valid receipt が legacy 2 拒否を消しても
+  floor/budget の 2 拒否が必ず残り、gate は常に `allowed=False`。legacy 呼出しが丸ごと消えても
+  campaign も試行も 1 件も増えない。
+- **入れることに害があると判定した。** 提案 node は `assert actual != recorded` を通じて
+  「**legacy artifact が修復されるとテストが失敗する**」逆向きの圧力を作る。重い一体試験が
+  無関係な正当変更で落ちれば exact assert を prefix 化・削除する誘因になり、
+  絶対規律 2 に対する構造的リスクの新設になる。
+- **前例と整合させた。** 初回 cycle 前に実装したテスト強化 ([T-091]/[T-092]/[T-093]/[T-098]/
+  [T-106]/[T-107]) は**すべてユーザーが名指しで裁定済み**。[T-103] は「未着手」で裁定を受けておらず、
+  `DW-G02` の既定が生きる。親が独断で既定を上書きしない。
+- **親 brief の 6 前提のうち 5 件が否定された。** (P3) 「N2 は scope 内」= **refuted** (kill set が
+  N1 の部分集合で限界検出力ゼロ、かつ live worktree に対する非原子的 sentinel)。
+  (P5) 「走査順依存で非決定的かもしれない」= **refuted、方向が逆** (`_iter_sources` の
+  depth-first insertion order と固定 JSON 順により決定的)。(P1)(P2)(P6) は部分 refuted。
+  妥当は (P4) のみで、それも「この snapshot の fail-fast 表示が 4 件」という限定付き。
+- **素材: 「stub していない」と「fixture に対する実 verifier」は別である。**
+  `_t080_stub_free_e2e_repo` は receipt 発行経路でだけ隔離 subprocess を起動して全 module の
+  `ROOT` が fixture を指すことを assert するが、`issue_receipt=False` は**その手前で return する**。
+  `s1_known_axes_freeze.verify_document` で注入 resolver を使うのは source 走査だけで、
+  generator hash・`frozen_at_head` ancestor・`ccbench_pin`・末尾の機械再構成は
+  **module-level `ROOT` 束縛**である。本 vector は source loop で先に raise するため到達しないが、
+  「fixture に実 verifier を通した」という表現は成立しない ([T-112])。
+- **素材: root-isolation 変異を誰も殺していない。** driver の
+  `source_resolver=lambda relative: root / relative` を `ROOT / relative` に変える変異は、
+  提案 N1/N2・既存 hermetic primary states・既存 g7 の**すべてが SURVIVE** する。
+  殺すには fixture 側だけ bytes を分岐させる control が要る ([T-113])。
+- **素材: 事前登録しようとした変異はほぼ帰属不成立だった。** legacy 呼出しの削除、floor/budget
+  refusal の削除、`allowed` の退化、observation 漏出、never-issued 判定の変更、design/known 比較の
+  無効化は、いずれも既存テストが先に殺す。新テスト固有になり得たのは診断 payload の suffix 欠落と
+  診断順の変更だけで、受理境界の変異ではない。
+- **親の実測の一般化が過大だった (段 3 が訂正)。** known の drift は unique path 3 件だが
+  source **record は 12 件**。holdout の drift は `design_source` だけでなく **`generator` にもある**。
+  「refusal ちょうど 4 件」は fail-fast 表示が 4 件という意味であって潜在欠陥が 4 個ではない。
+- **素材: 逐語の凍結が holdout 未既知性 gate を自己発火させかけた。** レンズ A の所見 A-7 が
+  三軸の canonical encoding を名指ししたため、**defang なしの逐語は rr80 で conjunction hit 1**
+  になることを反実仮想で実測した。D88 (6) と同型の 1:1 可逆置換 (三軸 key 直後の半角 `=` を全角へ)
+  を **3 箇所**に適用し、置換後 0 hit を機械確認した。**defang は装飾ではなく実際の発火を 1 件防いだ。**
+- **エージェント工数**: codex 子 3 本 (プラン 1・敵対レンズ 2、いずれも `gpt-5.6-sol` /
+  `reasoning=max` / read-only)。**3 本すべて NO-GO または要修正判定**。段 2 が親前提 4 件を要修正、
+  段 3 が blocker 6 件・must-fix 6 件・nit 2 件。実装子・レビュー子は起動していない (実装しない裁定)。
+- **検査 (記録 commit 前の実測)**: 三軸 conjunction = 走査 5 ファイル・rr80/rr20 両方で **hit 0**
+  (per-axis も全軸 0)、literal placeholder = `check_docs` **rc=0**。
+  **受入全走と変異 matrix は実装差分 0 byte のため対象外**である。
+- **記録後検査 (F34、記録 commit の後に再走した実測)**: `check_docs` **rc=0**、
+  `check_ai_provenance` = **366 件・違反なし**、焦点 (repo scan invariant + `test_check_docs` +
+  real-repo serialization) = **117 passed**。
+- **worklog をローテーションした**。102KB > 閾値 100KB のため 2026-07-25 (1)〜(7) を
+  `docs/archive/worklog-phase3-0725.md` へ移動した (現行 58KB)。ID 保存則はローテーション境界を
+  越えて成立している (`check_docs` rc=0 が機械確認)。
+- **task-run pilot は非発火** ([T-012] で凍結維持のため `DW-O07` の発火条件を満たさない)。
+
+### 次の一手
+1. [T-109] **新セッションで着手 (ユーザー裁定済み)**: `/dev-wave クロスプロトコル対応` を再実行する。
+   **着手前に (a) の裁定が要る** — trace-hook の置き場所を out-of-tree patch (D16 の一回限りの例外)
+   とするか、submodule ブランチ (gitlink 前進 → 承認定数の再承認 + 再凍結) とするか。
+   **AI 推奨 = patch 例外を許す**。正本 = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §5
+2. [T-088] **人間手番 (承認済み)**: `tools/pegasus/submit_floor.sh --dry-run` → 明示実行。
+   期待は driver rc=2。変わらず
+3. [T-103] **裁定待ちへ差し戻し (本 wave の成果)**: (a) 1 cycle 後へ送る (**AI 推奨**)、
+   (b) レンズ B 案の最小 node (軽量 fixture + `design_source` のみ) を今実装、(c) 取り下げ。
+   正本 = `output/insights/2026-07-26_t103-never-issued-vector.md` §4 と §6
+4. [T-112] **新規・裁定待ち (本 wave の real 所見)**: `s1_known_axes_freeze` の root 束縛が不完全で、
+   generator hash・`frozen_at_head` ancestor・`ccbench_pin`・末尾の機械再構成が module-level `ROOT` を
+   読む。注入 `source_resolver` と分岐しうる。**本番コードに触る**ため測定前後の扱いに裁定が要る
+5. [T-113] **新規・裁定待ち (本 wave の real 所見)**: driver の `source_resolver` を `ROOT` 固定へ
+   変える root-isolation 変異を、既存テスト・提案テストの**いずれも殺せない**。fixture 側だけ
+   bytes を分岐させる control が要る。テストのみだが `DW-G02` の判断が要る
+6. [T-114] **新規・裁定待ち (本 wave の real 所見)**: never-issued の全層 scope 漏れ。
+   `run_block` の campaign-start / result / WAL と report の never-issued 歴史照合が未被覆
+   (report 側は autouse monkeypatch で Git 履歴から隔離されている)
+7. [T-110] **裁定待ち**: parser 感応 consumer の閉集合を機械的に固定するか、受理集合変更時の
+   手続義務を制度化するか。変わらず
+8. [T-111] **裁定待ち (dev-wave 自己改善)**: 予算に収まらなかった作法 2 件。変わらず
+9. [T-105] **裁定済み → [T-011] の後**: `_run_artifact_bytes` の `FileNotFoundError` 素通し修正。変わらず
+10. [T-102] scope 外 real 所見: production の git runner が ambient `GIT_*` を継承する。変わらず
+11. [T-011] 科学レーン floor 実測。残 gate = [T-088] → 段階 3・4 → 実行 revision 束縛 → lineage。変わらず
+12. [T-097] 裁定待ち: placeholder 検出の対象族拡張。変わらず
+13. [T-099] 裁定待ち: 凍結成果物に placeholder が入った場合の専用 waiver 契約。変わらず
+14. [T-100] 裁定待ち: 検出語彙の拡張と予測値先書きの構造的検出。変わらず
+15. [T-096] 裁定待ち: driver 予算定数の hard cap 化。変わらず
+16. [T-101] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+17. [T-104] 裁定待ち (dev-wave 自己改善): 予算値の引き上げ可否の独立審査か reference 再編か。変わらず
+18. [T-108] 裁定待ち (dev-wave 自己改善): 予算に収まらなかった作法 2 件。変わらず
+19. [T-089] 測定後の hardening と裁定 (前倒し対象外): 二重 reason-tag 描画。変わらず
+20. [T-090] 測定後の hardening と裁定 (前倒し対象外): `VerifiedFreeze.document` が mutable dict。変わらず
+21. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+22. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+23. [T-009] 延期: AGENTS.md 追記は 1 cycle 後。変わらず
+24. [T-060] 延期: WAL 用語運用の明文化は 1 cycle 後。変わらず
+25. [T-010] 延期: B-008 再試験は 1 cycle 後に再評価。変わらず
+26. [T-012] 延期: pilot 凍結維持。変わらず
+27. [T-082] 延期: 全 caller 移行は 1 cycle 後。変わらず
