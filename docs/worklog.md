@@ -856,3 +856,68 @@ bytes は不変、受理集合は拡大も縮小もしない。設計裁定は D
 26. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
 27. [T-010] 延期: B-008 再試験は新規 background session が発火条件。変わらず
 28. [T-082] 延期: prefix 容認 reader の用途別移行。**本番コードのため測定後**。変わらず
+
+## 2026-07-26 (11) — /rulings: [T-096] を条件つきで裁定 — 測定前に driver を直すが計算時間予算を無駄にしない (docs-only・コード 0 byte、branch worktree-dev-wave-t091-093-hardening、計測なし)
+
+`/rulings` の続き。訂正後に再提示した [T-096] をユーザーが条件つきで裁定した。実装は含まない。
+
+- **ユーザー裁定 (2026-07-26)**: **[T-096] = (a) 測定前に driver 側の timeout を予約式と整合させる。
+  ただし「計算時間予算の無駄遣いを避けられるなら」を条件とする。**
+- **条件を実装制約として展開する (親の解釈)**。実装 wave はこの 3 点を満たすこと:
+  1. **締めすぎない。** 打ち切り時間を実所要より短くすると健全な run を殺し、再投入で予算を二重に
+     使う。値は記録済みの実所要時間から根拠づけて決め、根拠を材料レポートへ書く。
+     根拠なしの直感値を入れてはならない。
+  2. **厚取りしない。** walltime は修正後の予約式で取る。3.8 倍差を厚取りで吸収する案 (旧 (c)) は
+     採らない。
+  3. **修正の検証で計算機を使わない。** 本番 driver の変更は既存の合成 fixture で検証し、
+     Pegasus へのジョブ投入を伴わない。
+- **未確定として残る点**: セル数と 1 セルあたり attempt 数は投入時に導出されるため、
+  総 walltime は投入まで確定しない。1 セル分の予約 2350 秒 / 強制上限 9000 秒は
+  `output/s8b-freeze/floor_protocol.json` の `n_sessions=8` / `retry_slots_per_cell=2` からの計算値。
+- **[T-088] との順序が確定した** — [T-096] の修正が [T-088] の投入より先になる。
+  walltime の取り方が修正結果に依存するため。
+- **次の 5 件の提示にあたり、全件を一次資料で検証した** ([T-096] の説明誤りの再発防止)。
+  - [T-102] **確認 = real**。`s1_known_axes_freeze.py:89` と `s8b_holdout_freeze.py:147` の
+    `_run_git` はいずれも `subprocess.run` に **`env=` を渡していない**ため ambient env を継承する。
+    同 repo のテストは `_sanitized_git_env()` を使うが production は使っていない。
+  - [T-089] **確認 = real**。`RatifiedFreezeError.__init__` が
+    `super().__init__(f"[{reason}] {detail}")` で既に tag を付ける
+    (`s8b_ratified_freeze.py:275`) 一方、driver が `error = f"[{exc.reason}] {exc}"`
+    (`s8b_oracle_driver.py:389`) で再度付けるため **`[reason] [reason] detail`** になる。
+    診断文字列のみで受理値は不変。
+  - [T-090] **確認 = real**。`VerifiedFreeze` は `@dataclass(frozen=True)` だが
+    `document: dict` は **mutable** (`s8b_freeze_io.py:30-38`)。frozen は再束縛だけを禁じ、
+    dict の in-place 変更は通る。
+- **検査**: `check_docs` rc=0。テスト差分が無いため受入全走は対象外。
+
+### 次の一手
+1. [T-096] **裁定済み → 着手可能 (条件つき、[T-088] より先)**: driver 側 timeout を予約式と整合させる。
+   条件 = 締めすぎない / 厚取りしない / 検証で計算機を使わない (上記)
+2. [T-088] **人間手番 (承認済み・未実行)**: floor 投入。**[T-096] の修正後**に行う
+3. [T-109] **着手可能 (裁定完了)**: `/dev-wave クロスプロトコル対応`。変わらず
+4. [T-057] **裁定待ち**: 全走時間が閾値を超えている。**AI 推奨 = (a) 原因調査を 1 回**。変わらず
+5. [T-103] **裁定待ち**: (a) 1 cycle 後へ送る (**AI 推奨**)、(b) 最小 node、(c) 取り下げ。変わらず
+6. [T-102] **裁定待ち (real 確認済み)**: production の `_run_git` 2 箇所が ambient env を継承する。
+   **AI 推奨 = [T-096] と同じ wave で直す** (同じ driver 系統・本番コード・測定前)
+7. [T-101] 裁定待ち (dev-wave 自己改善): 作法 2 件の採否。**[T-104] の再編で場所ができ次第**
+8. [T-108] 裁定待ち (dev-wave 自己改善): 作法 2 件の採否。同上
+9. [T-111] 裁定待ち (dev-wave 自己改善): 作法 2 件の採否。同上
+10. [T-089] **測定後の hardening と裁定 (real 確認済み)**: 二重 reason-tag。変わらず
+11. [T-090] **測定後の hardening と裁定 (real 確認済み)**: `VerifiedFreeze.document` が mutable。変わらず
+12. [T-113] **裁定済み → 着手可能 (前倒し承認)**: root-isolation 変異の control を新設する
+13. [T-110] **裁定済み → 着手可能**: 受理集合を変える改修の手続義務を規約化する
+14. [T-104] **裁定済み → 着手可能**: dev-wave reference の再編で予算を捻出する
+15. [T-097] **裁定済み → 着手可能**: 変異台帳 JSON を placeholder 検出の対象族へ足す
+16. [T-100] **裁定済み → 着手可能**: 検出語彙へ表記ゆれ・HTML entity を足す
+17. [T-099] **裁定済み → 着手可能**: 凍結成果物の placeholder は止める仕様を明記する
+18. [T-009] **着手可能**: dev-wave 実装子の規律の所在を AGENTS.md へ明文化する
+19. [T-060] **着手可能**: WAL 用語運用の明文化
+20. [T-012] **着手可能**: task-run pilot の凍結解除可否を再評価する
+21. [T-112] **裁定済み → 床値実測の後**: `s1_known_axes_freeze` の root 束縛が不完全。変わらず
+22. [T-114] **裁定済み → 一巡後**: never-issued の全層 scope 漏れ。変わらず
+23. [T-105] **裁定済み → [T-011] の後**: `_run_artifact_bytes` の `FileNotFoundError` 素通し。変わらず
+24. [T-011] 科学レーン floor 実測。残 gate = [T-096] → [T-088] → 段階 3・4 → 実行 revision 束縛
+25. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+26. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+27. [T-010] 延期: B-008 再試験は新規 background session が発火条件。変わらず
+28. [T-082] 延期: prefix 容認 reader の用途別移行。**本番コードのため測定後**。変わらず
