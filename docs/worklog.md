@@ -585,3 +585,91 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 35. [T-108] **完了 (本エントリ)**: 作法 2 件を `DW-O18` / `DW-M01` へ入れた
 36. [T-111] **完了 (本エントリ)**: 作法 2 件を `DW-S01`+`DW-O19` / `DW-S03` へ入れた
 37. [T-124] **完了 (本エントリ)**: ユーザー裁定 (b) どおり、再編で場所を作って 3 件を入れた
+
+## 2026-07-27 (19) — /cleanup-branches: 削除ゼロ、取り込み漏れの insight 2 ファイルを中身の価値判断のうえ救出 (docs-only・コード 0 byte、branch worktree-cleanup-branches-cherry、計測なし)
+
+ユーザー指示で `/cleanup-branches` を実行した。**安全条件を満たす削除対象は 1 つも無く、削除は
+行っていない。** 棚卸しの過程で main への取り込み漏れが 1 件見つかった。**ユーザーの介入
+「取り込む前に取り込む価値があるかどうか判断しろ」**を受け、裁定へ丸投げせず中身を読んで判断した。
+
+- **取り込み漏れの実体**: branch `seq-stop-spec` の 72 commits のうち 69 は patch-id 上 main に
+  入っているが、**3 件が未取り込み**で、うち 2 ファイルが main に存在しなかった —
+  `output/insights/2026-07-15_sequential-stopping-design.md` (逐次停止の設計 v2、SPRT 1 本へ縮小)
+  と `output/insights/2026-07-15_sequential-stopping-review.md` (3 レンズ敵対レビュー原文)。
+- **判断 = 救出する (本エントリで実施)**。根拠 3 点。(i) main の `phase3.md` と D58 の別判断が
+  「逐次停止は**別設計・別裁定のまま据え置く**」と書いており、**その「別設計」の実体がこの 2 ファイル**
+  だった (参照先だけが欠けた孤児参照の状態)。(ii) 設計 v2 は 3 レンズ敵対レビュー
+  (codex gpt-5.6-sol、reasoning high、read-only) の must-fix 13 系統・should-fix 10 系統を反映済みで、
+  **v1 の主目的だった bench rep 逐次打ち切りを証拠に基づき自ら棄却** (§10-(vi): γ=0.7 が χ²(2) の裾を
+  塞げず 38.7% 誤停止、MWU 標本数変更で「採否不変」が不成立) して SPRT 1 本へ縮小した文書であり、
+  再導出コストが高い。review 原文は実コード行つきで refuted 15 件 (3 レンズ × 5) の裏取りを持つ
+  一次資料で、規律 6 の「real/refuted 選別を残す」に直接効く。(iii) **陳腐化していない** —
+  依拠する構造 (D19 の near_floor 裏取り未実装、`backoff_repro` の rounds=1、`stability.compare`)
+  は main でも生きており、前提の bench-first screening が D58 で実装済みになった分、
+  設計 §6 の実装順 (bench-first 本体 → (a) 保守形) の**着手条件はむしろ整った**。
+- **取り込まなかったもの (同じ commit の残り)**: `22c41f6` の `docs/phase3.md` 変更は
+  **branch が 2026-07-14 版・main が 07-25 版**で、入れると現行チェックポイントの巻き戻しになる。
+  `9031fd8` の worklog 07-15 (12) エントリも見送り — 当該期間は
+  `docs/archive/worklog-phase3-0714-0716.md` へ凍結済みで、凍結エントリへの後付け挿入になる。
+  索引価値は insight 本体より低く、本エントリからポインタが張れる。**よって commit 単位の
+  cherry-pick はせず、2 ファイルの追加だけを取り出した** (main の既存ファイルと衝突しない追加のみ)。
+- **ahead カウントだけでは判定できなかった**: `worktree-strategy-review-freeze` は ahead=41 だが
+  `git cherry` で 41/41 が main に取り込み済み (rebase 経由)。逆に `seq-stop-spec` は ahead=72 の
+  うち実質 3 件だけが取り残し。**ahead>0 は「未取り込み」を意味しない**ため、command §1 の棚卸しに
+  `git cherry main <b>` を足した (自己改善 gate 発火、下記)。
+- **残した対象と理由**: `seq-stop-spec` = 取り込み漏れあり。`worktree-strategy-review-freeze` =
+  ahead>0 (§2 の安全条件を満たさない)。加えて lock 理由の pid 1416882 は既に死んでおり
+  **stale lock** だった。`claude-science/related-work-litmap` = ahead=0 だが常設 worktree
+  `/home/tanab/github/izanagi-cs` が checkout 中で、本セッションが作ったものではない (§2 の確認要)。
+  3 worktree はすべてクリーン (未コミット差分なし)。
+- **人間手番**: リモート `origin/worktree-s8b-ruling-prep` は ahead=0 (main に取り込み済み) で
+  削除候補。AI は push しない (§5)。
+- **自己改善 gate**: **発火** (手順不足を実測)。`.claude/commands/cleanup-branches.md` §1 へ
+  `git cherry` の 1 項目を追加。既存の安全条件 (ahead=0 のみ削除、`-D` 禁止) は弱めていない。
+  failures への新規 F は作っていない — 実害・事故ではなく棚卸し情報の不足のため (routing 4)。
+- **検査**: `check_docs` rc=0。`git submodule status` = `d706650` 初期化済み (`-` prefix なし)。
+
+### 次の一手
+
+1. [T-125] **完了 (本エントリ)**: `seq-stop-spec` の取り込み漏れを価値判断のうえ救出した
+   (insight 2 ファイルのみ。phase3.md 巻き戻しと凍結 worklog への後付けは見送り)。**残務 =
+   救出 commit を main へ取り込んだ後に branch `seq-stop-spec` と同 worktree を畳む**
+   (取り残しが消えるので §2 の安全条件を満たすようになる)。それまでは削除しない
+2. [T-120] **着手可能・最優先**: `dev-waves-integration` の file 単位 group を分割する
+   (直列 ~70 秒 = 現 wall の正体)。変わらず
+3. [T-121] **裁定済み → [T-120] の実測後に再判断**: real-repo group の reader/writer 分離。変わらず
+4. [T-122] **裁定済み → 測定後 ([T-011] の後)**: `verify_receipt` の `search_repository` 重複。変わらず
+5. [T-123] **着手可能 (衛生)**: `daemon.py` の `_atomic_json` は呼び出し 0 件のデッドコード。変わらず
+6. [T-096] **裁定済み → [T-120] の後**: driver 側 timeout を予約式と整合させる。**[T-088] の前提**
+7. [T-102] **裁定済み → [T-096] と同じ wave**: production `_run_git` 2 箇所の ambient env 継承
+8. [T-088] **人間手番 (承認済み・未実行) → [T-096] + [T-102] の後**: floor 投入
+9. [T-118] **着手可能 (衛生)**: `/dev/shm` の残留 temp dir。変わらず
+10. [T-109] **着手可能 (裁定完了)**: `/dev-wave クロスプロトコル対応`。変わらず
+11. [T-113] **裁定済み → 着手可能**: root-isolation 変異の control を新設する。変わらず
+12. [T-110] **裁定済み → 着手可能**: 受理集合を変える改修の手続義務を規約化する。変わらず
+13. [T-097] **裁定済み → 着手可能**: 変異台帳 JSON を placeholder 検出の対象族へ足す。変わらず
+14. [T-100] **裁定済み → 着手可能**: 検出語彙へ表記ゆれ・HTML entity を足す。変わらず
+15. [T-099] **裁定済み → 着手可能**: 凍結成果物の placeholder は止める仕様を明記する。変わらず
+16. [T-009] **着手可能**: dev-wave 実装子の規律の所在を AGENTS.md へ明文化する。変わらず
+17. [T-060] **着手可能**: WAL 用語運用の明文化。変わらず
+18. [T-012] **着手可能**: task-run pilot の凍結解除可否を再評価する。変わらず
+19. [T-103] **裁定済み → 1 cycle 後**: never-issued 検査は先送り。変わらず
+20. [T-089] **裁定済み → 測定後**: 二重 reason-tag 描画。変わらず
+21. [T-090] **裁定済み → 測定後**: `VerifiedFreeze.document` が mutable。変わらず
+22. [T-112] **裁定済み → 床値実測の後**: `s1_known_axes_freeze` の root 束縛が不完全。変わらず
+23. [T-114] **裁定済み → 一巡後**: never-issued の全層 scope 漏れ。変わらず
+24. [T-011] 科学レーン floor 実測。残 gate = [T-096] → [T-088] → 段階 3・4 → 実行 revision 束縛。変わらず
+25. [T-085] PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+26. [T-087] W-e 着手時に整合を決める裁定済 (延期)。変わらず
+27. [T-010] 延期: B-008 再試験。変わらず
+28. [T-082] 延期: prefix 容認 reader の用途別移行。**本番コードのため測定後**。変わらず
+29. [T-116] **完了 (2026-07-26 (14))**: 本番 git 畳み込み。変わらず
+30. [T-057] **完了**: 全走 69 秒。変わらず
+31. [T-117] **完了 (2026-07-27 (15))**: 律速の内訳を実測。変わらず
+32. [T-119] **完了 (2026-07-27 (17))**: SIGSTOP/SIGCONT 競合。変わらず
+33. [T-105] **完了 (2026-07-27 (17))**: `_run_artifact_bytes` の素通し。変わらず
+34. [T-104] **完了 (2026-07-27 (18))**: reference 再編。変わらず
+35. [T-101] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-O20` / `DW-O16` へ入れた。変わらず
+36. [T-108] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-O18` / `DW-M01` へ入れた。変わらず
+37. [T-111] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-S01`+`DW-O19` / `DW-S03` へ入れた。変わらず
+38. [T-124] **完了 (2026-07-27 (18))**: 再編で場所を作って 3 件を入れた。変わらず
