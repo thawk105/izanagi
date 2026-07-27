@@ -1,0 +1,43 @@
+{
+  "wave": "[T-147] dev-wave 予算内再配分",
+  "date": "2026-07-28",
+  "integration_commit": "fe77c17",
+  "kind": "docs 正例 (予算 gate の発火確認)。実装コード変異は対象外 (docs-only wave)",
+  "protocol": "DW-O19 (統合 commit 後・単一走行・git diff --stat 検証 → git checkout -- 復元)",
+  "preregistration": {
+    "where": "docs/handoff/2026-07-28-t147-budget-restructure.md (段 4 相当時点)",
+    "amendment": "fix round 1/2 で bytes が変わったため、実行前に filler 量のみ再計算 (V1: +140→+45, V2: +1200→+100)。対象・期待 gate は登録どおり。単一理由性の保存が補正理由"
+  },
+  "mutations": [
+    {
+      "id": "V1",
+      "target": "docs/dev-wave/core.md",
+      "operation": "末尾へ +45 bytes filler",
+      "expected_red": "per-file 予算 (9,000) のみ",
+      "observed": "rc=1、所見 1 件: '9007 bytes > 予算 9000 bytes'",
+      "single_reason": true,
+      "result": "KILLED"
+    },
+    {
+      "id": "V2",
+      "target": "docs/dev-wave/operations.md",
+      "operation": "末尾へ +100 bytes filler",
+      "expected_red": "総量 hard ceiling (24,000) のみ",
+      "observed": "rc=1、所見 1 件: '合計 24051 bytes > hard ceiling 24000 bytes'",
+      "single_reason": true,
+      "result": "KILLED"
+    },
+    {
+      "id": "V3",
+      "target": "docs/dev-wave/core.md",
+      "operation": "H2 見出し DW-S08 → DW-S08x へ一時改名 (S08 縮約後も見出しが検出可能なことの正例)",
+      "expected_red": "REQUIRED_REFERENCE_SECTIONS 欠落",
+      "observed": "rc=1、所見 2 件: 'H2 見出し DW-S08 が 0 件' + '孤児 H2 [DW-S08x]'",
+      "single_reason": false,
+      "erratum": "所見 2 件はいずれも節閉包 gate の相補面 (欠落 + 孤児)。gate 単位では単一、所見数では 2",
+      "result": "KILLED"
+    }
+  ],
+  "restoration": "各変異とも単独走行後に git checkout -- で復元し、git diff --stat 空 + check_docs rc=0 + bytes 23,951 一致を確認",
+  "summary": "3/3 KILLED"
+}
