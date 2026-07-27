@@ -230,12 +230,24 @@ def _request(repo: TemporaryRepo, *, waves: int = 1, request_id: str | None = No
 
 
 def _wait_terminal(supervisor: Supervisor, run_id: str, timeout_s: float = 20.0):
+    """Wait for a terminal state and for the run thread to release the run.
+
+    Terminal state precedes quiescence: the run thread still joins its WAL
+    writer, rewrites the status file and drops the run's descriptors after
+    ``status`` first reports a terminal state.  Tests tear the temporary tree
+    down as soon as this helper returns, so returning on the state alone races
+    that tail — observed as ``OSError: Directory not empty`` in whichever node
+    lost the race (5/48 in the standalone probe, 0/48 once joined).
+    """
     deadline = time.monotonic() + timeout_s
     seen = []
     while time.monotonic() < deadline:
         status = supervisor.status(run_id)
         seen.append(status.state)
         if status.state in _TERMINAL:
+            assert supervisor.wait_idle(timeout_s), (
+                f"run thread still running after terminal state; states={seen[-10:]}"
+            )
             return status, seen
         time.sleep(0.02)
     raise AssertionError(f"run did not terminate; states={seen[-10:]}")
@@ -1236,6 +1248,9 @@ def test_cancel_identity_mismatch_records_ambiguous_not_signalled() -> None:
             while supervisor._active is not None and time.monotonic() < deadline:
                 time.sleep(0.01)
             assert supervisor._active is None
+            # The run thread clears ``_active`` from inside its own finally and
+            # only then releases the run, so this alone is not quiescence.
+            assert supervisor.wait_idle(30)
 
 
 def test_wal_partial_tail_validate_is_fail_closed() -> None:
@@ -1313,6 +1328,8 @@ def test_supervisor_wal_fsync_failure_orders_real_worker_spawn_side_effect(
             while supervisor._active is not None and time.monotonic() < inactive_deadline:
                 time.sleep(0.01)
             assert supervisor._active is None
+            # See ``_wait_terminal``: quiescence is a separate observation.
+            assert supervisor.wait_idle(30)
             with pytest.raises(DevWavesError) as same_instance:
                 supervisor.submit(_request(repo))
             assert same_instance.value.code is ReasonCode.AMBIGUOUS_RECOVERY
@@ -1351,6 +1368,70 @@ def test_auto_unavailable_or_permission_abort_never_rebuilds_dangerous_argv() ->
             assert "--permission-mode=auto" in argv
             assert not any("dangerously" in token or "bypass" in token or "dontAsk" in token
                            for token in argv)
+
+
+def test_wait_idle_is_bound_to_the_run_thread_and_reports_timeout_without_raising() -> None:
+    """静止の観測は run スレッドの生死に束縛される (``_active`` の消滅ではない)。
+
+    ``_active`` は run スレッドが自分の finally の中で消すので、それが None に
+    なった時点ではまだ run の資源 (WAL writer・status の scratch・fd と lock) が
+    握られている。``wait_idle`` はスレッドそのものを待つ。
+    """
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        with _isolated_process_environment(root):
+            repo = _temporary_repo(root, ["success"])
+            supervisor = _supervisor(repo)
+            # run を 1 つも起こしていない supervisor は既に静止している。
+            assert supervisor.wait_idle(0) is True
+
+            started = threading.Event()
+            release = threading.Event()
+
+            def _body() -> None:
+                started.set()
+                release.wait(30)
+
+            thread = threading.Thread(target=_body, name="dev-waves-probe", daemon=False)
+            supervisor._last_run_thread = thread
+            thread.start()
+            try:
+                assert started.wait(5)
+                # 走っている限り False を返す。例外にはしない (timeout の意味は呼び手が決める)。
+                assert supervisor.wait_idle(0.05) is False
+            finally:
+                release.set()
+                thread.join(30)
+            assert supervisor.wait_idle(5) is True
+
+
+def test_terminal_state_precedes_quiescence_and_wait_idle_leaves_no_run_thread() -> None:
+    """terminal 観測の後も残っていた run/WAL スレッドが、静止待ちの後には居ない。
+
+    この 2 本のスレッド (``dev-waves-<run_id>`` と ``dev-waves-wal-<run_id>``) が
+    terminal 観測直後に生き残ることが、temp tree を消す側から見た
+    ``OSError: Directory not empty`` の実体だった。
+    """
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        with _isolated_process_environment(root):
+            repo = _temporary_repo(root, ["success"])
+            supervisor = _supervisor(repo)
+            submitted = supervisor.submit(_request(repo))
+            # 静止待ちの配線そのものを撃つ: submit が run スレッドを記録しなければ
+            # wait_idle は無条件に True を返し、下の lingering 検査は競合次第でしか
+            # 落ちなくなる (偽 SURVIVED になる変異を決定的に赤くする)。
+            assert supervisor._last_run_thread is not None
+            status, _seen = _wait_terminal(supervisor, submitted.run_id)
+            assert status.state is RunState.COMPLETED
+            lingering = [
+                thread.name for thread in threading.enumerate()
+                if thread.name in (
+                    f"dev-waves-{submitted.run_id}",
+                    f"dev-waves-wal-{submitted.run_id}",
+                )
+            ]
+            assert lingering == [], lingering
 
 
 def _run() -> int:

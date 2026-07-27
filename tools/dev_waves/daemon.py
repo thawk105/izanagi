@@ -479,6 +479,10 @@ class Supervisor:
         self.layout = RuntimeLayout.create(runtime_path)
         self._lock = threading.RLock()
         self._active: Optional[_ActiveRun] = None
+        # A run thread clears ``_active`` from inside its own ``finally`` and only
+        # then releases the run's resources, so ``_active`` cannot answer "has the
+        # last run gone quiet".  Keep the thread itself for ``wait_idle``.
+        self._last_run_thread: Optional[threading.Thread] = None
         self._request_index: dict[str, tuple[str, str]] = {}
         self._cancel_index: dict[str, str] = {}
         self._shutdown = threading.Event()
@@ -754,6 +758,7 @@ class Supervisor:
             )
             active = _ActiveRun(run_id, thread)
             self._active = active
+            self._last_run_thread = thread
             thread.start()
             return SubmitResponse(PROTOCOL_VERSION, True, run_id, RunState.CREATED, None)
 
@@ -1530,6 +1535,7 @@ class Supervisor:
                                   args=(run_id, synthetic), daemon=False)
         with self._lock:
             self._active = _ActiveRun(run_id, thread)
+            self._last_run_thread = thread
             thread.start()
         return self.status(run_id)
 
@@ -1639,6 +1645,31 @@ class Supervisor:
         with self._lock:
             if self._active is not None:
                 self._request_cancel_locked(self._active, "shutdown")
+
+    def wait_idle(self, timeout_s: float = 30.0) -> bool:
+        """Block until the last run thread has released the run's resources.
+
+        The terminal state is durable in the ledger strictly before the run
+        thread is done: the WAL writer thread is still joined, the status file is
+        still rewritten through its scratch name, and the run directory's
+        descriptors and lock are still held after ``status`` first answers
+        ``completed``.  A caller that acts on the terminal observation alone --
+        deleting the runtime tree, handing the repository to a next stage --
+        races that tail.  Waiting here is the supported way to observe
+        quiescence; the state by itself never implies it.
+
+        Returns whether no run thread is left running.  A supervisor that has
+        started no run is already idle.
+        """
+        with self._lock:
+            thread = self._last_run_thread
+        if thread is None:
+            return True
+        # Joined outside the lock: the run thread takes the same lock in its own
+        # ``finally``, so holding it here would deadlock against the very thread
+        # we are waiting for.
+        thread.join(timeout_s)
+        return not thread.is_alive()
 
     def _persist_profile(self) -> None:
         path = self.layout.root / _PROFILE_NAME
