@@ -1,0 +1,104 @@
+[
+  {
+    "id": "M-A2-drop-shutdown-set",
+    "file": "tools/dev_waves/daemon.py",
+    "why": "shutdown() の self._shutdown.set() だけを落とす。serve ループの終了条件が消え、cancel 経路は残る = 赤理由が一つに絞れる (DW-M01)",
+    "anchor": "    def shutdown(self) -> None:\\n        self._shutdown.set()\\n",
+    "expected": [
+      "orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path"
+    ],
+    "verdict": "KILLED",
+    "runs": [
+      {"test_version": "HEAD (変更前)", "target": "single_node", "rc": 0, "summary": "1 passed", "verdict": "SURVIVED"},
+      {"test_version": "HEAD (変更前)", "target": "whole_file", "rc": 0, "summary": "79 passed", "verdict": "SURVIVED"},
+      {"test_version": "本 wave (fix 後)", "target": "single_node", "rc": 1, "summary": "1 failed in 32.25s", "verdict": "KILLED",
+       "nodes": ["orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path@dev-waves-runtime"]},
+      {"test_version": "本 wave (fix 後)", "target": "whole_file", "rc": 1, "summary": "1 failed, 79 passed in 44.26s", "verdict": "KILLED",
+       "nodes": ["orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path@dev-waves-runtime"]}
+    ],
+    "timed_out": false,
+    "note": "純増の核。段 1 の A1 (shutdown() 全体 no-op) は既存 test_shutdown_running_child_uses_same_prepared_signal_path が kill するため純増ではない — 全体 no-op ではなく set() 単独落としへ再照準した"
+  },
+  {
+    "id": "M-B-break-108-byte-alias",
+    "file": "tools/dev_waves/protocol.py",
+    "why": "socket_path_alias の /proc/self/fd alias を実パスへ戻し 108 byte 回避を壊す。この位置より前に同じ入力を拒否する検査はない",
+    "anchor": "    alias = f\"/proc/self/fd/{fd}/{SOCKET_BASENAME}\"\\n",
+    "expected": [
+      "orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path"
+    ],
+    "verdict": "KILLED",
+    "runs": [
+      {"test_version": "HEAD (変更前)", "target": "single_node", "rc": 0, "summary": "1 skipped", "verdict": "SURVIVED"},
+      {"test_version": "HEAD (変更前)", "target": "whole_file", "rc": 0, "summary": "78 passed, 1 skipped", "verdict": "SURVIVED"},
+      {"test_version": "本 wave (fix 後)", "target": "single_node", "rc": 1, "summary": "1 failed in 1.54s", "verdict": "KILLED",
+       "nodes": ["orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path@dev-waves-runtime"]},
+      {"test_version": "本 wave (fix 後)", "target": "whole_file", "rc": 1, "summary": "1 failed, 79 passed in 13.51s", "verdict": "KILLED",
+       "nodes": ["orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path@dev-waves-runtime"]}
+    ],
+    "timed_out": false,
+    "note": "SURVIVED 側は rc=0 の SKIP。恒真ゲートは「赤が出ない」ではなく「赤の代わりに skip が出る」形で現れる"
+  },
+  {
+    "id": "M-C-probe-forced-failure",
+    "file": "orchestrator/tests/test_dev_waves_integration.py",
+    "why": "受理集合を縮小する wave の正例として probe を強制失敗させ SKIP + rc=0 を期待した (DW-M01)",
+    "expected": [],
+    "verdict": "RETIRED",
+    "runs": [
+      {"test_version": "本 wave (fix 前)", "target": "single_node", "rc": 0, "summary": "1 skipped", "verdict": "期待どおり"}
+    ],
+    "timed_out": false,
+    "note": "敵対レビュー A の所見 1 を real と裁定して廃止した。probe 自身を壊す変異は capability 不足の模擬になっておらず、その SKIP を成功と数えるのは T-138 と同型の恒真化を認証する。恒久の正例テスト (test_short_alias_bind_probe_separates_capability_loss_from_regression) と M-E1/M-E2 へ置き換えた"
+  },
+  {
+    "id": "M-D-select-blocks-forever",
+    "file": "tools/dev_waves/daemon.py",
+    "why": "serve ループの select を timeout なしにする。lease 検査へ戻らない退行を模し、serve thread の daemon 属性による可用性差を測る (敵対レビュー B 所見 1 の裏取り)",
+    "anchor": "                        ready, _, _ = select.select([bound.sock, relay.fileno()], [], [], 0.25)\\n",
+    "expected": [
+      "orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path"
+    ],
+    "verdict": "DIAGNOSTIC",
+    "runs": [
+      {"test_version": "本 wave (daemon=True)", "target": "single_node (外部 timeout 90s)", "rc": 1, "summary": "1 failed in 31.02s", "outcome": "returned",
+       "nodes": ["orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path"]},
+      {"test_version": "非 daemon 版 (worklog の当初指示)", "target": "single_node (外部 timeout 90s)", "rc": null, "summary": "外部 timeout 90s で終了しなかった", "outcome": "HANG",
+       "tail": "内部では 1 failed まで到達している"}
+    ],
+    "timed_out": true,
+    "note": "kill 判定ではなく設計択一の裏取り。非 daemon 化は退行を『赤』ではなく『受入全走が終わらない』に変える。worklog [T-137] の当初指示 (非 daemon 化) を撤回する根拠"
+  },
+  {
+    "id": "M-E1-probe-always-false",
+    "file": "orchestrator/tests/test_dev_waves_integration.py",
+    "why": "capability probe が常時 False へ退行したとき、probe を使う node がそろって SKIP + rc=0 に逃げないことを確かめる (焦点再レビューの must-fix 1)",
+    "anchor": "    fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)\\n",
+    "expected": [
+      "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_separates_capability_loss_from_regression"
+    ],
+    "verdict": "KILLED",
+    "runs": [
+      {"target": "probe_node", "rc": 1, "summary": "1 failed in 1.46s", "verdict": "KILLED"},
+      {"target": "long_path_node", "rc": 0, "summary": "1 skipped", "verdict": "SKIP (設計どおり — 長 path 側は capability 判定に従う)"}
+    ],
+    "timed_out": false,
+    "note": "FAILED 行の node 抽出に取りこぼしがある。harness が -rf と -rs を併記したため pytest の -r は後者が勝ち、short summary に FAILED 行が出なかった。走らせた target は単一 node 指定なので赤の node は expected と同一で確定する"
+  },
+  {
+    "id": "M-E2-probe-always-true",
+    "file": "orchestrator/tests/test_dev_waves_integration.py",
+    "why": "capability probe が常時 True へ退行したとき、capability 不足を False にできない欠陥を赤にできることを確かめる (両方向の固定)",
+    "anchor": "    fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)\\n",
+    "expected": [
+      "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_separates_capability_loss_from_regression"
+    ],
+    "verdict": "KILLED",
+    "runs": [
+      {"target": "probe_node", "rc": 1, "summary": "1 failed in 1.46s", "verdict": "KILLED"},
+      {"target": "long_path_node", "rc": 0, "summary": "1 passed", "verdict": "SURVIVED (この変異は長 path 側の受理集合を変えない)"}
+    ],
+    "timed_out": false,
+    "note": "M-E1 と同じ node 抽出の取りこぼしがある"
+  }
+]
