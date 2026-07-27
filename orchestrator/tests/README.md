@@ -80,6 +80,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_codex_role_runtime.py
 - test_env_contract.py
 - test_layer3_report.py
+- test_profiler_directive.py
 - test_s1_direct_comparison.py
 - test_s1_measurement_freeze.py
 - test_s1_report.py
