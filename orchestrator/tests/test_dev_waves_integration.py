@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -39,7 +40,6 @@ from tools.dev_waves.git_state import resolve_repo_identity, snapshot_repo
 from tools.dev_waves.ledger import STATUS_NAME, cache_transient_name
 import tools.dev_waves.daemon as daemon_mod
 from tools.dev_waves.protocol import exchange
-from tools.dev_waves.protocol import bind_repo_socket
 from tools.dev_waves.schema import (
     PROTOCOL_VERSION,
     DevWavesError,
@@ -888,6 +888,94 @@ def test_invalid_request_audit_has_capacity_and_creates_no_run() -> None:
             }
 
 
+def _sandbox_permits_short_alias_bind(directory: Path) -> bool:
+    """この sandbox が本番と同じ手順の AF_UNIX bind を許すかだけを独立に確かめる。
+
+    capability probe が検査対象の `bind_repo_socket()` 自身を呼ぶと、108 byte 回避
+    (`protocol.socket_path_alias`) の退行を「sandbox が許さない」と区別できず、
+    SKIPPED + rc=0 の恒真ゲートになる ([T-138])。ここは本番実装を通さず、本番と
+    同じ basename と同じ syscall 列 (socket → bind → chmod → stat → listen) を生の
+    socket で踏む。名前も syscall も減らさないのは、pathname policy や listen 禁止の
+    ような capability 差を本番の退行と誤認しないため — 短縮すると probe が通って
+    本番だけ落ちる断面が残る。socket そのものを作れない sandbox も capability 不足で
+    あって退行ではないので、例外を漏らさず False にする。
+
+    本番 bind の前に呼ぶ前提で、作った socket file は必ず消す。消せなければ本番が
+    `socket-path-exists` で偽赤になるため、その失敗は隠さず送出する。
+    """
+    fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        alias = f"/proc/self/fd/{fd}/.s"
+        if not os.path.isdir(f"/proc/self/fd/{fd}") or len(os.fsencode(alias)) >= 108:
+            return False
+        probe = None
+        created = False
+        try:
+            probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            probe.bind(alias)
+            created = True
+            os.chmod(".s", 0o600, dir_fd=fd, follow_symlinks=False)
+            os.stat(".s", dir_fd=fd, follow_symlinks=False)
+            probe.listen(1)
+            return True
+        except OSError:
+            return False
+        finally:
+            if probe is not None:
+                with contextlib.suppress(OSError):
+                    probe.close()
+            if created:
+                os.unlink(".s", dir_fd=fd)
+    finally:
+        os.close(fd)
+
+
+class _PermissiveAliasSocket:
+    """capability が十分な環境を模す socket。bind は alias の実体を置くだけ。
+
+    probe の True 側を環境に依らず固定するために使う。AF_UNIX の実挙動の検査ではない
+    (それは長 path の node が担う)。
+    """
+
+    def __init__(self, directory: Path) -> None:
+        self._directory = directory
+
+    def bind(self, alias: str) -> None:
+        (self._directory / ".s").touch()
+
+    def listen(self, backlog: int) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+@pytest.mark.xdist_group("dev-waves-runtime")
+def test_short_alias_bind_probe_separates_capability_loss_from_regression() -> None:
+    """probe の両方向を capability 非依存に固定する。
+
+    False 側だけを固定すると、probe が常時 False へ退行したときに probe を使う node が
+    そろって SKIP + rc=0 になり、[T-138] の恒真ゲートが形を変えて戻る (probe 自身を壊す
+    変異ではこの性質を確かめられない)。True 側も固定して「capability があるのに False」を
+    赤にする。False 側は、AF_UNIX を禁じた sandbox で受入が赤になる = 承認外の受理集合
+    縮小を防ぐために要る。
+    """
+    with tempfile.TemporaryDirectory() as temporary:
+        directory = Path(temporary)
+        for failure in (PermissionError(errno.EPERM, "seccomp"),
+                        OSError(errno.EACCES, "policy")):
+            with mock.patch("socket.socket", side_effect=failure):
+                assert _sandbox_permits_short_alias_bind(directory) is False
+        for method in ("bind", "listen"):
+            with mock.patch.object(socket.socket, method,
+                                   side_effect=PermissionError(errno.EPERM, "policy")):
+                assert _sandbox_permits_short_alias_bind(directory) is False
+        with mock.patch("socket.socket",
+                        return_value=_PermissiveAliasSocket(directory)):
+            assert _sandbox_permits_short_alias_bind(directory) is True
+        assert not list(directory.iterdir()), "probe が socket file を残した"
+
+
 @pytest.mark.xdist_group("dev-waves-runtime")
 def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
     with tempfile.TemporaryDirectory() as temporary:
@@ -896,26 +984,46 @@ def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, ["success"])
             assert len(os.fsencode(str(repo.runtime / ".s"))) >= 108
+            # probe より前に Supervisor を作る — runtime dir を作るのはこの構築である。
             supervisor = _supervisor(repo)
-            try:
-                with bind_repo_socket(repo.runtime, os.getuid()):
-                    pass
-            except (OSError, DevWavesError):
+            if not _sandbox_permits_short_alias_bind(repo.runtime):
                 pytest.skip("sandbox does not permit AF_UNIX bind through /proc/self/fd")
-            thread = threading.Thread(target=supervisor.serve_forever, daemon=True)
+            serve_failures: list[BaseException] = []
+
+            def _serve() -> None:
+                # serve_forever の例外を主スレッドへ回収する。thread 内で死なせると
+                # pytest は warning しか出さず、bind の退行が緑で通る ([T-137])。
+                try:
+                    supervisor.serve_forever()
+                except BaseException as exc:
+                    serve_failures.append(exc)
+
+            # 偽緑だった原因は daemon 属性ではなく生存 assertion の欠如だった ([T-137])。
+            # 停止の退行は下の join + is_alive が赤にする。daemon=True は維持する —
+            # 非 daemon thread は select が timeout なしに退行した場合など lease 検査へ
+            # 戻らない経路で interpreter 終了を永久に阻止し、受入全走が「赤」でなく
+            # 「終わらない」になる。可用性を落とさずに退行を赤にできる方を採る。
+            thread = threading.Thread(target=_serve, daemon=True)
             thread.start()
             deadline = time.monotonic() + 5
             while not (repo.runtime / ".s").exists() and thread.is_alive() and time.monotonic() < deadline:
                 time.sleep(0.01)
-            if not thread.is_alive() and not (repo.runtime / ".s").exists():
-                pytest.skip("sandbox does not permit AF_UNIX bind through /proc/self/fd")
+            if serve_failures:
+                raise AssertionError(
+                    f"serve_forever が socket を開けずに落ちた: {serve_failures[0]!r}",
+                ) from serve_failures[0]
+            assert (repo.runtime / ".s").exists()
             raw = exchange(repo.runtime, _request(repo), timeout_s=5)
             response = parse_response(raw)
             assert response.ok and response.run_id is not None
             status, _seen = _wait_terminal(supervisor, response.run_id)
             assert status.state is RunState.COMPLETED
             supervisor.shutdown()
-            thread.join(2)
+            # 30 秒は同ファイルの他 node (wait_idle 系) と揃えた値。5 秒だと共有ノードの
+            # 高負荷で serve thread が deschedule されただけで停止契約の退行と誤判定する。
+            thread.join(30)
+            assert not thread.is_alive(), "shutdown() が serve ループを止めていない"
+            assert not serve_failures, serve_failures
 
 
 def test_linked_worktree_repo_root_resolves_common_identity_and_runtime_main() -> None:

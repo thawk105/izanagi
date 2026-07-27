@@ -34,6 +34,10 @@ _GROUP = "dev-waves-runtime"
 # 他 node と同時に走らせない。語彙を増やすときは「なぜ同時実行で壊れるか」を 1 行で書けること。
 _RUNTIME_VOCABULARY = re.compile(
     r"bind_repo_socket|threading\.Thread|subprocess\.Popen|Popen\(|SIGKILL|daemon_mod"
+    # socket.socket: 本番実装を通さず生の AF_UNIX を bind する node がある ([T-138] の
+    # capability probe)。同時実行すると同じ runtime dir の socket path を奪い合い、
+    # socket module を差し替える mock が同 worker の他 node へ漏れる。
+    r"|socket\.socket"
 )
 
 
