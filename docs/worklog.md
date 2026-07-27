@@ -871,7 +871,8 @@ baseline を測ったところ、**未見の事実として全走が毎回 3 件
   複製して `git add -A` するため ignored な生成物まで tracked になり、production の
   `search_repository` が scan していた。cProfile で `re.Pattern.search` が 443,514 回 22.9 秒。
   git 呼び出しではない ([T-117] 型ではない)。**同一 source で測った効果 = 構築 121.72 → 22.13 秒、
-  列挙 17,119 → 2,507 件、scan テキスト 16,423 → 2,499 件。**
+  列挙 17,119 → 2,507 件、scan テキスト 16,423 → 2,499 件。全走 (main checkout) は
+  300.65 / 321.34 → 69.31 秒。**
 - **受理集合は変わらない (実測)。** 除外前後で search report が完全一致した (陽性対照 55 件、
   holdout conjunction 0 件、軸別 0 / 115 / 100)。除外した 13,920 件に三軸 hit は 1 件も無い。
 - **親の手番の誤り (ユーザー指摘で是正)。** 軽量版の既定に寄りかかって親が実装を書いた。
@@ -886,7 +887,9 @@ baseline を測ったところ、**未見の事実として全走が毎回 3 件
 - **変異 5 件すべて KILLED** (観測 node = 期待 node、単一理由)。M1〜M3 は新 control だけが
   検出する広い方向・狭い方向・祖先経路の 3 方向。M4 の新旧両走 (`DW-M08`) で、scan corpus を
   6.6 倍縮めても既存 gate の検出 node と理由が変わらないことを実証した。
-- **検査**: 受入全走 (worktree) 3089 passed / 14 skipped / **0 failed** / 72.4 秒、対象ファイル
+- **検査**: **取り込み後の全走 (main checkout) 3090 passed / 13 skipped / 0 failed / 69.31 秒**
+  (修正前の同条件は 300.65 / 321.34 秒)。受入全走 (worktree) 3089 passed / 14 skipped / 0 failed / 72.4 秒、
+  記録 commit 後の再走 (worktree) 3089 passed / 0 failed / 70.25 秒 (F34)、対象ファイル
   単独 83 passed / 0 failed、`check_docs` rc=0、`check_ai_provenance` 404 件違反なし。
   codex が報告した 1 件の赤は sandbox 由来で親環境では再現しなかった (`DW-O06`)。
   base2 で 1 件出た `test_dev_waves_integration.py` の flake は受入全走で再現せず。
@@ -905,8 +908,10 @@ baseline を測ったところ、**未見の事実として全走が毎回 3 件
 ### 次の一手
 
 1. [T-130] **新規・着手可能 (本エントリで実測特定)**: `test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2`
-   の短縮。元の [T-128] scope だが、fixture 修正後は受入全走の durations 首位 (46.2 秒) であり
-   **今度こそ律速**である。実 build を 2 回通す node なので、build のキャッシュか node 分割が要る
+   の短縮。元の [T-128] scope だが、fixture 修正後は main checkout・worktree の双方で durations
+   首位 (46.19 / 46.22 秒) であり **今度こそ律速**である。ただし全走 69.31 秒のうち t080 系 8 node の
+   並列 tail (各 22〜29 秒) も残るため、この node だけを削っても wall は ~46 秒より下がらない。
+   実 build を 2 回通す node なので build のキャッシュか node 分割が要る
 2. [T-129] **新規・着手可能 (本エントリで判明)**: 全走 wall の測定作法を明文化する。
    worktree には ignored な生成物が無いため wall が系統的に楽観へ寄る。どの checkout で
    測ったかの併記を義務化する (F41 の恒久対応)。`docs/dev-wave/**` の byte 予算に依存するため

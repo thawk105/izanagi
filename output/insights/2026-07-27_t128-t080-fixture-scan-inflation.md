@@ -131,9 +131,13 @@ M4 の新旧両走が `DW-M08` の要求に対応する。**scan corpus を 6.6 
 
 ## 8. 残る課題
 
-- 修正後の全走 wall (main checkout) は、local main へ取り込んだ後に測る。worktree で測っても
-  2 の理由で修正前と差が出ないため、取り込み前には確定できない
+- 修正後の全走 wall (main checkout) を取り込み後に測った: **69.31 秒 / 3090 passed / 0 failed**
+  (修正前の同条件は 300.65 / 321.34 秒)。**4.3〜4.6 倍**の短縮である。敵対レビュー B は
+  「fixture 構築の短縮分 (約 90 秒) を引いて約 210 秒」と加算則で予測しつつ「8 並列 scan の
+  資源競合も軽くなるため実測はこれより短くなる可能性がある」と留保しており、後者が当たった。
+  critical tail の 8 node が同時に走って資源を奪い合っていた分が、加算則の予測を超えて効いた
 - 次の律速候補は `test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2` (実 build を
   2 回通す node)。これは元々の [T-128] scope であり、新 ID で引き継ぐ
 - base2 で 1 件だけ出た `test_dev_waves_integration.py` の flake は本 wave の変更と無関係で、
-  負荷ピーク (load average 17) 時に出た。受入全走で再現を見る
+  負荷ピーク (load average 17) 時に出た。その後の全走 3 本 (worktree 2 本・main checkout 1 本)
+  では再現していない
