@@ -91,9 +91,8 @@ NO-GO が返り続ける場合は無制限に fix を重ねず、3 巡を上限�
 
 ## DW-O17 — commit trailer
 
-件名、本文、末尾 trailer block を分け、
-`AI-Agent` と `Co-Authored-By` を空行なしの同一最終段落へ置く（F25）。
-詳細は `docs/ai-provenance.md` に従い、commit 後の監査を省略しない。
+trailer 配置は `docs/ai-provenance.md` の「必須形式」に従う（F25）。message は commit 前に
+`python3 tools/check_ai_provenance.py --message-file <path>` で検査し、commit 後の監査も省略しない。
 検査の rc はパイプに通さず単独で取り、赤のまま commit しない（F37）。
 
 ## DW-O18 — 親のテスト cwd

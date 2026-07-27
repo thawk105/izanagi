@@ -317,6 +317,8 @@
   Co-Authored-By を空行なしで連続)」の 4 段構成で作る。commit 直後に `check_ai_provenance` を回す
   (規約どおり) — 違反が出たら push 前にメッセージだけ積み直す
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
+- 現行実体の更新 (2026-07-28 [T-147] 追記): trailer 配置規則は正本 `docs/ai-provenance.md`
+  「必須形式」へ移設。`DW-O17` は commit 前 `--message-file` 検査・commit 後監査・rc 手順を担う
 - 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
   更新漏れも併せて見る
 
