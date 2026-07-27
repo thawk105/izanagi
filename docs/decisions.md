@@ -4043,3 +4043,66 @@ ungrouped の単一 node (`test_slow_oracle_prepared_cell_pipeline_uses_real_bui
 実 repo へは read-only でしか触らない)。したがって D63 の real-repo group とは別の根拠であり、
 本決定を「隔離のための group」として引用してはならない。同じ理由で [T-121] (real-repo group の
 reader/writer 分離) も、分割で wall が縮む前提に立つ限り優先度は下がる。
+
+**上書き注記 (2026-07-27、[T-132]): 決定 (2) は D92 が置き換えた。** A/B が `-n 16` の条件で
+行われていたこと、および「下限は ungrouped の単一 node」の算数が成立していなかったことによる。
+決定 (1) (`wait_idle`) は有効のまま。
+## D92. [T-132] integration テストの直列を「1 file 1 group」から「runtime 資源を掴む node だけ」へ狭め、D91 決定 (2) を上書きする (2026-07-27)
+
+**決定 (1): `orchestrator/tests/test_dev_waves_integration.py` の module 一括
+`xdist_group("dev-waves-integration")` を外す。** 代わりに、テスト自身が長命なプロセス外資源
+(unix domain socket・`threading.Thread`・`subprocess.Popen` の子・実 daemon プロセス・`SIGKILL`)
+を作る node だけを `xdist_group("dev-waves-runtime")` に残す (8 node、直列和 14.7 秒)。
+**D91 決定 (2)「1 file 1 xdist group を維持する」を置き換える。** D91 決定 (1)
+(`Supervisor.wait_idle` を本番 API に置く) は本決定の射程外で不変。材料正本 =
+`output/insights/2026-07-27_t132-group-split.md`。
+
+**決定 (2): 直列対象を人手のリストで持たない。** `test_dev_waves_isolation_contract.py` が
+上記の語彙へ (module 内 helper 経由も含め) 推移的に到達する test 関数を AST で導出し、
+実際の marker と**完全一致**することを検査する。marker の付け忘れも付けすぎも赤になる。
+語彙が空振りして検査が恒真化する経路 (F9 型) は、導出数の下限 assert で塞ぐ。
+同 test は「各 node が `_temporary_repo` / `_isolated_process_environment` へ `_REPO` を渡さない」
+という隔離契約の positive control も持つ。
+
+**なぜ D91 決定 (2) を覆すか (1) — D91 の A/B は `-n 16` の条件でしか成立していなかった。**
+既定並列度は `min(使えるコア数, 32)`。`-n 32` の A/B 交互 3 往復のペア差 (`Δ = B − A`) は
+−13.68 / −9.27 / −15.81 秒で 3/3 符号一致、平均 73.42 → 60.50 秒 (**−17.6%**)。走順を反転した
+ブロック (B,A,A,B) でも最も遅い分割走 (66.94 秒) が最も速い非分割走 (71.47 秒) を下回る。
+D91 が根拠にした `-n 16` のペア差 (−4.5 / +9.5 / +2.5 秒) は、分割後の work をその並列度で割ると
+元の直列和と同程度になり差が埋もれたためと説明できる。
+
+**なぜ覆すか (2) — D91 が挙げた「頭打ち」の根拠は算数が成立していなかった。**
+D91 は「下限は ungrouped の単一 node (46〜58 秒) が決めており、この group の直列和 (68〜70 秒) を
+割っても頭打ち」と述べたが、68 > 58 なので下限を決めていたのはこの group 側だった。
+
+**なぜ完全削除ではなく選択的直列か。** 敵対相談 2 本 (codex `gpt-5.6-sol`、read-only、異なるレンズ)
+が独立に、(a) 完全削除の必要性が未証明であること、(b) 完全削除は serve thread の終了・実 daemon の
+SIGKILL/復旧・socket・tight deadline の露出面を一度に 32 並列へ開くこと、を指摘した。
+実測では C (選択的直列) の wall は 60.80 / 60.81 秒で、B (完全削除) の平均 63.76 秒を上回らない。
+**利得を失わずに露出面だけ減らせる**ため C を採る。
+
+**射程 — この直列が守らないもの。** 時間境界に依存する node のフレーク ([T-136]) は対象外である。
+内部締切 (`total_timeout` / `per_wave_timeout` / `max_total_timeout_s`) は `_supervisor()` /
+`_request()` 経由で 40/41 の test 関数が持つため直列化では隔離できず、実際に**group あり構成でも
+load 11.05 で赤が出た**。本決定を「timing フレークの対策」として引用してはならない。
+
+**代償:** 分割により当該ファイルの work は 68.0 → 84.5 秒 (+24.3%、73/78 node が一様増加)、
+全走 work は 670.9 → 687.9 秒 (+2.5%)。原因は temp git repo 構築のストレージ書き込み競合。
+利得は「分割後の work / 並列度 < 元の直列和」が成り立つ間だけなので、並列度が低い環境
+(少コア機・PBS の小割当・CI) では消えるか逆転しうる。そこで回す場合は wall を A/B 交互で測り直す。
+共有ノードの他ユーザーへの影響 (同期書込みの瞬間密度) は測っていない。
+
+**D63 との関係:** D63 の `real-repo` group は隔離のための直列化であり、本決定は触れない。
+`conftest.py` の `REAL_REPO_SERIAL_NODES` にこのファイルの node は 1 つも無く、
+決定 (2) の meta-test がその不在を継続的に検査する (二重 group による排他破壊の防止)。
+
+**却下した案:** (a) 完全削除 — 上記のとおり露出面を開く。(b) LPT による N 等分割 — work 増加は
+抑えられるが sub-group 割当が durations に依存し、テストの増減ごとに再計算が要る (規律 5)。
+(c) 現状維持 — 全走 wall の下限を決めているのはこの group であり、維持する限り 68 秒を割れない。
+(d) [T-136] の同梱 — `total_timeout` の緩和や判定の時間非依存化は**テストの受理集合に触れる**
+改修で、独立の設計裁定が要る (規律 2)。
+
+**研究状態への影響:** なし。本番コード 0 byte、受理集合不変 (分割前後とも同一 node 集合が
+passed / skipped)。certified 選択・材料レポート・proof chain の値と参照は変わらない。
+ただし開発用の task-run 台帳は `duration_s` と収集 node digest が変わる (wall と nodeid 表記が
+変わるため)。「台帳を一切変えない」とは書かない。
