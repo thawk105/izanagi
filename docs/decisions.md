@@ -4007,3 +4007,39 @@ consumer 閉集合を AST で固定するテストも、構文形状しか固定
 変異は事前登録 5/5 一致 (帰属 3 / 非帰属 control 2)。事前登録の誤り 3 件は材料正本 §8 に erratum として残す。
 
 AI-Agent 記録の正本は commit message とし、本項へ重複させない。
+
+## D91. [T-120] dev-wave supervisor の静止観測を本番 API に置き、integration テストの group 分割は実測で棄却する (2026-07-27)
+
+**決定 (1): terminal 状態と静止を別の観測点として本番 API に分ける。**
+`Supervisor.wait_idle(timeout_s) -> bool` を追加し、terminal 観測後の資源解放を待てるようにする。
+材料正本 = `output/insights/2026-07-27_t120-quiescence-window-and-group-split.md`。
+
+**なぜテスト側の待ち方の問題にしないか。** `ledger.finish` が status を書いた時点で外部は terminal を
+観測できるが、run スレッド (`_run_entry`) はその後も WAL writer の join・status の scratch 経由の
+書き換え・run ディレクトリの fd と flock の解放を続ける。`_active` を None にするのも**そのスレッド
+自身の finally の中**であり、`_active is None` は静止を意味しない。すなわち **terminal 観測後に
+副作用が続くことは実装の偶然ではなく構造**であり、外部から静止を観測する手段が API に無かったことが
+根である。無人継続 supervisor が「terminal を見たら次工程へ」と進む設計は、この尾と競合する。
+
+実測 (使い捨て driver、本番・テストとも無変更): terminal 観測直後に runtime tree を消すと 5/48 失敗、
+0.5 秒待つと 0/48、run スレッドを join すると 0/48。失敗回は例外なく run スレッドと WAL writer が
+生存中で、子プロセスは残っていない。
+
+**実装上の制約 (規範)。** `wait_idle` は join を **lock の外**で行う。run スレッドは自分の finally で
+同じ lock を取るため、lock を保持したまま join すると待っている当の相手と deadlock する。
+また `_active` は上記の理由で静止判定に使えないので、submit と resume の両方が
+`_last_run_thread` にスレッドを保持する。この 2 点を崩す変更は、静止の保証をそのまま失う。
+
+**決定 (2): `test_dev_waves_integration.py` は 1 file 1 xdist group を維持する。**
+[T-117] は「ファイル単位 group の直列 67.2 秒が全走 wall の正体で、割れば ~5 秒相当」と見立てていたが、
+cygnus の A/B 交互測定 (3 往復、全走 -n 16、各走の直前 load を記録) のペア差は −4.5 / +9.5 / +2.5 秒で
+符号が割れ、走間変動 24.5 秒に対し有意差が出なかった (6 走とも 0 failed)。一方で分割は総 work を
+増やす向きに働く (実測 +36% の走あり) — 各 node が temp git repo の構築に subprocess を多用するため、
+全 worker へ散らすと fork/exec と I/O が競合する。加えて全走 wall の下限はこの group ではなく
+ungrouped の単一 node (`test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2`、実測 46〜58 秒) が
+決めており、この group の直列和 (68〜70 秒) を割っても頭打ちになる。
+
+**射程。** 維持の理由は「隔離が足りない」ではない (各 node は自分の TemporaryDirectory に閉じ、
+実 repo へは read-only でしか触らない)。したがって D63 の real-repo group とは別の根拠であり、
+本決定を「隔離のための group」として引用してはならない。同じ理由で [T-121] (real-repo group の
+reader/writer 分離) も、分割で wall が縮む前提に立つ限り優先度は下がる。
