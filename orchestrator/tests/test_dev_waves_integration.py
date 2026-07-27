@@ -52,6 +52,20 @@ from tools.dev_waves.schema import (
 from tools.dev_waves.worker import kill_spawned_process, spawn_worker as real_spawn_worker
 
 
+# ファイル丸ごと 1 group のままにする。分割**できない**からではなく、分割しても速く
+# ならないことを実測したため ([T-120]、2026-07-27)。
+#
+# 隔離自体は足りている: 各 node は自分の TemporaryDirectory の中に git repo・submodule
+# source・remote・runtime・fake child を作り、この repo (_REPO) へは read-only でしか
+# 触らない (tools/task_run.py と tools/task_runs/ のコピー、PYTHONPATH、subprocess の
+# cwd、daemon.py の読取)。conftest.py の real-repo 競合面とも重ならない。
+#
+# それでも維持する理由: group を外した A/B 交互測定 (3 往復、全走 -n 16) のペア差は
+# -4.5 / +9.5 / +2.5 秒で符号が割れ、変動幅 24.5 秒に対して有意差が出なかった。一方で
+# 各 node は temp git repo の構築に subprocess を多用するため、全 worker へ散らすと
+# 総 work が増える走がある (実測 +36%)。全走 wall の下限はこの group ではなく ungrouped
+# の単一 node (test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2、実測 46〜58 秒)
+# が決めており、この group の直列和 (68〜70 秒) を割っても頭打ちになる。
 pytestmark = pytest.mark.xdist_group("dev-waves-integration")
 
 _REPO = Path(__file__).resolve().parents[2]
