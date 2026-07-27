@@ -52,21 +52,27 @@ from tools.dev_waves.schema import (
 from tools.dev_waves.worker import kill_spawned_process, spawn_worker as real_spawn_worker
 
 
-# ファイル丸ごと 1 group のままにする。分割**できない**からではなく、分割しても速く
-# ならないことを実測したため ([T-120]、2026-07-27)。
+# ファイル丸ごとの 1 group ([T-120] が維持した xdist_group("dev-waves-integration")) は
+# [T-132] (2026-07-27) で外し、テスト自身が長命なプロセス外資源 (socket・thread・Popen の子・
+# 実 daemon プロセス) を作る node だけを xdist_group("dev-waves-runtime") に残した。対象を
+# ここで手で列挙はしない — test_dev_waves_isolation_contract.py が同じ規則で AST から導出し、
+# marker と突き合わせるので、付け忘れも付けすぎも同 test が赤くする。
 #
-# 隔離自体は足りている: 各 node は自分の TemporaryDirectory の中に git repo・submodule
-# source・remote・runtime・fake child を作り、この repo (_REPO) へは read-only でしか
-# 触らない (tools/task_run.py と tools/task_runs/ のコピー、PYTHONPATH、subprocess の
-# cwd、daemon.py の読取)。conftest.py の real-repo 競合面とも重ならない。
+# なぜ外したか: 全走 wall の下限を決めていたのはこの group の直列和 (68 秒) だった。A/B 交互
+# 測定 (cygnus・worktree checkout・-n 32、順方向 3 往復 + 逆順 1 ブロック) は一貫して分割側が
+# 速く、平均 73.4 -> 60.5 秒 (-17.6%)。[T-120] が「速くならない」と実測したのは -n 16 の条件で、
+# 分割後の work をその並列度で割ると元の直列和と同程度になり差が埋もれていた。[T-120] の
+# コメントは「下限は ungrouped の単一 node (46〜58 秒) なのでこの group (68〜70 秒) を割っても
+# 頭打ち」とも書いていたが、68 > 58 で算数が合っていなかった。
 #
-# それでも維持する理由: group を外した A/B 交互測定 (3 往復、全走 -n 16) のペア差は
-# -4.5 / +9.5 / +2.5 秒で符号が割れ、変動幅 24.5 秒に対して有意差が出なかった。一方で
-# 各 node は temp git repo の構築に subprocess を多用するため、全 worker へ散らすと
-# 総 work が増える走がある (実測 +36%)。全走 wall の下限はこの group ではなく ungrouped
-# の単一 node (test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2、実測 46〜58 秒)
-# が決めており、この group の直列和 (68〜70 秒) を割っても頭打ちになる。
-pytestmark = pytest.mark.xdist_group("dev-waves-integration")
+# 代償: 分割すると各 node の temp git repo 構築がストレージ書き込みで競合し、このファイルの
+# work は 68.0 -> 84.5 秒 (+24%、73/78 node が一様に増加) になる。利得は「分割後の work /
+# 並列度 < 元の直列和」が成り立つ間だけなので、並列度が低い環境 (少コア機・PBS の小割当・CI)
+# では消えるか逆転しうる。そこで回すときは wall を A/B 交互で測り直すこと。
+#
+# この直列 group が守らないもの: 時間境界に依存する node のフレーク ([T-136])。内部締切は
+# _supervisor() / _request() 経由で 40/41 の node が持つため直列化では隔離できず、実際に
+# group あり構成でも load 11 で赤が出ている。時間依存の解決は [T-136] の射程である。
 
 _REPO = Path(__file__).resolve().parents[2]
 _TERMINAL = {RunState.COMPLETED, RunState.BLOCKED, RunState.FAILED, RunState.INTERRUPTED}
@@ -756,6 +762,7 @@ def test_resume_never_duplicates_child_or_land(
                 assert before_resume == expected_invocations
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 @pytest.mark.parametrize(
     "waves,request_waves,target_state,target_wave",
     [
@@ -789,6 +796,7 @@ def test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points(
                     daemon.kill(); daemon.wait()
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 def test_real_daemon_sigkill_after_accepted_reconciles_without_child_rerun() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
@@ -804,6 +812,7 @@ def test_real_daemon_sigkill_after_accepted_reconciles_without_child_rerun() -> 
             assert len(_invocations(repo)) == 1
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 @pytest.mark.parametrize("dirty_kind", ["main", "submodule"])
 def test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun(
     dirty_kind: str,
@@ -827,6 +836,7 @@ def test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun(
             assert len(_invocations(repo)) == 1
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 @pytest.mark.parametrize("mismatch", ["identity", "branch"])
 def test_accepted_reconciliation_rebinds_repo_identity_and_main_branch(
     mismatch: str,
@@ -878,6 +888,7 @@ def test_invalid_request_audit_has_capacity_and_creates_no_run() -> None:
             }
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary) / ("long-component-" * 8)
@@ -1063,6 +1074,7 @@ def _vanishing_entry(run: Path, name: str, size: int) -> Iterator[None]:
         yield
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 def test_vanished_rewrite_scratch_is_skipped_but_lost_artifact_fails_closed() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
@@ -1096,6 +1108,7 @@ def test_vanished_rewrite_scratch_is_skipped_but_lost_artifact_fails_closed() ->
                 assert captured.value.detail["kind"] == "vanished-artifact"
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 def test_capacity_gate_stays_closed_when_an_artifact_vanishes_mid_measure() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
@@ -1384,6 +1397,7 @@ def test_auto_unavailable_or_permission_abort_never_rebuilds_dangerous_argv() ->
                            for token in argv)
 
 
+@pytest.mark.xdist_group("dev-waves-runtime")
 def test_wait_idle_is_bound_to_the_run_thread_and_reports_timeout_without_raising() -> None:
     """静止の観測は run スレッドの生死に束縛される (``_active`` の消滅ではない)。
 
