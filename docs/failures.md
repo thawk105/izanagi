@@ -680,3 +680,30 @@
 - 暫定の実体: 本 wave の harness (`ab_measure2.sh`) は上記 (i)(ii) を実装済みで、以後の同種作業の
   雛形になる。ただし文書化された義務ではないので、次の実行者が同じ設計を選ぶ保証はない
 - 記録: worklog 2026-07-27 (20)、材料 = `output/insights/2026-07-27_t120-quiescence-window-and-group-split.md`
+
+### F41. worktree で測った全走 wall を checkout 非依存の値として記録し、後続 wave の起票を誤らせた [誤前提] [測定の交絡]
+
+- 日付: 2026-07-27 (混入は 2026-07-27 (20)、露出と是正は同 (21))
+- 事象: worklog 2026-07-27 (20) は cygnus での全走 wall を 67.8〜106.3 秒、律速を単一 node
+  (46〜58 秒) と記録し、それを根拠に [T-128]「唯一残った律速の短縮」を起票した。次 wave が
+  main checkout で測ると全走は 300.65 / 321.34 秒、その node は durations 9 位で、記録とは
+  wall も律速も一致しなかった
+- 根本原因: **git worktree には ignored なファイルが存在しない。** `output/s1-build-cache/` は
+  `.gitignore` 対象で main checkout に 36,158 件 (1.8GB) あるが、worktree では 0 件になる。
+  T-080 E2E fixture は実 repo の `output/` を丸ごと複製してから `git add -A` するため、
+  main checkout では ignored な生成物まで scan 対象に入り、worktree では入らない。
+  **wall は checkout に依存するのに、その条件が記録に併記されていなかった**
+- 検出できた理由: 次 wave の変異検査で、変更前 fixture を使う走 (102.89 秒) と変更後 (103.62 秒)
+  が worktree でほぼ同時間になり、「worktree では修正前でも膨張しない」と分かったため。
+  wall の数字だけを追っていれば、環境差 (Pegasus と cygnus) や他ユーザー負荷に誤って帰属していた
+- 実害: 誤った前提での [T-128] 起票と、次 wave での baseline 再測 2 走 (約 10 分)。
+  加えて、次 wave が最初に出した「修正で 17,119 → 2,507 件」という比較自体が checkout 違いで
+  交絡しており、同一 source で測り直すまで効果を確定できなかった (実測し直して 121.72 → 22.13 秒)
+- 恒久対応: **未実施 (予算不足)**。全走 wall・work 合計などの測定値を記録するとき、
+  測定した checkout (main / worktree) の併記を義務化する改訂が要る。`docs/dev-wave/**` は
+  byte 予算に余裕がなく、[T-127] の独立審査へ合流させた ([T-129] として起票)
+- 暫定の実体: worklog 2026-07-27 (21) と
+  `output/insights/2026-07-27_t128-t080-fixture-scan-inflation.md` に、checkout 依存の事実と
+  「同一 source で測り直す」手順を実測値つきで残した。既存の 69 秒という記録にも
+  worktree 測定である旨を追記した
+- 記録: worklog 2026-07-27 (20) (混入) と (21) (露出・是正)
