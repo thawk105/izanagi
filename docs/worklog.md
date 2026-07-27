@@ -541,6 +541,13 @@ worktree ディレクトリ名は前 wave の `dev-wave-t128-t080-scan` のま�
   3092 passed / 14 skipped / 0 failed (58.40 / 58.01 / 61.69 秒、worktree checkout)**、
   記録 commit 後の再走 (F34) も **3092 passed / 14 skipped / 0 failed (59.15 秒)**、
   `check_docs` rc=0、`check_ai_provenance` 411 件違反なし
+- **local main 取り込み後の確認 (main checkout、F41)**: 全走 3 回は **60.65 / 60.39 / 62.25 秒**
+  (skipped は worktree の 14 に対し main checkout では 13 = checkout 依存)。1 走目に 1 件
+  (`test_dev_waves_cli.py::test_cancel_is_idempotent_for_terminal_run_and_never_signals_unverified_pid`)、
+  3 走目に 2 件 (`test_child_failure_injection_stops_before_next_wave` の 2 param、既報) の赤。
+  1 走目の node は**単独再走 5/5 緑で再現せず** `DW-O18` に従いフレークとして扱う。
+  **分割の前後でフレーク率に有意差は見えない** (分割前 A 構成 1/2 走、最終構成 2/7 走)。
+  **[T-136] の射程は `test_dev_waves_cli.py` にも及ぶ**
 - **変異 3 件はすべて KILLED** (事前登録どおり期待 node だけが赤)。M1 直列 marker を 1 個外す →
   `test_every_node_that_touches_process_external_resources_stays_serialised`、M2 作業根を
   `_REPO` へ差し替える → `test_no_test_function_hands_the_repository_root_to_a_rooted_helper`、
@@ -567,7 +574,8 @@ worktree ディレクトリ名は前 wave の `dev-wave-t128-t080-scan` のま�
    フレーク。**本エントリの 14 走で、group あり構成・load 11.05 でも赤が出た**
    (`test_fake_manifest_run_id_is_bound_to_path_namespace`)。赤くなった 6 node は互いに異なり
    前エントリの 6 node とも重ならない。**内部締切は 40/41 の test 関数が持つため直列化では
-   防げない**。受入判定を汚し続けるので、`total_timeout` を負荷に応じて緩めるか判定を時間非依存に
+   防げない**。**射程は `test_dev_waves_cli.py` にも及ぶ** (取り込み後の main checkout で観測)。
+   受入判定を汚し続けるので、`total_timeout` を負荷に応じて緩めるか判定を時間非依存に
    する。受理集合に触れる改修なので設計裁定を先に置く
 2. [T-137] **新規・着手可能 (偽緑、敵対相談レンズ 1 の blocker)**: socket テストの serve thread が
    `daemon=True` で、`thread.join(2)` の後に生存を assert しない。**`shutdown()` が no-op に
