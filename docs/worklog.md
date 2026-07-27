@@ -599,7 +599,8 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - **判断 = 救出する (本エントリで実施)**。根拠 3 点。(i) main の `phase3.md` と D58 の別判断が
   「逐次停止は**別設計・別裁定のまま据え置く**」と書いており、**その「別設計」の実体がこの 2 ファイル**
   だった (参照先だけが欠けた孤児参照の状態)。(ii) 設計 v2 は 3 レンズ敵対レビュー
-  (codex gpt-5.6-sol、reasoning high、read-only) の must-fix 13 系統・should-fix 10 系統を反映済みで、
+  (codex gpt-5.6-sol、reasoning high、read-only) の **must-fix 17 件 (レンズ別 6/6/5 — v2 冒頭が
+  「6 系統」と呼ぶのは束ねた後の数)・should-fix 10 件 (3/3/4)** を反映済みで、
   **v1 の主目的だった bench rep 逐次打ち切りを証拠に基づき自ら棄却** (§10-(vi): γ=0.7 が χ²(2) の裾を
   塞げず 38.7% 誤停止、MWU 標本数変更で「採否不変」が不成立) して SPRT 1 本へ縮小した文書であり、
   再導出コストが高い。review 原文は実コード行つきで refuted 15 件 (3 レンズ × 5) の裏取りを持つ
@@ -613,6 +614,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   `docs/archive/worklog-phase3-0714-0716.md` へ凍結済みで、凍結エントリへの後付け挿入になる。
   索引価値は insight 本体より低く、本エントリからポインタが張れる。**よって commit 単位の
   cherry-pick はせず、2 ファイルの追加だけを取り出した** (main の既存ファイルと衝突しない追加のみ)。
+- **見送った 07-15 (12) エントリから、git に入り得ない情報だけ吸収した** (branch 削除で失われる
+  ため、削除前に実施): (i) **工数** = Fable が現状調査・設計裁定・v1/v2 執筆、codex gpt-5.6-sol
+  (high) ×3 並行が敵対レビュー (空振りなし)。(ii) **罠** = worktree では submodule を初期化しないと
+  `check_docs` が落ちる (未チェックアウトだと ccbench-anatomy の参照解決が偽陽性になる)。
+  (iii) レビューは設計の瑕疵だけでなく**執筆側の検算誤り 2 件** (SPRT 非再現確定の一般化・
+  11011111 の対数尤度比) も摘出した。(iv) **人間判断待ちは 1 件残る** — 設計 v2 の採用と実装着手
+  (bench-first と同一案件)。所在は insight 末尾の裁定欄で、worklog には再掲しない。
 - **ahead カウントだけでは判定できなかった**: `worktree-strategy-review-freeze` は ahead=41 だが
   `git cherry` で 41/41 が main に取り込み済み (rebase 経由)。逆に `seq-stop-spec` は ahead=72 の
   うち実質 3 件だけが取り残し。**ahead>0 は「未取り込み」を意味しない**ため、command §1 の棚卸しに
@@ -627,14 +635,24 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - **自己改善 gate**: **発火** (手順不足を実測)。`.claude/commands/cleanup-branches.md` §1 へ
   `git cherry` の 1 項目を追加。既存の安全条件 (ahead=0 のみ削除、`-D` 禁止) は弱めていない。
   failures への新規 F は作っていない — 実害・事故ではなく棚卸し情報の不足のため (routing 4)。
-- **検査**: `check_docs` rc=0。`git submodule status` = `d706650` 初期化済み (`-` prefix なし)。
+- **ユーザー裁定 (2026-07-27) = 提示した 4 点すべて実行**。(1) 救出 3 commit を **local main へ
+  ff 取り込み** (a15289b。origin/main への push は従来どおり人間手番で未実施)。(2) `seq-stop-spec`
+  と (3) `worktree-strategy-review-freeze` を F26 手順 (detach → branch 削除 → ディレクトリ削除 →
+  prune) で畳んだ。両者とも `-d` は ahead>0 で拒否されたため、**取り残しの中身を全件評価し終えた
+  うえでユーザー承認を得て `-D`** を使った (削除前 SHA = 9031fd8 / 695cf18 を記録済みで、
+  gc 前なら復元可能)。(4) リモート `origin/worktree-s8b-ruling-prep` は **実体が既に存在せず**、
+  ローカルの追跡参照だけが残っていた (`ls-remote` で確認 → `fetch --prune` で整理)。
+- **`git submodule deinit` は使っていない** (F26)。畳んだ後も main checkout の gitlink は無傷。
+- **検査**: `check_docs` rc=0、`check_ai_provenance` 395 件違反なし。救出 2 ファイルは原本と
+  blob 一致。`git submodule status` = `d706650` 初期化済み (`-` prefix なし)。掃除後の worktree は
+  main checkout + 常設 `izanagi-cs` の 2 つ。
 
 ### 次の一手
 
-1. [T-125] **完了 (本エントリ)**: `seq-stop-spec` の取り込み漏れを価値判断のうえ救出した
-   (insight 2 ファイルのみ。phase3.md 巻き戻しと凍結 worklog への後付けは見送り)。**残務 =
-   救出 commit を main へ取り込んだ後に branch `seq-stop-spec` と同 worktree を畳む**
-   (取り残しが消えるので §2 の安全条件を満たすようになる)。それまでは削除しない
+1. [T-125] **完了 (本エントリ)**: `seq-stop-spec` の取り込み漏れを価値判断のうえ救出し、
+   local main へ取り込んだうえで対象 worktree 2 件を畳んだ (ユーザー裁定 4 点すべて実行)。
+   **残る人間手番 = `origin/main` への push だけ** (ローカル main が 3 commit 先行。push 後は
+   リモートの `worktree-cleanup-branches-cherry` も削除してよい)
 2. [T-120] **着手可能・最優先**: `dev-waves-integration` の file 単位 group を分割する
    (直列 ~70 秒 = 現 wall の正体)。変わらず
 3. [T-121] **裁定済み → [T-120] の実測後に再判断**: real-repo group の reader/writer 分離。変わらず
