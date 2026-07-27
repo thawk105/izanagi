@@ -11,6 +11,9 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - `git worktree list` と `git branch -a` を列挙し、各ローカルブランチの `git rev-list --count
   main..<b>` (ahead) / `<b>..main` (behind) を出す
 - 各 worktree の `git status --short` を確認する (未コミット差分の有無)
+- ahead>0 のブランチは `git cherry main <b>` を出す。rebase / cherry-pick で取り込まれた側は
+  ahead>0 のまま残るため、ahead だけでは取り残しの有無を判定できない。`+` 行が真の取り残しで、
+  ファイルが main に無ければ取り込み漏れとして §5 で報告する
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
