@@ -9,8 +9,9 @@
 2. 本題の group 分割は **A/B 交互測定で有意差が出ず、棄却した**。[T-117] の見立て
    「割れれば ~5 秒相当」は cygnus では成立しない。理由を実測値つきでコードコメントに残した。
 
-一次資料: 本ファイル。使い捨て driver = `(job tmp) repro_rmtree.py` / `repro_v2.py`、
-A/B 測定 = `(job tmp) ab_measure2.sh`。先行記録 =
+一次資料は本ファイルである。切り分けに使った driver と A/B 測定 script は本 wave 限りの
+使い捨てで repo に残していない (セッション tmp) が、**再現に要る設計・条件・実測値は本文に全載**
+している (§3 の 3 モード、§5 の 6 走とペア差、§7 の harness 要件)。先行記録 =
 `output/insights/2026-07-27_t117-loadgroup-and-stopcont-race.md`。
 
 ## 1. 計測環境 — 共有ノードであることが結論に効いた
