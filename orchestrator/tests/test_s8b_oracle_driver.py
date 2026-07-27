@@ -41,6 +41,7 @@ from campaign import s8b_freeze_io  # noqa: E402
 from campaign import s8b_materialization  # noqa: E402
 from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
 from campaign import s8b_oracle_report as report_module  # noqa: E402
+from campaign import s8b_holdout_freeze  # noqa: E402
 from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign import s8b_run_marker  # noqa: E402
 from campaign import t080_freeze_migration as migration  # noqa: E402
@@ -420,6 +421,108 @@ def _copy_t080_basis_file(root: Path, relative: str) -> None:
 _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
 
 
+def _run_git_bytes(root: Path, *args: str) -> bytes:
+    """Git の失敗理由を stderr 本文付きで fail-closed に返す。"""
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=root, check=True, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, env=_sanitized_git_env(),
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raw = getattr(exc, "stderr", b"")
+        if isinstance(raw, bytes):
+            detail = raw.decode("utf-8", "replace")
+        else:
+            detail = str(raw)
+        raise AssertionError(
+            f"git {' '.join(args)} に失敗: {detail.strip() or str(exc)}"
+        ) from exc
+    return completed.stdout
+
+
+def _git_visible_output_paths(root: Path) -> set[str]:
+    """本番列挙と同じ Git-visible regular file のうち output/ 配下を返す。"""
+    tracked = _run_git_bytes(root, "ls-files", "-z", "-s", "--", "output")
+    visible: set[str] = set()
+    for raw_entry in tracked.split(b"\0"):
+        if not raw_entry:
+            continue
+        entry = raw_entry.decode("utf-8")
+        meta, separator, relative = entry.partition("\t")
+        if not separator or not relative:
+            raise AssertionError(
+                f"git ls-files -s の出力を解釈できない: {entry!r}"
+            )
+        mode = meta.split(" ", 1)[0]
+        if mode not in {"100644", "100755", "120000", "160000"}:
+            raise AssertionError(f"未知の git file mode: {mode} ({relative})")
+        if mode in {"100644", "100755"}:
+            visible.add(relative)
+
+    untracked = _run_git_bytes(
+        root, "ls-files", "-z", "--others", "--exclude-standard",
+        "--", "output",
+    )
+    for raw_relative in untracked.split(b"\0"):
+        if not raw_relative:
+            continue
+        relative = raw_relative.decode("utf-8")
+        path = root / relative
+        if path.is_file() and not path.is_symlink():
+            visible.add(relative)
+    return visible
+
+
+def _copy_git_visible_output(source_root: Path, destination: Path) -> set[str]:
+    """Git-visible な output regular file だけを fixture へ複製する。"""
+    visible_output = _git_visible_output_paths(source_root)
+    excluded_artifacts = {
+        migration.RECEIPT_REL,
+        migration.DRAFT_REL,
+    }
+    for relative in sorted(visible_output - excluded_artifacts):
+        source = source_root / relative
+        if not source.is_file() or source.is_symlink():
+            raise AssertionError(
+                "Git-visible output path が regular file ではない: "
+                f"{relative}"
+            )
+
+    visible_output_ancestors = {
+        parent.as_posix()
+        for relative in visible_output
+        for parent in Path(relative).parents
+        if parent != Path(".")
+    }
+    copyable_output = visible_output | visible_output_ancestors
+
+    def ignore_non_visible_output_and_t080_artifacts(directory, names):
+        ignored = {
+            name
+            for name in names
+            if (Path(directory) / name).relative_to(source_root).as_posix()
+            not in copyable_output
+        }
+        ignored.update({
+            name
+            for name in names
+            if (Path(directory) / name).relative_to(source_root).as_posix()
+            in excluded_artifacts
+        })
+        return ignored
+
+    # 実 repo で ignored な s1-build-cache (1.8GB / 36,158 files) まで複製すると、
+    # 列挙 17,119 件・scan text 16,423 件となり、fixture 構築が 15〜22 秒から
+    # 121.7 秒へ膨らんだ ([T-128] 実測 2026-07-27)。Git を可視性の正本とし、
+    # untracked の増減を隠す process 内 memo は置かない。
+    shutil.copytree(
+        source_root / "output", destination,
+        ignore=ignore_non_visible_output_and_t080_artifacts,
+    )
+    return visible_output
+
+
 def _t080_stub_free_e2e_repo(
         tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
         extra_r_path: bool = False, issue_receipt: bool = True,
@@ -470,18 +573,7 @@ def _build_t080_stub_free_e2e_repo(
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
 
-    def ignore_t080_migration_artifacts(directory, _names):
-        if Path(directory) == ROOT / "output" / "t080-migration":
-            return {
-                Path(migration.RECEIPT_REL).name,
-                Path(migration.DRAFT_REL).name,
-            }
-        return set()
-
-    shutil.copytree(
-        ROOT / "output", root / "output",
-        ignore=ignore_t080_migration_artifacts,
-    )
+    _copy_git_visible_output(ROOT, root / "output")
 
     known = json.loads((ROOT / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
     source_paths: set[str] = set()
@@ -636,6 +728,86 @@ def _build_t080_stub_free_e2e_repo(
     assert completed.returncode == 0, completed.stderr
     document = json.loads(completed.stdout)
     return root, receipt, document
+
+
+def test_t080_output_copy_visibility_matches_production_enumeration(
+        tmp_path, monkeypatch):
+    for key in tuple(os.environ):
+        if key.startswith("GIT_"):
+            monkeypatch.delenv(key)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+
+    root = tmp_path / "source"
+    output = root / "output"
+    ccbench = root / "external" / "ccbench"
+    output.mkdir(parents=True)
+    ccbench.mkdir(parents=True)
+    _run_git(root, "init", "-q")
+    _run_git(root, "config", "user.name", "T080 visibility test")
+    _run_git(root, "config", "user.email", "t080-visibility@example.invalid")
+    _run_git(ccbench, "init", "-q")
+
+    (root / ".gitignore").write_text(
+        "output/ignored.txt\n", encoding="utf-8",
+    )
+    (output / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+    deep = output / "a" / "b" / "c.txt"
+    deep.parent.mkdir(parents=True)
+    deep.write_text("deep tracked\n", encoding="utf-8")
+    (output / "untracked.txt").write_text("untracked\n", encoding="utf-8")
+    (output / "ignored.txt").write_text("ignored\n", encoding="utf-8")
+    (output / "tracked-symlink").symlink_to("tracked.txt")
+    (output / "untracked-symlink").symlink_to("untracked.txt")
+    receipt = root / migration.RECEIPT_REL
+    draft = root / migration.DRAFT_REL
+    retained = receipt.parent / "retained.txt"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text("stale receipt\n", encoding="utf-8")
+    draft.write_text("stale draft\n", encoding="utf-8")
+    retained.write_text("retained\n", encoding="utf-8")
+    _run_git(
+        root, "add", ".gitignore", "output/tracked.txt", "output/a/b/c.txt",
+        "output/tracked-symlink", migration.RECEIPT_REL,
+        migration.DRAFT_REL, retained.relative_to(root).as_posix(),
+    )
+
+    expected_visible = {
+        "output/tracked.txt",
+        "output/a/b/c.txt",
+        "output/untracked.txt",
+        migration.RECEIPT_REL,
+        migration.DRAFT_REL,
+        retained.relative_to(root).as_posix(),
+    }
+    copied_output = tmp_path / "copied-output"
+    fixture_visible = _copy_git_visible_output(root, copied_output)
+    production_visible = {
+        relative
+        for relative in s8b_holdout_freeze.enumerate_repository_files(root)
+        if relative.startswith("output/")
+    }
+    copied_regular = {
+        path.relative_to(copied_output).as_posix()
+        for path in copied_output.rglob("*")
+        if path.is_file() and not path.is_symlink()
+    }
+    expected_copied = {
+        Path(relative).relative_to("output").as_posix()
+        for relative in expected_visible
+        if relative not in {migration.RECEIPT_REL, migration.DRAFT_REL}
+    }
+
+    assert fixture_visible == expected_visible
+    assert fixture_visible == production_visible
+    assert copied_regular == expected_copied
+
+    (output / "tracked.txt").unlink()
+    with pytest.raises(
+            AssertionError,
+            match=r"Git-visible output path が regular file ではない: output/tracked\.txt",
+            ):
+        _copy_git_visible_output(root, tmp_path / "missing-tracked-output")
 
 
 def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
