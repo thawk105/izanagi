@@ -711,7 +711,10 @@ worktree ディレクトリ名は前 wave の `dev-wave-t128-t080-scan` のま�
   へ取り込んだ (main worktree clean・wave 開始基準から未変動・ff 可能・本 wave の 5 commit だけ、
   の 4 条件を確認済み)。取り込み後の全走は **3126 passed / 13 skipped / 0 failed (110.99 秒)**。
   worktree 側の 3125 passed / 14 skipped と**合計 3139 で一致**する (skipped の 1 件差は
-  checkout 依存、(24) の記録と整合)。**wall 110.99 秒は単独性を確認しておらず比較に使えない**
+  checkout 依存、(24) の記録と整合)。記録 commit (`95d5d24`) 後の再走 (F34) も
+  **3126 passed / 13 skipped / 0 failed (77.41 秒)**。**wall 110.99 / 77.41 秒はいずれも
+  単独性を確認しておらず比較に使えない** (同一構成で 1.43 倍振れている事実自体が、
+  この値を wall の比較に使えないことの実例である)
 - **素材: 収集範囲も checkout 依存だった — F41 の射程が広がる ([T-129] へ計上)。** main checkout で
   repo root から素の `pytest` を走らせると、**ignored な `output/s1-build-cache/` 配下の
   googletest 由来 `*test*.py` を収集して 1253 errors** になる (1 failed も巻き添えで、範囲を
