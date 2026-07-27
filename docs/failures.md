@@ -709,6 +709,13 @@
   「同一 source で測り直す」手順を実測値つきで残した。既存の 69 秒という記録にも
   worktree 測定である旨を追記した
 - 記録: worklog 2026-07-27 (20) (混入) と (21) (露出・是正)
+- **射程の拡大 (2026-07-27 (25))**: 同じ根本原因が **wall より重い形**で現れた。main checkout で
+  repo root から素の `pytest` を走らせると、ignored な `output/s1-build-cache/` 配下の
+  googletest 由来 `*test*.py` を収集して **1253 errors** になる (worktree では ignored ファイルが
+  存在しないため同じコマンドでも緑)。**この型は「測定値が checkout に依存する」に留まらず
+  「赤の有無が checkout に依存する」**。受入全走は並列度と範囲の両方を明示し
+  `python3 -m pytest -q -n 32 orchestrator/tests` の形で回す。恒久対応は [T-129] へ集約した
+  (同タスクを本エントリで P1 へ昇格)
 
 ### F42. 新規テストファイルが自走 harness / allowlist の二択を満たさず、2 wave 連続で受入全走を空振りさせた [手順漏れ]
 
