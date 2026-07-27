@@ -786,3 +786,19 @@
   本エントリの検収手順 (行動規律) + [T-153] (d) の機械化
 - 記録: worklog 2026-07-28 (28)、逐語 = `output/insights/2026-07-28_t147-review-verbatim/README.md`
   (破損原文を凍結)
+
+### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
+- 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
+  `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
+  シンボル実在 (2 回目 872886 の同一 build で 8 行確認)。`grep -q` が最初のマッチで即終了 →
+  nm が SIGPIPE(141) → `set -o pipefail` がパイプ全体を失敗扱いにした。fail-closed 方向の
+  偽赤で成果物影響ゼロ (near-miss)。キュー 1 投分の浪費のみ
+- 根本原因: pipefail の意味論 (全段の rc を合成) と `grep -q` の早期終了最適化の相互作用。
+  F37 (検査 rc をパイプに通して喪失 = 偽緑方向) の鏡像で、パイプ rc 意味論の同族
+- 恒久対応: 大出力 producer の存在検査はパイプでなくファイル経由にする —
+  `output/env/pegasus/t140-setsize/job.sh` の是正が実体 (nm 出力を一旦ファイルへ、grep は
+  ファイルに対して実行し match をそのまま証拠として staging へ残す)
+- 再発検知: この型は fail-closed 方向 (偽赤 = ジョブ停止) にしか壊れないため、成果物は
+  構造的に守られる。検知はジョブの非 0 終了そのもの。偽緑方向の同族は F37 が既登録
+- 記録: worklog 2026-07-28 (29)、両 attempt の staging =
+  `output/env/pegasus/t140-setsize/job-staging/`

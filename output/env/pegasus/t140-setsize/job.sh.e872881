@@ -1,0 +1,16 @@
+trace symbols MISSING in trace build
+
+============================================================
+Request ID:             872881.nqsv
+Request Name:           job.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Tue Jul 28 08:40:08 2026
+Started Request Time:   Tue Jul 28 08:40:16 2026
+Ended Request Time:     Tue Jul 28 08:40:54 2026
+Resources Information:
+  Elapse:               43S
+  Remaining Elapse:     2357S
+============================================================

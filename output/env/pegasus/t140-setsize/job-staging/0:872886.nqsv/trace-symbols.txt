@@ -1,0 +1,8 @@
+0000000000000008 u guard variable for izanagi_trace::lock_shadow()::s
+0000000000000048 u guard variable for izanagi_trace::stream(unsigned long)::ofs
+000000000001d070 W izanagi_trace::key_to_hex(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+000000000001d390 W izanagi_trace::stream(unsigned long)
+0000000000045b70 u izanagi_trace::key_to_hex(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)::H
+0000000000000010 u izanagi_trace::lock_shadow()::s
+00000000000515e8 u izanagi_trace::txid_counter()::c
+0000000000000050 u izanagi_trace::stream(unsigned long)::ofs

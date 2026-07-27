@@ -1,0 +1,71 @@
+{
+  "expect_commits_stdout": 293744,
+  "n_commit_trace": 293744,
+  "n_read_rows": 1377724,
+  "n_structural_errors": 0,
+  "n_trace_files": 4,
+  "n_write_rows": 710216,
+  "n_x_rows": 0,
+  "per_file_commits": {
+    "trace_0.log": 55777,
+    "trace_1.log": 82740,
+    "trace_2.log": 72901,
+    "trace_3.log": 82326
+  },
+  "read_set": {
+    "hist": {
+      "1": 20,
+      "2": 623,
+      "3": 9860,
+      "4": 69327,
+      "5": 213914
+    },
+    "max": 5,
+    "mean": 4.690220055558582,
+    "min": 1,
+    "p50": 5,
+    "p90": 5,
+    "p99": 5,
+    "p999": 5
+  },
+  "schema_version": "t140-setsize-distribution/v1",
+  "structural_errors_sample": [],
+  "total_set": {
+    "hist": {
+      "10": 6636,
+      "2": 38,
+      "3": 570,
+      "4": 5076,
+      "5": 24574,
+      "6": 61675,
+      "7": 88257,
+      "8": 73491,
+      "9": 33427
+    },
+    "max": 10,
+    "mean": 7.1080260362764855,
+    "min": 2,
+    "p50": 7,
+    "p90": 9,
+    "p99": 10,
+    "p999": 10
+  },
+  "trace_dir": "/scr/0_872886.nqsv-t140/trace-smoke",
+  "write_set": {
+    "hist": {
+      "0": 9164,
+      "1": 49451,
+      "2": 97704,
+      "3": 90979,
+      "4": 39810,
+      "5": 6636
+    },
+    "max": 5,
+    "mean": 2.417805980717904,
+    "min": 0,
+    "p50": 2,
+    "p90": 4,
+    "p99": 5,
+    "p999": 5
+  }
+}
