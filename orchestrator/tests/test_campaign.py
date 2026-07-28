@@ -3090,6 +3090,28 @@ _FAKE_TRANSACTION_CC = (
     "};\n")
 
 
+# 実 CMake の構造 (cmake/Options.cmake の供給表 + cc/<protocol>/CMakeLists.txt の OPTIONS) を
+# 模した fixture。source_digest は「cmake CACHE 変数の全体」でなく「実 TU へ -D される部分集合」
+# だけを defines にする (T-148 fix round) ため、供給表が無い fixture は fails-closed で止まる。
+# DEBUG_MSG は「CACHE には居るが silo TU には供給されない」実 Options.cmake の DEBUG_MSG (oze 用)
+# と同じ役回りで、乖離マクロの回帰検査に使う。
+_FAKE_OPTIONS_CMAKE = (
+    'set(CCBENCH_BACK_OFF 1 CACHE STRING "exponential backoff")\n'
+    'set(CCBENCH_DEBUG_MSG 0 CACHE STRING "oze only — not supplied to silo TUs")\n'
+    "function(ccbench_universal_definitions out_var)\n"
+    "  set(${out_var}\n"
+    "    BACK_OFF=${CCBENCH_BACK_OFF}\n"
+    "    PARENT_SCOPE)\n"
+    "endfunction()\n")
+_FAKE_SILO_CMAKE = (
+    "ccbench_add_protocol(silo\n"
+    "  SOURCES   transaction.cc\n"
+    "  WORKLOADS ycsb\n"
+    "  OPTIONS\n"
+    "    WAL=${CCBENCH_WAL}\n"
+    ")\n")
+
+
 def _fake_ccbench_repo():
     """(sub, head, git) — git は fake repo で任意コマンドを回すヘルパー。"""
     sub = _tmpdir("izanagi_fakecc_")
@@ -3097,7 +3119,9 @@ def _fake_ccbench_repo():
     os.makedirs(os.path.join(sub, "include"))
     os.makedirs(os.path.join(sub, "cc", "silo"))
     with open(os.path.join(sub, "cmake", "Options.cmake"), "w", encoding="utf-8") as f:
-        f.write('set(CCBENCH_BACK_OFF 1 CACHE STRING "exponential backoff")\n')
+        f.write(_FAKE_OPTIONS_CMAKE)
+    with open(os.path.join(sub, "cc", "silo", "CMakeLists.txt"), "w", encoding="utf-8") as f:
+        f.write(_FAKE_SILO_CMAKE)
     with open(os.path.join(sub, "include", "backoff.hh"), "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH)
     with open(os.path.join(sub, "cc", "silo", "transaction.cc"), "w", encoding="utf-8") as f:
@@ -3311,19 +3335,175 @@ def test_source_digest_has_include_rejected():
     """computed include (#if __has_include(...)) は #include 行検査にも preprocess 後 digest にも
     現れず (-nostdinc で header 未発見 = dead 枝)、実ビルドだけ別バイナリになる documented hole
     (D34 known-limitation) だった。骨格・stock は不使用のため出現 = 逸脱として fails-closed で
-    塞ぐ (T-148 ガードに同乗)。"""
+    塞ぐ (T-148 ガードに同乗)。マクロ本体へ隠して条件式から literal を消す迂回も止める
+    (段 6 レビュー B must-fix 3)。
+
+    fixture は quoted の存在しない header を使う — `<atomic>` は -nostdinc の preprocess 自体を
+    error にするため、ガードを外しても別理由で赤になり単一理由性が壊れる (DW-M03 の過剰決定、
+    レビュー B should 2)。診断は専用メッセージ (「computed include」) まで pin する: 専用 raise を
+    外しても識別子 `__has_include` は builtin に載らず未知マクロ経路で reject されるため
+    受理集合は変わらず、変異 M4 は kill でなく diagnostic sensitivity pin 枠になる (DW-M08)。"""
     cxx = _any_cxx()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, head, _git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
     with open(hh, "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH +
-                "#if __has_include(<atomic>)\nint izanagi_evil = 1;\n#endif\n")
+                '#if __has_include("izanagi_nonexistent.hh")\nint izanagi_evil = 1;\n#endif\n')
     try:
         source_digest.resolve(g, head, sub, cxx)
         assert False, "__has_include の出現で resolve が abort すべき"
     except RuntimeError as e:
+        assert "__has_include" in str(e) and "computed include" in str(e)
+    # マクロ本体へ隠す迂回 (条件式には literal が現れず、local #define で既知扱いになる形)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write('#define IZ_HAS_LOCAL __has_include("izanagi_nonexistent.hh")\n'
+                "#if IZ_HAS_LOCAL\nint izanagi_evil = 1;\n#endif\n" + _FAKE_BACKOFF_HH)
+    try:
+        source_digest.resolve(g, head, sub, cxx)
+        assert False, "#define 本体の __has_include で resolve が abort すべき"
+    except RuntimeError as e:
         assert "__has_include" in str(e)
+
+
+def test_source_digest_guard_lexes_like_the_preprocessor():
+    """ガードの字句解析が g++ と食い違うと、指令を見落として偽 STOCK を作れる / 正当な式を
+    過剰拒否する (段 6 レビュー B must-fix 2/4、いずれも g++-12 実測で確認):
+    (a) `#/**/ifdef FOO` を g++ は条件指令として受理する (rc=0) — ガードも検出しなければならない。
+    (b) 条件指令より**後ろ**の #define はその指令時点では未定義であり、既知に数えてはならない。
+    (c) `#if 'A' == 65` の文字定数は識別子ではない — 拒否すれば受理集合を不当に狭める。
+    (d) 文字列リテラル内の指令風文字列は指令ではない。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+
+    def _resolve_err(body):
+        with open(hh, "w", encoding="utf-8") as f:
+            f.write(body)
+        try:
+            source_digest.resolve(g, head, sub, cxx)
+            return None
+        except RuntimeError as e:
+            return str(e)
+
+    # (a) コメントで分断された指令も検出する
+    err = _resolve_err(_FAKE_BACKOFF_HH + "#/**/ifdef IZ_SPLIT_CTX\nint a;\n#endif\n")
+    assert err and "IZ_SPLIT_CTX" in err, "コメント分断指令をガードが見落とした"
+    # (b) 後方 #define は既知にしない
+    err = _resolve_err(_FAKE_BACKOFF_HH +
+                       "#ifdef IZ_LATE_CTX\nint a;\n#endif\n#define IZ_LATE_CTX 1\n")
+    assert err and "IZ_LATE_CTX" in err, "指令より後ろの #define を既知扱いした"
+    # (c) 文字定数は識別子でない (過剰拒否の検出 = 正例)
+    err = _resolve_err(_FAKE_BACKOFF_HH + "#if 'A' == 65\nint charconst_ok;\n#endif\n")
+    assert err is None, f"正当な文字定数条件を過剰拒否した: {err}"
+    # (d) 文字列リテラル内の指令風文字列は指令でない (正例)
+    err = _resolve_err('const char* s = "#ifdef IZ_IN_STRING";\n' + _FAKE_BACKOFF_HH)
+    assert err is None, f"文字列リテラル内を指令と誤認した: {err}"
+
+
+def test_source_digest_guard_lexes_multiline_and_malformed(tmp_path=None):
+    """段 6 レビュー A の 4 反例 — いずれも「実ビルドで live・digest で dead・ガードは受理」の
+    偽 STOCK alias を実測で構築されたもの。字句解析と定義状態の取り方を規格へ寄せて塞ぐ。
+
+    (a) 複数行コメントは空白 1 個であって改行ではない。改行を保存すると
+        `#if 1 /*<改行>*/ && defined(X)` の続きが走査から落ちる (A must-fix 1)。
+    (b) `#if 0` の中の `#define` は実際には定義されない。静的な出現だけで既知扱いすると
+        未知マクロを洗浄する (A must-fix 2)。
+    (c) 数値の桁区切り `1'000` はリテラル開始ではない。リテラル扱いすると閉じ引用符を探して
+        以降を飲み込み、その先の指令すべてがガードから消える (A must-fix 3)。
+    (d) `#elifdef` / `#elifndef` も条件指令 (A should 1)。
+    (e) 未終端のコメント/リテラル・raw string は解釈不能。静かに全消しして受理すると
+        ガードが恒真化するので停止する (A should 3)。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+
+    def _resolve_err(body):
+        with open(hh, "w", encoding="utf-8") as f:
+            f.write(body)
+        try:
+            source_digest.resolve(g, head, sub, cxx)
+            return None
+        except RuntimeError as e:
+            return str(e)
+
+    err = _resolve_err(_FAKE_BACKOFF_HH + "#if 1 /*\n*/ && defined(IZ_MLC_CTX)\nint a;\n#endif\n")
+    assert err and "IZ_MLC_CTX" in err, "複数行コメントで分断された条件式の続きを見落とした"
+    err = _resolve_err(_FAKE_BACKOFF_HH +
+                       "#if 0\n#define IZ_DEAD_CTX 1\n#endif\n#ifdef IZ_DEAD_CTX\nint a;\n#endif\n")
+    assert err and "IZ_DEAD_CTX" in err, "dead 枝の #define が未知マクロを既知に洗浄した"
+    err = _resolve_err(_FAKE_BACKOFF_HH +
+                       "#if 0\nstatic const int k = 1'000;\n#endif\n"
+                       "#ifdef IZ_SEP_CTX\nint a;\n#endif\n")
+    assert err and "IZ_SEP_CTX" in err, "桁区切りをリテラル開始と誤認し以降の指令を飲み込んだ"
+    err = _resolve_err(_FAKE_BACKOFF_HH + "#if 0\nint a;\n#elifdef IZ_ELIF_CTX\nint b;\n#endif\n")
+    assert err and "IZ_ELIF_CTX" in err, "#elifdef を条件指令として認識していない"
+    assert _resolve_err(_FAKE_BACKOFF_HH + "/* unterminated\n") is not None
+    assert _resolve_err('const char* s = "unterminated;\n' + _FAKE_BACKOFF_HH) is not None
+    assert _resolve_err('const char* s = R"(raw)";\n' + _FAKE_BACKOFF_HH) is not None
+    # 正例: 桁区切りを含む生きたコードと `__has_*` 演算子は受理する (過剰拒否の検出)
+    err = _resolve_err(_FAKE_BACKOFF_HH + "static const int k = 1'000'000;\n"
+                       "#if __has_cpp_attribute(nodiscard)\nint ok;\n#endif\n")
+    assert err is None, f"正当な桁区切り / __has_cpp_attribute を過剰拒否した: {err}"
+
+
+def test_source_digest_read_failure_is_runtime_error():
+    """identity 経路のファイル読取失敗は `RuntimeError` に正規化する (段 6 レビュー A should 4)。
+    `loop` / `pipeline.evaluate` / `buildcache._recheck_src_token` はいずれも
+    `except RuntimeError` でしか受けないため、`OSError` が漏れると variant 単位の abort 隔離が
+    破れ campaign 全体が落ち、build dir の破棄も走らない。
+
+    `resolve()` 経由では allowlist 検査が先に発火して別理由で赤くなる (過剰決定、`DW-M03`) ので、
+    読取を行う `_worktree_defines` を直接呼んで単一理由にする。"""
+    _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, _head, _git = _fake_ccbench_repo()
+    os.remove(os.path.join(sub, "cc", "silo", "CMakeLists.txt"))
+    try:
+        source_digest._worktree_defines(sub, g)
+        assert False, "protocol CMakeLists 不在で停止すべき"
+    except RuntimeError as e:
+        assert "CMakeLists.txt" in str(e)
+    except OSError as e:                      # 正規化されていなければ OSError が漏れる
+        assert False, f"OSError が RuntimeError に正規化されていない: {e!r}"
+
+
+def test_source_digest_defines_match_real_tu_supply():
+    """digest の -D 集合は cmake CACHE 全体でなく**実 TU へ供給される部分集合**でなければ
+    ならない (段 6 レビュー B must-fix 1)。Options.cmake の CACHE には他 protocol 専用の
+    マクロ (実 repo の DEBUG_MSG = oze 用) が居るが silo TU には渡らないため、一律 -D すると
+    `#ifdef DEBUG_MSG` で digest と実ビルドの枝が逆転する。あわせて実ビルドの言語標準
+    (CMAKE_CXX_STANDARD 20) を渡し `__cplusplus` の乖離も塞ぐ。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    supplied = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, _FAKE_SILO_CMAKE)
+    assert "BACK_OFF" in supplied and "WAL" in supplied     # universal + protocol OPTIONS
+    assert "DEBUG_MSG" not in supplied                       # CACHE には居るが TU 非供給
+    defines = source_digest._worktree_defines(sub, g)
+    assert "DEBUG_MSG" not in defines, "TU 非供給マクロが digest の -D に残っている"
+    assert defines.get("Linux") == "1", "実 TU の -DLinux が digest に無い"
+    # 非供給マクロの definedness テストは未知マクロとして停止する (両環境の枝逆転を沈黙させない)
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH + "#ifdef DEBUG_MSG\nint a;\n#else\nint b;\n#endif\n")
+    try:
+        source_digest.resolve(g, head, sub, cxx)
+        assert False, "TU 非供給マクロの #ifdef で resolve が abort すべき"
+    except RuntimeError as e:
+        assert "DEBUG_MSG" in str(e)
+    # 言語標準: 実ビルド (C++20) と同じ枝を取る
+    out = source_digest._cpp_normalize(
+        "#if __cplusplus >= 202002L\nint cpp20;\n#else\nint cpp17;\n#endif\n", defines, cxx)
+    assert "cpp20" in out, "digest の __cplusplus が実ビルド (CMAKE_CXX_STANDARD 20) と乖離"
+    # 供給表を壊した Options は fails-closed (恒真化しない)
+    try:
+        source_digest.parse_supplied_macros('set(CCBENCH_BACK_OFF 1 CACHE STRING "x")\n', "")
+        assert False, "供給表なしの Options で停止すべき"
+    except RuntimeError as e:
+        assert "ccbench_universal_definitions" in str(e)
 
 
 def test_buildcache_recheck_detects_toctou():
