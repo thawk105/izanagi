@@ -30,6 +30,10 @@ class CampaignSummary:
     total: int = 0
     skipped: int = 0           # リカバリでスキップ (既に terminal)
     identity_skipped: int = 0  # identity 確定不能かつ stock id が terminal 済みで今 run 未評価
+    # リカバリ skip した variant の確定済み id。skip の id はここが単一の確定点 —
+    # 呼び手が revert 後の tree へ source_digest.resolve を再実行すると stock id
+    # (別 variant) を引く ([T-157]、D23/D24)。identity_skipped の分は id 未確定なので積まない。
+    skipped_variants: List[str] = field(default_factory=list)
     evaluated: int = 0
     committed: int = 0
     aborted: int = 0
@@ -124,6 +128,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         v = variant_id(g, src_tok)
         if v in done:
             s.skipped += 1
+            s.skipped_variants.append(v)
             continue
         done.add(v)
         log(f"[campaign] evaluate {g.canonical()}")

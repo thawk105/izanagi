@@ -24,7 +24,9 @@ sys.path.insert(0, _ORCH)
 from campaign import ident, p3_s4_loop as L                        # noqa: E402
 from campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
-from campaign import wal                                           # noqa: E402
+from campaign import source_digest, wal                            # noqa: E402
+from campaign.loop import CampaignSummary                          # noqa: E402
+from campaign.pipeline import variant_id                           # noqa: E402
 from campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import Genome, STAGE_ABORT                    # noqa: E402
@@ -679,16 +681,22 @@ def test_load_proposal_file_accepts_null_and_bool_prior_reverse():
 
 # ==== _resolve_duplicate (重複 genome 提案 = coder が既評価値を独立に再提案) ==========
 
+def _dup_summary(v) -> CampaignSummary:
+    """run_campaign がリカバリ skip した summary の写し (skip id は applied 内で確定済み)。"""
+    return CampaignSummary(campaign_id="test", layout_root="unused", total=1,
+                           skipped=1, skipped_variants=[v] if v else [])
+
+
 def test_resolve_duplicate_recovers_certified_from_wal():
     """run_campaign が重複 (既存 terminal variant) としてスキップし summary.results が
-    空になっても、_resolve_duplicate は既存 WAL の commit/verify_done から証拠を復元して
-    outcome=duplicate・whiteboard result=success を返す (fail と誤記録しない、規律3。
-    段 4b iteration 2 の実走で coder が独立に同一値を再提案した実例で発見した回帰)。"""
+    空になっても、_resolve_duplicate は summary.skipped_variants の確定済み id で既存 WAL の
+    commit/verify_done から証拠を復元して outcome=duplicate・whiteboard result=success を
+    返す (fail と誤記録しない、規律3。段 4b iteration 2 の実走で coder が独立に同一値を
+    再提案した実例で発見した回帰)。"""
     lay = _tmp_layout("dupok")
-    cfg = L.default_cfg()
     genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 40})
     fake_src_tok = "deadbeef"
-    v = L.variant_id(genome, fake_src_tok)
+    v = variant_id(genome, fake_src_tok)
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
               {"genome": genome.canonical(), "src_token": fake_src_tok})
     L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
@@ -696,8 +704,7 @@ def test_resolve_duplicate_recovers_certified_from_wal():
     L.wal.log(lay, v, L.STAGE_COMMIT, L.ENV_TAG, {"fitness_tps": 491796.0, "cv": 0.009})
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="medium")
     state = L.LoopState(iteration=2, start_wall=time.time())
-    with unittest.mock.patch.object(L.source_digest, "resolve", return_value=fake_src_tok):
-        out = L._resolve_duplicate(cfg, genome, lay, pl, state)
+    out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
     assert out["outcome"] == "duplicate"
     assert out["variant"] == v
     assert out["fitness_tps"] == 491796.0
@@ -709,20 +716,70 @@ def test_resolve_duplicate_falls_back_to_fail_when_no_commit():
     """重複先が commit でなく abort のみ (証拠が commit でない) なら成功を捏造せず
     whiteboard は fail のまま (規律2: certified を安売りしない)。"""
     lay = _tmp_layout("dupfail")
-    cfg = L.default_cfg()
     genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 999})
     fake_src_tok = "cafef00d"
-    v = L.variant_id(genome, fake_src_tok)
+    v = variant_id(genome, fake_src_tok)
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
               {"genome": genome.canonical(), "src_token": fake_src_tok})
     L.wal.log(lay, v, L.STAGE_ABORT, L.ENV_TAG, {"reason": "verify-red"})
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="large")
     state = L.LoopState(iteration=2, start_wall=time.time())
-    with unittest.mock.patch.object(L.source_digest, "resolve", return_value=fake_src_tok):
-        out = L._resolve_duplicate(cfg, genome, lay, pl, state)
+    out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
     assert out["outcome"] == "aborted"
     assert len(state.whiteboard) == 1
     assert state.whiteboard[0].result == "fail"
+
+
+def test_resolve_duplicate_never_reresolves_source():
+    """_resolve_duplicate は source_digest.resolve を再実行しない ([T-157])。呼び手の
+    with applied(...) は revert 済みで、revert 後の tree から resolve すると stock id
+    (別 variant) を引き、成否を誤分類し (whiteboard/checkpoint)、trigger 系 provenance へ
+    誤った variant id が永続化する。id の確定点は run_campaign (applied 内) の 1 箇所だけ
+    (D23/D24)。動的束縛 = resolve を poison して非呼出を実測 (構造的束縛は別テスト
+    test_resolve_duplicate_structurally_free_of_resolver — 本テストの直呼びは旧 signature 回帰で
+    TypeError が先行するため、そこに構造 assert を同居させると評価されず F28 型の偽 KILL に戻る)。"""
+    lay = _tmp_layout("dupnores")
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 41})
+    v = variant_id(genome, "feedface")
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": "feedface"})
+    L.wal.log(lay, v, L.STAGE_COMMIT, L.ENV_TAG, {"fitness_tps": 1.0, "cv": 0.0})
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
+    state = L.LoopState(iteration=2, start_wall=time.time())
+    with unittest.mock.patch.object(
+            source_digest, "resolve",
+            side_effect=AssertionError("revert 後の re-resolve は禁止 ([T-157])")) as m:
+        out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
+    assert out["outcome"] == "duplicate" and out["variant"] == v
+    m.assert_not_called()
+
+
+def test_resolve_duplicate_structurally_free_of_resolver():
+    """構造的束縛: _resolve_duplicate の参照名に source_digest が現れない ([T-157]/F28)。
+    独立テストであること自体が仕様 — 直呼びを含むテストに同居させると、旧 (cfg, genome)
+    signature ごと戻す忠実な回帰で TypeError が先行し、性質でなく引数不一致で殺す偽 KILL に
+    なる。本テストは呼び出さずに code object だけを検査するため、どんな signature 回帰でも
+    「再 resolve の再導入」そのものを赤にする。"""
+    assert "source_digest" not in L._resolve_duplicate.__code__.co_names
+
+
+def test_resolve_duplicate_empty_skip_ids_does_not_fabricate_success():
+    """skipped_variants が空 (identity_skipped = id 未確定の skip) なら duplicate の成功を
+    捏造せず、variant=None の fail 側へ倒す (規律2)。"""
+    lay = _tmp_layout("dupempty")
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="medium")
+    state = L.LoopState(iteration=2, start_wall=time.time())
+    out = L._resolve_duplicate(lay, pl, state, _dup_summary(None))
+    assert out["outcome"] == "aborted" and out["variant"] is None
+    assert len(state.whiteboard) == 1
+    assert state.whiteboard[0].result == "fail"
+
+
+def test_resolve_duplicate_single_implementation_across_axes():
+    """sort/trigger driver は独自コピーでなく backoff 版と同一オブジェクトを使う ([T-157]:
+    旧 sort/trigger 版は revert 後 re-resolve の同型欠陥を独立に抱えていた — 再分岐を塞ぐ)。"""
+    assert SORT_LOOP._resolve_duplicate is L._resolve_duplicate
+    assert TRIGGER_LOOP._resolve_duplicate is L._resolve_duplicate
 
 
 if __name__ == "__main__":

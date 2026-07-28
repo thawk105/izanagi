@@ -2548,6 +2548,9 @@ def test_loop_dedup_identical_genome_in_one_run():
     genomes = [Genome("silo", {"BACK_OFF": 1}), Genome("silo", {"BACK_OFF": 1})]
     s, _ = _loop_with_fake_eval(fake_eval, genomes, "dedup")
     assert len(seen) == 1 and s.skipped == 1 and s.committed == 1
+    # skip の確定済み id は summary に露出する (呼び手が revert 後 tree で再 resolve すると
+    # stock id = 別 variant を引くため、ここが id の単一確定点 [T-157])
+    assert s.skipped_variants == [pipeline.variant_id(genomes[1], "stock")]
 
 
 def test_loop_dedup_uses_src_token_id():
@@ -2567,6 +2570,7 @@ def test_loop_dedup_uses_src_token_id():
     s, _ = _loop_with_fake_eval(fake_eval, genomes, "srctok-dedup", src_token="codediff")
     assert len(seen) == 1 and seen[0] == "codediff"      # 1 回評価 + src_token が evaluate へ
     assert s.skipped == 1 and s.committed == 1
+    assert s.skipped_variants == [pipeline.variant_id(genomes[1], "codediff")]  # [T-157]
 
 
 def test_loop_recovery_skips_committed_src_token_variant():
@@ -2601,6 +2605,9 @@ def test_loop_recovery_skips_committed_src_token_variant():
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 0 and s.skipped == 1            # src_token id terminal → 再評価しない
+    # リカバリ skip = 重複提案の実体。呼び手 (_resolve_duplicate) はこの確定済み id だけを
+    # 使う — revert 後 tree の再 resolve は stock id = 別 variant を引く ([T-157])
+    assert s.skipped_variants == [src_id]
 
 
 def test_loop_isolates_identity_error():
@@ -2716,6 +2723,8 @@ def test_loop_identity_skip_is_visible_when_stock_id_terminal():
     finally:
         L.source_digest = saved_sd
     assert s.skipped == 1 and s.identity_skipped == 1 and s.evaluated == 0
+    # id 未確定の skip は skipped_variants に積まない (捏造 id を下流へ流さない [T-157])
+    assert s.skipped_variants == []
 
 
 # ===== STAGE2: provenance / path 防御 =====

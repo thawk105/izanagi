@@ -63,7 +63,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, pin, source_digest, wal              # noqa: E402
+from campaign import ident, pin, wal                              # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
@@ -72,10 +72,9 @@ from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
 from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout        # noqa: E402
 from campaign.loop import run_campaign                             # noqa: E402
-from campaign.model import (STAGE_COMMIT, STAGE_VERIFY_DONE,       # noqa: E402
-                            CampaignConfig, Genome)
+from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
-from campaign.pipeline import VERIFY_LEGACY_PLUS_S2, variant_id    # noqa: E402
+from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from critic.digest import DIFF_QUARANTINE_REASON                   # noqa: E402
 from critic.digest import load_diff_rejections                     # noqa: E402
 
@@ -191,31 +190,11 @@ default_perf = L.default_perf   # 軸非依存 (kickoff 規模、有意性を主
 
 # ==== 1 iteration の機械 E2E ==================================================
 
-def _resolve_duplicate(cfg: CampaignConfig, genome: Genome, layout: CampaignLayout,
-                       planner: L.PlannerProposal, state: L.LoopState, sub: str,
-                       log=print) -> Dict:
-    """重複提案の解決 (backoff 版 `L._resolve_duplicate` と同型)。`ccbench_dir=sub` を
-    明示的に渡す点だけ backoff 版と異なる — sort driver は `--isolate-worktree` が既定
-    ON のため、`source_digest.resolve` を既定(共有固定パス)のまま呼ぶと worktree 隔離下
-    で誤った tree を参照する (敵対レビュー 2026-07-10)。"""
-    try:
-        dup_src_tok = source_digest.resolve(genome, cfg.ccbench_commit, sub)
-        dup_v = variant_id(genome, dup_src_tok)
-    except RuntimeError:
-        dup_v = None
-    recs = wal.records_by_stage(layout, dup_v) if dup_v else {}
-    commit_payload = recs.get(STAGE_COMMIT)
-    verify_payload = recs.get(STAGE_VERIFY_DONE, {})
-    if commit_payload is not None:
-        L.project_whiteboard(state, planner, "success", delta_pct=None)
-        log(f"  重複提案 (既存 certified variant {dup_v} と同一 genome、新規評価はスキップ)")
-        return {"outcome": "duplicate", "variant": dup_v,
-                "fitness_tps": commit_payload.get("fitness_tps"),
-                "verdict": verify_payload.get("verdict", ""), "records": recs}
-    L.project_whiteboard(state, planner, "fail")
-    log(f"  重複提案 (既存 aborted variant {dup_v} と同一 genome)")
-    return {"outcome": "aborted", "variant": dup_v,
-            "verdict": verify_payload.get("verdict", ""), "records": recs}
+# 重複提案の解決は backoff 版と単一実装 ([T-157])。旧 sort 版は revert 後の tree へ
+# `source_digest.resolve(..., sub)` を再実行しており、正しい tree でも patch revert 後
+# ゆえ stock id (別 variant) を引いていた。id は run_campaign が applied(...) 内で確定
+# した summary.skipped_variants だけを使う (id 確定点の単一化、D23/D24)。
+_resolve_duplicate = L._resolve_duplicate
 
 
 def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
@@ -251,7 +230,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                               ccbench_dir=sub, cache_root=cache_root)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
-        return _resolve_duplicate(cfg, genome, layout, planner, state, sub, log=log)
+        return _resolve_duplicate(layout, planner, state, summary, log=log)
     recs = wal.records_by_stage(layout, v) if v else {}
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:

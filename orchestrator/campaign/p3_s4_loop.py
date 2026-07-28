@@ -43,7 +43,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, source_digest, wal                     # noqa: E402
+from campaign import ident, wal                                    # noqa: E402
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
@@ -52,7 +52,7 @@ from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
                             CampaignConfig, Genome)
-from campaign.pipeline import PerfConfig, variant_id               # noqa: E402
+from campaign.pipeline import PerfConfig                           # noqa: E402
 from critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
                            build_digest, load_diff_rejections,
                            load_liveness_rejections, load_rejections,
@@ -555,22 +555,23 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
 
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
 
-def _resolve_duplicate(cfg: CampaignConfig, genome: Genome, layout: CampaignLayout,
-                       planner: PlannerProposal, state: LoopState, log=print) -> Dict:
+def _resolve_duplicate(layout: CampaignLayout, planner: PlannerProposal,
+                       state: LoopState, summary, log=print) -> Dict:
     """重複提案 (run_campaign がリカバリでスキップし summary.results が空) を解決する。
 
     coder が独立に選んだ値が既存 genome (同一 src_token) と一致し、同一 variant_id が
     既に terminal (前 iteration で certified/aborted 済み) だと run_campaign はリカバリで
     再評価せず summary.results が空になる (loop.py の skip 経路)。これを新規の失敗と
     取り違えない (規律3: 正しさ/評価シグナルを後付けにしない・なぜこうなったかを構造化
-    して返す — ここは壊れていない)。genome の src_token/variant_id を独立に再解決し、
-    既存 WAL レコードから証拠を復元する (監査 2026-07-09、段 4b iteration 2 の実走 =
-    coder が iteration 1 と独立に同じ値を再提案した実例で発見)。"""
-    try:
-        dup_src_tok = source_digest.resolve(genome, cfg.ccbench_commit)
-        dup_v = variant_id(genome, dup_src_tok)
-    except RuntimeError:
-        dup_v = None
+    して返す — ここは壊れていない)。variant id は run_campaign が applied(...) 内で確定した
+    `summary.skipped_variants` だけを使い、既存 WAL レコードから証拠を復元する。ここで
+    source_digest.resolve を再実行してはならない — 呼び手の revert 後 tree からは stock id
+    (別 variant) しか出ず、別 variant の WAL 証拠で成否を誤分類し (whiteboard/checkpoint は
+    id を持たず分類だけが汚染)、trigger 系 driver では誤った variant id が provenance へ
+    永続化する ([T-157]、id 確定点の単一化 = D23/D24。監査 2026-07-09、段 4b iteration 2 の
+    実走 = coder が iteration 1 と独立に同じ値を再提案した実例で発見)。
+    identity_skipped (id 未確定) の分は skipped_variants に無い → 成功を捏造せず fail 側。"""
+    dup_v = summary.skipped_variants[0] if summary.skipped_variants else None
     recs = wal.records_by_stage(layout, dup_v) if dup_v else {}
     commit_payload = recs.get(STAGE_COMMIT)
     verify_payload = recs.get(STAGE_VERIFY_DONE, {})
@@ -651,7 +652,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                               ccbench_dir=sub, cache_root=cache_root)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
-        return _resolve_duplicate(cfg, genome, layout, planner, state, log=log)
+        return _resolve_duplicate(layout, planner, state, summary, log=log)
     recs = wal.records_by_stage(layout, v) if v else {}
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
