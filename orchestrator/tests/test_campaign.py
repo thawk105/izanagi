@@ -3022,13 +3022,20 @@ def test_edit_surface_constants_exact_relationship():
 
 
 def test_axis_driver_source_rel_within_edit_surface():
-    """[T-149] 全編集 driver の書込対象が編集面 (digest/include 照合/trace diff の
-    被覆域) の中に居ることの膜性検査。外れた driver の変異は identity に乗らないまま
-    campaign を abort させる。"""
+    """[T-149] 全編集 driver の書込対象の膜性検査。所属 (∈ EBS) だけでは編集面内での
+    軸取り違え (例: sort driver が backoff.hh を指す) を全通しする (段 6 RA-2) ため、
+    driver ごとの期待値を literal pin する。取り違えると driver は marker 不在の
+    ソースを読み malformed reject に落ち、certified 受理集合が全 reject に縮む。"""
     from campaign import axis_trigger_gating, p3_s4_loop, p3_s4_loop_sort
-    for mod in (p3_s4_loop, p3_s4_loop_sort, axis_trigger_gating):
-        assert mod.SOURCE_REL in source_digest.EVOLVE_BLOCK_SOURCES, \
-            f"{mod.__name__}.SOURCE_REL={mod.SOURCE_REL!r} が EVOLVE_BLOCK_SOURCES 外"
+    expected = [
+        (p3_s4_loop, "include/backoff.hh"),          # 段 4 backoff 軸
+        (p3_s4_loop_sort, "cc/silo/transaction.cc"),  # sort 軸 (D38)
+        (axis_trigger_gating, "cc/silo/transaction.cc"),  # trigger-gating 軸
+    ]
+    for mod, rel in expected:
+        assert mod.SOURCE_REL == rel, \
+            f"{mod.__name__}.SOURCE_REL={mod.SOURCE_REL!r} (期待 {rel!r})"
+        assert mod.SOURCE_REL in source_digest.EVOLVE_BLOCK_SOURCES, mod.__name__
 
 
 def test_lock_path_edit_surface_requires_auditor_live():
