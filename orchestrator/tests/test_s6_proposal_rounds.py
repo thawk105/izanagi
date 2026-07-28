@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import sys
+import types
 
 import pytest
 
@@ -21,6 +22,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import s6_proposal_rounds as M  # noqa: E402
+from campaign import source_digest  # noqa: E402
 
 
 def _proposal(**over):
@@ -189,6 +191,104 @@ def test_derive_seed_deterministic_and_purpose_separated():
     assert a == M.derive_seed(42, "c4-draw")
     assert a != M.derive_seed(42, "exec-order")
     assert a != M.derive_seed(43, "c4-draw")
+
+
+# ==== freshness_check の凍結時点面 drift alarm ([T-149]) ========================
+#
+# freshness_check 内の領域母集団 (`+ ["include/backoff.hh"]`) と opened 述語 (`ebs`) は
+# **凍結時点 (2026-07-13) の編集面の記録**であり、live な source_digest 参照へ書き換えない
+# (2026-07-28 段 4 裁定: live 化は N1 更新シナリオで stale packet を通す方向の緩和)。
+# 凍結時点面はテスト側に写しを持たず (第 4 の写しは lockstep 更新で沈黙する、段 6 RR-1)、
+# freshness_check の実装 AST から `ebs` literal を直接抽出して live EBS と突合する。
+# live EBS が凍結時点面から**拡張でも縮小でも**ずれると赤になり、「s6 側の据え置きか、
+# 再凍結か」の明示裁定を強制する (沈黙ドリフトの封鎖、段 6 RB-2)。
+
+
+def _s6_frozen_opened_set():
+    """freshness_check 実装内の凍結時点 opened 集合 (`ebs = {...}`) を AST で抽出する。
+
+    テスト側に面の写しを置くと、写しと live EBS の lockstep 更新で s6 本体の stale が
+    沈黙する (RR-1)。実装 literal そのものを観測することで写しを構造的に排除する。"""
+    import ast
+    import inspect
+    tree = ast.parse(inspect.getsource(M.freshness_check))
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "ebs" for t in node.targets)):
+            assert isinstance(node.value, ast.Set), "ebs が set literal でない"
+            return frozenset(ast.literal_eval(node.value))
+    raise AssertionError("freshness_check 内に ebs literal が見つからない")
+
+
+def test_s6_frozen_surface_matches_live_edit_surface():
+    """[T-149] 構造検査: s6 の凍結時点 opened 集合 == live EVOLVE_BLOCK_SOURCES。
+
+    ずれたら「s6 側の据え置き (本テストへの明示裁定記録) か再凍結か」を裁定してから
+    更新する。behavioral テスト (下記) と違い母集団の作り方に依存しない直接照合。"""
+    assert _s6_frozen_opened_set() == set(source_digest.EVOLVE_BLOCK_SOURCES), \
+        "s6 freshness の凍結時点面と live EVOLVE_BLOCK_SOURCES がドリフトした"
+
+
+def _live_surface_pi():
+    """凍結時点面 (AST 抽出) ∪ live EBS の母集団から freshness 入力を構成する。
+
+    cc/silo/util.cc は「編集面外の実在 silo ソース」の代表 (test_campaign の
+    test_source_digest_allowlist と同じ選定)。cc/silo/include/zzz_t149_probe.hh は
+    「.hh の silo ソース」の代表 — freshness の領域再生成が .hh を落とす退行 (RA-3) を
+    領域集合不一致で可視化する。EBS にどちらかを加える日が来たら反例選定ごと見直すこと。"""
+    ebs = set(source_digest.EVOLVE_BLOCK_SOURCES)
+    universe = (_s6_frozen_opened_set() | ebs
+                | {"cc/silo/util.cc", "cc/silo/include/zzz_t149_probe.hh"})
+    silo_listing = sorted(p for p in universe if p.startswith("cc/silo/"))
+    regions = sorted(universe)
+    pi = {
+        "stock_excerpts": [],
+        "edit_surface_map": [{"region": r, "role": "t149-alarm", "opened": r in ebs}
+                             for r in regions],
+    }
+    return pi, silo_listing
+
+
+def _fake_silo_ls(silo_listing):
+    def run(cmd, **kw):
+        assert (cmd[:4] == ["git", "-C", str(M.SUBMODULE), "ls-tree"]
+                and cmd[-1] == "cc/silo/"), f"予期しない subprocess 呼び出し: {cmd}"
+        return types.SimpleNamespace(
+            returncode=0, stdout="".join(f"{p}\n" for p in silo_listing))
+    return types.SimpleNamespace(run=run)
+
+
+def test_freshness_tracks_live_edit_surface(monkeypatch):
+    pi, silo_listing = _live_surface_pi()
+    monkeypatch.setattr(M, "load_projected_input", lambda: pi)
+    monkeypatch.setattr(M, "subprocess", _fake_silo_ls(silo_listing))
+    assert M.freshness_check() == [], \
+        "live EVOLVE_BLOCK_SOURCES と s6 freshness の凍結時点面がドリフトした。" \
+        "s6 側の据え置き/再凍結を明示裁定してから本テストを更新する"
+
+
+def test_freshness_flags_opened_mismatch(monkeypatch):
+    """positive control (恒真防止): 編集面**外**の region の opened=True を検出する。"""
+    pi, silo_listing = _live_surface_pi()
+    for e in pi["edit_surface_map"]:
+        if e["region"] == "cc/silo/util.cc":
+            e["opened"] = True
+    monkeypatch.setattr(M, "load_projected_input", lambda: pi)
+    monkeypatch.setattr(M, "subprocess", _fake_silo_ls(silo_listing))
+    assert M.freshness_check() == ["opened 判定不一致: cc/silo/util.cc"]
+
+
+def test_freshness_flags_designated_closed(monkeypatch):
+    """逆方向 positive control (段 6 RA-1): 編集面**内**の region の opened=False を検出
+    する。これが無いと述語を `opened and region not in ebs` (片方向) へ弱体化しても全緑の
+    まま通る。"""
+    pi, silo_listing = _live_surface_pi()
+    for e in pi["edit_surface_map"]:
+        if e["region"] == "include/backoff.hh":
+            e["opened"] = False
+    monkeypatch.setattr(M, "load_projected_input", lambda: pi)
+    monkeypatch.setattr(M, "subprocess", _fake_silo_ls(silo_listing))
+    assert M.freshness_check() == ["opened 判定不一致: include/backoff.hh"]
 
 
 # ==== freeze → verify の配線 (モック母集団) =====================================

@@ -16,7 +16,7 @@ SOURCE_FILE_SHA256 = {
     "auditor": "324ff727b78935f5915fe7c685ad93ae3f3b3df74de2056990060266858f53f8",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
-    "coder": "bb215cddca0d64b452eed4ca8bc3234b554127be879c5809592700bd04c3a967",
+    "coder": "5aac447ae26f53d3d61dac47c353201d96039231f930a968a36a68951d8f5c34",
     "coder-v4-autonomous": "4f1b5018a9d3f8077167adf9a8ebbc69ba83a0b8f9cfd9f18a7c6fbabe9fbf13",
     "coder-v4-autonomous-sort": "577af0d4246933f128f77836c7b85786683ed3dbeca01403f9d4b7aa828e941f",
     "coder-v4-autonomous-trigger-gating": "e0d41f63436a758791e77a8cbe56ab71af38c996327efdbb447702058e8babee",

@@ -45,8 +45,11 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
 bytes を pin する台帳・test・trust root を全列挙する。
-`FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛を既定対象に含め、
+`FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛に加え、output 外の
+review ledger（role source pin 等）も既定対象に含め、
 durable manifest が未発行か、発行済みで再発行が必要かを区別して brief の不変条件へ書く（F27/F30、D84）。
+定数・編集面の統一系 wave では、列挙した各出現を live copy / 独立 golden / 凍結 snapshot /
+歴史記録に分類してから scope を裁定する（F39）。
 
 ## DW-O10 — producer write-path
 

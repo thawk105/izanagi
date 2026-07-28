@@ -675,6 +675,12 @@
   `docs/dev-wave/**` は hard ceiling 24000 に対し 23987 (余裕 13 bytes) で収まらない。
   [T-109] の裁定パッケージと併せてユーザー裁定へ送る ([T-101] / [T-104] / [T-108] と同じ形)
 - 現行実体: なし (裁定待ち)。
+- **再発: 2026-07-29** ([T-149] wave)。段 4 の pin 閉包が output 配下だけを掃引し、
+  `.claude/agents/coder.md` の review ledger pin (`review_ledger.SOURCE_FILE_SHA256` +
+  role-adapter 埋込) を見逃して「pin なし」と誤裁定。初回受入全走の test_codex_agents 赤で
+  land 前に検出 (実害なし)。恒久対応 = `DW-O09` へ「output 外の review ledger を既定対象に
+  含める + 出現の 4 分類 (live copy / 独立 golden / 凍結 snapshot / 歴史記録)」を追記
+  (T-160 の DW-O07 削除で予算原資が回復していたため、段 8 で自動統合。同 wave の記録参照)
 - 記録: worklog 2026-07-26 (3)、材料レポート = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §3.4
 
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
@@ -864,22 +870,31 @@
   そこに「実行はセッション外」という実行環境の定義を足す (裁定項目 1 の材料)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
 
-### F48. 背景 job の dev-wave 立ち上げで worktree 基準ずれと handoff 置き場違反が同時に起きた [手順漏れ]
+### F48. 背景 job の worktree が origin/main から分岐し、local main より古い base で brief と受入を始めた [誤前提]
 
-- **事象 (2026-07-29, [T-139] wave、near-miss):** (a) `EnterWorktree` が worktree.baseRef 既定
-  (fresh = origin/main) で分岐し、local main より 2 commit 古い tree (T-160 の dev-wave
-  reference 再編と D94 が欠落) を基準にした。段 2/3 の codex 子は旧 reference を読み、プランは
-  既使用の D94 を「次の空き」と誤認。親が decisions の grep 矛盾から発見し `--ff-only` で
-  是正 — worklog 参照や ID 採番の腐敗前に止めた。(b) 専用 handoff を worktree 内 docs/handoff/
-  に作成し、DW-O20 (発火 = clean-tree gate 直前 = wave 開始より遅い) を読んだ時点で job tmp へ
-  移動した。
-- **原因:** wave 開始時に読む節 (DW-C00/CTX/STOP) は worktree の基準照合と handoff 置き場の
-  義務を持たず、その義務は L2 の DW-O20 にあり発火が構造的に遅い。
-- **恒久対応:** DW-O20 へ基準照合を追記 (本 commit)。auto-memory
-  `dev-wave-bg-worktree-startup-checks` に立ち上げ手順を固定。**dispatch 前倒し (背景 job +
-  worktree 隔離なら wave 開始時に DW-O20 を読む条件を入口の条件表へ追加) は入口編集 =
-  ユーザー裁定待ち** ([T-139] wave の裁定パッケージ)。
-- 記録: worklog 2026-07-29 (38)、逐語 = output/insights/2026-07-29_t139-ladder-verbatim/
+- 日付: 2026-07-28
+- 事象: dev-wave 用に EnterWorktree で作成した worktree が origin/main (この時点で local main より
+  2 commit 古い) から分岐し、wave は直前 wave の着地を含まない stale base で brief の前提実測と
+  受入全走 1 回を実行した。handoff の「基準コミット = local main HEAD」も未検証の転写で、実態
+  (origin/main) と食い違っていた (F1 型)
+- 根本原因: EnterWorktree の既定 baseRef は `origin/<default-branch>` であり、AI から push しない
+  運用 (local main が origin より常に先行しうる) と食い違う。worktree 作成直後に HEAD を実測して
+  基準を確定する手順も無かった
+- 検出できた理由: 受入全走の収集 node 数が直前 wave の記録と 1 件違い (3158 vs 3159)、
+  collect-only の node 集合 diff で欠落 1 件が直前 wave 新設のテストと特定できたため。
+  「計測値は checkout 併記」(F41 恒久対応) が比較の土俵を与えた
+- 実害: stale base での受入全走 1 回 (約 70 秒) と handoff 基準の誤記。branch が未コミットだった
+  ため `git merge --ff-only main` の追従で是正でき、成果物への影響なし。旧 base で読了した
+  reference 節は現行版との diff で同文を確認した
+- 恒久対応: 推奨は `.claude/settings.json` へ `worktree.baseRef: head` を設定し local HEAD から
+  分岐させること — settings の編集は AI セッションの権限機構が拒否するためユーザー裁定・
+  ユーザー実施 ([T-162])。それまでの作法: worktree 作成直後に `git log -1` で基準コミットを実測して
+  handoff へ書き、local main と違えば commit 前に `--ff-only` で追従する
+- 記録: worklog 2026-07-28 (38)
+- **再発: 2026-07-29** ([T-139] wave、独立 2 例目 — 本台帳追記前の並行発生)。検出 = decisions の
+  D 番号 grep 矛盾 (worklog (37) が参照する D94 が worktree に不在)。是正 = `--ff-only` 追従
+  (同型)。補強 = `DW-O20` へ基準照合を 1 文追記 + auto-memory
+  `dev-wave-bg-worktree-startup-checks` (立ち上げ 3 点検査)
 
 ### F49. 背景 job セッションからの qsub が runbook §8 の禁止に反して実行され、しかし有効な request を作った [手順漏れ] [誤前提]
 
@@ -897,4 +912,17 @@
   参照する本文を開く」と同族。auto-memory `dev-wave-bg-worktree-startup-checks` に固定)。
   (ii) **規則の射程精緻化はユーザー裁定へ** — 一律禁止のままにするか、F47 型 (不永続 sandbox)
   に限定するか。精緻化まで現行規則が正であり、以後の投入はユーザー端末へ引き渡す。
-- 記録: worklog 2026-07-29 (38) 追補、材料 = output/env/pegasus/t139-probe/0_873583.nqsv/
+- 記録: worklog 2026-07-29 (40)、材料 = output/env/pegasus/t139-probe/0_873583.nqsv/
+
+### F50. 専用 handoff を worktree 内に作り、DW-O20 の置き場義務に気づいたのは読了トリガ発火後だった [手順漏れ]
+
+- **事象 (2026-07-29, [T-139] wave、near-miss):** 背景 job + worktree 隔離の wave 立ち上げで、
+  専用 handoff を worktree 内 docs/handoff/ に作成した。DW-O20 (置き場義務の正本) の読了トリガは
+  「clean-tree gate を worktree で走らせる直前」で wave 開始より構造的に遅く、読んだ時点で
+  job tmp へ移動した (実害なし)。
+- **原因:** handoff 作成は wave 開始時の操作だが、その置き場義務は L2 節にあり発火が遅い。
+  F48 と同根 (wave 立ち上げ時に必要な義務が開始時の必読節に無い)。
+- **恒久対応:** auto-memory `dev-wave-bg-worktree-startup-checks` (立ち上げ 3 点検査)。
+  **dispatch 前倒し (背景 job + worktree 隔離なら wave 開始時に DW-O20 を読む条件を入口の
+  条件表へ追加) は入口編集 = ユーザー裁定待ち** ([T-139] wave の裁定パッケージ)。
+- 記録: worklog 2026-07-29 (40)、逐語 = output/insights/2026-07-29_t139-ladder-verbatim/
