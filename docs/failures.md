@@ -825,3 +825,36 @@
   テスト/機械検査を優先」にも整合する。F43 の段 8 裁定と同じ判断。恒久対応の実体は本エントリ
   (行動規律)。rc≠0 の検出自体は `DW-O01` の完了判定が既に担っている
 - 記録: worklog 2026-07-28 (32)、逐語 = `output/insights/2026-07-28_t148-review-verbatim/`
+
+### F46. ログインノードで実測した interpreter 挙動を計算ノードにも成立すると誤前提し、floor 実機初走が guard 到達前に死んだ [誤前提]
+
+- 事象: [T-088] 段階 1 の実機初走 (job `0:873200.nqsv`, 2026-07-28) が `driver_rc=1` で終了。
+  期待は official guard の rc=2 だったが、driver は import 段の
+  `dataclass() got an unexpected keyword argument 'kw_only'` で guard に到達しなかった
+- 根本原因: 計算ノードは module `intelpython/2022.3.1` が既定ロードされ `python3` が 3.9.13 に
+  解決される。事前の rc=2 実測 (材料レポート §1-7) はログインノード (3.10.12) で行われており、
+  「検証した環境」と「実行される環境」の interpreter が別物だった。job script は
+  `python3.version` を**記録**していたが**束縛 (assert)** しておらず、記録するだけで発火しない
+  値が死角になった (恒真な保証の family)
+- 判別: `job-result.json` の `driver_rc=1` + driver stderr が import 系 TypeError +
+  attempt dir の `python3.version` < 3.10。guard の正常拒否 (rc=2 + refused JSON) とは明確に別
+- 恒久対応: interpreter を候補列 + 実行前版数 gate で選択し、全滅なら `stage=interpreter` で
+  fail-closed (commit `419d59b`)。環境事実は `docs/pegasus-runbook.md` §4 に記載。一般則:
+  実行環境でしか成立しない前提は、実行環境側で **assert として**束縛する (記録だけの値を作らない)
+- 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
+
+### F47. AI セッション内 shell からの qsub が、見かけ成功のまま receipt 不永続・所有者不整合の無効 request を作った [誤前提]
+
+- 事象: ユーザーが `!` プレフィクス (AI セッション内 shell) で `submit_floor.sh` を打鍵
+  (request `873213.nqsv`, 2026-07-28)。qsub は request ID を返し script も成功出力を印字したが、
+  receipt が実ファイルシステムに存在せず、`qstat -f` は「Not permitted to access」、
+  attempt dir・spool・課金 (REMAIN/ESTIMATE) のいずれも痕跡ゼロ。request は一度も走らず消えた
+- 根本原因: セッション内 shell は sandbox/namespace 下にあり、ファイル書き込みが実 FS に
+  永続せず、プロセスの資格情報も通常端末と同一でない。**人間の打鍵であっても実行の実体は
+  AI セッション環境**であり、「人間がコマンドを打つ」の運用定義に実行環境の指定が欠けていた
+- 判別: 印字された receipt パスが実 FS に不在 + `qstat -f` が Not permitted + 予約見積・残高が
+  不変。正常終了後の purge (単なる does not exist) とは応答が異なる
+- 恒久対応: 外部システムへの状態変更操作 (qsub 等) はユーザー自身の端末で実行する
+  (`docs/pegasus-runbook.md` §8 に追記)。D86(8) の「認可の実体 = ユーザーの明示指示」は不変で、
+  そこに「実行はセッション外」という実行環境の定義を足す (裁定項目 1 の材料)
+- 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9

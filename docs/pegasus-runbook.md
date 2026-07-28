@@ -156,8 +156,8 @@ MPI、コンパイラなどは `module avail` に表示された実在するバ�
 
 python の既知の乖離 (2026-07-28、job `0:873200.nqsv` で実測): 計算ノードでは module
 `intelpython/2022.3.1` が既定ロードされ、`python3` が Intel Python 3.9.13 に解決される。
-ログインノードの `python3` は 3.10.12。ノード OS はログインと同じ Ubuntu 22.04 (ノード上の
-g++ 版文字列 `1ubuntu1~22.04.3` から推定) のため、`python3.10` は版付き名で解決できる見込み。
+ログインノードの `python3` は 3.10.12。計算ノードにも `/usr/bin/python3.10` (3.10.12) が実在し、
+版付き名で解決できる (job `0:873225.nqsv` で実使用を確認)。
 Python 3.10+ を要するジョブは `python3.10` のような版付き名で解決するか、
 実行前に版数を検査して fail-closed にする (floor job は候補列 + 版数 gate で対応済み)。
 
@@ -344,3 +344,6 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - 単独性の確認 (pgrep 等) は、割り当てられた計算ノード上で行う (割当てを専有の保証と見なさない)
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した
+- ジョブ投入 (`qsub` / submit wrapper) はユーザー自身の端末から実行する。AI セッション内 shell
+  (`!` 実行を含む) からの投入は、書き込み不永続・資格情報差で無効な request を作る (F47、
+  2026-07-28 に request 873213 で実測)

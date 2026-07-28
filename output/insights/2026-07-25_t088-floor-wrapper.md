@@ -147,3 +147,23 @@ M8 は `provision_claim_root` の第 1 検査だけを潰しても**第 2 検査
 mask であり、両層同時変異では KILLED になった。焦点再レビューの指摘どおり、これは
 「単層変異一般が等価」ではなく「call-site 変異が等価」であり、共通述語 1 箇所を撃つ最小一階変異
 (N1) は最終 commit で **KILLED** である。初回結果は消さず台帳に erratum として残した。
+
+## 9. 実機実行の結果 — 段階 1 クローズ (2026-07-28 追記)
+
+§6 の手番を実 PBS で実行した。既存節は書き換えず、結果だけをここに足す。
+
+| request | 実行 | 結果 | 消費 |
+|---|---|---|---|
+| 873200.nqsv (bnode018) | ユーザー端末から qsub | **rc=1・guard 未到達** (`dataclass kw_only` TypeError)。計算ノードは intelpython 既定ロードで python3 = 3.9.13、§1-7 の rc=2 実測はログインノード 3.10.12 のものだった (§5-6 の限界が実体化) | Elapse 25S ≈ 0.01 pt |
+| 873213.nqsv | AI セッション内 shell (`!`) からユーザーが打鍵 | **無効**。receipt が実 FS に不永続、qstat は Not permitted、attempt dir・spool・課金なし (F47) | 0 |
+| 873225.nqsv (bnode002) | ユーザー端末から qsub | **`driver_rc=2` + `stage="floor_driver"`**。driver stdout は明示 refused JSON、`python3.realpath` = `/usr/bin/python3.10` (3.10.12) | 実行 12 秒 |
+
+- fix = interpreter 候補列 + 版数 gate (`python3` → `python3.10` → …、`sys.version_info >= (3,10)`
+  の実行前検査、全滅で `stage=interpreter` fail-closed)。commit `419d59b`、F46。
+- **873225 で DW-G04 の発火条件 (実 submit artifact ID) が成立し、段階 1 完了。** official の
+  受理集合は空のまま (driver は 1 byte も変更していない)。
+- §7 の裁定項目の更新: (1) は D86(8) erratum (2026-07-25、[T-095]) が「認可の実体 = ユーザーの
+  明示指示、artifact = 記録」と既に決着済み。今回の 873213 はそこへ「実行はユーザー自身の端末に
+  限る (セッション shell は人間の打鍵でも実体が異なる)」という運用定義を足す材料 (F47、
+  runbook §8 へ反映済み)。(2)(3) は変更なし。
+- 記録の正本 = worklog 2026-07-28 (33)。
