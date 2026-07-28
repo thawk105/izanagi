@@ -110,3 +110,5 @@ untracked handoff を残したまま gate を走らせず、job tmp または ma
 背景 job が worktree 隔離下にある場合、harness が main checkout への書込を拒否するため job tmp を使う。
 背景 job の cwd が既に worktree なら `EnterWorktree` は新規作成を拒む。そのまま作業してよいが、
 ディレクトリ名と branch 名の食い違いを handoff と worklog に明記し、別 wave の worktree を流用しない。
+worktree の作成・流用直後に HEAD を local main と照合し、ずれていれば `--ff-only` で揃える
+(基準が origin/main へ落ちる罠 = F48)。

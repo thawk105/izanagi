@@ -726,6 +726,12 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - エージェント工数: codex 6 本 (プラン起草 1 + 敵対相談 2 + 敵対レビュー 2 + 焦点再レビュー 1、
   全て read-only)。実装子なし (probe + docs のみ親作、T-147/T-160 前例)。Pegasus job 1 本
   (873583、走行 176 秒)
+- **段 8 追補 (F48/F49 起票):** (a) EnterWorktree が origin/main 基準で切る罠と handoff 置き場
+  義務の発火遅れ = F48 (DW-O20 追記 + memory 固定。dispatch 前倒しは入口編集 = 裁定待ち)。
+  (b) gap job の qsub を本セッション shell から実行していた — runbook §8 (F47 恒久対応) 違反。
+  ただし request は有効に実走し成果物・PBS 会計とも実在 = F47 の機序はこのセッション型では
+  不発現の反例 = F49。probe 値はもとより受理不能で実害なし。規則射程の精緻化はユーザー裁定へ、
+  以後の投入はユーザー端末へ引き渡す
 
 ### 次の一手
 

@@ -863,3 +863,38 @@
   (`docs/pegasus-runbook.md` §8 に追記)。D86(8) の「認可の実体 = ユーザーの明示指示」は不変で、
   そこに「実行はセッション外」という実行環境の定義を足す (裁定項目 1 の材料)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
+
+### F48. 背景 job の dev-wave 立ち上げで worktree 基準ずれと handoff 置き場違反が同時に起きた [手順漏れ]
+
+- **事象 (2026-07-29, [T-139] wave、near-miss):** (a) `EnterWorktree` が worktree.baseRef 既定
+  (fresh = origin/main) で分岐し、local main より 2 commit 古い tree (T-160 の dev-wave
+  reference 再編と D94 が欠落) を基準にした。段 2/3 の codex 子は旧 reference を読み、プランは
+  既使用の D94 を「次の空き」と誤認。親が decisions の grep 矛盾から発見し `--ff-only` で
+  是正 — worklog 参照や ID 採番の腐敗前に止めた。(b) 専用 handoff を worktree 内 docs/handoff/
+  に作成し、DW-O20 (発火 = clean-tree gate 直前 = wave 開始より遅い) を読んだ時点で job tmp へ
+  移動した。
+- **原因:** wave 開始時に読む節 (DW-C00/CTX/STOP) は worktree の基準照合と handoff 置き場の
+  義務を持たず、その義務は L2 の DW-O20 にあり発火が構造的に遅い。
+- **恒久対応:** DW-O20 へ基準照合を追記 (本 commit)。auto-memory
+  `dev-wave-bg-worktree-startup-checks` に立ち上げ手順を固定。**dispatch 前倒し (背景 job +
+  worktree 隔離なら wave 開始時に DW-O20 を読む条件を入口の条件表へ追加) は入口編集 =
+  ユーザー裁定待ち** ([T-139] wave の裁定パッケージ)。
+- 記録: worklog 2026-07-29 (38)、逐語 = output/insights/2026-07-29_t139-ladder-verbatim/
+
+### F49. 背景 job セッションからの qsub が runbook §8 の禁止に反して実行され、しかし有効な request を作った [手順漏れ] [誤前提]
+
+- **事象 (2026-07-29, [T-139] wave):** gap probe の qsub (request 873583) を AI セッション内
+  shell から実行した。runbook §8「ジョブ投入はユーザー自身の端末から」(F47 恒久対応) に違反 —
+  投入前の §8 読了がリスト後半の当該項目に達しておらず、規則を見ないまま操作した。
+- **ただし request は有効だった:** job は bnode011 で実走し、成果物は実 FS に永続 (commit 済み)、
+  PBS 会計 (.e ファイル・qstat 可視の QUE→RUN→終了) も実在。F47 の判別条件 (receipt 不在・
+  Not permitted・課金痕跡ゼロ) はすべて不成立 = **F47 の機序 (sandbox 不永続・資格情報差) は
+  このセッション型 (背景 job の Bash tool) では発現しない**という反例。F47 の再発ではない
+  (無効 request は作られていない)。
+- **証拠の扱い:** 当該 job の値はもとより non-acceptance (insight §3.3) で、受理集合への影響
+  なし。correctness leg は qsub 非関与。
+- **恒久対応:** (i) 操作系 checklist (runbook §8 等) は操作前に全文読了する (F31 の「裁定要約が
+  参照する本文を開く」と同族。auto-memory `dev-wave-bg-worktree-startup-checks` に固定)。
+  (ii) **規則の射程精緻化はユーザー裁定へ** — 一律禁止のままにするか、F47 型 (不永続 sandbox)
+  に限定するか。精緻化まで現行規則が正であり、以後の投入はユーザー端末へ引き渡す。
+- 記録: worklog 2026-07-29 (38) 追補、材料 = output/env/pegasus/t139-probe/0_873583.nqsv/
