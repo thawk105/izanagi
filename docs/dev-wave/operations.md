@@ -1,6 +1,6 @@
 # dev-wave 条件付き運用
 
-条件付き運用 `DW-O01`〜`DW-O20` の正本。発火条件は入口の条件 dispatch が正本で、本書は各条件が
+条件付き運用の正本。発火条件は入口の条件 dispatch が正本で、本書は各条件が
 成立したときの実行手順だけを持つ。操作の直前に該当節を読み、停止条件を迂回しない。
 
 ## DW-O01 — codex subprocess 起動
@@ -35,13 +35,6 @@ heredoc と command substitution を併用してはならない。
 
 submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を親環境で独立再現し、
 再現しない赤を実装差分へ帰属しない。
-
-## DW-O07 — task-run pilot
-
-`output/task-runs/README.md` の start/check/finish 契約と
-`start --slug <slug> --objective "<1 行>" --task-class 3 --task-kind <kind>` の 4 必須引数を使う。
-受入は task-run ID 付きで走らせ、check の後に `finish --outcome <outcome> <id>` で閉じる。
-上限拒否時は上限を変更せず、台帳なしで wave を継続して発火条件を最終報告する。
 
 ## DW-O08 — freeze 族の初期化
 

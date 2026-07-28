@@ -35,6 +35,15 @@ sys.path.insert(0, os.path.join(_REPO, "tools"))
 import check_docs  # noqa: E402
 
 
+# operations 由来の条件 dispatch key (O07 削除後 19 件)。契約から導出するが、
+# exact な外延は test_operation_contract_pins_exact_section_set が literal で pin する。
+_OPERATION_CONDITION_KEYS = sorted(
+    key
+    for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
+    if any(path == "docs/dev-wave/operations.md" for path, _ in pairs)
+)
+
+
 _PLACEHOLDER_DEBT_WORKLOG = (
     "  repo scan invariant (F34) は本 docs commit 後に再走 <反映>。"
 )
@@ -169,9 +178,14 @@ def _write_command_guard_docs(root: str) -> None:
                 chunks.append(f"`{path}` の全節")
             elif (
                 path == "docs/dev-wave/operations.md"
-                and sections == [f"DW-O{i:02d}" for i in range(1, 21)]
+                and sections == [
+                    f"DW-O{i:02d}"
+                    for i in check_docs._OPERATION_NUMBERS
+                ]
             ):
-                chunks.append(f"`{path}`: `DW-O01`〜`DW-O20`")
+                chunks.append(
+                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`"
+                )
             else:
                 ids = ", ".join(f"`{section}`" for section in sections)
                 chunks.append(f"`{path}`: {ids}")
@@ -1683,7 +1697,7 @@ def _mutate_command_guard(root: str, case: str) -> None:
             lambda line: re.match(r"^\| (?:0[1-9]|1[0-9]|20) \|", line)
             is not None,
             lambda line: "",
-            expected=20,
+            expected=len(_OPERATION_CONDITION_KEYS),
         )
     elif case == "condition_supervisor_deleted":
         _rewrite_matching_lines(
@@ -1869,7 +1883,47 @@ _COMMAND_GUARD_NEEDLES = {
 _COMMAND_GUARD_EXPECTED_COUNTS = {
     case: 1 for case in _COMMAND_GUARD_CASES
 }
-_COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = 20
+_COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
+    _OPERATION_CONDITION_KEYS
+)
+
+
+def test_operation_contract_pins_exact_section_set():
+    """operations 契約の外延と配線を literal で固定する (O07 削除後の 19 節)。
+
+    checker とテスト fixture は同じ `_OPERATION_NUMBERS` から導出される (F9 型の
+    自己整合面)。fixture の literal range 表記が単純な縮小・拡大を先に赤くし、
+    本 pin は誤配線と外延の完全性を固定する — 二つの独立面の役割分担であり、
+    どちらも単独の oracle ではない。
+    """
+    operations = "docs/dev-wave/operations.md"
+    expected = {
+        "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
+        "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
+        "DW-O14", "DW-O15", "DW-O16", "DW-O17", "DW-O18", "DW-O19",
+        "DW-O20",
+    }
+    assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == expected
+    assert check_docs._ALL_OPERATIONS == frozenset(
+        (operations, section) for section in expected
+    )
+    for section in sorted(expected):
+        key = section.removeprefix("DW-O")
+        operations_pairs = {
+            pair
+            for pair in check_docs.CONDITION_DISPATCH_CONTRACT[key]
+            if pair[0] == operations
+        }
+        assert operations_pairs == {(operations, section)}, (
+            f"条件 {key} の operations 配線が {section} 単独でない"
+        )
+    assert _OPERATION_CONDITION_KEYS == sorted(
+        section.removeprefix("DW-O") for section in expected
+    )
+    for stage in ("段 5", "段 6"):
+        assert check_docs._ALL_OPERATIONS <= (
+            check_docs.STAGE_DISPATCH_CONTRACT[stage]
+        ), f"{stage} が operations 全節を消費していない"
 
 
 def test_command_docs_guard_rejects_symlinked_commands_directory():

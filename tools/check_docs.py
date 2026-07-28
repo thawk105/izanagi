@@ -179,6 +179,9 @@ COMMAND_INTERFACES = {
     },
 }
 
+# DW-O07 は T-154(1) 裁定 (2026-07-28) で削除済み — 復活時は裁定を新規に起こす
+_OPERATION_NUMBERS = (*range(1, 7), *range(8, 21))
+
 REQUIRED_REFERENCE_SECTIONS = {
     "docs/dev-wave/core.md": {
         "DW-C00", "DW-STOP", "DW-S01", "DW-G01", "DW-G02",
@@ -194,7 +197,9 @@ REQUIRED_REFERENCE_SECTIONS = {
         "DW-M01", "DW-M02", "DW-M03", "DW-M04",
         "DW-M05", "DW-M06", "DW-M07", "DW-M08",
     },
-    "docs/dev-wave/operations.md": {f"DW-O{i:02d}" for i in range(1, 21)},
+    "docs/dev-wave/operations.md": {
+        f"DW-O{i:02d}" for i in _OPERATION_NUMBERS
+    },
 }
 NORMATIVE_DISPATCH_ALLOWLIST = frozenset(
     {*REFERENCE_LIMITS, *SELF_LIMITS}
@@ -223,7 +228,7 @@ _WORKERS = "docs/dev-wave/workers.md"
 _MUTATION = "docs/dev-wave/mutation.md"
 _OPERATIONS = "docs/dev-wave/operations.md"
 _ALL_OPERATIONS = _pairs(
-    _OPERATIONS, *(f"DW-O{i:02d}" for i in range(1, 21))
+    _OPERATIONS, *(f"DW-O{i:02d}" for i in _OPERATION_NUMBERS)
 )
 
 STAGE_DISPATCH_CONTRACT = {
@@ -278,7 +283,7 @@ STAGE_DISPATCH_CONTRACT = {
 }
 CONDITION_DISPATCH_CONTRACT = {
     f"{i:02d}": _pairs(_OPERATIONS, f"DW-O{i:02d}")
-    for i in range(1, 21)
+    for i in _OPERATION_NUMBERS
 }
 CONDITION_DISPATCH_CONTRACT["15"] |= _pairs(_MUTATION, "DW-M07")
 CONDITION_DISPATCH_CONTRACT.update({

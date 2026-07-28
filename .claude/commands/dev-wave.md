@@ -59,12 +59,13 @@ review を流用してはならない。
 | 段 2 preflight | `docs/dev-wave/workers.md`: `DW-S02`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05` |
 | 段 3 preflight | `docs/dev-wave/workers.md`: `DW-S03`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05`, `DW-O13` |
 | 段 4 | `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`; `docs/dev-wave/mutation.md`: `DW-M01` |
-| 段 5 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C`; 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O20` |
+| 段 5 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
+| 段 5 | 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20` |
 | 段 6 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
 | 段 6 | `docs/dev-wave/workers.md`: `DW-S06-A`, `DW-S06-B`, `DW-S06-C` |
 | 段 6 | `docs/dev-wave/core.md`: `DW-G05` |
 | 段 6 | `docs/dev-wave/mutation.md`: `DW-M02`, `DW-M03`, `DW-M04`, `DW-M05`, `DW-M06`, `DW-M07`, `DW-M08` |
-| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O20` |
+| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20` |
 | 段 7 | `docs/dev-wave/core.md`: `DW-S07`; 成立した条件の `docs/dev-wave/operations.md`: `DW-O12`, `DW-O17`, `DW-O18`, `DW-O19` |
 | 段 8 preflight | `docs/dev-wave/core.md`: `DW-S08`; `docs/skill-self-improvement.md` の全節 |
 | 段 8 preflight | commit するなら `docs/dev-wave/operations.md`: `DW-O17`; 防護パス message なら `DW-O04` |
@@ -83,7 +84,6 @@ review を流用してはならない。
 | 04 | commit message に防護パス文字列を含めて作る直前 | `docs/dev-wave/operations.md`: `DW-O04` |
 | 05 | read-only codex に相談・レビューさせる直前 | `docs/dev-wave/operations.md`: `DW-O05` |
 | 06 | workspace-write 子で submodule 系テストを扱う直前 | `docs/dev-wave/operations.md`: `DW-O06` |
-| 07 | task-run pilot が有効な wave の開始前 | `docs/dev-wave/operations.md`: `DW-O07` |
 | 08 | freeze / oracle gate / proof chain に触る可能性が判明 | `docs/dev-wave/operations.md`: `DW-O08`（最遅: 段 1 前） |
 | 09 | 凍結成果物の bytes を変えうる可能性が判明 | `docs/dev-wave/operations.md`: `DW-O09`（最遅: 段 1 前） |
 | 10 | 09 が成立し producer の出力 bytes が変わりうる | `docs/dev-wave/operations.md`: `DW-O10`（最遅: 段 1 前） |
