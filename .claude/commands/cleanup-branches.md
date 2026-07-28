@@ -38,6 +38,9 @@ submodule の gitlink を含む worktree は `git worktree remove` を使わず�
 ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
 `git log` で確認し、`action: keep` で抜け、本節の手動手順
 (detach → branch -d → 削除 → prune) で畳む。関連事象は F26。
+cwd 固定の背景セッション (ExitWorktree が no-op・cd 非持続) では、自分が居る
+worktree の削除と prune を行わず、detach → branch -d → unlock まで実施して
+残りを引き渡す (F51)。
 
 ## 4. 事後検査
 

@@ -933,3 +933,15 @@
   **dispatch 前倒し (背景 job + worktree 隔離なら wave 開始時に DW-O20 を読む条件を入口の
   条件表へ追加) は入口編集 = ユーザー裁定待ち** ([T-139] wave の裁定パッケージ)。
 - 記録: worklog 2026-07-29 (40)、逐語 = output/insights/2026-07-29_t139-ladder-verbatim/
+
+### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
+- 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
+  スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
+  未使用セッションでは no-op、Bash の cd は呼び出しごとに worktree へ reset される。dir 削除を
+  実行していれば以後の全 Bash 呼び出しの cwd が壊れ、セッションが続行不能になっていた
+- 根本原因: スキルが「抜ける」手段を対話セッション前提 (cd 持続 / ExitWorktree) で書いており、
+  cwd 固定の背景セッションを想定していなかった
+- 恒久対応: cleanup-branches §3 に縮退手順 (detach → branch -d → unlock まで、dir 削除と prune
+  は引き渡し) を明記 (本エントリと同 commit)
+- 再発検知: worktree list に detached HEAD の残骸が残っていれば引き渡し漏れを疑う (次回の
+  /cleanup-branches 棚卸しが検出する)
