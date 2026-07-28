@@ -863,3 +863,25 @@
   (`docs/pegasus-runbook.md` §8 に追記)。D86(8) の「認可の実体 = ユーザーの明示指示」は不変で、
   そこに「実行はセッション外」という実行環境の定義を足す (裁定項目 1 の材料)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
+
+### F48. 背景 job の worktree が origin/main から分岐し、local main より古い base で brief と受入を始めた [誤前提]
+
+- 日付: 2026-07-28
+- 事象: dev-wave 用に EnterWorktree で作成した worktree が origin/main (この時点で local main より
+  2 commit 古い) から分岐し、wave は直前 wave の着地を含まない stale base で brief の前提実測と
+  受入全走 1 回を実行した。handoff の「基準コミット = local main HEAD」も未検証の転写で、実態
+  (origin/main) と食い違っていた (F1 型)
+- 根本原因: EnterWorktree の既定 baseRef は `origin/<default-branch>` であり、AI から push しない
+  運用 (local main が origin より常に先行しうる) と食い違う。worktree 作成直後に HEAD を実測して
+  基準を確定する手順も無かった
+- 検出できた理由: 受入全走の収集 node 数が直前 wave の記録と 1 件違い (3158 vs 3159)、
+  collect-only の node 集合 diff で欠落 1 件が直前 wave 新設のテストと特定できたため。
+  「計測値は checkout 併記」(F41 恒久対応) が比較の土俵を与えた
+- 実害: stale base での受入全走 1 回 (約 70 秒) と handoff 基準の誤記。branch が未コミットだった
+  ため `git merge --ff-only main` の追従で是正でき、成果物への影響なし。旧 base で読了した
+  reference 節は現行版との diff で同文を確認した
+- 恒久対応: 推奨は `.claude/settings.json` へ `worktree.baseRef: head` を設定し local HEAD から
+  分岐させること — settings の編集は AI セッションの権限機構が拒否するためユーザー裁定・
+  ユーザー実施 ([T-162])。それまでの作法: worktree 作成直後に `git log -1` で基準コミットを実測して
+  handoff へ書き、local main と違えば commit 前に `--ff-only` で追従する
+- 記録: worklog 2026-07-28 (38)
