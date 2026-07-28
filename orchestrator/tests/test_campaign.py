@@ -3449,6 +3449,51 @@ def test_source_digest_guard_lexes_multiline_and_malformed(tmp_path=None):
     assert err is None, f"正当な桁区切り / __has_cpp_attribute を過剰拒否した: {err}"
 
 
+def test_source_digest_token_paste_bypass_rejected():
+    """段 6 焦点再レビューの must-fix: `__has_include` の literal 検査は、マクロ名を
+    トークン貼り合わせで組み立てられると迂回できる。`#define IZ_H __has_inc##lude` +
+    `#if IZ_H("tsc.hh")` を g++ は `__has_include` として評価する (実測) のに、ガードは
+    `IZ_H` を「先行しかつ実定義される #define」として既知扱いし受理していた。
+
+    貼り合わせなしに新しい識別子を作る手段はないので、`#define` 本体の `##` (と digraph
+    `%:%:`) を止めれば同型の難読化はまとめて閉じる。EVOLVE-BLOCK の骨格・stock はいずれも
+    貼り合わせを使わない (実 stock の 2 ファイルには `#define` 自体が 1 行も無い)。
+
+    「`#define` 行集合を HEAD 固定にする」案は採れない — template patch が骨格の
+    `#define BACKOFF_FIXED -1` を足すため、現行 campaign が patch 適用中に停止する。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    for body in ("#define IZ_PASTE __has_inc##lude\n",
+                 "#define IZ_PASTE __has_inc%:%:lude\n"):
+        with open(hh, "w", encoding="utf-8") as f:
+            f.write(body + '#if IZ_PASTE("tsc.hh")\nint izanagi_evil;\n#endif\n' + _FAKE_BACKOFF_HH)
+        try:
+            source_digest.resolve(g, head, sub, cxx)
+            assert False, f"トークン貼り合わせ ({body.strip()}) で resolve が abort すべき"
+        except RuntimeError as e:
+            assert "##" in str(e) or "%:%:" in str(e)
+    # 正例: 貼り合わせを使わない通常の #define は従来どおり受理する (過剰拒否の検出)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write("#define IZ_PLAIN 1\n#ifdef IZ_PLAIN\nint ok;\n#endif\n" + _FAKE_BACKOFF_HH)
+    assert source_digest.resolve(g, head, sub, cxx) != source_digest.STOCK
+
+
+def test_source_digest_char_literal_prefix_not_taken_as_separator():
+    """段 6 焦点再レビュー nit 1: 桁区切りの判定を「直前が英数字」で行うと、接頭辞つき
+    文字リテラル (`L'A'` / `u8'x'`) を区切りと誤認する。中身が `"` や `/` のとき
+    (`u'"'`) は続きを未終端リテラルと見て、正当な C++ を停止させる (過剰拒否)。
+    判定は「直前のトークンが数字で始まるか」で行う。"""
+    _any_cxx()
+    for src, want in (("x = 1'000;", "x = 1'000;"),      # 桁区切りは温存
+                      ("x = 0x1F'FF;", "x = 0x1F'FF;"),
+                      ("c = u'\"';", "c = u'';"),        # 接頭辞つきはリテラルとして中身除去
+                      ("c = L'A';", "c = L'';"),
+                      ("c = 'a';", "c = '';")):
+        assert source_digest._lex_normalize(src, "x.hh").strip() == want, src
+
+
 def test_source_digest_read_failure_is_runtime_error():
     """identity 経路のファイル読取失敗は `RuntimeError` に正規化する (段 6 レビュー A should 4)。
     `loop` / `pipeline.evaluate` / `buildcache._recheck_src_token` はいずれも

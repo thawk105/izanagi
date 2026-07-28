@@ -119,6 +119,11 @@ _COND_DIRECTIVE_RE = re.compile(
 _DEFINE_RE = re.compile(r"(?m)^[ \t]*#[ \t]*define[ \t]+(\w+)[^\n]*")
 _IDENT_RE = re.compile(r"\b[A-Za-z_]\w*\b")
 _RAW_STRING_RE = re.compile(r'(?:u8|u|U|L)?R"')
+# トークン貼り合わせ (`##` と digraph `%:%:`)。マクロ本体でこれを許すと、走査が literal で
+# 探している名前を分割して組み立てられる (`__has_inc##lude`)。貼り合わせなしに新しい識別子を
+# 作る手段はないので、ここを止めれば同型の難読化はまとめて閉じる。
+_TOKEN_PASTE_RE = re.compile(r"##|%:%:")
+_CHAR_PREFIXES = ("u8", "u", "U", "L")
 # `__has_builtin(__builtin_expect)` の引数は builtin 名や属性名でマクロ参照ではない。
 # 演算子ごと式から落としてから識別子を拾う (落とさないと引数を未知マクロと誤判定する)。
 _HAS_OP_CALL_RE = re.compile(r"\b__has_\w+\s*\([^()]*\)")
@@ -311,6 +316,19 @@ def _environment_macros(defines: Dict[str, str], cxx: str) -> frozenset:
     return got
 
 
+def _is_digit_separator(src: str, i: int) -> bool:
+    """`src[i]` の `'` が数値の桁区切り (`1'000`) か — 文字リテラルの開始でないか。
+
+    桁区切りは pp-number の内側にしか現れないので、直前のトークンが数字で始まるかで判定する。
+    直前を「英数字なら区切り」と素朴に見ると接頭辞つき文字リテラル (`L'A'`, `u8'x'`) を
+    取り違え、中身が `"` や `/` のとき (`u'"'`) 未終端リテラルとして正当なコードを止める
+    (段 6 焦点再レビュー nit 1)。"""
+    j = i
+    while j and (src[j - 1].isalnum() or src[j - 1] == "_"):
+        j -= 1
+    return j < i and src[j].isdigit()
+
+
 def _lex_normalize(source_text: str, rel: str = "") -> str:
     """翻訳フェーズ 2-3 の近似: 行継続とコメントを畳み、リテラル中身を消す (fails-closed)。
 
@@ -348,7 +366,7 @@ def _lex_normalize(source_text: str, rel: str = "") -> str:
             raise RuntimeError(
                 f"source_digest: {rel} に raw string literal — 字句正規化が未対応のため "
                 "fails-closed (骨格・stock は不使用、T-148)")
-        elif c == "'" and i and (src[i - 1].isalnum() or src[i - 1] == "_"):
+        elif c == "'" and _is_digit_separator(src, i):
             out.append("'")          # 数値の桁区切り (1'000)。リテラル開始ではない
             i += 1
         elif c in "\"'":
@@ -396,15 +414,20 @@ def _assert_conditional_macros_covered(source_text: str, defines: Dict[str, str]
       definedness テスト」は乖離候補として停止側に倒す (A must-fix 4 の残余。骨格・stock は
       いずれも使用しないので実害はない)。"""
     scan = _lex_normalize(source_text, rel)
-    for probe in INCLUDE_PROBE_OPERATORS:
-        if probe not in scan:
-            continue
-        for m in _DEFINE_RE.finditer(scan):
-            if probe in m.group(0):
+    for m in _DEFINE_RE.finditer(scan):
+        body = m.group(0)
+        if _TOKEN_PASTE_RE.search(body):
+            raise RuntimeError(
+                f"source_digest: {rel} の #define 本体にトークン貼り合わせ (## / %:%:) — "
+                "走査が literal で探す名前を分割して組み立てられる (`__has_inc##lude` は g++ が "
+                "`__has_include` として評価する。実測) ため停止 (T-148)。EVOLVE-BLOCK の骨格・"
+                f"stock は貼り合わせを使わない。\n  定義: {body.strip()!r}")
+        for probe in INCLUDE_PROBE_OPERATORS:
+            if probe in body:
                 raise RuntimeError(
                     f"source_digest: {rel} の #define 本体に {probe} — 条件式へ展開されると "
                     "computed include が digest を迂回する (literal 検査の裏をかく経路) ため停止 "
-                    f"(T-148)。\n  定義: {m.group(0).strip()!r}")
+                    f"(T-148)。\n  定義: {body.strip()!r}")
     defs_at: List[tuple] = [(m.start(), m.group(1)) for m in _DEFINE_RE.finditer(scan)]
     live = _dump_macros(source_text, defines, cxx) if defs_at else frozenset()
     base_known = set(defines) | set(CONTEXT_MACROS) | _environment_macros(defines, cxx)
