@@ -153,19 +153,26 @@ write_interpreter_failure() {
   fi
 }
 
-PY_COMMAND=$(command -v python3) || {
-  write_interpreter_failure "python3 is unavailable"
-  echo "python3 is unavailable" >&2
-  exit 2
-}
-PY=$(realpath -e -- "$PY_COMMAND") || {
-  write_interpreter_failure "cannot resolve python3 executable"
-  echo "cannot resolve python3 executable" >&2
-  exit 2
-}
-if [[ ! -x "$PY" ]]; then
-  write_interpreter_failure "resolved python3 is not executable"
-  echo "resolved python3 is not executable" >&2
+# 計算ノードは intelpython 既定ロードで python3 が 3.9 に解決され、driver の import 前提
+# (dataclass kw_only = Python 3.10+) を満たさない (実測: job 0:873200.nqsv, rc=1)。
+# 版数 gate を通る最初の候補だけを採用する。authorization gate ではなく実行前提の束縛。
+PY=""
+py_rejected=""
+for py_name in python3 python3.10 python3.11 python3.12; do
+  py_cmd=$(command -v -- "$py_name") || continue
+  py_resolved=$(realpath -e -- "$py_cmd") || continue
+  [[ -x "$py_resolved" ]] || continue
+  if "$py_resolved" -I -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    PY="$py_resolved"
+    break
+  fi
+  py_rejected+="${py_rejected:+ }$py_name=$py_resolved"
+done
+if [[ -z "$PY" ]]; then
+  write_interpreter_failure "no python3 >= 3.10 (rejected: ${py_rejected:-none})"
+  echo "no python3 >= 3.10 (rejected: ${py_rejected:-none})" >&2
   exit 2
 fi
 

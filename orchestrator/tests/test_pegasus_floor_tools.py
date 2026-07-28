@@ -483,7 +483,9 @@ def test_floor_job_hardens_interpreter() -> None:
     source = JOB.read_text(encoding="utf-8")
     submit = SUBMIT.read_text(encoding="utf-8")
     assert "unset PYTHONPATH PYTHONHOME PYTHONSTARTUP" in source
-    assert 'PY=$(realpath -e -- "$PY_COMMAND")' in source
+    assert 'py_resolved=$(realpath -e -- "$py_cmd")' in source
+    assert "sys.version_info[:2] >= (3, 10)" in source
+    assert '"$py_resolved" -I -B -c' in source
     assert '"$PY" -I -B --version' in source
     assert '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"' in source
     assert "-E -s -B" not in source
@@ -499,7 +501,7 @@ def test_floor_job_records_interpreter_resolution_failure_after_attempt_creation
     source = JOB.read_text(encoding="utf-8")
     attempt_index = source.index('ATTEMPT_DIR="$JOB_STAGING_ROOT/$PBS_JOBID"')
     writer_index = source.index("write_failure() {")
-    resolution_index = source.index("PY_COMMAND=$(command -v python3)")
+    resolution_index = source.index("for py_name in python3 python3.10")
     assert attempt_index < writer_index < resolution_index
 
     start = source.index("write_interpreter_failure() {")
@@ -528,8 +530,74 @@ def test_floor_job_records_interpreter_resolution_failure_after_attempt_creation
     ) == (
         "stage=interpreter\n"
         "rc=2\n"
-        "message=python3 is unavailable\n"
+        "message=no python3 >= 3.10 (rejected: none)\n"
     )
+
+
+def _run_interpreter_selection(
+    tmp_path: Path, stubs: dict[str, int]
+) -> tuple["subprocess.CompletedProcess[str]", Path, dict[str, Path]]:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index("write_interpreter_failure() {")
+    end = source.index("on_err() {", start)
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    bin_dir = tmp_path / "stub-bin"
+    bin_dir.mkdir()
+    real_realpath = shutil.which("realpath")
+    assert real_realpath is not None
+    (bin_dir / "realpath").symlink_to(real_realpath)
+    paths: dict[str, Path] = {}
+    for name, gate_rc in stubs.items():
+        stub = bin_dir / name
+        stub.write_text(f"#!/bin/sh\nexit {gate_rc}\n", encoding="utf-8")
+        stub.chmod(0o755)
+        paths[name] = stub
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            "set -o noclobber",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            "",
+        ]
+    )
+    suffix = '\nprintf \'%s\\n\' "$PY"\n'
+    result = subprocess.run(
+        ["/bin/bash", "-c", prefix + source[start:end] + suffix],
+        capture_output=True,
+        text=True,
+        env={"PATH": str(bin_dir)},
+    )
+    return result, attempt, paths
+
+
+def test_floor_job_interpreter_gate_rejects_pre_310_python(tmp_path: Path) -> None:
+    result, attempt, paths = _run_interpreter_selection(tmp_path, {"python3": 1})
+    assert result.returncode == 2
+    rejected = os.path.realpath(paths["python3"])
+    assert (attempt / "failure-interpreter.txt").read_text(encoding="utf-8") == (
+        "stage=interpreter\n"
+        "rc=2\n"
+        f"message=no python3 >= 3.10 (rejected: python3={rejected})\n"
+    )
+
+
+def test_floor_job_interpreter_gate_falls_back_to_versioned_python(
+    tmp_path: Path,
+) -> None:
+    result, _attempt, paths = _run_interpreter_selection(
+        tmp_path, {"python3": 1, "python3.10": 0}
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == os.path.realpath(paths["python3.10"])
+
+
+def test_floor_job_interpreter_gate_prefers_default_python3(tmp_path: Path) -> None:
+    result, _attempt, paths = _run_interpreter_selection(
+        tmp_path, {"python3": 0, "python3.10": 0}
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == os.path.realpath(paths["python3"])
 
 
 def _dependency_build_fragment() -> str:

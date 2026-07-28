@@ -154,6 +154,13 @@ nvcc sample.cu -o sample
 MPI、コンパイラなどは `module avail` に表示された実在するバージョンを指定する。openmpi の版名は
 `openmpi/5.0.10/gcc11.4.0-cuda12.6.3` のようにコンパイラ・CUDA を含む複合名である (実測)。
 
+python の既知の乖離 (2026-07-28、job `0:873200.nqsv` で実測): 計算ノードでは module
+`intelpython/2022.3.1` が既定ロードされ、`python3` が Intel Python 3.9.13 に解決される。
+ログインノードの `python3` は 3.10.12。ノード OS はログインと同じ Ubuntu 22.04 (ノード上の
+g++ 版文字列 `1ubuntu1~22.04.3` から推定) のため、`python3.10` は版付き名で解決できる見込み。
+Python 3.10+ を要するジョブは `python3.10` のような版付き名で解決するか、
+実行前に版数を検査して fail-closed にする (floor job は候補列 + 版数 gate で対応済み)。
+
 ```bash
 module load openmpi/<version>
 module load intmpi/<version>
