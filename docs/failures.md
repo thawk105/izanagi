@@ -33,6 +33,13 @@
   敵対相談 2 本が独立に追認。living doc (phase3) は直接訂正し、追記型 (failures / worklog) は
   本追記と worklog 2026-07-25 (3) の erratum で訂正した。恒久対応は memory から変更なし
   (実日付でなく**一次資料の日付**を確認する対象がコミット・成果物へ広がった点を本追記で顕在化)
+- **再発: 2026-07-28 (near-miss)** — [T-142] 段 1 brief が D36 決定 4-2 の「AND 判定は
+  wal/replay の共通ヘルパ 1 箇所に実装」という**規定 (should) を実装済みの機構 (is) として
+  転写**し、裁定条件の充足根拠に使った。現物 `wal.records_by_stage()` は最後勝ちで AND 判定に
+  使えないと docstring が自警しており、段 2 の codex プラン起草が検出 (実装前に是正、実害なし)。
+  転写対象が日付・属性から**機構の実在状態**へ広がった顕在化。決定文の規範文は実在の一次資料では
+  ない — brief の根拠にする機構は現物 file:line で実在を確認する (worklog 2026-07-28 (42)、
+  旧番号 (38) から D70 統合時振り直し)
 
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
@@ -935,3 +942,15 @@
 - 記録: worklog 2026-07-29 (40)、逐語 = output/insights/2026-07-29_t139-ladder-verbatim/
 - **裁定 (2026-07-29)**: dispatch 前倒しを採用 (ユーザー)。入口条件表の条件 20 を「背景 job +
   worktree 隔離の wave 開始時 (最遅: clean-tree gate 直前)」へ更新
+
+### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
+- 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
+  スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
+  未使用セッションでは no-op、Bash の cd は呼び出しごとに worktree へ reset される。dir 削除を
+  実行していれば以後の全 Bash 呼び出しの cwd が壊れ、セッションが続行不能になっていた
+- 根本原因: スキルが「抜ける」手段を対話セッション前提 (cd 持続 / ExitWorktree) で書いており、
+  cwd 固定の背景セッションを想定していなかった
+- 恒久対応: cleanup-branches §3 に縮退手順 (detach → branch -d → unlock まで、dir 削除と prune
+  は引き渡し) を明記 (本エントリと同 commit)
+- 再発検知: worktree list に detached HEAD の残骸が残っていれば引き渡し漏れを疑う (次回の
+  /cleanup-branches 棚卸しが検出する)
