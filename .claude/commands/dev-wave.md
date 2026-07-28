@@ -99,7 +99,7 @@ review を流用してはならない。
 | 17 | commit を作る直前 | `docs/dev-wave/operations.md`: `DW-O17` |
 | 18 | 親がテスト・受入を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O18` |
 | 19 | tracked file を一時変異する直前 | `docs/dev-wave/operations.md`: `DW-O19` |
-| 20 | clean-tree gate を worktree で走らせる直前 | `docs/dev-wave/operations.md`: `DW-O20` |
+| 20 | 背景 job + worktree 隔離の wave 開始時（最遅: clean-tree gate を worktree で走らせる直前） | `docs/dev-wave/operations.md`: `DW-O20` |
 | 21 | 無人継続を構成し最初の process を起動する前 | `docs/dev-wave/core.md`: `DW-CTX` |
 | 22 | supervisor を使用する前 | `docs/dev-wave/core.md`: `DW-CTX` |
 

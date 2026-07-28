@@ -895,6 +895,9 @@
   D 番号 grep 矛盾 (worklog (37) が参照する D94 が worktree に不在)。是正 = `--ff-only` 追従
   (同型)。補強 = `DW-O20` へ基準照合を 1 文追記 + auto-memory
   `dev-wave-bg-worktree-startup-checks` (立ち上げ 3 点検査)
+- **恒久対応の適用 (2026-07-29)**: ユーザー裁定 = 採用。`worktree.baseRef: head` は commit
+  166dd6f (ユーザー/codex) で適用済み ([T-162] 完了)。以後の worktree は local HEAD 基準で
+  分岐し、本罠は構造的に閉鎖
 
 ### F49. 背景 job セッションからの qsub が runbook §8 の禁止に反して実行され、しかし有効な request を作った [手順漏れ] [誤前提]
 
@@ -913,6 +916,10 @@
   (ii) **規則の射程精緻化はユーザー裁定へ** — 一律禁止のままにするか、F47 型 (不永続 sandbox)
   に限定するか。精緻化まで現行規則が正であり、以後の投入はユーザー端末へ引き渡す。
 - 記録: worklog 2026-07-29 (40)、材料 = output/env/pegasus/t139-probe/0_873583.nqsv/
+- **裁定 (2026-07-29)**: (ii) 射程限定を採用 (ユーザー — wave の自走性を優先し、AI 推奨の
+  一律維持を上書き)。規則本文は runbook §8 — 書込永続が実証されたセッション型 (背景 job の
+  Bash tool 等) からの投入を許可し、投入直後の有効性検査 (receipt 永続・qstat 可視・会計痕跡)
+  を義務化。検査不成立は F47 型として以後の投入を止める
 
 ### F50. 専用 handoff を worktree 内に作り、DW-O20 の置き場義務に気づいたのは読了トリガ発火後だった [手順漏れ]
 
@@ -926,3 +933,5 @@
   **dispatch 前倒し (背景 job + worktree 隔離なら wave 開始時に DW-O20 を読む条件を入口の
   条件表へ追加) は入口編集 = ユーザー裁定待ち** ([T-139] wave の裁定パッケージ)。
 - 記録: worklog 2026-07-29 (40)、逐語 = output/insights/2026-07-29_t139-ladder-verbatim/
+- **裁定 (2026-07-29)**: dispatch 前倒しを採用 (ユーザー)。入口条件表の条件 20 を「背景 job +
+  worktree 隔離の wave 開始時 (最遅: clean-tree gate 直前)」へ更新
