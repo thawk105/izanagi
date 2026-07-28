@@ -1,0 +1,8 @@
+{
+  "message": "official floor driver returned nonzero",
+  "pbs_jobid": "0:873225.nqsv",
+  "rc": 2,
+  "recorded_epoch": 1785223571,
+  "schema_version": "pegasus-job-failure/v1",
+  "stage": "floor_driver"
+}

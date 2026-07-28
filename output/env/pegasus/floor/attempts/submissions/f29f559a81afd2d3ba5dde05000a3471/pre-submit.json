@@ -1,0 +1,37 @@
+{
+  "dry_run": false,
+  "job_script_path": "tools/pegasus/floor_campaign.sh",
+  "job_script_sha256": "736d58ca5ba6d8e136bc33c8c9f6969f2470324966a0b7b6c570f757b6f66ddb",
+  "nonce": "f29f559a81afd2d3ba5dde05000a3471",
+  "preflight": {
+    "check_quota": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "USER:tanab home quota\nDisk quotas for prj 31609 (pid 31609):\n      Filesystem  kbytes   bquota  blimit  bgrace   files   iquota  ilimit  igrace\n           /home 7160692  104857600 157286400       -   47706        0       0       -\n\nGROUP:SFC work quota\nDisk quotas for prj 1030410 (pid 1030410):\n      Filesystem  kbytes   bquota  blimit  bgrace   files   iquota  ilimit  igrace\n           /work 185016212  10737418240 16106127360       -  209068        0       0       -\n"
+    },
+    "pegasusinfo": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "Pegasus                |  Run   Run    |  All   All    \nQueueName        JSVs  |  Node  Req    |  Node  Req    \n---------------  ----     ---   -----     ---   -----  \nedu-1            149      0     0         0     0      \nedu-2            149      0     0         0     0      \nedu-4            149      0     0         0     0      \nedu-8            149      0     0         0     0      \ngen_S            149      12    12        25    25     \ngen_M            149      0     0         0     0      \ngen_L            149      0     0         0     0      \ngpu              149      50    40        52    42     \ngpu_low          149      0     0         0     0      \ninteractive      149      0     0         0     0      \ninteractive_low  149      0     0         0     0      \ndebug            149      1     1         1     1      \n---------------           ---                          \nTOTAL                     63                           \n"
+    },
+    "qstat_Q": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "[EXECUTION QUEUE] Batch Server Host: nqsv\n=========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\n--------------- --- ---- ------- ---- ----------------------------------------------------\ngen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_S             1  149 ENA ACT   30   25   0   0   1   0  12   0   0  12   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------------------\n <TOTAL>                                25   0   0   1   0  12   0   0  12   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------------------\n\n[INTERACTIVE QUEUE] Batch Server Host: nqsv\n===========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS\n--------------- --- ---- ------- ---- ----------------------------------------\ndebug             1  149 ENA ACT   60    1   0   0   0   0   1   0   0   0   0 \ninteractive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------\n <TOTAL>                                 1   0   0   0   0   1   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------\n\nRouting Queue does not exist on nqsv.\n\n[NETWORK QUEUE] Batch Server Host: nqsv\n=======================================\nQueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN\n--------------- -------------------- --------------- ----------------\nDefaultNetQue    (any)               ENA ACT   0   4    0   0   0   0 \n--------------- -------------------- --------------- ----------------\n <TOTAL>                                        1000    0   0   0   0\n--------------- -------------------- --------------- ----------------\n\n"
+    },
+    "rbudgetcheck": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "===========================================\nGROUP          REMAIN   ESTIMATE    INITIAL\n===========================================\nSFC            434.72      48.00    1000.00\n"
+    }
+  },
+  "prepared_at": 1785221211,
+  "request": {
+    "elapstim_req_s": 36000,
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S"
+  },
+  "schema_version": "pegasus-floor-pre-submit/v1",
+  "source_commit": "e70dca5f3c2c89a57bd4de4ece9e0d6df64f3b10"
+}
