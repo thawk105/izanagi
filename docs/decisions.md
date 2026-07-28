@@ -3803,6 +3803,10 @@ submission artifact に宿ると読めるが、実装後の実測ではその ar
 「記録があるから認可済み」という fail-open の読みを閉じる。これは (3) の帰結
 (新しい Git launch receipt は作らない) を変えず、防壁も増やさない。同じ論理は (3) が
 `AI-Agent: none` について既に述べた「人間性の暗号学的証明ではない」の適用先を広げたものである。
+**追補 (2026-07-28、T-088 段階 1 裁定パッケージ (1) ユーザー裁定):** 明示 qsub の実行環境は
+ユーザー自身の端末に限る。AI セッション内 shell (`!`) からの qsub は人間の打鍵でも実体が異なり
+無効 — request 873213 の実測で receipt 不永続・qstat Not permitted・attempt/spool/課金なし (F47、
+運用手順は `docs/pegasus-runbook.md` §8)。
 
 ## D87. floor 専用 PBS wrapper の実装裁定 — walltime 36000・scheduler 実 limit 束縛・依存 build 同梱、段階 1 は人間 qsub まで OPEN (2026-07-25)
 
@@ -3812,6 +3816,11 @@ submission artifact に宿ると読めるが、実装後の実測ではその ar
 `orchestrator/campaign/s8b_floor_campaign.py` は 1 byte も変更していないため、**official の受理集合は
 空集合のまま**である (D86(1) が課した「実装 wave の段 1 で防壁変更として再確認する」義務は、
 本 wave が admission を変えないことの確認として履行した)。
+**追補 (2026-07-28、T-088 段階 1 裁定パッケージ (2) ユーザー裁定):** driver 予算定数の hard cap 化は
+行わず、walltime 厚取り (要求 36000 秒) を恒久方針とする。課金は要求 walltime でなく実使用ベースで
+あることを job 873200/873225 の残高差分で実測済み (worklog 2026-07-28 (33))。hard cap の実装は
+将来の hardening wave ([T-085] PKG-1) への相乗りを可とする。同パッケージ (3) = 実行 revision 束縛と
+spool bytes の独立照合は、段階 3 (単一 admission predicate) の設計 scope に含める。
 
 (1) **段階 1 は本 wave では閉じない。** dry-run が作る synthetic ID は DW-G04 の発火条件ではない。
 実 submit artifact ID の確認は人間の明示 `qsub` を待ち、それまで [T-088] 段階 1 は OPEN とする。
