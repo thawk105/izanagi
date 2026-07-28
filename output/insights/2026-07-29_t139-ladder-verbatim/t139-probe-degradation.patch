@@ -1,0 +1,67 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index c8e35d0..9ae6fe9 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -8,6 +8,19 @@
+ #include "include/scan_callback.hh"
+ #include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
+ 
++#if IZANAGI_T139_PROBE_CAS_GATE || IZANAGI_T139_PROBE_COMMIT_GATE
++// izanagi [T-139] — disposable degradation probe (ability-probe 生死確認).
++// Correct-but-slow by construction: a global mutex only restricts scheduling,
++// so every execution is a legal stock-Silo execution (serializability 不変).
++// Bare macros (no CCBENCH_ prefix) = not definable from the pipeline flag
++// space. Defaults OFF (#else keeps stock verbatim). NEVER build this into a
++// perf or correctness baseline (絶対規律2).
++#include <mutex>
++namespace izanagi_t139_probe {
++inline std::mutex gate_mutex;
++}  // namespace izanagi_t139_probe
++#endif
++
+ extern void displayDB();
+ extern void siloLeaderWork(uint64_t& epoch_timer_start,
+                            uint64_t& epoch_timer_stop);
+@@ -169,8 +182,23 @@ void TxExecutor::lockWriteSet() {
+       } else {
+         desired = expected;
+         desired.lock = 1;
++#if IZANAGI_T139_PROBE_CAS_GATE
++        // izanagi [T-139] probe rung candidate A: route every write-lock CAS
++        // through one shared mutex (central acquisition gate). Same lvalues,
++        // same single strong CAS — failure still updates `expected` by
++        // reference, so the no-wait/retry semantics are unchanged.
++        bool izanagi_t139_cas_ok;
++        {
++          std::lock_guard<std::mutex> izanagi_t139_gate(
++              izanagi_t139_probe::gate_mutex);
++          izanagi_t139_cas_ok = compareExchange(
++              (*itr).rcdptr_->tidword_.obj_, expected.obj_, desired.obj_);
++        }
++        if (izanagi_t139_cas_ok) {
++#else
+         if (compareExchange((*itr).rcdptr_->tidword_.obj_, expected.obj_,
+                             desired.obj_)) {
++#endif
+ #if TRACE
+           // This worker now holds the lock on this tuple (D38). On the skeleton
+           // CAS-success path (not the coder edit surface = the conflict response
+@@ -692,7 +720,18 @@ void TxExecutor::writePhase() {
+ 
+ bool TxExecutor::commit() {
+   if (validationPhase()) {
++#if IZANAGI_T139_PROBE_COMMIT_GATE
++    // izanagi [T-139] probe rung candidate B: serialize the whole writePhase
++    // behind one shared mutex (record locks stay held while waiting -> convoy).
++    // Pure scheduling restriction; every stock operation runs unchanged.
++    {
++      std::lock_guard<std::mutex> izanagi_t139_gate(
++          izanagi_t139_probe::gate_mutex);
++      writePhase();
++    }
++#else
+     writePhase();
++#endif
+     return true;
+   } else {
+     return false;

@@ -1,0 +1,3 @@
+stock probe_syms=0 trace_syms=0
+A probe_syms=1 trace_syms=0
+B probe_syms=1 trace_syms=0

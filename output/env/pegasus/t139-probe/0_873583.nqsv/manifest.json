@@ -1,0 +1,35 @@
+{
+  "probe": "t139-ladder-gap-leg",
+  "binding_mode": "post-hoc (段 6 レビュー R1-1/R1-6/R2-1/R2-2 への応答。in-job capture ではない)",
+  "job": {
+    "request_id": "873583.nqsv",
+    "queue": "gen_S",
+    "node": "bnode011",
+    "created": "2026-07-29T00:11:16+09:00",
+    "started": "2026-07-29T00:41:14+09:00",
+    "ended": "2026-07-29T00:44:05+09:00",
+    "elapse_s": 176,
+    "accounting_files": ["t139_probe_gap.sh.e873583", "t139_probe_gap.sh.o873583"]
+  },
+  "inputs": {
+    "job_script_sha256": "67b26fd5167687091b55371003ed0f8ebc0c565cc8be22c238b577a49580ca6c",
+    "patch_sha256": "5fa7bb628a4fa1d4524db8cfb8588be4d5f342f386ae7bc1e9e222a469077b3c",
+    "ccbench_head_full": "d706650cdb31e442bef45b9b4216951d4fb40969",
+    "gflags_head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+    "glog_head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+    "superproject_head": "78eedcb3027e1c79ea6f2ad977b108d8b4fd9273"
+  },
+  "attestation_window_assumption": "source HEAD/clean は job 実行後のセッションで確認した (全 3 repo とも clean・上記 HEAD)。job はこのセッションの worktree submodule / ~/github/{gflags,glog} を cp -a しており、投入から実行完了までの間に本セッションはこれらを変更していない。第三者検証可能な in-job capture ではない — forensic 等級の証拠としては受理しないこと",
+  "outputs_sha256": {
+    "summary.tsv": "5b8ba6c502aebc3b2c13ff983e078ae761eb18ca1058942dadedab5bb198e53c"
+  },
+  "compiler": "gcc/g++ 11.4.0 (compiler.txt = job 内記録、realpath /usr/bin/x86_64-linux-gnu-g++-11)",
+  "unrecoverable": [
+    "binary sha256 (staging /scr は trap で削除済み)",
+    "実 compile argv / CMakeCache (同上)",
+    "A/B binary の macro 別シンボル識別 (両候補が同一シンボル izanagi_t139_probe::gate_mutex を出すため nm では区別不能 — A/B の同定は job script の決定的 flags 分岐 + rc=0 に依拠)",
+    "CXXFLAGS 等の環境 scrub (script は実装していない — PBS batch 環境で CXXFLAGS 未設定かは未検証)",
+    "per-worker liveness @ t48 trace-disabled (aggregate tps のみ)"
+  ],
+  "acceptance": "non-acceptance。この job の値は DW-G01 生死確認 (方向シグナル) 専用。レコード数は未較正 (登録 calibration の 1m に対し 10k/100k)、rep 順序は固定 (stock→A→B) で order bias 未排除"
+}

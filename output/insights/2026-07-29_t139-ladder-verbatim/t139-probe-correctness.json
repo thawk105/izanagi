@@ -1,0 +1,54 @@
+{
+  "probe": "t139-ladder-correctness-leg",
+  "pin": "d706650",
+  "host_role": "pegasus-login-node (動作確認扱い、性能主張なし)",
+  "workload": "-ycsb_rmw=true -ycsb_zipf_skew=0.9 -ycsb_tuple_num=50 -ycsb_max_ope=5 -thread_num=4 -extime=1",
+  "results": [
+    {
+      "candidate": "A",
+      "macro": "IZANAGI_T139_PROBE_CAS_GATE",
+      "checks": {
+        "macro_symbol_in_binary": true,
+        "trace_files_expected": true,
+        "per_worker_liveness": true,
+        "verifier_exit_zero": true,
+        "verifier_certified": true
+      },
+      "per_worker_commits": {
+        "trace_0.log": 63533,
+        "trace_1.log": 67307,
+        "trace_2.log": 69026,
+        "trace_3.log": 71552
+      },
+      "verifier_tail": [
+        "",
+        "== 1 run(s): 1 serializable(certified), 0 non-serializable, 0 indeterminate =="
+      ],
+      "all_pass": true
+    },
+    {
+      "candidate": "B",
+      "macro": "IZANAGI_T139_PROBE_COMMIT_GATE",
+      "checks": {
+        "macro_symbol_in_binary": true,
+        "trace_files_expected": true,
+        "per_worker_liveness": true,
+        "verifier_exit_zero": true,
+        "verifier_certified": true
+      },
+      "per_worker_commits": {
+        "trace_0.log": 60209,
+        "trace_1.log": 67403,
+        "trace_2.log": 66017,
+        "trace_3.log": 66882
+      },
+      "verifier_tail": [
+        "",
+        "== 1 run(s): 1 serializable(certified), 0 non-serializable, 0 indeterminate =="
+      ],
+      "all_pass": true
+    }
+  ],
+  "revert_clean": true,
+  "all_pass": true
+}

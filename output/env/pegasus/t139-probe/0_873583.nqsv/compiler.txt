@@ -1,0 +1,2 @@
+gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+/usr/bin/x86_64-linux-gnu-g++-11

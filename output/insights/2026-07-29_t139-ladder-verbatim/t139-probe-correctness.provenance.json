@@ -1,0 +1,12 @@
+{
+  "binds": "t139-probe-correctness.json (sha256 c2f136d8a148530ac3e110cfba0fe539f2cf6fed808f716065dfa725e595725d)",
+  "binding_mode": "post-hoc (段 6 レビュー R1-6 への応答。JSON schema に provenance field が無かった — 恒久 driver 要件へ)",
+  "patch_sha256": "5fa7bb628a4fa1d4524db8cfb8588be4d5f342f386ae7bc1e9e222a469077b3c",
+  "driver_sha256": "eddd822f36434a15515e1fb0ffbb28fde4920ca597139b526263762061f33712",
+  "ccbench_head_full": "d706650cdb31e442bef45b9b4216951d4fb40969",
+  "host": "pegasus02 (login node、動作確認扱い)",
+  "compiler": "system g++ 11.4.0 (/usr/bin/x86_64-linux-gnu-g++-11)",
+  "run_date": "2026-07-29 (セッション記録より。JSON 自体に timestamp field なし)",
+  "build_config_note": "cmake -DCCBENCH_TRACE=1 のみ明示。CCBENCH_BACK_OFF は未指定 = Options.cmake 既定 (段 6 R2-4: gap leg の BACK_OFF=0 とはビルド構成が異なる)",
+  "unrecoverable": ["binary sha256", "実 compile argv", "trace digest"]
+}
