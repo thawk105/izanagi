@@ -1,0 +1,228 @@
+[
+ {
+  "id": "M1",
+  "kind": "kill",
+  "what": "digest の文脈列を素文脈のみに縮退",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_tu_context_macro_edit_not_aliased_to_stock"
+  ],
+  "failed": [
+   "test_source_digest_tu_context_macro_edit_not_aliased_to_stock"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M2",
+  "kind": "kill",
+  "what": "文脈ガードを早期 return で無効化",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_defines_match_real_tu_supply",
+   "test_source_digest_guard_lexes_like_the_preprocessor",
+   "test_source_digest_guard_lexes_multiline_and_malformed",
+   "test_source_digest_has_include_rejected",
+   "test_source_digest_token_paste_bypass_rejected",
+   "test_source_digest_unknown_conditional_macro_fails_closed"
+  ],
+  "failed": [
+   "test_source_digest_defines_match_real_tu_supply",
+   "test_source_digest_guard_lexes_like_the_preprocessor",
+   "test_source_digest_guard_lexes_multiline_and_malformed",
+   "test_source_digest_has_include_rejected",
+   "test_source_digest_token_paste_bypass_rejected",
+   "test_source_digest_unknown_conditional_macro_fails_closed"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M3",
+  "kind": "kill",
+  "what": "trace diff の文脈列を素文脈のみに縮退",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_trace_hidden_in_context_macro_branch_caught"
+  ],
+  "failed": [
+   "test_source_digest_trace_hidden_in_context_macro_branch_caught"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M4",
+  "kind": "diag-pin",
+  "what": "__has_include 専用 raise の無効化 (受理集合不変)",
+  "status": "PINNED",
+  "expected": [
+   "test_source_digest_has_include_rejected"
+  ],
+  "failed": [
+   "test_source_digest_has_include_rejected"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M5",
+  "kind": "kill",
+  "what": "字句正規化のブロックコメント処理を無効化",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_guard_lexes_like_the_preprocessor",
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "failed": [
+   "test_source_digest_guard_lexes_like_the_preprocessor",
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M6",
+  "kind": "kill",
+  "what": "#define 既知化を位置・実定義の条件なしに戻す",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_guard_lexes_like_the_preprocessor",
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "failed": [
+   "test_source_digest_guard_lexes_like_the_preprocessor",
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M7",
+  "kind": "kill",
+  "what": "実 TU 供給集合フィルタを外す",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_defines_match_real_tu_supply"
+  ],
+  "failed": [
+   "test_source_digest_defines_match_real_tu_supply"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M8",
+  "kind": "kill",
+  "what": "実ビルドの言語標準を外す",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_defines_match_real_tu_supply"
+  ],
+  "failed": [
+   "test_source_digest_defines_match_real_tu_supply"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M9",
+  "kind": "kill",
+  "what": "リテラル中身除去を無効化 (過剰拒否へ)",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_char_literal_prefix_not_taken_as_separator",
+   "test_source_digest_guard_lexes_like_the_preprocessor"
+  ],
+  "failed": [
+   "test_source_digest_char_literal_prefix_not_taken_as_separator",
+   "test_source_digest_guard_lexes_like_the_preprocessor"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M10",
+  "kind": "kill",
+  "what": "桁区切りの扱いを消しリテラル開始と誤認させる",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_char_literal_prefix_not_taken_as_separator",
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "failed": [
+   "test_source_digest_char_literal_prefix_not_taken_as_separator",
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M11",
+  "kind": "kill",
+  "what": "#elifdef / #elifndef を指令集合から外す",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "failed": [
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M12",
+  "kind": "kill",
+  "what": "未終端ブロックコメントの停止を外す (hang へ倒れる)",
+  "status": "HANG-KILLED",
+  "expected": [
+   "test_source_digest_guard_lexes_multiline_and_malformed"
+  ],
+  "failed": [],
+  "match": true,
+  "rc": -9
+ },
+ {
+  "id": "M13",
+  "kind": "kill",
+  "what": "読取失敗の RuntimeError 正規化を外す",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_read_failure_is_runtime_error"
+  ],
+  "failed": [
+   "test_source_digest_read_failure_is_runtime_error"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M14",
+  "kind": "kill",
+  "what": "トークン貼り合わせの停止を外す (## 迂回が復活)",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_token_paste_bypass_rejected"
+  ],
+  "failed": [
+   "test_source_digest_token_paste_bypass_rejected"
+  ],
+  "match": true,
+  "rc": 1
+ },
+ {
+  "id": "M15",
+  "kind": "kill",
+  "what": "桁区切り判定を素朴な英数字判定へ戻す",
+  "status": "KILLED",
+  "expected": [
+   "test_source_digest_char_literal_prefix_not_taken_as_separator"
+  ],
+  "failed": [
+   "test_source_digest_char_literal_prefix_not_taken_as_separator"
+  ],
+  "match": true,
+  "rc": 1
+ }
+]

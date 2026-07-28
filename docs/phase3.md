@@ -211,7 +211,8 @@ verify abort > 0 → bench → certified) とも WAL 機械判定 10/10 PASS (20
 - [x] (blocking) verify の abort 数を WAL に記録 — 集計行が読めない run は fails-closed reject (`trace-no-abort-counts`)
 - [x] (blocking) apply/revert ハーネス — `patchharness.applied()` (flock 排他 + pinned-clean assert + fails-closed)
 - [x] (blocking) build 後の digest 再照合 (TOCTOU 遮断) — `buildcache._recheck_src_token`
-- [x] (blocking) source_digest の #include 死角の閉塞 (最小案) — `assert_includes_match_head` (computed include は残存リスク節)
+- [x] (blocking) source_digest の #include 死角の閉塞 — `assert_includes_match_head` + computed include と
+      マクロ文脈乖離の fails-closed 化 `assert_conditional_macros_covered` ([T-148]、D93)
 - [x] (完了・方針 A) H3 hooks = 明白な直接書き込みを止める最小第二防壁 — guard_write / guard_bash 配線済 (D30/D33/D34)
 - [x] (完了) 観測者効果の二重検査 = diff-of-diffs — `assert_trace_diff_matches_head` (commit 14d64e6)
 - [x] coder.md 生成 + 純 timing variant 1 本で全配線 1 周 — 完了条件 1/2 とも WAL 機械判定 PASS (2026-07-05)
@@ -590,14 +591,17 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   trace/perf の正当な差分を誤検出する・#ifdef TRACE 内側への攻撃を素通しする、の 2 欠陥があったが、
   diff-of-diffs (variant の TRACE=1/TRACE=0 差分が pinned HEAD の同差分と一致することを assert) で解消。
   **残る限界: #ifdef の外 = 両ビルド共通の検証専用メタデータは機械判定不能** (auditor / 人間レビュー領域、未解消)。
-- **#include 死角の残り (道Y 一般問題)**: identity 核の閉塞 (`assert_includes_match_head`) が捕えるのは literal な
-  `#include` 行のみ。`#if __has_include(...)` (preprocess 環境と実ビルドで評価が分岐しうる) や #define 経由の
-  computed include は #include 行に現れず素通りする。identity 核だけでは完了条件 1 (骨格の #if 指令は inert) と
-  両立して塞げない (骨格 #if と payload #if の区別には skeleton 抽出が要るが、skeleton 抽出は D34 で完了条件 1 と
-  両立しないため却下済み)。guard_write の payload テキスト検査も D33 で物理削除済み (designated ソース内の内容は
-  検査しない) — したがって受け皿は **auditor + 規律6 監査領域の known-limitation として据え置く** (機械防壁の予約
-  なし)。kickoff (no-op / 人間が値を与える純 timing) では coder が #if/#include/#define を発明しないので潜在 —
-  後続段 4 (coder 自律期) で auditor のレビュー観点に明示的に含める。
+- **#include 死角の残り (道Y 一般問題) — computed include は解消 (2026-07-28、[T-148]、D93)**:
+  identity 核の閉塞 (`assert_includes_match_head`) が捕えるのは literal な `#include` 行のみで、
+  `#if __has_include(...)` や #define 経由の computed include は #include 行に現れず素通りしていた。
+  D34 は skeleton 抽出 (骨格 #if と payload #if の区別) が完了条件 1 と両立しないとして機械防壁を予約せず、
+  auditor + 規律6 の監査領域へ据え置いた。[T-148] は**選別せず一律拒否**することで skeleton 抽出なしに塞いだ —
+  骨格・stock ソースはいずれも `__has_include` を使わないため、出現そのものが逸脱である。実体 =
+  `assert_conditional_macros_covered` (条件式の literal 出現と `#define` 本体の両方を fails-closed)。
+  **同節で塞いだ同族の穴**: 単体 preprocess の環境乖離 (TU 注入マクロ・言語標準・実 TU 供給集合・字句) は
+  D93 決定 (1)〜(3) を参照。**残るのは** 未知の文脈マクロを「停止」でなく「被覆」させたい場合の設計
+  (`CONTEXT_MACROS` 登録は人手) と、`resolve()` を経ない legacy `buildcache.build(src_token=None)` 経路で
+  ガードが build 出口まで遅れる点。
 - **共有 working-tree の並走 (ABA) — 解消済み (2026-07-09、段5、D40、opt-in)**: patchharness の
   `_tree_lock`/`applied()` (共有 tree 1 本 + flock 直列化) は既定のまま残るが、`checkout()` (使い捨て
   git worktree、呼び出しごとに一意パス) を新設し組み合わせ可能にした。opt-in した呼び手 (現状

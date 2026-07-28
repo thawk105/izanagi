@@ -4106,3 +4106,77 @@ load 11.05 で赤が出た**。本決定を「timing フレークの対策」と
 passed / skipped)。certified 選択・材料レポート・proof chain の値と参照は変わらない。
 ただし開発用の task-run 台帳は `duration_s` と収集 node digest が変わる (wall と nodeid 表記が
 変わるため)。「台帳を一切変えない」とは書かない。
+
+---
+
+## D93. [T-148] source_digest の識別子は「単体 preprocess」から「実 TU 環境の写し + 未知文脈の fails-closed」へ (2026-07-28)
+
+**背景 (実測):** D23 の方式 E は対象ソースを**単体** preprocess するため、digest 環境と実 TU 環境の
+乖離がそのまま identity の死角になる。起票時の型 (T-148) は TU 注入マクロで、
+`cc/silo/*_silo.cc:3` の `#define GLOBAL_VALUE_DEFINE` に条件づけられた `include/backoff.hh:123-125`
+の枝が素文脈で dead になり、枝内編集が digest に映らず `src_token` が `"stock"` に化けて stock の
+certified 結果・cache バイナリを継承していた (規律 2 直撃)。`-Werror=undef` は `#if` の未定義参照
+しか捕えず `#ifdef`/`defined()` は rc=0 で素通りする (g++-12 実測)。D23 はこの型を認識しつつ
+「EVOLVE-BLOCK 内 #ifdef 禁止は hook へ」と受け皿を hook に置いたが、方針 A (D30/D33) が payload
+検査を削除した時点でその受け皿が消え、D34 は builtin definedness 側だけを封鎖して TU 注入側は
+「残る穴」リストにも載らないまま残っていた。段 6 の敵対レビューが同族の別経路 (言語標準・供給集合・
+字句) を提出し、親が実測で全て real と確認した。材料正本 =
+`output/insights/2026-07-28_t148-macro-context.md`。
+
+**決定 (1): digest の preprocess 環境を実 TU 環境の写しに寄せる。** `-std=c++20` を preprocess と
+builtin 照会の双方に渡す (実ビルドは `cmake/CompileOptions.cmake` の `CMAKE_CXX_STANDARD 20`。
+未指定だと `__cplusplus` で枝が逆転する)。`-D` 集合は cmake CACHE 全体でなく **実 TU 供給集合**
+(`ccbench_universal_definitions()` の供給表 + `cc/<protocol>/CMakeLists.txt` の `OPTIONS`) に絞り、
+`ProtocolHelpers.cmake` が Linux 上で無条件に付ける `Linux` を足す。供給表は CMake **ソース**を
+静的にパースして取る — configure 出力 (`compile_commands.json`) ではないので D23 が却下理由に
+挙げた「cache_key と configure の鶏卵」は起きない。パース不能・空は fails-closed。
+
+**決定 (2): 既知の文脈マクロは両文脈で digest に織り込む。** `CONTEXT_MACROS` (現状
+`GLOBAL_VALUE_DEFINE`) は「素 + define」の両文脈で preprocess し、文脈タグ付き連結を pre-image に
+する。`compute` / `baseline` / `_trace_pair_diff` の 3 経路すべてに適用する — trace 側を素文脈の
+ままにすると `#ifdef GLOBAL_VALUE_DEFINE` の内側に `#if TRACE` を隠す攻撃が両 TRACE 値とも dead で
+素通りする (規律 1)。`CONTEXT_MACROS` が供給集合と交差したら停止する (素文脈が縮退し反対枝が
+両文脈とも dead になる)。
+
+**決定 (3): 未知の文脈マクロと computed include は fails-closed。** `resolve()` が駆動する
+`assert_conditional_macros_covered` が、条件指令の参照識別子を「実 TU 供給マクロ ∪ **先行し、かつ
+`-dM` で実際に定義される** `#define` ∪ `CONTEXT_MACROS` ∪ 環境マクロ (-dM)」に閉じるか検査する。
+走査は行継続・コメント・リテラルを規格順に正規化した字句に対して行う (g++ は `#/**/ifdef` を指令
+として受理するため `#` 直後に空白しか許さない走査は指令を見落とす。ブロックコメントは空白 1 個で
+あって改行ではないので、改行を保存すると論理行の続きが落ちる。数値の桁区切り `1'000` をリテラル
+開始と誤認すると以降を飲み込む。逆に文字定数 `'A'` を識別子と誤認すると受理集合を不当に狭める。
+いずれも実測)。定義状態を静的な出現でなく実照会で取るのは、`#if 0` の中の `#define` が未知マクロを
+洗浄するのを止めるためである。不整形 (未終端コメント/リテラル・raw string) は「解釈不能」として
+停止する — 静かに全消しして受理するとガードが恒真化する。`__has_include` / `__has_include_next` は
+条件式の literal 出現と `#define` 本体の両方で停止させ、あわせて `#define` 本体のトークン貼り合わせ
+(`##` / digraph `%:%:`) も止める — literal 検査は `#define IZ_H __has_inc##lude` で迂回でき、
+貼り合わせなしに新しい識別子を作る手段はないため、ここが同型難読化の構造的な締め位置になる
+(`#define` 行集合の HEAD 固定は template patch が骨格の `#define` を足すため採れない)。これで
+D34 の known-limitation (computed include) を解消する — 骨格・stock が不使用なので D34 が却下理由に
+挙げた skeleton 抽出は要らない。既知の文脈マクロの正しい扱いは `CONTEXT_MACROS` への登録
+(= 両文脈 digest 化) であって、この検査の緩和ではない。
+
+**トレードオフ:** 非 stock variant の digest 値は変わる (旧 build cache は hit しなくなる =
+再ビルド + 再 verify であり、偽 hit 方向には倒れない)。stock 判定は working-tree と HEAD に同じ
+文脈列・同じ絞り方を適用するため不変で、silo 8 genome の golden `variant_id` / `cache_key` は
+温存される。preprocess 回数が文脈数倍になるが build 時間に対して無視できる。供給表パースは
+CMake の記法に暗黙依存し、記法が変われば fails-closed で止まる (沈黙はしない)。
+
+**却下した案:** (a) 単一 define 文脈のみ — `#ifndef` 鏡像が dead のまま残る。(b) 二重文脈だけで
+ガードなし — 次の文脈マクロで同型が再発し、しかも沈黙する。(c) 実 TU そのものを preprocess
+(D23 の道X) — 非決定 builtin と configure 鶏卵が再発する。(d) `__has_include` を skeleton 抽出で
+選別 — D34 が完了条件 1 と両立しないとして却下済みで、blanket reject なら不要。
+
+**検証:** 受入全走 3133 passed / 18 skipped (本マシンに g++-13 は無く、実測は g++-12)。実 stock
+tree (pin d706650) で `resolve()` は `"stock"` を維持 (過剰拒否ゼロ)。変異 M1〜M15 = 13 KILLED +
+M12 HANG-KILLED + M4 PINNED、期待 node と実 node が全件一致 (台帳 =
+`output/insights/2026-07-28_t148-macro-context-mutation-ledger.json`)。M4 (`__has_include` 専用
+raise の無効化) は受理集合を変えないため kill でなく diagnostic sensitivity pin 枠 (`DW-M08`)、
+M12 (未終端コメントの停止を外す) は fails-closed が無限ループへ倒れるため hang を証拠に数えた
+(`DW-M06`)。段 6 は敵対レビュー 2 本 + 焦点再レビュー 1 本で、提出された偽 STOCK alias は計 9 系統、
+すべて親が実測で real と確認して封鎖した。
+
+**研究状態への影響:** 現行 campaign は stock/inert で回っており `src_token` は `"stock"` のまま =
+既存 certified 選択・レポート・proof chain の値と参照は変わらない。変わるのは、今後 coder が
+EVOLVE-BLOCK の条件枝を触ったときに identity が正しく分裂する点と、未知の文脈マクロを含む
+variant が評価前に停止する点である。
