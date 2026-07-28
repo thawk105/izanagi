@@ -4197,3 +4197,37 @@ M12 (未終端コメントの停止を外す) は fails-closed が無限ルー�
 既存 certified 選択・レポート・proof chain の値と参照は変わらない。変わるのは、今後 coder が
 EVOLVE-BLOCK の条件枝を触ったときに identity が正しく分裂する点と、未知の文脈マクロを含む
 variant が評価前に停止する点である。
+
+## D94. [T-160] dev-wave reference の層は読了トリガで定義し、ファイル単位の hot/cold 分割をしない (2026-07-28)
+
+**背景 (実測):** worklog (36) のユーザー方向裁定「レイヤリング不在が陳腐化掃除を妨げている」を
+受けた設計案は L1=core / L2=workers・mutation・operations の外出しだったが、段 3 の 2 レンズが
+独立に棄却した — workers 全 H2 の 96.3%、mutation の 97.1% は段 dispatch で必読 (段 2/3/4/5/6)、
+operations の O01/O02/O03/O05/O13 も段 2/3 preflight で無条件列挙され、逆に core の G01-G04 は
+意味上の条件節である。「ファイル = 層」は dispatch 実態に合わず、節移動による読了 payload 削減も
+0 bytes (契約は leaf 節読了でありファイル全読ではない)。材料正本 =
+`output/insights/2026-07-28_t160-reference-layering.md`。
+
+**決定 (1): 層は読了トリガで定義し DW-C00 に固定する。** L0 = 入口 (常時)、L1 = 段 dispatch が
+無条件に指定する節、L2 = 条件成立時だけ読む節。外延列挙は書かない — 外延の正本は入口の
+dispatch 表であり、列挙を書けば表との drift 面が生まれ、書かなければ drift が構造的に存在しない
+(層整合の check_docs 検査新設も同じ理由で不要)。
+
+**決定 (2): 陳腐化削除の gate は skill-self-improvement.md の routing に置く。** 削除を裁定
+パッケージへ送れるのは L2 のうち「発火実績なし × テスト/機械検査で義務代替済み」の両条件を
+満たす節のみ。「発火実績なし」は ID 件数でなく repo 全体 (insights・memo 含む) の意味検索で
+反証されないことの確認を要する — exact ID の worklog 検索はタグ付け頻度であり、O13/O14/M02 は
+proxy ゼロでも実発火があった。削除の実施はユーザー裁定に限る。配置は削除が発火する段 8 の
+必読正本に合わせる (core は 9,000/9,000 で受け皿がない)。
+
+**決定 (3): DW-O07 は T-154(1) 裁定どおり削除、checker は 19 節を単一契約 + 独立 pin で守る。**
+`_OPERATION_NUMBERS` を必須 H2・段 5/6 参照集合・条件 dispatch の 3 面で共用し、テスト側に
+literal pin (外延・条件写像の operations 射影 singleton・段 5/6 包含) を置いて、checker と
+fixture が同一定数から導出される自己整合 (F9 型) を遮断する。変異 4/4 KILLED + 正例緑。
+
+**却下案:** (a) ファイル再編・新規 reference ファイル — 読了削減 0 で総量予算と checker 改修
+だけ増える。(b) operations 前文への外延列挙の復活 — prose 列挙は節増減で虚偽化する F1 型の
+転写元になり、機械保証 (checker + pin) が優る。(c) DW-CTX ポインタ統合 — 入口冒頭 2 行の読者
+主体は外部 supervisor 自身で条件 21/22 (manager) と異なり、意味を変えない縮約が不成立。
+(d) ファイル別予算の再割付 — T-127 裁定 (上限を上げず使い方を管理) の独立審査対象であり
+本 wave では行わない。
