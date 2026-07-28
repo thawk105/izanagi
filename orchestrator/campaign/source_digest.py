@@ -34,15 +34,21 @@ Phase 3 では coder (LLM) が CCBench の EVOLVE-BLOCK 領域を書き換える
   alias が残る (2026-07-03 敵対検証 high)。行集合を丸ごと HEAD 固定にすれば include 追加
   そのものを止めるのでこの穴ごと消える。template patch は #include を足さない
   (silo-backoff-fixed.patch) ので inert = 完了条件 1 (inert=stock cache-hit) を壊さない。
-  **残る穴 (正直に):** `#if __has_include(...)` や #define 経由の computed include は
-  #include 行に現れず、かつ -nostdinc で header 未発見なら digest 環境で __has_include=0 に
-  倒れる (実ビルドで include path 上に header があれば別バイナリ)。本 assert では捕えない =
-  道Y の一般問題 (payload 内の生指令)。identity 核だけでは完了条件 1 (骨格指令は inert) と
-  両立して塞げない (骨格 #if と payload #if の区別に skeleton 抽出が要る)。方針 A で hook の
-  payload 検査は削除したので退避先は **auditor + 規律6 の独立監査**のみ (git status に
-  `?? evil.hh` + `M backoff.hh` の __has_include として露出し、2026-07-04 敵対検証で捕捉可能
-  と実証)。phase3.md 残存リスクに記録。builtin definedness (`#ifdef __x86_64__`) の方は
-  D34/案A で digest に反映して封鎖済み — 残るのは header 存在に依存する computed include のみ。
+  computed include (`#if __has_include(...)`) は #include 行に現れない別死角だったが、
+  T-148 の文脈ガード (下記) が出現を一律 fails-closed で止める (骨格・stock は不使用ゆえ
+  skeleton 抽出不要。D34 known-limitation の解消)。
+- **マクロ文脈死角の閉塞 (T-148):** TU 注入マクロ (`cc/silo/*_silo.cc:3` の
+  `#define GLOBAL_VALUE_DEFINE`) に条件づけられた枝は、単体 preprocess の素文脈では dead に
+  なり枝内編集が digest に不可視 = stock 偽 alias だった (`-Werror=undef` は `#ifdef`/
+  `defined()` を捕えない)。対策は二層: (1) CONTEXT_MACROS に登録済みのマクロは「素 + define」
+  の**両文脈**で preprocess し両枝を identity に織り込む (compute/baseline/_trace_pair_diff。
+  builtin definedness の D34/案A と対で、既知の乖離源は digest 側で実枝被覆)。(2) 条件指令が
+  参照するマクロが defines ∪ ファイル内 #define ∪ CONTEXT_MACROS ∪ builtin (-dM) に閉じるか
+  検査し、未知マクロと __has_include は resolve で fails-closed abort
+  (assert_conditional_macros_covered。次の GLOBAL_VALUE_DEFINE 型を沈黙させない)。
+  **正直に:** ガードの駆動点は resolve() (単一窓口)。resolve を経ない compute() 直呼びは
+  ガード外だが、identity の確定窓口は resolve に一本化済み (D23/D24) で、loop も
+  pipeline.evaluate も resolve を通る。
 - **後方互換:** working-tree の preprocess が HEAD baseline と一致する (= stock/inert) なら
   src トークンを "stock" に正規化し pre-image から省く → silo 8 genome の旧 id を温存。
 - **fails-closed:** identity を決める計算は best-effort skip しない (buildcache の commit/nm
@@ -72,9 +78,22 @@ ALLOWLIST = frozenset({"cmake/Options.cmake", "include/backoff.hh", "cc/silo/tra
 
 STOCK = "stock"        # 後方互換: working-tree==HEAD baseline のときの src トークン
 
+# TU 注入マクロ (T-148): -D でなく取り込み側 TU の #define で供給されるマクロ。単体 preprocess の
+# 素文脈では常に未定義 = 条件枝が dead になり、枝内編集が digest に不可視 (stock 偽 alias) になる。
+# ここに登録したマクロは compute/baseline/_trace_pair_diff が「素 + define」の両文脈で preprocess し
+# 両枝を identity に織り込む。未登録の同型マクロは assert_conditional_macros_covered が fails-closed
+# で止める (登録漏れが沈黙しない)。現状 GLOBAL_VALUE_DEFINE のみ (cc/silo/*_silo.cc:3 が #define し
+# include/backoff.hh:123 が #ifdef 参照)。2 個以上に増やすときは結合枝 (#if defined(A)&&defined(B))
+# の被覆に組合せ文脈が要るか再設計する (現状は単一マクロずつの文脈で十分)。
+CONTEXT_MACROS = ("GLOBAL_VALUE_DEFINE",)
+
 _SET_RE = re.compile(
     r"set\(\s*CCBENCH_(\w+)\s+(.*?)\s+CACHE\s+STRING", re.IGNORECASE)
 _INCLUDE_RE = re.compile(r"(?m)^[ \t]*#[ \t]*include\b.*$")
+_COND_DIRECTIVE_RE = re.compile(r"(?m)^[ \t]*#[ \t]*(?:if|ifdef|ifndef|elif)\b(.*)$")
+_DEFINE_RE = re.compile(r"(?m)^[ \t]*#[ \t]*define[ \t]+(\w+)")
+_IDENT_RE = re.compile(r"\b[A-Za-z_]\w*\b")
+_BUILTIN_MACRO_CACHE: Dict[str, frozenset] = {}
 
 
 def _ccbench_dir() -> str:
@@ -145,6 +164,103 @@ def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:
     return r.stdout
 
 
+def _context_overlays() -> List[Dict[str, str]]:
+    """digest が織り込むマクロ文脈の列: 素文脈 + CONTEXT_MACROS 各 1 個の define 文脈。"""
+    return [{}] + [{m: "1"} for m in CONTEXT_MACROS]
+
+
+def _normalize_contexts(source_text: str, defines: Dict[str, str], cxx: str) -> str:
+    """全文脈の正規化出力を文脈タグ付きで連結する (T-148: TU 注入マクロの両枝を identity に乗せる)。
+
+    素文脈だけの preprocess では `#ifdef GLOBAL_VALUE_DEFINE` 枝 (backoff.hh:123、TU の
+    #define で供給) が dead になり、枝内編集が digest に不可視 = src_token が 'stock' に化けて
+    stock の certified 結果・cache バイナリを継承する (規律2 直撃、実測 2026-07-28)。define 文脈を
+    足して両枝を pre-image に織り込めば、どちらの枝の編集も digest を動かす。タグと \\x02 区切りは
+    文脈間の出力境界の衝突 (別文脈の連結が偶然同一 bytes になる) を防ぐ。"""
+    parts = []
+    for overlay in _context_overlays():
+        tag = ",".join(f"{k}={v}" for k, v in sorted(overlay.items())) or "base"
+        parts.append(f"[ctx:{tag}]\n" + _cpp_normalize(
+            source_text, dict(defines, **overlay), cxx))
+    return "\x02".join(parts)
+
+
+def _builtin_macros(cxx: str) -> frozenset:
+    """cxx の組込 builtin マクロ名集合 (-dM 照会、プロセス内 cache)。fails-closed。
+
+    D34 案A で builtin は digest 環境でも定義済み = `#ifdef __GNUC__` 等は受理して別 identity に
+    する仕様 (test_source_digest_builtin_ifdef_not_aliased_to_stock)。文脈ガードが builtin を
+    未知マクロと誤検知しないための既知集合。空集合は照会失敗とみなし停止する (恒真ガード化防止)。"""
+    got = _BUILTIN_MACRO_CACHE.get(cxx)
+    if got is not None:
+        return got
+    try:
+        r = subprocess.run([cxx, "-dM", "-E", "-x", "c++", "-"],
+                           input="", capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(
+            f"source_digest: builtin マクロ照会を起動できない ({cxx}: {e}) — 文脈ガードを"
+            "確定できないため fails-closed で停止 (D23)") from e
+    if r.returncode != 0:
+        raise RuntimeError(
+            f"source_digest: builtin マクロ照会失敗 (rc={r.returncode}) → fails-closed。\n"
+            f"  {r.stderr.strip()[-300:]}")
+    names = frozenset(m.group(1) for m in _DEFINE_RE.finditer(r.stdout))
+    if not names:
+        raise RuntimeError(
+            "source_digest: builtin マクロ照会が空 — 文脈ガードが恒真化するため停止")
+    _BUILTIN_MACRO_CACHE[cxx] = names
+    return names
+
+
+def _assert_conditional_macros_covered(source_text: str, defines: Dict[str, str],
+                                       cxx: str, rel: str) -> None:
+    """条件指令が参照するマクロが既知集合に閉じるか検査する (fails-closed、T-148 ガード)。
+
+    -Werror=undef は `#if MACRO` の未定義参照しか捕えず、`#ifdef`/`#ifndef`/`defined()` は
+    静かに偽枝を取る (g++ 実測 rc=0)。既知集合 = defines (Options 既定 + genome.flags) ∪
+    ファイル内 #define ∪ CONTEXT_MACROS (両文脈で被覆済み) ∪ 組込 builtin (-dM、D34 案A で
+    受理仕様)。ここに無いマクロの条件枝は digest がどの文脈でも覆えない未知枝 (次の
+    GLOBAL_VALUE_DEFINE 型) なので停止する。`__has_include` は #include 行に現れず -nostdinc の
+    digest 環境で dead 化して stock に alias する documented hole (D34 known-limitation) だったが、
+    骨格・stock ソースは不使用のため出現 = 逸脱として一律停止で塞ぐ (skeleton 抽出は不要)。"""
+    scan = source_text.replace("\\\n", " ")          # 行継続を畳んで指令 1 行に正規化
+    local_defs = set(_DEFINE_RE.findall(scan))
+    known = set(defines) | local_defs | set(CONTEXT_MACROS) | _builtin_macros(cxx)
+    unknown = set()
+    for m in _COND_DIRECTIVE_RE.finditer(scan):
+        expr = re.sub(r"//.*|/\*.*?\*/", " ", m.group(1))     # 指令内コメントは識別子でない
+        if "__has_include" in expr:
+            raise RuntimeError(
+                f"source_digest: {rel} の条件指令に __has_include — computed include は "
+                "#include 行検査にも preprocess 後 digest にも現れず (digest 環境は -nostdinc で "
+                "header 未発見 = dead 枝)、実ビルドだけ別バイナリになる identity 死角のため停止 "
+                "(D34 known-limitation の fails-closed 化、T-148)。\n"
+                f"  指令: {m.group(0).strip()!r}")
+        for ident in _IDENT_RE.findall(expr):
+            if ident == "defined" or ident in ("true", "false"):
+                continue
+            if ident not in known:
+                unknown.add(ident)
+    if unknown:
+        raise RuntimeError(
+            f"source_digest: {rel} の条件指令が未知マクロ {sorted(unknown)} を参照 — defines・"
+            "ファイル内 #define・CONTEXT_MACROS・builtin のいずれでもなく、digest はこの条件枝を "
+            "どの文脈でも覆えない (TU 注入マクロ GLOBAL_VALUE_DEFINE 型の identity 死角、偽 cache "
+            "hit の運び屋) ため fails-closed で停止 (T-148)。既知の文脈マクロなら CONTEXT_MACROS "
+            "への登録 (= 両文脈 digest 化) が正しい封鎖で、この検査の緩和ではない (規律2)。")
+
+
+def assert_conditional_macros_covered(genome: Genome, ccbench_dir: str = "",
+                                      cxx: str = "g++-13") -> None:
+    """working-tree の EVOLVE_BLOCK_SOURCES 全体に文脈ガードを適用する (resolve が駆動)。"""
+    sub = ccbench_dir or _ccbench_dir()
+    defaults = parse_options_defaults(_read(os.path.join(sub, OPTIONS_CMAKE)))
+    defines = _merge_defines(defaults, genome.flags)
+    for rel in EVOLVE_BLOCK_SOURCES:
+        _assert_conditional_macros_covered(_read(os.path.join(sub, rel)), defines, cxx, rel)
+
+
 def _include_lines(source_text: str) -> str:
     """#include 行の列 (順序込み・生バイト)。HEAD 一致検査の比較素材。
 
@@ -185,11 +301,15 @@ def _digest(parts: Iterable[str]) -> str:
 
 
 def compute(genome: Genome, ccbench_dir: str = "", cxx: str = "g++-13") -> str:
-    """working-tree の EVOLVE-BLOCK ソースを genome の defines で正規化した digest。"""
+    """working-tree の EVOLVE-BLOCK ソースを genome の defines で正規化した digest。
+
+    T-148: 正規化は全マクロ文脈 (_context_overlays) で取り、TU 注入マクロの条件枝も
+    identity に乗せる。baseline と同一の文脈列を使うため stock (working-tree==HEAD) の
+    src_token 正規化 = silo 8 golden id は不変。"""
     sub = ccbench_dir or _ccbench_dir()
     defaults = parse_options_defaults(_read(os.path.join(sub, OPTIONS_CMAKE)))
     defines = _merge_defines(defaults, genome.flags)
-    parts = [_cpp_normalize(_read(os.path.join(sub, rel)), defines, cxx)
+    parts = [_normalize_contexts(_read(os.path.join(sub, rel)), defines, cxx)
              for rel in EVOLVE_BLOCK_SOURCES]
     return _digest(parts)
 
@@ -223,14 +343,20 @@ def _trace_pair_diff(source_text: str, defines: Dict[str, str], cxx: str) -> Lis
     (TRACE 非依存) でも行数が動けばハンク位置はずれるため、位置を比較に入れると
     偽陽性になる。差分の中身 (どの行が TRACE で増減するか) だけを見る。
     TRACE は最後に明示上書きする (Options.cmake の CCBENCH_TRACE 既定 0 に依存しない。
-    genome.flags への TRACE 混入は model.Genome が禁止済み)。"""
-    d1 = dict(defines, TRACE="1")
-    d0 = dict(defines, TRACE="0")
-    p1 = _cpp_normalize(source_text, d1, cxx)
-    p0 = _cpp_normalize(source_text, d0, cxx)
-    diff = difflib.unified_diff(p0.splitlines(), p1.splitlines(), n=0, lineterm="")
-    return [ln for ln in diff
-            if ln[:1] in "+-" and not ln.startswith(("+++", "---"))]
+    genome.flags への TRACE 混入は model.Genome が禁止済み)。
+    T-148: 差分も全マクロ文脈で取る — 素文脈だけだと `#ifdef GLOBAL_VALUE_DEFINE` の内側に
+    `#if TRACE` を隠す攻撃が両 TRACE 値とも dead で D_variant==D_stock になり素通りする
+    (規律1 の穴)。文脈タグを行に前置し、別文脈間の差分相殺も防ぐ。"""
+    out: List[str] = []
+    for overlay in _context_overlays():
+        tag = ",".join(f"{k}={v}" for k, v in sorted(overlay.items())) or "base"
+        base = dict(defines, **overlay)
+        p1 = _cpp_normalize(source_text, dict(base, TRACE="1"), cxx)
+        p0 = _cpp_normalize(source_text, dict(base, TRACE="0"), cxx)
+        diff = difflib.unified_diff(p0.splitlines(), p1.splitlines(), n=0, lineterm="")
+        out.extend(f"[ctx:{tag}]{ln}" for ln in diff
+                   if ln[:1] in "+-" and not ln.startswith(("+++", "---")))
+    return out
 
 
 def assert_trace_diff_matches_head(genome: Genome, ccbench_commit: str,
@@ -279,7 +405,7 @@ def baseline(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     sub = ccbench_dir or _ccbench_dir()
     defaults = parse_options_defaults(_git_show(sub, ccbench_commit, OPTIONS_CMAKE))
     defines = _merge_defines(defaults, genome.flags)
-    parts = [_cpp_normalize(_git_show(sub, ccbench_commit, rel), defines, cxx)
+    parts = [_normalize_contexts(_git_show(sub, ccbench_commit, rel), defines, cxx)
              for rel in EVOLVE_BLOCK_SOURCES]
     return _digest(parts)
 
@@ -342,8 +468,9 @@ def resolve(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     **WAL は書かない** (呼び手が skip 判定・abort 記録を担う) ので、loop (評価前に skip キーを
     決める) と pipeline.evaluate (直接 caller の自己計算) の両方が同じ計算を共有でき、id 確定点が
     二重化しない (D23/D24: identity を消費側まで一致させる)。**fails-closed**: allowlist 逸脱・
-    #include 行の HEAD 不一致・preprocess 失敗・git show 失敗は RuntimeError (best-effort skip を
-    identity 核に持ち込まない)。"""
+    #include 行の HEAD 不一致・条件指令の未知マクロ / __has_include・preprocess 失敗・git show
+    失敗は RuntimeError (best-effort skip を identity 核に持ち込まない)。"""
     assert_worktree_within_allowlist(ccbench_dir)
     assert_includes_match_head(genome, ccbench_commit, ccbench_dir, cxx)  # #include 死角 (最小案)
+    assert_conditional_macros_covered(genome, ccbench_dir, cxx)           # マクロ文脈死角 (T-148)
     return src_token(genome, ccbench_commit, ccbench_dir, cxx)

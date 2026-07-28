@@ -3185,6 +3185,147 @@ def test_source_digest_include_change_rejected_by_resolve():
         pass
 
 
+def _any_cxx():
+    """実在する g++ を返す (skip は全滅時のみ)。T-148 系テストは digest の等値/非等値と
+    受理/拒否の**関係**だけを見る — 関係は g++ 版に依存しない (digest 値自体は環境依存で
+    pin しない仕様、D34)。中核 positive control が g++-13 不在の環境で skip されると
+    偽緑になる ([T-137] の教訓) ため fallback で実 preprocess を必ず走らせる。"""
+    for c in ("g++-13", "g++-12", "g++"):
+        if shutil.which(c):
+            return c
+    skip("C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)")
+
+
+# 実 include/backoff.hh:123-125 と同型の TU 注入マクロ枝 (#define は cc/silo/*_silo.cc:3 が
+# TU 側で供給) を持つ stock。T-148 系テストはこれを HEAD に commit してから枝内を編集する。
+_FAKE_BACKOFF_GVD_HH = _FAKE_BACKOFF_HH + (
+    "#ifdef GLOBAL_VALUE_DEFINE\n"
+    "int backoff_global_state = 0;\n"
+    "#endif\n")
+
+
+def test_source_digest_tu_context_macro_edit_not_aliased_to_stock():
+    """T-148 (worklog (27) 起票、P1): TU 注入マクロ (#define GLOBAL_VALUE_DEFINE) に条件づけ
+    られた枝は単体 preprocess の素文脈で dead → 枝内編集が digest に不可視 = src_token が
+    'stock' に化け、stock の certified 結果・cache バイナリを継承する (規律2 直撃。実 stock の
+    該当枝は include/backoff.hh:123-125)。二重文脈 (素 + GLOBAL_VALUE_DEFINE=1) で両枝を
+    identity に織り込み封鎖する。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_GVD_HH)
+    git("add", "-A")
+    git("commit", "-q", "-m", "stock+gvd")
+    head = git("rev-parse", "HEAD").strip()
+    # 正例 (過剰拒否の検出): GVD 枝を持つ clean tree は reject されず STOCK のまま
+    assert source_digest.resolve(g, head, sub, cxx) == source_digest.STOCK
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_GVD_HH.replace("int backoff_global_state = 0;",
+                                             "int backoff_global_state = 12345;"))
+    tok = source_digest.resolve(g, head, sub, cxx)
+    assert tok != source_digest.STOCK, \
+        "GLOBAL_VALUE_DEFINE 枝内編集が STOCK に化けた (T-148 回帰 = stock 偽 alias)"
+    assert source_digest.compute(g, sub, cxx) != source_digest.baseline(g, head, sub, cxx), \
+        "枝内編集の digest が baseline と一致 (偽 cache hit)"
+
+
+def test_source_digest_unknown_conditional_macro_fails_closed():
+    """T-148 ガード: 条件指令が defines ∪ ファイル内 #define ∪ CONTEXT_MACROS ∪ builtin の
+    どれでもないマクロを参照したら fails-closed。-Werror=undef は `#if MACRO` しか捕えず
+    `#ifdef`/`defined()` は静かに偽枝を取る (g++ 実測 rc=0) ため、この形の未知文脈マクロは
+    どの文脈でも digest が覆えない未知枝 = 次の GLOBAL_VALUE_DEFINE 型になる。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace(
+            "    return 1;\n",
+            "#ifdef IZANAGI_T148_UNKNOWN_CTX\n    return 999;\n#else\n    return 1;\n#endif\n"))
+    try:
+        source_digest.resolve(g, head, sub, cxx)
+        assert False, "未知マクロの #ifdef で resolve が abort すべき"
+    except RuntimeError as e:
+        assert "IZANAGI_T148_UNKNOWN_CTX" in str(e)
+    # defined() 形式も同罪 (こちらも -Wundef 非発火)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace(
+            "    return 1;\n",
+            "#if defined(IZANAGI_T148_UNKNOWN_CTX)\n    return 999;\n#else\n    return 1;\n#endif\n"))
+    try:
+        source_digest.resolve(g, head, sub, cxx)
+        assert False, "未知マクロの defined() で resolve が abort すべき"
+    except RuntimeError as e:
+        assert "IZANAGI_T148_UNKNOWN_CTX" in str(e)
+
+
+def test_source_digest_guard_accepts_builtin_local_and_supplied_macros():
+    """正例 (過剰拒否の検出): 文脈ガードは (a) builtin definedness (#ifdef __GNUC__) を受理して
+    別 identity にする (D34 案A / test_source_digest_builtin_ifdef_not_aliased_to_stock の仕様)、
+    (b) ファイル内 #define のマクロを受理、(c) defines 供給済み (#if BACK_OFF) を受理する。
+    受理集合を縮めてよいのは未知文脈マクロと __has_include だけ (段 4 事前登録の正例 P-2)。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH.replace(
+            "    return 1;\n",
+            "#ifdef __GNUC__\n    return 999;\n#else\n    return 1;\n#endif\n"))
+    tok = source_digest.resolve(g, head, sub, cxx)
+    assert tok != source_digest.STOCK      # reject でも stock 化けでもなく、受理して別 identity
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write("#define IZANAGI_LOCAL_FLAG 1\n"
+                "#ifdef IZANAGI_LOCAL_FLAG\nint izanagi_local_ok;\n#endif\n" + _FAKE_BACKOFF_HH)
+    assert source_digest.resolve(g, head, sub, cxx) != source_digest.STOCK
+
+
+def test_source_digest_trace_hidden_in_context_macro_branch_caught():
+    """規律1 (観測者効果の分離): #ifdef GLOBAL_VALUE_DEFINE の内側に #if TRACE を隠すと、
+    素文脈だけの diff-of-diffs では両 TRACE 値とも dead で D_variant==D_stock になり素通り
+    していた。二重文脈 (T-148) の define 側で差分が現れ fails-closed になる。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_GVD_HH)
+    git("add", "-A")
+    git("commit", "-q", "-m", "stock+gvd")
+    head = git("rev-parse", "HEAD").strip()
+    source_digest.assert_trace_diff_matches_head(g, head, sub, cxx)   # clean は通過 (正例)
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_GVD_HH.replace(
+            "int backoff_global_state = 0;",
+            "int backoff_global_state = 0;\n#if TRACE\nint izanagi_trace_probe = 1;\n#endif"))
+    try:
+        source_digest.assert_trace_diff_matches_head(g, head, sub, cxx)
+        assert False, "GVD 枝内の #if TRACE 隠しは diff-of-diffs 不一致で abort すべき"
+    except RuntimeError as e:
+        assert "diff-of-diffs" in str(e)
+
+
+def test_source_digest_has_include_rejected():
+    """computed include (#if __has_include(...)) は #include 行検査にも preprocess 後 digest にも
+    現れず (-nostdinc で header 未発見 = dead 枝)、実ビルドだけ別バイナリになる documented hole
+    (D34 known-limitation) だった。骨格・stock は不使用のため出現 = 逸脱として fails-closed で
+    塞ぐ (T-148 ガードに同乗)。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = os.path.join(sub, "include", "backoff.hh")
+    with open(hh, "w", encoding="utf-8") as f:
+        f.write(_FAKE_BACKOFF_HH +
+                "#if __has_include(<atomic>)\nint izanagi_evil = 1;\n#endif\n")
+    try:
+        source_digest.resolve(g, head, sub, cxx)
+        assert False, "__has_include の出現で resolve が abort すべき"
+    except RuntimeError as e:
+        assert "__has_include" in str(e)
+
+
 def test_buildcache_recheck_detects_toctou():
     """build 出口の identity 再照合 (phase3.md blocking): resolve 時の src_token と
     再計算値が食い違えば fails-closed。新規ビルドは build dir ごと破棄する (汚染
