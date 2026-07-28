@@ -1482,6 +1482,14 @@ runbook の実走前ゲート (fresh session 確認) を満たす次セッショ
 `coder-v4-autonomous-sort`/auditor gate が実データを通り、設計が実運用に耐えるかが分かる —
 本タスクは機構レベルの実装までであり「機能する」ことの実証は次セッションに持ち越し。
 
+**erratum (2026-07-28、[T-157]):** 上記の「`_resolve_duplicate` (重複提案の WAL 復元) に
+`ccbench_dir=sub` を明示的に渡す」は失効した。重複解決は `source_digest.resolve` を再実行しない —
+revert 後の tree からは正しい tree でも stock id (別 variant) しか出ないため、run_campaign が
+applied(...) 内で確定した `CampaignSummary.skipped_variants` の id を使い、sort/trigger は
+backoff 版 `p3_s4_loop._resolve_duplicate` への alias に単一化した (id 確定点の単一化 = D23/D24、
+一次資料 = `output/insights/2026-07-28_t157-resolve-duplicate-identity.md`)。本 D を根拠に旧形
+(再 resolve + `ccbench_dir` 明示) を再導入してはならない。
+
 ## D44. Fable5 外部評価の受け入れ — 探索側を防壁の水準へ引き上げる (2026-07-10)
 
 **背景:** ユーザー依頼で Fable5 が「やっていることは適切か / CC 自動合成をより良く実現できるか」の
