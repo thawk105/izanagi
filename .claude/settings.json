@@ -2,6 +2,9 @@
   "attribution": {
     "sessionUrl": false
   },
+  "worktree": {
+    "baseRef": "head"
+  },
   "hooks": {
     "PreToolUse": [
       {
