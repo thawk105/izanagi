@@ -50,6 +50,28 @@ worker 起動コストが利得を食い 96 は 32 より遅い)。明示上書�
   memo が発火しない静かな空振りになる。`test_s8b_binding_driftguards.py` の positive control が
   この空振り・canned 値・guard 欠落を殺す。
 
+## 受入全走の作法 — 範囲・並列度・checkout 依存 (F41)
+
+受入全走は**範囲と並列度の両方を明示して**回す。`python3 tools/run_tests.py` が両方を
+既定で満たす正しい形 (範囲 `orchestrator/tests`、並列度 = 環境自動追従)。素の pytest を
+使うなら `python3 -m pytest -q -n 32 orchestrator/tests` のように両方を書く — repo には
+`addopts` を持つ設定ファイルが無いため、素の `python3 -m pytest -q` は**直列走**であり、
+範囲を省くと rootdir 以下を無指定収集する。ignored な生成物 (ビルドキャッシュ等) が
+溜まった checkout では、同梱の他所のテストまで収集して大量の collection error になる
+(failures F41: cygnus main checkout で 1253 errors)。
+
+- **wall も赤の有無も checkout に依存する。** git worktree には ignored なファイルが
+  存在せず、main checkout には蓄積する。同じコマンドでも収集集合・skip 集合・実行時間が
+  変わる (F41 の根本原因)
+- **前の記録と比べるときは同じ checkout で測り直す。** 別 checkout の値との差は修正効果と
+  交絡して帰属できない。記録には測った checkout を必ず併記する (dev-wave 側の義務は
+  `docs/dev-wave/operations.md` DW-O18、実行環境の確定義務は同 `core.md` DW-S01)
+- 依存物 (submodule・g++-13・実 Silo サンプル) の在庫も checkout と環境で変わる —
+  skip で失われた検出力は rc と一緒に記録する (「依存物不在時の skip」参照)。新しい worktree
+  では CCBench submodule の実体化が必要で、未実体化だと real-repo 系が skip でなく赤になる
+  (2026-07-28 実測: 42 failed)。`--reference` clone は `objects/info/alternates` を freeze 検証が
+  拒否する (proof chain の自己完結要件) — repack で自己完結化するか dissociate で clone する
+
 ## 二重 runner
 
 中核の machine 非依存テストは pytest でも素の `python3 orchestrator/tests/test_*.py`
