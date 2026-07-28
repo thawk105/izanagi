@@ -3002,6 +3002,35 @@ def test_source_digest_allowlist():
         source_digest.subprocess = saved
 
 
+def test_edit_surface_constants_exact_relationship():
+    """[T-149] 編集面定数のドリフト機械検査 (T-140 N2 の処方)。
+
+    ALLOWLIST は EVOLVE_BLOCK_SOURCES からの導出にしない — 「digest 対象の拡張」と
+    「編集認可面の拡張」は独立二段の信頼境界 review であり、導出は片方の gate を畳む
+    (2026-07-28 段 3 レンズ A-2)。代わりに関係式を完全一致 + 型付き例外 (Options.cmake =
+    template 専有) で機械検査し、片側だけの拡張 (ドリフト) をここで止める。"""
+    # literal pin (対向 mask): tuple の順序は digest pre-image の一部 (parts 連結順)
+    assert source_digest.EVOLVE_BLOCK_SOURCES == (
+        "include/backoff.hh", "cc/silo/transaction.cc"), \
+        "EVOLVE_BLOCK_SOURCES の値/順序が変わった。意図的なら本 pin と全 consumer " \
+        "(ALLOWLIST/guard_write/s6 freshness/凍結面) を明示更新する"
+    assert source_digest.OPTIONS_CMAKE == "cmake/Options.cmake"
+    assert source_digest.ALLOWLIST == (
+        frozenset(source_digest.EVOLVE_BLOCK_SOURCES) | {source_digest.OPTIONS_CMAKE}), \
+        "ALLOWLIST != EBS ∪ {Options.cmake} (完全一致 + 型付き例外)。EBS/ALLOWLIST の" \
+        "片側だけを拡張していないか — 両方を独立に review して明示更新する"
+
+
+def test_axis_driver_source_rel_within_edit_surface():
+    """[T-149] 全編集 driver の書込対象が編集面 (digest/include 照合/trace diff の
+    被覆域) の中に居ることの膜性検査。外れた driver の変異は identity に乗らないまま
+    campaign を abort させる。"""
+    from campaign import axis_trigger_gating, p3_s4_loop, p3_s4_loop_sort
+    for mod in (p3_s4_loop, p3_s4_loop_sort, axis_trigger_gating):
+        assert mod.SOURCE_REL in source_digest.EVOLVE_BLOCK_SOURCES, \
+            f"{mod.__name__}.SOURCE_REL={mod.SOURCE_REL!r} が EVOLVE_BLOCK_SOURCES 外"
+
+
 def test_lock_path_edit_surface_requires_auditor_live():
     """スコープ gate (後続段 3, D38, 裁定14): lock 経路 (transaction.cc) を coder の
     編集面 (EVOLVE_BLOCK_SOURCES) に開くのは auditor live が機械的に緑になってから。

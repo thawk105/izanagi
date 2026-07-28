@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import sys
+import types
 
 import pytest
 
@@ -21,6 +22,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import s6_proposal_rounds as M  # noqa: E402
+from campaign import source_digest  # noqa: E402
 
 
 def _proposal(**over):
@@ -189,6 +191,61 @@ def test_derive_seed_deterministic_and_purpose_separated():
     assert a == M.derive_seed(42, "c4-draw")
     assert a != M.derive_seed(42, "exec-order")
     assert a != M.derive_seed(43, "c4-draw")
+
+
+# ==== freshness_check の凍結時点面 drift alarm ([T-149]) ========================
+#
+# freshness_check 内の領域母集団 (`+ ["include/backoff.hh"]`) と opened 述語 (`ebs`) は
+# **凍結時点 (2026-07-13) の編集面の記録**であり、live な source_digest 参照へ書き換えない
+# (2026-07-28 段 4 裁定: live 化は N1 更新シナリオで stale packet を通す方向の緩和)。
+# 代わりに本テストが「live EVOLVE_BLOCK_SOURCES から構成した入力で freshness が全緑」を
+# 検査する。将来 EVOLVE_BLOCK_SOURCES が動くと本テストが赤になり、「s6 側の凍結時点面を
+# 据え置くか、再凍結するか」の明示裁定を強制する (沈黙ドリフトの封鎖)。
+
+
+def _live_surface_pi():
+    """live 編集面から freshness 入力 (N1 射影の該当 field のみ) を構成する。
+
+    cc/silo/util.cc は「編集面外の実在 silo ソース」の代表 (test_campaign の
+    test_source_digest_allowlist と同じ選定)。EBS に util.cc を加える日が来たら
+    本 helper の反例選定ごと見直すこと。"""
+    ebs = set(source_digest.EVOLVE_BLOCK_SOURCES)
+    silo_listing = sorted({p for p in ebs if p.startswith("cc/silo/")} | {"cc/silo/util.cc"})
+    regions = sorted(silo_listing + [p for p in ebs if not p.startswith("cc/silo/")])
+    pi = {
+        "stock_excerpts": [],
+        "edit_surface_map": [{"region": r, "role": "t149-alarm", "opened": r in ebs}
+                             for r in regions],
+    }
+    return pi, silo_listing
+
+
+def _fake_silo_ls(silo_listing):
+    def run(cmd, **kw):
+        assert "ls-tree" in cmd, f"予期しない subprocess 呼び出し: {cmd}"
+        return types.SimpleNamespace(
+            returncode=0, stdout="".join(f"{p}\n" for p in silo_listing))
+    return types.SimpleNamespace(run=run)
+
+
+def test_freshness_tracks_live_edit_surface(monkeypatch):
+    pi, silo_listing = _live_surface_pi()
+    monkeypatch.setattr(M, "load_projected_input", lambda: pi)
+    monkeypatch.setattr(M, "subprocess", _fake_silo_ls(silo_listing))
+    assert M.freshness_check() == [], \
+        "live EVOLVE_BLOCK_SOURCES と s6 freshness の凍結時点面がドリフトした。" \
+        "s6 側の据え置き/再凍結を明示裁定してから本テストを更新する"
+
+
+def test_freshness_flags_opened_mismatch(monkeypatch):
+    """positive control (恒真防止): opened の 1 反転を 1 件だけ検出する。"""
+    pi, silo_listing = _live_surface_pi()
+    for e in pi["edit_surface_map"]:
+        if e["region"] == "cc/silo/util.cc":
+            e["opened"] = True
+    monkeypatch.setattr(M, "load_projected_input", lambda: pi)
+    monkeypatch.setattr(M, "subprocess", _fake_silo_ls(silo_listing))
+    assert M.freshness_check() == ["opened 判定不一致: cc/silo/util.cc"]
 
 
 # ==== freeze → verify の配線 (モック母集団) =====================================

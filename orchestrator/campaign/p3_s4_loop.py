@@ -67,7 +67,7 @@ CLK = 1800
 NUMA = ["numactl", "--interleave=all"]
 
 MARKER_ID = "silo-backoff-magnitude"
-SOURCE_REL = "include/backoff.hh"     # EVOLVE_BLOCK_SOURCES の唯一メンバ (段 4)
+SOURCE_REL = "include/backoff.hh"     # EVOLVE_BLOCK_SOURCES のメンバ (段 4 loop はこの 1 面のみ駆動)
 TEMPLATE_PATCH = "patches/silo-backoff-fixed.patch"  # 骨格 (hole) を敷く不変フレーム
 
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}

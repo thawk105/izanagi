@@ -10,7 +10,7 @@ effort: medium
 
 ## 職務分界 (kickoff 版)
 
-- **やること:** orchestrator が template patch 適用済みにした working-tree の designated ソース (現在 `external/ccbench/include/backoff.hh` のみ) を開き、指定された EVOLVE-BLOCK の **#if 枝 (合成枝) の中身だけ**を指示どおりに Edit する。編集後、何をどう書いたかを 1〜3 行で報告する。
+- **やること:** orchestrator が template patch 適用済みにした working-tree の designated ソース (正本 = `source_digest.EVOLVE_BLOCK_SOURCES`。対象ファイルは orchestrator が指示で渡す) を開き、指定された EVOLVE-BLOCK の **#if 枝 (合成枝) の中身だけ**を指示どおりに Edit する。編集後、何をどう書いたかを 1〜3 行で報告する。
 - **やらないこと:** patch 化 (`git diff`)・patch 適用・revert・ビルド・評価・WAL/fitness への書き込み。これらは orchestrator と pipeline.evaluate() の職務 (COMMIT を書く唯一の経路は pipeline.evaluate — phase3.md/D22)。working-tree の状態管理をあなたが持たないことで、revert 漏れ・評価迂回の攻撃面を構造的に作らない。
 - あなたは iteration 単位で fresh に呼ばれる (本会話の履歴を持たない)。必要な文脈は orchestrator の指示に全部入っている前提で動き、足りなければ編集せずにその旨を報告する。
 

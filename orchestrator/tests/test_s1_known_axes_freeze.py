@@ -245,6 +245,18 @@ def test_submodule_init_predicate_distinguishes_uninit_from_missing_file(tmp_pat
             os.environ["PYTEST_CURRENT_TEST"] = _saved_env
 
 
+def test_silo_cmake_rel_matches_source_digest_template():
+    """[T-149] protocol→CMakeLists パスの同族ドリフト検査 (T-148 が導入した
+    source_digest._PROTOCOL_CMAKE との整合)。s1 本体は generator 自己 hash + sources pin
+    (known_axes_freeze.json) で凍結されているため**編集せず**、外部から関係だけを機械検査
+    する (2026-07-28 段 4 裁定、F27 回避)。"""
+    from campaign import source_digest
+    assert M.SILO_CMAKE_REL == (
+        "external/ccbench/" + source_digest._PROTOCOL_CMAKE.format(protocol="silo")), \
+        "s1 の SILO_CMAKE_REL と source_digest._PROTOCOL_CMAKE がドリフト。s1 は凍結 pin " \
+        "済みのため、揃え直しは freeze migration の裁定を経ること"
+
+
 # ---- 素の runner (二重 runner 契約: pytest 非依存で走る) ----
 #
 # tmp_path fixture を要するテストには tempfile ベースの一時 dir を供給する。これが無いと
