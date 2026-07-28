@@ -326,3 +326,140 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 70. [T-124] **完了 (2026-07-27 (18))**: 再編で場所を作って 3 件を入れた。変わらず
 71. [T-108] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-O18` / `DW-M01` へ入れた。変わらず
 72. [T-111] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-S01`+`DW-O19` / `DW-S03` へ入れた。変わらず
+
+## 2026-07-28 (35) — [T-136] 受入テストの timing 依存フレークを除去 — limits 一般化と paired 負荷検証 (コード + docs、branch worktree-dev-wave-t088-python-gate、計測 = Pegasus job 873281/873448 の rc・junit 赤 node 照合と受入全走の rc)
+
+- **封鎖の要約**: `test_dev_waves_integration.py` の受入判定が共有ノード負荷で偽赤になる問題を
+  テスト側だけで閉じた (製品コード不変)。成功系 request per-wave 60s / caps 60/240、
+  sleep_timeout 枝のみ 20/40 + fake sleep 600s、child failure 4 枝の limits 分離
+  (output 128KiB 維持)、wait は算術的包含が要るものだけ延長、wait 失敗時の best-effort
+  cleanup (run_id 束縛 + 対象 thread join)。commit `52dcf32` (コード)
+- **実測 (計測系の正本 = insight §1/§5)**: baseline 再現 job `0:873281` = spin=64 (load
+  43-92) で 4/4 rc=1、赤 6 node。paired 検証 job `0:873448` = 同一 allocation で B/F 交互、
+  **baseline 10/10 rc=1 (赤 39 件全て既知 node) / fix 10/10 rc=0 / 既知 6 node subset
+  30/30 rc=0**。低頻度機序 2 node はこの 10 走の baseline でも未発火のため「未再発」の主張に
+  留める (除去の証明ではない)
+- **dev-wave 形**: 非軽量 (テストの受理集合に触れる、DW-C00)。codex = plan (max) + 敵対相談
+  (max ×2) + 実装 (high) + レビュー (high ×2) + fix (high ×2 巡) + 焦点再レビュー (high ×2 巡)。
+  段 3 blocker 6 件 (per-wave/total 分離は schema 制約で不成立 = 親の初期案の誤りを実測で確定、
+  sleep_timeout 副次 assert の負荷脆弱性、ほか)、段 6 must-fix 7 件 + 親所見 F-p1 (wall 較正
+  60→20s)、**全件 real・棄却 0**。fix 2 巡目で焦点再レビュー GO (逐語と裁定 =
+  `output/insights/2026-07-28_t136-timing-flake-generalized-limits.md` §3)
+- **変異 matrix (統合 commit 後、無負荷、DW-O19/M04/M05/M07/M08 準拠 harness)**: preservation
+  control 4 本 (PM1-PM4v2) を fix 版と af2f47c 版テストの両方に投じ **4/4 とも新旧同一 node・
+  同一署名で KILLED** (検出力保存)。PM4 は R1 指摘で「residual 観測無効化 = state assert 署名」
+  へ再登録 (旧登録は erratum、insight §4)。構成 mirror 型変異は段 3 裁定で全廃
+- 検査: 焦点 4 ファイル 100 passed (22.6s)。**受入全走 = 3140 passed / 18 skipped / 赤 0**
+  (50.84s、worktree、変異 harness 復元後)。前回 (34) と勘定・wall 一致
+- **worktree 流用の明記 (DW-O20)**: 背景 job の cwd 固定により、クローズ済み前 wave の worktree
+  `dev-wave-t088-python-gate` (branch 同名) のまま [T-136] を実施 (開始時 main == HEAD ==
+  af2f47c、tree clean 確認済み。進行中 wave の流用ではない)。専用 handoff は job tmp 側に置いた
+- docs: insight 新設 = 本エントリと同 commit。残余リスク (製品内部短窓・sigkill 0.5s 窓) は
+  insight §7 に記録し、未観測のため新規タスク化しない (G03)
+- エージェント工数: codex ×10 (上記)。棄却 finding なし
+- ユーザー手番: push (AI からは行わない)
+- 段 8 自己改善: 候補 1 件 = 背景 job の handoff 置き場 (job tmp) は DW-O20 が正本だが発火が
+  clean-tree gate 直前で遅い。`DW-CTX` への 1 行ポインタ統合を試みたが **byte 予算超過で停止**
+  (core.md 9141/9000、docs/dev-wave/** 24130/24000 — headroom 15 bytes で意味ある統合は不可能)。
+  契約どおり変更せず [T-160] として裁定パッケージへ (予算増は独立審査、正攻法は T-127 系の空け)
+
+### 次の一手
+
+**優先度ラベルは (25) から継続** (P1 = 本サイクル、P2 = P1 の後、P3 = 裁定・条件成立まで保留)。
+
+1. [T-139] **P1 (外部相談、独立到達)**: 劣化版 Silo の梯子。**[T-140] 択 (c) の移し先**。変わらず
+2. [T-142] **P1 (裁定 (3))**: テストの価値による二層化。変わらず
+3. [T-136] **完了 (2026-07-28 (35))**: 受入テストの timing 依存フレークを除去。baseline 10/10
+   赤 → fix 40/40 緑 (paired、既知 node 照合)。残余は insight §7 (新規タスク化せず)
+4. [T-129] **P1 (F41 の残り)**: 全走の作法の明文化。作法本文 (runbook 側) が残り。変わらず
+5. [T-149] **P2・ドリフト**: 編集面の独立 hard-code 4 箇所。T-148 wave が足した `_PROTOCOL_CMAKE`
+   (protocol → CMakeLists パス) も同族として数える。変わらず
+6. [T-152] **P2 (どの軸でも効く死角)**: trace 生成と lock 被覆検査の同一 container 再走査。変わらず
+7. [T-153] **P2 (T-127 の機械化群)**: (a) run_tests cwd 強制 (b) 未 stage 削除検出 (c) O20
+   スクリプト化 (d) F43 検収機械化 (e) CAB 連続配置 (裁定 (3) 条件付き)。変わらず
+8. [T-158] **P2 (T-153 の族)**: worktree の `external/ccbench` submodule 未初期化で known-axes
+   freeze 系 42 本が偽赤 ((33) で実測)。`tools/run_tests.py` に submodule 実体検査を足す。変わらず
+9. [T-141] **P2 (一部完了)**: profiler → axis-proposer 結線の残り。変わらず
+10. [T-143] **P2 (裁定 (4))**: RuleOps。変わらず
+11. [T-126] **P2 (裁定済み = 採用)**: 逐次停止 設計 v2 の実装。変わらず
+12. [T-145] **P2 (レビュー B-2、nit)**: `join(30)` の二律背反。変わらず
+13. [T-146] **P2 (レビュー B-3、nit)**: capability probe の cleanup の fault injection 経路。変わらず
+14. [T-134] **P2 (衛生)**: 並列度の再最適化。変わらず
+15. [T-123] **P2 (衛生)**: `daemon.py` の `_atomic_json` はデッドコード。変わらず
+16. [T-118] **P2 (衛生)**: `/dev/shm` の残留 temp dir。変わらず
+17. [T-109] **P2 (裁定完了)**: `/dev-wave クロスプロトコル対応`。変わらず
+18. [T-113] **P2 (裁定済み)**: root-isolation 変異の control を新設する。変わらず
+19. [T-110] **P2 (裁定済み)**: 受理集合を変える改修の手続義務を規約化する。変わらず
+20. [T-097] **P2 (裁定済み)**: 変異台帳 JSON を placeholder 検出の対象族へ足す。変わらず
+21. [T-100] **P2 (裁定済み)**: 検出語彙へ表記ゆれ・HTML entity を足す。変わらず
+22. [T-099] **P2 (裁定済み)**: 凍結成果物の placeholder は止める仕様を明記する。変わらず
+23. [T-009] **P2**: dev-wave 実装子の規律の所在を AGENTS.md へ明文化する。変わらず
+24. [T-060] **P2**: WAL 用語運用の明文化。変わらず
+25. [T-150] **P3 (CCBench・上流判断は人間)**: 同一 trx 内二重 update の first-write-wins。変わらず
+26. [T-151] **P3 (CCBench・上流判断は人間)**: insert→delete の ghost tuple。変わらず
+27. [T-154] **P2・裁定済み (2026-07-28 = 3 項とも採用) → 実装待ち**: (1) `DW-O07` 削除 (2)
+    `docs/ai-provenance.md` へ byte 上限 (3) CAB 連続配置検査 = [T-153] (e) の条件解除 ([T-110] の
+    手続義務に従う)。材料 = `output/insights/2026-07-28_t147-budget-restructure-package.md` §4。変わらず
+28. [T-130] **P3 (裁定要・未裁定)**: `..._uses_real_build_v2` (46.7 秒) の短縮。変わらず
+29. [T-135] **却下 (2026-07-28)**: T-080 E2E の key C/D を amend で導出する案 (stub-free 契約を
+    弱めるため不採用、規律 2)。変わらず
+30. [T-133] **P2・裁定済み (2026-07-28 = fsync 無効化案) → 実装待ち**: テスト用 git の fsync を切る。
+    変わらず
+31. [T-144] **P3 (外部相談、野心的)**: Shirakami-LTX との中間のスペクトル補間。**[T-140] 択 (c) の
+    移し先**。変わらず
+32. [T-088] **段階 1 完了 (2026-07-28 (33))**: 段階 3 (単一 admission predicate) は (33) の裁定
+    パッケージ 3 項の裁定後。条件待ち 8 件 ([T-085]/[T-112]/[T-114]/[T-011]/[T-122]/[T-103]/
+    [T-089]/[T-090]) は塞がったまま。変わらず
+33. [T-096] **P3 (裁定済み)**: driver 側 timeout を予約式と整合させる。変わらず
+34. [T-102] **P3 (裁定済み)**: production `_run_git` 2 箇所の ambient env 継承。変わらず
+35. [T-122] **P3 (裁定済み → 測定後)**: `verify_receipt` の `search_repository` 重複。変わらず
+36. [T-103] **P3 (裁定済み → 1 cycle 後)**: never-issued 検査は先送り。変わらず
+37. [T-089] **P3 (裁定済み → 測定後)**: 二重 reason-tag 描画。変わらず
+38. [T-090] **P3 (裁定済み → 測定後)**: `VerifiedFreeze.document` が mutable。変わらず
+39. [T-112] **P3 (裁定済み → 床値実測の後)**: `s1_known_axes_freeze` の root 束縛が不完全。変わらず
+40. [T-114] **P3 (裁定済み → 一巡後)**: never-issued の全層 scope 漏れ。変わらず
+41. [T-011] **P3 (裁定済み = 前提の鎖を短縮せず維持)**: 科学レーン floor 実測。変わらず
+42. [T-085] **P3**: PKG-1 採用裁定済 → floor 実測後の hardening wave で実装。変わらず
+43. [T-087] **P3**: W-e 着手時に整合を決める裁定済 (延期)。変わらず
+44. [T-012] **裁定済み (2026-07-28 = 解除しない)**: task-run pilot の凍結解除可否。変わらず
+45. [T-010] **P3・延期**: B-008 再試験。変わらず
+46. [T-082] **P3・延期**: prefix 容認 reader の用途別移行。変わらず
+47. [T-121] **P3・実質不要と判明済み**: real-repo group の reader/writer 分離。変わらず
+48. [T-156] **P3 (条件成立まで保留)**: selector-8b workload descriptor へ set-size 条件を反映する。
+    変わらず
+49. [T-159] **P3・新規 (裁定要、[T-157] レビュー A-1)**: [T-157] の修正は forward-only で、過去に
+    重複解決が汚染した成果物を救済しない。裁定の択 = (a) 旧 checkpoint / trigger provenance の
+    fail-closed 版 gate (既存成果物の受理集合を狭める → [T-110] の手続義務対象) / (b) 過去
+    campaign への注釈のみ (誤 id の残存は trigger provenance に限る、whiteboard は成否分類のみ) /
+    (c) 何もしない (実害確認済みは 2026-07-09 監査の系譜のみ)。材料 =
+    `output/insights/2026-07-28_t157-resolve-duplicate-identity.md` §3 A-1・§5
+50. [T-157] **完了 (2026-07-28 (34))**: 重複提案の解決を summary 確定済み id へ置き換え、3 driver を
+    単一実装化。変異 5/5 KILLED、受入全走緑。遡及救済は [T-159] へ分離
+51. [T-148] **完了 (2026-07-28 (32))**: digest 環境を実 TU の写しにし、未知文脈と computed include を
+    fails-closed 化。D93。insight §5 の critic digest 記述は (34) で訂正。変わらず
+52. [T-155] **完了 (2026-07-28 (30))**: n\* crossover を実測。変わらず
+53. [T-140] **完了 (2026-07-28 (29)、(30) で記録訂正)**: データ構造軸の workload 条件付き休眠。
+    移し先 = [T-139]/[T-144]。変わらず
+54. [T-147] **完了 (2026-07-28 (28))**: 予算内再配分 + 受け皿 + C00 再評価義務。変わらず
+55. [T-127] **完了 (2026-07-28 (28))**: byte 予算の使い方管理。変わらず
+56. [T-137] **完了 (2026-07-27 (26))**: serve thread の偽緑。変わらず
+57. [T-138] **完了 (2026-07-27 (26))**: 恒真ゲート。変わらず
+58. [T-132] **完了 (2026-07-27 (24))**: group 分割。変わらず
+59. [T-131] **却下 (2026-07-27 (23))**: worker 間 fixture 共有。変わらず
+60. [T-128] **完了 (2026-07-27 (21))**: fixture の scan 膨張。変わらず
+61. [T-120] **完了 (2026-07-27 (20)) だが (24) で結論を上書き**: group 分割の棄却は `-n 16` 限定。変わらず
+62. [T-125] **完了 (2026-07-27 (19))**: 取り込み漏れの救出と worktree 掃除。変わらず
+63. [T-116] **完了 (2026-07-26 (14))**: 本番 git 畳み込み。変わらず
+64. [T-057] **完了**: 全走 69 秒 (worktree 測定。checkout 依存は F41 参照)。変わらず
+65. [T-117] **完了 (2026-07-27 (15))**: 律速の内訳を実測。変わらず
+66. [T-119] **完了 (2026-07-27 (17))**: SIGSTOP/SIGCONT 競合。変わらず
+67. [T-105] **完了 (2026-07-27 (17))**: `_run_artifact_bytes` の素通し。変わらず
+68. [T-104] **完了 (2026-07-27 (18))**: reference 再編。変わらず
+69. [T-101] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-O20` / `DW-O16` へ入れた。変わらず
+70. [T-124] **完了 (2026-07-27 (18))**: 再編で場所を作って 3 件を入れた。変わらず
+71. [T-108] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-O18` / `DW-M01` へ入れた。変わらず
+72. [T-111] **完了 (2026-07-27 (18))**: 作法 2 件を `DW-S01`+`DW-O19` / `DW-S03` へ入れた。変わらず
+73. [T-160] **P3・新規 (裁定要、段 8 発)**: dev-wave reference の byte 予算が満杯で、DW-CTX への
+    背景 job handoff 置き場ポインタ (1 行、正本 = DW-O20) を統合できない。択 = (a) T-127 系の
+    陳腐化空けと同時に統合 / (b) 統合せず現状維持 (O20 発火時に移動で運用) / (c) 予算の独立審査
+
