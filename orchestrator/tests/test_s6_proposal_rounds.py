@@ -198,25 +198,46 @@ def test_derive_seed_deterministic_and_purpose_separated():
 # freshness_check 内の領域母集団 (`+ ["include/backoff.hh"]`) と opened 述語 (`ebs`) は
 # **凍結時点 (2026-07-13) の編集面の記録**であり、live な source_digest 参照へ書き換えない
 # (2026-07-28 段 4 裁定: live 化は N1 更新シナリオで stale packet を通す方向の緩和)。
-# 代わりに本テストが「凍結時点面の literal ∪ live EVOLVE_BLOCK_SOURCES」の母集団で
-# freshness が全緑になることを検査する。live EBS が凍結時点面から**拡張でも縮小でも**
-# ずれると赤になり (拡張 = opened/領域不一致、縮小 = 凍結 literal 側が opened=False 化)、
-# 「s6 側の据え置きか、再凍結か」の明示裁定を強制する (沈黙ドリフトの封鎖、段 6 RB-2)。
+# 凍結時点面はテスト側に写しを持たず (第 4 の写しは lockstep 更新で沈黙する、段 6 RR-1)、
+# freshness_check の実装 AST から `ebs` literal を直接抽出して live EBS と突合する。
+# live EBS が凍結時点面から**拡張でも縮小でも**ずれると赤になり、「s6 側の据え置きか、
+# 再凍結か」の明示裁定を強制する (沈黙ドリフトの封鎖、段 6 RB-2)。
 
-# 凍結時点 (2026-07-13、N1 provenance) の編集面。live EBS から導出してはならない —
-# live から作ると EBS 縮小時に縮んだ母集団しか観測せず alarm が沈黙する (RB-2)。
-_S6_FREEZE_TIME_SURFACE = frozenset({"include/backoff.hh", "cc/silo/transaction.cc"})
+
+def _s6_frozen_opened_set():
+    """freshness_check 実装内の凍結時点 opened 集合 (`ebs = {...}`) を AST で抽出する。
+
+    テスト側に面の写しを置くと、写しと live EBS の lockstep 更新で s6 本体の stale が
+    沈黙する (RR-1)。実装 literal そのものを観測することで写しを構造的に排除する。"""
+    import ast
+    import inspect
+    tree = ast.parse(inspect.getsource(M.freshness_check))
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "ebs" for t in node.targets)):
+            assert isinstance(node.value, ast.Set), "ebs が set literal でない"
+            return frozenset(ast.literal_eval(node.value))
+    raise AssertionError("freshness_check 内に ebs literal が見つからない")
+
+
+def test_s6_frozen_surface_matches_live_edit_surface():
+    """[T-149] 構造検査: s6 の凍結時点 opened 集合 == live EVOLVE_BLOCK_SOURCES。
+
+    ずれたら「s6 側の据え置き (本テストへの明示裁定記録) か再凍結か」を裁定してから
+    更新する。behavioral テスト (下記) と違い母集団の作り方に依存しない直接照合。"""
+    assert _s6_frozen_opened_set() == set(source_digest.EVOLVE_BLOCK_SOURCES), \
+        "s6 freshness の凍結時点面と live EVOLVE_BLOCK_SOURCES がドリフトした"
 
 
 def _live_surface_pi():
-    """凍結時点面 literal ∪ live EBS の母集団から freshness 入力を構成する。
+    """凍結時点面 (AST 抽出) ∪ live EBS の母集団から freshness 入力を構成する。
 
     cc/silo/util.cc は「編集面外の実在 silo ソース」の代表 (test_campaign の
     test_source_digest_allowlist と同じ選定)。cc/silo/include/zzz_t149_probe.hh は
     「.hh の silo ソース」の代表 — freshness の領域再生成が .hh を落とす退行 (RA-3) を
     領域集合不一致で可視化する。EBS にどちらかを加える日が来たら反例選定ごと見直すこと。"""
     ebs = set(source_digest.EVOLVE_BLOCK_SOURCES)
-    universe = (_S6_FREEZE_TIME_SURFACE | ebs
+    universe = (_s6_frozen_opened_set() | ebs
                 | {"cc/silo/util.cc", "cc/silo/include/zzz_t149_probe.hh"})
     silo_listing = sorted(p for p in universe if p.startswith("cc/silo/"))
     regions = sorted(universe)
