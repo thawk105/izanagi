@@ -94,11 +94,13 @@ FileNotFoundError で検出する — RA-4 の指摘により当初主張を訂�
   T4 の関係検査で十分。R3: axis-onboarding の二段拡張手順は literal + テスト方式では
   現行のまま有効 (追随編集不要を確認)
 
-## 6. dev-wave 改善候補 (段 8 routing: 裁定パッケージ送り)
+## 6. dev-wave 改善候補 (段 8 routing: `DW-O09` へ自動統合済み)
 
-**候補: 定数統一系 wave の brief に出現分類 (live copy / 独立 golden / 凍結 snapshot /
-歴史記録) を義務付ける 1 行を `DW-S01` か `DW-O09` へ追記する。** 根拠 = §1 (未分類の一括
+**候補: 定数統一系 wave の出現分類 (live copy / 独立 golden / 凍結 snapshot / 歴史記録) と、
+output 外の review ledger (role source pin) の pin 既定対象化。** 根拠 = §1 (未分類の一括
 認定が A-1/A-2/A-3 の誤 scope を生み、coder.md の review pin 見逃し (RB-1) も同根)。
-ただし `docs/dev-wave/**` は hard ceiling 24000 に対し余裕 13 bytes (F39 の恒久対応と同じ
-封鎖状態) のため自動統合できない — **縮約原資の確保と併せてユーザー裁定へ** (T-109/F39 と
-同じ形)。
+
+当初「予算封鎖 (余裕 13 bytes) のため裁定パッケージ送り」と書いたが、これは F39 (07-26)
+時点値の転写で stale だった (F1 型の自己再演)。段 8 で実測 = 23,542/24,000 (T-160 の
+DW-O07 削除で原資回復) を確認し、routing 規約 (既存 leaf 節への統合) どおり `DW-O09` へ
+追記 + F39 へ再発記録して閉じた。

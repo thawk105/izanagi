@@ -675,6 +675,12 @@
   `docs/dev-wave/**` は hard ceiling 24000 に対し 23987 (余裕 13 bytes) で収まらない。
   [T-109] の裁定パッケージと併せてユーザー裁定へ送る ([T-101] / [T-104] / [T-108] と同じ形)
 - 現行実体: なし (裁定待ち)。
+- **再発: 2026-07-29** ([T-149] wave)。段 4 の pin 閉包が output 配下だけを掃引し、
+  `.claude/agents/coder.md` の review ledger pin (`review_ledger.SOURCE_FILE_SHA256` +
+  role-adapter 埋込) を見逃して「pin なし」と誤裁定。初回受入全走の test_codex_agents 赤で
+  land 前に検出 (実害なし)。恒久対応 = `DW-O09` へ「output 外の review ledger を既定対象に
+  含める + 出現の 4 分類 (live copy / 独立 golden / 凍結 snapshot / 歴史記録)」を追記
+  (T-160 の DW-O07 削除で予算原資が回復していたため、段 8 で自動統合。同 wave の記録参照)
 - 記録: worklog 2026-07-26 (3)、材料レポート = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §3.4
 
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]

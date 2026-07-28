@@ -832,8 +832,9 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - main が wave 中に前進 (78eedcb → 0ce2766、並行 T-129 wave)。ユーザー裁定 (並行変化は問題ない・
   マージ完遂) に従い、記録前に main を wave branch へ merge (ae9888b、コンフリクトなし、landed
   履歴のみ。rebase/force 不使用)
-- dev-wave 改善候補 1 件 (出現分類の brief 義務化) は docs/dev-wave 予算封鎖 (余裕 13 bytes) の
-  ため自動統合不能 → 縮約原資と併せ裁定パッケージへ (insight §6、F39/T-109 と同形)
+- dev-wave 改善候補 1 件 (出現の 4 分類 + 非 output review ledger の pin 既定対象化) は段 8 で
+  `DW-O09` へ自動統合 + F39 再発追記。insight §6 当初の「予算封鎖 (余裕 13 bytes)」は F39 時点値の
+  転写で stale だった (F1 型) — 実測 23,542/24,000 (T-160 の DW-O07 削除で原資回復) を段 8 で訂正
 - エージェント工数: codex 6 本 (プラン起草 1 + 敵対相談 2 + 敵対レビュー 2 + 焦点再レビュー 1、
   全て read-only)。実装子なし (test + docs + ledger のみのため親作、T-147/T-160 前例)
 
