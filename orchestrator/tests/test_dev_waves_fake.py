@@ -378,7 +378,8 @@ def main():
     if scenario == "sleep_timeout":
         time.sleep(float(options.get("sleep_s", 60)))
     if scenario == "grandchild_residual":
-        subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"],
+        sleep_s = float(options.get("sleep_s", 60))
+        subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({sleep_s!r})"],
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, close_fds=True)
     if scenario == "log_cap":

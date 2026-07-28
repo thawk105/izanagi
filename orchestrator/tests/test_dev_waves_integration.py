@@ -76,6 +76,10 @@ from tools.dev_waves.worker import kill_spawned_process, spawn_worker as real_sp
 
 _REPO = Path(__file__).resolve().parents[2]
 _TERMINAL = {RunState.COMPLETED, RunState.BLOCKED, RunState.FAILED, RunState.INTERRUPTED}
+_GENEROUS_PER_WAVE = 60
+_PROFILE_MAX_PER_WAVE = 60
+_PROFILE_MAX_TOTAL = 240
+_BLOCKING_CHILD_SLEEP = 600
 
 
 def _run_command(
@@ -84,7 +88,7 @@ def _run_command(
 ) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120, check=False,
     )
     if result.returncode not in allowed:
         raise AssertionError(
@@ -211,14 +215,15 @@ def _temporary_repo(
     return TemporaryRepo(root, main, remote, submodule, fake, digest, scenario_digest)
 
 
-def _profile(check_timeout: int = 15) -> SupervisorProfile:
+def _profile(check_timeout: int = 60) -> SupervisorProfile:
     checks = (
         CheckSpec("docs", (sys.executable, "tools/check_docs.py"), check_timeout),
         CheckSpec("fixed", (sys.executable, "tools/check_ok.py"), check_timeout),
     )
     return SupervisorProfile(
         "default", "fake-model", "low", checks,
-        max_waves=4, max_per_wave_timeout_s=10, max_total_timeout_s=30,
+        max_waves=4, max_per_wave_timeout_s=_PROFILE_MAX_PER_WAVE,
+        max_total_timeout_s=_PROFILE_MAX_TOTAL,
         max_per_wave_budget_usd=Decimal("1"), max_total_budget_usd=Decimal("3"),
         max_wave_output_bytes=512 * 1024, max_run_bytes=8 * 1024 * 1024,
         allowed_models=("fake-model",),
@@ -233,7 +238,8 @@ def _supervisor(repo: TemporaryRepo, *, dependencies: SupervisorDependencies | N
 
 
 def _request(repo: TemporaryRepo, *, waves: int = 1, request_id: str | None = None,
-             per_wave_timeout: int = 5, total_timeout: int | None = None,
+             per_wave_timeout: int = _GENEROUS_PER_WAVE,
+             total_timeout: int | None = None,
              per_wave_budget: str = "1", total_budget: str | None = None,
              output_bytes: int = 256 * 1024,
              run_bytes: int = 8 * 1024 * 1024) -> SubmitRequest:
@@ -249,7 +255,31 @@ def _request(repo: TemporaryRepo, *, waves: int = 1, request_id: str | None = No
     )
 
 
-def _wait_terminal(supervisor: Supervisor, run_id: str, timeout_s: float = 20.0):
+def _best_effort_wait_cleanup(supervisor: Supervisor, run_id: str) -> str:
+    diagnostics = []
+    target_thread = None
+    try:
+        with supervisor._lock:
+            active = supervisor._active
+            if active is not None and active.run_id == run_id:
+                target_thread = active.thread
+    except BaseException as exc:
+        diagnostics.append(f"active={type(exc).__name__}: {exc}")
+    if target_thread is not None:
+        try:
+            supervisor.cancel(run_id)
+        except BaseException as exc:
+            diagnostics.append(f"cancel={type(exc).__name__}: {exc}")
+        try:
+            target_thread.join(120)
+            if target_thread.is_alive():
+                diagnostics.append("thread_alive=true")
+        except BaseException as exc:
+            diagnostics.append(f"join={type(exc).__name__}: {exc}")
+    return "; ".join(diagnostics)
+
+
+def _wait_terminal(supervisor: Supervisor, run_id: str, timeout_s: float = 300.0):
     """Wait for a terminal state and for the run thread to release the run.
 
     Terminal state precedes quiescence: the run thread still joins its WAL
@@ -259,30 +289,46 @@ def _wait_terminal(supervisor: Supervisor, run_id: str, timeout_s: float = 20.0)
     that tail — observed as ``OSError: Directory not empty`` in whichever node
     lost the race (5/48 in the standalone probe, 0/48 once joined).
     """
-    deadline = time.monotonic() + timeout_s
-    seen = []
-    while time.monotonic() < deadline:
-        status = supervisor.status(run_id)
-        seen.append(status.state)
-        if status.state in _TERMINAL:
-            assert supervisor.wait_idle(timeout_s), (
-                f"run thread still running after terminal state; states={seen[-10:]}"
-            )
-            return status, seen
-        time.sleep(0.02)
-    raise AssertionError(f"run did not terminate; states={seen[-10:]}")
+    try:
+        deadline = time.monotonic() + timeout_s
+        seen = []
+        while time.monotonic() < deadline:
+            status = supervisor.status(run_id)
+            seen.append(status.state)
+            if status.state in _TERMINAL:
+                assert supervisor.wait_idle(120), (
+                    f"run thread still running after terminal state; states={seen[-10:]}"
+                )
+                return status, seen
+            time.sleep(0.02)
+        raise AssertionError(f"run did not terminate; states={seen[-10:]}")
+    except BaseException as exc:
+        cleanup = _best_effort_wait_cleanup(supervisor, run_id)
+        if cleanup:
+            exc.args = (*exc.args, f"best-effort cleanup: {cleanup}")
+        raise
 
 
-def _wait_state(supervisor: Supervisor, run_id: str, state: RunState, wave: int) -> None:
-    # xdist 高並列下では wave 1 (実 git 操作 + check) が 10 秒を超えうる。
-    # 有界の決定的条件待ちであり、余裕を持たせても flaky にはならない。
-    deadline = time.monotonic() + 30
-    while time.monotonic() < deadline:
-        status = supervisor.status(run_id)
-        if status.state is state and status.wave_index == wave:
-            return
-        time.sleep(0.005)
-    raise AssertionError((run_id, state, wave, supervisor.status(run_id)))
+def _wait_state(
+    supervisor: Supervisor, run_id: str, state: RunState, wave: int,
+    timeout_s: float = 180.0,
+) -> None:
+    # 有界の決定的条件待ちであり、通常 run の総期限を包含する。
+    try:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            status = supervisor.status(run_id)
+            if status.state is state and status.wave_index == wave:
+                return
+            if status.state in _TERMINAL:
+                raise AssertionError((run_id, state, wave, status))
+            time.sleep(0.005)
+        raise AssertionError((run_id, state, wave, supervisor.status(run_id)))
+    except BaseException as exc:
+        cleanup = _best_effort_wait_cleanup(supervisor, run_id)
+        if cleanup:
+            exc.args = (*exc.args, f"best-effort cleanup: {cleanup}")
+        raise
 
 
 def _invocations(repo: TemporaryRepo) -> list[dict[str, object]]:
@@ -300,12 +346,11 @@ def _start_real_daemon(
         "import os,pathlib,signal,sys,time,uuid\nfrom decimal import Decimal\n"
         "from tools.dev_waves.checker import CheckSpec\n"
         "from tools.dev_waves.daemon import Supervisor,SupervisorConfig,SupervisorDependencies,SupervisorProfile\n"
-        "from tools.dev_waves.git_state import resolve_repo_identity\n"
         "from tools.dev_waves.schema import PROTOCOL_VERSION,ResourceLimits,SubmitRequest\n"
-        "checks=(CheckSpec('docs',(sys.executable,'tools/check_docs.py'),15),"
-        "CheckSpec('fixed',(sys.executable,'tools/check_ok.py'),15))\n"
+        "checks=(CheckSpec('docs',(sys.executable,'tools/check_docs.py'),60),"
+        "CheckSpec('fixed',(sys.executable,'tools/check_ok.py'),60))\n"
         "p=SupervisorProfile('default','fake-model','low',checks,max_waves=4,"
-        "max_per_wave_timeout_s=30,max_total_timeout_s=90,"
+        "max_per_wave_timeout_s=60,max_total_timeout_s=240,"
         "max_per_wave_budget_usd=Decimal('1'),max_total_budget_usd=Decimal('3'),"
         "max_wave_output_bytes=524288,max_run_bytes=8388608,allowed_models=('fake-model',))\n"
         "def crash(phase,_run,_wave):\n"
@@ -313,9 +358,9 @@ def _start_real_daemon(
         "s=Supervisor(SupervisorConfig(sys.argv[1],sys.argv[2],sys.argv[3],p,15,0.1,"
         "runtime_dir=sys.argv[4],audit_max_bytes=65536),"
         "SupervisorDependencies(crash_hook=crash))\n"
-        "n=int(sys.argv[5]); identity=resolve_repo_identity(sys.argv[1]).digest\n"
+        "n=int(sys.argv[5]); identity=s.repo_identity.digest\n"
         "q=SubmitRequest(PROTOCOL_VERSION,'submit',identity,n,'default',str(uuid.uuid4()),"
-        "ResourceLimits(30,n*30,Decimal('1'),Decimal(str(n)),262144,8388608))\n"
+        "ResourceLimits(60,n*60,Decimal('1'),Decimal(str(n)),262144,8388608))\n"
         "r=s.submit(q); path=pathlib.Path(sys.argv[6]); path.write_text(r.run_id); "
         "open(path,'rb').close()\n"
         "while s._active is not None: time.sleep(.01)\n"
@@ -329,7 +374,7 @@ def _start_real_daemon(
         cwd=_REPO, env=environment, stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
     )
-    deadline = time.monotonic() + 10
+    deadline = time.monotonic() + 240
     while time.monotonic() < deadline:
         if process.poll() is not None and not result_path.exists():
             raise AssertionError(process.stderr.read() if process.stderr else "daemon exited")
@@ -339,9 +384,24 @@ def _start_real_daemon(
             if run_id:
                 return process, run_id
         time.sleep(0.01)
-    process.kill()
-    process.wait()
-    raise AssertionError("daemon run id did not appear")
+    primary = AssertionError("daemon run id did not appear")
+    cleanup_errors = []
+    try:
+        try:
+            process.kill()
+        except BaseException as exc:
+            cleanup_errors.append(f"kill={type(exc).__name__}: {exc}")
+        try:
+            process.wait(timeout=120)
+        except BaseException as exc:
+            cleanup_errors.append(f"wait={type(exc).__name__}: {exc}")
+    finally:
+        if cleanup_errors:
+            primary.args = (
+                *primary.args,
+                f"daemon startup cleanup: {'; '.join(cleanup_errors)}",
+            )
+        raise primary
 
 
 def _restart_recovery_probe(repo: TemporaryRepo, resume_run_id: str = "-") -> str:
@@ -349,21 +409,20 @@ def _restart_recovery_probe(repo: TemporaryRepo, resume_run_id: str = "-") -> st
         "import sys,uuid\nfrom decimal import Decimal\n"
         "from tools.dev_waves.checker import CheckSpec\n"
         "from tools.dev_waves.daemon import Supervisor,SupervisorConfig,SupervisorProfile\n"
-        "from tools.dev_waves.git_state import resolve_repo_identity\n"
         "from tools.dev_waves.schema import *\n"
-        "c=(CheckSpec('docs',(sys.executable,'tools/check_docs.py'),15),"
-        "CheckSpec('fixed',(sys.executable,'tools/check_ok.py'),15))\n"
+        "c=(CheckSpec('docs',(sys.executable,'tools/check_docs.py'),60),"
+        "CheckSpec('fixed',(sys.executable,'tools/check_ok.py'),60))\n"
         "p=SupervisorProfile('default','fake-model','low',c,max_waves=4,"
-        "max_per_wave_timeout_s=30,max_total_timeout_s=90,"
+        "max_per_wave_timeout_s=60,max_total_timeout_s=240,"
         "max_per_wave_budget_usd=Decimal('1'),max_total_budget_usd=Decimal('3'),"
         "max_wave_output_bytes=524288,max_run_bytes=8388608,allowed_models=('fake-model',))\n"
         "s=Supervisor(SupervisorConfig(sys.argv[1],sys.argv[2],sys.argv[3],p,15,.1,"
         "runtime_dir=sys.argv[4],audit_max_bytes=65536))\n"
-        "q=SubmitRequest(PROTOCOL_VERSION,'submit',resolve_repo_identity(sys.argv[1]).digest,"
-        "1,'default',str(uuid.uuid4()),ResourceLimits(5,5,Decimal('1'),Decimal('1'),262144,8388608))\n"
         "if sys.argv[5]!='-':\n"
         " r=s.resume(sys.argv[5]); print(r.state.value+'|'+(r.reason.value if r.reason else '-'))\n"
         "else:\n"
+        " q=SubmitRequest(PROTOCOL_VERSION,'submit',s.repo_identity.digest,"
+        "1,'default',str(uuid.uuid4()),ResourceLimits(5,5,Decimal('1'),Decimal('1'),262144,8388608))\n"
         " try: s.submit(q)\n"
         " except DevWavesError as e: print(e.code.value)\n"
         " else: print('accepted')\n"
@@ -374,7 +433,7 @@ def _restart_recovery_probe(repo: TemporaryRepo, resume_run_id: str = "-") -> st
         [sys.executable, "-c", script, str(repo.main), str(repo.fake),
          repo.fake_digest, str(repo.runtime), resume_run_id], cwd=_REPO, env=environment,
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, timeout=10, check=False,
+        text=True, timeout=240, check=False,
     )
     assert result.returncode == 0, result.stderr
     return result.stdout.strip()
@@ -449,8 +508,8 @@ def test_three_wave_success_uses_distinct_pid_start_and_session_markers_without_
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, ["success", "success", "success"])
             supervisor = _supervisor(repo)
-            submitted = supervisor.submit(_request(repo, waves=3, total_timeout=15, total_budget="3"))
-            status, _seen = _wait_terminal(supervisor, submitted.run_id, 30)
+            submitted = supervisor.submit(_request(repo, waves=3, total_budget="3"))
+            status, _seen = _wait_terminal(supervisor, submitted.run_id)
             assert status.state is RunState.COMPLETED
             records = _invocations(repo)
             assert len(records) == 3
@@ -473,16 +532,40 @@ def test_three_wave_success_uses_distinct_pid_start_and_session_markers_without_
 def test_child_failure_injection_stops_before_next_wave(scenario: str, reason: ReasonCode) -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
-        options: dict[str, object] = {"scenario": scenario}
-        if scenario == "sleep_timeout":
-            options["sleep_s"] = 2
-        if scenario == "log_cap":
-            options["bytes"] = 300000
+        fake_options: dict[str, dict[str, object]] = {
+            "nonzero": {"scenario": "nonzero"},
+            "sleep_timeout": {
+                "scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP,
+            },
+            "grandchild_residual": {
+                "scenario": "grandchild_residual", "sleep_s": _BLOCKING_CHILD_SLEEP,
+            },
+            "log_cap": {"scenario": "log_cap", "bytes": 300000},
+        }
+        request_options: dict[str, dict[str, int]] = {
+            "nonzero": {
+                "per_wave_timeout": 60, "total_timeout": 120,
+                "output_bytes": 128 * 1024,
+            },
+            "sleep_timeout": {
+                "per_wave_timeout": 20, "total_timeout": 40,
+                "output_bytes": 128 * 1024,
+            },
+            "grandchild_residual": {
+                "per_wave_timeout": 60, "total_timeout": 120,
+                "output_bytes": 128 * 1024,
+            },
+            "log_cap": {
+                "per_wave_timeout": 60, "total_timeout": 120,
+                "output_bytes": 128 * 1024,
+            },
+        }
         with _isolated_process_environment(root):
-            repo = _temporary_repo(root, [options, "success"])
+            repo = _temporary_repo(root, [fake_options[scenario], "success"])
             supervisor = _supervisor(repo)
-            request = _request(repo, waves=2, per_wave_timeout=1, total_timeout=2,
-                               total_budget="2", output_bytes=128 * 1024)
+            request = _request(
+                repo, waves=2, total_budget="2", **request_options[scenario],
+            )
             submitted = supervisor.submit(request)
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
             assert status.state is RunState.FAILED
@@ -494,9 +577,11 @@ def test_cancel_running_child_persists_signal_prepare_then_observe() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         with _isolated_process_environment(root):
-            repo = _temporary_repo(root, [{"scenario": "sleep_timeout", "sleep_s": 60}])
+            repo = _temporary_repo(root, [{
+                "scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP,
+            }])
             supervisor = _supervisor(repo)
-            submitted = supervisor.submit(_request(repo, per_wave_timeout=10))
+            submitted = supervisor.submit(_request(repo))
             _wait_state(supervisor, submitted.run_id, RunState.CHILD_RUNNING, 1)
             supervisor.cancel(
                 submitted.run_id, "22222222-2222-4222-8222-222222222222",
@@ -517,9 +602,11 @@ def test_shutdown_running_child_uses_same_prepared_signal_path() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         with _isolated_process_environment(root):
-            repo = _temporary_repo(root, [{"scenario": "sleep_timeout", "sleep_s": 60}])
+            repo = _temporary_repo(root, [{
+                "scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP,
+            }])
             supervisor = _supervisor(repo)
-            submitted = supervisor.submit(_request(repo, per_wave_timeout=10))
+            submitted = supervisor.submit(_request(repo))
             _wait_state(supervisor, submitted.run_id, RunState.CHILD_RUNNING, 1)
             supervisor.shutdown()
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
@@ -614,7 +701,7 @@ def test_independent_gate_failure_stops_next_wave(scenario: str, reason: ReasonC
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, [scenario, "success"])
             supervisor = _supervisor(repo)
-            submitted = supervisor.submit(_request(repo, waves=2, total_timeout=10, total_budget="2"))
+            submitted = supervisor.submit(_request(repo, waves=2, total_budget="2"))
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
             assert status.reason is reason
             assert len(_invocations(repo)) == 1
@@ -633,7 +720,7 @@ def test_same_request_id_and_digest_returns_same_run_after_disconnect_and_restar
             second = restarted.submit(request)
             assert second.run_id == first.run_id
             conflict = _request(repo, waves=2, request_id=request.client_request_id,
-                                total_timeout=10, total_budget="2")
+                                total_budget="2")
             with pytest.raises(Exception) as captured:
                 restarted.submit(conflict)
             assert getattr(captured.value, "code", None) is ReasonCode.REQUEST_CONFLICT
@@ -643,16 +730,53 @@ def test_second_distinct_submit_is_busy_while_run_active() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         with _isolated_process_environment(root):
-            repo = _temporary_repo(root, [{"scenario": "sleep_timeout", "sleep_s": 2}])
+            repo = _temporary_repo(root, [{
+                "scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP,
+            }])
             supervisor = _supervisor(repo)
-            first = supervisor.submit(_request(repo, per_wave_timeout=1))
+            first_request = _request(repo)
+            second_request = _request(repo)
+            first = supervisor.submit(first_request)
+            with supervisor._lock:
+                active = supervisor._active
+                assert active is not None and active.run_id == first.run_id
+                first_run_thread = active.thread
             try:
-                supervisor.submit(_request(repo))
-            except DevWavesError as exc:
-                assert exc.code is ReasonCode.DAEMON_BUSY
-            else:
-                raise AssertionError("second distinct submit entered an active run")
-            _wait_terminal(supervisor, first.run_id)
+                _wait_state(supervisor, first.run_id, RunState.CHILD_RUNNING, 1)
+                with supervisor._lock:
+                    active = supervisor._active
+                    assert active is not None and active.run_id == first.run_id
+                    status = supervisor.status(first.run_id)
+                    assert status.state is RunState.CHILD_RUNNING
+                    assert status.wave_index == 1
+                    try:
+                        supervisor.submit(second_request)
+                    except DevWavesError as exc:
+                        assert exc.code is ReasonCode.DAEMON_BUSY
+                    else:
+                        raise AssertionError(
+                            "second distinct submit entered an active run"
+                        )
+            finally:
+                primary_error = sys.exc_info()[1]
+                cleanup_errors = []
+                try:
+                    supervisor.cancel(first.run_id)
+                except BaseException as exc:
+                    cleanup_errors.append(f"cancel={type(exc).__name__}: {exc}")
+                try:
+                    first_run_thread.join(120)
+                    if first_run_thread.is_alive():
+                        cleanup_errors.append("thread_alive=true")
+                except BaseException as exc:
+                    cleanup_errors.append(f"join={type(exc).__name__}: {exc}")
+                if cleanup_errors:
+                    cleanup = "; ".join(cleanup_errors)
+                    if primary_error is None:
+                        raise AssertionError(f"busy cleanup failed: {cleanup}")
+                    primary_error.args = (
+                        *primary_error.args, f"busy cleanup: {cleanup}",
+                    )
 
 
 def test_active_check_failure_occurs_only_after_passive_gates() -> None:
@@ -661,12 +785,12 @@ def test_active_check_failure_occurs_only_after_passive_gates() -> None:
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, ["success"])
             checks = (
-                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 15),
-                CheckSpec("injected", (sys.executable, "tools/check_fail.py"), 15),
+                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 60),
+                CheckSpec("injected", (sys.executable, "tools/check_fail.py"), 60),
             )
             profile = SupervisorProfile(
                 "default", "fake-model", "low", checks,
-                max_waves=1, max_per_wave_timeout_s=10, max_total_timeout_s=10,
+                max_waves=1, max_per_wave_timeout_s=60, max_total_timeout_s=60,
                 max_per_wave_budget_usd=Decimal("1"), max_total_budget_usd=Decimal("1"),
                 max_wave_output_bytes=512 * 1024, max_run_bytes=8 * 1024 * 1024,
                 allowed_models=("fake-model",),
@@ -697,8 +821,8 @@ def test_dedicated_provenance_and_code_dirty_reasons_are_wired(
         with _isolated_process_environment(root):
             repo = _temporary_repo(root, ["success"])
             checks = (
-                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 15),
-                CheckSpec(check_name, (sys.executable, "tools/check_fail.py"), 15),
+                CheckSpec("docs", (sys.executable, "tools/check_docs.py"), 60),
+                CheckSpec(check_name, (sys.executable, "tools/check_fail.py"), 60),
             )
             base = _profile()
             profile = SupervisorProfile(
@@ -766,10 +890,12 @@ def test_resume_never_duplicates_child_or_land(
 @pytest.mark.parametrize(
     "waves,request_waves,target_state,target_wave",
     [
-        ([{"scenario": "sleep_timeout", "sleep_s": 60}], 1,
+        ([{"scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP}], 1,
          RunState.CHILD_RUNNING, 1),
         (["check_sleep"], 1, RunState.VERIFYING, 1),
-        (["success", {"scenario": "sleep_timeout", "sleep_s": 60}], 2,
+        (["success", {
+            "scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP,
+        }], 2,
          RunState.CHILD_RUNNING, 2),
     ],
 )
@@ -792,8 +918,24 @@ def test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points(
                 time.sleep(0.5)
                 assert len(_invocations(repo)) == before
             finally:
-                if daemon.poll() is None:
-                    daemon.kill(); daemon.wait()
+                primary_error = sys.exc_info()[1]
+                cleanup_errors = []
+                try:
+                    if daemon.poll() is None:
+                        daemon.kill()
+                except BaseException as exc:
+                    cleanup_errors.append(f"poll/kill={type(exc).__name__}: {exc}")
+                try:
+                    daemon.wait(timeout=120)
+                except BaseException as exc:
+                    cleanup_errors.append(f"wait={type(exc).__name__}: {exc}")
+                if cleanup_errors:
+                    cleanup = "; ".join(cleanup_errors)
+                    if primary_error is None:
+                        raise AssertionError(f"daemon cleanup failed: {cleanup}")
+                    primary_error.args = (
+                        *primary_error.args, f"daemon cleanup: {cleanup}",
+                    )
 
 
 @pytest.mark.xdist_group("dev-waves-runtime")
@@ -805,11 +947,31 @@ def test_real_daemon_sigkill_after_accepted_reconciles_without_child_rerun() -> 
             daemon, run_id = _start_real_daemon(
                 repo, 1, crash_after_accepted=True,
             )
-            assert daemon.wait(timeout=20) == -signal.SIGKILL
-            assert _restart_recovery_probe(repo, run_id) == (
-                "completed|max-waves-reached"
-            )
-            assert len(_invocations(repo)) == 1
+            try:
+                assert daemon.wait(timeout=20) == -signal.SIGKILL
+                assert _restart_recovery_probe(repo, run_id) == (
+                    "completed|max-waves-reached"
+                )
+                assert len(_invocations(repo)) == 1
+            finally:
+                primary_error = sys.exc_info()[1]
+                cleanup_errors = []
+                try:
+                    if daemon.poll() is None:
+                        daemon.kill()
+                except BaseException as exc:
+                    cleanup_errors.append(f"poll/kill={type(exc).__name__}: {exc}")
+                try:
+                    daemon.wait(timeout=120)
+                except BaseException as exc:
+                    cleanup_errors.append(f"wait={type(exc).__name__}: {exc}")
+                if cleanup_errors:
+                    cleanup = "; ".join(cleanup_errors)
+                    if primary_error is None:
+                        raise AssertionError(f"daemon cleanup failed: {cleanup}")
+                    primary_error.args = (
+                        *primary_error.args, f"daemon cleanup: {cleanup}",
+                    )
 
 
 @pytest.mark.xdist_group("dev-waves-runtime")
@@ -824,16 +986,36 @@ def test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun(
             daemon, run_id = _start_real_daemon(
                 repo, 1, crash_after_accepted=True,
             )
-            assert daemon.wait(timeout=20) == -signal.SIGKILL
-            target = (
-                repo.main / "recovery-dirty.txt" if dirty_kind == "main"
-                else repo.main / "vendor" / "sub" / "data.txt"
-            )
-            target.write_text("dirty\n", encoding="utf-8")
-            assert _restart_recovery_probe(repo, run_id) == (
-                "failed|ambiguous-recovery"
-            )
-            assert len(_invocations(repo)) == 1
+            try:
+                assert daemon.wait(timeout=20) == -signal.SIGKILL
+                target = (
+                    repo.main / "recovery-dirty.txt" if dirty_kind == "main"
+                    else repo.main / "vendor" / "sub" / "data.txt"
+                )
+                target.write_text("dirty\n", encoding="utf-8")
+                assert _restart_recovery_probe(repo, run_id) == (
+                    "failed|ambiguous-recovery"
+                )
+                assert len(_invocations(repo)) == 1
+            finally:
+                primary_error = sys.exc_info()[1]
+                cleanup_errors = []
+                try:
+                    if daemon.poll() is None:
+                        daemon.kill()
+                except BaseException as exc:
+                    cleanup_errors.append(f"poll/kill={type(exc).__name__}: {exc}")
+                try:
+                    daemon.wait(timeout=120)
+                except BaseException as exc:
+                    cleanup_errors.append(f"wait={type(exc).__name__}: {exc}")
+                if cleanup_errors:
+                    cleanup = "; ".join(cleanup_errors)
+                    if primary_error is None:
+                        raise AssertionError(f"daemon cleanup failed: {cleanup}")
+                    primary_error.args = (
+                        *primary_error.args, f"daemon cleanup: {cleanup}",
+                    )
 
 
 @pytest.mark.xdist_group("dev-waves-runtime")
@@ -848,26 +1030,46 @@ def test_accepted_reconciliation_rebinds_repo_identity_and_main_branch(
             daemon, run_id = _start_real_daemon(
                 repo, 1, crash_after_accepted=True,
             )
-            assert daemon.wait(timeout=20) == -signal.SIGKILL
-            supervisor = _supervisor(repo)
-            if mismatch == "identity":
-                patcher = mock.patch(
-                    "tools.dev_waves.daemon.resolve_repo_identity",
-                    return_value=mock.Mock(
-                        digest="0" * 64, main_worktree=str(repo.main),
-                    ),
+            try:
+                assert daemon.wait(timeout=20) == -signal.SIGKILL
+                supervisor = _supervisor(repo)
+                if mismatch == "identity":
+                    patcher = mock.patch(
+                        "tools.dev_waves.daemon.resolve_repo_identity",
+                        return_value=mock.Mock(
+                            digest="0" * 64, main_worktree=str(repo.main),
+                        ),
+                    )
+                else:
+                    patcher = mock.patch(
+                        "tools.dev_waves.daemon.snapshot_repo",
+                        return_value=replace(snapshot_repo(repo.main), branch="other"),
+                    )
+                with patcher:
+                    resumed = supervisor.resume(run_id)
+                assert (resumed.state, resumed.reason) == (
+                    RunState.FAILED, ReasonCode.AMBIGUOUS_RECOVERY,
                 )
-            else:
-                patcher = mock.patch(
-                    "tools.dev_waves.daemon.snapshot_repo",
-                    return_value=replace(snapshot_repo(repo.main), branch="other"),
-                )
-            with patcher:
-                resumed = supervisor.resume(run_id)
-            assert (resumed.state, resumed.reason) == (
-                RunState.FAILED, ReasonCode.AMBIGUOUS_RECOVERY,
-            )
-            assert len(_invocations(repo)) == 1
+                assert len(_invocations(repo)) == 1
+            finally:
+                primary_error = sys.exc_info()[1]
+                cleanup_errors = []
+                try:
+                    if daemon.poll() is None:
+                        daemon.kill()
+                except BaseException as exc:
+                    cleanup_errors.append(f"poll/kill={type(exc).__name__}: {exc}")
+                try:
+                    daemon.wait(timeout=120)
+                except BaseException as exc:
+                    cleanup_errors.append(f"wait={type(exc).__name__}: {exc}")
+                if cleanup_errors:
+                    cleanup = "; ".join(cleanup_errors)
+                    if primary_error is None:
+                        raise AssertionError(f"daemon cleanup failed: {cleanup}")
+                    primary_error.args = (
+                        *primary_error.args, f"daemon cleanup: {cleanup}",
+                    )
 
 
 def test_invalid_request_audit_has_capacity_and_creates_no_run() -> None:
@@ -1013,15 +1215,14 @@ def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
                     f"serve_forever が socket を開けずに落ちた: {serve_failures[0]!r}",
                 ) from serve_failures[0]
             assert (repo.runtime / ".s").exists()
-            raw = exchange(repo.runtime, _request(repo), timeout_s=5)
+            raw = exchange(repo.runtime, _request(repo), timeout_s=60)
             response = parse_response(raw)
             assert response.ok and response.run_id is not None
             status, _seen = _wait_terminal(supervisor, response.run_id)
             assert status.state is RunState.COMPLETED
             supervisor.shutdown()
-            # 30 秒は同ファイルの他 node (wait_idle 系) と揃えた値。5 秒だと共有ノードの
-            # 高負荷で serve thread が deschedule されただけで停止契約の退行と誤判定する。
-            thread.join(30)
+            # 120 秒は submit 処理と run thread の停止を包含する。
+            thread.join(120)
             assert not thread.is_alive(), "shutdown() が serve ループを止めていない"
             assert not serve_failures, serve_failures
 
@@ -1110,8 +1311,9 @@ def test_budget_accumulates_across_waves_and_deadline_boundary_is_clipped() -> N
                 {"scenario": "success", "cost": 0.6},
             ])
             supervisor = _supervisor(repo)
-            request = _request(repo, waves=2, total_timeout=10,
-                               per_wave_budget="1", total_budget="1")
+            request = _request(
+                repo, waves=2, per_wave_budget="1", total_budget="1",
+            )
             submitted = supervisor.submit(request)
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
             assert status.reason is ReasonCode.BUDGET_INVALID
@@ -1305,8 +1507,7 @@ def test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child(
             repo = _temporary_repo(root, [scenario, "success"])
             supervisor = _supervisor(repo)
             submitted = supervisor.submit(_request(
-                repo, waves=waves, total_timeout=waves * 5,
-                total_budget=str(waves),
+                repo, waves=waves, total_budget=str(waves),
             ))
             status, _seen = _wait_terminal(supervisor, submitted.run_id)
             assert (status.state, status.reason) == (terminal, reason)
@@ -1329,7 +1530,9 @@ def test_spawn_identity_read_failure_kills_and_reaps_exact_popen() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         with _isolated_process_environment(root):
-            repo = _temporary_repo(root, [{"scenario": "sleep_timeout", "sleep_s": 60}])
+            repo = _temporary_repo(root, [{
+                "scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP,
+            }])
             spawned = []
 
             def capture_spawn(*args, **kwargs):
@@ -1354,9 +1557,11 @@ def test_cancel_identity_mismatch_records_ambiguous_not_signalled() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         with _isolated_process_environment(root):
-            repo = _temporary_repo(root, [{"scenario": "sleep_timeout", "sleep_s": 60}])
+            repo = _temporary_repo(root, [{
+                "scenario": "sleep_timeout", "sleep_s": _BLOCKING_CHILD_SLEEP,
+            }])
             supervisor = _supervisor(repo)
-            submitted = supervisor.submit(_request(repo, per_wave_timeout=10))
+            submitted = supervisor.submit(_request(repo))
             _wait_state(supervisor, submitted.run_id, RunState.CHILD_RUNNING, 1)
             with mock.patch(
                 "tools.dev_waves.daemon.terminate_verified_group", return_value=False,
@@ -1448,8 +1653,8 @@ def test_supervisor_wal_fsync_failure_orders_real_worker_spawn_side_effect(
             supervisor = _supervisor(repo, dependencies=SupervisorDependencies(
                 spawn_worker_fn=counted_spawn, ledger_fsync=injected_fsync,
             ))
-            submitted = supervisor.submit(_request(repo, per_wave_timeout=5))
-            deadline = time.monotonic() + 5
+            submitted = supervisor.submit(_request(repo))
+            deadline = time.monotonic() + 60
             status = supervisor.status(submitted.run_id)
             while status.reason is not ReasonCode.POISONED and time.monotonic() < deadline:
                 time.sleep(0.01)
