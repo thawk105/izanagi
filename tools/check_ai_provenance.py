@@ -19,6 +19,19 @@ POLICY_PATH = "docs/ai-provenance.md"
 ROLES = ("author", "reviewer", "researcher", "manager", "integrator")
 IDENT = r"[a-z0-9][a-z0-9._-]*"
 RESERVED_PRODUCTS = {"none", "unknown", "not-exposed", "human"}
+IMPLEMENTATION_POLICY_NEEDLE = (
+    "実装面を変更する AI 関与 commit は Codex author を必須"
+)
+IMPLEMENTATION_PREFIXES = (
+    "orchestrator/", "tools/", "hooks/", ".github/", ".codex/", "external/",
+)
+IMPLEMENTATION_SUFFIXES = (
+    ".py", ".sh", ".bash", ".c", ".cc", ".cpp", ".cxx",
+    ".h", ".hh", ".hpp", ".hxx", ".cmake", ".patch", ".diff",
+)
+IMPLEMENTATION_BASENAMES = {
+    "CMakeLists.txt", "Makefile", "GNUmakefile", "pyproject.toml",
+}
 AGENT_VALUE = re.compile(
     rf"^product=(?P<product>{IDENT}); "
     rf"model=(?P<model>{IDENT}); "
@@ -117,6 +130,15 @@ def _scope_policy_commit() -> str | None:
     return commits[0] if commits else None
 
 
+def _implementation_policy_commit() -> str | None:
+    """Codex author 契約を導入した commit を内容検出する。"""
+    commits = _git(
+        "log", "--reverse", "--format=%H", "-S", IMPLEMENTATION_POLICY_NEEDLE,
+        "--", POLICY_PATH,
+    ).splitlines()
+    return commits[0] if commits else None
+
+
 def _is_descendant(ancestor: str, commit: str) -> bool:
     proc = subprocess.run(
         ["git", "merge-base", "--is-ancestor", ancestor, commit],
@@ -125,6 +147,62 @@ def _is_descendant(ancestor: str, commit: str) -> bool:
         stderr=subprocess.DEVNULL,
     )
     return proc.returncode == 0
+
+
+def _is_implementation_path(path: str) -> bool:
+    """Git 相対 path が実装面なら True。所在・拡張子の契約を一か所で判定する。"""
+    normalized = path.removeprefix("./")
+    basename = normalized.rsplit("/", 1)[-1]
+    if basename in IMPLEMENTATION_BASENAMES:
+        return True
+    if normalized.endswith(IMPLEMENTATION_SUFFIXES):
+        return True
+    if normalized.startswith("patches/"):
+        return False
+    return (
+        normalized.startswith(IMPLEMENTATION_PREFIXES)
+        and not normalized.endswith((".md", ".rst"))
+    )
+
+
+def validate_implementation_author(
+    label: str, message: str, paths: list[str],
+) -> list[str]:
+    """AI 関与の実装面 commit に Codex author がいることを検査する。"""
+    implementation = sorted(path for path in paths if _is_implementation_path(path))
+    if not implementation:
+        return []
+    values = _ai_agent_values(message)
+    if not values or values == ["none"]:
+        return []
+    for value in values:
+        match = AGENT_VALUE.fullmatch(value)
+        if (
+            match is not None
+            and match.group("product") == "codex"
+            and match.group("role") == "author"
+        ):
+            return []
+    sample = ", ".join(implementation[:3])
+    if len(implementation) > 3:
+        sample += f", ... ({len(implementation)} paths)"
+    return [
+        f"{label}: 実装面に Codex role=author がない — paths={sample}"
+    ]
+
+
+def _commit_paths(commit: str) -> list[str]:
+    raw = _git(
+        "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "-z", commit,
+    )
+    return [path for path in raw.split("\0") if path]
+
+
+def _staged_paths() -> list[str]:
+    raw = _git(
+        "diff", "--cached", "--name-only", "--diff-filter=ACMRDTUXB", "-z",
+    )
+    return [path for path in raw.split("\0") if path]
 
 
 def _policy_commit() -> str:
@@ -167,22 +245,35 @@ def main() -> int:
 
     try:
         if args.message_file is not None:
+            message = _read_message(args.message_file)
             base, scoped = validate_message(
-                args.message_file, _read_message(args.message_file)
+                args.message_file, message
             )
-            findings = [*base, *scoped]
+            implementation = validate_implementation_author(
+                args.message_file, message, _staged_paths(),
+            )
+            findings = [*base, *scoped, *implementation]
             checked = 1
         else:
             commits = _commit_range(args.rev_range)
             scope_epoch = _scope_policy_commit()
+            implementation_epoch = _implementation_policy_commit()
             findings = []
             for commit in commits:
                 subject = _git("show", "-s", "--format=%s", commit).strip()
                 message = _git("show", "-s", "--format=%B", commit)
-                base, scoped = validate_message(f"{commit[:12]} {subject}", message)
+                label = f"{commit[:12]} {subject}"
+                base, scoped = validate_message(label, message)
                 findings.extend(base)
                 if scoped and scope_epoch is not None and _is_descendant(scope_epoch, commit):
                     findings.extend(scoped)
+                if (
+                    implementation_epoch is not None
+                    and _is_descendant(implementation_epoch, commit)
+                ):
+                    findings.extend(validate_implementation_author(
+                        label, message, _commit_paths(commit),
+                    ))
             checked = len(commits)
     except (OSError, RuntimeError, UnicodeError) as exc:
         print(f"check_ai_provenance: 実行不能: {exc}", file=sys.stderr)

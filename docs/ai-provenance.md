@@ -48,6 +48,23 @@ AI-Agent: none
 `AI-Agent: none` は唯一の `AI-Agent` trailer である場合だけ有効で、構造化した `AI-Agent` 行と
 併記してはいけない。導入 commit より後の trailer 欠落は human-only ではなく規約違反として扱う。
 
+## 実装面の Codex author 契約
+
+本節を導入する commit 以後、実装面を変更する AI 関与 commit は Codex author を必須とする。
+実装面は `orchestrator/`、`tools/`、`hooks/`、`.github/`、`.codex/`、`external/` の非 Markdown、
+`patches/` の patch/diff、および所在を問わない Python・Shell・C/C++・CMake 等の実行可能資材である。
+テスト、checker、hook、probe、harness、生成器、機械設定も production 挙動の有無によらず含む。
+
+- 実装面を変更し、`AI-Agent: none` でない commit には
+  `product=codex; ...; role=author` を 1 行以上含める。Claude 親は `manager` / `integrator` /
+  `reviewer`、docs を書いた場合は docs scope の `author` として記録できる。
+- docs-only、ログ・計測結果・凍結記録だけの変更、および AI 非関与の `AI-Agent: none` は対象外。
+- 小さい、軽量版、test-only、probe-only、production 挙動 0 は免除理由にならない。Codex が
+  実行不能なら Claude が代行せず停止し、例外の必要性をユーザー裁定へ返す。
+
+`tools/check_ai_provenance.py` は commit の変更 path と trailer を照合する。過去履歴へ遡及せず、
+本節の導入 commit から適用する。`--message-file` では staged path に同じ検査を適用する。
+
 ## 記録単位
 
 - 同一の product・model・reasoning・role で動いたサブエージェントが複数いても、同じ行を人数分
@@ -82,8 +99,8 @@ AI-Agent: product=claude; model=not-exposed; reasoning=high; role=reviewer
 ```text
 feat(s8b): protocol 凍結と検証テスト
 
-AI-Agent: product=claude; model=opus-4-8; reasoning=high; role=author; scope=protocol
-AI-Agent: product=claude; model=sonnet-5; reasoning=medium; role=author; scope=tests
+AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; role=author; scope=protocol
+AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; role=author; scope=tests
 AI-Agent: product=claude; model=opus-4-8; reasoning=high; role=reviewer
 ```
 

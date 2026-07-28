@@ -4231,3 +4231,37 @@ fixture が同一定数から導出される自己整合 (F9 型) を遮断す�
 主体は外部 supervisor 自身で条件 21/22 (manager) と異なり、意味を変えない縮約が不成立。
 (d) ファイル別予算の再割付 — T-127 裁定 (上限を上げず使い方を管理) の独立審査対象であり
 本 wave では行わない。
+
+## D95. dev-wave の実装面は Codex author 必須とし、親直接実装と review 代替を認めない (2026-07-29)
+
+**背景 (実測):** 直近 50 commit の `AI-Agent:` は Claude `role=author` 47、Codex
+`role=author` 1、author なし 2。さらに直近 30 commit のうち実装面を含む 15 件は Claude author
+14、Codex author 1 だった。Git の Author / Committer 自体は人間アカウントであり、ここでいう
+author は provenance trailer 上の実作業帰属を指す。原因は、軽量版が段 5 を省略できたこと、
+workers 契約が親の直接実装・直接 fix を許したこと、provenance checker が trailer の形式だけを
+検査して変更面との組合せを検査しなかったことにある。
+
+**決定 (1): 実装面がある wave は、軽量版でも段 5 の Codex `role=author` 実装子を必須とする。**
+親は brief、裁定、統合、全走、記録、commit、local main 取り込みを担当し、実装面を直接編集しない。
+段 6 の review 子は従来の条件で省略できるが、review を author の代替にはしない。レビュー後の
+cross-cutting fix も Codex 実装単位へ戻す。docs-only は親が本文を直接編集でき、子ゼロでよい。
+
+**決定 (2): 実装面は所在と拡張子で機械判定する。** `orchestrator/`、`tools/`、`hooks/`、
+`.github/`、`.codex/`、`external/` 配下の非 Markdown/RST、patch/diff、場所を問わない
+Python・shell・C/C++・CMake/Make 資材を対象とする。テスト、checker、hook、probe、harness、
+generator、機械設定も実装面である。小変更、test-only、probe-only、production 挙動 0 は例外に
+しない。AI 不関与を明示する `AI-Agent: none` と docs-only commit は対象外。
+
+**決定 (3): 本決定を導入する commit から、履歴監査で実装面と provenance の積を検査する。**
+実装面を含み `AI-Agent: none` でない commit は、少なくとも 1 本の
+`AI-Agent: product=codex; ...; role=author` を持たなければ赤にする。commit-msg 時は staged path、
+履歴監査時は各 commit の path を使う。過去履歴には遡及しない。Codex が利用不能なら親が代筆せず、
+停止してユーザー裁定へ返す。
+
+**却下した案:** (a) provenance 文書への注意書きだけ — 軽量版と親 fix の既存例外が残る。
+(b) Codex review があれば可 — コードを書いた主体を変えず、依頼の目的を満たさない。
+(c) 小変更・テスト・probe を例外化 — 直近の「全ハンク親作」はまさにその分類で反復しており、
+同じ抜け道を温存する。(d) 過去履歴も失敗させる — 導入前の既知事実で HEAD が恒久的に赤になる。
+
+**研究状態への影響:** なし。production 挙動・実験の受理集合・certified 選択・proof chain は
+変更しない。変わるのは開発時の実装担当と、その帰属を commit path と trailer の組で検査する点だけ。

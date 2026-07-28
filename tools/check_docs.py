@@ -307,6 +307,21 @@ D4_FIX_INHERITANCE_STRUCTURE = re.compile(
     r".*?fix 操作の直前に読む",
     re.DOTALL,
 )
+CODEX_AUTHORING_STRUCTURE = re.compile(
+    r"コード・テスト.*?以下「実装面」.*?軽量版でも"
+    r".*?Codex `role=author`.*?親は実装面を直接編集せず",
+    re.DOTALL,
+)
+CODEX_FIRST_REFERENCE_LITERALS = {
+    _CORE: (
+        "実装面があれば段 5 の Codex 実装子と fix 子は",
+        "親は直接編集しない",
+    ),
+    _WORKERS: (
+        "実装面に Codex `role=author` のないハンク",
+        "親が直接直さない",
+    ),
+}
 
 # --- 「次の一手」ID 保存則 (D70) ---
 # 1〜999 は 3 桁固定、1000 以上は冗長な先頭ゼロなしを正規形とする。
@@ -1523,6 +1538,11 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
             findings.append(
                 f"{rel}: dispatch 契約にない孤児 H2 — {orphan_sections}"
             )
+        for literal in CODEX_FIRST_REFERENCE_LITERALS.get(rel, ()):
+            if literal not in text:
+                findings.append(
+                    f"{rel}: Codex-first 実装契約がない — {literal!r}"
+                )
 
     self_text = decoded.get("docs/skill-self-improvement.md")
     if self_text is not None:
@@ -1597,6 +1617,11 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
             findings.append(
                 ".claude/commands/dev-wave.md: D4 fix 子の段5全文継承・"
                 "成立Oxx直前読了構造がない"
+            )
+        if CODEX_AUTHORING_STRUCTURE.search(dev_wave_text) is None:
+            findings.append(
+                ".claude/commands/dev-wave.md: Codex-first 実装境界 "
+                "(実装面・軽量版・role=author・親直接編集禁止) がない"
             )
 
     return unreadable

@@ -227,6 +227,9 @@ $ARGUMENTS
 前者は段 1 brief、後者は段 2 から再実行する。巻き戻し後は段・条件を再評価し、
 旧成果物を流用してはならない。
 
+コード・テスト・実行可能資材（以下「実装面」）は軽量版でも
+Codex `role=author` が書き、親は実装面を直接編集せず統合する。
+
 ## 段 dispatch
 
 | 段 | 参照 |
@@ -267,6 +270,9 @@ docs/skill-self-improvement.md
             f"## {section} — synthetic\n\nbody"
             for section in sorted(sections)
         ) + "\n"
+        literals = check_docs.CODEX_FIRST_REFERENCE_LITERALS.get(rel, ())
+        if literals:
+            text += "\n" + "\n".join(literals) + "\n"
         _write(root, rel, text)
 
     self_doc = """# synthetic self
@@ -1760,6 +1766,21 @@ def _mutate_command_guard(root: str, case: str) -> None:
         )
         assert changed != text
         _write(root, rel, changed)
+    elif case == "codex_command_contract_deleted":
+        rel = ".claude/commands/dev-wave.md"
+        _write(root, rel, _read(root, rel).replace(
+            "Codex `role=author`", "Claude `role=author`", 1,
+        ))
+    elif case == "codex_core_contract_deleted":
+        rel = "docs/dev-wave/core.md"
+        _write(root, rel, _read(root, rel).replace(
+            "親は直接編集しない", "親も直接編集できる", 1,
+        ))
+    elif case == "codex_worker_contract_deleted":
+        rel = "docs/dev-wave/workers.md"
+        _write(root, rel, _read(root, rel).replace(
+            "親が直接直さない", "親が直接直す", 1,
+        ))
     elif case == "fifth_reference":
         _write(root, "docs/dev-wave/extra.md", "# extra\n")
     elif case == "nested_reference":
@@ -1827,6 +1848,9 @@ _COMMAND_GUARD_CASES = [
     "dispatch_heading_missing",
     "d2_rollback_body_deleted",
     "d4_inheritance_body_deleted",
+    "codex_command_contract_deleted",
+    "codex_core_contract_deleted",
+    "codex_worker_contract_deleted",
     "fifth_reference",
     "nested_reference",
     "non_md_reference",
@@ -1870,6 +1894,9 @@ _COMMAND_GUARD_NEEDLES = {
     "dispatch_heading_missing": "段/条件 dispatch 表を一意に抽出できない",
     "d2_rollback_body_deleted": "D2 巻き戻し構造",
     "d4_inheritance_body_deleted": "D4 fix 子の段5全文継承",
+    "codex_command_contract_deleted": "Codex-first 実装境界",
+    "codex_core_contract_deleted": "Codex-first 実装契約がない",
+    "codex_worker_contract_deleted": "Codex-first 実装契約がない",
     "fifth_reference": "docs/dev-wave/** の予算未登録実体",
     "nested_reference": "docs/dev-wave/** の予算未登録実体",
     "non_md_reference": "docs/dev-wave/** の予算未登録実体",

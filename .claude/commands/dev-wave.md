@@ -31,6 +31,9 @@ review を流用してはならない。
 ## 凍結境界
 
 - 状態機械は段 1〜9。通常遷移は `1→2→3→4→5→6→7→8→9` とする。
+- コード・テスト・実行可能な probe / harness / script・機械設定（以下「実装面」）は、軽量版でも
+  Codex `role=author` の実装子が書く。親は実装面を直接編集せず、brief、裁定、統合、全走、記録、
+  commit、local main 取り込みを担う。docs-only の本文編集は親が行ってよい。
 - 実装子はコードとテストだけを編集し、docs 編集と commit をしない。親だけが統合 commit、
   変異 matrix、受入全走、記録、local main 取り込みを行う。
 - push と remote branch 操作はしない。local main 取り込みは全条件成立時の `--ff-only` だけとする。
