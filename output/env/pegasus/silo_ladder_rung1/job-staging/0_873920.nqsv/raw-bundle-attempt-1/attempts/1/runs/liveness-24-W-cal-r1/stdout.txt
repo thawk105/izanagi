@@ -1,0 +1,117 @@
+#FLAGS_clocks_per_us:	2100
+#FLAGS_epoch_time:	40
+#FLAGS_extime:		3
+#FLAGS_thread_num:	48
+#FLAGS_ycsb_max_ope:	10
+#FLAGS_ycsb_rmw:	0
+#FLAGS_ycsb_rratio:	50
+#FLAGS_ycsb_tuple_num:	1000000
+#FLAGS_ycsb_zipf_skew:	0.9
+#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 0: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0
+actual_extime:	3
+success_forwarding_:	0
+abort_counts_:	8427129
+batch_abort_counts_:	0
+commit_counts_:	500786
+batch_commit_counts_:	0
+maxrss:	530044 kB
+abort_rate:	0.9439
+batch_abort_rate:	-nan
+latency[ns]:	287549.1230
+throughput[tps]:	166928
+silo_ladder_rung1.worker_commit[0]=9968
+silo_ladder_rung1.worker_batch_commit[0]=0
+silo_ladder_rung1.worker_commit[1]=11068
+silo_ladder_rung1.worker_batch_commit[1]=0
+silo_ladder_rung1.worker_commit[2]=8743
+silo_ladder_rung1.worker_batch_commit[2]=0
+silo_ladder_rung1.worker_commit[3]=8964
+silo_ladder_rung1.worker_batch_commit[3]=0
+silo_ladder_rung1.worker_commit[4]=11141
+silo_ladder_rung1.worker_batch_commit[4]=0
+silo_ladder_rung1.worker_commit[5]=10301
+silo_ladder_rung1.worker_batch_commit[5]=0
+silo_ladder_rung1.worker_commit[6]=10998
+silo_ladder_rung1.worker_batch_commit[6]=0
+silo_ladder_rung1.worker_commit[7]=10849
+silo_ladder_rung1.worker_batch_commit[7]=0
+silo_ladder_rung1.worker_commit[8]=10394
+silo_ladder_rung1.worker_batch_commit[8]=0
+silo_ladder_rung1.worker_commit[9]=10484
+silo_ladder_rung1.worker_batch_commit[9]=0
+silo_ladder_rung1.worker_commit[10]=10815
+silo_ladder_rung1.worker_batch_commit[10]=0
+silo_ladder_rung1.worker_commit[11]=10170
+silo_ladder_rung1.worker_batch_commit[11]=0
+silo_ladder_rung1.worker_commit[12]=7394
+silo_ladder_rung1.worker_batch_commit[12]=0
+silo_ladder_rung1.worker_commit[13]=11345
+silo_ladder_rung1.worker_batch_commit[13]=0
+silo_ladder_rung1.worker_commit[14]=9934
+silo_ladder_rung1.worker_batch_commit[14]=0
+silo_ladder_rung1.worker_commit[15]=10504
+silo_ladder_rung1.worker_batch_commit[15]=0
+silo_ladder_rung1.worker_commit[16]=11108
+silo_ladder_rung1.worker_batch_commit[16]=0
+silo_ladder_rung1.worker_commit[17]=10446
+silo_ladder_rung1.worker_batch_commit[17]=0
+silo_ladder_rung1.worker_commit[18]=10401
+silo_ladder_rung1.worker_batch_commit[18]=0
+silo_ladder_rung1.worker_commit[19]=11491
+silo_ladder_rung1.worker_batch_commit[19]=0
+silo_ladder_rung1.worker_commit[20]=10712
+silo_ladder_rung1.worker_batch_commit[20]=0
+silo_ladder_rung1.worker_commit[21]=11060
+silo_ladder_rung1.worker_batch_commit[21]=0
+silo_ladder_rung1.worker_commit[22]=9843
+silo_ladder_rung1.worker_batch_commit[22]=0
+silo_ladder_rung1.worker_commit[23]=10649
+silo_ladder_rung1.worker_batch_commit[23]=0
+silo_ladder_rung1.worker_commit[24]=12530
+silo_ladder_rung1.worker_batch_commit[24]=0
+silo_ladder_rung1.worker_commit[25]=10562
+silo_ladder_rung1.worker_batch_commit[25]=0
+silo_ladder_rung1.worker_commit[26]=10038
+silo_ladder_rung1.worker_batch_commit[26]=0
+silo_ladder_rung1.worker_commit[27]=11249
+silo_ladder_rung1.worker_batch_commit[27]=0
+silo_ladder_rung1.worker_commit[28]=11051
+silo_ladder_rung1.worker_batch_commit[28]=0
+silo_ladder_rung1.worker_commit[29]=10554
+silo_ladder_rung1.worker_batch_commit[29]=0
+silo_ladder_rung1.worker_commit[30]=10129
+silo_ladder_rung1.worker_batch_commit[30]=0
+silo_ladder_rung1.worker_commit[31]=10233
+silo_ladder_rung1.worker_batch_commit[31]=0
+silo_ladder_rung1.worker_commit[32]=11019
+silo_ladder_rung1.worker_batch_commit[32]=0
+silo_ladder_rung1.worker_commit[33]=10849
+silo_ladder_rung1.worker_batch_commit[33]=0
+silo_ladder_rung1.worker_commit[34]=10428
+silo_ladder_rung1.worker_batch_commit[34]=0
+silo_ladder_rung1.worker_commit[35]=10219
+silo_ladder_rung1.worker_batch_commit[35]=0
+silo_ladder_rung1.worker_commit[36]=11467
+silo_ladder_rung1.worker_batch_commit[36]=0
+silo_ladder_rung1.worker_commit[37]=10486
+silo_ladder_rung1.worker_batch_commit[37]=0
+silo_ladder_rung1.worker_commit[38]=10733
+silo_ladder_rung1.worker_batch_commit[38]=0
+silo_ladder_rung1.worker_commit[39]=9174
+silo_ladder_rung1.worker_batch_commit[39]=0
+silo_ladder_rung1.worker_commit[40]=9340
+silo_ladder_rung1.worker_batch_commit[40]=0
+silo_ladder_rung1.worker_commit[41]=10522
+silo_ladder_rung1.worker_batch_commit[41]=0
+silo_ladder_rung1.worker_commit[42]=9658
+silo_ladder_rung1.worker_batch_commit[42]=0
+silo_ladder_rung1.worker_commit[43]=9755
+silo_ladder_rung1.worker_batch_commit[43]=0
+silo_ladder_rung1.worker_commit[44]=10560
+silo_ladder_rung1.worker_batch_commit[44]=0
+silo_ladder_rung1.worker_commit[45]=11686
+silo_ladder_rung1.worker_batch_commit[45]=0
+silo_ladder_rung1.worker_commit[46]=10226
+silo_ladder_rung1.worker_batch_commit[46]=0
+silo_ladder_rung1.worker_commit[47]=9536
+silo_ladder_rung1.worker_batch_commit[47]=0

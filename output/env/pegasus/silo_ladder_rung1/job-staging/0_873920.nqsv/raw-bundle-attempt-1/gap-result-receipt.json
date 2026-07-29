@@ -1,0 +1,3482 @@
+{
+  "gap_leg": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "attempt_receipt_sha256": "a331ef30aab1b74aebf1d0bbb3a995b5a0c3e24098dad7dbcf03282752936a0a",
+        "campaign_attempt_root_receipt": {
+          "path": "output/env/pegasus/silo_ladder_rung1/job-staging/campaigns/734e19378134a38eebfef0c8370b9c3650dd8e76e652b67ec018a04b3dd8b0fc/attempt-1/attempt-root-receipt.json",
+          "sha256": "900257751018236841ee8ecbccfb65ee9e5fc353c23a9319a7fde7ed13363ec0"
+        },
+        "failure_class": null,
+        "job_id": "0:873920.nqsv",
+        "nonce": "b2afa072ea646a80a3b3ad5ba2ae29a1",
+        "raw_root": "attempts/1",
+        "reason_code": null,
+        "submit_receipt_sha256": "8c52de66307151807c520c0d542213771b4d33ffeb8cb878addf96832b7f7510"
+      }
+    ],
+    "attestation": {
+      "all_pass": true,
+      "calibration_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+      "cpu_model_match": true,
+      "cpuset_match": true,
+      "effective_clock_match": true,
+      "ht_match": true,
+      "numa_match": true,
+      "per_sample_solo_checks": [
+        {
+          "competing_processes": [],
+          "load1": 1.47900390625,
+          "load_threshold": 48.0,
+          "ordinal": 0,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 5.20458984375,
+          "load_threshold": 48.0,
+          "ordinal": 1,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 8.6318359375,
+          "load_threshold": 48.0,
+          "ordinal": 2,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 7.9404296875,
+          "load_threshold": 48.0,
+          "ordinal": 3,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 7.9404296875,
+          "load_threshold": 48.0,
+          "ordinal": 4,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 11.1484375,
+          "load_threshold": 48.0,
+          "ordinal": 5,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 14.099609375,
+          "load_threshold": 48.0,
+          "ordinal": 6,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 14.099609375,
+          "load_threshold": 48.0,
+          "ordinal": 7,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 16.734375,
+          "load_threshold": 48.0,
+          "ordinal": 8,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 19.23828125,
+          "load_threshold": 48.0,
+          "ordinal": 9,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 19.23828125,
+          "load_threshold": 48.0,
+          "ordinal": 10,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 21.54150390625,
+          "load_threshold": 48.0,
+          "ordinal": 11,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 23.66064453125,
+          "load_threshold": 48.0,
+          "ordinal": 12,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 23.66064453125,
+          "load_threshold": 48.0,
+          "ordinal": 13,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 25.68994140625,
+          "load_threshold": 48.0,
+          "ordinal": 14,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 27.15625,
+          "load_threshold": 48.0,
+          "ordinal": 15,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 27.15625,
+          "load_threshold": 48.0,
+          "ordinal": 16,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 25.0615234375,
+          "load_threshold": 48.0,
+          "ordinal": 17,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 26.8984375,
+          "load_threshold": 48.0,
+          "ordinal": 18,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 28.58837890625,
+          "load_threshold": 48.0,
+          "ordinal": 19,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 28.58837890625,
+          "load_threshold": 48.0,
+          "ordinal": 20,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 30.06298828125,
+          "load_threshold": 48.0,
+          "ordinal": 21,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 31.49951171875,
+          "load_threshold": 48.0,
+          "ordinal": 22,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 31.49951171875,
+          "load_threshold": 48.0,
+          "ordinal": 23,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 32.8212890625,
+          "load_threshold": 48.0,
+          "ordinal": 24,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 34.037109375,
+          "load_threshold": 48.0,
+          "ordinal": 25,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 34.037109375,
+          "load_threshold": 48.0,
+          "ordinal": 26,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 34.5146484375,
+          "load_threshold": 48.0,
+          "ordinal": 27,
+          "passed": true,
+          "pgrep_returncode": 1
+        }
+      ]
+    },
+    "builds": [
+      {
+        "activation_ok": true,
+        "binary_sha256": "5af4c0c8cd9ed15458b1bd2e9df089d8dd552030f1427b31b63809e65f2c9d7e",
+        "build_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "--build",
+          "/scr/0_873920.nqsv/build-stock",
+          "--target",
+          "ycsb_silo.exe",
+          "--verbose",
+          "-j",
+          "48"
+        ],
+        "cmake_cache_sha256": "71d86cb2e26d1b2ff7f225c589f5db4b7ec8a881b11aaf8a12ebd8e910ca4106",
+        "compile_invocations": [
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873920.nqsv/izanagi_wt_vxp5gsj4/wt",
+              "-I/scr/0_873920.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873920.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/glog-install/include",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+              "-c",
+              "/scr/0_873920.nqsv/izanagi_wt_vxp5gsj4/wt/cc/silo/transaction.cc"
+            ],
+            "object_path": "/scr/0_873920.nqsv/build-stock/cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+            "object_sha256": "04acfaf7df9e42ca05fa0960a2571295e4fa38d785715de8e9b317ce7d1cbb60",
+            "replay_match": true,
+            "replay_object_sha256": "04acfaf7df9e42ca05fa0960a2571295e4fa38d785715de8e9b317ce7d1cbb60",
+            "source_rel": "cc/silo/transaction.cc"
+          },
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873920.nqsv/izanagi_wt_vxp5gsj4/wt",
+              "-I/scr/0_873920.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873920.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/glog-install/include",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+              "-c",
+              "/scr/0_873920.nqsv/izanagi_wt_vxp5gsj4/wt/cc/silo/ycsb_silo.cc"
+            ],
+            "object_path": "/scr/0_873920.nqsv/build-stock/cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+            "object_sha256": "c16be5f950e1e5ba9433d1027207417d393b9592733f107cf09675bcd6b02845",
+            "replay_match": true,
+            "replay_object_sha256": "c16be5f950e1e5ba9433d1027207417d393b9592733f107cf09675bcd6b02845",
+            "source_rel": "cc/silo/ycsb_silo.cc"
+          }
+        ],
+        "configure_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "-S",
+          "/scr/0_873920.nqsv/izanagi_wt_vxp5gsj4/wt",
+          "-B",
+          "/scr/0_873920.nqsv/build-stock",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/0_873920.nqsv/gflags-install;/scr/0_873920.nqsv/glog-install",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/0_873920.nqsv/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/0_873920.nqsv/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/0_873920.nqsv/thirdparty-src/googletest",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS="
+        ],
+        "dependencies": [
+          {
+            "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+            "git_status_porcelain_raw": "",
+            "name": "gflags",
+            "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+            "resolved_path": "/scr/0_873920.nqsv/gflags-install"
+          },
+          {
+            "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+            "git_status_porcelain_raw": "",
+            "name": "glog",
+            "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+            "resolved_path": "/scr/0_873920.nqsv/glog-install"
+          }
+        ],
+        "id": "stock",
+        "identity_defined_count": 0,
+        "macros": [],
+        "raw_paths": [
+          "build-stock/CMakeCache.txt",
+          "build-stock/binary.nm.command.json",
+          "build-stock/binary.nm.stderr",
+          "build-stock/binary.nm.txt",
+          "build-stock/binary.readelf.command.json",
+          "build-stock/binary.readelf.stderr",
+          "build-stock/binary.readelf.txt",
+          "build-stock/build.stderr",
+          "build-stock/build.stdout",
+          "build-stock/cmake-cache-witness.json",
+          "build-stock/compile-replay.json",
+          "build-stock/compile_commands.json",
+          "build-stock/configure.stderr",
+          "build-stock/configure.stdout",
+          "build-stock/transaction.nm.command.json",
+          "build-stock/transaction.nm.stderr",
+          "build-stock/transaction.nm.txt"
+        ],
+        "source_sha256": {
+          "cc/silo/transaction.cc": "89a552b251950f46568856e9c229d1b370e84eda710c0bdc23a7a5cc6e1b85fa",
+          "cc/silo/ycsb_silo.cc": "2fcbf7233b04d92f5fa079ff504016d7ff0793ae9658b00e8aea30a5ff859bc9"
+        },
+        "trace": false,
+        "transaction_object_sha256": "04acfaf7df9e42ca05fa0960a2571295e4fa38d785715de8e9b317ce7d1cbb60"
+      },
+      {
+        "activation_ok": true,
+        "binary_sha256": "ffa777a9a0a5950f9bc5cc62ed49932d1db8e001c8cc965393361ac9c9a51f2f",
+        "build_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "--build",
+          "/scr/0_873920.nqsv/build-rung-perf",
+          "--target",
+          "ycsb_silo.exe",
+          "--verbose",
+          "-j",
+          "48"
+        ],
+        "cmake_cache_sha256": "b6dbf5b4cbad2856a1a6e4840be6ff39b51f64039048d7453643538b0ff7bfa9",
+        "compile_invocations": [
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt",
+              "-I/scr/0_873920.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873920.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+              "-c",
+              "/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt/cc/silo/transaction.cc"
+            ],
+            "object_path": "/scr/0_873920.nqsv/build-rung-perf/cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+            "object_sha256": "16c5057b7d73a30b73a38cd5bf8de50527cb9f198eba014a71fd78161c0a8f28",
+            "replay_match": true,
+            "replay_object_sha256": "16c5057b7d73a30b73a38cd5bf8de50527cb9f198eba014a71fd78161c0a8f28",
+            "source_rel": "cc/silo/transaction.cc"
+          },
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt",
+              "-I/scr/0_873920.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873920.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+              "-c",
+              "/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt/cc/silo/ycsb_silo.cc"
+            ],
+            "object_path": "/scr/0_873920.nqsv/build-rung-perf/cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+            "object_sha256": "630a06c5fcc56eb253ccc409526951bac3cc496f8376b79d5f3e2cf5a421209f",
+            "replay_match": true,
+            "replay_object_sha256": "630a06c5fcc56eb253ccc409526951bac3cc496f8376b79d5f3e2cf5a421209f",
+            "source_rel": "cc/silo/ycsb_silo.cc"
+          }
+        ],
+        "configure_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "-S",
+          "/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt",
+          "-B",
+          "/scr/0_873920.nqsv/build-rung-perf",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/0_873920.nqsv/gflags-install;/scr/0_873920.nqsv/glog-install",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/0_873920.nqsv/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/0_873920.nqsv/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/0_873920.nqsv/thirdparty-src/googletest",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS=-DIZANAGI_SILO_LADDER_RUNG1=1"
+        ],
+        "dependencies": [
+          {
+            "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+            "git_status_porcelain_raw": "",
+            "name": "gflags",
+            "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+            "resolved_path": "/scr/0_873920.nqsv/gflags-install"
+          },
+          {
+            "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+            "git_status_porcelain_raw": "",
+            "name": "glog",
+            "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+            "resolved_path": "/scr/0_873920.nqsv/glog-install"
+          }
+        ],
+        "id": "rung-perf",
+        "identity_defined_count": 1,
+        "macros": [
+          "IZANAGI_SILO_LADDER_RUNG1"
+        ],
+        "raw_paths": [
+          "build-rung-perf/CMakeCache.txt",
+          "build-rung-perf/binary.nm.command.json",
+          "build-rung-perf/binary.nm.stderr",
+          "build-rung-perf/binary.nm.txt",
+          "build-rung-perf/binary.readelf.command.json",
+          "build-rung-perf/binary.readelf.stderr",
+          "build-rung-perf/binary.readelf.txt",
+          "build-rung-perf/build.stderr",
+          "build-rung-perf/build.stdout",
+          "build-rung-perf/cmake-cache-witness.json",
+          "build-rung-perf/compile-replay.json",
+          "build-rung-perf/compile_commands.json",
+          "build-rung-perf/configure.stderr",
+          "build-rung-perf/configure.stdout",
+          "build-rung-perf/transaction.nm.command.json",
+          "build-rung-perf/transaction.nm.stderr",
+          "build-rung-perf/transaction.nm.txt"
+        ],
+        "source_sha256": {
+          "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+          "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+        },
+        "trace": false,
+        "transaction_object_sha256": "16c5057b7d73a30b73a38cd5bf8de50527cb9f198eba014a71fd78161c0a8f28"
+      },
+      {
+        "activation_ok": true,
+        "binary_sha256": "4beb6de8637924dd84b22558a2dc194efe288b9fa70c0339f6a22f290b583a71",
+        "build_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "--build",
+          "/scr/0_873920.nqsv/build-rung-liveness",
+          "--target",
+          "ycsb_silo.exe",
+          "--verbose",
+          "-j",
+          "48"
+        ],
+        "cmake_cache_sha256": "cee2d3a634f3db4a87a61fc8df832069c6164b5817ed9280680628a7d3e956d9",
+        "compile_invocations": [
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt",
+              "-I/scr/0_873920.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873920.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-DIZANAGI_SILO_LADDER_RUNG1_REPORT=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+              "-c",
+              "/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt/cc/silo/transaction.cc"
+            ],
+            "object_path": "/scr/0_873920.nqsv/build-rung-liveness/cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+            "object_sha256": "16c5057b7d73a30b73a38cd5bf8de50527cb9f198eba014a71fd78161c0a8f28",
+            "replay_match": true,
+            "replay_object_sha256": "16c5057b7d73a30b73a38cd5bf8de50527cb9f198eba014a71fd78161c0a8f28",
+            "source_rel": "cc/silo/transaction.cc"
+          },
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt",
+              "-I/scr/0_873920.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873920.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873920.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-DIZANAGI_SILO_LADDER_RUNG1_REPORT=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+              "-c",
+              "/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt/cc/silo/ycsb_silo.cc"
+            ],
+            "object_path": "/scr/0_873920.nqsv/build-rung-liveness/cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+            "object_sha256": "8c184627f26f382b8820a64ffa27c47fd883f61407439be1719516fd65bdea7c",
+            "replay_match": true,
+            "replay_object_sha256": "8c184627f26f382b8820a64ffa27c47fd883f61407439be1719516fd65bdea7c",
+            "source_rel": "cc/silo/ycsb_silo.cc"
+          }
+        ],
+        "configure_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "-S",
+          "/scr/0_873920.nqsv/izanagi_wt_761uyucm/wt",
+          "-B",
+          "/scr/0_873920.nqsv/build-rung-liveness",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/0_873920.nqsv/gflags-install;/scr/0_873920.nqsv/glog-install",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/0_873920.nqsv/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/0_873920.nqsv/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/0_873920.nqsv/thirdparty-src/googletest",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS=-DIZANAGI_SILO_LADDER_RUNG1=1 -DIZANAGI_SILO_LADDER_RUNG1_REPORT=1"
+        ],
+        "dependencies": [
+          {
+            "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+            "git_status_porcelain_raw": "",
+            "name": "gflags",
+            "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+            "resolved_path": "/scr/0_873920.nqsv/gflags-install"
+          },
+          {
+            "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+            "git_status_porcelain_raw": "",
+            "name": "glog",
+            "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+            "resolved_path": "/scr/0_873920.nqsv/glog-install"
+          }
+        ],
+        "id": "rung-liveness",
+        "identity_defined_count": 1,
+        "macros": [
+          "IZANAGI_SILO_LADDER_RUNG1",
+          "IZANAGI_SILO_LADDER_RUNG1_REPORT"
+        ],
+        "raw_paths": [
+          "build-rung-liveness/CMakeCache.txt",
+          "build-rung-liveness/binary.nm.command.json",
+          "build-rung-liveness/binary.nm.stderr",
+          "build-rung-liveness/binary.nm.txt",
+          "build-rung-liveness/binary.readelf.command.json",
+          "build-rung-liveness/binary.readelf.stderr",
+          "build-rung-liveness/binary.readelf.txt",
+          "build-rung-liveness/build.stderr",
+          "build-rung-liveness/build.stdout",
+          "build-rung-liveness/cmake-cache-witness.json",
+          "build-rung-liveness/compile-replay.json",
+          "build-rung-liveness/compile_commands.json",
+          "build-rung-liveness/configure.stderr",
+          "build-rung-liveness/configure.stdout",
+          "build-rung-liveness/transaction.nm.command.json",
+          "build-rung-liveness/transaction.nm.stderr",
+          "build-rung-liveness/transaction.nm.txt"
+        ],
+        "source_sha256": {
+          "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+          "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+        },
+        "trace": false,
+        "transaction_object_sha256": "16c5057b7d73a30b73a38cd5bf8de50527cb9f198eba014a71fd78161c0a8f28"
+      }
+    ],
+    "liveness_runs": [
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 500786,
+        "completed_at_utc": "2026-07-29T08:18:57.734418Z",
+        "ordinal": 24,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 9968,
+            "worker": 0
+          },
+          {
+            "commits": 11068,
+            "worker": 1
+          },
+          {
+            "commits": 8743,
+            "worker": 2
+          },
+          {
+            "commits": 8964,
+            "worker": 3
+          },
+          {
+            "commits": 11141,
+            "worker": 4
+          },
+          {
+            "commits": 10301,
+            "worker": 5
+          },
+          {
+            "commits": 10998,
+            "worker": 6
+          },
+          {
+            "commits": 10849,
+            "worker": 7
+          },
+          {
+            "commits": 10394,
+            "worker": 8
+          },
+          {
+            "commits": 10484,
+            "worker": 9
+          },
+          {
+            "commits": 10815,
+            "worker": 10
+          },
+          {
+            "commits": 10170,
+            "worker": 11
+          },
+          {
+            "commits": 7394,
+            "worker": 12
+          },
+          {
+            "commits": 11345,
+            "worker": 13
+          },
+          {
+            "commits": 9934,
+            "worker": 14
+          },
+          {
+            "commits": 10504,
+            "worker": 15
+          },
+          {
+            "commits": 11108,
+            "worker": 16
+          },
+          {
+            "commits": 10446,
+            "worker": 17
+          },
+          {
+            "commits": 10401,
+            "worker": 18
+          },
+          {
+            "commits": 11491,
+            "worker": 19
+          },
+          {
+            "commits": 10712,
+            "worker": 20
+          },
+          {
+            "commits": 11060,
+            "worker": 21
+          },
+          {
+            "commits": 9843,
+            "worker": 22
+          },
+          {
+            "commits": 10649,
+            "worker": 23
+          },
+          {
+            "commits": 12530,
+            "worker": 24
+          },
+          {
+            "commits": 10562,
+            "worker": 25
+          },
+          {
+            "commits": 10038,
+            "worker": 26
+          },
+          {
+            "commits": 11249,
+            "worker": 27
+          },
+          {
+            "commits": 11051,
+            "worker": 28
+          },
+          {
+            "commits": 10554,
+            "worker": 29
+          },
+          {
+            "commits": 10129,
+            "worker": 30
+          },
+          {
+            "commits": 10233,
+            "worker": 31
+          },
+          {
+            "commits": 11019,
+            "worker": 32
+          },
+          {
+            "commits": 10849,
+            "worker": 33
+          },
+          {
+            "commits": 10428,
+            "worker": 34
+          },
+          {
+            "commits": 10219,
+            "worker": 35
+          },
+          {
+            "commits": 11467,
+            "worker": 36
+          },
+          {
+            "commits": 10486,
+            "worker": 37
+          },
+          {
+            "commits": 10733,
+            "worker": 38
+          },
+          {
+            "commits": 9174,
+            "worker": 39
+          },
+          {
+            "commits": 9340,
+            "worker": 40
+          },
+          {
+            "commits": 10522,
+            "worker": 41
+          },
+          {
+            "commits": 9658,
+            "worker": 42
+          },
+          {
+            "commits": 9755,
+            "worker": 43
+          },
+          {
+            "commits": 10560,
+            "worker": 44
+          },
+          {
+            "commits": 11686,
+            "worker": 45
+          },
+          {
+            "commits": 10226,
+            "worker": 46
+          },
+          {
+            "commits": 9536,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-24-W-cal-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:54.233696Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "0aa5850678c36c803f2b5502844c076ce0a16786699444871d2d56b1488cab77",
+        "variant": "rung-liveness",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 511346,
+        "completed_at_utc": "2026-07-29T08:19:01.153423Z",
+        "ordinal": 25,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 9710,
+            "worker": 0
+          },
+          {
+            "commits": 10499,
+            "worker": 1
+          },
+          {
+            "commits": 11517,
+            "worker": 2
+          },
+          {
+            "commits": 10258,
+            "worker": 3
+          },
+          {
+            "commits": 12149,
+            "worker": 4
+          },
+          {
+            "commits": 9635,
+            "worker": 5
+          },
+          {
+            "commits": 10201,
+            "worker": 6
+          },
+          {
+            "commits": 9091,
+            "worker": 7
+          },
+          {
+            "commits": 9896,
+            "worker": 8
+          },
+          {
+            "commits": 10470,
+            "worker": 9
+          },
+          {
+            "commits": 10331,
+            "worker": 10
+          },
+          {
+            "commits": 10336,
+            "worker": 11
+          },
+          {
+            "commits": 10888,
+            "worker": 12
+          },
+          {
+            "commits": 9926,
+            "worker": 13
+          },
+          {
+            "commits": 9366,
+            "worker": 14
+          },
+          {
+            "commits": 10798,
+            "worker": 15
+          },
+          {
+            "commits": 10760,
+            "worker": 16
+          },
+          {
+            "commits": 10892,
+            "worker": 17
+          },
+          {
+            "commits": 10911,
+            "worker": 18
+          },
+          {
+            "commits": 11220,
+            "worker": 19
+          },
+          {
+            "commits": 11162,
+            "worker": 20
+          },
+          {
+            "commits": 11375,
+            "worker": 21
+          },
+          {
+            "commits": 8672,
+            "worker": 22
+          },
+          {
+            "commits": 11059,
+            "worker": 23
+          },
+          {
+            "commits": 10130,
+            "worker": 24
+          },
+          {
+            "commits": 10452,
+            "worker": 25
+          },
+          {
+            "commits": 11805,
+            "worker": 26
+          },
+          {
+            "commits": 11755,
+            "worker": 27
+          },
+          {
+            "commits": 10088,
+            "worker": 28
+          },
+          {
+            "commits": 12157,
+            "worker": 29
+          },
+          {
+            "commits": 10088,
+            "worker": 30
+          },
+          {
+            "commits": 12756,
+            "worker": 31
+          },
+          {
+            "commits": 12118,
+            "worker": 32
+          },
+          {
+            "commits": 11170,
+            "worker": 33
+          },
+          {
+            "commits": 9838,
+            "worker": 34
+          },
+          {
+            "commits": 11367,
+            "worker": 35
+          },
+          {
+            "commits": 11006,
+            "worker": 36
+          },
+          {
+            "commits": 11058,
+            "worker": 37
+          },
+          {
+            "commits": 10173,
+            "worker": 38
+          },
+          {
+            "commits": 11807,
+            "worker": 39
+          },
+          {
+            "commits": 11689,
+            "worker": 40
+          },
+          {
+            "commits": 10139,
+            "worker": 41
+          },
+          {
+            "commits": 10675,
+            "worker": 42
+          },
+          {
+            "commits": 9463,
+            "worker": 43
+          },
+          {
+            "commits": 11151,
+            "worker": 44
+          },
+          {
+            "commits": 9226,
+            "worker": 45
+          },
+          {
+            "commits": 10453,
+            "worker": 46
+          },
+          {
+            "commits": 9660,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-25-W-cal-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:57.760533Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "81ce247eaf0ba161f236c2777ba4c52f49f2a4a8016863ead26f581c6528dfe7",
+        "variant": "rung-liveness",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 518438,
+        "completed_at_utc": "2026-07-29T08:19:04.625754Z",
+        "ordinal": 26,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 10207,
+            "worker": 0
+          },
+          {
+            "commits": 11066,
+            "worker": 1
+          },
+          {
+            "commits": 11122,
+            "worker": 2
+          },
+          {
+            "commits": 10248,
+            "worker": 3
+          },
+          {
+            "commits": 10928,
+            "worker": 4
+          },
+          {
+            "commits": 10828,
+            "worker": 5
+          },
+          {
+            "commits": 10860,
+            "worker": 6
+          },
+          {
+            "commits": 11660,
+            "worker": 7
+          },
+          {
+            "commits": 11251,
+            "worker": 8
+          },
+          {
+            "commits": 11393,
+            "worker": 9
+          },
+          {
+            "commits": 10600,
+            "worker": 10
+          },
+          {
+            "commits": 11431,
+            "worker": 11
+          },
+          {
+            "commits": 9839,
+            "worker": 12
+          },
+          {
+            "commits": 10009,
+            "worker": 13
+          },
+          {
+            "commits": 10361,
+            "worker": 14
+          },
+          {
+            "commits": 11096,
+            "worker": 15
+          },
+          {
+            "commits": 10450,
+            "worker": 16
+          },
+          {
+            "commits": 11445,
+            "worker": 17
+          },
+          {
+            "commits": 10602,
+            "worker": 18
+          },
+          {
+            "commits": 10726,
+            "worker": 19
+          },
+          {
+            "commits": 10606,
+            "worker": 20
+          },
+          {
+            "commits": 10710,
+            "worker": 21
+          },
+          {
+            "commits": 10633,
+            "worker": 22
+          },
+          {
+            "commits": 10918,
+            "worker": 23
+          },
+          {
+            "commits": 11190,
+            "worker": 24
+          },
+          {
+            "commits": 11896,
+            "worker": 25
+          },
+          {
+            "commits": 11280,
+            "worker": 26
+          },
+          {
+            "commits": 9661,
+            "worker": 27
+          },
+          {
+            "commits": 10782,
+            "worker": 28
+          },
+          {
+            "commits": 11067,
+            "worker": 29
+          },
+          {
+            "commits": 10369,
+            "worker": 30
+          },
+          {
+            "commits": 10609,
+            "worker": 31
+          },
+          {
+            "commits": 9945,
+            "worker": 32
+          },
+          {
+            "commits": 10407,
+            "worker": 33
+          },
+          {
+            "commits": 10718,
+            "worker": 34
+          },
+          {
+            "commits": 10003,
+            "worker": 35
+          },
+          {
+            "commits": 11015,
+            "worker": 36
+          },
+          {
+            "commits": 9448,
+            "worker": 37
+          },
+          {
+            "commits": 11057,
+            "worker": 38
+          },
+          {
+            "commits": 10704,
+            "worker": 39
+          },
+          {
+            "commits": 11694,
+            "worker": 40
+          },
+          {
+            "commits": 10952,
+            "worker": 41
+          },
+          {
+            "commits": 11686,
+            "worker": 42
+          },
+          {
+            "commits": 11599,
+            "worker": 43
+          },
+          {
+            "commits": 10863,
+            "worker": 44
+          },
+          {
+            "commits": 10669,
+            "worker": 45
+          },
+          {
+            "commits": 11241,
+            "worker": 46
+          },
+          {
+            "commits": 10594,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-26-W-hw-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:19:01.179522Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "55487f7249e5a5b3cbc376961e37808c3b669b11cfbcc8bc3f38b4878b3d978d",
+        "variant": "rung-liveness",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 503646,
+        "completed_at_utc": "2026-07-29T08:19:08.099327Z",
+        "ordinal": 27,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 10300,
+            "worker": 0
+          },
+          {
+            "commits": 10729,
+            "worker": 1
+          },
+          {
+            "commits": 10164,
+            "worker": 2
+          },
+          {
+            "commits": 11345,
+            "worker": 3
+          },
+          {
+            "commits": 10501,
+            "worker": 4
+          },
+          {
+            "commits": 10340,
+            "worker": 5
+          },
+          {
+            "commits": 11036,
+            "worker": 6
+          },
+          {
+            "commits": 11144,
+            "worker": 7
+          },
+          {
+            "commits": 10970,
+            "worker": 8
+          },
+          {
+            "commits": 10971,
+            "worker": 9
+          },
+          {
+            "commits": 8381,
+            "worker": 10
+          },
+          {
+            "commits": 10510,
+            "worker": 11
+          },
+          {
+            "commits": 10501,
+            "worker": 12
+          },
+          {
+            "commits": 9791,
+            "worker": 13
+          },
+          {
+            "commits": 11357,
+            "worker": 14
+          },
+          {
+            "commits": 9915,
+            "worker": 15
+          },
+          {
+            "commits": 9763,
+            "worker": 16
+          },
+          {
+            "commits": 10933,
+            "worker": 17
+          },
+          {
+            "commits": 9537,
+            "worker": 18
+          },
+          {
+            "commits": 11153,
+            "worker": 19
+          },
+          {
+            "commits": 11342,
+            "worker": 20
+          },
+          {
+            "commits": 10232,
+            "worker": 21
+          },
+          {
+            "commits": 10783,
+            "worker": 22
+          },
+          {
+            "commits": 9571,
+            "worker": 23
+          },
+          {
+            "commits": 10002,
+            "worker": 24
+          },
+          {
+            "commits": 10595,
+            "worker": 25
+          },
+          {
+            "commits": 9839,
+            "worker": 26
+          },
+          {
+            "commits": 10359,
+            "worker": 27
+          },
+          {
+            "commits": 9334,
+            "worker": 28
+          },
+          {
+            "commits": 10488,
+            "worker": 29
+          },
+          {
+            "commits": 10921,
+            "worker": 30
+          },
+          {
+            "commits": 10271,
+            "worker": 31
+          },
+          {
+            "commits": 10429,
+            "worker": 32
+          },
+          {
+            "commits": 11331,
+            "worker": 33
+          },
+          {
+            "commits": 9773,
+            "worker": 34
+          },
+          {
+            "commits": 10127,
+            "worker": 35
+          },
+          {
+            "commits": 10898,
+            "worker": 36
+          },
+          {
+            "commits": 10557,
+            "worker": 37
+          },
+          {
+            "commits": 11225,
+            "worker": 38
+          },
+          {
+            "commits": 10113,
+            "worker": 39
+          },
+          {
+            "commits": 10325,
+            "worker": 40
+          },
+          {
+            "commits": 10771,
+            "worker": 41
+          },
+          {
+            "commits": 10687,
+            "worker": 42
+          },
+          {
+            "commits": 10323,
+            "worker": 43
+          },
+          {
+            "commits": 11319,
+            "worker": 44
+          },
+          {
+            "commits": 10985,
+            "worker": 45
+          },
+          {
+            "commits": 10638,
+            "worker": 46
+          },
+          {
+            "commits": 11067,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-27-W-hw-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:19:04.655650Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "c65518b7ee142eb5b6b282c614870ddbbb082d5c9f9661a7c5e2bf5f5c7d78ea",
+        "variant": "rung-liveness",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      }
+    ],
+    "performance_runs": [
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 493947,
+        "completed_at_utc": "2026-07-29T08:17:34.662308Z",
+        "ordinal": 0,
+        "raw_path": "runs/perf-00-W-cal-rung-perf-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:31.217319Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "66aa3e25dea940d1b645b611270cd42468bbe26e80adf85c82d9d67791eafea5",
+        "throughput_tps": 164649,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11817745,
+        "completed_at_utc": "2026-07-29T08:17:38.186768Z",
+        "ordinal": 1,
+        "raw_path": "runs/perf-01-W-cal-stock-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:34.689045Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "97f26c9b9132a40adbe0fc9715deb6d6832ebf2b7d62da5c6a742aa8cb4ba3b0",
+        "throughput_tps": 3939248,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 516498,
+        "completed_at_utc": "2026-07-29T08:17:41.662478Z",
+        "ordinal": 2,
+        "raw_path": "runs/perf-02-W-hw-rung-perf-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:38.213816Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "857391629a614ec71f100a8498147638fead70ee0f8f34a408a1a132a14eea38",
+        "throughput_tps": 172166,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 5062419,
+        "completed_at_utc": "2026-07-29T08:17:45.208700Z",
+        "ordinal": 3,
+        "raw_path": "runs/perf-03-W-hw-stock-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:41.720107Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "bba8d13f9caa97eefe741faa8d26a7653fbd335dc41431650848f2de36ea654e",
+        "throughput_tps": 1687473,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 5011995,
+        "completed_at_utc": "2026-07-29T08:17:48.728397Z",
+        "ordinal": 4,
+        "raw_path": "runs/perf-04-W-hw-stock-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:45.236180Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "a7e40214a87417dc1ccdbf78becf7af23ea435aee6a55e3ddb6f965371ed3505",
+        "throughput_tps": 1670665,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 524384,
+        "completed_at_utc": "2026-07-29T08:17:52.178404Z",
+        "ordinal": 5,
+        "raw_path": "runs/perf-05-W-hw-rung-perf-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:48.756244Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "0704af71c4f426317bcfc5aa3cbcedf2a28cd01f2e65dbb8b68d6c7998408c04",
+        "throughput_tps": 174794,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11926207,
+        "completed_at_utc": "2026-07-29T08:17:55.620013Z",
+        "ordinal": 6,
+        "raw_path": "runs/perf-06-W-cal-stock-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:52.205009Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "73b3ac2e2c990aca0076130212ebe95369b22cfcdbd32dd96b555f51944d7f6d",
+        "throughput_tps": 3975402,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 488527,
+        "completed_at_utc": "2026-07-29T08:17:59.055883Z",
+        "ordinal": 7,
+        "raw_path": "runs/perf-07-W-cal-rung-perf-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:55.648502Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "de5b127a33be91fa6578c7354b09241ccd91e34443ba6fc3df14c291bfde27a7",
+        "throughput_tps": 162842,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4914748,
+        "completed_at_utc": "2026-07-29T08:18:02.517385Z",
+        "ordinal": 8,
+        "raw_path": "runs/perf-08-W-hw-stock-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:17:59.081728Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "763f8e99ab6bc30aa40f026ae4309053594eaf49acbba5f63eee0b0cdad52ecc",
+        "throughput_tps": 1638249,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 529072,
+        "completed_at_utc": "2026-07-29T08:18:05.958782Z",
+        "ordinal": 9,
+        "raw_path": "runs/perf-09-W-hw-rung-perf-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:02.547315Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "e3c2b77293754cbb029b736441a78e86def7487986387944b48882f5010c333b",
+        "throughput_tps": 176357,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 12092460,
+        "completed_at_utc": "2026-07-29T08:18:09.399569Z",
+        "ordinal": 10,
+        "raw_path": "runs/perf-10-W-cal-stock-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:05.984440Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "6fb9d18785802a34e9f9eb129094765d8a74ba87e036d82b337c076eee866f66",
+        "throughput_tps": 4030820,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 506598,
+        "completed_at_utc": "2026-07-29T08:18:12.860609Z",
+        "ordinal": 11,
+        "raw_path": "runs/perf-11-W-cal-rung-perf-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:09.426780Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "ff9a5150790db42e6dc57b86da5f7c9177022c3856b084eeb068b51636c1c9dd",
+        "throughput_tps": 168866,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 482962,
+        "completed_at_utc": "2026-07-29T08:18:16.298030Z",
+        "ordinal": 12,
+        "raw_path": "runs/perf-12-W-cal-rung-perf-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:12.886844Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "15c8843221c6c28be481855ea870030950674a34f89e796bab9b15bafa90eb53",
+        "throughput_tps": 160987,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 12104819,
+        "completed_at_utc": "2026-07-29T08:18:19.723577Z",
+        "ordinal": 13,
+        "raw_path": "runs/perf-13-W-cal-stock-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:16.324192Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "b30dc4a522ca2795b366376cc9216119e840b0fb499a463549c4effdf5260f24",
+        "throughput_tps": 4034939,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 518839,
+        "completed_at_utc": "2026-07-29T08:18:23.163563Z",
+        "ordinal": 14,
+        "raw_path": "runs/perf-14-W-hw-rung-perf-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:19.750838Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "7a159da969e2279fa533123968437e62f7d21b6c0e25a42d32c2879b286f76a1",
+        "throughput_tps": 172946,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 5025183,
+        "completed_at_utc": "2026-07-29T08:18:26.641016Z",
+        "ordinal": 15,
+        "raw_path": "runs/perf-15-W-hw-stock-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:23.190413Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "eb89f7fff11e4dcf19a8f15129d88a8f354c83cd1635489e9f0a65318bcac4af",
+        "throughput_tps": 1675061,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4988083,
+        "completed_at_utc": "2026-07-29T08:18:30.079993Z",
+        "ordinal": 16,
+        "raw_path": "runs/perf-16-W-hw-stock-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:26.667584Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "3bd36fc7d8c00960b4e0d6acf9f84ad0e903370bbf3229aa2e37b6ac1a801df8",
+        "throughput_tps": 1662694,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 517920,
+        "completed_at_utc": "2026-07-29T08:18:33.520641Z",
+        "ordinal": 17,
+        "raw_path": "runs/perf-17-W-hw-rung-perf-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:30.106936Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "8919c69f95152173de5be3e91580ebe9bc4ba9ed63154d489a5307ae5e6cc4ad",
+        "throughput_tps": 172640,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 12003305,
+        "completed_at_utc": "2026-07-29T08:18:36.962369Z",
+        "ordinal": 18,
+        "raw_path": "runs/perf-18-W-cal-stock-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:33.546411Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "38486248b64e598045cae3b0c7ae5fbb85ab5f6a0106ba983eaaf4507445a52b",
+        "throughput_tps": 4001101,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 494635,
+        "completed_at_utc": "2026-07-29T08:18:40.401737Z",
+        "ordinal": 19,
+        "raw_path": "runs/perf-19-W-cal-rung-perf-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:36.989079Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "ff76ca15e342406bf99c4a7065578219e46e60d7fbffe49c69500beb671d91d1",
+        "throughput_tps": 164878,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 484084,
+        "completed_at_utc": "2026-07-29T08:18:43.853566Z",
+        "ordinal": 20,
+        "raw_path": "runs/perf-20-W-cal-rung-perf-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:40.427761Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "4d51c2abb080eb98af1ba50232df56592e7dbbd15a35d2850156eae13e6fd47b",
+        "throughput_tps": 161361,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 12008434,
+        "completed_at_utc": "2026-07-29T08:18:47.344687Z",
+        "ordinal": 21,
+        "raw_path": "runs/perf-21-W-cal-stock-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:43.879249Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "21e9273b03885d9538f3de5d0ccce848a39e1b3f4c9d66ebb61e7dfffddbae1b",
+        "throughput_tps": 4002811,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 508665,
+        "completed_at_utc": "2026-07-29T08:18:50.796950Z",
+        "ordinal": 22,
+        "raw_path": "runs/perf-22-W-hw-rung-perf-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:47.376194Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "329c3c937e8fa99016b87b7a820ca35171bde45767176cc9f721117667c4bcc1",
+        "throughput_tps": 169555,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4977134,
+        "completed_at_utc": "2026-07-29T08:18:54.206280Z",
+        "ordinal": 23,
+        "raw_path": "runs/perf-23-W-hw-stock-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T08:18:50.823617Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "1eee9b5bb2a4fce949b8d03eddf6e8b13c1788a4688154fedd002bdbbb1ecf2d",
+        "throughput_tps": 1659044,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      }
+    ],
+    "schedule_receipt": {
+      "algorithm": "python-random-v1-from-csprng-256",
+      "runs": [
+        {
+          "ordinal": 0,
+          "rep": 1,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 1,
+          "rep": 1,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 2,
+          "rep": 1,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 3,
+          "rep": 1,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 4,
+          "rep": 2,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 5,
+          "rep": 2,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 6,
+          "rep": 2,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 7,
+          "rep": 2,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 8,
+          "rep": 3,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 9,
+          "rep": 3,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 10,
+          "rep": 3,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 11,
+          "rep": 3,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 12,
+          "rep": 4,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 13,
+          "rep": 4,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 14,
+          "rep": 4,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 15,
+          "rep": 4,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 16,
+          "rep": 5,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 17,
+          "rep": 5,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 18,
+          "rep": 5,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 19,
+          "rep": 5,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 20,
+          "rep": 6,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 21,
+          "rep": 6,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 22,
+          "rep": 6,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 23,
+          "rep": 6,
+          "variant": "stock",
+          "workload": "W-hw"
+        }
+      ],
+      "schema_version": "silo_ladder_rung1-schedule/v1",
+      "seed": "3d8550eff28159272567c97addad84efa0043279c6eb1be7b1940968af1cad77"
+    },
+    "status": "complete",
+    "workloads": [
+      {
+        "argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "calibration_status": "registered",
+        "id": "W-cal"
+      },
+      {
+        "argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "calibration_status": "contract-transfer-only",
+        "id": "W-hw"
+      }
+    ]
+  },
+  "schema_version": "silo_ladder_rung1-gap-receipt/v1"
+}

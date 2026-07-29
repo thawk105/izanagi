@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "git",
+    "apply",
+    "--unsafe-paths",
+    "--directory",
+    "/tmp/rung1-patch-model-qh3kn105",
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/patches/silo_ladder_rung1.patch"
+  ],
+  "argv0_sha256": null,
+  "completed_at_utc": "2026-07-29T08:19:33.842680Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/external/ccbench",
+  "elapsed_monotonic_s": 0.004708719003247097,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:19:33.837968Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 60.0
+}

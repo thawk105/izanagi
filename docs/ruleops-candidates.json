@@ -1,0 +1,6 @@
+{
+  "schema_version": "ruleops-candidates/v1",
+  "authority": "none",
+  "default_effect": "no-state-change",
+  "candidates": []
+}

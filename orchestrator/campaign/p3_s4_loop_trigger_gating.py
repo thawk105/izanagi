@@ -66,6 +66,10 @@ from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
+from campaign.projection_guard import (                            # noqa: E402
+    assert_closed_proposal_schema,
+    assert_no_ability_probe_material,
+)
 from critic.digest import DIFF_QUARANTINE_REASON                   # noqa: E402
 
 # ---- campaign 定数 (軸定数は axis_trigger_gating が正本 — ここは環境・計測の定数のみ) ----
@@ -413,6 +417,9 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTrigg
     トップレベルキーは `d[...]` で読む (欠落 = KeyError で fails-closed)。"""
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
+    assert_closed_proposal_schema(
+        d, require_auditor=True, require_coder_value=False,
+    )
     p, c, a = d["planner"], d["coder"], d["auditor"]
     planner = L.PlannerProposal(
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
@@ -425,6 +432,7 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTrigg
     if prior is not None and not isinstance(prior, bool):
         raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
                          f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
+    assert_no_ability_probe_material(d)
     return planner, coder, auditor, prior
 
 

@@ -12,6 +12,14 @@
 
 途中のファイルは上書きしない。同じ job ID / nonce の再利用、欠落、ID・hash 不一致は非 0 で停止する。
 
+**silo_ladder_rung1 系** (`silo_ladder_rung1.sh` / `submit_silo_ladder_rung1.sh`) は
+[T-139] 劣化梯子 rung 1 の characterization 専用資材で、同じ 3 段連鎖に従う
+(correctness → submit → 計測 → collect)。手順と受理条件の正本 =
+`orchestrator/campaign/silo_ladder_rung1.py` の CLI と
+`output/insights/2026-07-29_t139-silo-ladder-rung1-permanent.md`。ability-probe 専用であり
+calibration / floor の系列とは独立。third-party 依存 (masstree 等) は submitter が
+login で pinned staging する (計算ノードは外部 network 不可 — runbook §7.1)。
+
 ## 1. smoke を 3 配分以上取る
 
 まず、certification の前提を小さい job で確認する。

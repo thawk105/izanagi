@@ -1,0 +1,101 @@
+{
+  "provenance": {
+    "environment_scrubbed": true,
+    "source_witness": {
+      "expected_patched_source_sha256": {
+        "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+        "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+      },
+      "job_prologue_manifest_sha256": "e2d5c6710ac8cdf512ee224d32610245a1379cc628cd87e9d7e59941f903d342",
+      "job_source_exclusions": [
+        "output"
+      ],
+      "job_source_surface_clean": true,
+      "observed_patched_source_sha256": {
+        "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+        "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+      },
+      "submit_whole_tree_clean": true
+    },
+    "third_party_sources": [
+      {
+        "clean": true,
+        "fetchcontent_ref": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "git_head_raw": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38\n",
+        "git_status_porcelain_raw": "",
+        "name": "masstree",
+        "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "resolved_path": "/scr/0_873920.nqsv/thirdparty-src/masstree",
+        "source_name": "masstree",
+        "url": "https://github.com/thawk105/masstree-beta.git"
+      },
+      {
+        "clean": true,
+        "fetchcontent_ref": "v2.3.2",
+        "git_head_raw": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe\n",
+        "git_status_porcelain_raw": "",
+        "name": "mimalloc",
+        "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+        "resolved_path": "/scr/0_873920.nqsv/thirdparty-src/mimalloc",
+        "source_name": "mimalloc",
+        "url": "https://github.com/microsoft/mimalloc.git"
+      },
+      {
+        "clean": true,
+        "fetchcontent_ref": "f8d7d77c06936315286eb55f8de22cd23c188571",
+        "git_head_raw": "f8d7d77c06936315286eb55f8de22cd23c188571\n",
+        "git_status_porcelain_raw": "",
+        "name": "googletest",
+        "pin": "f8d7d77c06936315286eb55f8de22cd23c188571",
+        "resolved_path": "/scr/0_873920.nqsv/thirdparty-src/googletest",
+        "source_name": "googletest",
+        "url": "https://github.com/google/googletest.git"
+      }
+    ],
+    "tools": [
+      {
+        "name": "git",
+        "realpath": "/usr/bin/git",
+        "sha256": "587ef21868c948b883993e23209b86a72a6ddc06aab1545c697ffc31075acd4a",
+        "version": "git version 2.34.1"
+      },
+      {
+        "name": "nm",
+        "realpath": "/usr/bin/x86_64-linux-gnu-nm",
+        "sha256": "ed6565c132d6f20019ff3f050043dc1b2b8bc2e8b3b94c1ffe3f34436431a5a4",
+        "version": "GNU nm (GNU Binutils for Ubuntu) 2.38\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty."
+      },
+      {
+        "name": "readelf",
+        "realpath": "/usr/bin/x86_64-linux-gnu-readelf",
+        "sha256": "04db0000749aff89e4af21429340b00b536fc6f80e811c872c006507881a5560",
+        "version": "GNU readelf (GNU Binutils for Ubuntu) 2.38\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty."
+      },
+      {
+        "name": "cmake",
+        "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "sha256": "93ea19dfc3fdae3cc78f0bafbdfe3e41c9deb1a3c1bc889b29cc1532210e40df",
+        "version": "cmake version 3.25.0\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+      },
+      {
+        "name": "gcc",
+        "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+        "sha256": "821af3c74506283c179ca413bb33e6b528805a4dd8a5c09df125e5ad560a9e89",
+        "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+      },
+      {
+        "name": "g++",
+        "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+        "sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0",
+        "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+      },
+      {
+        "name": "python",
+        "realpath": "/usr/bin/python3.10",
+        "sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+        "version": "Python 3.10.12"
+      }
+    ]
+  },
+  "schema_version": "silo_ladder_rung1-provenance-receipt/v1"
+}

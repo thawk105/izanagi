@@ -34,8 +34,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   実走確認済み。ablation は初回採用 campaign で設計 insight §5-7 の 4 基準により実施する。適用は
   偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止 v2 は
   D58 と別に 2026-07-27 採用済みだが、2026-07-29 の実装 preflight で source eligibility /
-  qualification / formal authority の未見 blocker が判明し、コード変更なしで再裁定待ち。
-  正本 = `output/insights/2026-07-29_t126-implementation-preflight.md`。
+  qualification / formal authority の未見 blocker が判明した。ユーザー再裁定で
+  **qualification-first amendment** を採用し、headline 昇格不能な専用系列の live control と
+  machine-readable receipt を先行する。production gate / authoritative consumer は証拠取得後の
+  別 wave とし、現時点は実装待ち。正本 =
+  `output/insights/2026-07-29_t126-implementation-preflight.md`、記録 = worklog (62)。
 
 **現行の着手順:** S-1 計測 gate 閉鎖 → S-1 本走・最終報告、8b 設計発効 (holdout = rr80/rr20)、
 8b selector 前半 2 段、holdout freeze 生成 (束縛規則 nearest-read-ratio-v1 ユーザー承認済み、
@@ -512,10 +515,51 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 - [T-057] **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-26 の `/rulings` が述語 `P6_source := full_suite_duration_s > 180` の**成立**を確認 (worklog 記録の全走 = 239s (2026-07-25) / 1811.26s (2026-07-26))。2026-07-19 時点の「180 秒未満」は現状と一致しない。**再走はしておらず記録値の照合のみ**で、239s → 1811s の差が runner/env・並列度の違いによるかは未確認。X5 派生述語の 20% 条件は依然 unknown。ユーザー裁定待ち。→ **裁定・消化済み (2026-07-26)**: 裁定 = (a) 原因を測る調査を 1 回入れる (+ テストのみで済む改善は同 wave で実施)。実施結果 = 全走 1811 秒 → 75 秒 → **69 秒** (2026-07-27、worklog (13)(14)(15))。以後この述語は成立しない。
 - [T-058] **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (baseline/final を観測値として記録、gate 化なし。worklog 参照)。2026-07-25 に**再発火** ([T-094] の gate 新設 = 述語 `safety_gate_changed` 成立、同 wave は網羅率を観測していない)。ユーザー裁定 = 発火の記録のみ残し、観測の実施は 1 cycle 完走後 (プロセス系 freeze の対象、worklog 2026-07-25 (7))。2026-07-27 に**三度目の発火** ([T-117] の test-hygiene wave = 述語 `new test-hygiene wave` 成立、同 wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-27 (16))。2026-07-29 に**四度目の発火** ([T-149] の編集面 literal 正本 + 機械検査テスト新設 = 述語 `safety_gate_changed` 成立、同 wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-29 (45))。2026-07-29 に**五度目の発火** ([T-141] の label 正規化 + `assert_position_only` 強化、および [T-171] の `check_docs.py` 閉包・interface・必須 adapter 検査の新設 = 述語 `safety_gate_changed` 成立、いずれの wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-29 (54))。2026-07-29 に**六度目の発火** ([T-172] の `check_docs.py` 閉包・interface・必須 adapter 検査の新設)。同 wave は網羅率を観測していないが、既裁定どおり追加裁定はせず発火記録のみ。
-- [T-059] **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。2026-07-25 に**再発火** ([T-094] の reject gate 新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が 13 変異を実装前に事前登録し 13/13 KILL と復元後 green を記録したため真時 action は実質履行済み (worklog 2026-07-25 (7))。2026-07-29 に**三度目の発火** ([T-149] の編集面機械検査テスト新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が変異 9 件を実装前に事前登録し 9/9 KILLED と最終 commit への anchor 再検証を記録したため真時 action は実質履行済み (worklog 2026-07-29 (45))。2026-07-29 に**四度目の発火** ([T-141] の provenance 構造検証 + 閾値検査、および [T-171] の `check_docs.py` drift 拒否検査の新設 = 述語 `validator_or_rejection_gate_changed` 成立)。既裁定の範囲内なので追加裁定はせず記録のみ — [T-141] wave が変異 3 件を実装前に事前登録し 3/3 KILL を記録したため真時 action は履行済み (worklog 2026-07-29 (54))。2026-07-29 に**五度目の発火** ([T-172] の `check_docs.py` drift 拒否検査の新設)。同 wave は負例 5 件を追加したが、真時 action が求める実装前の mutant/operator・予算・第一失敗 assert の事前登録記録はないため、事後の補完方法を再裁定待ちとする。
+- [T-059] **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。2026-07-25 に**再発火** ([T-094] の reject gate 新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が 13 変異を実装前に事前登録し 13/13 KILL と復元後 green を記録したため真時 action は実質履行済み (worklog 2026-07-25 (7))。2026-07-29 に**三度目の発火** ([T-149] の編集面機械検査テスト新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が変異 9 件を実装前に事前登録し 9/9 KILLED と最終 commit への anchor 再検証を記録したため真時 action は実質履行済み (worklog 2026-07-29 (45))。2026-07-29 に**四度目の発火** ([T-141] の provenance 構造検証 + 閾値検査、および [T-171] の `check_docs.py` drift 拒否検査の新設 = 述語 `validator_or_rejection_gate_changed` 成立)。既裁定の範囲内なので追加裁定はせず記録のみ — [T-141] wave が変異 3 件を実装前に事前登録し 3/3 KILL を記録したため真時 action は履行済み (worklog 2026-07-29 (54))。2026-07-29 に**五度目の発火** ([T-172] の `check_docs.py` drift 拒否検査の新設)。同 wave は負例 5 件を追加したが、真時 action が求める実装前の mutant/operator・予算・第一失敗 assert の事前登録記録はない。2026-07-29 ユーザー再裁定で **bounded な事後 mutation audit** を採用し、事前登録不能だった手順逸脱を明記した上で operator / 予算 / 第一失敗 assert / 復元後 green を事後台帳へ固定する。実施は別タスクとして待機中 (worklog (62))。
+
+### Codex dev-wave 資源効率化 (P1、2026-07-29 監査)
+
+以下は 1 ID = 1 将来セッションを上限とする。品質面では T-153(e)/T-154 wave が must-fix 11 件と
+mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限→比較→採用の順で進める。
+
+- [T-179] **P1: worker 資源台帳の正本化** — `codex exec` の job/stage/model/reasoning/session/turn、
+  input・cached input・output・CLI reported token、終了分類、validator、retry を既存ログから
+  決定的に集計する read-only tool と fixture test を追加する。受入は live inference なしで
+  T-153(e)/T-154 の 10 session・2,757,982 CLI reported tokens と stage 別内訳を再構成し、
+  worklog の「9 jobs」との不一致を機械的に検出できること。
+- [T-180] **P1、T-179 後: job 単位 resource envelope** — turn/token/wall-clock/retry の上限と
+  上限到達時の fail-closed receipt を launcher 契約へ追加する。model/reasoning の既定値は変えず、
+  unit/fixture test で正常完了、上限停止、receipt 欠損拒否を固定する。
+- [T-181] **P1、T-179 後: reasoning routing の限定 A/B** — 最大消費だった focused review だけを
+  対象に `max` 対 `high` を凍結済み T-153(e)/T-154 入力で比較し、must-fix 再現率、新規 finding、
+  token/turn/wall-clock を記録する。既定値は変更せず、品質劣化または部分出力時の `max` escalation
+  条件までを裁定可能な insight にする。
+- [T-182] **P1、T-179 後: model routing の限定 shadow pilot** — critical planning/受入判定を
+  `gpt-5.6-sol` のまま保持し、低リスクな第二レンズ 1 箇所だけで利用可能な軽量 model と
+  `gpt-5.6-sol` を同一凍結入力で比較する。finding coverage、誤検出、token/turn/wall-clock と
+  model identity receipt を残し、production 既定は変更しない。
+- [T-183] **P1、T-179 後: F43/F45 型の早期停止と回復** — exit 0 の短小/断片出力と
+  safety-filter 非ゼロ終了を別分類し、同一失敗の無制限再試行を禁止する。F43/F45 由来 fixture で
+  zero-output、validator reject、retry 上限、代替経路不能時の fail-closed を検証する。
+- [T-184] **P1、T-180〜T-183 後: 証拠に基づく既定 policy 採用** — 各 pilot の台帳を比較し、
+  model/reasoning/resource/retry の stage matrix を DW-O01 と worker 契約へ一度だけ反映する。
+  受入は docs drift 検査、選択理由 receipt、critical stage の品質不変、旧 policy への明示 rollback
+  を含み、新たな比較実験はこの ID に持ち込まない。
+
+### RuleOps hardening (P3、T-143 残余)
+
+- [T-185] **P3: receipt range 出力量の明示上限** — 非常に古い receipt range に対する
+  commit 数と path-union stdout の bytes/cardinality を streaming 上限で fail-closed にし、
+  上限超過時の安定 reason と synthetic negative を追加する。現行は child timeout で
+  fail-closed だが、安定 reason 前の過大な stdout / memory 消費を明示的には抑えていない。
 
 ### 裁定・完了記録
 
+- [T-143] **(完了 2026-07-29) RuleOps v1** — tracked HEAD tree の直下testと
+  `output/insights/`をread-only inventoryし、人間裁定用draftとauthorityを持たない候補ledgerを
+  fail-closedに検査するCLIを導入。削除・apply・approval・安全判定は行わず、受入全走へempty
+  production ledgerの軽量preflightだけを結線した。設計判断=D99、運用正本=`docs/ruleops.md`、
+  材料・逐語・変異=`output/insights/2026-07-29_t143-ruleops.md`。
 - [T-172] **(完了 2026-07-29) Codex rulings Skill 移植** — `.agents/skills/rulings/` に
   Claude command を共通 dispatcher として再利用する薄い Codex adapter と生成済み UI metadata を追加。
   通常クラス 1、裁定記録 / 自己改善時のクラス 2 昇格、引数・hook・push 境界を明示し、
