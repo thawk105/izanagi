@@ -269,5 +269,9 @@ v1 の規定は削除。§10-(vi) 参照。
 
 ## 裁定欄 (ユーザー)
 
-- 設計 v2 の採用 / 実装着手: 未裁定 (bench-first screening と同一案件。着手時に decisions.md へ
-  D 採番して本 insight を正本参照)
+- 設計 v2 の採用 / 実装着手: **2026-07-27 に採用済み** (裁定記録 =
+  `docs/archive/worklog-phase3-0726-12-0727-19.md`、[T-126])。
+- 2026-07-29 の実装 preflight で、formal source eligibility、qualification hold、
+  promotion authority の未見 blocker が判明した。採用を取り消さず、本 wave は実装せず
+  **追加情報付き再裁定待ち**とする。正本 =
+  `output/insights/2026-07-29_t126-implementation-preflight.md`。

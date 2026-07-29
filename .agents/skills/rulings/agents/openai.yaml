@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rulings"
+  short_description: "Izanagi の裁定待ちを索引・詳説して判断を補佐"
+  default_prompt: "Use $rulings to list and explain the Izanagi decisions awaiting my ruling."
