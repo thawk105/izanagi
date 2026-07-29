@@ -1,0 +1,38 @@
+[
+  {
+    "id": "97200000-0000-0000-0000-000000000001",
+    "prompt": "あなたは段6の read-only adversarial reviewer である。",
+    "contexts": [
+      {
+        "model": "gpt-first",
+        "effort": "high"
+      },
+      {
+        "model": "gpt-second",
+        "effort": "high",
+        "object_level": true,
+        "payload": {
+          "schema": "object-level"
+        }
+      }
+    ]
+  },
+  {
+    "id": "97200000-0000-0000-0000-000000000002",
+    "prompt": "あなたは段6の read-only adversarial reviewer である。",
+    "contexts": [
+      {
+        "model": "gpt-same",
+        "effort": "high"
+      },
+      {
+        "model": "gpt-same",
+        "effort": "max",
+        "object_level": true,
+        "payload": {
+          "schema": "object-level"
+        }
+      }
+    ]
+  }
+]

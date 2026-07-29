@@ -1,0 +1,17 @@
+[
+  {
+    "id": "97400000-0000-0000-0000-000000000001",
+    "cwd": "/synthetic/other-wave",
+    "prompt": "あなたは段2の read-only Codex planner である。",
+    "extra_meta": [
+      {
+        "session_id": "97400000-0000-0000-0000-000000000001",
+        "timestamp": "2026-01-01T00:00:01Z",
+        "cwd": "/synthetic/target-wave"
+      }
+    ],
+    "raw_lines": [
+      "{broken json"
+    ]
+  }
+]
