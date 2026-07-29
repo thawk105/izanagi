@@ -47,6 +47,7 @@ LIVING_DOCS = [
     REPO / "docs" / "ccbench-anatomy.md",
     REPO / "docs" / "axis-onboarding.md",              # 2026-07-11 監査 dup-05 で追加
     REPO / "docs" / "isolation-phenomena.md",          # 2026-07-12 監査: 現在形の生きた参照文書なのに lint 網の外だった
+    REPO / "docs" / "ruleops.md",                       # RuleOps v1 の生きた運用・schema 正本
     REPO / "docs" / "dev-wave" / "core.md",
     REPO / "docs" / "dev-wave" / "workers.md",
     REPO / "docs" / "dev-wave" / "mutation.md",
@@ -67,7 +68,7 @@ LIVING_DOCS += sorted((REPO / "docs").glob("phase3-s*-runbook.md"))
 # docs 間の行番号参照 (追記で必ずずれる)。節名参照に直すこと。
 # 対象は自リポジトリの docs のみ (pin 固定の submodule 内文書への参照は腐らないので許容)。
 # 「.md:数字」形の確実なものと「N 行」「line N 参照」形だけを違反とする (過検出を避ける)
-_OWN = r"(?:CLAUDE|README|roadmap|phase\d[\w-]*|decisions|worklog[\w-]*|agent-architecture|orchestrator-design|ccbench-anatomy|paper-story[\w-]*|audit[\w-]*|isolation-phenomena|glossary|related-work)"
+_OWN = r"(?:CLAUDE|README|roadmap|phase\d[\w-]*|decisions|worklog[\w-]*|agent-architecture|orchestrator-design|ccbench-anatomy|paper-story[\w-]*|audit[\w-]*|isolation-phenomena|glossary|related-work|ruleops)"
 LINE_REF_STRICT = [
     re.compile(_OWN + r"\.md:\d+"),
     re.compile(_OWN + r"\.md\s*の?\s*\d+\s*行"),

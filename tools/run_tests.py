@@ -97,6 +97,7 @@ _SUBMODULE_MARKER = Path("external") / "ccbench" / "CMakeLists.txt"
 _SUBMODULE_GIT_MARKER = Path("external") / "ccbench" / ".git"
 _DELETION_GATE_RC = 13
 _SUBMODULE_GATE_RC = 14
+_RULEOPS_GATE_RC = 15
 _GIT_ENV_ALLOWLIST = frozenset({
     "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT",
 })
@@ -504,6 +505,46 @@ def _preflight_unstaged_deletions(
     return _DELETION_GATE_RC
 
 
+def _preflight_ruleops(args: Sequence[str], repo: Path | str) -> int:
+    """Validate the production RuleOps ledger on acceptance-shaped runs only."""
+
+    if not _is_acceptance_run(args):
+        return 0
+    repo_path = Path(repo).resolve()
+    command = [
+        sys.executable,
+        str(repo_path / "tools" / "ruleops.py"),
+        "check",
+        "--repo",
+        str(repo_path),
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        detail = "timeout"
+        child_rc = "timeout"
+    except (OSError, UnicodeDecodeError) as exc:
+        detail = f"実行不能: {exc}"
+        child_rc = "unavailable"
+    else:
+        if result.returncode == 0:
+            return 0
+        child_rc = str(result.returncode)
+        detail = (result.stderr or result.stdout).strip() or "reason 出力なし"
+    print(
+        f"RuleOps production ledger preflight が失敗しました "
+        f"(child rc={child_rc}: {detail})。",
+        file=sys.stderr,
+        flush=True,
+    )
+    return _RULEOPS_GATE_RC
+
+
 def _submodule_is_initialized(repo: Path) -> bool:
     marker = repo / _SUBMODULE_MARKER
     git_marker = repo / _SUBMODULE_GIT_MARKER
@@ -743,6 +784,9 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _normalize_args(sys.argv[1:] if argv is None else argv)
     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))
+    if preflight_rc:
+        return preflight_rc
+    preflight_rc = _preflight_ruleops(args, Path(_REPO))
     if preflight_rc:
         return preflight_rc
     preflight_rc = _preflight_submodule(args, Path(_REPO))
