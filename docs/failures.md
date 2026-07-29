@@ -983,3 +983,26 @@
   期待位置の再同期は literal 再ピンでなく production import で構造化する (fix10 の形)
 - 再発検知: 退避中 hash と tree 上ファイルの サイズ/hash 乖離。受入全走の plain-runner meta-test
   が断片化を最初に検出した (自走 harness 欠落として)
+
+### F54. 集約不変量だけの受入が、実装子へ委ねた未裁定の択一による要素単位の誤帰属を通しかけた [テスト代表性]
+- 事象: [T-179] wave 段 6 の fix1 が、prompt 先頭が `段6の fix2 implementation author` の session を
+  stage `author` へ分類するよう `STAGE_RULES` を変えた。実 10 session の再集計で 188,905 tokens が
+  `fix` から `author` へ移動し、凍結済みの stage 別正本 (worklog (61)) と食い違った。
+  このとき **総和 2,757,982・session 数 10・model_calls 434・worklog 突合 gate はすべて不変**
+  だった (worklog の bucket が `author・fix` を合算するため gate も緑)。親が stage 別内訳を
+  逐件で再照合して検出し fix2 で是正 (near-miss、成果物影響ゼロ)
+- 根本原因: 二つが重なった。(a) 親の fix 指示が「到達不能な枝は消すか、到達可能にするか、
+  どちらかに決めて理由をコメントに書く」と書き、**意味論の択一を実装子へ委ねた**。stage の定義は
+  段 4 / 段 6 で親が裁定すべき事項だった。(b) 受入の目視対象が集約値
+  (総和・件数・gate rc) に寄っており、要素単位の帰属が保存されているかを見ていなかった。
+  集約が保存される誤帰属は集約検査を素通りする
+- 恒久対応: (a) 実装子・fix 子へ渡す指示に**未裁定の意味論の択一を残さない**。選択肢を書くなら
+  親がどちらかを裁定してから渡す。(b) 分類・帰属を伴う成果物の受入では、集約一致を正しさの根拠に
+  しない (誤帰属の対でも集約は一致する = 循環論法)。**要素単位の独立 oracle と逐件照合**する。
+  本 wave の実体 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/README.md` の
+  session_id→stage 表 (rollout の raw prompt から台帳の規則表と独立に導出) と、
+  8 パターンの分類を固定した表駆動テスト
+- 再発検知: 要素単位 oracle との逐件照合の赤 + `test_codex_worker_ledger.py` の
+  `test_stage_rules_follow_wave_stage_not_role_words` / `test_stage_rules_keep_fix2_author_in_fix_and_focus_specific`
+  (段番号が stage を決め役割語は決めない、を機械固定)
+- 記録: worklog 2026-07-29 (64)、逐語 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/`
