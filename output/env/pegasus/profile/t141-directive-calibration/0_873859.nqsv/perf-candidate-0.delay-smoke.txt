@@ -1,0 +1,4 @@
+Events disabled
+Events enabled
+[ perf record: Woken up 5 times to write data ]
+[ perf record: Captured and wrote 0.022 MB /scr/0_873859.nqsv/perf-delay-smoke-0.data (11 samples) ]

@@ -1,0 +1,28 @@
+date=2026-07-29T09:55:54+09:00
+hostname=bnode004
+PBS_JOBID=0:873732.nqsv
+PBS_ENVIRONMENT=unavailable
+PBS_NODEFILE=/var/opt/nec/nqsv/jsv/jobfile/0.873732.10/nodelist
+uname_r=5.15.0-173-generic
+cpu_model_name=Intel(R) Xeon(R) Platinum 8468
+cpu_model_name_normalized=Intel Xeon Platinum 8468
+physical_cores=48
+expected_cpu_model=Intel Xeon Platinum 8468
+expected_physical_cores=48
+script_path=/var/opt/nec/nqsv/jsv/jobfile/0.873732.10/user_script
+script_sha256=beb1860671365386a380a62cb3255fe73591a348463d6e3f096f62a5d881c834
+gcc_path=/usr/bin/x86_64-linux-gnu-gcc-11
+gcc_version=x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+g++_path=/usr/bin/x86_64-linux-gnu-g++-11
+g++_version=x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+cmake_path=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake
+cmake_version=cmake version 3.25.0
+gflags_source_path=/home/SFC/tanab/github/gflags
+gflags_source_head=e171aa2d15ed9eb17054558e0b3a6a413bb01067
+glog_source_path=/home/SFC/tanab/github/glog
+glog_source_head=8f9ccfe770add9e4c64e9b25c102658e3c763b73
+gflags_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /home/SFC/tanab/github/gflags -B /scr/0_873732.nqsv/gflags-build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF -DCMAKE_INSTALL_PREFIX=/scr/0_873732.nqsv/gflags-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+glog_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /home/SFC/tanab/github/glog -B /scr/0_873732.nqsv/glog-build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF -DWITH_UNWIND=OFF -DCMAKE_PREFIX_PATH=/scr/0_873732.nqsv/gflags-install -DCMAKE_INSTALL_PREFIX=/scr/0_873732.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+ccbench_source_root=/scr/0_873732.nqsv/ccbench-source
+ccbench_source_head=d706650cdb31e442bef45b9b4216951d4fb40969
+build_S_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /scr/0_873732.nqsv/ccbench-source -B /scr/0_873732.nqsv/ccbench-build-S -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0 -DCCBENCH_CCACHE=OFF -DCMAKE_CXX_FLAGS=-g -DCMAKE_PREFIX_PATH=/scr/0_873732.nqsv/gflags-install\;/scr/0_873732.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11

@@ -1,0 +1,9 @@
+{
+  "build": "S",
+  "cell": "S-write-heavy-r3",
+  "dropped_pct": 99.99999999999997,
+  "n_samples": 38228,
+  "rep": 3,
+  "totals": {},
+  "workload": "write-heavy"
+}

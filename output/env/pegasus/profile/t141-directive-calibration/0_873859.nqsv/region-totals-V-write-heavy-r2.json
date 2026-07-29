@@ -1,0 +1,13 @@
+{
+  "build": "V",
+  "cell": "V-write-heavy-r2",
+  "dropped_pct": 52.4667128453783,
+  "n_samples": 38979,
+  "rep": 2,
+  "totals": {
+    "cc/silo/include/silo_op_element.hh": 0.041047743656840864,
+    "cc/silo/transaction.cc": 0.6849842222735328,
+    "include/backoff.hh": 46.80725518869134
+  },
+  "workload": "write-heavy"
+}

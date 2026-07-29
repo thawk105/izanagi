@@ -1,0 +1,16 @@
+T-141 profile failed: stage=build_S reason=stock-backoff-off configure failed rc=1
+
+============================================================
+Request ID:             873732.nqsv
+Request Name:           t141_region_profile.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Wed Jul 29 09:55:47 2026
+Started Request Time:   Wed Jul 29 09:55:54 2026
+Ended Request Time:     Wed Jul 29 09:56:15 2026
+Resources Information:
+  Elapse:               25S
+  Remaining Elapse:     10775S
+============================================================

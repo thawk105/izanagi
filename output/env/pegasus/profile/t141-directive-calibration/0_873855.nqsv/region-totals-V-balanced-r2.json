@@ -1,0 +1,9 @@
+{
+  "build": "V",
+  "cell": "V-balanced-r2",
+  "dropped_pct": 100.0000000000001,
+  "n_samples": 38554,
+  "rep": 2,
+  "totals": {},
+  "workload": "balanced"
+}

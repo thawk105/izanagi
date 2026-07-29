@@ -1,0 +1,48 @@
+label=initial
+checked_at=2026-07-29T10:08:30+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_S-write-heavy
+checked_at=2026-07-29T10:10:26+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_S-balanced
+checked_at=2026-07-29T10:10:30+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_V-write-heavy
+checked_at=2026-07-29T10:10:33+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_V-balanced
+checked_at=2026-07-29T10:10:37+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=S-write-heavy-r1
+checked_at=2026-07-29T10:10:40+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+

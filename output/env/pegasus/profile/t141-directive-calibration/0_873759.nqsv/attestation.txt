@@ -1,0 +1,77 @@
+date=2026-07-29T10:36:22+09:00
+hostname=bnode072
+PBS_JOBID=0:873759.nqsv
+PBS_ENVIRONMENT=unavailable
+PBS_NODEFILE=/var/opt/nec/nqsv/jsv/jobfile/0.873759.10/nodelist
+uname_r=5.15.0-173-generic
+cpu_model_name=Intel(R) Xeon(R) Platinum 8468
+cpu_model_name_normalized=Intel Xeon Platinum 8468
+physical_cores=48
+expected_cpu_model=Intel Xeon Platinum 8468
+expected_physical_cores=48
+script_path=/var/opt/nec/nqsv/jsv/jobfile/0.873759.10/user_script
+script_sha256=8adca4317a8a34541bdff322af03d71e700fea0f03f6d15aed5adc7e010309c5
+gcc_path=/usr/bin/x86_64-linux-gnu-gcc-11
+gcc_version=x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+g++_path=/usr/bin/x86_64-linux-gnu-g++-11
+g++_version=x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+cmake_path=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake
+cmake_version=cmake version 3.25.0
+gflags_source_path=/home/SFC/tanab/github/gflags
+gflags_source_head=e171aa2d15ed9eb17054558e0b3a6a413bb01067
+glog_source_path=/home/SFC/tanab/github/glog
+glog_source_head=8f9ccfe770add9e4c64e9b25c102658e3c763b73
+gflags_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /home/SFC/tanab/github/gflags -B /scr/0_873759.nqsv/gflags-build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF -DCMAKE_INSTALL_PREFIX=/scr/0_873759.nqsv/gflags-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+glog_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /home/SFC/tanab/github/glog -B /scr/0_873759.nqsv/glog-build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF -DWITH_UNWIND=OFF -DCMAKE_PREFIX_PATH=/scr/0_873759.nqsv/gflags-install -DCMAKE_INSTALL_PREFIX=/scr/0_873759.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+ccbench_source_root=/scr/0_873759.nqsv/ccbench-source
+ccbench_source_head=d706650cdb31e442bef45b9b4216951d4fb40969
+ccbench_copy_method=git-ls-files-tar
+build_S_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /scr/0_873759.nqsv/ccbench-source -B /scr/0_873759.nqsv/ccbench-build-S -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0 -DCCBENCH_CCACHE=OFF -DCMAKE_CXX_FLAGS=-g -DCMAKE_PREFIX_PATH=/scr/0_873759.nqsv/gflags-install\;/scr/0_873759.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+build_S_name=stock-backoff-off
+build_S_backoff=0
+build_S_trace=0
+build_S_binary=/scr/0_873759.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe
+build_S_binary_sha256=19385b21e4a9c4098cbe3ebebac24fc85b526f3a53bcccbc045ff37e4dd0b371
+build_S_cooldown_s=30
+build_V_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /scr/0_873759.nqsv/ccbench-source -B /scr/0_873759.nqsv/ccbench-build-V -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=1 -DCCBENCH_CCACHE=OFF -DCMAKE_CXX_FLAGS=-g -DCMAKE_PREFIX_PATH=/scr/0_873759.nqsv/gflags-install\;/scr/0_873759.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+build_V_name=stock-backoff-on
+build_V_backoff=1
+build_V_trace=0
+build_V_binary=/scr/0_873759.nqsv/ccbench-build-V/cc/silo/ycsb_silo.exe
+build_V_binary_sha256=72f4661f7add046acef3c9cc7bfcc231550c79656fb5babec3e19701d06b0213
+build_V_cooldown_s=30
+perf_path=/usr/lib/linux-tools-5.15.0-135/perf
+perf_version=perf version 5.15.178
+perf_events=cycles,instructions
+perf_record_delay_smoke_ms=10
+perf_record_frequency_hz=400
+perf_record_delay_margin_s=1.0
+timing_S-write-heavy_loadavg=0.38 0.22 0.14 1/899 4150557
+timing_S-write-heavy_bench_argv=/scr/0_873759.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0
+timing_S-write-heavy_wall_s=3.342712
+timing_S-write-heavy_throughput_tps=2765696
+timing_S-write-heavy_delay_ms=1343
+timing_S-write-heavy_estimated_sample_window_s=1.999712
+timing_S-balanced_loadavg=4.19 1.01 0.40 1/900 4150662
+timing_S-balanced_bench_argv=/scr/0_873759.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0
+timing_S-balanced_wall_s=3.366581
+timing_S-balanced_throughput_tps=4175897
+timing_S-balanced_delay_ms=1367
+timing_S-balanced_estimated_sample_window_s=1.999581
+timing_V-write-heavy_loadavg=7.70 1.79 0.65 1/900 4150766
+timing_V-write-heavy_bench_argv=/scr/0_873759.nqsv/ccbench-build-V/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0
+timing_V-write-heavy_wall_s=3.340923
+timing_V-write-heavy_throughput_tps=1380557
+timing_V-write-heavy_delay_ms=1341
+timing_V-write-heavy_estimated_sample_window_s=1.999923
+timing_V-balanced_loadavg=7.70 1.79 0.65 1/900 4150870
+timing_V-balanced_bench_argv=/scr/0_873759.nqsv/ccbench-build-V/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0
+timing_V-balanced_wall_s=3.352582
+timing_V-balanced_throughput_tps=1223624
+timing_V-balanced_delay_ms=1353
+timing_V-balanced_estimated_sample_window_s=1.999582
+cell_S-write-heavy-r1_loadavg=10.93 2.56 0.91 1/900 4150974
+cell_S-write-heavy-r1_bench_argv=/usr/lib/linux-tools-5.15.0-135/perf record -D 1343 -F 400 -o /scr/0_873759.nqsv/run-S-write-heavy-r1/perf.data -e cycles\,instructions -- /scr/0_873759.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0
+cell_S-write-heavy-r1_delay_ms=1343
+cell_S-write-heavy-r1_estimated_sample_window_s=1.999712
+cell_S-write-heavy-r1_throughput_tps=2633370

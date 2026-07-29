@@ -1,0 +1,14 @@
+{
+  "build": "V",
+  "cell": "V-balanced-r3",
+  "dropped_pct": 52.76264391447364,
+  "n_samples": 38912,
+  "rep": 3,
+  "totals": {
+    "cc/silo/include/atomic_tool.hh": 0.005139802631578947,
+    "cc/silo/include/silo_op_element.hh": 0.030838815789473683,
+    "cc/silo/transaction.cc": 1.575349506578945,
+    "include/backoff.hh": 45.62602796052632
+  },
+  "workload": "balanced"
+}

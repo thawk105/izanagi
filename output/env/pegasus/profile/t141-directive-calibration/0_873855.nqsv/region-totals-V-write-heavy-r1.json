@@ -1,0 +1,9 @@
+{
+  "build": "V",
+  "cell": "V-write-heavy-r1",
+  "dropped_pct": 99.99999999999982,
+  "n_samples": 38581,
+  "rep": 1,
+  "totals": {},
+  "workload": "write-heavy"
+}

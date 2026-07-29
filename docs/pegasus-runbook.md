@@ -329,6 +329,13 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - PID namespace の host 判定は /proc/1/ns が非 root で読めないため /proc/2/comm==kthreadd 指標
   (comm はプロセス側で詐称可能 — 正直なコンテナには fail-closed、既知限界)
 - git worktree で運用する場合は CCBench submodule の実体化 (ローカル clone) が必要
+- **`perf report --sort=srcline` は ccbench 級の static -g バイナリでハングする** (サンプル数
+  非依存で 300 秒 stdout 0 バイト。小バイナリでは再現しない。2026-07-29 request
+  873737/873759/873846 実測)。file 帰属は perf script の IP 集計 → addr2line 一括バッチで
+  行う (`tools/pegasus/t141_region_profile.sh` が前例)。addr2line に runtime IP を渡すには
+  **非 PIE build (-fno-pie/-no-pie) が必要** (既定 PIE では全件 `??:0`、request 873855 実測)
+- ccbench ソースの /scr へのコピーは `git archive` 不可 (.gitattributes の `oze* export-ignore`
+  が cc/oze を落とす) — `git ls-files -z | tar` の tracked 限定コピーを使う (request 873732 実測)
 - floor/oracle を Pegasus で走らせる際は out_root 配下 `claims/` の事前作成と
   IZANAGI_RESERVATION_* の export (certify_calibration.sh 参照) が必要 (floor 実測は次段)
 

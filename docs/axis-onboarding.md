@@ -48,6 +48,23 @@ sort 軸の授業料: 偵察 (D46) が LLM ループ実走 (iteration 1) の**�
   理由にならない — sort 軸では設計者自身の安全論拠 (「comparator が不正でも要素の置換のみ」)
   がレビューで技術的誤りと判明した (D41 死角 1)。
 
+### 1.1 段階 A への hole_region_directive 供給 (T-141 結線、2026-07-29)
+
+- **誰が・いつ**: 信頼中核 (メインセッション) が、段階 A で axis-proposer の入力を組み立てる
+  直前に導出する。perf 計測は環境 runbook に従い計測ノードで行う (pegasus は
+  `tools/pegasus/t141_region_profile.sh` が採取 job の前例。trace-disabled build に限る、規律 1)。
+- **どう**: `python3 -m campaign.profiler_directive derive --report <srcline report> \
+  --source-root <計測時の ccbench ソース root> --regions-from <N1 provenance JSON>`。
+  regions は正規の N1 provenance (`output/insights/2026-07-10_s8a-n1-provenance.json`) から
+  読むこと (--region の直接指定はテスト・アドホック用)。人間発のヒントは `declare` で
+  `human_declared` として型区別する (ヒント有無・由来の対照)。
+- **導出は既定閾値で呼ぶ** (CLI の閾値引数は校正・実験用。record に閾値は残らないため、
+  運用値は既定 = 校正済み値に固定する)。None (ヒントなし) の record も正当な対照。
+- **承認と防壁**: directive の採用は人間承認 gate (D47)。record は位置のみ契約
+  (`assert_position_only`) を通ったものだけを渡し、下流の `codex_roles/policy.py` が
+  地図外領域を機械拒否する。閾値の実測校正は insight
+  `2026-07-29_t141-region-distribution-calibration.md` が正本。
+
 ## §2. 軸定義シート (穴埋めテンプレ)
 
 段階 B の入口で、**実コード裏取り** (該当ソースの該当行を読む。記憶や過去文書の要約に
