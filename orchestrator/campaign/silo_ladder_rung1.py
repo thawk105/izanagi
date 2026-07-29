@@ -47,6 +47,11 @@ RUNG_MACRO = patch_contract.RUNG_MACRO
 REPORT_MACRO = patch_contract.REPORT_MACRO
 IDENTITY_SYMBOL = patch_contract.IDENTITY_SYMBOL
 SOURCE_FILES = patch_contract.SOURCE_FILES
+THIRD_PARTY_NAMES = ("masstree", "mimalloc", "googletest")
+THIRD_PARTY_SOURCE_ROOT_ENV = "IZANAGI_THIRDPARTY_SOURCE_ROOT"
+THIRD_PARTY_STAGING_RELATIVE = Path(
+    "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+)
 WORKLOADS = {
     "W-cal": {
         "calibration_status": "registered",
@@ -89,6 +94,7 @@ WRAPPER_STAGES = WRAPPER_INFRA_STAGES | frozenset({
     "schema_contract",
     "json_contract",
     "source_identity_contract",
+    "third_party_copy_contract",
     "dependency_policy_contract",
     "dependency_build",
     "driver_gap",
@@ -102,6 +108,7 @@ _ENV_ALLOW_EXACT = frozenset({
     "PBS_JOBID", "PBS_O_WORKDIR", "PBS_NODEFILE", "PBS_QUEUE",
     "IZANAGI_SUBMISSION_NONCE", "IZANAGI_GFLAGS_INSTALL",
     "IZANAGI_GLOG_INSTALL", "IZANAGI_ATTEMPT_NUMBER",
+    THIRD_PARTY_SOURCE_ROOT_ENV,
 })
 _ENV_FORBIDDEN_EXACT = frozenset({
     "CC", "CXX", "CPP", "CFLAGS", "CXXFLAGS", "CPPFLAGS", "LDFLAGS",
@@ -807,6 +814,193 @@ def _dependency_pins(repo: Path | None = None) -> dict[str, str]:
     return dict(policy)
 
 
+def third_party_policy(repo: Path | None = None) -> tuple[dict[str, str], ...]:
+    """offline build source policy と CCBench FetchContent literal を同期検査する。"""
+    root = (repo or _repo_root()).resolve()
+    document = _load_json(root / "tools/pegasus/policy.json")
+    value = document["silo_ladder_rung1"].get("third_party_sources")
+    keys = {"name", "source_name", "url", "fetchcontent_ref", "pin"}
+    if (
+        type(value) is not list
+        or len(value) != len(THIRD_PARTY_NAMES)
+        or any(not _exact_keys(item, keys) for item in value)
+        or tuple(item["name"] for item in value) != THIRD_PARTY_NAMES
+        or any(
+            type(item[key]) is not str or not item[key]
+            for item in value
+            for key in keys
+        )
+        or any(item["source_name"] != item["name"] for item in value)
+        or any(re.fullmatch(r"[a-z][a-z0-9_-]*", item["source_name"]) is None
+               for item in value)
+        or any(not item["url"].startswith("https://github.com/")
+               or not item["url"].endswith(".git") for item in value)
+        or any(re.fullmatch(r"[0-9a-f]{40}", item["pin"]) is None
+               for item in value)
+    ):
+        raise ContractFailure("third-party source policy is invalid")
+
+    cmake = (
+        root / "external/ccbench/cmake/ThirdParty.cmake"
+    ).read_text(encoding="utf-8", errors="strict")
+    for item in value:
+        prefix = f"CCBENCH_{item['name'].upper()}"
+        observed: dict[str, str] = {}
+        for suffix in ("REPO", "TAG"):
+            matches = re.findall(
+                rf'(?m)^\s*set\({prefix}_{suffix}\s+"([^"]+)"\)',
+                cmake,
+            )
+            if len(matches) != 1:
+                raise ContractFailure(
+                    f"ThirdParty.cmake {prefix}_{suffix} literal is ambiguous"
+                )
+            observed[suffix] = matches[0]
+        if (
+            observed["REPO"] != item["url"]
+            or observed["TAG"] != item["fetchcontent_ref"]
+        ):
+            raise ContractFailure(
+                f"third-party policy/ThirdParty.cmake drift: {item['name']}"
+            )
+        if (
+            re.fullmatch(r"[0-9a-f]{40}", item["fetchcontent_ref"])
+            and item["fetchcontent_ref"] != item["pin"]
+        ):
+            raise ContractFailure(
+                f"third-party SHA ref/pin drift: {item['name']}"
+            )
+    return tuple(dict(item) for item in value)
+
+
+def third_party_source_contract(
+    repo: Path | None = None, *, source_root: Path | None = None,
+) -> list[dict[str, Any]]:
+    """configure に渡す local source 3 本を pinned-clean と実証する。"""
+    root = (repo or _repo_root()).resolve()
+    policy = third_party_policy(root)
+    configured_root = (
+        source_root
+        if source_root is not None
+        else Path(os.environ[THIRD_PARTY_SOURCE_ROOT_ENV])
+        if os.environ.get(THIRD_PARTY_SOURCE_ROOT_ENV)
+        else root / THIRD_PARTY_STAGING_RELATIVE
+    )
+    try:
+        resolved_root = Path(configured_root).resolve(strict=True)
+    except OSError as exc:
+        raise ContractFailure(
+            f"third-party source root is absent: {configured_root}"
+        ) from exc
+    if not resolved_root.is_dir() or Path(configured_root).is_symlink():
+        raise ContractFailure("third-party source root is not a real directory")
+
+    records: list[dict[str, Any]] = []
+    for item in policy:
+        unresolved = resolved_root / item["source_name"]
+        try:
+            source = unresolved.resolve(strict=True)
+        except OSError as exc:
+            raise ContractFailure(
+                f"third-party source is absent: {item['name']}"
+            ) from exc
+        if not source.is_dir() or unresolved.is_symlink():
+            raise ContractFailure(
+                f"third-party source is not a real directory: {item['name']}"
+            )
+        head = _run([
+            "git", "-C", str(source), "rev-parse", "--verify", "HEAD",
+        ])
+        status = _run([
+            "git", "-C", str(source), "status", "--porcelain",
+            "--untracked-files=all",
+        ])
+        if (
+            head.returncode != 0
+            or head.stdout != item["pin"] + "\n"
+            or status.returncode != 0
+            or status.stdout
+        ):
+            raise ContractFailure(
+                f"third-party source is not pinned-clean: {item['name']}"
+            )
+        records.append({
+            **item,
+            "resolved_path": str(source),
+            "git_head_raw": head.stdout,
+            "git_status_porcelain_raw": status.stdout,
+            "clean": True,
+        })
+    return records
+
+
+def _copy_third_party_sources(
+    records: Sequence[Mapping[str, Any]], destination_root: Path,
+    *, repo: Path | None = None,
+) -> list[dict[str, Any]]:
+    """pinned-clean staging を build 専用 tree へ複製し、複製後も再照合する。"""
+    destination_root.mkdir(parents=True, exist_ok=False)
+    by_name = {item["name"]: item for item in records}
+    if set(by_name) != set(THIRD_PARTY_NAMES):
+        raise ContractFailure("third-party copy source set mismatch")
+    for name in THIRD_PARTY_NAMES:
+        item = by_name[name]
+        shutil.copytree(
+            item["resolved_path"],
+            destination_root / item["source_name"],
+            symlinks=True,
+        )
+    return third_party_source_contract(
+        repo or _repo_root(), source_root=destination_root,
+    )
+
+
+def _valid_third_party_sources(value: Any) -> bool:
+    try:
+        policy = third_party_policy()
+    except (ContractFailure, OSError, KeyError, TypeError, ValueError):
+        return False
+    keys = {
+        "name", "source_name", "url", "fetchcontent_ref", "pin",
+        "resolved_path", "git_head_raw", "git_status_porcelain_raw", "clean",
+    }
+    if (
+        type(value) is not list
+        or len(value) != len(policy)
+        or any(not _exact_keys(item, keys) for item in value)
+    ):
+        return False
+    by_name = {item["name"]: item for item in value}
+    return (
+        set(by_name) == set(THIRD_PARTY_NAMES)
+        and all(
+            all(item[key] == expected[key] for key in (
+                "name", "source_name", "url", "fetchcontent_ref", "pin",
+            ))
+            and type(item["resolved_path"]) is str
+            and Path(item["resolved_path"]).is_absolute()
+            and item["git_head_raw"] == item["pin"] + "\n"
+            and item["git_status_porcelain_raw"] == ""
+            and item["clean"] is True
+            for expected in policy
+            for item in (by_name[expected["name"]],)
+        )
+    )
+
+
+def _third_party_configure_flags(
+    records: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    by_name = {item["name"]: item for item in records}
+    if set(by_name) != set(THIRD_PARTY_NAMES):
+        raise ContractFailure("third-party source record set mismatch")
+    return [
+        f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}="
+        f"{by_name[name]['resolved_path']}"
+        for name in THIRD_PARTY_NAMES
+    ]
+
+
 def _compile_invocations_complete(value: Any) -> bool:
     return (
         type(value) is list
@@ -854,6 +1048,8 @@ def _validate_correctness(leg: Mapping[str, Any]) -> list[EvidenceFailure]:
     dependency_prefix = ";".join(
         item["resolved_path"] for item in dependencies
     )
+    third_party_sources = leg["provenance"]["third_party_sources"]
+    third_party_flags = _third_party_configure_flags(third_party_sources)
     if not (
         build["id"] == "correctness"
         and build["trace"] is True
@@ -867,6 +1063,8 @@ def _validate_correctness(leg: Mapping[str, Any]) -> list[EvidenceFailure]:
         in build["configure_argv"]
         and f"-DIZANAGI_GLOG_SRC_HEAD={dependency_pins['glog']}"
         in build["configure_argv"]
+        and _valid_third_party_sources(third_party_sources)
+        and all(flag in build["configure_argv"] for flag in third_party_flags)
         and all(
             item["replay_match"] is True
             and item["object_sha256"] == item["replay_object_sha256"]
@@ -1075,7 +1273,8 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
             return EvidenceFailure("schema", "binding sha256 is invalid")
     provenance = document["provenance"]
     if not _exact_keys(provenance, {
-        "environment_scrubbed", "tools", "source_witness",
+        "environment_scrubbed", "tools", "third_party_sources",
+        "source_witness",
     }):
         return EvidenceFailure("schema", "provenance schema mismatch")
     if provenance["environment_scrubbed"] is not True:
@@ -1088,6 +1287,7 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
         or {item["name"] for item in provenance["tools"]} != {
             "git", "nm", "readelf", "cmake", "gcc", "g++", "python",
         }
+        or not _valid_third_party_sources(provenance["third_party_sources"])
     ):
         return EvidenceFailure("schema", "tool identity schema mismatch")
     if not _exact_keys(provenance["source_witness"], {
@@ -1127,7 +1327,7 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
     if not _exact_keys(correctness["provenance"], {
         "environment_scrubbed", "tools", "ccbench_pin_full",
         "expected_patched_source_sha256", "observed_patched_source_sha256",
-        "dependencies",
+        "dependencies", "third_party_sources",
     }):
         return EvidenceFailure("schema", "correctness provenance schema mismatch")
     correctness_provenance = correctness["provenance"]
@@ -1148,6 +1348,9 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
         != set(SOURCE_FILES)
         or correctness_provenance["dependencies"]
         != correctness["build"]["dependencies"]
+        or not _valid_third_party_sources(
+            correctness_provenance["third_party_sources"]
+        )
     ):
         return EvidenceFailure("schema", "correctness provenance values mismatch")
     if not _exact_keys(correctness["build"], {
@@ -1342,6 +1545,25 @@ def validate_evidence(document: Any) -> tuple[EvidenceFailure, ...]:
             "correctness_activation",
             "correctness/gap toolchain identity differs",
         ))
+    third_party_identity_keys = (
+        "name", "source_name", "url", "fetchcontent_ref", "pin",
+        "git_head_raw", "git_status_porcelain_raw", "clean",
+    )
+    correctness_third_party = {
+        item["name"]: tuple(item[key] for key in third_party_identity_keys)
+        for item in document["correctness_leg"]["provenance"][
+            "third_party_sources"
+        ]
+    }
+    gap_third_party = {
+        item["name"]: tuple(item[key] for key in third_party_identity_keys)
+        for item in document["provenance"]["third_party_sources"]
+    }
+    if correctness_third_party != gap_third_party:
+        failures.append(EvidenceFailure(
+            "correctness_activation",
+            "correctness/gap third-party source identity differs",
+        ))
     expected_patched = document["provenance"]["source_witness"][
         "expected_patched_source_sha256"
     ]
@@ -1391,6 +1613,9 @@ def validate_evidence(document: Any) -> tuple[EvidenceFailure, ...]:
         ))
     builds = gap["builds"]
     dependency_pins = _dependency_pins()
+    gap_third_party_flags = _third_party_configure_flags(
+        document["provenance"]["third_party_sources"]
+    )
     build_by_id = {
         item["id"]: item for item in builds
         if type(item) is dict and set(item) == {
@@ -1417,6 +1642,8 @@ def validate_evidence(document: Any) -> tuple[EvidenceFailure, ...]:
             in item["configure_argv"]
             and f"-DIZANAGI_GLOG_SRC_HEAD={dependency_pins['glog']}"
             in item["configure_argv"]
+            and all(flag in item["configure_argv"]
+                    for flag in gap_third_party_flags)
             for item in build_by_id.values()
         )
         and build_by_id["rung-perf"]["transaction_object_sha256"]
@@ -1746,6 +1973,7 @@ def _attest_environment(
 def _configure_argv(
     *, source: Path, build: Path, tools: Mapping[str, str],
     prefix: str, macros: Sequence[str], trace: int,
+    third_party_sources: Sequence[Mapping[str, Any]],
 ) -> list[str]:
     flags = " ".join(f"-D{macro}=1" for macro in macros)
     dependency_pins = _dependency_pins()
@@ -1762,6 +1990,7 @@ def _configure_argv(
         f"-DCMAKE_PREFIX_PATH={prefix}",
         f"-DIZANAGI_GFLAGS_SRC_HEAD={dependency_pins['gflags']}",
         f"-DIZANAGI_GLOG_SRC_HEAD={dependency_pins['glog']}",
+        *_third_party_configure_flags(third_party_sources),
         f"-DCMAKE_C_COMPILER={tools['gcc']}",
         f"-DCMAKE_CXX_COMPILER={tools['g++']}",
         f"-DCMAKE_CXX_FLAGS={flags}",
@@ -1853,7 +2082,7 @@ def _validate_cmake_cache(
 def _build_variant(
     *, variant: str, source: Path, build: Path, raw: Path,
     tool_paths: Mapping[str, str], prefix: str, macros: Sequence[str],
-    deadline: Deadline,
+    deadline: Deadline, third_party_sources: Sequence[Mapping[str, Any]],
 ) -> tuple[dict[str, Any], Path]:
     if build.exists():
         raise DriverError(f"build directory is not fresh: {build}")
@@ -1861,7 +2090,7 @@ def _build_variant(
     build_raw.mkdir()
     configure = _configure_argv(
         source=source, build=build, tools=tool_paths, prefix=prefix,
-        macros=macros, trace=0,
+        macros=macros, trace=0, third_party_sources=third_party_sources,
     )
     configured = _run(
         configure, timeout=900, deadline=deadline,
@@ -2138,9 +2367,14 @@ def _validate_submit_binding(
         "job_script_sha256", "driver_sha256", "patch_sha256",
         "ledger_sha256", "correctness_sha256", "schedule_sha256",
         "submitter_sha256", "verifier_module_sha256", "policy_sha256",
-        "runtime_modules_sha256",
+        "runtime_modules_sha256", "third_party_heads",
     }):
         raise DriverError("submit binding hash schema mismatch")
+    expected_third_party_heads = {
+        item["name"]: item["pin"] for item in third_party_policy(repo)
+    }
+    if bindings["third_party_heads"] != expected_third_party_heads:
+        raise ContractFailure("submit third-party HEAD binding mismatch")
     current = {
         "job_script_sha256": sha256_file(
             repo / "tools/pegasus/silo_ladder_rung1.sh"
@@ -2248,6 +2482,8 @@ def _validate_submit_binding(
             for key, value in expected_campaign_hashes.items()
         )
         or campaign_bindings.get("ccbench_pin_full") != PIN
+        or campaign_bindings.get("third_party_heads")
+        != expected_third_party_heads
     ):
         raise ContractFailure("campaign root frozen input hash drift")
     expected_patched = _expected_patched_source_hashes(
@@ -3270,6 +3506,7 @@ def validate_current_bindings(
             for name in ("gflags", "glog")
         }
         dependency_pins = _dependency_pins(repo)
+        third_party = third_party_policy(repo)
         tools = {
             item["name"]: item for item in document["provenance"]["tools"]
         }
@@ -3303,6 +3540,41 @@ def validate_current_bindings(
             )
         ):
             raise DriverError("dependency raw HEAD/status differs from policy pins")
+        for provenance in (
+            document["correctness_leg"]["provenance"],
+            document["provenance"],
+        ):
+            records = provenance["third_party_sources"]
+            by_name = {item["name"]: item for item in records}
+            if (
+                not _valid_third_party_sources(records)
+                or any(
+                    by_name[item["name"]]["pin"] != item["pin"]
+                    or by_name[item["name"]]["git_head_raw"]
+                    != item["pin"] + "\n"
+                    or by_name[item["name"]]["clean"] is not True
+                    for item in third_party
+                )
+            ):
+                raise DriverError("third-party provenance differs from policy pins")
+        correctness_flags = _third_party_configure_flags(
+            document["correctness_leg"]["provenance"]["third_party_sources"]
+        )
+        gap_flags = _third_party_configure_flags(
+            document["provenance"]["third_party_sources"]
+        )
+        if (
+            any(
+                flag not in document["correctness_leg"]["build"]["configure_argv"]
+                for flag in correctness_flags
+            )
+            or any(
+                flag not in build["configure_argv"]
+                for build in build_by_id.values()
+                for flag in gap_flags
+            )
+        ):
+            raise DriverError("configure argv lacks offline third-party sources")
         stock_expected = {}
         for relative in SOURCE_FILES:
             shown = _run([
@@ -3382,6 +3654,12 @@ def _correctness_command(attempt_dir: Path) -> dict[str, Any]:
     calibration_path = repo / env_contract.lookup("pegasus").calibration_ref.path
     toolchain = capture_tool_identities()
     dependencies = _dependency_contract()
+    staged_third_party_sources = third_party_source_contract(repo)
+    third_party_sources = _copy_third_party_sources(
+        staged_third_party_sources,
+        attempt_dir / "thirdparty-src",
+        repo=repo,
+    )
     prefix = ";".join(item["resolved_path"] for item in dependencies)
     base = repo / "external/ccbench"
     correctness_build: dict[str, Any] | None = None
@@ -3426,6 +3704,7 @@ def _correctness_command(attempt_dir: Path) -> dict[str, Any]:
                 source=source_path, build=build,
                 tools={"cmake": cmake, "gcc": gcc, "g++": cxx},
                 prefix=prefix, macros=[RUNG_MACRO], trace=1,
+                third_party_sources=third_party_sources,
             )
             correctness_deadline = Deadline.after(
                 _load_json(repo / "tools/pegasus/policy.json")[
@@ -3587,6 +3866,7 @@ def _correctness_command(attempt_dir: Path) -> dict[str, Any]:
             "expected_patched_source_sha256": expected_patched,
             "observed_patched_source_sha256": observed_patched,
             "dependencies": dependencies,
+            "third_party_sources": third_party_sources,
         },
         "verifier_rc": verifier_result.returncode,
         "verifier": verifier,
@@ -3610,7 +3890,10 @@ def _gap_job_command(
         raise DriverError("attempt number must be 1 or 2")
     # Build/run machinery is deliberately kept behind this PBS-only seam.  The
     # wrapper supplies dependency prefixes and raw allocation material.
-    required = ("PBS_JOBID", "IZANAGI_GFLAGS_INSTALL", "IZANAGI_GLOG_INSTALL")
+    required = (
+        "PBS_JOBID", "IZANAGI_GFLAGS_INSTALL", "IZANAGI_GLOG_INSTALL",
+        THIRD_PARTY_SOURCE_ROOT_ENV,
+    )
     missing = [name for name in required if not os.environ.get(name)]
     if missing:
         raise DriverError(f"gap-job missing PBS environment: {missing}")
@@ -3644,6 +3927,18 @@ def _gap_job_command(
         "glog-source-head.txt", "glog-source-status.txt",
         "glog-configure.stderr", "glog-build.stdout", "glog-build.stderr",
         "glog-install.stdout", "glog-install.stderr",
+        "masstree-thirdparty-persistent-head.txt",
+        "masstree-thirdparty-persistent-status.txt",
+        "masstree-thirdparty-scratch-head.txt",
+        "masstree-thirdparty-scratch-status.txt",
+        "mimalloc-thirdparty-persistent-head.txt",
+        "mimalloc-thirdparty-persistent-status.txt",
+        "mimalloc-thirdparty-scratch-head.txt",
+        "mimalloc-thirdparty-scratch-status.txt",
+        "googletest-thirdparty-persistent-head.txt",
+        "googletest-thirdparty-persistent-status.txt",
+        "googletest-thirdparty-scratch-head.txt",
+        "googletest-thirdparty-scratch-status.txt",
     ):
         source = job_staging / name
         if not source.is_file() or source.is_symlink():
@@ -3675,6 +3970,7 @@ def _gap_job_command(
         os.environ["IZANAGI_GFLAGS_INSTALL"] + ";"
         + os.environ["IZANAGI_GLOG_INSTALL"]
     )
+    third_party_sources = third_party_source_contract(repo)
     scratch = Path(os.environ.get("TMPDIR", "/tmp"))
     policy = _load_json(repo / "tools/pegasus/policy.json")[
         "silo_ladder_rung1"
@@ -3713,6 +4009,7 @@ def _gap_job_command(
                 build=scratch / "build-stock", raw=raw,
                 tool_paths=tool_paths, prefix=prefix, macros=[],
                 deadline=build_deadline,
+                third_party_sources=third_party_sources,
             )
             build_records.append(stock_record)
             binaries["stock"] = stock_binary
@@ -3732,6 +4029,7 @@ def _gap_job_command(
                         build=scratch / "build-rung-perf", raw=raw,
                         tool_paths=tool_paths, prefix=prefix, macros=[RUNG_MACRO],
                         deadline=build_deadline,
+                        third_party_sources=third_party_sources,
                     )
                     live_record, live_binary = _build_variant(
                         variant="rung-liveness", source=rung,
@@ -3739,6 +4037,7 @@ def _gap_job_command(
                         tool_paths=tool_paths, prefix=prefix,
                         macros=[RUNG_MACRO, REPORT_MACRO],
                         deadline=build_deadline,
+                        third_party_sources=third_party_sources,
                     )
                     build_records.extend([perf_record, live_record])
                     binaries.update({
@@ -4002,6 +4301,7 @@ def _gap_job_command(
         "provenance": {
             "environment_scrubbed": True,
             "tools": tools,
+            "third_party_sources": third_party_sources,
             "source_witness": {
                 "submit_whole_tree_clean": submit["whole_tree_clean"],
                 "job_source_surface_clean": True,
@@ -4177,6 +4477,10 @@ def _collect_command(
     }
     if any(frozen.get(key) != value for key, value in collect_current.items()):
         raise ContractFailure("collect observed source drift from submit receipt")
+    if frozen.get("third_party_heads") != {
+        item["name"]: item["pin"] for item in third_party_policy(_repo_root())
+    }:
+        raise ContractFailure("collect third-party HEAD binding drift")
     schedule_bytes = (
         json.dumps(
             gap["gap_leg"]["schedule_receipt"],

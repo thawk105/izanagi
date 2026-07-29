@@ -3,8 +3,25 @@
 set -Eeuo pipefail
 umask 077
 
+verify_third_party_pinned_clean() {
+  local source=$1 pin=$2 name=$3
+  [[ -d "$source" && ! -L "$source" ]] || {
+    echo "third-party source is not a real directory: $name" >&2
+    return 1
+  }
+  THIRD_PARTY_VERIFIED_HEAD=$(git -C "$source" rev-parse --verify HEAD) || return
+  THIRD_PARTY_VERIFIED_STATUS=$(
+    git -C "$source" status --porcelain --untracked-files=all
+  ) || return
+  if [[ "$THIRD_PARTY_VERIFIED_HEAD" != "$pin" \
+      || -n "$THIRD_PARTY_VERIFIED_STATUS" ]]; then
+    echo "third-party source is not pinned-clean: $name" >&2
+    return 1
+  fi
+}
+
 usage() {
-  echo "usage: submit_silo_ladder_rung1.sh --correctness-json PATH [--attempt-number 1|2] [--prior-gap-result PATH] [--dry-run] [--repo-root PATH]" >&2
+  echo "usage: submit_silo_ladder_rung1.sh (--correctness-json PATH | --prepare-third-party-only) [--attempt-number 1|2] [--prior-gap-result PATH] [--dry-run] [--repo-root PATH]" >&2
 }
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -13,12 +30,14 @@ CORRECTNESS_JSON=""
 DRY_RUN=0
 ATTEMPT_NUMBER=1
 PRIOR_GAP_RESULT=""
+PREPARE_THIRD_PARTY_ONLY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --correctness-json) CORRECTNESS_JSON=${2:?}; shift 2 ;;
     --attempt-number) ATTEMPT_NUMBER=${2:?}; shift 2 ;;
     --prior-gap-result) PRIOR_GAP_RESULT=${2:?}; shift 2 ;;
     --repo-root) REPO_ROOT=$(cd "${2:?}" && pwd -P); shift 2 ;;
+    --prepare-third-party-only) PREPARE_THIRD_PARTY_ONLY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage; exit 2 ;;
@@ -27,9 +46,14 @@ done
 [[ "$ATTEMPT_NUMBER" == 1 || "$ATTEMPT_NUMBER" == 2 ]] || {
   echo "attempt number must be 1 or 2" >&2; exit 2;
 }
-[[ -f "$CORRECTNESS_JSON" && ! -L "$CORRECTNESS_JSON" ]] || {
-  echo "correctness JSON is missing or a symlink" >&2; exit 2;
-}
+if [[ "$PREPARE_THIRD_PARTY_ONLY" -eq 0 ]]; then
+  [[ -f "$CORRECTNESS_JSON" && ! -L "$CORRECTNESS_JSON" ]] || {
+    echo "correctness JSON is missing or a symlink" >&2; exit 2;
+  }
+elif [[ -n "$CORRECTNESS_JSON" || "$DRY_RUN" -ne 0 ]]; then
+  echo "prepare-only cannot be combined with correctness/dry-run" >&2
+  exit 2
+fi
 
 POLICY="$REPO_ROOT/tools/pegasus/policy.json"
 JOB_SCRIPT="$REPO_ROOT/tools/pegasus/silo_ladder_rung1.sh"
@@ -122,6 +146,88 @@ SUBMISSION="$RUNTIME/submissions/$NONCE"
 mkdir -p "$RUNTIME/submissions" "$ATTEMPTS"
 mkdir "$SUBMISSION"
 set -o noclobber
+
+# Compute node は network/DNS を持たないため、login node 上で pinned clone を永続化する。
+# 既存 clone は fetch せず、HEAD と clean status だけを照合する。
+THIRD_PARTY_ROOT="$RUNTIME/thirdparty-src"
+mkdir -p "$THIRD_PARTY_ROOT"
+readarray -t third_party_rows < <(python3 -I -B - "$REPO_ROOT" <<'PY'
+import pathlib,sys
+sys.path.insert(0,sys.argv[1])
+from orchestrator.campaign.silo_ladder_rung1 import third_party_policy
+items=third_party_policy(pathlib.Path(sys.argv[1]))
+for item in items:
+    print("\t".join((
+        item["name"],item["source_name"],item["url"],item["pin"],
+    )))
+PY
+)
+[[ ${#third_party_rows[@]} -eq 3 ]]
+for row in "${third_party_rows[@]}"; do
+  IFS=$'\t' read -r third_name third_source_name third_url third_pin <<<"$row"
+  [[ "$third_name" =~ ^[a-z][a-z0-9_-]*$ ]]
+  [[ "$third_source_name" =~ ^[a-z][a-z0-9_-]*$ ]]
+  [[ "$third_url" == https://github.com/*.git ]]
+  [[ "$third_pin" =~ ^[0-9a-f]{40}$ ]]
+  destination="$THIRD_PARTY_ROOT/$third_source_name"
+  if [[ ! -e "$destination" && ! -L "$destination" ]]; then
+    stage=$(mktemp -d "$THIRD_PARTY_ROOT/.${third_source_name}.XXXXXX")
+    if ! git clone --no-checkout -- "$third_url" "$stage/repo"; then
+      rm -rf -- "$stage"
+      echo "third-party clone failed: $third_name" >&2
+      exit 2
+    fi
+    if ! git -C "$stage/repo" checkout --detach "$third_pin"; then
+      rm -rf -- "$stage"
+      echo "third-party checkout failed: $third_name" >&2
+      exit 2
+    fi
+    if ! python3 -I -B - "$stage/repo" "$destination" <<'PY'
+import os,sys
+os.rename(sys.argv[1],sys.argv[2])
+PY
+    then
+      rm -rf -- "$stage"
+      echo "third-party publish race/failure: $third_name" >&2
+      exit 2
+    fi
+    rmdir "$stage"
+  fi
+  verify_third_party_pinned_clean \
+    "$destination" "$third_pin" "$third_name" || exit 2
+done
+THIRD_PARTY_HEADS="$SUBMISSION/third-party-heads.json"
+python3 -I -B - "$POLICY" "$THIRD_PARTY_ROOT" "$THIRD_PARTY_HEADS" <<'PY'
+import json,pathlib,subprocess,sys
+policy=json.load(open(sys.argv[1],encoding="utf-8"))["silo_ladder_rung1"][
+    "third_party_sources"
+]
+root=pathlib.Path(sys.argv[2])
+heads={}
+for item in policy:
+    source=root/item["source_name"]
+    head=subprocess.run(
+        ["git","-C",str(source),"rev-parse","--verify","HEAD"],
+        check=True,capture_output=True,text=True,
+    ).stdout.strip()
+    status=subprocess.run(
+        ["git","-C",str(source),"status","--porcelain","--untracked-files=all"],
+        check=True,capture_output=True,text=True,
+    ).stdout
+    if head != item["pin"] or status:
+        raise SystemExit(f"{item['name']} changed during receipt freeze")
+    heads[item["name"]]=head
+with open(sys.argv[3],"x",encoding="utf-8") as handle:
+    json.dump(heads,handle,sort_keys=True,indent=2)
+    handle.write("\n")
+PY
+
+if [[ "$PREPARE_THIRD_PARTY_ONLY" -eq 1 ]]; then
+  rm -f -- "$THIRD_PARTY_HEADS"
+  rmdir "$SUBMISSION"
+  echo "third-party sources prepared: $THIRD_PARTY_ROOT"
+  exit 0
+fi
 
 python3 -I -B - "$CORRECTNESS_JSON" "$REPO_ROOT" \
   >"$SUBMISSION/correctness-verify.stdout" \
@@ -241,12 +347,12 @@ python3 -I -B - "$CAMPAIGN_ROOT/root-receipt.json" "$REPO_ROOT" \
   "$CAMPAIGN_ID" "$SOURCE_COMMIT" "$SCHEDULE_SHA" "$CORRECTNESS_SHA" \
   "$JOB_SHA" "$DRIVER_SHA" "$SUBMITTER_SHA" "$VERIFIER_SHA" "$POLICY_SHA" \
   "$PATCH_SHA" "$LEDGER_SHA" "$RUNTIME_MODULES_SHA" "$ATTEMPT_NUMBER" \
-  "$SUBMISSION/schedule-receipt.json" <<'PY'
+  "$SUBMISSION/schedule-receipt.json" "$THIRD_PARTY_HEADS" <<'PY'
 import json,pathlib,sys
 from hashlib import sha256
 path,repo,campaign,commit,schedule_sha,correctness_sha,job_sha,driver_sha,\
 submitter_sha,verifier_sha,policy_sha,patch_sha,ledger_sha,runtime_modules_sha,\
-attempt,schedule_path=sys.argv[1:]
+attempt,schedule_path,third_party_heads_path=sys.argv[1:]
 sys.path.insert(0,repo)
 from orchestrator.campaign.silo_ladder_rung1 import (
     PIN, SOURCE_FILES, _expected_patched_source_hashes,
@@ -273,6 +379,9 @@ doc={
    "submitter_sha256":submitter_sha,"verifier_module_sha256":verifier_sha,
    "policy_sha256":policy_sha,"patch_sha256":patch_sha,
    "ledger_sha256":ledger_sha,"runtime_modules_sha256":runtime_modules_sha,
+   "third_party_heads":json.load(
+      open(third_party_heads_path,encoding="utf-8")
+   ),
    "ccbench_pin_full":PIN,
    "pinned_source_sha256":{
       relative:pinned_source_hash(relative) for relative in SOURCE_FILES
@@ -336,13 +445,13 @@ python3 -I -B - "$SUBMISSION" "$NONCE" "$REQUEST_ID" "$SOURCE_COMMIT" \
   "$ATTEMPT_NUMBER" "$PRIOR_GAP_SHA" "$PRIOR_GAP_RESULT" "$PRIOR_GAP_REL" \
   "$SUBMITTER_SHA" "$VERIFIER_SHA" "$POLICY_SHA" "$CAMPAIGN_ID" \
   "$RUNTIME_MODULES_SHA" "$CAMPAIGN_ROOT/root-receipt.json" "$REPO_ROOT" \
-  "$(pwd -P)" <<'PY'
+  "$(pwd -P)" "$THIRD_PARTY_HEADS" <<'PY'
 import json, pathlib, sys, time
 (root,nonce,job,commit,project,queue,nodes,walltime,dry,job_sha,driver_sha,
  patch_sha,ledger_sha,correctness_sha,schedule_sha,attempt_number,
  prior_gap_sha,prior_gap_path,prior_gap_rel,submitter_sha,verifier_sha,
  policy_sha,campaign_id,runtime_modules_sha,campaign_receipt_path,repo_root,
- caller_cwd)=sys.argv[1:]
+ caller_cwd,third_party_heads_path)=sys.argv[1:]
 root=pathlib.Path(root)
 sys.path.insert(0,repo_root)
 from orchestrator.campaign.silo_ladder_rung1 import publish_create_only_json
@@ -384,7 +493,10 @@ doc={"schema_version":"silo_ladder_rung1-submit-receipt/v1",
                  "submitter_sha256":submitter_sha,
                  "verifier_module_sha256":verifier_sha,
                  "policy_sha256":policy_sha,
-                 "runtime_modules_sha256":runtime_modules_sha},
+                 "runtime_modules_sha256":runtime_modules_sha,
+                 "third_party_heads":json.load(
+                     open(third_party_heads_path,encoding="utf-8")
+                 )},
      "request":{"project":project,"queue":queue,"nodes":int(nodes),
                 "elapstim_req_s":int(walltime)},
      "qsub":{"request_id":job,"rc":int(raw("qsub.rc").strip()),

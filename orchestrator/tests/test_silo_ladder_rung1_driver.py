@@ -189,6 +189,28 @@ def _evidence(spec: dict) -> dict:
         f"-DIZANAGI_GFLAGS_SRC_HEAD={dependencies[0]['pin']}",
         f"-DIZANAGI_GLOG_SRC_HEAD={dependencies[1]['pin']}",
     ]
+    third_party_policy = driver.third_party_policy(ROOT)
+    def third_party_records(root: str) -> list[dict]:
+        return [
+            {
+                **item,
+                "resolved_path": f"{root}/{item['source_name']}",
+                "git_head_raw": item["pin"] + "\n",
+                "git_status_porcelain_raw": "",
+                "clean": True,
+            }
+            for item in third_party_policy
+        ]
+    correctness_third_party = third_party_records(
+        "/fixture/thirdparty-staging"
+    )
+    gap_third_party = third_party_records("/fixture/thirdparty-scratch")
+    correctness_third_party_argv = driver._third_party_configure_flags(
+        correctness_third_party
+    )
+    gap_third_party_argv = driver._third_party_configure_flags(
+        gap_third_party
+    )
     return {
         "schema_version": driver.SCHEMA_VERSION,
         "artifact_id": driver.ARTIFACT_ID,
@@ -227,6 +249,7 @@ def _evidence(spec: dict) -> dict:
         "provenance": {
             "environment_scrubbed": True,
             "tools": copy.deepcopy(tools),
+            "third_party_sources": copy.deepcopy(gap_third_party),
             "source_witness": {
                 "submit_whole_tree_clean": True,
                 "job_source_surface_clean": True,
@@ -255,6 +278,7 @@ def _evidence(spec: dict) -> dict:
                     "-DCMAKE_PREFIX_PATH=/fixture/gflags-install;/fixture/glog-install",
                     "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
                     "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+                    *correctness_third_party_argv,
                 ],
                 "build_argv": ["cmake", "--build", "fixture"],
                 "binary_sha256": "c" * 64,
@@ -286,6 +310,7 @@ def _evidence(spec: dict) -> dict:
                     path: "f" * 64 for path in driver.SOURCE_FILES
                 },
                 "dependencies": copy.deepcopy(dependencies),
+                "third_party_sources": copy.deepcopy(correctness_third_party),
             },
             "verifier_rc": 0,
             "verifier": {
@@ -333,6 +358,7 @@ def _evidence(spec: dict) -> dict:
                     "activation_ok": True,
                     "configure_argv": [
                         "cmake", "-DCCBENCH_TRACE=0", *dependency_pin_argv,
+                        *gap_third_party_argv,
                     ],
                     "build_argv": ["cmake", "--build", "fixture"],
                     "binary_sha256": "c" * 64,
@@ -362,6 +388,7 @@ def _evidence(spec: dict) -> dict:
                     "configure_argv": [
                         "cmake", f"-D{driver.RUNG_MACRO}=1",
                         *dependency_pin_argv,
+                        *gap_third_party_argv,
                     ],
                     "build_argv": ["cmake", "--build", "fixture"],
                     "binary_sha256": "c" * 64,
@@ -392,6 +419,7 @@ def _evidence(spec: dict) -> dict:
                         "cmake", f"-D{driver.RUNG_MACRO}=1",
                         f"-D{driver.REPORT_MACRO}=1",
                         *dependency_pin_argv,
+                        *gap_third_party_argv,
                     ],
                     "build_argv": ["cmake", "--build", "fixture"],
                     "binary_sha256": "c" * 64,
@@ -566,6 +594,7 @@ def test_closed_schema_rejects_unknown_key_at_each_material_layer():
         valid["binding"]["patch"],
         valid["provenance"],
         valid["provenance"]["tools"][0],
+        valid["provenance"]["third_party_sources"][0],
         valid["provenance"]["source_witness"],
         valid["correctness_leg"],
         valid["correctness_leg"]["workload"],
@@ -573,6 +602,7 @@ def test_closed_schema_rejects_unknown_key_at_each_material_layer():
         valid["correctness_leg"]["build"]["compile_invocations"][0],
         valid["correctness_leg"]["provenance"],
         valid["correctness_leg"]["provenance"]["tools"][0],
+        valid["correctness_leg"]["provenance"]["third_party_sources"][0],
         valid["correctness_leg"]["verifier"],
         valid["correctness_leg"]["verifier"]["results"][0],
         valid["correctness_leg"]["verifier"]["results"][0]["stats"],
@@ -605,6 +635,7 @@ def test_closed_schema_rejects_unknown_key_at_each_material_layer():
             mutated["binding"]["patch"],
             mutated["provenance"],
             mutated["provenance"]["tools"][0],
+            mutated["provenance"]["third_party_sources"][0],
             mutated["provenance"]["source_witness"],
             mutated["correctness_leg"],
             mutated["correctness_leg"]["workload"],
@@ -612,6 +643,7 @@ def test_closed_schema_rejects_unknown_key_at_each_material_layer():
             mutated["correctness_leg"]["build"]["compile_invocations"][0],
             mutated["correctness_leg"]["provenance"],
             mutated["correctness_leg"]["provenance"]["tools"][0],
+            mutated["correctness_leg"]["provenance"]["third_party_sources"][0],
             mutated["correctness_leg"]["verifier"],
             mutated["correctness_leg"]["verifier"]["results"][0],
             mutated["correctness_leg"]["verifier"]["results"][0]["stats"],
@@ -744,6 +776,63 @@ def test_dependency_pins_are_policy_bound_and_match_registered_calibration():
         )
         for name in ("gflags", "glog")
     } == pins
+
+
+def _third_party_verifier_function(path: Path, next_marker: str) -> str:
+    source = path.read_text(encoding="utf-8")
+    start = source.index("verify_third_party_pinned_clean() {")
+    end = source.index(next_marker, start)
+    return source[start:end]
+
+
+@pytest.mark.parametrize(
+    ("script", "next_marker"),
+    [
+        (TOOLS / "submit_silo_ladder_rung1.sh", "\nusage() {"),
+        (TOOLS / "silo_ladder_rung1.sh", "\nif [[ -z"),
+    ],
+    ids=("submitter", "job"),
+)
+def test_submitter_and_job_reject_third_party_head_mismatch(
+    tmp_path, script, next_marker,
+):
+    spec = _fixture("third_party_head_mismatch.json")
+    source = tmp_path / script.stem
+    source.mkdir()
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "config", "user.email",
+         "fixture@example.invalid"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source), "config", "user.name", "Fixture"],
+        check=True,
+    )
+    (source / "README").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(source), "add", "README"], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "commit", "-qm", "fixture"],
+        check=True,
+    )
+    fragment = _third_party_verifier_function(script, next_marker)
+    checked = subprocess.run(
+        [
+            "bash", "-c",
+            fragment + '\nverify_third_party_pinned_clean "$1" "$2" "$3"',
+            "fixture", str(source), spec["expected_pin"], spec["name"],
+        ],
+        capture_output=True, text=True,
+    )
+    assert checked.returncode != 0
+    assert spec["reason"] in checked.stderr
+
+
+def test_driver_rejects_absent_third_party_staging(tmp_path):
+    with pytest.raises(
+        driver.ContractFailure, match="third-party source root is absent",
+    ):
+        driver.third_party_source_contract(ROOT, source_root=tmp_path / "absent")
 
 
 def test_compile_invocation_summary_requires_exact_unique_source_set():
@@ -1834,6 +1923,7 @@ def test_collect_fixture_bundle_publishes_without_self_rejection(
         "patches/silo_ladder_rung1.patch",
         "patches/ledger.json",
         "orchestrator/verifier/report.py",
+        "external/ccbench/cmake/ThirdParty.cmake",
     )
     for relative in copied_paths:
         destination = repo / relative
@@ -1875,6 +1965,10 @@ def test_collect_fixture_bundle_publishes_without_self_rejection(
         "runtime_modules_sha256": runtime_sha256,
         "correctness_sha256": driver.sha256_file(correctness_json),
         "schedule_sha256": driver.sha256_bytes(schedule_bytes),
+        "third_party_heads": {
+            item["name"]: item["pin"]
+            for item in driver.third_party_policy(ROOT)
+        },
     }
     campaign_id = "c" * 64
     campaign_path = repo / "fixture/campaign/campaign-root.json"
@@ -2037,6 +2131,8 @@ def test_owned_pbs_assets_syntax_directives_policy_and_receipt_contract():
     assert 'export TMPDIR="/scr/${PBS_JOBID//:/_}"' in job_source
     assert "sys.version_info[:2] >= (3, 10)" in job_source
     assert "qstat-after-qsub.stdout" in submit_source
+    assert "--prepare-third-party-only" in submit_source
+    assert "third-party sources prepared:" in submit_source
     assert "whole_tree_clean" in submit_source
     assert "attempt 2 is allowed only after attempt 1 infra failure" in submit_source
     assert rung["max_attempts"] == 2

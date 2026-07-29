@@ -37,6 +37,29 @@
       "gflags": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
       "glog": "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
     },
+    "third_party_sources": [
+      {
+        "name": "masstree",
+        "source_name": "masstree",
+        "url": "https://github.com/thawk105/masstree-beta.git",
+        "fetchcontent_ref": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+      },
+      {
+        "name": "mimalloc",
+        "source_name": "mimalloc",
+        "url": "https://github.com/microsoft/mimalloc.git",
+        "fetchcontent_ref": "v2.3.2",
+        "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"
+      },
+      {
+        "name": "googletest",
+        "source_name": "googletest",
+        "url": "https://github.com/google/googletest.git",
+        "fetchcontent_ref": "f8d7d77c06936315286eb55f8de22cd23c188571",
+        "pin": "f8d7d77c06936315286eb55f8de22cd23c188571"
+      }
+    ],
     "max_attempts": 2,
     "infra_retry_reasons": [
       "attestation",

@@ -14,6 +14,23 @@ JOB_START_EPOCH=$(date +%s)
 FINALIZE_DEADLINE_EPOCH=$((JOB_START_EPOCH + 7200))
 CURRENT_STAGE=contract_bootstrap
 
+verify_third_party_pinned_clean() {
+  local source=$1 pin=$2 name=$3
+  [[ -d "$source" && ! -L "$source" ]] || {
+    echo "third-party source is not a real directory: $name" >&2
+    return 1
+  }
+  THIRD_PARTY_VERIFIED_HEAD=$(git -C "$source" rev-parse --verify HEAD) || return
+  THIRD_PARTY_VERIFIED_STATUS=$(
+    git -C "$source" status --porcelain --untracked-files=all
+  ) || return
+  if [[ "$THIRD_PARTY_VERIFIED_HEAD" != "$pin" \
+      || -n "$THIRD_PARTY_VERIFIED_STATUS" ]]; then
+    echo "third-party source is not pinned-clean: $name" >&2
+    return 1
+  fi
+}
+
 if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
   echo "PBS_JOBID/PBS_O_WORKDIR is required" >&2
   exit 2
@@ -322,6 +339,48 @@ PY
 [[ ${policy_values[10]} -eq 2 ]]
 [[ ${policy_values[11]} == 48.0 ]]
 FINALIZE_CAP_S=${policy_values[9]}
+
+# login node が凍結した FetchContent source を /scr へ複製し、実 HEAD を再照合する。
+CURRENT_STAGE=third_party_copy_contract
+THIRD_PARTY_PERSISTENT="$RUNTIME/thirdparty-src"
+THIRD_PARTY_SCRATCH="$TMPDIR/thirdparty-src"
+mkdir "$THIRD_PARTY_SCRATCH"
+readarray -t third_party_rows < <("$PY" -I -B - "$REPO_ROOT" "$SUBMIT_RECEIPT" <<'PY'
+import json,pathlib,sys
+sys.path.insert(0,sys.argv[1])
+from orchestrator.campaign.silo_ladder_rung1 import third_party_policy
+policy=third_party_policy(pathlib.Path(sys.argv[1]))
+submit=json.load(open(sys.argv[2],encoding="utf-8"))
+heads=submit.get("bindings",{}).get("third_party_heads")
+expected={item["name"]:item["pin"] for item in policy}
+if heads != expected:
+    raise SystemExit("submit third-party HEAD binding differs from policy")
+for item in policy:
+    print("\t".join((item["name"],item["source_name"],item["pin"])))
+PY
+)
+[[ ${#third_party_rows[@]} -eq 3 ]]
+for row in "${third_party_rows[@]}"; do
+  IFS=$'\t' read -r third_name third_source_name third_pin <<<"$row"
+  [[ "$third_name" =~ ^[a-z][a-z0-9_-]*$ ]]
+  [[ "$third_source_name" =~ ^[a-z][a-z0-9_-]*$ ]]
+  [[ "$third_pin" =~ ^[0-9a-f]{40}$ ]]
+  persistent="$THIRD_PARTY_PERSISTENT/$third_source_name"
+  scratch="$THIRD_PARTY_SCRATCH/$third_source_name"
+  verify_third_party_pinned_clean \
+    "$persistent" "$third_pin" "$third_name"
+  printf '%s' "$THIRD_PARTY_VERIFIED_STATUS" \
+    >"$JOB_STAGING/$third_name-thirdparty-persistent-status.txt"
+  printf '%s\n' "$THIRD_PARTY_VERIFIED_HEAD" \
+    >"$JOB_STAGING/$third_name-thirdparty-persistent-head.txt"
+  cp -a -- "$persistent" "$scratch"
+  verify_third_party_pinned_clean "$scratch" "$third_pin" "$third_name"
+  printf '%s' "$THIRD_PARTY_VERIFIED_STATUS" \
+    >"$JOB_STAGING/$third_name-thirdparty-scratch-status.txt"
+  printf '%s\n' "$THIRD_PARTY_VERIFIED_HEAD" \
+    >"$JOB_STAGING/$third_name-thirdparty-scratch-head.txt"
+done
+export IZANAGI_THIRDPARTY_SOURCE_ROOT="$THIRD_PARTY_SCRATCH"
 
 # source-surface witness。output 増分を除外した検査であり whole-tree clean と称さない。
 CURRENT_STAGE=source_identity_contract
