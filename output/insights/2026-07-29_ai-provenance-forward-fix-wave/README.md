@@ -51,7 +51,12 @@ role=`integrator`はmerge前の判断から裁定した。
 - Stage 6 review 2本はblocker 7件を返した。親裁定後にfix 2巡、focused re-review 2本で
   code blocker 0・GO
 - 親の関連test: `116 passed in 4.80s`、py_compile/diff check rc=0
+- commit後の変異: outcome-changing 9/9 KILLED、structural/diagnostic pin 2/2検出、
+  survivor 0、正制御3件green。復元後source SHA-256はcommitと一致
+- 最終受入: `3807 passed, 18 skipped in 242.42s`、関連test再実行`116 passed in 4.54s`、
+  docs / Codex agents / diff check / full-history provenanceがgreen
 - 変異の事前登録と再登録は`s4-adjudication-plan-v2.md`と`s6-review-adjudication.md`
+- machine-readableな変異結果は`mutation-ledger.json`
 - fix前snapshotを各fix投入前に固定し、修正範囲の照合に使用した（中間patch自体は正本へ採用しない）
 - correct evidence=`s1-recovery-evidence.md`、最終裁定=`s6-review-adjudication.md`
 

@@ -49,6 +49,10 @@ archiveは凍結し、一覧は`docs/archive/README.md`を正本とする。
   correction自身greenを連言。一般allowlist/設定/CLI免除なし。D95のmerge pathは全parentとの差分積へ統一
 - Stage 6は敵対review 2本のblockerをfix 2巡で閉じ、focused re-review 2本がGO・blocker 0。
   関連testは親実走116 passed、py_compile/diff check rc=0
+- commit後変異はoutcome-changing 9/9 KILLED、structural/diagnostic pin 2/2、survivor 0。
+  正制御3件と復元SHA一致を`mutation-ledger.json`へ固定
+- 最終受入は3807 passed / 18 skipped、関連116 passed、docs / Codex agents /
+  diff check / full-history provenanceがgreen
 - 段8自己改善はF25/F37の同型再発として追記し、O17をfast-forward/merge commit分岐、
   `--no-commit` preflight、`commit -F`、既定full-history監査へ更新。予算値は上げず、重複例を縮約
 - worklogは追記で100KB閾値を越えるため、(49)〜(64)を
