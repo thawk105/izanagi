@@ -1,0 +1,23 @@
+# [T-142] 出力集合 O への適応的 S2 promotion — 親 brief
+
+- scope: 現行 sequential p3 loop の S2-on 経路に、明示 opt-in の適応的 promotion を実装する。
+- 確定裁定: 保証対象は V/A 全体でなく、最終 selected/stock/tie・正式レポート・proof chain の certified 主張からなる O。
+- 確定裁定: D58 の適用先拡大、S2 診断機会減、未実行・未認証の構造化信号、V/A/O 三分、非恒真な機械検査を採用する。
+- 不変条件: anomaly を検出した候補は即 reject し、S2 を実走した候補だけを COMMIT・選択・正式な認証済み数値へ昇格できる。
+- 不変条件: promotion されない bench 値は監査用 WAL 以外の critic 性能入力・正式 layer3 runs・certified proof へ射影しない。
+- 不変条件: S2 未実行は理由と未認証状態を構造化して critic へ返し、fitness や verifier-red と混同しない。
+- 不変条件: 既定 off、D58 floor screening、legacy-only base driver、S1、s8b oracle の既存順序と受理述語を変えない。
+- 不変条件: opt-in 方針は campaign identity に入り、旧 WAL と混在しない。
+- (P1) promotion frontier は「既存 S2 済み COMMIT の incumbent を出力上置換し得る候補」とする。厳密比較・tie 帯は親の provisional 裁定であり攻撃対象。
+- (P2) 初回 incumbent 不在時は候補を必ず promotion し、その後は新 best 候補だけを promotion する。親の provisional 裁定であり攻撃対象。
+- (P3) 未 promotion 候補は新しい terminal abort/deferred 型ではなく、再開時にも再実走しない明示 outcome とする。親の provisional 裁定であり攻撃対象。
+- 成果物影響: promotion 判定を誤ると、S2 未認証候補が selected/report/proof に混入するか、真の selected/tie 候補が O から欠落する。
+- 成果物影響: layer3 遮断を欠くと COMMIT 前の TPS が正式 runs に入り、certified 主張と数値の対応が壊れる。
+- 成果物: pipeline/loop/該当 driver、critic、layer3 schema/renderer、境界テストを一つの受理集合変更として実装する。
+- 成果物: D96 に従う新 decision、phase 完了記録、worklog、設計・変異・受入台帳を同じ wave で残す。
+- freeze/pin: layer3 schema は live copy、`test_s8b_oracle_driver.py` は独立 structural golden。既存 durable freeze/manifest に schema bytes pin はない。
+- producer: layer3 renderer が書く JSON だけが bytes 変更対象。既存凍結 JSON と freeze trust root は変更しない。
+- G04 実在 path: sort/trigger の既存 autonomous campaign 2 件が S2-on sequential loop の発火実績である。
+- 既存被覆: 対象 baseline は 325 passed / 9 skipped。S2 all-pass/red、既定順序、critic COMMIT 限定、未 COMMIT bench の現 layer3 射影を含む。
+- 受入: 専用 worktree の login-node で対象テスト、全走、mutation、Codex/docs/provenance 検査を行う。性能値の新規測定・外挿はしない。
+- 分割: manager は brief/裁定/docs/統合、read-only Codex は plan と敵対検証、workspace-write Codex worker はコードとテストだけを担当する。

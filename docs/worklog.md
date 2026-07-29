@@ -607,34 +607,53 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-170] 同上
 - [T-171] 同上
 
-## 2026-07-29 (54) — [T-153(e)] + [T-154(2)(3)] provenance gate を完了 — CAB 最終 trailer block 配置 + policy 9,000-byte 上限 (コード + docs、branch codex/dev-wave-t153e-t15423、計測 = 本 worktree・ログインノード)
+## 2026-07-29 (54) — [/rulings] 裁定 5 件を記録 — T-139 着手承認・T-142 択 (a) 採用・T-167 採用 (新 pin 承認)・T-130 は推奨を蹴り短縮採用 (手段限定)・CCBench 3 件は T-167 へ束ねる (docs のみ、branch worktree-rulings-2026-07-29-b)
 
-- ユーザー裁定どおり、`docs/ai-provenance.md` は 9,000 bytes 上限 (実体 8,832 bytes)、
-  `Co-Authored-By` 候補はすべて最終 trailer block に置く受理集合へ変更。D96 手続に従い
-  D98・policy・checker・境界 test を実装 commit `9b26b3b` へ同梱
-- Codex plan 1、敵対相談 2、実装 + fix 3、敵対レビュー 2 + 焦点再レビュー 2。
-  初回レビューの real 10件をfix1、pre-policy parser遡及のR-1をfix2で閉じ、focus2は
-  closed 11 / partial 0 / regressed 0 でGO。逐語と裁定 = insight README
-- 変異 matrix 8/8 KILLED。divider、hostile Git config、CAB件数、early return、非遡及、
-  message-file接続、9,001-byte、過剰拒否正例を単一nodeで検出。SURVIVED / mask / erratumなし
-- 実行順は O19 の「tracked mutation本走は統合commit後」に従い、実装commit → mutation →
-  全受入 → 本記録commit。裁定予定ではなくこの実手順を記録する
-- 受入: 焦点 188 passed、全走 3483 passed / 18 skipped、`check_codex_agents` /
-  `check_docs` 緑、`check_ai_provenance` 496件・違反なし。全履歴provenanceは約66秒
-- 低優先残余: commitごとの `git log -S` は線形履歴で二次コストになりうる。現waveの
-  timeout・誤受理/誤拒否はなく受入阻害ではないため、受理集合を保つcache化を [T-172] へ分離
-- エージェント工数: Codex 9 job (planner 1 / consult 2 / author・fix 3 / review 3)。
-  親 = brief・裁定・docs・統合・mutation・受入・記録
+- `/rulings` で裁定待ち 9 件を索引・5 件詳説 → ユーザー裁定 5 件を受領。**[T-130] のみ AI 推奨
+  (維持) と別の「短縮する」を裁定** (理由 = ビルド成果物の使い回し以外にも高速化手段がある)。
+  ほかは推奨どおり。詳説対象外の 4 件 ([T-144]・見送り台帳の発火・codex worktree・phase3 記述の
+  陳腐化) には裁定を求めていない
+- [T-139]: 恒久実装 wave の**着手承認**。ただし「裁定を先に片付ける」方針により、着手は本
+  セッションの後 (裁定確定は着手指示ではない — 本エントリでは実装しない)
+- [T-142]: **択 (a) 採用** = 保証対象を受理集合から出力集合 O (最終 selected/stock/tie・正式
+  レポート・proof chain の certified 主張) へ移し、S2 は候補が選択 frontier へ昇格した時だけ
+  実走する適応的 promotion (推定削減 88%)。材料 §5 の前提 5 件 — D58 適用先拡大に相当する別裁定 /
+  layer3 の未認証 TPS 遮断 (schema 再凍結) / 規律 3 の S2 診断機会減の明示許容 + 「S2 未実行・
+  未認証」の構造化信号 / V・A・O 三分の decisions 化と [T-110] との整合 / 機械的提示は恒真化
+  しない充足形 — も込みで承認。材料 = `output/insights/2026-07-28_t142-tiering-ruling-package.md`
+- [T-167]: **採用**。ccbench の新 pin `c9c1a9c` をユーザー承認 (D16)。[T-163] (hash 台帳との
+  再照合 3 項の束縛追加) と同一 wave または直前で実装する
+- [T-130]: **AI 推奨 (維持) を蹴り「短縮する」を裁定**。ただし**手段を限定** — ビルド成果物を
+  使い回して control の意味を薄める経路は採らない。ビルドキャッシュ (ccache 等)・コア数に応じた
+  並列ビルド (`-j`) など**ビルド自体を速くする**手段で `..._uses_real_build_v2` の 46.7 秒を
+  縮める。実装待ち
+- [T-150]/[T-151]/[T-170]: CCBench 上流バグ 3 件は **[T-167] の wave に束ねて上流へ出す**
+  (実際の PR / push は人間、D16/D18/D20)
+- 見送り台帳へ発火記録 (本 commit): [T-058] **五度目の発火** ((49) [T-141] の label 正規化 +
+  `assert_position_only` 強化、(51) [T-171] の check_docs 検査新設が述語 `safety_gate_changed`
+  に該当。いずれの wave も網羅率を観測していない)、[T-059] **四度目の発火** (同 wave 群の
+  validator / reject gate 新設が述語に該当)。いずれも既裁定の範囲内で追加裁定はせず記録のみ
+  ([T-059] は (49) が変異 3/3 KILL を実装前に事前登録済みのため真時 action は履行済み)
+- 収集時の実測: `main` は push 済み (`origin/main` == `main` == `8c8dc5e`) で push 系の裁定待ちは
+  無し。(50)(52)(53) が 3 回「使用中の可能性」で残置した `codex/dev-wave-skill` は `/proc/*/cwd`
+  走査で滞在プロセス 0・main へ完全取り込み済み (ahead=0) と実測 → 裁定不要、次回
+  `/cleanup-branches` が畳める (`dev-wave-t139-permanent` は滞在 6 プロセスのため残置が正しい)
+- 正本の食い違い 1 件を是正 (本 commit): phase3 現行チェックポイントの「AI は `qsub` しない。
+  人間の明示投入が段階 1 の完了条件」が、(33) の段階 1 実機完了 (job 873225 = rc=2) と F49 (ii)
+  裁定 (2026-07-29) に追随していなかった → 現況へ更新
+- エージェント工数: 子なし (親のみ、read-only 収集 + docs 記録)
 
 ### 次の一手
 
-- [T-139] 同上
-- [T-142] 同上
+- [T-139] **P1・裁定完了 ((45)) + 着手承認 ((54)) → 恒久実装 wave 実装待ち**: 着手はユーザーの
+  タスク開始指示から
+- [T-142] **裁定済み ((54) = 択 (a) 採用) → 実装待ち**: 保証対象を出力集合 O へ移す二層化。
+  前提 5 件込み。[T-110] (受理集合を変える改修の手続義務) が前提
 - [T-136] 同上
 - [T-129] 同上
 - [T-149] 同上
 - [T-152] 同上
-- [T-153] **完了 (本エントリ、9b26b3b)**: (a)〜(d) は (47)、(e) は本waveで完了
+- [T-153] 同上
 - [T-158] 同上
 - [T-141] 同上
 - [T-143] 同上
@@ -652,10 +671,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-099] 同上
 - [T-009] 同上
 - [T-060] 同上
-- [T-150] 同上
-- [T-151] 同上
-- [T-154] **完了**: (1) は既完了、(2) 9,000-byte上限と (3) CAB配置gateを本waveで完了
-- [T-130] 同上
+- [T-150] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-151] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-154] 同上
+- [T-130] **裁定済み ((54) = 短縮する・手段限定) → 実装待ち**: ビルドキャッシュ / 並列ビルドで
+  短縮する。ビルド成果物の使い回し (control の意味を薄める経路) は採らない
 - [T-135] 同上
 - [T-133] 同上
 - [T-144] 同上
@@ -707,10 +727,234 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-164] 同上
 - [T-165] 同上
 - [T-166] 同上
-- [T-167] 同上
+- [T-167] **P3・裁定済み ((54) = 採用、新 pin `c9c1a9c` 承認) → 実装待ち**: [T-163] と同一 wave
+  または直前で実装。[T-150]/[T-151]/[T-170] の上流出しを同梱
 - [T-168] 同上
 - [T-169] 同上
-- [T-170] 同上
+- [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-171] 同上
+
+## 2026-07-29 (55) — [T-142] 出力集合 O への S2 promotion — 実装前審査の未見 blocker を再裁定へ返す (docs のみ、branch codex/dev-wave-t142-output-promotion)
+
+- `/dev-wave T-142` の段 1〜4 を実施。読取専用 planner 1 本と独立な敵対相談 2 本は、いずれも
+  現 production 経路での実装を NO-GO とした。親もコード・WAL・floor を独立再確認した
+- 未見事実 1: 現 sort/trigger は `reps=2` で、現行 Mann–Whitney は完全分離 n=2 対 n=2 でも
+  `p=0.1939308523` の `no-difference`。省略条件 `slower && !near_floor` は到達不能
+- 未見事実 2: 現動作点 (linux-baremetal・100k・4 threads・extime=1・reps=2) と同一座標の
+  between-run floor は無い。最寄りは 1m・48 threads・extime=3・reps=5 で流用不可
+- 効果分母を再集計: numeric COMMIT 426、S2 済み numeric COMMIT 78、campaign 内 raw new-best 18。
+  raw skip 上限は 60/78 = 76.9%、実 target sort/trigger は 0/3 であり、旧 88% は正式期待値でない
+- 現 p3 には formal selected/stock/tie producer と同一 config の certified stock が無く、tie も
+  direct-winner と no-difference 推移閉包の二義が未裁定。O 保存の positive control を作れない
+- DW-S04 に従い承認済み択 (a) を AI が棄却せず、新事実付きで再裁定へ返した。段 5・6 はスキップし、
+  コード・テスト変更なし。変異 matrix と受入全走は対象外。変更前 baseline = 325 passed / 9 skipped
+- 親推奨は T-142 close。継続する場合は tie/authoritative selector、live campaign と正式 perf、
+  exact floor、all-S2/adaptive paired pilot (自然な skip 1 件以上・正の短縮・O 一致) を前提 wave とする
+- 公開正本 = `output/insights/2026-07-29_t142-implementation-preflight.md`、逐語束 =
+  `output/insights/2026-07-29_t142-output-promotion-verbatim/`
+- エージェント工数: 親 1、隔離 read-only job 3 (planner 1 + 敵対相談 2)、author 0
+
+### 次の一手
+
+- [T-139] **P1・裁定完了 ((45)) + 着手承認 ((54)) → 恒久実装 wave 実装待ち**: 着手はユーザーの
+  タスク開始指示から
+- [T-142] **再裁定待ち ((55))**: 親推奨は close。継続なら tie/authoritative selector・live campaign /
+  正式 perf・exact floor・paired pilot を先行承認し、自然な skip が無ければ close
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] 同上
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] 同上
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-151] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-154] 同上
+- [T-130] **裁定済み ((54) = 短縮する・手段限定) → 実装待ち**: ビルドキャッシュ / 並列ビルドで
+  短縮する。ビルド成果物の使い回し (control の意味を薄める経路) は採らない
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み ((54) = 採用、新 pin `c9c1a9c` 承認) → 実装待ち**: [T-163] と同一 wave
+  または直前で実装。[T-150]/[T-151]/[T-170] の上流出しを同梱
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-171] 同上
+## 2026-07-29 (56) — [T-153(e)] + [T-154(2)(3)] provenance gate を完了 — CAB 最終 trailer block 配置 + policy 9,000-byte 上限 (コード + docs、branch codex/dev-wave-t153e-t15423、計測 = 本 worktree・ログインノード)
+
+- ユーザー裁定どおり、`docs/ai-provenance.md` は 9,000 bytes 上限 (実体 8,832 bytes)、
+  `Co-Authored-By` 候補はすべて最終 trailer block に置く受理集合へ変更。D96 手続に従い
+  D98・policy・checker・境界 test を実装 commit `9b26b3b` へ同梱
+- Codex plan 1、敵対相談 2、実装 + fix 3、敵対レビュー 2 + 焦点再レビュー 2。
+  初回レビューの real 10件をfix1、pre-policy parser遡及のR-1をfix2で閉じ、focus2は
+  closed 11 / partial 0 / regressed 0 でGO。逐語と裁定 = insight README
+- 変異 matrix 8/8 KILLED。divider、hostile Git config、CAB件数、early return、非遡及、
+  message-file接続、9,001-byte、過剰拒否正例を単一nodeで検出。SURVIVED / mask / erratumなし
+- 実行順は O19 の「tracked mutation本走は統合commit後」に従い、実装commit → mutation →
+  全受入 → 本記録commit。裁定予定ではなくこの実手順を記録する
+- main は開始後に `8dab530` まで正常前進。main側 (54)(55) を保持し、本エントリを (54) から
+  (56) へ振り直してmerge競合を解消。main未追跡handoff/worktree管理面は削除・変更していない
+- 受入 (merge前): 焦点 188 passed、全走 3483 passed / 18 skipped、`check_codex_agents` /
+  `check_docs` 緑、`check_ai_provenance` 496件・違反なし。全履歴provenanceは約66秒
+- 低優先残余: commitごとの `git log -S` は線形履歴で二次コストになりうる。現waveの
+  timeout・誤受理/誤拒否はなく受入阻害ではないため、受理集合を保つcache化を [T-172] へ分離
+- エージェント工数: Codex 9 job (planner 1 / consult 2 / author・fix 3 / review 3)。
+  親 = brief・裁定・docs・統合・mutation・受入・記録
+
+### 次の一手
+
+- [T-139] **P1・裁定完了 ((45)) + 着手承認 ((54)) → 恒久実装 wave 実装待ち**: 着手はユーザーの
+  タスク開始指示から
+- [T-142] **再裁定待ち ((55))**: 親推奨は close。継続なら tie/authoritative selector・live campaign /
+  正式 perf・exact floor・paired pilot を先行承認し、自然な skip が無ければ close
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 (本エントリ、9b26b3b)**: (a)〜(d) は (47)、(e) は本waveで完了
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] 同上
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-151] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-154] **完了**: (1) は既完了、(2) 9,000-byte上限と (3) CAB配置gateを本waveで完了
+- [T-130] **裁定済み ((54) = 短縮する・手段限定) → 実装待ち**: ビルドキャッシュ / 並列ビルドで
+  短縮する。ビルド成果物の使い回し (control の意味を薄める経路) は採らない
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み ((54) = 採用、新 pin `c9c1a9c` 承認) → 実装待ち**: [T-163] と同一 wave
+  または直前で実装。[T-150]/[T-151]/[T-170] の上流出しを同梱
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
 - [T-171] 同上
 - [T-172] **P3・新規 (本wave focus2 BL-PERF-1)**: per-commit `git log -S` を
   受理集合不変のgraph propagation/cacheへ置換し、496件約66秒の全履歴監査を短縮する
+
