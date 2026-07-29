@@ -598,6 +598,14 @@ def render_rejections(rejections: List[Rejection],
             counters = {k: v for k, v in ig.items()
                         if k not in ("clean", "notes") and v}
             L.append(f"  integrity: {counters if counters else '(非ゼロカウンタなし)'}")
+            if ig.get("lock_coverage_violations"):
+                L.append(
+                    "  分類: 機構欠落型 (lock coverage) — 次手は lock acquisition / "
+                    "retention の復元 (cycle 帰属を捏造しない)")
+            if ig.get("write_intent_violations"):
+                L.append(
+                    "  分類: 機構欠落型 (write intent coverage) — 次手は write-set "
+                    "membership / API 意図の復元 (cycle 帰属を捏造しない)")
             for note in ig.get("notes", []):
                 L.append(f"  · {note}")
         L.append("")

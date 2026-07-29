@@ -1,0 +1,18 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 61074ed..693214e 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -485,6 +485,13 @@ bool TxExecutor::validationPhase() { // Validation Phase
+   }
+ #endif
+ 
++#if IZANAGI_BREAK_WRITE_INTENT_PTRSWAP
++  // T-152 deliberately broken positive control: preserve the element count
++  // and operations while exchanging only two record pointers, after the P
++  // check and before locking.
++  if (write_set_.size() >= 2) std::swap(write_set_[0].rcdptr_, write_set_[1].rcdptr_);
++#endif
++
+   lockWriteSet();
+   if (this->status_ == TransactionStatus::aborted) return false;
+ 

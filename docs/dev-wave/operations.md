@@ -7,7 +7,8 @@
 
 `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包む。
 投入前に prompt が非空か検査し、完了は `.done` の存在と exit code だけで判定する。
-ログ本文を grep して完了判定してはならず、成果物は `-o` の最終メッセージから読む（F23/F24）。
+ログ本文を grep して完了判定してはならず、成果物は `-o` の最終メッセージから読み（F23/F24）、
+採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
 
 ## DW-O02 — job artifact
 
@@ -58,8 +59,8 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 
 ## DW-O11 — ファイル削除
 
-受入全走より前に `git add -A` で削除を stage する。
-未 stage 削除で freeze test が偽赤なら受入結果にせず、stage 後に再走する。
+未 stage 削除は `run_tests.py` が受入形の前に検出して止める (final は bypass 不可)。
+stage (`git add -A`) 後に再走し、gate の赤を受入結果にしない。
 
 ## DW-O12 — 裁定手順と実行手順の差
 
@@ -108,10 +109,9 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 
 ## DW-O20 — clean-tree gate
 
-専用 handoff を対象 worktree の外へ置く。
-untracked handoff を残したまま gate を走らせず、job tmp または main checkout 側で生存性を確保する。
-背景 job が worktree 隔離下にある場合、harness が main checkout への書込を拒否するため job tmp を使う。
+専用 handoff は worktree の外 (job tmp または main checkout 側) に置いて生存性を確保し、
+untracked handoff を残したまま gate を走らせない (worktree 隔離の背景 job は job tmp)。
 背景 job の cwd が既に worktree なら `EnterWorktree` は新規作成を拒む。そのまま作業してよいが、
 ディレクトリ名と branch 名の食い違いを handoff と worklog に明記し、別 wave の worktree を流用しない。
-worktree の作成・流用直後に HEAD を local main と照合し、ずれていれば `--ff-only` で揃える
-(基準が origin/main へ落ちる罠 = F48)。
+worktree の作成・流用直後に `tools/check_wave_startup.py` で開始条件を検査し (背景 job は
+`--external-handoff <handoff>` 付き)、rc≠0 なら停止する。HEAD のずれは `--ff-only` で揃える (F48)。

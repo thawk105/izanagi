@@ -1,0 +1,428 @@
+{
+  "all_pass": true,
+  "build_jobs": 8,
+  "ccbench_sha": "c9c1a9c2c18004c2204c79235074bace01fc8744",
+  "checks": {
+    "abort_exercised": true,
+    "bomb_ops": true,
+    "erase": true,
+    "forge": true,
+    "opswap": true,
+    "producer_union": true,
+    "ptrswap": true,
+    "stock_silent": true,
+    "three_way_reconciliation": true
+  },
+  "correctness_only": true,
+  "deps_prefix": {
+    "cmake_prefix_path": [
+      "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/gflags-install",
+      "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/glog-install"
+    ],
+    "gflags": {
+      "headers": [
+        "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/gflags-install/include/gflags/gflags.h"
+      ],
+      "libraries": [
+        "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/gflags-install/lib/libgflags.a"
+      ]
+    },
+    "glog": {
+      "headers": [
+        "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/glog-install/include/glog/logging.h"
+      ],
+      "libraries": [
+        "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/glog-install/lib/libglog.a"
+      ]
+    }
+  },
+  "env_contract_applicable": false,
+  "fitness_eligible": false,
+  "host_role": "login-node",
+  "known_limitations": [
+    "delete_record cancel-previous-write mirroring is not exercised by this characterization: BOMB does not execute update->delete for the same key in the same transaction; detection-coverage claims exclude it.",
+    "patchharness internal git subprocesses have no timeout (existing shared infrastructure behavior)."
+  ],
+  "not_integrated": true,
+  "platform": "pegasus",
+  "runs": {
+    "bomb_smoke": {
+      "abort_exercised": false,
+      "flags": {
+        "bomb_base_product_size_per_factory": "4",
+        "bomb_base_tree_size": "2",
+        "bomb_factory_size": "1",
+        "bomb_l1_thread_num": "0",
+        "bomb_material_per_wip": "1",
+        "bomb_material_size": "8",
+        "bomb_mc_update_size": "1",
+        "bomb_product_size": "8",
+        "bomb_s1_thread_num": "1",
+        "bomb_s2_thread_num": "0",
+        "bomb_s3_thread_num": "1",
+        "bomb_s4_thread_num": "0",
+        "bomb_tree_num_per_product": "1",
+        "bomb_work_size": "64",
+        "extime": "1",
+        "thread_num": "2"
+      },
+      "trace": {
+        "files": 2,
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_reasons": {},
+        "write_intent_total": 0,
+        "write_ops": [
+          "D",
+          "I",
+          "U"
+        ]
+      },
+      "verifier": {
+        "certified": true,
+        "exit_code": 0,
+        "integrity": {
+          "clean": true,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "notes": [],
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "reads": 1023858,
+        "serializable": true,
+        "total_cycles": 0,
+        "txns": 1311443,
+        "verdict": "serializable",
+        "writes": 1886613
+      },
+      "workload": "bomb"
+    },
+    "erase": {
+      "abort_exercised": false,
+      "flags": {
+        "extime": "1",
+        "thread_num": "1",
+        "ycsb_max_ope": "10",
+        "ycsb_rmw": "false",
+        "ycsb_rratio": "0",
+        "ycsb_tuple_num": "200",
+        "ycsb_zipf_skew": "0.9"
+      },
+      "trace": {
+        "files": 1,
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_reasons": {
+          "intent-missing-from-write-set": 153968
+        },
+        "write_intent_total": 153968,
+        "write_ops": [
+          "U"
+        ]
+      },
+      "verifier": {
+        "certified": false,
+        "exit_code": 3,
+        "integrity": {
+          "clean": false,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "notes": [
+            "153968 write-intent coverage violation(s) [intent-missing-from-write-set×153968] — write_set_ membership and API write intent disagree (write completeness cannot be certified; not a cycle): txn0 key=00000000000000b0 (intent-missing-from-write-set); txn1 key=000000000000005a (intent-missing-from-write-set); txn2 key=000000000000004f (intent-missing-from-write-set); txn3 key=00000000000000bb (intent-missing-from-write-set); txn4 key=0000000000000089 (intent-missing-from-write-set)"
+          ],
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 153968,
+          "write_version_mismatch": 0
+        },
+        "reads": 0,
+        "serializable": true,
+        "total_cycles": 0,
+        "txns": 153968,
+        "verdict": "indeterminate",
+        "writes": 1198109
+      },
+      "workload": "ycsb"
+    },
+    "forge": {
+      "abort_exercised": false,
+      "flags": {
+        "extime": "1",
+        "thread_num": "1",
+        "ycsb_max_ope": "10",
+        "ycsb_rmw": "false",
+        "ycsb_rratio": "0",
+        "ycsb_tuple_num": "200",
+        "ycsb_zipf_skew": "0.9"
+      },
+      "trace": {
+        "files": 1,
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_reasons": {
+          "write-set-entry-without-intent": 165374
+        },
+        "write_intent_total": 165374,
+        "write_ops": [
+          "I",
+          "U"
+        ]
+      },
+      "verifier": {
+        "certified": false,
+        "exit_code": 3,
+        "integrity": {
+          "clean": false,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "notes": [
+            "165374 write-intent coverage violation(s) [write-set-entry-without-intent×165374] — write_set_ membership and API write intent disagree (write completeness cannot be certified; not a cycle): txn0 key=0000000000000000 (write-set-entry-without-intent); txn1 key=0000000000000000 (write-set-entry-without-intent); txn2 key=0000000000000000 (write-set-entry-without-intent); txn3 key=0000000000000000 (write-set-entry-without-intent); txn4 key=0000000000000000 (write-set-entry-without-intent)"
+          ],
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 165374,
+          "write_version_mismatch": 0
+        },
+        "reads": 0,
+        "serializable": true,
+        "total_cycles": 0,
+        "txns": 165374,
+        "verdict": "indeterminate",
+        "writes": 1617151
+      },
+      "workload": "ycsb"
+    },
+    "opswap": {
+      "abort_exercised": true,
+      "flags": {
+        "extime": "1",
+        "thread_num": "1",
+        "ycsb_max_ope": "10",
+        "ycsb_rmw": "false",
+        "ycsb_rratio": "0",
+        "ycsb_tuple_num": "200",
+        "ycsb_zipf_skew": "0.9"
+      },
+      "trace": {
+        "files": 1,
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_reasons": {
+          "intent-missing-from-write-set": 3,
+          "write-set-entry-without-intent": 3
+        },
+        "write_intent_total": 6,
+        "write_ops": [
+          "D",
+          "U"
+        ]
+      },
+      "verifier": {
+        "certified": false,
+        "exit_code": 3,
+        "integrity": {
+          "clean": false,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "notes": [
+            "6 write-intent coverage violation(s) [intent-missing-from-write-set×3, write-set-entry-without-intent×3] — write_set_ membership and API write intent disagree (write completeness cannot be certified; not a cycle): txn0 key=0000000000000000 (write-set-entry-without-intent); txn0 key=0000000000000000 (intent-missing-from-write-set); txn1 key=0000000000000001 (write-set-entry-without-intent); txn1 key=0000000000000001 (intent-missing-from-write-set); txn2 key=0000000000000002 (write-set-entry-without-intent)"
+          ],
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 6,
+          "write_version_mismatch": 0
+        },
+        "reads": 0,
+        "serializable": true,
+        "total_cycles": 0,
+        "txns": 3,
+        "verdict": "indeterminate",
+        "writes": 23
+      },
+      "workload": "ycsb"
+    },
+    "ptrswap": {
+      "abort_exercised": false,
+      "flags": {
+        "extime": "1",
+        "thread_num": "1",
+        "ycsb_max_ope": "10",
+        "ycsb_rmw": "false",
+        "ycsb_rratio": "0",
+        "ycsb_tuple_num": "200",
+        "ycsb_zipf_skew": "0.9"
+      },
+      "trace": {
+        "files": 1,
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_reasons": {
+          "intent-missing-from-write-set": 289150,
+          "write-set-entry-without-intent": 289150
+        },
+        "write_intent_total": 578300,
+        "write_ops": [
+          "U"
+        ]
+      },
+      "verifier": {
+        "certified": false,
+        "exit_code": 3,
+        "integrity": {
+          "clean": false,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "notes": [
+            "578300 write-intent coverage violation(s) [intent-missing-from-write-set×289150, write-set-entry-without-intent×289150] — write_set_ membership and API write intent disagree (write completeness cannot be certified; not a cycle): txn0 key=0000000000000000 (write-set-entry-without-intent); txn0 key=0000000000000001 (write-set-entry-without-intent); txn0 key=0000000000000001 (intent-missing-from-write-set); txn0 key=0000000000000000 (intent-missing-from-write-set); txn1 key=0000000000000000 (write-set-entry-without-intent)"
+          ],
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 578300,
+          "write_version_mismatch": 0
+        },
+        "reads": 0,
+        "serializable": true,
+        "total_cycles": 0,
+        "txns": 144575,
+        "verdict": "indeterminate",
+        "writes": 1268808
+      },
+      "workload": "ycsb"
+    },
+    "stock_abort": {
+      "abort_exercised": true,
+      "flags": {
+        "extime": "1",
+        "thread_num": "2",
+        "ycsb_max_ope": "10",
+        "ycsb_rmw": "true",
+        "ycsb_rratio": "50",
+        "ycsb_tuple_num": "200",
+        "ycsb_zipf_skew": "0.9"
+      },
+      "trace": {
+        "files": 2,
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_reasons": {},
+        "write_intent_total": 0,
+        "write_ops": [
+          "U"
+        ]
+      },
+      "verifier": {
+        "certified": true,
+        "exit_code": 0,
+        "integrity": {
+          "clean": true,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "notes": [],
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "reads": 1431574,
+        "serializable": true,
+        "total_cycles": 0,
+        "txns": 163004,
+        "verdict": "serializable",
+        "writes": 760006
+      },
+      "workload": "ycsb"
+    },
+    "stock_single": {
+      "abort_exercised": false,
+      "flags": {
+        "extime": "1",
+        "thread_num": "1",
+        "ycsb_max_ope": "10",
+        "ycsb_rmw": "false",
+        "ycsb_rratio": "0",
+        "ycsb_tuple_num": "200",
+        "ycsb_zipf_skew": "0.9"
+      },
+      "trace": {
+        "files": 1,
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_reasons": {},
+        "write_intent_total": 0,
+        "write_ops": [
+          "U"
+        ]
+      },
+      "verifier": {
+        "certified": true,
+        "exit_code": 0,
+        "integrity": {
+          "clean": true,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "notes": [],
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "reads": 0,
+        "serializable": true,
+        "total_cycles": 0,
+        "txns": 158234,
+        "verdict": "serializable",
+        "writes": 1389411
+      },
+      "workload": "ycsb"
+    }
+  },
+  "runs_meta": {
+    "cmake_cache_linked_dependencies": {
+      "gflags_LIBRARY_FILE": "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/gflags-install/lib/libgflags.a",
+      "glog_LIBRARY_FILE": "/home/SFC/tanab/.claude/jobs/e6fcd8b1/tmp/deps/glog-install/lib/libglog.a"
+    },
+    "performance_semantics": "none (trace-enabled correctness run; counts must not be compared as throughput)"
+  },
+  "schema_version": "t152-write-intent-coverage/v1",
+  "toolchain": {
+    "cc": {
+      "realpath": "/usr/bin/x86_64-linux-gnu-gcc-12",
+      "version": "x86_64-linux-gnu-gcc-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+    },
+    "cxx": {
+      "realpath": "/usr/bin/x86_64-linux-gnu-g++-12",
+      "version": "x86_64-linux-gnu-g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+    }
+  }
+}

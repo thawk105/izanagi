@@ -28,6 +28,7 @@ import subprocess
 import sys
 import hashlib
 import json
+import shlex
 import shutil
 import tempfile
 import time
@@ -54,9 +55,9 @@ _TRIGGERS = frozenset({
     "unspecified",
 })
 
-# V14: only this closed table is known not to narrow test selection.  Any
-# positional argument, selector, malformed option, or unknown option is
-# conservatively targeted.
+# Only this closed table is known not to narrow test selection.  Any positional
+# argument, selector, malformed option, or unknown option is conservatively
+# targeted.
 _NONSELECT_FLAGS = frozenset({
     "-s", "--disable-warnings", "--strict-config", "--strict-markers",
     "--continue-on-collection-errors", "--keep-duplicates", "--no-header",
@@ -82,6 +83,22 @@ _SELECT_FLAGS = frozenset({
 _NO_EXECUTION_FLAGS = frozenset({
     "--help", "--version", "--setup-only", "--setup-plan", "--collect-only",
     "--co", "--fixtures", "--fixtures-per-test", "--markers", "--trace-config",
+})
+_PATH_VALUE_OPTIONS = frozenset({
+    "--rootdir", "--confcutdir", "--basetemp", "--junitxml", "--log-file",
+})
+_SELECT_VALUE_OPTIONS = frozenset({
+    "-k", "-m", "--deselect", "--ignore", "--ignore-glob", "--maxfail",
+    "--stepwise-skip",
+})
+_VALUE_OPTIONS = _NONSELECT_VALUE_OPTIONS | _SELECT_VALUE_OPTIONS
+_ALLOW_UNSTAGED_DELETIONS_ENV = "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"
+_SUBMODULE_MARKER = Path("external") / "ccbench" / "CMakeLists.txt"
+_SUBMODULE_GIT_MARKER = Path("external") / "ccbench" / ".git"
+_DELETION_GATE_RC = 13
+_SUBMODULE_GATE_RC = 14
+_GIT_ENV_ALLOWLIST = frozenset({
+    "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT",
 })
 
 
@@ -155,10 +172,63 @@ def _ensure_xdist() -> bool:
     return r.returncode == 0 and _xdist_installed()
 
 
-def _is_target(token: str) -> bool:
-    # オプションの値 (例: -n の「4」) を対象指定と誤認して既定ターゲットを外すと、
-    # pytest が repo 全体を無指定収集してしまう。実在パスか test id だけを対象と数える
-    return "::" in token or os.path.exists(token)
+def _absolute_path(value: str, caller_cwd: Path) -> str:
+    path = Path(value)
+    if not path.is_absolute():
+        path = caller_cwd / path
+    try:
+        return str(path.resolve(strict=False))
+    except OSError:
+        return os.path.abspath(os.fspath(path))
+
+
+def _normalize_args(
+    args: Sequence[str], caller_cwd: Optional[Path] = None,
+) -> list[str]:
+    """Normalize pytest path inputs once, relative to the caller's cwd."""
+
+    base = Path.cwd() if caller_cwd is None else Path(caller_cwd)
+    normalized: list[str] = []
+    i = 0
+    while i < len(args):
+        token = args[i]
+        option, separator, value = token.partition("=")
+        if option in _PATH_VALUE_OPTIONS and separator:
+            normalized_value = _absolute_path(value, base) if value else value
+            normalized.append(f"{option}={normalized_value}")
+            i += 1
+            continue
+        if token in _VALUE_OPTIONS:
+            normalized.append(token)
+            if i + 1 < len(args):
+                option_value = args[i + 1]
+                if token in _PATH_VALUE_OPTIONS and option_value:
+                    option_value = _absolute_path(option_value, base)
+                normalized.append(option_value)
+                i += 2
+                continue
+            i += 1
+            continue
+        if token.startswith("-"):
+            normalized.append(token)
+            i += 1
+            continue
+
+        path_part, node_separator, node_part = token.partition("::")
+        candidate = Path(path_part)
+        if not candidate.is_absolute():
+            candidate = base / candidate
+        try:
+            exists = candidate.exists()
+        except OSError:
+            exists = False
+        if exists:
+            path_part = _absolute_path(path_part, base)
+        normalized.append(
+            path_part + (node_separator + node_part if node_separator else "")
+        )
+        i += 1
+    return normalized
 
 
 def _explicit_nproc(args: Sequence[str]) -> Optional[str]:
@@ -262,6 +332,273 @@ def _is_full_suite(args: Sequence[str], pytest_addopts: Optional[str] = None) ->
             continue
         return False
     return True
+
+
+def _positional_tokens(args: Sequence[str]) -> tuple[str, ...]:
+    positional: list[str] = []
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--":
+            positional.extend(args[i + 1:])
+            break
+        if token in _VALUE_OPTIONS:
+            i += 2
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        positional.append(token)
+        i += 1
+    return tuple(positional)
+
+
+def _has_no_execution_flag(args: Sequence[str]) -> bool:
+    if any(token.split("=", 1)[0] in _NO_EXECUTION_FLAGS for token in args):
+        return True
+    try:
+        addopts = shlex.split(os.environ.get("PYTEST_ADDOPTS", ""))
+    except ValueError:
+        return False
+    return any(token.split("=", 1)[0] in _NO_EXECUTION_FLAGS for token in addopts)
+
+
+def _is_acceptance_run(args: Sequence[str]) -> bool:
+    """Recognize the closed acceptance shape independently of full-suite IDs."""
+
+    # V14: removing strip must make the whitespace-only deletion-gate control red.
+    if os.environ.get("PYTEST_ADDOPTS", "").strip():
+        return False
+    default_target = Path(_DEFAULT_TARGET).resolve()
+    i = 0
+    while i < len(args):
+        token = args[i]
+        option, separator, value = token.partition("=")
+        if token == "--" or option in _NO_EXECUTION_FLAGS or option in _SELECT_FLAGS:
+            return False
+        if option in {"-o", "-p", "--override-ini"}:
+            return False
+        if token.startswith("-k") or token.startswith("-m"):
+            return False
+        if (
+            token.startswith("-o") and not token.startswith("--")
+        ) or (
+            token.startswith("-p") and not token.startswith("--")
+        ):
+            return False
+
+        if not token.startswith("-"):
+            if "::" in token:
+                return False
+            try:
+                if Path(token).resolve(strict=False) != default_target:
+                    return False
+            except OSError:
+                return False
+            i += 1
+            continue
+        if token in _NONSELECT_FLAGS:
+            i += 1
+            continue
+        if len(token) >= 2 and not token.startswith("--") and (
+            set(token[1:]) <= {"q", "v"}
+        ):
+            i += 1
+            continue
+        if token in _VALUE_OPTIONS:
+            if i + 1 >= len(args) or not args[i + 1]:
+                return False
+            i += 2
+            continue
+        if separator and option in _VALUE_OPTIONS:
+            if not value:
+                return False
+            i += 1
+            continue
+        if token.startswith("-n") and token != "-n" and len(token) > 2:
+            i += 1
+            continue
+        # Default-deny every option not consumed by the closed spellings above.
+        return False
+
+    return True
+
+
+def _git_env() -> dict[str, str]:
+    env = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("GIT_") or key in _GIT_ENV_ALLOWLIST
+    }
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return env
+
+
+def _deletion_git_failure(message: str) -> int:
+    if os.environ.get(_TEST_TRIGGER_ENV) == "final":
+        print(
+            f"未 stage 削除の git 検査が成立しません ({message})。"
+            f"{_TEST_TRIGGER_ENV}=final は未検査のため停止します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _DELETION_GATE_RC
+    print(
+        f"警告: 未 stage 削除の git 検査が成立しません ({message}) — 続行します。",
+        file=sys.stderr,
+        flush=True,
+    )
+    return 0
+
+
+def _preflight_unstaged_deletions(
+    args: Sequence[str], repo: Path | str,
+) -> int:
+    if not _is_acceptance_run(args):
+        return 0
+    repo_path = Path(repo).resolve()
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "ls-files", "--deleted"],
+            capture_output=True,
+            text=True,
+            env=_git_env(),
+        )
+    except (OSError, UnicodeDecodeError) as exc:
+        return _deletion_git_failure(f"実行不能: {exc}")
+    if result.returncode != 0:
+        return _deletion_git_failure(f"git rc={result.returncode}")
+
+    deleted = tuple(line for line in result.stdout.splitlines() if line)
+    if not deleted:
+        return 0
+    bypass = os.environ.get(_ALLOW_UNSTAGED_DELETIONS_ENV) == "1"
+    final_run = os.environ.get(_TEST_TRIGGER_ENV) == "final"
+    if bypass and not final_run:
+        print(
+            f"警告: 未 stage 削除 {len(deleted)} 件を "
+            f"{_ALLOW_UNSTAGED_DELETIONS_ENV}=1 により許可して続行します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 0
+
+    print(
+        f"未 stage 削除を {len(deleted)} 件検出しました:",
+        file=sys.stderr,
+        flush=True,
+    )
+    for path in deleted:
+        print(f"  {path}", file=sys.stderr, flush=True)
+    if bypass and final_run:
+        print(
+            f"{_TEST_TRIGGER_ENV}=final では "
+            f"{_ALLOW_UNSTAGED_DELETIONS_ENV}=1 を使用できません。",
+            file=sys.stderr,
+            flush=True,
+        )
+    print(
+        "git add -A で削除を stage してから再実行してください。",
+        file=sys.stderr,
+        flush=True,
+    )
+    return _DELETION_GATE_RC
+
+
+def _submodule_is_initialized(repo: Path) -> bool:
+    marker = repo / _SUBMODULE_MARKER
+    git_marker = repo / _SUBMODULE_GIT_MARKER
+    try:
+        return (
+            marker.is_file()
+            and not marker.is_symlink()
+            and git_marker.exists()
+            and not git_marker.is_symlink()
+        )
+    except OSError:
+        return False
+
+
+def _submodule_failure(marker: Path, detail: str) -> int:
+    print(
+        f"submodule marker {marker} を初期化できませんでした ({detail})。",
+        file=sys.stderr,
+        flush=True,
+    )
+    print(
+        "local modules cache を確認し、"
+        "git submodule update --init -- external/ccbench を手動実行してください。",
+        file=sys.stderr,
+        flush=True,
+    )
+    return _SUBMODULE_GATE_RC
+
+
+def _preflight_submodule(args: Sequence[str], repo: Path | str) -> int:
+    if _has_no_execution_flag(args):
+        return 0
+    repo_path = Path(repo).resolve()
+    marker = repo_path / _SUBMODULE_MARKER
+    if _submodule_is_initialized(repo_path):
+        return 0
+    if not _is_acceptance_run(args):
+        print(
+            f"警告: submodule marker {marker} がありません。"
+            "targeted run のため初期化せず続行します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 0
+
+    try:
+        common_result = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-parse", "--git-common-dir"],
+            capture_output=True,
+            text=True,
+            env=_git_env(),
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return _submodule_failure(marker, "git common-dir 検査が timeout")
+    except (OSError, UnicodeDecodeError) as exc:
+        return _submodule_failure(marker, f"git common-dir 検査不能: {exc}")
+    if common_result.returncode != 0:
+        return _submodule_failure(
+            marker, f"git common-dir 検査 rc={common_result.returncode}",
+        )
+    common_text = common_result.stdout.strip()
+    if not common_text:
+        return _submodule_failure(marker, "git common-dir が空")
+    common_dir = Path(common_text)
+    if not common_dir.is_absolute():
+        common_dir = repo_path / common_dir
+    modules_cache = common_dir / "modules" / "external" / "ccbench"
+    try:
+        cache_exists = modules_cache.is_dir()
+    except OSError:
+        cache_exists = False
+    if not cache_exists:
+        return _submodule_failure(marker, f"local modules cache {modules_cache} がない")
+
+    try:
+        result = subprocess.run(
+            [
+                "git", "-C", str(repo_path), "submodule", "update", "--init",
+                # V15: cache-only auto-init must never fetch the pinned commit.
+                "--no-fetch", "--", "external/ccbench",
+            ],
+            capture_output=True,
+            text=True,
+            env=_git_env(),
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return _submodule_failure(marker, "git submodule update が timeout")
+    except (OSError, UnicodeDecodeError) as exc:
+        return _submodule_failure(marker, f"git submodule update 実行不能: {exc}")
+    if _submodule_is_initialized(repo_path):
+        return 0
+
+    return _submodule_failure(marker, f"git submodule update rc={result.returncode}")
 
 
 def _normalized_fingerprint_args(args: Sequence[str]) -> list[str]:
@@ -374,9 +711,9 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
             started = None
             recording_ready = False
         if child_env is None:
-            rc = subprocess.call(list(cmd))
+            rc = subprocess.call(list(cmd), cwd=_REPO)
         else:
-            rc = subprocess.call(list(cmd), env=child_env)
+            rc = subprocess.call(list(cmd), env=child_env, cwd=_REPO)
         if started is not None:
             try:
                 duration_s = time.monotonic() - started
@@ -404,7 +741,14 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
+    args = _normalize_args(sys.argv[1:] if argv is None else argv)
+    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))
+    if preflight_rc:
+        return preflight_rc
+    preflight_rc = _preflight_submodule(args, Path(_REPO))
+    if preflight_rc:
+        return preflight_rc
+
     use_xdist = False
     if _ensure_xdist():
         version = _xdist_version()
@@ -434,11 +778,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         args,
         use_xdist=use_xdist,
         default_nproc=default_nproc,
-        has_target=any(_is_target(arg) for arg in args),
+        has_target=bool(_positional_tokens(args)),
     )
     task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
     if not task_run_id:
-        return subprocess.call(cmd)
+        return subprocess.call(cmd, cwd=_REPO)
     return _call_and_record(cmd, args, task_run_id)
 
 

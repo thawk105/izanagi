@@ -4265,3 +4265,69 @@ generator、機械設定も実装面である。小変更、test-only、probe-on
 
 **研究状態への影響:** なし。production 挙動・実験の受理集合・certified 選択・proof chain は
 変更しない。変わるのは開発時の実装担当と、その帰属を commit path と trailer の組で検査する点だけ。
+
+## D96. [T-110] 受理集合を変える改修の手続義務 — 新しい設計判断の記録と境界テストの同時更新を義務化し、機械検査は新設しない (2026-07-29)
+
+**決定 (2026-07-26 ユーザー裁定 [T-110] = 択 (a) の規約化):** 受理集合 (入力を受理/拒否する判定集合。
+一次の対象は D90 (1) が唯一の正本と定めた raw 受理集合 = `orchestrator/campaign/s8b_selector_output.py`
+module 全体) を変える改修は、次の 2 点を同じ変更単位で満たす。
+
+1. **新しい設計判断の記録を起こす。** 既存 D の追随編集や worklog 記載で代用せず、変更の理由・射程・
+   却下案を新しい D として本ファイルへ残す。
+2. **境界テストを同時に更新する。** その受理集合を固定している境界テスト (parser 受理集合では
+   `test_selector_parser_classification_boundary_at_ratified_launch`) を同じ変更単位で新しい受理集合へ
+   追随させ、緑を確認してから land する。
+
+**機械検査は新設しない (裁定の明示部分)。** consumer 閉集合の AST 固定は構文形状しか固定できない
+(`if False`・alias・`getattr`・例外握り潰しを見逃す一方、無害な refactor で偽赤になる) ため不採用済み。
+到達意味論の機械固定は DW-G03 の独立 2 例が無い。本義務は手続き規律であり、発見経路は decisions の
+索引 (受理集合 / parser module 名での grep) と本 D とする。
+
+**D90 (6) との関係:** D90 (6) は段 3 相談の判定に従い「全受理集合変更に新 D を必須とする」を当時の
+ユーザー裁定 2 件の射程外の新設統治として削除した。本 D はその後の [T-110] ユーザー裁定 (2026-07-26)
+により、この手続義務だけを明示採用したものである。D90 (6) が併せて退けた「新 consumer は必ず
+`verify_prediction_freeze` を経由させる」「consumer 閉集合を恒久的に更新する」は引き続き導入しない。
+
+**却下した案:** (b) parser 感応 consumer の閉集合を機械的に固定する — 上記のとおり AST 案の限界により
+裁定時点で不採用済み。機械固定を再提案するには DW-G03 の独立 2 例を示して別途裁定を得る。
+
+**研究状態への影響:** なし。本 D 自体は受理集合・certified 選択・proof chain を変えない。変わるのは
+受理集合を将来変える改修に課される手続きだけ。材料正本 =
+`output/insights/2026-07-26_t106-t107-parser-authoritative.md` §6。
+
+## D97. [T-153][T-158] 開発 harness の受理集合を変える機械 gate 群 — run_tests preflight と wave 検査 checker の新設 (2026-07-29)
+
+**決定 (T-127 裁定「恒久対応は prose でなくテスト・機械検査を優先」の実装。scope はユーザー指定
+T-153(a-d)+T-158、(e) は scope 外):** 開発 harness の受理集合を次の 3 面で変更する。D96 の手続義務に
+従い、境界テスト (`orchestrator/tests/test_run_tests_preflight.py`、`test_check_wave_startup.py`、
+`test_check_codex_output.py`) は実装と同一 commit (aaafa77) で land 済み・緑確認済み。
+
+1. **`tools/run_tests.py` preflight (T-153a/b + T-158):** (a) argv 正規化 — 位置 target と path 値
+   option の閉集合を呼出元 cwd 基準で絶対化し、全 pytest subprocess の cwd を repo root へ強制
+   (DW-O18 の機械化)。(b) 受入形 (acceptance run = closed-set default-deny、位置 target は既定
+   ツリー完全一致のみ、`PYTEST_ADDOPTS` 非空は否定) の未 stage 削除検出 rc=13 (DW-O11 の機械化。
+   bypass は `IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS=1` のみ、`final` trigger では不可)。
+   (c) submodule 実体検査 rc=14 — marker + 非 symlink `.git` の二重判定。自動 init は local
+   modules cache 実在時のみ `--no-fetch` + timeout 120s (network へ出ない・信頼境界外の
+   `.gitmodules`/gitlink を fetch しない)。targeted run は警告のみで続行。
+2. **`tools/check_wave_startup.py` 新設 (T-153c):** wave 開始条件の passive 検査 (DW-O20 の部分
+   機械化。fresh = HEAD=local main・非 main branch・rebase/merge 不在・clean tree・submodule
+   marker、resume = 進行状態と marker のみ。`--external-handoff` は外部実在 + worktree 残置なしを
+   含意)。qsub 有効性検査 (F49) は scope 外と明示。
+3. **`tools/check_codex_output.py` 新設 (T-153d):** codex 子成果物の機械検収 (F43 の機械化。
+   O_NOFOLLOW + fstat + 同一 fd 読取で TOCTOU 封鎖、strict UTF-8、fence 外 `^## 総括`、既定
+   500 bytes)。意味整合の検収は親の行動規律のまま。
+
+**却下した案:** `_is_full_suite` の gate 流用 (task-run suite identity と二義化する)、無条件自動 init
+(offline・隔離 clone で network 依存になり、攻撃者制御の gitlink を fetch し得る)、`git submodule
+status` の接頭辞解析 (nested submodule と `+`/`U` 状態を過剰拒否)、PATH/HOME 偽 git への防御
+(ローカル dev runner の脅威モデル外)、fake-dir の内容認証 (pin 認証は freeze テストの責務)。
+
+**既知の残余 (scope 外裁定 → [T-166]):** dev_waves 隔離 checkout への modules cache 複製 (fixed
+check は従来どおり赤 = 非悪化)、dev_waves の rc 畳み込み (13/14 が CHECK_FAILED に潰れる)、task-run
+台帳への bypass 使用 field。targeted suite ID は argv 正規化で一回だけ re-key する (open red 0 件を
+実測、実害なし)。
+
+**研究状態への影響:** なし (campaign の raw 受理集合 (D90 (1))・certified 選択・proof chain は不変。
+変わるのは開発 harness の受理集合のみ)。材料 = `output/insights/2026-07-29_t153-t158-review-verbatim/`
++ 同 mutation-ledger。

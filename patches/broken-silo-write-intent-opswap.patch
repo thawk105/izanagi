@@ -1,0 +1,18 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 61074ed..8dad390 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -485,6 +485,13 @@ bool TxExecutor::validationPhase() { // Validation Phase
+   }
+ #endif
+ 
++#if IZANAGI_BREAK_WRITE_INTENT_OPSWAP
++  // T-152 deliberately broken positive control: preserve element count and
++  // pointer identity while changing only the first write's operation, after
++  // the P check and before locking.
++  if (!write_set_.empty()) write_set_[0].op_ = OpType::DELETE;
++#endif
++
+   lockWriteSet();
+   if (this->status_ == TransactionStatus::aborted) return false;
+ 

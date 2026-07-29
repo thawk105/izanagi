@@ -117,6 +117,12 @@ class Integrity:
     critic は「機構欠落型」として読む (cycle 帰属を捏造しない)。検出源は writePhase の
     #if TRACE 被覆 assert が emit する X 行 (trace.hh emit_lock_violation)。
 
+    **同種の例外 = write_intent_violations (T-152):** writePhase の write_set_ と API
+    write intent の相互被覆が破れ、write-set membership または API 意図を復元できない
+    ことを示す。write 完全性を認証できないため indeterminate に倒すが、これ自体は
+    cycle ではないので serializable という純グラフ事実は変えない。検出源は
+    writePhase の #if TRACE assert が emit する I 行。
+
     **同種の例外 = permutation_violations (段 5, D41):** validationPhase の write_set_
     sort が要素を欠落/複製させた (非 strict-weak-order comparator の UB) ことを示す。
     lock_coverage_violations と同じ理由で indeterminate に倒す — sort が破れると
@@ -131,6 +137,7 @@ class Integrity:
     write_version_mismatch: int = 0  # W 行の版が C 行 commit と不一致の trx
     malformed_keys: int = 0     # key が小文字 hex 形式でない (表現揺れは競合辺を消す)
     lock_coverage_violations: int = 0  # X 行の件数 (writePhase で lock 被覆が破れた write。D38)
+    write_intent_violations: int = 0  # I 行の件数 (write_set_ と API write intent の被覆破れ。T-152)
     permutation_violations: int = 0  # P 行の件数 (validationPhase の sort が要素を欠落/複製。D41)
     notes: List[str] = field(default_factory=list)
 
@@ -139,6 +146,7 @@ class Integrity:
                 and self.dup_txids == 0 and self.genesis_commits == 0
                 and self.missing_txids == 0 and self.write_version_mismatch == 0
                 and self.malformed_keys == 0 and self.lock_coverage_violations == 0
+                and self.write_intent_violations == 0
                 and self.permutation_violations == 0)
 
 

@@ -13,6 +13,7 @@ output/
 │   └── insights/                 campaign 固有 insight / whiteboard
 ├── env/<env-tag>/                環境ごと・入力非依存 (= 測定の物差し。env スコープ)
 │   ├── calibration/              レコード数飽和点 + noise floor (within-run / between-run, A2)
+│   ├── characterization/         正しさ検査の歯の実証 (correctness-only、fitness 非計測。例: t152 write-intent。必須 env は各 driver docstring が正本)
 │   └── profile/                  perf 機序プロファイル (spin 分離・有用 IPC 等, P2-4)
 ├── insights/                     CCBench 還元すべき発見 / calibrator・探索の妥当性文書
 ├── runs/silo-sample/             任意・追跡外 (.gitignore) の実 Silo trace fixture — 生成手順と契約は orchestrator/tests/README.md

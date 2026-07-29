@@ -303,6 +303,33 @@ misattr = node-vali>0 で赤 (保存則は破れない = 保存則だけでは�
 
 ---
 
+## broken-silo-write-intent-{erase,forge,opswap,ptrswap}.patch — write-intent shadow の positive control ([T-152])
+
+**わざと壊した CC** (positive control) 4 本。W 行 emit と lock 被覆検査が同じ `write_set_` を
+再走査するため、EVOLVE 枝の要素喪失・捏造が「write が少ない/多いだけの直列化可能な履歴」として
+certified になる死角を閉じる **write-intent shadow** (API enqueue の (storage,key,op,rcdptr) を
+`#if TRACE` の thread_local shadow へ鏡映し writePhase の W emit loop で双方向照合、I 行 emit)
+が歯を持つことを機械実証する。**実装 commit は izanagi-trace ブランチ側** (pin 前進はユーザー
+裁定待ち — それまで pinned producer は I を emit しない)。4 本とも挿入位置は validationPhase の
+P 検査後・lockWriteSet 前 (P を発火させない単一理由設計)。
+
+- **erase** (`IZANAGI_BREAK_WRITE_INTENT_ERASE`): pop_back で 1 要素喪失 →
+  I (intent-missing-from-write-set) のみで赤。
+- **forge** (`IZANAGI_BREAK_WRITE_INTENT_FORGE`): 先頭要素を INSERT op で複製追加 (INSERT は
+  X 検査対象外) → I (write-set-entry-without-intent) のみで赤。
+- **opswap** (`IZANAGI_BREAK_WRITE_INTENT_OPSWAP`): 先頭要素の op_ を DELETE へ改変 (要素数
+  不変) → I 2 行 (missing + unexpected) — op 識別子の歯。
+- **ptrswap** (`IZANAGI_BREAK_WRITE_INTENT_PTRSWAP`): 要素 2 個の rcdptr_ を交換 → I 4 行/txn —
+  rcdptr 識別子の歯。
+- **既定 OFF inert**: 裸マクロで pipeline から定義不能 (broken-silo と同じ隔離規約、絶対規律 2)。
+
+**駆動の正本 = `orchestrator/campaign/t152_write_intent_coverage.py`** (対象 ccbench sha は
+`IZANAGI_T152_CCBENCH_SHA` で明示、stock/abort 行使/BOMB smoke + broken 4 の 7 run、
+単一理由 = I 以外の integrity 全 counter 0 を機械判定)。実証 (2026-07-29,
+`output/env/pegasus/characterization/t152_write_intent_coverage.json`): stock 3 run は
+I=0/certified (偽陽性なし・BOMB で U/I/D の 3 producer を動的被覆)、broken 4 run は
+cycles==0 (verifier 単独なら certify) のまま I だけが赤 → indeterminate。
+
 ## トレース形式 (verifier = タスク2 の入力契約)
 
 trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`
@@ -316,6 +343,11 @@ C <txid> <thid> <epoch> <tid>             committed txn。<epoch>,<tid> = commit
 R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版 (ver_epoch,ver_tid)
 W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版 = この trx の commit (epoch,tid)
 ```
+
+このほかに `#if TRACE` の検査 assert が emit する行がある: `X` (lock 被覆違反、D38)・
+`P` (permutation 保存違反、D41)・`A` (abort 要因、D48)・`I` (write-intent 被覆違反、[T-152] —
+実装は izanagi-trace ブランチ側、pin 前進まで pinned producer は emit しない)。書式と意味論の
+正本は `orchestrator/verifier/parse.py` の module docstring と各 patch 節。
 
 - `txid` = グローバル単調 id (TRACE ビルド限定の atomic)。1 trx の C/R/W をまとめるためだけ。
 - `key_hex` = キー生バイトの小文字 hex (YCSB は 8byte big-endian)
