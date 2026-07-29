@@ -1,0 +1,2 @@
+[ perf record: Woken up 2 times to write data ]
+[ perf record: Captured and wrote 0.016 MB /scr/0_873846.nqsv/perf-report-smoke.data (387 samples) ]

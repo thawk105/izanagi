@@ -1206,7 +1206,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    aborts=7, abort_rate=0.03, build_raises=False,
                    high_variance=False, unstable=False, competing=None,
                    trace_timeout=False, probe_raises=None,
-                   bench_rounds=None, round_binding="unique"):
+                   bench_rounds=None, round_binding="unique",
+                   trace_content=None):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。
@@ -1238,6 +1239,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                     and self.run_cmd == other.run_cmd)
 
     bench_calls = CallEvidence()
+    real_verify_trace_dir = pipeline.verify_trace_dir
     round_specs = list(bench_rounds or [{
         "median": median, "cv": cv, "rep_returncodes": [0, 0, 0, 0, 0],
     }])
@@ -1308,13 +1310,20 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                             timeout=pipeline.TRACE_TIMEOUT_S)
         patch("_run_trace", _raise_timeout)
     else:
-        def fake_trace(*a, **k):
+        def fake_trace(_binary, trace_dir, *_args, **_kwargs):
             bench_calls.trace.append(1)
             bench_calls.events.append("verify")
+            if trace_content is not None:
+                with open(os.path.join(trace_dir, "trace_0.log"),
+                          "w", encoding="ascii") as stream:
+                    stream.write(trace_content)
             return ncommit, rc, aborts
         patch("_run_trace", fake_trace)
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
-    patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
+    if trace_content is None:
+        patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
+    else:
+        patch("verify_trace_dir", real_verify_trace_dir)
     def fake_remeasure(measure_fn, settle_fn=None, **k):
         # scripted round を全て通し、実装と同じく CV が厳密に低い最初の点を採る。
         points = [measure_fn() for _ in round_specs]
@@ -1588,6 +1597,40 @@ def test_pipeline_red_aborts_without_fitness_or_bench():
     assert st.aborted and not st.committed       # commit レコードが無い (採用されない)
     assert STAGE_ABORT in st.stages_seen
     assert STAGE_COMMIT not in st.stages_seen
+
+
+def test_pipeline_write_intent_violation_aborts_without_commit():
+    """I 行入り trace は実 parser/verifier を通って correctness gate で reject される。
+    cycle ではないため serializable=True のまま indeterminate、fitness/COMMIT は無し。"""
+    trace_content = (
+        "C 0 0 5 10\n"
+        "W 0 aa U 5 10\n"
+        "I 0 aa write-set-entry-without-intent\n"
+    )
+    i_rows = [line for line in trace_content.splitlines() if line.startswith("I ")]
+    assert i_rows == ["I 0 aa write-set-entry-without-intent"]  # DW-M03: 単一理由
+
+    lay = _tmp_layout()
+    r, calls = _eval(lay, trace_content=trace_content)
+
+    assert r.aborted and not r.certified
+    assert r.verdict == "indeterminate"
+    assert r.fitness_tps is None
+    assert len(calls) == 0
+    records = wal.read_records(lay)
+    assert STAGE_COMMIT not in {record.stage for record in records}
+    verify_done = [record for record in records
+                   if record.stage == STAGE_VERIFY_DONE]
+    assert len(verify_done) == 1
+    assert verify_done[0].payload["verdict"] == "indeterminate"
+    assert verify_done[0].payload["certified"] is False
+    abort = [record for record in records if record.stage == STAGE_ABORT]
+    assert len(abort) == 1 and abort[0].payload["reason"] == "indeterminate"
+    verify = abort[0].payload["verify"]
+    assert verify["integrity"]["write_intent_violations"] == 1
+    assert verify["total_cycles"] == 0
+    assert verify["serializable"] is True
+    assert verify["certified"] is False
 
 
 def test_pipeline_red_abort_carries_structured_anomaly():

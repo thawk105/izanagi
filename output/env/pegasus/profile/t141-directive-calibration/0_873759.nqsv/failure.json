@@ -1,0 +1,8 @@
+{
+  "pbs_jobid": "0:873759.nqsv",
+  "rc": 124,
+  "reason": "perf srcline report failed",
+  "recorded_epoch": 1785289414,
+  "schema_version": "t141-region-profile-failure/v1",
+  "stage": "cell_S-write-heavy-r1"
+}

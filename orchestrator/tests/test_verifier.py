@@ -14,7 +14,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from skiputil import Skip, skip                               # noqa: E402
-from verifier import verify_trace_dir, result_to_dict        # noqa: E402
+from verifier import render_text, verify_trace_dir, result_to_dict  # noqa: E402
 from verifier.dsg import DSG                                  # noqa: E402
 from verifier.model import (CycleEdge, EdgeReason, RW, WR, WW)  # noqa: E402
 from verifier.parse import ParseError, parse_trace_dir        # noqa: E402
@@ -355,6 +355,126 @@ def test_lock_coverage_malformed_key_flagged():
         assert res.integrity.lock_coverage_violations == 1
         assert res.integrity.malformed_keys == 1        # AA は大文字 = 形式違反
         assert res.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+# ---- write intent 被覆違反 (I 行) の positive control (T-152) ----
+#
+# writePhase の write_set_ と API write intent の相互被覆 assert が emit する I 行を、
+# verifier が Integrity.write_intent_violations に配線する。I は X と同じ txid 相関型。
+
+def test_write_intent_violation_indeterminate_and_reports_json_text():
+    """I 行は cycle を捏造せず、write 完全性の認証不能として indeterminate に倒す。
+    JSON と text の両 report surface に同じ固定件数が出ることも一緒に固定する。"""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 5 10\nW 0 aa U 5 10\n"
+        "I 0 aa write-set-entry-without-intent\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.write_intent_violations == 1
+        assert res.total_cycles == 0
+        assert res.serializable
+        assert res.verdict == "indeterminate"
+        assert res.verdict != "non-serializable"
+        assert not res.certified
+        assert result_to_dict(res)["integrity"]["write_intent_violations"] == 1
+        assert "write_intent_violations=1" in render_text(res)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_write_intent_control_serializable():
+    """I 行の無い同じ形は clean/serializable/certified のまま (過剰拒否の正対照)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.write_intent_violations == 0
+        assert res.integrity.clean()
+        assert res.verdict == "serializable"
+        assert res.certified
+        assert result_to_dict(res)["integrity"]["write_intent_violations"] == 0
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_write_intent_reasons_parsed_and_summarized():
+    """契約上の 2 reason を (txid,key,reason) で保持し、件数内訳と見本を notes に出す。"""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 5 10\nW 0 aa U 5 10\n"
+        "I 0 aa write-set-entry-without-intent\n"
+        "I 0 bb intent-missing-from-write-set\n")
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert issues.write_intent_violations == [
+            (0, "aa", "write-set-entry-without-intent"),
+            (0, "bb", "intent-missing-from-write-set"),
+        ]
+        res = verify_trace_dir(d)
+        assert res.integrity.write_intent_violations == 2
+        note = " ".join(res.integrity.notes)
+        assert "write-set-entry-without-intent×1" in note
+        assert "intent-missing-from-write-set×1" in note
+        assert "txn0 key=aa" in note and "txn0 key=bb" in note
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_write_intent_malformed_key_flagged():
+    """I 行の key も X と同じ小文字偶数長 hex 検査を通す。"""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 5 10\nW 0 aa U 5 10\n"
+        "I 0 AA write-set-entry-without-intent\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.write_intent_violations == 1
+        assert res.integrity.malformed_keys == 1
+        assert res.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_write_intent_txid_must_match_open_txn():
+    """I は P と違って txid 相関型であり、別 txn への誤帰属を _expect が拒否する。"""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 5 10\nW 0 aa U 5 10\n"
+        "I 1 aa write-set-entry-without-intent\n")
+    try:
+        try:
+            parse_trace_dir(d)
+            assert False, "mismatched I txid は ParseError でなければならない"
+        except ParseError as exc:
+            assert "txid 1 does not match open txn 0" in str(exc)
+            assert "C/R/W/X/I must be contiguous" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_write_intent_unknown_reason_counted_and_indeterminate():
+    """未知の非空 reason も I 違反として保持し、分類シグナルを失わない。"""
+    import shutil
+    d = _tmp_trace("C 0 0 5 10\nI 0 aa invented-reason\n")
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert issues.write_intent_violations == [
+            (0, "aa", "invented-reason"),
+        ]
+        res = verify_trace_dir(d)
+        assert res.integrity.write_intent_violations == 1
+        assert res.total_cycles == 0
+        assert res.serializable
+        assert res.verdict == "indeterminate"
+        assert not res.certified
+        payload = result_to_dict(res)
+        assert payload["integrity"]["write_intent_violations"] == 1
+        note = " ".join(payload["integrity"]["notes"])
+        assert "invented-reason×1" in note
+        assert "write-intent coverage violation" in note
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

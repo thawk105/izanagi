@@ -1,0 +1,9 @@
+{
+  "build": "S",
+  "cell": "S-balanced-r2",
+  "dropped_pct": 99.99999999999947,
+  "n_samples": 38341,
+  "rep": 2,
+  "totals": {},
+  "workload": "balanced"
+}

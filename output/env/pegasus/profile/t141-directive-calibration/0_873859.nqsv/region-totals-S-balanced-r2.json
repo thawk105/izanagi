@@ -1,0 +1,14 @@
+{
+  "build": "S",
+  "cell": "S-balanced-r2",
+  "dropped_pct": 72.11605958973514,
+  "n_samples": 38463,
+  "rep": 2,
+  "totals": {
+    "cc/silo/include/atomic_tool.hh": 0.0025999012037542573,
+    "cc/silo/include/silo_op_element.hh": 0.14559446741023843,
+    "cc/silo/include/tuple.hh": 0.0025999012037542573,
+    "cc/silo/transaction.cc": 27.733146140446667
+  },
+  "workload": "balanced"
+}

@@ -1,0 +1,136 @@
+label=initial
+checked_at=2026-07-29T11:31:41+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_S-write-heavy
+checked_at=2026-07-29T11:33:37+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_S-balanced
+checked_at=2026-07-29T11:33:41+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_V-write-heavy
+checked_at=2026-07-29T11:33:44+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=timing_V-balanced
+checked_at=2026-07-29T11:33:48+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=S-write-heavy-r1
+checked_at=2026-07-29T11:33:51+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=S-write-heavy-r2
+checked_at=2026-07-29T11:33:56+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=S-write-heavy-r3
+checked_at=2026-07-29T11:34:01+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=S-balanced-r1
+checked_at=2026-07-29T11:34:06+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=S-balanced-r2
+checked_at=2026-07-29T11:34:11+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=S-balanced-r3
+checked_at=2026-07-29T11:34:16+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=V-write-heavy-r1
+checked_at=2026-07-29T11:34:21+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=V-write-heavy-r2
+checked_at=2026-07-29T11:34:26+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=V-write-heavy-r3
+checked_at=2026-07-29T11:34:31+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=V-balanced-r1
+checked_at=2026-07-29T11:34:36+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=V-balanced-r2
+checked_at=2026-07-29T11:34:41+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+
+label=V-balanced-r3
+checked_at=2026-07-29T11:34:46+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+

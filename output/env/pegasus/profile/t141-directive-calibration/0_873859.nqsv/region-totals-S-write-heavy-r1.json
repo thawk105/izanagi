@@ -1,0 +1,14 @@
+{
+  "build": "S",
+  "cell": "S-write-heavy-r1",
+  "dropped_pct": 67.07967337265957,
+  "n_samples": 38821,
+  "rep": 1,
+  "totals": {
+    "cc/silo/include/atomic_tool.hh": 0.0051518508024007625,
+    "cc/silo/include/silo_op_element.hh": 0.3554777053656526,
+    "cc/silo/include/tuple.hh": 0.0025759254012003813,
+    "cc/silo/transaction.cc": 32.55712114577164
+  },
+  "workload": "write-heavy"
+}

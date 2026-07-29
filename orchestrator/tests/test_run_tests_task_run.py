@@ -49,6 +49,8 @@ def _clean_stats_state(monkeypatch):
 
 def test_opt_out_preserves_exact_command_and_call_shape(monkeypatch):
     called = []
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: True)
     monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
     monkeypatch.setattr(RT, "_default_nproc", lambda: 4)
@@ -58,7 +60,7 @@ def test_opt_out_preserves_exact_command_and_call_shape(monkeypatch):
     assert called == [(([
         sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
         "-n", "4", "--dist", "loadgroup", "-q",
-    ],), {})]
+    ],), {"cwd": str(_REPO)})]
 
 
 @pytest.mark.parametrize("args", [[], ["-q"], ["-n", "2"], ["--color=yes"]])
@@ -99,6 +101,8 @@ def test_opt_in_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_
     monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
     monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
     monkeypatch.setenv("IZANAGI_TEST_TRIGGER", "final")
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
     times = iter((10.0, 12.25))
     monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
@@ -106,6 +110,7 @@ def test_opt_in_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_
     def fake_call(command, **kwargs):
         captured["command"] = command
         captured["env"] = kwargs["env"]
+        captured["cwd"] = kwargs["cwd"]
         sidecar = Path(kwargs["env"]["IZANAGI_TASK_RUN_SIDECAR"])
         PS._create_sidecar(sidecar, {
             "collected": 2, "passed": 1, "failed": 1, "skipped": 0,
@@ -117,7 +122,10 @@ def test_opt_in_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_
     monkeypatch.setattr(RT, "_record_task_run", lambda **kw: captured.update(record=kw))
     target = "orchestrator/tests/test_run_tests_task_run.py"
     assert RT.main([target, "-k", "one"]) == 1
-    assert captured["command"] == [sys.executable, "-m", "pytest", target, "-k", "one"]
+    assert captured["command"] == [
+        sys.executable, "-m", "pytest", str(_REPO / target), "-k", "one",
+    ]
+    assert captured["cwd"] == str(_REPO)
     assert Path(captured["env"]["IZANAGI_TASK_RUN_SIDECAR"]).is_absolute()
     assert not str(captured["env"]["IZANAGI_TASK_RUN_SIDECAR"]).startswith(str(_REPO))
     assert captured["record"]["duration_s"] == 2.25
@@ -129,7 +137,8 @@ def test_sidecar_setup_and_record_failures_preserve_rc_and_output(monkeypatch, c
     monkeypatch.setattr(RT, "_private_sidecar", mock.Mock(side_effect=OSError("injected")))
     monkeypatch.setattr(RT, "_record_task_run", mock.Mock(side_effect=ImportError("injected")))
 
-    def child(command):
+    def child(command, **kwargs):
+        assert kwargs == {"cwd": str(_REPO)}
         print("child stdout")
         print("child stderr", file=sys.stderr)
         return 5
@@ -150,6 +159,8 @@ def test_lazy_import_failure_preserves_child_rc_and_output(monkeypatch, capsys):
         return real_import(name, *args, **kwargs)
 
     def child(command, **kwargs):
+        assert kwargs["cwd"] == str(_REPO)
+        assert "IZANAGI_TASK_RUN_SIDECAR" in kwargs["env"]
         print("child stdout")
         print("child stderr", file=sys.stderr)
         return 3

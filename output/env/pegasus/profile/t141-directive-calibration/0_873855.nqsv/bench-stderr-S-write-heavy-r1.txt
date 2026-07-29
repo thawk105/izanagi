@@ -1,0 +1,4 @@
+Events disabled
+Events enabled
+[ perf record: Woken up 2 times to write data ]
+[ perf record: Captured and wrote 3.465 MB /scr/0_873855.nqsv/run-S-write-heavy-r1/perf.data (74996 samples) ]

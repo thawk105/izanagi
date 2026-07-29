@@ -1,0 +1,8 @@
+label=initial
+checked_at=2026-07-29T09:55:55+09:00
+argv=pgrep -af ycsb_.*\\.exe
+rc=1
+--- stdout ---
+--- stderr ---
+status=pass
+

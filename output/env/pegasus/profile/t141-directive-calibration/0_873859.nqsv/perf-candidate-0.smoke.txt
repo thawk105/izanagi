@@ -1,0 +1,12 @@
+
+ Performance counter stats for 'sleep 0.1':
+
+            799619      cycles                                                      
+            721599      instructions              #    0.90  insn per cycle         
+
+       0.100719115 seconds time elapsed
+
+       0.000717000 seconds user
+       0.000000000 seconds sys
+
+

@@ -1,0 +1,8 @@
+{
+  "pbs_jobid": "0:873732.nqsv",
+  "rc": 1,
+  "reason": "stock-backoff-off configure failed",
+  "recorded_epoch": 1785286574,
+  "schema_version": "t141-region-profile-failure/v1",
+  "stage": "build_S"
+}

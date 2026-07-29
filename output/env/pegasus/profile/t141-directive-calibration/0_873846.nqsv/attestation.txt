@@ -1,0 +1,85 @@
+date=2026-07-29T11:09:39+09:00
+hostname=bnode127
+PBS_JOBID=0:873846.nqsv
+PBS_ENVIRONMENT=unavailable
+PBS_NODEFILE=/var/opt/nec/nqsv/jsv/jobfile/0.873846.10/nodelist
+uname_r=5.15.0-173-generic
+cpu_model_name=Intel(R) Xeon(R) Platinum 8468
+cpu_model_name_normalized=Intel Xeon Platinum 8468
+physical_cores=48
+expected_cpu_model=Intel Xeon Platinum 8468
+expected_physical_cores=48
+script_path=/var/opt/nec/nqsv/jsv/jobfile/0.873846.10/user_script
+script_sha256=1eeebe371a1783b04ae7d2e5777bbcee8816f73f03fecb8188b37962a185c940
+debuginfod_urls_was_set=0
+debuginfod_urls_was_nonempty=0
+debuginfod_urls_effective_empty=1
+gcc_path=/usr/bin/x86_64-linux-gnu-gcc-11
+gcc_version=x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+g++_path=/usr/bin/x86_64-linux-gnu-g++-11
+g++_version=x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+cmake_path=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake
+cmake_version=cmake version 3.25.0
+gflags_source_path=/home/SFC/tanab/github/gflags
+gflags_source_head=e171aa2d15ed9eb17054558e0b3a6a413bb01067
+glog_source_path=/home/SFC/tanab/github/glog
+glog_source_head=8f9ccfe770add9e4c64e9b25c102658e3c763b73
+gflags_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /home/SFC/tanab/github/gflags -B /scr/0_873846.nqsv/gflags-build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF -DCMAKE_INSTALL_PREFIX=/scr/0_873846.nqsv/gflags-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+glog_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /home/SFC/tanab/github/glog -B /scr/0_873846.nqsv/glog-build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF -DWITH_UNWIND=OFF -DCMAKE_PREFIX_PATH=/scr/0_873846.nqsv/gflags-install -DCMAKE_INSTALL_PREFIX=/scr/0_873846.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+ccbench_source_root=/scr/0_873846.nqsv/ccbench-source
+ccbench_source_head=d706650cdb31e442bef45b9b4216951d4fb40969
+ccbench_copy_method=git-ls-files-tar
+perf_path=/usr/lib/linux-tools-5.15.0-135/perf
+perf_version=perf version 5.15.178
+perf_events=cycles:u,instructions:u
+perf_stat_smoke_events=cycles,instructions
+perf_record_delay_smoke_ms=10
+perf_record_frequency_hz=400
+perf_report_smoke_compile_argv=/usr/bin/x86_64-linux-gnu-g++-11 -O2 -gdwarf-4 -fno-omit-frame-pointer -std=c++11 /scr/0_873846.nqsv/perf-report-smoke.cc -o /scr/0_873846.nqsv/perf-report-smoke
+perf_report_smoke_record_argv=/usr/lib/linux-tools-5.15.0-135/perf record -F 400 -e cycles:u -o /scr/0_873846.nqsv/perf-report-smoke.data -- /scr/0_873846.nqsv/perf-report-smoke
+perf_report_smoke_report_argv=/usr/lib/linux-tools-5.15.0-135/perf report -i /scr/0_873846.nqsv/perf-report-smoke.data --stdio --percent-limit 0 --sort=srcline
+perf_report_smoke_srcline_rows=7
+build_S_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /scr/0_873846.nqsv/ccbench-source -B /scr/0_873846.nqsv/ccbench-build-S -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0 -DCCBENCH_CCACHE=OFF -DCMAKE_CXX_FLAGS=-gdwarf-4 -DCMAKE_PREFIX_PATH=/scr/0_873846.nqsv/gflags-install\;/scr/0_873846.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+build_S_name=stock-backoff-off
+build_S_backoff=0
+build_S_trace=0
+build_S_binary=/scr/0_873846.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe
+build_S_binary_sha256=c9eacf575162ff2ce4ea88f67ca62aa5c591abf7f1b6010cba5dafed226707fc
+build_S_cooldown_s=30
+build_V_configure_argv=/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /scr/0_873846.nqsv/ccbench-source -B /scr/0_873846.nqsv/ccbench-build-V -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=1 -DCCBENCH_CCACHE=OFF -DCMAKE_CXX_FLAGS=-gdwarf-4 -DCMAKE_PREFIX_PATH=/scr/0_873846.nqsv/gflags-install\;/scr/0_873846.nqsv/glog-install -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11
+build_V_name=stock-backoff-on
+build_V_backoff=1
+build_V_trace=0
+build_V_binary=/scr/0_873846.nqsv/ccbench-build-V/cc/silo/ycsb_silo.exe
+build_V_binary_sha256=493762bc429a6e60e3abd95ede8afe37ed16a6e9552575f44af4d2a0ce44c8fc
+build_V_cooldown_s=30
+perf_record_delay_margin_s=1.0
+timing_S-write-heavy_loadavg=0.52 0.82 0.93 1/905 1785423
+timing_S-write-heavy_bench_argv=/scr/0_873846.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0
+timing_S-write-heavy_wall_s=3.341621
+timing_S-write-heavy_throughput_tps=2803960
+timing_S-write-heavy_delay_ms=1342
+timing_S-write-heavy_estimated_sample_window_s=1.999621
+timing_S-balanced_loadavg=0.52 0.82 0.93 2/906 1785530
+timing_S-balanced_bench_argv=/scr/0_873846.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0
+timing_S-balanced_wall_s=3.342413
+timing_S-balanced_throughput_tps=4057893
+timing_S-balanced_delay_ms=1342
+timing_S-balanced_estimated_sample_window_s=2.000413
+timing_V-write-heavy_loadavg=3.69 1.47 1.14 1/906 1785638
+timing_V-write-heavy_bench_argv=/scr/0_873846.nqsv/ccbench-build-V/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0
+timing_V-write-heavy_wall_s=3.347118
+timing_V-write-heavy_throughput_tps=1378253
+timing_V-write-heavy_delay_ms=1347
+timing_V-write-heavy_estimated_sample_window_s=2.000118
+timing_V-balanced_loadavg=7.23 2.24 1.39 1/906 1785745
+timing_V-balanced_bench_argv=/scr/0_873846.nqsv/ccbench-build-V/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0
+timing_V-balanced_wall_s=3.340366
+timing_V-balanced_throughput_tps=1238583
+timing_V-balanced_delay_ms=1340
+timing_V-balanced_estimated_sample_window_s=2.000366
+cell_S-write-heavy-r1_loadavg=10.50 3.00 1.64 1/906 1785852
+cell_S-write-heavy-r1_bench_argv=/usr/lib/linux-tools-5.15.0-135/perf record -D 1342 -F 400 -o /scr/0_873846.nqsv/run-S-write-heavy-r1/perf.data -e cycles:u\,instructions:u -- /scr/0_873846.nqsv/ccbench-build-S/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0
+cell_S-write-heavy-r1_delay_ms=1342
+cell_S-write-heavy-r1_estimated_sample_window_s=1.999621
+cell_S-write-heavy-r1_throughput_tps=2720952
