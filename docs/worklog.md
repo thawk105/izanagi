@@ -950,7 +950,14 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   復元と競合していた。停止 → `git checkout --` → commit 済み内容との byte 一致確認で回復した。
   F32 (外側で親が殺されると `finally` が走らない) と同型の再発であり、
   harness を前景で走らせた設計側の問題である
-- 検査: 全受入 **3838 passed / 18 skipped** (260 秒、本 worktree・ログインノード)。
+- **記録後再走で自作の赤を 1 件出した (F34 の再走が拾った)**: 受入全走の**最中に** F32 の
+  commit を作って HEAD を動かしたため、repo HEAD へ束縛される
+  `test_s8b_oracle_driver.py::...t080...` が期待値と食い違って落ちた (3837 passed / 1 failed)。
+  単独再走は 82 passed / 1 skipped で再現せず、HEAD を固定した 3 回目の全走は
+  **3838 passed / 18 skipped** で緑。製品欠陥でもフレークでもなく**受入走行中に commit した
+  手順ミス**であり、実装差分へ帰属しない (DW-O18 の単独再現実測に従う)
+- 検査: 全受入 **3838 passed / 18 skipped** (記録 commit 前 260 秒 / HEAD 固定の記録後再走 236 秒、
+  本 worktree・ログインノード)。
   `check_docs.py` 違反なし、`check_codex_agents.py` OK、`git diff --check` rc=0。
   `check_ai_provenance.py` は 535 件中 1 違反だが、これは main `7be05ef` に既存の merge commit
   `6b64d21` であり本 wave の産物ではない (本 wave の 2 commit は commit 前検査を通している)
