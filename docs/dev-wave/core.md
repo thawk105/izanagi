@@ -87,8 +87,8 @@ worklog に既記録でないか確認する（既知事実の新事実扱いで
 
 親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。
 凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +
-erratum とする（D88）。逐語の末尾空白が `git diff --check` に抵触する場合も、原文 hash・byte 数・
-復元方法を併記する可逆な最小正規化だけを許し、可視文字は変えない。
+erratum とする（D88）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
+復元法を記録した可逆最小正規化だけを許す（可視文字不変）。
 docs commit 後に repo scan invariant と影響テストを再走して閉じる（F34）。受入・検査は実測前に
 欄を作らず、未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
 hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界は `CLAUDE.md` と

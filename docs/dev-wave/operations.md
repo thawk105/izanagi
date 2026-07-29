@@ -88,9 +88,11 @@ NO-GO が返り続ける場合は無制限に fix を重ねず、3 巡を上限�
 
 ## DW-O17 — commit trailer
 
-trailer 配置は `docs/ai-provenance.md` の「必須形式」に従う（F25）。message は commit 前に
-`python3 tools/check_ai_provenance.py --message-file <path>` で検査し、commit 後の監査も省略しない。
-検査の rc はパイプに通さず単独で取り、赤のまま commit しない（F37）。
+trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage file→`--message-file`単独rc=0
+→`commit -F`→既定full-history監査とする。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
+→`--ff-only`→full監査、merge commitなら`merge --no-ff --no-commit <tip>`→競合解消→同じpreflight
+→`commit -F`→full監査とする。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
+含むときは両commitを含むrangeかfull監査だけを権威とする。検査rcをパイプに通さず、赤なら止める（F37）。
 
 ## DW-O18 — 親のテスト cwd
 
@@ -109,9 +111,7 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 
 ## DW-O20 — clean-tree gate
 
-専用 handoff は worktree の外 (job tmp または main checkout 側) に置いて生存性を確保し、
-untracked handoff を残したまま gate を走らせない (worktree 隔離の背景 job は job tmp)。
-背景 job の cwd が既に worktree なら `EnterWorktree` は新規作成を拒む。そのまま作業してよいが、
-ディレクトリ名と branch 名の食い違いを handoff と worklog に明記し、別 wave の worktree を流用しない。
-worktree の作成・流用直後に `tools/check_wave_startup.py` で開始条件を検査し (背景 job は
-`--external-handoff <handoff>` 付き)、rc≠0 なら停止する。HEAD のずれは `--ff-only` で揃える (F48)。
+専用handoffはworktree外（背景jobはjob tmp）に置き、untracked handoffを残してgateを走らせない。
+cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
+worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.py`（背景jobは
+`--external-handoff <handoff>`付き）を実行し、非0なら停止する。HEAD差は`--ff-only`だけで揃える（F48）。
