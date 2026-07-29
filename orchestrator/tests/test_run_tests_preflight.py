@@ -292,6 +292,61 @@ def test_targeted_run_does_not_invoke_deletion_gate(monkeypatch, tmp_path):
     invoked.assert_not_called()
 
 
+def test_targeted_run_does_not_invoke_ruleops_preflight(monkeypatch, tmp_path):
+    invoked = mock.Mock(side_effect=AssertionError("RuleOps must not run"))
+    monkeypatch.setattr(RT.subprocess, "run", invoked)
+    assert RT._preflight_ruleops(["/tmp/target.py"], tmp_path) == 0
+    invoked.assert_not_called()
+
+
+def test_m10_acceptance_ruleops_preflight_invokes_production_ledger(
+    monkeypatch, tmp_path,
+):
+    completed = subprocess.CompletedProcess(["ruleops"], 0, "{}\n", "")
+    invoked = mock.Mock(return_value=completed)
+    monkeypatch.setattr(RT.subprocess, "run", invoked)
+
+    assert RT._preflight_ruleops(["--disable-warnings"], tmp_path) == 0
+    invoked.assert_called_once_with(
+        [
+            sys.executable,
+            str(tmp_path / "tools" / "ruleops.py"),
+            "check",
+            "--repo",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def test_acceptance_ruleops_failure_propagates_rc_and_reason(
+    monkeypatch, tmp_path, capsys,
+):
+    monkeypatch.setattr(
+        RT.subprocess,
+        "run",
+        mock.Mock(return_value=subprocess.CompletedProcess(
+            ["ruleops"], 2, "", "ruleops: schema-keys: unknown=['safe']\n",
+        )),
+    )
+    assert RT._preflight_ruleops([], tmp_path) == 15
+    stderr = capsys.readouterr().err
+    assert "child rc=2" in stderr
+    assert "schema-keys" in stderr
+
+
+def test_acceptance_ruleops_timeout_is_rc15(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(
+        RT.subprocess,
+        "run",
+        mock.Mock(side_effect=subprocess.TimeoutExpired(["ruleops"], 60)),
+    )
+    assert RT._preflight_ruleops([], tmp_path) == 15
+    assert "child rc=timeout" in capsys.readouterr().err
+
+
 def test_deletion_git_failure_warns_and_continues(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(
         RT.subprocess,
@@ -539,27 +594,51 @@ def test_acceptance_submodule_still_missing_after_init_fails_closed(
 
 def test_main_deletion_preflight_failure_is_wired_before_xdist(monkeypatch):
     ensure = mock.Mock(side_effect=AssertionError("xdist must not run"))
+    ruleops = mock.Mock(side_effect=AssertionError("RuleOps must not run"))
     submodule = mock.Mock(side_effect=AssertionError("submodule must not run"))
     deletion = mock.Mock(return_value=13)
     monkeypatch.setattr(RT, "_ensure_xdist", ensure)
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", deletion)
+    monkeypatch.setattr(RT, "_preflight_ruleops", ruleops)
     monkeypatch.setattr(RT, "_preflight_submodule", submodule)
     assert RT.main([]) == 13
     deletion.assert_called_once_with([], Path(RT._REPO))
     ensure.assert_not_called()
+    ruleops.assert_not_called()
     submodule.assert_not_called()
+
+
+def test_main_ruleops_preflight_failure_is_wired_before_submodule_and_xdist(
+    monkeypatch,
+):
+    ensure = mock.Mock(side_effect=AssertionError("xdist must not run"))
+    deletion = mock.Mock(return_value=0)
+    ruleops = mock.Mock(return_value=15)
+    submodule = mock.Mock(side_effect=AssertionError("submodule must not run"))
+    monkeypatch.setattr(RT, "_ensure_xdist", ensure)
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", deletion)
+    monkeypatch.setattr(RT, "_preflight_ruleops", ruleops)
+    monkeypatch.setattr(RT, "_preflight_submodule", submodule)
+    assert RT.main([]) == 15
+    deletion.assert_called_once_with([], Path(RT._REPO))
+    ruleops.assert_called_once_with([], Path(RT._REPO))
+    submodule.assert_not_called()
+    ensure.assert_not_called()
 
 
 def test_main_submodule_preflight_failure_is_wired_before_xdist(monkeypatch):
     ensure = mock.Mock(side_effect=AssertionError("xdist must not run"))
     deletion = mock.Mock(return_value=0)
+    ruleops = mock.Mock(return_value=0)
     submodule = mock.Mock(return_value=14)
     monkeypatch.setattr(RT, "_ensure_xdist", ensure)
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", deletion)
+    monkeypatch.setattr(RT, "_preflight_ruleops", ruleops)
     monkeypatch.setattr(RT, "_preflight_submodule", submodule)
     assert RT.main([]) == 14
     ensure.assert_not_called()
     deletion.assert_called_once_with([], Path(RT._REPO))
+    ruleops.assert_called_once_with([], Path(RT._REPO))
     submodule.assert_called_once_with([], Path(RT._REPO))
 
 
@@ -571,6 +650,7 @@ def test_main_assembles_absolute_relative_target_from_other_cwd(
     captured = {}
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_preflight_submodule", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
 
@@ -595,6 +675,7 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
     captured = {}
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_preflight_submodule", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
     monkeypatch.setattr(
@@ -624,6 +705,7 @@ def test_main_option_values_do_not_suppress_default_target(
 ):
     captured = {}
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda values, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda values, repo: 0)
     monkeypatch.setattr(RT, "_preflight_submodule", lambda values, repo: 0)
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
     monkeypatch.setattr(

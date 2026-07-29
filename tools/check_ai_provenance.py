@@ -9,9 +9,11 @@ hook には配線しない。Izanagi の hook 2 本限定を維持しつつ、�
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -21,6 +23,9 @@ IDENT = r"[a-z0-9][a-z0-9._-]*"
 RESERVED_PRODUCTS = {"none", "unknown", "not-exposed", "human"}
 IMPLEMENTATION_POLICY_NEEDLE = (
     "実装面を変更する AI 関与 commit は Codex author を必須"
+)
+CO_AUTHORED_BY_POLICY_NEEDLE = (
+    "Co-Authored-By 候補行はすべて最終 trailer block に置く"
 )
 IMPLEMENTATION_PREFIXES = (
     "orchestrator/", "tools/", "hooks/", ".github/", ".codex/", "external/",
@@ -39,6 +44,22 @@ AGENT_VALUE = re.compile(
     rf"role=(?P<role>{'|'.join(ROLES)})"
     rf"(?:; scope=(?P<scope>{IDENT}))?$"
 )
+RAW_CO_AUTHORED_BY = re.compile(
+    r"^[ \t]*Co-Authored-By[ \t]*:", re.IGNORECASE | re.MULTILINE
+)
+TRAILER_PARSE_TEMP_ROOT: Path | None = None
+_REPO_DISCOVERY_ENV = {
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_DIR",
+    "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+    "GIT_INDEX_FILE",
+    "GIT_NAMESPACE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_PREFIX",
+    "GIT_WORK_TREE",
+}
 
 
 def _git(*args: str, input_text: str | None = None) -> str:
@@ -56,8 +77,68 @@ def _git(*args: str, input_text: str | None = None) -> str:
     return proc.stdout
 
 
+def _canonical_trailer_env(parse_cwd: Path) -> dict[str, str]:
+    """ambient config と repo discovery から隔離した trailer parser 環境。"""
+    env = {
+        key: value for key, value in os.environ.items()
+        if key != "GIT_CONFIG"
+        and not key.startswith("GIT_CONFIG_")
+        and key not in _REPO_DISCOVERY_ENV
+    }
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CEILING_DIRECTORIES"] = str(parse_cwd)
+    return env
+
+
+def _parsed_trailers(message: str) -> dict[str, list[str]]:
+    """CAB 用 canonical parser の LF record を case-fold key ごとに返す。"""
+    message_bytes = message.encode("utf-8")
+    with tempfile.TemporaryDirectory(
+        prefix="check-ai-provenance-",
+        dir=TRAILER_PARSE_TEMP_ROOT,
+    ) as private_dir:
+        ceiling = Path(private_dir)
+        parse_cwd = ceiling / "cwd"
+        parse_cwd.mkdir()
+        proc = subprocess.run(
+            [
+                "git", "-c", "trailer.separators=:",
+                "interpret-trailers", "--parse", "--no-divider",
+            ],
+            cwd=parse_cwd,
+            env=_canonical_trailer_env(ceiling),
+            input=message_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    if proc.returncode != 0:
+        detail_bytes = proc.stderr.strip() or proc.stdout.strip()
+        detail = detail_bytes.decode("utf-8", errors="backslashreplace")
+        raise RuntimeError(f"git interpret-trailers failed: {detail}")
+    if not isinstance(proc.stdout, bytes):
+        raise RuntimeError("git interpret-trailers returned non-bytes stdout")
+
+    records = proc.stdout.split(b"\n")
+    if records and records[-1] == b"":
+        records.pop()
+    trailers: dict[str, list[str]] = {}
+    for record in records:
+        decoded = record.decode("utf-8")
+        key, sep, value = decoded.partition(":")
+        if not record or not sep or not key.strip(" \t"):
+            raise RuntimeError(
+                "git interpret-trailers returned unexpected LF record: "
+                f"{record!r}"
+            )
+        trailers.setdefault(key.strip(" \t").casefold(), []).append(
+            value.strip(" \t")
+        )
+    return trailers
+
+
 def _ai_agent_values(message: str) -> list[str]:
-    """Git 自身が trailer と認識した AI-Agent の値だけを返す。"""
+    """従来の repo cwd・divider 既定 parser で AI-Agent 値だけを返す。"""
     parsed = _git("interpret-trailers", "--parse", input_text=message)
     values: list[str] = []
     for line in parsed.splitlines():
@@ -67,20 +148,42 @@ def _ai_agent_values(message: str) -> list[str]:
     return values
 
 
-def validate_message(label: str, message: str) -> tuple[list[str], list[str]]:
-    """(findings, scope_findings) を返す。
+def _co_authored_by_findings(
+    label: str, message: str,
+) -> list[str]:
+    raw_count = len(RAW_CO_AUTHORED_BY.findall(message))
+    trailers = _parsed_trailers(message)
+    parsed_count = len(trailers.get("co-authored-by", []))
+    if raw_count == parsed_count:
+        return []
+    return [
+        f"{label}: Co-Authored-By trailer 配置違反: "
+        f"raw={raw_count}, parsed={parsed_count}"
+    ]
+
+
+def validate_message(
+    label: str, message: str, *, check_cab: bool = True,
+) -> tuple[list[str], list[str], list[str]]:
+    """(findings, scope_findings, cab_findings) を返す。
 
     scope_findings は「同じ role が複数行あるのに scope がない」違反。scope 規則の
     導入 commit より前の履歴には遡及しないため、呼び出し側が適用可否を判定する。
+    CAB policy 導入前の履歴では check_cab=False とし、canonical parser 自体を呼ばない。
     """
     values = _ai_agent_values(message)
+    cab_findings = (
+        _co_authored_by_findings(label, message) if check_cab else []
+    )
     if not values:
-        return [f"{label}: AI-Agent trailer がない"], []
+        return [f"{label}: AI-Agent trailer がない"], [], cab_findings
 
     if "none" in values:
         if values != ["none"]:
-            return [f"{label}: AI-Agent: none は唯一の AI-Agent trailer でなければならない"], []
-        return [], []
+            return [
+                f"{label}: AI-Agent: none は唯一の AI-Agent trailer でなければならない"
+            ], [], cab_findings
+        return [], [], cab_findings
 
     findings: list[str] = []
     seen: set[str] = set()
@@ -119,7 +222,7 @@ def validate_message(label: str, message: str) -> tuple[list[str], list[str]]:
                 scope_findings.append(
                     f"{label}: role={role} が複数行あるのに scope がない: {value}"
                 )
-    return findings, scope_findings
+    return findings, scope_findings, cab_findings
 
 
 def _scope_policy_commit() -> str | None:
@@ -137,6 +240,15 @@ def _implementation_policy_commit() -> str | None:
         "--", POLICY_PATH,
     ).splitlines()
     return commits[0] if commits else None
+
+
+def _has_co_authored_by_policy(commit: str) -> bool:
+    """commit ancestry に CAB policy needle の変更があれば適用済みとみなす。"""
+    commits = _git(
+        "log", "--full-history", "--no-renames", "--format=%H",
+        "-S", CO_AUTHORED_BY_POLICY_NEEDLE, commit, "--", POLICY_PATH,
+    ).splitlines()
+    return bool(commits)
 
 
 def _is_descendant(ancestor: str, commit: str) -> bool:
@@ -246,13 +358,13 @@ def main() -> int:
     try:
         if args.message_file is not None:
             message = _read_message(args.message_file)
-            base, scoped = validate_message(
+            base, scoped, cab = validate_message(
                 args.message_file, message
             )
             implementation = validate_implementation_author(
                 args.message_file, message, _staged_paths(),
             )
-            findings = [*base, *scoped, *implementation]
+            findings = [*base, *scoped, *cab, *implementation]
             checked = 1
         else:
             commits = _commit_range(args.rev_range)
@@ -263,10 +375,14 @@ def main() -> int:
                 subject = _git("show", "-s", "--format=%s", commit).strip()
                 message = _git("show", "-s", "--format=%B", commit)
                 label = f"{commit[:12]} {subject}"
-                base, scoped = validate_message(label, message)
+                cab_policy_applies = _has_co_authored_by_policy(commit)
+                base, scoped, cab = validate_message(
+                    label, message, check_cab=cab_policy_applies,
+                )
                 findings.extend(base)
                 if scoped and scope_epoch is not None and _is_descendant(scope_epoch, commit):
                     findings.extend(scoped)
+                findings.extend(cab)
                 if (
                     implementation_epoch is not None
                     and _is_descendant(implementation_epoch, commit)

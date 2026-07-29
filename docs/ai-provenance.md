@@ -14,9 +14,9 @@ Claude と Codex の製品選定、モデル選択、推論深度を後から監
 すべての commit は、message 末尾に次の trailer を 1 行以上持つ。フィールドの順序と区切りは
 固定し、値に `;` または改行を含めない。必須なのは、本文と空行で区切った最終段落 (Git が
 trailer と認識する位置) に `AI-Agent` があることで、本文の有無は任意 (ここまでが
-`check_ai_provenance` の機械検査対象)。`Co-Authored-By` を併用する場合は同じ trailer block 内に
-空行を挟まず連続させること (段落が分断・結合されると Git の trailer 認識は保証されない —
-failures F25 の再発防止。この連続性は機械検査されない)。
+`check_ai_provenance` の機械検査対象)。`Co-Authored-By` を併用する場合は空行を挟まず連続させ、
+Co-Authored-By 候補行はすべて最終 trailer block に置く。checker は候補行数と隔離した Git parser の
+認識数を照合し、本規則を導入 commit 以後へ適用する (failures F25)。
 
 ```text
 AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>[; scope=<scope>]

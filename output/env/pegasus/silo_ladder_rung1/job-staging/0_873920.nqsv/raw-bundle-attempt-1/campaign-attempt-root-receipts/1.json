@@ -1,0 +1,11 @@
+{
+  "attempt": 1,
+  "attempt_receipt_sha256": "a331ef30aab1b74aebf1d0bbb3a995b5a0c3e24098dad7dbcf03282752936a0a",
+  "campaign_id": "734e19378134a38eebfef0c8370b9c3650dd8e76e652b67ec018a04b3dd8b0fc",
+  "failure_class": null,
+  "job_id": "0:873920.nqsv",
+  "nonce": "b2afa072ea646a80a3b3ad5ba2ae29a1",
+  "reason_code": null,
+  "schema_version": "silo_ladder_rung1-campaign-attempt-root/v1",
+  "submit_receipt_sha256": "8c52de66307151807c520c0d542213771b4d33ffeb8cb878addf96832b7f7510"
+}

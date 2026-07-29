@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/usr/bin/x86_64-linux-gnu-nm",
+    "-g",
+    "--defined-only",
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a9/build-trace/cc/silo/ycsb_silo.exe"
+  ],
+  "argv0_sha256": "ed6565c132d6f20019ff3f050043dc1b2b8bc2e8b3b94c1ffe3f34436431a5a4",
+  "completed_at_utc": "2026-07-29T08:14:58.739424Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/orchestrator",
+  "elapsed_monotonic_s": 0.01693566399626434,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:14:58.722482Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "c02e9f9d55d88b44f0768132a4729b5c30641753a05b5403ffb4e9091e5994ef",
+  "target_sha256": "c5bb4aaad72fad5b5addc9e85604b242a5c9150939768ef78b1d538c642249de",
+  "timed_out": false,
+  "timeout_s": 60.0
+}
