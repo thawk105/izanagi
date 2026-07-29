@@ -1486,7 +1486,9 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   unattended/autonomous 完了は未主張: crash resume、bench 実時間 budget、axis-proposer/複数軸が残る
 - [T-179] **P3・最優先 (T-178 次手)**: current commit 上で A/B/C × 1 generation を
   single-tenant live build → legacy+S2 → bench まで運び、operational pilot report を得る。
-  配線規模のため headline / 有意差は主張しない
+  配線規模のため headline / 有意差は主張しない。`436a3af` 後の login-host preflight は
+  CCBench d706650 pinned-clean・競合 bench なしだが `numactl` 不在で停止。S2 の
+  `--interleave=all` を外さず、Pegasus/NUMA 計測ホストへ運ぶ
 - [T-180] **P3・研究主経路 (T-179 後)**: H1 rr80 / H2 rr20 × descriptor
   on/off/swapped、同一固定 generation budget、同一 correctness gate、全件報告を実装・freeze・実走。
   これが workload-conditioned synthesis の最初の科学的 test

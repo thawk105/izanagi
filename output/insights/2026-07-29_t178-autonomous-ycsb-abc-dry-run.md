@@ -121,3 +121,11 @@ H1/H2 arm freeze と同じ証拠鎖へ束縛する。
 3. formal run の前に bench 実時間 budget accounting と crash resume の扱いを固定
 
 Runbook: `docs/phase3-8c-autonomous-trial-runbook.md`。設計裁定: D99。
+
+### Live preflight の結果
+
+commit `436a3af` 後に login host で T-179 を開始したが、CCBench は d706650 pinned-clean、
+競合 `ycsb_*.exe` は無しである一方、`numactl` が未導入だった。trigger driver の legacy+S2
+経路は `numactl --interleave=all` を correctness/measurement contract として要求するため、
+空 command へ差し替えず実計測を停止した。T-179 は Pegasus または同契約を満たす NUMA 計測
+host で再開する。

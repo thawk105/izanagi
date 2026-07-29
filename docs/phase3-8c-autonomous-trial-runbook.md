@@ -94,6 +94,8 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
 `--no-build` を外すと実計測である。supervisor は起動前に競合 `ycsb_*.exe` を検査し、
 CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline 自身の bench lock / settle /
 直前競合検査もそのまま働く。競合 process を自動 kill はしない。
+加えて `numactl --interleave=all` が利用できる計測ホストでなければならない。S2 verify は
+interleave を必須とするため、`numactl` のない login host で空 command に差し替えて走らせない。
 
 最初の実計測は 1 generation/cell で correctness と measurement wiring を確認し、その後に
 2 generations へ増やす。A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
