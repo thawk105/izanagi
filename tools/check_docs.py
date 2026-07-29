@@ -165,6 +165,10 @@ CODEX_DEV_WAVE_SKILL_LIMITS = {
 }
 DEV_WAVE_AGGREGATE_BYTES = 24_000
 CODEX_DEV_WAVE_SKILL_FILES = frozenset(CODEX_DEV_WAVE_SKILL_LIMITS)
+CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
+    "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
+    "Codex 固有の取り込み手順を重ねない。"
+)
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
     "docs/skill-self-improvement.md",
@@ -227,8 +231,28 @@ COMMAND_INTERFACES = {
     },
 }
 
-# DW-O07 は T-154(1) 裁定 (2026-07-28) で削除済み — 復活時は裁定を新規に起こす
-_OPERATION_NUMBERS = (*range(1, 7), *range(8, 21))
+# DW-O07 は T-154(1) 裁定 (2026-07-28) で削除済み — 復活時は裁定を新規に起こす。
+# DW-O21/O22 は core の external continuation 条件が使用済みなので、land は DW-O23。
+_OPERATION_NUMBERS = (*range(1, 7), *range(8, 21), 23)
+DEV_WAVE_LAND_HELPER = "tools/dev_wave_land.py"
+DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL = (
+    "`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路"
+)
+DEV_WAVE_S09_ACCEPTANCE_ORDER_LITERAL = (
+    "全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して "
+    "`DW-O23` を行う。"
+)
+ALTERNATE_LAND_HELPER_COMMAND = re.compile(
+    r"(?m)^[ \t]*(?:\$\s*)?python3?"
+    r"(?:[ \t]+[^\s`]+)*?[ \t]+(?:\./)?tools/"
+    r"(?!dev_wave_land\.py(?:[ \t]|$))"
+    r"[^\s`]*land[^\s`]*\.py(?:\s|$)"
+)
+DIRECT_MAIN_FF_COMMAND = re.compile(
+    r"(?m)^[ \t]*(?:\$\s*)?git"
+    r"(?:[ \t]+[^\s`]+)*?[ \t]+merge(?=[ \t])"
+    r"(?=[^\n]*[ \t]--ff-only(?:[ \t]|$))[^\n]*$"
+)
 
 REQUIRED_REFERENCE_SECTIONS = {
     "docs/dev-wave/core.md": {
@@ -327,7 +351,10 @@ STAGE_DISPATCH_CONTRACT = {
         | _SELF_SECTIONS
         | _pairs(_OPERATIONS, "DW-O04", "DW-O17")
     ),
-    "段 9": _pairs(_CORE, "DW-S09", "DW-CTX", "DW-STOP"),
+    "段 9": (
+        _pairs(_CORE, "DW-S09", "DW-CTX", "DW-STOP")
+        | _pairs(_OPERATIONS, "DW-O23")
+    ),
 }
 CONDITION_DISPATCH_CONTRACT = {
     f"{i:02d}": _pairs(_OPERATIONS, f"DW-O{i:02d}")
@@ -1311,6 +1338,19 @@ def _markdown_sections(text: str, heading: str) -> list[str]:
     ]
 
 
+def _reference_id_sections(text: str, section_id: str) -> list[str]:
+    """``## DW-XNN — title`` 形式の leaf 本文を ID で一意に抽出する。"""
+    return [
+        match.group("body")
+        for match in re.finditer(
+            rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n"
+            r"(?P<body>.*?)(?=^## |\Z)",
+            text,
+            re.MULTILINE | re.DOTALL,
+        )
+    ]
+
+
 def _expand_dispatch_range(start: str, end: str) -> set[str]:
     left = re.fullmatch(r"DW-([A-Z])(\d{2})", start)
     right = re.fullmatch(r"DW-([A-Z])(\d{2})", end)
@@ -1438,6 +1478,9 @@ def _check_codex_skill_guard(
     expected_files: frozenset[str],
     literals: tuple[str, ...],
     openai_yaml: str,
+    forbidden_literals: tuple[str, ...] = (),
+    exact_literals: tuple[str, ...] = (),
+    forbidden_patterns: tuple[tuple[re.Pattern[str], str], ...] = (),
 ) -> None:
     """repo-scoped Codex Skill の閉包・interface・必須 adapter を検査する。"""
 
@@ -1525,6 +1568,23 @@ def _check_codex_skill_guard(
             if literal not in skill_text:
                 findings.append(
                     f"{skill_rel}: Codex adapter 契約がない — {literal!r}"
+                )
+        for literal in forbidden_literals:
+            if literal in skill_text:
+                findings.append(
+                    f"{skill_rel}: 共通 dispatcher の leaf path を重複 pin している — "
+                    f"{literal!r}"
+                )
+        for literal in exact_literals:
+            count = skill_text.count(literal)
+            if count != 1:
+                findings.append(
+                    f"{skill_rel}: exact adapter literal が {count} 件 — {literal!r}"
+                )
+        for pattern, label_text in forbidden_patterns:
+            if pattern.search(skill_text):
+                findings.append(
+                    f"{skill_rel}: 共通 land 契約外の実行経路 — {label_text}"
                 )
 
     openai_rel = f".agents/skills/{skill_name}/agents/openai.yaml"
@@ -1697,6 +1757,56 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"{rel}: Codex-first 実装契約がない — {literal!r}"
                 )
 
+    core_text = decoded.get(_CORE)
+    if core_text is not None:
+        s09 = _reference_id_sections(core_text, "DW-S09")
+        if len(s09) == 1:
+            literal_count = s09[0].count(DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL)
+            acceptance_order_count = s09[0].count(
+                DEV_WAVE_S09_ACCEPTANCE_ORDER_LITERAL
+            )
+            section_path_count = s09[0].count(DEV_WAVE_LAND_HELPER)
+            outside_path_count = (
+                core_text.count(DEV_WAVE_LAND_HELPER) - section_path_count
+            )
+            if (
+                literal_count != 1
+                or section_path_count != 1
+                or outside_path_count != 0
+            ):
+                findings.append(
+                    "docs/dev-wave/core.md: DW-S09 の helper 唯一経路 literal "
+                    f"が literal={literal_count}, path-section内={section_path_count}, "
+                    f"path-section外={outside_path_count} 件"
+                )
+            if acceptance_order_count != 1:
+                findings.append(
+                    "docs/dev-wave/core.md: DW-S09 の acceptance/O23 順序 literal "
+                    f"が {acceptance_order_count} 件"
+                )
+
+    operations_text = decoded.get(_OPERATIONS)
+    if operations_text is not None:
+        o23 = _reference_id_sections(operations_text, "DW-O23")
+        o23_count = (
+            o23[0].count(DEV_WAVE_LAND_HELPER)
+            if len(o23) == 1 else 0
+        )
+        total_count = operations_text.count(DEV_WAVE_LAND_HELPER)
+        if len(o23) == 1 and (o23_count != 1 or total_count != 1):
+            findings.append(
+                "docs/dev-wave/operations.md: land helper path は全体で exact 1 件かつ "
+                f"DW-O23 内だけ — total={total_count}, O23={o23_count}"
+            )
+    for rel, text in decoded.items():
+        if (
+            rel not in {_CORE, _OPERATIONS}
+            and DEV_WAVE_LAND_HELPER in text
+        ):
+            findings.append(
+                f"{rel}: land helper path は DW-S09 / DW-O23 だけに置く"
+            )
+
     self_text = decoded.get("docs/skill-self-improvement.md")
     if self_text is not None:
         for level, headings in REQUIRED_SELF_HEADINGS.items():
@@ -1776,6 +1886,15 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 ".claude/commands/dev-wave.md: Codex-first 実装境界 "
                 "(実装面・軽量版・role=author・親直接編集禁止) がない"
             )
+        for pattern, label_text in (
+            (ALTERNATE_LAND_HELPER_COMMAND, "alternate land helper command"),
+            (DIRECT_MAIN_FF_COMMAND, "direct git merge --ff-only main mutation"),
+        ):
+            if pattern.search(dev_wave_text):
+                findings.append(
+                    ".claude/commands/dev-wave.md: 共通 land 契約外の実行経路 — "
+                    f"{label_text}"
+                )
 
     _check_codex_skill_guard(
         findings,
@@ -1784,6 +1903,12 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         expected_files=CODEX_DEV_WAVE_SKILL_FILES,
         literals=CODEX_DEV_WAVE_SKILL_LITERALS,
         openai_yaml=CODEX_DEV_WAVE_OPENAI_YAML,
+        forbidden_literals=(DEV_WAVE_LAND_HELPER,),
+        exact_literals=(CODEX_DEV_WAVE_STAGE9_LAND_LITERAL,),
+        forbidden_patterns=(
+            (ALTERNATE_LAND_HELPER_COMMAND, "alternate land helper command"),
+            (DIRECT_MAIN_FF_COMMAND, "direct git merge --ff-only main mutation"),
+        ),
     )
     _check_codex_skill_guard(
         findings,

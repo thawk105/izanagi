@@ -115,3 +115,13 @@ untracked handoff を残したまま gate を走らせない (worktree 隔離の
 ディレクトリ名と branch 名の食い違いを handoff と worklog に明記し、別 wave の worktree を流用しない。
 worktree の作成・流用直後に `tools/check_wave_startup.py` で開始条件を検査し (背景 job は
 `--external-handoff <handoff>` 付き)、rc≠0 なら停止する。HEAD のずれは `--ff-only` で揃える (F48)。
+
+## DW-O23 — 並行 session の local main land
+
+`tools/dev_wave_land.py` に abs main/wave、tested main/tip、監査 commit 列を渡す。協調wave lock
+内で再照合し、tip への ff-only だけを行う。tracked/index/submodule dirt と未知 untracked は拒否し、
+正規 handoff 3 状態と Git admin に双方向束縛した Claude/Codex worktree だけ非接触で許可する。
+
+成功は `landed` / `already-landed` だけ。postcondition failure は停止する。stale / busy は fresh
+context で既存 branch を再利用し、新 main 監査、固定 SHA の wave-side merge、条件再評価し、
+受入後に再試行する。他 session 所有物、rebase、force、remote、push で解消しない。
