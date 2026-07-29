@@ -1,0 +1,15 @@
+[
+  {
+    "id": "97500000-0000-0000-0000-000000000001",
+    "cwd": "/synthetic/target-wave",
+    "prompt": "あなたは段2の read-only Codex planner である。"
+  },
+  {
+    "id": "97500000-0000-0000-0000-000000000002",
+    "omit_meta": true,
+    "prompt": "あなたは段3の read-only adversarial consultant である。",
+    "raw_lines": [
+      "null"
+    ]
+  }
+]
