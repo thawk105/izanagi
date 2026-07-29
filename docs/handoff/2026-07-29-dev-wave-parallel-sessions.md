@@ -1,7 +1,7 @@
 # dev-wave 並行セッション取り込み改善
 - 目的: dev-wave a1 / a2 の並行実行で、他セッション所有物が安全な local main 取り込みを妨げない契約を Claude / Codex 共通面へ実装する
-- 状態: 実装・敵対レビュー・変異・記録完了、最終受入と land 待ち
-- 最終更新: 2026-07-29
+- 状態: 中断
+- 最終更新: 2026-07-29 22:09 JST
 - 基準コミット: fa4774cd5de5b81840984168d1ac12a15a3d16a6
 
 ## 完了した中間成果
@@ -44,8 +44,15 @@
 
 ## 未完の作業と次の一手
 
-- 記録 commit 上で全受入、docs / Codex agent / provenance 検査を再実行する
-- local main の最新 SHA を照合し、変化がなければ `DW-O23` helper で監査済み集合を land する
+- main 所有側で `6b64d21` の provenance 欠落を裁定する。規約上、子孫 commit・例外追加・
+  checker 弱体化では閉じず、rebase / force は本 wave の権限外
+- main 所有側で T-179 ledger の `cached > input`、負の reasoning token、非 null 非 object
+  `info`、model / reasoning identity の扱いを裁定・修正し、negative test / mutation を追加する
+- 新しい main SHA ができた fresh context で本 branch を再利用し、新 upstream の独立監査をやり直す
+- GO 後だけ固定 SHA merge。main の T-179 を `F54` / worklog `(64)` に残し、T-186 を
+  `F55` / `(65)` へ振り直す。worklog は単純併合で 100,000-byte 上限を超えるため rotation 契約を適用する
+- merge 後に targeted / repository 全受入、docs / Codex agent / provenance、監査 commit 列を固定し、
+  `DW-O23` を実行する
 
 ## 落とし穴・気づき
 
@@ -59,6 +66,8 @@
 
 - 本 wave の対象そのもの: 並行 session が main を前進させた場合の再同期・再検証・直列化された ff-only land を共通 reference に追加する
 - worktree コンテナの存在自体ではなく Git admin との双方向束縛を検証し、なりすまし path は拒否する
+- 段 8 裁定: 上記候補は本 wave で実装済み。再開監査では追加の手順欠落を実測せず、
+  新設防壁が main の未見 blocker を正しく停止したため、追加自己改善は行わない
 
 ## 段 2〜5 の確定結果
 
@@ -94,3 +103,14 @@
   provenance は導入時点から 531 commits green
 - 段 7 で [T-186] / D100 / F54 / worklog (64) を採番。別 session 所有の main 側 handoff と
   `.codex/worktrees/` は削除・stash・commit せず残置した
+- 強制終了後の fresh context で再開し、wave tip `c63a005` と最新 main `7be05ef` の両 commit 列を固定。
+  read-only Codex に新 upstream を独立監査させ、validator green / 結論 `NO-GO`
+- 親が main で provenance を再走し、`6b64d21` の trailer 欠落を
+  `533 件中 1 違反` / rc=1 と再現。T-179 ledger の token 関係制約欠落と非 null 非 object
+  `info` 黙殺も実コードで real と確認した
+- 段 9 は `DW-STOP`。固定 SHA `7be05ef` を wave へ merge せず、main も変更していない。
+  裁定正本は
+  `output/insights/2026-07-29_dev-wave-parallel-land/s9-main-resync-adjudication.md`
+- 停止記録反映後の branch 受入は targeted 188 passed、repository 全走
+  **3725 passed / 18 skipped**。`check_docs` / `check_codex_agents` / py_compile /
+  `git diff --check` は green、branch provenance は 533 件・違反なし
