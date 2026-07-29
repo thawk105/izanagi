@@ -25,6 +25,10 @@ def _fixture(name: str) -> dict:
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
+def _text_fixture(name: str) -> str:
+    return (FIXTURES / name).read_text(encoding="utf-8")
+
+
 def _target_object_path(relative: str) -> str:
     return (
         "/fixture/build/cc/silo/CMakeFiles/ycsb_silo.exe.dir/"
@@ -486,6 +490,7 @@ def _evidence(spec: dict) -> dict:
         },
         "limitations": {
             "raw_object_binary_bytes_retained": False,
+            "nqsv_scheduler_exit_status": "unavailable",
             "third_party_rederivation": "sha256-chain-consistency-only",
         },
         "raw_bundle": {
@@ -1503,7 +1508,10 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
             json.dumps(receipt), encoding="utf-8",
         )
     (active / "pbs-accounting.txt").write_text(
-        "Exit_status=0\nwalltime=300\n", encoding="utf-8",
+        _text_fixture("nqsv_accounting_epilogue.txt").replace(
+            "873909.nqsv", "fixture-job",
+        ),
+        encoding="utf-8",
     )
     attempt = document["gap_leg"]["attempts"][0]
     (active / "submit-receipt.json").write_text(
@@ -1731,6 +1739,15 @@ def test_attempt_two_bundle_isolated_and_each_subtree_sealed(tmp_path):
     first_root = raw / "attempts/1"
     second_root = raw / "attempts/2"
     shutil.copytree(first_root, second_root)
+    epilogue = _text_fixture("nqsv_accounting_epilogue.txt")
+    (first_root / "pbs-accounting.txt").write_text(
+        epilogue.replace("873909.nqsv", "fixture-job-1"),
+        encoding="utf-8",
+    )
+    (second_root / "pbs-accounting.txt").write_text(
+        epilogue.replace("873909.nqsv", "fixture-job-2"),
+        encoding="utf-8",
+    )
     for root in (first_root, second_root):
         (root / "raw-manifest.json").unlink()
         (root / "attempt-receipt.json").unlink()
@@ -1843,6 +1860,40 @@ def test_attempt_two_bundle_isolated_and_each_subtree_sealed(tmp_path):
     assert [item.reason_code for item in driver.validate_raw_bundle(
         document, raw,
     )] == ["raw_bundle"]
+
+
+def test_nqsv_accounting_epilogue_accepts_real_terminal_fields():
+    epilogue = _text_fixture("nqsv_accounting_epilogue.txt")
+    accounting = driver.validate_nqsv_accounting_epilogue(
+        epilogue, "873909.nqsv",
+    )
+    assert "Request ID:             873909.nqsv" in accounting
+    assert any("Started Request Time:" in line for line in accounting)
+    assert any("Ended Request Time:" in line for line in accounting)
+    assert any("Elapse:" in line for line in accounting)
+    assert "exit_status" not in epilogue.lower()
+
+
+def test_nqsv_accounting_epilogue_rejects_request_id_mismatch():
+    epilogue = _text_fixture("nqsv_accounting_epilogue.txt")
+    with pytest.raises(driver.ContractFailure, match="Request ID mismatch"):
+        driver.validate_nqsv_accounting_epilogue(
+            epilogue, "873910.nqsv",
+        )
+
+
+def test_nqsv_accounting_epilogue_rejects_missing_started_time():
+    epilogue = _text_fixture("nqsv_accounting_epilogue.txt")
+    epilogue = "\n".join(
+        line for line in epilogue.splitlines()
+        if "Started Request Time:" not in line
+    )
+    with pytest.raises(
+        driver.ContractFailure, match="Started Request Time",
+    ):
+        driver.validate_nqsv_accounting_epilogue(
+            epilogue, "873909.nqsv",
+        )
 
 
 def test_collect_classifies_complete_gap_without_success_sentinel_as_infra(tmp_path):
@@ -2030,7 +2081,9 @@ def test_collect_fixture_bundle_publishes_without_self_rejection(
     scheduler_stderr = repo / "scheduler.efixture-job"
     scheduler_stdout.write_text("", encoding="utf-8")
     scheduler_stderr.write_text(
-        "Request ID=fixture-job\nExit_status=0\nwalltime=300\n",
+        _text_fixture("nqsv_accounting_epilogue.txt").replace(
+            "873909.nqsv", "fixture-job",
+        ),
         encoding="utf-8",
     )
 

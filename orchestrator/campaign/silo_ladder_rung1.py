@@ -6,7 +6,9 @@
 ``checks`` は表示用にすぎず、受理時には raw field から全 predicate を再計算する。
 object / binary の生 bytes はサイズ上 raw bundle へ保持せず、compile replay、
 nm/readelf、run の command receipt と build record を sha256 鎖で結ぶ。したがって
-第三者が再導出できる範囲は、この鎖の整合性までである。
+第三者が再導出できる範囲は、この鎖の整合性までである。NQSV の scheduler
+会計エピローグから exit status は取得できない。in-job 成功は success sentinel、
+failure receipt の不在、gap ``status=complete`` の既存三検査で証明する。
 """
 from __future__ import annotations
 
@@ -134,8 +136,21 @@ _WORKER_BATCH_RE = re.compile(
     r"(?m)^silo_ladder_rung1\.worker_batch_commit\[(\d+)\]=(\d+)\s*$"
 )
 _ACCOUNTING_RE = re.compile(
-    r"(?i)(nqsv|request\s*(?:id|name)|exit[_ ]?status|resources_used|"
-    r"cpu\s*time|memory|elap(?:sed|stim)|walltime)"
+    r"(?i)(nqsv|request\s*(?:id|name)|(?:started|ended)\s+request\s+time|"
+    r"exit[_ ]?status|resources_used|cpu\s*time|memory|"
+    r"elap(?:se|sed|stim)|walltime)"
+)
+_NQSV_REQUEST_ID_RE = re.compile(
+    r"(?m)^[ \t]*Request ID:[ \t]*(\S+)[ \t]*$"
+)
+_NQSV_STARTED_RE = re.compile(
+    r"(?m)^[ \t]*Started Request Time:[ \t]*\S.*$"
+)
+_NQSV_ENDED_RE = re.compile(
+    r"(?m)^[ \t]*Ended Request Time:[ \t]*\S.*$"
+)
+_NQSV_ELAPSE_RE = re.compile(
+    r"(?m)^[ \t]*Elapse:[ \t]*\S.*$"
 )
 
 
@@ -1223,6 +1238,7 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
         return EvidenceFailure("schema", "activation contract mismatch")
     if document["limitations"] != {
         "raw_object_binary_bytes_retained": False,
+        "nqsv_scheduler_exit_status": "unavailable",
         "third_party_rederivation": "sha256-chain-consistency-only",
     }:
         return EvidenceFailure("schema", "limitations contract mismatch")
@@ -3445,10 +3461,12 @@ def validate_raw_bundle(
             ):
                 raise DriverError(f"raw solo check mismatch: {ordinal}")
         accounting = active_root / "pbs-accounting.txt"
-        if not accounting.is_file() or not _ACCOUNTING_RE.search(
-            accounting.read_text(encoding="utf-8", errors="replace")
-        ):
+        if not accounting.is_file():
             raise DriverError("raw PBS accounting is absent")
+        validate_nqsv_accounting_epilogue(
+            accounting.read_text(encoding="utf-8", errors="replace"),
+            document["gap_leg"]["attempts"][-1]["job_id"],
+        )
     except (DriverError, OSError, KeyError, TypeError, ValueError) as exc:
         return (EvidenceFailure("raw_bundle", str(exc)),)
     return ()
@@ -3616,6 +3634,48 @@ def _normalize_job_id(value: str) -> str:
     if value.startswith(tuple(f"{digit}:" for digit in "123456789")):
         raise DriverError(f"unsupported PBS subrequest prefix: {value}")
     return value
+
+
+def validate_nqsv_accounting_epilogue(
+    accounting_text: str, submit_job_id: str,
+) -> tuple[str, ...]:
+    """実在する NQSV 会計 field を検査し、保存対象行を返す。
+
+    NQSV は scheduler 側の exit status を会計エピローグへ出力しないため、
+    Request ID の submit 束縛と開始・終了・経過時間だけをここで検査する。
+    in-job 成功の証明は collect の success sentinel、failure receipt 不在、
+    gap ``status=complete`` 検査が別途担う。
+    """
+    if type(accounting_text) is not str:
+        raise ContractFailure("terminal NQSV accounting must be text")
+    request_ids = _NQSV_REQUEST_ID_RE.findall(accounting_text)
+    if len(request_ids) != 1:
+        raise ContractFailure(
+            "terminal NQSV accounting needs exactly one Request ID"
+        )
+    observed_id = _normalize_job_id(request_ids[0])
+    expected_id = _normalize_job_id(submit_job_id)
+    if observed_id != expected_id:
+        raise ContractFailure(
+            "terminal NQSV accounting Request ID mismatch: "
+            f"submit={submit_job_id!r} accounting={request_ids[0]!r}"
+        )
+    missing = [
+        label for label, pattern in (
+            ("Started Request Time", _NQSV_STARTED_RE),
+            ("Ended Request Time", _NQSV_ENDED_RE),
+            ("Elapse", _NQSV_ELAPSE_RE),
+        )
+        if pattern.search(accounting_text) is None
+    ]
+    if missing:
+        raise ContractFailure(
+            "terminal NQSV accounting field is absent: " + ", ".join(missing)
+        )
+    return tuple(
+        line for line in accounting_text.splitlines()
+        if _ACCOUNTING_RE.search(line)
+    )
 
 
 def _scheduler_name_matches(path: Path, stream: str, job_id: str) -> bool:
@@ -4518,19 +4578,7 @@ def _collect_command(
     _copy_raw(stderr, active_root / "scheduler.stderr")
     collect_deadline.remaining()
     stderr_text = stderr.read_text(encoding="utf-8", errors="replace")
-    accounting = [
-        line for line in stderr_text.splitlines() if _ACCOUNTING_RE.search(line)
-    ]
-    if not accounting:
-        raise DriverError("scheduler stderr has no PBS accounting material")
-    if re.search(r"(?i)exit[_ ]?status\s*=\s*0\b", stderr_text) is None:
-        raise ContractFailure("terminal PBS accounting does not prove exit status 0")
-    normalized_id = _normalize_job_id(submit_id)
-    if (
-        normalized_id not in stderr_text
-        and normalized_id.split(".", 1)[0] not in stderr_text
-    ):
-        raise ContractFailure("terminal PBS accounting does not carry job ID")
+    accounting = validate_nqsv_accounting_epilogue(stderr_text, submit_id)
     _create_text(active_root / "pbs-accounting.txt", "\n".join(accounting) + "\n")
     correctness_raw = correctness_json.parent / "raw"
     _copy_tree_create_only(correctness_raw, raw_root / "correctness")
@@ -4623,6 +4671,7 @@ def _collect_command(
         },
         "limitations": {
             "raw_object_binary_bytes_retained": False,
+            "nqsv_scheduler_exit_status": "unavailable",
             "third_party_rederivation": "sha256-chain-consistency-only",
         },
         "raw_bundle": {"root": raw_root.relative_to(repo).as_posix(), "paths": []},
