@@ -1577,3 +1577,134 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-175] **P3・裁定要 ((60))**
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
+
+## 2026-07-29 (62) — [/rulings] 推奨 4 件をユーザー裁定として記録 — T-142 close・T-126 qualification-first・T-059 事後 mutation audit・prior main の push 確認 (docs のみ、branch main、計測なし)
+
+- ユーザー裁定: 直前の `/rulings` 詳説 4 件を「全部推奨通り」で採用
+- [T-142] = **close**。現 production 経路では安全な S2 省略枝が到達不能で、出力集合 O の
+  authoritative producer も未実装。コード変更なしで閉じ、formal selector と live campaign が
+  揃った場合だけ新タスクとして再起票する
+- [T-126] = **qualification-first amendment 採用**。headline 昇格不能な専用 qualification
+  series で known non-repro live control と machine-readable receipt を先行し、production gate /
+  authoritative consumer は証拠取得後の別 wave とする
+- [T-059] = **bounded な事後 mutation audit で補完**。事前登録だったとは扱わず、T-172 の
+  負例 5 件に対応する operator / 予算 / 第一失敗 assert / 復元後 green を事後台帳へ固定し、
+  事前登録不能だった手順逸脱を明記する。実施は別タスク
+- push 裁定 = 直前の詳説対象 `180d3c1` を含む prior main の push を承認。作業中に
+  `origin/main == main == 2b42da1` と `180d3c1` がその ancestor であることを実測したため、
+  当該 push 項目は完了。実行者は推測しない。その後に並行 land した `9dba40f` と本記録 commit は
+  この裁定による push 対象へ拡張せず、push は人間が行う境界を維持する
+- 既存未追跡 `.codex/worktrees/` と T-143 / T-145 / T-146 / T-173 / T-178 handoff は並行
+  セッション所有として不変更
+- 検査: `test_check_docs.py` 132 passed、`check_codex_agents.py` OK、`check_docs.py` 違反なし、
+  `git diff --check` rc=0
+- エージェント工数: 親 1、子 0
+
+### 次の一手
+
+- [T-179] **P1・最優先 ((61))**: worker 資源台帳を正本化し、T-153(e)/T-154 の 10 session と
+  stage 別 token/turn、worklog の job 数不一致を live inference なしで機械再現する
+- [T-180] **P1・T-179 後 ((61))**: model/reasoning は変えず、job 単位の resource envelope と
+  fail-closed receipt を実装する
+- [T-181] **P1・T-179 後 ((61))**: focused review の reasoning `max` 対 `high` を
+  凍結入力で限定比較する
+- [T-182] **P1・T-179 後 ((61))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
+  shadow 比較する
+- [T-183] **P1・T-179 後 ((61))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
+  retry 上限と fail-closed 回復を固定する
+- [T-184] **P1・T-180〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
+  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する
+- [T-139] **完了 ((60))**
+- [T-142] **close (本エントリのユーザー再裁定)**: formal selector と live campaign が
+  揃った場合のみ新タスクとして再起票
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 ((60))**
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] **裁定済み (本エントリ = qualification-first amendment) → 実施待ち**: headline
+  昇格不能な専用系列で live control と機械 receipt を先行し、production gate は別 wave
+- [T-059] **裁定済み (本エントリ = bounded な事後 mutation audit) → 実施待ち**:
+  事前登録不能だった逸脱を明記し、T-172 の drift 拒否検査を事後検証する
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((60))**
+- [T-151] **P3・裁定済み ((60))**
+- [T-154] **完了 ((60))**
+- [T-130] **裁定済み・実装待ち ((60))**
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み・実装待ち ((60))**
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((60))**
+- [T-171] **完了 ((60))**
+- [T-172] **完了 ((60))**
+- [T-173] **P3 ((60))**
+- [T-174] **P3・裁定要 ((60))**
+- [T-175] **P3・裁定要 ((60))**
+- [T-176] **P3・backlog ((60))**
+- [T-177] **P3・裁定要 ((60))**
