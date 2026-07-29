@@ -597,34 +597,113 @@ def validate_compile_argv(
     return active
 
 
+_TARGET_OBJECT_DIR_PARTS = ("CMakeFiles", "ycsb_silo.exe.dir")
+
+
+def _compile_entry_argv(entry: Mapping[str, Any]) -> list[Any] | None:
+    if type(entry.get("arguments")) is list:
+        return list(entry["arguments"])
+    if type(entry.get("command")) is str:
+        return shlex.split(entry["command"])
+    return None
+
+
+def _compile_output_from_argv(argv: Sequence[Any]) -> str | None:
+    outputs = [
+        argv[index + 1]
+        for index, token in enumerate(argv[:-1])
+        if token == "-o"
+    ]
+    if not outputs:
+        return None
+    if len(outputs) != 1 or type(outputs[0]) is not str or not outputs[0]:
+        raise DriverError("compile argv object output is ambiguous")
+    return outputs[0]
+
+
+def _compile_output_path(
+    entry: Mapping[str, Any], argv: Sequence[Any] | None,
+) -> Path | None:
+    directory = entry.get("directory")
+    if type(directory) is not str or not directory:
+        raise DriverError("compile_commands entry directory is missing")
+    explicit = entry.get("output")
+    if explicit is not None and (type(explicit) is not str or not explicit):
+        raise DriverError("compile_commands entry output is invalid")
+    derived = _compile_output_from_argv(argv) if argv is not None else None
+    output = explicit if explicit is not None else derived
+    if output is None:
+        return None
+    path = Path(output)
+    if not path.is_absolute():
+        path = Path(directory) / path
+    return path.resolve()
+
+
+def _is_target_object_path(path: Path) -> bool:
+    parts = path.parts
+    return any(
+        parts[index:index + 2] == _TARGET_OBJECT_DIR_PARTS
+        and index + 2 < len(parts)
+        for index in range(len(parts) - 1)
+    )
+
+
+def _compile_source_rel(
+    entry: Mapping[str, Any], source_root: Path | None,
+) -> str | None:
+    file_value = entry.get("file")
+    if type(file_value) is not str or not file_value:
+        return None
+    file_path = Path(file_value)
+    if source_root is not None:
+        if not file_path.is_absolute():
+            file_path = Path(str(entry.get("directory", ""))) / file_path
+        try:
+            return file_path.resolve().relative_to(
+                source_root.resolve()
+            ).as_posix()
+        except (OSError, ValueError):
+            return None
+    source_name = file_value.replace("\\", "/")
+    matches = [
+        relative for relative in SOURCE_FILES
+        if source_name == relative or source_name.endswith("/" + relative)
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
 def compile_commands_for_sources(
-    document: Sequence[Mapping[str, Any]], source_root: Path,
+    document: Sequence[Mapping[str, Any]], source_root: Path | None,
 ) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     wanted = set(SOURCE_FILES)
     for entry in document:
         if type(entry) is not dict:
             raise DriverError("compile_commands entry is not an object")
-        file_path = Path(str(entry.get("file", "")))
-        if not file_path.is_absolute():
-            file_path = Path(str(entry.get("directory", ""))) / file_path
-        try:
-            source_rel = file_path.resolve().relative_to(source_root.resolve()).as_posix()
-        except (OSError, ValueError):
-            continue
+        source_rel = _compile_source_rel(entry, source_root)
         if source_rel not in wanted:
             continue
-        if type(entry.get("arguments")) is list:
-            argv = list(entry["arguments"])
-        elif type(entry.get("command")) is str:
-            argv = shlex.split(entry["command"])
-        else:
+        argv = _compile_entry_argv(entry)
+        object_path = _compile_output_path(entry, argv)
+        if object_path is None or not _is_target_object_path(object_path):
+            continue
+        if argv is None:
             raise DriverError(f"compile argv missing for {source_rel}")
+        if entry.get("output") is not None:
+            derived_entry = dict(entry)
+            derived_entry["output"] = None
+            derived_path = _compile_output_path(derived_entry, argv)
+            if derived_path is None or object_path != derived_path:
+                raise DriverError(
+                    "compile_commands output differs from "
+                    "compile argv object output"
+                )
         found.append({
             "source_rel": source_rel,
             "directory": str(entry["directory"]),
             "argv": argv,
-            "output": entry.get("output"),
+            "output": str(object_path),
         })
     counts = {path: sum(item["source_rel"] == path for item in found) for path in wanted}
     if counts != {path: 1 for path in wanted}:
@@ -2503,21 +2582,17 @@ def validate_raw_bundle(
         correctness_commands = _load_json(
             correctness_raw / "compile_commands.json"
         )
-        correctness_targets = []
-        for entry in correctness_commands:
-            source_name = str(entry.get("file", "")).replace("\\", "/")
-            matches = [
-                relative for relative in SOURCE_FILES
-                if source_name.endswith("/" + relative)
-                or source_name == relative
-            ]
-            if matches:
-                argv = (
-                    list(entry["arguments"])
-                    if type(entry.get("arguments")) is list
-                    else shlex.split(entry["command"])
-                )
-                correctness_targets.append((matches[0], argv))
+        correctness_invocations = compile_commands_for_sources(
+            correctness_commands, None,
+        )
+        correctness_targets = [
+            (item["source_rel"], item["argv"])
+            for item in correctness_invocations
+        ]
+        correctness_output_by_source = {
+            item["source_rel"]: item["output"]
+            for item in correctness_invocations
+        }
         correctness_gxx = next(
             item["realpath"]
             for item in document["correctness_leg"]["provenance"]["tools"]
@@ -2593,6 +2668,11 @@ def validate_raw_bundle(
             != correctness_build["compile_invocations"]
             or any(
                 item["argv"] != correctness_target_argv.get(item["source_rel"])
+                for item in correctness_replay["invocations"]
+            )
+            or any(
+                item["object_path"]
+                != correctness_output_by_source.get(item["source_rel"])
                 for item in correctness_replay["invocations"]
             )
             or any(
@@ -2791,22 +2871,13 @@ def validate_raw_bundle(
             build_raw = active_root / f"build-{build['id']}"
             replay = _load_json(build_raw / "compile-replay.json")
             compile_commands = _load_json(build_raw / "compile_commands.json")
-            target_commands = []
-            for entry in compile_commands:
-                source_name = str(entry.get("file", "")).replace("\\", "/")
-                matches = [
-                    relative for relative in SOURCE_FILES
-                    if source_name.endswith("/" + relative)
-                    or source_name == relative
-                ]
-                if not matches:
-                    continue
-                argv = (
-                    list(entry["arguments"])
-                    if type(entry.get("arguments")) is list
-                    else shlex.split(entry["command"])
-                )
-                target_commands.append((matches[0], argv))
+            target_invocations = compile_commands_for_sources(
+                compile_commands, None,
+            )
+            target_commands = [
+                (item["source_rel"], item["argv"])
+                for item in target_invocations
+            ]
             if (
                 len(target_commands) != 2
                 or {item[0] for item in target_commands} != set(SOURCE_FILES)
@@ -2816,6 +2887,10 @@ def validate_raw_bundle(
                 )
             expected_macro = None if build["id"] == "stock" else RUNG_MACRO
             target_argv_by_source = dict(target_commands)
+            target_output_by_source = {
+                item["source_rel"]: item["output"]
+                for item in target_invocations
+            }
             active_sets = [
                 validate_compile_argv(
                     argv,
@@ -2883,6 +2958,11 @@ def validate_raw_bundle(
                 or replay["invocations"] != build["compile_invocations"]
                 or any(
                     item["argv"] != target_argv_by_source.get(item["source_rel"])
+                    for item in replay["invocations"]
+                )
+                or any(
+                    item["object_path"]
+                    != target_output_by_source.get(item["source_rel"])
                     for item in replay["invocations"]
                 )
                 or next(

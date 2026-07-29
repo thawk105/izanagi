@@ -6,6 +6,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -22,6 +23,13 @@ from orchestrator.campaign import silo_ladder_rung1 as driver  # noqa: E402
 
 def _fixture(name: str) -> dict:
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+def _target_object_path(relative: str) -> str:
+    return (
+        "/fixture/build/cc/silo/CMakeFiles/ycsb_silo.exe.dir/"
+        f"{Path(relative).name}.o"
+    )
 
 
 def _balanced_or_stock_first(mode: str) -> dict:
@@ -253,7 +261,7 @@ def _evidence(spec: dict) -> dict:
                 "compile_invocations": [
                     {
                         "source_rel": path, "argv": ["g++", "-c", path],
-                        "object_path": f"/fixture/{Path(path).name}.o",
+                        "object_path": _target_object_path(path),
                         "object_sha256": transaction_sha,
                         "replay_object_sha256": transaction_sha,
                         "replay_match": True,
@@ -331,7 +339,7 @@ def _evidence(spec: dict) -> dict:
                     "compile_invocations": [
                         {
                             "source_rel": path, "argv": ["g++", "-c", path],
-                            "object_path": f"/fixture/{Path(path).name}.o",
+                            "object_path": _target_object_path(path),
                             "object_sha256": "d" * 64,
                             "replay_object_sha256": "d" * 64,
                             "replay_match": True,
@@ -360,7 +368,7 @@ def _evidence(spec: dict) -> dict:
                     "compile_invocations": [
                         {
                             "source_rel": path, "argv": ["g++", "-c", path],
-                            "object_path": f"/fixture/{Path(path).name}.o",
+                            "object_path": _target_object_path(path),
                             "object_sha256": transaction_sha,
                             "replay_object_sha256": transaction_sha,
                             "replay_match": True,
@@ -390,7 +398,7 @@ def _evidence(spec: dict) -> dict:
                     "compile_invocations": [
                         {
                             "source_rel": path, "argv": ["g++", "-c", path],
-                            "object_path": f"/fixture/{Path(path).name}.o",
+                            "object_path": _target_object_path(path),
                             "object_sha256": transaction_sha,
                             "replay_object_sha256": transaction_sha,
                             "replay_match": True,
@@ -841,6 +849,21 @@ def test_compile_argv_gate_requires_exactly_one_macro_and_clean_stock():
         )
 
 
+def test_multi_target_compile_commands_selects_one_ycsb_entry_per_tu():
+    selected = driver.compile_commands_for_sources(
+        _fixture("compile_commands_multi_target.json"),
+        None,
+    )
+
+    assert [item["source_rel"] for item in selected] == list(
+        driver.SOURCE_FILES
+    )
+    assert all(
+        "/CMakeFiles/ycsb_silo.exe.dir/" in item["output"]
+        for item in selected
+    )
+
+
 def test_compile_commands_extract_two_tus_and_replay_same_argv_object_sha(tmp_path):
     source = tmp_path / "source"
     transaction = source / "cc/silo/transaction.cc"
@@ -848,8 +871,8 @@ def test_compile_commands_extract_two_tus_and_replay_same_argv_object_sha(tmp_pa
     transaction.parent.mkdir(parents=True)
     transaction.write_text("fixture\n", encoding="utf-8")
     ycsb.write_text("fixture\n", encoding="utf-8")
-    build = tmp_path / "build"
-    build.mkdir()
+    build = tmp_path / "build/cc/silo"
+    build.mkdir(parents=True)
     compiler = tmp_path / "fixture-cxx"
     compiler.write_text(
         """#!/bin/sh
@@ -863,12 +886,23 @@ printf 'deterministic fixture object\\n' >"$out"
         encoding="utf-8",
     )
     compiler.chmod(0o755)
-    transaction_object = build / "transaction.cc.o"
-    ycsb_object = build / "ycsb_silo.cc.o"
+    target_object_dir = build / "CMakeFiles/ycsb_silo.exe.dir"
+    target_object_dir.mkdir(parents=True)
+    transaction_object = target_object_dir / "transaction.cc.o"
+    ycsb_object = target_object_dir / "ycsb_silo.cc.o"
     for target in (transaction_object, ycsb_object):
         target.write_text("deterministic fixture object\n", encoding="utf-8")
     macro = f"-D{driver.RUNG_MACRO}=1"
     document = [
+        {
+            "directory": str(build),
+            "file": str(transaction),
+            "arguments": [
+                str(compiler), macro, "-c", str(transaction),
+                "-o", "CMakeFiles/tpcc_silo.exe.dir/transaction.cc.o",
+            ],
+            "output": "CMakeFiles/tpcc_silo.exe.dir/transaction.cc.o",
+        },
         {
             "directory": str(build),
             "file": str(transaction),
@@ -887,15 +921,46 @@ printf 'deterministic fixture object\\n' >"$out"
             ]),
             "output": str(ycsb_object),
         },
+        {
+            "directory": str(build),
+            "file": str(transaction),
+            "command": " ".join([
+                str(compiler), macro, "-c", str(transaction),
+                "-o", "CMakeFiles/bomb_silo.exe.dir/transaction.cc.o",
+            ]),
+        },
+        {
+            "directory": str(build),
+            "file": str(transaction),
+            "command": " ".join([
+                str(compiler), macro, "-c", str(transaction),
+                "-o", "CMakeFiles/sbomb_silo.exe.dir/transaction.cc.o",
+            ]),
+        },
     ]
     extracted = driver.compile_commands_for_sources(document, source)
     assert [item["source_rel"] for item in extracted] == list(driver.SOURCE_FILES)
+    assert all(
+        "/CMakeFiles/ycsb_silo.exe.dir/" in item["output"]
+        for item in extracted
+    )
     driver.validate_compile_argv(
         extracted[0]["argv"], expected_macro=driver.RUNG_MACRO,
     )
     replay = driver.reexecute_compile_and_compare(extracted[0])
     assert replay["replay_match"] is True
     assert replay["object_sha256"] == replay["replay_object_sha256"]
+
+
+def test_duplicate_ycsb_target_compile_command_is_rejected():
+    with pytest.raises(
+        driver.DriverError,
+        match="target TU compile command count mismatch",
+    ):
+        driver.compile_commands_for_sources(
+            _fixture("compile_commands_duplicate_ycsb_target.json"),
+            None,
+        )
 
 
 def test_publish_is_staging_hardlink_create_only_and_fsyncs(tmp_path):
@@ -1033,18 +1098,29 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
     )
 
     def compile_commands(macros):
-        return [
-            {
-                "directory": "/fixture/build",
+        directory = "/fixture/build/cc/silo"
+
+        def entry(relative, target):
+            argv = [
+                gxx, *(f"-D{macro}=1" for macro in macros),
+                "-c", f"/fixture/source/{relative}",
+                "-o", f"CMakeFiles/{target}.dir/{Path(relative).name}.o",
+            ]
+            return {
+                "directory": directory,
                 "file": f"/fixture/source/{relative}",
-                "arguments": [
-                    gxx, *(f"-D{macro}=1" for macro in macros),
-                    "-c", f"/fixture/source/{relative}",
-                    "-o", f"/fixture/build/{Path(relative).name}.o",
-                ],
+                "command": shlex.join(argv),
             }
+
+        commands = [
+            entry(relative, "ycsb_silo.exe")
             for relative in driver.SOURCE_FILES
         ]
+        commands.extend(
+            entry(driver.SOURCE_FILES[0], target)
+            for target in ("tpcc_silo.exe", "bomb_silo.exe", "sbomb_silo.exe")
+        )
+        return commands
 
     def cmake_cache(macros, trace):
         flags = " ".join(f"-D{macro}=1" for macro in macros)
@@ -1061,11 +1137,10 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
         json.dumps(correctness_commands), encoding="utf-8",
     )
     command_by_source = {
-        next(
-            relative for relative in driver.SOURCE_FILES
-            if command["file"].endswith(relative)
-        ): command["arguments"]
-        for command in correctness_commands
+        item["source_rel"]: item["argv"]
+        for item in driver.compile_commands_for_sources(
+            correctness_commands, None,
+        )
     }
     for invocation in correctness_build["compile_invocations"]:
         invocation["argv"] = command_by_source[invocation["source_rel"]]
@@ -1165,11 +1240,10 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
         replay = {"invocations": copy.deepcopy(build["compile_invocations"])}
         build_commands = compile_commands(macros)
         command_by_source = {
-            next(
-                relative for relative in driver.SOURCE_FILES
-                if command["file"].endswith(relative)
-            ): command["arguments"]
-            for command in build_commands
+            item["source_rel"]: item["argv"]
+            for item in driver.compile_commands_for_sources(
+                build_commands, None,
+            )
         }
         for invocation in build["compile_invocations"]:
             invocation["argv"] = command_by_source[invocation["source_rel"]]
@@ -1456,6 +1530,32 @@ def _reseal_materialized_raw(root: Path, document: dict) -> None:
     }), encoding="utf-8")
     driver.write_raw_manifest(root)
     document["raw_bundle"]["paths"] = driver.validate_raw_manifest(root)
+
+
+def test_raw_bundle_rejects_duplicate_ycsb_target_compile_entry(tmp_path):
+    document = _evidence(_fixture("p_plus_2.json"))
+    raw = tmp_path / "raw"
+    _materialize_raw_bundle(raw, document)
+    commands_path = raw / "correctness/compile_commands.json"
+    commands = json.loads(commands_path.read_text(encoding="utf-8"))
+    transaction = next(
+        entry for entry in commands
+        if entry["file"].endswith(driver.SOURCE_FILES[0])
+        and "CMakeFiles/ycsb_silo.exe.dir/" in entry["command"]
+    )
+    duplicate = copy.deepcopy(transaction)
+    duplicate["command"] = duplicate["command"].replace(
+        "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+        "CMakeFiles/ycsb_silo.exe.dir/transaction-duplicate.cc.o",
+    )
+    commands.append(duplicate)
+    commands_path.write_text(json.dumps(commands), encoding="utf-8")
+    _reseal_materialized_raw(raw, document)
+
+    failures = driver.validate_raw_bundle(document, raw)
+
+    assert [item.reason_code for item in failures] == ["raw_bundle"]
+    assert "target TU compile command count mismatch" in failures[0].detail
 
 
 @pytest.mark.parametrize(
