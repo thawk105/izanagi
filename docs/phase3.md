@@ -515,7 +515,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   共通 dispatcher / reference を再利用する薄い Codex adapter と生成済み UI metadata を追加。
   runtime-blocked role adapter、未配線 hook、supervisor 非互換、fresh-context 終端を明示し、
   `check_docs.py` の閉包・interface・必須 adapter 検査と positive control で drift を拒否する。
-  実装・検査・commit の正本は worklog 2026-07-29 (50)。
+  実装・検査・commit の正本は worklog 2026-07-29 (51)。
 - **(完了 2026-07-20) oracle 後処理裁定パッケージ P-A1(b)/P-B5/P-B6/P-A2/P-A5** (D64 残余、
   裁定の正本 = worklog 2026-07-20 (2)(3)、設計判断 = D65) — 探索 namespace/型隔離 (Stage 0)、
   outcome 段階 truth-table leaf、全 stage payload guard、reps=5 証拠件数検査、standalone gate-check
