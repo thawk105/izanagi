@@ -364,6 +364,35 @@ def test_integrity_class_rejection_closes_loop():
     assert "cycle 全数" not in out                   # cycle 型の描画をしない (区別)
 
 
+def test_write_intent_rejection_is_mechanism_gap_not_cycle():
+    """I 行由来の indeterminate は X と同じ機構欠落型に分類し、次手を write-set
+    membership / API 意図の復元へ向ける。cycle witness を捏造しない。"""
+    lay = _tmp_layout()
+    v = _G.format(b=1, l=0, t=1, w=0)
+    payload = _indeterminate_verify_payload(
+        txns=1, notes=[
+            "1 write-intent coverage violation(s) "
+            "[write-set-entry-without-intent×1]"
+        ])
+    payload["integrity"].update({
+        "lock_coverage_violations": 0,
+        "permutation_violations": 0,
+        "write_intent_violations": 1,
+    })
+    wal.log(lay, v, STAGE_BUILD_START, "test",
+            {"genome": v, "src_token": "cdWI"})
+    wal.log(lay, v, STAGE_ABORT, "test",
+            {"reason": "indeterminate", "verify": payload})
+
+    out = render_rejections(load_rejections(lay), [], {}, None)
+    assert "機構欠落型 (write intent coverage)" in out
+    assert "write-set membership / API 意図の復元" in out
+    assert "cycle 帰属を捏造しない" in out
+    assert "write-set-entry-without-intent×1" in out
+    assert "cycle 全数" not in out
+    assert "lock acquisition / retention" not in out
+
+
 def test_empty_dsg_rejection_renders_explicitly():
     """J8-B 形状 (ii): integrity 全クリーンでも txns=0 (空 DSG) の indeterminate は
     「trace が空」を明示する — 7 カウンタ全ゼロの空パネルとして沈黙しない

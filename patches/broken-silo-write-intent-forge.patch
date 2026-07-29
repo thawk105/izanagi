@@ -1,0 +1,24 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 61074ed..db2a9c5 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -485,6 +485,19 @@ bool TxExecutor::validationPhase() { // Validation Phase
+   }
+ #endif
+ 
++#if IZANAGI_BREAK_WRITE_INTENT_FORGE
++  // T-152 deliberately broken positive control: forge a write-set entry after
++  // the P check. INSERT is intentionally used so the independent X check
++  // excludes it and write-intent coverage is the only red reason.
++  if (!write_set_.empty()) {
++    const Storage forged_storage = write_set_[0].storage_;
++    const std::string forged_key = write_set_[0].key_;
++    Tuple* const forged_rcdptr = write_set_[0].rcdptr_;
++    write_set_.emplace_back(forged_storage, forged_key, forged_rcdptr,
++                            OpType::INSERT);
++  }
++#endif
++
+   lockWriteSet();
+   if (this->status_ == TransactionStatus::aborted) return false;
+ 

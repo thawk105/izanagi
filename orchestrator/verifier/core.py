@@ -60,6 +60,25 @@ def verify_trace_dir(trace_dir: str, max_report: Optional[int] = 20) -> VerifyRe
             f"(torn-read window; variant broke lock coverage, not a trace-hook fault): "
             f"{sample}")
 
+    # I 行 = writePhase の write_set_ と API write intent の相互被覆 assert (T-152)。
+    # X 行と同じ txid 相関型だが cycle ではない。write 完全性を認証できないため
+    # anomalies でなく integrity に乗せ、serializable の純グラフ事実は変えない。
+    dsg.integrity.write_intent_violations = len(issues.write_intent_violations)
+    if issues.write_intent_violations:
+        sample_i = "; ".join(
+            f"txn{t} key={k} ({r})"
+            for t, k, r in issues.write_intent_violations[:5])
+        reasons_i: Dict[str, int] = {}
+        for _t, _k, r in issues.write_intent_violations:
+            reasons_i[r] = reasons_i.get(r, 0) + 1
+        by_reason_i = ", ".join(
+            f"{r}×{n}" for r, n in sorted(reasons_i.items()))
+        dsg.integrity.notes.append(
+            f"{len(issues.write_intent_violations)} write-intent coverage "
+            f"violation(s) [{by_reason_i}] — write_set_ membership and API write "
+            f"intent disagree (write completeness cannot be certified; not a cycle): "
+            f"{sample_i}")
+
     # P 行 = validationPhase の permutation 保存 assert (D41)。sort が write_set_ の
     # 要素を欠落/複製させた (非 strict-weak-order comparator の UB) 可能性 — X 行と
     # 同じ理由で anomalies でなくここに乗せる (絶対規律2)。

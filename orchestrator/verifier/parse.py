@@ -7,6 +7,8 @@
     R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版
     W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版=この trx の commit
     X <txid> <key_hex> <reason>               lock 被覆違反 (writePhase の #if TRACE assert。D38)
+    I <txid> <key_hex> <reason>               write intent 被覆違反 (writePhase の
+                                               #if TRACE assert。T-152)
     P <reason>                                permutation 保存違反 (validationPhase の
                                                #if TRACE assert。D41)。txid を持たない —
                                                validationPhase は writePhase の txid 採番より
@@ -59,6 +61,11 @@ class ParseIssues:
     # これは trace-hook の問題でなく variant の CC 正しさ違反 (torn read 窓) で、
     # integrity.lock_coverage_violations に配線され verdict を indeterminate に倒す。
     lock_coverage_violations: List[tuple] = field(default_factory=list)
+    # I 行 = writePhase の write_set_ と API write intent の相互被覆 assert が emit
+    # した違反。(txid, key, reason)。X と同じ txid 相関型で、key 形式も検査する。
+    # cycle ではなく write 完全性を認証不能にするため
+    # integrity.write_intent_violations に配線され verdict を indeterminate に倒す。
+    write_intent_violations: List[tuple] = field(default_factory=list)
     # P 行 = validationPhase の permutation 保存 assert が emit した違反 (D41)。reason
     # のみ (txid 無し、上記 schema コメント参照)。非 strict-weak-order comparator の
     # UB で write_set_ の要素が失われた/複製された可能性を示す。
@@ -135,6 +142,15 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         _check_key(key, issues)
                         issues.lock_coverage_violations.append(
                             (current.txid, key, reason))
+                    elif tag == "I":
+                        # I <txid> <key_hex> <reason>  write intent 被覆違反。
+                        # writePhase の同一 txn に帰属するため X と同じく _expect を
+                        # 通し、key の表現揺れも _check_key で integrity に残す。
+                        _, txid, key, reason = f
+                        _expect(current, txid, path, lineno)
+                        _check_key(key, issues)
+                        issues.write_intent_violations.append(
+                            (current.txid, key, reason))
                     elif tag == "P":
                         # P <reason>  permutation 保存違反 (validationPhase の
                         # #if TRACE assert が emit、D41)。X と異なり txid を
@@ -170,12 +186,12 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
 def _expect(current: Txn | None, txid: str, path: str, lineno: int) -> None:
     if current is None:
         raise ParseError(
-            f"{path}:{lineno}: R/W before any C (txid={txid})")
+            f"{path}:{lineno}: R/W/X/I before any C (txid={txid})")
     if int(txid) != current.txid:
         # 連続性の前提が破れている (トレースの破損か、別 trx の行が割り込んだ)。
         raise ParseError(
             f"{path}:{lineno}: txid {txid} does not match open txn "
-            f"{current.txid} (C/R/W must be contiguous per txn)")
+            f"{current.txid} (C/R/W/X/I must be contiguous per txn)")
 
 
 def parse_trace_dir(trace_dir: str) -> tuple[List[Txn], ParseIssues]:

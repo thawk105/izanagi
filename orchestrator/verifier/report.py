@@ -65,6 +65,7 @@ def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
             "write_version_mismatch": res.integrity.write_version_mismatch,
             "malformed_keys": res.integrity.malformed_keys,
             "lock_coverage_violations": res.integrity.lock_coverage_violations,
+            "write_intent_violations": res.integrity.write_intent_violations,
             "permutation_violations": res.integrity.permutation_violations,
             "notes": res.integrity.notes,
         },
@@ -108,6 +109,7 @@ def render_text(res: VerifyResult) -> str:
             f"write_version_mismatch={ig.write_version_mismatch} "
             f"malformed_keys={ig.malformed_keys} "
             f"lock_coverage_violations={ig.lock_coverage_violations} "
+            f"write_intent_violations={ig.write_intent_violations} "
             f"permutation_violations={ig.permutation_violations}")
     for note in ig.notes:
         lines.append(f"  · {note}")

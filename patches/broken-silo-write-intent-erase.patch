@@ -1,0 +1,19 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 61074ed..191b714 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -485,6 +485,14 @@ bool TxExecutor::validationPhase() { // Validation Phase
+   }
+ #endif
+ 
++#if IZANAGI_BREAK_WRITE_INTENT_ERASE
++  // T-152 deliberately broken positive control: lose one API-authorized
++  // write after the P check so only write-intent coverage can report it.
++  // This macro is inert unless explicitly enabled by the characterization
++  // driver and must never be used for a baseline.
++  if (!write_set_.empty()) write_set_.pop_back();
++#endif
++
+   lockWriteSet();
+   if (this->status_ == TransactionStatus::aborted) return false;
+ 
