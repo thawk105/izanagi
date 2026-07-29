@@ -32,7 +32,11 @@ spawn し、機械部分 (`orchestrator/campaign/p3_s4_loop.py`) に proposal �
 
 ## 1. 1 iteration の駆動プロトコル (メインセッションが回す)
 
-ループ主導権はメインセッション (Model Y、D39 決定7)。harness は LLM を spawn しない。1 周:
+ループ主導権はメインセッション (Model Y、D39 決定7)。harness は LLM を spawn しない。
+proposal は `load_proposal_file` の受理検査 (closed key set + ability-probe 射影 tripwire、
+`patches/ledger.json` の projection_policy を執行 — [T-139]) を通ったものだけが評価される。
+ledger 不在・禁止字面混入は fail-closed。sort (`phase3-s5-sort-runbook.md`) と
+trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査を持つ。1 周:
 
 ### (a) planner-v4 を spawn (方向提案・値なし)
 `Agent(subagent_type='planner-v4')`。入力 (メインセッションが**射影して**渡す。JSON):

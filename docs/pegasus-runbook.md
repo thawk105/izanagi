@@ -331,6 +331,10 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - git worktree で運用する場合は CCBench submodule の実体化 (ローカル clone) が必要
 - floor/oracle を Pegasus で走らせる際は out_root 配下 `claims/` の事前作成と
   IZANAGI_RESERVATION_* の export (certify_calibration.sh 参照) が必要 (floor 実測は次段)
+- **計算ノードは外部 network 不可** (2026-07-29、github への DNS 解決不能を request 873903/873904
+  で 2 回実測)。FetchContent 等の実行時取得はジョブ内で必ず失敗する — 依存ソースはログインノードで
+  pinned staging し、`FETCHCONTENT_SOURCE_DIR_*` で渡す (silo_ladder_rung1 は submitter が自動実行。
+  SOURCE_DIR 指定時は GIT_TAG pin が効かないため HEAD 照合を fail-closed で行うこと)
 
 ## 8. 投入前チェックリスト
 

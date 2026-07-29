@@ -954,3 +954,16 @@
   は引き渡し) を明記 (本エントリと同 commit)
 - 再発検知: worktree list に detached HEAD の残骸が残っていれば引き渡し漏れを疑う (次回の
   /cleanup-branches 棚卸しが検出する)
+
+### F52. fix 子が親の一時退避ファイルを知らず同名の断片を新規作成した [文脈欠落]
+- 事象: [T-139] wave 段 6 の fix 子 (fix6) が、親が commit II 用に job tmp へ退避していた
+  evidence test (53KB) の不在を「未作成」と解釈し、自分の追加分だけの 1.4KB 断片を同名で新規作成
+  した。後続 fix 子 (fix9) も旧凍結 hash の版から「復元」し、中間 fix の同期を欠落させた。
+  いずれも親が hash/サイズ照合で検出し実害なし (near-miss)
+- 根本原因: 退避は親のセッション内知識であり、fix prompt に「このファイルは退避中で親が管理する」
+  という事実を書かなかった。子は tree の現状だけから判断する
+- 恒久対応: 親が管理する退避 artifact がある間に子へ編集を依頼する場合、prompt に退避の事実と
+  正本の所在を明記する。可能なら親が正本を tree へ一時復元してから投入する (fix10 以降で実施)。
+  期待位置の再同期は literal 再ピンでなく production import で構造化する (fix10 の形)
+- 再発検知: 退避中 hash と tree 上ファイルの サイズ/hash 乖離。受入全走の plain-runner meta-test
+  が断片化を最初に検出した (自走 harness 欠落として)

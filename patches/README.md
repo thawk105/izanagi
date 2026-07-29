@@ -10,6 +10,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | broken-silo (わざと壊した Silo) | verifier の赤検出用 positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
 | 合成 variant (例: 静的 backoff `BACKOFF_FIXED`) | Izanagi がフラグ空間外に合成した**評価中の正当な variant** (D18) | **out-of-tree patch** (価値確定まで。昇格は人間判断) |
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
+| 劣化 rung (例: `silo_ladder_rung1`) | **正しさを保ったまま性能だけを意図的に損なう** ability probe (D18 第 4 類 subtype `evaluation_role=ability_probe`)。研究目標に数えず recovery pipeline へ直結しない | **out-of-tree patch** + `ledger.json` 登録必須 |
 
 **broken-silo を patch に隔離する理由 (絶対規律2):** 壊した CC をブランチに commit すると
 baseline として誤ビルドされる危険がある。out-of-tree patch なら「赤検出証明をするときだけ
@@ -300,6 +301,28 @@ misattr t4 の 3 run、保存則 = A 行総数==abort_counts_ / 構造ゼロ / �
 実証 (2026-07-10, `output/env/linux-baremetal/calibration/s8a_trigger_gating_coverage.json`):
 skeleton t4 = 8066 abort 全数一致・構造ゼロ 5 種すべて 0・certified / t1 = abort 0 /
 misattr = node-vali>0 で赤 (保存則は破れない = 保存則だけでは捕まらないことも機械証明)。
+
+---
+
+## silo_ladder_rung1.patch — 劣化梯子 rung 1 (ability probe、D18 subtype) + ledger.json
+
+**正しさを保ったまま性能だけを意図的に損なう** rung (write-lock CAS の単一 global mutex 直列化 +
+identity シンボル + REPORT 第 2 マクロ下の per-worker footer)。[T-139] 裁定 (worklog 2026-07-29
+(45)/(54)) による恒久化。設計と実測の正本 =
+`output/insights/2026-07-29_t139-silo-ladder-rung1-permanent.md` (要件束 = 設計 insight §6)。
+
+- **既定 OFF・裸マクロ** (`IZANAGI_SILO_LADDER_RUNG1`、pipeline から定義不能)。#else に stock 逐語温存
+- **stock は常に patch 非適用 tree から build** (行追加型 patch の OFF 状態は `__LINE__` シフトで
+  binary 非同一 — 設計 insight §3.4-1)
+- **dedicated-driver-only**: 駆動の正本 = `orchestrator/campaign/silo_ladder_rung1.py`
+  (correctness/gap-job/collect/verify-result)。通常 campaign・recovery pipeline へ接続しない
+- **`ledger.json`**: 機械可読台帳 (closed schema)。`ability_probe: true` /
+  `research_goal_eligible: false` / `projection_policy` (coder/planner 射影からの除外字面) を持ち、
+  新 rung は登録必須。射影 tripwire (`orchestrator/campaign/projection_guard.py`) が
+  3 つの loop loader でこの policy を執行する (字面回帰検知 — origin 保証ではない)
+- 実証 (2026-07-29, request 873917): trace t4 で certified serializable / trace-disabled t48
+  N=1m で stock 比 ≈4.4% (W-cal)・≈10.7% (W-hw)、証拠 =
+  `output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json` + raw bundle (pytest が再束縛)
 
 ---
 
