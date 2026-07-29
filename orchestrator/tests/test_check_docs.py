@@ -414,6 +414,42 @@ def test_synthetic_repo_baseline_clean():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_provenance_limit_registry_is_independent_from_dispatch_allowlist():
+    assert check_docs.PROVENANCE_LIMITS == {
+        "docs/ai-provenance.md": check_docs.TextLimit(9_000)
+    }
+    assert (
+        "docs/ai-provenance.md"
+        not in check_docs.NORMATIVE_DISPATCH_ALLOWLIST
+    )
+
+
+def test_provenance_limit_accepts_exactly_9000_bytes():
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, "docs/ai-provenance.md", 9_000)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_limit_rejects_9001_bytes():
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, "docs/ai-provenance.md", 9_001)
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1
+        assert (
+            "docs/ai-provenance.md: 9001 bytes > 予算 9000 bytes"
+            in res.stdout
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _load_fixture_checker(root: str):
     module_name = f"_check_docs_fixture_{id(root)}"
     path = os.path.join(root, "tools", "check_docs.py")
@@ -2090,6 +2126,7 @@ def test_missing_enumerated_doc_is_violation():
         governed = {
             *check_docs.REFERENCE_LIMITS,
             *check_docs.SELF_LIMITS,
+            *check_docs.PROVENANCE_LIMITS,
         }
         candidates = [rel for rel in rels if rel not in governed]
         assert candidates, "command guard 外の LIVING_DOCS 対象がない"

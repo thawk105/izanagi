@@ -159,6 +159,9 @@ REFERENCE_LIMITS = {
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
 }
+PROVENANCE_LIMITS = {
+    "docs/ai-provenance.md": TextLimit(9_000),
+}
 CODEX_DEV_WAVE_SKILL_LIMITS = {
     ".agents/skills/dev-wave/SKILL.md": TextLimit(5_500, 400),
     ".agents/skills/dev-wave/agents/openai.yaml": TextLimit(500, 160),
@@ -1460,7 +1463,12 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         )
         unreadable.add(path)
 
-    all_limits = {**COMMAND_LIMITS, **REFERENCE_LIMITS, **SELF_LIMITS}
+    all_limits = {
+        **COMMAND_LIMITS,
+        **REFERENCE_LIMITS,
+        **SELF_LIMITS,
+        **PROVENANCE_LIMITS,
+    }
     decoded: dict[str, str] = {}
     sizes: dict[str, int] = {}
     for rel, limit in all_limits.items():
