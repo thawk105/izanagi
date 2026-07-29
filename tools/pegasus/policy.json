@@ -18,5 +18,32 @@
   "perf_candidates": [
     "/usr/lib/linux-tools/5.15.0-135-generic/perf",
     "/usr/lib/linux-tools/5.15.0-100-generic/perf"
-  ]
+  ],
+  "silo_ladder_rung1": {
+    "project": "SFC",
+    "queue": "gen_S",
+    "nodes": 1,
+    "walltime": "02:00:00",
+    "walltime_s": 7200,
+    "walltime_formula": "dependencies-group<=180+attestation<=180+configure-build-replay(3 total)<=2700+run-group(28)<=900+collection<=300+finalize=600<=7200",
+    "build_cap_s": 2700,
+    "dependency_build_cap_s": 180,
+    "attestation_cap_s": 180,
+    "run_group_cap_s": 900,
+    "collection_cap_s": 300,
+    "finalize_reserve_s": 600,
+    "solo_load1_threshold": 48.0,
+    "dependency_pins": {
+      "gflags": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+      "glog": "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
+    },
+    "max_attempts": 2,
+    "infra_retry_reasons": [
+      "attestation",
+      "timeout",
+      "nonzero_returncode",
+      "parse_failure",
+      "process_competition"
+    ]
+  }
 }
