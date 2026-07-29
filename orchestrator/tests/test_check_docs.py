@@ -16,6 +16,7 @@ _ENUMERATED_DOCS から導出するので docs の増減で腐らない。
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import importlib.util
 import io
 import os
@@ -128,6 +129,132 @@ _CLEAN_PHASE3 = """# synthetic phase
 ## 残存リスク
 
 - risk
+"""
+
+_SYNTHETIC_CLEANUP_DESCRIPTION = (
+    "Safely inventory and clean up merged local Izanagi branches and worktrees "
+    "through the shared dispatcher. Use only for an explicit $cleanup-branches "
+    "invocation; implicit invocation is disabled."
+)
+_EXPECTED_CLEANUP_SKILL_SHA256 = (
+    "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
+)
+_EXPECTED_CLEANUP_COMMAND_SHA256 = (
+    "9b2c0dac6cf1e8cfcd49a18840d62b6b3dcd2cdf322d1594266b5a4a71af43c7"
+)
+_SYNTHETIC_CLEANUP_SKILL = """---
+name: cleanup-branches
+description: Safely inventory and clean up merged local Izanagi branches and worktrees through the shared dispatcher. Use only for an explicit $cleanup-branches invocation; implicit invocation is disabled.
+---
+
+# Cleanup Branches
+
+共通の cleanup dispatcher を読み、その手順を複製せず Codex 固有の安全縮退を重ねて実行する。
+
+## 共通 dispatcher を使う
+
+1. リポジトリ直下の `AGENTS.md` と `CLAUDE.md` を全文読む。`$cleanup-branches` で明示起動された
+   掃除だけクラス 2 とし、質問・相談・説明・レビューはクラス 1 の read-only として何も削除しない。
+2. `.claude/commands/cleanup-branches.md` を全文読み、棚卸し、削除条件、F26/F51、事後検査、
+   引き渡し、自己改善の共通 dispatcher としてそのまま実行する。command が不在または読取不能なら停止する。
+3. command の `$ARGUMENTS` は本 Skill に渡された対象限定と読み替える。未指定なら command の全量棚卸し契約に従う。
+4. command と本 overlay が衝突する場合は、削除範囲が狭くなる安全側へ縮退して対象と未実行操作を報告する。
+
+## Codex 固有の安全 overlay
+
+- Claude 固有の `ExitWorktree` が使えると仮定しない。cwd を対象外へ固定できなければ F51 とし、
+  現在の worktree directory の削除と prune を行わない。
+- local `main` と primary worktree は無条件に保持する。
+- `/proc/*/cwd` の miss は非使用の証拠に数えない。locked worktree と、この Codex session が作成・
+  所有したと証明できない foreign worktree は inventory / report のみにし、unlock、directory 削除、
+  prune を行わない。
+- 各破壊操作の直前に dispatcher §2 と overlay の全 eligibility（ahead / cherry、clean、HEAD の
+  main 包含、recent、lock、canonical path、local `main` / primary、ownership / foreign、
+  `/proc/*/cwd` の process residency）を再評価する。unknown、棚卸し後の change、新しい process
+  residency のいずれかがあればその操作を停止する。
+- `git worktree prune --dry-run --verbose` は報告用 preview としてだけ実行する。Codex は real
+  `git worktree prune` を実行せず、preview と残作業を人間へ引き渡す。
+- sandbox または shared Git metadata の権限が不足する場合は権限を拡大しない。安全に実行できた操作、
+  対象、未実行操作を人間へ返す。
+
+## 境界を守る
+
+Codex には `hooks/README.md` の PreToolUse hook が未配線であるため、hook が発火したと主張せず、
+同文書の保護境界を手動で守る。push と remote branch 操作は人間に残す。
+
+今回の実行で記載と実挙動の食い違い、新しい罠、手順不足を実測した場合だけ
+`docs/skill-self-improvement.md` の cleanup-branches routing と commit 境界に従う。
+"""
+_SYNTHETIC_CLEANUP_OPENAI_YAML = """interface:
+  display_name: "Cleanup Branches"
+  short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
+  default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
+
+policy:
+  allow_implicit_invocation: false
+"""
+_SYNTHETIC_CLEANUP_COMMAND = """---
+description: マージ済みブランチと worktree を安全手順で掃除する (submodule 罠対応、push 系はユーザー引き渡し)
+argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。省略時は全量棚卸しして安全なものだけ削除]
+---
+
+ブランチ・worktree の掃除を行う (クラス 2)。削除は不可逆に近いため、安全条件を満たすものだけを
+消し、迷ったら残して報告する。対象限定の引数: $ARGUMENTS
+
+## 1. 棚卸し (削除の前に全量を見る)
+
+- `git worktree list` と `git branch -a` を列挙し、各ローカルブランチの `git rev-list --count
+  main..<b>` (ahead) / `<b>..main` (behind) を出す
+- 各 worktree の `git status --short` を確認する (未コミット差分の有無)
+- ahead>0 のブランチは `git cherry main <b>` を出す。rebase / cherry-pick で取り込まれた側は
+  ahead>0 のまま残るため、ahead だけでは取り残しの有無を判定できない。`+` 行が真の取り残しで、
+  ファイルが main に無ければ取り込み漏れとして §5 で報告する
+
+## 2. 安全条件 (満たさないものは削除せず報告に回す)
+
+- ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
+  -d が拒否したら取り込み漏れの兆候なので止まって報告)
+- worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのもののみ。
+  他セッション使用中の可能性 (自分が作っていない・最近更新) は推測せず `/proc/*/cwd` の
+  readlink 走査で実測し、滞在プロセスあり・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
+- 自分がその worktree の中で作業している場合は、先に main checkout 側へ抜けてから操作する
+
+## 3. worktree の削除手順 (F26)
+
+submodule の gitlink を含む worktree は `git worktree remove` を使わず、F26 の安全手順を使う:
+
+1. `git -C <worktree> checkout --detach` (ブランチを解放)
+2. `git branch -d <branch>` (取り込み済み確認の上で)
+3. ディレクトリを削除して `git worktree prune`
+
+**`git submodule deinit` は使わない**。誤って実行した場合は
+`git submodule update --init external/ccbench` で復元する。事象と原因の正本は `docs/failures.md` F26。
+
+ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
+`git log` で確認し、`action: keep` で抜け、本節の手動手順
+(detach → branch -d → 削除 → prune) で畳む。関連事象は F26。
+cwd 固定の背景セッション (ExitWorktree が no-op・cd 非持続) では、自分が居る
+worktree の削除と prune を行わず、detach → branch -d → unlock まで実施して
+残りを引き渡す (F51)。
+
+## 4. 事後検査
+
+- `git worktree list` / `git branch` が期待どおりか
+- `git submodule status` — main checkout の external/ccbench が `-` prefix なし (初期化済み) で
+  pin されたコミットに一致すること
+- `git status` がクリーンであること
+
+## 5. ユーザー引き渡し (AI は push しない)
+
+リモートブランチの削除 (`git push origin --delete <b>`) と main の push は行わず、対象を列挙して
+ユーザーに提示する。削除しなかったブランチ・worktree はその理由 (ahead>0、dirty 等) と併せて報告する。
+記録はセッションの通常規律 (worklog) に従う。
+
+## 6. スキル自己改善 (発火条件つき)
+
+今回の実行でスキル記載と実挙動の食い違い・新しい罠・手順不足を実測した場合だけ発火する。
+発火したら `docs/skill-self-improvement.md` を読み、`cleanup-branches` の routing と commit 契約に従う。
+発火しなければ本文を変更しない。
 """
 
 
@@ -245,14 +372,7 @@ Codex `role=author` が書き、親は実装面を直接編集せず統合する
 |---|---|---|
 {condition_rows}
 """
-    cleanup = """---
-description: synthetic cleanup
-argument-hint: [synthetic]
----
-
-$ARGUMENTS
-docs/skill-self-improvement.md
-"""
+    cleanup = _SYNTHETIC_CLEANUP_COMMAND
     rulings = """---
 description: synthetic rulings
 argument-hint: [synthetic]
@@ -291,6 +411,16 @@ description: synthetic Codex rulings skill
         root,
         ".agents/skills/rulings/agents/openai.yaml",
         check_docs.CODEX_RULINGS_OPENAI_YAML,
+    )
+    _write(
+        root,
+        ".agents/skills/cleanup-branches/SKILL.md",
+        _SYNTHETIC_CLEANUP_SKILL,
+    )
+    _write(
+        root,
+        ".agents/skills/cleanup-branches/agents/openai.yaml",
+        _SYNTHETIC_CLEANUP_OPENAI_YAML,
     )
 
     for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
@@ -1644,9 +1774,9 @@ def _mutate_command_guard(root: str, case: str) -> None:
     if case == "command_byte_over":
         _pad_to_bytes(
             root,
-            ".claude/commands/cleanup-branches.md",
+            ".claude/commands/rulings.md",
             check_docs.COMMAND_LIMITS[
-                ".claude/commands/cleanup-branches.md"
+                ".claude/commands/rulings.md"
             ].max_bytes + 1,
         )
     elif case == "reference_byte_over":
@@ -1666,29 +1796,29 @@ def _mutate_command_guard(root: str, case: str) -> None:
             ].max_bytes + 1,
         )
     elif case == "long_line":
-        rel = ".claude/commands/cleanup-branches.md"
-        _write(root, rel, _read(root, rel) + ("x" * 111) + "\n")
+        rel = ".claude/commands/rulings.md"
+        _write(root, rel, _read(root, rel) + ("x" * 181) + "\n")
     elif case == "unregistered_command":
         _write(root, ".claude/commands/extra.md", "# extra\n")
     elif case == "registered_command_deleted":
-        os.remove(os.path.join(root, ".claude/commands/cleanup-branches.md"))
+        os.remove(os.path.join(root, ".claude/commands/rulings.md"))
     elif case == "arguments_missing":
-        rel = ".claude/commands/cleanup-branches.md"
+        rel = ".claude/commands/rulings.md"
         _write(root, rel, _read(root, rel).replace("$ARGUMENTS", "arguments"))
     elif case == "frontmatter_key_changed":
-        rel = ".claude/commands/cleanup-branches.md"
+        rel = ".claude/commands/rulings.md"
         _write(root, rel, _read(root, rel).replace(
             "argument-hint:", "argument-hint-renamed:", 1
         ))
     elif case == "frontmatter_duplicate":
-        rel = ".claude/commands/cleanup-branches.md"
+        rel = ".claude/commands/rulings.md"
         _write(root, rel, _read(root, rel).replace(
-            "description: synthetic cleanup",
-            "description: synthetic cleanup\ndescription: duplicate",
+            "description: synthetic rulings",
+            "description: synthetic rulings\ndescription: duplicate",
             1,
         ))
     elif case == "frontmatter_malformed":
-        rel = ".claude/commands/cleanup-branches.md"
+        rel = ".claude/commands/rulings.md"
         _write(root, rel, _read(root, rel).replace("---", "not-frontmatter", 1))
     elif case == "disable_value_changed":
         rel = ".claude/commands/dev-wave.md"
@@ -1790,7 +1920,7 @@ def _mutate_command_guard(root: str, case: str) -> None:
         rel = "docs/skill-self-improvement.md"
         _write(root, rel, _read(root, rel) + ("x" * 101) + "\n")
     elif case == "self_reference_deleted":
-        rel = ".claude/commands/cleanup-branches.md"
+        rel = ".claude/commands/rulings.md"
         _write(root, rel, _read(root, rel).replace(
             "docs/skill-self-improvement.md", "self contract omitted", 1
         ))
@@ -2145,6 +2275,39 @@ def test_codex_rulings_skill_contract_pins_exact_surface():
     )
 
 
+def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
+    """checker と test fixture の whole-file pin を独立 literal で固定する。"""
+
+    assert check_docs.CODEX_CLEANUP_BRANCHES_SKILL_FILES == {
+        ".agents/skills/cleanup-branches/SKILL.md",
+        ".agents/skills/cleanup-branches/agents/openai.yaml",
+    }
+    assert check_docs.CODEX_CLEANUP_BRANCHES_SKILL_LIMITS == {
+        ".agents/skills/cleanup-branches/SKILL.md":
+            check_docs.TextLimit(3_100, 210),
+        ".agents/skills/cleanup-branches/agents/openai.yaml":
+            check_docs.TextLimit(300, 110),
+    }
+    assert check_docs.CODEX_CLEANUP_BRANCHES_DESCRIPTION == (
+        _SYNTHETIC_CLEANUP_DESCRIPTION
+    )
+    assert check_docs.CODEX_CLEANUP_BRANCHES_OPENAI_YAML == (
+        _SYNTHETIC_CLEANUP_OPENAI_YAML
+    )
+    assert check_docs.CODEX_CLEANUP_BRANCHES_SKILL_SHA256 == (
+        _EXPECTED_CLEANUP_SKILL_SHA256
+    )
+    assert check_docs.CLEANUP_COMMAND_SHA256 == (
+        _EXPECTED_CLEANUP_COMMAND_SHA256
+    )
+    assert hashlib.sha256(
+        _SYNTHETIC_CLEANUP_SKILL.encode("utf-8")
+    ).hexdigest() == _EXPECTED_CLEANUP_SKILL_SHA256
+    assert hashlib.sha256(
+        _SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")
+    ).hexdigest() == _EXPECTED_CLEANUP_COMMAND_SHA256
+
+
 def test_command_docs_guard_rejects_symlinked_commands_directory():
     root = _build_min_repo()
     external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_commands_")
@@ -2190,6 +2353,118 @@ def test_command_docs_guard_positive_controls(case):
         assert _COMMAND_GUARD_NEEDLES[case] in res.stdout, (
             f"{case}: 対応する finding 分岐が発火していない:\n{res.stdout}"
         )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _assert_cleanup_digest_violation(root: str, rel: str) -> None:
+    res = _run_check(root)
+    assert res.returncode == 1, res.stdout
+    assert _violation_count(res) == 1, res.stdout
+    assert f"{rel}: whole-file SHA-256 が契約と不一致" in res.stdout
+
+
+def test_cleanup_skill_one_byte_change_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".agents/skills/cleanup-branches/SKILL.md"
+        original = _read(root, rel)
+        changed = original.replace("cleanup dispatcher", "cleanvp dispatcher", 1)
+        assert len(changed.encode("utf-8")) == len(original.encode("utf-8"))
+        assert sum(a != b for a, b in zip(
+            changed.encode("utf-8"), original.encode("utf-8")
+        )) == 1
+        _write(root, rel, changed)
+        _assert_cleanup_digest_violation(root, rel)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_command_one_byte_change_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        original = _read(root, rel)
+        changed = original.replace("(クラス 2)", "(クラス 3)", 1)
+        assert len(changed.encode("utf-8")) == len(original.encode("utf-8"))
+        assert sum(a != b for a, b in zip(
+            changed.encode("utf-8"), original.encode("utf-8")
+        )) == 1
+        _write(root, rel, changed)
+        _assert_cleanup_digest_violation(root, rel)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_skill_additional_h2_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".agents/skills/cleanup-branches/SKILL.md"
+        _write(root, rel, _read(root, rel) + "\n## destructive override\n")
+        _assert_cleanup_digest_violation(root, rel)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_command_closing_hash_h2_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace(
+            "## 4. 事後検査", "## 4. 事後検査 ##", 1
+        ))
+        _assert_cleanup_digest_violation(root, rel)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_command_leading_space_h2_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace(
+            "## 4. 事後検査", " ## 4. 事後検査", 1
+        ))
+        _assert_cleanup_digest_violation(root, rel)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_command_setext_h2_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel).replace(
+            "## 4. 事後検査", "4. 事後検査\n------------", 1
+        ))
+        _assert_cleanup_digest_violation(root, rel)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_command_invalid_backtick_info_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        _write(root, rel, _read(root, rel) + "\n```x`x\n## x\n```\n")
+        _assert_cleanup_digest_violation(root, rel)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_metadata_policy_change_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".agents/skills/cleanup-branches/agents/openai.yaml"
+        _write(root, rel, _read(root, rel).replace(
+            "allow_implicit_invocation: false",
+            "allow_implicit_invocation: true",
+            1,
+        ))
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1, res.stdout
+        assert "生成済み Skill interface 契約と不一致" in res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -3145,11 +3420,10 @@ def _run():
            if k.startswith("test_") and callable(v)]
     passed = failed = 0
     for fn in fns:
-        calls = (
-            [(case, (case,)) for case in _COMMAND_GUARD_CASES]
-            if fn is test_command_docs_guard_positive_controls
-            else [(fn.__name__, ())]
-        )
+        if fn is test_command_docs_guard_positive_controls:
+            calls = [(case, (case,)) for case in _COMMAND_GUARD_CASES]
+        else:
+            calls = [(fn.__name__, ())]
         for label, args in calls:
             display = (
                 f"{fn.__name__}[{label}]"
