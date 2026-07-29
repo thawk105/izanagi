@@ -1070,7 +1070,122 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-171] **完了**: Codex dev-wave Skill と drift 検査を実装
 - [T-172] **完了**: Codex rulings Skill と drift 検査を実装
 
-## 2026-07-29 (58) — [T-153(e)] + [T-154(2)(3)] provenance gate を完了 — CAB 最終 trailer block 配置 + policy 9,000-byte 上限 (コード + docs、branch codex/dev-wave-t153e-t15423、計測 = 本 worktree・ログインノード)
+## 2026-07-29 (58) — [/rulings] 再裁定 3 件を索引化 — T-142 / T-126 / T-059、phase3 の既決残余表示を是正 (docs のみ、branch main、計測なし)
+
+- `/rulings` の read-only 収集から開始し、裁定 package、worklog 末尾、phase3 の user gate /
+  見送り台帳、残 handoff、push 状態を照合。裁定待ちは推奨順に [T-142] / [T-126] / [T-059]
+- [T-142] は実装前審査の新事実により再裁定。推奨 = close。継続には authoritative selector /
+  certified stock、正式 perf、同一座標 floor、all-S2/adaptive paired pilot が先行して必要
+- [T-126] も実装前審査の新事実により再裁定。推奨 = qualification-first amendment。
+  headline 昇格不能な専用系列で live control と機械 receipt を先に取得する
+- [T-058]/[T-059] を前回裁定後の変更と照合。[T-172] の `check_docs.py` drift 拒否検査新設で
+  両述語が発火。[T-058] は既裁定どおり記録のみ。[T-059] は負例 5 件がある一方、真時 action の
+  実装前 mutation 事前登録が無いため、事後補完方法を再裁定へ
+- **rulings 自己改善 gate 発火**: phase3 の B-003 残余が「要ユーザー裁定」のままだったが、
+  worklog 2026-07-20 (1) と D64 は隣接 3 穴を承認・実装済みと記録。phase3 を後続正本へ同期した。
+  dispatcher の収集・矛盾報告規則は今回の差異を検出できたため変更なし
+- `main == origin/main == fa4774c` を確認し push 判断は無し。既存未追跡 `.codex/worktrees/` と
+  T-143 / T-173 handoff は並行セッション所有として不変更
+- 検査: `test_check_docs.py` 129 passed、`check_codex_agents.py` OK、`check_docs.py` 違反なし、
+  `git diff --check` rc=0
+- エージェント工数: 親 1、子 0
+
+### 次の一手
+
+- [T-139] **P1・裁定完了 ((45)) + 着手承認 ((54)) → 恒久実装 wave 実装待ち**: 着手はユーザーの
+  タスク開始指示から
+- [T-142] **再裁定待ち ((55))**: 親推奨は close。継続なら tie/authoritative selector・live campaign /
+  正式 perf・exact floor・paired pilot を先行承認し、自然な skip が無ければ close
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] 同上
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] **再裁定待ち ((56))**: 親推奨は qualification-first amendment。headline 昇格不能な
+  専用系列で known non-repro live control と機械 receipt を先行し、production gate は別 wave
+- [T-059] **再裁定待ち ((58))**: [T-172] で事前 mutation 登録を欠いたため、親推奨は bounded な
+  事後 mutation audit で補完し、事前登録不能だった逸脱を明記する
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-151] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-154] 同上
+- [T-130] **裁定済み ((54) = 短縮する・手段限定) → 実装待ち**: ビルドキャッシュ / 並列ビルドで
+  短縮する。ビルド成果物の使い回し (control の意味を薄める経路) は採らない
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み ((54) = 採用、新 pin `c9c1a9c` 承認) → 実装待ち**: [T-163] と同一 wave
+  または直前で実装。[T-150]/[T-151]/[T-170] の上流出しを同梱
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-171] **完了**: Codex dev-wave Skill と drift 検査を実装
+- [T-172] **完了**: Codex rulings Skill と drift 検査を実装
+
+## 2026-07-29 (59) — [T-153(e)] + [T-154(2)(3)] provenance gate を完了 — CAB 最終 trailer block 配置 + policy 9,000-byte 上限 (コード + docs、branch codex/dev-wave-t153e-t15423、計測 = 本 worktree・ログインノード)
 
 - ユーザー裁定どおり、`docs/ai-provenance.md` は 9,000 bytes 上限 (実体 8,832 bytes)、
   `Co-Authored-By` 候補はすべて最終 trailer block に置く受理集合へ変更。D96 手続に従い
@@ -1082,8 +1197,8 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   message-file接続、9,001-byte、過剰拒否正例を単一nodeで検出。SURVIVED / mask / erratumなし
 - 実行順は O19 の「tracked mutation本走は統合commit後」に従い、実装commit → mutation →
   全受入 → 本記録commit。裁定予定ではなくこの実手順を記録する
-- main は開始後に `fa4774c` まで正常前進。main側 (54)〜(57) を保持し、本エントリを (54) から
-  (58) へ振り直して2回のmerge競合を解消。main未追跡・未commitの他session面は変更していない
+- main は開始後に `efa3786` まで正常前進。main側 (54)〜(58) を保持し、本エントリを (54) から
+  (59) へ振り直して2回のmerge競合を解消。main未追跡・未commitの他session面は変更していない
 - 受入 (main `8dab530` merge後): 全走 3483 passed / 18 skipped、`check_codex_agents` /
   `check_docs` 緑、`check_ai_provenance` 500件・違反なし
 - 低優先残余: commitごとの `git log -S` は線形履歴で二次コストになりうる。現waveの
@@ -1107,6 +1222,8 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-143] 同上
 - [T-126] **再裁定待ち ((56))**: 親推奨は qualification-first amendment。headline 昇格不能な
   専用系列で known non-repro live control と機械 receipt を先行し、production gate は別 wave
+- [T-059] **再裁定待ち ((58))**: [T-172] で事前 mutation 登録を欠いたため、親推奨は bounded な
+  事後 mutation audit で補完し、事前登録不能だった逸脱を明記する
 - [T-145] 同上
 - [T-146] 同上
 - [T-134] 同上
