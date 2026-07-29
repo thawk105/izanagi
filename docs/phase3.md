@@ -32,8 +32,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - bench-first screening v2 は**実装済み** (2026-07-15、D58。監査 must-fix 対応込み)。positive
   control `backoff-sweep-silo-read-heavy-sweep-6f169f90` で `screen-slower-than-floor` の発火も
   実走確認済み。ablation は初回採用 campaign で設計 insight §5-7 の 4 基準により実施する。適用は
-  偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止は
-  D58 の採用対象に含めず、別設計・別裁定とする。
+  偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止 v2 は
+  D58 と別に 2026-07-27 採用済みだが、2026-07-29 の実装 preflight で source eligibility /
+  qualification / formal authority の未見 blocker が判明し、コード変更なしで再裁定待ち。
+  正本 = `output/insights/2026-07-29_t126-implementation-preflight.md`。
 
 **現行の着手順:** S-1 計測 gate 閉鎖 → S-1 本走・最終報告、8b 設計発効 (holdout = rr80/rr20)、
 8b selector 前半 2 段、holdout freeze 生成 (束縛規則 nearest-read-ratio-v1 ユーザー承認済み、

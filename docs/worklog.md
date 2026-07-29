@@ -844,3 +844,123 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-169] 同上
 - [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
 - [T-171] 同上
+
+## 2026-07-29 (56) — [T-126] 逐次停止 v2 — 実装前審査の未見 blocker を再裁定へ返す (docs のみ、branch codex/dev-wave-t126-sequential-stopping、計測なし)
+
+- `/dev-wave T-126` の段 1〜4・7を実施。読取専用 planner 1 本と独立な敵対相談 2 本を
+  `gpt-5.6-sol` / reasoning=max で隔離実行し、全て exit 0・出力 validator rc=0
+- 親の実 WAL 再計算で、tracked S8a pair は faster +3.417%、`p=0.0121858`、
+  `near_floor=True`。入力 seam と near-floor 発火実在を確認し、この点への攻撃は refute
+- 未見 blocker 1: 同 pair は D47 の 8a 軸提案 sweep 由来で formal headline 対象外。
+  SPRT reproduced でも source eligibility を得ない
+- 未見 blocker 2: 設計 §8 の既知非再現 pair は floor 内で通常 admission を通らない。
+  qualification-only series と formal output からの構造隔離は未裁定
+- 未見 blocker 3: planner の sidecar promotion gate は現 formal Layer3/headline producer の
+  必須 consumer でなく、prose の activation 分離には machine-readable qualification hold がない
+- 未見 blocker 4: 現 host は Pegasus login node、Pegasus `allow_resume=false`、S8a は
+  linux-baremetal 固定。planner の 1 round / process 案では live qualification を閉じられない
+- 敵対相談の内訳は統計・環境レンズ real 6 / refuted 2、proof・consumer レンズ
+  real 10 / refuted 3。有限系列で `>`→`>=` / `<`→`<=` は等価なため mutation 候補も棄却
+- DW-S04 に従い採用済み設計を AI が取り消さず、新事実付きで再裁定へ返した。段 5・6は
+  スキップし、コード・テスト変更なし。mutation matrix と実装受入全走は対象外
+- 親推奨は qualification-first amendment: formal headline へ構造的に昇格不能な専用系列で
+  known non-repro live control を取得し、機械 receipt 後に production gate を別 wave で実装
+- 公開正本 = `output/insights/2026-07-29_t126-implementation-preflight.md`、逐語束 =
+  `output/insights/2026-07-29_t126-sequential-stopping-verbatim/`
+- 検査 (本 worktree): 実装前の関連 baseline 64 passed、`test_check_docs.py` 123 passed、
+  `check_codex_agents.py` OK、`check_docs.py` 違反なし
+- 並行進展は正常として扱い、記録前に branch を初期基準 `eaa2dd2` から当時の `main`
+  `8dab530` へ fast-forward。T-142 の同時完了を保持し衝突なし
+- エージェント工数: 親 1、隔離 read-only job 3 (planner 1 + 敵対相談 2)、author 0
+
+### 次の一手
+
+- [T-139] **P1・裁定完了 ((45)) + 着手承認 ((54)) → 恒久実装 wave 実装待ち**: 着手はユーザーの
+  タスク開始指示から
+- [T-142] **再裁定待ち ((55))**: 親推奨は close。継続なら tie/authoritative selector・live campaign /
+  正式 perf・exact floor・paired pilot を先行承認し、自然な skip が無ければ close
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] 同上
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] **再裁定待ち ((56))**: 親推奨は qualification-first amendment。headline 昇格不能な
+  専用系列で known non-repro live control と機械 receipt を先行し、production gate は別 wave
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-151] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-154] 同上
+- [T-130] **裁定済み ((54) = 短縮する・手段限定) → 実装待ち**: ビルドキャッシュ / 並列ビルドで
+  短縮する。ビルド成果物の使い回し (control の意味を薄める経路) は採らない
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み ((54) = 採用、新 pin `c9c1a9c` 承認) → 実装待ち**: [T-163] と同一 wave
+  または直前で実装。[T-150]/[T-151]/[T-170] の上流出しを同梱
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-171] 同上
