@@ -538,10 +538,16 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   対象に `max` 対 `high` を凍結済み T-153(e)/T-154 入力で比較し、must-fix 再現率、新規 finding、
   token/turn/wall-clock を記録する。既定値は変更せず、品質劣化または部分出力時の `max` escalation
   条件までを裁定可能な insight にする。
-- [T-182] **P1、T-179 後: model routing の限定 shadow pilot** — critical planning/受入判定を
-  `gpt-5.6-sol` のまま保持し、低リスクな第二レンズ 1 箇所だけで利用可能な軽量 model と
-  `gpt-5.6-sol` を同一凍結入力で比較する。finding coverage、誤検出、token/turn/wall-clock と
-  model identity receipt を残し、production 既定は変更しない。
+- [T-182] **(完了 2026-07-29) model routing の限定 shadow pilot** — 段 3 敵対相談レンズ B を
+  同一凍結入力 (`prompt_hash` 一致) で `gpt-5.6-sol`@max (authoritative) /
+  `gpt-5.6-luna`@max / `gpt-5.4-mini`@xhigh の 3 arm へ投入した。shadow は置換でなく追加で、
+  production 既定は不変。結果 = luna が sol の所見 11 件中 10 件 (91%) を誤検出 0 で再現し
+  token −31.6%、mini は 5 件 (45%) で wall +39.0%。**実装差分なし** — 専用ツールは独立 3 レンズの
+  NO-GO (未配線で gate にならない、attest 経路が外部にある) を受けて実装しない裁定。
+  被覆率は循環・非盲検・事前登録なし・n=1 のため **policy 根拠にしない**。
+  正本 = worklog 2026-07-29 (65)、分析と裁定パッケージ =
+  `output/insights/2026-07-29_t182-model-routing-shadow-pilot.md`、逐語 = 同 `-verbatim/`。
+  妥当な比較実験の設計は [T-186] へ送った。
 - [T-183] **P1、T-179 後: F43/F45 型の早期停止と回復** — exit 0 の短小/断片出力と
   safety-filter 非ゼロ終了を別分類し、同一失敗の無制限再試行を禁止する。F43/F45 由来 fixture で
   zero-output、validator reject、retry 上限、代替経路不能時の fail-closed を検証する。
@@ -551,6 +557,12 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   を含み、新たな比較実験はこの ID に持ち込まない。
 
 ### RuleOps hardening (P3、T-143 残余)
+
+- [T-186] **P1、T-180 / T-181 land 後: 妥当な model routing 比較実験の設計** — 独立 oracle、
+  held-out 複数 task、block randomization、cache 条件の分離、価格 version、盲検裁定、
+  事前非劣性 margin を備えた実験を設計する。[T-182] の pilot は n=1・非盲検・後付け採点のため
+  採用根拠にしない。未裁定の論点 (served model の attest 経路が存在しない、不正 reasoning 値が
+  silent に通る) は同 insight の裁定パッケージが正本。
 
 - [T-185] **P3: receipt range 出力量の明示上限** — 非常に古い receipt range に対する
   commit 数と path-union stdout の bytes/cardinality を streaming 上限で fail-closed にし、
