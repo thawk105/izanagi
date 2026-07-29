@@ -528,7 +528,7 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   決定的に集計する。live inference なしで T-153(e)/T-154 の 10 session・434 model calls・
   2,757,982 CLI reported tokens と stage 別内訳を再構成し、worklog (59) の「9 jobs」との不一致
   (review 3 対 4、総数 9 対 10) を `--strict` rc=2 で検出する。実装・検査・変異 10/10 KILLED の
-  正本は worklog 2026-07-29 (62)、逐語と凍結値は
+  正本は worklog 2026-07-29 (64)、逐語と凍結値は
   `output/insights/2026-07-29_t179-worker-ledger-verbatim/`。
   wave 受理集合の確定 (cwd 部分一致の限界) は [T-180]、retry の因果同定は [T-183] へ送った。
 - [T-180] **P1、T-179 後: job 単位 resource envelope** — turn/token/wall-clock/retry の上限と

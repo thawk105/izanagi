@@ -1849,7 +1849,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
 
-## 2026-07-29 (62) — [T-179] worker 資源台帳を正本化 — 10 session / 434 model calls / 2,757,982 tokens を live inference なしで機械再構成 (コード + docs、branch worktree-dev-wave-t179-worker-ledger、計測 = 本 worktree・ログインノード、既存 rollout ログの再集計のみ)
+## 2026-07-29 (64) — [T-179] worker 資源台帳を正本化 — 10 session / 434 model calls / 2,757,982 tokens を live inference なしで機械再構成 (コード + docs、branch worktree-dev-wave-t179-worker-ledger、計測 = 本 worktree・ログインノード、既存 rollout ログの再集計のみ)
 
 - `tools/codex_worker_ledger.py` (read-only CLI、書き込みなし) と合成 fixture 回帰を追加。
   データ源は codex CLI の rollout JSONL (`$CODEX_HOME/sessions`、既定は環境変数かコード内定数。
@@ -1910,7 +1910,8 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   `docs/dev-wave/**` への prose 追記は見送り — 残予算 38 bytes に収まらず、T-127 裁定
   「上限は上げない・恒久対応は prose よりテスト/機械検査を優先」と F43/F45 の同型裁定にも整合する
   ([T-177] が同じ予算問題で裁定待ち)
-- 検査: 全受入 **3663 passed / 18 skipped** (249 秒、本 worktree・ログインノード)、
+- 検査: 全受入 **3663 passed / 18 skipped** (249 秒、本 worktree・ログインノード)。
+  main `0912975` ((63) [T-143]) 取込後の再走は **3753 passed / 18 skipped** (244 秒)。
   `check_docs.py` 違反なし、`check_codex_agents.py` OK、`check_ai_provenance.py` 違反なし。
   変異の復元後に commit 済み内容との byte 一致を確認済み。
   `git diff --check` は親が書いた面 (`docs/`、コード) で rc=0。凍結逐語 2 ファイル
@@ -1928,18 +1929,21 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-179] **完了 (本エントリ、`72f8858`)**: worker 資源台帳を `tools/codex_worker_ledger.py`
   として正本化。10 session / 434 model calls / 2,757,982 tokens と stage 別内訳を再構成し、
   worklog (59) の「9 job」不一致 (review 3 対 4、総数 9 対 10) を機械検出する
-- [T-180] **P1・T-179 完了により着手可 ((62))**: model/reasoning は変えず、job 単位の resource envelope と
+- [T-180] **P1・T-179 完了により着手可 ((64))**: model/reasoning は変えず、job 単位の resource envelope と
   fail-closed receipt を実装する
-- [T-181] **P1・T-179 完了により着手可 ((62))**: focused review の reasoning `max` 対 `high` を
+- [T-181] **P1・T-179 完了により着手可 ((64))**: focused review の reasoning `max` 対 `high` を
   凍結入力で限定比較する
-- [T-182] **P1・T-179 完了により着手可 ((62))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
+- [T-182] **P1・T-179 完了により着手可 ((64))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
   shadow 比較する
-- [T-183] **P1・T-179 完了により着手可 ((62))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
+- [T-183] **P1・T-179 完了により着手可 ((64))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
   retry 上限と fail-closed 回復を固定する
 - [T-184] **P1・T-180〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
   model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する
+- [T-185] **P3・RuleOps hardening ((63) R3R-1)**: receipt range の commit 数と
+  path-union stdout bytes/cardinality を streaming 上限で fail-closed にし、安定 reason と
+  over-limit synthetic negative を追加する
 - [T-139] **完了 ((60))**
-- [T-142] **close (本エントリのユーザー再裁定)**: formal selector と live campaign が
+- [T-142] **close ((62) のユーザー再裁定)**: formal selector と live campaign が
   揃った場合のみ新タスクとして再起票
 - [T-136] 同上
 - [T-129] 同上
@@ -1948,10 +1952,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-153] **完了 ((60))**
 - [T-158] 同上
 - [T-141] 同上
-- [T-143] 同上
-- [T-126] **裁定済み (本エントリ = qualification-first amendment) → 実施待ち**: headline
+- [T-143] **完了 ((63)、D99)**
+- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
   昇格不能な専用系列で live control と機械 receipt を先行し、production gate は別 wave
-- [T-059] **裁定済み (本エントリ = bounded な事後 mutation audit) → 実施待ち**:
+- [T-059] **裁定済み ((62) = bounded な事後 mutation audit) → 実施待ち**:
   事前登録不能だった逸脱を明記し、T-172 の drift 拒否検査を事後検証する
 - [T-145] 同上
 - [T-146] 同上

@@ -1005,4 +1005,4 @@
 - 再発検知: 要素単位 oracle との逐件照合の赤 + `test_codex_worker_ledger.py` の
   `test_stage_rules_follow_wave_stage_not_role_words` / `test_stage_rules_keep_fix2_author_in_fix_and_focus_specific`
   (段番号が stage を決め役割語は決めない、を機械固定)
-- 記録: worklog 2026-07-29 (62)、逐語 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/`
+- 記録: worklog 2026-07-29 (64)、逐語 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/`
