@@ -1,0 +1,224 @@
+[
+ {
+  "id": "M1",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "                    record[\"cli_reported\"] = _billable(total_usage)",
+  "new": "                    record[\"cli_reported\"] = record[\"per_turn_sum\"] + _billable(total_usage) - _billable(total_usage)",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_cumulative_usage_stays_canonical_and_metrics_are_explicit"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_cumulative_usage_stays_canonical_and_metrics_are_explicit",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_final_null_cumulative_is_reported_without_erasing_last_valid_usage",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_healthy_wave_and_matching_worklog_pass_strict",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_human_and_json_outputs_use_independent_literal_oracles",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_last_cumulative_usage_and_non_null_info_define_totals",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_legacy_usage_without_reasoning_and_null_info_passes_strict",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_non_monotonic_cumulative_and_event_counters_are_exposed"
+  ]
+ },
+ {
+  "id": "M2p",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "        if len(paths) > 1:\n            issues.setdefault(\"duplicate_session_id\", []).append(",
+  "new": "        if False:\n            issues.setdefault(\"duplicate_session_id\", []).append(",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_case_normalized_duplicate_is_the_only_strict_failure_m2_prime",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_same_session_id_in_two_files_fails_closed"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_case_normalized_duplicate_is_the_only_strict_failure_m2_prime",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_same_session_id_in_two_files_fails_closed"
+  ]
+ },
+ {
+  "id": "M3",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "        elif record[\"stage\"] == \"unclassified\":\n            issues.setdefault(\"unclassified\", []).append(record[\"session_id\"])",
+  "new": "        elif record[\"stage\"] == \"unclassified\":\n            pass",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_unclassified_is_included_and_strict_fails"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_unclassified_is_included_and_strict_fails"
+  ]
+ },
+ {
+  "id": "M4",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "    \"\"\"既存 validator の既定 regular-file 受理集合と同値な本文判定。\"\"\"\n    if message is None:",
+  "new": "    \"\"\"既存 validator の既定 regular-file 受理集合と同値な本文判定。\"\"\"\n    if message is not None:\n        return True\n    if message is None:",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_fenced_summary_does_not_make_fragment_complete",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_fragment_requires_existing_output_validator_policy",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_output_validator_acceptance_is_identical_in_both_directions"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_fenced_summary_does_not_make_fragment_complete",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_fragment_requires_existing_output_validator_policy",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_output_validator_acceptance_is_identical_in_both_directions"
+  ]
+ },
+ {
+  "id": "M5p",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "    if not record[\"task_complete\"]:\n        return \"incomplete\"",
+  "new": "    if not record[\"task_complete\"]:\n        return \"completed\"",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_incomplete_without_task_complete_or_agent_message",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_task_complete_only_missing_with_healthy_message_is_incomplete_m5_prime"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_incomplete_without_task_complete_or_agent_message",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_task_complete_only_missing_with_healthy_message_is_incomplete_m5_prime"
+  ]
+ },
+ {
+  "id": "M6",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "            if mismatches:\n                issues.setdefault(\"worklog\", []).extend(mismatches)",
+  "new": "            if False:\n                issues.setdefault(\"worklog\", []).extend(mismatches)",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_worklog_reports_total_and_review_mismatches_together",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_worklog_single_reason_mismatch_fixtures_m6a_m6b"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_worklog_reports_total_and_review_mismatches_together",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_worklog_single_reason_mismatch_fixtures_m6a_m6b[review_only.md-worklog mismatch review: expected 3, actual 4]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_worklog_single_reason_mismatch_fixtures_m6a_m6b[total_only.md-worklog mismatch total: expected 9, actual 10]"
+  ]
+ },
+ {
+  "id": "M7",
+  "kind": "diagnostic-sensitivity-pin",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "        digest = _normalized_prompt_hash(record[\"prompt\"])",
+  "new": "        digest = record[\"prompt\"]",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_retry_normalizes_surrounding_and_repeated_whitespace"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_retry_normalizes_surrounding_and_repeated_whitespace"
+  ]
+ },
+ {
+  "id": "M8",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "    strict_messages = _strict_messages(issues)\n    if args.strict and strict_messages:",
+  "new": "    strict_messages = _strict_messages(issues) or [\"forced\"]\n    if args.strict and strict_messages:",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_healthy_wave_and_matching_worklog_pass_strict",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_legacy_usage_without_reasoning_and_null_info_passes_strict"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_codex_home_default_is_code_only_and_uses_sessions_child",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_focused_reviewer_without_fix_word_is_focus",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_healthy_wave_and_matching_worklog_pass_strict",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_legacy_usage_without_reasoning_and_null_info_passes_strict",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_malformed_line_in_cwd_filtered_file_does_not_pollute_selection",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_meta_unknown_file_is_ignored_only_when_cwd_filter_cannot_select_it",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_object_level_turn_context_model_and_effort_are_read",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_quoted_role_below_leading_line_cannot_hijack_stage_m11",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_relative_absolute_and_symlink_roots_produce_identical_bytes",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_stage_map_classifies_otherwise_unclassified_session",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_stage_map_key_filtered_out_by_cwd_is_not_unknown",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_task_complete_only_missing_with_healthy_message_is_incomplete_m5_prime",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_tool_does_not_change_fixture_file_list_or_mtime",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_tool_import_does_not_create_bytecode_cache",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_worklog_ignores_effort_rows_inside_fences_and_other_entries"
+  ]
+ },
+ {
+  "id": "M9",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "                if total_errors or last_errors:\n                    issues.setdefault(\"malformed_usage\", []).extend(",
+  "new": "                if False:\n                    issues.setdefault(\"malformed_usage\", []).extend(",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_bool_usage_field_is_the_only_strict_failure_m9",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_negative_required_usage_fields_fail_closed"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_bool_usage_field_is_the_only_strict_failure_m9",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_is_required[cached_input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_is_required[input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_is_required[output_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_is_required[total_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1-cached_input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1-input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1-output_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1-reasoning_output_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1-total_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1.5-cached_input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1.5-input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1.5-output_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1.5-reasoning_output_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[1.5-total_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[None-cached_input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[None-input_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[None-output_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[None-reasoning_output_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_each_usage_field_rejects_null_and_non_int_values[None-total_tokens]",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_final_null_cumulative_is_reported_without_erasing_last_valid_usage",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_negative_required_usage_fields_fail_closed"
+  ]
+ },
+ {
+  "id": "M10",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "    if not records:\n        issues.setdefault(\"no_selected_sessions\", []).append(",
+  "new": "    if False:\n        issues.setdefault(\"no_selected_sessions\", []).append(",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_empty_sessions_root_fails_strict",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_zero_selected_sessions_is_the_only_strict_failure_m10"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_empty_sessions_root_fails_strict",
+   "orchestrator/tests/test_codex_worker_ledger.py::test_zero_selected_sessions_is_the_only_strict_failure_m10"
+  ]
+ },
+ {
+  "id": "M11",
+  "kind": "kill",
+  "file": "tools/codex_worker_ledger.py",
+  "old": "    prefix = _stage_prefix(prompt)",
+  "new": "    prefix = prompt",
+  "rc": 1,
+  "status": "KILLED",
+  "expect_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_quoted_role_below_leading_line_cannot_hijack_stage_m11"
+  ],
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_worker_ledger.py::test_quoted_role_below_leading_line_cannot_hijack_stage_m11"
+  ]
+ }
+]

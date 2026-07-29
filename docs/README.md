@@ -51,8 +51,9 @@
   AI 開発作業の統計記録 (task-run 台帳、開発プロセス観測 — D66) は `output/task-runs/README.md` が詳細正本
 - `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
   Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
-  `check_ai_provenance.py` = commit trailer 監査 / `plotting/` = campaign の論文品質作図、規約は
-  `tools/plotting/FIGURE_CONVENTIONS.md`)
+  `check_ai_provenance.py` = commit trailer 監査 / `codex_worker_ledger.py` = codex rollout ログから
+  worker の session/stage/token/終了分類/retry を決定的に集計する read-only 台帳 (T-179) /
+  `plotting/` = campaign の論文品質作図、規約は `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 正しさの最小第二防壁 (guard_write / guard_bash) + 別系統のコンテキスト衛生
   (guard_read)。詳細は同 README
 - `.claude/agents/` — role 本文と Claude Code 固有の model/tools 契約 (現有一覧は ls が正本)

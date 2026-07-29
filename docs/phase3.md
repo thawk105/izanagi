@@ -522,11 +522,15 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 以下は 1 ID = 1 将来セッションを上限とする。品質面では T-153(e)/T-154 wave が must-fix 11 件と
 mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限→比較→採用の順で進める。
 
-- [T-179] **P1: worker 資源台帳の正本化** — `codex exec` の job/stage/model/reasoning/session/turn、
-  input・cached input・output・CLI reported token、終了分類、validator、retry を既存ログから
-  決定的に集計する read-only tool と fixture test を追加する。受入は live inference なしで
-  T-153(e)/T-154 の 10 session・2,757,982 CLI reported tokens と stage 別内訳を再構成し、
-  worklog の「9 jobs」との不一致を機械的に検出できること。
+- [T-179] **(完了 2026-07-29) worker 資源台帳の正本化** — `tools/codex_worker_ledger.py`
+  (read-only) と合成 fixture 回帰を追加。rollout ログから session/stage/model/reasoning/
+  model_calls、input・cached input・output・CLI reported token、終了分類、validator、retry を
+  決定的に集計する。live inference なしで T-153(e)/T-154 の 10 session・434 model calls・
+  2,757,982 CLI reported tokens と stage 別内訳を再構成し、worklog (59) の「9 jobs」との不一致
+  (review 3 対 4、総数 9 対 10) を `--strict` rc=2 で検出する。実装・検査・変異 10/10 KILLED の
+  正本は worklog 2026-07-29 (62)、逐語と凍結値は
+  `output/insights/2026-07-29_t179-worker-ledger-verbatim/`。
+  wave 受理集合の確定 (cwd 部分一致の限界) は [T-180]、retry の因果同定は [T-183] へ送った。
 - [T-180] **P1、T-179 後: job 単位 resource envelope** — turn/token/wall-clock/retry の上限と
   上限到達時の fail-closed receipt を launcher 契約へ追加する。model/reasoning の既定値は変えず、
   unit/fixture test で正常完了、上限停止、receipt 欠損拒否を固定する。
