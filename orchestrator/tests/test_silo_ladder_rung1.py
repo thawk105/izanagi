@@ -77,6 +77,76 @@ def test_n2b_second_cas_kills_only_single_cas_no_bypass():
     )
 
 
+def test_n_fixtures_are_exact_single_mutations_of_real_patch():
+    """N1/N2a/N2b は実 patch から対象 predicate だけを変異した bytes。"""
+    patch = _read(PATCH)
+    expected = {
+        "n1_thread_local.patch": patch.replace(
+            "+std::mutex gate_mutex;",
+            "+thread_local std::mutex gate_mutex;",
+            1,
+        ),
+        "n2a_guard_early_close.patch": patch.replace(
+            (
+                "+          acquired = compareExchange("
+                "(*itr).rcdptr_->tidword_.obj_,\n"
+                "+                                     expected.obj_, desired.obj_);\n"
+                "+        }\n"
+            ),
+            (
+                "+        }\n"
+                "+        acquired = compareExchange("
+                "(*itr).rcdptr_->tidword_.obj_,\n"
+                "+                                   expected.obj_, desired.obj_);\n"
+            ),
+            1,
+        ),
+        "n2b_second_cas.patch": patch.replace(
+            "@@ -169,8 +184,20 @@",
+            "@@ -169,8 +184,22 @@",
+            1,
+        ).replace(
+            "+        }\n+        if (acquired) {",
+            (
+                "+        }\n"
+                "+        acquired = compareExchange("
+                "(*itr).rcdptr_->tidword_.obj_,\n"
+                "+                                   expected.obj_, desired.obj_);\n"
+                "+        if (acquired) {"
+            ),
+            1,
+        ),
+    }
+    for name, expected_bytes in expected.items():
+        assert _read(FIXTURES / name) == expected_bytes
+
+
+def test_identity_rejects_legacy_single_declaration_and_missing_definition():
+    patch = _read(PATCH)
+    identity_block = (
+        '+extern "C" {\n'
+        '+__attribute__((used, visibility("default")))\n'
+        "+volatile unsigned char "
+        "izanagi_silo_ladder_rung1_identity = 1;\n"
+        "+}\n"
+    )
+    cases = (
+        patch.replace(
+            identity_block,
+            (
+                '+extern "C" __attribute__((used, visibility("default")))\n'
+                "+volatile unsigned char "
+                "izanagi_silo_ladder_rung1_identity = 1;\n"
+            ),
+            1,
+        ),
+        patch.replace(identity_block, "", 1),
+    )
+    for mutated in cases:
+        failures = contract.validate_patch(mutated, _stock_sources())
+        assert _reason_codes(failures) == [contract.IDENTITY_SYMBOL_REASON], failures
+
+
 def test_remaining_patch_checks_have_non_vacuous_single_reason_controls():
     """N1/N2 群外の patch predicate も、対応する一変異だけで発火する。"""
     patch = _read(PATCH)

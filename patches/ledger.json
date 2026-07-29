@@ -5,7 +5,7 @@
     {
       "id": "silo_ladder_rung1",
       "path": "patches/silo_ladder_rung1.patch",
-      "patch_sha256": "59b50afa2f8cb78118b38a5077ad0cef2818a62e8a85488f1fa1e0e331912012",
+      "patch_sha256": "07e576070563946d7979d74f39e1e9ae2fa5f952caff5f267eb52cff3ac89324",
       "base_repo": "external/ccbench",
       "base_commit": "d706650cdb31e442bef45b9b4216951d4fb40969",
       "classification": "d18-type4",

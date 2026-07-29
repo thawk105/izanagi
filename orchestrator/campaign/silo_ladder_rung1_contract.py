@@ -415,12 +415,18 @@ def _check_identity_symbol(transaction: _PatchFile | None) -> ContractFailure | 
     details: list[str] = []
     if text.count(IDENTITY_SYMBOL) != 1:
         details.append("identity symbol definition count is not one")
-    normalized = re.sub(r"\s+", " ", text)
+    stripped = [line.strip() for line in lines]
     declaration = (
-        'extern "C" __attribute__((used, visibility("default"))) '
-        f"volatile unsigned char {IDENTITY_SYMBOL} = 1;"
+        'extern "C" {',
+        '__attribute__((used, visibility("default")))',
+        f"volatile unsigned char {IDENTITY_SYMBOL} = 1;",
+        "}",
     )
-    if declaration not in normalized:
+    declaration_count = sum(
+        tuple(stripped[index:index + len(declaration)]) == declaration
+        for index in range(len(stripped) - len(declaration) + 1)
+    )
+    if declaration_count != 1:
         details.append("identity declaration does not match the visibility contract")
     guarded_blocks = _blocks(transaction, RUNG_MACRO)
     definitions_in_guard = sum(
