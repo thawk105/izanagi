@@ -4463,3 +4463,41 @@ rollout 相関の**直後**に session_id を追記し、cwd 部分一致 (T-179
 低層 primitive の `strict_loads` / `canonical_bytes` / group 終了 helper は再利用した)。
 
 逐語・変異台帳・dogfood receipt は `output/insights/2026-07-29_t180-resource-envelope-wave/`。
+
+## D101. [T-187] `6b64d21` の provenance 欠落は履歴非改変の一回限り correction とし、merge path と commit 手順を同時に閉じる (2026-07-30)
+
+**背景:** main / origin/main と複数の後続branchへ共有済みのmerge commit
+`6b64d21753d2cfc790f80caba29df7a40fef3072` は `git merge main --no-edit` が自動生成し、
+必須 `AI-Agent` trailerを持たない。問題は件名`Merge branch ...`ではなくtrailer欠落である。
+履歴rewriteはforce pushと全子孫の再束縛を要するため、ユーザーはforward-only是正を選択した。
+元eventから復元した観測値は`claude / claude-opus-5 / xhigh / integrator`。session IDは永続化せず、
+sanitized fieldとevent行SHA-256を材料へ残す。
+
+**決定 (1): incident固有の一回限りcorrectionだけを受理する。** target SHAと上記payloadを
+コードへ固定し、一般registry、環境変数、Git config、CLI免除を作らない。correctionはraw物理1行、
+隔離canonical parse、通常の最終trailer blockの三面でexactとし、自身の通常`AI-Agent`と同じblockへ
+置く。selected revision setにtargetとcorrectionが各1件、correctionがstrict descendant、targetが
+実際にmissing、自身の通常監査がgreenの場合だけ、targetのmissing finding 1件を相殺する。
+他commit、CAB、scope、Codex-authorのfindingは保存する。green stdoutは両SHAを明示する。
+
+**決定 (2): correctionを含む短いdeltaだけを権威にしない。** targetを除く`OLD_HEAD..HEAD`は
+coupled evidenceを欠くため赤が正しい。初回伝播もtarget-inclusive rangeまたは既定full-historyを
+権威とし、selected-set membershipを緩和しない。
+
+**決定 (3): D95のmerge pathは「結果が全parentと異なるpath」とする。** 履歴mergeは各parentとの差分
+集合の積、`MERGE_HEAD`中のpreflightはindexと全prospective parentとの差分集合の積を使う。
+sideから持ち込まれただけの実装をmerge actorの新規authoringと数えず、全parentと異なる実装面は
+Codex authorを要求する。これは手動conflict resolutionの証明ではない。targetでは通常diffは空、
+積集合はdocs 3 path、per-parent unionは実装面を含む。`integrator`裁定はpathでなくmerge前の
+採否判断に基づく。
+
+**決定 (4): mergeは自動messageを禁止する。** O17はfast-forwardとmerge commitを分け、後者を
+`--no-ff --no-commit`で止めてmessage-file preflight、`commit -F`、既定full-history監査へ通す。
+検査rcはpipelineに渡さない。
+
+**却下:** amend/rebase/force push、targetだけのallowlist、correction単独rangeのgreen化、
+per-parent unionを当該merge actorのauthoringとみなす案。
+
+**研究状態への影響:** なし。campaign raw受理集合、certified選択、proof chainは不変。変わるのは
+開発履歴のprovenance監査とmerge運用だけ。材料 =
+`output/insights/2026-07-29_ai-provenance-forward-fix-wave/`。

@@ -326,6 +326,15 @@
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
 - 現行実体の更新 (2026-07-28 [T-147] 追記): trailer 配置規則は正本 `docs/ai-provenance.md`
   「必須形式」へ移設。`DW-O17` は commit 前 `--message-file` 検査・commit 後監査・rc 手順を担う
+- **再発 (2026-07-29、[T-187]で回収):** `git merge main --no-edit` が
+  `Merge branch 'main' into ...`を自動生成し、`AI-Agent`なしの2-parent commit
+  `6b64d217…`を作った。件名ではなく、自動mergeがmessage-file preflightを迂回し、merge後の
+  full-history監査もないまま共有されたことが欠陥。共有済みのためrewriteせず、D101の固定
+  forward correctionで是正した。O17は`--no-commit`で止め、`commit -F`とpost full監査を必須化
+- **再発 (2026-07-30、[T-187] main統合):** local-only T-180記録`cb79147`はprobe用Shellを追加したが、
+  trailerがClaude manager 1行だけだった。新checkerのpost-merge全履歴監査が検出しmain更新を停止。
+  remote未到達を確認し、ユーザー承認後にCodex authorが最終bytesへ実際に寄与した`677c32a`へ
+  履歴を組み直した。単なるauthor行の後付けや第二例外にはしなかった
 - 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
   更新漏れも併せて見る
 
@@ -644,6 +653,13 @@
   (出力を絞るなら rc を取ってから表示する)。予算違反は予算値を上げずに、入口と重複する
   reference 記述の削除で収める (安全義務の削除・弱化はしない)
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
+- **再発 (2026-07-29、[T-187]で回収):** 元sessionのmerge確認は
+  `git merge main --no-edit | tail ...`の後に`MERGE_RC=0`と記録しており、0はGitでなく`tail`のrc。
+  merge成立は約5秒後の2-parent objectで別途確認できたが、pipeline値をGit成功証拠には使えない。
+  O17の単独rc契約をmerge preflight/post監査にも適用した
+- **再発 (2026-07-30、[T-187] main統合):** target抜きの補助range監査が設計どおり赤になった後、
+  同一shellの次行に置いた`merge --no-commit`が継続した。commit前で停止し、target-inclusive監査を
+  単独再走してgreenを確認した。既存O17は単独rcと赤停止を既に要求するため、手順本文は増補しない
 - 記録: worklog 2026-07-25 (5)
 
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]

@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -47,6 +48,12 @@ AGENT_VALUE = re.compile(
 RAW_CO_AUTHORED_BY = re.compile(
     r"^[ \t]*Co-Authored-By[ \t]*:", re.IGNORECASE | re.MULTILINE
 )
+CORRECTION_KEY = "AI-Agent-Correction"
+RAW_AI_AGENT_CORRECTION = re.compile(
+    rf"^[ \t]*{re.escape(CORRECTION_KEY)}[ \t]*:"
+    r"(?P<value>[^\r\n]*)\r?$",
+    re.IGNORECASE | re.MULTILINE,
+)
 TRAILER_PARSE_TEMP_ROOT: Path | None = None
 _REPO_DISCOVERY_ENV = {
     "GIT_ALTERNATE_OBJECT_DIRECTORIES",
@@ -60,6 +67,56 @@ _REPO_DISCOVERY_ENV = {
     "GIT_PREFIX",
     "GIT_WORK_TREE",
 }
+
+
+@dataclass(frozen=True)
+class ForwardCorrectionSpec:
+    """一回限りの incident 固有 correction。一般 registry へ拡張しない。"""
+
+    target: str
+
+    @property
+    def payload(self) -> str:
+        return (
+            f"target={self.target}; product=claude; model=claude-opus-5; "
+            "reasoning=xhigh; role=integrator"
+        )
+
+
+INCIDENT_6B64D21_FORWARD_CORRECTION = ForwardCorrectionSpec(
+    target="6b64d21753d2cfc790f80caba29df7a40fef3072",
+)
+
+
+@dataclass(frozen=True)
+class CorrectionAudit:
+    raw_values: tuple[str, ...]
+    parsed_values: tuple[str, ...]
+    final_values: tuple[str, ...]
+    final_ai_agent_values: tuple[str, ...]
+    findings: tuple[str, ...]
+
+    @property
+    def candidate_count(self) -> int:
+        return len(self.raw_values)
+
+    @property
+    def exact(self) -> bool:
+        return self.candidate_count == 1 and not self.findings
+
+
+@dataclass(frozen=True)
+class CommitAudit:
+    commit: str
+    label: str
+    normal_findings: tuple[str, ...]
+    correction: CorrectionAudit
+
+
+@dataclass(frozen=True)
+class ForwardCorrected:
+    target: str
+    correction: str
 
 
 def _git(*args: str, input_text: str | None = None) -> str:
@@ -91,8 +148,10 @@ def _canonical_trailer_env(parse_cwd: Path) -> dict[str, str]:
     return env
 
 
-def _parsed_trailers(message: str) -> dict[str, list[str]]:
-    """CAB 用 canonical parser の LF record を case-fold key ごとに返す。"""
+def _isolated_parsed_trailers(
+    message: str, *, no_divider: bool,
+) -> dict[str, list[str]]:
+    """隔離 parser の LF record を case-fold key ごとに返す。"""
     message_bytes = message.encode("utf-8")
     with tempfile.TemporaryDirectory(
         prefix="check-ai-provenance-",
@@ -101,11 +160,14 @@ def _parsed_trailers(message: str) -> dict[str, list[str]]:
         ceiling = Path(private_dir)
         parse_cwd = ceiling / "cwd"
         parse_cwd.mkdir()
+        command = [
+            "git", "-c", "trailer.separators=:",
+            "interpret-trailers", "--parse",
+        ]
+        if no_divider:
+            command.append("--no-divider")
         proc = subprocess.run(
-            [
-                "git", "-c", "trailer.separators=:",
-                "interpret-trailers", "--parse", "--no-divider",
-            ],
+            command,
             cwd=parse_cwd,
             env=_canonical_trailer_env(ceiling),
             input=message_bytes,
@@ -137,6 +199,16 @@ def _parsed_trailers(message: str) -> dict[str, list[str]]:
     return trailers
 
 
+def _parsed_trailers(message: str) -> dict[str, list[str]]:
+    """CAB/correction 用の隔離 --no-divider canonical parse。"""
+    return _isolated_parsed_trailers(message, no_divider=True)
+
+
+def _parsed_final_trailers(message: str) -> dict[str, list[str]]:
+    """correction と AI-Agent の final block を隔離 default parse で返す。"""
+    return _isolated_parsed_trailers(message, no_divider=False)
+
+
 def _ai_agent_values(message: str) -> list[str]:
     """従来の repo cwd・divider 既定 parser で AI-Agent 値だけを返す。"""
     parsed = _git("interpret-trailers", "--parse", input_text=message)
@@ -160,6 +232,59 @@ def _co_authored_by_findings(
         f"{label}: Co-Authored-By trailer 配置違反: "
         f"raw={raw_count}, parsed={parsed_count}"
     ]
+
+
+def _correction_audit(label: str, message: str) -> CorrectionAudit:
+    """raw 候補を隔離 canonical/final-block parse と突き合わせる。"""
+    matches = tuple(RAW_AI_AGENT_CORRECTION.finditer(message))
+    if not matches:
+        return CorrectionAudit((), (), (), (), ())
+
+    raw_values = tuple(match.group("value") for match in matches)
+    key = CORRECTION_KEY.casefold()
+    parsed_values = tuple(
+        _parsed_trailers(message).get(key, [])
+    )
+    final_trailers = _parsed_final_trailers(message)
+    final_values = tuple(final_trailers.get(key, []))
+    final_ai_agent_values = tuple(final_trailers.get("ai-agent", []))
+    payload = INCIDENT_6B64D21_FORWARD_CORRECTION.payload
+    findings: list[str] = []
+    if len(raw_values) != 1:
+        findings.append(
+            f"{label}: {CORRECTION_KEY} raw candidate cardinality 違反: "
+            f"raw={len(raw_values)}（物理 exact 1 行が必要）"
+        )
+    if raw_values and any(value != f" {payload}" for value in raw_values):
+        findings.append(
+            f"{label}: {CORRECTION_KEY} raw value が incident 固定値と一致しない"
+        )
+    if len(parsed_values) != 1:
+        findings.append(
+            f"{label}: {CORRECTION_KEY} canonical multiplicity 違反: "
+            f"raw={len(raw_values)}, canonical={len(parsed_values)}"
+        )
+    if parsed_values and any(value != payload for value in parsed_values):
+        findings.append(
+            f"{label}: {CORRECTION_KEY} canonical value が incident 固定値と一致しない"
+        )
+    if len(final_values) != 1 or not final_ai_agent_values:
+        findings.append(
+            f"{label}: {CORRECTION_KEY} final trailer block multiplicity 違反: "
+            f"correction={len(final_values)}, ai-agent={len(final_ai_agent_values)}"
+        )
+    if final_values and any(value != payload for value in final_values):
+        findings.append(
+            f"{label}: {CORRECTION_KEY} final trailer block value が "
+            "incident 固定値と一致しない"
+        )
+    return CorrectionAudit(
+        raw_values,
+        parsed_values,
+        final_values,
+        final_ai_agent_values,
+        tuple(findings),
+    )
 
 
 def validate_message(
@@ -256,9 +381,18 @@ def _is_descendant(ancestor: str, commit: str) -> bool:
         ["git", "merge-base", "--is-ancestor", ancestor, commit],
         cwd=REPO,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
     )
-    return proc.returncode == 0
+    if proc.returncode == 0:
+        return True
+    if proc.returncode == 1:
+        return False
+    detail = proc.stderr.strip()
+    raise RuntimeError(
+        "git merge-base --is-ancestor "
+        f"{ancestor} {commit} failed (rc={proc.returncode}): {detail}"
+    )
 
 
 def _is_implementation_path(path: str) -> bool:
@@ -303,18 +437,92 @@ def validate_implementation_author(
     ]
 
 
-def _commit_paths(commit: str) -> list[str]:
-    raw = _git(
-        "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "-z", commit,
-    )
+def _nul_paths(raw: str) -> list[str]:
     return [path for path in raw.split("\0") if path]
+
+
+def _commit_parents(commit: str) -> list[str]:
+    return _git("show", "-s", "--format=%P", commit).split()
+
+
+def _paths_changed_from(parent: str, commit: str) -> set[str]:
+    raw = _git(
+        "diff", "--no-renames", "--name-only",
+        "--diff-filter=ACMRDTUXB", "-z", parent, commit, "--",
+    )
+    return set(_nul_paths(raw))
+
+
+def _paths_changed_from_index(parent: str) -> set[str]:
+    raw = _git(
+        "diff", "--cached", "--no-renames", "--name-only",
+        "--diff-filter=ACMRDTUXB", "-z", parent, "--",
+    )
+    return set(_nul_paths(raw))
+
+
+def _intersection_path_set(path_sets: list[set[str]]) -> list[str]:
+    if not path_sets:
+        raise RuntimeError("combined path calculation requires at least one parent")
+    return sorted(set.intersection(*path_sets))
+
+
+def _commit_paths(commit: str) -> list[str]:
+    """non-merge は従来差分、merge は全 parent と異なる combined path。"""
+    parents = _commit_parents(commit)
+    if len(parents) <= 1:
+        raw = _git(
+            "diff-tree", "--root", "--no-renames", "--no-commit-id",
+            "--name-only", "-r", "-z", commit,
+        )
+        return _nul_paths(raw)
+    return _intersection_path_set([
+        _paths_changed_from(parent, commit) for parent in parents
+    ])
 
 
 def _staged_paths() -> list[str]:
     raw = _git(
-        "diff", "--cached", "--name-only", "--diff-filter=ACMRDTUXB", "-z",
+        "diff", "--cached", "--no-renames", "--name-only",
+        "--diff-filter=ACMRDTUXB", "-z",
     )
-    return [path for path in raw.split("\0") if path]
+    return _nul_paths(raw)
+
+
+def _merge_preflight_parents() -> list[str]:
+    """MERGE_HEAD 不在は通常 preflight、存在時は prospective parents を返す。"""
+    git_path = _git("rev-parse", "--git-path", "MERGE_HEAD").strip()
+    if not git_path:
+        raise RuntimeError("git rev-parse --git-path MERGE_HEAD returned empty path")
+    merge_head_path = Path(git_path)
+    if not merge_head_path.is_absolute():
+        merge_head_path = REPO / merge_head_path
+    try:
+        raw = merge_head_path.read_text(encoding="ascii")
+    except FileNotFoundError:
+        return []
+    merge_heads = raw.splitlines()
+    if (
+        not merge_heads
+        or any(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", oid) is None
+               for oid in merge_heads)
+        or len(set(merge_heads)) != len(merge_heads)
+    ):
+        raise RuntimeError("MERGE_HEAD is malformed")
+    for oid in merge_heads:
+        if not _commit_exists(oid):
+            raise RuntimeError(f"MERGE_HEAD parent commit object is missing: {oid}")
+
+    head = _git("rev-parse", "--verify", "HEAD^{commit}").strip()
+    return [head, *merge_heads]
+
+
+def _message_file_paths(merge_parents: list[str]) -> list[str]:
+    if not merge_parents:
+        return _staged_paths()
+    return _intersection_path_set([
+        _paths_changed_from_index(parent) for parent in merge_parents
+    ])
 
 
 def _policy_commit() -> str:
@@ -345,6 +553,201 @@ def _read_message(path: str) -> str:
     return Path(path).read_text()
 
 
+def _normal_commit_audit(
+    commit: str,
+    *,
+    scope_epoch: str | None,
+    implementation_epoch: str | None,
+) -> CommitAudit:
+    subject = _git("show", "-s", "--format=%s", commit).strip()
+    message = _git("show", "-s", "--format=%B", commit)
+    label = f"{commit[:12]} {subject}"
+    cab_policy_applies = _has_co_authored_by_policy(commit)
+    base, scoped, cab = validate_message(
+        label, message, check_cab=cab_policy_applies,
+    )
+    findings = list(base)
+    if (
+        scoped
+        and scope_epoch is not None
+        and _is_descendant(scope_epoch, commit)
+    ):
+        findings.extend(scoped)
+    findings.extend(cab)
+    if (
+        implementation_epoch is not None
+        and _is_descendant(implementation_epoch, commit)
+    ):
+        findings.extend(validate_implementation_author(
+            label, message, _commit_paths(commit),
+        ))
+    return CommitAudit(
+        commit=commit,
+        label=label,
+        normal_findings=tuple(findings),
+        correction=_correction_audit(label, message),
+    )
+
+
+def _audit_history(
+    commits: list[str],
+) -> tuple[list[str], list[ForwardCorrected]]:
+    """selected revision set を順序非依存の membership/lineage 条件で監査する。"""
+    scope_epoch = _scope_policy_commit()
+    implementation_epoch = _implementation_policy_commit()
+    audits = [
+        _normal_commit_audit(
+            commit,
+            scope_epoch=scope_epoch,
+            implementation_epoch=implementation_epoch,
+        )
+        for commit in commits
+    ]
+    by_commit = {audit.commit: audit for audit in audits}
+    candidate_count = sum(
+        audit.correction.candidate_count for audit in audits
+    )
+    candidate_audits = [
+        audit for audit in audits if audit.correction.candidate_count
+    ]
+    correction_findings = [
+        finding
+        for audit in audits
+        for finding in audit.correction.findings
+    ]
+    corrected: list[ForwardCorrected] = []
+    suppressed_missing: tuple[str, str] | None = None
+    spec = INCIDENT_6B64D21_FORWARD_CORRECTION
+
+    if candidate_count and candidate_count != 1:
+        correction_findings.append(
+            "check_ai_provenance: AI-Agent-Correction は selected revision set 内 "
+            f"exact 1 件でなければならない: candidates={candidate_count}"
+        )
+    elif candidate_count == 1:
+        correction = candidate_audits[0]
+        target = by_commit.get(spec.target)
+        target_selected = target is not None
+        strict_descendant = (
+            target_selected
+            and correction.commit != spec.target
+            and _is_descendant(spec.target, correction.commit)
+        )
+        target_missing = (
+            f"{target.label}: AI-Agent trailer がない"
+            if target is not None
+            else None
+        )
+        if not target_selected:
+            correction_findings.append(
+                f"{correction.label}: AI-Agent-Correction target が "
+                "selected revision set にない"
+            )
+        elif not strict_descendant:
+            correction_findings.append(
+                f"{correction.label}: AI-Agent-Correction commit が "
+                "target の strict descendant でない"
+            )
+        if target is not None and target_missing not in target.normal_findings:
+            correction_findings.append(
+                f"{correction.label}: AI-Agent-Correction target に "
+                "AI-Agent trailer の実欠落がない"
+            )
+
+        if (
+            correction.correction.exact
+            and target_selected
+            and strict_descendant
+            and target is not None
+            and target_missing in target.normal_findings
+            and not correction.normal_findings
+        ):
+            suppressed_missing = (spec.target, target_missing)
+            corrected.append(ForwardCorrected(spec.target, correction.commit))
+
+    findings: list[str] = []
+    for audit in audits:
+        for finding in audit.normal_findings:
+            if suppressed_missing == (audit.commit, finding):
+                continue
+            findings.append(finding)
+    findings.extend(correction_findings)
+    return findings, corrected
+
+
+def _commit_exists(commit: str) -> bool:
+    query = f"{commit}^{{commit}}"
+    proc = subprocess.run(
+        ["git", "cat-file", "--batch-check=%(objectname) %(objecttype)"],
+        cwd=REPO,
+        input=f"{query}\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip()
+        raise RuntimeError(
+            "git cat-file --batch-check failed "
+            f"(rc={proc.returncode}): {detail}"
+        )
+    record = proc.stdout.removesuffix("\n")
+    if record == f"{query} missing":
+        return False
+    if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64}) commit", record):
+        return True
+    raise RuntimeError(
+        "git cat-file --batch-check returned unexpected record: "
+        f"{record!r}"
+    )
+
+
+def _message_file_correction_findings(
+    label: str,
+    correction: CorrectionAudit,
+    merge_parents: list[str],
+) -> list[str]:
+    """prospective parent 集合だけを仮定する非権威な correction preflight。"""
+    findings = list(correction.findings)
+    if correction.candidate_count != 1:
+        findings.append(
+            f"{label}: AI-Agent-Correction は message-file 内 exact 1 件が必要: "
+            f"candidates={correction.candidate_count}"
+        )
+        return findings
+
+    spec = INCIDENT_6B64D21_FORWARD_CORRECTION
+    if not _commit_exists(spec.target):
+        findings.append(
+            f"{label}: AI-Agent-Correction target commit object が存在しない"
+        )
+        return findings
+    ancestry_tips = merge_parents or ["HEAD"]
+    if not any(_is_descendant(spec.target, tip) for tip in ancestry_tips):
+        findings.append(
+            f"{label}: AI-Agent-Correction target が prospective parent "
+            "ancestry にない"
+        )
+
+    target_message = _git("show", "-s", "--format=%B", spec.target)
+    if _ai_agent_values(target_message):
+        findings.append(
+            f"{label}: AI-Agent-Correction target に AI-Agent trailer の実欠落がない"
+        )
+
+    existing_candidates = 0
+    for commit in _git("rev-list", *ancestry_tips).splitlines():
+        message = _git("show", "-s", "--format=%B", commit)
+        existing_candidates += len(RAW_AI_AGENT_CORRECTION.findall(message))
+    if existing_candidates:
+        findings.append(
+            f"{label}: prospective parent ancestry 全体に既存 "
+            "AI-Agent-Correction candidate がある: "
+            f"candidates={existing_candidates}"
+        )
+    return findings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group()
@@ -356,40 +759,30 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        corrected: list[ForwardCorrected] = []
+        correction_preflight = False
+        merge_preflight = False
         if args.message_file is not None:
             message = _read_message(args.message_file)
+            merge_parents = _merge_preflight_parents()
+            merge_preflight = bool(merge_parents)
             base, scoped, cab = validate_message(
                 args.message_file, message
             )
             implementation = validate_implementation_author(
-                args.message_file, message, _staged_paths(),
+                args.message_file, message, _message_file_paths(merge_parents),
             )
             findings = [*base, *scoped, *cab, *implementation]
+            correction = _correction_audit(args.message_file, message)
+            if correction.candidate_count:
+                findings.extend(_message_file_correction_findings(
+                    args.message_file, correction, merge_parents,
+                ))
+                correction_preflight = not findings
             checked = 1
         else:
             commits = _commit_range(args.rev_range)
-            scope_epoch = _scope_policy_commit()
-            implementation_epoch = _implementation_policy_commit()
-            findings = []
-            for commit in commits:
-                subject = _git("show", "-s", "--format=%s", commit).strip()
-                message = _git("show", "-s", "--format=%B", commit)
-                label = f"{commit[:12]} {subject}"
-                cab_policy_applies = _has_co_authored_by_policy(commit)
-                base, scoped, cab = validate_message(
-                    label, message, check_cab=cab_policy_applies,
-                )
-                findings.extend(base)
-                if scoped and scope_epoch is not None and _is_descendant(scope_epoch, commit):
-                    findings.extend(scoped)
-                findings.extend(cab)
-                if (
-                    implementation_epoch is not None
-                    and _is_descendant(implementation_epoch, commit)
-                ):
-                    findings.extend(validate_implementation_author(
-                        label, message, _commit_paths(commit),
-                    ))
+            findings, corrected = _audit_history(commits)
             checked = len(commits)
     except (OSError, RuntimeError, UnicodeError) as exc:
         print(f"check_ai_provenance: 実行不能: {exc}", file=sys.stderr)
@@ -404,6 +797,23 @@ def main() -> int:
         )
         return 1
 
+    for record in corrected:
+        print(
+            "check_ai_provenance: forward-corrected=1 "
+            f"target={record.target} correction={record.correction}"
+        )
+    if correction_preflight:
+        spec = INCIDENT_6B64D21_FORWARD_CORRECTION
+        assumption = (
+            "MERGE_HEAD の prospective merge"
+            if merge_preflight
+            else "current HEAD の通常子"
+        )
+        print(
+            "check_ai_provenance: AI-Agent-Correction は preflight限定 "
+            f"（{assumption}を仮定）。commit後 history監査が必須 "
+            f"target={spec.target}"
+        )
     print(f"check_ai_provenance: {checked} 件、違反なし")
     return 0
 
