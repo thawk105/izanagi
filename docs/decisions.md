@@ -4376,3 +4376,45 @@ history simplification、rename を表せない。(f) CAB 値集合の比較や 
 **研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、レポート、proof chain は
 変えない。変わるのは commit provenance checker と共有規約の byte budget だけである。材料 =
 `output/insights/2026-07-29_t153e-t15423-review-verbatim/`。
+
+## D99. [T-143] RuleOps v1 は削除 gate でなく、HEAD 固定の advisory 候補 package 検査とする (2026-07-29)
+
+**背景:** test と `output/insights/` は単調増加しているが、年齢・size・参照数だけでは correctness
+防壁と低価値派生物を区別できない。段 3 の安全・実効性レビュー 2 レンズは、当初 plan の
+「retirement proof」が自己申告 mutation receipt、候補間循環、不完全な意味検索を削除安全の証明として
+過大評価すると独立に指摘した。材料・逐語・変異正本 =
+`output/insights/2026-07-29_t143-ruleops.md`、同 `-mutation-ledger.json`、
+`output/insights/2026-07-29_t143-ruleops-wave/`。
+
+**決定 (1): v1 は read-only proposal workflow に限定する。** CLI は `inventory`、`inspect`、
+`check` だけを持ち、削除・移動・archive・applyを行わない。成功出力は構造が捕捉HEADと整合すること
+だけを表し、`human_approved: false`を固定する。削除安全、受理集合同値、完全なconsumer閉包、
+mutation実験の真正性を主張しない。production ledgerはauthorityを持たない空JSONでよく、通常の
+test/insight追加に登録追随を要求しない。
+
+**決定 (2): identityと履歴は捕捉HEADへ束縛し、外部副作用をfail-closedにする。** 対象は直下の
+tracked `orchestrator/tests/test_*.py` と tracked `output/insights/**` regular blob。Git照会は
+read-only closed subcommand、non-shallow、replace refsなし、graftsなし、local config無効化、
+timeout、`GIT_NO_LAZY_FETCH=1`を要求し、開始時とemit前に世代境界を再検査する。HEAD ledger/receiptは
+payload読出し前にsizeを検査する。
+
+**決定 (3): 非空packageは小さい上限とledger-wide整合で人間裁定へ運ぶ。** candidate最大2、
+test query最大1、重複除去したsignal token最大6を履歴照会前に検査する。receipt headは現在HEADの
+実在祖先commitで、そのtreeのcandidate blobと一致しなければならない。receipt head以後の全commitが
+全parentに対して触れたpath unionはledgerとledger-wide receipt pathだけに限る。全candidate/evidence
+alias・cycle、blob drift、未裁定hitを拒否する。受入全走はproduction ledgerの`check`を60秒child
+timeoutで先行し、失敗をrunner rc=15へ写す。
+
+**決定 (4): 実退役は別の人間裁定とcommitに残す。** 候補packageは古くなり得るため、ユーザー裁定後も
+削除直前に最新HEADでpinとhitを再生成する。test/gate退役が受理集合を変え得る場合はD96に従い、
+新しいdecisionと境界testを同一変更単位へ置く。index/staged-tree束縛、mutation producer、
+approval receiptの機械束縛、node単位退役はv1のscope外。
+
+**却下案:** (a) age/size/reference閾値で自動削除 — 不完全signalを安全分類へ昇格する。
+(b) 既存test/insight全件の初期ledger登録 — 通常追加へ追随負担を課し、候補台帳を第二の状態正本にする。
+(c) receiptを実験証明として扱う — producer-bound provenanceがなく自己申告を越えない。
+(d) index/staged deletionと直ちに束縛 — v1のproposal workflowを実削除gateへ拡張し、別の受理集合裁定を
+先取りする。
+
+**研究状態への影響:** correctness gate、campaign raw受理集合、certified選択、proof chainのbytesと
+判定は不変。変わるのは陳腐化候補を再現可能な非権威packageとして人間へ運ぶ開発運用だけである。
