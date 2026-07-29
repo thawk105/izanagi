@@ -1,0 +1,58 @@
+あなたは izanagi の dev-wave 段 6 fix 実装子 (role=author、単位 B) である。出力は日本語。
+段 5 実装子契約 (権限・reasoning/sandbox・テスト弱体化禁止・受理集合・期待赤・波及報告) を全文継承する。
+
+## 権限境界 (違反禁止)
+
+- 編集してよいのは**次の 2 ファイルだけ**である。
+  - `tools/codex_worker_ledger.py`
+  - `orchestrator/tests/test_codex_worker_ledger.py`
+- `tools/codex_worker_launch.py` と `orchestrator/tests/test_codex_worker_launch.py` は
+  **単位 A の所有**であり触らない。docs は編集しない。commit もしない。
+
+## 必読 (読めなければ即停止し、読めなかった絶対パスを報告して終了する)
+
+wave dir = /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope/output/insights/2026-07-29_t180-resource-envelope-wave
+
+- 段 6 裁定 (**本書が fix 指示の正本**): 上記 wave dir の `s6-review-adjudication.md`
+- レビュー逐語: 同 dir の `s6-review-a.md` (所見 6 と 1)、`s6-review-b.md`
+- 仕様の正本: 同 dir の `s4-adjudication-plan-v2.md`
+- T-179 の凍結値: /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope/output/insights/2026-07-29_t179-worker-ledger-verbatim/README.md
+- 作業 worktree = /home/SFC/tanab/github/izanagi/.claude/worktrees/t180-author-b
+
+## 直すもの (裁定表で単位 B のもの)
+
+1. **A-6 [must-fix]**: manifest の 1 entry に対して、三者一致する rollout file が**複数**存在する
+   場合 (異なる directory に同じ filename UUID と同じ `session_meta.session_id`)、
+   現在は `duplicate_session_id` を issue に積むだけで `--strict` なしでは rc=0 になる。
+   `--manifest` 指定時は **`--strict` の有無にかかわらず rc=2** にする
+   (R10 の「完全性は無条件」を duplicate 側にも適用する)。
+   1 manifest entry は一意な 1 rollout record に対応しなければならない。
+2. **A-1 の ledger 側**: 同一 session 内で累積 usage (`total_token_usage`) が**非単調**に
+   巻き戻る場合を issue として検出する (`usage_cumulative_rollback` 等)。
+   現在は最後の累積値だけを採るため、巻き戻しが黙って通る。
+   `--strict` 時の rc は既存の issue 規約に合わせる。
+
+## 受入として固定するもの (レビュー B の実走を回帰テスト化)
+
+レビュー B が read-only 実走で、`--manifest` 経路が T-179 の凍結値
+(rc=0 / issues={} / **10 session / 434 model_calls / 2,757,982 cli_reported** / stage 別 6 値)
+と全一致することを確認した。これは**実 rollout に依存する実走であり、回帰テストとしては
+固定されていない**。合成 fixture で同型の構造 (manifest 経路で 10 entry・stage 別集計) を
+再現する回帰テストを追加し、`--manifest` 経路が集計値を drift させないことを固定せよ。
+実 rollout を読むテストは追加しないこと (環境依存になるため)。
+
+## 制約
+
+- `--manifest` 未指定時の既存挙動・出力・値は**一切変えない**。
+- 受理集合の変更は上記の fail-closed 方向の指示分だけとする。
+  T-179 の実データ (434 件の usage、`cached > input` は 0 件) を malformed にしないこと。
+- テストを甘くして緑にしない。fixture へ実装の現行 hash や揮発する診断 payload を焼き込まない。
+
+## 検査と報告
+
+- 緑を主張するなら**走らせた nodeid と範囲を必ず併記**する。
+  `python3 -m pytest orchestrator/tests/test_codex_worker_ledger.py -q -rf` を実走すること。
+- 完了報告に**所見ごとの closed / partial / regressed 表** (A-6、A-1 ledger 側、受入固定) を付ける。
+- 受理集合の変更点を「変更前は何を受理し、変更後は何を拒否するか」の形で明記する。
+- 所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙する。
+- 最後に必ず `## 総括` 見出しを置き、closed 件数・走らせた nodeid と結果・未了を 10 行以内で書く。
