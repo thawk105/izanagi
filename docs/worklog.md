@@ -1591,12 +1591,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - mutation: M1/M5 = 2/2 KILLED、M2〜M4/M6 = 4/4 diagnostic KILLED。旧testはM1/M5 SURVIVED、
   M2〜M4が各121.5秒後のthread-alive赤。復元は全件commit bytes一致
 - T-136 preservation PM1〜PM4v2 = 4/4 KILLED、元台帳と同一node・reason/state署名
-- 検査: focused 18 passed、integration+isolation 97 passed、全走
-  **3598 passed / 18 skipped / 赤0** (244.41s)。逐語・裁定・台帳 =
+- 検査: focused 18 passed、integration+isolation 97 passed。T-143親統合前の全走3598 passed /
+  18 skipped、最終record後の全走 **3688 passed / 18 skipped / 赤0** (252.17s)。逐語・裁定・台帳 =
   `output/insights/2026-07-29_t145-join-dichotomy-wave/README.md`
 - mainのT-143並行land後、最新mainを親に監査済みtest patchを再統合。旧比較3 fileのblob同一を照合し、
   最終integration commit上でmutation/preservationを再走
-- commit: 本commit `test(dev-waves): contain T-145 long-path shutdown liveness`
+- commits: `64ddf5c test(dev-waves): contain T-145 long-path shutdown liveness` /
+  `c0659c7 docs(t145): freeze mutation and preservation ledgers`
 - エージェント工数: codex subprocess 12 (plan 1、相談 2、author/fix 3、review 5、初回author 1)、
   親 = brief・裁定・統合・mutation・受入・記録
 - ユーザー手番: push (AIからは行わない)

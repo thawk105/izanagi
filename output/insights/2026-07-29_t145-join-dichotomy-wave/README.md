@@ -76,7 +76,8 @@ repo root・本worktree・ログインノードで実測した。
 
 - focused: 18 passed（parser 14、real long-path 1、isolation 3）
 - related: integration + isolation = 97 passed
-- full: 3598 passed / 18 skipped / 0 failed、244.41s
+- pre-T-143-parent full: 3598 passed / 18 skipped / 0 failed、244.41s
+- final record後 full: 3688 passed / 18 skipped / 0 failed、252.17s
 - mutation後は対象tracked fileをすべてcommit bytesへ復元
 
 ## 残余

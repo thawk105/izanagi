@@ -101,11 +101,12 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 
 ## DW-O19 — tracked file の一時変異
 
-復元の正本は `git diff` と `git checkout --` とし、外部 backup に頼らない。
-編集前後で `git diff --stat` が対象ファイルの意図した単一変異だけ (単一 entry が複数行ならその複数行に限り、他ファイル・意図外の変更なし) であることを必ず確認してから `git checkout --` で復元する。
-この方式の本走は統合 commit 後だけに限定し、commit 前の実装へ実行してはならない。
-段 1 の前提実測は本走ではなく、`DW-S01` に従って復元規律だけを借りる。
-復元後は内容を commit 済み内容と比較する。
+復元は `git diff` と `git checkout --` を正本とし、外部 backup を使わない。
+本走は統合 commit 後に限る。変異前を clean 確認し、変異後の `git diff --stat` が対象 file の
+意図した単一変異だけ (単一 entry が複数行ならその範囲) であることを確認して復元する。
+復元 bytes は commit と照合する。phase 完了は実装と同じ anchor commit へ含め、本走後の raw 台帳は
+後続の記録 commit へ置く。anchor を amend して自己 hash 循環を作らない。
+段 1 前提実測は本走でないが、この復元規律に従う。
 
 ## DW-O20 — clean-tree gate
 
