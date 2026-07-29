@@ -1114,6 +1114,7 @@ def _validate_correctness(leg: Mapping[str, Any]) -> list[EvidenceFailure]:
         and result["stats"]["txns"] > 0
         and result["stats"]["writes"] > 0
         and result["integrity"]["clean"] is True
+        and result["integrity"]["write_intent_violations"] == 0
         and result["anomaly_count"] == 0
         and result["total_cycles"] == 0
     )
@@ -1429,7 +1430,7 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
         "clean", "orphan_reads", "version_dups", "dup_txids",
         "genesis_commits", "missing_txids", "write_version_mismatch",
         "malformed_keys", "lock_coverage_violations",
-        "permutation_violations", "notes",
+        "write_intent_violations", "permutation_violations", "notes",
     }):
         return EvidenceFailure("schema", "verifier integrity schema mismatch")
     gap = document["gap_leg"]

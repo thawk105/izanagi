@@ -80,6 +80,7 @@ def _integrity() -> dict:
         "write_version_mismatch": 0,
         "malformed_keys": 0,
         "lock_coverage_violations": 0,
+        "write_intent_violations": 0,
         "permutation_violations": 0,
         "notes": [],
     }
@@ -533,6 +534,16 @@ def test_n4_certified_false_kills_only_correctness_gate():
     positive["correctness_leg"]["verifier"]["results"][0]["certified"] = False
     assert negative == positive
     assert _reason_codes("n4_certified_false.json") == ["correctness_certified"]
+
+
+def test_write_intent_violation_kills_correctness_gate():
+    document = _evidence(_fixture("p_plus_2.json"))
+    document["correctness_leg"]["verifier"]["results"][0][
+        "integrity"
+    ]["write_intent_violations"] = 1
+    assert [
+        failure.reason_code for failure in driver.validate_evidence(document)
+    ] == ["correctness_certified"]
 
 
 def test_n5_one_zero_worker_kills_only_ever_committed_gate():
@@ -1627,6 +1638,23 @@ def test_raw_bundle_major_predicates_are_recomputed_from_files(tmp_path):
     )
     failures = driver.validate_raw_bundle(document, raw)
     assert [item.reason_code for item in failures] == ["raw_bundle"]
+
+
+def test_raw_bundle_recomputes_write_intent_violations(tmp_path):
+    document = _evidence(_fixture("p_plus_2.json"))
+    raw = tmp_path / "raw"
+    _materialize_raw_bundle(raw, document)
+    verifier_path = raw / "correctness/verifier.json"
+    verifier = json.loads(verifier_path.read_text(encoding="utf-8"))
+    verifier["results"][0]["integrity"]["write_intent_violations"] = 1
+    verifier_path.write_text(json.dumps(verifier), encoding="utf-8")
+    document["correctness_leg"]["verifier"] = verifier
+    (raw / "raw-manifest.json").unlink()
+    driver.write_raw_manifest(raw)
+    document["raw_bundle"]["paths"] = driver.validate_raw_manifest(raw)
+    assert [item.reason_code for item in driver.validate_raw_bundle(
+        document, raw,
+    )] == ["raw_bundle"]
 
 
 def _reseal_materialized_raw(root: Path, document: dict) -> None:

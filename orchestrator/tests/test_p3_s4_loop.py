@@ -953,6 +953,10 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/broken-silo-permutation-swap.patch",
         "patches/broken-silo-sort-nonswo.patch",
         "patches/broken-silo-trigger-misattr.patch",
+        "patches/broken-silo-write-intent-erase.patch",
+        "patches/broken-silo-write-intent-forge.patch",
+        "patches/broken-silo-write-intent-opswap.patch",
+        "patches/broken-silo-write-intent-ptrswap.patch",
         "patches/instr-silo-backoff-trigger-gating-tally.patch",
     }
     unregistered = {}
