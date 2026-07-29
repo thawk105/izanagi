@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/usr/bin/python3.10",
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/tools/pegasus/run_probe.py",
+    "--output",
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/attempt-1/raw/attestation-job.json"
+  ],
+  "argv0_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+  "completed_at_utc": "2026-07-29T08:16:49.227351Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent",
+  "elapsed_monotonic_s": 1.8181133899779525,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:16:47.409239Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "c189895d212ffc529a8566408ba87f3fcddcf22e0dbbf8576ea5fa641db2e735",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 120.0
+}

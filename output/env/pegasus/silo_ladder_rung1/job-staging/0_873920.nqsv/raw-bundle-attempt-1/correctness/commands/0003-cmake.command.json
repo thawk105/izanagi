@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/usr/bin/cmake",
+    "--version"
+  ],
+  "argv0_sha256": "fd22547781b64bb2db04370970b93db1f3fada1e41e60873b015ee0747009fc0",
+  "completed_at_utc": "2026-07-29T08:14:21.096729Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/orchestrator",
+  "elapsed_monotonic_s": 0.006081745028495789,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:14:21.090642Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "6c08f840b67782da73a6fe113b64712615441722b15cd2723062dd4cc00a10d8",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 30.0
+}

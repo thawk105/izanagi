@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/SFC/tanab/github/glog",
+    "rev-parse",
+    "--verify",
+    "HEAD"
+  ],
+  "argv0_sha256": null,
+  "completed_at_utc": "2026-07-29T08:17:09.841900Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 0.0029722119797952473,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:17:09.838924Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "35ac6b5bb8c3a074e28f6e7a84873c2e50cd970d87755b9ca92f219d307c5ff8",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 60.0
+}

@@ -1,6 +1,0 @@
-{
-  "limit_s": 7200,
-  "policy_match": true,
-  "remaining_s": 7198,
-  "required_remaining_s": 4860
-}
