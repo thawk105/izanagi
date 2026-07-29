@@ -101,10 +101,10 @@ def test_non_regular_files_are_rejected_without_reading(tmp_path: Path, kind: st
 
 
 def test_read_limit_rejects_file_larger_than_ten_megabytes(tmp_path: Path) -> None:
-    """V11: 実装側の上限定数を倍化すると契約値 + 1 byte が通って赤になる。"""
+    """V11: 上限を 20MB へ倍化すると有効 fixture が rc=0 になって赤になる。"""
     target = tmp_path / "large.txt"
-    with target.open("wb") as stream:
-        stream.truncate(10 * 1024 * 1024 + 1)
+    heading = "\n## 総括\n".encode("utf-8")
+    target.write_bytes(b"x" * (10 * 1024 * 1024 + 1 - len(heading)) + heading)
     assert CCO.main([str(target)]) == 1
 
 
