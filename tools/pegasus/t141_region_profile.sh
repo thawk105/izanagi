@@ -10,6 +10,17 @@
 set -uo pipefail
 umask 077
 export GIT_OPTIONAL_LOCKS=0
+if [[ ${DEBUGINFOD_URLS+x} == x ]]; then
+  DEBUGINFOD_URLS_WAS_SET=1
+else
+  DEBUGINFOD_URLS_WAS_SET=0
+fi
+if [[ -n "${DEBUGINFOD_URLS:-}" ]]; then
+  DEBUGINFOD_URLS_WAS_NONEMPTY=1
+else
+  DEBUGINFOD_URLS_WAS_NONEMPTY=0
+fi
+export DEBUGINFOD_URLS=""
 
 if [[ -z "${IZANAGI_ROOT:-}" ]]; then
   printf 'IZANAGI_ROOT is required (pass it with qsub -v)\n' >&2
@@ -343,7 +354,7 @@ if [[ "$rc" -ne 0 ]]; then
   fail "$rc" scratch "could not create scratch artifact/log/temp directories"
 fi
 
-for required_command in python3 git rsync cmake gcc g++ realpath timeout pgrep \
+for required_command in python3 git rsync cmake gcc g++ realpath timeout pgrep cat \
   awk sed grep sha256sum sleep ps lscpu sort wc tar date hostname uname; do
   command -v "$required_command" >/dev/null 2>&1
   rc=$?
@@ -477,6 +488,9 @@ attest expected_cpu_model "$EXPECTED_CPU_MODEL"
 attest expected_physical_cores "$EXPECTED_PHYSICAL_CORES"
 attest script_path "$SCRIPT_PATH"
 attest script_sha256 "$SCRIPT_SHA256"
+attest debuginfod_urls_was_set "$DEBUGINFOD_URLS_WAS_SET"
+attest debuginfod_urls_was_nonempty "$DEBUGINFOD_URLS_WAS_NONEMPTY"
+attest debuginfod_urls_effective_empty "1"
 
 CC_PATH=""
 CXX_PATH=""
@@ -800,7 +814,187 @@ attest ccbench_source_root "$CCBENCH_SOURCE"
 attest ccbench_source_head "$CCBENCH_HEAD"
 attest ccbench_copy_method "git-ls-files-tar"
 
-# (v) Stock S/V: Release codegen + diagnostic -g, trace and sanitizer disabled.
+# (v) policy candidate selection: version + exact cycles,instructions stat smoke.
+CURRENT_STAGE="perf_select"
+PERF_SELECTED=""
+PERF_SELECTED_REAL=""
+PERF_SELECTED_VERSION=""
+for perf_index in "${!PERF_CANDIDATES[@]}"; do
+  perf_candidate=${PERF_CANDIDATES[$perf_index]}
+  version_file="$ARTIFACT_DIR/perf-candidate-${perf_index}.version.txt"
+  smoke_file="$ARTIFACT_DIR/perf-candidate-${perf_index}.smoke.txt"
+  delay_smoke_file="$ARTIFACT_DIR/perf-candidate-${perf_index}.delay-smoke.txt"
+  delay_smoke_data="$JOB_DIR/perf-delay-smoke-${perf_index}.data"
+  if [[ ! -x "$perf_candidate" ]]; then
+    printf 'candidate=%s\nstatus=not-executable\n' "$perf_candidate" >"$version_file"
+    continue
+  fi
+  perf_rc=0
+  timeout 10 "$perf_candidate" --version >"$version_file" 2>&1 || perf_rc=$?
+  if [[ "$perf_rc" -ne 0 ]]; then
+    continue
+  fi
+  perf_rc=0
+  timeout 10 "$perf_candidate" stat -e cycles,instructions -- sleep 0.1 \
+    >"$smoke_file" 2>&1 || perf_rc=$?
+  if [[ "$perf_rc" -ne 0 ]]; then
+    continue
+  fi
+  grep -Eqi '<not (supported|counted)>' "$smoke_file"
+  grep_rc=$?
+  if [[ "$grep_rc" -eq 0 ]]; then
+    continue
+  fi
+  if [[ "$grep_rc" -gt 1 ]]; then
+    fail "$grep_rc" perf_select "could not inspect perf smoke output"
+  fi
+  perf_rc=0
+  timeout 10 "$perf_candidate" record -D 10 -o "$delay_smoke_data" \
+    -e cycles:u,instructions:u -- sleep 0.1 >"$delay_smoke_file" 2>&1 || perf_rc=$?
+  if [[ "$perf_rc" -ne 0 || ! -s "$delay_smoke_data" ]]; then
+    rm -f -- "$delay_smoke_data"
+    continue
+  fi
+  rm -f -- "$delay_smoke_data"
+  rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    fail "$rc" perf_select "could not remove perf delay-smoke data"
+  fi
+  PERF_SELECTED=$perf_candidate
+  PERF_SELECTED_REAL=$(realpath -e "$perf_candidate")
+  rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    fail "$rc" perf_select "could not resolve selected perf candidate"
+  fi
+  PERF_SELECTED_VERSION=$(sed -n '1p' "$version_file")
+  rc=$?
+  if [[ "$rc" -ne 0 || -z "$PERF_SELECTED_VERSION" ]]; then
+    fail 2 perf_select "selected perf version is empty"
+  fi
+  break
+done
+if [[ -z "$PERF_SELECTED" ]]; then
+  fail 2 perf_select "no policy perf candidate passed version, event, and record -D smoke"
+fi
+attest perf_path "$PERF_SELECTED_REAL"
+attest perf_version "$PERF_SELECTED_VERSION"
+attest perf_events "cycles:u,instructions:u"
+attest perf_stat_smoke_events "cycles,instructions"
+attest perf_record_delay_smoke_ms "10"
+attest perf_record_frequency_hz "400"
+
+# (vi) Fail fast on the selected perf's DWARF4 srcline-report path.
+CURRENT_STAGE="perf_report_smoke"
+ensure_deadline perf_report_smoke 135
+PERF_REPORT_SMOKE_SOURCE="$JOB_DIR/perf-report-smoke.cc"
+PERF_REPORT_SMOKE_BINARY="$JOB_DIR/perf-report-smoke"
+PERF_REPORT_SMOKE_DATA="$JOB_DIR/perf-report-smoke.data"
+PERF_REPORT_SMOKE_COMPILE_LOG="$ARTIFACT_DIR/perf-report-smoke-compile.txt"
+PERF_REPORT_SMOKE_RECORD_STDOUT="$ARTIFACT_DIR/perf-report-smoke-record.stdout.txt"
+PERF_REPORT_SMOKE_RECORD_STDERR="$ARTIFACT_DIR/perf-report-smoke-record.stderr.txt"
+PERF_REPORT_SMOKE_REPORT="$ARTIFACT_DIR/perf-report-smoke-report.txt"
+PERF_REPORT_SMOKE_REPORT_STDERR="$ARTIFACT_DIR/perf-report-smoke-report.stderr.txt"
+cat >"$PERF_REPORT_SMOKE_SOURCE" <<'CPP'
+#include <chrono>
+#include <cstdint>
+
+static volatile std::uint64_t sink = 0;
+
+__attribute__((noinline)) static void busy_loop() {
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  std::uint64_t state = 0x9e3779b97f4a7c15ULL;
+  while (std::chrono::steady_clock::now() < deadline) {
+    for (int index = 0; index < 10000; ++index) {
+      state ^= state << 7;
+      state ^= state >> 9;
+      state *= 0xbf58476d1ce4e5b9ULL;
+    }
+    sink = state;
+  }
+}
+
+int main() {
+  busy_loop();
+  return sink == 0;
+}
+CPP
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not write DWARF4 smoke source"
+fi
+perf_report_smoke_compile_argv=(
+  "$CXX_PATH" -O2 -gdwarf-4 -fno-omit-frame-pointer -std=c++11
+  "$PERF_REPORT_SMOKE_SOURCE" -o "$PERF_REPORT_SMOKE_BINARY"
+)
+PERF_REPORT_SMOKE_COMPILE_TEXT=$(shell_join "${perf_report_smoke_compile_argv[@]}")
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not serialize smoke compile argv"
+fi
+attest perf_report_smoke_compile_argv "$PERF_REPORT_SMOKE_COMPILE_TEXT"
+run_logged perf_report_smoke "DWARF4 smoke compile failed" \
+  "$PERF_REPORT_SMOKE_COMPILE_LOG" \
+  timeout 60 "${perf_report_smoke_compile_argv[@]}"
+if [[ ! -x "$PERF_REPORT_SMOKE_BINARY" ]]; then
+  fail 2 perf_report_smoke "DWARF4 smoke binary is missing or not executable"
+fi
+
+perf_report_smoke_record_argv=(
+  "$PERF_SELECTED_REAL" record -F 400 -e cycles:u
+  -o "$PERF_REPORT_SMOKE_DATA" -- "$PERF_REPORT_SMOKE_BINARY"
+)
+PERF_REPORT_SMOKE_RECORD_TEXT=$(shell_join "${perf_report_smoke_record_argv[@]}")
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not serialize smoke record argv"
+fi
+attest perf_report_smoke_record_argv "$PERF_REPORT_SMOKE_RECORD_TEXT"
+report_smoke_rc=0
+timeout --signal=TERM 15 "${perf_report_smoke_record_argv[@]}" \
+  >"$PERF_REPORT_SMOKE_RECORD_STDOUT" \
+  2>"$PERF_REPORT_SMOKE_RECORD_STDERR" || report_smoke_rc=$?
+if [[ "$report_smoke_rc" -ne 0 ]]; then
+  fail "$report_smoke_rc" perf_report_smoke "perf record smoke failed"
+fi
+if [[ ! -s "$PERF_REPORT_SMOKE_DATA" ]]; then
+  fail 2 perf_report_smoke "perf record smoke produced empty perf.data"
+fi
+
+perf_report_smoke_report_argv=(
+  "$PERF_SELECTED_REAL" report -i "$PERF_REPORT_SMOKE_DATA"
+  --stdio --percent-limit 0 --sort=srcline
+)
+PERF_REPORT_SMOKE_REPORT_TEXT=$(shell_join "${perf_report_smoke_report_argv[@]}")
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not serialize smoke report argv"
+fi
+attest perf_report_smoke_report_argv "$PERF_REPORT_SMOKE_REPORT_TEXT"
+report_smoke_rc=0
+timeout --signal=TERM 60 "${perf_report_smoke_report_argv[@]}" \
+  >"$PERF_REPORT_SMOKE_REPORT" \
+  2>"$PERF_REPORT_SMOKE_REPORT_STDERR" || report_smoke_rc=$?
+if [[ "$report_smoke_rc" -ne 0 ]]; then
+  fail "$report_smoke_rc" perf_report_smoke "perf srcline report smoke failed"
+fi
+PERF_REPORT_SMOKE_ROWS=$(awk '
+  /^[[:space:]]*[0-9]+([.][0-9]+)?%[[:space:]]+/ { rows += 1 }
+  END { print rows + 0 }
+' "$PERF_REPORT_SMOKE_REPORT")
+rc=$?
+if [[ "$rc" -ne 0 || ! "$PERF_REPORT_SMOKE_ROWS" =~ ^[0-9]+$ \
+    || "$PERF_REPORT_SMOKE_ROWS" -lt 1 ]]; then
+  fail 2 perf_report_smoke "perf srcline report smoke lacks data rows"
+fi
+attest perf_report_smoke_srcline_rows "$PERF_REPORT_SMOKE_ROWS"
+rm -f -- "$PERF_REPORT_SMOKE_DATA"
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not discard smoke perf.data"
+fi
+
+# (vii) Stock S/V: Release codegen + DWARF4 diagnostics, trace and sanitizer disabled.
 declare -A BINARIES
 for build_tag in S V; do
   if [[ "$build_tag" == "S" ]]; then
@@ -820,7 +1014,7 @@ for build_tag in S V; do
     "$CMAKE_PATH" -S "$CCBENCH_SOURCE" -B "$BUILD_DIR"
     -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF
     -DCCBENCH_TRACE=0 "-DCCBENCH_BACK_OFF=$backoff"
-    -DCCBENCH_CCACHE=OFF "-DCMAKE_CXX_FLAGS=-g"
+    -DCCBENCH_CCACHE=OFF "-DCMAKE_CXX_FLAGS=-gdwarf-4"
     "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL;$GLOG_INSTALL"
     "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH"
   )
@@ -859,75 +1053,7 @@ for build_tag in S V; do
   attest "build_${build_tag}_cooldown_s" "30"
 done
 
-# (vi) policy candidate selection: version + exact cycles,instructions stat smoke.
-CURRENT_STAGE="perf_select"
-PERF_SELECTED=""
-PERF_SELECTED_REAL=""
-PERF_SELECTED_VERSION=""
-for perf_index in "${!PERF_CANDIDATES[@]}"; do
-  perf_candidate=${PERF_CANDIDATES[$perf_index]}
-  version_file="$ARTIFACT_DIR/perf-candidate-${perf_index}.version.txt"
-  smoke_file="$ARTIFACT_DIR/perf-candidate-${perf_index}.smoke.txt"
-  delay_smoke_file="$ARTIFACT_DIR/perf-candidate-${perf_index}.delay-smoke.txt"
-  delay_smoke_data="$JOB_DIR/perf-delay-smoke-${perf_index}.data"
-  if [[ ! -x "$perf_candidate" ]]; then
-    printf 'candidate=%s\nstatus=not-executable\n' "$perf_candidate" >"$version_file"
-    continue
-  fi
-  perf_rc=0
-  timeout 10 "$perf_candidate" --version >"$version_file" 2>&1 || perf_rc=$?
-  if [[ "$perf_rc" -ne 0 ]]; then
-    continue
-  fi
-  perf_rc=0
-  timeout 10 "$perf_candidate" stat -e cycles,instructions -- sleep 0.1 \
-    >"$smoke_file" 2>&1 || perf_rc=$?
-  if [[ "$perf_rc" -ne 0 ]]; then
-    continue
-  fi
-  grep -Eqi '<not (supported|counted)>' "$smoke_file"
-  grep_rc=$?
-  if [[ "$grep_rc" -eq 0 ]]; then
-    continue
-  fi
-  if [[ "$grep_rc" -gt 1 ]]; then
-    fail "$grep_rc" perf_select "could not inspect perf smoke output"
-  fi
-  perf_rc=0
-  timeout 10 "$perf_candidate" record -D 10 -o "$delay_smoke_data" \
-    -e cycles,instructions -- sleep 0.1 >"$delay_smoke_file" 2>&1 || perf_rc=$?
-  if [[ "$perf_rc" -ne 0 || ! -s "$delay_smoke_data" ]]; then
-    rm -f -- "$delay_smoke_data"
-    continue
-  fi
-  rm -f -- "$delay_smoke_data"
-  rc=$?
-  if [[ "$rc" -ne 0 ]]; then
-    fail "$rc" perf_select "could not remove perf delay-smoke data"
-  fi
-  PERF_SELECTED=$perf_candidate
-  PERF_SELECTED_REAL=$(realpath -e "$perf_candidate")
-  rc=$?
-  if [[ "$rc" -ne 0 ]]; then
-    fail "$rc" perf_select "could not resolve selected perf candidate"
-  fi
-  PERF_SELECTED_VERSION=$(sed -n '1p' "$version_file")
-  rc=$?
-  if [[ "$rc" -ne 0 || -z "$PERF_SELECTED_VERSION" ]]; then
-    fail 2 perf_select "selected perf version is empty"
-  fi
-  break
-done
-if [[ -z "$PERF_SELECTED" ]]; then
-  fail 2 perf_select "no policy perf candidate passed version, event, and record -D smoke"
-fi
-attest perf_path "$PERF_SELECTED_REAL"
-attest perf_version "$PERF_SELECTED_VERSION"
-attest perf_events "cycles,instructions"
-attest perf_record_delay_smoke_ms "10"
-attest perf_record_frequency_hz "400"
-
-# (vii) one timing probe per build/workload, then 2 builds x 2 workloads x 3 reps.
+# (viii) one timing probe per build/workload, then 2 builds x 2 workloads x 3 reps.
 parse_throughput() {
   local stdout_path=$1
 
@@ -978,14 +1104,14 @@ with open(sys.argv[1], encoding="utf-8", errors="replace") as handle:
             number = token[:-1] if suffix else token
             current_event = match.group(2)
             samples[current_event] = int(float(number) * scales[suffix])
-        if current_event == "cycles" and row_pattern.match(line):
+        if current_event == "cycles:u" and row_pattern.match(line):
             cycles_rows += 1
-if set(samples) != {"cycles", "instructions"}:
+if set(samples) != {"cycles:u", "instructions:u"}:
     raise SystemExit(2)
-if samples["cycles"] < 1_000 or cycles_rows < 1:
+if samples["cycles:u"] < 1_000 or cycles_rows < 1:
     raise SystemExit(2)
-print(samples["cycles"])
-print(samples["instructions"])
+print(samples["cycles:u"])
+print(samples["instructions:u"])
 print(cycles_rows)
 PY
 }
@@ -1140,7 +1266,7 @@ for build_tag in S V; do
       )
       bench_argv=(
         "$PERF_SELECTED_REAL" record -D "$DELAY_MS" -F 400
-        -o "$PERF_DATA" -e cycles,instructions --
+        -o "$PERF_DATA" -e cycles:u,instructions:u --
         "${workload_bench_argv[@]}"
       )
       BENCH_ARGV_TEXT=$(shell_join "${bench_argv[@]}")
