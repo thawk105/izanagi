@@ -1,7 +1,7 @@
 # dev-wave 並行セッション取り込み改善
 - 目的: dev-wave a1 / a2 の並行実行で、他セッション所有物が安全な local main 取り込みを妨げない契約を Claude / Codex 共通面へ実装する
 - 状態: 中断
-- 最終更新: 2026-07-29 22:09 JST
+- 最終更新: 2026-07-30 JST
 - 基準コミット: fa4774cd5de5b81840984168d1ac12a15a3d16a6
 
 ## 完了した中間成果
@@ -114,3 +114,16 @@
 - 停止記録反映後の branch 受入は targeted 188 passed、repository 全走
   **3725 passed / 18 skipped**。`check_docs` / `check_codex_agents` / py_compile /
   `git diff --check` は green、branch provenance は 533 件・違反なし
+- ユーザー報告後の fresh context で再開。wave tip `59c9484`、latest main `ff82133`、
+  merge-base `0912975`、左右 commit 数 `5 / 14` を固定し、resume startup gate は green
+- read-only Codex の latest-main 独立監査は exit 0 / validator green / `NO-GO`。
+  provenance 欠落と `cached > input` は closed、負の reasoning token と非 null 非 object
+  `info` の黙殺は partial のままと判定した
+- 親が main の ledger 実装・negative tests・T-179 凍結記録を照合し、残る2件を real と再裁定。
+  強制終了前の再開条件を緩めず `ff82133` は merge せず、local main も変更していない
+- main 側の採番進行により、本 wave の生きた記録候補は
+  `T-188 / D102 / F55 / worklog (67)`。また main の hardened `DW-O17` と wave の
+  `DW-O23` を単純 union すると reference aggregate が 37 bytes超過するため、再同期時に
+  安全義務を保つ意味保存縮約が必要
+- 最新の監査・親裁定は
+  `output/insights/2026-07-29_dev-wave-parallel-land/s9-main-resync2-{audit,adjudication}.md`
