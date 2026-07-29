@@ -844,3 +844,138 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-169] 同上
 - [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
 - [T-171] 同上
+
+## 2026-07-29 (56) — [T-139] rung 1 恒久実装 wave 完了 — patch + 台帳 + driver + certified evidence + 再束縛 pytest (branch worktree-dev-wave-t139-permanent、計測 = Pegasus 計算ノード)
+
+- `/dev-wave T-139` の全 9 段を実施 (軽量版不可と判断: rung 選定の設計択一 + 受理集合の新設)。
+  段 2 プラン + 段 3 敵対 2 レンズ (32 所見) + 段 6 敵対レビュー 2 本 (21 所見 + 親検出 2) +
+  焦点再レビュー 3 巡 + targeted fix。DW-O16 の 3 巡上限到達後の残余 3 blocker は親裁定 +
+  テスト・変異による直接閉鎖検証で閉じた (レビュー round は増やさず)
+- 成果物: `patches/silo_ladder_rung1.patch` (D18 第 4 類 subtype `evaluation_role=ability_probe`、
+  中立 stem、REPORT 第 2 マクロで reporter を計測 binary から隔離) + `patches/ledger.json`
+  (closed schema、projection_policy) + 契約 checker + 専用 driver (env scrub・tool identity・
+  patched-source SHA・receipt sha256 鎖・attempt 封印・閉じた失敗分類・絶対 deadline) +
+  射影 tripwire (3 loop loader 配線、字面回帰検知) + PBS 資材 (offline staging、F49 receipt) +
+  pytest 4 群 + fixture 正負例
+- **実測 (campaign 5 = 873920.nqsv、merge 後 HEAD)**: correctness = trace t4 certified serializable
+  (write_intent_violations=0 含む)。gap = trace-disabled t48 N=1m interleave 6 rep で
+  W-cal (登録 workload 逐語) stock 3,939k-4,035k vs rung 161k-169k tps (≈4.1%)、
+  W-hw (契約転写) stock 1,638k-1,687k vs rung 170k-176k tps (≈10.5%)。両 cell で
+  max(rung) < min(stock)。committed JSON + raw bundle + 再束縛 pytest 緑。値は ability-probe
+  受理証拠であり headline / RF に転用しない
+- 実測が検出した欠陥 6 件 (extern 初期化子 -Werror / compile_commands 多ターゲット / **計算ノード
+  外部 network 不可** (masstree clone 不能、runbook §7.1 へ追記) / NQSV 会計に exit_status 行なし /
+  nm basename vs realpath / --version 第 1 token) を codex fix で是正。R2-4 束縛が fix・merge の
+  たびに旧測定を正しく無効化し、campaign 4→5 の再取得で同一結論 (4.4%/10.7% → 4.1%/10.5%) を確認
+- 変異 matrix (commit 後本走): PM1 liveness all→any / PM2 exactly-one 弛緩 / PM3 certified 単独
+  受理 / PM4 tripwire 素通し — **4/4 KILLED、killer は期待 nodeid 各 1 件**。負例 N1〜N6 + 正例
+  P+1/P+2 は suite 常設
+- main 統合 (worklog (46)〜(55)) を wave branch へ merge (D70)。T-152 の verifier 更新へ追随
+  (`write_intent_violations` を closed schema + 受入 gate に追加 = 強化)、T-152 の裸マクロ patch
+  4 本は棚卸し tripwire が検出し allowlist へ。failures **F53** 起票 (fix 子が退避中 artifact を
+  断片上書き — near-miss)。私の F52 案は main の F52 と衝突し F53 へ振り直し (D70 同型)
+- 受入全走 **3527 passed / 18 skipped / 0 failed** (login node。g++-13 系 18 skip はこの環境で
+  検出力なしと記録)。恒久台帳 = `output/insights/2026-07-29_t139-silo-ladder-rung1-permanent.md`
+  (evidence pytest の実測後逸脱 2 件の記録を含む)
+- エージェント工数: 親 1、codex read-only 6 (plan 1 + 敵対 2 + review 2 + 焦点 3 のうち逐次)、
+  codex author 実装 3 + fix 12、PBS job 5 (873903/873904 = infra 失敗、873909/873916 = 検証強化で
+  破棄、873920 = 採用)
+
+### 次の一手
+
+- [T-139] **完了 (本エントリ)**: rung 1 恒久化・certified evidence・変異 4/4 KILLED。残余は
+  [T-172]/[T-173]/[T-174] へ分離。identity symbol の layout ablation 省略は裁定済み追認
+  (insight §7-4)
+- [T-172] **P3・裁定要 (新規)**: planner/coder への prompt 因果束縛 (mediated launcher /
+  provider receipt)。現 tripwire は「harness が受理する proposal 経路」までの字面回帰検知
+  (insight §7-1)
+- [T-173] **P3・裁定要 (新規)**: 射影入力の origin-allowlist 再設計 (semantic copy 対策、
+  insight §7-2)
+- [T-174] **P3 (backlog、新規)**: raw evidence bundle の保存形 (trace 圧縮で 124MB→縮小)。
+  driver 変更 = 再測定を伴うため次回 characterization に合流 (insight §7-3)
+- [T-175] **P3・裁定要 (新規)**: F53 恒久対応の DW-O02 統合 (退避中成果物の prompt 明記義務、
+  1 文 ≈230B) が docs/dev-wave/** の 24000B 上限を超過し、自己改善契約に従い変更を止めて返す。
+  択 = 予算内へ他節を縮約 / 上限の独立審査 / memory 運用のまま
+- [T-142] **再裁定待ち ((55))**: 変わらず
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] 同上
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] 同上
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] 同上
+- [T-151] 同上
+- [T-154] 同上
+- [T-130] 同上
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] **P3 (外部相談、野心的)**: [T-139] 恒久実装の完了で前提が揃った。変わらず保留
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] 同上
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] 同上
+- [T-171] 同上
