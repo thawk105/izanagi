@@ -1070,10 +1070,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-171] **完了**: Codex dev-wave Skill と drift 検査を実装
 - [T-172] **完了**: Codex rulings Skill と drift 検査を実装
 
-## 2026-07-29 (58) — [/rulings] 再裁定 3 件を索引化 — T-142 / T-126 / T-059、phase3 の既決残余表示を是正 (docs のみ、branch main、計測なし)
+## 2026-07-29 (58) — [/rulings] 裁定 4 件を索引化 — T-142 / T-126 / T-059 + local main push、phase3 の既決残余表示を是正 (docs のみ、branch main、計測なし)
 
 - `/rulings` の read-only 収集から開始し、裁定 package、worklog 末尾、phase3 の user gate /
-  見送り台帳、残 handoff、push 状態を照合。裁定待ちは推奨順に [T-142] / [T-126] / [T-059]
+  見送り台帳、残 handoff、push 状態を照合。裁定待ちは推奨順に [T-142] / [T-126] / [T-059] /
+  本 docs commit の local main push
 - [T-142] は実装前審査の新事実により再裁定。推奨 = close。継続には authoritative selector /
   certified stock、正式 perf、同一座標 floor、all-S2/adaptive paired pilot が先行して必要
 - [T-126] も実装前審査の新事実により再裁定。推奨 = qualification-first amendment。
@@ -1084,8 +1085,9 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - **rulings 自己改善 gate 発火**: phase3 の B-003 残余が「要ユーザー裁定」のままだったが、
   worklog 2026-07-20 (1) と D64 は隣接 3 穴を承認・実装済みと記録。phase3 を後続正本へ同期した。
   dispatcher の収集・矛盾報告規則は今回の差異を検出できたため変更なし
-- `main == origin/main == fa4774c` を確認し push 判断は無し。既存未追跡 `.codex/worktrees/` と
-  T-143 / T-173 handoff は並行セッション所有として不変更
+- 収集時は `main == origin/main == fa4774c`。本 docs commit 後は local main が 1 commit ahead
+  となるため、その push 判断を索引へ追加。既存未追跡 `.codex/worktrees/` と T-143 / T-173
+  handoff は並行セッション所有として不変更
 - 検査: `test_check_docs.py` 129 passed、`check_codex_agents.py` OK、`check_docs.py` 違反なし、
   `git diff --check` rc=0
 - エージェント工数: 親 1、子 0
@@ -1197,7 +1199,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   message-file接続、9,001-byte、過剰拒否正例を単一nodeで検出。SURVIVED / mask / erratumなし
 - 実行順は O19 の「tracked mutation本走は統合commit後」に従い、実装commit → mutation →
   全受入 → 本記録commit。裁定予定ではなくこの実手順を記録する
-- main は開始後に `efa3786` まで正常前進。main側 (54)〜(58) を保持し、本エントリを (54) から
+- main は開始後に `180d3c1` まで正常前進。main側 (54)〜(58) を保持し、本エントリを (54) から
   (59) へ振り直して2回のmerge競合を解消。main未追跡・未commitの他session面は変更していない
 - 受入 (main `8dab530` merge後): 全走 3483 passed / 18 skipped、`check_codex_agents` /
   `check_docs` 緑、`check_ai_provenance` 500件・違反なし
