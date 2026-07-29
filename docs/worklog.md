@@ -1200,9 +1200,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - 実行順は O19 の「tracked mutation本走は統合commit後」に従い、実装commit → mutation →
   全受入 → 本記録commit。裁定予定ではなくこの実手順を記録する
 - main は開始後に `180d3c1` まで正常前進。main側 (54)〜(58) を保持し、本エントリを (54) から
-  (59) へ振り直して2回のmerge競合を解消。main未追跡・未commitの他session面は変更していない
-- 受入 (main `8dab530` merge後): 全走 3483 passed / 18 skipped、`check_codex_agents` /
-  `check_docs` 緑、`check_ai_provenance` 500件・違反なし
+  (59) へ振り直して5回のmerge競合を解消。main未追跡・未commitの他session面は変更していない
+- 最終受入: main `efa3786` 取込treeで全走 3489 passed / 18 skipped。`180d3c1` 取込後のtree差は
+  `docs/worklog.md` だけで、影響194 passed、`check_codex_agents` / `check_docs` 緑、
+  `check_ai_provenance` 508件・違反なし
 - 低優先残余: commitごとの `git log -S` は線形履歴で二次コストになりうる。現waveの
   timeout・誤受理/誤拒否はなく受入阻害ではないため、受理集合を保つcache化を [T-173] へ分離
 - エージェント工数: Codex 9 job (planner 1 / consult 2 / author・fix 3 / review 3)。
