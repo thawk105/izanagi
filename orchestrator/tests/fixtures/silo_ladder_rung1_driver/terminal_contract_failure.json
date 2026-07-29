@@ -1,0 +1,9 @@
+{
+  "fixture": "terminal-contract-failure",
+  "certified": true,
+  "zero_worker": null,
+  "schedule_mode": "balanced",
+  "gap_status": "contract-failure",
+  "terminal_failure_class": "contract",
+  "terminal_reason_code": "contract_failure"
+}

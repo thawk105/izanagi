@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/usr/bin/x86_64-linux-gnu-g++-11",
+    "--version"
+  ],
+  "argv0_sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0",
+  "completed_at_utc": "2026-07-29T08:16:47.384254Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 0.0008574030071031302,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:16:47.383393Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "b2673d1dc6f7deed98e0160d91438be4fd16932a4e13799fbda76847c9a5cf60",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 30.0
+}

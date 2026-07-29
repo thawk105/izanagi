@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/external/ccbench",
+    "show",
+    "d706650cdb31e442bef45b9b4216951d4fb40969:cc/silo/transaction.cc"
+  ],
+  "argv0_sha256": null,
+  "completed_at_utc": "2026-07-29T08:16:47.042281Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 0.009209853975335136,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:16:47.033067Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "89a552b251950f46568856e9c229d1b370e84eda710c0bdc23a7a5cc6e1b85fa",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 60.0
+}

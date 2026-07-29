@@ -1,0 +1,226 @@
+{
+  "attempt_number": 1,
+  "bindings": {
+    "correctness_sha256": "f222195c9afa1c7a9fdb7d08c7ed8721ccd773c6fc0a4720f32343d7f4948e58",
+    "driver_sha256": "92affaabf723d83c10731a9b506aceb346e3652a8aeedcba85d48f52a31355f8",
+    "job_script_sha256": "318c2b12fb3fa71b3587c81f201db640393d2adae2214fd6aca4a9222ab2f57c",
+    "ledger_sha256": "34d6bfe7d81fcdb3381532ac1d6aadb3b70a20d56be027dd2f584b610cddf603",
+    "patch_sha256": "07e576070563946d7979d74f39e1e9ae2fa5f952caff5f267eb52cff3ac89324",
+    "policy_sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac",
+    "runtime_modules_sha256": "6327347600d1ceace234bf2449403b70cb85b2cfdf885424c383618429984f7d",
+    "schedule_sha256": "fcf975698610a9e96ce89b9c2969479bddb9c5d2596a87c3c0d146bfc9da17e9",
+    "submitter_sha256": "e12ac6589f7587540b38d5c528b2561e446031b4ce0ee48443ee4be583d8e9b2",
+    "third_party_heads": {
+      "googletest": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "masstree": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+      "mimalloc": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"
+    },
+    "verifier_module_sha256": "e604cef0b06dc36dd8e236b8ade92eb452231a5f32b7926405b402f038e9d8a2"
+  },
+  "campaign_id": "734e19378134a38eebfef0c8370b9c3650dd8e76e652b67ec018a04b3dd8b0fc",
+  "campaign_root_receipt": {
+    "path": "output/env/pegasus/silo_ladder_rung1/job-staging/campaigns/734e19378134a38eebfef0c8370b9c3650dd8e76e652b67ec018a04b3dd8b0fc/root-receipt.json",
+    "sha256": "4c622b26792bd22e3ccd3420d134ac277ea60a579dbc45965095252d1056fe13"
+  },
+  "dry_run": false,
+  "nonce": "b2afa072ea646a80a3b3ad5ba2ae29a1",
+  "preflight": {
+    "check_quota": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "USER:tanab home quota\nDisk quotas for prj 31609 (pid 31609):\n      Filesystem  kbytes   bquota  blimit  bgrace   files   iquota  ilimit  igrace\n           /home 11137244  104857600 157286400       -  109119        0       0       -\n\nGROUP:SFC work quota\nDisk quotas for prj 1030410 (pid 1030410):\n      Filesystem  kbytes   bquota  blimit  bgrace   files   iquota  ilimit  igrace\n           /work 185016212  10737418240 16106127360       -  209068        0       0       -\n"
+    },
+    "pegasusinfo": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "Pegasus                |  Run   Run    |  All   All    \nQueueName        JSVs  |  Node  Req    |  Node  Req    \n---------------  ----     ---   -----     ---   -----  \nedu-1            149      0     0         0     0      \nedu-2            149      0     0         0     0      \nedu-4            149      0     0         0     0      \nedu-8            149      0     0         0     0      \ngen_S            149      72    72        83    83     \ngen_M            149      0     0         0     0      \ngen_L            149      0     0         0     0      \ngpu              149      62    42        98    47     \ngpu_low          149      0     0         0     0      \ninteractive      149      0     0         0     0      \ninteractive_low  149      0     0         0     0      \ndebug            149      0     0         0     0      \n---------------           ---                          \nTOTAL                     134                          \n"
+    },
+    "qstat_Q": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "[EXECUTION QUEUE] Batch Server Host: nqsv\n=========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\n--------------- --- ---- ------- ---- ----------------------------------------------------\ngen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_S             1  149 ENA ACT   30   83   0   0   0   0  72   0   0  11   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------------------\n <TOTAL>                                83   0   0   0   0  72   0   0  11   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------------------\n\n[INTERACTIVE QUEUE] Batch Server Host: nqsv\n===========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS\n--------------- --- ---- ------- ---- ----------------------------------------\ndebug             1  149 ENA ACT   60    0   0   0   0   0   0   0   0   0   0 \ninteractive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------\n <TOTAL>                                 0   0   0   0   0   0   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------\n\nRouting Queue does not exist on nqsv.\n\n[NETWORK QUEUE] Batch Server Host: nqsv\n=======================================\nQueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN\n--------------- -------------------- --------------- ----------------\nDefaultNetQue    (any)               ENA ACT   0   4    2   2   0   0 \n--------------- -------------------- --------------- ----------------\n <TOTAL>                                        1000    2   2   0   0\n--------------- -------------------- --------------- ----------------\n\n"
+    },
+    "rbudgetcheck": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "===========================================\nGROUP          REMAIN   ESTIMATE    INITIAL\n===========================================\nSFC            407.09      24.00    1000.00\n"
+    }
+  },
+  "prior_attempt": null,
+  "prior_gap_result_sha256": null,
+  "qsub": {
+    "qstat_rc": 0,
+    "qstat_stderr_raw": "",
+    "qstat_stdout_raw": "Request ID: 873920.nqsv\n    Request Name = silo_ladder_rung1.sh\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Queued\n    Previous State          = (none)\n    State Transition Time   = Wed Jul 29 17:15:56 2026\n    State Transition Reason = SUBMIT\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/silo_ladder_rung1.sh.o%s\n    Stderr = pegasus02:/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/silo_ladder_rung1.sh.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Wed Jul 29 17:15:56 2026\n    Entered Queue Time   = Wed Jul 29 17:15:56 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 077\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    -  \n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 7200S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     7200S Warn:     7200S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n",
+    "rc": 0,
+    "request_id": "873920.nqsv",
+    "stderr_raw": "",
+    "stdout_raw": "Request 873920.nqsv submitted to queue: gen_S.\n"
+  },
+  "request": {
+    "elapstim_req_s": 7200,
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S"
+  },
+  "schedule_receipt": {
+    "algorithm": "python-random-v1-from-csprng-256",
+    "runs": [
+      {
+        "ordinal": 0,
+        "rep": 1,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 1,
+        "rep": 1,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 2,
+        "rep": 1,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 3,
+        "rep": 1,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 4,
+        "rep": 2,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 5,
+        "rep": 2,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 6,
+        "rep": 2,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 7,
+        "rep": 2,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 8,
+        "rep": 3,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 9,
+        "rep": 3,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 10,
+        "rep": 3,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 11,
+        "rep": 3,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 12,
+        "rep": 4,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 13,
+        "rep": 4,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 14,
+        "rep": 4,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 15,
+        "rep": 4,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 16,
+        "rep": 5,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 17,
+        "rep": 5,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 18,
+        "rep": 5,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 19,
+        "rep": 5,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 20,
+        "rep": 6,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 21,
+        "rep": 6,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 22,
+        "rep": 6,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 23,
+        "rep": 6,
+        "variant": "stock",
+        "workload": "W-hw"
+      }
+    ],
+    "schema_version": "silo_ladder_rung1-schedule/v1",
+    "seed": "3d8550eff28159272567c97addad84efa0043279c6eb1be7b1940968af1cad77"
+  },
+  "schema_version": "silo_ladder_rung1-submit-receipt/v1",
+  "source_commit": "8b3d50e0b90631c5eab6e2a39ade26e528d2f3eb",
+  "submission_cwd": {
+    "caller": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent",
+    "qsub_cwd_realpath": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent",
+    "repo_root_realpath": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent"
+  },
+  "submitted_epoch": 1785312956,
+  "whole_tree_clean": true
+}

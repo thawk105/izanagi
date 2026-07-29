@@ -4331,3 +4331,48 @@ check は従来どおり赤 = 非悪化)、dev_waves の rc 畳み込み (13/14 
 **研究状態への影響:** なし (campaign の raw 受理集合 (D90 (1))・certified 選択・proof chain は不変。
 変わるのは開発 harness の受理集合のみ)。材料 = `output/insights/2026-07-29_t153-t158-review-verbatim/`
 + 同 mutation-ledger。
+
+## D98. [T-153(e)][T-154(2)(3)] CAB 連続配置を canonical parser で検査し、provenance 規約へ独立 9,000-byte 上限を置く (2026-07-29)
+
+**背景:** `docs/ai-provenance.md` は `Co-Authored-By` を `AI-Agent` と同じ最終 trailer block に
+空行なしで置くよう要求していたが、従来 checker は Git が認識した `AI-Agent` だけを検査した。
+CAB を本文側、`AI-Agent` を最終 block に分断する F25 型 message は受理できた。T-154(3) の
+ユーザー裁定はこの受理集合を狭めるため、D96 に従い本決定と境界テストを実装と同じ変更単位に置く。
+T-153(e) は同じ変更を指す。T-154(2) の裁定範囲は 8,000〜9,000 bytes で、着手時の規約実体が
+8,817 bytes だったため上限を 9,000 とする。
+
+**決定 (1): CAB 候補の raw/parsed multiplicity を照合する。** 候補は、物理行の先頭から任意の
+SP/HTAB、case-insensitive `Co-Authored-By`、任意の SP/HTAB、colon が続く行である。bullet/quote
+付き本文は候補外、indent や fence 内でもこの字句形なら候補とする。値・email 構文は検査せず、
+同一値を含む複数 CAB も件数を保存する。全 raw 候補数と canonical Git parser が最終 block で
+認識した CAB 数が一致しなければ拒否する。
+
+**決定 (2): CAB parser だけを canonical 化する。** commit message を format-patch stream として
+扱わないため `interpret-trailers --parse --no-divider` を使う。UTF-8 bytes 入出力を LF byte だけで
+record 分割し、bare CR 等を偽 key にしない。毎回 fresh private temporary cwd と ceiling を作り、
+repo discovery、system/global/local/env の trailer alias・separator を遮断し、separator は colon に
+固定する。壊れた UTF-8、異常 record、Git error は fail-closed とする。一方、既存 `AI-Agent`、
+scope、Codex-author の判定は従来の repo cwd・divider 既定 parser を維持し、CAB 導入前後を問わず
+既存受理集合を変えない。
+
+**決定 (3): 履歴は非遡及かつ lineage ごとに適用する。** commit ごとに
+`git log --full-history --no-renames -S <policy needle> <commit> -- docs/ai-provenance.md` を照合し、
+その ancestry に導入 change があれば CAB gate を適用する。導入前 commit は従来どおり、別 lineage の
+独立導入と policy 文言削除後は適用済みとして扱う。`--message-file` は現行規約の事前検査なので常時
+適用する。default history、明示 range、導入 commit 自身、rename、merge、削除を境界テストで固定する。
+
+**決定 (4): provenance 規約の byte 上限は独立 registry とする。**
+`PROVENANCE_LIMITS = {"docs/ai-provenance.md": TextLimit(9_000)}` を全 text-budget consumer にだけ
+合流し、`SELF_LIMITS` と dev-wave normative dispatch allowlist には加えない。9,000 bytes exact を受理し、
+9,001 bytes を拒否する。
+
+**却下案:** (a) `SELF_LIMITS` への直接追加 — provenance path を dev-wave dispatch allowlist へ
+混入させる。(b) ambient repo での parser — alias と別 raw 行を件数相殺できる。(c) Python
+`splitlines()` — trailer 値中の bare CR 等を偽 key にする。(d) canonical parser を既存 AI 判定にも
+共用 — CAB scope 外の旧履歴受理集合を変える。(e) HEAD 上の単一 epoch — 別 lineage、削除後、
+history simplification、rename を表せない。(f) CAB 値集合の比較や email 構文検査 — 著者表示の値
+意味論は本裁定の対象外で、件数保存より受理集合を余分に狭める。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、レポート、proof chain は
+変えない。変わるのは commit provenance checker と共有規約の byte budget だけである。材料 =
+`output/insights/2026-07-29_t153e-t15423-review-verbatim/`。

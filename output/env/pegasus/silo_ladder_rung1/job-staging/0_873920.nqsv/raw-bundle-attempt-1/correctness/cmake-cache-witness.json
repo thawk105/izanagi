@@ -1,0 +1,17 @@
+{
+  "selected_entries": {
+    "CCBENCH_CCACHE": "OFF",
+    "CCBENCH_TRACE": "1",
+    "CMAKE_CXX_COMPILER": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "CMAKE_CXX_COMPILER_LAUNCHER": "",
+    "CMAKE_CXX_FLAGS": "-DIZANAGI_SILO_LADDER_RUNG1=1",
+    "CMAKE_C_COMPILER": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "CMAKE_C_COMPILER_LAUNCHER": "",
+    "CMAKE_PROJECT_INCLUDE": "",
+    "CMAKE_PROJECT_INCLUDE_BEFORE": "",
+    "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "",
+    "CMAKE_TOOLCHAIN_FILE": "",
+    "RULE_LAUNCH_COMPILE": ""
+  },
+  "sha256": "f1d9175390d9a1b6497b0ddea67768088c433dbfa2264a371eafbb2bff32c93c"
+}

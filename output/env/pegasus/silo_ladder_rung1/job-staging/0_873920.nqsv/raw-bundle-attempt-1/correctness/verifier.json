@@ -1,0 +1,39 @@
+{
+  "runs": 1,
+  "certified_serializable": 1,
+  "non_serializable": 0,
+  "indeterminate": 0,
+  "results": [
+    {
+      "trace_dir": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a9/run-trace",
+      "verdict": "serializable",
+      "certified": true,
+      "serializable": true,
+      "stats": {
+        "txns": 480595,
+        "reads": 2128325,
+        "writes": 1128952,
+        "keys": 50,
+        "edges": 2877430,
+        "abort_reasons": {}
+      },
+      "integrity": {
+        "clean": true,
+        "orphan_reads": 0,
+        "version_dups": 0,
+        "dup_txids": 0,
+        "genesis_commits": 0,
+        "missing_txids": 0,
+        "write_version_mismatch": 0,
+        "malformed_keys": 0,
+        "lock_coverage_violations": 0,
+        "write_intent_violations": 0,
+        "permutation_violations": 0,
+        "notes": []
+      },
+      "anomaly_count": 0,
+      "total_cycles": 0,
+      "anomalies": []
+    }
+  ]
+}

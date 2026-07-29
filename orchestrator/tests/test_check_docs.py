@@ -278,6 +278,20 @@ description: synthetic Codex dev-wave skill
         ".agents/skills/dev-wave/agents/openai.yaml",
         check_docs.CODEX_DEV_WAVE_OPENAI_YAML,
     )
+    codex_rulings_skill = """---
+name: rulings
+description: synthetic Codex rulings skill
+---
+
+# Rulings
+
+""" + "\n".join(check_docs.CODEX_RULINGS_SKILL_LITERALS) + "\n"
+    _write(root, ".agents/skills/rulings/SKILL.md", codex_rulings_skill)
+    _write(
+        root,
+        ".agents/skills/rulings/agents/openai.yaml",
+        check_docs.CODEX_RULINGS_OPENAI_YAML,
+    )
 
     for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
         text = "# synthetic reference\n\n" + "\n\n".join(
@@ -410,6 +424,42 @@ def test_synthetic_repo_baseline_clean():
         res = _run_check(root)
         assert res.returncode == 0, f"baseline が違反ありになった:\n{res.stdout}\n{res.stderr}"
         assert "違反なし" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_limit_registry_is_independent_from_dispatch_allowlist():
+    assert check_docs.PROVENANCE_LIMITS == {
+        "docs/ai-provenance.md": check_docs.TextLimit(9_000)
+    }
+    assert (
+        "docs/ai-provenance.md"
+        not in check_docs.NORMATIVE_DISPATCH_ALLOWLIST
+    )
+
+
+def test_provenance_limit_accepts_exactly_9000_bytes():
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, "docs/ai-provenance.md", 9_000)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_limit_rejects_9001_bytes():
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, "docs/ai-provenance.md", 9_001)
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1
+        assert (
+            "docs/ai-provenance.md: 9001 bytes > 予算 9000 bytes"
+            in res.stdout
+        )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -1819,6 +1869,30 @@ def _mutate_command_guard(root: str, case: str) -> None:
             "display_name: \"Changed\"",
             1,
         ))
+    elif case == "codex_rulings_skill_deleted":
+        os.remove(os.path.join(
+            root, ".agents", "skills", "rulings", "SKILL.md"
+        ))
+    elif case == "codex_rulings_skill_extra_file":
+        _write(root, ".agents/skills/rulings/README.md", "# extra\n")
+    elif case == "codex_rulings_skill_name_changed":
+        rel = ".agents/skills/rulings/SKILL.md"
+        _write(root, rel, _read(root, rel).replace(
+            "name: rulings", "name: rulings-renamed", 1,
+        ))
+    elif case == "codex_rulings_skill_adapter_deleted":
+        rel = ".agents/skills/rulings/SKILL.md"
+        literal = check_docs.CODEX_RULINGS_SKILL_LITERALS[0]
+        _write(root, rel, _read(root, rel).replace(
+            literal, "repository entry omitted", 1,
+        ))
+    elif case == "codex_rulings_skill_openai_changed":
+        rel = ".agents/skills/rulings/agents/openai.yaml"
+        _write(root, rel, _read(root, rel).replace(
+            "display_name: \"Rulings\"",
+            "display_name: \"Changed\"",
+            1,
+        ))
     elif case == "fifth_reference":
         _write(root, "docs/dev-wave/extra.md", "# extra\n")
     elif case == "nested_reference":
@@ -1894,6 +1968,11 @@ _COMMAND_GUARD_CASES = [
     "codex_skill_name_changed",
     "codex_skill_adapter_deleted",
     "codex_skill_openai_changed",
+    "codex_rulings_skill_deleted",
+    "codex_rulings_skill_extra_file",
+    "codex_rulings_skill_name_changed",
+    "codex_rulings_skill_adapter_deleted",
+    "codex_rulings_skill_openai_changed",
     "fifth_reference",
     "nested_reference",
     "non_md_reference",
@@ -1945,6 +2024,11 @@ _COMMAND_GUARD_NEEDLES = {
     "codex_skill_name_changed": "name は 'dev-wave' 必須",
     "codex_skill_adapter_deleted": "Codex adapter 契約がない",
     "codex_skill_openai_changed": "生成済み Skill interface 契約と不一致",
+    "codex_rulings_skill_deleted": "Codex rulings Skill の必須 file が不在",
+    "codex_rulings_skill_extra_file": "Codex rulings Skill の予算未登録実体",
+    "codex_rulings_skill_name_changed": "name は 'rulings' 必須",
+    "codex_rulings_skill_adapter_deleted": "Codex adapter 契約がない",
+    "codex_rulings_skill_openai_changed": "生成済み Skill interface 契約と不一致",
     "fifth_reference": "docs/dev-wave/** の予算未登録実体",
     "nested_reference": "docs/dev-wave/** の予算未登録実体",
     "non_md_reference": "docs/dev-wave/** の予算未登録実体",
@@ -2031,6 +2115,36 @@ def test_codex_dev_wave_skill_contract_pins_exact_surface():
     )
 
 
+def test_codex_rulings_skill_contract_pins_exact_surface():
+    """checker と合成 fixture の同時縮小で adapter 義務が消えないよう外延を固定する。"""
+
+    assert check_docs.CODEX_RULINGS_SKILL_FILES == {
+        ".agents/skills/rulings/SKILL.md",
+        ".agents/skills/rulings/agents/openai.yaml",
+    }
+    assert check_docs.CODEX_RULINGS_SKILL_LITERALS == (
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".claude/commands/rulings.md",
+        "$ARGUMENTS",
+        "$rulings",
+        "docs/worklog.md",
+        "docs/skill-self-improvement.md",
+        "hooks/README.md",
+        "クラス 1",
+        "クラス 2",
+        "それ以外ではファイルを編集しない",
+        "push と remote branch 操作は人間に残す",
+    )
+    assert check_docs.CODEX_RULINGS_OPENAI_YAML == (
+        'interface:\n'
+        '  display_name: "Rulings"\n'
+        '  short_description: "Izanagi の裁定待ちを索引・詳説して判断を補佐"\n'
+        '  default_prompt: "Use $rulings to list and explain the Izanagi '
+        'decisions awaiting my ruling."\n'
+    )
+
+
 def test_command_docs_guard_rejects_symlinked_commands_directory():
     root = _build_min_repo()
     external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_commands_")
@@ -2090,6 +2204,7 @@ def test_missing_enumerated_doc_is_violation():
         governed = {
             *check_docs.REFERENCE_LIMITS,
             *check_docs.SELF_LIMITS,
+            *check_docs.PROVENANCE_LIMITS,
         }
         candidates = [rel for rel in rels if rel not in governed]
         assert candidates, "command guard 外の LIVING_DOCS 対象がない"

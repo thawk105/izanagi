@@ -1,0 +1,187 @@
+{
+  "attempt_chain": [
+    1,
+    2
+  ],
+  "bindings": {
+    "ccbench_pin_full": "d706650cdb31e442bef45b9b4216951d4fb40969",
+    "correctness_sha256": "f222195c9afa1c7a9fdb7d08c7ed8721ccd773c6fc0a4720f32343d7f4948e58",
+    "driver_sha256": "92affaabf723d83c10731a9b506aceb346e3652a8aeedcba85d48f52a31355f8",
+    "expected_patched_source_sha256": {
+      "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+      "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+    },
+    "job_script_sha256": "318c2b12fb3fa71b3587c81f201db640393d2adae2214fd6aca4a9222ab2f57c",
+    "ledger_sha256": "34d6bfe7d81fcdb3381532ac1d6aadb3b70a20d56be027dd2f584b610cddf603",
+    "patch_sha256": "07e576070563946d7979d74f39e1e9ae2fa5f952caff5f267eb52cff3ac89324",
+    "pinned_source_sha256": {
+      "cc/silo/transaction.cc": "89a552b251950f46568856e9c229d1b370e84eda710c0bdc23a7a5cc6e1b85fa",
+      "cc/silo/ycsb_silo.cc": "2fcbf7233b04d92f5fa079ff504016d7ff0793ae9658b00e8aea30a5ff859bc9"
+    },
+    "policy_sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac",
+    "runtime_modules_sha256": "6327347600d1ceace234bf2449403b70cb85b2cfdf885424c383618429984f7d",
+    "schedule_sha256": "fcf975698610a9e96ce89b9c2969479bddb9c5d2596a87c3c0d146bfc9da17e9",
+    "submitter_sha256": "e12ac6589f7587540b38d5c528b2561e446031b4ce0ee48443ee4be583d8e9b2",
+    "third_party_heads": {
+      "googletest": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "masstree": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+      "mimalloc": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"
+    },
+    "verifier_module_sha256": "e604cef0b06dc36dd8e236b8ade92eb452231a5f32b7926405b402f038e9d8a2"
+  },
+  "campaign_id": "734e19378134a38eebfef0c8370b9c3650dd8e76e652b67ec018a04b3dd8b0fc",
+  "first_attempt": 1,
+  "schedule_receipt": {
+    "algorithm": "python-random-v1-from-csprng-256",
+    "runs": [
+      {
+        "ordinal": 0,
+        "rep": 1,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 1,
+        "rep": 1,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 2,
+        "rep": 1,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 3,
+        "rep": 1,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 4,
+        "rep": 2,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 5,
+        "rep": 2,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 6,
+        "rep": 2,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 7,
+        "rep": 2,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 8,
+        "rep": 3,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 9,
+        "rep": 3,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 10,
+        "rep": 3,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 11,
+        "rep": 3,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 12,
+        "rep": 4,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 13,
+        "rep": 4,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 14,
+        "rep": 4,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 15,
+        "rep": 4,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 16,
+        "rep": 5,
+        "variant": "stock",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 17,
+        "rep": 5,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 18,
+        "rep": 5,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 19,
+        "rep": 5,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 20,
+        "rep": 6,
+        "variant": "rung-perf",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 21,
+        "rep": 6,
+        "variant": "stock",
+        "workload": "W-cal"
+      },
+      {
+        "ordinal": 22,
+        "rep": 6,
+        "variant": "rung-perf",
+        "workload": "W-hw"
+      },
+      {
+        "ordinal": 23,
+        "rep": 6,
+        "variant": "stock",
+        "workload": "W-hw"
+      }
+    ],
+    "schema_version": "silo_ladder_rung1-schedule/v1",
+    "seed": "3d8550eff28159272567c97addad84efa0043279c6eb1be7b1940968af1cad77"
+  },
+  "schema_version": "silo_ladder_rung1-campaign-root/v1",
+  "source_commit": "8b3d50e0b90631c5eab6e2a39ade26e528d2f3eb"
+}

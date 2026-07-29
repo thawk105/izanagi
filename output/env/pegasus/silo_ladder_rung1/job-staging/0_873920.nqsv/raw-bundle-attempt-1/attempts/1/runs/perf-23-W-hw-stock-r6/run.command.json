@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "/scr/0_873920.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+    "-ycsb_rmw=true",
+    "-ycsb_zipf_skew=0.9",
+    "-ycsb_tuple_num=1000000",
+    "-ycsb_max_ope=10",
+    "-thread_num=48",
+    "-extime=3"
+  ],
+  "argv0_sha256": "5af4c0c8cd9ed15458b1bd2e9df089d8dd552030f1427b31b63809e65f2c9d7e",
+  "completed_at_utc": "2026-07-29T08:18:54.196353Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/attempt-1/raw/runs/perf-23-W-hw-stock-r6",
+  "elapsed_monotonic_s": 3.3714695730013773,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:18:50.824898Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "1eee9b5bb2a4fce949b8d03eddf6e8b13c1788a4688154fedd002bdbbb1ecf2d",
+  "target_sha256": "5af4c0c8cd9ed15458b1bd2e9df089d8dd552030f1427b31b63809e65f2c9d7e",
+  "timed_out": false,
+  "timeout_s": 240.0
+}
