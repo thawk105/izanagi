@@ -354,8 +354,8 @@ if [[ "$rc" -ne 0 ]]; then
   fail "$rc" scratch "could not create scratch artifact/log/temp directories"
 fi
 
-for required_command in python3 git rsync cmake gcc g++ realpath timeout pgrep cat \
-  awk sed grep sha256sum sleep ps lscpu sort wc tar date hostname uname; do
+for required_command in python3 git rsync cmake gcc g++ addr2line realpath timeout \
+  pgrep cat awk sed grep sha256sum sleep ps lscpu sort uniq wc tar date hostname uname; do
   command -v "$required_command" >/dev/null 2>&1
   rc=$?
   if [[ "$rc" -ne 0 ]]; then
@@ -524,6 +524,29 @@ for tool_name in gcc g++ cmake; do
   attest "${tool_name}_path" "$TOOL_REAL"
   attest "${tool_name}_version" "$TOOL_VERSION"
 done
+
+ADDR2LINE_PATH=$(command -v addr2line)
+rc=$?
+if [[ "$rc" -ne 0 || -z "$ADDR2LINE_PATH" ]]; then
+  fail 2 attestation "could not resolve addr2line from PATH"
+fi
+ADDR2LINE_REAL=$(realpath -e "$ADDR2LINE_PATH")
+rc=$?
+if [[ "$rc" -ne 0 || ! -x "$ADDR2LINE_REAL" ]]; then
+  fail 2 attestation "could not resolve executable real path for addr2line"
+fi
+"$ADDR2LINE_REAL" --version >"$LOG_DIR/addr2line-version.log" 2>&1
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" attestation "addr2line --version failed"
+fi
+ADDR2LINE_VERSION=$(sed -n '1p' "$LOG_DIR/addr2line-version.log")
+rc=$?
+if [[ "$rc" -ne 0 || -z "$ADDR2LINE_VERSION" ]]; then
+  fail 2 attestation "could not capture addr2line version"
+fi
+attest addr2line_path "$ADDR2LINE_REAL"
+attest addr2line_version "$ADDR2LINE_VERSION"
 
 # (ii) Canonical admission plus non-job CPU-load exclusion.
 check_high_cpu() {
@@ -882,18 +905,89 @@ attest perf_events "cycles:u,instructions:u"
 attest perf_stat_smoke_events "cycles,instructions"
 attest perf_record_delay_smoke_ms "10"
 attest perf_record_frequency_hz "400"
+attest perf_script_fields "event,ip"
+attest perf_script_cycles_event "cycles:u"
+attest ipcount_min_cycles_samples "1000"
+attest addr2line_batch_timeout_s "120"
 
-# (vi) Fail fast on the selected perf's DWARF4 srcline-report path.
+aggregate_cycles_ips() {
+  local stage=$1
+  local perf_data=$2
+  local ipcount_path=$3
+  local stderr_path=$4
+  local timeout_s=$5
+  local pipeline_rc=0
+
+  CURRENT_STAGE=$stage
+  LC_ALL=C timeout --signal=TERM "$timeout_s" "$PERF_SELECTED_REAL" script \
+    -i "$perf_data" -F event,ip 2>"$stderr_path" \
+    | LC_ALL=C awk '
+        $1 == "cycles:u:" && $2 ~ /^(0x)?[[:xdigit:]]+$/ {
+          print tolower($2)
+        }
+      ' \
+    | LC_ALL=C sort \
+    | uniq -c >"$ipcount_path" || pipeline_rc=$?
+  if [[ "$pipeline_rc" -ne 0 ]]; then
+    fail "$pipeline_rc" "$stage" "perf script cycles:u IP aggregation failed"
+  fi
+}
+
+validate_ipcount() {
+  local ipcount_path=$1
+  local minimum_samples=$2
+
+  python3 - "$ipcount_path" "$minimum_samples" <<'PY'
+import re
+import sys
+
+path, minimum_text = sys.argv[1:]
+minimum = int(minimum_text)
+address_pattern = re.compile(r"(?:0x)?[0-9a-f]+")
+seen = set()
+total = 0
+unique = 0
+with open(path, encoding="utf-8", errors="strict") as handle:
+    for line in handle:
+        fields = line.split()
+        if len(fields) != 2:
+            raise SystemExit(2)
+        count_text, address = fields
+        if not count_text.isdigit() or int(count_text) <= 0:
+            raise SystemExit(2)
+        if address_pattern.fullmatch(address) is None or address in seen:
+            raise SystemExit(2)
+        seen.add(address)
+        total += int(count_text)
+        unique += 1
+if total < minimum or unique < 1:
+    raise SystemExit(2)
+print(total)
+print(unique)
+PY
+}
+
+# (vi) Fail fast on perf script -> one-shot addr2line -> production mapper.
 CURRENT_STAGE="perf_report_smoke"
-ensure_deadline perf_report_smoke 135
-PERF_REPORT_SMOKE_SOURCE="$JOB_DIR/perf-report-smoke.cc"
+ensure_deadline perf_report_smoke 225
+PERF_REPORT_SMOKE_SOURCE_ROOT="$JOB_DIR/perf-report-smoke-source"
+PERF_REPORT_SMOKE_SOURCE="$PERF_REPORT_SMOKE_SOURCE_ROOT/cc/silo/ycsb_silo.cc"
 PERF_REPORT_SMOKE_BINARY="$JOB_DIR/perf-report-smoke"
 PERF_REPORT_SMOKE_DATA="$JOB_DIR/perf-report-smoke.data"
 PERF_REPORT_SMOKE_COMPILE_LOG="$ARTIFACT_DIR/perf-report-smoke-compile.txt"
 PERF_REPORT_SMOKE_RECORD_STDOUT="$ARTIFACT_DIR/perf-report-smoke-record.stdout.txt"
 PERF_REPORT_SMOKE_RECORD_STDERR="$ARTIFACT_DIR/perf-report-smoke-record.stderr.txt"
-PERF_REPORT_SMOKE_REPORT="$ARTIFACT_DIR/perf-report-smoke-report.txt"
-PERF_REPORT_SMOKE_REPORT_STDERR="$ARTIFACT_DIR/perf-report-smoke-report.stderr.txt"
+PERF_REPORT_SMOKE_IPCOUNT="$ARTIFACT_DIR/perf-report-smoke-ipcount.txt"
+PERF_REPORT_SMOKE_SCRIPT_STDERR="$ARTIFACT_DIR/perf-report-smoke-script.stderr.txt"
+PERF_REPORT_SMOKE_IPS="$JOB_DIR/perf-report-smoke-ips.txt"
+PERF_REPORT_SMOKE_SRCLINES="$JOB_DIR/perf-report-smoke-srclines.txt"
+PERF_REPORT_SMOKE_MAP="$ARTIFACT_DIR/perf-report-smoke-srcline-map.txt"
+PERF_REPORT_SMOKE_MAPPER_METRICS="$JOB_DIR/perf-report-smoke-mapper-metrics.txt"
+mkdir -p "$(dirname "$PERF_REPORT_SMOKE_SOURCE")"
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not create DWARF4 smoke source directory"
+fi
 cat >"$PERF_REPORT_SMOKE_SOURCE" <<'CPP'
 #include <chrono>
 #include <cstdint>
@@ -924,7 +1018,7 @@ if [[ "$rc" -ne 0 ]]; then
   fail "$rc" perf_report_smoke "could not write DWARF4 smoke source"
 fi
 perf_report_smoke_compile_argv=(
-  "$CXX_PATH" -O2 -gdwarf-4 -fno-omit-frame-pointer -std=c++11
+  "$CXX_PATH" -O2 -gdwarf-4 -fno-omit-frame-pointer -fno-pie -no-pie -std=c++11
   "$PERF_REPORT_SMOKE_SOURCE" -o "$PERF_REPORT_SMOKE_BINARY"
 )
 PERF_REPORT_SMOKE_COMPILE_TEXT=$(shell_join "${perf_report_smoke_compile_argv[@]}")
@@ -961,33 +1055,98 @@ if [[ ! -s "$PERF_REPORT_SMOKE_DATA" ]]; then
   fail 2 perf_report_smoke "perf record smoke produced empty perf.data"
 fi
 
-perf_report_smoke_report_argv=(
-  "$PERF_SELECTED_REAL" report -i "$PERF_REPORT_SMOKE_DATA"
-  --stdio --percent-limit 0 --sort=srcline
+perf_report_smoke_script_argv=(
+  "$PERF_SELECTED_REAL" script -i "$PERF_REPORT_SMOKE_DATA" -F event,ip
 )
-PERF_REPORT_SMOKE_REPORT_TEXT=$(shell_join "${perf_report_smoke_report_argv[@]}")
+PERF_REPORT_SMOKE_SCRIPT_TEXT=$(shell_join "${perf_report_smoke_script_argv[@]}")
 rc=$?
 if [[ "$rc" -ne 0 ]]; then
-  fail "$rc" perf_report_smoke "could not serialize smoke report argv"
+  fail "$rc" perf_report_smoke "could not serialize smoke perf script argv"
 fi
-attest perf_report_smoke_report_argv "$PERF_REPORT_SMOKE_REPORT_TEXT"
-report_smoke_rc=0
-timeout --signal=TERM 60 "${perf_report_smoke_report_argv[@]}" \
-  >"$PERF_REPORT_SMOKE_REPORT" \
-  2>"$PERF_REPORT_SMOKE_REPORT_STDERR" || report_smoke_rc=$?
-if [[ "$report_smoke_rc" -ne 0 ]]; then
-  fail "$report_smoke_rc" perf_report_smoke "perf srcline report smoke failed"
-fi
-PERF_REPORT_SMOKE_ROWS=$(awk '
-  /^[[:space:]]*[0-9]+([.][0-9]+)?%[[:space:]]+/ { rows += 1 }
-  END { print rows + 0 }
-' "$PERF_REPORT_SMOKE_REPORT")
+attest perf_report_smoke_script_argv "$PERF_REPORT_SMOKE_SCRIPT_TEXT"
+aggregate_cycles_ips perf_report_smoke "$PERF_REPORT_SMOKE_DATA" \
+  "$PERF_REPORT_SMOKE_IPCOUNT" "$PERF_REPORT_SMOKE_SCRIPT_STDERR" 15
+PERF_REPORT_SMOKE_IPCOUNT_METRICS=$(validate_ipcount \
+  "$PERF_REPORT_SMOKE_IPCOUNT" 1)
 rc=$?
-if [[ "$rc" -ne 0 || ! "$PERF_REPORT_SMOKE_ROWS" =~ ^[0-9]+$ \
-    || "$PERF_REPORT_SMOKE_ROWS" -lt 1 ]]; then
-  fail 2 perf_report_smoke "perf srcline report smoke lacks data rows"
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "perf script smoke produced no valid cycles:u IP samples"
 fi
-attest perf_report_smoke_srcline_rows "$PERF_REPORT_SMOKE_ROWS"
+mapfile -t PERF_REPORT_SMOKE_IPCOUNT_VALUES <<<"$PERF_REPORT_SMOKE_IPCOUNT_METRICS"
+rc=$?
+if [[ "$rc" -ne 0 || ${#PERF_REPORT_SMOKE_IPCOUNT_VALUES[@]} -ne 2 ]]; then
+  fail 2 perf_report_smoke "perf script smoke IP metrics are malformed"
+fi
+attest perf_report_smoke_cycles_samples "${PERF_REPORT_SMOKE_IPCOUNT_VALUES[0]}"
+attest perf_report_smoke_unique_ips "${PERF_REPORT_SMOKE_IPCOUNT_VALUES[1]}"
+awk 'NF == 2 { print $2 }' "$PERF_REPORT_SMOKE_IPCOUNT" \
+  >"$PERF_REPORT_SMOKE_IPS"
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not prepare smoke addr2line input"
+fi
+report_smoke_rc=0
+perf_report_smoke_addr2line_argv=(
+  "$ADDR2LINE_REAL" -e "$PERF_REPORT_SMOKE_BINARY"
+)
+PERF_REPORT_SMOKE_ADDR2LINE_TEXT=$(shell_join \
+  "${perf_report_smoke_addr2line_argv[@]}")
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke "could not serialize smoke addr2line argv"
+fi
+attest perf_report_smoke_addr2line_argv "$PERF_REPORT_SMOKE_ADDR2LINE_TEXT"
+timeout --signal=TERM 120 "${perf_report_smoke_addr2line_argv[@]}" \
+  <"$PERF_REPORT_SMOKE_IPS" >"$PERF_REPORT_SMOKE_SRCLINES" \
+  2>"$ARTIFACT_DIR/perf-report-smoke-addr2line.stderr.txt" || report_smoke_rc=$?
+if [[ "$report_smoke_rc" -ne 0 ]]; then
+  fail "$report_smoke_rc" perf_report_smoke "one-shot addr2line smoke failed"
+fi
+timeout --signal=TERM 15 python3 - "$IZANAGI_ROOT" \
+  "$PERF_REPORT_SMOKE_SOURCE_ROOT" "$PERF_REPORT_SMOKE_IPCOUNT" \
+  "$PERF_REPORT_SMOKE_SRCLINES" "$PERF_REPORT_SMOKE_MAP" \
+  >"$PERF_REPORT_SMOKE_MAPPER_METRICS" <<'PY'
+import sys
+
+root, source_root, ipcount_path, srclines_path, map_path = sys.argv[1:]
+sys.path.insert(0, root + "/orchestrator")
+from campaign.profiler_directive import region_totals, srcline_region_mapper
+
+counts = []
+with open(ipcount_path, encoding="utf-8", errors="strict") as handle:
+    for line in handle:
+        count_text, address = line.split()
+        counts.append((address, int(count_text)))
+with open(srclines_path, encoding="utf-8", errors="strict") as handle:
+    labels = [line.rstrip("\n") for line in handle]
+if not counts or len(labels) != len(counts):
+    raise SystemExit(2)
+total = sum(count for _, count in counts)
+rows = [(label, count / total * 100.0) for (_, count), label in zip(counts, labels)]
+mapper = srcline_region_mapper(source_root, ["cc/silo/ycsb_silo.cc"])
+totals, dropped = region_totals(rows, mapper)
+if not totals or totals.get("cc/silo/ycsb_silo.cc", 0.0) <= 0.0:
+    raise SystemExit(2)
+with open(map_path, "x", encoding="utf-8") as handle:
+    for (address, _), label in zip(counts, labels):
+        handle.write(f"{address}\t{label}\n")
+print(len(counts))
+print(sum(1 for label, _ in rows if mapper(label) is not None))
+print(f"{dropped:.17g}")
+PY
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  fail "$rc" perf_report_smoke \
+    "production mapper import or smoke file:line conversion failed"
+fi
+mapfile -t PERF_REPORT_SMOKE_MAPPER_VALUES <"$PERF_REPORT_SMOKE_MAPPER_METRICS"
+rc=$?
+if [[ "$rc" -ne 0 || ${#PERF_REPORT_SMOKE_MAPPER_VALUES[@]} -ne 3 ]]; then
+  fail 2 perf_report_smoke "mapper smoke metrics are malformed"
+fi
+attest perf_report_smoke_srcline_map_rows "${PERF_REPORT_SMOKE_MAPPER_VALUES[0]}"
+attest perf_report_smoke_mapped_rows "${PERF_REPORT_SMOKE_MAPPER_VALUES[1]}"
+attest perf_report_smoke_dropped_pct "${PERF_REPORT_SMOKE_MAPPER_VALUES[2]}"
 rm -f -- "$PERF_REPORT_SMOKE_DATA"
 rc=$?
 if [[ "$rc" -ne 0 ]]; then
@@ -1079,7 +1238,7 @@ print(format(values[0], ".17g"))
 PY
 }
 
-validate_srcline_report() {
+validate_symbol_report() {
   local report_path=$1
 
   python3 - "$report_path" <<'PY'
@@ -1108,27 +1267,11 @@ with open(sys.argv[1], encoding="utf-8", errors="replace") as handle:
             cycles_rows += 1
 if set(samples) != {"cycles:u", "instructions:u"}:
     raise SystemExit(2)
-if samples["cycles:u"] < 1_000 or cycles_rows < 1:
+if cycles_rows < 1:
     raise SystemExit(2)
 print(samples["cycles:u"])
 print(samples["instructions:u"])
 print(cycles_rows)
-PY
-}
-
-count_report_rows() {
-  local report_path=$1
-
-  python3 - "$report_path" <<'PY'
-import re
-import sys
-
-pattern = re.compile(r"^\s*[0-9]+(?:\.[0-9]+)?%\s+")
-with open(sys.argv[1], encoding="utf-8", errors="replace") as handle:
-    rows = sum(1 for line in handle if pattern.match(line))
-if rows < 1:
-    raise SystemExit(2)
-print(rows)
 PY
 }
 
@@ -1146,6 +1289,46 @@ record_loadavg() {
 
 DELAY_MARGIN_S="1.0"
 attest perf_record_delay_margin_s "$DELAY_MARGIN_S"
+REGION_PROVENANCE="$IZANAGI_ROOT/output/insights/2026-07-10_s8a-n1-provenance.json"
+CELL_RECORD_TIMEOUT_S=180
+CELL_PERF_SCRIPT_TIMEOUT_S=60
+CELL_ADDR2LINE_TIMEOUT_S=120
+CELL_REGION_TOTALS_TIMEOUT_S=30
+CELL_SYMBOL_REPORT_TIMEOUT_S=300
+CELL_BUDGET_MARGIN_S=5
+CELL_BUDGET_S=$((
+  CELL_RECORD_TIMEOUT_S
+  + CELL_PERF_SCRIPT_TIMEOUT_S
+  + CELL_ADDR2LINE_TIMEOUT_S
+  + CELL_REGION_TOTALS_TIMEOUT_S
+  + CELL_SYMBOL_REPORT_TIMEOUT_S
+  + CELL_BUDGET_MARGIN_S
+))
+PROFILE_CELL_COUNT=12
+TIMING_PROBE_COUNT=4
+TIMING_PROBE_BUDGET_S=185
+PERF_PATH_SMOKE_BUDGET_S=225
+PROFILE_PATH_BUDGET_S=$((
+  PROFILE_CELL_COUNT * CELL_BUDGET_S
+  + TIMING_PROBE_COUNT * TIMING_PROBE_BUDGET_S
+  + PERF_PATH_SMOKE_BUDGET_S
+))
+PREPROFILE_ALLOWANCE_S=$((
+  WALLTIME_S - FINALIZE_RESERVE_S - PROFILE_PATH_BUDGET_S
+))
+if (( PREPROFILE_ALLOWANCE_S <= 0 )); then
+  fail 2 budget "profile path budget leaves no pre-profile allowance"
+fi
+attest region_provenance_path "$REGION_PROVENANCE"
+attest cell_budget_formula_s \
+  "${CELL_RECORD_TIMEOUT_S}+${CELL_PERF_SCRIPT_TIMEOUT_S}+${CELL_ADDR2LINE_TIMEOUT_S}+${CELL_REGION_TOTALS_TIMEOUT_S}+${CELL_SYMBOL_REPORT_TIMEOUT_S}+${CELL_BUDGET_MARGIN_S}"
+attest cell_budget_s "$CELL_BUDGET_S"
+attest profile_path_budget_formula_s \
+  "${PROFILE_CELL_COUNT}*${CELL_BUDGET_S}+${TIMING_PROBE_COUNT}*${TIMING_PROBE_BUDGET_S}+${PERF_PATH_SMOKE_BUDGET_S}"
+attest profile_path_budget_s "$PROFILE_PATH_BUDGET_S"
+attest preprofile_allowance_formula_s \
+  "${WALLTIME_S}-${FINALIZE_RESERVE_S}-${PROFILE_PATH_BUDGET_S}"
+attest preprofile_allowance_s "$PREPROFILE_ALLOWANCE_S"
 declare -A DELAY_MS_BY_PAIR
 declare -A ESTIMATED_SAMPLE_WINDOW_S_BY_PAIR
 for build_tag in S V; do
@@ -1249,7 +1432,7 @@ for build_tag in S V; do
     for rep in 1 2 3; do
       run_id="${pair_id}-r${rep}"
       cell_stage="cell_${run_id}"
-      ensure_deadline "$cell_stage" 785
+      ensure_deadline "$cell_stage" "$CELL_BUDGET_S"
       record_loadavg "$cell_stage"
       check_isolation "$run_id"
       RUN_DIR="$JOB_DIR/run-$run_id"
@@ -1295,46 +1478,191 @@ for build_tag in S V; do
         fail 2 "$cell_stage" "perf record succeeded without non-empty perf.data"
       fi
 
-      SRCLINE_REPORT="$ARTIFACT_DIR/report-srcline-${run_id}.txt"
+      IPCOUNT_PATH="$ARTIFACT_DIR/ipcount-${run_id}.txt"
+      PERF_SCRIPT_STDERR="$ARTIFACT_DIR/perf-script-${run_id}.stderr.txt"
+      ADDR2LINE_IPS="$RUN_DIR/addr2line-ips.txt"
+      ADDR2LINE_SRCLINES="$RUN_DIR/addr2line-srclines.txt"
+      SRCLINE_MAP="$ARTIFACT_DIR/srcline-map-${run_id}.txt"
+      REGION_TOTALS_JSON="$ARTIFACT_DIR/region-totals-${run_id}.json"
       SYMBOL_REPORT="$ARTIFACT_DIR/report-symbol-${run_id}.txt"
-      report_rc=0
-      timeout --signal=TERM 300 "$PERF_SELECTED_REAL" report \
-        -i "$PERF_DATA" --stdio --percent-limit 0 --sort=srcline \
-        >"$SRCLINE_REPORT" \
-        2>"$ARTIFACT_DIR/report-srcline-${run_id}.stderr.txt" || report_rc=$?
-      if [[ "$report_rc" -ne 0 ]]; then
-        fail "$report_rc" "$cell_stage" "perf srcline report failed"
-      fi
-      SRCLINE_METRICS_FILE="$JOB_DIR/report-srcline-metrics-${run_id}.txt"
-      validate_srcline_report "$SRCLINE_REPORT" >"$SRCLINE_METRICS_FILE"
+      perf_script_stage="perf_script_${run_id}"
+      perf_script_argv=(
+        "$PERF_SELECTED_REAL" script -i "$PERF_DATA" -F event,ip
+      )
+      PERF_SCRIPT_ARGV_TEXT=$(shell_join "${perf_script_argv[@]}")
       rc=$?
       if [[ "$rc" -ne 0 ]]; then
-        fail "$rc" "$cell_stage" \
-          "srcline report lacks both event sample headers, 1000 cycles samples, or cycles data rows"
+        fail "$rc" "$perf_script_stage" "could not serialize perf script argv"
       fi
-      mapfile -t SRCLINE_METRICS <"$SRCLINE_METRICS_FILE"
+      attest "${perf_script_stage}_argv" "$PERF_SCRIPT_ARGV_TEXT"
+      aggregate_cycles_ips "$perf_script_stage" "$PERF_DATA" "$IPCOUNT_PATH" \
+        "$PERF_SCRIPT_STDERR" "$CELL_PERF_SCRIPT_TIMEOUT_S"
+      IPCOUNT_METRICS_FILE="$RUN_DIR/ipcount-metrics.txt"
+      validate_ipcount "$IPCOUNT_PATH" 1000 >"$IPCOUNT_METRICS_FILE"
       rc=$?
-      if [[ "$rc" -ne 0 || ${#SRCLINE_METRICS[@]} -ne 3 ]]; then
-        fail 2 "$cell_stage" "srcline report metrics are malformed"
+      if [[ "$rc" -ne 0 ]]; then
+        fail "$rc" "$perf_script_stage" \
+          "cycles:u IP aggregation is malformed or contains fewer than 1000 samples"
       fi
-      attest "${cell_stage}_cycles_samples" "${SRCLINE_METRICS[0]}"
-      attest "${cell_stage}_instructions_samples" "${SRCLINE_METRICS[1]}"
-      attest "${cell_stage}_srcline_rows" "${SRCLINE_METRICS[2]}"
+      mapfile -t IPCOUNT_METRICS <"$IPCOUNT_METRICS_FILE"
+      rc=$?
+      if [[ "$rc" -ne 0 || ${#IPCOUNT_METRICS[@]} -ne 2 ]]; then
+        fail 2 "$perf_script_stage" "cycles:u IP aggregation metrics are malformed"
+      fi
+      attest "${cell_stage}_cycles_samples" "${IPCOUNT_METRICS[0]}"
+      attest "${cell_stage}_unique_ips" "${IPCOUNT_METRICS[1]}"
+
+      addr2line_stage="addr2line_${run_id}"
+      CURRENT_STAGE=$addr2line_stage
+      awk 'NF == 2 { print $2 }' "$IPCOUNT_PATH" >"$ADDR2LINE_IPS"
+      rc=$?
+      if [[ "$rc" -ne 0 ]]; then
+        fail "$rc" "$addr2line_stage" "could not prepare addr2line batch input"
+      fi
+      addr2line_argv=(
+        "$ADDR2LINE_REAL" -e "${BINARIES[$build_tag]}"
+      )
+      ADDR2LINE_ARGV_TEXT=$(shell_join "${addr2line_argv[@]}")
+      rc=$?
+      if [[ "$rc" -ne 0 ]]; then
+        fail "$rc" "$addr2line_stage" "could not serialize addr2line argv"
+      fi
+      attest "${addr2line_stage}_argv" "$ADDR2LINE_ARGV_TEXT"
+      addr2line_rc=0
+      timeout --signal=TERM "$CELL_ADDR2LINE_TIMEOUT_S" \
+        "${addr2line_argv[@]}" <"$ADDR2LINE_IPS" >"$ADDR2LINE_SRCLINES" \
+        2>"$ARTIFACT_DIR/addr2line-${run_id}.stderr.txt" || addr2line_rc=$?
+      if [[ "$addr2line_rc" -ne 0 ]]; then
+        fail "$addr2line_rc" "$addr2line_stage" "one-shot addr2line batch failed"
+      fi
+
+      region_stage="region_totals_${run_id}"
+      CURRENT_STAGE=$region_stage
+      region_metrics="$RUN_DIR/region-totals-metrics.txt"
+      timeout --signal=TERM "$CELL_REGION_TOTALS_TIMEOUT_S" python3 - \
+        "$IZANAGI_ROOT" "$REGION_PROVENANCE" "$CCBENCH_SOURCE" \
+        "$IPCOUNT_PATH" "$ADDR2LINE_SRCLINES" "$SRCLINE_MAP" \
+        "$REGION_TOTALS_JSON" "$run_id" "$build_tag" "$workload" "$rep" \
+        >"$region_metrics" <<'PY'
+import json
+import re
+import sys
+
+(
+    root,
+    provenance_path,
+    source_root,
+    ipcount_path,
+    srclines_path,
+    map_path,
+    totals_path,
+    cell,
+    build,
+    workload,
+    rep_text,
+) = sys.argv[1:]
+sys.path.insert(0, root + "/orchestrator")
+from campaign.profiler_directive import region_totals, srcline_region_mapper
+
+with open(provenance_path, encoding="utf-8", errors="strict") as handle:
+    provenance = json.load(handle)
+edit_surface = provenance["projected_input"]["edit_surface_map"]
+if not isinstance(edit_surface, list) or not edit_surface:
+    raise SystemExit(2)
+regions = []
+for entry in edit_surface:
+    if not isinstance(entry, dict) or "region" not in entry:
+        raise SystemExit(2)
+    region = entry["region"]
+    if not isinstance(region, str) or not region:
+        raise SystemExit(2)
+    regions.append(region)
+if len(set(regions)) != len(regions):
+    raise SystemExit(2)
+
+address_pattern = re.compile(r"(?:0x)?[0-9a-f]+")
+counts = []
+seen = set()
+with open(ipcount_path, encoding="utf-8", errors="strict") as handle:
+    for line in handle:
+        fields = line.split()
+        if len(fields) != 2:
+            raise SystemExit(2)
+        count_text, address = fields
+        if (
+            not count_text.isdigit()
+            or int(count_text) <= 0
+            or address_pattern.fullmatch(address) is None
+            or address in seen
+        ):
+            raise SystemExit(2)
+        seen.add(address)
+        counts.append((address, int(count_text)))
+with open(srclines_path, encoding="utf-8", errors="strict") as handle:
+    labels = [line.rstrip("\n") for line in handle]
+if not counts or len(labels) != len(counts):
+    raise SystemExit(2)
+total = sum(count for _, count in counts)
+if total < 1_000:
+    raise SystemExit(2)
+rows = [(label, count / total * 100.0) for (_, count), label in zip(counts, labels)]
+mapper = srcline_region_mapper(source_root, regions)
+totals, dropped = region_totals(rows, mapper)
+with open(map_path, "x", encoding="utf-8") as handle:
+    for (address, _), label in zip(counts, labels):
+        handle.write(f"{address}\t{label}\n")
+payload = {
+    "totals": totals,
+    "dropped_pct": dropped,
+    "n_samples": total,
+    "cell": cell,
+    "build": build,
+    "workload": workload,
+    "rep": int(rep_text),
+}
+with open(totals_path, "x", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    handle.write("\n")
+print(len(counts))
+print(f"{dropped:.17g}")
+PY
+      rc=$?
+      if [[ "$rc" -ne 0 ]]; then
+        fail "$rc" "$region_stage" \
+          "mapper import, provenance load, or region total calculation failed"
+      fi
+      mapfile -t REGION_METRICS <"$region_metrics"
+      rc=$?
+      if [[ "$rc" -ne 0 || ${#REGION_METRICS[@]} -ne 2 ]]; then
+        fail 2 "$region_stage" "region total metrics are malformed"
+      fi
+      attest "${cell_stage}_srcline_map_rows" "${REGION_METRICS[0]}"
+      attest "${cell_stage}_dropped_pct" "${REGION_METRICS[1]}"
 
       report_rc=0
-      timeout --signal=TERM 300 "$PERF_SELECTED_REAL" report \
+      CURRENT_STAGE=$cell_stage
+      timeout --signal=TERM "$CELL_SYMBOL_REPORT_TIMEOUT_S" "$PERF_SELECTED_REAL" report \
         -i "$PERF_DATA" --stdio --percent-limit 0 --sort=symbol \
         >"$SYMBOL_REPORT" \
         2>"$ARTIFACT_DIR/report-symbol-${run_id}.stderr.txt" || report_rc=$?
       if [[ "$report_rc" -ne 0 ]]; then
         fail "$report_rc" "$cell_stage" "perf symbol report failed"
       fi
-      SYMBOL_ROWS=$(count_report_rows "$SYMBOL_REPORT")
+      SYMBOL_METRICS_FILE="$RUN_DIR/report-symbol-metrics.txt"
+      validate_symbol_report "$SYMBOL_REPORT" >"$SYMBOL_METRICS_FILE"
       rc=$?
-      if [[ "$rc" -ne 0 || ! "$SYMBOL_ROWS" =~ ^[0-9]+$ ]]; then
-        fail 2 "$cell_stage" "symbol report lacks data rows"
+      if [[ "$rc" -ne 0 ]]; then
+        fail "$rc" "$cell_stage" \
+          "symbol report lacks both event sample headers or cycles:u data rows"
       fi
-      attest "${cell_stage}_symbol_rows" "$SYMBOL_ROWS"
+      mapfile -t SYMBOL_METRICS <"$SYMBOL_METRICS_FILE"
+      rc=$?
+      if [[ "$rc" -ne 0 || ${#SYMBOL_METRICS[@]} -ne 3 ]]; then
+        fail 2 "$cell_stage" "symbol report metrics are malformed"
+      fi
+      attest "${cell_stage}_symbol_cycles_header_samples" "${SYMBOL_METRICS[0]}"
+      attest "${cell_stage}_instructions_samples" "${SYMBOL_METRICS[1]}"
+      attest "${cell_stage}_symbol_cycles_rows" "${SYMBOL_METRICS[2]}"
       rm -f -- "$PERF_DATA"
       rc=$?
       if [[ "$rc" -ne 0 ]]; then
