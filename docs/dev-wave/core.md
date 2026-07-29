@@ -85,13 +85,14 @@ worklog に既記録でないか確認する（既知事実の新事実扱いで
 
 ## DW-S07 — 段 7 記録
 
-親が worklog 吸収、insights への逐語・変異台帳凍結、decisions への設計判断を一括で行う。
-逐語・台帳の凍結前に全 gate の検出語（三軸語・placeholder）を機械検査し、hit には可逆 defang と
-erratum を施す（原文 hash 併記、D88）。docs を含む記録 commit の後に repo scan invariant と
-影響テストを再走してから wave を閉じる（F34）。受入・検査の結果欄にプレースホルダや値を伴わない
-前方参照を残して記録 commit を作らない。実測前は欄を作らず、測れなかったなら「未実施」と書く。
-再走値は amend で埋め、hash 自己参照を書かない（F36）。AI provenance、worklog、push の境界は
-`CLAUDE.md` と `docs/ai-provenance.md` を正本とする。
+親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。
+凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +
+erratum とする（D88）。逐語の末尾空白が `git diff --check` に抵触する場合も、原文 hash・byte 数・
+復元方法を併記する可逆な最小正規化だけを許し、可視文字は変えない。
+docs commit 後に repo scan invariant と影響テストを再走して閉じる（F34）。受入・検査は実測前に
+欄を作らず、未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
+hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界は `CLAUDE.md` と
+`docs/ai-provenance.md` を正本とする。
 
 ## DW-S08 — 段 8 自己改善
 

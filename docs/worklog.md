@@ -1604,6 +1604,8 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   記録後531件で違反なし
 - 構造化記録=`output/insights/2026-07-29_t146-probe-cleanup.md` と同
   `-wave/`。D88 exact-literal再帰走査はhit 0、逐語defang / erratumなし
+- 段8自己改善: worker逐語の末尾空白と`git diff --check`の衝突を実測したため、
+  原文hash・byte数・復元方法を併記する可逆最小正規化を`DW-S07`へ明記。防壁・段構成は不変
 - エージェント工数: Codex subprocess 8 (plan 1、敵対相談 2、author 1、review 2、fix 1、
   focused review 1)。親=brief・裁定・統合・変異・全走・docs・commit
 
