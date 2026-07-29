@@ -965,7 +965,112 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
 - [T-171] 同上
 
-## 2026-07-29 (57) — [T-153(e)] + [T-154(2)(3)] provenance gate を完了 — CAB 最終 trailer block 配置 + policy 9,000-byte 上限 (コード + docs、branch codex/dev-wave-t153e-t15423、計測 = 本 worktree・ログインノード)
+## 2026-07-29 (57) — [T-172] Codex rulings Skill を共通正本の薄い adapter として移植 (コード + docs、branch main、計測 = 本 worktree の検査 rc のみ)
+
+- `skill-creator` の initializer で repo-scoped Skill と UI metadata を作成。Claude command を共通
+  dispatcher とし、通常クラス 1、裁定記録 / 自己改善時のクラス 2 昇格、Codex の hook / push 境界を明示
+- `check_docs.py` の既存 Codex Skill 検査を共通化し、rulings の 2 file 閉包・interface・必須 adapter
+  検査を追加。負例 5 件と独立 surface pin を追加
+- 検査: quick_validate valid、`test_check_docs.py` 129 passed、check_docs / check_codex_agents /
+  diff-check 緑
+- 作業中に並行 T-126 が main を `8dab530` から `82aa957` へ進めた。競合はなく、(56) とその
+  「次の一手」を保持して (57) / [T-172] へ振り直した。push は未実施
+- エージェント工数: 親 1、子 0
+
+### 次の一手
+
+- [T-139] **P1・裁定完了 ((45)) + 着手承認 ((54)) → 恒久実装 wave 実装待ち**: 着手はユーザーの
+  タスク開始指示から
+- [T-142] **再裁定待ち ((55))**: 親推奨は close。継続なら tie/authoritative selector・live campaign /
+  正式 perf・exact floor・paired pilot を先行承認し、自然な skip が無ければ close
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] 同上
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] **再裁定待ち ((56))**: 親推奨は qualification-first amendment。headline 昇格不能な
+  専用系列で known non-repro live control と機械 receipt を先行し、production gate は別 wave
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-151] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-154] 同上
+- [T-130] **裁定済み ((54) = 短縮する・手段限定) → 実装待ち**: ビルドキャッシュ / 並列ビルドで
+  短縮する。ビルド成果物の使い回し (control の意味を薄める経路) は採らない
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み ((54) = 採用、新 pin `c9c1a9c` 承認) → 実装待ち**: [T-163] と同一 wave
+  または直前で実装。[T-150]/[T-151]/[T-170] の上流出しを同梱
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-171] **完了**: Codex dev-wave Skill と drift 検査を実装
+- [T-172] **完了**: Codex rulings Skill と drift 検査を実装
+
+## 2026-07-29 (58) — [T-153(e)] + [T-154(2)(3)] provenance gate を完了 — CAB 最終 trailer block 配置 + policy 9,000-byte 上限 (コード + docs、branch codex/dev-wave-t153e-t15423、計測 = 本 worktree・ログインノード)
 
 - ユーザー裁定どおり、`docs/ai-provenance.md` は 9,000 bytes 上限 (実体 8,832 bytes)、
   `Co-Authored-By` 候補はすべて最終 trailer block に置く受理集合へ変更。D96 手続に従い
@@ -977,12 +1082,12 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   message-file接続、9,001-byte、過剰拒否正例を単一nodeで検出。SURVIVED / mask / erratumなし
 - 実行順は O19 の「tracked mutation本走は統合commit後」に従い、実装commit → mutation →
   全受入 → 本記録commit。裁定予定ではなくこの実手順を記録する
-- main は開始後に `82aa957` まで正常前進。main側 (54)〜(56) を保持し、本エントリを (54) から
-  (57) へ振り直して2回のmerge競合を解消。main未追跡・未commitの他session面は変更していない
+- main は開始後に `fa4774c` まで正常前進。main側 (54)〜(57) を保持し、本エントリを (54) から
+  (58) へ振り直して2回のmerge競合を解消。main未追跡・未commitの他session面は変更していない
 - 受入 (main `8dab530` merge後): 全走 3483 passed / 18 skipped、`check_codex_agents` /
   `check_docs` 緑、`check_ai_provenance` 500件・違反なし
 - 低優先残余: commitごとの `git log -S` は線形履歴で二次コストになりうる。現waveの
-  timeout・誤受理/誤拒否はなく受入阻害ではないため、受理集合を保つcache化を [T-172] へ分離
+  timeout・誤受理/誤拒否はなく受入阻害ではないため、受理集合を保つcache化を [T-173] へ分離
 - エージェント工数: Codex 9 job (planner 1 / consult 2 / author・fix 3 / review 3)。
   親 = brief・裁定・docs・統合・mutation・受入・記録
 
@@ -1076,6 +1181,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-168] 同上
 - [T-169] 同上
 - [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
-- [T-171] 同上
-- [T-172] **P3・新規 (本wave focus2 BL-PERF-1)**: per-commit `git log -S` を
+- [T-171] **完了**: Codex dev-wave Skill と drift 検査を実装
+- [T-172] **完了**: Codex rulings Skill と drift 検査を実装
+- [T-173] **P3・新規 (本wave focus2 BL-PERF-1)**: per-commit `git log -S` を
   受理集合不変のgraph propagation/cacheへ置換し、496件約66秒の全履歴監査を短縮する

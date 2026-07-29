@@ -516,6 +516,11 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 ### 裁定・完了記録
 
+- [T-172] **(完了 2026-07-29) Codex rulings Skill 移植** — `.agents/skills/rulings/` に
+  Claude command を共通 dispatcher として再利用する薄い Codex adapter と生成済み UI metadata を追加。
+  通常クラス 1、裁定記録 / 自己改善時のクラス 2 昇格、引数・hook・push 境界を明示し、
+  `check_docs.py` の 2 file 閉包・interface・必須 adapter 検査と負例で drift を拒否する。
+  実装・検査・commit の正本は worklog 2026-07-29 (57)。
 - [T-171] **(完了 2026-07-29) Codex dev-wave Skill 移植** — `.agents/skills/dev-wave/` に
   共通 dispatcher / reference を再利用する薄い Codex adapter と生成済み UI metadata を追加。
   runtime-blocked role adapter、未配線 hook、supervisor 非互換、fresh-context 終端を明示し、
