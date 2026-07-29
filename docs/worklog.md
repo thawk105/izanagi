@@ -1450,3 +1450,137 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   1 文 ≈230B) が docs/dev-wave/** の 24000B 上限を超過し、自己改善契約に従い変更を止めて返す。
   択 = 予算内へ他節を縮約 / 上限の独立審査 / memory 運用のまま
 
+## 2026-07-29 (61) — [T-178] 8c bounded MVP: Python が workload-conditioned 4-role loop を無人駆動、YCSB A/B/C 実 Claude dry-run 完走
+
+- ユーザーの優先度変更を受け、従来「8b/層3後に条件付き」だった 8c を割り込み。
+  汎用 daemon を先に一般化せず、**unattended runner + workload-conditioned generation +
+  fixed stop + exhaustive report** を既存 `silo-backoff-trigger-gating` 1 軸へ一体化した (D99)
+- `p3_autonomous_workload_trial.py`: `8b-v1` descriptor を proposal 前に planner/coderへ渡し、
+  planner→coder→diff preview→auditor→既存 trigger driver→critic を Python が固定世代で継続。
+  A/B/C = rr50/rr95/rr100、skew0.9/rmw0、100k records/t4。role attempt は1回・retryなし、
+  performance target 早期停止なし、既存 stop + 全体 wall safety budget、全 attempt journal +
+  terminal report
+- `claude_projected_provider.py`: selector 8b の headless 隔離型を一般 role 用に実装。
+  source role read-once、runtime tools=[]、empty MCP、neutral cwd、fresh 1 turn、env allowlist、
+  session重複/server tool/Opus/token測定 gate。source role / effective prompt / input payload /
+  envelope / CLI binary SHA を receipt に束縛。Codex role adapter は正本が blocked のため不使用
+- 実走1 (`claude-abc-g1`): planner/coder 6/6 valid、auditor 0/3 valid。
+  auditor が `nits` / `proposed_tests` を `list[str]` で返し既存 `list[dict]` gate が fail-closed。
+  同 trial 内 retryなしで 3 cell partial を保存。object element schema を mediated contract に明記
+- 実走2 (`v2`): 12/12 role valid・3/3 dry-pass。ただし planner justification が具体 mechanism を
+  書き coder へ流れうる real contamination を出力監査で検出。coder 入力の planner 射影を
+  `axis/direction/magnitude` 3 field のみに物理縮退
+- 実走3 (`v3`、縮退後): **12/12 role valid・3/3 dry-pass・3/3 fixed-generation stop**。
+  A/B coder は同一 gate、C は別 gate。これは operational wiring の成立だけで、on-only 1 sample の
+  出力差・rationale を workload-conditioned synthesis の因果証拠に数えない
+- fixture/no-build A/B/C も 3/3 dry-pass。targeted + plain-runner meta は 64 passed、
+  test file 自走は 5 passed。orchestrator 全走は 2,286 passed / 16 skipped 時点の唯一の赤が
+  新 test file の plain-runner 入口欠落だったため中断し、入口 + repo-root import 追加後に
+  当該 meta を含む targeted を再走して緑。runbook =
+  `docs/phase3-8c-autonomous-trial-runbook.md`、compact receipt =
+  `output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md`
+
+### 次の一手
+
+- [T-178] **bounded MVP 実装・実 Claude no-build 完走 (本エントリ)**。project 全体の
+  unattended/autonomous 完了は未主張: crash resume、bench 実時間 budget、axis-proposer/複数軸が残る
+- [T-179] **P3・最優先 (T-178 次手)**: current commit 上で A/B/C × 1 generation を
+  single-tenant live build → legacy+S2 → bench まで運び、operational pilot report を得る。
+  配線規模のため headline / 有意差は主張しない
+- [T-180] **P3・研究主経路 (T-179 後)**: H1 rr80 / H2 rr20 × descriptor
+  on/off/swapped、同一固定 generation budget、同一 correctness gate、全件報告を実装・freeze・実走。
+  これが workload-conditioned synthesis の最初の科学的 test
+- [T-181] **P3・formal run 前**: supervisor crash 後 resume と bench 実時間 budget accounting を
+  固定。wall budget を bench budget の代替と扱わない
+- [T-174] **T-178 経路では部分消化**: source/effective prompt + payload hash 因果束縛と
+  planner mechanism の非転送を実装。他 harness への一般化は元 task の残余
+- [T-139] **(60) から状態不変**
+- [T-142] **(60) から状態不変**
+- [T-136] **(60) から状態不変**
+- [T-129] **(60) から状態不変**
+- [T-149] **(60) から状態不変**
+- [T-152] **(60) から状態不変**
+- [T-153] **(60) から状態不変**
+- [T-158] **(60) から状態不変**
+- [T-141] **(60) から状態不変**
+- [T-143] **(60) から状態不変**
+- [T-126] **(60) から状態不変**
+- [T-059] **(60) から状態不変**
+- [T-145] **(60) から状態不変**
+- [T-146] **(60) から状態不変**
+- [T-134] **(60) から状態不変**
+- [T-123] **(60) から状態不変**
+- [T-118] **(60) から状態不変**
+- [T-109] **(60) から状態不変**
+- [T-113] **(60) から状態不変**
+- [T-110] **(60) から状態不変**
+- [T-097] **(60) から状態不変**
+- [T-100] **(60) から状態不変**
+- [T-099] **(60) から状態不変**
+- [T-009] **(60) から状態不変**
+- [T-060] **(60) から状態不変**
+- [T-150] **(60) から状態不変**
+- [T-151] **(60) から状態不変**
+- [T-154] **(60) から状態不変**
+- [T-130] **(60) から状態不変**
+- [T-135] **(60) から状態不変**
+- [T-133] **(60) から状態不変**
+- [T-144] **(60) から状態不変**
+- [T-088] **(60) から状態不変**
+- [T-096] **(60) から状態不変**
+- [T-102] **(60) から状態不変**
+- [T-122] **(60) から状態不変**
+- [T-103] **(60) から状態不変**
+- [T-089] **(60) から状態不変**
+- [T-090] **(60) から状態不変**
+- [T-112] **(60) から状態不変**
+- [T-114] **(60) から状態不変**
+- [T-011] **(60) から状態不変**
+- [T-085] **(60) から状態不変**
+- [T-087] **(60) から状態不変**
+- [T-012] **(60) から状態不変**
+- [T-010] **(60) から状態不変**
+- [T-082] **(60) から状態不変**
+- [T-121] **(60) から状態不変**
+- [T-156] **(60) から状態不変**
+- [T-159] **(60) から状態不変**
+- [T-157] **(60) から状態不変**
+- [T-148] **(60) から状態不変**
+- [T-155] **(60) から状態不変**
+- [T-140] **(60) から状態不変**
+- [T-147] **(60) から状態不変**
+- [T-127] **(60) から状態不変**
+- [T-137] **(60) から状態不変**
+- [T-138] **(60) から状態不変**
+- [T-132] **(60) から状態不変**
+- [T-131] **(60) から状態不変**
+- [T-128] **(60) から状態不変**
+- [T-120] **(60) から状態不変**
+- [T-125] **(60) から状態不変**
+- [T-116] **(60) から状態不変**
+- [T-057] **(60) から状態不変**
+- [T-117] **(60) から状態不変**
+- [T-119] **(60) から状態不変**
+- [T-105] **(60) から状態不変**
+- [T-104] **(60) から状態不変**
+- [T-101] **(60) から状態不変**
+- [T-124] **(60) から状態不変**
+- [T-108] **(60) から状態不変**
+- [T-111] **(60) から状態不変**
+- [T-160] **(60) から状態不変**
+- [T-161] **(60) から状態不変**
+- [T-162] **(60) から状態不変**
+- [T-163] **(60) から状態不変**
+- [T-164] **(60) から状態不変**
+- [T-165] **(60) から状態不変**
+- [T-166] **(60) から状態不変**
+- [T-167] **(60) から状態不変**
+- [T-168] **(60) から状態不変**
+- [T-169] **(60) から状態不変**
+- [T-170] **(60) から状態不変**
+- [T-171] **(60) から状態不変**
+- [T-172] **(60) から状態不変**
+- [T-173] **(60) から状態不変**
+- [T-175] **(60) から状態不変**
+- [T-176] **(60) から状態不変**
+- [T-177] **(60) から状態不変**

@@ -402,12 +402,38 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      D58 の対象外で、別設計・別裁定のまま据え置く。将来採用しても偵察 sweep / 8b の opt-in に限り、
      S-1 の事前登録済みサンプル設計には適用せず、採否判定の between-run floor 丸め
      (roadmap §3.6(4)) は変えない。
-   - **(8c 未着手・条件付き) 駆動のセッション非依存化** — planner/coder/auditor を orchestrator から
-     呼び、checkpoint・budget・再開を Python 側が所有する。過去には build/verify よりセッション運営が遅かったが、
-     8b の前向き設計と層3最小 E2E を 1 cycle 回してなお反復運営が律速なら実装する。単発の workload
-     descriptor 配線やレポート生成を先送りしてまで先に作らない。実装しない間は human-supervised scope に
-     留まり、究極ゴールの unattended/autonomous 達成を主張しない。8c で orchestrator が所有する予算の第一単位は
-     **ベンチ実時間 (秒)**、LLM 呼び出し回数は第二軸とする。Vesper のトークン予算終了基準は直輸入しない —
+   - **(8c bounded MVP 実装済み 2026-07-29、正式実験・resume は未完) 駆動の
+     セッション非依存化** — ユーザーの優先度変更を受け、汎用 daemon を先に作らず
+     **unattended runner + workload-conditioned generation + 固定 stop + 全件 report** を
+     trigger-gating 1 軸へ束ねて最短実装した。
+     `orchestrator/campaign/p3_autonomous_workload_trial.py` が planner / coder / auditor /
+     critic を headless Claude の fresh・tool-less context で直接呼び、iteration 間の
+     descriptor / abstract whiteboard / critic reverse signal を Python が運ぶ。source role SHA +
+     effective prompt SHA + payload/envelope SHA + session/model/token provenance を全 attempt に
+     束縛し、各 role は1回・retryなし。固定 generation budget、既存 safe-loop stop、supervisor
+     wall budgetのいずれかで停止し terminal report を書く。performance target による早期停止は
+     入れない (Best-of-N / 選択的報告の回避)。
+
+     YCSB A/B/C × 1 generation の fixture no-build は 3/3 dry-pass、実 Claude no-build は
+     12/12 role attempt valid・3/3 dry-pass で完走した。初回実 Claude pilot では auditor が
+     `list[str]` を返し既存 `list[dict]` gate が 3 cell とも fail-closed にしたため、再試行せず
+     partial report を保存し、次 trial で mediated schema を object 配列へ明確化して完走した。
+     その出力監査で planner の mechanism 文が coder へ流れうることも検出し、planner→coder 境界を
+     `axis/direction/magnitude` 3 field だけに縮退した。運用正本 =
+     `docs/phase3-8c-autonomous-trial-runbook.md`。
+
+     **この完了は「無人で proposal を作り build 手前まで運べる」operational evidence であり、
+     workload-conditioned synthesis の科学的主張ではない。** A=rr50/B=rr95 は既知点、C=rr100 は
+     read-only negative-control 候補で、全 cell の coder が同じ gate を返しうる。descriptor-on
+     だけの rationale 差は因果証拠にならない。次の主経路は (1) A/B/C を 1 generation だけ
+     single-tenant live build/legacy+S2/bench で operational pilot、(2) H1 rr80/H2 rr20 ×
+     on/off/swapped を同一固定 budget で実装・凍結・実走、の順。MVP 残余は supervisor crash 後の
+     in-place resume、axis-proposer、複数軸、正式な bench 実時間 budget accounting。これらが
+     閉じるまでは project 全体の究極ゴールに対する unattended/autonomous 達成を主張しない。
+
+     8c で orchestrator が所有する予算の第一単位は
+     **ベンチ実時間 (秒)**、LLM 呼び出し回数は第二軸とする。現 MVP の wall budget は前者の
+     代替ではなく operational safety 上限。Vesper のトークン予算終了基準は直輸入しない —
      Izanagi の律速資源はトークンでなくベンチ実時間であり、ベンチは排他実行のため並列化で回収できない
      (related-work §7.2)。
 9. **層3材料レポート (事実層は v2 まで完了、機序仮説層は設計凍結済み)** — 最小完了条件は

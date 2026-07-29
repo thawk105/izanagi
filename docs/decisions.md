@@ -4376,3 +4376,65 @@ history simplification、rename を表せない。(f) CAB 値集合の比較や 
 **研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、レポート、proof chain は
 変えない。変わるのは commit provenance checker と共有規約の byte budget だけである。材料 =
 `output/insights/2026-07-29_t153e-t15423-review-verbatim/`。
+
+## D99. [T-178] 8c の優先度を上げ、汎用 daemon でなく workload-conditioned bounded trial として先に閉じる (2026-07-29)
+
+**背景:** 8c は「8b と層3を 1 cycle 回してなお人間セッション運営が律速なら着手」の条件付きだった。
+ユーザーは研究完成を近づけるため優先度を明示的に変更し、Python orchestrator が iteration 間を運び、
+LLM role を直接呼び、固定世代または成果条件で停止・報告することと、最初の YCSB A/B/C trial を求めた。
+一方、性能成果を見て止める設計は Best-of-N / 選択的報告を生み、A=rr50/B=rr95 は結果既知点なので、
+そのまま正式主張へ使えない。
+
+**決定 (1): 最初の 8c は四機能を一体化した bounded MVP とする。** 実装単位は
+`unattended runner + workload-conditioned generation + fixed stop + exhaustive report`。
+既存の安全性が成立済みな `silo-backoff-trigger-gating` 1 軸だけを再利用し、planner / coder /
+auditor / critic を Python から fresh context で直接呼ぶ。複数軸 population、axis-proposer、
+汎用 daemon、分散 worker を先に一般化しない。生成候補の build 以降は既存
+DiffQuarantine / syntax gate / auditor digest gate / legacy+S2 / bench pipeline が唯一の経路であり、
+supervisor はこれを迂回・再実装しない。
+
+**決定 (2): runtime role は projection-only `tools=[]` へ縮退する。** selector 8b の headless
+provider と同じ neutral cwd、空 MCP、session persistence なし、env allowlist、1 turn、Opus/token/
+server-tool/session-id 検査を使う。source role が Read/Bash を宣言していても runtime へ継承せず、
+必要 byte を stdin JSON へ射影する。receipt は source role SHA だけでなく mediated effective prompt
+SHA と payload/envelope/CLI SHA を持つ。Codex role adapter は正本が runtime blocked とする間は使わず、
+通常の Codex 子を role 隔離の代替にしない。
+
+**決定 (3): planner→coder は抽象 3 field だけを渡す。** 最初の実 Claude dry-run で planner の
+justification が具体的な gate mechanism を述べ、これをそのまま coder へ渡すと planner が実装を
+誘導して規律3の独立推理を壊すことが判明した。coder payload の planner 射影を
+`axis/direction/magnitude` に閉じ、justification/uncertainty は report には残すが生成入力へは流さない。
+descriptor は planner/coder の双方へ proposal 前に渡し、各 role attempt の payload SHA と同じ
+descriptor output SHA を journal で束縛する。
+
+**決定 (4): stopping は固定世代を既定とし、performance target 早期停止を入れない。**
+supervisor は最大10世代、全体 wall safety budget、既存 safe-loop stop を持つ。各 role は generation
+ごとに1 attempt・retryなし。invalid response は当該 cell を `role-invalid` で停止して partial report
+へ残し、別 cell は継続する。初回実 Claude trial で auditor が `list[str]` を返した際、既存
+`list[dict]` gate が 3 cell とも fail-closed にし、同 trial 内再試行なしで partial が保存された。
+次 trial で mediated schema を object 配列へ明確化し、12/12 role attempt valid・3/3 dry-pass を確認した。
+
+**決定 (5): YCSB A/B/C は operational pilot に限定する。** A=rr50、B=rr95、C=rr100
+(skew 0.9、rmw 0、100k records、4 threads) を descriptor projection と無人配線の最初の試験に使う。
+C は read-only negative-control 候補だが、write conflict が無ければ trigger-gating 軸の signal が
+無い可能性を明記する。`dry-pass` は build 手前の配線成立だけで correctness/性能/特化の証拠ではない。
+正式な workload-conditioned synthesis 主張は H1 rr80/H2 rr20 × on/off/swapped、同一固定 budget、
+同一 correctness gate、全件報告を実装・凍結・実走するまで未成立とする。
+
+**残余:** supervisor crash 後の in-place resume は未実装 (既存 campaign WAL/checkpoint は残るが、
+同じ run root を再開しない)。正式設計が第一予算とする bench 実時間の独立 accounting も未実装で、
+現 wall budget は safety 上限にすぎない。axis-proposer、複数軸、Codex provider も範囲外。このため
+bounded pilot は「human が iteration 間を運ばない」ことを実証するが、project 全体の究極的な
+unattended/autonomous 完了は主張しない。
+
+**却下した案:** (a) 成功閾値へ到達した時点で停止 — 適応停止と全試行中の best 選択が科学的主張を
+汚す。(b) 先に汎用 role/axis daemon を設計 — 最初の operational result を遅らせ、未検証抽象へ投資する。
+(c) A/B/C の出力差を正式な descriptor 因果証拠とする — known point・on-only・同一候補になりうるため
+不成立。(d) auditor/critic の source tool 権限を headless に保持 — projection 境界を破り fitness/WAL
+徘徊面を再導入する。(e) invalid response を自動 retry — Best-of-N と attempt 除外を生む。
+
+**成果物:** `orchestrator/campaign/claude_projected_provider.py`、
+`orchestrator/campaign/p3_autonomous_workload_trial.py`、
+`orchestrator/tests/test_p3_autonomous_workload_trial.py`、
+`docs/phase3-8c-autonomous-trial-runbook.md`。実走要約 =
+`output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md`。
