@@ -1450,3 +1450,130 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   1 文 ≈230B) が docs/dev-wave/** の 24000B 上限を超過し、自己改善契約に従い変更を止めて返す。
   択 = 予算内へ他節を縮約 / 上限の独立審査 / memory 運用のまま
 
+## 2026-07-29 (61) — Codex dev-wave 資源効率監査を P1 の 6 原子タスクへ登録 (docs のみ、branch main、計測 = 既存ログ再集計のみ)
+
+- 現行契約を skill 文書と git log に照合した。DW-O01 は全 worker を `gpt-5.6-sol` に固定し、
+  plan / consult は reasoning `max`、implementation は `high`、review は明示 routing がない。
+  外部 supervisor の token budget はあるが、Codex Skill は実 supervisor を使わず、job 単位の
+  token / turn / wall-clock / retry 上限もない
+- T-153(e)/T-154 の凍結ログを再集計すると、worker は **10 session / 434 model turns /
+  CLI reported 2,757,982 tokens**。stage 別は plan 224,150、consult 392,185、author 171,736、
+  review 544,553、fix 605,734、focus 819,624 で、focus2 単独が 498,984 / 71 turns。
+  worklog (59) の「9 job」は実ログ 10 session と不一致
+- 明白な浪費例は F43 (168k tokens 後に 194-byte 断片、採用不能) と F45
+  (85,097 + 243,247 CLI reported tokens の safety-filter 終了、出力なし)。現 validator は
+  採用を防ぐが費消後にしか働かず、同一失敗の retry / engine 切替規則は Codex Skill にない
+- 一方で同 wave は real issue 10 件 + focused review 1 件を閉じ、mutation 8/8 KILLED。
+  品質を壊す一括 downshift はせず、[T-179]〜[T-184] を観測→制限→限定比較→証拠採用の順に登録。
+  各 ID は将来セッション 1 回を上限とし、詳細な scope / dependency / acceptance は
+  `docs/phase3.md`「Codex dev-wave 資源効率化」を正本とする
+- T-178 は別セッションの未統合 handoff が使用中だったため、番号衝突を避け T-179 から採番した。
+  他セッション所有の未追跡 handoff と `.codex/worktrees/` は変更していない
+- 検査: `test_check_docs.py` 132 passed、`check_codex_agents.py` OK、`check_docs.py` 違反なし、
+  `git diff --check` rc=0
+- エージェント工数: 親 1、子 0
+
+### 次の一手
+
+- [T-179] **P1・最優先**: worker 資源台帳を正本化し、T-153(e)/T-154 の 10 session と
+  stage 別 token/turn、worklog の job 数不一致を live inference なしで機械再現する
+- [T-180] **P1・T-179 後**: model/reasoning は変えず、job 単位の resource envelope と
+  fail-closed receipt を実装する
+- [T-181] **P1・T-179 後**: focused review の reasoning `max` 対 `high` を凍結入力で限定比較する
+- [T-182] **P1・T-179 後**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
+  shadow 比較する
+- [T-183] **P1・T-179 後**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
+  retry 上限と fail-closed 回復を固定する
+- [T-184] **P1・T-180〜T-183 後**: 比較済み証拠だけで stage 別 model/reasoning/resource/retry
+  policy を採用し、rollback と drift 検査を追加する
+- [T-139] **完了 ((60))**
+- [T-142] **再裁定待ち ((60))**
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 ((60))**
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] **再裁定待ち ((60))**
+- [T-059] **再裁定待ち ((60))**
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((60))**
+- [T-151] **P3・裁定済み ((60))**
+- [T-154] **完了 ((60))**
+- [T-130] **裁定済み・実装待ち ((60))**
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み・実装待ち ((60))**
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((60))**
+- [T-171] **完了 ((60))**
+- [T-172] **完了 ((60))**
+- [T-173] **P3 ((60))**
+- [T-174] **P3・裁定要 ((60))**
+- [T-175] **P3・裁定要 ((60))**
+- [T-176] **P3・backlog ((60))**
+- [T-177] **P3・裁定要 ((60))**
