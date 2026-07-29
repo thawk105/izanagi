@@ -1173,7 +1173,8 @@ for build_tag in S V; do
     "$CMAKE_PATH" -S "$CCBENCH_SOURCE" -B "$BUILD_DIR"
     -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF
     -DCCBENCH_TRACE=0 "-DCCBENCH_BACK_OFF=$backoff"
-    -DCCBENCH_CCACHE=OFF "-DCMAKE_CXX_FLAGS=-gdwarf-4"
+    -DCCBENCH_CCACHE=OFF "-DCMAKE_CXX_FLAGS=-gdwarf-4 -fno-pie"
+    -DCMAKE_EXE_LINKER_FLAGS=-no-pie
     "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL;$GLOG_INSTALL"
     "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH"
   )
@@ -1608,6 +1609,9 @@ if total < 1_000:
 rows = [(label, count / total * 100.0) for (_, count), label in zip(counts, labels)]
 mapper = srcline_region_mapper(source_root, regions)
 totals, dropped = region_totals(rows, mapper)
+mapped_total = sum(totals.values())
+if not mapped_total > 0.0:
+    raise SystemExit(2)
 with open(map_path, "x", encoding="utf-8") as handle:
     for (address, _), label in zip(counts, labels):
         handle.write(f"{address}\t{label}\n")
