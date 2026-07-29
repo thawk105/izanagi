@@ -630,22 +630,44 @@ def test_positive_p3_exact_limit_natural_exit_is_accepted(
 
 
 def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
-    completed, receipt, paths = _run_case(
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
         tmp_path,
-        "sigterm_ignore",
-        max_wall="0.25",
+        fake=fake,
+        max_wall="3",
         max_calls=100,
         max_tokens=100000,
     )
+    env["FAKE_MODE"] = "sigterm_ignore"
+    process = subprocess.Popen(
+        command,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    child_pid_path = paths["pid_dir"] / "child.pid"
+    deadline = time.monotonic() + 2
+    while (
+        not child_pid_path.exists()
+        and process.poll() is None
+        and time.monotonic() < deadline
+    ):
+        time.sleep(0.005)
+    child_pid_registered = child_pid_path.exists()
+    stdout, stderr = process.communicate(timeout=10)
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
 
-    assert completed.returncode == 1, completed.stderr
-    assert receipt is not None
+    assert child_pid_registered, (
+        f"child.pid was not registered before deadline; stderr={stderr!r}"
+    )
+    assert process.returncode == 1, (stdout, stderr)
     assert receipt["stop_reason"] == "max_wall_clock_s"
     assert receipt["actuals"]["attempt_count"] == 1
     assert receipt["attempts"][0]["limit_trigger"] == "max_wall_clock_s"
     assert receipt["attempts"][0]["process_group_residual"] == 0
     assert receipt["possible_unobserved_overshoot"] is True
-    child_pid = int((paths["pid_dir"] / "child.pid").read_text(encoding="ascii"))
+    child_pid = int(child_pid_path.read_text(encoding="ascii"))
     _assert_pid_gone(child_pid)
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
