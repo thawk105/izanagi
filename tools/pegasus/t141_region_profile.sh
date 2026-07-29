@@ -783,10 +783,13 @@ rc=$?
 if [[ "$rc" -ne 0 ]]; then
   fail "$rc" ccbench_source "could not create copied source root"
 fi
-git -C "$CCBENCH_BASE" archive HEAD | tar -x -C "$CCBENCH_SOURCE"
+# git archive は tree 内 .gitattributes の export-ignore で cc/oze を落とすため使わない。
+git -C "$CCBENCH_BASE" ls-files -z \
+  | tar -C "$CCBENCH_BASE" --null -T - -cf - \
+  | tar -x -C "$CCBENCH_SOURCE"
 rc=$?
 if [[ "$rc" -ne 0 ]]; then
-  fail "$rc" ccbench_source "git archive extraction of ccbench HEAD failed"
+  fail "$rc" ccbench_source "tracked-file tar copy of ccbench failed"
 fi
 CCBENCH_SOURCE=$(realpath -e "$CCBENCH_SOURCE")
 rc=$?
@@ -795,6 +798,7 @@ if [[ "$rc" -ne 0 ]]; then
 fi
 attest ccbench_source_root "$CCBENCH_SOURCE"
 attest ccbench_source_head "$CCBENCH_HEAD"
+attest ccbench_copy_method "git-ls-files-tar"
 
 # (v) Stock S/V: Release codegen + diagnostic -g, trace and sanitizer disabled.
 declare -A BINARIES
