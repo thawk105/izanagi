@@ -555,6 +555,12 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### 裁定・完了記録
 
+- [T-145] **(完了 2026-07-29) long-path serve test の固定 join 二律背反除去** —
+  `join(120)`のwall-clock合否を、実listener/SignalRelay・real exchange・shutdown/release/returnの
+  ordered observationと、`INFRA_TIMEOUT / NOT_EVIDENCE`へ倒す外部child containmentへ置換。
+  M1/M5は旧test SURVIVED→新test KILLED、M2〜M4は旧121秒台のthread-alive赤→新0.7〜1.7秒の
+  専用diagnostic failure、T-136 preservationは4/4同一署名KILLED。逐語・裁定・台帳 =
+  `output/insights/2026-07-29_t145-join-dichotomy-wave/README.md`。
 - [T-143] **(完了 2026-07-29) RuleOps v1** — tracked HEAD tree の直下testと
   `output/insights/`をread-only inventoryし、人間裁定用draftとauthorityを持たない候補ledgerを
   fail-closedに検査するCLIを導入。削除・apply・approval・安全判定は行わず、受入全走へempty

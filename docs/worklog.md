@@ -1578,6 +1578,137 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
 
+## 2026-07-29 (64) — [T-145] long-path serve test の固定 join 二律背反を除去 (test + docs、branch codex/dev-wave-t145-final、計測 = 本worktree・ログインノード)
+
+- `thread.join(120)` のwall-clock合否を廃し、実listener/SignalRelay FD、real long-path exchange、
+  post-exchange park、shutdown Event、release、serve returnの順序をchild-local proxyで直接検査
+- 任意hangは親childの180秒ceilingでcontainし、timeoutをgreen/KILLでなく
+  `INFRA_TIMEOUT / NOT_EVIDENCE`へ分類。production、T-136/T-138契約、xdist markerは不変
+- 段3相談2本はNO-GO。段6は初回review2本NO-GO→fix 1、焦点reviewはNO-GO→NO-GO→GOの3巡。
+  最重要fixは無界in-process wait、exact result envelope、実relay FD、stale PGID signalの封鎖
+- 棄却/繰越: nested session一般containment、専用result FD、M7 cleanup telemetry、任意巨大output上限。
+  現fixture/M1〜M6の成果物影響を示さないscope拡張として実装せず、M7はdesign-invalidでNOT_RUN
+- mutation: M1/M5 = 2/2 KILLED、M2〜M4/M6 = 4/4 diagnostic KILLED。旧testはM1/M5 SURVIVED、
+  M2〜M4が各121.5秒後のthread-alive赤。復元は全件commit bytes一致
+- T-136 preservation PM1〜PM4v2 = 4/4 KILLED、元台帳と同一node・reason/state署名
+- 検査: focused 18 passed、integration+isolation 97 passed、全走
+  **3598 passed / 18 skipped / 赤0** (244.41s)。逐語・裁定・台帳 =
+  `output/insights/2026-07-29_t145-join-dichotomy-wave/README.md`
+- mainのT-143並行land後、最新mainを親に監査済みtest patchを再統合。旧比較3 fileのblob同一を照合し、
+  最終integration commit上でmutation/preservationを再走
+- commit: 本commit `test(dev-waves): contain T-145 long-path shutdown liveness`
+- エージェント工数: codex subprocess 12 (plan 1、相談 2、author/fix 3、review 5、初回author 1)、
+  親 = brief・裁定・統合・mutation・受入・記録
+- ユーザー手番: push (AIからは行わない)
+
+### 次の一手
+
+- [T-179] **P1・最優先 ((61))**: worker 資源台帳を正本化し、T-153(e)/T-154 の 10 session と
+  stage 別 token/turn、worklog の job 数不一致を live inference なしで機械再現する
+- [T-180] **P1・T-179 後 ((61))**: model/reasoning は変えず、job 単位の resource envelope と
+  fail-closed receipt を実装する
+- [T-181] **P1・T-179 後 ((61))**: focused review の reasoning `max` 対 `high` を
+  凍結入力で限定比較する
+- [T-182] **P1・T-179 後 ((61))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
+  shadow 比較する
+- [T-183] **P1・T-179 後 ((61))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
+  retry 上限と fail-closed 回復を固定する
+- [T-184] **P1・T-180〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
+  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する
+- [T-139] **完了 ((60))**
+- [T-142] **close ((62))**: formal selector と live campaign が揃った場合のみ新タスクとして再起票
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 ((60))**
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] **裁定済み ((62)) → 実施待ち**: headline昇格不能な専用系列でlive controlと
+  機械receiptを先行し、production gateは別wave
+- [T-059] **裁定済み ((62)) → 実施待ち**: 事前登録不能だった逸脱を明記し、
+  T-172のdrift拒否検査を事後検証する
+- [T-145] **完了 (本エントリ)**
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((60))**
+- [T-151] **P3・裁定済み ((60))**
+- [T-154] **完了 ((60))**
+- [T-130] **裁定済み・実装待ち ((60))**
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み・実装待ち ((60))**
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((60))**
+- [T-171] **完了 ((60))**
+- [T-172] **完了 ((60))**
+- [T-173] **P3 ((60))**
+- [T-174] **P3・裁定要 ((60))**
+- [T-175] **P3・裁定要 ((60))**
+- [T-176] **P3・backlog ((60))**
+- [T-177] **P3・裁定要 ((60))**
+
 ## 2026-07-29 (63) — [T-143] RuleOps v1 完了 — HEAD固定inventory + advisory候補package + 受入preflight (コード + docs、branch codex/dev-wave-t143-ruleops、計測 = 本worktree・ログインノード)
 
 - ユーザー承認済みT-143を9段dev-waveで実装。削除安全を名乗るplan v1は段3の2レンズ
