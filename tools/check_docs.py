@@ -159,7 +159,31 @@ REFERENCE_LIMITS = {
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
 }
+CODEX_DEV_WAVE_SKILL_LIMITS = {
+    ".agents/skills/dev-wave/SKILL.md": TextLimit(5_500, 400),
+    ".agents/skills/dev-wave/agents/openai.yaml": TextLimit(500, 160),
+}
 DEV_WAVE_AGGREGATE_BYTES = 24_000
+CODEX_DEV_WAVE_SKILL_FILES = frozenset(CODEX_DEV_WAVE_SKILL_LIMITS)
+CODEX_DEV_WAVE_SKILL_LITERALS = (
+    ".claude/commands/dev-wave.md",
+    "docs/skill-self-improvement.md",
+    "docs/dev-wave/workers.md",
+    "docs/dev-wave/operations.md",
+    "manager は実装面を直接編集しない",
+    "codex exec",
+    "collaboration child",
+    ".codex/role-adapters/*.json",
+    "hooks/README.md",
+    "supervised manifest",
+    "段 1〜9",
+    "local main",
+)
+CODEX_DEV_WAVE_OPENAI_YAML = """interface:
+  display_name: "Dev Wave"
+  short_description: "Izanagi の開発 wave を共通契約に従って実行"
+  default_prompt: "Use $dev-wave to run one Izanagi development wave for the specified task."
+"""
 
 COMMAND_INTERFACES = {
     ".claude/commands/dev-wave.md": {
@@ -1623,6 +1647,101 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 ".claude/commands/dev-wave.md: Codex-first 実装境界 "
                 "(実装面・軽量版・role=author・親直接編集禁止) がない"
             )
+
+    skill_root = REPO / ".agents" / "skills" / "dev-wave"
+    if skill_root.is_symlink():
+        findings.append(
+            ".agents/skills/dev-wave: skill directory が symlink — "
+            "外部 member を列挙・読取しない"
+        )
+        actual_skill_files: set[Path] = set()
+    else:
+        actual_skill_files = (
+            {
+                path for path in skill_root.rglob("*")
+                if not path.is_dir() or path.is_symlink()
+            }
+            if skill_root.is_dir() else set()
+        )
+    expected_skill_files = {
+        REPO / rel for rel in CODEX_DEV_WAVE_SKILL_FILES
+    }
+    for path in sorted(actual_skill_files - expected_skill_files):
+        findings.append(
+            f"{path.relative_to(REPO)}: Codex dev-wave Skill の予算未登録実体"
+        )
+    skill_decoded: dict[str, str] = {}
+    for path in sorted(expected_skill_files - actual_skill_files):
+        findings.append(
+            f"{path.relative_to(REPO)}: Codex dev-wave Skill の必須 file が不在"
+        )
+    for rel, limit in CODEX_DEV_WAVE_SKILL_LIMITS.items():
+        path = REPO / rel
+        if path not in actual_skill_files:
+            continue
+        text = _safe_read_text(
+            path,
+            findings,
+            f"{rel}: Skill 検査の読取失敗",
+            newline="",
+            unsafe_path_prefix=(
+                f"{rel}: symlink または regular file 以外 — "
+                "Skill interface と予算の検査対象として受理しない"
+            ),
+            invalid_utf8_prefix=f"{rel}: invalid UTF-8",
+        )
+        if text is None:
+            continue
+        skill_decoded[rel] = text
+        size = len(text.encode("utf-8"))
+        if size > limit.max_bytes:
+            findings.append(
+                f"{rel}: {size} bytes > 予算 {limit.max_bytes} bytes"
+            )
+        if limit.max_line_chars is not None:
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if len(line) > limit.max_line_chars:
+                    findings.append(
+                        f"{rel}:{lineno}: {len(line)} chars > 最長行予算 "
+                        f"{limit.max_line_chars}"
+                    )
+
+    skill_rel = ".agents/skills/dev-wave/SKILL.md"
+    skill_text = skill_decoded.get(skill_rel)
+    if skill_text is not None:
+        parsed = _parse_frontmatter(skill_text)
+        if parsed is None:
+            findings.append(f"{skill_rel}: frontmatter を一意に解析できない")
+        else:
+            values, duplicates = parsed
+            if duplicates:
+                findings.append(
+                    f"{skill_rel}: frontmatter key 重複: "
+                    f"{', '.join(sorted(duplicates))}"
+                )
+            if set(values) != {"name", "description"}:
+                findings.append(
+                    f"{skill_rel}: frontmatter key 集合が契約と不一致"
+                )
+            if values.get("name") != "dev-wave":
+                findings.append(f"{skill_rel}: name は 'dev-wave' 必須")
+            if not values.get("description", "").strip():
+                findings.append(f"{skill_rel}: description が空")
+        for literal in CODEX_DEV_WAVE_SKILL_LITERALS:
+            if literal not in skill_text:
+                findings.append(
+                    f"{skill_rel}: Codex adapter 契約がない — {literal!r}"
+                )
+
+    openai_rel = ".agents/skills/dev-wave/agents/openai.yaml"
+    openai_text = skill_decoded.get(openai_rel)
+    if (
+        openai_text is not None
+        and openai_text != CODEX_DEV_WAVE_OPENAI_YAML
+    ):
+        findings.append(
+            f"{openai_rel}: 生成済み Skill interface 契約と不一致"
+        )
 
     return unreadable
 

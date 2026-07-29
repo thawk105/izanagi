@@ -264,6 +264,20 @@ docs/skill-self-improvement.md
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
+    codex_skill = """---
+name: dev-wave
+description: synthetic Codex dev-wave skill
+---
+
+# Dev Wave
+
+""" + "\n".join(check_docs.CODEX_DEV_WAVE_SKILL_LITERALS) + "\n"
+    _write(root, ".agents/skills/dev-wave/SKILL.md", codex_skill)
+    _write(
+        root,
+        ".agents/skills/dev-wave/agents/openai.yaml",
+        check_docs.CODEX_DEV_WAVE_OPENAI_YAML,
+    )
 
     for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
         text = "# synthetic reference\n\n" + "\n\n".join(
@@ -1781,6 +1795,30 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, rel, _read(root, rel).replace(
             "親が直接直さない", "親が直接直す", 1,
         ))
+    elif case == "codex_skill_deleted":
+        os.remove(os.path.join(
+            root, ".agents", "skills", "dev-wave", "SKILL.md"
+        ))
+    elif case == "codex_skill_extra_file":
+        _write(root, ".agents/skills/dev-wave/README.md", "# extra\n")
+    elif case == "codex_skill_name_changed":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        _write(root, rel, _read(root, rel).replace(
+            "name: dev-wave", "name: dev-wave-renamed", 1,
+        ))
+    elif case == "codex_skill_adapter_deleted":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        literal = check_docs.CODEX_DEV_WAVE_SKILL_LITERALS[0]
+        _write(root, rel, _read(root, rel).replace(
+            literal, "common dispatcher omitted", 1,
+        ))
+    elif case == "codex_skill_openai_changed":
+        rel = ".agents/skills/dev-wave/agents/openai.yaml"
+        _write(root, rel, _read(root, rel).replace(
+            "display_name: \"Dev Wave\"",
+            "display_name: \"Changed\"",
+            1,
+        ))
     elif case == "fifth_reference":
         _write(root, "docs/dev-wave/extra.md", "# extra\n")
     elif case == "nested_reference":
@@ -1851,6 +1889,11 @@ _COMMAND_GUARD_CASES = [
     "codex_command_contract_deleted",
     "codex_core_contract_deleted",
     "codex_worker_contract_deleted",
+    "codex_skill_deleted",
+    "codex_skill_extra_file",
+    "codex_skill_name_changed",
+    "codex_skill_adapter_deleted",
+    "codex_skill_openai_changed",
     "fifth_reference",
     "nested_reference",
     "non_md_reference",
@@ -1897,6 +1940,11 @@ _COMMAND_GUARD_NEEDLES = {
     "codex_command_contract_deleted": "Codex-first 実装境界",
     "codex_core_contract_deleted": "Codex-first 実装契約がない",
     "codex_worker_contract_deleted": "Codex-first 実装契約がない",
+    "codex_skill_deleted": "Codex dev-wave Skill の必須 file が不在",
+    "codex_skill_extra_file": "Codex dev-wave Skill の予算未登録実体",
+    "codex_skill_name_changed": "name は 'dev-wave' 必須",
+    "codex_skill_adapter_deleted": "Codex adapter 契約がない",
+    "codex_skill_openai_changed": "生成済み Skill interface 契約と不一致",
     "fifth_reference": "docs/dev-wave/** の予算未登録実体",
     "nested_reference": "docs/dev-wave/** の予算未登録実体",
     "non_md_reference": "docs/dev-wave/** の予算未登録実体",
@@ -1951,6 +1999,36 @@ def test_operation_contract_pins_exact_section_set():
         assert check_docs._ALL_OPERATIONS <= (
             check_docs.STAGE_DISPATCH_CONTRACT[stage]
         ), f"{stage} が operations 全節を消費していない"
+
+
+def test_codex_dev_wave_skill_contract_pins_exact_surface():
+    """checker と合成 fixture の同時縮小で adapter 義務が消えないよう外延を固定する。"""
+
+    assert check_docs.CODEX_DEV_WAVE_SKILL_FILES == {
+        ".agents/skills/dev-wave/SKILL.md",
+        ".agents/skills/dev-wave/agents/openai.yaml",
+    }
+    assert check_docs.CODEX_DEV_WAVE_SKILL_LITERALS == (
+        ".claude/commands/dev-wave.md",
+        "docs/skill-self-improvement.md",
+        "docs/dev-wave/workers.md",
+        "docs/dev-wave/operations.md",
+        "manager は実装面を直接編集しない",
+        "codex exec",
+        "collaboration child",
+        ".codex/role-adapters/*.json",
+        "hooks/README.md",
+        "supervised manifest",
+        "段 1〜9",
+        "local main",
+    )
+    assert check_docs.CODEX_DEV_WAVE_OPENAI_YAML == (
+        'interface:\n'
+        '  display_name: "Dev Wave"\n'
+        '  short_description: "Izanagi の開発 wave を共通契約に従って実行"\n'
+        '  default_prompt: "Use $dev-wave to run one Izanagi development wave '
+        'for the specified task."\n'
+    )
 
 
 def test_command_docs_guard_rejects_symlinked_commands_directory():
