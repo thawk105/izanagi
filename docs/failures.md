@@ -983,3 +983,20 @@
   期待位置の再同期は literal 再ピンでなく production import で構造化する (fix10 の形)
 - 再発検知: 退避中 hash と tree 上ファイルの サイズ/hash 乖離。受入全走の plain-runner meta-test
   が断片化を最初に検出した (自走 harness 欠落として)
+
+### F54. 並行 dev-wave の正当な制御ファイルと先行 land を blanket dirt / unexpected main movement として扱い、後続 wave が取り込み不能になった [手順漏れ] [誤前提]
+
+- **事象 (2026-07-29, [T-186] wave):** local main には別 session が所有する schema-valid handoff と
+  `.codex/worktrees/` があり、対話型 dev-wave の最終 cleanliness はそれらを未知 dirt と区別できなかった。
+  作業中には複数の先行 wave が main を正常に前進させたが、従来手順にはその新 upstream を監査し、
+  wave へ merge、受入再走、新しい監査閉包を作ってから local main へ land する共通経路もなかった。
+- **根本原因:** 「main checkout は完全 clean」と「開始時 main は不変」を session ownership や受入
+  基準 SHA に結びつけず、共有 main の check-then-merge を直列化する機械 helper が無かった。
+  `.gitignore` 拡張や他 session 成果物の片付けでは、strict consumer の受理集合または所有権境界を壊す。
+- **恒久対応:** D100 / `DW-O23` / `tools/dev_wave_land.py`。形式が正しく Git admin と双方向束縛された
+  制御面だけを非接触例外にし、common lock 下で tested main / tip / ordered closure と攻撃面を再検査して
+  SHA 指定 ff-only を行う。stale / busy は fresh context へ返し、再監査と受入再走なしに再試行しない。
+- **再発検知:** helper の境界 test と同一 base 二 wave の実 subprocess E2E。未知 dirt、偽 worktree、
+  stale SHA、lock loser、non-FF、未監査 commit、gitlink postcondition 不成立をそれぞれ拒否する。
+- 記録: worklog 2026-07-29 (64)、設計判断: D100、材料:
+  `output/insights/2026-07-29_dev-wave-parallel-land/`

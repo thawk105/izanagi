@@ -555,6 +555,11 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### 裁定・完了記録
 
+- [T-186] **(完了 2026-07-29) dev-wave 並行 session land** — Claude command / Codex Skill が
+  共有する `DW-O23` と `tools/dev_wave_land.py` を導入。別 session の schema-valid handoff と
+  Git admin に双方向登録された worktree container を非接触で保ち、tested SHA・ordered closure・
+  common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D100、
+  失敗台帳=F54、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`。
 - [T-143] **(完了 2026-07-29) RuleOps v1** — tracked HEAD tree の直下testと
   `output/insights/`をread-only inventoryし、人間裁定用draftとauthorityを持たない候補ledgerを
   fail-closedに検査するCLIを導入。削除・apply・approval・安全判定は行わず、受入全走へempty

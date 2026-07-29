@@ -1,6 +1,6 @@
 # dev-wave 並行セッション取り込み改善
 - 目的: dev-wave a1 / a2 の並行実行で、他セッション所有物が安全な local main 取り込みを妨げない契約を Claude / Codex 共通面へ実装する
-- 状態: 作業中
+- 状態: 実装・敵対レビュー・変異・記録完了、最終受入と land 待ち
 - 最終更新: 2026-07-29
 - 基準コミット: fa4774cd5de5b81840984168d1ac12a15a3d16a6
 
@@ -44,9 +44,8 @@
 
 ## 未完の作業と次の一手
 
-- 段 6 の Git race / trust と契約整合 / scope の 2 レンズで統合差分を攻撃する
-- real 所見があれば所有を限定した Codex fix 子へ戻し、焦点再レビューを行う
-- 統合 commit 後に事前登録 M1〜M13、全受入、記録、最新 main 再監査、helper land を行う
+- 記録 commit 上で全受入、docs / Codex agent / provenance 検査を再実行する
+- local main の最新 SHA を照合し、変化がなければ `DW-O23` helper で監査済み集合を land する
 
 ## 落とし穴・気づき
 
@@ -90,3 +89,8 @@
   py_compile、staged diff check は green。次は統合 commit 上の M1〜M13 と全受入
 - 実装 commit `43c4ec4` 上で M1〜M13 は 13/13 KILLED、SURVIVED 0、全回 source bytes 復元。
   復元後の関連 pytest 180 と `check_docs` も green。M13 の再照準は mutation ledger に erratum 固定
+- mutation ledger commit `16e418b` の後、並行 main `0912975` を merge commit `08adb89` で
+  conflict なく統合。main 側の RuleOps / rung 記録と本 wave の checker 契約を両方保持し、
+  provenance は導入時点から 531 commits green
+- 段 7 で [T-186] / D100 / F54 / worklog (64) を採番。別 session 所有の main 側 handoff と
+  `.codex/worktrees/` は削除・stash・commit せず残置した

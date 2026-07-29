@@ -4418,3 +4418,52 @@ approval receiptの機械束縛、node単位退役はv1のscope外。
 
 **研究状態への影響:** correctness gate、campaign raw受理集合、certified選択、proof chainのbytesと
 判定は不変。変わるのは陳腐化候補を再現可能な非権威packageとして人間へ運ぶ開発運用だけである。
+
+## D100. [T-186] 対話型 dev-wave の local main 取り込みを短時間 lock・受入 SHA・所有権付き制御面で直列化する (2026-07-29)
+
+**背景:** Claude / Codex の対話型 dev-wave を並行実行すると、正常な別 session が置いた active
+handoff や登録済み worktree container が main checkout の blanket cleanliness を赤にし、先行 wave
+の land は後続 wave の開始時 main SHA を古くする。従来の `DW-S09` はこの二つを「未知 dirt」
+「main の予期せぬ移動」と同じ停止理由に畳み、他 session 非接触のまま再監査・再受入して land する
+共通経路を持たなかった (F54)。
+
+**決定 (1): Claude command と Codex Skill は共通 operation `DW-O23` だけを通常の local-main
+land 経路にする。** `tools/dev_wave_land.py` は tested main SHA、tested wave tip SHA、順序付きの
+監査済み `A..T` commit 列を入力とし、remote / push / fetch / rebase / force を行わず、main を
+SHA 指定の `merge --ff-only` でだけ前進させる。`landed`、`already-landed`、`stale-main`、
+`lock-busy`、`not-landed`、非再試行の postcondition failure を区別する。stale / busy はその場で
+反復せず fresh context へ handoff し、最新 main の再監査、wave-side merge、受入再走、新しい
+`A..T` 閉包を経てから再試行する。
+
+**決定 (2): 共有状態の直列化は common git dir の短時間 nonblocking lock に限定する。** lock は
+main/config/history/cleanliness の共有可変検査より前に取得し、merge child だけへ fd を継承する。
+長時間の review・テスト中は保持しない。shallow、grafts、replace refs、effective include、
+worktree filter、promisor / partial clone、hooks、fsmonitor、autostash、maintenance、lazy fetch を
+拒否または無効化し、開始・merge・postcondition の世代境界を fail-closed にする。
+
+**決定 (3): main の非接触例外は schema-valid active handoff と Git admin に双方向登録された
+`.claude/worktrees/` / `.codex/worktrees/` に閉じる。** tracked / staged / submodule dirt、未知
+untracked、なりすまし path、管理 backpointer 不一致、inode / bytes の取り替え、wave 差分との
+path collision は拒否する。既存 strict consumer の受理集合を広げないため `.gitignore` は変更せず、
+例外判定を helper 内へ局所化する。他 session の成果物を削除・stash・commit・上書きしない。
+
+**決定 (4): gitlink を含む取り込みは D16 cleanup / sync 後にだけ成功とする。** gitlink の
+追加・更新・削除・mode change を理由に commit 自体は拒否しないが、main checkout の submodule
+postcondition が成立するまで `landed` / `already-landed` を返さない。同一 base の二 wave は、
+先行 land、後続 stale、最新 main の merge、実 subprocess の受入 receipt、新しい tested SHA /
+closure、後続 land の順を end-to-end test で固定する。
+
+**却下案:** (a) `.gitignore` を広げる — 他の strict cleanliness consumer まで受理集合を変える。
+(b) review / 受入中の長時間 lock — 並行開発を実質直列化し、owner crash の回復面を増やす。
+(c) stale 検出後に同一 context で自動 merge / 再試行 — 新 upstream の監査と受入を省略し得る。
+(d) branch 名または未検証 rev を merge する — 検査対象と変更対象の同一性を失う。
+
+**既知の残余:** `check_docs.py` の alternate-land command 検出は広い字句 regex のため、
+synthetic な `python3 -m py_compile tools/alternate_land.py` や
+`git rev-parse -- merge --ff-only` も拒否し得る。現行の living command / Skill 行には該当せず、
+exact route topology は独立 gate が固定しているため本 wave の GO を妨げない。実在する正当な
+command がこの誤検出へ到達した時だけ、意味を保つ parser 化を再起票する。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、proof chain は不変で、
+変わるのは監査済み開発 commit を local main へ反映する操作契約だけである。材料・レビュー・変異 =
+`output/insights/2026-07-29_dev-wave-parallel-land/`。
