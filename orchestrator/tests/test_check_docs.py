@@ -278,6 +278,20 @@ description: synthetic Codex dev-wave skill
         ".agents/skills/dev-wave/agents/openai.yaml",
         check_docs.CODEX_DEV_WAVE_OPENAI_YAML,
     )
+    codex_rulings_skill = """---
+name: rulings
+description: synthetic Codex rulings skill
+---
+
+# Rulings
+
+""" + "\n".join(check_docs.CODEX_RULINGS_SKILL_LITERALS) + "\n"
+    _write(root, ".agents/skills/rulings/SKILL.md", codex_rulings_skill)
+    _write(
+        root,
+        ".agents/skills/rulings/agents/openai.yaml",
+        check_docs.CODEX_RULINGS_OPENAI_YAML,
+    )
 
     for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
         text = "# synthetic reference\n\n" + "\n\n".join(
@@ -1819,6 +1833,30 @@ def _mutate_command_guard(root: str, case: str) -> None:
             "display_name: \"Changed\"",
             1,
         ))
+    elif case == "codex_rulings_skill_deleted":
+        os.remove(os.path.join(
+            root, ".agents", "skills", "rulings", "SKILL.md"
+        ))
+    elif case == "codex_rulings_skill_extra_file":
+        _write(root, ".agents/skills/rulings/README.md", "# extra\n")
+    elif case == "codex_rulings_skill_name_changed":
+        rel = ".agents/skills/rulings/SKILL.md"
+        _write(root, rel, _read(root, rel).replace(
+            "name: rulings", "name: rulings-renamed", 1,
+        ))
+    elif case == "codex_rulings_skill_adapter_deleted":
+        rel = ".agents/skills/rulings/SKILL.md"
+        literal = check_docs.CODEX_RULINGS_SKILL_LITERALS[0]
+        _write(root, rel, _read(root, rel).replace(
+            literal, "repository entry omitted", 1,
+        ))
+    elif case == "codex_rulings_skill_openai_changed":
+        rel = ".agents/skills/rulings/agents/openai.yaml"
+        _write(root, rel, _read(root, rel).replace(
+            "display_name: \"Rulings\"",
+            "display_name: \"Changed\"",
+            1,
+        ))
     elif case == "fifth_reference":
         _write(root, "docs/dev-wave/extra.md", "# extra\n")
     elif case == "nested_reference":
@@ -1894,6 +1932,11 @@ _COMMAND_GUARD_CASES = [
     "codex_skill_name_changed",
     "codex_skill_adapter_deleted",
     "codex_skill_openai_changed",
+    "codex_rulings_skill_deleted",
+    "codex_rulings_skill_extra_file",
+    "codex_rulings_skill_name_changed",
+    "codex_rulings_skill_adapter_deleted",
+    "codex_rulings_skill_openai_changed",
     "fifth_reference",
     "nested_reference",
     "non_md_reference",
@@ -1945,6 +1988,11 @@ _COMMAND_GUARD_NEEDLES = {
     "codex_skill_name_changed": "name は 'dev-wave' 必須",
     "codex_skill_adapter_deleted": "Codex adapter 契約がない",
     "codex_skill_openai_changed": "生成済み Skill interface 契約と不一致",
+    "codex_rulings_skill_deleted": "Codex rulings Skill の必須 file が不在",
+    "codex_rulings_skill_extra_file": "Codex rulings Skill の予算未登録実体",
+    "codex_rulings_skill_name_changed": "name は 'rulings' 必須",
+    "codex_rulings_skill_adapter_deleted": "Codex adapter 契約がない",
+    "codex_rulings_skill_openai_changed": "生成済み Skill interface 契約と不一致",
     "fifth_reference": "docs/dev-wave/** の予算未登録実体",
     "nested_reference": "docs/dev-wave/** の予算未登録実体",
     "non_md_reference": "docs/dev-wave/** の予算未登録実体",
@@ -2028,6 +2076,36 @@ def test_codex_dev_wave_skill_contract_pins_exact_surface():
         '  short_description: "Izanagi の開発 wave を共通契約に従って実行"\n'
         '  default_prompt: "Use $dev-wave to run one Izanagi development wave '
         'for the specified task."\n'
+    )
+
+
+def test_codex_rulings_skill_contract_pins_exact_surface():
+    """checker と合成 fixture の同時縮小で adapter 義務が消えないよう外延を固定する。"""
+
+    assert check_docs.CODEX_RULINGS_SKILL_FILES == {
+        ".agents/skills/rulings/SKILL.md",
+        ".agents/skills/rulings/agents/openai.yaml",
+    }
+    assert check_docs.CODEX_RULINGS_SKILL_LITERALS == (
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".claude/commands/rulings.md",
+        "$ARGUMENTS",
+        "$rulings",
+        "docs/worklog.md",
+        "docs/skill-self-improvement.md",
+        "hooks/README.md",
+        "クラス 1",
+        "クラス 2",
+        "それ以外ではファイルを編集しない",
+        "push と remote branch 操作は人間に残す",
+    )
+    assert check_docs.CODEX_RULINGS_OPENAI_YAML == (
+        'interface:\n'
+        '  display_name: "Rulings"\n'
+        '  short_description: "Izanagi の裁定待ちを索引・詳説して判断を補佐"\n'
+        '  default_prompt: "Use $rulings to list and explain the Izanagi '
+        'decisions awaiting my ruling."\n'
     )
 
 
