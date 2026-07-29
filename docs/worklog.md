@@ -1578,6 +1578,147 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
 
+## 2026-07-29 (64) — [T-146] capability probe cleanup fault path を閉鎖 — partial bind / FNF / no-op / preexisting を直接観測 (コード + docs、branch codex/dev-wave-t146-probe-cleanup、計測 = 本worktree・ログインノード)
+
+- T-146を9段dev-waveで実装。production `tools/dev_waves/`、isolation meta-test、
+  product artifactはno-touchとし、`orchestrator/tests/test_dev_waves_integration.py` 1枚で閉じた
+- 段2 plan v1は段3のownership / acceptance 2レンズでNO-GO。preexisting entryを
+  capability `False`へ潰さないこと、recovery前のpathname直接観測、exception種別と
+  pathname状態の分離をplan v2へ採用した
+- 段6の初回review 2本もNO-GO。path-absent bind failureで不要な`getsockname()`を呼ぶ退行と、
+  cleanup変異が等価になるfixtureをfixし、focused再reviewは実装blocker 0でGO
+- helperはliteral `.s` と既存の `socket → bind → chmod → stat → listen` を維持。
+  partial bindはbound addressで所有を確認して回収し、cleanup FNFは不在再確認時だけ受理、
+  非FNFは元例外を送出、unlink成功後の不在もpostconditionとして固定した
+- preexisting regular file / broken symlinkは`FileExistsError`、identity保存、socket非生成を直接固定。
+  hostile writer、close複合fault、production partial-bind一般化はsingle-writer test helperの
+  独立再現を越えるためscope外のまま
+- 実装commit `5b65072`、並行main統合merge `df546fc`。変異本走は統合commit後に行い、
+  M-T146-A〜C **3/3 KILLED**、unexpected node 0、SKIP 0、各復元後にHEAD blob一致を確認
+- pre-fix controlは6 failed / 4 passed。旧穴3種類4 node、regression guard 4項目、
+  identity再固定＋新policy 2 nodeを分離し、全parameterを旧欠陥数として数えていない
+- 受入実測: focused 11 passed、関連2 test fileは変異前後とも92 passed、復元後control 10 passed。
+  並行main統合・記録前の全走は3683 passed / 18 skipped / rc=0 / 239.72秒。
+  記録commit後は関連92 passed / 84.16秒、全走3683 passed / 18 skipped / rc=0 / 237.57秒。
+  `check_docs` / `check_codex_agents` green、provenanceは実装後501件・merge後530件・
+  記録後531件で違反なし
+- 構造化記録=`output/insights/2026-07-29_t146-probe-cleanup.md` と同
+  `-wave/`。D88 exact-literal再帰走査はhit 0、逐語defang / erratumなし
+- エージェント工数: Codex subprocess 8 (plan 1、敵対相談 2、author 1、review 2、fix 1、
+  focused review 1)。親=brief・裁定・統合・変異・全走・docs・commit
+
+### 次の一手
+
+- [T-179] **P1・最優先 ((61))**: worker 資源台帳を正本化し、T-153(e)/T-154 の 10 session と
+  stage 別 token/turn、worklog の job 数不一致を live inference なしで機械再現する
+- [T-180] **P1・T-179 後 ((61))**: model/reasoning は変えず、job 単位の resource envelope と
+  fail-closed receipt を実装する
+- [T-181] **P1・T-179 後 ((61))**: focused review の reasoning `max` 対 `high` を
+  凍結入力で限定比較する
+- [T-182] **P1・T-179 後 ((61))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
+  shadow 比較する
+- [T-183] **P1・T-179 後 ((61))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
+  retry 上限と fail-closed 回復を固定する
+- [T-184] **P1・T-180〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
+  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する
+- [T-185] **P3・RuleOps hardening ((63) R3R-1)**: receipt rangeのcommit数と
+  path-union stdout bytes/cardinalityをstreaming上限でfail-closedにし、安定reasonとover-limit
+  synthetic negativeを追加する
+- [T-139] **完了 ((60))**
+- [T-142] **close ((62)のユーザー再裁定)**: formal selectorとlive campaignが揃った場合のみ
+  新タスクとして再起票
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 ((60))**
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] **完了 ((63)、D99)**
+- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
+  昇格不能な専用系列でlive controlと機械receiptを先行し、production gateは別wave
+- [T-059] **裁定済み ((62) = boundedな事後mutation audit) → 実施待ち**:
+  事前登録不能だった逸脱を明記し、T-172のdrift拒否検査を事後検証する
+- [T-145] 同上
+- [T-146] **完了 (本エントリ)**
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((60))**
+- [T-151] **P3・裁定済み ((60))**
+- [T-154] **完了 ((60))**
+- [T-130] **裁定済み・実装待ち ((60))**
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み・実装待ち ((60))**
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((60))**
+- [T-171] **完了 ((60))**
+- [T-172] **完了 ((60))**
+- [T-173] **P3 ((60))**
+- [T-174] **P3・裁定要 ((60))**
+- [T-175] **P3・裁定要 ((60))**
+- [T-176] **P3・backlog ((60))**
+- [T-177] **P3・裁定要 ((60))**
+
 ## 2026-07-29 (63) — [T-143] RuleOps v1 完了 — HEAD固定inventory + advisory候補package + 受入preflight (コード + docs、branch codex/dev-wave-t143-ruleops、計測 = 本worktree・ログインノード)
 
 - ユーザー承認済みT-143を9段dev-waveで実装。削除安全を名乗るplan v1は段3の2レンズ
