@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc",
+    "rev-parse",
+    "--verify",
+    "HEAD"
+  ],
+  "argv0_sha256": null,
+  "completed_at_utc": "2026-07-29T06:58:00.833192Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/orchestrator",
+  "elapsed_monotonic_s": 0.004172844986896962,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T06:58:00.829016Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "cf252e5dfe8cdbcaea229c436ba63a7b53f5e809d017373d5b51b6513c7d280a",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 60.0
+}

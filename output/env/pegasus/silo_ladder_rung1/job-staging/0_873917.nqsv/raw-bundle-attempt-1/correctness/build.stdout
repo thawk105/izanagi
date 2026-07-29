@@ -1,0 +1,238 @@
+/usr/bin/cmake -S/tmp/izanagi_wt_okflizip/wt -B/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace --check-build-system CMakeFiles/Makefile.cmake 0
+/usr/bin/gmake  -f CMakeFiles/Makefile2 ycsb_silo.exe
+gmake[1]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+/usr/bin/cmake -S/tmp/izanagi_wt_okflizip/wt -B/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace --check-build-system CMakeFiles/Makefile.cmake 0
+/usr/bin/cmake -E cmake_progress_start /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/CMakeFiles 14
+/usr/bin/gmake  -f CMakeFiles/Makefile2 cc/silo/CMakeFiles/ycsb_silo.exe.dir/all
+gmake[2]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+/usr/bin/gmake  -f _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/build.make _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/depend
+/usr/bin/gmake  -f CMakeFiles/masstree_build.dir/build.make CMakeFiles/masstree_build.dir/depend
+/usr/bin/gmake  -f CMakeFiles/ccbench_common.dir/build.make CMakeFiles/ccbench_common.dir/depend
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace && /usr/bin/cmake -E cmake_depends "Unix Makefiles" /tmp/izanagi_wt_okflizip/wt /tmp/izanagi_wt_okflizip/wt /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/CMakeFiles/masstree_build.dir/DependInfo.cmake --color=
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace && /usr/bin/cmake -E cmake_depends "Unix Makefiles" /tmp/izanagi_wt_okflizip/wt /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/DependInfo.cmake --color=
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace && /usr/bin/cmake -E cmake_depends "Unix Makefiles" /tmp/izanagi_wt_okflizip/wt /tmp/izanagi_wt_okflizip/wt /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/CMakeFiles/ccbench_common.dir/DependInfo.cmake --color=
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+/usr/bin/gmake  -f CMakeFiles/masstree_build.dir/build.make CMakeFiles/masstree_build.dir/build
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+/usr/bin/gmake  -f CMakeFiles/ccbench_common.dir/build.make CMakeFiles/ccbench_common.dir/build
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+/usr/bin/gmake  -f _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/build.make _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/build
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+[  0%] masstree: bootstrap + configure + make + ar
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree && /usr/bin/cmake -E echo "Building masstree (libkohler_masstree_json.a)"
+[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o
+[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o
+/usr/bin/x86_64-linux-gnu-g++-11 -DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DKEY_SIZE=8 -DMASSTREE_USE=1 -DTRACE=1 -DVAL_SIZE=4 -I/tmp/izanagi_wt_okflizip/wt -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/include -DIZANAGI_SILO_LADDER_RUNG1=1 -O3 -DNDEBUG -Wall -Wextra -Werror -std=c++20 -MD -MT CMakeFiles/ccbench_common.dir/common/util.cc.o -MF CMakeFiles/ccbench_common.dir/common/util.cc.o.d -o CMakeFiles/ccbench_common.dir/common/util.cc.o -c /tmp/izanagi_wt_okflizip/wt/common/util.cc
+/usr/bin/x86_64-linux-gnu-g++-11 -DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DKEY_SIZE=8 -DMASSTREE_USE=1 -DTRACE=1 -DVAL_SIZE=4 -I/tmp/izanagi_wt_okflizip/wt -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/include -DIZANAGI_SILO_LADDER_RUNG1=1 -O3 -DNDEBUG -Wall -Wextra -Werror -std=c++20 -MD -MT CMakeFiles/ccbench_common.dir/common/result.cc.o -MF CMakeFiles/ccbench_common.dir/common/result.cc.o.d -o CMakeFiles/ccbench_common.dir/common/result.cc.o -c /tmp/izanagi_wt_okflizip/wt/common/result.cc
+[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o
+[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o
+Building masstree (libkohler_masstree_json.a)
+[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o -MF CMakeFiles/mimalloc-static.dir/src/alloc.c.o.d -o CMakeFiles/mimalloc-static.dir/src/alloc.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/alloc.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o -MF CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o.d -o CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/alloc-aligned.c
+[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o -MF CMakeFiles/mimalloc-static.dir/src/bitmap.c.o.d -o CMakeFiles/mimalloc-static.dir/src/bitmap.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/bitmap.c
+[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree && ./bootstrap.sh
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o -MF CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o.d -o CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/alloc-posix.c
+[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o -MF CMakeFiles/mimalloc-static.dir/src/init.c.o.d -o CMakeFiles/mimalloc-static.dir/src/init.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/init.c
+[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o -MF CMakeFiles/mimalloc-static.dir/src/arena.c.o.d -o CMakeFiles/mimalloc-static.dir/src/arena.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/arena.c
+[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o -MF CMakeFiles/mimalloc-static.dir/src/os.c.o.d -o CMakeFiles/mimalloc-static.dir/src/os.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/os.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o -MF CMakeFiles/mimalloc-static.dir/src/heap.c.o.d -o CMakeFiles/mimalloc-static.dir/src/heap.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/heap.c
+[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o
+[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o
+[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o
+[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o -MF CMakeFiles/mimalloc-static.dir/src/options.c.o.d -o CMakeFiles/mimalloc-static.dir/src/options.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/options.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o -MF CMakeFiles/mimalloc-static.dir/src/libc.c.o.d -o CMakeFiles/mimalloc-static.dir/src/libc.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/libc.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o -MF CMakeFiles/mimalloc-static.dir/src/random.c.o.d -o CMakeFiles/mimalloc-static.dir/src/random.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/random.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o -MF CMakeFiles/mimalloc-static.dir/src/segment-map.c.o.d -o CMakeFiles/mimalloc-static.dir/src/segment-map.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/segment-map.c
+[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o
+[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o
+[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o
+[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o -MF CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o.d -o CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/prim/prim.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o -MF CMakeFiles/mimalloc-static.dir/src/page.c.o.d -o CMakeFiles/mimalloc-static.dir/src/page.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/page.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o -MF CMakeFiles/mimalloc-static.dir/src/segment.c.o.d -o CMakeFiles/mimalloc-static.dir/src/segment.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/segment.c
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/x86_64-linux-gnu-gcc-11 -DMI_BUILD_RELEASE -DMI_CMAKE_BUILD_TYPE=release -DMI_STATIC_LIB -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -O3 -DNDEBUG -fPIC -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -Wstrict-prototypes -ftls-model=initial-exec -std=gnu11 -MD -MT _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o -MF CMakeFiles/mimalloc-static.dir/src/stats.c.o.d -o CMakeFiles/mimalloc-static.dir/src/stats.c.o -c /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/src/stats.c
+[ 85%] Linking C static library libmimalloc.a
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/cmake -P CMakeFiles/mimalloc-static.dir/cmake_clean_target.cmake
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/_deps/mimalloc-build && /usr/bin/cmake -E cmake_link_script CMakeFiles/mimalloc-static.dir/link.txt --verbose=1
+/usr/bin/x86_64-linux-gnu-ar qc libmimalloc.a CMakeFiles/mimalloc-static.dir/src/alloc.c.o CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o CMakeFiles/mimalloc-static.dir/src/arena.c.o CMakeFiles/mimalloc-static.dir/src/bitmap.c.o CMakeFiles/mimalloc-static.dir/src/heap.c.o CMakeFiles/mimalloc-static.dir/src/init.c.o CMakeFiles/mimalloc-static.dir/src/libc.c.o CMakeFiles/mimalloc-static.dir/src/options.c.o CMakeFiles/mimalloc-static.dir/src/os.c.o CMakeFiles/mimalloc-static.dir/src/page.c.o CMakeFiles/mimalloc-static.dir/src/random.c.o CMakeFiles/mimalloc-static.dir/src/segment.c.o CMakeFiles/mimalloc-static.dir/src/segment-map.c.o CMakeFiles/mimalloc-static.dir/src/stats.c.o CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o
+/usr/bin/x86_64-linux-gnu-ranlib libmimalloc.a
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+[ 85%] Built target mimalloc-static
+[ 85%] Linking CXX static library libccbench_common.a
+/usr/bin/cmake -P CMakeFiles/ccbench_common.dir/cmake_clean_target.cmake
+/usr/bin/cmake -E cmake_link_script CMakeFiles/ccbench_common.dir/link.txt --verbose=1
+/usr/bin/x86_64-linux-gnu-ar qc libccbench_common.a CMakeFiles/ccbench_common.dir/common/result.cc.o CMakeFiles/ccbench_common.dir/common/util.cc.o
+/usr/bin/x86_64-linux-gnu-ranlib libccbench_common.a
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+[ 85%] Built target ccbench_common
+Now, run ./configure.
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree && ./configure --disable-assertions
+checking for gcc... gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C... yes
+checking whether gcc accepts -g... yes
+checking for gcc option to enable C11 features... none needed
+checking for g++... g++
+checking whether the compiler supports GNU C++... yes
+checking whether g++ accepts -g... yes
+checking for g++ option to enable C++11 features... none needed
+checking for stdio.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for strings.h... yes
+checking for sys/stat.h... yes
+checking for sys/types.h... yes
+checking for unistd.h... yes
+checking whether byte ordering is bigendian... no
+checking for sys/epoll.h... yes
+checking for numa.h... yes
+checking for library containing numa_available... -lnuma
+checking for __builtin_clz builtin... yes
+checking for __builtin_clzl builtin... yes
+checking for __builtin_clzll builtin... yes
+checking for __builtin_ctz builtin... yes
+checking for __builtin_ctzl builtin... yes
+checking for __builtin_ctzll builtin... yes
+checking for __sync_synchronize builtin... yes
+checking for __sync_fetch_and_add builtin... yes
+checking for __sync_add_and_fetch builtin... yes
+checking for __sync_fetch_and_add_8 builtin... yes
+checking for __sync_add_and_fetch_8 builtin... yes
+checking for __sync_fetch_and_or builtin... yes
+checking for __sync_or_and_fetch builtin... yes
+checking for __sync_fetch_and_or_8 builtin... yes
+checking for __sync_or_and_fetch_8 builtin... yes
+checking for __sync_bool_compare_and_swap builtin... yes
+checking for __sync_bool_compare_and_swap_8 builtin... yes
+checking for __sync_val_compare_and_swap builtin... yes
+checking for __sync_val_compare_and_swap_8 builtin... yes
+checking for __sync_lock_test_and_set builtin... yes
+checking for __sync_lock_test_and_set_val builtin... yes
+checking for __sync_lock_release_set builtin... yes
+checking whether the C++ compiler understands 'auto'... yes
+checking whether the C++ compiler understands constexpr... yes
+checking whether the C++ compiler understands static_assert... yes
+checking whether the C++ compiler understands rvalue references... yes
+checking whether the C++ compiler understands template alias... yes
+checking for type_traits... yes
+checking for std::hash... yes
+checking for __has_trivial_copy... yes
+checking for __has_trivial_destructor... yes
+checking for std::move... yes
+checking for std::is_trivially_copyable... yes
+checking for std::is_trivially_destructible... yes
+checking for std::is_rvalue_reference... yes
+checking for malloc in -lflow... no
+checking for mallctl in -ljemalloc... no
+checking for tc_malloc in -ltcmalloc_minimal... no
+checking for _Z16getMainHoardHeapv in -lhoard... no
+checking for malloc library... malloc
+checking for malloc library... default
+checking whether off_t and long are the same type... yes
+checking whether off_t and long long are the same type... no
+checking whether int64_t and long are the same type... yes
+checking whether int64_t and long long are the same type... no
+checking whether size_t and unsigned are the same type... no
+checking whether size_t and unsigned long are the same type... yes
+checking whether size_t and unsigned long long are the same type... no
+checking for long long... yes
+checking size of short... 2
+checking size of int... 4
+checking size of long... 8
+checking size of long long... 8
+checking size of void *... 8
+checking for g++ options needed to detect all undeclared functions... none needed
+checking whether getline is declared... yes
+checking for time.h... yes
+checking for execinfo.h... yes
+checking whether clock_gettime is declared... yes
+checking for library containing clock_gettime... none required
+checking for clock_gettime... yes
+checking for library containing backtrace... none required
+checking whether MADV_HUGEPAGE is supported... checking how to run the C++ preprocessor... g++ -E
+yes
+checking whether MAP_HUGETLB is supported... yes
+configure: creating ./config.status
+config.status: creating GNUmakefile
+config.status: creating config.h
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree && make -j "CXXFLAGS=-g -W -Wall -O3 -fPIC"
+make[4]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree' に入ります
+CONFIG_FILES= /bin/sh ./config.status
+mkdir -p .deps
+touch .deps/stamp
+config.status: creating config.h
+config.status: config.h is unchanged
+echo > stamp-h
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/test_atomics.d -MP -include config.h -c -o test_atomics.o test_atomics.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/string.d -MP -include config.h -c -o string.o string.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/straccum.d -MP -include config.h -c -o straccum.o straccum.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/kvrandom.d -MP -include config.h -c -o kvrandom.o kvrandom.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/json.d -MP -include config.h -c -o json.o json.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/compiler.d -MP -include config.h -c -o compiler.o compiler.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/kvio.d -MP -include config.h -c -o kvio.o kvio.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/mtd.d -MP -include config.h -c -o mtd.o mtd.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/log.d -MP -include config.h -c -o log.o log.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/checkpoint.d -MP -include config.h -c -o checkpoint.o checkpoint.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/file.d -MP -include config.h -c -o file.o file.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/misc.d -MP -include config.h -c -o misc.o misc.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/query_masstree.d -MP -include config.h -c -o query_masstree.o query_masstree.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/value_string.d -MP -include config.h -c -o value_string.o value_string.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/value_array.d -MP -include config.h -c -o value_array.o value_array.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/value_versioned_array.d -MP -include config.h -c -o value_versioned_array.o value_versioned_array.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/string_slice.d -MP -include config.h -c -o string_slice.o string_slice.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/str.d -MP -include config.h -c -o str.o str.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/msgpack.d -MP -include config.h -c -o msgpack.o msgpack.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/clp.d -MP -include config.h -c -o clp.o clp.c
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/memdebug.d -MP -include config.h -c -o memdebug.o memdebug.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/kvthread.d -MP -include config.h -c -o kvthread.o kvthread.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/mtclient.d -MP -include config.h -c -o mtclient.o mtclient.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/testrunner.d -MP -include config.h -c -o testrunner.o testrunner.cc
+g++  -g -W -Wall -O3 -fPIC -MD -MF .deps/mttest.d -MP -include config.h -c -o mttest.o mttest.cc
+ar cru libjson.a json.o string.o straccum.o str.o msgpack.o clp.o kvrandom.o compiler.o memdebug.o kvthread.o
+g++ -g -W -Wall -O3 -fPIC -o test_atomics test_atomics.o string.o straccum.o kvrandom.o json.o compiler.o kvio.o   -lnuma  -lpthread -lm
+g++ -g -W -Wall -O3 -fPIC -o mtclient mtclient.o misc.o testrunner.o kvio.o libjson.a  -lnuma  -lpthread -lm
+g++ -g -W -Wall -O3 -fPIC -o mtd mtd.o log.o checkpoint.o file.o misc.o query_masstree.o value_string.o value_array.o value_versioned_array.o string_slice.o kvio.o libjson.a   -lnuma  -lpthread -lm
+g++ -g -W -Wall -O3 -fPIC -o mttest mttest.o misc.o checkpoint.o query_masstree.o value_string.o value_array.o value_versioned_array.o string_slice.o testrunner.o kvio.o libjson.a   -lnuma  -lpthread -lm
+make[4]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree' から出ます
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree && ar cr libkohler_masstree_json.a json.o string.o straccum.o str.o msgpack.o clp.o kvrandom.o compiler.o memdebug.o kvthread.o misc.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree && ranlib libkohler_masstree_json.a
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+[ 85%] Built target masstree_build
+/usr/bin/gmake  -f cc/silo/CMakeFiles/ycsb_silo.exe.dir/build.make cc/silo/CMakeFiles/ycsb_silo.exe.dir/depend
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace && /usr/bin/cmake -E cmake_depends "Unix Makefiles" /tmp/izanagi_wt_okflizip/wt /tmp/izanagi_wt_okflizip/wt/cc/silo /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo/CMakeFiles/ycsb_silo.exe.dir/DependInfo.cmake --color=
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+/usr/bin/gmake  -f cc/silo/CMakeFiles/ycsb_silo.exe.dir/build.make cc/silo/CMakeFiles/ycsb_silo.exe.dir/build
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' に入ります
+[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo && /usr/bin/x86_64-linux-gnu-g++-11 -DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DKEY_SIZE=8 -DLinux -DMASSTREE_USE=1 -DNO_WAIT_LOCKING_IN_VALIDATION=1 -DNO_WAIT_OF_TICTOC=0 -DPARTITION_TABLE=0 -DPROCEDURE_SORT=0 -DSLEEP_READ_PHASE=0 -DTRACE=1 -DVAL_SIZE=4 -DWAL=0 -I/tmp/izanagi_wt_okflizip/wt -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/include -DIZANAGI_SILO_LADDER_RUNG1=1 -O3 -DNDEBUG -Wall -Wextra -Werror -std=c++20 -MD -MT cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o -MF CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o.d -o CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o -c /tmp/izanagi_wt_okflizip/wt/cc/silo/ycsb_silo.cc
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo && /usr/bin/x86_64-linux-gnu-g++-11 -DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DKEY_SIZE=8 -DLinux -DMASSTREE_USE=1 -DNO_WAIT_LOCKING_IN_VALIDATION=1 -DNO_WAIT_OF_TICTOC=0 -DPARTITION_TABLE=0 -DPROCEDURE_SORT=0 -DSLEEP_READ_PHASE=0 -DTRACE=1 -DVAL_SIZE=4 -DWAL=0 -I/tmp/izanagi_wt_okflizip/wt -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/include -DIZANAGI_SILO_LADDER_RUNG1=1 -O3 -DNDEBUG -Wall -Wextra -Werror -std=c++20 -MD -MT cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o -MF CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o.d -o CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o -c /tmp/izanagi_wt_okflizip/wt/cc/silo/transaction.cc
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo && /usr/bin/x86_64-linux-gnu-g++-11 -DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DKEY_SIZE=8 -DLinux -DMASSTREE_USE=1 -DNO_WAIT_LOCKING_IN_VALIDATION=1 -DNO_WAIT_OF_TICTOC=0 -DPARTITION_TABLE=0 -DPROCEDURE_SORT=0 -DSLEEP_READ_PHASE=0 -DTRACE=1 -DVAL_SIZE=4 -DWAL=0 -I/tmp/izanagi_wt_okflizip/wt -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree -I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/include -isystem /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/include -DIZANAGI_SILO_LADDER_RUNG1=1 -O3 -DNDEBUG -Wall -Wextra -Werror -std=c++20 -MD -MT cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o -MF CMakeFiles/ycsb_silo.exe.dir/util.cc.o.d -o CMakeFiles/ycsb_silo.exe.dir/util.cc.o -c /tmp/izanagi_wt_okflizip/wt/cc/silo/util.cc
+[100%] Linking CXX executable ycsb_silo.exe
+cd /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo && /usr/bin/cmake -E cmake_link_script CMakeFiles/ycsb_silo.exe.dir/link.txt --verbose=1
+/usr/bin/x86_64-linux-gnu-g++-11 -DIZANAGI_SILO_LADDER_RUNG1=1 -O3 -DNDEBUG CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o CMakeFiles/ycsb_silo.exe.dir/util.cc.o -o ycsb_silo.exe  -Wl,-rpath,/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/lib:/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/lib ../../libccbench_common.a ../../_deps/mimalloc-build/libmimalloc.a /usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.74.0 /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/lib/libgflags.a /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/lib/libglog.a /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree/libkohler_masstree_json.a -lpthread -lrt -latomic 
+gmake[3]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+[100%] Built target ycsb_silo.exe
+gmake[2]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます
+/usr/bin/cmake -E cmake_progress_start /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/CMakeFiles 0
+gmake[1]: ディレクトリ '/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace' から出ます

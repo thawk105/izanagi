@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-m",
+    "orchestrator.verifier",
+    "--json",
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/run-trace"
+  ],
+  "argv0_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "completed_at_utc": "2026-07-29T06:58:40.842807Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent",
+  "elapsed_monotonic_s": 17.514233944995794,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T06:58:23.328580Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "178a3989b14f93768131a8c2bd4c228a803e181711a704488db23b98c8540acb",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 600.0
+}

@@ -1,0 +1,151 @@
+{
+  "algorithm": "python-random-v1-from-csprng-256",
+  "runs": [
+    {
+      "ordinal": 0,
+      "rep": 1,
+      "variant": "rung-perf",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 1,
+      "rep": 1,
+      "variant": "stock",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 2,
+      "rep": 1,
+      "variant": "rung-perf",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 3,
+      "rep": 1,
+      "variant": "stock",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 4,
+      "rep": 2,
+      "variant": "stock",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 5,
+      "rep": 2,
+      "variant": "rung-perf",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 6,
+      "rep": 2,
+      "variant": "stock",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 7,
+      "rep": 2,
+      "variant": "rung-perf",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 8,
+      "rep": 3,
+      "variant": "rung-perf",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 9,
+      "rep": 3,
+      "variant": "stock",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 10,
+      "rep": 3,
+      "variant": "rung-perf",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 11,
+      "rep": 3,
+      "variant": "stock",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 12,
+      "rep": 4,
+      "variant": "stock",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 13,
+      "rep": 4,
+      "variant": "rung-perf",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 14,
+      "rep": 4,
+      "variant": "stock",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 15,
+      "rep": 4,
+      "variant": "rung-perf",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 16,
+      "rep": 5,
+      "variant": "rung-perf",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 17,
+      "rep": 5,
+      "variant": "stock",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 18,
+      "rep": 5,
+      "variant": "rung-perf",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 19,
+      "rep": 5,
+      "variant": "stock",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 20,
+      "rep": 6,
+      "variant": "stock",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 21,
+      "rep": 6,
+      "variant": "rung-perf",
+      "workload": "W-cal"
+    },
+    {
+      "ordinal": 22,
+      "rep": 6,
+      "variant": "stock",
+      "workload": "W-hw"
+    },
+    {
+      "ordinal": 23,
+      "rep": 6,
+      "variant": "rung-perf",
+      "workload": "W-hw"
+    }
+  ],
+  "schema_version": "silo_ladder_rung1-schedule/v1",
+  "seed": "3144649caa4d13947a2a55a6e2f73d3d02488128612ca0ece3482f2e87e1ce76"
+}

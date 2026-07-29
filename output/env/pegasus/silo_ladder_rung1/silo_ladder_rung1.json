@@ -1,0 +1,4567 @@
+{
+  "activation_contract": {
+    "macro": "IZANAGI_SILO_LADDER_RUNG1",
+    "symbols": [
+      "izanagi_silo_ladder_rung1_identity"
+    ]
+  },
+  "all_pass": true,
+  "artifact_id": "silo_ladder_rung1",
+  "binding": {
+    "calibration": {
+      "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+      "path": "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+      "quality_status": "accepted",
+      "records": 1000000,
+      "sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "threads": 48,
+      "transfer_scope": [
+        "build_contract",
+        "records",
+        "threads"
+      ]
+    },
+    "ccbench_pin_full": "d706650cdb31e442bef45b9b4216951d4fb40969",
+    "driver": {
+      "path": "orchestrator/campaign/silo_ladder_rung1.py",
+      "sha256": "febcf25c52d20a2e6ce958c9df14323cdbbbf962296e7500073ac9af3de8cd72"
+    },
+    "ledger": {
+      "path": "patches/ledger.json",
+      "sha256": "34d6bfe7d81fcdb3381532ac1d6aadb3b70a20d56be027dd2f584b610cddf603"
+    },
+    "patch": {
+      "path": "patches/silo_ladder_rung1.patch",
+      "sha256": "07e576070563946d7979d74f39e1e9ae2fa5f952caff5f267eb52cff3ac89324"
+    },
+    "pbs_job": {
+      "path": "tools/pegasus/silo_ladder_rung1.sh",
+      "sha256": "318c2b12fb3fa71b3587c81f201db640393d2adae2214fd6aca4a9222ab2f57c"
+    },
+    "policy": {
+      "path": "tools/pegasus/policy.json",
+      "sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac"
+    },
+    "runtime_modules": [
+      {
+        "path": "orchestrator/calibrator/__init__.py",
+        "sha256": "64ddeff872587052d2dea795fc00449f8dc1547afbbd2dde5ea4b945f7a1c032"
+      },
+      {
+        "path": "orchestrator/calibrator/schema_v2.py",
+        "sha256": "ae2be381f9abebbb41eede972da2afa3e0283f76a34a0332268ae9754530c950"
+      },
+      {
+        "path": "orchestrator/calibrator/tsc.py",
+        "sha256": "291d7ceac9156766be4ed03886439217531dd9062cb45906666f6943854b7717"
+      },
+      {
+        "path": "orchestrator/campaign/__init__.py",
+        "sha256": "27efeb6d24e2de8f3bed2089640e19a4c968405016bf074db925162a4190cd0b"
+      },
+      {
+        "path": "orchestrator/campaign/env_attestation.py",
+        "sha256": "6d4d86118b2e30272fb5e44a6155823a3b630503a29be69b72d09bf79f51ac6c"
+      },
+      {
+        "path": "orchestrator/campaign/env_contract.py",
+        "sha256": "88d557ba31e648840a9bf10eec77c4412c63a254a7428beddb9b8db041cc8c15"
+      },
+      {
+        "path": "orchestrator/campaign/patchharness.py",
+        "sha256": "3a653de45f03c281e01bc661abe8a341fd8e894d4f4908d932de4bbe1cf56e81"
+      },
+      {
+        "path": "orchestrator/campaign/silo_ladder_rung1_contract.py",
+        "sha256": "cf0e9e6b024ca22886469fe3253c9023e2791db8b0e5f7ab7dfecd85bc1e7a94"
+      },
+      {
+        "path": "orchestrator/verifier/__init__.py",
+        "sha256": "4e180d8d1a116f3960cd643de19b9a9245e2130aafbe327b6dd52b43dc982a89"
+      },
+      {
+        "path": "orchestrator/verifier/__main__.py",
+        "sha256": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701"
+      },
+      {
+        "path": "orchestrator/verifier/cli.py",
+        "sha256": "50f11267c4a4d677a94283fd64ed31afb13ec5bb5a49d199e78575b75e553acc"
+      },
+      {
+        "path": "orchestrator/verifier/core.py",
+        "sha256": "65b9d661b5af9e4d3f3f93a3693dc4e0caecc7e46905655b429c3b34d0dfc2ca"
+      },
+      {
+        "path": "orchestrator/verifier/dsg.py",
+        "sha256": "508f88a3d61b2f3370b637231fa8b38869a6984afe8c015d5269b387d88b4be5"
+      },
+      {
+        "path": "orchestrator/verifier/model.py",
+        "sha256": "d0e7cd11b0681791ebf3fb7dcb9ea64728337012ec13401a417f80e6f063ab7a"
+      },
+      {
+        "path": "orchestrator/verifier/parse.py",
+        "sha256": "1a1b8c7643cf9862fe9e4a63ec532ebef011dfd4c33da828cf9cad81e2c5b4b2"
+      },
+      {
+        "path": "orchestrator/verifier/report.py",
+        "sha256": "1b5a985c87834cfd59ed33057e6e77f3116cdfeb6c69ce05f62f0bf4a7b8c704"
+      },
+      {
+        "path": "tools/pegasus/run_probe.py",
+        "sha256": "86bdbd5360b53e943688a53375fe69a2644cd09b5db3c07617494f1ef42ab5d8"
+      }
+    ],
+    "submitter": {
+      "path": "tools/pegasus/submit_silo_ladder_rung1.sh",
+      "sha256": "e12ac6589f7587540b38d5c528b2561e446031b4ce0ee48443ee4be583d8e9b2"
+    },
+    "verifier_module": {
+      "path": "orchestrator/verifier/report.py",
+      "sha256": "1b5a985c87834cfd59ed33057e6e77f3116cdfeb6c69ce05f62f0bf4a7b8c704"
+    }
+  },
+  "checks": {
+    "activation": true,
+    "attestation": true,
+    "bounded_completion": true,
+    "correctness": true,
+    "per_worker_ever_committed": true,
+    "performance_direction": true,
+    "raw_recomputed": true,
+    "schedule": true
+  },
+  "classification": {
+    "evaluation_role": "ability_probe",
+    "recovery_measurement_eligibility": false,
+    "research_goal_eligible": false
+  },
+  "correctness_leg": {
+    "build": {
+      "activation_ok": true,
+      "binary_sha256": "75df40f68fc191732a3e14dba11ac62693292b8f5b11713707c2963e5b1c1a1d",
+      "build_argv": [
+        "/usr/bin/cmake",
+        "--build",
+        "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace",
+        "--target",
+        "ycsb_silo.exe",
+        "--verbose",
+        "-j",
+        "48"
+      ],
+      "cmake_cache_sha256": "5a6dc14e370b508c837607808e2ad77d14b1f57164b6a3ab0b7f76b5b968f9f9",
+      "compile_invocations": [
+        {
+          "argv": [
+            "/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DADD_ANALYSIS=0",
+            "-DBACK_OFF=0",
+            "-DBOOST_ALL_NO_LIB",
+            "-DBOOST_FILESYSTEM_DYN_LINK",
+            "-DKEY_SIZE=8",
+            "-DLinux",
+            "-DMASSTREE_USE=1",
+            "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DNO_WAIT_OF_TICTOC=0",
+            "-DPARTITION_TABLE=0",
+            "-DPROCEDURE_SORT=0",
+            "-DSLEEP_READ_PHASE=0",
+            "-DTRACE=1",
+            "-DVAL_SIZE=4",
+            "-DWAL=0",
+            "-I/tmp/izanagi_wt_okflizip/wt",
+            "-I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree",
+            "-I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include",
+            "-isystem",
+            "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/include",
+            "-isystem",
+            "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/include",
+            "-DIZANAGI_SILO_LADDER_RUNG1=1",
+            "-O3",
+            "-DNDEBUG",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-std=c++20",
+            "-o",
+            "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+            "-c",
+            "/tmp/izanagi_wt_okflizip/wt/cc/silo/transaction.cc"
+          ],
+          "object_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+          "object_sha256": "db9292c1998dbda1cf8ad599d60c361defbba4b29615a7a7042a8719bc47f11b",
+          "replay_match": true,
+          "replay_object_sha256": "db9292c1998dbda1cf8ad599d60c361defbba4b29615a7a7042a8719bc47f11b",
+          "source_rel": "cc/silo/transaction.cc"
+        },
+        {
+          "argv": [
+            "/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DADD_ANALYSIS=0",
+            "-DBACK_OFF=0",
+            "-DBOOST_ALL_NO_LIB",
+            "-DBOOST_FILESYSTEM_DYN_LINK",
+            "-DKEY_SIZE=8",
+            "-DLinux",
+            "-DMASSTREE_USE=1",
+            "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DNO_WAIT_OF_TICTOC=0",
+            "-DPARTITION_TABLE=0",
+            "-DPROCEDURE_SORT=0",
+            "-DSLEEP_READ_PHASE=0",
+            "-DTRACE=1",
+            "-DVAL_SIZE=4",
+            "-DWAL=0",
+            "-I/tmp/izanagi_wt_okflizip/wt",
+            "-I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree",
+            "-I/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc/include",
+            "-isystem",
+            "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install/include",
+            "-isystem",
+            "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install/include",
+            "-DIZANAGI_SILO_LADDER_RUNG1=1",
+            "-O3",
+            "-DNDEBUG",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-std=c++20",
+            "-o",
+            "CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+            "-c",
+            "/tmp/izanagi_wt_okflizip/wt/cc/silo/ycsb_silo.cc"
+          ],
+          "object_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace/cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+          "object_sha256": "0c922fc23c82e46ad4a5930b3b5e36efd1b1d6fe427320b80f176574fc186170",
+          "replay_match": true,
+          "replay_object_sha256": "0c922fc23c82e46ad4a5930b3b5e36efd1b1d6fe427320b80f176574fc186170",
+          "source_rel": "cc/silo/ycsb_silo.cc"
+        }
+      ],
+      "configure_argv": [
+        "/usr/bin/cmake",
+        "-S",
+        "/tmp/izanagi_wt_okflizip/wt",
+        "-B",
+        "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/build-trace",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_BACKOFF_FIXED=-1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DRULE_LAUNCH_COMPILE=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install;/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install",
+        "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+        "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/googletest",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_CXX_FLAGS=-DIZANAGI_SILO_LADDER_RUNG1=1"
+      ],
+      "dependencies": [
+        {
+          "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+          "git_status_porcelain_raw": "",
+          "name": "gflags",
+          "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "resolved_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install"
+        },
+        {
+          "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+          "git_status_porcelain_raw": "",
+          "name": "glog",
+          "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "resolved_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install"
+        }
+      ],
+      "id": "correctness",
+      "identity_defined_count": 1,
+      "macros": [
+        "IZANAGI_SILO_LADDER_RUNG1"
+      ],
+      "raw_paths": [
+        "CMakeCache.txt",
+        "compile_commands.json",
+        "compile-replay.json",
+        "cmake-cache-witness.json",
+        "binary.nm.txt",
+        "binary.readelf.txt"
+      ],
+      "source_sha256": {
+        "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+        "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+      },
+      "trace": true,
+      "transaction_object_sha256": "db9292c1998dbda1cf8ad599d60c361defbba4b29615a7a7042a8719bc47f11b"
+    },
+    "provenance": {
+      "ccbench_pin_full": "d706650cdb31e442bef45b9b4216951d4fb40969",
+      "dependencies": [
+        {
+          "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+          "git_status_porcelain_raw": "",
+          "name": "gflags",
+          "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "resolved_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/gflags-install"
+        },
+        {
+          "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+          "git_status_porcelain_raw": "",
+          "name": "glog",
+          "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "resolved_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/deps/glog-install"
+        }
+      ],
+      "environment_scrubbed": true,
+      "expected_patched_source_sha256": {
+        "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+        "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+      },
+      "observed_patched_source_sha256": {
+        "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+        "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+      },
+      "third_party_sources": [
+        {
+          "clean": true,
+          "fetchcontent_ref": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "git_head_raw": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38\n",
+          "git_status_porcelain_raw": "",
+          "name": "masstree",
+          "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "resolved_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/masstree",
+          "source_name": "masstree",
+          "url": "https://github.com/thawk105/masstree-beta.git"
+        },
+        {
+          "clean": true,
+          "fetchcontent_ref": "v2.3.2",
+          "git_head_raw": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe\n",
+          "git_status_porcelain_raw": "",
+          "name": "mimalloc",
+          "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "resolved_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/mimalloc",
+          "source_name": "mimalloc",
+          "url": "https://github.com/microsoft/mimalloc.git"
+        },
+        {
+          "clean": true,
+          "fetchcontent_ref": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "git_head_raw": "f8d7d77c06936315286eb55f8de22cd23c188571\n",
+          "git_status_porcelain_raw": "",
+          "name": "googletest",
+          "pin": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "resolved_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/thirdparty-src/googletest",
+          "source_name": "googletest",
+          "url": "https://github.com/google/googletest.git"
+        }
+      ],
+      "tools": [
+        {
+          "name": "git",
+          "realpath": "/usr/bin/git",
+          "sha256": "587ef21868c948b883993e23209b86a72a6ddc06aab1545c697ffc31075acd4a",
+          "version": "git version 2.34.1"
+        },
+        {
+          "name": "nm",
+          "realpath": "/usr/bin/x86_64-linux-gnu-nm",
+          "sha256": "ed6565c132d6f20019ff3f050043dc1b2b8bc2e8b3b94c1ffe3f34436431a5a4",
+          "version": "GNU nm (GNU Binutils for Ubuntu) 2.38\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty."
+        },
+        {
+          "name": "readelf",
+          "realpath": "/usr/bin/x86_64-linux-gnu-readelf",
+          "sha256": "04db0000749aff89e4af21429340b00b536fc6f80e811c872c006507881a5560",
+          "version": "GNU readelf (GNU Binutils for Ubuntu) 2.38\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty."
+        },
+        {
+          "name": "cmake",
+          "realpath": "/usr/bin/cmake",
+          "sha256": "fd22547781b64bb2db04370970b93db1f3fada1e41e60873b015ee0747009fc0",
+          "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+        },
+        {
+          "name": "gcc",
+          "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+          "sha256": "821af3c74506283c179ca413bb33e6b528805a4dd8a5c09df125e5ad560a9e89",
+          "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+        },
+        {
+          "name": "g++",
+          "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+          "sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0",
+          "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+        },
+        {
+          "name": "python",
+          "realpath": "/usr/bin/python3.10",
+          "sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+          "version": "Python 3.10.12"
+        }
+      ]
+    },
+    "raw_paths": [
+      "CMakeCache.txt",
+      "binary.nm.command.json",
+      "binary.nm.stderr",
+      "binary.nm.txt",
+      "binary.readelf.command.json",
+      "binary.readelf.stderr",
+      "binary.readelf.txt",
+      "build.stderr",
+      "build.stdout",
+      "cmake-cache-witness.json",
+      "commands/0000-git.command.json",
+      "commands/0001-x86_64-linux-gnu-nm.command.json",
+      "commands/0002-x86_64-linux-gnu-readelf.command.json",
+      "commands/0003-cmake.command.json",
+      "commands/0004-x86_64-linux-gnu-gcc-11.command.json",
+      "commands/0005-x86_64-linux-gnu-g--11.command.json",
+      "commands/0006-python3.10.command.json",
+      "commands/0007-git.command.json",
+      "commands/0008-git.command.json",
+      "commands/0009-git.command.json",
+      "commands/0010-git.command.json",
+      "commands/0011-git.command.json",
+      "commands/0012-git.command.json",
+      "commands/0013-git.command.json",
+      "commands/0014-git.command.json",
+      "commands/0015-git.command.json",
+      "commands/0016-git.command.json",
+      "commands/0017-git.command.json",
+      "commands/0018-git.command.json",
+      "commands/0019-git.command.json",
+      "commands/0020-git.command.json",
+      "commands/0021-git.command.json",
+      "commands/0022-git.command.json",
+      "commands/0023-git.command.json",
+      "commands/0024-git.command.json",
+      "commands/0025-git.command.json",
+      "commands/0026-cmake.command.json",
+      "commands/0027-cmake.command.json",
+      "commands/0028-x86_64-linux-gnu-g--11.command.json",
+      "commands/0029-x86_64-linux-gnu-g--11.command.json",
+      "commands/0030-python3.command.json",
+      "compile-replay.json",
+      "compile_commands.json",
+      "configure.stderr",
+      "configure.stdout",
+      "expected-patched-source-sha256.json",
+      "observed-patched-source-sha256.json",
+      "run.command.json",
+      "run.stderr",
+      "run.stdout",
+      "traces/trace_0.log",
+      "traces/trace_1.log",
+      "traces/trace_2.log",
+      "traces/trace_3.log",
+      "transaction.nm.command.json",
+      "transaction.nm.stderr",
+      "transaction.nm.txt",
+      "verifier.json",
+      "verifier.stderr"
+    ],
+    "trace_files": [
+      {
+        "commits": 122454,
+        "non_insert_write_witness": true,
+        "path": "trace_0.log"
+      },
+      {
+        "commits": 126620,
+        "non_insert_write_witness": true,
+        "path": "trace_1.log"
+      },
+      {
+        "commits": 131332,
+        "non_insert_write_witness": true,
+        "path": "trace_2.log"
+      },
+      {
+        "commits": 127832,
+        "non_insert_write_witness": true,
+        "path": "trace_3.log"
+      }
+    ],
+    "verifier": {
+      "certified_serializable": 1,
+      "indeterminate": 0,
+      "non_serializable": 0,
+      "results": [
+        {
+          "anomalies": [],
+          "anomaly_count": 0,
+          "certified": true,
+          "integrity": {
+            "clean": true,
+            "dup_txids": 0,
+            "genesis_commits": 0,
+            "lock_coverage_violations": 0,
+            "malformed_keys": 0,
+            "missing_txids": 0,
+            "notes": [],
+            "orphan_reads": 0,
+            "permutation_violations": 0,
+            "version_dups": 0,
+            "write_version_mismatch": 0
+          },
+          "serializable": true,
+          "stats": {
+            "abort_reasons": {},
+            "edges": 3044098,
+            "keys": 50,
+            "reads": 2251283,
+            "txns": 508238,
+            "writes": 1194062
+          },
+          "total_cycles": 0,
+          "trace_dir": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/output/env/pegasus/silo_ladder_rung1/job-staging/correctness-a8/run-trace",
+          "verdict": "serializable"
+        }
+      ],
+      "runs": 1
+    },
+    "verifier_rc": 0,
+    "workload": {
+      "argv": [
+        "-ycsb_rmw=true",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_tuple_num=50",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1"
+      ],
+      "threads": 4
+    }
+  },
+  "gap_leg": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "attempt_receipt_sha256": "82b54ad0546c74c19d0c30050bbdeca5ce88b3af1da5c703313cb408ba14d169",
+        "campaign_attempt_root_receipt": {
+          "path": "output/env/pegasus/silo_ladder_rung1/job-staging/campaigns/5d635da8878a5c646e78d1e14797568a0a56da827c28416c87bd2e144fb09b14/attempt-1/attempt-root-receipt.json",
+          "sha256": "337e410a4936908409fd75d89dac41d0a639bd58810652f12cc6f2a7c34cb30a"
+        },
+        "failure_class": null,
+        "job_id": "0:873917.nqsv",
+        "nonce": "296a1d12765c3356fd7e0596adae7252",
+        "raw_root": "attempts/1",
+        "reason_code": null,
+        "submit_receipt_sha256": "ab2c6ae3680518fdf0df27f23b27afa6eec69c48615c08c0ce85d69bf7732c91"
+      }
+    ],
+    "attestation": {
+      "all_pass": true,
+      "calibration_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+      "cpu_model_match": true,
+      "cpuset_match": true,
+      "effective_clock_match": true,
+      "ht_match": true,
+      "numa_match": true,
+      "per_sample_solo_checks": [
+        {
+          "competing_processes": [],
+          "load1": 0.83203125,
+          "load_threshold": 48.0,
+          "ordinal": 0,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 4.12890625,
+          "load_threshold": 48.0,
+          "ordinal": 1,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 4.12890625,
+          "load_threshold": 48.0,
+          "ordinal": 2,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 7.16162109375,
+          "load_threshold": 48.0,
+          "ordinal": 3,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 10.51220703125,
+          "load_threshold": 48.0,
+          "ordinal": 4,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 10.51220703125,
+          "load_threshold": 48.0,
+          "ordinal": 5,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 13.51416015625,
+          "load_threshold": 48.0,
+          "ordinal": 6,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 16.27587890625,
+          "load_threshold": 48.0,
+          "ordinal": 7,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 16.27587890625,
+          "load_threshold": 48.0,
+          "ordinal": 8,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 18.81640625,
+          "load_threshold": 48.0,
+          "ordinal": 9,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 21.15380859375,
+          "load_threshold": 48.0,
+          "ordinal": 10,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 21.15380859375,
+          "load_threshold": 48.0,
+          "ordinal": 11,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 23.3037109375,
+          "load_threshold": 48.0,
+          "ordinal": 12,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 25.28173828125,
+          "load_threshold": 48.0,
+          "ordinal": 13,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 25.28173828125,
+          "load_threshold": 48.0,
+          "ordinal": 14,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 26.46044921875,
+          "load_threshold": 48.0,
+          "ordinal": 15,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 28.185546875,
+          "load_threshold": 48.0,
+          "ordinal": 16,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 29.6923828125,
+          "load_threshold": 48.0,
+          "ordinal": 17,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 29.6923828125,
+          "load_threshold": 48.0,
+          "ordinal": 18,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 31.15869140625,
+          "load_threshold": 48.0,
+          "ordinal": 19,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 32.50732421875,
+          "load_threshold": 48.0,
+          "ordinal": 20,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 32.50732421875,
+          "load_threshold": 48.0,
+          "ordinal": 21,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 33.828125,
+          "load_threshold": 48.0,
+          "ordinal": 22,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 34.96337890625,
+          "load_threshold": 48.0,
+          "ordinal": 23,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 34.96337890625,
+          "load_threshold": 48.0,
+          "ordinal": 24,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 36.0078125,
+          "load_threshold": 48.0,
+          "ordinal": 25,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 36.88818359375,
+          "load_threshold": 48.0,
+          "ordinal": 26,
+          "passed": true,
+          "pgrep_returncode": 1
+        },
+        {
+          "competing_processes": [],
+          "load1": 36.88818359375,
+          "load_threshold": 48.0,
+          "ordinal": 27,
+          "passed": true,
+          "pgrep_returncode": 1
+        }
+      ]
+    },
+    "builds": [
+      {
+        "activation_ok": true,
+        "binary_sha256": "1a528b1c5b6b1e0d6a56e2b81f7bb1368c0616b74eaa143b28b6667492d8ee72",
+        "build_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "--build",
+          "/scr/0_873917.nqsv/build-stock",
+          "--target",
+          "ycsb_silo.exe",
+          "--verbose",
+          "-j",
+          "48"
+        ],
+        "cmake_cache_sha256": "6abe69b9b19184eac93b5bc3a5fcb9832a4dad0c495017d66b6713bde6440685",
+        "compile_invocations": [
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873917.nqsv/izanagi_wt_hnm6pdv2/wt",
+              "-I/scr/0_873917.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873917.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/glog-install/include",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+              "-c",
+              "/scr/0_873917.nqsv/izanagi_wt_hnm6pdv2/wt/cc/silo/transaction.cc"
+            ],
+            "object_path": "/scr/0_873917.nqsv/build-stock/cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+            "object_sha256": "d86561ace2a1d6ed5f20069510f338044969f05a09f1baab50aa608d18a3f88c",
+            "replay_match": true,
+            "replay_object_sha256": "d86561ace2a1d6ed5f20069510f338044969f05a09f1baab50aa608d18a3f88c",
+            "source_rel": "cc/silo/transaction.cc"
+          },
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873917.nqsv/izanagi_wt_hnm6pdv2/wt",
+              "-I/scr/0_873917.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873917.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/glog-install/include",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+              "-c",
+              "/scr/0_873917.nqsv/izanagi_wt_hnm6pdv2/wt/cc/silo/ycsb_silo.cc"
+            ],
+            "object_path": "/scr/0_873917.nqsv/build-stock/cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+            "object_sha256": "8087a0eafdb074c1f45b00dcd0612a1ce52af32b76066b86cc0b5e2144ef78e6",
+            "replay_match": true,
+            "replay_object_sha256": "8087a0eafdb074c1f45b00dcd0612a1ce52af32b76066b86cc0b5e2144ef78e6",
+            "source_rel": "cc/silo/ycsb_silo.cc"
+          }
+        ],
+        "configure_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "-S",
+          "/scr/0_873917.nqsv/izanagi_wt_hnm6pdv2/wt",
+          "-B",
+          "/scr/0_873917.nqsv/build-stock",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/0_873917.nqsv/gflags-install;/scr/0_873917.nqsv/glog-install",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/0_873917.nqsv/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/0_873917.nqsv/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/0_873917.nqsv/thirdparty-src/googletest",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS="
+        ],
+        "dependencies": [
+          {
+            "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+            "git_status_porcelain_raw": "",
+            "name": "gflags",
+            "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+            "resolved_path": "/scr/0_873917.nqsv/gflags-install"
+          },
+          {
+            "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+            "git_status_porcelain_raw": "",
+            "name": "glog",
+            "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+            "resolved_path": "/scr/0_873917.nqsv/glog-install"
+          }
+        ],
+        "id": "stock",
+        "identity_defined_count": 0,
+        "macros": [],
+        "raw_paths": [
+          "build-stock/CMakeCache.txt",
+          "build-stock/binary.nm.command.json",
+          "build-stock/binary.nm.stderr",
+          "build-stock/binary.nm.txt",
+          "build-stock/binary.readelf.command.json",
+          "build-stock/binary.readelf.stderr",
+          "build-stock/binary.readelf.txt",
+          "build-stock/build.stderr",
+          "build-stock/build.stdout",
+          "build-stock/cmake-cache-witness.json",
+          "build-stock/compile-replay.json",
+          "build-stock/compile_commands.json",
+          "build-stock/configure.stderr",
+          "build-stock/configure.stdout",
+          "build-stock/transaction.nm.command.json",
+          "build-stock/transaction.nm.stderr",
+          "build-stock/transaction.nm.txt"
+        ],
+        "source_sha256": {
+          "cc/silo/transaction.cc": "89a552b251950f46568856e9c229d1b370e84eda710c0bdc23a7a5cc6e1b85fa",
+          "cc/silo/ycsb_silo.cc": "2fcbf7233b04d92f5fa079ff504016d7ff0793ae9658b00e8aea30a5ff859bc9"
+        },
+        "trace": false,
+        "transaction_object_sha256": "d86561ace2a1d6ed5f20069510f338044969f05a09f1baab50aa608d18a3f88c"
+      },
+      {
+        "activation_ok": true,
+        "binary_sha256": "4fc3381cd1a6f20cf4fbf7c4359670b59efe0375fa93a3aa5455a682006d06a8",
+        "build_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "--build",
+          "/scr/0_873917.nqsv/build-rung-perf",
+          "--target",
+          "ycsb_silo.exe",
+          "--verbose",
+          "-j",
+          "48"
+        ],
+        "cmake_cache_sha256": "6eaded6f7173fce15f6392bf628fe64832b5337cc8adb226e65f50852e4d2918",
+        "compile_invocations": [
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt",
+              "-I/scr/0_873917.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873917.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+              "-c",
+              "/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt/cc/silo/transaction.cc"
+            ],
+            "object_path": "/scr/0_873917.nqsv/build-rung-perf/cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+            "object_sha256": "ace0716983143b6d4b59578a44f300aeff52ef4a383d963a4ee83193b2259698",
+            "replay_match": true,
+            "replay_object_sha256": "ace0716983143b6d4b59578a44f300aeff52ef4a383d963a4ee83193b2259698",
+            "source_rel": "cc/silo/transaction.cc"
+          },
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt",
+              "-I/scr/0_873917.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873917.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+              "-c",
+              "/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt/cc/silo/ycsb_silo.cc"
+            ],
+            "object_path": "/scr/0_873917.nqsv/build-rung-perf/cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+            "object_sha256": "2f7cef95749dd41c0bd6e0c2aec5d63dd07dafd096d8ab80342026a1897544e2",
+            "replay_match": true,
+            "replay_object_sha256": "2f7cef95749dd41c0bd6e0c2aec5d63dd07dafd096d8ab80342026a1897544e2",
+            "source_rel": "cc/silo/ycsb_silo.cc"
+          }
+        ],
+        "configure_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "-S",
+          "/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt",
+          "-B",
+          "/scr/0_873917.nqsv/build-rung-perf",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/0_873917.nqsv/gflags-install;/scr/0_873917.nqsv/glog-install",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/0_873917.nqsv/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/0_873917.nqsv/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/0_873917.nqsv/thirdparty-src/googletest",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS=-DIZANAGI_SILO_LADDER_RUNG1=1"
+        ],
+        "dependencies": [
+          {
+            "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+            "git_status_porcelain_raw": "",
+            "name": "gflags",
+            "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+            "resolved_path": "/scr/0_873917.nqsv/gflags-install"
+          },
+          {
+            "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+            "git_status_porcelain_raw": "",
+            "name": "glog",
+            "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+            "resolved_path": "/scr/0_873917.nqsv/glog-install"
+          }
+        ],
+        "id": "rung-perf",
+        "identity_defined_count": 1,
+        "macros": [
+          "IZANAGI_SILO_LADDER_RUNG1"
+        ],
+        "raw_paths": [
+          "build-rung-perf/CMakeCache.txt",
+          "build-rung-perf/binary.nm.command.json",
+          "build-rung-perf/binary.nm.stderr",
+          "build-rung-perf/binary.nm.txt",
+          "build-rung-perf/binary.readelf.command.json",
+          "build-rung-perf/binary.readelf.stderr",
+          "build-rung-perf/binary.readelf.txt",
+          "build-rung-perf/build.stderr",
+          "build-rung-perf/build.stdout",
+          "build-rung-perf/cmake-cache-witness.json",
+          "build-rung-perf/compile-replay.json",
+          "build-rung-perf/compile_commands.json",
+          "build-rung-perf/configure.stderr",
+          "build-rung-perf/configure.stdout",
+          "build-rung-perf/transaction.nm.command.json",
+          "build-rung-perf/transaction.nm.stderr",
+          "build-rung-perf/transaction.nm.txt"
+        ],
+        "source_sha256": {
+          "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+          "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+        },
+        "trace": false,
+        "transaction_object_sha256": "ace0716983143b6d4b59578a44f300aeff52ef4a383d963a4ee83193b2259698"
+      },
+      {
+        "activation_ok": true,
+        "binary_sha256": "3098042d99459fbaae7388a9138b875ebf686644bca466b3e17a91a5dcf2b471",
+        "build_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "--build",
+          "/scr/0_873917.nqsv/build-rung-liveness",
+          "--target",
+          "ycsb_silo.exe",
+          "--verbose",
+          "-j",
+          "48"
+        ],
+        "cmake_cache_sha256": "10e687e6359f4597bcd8452fdfc7b86c78f55523a703884a7a701210abbed76c",
+        "compile_invocations": [
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt",
+              "-I/scr/0_873917.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873917.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-DIZANAGI_SILO_LADDER_RUNG1_REPORT=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+              "-c",
+              "/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt/cc/silo/transaction.cc"
+            ],
+            "object_path": "/scr/0_873917.nqsv/build-rung-liveness/cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+            "object_sha256": "ace0716983143b6d4b59578a44f300aeff52ef4a383d963a4ee83193b2259698",
+            "replay_match": true,
+            "replay_object_sha256": "ace0716983143b6d4b59578a44f300aeff52ef4a383d963a4ee83193b2259698",
+            "source_rel": "cc/silo/transaction.cc"
+          },
+          {
+            "argv": [
+              "/usr/bin/x86_64-linux-gnu-g++-11",
+              "-DADD_ANALYSIS=0",
+              "-DBACK_OFF=0",
+              "-DBOOST_ALL_NO_LIB",
+              "-DBOOST_FILESYSTEM_DYN_LINK",
+              "-DKEY_SIZE=8",
+              "-DLinux",
+              "-DMASSTREE_USE=1",
+              "-DNO_WAIT_LOCKING_IN_VALIDATION=1",
+              "-DNO_WAIT_OF_TICTOC=0",
+              "-DPARTITION_TABLE=0",
+              "-DPROCEDURE_SORT=0",
+              "-DSLEEP_READ_PHASE=0",
+              "-DTRACE=0",
+              "-DVAL_SIZE=4",
+              "-DWAL=0",
+              "-I/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt",
+              "-I/scr/0_873917.nqsv/thirdparty-src/masstree",
+              "-I/scr/0_873917.nqsv/thirdparty-src/mimalloc/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/gflags-install/include",
+              "-isystem",
+              "/scr/0_873917.nqsv/glog-install/include",
+              "-DIZANAGI_SILO_LADDER_RUNG1=1",
+              "-DIZANAGI_SILO_LADDER_RUNG1_REPORT=1",
+              "-O3",
+              "-DNDEBUG",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-std=c++20",
+              "-o",
+              "CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+              "-c",
+              "/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt/cc/silo/ycsb_silo.cc"
+            ],
+            "object_path": "/scr/0_873917.nqsv/build-rung-liveness/cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+            "object_sha256": "bd184654f2de6573cf90abfe85af0a806a6d5586f17edb8f279345cf8f69111a",
+            "replay_match": true,
+            "replay_object_sha256": "bd184654f2de6573cf90abfe85af0a806a6d5586f17edb8f279345cf8f69111a",
+            "source_rel": "cc/silo/ycsb_silo.cc"
+          }
+        ],
+        "configure_argv": [
+          "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+          "-S",
+          "/scr/0_873917.nqsv/izanagi_wt_ke8mb08p/wt",
+          "-B",
+          "/scr/0_873917.nqsv/build-rung-liveness",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/0_873917.nqsv/gflags-install;/scr/0_873917.nqsv/glog-install",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/0_873917.nqsv/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/0_873917.nqsv/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/0_873917.nqsv/thirdparty-src/googletest",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS=-DIZANAGI_SILO_LADDER_RUNG1=1 -DIZANAGI_SILO_LADDER_RUNG1_REPORT=1"
+        ],
+        "dependencies": [
+          {
+            "git_head_raw": "e171aa2d15ed9eb17054558e0b3a6a413bb01067\n",
+            "git_status_porcelain_raw": "",
+            "name": "gflags",
+            "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+            "resolved_path": "/scr/0_873917.nqsv/gflags-install"
+          },
+          {
+            "git_head_raw": "8f9ccfe770add9e4c64e9b25c102658e3c763b73\n",
+            "git_status_porcelain_raw": "",
+            "name": "glog",
+            "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+            "resolved_path": "/scr/0_873917.nqsv/glog-install"
+          }
+        ],
+        "id": "rung-liveness",
+        "identity_defined_count": 1,
+        "macros": [
+          "IZANAGI_SILO_LADDER_RUNG1",
+          "IZANAGI_SILO_LADDER_RUNG1_REPORT"
+        ],
+        "raw_paths": [
+          "build-rung-liveness/CMakeCache.txt",
+          "build-rung-liveness/binary.nm.command.json",
+          "build-rung-liveness/binary.nm.stderr",
+          "build-rung-liveness/binary.nm.txt",
+          "build-rung-liveness/binary.readelf.command.json",
+          "build-rung-liveness/binary.readelf.stderr",
+          "build-rung-liveness/binary.readelf.txt",
+          "build-rung-liveness/build.stderr",
+          "build-rung-liveness/build.stdout",
+          "build-rung-liveness/cmake-cache-witness.json",
+          "build-rung-liveness/compile-replay.json",
+          "build-rung-liveness/compile_commands.json",
+          "build-rung-liveness/configure.stderr",
+          "build-rung-liveness/configure.stdout",
+          "build-rung-liveness/transaction.nm.command.json",
+          "build-rung-liveness/transaction.nm.stderr",
+          "build-rung-liveness/transaction.nm.txt"
+        ],
+        "source_sha256": {
+          "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+          "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+        },
+        "trace": false,
+        "transaction_object_sha256": "ace0716983143b6d4b59578a44f300aeff52ef4a383d963a4ee83193b2259698"
+      }
+    ],
+    "liveness_runs": [
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 497682,
+        "completed_at_utc": "2026-07-29T07:01:14.181381Z",
+        "ordinal": 24,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 9142,
+            "worker": 0
+          },
+          {
+            "commits": 9849,
+            "worker": 1
+          },
+          {
+            "commits": 10760,
+            "worker": 2
+          },
+          {
+            "commits": 11407,
+            "worker": 3
+          },
+          {
+            "commits": 10057,
+            "worker": 4
+          },
+          {
+            "commits": 10150,
+            "worker": 5
+          },
+          {
+            "commits": 11306,
+            "worker": 6
+          },
+          {
+            "commits": 10918,
+            "worker": 7
+          },
+          {
+            "commits": 11051,
+            "worker": 8
+          },
+          {
+            "commits": 9937,
+            "worker": 9
+          },
+          {
+            "commits": 10663,
+            "worker": 10
+          },
+          {
+            "commits": 11181,
+            "worker": 11
+          },
+          {
+            "commits": 9845,
+            "worker": 12
+          },
+          {
+            "commits": 9836,
+            "worker": 13
+          },
+          {
+            "commits": 10045,
+            "worker": 14
+          },
+          {
+            "commits": 10803,
+            "worker": 15
+          },
+          {
+            "commits": 11474,
+            "worker": 16
+          },
+          {
+            "commits": 10758,
+            "worker": 17
+          },
+          {
+            "commits": 9956,
+            "worker": 18
+          },
+          {
+            "commits": 9453,
+            "worker": 19
+          },
+          {
+            "commits": 9125,
+            "worker": 20
+          },
+          {
+            "commits": 9877,
+            "worker": 21
+          },
+          {
+            "commits": 10314,
+            "worker": 22
+          },
+          {
+            "commits": 10359,
+            "worker": 23
+          },
+          {
+            "commits": 10265,
+            "worker": 24
+          },
+          {
+            "commits": 11064,
+            "worker": 25
+          },
+          {
+            "commits": 10966,
+            "worker": 26
+          },
+          {
+            "commits": 8115,
+            "worker": 27
+          },
+          {
+            "commits": 11235,
+            "worker": 28
+          },
+          {
+            "commits": 10706,
+            "worker": 29
+          },
+          {
+            "commits": 10208,
+            "worker": 30
+          },
+          {
+            "commits": 10256,
+            "worker": 31
+          },
+          {
+            "commits": 12758,
+            "worker": 32
+          },
+          {
+            "commits": 11322,
+            "worker": 33
+          },
+          {
+            "commits": 10758,
+            "worker": 34
+          },
+          {
+            "commits": 11778,
+            "worker": 35
+          },
+          {
+            "commits": 9338,
+            "worker": 36
+          },
+          {
+            "commits": 10082,
+            "worker": 37
+          },
+          {
+            "commits": 10383,
+            "worker": 38
+          },
+          {
+            "commits": 10976,
+            "worker": 39
+          },
+          {
+            "commits": 10177,
+            "worker": 40
+          },
+          {
+            "commits": 9535,
+            "worker": 41
+          },
+          {
+            "commits": 10583,
+            "worker": 42
+          },
+          {
+            "commits": 11119,
+            "worker": 43
+          },
+          {
+            "commits": 8885,
+            "worker": 44
+          },
+          {
+            "commits": 10643,
+            "worker": 45
+          },
+          {
+            "commits": 10041,
+            "worker": 46
+          },
+          {
+            "commits": 8223,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-24-W-cal-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:01:10.729205Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "ec8c0efc04ced61aea74918c7f451ee52fe65b3e1d6a3c0204ab75db2361b8b9",
+        "variant": "rung-liveness",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 499440,
+        "completed_at_utc": "2026-07-29T07:01:17.618330Z",
+        "ordinal": 25,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 10853,
+            "worker": 0
+          },
+          {
+            "commits": 10406,
+            "worker": 1
+          },
+          {
+            "commits": 11019,
+            "worker": 2
+          },
+          {
+            "commits": 11021,
+            "worker": 3
+          },
+          {
+            "commits": 11271,
+            "worker": 4
+          },
+          {
+            "commits": 8314,
+            "worker": 5
+          },
+          {
+            "commits": 10408,
+            "worker": 6
+          },
+          {
+            "commits": 10505,
+            "worker": 7
+          },
+          {
+            "commits": 12401,
+            "worker": 8
+          },
+          {
+            "commits": 11256,
+            "worker": 9
+          },
+          {
+            "commits": 10161,
+            "worker": 10
+          },
+          {
+            "commits": 11153,
+            "worker": 11
+          },
+          {
+            "commits": 9929,
+            "worker": 12
+          },
+          {
+            "commits": 9949,
+            "worker": 13
+          },
+          {
+            "commits": 8976,
+            "worker": 14
+          },
+          {
+            "commits": 10157,
+            "worker": 15
+          },
+          {
+            "commits": 10535,
+            "worker": 16
+          },
+          {
+            "commits": 10226,
+            "worker": 17
+          },
+          {
+            "commits": 10334,
+            "worker": 18
+          },
+          {
+            "commits": 10617,
+            "worker": 19
+          },
+          {
+            "commits": 10223,
+            "worker": 20
+          },
+          {
+            "commits": 10805,
+            "worker": 21
+          },
+          {
+            "commits": 10391,
+            "worker": 22
+          },
+          {
+            "commits": 10787,
+            "worker": 23
+          },
+          {
+            "commits": 9861,
+            "worker": 24
+          },
+          {
+            "commits": 11096,
+            "worker": 25
+          },
+          {
+            "commits": 10950,
+            "worker": 26
+          },
+          {
+            "commits": 9657,
+            "worker": 27
+          },
+          {
+            "commits": 10142,
+            "worker": 28
+          },
+          {
+            "commits": 9406,
+            "worker": 29
+          },
+          {
+            "commits": 10950,
+            "worker": 30
+          },
+          {
+            "commits": 10722,
+            "worker": 31
+          },
+          {
+            "commits": 11680,
+            "worker": 32
+          },
+          {
+            "commits": 9667,
+            "worker": 33
+          },
+          {
+            "commits": 9703,
+            "worker": 34
+          },
+          {
+            "commits": 9730,
+            "worker": 35
+          },
+          {
+            "commits": 11015,
+            "worker": 36
+          },
+          {
+            "commits": 10161,
+            "worker": 37
+          },
+          {
+            "commits": 10492,
+            "worker": 38
+          },
+          {
+            "commits": 10765,
+            "worker": 39
+          },
+          {
+            "commits": 10857,
+            "worker": 40
+          },
+          {
+            "commits": 9900,
+            "worker": 41
+          },
+          {
+            "commits": 9425,
+            "worker": 42
+          },
+          {
+            "commits": 10361,
+            "worker": 43
+          },
+          {
+            "commits": 9612,
+            "worker": 44
+          },
+          {
+            "commits": 10447,
+            "worker": 45
+          },
+          {
+            "commits": 10773,
+            "worker": 46
+          },
+          {
+            "commits": 10371,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-25-W-cal-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:01:14.208010Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "1539dad073dcbdd9c913aa4424fe959f01cc92566cedf2a131e055c2ea9f4030",
+        "variant": "rung-liveness",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 521318,
+        "completed_at_utc": "2026-07-29T07:01:21.053779Z",
+        "ordinal": 26,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 10405,
+            "worker": 0
+          },
+          {
+            "commits": 10303,
+            "worker": 1
+          },
+          {
+            "commits": 10596,
+            "worker": 2
+          },
+          {
+            "commits": 10602,
+            "worker": 3
+          },
+          {
+            "commits": 10445,
+            "worker": 4
+          },
+          {
+            "commits": 9883,
+            "worker": 5
+          },
+          {
+            "commits": 11937,
+            "worker": 6
+          },
+          {
+            "commits": 10400,
+            "worker": 7
+          },
+          {
+            "commits": 10909,
+            "worker": 8
+          },
+          {
+            "commits": 10028,
+            "worker": 9
+          },
+          {
+            "commits": 10584,
+            "worker": 10
+          },
+          {
+            "commits": 10889,
+            "worker": 11
+          },
+          {
+            "commits": 10824,
+            "worker": 12
+          },
+          {
+            "commits": 10453,
+            "worker": 13
+          },
+          {
+            "commits": 10844,
+            "worker": 14
+          },
+          {
+            "commits": 10655,
+            "worker": 15
+          },
+          {
+            "commits": 11602,
+            "worker": 16
+          },
+          {
+            "commits": 10874,
+            "worker": 17
+          },
+          {
+            "commits": 10482,
+            "worker": 18
+          },
+          {
+            "commits": 9912,
+            "worker": 19
+          },
+          {
+            "commits": 11133,
+            "worker": 20
+          },
+          {
+            "commits": 10616,
+            "worker": 21
+          },
+          {
+            "commits": 10490,
+            "worker": 22
+          },
+          {
+            "commits": 9942,
+            "worker": 23
+          },
+          {
+            "commits": 9916,
+            "worker": 24
+          },
+          {
+            "commits": 10327,
+            "worker": 25
+          },
+          {
+            "commits": 10879,
+            "worker": 26
+          },
+          {
+            "commits": 11533,
+            "worker": 27
+          },
+          {
+            "commits": 11304,
+            "worker": 28
+          },
+          {
+            "commits": 10887,
+            "worker": 29
+          },
+          {
+            "commits": 11142,
+            "worker": 30
+          },
+          {
+            "commits": 10908,
+            "worker": 31
+          },
+          {
+            "commits": 11636,
+            "worker": 32
+          },
+          {
+            "commits": 10434,
+            "worker": 33
+          },
+          {
+            "commits": 11257,
+            "worker": 34
+          },
+          {
+            "commits": 12169,
+            "worker": 35
+          },
+          {
+            "commits": 11103,
+            "worker": 36
+          },
+          {
+            "commits": 10508,
+            "worker": 37
+          },
+          {
+            "commits": 11762,
+            "worker": 38
+          },
+          {
+            "commits": 11053,
+            "worker": 39
+          },
+          {
+            "commits": 11542,
+            "worker": 40
+          },
+          {
+            "commits": 10794,
+            "worker": 41
+          },
+          {
+            "commits": 10257,
+            "worker": 42
+          },
+          {
+            "commits": 11302,
+            "worker": 43
+          },
+          {
+            "commits": 11764,
+            "worker": 44
+          },
+          {
+            "commits": 11674,
+            "worker": 45
+          },
+          {
+            "commits": 10717,
+            "worker": 46
+          },
+          {
+            "commits": 11642,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-26-W-hw-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:01:17.644936Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "c90ff449b088cb48ae3defab2567997d4bf087ba21e9c5eb5cc78f46dd696036",
+        "variant": "rung-liveness",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-liveness",
+        "bounded_completion": true,
+        "commit_count": 505027,
+        "completed_at_utc": "2026-07-29T07:01:24.475216Z",
+        "ordinal": 27,
+        "per_worker_batch_commits": [
+          {
+            "commits": 0,
+            "worker": 0
+          },
+          {
+            "commits": 0,
+            "worker": 1
+          },
+          {
+            "commits": 0,
+            "worker": 2
+          },
+          {
+            "commits": 0,
+            "worker": 3
+          },
+          {
+            "commits": 0,
+            "worker": 4
+          },
+          {
+            "commits": 0,
+            "worker": 5
+          },
+          {
+            "commits": 0,
+            "worker": 6
+          },
+          {
+            "commits": 0,
+            "worker": 7
+          },
+          {
+            "commits": 0,
+            "worker": 8
+          },
+          {
+            "commits": 0,
+            "worker": 9
+          },
+          {
+            "commits": 0,
+            "worker": 10
+          },
+          {
+            "commits": 0,
+            "worker": 11
+          },
+          {
+            "commits": 0,
+            "worker": 12
+          },
+          {
+            "commits": 0,
+            "worker": 13
+          },
+          {
+            "commits": 0,
+            "worker": 14
+          },
+          {
+            "commits": 0,
+            "worker": 15
+          },
+          {
+            "commits": 0,
+            "worker": 16
+          },
+          {
+            "commits": 0,
+            "worker": 17
+          },
+          {
+            "commits": 0,
+            "worker": 18
+          },
+          {
+            "commits": 0,
+            "worker": 19
+          },
+          {
+            "commits": 0,
+            "worker": 20
+          },
+          {
+            "commits": 0,
+            "worker": 21
+          },
+          {
+            "commits": 0,
+            "worker": 22
+          },
+          {
+            "commits": 0,
+            "worker": 23
+          },
+          {
+            "commits": 0,
+            "worker": 24
+          },
+          {
+            "commits": 0,
+            "worker": 25
+          },
+          {
+            "commits": 0,
+            "worker": 26
+          },
+          {
+            "commits": 0,
+            "worker": 27
+          },
+          {
+            "commits": 0,
+            "worker": 28
+          },
+          {
+            "commits": 0,
+            "worker": 29
+          },
+          {
+            "commits": 0,
+            "worker": 30
+          },
+          {
+            "commits": 0,
+            "worker": 31
+          },
+          {
+            "commits": 0,
+            "worker": 32
+          },
+          {
+            "commits": 0,
+            "worker": 33
+          },
+          {
+            "commits": 0,
+            "worker": 34
+          },
+          {
+            "commits": 0,
+            "worker": 35
+          },
+          {
+            "commits": 0,
+            "worker": 36
+          },
+          {
+            "commits": 0,
+            "worker": 37
+          },
+          {
+            "commits": 0,
+            "worker": 38
+          },
+          {
+            "commits": 0,
+            "worker": 39
+          },
+          {
+            "commits": 0,
+            "worker": 40
+          },
+          {
+            "commits": 0,
+            "worker": 41
+          },
+          {
+            "commits": 0,
+            "worker": 42
+          },
+          {
+            "commits": 0,
+            "worker": 43
+          },
+          {
+            "commits": 0,
+            "worker": 44
+          },
+          {
+            "commits": 0,
+            "worker": 45
+          },
+          {
+            "commits": 0,
+            "worker": 46
+          },
+          {
+            "commits": 0,
+            "worker": 47
+          }
+        ],
+        "per_worker_commits": [
+          {
+            "commits": 9615,
+            "worker": 0
+          },
+          {
+            "commits": 10568,
+            "worker": 1
+          },
+          {
+            "commits": 10664,
+            "worker": 2
+          },
+          {
+            "commits": 10220,
+            "worker": 3
+          },
+          {
+            "commits": 10347,
+            "worker": 4
+          },
+          {
+            "commits": 10060,
+            "worker": 5
+          },
+          {
+            "commits": 9092,
+            "worker": 6
+          },
+          {
+            "commits": 10092,
+            "worker": 7
+          },
+          {
+            "commits": 9564,
+            "worker": 8
+          },
+          {
+            "commits": 9678,
+            "worker": 9
+          },
+          {
+            "commits": 9921,
+            "worker": 10
+          },
+          {
+            "commits": 9220,
+            "worker": 11
+          },
+          {
+            "commits": 10562,
+            "worker": 12
+          },
+          {
+            "commits": 10159,
+            "worker": 13
+          },
+          {
+            "commits": 10118,
+            "worker": 14
+          },
+          {
+            "commits": 11585,
+            "worker": 15
+          },
+          {
+            "commits": 10096,
+            "worker": 16
+          },
+          {
+            "commits": 10451,
+            "worker": 17
+          },
+          {
+            "commits": 10954,
+            "worker": 18
+          },
+          {
+            "commits": 10445,
+            "worker": 19
+          },
+          {
+            "commits": 11109,
+            "worker": 20
+          },
+          {
+            "commits": 10577,
+            "worker": 21
+          },
+          {
+            "commits": 10527,
+            "worker": 22
+          },
+          {
+            "commits": 10250,
+            "worker": 23
+          },
+          {
+            "commits": 10423,
+            "worker": 24
+          },
+          {
+            "commits": 10718,
+            "worker": 25
+          },
+          {
+            "commits": 10729,
+            "worker": 26
+          },
+          {
+            "commits": 10285,
+            "worker": 27
+          },
+          {
+            "commits": 11174,
+            "worker": 28
+          },
+          {
+            "commits": 10904,
+            "worker": 29
+          },
+          {
+            "commits": 9355,
+            "worker": 30
+          },
+          {
+            "commits": 11426,
+            "worker": 31
+          },
+          {
+            "commits": 10376,
+            "worker": 32
+          },
+          {
+            "commits": 11146,
+            "worker": 33
+          },
+          {
+            "commits": 9906,
+            "worker": 34
+          },
+          {
+            "commits": 10777,
+            "worker": 35
+          },
+          {
+            "commits": 10791,
+            "worker": 36
+          },
+          {
+            "commits": 10791,
+            "worker": 37
+          },
+          {
+            "commits": 11627,
+            "worker": 38
+          },
+          {
+            "commits": 10690,
+            "worker": 39
+          },
+          {
+            "commits": 11166,
+            "worker": 40
+          },
+          {
+            "commits": 10018,
+            "worker": 41
+          },
+          {
+            "commits": 11689,
+            "worker": 42
+          },
+          {
+            "commits": 11737,
+            "worker": 43
+          },
+          {
+            "commits": 11183,
+            "worker": 44
+          },
+          {
+            "commits": 11012,
+            "worker": 45
+          },
+          {
+            "commits": 9813,
+            "worker": 46
+          },
+          {
+            "commits": 11417,
+            "worker": 47
+          }
+        ],
+        "raw_path": "runs/liveness-27-W-hw-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:01:21.080780Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "f05c2ef69582d397fe1e08609af810221851d1cc3bd05b0b0158b956ad517120",
+        "variant": "rung-liveness",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      }
+    ],
+    "performance_runs": [
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 501474,
+        "completed_at_utc": "2026-07-29T06:59:51.536473Z",
+        "ordinal": 0,
+        "raw_path": "runs/perf-00-W-cal-rung-perf-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T06:59:48.119202Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "85f78c6992911d81ed21b26bdf38714c3dae06d0f9ab5ad5d3e387d03a962bfe",
+        "throughput_tps": 167158,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11313711,
+        "completed_at_utc": "2026-07-29T06:59:54.978632Z",
+        "ordinal": 1,
+        "raw_path": "runs/perf-01-W-cal-stock-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T06:59:51.562824Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "663048cedb48c18825805ebb50aab626240898b76d7ec80f89366b46c5226591",
+        "throughput_tps": 3771237,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 506208,
+        "completed_at_utc": "2026-07-29T06:59:58.415871Z",
+        "ordinal": 2,
+        "raw_path": "runs/perf-02-W-hw-rung-perf-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T06:59:55.005956Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "e75588fbb78a0840eee3dc909550492f597b542797e2977987f33189e8a9f4d5",
+        "throughput_tps": 168736,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4681944,
+        "completed_at_utc": "2026-07-29T07:00:01.872462Z",
+        "ordinal": 3,
+        "raw_path": "runs/perf-03-W-hw-stock-r1",
+        "rep": 1,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T06:59:58.442692Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "d982f47b7a9cd9c2146fb7941592cb353eefe676d9b85829003c6c03d58f1a56",
+        "throughput_tps": 1560648,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4768607,
+        "completed_at_utc": "2026-07-29T07:00:05.320317Z",
+        "ordinal": 4,
+        "raw_path": "runs/perf-04-W-hw-stock-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:01.901640Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "e741770c91f114e30227074d2787003bb33155a54f737af7c81805d6da3430a0",
+        "throughput_tps": 1589535,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 519335,
+        "completed_at_utc": "2026-07-29T07:00:08.753049Z",
+        "ordinal": 5,
+        "raw_path": "runs/perf-05-W-hw-rung-perf-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:05.349370Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "2e80359d651f0a03d87b7cc9403f56f2797ac461af9c7dcfa2da9b9338b93f16",
+        "throughput_tps": 173111,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11708798,
+        "completed_at_utc": "2026-07-29T07:00:12.192190Z",
+        "ordinal": 6,
+        "raw_path": "runs/perf-06-W-cal-stock-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:08.779660Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "76de61d3f74743dd2caf499e803db99fd0fe5a34d0716de41360e6c5ece39841",
+        "throughput_tps": 3902932,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 510417,
+        "completed_at_utc": "2026-07-29T07:00:15.629973Z",
+        "ordinal": 7,
+        "raw_path": "runs/perf-07-W-cal-rung-perf-r2",
+        "rep": 2,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:12.219893Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "2f54de4a514aaa412edecf3dd9047104fcbb615452cad2c050212b583c1f24e3",
+        "throughput_tps": 170139,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 518851,
+        "completed_at_utc": "2026-07-29T07:00:19.064273Z",
+        "ordinal": 8,
+        "raw_path": "runs/perf-08-W-hw-rung-perf-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:15.656288Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "7333b22fe1f09603dbff45c1ea6d2b03452428d28554514f44d1ad634e5b0ad2",
+        "throughput_tps": 172950,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4890010,
+        "completed_at_utc": "2026-07-29T07:00:22.506042Z",
+        "ordinal": 9,
+        "raw_path": "runs/perf-09-W-hw-stock-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:19.090375Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "2dbc734e15045e1e3b19314055075c7c94825861ca730f2361ef47cdb3e653f8",
+        "throughput_tps": 1630003,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 490163,
+        "completed_at_utc": "2026-07-29T07:00:25.948168Z",
+        "ordinal": 10,
+        "raw_path": "runs/perf-10-W-cal-rung-perf-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:22.534343Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "0480c1c59fd230cc6cfd91042295fe976520b0c27bfff7e580b8d78ace200f19",
+        "throughput_tps": 163387,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11762444,
+        "completed_at_utc": "2026-07-29T07:00:29.377431Z",
+        "ordinal": 11,
+        "raw_path": "runs/perf-11-W-cal-stock-r3",
+        "rep": 3,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:25.975121Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "fe98e09e3f5cf3f90231eea69d65df1173d62f95a5361f9900d458cff6635ab2",
+        "throughput_tps": 3920814,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11682098,
+        "completed_at_utc": "2026-07-29T07:00:32.823722Z",
+        "ordinal": 12,
+        "raw_path": "runs/perf-12-W-cal-stock-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:29.409181Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "267712dcca4164b17b5ed61669687f8bf452733ef7268c1f1340d07dbff539f5",
+        "throughput_tps": 3894032,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 488506,
+        "completed_at_utc": "2026-07-29T07:00:36.252498Z",
+        "ordinal": 13,
+        "raw_path": "runs/perf-13-W-cal-rung-perf-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:32.850963Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "999e2972047752b3b47a25c201aae84dba13da1f0d8363bb410d59c22493b926",
+        "throughput_tps": 162835,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4832617,
+        "completed_at_utc": "2026-07-29T07:00:39.692182Z",
+        "ordinal": 14,
+        "raw_path": "runs/perf-14-W-hw-stock-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:36.278780Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "1af74da5aa3271934039b768857efe60ad11e3fb1f5af1c401632b5be03059b5",
+        "throughput_tps": 1610872,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 515240,
+        "completed_at_utc": "2026-07-29T07:00:43.187003Z",
+        "ordinal": 15,
+        "raw_path": "runs/perf-15-W-hw-rung-perf-r4",
+        "rep": 4,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:39.719313Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "6309b0dd1f6dbd3ea5ecf2718eb7bd6faf47b772c9d9794b81373a517efaa684",
+        "throughput_tps": 171746,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 500723,
+        "completed_at_utc": "2026-07-29T07:00:46.628035Z",
+        "ordinal": 16,
+        "raw_path": "runs/perf-16-W-hw-rung-perf-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:43.213441Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "05d708ed93f30d43b904a1e7594d4c04f67a578dca1d57adc30a37b9e2f0ab2f",
+        "throughput_tps": 166907,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4910644,
+        "completed_at_utc": "2026-07-29T07:00:50.065727Z",
+        "ordinal": 17,
+        "raw_path": "runs/perf-17-W-hw-stock-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:46.655211Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "37f683e0d7eedc9a4d2fd01c1feeb5a1e4b0973011b6911e5e35fe3a21002fdb",
+        "throughput_tps": 1636881,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 490367,
+        "completed_at_utc": "2026-07-29T07:00:53.504040Z",
+        "ordinal": 18,
+        "raw_path": "runs/perf-18-W-cal-rung-perf-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:50.093419Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "66357a9f46b9ce010dd2232fd402c66e2b434ee37d01a4dd16a911b0723163ca",
+        "throughput_tps": 163455,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11504500,
+        "completed_at_utc": "2026-07-29T07:00:56.944222Z",
+        "ordinal": 19,
+        "raw_path": "runs/perf-19-W-cal-stock-r5",
+        "rep": 5,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:53.530500Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "4702ebe2437e379b5a6b2023da73f407f67afaf7e0ba15d6d17558907d101350",
+        "throughput_tps": 3834833,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 11643093,
+        "completed_at_utc": "2026-07-29T07:01:00.381924Z",
+        "ordinal": 20,
+        "raw_path": "runs/perf-20-W-cal-stock-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:00:56.972154Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "cbaa0b9f509de0fc553b538be837a89d813585adfe8afc4aafea4de47b4d46ad",
+        "throughput_tps": 3881031,
+        "variant": "stock",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 478415,
+        "completed_at_utc": "2026-07-29T07:01:03.817390Z",
+        "ordinal": 21,
+        "raw_path": "runs/perf-21-W-cal-rung-perf-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:01:00.409481Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "bd08a73fd6a76318c88bc670b3d1226453ae8160a4351bf8fc81eef4ad3225eb",
+        "throughput_tps": 159471,
+        "variant": "rung-perf",
+        "workload": "W-cal",
+        "workload_argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-stock/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "stock",
+        "commit_count": 4783854,
+        "completed_at_utc": "2026-07-29T07:01:07.257495Z",
+        "ordinal": 22,
+        "raw_path": "runs/perf-22-W-hw-stock-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:01:03.843503Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "28abbb7c69402e910b630939163c85930b6aa75e7c44552228b5d8fcf02f1180",
+        "throughput_tps": 1594618,
+        "variant": "stock",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      },
+      {
+        "argv": [
+          "/scr/0_873917.nqsv/build-rung-perf/cc/silo/ycsb_silo.exe",
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "batch_commit_count": 0,
+        "binary_id": "rung-perf",
+        "commit_count": 501408,
+        "completed_at_utc": "2026-07-29T07:01:10.703118Z",
+        "ordinal": 23,
+        "raw_path": "runs/perf-23-W-hw-rung-perf-r6",
+        "rep": 6,
+        "returncode": 0,
+        "started_at_utc": "2026-07-29T07:01:07.291259Z",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "a7578b3c11efa436a326fe7cc7ddc98d253ebf334c1f876e08f1bcb520fb9de2",
+        "throughput_tps": 167136,
+        "variant": "rung-perf",
+        "workload": "W-hw",
+        "workload_argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ]
+      }
+    ],
+    "schedule_receipt": {
+      "algorithm": "python-random-v1-from-csprng-256",
+      "runs": [
+        {
+          "ordinal": 0,
+          "rep": 1,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 1,
+          "rep": 1,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 2,
+          "rep": 1,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 3,
+          "rep": 1,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 4,
+          "rep": 2,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 5,
+          "rep": 2,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 6,
+          "rep": 2,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 7,
+          "rep": 2,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 8,
+          "rep": 3,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 9,
+          "rep": 3,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 10,
+          "rep": 3,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 11,
+          "rep": 3,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 12,
+          "rep": 4,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 13,
+          "rep": 4,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 14,
+          "rep": 4,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 15,
+          "rep": 4,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 16,
+          "rep": 5,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 17,
+          "rep": 5,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 18,
+          "rep": 5,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 19,
+          "rep": 5,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 20,
+          "rep": 6,
+          "variant": "stock",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 21,
+          "rep": 6,
+          "variant": "rung-perf",
+          "workload": "W-cal"
+        },
+        {
+          "ordinal": 22,
+          "rep": 6,
+          "variant": "stock",
+          "workload": "W-hw"
+        },
+        {
+          "ordinal": 23,
+          "rep": 6,
+          "variant": "rung-perf",
+          "workload": "W-hw"
+        }
+      ],
+      "schema_version": "silo_ladder_rung1-schedule/v1",
+      "seed": "3144649caa4d13947a2a55a6e2f73d3d02488128612ca0ece3482f2e87e1ce76"
+    },
+    "status": "complete",
+    "workloads": [
+      {
+        "argv": [
+          "-ycsb_rmw=false",
+          "-ycsb_rratio=50",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "calibration_status": "registered",
+        "id": "W-cal"
+      },
+      {
+        "argv": [
+          "-ycsb_rmw=true",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=3"
+        ],
+        "calibration_status": "contract-transfer-only",
+        "id": "W-hw"
+      }
+    ]
+  },
+  "generated_at_utc": "2026-07-29T07:01:51.020081Z",
+  "limitations": {
+    "nqsv_scheduler_exit_status": "unavailable",
+    "raw_object_binary_bytes_retained": false,
+    "third_party_rederivation": "sha256-chain-consistency-only"
+  },
+  "provenance": {
+    "environment_scrubbed": true,
+    "source_witness": {
+      "expected_patched_source_sha256": {
+        "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+        "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+      },
+      "job_prologue_manifest_sha256": "38666a73f352de64abe9da8c2b5017cdf80efa1bd0efc60329926b46d0d849a4",
+      "job_source_exclusions": [
+        "output"
+      ],
+      "job_source_surface_clean": true,
+      "observed_patched_source_sha256": {
+        "cc/silo/transaction.cc": "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b",
+        "cc/silo/ycsb_silo.cc": "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+      },
+      "submit_whole_tree_clean": true
+    },
+    "third_party_sources": [
+      {
+        "clean": true,
+        "fetchcontent_ref": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "git_head_raw": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38\n",
+        "git_status_porcelain_raw": "",
+        "name": "masstree",
+        "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "resolved_path": "/scr/0_873917.nqsv/thirdparty-src/masstree",
+        "source_name": "masstree",
+        "url": "https://github.com/thawk105/masstree-beta.git"
+      },
+      {
+        "clean": true,
+        "fetchcontent_ref": "v2.3.2",
+        "git_head_raw": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe\n",
+        "git_status_porcelain_raw": "",
+        "name": "mimalloc",
+        "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+        "resolved_path": "/scr/0_873917.nqsv/thirdparty-src/mimalloc",
+        "source_name": "mimalloc",
+        "url": "https://github.com/microsoft/mimalloc.git"
+      },
+      {
+        "clean": true,
+        "fetchcontent_ref": "f8d7d77c06936315286eb55f8de22cd23c188571",
+        "git_head_raw": "f8d7d77c06936315286eb55f8de22cd23c188571\n",
+        "git_status_porcelain_raw": "",
+        "name": "googletest",
+        "pin": "f8d7d77c06936315286eb55f8de22cd23c188571",
+        "resolved_path": "/scr/0_873917.nqsv/thirdparty-src/googletest",
+        "source_name": "googletest",
+        "url": "https://github.com/google/googletest.git"
+      }
+    ],
+    "tools": [
+      {
+        "name": "git",
+        "realpath": "/usr/bin/git",
+        "sha256": "587ef21868c948b883993e23209b86a72a6ddc06aab1545c697ffc31075acd4a",
+        "version": "git version 2.34.1"
+      },
+      {
+        "name": "nm",
+        "realpath": "/usr/bin/x86_64-linux-gnu-nm",
+        "sha256": "ed6565c132d6f20019ff3f050043dc1b2b8bc2e8b3b94c1ffe3f34436431a5a4",
+        "version": "GNU nm (GNU Binutils for Ubuntu) 2.38\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty."
+      },
+      {
+        "name": "readelf",
+        "realpath": "/usr/bin/x86_64-linux-gnu-readelf",
+        "sha256": "04db0000749aff89e4af21429340b00b536fc6f80e811c872c006507881a5560",
+        "version": "GNU readelf (GNU Binutils for Ubuntu) 2.38\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty."
+      },
+      {
+        "name": "cmake",
+        "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "sha256": "93ea19dfc3fdae3cc78f0bafbdfe3e41c9deb1a3c1bc889b29cc1532210e40df",
+        "version": "cmake version 3.25.0\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+      },
+      {
+        "name": "gcc",
+        "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+        "sha256": "821af3c74506283c179ca413bb33e6b528805a4dd8a5c09df125e5ad560a9e89",
+        "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+      },
+      {
+        "name": "g++",
+        "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+        "sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0",
+        "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+      },
+      {
+        "name": "python",
+        "realpath": "/usr/bin/python3.10",
+        "sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+        "version": "Python 3.10.12"
+      }
+    ]
+  },
+  "raw_bundle": {
+    "paths": [
+      "attempts/1/attempt-receipt.json",
+      "attempts/1/attestation-job.json",
+      "attempts/1/attestation-job.stderr",
+      "attempts/1/attestation-job.stdout",
+      "attempts/1/build-rung-liveness/CMakeCache.txt",
+      "attempts/1/build-rung-liveness/binary.nm.command.json",
+      "attempts/1/build-rung-liveness/binary.nm.stderr",
+      "attempts/1/build-rung-liveness/binary.nm.txt",
+      "attempts/1/build-rung-liveness/binary.readelf.command.json",
+      "attempts/1/build-rung-liveness/binary.readelf.stderr",
+      "attempts/1/build-rung-liveness/binary.readelf.txt",
+      "attempts/1/build-rung-liveness/build.stderr",
+      "attempts/1/build-rung-liveness/build.stdout",
+      "attempts/1/build-rung-liveness/cmake-cache-witness.json",
+      "attempts/1/build-rung-liveness/compile-replay.json",
+      "attempts/1/build-rung-liveness/compile_commands.json",
+      "attempts/1/build-rung-liveness/configure.stderr",
+      "attempts/1/build-rung-liveness/configure.stdout",
+      "attempts/1/build-rung-liveness/transaction.nm.command.json",
+      "attempts/1/build-rung-liveness/transaction.nm.stderr",
+      "attempts/1/build-rung-liveness/transaction.nm.txt",
+      "attempts/1/build-rung-perf/CMakeCache.txt",
+      "attempts/1/build-rung-perf/binary.nm.command.json",
+      "attempts/1/build-rung-perf/binary.nm.stderr",
+      "attempts/1/build-rung-perf/binary.nm.txt",
+      "attempts/1/build-rung-perf/binary.readelf.command.json",
+      "attempts/1/build-rung-perf/binary.readelf.stderr",
+      "attempts/1/build-rung-perf/binary.readelf.txt",
+      "attempts/1/build-rung-perf/build.stderr",
+      "attempts/1/build-rung-perf/build.stdout",
+      "attempts/1/build-rung-perf/cmake-cache-witness.json",
+      "attempts/1/build-rung-perf/compile-replay.json",
+      "attempts/1/build-rung-perf/compile_commands.json",
+      "attempts/1/build-rung-perf/configure.stderr",
+      "attempts/1/build-rung-perf/configure.stdout",
+      "attempts/1/build-rung-perf/transaction.nm.command.json",
+      "attempts/1/build-rung-perf/transaction.nm.stderr",
+      "attempts/1/build-rung-perf/transaction.nm.txt",
+      "attempts/1/build-stock/CMakeCache.txt",
+      "attempts/1/build-stock/binary.nm.command.json",
+      "attempts/1/build-stock/binary.nm.stderr",
+      "attempts/1/build-stock/binary.nm.txt",
+      "attempts/1/build-stock/binary.readelf.command.json",
+      "attempts/1/build-stock/binary.readelf.stderr",
+      "attempts/1/build-stock/binary.readelf.txt",
+      "attempts/1/build-stock/build.stderr",
+      "attempts/1/build-stock/build.stdout",
+      "attempts/1/build-stock/cmake-cache-witness.json",
+      "attempts/1/build-stock/compile-replay.json",
+      "attempts/1/build-stock/compile_commands.json",
+      "attempts/1/build-stock/configure.stderr",
+      "attempts/1/build-stock/configure.stdout",
+      "attempts/1/build-stock/transaction.nm.command.json",
+      "attempts/1/build-stock/transaction.nm.stderr",
+      "attempts/1/build-stock/transaction.nm.txt",
+      "attempts/1/commands/0000-git.command.json",
+      "attempts/1/commands/0001-git.command.json",
+      "attempts/1/commands/0002-git.command.json",
+      "attempts/1/commands/0003-git.command.json",
+      "attempts/1/commands/0004-git.command.json",
+      "attempts/1/commands/0005-git.command.json",
+      "attempts/1/commands/0006-git.command.json",
+      "attempts/1/commands/0007-git.command.json",
+      "attempts/1/commands/0008-git.command.json",
+      "attempts/1/commands/0009-git.command.json",
+      "attempts/1/commands/0010-git.command.json",
+      "attempts/1/commands/0011-git.command.json",
+      "attempts/1/commands/0012-git.command.json",
+      "attempts/1/commands/0013-git.command.json",
+      "attempts/1/commands/0014-git.command.json",
+      "attempts/1/commands/0015-git.command.json",
+      "attempts/1/commands/0016-x86_64-linux-gnu-nm.command.json",
+      "attempts/1/commands/0017-x86_64-linux-gnu-readelf.command.json",
+      "attempts/1/commands/0018-cmake.command.json",
+      "attempts/1/commands/0019-x86_64-linux-gnu-gcc-11.command.json",
+      "attempts/1/commands/0020-x86_64-linux-gnu-g--11.command.json",
+      "attempts/1/commands/0021-python3.10.command.json",
+      "attempts/1/commands/0022-python3.10.command.json",
+      "attempts/1/commands/0023-cmake.command.json",
+      "attempts/1/commands/0024-cmake.command.json",
+      "attempts/1/commands/0025-x86_64-linux-gnu-g--11.command.json",
+      "attempts/1/commands/0026-x86_64-linux-gnu-g--11.command.json",
+      "attempts/1/commands/0027-git.command.json",
+      "attempts/1/commands/0028-git.command.json",
+      "attempts/1/commands/0029-git.command.json",
+      "attempts/1/commands/0030-git.command.json",
+      "attempts/1/commands/0031-cmake.command.json",
+      "attempts/1/commands/0032-cmake.command.json",
+      "attempts/1/commands/0033-x86_64-linux-gnu-g--11.command.json",
+      "attempts/1/commands/0034-x86_64-linux-gnu-g--11.command.json",
+      "attempts/1/commands/0035-git.command.json",
+      "attempts/1/commands/0036-git.command.json",
+      "attempts/1/commands/0037-git.command.json",
+      "attempts/1/commands/0038-git.command.json",
+      "attempts/1/commands/0039-cmake.command.json",
+      "attempts/1/commands/0040-cmake.command.json",
+      "attempts/1/commands/0041-x86_64-linux-gnu-g--11.command.json",
+      "attempts/1/commands/0042-x86_64-linux-gnu-g--11.command.json",
+      "attempts/1/commands/0043-git.command.json",
+      "attempts/1/commands/0044-git.command.json",
+      "attempts/1/commands/0045-git.command.json",
+      "attempts/1/commands/0046-git.command.json",
+      "attempts/1/commands/0047-pgrep.command.json",
+      "attempts/1/commands/0048-pgrep.command.json",
+      "attempts/1/commands/0049-pgrep.command.json",
+      "attempts/1/commands/0050-pgrep.command.json",
+      "attempts/1/commands/0051-pgrep.command.json",
+      "attempts/1/commands/0052-pgrep.command.json",
+      "attempts/1/commands/0053-pgrep.command.json",
+      "attempts/1/commands/0054-pgrep.command.json",
+      "attempts/1/commands/0055-pgrep.command.json",
+      "attempts/1/commands/0056-pgrep.command.json",
+      "attempts/1/commands/0057-pgrep.command.json",
+      "attempts/1/commands/0058-pgrep.command.json",
+      "attempts/1/commands/0059-pgrep.command.json",
+      "attempts/1/commands/0060-pgrep.command.json",
+      "attempts/1/commands/0061-pgrep.command.json",
+      "attempts/1/commands/0062-pgrep.command.json",
+      "attempts/1/commands/0063-pgrep.command.json",
+      "attempts/1/commands/0064-pgrep.command.json",
+      "attempts/1/commands/0065-pgrep.command.json",
+      "attempts/1/commands/0066-pgrep.command.json",
+      "attempts/1/commands/0067-pgrep.command.json",
+      "attempts/1/commands/0068-pgrep.command.json",
+      "attempts/1/commands/0069-pgrep.command.json",
+      "attempts/1/commands/0070-pgrep.command.json",
+      "attempts/1/commands/0071-pgrep.command.json",
+      "attempts/1/commands/0072-pgrep.command.json",
+      "attempts/1/commands/0073-pgrep.command.json",
+      "attempts/1/commands/0074-pgrep.command.json",
+      "attempts/1/expected-patched-source-sha256.json",
+      "attempts/1/job-prologue/ccbench-gitlink.txt",
+      "attempts/1/job-prologue/gflags-build.stderr",
+      "attempts/1/job-prologue/gflags-build.stdout",
+      "attempts/1/job-prologue/gflags-configure.stderr",
+      "attempts/1/job-prologue/gflags-configure.stdout",
+      "attempts/1/job-prologue/gflags-install.stderr",
+      "attempts/1/job-prologue/gflags-install.stdout",
+      "attempts/1/job-prologue/gflags-source-head.txt",
+      "attempts/1/job-prologue/gflags-source-status.txt",
+      "attempts/1/job-prologue/glog-build.stderr",
+      "attempts/1/job-prologue/glog-build.stdout",
+      "attempts/1/job-prologue/glog-configure.stderr",
+      "attempts/1/job-prologue/glog-configure.stdout",
+      "attempts/1/job-prologue/glog-install.stderr",
+      "attempts/1/job-prologue/glog-install.stdout",
+      "attempts/1/job-prologue/glog-source-head.txt",
+      "attempts/1/job-prologue/glog-source-status.txt",
+      "attempts/1/job-prologue/googletest-thirdparty-persistent-head.txt",
+      "attempts/1/job-prologue/googletest-thirdparty-persistent-status.txt",
+      "attempts/1/job-prologue/googletest-thirdparty-scratch-head.txt",
+      "attempts/1/job-prologue/googletest-thirdparty-scratch-status.txt",
+      "attempts/1/job-prologue/load-before.txt",
+      "attempts/1/job-prologue/masstree-thirdparty-persistent-head.txt",
+      "attempts/1/job-prologue/masstree-thirdparty-persistent-status.txt",
+      "attempts/1/job-prologue/masstree-thirdparty-scratch-head.txt",
+      "attempts/1/job-prologue/masstree-thirdparty-scratch-status.txt",
+      "attempts/1/job-prologue/mimalloc-thirdparty-persistent-head.txt",
+      "attempts/1/job-prologue/mimalloc-thirdparty-persistent-status.txt",
+      "attempts/1/job-prologue/mimalloc-thirdparty-scratch-head.txt",
+      "attempts/1/job-prologue/mimalloc-thirdparty-scratch-status.txt",
+      "attempts/1/job-prologue/pgrep-before.txt",
+      "attempts/1/job-prologue/python.realpath",
+      "attempts/1/job-prologue/python.version",
+      "attempts/1/job-prologue/qstat-driver.stderr",
+      "attempts/1/job-prologue/qstat-driver.stdout",
+      "attempts/1/job-prologue/qstat-f.stderr",
+      "attempts/1/job-prologue/qstat-f.stdout",
+      "attempts/1/job-prologue/scheduler-elapse.json",
+      "attempts/1/job-prologue/source-head.txt",
+      "attempts/1/job-prologue/source-surface-status.txt",
+      "attempts/1/pbs-accounting.txt",
+      "attempts/1/raw-manifest.json",
+      "attempts/1/runs/liveness-24-W-cal-r1/run.command.json",
+      "attempts/1/runs/liveness-24-W-cal-r1/stderr.txt",
+      "attempts/1/runs/liveness-24-W-cal-r1/stdout.txt",
+      "attempts/1/runs/liveness-25-W-cal-r2/run.command.json",
+      "attempts/1/runs/liveness-25-W-cal-r2/stderr.txt",
+      "attempts/1/runs/liveness-25-W-cal-r2/stdout.txt",
+      "attempts/1/runs/liveness-26-W-hw-r1/run.command.json",
+      "attempts/1/runs/liveness-26-W-hw-r1/stderr.txt",
+      "attempts/1/runs/liveness-26-W-hw-r1/stdout.txt",
+      "attempts/1/runs/liveness-27-W-hw-r2/run.command.json",
+      "attempts/1/runs/liveness-27-W-hw-r2/stderr.txt",
+      "attempts/1/runs/liveness-27-W-hw-r2/stdout.txt",
+      "attempts/1/runs/perf-00-W-cal-rung-perf-r1/run.command.json",
+      "attempts/1/runs/perf-00-W-cal-rung-perf-r1/stderr.txt",
+      "attempts/1/runs/perf-00-W-cal-rung-perf-r1/stdout.txt",
+      "attempts/1/runs/perf-01-W-cal-stock-r1/run.command.json",
+      "attempts/1/runs/perf-01-W-cal-stock-r1/stderr.txt",
+      "attempts/1/runs/perf-01-W-cal-stock-r1/stdout.txt",
+      "attempts/1/runs/perf-02-W-hw-rung-perf-r1/run.command.json",
+      "attempts/1/runs/perf-02-W-hw-rung-perf-r1/stderr.txt",
+      "attempts/1/runs/perf-02-W-hw-rung-perf-r1/stdout.txt",
+      "attempts/1/runs/perf-03-W-hw-stock-r1/run.command.json",
+      "attempts/1/runs/perf-03-W-hw-stock-r1/stderr.txt",
+      "attempts/1/runs/perf-03-W-hw-stock-r1/stdout.txt",
+      "attempts/1/runs/perf-04-W-hw-stock-r2/run.command.json",
+      "attempts/1/runs/perf-04-W-hw-stock-r2/stderr.txt",
+      "attempts/1/runs/perf-04-W-hw-stock-r2/stdout.txt",
+      "attempts/1/runs/perf-05-W-hw-rung-perf-r2/run.command.json",
+      "attempts/1/runs/perf-05-W-hw-rung-perf-r2/stderr.txt",
+      "attempts/1/runs/perf-05-W-hw-rung-perf-r2/stdout.txt",
+      "attempts/1/runs/perf-06-W-cal-stock-r2/run.command.json",
+      "attempts/1/runs/perf-06-W-cal-stock-r2/stderr.txt",
+      "attempts/1/runs/perf-06-W-cal-stock-r2/stdout.txt",
+      "attempts/1/runs/perf-07-W-cal-rung-perf-r2/run.command.json",
+      "attempts/1/runs/perf-07-W-cal-rung-perf-r2/stderr.txt",
+      "attempts/1/runs/perf-07-W-cal-rung-perf-r2/stdout.txt",
+      "attempts/1/runs/perf-08-W-hw-rung-perf-r3/run.command.json",
+      "attempts/1/runs/perf-08-W-hw-rung-perf-r3/stderr.txt",
+      "attempts/1/runs/perf-08-W-hw-rung-perf-r3/stdout.txt",
+      "attempts/1/runs/perf-09-W-hw-stock-r3/run.command.json",
+      "attempts/1/runs/perf-09-W-hw-stock-r3/stderr.txt",
+      "attempts/1/runs/perf-09-W-hw-stock-r3/stdout.txt",
+      "attempts/1/runs/perf-10-W-cal-rung-perf-r3/run.command.json",
+      "attempts/1/runs/perf-10-W-cal-rung-perf-r3/stderr.txt",
+      "attempts/1/runs/perf-10-W-cal-rung-perf-r3/stdout.txt",
+      "attempts/1/runs/perf-11-W-cal-stock-r3/run.command.json",
+      "attempts/1/runs/perf-11-W-cal-stock-r3/stderr.txt",
+      "attempts/1/runs/perf-11-W-cal-stock-r3/stdout.txt",
+      "attempts/1/runs/perf-12-W-cal-stock-r4/run.command.json",
+      "attempts/1/runs/perf-12-W-cal-stock-r4/stderr.txt",
+      "attempts/1/runs/perf-12-W-cal-stock-r4/stdout.txt",
+      "attempts/1/runs/perf-13-W-cal-rung-perf-r4/run.command.json",
+      "attempts/1/runs/perf-13-W-cal-rung-perf-r4/stderr.txt",
+      "attempts/1/runs/perf-13-W-cal-rung-perf-r4/stdout.txt",
+      "attempts/1/runs/perf-14-W-hw-stock-r4/run.command.json",
+      "attempts/1/runs/perf-14-W-hw-stock-r4/stderr.txt",
+      "attempts/1/runs/perf-14-W-hw-stock-r4/stdout.txt",
+      "attempts/1/runs/perf-15-W-hw-rung-perf-r4/run.command.json",
+      "attempts/1/runs/perf-15-W-hw-rung-perf-r4/stderr.txt",
+      "attempts/1/runs/perf-15-W-hw-rung-perf-r4/stdout.txt",
+      "attempts/1/runs/perf-16-W-hw-rung-perf-r5/run.command.json",
+      "attempts/1/runs/perf-16-W-hw-rung-perf-r5/stderr.txt",
+      "attempts/1/runs/perf-16-W-hw-rung-perf-r5/stdout.txt",
+      "attempts/1/runs/perf-17-W-hw-stock-r5/run.command.json",
+      "attempts/1/runs/perf-17-W-hw-stock-r5/stderr.txt",
+      "attempts/1/runs/perf-17-W-hw-stock-r5/stdout.txt",
+      "attempts/1/runs/perf-18-W-cal-rung-perf-r5/run.command.json",
+      "attempts/1/runs/perf-18-W-cal-rung-perf-r5/stderr.txt",
+      "attempts/1/runs/perf-18-W-cal-rung-perf-r5/stdout.txt",
+      "attempts/1/runs/perf-19-W-cal-stock-r5/run.command.json",
+      "attempts/1/runs/perf-19-W-cal-stock-r5/stderr.txt",
+      "attempts/1/runs/perf-19-W-cal-stock-r5/stdout.txt",
+      "attempts/1/runs/perf-20-W-cal-stock-r6/run.command.json",
+      "attempts/1/runs/perf-20-W-cal-stock-r6/stderr.txt",
+      "attempts/1/runs/perf-20-W-cal-stock-r6/stdout.txt",
+      "attempts/1/runs/perf-21-W-cal-rung-perf-r6/run.command.json",
+      "attempts/1/runs/perf-21-W-cal-rung-perf-r6/stderr.txt",
+      "attempts/1/runs/perf-21-W-cal-rung-perf-r6/stdout.txt",
+      "attempts/1/runs/perf-22-W-hw-stock-r6/run.command.json",
+      "attempts/1/runs/perf-22-W-hw-stock-r6/stderr.txt",
+      "attempts/1/runs/perf-22-W-hw-stock-r6/stdout.txt",
+      "attempts/1/runs/perf-23-W-hw-rung-perf-r6/run.command.json",
+      "attempts/1/runs/perf-23-W-hw-rung-perf-r6/stderr.txt",
+      "attempts/1/runs/perf-23-W-hw-rung-perf-r6/stdout.txt",
+      "attempts/1/schedule-receipt.json",
+      "attempts/1/scheduler.stderr",
+      "attempts/1/scheduler.stdout",
+      "attempts/1/solo-00.load.json",
+      "attempts/1/solo-00.pgrep.stderr",
+      "attempts/1/solo-00.pgrep.stdout",
+      "attempts/1/solo-01.load.json",
+      "attempts/1/solo-01.pgrep.stderr",
+      "attempts/1/solo-01.pgrep.stdout",
+      "attempts/1/solo-02.load.json",
+      "attempts/1/solo-02.pgrep.stderr",
+      "attempts/1/solo-02.pgrep.stdout",
+      "attempts/1/solo-03.load.json",
+      "attempts/1/solo-03.pgrep.stderr",
+      "attempts/1/solo-03.pgrep.stdout",
+      "attempts/1/solo-04.load.json",
+      "attempts/1/solo-04.pgrep.stderr",
+      "attempts/1/solo-04.pgrep.stdout",
+      "attempts/1/solo-05.load.json",
+      "attempts/1/solo-05.pgrep.stderr",
+      "attempts/1/solo-05.pgrep.stdout",
+      "attempts/1/solo-06.load.json",
+      "attempts/1/solo-06.pgrep.stderr",
+      "attempts/1/solo-06.pgrep.stdout",
+      "attempts/1/solo-07.load.json",
+      "attempts/1/solo-07.pgrep.stderr",
+      "attempts/1/solo-07.pgrep.stdout",
+      "attempts/1/solo-08.load.json",
+      "attempts/1/solo-08.pgrep.stderr",
+      "attempts/1/solo-08.pgrep.stdout",
+      "attempts/1/solo-09.load.json",
+      "attempts/1/solo-09.pgrep.stderr",
+      "attempts/1/solo-09.pgrep.stdout",
+      "attempts/1/solo-10.load.json",
+      "attempts/1/solo-10.pgrep.stderr",
+      "attempts/1/solo-10.pgrep.stdout",
+      "attempts/1/solo-11.load.json",
+      "attempts/1/solo-11.pgrep.stderr",
+      "attempts/1/solo-11.pgrep.stdout",
+      "attempts/1/solo-12.load.json",
+      "attempts/1/solo-12.pgrep.stderr",
+      "attempts/1/solo-12.pgrep.stdout",
+      "attempts/1/solo-13.load.json",
+      "attempts/1/solo-13.pgrep.stderr",
+      "attempts/1/solo-13.pgrep.stdout",
+      "attempts/1/solo-14.load.json",
+      "attempts/1/solo-14.pgrep.stderr",
+      "attempts/1/solo-14.pgrep.stdout",
+      "attempts/1/solo-15.load.json",
+      "attempts/1/solo-15.pgrep.stderr",
+      "attempts/1/solo-15.pgrep.stdout",
+      "attempts/1/solo-16.load.json",
+      "attempts/1/solo-16.pgrep.stderr",
+      "attempts/1/solo-16.pgrep.stdout",
+      "attempts/1/solo-17.load.json",
+      "attempts/1/solo-17.pgrep.stderr",
+      "attempts/1/solo-17.pgrep.stdout",
+      "attempts/1/solo-18.load.json",
+      "attempts/1/solo-18.pgrep.stderr",
+      "attempts/1/solo-18.pgrep.stdout",
+      "attempts/1/solo-19.load.json",
+      "attempts/1/solo-19.pgrep.stderr",
+      "attempts/1/solo-19.pgrep.stdout",
+      "attempts/1/solo-20.load.json",
+      "attempts/1/solo-20.pgrep.stderr",
+      "attempts/1/solo-20.pgrep.stdout",
+      "attempts/1/solo-21.load.json",
+      "attempts/1/solo-21.pgrep.stderr",
+      "attempts/1/solo-21.pgrep.stdout",
+      "attempts/1/solo-22.load.json",
+      "attempts/1/solo-22.pgrep.stderr",
+      "attempts/1/solo-22.pgrep.stdout",
+      "attempts/1/solo-23.load.json",
+      "attempts/1/solo-23.pgrep.stderr",
+      "attempts/1/solo-23.pgrep.stdout",
+      "attempts/1/solo-24.load.json",
+      "attempts/1/solo-24.pgrep.stderr",
+      "attempts/1/solo-24.pgrep.stdout",
+      "attempts/1/solo-25.load.json",
+      "attempts/1/solo-25.pgrep.stderr",
+      "attempts/1/solo-25.pgrep.stdout",
+      "attempts/1/solo-26.load.json",
+      "attempts/1/solo-26.pgrep.stderr",
+      "attempts/1/solo-26.pgrep.stdout",
+      "attempts/1/solo-27.load.json",
+      "attempts/1/solo-27.pgrep.stderr",
+      "attempts/1/solo-27.pgrep.stdout",
+      "attempts/1/submit-receipt.json",
+      "campaign-attempt-root-receipts/1.json",
+      "campaign-identity-receipt.json",
+      "campaign-root-receipt.json",
+      "commands-collect/0000-git.command.json",
+      "commands-collect/0001-git.command.json",
+      "commands-collect/0002-git.command.json",
+      "commands-collect/0003-git.command.json",
+      "commands-collect/0004-git.command.json",
+      "commands-collect/0005-git.command.json",
+      "commands-collect/0006-git.command.json",
+      "commands-collect/0007-git.command.json",
+      "correctness/CMakeCache.txt",
+      "correctness/binary.nm.command.json",
+      "correctness/binary.nm.stderr",
+      "correctness/binary.nm.txt",
+      "correctness/binary.readelf.command.json",
+      "correctness/binary.readelf.stderr",
+      "correctness/binary.readelf.txt",
+      "correctness/build.stderr",
+      "correctness/build.stdout",
+      "correctness/cmake-cache-witness.json",
+      "correctness/commands/0000-git.command.json",
+      "correctness/commands/0001-x86_64-linux-gnu-nm.command.json",
+      "correctness/commands/0002-x86_64-linux-gnu-readelf.command.json",
+      "correctness/commands/0003-cmake.command.json",
+      "correctness/commands/0004-x86_64-linux-gnu-gcc-11.command.json",
+      "correctness/commands/0005-x86_64-linux-gnu-g--11.command.json",
+      "correctness/commands/0006-python3.10.command.json",
+      "correctness/commands/0007-git.command.json",
+      "correctness/commands/0008-git.command.json",
+      "correctness/commands/0009-git.command.json",
+      "correctness/commands/0010-git.command.json",
+      "correctness/commands/0011-git.command.json",
+      "correctness/commands/0012-git.command.json",
+      "correctness/commands/0013-git.command.json",
+      "correctness/commands/0014-git.command.json",
+      "correctness/commands/0015-git.command.json",
+      "correctness/commands/0016-git.command.json",
+      "correctness/commands/0017-git.command.json",
+      "correctness/commands/0018-git.command.json",
+      "correctness/commands/0019-git.command.json",
+      "correctness/commands/0020-git.command.json",
+      "correctness/commands/0021-git.command.json",
+      "correctness/commands/0022-git.command.json",
+      "correctness/commands/0023-git.command.json",
+      "correctness/commands/0024-git.command.json",
+      "correctness/commands/0025-git.command.json",
+      "correctness/commands/0026-cmake.command.json",
+      "correctness/commands/0027-cmake.command.json",
+      "correctness/commands/0028-x86_64-linux-gnu-g--11.command.json",
+      "correctness/commands/0029-x86_64-linux-gnu-g--11.command.json",
+      "correctness/commands/0030-python3.command.json",
+      "correctness/compile-replay.json",
+      "correctness/compile_commands.json",
+      "correctness/configure.stderr",
+      "correctness/configure.stdout",
+      "correctness/expected-patched-source-sha256.json",
+      "correctness/observed-patched-source-sha256.json",
+      "correctness/run.command.json",
+      "correctness/run.stderr",
+      "correctness/run.stdout",
+      "correctness/traces/trace_0.log",
+      "correctness/traces/trace_1.log",
+      "correctness/traces/trace_2.log",
+      "correctness/traces/trace_3.log",
+      "correctness/transaction.nm.command.json",
+      "correctness/transaction.nm.stderr",
+      "correctness/transaction.nm.txt",
+      "correctness/verifier.json",
+      "correctness/verifier.stderr",
+      "gap-result-receipt.json",
+      "provenance-receipt.json",
+      "raw-manifest.json"
+    ],
+    "root": "output/env/pegasus/silo_ladder_rung1/job-staging/0_873917.nqsv/raw-bundle-attempt-1"
+  },
+  "retry_policy": {
+    "infra_reason_codes": [
+      "attestation",
+      "nonzero_returncode",
+      "parse_failure",
+      "process_competition",
+      "timeout"
+    ],
+    "max_attempts": 2,
+    "substantive_negative_retried": false
+  },
+  "schema_version": "silo_ladder_rung1/v1"
+}

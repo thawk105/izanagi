@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+    "--version"
+  ],
+  "argv0_sha256": "93ea19dfc3fdae3cc78f0bafbdfe3e41c9deb1a3c1bc889b29cc1532210e40df",
+  "completed_at_utc": "2026-07-29T06:59:04.721391Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 0.051006659981794655,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T06:59:04.670381Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "77cd194f54199b3937e172dae6976ca44bfed64d6ee3a9b33777146c05e6d926",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 30.0
+}

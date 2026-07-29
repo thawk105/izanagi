@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "pgrep",
+    "-a",
+    "-f",
+    "ycsb_.*\\.exe"
+  ],
+  "argv0_sha256": null,
+  "completed_at_utc": "2026-07-29T06:59:54.996098Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 0.01678637496661395,
+  "returncode": 1,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T06:59:54.979311Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 30.0
+}

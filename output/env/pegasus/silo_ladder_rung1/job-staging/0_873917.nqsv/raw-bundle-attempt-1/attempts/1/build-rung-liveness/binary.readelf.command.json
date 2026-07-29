@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/usr/bin/x86_64-linux-gnu-readelf",
+    "-Ws",
+    "/scr/0_873917.nqsv/build-rung-liveness/cc/silo/ycsb_silo.exe"
+  ],
+  "argv0_sha256": "04db0000749aff89e4af21429340b00b536fc6f80e811c872c006507881a5560",
+  "completed_at_utc": "2026-07-29T06:59:48.031112Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 0.004064609995111823,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T06:59:48.027043Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "1e601d7ade37e2158d115f54a3a3481bf7c7335655ce51ed3a8df7824632a724",
+  "target_sha256": "3098042d99459fbaae7388a9138b875ebf686644bca466b3e17a91a5dcf2b471",
+  "timed_out": false,
+  "timeout_s": 60.0
+}

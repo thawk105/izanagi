@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+    "--build",
+    "/scr/0_873917.nqsv/build-stock",
+    "--target",
+    "ycsb_silo.exe",
+    "--verbose",
+    "-j",
+    "48"
+  ],
+  "argv0_sha256": "93ea19dfc3fdae3cc78f0bafbdfe3e41c9deb1a3c1bc889b29cc1532210e40df",
+  "completed_at_utc": "2026-07-29T06:59:21.804767Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 13.88279651501216,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T06:59:07.921974Z",
+  "stderr_sha256": "d5b6f95620c11b874f1dbdd02d56ee80b7bbc513b80cd0b514ebfced3bc381b6",
+  "stdout_sha256": "2377e6f144351efc55af8ee5ec1bb49523e237d67ee5b5b8b41d264ceb04b4b2",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 2698.7281766469823
+}

@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/scr/0_873917.nqsv/thirdparty-src/masstree",
+    "rev-parse",
+    "--verify",
+    "HEAD"
+  ],
+  "argv0_sha256": null,
+  "completed_at_utc": "2026-07-29T06:59:04.617982Z",
+  "cwd": "/home/SFC/tanab",
+  "elapsed_monotonic_s": 0.0010492299916222692,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T06:59:04.616929Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "f2944e779ef84cd02c3e8a6e174a719048ea687da859cd088fb4286836c5fcfa",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 60.0
+}
