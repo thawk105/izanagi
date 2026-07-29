@@ -34,12 +34,16 @@
 
 perf の実行 (profiler ロールと `backoff_profile.py` の領分)、directive の採用判断
 (人間承認 gate)、axis-proposer の起動 (段 6 の凍結 driver `s6_proposal_rounds.py` — **触らない**)。
-実 perf 出力での閾値校正と CLI 化は未了 (`DEFAULT_MIN_*` の docstring 参照)。
+実 perf 出力での閾値校正は未了 (CLI 化は完了、`DEFAULT_MIN_*` の docstring 参照)。
 """
 from __future__ import annotations
 
+import argparse
+import json
+import math
 import os
 import re
+import sys
 
 # ---------------------------------------------------------------- 契約 (固定)
 
@@ -251,12 +255,35 @@ def assert_position_only(record: dict) -> None:
         raise DirectiveDerivationError(f"未知の由来: {provenance['source']!r}")
     if provenance["reason"] not in REASONS:
         raise DirectiveDerivationError(f"未知の理由: {provenance['reason']!r}")
-    for item in provenance["evidence"]:
-        if set(item) != EVIDENCE_KEYS:
-            raise DirectiveDerivationError(f"evidence のキーが契約と不一致: {sorted(item)}")
     directive = record["hole_region_directive"]
     if directive is not None and not isinstance(directive, str):
         raise DirectiveDerivationError("directive は領域名 (string) か None のみ")
+    if directive is None and provenance["evidence"]:
+        raise DirectiveDerivationError("directive が None なら evidence は空でなければならない")
+    for item in provenance["evidence"]:
+        if set(item) != EVIDENCE_KEYS:
+            raise DirectiveDerivationError(f"evidence のキーが契約と不一致: {sorted(item)}")
+        if item["region"] != directive:
+            raise DirectiveDerivationError(
+                f"evidence の region が directive と不一致: {item['region']!r}"
+            )
+        label = item["label"]
+        if not isinstance(label, str) or re.fullmatch(
+            rf"{re.escape(directive)}:[0-9]+", label
+        ) is None:
+            raise DirectiveDerivationError(
+                f"evidence の label は '<region>:<行番号>' でなければならない: {label!r}"
+            )
+
+
+def _srcline_number(label: str) -> int | None:
+    """label 末尾を非負の行番号として解釈し、解釈不能なら evidence 用には採用しない。"""
+    try:
+        suffix = label.rsplit(":", 1)[1]
+        line_number = int(suffix)
+    except (IndexError, ValueError):
+        return None
+    return line_number if line_number >= 0 else None
 
 
 def derive_from_perf_report(
@@ -281,9 +308,12 @@ def derive_from_perf_report(
         totals, regions, min_region_pct=min_region_pct, min_margin_pct=min_margin_pct
     )
     evidence = [
-        {"label": label, "pct": pct, "region": directive}
+        {"label": f"{directive}:{line_number}", "pct": pct, "region": directive}
         for label, pct in rows
-        if directive is not None and mapper(label) == directive
+        if directive is not None
+        and mapper(label) == directive
+        for line_number in [_srcline_number(label)]
+        if line_number is not None
     ]
     record = build_directive_record(
         directive, "profiler_derived", reason=reason,
@@ -305,3 +335,147 @@ def declare_directive(directive: str, edit_surface_regions) -> dict:
     record = build_directive_record(directive, "human_declared", reason="human_declared")
     assert_position_only(record)
     return record
+
+
+# ------------------------------------------------------------------------- CLI
+
+_EDIT_SURFACE_KEYS = frozenset({"opened", "region", "role"})
+
+
+def _regions_from_provenance(path: str) -> list[str]:
+    """N1 provenance の射影済み編集面から領域集合を読む (欠落・型違いは fails-closed)。"""
+    with open(path, encoding="utf-8") as stream:
+        document = json.load(stream)
+    try:
+        projected_input = document["projected_input"]
+        edit_surface_map = projected_input["edit_surface_map"]
+    except (KeyError, TypeError) as exc:
+        raise DirectiveDerivationError(
+            "provenance JSON に projected_input.edit_surface_map が無い"
+        ) from exc
+    if not isinstance(edit_surface_map, list):
+        raise DirectiveDerivationError(
+            "projected_input.edit_surface_map は配列でなければならない"
+        )
+    if not edit_surface_map:
+        raise DirectiveDerivationError(
+            "projected_input.edit_surface_map は空であってはならない"
+        )
+
+    regions = []
+    for index, item in enumerate(edit_surface_map):
+        if not isinstance(item, dict) or set(item) != _EDIT_SURFACE_KEYS:
+            raise DirectiveDerivationError(
+                "projected_input.edit_surface_map"
+                f"[{index}] のキー集合は opened/region/role と一致しなければならない"
+            )
+        region = item["region"]
+        if not isinstance(region, str) or not region:
+            raise DirectiveDerivationError(
+                f"projected_input.edit_surface_map[{index}].region は空でない文字列でなければならない"
+            )
+        if region.startswith("/") or ".." in region.split("/"):
+            raise DirectiveDerivationError(
+                f"projected_input.edit_surface_map[{index}].region は安全な相対パスでなければならない"
+            )
+        regions.append(region)
+    return list(dict.fromkeys(regions))
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    derive = subparsers.add_parser(
+        "derive", help="perf report から profiler_derived record を導出する"
+    )
+    derive.add_argument("--report", required=True, metavar="REPORT", help="perf report --stdio のファイル")
+    derive.add_argument(
+        "--source-root", required=True,
+        help="srcline の基準ディレクトリ (実在検査は行わない)",
+    )
+    derive_regions = derive.add_mutually_exclusive_group(required=True)
+    derive_regions.add_argument("--regions-from", metavar="JSON")
+    derive_regions.add_argument(
+        "--region", dest="regions", action="append",
+        help="テスト・アドホック用の編集面領域名 (繰り返し指定可)",
+    )
+    derive.add_argument("--event", default="cycles")
+    derive.add_argument("--min-region-pct", type=float, default=DEFAULT_MIN_REGION_PCT)
+    derive.add_argument("--min-margin-pct", type=float, default=DEFAULT_MIN_MARGIN_PCT)
+    derive.add_argument("-o", "--output", metavar="OUT_JSON")
+
+    declare = subparsers.add_parser(
+        "declare", help="human_declared record を作る"
+    )
+    declare.add_argument("--region", dest="directive", required=True, help="宣言する領域名")
+    declare.add_argument(
+        "--regions-from", metavar="JSON", required=True,
+        help="編集面を持つ N1 provenance JSON",
+    )
+    return parser
+
+
+def _write_record(record: dict, output: str | None = None) -> None:
+    rendered = json.dumps(
+        record, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False
+    ) + "\n"
+    if output is None:
+        sys.stdout.write(rendered)
+        return
+    with open(output, "w", encoding="utf-8") as stream:
+        stream.write(rendered)
+
+
+def main(argv=None) -> int:
+    """perf 導出・人間宣言を固定 record JSON へ包む CLI entry point。"""
+    args = _parser().parse_args(argv)
+    try:
+        regions = (
+            _regions_from_provenance(args.regions_from)
+            if args.regions_from is not None else args.regions
+        )
+        if args.command == "derive":
+            for name, value in (
+                ("--min-region-pct", args.min_region_pct),
+                ("--min-margin-pct", args.min_margin_pct),
+            ):
+                if not math.isfinite(value) or not 0.0 <= value <= 100.0:
+                    raise DirectiveDerivationError(
+                        f"{name} は有限な 0〜100 の値でなければならない"
+                    )
+            with open(args.report, encoding="utf-8") as stream:
+                report_text = stream.read()
+            if not report_text:
+                raise DirectiveDerivationError("report ファイルが空")
+            if not parse_perf_rows(report_text, event=args.event):
+                raise DirectiveDerivationError("report に該当 event の行が無い")
+            record = derive_from_perf_report(
+                report_text,
+                args.source_root,
+                regions,
+                event=args.event,
+                min_region_pct=args.min_region_pct,
+                min_margin_pct=args.min_margin_pct,
+            )
+            output = args.output
+        else:
+            record = declare_directive(args.directive, regions)
+            output = None
+        assert_position_only(record)
+        _write_record(record, output)
+    except (
+        DirectiveDerivationError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

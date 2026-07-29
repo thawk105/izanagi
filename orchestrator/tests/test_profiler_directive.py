@@ -11,6 +11,7 @@ perf を実行しない機械部分のみ: perf report の汎用解析・信頼�
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -37,6 +38,20 @@ def _report(event_blocks):
         out.extend(rows)
         out.append("")
     return "\n".join(out)
+
+
+def _write_report(tmp_path, text, name="perf-report.txt"):
+    path = tmp_path / name
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def _write_provenance(tmp_path, edit_surface_map, name="n1-provenance.json"):
+    path = tmp_path / name
+    path.write_text(json.dumps({
+        "projected_input": {"edit_surface_map": edit_surface_map},
+    }), encoding="utf-8")
+    return path
 
 
 # ------------------------------------------------------------------ 解析
@@ -219,6 +234,42 @@ def test_assert_position_only_rejects_smuggled_guidance(mutate):
         M.assert_position_only(record)
 
 
+def test_assert_position_only_rejects_polluted_evidence_label():
+    record = M.build_directive_record(
+        "cc/silo/silo.cc", "profiler_derived", reason="dominant_region",
+        evidence=[{"label": "cc/silo/silo.cc:3", "pct": 40.0, "region": "cc/silo/silo.cc"}],
+    )
+    record["provenance"]["evidence"][0]["label"] = "cc/silo/silo.cc:set_BACKOFF=0"
+
+    with pytest.raises(M.DirectiveDerivationError, match="label"):
+        M.assert_position_only(record)
+
+
+def test_assert_position_only_rejects_evidence_for_another_region():
+    record = M.build_directive_record(
+        "cc/silo/silo.cc", "profiler_derived", reason="dominant_region",
+        evidence=[{"label": "cc/silo/silo.cc:3", "pct": 40.0, "region": "cc/silo/silo.cc"}],
+    )
+    record["provenance"]["evidence"][0] = {
+        "label": "include/backoff.hh:3",
+        "pct": 40.0,
+        "region": "include/backoff.hh",
+    }
+
+    with pytest.raises(M.DirectiveDerivationError, match="directive と不一致"):
+        M.assert_position_only(record)
+
+
+def test_assert_position_only_rejects_evidence_when_directive_is_none():
+    record = M.build_directive_record(
+        None, "profiler_derived", reason="margin_too_small",
+        evidence=[{"label": "cc/silo/silo.cc:3", "pct": 40.0, "region": "cc/silo/silo.cc"}],
+    )
+
+    with pytest.raises(M.DirectiveDerivationError, match="None なら evidence は空"):
+        M.assert_position_only(record)
+
+
 def test_build_rejects_evidence_with_extra_keys_at_construction_time():
     """組立の時点でも自由キーを弾く (検査を呼び忘れても漏れない)。"""
     with pytest.raises(M.DirectiveDerivationError):
@@ -245,9 +296,25 @@ def test_end_to_end_from_a_perf_report():
     }
     assert record["provenance"]["dropped_pct"] == 20.0
     assert [e["label"] for e in record["provenance"]["evidence"]] == [
-        "/build/ccbench/cc/silo/transaction.cc:120",
-        "/build/ccbench/cc/silo/transaction.cc:311",
+        "cc/silo/transaction.cc:120",
+        "cc/silo/transaction.cc:311",
     ]
+
+
+def test_evidence_drops_non_numeric_suffix_and_normalizes_valid_srcline():
+    text = _report([("cycles", [
+        "    38.00%  /build/ccbench/cc/silo/silo.cc:0007",
+        "    12.00%  /build/ccbench/cc/silo/silo.cc:set_BACKOFF=0",
+        "     9.00%  /build/ccbench/include/backoff.hh:40",
+    ])])
+    record = M.derive_from_perf_report(text, _ROOT, _REGIONS)
+
+    assert record["hole_region_directive"] == "cc/silo/silo.cc"
+    assert record["provenance"]["region_totals_pct"]["cc/silo/silo.cc"] == 50.0
+    assert record["provenance"]["evidence"] == [
+        {"label": "cc/silo/silo.cc:7", "pct": 38.0, "region": "cc/silo/silo.cc"},
+    ]
+    M.assert_position_only(record)
 
 
 def test_end_to_end_falls_back_to_no_hint_when_flat():
@@ -288,3 +355,279 @@ def test_derived_directive_is_accepted_by_the_role_policy_check():
     payload["hole_region_directive"] = "cc/silo/off_the_map.cc"
     with pytest.raises(policy.RolePolicyError):
         policy.validate_input_semantics("axis-proposer", payload)
+
+
+# ---------------------------------------------------------------------- CLI
+
+def test_cli_derive_emits_dominant_region_record(tmp_path, capsys):
+    text = _report([("cycles", [
+        "    45.00%  /build/ccbench/cc/silo/transaction.cc:120",
+        "    12.00%  /build/ccbench/include/backoff.hh:40",
+    ])])
+    report = _write_report(tmp_path, text)
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--region", "cc/silo/transaction.cc",
+        "--region", "include/backoff.hh",
+    ])
+    captured = capsys.readouterr()
+    record = json.loads(captured.out)
+
+    assert rc == 0
+    assert captured.err == ""
+    M.assert_position_only(record)
+    assert record["hole_region_directive"] == "cc/silo/transaction.cc"
+    assert record["provenance"]["reason"] == "dominant_region"
+
+
+def test_cli_derive_emits_no_hint_control_when_flat(tmp_path, capsys):
+    text = _report([("cycles", [
+        "    26.00%  /build/ccbench/cc/silo/transaction.cc:120",
+        "    24.00%  /build/ccbench/cc/silo/silo.cc:5",
+    ])])
+    report = _write_report(tmp_path, text)
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--region", "cc/silo/transaction.cc",
+        "--region", "cc/silo/silo.cc",
+    ])
+    captured = capsys.readouterr()
+    record = json.loads(captured.out)
+
+    assert rc == 0
+    assert captured.err == ""
+    M.assert_position_only(record)
+    assert record["hole_region_directive"] is None
+    assert record["provenance"]["reason"] == "margin_too_small"
+
+
+def test_cli_derive_reads_regions_from_n1_provenance_and_writes_output(tmp_path, capsys):
+    provenance = _write_provenance(tmp_path, [
+        {"opened": False, "region": "cc/silo/silo.cc", "role": "mock"},
+        {"opened": True, "region": "include/backoff.hh", "role": "mock"},
+    ])
+    output = tmp_path / "directive.json"
+    text = _report([("cycles", [
+        "    41.00%  /scr/disappeared/ccbench/include/backoff.hh:40",
+        "     9.00%  /scr/disappeared/ccbench/cc/silo/silo.cc:5",
+    ])])
+    report = _write_report(tmp_path, text)
+
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", "/scr/disappeared/ccbench",
+        "--regions-from", str(provenance), "-o", str(output),
+    ])
+    captured = capsys.readouterr()
+    record = json.loads(output.read_text(encoding="utf-8"))
+
+    assert rc == 0
+    assert captured.out == ""
+    assert captured.err == ""
+    M.assert_position_only(record)
+    assert record["hole_region_directive"] == "include/backoff.hh"
+    assert record["provenance"]["reason"] == "dominant_region"
+
+
+def test_cli_declare_emits_human_declared_record(tmp_path, capsys):
+    provenance = _write_provenance(tmp_path, [
+        {"opened": False, "region": "cc/silo/silo.cc", "role": "mock"},
+        {"opened": True, "region": "include/backoff.hh", "role": "mock"},
+    ])
+    rc = M.main([
+        "declare", "--region", "include/backoff.hh",
+        "--regions-from", str(provenance),
+    ])
+    captured = capsys.readouterr()
+    record = json.loads(captured.out)
+
+    assert rc == 0
+    assert captured.err == ""
+    M.assert_position_only(record)
+    assert record["hole_region_directive"] == "include/backoff.hh"
+    assert record["provenance"]["source"] == "human_declared"
+    assert record["provenance"]["reason"] == "human_declared"
+
+
+def test_cli_declare_rejects_region_outside_the_map(tmp_path, capsys):
+    provenance = _write_provenance(tmp_path, [
+        {"opened": False, "region": "cc/silo/silo.cc", "role": "mock"},
+    ])
+    rc = M.main([
+        "declare", "--region", "cc/silo/not_in_the_map.cc",
+        "--regions-from", str(provenance),
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert "編集面の地図に無い領域" in captured.err
+
+
+def test_cli_declare_rejects_freeform_region_list(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        M.main([
+            "declare", "--region", "cc/silo/silo.cc",
+            "--region-list", "cc/silo/silo.cc",
+        ])
+    captured = capsys.readouterr()
+
+    assert excinfo.value.code == 2
+    assert "--regions-from" in captured.err
+
+
+def test_cli_regions_from_missing_n1_hierarchy_fails_closed(tmp_path, capsys):
+    provenance = tmp_path / "bad-provenance.json"
+    provenance.write_text(json.dumps({"projected_input": {}}), encoding="utf-8")
+    report = _write_report(tmp_path, _report([("cycles", [
+        "    60.00%  /build/ccbench/cc/silo/silo.cc:3",
+    ])]))
+
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--regions-from", str(provenance),
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert "projected_input.edit_surface_map が無い" in captured.err
+
+
+def test_cli_rechecks_position_only_before_output(tmp_path, monkeypatch, capsys):
+    def polluted_derive(*args, **kwargs):
+        record = M.build_directive_record(
+            "cc/silo/silo.cc", "profiler_derived", reason="dominant_region"
+        )
+        record["direction"] = "increase"
+        return record
+
+    monkeypatch.setattr(M, "derive_from_perf_report", polluted_derive)
+    report = _write_report(tmp_path, _report([("cycles", [
+        "    60.00%  /build/ccbench/cc/silo/silo.cc:3",
+    ])]))
+    rc = M.main([
+        "derive",
+        "--report", str(report),
+        "--source-root", _ROOT,
+        "--region", "cc/silo/silo.cc",
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert "record のキーが契約と不一致" in captured.err
+
+
+def test_cli_derive_rejects_missing_report_path(tmp_path, capsys):
+    missing = tmp_path / "missing-perf-report.txt"
+    rc = M.main([
+        "derive", "--report", str(missing), "--source-root", _ROOT,
+        "--region", "cc/silo/silo.cc",
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert str(missing) in captured.err
+
+
+@pytest.mark.parametrize("option", ["--min-region-pct", "--min-margin-pct"])
+@pytest.mark.parametrize("value", ["nan", "-1", "101"])
+def test_cli_derive_rejects_invalid_thresholds(tmp_path, capsys, option, value):
+    report = _write_report(tmp_path, _report([("cycles", [
+        "    60.00%  /build/ccbench/cc/silo/silo.cc:3",
+    ])]))
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--region", "cc/silo/silo.cc", option, value,
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert "有限な 0〜100" in captured.err
+
+
+def test_cli_derive_rejects_empty_report(tmp_path, capsys):
+    report = _write_report(tmp_path, "")
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--region", "cc/silo/silo.cc",
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert "report ファイルが空" in captured.err
+
+
+def test_cli_derive_rejects_report_without_requested_event(tmp_path, capsys):
+    report = _write_report(tmp_path, _report([("cycles", [
+        "    60.00%  /build/ccbench/cc/silo/silo.cc:3",
+    ])]))
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--region", "cc/silo/silo.cc", "--event", "instructions",
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert "report に該当 event の行が無い" in captured.err
+
+
+def test_cli_derive_keeps_no_mapped_region_as_success(tmp_path, capsys):
+    report = _write_report(tmp_path, _report([("cycles", [
+        "    60.00%  /usr/lib/libc.so:3",
+    ])]))
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--region", "cc/silo/silo.cc",
+    ])
+    captured = capsys.readouterr()
+    record = json.loads(captured.out)
+
+    assert rc == 0
+    assert captured.err == ""
+    assert record["hole_region_directive"] is None
+    assert record["provenance"]["reason"] == "no_mapped_region"
+    assert record["provenance"]["dropped_pct"] == 60.0
+
+
+@pytest.mark.parametrize(
+    ("edit_surface_map", "message"),
+    [
+        pytest.param([], "空であってはならない", id="empty-map"),
+        pytest.param(
+            [{"opened": False, "region": "cc/silo/silo.cc"}],
+            "キー集合",
+            id="wrong-keys",
+        ),
+        pytest.param(
+            [{"opened": False, "region": "/cc/silo/silo.cc", "role": "mock"}],
+            "安全な相対パス",
+            id="absolute-region",
+        ),
+        pytest.param(
+            [{"opened": False, "region": "cc/../silo/silo.cc", "role": "mock"}],
+            "安全な相対パス",
+            id="parent-region",
+        ),
+    ],
+)
+def test_cli_derive_rejects_invalid_provenance(
+    tmp_path, capsys, edit_surface_map, message
+):
+    provenance = _write_provenance(tmp_path, edit_surface_map)
+    report = _write_report(tmp_path, _report([("cycles", [
+        "    60.00%  /build/ccbench/cc/silo/silo.cc:3",
+    ])]))
+    rc = M.main([
+        "derive", "--report", str(report), "--source-root", _ROOT,
+        "--regions-from", str(provenance),
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 2
+    assert captured.out == ""
+    assert message in captured.err
