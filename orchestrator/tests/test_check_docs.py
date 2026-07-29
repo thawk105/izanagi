@@ -2119,6 +2119,30 @@ def test_missing_enumerated_doc_only_fires_own_finding():
         shutil.rmtree(root, ignore_errors=True)
 
 
+# ===== T-143: RuleOps living doc の独立 literal pin / 行番号参照 positive control =====
+
+def test_ruleops_doc_is_literal_pinned_as_enumerated_living_doc():
+    assert "docs/ruleops.md" in _enumerated_rels()
+
+
+def test_ruleops_line_reference_is_own_violation():
+    root = _build_min_repo()
+    try:
+        baseline = _run_check(root)
+        assert baseline.returncode == 0, baseline.stdout
+        _write(
+            root,
+            os.path.join("docs", "ruleops.md"),
+            "# synthetic RuleOps\n\n`ruleops.md:12` を参照する。\n",
+        )
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout
+        assert _violation_count(result) == 1, result.stdout
+        assert "docs の行番号参照 (腐敗する)" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 # ===== V19a: output の生きた README を検査網へ固定 =====
 
 def test_output_readmes_are_enumerated_and_valid_fixture_is_clean():
