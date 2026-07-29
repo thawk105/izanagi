@@ -338,8 +338,17 @@ def test_inventory_ignores_symlink_and_gitlink_in_scope(tmp_path):
 def test_m3_dirty_worktree_does_not_change_head_inventory(tmp_path):
     repo = _base_repo(tmp_path)
     before = _canonical(R.build_inventory(repo))
-    target = repo / "orchestrator/tests/test_candidate.py"
-    target.write_text("dirty bytes are much longer than HEAD\n", encoding="utf-8")
+    candidate_path = "orchestrator/tests/test_candidate.py"
+    target = repo / candidate_path
+    head_blob = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "blob", f"HEAD:{candidate_path}"],
+        check=True,
+        capture_output=True,
+    ).stdout
+    dirty_bytes = b"dirty worktree replacement\n"
+    assert dirty_bytes != head_blob
+    assert len(dirty_bytes) != len(head_blob)
+    target.write_bytes(dirty_bytes)
     after = _canonical(R.build_inventory(repo))
     assert after == before
 
