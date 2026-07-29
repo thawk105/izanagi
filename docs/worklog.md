@@ -606,3 +606,111 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-169] 同上
 - [T-170] 同上
 - [T-171] 同上
+
+## 2026-07-29 (54) — [T-153(e)] + [T-154(2)(3)] provenance gate を完了 — CAB 最終 trailer block 配置 + policy 9,000-byte 上限 (コード + docs、branch codex/dev-wave-t153e-t15423、計測 = 本 worktree・ログインノード)
+
+- ユーザー裁定どおり、`docs/ai-provenance.md` は 9,000 bytes 上限 (実体 8,832 bytes)、
+  `Co-Authored-By` 候補はすべて最終 trailer block に置く受理集合へ変更。D96 手続に従い
+  D98・policy・checker・境界 test を実装 commit `9b26b3b` へ同梱
+- Codex plan 1、敵対相談 2、実装 + fix 3、敵対レビュー 2 + 焦点再レビュー 2。
+  初回レビューの real 10件をfix1、pre-policy parser遡及のR-1をfix2で閉じ、focus2は
+  closed 11 / partial 0 / regressed 0 でGO。逐語と裁定 = insight README
+- 変異 matrix 8/8 KILLED。divider、hostile Git config、CAB件数、early return、非遡及、
+  message-file接続、9,001-byte、過剰拒否正例を単一nodeで検出。SURVIVED / mask / erratumなし
+- 実行順は O19 の「tracked mutation本走は統合commit後」に従い、実装commit → mutation →
+  全受入 → 本記録commit。裁定予定ではなくこの実手順を記録する
+- 受入: 焦点 188 passed、全走 3483 passed / 18 skipped、`check_codex_agents` /
+  `check_docs` 緑、`check_ai_provenance` 496件・違反なし。全履歴provenanceは約66秒
+- 低優先残余: commitごとの `git log -S` は線形履歴で二次コストになりうる。現waveの
+  timeout・誤受理/誤拒否はなく受入阻害ではないため、受理集合を保つcache化を [T-172] へ分離
+- エージェント工数: Codex 9 job (planner 1 / consult 2 / author・fix 3 / review 3)。
+  親 = brief・裁定・docs・統合・mutation・受入・記録
+
+### 次の一手
+
+- [T-139] 同上
+- [T-142] 同上
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 (本エントリ、9b26b3b)**: (a)〜(d) は (47)、(e) は本waveで完了
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] 同上
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] 同上
+- [T-151] 同上
+- [T-154] **完了**: (1) は既完了、(2) 9,000-byte上限と (3) CAB配置gateを本waveで完了
+- [T-130] 同上
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] 同上
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] 同上
+- [T-171] 同上
+- [T-172] **P3・新規 (本wave focus2 BL-PERF-1)**: per-commit `git log -S` を
+  受理集合不変のgraph propagation/cacheへ置換し、496件約66秒の全履歴監査を短縮する
