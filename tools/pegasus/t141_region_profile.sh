@@ -925,6 +925,7 @@ attest perf_path "$PERF_SELECTED_REAL"
 attest perf_version "$PERF_SELECTED_VERSION"
 attest perf_events "cycles,instructions"
 attest perf_record_delay_smoke_ms "10"
+attest perf_record_frequency_hz "400"
 
 # (vii) one timing probe per build/workload, then 2 builds x 2 workloads x 3 reps.
 parse_throughput() {
@@ -1122,7 +1123,7 @@ for build_tag in S V; do
     for rep in 1 2 3; do
       run_id="${pair_id}-r${rep}"
       cell_stage="cell_${run_id}"
-      ensure_deadline "$cell_stage" 425
+      ensure_deadline "$cell_stage" 785
       record_loadavg "$cell_stage"
       check_isolation "$run_id"
       RUN_DIR="$JOB_DIR/run-$run_id"
@@ -1138,7 +1139,7 @@ for build_tag in S V; do
         "${workload_flags[@]}"
       )
       bench_argv=(
-        "$PERF_SELECTED_REAL" record -D "$DELAY_MS"
+        "$PERF_SELECTED_REAL" record -D "$DELAY_MS" -F 400
         -o "$PERF_DATA" -e cycles,instructions --
         "${workload_bench_argv[@]}"
       )
@@ -1171,7 +1172,7 @@ for build_tag in S V; do
       SRCLINE_REPORT="$ARTIFACT_DIR/report-srcline-${run_id}.txt"
       SYMBOL_REPORT="$ARTIFACT_DIR/report-symbol-${run_id}.txt"
       report_rc=0
-      timeout --signal=TERM 120 "$PERF_SELECTED_REAL" report \
+      timeout --signal=TERM 300 "$PERF_SELECTED_REAL" report \
         -i "$PERF_DATA" --stdio --percent-limit 0 --sort=srcline \
         >"$SRCLINE_REPORT" \
         2>"$ARTIFACT_DIR/report-srcline-${run_id}.stderr.txt" || report_rc=$?
@@ -1195,7 +1196,7 @@ for build_tag in S V; do
       attest "${cell_stage}_srcline_rows" "${SRCLINE_METRICS[2]}"
 
       report_rc=0
-      timeout --signal=TERM 120 "$PERF_SELECTED_REAL" report \
+      timeout --signal=TERM 300 "$PERF_SELECTED_REAL" report \
         -i "$PERF_DATA" --stdio --percent-limit 0 --sort=symbol \
         >"$SYMBOL_REPORT" \
         2>"$ARTIFACT_DIR/report-symbol-${run_id}.stderr.txt" || report_rc=$?
