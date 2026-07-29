@@ -733,3 +733,114 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-169] 同上
 - [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
 - [T-171] 同上
+
+## 2026-07-29 (55) — [T-142] 出力集合 O への S2 promotion — 実装前審査の未見 blocker を再裁定へ返す (docs のみ、branch codex/dev-wave-t142-output-promotion)
+
+- `/dev-wave T-142` の段 1〜4 を実施。読取専用 planner 1 本と独立な敵対相談 2 本は、いずれも
+  現 production 経路での実装を NO-GO とした。親もコード・WAL・floor を独立再確認した
+- 未見事実 1: 現 sort/trigger は `reps=2` で、現行 Mann–Whitney は完全分離 n=2 対 n=2 でも
+  `p=0.1939308523` の `no-difference`。省略条件 `slower && !near_floor` は到達不能
+- 未見事実 2: 現動作点 (linux-baremetal・100k・4 threads・extime=1・reps=2) と同一座標の
+  between-run floor は無い。最寄りは 1m・48 threads・extime=3・reps=5 で流用不可
+- 効果分母を再集計: numeric COMMIT 426、S2 済み numeric COMMIT 78、campaign 内 raw new-best 18。
+  raw skip 上限は 60/78 = 76.9%、実 target sort/trigger は 0/3 であり、旧 88% は正式期待値でない
+- 現 p3 には formal selected/stock/tie producer と同一 config の certified stock が無く、tie も
+  direct-winner と no-difference 推移閉包の二義が未裁定。O 保存の positive control を作れない
+- DW-S04 に従い承認済み択 (a) を AI が棄却せず、新事実付きで再裁定へ返した。段 5・6 はスキップし、
+  コード・テスト変更なし。変異 matrix と受入全走は対象外。変更前 baseline = 325 passed / 9 skipped
+- 親推奨は T-142 close。継続する場合は tie/authoritative selector、live campaign と正式 perf、
+  exact floor、all-S2/adaptive paired pilot (自然な skip 1 件以上・正の短縮・O 一致) を前提 wave とする
+- 公開正本 = `output/insights/2026-07-29_t142-implementation-preflight.md`、逐語束 =
+  `output/insights/2026-07-29_t142-output-promotion-verbatim/`
+- エージェント工数: 親 1、隔離 read-only job 3 (planner 1 + 敵対相談 2)、author 0
+
+### 次の一手
+
+- [T-139] **P1・裁定完了 ((45)) + 着手承認 ((54)) → 恒久実装 wave 実装待ち**: 着手はユーザーの
+  タスク開始指示から
+- [T-142] **再裁定待ち ((55))**: 親推奨は close。継続なら tie/authoritative selector・live campaign /
+  正式 perf・exact floor・paired pilot を先行承認し、自然な skip が無ければ close
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] 同上
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] 同上
+- [T-126] 同上
+- [T-145] 同上
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-151] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-154] 同上
+- [T-130] **裁定済み ((54) = 短縮する・手段限定) → 実装待ち**: ビルドキャッシュ / 並列ビルドで
+  短縮する。ビルド成果物の使い回し (control の意味を薄める経路) は採らない
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み ((54) = 採用、新 pin `c9c1a9c` 承認) → 実装待ち**: [T-163] と同一 wave
+  または直前で実装。[T-150]/[T-151]/[T-170] の上流出しを同梱
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((54) = [T-167] wave へ束ねて上流へ)**: 上流 PR / push は人間
+- [T-171] 同上
