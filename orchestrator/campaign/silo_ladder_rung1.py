@@ -440,6 +440,18 @@ def _tool_identity(name: str, executable: str | None = None) -> dict[str, Any]:
     }
 
 
+def tool_version_body(version: str) -> str:
+    """起動名である第 1 token を除き、tool version 本体を返す。"""
+    normalized = version.strip()
+    for index, character in enumerate(normalized):
+        if character.isspace():
+            body = normalized[index:]
+            if body.strip():
+                return body
+            break
+    raise ValueError("tool version must contain an argv0 token and body")
+
+
 def capture_tool_identities() -> list[dict[str, Any]]:
     """A-4 の tool identity 集合。python は実行中 interpreter 自身を束縛する。"""
     return [
@@ -2696,17 +2708,17 @@ def _tree_manifest_sha256(root: Path) -> str:
 
 
 def _command_receipt_link_ok(
-    receipt: Mapping[str, Any], *, tool_name: str,
+    receipt: Mapping[str, Any], *, expected_argv0: str,
     argv_tail: Sequence[str], target_sha256: str,
     stdout_path: Path, stderr_path: Path, returncode: int = 0,
     argv0_sha256: str,
 ) -> bool:
-    """command receipt を argv/rc/target/stdout/stderr の全 link へ結ぶ。"""
+    """command receipt を argv0 full path/rc/target/stdout/stderr へ結ぶ。"""
     argv = receipt.get("argv")
     return (
         type(argv) is list
         and len(argv) == len(argv_tail) + 1
-        and Path(str(argv[0])).name == tool_name
+        and argv[0] == expected_argv0
         and argv[1:] == list(argv_tail)
         and receipt.get("returncode") == returncode
         and receipt.get("timed_out") is False
@@ -2827,8 +2839,8 @@ def validate_raw_bundle(
         correctness_raw = raw_root / "correctness"
         correctness_replay = _load_json(correctness_raw / "compile-replay.json")
         correctness_build = document["correctness_leg"]["build"]
-        correctness_tool_sha256 = {
-            item["name"]: item["sha256"]
+        correctness_tools = {
+            item["name"]: item
             for item in document["correctness_leg"]["provenance"]["tools"]
         }
         correctness_commands = _load_json(
@@ -2950,7 +2962,7 @@ def validate_raw_bundle(
             != correctness_build["binary_sha256"]
             or not _command_receipt_link_ok(
                 correctness_object_nm_receipt,
-                tool_name="nm",
+                expected_argv0=correctness_tools["nm"]["realpath"],
                 argv_tail=[
                     "-g", "--defined-only",
                     correctness_transaction["object_path"],
@@ -2960,31 +2972,31 @@ def validate_raw_bundle(
                 ],
                 stdout_path=correctness_raw / "transaction.nm.txt",
                 stderr_path=correctness_raw / "transaction.nm.stderr",
-                argv0_sha256=correctness_tool_sha256["nm"],
+                argv0_sha256=correctness_tools["nm"]["sha256"],
             )
             or not _command_receipt_link_ok(
                 correctness_binary_nm_receipt,
-                tool_name="nm",
+                expected_argv0=correctness_tools["nm"]["realpath"],
                 argv_tail=[
                     "-g", "--defined-only", correctness_binary_path,
                 ],
                 target_sha256=correctness_build["binary_sha256"],
                 stdout_path=correctness_raw / "binary.nm.txt",
                 stderr_path=correctness_raw / "binary.nm.stderr",
-                argv0_sha256=correctness_tool_sha256["nm"],
+                argv0_sha256=correctness_tools["nm"]["sha256"],
             )
             or not _command_receipt_link_ok(
                 correctness_readelf_receipt,
-                tool_name="readelf",
+                expected_argv0=correctness_tools["readelf"]["realpath"],
                 argv_tail=["-Ws", correctness_binary_path],
                 target_sha256=correctness_build["binary_sha256"],
                 stdout_path=correctness_raw / "binary.readelf.txt",
                 stderr_path=correctness_raw / "binary.readelf.stderr",
-                argv0_sha256=correctness_tool_sha256["readelf"],
+                argv0_sha256=correctness_tools["readelf"]["sha256"],
             )
             or not _command_receipt_link_ok(
                 correctness_run_receipt,
-                tool_name=Path(correctness_binary_path).name,
+                expected_argv0=correctness_binary_path,
                 argv_tail=CORRECTNESS_WORKLOAD,
                 target_sha256=correctness_build["binary_sha256"],
                 stdout_path=correctness_raw / "run.stdout",
@@ -3034,12 +3046,16 @@ def validate_raw_bundle(
                 or recorded["stdout_sha256"] != sha256_file(run_dir / "stdout.txt")
                 or recorded["stderr_sha256"] != sha256_file(run_dir / "stderr.txt")
                 or not (run_dir / "stderr.txt").is_file()
-                or command["argv"] != recorded["argv"]
-                or command["returncode"] != recorded["returncode"]
-                or command["stdout_sha256"] != recorded["stdout_sha256"]
-                or command["stderr_sha256"] != recorded["stderr_sha256"]
-                or command["argv0_sha256"] != build_record["binary_sha256"]
-                or command["target_sha256"] != build_record["binary_sha256"]
+                or not _command_receipt_link_ok(
+                    command,
+                    expected_argv0=recorded["argv"][0],
+                    argv_tail=recorded["workload_argv"],
+                    target_sha256=build_record["binary_sha256"],
+                    stdout_path=run_dir / "stdout.txt",
+                    stderr_path=run_dir / "stderr.txt",
+                    returncode=recorded["returncode"],
+                    argv0_sha256=build_record["binary_sha256"],
+                )
             ):
                 raise DriverError("raw performance run differs from final JSON")
         live_by_cell = {
@@ -3080,18 +3096,22 @@ def validate_raw_bundle(
                     or recorded["stdout_sha256"] != sha256_file(run_dir / "stdout.txt")
                     or recorded["stderr_sha256"] != sha256_file(run_dir / "stderr.txt")
                     or not (run_dir / "stderr.txt").is_file()
-                    or command["argv"] != recorded["argv"]
-                    or command["returncode"] != recorded["returncode"]
-                    or command["stdout_sha256"] != recorded["stdout_sha256"]
-                    or command["stderr_sha256"] != recorded["stderr_sha256"]
-                    or command["argv0_sha256"] != build_record["binary_sha256"]
-                    or command["target_sha256"] != build_record["binary_sha256"]
+                    or not _command_receipt_link_ok(
+                        command,
+                        expected_argv0=recorded["argv"][0],
+                        argv_tail=recorded["workload_argv"],
+                        target_sha256=build_record["binary_sha256"],
+                        stdout_path=run_dir / "stdout.txt",
+                        stderr_path=run_dir / "stderr.txt",
+                        returncode=recorded["returncode"],
+                        argv0_sha256=build_record["binary_sha256"],
+                    )
                 ):
                     raise DriverError("raw liveness completion witness mismatch")
                 ordinal += 1
         builds = document["gap_leg"]["builds"]
-        gap_tool_sha256 = {
-            item["name"]: item["sha256"]
+        gap_tools = {
+            item["name"]: item
             for item in document["provenance"]["tools"]
         }
         if (
@@ -3227,32 +3247,32 @@ def validate_raw_bundle(
                 or not (build_raw / "binary.readelf.txt").is_file()
                 or not _command_receipt_link_ok(
                     transaction_nm_receipt,
-                    tool_name="nm",
+                    expected_argv0=gap_tools["nm"]["realpath"],
                     argv_tail=[
                         "-g", "--defined-only", transaction["object_path"],
                     ],
                     target_sha256=build["transaction_object_sha256"],
                     stdout_path=build_raw / "transaction.nm.txt",
                     stderr_path=build_raw / "transaction.nm.stderr",
-                    argv0_sha256=gap_tool_sha256["nm"],
+                    argv0_sha256=gap_tools["nm"]["sha256"],
                 )
                 or not _command_receipt_link_ok(
                     binary_nm_receipt,
-                    tool_name="nm",
+                    expected_argv0=gap_tools["nm"]["realpath"],
                     argv_tail=["-g", "--defined-only", binary_path],
                     target_sha256=build["binary_sha256"],
                     stdout_path=build_raw / "binary.nm.txt",
                     stderr_path=build_raw / "binary.nm.stderr",
-                    argv0_sha256=gap_tool_sha256["nm"],
+                    argv0_sha256=gap_tools["nm"]["sha256"],
                 )
                 or not _command_receipt_link_ok(
                     readelf_receipt,
-                    tool_name="readelf",
+                    expected_argv0=gap_tools["readelf"]["realpath"],
                     argv_tail=["-Ws", binary_path],
                     target_sha256=build["binary_sha256"],
                     stdout_path=build_raw / "binary.readelf.txt",
                     stderr_path=build_raw / "binary.readelf.stderr",
-                    argv0_sha256=gap_tool_sha256["readelf"],
+                    argv0_sha256=gap_tools["readelf"]["sha256"],
                 )
                 or binary_identity_count != expected_count
                 or object_identity_count != expected_count
@@ -3536,10 +3556,12 @@ def validate_current_bindings(
             != calibration_document["acquisition_receipt"]["toolchain"][
                 "compiler_path"
             ]
-            or tools["gcc"]["version"]
-            != calibration_document["acquisition_receipt"]["toolchain"][
-                "compiler_version"
-            ]
+            or tool_version_body(tools["gcc"]["version"])
+            != tool_version_body(
+                calibration_document["acquisition_receipt"]["toolchain"][
+                    "compiler_version"
+                ]
+            )
         ):
             raise DriverError("gap toolchain differs from registered calibration")
         build_by_id = {

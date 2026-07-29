@@ -765,6 +765,25 @@ def test_tool_identity_set_includes_symbol_witness_tools(monkeypatch):
     assert identities[-1]["executable"] == sys.executable
 
 
+def test_tool_version_body_ignores_only_argv0_and_rejects_body_mismatch():
+    registered = "gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
+    same_binary = (
+        "x86_64-linux-gnu-gcc-11 "
+        "(Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
+    )
+    different_binary = (
+        "x86_64-linux-gnu-gcc-11 "
+        "(Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.1"
+    )
+
+    assert driver.tool_version_body(same_binary) == (
+        driver.tool_version_body(registered)
+    )
+    assert driver.tool_version_body(different_binary) != (
+        driver.tool_version_body(registered)
+    )
+
+
 def test_dependency_pins_are_policy_bound_and_match_registered_calibration():
     policy = json.loads((TOOLS / "policy.json").read_text(encoding="utf-8"))
     pins = policy["silo_ladder_rung1"]["dependency_pins"]
@@ -1413,7 +1432,10 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
     }
     write_command(
         correctness / "binary.nm.command.json",
-        ["nm", "-g", "--defined-only", "/fixture/correctness"],
+        [
+            correctness_tools["nm"]["realpath"],
+            "-g", "--defined-only", "/fixture/correctness",
+        ],
         correctness / "binary.nm.txt", correctness / "binary.nm.stderr",
         argv0_sha256=correctness_tools["nm"]["sha256"],
         target_sha256=correctness_build["binary_sha256"],
@@ -1421,7 +1443,7 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
     write_command(
         correctness / "transaction.nm.command.json",
         [
-            "nm", "-g", "--defined-only",
+            correctness_tools["nm"]["realpath"], "-g", "--defined-only",
             next(
                 item["object_path"]
                 for item in correctness_build["compile_invocations"]
@@ -1434,7 +1456,10 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
     )
     write_command(
         correctness / "binary.readelf.command.json",
-        ["readelf", "-Ws", "/fixture/correctness"],
+        [
+            correctness_tools["readelf"]["realpath"],
+            "-Ws", "/fixture/correctness",
+        ],
         correctness / "binary.readelf.txt", correctness / "binary.readelf.stderr",
         argv0_sha256=correctness_tools["readelf"]["sha256"],
         target_sha256=correctness_build["binary_sha256"],
@@ -1452,7 +1477,10 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
         target = active / f"build-{build['id']}"
         write_command(
             target / "binary.nm.command.json",
-            ["nm", "-g", "--defined-only", f"/fixture/{build['id']}"],
+            [
+                gap_tools["nm"]["realpath"],
+                "-g", "--defined-only", f"/fixture/{build['id']}",
+            ],
             target / "binary.nm.txt", target / "binary.nm.stderr",
             argv0_sha256=gap_tools["nm"]["sha256"],
             target_sha256=build["binary_sha256"],
@@ -1460,7 +1488,7 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
         write_command(
             target / "transaction.nm.command.json",
             [
-                "nm", "-g", "--defined-only",
+                gap_tools["nm"]["realpath"], "-g", "--defined-only",
                 next(
                     item["object_path"]
                     for item in build["compile_invocations"]
@@ -1473,7 +1501,10 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
         )
         write_command(
             target / "binary.readelf.command.json",
-            ["readelf", "-Ws", f"/fixture/{build['id']}"],
+            [
+                gap_tools["readelf"]["realpath"],
+                "-Ws", f"/fixture/{build['id']}",
+            ],
             target / "binary.readelf.txt", target / "binary.readelf.stderr",
             argv0_sha256=gap_tools["readelf"]["sha256"],
             target_sha256=build["binary_sha256"],
@@ -1659,7 +1690,7 @@ def test_raw_bundle_rejects_duplicate_ycsb_target_compile_entry(tmp_path):
     "broken_link",
     [
         "compile-replay", "nm-target", "run-binary",
-        "nm-argv0", "readelf-argv0",
+        "nm-argv0", "nm-argv0-path", "readelf-argv0",
         "correctness-run-argv", "correctness-run-rc",
         "correctness-run-target", "correctness-run-stdout",
         "correctness-run-stderr", "correctness-nm-argv",
@@ -1691,6 +1722,11 @@ def test_raw_hash_chain_rejects_exactly_one_broken_link(tmp_path, broken_link):
         path = active / "build-stock" / receipt_name
         value = json.loads(path.read_text(encoding="utf-8"))
         value["argv0_sha256"] = None
+    elif broken_link == "nm-argv0-path":
+        path = active / "build-stock/transaction.nm.command.json"
+        value = json.loads(path.read_text(encoding="utf-8"))
+        assert Path(value["argv"][0]).name == "nm"
+        value["argv"][0] = "/different-provenance-tool/nm"
     elif broken_link == "run-binary":
         run = document["gap_leg"]["performance_runs"][0]
         path = active / run["raw_path"] / "run.command.json"
