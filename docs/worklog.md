@@ -1104,8 +1104,9 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   commitは作らず、target-inclusive range 8件greenを単独確認
 - 統合後監査がlocal-only T-180記録`cb79147`のprobe shellにCodex authorがない別違反を検出。
   ユーザー承認で同履歴をrewriteし、Codex authorが実際に最小編集した`677c32a`へ置換した
-- 元waveの全受入は3807 passed / 18 skipped、関連116 passed。正本はD101、phase3完了記録、
-  `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`
+- 元waveの全受入は3807 passed / 18 skipped、関連116 passed。再構成統合後は
+  final 3892 passed / 18 skipped、関連250 passed、full-history provenance 541件green
+- 正本はD101、phase3完了記録、`output/insights/2026-07-29_ai-provenance-forward-fix-wave/`
 - エージェント工数: 元wave Codex subprocess 10 session。今回のmain統合は親が競合裁定・docs再採番・
   commit・受入・local main着地を担当。push/remote操作は行わない
 
