@@ -162,14 +162,17 @@ def test_main_warns_on_user_dist_override_without_reordering_args():
     stderr = io.StringIO()
     captured = {}
 
-    def fake_call(command):
+    def fake_call(command, **kwargs):
         captured["command"] = command
+        captured["kwargs"] = kwargs
         return 0
 
     target = "test_file.py::test_node"
     args = ["-n4", "--dist", "load", target]
     with mock.patch.object(RT, "_ensure_xdist", return_value=True), \
             mock.patch.object(RT, "_xdist_version", return_value="3.8.0"), \
+            mock.patch.object(RT, "_preflight_unstaged_deletions", return_value=0), \
+            mock.patch.object(RT, "_preflight_submodule", return_value=0), \
             mock.patch.object(RT.subprocess, "call", side_effect=fake_call), \
             contextlib.redirect_stderr(stderr):
         assert RT.main(args) == 0
@@ -177,6 +180,7 @@ def test_main_warns_on_user_dist_override_without_reordering_args():
     assert "警告" in stderr.getvalue()
     assert "--dist loadgroup" in stderr.getvalue()
     assert captured["command"][-len(args):] == args
+    assert captured["kwargs"] == {"cwd": str(_REPO)}
 
 
 if __name__ == "__main__":
