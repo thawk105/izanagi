@@ -934,8 +934,12 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 77. [T-164] **P3 (nit/backlog、T-149 段 6 RA-3 残余)**: 変わらず
 78. [T-165] **完了 (2026-07-29 (41))**: 変わらず
 
-## 2026-07-29 (46) — [T-152] write-intent shadow を実装・実証 — I 行の 4 層配線 + characterization all_pass + 変異 18/18、certified pipeline での有効化は pin bump 裁定待ち (コード + docs、branch worktree-dev-wave-t152-write-intent-shadow、計測 = characterization JSON all_pass・変異 18/18 KILLED・受入全走 3274 passed/18 skipped)
+## 2026-07-29 (48) — [T-152] write-intent shadow を実装・実証 — I 行の 4 層配線 + characterization all_pass + 変異 18/18、certified pipeline での有効化は pin bump 裁定待ち (コード + docs、branch worktree-dev-wave-t152-write-intent-shadow、計測 = characterization JSON all_pass・変異 18/18 KILLED・受入全走 3274 passed/18 skipped)
 
+- **番号振り直し (D70)**: 本エントリは旧番号 (46)・旧 ID [T-166]〜[T-169] で記録した (commit
+  595acdf の worklog 本文)。並行 wave ((46) [T-110]・(47) [T-153]+[T-158]) の land と衝突した
+  ため、統合時の再走査で (48)・[T-167]〜[T-170] へ振り直した。次の一手リストは (47) 版を基底に
+  再構成
 - 死角 = W 行 emit と lock 被覆検査が同じ write_set_ を再走査し、EVOLVE 枝の要素喪失が「write が
   少ないだけの直列化可能な履歴」として certified になる ((27) 起票)。設計・実証・残存リスクの正本 =
   `output/insights/2026-07-29_t152-write-intent-shadow.md`。実装 = afa7325 + ccbench branch
@@ -944,7 +948,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   known_axes_freeze / floor_protocol 再凍結」) と s1_measurement_freeze の pin 完全一致検査により、
   pin bump は wave 内で完結不能 → gitlink / pin.py / s8b 承認定数 / goldens を一切動かさず
   verifier 4 層 + critic 分類 + pipeline gate fixture + driver + broken patch 4 本 + 実証 JSON
-  のみ land。**pinned producer は I を emit しない = 保護は有効化待ち** ([T-166])
+  のみ land。**pinned producer は I を emit しない = 保護は有効化待ち** ([T-167])
 - characterization (pegasus ログインノード、correctness-only、g++-12 + static gflags/glog):
   stock 3 run は I=0/certified (BOMB smoke で update/insert/delete の 3 producer を動的被覆)、
   erase/forge/opswap/ptrswap は cycles==0 (verifier 単独なら certify) のまま I のみ赤 →
@@ -962,8 +966,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - patch 適合: 既存 standalone 14 本 + layered (gating→tally→misattr) を c9c1a9c へ全数
   apply --check OK。挿入位置は既存 hunk context 外に限定 (begin() は trigger patch hunk 内のため
   clear は write_set_.clear() の 2 点へ鏡映)
-- 統合時の手順知見 2 件 (段 8 で reference へ): codex の -C が git repo 外なら
-  --skip-git-repo-check 必須 / 同名 artifact 再投入時は旧 .done を先に削除 (stale 完了誤判定)
+- 統合時の手順知見 2 件: codex の -C が git repo 外なら --skip-git-repo-check 必須 / 同名
+  artifact 再投入時は旧 .done を先に削除 (stale 完了誤判定)。段 8 で DW-O01 へ追記 (896a6ef)
+  したが、統合再走査で (47) が dev-wave docs 予算を 23,959/24,000 まで使用済みと判明 → 統合時に
+  追記を撤回し、(47) の縮約候補 (O20 逸話) と同時の再追記を**裁定パッケージへ** (予算のための
+  安全義務削除はしない、docs 予算規律)
 - F43 (## 総括 + check_codex_output) が wave 途中に main へ land (並行セッション) → 後半の codex
   呼びから前向き適用。エージェント工数: codex 15 本 (プラン 1・敵対相談 2・実装 3・fix 5・
   レビュー 2・焦点再レビュー 1・変異 harness 1、全て gpt-5.6-sol) + 親 (裁定・統合・全実測・
@@ -978,10 +985,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 3. [T-136] **完了 (2026-07-28 (35))**: 変わらず
 4. [T-129] **完了 (2026-07-28 (38))**: 変わらず
 5. [T-149] **完了 (2026-07-29 (39))**: 変わらず
-6. [T-152] **実装・実証完了 (本エントリ、afa7325)**: certified pipeline での有効化は [T-166] の
+6. [T-152] **実装・実証完了 (本エントリ、afa7325)**: certified pipeline での有効化は [T-167] の
    pin bump 裁定待ち (それまで dormant — insight に明記)
-7. [T-153] **P2 (T-127 の機械化群)**: 変わらず ((e) は実装可)
-8. [T-158] **P2 (T-153 の族)**: 変わらず
+7. [T-153] **一部完了 (2026-07-29 (47))**: (a)〜(d) 完了 (D97)。(e) CAB 連続配置は T-154 (3) の
+   手続付き実装待ち
+8. [T-158] **完了 (2026-07-29 (47))**: submodule 実体検査 + cache 限定自動 init (D97)
 9. [T-141] **P2 (一部完了)**: 変わらず
 10. [T-143] **P2 (裁定 (4))**: 変わらず
 11. [T-126] **P2 (裁定済み = 採用)**: 変わらず
@@ -992,7 +1000,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 16. [T-118] **P2 (衛生)**: 変わらず
 17. [T-109] **P2 (裁定完了)**: 変わらず
 18. [T-113] **P2 (裁定済み)**: 変わらず
-19. [T-110] **P2 (裁定済み)**: 変わらず ([T-142] 択 (a) 採用時はその前提になる)
+19. [T-110] **完了 (2026-07-29 (46))**: 変わらず
 20. [T-097] **P2 (裁定済み)**: 変わらず
 21. [T-100] **P2 (裁定済み)**: 変わらず
 22. [T-099] **P2 (裁定済み)**: 変わらず
@@ -1026,7 +1034,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 50. [T-157] **完了 (2026-07-28 (34))**: 変わらず
 51. [T-148] **完了 (2026-07-28 (32))**: 変わらず
 52. [T-155] **完了 (2026-07-28 (30))**: 変わらず
-53. [T-140] **完了 (2026-07-28 (29)、(30) で記録訂正)**: 変わらず
+53. [T-140] **完了 (2026-07-28 (29))**: 変わらず
 54. [T-147] **完了 (2026-07-28 (28))**: 変わらず
 55. [T-127] **完了 (2026-07-28 (28))**: 変わらず
 56. [T-137] **完了 (2026-07-27 (26))**: 変わらず
@@ -1049,18 +1057,20 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 73. [T-160] **完了 (2026-07-28 (37))**: 変わらず
 74. [T-161] **P3 (nit/backlog、段 3 B-8)**: 変わらず
 75. [T-162] **完了 (2026-07-29、commit 166dd6f)**: 変わらず
-76. [T-163] **P3・裁定済み ((45) = 採用) → 実装待ち**: 変わらず。[T-166] の前提
+76. [T-163] **P3・裁定済み ((45) = 採用) → 実装待ち**: 変わらず。[T-167] の前提
 77. [T-164] **P3 (nit/backlog、T-149 段 6 RA-3 残余)**: 変わらず
 78. [T-165] **完了 (2026-07-29 (41))**: 変わらず
-79. [T-166] **P3・新規 (ユーザー裁定待ち — T-152 の有効化 wave)**: ccbench pin を c9c1a9c へ
+79. [T-166] **P3・新規 ((47) 起票、dev_waves 側の残余束)**: 変わらず
+80. [T-167] **P3・新規 (ユーザー裁定待ち — T-152 の有効化 wave)**: ccbench pin を c9c1a9c へ
     前進させる wave。D16 により新 pin のユーザー再承認 + known_axes_freeze / floor_protocol
     再凍結 + pin.py / s8b_approved / goldens / literal test 更新 + ccbench push (人間) を伴う。
     [T-163] (hash 台帳再照合) の実装後/同時を推奨 (段 3 BG-B6)。auditor.md への write-intent 型
-    追加 (エージェント定義変更 = ユーザー承認保護) も同梱裁定
-80. [T-167] **P3・新規 (T-152 の族)**: read_set_ の intent shadow。R 行も同じ container 再走査で、
+    追加 (エージェント定義変更 = ユーザー承認保護) と、DW-O01 手順知見 2 件 + (47) の O20 縮約の
+    docs 予算内再追記も同梱裁定
+81. [T-168] **P3・新規 (T-152 の族)**: read_set_ の intent shadow。R 行も同じ container 再走査で、
     read 喪失は G2 検出力を沈黙劣化させる (段 3 P6 裁定で本 wave scope 外)
-81. [T-168] **P3・新規 (trace 層全体)**: trace stream (ofstream) の I/O fail-open を fail-closed 化
+82. [T-169] **P3・新規 (trace 層全体)**: trace stream (ofstream) の I/O fail-open を fail-closed 化
     (段 3 BG-A12。C/R/W/X/P/I 全行が同罪、trace.hh 変更を伴うため別 wave)
-82. [T-169] **P3・新規 (CCBench stock 欠陥・上流判断は人間 D16/D18/D20)**: insert() の ERROR
+83. [T-170] **P3・新規 (CCBench stock 欠陥・上流判断は人間 D16/D18/D20)**: insert() の ERROR
     return が index に tuple を残し abort で回収不能 (段 3 BG-A3)。delete_record の cancel loop の
     iterator 無効化 (実害未観測) も同梱記録

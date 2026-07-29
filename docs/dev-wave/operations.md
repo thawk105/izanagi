@@ -7,7 +7,6 @@
 
 `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包む。
 投入前に prompt が非空か検査し、完了は `.done` の存在と exit code だけで判定する。
-再投入前に旧 `.done` を削除（stale 誤判定）。`-C` が repo 外なら `--skip-git-repo-check`。
 ログ本文を grep して完了判定してはならず、成果物は `-o` の最終メッセージから読む（F23/F24）。
 
 ## DW-O02 — job artifact
