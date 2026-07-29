@@ -88,3 +88,5 @@
   exact topology gate も独立に残るため、fix 上限後の親裁定で backlog とした
 - 親環境でも関連 pytest 180、plain-runner/meta 183 passed。`check_docs`、Codex agent、
   py_compile、staged diff check は green。次は統合 commit 上の M1〜M13 と全受入
+- 実装 commit `43c4ec4` 上で M1〜M13 は 13/13 KILLED、SURVIVED 0、全回 source bytes 復元。
+  復元後の関連 pytest 180 と `check_docs` も green。M13 の再照準は mutation ledger に erratum 固定
