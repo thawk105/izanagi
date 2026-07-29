@@ -559,6 +559,12 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### 裁定・完了記録
 
+- [T-186] **(完了 2026-07-30) `6b64d21` AI provenance forward-only是正** — 共有済みmerge
+  commitはrewriteせず、固定target/payload・strict lineage・selected-set両commit・実欠落・
+  correction自身greenを連言する一回限り`AI-Agent-Correction`でmissing findingだけを相殺する。
+  mergeのD95 pathを全parentとの差分積へ統一し、O17を`--no-commit` preflight→`commit -F`→
+  full-history監査へ更新。設計判断=D100、材料・レビュー・変異=
+  `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`、記録=worklog (65)。
 - [T-143] **(完了 2026-07-29) RuleOps v1** — tracked HEAD tree の直下testと
   `output/insights/`をread-only inventoryし、人間裁定用draftとauthorityを持たない候補ledgerを
   fail-closedに検査するCLIを導入。削除・apply・approval・安全判定は行わず、受入全走へempty

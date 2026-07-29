@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import sys
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
@@ -83,6 +85,131 @@ def _policy_history(root: Path) -> tuple[str, str, str]:
         SPLIT_CAB_NONE,
     )
     return legacy, epoch, violating
+
+
+@dataclass(frozen=True)
+class CorrectionHistory:
+    base: str
+    first_parent: str
+    side: str
+    target: str
+    correction: str
+    payload: str
+
+
+def _install_synthetic_correction_spec(
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+) -> str:
+    payload = (
+        f"target={target}; product=claude; model=claude-opus-5; "
+        "reasoning=xhigh; role=integrator"
+    )
+    monkeypatch.setattr(
+        provenance,
+        "INCIDENT_6B64D21_FORWARD_CORRECTION",
+        provenance.ForwardCorrectionSpec(target=target),
+    )
+    return payload
+
+
+def _correction_message(
+    payload: str,
+    *,
+    ai_agent_lines: str = (
+        "AI-Agent: product=codex; model=gpt-5.6-sol; "
+        "reasoning=high; role=author\n"
+    ),
+    body: str = "",
+) -> str:
+    return (
+        "forward correction\n\n"
+        f"{body}"
+        f"{ai_agent_lines}"
+        f"AI-Agent-Correction: {payload}\n"
+    )
+
+
+def _make_correction_history(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    target_message: str = "target merge\n",
+    side_message: str = CODEX_AUTHOR,
+    intermediate: tuple[dict[str, str], str] | None = None,
+    correction_builder: Callable[[str], str] | None = None,
+    correction_files: dict[str, str] | None = None,
+) -> CorrectionHistory:
+    _init_repo(root)
+    base = _commit(
+        root,
+        {
+            provenance.POLICY_PATH: (
+                "# policy\n"
+                "scope=\n"
+                f"{provenance.IMPLEMENTATION_POLICY_NEEDLE}\n"
+                f"{POLICY_NEEDLE_LITERAL}\n"
+            ),
+        },
+        CODEX_AUTHOR,
+    )
+    main_branch = _git(root, "branch", "--show-current")
+    _git(root, "switch", "-q", "-c", "side", base)
+    side = _commit(
+        root,
+        {"docs/side.md": "side\n"},
+        side_message,
+    )
+    _git(root, "switch", "-q", main_branch)
+    first_parent = _commit(
+        root,
+        {"docs/main.md": "main\n"},
+        CODEX_AUTHOR,
+    )
+    _git(root, "merge", "--no-ff", "--no-commit", "side")
+    target = _commit(root, {}, target_message)
+    payload = _install_synthetic_correction_spec(monkeypatch, target)
+    if intermediate is not None:
+        _commit(root, intermediate[0], intermediate[1])
+    message = (
+        correction_builder(payload)
+        if correction_builder is not None
+        else _correction_message(payload)
+    )
+    correction = _commit(
+        root,
+        correction_files or {"docs/correction.md": "correction\n"},
+        message,
+    )
+    monkeypatch.setattr(provenance, "REPO", root)
+    return CorrectionHistory(
+        base=base,
+        first_parent=first_parent,
+        side=side,
+        target=target,
+        correction=correction,
+        payload=payload,
+    )
+
+
+def _run_range(
+    monkeypatch: pytest.MonkeyPatch,
+    rev_range: str,
+) -> int:
+    range_arg = (
+        f"--range={rev_range}" if rev_range.startswith("--") else "--range"
+    )
+    argv = (
+        ["check_ai_provenance.py", range_arg]
+        if rev_range.startswith("--")
+        else ["check_ai_provenance.py", range_arg, rev_range]
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        argv,
+    )
+    return provenance.main()
 
 
 @pytest.mark.parametrize(
@@ -863,6 +990,182 @@ def test_message_file_gate_uses_staged_paths(
     assert "実装面に Codex role=author がない — paths=tools/staged.py" in captured.err
 
 
+def test_merge_preflight_and_history_ignore_side_only_implementation_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {
+            provenance.POLICY_PATH: (
+                "scope=\n"
+                f"{provenance.IMPLEMENTATION_POLICY_NEEDLE}\n"
+            ),
+        },
+        CODEX_AUTHOR,
+    )
+    main_branch = _git(tmp_path, "branch", "--show-current")
+    _git(tmp_path, "switch", "-q", "-c", "implementation-side", base)
+    side = _commit(
+        tmp_path,
+        {"tools/side_only.py": "SIDE_ONLY = True\n"},
+        CODEX_AUTHOR,
+    )
+    _git(tmp_path, "switch", "-q", main_branch)
+    _commit(tmp_path, {"docs/main.md": "main\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "merge", "--no-ff", "--no-commit", side)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    parents = provenance._merge_preflight_parents()
+    assert provenance._message_file_paths(parents) == []
+    message = tmp_path / ".git" / "preflight-message"
+    message.write_text(CLAUDE_AUTHOR, encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 0
+    assert "違反なし" in capsys.readouterr().out
+
+    merge = _commit(tmp_path, {}, CLAUDE_AUTHOR)
+    assert provenance._commit_paths(merge) == []
+    audit = provenance._normal_commit_audit(
+        merge,
+        scope_epoch=base,
+        implementation_epoch=base,
+    )
+    assert audit.normal_findings == ()
+
+
+def test_merge_preflight_and_history_count_all_parent_different_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {
+            provenance.POLICY_PATH: (
+                "scope=\n"
+                f"{provenance.IMPLEMENTATION_POLICY_NEEDLE}\n"
+            ),
+            "tools/resolution.py": "VALUE = 'base'\n",
+        },
+        CODEX_AUTHOR,
+    )
+    main_branch = _git(tmp_path, "branch", "--show-current")
+    _git(tmp_path, "switch", "-q", "-c", "resolution-side", base)
+    side = _commit(
+        tmp_path,
+        {"tools/resolution.py": "VALUE = 'side'\n"},
+        CODEX_AUTHOR,
+    )
+    _git(tmp_path, "switch", "-q", main_branch)
+    _commit(
+        tmp_path,
+        {"tools/resolution.py": "VALUE = 'main'\n"},
+        CODEX_AUTHOR,
+    )
+    conflict = subprocess.run(
+        ["git", "merge", "--no-ff", "--no-commit", side],
+        cwd=tmp_path,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert conflict.returncode == 1
+    (tmp_path / "tools" / "resolution.py").write_text(
+        "VALUE = 'resolved'\n",
+        encoding="utf-8",
+    )
+    _git(tmp_path, "add", "tools/resolution.py")
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    parents = provenance._merge_preflight_parents()
+    assert provenance._message_file_paths(parents) == ["tools/resolution.py"]
+    message = tmp_path / ".git" / "preflight-message"
+    message.write_text(CLAUDE_AUTHOR, encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 1
+    captured = capsys.readouterr()
+    assert "実装面に Codex role=author がない — paths=tools/resolution.py" in captured.err
+
+    merge = _commit(tmp_path, {}, CLAUDE_AUTHOR)
+    assert provenance._commit_paths(merge) == ["tools/resolution.py"]
+    audit = provenance._normal_commit_audit(
+        merge,
+        scope_epoch=base,
+        implementation_epoch=base,
+    )
+    assert audit.normal_findings == (
+        f"{audit.label}: 実装面に Codex role=author がない — "
+        "paths=tools/resolution.py",
+    )
+
+
+def test_message_file_malformed_merge_head_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    _commit(tmp_path, {"docs/base.md": "base\n"}, CODEX_AUTHOR)
+    (tmp_path / ".git" / "MERGE_HEAD").write_text(
+        "not-an-object-id\n",
+        encoding="ascii",
+    )
+    message = tmp_path / ".git" / "preflight-message"
+    message.write_text(CODEX_AUTHOR, encoding="utf-8")
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 2
+    assert "MERGE_HEAD is malformed" in capsys.readouterr().err
+
+
+def test_message_file_merge_head_read_error_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    commit = _commit(tmp_path, {"docs/base.md": "base\n"}, CODEX_AUTHOR)
+    (tmp_path / ".git" / "MERGE_HEAD").write_text(
+        f"{commit}\n",
+        encoding="ascii",
+    )
+    message = tmp_path / ".git" / "preflight-message"
+    message.write_text(CODEX_AUTHOR, encoding="utf-8")
+    real_read_text = Path.read_text
+
+    def fail_merge_head(path: Path, *args, **kwargs):
+        if path.name == "MERGE_HEAD":
+            raise PermissionError("synthetic MERGE_HEAD read failure")
+        return real_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_merge_head)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 2
+    assert "synthetic MERGE_HEAD read failure" in capsys.readouterr().err
+
+
 def test_message_file_always_rejects_split_cab_without_policy_history(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ):
@@ -922,6 +1225,935 @@ def test_message_file_accepts_contiguous_cab_without_policy_history(
     )
     assert provenance.main() == 0
     assert "違反なし" in capsys.readouterr().out
+
+
+def test_forward_correction_production_literal_and_target_object_are_pinned():
+    spec = provenance.INCIDENT_6B64D21_FORWARD_CORRECTION
+    assert spec == provenance.ForwardCorrectionSpec(
+        target="6b64d21753d2cfc790f80caba29df7a40fef3072",
+    )
+    assert provenance.CORRECTION_KEY == "AI-Agent-Correction"
+    assert spec.payload == (
+        "target=6b64d21753d2cfc790f80caba29df7a40fef3072; "
+        "product=claude; model=claude-opus-5; "
+        "reasoning=xhigh; role=integrator"
+    )
+    target_and_parents = _git(
+        REPO, "rev-list", "--parents", "-n", "1", spec.target,
+    ).split()
+    assert target_and_parents[0] == spec.target
+    assert len(target_and_parents) == 3
+    target_message = _git(REPO, "show", "-s", "--format=%B", spec.target)
+    assert "AI-Agent:" not in target_message
+    assert "AI-Agent-Correction:" not in target_message
+    audit = provenance._normal_commit_audit(
+        spec.target,
+        scope_epoch=provenance._scope_policy_commit(),
+        implementation_epoch=provenance._implementation_policy_commit(),
+    )
+    assert audit.normal_findings == (
+        f"{audit.label}: AI-Agent trailer がない",
+    )
+    assert audit.correction.candidate_count == 0
+
+
+def test_forward_correction_exact_raw_and_canonical_value_is_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    payload = _install_synthetic_correction_spec(monkeypatch, "1" * 40)
+    audit = provenance._correction_audit(
+        "valid",
+        _correction_message(payload),
+    )
+    assert audit.exact
+    assert audit.candidate_count == 1
+    assert audit.raw_values == (f" {payload}",)
+    assert audit.parsed_values == (payload,)
+    assert audit.final_values == (payload,)
+    assert audit.final_ai_agent_values == (
+        "product=codex; model=gpt-5.6-sol; reasoning=high; role=author",
+    )
+    assert audit.findings == ()
+
+
+def test_forward_correction_canonical_parser_is_lazy_without_raw_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def fail_if_called(message: str) -> dict[str, list[str]]:
+        raise AssertionError(f"unexpected correction parser call: {message!r}")
+
+    monkeypatch.setattr(provenance, "_parsed_trailers", fail_if_called)
+    audit = provenance._correction_audit(
+        "ordinary",
+        "ordinary\n\nAI-Agent: none\n",
+    )
+    assert audit == provenance.CorrectionAudit((), (), (), (), ())
+    assert not audit.exact
+
+
+def test_forward_correction_continuation_fails_raw_exactness(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    target = "2" * 40
+    payload = _install_synthetic_correction_spec(monkeypatch, target)
+    message = (
+        "forward correction\n\n"
+        "AI-Agent: product=codex; model=gpt-5.6-sol; "
+        "reasoning=high; role=author\n"
+        f"AI-Agent-Correction: target={target}; product=claude;\n"
+        " model=claude-opus-5; reasoning=xhigh; role=integrator\n"
+    )
+    audit = provenance._correction_audit("continuation", message)
+    assert not audit.exact
+    assert audit.parsed_values == (payload,)
+    assert any("raw value" in finding for finding in audit.findings)
+    assert not any("canonical value が incident" in finding for finding in audit.findings)
+
+
+def test_forward_correction_body_candidate_plus_valid_trailer_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    payload = _install_synthetic_correction_spec(monkeypatch, "3" * 40)
+    message = (
+        "body example\n"
+        f"AI-Agent-Correction: {payload}\n\n"
+        "AI-Agent: product=codex; model=gpt-5.6-sol; "
+        "reasoning=high; role=author\n"
+        f"AI-Agent-Correction: {payload}\n"
+    )
+    audit = provenance._correction_audit("body-plus-valid", message)
+    assert not audit.exact
+    assert audit.candidate_count == 2
+    assert audit.parsed_values == (payload,)
+    assert any("raw candidate cardinality 違反" in finding
+               for finding in audit.findings)
+    assert any("物理 exact 1 行" in finding for finding in audit.findings)
+
+
+def test_forward_correction_body_only_candidate_fails_canonical_presence(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    payload = _install_synthetic_correction_spec(monkeypatch, "6" * 40)
+    message = (
+        "body example\n"
+        f"AI-Agent-Correction: {payload}\n\n"
+        "ordinary prose after the candidate\n"
+    )
+    audit = provenance._correction_audit("body-only", message)
+    assert not audit.exact
+    assert audit.raw_values == (f" {payload}",)
+    assert audit.parsed_values == ()
+    assert any("canonical multiplicity 違反" in finding
+               for finding in audit.findings)
+
+
+def test_forward_correction_rejects_ai_agent_across_divider(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    payload = _install_synthetic_correction_spec(monkeypatch, "8" * 40)
+    message = (
+        "forward correction\n\n"
+        "AI-Agent: product=codex; model=gpt-5.6-sol; "
+        "reasoning=high; role=author\n"
+        "---\n"
+        "body\n\n"
+        f"AI-Agent-Correction: {payload}\n"
+    )
+    audit = provenance._correction_audit("split-block", message)
+    assert not audit.exact
+    assert audit.parsed_values == (payload,)
+    assert audit.final_values == ()
+    assert audit.final_ai_agent_values
+    assert any("final trailer block multiplicity 違反" in finding
+               for finding in audit.findings)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "AI-Agent-Correction:{payload}",
+        "AI-Agent-Correction: \t{payload}",
+        "AI-Agent-Correction:  {payload}",
+        "AI-Agent-Correction: {payload} ",
+        " AI-Agent-Correction: {payload}",
+    ],
+    ids=[
+        "no-space",
+        "tab-after-colon",
+        "double-space",
+        "trailing-space",
+        "indented-key",
+    ],
+)
+def test_forward_correction_rejects_representative_raw_whitespace(
+    monkeypatch: pytest.MonkeyPatch,
+    line: str,
+):
+    payload = _install_synthetic_correction_spec(monkeypatch, "9" * 40)
+    message = (
+        "forward correction\n\n"
+        "AI-Agent: product=codex; model=gpt-5.6-sol; "
+        "reasoning=high; role=author\n"
+        f"{line.format(payload=payload)}\n"
+    )
+    audit = provenance._correction_audit("raw-whitespace", message)
+    assert not audit.exact
+    assert audit.findings
+
+
+def test_forward_correction_canonical_parser_failure_is_not_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    payload = _install_synthetic_correction_spec(monkeypatch, "7" * 40)
+
+    def failing_parser(message: str) -> dict[str, list[str]]:
+        raise RuntimeError(f"synthetic correction parser failure: {len(message)}")
+
+    monkeypatch.setattr(provenance, "_parsed_trailers", failing_parser)
+    with pytest.raises(RuntimeError, match="synthetic correction parser failure"):
+        provenance._correction_audit(
+            "parser-failure",
+            _correction_message(payload),
+        )
+
+
+@pytest.mark.parametrize(
+    "mutated_payload",
+    [
+        (
+            "target={target}; product=claude; model=claude-opus-5; "
+            "reasoning=xhigh; role=integrator; scope=main-sync"
+        ),
+        (
+            "target={target}; product=codex; model=claude-opus-5; "
+            "reasoning=xhigh; role=integrator"
+        ),
+        (
+            "target={target}; product=claude; model=claude-opus-5-1m; "
+            "reasoning=xhigh; role=integrator"
+        ),
+        (
+            "target={target}; product=claude; model=claude-opus-5; "
+            "reasoning=default; role=integrator"
+        ),
+        (
+            "target={target}; product=claude; model=claude-opus-5; "
+            "reasoning=xhigh; role=manager"
+        ),
+        (
+            "product=claude; target={target}; model=claude-opus-5; "
+            "reasoning=xhigh; role=integrator"
+        ),
+        (
+            "target={target}; product=claude; model=claude-opus-5; "
+            "reasoning=xhigh; role=integrator; extra=unknown"
+        ),
+        (
+            "target=0000000000000000000000000000000000000000; "
+            "product=claude; model=claude-opus-5; "
+            "reasoning=xhigh; role=integrator"
+        ),
+    ],
+    ids=[
+        "scope-added",
+        "product-drift",
+        "model-drift",
+        "reasoning-drift",
+        "role-drift",
+        "field-order",
+        "unknown-field",
+        "target-drift",
+    ],
+)
+def test_forward_correction_each_payload_drift_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    mutated_payload: str,
+):
+    target = "4" * 40
+    _install_synthetic_correction_spec(monkeypatch, target)
+    value = mutated_payload.format(target=target)
+    audit = provenance._correction_audit(
+        "field-drift",
+        _correction_message(value),
+    )
+    assert not audit.exact
+    assert any("raw value" in finding for finding in audit.findings)
+    assert any("canonical value" in finding for finding in audit.findings)
+
+
+def test_forward_correction_parser_ignores_ambient_aliases(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    payload = _install_synthetic_correction_spec(monkeypatch, "5" * 40)
+    global_config = tmp_path / "global.gitconfig"
+    global_config.write_text(
+        "[trailer \"correction\"]\n"
+        "\tkey = AI-Agent-Correction:\n"
+        "[trailer]\n"
+        "\tseparators = %\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "trailer.other.key")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "AI-Agent-Correction:")
+    audit = provenance._correction_audit(
+        "ambient",
+        _correction_message(payload),
+    )
+    assert audit.exact
+    assert audit.findings == ()
+
+
+def test_forward_correction_two_parent_target_singleton_ranges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    assert len(
+        _git(
+            tmp_path,
+            "rev-list",
+            "--parents",
+            "-n",
+            "1",
+            history.target,
+        ).split()
+    ) == 3
+
+    assert _run_range(monkeypatch, f"{history.target}^!") == 1
+    captured = capsys.readouterr()
+    assert f"{history.target[:12]} target merge: AI-Agent trailer がない" in captured.err
+    assert "1 件中 1 違反" in captured.err
+
+    assert _run_range(monkeypatch, f"{history.correction}^!") == 1
+    captured = capsys.readouterr()
+    assert "target が selected revision set にない" in captured.err
+    assert "1 件中 1 違反" in captured.err
+
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 0
+    captured = capsys.readouterr()
+    assert (
+        "forward-corrected=1 "
+        f"target={history.target} correction={history.correction}"
+    ) in captured.out
+    assert "3 件、違反なし" in captured.out
+    assert captured.err == ""
+
+
+def test_forward_correction_acceptance_is_commit_order_invariant(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    forward = provenance.ForwardCorrected(
+        history.target,
+        history.correction,
+    )
+    forward_order_findings, forward_order_records = provenance._audit_history(
+        [history.target, history.correction]
+    )
+    reverse_order_findings, reverse_order_records = provenance._audit_history(
+        [history.correction, history.target]
+    )
+    assert forward_order_findings == reverse_order_findings == []
+    assert forward_order_records == reverse_order_records == [forward]
+
+
+def test_forward_correction_multiple_tip_selected_set_is_accepted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    _git(tmp_path, "branch", "extra-tip", history.first_parent)
+    assert _run_range(monkeypatch, "--all") == 0
+    captured = capsys.readouterr()
+    assert (
+        "forward-corrected=1 "
+        f"target={history.target} correction={history.correction}"
+    ) in captured.out
+    assert captured.err == ""
+
+
+def test_forward_correction_split_trailer_blocks_do_not_suppress_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    def split_builder(payload: str) -> str:
+        return (
+            "forward correction\n\n"
+            "AI-Agent: product=codex; model=gpt-5.6-sol; "
+            "reasoning=high; role=author\n"
+            "---\n"
+            "body\n\n"
+            f"AI-Agent-Correction: {payload}\n"
+        )
+
+    history = _make_correction_history(
+        tmp_path,
+        monkeypatch,
+        correction_builder=split_builder,
+    )
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert "final trailer block multiplicity 違反" in captured.err
+    assert f"{history.target[:12]} target merge: AI-Agent trailer がない" in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+def test_forward_correction_sibling_is_not_rehabilitated_by_later_merge(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    _git(
+        tmp_path,
+        "switch",
+        "-q",
+        "-c",
+        "sibling-correction",
+        history.first_parent,
+    )
+    sibling = _commit(
+        tmp_path,
+        {"docs/sibling-correction.md": "sibling\n"},
+        _correction_message(history.payload),
+    )
+    _git(
+        tmp_path,
+        "switch",
+        "-q",
+        "-c",
+        "aggregate",
+        history.target,
+    )
+    _git(tmp_path, "merge", "--no-ff", "--no-commit", "sibling-correction")
+    aggregate = _commit(
+        tmp_path,
+        {"docs/aggregate.md": "aggregate\n"},
+        CODEX_AUTHOR,
+    )
+
+    assert _run_range(
+        monkeypatch,
+        f"{history.base}..{aggregate}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert "strict descendant でない" in captured.err
+    assert f"{history.target[:12]} target merge: AI-Agent trailer がない" in captured.err
+    assert sibling[:12] in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+def test_forward_correction_duplicate_in_selected_set_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    duplicate = _commit(
+        tmp_path,
+        {"docs/duplicate-correction.md": "duplicate\n"},
+        _correction_message(history.payload),
+    )
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{duplicate}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert "selected revision set 内 exact 1 件" in captured.err
+    assert "candidates=2" in captured.err
+    assert f"{history.target[:12]} target merge: AI-Agent trailer がない" in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+def test_forward_correction_preserves_merge_side_missing_finding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(
+        tmp_path,
+        monkeypatch,
+        side_message="side missing\n",
+    )
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert f"{history.side[:12]} side missing: AI-Agent trailer がない" in captured.err
+    assert f"{history.target[:12]} target merge: AI-Agent trailer がない" not in captured.err
+    assert "3 件中 1 違反" in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+def test_forward_correction_suppresses_only_target_missing_not_target_cab(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(
+        tmp_path,
+        monkeypatch,
+        target_message=(
+            "target split CAB\n\n"
+            "Co-Authored-By: body-only\n\n"
+            "body after the CAB candidate\n"
+        ),
+    )
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert "Co-Authored-By trailer 配置違反: raw=1, parsed=0" in captured.err
+    assert "target split CAB: AI-Agent trailer がない" not in captured.err
+    assert "3 件中 1 違反" in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+@pytest.mark.parametrize(
+    ("files", "message", "needle", "finding_count"),
+    [
+        (
+            {"docs/other.md": "missing\n"},
+            "other missing\n",
+            "other missing: AI-Agent trailer がない",
+            1,
+        ),
+        (
+            {"docs/other.md": "format\n"},
+            "other format\n\nAI-Agent: malformed\n",
+            "other format: AI-Agent の形式違反",
+            1,
+        ),
+        (
+            {"docs/other.md": "scope\n"},
+            (
+                "other scope\n\n"
+                "AI-Agent: product=codex; model=gpt-5.6-sol; "
+                "reasoning=high; role=author\n"
+                "AI-Agent: product=claude; model=fable-5; "
+                "reasoning=xhigh; role=author\n"
+            ),
+            "other scope: role=author が複数行あるのに scope がない",
+            2,
+        ),
+        (
+            {"docs/other.md": "cab\n"},
+            (
+                "other CAB\n\n"
+                "Co-Authored-By: body-only\n\n"
+                "AI-Agent: none\n"
+            ),
+            "other CAB: Co-Authored-By trailer 配置違反",
+            1,
+        ),
+        (
+            {"tools/other.py": "OTHER = True\n"},
+            CLAUDE_AUTHOR,
+            "実装面に Codex role=author がない — paths=tools/other.py",
+            1,
+        ),
+    ],
+    ids=["missing", "format", "scope", "cab", "codex-author"],
+)
+def test_forward_correction_preserves_other_commit_findings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    files: dict[str, str],
+    message: str,
+    needle: str,
+    finding_count: int,
+):
+    history = _make_correction_history(
+        tmp_path,
+        monkeypatch,
+        intermediate=(files, message),
+    )
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert needle in captured.err
+    assert f"{history.target[:12]} target merge: AI-Agent trailer がない" not in captured.err
+    assert f"4 件中 {finding_count} 違反" in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+@pytest.mark.parametrize(
+    ("builder", "files", "needle", "finding_count"),
+    [
+        (
+            lambda payload: _correction_message(payload, ai_agent_lines=""),
+            {"docs/correction.md": "missing\n"},
+            "forward correction: AI-Agent trailer がない",
+            3,
+        ),
+        (
+            lambda payload: _correction_message(
+                payload,
+                ai_agent_lines="AI-Agent: malformed\n",
+            ),
+            {"docs/correction.md": "format\n"},
+            "forward correction: AI-Agent の形式違反",
+            2,
+        ),
+        (
+            lambda payload: _correction_message(
+                payload,
+                ai_agent_lines=(
+                    "AI-Agent: product=codex; model=gpt-5.6-sol; "
+                    "reasoning=high; role=author\n"
+                    "AI-Agent: product=claude; model=fable-5; "
+                    "reasoning=xhigh; role=author\n"
+                ),
+            ),
+            {"docs/correction.md": "scope\n"},
+            "forward correction: role=author が複数行あるのに scope がない",
+            3,
+        ),
+        (
+            lambda payload: _correction_message(
+                payload,
+                body="Co-Authored-By: body-only\n\n",
+            ),
+            {"docs/correction.md": "cab\n"},
+            "forward correction: Co-Authored-By trailer 配置違反",
+            2,
+        ),
+        (
+            lambda payload: _correction_message(
+                payload,
+                ai_agent_lines=(
+                    "AI-Agent: product=claude; model=fable-5; "
+                    "reasoning=xhigh; role=author\n"
+                ),
+            ),
+            {"tools/correction.py": "CORRECTION = True\n"},
+            "実装面に Codex role=author がない — paths=tools/correction.py",
+            2,
+        ),
+    ],
+    ids=["missing", "format", "scope", "cab", "codex-author"],
+)
+def test_forward_correction_commit_must_be_normally_green(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    builder: Callable[[str], str],
+    files: dict[str, str],
+    needle: str,
+    finding_count: int,
+):
+    history = _make_correction_history(
+        tmp_path,
+        monkeypatch,
+        correction_builder=builder,
+        correction_files=files,
+    )
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert needle in captured.err
+    assert f"{history.target[:12]} target merge: AI-Agent trailer がない" in captured.err
+    assert f"3 件中 {finding_count} 違反" in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+def test_forward_correction_rejects_target_without_actual_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(
+        tmp_path,
+        monkeypatch,
+        target_message=CODEX_AUTHOR,
+    )
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 1
+    captured = capsys.readouterr()
+    assert "target に AI-Agent trailer の実欠落がない" in captured.err
+    assert "3 件中 1 違反" in captured.err
+    assert "forward-corrected=1" not in captured.out
+
+
+def test_forward_correction_message_file_success_is_preflight_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    _git(
+        tmp_path,
+        "switch",
+        "-q",
+        "-c",
+        "before-correction",
+        history.target,
+    )
+    message = tmp_path / "correction-message.txt"
+    message.write_text(
+        _correction_message(history.payload),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 0
+    captured = capsys.readouterr()
+    assert "AI-Agent-Correction は preflight限定" in captured.out
+    assert "current HEAD の通常子を仮定" in captured.out
+    assert "commit後 history監査が必須" in captured.out
+    assert f"target={history.target}" in captured.out
+    assert "1 件、違反なし" in captured.out
+    assert captured.err == ""
+
+
+def test_forward_correction_message_file_rejects_second_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    message = tmp_path / "second-correction-message.txt"
+    message.write_text(
+        _correction_message(history.payload),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 1
+    captured = capsys.readouterr()
+    assert (
+        "prospective parent ancestry 全体に既存 "
+        "AI-Agent-Correction candidate がある"
+    ) in captured.err
+    assert "candidates=1" in captured.err
+    assert "preflight限定" not in captured.out
+
+
+def test_forward_correction_message_file_finds_candidate_on_merge_side(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    _git(
+        tmp_path,
+        "switch",
+        "-q",
+        "-c",
+        "preflight-first-parent",
+        history.target,
+    )
+    _git(
+        tmp_path,
+        "merge",
+        "--no-ff",
+        "--no-commit",
+        history.correction,
+    )
+    message = tmp_path / "merge-side-second-correction.txt"
+    message.write_text(
+        _correction_message(history.payload),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 1
+    captured = capsys.readouterr()
+    assert (
+        "prospective parent ancestry 全体に既存 "
+        "AI-Agent-Correction candidate がある"
+    ) in captured.err
+    assert "candidates=1" in captured.err
+    assert "preflight限定" not in captured.out
+
+
+def test_forward_correction_message_file_rejects_target_outside_parent_ancestry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    base = _commit(tmp_path, {"docs/base.md": "base\n"}, CODEX_AUTHOR)
+    main_branch = _git(tmp_path, "branch", "--show-current")
+    _git(tmp_path, "switch", "-q", "-c", "target-side", base)
+    target = _commit(tmp_path, {"docs/target.md": "target\n"}, "target\n")
+    payload = _install_synthetic_correction_spec(monkeypatch, target)
+    _git(tmp_path, "switch", "-q", main_branch)
+    _commit(tmp_path, {"docs/main.md": "main\n"}, CODEX_AUTHOR)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    message = tmp_path / "outside-ancestry-correction.txt"
+    message.write_text(_correction_message(payload), encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 1
+    captured = capsys.readouterr()
+    assert "target が prospective parent ancestry にない" in captured.err
+    assert "target commit object が存在しない" not in captured.err
+
+
+def test_forward_correction_message_file_rejects_missing_target_object(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    _commit(tmp_path, {"docs/base.md": "base\n"}, CODEX_AUTHOR)
+    payload = _install_synthetic_correction_spec(monkeypatch, "f" * 40)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    assert not provenance._commit_exists("f" * 40)
+    message = tmp_path / "missing-target-message.txt"
+    message.write_text(_correction_message(payload), encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 1
+    captured = capsys.readouterr()
+    assert "target commit object が存在しない" in captured.err
+    assert "preflight限定" not in captured.out
+
+
+def test_forward_correction_git_object_backend_failure_is_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    _commit(tmp_path, {"docs/base.md": "base\n"}, CODEX_AUTHOR)
+    payload = _install_synthetic_correction_spec(monkeypatch, "e" * 40)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    real_run = subprocess.run
+
+    def failing_cat_file(command, **kwargs):
+        if command[:2] == ["git", "cat-file"]:
+            return subprocess.CompletedProcess(
+                command,
+                128,
+                "",
+                "synthetic object database failure",
+            )
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, "run", failing_cat_file)
+    message = tmp_path / "backend-failure-message.txt"
+    message.write_text(_correction_message(payload), encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 2
+    captured = capsys.readouterr()
+    assert "cat-file --batch-check failed (rc=128)" in captured.err
+    assert "target commit object が存在しない" not in captured.err
+
+
+def test_regular_message_file_acceptance_does_not_require_correction_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    message = tmp_path / "ordinary-message.txt"
+    message.write_text(
+        "ordinary\n\nAI-Agent: none\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_ai_provenance.py", "--message-file", str(message)],
+    )
+    assert provenance.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == "check_ai_provenance: 1 件、違反なし\n"
+    assert captured.err == ""
+
+
+def test_forward_correction_unrelated_history_remains_native_valid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {"docs/unrelated.md": "unrelated\n"},
+        CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    assert _run_range(monkeypatch, f"{commit}^!") == 0
+    captured = capsys.readouterr()
+    assert captured.out == "check_ai_provenance: 1 件、違反なし\n"
+    assert captured.err == ""
+
+
+def test_forward_correction_merge_base_rc128_fails_closed_with_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    monkeypatch.setattr(provenance, "_scope_policy_commit", lambda: None)
+    monkeypatch.setattr(provenance, "_implementation_policy_commit", lambda: None)
+    real_run = subprocess.run
+
+    def rc128_for_ancestry(command, **kwargs):
+        if command[:3] == ["git", "merge-base", "--is-ancestor"]:
+            return subprocess.CompletedProcess(
+                command,
+                128,
+                "",
+                "synthetic merge-base graph failure",
+            )
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, "run", rc128_for_ancestry)
+    assert _run_range(
+        monkeypatch,
+        f"{history.target}^1..{history.correction}",
+    ) == 2
+    captured = capsys.readouterr()
+    assert "merge-base --is-ancestor" in captured.err
+    assert "rc=128" in captured.err
+    assert "synthetic merge-base graph failure" in captured.err
 
 
 def _run() -> int:
