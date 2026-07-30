@@ -4532,13 +4532,20 @@ NQSV 実在 (`qsub` と `qstat` が PATH に在る) を裏付け証拠として�
 `-n 16` 以下との対照は未取得であり、**最大並列が最速だとは主張しない** — 既定を最大にするのは
 ユーザー裁定に基づく方針である。「既定が最大」と「全実行が最大」は別であり、後者も主張しない。
 
-**決定 (4): `buildcache` の `jobs` 既定は 16 のまま変えない。** cache hit 時に
-`BuildResult.build_argv` が呼出時の値で再構成され、v2 completion manifest は build コマンドを
-持たないため、実際は `-j 16` で作った binary を `-j 48` と記録しうる。この値は WAL・floor manifest・
-ratified `floor_source` へ流れるため、**provenance を偽ることになる**。正直に上げるには completion
-manifest へ actual build argv を足す schema 変更が必要で、別タスクの裁定事項とする。
-本 wave では実 cmake build のログインノード拒否 (= 計算ノードでしか build できない) までを実装し、
-成果物へ build コマンドを記録しない coverage 4 モジュールの `-j` だけ site 由来にした。
+**決定 (4): build の並列度も site 由来にし、cache hit 時の `-j` 記録差は受理する
+(2026-07-30 ユーザー裁定)。** `buildcache` の `jobs` 既定を `None` にして
+`site_policy.default_build_jobs()` で解決し、計算ノードでは affinity 全数、非 Pegasus では従来の 16 と
+する。明示 `jobs=` を渡す既存呼び出しは尊重する。実 cmake build のログインノード拒否も入れた。
+
+当初案は「cache hit 時に `BuildResult.build_argv` が呼出時の値で再構成され、実際は `-j 16` で
+作った binary を `-j 48` と記録しうる。これは WAL・floor manifest・ratified `floor_source` へ流れる
+provenance の偽りだ」として既定 16 を維持していた。ユーザーはこれを覆し、**「16 並列ビルドと
+48 並列ビルドのバイナリは等価であるべきで、そうでなければコンパイラのバグであり我々が関与する
+問題ではない」**と裁定した。したがって `-j` は成果物 bytes に影響しない値として扱い、記録差を
+受理する。**binary identity の検査 (`bin_sha256` の照合、trace/no-trace の diff-of-diffs、
+`src_token` 再照合) は一切緩めない** — 緩めたのは「build コマンド文字列に現れる `-j` の値が、
+cache を作った時点の値と一致するか」だけである。`cache_key()` / v2 identity /
+`contract_sha256` / v2 completion manifest の入力に `jobs` は入れない (cache identity は不変)。
 
 **決定 (5): 強制は 3 層で、全経路の機械保証は主張しない。** 一次 = sanctioned entry point
 (`run_tests.py`、buildcache の実 build) の fail-closed。二次 = `hooks/guard_bash.py` が

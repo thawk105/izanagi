@@ -130,6 +130,44 @@ def _fake_v2_builds(root: Path, sites: tuple[str, ...]):
     return results, calls
 
 
+def _fake_legacy_build(root: Path, *, site: str, jobs: int | None):
+    fake_source_digest = SimpleNamespace(
+        STOCK="stock",
+        assert_worktree_within_allowlist=lambda *a, **k: None,
+        assert_trace_diff_matches_head=lambda *a, **k: None,
+        resolve=lambda *a, **k: "stock",
+    )
+    calls = []
+
+    def fake_run(cmd, what, timeout_s=None, *, site=None):
+        calls.append((tuple(cmd), what, timeout_s, site))
+        if what == "build":
+            bdir = Path(cmd[cmd.index("--build") + 1])
+            binary = bdir / "cc" / "silo" / "ycsb_silo.exe"
+            binary.parent.mkdir(parents=True, exist_ok=True)
+            binary.write_bytes(b"site-gate-legacy-binary")
+
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(
+            buildcache, "_verify_ccbench_commit", lambda *a, **k: None,
+        ))
+        stack.enter_context(patch.object(
+            buildcache, "source_digest", fake_source_digest,
+        ))
+        stack.enter_context(patch.object(buildcache, "_run", fake_run))
+        result = buildcache.build(
+            Genome("silo", {"BACK_OFF": 1}),
+            ccbench_commit="a" * 40,
+            trace=True,
+            cache_root=str(root / "cache"),
+            ccbench_dir=str(root / "ccbench"),
+            src_token="stock",
+            jobs=jobs,
+            site=site,
+        )
+    return result, calls
+
+
 def test_m11_login_and_suspect_refuse_immediately_before_real_cmake_build():
     # Mutation M11: 実 cmake 直前の login 拒否 gate を削除すると、この test は
     # subprocess stub まで到達して赤になる。
@@ -155,8 +193,7 @@ def test_m11_login_and_suspect_refuse_immediately_before_real_cmake_build():
             assert calls == [], f"{site} で subprocess 起動前に拒否されていない"
 
 
-def test_other_and_compute_keep_buildcache_default_j16_and_do_not_refuse():
-    assert inspect.signature(buildcache.build).parameters["jobs"].default == 16
+def _v2_build_argv(*, site: str, jobs: int | None = None) -> tuple[str, ...]:
     toolchain = {
         role: {"realpath": "/fake/cmake" if role == "cmake" else f"/fake/{role}"}
         for role in ("cc", "cxx", "cmake")
@@ -167,10 +204,65 @@ def test_other_and_compute_keep_buildcache_default_j16_and_do_not_refuse():
         "/ccbench",
         "/cache/build",
         toolchain,
+        jobs=jobs,
+        site=site,
     )
-    assert build_cmd[-2:] == ["-j", "16"]
+    return tuple(build_cmd)
 
+
+def test_m15_compute_default_jobs_use_all_affinity_cpus():
+    """期待赤 node:
+    orchestrator/tests/test_build_site_gate.py::test_m15_compute_default_jobs_use_all_affinity_cpus
+
+    M15 = jobs の None 解決を無効化して常に 16 にすると、計算ノードの
+    affinity 全数 48 が build command に反映されず赤になる。
+    """
+    assert inspect.signature(buildcache.build).parameters["jobs"].default is None
+    assert inspect.signature(
+        buildcache._v2_commands,
+    ).parameters["jobs"].default is None
+    with patch.object(site_policy, "available_cpus", return_value=48):
+        assert _v2_build_argv(
+            site=site_policy.PEGASUS_COMPUTE,
+        )[-2:] == ("-j", "48")
+        with tempfile.TemporaryDirectory(
+                prefix="izanagi_site_jobs_compute_") as tmp:
+            result, calls = _fake_legacy_build(
+                Path(tmp), site=site_policy.PEGASUS_COMPUTE, jobs=None,
+            )
+    assert result.build_argv[-2:] == ("-j", "48")
+    assert calls[-1][0][-2:] == ("-j", "48")
+
+
+def test_other_default_jobs_remain_j16():
+    assert _v2_build_argv(site=site_policy.OTHER)[-2:] == ("-j", "16")
+    with tempfile.TemporaryDirectory(
+            prefix="izanagi_site_jobs_other_") as tmp:
+        result, calls = _fake_legacy_build(
+            Path(tmp), site=site_policy.OTHER, jobs=None,
+        )
+    assert result.build_argv[-2:] == ("-j", "16")
+    assert calls[-1][0][-2:] == ("-j", "16")
+
+
+def test_explicit_jobs_one_is_respected_for_every_site():
+    with patch.object(
+            site_policy, "default_build_jobs",
+            side_effect=AssertionError("明示 jobs で既定値を解決してはならない")):
+        for site in (site_policy.OTHER, site_policy.PEGASUS_COMPUTE):
+            assert _v2_build_argv(site=site, jobs=1)[-2:] == ("-j", "1")
+            with tempfile.TemporaryDirectory(
+                    prefix="izanagi_site_jobs_explicit_") as tmp:
+                result, calls = _fake_legacy_build(
+                    Path(tmp), site=site, jobs=1,
+                )
+            assert result.build_argv[-2:] == ("-j", "1")
+            assert calls[-1][0][-2:] == ("-j", "1")
+
+
+def test_other_and_compute_do_not_refuse_buildcache_commands():
     for site in (site_policy.OTHER, site_policy.PEGASUS_COMPUTE):
+        build_cmd = list(_v2_build_argv(site=site))
         calls = []
 
         def fake_subprocess_run(cmd, **kwargs):
@@ -200,16 +292,44 @@ def test_cache_hit_does_not_consult_real_build_gate_or_call_run_stub():
 def test_jobs_are_absent_from_cache_identity_and_v2_completion_manifest():
     assert "jobs" not in inspect.signature(buildcache.cache_key).parameters
     with tempfile.TemporaryDirectory(prefix="izanagi_site_gate_manifest_") as tmp:
-        results, _ = _fake_v2_builds(Path(tmp), (site_policy.OTHER,))
-        result = results[0]
-        manifest = json.loads(
-            (Path(result.build_dir) / "completion.json").read_text(encoding="utf-8")
-        )
+        root = Path(tmp)
+        with patch.object(site_policy, "available_cpus", return_value=48):
+            legacy_j1, _ = _fake_legacy_build(
+                root / "legacy", site=site_policy.OTHER, jobs=1,
+            )
+            legacy_j48, legacy_hit_calls = _fake_legacy_build(
+                root / "legacy", site=site_policy.PEGASUS_COMPUTE, jobs=48,
+            )
+            first_results, _ = _fake_v2_builds(
+                root / "v2", (site_policy.OTHER,),
+            )
+            first = first_results[0]
+            manifest_path = Path(first.build_dir) / "completion.json"
+            manifest_before = manifest_path.read_bytes()
+            second_results, v2_hit_calls = _fake_v2_builds(
+                root / "v2", (site_policy.PEGASUS_COMPUTE,),
+            )
+            second = second_results[0]
+            manifest_after = manifest_path.read_bytes()
+        manifest = json.loads(manifest_after.decode("utf-8"))
+    assert legacy_j48.cached
+    assert legacy_hit_calls == []
+    assert legacy_j1.build_dir == legacy_j48.build_dir
+    assert legacy_j1.bin_sha256 == legacy_j48.bin_sha256
+    assert legacy_j1.build_argv[-2:] == ("-j", "1")
+    assert legacy_j48.build_argv[-2:] == ("-j", "48")
+    assert second.cached
+    assert v2_hit_calls == []
+    assert first.build_dir == second.build_dir
+    assert first.contract_sha256 == second.contract_sha256
+    assert first.bin_sha256 == second.bin_sha256
+    assert first.build_argv[-2:] == ("-j", "16")
+    assert second.build_argv[-2:] == ("-j", "48")
+    assert manifest_before == manifest_after
     assert "jobs" not in manifest
     assert "build_argv" not in manifest
     assert "build_cmd" not in manifest
     assert "jobs" not in manifest["preimage"]
-    assert result.build_argv[-2:] == ("-j", "16")
 
 
 def test_coverage_builds_use_site_jobs_and_refuse_login_and_suspect():
