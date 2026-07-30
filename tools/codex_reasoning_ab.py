@@ -1514,6 +1514,20 @@ ENV_ALLOWLIST = {
 }
 PACKET_MTIME_NS = 946684800_000_000_000
 MAX_SCHEDULE_GAP_MS = 60_000
+# A live inter-block snapshot-oracle/pre-launch cycle took 350,980 ms.
+# 900,000 ms leaves about 2.56x headroom without weakening the 60 s arm-pair gate.
+MAX_INTER_BLOCK_GAP_MS = 900_000
+
+
+def _is_intra_block_arm_transition(
+    previous: Mapping[str, Any], current: Mapping[str, Any]
+) -> bool:
+    return (
+        previous.get("block_id") == current.get("block_id")
+        and previous.get("attempt") == current.get("attempt")
+        and previous.get("block_order") == 1
+        and current.get("block_order") == 2
+    )
 
 
 def _clean_environment(
@@ -2061,11 +2075,15 @@ def supervise_pair(
     bwrap_binary: Path,
     dry_run: bool = False,
     max_gap_ms: int = MAX_SCHEDULE_GAP_MS,
+    max_inter_block_gap_ms: int = MAX_INTER_BLOCK_GAP_MS,
 ) -> dict[str, Any]:
     if isinstance(attempt, bool) or not isinstance(attempt, int) or not 1 <= attempt <= 3:
         raise ValidationError("attempt must be in 1..3", RC_ROUTING)
-    if max_gap_ms != MAX_SCHEDULE_GAP_MS:
-        raise ValidationError("schedule gap bound is frozen", RC_ROUTING)
+    if (
+        max_gap_ms != MAX_SCHEDULE_GAP_MS
+        or max_inter_block_gap_ms != MAX_INTER_BLOCK_GAP_MS
+    ):
+        raise ValidationError("schedule gap bounds are frozen", RC_ROUTING)
     run_root = run_root.resolve()
     snapshot = snapshot.resolve()
     if (
@@ -2279,25 +2297,37 @@ def supervise_pair(
                 _append_jsonl(ledger_path, mate_row)
                 completed.append(mate_row)
             break
-        if completed:
-            previous_exit = int(completed[-1]["process_exit_monotonic_ns"])
-        else:
-            previous_exit = next(
+        previous_process = (
+            completed[-1]
+            if completed
+            else next(
                 (
-                    int(previous["process_exit_monotonic_ns"])
+                    previous
                     for previous in reversed(completions)
                     if isinstance(
                         previous.get("process_exit_monotonic_ns"), int
                     )
                 ),
-                int(row["process_start_monotonic_ns"]),
+                None,
             )
+        )
         current_start = int(row["process_start_monotonic_ns"])
+        previous_exit = (
+            int(previous_process["process_exit_monotonic_ns"])
+            if previous_process is not None
+            else current_start
+        )
         gap_ms = round((current_start - previous_exit) / 1_000_000)
         row["previous_exit_to_start_gap_ms"] = gap_ms
+        gap_limit_ms = (
+            max_gap_ms
+            if previous_process is not None
+            and _is_intra_block_arm_transition(previous_process, row)
+            else max_inter_block_gap_ms
+        )
         if current_start < previous_exit:
             row["supervisor_failure"] = "process overlap or reverse order"
-        elif gap_ms > max_gap_ms:
+        elif gap_ms > gap_limit_ms:
             row["supervisor_failure"] = "schedule gap exceeds bound"
         _append_jsonl(ledger_path, row)
         completed.append(row)
@@ -3942,6 +3972,7 @@ def _validate_supervisor_ledger(
     attempts_raw: Sequence[Mapping[str, Any]],
     attempts_root: Path,
     max_gap_ms: int,
+    max_inter_block_gap_ms: int,
 ) -> tuple[list[Mapping[str, Any]], list[str]]:
     reasons: list[str] = []
     reserved = [row for row in rows if row.get("phase") == "reserved"]
@@ -3971,6 +4002,7 @@ def _validate_supervisor_ledger(
         reasons.append("manifest attempts do not equal supervisor completion ledger")
     slot_by_id = {str(row["slot_id"]): row for row in slots}
     previous_process_end: int | None = None
+    previous_process_row: Mapping[str, Any] | None = None
     for row in completed:
         slot = slot_by_id.get(str(row.get("slot_id")))
         if slot is None:
@@ -4078,12 +4110,21 @@ def _validate_supervisor_ledger(
             reasons.append(f"{row.get('run_id')}: snapshot changed during run")
         if previous_process_end is not None and isinstance(start, int):
             gap_ms = round((start - previous_process_end) / 1_000_000)
+            gap_limit_ms = (
+                max_gap_ms
+                if previous_process_row is not None
+                and _is_intra_block_arm_transition(
+                    previous_process_row, row
+                )
+                else max_inter_block_gap_ms
+            )
             if start < previous_process_end:
                 reasons.append("actual process schedule overlaps or reverses")
-            if gap_ms > max_gap_ms:
+            if gap_ms > gap_limit_ms:
                 reasons.append("actual process schedule gap exceeds bound")
         if isinstance(end, int):
             previous_process_end = end
+            previous_process_row = row
     if len(completed) % 2:
         reasons.append("supervisor completion ledger has a one-sided pair")
     groups: list[tuple[str, int]] = []
@@ -4171,13 +4212,19 @@ def _replay_manifest(
         ledger_rows, ledger_issues = _json_lines(ledger_path)
         reasons.extend(ledger_issues)
         if manifest.get("max_schedule_gap_ms") != MAX_SCHEDULE_GAP_MS:
-            reasons.append("manifest schedule gap bound mismatch")
+            reasons.append("manifest intra-block schedule gap bound mismatch")
+        if (
+            manifest.get("max_inter_block_gap_ms")
+            != MAX_INTER_BLOCK_GAP_MS
+        ):
+            reasons.append("manifest inter-block schedule gap bound mismatch")
         supervisor_completions, ledger_reasons = _validate_supervisor_ledger(
             ledger_rows,
             slots,
             [row for row in attempts_raw if isinstance(row, dict)],
             attempts_root,
             MAX_SCHEDULE_GAP_MS,
+            MAX_INTER_BLOCK_GAP_MS,
         )
         reasons.extend(ledger_reasons)
     except (ValidationError, TypeError, ValueError) as exc:

@@ -10,7 +10,7 @@ M3 -> test_m3_snapshot_mode_change / test_m3_symbolic_head_is_required /
 M4 -> test_m4_session_identity_must_be_equal
 M5 -> test_m5_generated_session_rows_require_set_equality /
       test_verify_replays_complete_fake_codex_experiment
-M6 -> test_m6_two_reader_verdict_row_swap_is_rejected
+M6 -> test_m6_verdict_packet_swap_restore_digest_layers_are_redundant
 M7 -> test_m7_ledger_issues_propagate_to_failure
 M8 -> test_m8_missing_turn_context_never_fills_requested_effort
 M9 -> test_m9_post_treatment_failure_remains_in_denominator
@@ -675,6 +675,7 @@ def _full_manifest(
             run_root / "attempt-ledger.jsonl", root
         ),
         "max_schedule_gap_ms": TOOL.MAX_SCHEDULE_GAP_MS,
+        "max_inter_block_gap_ms": TOOL.MAX_INTER_BLOCK_GAP_MS,
         "schedule": _descriptor(run_root / "schedule.json", root),
         "schedule_sha256": TOOL._sha256(
             (run_root / "schedule.json").read_bytes()
@@ -1279,7 +1280,12 @@ def _timing_reasons(
     tmp_path: Path,
 ) -> list[str]:
     _, reasons = TOOL._validate_supervisor_ledger(
-        rows, slots, attempts, tmp_path, TOOL.MAX_SCHEDULE_GAP_MS
+        rows,
+        slots,
+        attempts,
+        tmp_path,
+        TOOL.MAX_SCHEDULE_GAP_MS,
+        TOOL.MAX_INTER_BLOCK_GAP_MS,
     )
     return reasons
 
@@ -1300,13 +1306,98 @@ def test_pair_timing_reverse_order_is_rejected(tmp_path: Path) -> None:
     )
 
 
-def test_pair_timing_large_gap_is_rejected(tmp_path: Path) -> None:
+def test_intra_block_timing_large_gap_is_rejected(tmp_path: Path) -> None:
     slots, attempts, rows = _timing_rows()
     rows[-1]["process_start_monotonic_ns"] = (
         rows[-2]["process_exit_monotonic_ns"]
         + (TOOL.MAX_SCHEDULE_GAP_MS + 1) * 1_000_000
     )
     rows[-1]["process_exit_monotonic_ns"] = rows[-1]["process_start_monotonic_ns"] + 1
+    assert "actual process schedule gap exceeds bound" in _timing_reasons(
+        rows, slots, attempts, tmp_path
+    )
+
+
+def _append_timing_block(
+    slots: list[dict[str, Any]],
+    attempts: list[dict[str, Any]],
+    rows: list[dict[str, Any]],
+    *,
+    gap_ms: int,
+) -> None:
+    completed = [row for row in rows if row.get("phase") == "completed"]
+    previous_exit = completed[-1]["process_exit_monotonic_ns"]
+    block_slots = [
+        {
+            "slot_id": "s03",
+            "case": "NEG",
+            "arm": "max",
+            "block_id": "b02",
+            "block_order": 1,
+        },
+        {
+            "slot_id": "s04",
+            "case": "NEG",
+            "arm": "high",
+            "block_id": "b02",
+            "block_order": 2,
+        },
+    ]
+    slots.extend(block_slots)
+    start_ns = previous_exit + gap_ms * 1_000_000
+    new_rows = []
+    for offset, slot in enumerate(block_slots):
+        process_start = start_ns + offset * 2_000_000
+        new_rows.append(
+            {
+                **slot,
+                "phase": "completed",
+                "attempt": 1,
+                "run_id": f"r{offset + 3}",
+                "parent_run_id": None,
+                "launch_receipt": "/nonexistent",
+                "launch_receipt_sha256": "0" * 64,
+                "process_start_monotonic_ns": process_start,
+                "process_exit_monotonic_ns": process_start + 1_000_000,
+                "snapshot_unchanged": True,
+            }
+        )
+        attempts.append(
+            {
+                "slot_id": slot["slot_id"],
+                "attempt": 1,
+                "run_id": f"r{offset + 3}",
+            }
+        )
+    reservations = [
+        {
+            "phase": "reserved",
+            "slot_id": row["slot_id"],
+            "block_id": row["block_id"],
+            "attempt": row["attempt"],
+        }
+        for row in new_rows
+    ]
+    rows[len(rows) // 2 : len(rows) // 2] = reservations
+    rows.extend(new_rows)
+
+
+def test_inter_block_timing_350980_ms_is_accepted(tmp_path: Path) -> None:
+    slots, attempts, rows = _timing_rows()
+    _append_timing_block(slots, attempts, rows, gap_ms=350_980)
+    assert "actual process schedule gap exceeds bound" not in _timing_reasons(
+        rows, slots, attempts, tmp_path
+    )
+
+
+def test_inter_block_timing_above_bound_is_rejected(tmp_path: Path) -> None:
+    slots, attempts, rows = _timing_rows()
+    _append_timing_block(
+        slots,
+        attempts,
+        rows,
+        gap_ms=TOOL.MAX_INTER_BLOCK_GAP_MS + 1,
+    )
     assert "actual process schedule gap exceeds bound" in _timing_reasons(
         rows, slots, attempts, tmp_path
     )
@@ -2131,7 +2222,276 @@ def test_f3_1_packet_swap_restore_is_rejected(tmp_path: Path) -> None:
         )
 
 
-def test_m6_two_reader_verdict_row_swap_is_rejected(tmp_path: Path) -> None:
+class _DigestComparisonBypass(str):
+    def __eq__(self, other: object) -> bool:
+        return True
+
+    def __ne__(self, other: object) -> bool:
+        return False
+
+    __hash__ = str.__hash__
+
+
+class _DigestMapComparisonBypass(dict[str, str]):
+    def __eq__(self, other: object) -> bool:
+        return True
+
+    def __ne__(self, other: object) -> bool:
+        return False
+
+    def get(self, key: str, default: Any = None) -> Any:
+        value = super().get(key, default)
+        return (
+            _DigestComparisonBypass(value)
+            if isinstance(value, str)
+            else value
+        )
+
+
+def _verdict_packet_swap_restore_fixture(
+    tmp_path: Path,
+) -> tuple[
+    Path,
+    dict[str, Any],
+    list[dict[str, Any]],
+    dict[str, dict[str, Any]],
+    Path,
+    Path,
+]:
+    packet_ids = ("a" * 32, "b" * 32)
+    runs = ("r01", "r02")
+    slots = [
+        {"slot_id": "s01", "case": "POS", "arm": "max"},
+        {"slot_id": "s02", "case": "POS", "arm": "high"},
+    ]
+    original_bodies = (
+        _long_output("NO-GO").encode("utf-8"),
+        _long_output("GO").encode("utf-8"),
+    )
+    packet_paths = [
+        tmp_path / f"packet-{packet_id}.md" for packet_id in packet_ids
+    ]
+    for packet_path, body in zip(packet_paths, original_bodies):
+        packet_path.write_bytes(body)
+    packet_state = _canonical(
+        tmp_path / "packet-state.json",
+        {
+            "schema_version": TOOL.SCHEMA_VERSION,
+            "mask_strength": "same-owner-advisory",
+            "packets": [
+                {"packet_id": packet_id, "filename": packet_path.name}
+                for packet_id, packet_path in zip(packet_ids, packet_paths)
+            ],
+        },
+    )
+    final_attempts = {
+        slot["slot_id"]: {
+            "run_id": run_id,
+            "output_sha256": TOOL._sha256(body),
+        }
+        for slot, run_id, body in zip(slots, runs, original_bodies)
+    }
+
+    packet_paths[0].write_bytes(original_bodies[1])
+    packet_paths[1].write_bytes(original_bodies[0])
+    swapped_verdicts = _canonical(
+        tmp_path / "swapped-verdicts.json",
+        {
+            "verdicts": [
+                {
+                    "packet_id": packet_ids[0],
+                    "r1_detected": False,
+                    "findings": [],
+                },
+                {
+                    "packet_id": packet_ids[1],
+                    "r1_detected": True,
+                    "findings": [],
+                },
+            ]
+        },
+    )
+    verdict_log = tmp_path / "verdicts.jsonl"
+    TOOL.append_verdicts(
+        packet_state, verdict_log, "parent", swapped_verdicts
+    )
+    TOOL.append_verdicts(
+        packet_state, verdict_log, "second-reader", swapped_verdicts
+    )
+    verdict_freeze = tmp_path / "verdict-freeze.json"
+    TOOL.freeze_verdicts(packet_state, verdict_log, verdict_freeze)
+
+    packet_paths[0].write_bytes(original_bodies[0])
+    packet_paths[1].write_bytes(original_bodies[1])
+    revealed_map = _canonical(
+        tmp_path / "revealed-map.json",
+        {
+            "schema_version": TOOL.SCHEMA_VERSION,
+            "mask_strength": "same-owner-advisory",
+            "verdict_freeze_sha256": TOOL._sha256(
+                verdict_freeze.read_bytes()
+            ),
+            "mapping": [
+                {
+                    "packet_id": packet_id,
+                    "run_id": run_id,
+                    "packet_sha256": TOOL._sha256(body),
+                    "score_input_sha256": TOOL._sha256(body),
+                }
+                for packet_id, run_id, body in zip(
+                    packet_ids, runs, original_bodies
+                )
+            ],
+        },
+    )
+    verdict_rows = [
+        json.loads(line)
+        for line in verdict_log.read_text(encoding="utf-8").splitlines()
+    ]
+    judgments = []
+    for slot, packet_id, detected in zip(
+        slots, packet_ids, (False, True)
+    ):
+        readers = {
+            row["reader"]: row
+            for row in verdict_rows
+            if row["packet_id"] == packet_id
+        }
+        combined = {
+            "r1_detected": detected,
+            "findings": [],
+            "reader_agreement": True,
+            "reader_rows_sha256": TOOL._sha256(
+                TOOL._canonical_bytes(
+                    [readers["parent"], readers["second-reader"]]
+                )
+            ),
+        }
+        judgments.append(
+            {
+                "slot_id": slot["slot_id"],
+                "packet_id": packet_id,
+                "score_input_sha256": final_attempts[
+                    slot["slot_id"]
+                ]["output_sha256"],
+                "combined_verdict_sha256": TOOL._sha256(
+                    TOOL._canonical_bytes(combined)
+                ),
+                "r1_detected": detected,
+                "reader_agreement": True,
+            }
+        )
+
+    for index, artifact in enumerate(
+        (packet_state, verdict_log, verdict_freeze, revealed_map), 1
+    ):
+        timestamp_ns = TOOL.PACKET_MTIME_NS + index * 1_000_000
+        os.utime(artifact, ns=(timestamp_ns, timestamp_ns))
+    manifest = {
+        "packet_state": _descriptor(packet_state, tmp_path),
+        "verdict_log": _descriptor(verdict_log, tmp_path),
+        "verdict_freeze": _descriptor(verdict_freeze, tmp_path),
+        "revealed_map": _descriptor(revealed_map, tmp_path),
+        "judgments": judgments,
+    }
+    manifest_path = _canonical(tmp_path / "manifest.json", manifest)
+    return (
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        verdict_log,
+        verdict_freeze,
+    )
+
+
+def test_m6_verdict_packet_swap_restore_digest_layers_are_redundant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DW-M04 expected mutation node: M6 / M6p."""
+    (
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        verdict_log,
+        verdict_freeze,
+    ) = _verdict_packet_swap_restore_fixture(tmp_path)
+
+    joined, reasons = TOOL._load_adjudication(
+        manifest_path, manifest, slots, final_attempts
+    )
+    assert joined["s01"]["r1_detected"] is False
+    assert joined["s02"]["r1_detected"] is True
+    assert any(
+        "verdict read-time packet/output sha mismatch" in reason
+        for reason in reasons
+    )
+    assert any(
+        "frozen packet/output sha mismatch" in reason
+        for reason in reasons
+    )
+
+    original_json_lines = TOOL._json_lines
+
+    def without_read_digest_check(
+        path: Path,
+    ) -> tuple[list[Any], list[str]]:
+        rows, issues = original_json_lines(path)
+        if path.resolve() != verdict_log.resolve():
+            return rows, issues
+        return [
+            {
+                **row,
+                "packet_sha256_at_read": _DigestComparisonBypass(
+                    row["packet_sha256_at_read"]
+                ),
+            }
+            for row in rows
+        ], issues
+
+    with monkeypatch.context() as read_layer_disabled:
+        read_layer_disabled.setattr(
+            TOOL, "_json_lines", without_read_digest_check
+        )
+        _, read_disabled_reasons = TOOL._load_adjudication(
+            manifest_path, manifest, slots, final_attempts
+        )
+    assert not any(
+        "verdict read-time packet/output sha mismatch" in reason
+        for reason in read_disabled_reasons
+    )
+    assert any(
+        "frozen packet/output sha mismatch" in reason
+        for reason in read_disabled_reasons
+    )
+
+    original_load_json_object = TOOL._load_json_object
+
+    def without_freeze_digest_check(path: Path) -> dict[str, Any]:
+        value = original_load_json_object(path)
+        if path.resolve() == verdict_freeze.resolve():
+            value["packet_sha256_at_freeze"] = _DigestMapComparisonBypass(
+                value["packet_sha256_at_freeze"]
+            )
+        return value
+
+    with monkeypatch.context() as both_layers_disabled:
+        both_layers_disabled.setattr(
+            TOOL, "_json_lines", without_read_digest_check
+        )
+        both_layers_disabled.setattr(
+            TOOL, "_load_json_object", without_freeze_digest_check
+        )
+        bypassed_join, bypassed_reasons = TOOL._load_adjudication(
+            manifest_path, manifest, slots, final_attempts
+        )
+    assert bypassed_reasons == []
+    assert bypassed_join["s01"]["r1_detected"] is False
+    assert bypassed_join["s02"]["r1_detected"] is True
+
+
+def test_reader_disagreement_is_conservative(tmp_path: Path) -> None:
     packet_ids = ("a" * 32, "b" * 32)
     runs = ("r01", "r02")
     slots = [
