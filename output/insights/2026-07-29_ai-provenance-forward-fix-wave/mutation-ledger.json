@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "task": "T-186",
+  "base_commit": "6d7141dc8a174384f3b9be689d3516a8a3a31bbf",
+  "source": "tools/check_ai_provenance.py",
+  "source_sha256": "143227c7e568a7221a5463c7790063408396c2f11e868b1964a87bcd31e74569",
+  "operators": [
+    {
+      "id": "M1",
+      "class": "outcome-changing",
+      "description": "selected-set target membershipを外し履歴外targetを直接audit",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+      "mutated_sha256": "ae24709128a633b9cad62dbbecf86b619fe08da1e7ef0fd2508741a8319b50d9"
+    },
+    {
+      "id": "M2",
+      "class": "outcome-changing",
+      "description": "strict descendant判定をtarget selectedだけへ弱化",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_sibling_is_not_rehabilitated_by_later_merge",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_sibling_is_not_rehabilitated_by_later_merge",
+      "mutated_sha256": "2db5255166490b149b55ac11951540f5d7d174954dc7bef1b8832e3a8cefccee"
+    },
+    {
+      "id": "M3",
+      "class": "outcome-changing",
+      "description": "固定payload authorityのproductを同時drift",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_production_literal_and_target_object_are_pinned",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_production_literal_and_target_object_are_pinned",
+      "mutated_sha256": "81d6429274e4b1a2f22b3f3502c26434e49c543427f8cbcbdb93d8135e37e4c0"
+    },
+    {
+      "id": "M4",
+      "class": "outcome-changing",
+      "description": "selected set duplicate cardinalityを>=1受理へ弱化",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_duplicate_in_selected_set_is_rejected",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_duplicate_in_selected_set_is_rejected",
+      "mutated_sha256": "c84a8bde811383f5ce822c13831e45262a0774feae19f2c27e4337f1e4a58394"
+    },
+    {
+      "id": "M5",
+      "class": "outcome-changing",
+      "description": "raw physical value exactnessの単一authorityを除去",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[no-space]",
+      "mutated_sha256": "721da5b7f23591a15ee1416069205430680c650aab4bd3551e9c4f9213819382"
+    },
+    {
+      "id": "M6",
+      "class": "outcome-changing",
+      "description": "target実欠落のfindingとacceptance連言を同時除去",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_target_without_actual_missing",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_target_without_actual_missing",
+      "mutated_sha256": "cc24e499a166086ebe25193d814035f18ecbc3265b80f3eef217aa7945cc132e"
+    },
+    {
+      "id": "M7",
+      "class": "outcome-changing",
+      "description": "exact target tupleでなく全missing findingを抑止",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_merge_side_missing_finding",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_merge_side_missing_finding",
+      "mutated_sha256": "5e80a0075bf6303a48081543aac412e77054f6baf87dd89eaeee5eb61a08e6f2"
+    },
+    {
+      "id": "M8",
+      "class": "structural-pin",
+      "description": "correction normal-green前提をacceptance連言から除去",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green",
+      "returncode": 1,
+      "status": "PIN_DETECTED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[format]",
+      "mutated_sha256": "613af97a5db7fbac14f0a1f3b69c4bcff31520505aa7f8d0f505bdb04d87278d"
+    },
+    {
+      "id": "M9",
+      "class": "outcome-changing",
+      "description": "prospective ancestryの既存candidate拒否を除去",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_finds_candidate_on_merge_side",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_finds_candidate_on_merge_side",
+      "mutated_sha256": "8ce358b1a4165bd3eb3dac1dc94ebc166b3e70cb12fdde2192324589f4cbf0c9"
+    },
+    {
+      "id": "M10",
+      "class": "diagnostic-pin",
+      "description": "green forward-corrected status recordを除去",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+      "returncode": 1,
+      "status": "PIN_DETECTED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+      "mutated_sha256": "d75f8ea7af3e34cbc0d3c39ebccd28254670e82cf9751204b4c8f16ec898b490"
+    },
+    {
+      "id": "M11",
+      "class": "outcome-changing",
+      "description": "raw/canonical/final multiplicity enforcement全siteを同時弱化",
+      "node": "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_body_candidate_plus_valid_trailer_is_rejected",
+      "returncode": 1,
+      "status": "KILLED",
+      "first_failure": "FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_body_candidate_plus_valid_trailer_is_rejected",
+      "mutated_sha256": "afe91393c93968ff643f0efd0ebaff0c76ff98a713259c092ef0ec5062f08aa3"
+    }
+  ],
+  "outcome_killed": 9,
+  "diagnostic_or_structural_pins": 2,
+  "survived": 0,
+  "positive_controls": {
+    "nodes": [
+      "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+      "orchestrator/tests/test_check_ai_provenance.py::test_regular_message_file_acceptance_does_not_require_correction_target",
+      "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid"
+    ],
+    "returncode": 0,
+    "summary": "3 passed in 0.20s"
+  },
+  "restored_source_sha256": "143227c7e568a7221a5463c7790063408396c2f11e868b1964a87bcd31e74569",
+  "worktree_diff_after_restore": ""
+}

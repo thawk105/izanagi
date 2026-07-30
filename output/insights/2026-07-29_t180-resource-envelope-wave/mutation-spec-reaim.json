@@ -1,0 +1,28 @@
+{
+  "mutations": [
+    {
+      "id": "M18-reaim",
+      "file": "launch",
+      "note": "_normal_reap で residual unknown (None) を 0 と同一視する (実効 gate へ再照準)",
+      "old": "    return residual, residual == 0",
+      "new": "    return residual, residual in (0, None)",
+      "expected_node": "test_unknown_residual_never_verifies_normal_reap"
+    },
+    {
+      "id": "M19-reaim",
+      "file": "launch",
+      "note": "同一変異。fix2 が新設した単一理由 node へ期待を訂正",
+      "old": "    if any(item.nonmonotonic_usage for item in state.rollouts.values()):\n        return \"inconsistent\"\n",
+      "new": "",
+      "expected_node": "test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask"
+    },
+    {
+      "id": "M14-reaim",
+      "file": "ledger",
+      "note": "空 manifest の実効 gate は schema の 1..1024 検査 (records 検査は T-179 M10 に mask される)",
+      "old": "    if not 1 <= len(sessions) <= 1024:",
+      "new": "    if not 0 <= len(sessions) <= 1024:",
+      "expected_node": "test_empty_manifest_is_rc2"
+    }
+  ]
+}

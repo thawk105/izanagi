@@ -23,6 +23,18 @@ assert _SPEC and _SPEC.loader
 RT = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(RT)
 
+_EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
+    "--collect-only",
+    "--co",
+    "--help",
+    "--version",
+    "--markers",
+    "--fixtures",
+    "--fixtures-per-test",
+    "--trace-config",
+    "--setup-plan",
+})
+
 
 @pytest.fixture(autouse=True)
 def _clean_runner_env(monkeypatch):
@@ -642,6 +654,125 @@ def test_main_submodule_preflight_failure_is_wired_before_xdist(monkeypatch):
     submodule.assert_called_once_with([], Path(RT._REPO))
 
 
+def test_m1_login_dispatch_runs_after_13_15_14_and_before_xdist(monkeypatch):
+    # M1: LOGIN を OTHER に落とすと dispatch event が消え、xdist 側へ到達して赤になる。
+    events = []
+
+    def preflight(name):
+        return lambda args, repo: events.append(name) or 0
+
+    def dispatch(args, *, environ):
+        assert "IZANAGI_TASK_RUN_ID" not in environ
+        events.append(("dispatch", list(args)))
+        return 7
+
+    monkeypatch.setattr(
+        RT, "_preflight_unstaged_deletions", preflight("deletion"),
+    )
+    monkeypatch.setattr(RT, "_preflight_ruleops", preflight("ruleops"))
+    monkeypatch.setattr(RT, "_preflight_submodule", preflight("submodule"))
+    monkeypatch.setattr(
+        RT,
+        "_ensure_xdist",
+        mock.Mock(side_effect=AssertionError("xdist must follow dispatch")),
+    )
+
+    classified_site = RT.site_policy.classify_site("pegasus02", {}, True)
+    assert RT.main(
+        ["test_target.py"],
+        site=classified_site,
+        dispatch_fn=dispatch,
+    ) == 7
+    assert events == [
+        "deletion", "ruleops", "submodule", ("dispatch", ["test_target.py"]),
+    ]
+
+
+@pytest.mark.parametrize("flag", sorted(_EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS))
+def test_login_dispatch_exemption_is_exact_closed_set(monkeypatch, flag):
+    assert RT._PEGASUS_DISPATCH_EXEMPT_FLAGS == (
+        _EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS
+    )
+    dispatch = mock.Mock(side_effect=AssertionError("must be exempt"))
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
+    monkeypatch.setattr(RT.subprocess, "call", lambda *a, **kw: 0)
+
+    assert RT.main(
+        [flag],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 0
+    dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("flag", ["--setup-only", "--setup-show"])
+def test_login_setup_execution_shapes_are_not_dispatch_exempt(
+    monkeypatch, flag,
+):
+    dispatch = mock.Mock(return_value=3)
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    assert RT.main(
+        [flag],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 3
+    dispatch.assert_called_once()
+
+
+def test_suspect_execution_refuses_without_dispatch_or_xdist(
+    monkeypatch, capsys,
+):
+    dispatch = mock.Mock(side_effect=AssertionError("SUSPECT must not dispatch"))
+    ensure = mock.Mock(side_effect=AssertionError("SUSPECT must not execute"))
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_ensure_xdist", ensure)
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_SUSPECT,
+        dispatch_fn=dispatch,
+    ) == RT._PEGASUS_DISPATCH_RC
+    dispatch.assert_not_called()
+    ensure.assert_not_called()
+    assert "拒否" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("version", [None, "2.4.9", "invalid"])
+def test_compute_xdist_requirement_is_fail_closed_without_pip(
+    monkeypatch, version,
+):
+    ensure = mock.Mock(side_effect=AssertionError("compute must not invoke pip path"))
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: version)
+    monkeypatch.setattr(RT, "_ensure_xdist", ensure)
+    assert RT.main(
+        ["test_target.py"], site=RT.site_policy.PEGASUS_COMPUTE,
+    ) == RT._PEGASUS_DISPATCH_RC
+    ensure.assert_not_called()
+
+
+def test_compute_unimportable_xdist_is_fail_closed_without_pip(monkeypatch):
+    ensure = mock.Mock(side_effect=AssertionError("compute must not invoke pip path"))
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(RT, "_xdist_runtime_importable", lambda: False)
+    monkeypatch.setattr(RT, "_ensure_xdist", ensure)
+    assert RT.main(
+        ["test_target.py"], site=RT.site_policy.PEGASUS_COMPUTE,
+    ) == RT._PEGASUS_DISPATCH_RC
+    ensure.assert_not_called()
+
+
 def test_main_assembles_absolute_relative_target_from_other_cwd(
     monkeypatch, tmp_path,
 ):
@@ -660,7 +791,9 @@ def test_main_assembles_absolute_relative_target_from_other_cwd(
         return 0
 
     monkeypatch.setattr(RT.subprocess, "call", fake_call)
-    assert RT.main(["test_sample.py::test_sample"]) == 0
+    assert RT.main(
+        ["test_sample.py::test_sample"], site=RT.site_policy.OTHER,
+    ) == 0
     assert captured["command"] == [
         sys.executable, "-m", "pytest", f"{target.resolve()}::test_sample",
     ]
@@ -686,7 +819,7 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
         ) or 0,
     )
 
-    assert RT.main(["test_sample.py"]) == 0
+    assert RT.main(["test_sample.py"], site=RT.site_policy.OTHER) == 0
     assert captured["command"] == [
         sys.executable, "-m", "pytest", str(target.resolve()),
     ]
@@ -714,7 +847,7 @@ def test_main_option_values_do_not_suppress_default_target(
         lambda command, **kwargs: captured.update(command=command) or 0,
     )
 
-    assert RT.main(args) == 0
+    assert RT.main(args, site=RT.site_policy.OTHER) == 0
     assert captured["command"] == [
         sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
         *expected_tail,

@@ -1,7 +1,8 @@
-# worklog archive — Phase 3 2026-07-29 (49)〜(58)
+# Izanagi 作業ログ archive — 2026-07-29 (49) 〜 2026-07-29 (58)
 
-ローテーションで `docs/worklog.md` から移動した凍結記録 (訂正注記のみ追記可、D35)。
+現行 `docs/worklog.md` からのローテーション (D35、凍結・訂正注記のみ追記可)。
 
+---
 ## 2026-07-29 (49) — [T-141] profiler→axis-proposer 結線を完了 — CLI 化 + pegasus 校正 job + 閾値裁定 = 据え置き (コード + docs + 校正データ、branch worktree-dev-wave-t141-directive-ops、計測 = pegasus gen_S 計算ノードの perf 校正 job (request 873859) + 受入全走 3191 passed/18 skipped (本 worktree・ログインノード、統合後再走あり))
 
 - **番号振り直し (D70)**: 本エントリは branch 上で (46) として記録した。並行 wave の land

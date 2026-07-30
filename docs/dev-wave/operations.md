@@ -88,9 +88,11 @@ NO-GO が返り続ける場合は無制限に fix を重ねず、3 巡を上限�
 
 ## DW-O17 — commit trailer
 
-trailer 配置は `docs/ai-provenance.md` の「必須形式」に従う（F25）。message は commit 前に
-`python3 tools/check_ai_provenance.py --message-file <path>` で検査し、commit 後の監査も省略しない。
-検査の rc はパイプに通さず単独で取り、赤のまま commit しない（F37）。
+trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage file→`--message-file`単独rc=0
+→`commit -F`→既定full-history監査とする。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
+→`--ff-only`→full監査、merge commitなら`merge --no-ff --no-commit <tip>`→競合解消→同じpreflight
+→`commit -F`→full監査とする。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
+含むときは両commitを含むrangeかfull監査だけを権威とする。検査rcをパイプに通さず、赤なら止める（F37）。
 
 ## DW-O18 — 親のテスト cwd
 
@@ -101,17 +103,26 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 
 ## DW-O19 — tracked file の一時変異
 
-復元の正本は `git diff` と `git checkout --` とし、外部 backup に頼らない。
-編集前後で `git diff --stat` が対象ファイルの意図した単一変異だけ (単一 entry が複数行ならその複数行に限り、他ファイル・意図外の変更なし) であることを必ず確認してから `git checkout --` で復元する。
-この方式の本走は統合 commit 後だけに限定し、commit 前の実装へ実行してはならない。
-段 1 の前提実測は本走ではなく、`DW-S01` に従って復元規律だけを借りる。
-復元後は内容を commit 済み内容と比較する。
+復元は `git diff` と `git checkout --` を正本とし、外部 backup を使わない。
+本走は統合 commit 後に限る。変異前を clean 確認し、変異後の `git diff --stat` が対象 file の
+意図した単一変異だけ (単一 entry が複数行ならその範囲) であることを確認して復元する。
+復元 bytes は commit と照合する。phase 完了は実装と同じ anchor commit へ含め、本走後の raw 台帳は
+後続の記録 commit へ置く。anchor を amend して自己 hash 循環を作らない。
+段 1 前提実測は本走でないが、この復元規律に従う。
 
 ## DW-O20 — clean-tree gate
 
-専用 handoff は worktree の外 (job tmp または main checkout 側) に置いて生存性を確保し、
-untracked handoff を残したまま gate を走らせない (worktree 隔離の背景 job は job tmp)。
-背景 job の cwd が既に worktree なら `EnterWorktree` は新規作成を拒む。そのまま作業してよいが、
-ディレクトリ名と branch 名の食い違いを handoff と worklog に明記し、別 wave の worktree を流用しない。
-worktree の作成・流用直後に `tools/check_wave_startup.py` で開始条件を検査し (背景 job は
-`--external-handoff <handoff>` 付き)、rc≠0 なら停止する。HEAD のずれは `--ff-only` で揃える (F48)。
+専用handoffはworktree外（背景jobはjob tmp）に置き、untracked handoffを残してgateを走らせない。
+cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
+worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.py`（背景jobは
+`--external-handoff <handoff>`付き）を実行し、非0なら停止する。HEAD差は`--ff-only`だけで揃える（F48）。
+
+## DW-O23 — 並行 session の local main land
+
+`tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、監査commit列を渡す。
+協調wave lock内で再照合し、tipへのff-onlyだけ行う。tracked/index/submodule dirtと未知untrackedを拒否し、
+正規handoff 3状態とGit adminに双方向束縛したClaude/Codex worktreeだけ非接触で許す。
+
+成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
+既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価・受入後に再試行する。
+他session所有物、rebase、force、remote、pushで解消しない。

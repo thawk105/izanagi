@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019fadcd-a610-76e2-ab1e-57440d35d795"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"## 総括\nprobe ok"}}
+{"type":"turn.completed","usage":{"input_tokens":16586,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":11,"reasoning_output_tokens":0}}

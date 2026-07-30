@@ -44,7 +44,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import buildcache                                        # noqa: E402
+from campaign import buildcache, site_policy                           # noqa: E402
 from campaign.layout import repo_output_root                           # noqa: E402
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
@@ -227,7 +227,21 @@ def _measure_candidate(bin_trace: str, bin_perf: str, extime: int) -> dict:
             "gate1": gate1, "gate2": gate2}
 
 
-def _broken_build_and_verify(patch_name: str, define: str, workloads: dict) -> dict:
+def _run_cmake_build(cmd: list[str], *, site=None) -> None:
+    resolved_site = site_policy.current_site() if site is None else site
+    if site_policy.refuses_heavy_work(resolved_site):
+        raise buildcache.BuildError(
+            site_policy.heavy_work_refusal(resolved_site, "cmake --build")
+        )
+    subprocess.run(
+        cmd + ["-j", str(site_policy.default_build_jobs(resolved_site))],
+        check=True, capture_output=True, text=True,
+    )
+
+
+def _broken_build_and_verify(
+        patch_name: str, define: str, workloads: dict, *, site=None,
+) -> dict:
     """broken patch を applied() 下で一時 build し、各 workload で run→verifier。
 
     build は buildcache 非経由 (allowlist 検査を通らない・通してはいけない)。
@@ -245,9 +259,18 @@ def _broken_build_and_verify(patch_name: str, define: str, workloads: dict) -> d
                    "-DENABLE_SANITIZER=OFF",
                    f"-DCMAKE_C_COMPILER={buildcache.DEFAULT_CC}",
                    f"-DCMAKE_CXX_COMPILER={buildcache.DEFAULT_CXX}"] + defines
+            resolved_site = site_policy.current_site() if site is None else site
+            if site_policy.refuses_heavy_work(resolved_site):
+                raise buildcache.BuildError(
+                    site_policy.heavy_work_refusal(
+                        resolved_site, "cmake configure/build"
+                    )
+                )
             subprocess.run(cfg, check=True, capture_output=True, text=True)
-            subprocess.run(["cmake", "--build", bdir, "--target", "ycsb_silo.exe",
-                            "-j", "16"], check=True, capture_output=True, text=True)
+            _run_cmake_build(
+                ["cmake", "--build", bdir, "--target", "ycsb_silo.exe"],
+                site=resolved_site,
+            )
             binary = os.path.join(bdir, "cc", "silo", "ycsb_silo.exe")
             for name, (flags, extime) in workloads.items():
                 r = _run_once(binary, flags, extime, trace=True)

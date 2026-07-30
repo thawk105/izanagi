@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+"""固定した未追跡 insight に触れず、監査済み wave を local main へ land する。"""
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import os
+import stat
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from types import ModuleType
+from typing import Callable
+
+
+HELPER_PATH = Path(
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/"
+    "dev-wave-pegasus-compute-node/tools/dev_wave_land.py"
+)
+MAIN_WORKTREE = Path("/home/SFC/tanab/github/izanagi")
+WAVE_WORKTREE = Path(
+    "/home/SFC/tanab/github/izanagi/.claude/worktrees/"
+    "dev-wave-pegasus-compute-node"
+)
+TESTED_MAIN_SHA = "e02fccf96b88e2d4316d3f7d28d7a92fc8bd2632"
+TESTED_WAVE_TIP_PREFIX = "5e095d00f6711e10e42f7e12b4b2e1766"
+AUDITED_COMMITS_BEFORE_TIP = (
+    "a34266d2d6a9af63015ba85515b89ccb2b3a5d73",
+    "45bea0cf686bc37b766b7e5a8b0098198011587d",
+    "98427aaba3e1eff33edfeb3c7cebb6f12518d2b3",
+    "30fa5f034af09a9e37ab20ec6fc01a6943e9e79b",
+    "780dd6e598fe838adae8dd8582956ed9df53863f",
+)
+DECLARED_PATH = (
+    "output/insights/2026-07-30_dev-wave-gate-cost-and-suite-floor.md"
+)
+DECLARED_PATH_BYTES = os.fsencode(DECLARED_PATH)
+_DECLARED_STATUS_RECORD = b"?? " + DECLARED_PATH_BYTES
+_SUCCESS_STATUSES = frozenset(("landed", "already-landed"))
+
+
+@dataclass(frozen=True)
+class _FileSnapshot:
+    sha256: str
+    st_mode: int
+    size: int
+    st_dev: int
+    st_ino: int
+    st_mtime_ns: int
+    st_ctime_ns: int
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "sha256": self.sha256,
+            "st_mode": self.st_mode,
+            "size": self.size,
+            "st_dev": self.st_dev,
+            "st_ino": self.st_ino,
+            "st_mtime_ns": self.st_mtime_ns,
+            "st_ctime_ns": self.st_ctime_ns,
+        }
+
+
+class _AdapterReject(Exception):
+    def __init__(self, rc: int, reason: str):
+        super().__init__(reason)
+        self.rc = rc
+        self.reason = reason
+
+
+def _load_helper() -> ModuleType:
+    name = "_izanagi_dev_wave_land_declared_adapter"
+    spec = importlib.util.spec_from_file_location(name, HELPER_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"helper module spec unavailable: {HELPER_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(name, None)
+        raise
+    return module
+
+
+def _stable_metadata(metadata: os.stat_result) -> tuple[int, ...]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_mode,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+
+
+def _snapshot_regular(path: Path, rc: int) -> _FileSnapshot:
+    try:
+        before = os.lstat(path)
+        fd = os.open(
+            path,
+            os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+    except OSError as exc:
+        raise _AdapterReject(
+            rc, f"declared path open/lstat failed: {exc}"
+        ) from exc
+    try:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode) or not stat.S_ISREG(opened.st_mode):
+            raise _AdapterReject(
+                rc, "declared path is a symlink or non-regular file"
+            )
+        if (
+            before.st_dev,
+            before.st_ino,
+            stat.S_IFMT(before.st_mode),
+        ) != (
+            opened.st_dev,
+            opened.st_ino,
+            stat.S_IFMT(opened.st_mode),
+        ):
+            raise _AdapterReject(
+                rc, "declared path identity changed while opening"
+            )
+
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+            total += len(chunk)
+
+        after = os.lstat(path)
+        final = os.fstat(fd)
+        if not stat.S_ISREG(after.st_mode):
+            raise _AdapterReject(
+                rc, "declared path became a symlink or non-regular file"
+            )
+        expected = _stable_metadata(opened)
+        if (
+            _stable_metadata(before) != expected
+            or _stable_metadata(after) != expected
+            or _stable_metadata(final) != expected
+            or total != opened.st_size
+        ):
+            raise _AdapterReject(
+                rc, "declared path changed while computing SHA-256"
+            )
+        return _FileSnapshot(
+            sha256=digest.hexdigest(),
+            st_mode=opened.st_mode,
+            size=opened.st_size,
+            st_dev=opened.st_dev,
+            st_ino=opened.st_ino,
+            st_mtime_ns=opened.st_mtime_ns,
+            st_ctime_ns=opened.st_ctime_ns,
+        )
+    finally:
+        os.close(fd)
+
+
+def _audited_touched_paths(
+    helper: ModuleType,
+    repository: object,
+    audited_commits: tuple[str, ...],
+) -> frozenset[bytes]:
+    touched: set[bytes] = set()
+    for commit in audited_commits:
+        raw = helper._require_git(
+            helper._git(
+                repository.wave,
+                "diff-tree",
+                "--root",
+                "-m",
+                "--no-commit-id",
+                "--name-only",
+                "-z",
+                "-r",
+                "--no-renames",
+                commit,
+            ),
+            f"declared-path collision closure at {commit}",
+            helper.RC_AUDIT,
+        )
+        for path in helper._nul_records(
+            raw,
+            f"declared-path collision closure at {commit}",
+            helper.RC_AUDIT,
+        ):
+            if (
+                not path
+                or path.startswith(b"/")
+                or any(
+                    part in (b"", b".", b"..")
+                    for part in path.split(b"/")
+                )
+            ):
+                raise helper._Reject(
+                    helper.RC_AUDIT,
+                    f"unsafe audited touched path: {path!r}",
+                )
+            touched.add(path)
+    return frozenset(touched)
+
+
+def _install_narrow_adapter(helper: ModuleType) -> Callable[[], None]:
+    original_status_records = helper._status_records
+    original_verify_audit = helper._verify_audit
+
+    def status_records(repo: Path, label: str) -> list[bytes]:
+        records = original_status_records(repo, label)
+        if label != "main":
+            return records
+        matches = sum(record == _DECLARED_STATUS_RECORD for record in records)
+        if matches != 1:
+            raise helper._Reject(
+                helper.RC_DIRT,
+                "declared path must be exactly one ordinary untracked "
+                f"status record: {DECLARED_PATH!r}",
+            )
+        return [
+            record for record in records
+            if record != _DECLARED_STATUS_RECORD
+        ]
+
+    def verify_audit(
+        repository: object,
+        tested_main: str,
+        tested_tip: str,
+        audited: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        actual = original_verify_audit(
+            repository, tested_main, tested_tip, audited
+        )
+        for touched in _audited_touched_paths(
+            helper, repository, actual
+        ):
+            if helper._paths_overlap(touched, DECLARED_PATH_BYTES):
+                raise helper._Reject(
+                    helper.RC_DIRT,
+                    "audited commit path collides with declared non-contact "
+                    "path: "
+                    f"touched={touched!r}, declared={DECLARED_PATH_BYTES!r}",
+                )
+        return actual
+
+    helper._status_records = status_records
+    helper._verify_audit = verify_audit
+
+    def restore() -> None:
+        helper._verify_audit = original_verify_audit
+        helper._status_records = original_status_records
+
+    return restore
+
+
+def _empty_output() -> dict[str, object]:
+    return {
+        "status": "rejected",
+        "reason": "adapter did not run",
+        "main_before": None,
+        "main_after": None,
+        "wave_tip": None,
+        "helper_status": None,
+        "declared_path": DECLARED_PATH,
+        "declared_sha256_before": None,
+        "declared_sha256_after": None,
+        "declared_before": None,
+        "declared_after": None,
+    }
+
+
+def main() -> int:
+    output = _empty_output()
+    helper: ModuleType | None = None
+    before: _FileSnapshot | None = None
+    after: _FileSnapshot | None = None
+    rc = 1
+    try:
+        helper = _load_helper()
+        main_worktree = helper._canonical_absolute(
+            MAIN_WORKTREE, "adapter main worktree"
+        )
+        wave_worktree = helper._canonical_absolute(
+            WAVE_WORKTREE, "adapter wave worktree"
+        )
+        tested_tip = helper._head(wave_worktree, "adapter wave")
+        output["wave_tip"] = tested_tip
+        if not tested_tip.startswith(TESTED_WAVE_TIP_PREFIX):
+            raise _AdapterReject(
+                helper.RC_AUDIT,
+                "wave HEAD does not match the fixed tested-tip prefix",
+            )
+        audited_commits = AUDITED_COMMITS_BEFORE_TIP + (tested_tip,)
+        request = helper.LandRequest(
+            main_worktree=main_worktree,
+            wave_worktree=wave_worktree,
+            tested_main_sha=TESTED_MAIN_SHA,
+            tested_wave_tip_sha=tested_tip,
+            audited_commits=audited_commits,
+        )
+
+        declared = main_worktree / DECLARED_PATH
+        before = _snapshot_regular(declared, helper.RC_DIRT)
+        output["declared_before"] = before.as_json()
+        output["declared_sha256_before"] = before.sha256
+
+        restore = _install_narrow_adapter(helper)
+        land_result = None
+        land_error: Exception | None = None
+        try:
+            land_result = helper.land(request)
+        except Exception as exc:
+            land_error = exc
+        finally:
+            restore()
+            try:
+                after = _snapshot_regular(declared, helper.RC_DIRT)
+                output["declared_after"] = after.as_json()
+                output["declared_sha256_after"] = after.sha256
+            except Exception as exc:
+                if land_error is None:
+                    land_error = exc
+
+        if land_result is not None:
+            output.update(land_result.as_json())
+            output["helper_status"] = land_result.status
+        if land_error is not None:
+            if isinstance(land_error, _AdapterReject):
+                raise land_error
+            if isinstance(land_error, helper._Reject):
+                raise _AdapterReject(
+                    land_error.rc, land_error.reason
+                ) from land_error
+            raise _AdapterReject(
+                helper.RC_LANDED_POSTCONDITION_FAILED,
+                f"land adapter failed: {land_error}",
+            ) from land_error
+        if after != before:
+            raise _AdapterReject(
+                helper.RC_LANDED_POSTCONDITION_FAILED,
+                "declared path changed across land; non-contact proof failed",
+            )
+        if land_result is None:
+            raise _AdapterReject(
+                helper.RC_NOT_LANDED, "helper returned no land result"
+            )
+
+        if (
+            land_result.rc != helper.RC_OK
+            or land_result.status not in _SUCCESS_STATUSES
+        ):
+            rc = (
+                land_result.rc
+                if land_result.rc != helper.RC_OK
+                else helper.RC_NOT_LANDED
+            )
+        else:
+            rc = helper.RC_OK
+    except _AdapterReject as exc:
+        rc = exc.rc
+        output["status"] = "rejected"
+        output["reason"] = exc.reason
+    except Exception as exc:
+        if helper is not None and isinstance(exc, helper._Reject):
+            rc = exc.rc
+            output["reason"] = exc.reason
+        else:
+            rc = 1
+            output["reason"] = f"adapter setup failed: {exc}"
+        output["status"] = "rejected"
+    finally:
+        if before is not None:
+            output["declared_before"] = before.as_json()
+            output["declared_sha256_before"] = before.sha256
+        if after is not None:
+            output["declared_after"] = after.as_json()
+            output["declared_sha256_after"] = after.sha256
+        print(json.dumps(output, ensure_ascii=False, sort_keys=True))
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())

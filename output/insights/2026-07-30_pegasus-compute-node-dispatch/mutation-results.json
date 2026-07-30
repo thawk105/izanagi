@@ -1,0 +1,50 @@
+[
+  {
+    "id": "M1",
+    "rc": 1,
+    "killed": true,
+    "failed_nodes": [],
+    "n_failed": 0,
+    "elapsed_s": 7.8
+  },
+  {
+    "id": "M2",
+    "rc": 1,
+    "killed": true,
+    "failed_nodes": [],
+    "n_failed": 0,
+    "elapsed_s": 23.2
+  },
+  {
+    "id": "M3",
+    "rc": 1,
+    "killed": true,
+    "failed_nodes": [],
+    "n_failed": 0,
+    "elapsed_s": 21.8
+  },
+  {
+    "id": "M4",
+    "rc": 1,
+    "killed": true,
+    "failed_nodes": [],
+    "n_failed": 0,
+    "elapsed_s": 26.9
+  },
+  {
+    "id": "M13",
+    "rc": 1,
+    "killed": true,
+    "failed_nodes": [],
+    "n_failed": 0,
+    "elapsed_s": 32.0
+  },
+  {
+    "id": "M11",
+    "rc": 1,
+    "killed": true,
+    "failed_nodes": [],
+    "n_failed": 0,
+    "elapsed_s": 26.9
+  }
+]

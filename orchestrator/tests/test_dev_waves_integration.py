@@ -6,6 +6,8 @@ import contextlib
 import errno
 import hashlib
 import json
+import math
+import numbers
 import os
 import shutil
 import signal
@@ -15,9 +17,11 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 import uuid
 from dataclasses import dataclass, replace
 from decimal import Decimal
+from enum import Enum
 from pathlib import Path
 from typing import Iterator
 from unittest import mock
@@ -80,6 +84,12 @@ _GENEROUS_PER_WAVE = 60
 _PROFILE_MAX_PER_WAVE = 60
 _PROFILE_MAX_TOTAL = 240
 _BLOCKING_CHILD_SLEEP = 600
+_SERVE_CHILD_CEILING_S = 180
+_SERVE_CHILD_REAP_GRACE_S = 5
+_SERVE_CHILD_RESULT_PREFIX = "T145_SERVE_RESULT="
+_SERVE_CHILD_RESULT_KEYS = frozenset({
+    "outcome", "exception_type", "exception_args", "traceback",
+})
 
 
 def _run_command(
@@ -1107,27 +1117,66 @@ def _sandbox_permits_short_alias_bind(directory: Path) -> bool:
     """
     fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
     try:
+        try:
+            os.stat(".s", dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise FileExistsError(
+                errno.EEXIST, "short alias probe pathname already exists", ".s",
+            )
         alias = f"/proc/self/fd/{fd}/.s"
         if not os.path.isdir(f"/proc/self/fd/{fd}") or len(os.fsencode(alias)) >= 108:
             return False
         probe = None
-        created = False
+        owned = False
         try:
-            probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            probe.bind(alias)
-            created = True
-            os.chmod(".s", 0o600, dir_fd=fd, follow_symlinks=False)
-            os.stat(".s", dir_fd=fd, follow_symlinks=False)
-            probe.listen(1)
+            try:
+                probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            except OSError:
+                return False
+            try:
+                probe.bind(alias)
+            except OSError:
+                try:
+                    os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                except FileNotFoundError:
+                    return False
+                owned = probe.getsockname() == alias
+                return False
+            owned = True
+            try:
+                os.chmod(".s", 0o600, dir_fd=fd, follow_symlinks=False)
+                os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                probe.listen(1)
+            except OSError:
+                return False
             return True
-        except OSError:
-            return False
         finally:
             if probe is not None:
                 with contextlib.suppress(OSError):
                     probe.close()
-            if created:
-                os.unlink(".s", dir_fd=fd)
+            if owned:
+                try:
+                    os.unlink(".s", dir_fd=fd)
+                except FileNotFoundError:
+                    try:
+                        os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                    except FileNotFoundError:
+                        pass
+                    else:
+                        raise
+                else:
+                    try:
+                        os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                    except FileNotFoundError:
+                        pass
+                    else:
+                        raise FileExistsError(
+                            errno.EEXIST,
+                            "short alias probe cleanup left the pathname present",
+                            ".s",
+                        )
     finally:
         os.close(fd)
 
@@ -1141,15 +1190,45 @@ class _PermissiveAliasSocket:
 
     def __init__(self, directory: Path) -> None:
         self._directory = directory
+        self._bound_address = ""
+        self.closed = False
 
     def bind(self, alias: str) -> None:
         (self._directory / ".s").touch()
+        self._bound_address = alias
+
+    def getsockname(self) -> str:
+        return self._bound_address
 
     def listen(self, backlog: int) -> None:
         pass
 
     def close(self) -> None:
-        pass
+        self.closed = True
+
+
+class _PartiallyBoundAliasSocket(_PermissiveAliasSocket):
+    """Materialise and remember the address before reporting bind failure."""
+
+    def bind(self, alias: str) -> None:
+        super().bind(alias)
+        raise OSError(errno.EIO, "injected post-bind failure")
+
+
+class _UnboundAliasSocket:
+    """Reject bind without claiming or changing the pathname."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    def bind(self, alias: str) -> None:
+        raise OSError(errno.EADDRINUSE, "injected preexisting entry")
+
+    def getsockname(self) -> str:
+        return ""
+
+    def close(self) -> None:
+        self.closed = True
 
 
 @pytest.mark.xdist_group("dev-waves-runtime")
@@ -1168,18 +1247,407 @@ def test_short_alias_bind_probe_separates_capability_loss_from_regression() -> N
                         OSError(errno.EACCES, "policy")):
             with mock.patch("socket.socket", side_effect=failure):
                 assert _sandbox_permits_short_alias_bind(directory) is False
-        for method in ("bind", "listen"):
-            with mock.patch.object(socket.socket, method,
-                                   side_effect=PermissionError(errno.EPERM, "policy")):
-                assert _sandbox_permits_short_alias_bind(directory) is False
+        with mock.patch.object(
+            socket.socket, "bind",
+            side_effect=PermissionError(errno.EPERM, "policy"),
+        ), mock.patch.object(
+            socket.socket, "getsockname",
+            side_effect=PermissionError(errno.EPERM, "ownership observation denied"),
+        ) as getsockname:
+            assert _sandbox_permits_short_alias_bind(directory) is False
+            getsockname.assert_not_called()
+        listen_probe = _PermissiveAliasSocket(directory)
+        with mock.patch("socket.socket", return_value=listen_probe), mock.patch.object(
+            _PermissiveAliasSocket, "listen",
+            side_effect=PermissionError(errno.EPERM, "policy"),
+        ):
+            assert _sandbox_permits_short_alias_bind(directory) is False
         with mock.patch("socket.socket",
                         return_value=_PermissiveAliasSocket(directory)):
             assert _sandbox_permits_short_alias_bind(directory) is True
         assert not list(directory.iterdir()), "probe が socket file を残した"
 
 
+class _ServeObservation(Enum):
+    LISTENER_BOUND = "listener-bound"
+    REQUEST_READY = "request-ready"
+    EXCHANGE_COMPLETED = "exchange-completed"
+    PARKED = "parked"
+    SHUTDOWN_SET = "shutdown-set"
+    RELEASED = "released"
+    SERVE_RETURNED = "serve-returned"
+    SERVE_RAISED = "serve-raised"
+
+
+class _ServeHarnessFailure(AssertionError):
+    """Deterministic failure raised by the long-path serve harness."""
+
+
+class _ServePollShapeChanged(_ServeHarnessFailure):
+    pass
+
+
+class _ServePollTimeoutChanged(_ServeHarnessFailure):
+    pass
+
+
+class _ServeLoopIgnoredShutdown(_ServeHarnessFailure):
+    pass
+
+
+class _ServeSelectProxy:
+    """Observe only the target serve loop without patching stdlib ``select``."""
+
+    def __init__(self, real_module: object, shutdown: threading.Event) -> None:
+        self._real_module = real_module
+        self._real_select = real_module.select
+        self._shutdown = shutdown
+        self._target_thread: threading.Thread | None = None
+        self._listener: object | None = None
+        self._relay_reader: object | None = None
+        self._relay: object | None = None
+        self._condition = threading.Condition()
+        self._trace: list[_ServeObservation] = []
+        self._foreign_calls = 0
+        self.exchange_completed = threading.Event()
+        self.parked = threading.Event()
+        self.released = threading.Event()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._real_module, name)
+
+    def bind_target_thread(self, thread: threading.Thread) -> None:
+        assert self._target_thread is None
+        self._target_thread = thread
+
+    def bind_relay(self, relay: object) -> None:
+        if self._relay is not None:
+            raise _ServePollShapeChanged(
+                "serve created more than one SignalRelay instance",
+            )
+        fileno = getattr(relay, "fileno", None)
+        if not callable(fileno) or type(fileno()) is not int:
+            raise _ServePollShapeChanged(
+                "serve SignalRelay did not expose one integer fd",
+            )
+        self._relay = relay
+
+    @property
+    def listener(self) -> object | None:
+        return self._listener
+
+    @property
+    def foreign_calls(self) -> int:
+        with self._condition:
+            return self._foreign_calls
+
+    @property
+    def trace(self) -> list[_ServeObservation]:
+        with self._condition:
+            return list(self._trace)
+
+    def _observe(self, observation: _ServeObservation) -> None:
+        with self._condition:
+            if observation not in self._trace:
+                self._trace.append(observation)
+            self._condition.notify_all()
+
+    def wait_for(
+        self, *observations: _ServeObservation,
+    ) -> _ServeObservation:
+        with self._condition:
+            self._condition.wait_for(
+                lambda: any(item in self._trace for item in observations),
+            )
+            return next(item for item in self._trace if item in observations)
+
+    def note_exchange_completed(self) -> None:
+        self.exchange_completed.set()
+        self._observe(_ServeObservation.EXCHANGE_COMPLETED)
+
+    def note_shutdown_set(self) -> None:
+        if not self._shutdown.is_set():
+            raise _ServeHarnessFailure("shutdown Event was not set")
+        self._observe(_ServeObservation.SHUTDOWN_SET)
+
+    def release(self) -> None:
+        self.released.set()
+        self._observe(_ServeObservation.RELEASED)
+
+    def note_serve_returned(self) -> None:
+        self._observe(_ServeObservation.SERVE_RETURNED)
+
+    def note_serve_raised(self) -> None:
+        self._observe(_ServeObservation.SERVE_RAISED)
+
+    def _bind_or_validate_target_shape(
+        self, readers: object, writers: object, errors: object,
+    ) -> bool:
+        if (not isinstance(readers, (list, tuple)) or len(readers) != 2 or
+                not isinstance(writers, (list, tuple)) or writers or
+                not isinstance(errors, (list, tuple)) or errors):
+            raise _ServePollShapeChanged(
+                "serve poll readers/writers/errors shape changed",
+            )
+        listeners = [item for item in readers if isinstance(item, socket.socket)]
+        relay_readers = [item for item in readers if type(item) is int]
+        if len(listeners) != 1 or len(relay_readers) != 1:
+            raise _ServePollShapeChanged(
+                "serve poll requires one socket listener and one integer relay fd",
+            )
+        listener = listeners[0]
+        relay_reader = relay_readers[0]
+        if self._relay is None:
+            raise _ServePollShapeChanged(
+                "serve polled before creating its SignalRelay",
+            )
+        actual_relay_reader = self._relay.fileno()
+        if relay_reader != actual_relay_reader:
+            raise _ServePollShapeChanged(
+                "serve poll relay reader is not the generated SignalRelay fd",
+            )
+        if self._listener is None:
+            self._listener = listener
+            self._relay_reader = relay_reader
+            return True
+        if listener is not self._listener or relay_reader != self._relay_reader:
+            raise _ServePollShapeChanged(
+                "serve poll listener or relay reader identity changed",
+            )
+        return False
+
+    @staticmethod
+    def _validate_timeout(timeout: object) -> float:
+        if isinstance(timeout, bool) or not isinstance(timeout, numbers.Real):
+            raise _ServePollTimeoutChanged(
+                f"serve poll timeout must be finite and positive: {timeout!r}",
+            )
+        try:
+            numeric = float(timeout)
+        except (OverflowError, ValueError):
+            raise _ServePollTimeoutChanged(
+                f"serve poll timeout must be finite and positive: {timeout!r}",
+            ) from None
+        if not math.isfinite(numeric) or not 0 < numeric <= 0.25:
+            raise _ServePollTimeoutChanged(
+                f"serve poll timeout must satisfy 0 < timeout <= 0.25: {timeout!r}",
+            )
+        return numeric
+
+    def select(
+        self, *args: object, **kwargs: object,
+    ) -> tuple[list[object], list[object], list[object]]:
+        if threading.current_thread() is not self._target_thread:
+            with self._condition:
+                self._foreign_calls += 1
+            return self._real_select(*args, **kwargs)
+
+        if kwargs or len(args) not in (3, 4):
+            raise _ServePollShapeChanged(
+                "serve poll must use three collections and one positional timeout",
+            )
+        readers, writers, errors = args[:3]
+        listener_was_bound = self._bind_or_validate_target_shape(
+            readers, writers, errors,
+        )
+        timeout = args[3] if len(args) == 4 else None
+        timeout = self._validate_timeout(timeout)
+        if listener_was_bound:
+            self._observe(_ServeObservation.LISTENER_BOUND)
+        if self.exchange_completed.is_set():
+            if self.parked.is_set():
+                raise _ServeLoopIgnoredShutdown(
+                    "serve loop selected again after shutdown release",
+                )
+            self.parked.set()
+            self._observe(_ServeObservation.PARKED)
+            self.released.wait()
+            if not self._shutdown.is_set():
+                raise _ServeHarnessFailure(
+                    "parked serve poll was released before shutdown Event set",
+                )
+            return [], [], []
+
+        result = self._real_select(readers, writers, errors, timeout)
+        if any(item is self._listener for item in result[0]):
+            self._observe(_ServeObservation.REQUEST_READY)
+        return result
+
+
 @pytest.mark.xdist_group("dev-waves-runtime")
-def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
+@pytest.mark.parametrize(
+    "fault,pending_verdict",
+    [
+        ("partial-bind", False),
+        ("fnf-after-real-unlink", True),
+        ("fnf-after-real-unlink", False),
+        ("fnf-with-path-present", True),
+        ("eperm-after-real-unlink", True),
+        ("eio-after-real-unlink", True),
+        ("no-op-unlink", True),
+    ],
+    ids=[
+        "partial-bind",
+        "fnf-absent-pending-true",
+        "fnf-absent-pending-false",
+        "fnf-present",
+        "eperm-absent",
+        "eio-absent",
+        "success-present",
+    ],
+)
+def test_short_alias_bind_probe_enforces_cleanup_fault_policy(
+    fault: str, pending_verdict: bool,
+) -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        directory = Path(temporary)
+        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        real_unlink = os.unlink
+        real_close = os.close
+        probe = (
+            _PartiallyBoundAliasSocket(directory)
+            if fault == "partial-bind"
+            else _PermissiveAliasSocket(directory)
+        )
+        result: bool | None = None
+        observed_error: BaseException | None = None
+        unlink_error: OSError | None = None
+        unlink_identity: os.stat_result | None = None
+
+        def injected_unlink(path: str, *, dir_fd: int | None = None) -> None:
+            nonlocal unlink_error, unlink_identity
+            unlink_identity = os.stat(path, dir_fd=dir_fd, follow_symlinks=False)
+            if fault == "fnf-after-real-unlink":
+                real_unlink(path, dir_fd=dir_fd)
+                raise FileNotFoundError(errno.ENOENT, "injected after real unlink", path)
+            if fault == "fnf-with-path-present":
+                unlink_error = FileNotFoundError(
+                    errno.ENOENT, "injected without unlink", path,
+                )
+                raise unlink_error
+            if fault == "eperm-after-real-unlink":
+                real_unlink(path, dir_fd=dir_fd)
+                unlink_error = PermissionError(errno.EPERM, "injected unlink denial", path)
+                raise unlink_error
+            if fault == "eio-after-real-unlink":
+                real_unlink(path, dir_fd=dir_fd)
+                unlink_error = OSError(errno.EIO, "injected unlink I/O failure", path)
+                raise unlink_error
+            if fault == "no-op-unlink":
+                return
+            real_unlink(path, dir_fd=dir_fd)
+
+        try:
+            with mock.patch("socket.socket", return_value=probe):
+                unlink_patch = (
+                    contextlib.nullcontext()
+                    if fault == "partial-bind"
+                    else mock.patch("os.unlink", side_effect=injected_unlink)
+                )
+                listen_patch = (
+                    mock.patch.object(
+                        probe, "listen",
+                        side_effect=PermissionError(errno.EPERM, "injected listen denial"),
+                    )
+                    if pending_verdict is False and fault != "partial-bind"
+                    else contextlib.nullcontext()
+                )
+                with unlink_patch, listen_patch:
+                    try:
+                        result = _sandbox_permits_short_alias_bind(directory)
+                    except BaseException as exc:
+                        observed_error = exc
+
+            try:
+                pathname_state = os.stat(
+                    ".s", dir_fd=directory_fd, follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                pathname_state = None
+
+            assert probe.closed is True
+            if fault == "partial-bind":
+                assert observed_error is None
+                assert result is False
+                assert pathname_state is None
+            elif fault == "fnf-after-real-unlink":
+                assert observed_error is None
+                assert result is pending_verdict
+                assert pathname_state is None
+            elif fault in {
+                "fnf-with-path-present",
+                "eperm-after-real-unlink",
+                "eio-after-real-unlink",
+            }:
+                assert unlink_error is not None
+                assert observed_error is unlink_error
+                assert getattr(observed_error, "errno", None) == unlink_error.errno
+                if fault == "fnf-with-path-present":
+                    assert pathname_state is not None
+                    assert unlink_identity is not None
+                    assert os.path.samestat(unlink_identity, pathname_state)
+                else:
+                    assert pathname_state is None
+            else:
+                assert isinstance(observed_error, FileExistsError)
+                assert pathname_state is not None
+                assert unlink_identity is not None
+                assert os.path.samestat(unlink_identity, pathname_state)
+        finally:
+            try:
+                real_unlink(".s", dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+            finally:
+                real_close(directory_fd)
+
+
+@pytest.mark.xdist_group("dev-waves-runtime")
+@pytest.mark.parametrize("entry_kind", ["regular-file", "broken-symlink"])
+def test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity(
+    entry_kind: str,
+) -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        directory = Path(temporary)
+        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        real_unlink = os.unlink
+        real_close = os.close
+        if entry_kind == "regular-file":
+            (directory / ".s").write_bytes(b"foreign entry")
+            link_target = None
+        else:
+            link_target = "missing-foreign-target"
+            os.symlink(link_target, ".s", dir_fd=directory_fd)
+        before = os.stat(".s", dir_fd=directory_fd, follow_symlinks=False)
+        probe = _UnboundAliasSocket()
+        result: bool | None = None
+        observed_error: BaseException | None = None
+        try:
+            with mock.patch("socket.socket", return_value=probe) as socket_factory:
+                try:
+                    result = _sandbox_permits_short_alias_bind(directory)
+                except BaseException as exc:
+                    observed_error = exc
+
+            after = os.stat(".s", dir_fd=directory_fd, follow_symlinks=False)
+            assert os.path.samestat(before, after)
+            assert before.st_mode == after.st_mode
+            if link_target is not None:
+                assert os.readlink(".s", dir_fd=directory_fd) == link_target
+            assert result is None
+            assert isinstance(observed_error, FileExistsError)
+            assert observed_error.errno == errno.EEXIST
+            assert socket_factory.call_count == 0
+        finally:
+            try:
+                real_unlink(".s", dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+            finally:
+                real_close(directory_fd)
+
+
+def _run_long_path_serve_harness() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary) / ("long-component-" * 8)
         root.mkdir(parents=True)
@@ -1191,6 +1659,17 @@ def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
             if not _sandbox_permits_short_alias_bind(repo.runtime):
                 pytest.skip("sandbox does not permit AF_UNIX bind through /proc/self/fd")
             serve_failures: list[BaseException] = []
+            real_select_module = daemon_mod.select
+            real_select = real_select_module.select
+            real_signal_relay = daemon_mod.SignalRelay
+            select_proxy = _ServeSelectProxy(
+                real_select_module, supervisor._shutdown,
+            )
+
+            def _observed_signal_relay(*args: object, **kwargs: object) -> object:
+                relay = real_signal_relay(*args, **kwargs)
+                select_proxy.bind_relay(relay)
+                return relay
 
             def _serve() -> None:
                 # serve_forever の例外を主スレッドへ回収する。thread 内で死なせると
@@ -1199,32 +1678,458 @@ def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
                     supervisor.serve_forever()
                 except BaseException as exc:
                     serve_failures.append(exc)
+                    select_proxy.note_serve_raised()
+                else:
+                    select_proxy.note_serve_returned()
 
-            # 偽緑だった原因は daemon 属性ではなく生存 assertion の欠如だった ([T-137])。
-            # 停止の退行は下の join + is_alive が赤にする。daemon=True は維持する —
-            # 非 daemon thread は select が timeout なしに退行した場合など lease 検査へ
-            # 戻らない経路で interpreter 終了を永久に阻止し、受入全走が「赤」でなく
-            # 「終わらない」になる。可用性を落とさずに退行を赤にできる方を採る。
             thread = threading.Thread(target=_serve, daemon=True)
-            thread.start()
-            deadline = time.monotonic() + 5
-            while not (repo.runtime / ".s").exists() and thread.is_alive() and time.monotonic() < deadline:
-                time.sleep(0.01)
-            if serve_failures:
-                raise AssertionError(
-                    f"serve_forever が socket を開けずに落ちた: {serve_failures[0]!r}",
-                ) from serve_failures[0]
-            assert (repo.runtime / ".s").exists()
-            raw = exchange(repo.runtime, _request(repo), timeout_s=60)
-            response = parse_response(raw)
-            assert response.ok and response.run_id is not None
-            status, _seen = _wait_terminal(supervisor, response.run_id)
-            assert status.state is RunState.COMPLETED
-            supervisor.shutdown()
-            # 120 秒は submit 処理と run thread の停止を包含する。
-            thread.join(120)
-            assert not thread.is_alive(), "shutdown() が serve ループを止めていない"
-            assert not serve_failures, serve_failures
+            select_proxy.bind_target_thread(thread)
+            try:
+                daemon_mod.select = select_proxy
+                daemon_mod.SignalRelay = _observed_signal_relay
+                # module binding だけが proxy で、標準 module の属性は不変。
+                assert real_select_module.select is real_select
+                assert daemon_mod.select is select_proxy
+                assert daemon_mod.select.select([], [], [], 0) == ([], [], [])
+                assert select_proxy.foreign_calls == 1
+
+                assert thread.daemon is True
+                thread.start()
+                ready = select_proxy.wait_for(
+                    _ServeObservation.LISTENER_BOUND,
+                    _ServeObservation.SERVE_RETURNED,
+                    _ServeObservation.SERVE_RAISED,
+                )
+                if ready is not _ServeObservation.LISTENER_BOUND:
+                    if serve_failures:
+                        raise serve_failures[0]
+                    raise _ServeHarnessFailure(
+                        "serve_forever returned before binding its listener",
+                    )
+                assert select_proxy.listener is not None
+                assert (repo.runtime / ".s").exists()
+
+                raw = exchange(repo.runtime, _request(repo), timeout_s=60)
+                response = parse_response(raw)
+                select_proxy.note_exchange_completed()
+                assert response.ok and response.run_id is not None
+                status, _seen = _wait_terminal(supervisor, response.run_id)
+                assert status.state is RunState.COMPLETED
+
+                parked = select_proxy.wait_for(
+                    _ServeObservation.PARKED,
+                    _ServeObservation.SERVE_RETURNED,
+                    _ServeObservation.SERVE_RAISED,
+                )
+                if parked is not _ServeObservation.PARKED:
+                    if serve_failures:
+                        raise serve_failures[0]
+                    raise _ServeHarnessFailure(
+                        "serve_forever returned before the post-exchange park",
+                    )
+                supervisor.shutdown()
+                select_proxy.note_shutdown_set()
+                select_proxy.release()
+                outcome = select_proxy.wait_for(
+                    _ServeObservation.SERVE_RETURNED,
+                    _ServeObservation.SERVE_RAISED,
+                )
+                if outcome is _ServeObservation.SERVE_RAISED:
+                    raise serve_failures[0]
+                assert not serve_failures
+                assert select_proxy.trace == [
+                    _ServeObservation.LISTENER_BOUND,
+                    _ServeObservation.REQUEST_READY,
+                    _ServeObservation.EXCHANGE_COMPLETED,
+                    _ServeObservation.PARKED,
+                    _ServeObservation.SHUTDOWN_SET,
+                    _ServeObservation.RELEASED,
+                    _ServeObservation.SERVE_RETURNED,
+                ]
+            finally:
+                primary_error = sys.exc_info()[1]
+                cleanup_error: BaseException | None = None
+                if thread.ident is not None:
+                    try:
+                        supervisor.shutdown()
+                        select_proxy.note_shutdown_set()
+                    except BaseException as exc:
+                        if cleanup_error is None:
+                            cleanup_error = exc
+                    try:
+                        select_proxy.release()
+                    except BaseException as exc:
+                        if cleanup_error is None:
+                            cleanup_error = exc
+                    try:
+                        outcome = select_proxy.wait_for(
+                            _ServeObservation.SERVE_RETURNED,
+                            _ServeObservation.SERVE_RAISED,
+                        )
+                        if (outcome is _ServeObservation.SERVE_RAISED and
+                                serve_failures and cleanup_error is None):
+                            cleanup_error = serve_failures[0]
+                        thread.join()
+                    except BaseException as exc:
+                        if cleanup_error is None:
+                            cleanup_error = exc
+                daemon_mod.SignalRelay = real_signal_relay
+                daemon_mod.select = real_select_module
+                if primary_error is None and cleanup_error is not None:
+                    raise cleanup_error
+
+
+def _serve_child_payload(
+    outcome: str, exc: BaseException | None = None,
+) -> dict[str, object]:
+    return {
+        "outcome": outcome,
+        "exception_type": None if exc is None else type(exc).__qualname__,
+        "exception_args": [] if exc is None else [repr(item) for item in exc.args],
+        "traceback": "" if exc is None else traceback.format_exc(),
+    }
+
+
+@dataclass(frozen=True)
+class _ServeChildResult:
+    outcome: str
+    exception_type: str | None
+    exception_args: tuple[str, ...]
+    traceback: str
+
+
+class _ServeChildResultError(ValueError):
+    """The contained serve child did not emit its exact result contract."""
+
+
+def _parse_serve_child_result(raw: str, returncode: int) -> _ServeChildResult:
+    """Pure, fail-closed parser for one child result and its process exit."""
+
+    if type(raw) is not str:
+        raise _ServeChildResultError("result must be one JSON string")
+    if type(returncode) is not int:
+        raise _ServeChildResultError("returncode must be one integer")
+
+    def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        value: dict[str, object] = {}
+        for key, item in pairs:
+            if key in value:
+                raise _ServeChildResultError(f"duplicate result key: {key}")
+            value[key] = item
+        return value
+
+    try:
+        value = json.loads(raw, object_pairs_hook=_unique_object)
+    except _ServeChildResultError:
+        raise
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise _ServeChildResultError(
+            f"result is not strict JSON: {type(exc).__name__}",
+        ) from None
+    if type(value) is not dict or set(value) != _SERVE_CHILD_RESULT_KEYS:
+        raise _ServeChildResultError("result keys do not match the exact schema")
+
+    outcome = value["outcome"]
+    exception_type = value["exception_type"]
+    exception_args = value["exception_args"]
+    formatted_traceback = value["traceback"]
+    if type(outcome) is not str or outcome not in {"PASS", "SKIP", "FAIL"}:
+        raise _ServeChildResultError("outcome must be PASS, SKIP, or FAIL")
+    if exception_type is not None and type(exception_type) is not str:
+        raise _ServeChildResultError("exception_type must be a string or null")
+    if (
+        type(exception_args) is not list
+        or any(type(item) is not str or not item for item in exception_args)
+    ):
+        raise _ServeChildResultError(
+            "exception_args must be a list of non-empty strings",
+        )
+    if type(formatted_traceback) is not str:
+        raise _ServeChildResultError("traceback must be a string")
+
+    if outcome == "PASS":
+        if (
+            exception_type is not None
+            or exception_args != []
+            or formatted_traceback != ""
+        ):
+            raise _ServeChildResultError(
+                "PASS exception fields must be canonically empty",
+            )
+    else:
+        if not exception_type or not exception_type.strip():
+            raise _ServeChildResultError(
+                f"{outcome} exception_type must be non-empty",
+            )
+        if not formatted_traceback or not formatted_traceback.strip():
+            raise _ServeChildResultError(
+                f"{outcome} traceback must be non-empty",
+            )
+        if outcome == "SKIP" and (
+            len(exception_args) != 1 or not exception_args[0].strip()
+        ):
+            raise _ServeChildResultError(
+                "SKIP must bind exactly one non-empty reason",
+            )
+
+    expected_returncode = 1 if outcome == "FAIL" else 0
+    if returncode != expected_returncode:
+        raise _ServeChildResultError(
+            f"{outcome} requires returncode {expected_returncode}, "
+            f"got {returncode}",
+        )
+    return _ServeChildResult(
+        outcome,
+        exception_type,
+        tuple(exception_args),
+        formatted_traceback,
+    )
+
+
+@pytest.mark.parametrize(
+    "raw,returncode,expected",
+    [
+        pytest.param(
+            '{"exception_args": [], "exception_type": null, '
+            '"outcome": "PASS", "traceback": ""}',
+            0, _ServeChildResult("PASS", None, (), ""),
+            id="canonical-pass",
+        ),
+        pytest.param(
+            '{"exception_args": ["\'capability unavailable\'"], '
+            '"exception_type": "Skipped", "outcome": "SKIP", '
+            '"traceback": "Traceback: Skipped"}',
+            0, _ServeChildResult(
+                "SKIP", "Skipped", ("'capability unavailable'",),
+                "Traceback: Skipped",
+            ),
+            id="canonical-skip",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": "KeyboardInterrupt", '
+            '"outcome": "FAIL", "traceback": "Traceback: KeyboardInterrupt"}',
+            1, _ServeChildResult(
+                "FAIL", "KeyboardInterrupt", (),
+                "Traceback: KeyboardInterrupt",
+            ),
+            id="canonical-fail-keyboard-interrupt",
+        ),
+        pytest.param(
+            '{"exception_args": ["2"], "exception_type": "SystemExit", '
+            '"outcome": "FAIL", "traceback": "Traceback: SystemExit: 2"}',
+            1, _ServeChildResult(
+                "FAIL", "SystemExit", ("2",), "Traceback: SystemExit: 2",
+            ),
+            id="canonical-fail-system-exit",
+        ),
+        pytest.param("{", 1, None, id="malformed-json"),
+        pytest.param(
+            '{"exception_args": [], "exception_type": null, '
+            '"outcome": "PASS"}',
+            0, None, id="missing-key",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": null, '
+            '"outcome": "PASS", "traceback": "", "extra": null}',
+            0, None, id="extra-key",
+        ),
+        pytest.param(
+            '{"exception_args": "not-a-list", "exception_type": "Error", '
+            '"outcome": "FAIL", "traceback": "Traceback"}',
+            1, None, id="wrong-field-type",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": "AssertionError", '
+            '"outcome": "PASS", "traceback": "Traceback"}',
+            0, None, id="noncanonical-pass",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": "Skipped", '
+            '"outcome": "SKIP", "traceback": "Traceback"}',
+            0, None, id="skip-without-reason",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": "AssertionError", '
+            '"outcome": "FAIL", "traceback": ""}',
+            1, None, id="fail-without-traceback",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": null, '
+            '"outcome": "PASS", "outcome": "FAIL", "traceback": ""}',
+            0, None, id="duplicate-key",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": null, '
+            '"outcome": "PASS", "traceback": ""}',
+            1, None, id="pass-exit-mismatch",
+        ),
+        pytest.param(
+            '{"exception_args": [], "exception_type": "SystemExit", '
+            '"outcome": "FAIL", "traceback": "Traceback: SystemExit"}',
+            0, None, id="fail-exit-mismatch",
+        ),
+    ],
+)
+def test_serve_child_result_parser_accepts_only_canonical_envelopes(
+    raw: str, returncode: int, expected: _ServeChildResult | None,
+) -> None:
+    if expected is None:
+        with pytest.raises(_ServeChildResultError):
+            _parse_serve_child_result(raw, returncode)
+        return
+    result = _parse_serve_child_result(raw, returncode)
+    assert result == expected
+
+
+def _serve_child_main() -> int:
+    try:
+        _run_long_path_serve_harness()
+    except pytest.skip.Exception as exc:
+        payload = _serve_child_payload("SKIP", exc)
+        returncode = 0
+    except BaseException as exc:
+        payload = _serve_child_payload("FAIL", exc)
+        returncode = 1
+    else:
+        payload = _serve_child_payload("PASS")
+        returncode = 0
+    print(
+        _SERVE_CHILD_RESULT_PREFIX + json.dumps(payload, sort_keys=True),
+        flush=True,
+    )
+    return returncode
+
+
+def _signal_serve_child_group(
+    process: subprocess.Popen[str], number: signal.Signals,
+) -> None:
+    """Signal the session-leader process group, tolerating an exit race."""
+
+    try:
+        os.killpg(process.pid, number)
+    except ProcessLookupError:
+        # The leader or its same-group descendants exited between observations.
+        pass
+
+
+def _run_contained_serve_child() -> None:
+    script = (
+        "from orchestrator.tests import test_dev_waves_integration as target;"
+        "raise SystemExit(target._serve_child_main())"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", script],
+        cwd=_REPO, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True, start_new_session=True,
+    )
+    stdout = stderr = ""
+    timed_out = False
+    cleanup_error: BaseException | None = None
+    try:
+        try:
+            stdout, stderr = process.communicate(timeout=_SERVE_CHILD_CEILING_S)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+    finally:
+        primary_error = sys.exc_info()[1]
+        if process.poll() is None:
+            try:
+                _signal_serve_child_group(process, signal.SIGTERM)
+            except BaseException as exc:
+                cleanup_error = exc
+            try:
+                stdout, stderr = process.communicate(
+                    timeout=_SERVE_CHILD_REAP_GRACE_S,
+                )
+            except subprocess.TimeoutExpired:
+                try:
+                    if process.poll() is None:
+                        _signal_serve_child_group(process, signal.SIGKILL)
+                except BaseException as exc:
+                    if cleanup_error is None:
+                        cleanup_error = exc
+                try:
+                    stdout, stderr = process.communicate(
+                        timeout=_SERVE_CHILD_REAP_GRACE_S,
+                    )
+                except subprocess.TimeoutExpired as exc:
+                    if cleanup_error is None:
+                        cleanup_error = exc
+                    # A nested session may retain inherited pipe ends even
+                    # after this harness group is gone. Reap only the direct
+                    # child here; this does not claim nested-session cleanup.
+                    for stream in (process.stdout, process.stderr):
+                        if stream is not None:
+                            stream.close()
+                    try:
+                        process.wait(timeout=_SERVE_CHILD_REAP_GRACE_S)
+                    except BaseException as wait_exc:
+                        if cleanup_error is None:
+                            cleanup_error = wait_exc
+                except BaseException as exc:
+                    if cleanup_error is None:
+                        cleanup_error = exc
+            except BaseException as exc:
+                if cleanup_error is None:
+                    cleanup_error = exc
+        else:
+            try:
+                process.wait(timeout=_SERVE_CHILD_REAP_GRACE_S)
+            except BaseException as exc:
+                cleanup_error = exc
+        if primary_error is None and cleanup_error is not None and not timed_out:
+            raise cleanup_error
+    reaped = process.poll() is not None
+    if timed_out:
+        cleanup = (
+            "" if cleanup_error is None else
+            f"; cleanup={type(cleanup_error).__name__}: {cleanup_error}"
+        )
+        reap_status = "was reaped" if reaped else "could not be reaped"
+        pytest.fail(
+            f"INFRA_TIMEOUT: serve harness child exceeded "
+            f"{_SERVE_CHILD_CEILING_S}s and {reap_status}{cleanup}",
+            pytrace=False,
+        )
+    assert reaped, "serve harness child was not reaped"
+    result_lines = [
+        line.removeprefix(_SERVE_CHILD_RESULT_PREFIX)
+        for line in stdout.splitlines()
+        if line.startswith(_SERVE_CHILD_RESULT_PREFIX)
+    ]
+    if len(result_lines) != 1:
+        pytest.fail(
+            f"INFRA_ABNORMAL: serve harness child exited {process.returncode} "
+            f"without one structured result\nstdout:\n{stdout}\nstderr:\n{stderr}",
+            pytrace=False,
+        )
+    assert process.returncode is not None
+    try:
+        result = _parse_serve_child_result(
+            result_lines[0], process.returncode,
+        )
+    except _ServeChildResultError as exc:
+        pytest.fail(
+            f"INFRA_ABNORMAL: serve harness child result rejected: {exc}\n"
+            f"stdout:\n{stdout}\nstderr:\n{stderr}",
+            pytrace=False,
+        )
+    if result.outcome == "SKIP":
+        pytest.skip(
+            f"{result.exception_type}: {result.exception_args[0]}",
+        )
+    if result.outcome == "FAIL":
+        pytest.fail(
+            f"serve harness child FAIL: "
+            f"{result.exception_type}{result.exception_args}\n"
+            f"{result.traceback}\nstderr:\n{stderr}",
+            pytrace=False,
+        )
+
+
+@pytest.mark.xdist_group("dev-waves-runtime")
+def test_socket_roundtrip_works_beyond_108_byte_repository_path() -> None:
+    _run_contained_serve_child()
 
 
 def test_linked_worktree_repo_root_resolves_common_identity_and_runtime_main() -> None:

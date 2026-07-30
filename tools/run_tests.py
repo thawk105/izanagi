@@ -7,6 +7,10 @@ xdist に依存しない。並列時の既定 scheduler は ``--dist loadgroup``
 submodule を使うテストを単一 runner invocation 内で相互排他にする。loadgroup がある
 pytest-xdist 2.5 以上でなければ直列へフォールバックする。
 
+Pegasus では例外を設ける。ログインノード上の実行形は gen_S へ同期 dispatch し、
+計算ノードでは affinity 全数を既定にする。計算ノードは外部 network 不可のため
+pytest-xdist が import 不能または 2.5 未満なら pip / 直列 fallback をせず rc=16 で停止する。
+
 **並列度は環境に自動追従する** (毎回の手調整を無くすため、2026-07-19):
 `min(使えるコア数, 上限)`。「使えるコア数」は cgroup / CPU affinity を尊重するので、
 PBS ジョブ内では割り当て分だけ、素のマシンではコア数どおりになる。上限は実測の
@@ -27,6 +31,7 @@ import os
 import subprocess
 import sys
 import hashlib
+import importlib
 import json
 import shlex
 import shutil
@@ -40,6 +45,10 @@ from packaging.version import InvalidVersion, Version
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DEFAULT_TARGET = os.path.join(_REPO, "orchestrator", "tests")
+if _REPO not in sys.path:
+    sys.path.insert(0, _REPO)
+
+from orchestrator.campaign import site_policy  # noqa: E402
 
 # 実測の頭打ち + 共有ノードで全コアを掴まない行儀の両方から来る既定上限。
 # 環境変数 IZANAGI_TEST_NPROC=max で外せる。
@@ -98,6 +107,11 @@ _SUBMODULE_GIT_MARKER = Path("external") / "ccbench" / ".git"
 _DELETION_GATE_RC = 13
 _SUBMODULE_GATE_RC = 14
 _RULEOPS_GATE_RC = 15
+_PEGASUS_DISPATCH_RC = 16
+_PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
+    "--collect-only", "--co", "--help", "--version", "--markers", "--fixtures",
+    "--fixtures-per-test", "--trace-config", "--setup-plan",
+})
 _GIT_ENV_ALLOWLIST = frozenset({
     "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT",
 })
@@ -109,18 +123,10 @@ def _available_cpus() -> int:
     PBS ジョブ内では割り当て分、素の login node では全コアを返す。os.cpu_count()
     (物理総数) と違い、割り当てを超えて掴まない。
     """
-    process_cpu_count = getattr(os, "process_cpu_count", None)  # py3.13+, affinity 尊重
-    if process_cpu_count is not None:
-        n = process_cpu_count()
-        if n:
-            return n
-    try:
-        return len(os.sched_getaffinity(0))  # Linux
-    except AttributeError:  # 非 Linux
-        return os.cpu_count() or 1
+    return site_policy.available_cpus()
 
 
-def _default_nproc() -> int:
+def _default_nproc(*, site: str = site_policy.OTHER) -> int:
     """既定の並列度 = min(使えるコア数, 上限)。IZANAGI_TEST_NPROC で上書き可。"""
     override = os.environ.get("IZANAGI_TEST_NPROC", "").strip()
     if override:
@@ -134,7 +140,7 @@ def _default_nproc() -> int:
             if value > 0:
                 return value
             print(f"IZANAGI_TEST_NPROC={override!r} は正でない — 無視", flush=True)
-    return max(1, min(_available_cpus(), _NPROC_CAP))
+    return max(1, site_policy.default_test_jobs(site, cap=_NPROC_CAP))
 
 
 def _xdist_version() -> Optional[str]:
@@ -157,6 +163,14 @@ def _xdist_supports_loadgroup(version: Optional[str]) -> bool:
         return Version(version) >= _MIN_XDIST_VERSION
     except InvalidVersion:
         return False
+
+
+def _xdist_runtime_importable() -> bool:
+    try:
+        importlib.import_module("xdist")
+    except Exception:
+        return False
+    return True
 
 
 def _ensure_xdist() -> bool:
@@ -362,6 +376,24 @@ def _has_no_execution_flag(args: Sequence[str]) -> bool:
     except ValueError:
         return False
     return any(token.split("=", 1)[0] in _NO_EXECUTION_FLAGS for token in addopts)
+
+
+def _has_dispatch_exempt_flag(args: Sequence[str]) -> bool:
+    """Pegasus dispatch を免除する、裁定済みの閉集合だけを認識する。"""
+
+    if any(
+        token.split("=", 1)[0] in _PEGASUS_DISPATCH_EXEMPT_FLAGS
+        for token in args
+    ):
+        return True
+    try:
+        addopts = shlex.split(os.environ.get("PYTEST_ADDOPTS", ""))
+    except ValueError:
+        return False
+    return any(
+        token.split("=", 1)[0] in _PEGASUS_DISPATCH_EXEMPT_FLAGS
+        for token in addopts
+    )
 
 
 def _is_acceptance_run(args: Sequence[str]) -> bool:
@@ -781,7 +813,106 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
                 pass
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def _dispatch_environment() -> dict[str, str]:
+    """計算ノード子へ渡す環境から親だけが所有する台帳状態を除く。"""
+
+    child_env = os.environ.copy()
+    child_env.pop(_TASK_RUN_ID_ENV, None)
+    child_env.pop(_TASK_RUN_SIDECAR_ENV, None)
+    child_env.pop(_TASK_RUNS_ROOT_ENV, None)
+    return child_env
+
+
+def _default_dispatch(
+    args: Sequence[str], *, environ: dict[str, str],
+) -> int:
+    from tools.pegasus import dispatch_compute
+
+    return dispatch_compute.dispatch(
+        args,
+        repo_root=Path(_REPO),
+        environ=environ,
+    )
+
+
+def _invoke_dispatch(
+    dispatch_fn,
+    args: Sequence[str],
+    *,
+    environ: dict[str, str],
+) -> int:
+    """dispatcher の想定外例外も top-level infra rc へ一義化する。"""
+
+    try:
+        return int(dispatch_fn(args, environ=environ))
+    except (Exception, KeyboardInterrupt) as exc:
+        print(
+            f"Pegasus dispatcher を完了できませんでした: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PEGASUS_DISPATCH_RC
+
+
+def _dispatch_and_record(
+    dispatch_fn,
+    args: Sequence[str],
+    task_run_id: str,
+    *,
+    environ: dict[str, str],
+) -> int:
+    """親の wall time と最終 rc を task_run へ一度だけ記録する。"""
+
+    recording_ready = True
+    try:
+        suite_kind, suite_id = _suite_identity(args)
+    except Exception:
+        recording_ready = False
+        suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"
+    trigger = os.environ.get(_TEST_TRIGGER_ENV, "unspecified")
+    if trigger not in _TRIGGERS:
+        trigger = "unspecified"
+    root = Path(os.environ.get(
+        _TASK_RUNS_ROOT_ENV, os.path.join(_REPO, "output", "task-runs"),
+    ))
+    try:
+        started = time.monotonic()
+    except Exception:
+        started = None
+        recording_ready = False
+    rc = _invoke_dispatch(dispatch_fn, args, environ=environ)
+    if started is not None:
+        try:
+            duration_s = time.monotonic() - started
+        except Exception:
+            duration_s = 0.0
+            recording_ready = False
+    else:
+        duration_s = 0.0
+    if recording_ready:
+        try:
+            _record_task_run(
+                task_run_id=task_run_id,
+                root=root,
+                suite_id=suite_id,
+                suite_kind=suite_kind,
+                duration_s=duration_s,
+                exit_status=rc,
+                trigger=trigger,
+                sidecar=None,
+            )
+        except Exception:
+            pass
+    return rc
+
+
+def main(
+    argv: Optional[Sequence[str]] = None,
+    *,
+    site: Optional[str] = None,
+    dispatch_fn=None,
+) -> int:
     args = _normalize_args(sys.argv[1:] if argv is None else argv)
     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))
     if preflight_rc:
@@ -793,21 +924,63 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if preflight_rc:
         return preflight_rc
 
+    resolved_site = site_policy.current_site() if site is None else site
+    dispatch_exempt = _has_dispatch_exempt_flag(args)
+    if not dispatch_exempt and resolved_site == site_policy.PEGASUS_SUSPECT:
+        print(
+            site_policy.heavy_work_refusal(
+                resolved_site, "pytest テスト実行",
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PEGASUS_DISPATCH_RC
+    if not dispatch_exempt and site_policy.is_pegasus_login(resolved_site):
+        selected_dispatch = _default_dispatch if dispatch_fn is None else dispatch_fn
+        child_env = _dispatch_environment()
+        task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
+        if task_run_id:
+            return _dispatch_and_record(
+                selected_dispatch,
+                args,
+                task_run_id,
+                environ=child_env,
+            )
+        return _invoke_dispatch(selected_dispatch, args, environ=child_env)
+
     use_xdist = False
-    if _ensure_xdist():
+    if site_policy.is_pegasus_compute(resolved_site):
         version = _xdist_version()
-        if _xdist_supports_loadgroup(version):
+        if (
+            _xdist_supports_loadgroup(version)
+            and _xdist_runtime_importable()
+        ):
             use_xdist = True
         else:
             print(
-                f"pytest-xdist {version or 'version不明'} は loadgroup 非対応 "
-                f"(< {_MIN_XDIST_VERSION}) — 直列で実行します",
+                f"Pegasus 計算ノードの pytest-xdist "
+                f"{version or '未導入'} は import / loadgroup 要件 "
+                f"(>= {_MIN_XDIST_VERSION}) を満たしません。"
+                "計算ノードは外部 network 不可のため pip を呼ばず停止します。",
+                file=sys.stderr,
                 flush=True,
             )
+            return _PEGASUS_DISPATCH_RC
     else:
-        print("pytest-xdist を導入できない環境 — 直列で実行します", flush=True)
+        if _ensure_xdist():
+            version = _xdist_version()
+            if _xdist_supports_loadgroup(version):
+                use_xdist = True
+            else:
+                print(
+                    f"pytest-xdist {version or 'version不明'} は loadgroup 非対応 "
+                    f"(< {_MIN_XDIST_VERSION}) — 直列で実行します",
+                    flush=True,
+                )
+        else:
+            print("pytest-xdist を導入できない環境 — 直列で実行します", flush=True)
 
-    default_nproc = _default_nproc() if use_xdist else 1
+    default_nproc = _default_nproc(site=resolved_site) if use_xdist else 1
     if (use_xdist and _xdist_requested(args, default_nproc)
             and any(value != "loadgroup" for value in _user_dist_values(args))):
         print(

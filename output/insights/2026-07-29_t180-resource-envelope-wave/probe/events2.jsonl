@@ -1,0 +1,13 @@
+{"type":"thread.started","thread_id":"019fadce-d927-7681-88fa-3cd329a66a90"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"指定どおり、各コマンドを個別に実行し、結果を待ってから次へ進みます。"}}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc 'echo step-one'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc 'echo step-one'","aggregated_output":"step-one\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/bash -lc 'sleep 5; echo step-two'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/bash -lc 'sleep 5; echo step-two'","aggregated_output":"step-two\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"command_execution","command":"/bin/bash -lc 'sleep 5; echo step-three'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"command_execution","command":"/bin/bash -lc 'sleep 5; echo step-three'","aggregated_output":"step-three\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc 'sleep 5; echo step-four'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc 'sleep 5; echo step-four'","aggregated_output":"step-four\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"## 総括\nprobe2 ok"}}
+{"type":"turn.completed","usage":{"input_tokens":84667,"cached_input_tokens":64512,"cache_write_input_tokens":0,"output_tokens":299,"reasoning_output_tokens":0}}

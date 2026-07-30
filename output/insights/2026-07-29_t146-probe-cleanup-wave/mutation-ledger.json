@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "task_id": "T-146",
+  "base_commit": "180d3c150b7d78f9e32323519d341655ba090690",
+  "integration_commit": "5b650727ee653d1a60a7add4daa87c86cc7f24cd",
+  "source": {
+    "path": "orchestrator/tests/test_dev_waves_integration.py",
+    "git_blob": "ab64395953687a3888580a910adb9802454345da",
+    "sha256": "5efe755cc10d84f8ee9ea5c3b8e3f7047f5c2b1515f467a2012e5b95117a4389"
+  },
+  "harness": {
+    "single_run_guard": "worktree git-path t146-mutation.lock",
+    "lock_acquired": true,
+    "pytest_report_flags": "-rfs",
+    "restoration": "git checkout -- target; git diff --exit-code; git hash-object == HEAD blob",
+    "all_restorations_verified": true
+  },
+  "controls": [
+    {
+      "id": "pre-fix-helper-with-new-tests",
+      "returncode": 1,
+      "failed_nodes": [
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[partial-bind]",
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-absent-pending-true]",
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-absent-pending-false]",
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[success-present]",
+        "test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity[regular-file]",
+        "test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity[broken-symlink]"
+      ],
+      "passed": 4,
+      "skipped_nodes": [],
+      "meaning": "変更前 helper では旧穴3種類の4 nodeと identity保存＋新policyの2 nodeだけが赤になる"
+    },
+    {
+      "id": "post-mutation-restored-control",
+      "returncode": 0,
+      "failed_nodes": [],
+      "passed": 10,
+      "skipped_nodes": [],
+      "meaning": "全変異復元後の new tests と既存正負 gate"
+    }
+  ],
+  "mutations": [
+    {
+      "id": "M-T146-A",
+      "anchor": "owned = probe.getsockname() == alias",
+      "replacement": "owned = False",
+      "anchor_count": 1,
+      "diff_stat": "1 insertion, 1 deletion",
+      "returncode": 1,
+      "failed_nodes": [
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[partial-bind]"
+      ],
+      "passed": 7,
+      "skipped_nodes": [],
+      "verdict": "KILLED",
+      "single_reason": "bind部分成功後のhelper-owned pathname回収だけを失う"
+    },
+    {
+      "id": "M-T146-B",
+      "anchor": "os.unlink('.s')後のexcept FileNotFoundErrorとnofollow再観測の文脈",
+      "replacement": "except OSError",
+      "anchor_count": 1,
+      "diff_stat": "1 insertion, 1 deletion",
+      "returncode": 1,
+      "failed_nodes": [
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[eperm-absent]",
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[eio-absent]"
+      ],
+      "passed": 6,
+      "skipped_nodes": [],
+      "verdict": "KILLED",
+      "single_reason": "pathname不在のnon-FNF cleanup errorをFNF同様に抑止する"
+    },
+    {
+      "id": "M-T146-C",
+      "anchor": "unlink成功後のnofollow pathname absence block",
+      "replacement": "pass",
+      "anchor_count": 1,
+      "diff_stat": "1 insertion, 10 deletions",
+      "returncode": 1,
+      "failed_nodes": [
+        "test_short_alias_bind_probe_enforces_cleanup_fault_policy[success-present]"
+      ],
+      "passed": 7,
+      "skipped_nodes": [],
+      "verdict": "KILLED",
+      "single_reason": "unlinkのno-op成功後に残るpathnameを拒否しない"
+    }
+  ],
+  "classification": {
+    "old_holes": {
+      "types": 3,
+      "nodes": 4,
+      "items": [
+        "partial-bind",
+        "FNF-after-real-unlink (pending True/False)",
+        "no-op unlink"
+      ]
+    },
+    "regression_guards": [
+      "FNF-present",
+      "EPERM-absent",
+      "EIO-absent",
+      "path-absent bind failureでgetsocknameを呼ばない"
+    ],
+    "identity_repin_and_new_policy": [
+      "preexisting regular file",
+      "preexisting broken symlink"
+    ]
+  },
+  "post_record_checks": {
+    "related_tests": {
+      "passed": 92,
+      "elapsed_seconds": 84.16
+    },
+    "repository_acceptance": {
+      "passed": 3683,
+      "skipped": 18,
+      "returncode": 0,
+      "elapsed_seconds": 237.57
+    },
+    "check_docs": "no violations",
+    "check_codex_agents": "OK",
+    "check_ai_provenance": {
+      "commits": 531,
+      "violations": 0
+    }
+  }
+}

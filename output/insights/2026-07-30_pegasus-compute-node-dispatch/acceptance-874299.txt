@@ -1,0 +1,8 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-cdf13fdaab)
+[Pegasus dispatch] request ID 874299.nqsv を受理しました
+[Pegasus dispatch] request 874299.nqsv の状態: QUE
+[Pegasus dispatch] request 874299.nqsv の状態: RUN
+[Pegasus dispatch] request 874299.nqsv の状態: END
+[Pegasus dispatch] request 874299.nqsv の成果物収集を開始します
+[Pegasus dispatch] receipt を /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-pegasus-compute-node/output/pegasus-dispatch/cdf13fdaabbe4248dc13d43f514be146/receipt.json へ保存しました (child rc=0)
+rc=0
