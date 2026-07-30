@@ -1,0 +1,12 @@
+DW-O16 に沿った静的 focused re-reviewでは、残存2所見はいずれも closed です。pytest は再実走せず、`116 passed in 4.80s` と py_compile/diff check rc=0 は親帰属の結果としてのみ扱いました。
+
+| 所見 | 状態 (closed/partial/regressed) | file:line根拠 | 残作業 |
+|---|---|---|---|
+| empty `CorrectionAudit` と exact/cardinality/findings の意味 | closed | [`candidate_count=len(raw_values)`: check_ai_provenance.py:100](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/tools/check_ai_provenance.py:100)、[`exact = count==1 and findingsなし`:104](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/tools/check_ai_provenance.py:104)、[emptyはfindingsなしのまま返す:240](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/tools/check_ai_provenance.py:240)、[valid=True:1260](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/orchestrator/tests/test_check_ai_provenance.py:1260)、[empty=False:1279](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/orchestrator/tests/test_check_ai_provenance.py:1279)、[invalid=False:1294](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/orchestrator/tests/test_check_ai_provenance.py:1294) | なし。absence はfindingにせず `exact=False`、validのみTrue、invalidはFalse。history受理も先に総candidate数を1件へ限定しており不変 |
+| 通常child・merge-sideのexisting candidate診断 | closed | [mergeはHEADと全MERGE_HEADを列挙:516](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/tools/check_ai_provenance.py:516)、[通常childはHEADをtipにする:725](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/tools/check_ai_provenance.py:725)、[全tipのreachable ancestryをscan:738](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/tools/check_ai_provenance.py:738)、[通常child固定:1934](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/orchestrator/tests/test_check_ai_provenance.py:1934)、[merge-side固定:1960](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-ai-provenance-forward-fix/orchestrator/tests/test_check_ai_provenance.py:1960) | なし。fix2は診断文字列だけを実際のscan範囲へ合わせ、candidate計数・finding追加条件・rcを変更していない |
+
+fix2前patchからcurrent diffへの実質差分は、この2所見に対応する property、empty assertion、診断文字列、2テストの期待文字列だけでした。新規findingはありません。
+
+## 総括
+
+**GO — blockerはありません。** 両所見のroot causeはclosedしており、受理集合の変更も認めません。

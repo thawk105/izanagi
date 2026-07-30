@@ -1,0 +1,11 @@
+Run these shell commands one at a time, in separate steps, waiting for each result before the next:
+
+1. `echo step-one`
+2. `sleep 5; echo step-two`
+3. `sleep 5; echo step-three`
+4. `sleep 5; echo step-four`
+
+Then reply with exactly two lines:
+
+## 総括
+probe2 ok

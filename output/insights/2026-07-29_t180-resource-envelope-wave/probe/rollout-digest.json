@@ -1,0 +1,81 @@
+{
+  "codex_version": "codex-cli 0.146.0",
+  "codex_executable": "/home/SFC/tanab/.local/bin/codex",
+  "codex_executable_sha256": "2e863156ed35ecc5253b1e2f907a9143077b9f7cb51942070c61996471ff6e04",
+  "probe1": {
+    "thread_id": "019fadcd-a610-76e2-ab1e-57440d35d795",
+    "rollout_filename": "rollout-2026-07-29T21-16-03-019fadcd-a610-76e2-ab1e-57440d35d795.jsonl",
+    "rollout_sha256": "d30b39489964756dbc850221180646ffa5666a4079ae827dbdcee3e367277f83",
+    "rollout_bytes": 42869,
+    "session_meta": {
+      "session_id": "019fadcd-a610-76e2-ab1e-57440d35d795",
+      "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope",
+      "originator": "codex_exec",
+      "cli_version": "0.146.0",
+      "source": "exec"
+    },
+    "token_count_events": 1,
+    "token_count_timeline": [
+      {
+        "timestamp": "2026-07-29T12:16:07.861Z",
+        "input": 16586,
+        "cached": 0,
+        "output": 11,
+        "total": 16597
+      }
+    ],
+    "cli_reported": 16597
+  },
+  "probe2": {
+    "thread_id": "019fadce-d927-7681-88fa-3cd329a66a90",
+    "rollout_filename": "rollout-2026-07-29T21-17-22-019fadce-d927-7681-88fa-3cd329a66a90.jsonl",
+    "rollout_sha256": "fda1eafcc1eba70dbf849b8cf23548a002ad7eba3af6dadbe60e5c1938d0b6d1",
+    "rollout_bytes": 50830,
+    "session_meta": {
+      "session_id": "019fadce-d927-7681-88fa-3cd329a66a90",
+      "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope",
+      "originator": "codex_exec",
+      "cli_version": "0.146.0",
+      "source": "exec"
+    },
+    "token_count_events": 5,
+    "token_count_timeline": [
+      {
+        "timestamp": "2026-07-29T12:17:33.057Z",
+        "input": 16684,
+        "cached": 0,
+        "output": 95,
+        "total": 16779
+      },
+      {
+        "timestamp": "2026-07-29T12:17:40.568Z",
+        "input": 33511,
+        "cached": 16128,
+        "output": 159,
+        "total": 33670
+      },
+      {
+        "timestamp": "2026-07-29T12:17:48.655Z",
+        "input": 50450,
+        "cached": 32256,
+        "output": 223,
+        "total": 50673
+      },
+      {
+        "timestamp": "2026-07-29T12:17:56.400Z",
+        "input": 67502,
+        "cached": 48384,
+        "output": 287,
+        "total": 67789
+      },
+      {
+        "timestamp": "2026-07-29T12:17:58.612Z",
+        "input": 84667,
+        "cached": 64512,
+        "output": 299,
+        "total": 84966
+      }
+    ],
+    "cli_reported": 20454
+  }
+}

@@ -64,12 +64,13 @@ def _materialize(
         path = root / f"rollout-2026-01-01T00-00-{second:02d}-{session_id}.jsonl"
         lines: list[dict[str, Any]] = []
         if not spec.get("omit_meta"):
+            meta_session_id = spec.get("meta_id", session_id)
             lines.append(
                 {
                     "timestamp": timestamp,
                     "type": "session_meta",
                     "payload": {
-                        "session_id": session_id,
+                        "session_id": meta_session_id,
                         "timestamp": timestamp,
                         **(
                             {}
@@ -243,6 +244,82 @@ def _write_worklog(path: Path, effort: str) -> Path:
     return path
 
 
+def _manifest_session(
+    session_id: str, *, job_id: str = "job-1", attempt_index: int = 1
+) -> dict[str, Any]:
+    return {
+        "job_id": job_id,
+        "attempt_index": attempt_index,
+        "session_id": session_id,
+    }
+
+
+def _manifest_data(sessions: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "wave_id": "wave.synthetic-1",
+        "repo_root": "/synthetic/repo",
+        "base_commit": "a" * 40,
+        "sessions": sessions,
+    }
+
+
+def _write_manifest(
+    path: Path, sessions: list[dict[str, Any]]
+) -> Path:
+    path.write_text(
+        json.dumps(
+            _manifest_data(sessions),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _incremental_usage_pairs(
+    model_calls: int, cli_reported: int
+) -> list[dict[str, list[int]]]:
+    quotient, remainder = divmod(cli_reported, model_calls)
+    cumulative = 0
+    pairs: list[dict[str, list[int]]] = []
+    for index in range(model_calls):
+        increment = quotient + (index < remainder)
+        cumulative += increment
+        pairs.append(
+            {
+                "total": [cumulative, 0, 0, cumulative],
+                "last": [increment, 0, 0, increment],
+            }
+        )
+    return pairs
+
+
+def _t179_frozen_synthetic_specs() -> list[dict[str, Any]]:
+    specs = _healthy_specs()
+    model_calls = [39, 31, 31, 47, 50, 50, 43, 44, 49, 50]
+    cli_reported = [
+        224_150,
+        196_092,
+        196_093,
+        171_736,
+        302_867,
+        302_867,
+        272_276,
+        272_277,
+        409_812,
+        409_812,
+    ]
+    for spec, calls, tokens in zip(
+        specs, model_calls, cli_reported, strict=True
+    ):
+        spec["cwd"] = "/synthetic/t179-frozen-wave"
+        spec["usage_pairs"] = _incremental_usage_pairs(calls, tokens)
+    return specs
+
+
 def test_cumulative_usage_stays_canonical_and_metrics_are_explicit(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -405,6 +482,30 @@ def test_negative_required_usage_fields_fail_closed(
     assert "malformed usage" in stderr
 
 
+def test_cached_exceeding_input_is_malformed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = {
+        "id": "93300000-0000-0000-0000-000000000001",
+        "prompt": "あなたは段2の read-only Codex planner である。",
+        "usage_pairs": [
+            {
+                "total": [100, 200, 1, 101],
+                "last": [1, 0, 0, 1],
+            }
+        ],
+    }
+    root = _materialize(tmp_path / "sessions", [spec])
+    rc, output, stderr = _run_json(capsys, root, "--strict")
+    row = output["sessions"][0]
+    assert rc == 2
+    assert row["cli_reported"] == 0
+    assert row["total_tokens_raw"] == 0
+    assert list(output["issues"]) == ["usage_cached_exceeds_input"]
+    assert len(output["issues"]["usage_cached_exceeds_input"]) == 1
+    assert "cached input exceeds input usage" in stderr
+
+
 def test_non_monotonic_cumulative_and_event_counters_are_exposed(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -420,6 +521,35 @@ def test_non_monotonic_cumulative_and_event_counters_are_exposed(
     assert output["totals"]["context_compacted"] == 1
     assert list(output["issues"]) == ["non_monotonic_cumulative"]
     assert "non-monotonic cumulative usage" in stderr
+
+
+def test_cli_reported_cumulative_rollback_fails_strict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = {
+        **_healthy_specs()[0],
+        "usage_pairs": [
+            {
+                "total": [1_000, 0, 0, 1_000],
+                "last": [1_000, 0, 0, 1_000],
+            },
+            {
+                "total": [1_000, 999, 1, 1_001],
+                "last": [0, 0, 1, 1],
+            },
+        ],
+    }
+    root = _materialize(tmp_path / "sessions", [spec])
+    rc, output, stderr = _run_json(capsys, root, "--strict")
+    row = output["sessions"][0]
+    assert rc == 2
+    assert row["cli_reported"] == 2
+    assert row["total_tokens_raw"] == 1_001
+    assert list(output["issues"]) == ["usage_cumulative_rollback"]
+    assert output["issues"]["usage_cumulative_rollback"][0].endswith(
+        ": cli_reported decreased"
+    )
+    assert "cumulative usage rollback" in stderr
 
 
 def test_unclassified_is_included_and_strict_fails(
@@ -846,6 +976,27 @@ def test_same_session_id_in_two_files_fails_closed(
     assert "duplicate session_id" in stderr
 
 
+def test_manifest_duplicate_rollout_fails_without_strict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = _healthy_specs()[0]
+    root = tmp_path / "sessions"
+    _materialize(root / "a", [spec])
+    _materialize(root / "b", [spec])
+    manifest = _write_manifest(
+        tmp_path / "manifest.json",
+        [_manifest_session(spec["id"], job_id="unique-job")],
+    )
+    rc, output, stderr = _run_json(
+        capsys, root, "--manifest", str(manifest)
+    )
+    assert rc == 2
+    assert output["totals"]["sessions"] == 2
+    assert list(output["issues"]) == ["duplicate_session_id"]
+    assert len(output["issues"]["duplicate_session_id"]) == 1
+    assert "duplicate session_id" in stderr
+
+
 def test_stage_rules_keep_fix2_author_in_fix_and_focus_specific(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1042,6 +1193,332 @@ def test_stage_map_key_filtered_out_by_cwd_is_not_unknown(
     assert output["issues"] == {}
 
 
+def test_manifest_missing_session_fails_without_strict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = _healthy_specs()[0]
+    missing_id = "81000000-0000-0000-0000-000000000002"
+    root = _materialize(tmp_path / "sessions", [spec])
+    manifest = _write_manifest(
+        tmp_path / "manifest.json",
+        [
+            _manifest_session(spec["id"], job_id="present-job"),
+            _manifest_session(missing_id, job_id="missing-job"),
+        ],
+    )
+    rc, output, stderr = _run_json(
+        capsys, root, "--manifest", str(manifest)
+    )
+    assert rc == 2
+    assert output["totals"]["sessions"] == 1
+    assert output["issues"]["manifest_missing_session"] == [missing_id]
+    assert "manifest session missing from rollout" in stderr
+
+
+def test_empty_manifest_is_rc2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "sessions"
+    root.mkdir()
+    manifest = _write_manifest(tmp_path / "manifest.json", [])
+    rc = LEDGER.main(
+        [
+            "--sessions-root",
+            str(root),
+            "--manifest",
+            str(manifest),
+            "--json",
+        ]
+    )
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.out == ""
+    assert "manifest.sessions must contain 1..1024 entries" in captured.err
+
+
+def test_job_count_is_distinct_job_id_under_manifest(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    specs = _healthy_specs()[:3]
+    specs[1]["prompt"] = "あなたは段2の read-only Codex planner である。retry"
+    root = _materialize(tmp_path / "sessions", specs)
+    manifest = _write_manifest(
+        tmp_path / "manifest.json",
+        [
+            _manifest_session(
+                specs[0]["id"], job_id="planner-job", attempt_index=1
+            ),
+            _manifest_session(
+                specs[1]["id"], job_id="planner-job", attempt_index=2
+            ),
+            _manifest_session(
+                specs[2]["id"], job_id="consult-job", attempt_index=1
+            ),
+        ],
+    )
+    worklog = _write_worklog(
+        tmp_path / "worklog.md",
+        "エージェント工数: Codex 2 job "
+        "(planner 1 / consult 1 / author・fix 0 / review 0)",
+    )
+    rc, output, stderr = _run_json(
+        capsys,
+        root,
+        "--manifest",
+        str(manifest),
+        "--worklog",
+        str(worklog),
+        "--worklog-entry",
+        "対象 wave",
+        "--strict",
+    )
+    rows = output["sessions"]
+    assert rc == 0
+    assert stderr == ""
+    assert output["issues"] == {}
+    assert output["totals"]["sessions"] == 3
+    assert [row["job_id"] for row in rows] == [
+        "planner-job",
+        "planner-job",
+        "consult-job",
+    ]
+    assert [row["attempt_index"] for row in rows] == [1, 2, 1]
+    assert [row["retry_group"] for row in rows] == [
+        "planner-job",
+        "planner-job",
+        "consult-job",
+    ]
+    assert [row["retry_index"] for row in rows] == [1, 2, 1]
+    assert [row["prompt_hash"] for row in rows] == [None, None, None]
+
+
+@pytest.mark.parametrize(
+    "mismatch", ["filename", "session_meta", "session_meta_case"]
+)
+def test_manifest_selector_requires_filename_meta_and_manifest_three_way_match(
+    mismatch: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    spec = _healthy_specs()[0]
+    if mismatch == "session_meta":
+        spec["meta_id"] = "82000000-0000-0000-0000-000000000099"
+    elif mismatch == "session_meta_case":
+        spec["id"] = "abcdefab-0000-0000-0000-000000000001"
+        spec["meta_id"] = spec["id"].upper()
+    root = _materialize(tmp_path / "sessions", [spec])
+    if mismatch == "filename":
+        rollout = next(root.glob("rollout-*.jsonl"))
+        rollout.rename(
+            rollout.with_name(
+                rollout.name.replace(
+                    spec["id"], "82000000-0000-0000-0000-000000000098"
+                )
+            )
+        )
+    manifest = _write_manifest(
+        tmp_path / "manifest.json", [_manifest_session(spec["id"])]
+    )
+    rc, output, _ = _run_json(capsys, root, "--manifest", str(manifest))
+    assert rc == 2
+    assert output["totals"]["sessions"] == 0
+    assert output["issues"]["manifest_missing_session"] == [spec["id"]]
+
+
+def test_manifest_exact_meta_is_selected_and_multiple_meta_issue_remains(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = {
+        **_healthy_specs()[0],
+        "meta_id": "83000000-0000-0000-0000-000000000099",
+        "cwd": "/synthetic/foreign",
+        "extra_meta": [
+            {
+                "session_id": _healthy_specs()[0]["id"],
+                "timestamp": "2026-01-01T01:02:03Z",
+                "cwd": "/synthetic/exact",
+            }
+        ],
+    }
+    root = _materialize(tmp_path / "sessions", [spec])
+    manifest = _write_manifest(
+        tmp_path / "manifest.json",
+        [_manifest_session(spec["id"], job_id="exact-job")],
+    )
+    rc, output, stderr = _run_json(
+        capsys, root, "--manifest", str(manifest)
+    )
+    row = output["sessions"][0]
+    assert rc == 0
+    assert stderr == ""
+    assert row["session_id"] == spec["id"]
+    assert row["job_id"] == "exact-job"
+    assert row["timestamp"] == "2026-01-01T01:02:03Z"
+    assert row["cwd"] == "/synthetic/exact"
+    assert list(output["issues"]) == ["multiple_session_meta"]
+
+
+def test_manifest_and_cwd_contains_are_argparse_incompatible(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = _healthy_specs()[0]
+    root = _materialize(tmp_path / "sessions", [spec])
+    manifest = _write_manifest(
+        tmp_path / "manifest.json", [_manifest_session(spec["id"])]
+    )
+    with pytest.raises(SystemExit) as raised:
+        LEDGER.main(
+            [
+                "--sessions-root",
+                str(root),
+                "--manifest",
+                str(manifest),
+                "--cwd-contains",
+                "wave",
+            ]
+        )
+    captured = capsys.readouterr()
+    assert raised.value.code == 2
+    assert "--manifest と --cwd-contains は同時指定できない" in captured.err
+
+
+def _invalid_manifest(case: str) -> dict[str, Any]:
+    first_id = "abcdefab-0000-0000-0000-000000000001"
+    data = _manifest_data([_manifest_session(first_id)])
+    if case == "unknown_root":
+        data["unknown"] = "x"
+    elif case == "missing_root":
+        del data["wave_id"]
+    elif case == "schema_bool":
+        data["schema_version"] = True
+    elif case == "bad_wave_id":
+        data["wave_id"] = "bad wave"
+    elif case == "relative_repo":
+        data["repo_root"] = "relative/repo"
+    elif case == "uppercase_commit":
+        data["base_commit"] = "A" * 40
+    elif case == "unknown_session":
+        data["sessions"][0]["unknown"] = "x"
+    elif case == "attempt_bool":
+        data["sessions"][0]["attempt_index"] = True
+    elif case == "uppercase_uuid":
+        data["sessions"][0]["session_id"] = first_id.upper()
+    elif case == "duplicate_attempt":
+        data["sessions"].append(
+            _manifest_session(
+                "84000000-0000-0000-0000-000000000002",
+                job_id="job-1",
+                attempt_index=1,
+            )
+        )
+    elif case == "duplicate_session":
+        data["sessions"].append(
+            _manifest_session(first_id, job_id="job-2")
+        )
+    elif case == "too_many_sessions":
+        data["sessions"] = [
+            _manifest_session(
+                f"84000000-0000-0000-0000-{index:012x}",
+                attempt_index=index,
+            )
+            for index in range(1, 1026)
+        ]
+    else:
+        raise AssertionError(case)
+    return data
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "unknown_root",
+        "missing_root",
+        "schema_bool",
+        "bad_wave_id",
+        "relative_repo",
+        "uppercase_commit",
+        "unknown_session",
+        "attempt_bool",
+        "uppercase_uuid",
+        "duplicate_attempt",
+        "duplicate_session",
+        "too_many_sessions",
+    ],
+)
+def test_manifest_structural_errors_are_rc2_without_strict(
+    case: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    root = tmp_path / "sessions"
+    root.mkdir()
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(_invalid_manifest(case), separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    rc = LEDGER.main(
+        [
+            "--sessions-root",
+            str(root),
+            "--manifest",
+            str(manifest),
+            "--json",
+        ]
+    )
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.out == ""
+    assert captured.err.startswith("error: ")
+
+
+def test_manifest_duplicate_json_key_is_rc2_without_strict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "sessions"
+    root.mkdir()
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        '{"schema_version":1,"schema_version":1,'
+        '"wave_id":"wave-1","repo_root":"/synthetic/repo",'
+        f'"base_commit":"{"a" * 40}",'
+        '"sessions":[{"job_id":"job-1","attempt_index":1,'
+        '"session_id":"85000000-0000-0000-0000-000000000001"}]}\n',
+        encoding="utf-8",
+    )
+    rc = LEDGER.main(
+        [
+            "--sessions-root",
+            str(root),
+            "--manifest",
+            str(manifest),
+        ]
+    )
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.out == ""
+    assert "duplicate key" in captured.err
+
+
+def test_missing_manifest_file_is_rc2_without_strict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "sessions"
+    root.mkdir()
+    rc = LEDGER.main(
+        [
+            "--sessions-root",
+            str(root),
+            "--manifest",
+            str(tmp_path / "missing.json"),
+        ]
+    )
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.out == ""
+    assert "manifest を読めない" in captured.err
+
+
 def test_missing_sessions_root_is_an_error(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1133,6 +1610,165 @@ def test_human_and_json_outputs_use_independent_literal_oracles(
         "context_compacted": 0,
         "thread_rolled_back": 0,
         "turn_aborted": 0,
+    }
+
+
+def test_legacy_selector_t179_frozen_golden_without_manifest_p2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _materialize(
+        tmp_path / "sessions", _t179_frozen_synthetic_specs()
+    )
+    rc, output, stderr = _run_json(
+        capsys,
+        root,
+        "--cwd-contains",
+        "t179-frozen-wave",
+        "--strict",
+    )
+    assert rc == 0
+    assert stderr == ""
+    assert list(output) == ["issues", "sessions", "totals"]
+    assert list(output["issues"]) == []
+    assert output["totals"] == {
+        "sessions": 10,
+        "model_calls": 434,
+        "turn_contexts": 10,
+        "input_tokens": 2_757_982,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cli_reported": 2_757_982,
+        "per_turn_sum": 2_757_982,
+        "cumulative_minus_per_turn": 0,
+        "context_compacted": 0,
+        "thread_rolled_back": 0,
+        "turn_aborted": 0,
+    }
+    assert [
+        (row["stage"], row["model_calls"], row["cli_reported"])
+        for row in output["sessions"]
+    ] == [
+        ("plan", 39, 224_150),
+        ("consult", 31, 196_092),
+        ("consult", 31, 196_093),
+        ("author", 47, 171_736),
+        ("fix", 50, 302_867),
+        ("fix", 50, 302_867),
+        ("review", 43, 272_276),
+        ("review", 44, 272_277),
+        ("focus", 49, 409_812),
+        ("focus", 50, 409_812),
+    ]
+    assert tuple(output["sessions"][0]) == (
+        "cached_input_tokens",
+        "cli_reported",
+        "context_compacted",
+        "cumulative_minus_per_turn",
+        "cwd",
+        "exit_code",
+        "input_tokens",
+        "model",
+        "model_calls",
+        "outcome",
+        "output_tokens",
+        "path",
+        "per_turn_sum",
+        "prompt_hash",
+        "reasoning",
+        "reasoning_output_tokens",
+        "retry_group",
+        "retry_index",
+        "session_id",
+        "stage",
+        "thread_rolled_back",
+        "timestamp",
+        "total_tokens_raw",
+        "turn_aborted",
+        "turn_contexts",
+    )
+
+    assert (
+        LEDGER.main(
+            [
+                "--sessions-root",
+                str(root),
+                "--cwd-contains",
+                "t179-frozen-wave",
+            ]
+        )
+        == 0
+    )
+    table = capsys.readouterr()
+    assert table.err == ""
+    assert table.out.splitlines()[0] == (
+        "timestamp\tsession_id\tstage\toutcome\texit_code\tmodel"
+        "\treasoning\tmodel_calls\tturn_contexts\tinput_tokens"
+        "\tcached_input_tokens\toutput_tokens\treasoning_output_tokens"
+        "\tcli_reported\tper_turn_sum\tcumulative_minus_per_turn"
+        "\ttotal_tokens_raw\tcontext_compacted\tthread_rolled_back"
+        "\tturn_aborted\tretry_group\tretry_index\tpath"
+    )
+    assert not any(
+        line.startswith("ISSUE\t") for line in table.out.splitlines()
+    )
+
+
+def test_manifest_t179_frozen_synthetic_stage_aggregates(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    specs = _t179_frozen_synthetic_specs()
+    root = _materialize(tmp_path / "sessions", specs)
+    manifest = _write_manifest(
+        tmp_path / "manifest.json",
+        [
+            _manifest_session(spec["id"], job_id=f"job-{index}")
+            for index, spec in enumerate(specs, 1)
+        ],
+    )
+    rc, output, stderr = _run_json(
+        capsys, root, "--manifest", str(manifest), "--strict"
+    )
+    assert rc == 0
+    assert stderr == ""
+    assert output["issues"] == {}
+    assert output["totals"] == {
+        "sessions": 10,
+        "model_calls": 434,
+        "turn_contexts": 10,
+        "input_tokens": 2_757_982,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cli_reported": 2_757_982,
+        "per_turn_sum": 2_757_982,
+        "cumulative_minus_per_turn": 0,
+        "context_compacted": 0,
+        "thread_rolled_back": 0,
+        "turn_aborted": 0,
+    }
+    assert {
+        stage: (
+            sum(row["stage"] == stage for row in output["sessions"]),
+            sum(
+                row["model_calls"]
+                for row in output["sessions"]
+                if row["stage"] == stage
+            ),
+            sum(
+                row["cli_reported"]
+                for row in output["sessions"]
+                if row["stage"] == stage
+            ),
+        )
+        for stage in ("plan", "consult", "author", "review", "fix", "focus")
+    } == {
+        "plan": (1, 39, 224_150),
+        "consult": (2, 62, 392_185),
+        "author": (1, 47, 171_736),
+        "review": (2, 87, 544_553),
+        "fix": (2, 100, 605_734),
+        "focus": (2, 99, 819_624),
     }
 
 
