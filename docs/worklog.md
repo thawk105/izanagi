@@ -998,6 +998,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   bnode010 で 214.34 秒、bnode009 で 200.72 秒、bnode002 で 116.25 秒と**ノード間で 1.8 倍**開く。
   破棄の根拠は wall 比較ではなく、機序・duration 台帳の悪化・段 6 の must-fix・M7 の帰属不成立の
   4 点である。段 3 `REPRO-07` と段 6 `MEASURE-01` の警告が実測で裏付けられた
+- **land 再試行 (2026-07-31)**: 阻害要因だった T-126 handoff の状態行が `中断` へ是正されたため
+  再試行した。その間に main が `aa67805` へ前進していたので固定 SHA の wave-side merge
+  (`32c0b4a`) で取り込み、受入を取り直した (request `874704`、bnode040)。赤 1 件は
+  `test_manifest_is_appended_while_correlated_session_is_running` で、bnode041 単独再走は
+  1 passed / 2.85 秒 (`874705`) と再現せず **F57 の 3 回目の発現**として台帳へ記録した。
+  **provenance 監査はユーザー裁定 (T-205) に従い計算ノードで取り直した** — request `874708`、
+  bnode043、HEAD `32c0b4a`、595 件・違反なし
 - **段 9 の land は拒否され、local main へ着地していない**。`tools/dev_wave_land.py` は
   `status=rejected` / `reason=handoff state is unknown` を返した。原因は他セッション所有の
   `docs/handoff/2026-07-29-t126-sequential-stopping-resume.md` の状態行が
@@ -1025,6 +1032,15 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   6 時間以内に 2 回走らせると実 receipt payer が 0 回になる。(b) `pickle.loads` が `isinstance`
   判定より先に実行され、subclass・field 不整合も型検査を通る。閉じ方は controller 所有の
   非再利用 nonce と closed-schema JSON
+- [T-205] **P1・ユーザー裁定済み・実装待ち (本エントリ)**: **Pegasus では `check_ai_provenance.py`
+  も計算ノードへ投げる**。ユーザー裁定 (2026-07-31)「cygnus は良いが pegasus は計算ノードに
+  投げるべき」。本 wave は同監査をログインノード `pegasus02` で 6 回走らせた (1 回 130〜150 秒 /
+  git subprocess 約 3000 本 = 合計約 15 分の共有ノード負荷)。runbook §7 の「ログインノードに
+  残してよいのは編集・静的検査・docs 検査・スケジューラ操作」を親が過大解釈したもの。
+  実装は (a) `tools/pegasus/dispatch_compute.py` が pytest 引数しか受けない点の一般化、
+  (b) runbook §7/§8 と `AGENTS.md` の「重い処理」列挙へ provenance 監査を明記、
+  (c) 可能なら `run_tests.py` と同型の fail-closed 強制。**本 wave の land 前検査は
+  request `874708` として計算ノードで取り直した**
 - [T-204] **P2・ユーザー裁定要 (本エントリ、段 8 の候補)**: 子 prompt が参照する絶対 path の
   実在を投入前に親が確認する義務を `DW-O02` へ 1 行足したいが、`docs/dev-wave/**` は
   hard ceiling 24000 bytes に対し 23983 bytes で余白 17 bytes しかなく入らない。予算は上げず

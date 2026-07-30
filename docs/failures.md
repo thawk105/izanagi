@@ -1108,5 +1108,10 @@
   4112 passed / 0 failed (request `874540`) だった。**48 workerでも出る**ことと、
   失敗nodeがまた移動したことが新しい情報である。`DW-O18` により当該waveの差分
   (t080 fixture面のみ) へは帰属しない
+- **再発: 2026-07-31 (同 [T-200] の land 再試行受入)。** bnode040 の48-worker全走で
+  `test_manifest_is_appended_while_correlated_session_is_running` が1件落ちた (request `874704`)。
+  bnode041 での単独再走は 1 passed / 2.85秒 (request `874705`) で再現せず。**同一waveで
+  失敗nodeが3回とも異なり** (`test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts`
+  → 本node)、いずれも launcher subprocess 系である点が繰り返し確認された
 - **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32/48-worker対照。
   記録: worklog 2026-07-30 (70)、2026-07-31 (73)
