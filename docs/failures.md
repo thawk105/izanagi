@@ -347,8 +347,16 @@
 - 追加事象: 同日の ExitWorktree は、作成した worktree の commit を main へ fast-forward 済みでも
   「未取り込みで失われる」と誤警告した。`discard_changes: true` では押し切らず、`git log` で
   main が当該 commit を含むと確認し、`action: keep` で抜けて手動の安全手順で畳んだ。
+- 追加事象 (2026-07-30、別機序・同じ根): 掃除対象 8 worktree を 1 ループで `rm -rf` したところ、
+  7 件目まで削除した時点で **2 分の command timeout に掛かって kill され**、8 件目が中途状態で残った
+  (実害なし。単独で再実行して完了)。submodule を実体化した worktree はファイル数が多く 1 件の
+  `rm -rf` が分単位に達しうるため、**一括ループにすると kill 位置が不定で「半分消えた worktree」を
+  作る**。運用則 = **1 worktree ずつ削除し、必要なら timeout を延ばす**。command 本文への反映は
+  `.claude/commands/cleanup-branches.md` が Codex skill との whole-file SHA-256 parity 契約下に
+  あり checker 定数の同時更新を要するため未実施 (次の一手へ登録)
 - 根本原因: git の worktree × submodule の仕様 2 点 (remove の gitlink 無条件拒否、submodule 登録
-  config の worktree 間共有) を知らず、即興で deinit を挟んだ
+  config の worktree 間共有) を知らず、即興で deinit を挟んだ。追加事象は同じ実体化 submodule が
+  削除コストを押し上げる点を見落としたもの
 - 恒久対応: `/cleanup-branches` スキル (.claude/commands/cleanup-branches.md) に安全手順を固定 —
   deinit を使わず「detach → ディレクトリ削除 → `git worktree prune`」(git 文書化済みの回避)、
   事後に `git submodule status` で main checkout の初期化状態を検査

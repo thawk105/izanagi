@@ -774,8 +774,24 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 
 
 
+- **`/cleanup-branches` 実行 (2026-07-30)**: worktree 22 → 14、ローカル branch 24 → 15。
+  ahead=0 かつ clean かつ滞在プロセスなしの 8 worktree を F26 手順 (detach → `branch -d` →
+  削除 → prune) で畳み、9 branch を `-d` で削除した。滞在は `/proc/*/cwd` と cmdline の二重走査で
+  実測し、稼働中 4 件 (t181・本 session・t200 locked・improve-u2) と dirty 8 件・ahead>0 の 4 件は残した。
+  取り込み漏れ 1 件 = `codex/p3-autonomous-trial` (T-178 の runbook と insight が main に無い)。
+  事後検査は `git submodule status` が pin `d706650` 一致・`-` prefix なし、main checkout の
+  tracked dirt 0
+
 ### 次の一手
 
+- [T-200] **P2・掃除の取り残し**: `codex/p3-autonomous-trial` (ahead=2) の
+  `docs/phase3-8c-autonomous-trial-runbook.md` と
+  `output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md` が main に無い。
+  取り込むか見送るかを裁定する
+- [T-201] **P3・skill 自己改善の残り**: F26 追加事象 (submodule 実体化 worktree の一括 `rm -rf` が
+  timeout で半削除を残す) の運用則を `.claude/commands/cleanup-branches.md` §3 へ反映する。
+  同ファイルは Codex skill との whole-file SHA-256 parity 契約下にあり、`tools/check_docs.py` の
+  pin 更新と skill 側の同期が必要なため本 session では未実施
 - [T-192] **完了 (本エントリ、D103)**: Pegasus の重い処理を計算ノードへ強制し、テストと build の
   既定並列度を affinity 全数にした。段 9 は一回限り adapter で local main へ ff-only 着地済み
   (main `5e095d0`)
