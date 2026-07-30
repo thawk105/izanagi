@@ -58,3 +58,12 @@ commit message、一時 patch は完了判定の正本にせず、凍結対象�
 初回 forward test は dispatcher の読取まで禁止した不適切な prompt による材料不足であり、
 再走だけを Skill の実効性確認に採用する。変異結果は 6/6 KILLED、diagnostic pin 1/1 green、
 positive survivor 1/1 green、最終 focused re-review は GO・blocker 0。
+
+## 記録後受入
+
+ユーザー指示により、ビルド・テストは管理nodeで行わず Pegasusの2計算nodeへ並列投入した。
+`874090.nqsv` (bnode110) はrepository全走を32 workersで実行し、
+3900 passed / 19 skipped / 210.56秒、rc=0。`874089.nqsv` (bnode109) は
+`test_check_docs.py` 143 passed / 2.14秒、check_docs / check_codex_agents / py_compile /
+diff-check / Skill validator green、全履歴provenance 544件・forward correction 1件・違反なし、
+rc=0。両jobのPBS会計痕跡と終了時tree cleanを確認した。

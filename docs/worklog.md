@@ -1227,7 +1227,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
 
-## 2026-07-30 (67) — [T-188] Codex cleanup-branches Skill を明示起動専用の安全 adapter として移植 (コード + docs、branch codex/dev-wave-cleanup-branches-skill-t188、計測 = 専用 worktree・ログインノード)
+## 2026-07-30 (67) — [T-188] Codex cleanup-branches Skill を明示起動専用の安全 adapter として移植 (コード + docs、branch codex/dev-wave-cleanup-branches-skill-t188、計測 = Pegasus 計算ノード (最終受入) + 専用 worktree・ログインノード (記録前))
 
 - `.agents/skills/cleanup-branches/` に Skill と生成 UI metadata を追加。Claude command を共通
   dispatcher として再利用し、Codex 側は明示 `$cleanup-branches` 専用、main / primary の無条件保持、
@@ -1249,6 +1249,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   仮ID T-173はD70のland時採番でT-188へ振り直し、旧IDと旧absolute pathは当時のprovenanceとして保持
 - 記録前検査: Skill validator valid、`test_check_docs.py` 143 passed、check_docs /
   check_codex_agents / py_compile / diff-check green
+- 記録後受入はユーザー指示どおり Pegasus 2計算nodeへ並列投入。`874090.nqsv` (bnode110) の
+  repository全走は32 workersで3900 passed / 19 skipped / 210.56秒、`874089.nqsv` (bnode109) は
+  焦点143 passed / 2.14秒、check_docs / check_codex_agents / py_compile / diff-check / Skill validator
+  green、全履歴provenance 544件・forward correction 1件・違反なし。両job rc=0、終了時tree clean、
+  PBS会計痕跡あり
 - エージェント工数: Codex subprocess 15 session
   (plan 1 / consult 2 / author 2 / review・focus 5 / fix 3 / forward test 2)。
   親 = brief・裁定・統合・変異・受入・docs・記録
