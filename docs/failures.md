@@ -660,6 +660,12 @@
 - **再発 (2026-07-30、[T-187] main統合):** target抜きの補助range監査が設計どおり赤になった後、
   同一shellの次行に置いた`merge --no-commit`が継続した。commit前で停止し、target-inclusive監査を
   単独再走してgreenを確認した。既存O17は単独rcと赤停止を既に要求するため、手順本文は増補しない
+- **再発 (2026-07-30、[T-146] 段9再開):** Pegasusのmerge前preflight scriptが
+  `set -uo pipefail`で`-e`を欠き、`git diff --cached --check`の赤後も後続検査へ進んだ。
+  最後の`check_docs`がgreenだったためtrapはrc=0を記録した。commit前にlogから検出し、
+  request `874111.nqsv`の結果を不採用化。手動解消面だけへdiff-checkを限定したfail-fast scriptを
+  `874113.nqsv`で再走してgreenを確認してからcommitした。既存O17の赤停止契約で十分な同型再発のため、
+  手順本文は増補しない
 - 記録: worklog 2026-07-25 (5)
 
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
@@ -1047,18 +1053,28 @@
 - 記録: worklog 2026-07-30 (67)、設計判断: D102、材料:
   `output/insights/2026-07-29_dev-wave-parallel-land/`
 
-### F56. Codex worker launcher の normal fake が32-worker全走だけで3秒内に完走せず、失敗nodeが移動した [テストフレーク] [資源競合]
-
-- **事象 (2026-07-30, [T-145] 段9再受入):** Pegasus計算ノードの32-worker全走2回で、
-  `test_codex_worker_launch.py` の異なるnormal-control nodeが各1件、launcher returncode 1 /
-  stderr空で失敗した。1回目はfullとprovenanceの同時走行、2回目はfull単独だった
-- **分離できた範囲:** 各失敗nodeの直後の単独再走は1/1 green、同file直列は58/58 green、
-  repository全走を16 workerへ下げると3956 passed / 19 skipped。T-145/T-188差分はlauncher実装・
-  同test fileへ到達せず、32-worker時の失敗nodeも移動したため当該差分の回帰ではない
-- **未確定:** fake normal controlの既定wall上限は3秒だが、pytest tmpは終了時に失われ、
-  失敗時receipt / stop reasonを保存していない。従って3秒超過そのものを根本原因と断定しない
-- **暫定対応:** 本受入は16 workerを採用し、赤い32-worker走をgreenとして数えない。恒久対応は
-  [T-189] で失敗artifactを保存して原因を分離し、production wall-clock gateを緩めずtest fixtureを
-  hardenする
-- **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32-worker対照。
-  記録: worklog 2026-07-30 (68)
+### F56. worker 起動の model / reasoning は要求値がそのまま receipt になり、不正値と未サポート model が silent に通る [誤前提]
+- 事象: [T-182] wave の段 1 生死確認で、`codex exec` の起動構成が機械検査されていないことを 3 通り
+  実測した。(a) `-c model_reasoning_effort="ultra"` (存在しない値) は `gpt-5.6-sol` /
+  `gpt-5.6-luna` / `gpt-5.6-terra` で **rc=0 のまま成功**し、rollout の `turn_context` には
+  `reasoning=ultra` が記録される。(b) ChatGPT account で未サポートの model
+  (`gpt-5.4-nano`, `gpt-5.1-codex-mini`) は 400 で rc=1 になるが、rollout には session が生成され、
+  receipt の `model` は**要求 slug のまま**で `model_calls=0` / `cli_reported=0` になる。
+  (c) model により reasoning の受理集合が異なる (`gpt-5.4-mini` は `max` を拒否し
+  `none`/`low`/`medium`/`high`/`xhigh` のみ)。成果物影響ゼロ (pilot 段階で検出)
+- 根本原因: `DW-O01` は `model_reasoning_effort="<効いた値>"` と書いて起動者の注意に委ねており、
+  「効いたか」を検査する経路がどこにも無い。さらに rollout receipt は**要求値の記録**であって
+  served model の attest ではない — 実体名 (`gpt-5.4-mini-codex-1p-codexswic-ev3`) は 400 応答
+  だけが露出し、成功した run には残らない。したがって「receipt に model と reasoning がある」ことを
+  「その構成で実際に走った」証拠と読むのは誤前提である
+- 恒久対応: (a) model×reasoning の比較や policy 採用を行う台帳は、要求値 (`requested_*`) と
+  記録値 (`recorded_*`) を別名で持ち、**記録値を served identity の attest として扱わない**旨を
+  出力自身に持たせる。(b) `model_calls=0` / `cli_reported=0` の session を「finding 0 件の観測」
+  として集計しない (起動失敗と品質劣化を別分類にする)。(c) 未知の reasoning 値と model×reasoning の
+  非対応組は起動前に落とす。実体化の所有は [T-183] (失敗分類) と [T-184] (policy 採用) にあり、
+  [T-182] は実測と一次資料の凍結までを行った
+- 再発検知: `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/probe-receipts.json`
+  の該当 session (`019fadd3-c15a-79e1-8783-f083061d4e3d` = nano、
+  `019fadd3-c19c-7a12-bbf0-ded998aed815` = codex-mini、および `reasoning=ultra` の 4 session) が
+  一次資料。機械検査は未実装 (上記所有 ID で実装する)
+- 記録: worklog 2026-07-30 (68)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`

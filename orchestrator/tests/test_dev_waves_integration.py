@@ -1117,27 +1117,66 @@ def _sandbox_permits_short_alias_bind(directory: Path) -> bool:
     """
     fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
     try:
+        try:
+            os.stat(".s", dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise FileExistsError(
+                errno.EEXIST, "short alias probe pathname already exists", ".s",
+            )
         alias = f"/proc/self/fd/{fd}/.s"
         if not os.path.isdir(f"/proc/self/fd/{fd}") or len(os.fsencode(alias)) >= 108:
             return False
         probe = None
-        created = False
+        owned = False
         try:
-            probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            probe.bind(alias)
-            created = True
-            os.chmod(".s", 0o600, dir_fd=fd, follow_symlinks=False)
-            os.stat(".s", dir_fd=fd, follow_symlinks=False)
-            probe.listen(1)
+            try:
+                probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            except OSError:
+                return False
+            try:
+                probe.bind(alias)
+            except OSError:
+                try:
+                    os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                except FileNotFoundError:
+                    return False
+                owned = probe.getsockname() == alias
+                return False
+            owned = True
+            try:
+                os.chmod(".s", 0o600, dir_fd=fd, follow_symlinks=False)
+                os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                probe.listen(1)
+            except OSError:
+                return False
             return True
-        except OSError:
-            return False
         finally:
             if probe is not None:
                 with contextlib.suppress(OSError):
                     probe.close()
-            if created:
-                os.unlink(".s", dir_fd=fd)
+            if owned:
+                try:
+                    os.unlink(".s", dir_fd=fd)
+                except FileNotFoundError:
+                    try:
+                        os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                    except FileNotFoundError:
+                        pass
+                    else:
+                        raise
+                else:
+                    try:
+                        os.stat(".s", dir_fd=fd, follow_symlinks=False)
+                    except FileNotFoundError:
+                        pass
+                    else:
+                        raise FileExistsError(
+                            errno.EEXIST,
+                            "short alias probe cleanup left the pathname present",
+                            ".s",
+                        )
     finally:
         os.close(fd)
 
@@ -1151,15 +1190,45 @@ class _PermissiveAliasSocket:
 
     def __init__(self, directory: Path) -> None:
         self._directory = directory
+        self._bound_address = ""
+        self.closed = False
 
     def bind(self, alias: str) -> None:
         (self._directory / ".s").touch()
+        self._bound_address = alias
+
+    def getsockname(self) -> str:
+        return self._bound_address
 
     def listen(self, backlog: int) -> None:
         pass
 
     def close(self) -> None:
-        pass
+        self.closed = True
+
+
+class _PartiallyBoundAliasSocket(_PermissiveAliasSocket):
+    """Materialise and remember the address before reporting bind failure."""
+
+    def bind(self, alias: str) -> None:
+        super().bind(alias)
+        raise OSError(errno.EIO, "injected post-bind failure")
+
+
+class _UnboundAliasSocket:
+    """Reject bind without claiming or changing the pathname."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    def bind(self, alias: str) -> None:
+        raise OSError(errno.EADDRINUSE, "injected preexisting entry")
+
+    def getsockname(self) -> str:
+        return ""
+
+    def close(self) -> None:
+        self.closed = True
 
 
 @pytest.mark.xdist_group("dev-waves-runtime")
@@ -1178,10 +1247,21 @@ def test_short_alias_bind_probe_separates_capability_loss_from_regression() -> N
                         OSError(errno.EACCES, "policy")):
             with mock.patch("socket.socket", side_effect=failure):
                 assert _sandbox_permits_short_alias_bind(directory) is False
-        for method in ("bind", "listen"):
-            with mock.patch.object(socket.socket, method,
-                                   side_effect=PermissionError(errno.EPERM, "policy")):
-                assert _sandbox_permits_short_alias_bind(directory) is False
+        with mock.patch.object(
+            socket.socket, "bind",
+            side_effect=PermissionError(errno.EPERM, "policy"),
+        ), mock.patch.object(
+            socket.socket, "getsockname",
+            side_effect=PermissionError(errno.EPERM, "ownership observation denied"),
+        ) as getsockname:
+            assert _sandbox_permits_short_alias_bind(directory) is False
+            getsockname.assert_not_called()
+        listen_probe = _PermissiveAliasSocket(directory)
+        with mock.patch("socket.socket", return_value=listen_probe), mock.patch.object(
+            _PermissiveAliasSocket, "listen",
+            side_effect=PermissionError(errno.EPERM, "policy"),
+        ):
+            assert _sandbox_permits_short_alias_bind(directory) is False
         with mock.patch("socket.socket",
                         return_value=_PermissiveAliasSocket(directory)):
             assert _sandbox_permits_short_alias_bind(directory) is True
@@ -1392,6 +1472,179 @@ class _ServeSelectProxy:
         if any(item is self._listener for item in result[0]):
             self._observe(_ServeObservation.REQUEST_READY)
         return result
+
+
+@pytest.mark.xdist_group("dev-waves-runtime")
+@pytest.mark.parametrize(
+    "fault,pending_verdict",
+    [
+        ("partial-bind", False),
+        ("fnf-after-real-unlink", True),
+        ("fnf-after-real-unlink", False),
+        ("fnf-with-path-present", True),
+        ("eperm-after-real-unlink", True),
+        ("eio-after-real-unlink", True),
+        ("no-op-unlink", True),
+    ],
+    ids=[
+        "partial-bind",
+        "fnf-absent-pending-true",
+        "fnf-absent-pending-false",
+        "fnf-present",
+        "eperm-absent",
+        "eio-absent",
+        "success-present",
+    ],
+)
+def test_short_alias_bind_probe_enforces_cleanup_fault_policy(
+    fault: str, pending_verdict: bool,
+) -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        directory = Path(temporary)
+        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        real_unlink = os.unlink
+        real_close = os.close
+        probe = (
+            _PartiallyBoundAliasSocket(directory)
+            if fault == "partial-bind"
+            else _PermissiveAliasSocket(directory)
+        )
+        result: bool | None = None
+        observed_error: BaseException | None = None
+        unlink_error: OSError | None = None
+        unlink_identity: os.stat_result | None = None
+
+        def injected_unlink(path: str, *, dir_fd: int | None = None) -> None:
+            nonlocal unlink_error, unlink_identity
+            unlink_identity = os.stat(path, dir_fd=dir_fd, follow_symlinks=False)
+            if fault == "fnf-after-real-unlink":
+                real_unlink(path, dir_fd=dir_fd)
+                raise FileNotFoundError(errno.ENOENT, "injected after real unlink", path)
+            if fault == "fnf-with-path-present":
+                unlink_error = FileNotFoundError(
+                    errno.ENOENT, "injected without unlink", path,
+                )
+                raise unlink_error
+            if fault == "eperm-after-real-unlink":
+                real_unlink(path, dir_fd=dir_fd)
+                unlink_error = PermissionError(errno.EPERM, "injected unlink denial", path)
+                raise unlink_error
+            if fault == "eio-after-real-unlink":
+                real_unlink(path, dir_fd=dir_fd)
+                unlink_error = OSError(errno.EIO, "injected unlink I/O failure", path)
+                raise unlink_error
+            if fault == "no-op-unlink":
+                return
+            real_unlink(path, dir_fd=dir_fd)
+
+        try:
+            with mock.patch("socket.socket", return_value=probe):
+                unlink_patch = (
+                    contextlib.nullcontext()
+                    if fault == "partial-bind"
+                    else mock.patch("os.unlink", side_effect=injected_unlink)
+                )
+                listen_patch = (
+                    mock.patch.object(
+                        probe, "listen",
+                        side_effect=PermissionError(errno.EPERM, "injected listen denial"),
+                    )
+                    if pending_verdict is False and fault != "partial-bind"
+                    else contextlib.nullcontext()
+                )
+                with unlink_patch, listen_patch:
+                    try:
+                        result = _sandbox_permits_short_alias_bind(directory)
+                    except BaseException as exc:
+                        observed_error = exc
+
+            try:
+                pathname_state = os.stat(
+                    ".s", dir_fd=directory_fd, follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                pathname_state = None
+
+            assert probe.closed is True
+            if fault == "partial-bind":
+                assert observed_error is None
+                assert result is False
+                assert pathname_state is None
+            elif fault == "fnf-after-real-unlink":
+                assert observed_error is None
+                assert result is pending_verdict
+                assert pathname_state is None
+            elif fault in {
+                "fnf-with-path-present",
+                "eperm-after-real-unlink",
+                "eio-after-real-unlink",
+            }:
+                assert unlink_error is not None
+                assert observed_error is unlink_error
+                assert getattr(observed_error, "errno", None) == unlink_error.errno
+                if fault == "fnf-with-path-present":
+                    assert pathname_state is not None
+                    assert unlink_identity is not None
+                    assert os.path.samestat(unlink_identity, pathname_state)
+                else:
+                    assert pathname_state is None
+            else:
+                assert isinstance(observed_error, FileExistsError)
+                assert pathname_state is not None
+                assert unlink_identity is not None
+                assert os.path.samestat(unlink_identity, pathname_state)
+        finally:
+            try:
+                real_unlink(".s", dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+            finally:
+                real_close(directory_fd)
+
+
+@pytest.mark.xdist_group("dev-waves-runtime")
+@pytest.mark.parametrize("entry_kind", ["regular-file", "broken-symlink"])
+def test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity(
+    entry_kind: str,
+) -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        directory = Path(temporary)
+        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        real_unlink = os.unlink
+        real_close = os.close
+        if entry_kind == "regular-file":
+            (directory / ".s").write_bytes(b"foreign entry")
+            link_target = None
+        else:
+            link_target = "missing-foreign-target"
+            os.symlink(link_target, ".s", dir_fd=directory_fd)
+        before = os.stat(".s", dir_fd=directory_fd, follow_symlinks=False)
+        probe = _UnboundAliasSocket()
+        result: bool | None = None
+        observed_error: BaseException | None = None
+        try:
+            with mock.patch("socket.socket", return_value=probe) as socket_factory:
+                try:
+                    result = _sandbox_permits_short_alias_bind(directory)
+                except BaseException as exc:
+                    observed_error = exc
+
+            after = os.stat(".s", dir_fd=directory_fd, follow_symlinks=False)
+            assert os.path.samestat(before, after)
+            assert before.st_mode == after.st_mode
+            if link_target is not None:
+                assert os.readlink(".s", dir_fd=directory_fd) == link_target
+            assert result is None
+            assert isinstance(observed_error, FileExistsError)
+            assert observed_error.errno == errno.EEXIST
+            assert socket_factory.call_count == 0
+        finally:
+            try:
+                real_unlink(".s", dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+            finally:
+                real_close(directory_fd)
 
 
 def _run_long_path_serve_harness() -> None:
