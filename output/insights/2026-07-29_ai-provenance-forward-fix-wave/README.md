@@ -1,4 +1,4 @@
-# [T-186] `6b64d21` AI provenance forward-only 是正
+# [T-187] `6b64d21` AI provenance forward-only 是正
 
 ## 結論
 
@@ -46,6 +46,12 @@ role=`integrator`はmerge前の判断から裁定した。
 
 ## dev-wave裁定
 
+- branch上では`T-186` / `D100`として記録したが、main側の先行採番と衝突したためland時に
+  `T-187` / `D101`へ振り直した。既存commit件名は履歴非改変のため元番号を保持する
+- main統合後の全履歴監査がlocal-only T-180記録`cb79147`のprobe ShellにCodex authorがない
+  別違反を検出。ユーザー承認後、Codex authorが最終bytesへ実際に寄与した`677c32a`へrewriteした
+- 再構成統合commitは`226f7fd`。統合後finalは`3892 passed, 18 skipped in 252.36s`、
+  関連250 passed、full-history provenance 541件green
 - Stage 2 plannerの旧復元値は一次証拠不足でNO-GO。採用していない
 - Stage 3 adversarial review 2本もplan v1をNO-GO
 - Stage 6 review 2本はblocker 7件を返した。親裁定後にfix 2巡、focused re-review 2本で

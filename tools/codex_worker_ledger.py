@@ -106,6 +106,30 @@ _WORKLOG_EFFORT_RE = re.compile(
     r"author・fix\s*(?P<author_fix>[0-9０-９,，]+)\s*/\s*"
     r"review\s*(?P<review>[0-9０-９,，]+)\s*\)"
 )
+_MANIFEST_ID_RE = re.compile(r"[A-Za-z0-9._-]{1,128}", re.ASCII)
+_MANIFEST_COMMIT_RE = re.compile(r"[0-9a-f]{40}", re.ASCII)
+_CANONICAL_UUID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+    r"[0-9a-f]{4}-[0-9a-f]{12}",
+    re.ASCII,
+)
+_ROLLOUT_SESSION_RE = re.compile(
+    r"^rollout-.*-(?P<session_id>[0-9a-f]{8}-[0-9a-f]{4}-"
+    r"[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$",
+    re.ASCII,
+)
+_MANIFEST_FIELDS = {
+    "schema_version",
+    "wave_id",
+    "repo_root",
+    "base_commit",
+    "sessions",
+}
+_MANIFEST_SESSION_FIELDS = {"job_id", "attempt_index", "session_id"}
+
+
+class _ManifestError(ValueError):
+    """凍結 manifest schema の違反。"""
 
 
 def _default_sessions_root() -> Path:
@@ -133,6 +157,11 @@ def _parser() -> argparse.ArgumentParser:
         help="session_meta.cwd の部分一致 filter (複数指定は OR)",
     )
     parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="CodexWorkerSessionManifest による exact session selector",
+    )
+    parser.add_argument(
         "--stage-map",
         metavar="JSON",
         help='session override JSON: {"<session_id>": "<stage>"}',
@@ -158,10 +187,11 @@ _USAGE_FIELDS = _REQUIRED_USAGE_FIELDS[:-1] + (
 
 def _validated_usage(
     usage: Any, *, location: str
-) -> tuple[dict[str, int] | None, list[str]]:
+) -> tuple[dict[str, int] | None, list[str], list[str]]:
     if not isinstance(usage, dict):
-        return None, [f"{location} is not an object"]
+        return None, [f"{location} is not an object"], []
     errors: list[str] = []
+    cached_exceeds_input: list[str] = []
     result: dict[str, int] = {}
     for field in _REQUIRED_USAGE_FIELDS:
         value = usage.get(field)
@@ -179,9 +209,135 @@ def _validated_usage(
         )
     else:
         result["reasoning_output_tokens"] = reasoning
+    if (
+        "input_tokens" in result
+        and "cached_input_tokens" in result
+        and result["cached_input_tokens"] > result["input_tokens"]
+    ):
+        cached_exceeds_input.append(
+            f"{location}: cached_input_tokens "
+            f"{result['cached_input_tokens']} > input_tokens "
+            f"{result['input_tokens']}"
+        )
     if errors:
-        return None, errors
-    return result, []
+        return None, errors, cached_exceeds_input
+    if cached_exceeds_input:
+        return None, [], cached_exceeds_input
+    return result, [], []
+
+
+def _manifest_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise _ManifestError(f"duplicate key: {key!r}")
+        result[key] = value
+    return result
+
+
+def _manifest_constant(value: str) -> Any:
+    raise _ManifestError(f"non-JSON number: {value}")
+
+
+def _require_exact_fields(
+    value: Any, expected: set[str], *, location: str
+) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise _ManifestError(f"{location} is not an object")
+    actual = set(value)
+    missing = sorted(expected - actual)
+    unknown = sorted(actual - expected)
+    if missing:
+        raise _ManifestError(f"{location} missing fields: {', '.join(missing)}")
+    if unknown:
+        raise _ManifestError(f"{location} unknown fields: {', '.join(unknown)}")
+    return value
+
+
+def _manifest_identifier(value: Any, *, location: str) -> str:
+    if not isinstance(value, str) or _MANIFEST_ID_RE.fullmatch(value) is None:
+        raise _ManifestError(
+            f"{location} must match [A-Za-z0-9._-]{{1,128}}"
+        )
+    return value
+
+
+def _load_manifest(path: Path) -> dict[str, Any]:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise _ManifestError(f"manifest を読めない: {os.fspath(path)}") from exc
+    try:
+        parsed = json.loads(
+            raw,
+            object_pairs_hook=_manifest_object,
+            parse_constant=_manifest_constant,
+        )
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise _ManifestError("manifest JSON が不正") from exc
+    manifest = _require_exact_fields(
+        parsed, _MANIFEST_FIELDS, location="manifest"
+    )
+    schema_version = manifest["schema_version"]
+    if (
+        isinstance(schema_version, bool)
+        or not isinstance(schema_version, int)
+        or schema_version != 1
+    ):
+        raise _ManifestError("manifest.schema_version must be integer 1")
+    _manifest_identifier(manifest["wave_id"], location="manifest.wave_id")
+    repo_root = manifest["repo_root"]
+    if not isinstance(repo_root, str) or not os.path.isabs(repo_root):
+        raise _ManifestError("manifest.repo_root must be an absolute path")
+    base_commit = manifest["base_commit"]
+    if (
+        not isinstance(base_commit, str)
+        or _MANIFEST_COMMIT_RE.fullmatch(base_commit) is None
+    ):
+        raise _ManifestError("manifest.base_commit must be lowercase hex40")
+    sessions = manifest["sessions"]
+    if not isinstance(sessions, list):
+        raise _ManifestError("manifest.sessions is not an array")
+    if not 1 <= len(sessions) <= 1024:
+        raise _ManifestError("manifest.sessions must contain 1..1024 entries")
+    seen_attempts: set[tuple[str, int]] = set()
+    seen_sessions: set[str] = set()
+    for index, raw_session in enumerate(sessions):
+        location = f"manifest.sessions[{index}]"
+        session = _require_exact_fields(
+            raw_session, _MANIFEST_SESSION_FIELDS, location=location
+        )
+        job_id = _manifest_identifier(
+            session["job_id"], location=f"{location}.job_id"
+        )
+        attempt_index = session["attempt_index"]
+        if (
+            isinstance(attempt_index, bool)
+            or not isinstance(attempt_index, int)
+            or attempt_index < 1
+        ):
+            raise _ManifestError(
+                f"{location}.attempt_index must be an integer >= 1"
+            )
+        session_id = session["session_id"]
+        if (
+            not isinstance(session_id, str)
+            or _CANONICAL_UUID_RE.fullmatch(session_id) is None
+        ):
+            raise _ManifestError(
+                f"{location}.session_id must be a canonical lowercase UUID"
+            )
+        attempt_key = (job_id, attempt_index)
+        if attempt_key in seen_attempts:
+            raise _ManifestError(
+                f"duplicate (job_id, attempt_index): "
+                f"{job_id!r}, {attempt_index}"
+            )
+        if session_id in seen_sessions:
+            raise _ManifestError(f"duplicate session_id: {session_id}")
+        seen_attempts.add(attempt_key)
+        seen_sessions.add(session_id)
+    return manifest
 
 
 def _billable(usage: dict[str, int]) -> int:
@@ -202,6 +358,7 @@ def _new_record(path: Path) -> dict[str, Any]:
         "session_meta_has_cwd": False,
         "session_meta_cwds": [],
         "session_meta_ids": [],
+        "session_metas": [],
         "model": "",
         "reasoning": "",
         "prompt": "",
@@ -229,6 +386,7 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
     issues: dict[str, list[str]] = {}
     first_turn_context: tuple[str, str] | None = None
     previous_cumulative_total: int | None = None
+    previous_cumulative_usage: dict[str, int] | None = None
     with path.open("rb") as stream:
         for line_number, line in enumerate(stream, 1):
             line_location = f"{record['path']}:{line_number}"
@@ -251,6 +409,7 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
                         record["path"]
                     )
                 session_id = payload.get("session_id")
+                normalized_id = None
                 if isinstance(session_id, str) and session_id:
                     normalized_id = session_id.lower()
                     record["session_meta_ids"].append(normalized_id)
@@ -260,11 +419,23 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
                             payload.get("timestamp", "")
                         )
                 cwd = payload.get("cwd")
+                normalized_cwd = ""
                 if isinstance(cwd, str) and cwd:
+                    normalized_cwd = cwd
                     record["session_meta_cwds"].append(cwd)
                     if not record["cwd"]:
                         record["cwd"] = cwd
                     record["session_meta_has_cwd"] = True
+                record["session_metas"].append(
+                    {
+                        "session_id": normalized_id,
+                        "raw_session_id": (
+                            session_id if isinstance(session_id, str) else None
+                        ),
+                        "timestamp": str(payload.get("timestamp", "")),
+                        "cwd": normalized_cwd,
+                    }
+                )
                 continue
             if item_type == "turn_context":
                 record["turn_contexts"] += 1
@@ -306,11 +477,15 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
                 if not isinstance(info, dict):
                     continue
                 record["model_calls"] += 1
-                total_usage, total_errors = _validated_usage(
+                (
+                    total_usage,
+                    total_errors,
+                    total_cached_errors,
+                ) = _validated_usage(
                     info.get("total_token_usage"),
                     location=f"{line_location} total_token_usage",
                 )
-                last_usage, last_errors = _validated_usage(
+                last_usage, last_errors, last_cached_errors = _validated_usage(
                     info.get("last_token_usage"),
                     location=f"{line_location} last_token_usage",
                 )
@@ -318,6 +493,10 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
                     issues.setdefault("malformed_usage", []).extend(
                         total_errors + last_errors
                     )
+                if total_cached_errors or last_cached_errors:
+                    issues.setdefault(
+                        "usage_cached_exceeds_input", []
+                    ).extend(total_cached_errors + last_cached_errors)
                 if total_usage is not None:
                     cumulative_total = total_usage["total_tokens"]
                     if (
@@ -330,7 +509,33 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
                             f"{line_location}: {cumulative_total} < "
                             f"{previous_cumulative_total}"
                         )
+                    elif previous_cumulative_usage is not None:
+                        rollback_fields = [
+                            field
+                            for field in (
+                                "input_tokens",
+                                "cached_input_tokens",
+                                "output_tokens",
+                            )
+                            if total_usage[field]
+                            < previous_cumulative_usage[field]
+                        ]
+                        previous_cli_reported = _billable(
+                            previous_cumulative_usage
+                        )
+                        cli_reported = _billable(total_usage)
+                        if cli_reported < previous_cli_reported:
+                            rollback_fields.append("cli_reported")
+                        if rollback_fields:
+                            issues.setdefault(
+                                "usage_cumulative_rollback", []
+                            ).append(
+                                f"{line_location}: "
+                                + ", ".join(rollback_fields)
+                                + " decreased"
+                            )
                     previous_cumulative_total = cumulative_total
+                    previous_cumulative_usage = total_usage
                     for field in _USAGE_FIELDS[:-1]:
                         record[field] = total_usage[field]
                     record["cli_reported"] = _billable(total_usage)
@@ -341,6 +546,29 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
         record["cli_reported"] - record["per_turn_sum"]
     )
     return record, issues
+
+
+def _filename_session_id(path: Path) -> str | None:
+    match = _ROLLOUT_SESSION_RE.fullmatch(path.name)
+    return match.group("session_id") if match is not None else None
+
+
+def _select_manifest_session(
+    record: dict[str, Any], session_id: str
+) -> bool:
+    matches = [
+        meta
+        for meta in record["session_metas"]
+        if meta["raw_session_id"] == session_id
+    ]
+    if not matches:
+        return False
+    selected = matches[0]
+    record["session_id"] = session_id
+    record["timestamp"] = selected["timestamp"]
+    record["cwd"] = selected["cwd"]
+    record["session_meta_has_cwd"] = bool(selected["cwd"])
+    return True
 
 
 def _stage_prefix(prompt: str) -> str:
@@ -420,6 +648,14 @@ def _assign_retries(records: list[dict[str, Any]]) -> None:
     for record in records:
         record.setdefault("retry_group", None)
         record.setdefault("retry_index", 0)
+
+
+def _assign_manifest_lineage(records: list[dict[str, Any]]) -> None:
+    for record in records:
+        record["retry_group"] = record["job_id"]
+        record["retry_index"] = record["attempt_index"]
+        # manifest 経路では prompt 同一性を retry の因果証拠に使わない。
+        record["prompt_hash"] = None
 
 
 def _parse_stage_map(parser: argparse.ArgumentParser, raw: str | None) -> dict[str, str]:
@@ -534,11 +770,27 @@ def _worklog_expectation(
 
 
 def _compare_worklog(
-    records: list[dict[str, Any]], expected: dict[str, int]
+    records: list[dict[str, Any]],
+    expected: dict[str, int],
+    *,
+    manifest_mode: bool = False,
 ) -> list[str]:
-    actual = {"total": len(records)}
-    for bucket, stages in WORKLOG_BUCKETS:
-        actual[bucket] = sum(record["stage"] in stages for record in records)
+    if manifest_mode:
+        actual = {"total": len({record["job_id"] for record in records})}
+        for bucket, stages in WORKLOG_BUCKETS:
+            actual[bucket] = len(
+                {
+                    record["job_id"]
+                    for record in records
+                    if record["stage"] in stages
+                }
+            )
+    else:
+        actual = {"total": len(records)}
+        for bucket, stages in WORKLOG_BUCKETS:
+            actual[bucket] = sum(
+                record["stage"] in stages for record in records
+            )
     mismatches: list[str] = []
     for bucket in ("total", "planner", "consult", "author・fix", "review"):
         if expected[bucket] != actual[bucket]:
@@ -577,64 +829,82 @@ def _totals(records: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
-def _public_record(record: dict[str, Any]) -> dict[str, Any]:
-    keys = (
+def _public_record(
+    record: dict[str, Any], *, manifest_mode: bool = False
+) -> dict[str, Any]:
+    keys = [
         "timestamp",
         "session_id",
-        "stage",
-        "outcome",
-        "exit_code",
-        "model",
-        "reasoning",
-        "model_calls",
-        "turn_contexts",
-        "input_tokens",
-        "cached_input_tokens",
-        "output_tokens",
-        "reasoning_output_tokens",
-        "cli_reported",
-        "per_turn_sum",
-        "cumulative_minus_per_turn",
-        "total_tokens_raw",
-        "context_compacted",
-        "thread_rolled_back",
-        "turn_aborted",
-        "retry_group",
-        "retry_index",
-        "prompt_hash",
-        "cwd",
-        "path",
+    ]
+    if manifest_mode:
+        keys.extend(("job_id", "attempt_index"))
+    keys.extend(
+        (
+            "stage",
+            "outcome",
+            "exit_code",
+            "model",
+            "reasoning",
+            "model_calls",
+            "turn_contexts",
+            "input_tokens",
+            "cached_input_tokens",
+            "output_tokens",
+            "reasoning_output_tokens",
+            "cli_reported",
+            "per_turn_sum",
+            "cumulative_minus_per_turn",
+            "total_tokens_raw",
+            "context_compacted",
+            "thread_rolled_back",
+            "turn_aborted",
+            "retry_group",
+            "retry_index",
+            "prompt_hash",
+            "cwd",
+            "path",
+        )
     )
     return {key: record[key] for key in keys}
 
 
 def _render_table(
-    records: list[dict[str, Any]], totals: dict[str, int], issues: dict[str, list[str]]
+    records: list[dict[str, Any]],
+    totals: dict[str, int],
+    issues: dict[str, list[str]],
+    *,
+    manifest_mode: bool = False,
 ) -> str:
-    columns = (
+    columns = [
         "timestamp",
         "session_id",
-        "stage",
-        "outcome",
-        "exit_code",
-        "model",
-        "reasoning",
-        "model_calls",
-        "turn_contexts",
-        "input_tokens",
-        "cached_input_tokens",
-        "output_tokens",
-        "reasoning_output_tokens",
-        "cli_reported",
-        "per_turn_sum",
-        "cumulative_minus_per_turn",
-        "total_tokens_raw",
-        "context_compacted",
-        "thread_rolled_back",
-        "turn_aborted",
-        "retry_group",
-        "retry_index",
-        "path",
+    ]
+    if manifest_mode:
+        columns.extend(("job_id", "attempt_index"))
+    columns.extend(
+        (
+            "stage",
+            "outcome",
+            "exit_code",
+            "model",
+            "reasoning",
+            "model_calls",
+            "turn_contexts",
+            "input_tokens",
+            "cached_input_tokens",
+            "output_tokens",
+            "reasoning_output_tokens",
+            "cli_reported",
+            "per_turn_sum",
+            "cumulative_minus_per_turn",
+            "total_tokens_raw",
+            "context_compacted",
+            "thread_rolled_back",
+            "turn_aborted",
+            "retry_group",
+            "retry_index",
+            "path",
+        )
     )
     lines = ["\t".join(columns)]
     for record in records:
@@ -659,6 +929,8 @@ def _strict_messages(issues: dict[str, list[str]]) -> list[str]:
         "ambiguous_stage": "ambiguous stage",
         "malformed_json": "malformed JSON lines",
         "malformed_usage": "malformed usage",
+        "usage_cached_exceeds_input": "cached input exceeds input usage",
+        "usage_cumulative_rollback": "cumulative usage rollback",
         "inconsistent_turn_context": "inconsistent turn_context",
         "non_monotonic_cumulative": "non-monotonic cumulative usage",
         "missing_session_meta": "missing session_meta files",
@@ -668,6 +940,7 @@ def _strict_messages(issues: dict[str, list[str]]) -> list[str]:
         "no_selected_sessions": "no selected sessions",
         "worklog": "worklog reconciliation",
         "unknown_stage_map_session": "stage-map unknown session_id",
+        "manifest_missing_session": "manifest session missing from rollout",
     }
     messages: list[str] = []
     for category in (
@@ -675,6 +948,8 @@ def _strict_messages(issues: dict[str, list[str]]) -> list[str]:
         "ambiguous_stage",
         "malformed_json",
         "malformed_usage",
+        "usage_cached_exceeds_input",
+        "usage_cumulative_rollback",
         "inconsistent_turn_context",
         "non_monotonic_cumulative",
         "missing_session_meta",
@@ -684,6 +959,7 @@ def _strict_messages(issues: dict[str, list[str]]) -> list[str]:
         "no_selected_sessions",
         "worklog",
         "unknown_stage_map_session",
+        "manifest_missing_session",
     ):
         details = issues.get(category, [])
         if details:
@@ -696,9 +972,24 @@ def _strict_messages(issues: dict[str, list[str]]) -> list[str]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
+    if args.manifest is not None and args.cwd_contains:
+        parser.error("--manifest と --cwd-contains は同時指定できない")
     if (args.worklog is None) != (args.worklog_entry is None):
         parser.error("--worklog と --worklog-entry は同時に指定すること")
     stage_map = _parse_stage_map(parser, args.stage_map)
+    manifest: dict[str, Any] | None = None
+    manifest_sessions: dict[str, dict[str, Any]] = {}
+    if args.manifest is not None:
+        try:
+            manifest = _load_manifest(args.manifest)
+        except _ManifestError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        manifest_sessions = {
+            session["session_id"]: session
+            for session in manifest["sessions"]
+        }
+    manifest_mode = manifest is not None
     sessions_root = (args.sessions_root or _default_sessions_root()).resolve()
     if not sessions_root.exists() or not sessions_root.is_dir():
         print(
@@ -717,13 +1008,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         key=os.fspath,
     )
     for path in paths:
+        if manifest_mode and _filename_session_id(path) not in manifest_sessions:
+            continue
         record, file_issues = _stream_rollout(path)
         scanned.append((record, file_issues))
         known_ids_all.update(record["session_meta_ids"])
 
     for record, file_issues in scanned:
-        has_session_meta = bool(record["session_meta_ids"])
-        has_cwd = record["session_meta_has_cwd"]
+        if manifest_mode:
+            filename_session_id = _filename_session_id(Path(record["path"]))
+            assert filename_session_id is not None
+            for category, details in file_issues.items():
+                issues.setdefault(category, []).extend(details)
+            if not _select_manifest_session(record, filename_session_id):
+                continue
+            manifest_session = manifest_sessions[filename_session_id]
+            record["job_id"] = manifest_session["job_id"]
+            record["attempt_index"] = manifest_session["attempt_index"]
+            has_session_meta = True
+            has_cwd = record["session_meta_has_cwd"]
+        else:
+            has_session_meta = bool(record["session_meta_ids"])
+            has_cwd = record["session_meta_has_cwd"]
         if args.cwd_contains:
             matching_cwds = [
                 cwd
@@ -739,8 +1045,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             # 複数 meta の先頭が選外でも、選択対象 meta の cwd を record の
             # file-level 帰属として使い、同じ file の issue を見落とさない。
             record["cwd"] = matching_cwds[0]
-        for category, details in file_issues.items():
-            issues.setdefault(category, []).extend(details)
+        if not manifest_mode:
+            for category, details in file_issues.items():
+                issues.setdefault(category, []).extend(details)
         if not has_session_meta:
             issues.setdefault("missing_session_meta", []).append(record["path"])
             continue
@@ -752,6 +1059,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         records.append(record)
 
     records.sort(key=_timestamp_key)
+    if manifest_mode:
+        selected_session_ids = {record["session_id"] for record in records}
+        for session_id in sorted(set(manifest_sessions) - selected_session_ids):
+            issues.setdefault("manifest_missing_session", []).append(session_id)
     session_paths: dict[str, list[str]] = {}
     for record in records:
         session_paths.setdefault(record["session_id"], []).append(record["path"])
@@ -778,7 +1089,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif record["stage"] == "unclassified":
             issues.setdefault("unclassified", []).append(record["session_id"])
 
-    _assign_retries(records)
+    if manifest_mode:
+        _assign_manifest_lineage(records)
+    else:
+        _assign_retries(records)
     if not records:
         issues.setdefault("no_selected_sessions", []).append(
             "rollout selection is empty"
@@ -790,14 +1104,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         if worklog_errors:
             issues.setdefault("worklog", []).extend(worklog_errors)
         elif expectation is not None:
-            mismatches = _compare_worklog(records, expectation)
+            mismatches = _compare_worklog(
+                records, expectation, manifest_mode=manifest_mode
+            )
             if mismatches:
                 issues.setdefault("worklog", []).extend(mismatches)
 
     totals = _totals(records)
     if args.as_json:
         output = {
-            "sessions": [_public_record(record) for record in records],
+            "sessions": [
+                _public_record(record, manifest_mode=manifest_mode)
+                for record in records
+            ],
             "totals": totals,
             "issues": {key: sorted(value) for key, value in sorted(issues.items())},
         }
@@ -806,9 +1125,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             + "\n"
         )
     else:
-        sys.stdout.write(_render_table(records, totals, issues))
+        sys.stdout.write(
+            _render_table(
+                records, totals, issues, manifest_mode=manifest_mode
+            )
+        )
 
     strict_messages = _strict_messages(issues)
+    if manifest_mode and (
+        issues.get("manifest_missing_session")
+        or issues.get("duplicate_session_id")
+    ):
+        for message in strict_messages:
+            print(message, file=sys.stderr)
+        return 2
     if args.strict and strict_messages:
         for message in strict_messages:
             print(message, file=sys.stderr)
