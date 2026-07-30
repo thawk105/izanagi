@@ -1054,6 +1054,19 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   `_has_co_authored_by_policy` / `_is_descendant` を bitset 祖先判定へ置換すること。
   probe は job tmp の使い捨てで repo へは入れていない。詳細は
   `output/insights/2026-07-30_t200-suite-floor/s7-negative-result.md` §11
+- [T-206] **P2・ユーザー裁定済み (2a) / 裁定要 (2b) (本エントリ)**: `tools/dev_wave_land.py` の
+  control-plane 検査が、land と無関係な実体で止まる。本 wave の land は
+  `.codex/worktrees/.izanagi-test-dispatch` (**先頭ドットの空ディレクトリ**、git 未登録、
+  滞在プロセスなし、並行セッションの未コミット実装の残骸と推定) で 2 度目の拒否を受けた。
+  **(2a) 名前規則が過剰 — ユーザー裁定「無関係を検出してやばいというツールの方がやばい」**。
+  子名は `openat` と除外 prefix 生成にしか使われないので危険なのは `.` / `..` / `/` / NUL であり、
+  `_SAFE_ADMIN_RE` が途中のドットを既に許す以上、**先頭ドット禁止は先頭 `-` (git pathspec の
+  オプション注入) を防ぐ巻き添えでしかない**。先頭 `-` と `.` / `..` は拒否したまま先頭ドットを
+  許すべき。**(2b) は別裁定**: 名前規則を緩めても、登録済み worktree でない子は
+  `_validate_admin_binding` が `.git` 不在で拒否するため理由コードが変わるだけである。
+  「control container の子は全部が登録済み worktree」という不変条件を保つか、
+  未登録の子を無関係として無視するかは**受理集合を変える設計判断**なので裁定へ返す。
+  今回は不変条件側を復元する `rmdir` で land を通した (ユーザー承認済み、空なので可逆)
 - [T-204] **P2・ユーザー裁定要 (本エントリ、段 8 の候補)**: 子 prompt が参照する絶対 path の
   実在を投入前に親が確認する義務を `DW-O02` へ 1 行足したいが、`docs/dev-wave/**` は
   hard ceiling 24000 bytes に対し 23983 bytes で余白 17 bytes しかなく入らない。予算は上げず
