@@ -534,10 +534,19 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 - [T-180] **P1、T-179 後: job 単位 resource envelope** — turn/token/wall-clock/retry の上限と
   上限到達時の fail-closed receipt を launcher 契約へ追加する。model/reasoning の既定値は変えず、
   unit/fixture test で正常完了、上限停止、receipt 欠損拒否を固定する。
-- [T-181] **P1、T-179 後: reasoning routing の限定 A/B** — 最大消費だった focused review だけを
-  対象に `max` 対 `high` を凍結済み T-153(e)/T-154 入力で比較し、must-fix 再現率、新規 finding、
-  token/turn/wall-clock を記録する。既定値は変更せず、品質劣化または部分出力時の `max` escalation
-  条件までを裁定可能な insight にする。
+- [T-181] **(装置完了・結果 replay 未認証 2026-07-30) reasoning routing の限定 A/B** —
+  `tools/codex_reasoning_ab.py` (read-only) と回帰 194 件を追加し、focused review の
+  `max` 対 `high` を**歴史 prompt 由来の新規凍結 benchmark**上で比較した (歴史入力の byte 再現は
+  不可能と実測。歴史 run は指定 9 入力以外も実読していた)。既定値は変更していない。
+  primary (label-masked 裁定、親 + 独立第二読者が 10/10 一致) は名指し R-1 正例で
+  `high` 3/3・`max` 3/3、限定負例で偽 R-1 は両 arm 0 件。資源は max が一貫して大きい。
+  変異 kill 12/12 (両層同時 M6p 込み)。ただし `aggregate`/`verify` は
+  `experiment_complete=false` (全 run の snapshot oracle replay mismatch = 実走が
+  oracle 修正前だったため) であり、**認証済み台帳には最終版装置での 10 run 再走が必要**。
+  正本は worklog 2026-07-30 (65)、逐語と台帳は
+  `output/insights/2026-07-30_t181-reasoning-ab/`。再走せずに [T-184] の根拠にしてはならない。
+  logical turn は測れておらず、finding dedup は文字列一致の下限値、masking は
+  same-owner advisory である (limitation は insight に全文)。
 - [T-182] **P1、T-179 後: model routing の限定 shadow pilot** — critical planning/受入判定を
   `gpt-5.6-sol` のまま保持し、低リスクな第二レンズ 1 箇所だけで利用可能な軽量 model と
   `gpt-5.6-sol` を同一凍結入力で比較する。finding coverage、誤検出、token/turn/wall-clock と

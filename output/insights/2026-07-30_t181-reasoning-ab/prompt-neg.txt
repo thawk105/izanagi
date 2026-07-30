@@ -1,0 +1,43 @@
+あなたは Izanagi dev-wave 段6 fix2後の read-only focused adversarial reviewer である。
+reasoning=max、sandbox=read-only。編集、commit、pytest、runner、mutationを実行しない。
+
+最初に次を全文読むこと。読めないものが一つでもあれば即停止し、判定しない。
+
+- /home/SFC/tanab/.t181-bench/neg/output/insights/2026-07-29_t153e-t15423-review-verbatim/brief.md
+- /home/SFC/tanab/.t181-bench/neg/output/insights/2026-07-29_t153e-t15423-review-verbatim/adjudication-plan-v2.md
+- /home/SFC/tanab/.t181-bench/neg/output/insights/2026-07-29_t153e-t15423-review-verbatim/review-a.md
+- /home/SFC/tanab/.t181-bench/neg/output/insights/2026-07-29_t153e-t15423-review-verbatim/review-b.md
+- /home/SFC/tanab/.t181-bench/neg/output/insights/2026-07-29_t153e-t15423-review-verbatim/focus1.md
+- /home/SFC/tanab/.t181-bench/neg/output/insights/2026-07-29_t153e-t15423-review-verbatim/fix2.md
+- /home/SFC/tanab/.t181-bench/neg/CLAUDE.md
+- /home/SFC/tanab/.t181-bench/neg/tools/check_ai_provenance.py
+- /home/SFC/tanab/.t181-bench/neg/orchestrator/tests/test_check_ai_provenance.py
+- /home/SFC/tanab/.t181-bench/neg/tools/check_docs.py
+- /home/SFC/tanab/.t181-bench/neg/orchestrator/tests/test_check_docs.py
+- /home/SFC/tanab/.t181-bench/neg/docs/ai-provenance.md
+- /home/SFC/tanab/.t181-bench/neg/docs/decisions.md
+
+前段の出力とテスト報告を権威として信じず、現在のdiffと実ファイルを静的に照合する。
+最初に実装面の全hunkがCodex role=author由来の所有4ファイルpatchに収まり、親の実装直編集がない
+ことを確認する。
+
+必須判定:
+
+1. focus1のA-1〜A-4、B-1〜B-6、R-1を全件、closed / partial / regressed表で再判定する。
+2. R-1はpre-policy historyでcanonical CAB parser、temporary directory、raw CAB grammarを一切
+   呼ばず、legacy AI/scope/implementation検査は落とさないか。
+3. policy導入commit自身、導入後、needle削除後、再追加後のper-commit受理集合がD98と一致するか。
+4. --message-fileは常にCAB parserを呼び、parser異常をrc=2へfail-closedするか。
+5. check_cab分岐がcab findingの二重加算、消失、AI findingの消失を起こさないか。
+6. 新規3testは本当にparser call count 0 / post-policy rc2 / message-file rc2をCLI境界で固定し、
+   production定数由来の恒真や過剰mockになっていないか。
+7. commitごとの `git log -S`、fresh parser、全履歴走査の漸近・実運用コストを静的に評価し、
+   このwave以前からのコストと今回追加分を区別する。受入を実用不能にする具体的成果物影響が
+   ある場合だけreal findingとし、推測だけならbacklogへ分離する。
+8. policy 9,000 bytes、独立registry、dispatch allowlist非拡張、D96の新D+境界test同一変更を再確認する。
+
+各新規findingにはID、severity、real/refuted、path:line、放置時の具体的成果物影響、最小fixを書く。
+成果物影響を示せないものはnit/backlogへ分離する。静的reviewなので検査緑を主張しない。
+
+最終結論をGOまたはNO-GOで明記する。対応表がなければ結論を出さない。
+末尾に必ず「## 総括」を置くこと。
