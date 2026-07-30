@@ -1093,5 +1093,12 @@
 - **暫定対応:** 本受入は16 workerを採用し、赤い32-worker走をgreenとして数えない。恒久対応は
   [T-190]で失敗artifactを保存して原因を分離し、production wall-clock gateを緩めずtest fixtureを
   hardenする
-- **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32-worker対照。
-  記録: worklog 2026-07-30 (70)
+- **再発: 2026-07-31 ([T-200] 受入全走)。** Pegasus計算ノード bnode002 の48-worker全走で
+  `test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts` が
+  `assert 1 == 0` / stderr空で1件落ちた (request `874538`)。同一ノードでの単独再走は
+  1 passed / 2.55秒 (request `874539`) で再現せず、直後の48-worker全走も
+  4112 passed / 0 failed (request `874540`) だった。**48 workerでも出る**ことと、
+  失敗nodeがまた移動したことが新しい情報である。`DW-O18` により当該waveの差分
+  (t080 fixture面のみ) へは帰属しない
+- **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32/48-worker対照。
+  記録: worklog 2026-07-30 (70)、2026-07-31 (73)
