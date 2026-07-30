@@ -167,6 +167,13 @@ KNOWN_FINDINGS = {
     "A-1", "A-2", "A-3", "A-4",
     "B-1", "B-2", "B-3", "B-4", "B-5", "B-6", "R-1",
 }
+ZERO_COMPONENT_TOTAL_ONLY = "zero_component_total_only"
+_ZERO_COMPONENT_FIELDS = (
+    "input_tokens",
+    "cached_input_tokens",
+    "output_tokens",
+    "reasoning_output_tokens",
+)
 
 RC_SNAPSHOT = 20
 RC_SESSION = 21
@@ -664,6 +671,27 @@ def _git_dir(repo: Path) -> Path:
     return Path(raw).resolve()
 
 
+def _remove_git_object_info_caches(git_dir: Path) -> None:
+    """Remove clone/repack-derived metadata after the object store is pruned."""
+    object_info = git_dir / "objects" / "info"
+    if not _path_lexists(object_info):
+        return
+    metadata = object_info.lstat()
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise ValidationError(
+            f"git objects/info is not a non-symlink directory: {object_info}",
+            RC_SNAPSHOT,
+        )
+    for path in object_info.iterdir():
+        path_metadata = path.lstat()
+        if stat.S_ISDIR(path_metadata.st_mode) and not stat.S_ISLNK(
+            path_metadata.st_mode
+        ):
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+
+
 def _seal_one_git_closure(repo: Path, expected_ref: str | None) -> None:
     refs = _git(repo, "for-each-ref", "--format=%(refname)").decode().splitlines()
     for ref in refs:
@@ -680,6 +708,11 @@ def _seal_one_git_closure(repo: Path, expected_ref: str | None) -> None:
     _run(("git", "prune", "--expire=now"), cwd=repo)
 
     git_dir = _git_dir(repo)
+    # A clone can carry a commit-graph whose entries outlive the commits just
+    # pruned above.  All objects/info entries are derived metadata (including
+    # monolithic/split commit-graphs and the dumb-transport packs cache), so
+    # rebuild none of them for this sealed, local-only snapshot.
+    _remove_git_object_info_caches(git_dir)
     if expected_ref is not None:
         loose_ref = git_dir / expected_ref
         loose_ref.parent.mkdir(parents=True, exist_ok=True)
@@ -1050,6 +1083,76 @@ def _expected_filesystem_files(snapshot: Path, untracked: Iterable[str]) -> set[
     return tracked | set(untracked)
 
 
+def _stderr_first_line(completed: subprocess.CompletedProcess[bytes]) -> str:
+    lines = completed.stderr.decode("utf-8", "replace").splitlines()
+    return lines[0].strip() if lines else "<empty stderr>"
+
+
+def _git_fsck_reasons(
+    label: str, completed: subprocess.CompletedProcess[bytes]
+) -> list[str]:
+    reasons: list[str] = []
+    if completed.returncode != 0:
+        reasons.append(
+            f"{label}: git fsck exited {completed.returncode}: "
+            f"{_stderr_first_line(completed)}"
+        )
+    unreachable = [
+        line
+        for line in completed.stdout.decode("utf-8", "replace").splitlines()
+        if line.strip()
+    ]
+    if unreachable:
+        reasons.append(
+            f"{label}: git object store contains unreachable objects "
+            f"({len(unreachable)})"
+        )
+    return reasons
+
+
+def _commit_graph_manifest(
+    repository: Path,
+    label: str,
+    metadata: Sequence[Mapping[str, Any]],
+) -> tuple[list[str], dict[str, Any]]:
+    paths = [
+        dict(row)
+        for row in metadata
+        if row.get("path") == "objects/info/commit-graph"
+        or str(row.get("path", "")).startswith("objects/info/commit-graphs/")
+        or row.get("path") == "objects/info/commit-graphs"
+    ]
+    if not paths:
+        return [], {
+            "present": False,
+            "valid": None,
+            "paths": [],
+            "verify_returncode": None,
+            "verify_stderr_first_line": None,
+        }
+    verify = _run(
+        ("git", "commit-graph", "verify"),
+        cwd=repository,
+        check=False,
+    )
+    first_line = (
+        _stderr_first_line(verify) if verify.returncode != 0 else None
+    )
+    reasons = []
+    if verify.returncode != 0:
+        reasons.append(
+            f"{label}: git commit-graph verify exited {verify.returncode}: "
+            f"{first_line}"
+        )
+    return reasons, {
+        "present": True,
+        "valid": verify.returncode == 0,
+        "paths": paths,
+        "verify_returncode": verify.returncode,
+        "verify_stderr_first_line": first_line,
+    }
+
+
 def _one_git_closure_reasons(
     snapshot: Path,
     repository: Path,
@@ -1092,13 +1195,17 @@ def _one_git_closure_reasons(
     )
     if pseudo_refs:
         reasons.append(f"{label}: pseudo refs are present: {pseudo_refs}")
+    metadata = _metadata_manifest(git_dir)
+    commit_graph_reasons, commit_graph = _commit_graph_manifest(
+        repository, label, metadata
+    )
+    reasons.extend(commit_graph_reasons)
     fsck = _run(
         ("git", "fsck", "--unreachable", "--no-reflogs"),
         cwd=repository,
         check=False,
     )
-    if fsck.returncode != 0 or fsck.stdout.strip():
-        reasons.append(f"{label}: git object store contains unreachable objects")
+    reasons.extend(_git_fsck_reasons(label, fsck))
     return reasons, {
         "repository": label,
         "git_dir": git_dir.relative_to(snapshot).as_posix()
@@ -1106,7 +1213,8 @@ def _one_git_closure_reasons(
         else os.fspath(git_dir),
         "head": _git(repository, "rev-parse", "HEAD").decode().strip(),
         "refs": refs,
-        "metadata": _metadata_manifest(git_dir),
+        "commit_graph": commit_graph,
+        "metadata": metadata,
     }
 
 
@@ -2658,6 +2766,18 @@ def _external_reference_hits(
     return sorted(hits)
 
 
+def _is_zero_component_total_only(
+    usage: Any, validated: Mapping[str, int] | None
+) -> bool:
+    """Classify only the observed shape; do not assign a cause."""
+    if validated is None or validated["total_tokens"] <= 0:
+        return False
+    if any(validated[field] != 0 for field in _ZERO_COMPONENT_FIELDS):
+        return False
+    cache_write = usage.get("cache_write_input_tokens")
+    return type(cache_write) is int and cache_write == 0
+
+
 def collect_run(
     *,
     run_id: str,
@@ -2730,6 +2850,7 @@ def collect_run(
     session_id: str | None = None
     rollout_inode: int | None = None
     session_timestamp: str | None = None
+    zero_component_total_only_indexes: list[int] = []
     if thread_id is not None:
         try:
             rollout = _find_rollout(sessions_root, thread_id)
@@ -2844,9 +2965,18 @@ def collect_run(
                         reasons.append(
                             f"token[{index}].{usage_name} cached exceeds input"
                         )
-                    if validated["total_tokens"] != (
+                    identity_mismatch = validated["total_tokens"] != (
                         validated["input_tokens"] + validated["output_tokens"]
+                    )
+                    if (
+                        usage_name == "last_token_usage"
+                        and identity_mismatch
+                        and _is_zero_component_total_only(usage, validated)
                     ):
+                        zero_component_total_only_indexes.append(index)
+                    elif identity_mismatch:
+                        # total_token_usage remains fatal, including the same
+                        # shape at the final cumulative cli_reported source.
                         reasons.append(
                             f"token[{index}].{usage_name} total token identity mismatch"
                         )
@@ -3100,6 +3230,13 @@ def collect_run(
             ledger_record.get("reasoning_output_tokens") if ledger_record else 0
         ),
         "cli_reported": ledger_record.get("cli_reported") if ledger_record else 0,
+        "token_usage_observations": {
+            ZERO_COMPONENT_TOTAL_ONLY: {
+                "usage": "last_token_usage",
+                "count": len(zero_component_total_only_indexes),
+                "indexes": zero_component_total_only_indexes,
+            }
+        },
         "wall_clock_ms": process_wall_ms,
         "task_wall_clock_ms": task_wall_ms,
         "duration_ms": duration_ms,
@@ -3786,6 +3923,80 @@ def _retry_lineage_reasons(
     return reasons
 
 
+def _aggregate_token_usage_observations(
+    attempts: Sequence[Mapping[str, Any]], reasons: list[str]
+) -> dict[str, Any]:
+    by_arm_case = {
+        arm: {case: 0 for case in ("POS", "NEG")}
+        for arm in ("max", "high")
+    }
+    total_count = 0
+    for attempt in attempts:
+        if attempt.get("prelaunch_failure") is not None:
+            continue
+        failure_reasons = attempt.get("failure_reasons")
+        if (
+            isinstance(failure_reasons, list)
+            and any(
+                str(reason).startswith("replay failed:")
+                for reason in failure_reasons
+            )
+        ):
+            continue
+        run_id = str(attempt.get("run_id"))
+        observations = attempt.get("token_usage_observations")
+        classified = (
+            observations.get(ZERO_COMPONENT_TOTAL_ONLY)
+            if isinstance(observations, Mapping)
+            else None
+        )
+        if not isinstance(classified, Mapping):
+            reasons.append(
+                f"{run_id}: {ZERO_COMPONENT_TOTAL_ONLY} receipt observation missing"
+            )
+            continue
+        if classified.get("usage") != "last_token_usage":
+            reasons.append(
+                f"{run_id}: {ZERO_COMPONENT_TOTAL_ONLY} usage source mismatch"
+            )
+            continue
+        count = classified.get("count")
+        indexes = classified.get("indexes")
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            reasons.append(
+                f"{run_id}: {ZERO_COMPONENT_TOTAL_ONLY} count missing/non-int"
+            )
+            continue
+        if (
+            not isinstance(indexes, list)
+            or any(
+                isinstance(index, bool) or not isinstance(index, int) or index < 1
+                for index in indexes
+            )
+            or indexes != sorted(set(indexes))
+            or count != len(indexes)
+        ):
+            reasons.append(
+                f"{run_id}: {ZERO_COMPONENT_TOTAL_ONLY} count/index mismatch"
+            )
+            continue
+        arm = attempt.get("arm")
+        case = attempt.get("case")
+        if arm not in by_arm_case or case not in by_arm_case[str(arm)]:
+            reasons.append(
+                f"{run_id}: {ZERO_COMPONENT_TOTAL_ONLY} arm/case missing"
+            )
+            continue
+        by_arm_case[str(arm)][str(case)] += count
+        total_count += count
+    return {
+        ZERO_COMPONENT_TOTAL_ONLY: {
+            "total_count": total_count,
+            "by_arm_case": by_arm_case,
+        }
+    }
+
+
 def _aggregate_verified(
     manifest_path: Path,
     slots: Sequence[Mapping[str, Any]],
@@ -3798,6 +4009,9 @@ def _aggregate_verified(
     }
     for attempt in attempts:
         grouped.setdefault(str(attempt.get("slot_id")), []).append(attempt)
+    token_usage_observations = _aggregate_token_usage_observations(
+        attempts, reasons
+    )
     final_attempts = {
         slot_id: sorted(rows, key=lambda row: int(row["attempt"]))[-1]
         for slot_id, rows in grouped.items()
@@ -3906,6 +4120,7 @@ def _aggregate_verified(
                 "block_id", "block_order",
                 "input_tokens", "cached_input_tokens", "output_tokens",
                 "reasoning_output_tokens", "cli_reported", "model_calls",
+                "token_usage_observations",
                 "turn_protocol", "wall_clock_ms", "rate_limited", "retry",
                 "compaction_observed", "failure_class",
                 "individual_failure_class", "pair_invalidation",
@@ -3954,6 +4169,7 @@ def _aggregate_verified(
         "primary_judgment_ledger": primary_output,
         "new_finding_ledger": findings_output,
         "resource_ledger": resources,
+        "token_usage_observations": token_usage_observations,
         "turn_accounting": {
             "protocol": "single-turn-required",
             "comparative_metric": "model_calls",

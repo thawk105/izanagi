@@ -138,6 +138,29 @@ def _usage(zero: bool = False) -> dict[str, int]:
     }
 
 
+def _zero_component_total_only(total_tokens: int = 12_661) -> dict[str, int]:
+    return {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "total_tokens": total_tokens,
+    }
+
+
+def _token_usage_observations(
+    indexes: tuple[int, ...] = ()
+) -> dict[str, dict[str, Any]]:
+    return {
+        TOOL.ZERO_COMPONENT_TOTAL_ONLY: {
+            "usage": "last_token_usage",
+            "count": len(indexes),
+            "indexes": list(indexes),
+        }
+    }
+
+
 def _iso(base: datetime, milliseconds: int) -> str:
     return (base + timedelta(milliseconds=milliseconds)).isoformat().replace(
         "+00:00", "Z"
@@ -257,8 +280,10 @@ def _manual_run(
     id_mismatch: bool = False,
     missing_context: bool = False,
     malformed_rollout: bool = False,
+    non_object_rollout: bool = False,
     partial_output: bool = False,
     empty_turn: bool = False,
+    token_infos: list[Any] | None = None,
 ) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
     run_dir = root / "r01"
@@ -405,6 +430,12 @@ def _manual_run(
                 },
             }
         )
+    token_infos = token_infos if token_infos is not None else [
+        {
+            "total_token_usage": _usage(),
+            "last_token_usage": _usage(),
+        }
+    ]
     rows.extend(
         [
             {
@@ -412,17 +443,17 @@ def _manual_run(
                 "type": "event_msg",
                 "payload": {"type": "user_message", "message": "prompt"},
             },
-            {
-                "timestamp": _iso(started, 5),
-                "type": "event_msg",
-                "payload": {
-                    "type": "token_count",
-                    "info": {
-                        "total_token_usage": _usage(),
-                        "last_token_usage": _usage(),
+            *[
+                {
+                    "timestamp": _iso(started, 5),
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": info,
                     },
-                },
-            },
+                }
+                for info in token_infos
+            ],
             {
                 "timestamp": _iso(started, 6),
                 "type": "event_msg",
@@ -445,7 +476,8 @@ def _manual_run(
     rollout = sessions / "rollout-r01.jsonl"
     rollout.write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows)
-        + ("not-json\n" if malformed_rollout else ""),
+        + ("not-json\n" if malformed_rollout else "")
+        + ("[]\n" if non_object_rollout else ""),
         encoding="utf-8",
     )
     events.write_text(
@@ -730,6 +762,156 @@ def test_forbidden_commits_are_unreachable_in_both_cases(
         assert TOOL._git(
             snapshot, "for-each-ref", "--format=%(refname)"
         ).decode().splitlines() == [f"refs/heads/{TOOL.BRANCH}"]
+
+
+def test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure(
+    benchmark_snapshots: dict[str, Any],
+) -> None:
+    for case in ("POS", "NEG"):
+        snapshot = benchmark_snapshots[case]["snapshot"]
+        oracle = TOOL.verify_snapshot(snapshot, case)
+        repositories = oracle["git_object_closure"]["repositories"]
+        assert repositories
+        for repository in repositories:
+            assert repository["commit_graph"] == {
+                "present": False,
+                "valid": None,
+                "paths": [],
+                "verify_returncode": None,
+                "verify_stderr_first_line": None,
+            }
+            assert not any(
+                row["path"].startswith("objects/info/")
+                for row in repository["metadata"]
+            )
+        for forbidden in (TOOL.INTEGRATED_COMMIT, TOOL.ARTIFACT_COMMIT):
+            assert subprocess.run(
+                ["git", "cat-file", "-e", forbidden],
+                cwd=snapshot,
+                check=False,
+                capture_output=True,
+                env=TOOL._clean_environment(),
+            ).returncode != 0
+        assert TOOL._git(
+            snapshot, "for-each-ref", "--format=%(refname)"
+        ).decode().splitlines() == [f"refs/heads/{TOOL.BRANCH}"]
+        for focus in ("focus1.md", "focus2.md"):
+            relative = f"{TOOL.ARTIFACT_DIR}/{focus}"
+            assert not TOOL._git(
+                snapshot, "log", "--all", "--format=%H", "--", relative
+            ).strip()
+
+
+def test_object_info_derived_caches_are_removed_for_root_and_submodule(
+    tmp_path: Path,
+) -> None:
+    snapshot, submodule, _ = _synthetic_nested_submodule_snapshot(tmp_path)
+    for repository in (snapshot, submodule):
+        git_dir = TOOL._git_dir(repository)
+        object_info = git_dir / "objects/info"
+        split_graphs = object_info / "commit-graphs"
+        split_graphs.mkdir(parents=True, exist_ok=True)
+        (object_info / "commit-graph").write_bytes(b"stale monolithic graph")
+        (split_graphs / "graph-stale.graph").write_bytes(b"stale split graph")
+        (object_info / "packs").write_text("P stale.pack\n", encoding="ascii")
+        TOOL._remove_git_object_info_caches(git_dir)
+        assert object_info.is_dir()
+        assert list(object_info.iterdir()) == []
+
+
+def _install_stale_commit_graph(repository: Path) -> str:
+    head = TOOL._git(repository, "rev-parse", "HEAD").decode().strip()
+    tree = TOOL._git(repository, "rev-parse", "HEAD^{tree}").decode().strip()
+    stale = TOOL._git(
+        repository,
+        "-c",
+        "user.name=T181",
+        "-c",
+        "user.email=t181@example.invalid",
+        "commit-tree",
+        tree,
+        "-p",
+        head,
+        input_bytes=b"pruned answer commit\n",
+    ).decode().strip()
+    TOOL._git(repository, "update-ref", "refs/heads/stale-answer", stale)
+    TOOL._git(repository, "commit-graph", "write", "--reachable")
+    TOOL._git(repository, "update-ref", "-d", "refs/heads/stale-answer")
+    TOOL._run(
+        (
+            "git",
+            "reflog",
+            "expire",
+            "--expire=now",
+            "--expire-unreachable=now",
+            "--all",
+        ),
+        cwd=repository,
+    )
+    TOOL._run(("git", "repack", "-Ad"), cwd=repository)
+    TOOL._run(("git", "prune-packed"), cwd=repository)
+    TOOL._run(("git", "prune", "--expire=now"), cwd=repository)
+    assert TOOL._run(
+        ("git", "cat-file", "-e", stale),
+        cwd=repository,
+        check=False,
+    ).returncode != 0
+    return stale
+
+
+def test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested(
+    tmp_path: Path,
+    benchmark_snapshots: dict[str, Any],
+) -> None:
+    snapshot = tmp_path / "stale-commit-graph"
+    shutil.copytree(benchmark_snapshots["POS"]["snapshot"], snapshot)
+    _install_stale_commit_graph(snapshot)
+
+    reasons, manifests, _ = TOOL._git_closure_reasons(
+        snapshot, TOOL._snapshot_spec("POS")["untracked"]
+    )
+    assert any("git commit-graph verify exited" in reason for reason in reasons)
+    commit_graph = manifests[0]["commit_graph"]
+    assert commit_graph["present"] is True
+    assert commit_graph["valid"] is False
+    assert commit_graph["verify_returncode"] != 0
+    assert commit_graph["paths"]
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS")
+    assert any(
+        "git commit-graph verify exited" in reason
+        for reason in caught.value.reasons
+    )
+
+
+def test_fsck_nonzero_reason_is_not_mislabeled_as_unreachable_objects() -> None:
+    completed = subprocess.CompletedProcess(
+        args=["git", "fsck"],
+        returncode=17,
+        stdout=b"",
+        stderr=(
+            b"error: Could not read 08a7e5f2fc08d57309a86ef70d00e9b050ebec9c\n"
+            b"failed to parse commit from commit-graph\n"
+        ),
+    )
+    reasons = TOOL._git_fsck_reasons(".", completed)
+    assert reasons == [
+        ".: git fsck exited 17: "
+        "error: Could not read 08a7e5f2fc08d57309a86ef70d00e9b050ebec9c"
+    ]
+    assert all("unreachable objects" not in reason for reason in reasons)
+
+
+def test_fsck_unreachable_stdout_reports_count_independently() -> None:
+    completed = subprocess.CompletedProcess(
+        args=["git", "fsck"],
+        returncode=0,
+        stdout=b"unreachable blob aaaa\nunreachable commit bbbb\n",
+        stderr=b"",
+    )
+    assert TOOL._git_fsck_reasons("deps/child", completed) == [
+        "deps/child: git object store contains unreachable objects (2)"
+    ]
 
 
 def test_m1_snapshot_head_pin_is_independent(
@@ -1610,6 +1792,132 @@ def test_turn_id_must_be_nonempty_and_events_are_ordered(tmp_path: Path) -> None
     assert "turn_id missing/empty" in reasons
 
 
+def test_zero_component_total_only_per_turn_is_nonfatal_and_reported(
+    tmp_path: Path,
+) -> None:
+    run = _manual_run(
+        tmp_path,
+        token_infos=[
+            {
+                "total_token_usage": _usage(),
+                "last_token_usage": _zero_component_total_only(),
+            },
+            {
+                "total_token_usage": _usage(),
+                "last_token_usage": _usage(),
+            },
+        ],
+    )
+    assert run["rc"] == 0
+    assert run["receipt"]["valid"] is True
+    assert run["receipt"]["failure_reasons"] == []
+    assert run["receipt"]["cli_reported"] == 28
+    assert run["receipt"]["token_usage_observations"] == (
+        _token_usage_observations((1,))
+    )
+
+
+def test_nonzero_component_last_usage_identity_mismatch_remains_fatal(
+    tmp_path: Path,
+) -> None:
+    mismatched = _usage()
+    mismatched["total_tokens"] += 1
+    run = _manual_run(
+        tmp_path,
+        token_infos=[
+            {
+                "total_token_usage": _usage(),
+                "last_token_usage": mismatched,
+            }
+        ],
+    )
+    assert run["rc"] == TOOL.RC_RECEIPT
+    assert (
+        "token[1].last_token_usage total token identity mismatch"
+        in run["receipt"]["failure_reasons"]
+    )
+    assert run["receipt"]["token_usage_observations"] == (
+        _token_usage_observations()
+    )
+
+
+def test_final_cumulative_zero_component_total_only_remains_fatal(
+    tmp_path: Path,
+) -> None:
+    run = _manual_run(
+        tmp_path,
+        token_infos=[
+            {
+                "total_token_usage": _usage(),
+                "last_token_usage": _usage(),
+            },
+            {
+                "total_token_usage": _zero_component_total_only(),
+                "last_token_usage": _usage(),
+            },
+        ],
+    )
+    assert run["rc"] == TOOL.RC_RECEIPT
+    assert (
+        "token[2].total_token_usage total token identity mismatch"
+        in run["receipt"]["failure_reasons"]
+    )
+
+
+def test_all_null_token_info_is_rejected(tmp_path: Path) -> None:
+    run = _manual_run(tmp_path, token_infos=[None])
+    assert run["rc"] == TOOL.RC_RECEIPT
+    reasons = "\n".join(run["receipt"]["failure_reasons"])
+    assert "all token_count.info values are null/non-object" in reasons
+    assert "final token_count.info is null/non-object" in reasons
+
+
+def test_final_cumulative_usage_null_is_rejected(tmp_path: Path) -> None:
+    run = _manual_run(
+        tmp_path,
+        token_infos=[
+            {
+                "total_token_usage": None,
+                "last_token_usage": _usage(),
+            }
+        ],
+    )
+    assert run["rc"] == TOOL.RC_RECEIPT
+    assert (
+        "token[1].total_token_usage is not an object"
+        in run["receipt"]["failure_reasons"]
+    )
+
+
+def test_non_object_rollout_row_is_rejected(tmp_path: Path) -> None:
+    run = _manual_run(tmp_path, non_object_rollout=True)
+    assert run["rc"] == TOOL.RC_RECEIPT
+    assert "JSON value is not an object" in "\n".join(
+        run["receipt"]["failure_reasons"]
+    )
+
+
+def test_all_zero_usage_is_distinct_and_rejected(tmp_path: Path) -> None:
+    zero = _usage(zero=True)
+    run = _manual_run(
+        tmp_path,
+        token_infos=[
+            {
+                "total_token_usage": zero,
+                "last_token_usage": zero,
+            }
+        ],
+    )
+    assert run["rc"] == TOOL.RC_RECEIPT
+    assert (
+        "token usage is all zero for non-empty prompt/output"
+        in run["receipt"]["failure_reasons"]
+    )
+    assert run["receipt"]["token_usage_observations"] == (
+        _token_usage_observations()
+    )
+
+
 def _aggregate_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, Any]]]:
     slots: list[dict[str, Any]] = []
     attempts: list[dict[str, Any]] = []
@@ -1647,6 +1955,7 @@ def _aggregate_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[
                     "reasoning_output_tokens": 0,
                     "cli_reported": 2,
                     "model_calls": 1,
+                    "token_usage_observations": _token_usage_observations(),
                     "turn_protocol": "single-turn-required",
                     "wall_clock_ms": 100,
                     "rate_limited": False,
@@ -1660,6 +1969,52 @@ def _aggregate_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[
                 "reader_agreement": True,
             }
     return slots, attempts, verdicts
+
+
+def test_zero_component_total_only_aggregate_counts_by_arm_and_case(
+    tmp_path: Path,
+) -> None:
+    slots, attempts, verdicts = _aggregate_rows()
+    attempts[6]["token_usage_observations"] = _token_usage_observations((1,))
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / "manifest.json", {}),
+        slots,
+        attempts,
+        verdicts,
+        [],
+    )
+    assert result["valid"] is True
+    assert result["token_usage_observations"] == {
+        TOOL.ZERO_COMPONENT_TOTAL_ONLY: {
+            "total_count": 1,
+            "by_arm_case": {
+                "max": {"POS": 0, "NEG": 1},
+                "high": {"POS": 0, "NEG": 0},
+            },
+        }
+    }
+
+
+def test_zero_component_total_only_count_is_required_for_aggregate(
+    tmp_path: Path,
+) -> None:
+    slots, attempts, verdicts = _aggregate_rows()
+    del attempts[0]["token_usage_observations"][
+        TOOL.ZERO_COMPONENT_TOTAL_ONLY
+    ]["count"]
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / "manifest.json", {}),
+        slots,
+        attempts,
+        verdicts,
+        [],
+    )
+    assert result["valid"] is False
+    assert result["experiment_complete"] is False
+    assert (
+        "r01: zero_component_total_only count missing/non-int"
+        in result["failure_reasons"]
+    )
 
 
 def test_m9_post_treatment_failure_remains_in_denominator(tmp_path: Path) -> None:
