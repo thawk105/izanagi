@@ -36,7 +36,7 @@ review を流用してはならない。
   commit、local main 取り込みを担う。docs-only の本文編集は親が行ってよい。
 - 実装子はコードとテストだけを編集し、docs 編集と commit をしない。親だけが統合 commit、
   変異 matrix、受入全走、記録、local main 取り込みを行う。
-- push と remote branch 操作はしない。local main 取り込みは全条件成立時の `--ff-only` だけとする。
+- push と remote branch 操作はしない。local main 取り込みは全条件成立時の共通段 9 operation だけとする。
 - 規定の停止条件、検査赤、権限・scope・参照の不整合を迂回しない。
 - 1 wave は 1 fresh context とし、command を自己再帰させず、段 9 後に新しい wave を始めない。
 
@@ -51,7 +51,7 @@ review を流用してはならない。
 6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。
 7. **記録 (親):** worklog、insights、decisions、commit、記録後検査を完了する。
 8. **スキル自己改善 (親):** 共有契約で候補を routing する。候補ゼロなら無言で通過する。
-9. **終端・local main (親):** 監査済み成果だけを条件付きで ff-only 取り込みして終了する。
+9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。
 
 ## 段 dispatch
 
@@ -63,16 +63,16 @@ review を流用してはならない。
 | 段 3 preflight | `docs/dev-wave/workers.md`: `DW-S03`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05`, `DW-O13` |
 | 段 4 | `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`; `docs/dev-wave/mutation.md`: `DW-M01` |
 | 段 5 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
-| 段 5 | 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20` |
+| 段 5 | 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`, `DW-O23` |
 | 段 6 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
 | 段 6 | `docs/dev-wave/workers.md`: `DW-S06-A`, `DW-S06-B`, `DW-S06-C` |
 | 段 6 | `docs/dev-wave/core.md`: `DW-G05` |
 | 段 6 | `docs/dev-wave/mutation.md`: `DW-M02`, `DW-M03`, `DW-M04`, `DW-M05`, `DW-M06`, `DW-M07`, `DW-M08` |
-| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20` |
+| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`, `DW-O23` |
 | 段 7 | `docs/dev-wave/core.md`: `DW-S07`; 成立した条件の `docs/dev-wave/operations.md`: `DW-O12`, `DW-O17`, `DW-O18`, `DW-O19` |
 | 段 8 preflight | `docs/dev-wave/core.md`: `DW-S08`; `docs/skill-self-improvement.md` の全節 |
 | 段 8 preflight | commit するなら `docs/dev-wave/operations.md`: `DW-O17`; 防護パス message なら `DW-O04` |
-| 段 9 | `docs/dev-wave/core.md`: `DW-S09`, `DW-CTX`, `DW-STOP` |
+| 段 9 | `docs/dev-wave/core.md`: `DW-S09`, `DW-CTX`, `DW-STOP`; `docs/dev-wave/operations.md`: `DW-O23` |
 
 段 6 で fix を codex へ再投する子は、段 5 の実装子契約 `DW-S05-A`、`DW-S05-B`、`DW-S05-C` を
 全文継承する。段 6 時点で成立している全条件の `DW-Oxx` も、fix 操作の直前に読む。
@@ -102,12 +102,13 @@ review を流用してはならない。
 | 20 | 背景 job + worktree 隔離の wave 開始時（最遅: clean-tree gate を worktree で走らせる直前） | `docs/dev-wave/operations.md`: `DW-O20` |
 | 21 | 無人継続を構成し最初の process を起動する前 | `docs/dev-wave/core.md`: `DW-CTX` |
 | 22 | supervisor を使用する前 | `docs/dev-wave/core.md`: `DW-CTX` |
+| 23 | local main を取り込む直前 | `docs/dev-wave/operations.md`: `DW-O23` |
 
 各条件の詳細は参照節だけを正本とし、事故の物語は `docs/failures.md` の F 番号へ置く。
 入口や reference へ同じ物語を再掲しない。
 
 ## 終端
 
-段 8 で許される自動修正も、専用 commit、予算検査、関連検査を完了してから段 9 の
-「本 wave の監査済み commit 集合」に含める。段 9 の条件が一つでも欠ければ rebase、force、
-他 session 差分の巻き込みをせず停止し、main HEAD、次タスク、停止理由、再開コマンドを報告する。
+段 8 の自動修正も専用 commit・予算・関連検査後だけ監査済み集合へ含める。段 9 の条件不足や
+race loser は rebase、force、他 session 所有物の変更で迂回せず、main HEAD、停止理由、
+次タスク、fresh context の再開コマンドを報告する。

@@ -5,7 +5,8 @@ default_effect: no-state-change
 
 Claude の `/cleanup-branches` dispatcher を共通正本として再利用する repo-scoped Codex Skill の
 brief、相談、裁定、実装報告、敵対レビュー、fix、変異台帳、forward test を凍結する。
-可変状態と完了判定の正本は `docs/worklog.md` 2026-07-30 (67) と `docs/phase3.md`。
+最終 land ID は T-189、可変状態と完了判定の正本は `docs/worklog.md` 2026-07-30 (68) と
+`docs/phase3.md`。本ディレクトリ名と下記 T-188 は並行 land 競合前の provenance として保持する。
 
 着手時の仮 ID は T-173 だったが、並行 land の D70 採番により T-188 へ振り直した。
 逐語中の T-173 と旧 worktree absolute path は当時の provenance として書き換えていない。

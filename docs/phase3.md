@@ -578,19 +578,25 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### 裁定・完了記録
 
-- [T-188] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —
+- [T-189] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —
   `.agents/skills/cleanup-branches/` に Claude command を共通 dispatcher として再利用する薄い
   Codex adapter と生成済み UI metadata を追加。明示 `$cleanup-branches` 専用とし、
   main / primary / foreign / locked / process residency / real prune / permission / push 境界を
   Codex 固有の安全側 overlay で固定した。`check_docs.py` は Skill と command の全 bytes、
   2 file 閉包、exact interface を独立 pin と負例で拒否する。材料・レビュー・変異 =
-  `output/insights/2026-07-30_t188-codex-cleanup-branches-skill-wave/`、記録 = worklog (67)。
+  `output/insights/2026-07-30_t188-codex-cleanup-branches-skill-wave/`、記録 = worklog (68)。
 - [T-187] **(完了 2026-07-30) `6b64d21` AI provenance forward-only是正** — 共有済みmerge
   commitはrewriteせず、固定target/payload・strict lineage・selected-set両commit・実欠落・
   correction自身greenを連言する一回限り`AI-Agent-Correction`でmissing findingだけを相殺する。
   mergeのD95 pathを全parentとの差分積へ統一し、O17を`--no-commit` preflight→`commit -F`→
   full-history監査へ更新。設計判断=D101、材料・レビュー・変異=
   `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`、記録=worklog (66)。
+- [T-188] **(完了 2026-07-30) dev-wave 並行 session land** — Claude command / Codex Skill が
+  共有する `DW-O23` と `tools/dev_wave_land.py` を導入。別 session の schema-valid handoff と
+  Git admin に双方向登録された worktree container を非接触で保ち、tested SHA・ordered closure・
+  common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D102、
+  失敗台帳=F55、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`、
+  記録=worklog (67)。
 - [T-143] **(完了 2026-07-29) RuleOps v1** — tracked HEAD tree の直下testと
   `output/insights/`をread-only inventoryし、人間裁定用draftとauthorityを持たない候補ledgerを
   fail-closedに検査するCLIを導入。削除・apply・approval・安全判定は行わず、受入全走へempty

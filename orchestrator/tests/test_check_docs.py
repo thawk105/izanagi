@@ -36,7 +36,13 @@ sys.path.insert(0, os.path.join(_REPO, "tools"))
 import check_docs  # noqa: E402
 
 
-# operations 由来の条件 dispatch key (O07 削除後 19 件)。契約から導出するが、
+_S09_ACCEPTANCE_ORDER_LITERAL = (
+    "全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して "
+    "`DW-O23` を行う。"
+)
+
+
+# operations 由来の条件 dispatch key (O07/O21/O22 を除く 20 件)。契約から導出するが、
 # exact な外延は test_operation_contract_pins_exact_section_set が literal で pin する。
 _OPERATION_CONDITION_KEYS = sorted(
     key
@@ -311,7 +317,7 @@ def _write_command_guard_docs(root: str) -> None:
                 ]
             ):
                 chunks.append(
-                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`"
+                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`, `DW-O23`"
                 )
             else:
                 ids = ", ".join(f"`{section}`" for section in sections)
@@ -382,6 +388,7 @@ $ARGUMENTS
 docs/skill-self-improvement.md
 """
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
+    _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
     codex_skill = """---
@@ -391,7 +398,9 @@ description: synthetic Codex dev-wave skill
 
 # Dev Wave
 
-""" + "\n".join(check_docs.CODEX_DEV_WAVE_SKILL_LITERALS) + "\n"
+    """ + "\n".join(check_docs.CODEX_DEV_WAVE_SKILL_LITERALS) + "\n" + (
+        check_docs.CODEX_DEV_WAVE_STAGE9_LAND_LITERAL + "\n"
+    )
     _write(root, ".agents/skills/dev-wave/SKILL.md", codex_skill)
     _write(
         root,
@@ -424,10 +433,20 @@ description: synthetic Codex rulings skill
     )
 
     for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
-        text = "# synthetic reference\n\n" + "\n\n".join(
-            f"## {section} — synthetic\n\nbody"
-            for section in sorted(sections)
-        ) + "\n"
+        rendered_sections = []
+        for section in sorted(sections):
+            body = "body"
+            if rel == "docs/dev-wave/core.md" and section == "DW-S09":
+                body += (
+                    "\n\n"
+                    + _S09_ACCEPTANCE_ORDER_LITERAL
+                    + "\n"
+                    + check_docs.DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL
+                )
+            if rel == "docs/dev-wave/operations.md" and section == "DW-O23":
+                body += "\n\n`tools/dev_wave_land.py`"
+            rendered_sections.append(f"## {section} — synthetic\n\n{body}")
+        text = "# synthetic reference\n\n" + "\n\n".join(rendered_sections) + "\n"
         literals = check_docs.CODEX_FIRST_REFERENCE_LITERALS.get(rel, ())
         if literals:
             text += "\n" + "\n".join(literals) + "\n"
@@ -1883,6 +1902,14 @@ def _mutate_command_guard(root: str, case: str) -> None:
             and "`docs/skill-self-improvement.md`" in line,
             lambda line: "",
         )
+    elif case == "stage9_land_operation_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 9 |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: "",
+        )
     elif case == "condition_o13_deleted":
         _rewrite_matching_lines(
             root,
@@ -1894,7 +1921,7 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _rewrite_matching_lines(
             root,
             ".claude/commands/dev-wave.md",
-            lambda line: re.match(r"^\| (?:0[1-9]|1[0-9]|20) \|", line)
+            lambda line: re.match(r"^\| (?:0[1-9]|1[0-9]|20|23) \|", line)
             is not None,
             lambda line: "",
             expected=len(_OPERATION_CONDITION_KEYS),
@@ -1904,6 +1931,13 @@ def _mutate_command_guard(root: str, case: str) -> None:
             root,
             ".claude/commands/dev-wave.md",
             lambda line: line.startswith("| 22 |"),
+            lambda line: "",
+        )
+    elif case == "condition_land_operation_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 23 |"),
             lambda line: "",
         )
     elif case == "self_heading_deleted":
@@ -1975,6 +2009,47 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, rel, _read(root, rel).replace(
             "親が直接直さない", "親が直接直す", 1,
         ))
+    elif case == "s09_land_route_deleted":
+        rel = "docs/dev-wave/core.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                check_docs.DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL,
+                "land route omitted",
+                1,
+            ),
+        )
+    elif case == "s09_acceptance_order_deleted":
+        rel = "docs/dev-wave/core.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                _S09_ACCEPTANCE_ORDER_LITERAL,
+                "acceptance order omitted",
+                1,
+            ),
+        )
+    elif case == "core_land_helper_outside_s09":
+        rel = "docs/dev-wave/core.md"
+        _write(root, rel, _read(root, rel) + "\ntools/dev_wave_land.py\n")
+    elif case == "o23_land_helper_deleted":
+        rel = "docs/dev-wave/operations.md"
+        sections = check_docs._reference_id_sections(_read(root, rel), "DW-O23")
+        assert len(sections) == 1
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                sections[0],
+                sections[0].replace("`tools/dev_wave_land.py`", "helper omitted", 1),
+                1,
+            ),
+        )
+    elif case == "operations_land_helper_outside_o23":
+        rel = "docs/dev-wave/operations.md"
+        _write(root, rel, _read(root, rel) + "\ntools/dev_wave_land.py\n")
     elif case == "codex_skill_deleted":
         os.remove(os.path.join(
             root, ".agents", "skills", "dev-wave", "SKILL.md"
@@ -1992,6 +2067,17 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, rel, _read(root, rel).replace(
             literal, "common dispatcher omitted", 1,
         ))
+    elif case == "codex_skill_stage9_land_literal_deleted":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                check_docs.CODEX_DEV_WAVE_STAGE9_LAND_LITERAL,
+                "Stage 9 Codex land contract omitted.",
+                1,
+            ),
+        )
     elif case == "codex_skill_openai_changed":
         rel = ".agents/skills/dev-wave/agents/openai.yaml"
         _write(root, rel, _read(root, rel).replace(
@@ -1999,6 +2085,38 @@ def _mutate_command_guard(root: str, case: str) -> None:
             "display_name: \"Changed\"",
             1,
         ))
+    elif case == "codex_skill_land_helper_duplicated":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        _write(root, rel, _read(root, rel) + "\ntools/dev_wave_land.py\n")
+    elif case == "command_land_helper_duplicated":
+        rel = ".claude/commands/dev-wave.md"
+        _write(root, rel, _read(root, rel) + "\ntools/dev_wave_land.py\n")
+    elif case == "command_alternate_land_helper":
+        rel = ".claude/commands/dev-wave.md"
+        _write(
+            root, rel,
+            _read(root, rel)
+            + "\n```sh\n$ python3 tools/alternate_land.py --main main\n```\n",
+        )
+    elif case == "skill_alternate_land_helper":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        _write(
+            root, rel,
+            _read(root, rel)
+            + "\n```sh\n$ python3 tools/alternate_land.py --main main\n```\n",
+        )
+    elif case == "command_direct_main_ff":
+        rel = ".claude/commands/dev-wave.md"
+        _write(
+            root, rel,
+            _read(root, rel) + "\n```sh\n$ git merge --ff-only deadbeef\n```\n",
+        )
+    elif case == "skill_direct_main_ff":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        _write(
+            root, rel,
+            _read(root, rel) + "\n```sh\n$ git merge --ff-only deadbeef\n```\n",
+        )
     elif case == "codex_rulings_skill_deleted":
         os.remove(os.path.join(
             root, ".agents", "skills", "rulings", "SKILL.md"
@@ -2078,9 +2196,11 @@ _COMMAND_GUARD_CASES = [
     "stage6_all_operations_deleted",
     "stage8_operations_deleted",
     "stage8_self_deleted",
+    "stage9_land_operation_deleted",
     "condition_o13_deleted",
     "condition_all_operations_deleted",
     "condition_supervisor_deleted",
+    "condition_land_operation_deleted",
     "self_heading_deleted",
     "self_h3_deleted",
     "self_long_line",
@@ -2093,11 +2213,23 @@ _COMMAND_GUARD_CASES = [
     "codex_command_contract_deleted",
     "codex_core_contract_deleted",
     "codex_worker_contract_deleted",
+    "s09_land_route_deleted",
+    "s09_acceptance_order_deleted",
+    "core_land_helper_outside_s09",
+    "o23_land_helper_deleted",
+    "operations_land_helper_outside_o23",
     "codex_skill_deleted",
     "codex_skill_extra_file",
     "codex_skill_name_changed",
     "codex_skill_adapter_deleted",
+    "codex_skill_stage9_land_literal_deleted",
     "codex_skill_openai_changed",
+    "codex_skill_land_helper_duplicated",
+    "command_land_helper_duplicated",
+    "command_alternate_land_helper",
+    "skill_alternate_land_helper",
+    "command_direct_main_ff",
+    "skill_direct_main_ff",
     "codex_rulings_skill_deleted",
     "codex_rulings_skill_extra_file",
     "codex_rulings_skill_name_changed",
@@ -2134,9 +2266,11 @@ _COMMAND_GUARD_NEEDLES = {
     "stage6_all_operations_deleted": "段 dispatch '段 6' が契約と不一致",
     "stage8_operations_deleted": "段 dispatch '段 8' が契約と不一致",
     "stage8_self_deleted": "段 dispatch '段 8' が契約と不一致",
+    "stage9_land_operation_deleted": "段 dispatch '段 9' が契約と不一致",
     "condition_o13_deleted": "条件 dispatch '13' が契約と不一致",
     "condition_all_operations_deleted": "条件 dispatch '01' が契約と不一致",
     "condition_supervisor_deleted": "条件 dispatch '22' が契約と不一致",
+    "condition_land_operation_deleted": "条件 dispatch '23' が契約と不一致",
     "self_heading_deleted": "H2 見出し 'routing' が 0 件",
     "self_h3_deleted": "H3 見出し 'cleanup-branches' が 0 件",
     "self_long_line": "最長行予算",
@@ -2149,11 +2283,23 @@ _COMMAND_GUARD_NEEDLES = {
     "codex_command_contract_deleted": "Codex-first 実装境界",
     "codex_core_contract_deleted": "Codex-first 実装契約がない",
     "codex_worker_contract_deleted": "Codex-first 実装契約がない",
+    "s09_land_route_deleted": "DW-S09 の helper 唯一経路 literal",
+    "s09_acceptance_order_deleted": "DW-S09 の acceptance/O23 順序 literal",
+    "core_land_helper_outside_s09": "path-section外=1",
+    "o23_land_helper_deleted": "land helper path は全体で exact 1 件",
+    "operations_land_helper_outside_o23": "land helper path は全体で exact 1 件",
     "codex_skill_deleted": "Codex dev-wave Skill の必須 file が不在",
     "codex_skill_extra_file": "Codex dev-wave Skill の予算未登録実体",
     "codex_skill_name_changed": "name は 'dev-wave' 必須",
     "codex_skill_adapter_deleted": "Codex adapter 契約がない",
+    "codex_skill_stage9_land_literal_deleted": "exact adapter literal が 0 件",
     "codex_skill_openai_changed": "生成済み Skill interface 契約と不一致",
+    "codex_skill_land_helper_duplicated": "共通 dispatcher の leaf path を重複 pin",
+    "command_land_helper_duplicated": "land helper path は DW-S09 / DW-O23 だけ",
+    "command_alternate_land_helper": "alternate land helper command",
+    "skill_alternate_land_helper": "alternate land helper command",
+    "command_direct_main_ff": "direct git merge --ff-only main mutation",
+    "skill_direct_main_ff": "direct git merge --ff-only main mutation",
     "codex_rulings_skill_deleted": "Codex rulings Skill の必須 file が不在",
     "codex_rulings_skill_extra_file": "Codex rulings Skill の予算未登録実体",
     "codex_rulings_skill_name_changed": "name は 'rulings' 必須",
@@ -2178,7 +2324,7 @@ _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
 
 
 def test_operation_contract_pins_exact_section_set():
-    """operations 契約の外延と配線を literal で固定する (O07 削除後の 19 節)。
+    """operations 契約の外延と配線を literal で固定する (O23 追加後の 20 節)。
 
     checker とテスト fixture は同じ `_OPERATION_NUMBERS` から導出される (F9 型の
     自己整合面)。fixture の literal range 表記が単純な縮小・拡大を先に赤くし、
@@ -2190,7 +2336,7 @@ def test_operation_contract_pins_exact_section_set():
         "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
         "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
         "DW-O14", "DW-O15", "DW-O16", "DW-O17", "DW-O18", "DW-O19",
-        "DW-O20",
+        "DW-O20", "DW-O23",
     }
     assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == expected
     assert check_docs._ALL_OPERATIONS == frozenset(
@@ -2213,6 +2359,20 @@ def test_operation_contract_pins_exact_section_set():
         assert check_docs._ALL_OPERATIONS <= (
             check_docs.STAGE_DISPATCH_CONTRACT[stage]
         ), f"{stage} が operations 全節を消費していない"
+    assert (
+        "docs/dev-wave/operations.md", "DW-O23"
+    ) in check_docs.STAGE_DISPATCH_CONTRACT["段 9"]
+    assert check_docs.DEV_WAVE_LAND_HELPER == "tools/dev_wave_land.py"
+    assert check_docs.DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL == (
+        "`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路"
+    )
+    assert check_docs.DEV_WAVE_S09_ACCEPTANCE_ORDER_LITERAL == (
+        _S09_ACCEPTANCE_ORDER_LITERAL
+    )
+    assert check_docs.CODEX_DEV_WAVE_STAGE9_LAND_LITERAL == (
+        "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
+        "Codex 固有の取り込み手順を重ねない。"
+    )
 
 
 def test_codex_dev_wave_skill_contract_pins_exact_surface():
@@ -2465,6 +2625,132 @@ def test_cleanup_metadata_policy_change_is_rejected():
         assert res.returncode == 1, res.stdout
         assert _violation_count(res) == 1, res.stdout
         assert "生成済み Skill interface 契約と不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_land_route_guard_does_not_overmatch_ordinary_prose():
+    root = _build_min_repo()
+    try:
+        additions = {
+            ".claude/commands/dev-wave.md": (
+                "\n通常の説明では `tools/alternate_land.py` や "
+                "`python ./tools/alternate_land.py`、"
+                "`git -C <main> merge deadbeef --ff-only` "
+                "という文字列を引用できる。\n"
+            ),
+            ".agents/skills/dev-wave/SKILL.md": (
+                "\n通常の説明として alternate land helper と "
+                "`python3 tools/alternate_land.py`、"
+                "`git merge --no-edit deadbeef --ff-only` "
+                "を論じても実行経路ではない。\n"
+            ),
+        }
+        for rel, prose in additions.items():
+            _write(root, rel, _read(root, rel) + prose)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_land_route_guard_rejects_command_syntax_variants_independently():
+    cases = (
+        (
+            ".claude/commands/dev-wave.md",
+            "python tools/alternate_land.py --main main",
+            "alternate land helper command",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "$ python3 ./tools/alternate_land.py --main main",
+            "alternate land helper command",
+        ),
+        (
+            ".claude/commands/dev-wave.md",
+            "$ python ./tools/second_land.py --main main",
+            "alternate land helper command",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "python3 tools/second_land.py --main main",
+            "alternate land helper command",
+        ),
+        (
+            ".claude/commands/dev-wave.md",
+            "git merge deadbeef --ff-only",
+            "direct git merge --ff-only main mutation",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "$ git -C <main> merge deadbeef --ff-only",
+            "direct git merge --ff-only main mutation",
+        ),
+        (
+            ".claude/commands/dev-wave.md",
+            "git -C /tmp/main merge --no-edit --ff-only deadbeef",
+            "direct git merge --ff-only main mutation",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "$ git merge --no-edit deadbeef --ff-only",
+            "direct git merge --ff-only main mutation",
+        ),
+        (
+            ".claude/commands/dev-wave.md",
+            "python3 -u tools/alternate_land.py",
+            "alternate land helper command",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "python -B -W ignore ./tools/alternate_land.py",
+            "alternate land helper command",
+        ),
+        (
+            ".claude/commands/dev-wave.md",
+            "git --no-pager -C main merge --ff-only T",
+            "direct git merge --ff-only main mutation",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "git -c advice.detachedHead=false -C main merge T --ff-only",
+            "direct git merge --ff-only main mutation",
+        ),
+    )
+    for rel, command, needle in cases:
+        root = _build_min_repo()
+        try:
+            _write(root, rel, _read(root, rel) + f"\n```sh\n{command}\n```\n")
+            res = _run_check(root)
+            assert res.returncode == 1, (
+                f"{rel}: variant was accepted: {command!r}\n{res.stdout}"
+            )
+            assert needle in res.stdout, (command, res.stdout)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_land_route_guard_allows_non_land_and_non_ff_commands():
+    root = _build_min_repo()
+    try:
+        additions = {
+            ".claude/commands/dev-wave.md": (
+                "\n```sh\n"
+                "python3 -u tools/alternate_plan.py\n"
+                "git --no-pager -C main merge T\n"
+                "```\n"
+            ),
+            ".agents/skills/dev-wave/SKILL.md": (
+                "\n```sh\n"
+                "python -B -W ignore ./tools/report.py\n"
+                "git -c advice.detachedHead=false merge --no-ff T\n"
+                "```\n"
+            ),
+        }
+        for rel, commands in additions.items():
+            _write(root, rel, _read(root, rel) + commands)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
