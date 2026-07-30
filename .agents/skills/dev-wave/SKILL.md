@@ -44,6 +44,6 @@ dispatcher の段 1〜9 を順に実行し、自己再帰や次 wave の開始�
 関連テスト、`python3 tools/check_codex_agents.py`、`python3 tools/check_docs.py` を省略しない。
 push と remote branch 操作は人間に残す。
 
-段 9 では監査済み commit、受入結果、main の cleanliness と開始基準、fast-forward 可否を再確認する。
-条件が揃う場合だけ共通契約の local main `--ff-only` を行う。揃わなければ main HEAD、停止理由、
-次タスク、再開用の `$dev-wave <対象>` を報告して終了する。次 wave は必ず新しい Codex context で始める。
+段 9 は dispatcher が指定する共通 land 契約だけに従い、Codex 固有の取り込み手順を重ねない。
+成功しなければ main HEAD、停止理由、次タスク、再開用の `$dev-wave <対象>` を報告して終了する。
+次 wave と race 後の再開は必ず新しい Codex context で始める。
