@@ -326,6 +326,15 @@
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
 - 現行実体の更新 (2026-07-28 [T-147] 追記): trailer 配置規則は正本 `docs/ai-provenance.md`
   「必須形式」へ移設。`DW-O17` は commit 前 `--message-file` 検査・commit 後監査・rc 手順を担う
+- **再発 (2026-07-29、[T-187]で回収):** `git merge main --no-edit` が
+  `Merge branch 'main' into ...`を自動生成し、`AI-Agent`なしの2-parent commit
+  `6b64d217…`を作った。件名ではなく、自動mergeがmessage-file preflightを迂回し、merge後の
+  full-history監査もないまま共有されたことが欠陥。共有済みのためrewriteせず、D101の固定
+  forward correctionで是正した。O17は`--no-commit`で止め、`commit -F`とpost full監査を必須化
+- **再発 (2026-07-30、[T-187] main統合):** local-only T-180記録`cb79147`はprobe用Shellを追加したが、
+  trailerがClaude manager 1行だけだった。新checkerのpost-merge全履歴監査が検出しmain更新を停止。
+  remote未到達を確認し、ユーザー承認後にCodex authorが最終bytesへ実際に寄与した`677c32a`へ
+  履歴を組み直した。単なるauthor行の後付けや第二例外にはしなかった
 - 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
   更新漏れも併せて見る
 
@@ -483,6 +492,13 @@
   自分のコマンド行がその文字列を含むため常に一致し、終了しない (今回 3 本が滞留)。
   反映時に `docs/dev-wave/**` の hard ceiling (24000 bytes) の余裕が 16 bytes しかなく、
   ユーザー裁定 ([T-124] = reference 再編で圧縮してから入れる) を経て [T-104] で反映した。
+- **再発: 2026-07-30** ([T-180] wave)。恒久対応 5 (background 起動) に反し、ハーネスを
+  前景の tool 経路で起動した。セッション process が異常終了して `finally` の復元が走らず、
+  M6 (`max_attempts` の off-by-one) が作業ツリーに残った。さらに孤児ハーネスが生存したまま
+  次のセッションで走り続け、こちらの `git checkout --` 復元と競合した (flock guard は
+  同一 job の再入だけを防ぎ、孤児の継続走行そのものは止めない)。検出は再開時の `git status`、
+  回復は孤児の停止 → `git checkout --` → commit 済み内容との byte 一致確認。
+  恒久対応 5 は既出で追加の規律は起こさない — 守らなかったこと自体が事象である。
 - 現行実体: `docs/dev-wave/mutation.md` の `DW-M05` と `DW-M06`。
 - 再発検知: 変異・fault 注入ハーネスの設計時に「復元検査が対象ファイルの追跡状態に依存して
   恒真化しないか」「二重走行を機械的に排除しているか」をレンズに含める (段 6 の作法)
@@ -637,6 +653,13 @@
   (出力を絞るなら rc を取ってから表示する)。予算違反は予算値を上げずに、入口と重複する
   reference 記述の削除で収める (安全義務の削除・弱化はしない)
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
+- **再発 (2026-07-29、[T-187]で回収):** 元sessionのmerge確認は
+  `git merge main --no-edit | tail ...`の後に`MERGE_RC=0`と記録しており、0はGitでなく`tail`のrc。
+  merge成立は約5秒後の2-parent objectで別途確認できたが、pipeline値をGit成功証拠には使えない。
+  O17の単独rc契約をmerge preflight/post監査にも適用した
+- **再発 (2026-07-30、[T-187] main統合):** target抜きの補助range監査が設計どおり赤になった後、
+  同一shellの次行に置いた`merge --no-commit`が継続した。commit前で停止し、target-inclusive監査を
+  単独再走してgreenを確認した。既存O17は単独rcと赤停止を既に要求するため、手順本文は増補しない
 - 記録: worklog 2026-07-25 (5)
 
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
@@ -1007,7 +1030,24 @@
   (段番号が stage を決め役割語は決めない、を機械固定)
 - 記録: worklog 2026-07-29 (64)、逐語 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/`
 
-### F55. worker 起動の model / reasoning は要求値がそのまま receipt になり、不正値と未サポート model が silent に通る [誤前提]
+### F55. 並行 dev-wave の正当な制御ファイルと先行 land を blanket dirt / unexpected main movement として扱い、後続 wave が取り込み不能になった [手順漏れ] [誤前提]
+
+- **事象 (2026-07-29, [T-188] wave):** local main には別 session が所有する schema-valid handoff と
+  `.codex/worktrees/` があり、対話型 dev-wave の最終 cleanliness はそれらを未知 dirt と区別できなかった。
+  作業中には複数の先行 wave が main を正常に前進させたが、従来手順にはその新 upstream を監査し、
+  wave へ merge、受入再走、新しい監査閉包を作ってから local main へ land する共通経路もなかった。
+- **根本原因:** 「main checkout は完全 clean」と「開始時 main は不変」を session ownership や受入
+  基準 SHA に結びつけず、共有 main の check-then-merge を直列化する機械 helper が無かった。
+  `.gitignore` 拡張や他 session 成果物の片付けでは、strict consumer の受理集合または所有権境界を壊す。
+- **恒久対応:** D102 / `DW-O23` / `tools/dev_wave_land.py`。形式が正しく Git admin と双方向束縛された
+  制御面だけを非接触例外にし、common lock 下で tested main / tip / ordered closure と攻撃面を再検査して
+  SHA 指定 ff-only を行う。stale / busy は fresh context へ返し、再監査と受入再走なしに再試行しない。
+- **再発検知:** helper の境界 test と同一 base 二 wave の実 subprocess E2E。未知 dirt、偽 worktree、
+  stale SHA、lock loser、non-FF、未監査 commit、gitlink postcondition 不成立をそれぞれ拒否する。
+- 記録: worklog 2026-07-30 (67)、設計判断: D102、材料:
+  `output/insights/2026-07-29_dev-wave-parallel-land/`
+
+### F56. worker 起動の model / reasoning は要求値がそのまま receipt になり、不正値と未サポート model が silent に通る [誤前提]
 - 事象: [T-182] wave の段 1 生死確認で、`codex exec` の起動構成が機械検査されていないことを 3 通り
   実測した。(a) `-c model_reasoning_effort="ultra"` (存在しない値) は `gpt-5.6-sol` /
   `gpt-5.6-luna` / `gpt-5.6-terra` で **rc=0 のまま成功**し、rollout の `turn_context` には
@@ -1031,4 +1071,4 @@
   の該当 session (`019fadd3-c15a-79e1-8783-f083061d4e3d` = nano、
   `019fadd3-c19c-7a12-bbf0-ded998aed815` = codex-mini、および `reasoning=ultra` の 4 session) が
   一次資料。機械検査は未実装 (上記所有 ID で実装する)
-- 記録: worklog 2026-07-29 (65)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`
+- 記録: worklog 2026-07-30 (68)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`

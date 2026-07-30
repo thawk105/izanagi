@@ -1,6 +1,6 @@
 # [T-182] model routing 限定 shadow pilot — 逐語・receipt (凍結、2026-07-29)
 
-親の裁定要約は `docs/worklog.md` 2026-07-29 (65)。分析の正本は
+親の裁定要約は `docs/worklog.md` 2026-07-30 (68)。分析の正本は
 `output/insights/2026-07-29_t182-model-routing-shadow-pilot.md`。
 **本 wave に実装差分はない** (段 4 で「実装しない」と裁定し `4→7→8→9` を辿った)。
 
@@ -13,8 +13,8 @@
 | `s3-consult-b-shadow-luna.md` | 段 3 レンズ B の **shadow arm 1** | `9110f9d2ec45cb1141f6888139f72e61c2cc29a5b5548c5cce64dca09c3734e2` |
 | `s3-consult-b-shadow-mini.md` | 段 3 レンズ B の **shadow arm 2** | `c90ca2567318f7e018095a93b2141981b88a8542544bd77346c895c512b9612c` |
 | `s3-consult-b-prompt.txt` | **3 arm 共通の凍結入力** | `8975a1fb2065626dbe3aa37f8474aabf94c95ef7257b13149949d57bf9722784` |
-| `s4-adjudication.md` | 段 4 裁定 (親、実装しない) | `28652cfc6eef7cde1e46892046242e359a431a87cb53ddf2c56ac450cc557cde` |
-| `probe-summary.md` | 段 1 生死確認の要約 (親) | `7e4c1814e33caf477c6c43aa7c01750ef8fade1a45237ec2b9009635de5118d3` |
+| `s4-adjudication.md` | 段 4 裁定 (親、実装しない) | `b179fd0d0327970a1aae27147f12bfb7c7a6668e3cac1b7793df5d7bcb244a67` |
+| `probe-summary.md` | 段 1 生死確認の要約 (親) | `4a634a7a0c3b52746cf8155b8a8cac309a8a9cec15007081752e705f78e3b594` |
 | `probe-receipts.json` | 段 1 probe の全 receipt | `bae89015a4ec99b3d55d953b53605b0ac7774fc946fb7f000d686892dd312b65` |
 | `stage3-receipts.json` | 段 1 + 段 3 の全 receipt (凍結時点) | `e56aa37c0f3d72350ba5aab72f5ac008a46fb1af06c3385f225ec0263c10ee2b` |
 

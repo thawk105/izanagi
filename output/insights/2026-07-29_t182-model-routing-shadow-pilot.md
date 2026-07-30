@@ -1,7 +1,7 @@
 # [T-182] model routing の限定 shadow pilot — 実走結果と裁定パッケージ (2026-07-29)
 
 逐語と receipt の凍結は `2026-07-29_t182-model-routing-shadow-pilot-verbatim/`。
-親の裁定要約は `docs/worklog.md` 2026-07-29 (65)。**本 wave に実装差分はない。**
+親の裁定要約は `docs/worklog.md` 2026-07-30 (68)。**本 wave に実装差分はない。**
 
 ## 結論 (先に射程を書く)
 
@@ -70,7 +70,7 @@ authoritative arm の 11 所見を基準集合とした対応表。
    あり、レンズ A が事前に指摘したとおりの循環を実在化させている。
 4. **n=1**: task 1 本、arm あたり run 1 本。分散推定がない。
 5. **交絡**: 3 arm は同時起動で、起動時の同時 codex 実行数は 22、終了時 10〜15。
-   並行 wave (T-126 / T-180 / T-181 / ai-provenance-forward-fix / T-186) が同一 account で
+   並行 wave (T-126 / T-180 / T-181 / ai-provenance-forward-fix / dev-wave-skill) が同一 account で
    稼働していた。**wall-clock を model 差の証拠に使ってはならない。**
    cached input 比率も arm 間で大きく異なる (sol 2,390,528 / luna 895,488 / mini 984,320)。
 

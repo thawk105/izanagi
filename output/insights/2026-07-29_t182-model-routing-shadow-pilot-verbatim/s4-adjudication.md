@@ -98,7 +98,7 @@ authoritative arm の 11 所見を基準集合とした被覆:
 ### 交絡 (A2 の採用結果)
 
 3 arm は同時刻に起動し、起動時の同時 codex 実行数は 22、終了時は 10〜15。
-並行 wave (T-126 / T-180 / T-181 / ai-provenance-forward-fix / T-186) が同一 account で
+並行 wave (T-126 / T-180 / T-181 / ai-provenance-forward-fix / dev-wave-skill) が同一 account で
 稼働していた。**wall-clock は model 差の証拠として使えない。** token は cache 比率が
 arm 間で大きく異なるため (cached: sol 2,390,528 / luna 895,488 / mini 984,320)、
 `cli_reported = input − cached_input + output` の差も単一 task の観測に留まる。

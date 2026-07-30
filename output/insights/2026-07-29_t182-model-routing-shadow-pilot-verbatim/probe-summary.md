@@ -20,4 +20,4 @@
 - gpt-5.4-mini: rc=1
 
 ## 同時実行 (交絡)
-- pgrep -c -f codex = 28 (T-126 / T-180 / T-181 / ai-provenance-forward-fix / T-186 が並行)
+- pgrep -c -f codex = 28 (T-126 / T-180 / T-181 / ai-provenance-forward-fix / dev-wave-skill が並行)
