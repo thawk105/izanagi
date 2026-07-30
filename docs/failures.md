@@ -660,6 +660,12 @@
 - **再発 (2026-07-30、[T-187] main統合):** target抜きの補助range監査が設計どおり赤になった後、
   同一shellの次行に置いた`merge --no-commit`が継続した。commit前で停止し、target-inclusive監査を
   単独再走してgreenを確認した。既存O17は単独rcと赤停止を既に要求するため、手順本文は増補しない
+- **再発 (2026-07-30、[T-146] 段9再開):** Pegasusのmerge前preflight scriptが
+  `set -uo pipefail`で`-e`を欠き、`git diff --cached --check`の赤後も後続検査へ進んだ。
+  最後の`check_docs`がgreenだったためtrapはrc=0を記録した。commit前にlogから検出し、
+  request `874111.nqsv`の結果を不採用化。手動解消面だけへdiff-checkを限定したfail-fast scriptを
+  `874113.nqsv`で再走してgreenを確認してからcommitした。既存O17の赤停止契約で十分な同型再発のため、
+  手順本文は増補しない
 - 記録: worklog 2026-07-25 (5)
 
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]

@@ -1260,9 +1260,20 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   landed順を反映して本エントリを(65)→(66)へ再採番し、(49)〜(60) archiveは内容同一の
   包括archive (49)〜(64)へ置換した
 - 段9再開3: local main `ff82133` のT-180 / T-187完了系列を統合し、D70のland順に合わせて
-  本エントリを(66)→(67)へ再採番した。再受入はユーザー指示に従いPegasus計算ノードで行う
+  本エントリを(66)→(67)へ再採番。統合mergeは`f2c29ba`
+- merge前preflight `874111.nqsv`はincoming mainの凍結逐語にある既知trailing whitespaceを
+  検出したが、scriptの`set -e`欠落で後続greenがrc=0を上書きしたため不採用。F37同型再発として
+  台帳へ追記し、手動解消したworklogだけをdiff-checkするfail-fast再走`874113.nqsv`をgreenにした
+- ユーザー指示に従いmerge後受入をPegasus計算ノード2台・各32 pytest workerで並列実行。
+  full `874117.nqsv`=`bnode114`は**3900 passed / 19 skipped / 214.99秒**、
+  focused `874118.nqsv`=`bnode117`は**390 passed / 23.22秒**。startup resume gate、
+  `check_docs`、`check_codex_agents`、`main..HEAD` diff-check、full-history provenance
+  **549件・違反なし**もgreen。PBS会計痕跡と両job rc=0を確認した。記録commit後再走
+  `874123.nqsv`=`bnode083`も134 passed、同checks green、full-history provenance
+  **550件・違反なし**、rc=0
 - エージェント工数: Codex subprocess 8 (plan 1、敵対相談 2、author 1、review 2、fix 1、
-  focused review 1)。親=brief・裁定・統合・変異・全走・docs・commit
+  focused review 1)。段9再開3の追加Codex subprocess 0、PBS job 4。親=brief・裁定・統合・変異・
+  全走・docs・commit
 
 ### 次の一手
 

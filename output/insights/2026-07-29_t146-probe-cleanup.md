@@ -57,5 +57,22 @@ fix 後の focused re-review は実装 blocker 0 で GO。
 - 並行 main merge 後 provenance: 530件、違反なし
 - 記録 commit 後 provenance: 531件、違反なし
 
+### 段9再開の計算ノード再受入
+
+local main `ff82133365cb8ba3015d82adeeaa741ed68995e5` のT-180 / T-187完了系列を統合した
+merge `f2c29ba6aa04f92eb7a30c202ce0d76957c96fe1`を、Pegasus計算ノードで再受入した。
+
+- full suite: request `874117.nqsv`、`bnode114`、32 worker、
+  3900 passed / 19 skipped / 214.99秒
+- focused + checks: request `874118.nqsv`、`bnode117`、32 worker、
+  390 passed / 23.22秒
+- startup resume gate、`check_docs.py`、`check_codex_agents.py`、
+  `git diff --check main..HEAD`: green
+- full-history provenance: 549件、違反なし
+
+merge前preflight `874111.nqsv`は、途中のdiff-check赤を後続greenで上書きするF37同型再発のため
+不採用とした。fail-fastへ直した`874113.nqsv`でmessage provenance、docs、Codex agent、
+手動解消したworklogのdiff-checkをgreenにしてからmerge commitを作った。
+
 worker 最終応答、親 brief、裁定、pre-fix snapshot hash、変異台帳は
 `output/insights/2026-07-29_t146-probe-cleanup-wave/` に置く。
