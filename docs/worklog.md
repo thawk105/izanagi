@@ -1499,3 +1499,130 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-175] **P3・裁定要 ((60))**
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
+
+## 2026-07-30 (68) — [T-145] latest main再束縛と計算ノード再受入を完了 (test + docs、branch codex/dev-wave-t145-final、検査 = Pegasus gen_S計算ノード)
+
+- 前sessionの段1〜8と実装・変異・記録は不変。D102 / DW-O23を含むlatest main `72e3800`を
+  waveへ統合し、phase3のT-145/T-188完了記録を両方保持した。merge commitは`d0557f7`
+- pre-commitはrequest `874192` / bnode124でland helper関連224 passed、message provenance /
+  docs / Codex-agent / diff / status stabilityがgreen。統合直後のfull-history provenanceは
+  forward-corrected 1 / 556 commit / 違反0
+- post-merge受入`874197`はfocused 3、related 97、latest-main compatibility 330と各checkがgreen。
+  ただし32-worker全走でT-180 launcher testが1件赤。単独full `874203`でも別nodeへ同型の赤が移動し、
+  両走とも1 failed / 3955 passed / 19 skippedだったため受入扱いしなかった
+- DW-O18分離で各失敗node単独は1/1 green、launcher file直列は58/58 green。
+  request `874216` / bnode067の16-worker全走は**3956 passed / 19 skipped**、tree clean。
+  T-145/T-188差分外の高xdist負荷フレークとしてF56へ記録し、恒久化は[T-189]へ分離した
+- campaignのraw受理集合、certified選択、proof chain、T-145実装bytesは不変。
+  push / remote branch操作は行わず、local main取り込みはDW-O23だけを使う
+- エージェント工数: 本再開で新規Codex subprocess 0。親=main統合・競合裁定・計算ノード受入・
+  フレーク分離・記録・land
+
+### 次の一手
+
+- [T-188] **完了 ((67)、D102、F55)**
+- [T-187] **完了 ((66)、D101)**
+- [T-180] **完了 ((65)、`24d2672` + `de0a9ad` + rewrite `677c32a`)**: job単位の
+  resource envelopeとfail-closed receiptを正本化済み
+- [T-181] **P1・着手可 ((64))**: focused reviewのreasoning `max`対`high`を凍結入力で限定比較する
+- [T-182] **P1・着手可 ((64))**: critical stageを維持し、第二レンズ1箇所だけ軽量modelをshadow比較する
+- [T-183] **P1・着手可 ((64))**: F43/F45型の断片出力 / safety-filter終了を早期分類し、
+  retry上限とfail-closed回復を固定する
+- [T-184] **P1・T-181〜T-183後 ((61))**: 比較済み証拠だけでstage別policyを採用する
+- [T-186] **P3・T-180が返した裁定パッケージ**: manifest seal、`setsid()`封じ込め、
+  stdout / artifact bytes上限
+- [T-179] **完了 ((64)、`72f8858`)**
+- [T-185] **P3・RuleOps hardening ((63) R3R-1)**
+- [T-189] **P2・新規 (本エントリ、F56)**: launcher normal fakeの32-worker負荷フレークを
+  失敗artifact保存つきで原因分離し、production gateを緩めず閉じる
+- [T-139] **完了 ((60))**
+- [T-142] **close ((62)のユーザー再裁定)**
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 ((60))**
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] **完了 ((63)、D99)**
+- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**
+- [T-059] **裁定済み ((62) = boundedな事後mutation audit) → 実施待ち**
+- [T-145] **完了 (本エントリ、`d0557f7`)**
+- [T-146] 同上
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((60))**
+- [T-151] **P3・裁定済み ((60))**
+- [T-154] **完了 ((60))**
+- [T-130] **裁定済み・実装待ち ((60))**
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み・実装待ち ((60))**
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((60))**
+- [T-171] **完了 ((60))**
+- [T-172] **完了 ((60))**
+- [T-173] **P3 ((60))**
+- [T-174] **P3・裁定要 ((60))**
+- [T-175] **P3・裁定要 ((60))**
+- [T-176] **P3・backlog ((60))**
+- [T-177] **P3・裁定要 ((60))**
