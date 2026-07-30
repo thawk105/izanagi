@@ -1,0 +1,15 @@
+
+============================================================
+Request ID:             874129.nqsv
+Request Name:           izanagi-probe-compute
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Jul 30 10:01:57 2026
+Started Request Time:   Thu Jul 30 10:03:23 2026
+Ended Request Time:     Thu Jul 30 10:10:20 2026
+Resources Information:
+  Elapse:               421S
+  Remaining Elapse:     3179S
+============================================================

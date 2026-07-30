@@ -1,0 +1,31 @@
+[
+  {"id": "M1", "file": "orchestrator/campaign/site_policy.py",
+   "old": "        return PEGASUS_LOGIN if has_nqsv else OTHER",
+   "new": "        return OTHER",
+   "nodes": "orchestrator/tests/test_site_policy.py"},
+
+  {"id": "M2", "file": "orchestrator/campaign/site_policy.py",
+   "old": "def default_test_jobs(site: str, *, cap: int = 32) -> int:",
+   "new": "def default_test_jobs(site: str, *, cap: int = 32) -> int:\n    return min(available_cpus(), cap)",
+   "nodes": "orchestrator/tests/test_site_policy.py orchestrator/tests/test_run_tests_nproc.py"},
+
+  {"id": "M3", "file": "orchestrator/campaign/site_policy.py",
+   "old": "    except (AttributeError, OSError):",
+   "new": "    except AttributeError:",
+   "nodes": "orchestrator/tests/test_site_policy.py"},
+
+  {"id": "M4", "file": "orchestrator/campaign/site_policy.py",
+   "old": "    return site in {PEGASUS_LOGIN, PEGASUS_SUSPECT}",
+   "new": "    return site == PEGASUS_LOGIN",
+   "nodes": "orchestrator/tests/test_site_policy.py orchestrator/tests/test_run_tests_preflight.py"},
+
+  {"id": "M13", "file": "orchestrator/campaign/site_policy.py",
+   "old": "    if label.startswith(\"pegasus\"):",
+   "new": "    if True:",
+   "nodes": "orchestrator/tests/test_site_policy.py"},
+
+  {"id": "M11", "file": "orchestrator/campaign/buildcache.py",
+   "old": "        if site_policy.refuses_heavy_work(resolved_site):",
+   "new": "        if False:",
+   "nodes": "orchestrator/tests/test_build_site_gate.py"}
+]

@@ -4502,7 +4502,7 @@ per-parent unionを当該merge actorのauthoringとみなす案。
 開発履歴のprovenance監査とmerge運用だけ。材料 =
 `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`。
 
-## D102. [T-188] Pegasus では重い処理を計算ノードで最大並列とし、強制は sanctioned 経路の fail-closed に限る (2026-07-30)
+## D103. [T-191] Pegasus では重い処理を計算ノードで最大並列とし、強制は sanctioned 経路の fail-closed に限る (2026-07-30)
 
 **背景:** ユーザー裁定が 2 回反転した。`docs/pegasus-runbook.md` §7 は 2026-07-27 に
 「ビルドとテスト (pytest 全走を含む) はログインノードで走らせてよい」と定めていたが、
