@@ -131,6 +131,13 @@ Shirakami-LTX との中間)。タスク粒度の優先度 (P1/P2/P3) と各項�
 **なお roadmap 本体 (§2 の主経路・§8 のポジショニング) の改訂は本裁定に含まれない** — 必要性が
 確認された場合は `docs/roadmap-history/README.md` の改訂セレモニーに従う。
 
+**2026-07-31 改訂 (`/rulings` ユーザー裁定 = 推奨案 (a) 採用):** プロセス系 freeze の解除条件を
+2026-07-26 改訂の「[T-088] の実行 (床値実測の開始)」から**「[T-193] の閉鎖」**へ付け替える。2026-07-27 改訂 (2) が床値実測の優先度を下げた結果、freeze が再びかかる条件が
+無期延期になり、直近 8 wave が全て道具・運用の整備で研究の測定が 0 本になっていた。付替え後は
+当該項の閉鎖直後の 1 wave を**研究側 (2026-07-27 改訂 (3) の変異軸の質の転換と、既知解までの距離で
+能力を測る評価設計)** に充てる。対象 ID と進捗の正本は worklog 末尾の「次の一手」、経緯は
+worklog 2026-07-31 (74)。本改訂は roadmap 本体と絶対規律を変更しない。
+
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
 - セッション開始時に読むのは 3 箇所だけ: **現行チェックポイント**、**must 表** (`grep -n "^## 現行 Phase 3 must" docs/phase3.md` で位置特定) と、
@@ -513,7 +520,10 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 ### テスト衛生
 
-- [T-057] **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-26 の `/rulings` が述語 `P6_source := full_suite_duration_s > 180` の**成立**を確認 (worklog 記録の全走 = 239s (2026-07-25) / 1811.26s (2026-07-26))。2026-07-19 時点の「180 秒未満」は現状と一致しない。**再走はしておらず記録値の照合のみ**で、239s → 1811s の差が runner/env・並列度の違いによるかは未確認。X5 派生述語の 20% 条件は依然 unknown。ユーザー裁定待ち。→ **裁定・消化済み (2026-07-26)**: 裁定 = (a) 原因を測る調査を 1 回入れる (+ テストのみで済む改善は同 wave で実施)。実施結果 = 全走 1811 秒 → 75 秒 → **69 秒** (2026-07-27、worklog (13)(14)(15))。以後この述語は成立しない。
+- [T-057] **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-26 の `/rulings` が述語 `P6_source := full_suite_duration_s > 180` の**成立**を確認 (worklog 記録の全走 = 239s (2026-07-25) / 1811.26s (2026-07-26))。2026-07-19 時点の「180 秒未満」は現状と一致しない。**再走はしておらず記録値の照合のみ**で、239s → 1811s の差が runner/env・並列度の違いによるかは未確認。X5 派生述語の 20% 条件は依然 unknown。ユーザー裁定待ち。→ **裁定・消化済み (2026-07-26)**: 裁定 = (a) 原因を測る調査を 1 回入れる (+ テストのみで済む改善は同 wave で実施)。実施結果 = 全走 1811 秒 → 75 秒 → **69 秒** (2026-07-27、worklog (13)(14)(15))。
+**2026-07-31 再成立**: 計算ノードでの受入全走は同一コードでも bnode002 116.25 秒 / bnode009 200.72 秒 /
+bnode010 214.34 秒とノード間で 1.8 倍開き、180 秒を超えるノードがある (worklog (73))。
+以後の所有は [T-201] (下限を実際に下げる 4 択)。**この項からは追加の裁定を起こさない**。
 - [T-058] **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (baseline/final を観測値として記録、gate 化なし。worklog 参照)。2026-07-25 に**再発火** ([T-094] の gate 新設 = 述語 `safety_gate_changed` 成立、同 wave は網羅率を観測していない)。ユーザー裁定 = 発火の記録のみ残し、観測の実施は 1 cycle 完走後 (プロセス系 freeze の対象、worklog 2026-07-25 (7))。2026-07-27 に**三度目の発火** ([T-117] の test-hygiene wave = 述語 `new test-hygiene wave` 成立、同 wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-27 (16))。2026-07-29 に**四度目の発火** ([T-149] の編集面 literal 正本 + 機械検査テスト新設 = 述語 `safety_gate_changed` 成立、同 wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-29 (45))。2026-07-29 に**五度目の発火** ([T-141] の label 正規化 + `assert_position_only` 強化、および [T-171] の `check_docs.py` 閉包・interface・必須 adapter 検査の新設 = 述語 `safety_gate_changed` 成立、いずれの wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-29 (54))。2026-07-29 に**六度目の発火** ([T-172] の `check_docs.py` 閉包・interface・必須 adapter 検査の新設)。同 wave は網羅率を観測していないが、既裁定どおり追加裁定はせず発火記録のみ。
 - [T-059] **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。2026-07-25 に**再発火** ([T-094] の reject gate 新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が 13 変異を実装前に事前登録し 13/13 KILL と復元後 green を記録したため真時 action は実質履行済み (worklog 2026-07-25 (7))。2026-07-29 に**三度目の発火** ([T-149] の編集面機械検査テスト新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が変異 9 件を実装前に事前登録し 9/9 KILLED と最終 commit への anchor 再検証を記録したため真時 action は実質履行済み (worklog 2026-07-29 (45))。2026-07-29 に**四度目の発火** ([T-141] の provenance 構造検証 + 閾値検査、および [T-171] の `check_docs.py` drift 拒否検査の新設 = 述語 `validator_or_rejection_gate_changed` 成立)。既裁定の範囲内なので追加裁定はせず記録のみ — [T-141] wave が変異 3 件を実装前に事前登録し 3/3 KILL を記録したため真時 action は履行済み (worklog 2026-07-29 (54))。2026-07-29 に**五度目の発火** ([T-172] の `check_docs.py` drift 拒否検査の新設)。同 wave は負例 5 件を追加したが、真時 action が求める実装前の mutant/operator・予算・第一失敗 assert の事前登録記録はない。2026-07-29 ユーザー再裁定で **bounded な事後 mutation audit** を採用し、事前登録不能だった手順逸脱を明記した上で operator / 予算 / 第一失敗 assert / 復元後 green を事後台帳へ固定する。実施は別タスクとして待機中 (worklog (62))。
 - [T-190] **Codex worker launcher の高 xdist 負荷フレークを証拠保存つきで閉じる** (F57) —
