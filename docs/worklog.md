@@ -1046,6 +1046,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - 段 3 敵対相談 2 本が S4 を blocking 判定。`jobs` は cache identity には入らないが `build_argv` →
   floor manifest → ratified `floor_source` へ流入するため、**`buildcache` の `-j` 既定 16 は変えない**
   (cache hit で架空値を記録すると provenance を偽る)。build は実行場所だけ計算ノードへ強制した
+- **ユーザー再裁定 (同日) により build 並列度も site 由来にした**。「16 並列と 48 並列の
+  バイナリは等価であるべきで、そうでなければコンパイラのバグであり我々の問題ではない」との
+  裁定で cache hit 時の `-j` 記録差を受理し、`buildcache` の `jobs` 既定を `None` →
+  `site_policy.default_build_jobs()` にした (`98427aa`)。cache identity・`bin_sha256` 照合・
+  trace diff・`src_token` 再照合は緩めていない。事前登録変異 **M15** を追加し KILLED を確認
 - 段 6 敵対レビュー 2 本が共に NO-GO (must-fix 11 + 7)。会計照合の一単語 OR による偽陽性、
   F49(a) の自己確認、qsub parse 失敗時の孤児、qstat 瞬断での恒久ラッチが real。fix 3 巡で閉鎖
 - **親の実走 (dogfood) が静的レビューで出ない 2 件を掴んだ**。(a) `qstat -f <終了 ID>` は
@@ -1059,7 +1064,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - 受入: 計算ノードで **4012 passed / 19 skipped / 205.12s**、dispatcher rc=0。skip 19 の内訳は
   template patch 未適用 4 / g++-13 系 6 / Codex runtime 4 / gnuplot 1 / real-build canary 3 /
   Silo sample 1。**g++-13 は計算ノードにも無く、移設で C++ 検出力は増えない**
-- 変異 6/6 KILLED (M1〜M4, M11, M13)、SURVIVED 0、復元失敗 0。赤 node 名は各 job の `.o` から
+- 変異 **7/7 KILLED** (M1〜M4, M11, M13, **M15**)、SURVIVED 0、復元失敗 0。赤 node 名は各 job の `.o` から
   取得。M5/M7/M11 は当初 mask されており、両層変異・3 層分割・configure/build 独立 gate へ再照準
 - 逐語検査 (D88): insights 25 ファイルへ placeholder 検出を機械実行し hit 2 件。いずれも
   `rg TODO .` の検査コマンド例と `bnodeXXX` の hostname 表記であり defang 不要と裁定
