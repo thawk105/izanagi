@@ -1006,3 +1006,42 @@
   `test_stage_rules_follow_wave_stage_not_role_words` / `test_stage_rules_keep_fix2_author_in_fix_and_focus_specific`
   (段番号が stage を決め役割語は決めない、を機械固定)
 - 記録: worklog 2026-07-29 (64)、逐語 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/`
+
+### F55. gate の上限が、その gate を強制する装置自身の前処理コストで必ず違反した [自己不整合]
+- 事象: [T-181] wave の run supervisor が `MAX_SCHEDULE_GAP_MS=60_000` を連続 run すべてへ適用したが、
+  `supervise-pair` 起動時の snapshot oracle 検証が実測 **350,980 ms** かかるため、block 間の gap が
+  必ず上限を超えた。block b2 の 2 run は **exit 0 で正常完走していた**のに
+  `supervisor_failure: schedule gap exceeds bound` で technical-invalid になり、
+  この 1 件で 10 run 全体が使用不能になりかけた (親が実走で検出)
+- 根本原因: 「隣接性」という科学的要求を単一の数値上限へ畳み、その上限を**同じ装置の前処理コストと
+  突き合わせずに**決めた。静的レビュー 5 巡は数値の妥当性を実測できないため通過した
+- 恒久対応: gate の上限を導入するときは、**その gate を強制する経路自身がその上限を満たせるかを
+  実測で確認**する。満たせないなら文脈で分ける (本件は intra-block 60 秒 / inter-block 900 秒)。
+  実 gap は全 receipt に記録し、結論には実測値を併記する
+
+### F56. 事前登録変異の期待 node が実効 gate を検査しておらず、新設防壁に対応テストが無いことを露出させた [テスト代表性]
+- 事象: [T-181] wave で事前登録した変異 M6 (読取時 packet digest 束縛の無効化) が SURVIVED し、
+  DW-M04 に従って両層同時変異 M6p (読取時 + freeze 時 digest) を追加登録してもなお SURVIVED した。
+  原因は M6 の期待 node にしていたテストが実際には **reader 間の不一致処理**を検査しており、
+  packet 本文の swap→restore を一切検査していなかったこと。すなわち直前の fix で入れた
+  防壁に**対応テストが存在しなかった**。swap→restore を実再現するテストを追加して kill 12/12 になった
+- 根本原因: 変異の事前登録で「期待 node」をテスト名の**語感**で割り当て、その node が当該 gate を
+  実際に通過するかをコードで確認していなかった。gate を新設した fix が、
+  同じ変更でその gate の負例テストを持たなかったことも重なった
+- 恒久対応: (a) gate を新設する変更は、**その gate を無効化したら赤くなる負例テストを同じ変更に含める**。
+  (b) 変異の期待 node は、対象 gate を実行するテストであることをコードで確認してから pin する。
+  SURVIVED は mask を疑う前に「そもそも対応テストが在るか」を先に確認する
+
+### F57. 実走後の装置修正が、凍結成果物の replay 認証を失わせた [順序]
+- 事象: [T-181] wave で 10 run の実走後に oracle を 2 度修正した (上流 token 異常の分類、
+  stale commit-graph の除去)。その結果 `aggregate` / `verify` が全 10 run で
+  `snapshot oracle replay mismatch` を返し `experiment_complete=false` になった。
+  各 run が実走時に記録した `snapshot-before.json` は修正前の版の出力であり、
+  現在の版では再現できない。receipt 側は最終版コードで全 run を再収集して解消できたが、
+  実走時 oracle の再生成は provenance の改竄になるため行わず、数値は **replay 未認証**として記録した
+- 根本原因: 実走の前に装置を凍結せず、実走で露出した欠陥を実走後に直した。
+  欠陥修正自体は正しいが、修正が受入検査の出力形を変えるため、既存 artifact の replay が成立しなくなる
+- 恒久対応: live 実走を伴う wave では、(a) 実走開始前に装置を凍結し版を receipt へ pin する。
+  (b) 実走後に装置を直す場合は**再走を伴うと最初から明記**し、再走しない場合は成果物を
+  「replay 未認証」と明示して下流の採用根拠にしない。既存の `experiment_complete=false` が
+  この不整合を fail-closed で検出することは確認済み (隠れない)
