@@ -5,7 +5,7 @@ default_effect: no-state-change
 
 Claude の `/cleanup-branches` dispatcher を共通正本として再利用する repo-scoped Codex Skill の
 brief、相談、裁定、実装報告、敵対レビュー、fix、変異台帳、forward test を凍結する。
-最終 land ID は T-189、可変状態と完了判定の正本は `docs/worklog.md` 2026-07-30 (68) と
+最終 land ID 候補は T-191、可変状態と完了判定の正本は `docs/worklog.md` 2026-07-30 (71) と
 `docs/phase3.md`。本ディレクトリ名と下記 T-188 は並行 land 競合前の provenance として保持する。
 
 着手時の仮 ID は T-173 だったが、並行 land の D70 採番により T-188 へ振り直した。
@@ -87,3 +87,32 @@ full-history provenance 554件・forward correction 1件・違反なし。rc=0�
 記録commit後の `874245.nqsv` (bnode068) もfocused 197 passed、check_docs /
 check_codex_agents / py_compile / Skill validator / diff-check green、full-history provenance
 555件・forward correction 1件・違反なし。rc=0、PBS会計161秒、終了時tree clean。
+
+## T-182 / T-146 land 後の再同期
+
+固定main `43584d1`との両parent59 path和集合を独立read-only Codexで監査した。初回はworklog
+entryの誤挿入位置1件だけNO-GOで、entryを内容不変でEOFへ移した再監査はGO・指摘0。
+Pegasus `874276.nqsv` (bnode067) はrepository全走3960 passed / 19 skipped /
+214.79秒、rc=0。focused初回 `874277.nqsv` は全走との同時`git write-tree`による
+共有index lock競合で停止したため無効証拠とした。単独再走 `874280.nqsv` (bnode001) は
+関連286 passed後、merge中を意図どおり拒否するstartup gateで停止した。
+
+## T-145 land 後の再同期
+
+上記記録追補直後にT-145が先行landし、current mainは`c810ee2`へ前進してworklog (70) /
+T-190 / F57を使用した。同contextではcommitせずfail-closed停止した。fresh contextで旧mergeの
+exact HEAD / MERGE_HEAD / staged treeとdirt 0を照合してabortし、commit済みwave
+`d80ab4b`へ復帰。Pegasus startup `874284.nqsv` (bnode001) はresume green、rc=0。
+固定main `c810ee2`を再統合し、本cleanupをD70によりworklog (71) / T-191候補へ再採番した。
+
+固定tree `5cf3ee8`の独立read-only監査は両parent85 path和集合、全parent差分積docs 3 path、
+各waveの検出力、D70、pointer、digestをgreenとしたが、worklog 104,576 bytes > 100,000 bytesの
+1件だけNO-GO。entry (59)〜(67)を
+`docs/archive/worklog-phase3-0729-59-0730-67.md`へ内容不変で移動し、現行worklogは
+並行land文脈の(68)〜(71)を保持した。
+
+rotation後tree `7402431`の独立再監査はGO・指摘0。archive / 現行の重複・欠落なし、
+(58)→(59)と(67)→(68)を含むD70全遷移、worklog 39,259 bytes、全検出面がgreen。
+Pegasus pre-commit `874292.nqsv` (bnode016) はrepository全走3974 passed / 19 skipped /
+211.02秒、check_docs / check_codex_agents / message provenance / py_compile /
+Skill validator / diff・tree安定がgreen、rc=0、PBS会計痕跡あり。

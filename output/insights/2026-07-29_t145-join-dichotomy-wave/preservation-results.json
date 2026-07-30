@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "integrated_commit": "64ddf5c663b8953e93e1d8c8a4ef91f3d9d4da5a",
+  "source_contract": "output/insights/2026-07-28_t136-timing-flake-generalized-limits.md#4",
+  "results": [
+    {
+      "id": "PM1",
+      "expected": "KILLED",
+      "observed": "KILLED",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 21.096,
+      "node": "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[sleep_timeout-timeout]",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[sleep_timeout-timeout]"
+      ],
+      "expected_signature": "ReasonCode.NONZERO_EXIT vs ReasonCode.TIMEOUT",
+      "diff_numstat": "1\t1\ttools/dev_waves/worker.py",
+      "mutated_sha256": "eb5dd699ef0b570ff371321ec3a7b7e30eaeec7660f66bfb530520263d85cf3e",
+      "output_tail": "            request_options: dict[str, dict[str, int]] = {\n                \"nonzero\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"sleep_timeout\": {\n                    \"per_wave_timeout\": 20, \"total_timeout\": 40,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"grandchild_residual\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"log_cap\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n            }\n            with _isolated_process_environment(root):\n                repo = _temporary_repo(root, [fake_options[scenario], \"success\"])\n                supervisor = _supervisor(repo)\n                request = _request(\n                    repo, waves=2, total_budget=\"2\", **request_options[scenario],\n                )\n                submitted = supervisor.submit(request)\n                status, _seen = _wait_terminal(supervisor, submitted.run_id)\n                assert status.state is RunState.FAILED\n>               assert status.reason is reason\nE               AssertionError: assert <ReasonCode.NONZERO_EXIT: 'nonzero-exit'> is <ReasonCode.TIMEOUT: 'timeout'>\nE                +  where <ReasonCode.NONZERO_EXIT: 'nonzero-exit'> = StatusResponse(protocol_version=1, ok=True, run_id='dw-b8b5b13d3d9c4ee7ab2e3d86553d3d0b', state=<RunState.FAILED: 'failed'>, wave_index=1, elapsed_s=Decimal('20.449'), reason=<ReasonCode.NONZERO_EXIT: 'nonzero-exit'>).reason\n\norchestrator/tests/test_dev_waves_integration.py:582: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[sleep_timeout-timeout]\n1 failed in 20.84s",
+      "restored_to_head": true
+    },
+    {
+      "id": "PM2",
+      "expected": "KILLED",
+      "observed": "KILLED",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 0.55,
+      "node": "orchestrator/tests/test_dev_waves_integration.py::test_expired_deadline_prevents_next_real_artifact_side_effect",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_integration.py::test_expired_deadline_prevents_next_real_artifact_side_effect"
+      ],
+      "expected_signature": "DID NOT RAISE DevWavesError",
+      "diff_numstat": "1\t1\ttools/dev_waves/daemon.py",
+      "mutated_sha256": "a3b139afcd403e730507ffe246dcb312fe47273ffed8db6b0a4d6ce9d4466553",
+      "output_tail": "F                                                                        [100%]\n=================================== FAILURES ===================================\n________ test_expired_deadline_prevents_next_real_artifact_side_effect _________\n\n    def test_expired_deadline_prevents_next_real_artifact_side_effect() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            root = Path(temporary)\n            with _isolated_process_environment(root):\n                repo = _temporary_repo(root, [\"success\"])\n                entries = []\n                supervisor = _supervisor(repo, dependencies=SupervisorDependencies(\n                    side_effect_hook=entries.append,\n                ))\n                run_id = \"dw-deadline-counter\"\n                run = supervisor.layout.run_dir(run_id)\n                run.mkdir()\n                supervisor._active = mock.Mock(\n                    cancel=threading.Event(), cancel_reason=ReasonCode.SIGNAL_RECEIVED,\n                )\n                deadline = mock.Mock()\n                deadline.remaining_ns.side_effect = [1, 0]\n                first = run / \"first.json\"\n                second = run / \"second.json\"\n                supervisor._create_wave_json(deadline, run_id, 1024, first, {\"n\": 1})\n>               with pytest.raises(DevWavesError) as captured:\nE               Failed: DID NOT RAISE DevWavesError\n\norchestrator/tests/test_dev_waves_integration.py:2135: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_integration.py::test_expired_deadline_prevents_next_real_artifact_side_effect\n1 failed in 0.29s",
+      "restored_to_head": true
+    },
+    {
+      "id": "PM3",
+      "expected": "KILLED",
+      "observed": "KILLED",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 1.086,
+      "node": "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[log_cap-log-limit]",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[log_cap-log-limit]"
+      ],
+      "expected_signature": "ReasonCode.NONZERO_EXIT vs ReasonCode.LOG_LIMIT",
+      "diff_numstat": "1\t1\ttools/dev_waves/worker.py",
+      "mutated_sha256": "5356e0fddd6e673d7785f8a284b393b73b3586964b3f47629f12e4b064cc92e4",
+      "output_tail": "            request_options: dict[str, dict[str, int]] = {\n                \"nonzero\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"sleep_timeout\": {\n                    \"per_wave_timeout\": 20, \"total_timeout\": 40,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"grandchild_residual\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"log_cap\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n            }\n            with _isolated_process_environment(root):\n                repo = _temporary_repo(root, [fake_options[scenario], \"success\"])\n                supervisor = _supervisor(repo)\n                request = _request(\n                    repo, waves=2, total_budget=\"2\", **request_options[scenario],\n                )\n                submitted = supervisor.submit(request)\n                status, _seen = _wait_terminal(supervisor, submitted.run_id)\n                assert status.state is RunState.FAILED\n>               assert status.reason is reason\nE               AssertionError: assert <ReasonCode.NONZERO_EXIT: 'nonzero-exit'> is <ReasonCode.LOG_LIMIT: 'log-limit'>\nE                +  where <ReasonCode.NONZERO_EXIT: 'nonzero-exit'> = StatusResponse(protocol_version=1, ok=True, run_id='dw-d5ba7cced1b242a1aa732cf23085df9d', state=<RunState.FAILED: 'failed'>, wave_index=1, elapsed_s=Decimal('0.519'), reason=<ReasonCode.NONZERO_EXIT: 'nonzero-exit'>).reason\n\norchestrator/tests/test_dev_waves_integration.py:582: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[log_cap-log-limit]\n1 failed in 0.82s",
+      "restored_to_head": true
+    },
+    {
+      "id": "PM4v2",
+      "expected": "KILLED",
+      "observed": "KILLED",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 2.149,
+      "node": "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[grandchild_residual-nonzero-exit]",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[grandchild_residual-nonzero-exit]"
+      ],
+      "expected_signature": "RunState.COMPLETED vs RunState.FAILED",
+      "diff_numstat": "1\t1\ttools/dev_waves/worker.py",
+      "mutated_sha256": "ce818b2edccdbda81c2fe405faa6ad8aa33966cc473d5527a63ebe8c9ad188ad",
+      "output_tail": "            request_options: dict[str, dict[str, int]] = {\n                \"nonzero\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"sleep_timeout\": {\n                    \"per_wave_timeout\": 20, \"total_timeout\": 40,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"grandchild_residual\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n                \"log_cap\": {\n                    \"per_wave_timeout\": 60, \"total_timeout\": 120,\n                    \"output_bytes\": 128 * 1024,\n                },\n            }\n            with _isolated_process_environment(root):\n                repo = _temporary_repo(root, [fake_options[scenario], \"success\"])\n                supervisor = _supervisor(repo)\n                request = _request(\n                    repo, waves=2, total_budget=\"2\", **request_options[scenario],\n                )\n                submitted = supervisor.submit(request)\n                status, _seen = _wait_terminal(supervisor, submitted.run_id)\n>               assert status.state is RunState.FAILED\nE               AssertionError: assert <RunState.COMPLETED: 'completed'> is <RunState.FAILED: 'failed'>\nE                +  where <RunState.COMPLETED: 'completed'> = StatusResponse(protocol_version=1, ok=True, run_id='dw-e4e44648e52647e0ac2ff7c243e5ac83', state=<RunState.COMPLETED: 'completed'>, wave_index=2, elapsed_s=Decimal('1.59'), reason=<ReasonCode.MAX_WAVES_REACHED: 'max-waves-reached'>).state\nE                +  and   <RunState.FAILED: 'failed'> = RunState.FAILED\n\norchestrator/tests/test_dev_waves_integration.py:581: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[grandchild_residual-nonzero-exit]\n1 failed in 1.88s",
+      "restored_to_head": true
+    }
+  ]
+}
