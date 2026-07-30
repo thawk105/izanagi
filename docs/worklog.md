@@ -779,6 +779,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   削除 → prune) で畳み、9 branch を `-d` で削除した。滞在は `/proc/*/cwd` と cmdline の二重走査で
   実測し、稼働中 4 件 (t181・本 session・t200 locked・improve-u2) と dirty 8 件・ahead>0 の 4 件は残した。
   取り込み漏れ 1 件 = `codex/p3-autonomous-trial` (T-178 の runbook と insight が main に無い)。
+  残した `codex/dev-wave-t145` (ahead=1) は、その後の照会で**内容が main に取り込み済み**と判明した
+  (追加 test 2 件が main に実在、差分は main 側が新しく、branch 固有 16 行は helper の旧版)。
+  完了記録は (70) の `codex/dev-wave-t145-final`。**ユーザー自身が `-D` で削除**し branch は 14 になった
+  (AI は skill どおり `-d` のみを使い、`-D` は実行していない)。
   事後検査は `git submodule status` が pin `d706650` 一致・`-` prefix なし、main checkout の
   tracked dirt 0
 
