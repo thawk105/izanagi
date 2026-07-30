@@ -50,485 +50,6 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 アーカイブは凍結 (訂正注記のみ追記可)。既存アーカイブの一覧は `docs/archive/README.md`。
 
 ---
-## 2026-07-30 (65) — [T-180] Codex worker job の資源封筒と fail-closed receipt を正本化 — wall-clock を唯一の hard cap とし、live 停止は rollout tail・判定は stdout 最終 usage の二重 metering (コード + docs、branch worktree-dev-wave-t180-resource-envelope、計測 = 本 worktree・ログインノード + 実 Codex job 3 件の dogfood)
-
-- `tools/codex_worker_launch.py` (新規、`run` / `check-receipt`) と wave manifest、
-  `tools/codex_worker_ledger.py` の `--manifest` selector を追加した。統合 commit `24d2672`、
-  テスト race の修正 `de0a9ad`
-- **段 1 前提実測 (模擬でなく実走)**: `codex-cli 0.146.0` は turn/token/wall-clock/retry の
-  上限 flag を**持たない**ため封筒は wrapper 側でしか強制できない。probe 2 本で
-  (a) stdout `thread.started.thread_id` が rollout の `session_meta.session_id` と
-  ファイル名に一致し、(b) rollout JSONL が**実行中に逐次 flush** される
-  (`token_count` が 12/20/29/37/39 秒で 1→5) 一方、stdout の usage は `turn.completed` の
-  1 回だけ、を確認した。したがって **live 停止は rollout tail、終了判定は stdout 最終 usage**
-  の二重 metering になる。`turn.completed.usage` は rollout 最終 `total_token_usage` と完全一致し、
-  T-179 の "CLI reported" (`input - cached + output`) がそのまま receipt に載る
-- **射程を誇張しない**: hard cap は **wall-clock だけ**である。`model_calls` と token は
-  観測可能な proxy による best-effort 停止 + 事後 fail-closed 判定であり、usage は model call
-  完了後にしか観測できないため最大 1 call 分の不可視 overshoot がありうる
-  (`model_calls_semantics` / `possible_unobserved_overshoot` で表出)。`setsid()` で
-  process group を逃れた子の封じ込めは**行わず**残存を receipt に記録するに留める
-- **T-179 から継承した実在の欠陥を塞いだ**: `_validated_usage` は
-  `cached_input_tokens > input_tokens` を通し、`_billable({input:100, cached:200, output:1})` が
-  **-99** を返した (親が実コードで再現)。token 上限をこの値の上に作ると自明に破れるため、
-  launcher・ledger の双方で malformed として拒否する
-- **dogfood** — DW-O01 の結線は T-184 の明示所有 (「DW-O01 と worker 契約へ一度だけ反映する」)
-  かつ `docs/dev-wave/**` の残予算は 38 bytes なので docs は書き換えず、代わりに
-  **本 wave 自身の段 6 レビュー 3 本を新 launcher で起動**した。receipt は
-  review-a 33 calls / 192,930 tokens / 1,101.5 秒、review-b 34 / 232,757 / 1,229.1、
-  focus 66 / 412,833 / 1,106.5 の**計 838,520 tokens**、3 件とも accepted かつ
-  `check-receipt` rc=0。本 wave は「全 worker が launcher を通る」とは主張しない
-- **dogfood が後方互換破壊を捕まえた**: fix round 1 が `schema_version=1` のまま必須 field を
-  27→31 に増やしたため、数時間前に自分が生成した receipt 2 件が rc=2 で拒否された
-  (親が実測)。fix round 2 で新規を v2 とし checker が v1/v2 の双方を読めるようにした。
-  実運用 1 件を通していなければ wave 内で発見できなかった
-- **実データ受入 (親実測、F54 の要素単位照合)**: T-179 凍結の 10 session_id で manifest を作り
-  `--manifest --json --strict` を実走。`rc=0 / issues={} / 10 session / 434 model_calls /
-  2,757,982 cli_reported` に加え、**stage 別 6 値を逐件照合して全一致**、session 単位の
-  `job_id` 束縛 10/10、distinct job_id = 10 を確認した。旧 `--cwd-contains` 経路も同値で drift なし
-- 段 3 敵対相談 2 本と段 6 敵対レビュー 2 本はいずれも NO-GO、must-fix 計 17 件 +
-  親が独立に発見した 1 件 (`_append_manifest` が attempt 完了後に呼ばれ、途中で殺されると
-  費消済み session が台帳から消える → rollout 相関直後へ移動)。fix 3 巡で閉じた
-- **変異**: 統合 commit の後に本走 (DW-O19)。初回 10 本は KILLED 7 / SURVIVED 1 / 別理由赤 2 で、
-  DW-M02 に従い初回結果を erratum として残し実効 gate へ再照準した — M18 は変異位置が
-  terminate 路で期待 node が `_normal_reap` 路 (F28 の誤照準)、M14 は空 manifest が schema の
-  `1..1024` 検査で先に落ち records 検査が T-179 M10 に mask される、M19 は fix2 が新設した
-  単一理由 node が kill しており spec の記帳誤り。再照準 3/3 KILLED で**最終 10/10 KILLED**、
-  復元後 byte 一致
-- **変異 harness の中断事故**: セッションが異常終了した際、harness の `finally` 復元が走らず
-  M6 (`max_attempts` の off-by-one) が作業ツリーに残った。孤児 process が生存しており
-  復元と競合していた。停止 → `git checkout --` → commit 済み内容との byte 一致確認で回復した。
-  F32 (外側で親が殺されると `finally` が走らない) と同型の再発であり、
-  harness を前景で走らせた設計側の問題である
-- **記録後再走で自作の赤を 1 件出した (F34 の再走が拾った)**: 受入全走の**最中に** F32 の
-  commit を作って HEAD を動かしたため、repo HEAD へ束縛される
-  `test_s8b_oracle_driver.py::...t080...` が期待値と食い違って落ちた (3837 passed / 1 failed)。
-  単独再走は 82 passed / 1 skipped で再現せず、HEAD を固定した 3 回目の全走は
-  **3838 passed / 18 skipped** で緑。製品欠陥でもフレークでもなく**受入走行中に commit した
-  手順ミス**であり、実装差分へ帰属しない (DW-O18 の単独再現実測に従う)
-- 検査: 全受入 **3838 passed / 18 skipped** (記録 commit 前 260 秒 / HEAD 固定の記録後再走 236 秒、
-  本 worktree・ログインノード)。
-  `check_docs.py` 違反なし、`check_codex_agents.py` OK、`git diff --check` rc=0。
-  `check_ai_provenance.py` は 535 件中 1 違反だが、これは main `7be05ef` に既存の merge commit
-  `6b64d21` であり本 wave の産物ではない (本 wave の 2 commit は commit 前検査を通している)
-- 逐語・凍結値・変異台帳は `output/insights/2026-07-29_t180-resource-envelope-wave/`
-- 実装面はすべて Codex `role=author` が書き、親は brief・裁定・統合・変異・受入・記録・commit
-  のみ担当した。変異 harness は親の監査計器のため job tmp に置き repo に commit していない
-- エージェント工数: Codex 9 session (plan 1 / consult 2 / author 2 / review 2 + focus 1 は
-  launcher 経由、fix 3)。親 = brief・裁定・統合・変異・受入・docs・記録
-- 他セッション所有の未追跡 `.codex/worktrees/` と T-145 / T-146 / T-173 handoff は不変更
-
-### 次の一手
-
-
-- [T-180] **完了 (本エントリ、`24d2672` + `de0a9ad`)**: job 単位の resource envelope と
-  fail-closed receipt を `tools/codex_worker_launch.py` として正本化。wave manifest により
-  cwd 部分一致に依存しない受理集合を作り、ledger の `--manifest` で T-179 の凍結値を再現した
-- [T-181] **P1・着手可 ((64))**: focused review の reasoning `max` 対 `high` を凍結入力で限定比較する
-- [T-182] **P1・着手可 ((64))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
-  shadow 比較する
-- [T-183] **P1・着手可 ((64))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
-  retry 上限と fail-closed 回復を固定する。**T-180 は分類なしの機械的 retry 上限までを実装し、
-  失敗型分類・safety-filter 判定・回復経路を本 ID へ送った**
-- [T-184] **P1・T-181〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
-  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する。
-  **DW-O01 の結線と stage 別上限値は本 ID の所有** (T-180 は機構のみ)
-- [T-186] **P3・T-180 が返した裁定パッケージ**: manifest の seal ceremony と foreign entry
-  後追記の検出、`setsid()` 脱出子の完全封じ込め (cgroup / bwrap)、
-  stdout / artifact bytes の上限 (`max_artifact_bytes`) の 3 件
-- [T-179] **完了 ((64)、`72f8858`)**
-- [T-185] **P3・RuleOps hardening ((63) R3R-1)**: receipt range の commit 数と
-  path-union stdout bytes/cardinality を streaming 上限で fail-closed にし、安定 reason と
-  over-limit synthetic negative を追加する
-- [T-139] **完了 ((60))**
-- [T-142] **close ((62) のユーザー再裁定)**: formal selector と live campaign が
-  揃った場合のみ新タスクとして再起票
-- [T-136] 同上
-- [T-129] 同上
-- [T-149] 同上
-- [T-152] 同上
-- [T-153] **完了 ((60))**
-- [T-158] 同上
-- [T-141] 同上
-- [T-143] **完了 ((63)、D99)**
-- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
-  昇格不能な専用系列で live control と機械 receipt を先行し、production gate は別 wave
-- [T-059] **裁定済み ((62) = bounded な事後 mutation audit) → 実施待ち**:
-  事前登録不能だった逸脱を明記し、T-172 の drift 拒否検査を事後検証する
-- [T-145] 同上
-- [T-146] 同上
-- [T-134] 同上
-- [T-123] 同上
-- [T-118] 同上
-- [T-109] 同上
-- [T-113] 同上
-- [T-110] 同上
-- [T-097] 同上
-- [T-100] 同上
-- [T-099] 同上
-- [T-009] 同上
-- [T-060] 同上
-- [T-150] **P3・裁定済み ((60))**
-- [T-151] **P3・裁定済み ((60))**
-- [T-154] **完了 ((60))**
-- [T-130] **裁定済み・実装待ち ((60))**
-- [T-135] 同上
-- [T-133] 同上
-- [T-144] 同上
-- [T-088] 同上
-- [T-096] 同上
-- [T-102] 同上
-- [T-122] 同上
-- [T-103] 同上
-- [T-089] 同上
-- [T-090] 同上
-- [T-112] 同上
-- [T-114] 同上
-- [T-011] 同上
-- [T-085] 同上
-- [T-087] 同上
-- [T-012] 同上
-- [T-010] 同上
-- [T-082] 同上
-- [T-121] 同上
-- [T-156] 同上
-- [T-159] 同上
-- [T-157] 同上
-- [T-148] 同上
-- [T-155] 同上
-- [T-140] 同上
-- [T-147] 同上
-- [T-127] 同上
-- [T-137] 同上
-- [T-138] 同上
-- [T-132] 同上
-- [T-131] 同上
-- [T-128] 同上
-- [T-120] 同上
-- [T-125] 同上
-- [T-116] 同上
-- [T-057] 同上
-- [T-117] 同上
-- [T-119] 同上
-- [T-105] 同上
-- [T-104] 同上
-- [T-101] 同上
-- [T-124] 同上
-- [T-108] 同上
-- [T-111] 同上
-- [T-160] 同上
-- [T-161] 同上
-- [T-162] 同上
-- [T-163] 同上
-- [T-164] 同上
-- [T-165] 同上
-- [T-166] 同上
-- [T-167] **P3・裁定済み・実装待ち ((60))**
-- [T-168] 同上
-- [T-169] 同上
-- [T-170] **P3・裁定済み ((60))**
-- [T-171] **完了 ((60))**
-- [T-172] **完了 ((60))**
-- [T-173] **P3 ((60))**
-- [T-174] **P3・裁定要 ((60))**
-- [T-175] **P3・裁定要 ((60))**
-- [T-176] **P3・backlog ((60))**
-- [T-177] **P3・裁定要 ((60))**
-
-## 2026-07-30 (66) — [T-187] `6b64d21` AI provenanceを履歴非改変のforward correctionで是正 (コード + docs、branch codex/dev-wave-ai-provenance-main-integration、計測 = 専用worktree・ログインノード)
-
-- ユーザー裁定どおり、main/originと複数系列へ到達済みのmerge commitをrewriteせず、固定
-  `AI-Agent-Correction` 1件で対象missing findingだけを相殺する。件名`Merge branch ...`ではなく
-  trailer欠落が違反
-- 元eventを再抽出して`claude-opus-5 / xhigh / integrator`を復元。session IDは永続化せず、
-  sanitized fieldとevent行SHA-256へ射影。旧planner値はNO-GOで不採用
-- checkerはraw/canonical/final-block、selected-set両commit、strict lineage、実欠落、
-  correction自身greenを連言。一般allowlist/設定/CLI免除なし。D95のmerge pathは全parentとの差分積へ統一
-- Stage 6は敵対review 2本のblockerをfix 2巡で閉じ、focused re-review 2本がGO・blocker 0。
-  commit後変異はoutcome-changing 9/9 KILLED、pin 2/2、survivor 0
-- branch上の`T-186` / `D100`はmain側の先行採番と衝突したため、land時に`T-187` / `D101`へ
-  振り直した。履歴非改変のため既存commit件名は元番号を保持
-- mainのworklog (59)〜(65)とarchive (49)〜(58)を権威とし、branch側の重複archive (49)〜(64)は
-  採用しない。現行mainからfreshな統合worktreeを作り、startup gateを通した
-- target抜き補助rangeの赤後に同一shellが`merge --no-commit`まで継続したF37同型再発を記録。
-  commitは作らず、target-inclusive range 8件greenを単独確認
-- 統合後監査がlocal-only T-180記録`cb79147`のprobe shellにCodex authorがない別違反を検出。
-  ユーザー承認で同履歴をrewriteし、Codex authorが実際に最小編集した`677c32a`へ置換した
-- 元waveの全受入は3807 passed / 18 skipped、関連116 passed。再構成統合後は
-  final 3892 passed / 18 skipped、関連250 passed、full-history provenance 541件green
-- 正本はD101、phase3完了記録、`output/insights/2026-07-29_ai-provenance-forward-fix-wave/`
-- エージェント工数: 元wave Codex subprocess 10 session。今回のmain統合は親が競合裁定・docs再採番・
-  commit・受入・local main着地を担当。push/remote操作は行わない
-
-### 次の一手
-
-- [T-187] **完了 (本エントリ、D101)**
-- [T-180] **完了 ((65)、`24d2672` + `de0a9ad` + rewrite `677c32a`)**: job 単位の resource envelope と
-  fail-closed receipt を `tools/codex_worker_launch.py` として正本化。wave manifest により
-  cwd 部分一致に依存しない受理集合を作り、ledger の `--manifest` で T-179 の凍結値を再現した
-- [T-181] **P1・着手可 ((64))**: focused review の reasoning `max` 対 `high` を凍結入力で限定比較する
-- [T-182] **P1・着手可 ((64))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
-  shadow 比較する
-- [T-183] **P1・着手可 ((64))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
-  retry 上限と fail-closed 回復を固定する。**T-180 は分類なしの機械的 retry 上限までを実装し、
-  失敗型分類・safety-filter 判定・回復経路を本 ID へ送った**
-- [T-184] **P1・T-181〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
-  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する。
-  **DW-O01 の結線と stage 別上限値は本 ID の所有** (T-180 は機構のみ)
-- [T-186] **P3・T-180 が返した裁定パッケージ**: manifest の seal ceremony と foreign entry
-  後追記の検出、`setsid()` 脱出子の完全封じ込め (cgroup / bwrap)、
-  stdout / artifact bytes の上限 (`max_artifact_bytes`) の 3 件
-- [T-179] **完了 ((64)、`72f8858`)**
-- [T-185] **P3・RuleOps hardening ((63) R3R-1)**: receipt range の commit 数と
-  path-union stdout bytes/cardinality を streaming 上限で fail-closed にし、安定 reason と
-  over-limit synthetic negative を追加する
-- [T-139] **完了 ((60))**
-- [T-142] **close ((62) のユーザー再裁定)**: formal selector と live campaign が
-  揃った場合のみ新タスクとして再起票
-- [T-136] 同上
-- [T-129] 同上
-- [T-149] 同上
-- [T-152] 同上
-- [T-153] **完了 ((60))**
-- [T-158] 同上
-- [T-141] 同上
-- [T-143] **完了 ((63)、D99)**
-- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
-  昇格不能な専用系列で live control と機械 receipt を先行し、production gate は別 wave
-- [T-059] **裁定済み ((62) = bounded な事後 mutation audit) → 実施待ち**:
-  事前登録不能だった逸脱を明記し、T-172 の drift 拒否検査を事後検証する
-- [T-145] 同上
-- [T-146] 同上
-- [T-134] 同上
-- [T-123] 同上
-- [T-118] 同上
-- [T-109] 同上
-- [T-113] 同上
-- [T-110] 同上
-- [T-097] 同上
-- [T-100] 同上
-- [T-099] 同上
-- [T-009] 同上
-- [T-060] 同上
-- [T-150] **P3・裁定済み ((60))**
-- [T-151] **P3・裁定済み ((60))**
-- [T-154] **完了 ((60))**
-- [T-130] **裁定済み・実装待ち ((60))**
-- [T-135] 同上
-- [T-133] 同上
-- [T-144] 同上
-- [T-088] 同上
-- [T-096] 同上
-- [T-102] 同上
-- [T-122] 同上
-- [T-103] 同上
-- [T-089] 同上
-- [T-090] 同上
-- [T-112] 同上
-- [T-114] 同上
-- [T-011] 同上
-- [T-085] 同上
-- [T-087] 同上
-- [T-012] 同上
-- [T-010] 同上
-- [T-082] 同上
-- [T-121] 同上
-- [T-156] 同上
-- [T-159] 同上
-- [T-157] 同上
-- [T-148] 同上
-- [T-155] 同上
-- [T-140] 同上
-- [T-147] 同上
-- [T-127] 同上
-- [T-137] 同上
-- [T-138] 同上
-- [T-132] 同上
-- [T-131] 同上
-- [T-128] 同上
-- [T-120] 同上
-- [T-125] 同上
-- [T-116] 同上
-- [T-057] 同上
-- [T-117] 同上
-- [T-119] 同上
-- [T-105] 同上
-- [T-104] 同上
-- [T-101] 同上
-- [T-124] 同上
-- [T-108] 同上
-- [T-111] 同上
-- [T-160] 同上
-- [T-161] 同上
-- [T-162] 同上
-- [T-163] 同上
-- [T-164] 同上
-- [T-165] 同上
-- [T-166] 同上
-- [T-167] **P3・裁定済み・実装待ち ((60))**
-- [T-168] 同上
-- [T-169] 同上
-- [T-170] **P3・裁定済み ((60))**
-- [T-171] **完了 ((60))**
-- [T-172] **完了 ((60))**
-- [T-173] **P3 ((60))**
-- [T-174] **P3・裁定要 ((60))**
-- [T-175] **P3・裁定要 ((60))**
-- [T-176] **P3・backlog ((60))**
-- [T-177] **P3・裁定要 ((60))**
-
-## 2026-07-30 (67) — [T-188] Claude / Codex dev-wave の並行 session land を直列化 — 所有権付き制御面 + tested SHA + common lock (コード + docs、branch codex/dev-wave-skill、検査 = Pegasus gen_S 計算ノード)
-
-- ユーザー要求「`dev-wave a1` / `a2` の並行開発で、他 session の作業ファイルが最終 main
-  取り込みを妨げない」を 9 段 dev-wave で実装。Claude command と Codex Skill は共通
-  `DW-O23` / `tools/dev_wave_land.py` を使い、schema-valid handoff と Git admin に双方向登録された
-  worktree container だけを非接触例外にする。設計正本=D102、失敗台帳=F55
-- 段 2 plan 1、段 3 review 2、段 5 author 1、段 6 review 2 + fix / focused review 3 巡。
-  ignored container、lock 前 race、effective config poison、gitlink cleanup、同一 base 二 wave の
-  実 subprocess 受入を閉鎖。fix 上限後に残った synthetic command false-positive は living route
-  非到達かつ exact topology gate が独立するため backlog と裁定。逐語・裁定 =
-  `output/insights/2026-07-29_dev-wave-parallel-land/`
-- 実装 `43c4ec4`、mutation 台帳 `16e418b`、main 同期 `08adb89`、記録 `c63a005`、
-  resync 停止記録 `59c9484..c0ed6b9`、最新 main `ff82133` の統合 `81be71c`。
-  main の別 session 所有 handoff / worktree は削除・stash・commit・上書きしていない
-- M1〜M13 は **13/13 KILLED**、SURVIVED 0、復元失敗 0。各 mutation は exact anchor、
-  期待 node red、source byte 復元を固定。M13 の再照準と事後性は台帳の erratum に残した
-- 2 回の段 9 resync 監査は最初に provenance 欠落と ledger 4件、次に残余2件で NO-GO。
-  provenance と token 集計は main 側 T-180 / T-187 で閉鎖。残余2件は実在するが本 wave の
-  consumer 閉包外とするユーザー再裁定後だけ、固定 SHA の再同期を継続した
-- ログインノードで全走が 2 回 OOM kill され、`/dev/shm` 約15.4 GiB残留と16 GiB cgroupを実測。
-  再開後はビルド・テストをログインノードで行わず、Pegasus `gen_S` 計算ノードの `/scr` と
-  bounded xdist を使った。resume startup job `874084.nqsv` は48 core / 124 GiB / Python 3.10.12で緑
-- 再開managerの初回記録は worklog の挿入位置と T-187 sink を誤り、計算node job
-  `874094` / `874099` の D70 gate が各 1 件赤で全走前停止。`874100` は PBS job ID の `:` を
-  `TMPDIR` に残して path を分断し、3901 passed / 19 skipped / 41 failed。製品差分を変えず
-  entry末尾化・sink保存・job ID正規化で原因を閉じ、赤を受入扱いしていない
-- 最終受入は Pegasus job `874116.nqsv` / `bnode112` の32 workerで、関連312 passed、
-  repository全走 **3942 passed / 19 skipped** (209.86秒)。`check_docs` / `check_codex_agents` /
-  py_compile / staged diff checkは緑、full-history provenanceは549件・違反なし
-- campaign の raw 受理集合、certified 選択、proof chain は不変。変更は監査済み開発 commit の
-  local-main 反映契約だけ。push と remote branch 操作は人間境界を維持
-- エージェント工数: Codex subprocess 14 (plan 1、敵対相談 2、author 1、review 2、
-  fix 3、focused review 3、main resync audit 2)。親 = brief・裁定・統合・変異・記録・受入・land
-
-### 次の一手
-
-- [T-188] **完了 (本エントリ、D102、F55)**
-- [T-187] **完了 ((66)、D101)**
-- [T-180] **完了 ((65)、`24d2672` + `de0a9ad` + rewrite `677c32a`)**: job 単位の resource envelope と
-  fail-closed receipt を `tools/codex_worker_launch.py` として正本化。wave manifest により
-  cwd 部分一致に依存しない受理集合を作り、ledger の `--manifest` で T-179 の凍結値を再現した
-- [T-181] **P1・着手可 ((64))**: focused review の reasoning `max` 対 `high` を凍結入力で限定比較する
-- [T-182] **P1・着手可 ((64))**: critical stage を維持し、第二レンズ 1 箇所だけ軽量 model を
-  shadow 比較する
-- [T-183] **P1・着手可 ((64))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
-  retry 上限と fail-closed 回復を固定する。**T-180 は分類なしの機械的 retry 上限までを実装し、
-  失敗型分類・safety-filter 判定・回復経路を本 ID へ送った**
-- [T-184] **P1・T-181〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
-  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する。
-  **DW-O01 の結線と stage 別上限値は本 ID の所有** (T-180 は機構のみ)
-- [T-186] **P3・T-180 が返した裁定パッケージ**: manifest の seal ceremony と foreign entry
-  後追記の検出、`setsid()` 脱出子の完全封じ込め (cgroup / bwrap)、
-  stdout / artifact bytes の上限 (`max_artifact_bytes`) の 3 件
-- [T-179] **完了 ((64)、`72f8858`)**
-- [T-185] **P3・RuleOps hardening ((63) R3R-1)**: receipt range の commit 数と
-  path-union stdout bytes/cardinality を streaming 上限で fail-closed にし、安定 reason と
-  over-limit synthetic negative を追加する
-- [T-139] **完了 ((60))**
-- [T-142] **close ((62) のユーザー再裁定)**: formal selector と live campaign が
-  揃った場合のみ新タスクとして再起票
-- [T-136] 同上
-- [T-129] 同上
-- [T-149] 同上
-- [T-152] 同上
-- [T-153] **完了 ((60))**
-- [T-158] 同上
-- [T-141] 同上
-- [T-143] **完了 ((63)、D99)**
-- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
-  昇格不能な専用系列で live control と機械 receipt を先行し、production gate は別 wave
-- [T-059] **裁定済み ((62) = bounded な事後 mutation audit) → 実施待ち**:
-  事前登録不能だった逸脱を明記し、T-172 の drift 拒否検査を事後検証する
-- [T-145] 同上
-- [T-146] 同上
-- [T-134] 同上
-- [T-123] 同上
-- [T-118] 同上
-- [T-109] 同上
-- [T-113] 同上
-- [T-110] 同上
-- [T-097] 同上
-- [T-100] 同上
-- [T-099] 同上
-- [T-009] 同上
-- [T-060] 同上
-- [T-150] **P3・裁定済み ((60))**
-- [T-151] **P3・裁定済み ((60))**
-- [T-154] **完了 ((60))**
-- [T-130] **裁定済み・実装待ち ((60))**
-- [T-135] 同上
-- [T-133] 同上
-- [T-144] 同上
-- [T-088] 同上
-- [T-096] 同上
-- [T-102] 同上
-- [T-122] 同上
-- [T-103] 同上
-- [T-089] 同上
-- [T-090] 同上
-- [T-112] 同上
-- [T-114] 同上
-- [T-011] 同上
-- [T-085] 同上
-- [T-087] 同上
-- [T-012] 同上
-- [T-010] 同上
-- [T-082] 同上
-- [T-121] 同上
-- [T-156] 同上
-- [T-159] 同上
-- [T-157] 同上
-- [T-148] 同上
-- [T-155] 同上
-- [T-140] 同上
-- [T-147] 同上
-- [T-127] 同上
-- [T-137] 同上
-- [T-138] 同上
-- [T-132] 同上
-- [T-131] 同上
-- [T-128] 同上
-- [T-120] 同上
-- [T-125] 同上
-- [T-116] 同上
-- [T-057] 同上
-- [T-117] 同上
-- [T-119] 同上
-- [T-105] 同上
-- [T-104] 同上
-- [T-101] 同上
-- [T-124] 同上
-- [T-108] 同上
-- [T-111] 同上
-- [T-160] 同上
-- [T-161] 同上
-- [T-162] 同上
-- [T-163] 同上
-- [T-164] 同上
-- [T-165] 同上
-- [T-166] 同上
-- [T-167] **P3・裁定済み・実装待ち ((60))**
-- [T-168] 同上
-- [T-169] 同上
-- [T-170] **P3・裁定済み ((60))**
-- [T-171] **完了 ((60))**
-- [T-172] **完了 ((60))**
-- [T-173] **P3 ((60))**
-- [T-174] **P3・裁定要 ((60))**
-- [T-175] **P3・裁定要 ((60))**
-- [T-176] **P3・backlog ((60))**
-- [T-177] **P3・裁定要 ((60))**
-
 ## 2026-07-30 (68) — [T-182] model routing の限定 shadow pilot を実走し、専用ツールは実装しないと裁定 (docs のみ、branch worktree-dev-wave-t182-model-routing、計測 = 本 worktree・ログインノード、live inference は段 2/3 の codex arm のみ)
 
 - **本 wave に実装差分はない。** 段 4 で「実装しない」と裁定し `4→7→8→9` を辿った。したがって
@@ -1033,7 +554,173 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
 
-## 2026-07-30 (71) — [T-191] Pegasus で重い処理を計算ノードへ強制し最大並列にする (コード + docs、branch worktree-dev-wave-pegasus-compute-node、受入 = Pegasus gen_S 計算ノード request `874299`)
+## 2026-07-30 (71) — [T-191] Codex cleanup-branches Skill を明示起動専用の安全 adapter として移植 (コード + docs、branch codex/dev-wave-cleanup-branches-skill-t188、計測 = Pegasus 計算ノード)
+
+- `.agents/skills/cleanup-branches/` に、Claude commandを共通dispatcherとして再利用する薄いSkillと
+  UI metadataを追加した。明示起動専用、main / primary無条件保持、foreign / lockedのinventory限定、
+  破壊直前のeligibility再評価、real prune・権限拡大・push禁止へ安全側に縮退する。
+  **本waveではbranch / worktreeの実掃除を行っていない**
+- checkerはSkill / commandのwhole-file SHA-256、2 file閉包、exact interfaceを独立pinと負例で固定。
+  plan 1、敵対相談2、敵対review2、fix / focus 3巡を行い、最終reviewはGO・blocker 0。
+  詳細・逐語・裁定は
+  `output/insights/2026-07-30_t188-codex-cleanup-branches-skill-wave/`
+- 実装patchは`b5f0460`、初回記録は`24dec31`、記録後受入は`15af7cd`。
+  T-188 land後の同期は`401bdeb`、受入記録は`d80ab4b`
+- 初回全走は3951 passed / 19 skipped。共有bytecode cacheを使ったmutation job `874224`は
+  same-size変異のstale bytecodeを検出して全結果を無効化し、cache namespaceを分離した
+  `874229`でunion mutation 19/19 KILLED、復元後focused 197 passed、全履歴provenance
+  554件・違反なしを取り直した
+- mainがT-182 / T-146を先にlandしたため、旧T-189 / worklog (68)を候補T-190 / (70)へ
+  振り直した。固定main `43584d1`との59 path和集合を独立監査し、worklog誤挿入だけを
+  内容不変で是正した再監査はGO・指摘0。Pegasus `874276.nqsv`はrepository全走
+  3960 passed / 19 skipped / 214.79秒、rc=0
+- focused初回 `874277.nqsv` は全走との同時`git write-tree`が共有index lockを競合したため
+  受入証拠に使わない。単独再走 `874280.nqsv` は関連286 passed後、merge中を意図どおり拒否する
+  startup gateで停止した。startupはmerge前にgreenだった
+- その記録追補直後にT-145が先行landし、current mainは`c810ee2`へ前進して(70) / T-190 /
+  F57を権威として使用した。同contextではcommitせずfail-closed停止。fresh contextで旧mergeの
+  exact stateを照合してabortし、Pegasus startup `874284.nqsv`をgreenにしてから固定main
+  `c810ee2`を再統合し、本cleanupをD70により(71) / T-191へ再採番した
+- 固定tree `5cf3ee8`の独立監査は和集合85 path、全parent差分積docs 3 path、
+  T-145 / T-146 / T-188 / cleanupの検出面、D70、pointer、digestをgreenとしたが、
+  worklog 104,576 bytes > 100,000 bytesの1件だけNO-GO。entry (59)〜(67)を
+  `docs/archive/worklog-phase3-0729-59-0730-67.md`へ内容不変で移動し、現行は
+  並行land文脈の(68)〜(71)を保持した
+- rotation後tree `7402431`の独立再監査はGO・指摘0。archive / 現行の重複・欠落なし、
+  (58)→(59)と(67)→(68)を含むD70全遷移、worklog 39,259 bytes、全検出面をgreenとした。
+  Pegasus pre-commit `874292.nqsv` (bnode016) はrepository全走
+  3974 passed / 19 skipped / 211.02秒、check_docs / check_codex_agents /
+  message provenance / py_compile / Skill validator / diff・tree安定がgreen、rc=0
+- エージェント工数: Codex subprocess 20 session
+  (plan 1 / consult 2 / author 2 / review・focus 5 / fix 3 / forward test 2 /
+  独立merge監査5)。親 = brief・裁定・統合・変異・受入・docs・記録
+
+### 次の一手
+
+- [T-191] **完了 (本エントリ、実装 `b5f0460`、記録 `d80ab4b`)**
+- [T-189] **P1・T-181 land 後 ((68))**: model routing の**妥当な**比較実験を設計する。
+  独立 oracle、held-out 複数 task、block randomization、cache 条件分離、価格 version、
+  盲検裁定、事前非劣性 margin。T-182 の pilot は n=1・非盲検・後付け採点のため根拠にしない
+- [T-190] **P2・新規 ((70)、F57)**: launcher normal fakeの32-worker負荷フレークを
+  失敗artifact保存つきで原因分離し、production gateを緩めずfixtureをhardenする
+- [T-188] **完了 ((67)、D102、F55)**
+- [T-187] **完了 ((66)、D101)**
+- [T-180] **完了 ((65)、`24d2672` + `de0a9ad` + rewrite `677c32a`)**: job 単位の resource envelope と
+  fail-closed receipt を `tools/codex_worker_launch.py` として正本化。wave manifest により
+  cwd 部分一致に依存しない受理集合を作り、ledger の `--manifest` で T-179 の凍結値を再現した
+- [T-181] **P1・着手可 ((64))**: focused review の reasoning `max` 対 `high` を凍結入力で限定比較する
+- [T-182] **完了 ((68)、実装差分なし)**: 段 3 レンズ B を同一凍結入力で sol / luna / mini の
+  3 arm へ投入し、被覆・誤検出・token/wall と receipt を凍結した。専用ツールは独立 3 レンズの
+  NO-GO を受けて実装しない裁定
+- [T-183] **P1・着手可 ((64))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
+  retry 上限と fail-closed 回復を固定する。**T-180 は分類なしの機械的 retry 上限までを実装し、
+  失敗型分類・safety-filter 判定・回復経路を本 ID へ送った**
+- [T-184] **P1・T-181〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
+  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する。
+  **DW-O01 の結線と stage 別上限値は本 ID の所有** (T-180 は機構のみ)
+- [T-186] **P3・T-180 が返した裁定パッケージ**: manifest の seal ceremony と foreign entry
+  後追記の検出、`setsid()` 脱出子の完全封じ込め (cgroup / bwrap)、
+  stdout / artifact bytes の上限 (`max_artifact_bytes`) の 3 件
+- [T-179] **完了 ((64)、`72f8858`)**
+- [T-185] **P3・RuleOps hardening ((63) R3R-1)**: receipt range の commit 数と
+  path-union stdout bytes/cardinality を streaming 上限で fail-closed にし、安定 reason と
+  over-limit synthetic negative を追加する
+- [T-139] **完了 ((60))**
+- [T-142] **close ((62) のユーザー再裁定)**: formal selector と live campaign が
+  揃った場合のみ新タスクとして再起票
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 ((60))**
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] **完了 ((63)、D99)**
+- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
+  昇格不能な専用系列で live control と機械 receipt を先行し、production gateは別wave
+- [T-059] **裁定済み ((62) = bounded な事後 mutation audit) → 実施待ち**:
+  事前登録不能だった逸脱を明記し、T-172のdrift拒否検査を事後検証する
+- [T-145] **完了 ((70)、`64ddf5c` + merge `d5825c5`)**
+- [T-146] **完了 ((69))**
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((60))**
+- [T-151] **P3・裁定済み ((60))**
+- [T-154] **完了 ((60))**
+- [T-130] **裁定済み・実装待ち ((60))**
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み・実装待ち ((60))**
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((60))**
+- [T-171] **完了 ((60))**
+- [T-172] **完了 ((60))**
+- [T-173] **P3 ((60))**
+- [T-174] **P3・裁定要 ((60))**
+- [T-175] **P3・裁定要 ((60))**
+- [T-176] **P3・backlog ((60))**
+- [T-177] **P3・裁定要 ((60))**
+
+## 2026-07-30 (72) — [T-192] Pegasus で重い処理を計算ノードへ強制し最大並列にする (コード + docs、branch worktree-dev-wave-pegasus-compute-node、受入 = Pegasus gen_S 計算ノード request `874299`)
 
 - ユーザー裁定 (逐語 2 件): 「hostname が pegasus なら、ビルドやテストなど負荷のかかる処理は全て
   計算ノードで」「計算ノードのリソースを最大限使って最大限並列で」。runbook §7 の 2026-07-27 裁定
@@ -1079,30 +766,32 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   レビュー 2 / 焦点 1 のうち並列)。親は brief・裁定・統合・受入・変異・記録を担当。push は行わない
 
 
+
 ### 次の一手
 
-- [T-191] **完了 (本エントリ、D103)**: Pegasus の重い処理を計算ノードへ強制し、テストの既定並列度を
+- [T-192] **完了 (本エントリ、D103)**: Pegasus の重い処理を計算ノードへ強制し、テストの既定並列度を
   affinity 全数にした。段 9 は main 分岐により停止 (下記 T-192)
-- [T-192] **P1・ユーザー裁定要**: 本 wave の branch を最新 main へ統合する経路を決める。
+- [T-193] **P1・ユーザー裁定要**: 本 wave の branch を最新 main へ統合する経路を決める。
   main の `tools/dev_wave_land.py` (DW-O23) を使うか、現行 main から fresh 統合 worktree を作るか。
   併せて `dev-wave-improve` の `tools/pegasus/test_dispatch.py` 系との**重複をどちらの正本に寄せるか**
   を裁定する
-- [T-193] **P2・backlog**: dispatcher が子の pytest 出力を親 stdout へ中継しない。失敗時に
+- [T-194] **P2・backlog**: dispatcher が子の pytest 出力を親 stdout へ中継しない。失敗時に
   `.o` を開かないと赤の node が分からない。receipt には収集済み tail が入っているので中継は小改修
-- [T-194] **P2・backlog (裁定パッケージ)**: `buildcache` の campaign build を site 由来並列にする。
+- [T-195] **P2・backlog (裁定パッケージ)**: `buildcache` の campaign build を site 由来並列にする。
   v2 completion manifest へ actual build argv を足す schema 変更 (+ pin 閉包・consumer 改修) が前提
-- [T-195] **P3・backlog (裁定パッケージ)**: `silo_ladder_rung1.py` の直接 cmake と
+- [T-196] **P3・backlog (裁定パッケージ)**: `silo_ladder_rung1.py` の直接 cmake と
   `t152_write_intent_coverage.py` (`DEFAULT_JOBS=MAX_JOBS=8`、成果物へ `host_role: login-node`) の
   扱い。本 wave では scope 外にした
-- [T-196] **P3・backlog (裁定パッケージ)**: `tools/pegasus/exec_calibrate.py` が JSON の任意 argv を
+- [T-197] **P3・backlog (裁定パッケージ)**: `tools/pegasus/exec_calibrate.py` が JSON の任意 argv を
   `os.execv` する汎用トランポリンである点。sanctioned exact path 列挙で当面は塞いだ
-- [T-197] **P3・backlog (裁定パッケージ)**: SIGKILL / OOM / ホスト切断に対する scheduler-side lease と
+- [T-198] **P3・backlog (裁定パッケージ)**: SIGKILL / OOM / ホスト切断に対する scheduler-side lease と
   heartbeat。現行は SIGINT / SIGTERM / 例外の qdel best-effort まで
-- [T-198] **P3・backlog**: dev-wave 改善候補 3 件 — (a) 親が書ける「実装面」の境界 (DW-G01 の
+- [T-199] **P3・backlog**: dev-wave 改善候補 3 件 — (a) 親が書ける「実装面」の境界 (DW-G01 の
   生死 driver と親の変異 harness) を reference 節へ 1 行で明示、(b) DW-S01 の brief 10〜30 行が
   条件 dispatch 20 件の wave では守れない点の整理、(c) runbook に裁定の反転履歴が積む形を
   worklog / decisions 側へ寄せる。**main の dev-wave 正本が本 wave 中に変わったため、stale な
   branch 側 reference は編集せず候補として繰り越した**
+- [T-191] **完了 (本エントリ、実装 `b5f0460`、記録 `d80ab4b`)**
 - [T-189] **P1・T-181 land 後 ((68))**: model routing の**妥当な**比較実験を設計する。
   独立 oracle、held-out 複数 task、block randomization、cache 条件分離、価格 version、
   盲検裁定、事前非劣性 margin。T-182 の pilot は n=1・非盲検・後付け採点のため根拠にしない
@@ -1142,10 +831,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-141] 同上
 - [T-143] **完了 ((63)、D99)**
 - [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
-  昇格不能な専用系列で live control と機械 receipt を先行し、production gate は別 wave
+  昇格不能な専用系列で live control と機械 receipt を先行し、production gateは別wave
 - [T-059] **裁定済み ((62) = bounded な事後 mutation audit) → 実施待ち**:
-  事前登録不能だった逸脱を明記し、T-172 の drift 拒否検査を事後検証する
-- [T-145] **完了 (本エントリ、`64ddf5c` + merge `d5825c5`)**
+  事前登録不能だった逸脱を明記し、T-172のdrift拒否検査を事後検証する
+- [T-145] **完了 ((70)、`64ddf5c` + merge `d5825c5`)**
 - [T-146] **完了 ((69))**
 - [T-134] 同上
 - [T-123] 同上

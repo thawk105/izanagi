@@ -594,6 +594,13 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### 裁定・完了記録
 
+- [T-191] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —
+  `.agents/skills/cleanup-branches/` に Claude command を共通 dispatcher として再利用する薄い
+  Codex adapter と生成済み UI metadata を追加。明示 `$cleanup-branches` 専用とし、
+  main / primary / foreign / locked / process residency / real prune / permission / push 境界を
+  Codex 固有の安全側 overlay で固定した。`check_docs.py` は Skill と command の全 bytes、
+  2 file 閉包、exact interface を独立 pin と負例で拒否する。材料・レビュー・変異 =
+  `output/insights/2026-07-30_t188-codex-cleanup-branches-skill-wave/`、記録 = worklog (71)。
 - [T-187] **(完了 2026-07-30) `6b64d21` AI provenance forward-only是正** — 共有済みmerge
   commitはrewriteせず、固定target/payload・strict lineage・selected-set両commit・実欠落・
   correction自身greenを連言する一回限り`AI-Agent-Correction`でmissing findingだけを相殺する。

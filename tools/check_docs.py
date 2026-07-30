@@ -216,6 +216,32 @@ CODEX_RULINGS_OPENAI_YAML = """interface:
   short_description: "Izanagi の裁定待ちを索引・詳説して判断を補佐"
   default_prompt: "Use $rulings to list and explain the Izanagi decisions awaiting my ruling."
 """
+CODEX_CLEANUP_BRANCHES_SKILL_LIMITS = {
+    ".agents/skills/cleanup-branches/SKILL.md": TextLimit(3_100, 210),
+    ".agents/skills/cleanup-branches/agents/openai.yaml": TextLimit(300, 110),
+}
+CODEX_CLEANUP_BRANCHES_SKILL_FILES = frozenset(
+    CODEX_CLEANUP_BRANCHES_SKILL_LIMITS
+)
+CODEX_CLEANUP_BRANCHES_DESCRIPTION = (
+    "Safely inventory and clean up merged local Izanagi branches and worktrees "
+    "through the shared dispatcher. Use only for an explicit $cleanup-branches "
+    "invocation; implicit invocation is disabled."
+)
+CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (
+    "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
+)
+CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
+  display_name: "Cleanup Branches"
+  short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
+  default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
+
+policy:
+  allow_implicit_invocation: false
+"""
+CLEANUP_COMMAND_SHA256 = (
+    "9b2c0dac6cf1e8cfcd49a18840d62b6b3dcd2cdf322d1594266b5a4a71af43c7"
+)
 
 COMMAND_INTERFACES = {
     ".claude/commands/dev-wave.md": {
@@ -1482,6 +1508,8 @@ def _check_codex_skill_guard(
     expected_files: frozenset[str],
     literals: tuple[str, ...],
     openai_yaml: str,
+    expected_description: str | None = None,
+    expected_sha256: str | None = None,
     forbidden_literals: tuple[str, ...] = (),
     exact_literals: tuple[str, ...] = (),
     forbidden_patterns: tuple[tuple[re.Pattern[str], str], ...] = (),
@@ -1566,13 +1594,29 @@ def _check_codex_skill_guard(
                 findings.append(
                     f"{skill_rel}: name は {skill_name!r} 必須"
                 )
-            if not values.get("description", "").strip():
+            description = values.get("description", "")
+            if not description.strip():
                 findings.append(f"{skill_rel}: description が空")
+            elif (
+                expected_description is not None
+                and description != expected_description
+            ):
+                findings.append(
+                    f"{skill_rel}: description が explicit trigger 契約と不一致"
+                )
         for literal in literals:
             if literal not in skill_text:
                 findings.append(
                     f"{skill_rel}: Codex adapter 契約がない — {literal!r}"
                 )
+        if (
+            expected_sha256 is not None
+            and hashlib.sha256(skill_text.encode("utf-8")).hexdigest()
+            != expected_sha256
+        ):
+            findings.append(
+                f"{skill_rel}: whole-file SHA-256 が契約と不一致"
+            )
         for literal in forbidden_literals:
             if literal in skill_text:
                 findings.append(
@@ -1927,6 +1971,27 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         literals=CODEX_RULINGS_SKILL_LITERALS,
         openai_yaml=CODEX_RULINGS_OPENAI_YAML,
     )
+    _check_codex_skill_guard(
+        findings,
+        skill_name="cleanup-branches",
+        limits=CODEX_CLEANUP_BRANCHES_SKILL_LIMITS,
+        expected_files=CODEX_CLEANUP_BRANCHES_SKILL_FILES,
+        literals=(),
+        openai_yaml=CODEX_CLEANUP_BRANCHES_OPENAI_YAML,
+        expected_description=CODEX_CLEANUP_BRANCHES_DESCRIPTION,
+        expected_sha256=CODEX_CLEANUP_BRANCHES_SKILL_SHA256,
+    )
+
+    cleanup_text = decoded.get(".claude/commands/cleanup-branches.md")
+    if (
+        cleanup_text is not None
+        and hashlib.sha256(cleanup_text.encode("utf-8")).hexdigest()
+        != CLEANUP_COMMAND_SHA256
+    ):
+        findings.append(
+            ".claude/commands/cleanup-branches.md: "
+            "whole-file SHA-256 が契約と不一致"
+        )
 
     return unreadable
 

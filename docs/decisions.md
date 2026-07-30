@@ -4551,7 +4551,7 @@ command がこの誤検出へ到達した時だけ、意味を保つ parser 化�
 変わるのは監査済み開発 commit を local main へ反映する操作契約だけである。材料・レビュー・変異 =
 `output/insights/2026-07-29_dev-wave-parallel-land/`。
 
-## D103. [T-191] Pegasus では重い処理を計算ノードで最大並列とし、強制は sanctioned 経路の fail-closed に限る (2026-07-30)
+## D103. [T-192] Pegasus では重い処理を計算ノードで最大並列とし、強制は sanctioned 経路の fail-closed に限る (2026-07-30)
 
 **背景:** ユーザー裁定が 2 回反転した。`docs/pegasus-runbook.md` §7 は 2026-07-27 に
 「ビルドとテスト (pytest 全走を含む) はログインノードで走らせてよい」と定めていたが、
