@@ -1101,10 +1101,40 @@
 - **暫定対応:** 本受入は16 workerを採用し、赤い32-worker走をgreenとして数えない。恒久対応は
   [T-190]で失敗artifactを保存して原因を分離し、production wall-clock gateを緩めずtest fixtureを
   hardenする
-- **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32-worker対照。
-  記録: worklog 2026-07-30 (70)
+- **再発: 2026-07-31 ([T-200] 受入全走)。** Pegasus計算ノード bnode002 の48-worker全走で
+  `test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts` が
+  `assert 1 == 0` / stderr空で1件落ちた (request `874538`)。同一ノードでの単独再走は
+  1 passed / 2.55秒 (request `874539`) で再現せず、直後の48-worker全走も
+  4112 passed / 0 failed (request `874540`) だった。**48 workerでも出る**ことと、
+  失敗nodeがまた移動したことが新しい情報である。`DW-O18` により当該waveの差分
+  (t080 fixture面のみ) へは帰属しない
+- **再発: 2026-07-31 (同 [T-200] の land 再試行受入)。** bnode040 の48-worker全走で
+  `test_manifest_is_appended_while_correlated_session_is_running` が1件落ちた (request `874704`)。
+  bnode041 での単独再走は 1 passed / 2.85秒 (request `874705`) で再現せず。**同一waveで
+  失敗nodeが3回とも異なり** (`test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts`
+  → 本node)、いずれも launcher subprocess 系である点が繰り返し確認された
+- **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32/48-worker対照。
+  記録: worklog 2026-07-30 (70)、2026-07-31 (73)
 
-### F58. gate の上限が、その gate を強制する装置自身の前処理コストで必ず違反した [自己不整合]
+### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
+
+- **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
+  (73) の wave が自分の新規項目へ再採番した。「次の一手」の正本は末尾エントリだけなので、
+  (72) 側の内容 — 未取り込み branch の取り込み可否と、cleanup-branches への F26 反映 —
+  が誰にも引き継がれずに消えた。D70 の「一度 land した ID は変更・再利用しない」に反する
+- **なぜ機械検査を素通りしたか:** `tools/check_docs.py` の保存則は「前エントリの ID が後続
+  エントリまたは見送り台帳のトップレベル項目に**現れる**こと」だけを見る。ID が同じまま中身が
+  入れ替わると存在検査は真になるため、**内容の消失に対しては恒真**である
+- **同型の先行例:** (72) 自身も branch 側の ID / D 番号が main 側の先行採番と衝突し、統合直前に
+  振り直している。そのときは親が手で気づいた。**機械検査で止まった事例はまだ無い**
+- **恒久対応:** 内容を新規 ID として復元し (worklog (74))、再発検知は下記による。
+  保存則を内容のすり替えまで検出するよう強める案は validator の受理集合を変えるため、
+  [T-211] としてユーザー裁定へ返した
+- **再発検知:** 統合直前の再走査 (D70 の採番規約) を wave 側の land 前手順として守ること。
+  `/rulings` は末尾エントリだけでなく、直前エントリとの ID 差分も照合する。
+  記録: worklog 2026-07-31 (74)
+
+### F59. gate の上限が、その gate を強制する装置自身の前処理コストで必ず違反した [自己不整合]
 - 事象: [T-181] wave の run supervisor が `MAX_SCHEDULE_GAP_MS=60_000` を連続 run すべてへ適用したが、
   `supervise-pair` 起動時の snapshot oracle 検証が実測 **350,980 ms** かかるため、block 間の gap が
   必ず上限を超えた。block b2 の 2 run は **exit 0 で正常完走していた**のに
@@ -1116,7 +1146,7 @@
   実測で確認**する。満たせないなら文脈で分ける (本件は intra-block 60 秒 / inter-block 900 秒)。
   実 gap は全 receipt に記録し、結論には実測値を併記する
 
-### F59. 事前登録変異の期待 node が実効 gate を検査しておらず、新設防壁に対応テストが無いことを露出させた [テスト代表性]
+### F60. 事前登録変異の期待 node が実効 gate を検査しておらず、新設防壁に対応テストが無いことを露出させた [テスト代表性]
 - 事象: [T-181] wave で事前登録した変異 M6 (読取時 packet digest 束縛の無効化) が SURVIVED し、
   DW-M04 に従って両層同時変異 M6p (読取時 + freeze 時 digest) を追加登録してもなお SURVIVED した。
   原因は M6 の期待 node にしていたテストが実際には **reader 間の不一致処理**を検査しており、
@@ -1129,7 +1159,7 @@
   (b) 変異の期待 node は、対象 gate を実行するテストであることをコードで確認してから pin する。
   SURVIVED は mask を疑う前に「そもそも対応テストが在るか」を先に確認する
 
-### F60. 実走後の装置修正が、凍結成果物の replay 認証を失わせた [順序]
+### F61. 実走後の装置修正が、凍結成果物の replay 認証を失わせた [順序]
 - 事象: [T-181] wave で 10 run の実走後に oracle を 2 度修正した (上流 token 異常の分類、
   stale commit-graph の除去)。その結果 `aggregate` / `verify` が全 10 run で
   `snapshot oracle replay mismatch` を返し `experiment_complete=false` になった。

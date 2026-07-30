@@ -4621,3 +4621,48 @@ host / PBS job ID 追加 (dispatcher receipt で代替)。
 **rc の意味**: ログインノードからの正常な dispatch は計算ノードの子 rc をそのまま返す (成功なら 0)。
 `rc=16` は dispatch の infra 失敗 (投入・状態機械・会計照合・receipt 永続の失敗) と
 `PEGASUS_SUSPECT` での拒否だけに使う。D96 の手続義務に従い境界テストを同時追加する。
+
+## D104. [T-200] 受入全走の下限は in-scope のテスト側施策では動かないと実測で確定し、共有 cache 実装を破棄する (2026-07-31)
+
+**背景:** ユーザー裁定「全走の下限を下げる」を受けて起票した wave である。材料
+(`output/insights/2026-07-30_dev-wave-gate-cost-and-suite-floor.md` §7) は real-repo group の
+2 node と T-080 base fixture の worker 間共有を候補に挙げていた。段 1 の前提実測で材料の
+3 数値がいずれも現状と食い違い、段 3 の敵対相談が親 brief 自身の誤り 6 件を real と判定し、
+段 5 の実装が段 6 の受入実測で効果を示せなかった。
+
+**決定 (1): T-080 base fixture の session 内共有は採用しない。**
+before 2 走 / after 2 走の実測で、全走 wall は 207.5 → 206.3 秒 (差 1.3 秒、走行間ばらつき
+13.6 秒の中) にとどまり、t080 系 work (785.0 / 842.1 → 972.3 / 913.9 秒) と最長 node
+(110.8 / 108.2 → 112.1 / 116.0 秒) は **after 2 走とも before 2 走を上回って悪化**した。
+機序は (a) fixture の 5 variant のうち 4 つは消費者が 1 本しかなく共有が効かない、
+(b) 待ち手が `flock` で build と同じ時間ブロックし待ちが duration に載る、
+(c) 全走の CPU 稼働率は 22% で CPU 返却が wall へ写らない、である。
+段 3 と段 6 の敵対検証が独立に同じ予測を出し、実測が一致した。
+
+**決定 (2): 真の律速は本番の履歴走査であり、テスト側では閉じられない。**
+`issue_receipt=False` variant が 10.63 秒であることから、base 構築 90 秒のうち
+**約 80 秒 (89%) は子 python の migration 検証**であり、148MB の copytree は約 10 秒にすぎない。
+前者は `t080_freeze_migration._history_touches_path` が
+`git diff-tree -M -C --find-copies-harder` を 3437 ファイルの basis commit へ当てるコストで、
+D の対象は [T-173] の pickaxe と同じ「commit / ファイル数に対して伸びる」構造である。
+共通 prefix 共有を入れても節約は work 約 29 秒・最長 node 0 秒で、下限は動かない。
+
+**決定 (3): 効果を示せない機構は land しない。**
+段 6 の敵対レビュー 2 本は must-fix 12 件を挙げた。fix で閉じられるものもあるが、
+中核 (効果が出ない) は設計変更でも in-scope では閉じられない。加えて共有 entry を消す経路が無く
+`/dev/shm` に 1 走あたり約 1〜1.5GB を 6 時間残すため、`conftest.py` の tmpfs 切替ガードを
+通じて**測定計画そのものを汚染する**。共有が発火したかを全走から観測する手段も無い。
+規律 5 (段階導入 / 盛らない) に従い、1909 行の機構を破棄した
+(patch sha256 `2f71c770a71b26c5e99646cba56ddf9256c603ae057d8e4a0c8067f0d2c52915`)。
+
+**決定 (4): 性能施策の一次証拠は duration にしない。**
+本 wave では builder と waiter が同じ duration を出すため、duration による代理は原理的に
+使えないと確定した。今後この面で効果を主張するなら、同一 allocation 内の paired 比較
+(A-B / B-A) と、**機構の実発火回数の直接観測**を成果物に含める。
+`--durations` は 0.005 秒未満を隠すため、canonical 不一致で fail-closed にしない集計器を
+受入基準に使わない。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes、
+テストの検出力はいずれも不変である。本 wave の commit は docs のみで、コードは 0 byte 変更である。
+下限を実際に下げる 4 択 (本番履歴走査の置換 / `output/` tracked bytes 削減 / session 跨ぎ cache /
+xdist grouping) はユーザー裁定へ返す。
