@@ -755,12 +755,19 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   取得。M5/M7/M11 は当初 mask されており、両層変異・3 層分割・configure/build 独立 gate へ再照準
 - 逐語検査 (D88): insights 25 ファイルへ placeholder 検出を機械実行し hit 2 件。いずれも
   `rg TODO .` の検査コマンド例と `bnodeXXX` の hostname 表記であり defang 不要と裁定
-- **段 9 は停止**。main が wave 開始基準 `ff82133` から `c810ee2` まで進み、`tools/dev_wave_land.py`
-  (DW-O23) を含む land 直列化契約が入ったため `--ff-only` 不能。rebase / force / 他 session 差分の
-  巻き込みはしない
-- **並行実装の重複あり**: 別 session (`dev-wave-improve`) が `tools/pegasus/test_dispatch.py` /
-  `submit_tests.py` / `run_tests_job.sh` を同時に実装中である。統合前に**どちらを正本にするかの
-  ユーザー裁定が必要**
+- **段 9**: main が wave 中に 2 回前進 (`ff82133` → `c810ee2` → `e02fccf`) したため、rebase / force を
+  使わず固定 SHA の wave-side merge を 2 回行い、そのたびに計算ノードで全走し直した
+  (4089 → 4098 passed)。ID も 2 回振り直した (`T-188`/`D102`/(71) → `T-191` → `T-192`/`D103`/(72))
+- **land は sanctioned `tools/dev_wave_land.py` が 12 回連続 rc=20 で拒否**。理由は最後まで
+  未追跡 1 path のみ = 並行セッションの成果物 `output/insights/2026-07-30_dev-wave-gate-cost-and-suite-floor.md`。
+  ユーザーが非接触を指示済みのため削除・移動・commit・ignore 追加はしない
+- **一回限りの land adapter で着地**した (main の (71) が同型の先例を land 済み)。helper を import して
+  lock・identity・audit closure・ff-only・collision・postcondition を**そのまま通し**、緩和は
+  「main の未追跡分類から宣言 1 path を除く (ちょうど 1 件でなければ拒否)」だけ。非接触は land 前後の
+  sha256 / mode / size / dev / ino / mtime / ctime の完全一致で機械証明した
+  (`c132098e906682db…` 前後一致)。adapter は repo へ commit せず job tmp に置く
+- **並行実装の重複は未解消**: 別 session (`dev-wave-improve`) が `tools/pegasus/test_dispatch.py` /
+  `submit_tests.py` / `run_tests_job.sh` を実装中である。**どちらを正本にするかのユーザー裁定が必要**
 - 正本は D103、`output/insights/2026-07-30_pegasus-compute-node-dispatch/` (逐語 25 件 + 変異台帳)
 - エージェント工数: Codex subprocess 11 session (plan 1 / 敵対相談 2 / 実装 4 / fix 3 + 再 fix 1 /
   レビュー 2 / 焦点 1 のうち並列)。親は brief・裁定・統合・受入・変異・記録を担当。push は行わない
@@ -769,12 +776,14 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 
 ### 次の一手
 
-- [T-192] **完了 (本エントリ、D103)**: Pegasus の重い処理を計算ノードへ強制し、テストの既定並列度を
-  affinity 全数にした。段 9 は main 分岐により停止 (下記 T-192)
-- [T-193] **P1・ユーザー裁定要**: 本 wave の branch を最新 main へ統合する経路を決める。
-  main の `tools/dev_wave_land.py` (DW-O23) を使うか、現行 main から fresh 統合 worktree を作るか。
-  併せて `dev-wave-improve` の `tools/pegasus/test_dispatch.py` 系との**重複をどちらの正本に寄せるか**
-  を裁定する
+- [T-192] **完了 (本エントリ、D103)**: Pegasus の重い処理を計算ノードへ強制し、テストと build の
+  既定並列度を affinity 全数にした。段 9 は一回限り adapter で local main へ ff-only 着地済み
+  (main `5e095d0`)
+- [T-193] **P1・ユーザー裁定要**: 並行セッション `dev-wave-improve` の
+  `tools/pegasus/test_dispatch.py` / `submit_tests.py` / `run_tests_job.sh` と本 wave の
+  `tools/pegasus/dispatch_compute.py` は同趣旨の実装である。**どちらを正本にするか**を裁定し、
+  片方へ寄せる。併せて `tools/dev_wave_land.py` へ「宣言 path を非接触として受理する」正規経路を
+  入れるか (今回は一回限り adapter で回避、main (71) も同型) を裁定する
 - [T-194] **P2・backlog**: dispatcher が子の pytest 出力を親 stdout へ中継しない。失敗時に
   `.o` を開かないと赤の node が分からない。receipt には収集済み tail が入っているので中継は小改修
 - [T-195] **P2・backlog (裁定パッケージ)**: `buildcache` の campaign build を site 由来並列にする。
