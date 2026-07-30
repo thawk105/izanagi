@@ -19,28 +19,25 @@ L0=入口、L1=段 dispatch の無条件節、L2=条件成立時だけ読む節�
 指定 reference が不在・読めない、指定節が一意でない、期限までに読了していない、検査が赤、
 権限・scope・所有が不整合、承認済み裁定の前提を覆す未見の新事実がある、またはユーザー裁定待ちなら
 該当段へ進まず停止する。後発条件の期限超過は入口の巻き戻し規則に従い、既存成果物を流用しない。
-停止条件をテスト弱体化、権限拡大、rebase、force、別 session の差分取り込みで迂回しない。
+停止条件をテスト弱体化、権限拡大、rebase、force、未監査差分の取り込みで迂回しない。
 
 ## DW-S01 — 段 1 brief
 
 brief は緻密なプランではなく 10〜30 行とし、scope、確定済みユーザー裁定、不変条件、成果物の形、
 並列分割方針だけを書く。判断が割れうる前提は `(P1)`, `(P2)` と採番し「親の provisional 裁定で
 あり攻撃対象」と明記する。検査・テストを増やす wave では、対象 vector を既存テストがどこまで
-被覆済みかを brief 前に確認し、純増する検出力だけを scope に書く。未確認で子を起動しない。
-受入全走・実測をどの環境で走らせるかも brief で確定する（所在の正本は worklog、マシン固有の
-事実は環境 runbook へ置き、本書には書かない）。
+被覆済みか先に確認し、純増検出力だけを書く。未確認で子を起動しない。受入・実測の環境も確定する
+（所在は worklog、機体固有情報は環境 runbook）。
 
-brief 前に承認済み裁定の前提を実測する。未見の新事実で前提が覆ったら brief に書き、段 4 で
-scope を裁定し直す。模擬は何を模擬したかと実差分との差を明記し、実測と偽らない。自己 hash・
-自己参照・自己 pin を持つ対象では模擬を裁定根拠にしない（F29）。コード変更を伴う裁定前提は
-monkeypatch でなく実編集で測り直後に復元する — これは前提実測であり `DW-O19` の統合 commit 後に
-限る本走ではない。復元規律だけ同節に従い、実測を段 5 以降へ遅らせず、実編集を拒む環境では拒否の
-事実と模擬との差を記録する。別プログラムを起動する成果物を作る wave では、起動対象の実行時依存
-（build・環境変数・外部コマンド）を実測で棚卸しし、渡す seam の実在まで確認して brief に書く。
-裁定要約が参照する decision 本文を必ず開き、落ちた制約がないか照合し、食い違えば本文を優先する
-（F31）。「人間手番待ち」の繰越前提は git と実成果物で未実行を照合し、既実行なら stale と裁定して
-依存項目を次の一手で繰り上げる（F35）。記録する属性（日付・hash・件数）は周辺記述から転写せず
-commit と成果物の field から取り、既存 docs の値は一次資料と一致するまで根拠に使わない（F1）。
+brief 前に承認済み裁定の前提を実測する。覆す新事実は brief に出して段 4 で再裁定する。模擬対象と
+実との差を明記し、自己 hash / 参照 / pin 対象では模擬を裁定根拠にしない（F29）。コード変更を伴う
+前提は monkeypatch でなく実編集・即時復元で測る。これは `DW-O19` の本走でないが復元規律は借り、
+段 5 へ遅らせない。実編集不能なら拒否事実と模擬との差を書く。別 program を起動する成果物では
+build・環境変数・外部 command と注入 seam の実在を棚卸しする。
+
+裁定要約が指す decision 本文を開き、食い違いは本文を優先する（F31）。人間手番待ちは git と成果物で
+未実行を照合し、済なら stale として依存項目を繰り上げる（F35）。日付・hash・件数は commit / 成果物
+field から取り、既存 docs は一次資料と一致するまで根拠にしない（F1）。
 
 ## DW-G01 — 生死実験先行
 
@@ -101,11 +98,10 @@ hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界�
 
 ## DW-S09 — 段 9 終端と local main
 
-実装・記録・自己改善の全 commit と受入結果が揃ってから wave 専用 branch の commit を扱う。
-main worktree が clean、main が wave 開始基準から予期せず動いていない、fast-forward 可能、
-取り込む集合が本 wave の監査済み成果だけ、の全条件を再確認する。すべて満たす場合だけ
-`--ff-only` で local main へ取り込む。一つでも欠ければ `DW-STOP` に従い停止する。
-main HEAD、次タスク、停止条件、再開コマンドを最終報告する。
+全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して `DW-O23` を行う。
+`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。成功は
+`landed` / `already-landed` だけとし、他結果は `DW-STOP` に従う。stale / lock busy は
+同じ wave 内へ巻き戻さず、main HEAD と既存 branch、条件再評価を含む fresh-context 再開を報告する。
 
 ## DW-CTX — fresh context と外部 supervisor
 
@@ -115,6 +111,6 @@ main HEAD、次タスク、停止条件、再開コマンドを最終報告す�
 無人継続は外部 supervisor が wave ごとに新しい `claude -p` を起動し、組み込み `/loop` は
 使わない。supervisor は `max-waves`、金額/トークン予算、wall-clock deadline を
 必須とし、無限ループにしない。次タスクなし、ユーザー裁定待ち、テスト/check/変異の赤、
-dirty/diverged main、取り込み不能、想定外 commit、process の非 0 終了・timeout、
+未許可 dirty/diverged main、取り込み不能、想定外 commit、process の非 0 終了・timeout、
 task-run/handoff 不整合で fail-closed 停止する。自然言語の完了だけで継続せず、Git HEAD、
 cleanliness、検査結果、task-run 終了状態を照合する。
