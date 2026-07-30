@@ -1078,3 +1078,20 @@
   `019fadd3-c19c-7a12-bbf0-ded998aed815` = codex-mini、および `reasoning=ultra` の 4 session) が
   一次資料。機械検査は未実装 (上記所有 ID で実装する)
 - 記録: worklog 2026-07-30 (68)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`
+
+### F57. Codex worker launcher の normal fake が32-worker全走だけで失敗し、失敗nodeが移動した [テストフレーク] [資源競合]
+
+- **事象 (2026-07-30, [T-145] 段9再受入):** Pegasus計算ノードの32-worker全走2回で、
+  `test_codex_worker_launch.py` の異なるnormal-control nodeが各1件、launcher returncode 1 /
+  stderr空で失敗した。1回目はfullとprovenanceの同時走行、2回目はfull単独だった
+- **分離できた範囲:** 各失敗nodeの直後の単独再走は1/1 green、同file直列は58/58 green。
+  repository全走を16 workerへ下げると旧treeは3956 passed / 19 skipped、latest main統合treeは
+  3965 passed / 19 skipped。T-145差分はlauncher実装・同test fileへ到達せず、32-worker時の
+  失敗nodeも移動したため当該差分の回帰ではない
+- **未確定:** fake normal controlの既定wall上限は3秒だが、pytest tmpは終了時に失われ、
+  失敗時receipt / stop reasonを保存していない。従って3秒超過そのものを根本原因と断定しない
+- **暫定対応:** 本受入は16 workerを採用し、赤い32-worker走をgreenとして数えない。恒久対応は
+  [T-190]で失敗artifactを保存して原因を分離し、production wall-clock gateを緩めずtest fixtureを
+  hardenする
+- **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32-worker対照。
+  記録: worklog 2026-07-30 (70)

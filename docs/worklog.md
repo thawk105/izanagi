@@ -1730,3 +1730,155 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-175] **P3・裁定要 ((60))**
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
+
+## 2026-07-30 (70) — [T-145] long-path serve shutdown testをlatest mainへ安全に統合 (test + docs、branch codex/dev-wave-t145-final、検査 = Pegasus gen_S計算ノード)
+
+- 段1〜8の実装・変異・敵対reviewは不変。`thread.join(120)`のwall-clock合否を、
+  実listener / SignalRelay FD、real long-path exchange、shutdown / release / serve returnの
+  ordered observationと、`INFRA_TIMEOUT / NOT_EVIDENCE`へ倒す外部child containmentへ置換した
+- mutationはM1/M5 **2/2 KILLED**、M2〜M4/M6 **4/4 diagnostic KILLED**。
+  T-136 preservation PM1〜PM4v2も**4/4 KILLED**で元台帳と同一node・reason/state署名。
+  production bytesとcampaignのraw受理集合 / certified選択 / proof chainは不変
+- 実装commit `64ddf5c`、変異・保存台帳`c0659c7`、初回記録`e08e3e2`。
+  段9でlatest main `43584d1`を固定SHAでmergeし、T-146のcleanup fault testとT-145の
+  long-path shutdown harnessを両方保持した。統合mergeは`d5825c5`
+- merge前request `874264` / bnode016はfocused **443 passed**、docs / Codex agent /
+  diff / index・status安定がgreenだったが、commit message provenanceだけがredだったため
+  受入に数えなかった。既存T-145/T-146 author帰属を明記した再走`874265`はgreen
+- merge後受入request `874267` / bnode016は全走 **3965 passed / 19 skipped / 226.23秒**、
+  focused **443 passed / 24.07秒**。startup resume、`check_docs`、`check_codex_agents`、
+  `main..HEAD` diff-check、full-history provenance **573件・違反0**、tree / HEAD / main /
+  ancestry安定を含む11項目がすべてgreen、PBS会計痕跡とrc=0を確認した
+- 先行の32-worker全走2回はT-180 launcher normal fakeの異なるnodeが各1件赤となり、
+  受入扱いにしていない。各失敗node単独1/1、同file直列58/58、旧treeの16-worker全走
+  3956 passed / 19 skipped、latest統合treeの16-worker全走3965 passed / 19 skippedを分離。
+  原因断定はせずF57へ記録し、失敗artifact保存とfixture hardeningを[T-190]へ送った
+- landed順を反映してT-182の(68) / F56 / T-189とT-146の(69)を保持し、本記録を(70) /
+  F57 / T-190へ採番。push / remote branch操作は行わず、local main取り込みはDW-O23だけを使う
+- エージェント工数: 段1〜8のCodex subprocess 12 (plan 1、相談 2、author/fix 3、review 5、
+  初回author 1)。段9再開の追加subprocess 0。親=最新main統合・競合裁定・計算ノード受入・
+  フレーク分離・記録・land
+
+### 次の一手
+
+- [T-189] **P1・T-181 land 後 ((68))**: model routing の**妥当な**比較実験を設計する。
+  独立 oracle、held-out 複数 task、block randomization、cache 条件分離、価格 version、
+  盲検裁定、事前非劣性 margin。T-182 の pilot は n=1・非盲検・後付け採点のため根拠にしない
+- [T-190] **P2・新規 ((70)、F57)**: launcher normal fakeの32-worker負荷フレークを
+  失敗artifact保存つきで原因分離し、production gateを緩めずfixtureをhardenする
+- [T-188] **完了 ((67)、D102、F55)**
+- [T-187] **完了 ((66)、D101)**
+- [T-180] **完了 ((65)、`24d2672` + `de0a9ad` + rewrite `677c32a`)**: job 単位の resource envelope と
+  fail-closed receipt を `tools/codex_worker_launch.py` として正本化。wave manifest により
+  cwd 部分一致に依存しない受理集合を作り、ledger の `--manifest` で T-179 の凍結値を再現した
+- [T-181] **P1・着手可 ((64))**: focused review の reasoning `max` 対 `high` を凍結入力で限定比較する
+- [T-182] **完了 ((68)、実装差分なし)**: 段 3 レンズ B を同一凍結入力で sol / luna / mini の
+  3 arm へ投入し、被覆・誤検出・token/wall と receipt を凍結した。専用ツールは独立 3 レンズの
+  NO-GO を受けて実装しない裁定
+- [T-183] **P1・着手可 ((64))**: F43/F45 型の断片出力 / safety-filter 終了を早期分類し、
+  retry 上限と fail-closed 回復を固定する。**T-180 は分類なしの機械的 retry 上限までを実装し、
+  失敗型分類・safety-filter 判定・回復経路を本 ID へ送った**
+- [T-184] **P1・T-181〜T-183 後 ((61))**: 比較済み証拠だけで stage 別
+  model/reasoning/resource/retry policy を採用し、rollback と drift 検査を追加する。
+  **DW-O01 の結線と stage 別上限値は本 ID の所有** (T-180 は機構のみ)
+- [T-186] **P3・T-180 が返した裁定パッケージ**: manifest の seal ceremony と foreign entry
+  後追記の検出、`setsid()` 脱出子の完全封じ込め (cgroup / bwrap)、
+  stdout / artifact bytes の上限 (`max_artifact_bytes`) の 3 件
+- [T-179] **完了 ((64)、`72f8858`)**
+- [T-185] **P3・RuleOps hardening ((63) R3R-1)**: receipt range の commit 数と
+  path-union stdout bytes/cardinality を streaming 上限で fail-closed にし、安定 reason と
+  over-limit synthetic negative を追加する
+- [T-139] **完了 ((60))**
+- [T-142] **close ((62) のユーザー再裁定)**: formal selector と live campaign が
+  揃った場合のみ新タスクとして再起票
+- [T-136] 同上
+- [T-129] 同上
+- [T-149] 同上
+- [T-152] 同上
+- [T-153] **完了 ((60))**
+- [T-158] 同上
+- [T-141] 同上
+- [T-143] **完了 ((63)、D99)**
+- [T-126] **裁定済み ((62) = qualification-first amendment) → 実施待ち**: headline
+  昇格不能な専用系列で live control と機械 receipt を先行し、production gate は別 wave
+- [T-059] **裁定済み ((62) = bounded な事後 mutation audit) → 実施待ち**:
+  事前登録不能だった逸脱を明記し、T-172 の drift 拒否検査を事後検証する
+- [T-145] **完了 (本エントリ、`64ddf5c` + merge `d5825c5`)**
+- [T-146] **完了 ((69))**
+- [T-134] 同上
+- [T-123] 同上
+- [T-118] 同上
+- [T-109] 同上
+- [T-113] 同上
+- [T-110] 同上
+- [T-097] 同上
+- [T-100] 同上
+- [T-099] 同上
+- [T-009] 同上
+- [T-060] 同上
+- [T-150] **P3・裁定済み ((60))**
+- [T-151] **P3・裁定済み ((60))**
+- [T-154] **完了 ((60))**
+- [T-130] **裁定済み・実装待ち ((60))**
+- [T-135] 同上
+- [T-133] 同上
+- [T-144] 同上
+- [T-088] 同上
+- [T-096] 同上
+- [T-102] 同上
+- [T-122] 同上
+- [T-103] 同上
+- [T-089] 同上
+- [T-090] 同上
+- [T-112] 同上
+- [T-114] 同上
+- [T-011] 同上
+- [T-085] 同上
+- [T-087] 同上
+- [T-012] 同上
+- [T-010] 同上
+- [T-082] 同上
+- [T-121] 同上
+- [T-156] 同上
+- [T-159] 同上
+- [T-157] 同上
+- [T-148] 同上
+- [T-155] 同上
+- [T-140] 同上
+- [T-147] 同上
+- [T-127] 同上
+- [T-137] 同上
+- [T-138] 同上
+- [T-132] 同上
+- [T-131] 同上
+- [T-128] 同上
+- [T-120] 同上
+- [T-125] 同上
+- [T-116] 同上
+- [T-057] 同上
+- [T-117] 同上
+- [T-119] 同上
+- [T-105] 同上
+- [T-104] 同上
+- [T-101] 同上
+- [T-124] 同上
+- [T-108] 同上
+- [T-111] 同上
+- [T-160] 同上
+- [T-161] 同上
+- [T-162] 同上
+- [T-163] 同上
+- [T-164] 同上
+- [T-165] 同上
+- [T-166] 同上
+- [T-167] **P3・裁定済み・実装待ち ((60))**
+- [T-168] 同上
+- [T-169] 同上
+- [T-170] **P3・裁定済み ((60))**
+- [T-171] **完了 ((60))**
+- [T-172] **完了 ((60))**
+- [T-173] **P3 ((60))**
+- [T-174] **P3・裁定要 ((60))**
+- [T-175] **P3・裁定要 ((60))**
+- [T-176] **P3・backlog ((60))**
+- [T-177] **P3・裁定要 ((60))**
