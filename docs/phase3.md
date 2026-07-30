@@ -522,14 +522,28 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 以下は 1 ID = 1 将来セッションを上限とする。品質面では T-153(e)/T-154 wave が must-fix 11 件と
 mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限→比較→採用の順で進める。
 
-- [T-179] **P1: worker 資源台帳の正本化** — `codex exec` の job/stage/model/reasoning/session/turn、
-  input・cached input・output・CLI reported token、終了分類、validator、retry を既存ログから
-  決定的に集計する read-only tool と fixture test を追加する。受入は live inference なしで
-  T-153(e)/T-154 の 10 session・2,757,982 CLI reported tokens と stage 別内訳を再構成し、
-  worklog の「9 jobs」との不一致を機械的に検出できること。
-- [T-180] **P1、T-179 後: job 単位 resource envelope** — turn/token/wall-clock/retry の上限と
-  上限到達時の fail-closed receipt を launcher 契約へ追加する。model/reasoning の既定値は変えず、
-  unit/fixture test で正常完了、上限停止、receipt 欠損拒否を固定する。
+- [T-179] **(完了 2026-07-29) worker 資源台帳の正本化** — `tools/codex_worker_ledger.py`
+  (read-only) と合成 fixture 回帰を追加。rollout ログから session/stage/model/reasoning/
+  model_calls、input・cached input・output・CLI reported token、終了分類、validator、retry を
+  決定的に集計する。live inference なしで T-153(e)/T-154 の 10 session・434 model calls・
+  2,757,982 CLI reported tokens と stage 別内訳を再構成し、worklog (59) の「9 jobs」との不一致
+  (review 3 対 4、総数 9 対 10) を `--strict` rc=2 で検出する。実装・検査・変異 10/10 KILLED の
+  正本は worklog 2026-07-29 (64)、逐語と凍結値は
+  `output/insights/2026-07-29_t179-worker-ledger-verbatim/`。
+  wave 受理集合の確定 (cwd 部分一致の限界) は [T-180]、retry の因果同定は [T-183] へ送った。
+- [T-180] **(完了 2026-07-30) job 単位 resource envelope** — `tools/codex_worker_launch.py`
+  (`run` / `check-receipt`) と `CodexWorkerSessionManifest`、ledger の `--manifest` selector を
+  追加。`codex-cli 0.146.0` は上限 flag を持たないため wrapper 側で強制し、**hard cap は
+  wall-clock だけ**、`model_calls` と token は観測可能な proxy による best-effort 停止 +
+  事後 fail-closed 判定と明示する。live 停止は rollout tail、終了判定は stdout 最終
+  `turn.completed.usage` の二重 metering。上限停止・metering 欠落・終了未確認は無条件で非採用。
+  T-179 の凍結値 (10 session / 434 model_calls / 2,757,982 cli_reported と stage 別 6 値) を
+  manifest 経路で逐件再現し、`cached_input_tokens > input_tokens` で `cli_reported` が負になる
+  継承欠陥も塞いだ。本 wave の段 6 レビュー 3 本を launcher 経由で起動し実 receipt を得た
+  (dogfood)。実装・検査・変異 10/10 KILLED の正本は worklog 2026-07-30 (65)、逐語と凍結値は
+  `output/insights/2026-07-29_t180-resource-envelope-wave/`。
+  **DW-O01 の結線と stage 別上限値は [T-184] の所有**、失敗型分類・retry policy は [T-183]、
+  seal ceremony / 脱出子封じ込め / artifact bytes 上限は [T-186] へ送った。
 - [T-181] **P1、T-179 後: reasoning routing の限定 A/B** — 最大消費だった focused review だけを
   対象に `max` 対 `high` を凍結済み T-153(e)/T-154 入力で比較し、must-fix 再現率、新規 finding、
   token/turn/wall-clock を記録する。既定値は変更せず、品質劣化または部分出力時の `max` escalation
@@ -553,13 +567,29 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   上限超過時の安定 reason と synthetic negative を追加する。現行は child timeout で
   fail-closed だが、安定 reason 前の過大な stdout / memory 消費を明示的には抑えていない。
 
+### T-180 が返した裁定パッケージ (P3)
+
+- [T-186] **P3: resource envelope の残余 3 件** — (a) manifest の seal ceremony と
+  foreign entry 後追記の検出 (現行 membership は部分集合検査であり、receipt 発行後に
+  同 wave_id へ entry を足せる)、(b) `setsid()` で process group を逃れた子の完全封じ込め
+  (cgroup / bwrap。現行は残存を receipt に記録するのみ)、(c) stdout / artifact bytes の上限
+  (`max_artifact_bytes`。現行の封筒射程は compute-usage に限定)。
+  いずれも T-180 段 3 / 段 6 で real と裁定したが scope 外とした所見。
+
 ### 裁定・完了記録
 
-- [T-186] **(完了 2026-07-29) dev-wave 並行 session land** — Claude command / Codex Skill が
+- [T-187] **(完了 2026-07-30) `6b64d21` AI provenance forward-only是正** — 共有済みmerge
+  commitはrewriteせず、固定target/payload・strict lineage・selected-set両commit・実欠落・
+  correction自身greenを連言する一回限り`AI-Agent-Correction`でmissing findingだけを相殺する。
+  mergeのD95 pathを全parentとの差分積へ統一し、O17を`--no-commit` preflight→`commit -F`→
+  full-history監査へ更新。設計判断=D101、材料・レビュー・変異=
+  `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`、記録=worklog (66)。
+- [T-188] **(完了 2026-07-30) dev-wave 並行 session land** — Claude command / Codex Skill が
   共有する `DW-O23` と `tools/dev_wave_land.py` を導入。別 session の schema-valid handoff と
   Git admin に双方向登録された worktree container を非接触で保ち、tested SHA・ordered closure・
-  common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D100、
-  失敗台帳=F54、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`。
+  common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D102、
+  失敗台帳=F55、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`、
+  記録=worklog (67)。
 - [T-143] **(完了 2026-07-29) RuleOps v1** — tracked HEAD tree の直下testと
   `output/insights/`をread-only inventoryし、人間裁定用draftとauthorityを持たない候補ledgerを
   fail-closedに検査するCLIを導入。削除・apply・approval・安全判定は行わず、受入全走へempty

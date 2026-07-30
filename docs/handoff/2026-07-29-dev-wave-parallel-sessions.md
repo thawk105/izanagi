@@ -1,7 +1,7 @@
 # dev-wave 並行セッション取り込み改善
 - 目的: dev-wave a1 / a2 の並行実行で、他セッション所有物が安全な local main 取り込みを妨げない契約を Claude / Codex 共通面へ実装する
-- 状態: 中断
-- 最終更新: 2026-07-30 JST
+- 状態: 再開中
+- 最終更新: 2026-07-30 09:05 JST
 - 基準コミット: fa4774cd5de5b81840984168d1ac12a15a3d16a6
 
 ## 完了した中間成果
@@ -68,6 +68,11 @@
 - worktree コンテナの存在自体ではなく Git admin との双方向束縛を検証し、なりすまし path は拒否する
 - 段 8 裁定: 上記候補は本 wave で実装済み。再開監査では追加の手順欠落を実測せず、
   新設防壁が main の未見 blocker を正しく停止したため、追加自己改善は行わない
+- 2回目中断で、`pegasus02`ログイン環境では別session同士のrepository全走に共有資源leaseが無く、
+  16 GiB・swap無しのuser cgroupで各runnerが既定32 xdist workerを同時起動できる欠落を実測した。
+  これはCygnusを含む全環境の前提ではない。段8は既に一度完了しているため本waveでは本文を
+  再編集せず、次waveで扱うなら実cgroup上限・swap・tmp mountを検出したPegasus固有運用または
+  capability-based資源封筒として裁定し、無条件の共通直列化にはしない
 
 ## 段 2〜5 の確定結果
 
@@ -127,3 +132,27 @@
   安全義務を保つ意味保存縮約が必要
 - 最新の監査・親裁定は
   `output/insights/2026-07-29_dev-wave-parallel-land/s9-main-resync2-{audit,adjudication}.md`
+- ユーザー確認を受け、親は ledger 2件の blocker 昇格を過剰と訂正。両件は real だが
+  land helper / Skill / DW-O23 の consumer 閉包外で必須検査も赤にしないため、本 wave では
+  scope 外・non-blocking。ユーザーはこの裁定で続行を指示した。後続正本は
+  `s9-main-resync2-user-ruling.md`
+- 固定 main `ff82133` を O17 の `--no-ff --no-commit` 手順で統合開始。競合は docs 4件だけ。
+  main の D100/D101・F54・T186/T187を保持し、本 wave をD70により
+  `T-188 / D102 / F55 / worklog (67)`へ再採番して解消中
+- 2回目の強制終了を fresh context で調査。manager session
+  `019fb012-c785-7562-bc22-2bb0644c30f4` は 08:29:37 JST の `write_stdin` 発行で
+  rollout / Codex logs が同時に途切れ、`task_complete`、graceful shutdown、tool result は無い。
+  直前の関連5ファイルは465 passed、続けて既定32 xdist workerのrepository全走を開始して3秒後だった
+- 同時刻帯に別waveも既定32並列を実行してworkerが複数異常終了。user cgroupは16 GiB・swap無しで
+  OOM kill累計あり、対象sessionのcontextは214,536 / 258,400 tokenで上限未到達。kernel journalは
+  権限上PID帰属を確認できないため断定は避けるが、直接原因は並行full-suiteによるcgroup OOMが最有力
+- 後続の完全直列試行もPegasusのcgroup上限付近でSIGKILLされ、`oom_kill`が129→130→131へ
+  増加したためOOM帰属は確定。使用量の主因はprocess RSSでなく`/dev/shm`の約15.4 GiB残留で、
+  `pytest-of-tanab`だけで8.3 GiB。T-118の既知残留と今回の異常終了tmpが重なっていた
+- 別waveのrepository全走が終わるまで重い検査を重ねず、その後本waveの全走は`-n 0`で再実行する。
+  `orchestrator/tests/README.md`の正式な回避経路どおり`TMPDIR=/tmp`も明示する。同waveも暫定
+  `T-188`を使用中なので、commit前とland直前にmain SHAと最大IDを再走査する
+- 中断時のmerge indexは未解決path 0で保持されている。living phase / decision / failureは
+  暫定`T-188 / D102 / F55`へ解消済みだが、旧branchのworklog本文が競合解消時に落ちている。
+  別wave land後は同waveの`T-188 / worklog (67)`を権威として保持し、本waveをD70どおり
+  `T-189 / worklog (68)`へ再構成する。D/Fは最大値を再走査してから確定する

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "60000000-0000-0000-0000-000000000001",
+    "prompt": "あなたは段6の fix2 implementation author である。"
+  },
+  {
+    "id": "60000000-0000-0000-0000-000000000002",
+    "prompt": "あなたは段6 fix後の read-only focused reviewer である。"
+  },
+  {
+    "id": "60000000-0000-0000-0000-000000000003",
+    "prompt": "あなたは段6の fix2後の read-only focused adversarial reviewer である。"
+  }
+]

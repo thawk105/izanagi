@@ -1,0 +1,10 @@
+[
+  {
+    "id": "ABCDEFAB-0000-0000-0000-000000000001",
+    "prompt": "あなたは段2の read-only Codex planner である。"
+  },
+  {
+    "id": "abcdefab-0000-0000-0000-000000000001",
+    "prompt": "あなたは段3の read-only adversarial consultant である。"
+  }
+]

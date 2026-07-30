@@ -1,0 +1,84 @@
+{
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "launch",
+      "note": "上限停止した attempt を accepted にできるようにする",
+      "old": "        and state.limit_trigger is None\n        and process.returncode == 0",
+      "new": "        and process.returncode == 0",
+      "expected_node": "test_limit_stop_is_never_accepted"
+    },
+    {
+      "id": "M2",
+      "file": "launch",
+      "note": "metering evidence 欠落でも accepted にする",
+      "old": "        and metering_status == \"complete\"\n",
+      "new": "",
+      "expected_node": "test_missing_metering_evidence_is_not_accepted"
+    },
+    {
+      "id": "M3",
+      "file": "launch",
+      "note": "cli_reported の唯一定義を input_tokens だけに変える",
+      "old": "        usage[\"input_tokens\"]\n        - usage[\"cached_input_tokens\"]\n        + usage[\"output_tokens\"]",
+      "new": "        usage[\"input_tokens\"]",
+      "expected_node": "test_token_cap_uses_cli_reported_definition"
+    },
+    {
+      "id": "M6",
+      "file": "launch",
+      "note": "max_attempts の off-by-one (N+1 を許す)",
+      "old": "    if len(attempts) >= max_attempts:",
+      "new": "    if len(attempts) > max_attempts:",
+      "expected_node": "test_max_attempts_never_spawns_extra_attempt"
+    },
+    {
+      "id": "M7",
+      "file": "launch",
+      "note": "workspace-write でも retry を許す",
+      "old": "    if args.max_attempts > 1 and args.sandbox != \"read-only\":",
+      "new": "    if False:",
+      "expected_node": "test_workspace_write_retry_is_refused"
+    },
+    {
+      "id": "M18",
+      "file": "launch",
+      "note": "/proc 読取不能 (residual unknown) を 0 として扱う",
+      "old": "    return residual, bool(verified and residual == 0)",
+      "new": "    return (0 if residual is None else residual), bool(verified and (0 if residual is None else residual) == 0)",
+      "expected_node": "test_unknown_residual_never_verifies_normal_reap"
+    },
+    {
+      "id": "M19",
+      "file": "launch",
+      "note": "累積 usage の巻き戻しを inconsistent にしない",
+      "old": "    if any(item.nonmonotonic_usage for item in state.rollouts.values()):\n        return \"inconsistent\"\n",
+      "new": "",
+      "expected_node": "test_cli_reported_running_max_latches_usage_rollback"
+    },
+    {
+      "id": "M13",
+      "file": "ledger",
+      "note": "cached_input_tokens > input_tokens の検査を外す",
+      "old": "        and result[\"cached_input_tokens\"] > result[\"input_tokens\"]",
+      "new": "        and False",
+      "expected_node": "test_cached_exceeding_input_is_malformed"
+    },
+    {
+      "id": "M12",
+      "file": "ledger",
+      "note": "manifest 欠損 session を --strict 依存に戻す",
+      "old": "    if manifest_mode and (\n        issues.get(\"manifest_missing_session\")\n        or issues.get(\"duplicate_session_id\")\n    ):",
+      "new": "    if False:",
+      "expected_node": "test_manifest_missing_session_fails_without_strict"
+    },
+    {
+      "id": "M14",
+      "file": "ledger",
+      "note": "選択 0 件を issue にしない (1 件も読まずに健全)",
+      "old": "    if not records:\n        issues.setdefault(\"no_selected_sessions\", []).append(\n            \"rollout selection is empty\"\n        )",
+      "new": "    if False:\n        issues.setdefault(\"no_selected_sessions\", []).append(\n            \"rollout selection is empty\"\n        )",
+      "expected_node": "test_empty_manifest_is_rc2"
+    }
+  ]
+}

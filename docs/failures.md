@@ -326,6 +326,15 @@
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
 - 現行実体の更新 (2026-07-28 [T-147] 追記): trailer 配置規則は正本 `docs/ai-provenance.md`
   「必須形式」へ移設。`DW-O17` は commit 前 `--message-file` 検査・commit 後監査・rc 手順を担う
+- **再発 (2026-07-29、[T-187]で回収):** `git merge main --no-edit` が
+  `Merge branch 'main' into ...`を自動生成し、`AI-Agent`なしの2-parent commit
+  `6b64d217…`を作った。件名ではなく、自動mergeがmessage-file preflightを迂回し、merge後の
+  full-history監査もないまま共有されたことが欠陥。共有済みのためrewriteせず、D101の固定
+  forward correctionで是正した。O17は`--no-commit`で止め、`commit -F`とpost full監査を必須化
+- **再発 (2026-07-30、[T-187] main統合):** local-only T-180記録`cb79147`はprobe用Shellを追加したが、
+  trailerがClaude manager 1行だけだった。新checkerのpost-merge全履歴監査が検出しmain更新を停止。
+  remote未到達を確認し、ユーザー承認後にCodex authorが最終bytesへ実際に寄与した`677c32a`へ
+  履歴を組み直した。単なるauthor行の後付けや第二例外にはしなかった
 - 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
   更新漏れも併せて見る
 
@@ -483,6 +492,13 @@
   自分のコマンド行がその文字列を含むため常に一致し、終了しない (今回 3 本が滞留)。
   反映時に `docs/dev-wave/**` の hard ceiling (24000 bytes) の余裕が 16 bytes しかなく、
   ユーザー裁定 ([T-124] = reference 再編で圧縮してから入れる) を経て [T-104] で反映した。
+- **再発: 2026-07-30** ([T-180] wave)。恒久対応 5 (background 起動) に反し、ハーネスを
+  前景の tool 経路で起動した。セッション process が異常終了して `finally` の復元が走らず、
+  M6 (`max_attempts` の off-by-one) が作業ツリーに残った。さらに孤児ハーネスが生存したまま
+  次のセッションで走り続け、こちらの `git checkout --` 復元と競合した (flock guard は
+  同一 job の再入だけを防ぎ、孤児の継続走行そのものは止めない)。検出は再開時の `git status`、
+  回復は孤児の停止 → `git checkout --` → commit 済み内容との byte 一致確認。
+  恒久対応 5 は既出で追加の規律は起こさない — 守らなかったこと自体が事象である。
 - 現行実体: `docs/dev-wave/mutation.md` の `DW-M05` と `DW-M06`。
 - 再発検知: 変異・fault 注入ハーネスの設計時に「復元検査が対象ファイルの追跡状態に依存して
   恒真化しないか」「二重走行を機械的に排除しているか」をレンズに含める (段 6 の作法)
@@ -637,6 +653,13 @@
   (出力を絞るなら rc を取ってから表示する)。予算違反は予算値を上げずに、入口と重複する
   reference 記述の削除で収める (安全義務の削除・弱化はしない)
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O17`。
+- **再発 (2026-07-29、[T-187]で回収):** 元sessionのmerge確認は
+  `git merge main --no-edit | tail ...`の後に`MERGE_RC=0`と記録しており、0はGitでなく`tail`のrc。
+  merge成立は約5秒後の2-parent objectで別途確認できたが、pipeline値をGit成功証拠には使えない。
+  O17の単独rc契約をmerge preflight/post監査にも適用した
+- **再発 (2026-07-30、[T-187] main統合):** target抜きの補助range監査が設計どおり赤になった後、
+  同一shellの次行に置いた`merge --no-commit`が継続した。commit前で停止し、target-inclusive監査を
+  単独再走してgreenを確認した。既存O17は単独rcと赤停止を既に要求するため、手順本文は増補しない
 - 記録: worklog 2026-07-25 (5)
 
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
@@ -984,19 +1007,42 @@
 - 再発検知: 退避中 hash と tree 上ファイルの サイズ/hash 乖離。受入全走の plain-runner meta-test
   が断片化を最初に検出した (自走 harness 欠落として)
 
-### F54. 並行 dev-wave の正当な制御ファイルと先行 land を blanket dirt / unexpected main movement として扱い、後続 wave が取り込み不能になった [手順漏れ] [誤前提]
+### F54. 集約不変量だけの受入が、実装子へ委ねた未裁定の択一による要素単位の誤帰属を通しかけた [テスト代表性]
+- 事象: [T-179] wave 段 6 の fix1 が、prompt 先頭が `段6の fix2 implementation author` の session を
+  stage `author` へ分類するよう `STAGE_RULES` を変えた。実 10 session の再集計で 188,905 tokens が
+  `fix` から `author` へ移動し、凍結済みの stage 別正本 (worklog (61)) と食い違った。
+  このとき **総和 2,757,982・session 数 10・model_calls 434・worklog 突合 gate はすべて不変**
+  だった (worklog の bucket が `author・fix` を合算するため gate も緑)。親が stage 別内訳を
+  逐件で再照合して検出し fix2 で是正 (near-miss、成果物影響ゼロ)
+- 根本原因: 二つが重なった。(a) 親の fix 指示が「到達不能な枝は消すか、到達可能にするか、
+  どちらかに決めて理由をコメントに書く」と書き、**意味論の択一を実装子へ委ねた**。stage の定義は
+  段 4 / 段 6 で親が裁定すべき事項だった。(b) 受入の目視対象が集約値
+  (総和・件数・gate rc) に寄っており、要素単位の帰属が保存されているかを見ていなかった。
+  集約が保存される誤帰属は集約検査を素通りする
+- 恒久対応: (a) 実装子・fix 子へ渡す指示に**未裁定の意味論の択一を残さない**。選択肢を書くなら
+  親がどちらかを裁定してから渡す。(b) 分類・帰属を伴う成果物の受入では、集約一致を正しさの根拠に
+  しない (誤帰属の対でも集約は一致する = 循環論法)。**要素単位の独立 oracle と逐件照合**する。
+  本 wave の実体 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/README.md` の
+  session_id→stage 表 (rollout の raw prompt から台帳の規則表と独立に導出) と、
+  8 パターンの分類を固定した表駆動テスト
+- 再発検知: 要素単位 oracle との逐件照合の赤 + `test_codex_worker_ledger.py` の
+  `test_stage_rules_follow_wave_stage_not_role_words` / `test_stage_rules_keep_fix2_author_in_fix_and_focus_specific`
+  (段番号が stage を決め役割語は決めない、を機械固定)
+- 記録: worklog 2026-07-29 (64)、逐語 = `output/insights/2026-07-29_t179-worker-ledger-verbatim/`
 
-- **事象 (2026-07-29, [T-186] wave):** local main には別 session が所有する schema-valid handoff と
+### F55. 並行 dev-wave の正当な制御ファイルと先行 land を blanket dirt / unexpected main movement として扱い、後続 wave が取り込み不能になった [手順漏れ] [誤前提]
+
+- **事象 (2026-07-29, [T-188] wave):** local main には別 session が所有する schema-valid handoff と
   `.codex/worktrees/` があり、対話型 dev-wave の最終 cleanliness はそれらを未知 dirt と区別できなかった。
   作業中には複数の先行 wave が main を正常に前進させたが、従来手順にはその新 upstream を監査し、
   wave へ merge、受入再走、新しい監査閉包を作ってから local main へ land する共通経路もなかった。
 - **根本原因:** 「main checkout は完全 clean」と「開始時 main は不変」を session ownership や受入
   基準 SHA に結びつけず、共有 main の check-then-merge を直列化する機械 helper が無かった。
   `.gitignore` 拡張や他 session 成果物の片付けでは、strict consumer の受理集合または所有権境界を壊す。
-- **恒久対応:** D100 / `DW-O23` / `tools/dev_wave_land.py`。形式が正しく Git admin と双方向束縛された
+- **恒久対応:** D102 / `DW-O23` / `tools/dev_wave_land.py`。形式が正しく Git admin と双方向束縛された
   制御面だけを非接触例外にし、common lock 下で tested main / tip / ordered closure と攻撃面を再検査して
   SHA 指定 ff-only を行う。stale / busy は fresh context へ返し、再監査と受入再走なしに再試行しない。
 - **再発検知:** helper の境界 test と同一 base 二 wave の実 subprocess E2E。未知 dirt、偽 worktree、
   stale SHA、lock loser、non-FF、未監査 commit、gitlink postcondition 不成立をそれぞれ拒否する。
-- 記録: worklog 2026-07-29 (64)、設計判断: D100、材料:
+- 記録: worklog 2026-07-30 (67)、設計判断: D102、材料:
   `output/insights/2026-07-29_dev-wave-parallel-land/`

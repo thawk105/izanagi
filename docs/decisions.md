@@ -4419,13 +4419,96 @@ approval receiptの機械束縛、node単位退役はv1のscope外。
 **研究状態への影響:** correctness gate、campaign raw受理集合、certified選択、proof chainのbytesと
 判定は不変。変わるのは陳腐化候補を再現可能な非権威packageとして人間へ運ぶ開発運用だけである。
 
-## D100. [T-186] 対話型 dev-wave の local main 取り込みを短時間 lock・受入 SHA・所有権付き制御面で直列化する (2026-07-29)
+## D100. [T-180] job 資源封筒の hard cap は wall-clock のみとし、model_calls と token は observable proxy と名乗る (2026-07-30)
+
+**決定: Codex worker job の資源封筒は `tools/codex_worker_launch.py` が wrapper として強制し、
+`codex exec` に上限を委ねない。強制力の射程を名前と receipt に正直に書き分ける。**
+
+`codex-cli 0.146.0` は turn / token / wall-clock / retry の上限 flag を持たない (実測)。
+封筒は wrapper でしか作れないが、その強制力は一様ではない。
+
+(1) **wall-clock だけが hard cap**である。launcher が単調時計で監視し、process group を終了できる。
+
+(2) **`model_calls` と token は observable proxy** である。usage は rollout の `token_count` event
+としてしか観測できず、event は model call の**完了後**に出る。したがって「次の call を発行させない」
+admission control は原理的に作れず、最大 1 call 分の不可視 overshoot が残る。receipt は
+`model_calls_semantics="observed_token_count_events"` と `possible_unobserved_overshoot` で
+この限界を表出し、`hard cap` とは名乗らない。
+
+(3) **metering は二重にする。** live 停止は rollout JSONL の tail (実行中に逐次 flush されることを
+実測)、終了判定は stdout の最終 `turn.completed.usage` (rollout の最終累積と一致することを実測)。
+どちらかが欠ける・両者が矛盾する job は **accepted にしない** (0 として受理しない)。
+
+(4) **上限停止した attempt は無条件に非採用**とする。Codex の rc も validator の rc も出力内容も
+覆さない。SIGTERM handler が上限到達後に妥当な出力を書いても採用しない。
+
+(5) **`setsid()` で process group を逃れた子は封じ込めない。** killpg の射程外であり、
+本 wave は残存を receipt に記録するに留める (`escaped_process_containment="not_attempted"`)。
+封じ込めたと主張しない。
+
+(6) **受理集合は session_id で束縛する。** `CodexWorkerSessionManifest` が
+rollout 相関の**直後**に session_id を追記し、cwd 部分一致 (T-179 の限界。path 再利用と
+接尾辞衝突で別 wave が混入する) を置き換える。ledger の `--manifest` 経路では完全性検査を
+`--strict` に依存させず無条件 rc=2 とする。
+
+**所有境界。** 本 ID は**機構**だけを持つ。retry は分類なしの機械的上限のみとし
+(workspace-write では非採用 attempt の filesystem 変異が次 attempt の入力を変えるため 1 回に固定)、
+失敗型分類・safety-filter 判定・回復経路は [T-183]。DW-O01 の結線と stage 別の上限**値**は
+[T-184] が「一度だけ反映する」。本 wave は「全 worker が launcher を通る」と主張しない。
+
+**却下した案:** stdout の event stream だけで live 強制する (usage が `turn.completed` の 1 回しか
+来ないため実行中に判定できない)、`--ephemeral` を使う (rollout が消え live 強制と事後裏取りの
+両方が不能になる)、既存 `tools/dev_waves/` の `Receipt` / `WaveManifest` 型を共用する
+(Claude wave supervisor の whole-wave Git 結果用であり意味が異なる。supervisor 互換を偽ることになる。
+低層 primitive の `strict_loads` / `canonical_bytes` / group 終了 helper は再利用した)。
+
+逐語・変異台帳・dogfood receipt は `output/insights/2026-07-29_t180-resource-envelope-wave/`。
+
+## D101. [T-187] `6b64d21` の provenance 欠落は履歴非改変の一回限り correction とし、merge path と commit 手順を同時に閉じる (2026-07-30)
+
+**背景:** main / origin/main と複数の後続branchへ共有済みのmerge commit
+`6b64d21753d2cfc790f80caba29df7a40fef3072` は `git merge main --no-edit` が自動生成し、
+必須 `AI-Agent` trailerを持たない。問題は件名`Merge branch ...`ではなくtrailer欠落である。
+履歴rewriteはforce pushと全子孫の再束縛を要するため、ユーザーはforward-only是正を選択した。
+元eventから復元した観測値は`claude / claude-opus-5 / xhigh / integrator`。session IDは永続化せず、
+sanitized fieldとevent行SHA-256を材料へ残す。
+
+**決定 (1): incident固有の一回限りcorrectionだけを受理する。** target SHAと上記payloadを
+コードへ固定し、一般registry、環境変数、Git config、CLI免除を作らない。correctionはraw物理1行、
+隔離canonical parse、通常の最終trailer blockの三面でexactとし、自身の通常`AI-Agent`と同じblockへ
+置く。selected revision setにtargetとcorrectionが各1件、correctionがstrict descendant、targetが
+実際にmissing、自身の通常監査がgreenの場合だけ、targetのmissing finding 1件を相殺する。
+他commit、CAB、scope、Codex-authorのfindingは保存する。green stdoutは両SHAを明示する。
+
+**決定 (2): correctionを含む短いdeltaだけを権威にしない。** targetを除く`OLD_HEAD..HEAD`は
+coupled evidenceを欠くため赤が正しい。初回伝播もtarget-inclusive rangeまたは既定full-historyを
+権威とし、selected-set membershipを緩和しない。
+
+**決定 (3): D95のmerge pathは「結果が全parentと異なるpath」とする。** 履歴mergeは各parentとの差分
+集合の積、`MERGE_HEAD`中のpreflightはindexと全prospective parentとの差分集合の積を使う。
+sideから持ち込まれただけの実装をmerge actorの新規authoringと数えず、全parentと異なる実装面は
+Codex authorを要求する。これは手動conflict resolutionの証明ではない。targetでは通常diffは空、
+積集合はdocs 3 path、per-parent unionは実装面を含む。`integrator`裁定はpathでなくmerge前の
+採否判断に基づく。
+
+**決定 (4): mergeは自動messageを禁止する。** O17はfast-forwardとmerge commitを分け、後者を
+`--no-ff --no-commit`で止めてmessage-file preflight、`commit -F`、既定full-history監査へ通す。
+検査rcはpipelineに渡さない。
+
+**却下:** amend/rebase/force push、targetだけのallowlist、correction単独rangeのgreen化、
+per-parent unionを当該merge actorのauthoringとみなす案。
+
+**研究状態への影響:** なし。campaign raw受理集合、certified選択、proof chainは不変。変わるのは
+開発履歴のprovenance監査とmerge運用だけ。材料 =
+`output/insights/2026-07-29_ai-provenance-forward-fix-wave/`。
+
+## D102. [T-188] 対話型 dev-wave の local main 取り込みを短時間 lock・受入 SHA・所有権付き制御面で直列化する (2026-07-30)
 
 **背景:** Claude / Codex の対話型 dev-wave を並行実行すると、正常な別 session が置いた active
 handoff や登録済み worktree container が main checkout の blanket cleanliness を赤にし、先行 wave
 の land は後続 wave の開始時 main SHA を古くする。従来の `DW-S09` はこの二つを「未知 dirt」
 「main の予期せぬ移動」と同じ停止理由に畳み、他 session 非接触のまま再監査・再受入して land する
-共通経路を持たなかった (F54)。
+共通経路を持たなかった (F55)。
 
 **決定 (1): Claude command と Codex Skill は共通 operation `DW-O23` だけを通常の local-main
 land 経路にする。** `tools/dev_wave_land.py` は tested main SHA、tested wave tip SHA、順序付きの

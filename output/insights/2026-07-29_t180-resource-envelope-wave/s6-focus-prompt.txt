@@ -1,0 +1,46 @@
+あなたは izanagi の dev-wave 段 6 焦点再レビュー者である。read-only sandbox。出力は日本語。
+fix 後の統合状態に対し、**所見ごとの closed / partial / regressed 表**を返すことが任務である。
+
+## 必読 (読めなければ即停止し、読めなかった絶対パスを報告して終了する)
+
+対象 worktree = /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope
+(段 6 fix 2 本を統合済み。親実走で 158 passed)
+
+wave dir = 上記 worktree の output/insights/2026-07-29_t180-resource-envelope-wave
+
+- 実装: `tools/codex_worker_launch.py`、`tools/codex_worker_ledger.py`
+- テスト: `orchestrator/tests/test_codex_worker_launch.py`、`orchestrator/tests/test_codex_worker_ledger.py`
+- 段 6 裁定 (所見 ID の正本): wave dir の `s6-review-adjudication.md`
+- レビュー逐語: wave dir の `s6-review-a.md`、`s6-review-b.md`
+- fix 実装子の自己申告: wave dir の `s6-fix-a.md`、`s6-fix-b.md`
+- 仕様: wave dir の `s4-adjudication-plan-v2.md`
+- 実 CLI event 形: wave dir の `probe/events2.jsonl`、`probe/README.md`
+
+## 任務
+
+1. **所見ごとの表**を必ず出す。行 = A-1〜A-11、B-1〜B-8、F-P1 の全 ID。
+   列 = ID / closed・partial・regressed / 根拠の file:line。
+   fix 実装子の自己申告を**信じず**、コードで確認せよ。
+2. **regressed の検出**を最優先せよ。fix が新たに壊したもの、特に:
+   - 正例の過剰拒否 (上限内・metering 完備・境界 `actual == limit` の自然終了が accepted のままか)。
+   - `--manifest` 未指定の ledger 既存経路が本当に不変か。
+   - fail-closed を足したことで、正常な実 CLI 0.146.0 の出力形 (probe/events2.jsonl) が
+     拒否されるようになっていないか。**これは実運用を壊すので特に厳しく見よ**。
+   - A-2 の「`info=null` を metering incomplete として拒否」が、実 CLI の正常な rollout を
+     誤って拒否しないか (実 rollout に `info=null` の `token_count` が出るか確認せよ)。
+3. **変異帰属の再確認**: 裁定表で再照準した M3 / M8 / M9 / M10 / M11 と新規 M17 / M18 / M19 が、
+   いま単一理由で kill されるか静的に確認せよ。まだ mask・別理由赤・生存があれば名指しせよ。
+4. 新規所見があれば [must-fix|nit|scope外候補] で挙げよ。ただし
+   「成果物のどの値・受理集合・参照がどう変わるか」を 1 行で書けないものは must-fix にしない。
+
+## 制約
+
+- read-only のため pytest は要求しない。走らせていないものを緑と書かないこと。
+- 既知 scope 外 (manifest seal ceremony、setsid 脱出子の完全封じ込め、artifact bytes 上限、
+  DW-O01 結線) は所見にしても加点しない。
+
+## 出力形式
+
+- 冒頭に closed / partial / regressed の件数。
+- 次に所見ごとの表。
+- 最後に必ず `## 総括` 見出しを置き、**GO / NO-GO** と、NO-GO なら残る blocker を書く。
