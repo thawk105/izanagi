@@ -989,6 +989,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   6 時間以内に 2 回走らせると実 receipt payer が 0 回になる。(b) `pickle.loads` が `isinstance`
   判定より先に実行され、subclass・field 不整合も型検査を通る。閉じ方は controller 所有の
   非再利用 nonce と closed-schema JSON
+- [T-204] **P2・ユーザー裁定要 (本エントリ、段 8 の候補)**: 子 prompt が参照する絶対 path の
+  実在を投入前に親が確認する義務を `DW-O02` へ 1 行足したいが、`docs/dev-wave/**` は
+  hard ceiling 24000 bytes に対し 23983 bytes で余白 17 bytes しかなく入らない。予算は上げず
+  (T-127 裁定)、L2 節の削除はユーザー裁定に限るため実施していない。**実測あり** — 本 wave で
+  main の未追跡成果物を worktree 基準の path で渡し、reasoning=max の planner 1 本を丸ごと捨てた
 - [T-203] **P2・backlog (本エントリ)**: 性能施策の一次証拠を duration にしない仕組み。
   builder と waiter が同じ duration を出すため代理にならない。同一 allocation 内の paired
   比較 (A-B / B-A) と機構の実発火回数の直接観測を受入手順へ入れる。`--durations` が 0.005 秒
