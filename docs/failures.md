@@ -1052,3 +1052,29 @@
   stale SHA、lock loser、non-FF、未監査 commit、gitlink postcondition 不成立をそれぞれ拒否する。
 - 記録: worklog 2026-07-30 (67)、設計判断: D102、材料:
   `output/insights/2026-07-29_dev-wave-parallel-land/`
+
+### F56. worker 起動の model / reasoning は要求値がそのまま receipt になり、不正値と未サポート model が silent に通る [誤前提]
+- 事象: [T-182] wave の段 1 生死確認で、`codex exec` の起動構成が機械検査されていないことを 3 通り
+  実測した。(a) `-c model_reasoning_effort="ultra"` (存在しない値) は `gpt-5.6-sol` /
+  `gpt-5.6-luna` / `gpt-5.6-terra` で **rc=0 のまま成功**し、rollout の `turn_context` には
+  `reasoning=ultra` が記録される。(b) ChatGPT account で未サポートの model
+  (`gpt-5.4-nano`, `gpt-5.1-codex-mini`) は 400 で rc=1 になるが、rollout には session が生成され、
+  receipt の `model` は**要求 slug のまま**で `model_calls=0` / `cli_reported=0` になる。
+  (c) model により reasoning の受理集合が異なる (`gpt-5.4-mini` は `max` を拒否し
+  `none`/`low`/`medium`/`high`/`xhigh` のみ)。成果物影響ゼロ (pilot 段階で検出)
+- 根本原因: `DW-O01` は `model_reasoning_effort="<効いた値>"` と書いて起動者の注意に委ねており、
+  「効いたか」を検査する経路がどこにも無い。さらに rollout receipt は**要求値の記録**であって
+  served model の attest ではない — 実体名 (`gpt-5.4-mini-codex-1p-codexswic-ev3`) は 400 応答
+  だけが露出し、成功した run には残らない。したがって「receipt に model と reasoning がある」ことを
+  「その構成で実際に走った」証拠と読むのは誤前提である
+- 恒久対応: (a) model×reasoning の比較や policy 採用を行う台帳は、要求値 (`requested_*`) と
+  記録値 (`recorded_*`) を別名で持ち、**記録値を served identity の attest として扱わない**旨を
+  出力自身に持たせる。(b) `model_calls=0` / `cli_reported=0` の session を「finding 0 件の観測」
+  として集計しない (起動失敗と品質劣化を別分類にする)。(c) 未知の reasoning 値と model×reasoning の
+  非対応組は起動前に落とす。実体化の所有は [T-183] (失敗分類) と [T-184] (policy 採用) にあり、
+  [T-182] は実測と一次資料の凍結までを行った
+- 再発検知: `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/probe-receipts.json`
+  の該当 session (`019fadd3-c15a-79e1-8783-f083061d4e3d` = nano、
+  `019fadd3-c19c-7a12-bbf0-ded998aed815` = codex-mini、および `reasoning=ultra` の 4 session) が
+  一次資料。機械検査は未実装 (上記所有 ID で実装する)
+- 記録: worklog 2026-07-30 (68)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`
