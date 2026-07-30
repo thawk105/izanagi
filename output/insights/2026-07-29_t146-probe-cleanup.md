@@ -74,5 +74,21 @@ merge前preflight `874111.nqsv`は、途中のdiff-check赤を後続greenで上�
 不採用とした。fail-fastへ直した`874113.nqsv`でmessage provenance、docs、Codex agent、
 手動解消したworklogのdiff-checkをgreenにしてからmerge commitを作った。
 
+### T-188 land後の段9再開
+
+local main `72e3800b8a388b450de31e742b7920e24360f9da` のT-188共通land契約を統合した
+merge `b22288575a731ca26813adab2929c3c114027d7d`をPegasus計算ノードで再受入した。
+
+- merge commit前: request `874196.nqsv`、`bnode065`、32 worker、
+  274 passed / 22.90秒、message provenance / docs / Codex agent / staged diff-check green
+- repository全走: request `874201.nqsv`、`bnode065`、32 worker、
+  3951 passed / 19 skipped / 275.53秒
+- focused + checks: request `874202.nqsv`、`bnode067`、32 worker、
+  274 passed / 22.76秒
+- startup resume gate、`check_docs.py`、`check_codex_agents.py`、
+  `git diff --check main..HEAD`: green
+- full-history provenance: forward-corrected 1 / 559件、違反なし
+- 3 jobともrc=0、PBS会計痕跡あり。wave / focused worktreeは同じ`b222885`でclean
+
 worker 最終応答、親 brief、裁定、pre-fix snapshot hash、変異台帳は
 `output/insights/2026-07-29_t146-probe-cleanup-wave/` に置く。

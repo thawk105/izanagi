@@ -1425,9 +1425,14 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   **549件・違反なし**もgreen。PBS会計痕跡と両job rc=0を確認した。記録commit後再走
   `874123.nqsv`=`bnode083`も134 passed、同checks green、full-history provenance
   **550件・違反なし**、rc=0
+- 段9再開4: landed済みT-188が(67)を使用したため本エントリを(68)へ再採番し、local main
+  `72e3800`をmerge `b222885`で統合。commit前`874196.nqsv`は274 passedと必須checksがgreen。
+  merge後は全走`874201.nqsv`=`bnode065`が**3951 passed / 19 skipped / 275.53秒**、
+  focused`874202.nqsv`=`bnode067`が**274 passed / 22.76秒**。startup、docs、Codex agent、
+  diff-check、full-history provenance **559件・違反なし**、両rc=0、PBS会計痕跡を確認した
 - エージェント工数: Codex subprocess 8 (plan 1、敵対相談 2、author 1、review 2、fix 1、
-  focused review 1)。段9再開3の追加Codex subprocess 0、PBS job 4。親=brief・裁定・統合・変異・
-  全走・docs・commit
+  focused review 1)。段9再開4の追加Codex subprocess 0、PBS job 3。親=brief・裁定・統合・変異・
+  全走・docs・commit・land
 
 ### 次の一手
 
