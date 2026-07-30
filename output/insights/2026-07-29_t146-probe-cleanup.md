@@ -90,5 +90,23 @@ merge `b22288575a731ca26813adab2929c3c114027d7d`をPegasus計算ノードで再�
 - full-history provenance: forward-corrected 1 / 559件、違反なし
 - 3 jobともrc=0、PBS会計痕跡あり。wave / focused worktreeは同じ`b222885`でclean
 
+### T-182 land後の段9再開
+
+受入中にlocal mainが`e7295c0b383dd8dba3286d86b4de1e60753ecf53`へ前進したため、
+最初の`DW-O23`は`stale-main`で非変更停止した。fresh contextでT-182のdocs-only 3 commitを
+監査し、T-182のworklog (68) / T-189 / F56を権威としてT-146を(69)へ再採番した。
+統合merge `e3216c6ff9cb7eca08351d841e72fcf4be57823a`をPegasus計算ノードで再受入した。
+
+- merge commit前: request `874249.nqsv`、`bnode068`、32 worker、
+  432 passed / 23.04秒、message provenance / docs / Codex agent / staged diff-check green
+- repository全走: request `874252.nqsv`、`bnode105`、32 worker、
+  3951 passed / 19 skipped / 222.18秒
+- focused + checks: request `874253.nqsv`、`bnode106`、32 worker、
+  432 passed / 23.46秒
+- startup resume gate、`check_docs.py`、`check_codex_agents.py`、
+  fixed tested-main `e7295c0..e3216c6` の`git diff --check`: green
+- full-history provenance: forward-corrected 1 / 564件、違反なし
+- 3 jobともrc=0、PBS会計痕跡あり。wave / focused worktreeは同じ`e3216c6`でclean
+
 worker 最終応答、親 brief、裁定、pre-fix snapshot hash、変異台帳は
 `output/insights/2026-07-29_t146-probe-cleanup-wave/` に置く。

@@ -1600,8 +1600,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - 段9再開5: 受入中にT-182がlandしてlocal mainを`e7295c0`へ前進させ、`DW-O23`は
   `stale-main`で非変更停止した。fresh contextでそのdocs-only 3 commitを監査し、固定SHA
   `e7295c0`をwave側へ再統合。T-182の(68) / T-189 / F56を権威として本エントリを(69)へ再採番した
+- 統合mergeは`e3216c6`。merge前`874249.nqsv`=`bnode068`は432 passed / 23.04秒と
+  message provenance / docs / Codex agent / staged diff-checkがgreen。merge後は
+  全走`874252.nqsv`=`bnode105`が**3951 passed / 19 skipped / 222.18秒**、
+  focused`874253.nqsv`=`bnode106`が**432 passed / 23.46秒**。startup、docs、Codex agent、
+  diff-check、full-history provenance **564件・違反なし**、全3 job rc=0、PBS会計痕跡を確認した
 - エージェント工数: Codex subprocess 8 (plan 1、敵対相談 2、author 1、review 2、fix 1、
-  focused review 1)。段9再開5の追加Codex subprocess 0。親=brief・裁定・統合・変異・
+  focused review 1)。段9再開5の追加Codex subprocess 0、PBS job 3。親=brief・裁定・統合・変異・
   全走・docs・commit・land
 
 ### 次の一手
