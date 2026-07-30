@@ -994,6 +994,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   bnode010 で 214.34 秒、bnode009 で 200.72 秒、bnode002 で 116.25 秒と**ノード間で 1.8 倍**開く。
   破棄の根拠は wall 比較ではなく、機序・duration 台帳の悪化・段 6 の must-fix・M7 の帰属不成立の
   4 点である。段 3 `REPRO-07` と段 6 `MEASURE-01` の警告が実測で裏付けられた
+- **段 9 の land は拒否され、local main へ着地していない**。`tools/dev_wave_land.py` は
+  `status=rejected` / `reason=handoff state is unknown` を返した。原因は他セッション所有の
+  `docs/handoff/2026-07-29-t126-sequential-stopping-resume.md` の状態行が
+  `段6 NO-GO / DW-O16 有界終端` であり、`docs/handoff/README.md` が定める 3 値
+  (`作業中` / `計測中` / `中断`) の外にあること。**他セッション所有物なので編集せず、
+  rebase / force / adapter で迂回もしない** (`DW-O23`)。main は `a85de57`、
+  wave tip は `96c9f83` (受入 green、request `874542`) のまま branch に残す
 - ユーザー裁定 (2026-07-30): codex のレートリミットが近いため段 5・段 6 の子を **Claude
   サブエージェントで代替**した (D95 の Codex author 必須を本 wave 限りで免除)
 - エージェント工数: codex 3 session (plan 1 + 廃棄 1 / 敵対相談 2)、Claude 3 session

@@ -212,6 +212,21 @@ baseline の wall は bnode010 で 214.34 秒、bnode009 で 200.72 秒、bnode0
 段 3 の `REPRO-07` と段 6 の `MEASURE-01` が「1〜2 走の wall 比較では主張できない」と警告した
 とおりであり、その警告が実測で裏付けられた。
 
+## 9.7 段 9 の終端 — land は他セッションの handoff 契約違反で拒否された
+
+`tools/dev_wave_land.py` は `status=rejected` / `reason=handoff state is unknown` を返した。
+`docs/handoff/README.md` は handoff の `- 状態:` を `作業中` / `計測中` / `中断` の 3 値に限定するが、
+並行セッション所有の `docs/handoff/2026-07-29-t126-sequential-stopping-resume.md` は
+`段6 NO-GO / DW-O16 有界終端` を書いている。これは land protocol の control-plane 検査が
+正しく fail-closed した結果であり、迂回すべき偽陽性ではない。
+
+**他セッション所有物は編集しない** (`CLAUDE.md` 信頼境界、`DW-O23`)。rebase / force /
+一回限り adapter も使わない。したがって本 wave の成果は branch
+`worktree-dev-wave-t200-suite-floor` の tip `96c9f83` (受入 green、request `874542`) に留め置く。
+
+再開条件: 当該 handoff の所有セッションが状態行を契約内の値へ直すか、ユーザーが扱いを裁定した後、
+fresh context で受入を取り直して land を再試行する。
+
 ## 10. 次への材料
 
 下限を実際に下げるには、次のいずれかをユーザーが裁定する必要がある (詳細は
