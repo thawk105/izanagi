@@ -1040,7 +1040,20 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   実装は (a) `tools/pegasus/dispatch_compute.py` が pytest 引数しか受けない点の一般化、
   (b) runbook §7/§8 と `AGENTS.md` の「重い処理」列挙へ provenance 監査を明記、
   (c) 可能なら `run_tests.py` と同型の fail-closed 強制。**本 wave の land 前検査は
-  request `874708` として計算ノードで取り直した**
+  request `874708` / `874709` として計算ノードで取り直した**
+  **高速化も同 ID に含める (ユーザー裁定 2026-07-31)**。計算ノード bnode041 で
+  実測した (request `874712`、596 commit、**全 arm で findings と forward-correction が
+  baseline と完全一致**)。逐次 **25.24 秒** に対し、(a) commit ごとの独立監査を thread pool 化
+  すると 4 並列 8.03 / 8 並列 6.18 / 16 並列 5.60 / 32 並列 5.23 / 48 並列 5.23 秒 =
+  **最大 4.8 倍だが 16 並列で頭打ち** (git subprocess の fork/exec と I/O が律速で、
+  48 コアを使い切る意味はない)。(b) per-commit の pickaxe (`log -S`) と
+  `merge-base --is-ancestor` を祖先集合の bitset 演算へ畳むと単独 15.40 秒 = **1.6 倍**。
+  596 commit の祖先集合でも数百 KB なので**大量のメモリは要らない**。(a)+(b) で
+  **4.58 秒 = 5.5 倍**。ログインノードの 130〜150 秒からは移設だけで 5〜6 倍、合わせて約 30 倍。
+  実装方針は `_audit_history` の list comprehension を既定 16 並列の thread pool にし、
+  `_has_co_authored_by_policy` / `_is_descendant` を bitset 祖先判定へ置換すること。
+  probe は job tmp の使い捨てで repo へは入れていない。詳細は
+  `output/insights/2026-07-30_t200-suite-floor/s7-negative-result.md` §11
 - [T-204] **P2・ユーザー裁定要 (本エントリ、段 8 の候補)**: 子 prompt が参照する絶対 path の
   実在を投入前に親が確認する義務を `DW-O02` へ 1 行足したいが、`docs/dev-wave/**` は
   hard ceiling 24000 bytes に対し 23983 bytes で余白 17 bytes しかなく入らない。予算は上げず

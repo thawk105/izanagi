@@ -227,6 +227,42 @@ baseline の wall は bnode010 で 214.34 秒、bnode009 で 200.72 秒、bnode0
 再開条件: 当該 handoff の所有セッションが状態行を契約内の値へ直すか、ユーザーが扱いを裁定した後、
 fresh context で受入を取り直して land を再試行する。
 
+## 11. 付録 — `check_ai_provenance.py` の高速化余地 (計算ノード実測、[T-205])
+
+ユーザー裁定 (2026-07-31)「cygnus は良いが pegasus は計算ノードに投げるべき」を受けて実行場所を
+移した際に、あわせて高速化余地を実測した。**実装は 1 byte も変えず**、module を import して
+2 方向を測る使い捨て probe を計算ノードへ qsub した (request `874712`、bnode041、
+596 commit、HEAD `4d170eb`)。probe は job tmp に置き repo へは入れていない。
+
+**全 arm で findings と forward-correction の結果が baseline と完全一致することを検査条件にした**
+(速いだけで答えが変わる変更を採らないため)。
+
+| arm | 並列 | wall | baseline 比 |
+|---|---|---|---|
+| baseline (現行・逐次) | 1 | **25.24 秒** | 1.00 |
+| threads | 4 | 8.03 秒 | 3.1 |
+| threads | 8 | 6.18 秒 | 4.1 |
+| threads | 16 | 5.60 秒 | 4.5 |
+| threads | 32 | 5.23 秒 | 4.8 |
+| threads | 48 | 5.23 秒 | 4.8 |
+| memory (祖先 bitset) | 1 | 15.40 秒 | 1.6 |
+| **memory + threads** | 48 | **4.58 秒** | **5.5** |
+
+- **コアが主因。** `_audit_history` は commit ごとに独立な `_normal_commit_audit` を素の
+  list comprehension で回しており、thread pool 化だけで 4.8 倍になる。ただし **16 並列で頭打ち**で、
+  32 以上は横ばい。git subprocess の fork/exec と I/O が律速なので 48 コアを使い切る意味はない。
+- **メモリは主因ではない。** per-commit の pickaxe (`log --full-history --no-renames -S`) と
+  `merge-base --is-ancestor` を祖先集合の bitset 演算へ畳む方向は単独 1.6 倍。596 commit の
+  祖先集合でも数百 KB であり、**「大量のメモリ」は不要**である (グラフが小さい)。
+- **実行場所の効果が最大。** ログインノードでは 130〜150 秒だったものが計算ノードの逐次で
+  25.24 秒 = 5〜6 倍。高速化と併せると約 30 倍になる。
+- スレッド安全性は確認済み。可変 module global (`TRAILER_PARSE_TEMP_ROOT`) は読み取りのみで、
+  `_isolated_parsed_trailers` は呼び出しごとに専用 `TemporaryDirectory` を作る。
+
+実装方針 (未実装、[T-205]): `_audit_history` の comprehension を既定 16 並列の thread pool にし、
+`_has_co_authored_by_policy` / `_is_descendant` を bitset 祖先判定へ置換する。
+material §3.1 が記録した内訳 (pickaxe 72% + `merge-base` 14% = 86%) と整合する。
+
 ## 10. 次への材料
 
 下限を実際に下げるには、次のいずれかをユーザーが裁定する必要がある (詳細は
