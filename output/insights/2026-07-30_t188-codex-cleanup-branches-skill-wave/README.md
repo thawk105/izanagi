@@ -68,3 +68,22 @@ positive survivor 1/1 green、最終 focused re-review は GO・blocker 0。
 `test_check_docs.py` 143 passed / 2.14秒、check_docs / check_codex_agents / py_compile /
 diff-check / Skill validator green、全履歴provenance 544件・forward correction 1件・違反なし、
 rc=0。両jobのPBS会計痕跡と終了時tree cleanを確認した。
+
+## 並行 land 再同期後の受入
+
+main `72e3800` との和集合を独立read-only Codexで監査し、staleな正本pointerとworktree内artifactを
+解消して最終index tree `645f9d2` を固定した。Pegasusの `874212.nqsv` (bnode067) はfocused
+197 passedとcheck一式、`874213.nqsv` (bnode068) はrepository全走3951 passed / 19 skipped /
+259.52秒で、ともにrc=0。O17 merge commitは `401bdeb`、commit後full-history provenanceは
+554件・forward correction 1件・違反なし。
+
+union mutation初走 `874224.nqsv` はPython bytecode cache共有により復元後へsame-size変異が残る
+偽赤を起こしたため、表面上の19 KILLEDを含め結果全体を無効化した。baseline・各mutation・復元後で
+cache namespaceを分離した `874229.nqsv` (bnode068) は19/19 KILLED、復元後focused 197 passed、
+check_docs / check_codex_agents / py_compile / Skill validator / diff-check green、
+full-history provenance 554件・forward correction 1件・違反なし。rc=0、PBS会計193秒、
+終了時tree clean。cache隔離の正本化は段8後に得た次wave候補とし、本waveでは自動変更していない。
+
+記録commit後の `874245.nqsv` (bnode068) もfocused 197 passed、check_docs /
+check_codex_agents / py_compile / Skill validator / diff-check green、full-history provenance
+555件・forward correction 1件・違反なし。rc=0、PBS会計161秒、終了時tree clean。

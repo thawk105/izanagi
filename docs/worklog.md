@@ -1409,13 +1409,32 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   PBS会計痕跡あり
 - main が T-188 / D102 / F55 の並行 land waveを先に取り込んだため、`72e3800` を merge して
   checker / test の両受理集合を和集合化し、cleanup Skill を T-189 / worklog (68) へ再採番した
-- エージェント工数: Codex subprocess 15 session
-  (plan 1 / consult 2 / author 2 / review・focus 5 / fix 3 / forward test 2)。
-  親 = brief・裁定・統合・変異・受入・docs・記録
+- merge解消後の独立read-only Codex監査は、Git和集合、D70保存則、全parent closure、Skill
+  digest / consumer closureをgreenとし、staleな正本pointerとworktree内artifactだけをNO-GOにした。
+  pointerをT-189 / (68)へ訂正し、artifactをworktree外へ回収してから最終index tree
+  `645f9d2`を固定した
+- Pegasus pre-commit受入は `874212.nqsv` (bnode067) がfocused 197 passed、
+  check_docs / check_codex_agents / message provenance / py_compile / Skill validator green。
+  `874213.nqsv` (bnode068) のrepository全走は32 workersで3951 passed / 19 skipped /
+  259.52秒。両job rc=0、PBS会計痕跡あり、index tree不変
+- O17 merge commit `401bdeb` 後のfull-history provenanceは554件・forward correction 1件・
+  違反なし。union mutation初走 `874224.nqsv` は、共有Python bytecode cacheがsame-size変異を
+  復元後へ残したため無効化し、19件すべてを受入証拠から除外した
+- baseline・各mutation・復元後受入のcache namespaceを分離した再走 `874229.nqsv`
+  (bnode068) は19/19 KILLED、復元後focused 197 passed、check_docs / check_codex_agents /
+  py_compile / Skill validator / diff-check green、full-history provenance 554件・forward
+  correction 1件・違反なし。rc=0、PBS会計193秒、終了時tree clean。cache分離の正本化は
+  段8後に判明した次wave候補としてhandoffへ残し、このwaveで自己改善正本は変更していない
+- 記録commit後のPegasus再走 `874245.nqsv` (bnode068) はfocused 197 passed、check_docs /
+  check_codex_agents / py_compile / Skill validator / diff-check green、full-history provenance
+  555件・forward correction 1件・違反なし。rc=0、PBS会計161秒、終了時tree clean
+- エージェント工数: Codex subprocess 16 session
+  (plan 1 / consult 2 / author 2 / review・focus 5 / fix 3 / forward test 2 /
+  独立merge監査1)。親 = brief・裁定・統合・変異・受入・docs・記録
 
 ### 次の一手
 
-- [T-189] **完了 (本エントリ、`b5f0460`)**
+- [T-189] **完了 (本エントリ、実装 `b5f0460`、記録 `24dec31`、main同期 `401bdeb`)**
 - [T-188] **完了 ((67)、D102、F55)**
 - [T-187] **完了 ((66)、D101)**
 - [T-180] **完了 ((65)、`24d2672` + `de0a9ad` + rewrite `677c32a`)**
