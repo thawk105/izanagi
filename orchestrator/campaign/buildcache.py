@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from . import source_digest
+from . import site_policy, source_digest
 from .env_contract import ExecutionEnvironmentContract
 from .model import Genome
 
@@ -408,7 +408,7 @@ def build_v2(
         genome: Genome, *, contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
-        timeout_s: Optional[int] = None,
+        timeout_s: Optional[int] = None, site: Optional[str] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -417,6 +417,7 @@ def build_v2(
     だけが本 API を明示引数で呼ぶ。``ccbench_dir`` は cache preimage へは入れず、選択した
     tree の内容を ``src_token`` が束縛する。allowlist/commit/src-token/trace-diff 検査は
     すべてその tree に対して発火する。``timeout_s=None`` は既存どおり無制限である。
+    ``site=None`` は実環境を build 起動直前に解決する。
     """
     if not isinstance(contract, ExecutionEnvironmentContract):
         raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
@@ -497,8 +498,12 @@ def build_v2(
         os.mkdir(staging, 0o700)
         configure, build_cmd = _v2_commands(genome, trace, sub, staging, toolchain)
         try:
-            _run(configure, "configure", timeout_s=timeout_s)
-            _run(build_cmd, "build", timeout_s=timeout_s)
+            if site is None:
+                _run(configure, "configure", timeout_s=timeout_s)
+                _run(build_cmd, "build", timeout_s=timeout_s)
+            else:
+                _run(configure, "configure", timeout_s=timeout_s, site=site)
+                _run(build_cmd, "build", timeout_s=timeout_s, site=site)
         except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
             raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
         staging_binary = os.path.join(staging, binary_relpath)
@@ -564,7 +569,8 @@ def build_v2(
 def build(genome: Genome, ccbench_commit: str, trace: bool,
           cache_root: str = "", cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX,
           jobs: int = 16, ccbench_dir: str = "",
-          src_token: Optional[str] = None) -> BuildResult:
+          src_token: Optional[str] = None,
+          *, site: Optional[str] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     src_token=None なら working-tree から計算する (D23: identity と materialization を
@@ -605,8 +611,12 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                            ccbench_root=os.path.abspath(sub))
 
     _clear_stale_build_dir(bdir, binary)
-    _run(cfg, "configure")
-    _run(build_cmd, "build")
+    if site is None:
+        _run(cfg, "configure")
+        _run(build_cmd, "build")
+    else:
+        _run(cfg, "configure", site=site)
+        _run(build_cmd, "build", site=site)
     if not os.path.exists(binary):
         raise RuntimeError(f"build succeeded but binary missing: {binary}")
     # TOCTOU 遮断 (phase3.md blocking / D30): resolve→build 間に working-tree が動くと
@@ -736,7 +746,16 @@ def _assert_no_trace_symbols(binary: str) -> None:
             "出す等を疑え (decisions D14)。")
 
 
-def _run(cmd: List[str], what: str, timeout_s: Optional[int] = None) -> None:
+def _run(
+        cmd: List[str], what: str, timeout_s: Optional[int] = None,
+        *, site: Optional[str] = None,
+) -> None:
+    if what in {"configure", "build"}:
+        resolved_site = site_policy.current_site() if site is None else site
+        if site_policy.refuses_heavy_work(resolved_site):
+            raise BuildError(
+                site_policy.heavy_work_refusal(resolved_site, f"cmake {what}")
+            )
     r = subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout_s,
     )

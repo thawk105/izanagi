@@ -48,7 +48,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import buildcache                                        # noqa: E402
+from campaign import buildcache, site_policy                           # noqa: E402
 from campaign.axis_trigger_gating import (                             # noqa: E402
     INSTR_PATCH, MISATTR_DEFINE, MISATTR_PATCH, PIN, TEMPLATE_PATCH, _BASE)
 from campaign.layout import repo_output_root                           # noqa: E402
@@ -87,7 +87,22 @@ def _repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _build(bdir: str, extra_cxx_define: str = "", genome: Genome = None) -> str:
+def _run_cmake_build(cmd: list[str], *, site=None) -> None:
+    resolved_site = site_policy.current_site() if site is None else site
+    if site_policy.refuses_heavy_work(resolved_site):
+        raise buildcache.BuildError(
+            site_policy.heavy_work_refusal(resolved_site, "cmake --build")
+        )
+    subprocess.run(
+        cmd + ["-j", str(site_policy.default_build_jobs(resolved_site))],
+        check=True, capture_output=True, text=True,
+    )
+
+
+def _build(
+        bdir: str, extra_cxx_define: str = "", genome: Genome = None, *,
+        site=None,
+) -> str:
     """working-tree (patch 適用済み) を TRACE=1 で fresh build し binary パスを返す。
 
     genome は明示引数 (省略時は本モジュールの GENOME)。s8a_trigger_freq.py が import
@@ -101,9 +116,18 @@ def _build(bdir: str, extra_cxx_define: str = "", genome: Genome = None) -> str:
            "-DENABLE_SANITIZER=OFF",
            f"-DCMAKE_C_COMPILER={buildcache.DEFAULT_CC}",
            f"-DCMAKE_CXX_COMPILER={buildcache.DEFAULT_CXX}"] + defines
+    resolved_site = site_policy.current_site() if site is None else site
+    if site_policy.refuses_heavy_work(resolved_site):
+        raise buildcache.BuildError(
+            site_policy.heavy_work_refusal(
+                resolved_site, "cmake configure/build"
+            )
+        )
     subprocess.run(cfg, check=True, capture_output=True, text=True)
-    subprocess.run(["cmake", "--build", bdir, "--target", "ycsb_silo.exe",
-                    "-j", "16"], check=True, capture_output=True, text=True)
+    _run_cmake_build(
+        ["cmake", "--build", bdir, "--target", "ycsb_silo.exe"],
+        site=resolved_site,
+    )
     return os.path.join(bdir, "cc", "silo", "ycsb_silo.exe")
 
 

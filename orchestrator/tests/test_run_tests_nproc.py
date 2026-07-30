@@ -12,6 +12,7 @@ import importlib.util
 import contextlib
 import io
 import os
+import sys
 from pathlib import Path
 from unittest import mock
 
@@ -51,6 +52,18 @@ def test_default_is_available_capped():
         assert RT._default_nproc() == max(1, min(RT._available_cpus(), RT._NPROC_CAP))
         # 上限を超えない
         assert RT._default_nproc() <= RT._NPROC_CAP
+    finally:
+        _restore(saved)
+
+
+def test_m2_compute_default_uses_full_affinity_while_other_keeps_cap():
+    # M2: COMPUTE 分岐を消して常に cap すると、この 48 != 32 の境界が赤になる。
+    saved = os.environ.get("IZANAGI_TEST_NPROC")
+    try:
+        _with_env(None)
+        with mock.patch.object(RT.site_policy, "available_cpus", return_value=48):
+            assert RT._default_nproc(site=RT.site_policy.PEGASUS_COMPUTE) == 48
+            assert RT._default_nproc(site=RT.site_policy.OTHER) == RT._NPROC_CAP
     finally:
         _restore(saved)
 
@@ -175,12 +188,54 @@ def test_main_warns_on_user_dist_override_without_reordering_args():
             mock.patch.object(RT, "_preflight_submodule", return_value=0), \
             mock.patch.object(RT.subprocess, "call", side_effect=fake_call), \
             contextlib.redirect_stderr(stderr):
-        assert RT.main(args) == 0
+        assert RT.main(args, site=RT.site_policy.OTHER) == 0
 
     assert "警告" in stderr.getvalue()
     assert "--dist loadgroup" in stderr.getvalue()
     assert captured["command"][-len(args):] == args
     assert captured["kwargs"] == {"cwd": str(_REPO)}
+
+
+def test_other_preserves_cap_no_dispatch_and_legacy_xdist_pip_path():
+    ensure = mock.Mock(return_value=False)
+    dispatch = mock.Mock(side_effect=AssertionError("OTHER must not dispatch"))
+    captured = {}
+
+    def fake_call(command, **kwargs):
+        captured["command"] = command
+        return 0
+
+    with mock.patch.object(RT, "_ensure_xdist", ensure), \
+            mock.patch.object(RT, "_preflight_unstaged_deletions", return_value=0), \
+            mock.patch.object(RT, "_preflight_ruleops", return_value=0), \
+            mock.patch.object(RT, "_preflight_submodule", return_value=0), \
+            mock.patch.object(RT.subprocess, "call", side_effect=fake_call):
+        assert RT.main(
+            ["fixture.py"], site=RT.site_policy.OTHER, dispatch_fn=dispatch,
+        ) == 0
+
+    ensure.assert_called_once_with()
+    dispatch.assert_not_called()
+    assert "-n" not in captured["command"]
+    with mock.patch.object(RT.site_policy, "available_cpus", return_value=96):
+        assert RT._default_nproc(site=RT.site_policy.OTHER) == 32
+
+
+def test_legacy_xdist_installer_still_uses_user_pip_command():
+    completed = type("Completed", (), {"returncode": 0})()
+    with mock.patch.object(
+        RT, "_xdist_installed", side_effect=(False, True),
+    ), mock.patch.object(
+        RT.subprocess, "run", return_value=completed,
+    ) as invoked:
+        assert RT._ensure_xdist()
+    invoked.assert_called_once_with(
+        [
+            sys.executable, "-m", "pip", "install", "--user", "--quiet",
+            "pytest-xdist",
+        ],
+        timeout=120,
+    )
 
 
 if __name__ == "__main__":

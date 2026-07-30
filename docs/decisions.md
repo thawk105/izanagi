@@ -4501,3 +4501,67 @@ per-parent unionを当該merge actorのauthoringとみなす案。
 **研究状態への影響:** なし。campaign raw受理集合、certified選択、proof chainは不変。変わるのは
 開発履歴のprovenance監査とmerge運用だけ。材料 =
 `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`。
+
+## D102. [T-188] Pegasus では重い処理を計算ノードで最大並列とし、強制は sanctioned 経路の fail-closed に限る (2026-07-30)
+
+**背景:** ユーザー裁定が 2 回反転した。`docs/pegasus-runbook.md` §7 は 2026-07-27 に
+「ビルドとテスト (pytest 全走を含む) はログインノードで走らせてよい」と定めていたが、
+2026-07-30 のユーザー指示は「`hostname` が pegasus なら、ビルドやテストなどマシンに負荷のかかる
+処理は全て計算ノードで行う」「計算ノードのマシンリソースを最大限使って最大限並列でやる」である。
+最新のユーザー直接指示を現行とし、runbook §7/§8 を置換した。
+
+**決定 (1): site 判定は 4 状態とし、証拠不足は「重い処理だけ拒否」へ倒す。**
+`orchestrator/campaign/site_policy.py` を単一正本とし、区分を `OTHER` / `PEGASUS_LOGIN` /
+`PEGASUS_COMPUTE` / `PEGASUS_SUSPECT` とする。`bnode` + 数字は `PBS_JOBID` の有無に依らず COMPUTE
+(計算ノードは login node ではありえず、並列度の権威は affinity)。`pegasus0[1-9]` は
+NQSV 実在 (`qsub` と `qstat` が PATH に在る) を裏付け証拠として要求し、無ければ `OTHER` とする
+(`pegasus02.example.invalid` の誤判定を閉じる)。`pegasus` で始まる未知名と hostname 取得失敗は、
+証拠が在れば SUSPECT。**SUSPECT は重い処理だけ拒否し、他の挙動は OTHER と同じ**。
+2 状態 (Pegasus か否か) では「非 Pegasus 挙動不変」と「Pegasus 安全側」を同時に満たせない。
+
+**決定 (2): 拒否だけでなく自動 dispatch を持つ。** ログインノードで `tools/run_tests.py` を打つと
+`tools/pegasus/dispatch_compute.py` が gen_S へ 1 invocation = 1 batch job を投入し、
+子 rc をそのまま返す。拒否のみでは準拠経路が運用に無い。allocation を wave 中保持して queue 待ちを
+1 回へ圧縮する案は、lease・heartbeat・source snapshot・shutdown を要するため採らない (規律5)。
+実測の queue 待ちは 6〜86 秒であり、1 invocation ごとの投入で成立する。
+
+**決定 (3): 「最大限並列」は既定値の話であり、明示上書きは尊重する。** COMPUTE では
+テストの既定並列度を affinity 全数 (gen_S で 48) とし、`_NPROC_CAP=32` を適用しない。
+明示 `-n` / `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ちする。実測では
+`-n 48` = 205 秒 / `-n 32` = 207 秒 (3891 passed、bnode114) で両者に有意差はない。
+`-n 16` 以下との対照は未取得であり、**最大並列が最速だとは主張しない** — 既定を最大にするのは
+ユーザー裁定に基づく方針である。「既定が最大」と「全実行が最大」は別であり、後者も主張しない。
+
+**決定 (4): `buildcache` の `jobs` 既定は 16 のまま変えない。** cache hit 時に
+`BuildResult.build_argv` が呼出時の値で再構成され、v2 completion manifest は build コマンドを
+持たないため、実際は `-j 16` で作った binary を `-j 48` と記録しうる。この値は WAL・floor manifest・
+ratified `floor_source` へ流れるため、**provenance を偽ることになる**。正直に上げるには completion
+manifest へ actual build argv を足す schema 変更が必要で、別タスクの裁定事項とする。
+本 wave では実 cmake build のログインノード拒否 (= 計算ノードでしか build できない) までを実装し、
+成果物へ build コマンドを記録しない coverage 4 モジュールの `-j` だけ site 由来にした。
+
+**決定 (5): 強制は 3 層で、全経路の機械保証は主張しない。** 一次 = sanctioned entry point
+(`run_tests.py`、buildcache の実 build) の fail-closed。二次 = `hooks/guard_bash.py` が
+Claude の Bash 面で直接 literal な重量コマンドを拒否 (sanctioned は exact path 列挙のみ。
+`tools/pegasus/*` の glob 許可はしない — `exec_calibrate.py` は任意 argv を `os.execv` する)。
+三層 = 規律 (`AGENTS.md` と runbook)。**script file 越し・変数展開・`eval`・`python3 -c`・
+Codex subprocess (hook 未配線)・ユーザー端末・IDE・cron は原理的に見えない。**
+敵対監査は 47 経路のうち hook で止まるのは 13 件と算定した。恒真な保証を謳わないため、
+成果物の主張を「sanctioned 経路では機械強制し、それ以外は規律で塞ぐ」に狭める。
+
+**決定 (6): 「非 Pegasus 挙動不変」の例外は 1 件だけ明示する。** `available_cpus()` は
+`os.sched_getaffinity` の `AttributeError` に加えて `OSError` (`PermissionError` を含む) も捕らえ、
+`os.cpu_count()` へ fallback する。従来はここで例外が伝播して停止していたため、
+**affinity を読めない非 Pegasus ホストでは挙動が変わる** (停止 → cap 付き並列度で実行)。
+これは既存の fallback 意図に沿った欠陥修正として意図的に受理する。他に非 Pegasus の受理集合を
+変える差分は作らない。
+
+**却下:** 2 状態の site 判定、`jobs` 既定の site 依存化 (決定 4)、gate を無効化する env escape hatch、
+`tools/pegasus/*` の glob 許可、resident allocation (決定 2)、`task_run` schema への
+host / PBS job ID 追加 (dispatcher receipt で代替)。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変。
+変わるのは開発 harness の実行場所と既定並列度、および `tools/run_tests.py` の受理集合である。
+**rc の意味**: ログインノードからの正常な dispatch は計算ノードの子 rc をそのまま返す (成功なら 0)。
+`rc=16` は dispatch の infra 失敗 (投入・状態機械・会計照合・receipt 永続の失敗) と
+`PEGASUS_SUSPECT` での拒否だけに使う。D96 の手続義務に従い境界テストを同時追加する。
