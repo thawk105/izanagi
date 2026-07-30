@@ -1316,8 +1316,11 @@ def test_real_rollout_collector_golden_is_source_bound() -> None:
     source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(keepends=True)[15]
     assert source_line == _REAL_TOKEN_SLICE
     payload = json.loads(_REAL_TOKEN_SLICE)["payload"]["info"]["total_token_usage"]
-    validated, issues = TOOL.LEDGER._validated_usage(payload, location="golden")
+    validated, issues, cached_exceeds_input = TOOL.LEDGER._validated_usage(
+        payload, location="golden"
+    )
     assert issues == []
+    assert cached_exceeds_input == []
     assert validated and validated["input_tokens"] == 17295
 
 

@@ -2952,10 +2952,15 @@ def collect_run(
         for index, info in enumerate(valid_info, 1):
             for usage_name in ("total_token_usage", "last_token_usage"):
                 usage = info.get(usage_name)
-                validated, usage_errors = LEDGER._validated_usage(
+                (
+                    validated,
+                    usage_errors,
+                    cached_exceeds_input,
+                ) = LEDGER._validated_usage(
                     usage, location=f"token[{index}].{usage_name}"
                 )
                 reasons.extend(usage_errors)
+                reasons.extend(cached_exceeds_input)
                 if isinstance(usage, dict) and "reasoning_output_tokens" not in usage:
                     reasons.append(
                         f"token[{index}].{usage_name}.reasoning_output_tokens missing"

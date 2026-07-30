@@ -287,22 +287,44 @@ def test_handoff_all_states_and_stale_are_accepted() -> None:
             assert (result.rc, result.status) == (0, "already-landed"), (state, result)
 
 
-def test_unknown_untracked_rejected_without_main_or_foreign_artifact_change() -> None:
-    """M4: control-plane 外の untracked は拒否し main を変更しない。"""
+def test_colliding_untracked_rejected_without_main_or_foreign_artifact_change() -> None:
+    """M4: land target と衝突する untracked は拒否し main を変更しない。"""
     with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
         wave = repo.waves["author"]
         tip = repo.commit(wave, "author.txt", "author\n")
         handoff = _handoff(repo)
+        collision = repo.main / "author.txt"
+        collision.write_text("foreign untracked\n", encoding="utf-8")
         watched = {
             handoff: _snapshot(handoff),
             repo.waves["foreign"] / ".git": _snapshot(repo.waves["foreign"] / ".git"),
+            collision: _snapshot(collision),
         }
-        (repo.main / "unknown.txt").write_text("unknown\n", encoding="utf-8")
         before = _git(repo.main, "rev-parse", "HEAD")
         result = _land(repo.request(wave, tip=tip))
         assert result.rc == LAND.RC_DIRT and result.status == "rejected", result
         assert _git(repo.main, "rev-parse", "HEAD") == before
         assert {path: _snapshot(path) for path in watched} == watched
+
+
+def test_noncolliding_foreign_session_untracked_does_not_block_land() -> None:
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        foreign = repo.main / "foreign-session.txt"
+        foreign.write_text("foreign untracked\n", encoding="utf-8")
+        watched = _snapshot(foreign)
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+        assert _snapshot(foreign) == watched
+
+
+def test_safe_child_name_rule_rejects_only_dangerous_names() -> None:
+    for name in (b".", b"..", b"a/b", b"nul\x00child"):
+        assert LAND._SAFE_CHILD_RE.fullmatch(name) is None, name
+    for name in (b".izanagi-test-dispatch", b"ordinary-name"):
+        assert LAND._SAFE_CHILD_RE.fullmatch(name) is not None, name
 
 
 def test_tracked_and_staged_main_dirt_are_rejected() -> None:
@@ -1320,8 +1342,10 @@ def test_same_base_two_wave_winner_stale_resync_loser_land_e2e() -> None:
         assert (repo.main / "loser.txt").read_text() == "loser\n"
         assert {path: _snapshot(path) for path in watched_before} == watched_before
 
-        (repo.main / "unknown-after.txt").write_text("reject\n", encoding="utf-8")
-        rejected = _land(
+        foreign_untracked = repo.main / "unknown-after.txt"
+        foreign_untracked.write_text("foreign session\n", encoding="utf-8")
+        foreign_untracked_before = _snapshot(foreign_untracked)
+        already = _land(
             repo.request(
                 loser,
                 base=winner_tip,
@@ -1329,8 +1353,9 @@ def test_same_base_two_wave_winner_stale_resync_loser_land_e2e() -> None:
                 audited=audited,
             )
         )
-        assert rejected.rc == LAND.RC_DIRT and rejected.status == "rejected"
+        assert (already.rc, already.status) == (LAND.RC_OK, "already-landed"), already
         assert _git(repo.main, "rev-parse", "HEAD") == resynced_tip
+        assert _snapshot(foreign_untracked) == foreign_untracked_before
         assert {path: _snapshot(path) for path in watched_before} == watched_before
 
 
