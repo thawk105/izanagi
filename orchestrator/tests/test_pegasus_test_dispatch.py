@@ -1630,8 +1630,21 @@ def _reseal_submit_receipt(
     return submit_sha
 
 
-def _append_matched_lookup_result(journal, snapshot, artifacts, *, group):
-    """Append one matched scheduler-lookup-result; only the group is free.
+def _append_matched_lookup_result(
+    journal,
+    snapshot,
+    artifacts,
+    *,
+    group,
+    request_id_raw=JOB_ID_RAW,
+):
+    """Append one matched scheduler-lookup-result; group and raw ID are free.
+
+    `job_id_normalized` stays at `JOB_ID` on purpose: `resume_dispatch`
+    selects the row on that term alone, so freeing it would drop the row
+    before the identity comparison and destroy the attribution. Freeing
+    `request_id_raw` keeps the row selected because `normalize_job_id` erases
+    the optional `0:` prefix.
 
     The row carries the fields `resume_dispatch` actually reads. The full
     `scheduler-lookup-result` schema (raw command receipts included) is only
@@ -1652,7 +1665,7 @@ def _append_matched_lookup_result(journal, snapshot, artifacts, *, group):
         "disposition": "matched",
         "reason": "scheduler lookup matched one exact job",
         "candidates": [{
-            "request_id_raw": JOB_ID_RAW,
+            "request_id_raw": request_id_raw,
             "job_id_normalized": JOB_ID,
             "request_name": TD.scheduler_job_name(snapshot),
             "user_name": TD.scheduler_user_name(),
@@ -2888,6 +2901,89 @@ def test_resume_accepts_lookup_wal_candidate_from_the_policy_group(tmp_path):
     ]
     assert len(submit_events) == 1
     assert submit_events[0]["identification_source"] == "scheduler-lookup"
+
+
+def test_resume_rejects_lookup_wal_candidate_raw_id_unequal_to_receipt(
+    tmp_path,
+):
+    """R7b: every witness present must agree, not merely one of the three.
+
+    Two witnesses vouch for the receipt here — the `submit-identified` WAL row
+    carries the receipt identity verbatim and `qsub.stdout` parses to it — so
+    a reading that stopped at the first agreeing witness would adopt a receipt
+    the scheduler never confirmed under that raw request ID.
+
+    Raw is the only term of the matched candidate that can drift at all.
+    `resume_dispatch` selects the row on
+    `candidates[0]["job_id_normalized"] == normalized` and
+    `_policy_bound_lookup_candidate` then requires
+    `candidate["job_id_normalized"] == normalize_job_id(request_id_raw)`, so a
+    selected candidate always normalises onto the receipt's job ID; what
+    survives both is the optional NQSV `0:` prefix, which
+    `normalize_job_id` erases. `0:123.nqsv` and `123.nqsv` are the two forms
+    NQSV itself emits for one request, so this is the reachable drift, not a
+    synthetic one.
+
+    `test_resume_accepts_lookup_wal_candidate_from_the_policy_group` is the
+    positive control: the same dispatch with the candidate raw equal to the
+    receipt raw is adopted and monitored to CHILD_RESULT.
+    """
+    snapshot, policy = _synthetic_snapshot(tmp_path)
+    artifacts = _qsub_artifacts(snapshot, policy)
+    journal = _append_pre_submit_and_qsub_intent(snapshot, artifacts)
+    _append_qsub_return(journal, snapshot, artifacts)
+    _append_submit_identified(
+        journal,
+        snapshot,
+        artifacts,
+        source="scheduler-lookup",
+    )
+    _append_matched_lookup_result(
+        journal,
+        snapshot,
+        artifacts,
+        group="SFC",
+        request_id_raw=JOB_ID,
+    )
+    # The drift is confined to the raw spelling: the candidate still passes
+    # the `job_id_normalized` selection filter and every policy term.
+    assert JOB_ID != JOB_ID_RAW
+    assert TD.normalize_job_id(JOB_ID) == TD.normalize_job_id(JOB_ID_RAW)
+    # The other two witnesses are identical to the receipt, so neither of
+    # them can be what turns this red.
+    submit, _ = TD._load_exact_json(
+        snapshot.dispatch_dir / "submit-receipt.json"
+    )
+    identity = (submit["qsub_request_id_raw"], submit["job_id_normalized"])
+    assert identity == (JOB_ID_RAW, JOB_ID)
+    assert [
+        (payload["qsub_request_id_raw"], payload["job_id_normalized"])
+        for payload in TD._journal_payloads(journal)
+        if payload.get("event") == "submit-identified"
+    ] == [identity]
+    assert TD.parse_qsub_id(
+        (snapshot.dispatch_dir / "qsub.stdout").read_text(encoding="utf-8")
+    ) == identity
+    scheduler = FakeScheduler([])
+    with pytest.raises(
+        TD.DispatchError,
+        match="differs from the matched scheduler-lookup WAL candidate",
+    ):
+        TD.resume_dispatch(
+            dispatch_dir=snapshot.dispatch_dir,
+            scheduler=scheduler,
+            policy=policy,
+            clock=FakeClock(),
+            wall_clock=lambda: 0.0,
+            sleep=lambda _seconds: None,
+            filesystem=FakeFilesystem({}),
+        )
+    assert scheduler.trace == []
+    assert not (snapshot.dispatch_dir / "final-receipt.json").exists()
+    assert len([
+        payload for payload in TD._journal_payloads(journal)
+        if payload.get("event") == "submit-identified"
+    ]) == 1
 
 
 def test_real_filesystem_final_receipt_rechecks_accounting_group_on_resume(
