@@ -1335,6 +1335,12 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   引数を sanctioned 候補へ昇格させるため、`python3 -mpytest tools/run_tests.py` が今も許可される
   (実測)。本 wave は provenance 分岐でのみ借用抑止を入れて閉じたが、`run_tests.py` 側の同型の穴は
   残っている。runbook §7 の「hook が閉じるのは綴り差だけ」は run_tests についても強すぎる文言である
+- [T-214] **P2・ユーザー裁定要 (本エントリ、段 8 の候補)**: 段 4 で順次 commit の順序を裁定したとき、
+  **各 commit 時点で gate を通過するかを検証していなかった**ため、実際の commit 手順を追う段階まで
+  鶏卵 (先頭 commit が実装面 Claude author なのに waiver 機構が未着地) に気づけなかった。統合 commit 1 本へ
+  切り替えて解消したが、`DW-S04` か `DW-O17` に「順次 commit を裁定するときは各 commit 時点の gate 通過を
+  1 行で示す」を足したい。**T-204 と同型で `docs/dev-wave/**` の予算に入らない** (余白 17 bytes)。
+  予算は上げない (T-127 裁定) ため、L2 節の削除か文言統合をユーザー裁定へ返す
 - [T-213] **P2・新規 (本エントリ、既存欠陥)**: `tools/dev_waves/checker.py` が `/tmp` の隔離 clone を
   全 check の cwd に使うため、そこから起動した重い処理は計算ノードから repo を見られず dispatch が
   失敗する。**本 wave が新設した欠陥ではない** — 同じ clone で走る `orchestrator` check
