@@ -46,7 +46,10 @@ import subprocess
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ORCHESTRATOR_DIR = os.path.join(_REPO_ROOT, "orchestrator")
+if _ORCHESTRATOR_DIR not in sys.path:
+    sys.path.insert(0, _ORCHESTRATOR_DIR)
 
 from campaign import buildcache                                        # noqa: E402
 from campaign.axis_trigger_gating import (                             # noqa: E402
@@ -55,6 +58,9 @@ from campaign.layout import repo_output_root                           # noqa: E
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, apply_patch, assert_pinned_clean  # noqa: E402
+
+pegasus_policy = buildcache.pegasus_policy
+_require_direct_build_site = buildcache._require_direct_build_site
 
 ENV_TAG = "linux-baremetal"
 CLK = 2100
@@ -84,15 +90,21 @@ _EARLY_RE = re.compile(r"early_aborts.*?(\d+)")
 
 
 def _repo_root() -> str:
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return _REPO_ROOT
 
 
-def _build(bdir: str, extra_cxx_define: str = "", genome: Genome = None) -> str:
+def _build(
+        bdir: str, extra_cxx_define: str = "", genome: Genome = None, *,
+        site_observer=None, site_observation=None,
+) -> str:
     """working-tree (patch 適用済み) を TRACE=1 で fresh build し binary パスを返す。
 
     genome は明示引数 (省略時は本モジュールの GENOME)。s8a_trigger_freq.py が import
     再利用するため、呼び出し側の genome でビルドし「JSON の genome 欄 ≠ 実ビルド」の
     無警告ドリフトを塞ぐ (実装レビュー 2026-07-11 F1)。"""
+    _require_direct_build_site(
+        site_observer, site_observation=site_observation,
+    )
     sub = os.path.join(_repo_root(), "external", "ccbench")
     defines = (genome or GENOME).cmake_defines() + ["-DCCBENCH_TRACE=1"]
     if extra_cxx_define:
@@ -178,7 +190,8 @@ def _structural_zero_ok(reasons: dict) -> bool:
     return all(reasons.get(k, 0) == 0 for k in STRUCTURALLY_ZERO)
 
 
-def main() -> int:
+def main(*, site_observer=None) -> int:
+    site_observation = _require_direct_build_site(site_observer)
     _assert_single_tenant()
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
@@ -196,10 +209,12 @@ def main() -> int:
         with applied(os.path.join(patches, SKELETON_PATCH), PIN, sub):
             apply_patch(os.path.join(patches, INSTR_PATCH), sub)
             print("== build skeleton+instr (TRACE=1) ==")
-            bin_sk = _build(bdir_sk)
+            bin_sk = _build(bdir_sk, site_observation=site_observation)
             apply_patch(os.path.join(patches, MISATTR_PATCH), sub)
             print(f"== build +misattr (-D{MISATTR_DEFINE}=1) ==")
-            bin_mi = _build(bdir_mi, MISATTR_DEFINE)
+            bin_mi = _build(
+                bdir_mi, MISATTR_DEFINE, site_observation=site_observation,
+            )
 
             print("== skeleton multi-thread (t4) ==")
             result["runs"]["skeleton_multi"] = _one_run(bin_sk, MULTI_FLAGS,

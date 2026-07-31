@@ -287,6 +287,188 @@ _LOCK = "output/campaigns/c/campaign.lock"
 _BV = "external/ccbench/build-variants"
 
 
+def _site_observer(hostname, pbs_job_id=None, affinity=range(8)):
+    observation = GB.pegasus_policy.classify_site(
+        hostname, pbs_job_id, affinity)
+    return lambda: observation
+
+
+_LOGIN_SITE = _site_observer("pegasus01")
+_COMPUTE_SITE = _site_observer("bnode114", "0:874129.nqsv")
+_OTHER_SITE = _site_observer("dev-workstation")
+
+
+def test_bash_imports_canonical_pegasus_policy():
+    assert GB.pegasus_policy.__name__ == "pegasus_policy"
+    assert sys.modules["pegasus_policy"] is GB.pegasus_policy
+    assert os.path.realpath(GB.pegasus_policy.__file__) == os.path.realpath(
+        os.path.join(_REPO, "tools", "pegasus_policy.py"))
+
+
+def test_bash_pegasus_login_direct_heavy_commands_denied():
+    for cmd in (
+        "pytest -q",
+        "python -m pytest orchestrator/tests/test_hooks.py",
+        "python3 -B -m pytest -q",
+        "cmake --build build",
+        f"cmake --build {_BV}/silo_x_t0",
+        "make -j16",
+        "ninja -C build",
+        "ctest --test-dir build",
+    ):
+        ok, why = GB.decide(cmd, site_observer=_LOGIN_SITE)
+        assert not ok, f"Pegasus login の直接heavy commandが通った: {cmd!r}"
+        assert "Pegasus login node" in why
+
+
+def test_bash_compute_and_other_keep_direct_heavy_behavior():
+    commands = (
+        "pytest -q",
+        "python3 -m pytest -q",
+        "cmake --build build",
+        "make -j16",
+        "ninja -C build",
+        "ctest --test-dir build",
+        "env -S 'pytest -q'",
+        "env --split-string='ninja -C build'",
+        "env --split-string 'ctest --test-dir build'",
+    )
+    for observer in (_COMPUTE_SITE, _OTHER_SITE):
+        for cmd in commands:
+            ok, why = GB.decide(cmd, site_observer=observer)
+            assert ok, f"非loginの既存挙動を変えてはならない: {cmd!r} ({why})"
+
+
+def test_bash_login_sanctioned_and_read_only_commands_allowed():
+    calls = []
+
+    def observer():
+        calls.append("called")
+        return _LOGIN_SITE()
+
+    for cmd in (
+        "python3 tools/run_tests.py orchestrator/tests/test_hooks.py",
+        "python3 tools/run_tests.py -m pytest",
+        "./tools/run_tests.py --help",
+        "python3 tools/pegasus/submit_tests.py --help",
+        "python3 tools/pegasus/submit_tests.py -m pytest",
+        "./tools/pegasus/submit_tests.py --help",
+        "qsub /tmp/test-job.sh",
+        "cmake -S . -B build",
+        "cmake -B build .",
+        "git status --short",
+        "ls -la",
+    ):
+        ok, why = GB.decide(cmd, site_observer=observer)
+        assert ok, f"正規entry/read-only commandが誤拒否された: {cmd!r} ({why})"
+    assert calls == [], "非heavy commandではsite観測を行わない"
+
+
+def test_bash_login_wrapped_compound_and_one_shell_c_denied():
+    for cmd in (
+        "timeout 30 pytest -q",
+        "timeout --signal TERM 30 pytest -q",
+        "taskset -c 0 python3 -m pytest -q",
+        "env PYTHONWARNINGS=default ninja -C build",
+        "env -u PYTEST_ADDOPTS ctest --test-dir build",
+        "echo ready && ctest --test-dir build",
+        "true; cmake --build build",
+        "bash -c 'pytest -q'",
+        "sh -lc 'make -j2'",
+    ):
+        ok, _ = GB.decide(cmd, site_observer=_LOGIN_SITE)
+        assert not ok, f"wrapper/compound/shell-cのheavy commandが通った: {cmd!r}"
+
+
+def test_bash_login_env_split_string_heavy_denied():
+    """env split payload を実 classifier で再tokenizeし、既知heavy headへ到達する。"""
+    commands = (
+        "env -S 'pytest -q'",
+        "env --split-string='ninja -C build'",
+        "env --split-string 'ctest --test-dir build'",
+        "timeout 30 env -S 'python3 -m pytest -q'",
+        "echo ready && env --split-string='cmake --build build'",
+        "env -S \"bash -lc 'make -j2'\"",
+    )
+    calls = []
+
+    def observer():
+        calls.append("called")
+        return _LOGIN_SITE()
+
+    for cmd in commands:
+        ok, why = GB.decide(cmd, site_observer=observer)
+        assert not ok, f"env split-stringのheavy bypassが通った: {cmd!r}"
+        assert "Pegasus login node" in why
+    assert len(calls) == len(commands), \
+        "各env split payloadがheavy classifierからsite gateへ到達するべき"
+
+
+def test_bash_login_env_split_string_sanctioned_forms_allowed():
+    """再tokenize後もrunner/submitter/qsub/configureと非heavy shell-cは許可する。"""
+    calls = []
+
+    def observer():
+        calls.append("called")
+        return _LOGIN_SITE()
+
+    for cmd in (
+        "env -S 'python3 tools/run_tests.py -q'",
+        "env --split-string='python3 tools/pegasus/submit_tests.py --help'",
+        "env --split-string 'qsub /tmp/test-job.sh'",
+        "env -S 'cmake -S . -B build'",
+        "echo ready && env -S 'python3 tools/run_tests.py -q'",
+        "env -S \"bash -lc 'python3 tools/run_tests.py -q'\"",
+    ):
+        ok, why = GB.decide(cmd, site_observer=observer)
+        assert ok, f"env split-stringの正規形が誤拒否された: {cmd!r} ({why})"
+    assert calls == [], "再tokenize後に非heavyならsite観測を行わない"
+
+
+def test_bash_login_invalid_env_split_string_fails_closed():
+    """外側shellはvalidでもpayloadが不正/欠落ならloginで曖昧実行を止める。"""
+    commands = (
+        "env -S",
+        "env --split-string",
+        """env -S '"pytest -q'""",
+        """env '--split-string="ninja -C build'""",
+        r"env -S 'pytest\_-q'",
+        r"env --split-string='pytest\c ignored'",
+    )
+    for cmd in commands:
+        ok, why = GB.decide(cmd, site_observer=_LOGIN_SITE)
+        assert not ok, f"不正env split payloadがloginで通った: {cmd!r}"
+        assert "invalid payload" in why and "Pegasus login node" in why
+
+    for observer in (_COMPUTE_SITE, _OTHER_SITE):
+        for cmd in commands:
+            ok, why = GB.decide(cmd, site_observer=observer)
+            assert ok, f"非loginの不正payload挙動をhookが変えた: {cmd!r} ({why})"
+
+
+def test_bash_heavy_policy_failure_is_scoped_fail_closed():
+    calls = []
+
+    def broken_observer():
+        calls.append("called")
+        raise GB.pegasus_policy.SitePolicyError("ambiguous fixture")
+
+    ok, why = GB.decide("pytest -q", site_observer=broken_observer)
+    assert not ok
+    assert "site観測が不成立" in why and "fails-closed" in why
+    assert calls == ["called"]
+
+    ok, why = GB.decide("make -j16", site_observer=lambda: object())
+    assert not ok
+    assert "site observer returned an invalid observation" in why
+
+    calls.clear()
+    for cmd in ("echo pytest", "cmake -S . -B build", "git status"):
+        ok, why = GB.decide(cmd, site_observer=broken_observer)
+        assert ok, f"非heavy commandをsite観測失敗で拒否してはならない: {cmd!r} ({why})"
+    assert calls == [], "非heavy commandでは失敗するsite seamを呼ばない"
+
+
 def test_bash_fast_path_and_reads_allowed():
     for cmd in ("ls -la",
                 "echo hi > /tmp/x",
@@ -495,7 +677,7 @@ def test_bash_false_positive_fixes_allowed():
         "tar -czf /tmp/r.tgz output/campaigns/c/reports",
         "rsync -a output/campaigns/c /tmp/backup/",
     ):
-        ok, why = GB.decide(cmd)
+        ok, why = GB.decide(cmd, site_observer=_OTHER_SITE)
         assert ok, f"計測層の正当コマンドが誤拒否された (F-FP): {cmd!r} ({why})"
 
 
@@ -795,6 +977,22 @@ def test_hook_scripts_run_as_subprocess():
             input=raw, capture_output=True, text=True, env=env)
         assert r.returncode == want, \
             f"{name} rc={r.returncode} (期待 {want}) stderr={r.stderr[:200]}"
+
+
+def test_bash_hook_direct_execution_imports_policy_in_isolated_mode():
+    """hook直接実行が外部PYTHONPATHなしでもcanonical policyをimportできる。"""
+    payload = json.dumps({
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+    })
+    r = subprocess.run(
+        [sys.executable, "-I", "-B",
+         os.path.join(_REPO, "hooks", "guard_bash.py")],
+        input=payload,
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
 
 
 def _run():

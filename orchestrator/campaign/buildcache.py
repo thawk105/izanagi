@@ -18,10 +18,124 @@ import re
 import secrets
 import shutil
 import socket
+import stat
 import subprocess
+import sys
 import time
+import types
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PEGASUS_POLICY_PATH = os.path.abspath(
+    os.path.join(_REPO_ROOT, "tools", "pegasus_policy.py")
+)
+_PEGASUS_POLICY_NAMESPACE = "_izanagi_trusted_pegasus_policy"
+_POLICY_READ_SIZE = 64 * 1024
+
+
+def _policy_source_identity(value: os.stat_result) -> tuple:
+    return (
+        value.st_mode,
+        value.st_dev,
+        value.st_ino,
+        value.st_nlink,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
+
+
+def _read_trusted_policy_source(path: str) -> bytes:
+    """Read one stable regular file without following a final symlink."""
+    try:
+        before = os.lstat(path)
+    except OSError as exc:
+        raise ImportError("trusted pegasus_policy source is unavailable") from exc
+    if not stat.S_ISREG(before.st_mode):
+        raise ImportError("trusted pegasus_policy source is not a regular file")
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise ImportError("trusted pegasus_policy source could not be opened") from exc
+    try:
+        opened = os.fstat(fd)
+        if (
+                not stat.S_ISREG(opened.st_mode)
+                or _policy_source_identity(opened)
+                != _policy_source_identity(before)
+        ):
+            raise ImportError("trusted pegasus_policy source changed before open")
+
+        chunks = []
+        while True:
+            chunk = os.read(fd, _POLICY_READ_SIZE)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        source = b"".join(chunks)
+
+        after_fd = os.fstat(fd)
+        try:
+            after_path = os.lstat(path)
+        except OSError as exc:
+            raise ImportError(
+                "trusted pegasus_policy source changed while reading"
+            ) from exc
+        identity = _policy_source_identity(before)
+        if (
+                _policy_source_identity(after_fd) != identity
+                or _policy_source_identity(after_path) != identity
+                or len(source) != opened.st_size
+        ):
+            raise ImportError("trusted pegasus_policy source changed while reading")
+        return source
+    except OSError as exc:
+        raise ImportError("trusted pegasus_policy source could not be read") from exc
+    finally:
+        os.close(fd)
+
+
+def _load_trusted_policy() -> Any:
+    """Execute trusted source bytes in a private, cache-independent namespace."""
+    source = _read_trusted_policy_source(_PEGASUS_POLICY_PATH)
+    module = types.ModuleType(_PEGASUS_POLICY_NAMESPACE)
+    module.__file__ = _PEGASUS_POLICY_PATH
+    module.__package__ = ""
+    try:
+        code = compile(
+            source, _PEGASUS_POLICY_PATH, "exec",
+            dont_inherit=True,
+        )
+    except Exception as exc:
+        raise ImportError("trusted pegasus_policy source could not be compiled") from exc
+
+    missing = object()
+    previous = sys.modules.get(_PEGASUS_POLICY_NAMESPACE, missing)
+    sys.modules[_PEGASUS_POLICY_NAMESPACE] = module
+    try:
+        exec(code, module.__dict__)
+    except Exception as exc:
+        if previous is missing:
+            sys.modules.pop(_PEGASUS_POLICY_NAMESPACE, None)
+        else:
+            sys.modules[_PEGASUS_POLICY_NAMESPACE] = previous
+        raise ImportError("trusted pegasus_policy source could not be executed") from exc
+    return module
+
+
+_TRUSTED_PEGASUS_POLICY = _load_trusted_policy()
+pegasus_policy = _TRUSTED_PEGASUS_POLICY
+
+
+def _assert_trusted_policy_module(module: Any) -> Any:
+    """Use object identity established by the private source load as the gate."""
+    if module is not _TRUSTED_PEGASUS_POLICY:
+        raise ImportError("trusted pegasus_policy module identity mismatch")
+    return module
 
 from . import source_digest
 from .env_contract import ExecutionEnvironmentContract
@@ -45,6 +159,80 @@ class BuildError(RuntimeError):
 
 class BuildCacheError(RuntimeError):
     """v2 cache の claim・完成 entry・manifest が信用できない。"""
+
+
+_SiteObserver = Callable[[], pegasus_policy.SiteObservation]
+_SiteState = tuple[
+    Optional[pegasus_policy.SiteObservation],
+    Optional[Exception],
+]
+
+
+def _require_direct_build_site(
+        site_observer: Optional[_SiteObserver] = None, *,
+        site_observation: Optional[pegasus_policy.SiteObservation] = None,
+) -> pegasus_policy.SiteObservation:
+    """Validate one shared observation before any direct coverage side effect."""
+    _assert_trusted_policy_module(pegasus_policy)
+    if site_observer is not None and site_observation is not None:
+        raise TypeError("pass site_observer or site_observation, not both")
+    if site_observation is None:
+        observer = (
+            pegasus_policy.observe_site
+            if site_observer is None
+            else site_observer
+        )
+        try:
+            site_observation = observer()
+        except Exception as exc:
+            raise RuntimeError(
+                "Pegasus site policy could not be established; "
+                "direct coverage build refused"
+            ) from exc
+    if not isinstance(site_observation, pegasus_policy.SiteObservation):
+        raise RuntimeError(
+            "Pegasus site observer returned an invalid observation; "
+            "direct coverage build refused"
+        )
+    if site_observation.site_kind is pegasus_policy.PEGASUS_LOGIN:
+        raise RuntimeError(
+            "Pegasus login node does not permit direct coverage builds"
+        )
+    return site_observation
+
+
+def _observe_build_site(
+        site_observer: Optional[_SiteObserver] = None,
+) -> _SiteState:
+    """Observe once at the API entry without blocking read-only cache validation."""
+    _assert_trusted_policy_module(pegasus_policy)
+    observer = pegasus_policy.observe_site if site_observer is None else site_observer
+    try:
+        observation = observer()
+    except Exception as exc:
+        return None, exc
+    if not isinstance(observation, pegasus_policy.SiteObservation):
+        return None, TypeError(
+            "Pegasus site observer returned an invalid observation"
+        )
+    return observation, None
+
+
+def _assert_build_miss_allowed(site_state: _SiteState) -> None:
+    """Reject a heavy cache miss when the site is login or cannot be established."""
+    observation, observation_error = site_state
+    if observation_error is not None:
+        raise BuildError(
+            "Pegasus site policy could not be established; build cache miss refused"
+        ) from observation_error
+    if observation is None:
+        raise BuildError(
+            "Pegasus site policy produced no observation; build cache miss refused"
+        )
+    if observation.site_kind is pegasus_policy.PEGASUS_LOGIN:
+        raise BuildError(
+            "Pegasus login node does not permit build cache misses"
+        )
 
 
 class BinaryDigestError(RuntimeError):
@@ -409,6 +597,7 @@ def build_v2(
         ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         timeout_s: Optional[int] = None,
+        site_observer: Optional[_SiteObserver] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -418,6 +607,7 @@ def build_v2(
     tree の内容を ``src_token`` が束縛する。allowlist/commit/src-token/trace-diff 検査は
     すべてその tree に対して発火する。``timeout_s=None`` は既存どおり無制限である。
     """
+    site_state = _observe_build_site(site_observer)
     if not isinstance(contract, ExecutionEnvironmentContract):
         raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
     if type(trace) is not bool:
@@ -455,10 +645,6 @@ def build_v2(
     binary_relpath = os.path.join(
         "cc", genome.protocol, f"ycsb_{genome.protocol}.exe",
     )
-    try:
-        os.makedirs(parent, mode=0o700, exist_ok=True)
-    except OSError as exc:
-        raise BuildCacheError(f"v2 contract namespace を作成できない: {parent}: {exc}") from exc
 
     # 完成 entry より claim を先に見る。publish→claim 除去の間に crash した場合も stale を
     # 自動的に無視せず、管理者が owner receipt を確認して回収するまで fail-closed。
@@ -483,6 +669,12 @@ def build_v2(
             genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
             contract_sha256,
         )
+
+    _assert_build_miss_allowed(site_state)
+    try:
+        os.makedirs(parent, mode=0o700, exist_ok=True)
+    except OSError as exc:
+        raise BuildCacheError(f"v2 contract namespace を作成できない: {parent}: {exc}") from exc
 
     nonce = secrets.token_hex(16)
     _acquire_v2_claim(claim, parent, nonce)
@@ -564,12 +756,14 @@ def build_v2(
 def build(genome: Genome, ccbench_commit: str, trace: bool,
           cache_root: str = "", cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX,
           jobs: int = 16, ccbench_dir: str = "",
-          src_token: Optional[str] = None) -> BuildResult:
+          src_token: Optional[str] = None,
+          site_observer: Optional[_SiteObserver] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     src_token=None なら working-tree から計算する (D23: identity と materialization を
     結合し TOCTOU 偽 hit を防ぐ — working-tree が変われば cache_key が変わる)。呼び手
     (pipeline.evaluate) は trace/perf で同一値を共有するため事前計算して渡してよい。"""
+    site_state = _observe_build_site(site_observer)
     sub = ccbench_dir or _ccbench_dir()
     _verify_ccbench_commit(sub, ccbench_commit)        # 偽キャッシュヒット防止 (honest)
     source_digest.assert_worktree_within_allowlist(sub)  # coder の編集面が EVOLVE-BLOCK 内か (D23)
@@ -604,6 +798,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                            cache_root=os.path.abspath(root),
                            ccbench_root=os.path.abspath(sub))
 
+    _assert_build_miss_allowed(site_state)
     _clear_stale_build_dir(bdir, binary)
     _run(cfg, "configure")
     _run(build_cmd, "build")

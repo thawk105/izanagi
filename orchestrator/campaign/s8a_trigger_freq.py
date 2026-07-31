@@ -57,7 +57,9 @@ from campaign.model import Genome                                      # noqa: E
 from campaign.p2_2 import (CLK, RECORDS, THREADS, WORKLOADS,           # noqa: E402
                            _assert_single_tenant)
 from campaign.patchharness import applied, apply_patch, assert_pinned_clean  # noqa: E402
-from campaign.s8a_trigger_coverage import _build, _parse_abort_counts  # noqa: E402
+from campaign.s8a_trigger_coverage import (                            # noqa: E402
+    _build, _parse_abort_counts, _require_direct_build_site,
+)
 
 ENV_TAG = "linux-baremetal"
 RUN_TIMEOUT_S = 600.0     # 1M records のロード + extime 1s + trace I/O 減速の余裕
@@ -113,7 +115,8 @@ def _run_freq(binary: str, workload: dict) -> tuple:
     return tally, _parse_abort_counts(proc.stdout)
 
 
-def main(argv) -> int:
+def main(argv, *, site_observer=None) -> int:
+    site_observation = _require_direct_build_site(site_observer)
     sel = argv[1] if len(argv) > 1 else None
     wls = [w for w in WORKLOADS if sel is None or w[0] == sel]
     if not wls:
@@ -142,7 +145,9 @@ def main(argv) -> int:
         with applied(os.path.join(patches, TEMPLATE_PATCH), PIN, sub):
             apply_patch(os.path.join(patches, INSTR_PATCH), sub)
             print("== build skeleton+instr (TRACE=1) ==")
-            binary = _build(bdir, genome=GENOME)   # 自前 GENOME を明示 (レビュー F1)
+            binary = _build(
+                bdir, genome=GENOME, site_observation=site_observation,
+            )  # 自前 GENOME を明示 (レビュー F1)
             for tag, workload in wls:
                 print(f"== freq run  workload={tag}  ({workload}) ==")
                 tally, aborts = _run_freq(binary, workload)

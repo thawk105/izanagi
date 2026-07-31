@@ -34,13 +34,19 @@ import subprocess
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ORCHESTRATOR_DIR = os.path.join(_REPO_ROOT, "orchestrator")
+if _ORCHESTRATOR_DIR not in sys.path:
+    sys.path.insert(0, _ORCHESTRATOR_DIR)
 
 from campaign import buildcache, pin                                   # noqa: E402
 from campaign.layout import repo_output_root                           # noqa: E402
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
+
+pegasus_policy = buildcache.pegasus_policy
+_require_direct_build_site = buildcache._require_direct_build_site
 
 PIN = pin.CURRENT_PIN                    # izanagi-trace, 被覆 assert 込み (値の正本は pin.CURRENT_PIN)
 ENV_TAG = "linux-baremetal"
@@ -67,7 +73,7 @@ HIGH_FLAGS = {**SINGLE_FLAGS, "thread_num": "4"}
 
 
 def _repo_root() -> str:
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return _REPO_ROOT
 
 
 def _run_trace(binary: str, flags: dict) -> str:
@@ -120,8 +126,14 @@ def _verify(trace_dir: str) -> dict:
     }
 
 
-def _build_broken(patch_name: str, define: str, bdir: str) -> str:
+def _build_broken(
+        patch_name: str, define: str, bdir: str, *, site_observer=None,
+        site_observation=None,
+) -> str:
     """broken patch を applied() 下で fresh build し binary パスを返す (buildcache 非経由)。"""
+    _require_direct_build_site(
+        site_observer, site_observation=site_observation,
+    )
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     patch = os.path.join(root, "patches", patch_name)
@@ -150,7 +162,8 @@ def _variant_run(binary: str, flags: dict, label: str) -> dict:
     return v
 
 
-def main() -> int:
+def main(*, site_observer=None) -> int:
+    site_observation = _require_direct_build_site(site_observer)
     _assert_single_tenant()
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
@@ -161,7 +174,9 @@ def main() -> int:
 
     # --- 1. stock control (no patch): assert は正しいコードで沈黙するはず ---
     print("== stock control (no patch, TRACE=1) ==")
-    bstock = buildcache.build(STOCK_G, PIN, trace=True)
+    bstock = buildcache.build(
+        STOCK_G, PIN, trace=True, site_observer=lambda: site_observation,
+    )
     result["runs"]["stock_single"] = _variant_run(bstock.binary, SINGLE_FLAGS,
                                                    "stock/single")
 
@@ -169,7 +184,10 @@ def main() -> int:
     print("== lockskip (IZANAGI_BREAK_LOCK_COVERAGE, TRACE=1) ==")
     bdir_ls = tempfile.mkdtemp(prefix="izanagi_s3_lockskip_")
     try:
-        bin_ls = _build_broken(LOCKSKIP_PATCH, LOCKSKIP_DEFINE, bdir_ls)
+        bin_ls = _build_broken(
+            LOCKSKIP_PATCH, LOCKSKIP_DEFINE, bdir_ls,
+            site_observation=site_observation,
+        )
         result["runs"]["lockskip_single"] = _variant_run(bin_ls, SINGLE_FLAGS,
                                                           "lockskip/single")
         result["runs"]["lockskip_high"] = _variant_run(bin_ls, HIGH_FLAGS,
@@ -181,7 +199,10 @@ def main() -> int:
     print("== early-unlock (IZANAGI_BREAK_EARLY_UNLOCK, TRACE=1) ==")
     bdir_eu = tempfile.mkdtemp(prefix="izanagi_s3_earlyunlock_")
     try:
-        bin_eu = _build_broken(EARLY_UNLOCK_PATCH, EARLY_UNLOCK_DEFINE, bdir_eu)
+        bin_eu = _build_broken(
+            EARLY_UNLOCK_PATCH, EARLY_UNLOCK_DEFINE, bdir_eu,
+            site_observation=site_observation,
+        )
         result["runs"]["early_unlock_single"] = _variant_run(bin_eu, SINGLE_FLAGS,
                                                              "early-unlock/single")
     finally:

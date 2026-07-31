@@ -7,6 +7,7 @@ import importlib.util
 import json
 import builtins
 import os
+import signal
 import stat
 import subprocess
 import sys
@@ -39,6 +40,11 @@ TC = _load(_REPO / "tools" / "task_run_check.py", "task_run_check_test")
 @pytest.fixture(autouse=True)
 def _clean_stats_state(monkeypatch):
     PS._collected_node_ids.clear()
+    monkeypatch.setattr(RT, "_CURRENT_SITE", None)
+    other = RT.pegasus_policy.classify_site(
+        "unit-test.invalid", None, range(4),
+    )
+    monkeypatch.setattr(RT, "_observe_runner_site", lambda: other)
     for name in (
         "IZANAGI_TASK_RUN_ID", "IZANAGI_TASK_RUNS_ROOT",
         "IZANAGI_TASK_RUN_SIDECAR", "IZANAGI_TEST_TRIGGER",
@@ -210,6 +216,152 @@ def test_record_failure_is_single_attempt(monkeypatch, tmp_path):
     )
     assert len(calls) == 1
     assert calls[0]["counts"]["passed"] == 1
+
+
+@pytest.mark.parametrize(
+    ("event_id", "expected"),
+    [
+        ("0123456789abcdef", "0123456789abcdef"),
+        (None, None),
+    ],
+)
+def test_runner_receipt_links_single_task_run_attempt_without_becoming_success_source(
+    monkeypatch, event_id, expected,
+):
+    receipt = {}
+    monkeypatch.setattr(RT, "_private_sidecar", mock.Mock(side_effect=OSError("none")))
+    monkeypatch.setattr(RT.subprocess, "call", lambda *a, **kw: 9)
+    calls = []
+
+    def record(**kwargs):
+        calls.append(kwargs)
+        return event_id
+
+    monkeypatch.setattr(RT, "_record_task_run", record)
+    assert RT._call_and_record(
+        ["pytest"], [], "20260720-e2-01234567", receipt=receipt,
+    ) == 9
+    assert len(calls) == 1
+    assert receipt == {
+        "task_run_attempted": True,
+        "task_run_event_id": expected,
+        "task_run_event": None,
+    }
+    # pytest rc remains the child source; task-run event presence cannot mask it.
+    assert event_id is None or receipt["task_run_event_id"] == event_id
+
+
+def test_runner_receipt_binds_durable_canonical_task_run_ledger(
+    monkeypatch, tmp_path,
+):
+    task_run_id = "20260720-e2-01234567"
+    event_id = "0123456789abcdef"
+    ledger = tmp_path / task_run_id / "events.jsonl"
+    ledger.parent.mkdir()
+    ledger_raw = (
+        json.dumps(
+            {"event_id": event_id, "kind": "test-run"},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("ascii")
+    ledger.write_bytes(ledger_raw)
+    monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path))
+    monkeypatch.setattr(
+        RT, "_private_sidecar", mock.Mock(side_effect=OSError("none")),
+    )
+    monkeypatch.setattr(RT.subprocess, "call", lambda *a, **kw: 0)
+    monkeypatch.setattr(RT, "_record_task_run", lambda **kwargs: event_id)
+    receipt = {}
+    assert RT._call_and_record(
+        ["pytest"], [], task_run_id, receipt=receipt,
+    ) == 0
+    assert receipt == {
+        "task_run_attempted": True,
+        "task_run_event_id": event_id,
+        "task_run_event": {
+            "path": str(ledger.resolve()),
+            "size": len(ledger_raw),
+            "sha256": hashlib.sha256(ledger_raw).hexdigest(),
+            "event_id": event_id,
+        },
+    }
+
+
+def _runner_authorization():
+    return {
+        "dispatch_id": "20260730010203-0123456789abcdef",
+        "snapshot_manifest_sha256": "a" * 64,
+        "execution_closure_sha256": "b" * 64,
+        "policy_sha256": "c" * 64,
+        "authorization_sha256": "d" * 64,
+        "qsub_request_sha256": "e" * 64,
+        "qsub_result_sha256": "f" * 64,
+        "submit_receipt_sha256": "1" * 64,
+        "runner_claim_sha256": "2" * 64,
+        "worker_environment_sha256": "3" * 64,
+        "pbs_job_id_raw": "0:123.nqsv",
+        "job_id_normalized": "123.nqsv",
+        "hostname_raw": "bnode114",
+        "hostname_canonical": "bnode114",
+        "affinity_cpus": [0, 1, 2, 3],
+    }
+
+
+def test_hash_bound_runner_result_records_attempt_and_event_separately(tmp_path):
+    path = tmp_path / "runner-result.json"
+    authorization = _runner_authorization()
+    event_receipt = {
+        "path": "/durable/task-run/events.jsonl",
+        "size": 123,
+        "sha256": "4" * 64,
+        "event_id": "0123456789abcdef",
+    }
+    RT._write_runner_result(
+        path,
+        authorization,
+        runner_exit_status=4,
+        pytest_exit_status=4,
+        runner_stage="pytest",
+        task_run={
+            "task_run_attempted": True,
+            "task_run_event_id": "0123456789abcdef",
+            "task_run_event": event_receipt,
+        },
+    )
+    document = json.loads(path.read_text(encoding="utf-8"))
+    assert document["pytest_exit_status"] == 4
+    assert document["task_run_attempted"] is True
+    assert document["task_run_event_id"] == "0123456789abcdef"
+    assert document["task_run_event"] == event_receipt
+    assert document["runner_signal"] is None
+    with pytest.raises(FileExistsError):
+        RT._write_runner_result(
+            path,
+            authorization,
+            runner_exit_status=0,
+            pytest_exit_status=0,
+            runner_stage="pytest",
+            task_run={"task_run_attempted": False},
+        )
+
+
+def test_negative_child_status_is_normalized_and_signal_bound(tmp_path):
+    path = tmp_path / "runner-result.json"
+    RT._write_runner_result(
+        path,
+        _runner_authorization(),
+        runner_exit_status=-signal.SIGTERM,
+        pytest_exit_status=-signal.SIGTERM,
+        runner_stage="pytest",
+        task_run={"task_run_attempted": False},
+    )
+    document = json.loads(path.read_text(encoding="utf-8"))
+    assert document["runner_exit_status"] == 128 + signal.SIGTERM
+    assert document["runner_signal"] == signal.SIGTERM
+    assert document["pytest_exit_status"] == 128 + signal.SIGTERM
+    assert document["pytest_signal"] == signal.SIGTERM
 
 
 def test_recording_interrupts_are_not_swallowed(monkeypatch, tmp_path):

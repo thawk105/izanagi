@@ -42,7 +42,10 @@ import sys
 import tempfile
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ORCHESTRATOR_DIR = os.path.join(_REPO_ROOT, "orchestrator")
+if _ORCHESTRATOR_DIR not in sys.path:
+    sys.path.insert(0, _ORCHESTRATOR_DIR)
 
 from campaign import buildcache                                        # noqa: E402
 from campaign.layout import repo_output_root                           # noqa: E402
@@ -51,6 +54,9 @@ from campaign.p2_2 import _assert_single_tenant                        # noqa: E
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
 from campaign.pipeline import (CorrectnessWorkload, S2_FLAGS,           # noqa: E402
                                _parse_abort_counts)
+
+pegasus_policy = buildcache.pegasus_policy
+_require_direct_build_site = buildcache._require_direct_build_site
 
 PIN = "dff0f1e"
 ENV_TAG = "linux-baremetal"
@@ -82,8 +88,7 @@ _COMMIT_RE = re.compile(r"(?m)^commit_counts_:\s*(\d+)\s*$")
 
 
 def _repo_root() -> str:
-    here = os.path.dirname(os.path.abspath(__file__))
-    return os.path.dirname(os.path.dirname(here))
+    return _REPO_ROOT
 
 
 def _parse_commit_counts(stdout: str):
@@ -227,11 +232,17 @@ def _measure_candidate(bin_trace: str, bin_perf: str, extime: int) -> dict:
             "gate1": gate1, "gate2": gate2}
 
 
-def _broken_build_and_verify(patch_name: str, define: str, workloads: dict) -> dict:
+def _broken_build_and_verify(
+        patch_name: str, define: str, workloads: dict, *, site_observer=None,
+        site_observation=None,
+) -> dict:
     """broken patch を applied() 下で一時 build し、各 workload で run→verifier。
 
     build は buildcache 非経由 (allowlist 検査を通らない・通してはいけない)。
     build dir は毎回 fresh な TMPDIR 配下 → 終了時に丸ごと削除 (stale CMakeCache 対策)。"""
+    _require_direct_build_site(
+        site_observer, site_observation=site_observation,
+    )
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     patch = os.path.join(root, "patches", patch_name)
@@ -262,7 +273,8 @@ def _broken_build_and_verify(patch_name: str, define: str, workloads: dict) -> d
     return out
 
 
-def main() -> int:
+def main(*, site_observer=None) -> int:
+    site_observation = _require_direct_build_site(site_observer)
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     _assert_single_tenant()
@@ -270,8 +282,12 @@ def main() -> int:
     assert_pinned_clean(sub, PIN)
 
     print("=== stock build (buildcache — kickoff seed が残っていれば cache-hit) ===")
-    bt = buildcache.build(STOCK_G, PIN, trace=True)
-    bp = buildcache.build(STOCK_G, PIN, trace=False)
+    bt = buildcache.build(
+        STOCK_G, PIN, trace=True, site_observer=lambda: site_observation,
+    )
+    bp = buildcache.build(
+        STOCK_G, PIN, trace=False, site_observer=lambda: site_observation,
+    )
     print(f"  trace={bt.bin_hash[:12]} ({'cache' if bt.cached else 'fresh'}) / "
           f"perf={bp.bin_hash[:12]} ({'cache' if bp.cached else 'fresh'})")
 
@@ -311,11 +327,16 @@ def main() -> int:
         legacy = ({k: v for k, v in legacy_wl.items() if k != "extime"},
                   int(legacy_wl["extime"]))
         print(f"\n=== gate 3a: {NORW_PATCH} を S2 構成で (期待: 赤) ===")
-        g3a = _broken_build_and_verify(NORW_PATCH, NORW_DEFINE, {"s2": s2})
+        g3a = _broken_build_and_verify(
+            NORW_PATCH, NORW_DEFINE, {"s2": s2},
+            site_observation=site_observation,
+        )
         print(f"\n=== gate 3b: {HIGHKEY_PATCH} を S2 + legacy 構成で "
               "(期待: S2 赤 / legacy 緑 = ablation 実証) ===")
-        g3b = _broken_build_and_verify(HIGHKEY_PATCH, HIGHKEY_DEFINE,
-                                       {"s2": s2, "legacy": legacy})
+        g3b = _broken_build_and_verify(
+            HIGHKEY_PATCH, HIGHKEY_DEFINE, {"s2": s2, "legacy": legacy},
+            site_observation=site_observation,
+        )
         a = g3a["runs"]["s2"]["verifier"]
         b_s2 = g3b["runs"]["s2"]["verifier"]
         b_leg = g3b["runs"]["legacy"]["verifier"]

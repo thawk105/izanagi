@@ -112,7 +112,10 @@ def _pbs_directives(path: Path) -> dict[str, str]:
 
 
 @pytest.mark.parametrize(
-    "name", ["smoke_probe.sh", "submit_certify.sh", "certify_calibration.sh"],
+    "name", [
+        "smoke_probe.sh", "submit_certify.sh", "certify_calibration.sh",
+        "run_tests_job.sh",
+    ],
 )
 def test_shell_syntax(name):
     result = subprocess.run(
@@ -131,6 +134,85 @@ def test_pbs_directives_match_single_policy_source():
         assert int(directives["-b"]) == policy["nodes"]
     assert smoke["-l"] == "elapstim_req=" + policy["smoke_walltime"]
     assert certify["-l"] == "elapstim_req=" + policy["certify_walltime"]
+
+
+def test_test_dispatch_policy_is_separate_canonical_and_existing_policy_is_unchanged():
+    existing_raw = (TOOL_DIR / "policy.json").read_bytes()
+    existing = json.loads(existing_raw)
+    assert "test_dispatch" not in existing
+    assert hashlib.sha256(existing_raw).hexdigest() == (
+        "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac"
+    )
+
+    dispatch_path = TOOL_DIR / "test_dispatch_policy.json"
+    dispatch_raw = dispatch_path.read_bytes()
+    dispatch = json.loads(dispatch_raw)
+    assert dispatch_raw == (
+        json.dumps(dispatch, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("ascii")
+    assert dispatch["schema"] == "izanagi-test-dispatch-policy-v1"
+    assert dispatch["account"] == existing["project"]
+    assert dispatch["queue"] == existing["queue"]
+    assert dispatch["nodes"] == 1
+    assert dispatch["walltime_s"] == 1800
+    assert dispatch["run_timeout_s"] <= dispatch["global_deadline_s"]
+    for name in (
+        "command_timeout_s", "poll_interval_s", "visibility_grace_s",
+        "queue_timeout_s", "held_timeout_s", "prerun_timeout_s",
+        "run_timeout_s", "log_grace_s", "accounting_grace_s",
+        "qstat_transient_limit", "qdel_attempts", "max_spool_bytes",
+        "max_retained_dispatches", "max_retained_bytes",
+    ):
+        assert dispatch[name] > 0
+
+
+def test_test_dispatch_python_entries_are_stdlib_importable_and_job_is_executable():
+    for name in ("test_dispatch.py", "submit_tests.py"):
+        module = _load("test_" + name.replace(".", "_"), TOOL_DIR / name)
+        assert module is not None
+    mode = (TOOL_DIR / "run_tests_job.sh").stat().st_mode
+    assert mode & 0o111 == 0o111
+
+
+def test_test_worker_is_network_install_free_and_execs_one_same_interpreter_runner():
+    shell = (TOOL_DIR / "run_tests_job.sh").read_text(encoding="utf-8")
+    submitter = (TOOL_DIR / "submit_tests.py").read_text(encoding="utf-8")
+    combined = shell + "\n" + submitter
+    for forbidden in ("pip install", "curl ", "wget ", "git fetch", "git clone"):
+        assert forbidden not in combined
+    assert "sys.version_info < (3, 10)" in submitter
+    assert '_distribution_receipt("pytest")' in submitter
+    assert '_distribution_receipt("pytest-xdist")' in submitter
+    assert "os.execve(sys.executable, command, environment)" in submitter
+    assert shell.count("exec env -i") == 1
+    assert "_ensure_dependency_interpreter()" in submitter
+    assert "PYTHONNOUSERSITE" in combined
+    assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD" in shell
+
+
+def test_worker_selects_later_python_when_first_candidate_lacks_dependencies(
+    tmp_path,
+):
+    submitter = _load("test_submitter_interpreter", TOOL_DIR / "submit_tests.py")
+    first = tmp_path / "python-first"
+    second = tmp_path / "python-second"
+    for candidate in (first, second):
+        candidate.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        candidate.chmod(0o755)
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append((tuple(argv), kwargs))
+        return SimpleNamespace(returncode=1 if Path(argv[0]) == first else 0)
+
+    assert submitter.select_dependency_interpreter(
+        (first, second),
+        run=run,
+    ) == second.resolve()
+    assert [Path(call[0][0]) for call in calls] == [
+        first.resolve(), second.resolve(),
+    ]
+    assert all(call[1]["env"]["PYTHONNOUSERSITE"] == "1" for call in calls)
 
 
 @pytest.mark.parametrize("body", [
@@ -229,7 +311,7 @@ def test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate(
         'write_failure 2 perf "no policy perf candidate passed version and event smoke"',
         'ln -s "$PERF_SELECTED_REAL" "$TMPDIR/bin/perf"',
     ):
-        assert required in source
+        assert required in fragment
     assert 'env "PATH=$CALIBRATE_PATH"' in source[calibrate_stage:]
 
 

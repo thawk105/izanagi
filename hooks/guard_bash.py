@@ -6,6 +6,11 @@ guard_write.py (Edit/Write hook) は Bash の `echo >> wal.jsonl` を見ない �
 塞ぐ。PreToolUse (Bash) で発火し、コマンドが防護対象を**書く/消す/動かす**兆候を
 示したら exit 2 で拒否する。
 
+別系統の運用防壁として、canonical ``pegasus_policy`` が Pegasus login と分類した
+場合は、既知の直接 pytest / build command 形だけを拒否する。site 観測が成立しない
+場合も、その既知 heavy 候補だけを安全側へ止める。この判定は既存の wrapper /
+compound parser と一段の shell ``-c`` 再解析に限定した best-effort 防壁である。
+
 【設計 = allowlist 反転 (敵対レビュー 2026-07-02 の教訓)】
 初版は「書き込みコマンドを列挙して拒否」する blocklist だったが、シェルの書き込み
 経路は事実上無限 (find -delete / awk -i inplace / ex/ed / git mv / サブシェルで head
@@ -48,9 +53,18 @@ import shlex
 import sys
 
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_TOOLS_DIR = os.path.join(_REPO_ROOT, "tools")
+if _TOOLS_DIR in sys.path:
+    sys.path.remove(_TOOLS_DIR)
+sys.path.insert(0, _TOOLS_DIR)
+
+import pegasus_policy  # noqa: E402 — direct hook execution needs <repo>/tools bootstrap
+
+
 def _repo_root() -> str:
     # hooks/guard_bash.py = <repo>/hooks/guard_bash.py
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return _REPO_ROOT
 
 
 # ---- 防護対象 (トークン単位で判定) ----
@@ -175,6 +189,40 @@ def _segments(tokens):
 
 def _head_and_args(seg):
     """env 代入・wrapper・シェル構文語を剥いで実 head (basename) と残り引数を返す。"""
+    _, head, args = _head_token_and_args(seg)
+    return head, args
+
+
+class _EnvSplitError(ValueError):
+    """heavy classifier が env split-string payload を安全に展開できない。"""
+
+
+_ENV_SPLIT_MAX_DEPTH = 16
+_ENV_SPLIT_INVALID_LABEL = "env split-string (invalid payload)"
+_ENV_SPLIT_SPECIAL_ESCAPE_RE = re.compile(r"\\(?:[cfnrtv]|_)")
+
+
+def _split_env_payload(payload: str) -> list[str]:
+    """GNU env の split-string payload を command argv 相当に分割する。
+
+    shell 演算子を実行構文として扱わないため ``_tokenize`` ではなく
+    ``shlex.split`` を使う。split-string 自身の quote 不整合は、外側 shell command
+    が構文上 valid でも起き得るため heavy classifier では曖昧扱いにする。GNU env
+    固有の空白/control escape (``\\_`` / ``\\c`` 等) も shlex と意味が異なるため、
+    head を過少分類せず曖昧扱いにする。
+    """
+    if _ENV_SPLIT_SPECIAL_ESCAPE_RE.search(payload):
+        raise _EnvSplitError(
+            "coreutils-specific split-string escape is unsupported")
+    try:
+        return shlex.split(payload, comments=False, posix=True)
+    except ValueError as exc:
+        raise _EnvSplitError(str(exc)) from exc
+
+
+def _head_token_and_args(
+        seg, *, expand_env_split: bool = False, env_split_depth: int = 0):
+    """wrapper 等を剥いだ実 head の元token、basename、残り引数を返す。"""
     i = 0
     while i < len(seg):
         t = seg[i]
@@ -187,13 +235,187 @@ def _head_and_args(seg):
             continue
         if base in _WRAPPERS:
             i += 1
+            if base == "env":
+                while i < len(seg):
+                    option = seg[i]
+                    if option == "--":
+                        i += 1
+                        break
+                    if option in ("-S", "--split-string"):
+                        if i + 1 >= len(seg):
+                            if expand_env_split:
+                                raise _EnvSplitError(
+                                    f"{option} requires a payload")
+                            i += 2
+                            continue
+                        if expand_env_split:
+                            if env_split_depth >= _ENV_SPLIT_MAX_DEPTH:
+                                raise _EnvSplitError(
+                                    "split-string nesting is too deep")
+                            expanded = _split_env_payload(seg[i + 1])
+                            return _head_token_and_args(
+                                ["env", *expanded, *seg[i + 2:]],
+                                expand_env_split=True,
+                                env_split_depth=env_split_depth + 1,
+                            )
+                        i += 2
+                        continue
+                    payload = None
+                    if option.startswith("--split-string="):
+                        payload = option.partition("=")[2]
+                    elif option.startswith("-S") and option != "-S":
+                        payload = option[2:]
+                    if payload is not None:
+                        if expand_env_split:
+                            if env_split_depth >= _ENV_SPLIT_MAX_DEPTH:
+                                raise _EnvSplitError(
+                                    "split-string nesting is too deep")
+                            expanded = _split_env_payload(payload)
+                            return _head_token_and_args(
+                                ["env", *expanded, *seg[i + 1:]],
+                                expand_env_split=True,
+                                env_split_depth=env_split_depth + 1,
+                            )
+                        i += 1
+                        continue
+                    if option in ("-u", "--unset", "-C", "--chdir"):
+                        i += 2
+                        continue
+                    if option.startswith("-") or re.match(r"^\w+=", option):
+                        i += 1
+                        continue
+                    break
+                continue
+            if base == "timeout":
+                while i < len(seg) and seg[i].startswith("-"):
+                    option = seg[i]
+                    i += 1
+                    if option in ("-s", "--signal", "-k", "--kill-after"):
+                        i += 1
+                if i < len(seg):                  # duration
+                    i += 1
+                continue
+            if base == "taskset":
+                while i < len(seg) and seg[i].startswith("-"):
+                    i += 1
+                if i < len(seg):                  # mask / cpu-list
+                    i += 1
+                continue
             # wrapper 自身のフラグ・オプション値 (期間 / CPU リスト / 16 進マスク) を飛ばす
             while i < len(seg) and (seg[i].startswith("-")
                                     or _WRAPPER_VAL_RE.fullmatch(seg[i])):
                 i += 1
             continue
-        return base, seg[i + 1:]
-    return "", []
+        return t, base, seg[i + 1:]
+    return "", "", []
+
+
+_PYTHON_HEAD_RE = re.compile(r"python(?:[23](?:\.\d+)?)?\Z", re.ASCII)
+_SHELL_C_HEADS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
+
+
+def _shell_c_command(args):
+    """shell の `-c` / `-lc` 形から command string を一つ返す。"""
+    for i, arg in enumerate(args):
+        if arg == "--command" or (
+                arg.startswith("-") and not arg.startswith("--") and "c" in arg[1:]):
+            if i + 1 < len(args):
+                return args[i + 1]
+            return None
+    return None
+
+
+def _is_python_m_pytest(args) -> bool:
+    """interpreter option列の `-m pytest` だけを認識し、script引数は見ない。"""
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "-m":
+            return i + 1 < len(args) and args[i + 1] == "pytest"
+        if arg == "--" or not arg.startswith("-"):
+            return False
+        if arg == "-c" or arg.startswith("-c"):
+            return False
+        if arg in ("-W", "-X", "--check-hash-based-pycs"):
+            i += 2
+        else:
+            i += 1
+    return False
+
+
+def _heavy_candidates(command: str, *, shell_depth: int = 0) -> tuple[str, ...]:
+    """既知の直接 build/test head を返す。一段の shell `-c` だけ再解析する。"""
+    tokens = _tokenize(command)
+    if tokens is None:
+        return ()
+
+    found = []
+    for seg in _segments(tokens):
+        try:
+            _, head, args = _head_token_and_args(
+                seg, expand_env_split=True)
+        except _EnvSplitError:
+            found.append(_ENV_SPLIT_INVALID_LABEL)
+            continue
+        if not head:
+            continue
+        if head in ("pytest", "py.test"):
+            found.append("pytest")
+            continue
+        if _PYTHON_HEAD_RE.fullmatch(head) and _is_python_m_pytest(args):
+            found.append("python -m pytest")
+            continue
+        if head == "cmake" and any(
+                arg == "--build" or arg.startswith("--build=") for arg in args):
+            found.append("cmake --build")
+            continue
+        if head in ("make", "ninja", "ctest"):
+            found.append(head)
+            continue
+        if shell_depth == 0 and head in _SHELL_C_HEADS:
+            nested = _shell_c_command(args)
+            if nested is not None:
+                found.extend(_heavy_candidates(nested, shell_depth=1))
+    return tuple(found)
+
+
+def _heavy_gate(command: str, site_observer) -> tuple[bool, str]:
+    """heavy候補だけsite policyを観測し、login/観測不成立をfail-closedにする。"""
+    candidates = _heavy_candidates(command)
+    if not candidates:
+        return True, ""
+
+    label = ", ".join(dict.fromkeys(candidates))
+    try:
+        observed = site_observer()
+        if not isinstance(observed, pegasus_policy.SiteObservation):
+            raise pegasus_policy.SitePolicyError(
+                "site observer returned an invalid observation")
+        validated = pegasus_policy.classify_site(
+            observed.hostname_raw,
+            observed.pbs_job_id_raw,
+            observed.affinity_cpus,
+        )
+        if validated != observed:
+            raise pegasus_policy.SitePolicyError(
+                "site observation is inconsistent with canonical policy")
+    except Exception as exc:  # noqa: BLE001 — heavy候補だけ安全側へ停止する
+        return False, (
+            f"高負荷候補 ({label}) のsite観測が不成立 "
+            f"({type(exc).__name__}: {exc}) — fails-closed。"
+            "repository正規runner/submitterを使用する")
+
+    if observed.site_kind is pegasus_policy.PEGASUS_LOGIN:
+        return False, (
+            f"Pegasus login node での直接高負荷command ({label}) は拒否。"
+            "テストは tools/run_tests.py、投入は "
+            "tools/pegasus/submit_tests.py を使用する")
+    if observed.site_kind in (
+            pegasus_policy.PEGASUS_COMPUTE, pegasus_policy.OTHER):
+        return True, ""
+    return False, (
+        f"高負荷候補 ({label}) のsite分類が不明 — fails-closed。"
+        "repository正規runner/submitterを使用する")
 
 
 def _stdin_script(head: str, args) -> bool:
@@ -358,8 +580,13 @@ def _redirect_hits_leaf(seg) -> bool:
     return False
 
 
-def decide(command: str, repo_root: str = "") -> tuple:
+def decide(command: str, repo_root: str = "", *, site_observer=None) -> tuple:
     """(allow: bool, reason: str)。reason は拒否時のみ。"""
+    observer = pegasus_policy.observe_site if site_observer is None else site_observer
+    allow, reason = _heavy_gate(command, observer)
+    if not allow:
+        return allow, reason
+
     # 絶対パス・`~` を repo 相対化するため root を realpath で確定 (2026-07-04 敵対検証)。
     root = os.path.realpath(repo_root or _repo_root())
     if not _MENTION_RE.search(command):

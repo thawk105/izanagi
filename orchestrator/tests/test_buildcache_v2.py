@@ -87,7 +87,8 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
 
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
-           ccbench_dir: str = "", timeout_s: int | None = None):
+           ccbench_dir: str = "", timeout_s: int | None = None,
+           site_observer=None):
     return buildcache.build_v2(
         Genome("silo", {"BACK_OFF": 1}),
         contract=contract,
@@ -99,7 +100,145 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         cache_root=str(tmp_path / "cache"),
         ccbench_dir=ccbench_dir,
         timeout_s=timeout_s,
+        site_observer=site_observer,
     )
+
+
+def _site(kind):
+    pp = buildcache.pegasus_policy
+    if kind == "login":
+        return pp.classify_site("pegasus01", None, (0, 1, 2, 3))
+    if kind == "compute":
+        return pp.classify_site("bnode114", "874129.nqsv", (0, 1, 2, 3))
+    if kind == "other":
+        return pp.classify_site("test-builder", None, (0, 1, 2, 3))
+    raise AssertionError(f"unknown site fixture: {kind}")
+
+
+def _site_observer(kind):
+    observation = _site(kind)
+    return lambda: observation
+
+
+def test_v2_login_accepts_valid_hit_and_observation_failure_does_not_mask_it(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    fresh = _build(
+        tmp_path, _contract(1), site_observer=_site_observer("other"),
+    )
+    login_hit = _build(
+        tmp_path, _contract(1), site_observer=_site_observer("login"),
+    )
+
+    def unavailable():
+        raise buildcache.pegasus_policy.SitePolicyError("fixture-unavailable")
+
+    unobserved_hit = _build(
+        tmp_path, _contract(1), site_observer=unavailable,
+    )
+    assert not fresh.cached
+    assert login_hit.cached and unobserved_hit.cached
+    assert login_hit.binary == fresh.binary == unobserved_hit.binary
+
+
+def test_v2_login_miss_refuses_before_cache_write_claim_staging_or_run(
+        tmp_path, monkeypatch):
+    _fake_build_environment(monkeypatch, tmp_path)
+    toolchain = {
+        "cc": {
+            "requested": "test-cc", "realpath": "/fixture/test-cc",
+            "version_first_line": "cc fixture",
+        },
+        "cxx": {
+            "requested": "test-cxx", "realpath": "/fixture/test-cxx",
+            "version_first_line": "cxx fixture",
+        },
+        "cmake": {
+            "requested": "cmake", "realpath": "/fixture/cmake",
+            "version_first_line": "cmake fixture",
+        },
+    }
+    monkeypatch.setattr(buildcache, "_toolchain_manifest", lambda *a: toolchain)
+    calls = []
+    monkeypatch.setattr(
+        buildcache.os, "makedirs",
+        lambda *a, **k: calls.append("makedirs"),
+    )
+    monkeypatch.setattr(
+        buildcache, "_acquire_v2_claim",
+        lambda *a, **k: calls.append("claim"),
+    )
+    monkeypatch.setattr(
+        buildcache, "_run",
+        lambda *a, **k: calls.append("run"),
+    )
+    monkeypatch.setattr(
+        buildcache.subprocess, "run",
+        lambda *a, **k: calls.append("subprocess"),
+    )
+
+    def unavailable():
+        raise buildcache.pegasus_policy.SitePolicyError("fixture-ambiguous")
+
+    for observer, message in (
+        (_site_observer("login"), "login node"),
+        (unavailable, "could not be established"),
+    ):
+        with pytest.raises(buildcache.BuildError, match=message):
+            _build(
+                tmp_path, _contract(1), site_observer=observer,
+            )
+    assert calls == []
+    assert not (tmp_path / "cache").exists()
+
+
+def test_v2_login_corrupt_hit_stops_without_rebuild_fallback(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path, payload=b"keep-corrupt")
+    fresh = _build(
+        tmp_path, _contract(1), site_observer=_site_observer("other"),
+    )
+    manifest_path = Path(fresh.build_dir) / "completion.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["completion_marker"] = "partial"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run",
+        lambda *a, **k: calls.append("run"),
+    )
+    with pytest.raises(buildcache.BuildCacheError, match="completion marker"):
+        _build(
+            tmp_path, _contract(1), site_observer=_site_observer("login"),
+        )
+    assert calls == []
+    assert Path(fresh.binary).read_bytes() == b"keep-corrupt"
+
+
+@pytest.mark.parametrize("site_kind", ["compute", "other"])
+def test_v2_compute_and_other_miss_keep_current_j16_build_argv(
+        tmp_path, monkeypatch, site_kind):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path, payload=site_kind.encode())
+    commands = []
+
+    def fake_run(cmd, what, timeout_s=None):
+        commands.append((what, list(cmd)))
+        if what == "build":
+            bdir = Path(cmd[cmd.index("--build") + 1])
+            binary = bdir / "cc" / "silo" / "ycsb_silo.exe"
+            binary.parent.mkdir(parents=True, exist_ok=True)
+            binary.write_bytes(site_kind.encode())
+
+    monkeypatch.setattr(buildcache, "_run", fake_run)
+    result = _build(
+        tmp_path, _contract(1), site_observer=_site_observer(site_kind),
+    )
+    assert not result.cached
+    assert [name for name, _cmd in commands] == ["configure", "build"]
+    assert commands[-1][1][-2:] == ["-j", "16"]
+    assert list(result.build_argv)[-2:] == ["-j", "16"]
 
 
 def test_v2_custom_ccbench_tree_drives_commit_allowlist_identity_and_trace_checks(

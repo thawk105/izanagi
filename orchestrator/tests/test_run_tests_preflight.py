@@ -7,7 +7,6 @@ V15 = submodule auto-init の ``--no-fetch`` 除去。
 from __future__ import annotations
 
 import importlib.util
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -26,11 +25,18 @@ _SPEC.loader.exec_module(RT)
 
 @pytest.fixture(autouse=True)
 def _clean_runner_env(monkeypatch):
+    monkeypatch.setattr(RT, "_CURRENT_SITE", None)
+    other = RT.pegasus_policy.classify_site(
+        "unit-test.invalid", None, range(4),
+    )
+    monkeypatch.setattr(RT, "_observe_runner_site", lambda: other)
     for name in (
         "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE",
         "GIT_OBJECT_DIRECTORY", "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT",
         "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS", "IZANAGI_TEST_TRIGGER",
-        "IZANAGI_TASK_RUN_ID", "PYTEST_ADDOPTS",
+        "IZANAGI_TASK_RUN_ID", "PYTEST_ADDOPTS", "PYTEST_PLUGINS",
+        "PYTHONPATH", "IZANAGI_TEST_WORKER_AUTH", "IZANAGI_TEST_RUNNER_RESULT",
+        "PBS_JOBID",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -67,6 +73,83 @@ def _create_modules_cache(common_dir: Path) -> Path:
     cache = common_dir / "modules" / "external" / "ccbench"
     cache.mkdir(parents=True)
     return cache
+
+
+@pytest.mark.parametrize("args", [["--help"], ["--version"]])
+def test_exact_wrapper_response_is_local_and_every_execution_edge_is_zero(
+    monkeypatch, args, capsys,
+):
+    fatal = mock.Mock(side_effect=AssertionError("fatal local-only sentinel"))
+    for name in (
+        "_observe_runner_site", "_normalize_args",
+        "_preflight_unstaged_deletions", "_preflight_ruleops",
+        "_preflight_submodule", "_ensure_xdist",
+    ):
+        monkeypatch.setattr(RT, name, fatal)
+    monkeypatch.setattr(RT.subprocess, "call", fatal)
+    assert RT.main(args) == 0
+    assert capsys.readouterr().out
+    fatal.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--help"],
+        ["-h"],
+        ["--collect-only"],
+        ["--setup-only"],
+        ["--unknown-plugin-option"],
+        ["--help", "--unknown-plugin-option"],
+    ],
+)
+def test_login_pytest_shapes_dispatch_before_all_local_runner_edges(
+    monkeypatch, args,
+):
+    from pegasus import submit_tests
+
+    trace = []
+    observation = RT.pegasus_policy.classify_site(
+        "pegasus02", None, range(48),
+    )
+    monkeypatch.setattr(RT, "_observe_runner_site", lambda: trace.append("site") or observation)
+    monkeypatch.setattr(
+        submit_tests,
+        "dispatch_from_runner",
+        lambda **kwargs: trace.append(("dispatch", kwargs["raw_args"])) or 23,
+    )
+    fatal = mock.Mock(side_effect=AssertionError("fatal pre-dispatch sentinel"))
+    for name in (
+        "_normalize_args", "_preflight_unstaged_deletions",
+        "_preflight_ruleops", "_preflight_submodule", "_ensure_xdist",
+    ):
+        monkeypatch.setattr(RT, name, fatal)
+    monkeypatch.setattr(RT.subprocess, "call", fatal)
+
+    # Exact wrapper --help is the sole exception; compound/help for pytest is
+    # executing-shaped and reaches dispatch.
+    expected = 0 if args == ["--help"] else 23
+    assert RT.main(args) == expected
+    if expected == 23:
+        assert trace == ["site", ("dispatch", args)]
+    else:
+        assert trace == []
+    fatal.assert_not_called()
+
+
+def test_compute_without_hash_bound_marker_refuses_before_preflight(
+    monkeypatch, capsys,
+):
+    observation = RT.pegasus_policy.classify_site(
+        "bnode114", "0:123.nqsv", range(4),
+    )
+    monkeypatch.setattr(RT, "_observe_runner_site", lambda: observation)
+    fatal = mock.Mock(side_effect=AssertionError("fatal authorization sentinel"))
+    monkeypatch.setattr(RT, "_normalize_args", fatal)
+    monkeypatch.setattr(RT.subprocess, "call", fatal)
+    assert RT.main(["-q"]) == 125
+    assert "authorization marker" in capsys.readouterr().err
+    fatal.assert_not_called()
 
 
 def test_normalize_position_and_path_options_once_from_caller_cwd(tmp_path):

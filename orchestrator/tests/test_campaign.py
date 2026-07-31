@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import textwrap
 import time
 import types
 
@@ -106,6 +107,709 @@ def test_buildcache_stale_clear_spares_complete_and_absent(tmp_path=None):
         assert binpath.exists()                  # 完成品は温存
         absent = tmp / "no_such_dir"
         buildcache._clear_stale_build_dir(str(absent), str(absent / "x.exe"))  # 例外なく no-op
+
+
+def _build_site(kind):
+    pp = buildcache.pegasus_policy
+    if kind == "login":
+        return pp.classify_site("pegasus01", None, (0, 1, 2, 3))
+    if kind == "compute":
+        return pp.classify_site("bnode114", "874129.nqsv", (0, 1, 2, 3))
+    if kind == "other":
+        return pp.classify_site("test-builder", None, (0, 1, 2, 3))
+    raise AssertionError(f"unknown site fixture: {kind}")
+
+
+def _build_site_observer(kind):
+    observation = _build_site(kind)
+    return lambda: observation
+
+
+def _site_test_source_digest():
+    return types.SimpleNamespace(
+        STOCK="stock",
+        assert_worktree_within_allowlist=lambda *a, **k: None,
+        assert_trace_diff_matches_head=lambda *a, **k: None,
+        resolve=lambda *a, **k: "stock",
+    )
+
+
+def test_buildcache_v1_login_accepts_valid_and_corrupt_hits_without_rebuild():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    root = _tmpdir("izanagi_bc_login_hit_")
+    sub = os.path.join(root, "ccbench")
+    cache_root = os.path.join(root, "cache")
+    key = buildcache.cache_key(genome, "a" * 40, True, src_token="stock")
+    binary = os.path.join(cache_root, key, "cc", "silo", "ycsb_silo.exe")
+    os.makedirs(os.path.dirname(binary))
+    with open(binary, "wb") as handle:
+        handle.write(b"valid-login-hit")
+
+    saved = (
+        buildcache._verify_ccbench_commit,
+        buildcache.source_digest,
+        buildcache._run,
+    )
+    run_calls = []
+    try:
+        buildcache._verify_ccbench_commit = lambda *a, **k: None
+        buildcache.source_digest = _site_test_source_digest()
+        buildcache._run = lambda *a, **k: run_calls.append("run")
+        hit = buildcache.build(
+            genome, "a" * 40, True, cache_root=cache_root,
+            ccbench_dir=sub, src_token="stock",
+            site_observer=_build_site_observer("login"),
+        )
+        assert hit.cached and hit.binary == binary
+
+        def unavailable():
+            raise buildcache.pegasus_policy.SitePolicyError("fixture-unavailable")
+
+        unobserved_hit = buildcache.build(
+            genome, "a" * 40, True, cache_root=cache_root,
+            ccbench_dir=sub, src_token="stock", site_observer=unavailable,
+        )
+        assert unobserved_hit.cached and unobserved_hit.binary == binary
+
+        os.unlink(binary)
+        os.mkdir(binary)
+        try:
+            buildcache.build(
+                genome, "a" * 40, True, cache_root=cache_root,
+                ccbench_dir=sub, src_token="stock",
+                site_observer=_build_site_observer("login"),
+            )
+            assert False, "corrupt v1 hit must stop instead of rebuilding"
+        except buildcache.BinaryDigestError:
+            pass
+        assert os.path.isdir(binary)
+        assert run_calls == []
+    finally:
+        (
+            buildcache._verify_ccbench_commit,
+            buildcache.source_digest,
+            buildcache._run,
+        ) = saved
+
+
+def test_buildcache_v1_login_miss_refuses_before_clear_write_or_subprocess():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    root = _tmpdir("izanagi_bc_login_miss_")
+    sub = os.path.join(root, "ccbench")
+    cache_root = os.path.join(root, "cache-does-not-exist")
+    calls = []
+    saved = (
+        buildcache._verify_ccbench_commit,
+        buildcache.source_digest,
+        buildcache._clear_stale_build_dir,
+        buildcache._run,
+        buildcache.subprocess.run,
+    )
+    try:
+        buildcache._verify_ccbench_commit = lambda *a, **k: None
+        buildcache.source_digest = _site_test_source_digest()
+        buildcache._clear_stale_build_dir = (
+            lambda *a, **k: calls.append("stale-clear")
+        )
+        buildcache._run = lambda *a, **k: calls.append("subprocess")
+        buildcache.subprocess.run = (
+            lambda *a, **k: calls.append("direct-subprocess")
+        )
+        try:
+            buildcache.build(
+                genome, "a" * 40, True, cache_root=cache_root,
+                ccbench_dir=sub, src_token="stock",
+                site_observer=_build_site_observer("login"),
+            )
+            assert False, "Pegasus login cache miss must be refused"
+        except buildcache.BuildError as exc:
+            assert "login node" in str(exc)
+
+        def unavailable():
+            raise buildcache.pegasus_policy.SitePolicyError("fixture-ambiguous")
+
+        try:
+            buildcache.build(
+                genome, "a" * 40, True, cache_root=cache_root,
+                ccbench_dir=sub, src_token="stock",
+                site_observer=unavailable,
+            )
+            assert False, "unobservable site cache miss must be refused"
+        except buildcache.BuildError as exc:
+            assert "could not be established" in str(exc)
+        assert calls == []
+        assert not os.path.exists(cache_root)
+    finally:
+        (
+            buildcache._verify_ccbench_commit,
+            buildcache.source_digest,
+            buildcache._clear_stale_build_dir,
+            buildcache._run,
+            buildcache.subprocess.run,
+        ) = saved
+
+
+def test_buildcache_v1_compute_and_other_keep_current_j16_build_argv():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    root = _tmpdir("izanagi_bc_site_j16_")
+    sub = os.path.join(root, "ccbench")
+    saved = (
+        buildcache._verify_ccbench_commit,
+        buildcache.source_digest,
+        buildcache._run,
+    )
+    try:
+        buildcache._verify_ccbench_commit = lambda *a, **k: None
+        buildcache.source_digest = _site_test_source_digest()
+        for kind in ("compute", "other"):
+            cache_root = os.path.join(root, kind)
+            calls = []
+
+            def fake_run(cmd, what):
+                calls.append((what, list(cmd)))
+                if what == "build":
+                    bdir = cmd[cmd.index("--build") + 1]
+                    binary = os.path.join(
+                        bdir, "cc", "silo", "ycsb_silo.exe",
+                    )
+                    os.makedirs(os.path.dirname(binary), exist_ok=True)
+                    with open(binary, "wb") as handle:
+                        handle.write(kind.encode("ascii"))
+
+            buildcache._run = fake_run
+            result = buildcache.build(
+                genome, "a" * 40, True, cache_root=cache_root,
+                ccbench_dir=sub, src_token="stock",
+                site_observer=_build_site_observer(kind),
+            )
+            assert not result.cached
+            assert [what for what, _cmd in calls] == ["configure", "build"]
+            assert calls[-1][1][-2:] == ["-j", "16"]
+            assert list(result.build_argv)[-2:] == ["-j", "16"]
+
+        calls = []
+        explicit = buildcache.build(
+            genome, "a" * 40, True,
+            cache_root=os.path.join(root, "explicit-jobs"),
+            ccbench_dir=sub, src_token="stock", jobs=7,
+            site_observer=_build_site_observer("compute"),
+        )
+        assert not explicit.cached
+        assert calls[-1][1][-2:] == ["-j", "7"]
+        assert list(explicit.build_argv)[-2:] == ["-j", "7"]
+    finally:
+        (
+            buildcache._verify_ccbench_commit,
+            buildcache.source_digest,
+            buildcache._run,
+        ) = saved
+
+
+def test_direct_coverage_login_refusal_precedes_single_tenant_and_tempdir():
+    from campaign import (
+        s2_verify_calibration,
+        s3_lock_coverage,
+        s5_permutation_coverage,
+        s8a_trigger_coverage,
+    )
+
+    modules = (
+        s2_verify_calibration,
+        s3_lock_coverage,
+        s5_permutation_coverage,
+        s8a_trigger_coverage,
+    )
+    for module in modules:
+        trace = []
+        saved = (
+            module._assert_single_tenant,
+            module.assert_pinned_clean,
+            module.tempfile.gettempdir,
+            module.tempfile.mkdtemp,
+            module.buildcache.build,
+            module.subprocess.run,
+        )
+
+        def observe():
+            trace.append("site")
+            return _build_site("login")
+
+        def sentinel(label):
+            def fail(*args, **kwargs):
+                trace.append(label)
+                raise AssertionError(f"site gate was masked by {label}")
+            return fail
+
+        module._assert_single_tenant = sentinel("single-tenant")
+        module.assert_pinned_clean = sentinel("pin")
+        module.tempfile.gettempdir = sentinel("tempdir-get")
+        module.tempfile.mkdtemp = sentinel("tempdir-create")
+        module.buildcache.build = sentinel("buildcache")
+        module.subprocess.run = sentinel("subprocess")
+        try:
+            try:
+                module.main(site_observer=observe)
+                assert False, f"{module.__name__} accepted a login build"
+            except RuntimeError as exc:
+                assert "login node" in str(exc)
+        finally:
+            (
+                module._assert_single_tenant,
+                module.assert_pinned_clean,
+                module.tempfile.gettempdir,
+                module.tempfile.mkdtemp,
+                module.buildcache.build,
+                module.subprocess.run,
+            ) = saved
+        assert trace == ["site"], (module.__name__, trace)
+
+
+def test_direct_coverage_site_gate_accepts_compute_and_other():
+    from campaign import (
+        s2_verify_calibration,
+        s3_lock_coverage,
+        s5_permutation_coverage,
+        s8a_trigger_coverage,
+    )
+
+    for module in (
+        s2_verify_calibration,
+        s3_lock_coverage,
+        s5_permutation_coverage,
+        s8a_trigger_coverage,
+    ):
+        assert module.pegasus_policy is buildcache.pegasus_policy
+        for kind in ("compute", "other"):
+            observation = _build_site(kind)
+            accepted = module._require_direct_build_site(
+                lambda observation=observation: observation
+            )
+            assert accepted is observation
+
+
+def test_direct_coverage_helpers_refuse_login_before_side_effects_and_reach_j16():
+    """M18: main gateを経由せず4 helperそのものの拒否位置と正例を表駆動する。"""
+    from campaign import (
+        s2_verify_calibration,
+        s3_lock_coverage,
+        s5_permutation_coverage,
+        s8a_trigger_coverage,
+    )
+
+    specs = (
+        (
+            "s2", s2_verify_calibration,
+            lambda module, **site: module._broken_build_and_verify(
+                "fixture.patch", "FIXTURE_BREAK", {}, **site,
+            ),
+        ),
+        (
+            "s3", s3_lock_coverage,
+            lambda module, **site: module._build_broken(
+                "fixture.patch", "FIXTURE_BREAK", "/fixture/build", **site,
+            ),
+        ),
+        (
+            "s5", s5_permutation_coverage,
+            lambda module, **site: module._build_broken(
+                "fixture.patch", "FIXTURE_BREAK", "/fixture/build", **site,
+            ),
+        ),
+        (
+            "s8a", s8a_trigger_coverage,
+            lambda module, **site: module._build("/fixture/build", **site),
+        ),
+    )
+
+    for label, module, invoke in specs:
+        saved = (
+            module.applied,
+            module.tempfile.mkdtemp,
+            module.shutil.rmtree,
+            module.subprocess.run,
+        )
+        side_effects = []
+
+        def forbidden(name):
+            def fail(*args, **kwargs):
+                side_effects.append(name)
+                raise AssertionError(f"{label}: login gate was masked by {name}")
+            return fail
+
+        try:
+            module.applied = forbidden("patch")
+            module.tempfile.mkdtemp = forbidden("tempdir")
+            module.shutil.rmtree = forbidden("cleanup")
+            module.subprocess.run = forbidden("subprocess")
+            try:
+                invoke(module, site_observer=_build_site_observer("login"))
+                assert False, f"{label}: direct helper accepted a login build"
+            except RuntimeError as exc:
+                assert "login node" in str(exc)
+            assert side_effects == [], (label, side_effects)
+
+            module.applied = lambda *a, **k: contextlib.nullcontext()
+            module.tempfile.mkdtemp = lambda *a, **k: "/fixture/build"
+            module.shutil.rmtree = lambda *a, **k: None
+            for site_kind in ("compute", "other"):
+                commands = []
+
+                def fake_run(argv, **kwargs):
+                    commands.append(list(argv))
+                    return types.SimpleNamespace(
+                        returncode=0, stdout="", stderr="",
+                    )
+
+                module.subprocess.run = fake_run
+                observation = _build_site(site_kind)
+                invoke(module, site_observation=observation)
+                assert len(commands) == 2, (label, site_kind, commands)
+                assert commands[-1][-2:] == ["-j", "16"], (
+                    label, site_kind, commands[-1],
+                )
+        finally:
+            (
+                module.applied,
+                module.tempfile.mkdtemp,
+                module.shutil.rmtree,
+                module.subprocess.run,
+            ) = saved
+
+
+def test_s8a_frequency_main_login_refusal_precedes_pin_patch_tempdir_and_subprocess():
+    from campaign import s8a_trigger_coverage, s8a_trigger_freq
+
+    assert s8a_trigger_freq._build is s8a_trigger_coverage._build
+    trace = []
+    saved = (
+        s8a_trigger_freq._assert_single_tenant,
+        s8a_trigger_freq.assert_pinned_clean,
+        s8a_trigger_freq.tempfile.mkdtemp,
+        s8a_trigger_freq.applied,
+        s8a_trigger_freq.apply_patch,
+        s8a_trigger_freq._build,
+        s8a_trigger_freq.subprocess.run,
+    )
+
+    def observe():
+        trace.append("site")
+        return _build_site("login")
+
+    def forbidden(name):
+        def fail(*args, **kwargs):
+            trace.append(name)
+            raise AssertionError(f"frequency login gate was masked by {name}")
+        return fail
+
+    s8a_trigger_freq._assert_single_tenant = forbidden("single-tenant")
+    s8a_trigger_freq.assert_pinned_clean = forbidden("pin")
+    s8a_trigger_freq.tempfile.mkdtemp = forbidden("tempdir")
+    s8a_trigger_freq.applied = forbidden("patch")
+    s8a_trigger_freq.apply_patch = forbidden("patch")
+    s8a_trigger_freq._build = forbidden("build")
+    s8a_trigger_freq.subprocess.run = forbidden("subprocess")
+    try:
+        try:
+            s8a_trigger_freq.main(
+                ["s8a_trigger_freq.py", "balanced"],
+                site_observer=observe,
+            )
+            assert False, "s8a frequency main accepted a login build"
+        except RuntimeError as exc:
+            assert "login node" in str(exc)
+    finally:
+        (
+            s8a_trigger_freq._assert_single_tenant,
+            s8a_trigger_freq.assert_pinned_clean,
+            s8a_trigger_freq.tempfile.mkdtemp,
+            s8a_trigger_freq.applied,
+            s8a_trigger_freq.apply_patch,
+            s8a_trigger_freq._build,
+            s8a_trigger_freq.subprocess.run,
+        ) = saved
+    assert trace == ["site"]
+
+
+def test_s8a_frequency_main_passes_the_same_observation_to_shared_helper():
+    from campaign import s8a_trigger_freq
+
+    observation = _build_site("compute")
+    observed = []
+    helper_observations = []
+    saved = (
+        s8a_trigger_freq._assert_single_tenant,
+        s8a_trigger_freq.assert_pinned_clean,
+        s8a_trigger_freq.tempfile.mkdtemp,
+        s8a_trigger_freq.shutil.rmtree,
+        s8a_trigger_freq.applied,
+        s8a_trigger_freq.apply_patch,
+        s8a_trigger_freq._build,
+    )
+
+    class ReachedHelper(Exception):
+        pass
+
+    def observe():
+        observed.append(observation)
+        return observation
+
+    def fake_build(*args, **kwargs):
+        helper_observations.append(kwargs.get("site_observation"))
+        raise ReachedHelper
+
+    try:
+        s8a_trigger_freq._assert_single_tenant = lambda: None
+        s8a_trigger_freq.assert_pinned_clean = lambda *a, **k: None
+        s8a_trigger_freq.tempfile.mkdtemp = lambda *a, **k: "/fixture/build"
+        s8a_trigger_freq.shutil.rmtree = lambda *a, **k: None
+        s8a_trigger_freq.applied = lambda *a, **k: contextlib.nullcontext()
+        s8a_trigger_freq.apply_patch = lambda *a, **k: None
+        s8a_trigger_freq._build = fake_build
+        try:
+            s8a_trigger_freq.main(
+                ["s8a_trigger_freq.py", "balanced"],
+                site_observer=observe,
+            )
+            assert False, "frequency main did not reach the shared build helper"
+        except ReachedHelper:
+            pass
+    finally:
+        (
+            s8a_trigger_freq._assert_single_tenant,
+            s8a_trigger_freq.assert_pinned_clean,
+            s8a_trigger_freq.tempfile.mkdtemp,
+            s8a_trigger_freq.shutil.rmtree,
+            s8a_trigger_freq.applied,
+            s8a_trigger_freq.apply_patch,
+            s8a_trigger_freq._build,
+        ) = saved
+    assert observed == [observation]
+    assert helper_observations == [observation]
+
+
+def test_direct_coverage_imports_one_canonical_policy_under_isolated_runpy():
+    repo = os.path.dirname(_ORCH)
+    code = (
+        "import runpy,sys;"
+        "ns=runpy.run_path(sys.argv[1],run_name='coverage_import_probe');"
+        "scope=ns if 'pegasus_policy' in ns else ns['_build'].__globals__;"
+        "p=scope['pegasus_policy'];"
+        "b=scope['buildcache'].pegasus_policy;"
+        "assert p is b;"
+        "assert p.classify_site is b.classify_site;"
+        "assert p.__name__=='_izanagi_trusted_pegasus_policy';"
+        "assert sys.modules.get('pegasus_policy') is not p"
+    )
+    for relpath in (
+        "orchestrator/campaign/s2_verify_calibration.py",
+        "orchestrator/campaign/s3_lock_coverage.py",
+        "orchestrator/campaign/s5_permutation_coverage.py",
+        "orchestrator/campaign/s8a_trigger_coverage.py",
+        "orchestrator/campaign/s8a_trigger_freq.py",
+    ):
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", code, os.path.join(repo, relpath)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0, (
+            relpath, result.stdout[-500:], result.stderr[-500:]
+        )
+
+
+def test_trusted_policy_ignores_sys_path_poison():
+    repo = os.path.dirname(_ORCH)
+    with tempfile.TemporaryDirectory(prefix="izanagi_policy_poison_") as poison:
+        fake_path = os.path.join(poison, "pegasus_policy.py")
+        with open(fake_path, "w", encoding="utf-8") as handle:
+            handle.write("raise RuntimeError('poison pegasus_policy loaded')\n")
+
+        path_probe = (
+            "import os,sys;"
+            f"sys.path.insert(0,{os.path.join(repo, 'orchestrator')!r});"
+            f"sys.path.insert(0,{poison!r});"
+            "before=tuple(sys.path);"
+            "from campaign import buildcache;"
+            "expected=os.path.abspath(os.path.join("
+            f"{repo!r},'tools','pegasus_policy.py'));"
+            "assert buildcache.pegasus_policy.__file__==expected;"
+            "assert buildcache.pegasus_policy.__name__=="
+            "'_izanagi_trusted_pegasus_policy';"
+            "assert sys.modules.get('pegasus_policy') is not "
+            "buildcache.pegasus_policy;"
+            "assert tuple(sys.path)==before"
+        )
+        path_result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", path_probe],
+            capture_output=True, text=True,
+        )
+        assert path_result.returncode == 0, (
+            path_result.stdout[-500:], path_result.stderr[-500:],
+        )
+
+
+def test_trusted_policy_ordinary_import_is_not_production_identity():
+    repo = os.path.dirname(_ORCH)
+    ordinary_probe = (
+        "import os,sys;"
+        f"sys.path.insert(0,{os.path.join(repo, 'tools')!r});"
+        f"sys.path.insert(0,{os.path.join(repo, 'orchestrator')!r});"
+        "import pegasus_policy as ambient;"
+        "from campaign import buildcache;"
+        "trusted=buildcache.pegasus_policy;"
+        "assert sys.modules['pegasus_policy'] is ambient;"
+        "assert ambient is not trusted;"
+        "assert ambient.SiteObservation is not trusted.SiteObservation;"
+        "observation=trusted.classify_site('test-builder',None,(0,1,2,3));"
+        "assert buildcache._require_direct_build_site("
+        "site_observation=observation) is observation"
+    )
+    ordinary_result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", ordinary_probe],
+        capture_output=True, text=True,
+    )
+    assert ordinary_result.returncode == 0, (
+        ordinary_result.stdout[-500:], ordinary_result.stderr[-500:],
+    )
+
+
+def test_trusted_policy_forged_public_module_cannot_otherize_real_login_gate():
+    """R1: canonical-looking metadata/code filename forgeを実helper branchで拒否する。"""
+    repo = os.path.dirname(_ORCH)
+    expected = os.path.join(repo, "tools", "pegasus_policy.py")
+    forged_source = textwrap.dedent(
+        """
+        from enum import Enum
+
+        class SiteKind(str, Enum):
+            PEGASUS_LOGIN = "PEGASUS_LOGIN"
+            OTHER = "OTHER"
+
+        PEGASUS_LOGIN = SiteKind.PEGASUS_LOGIN
+        OTHER = SiteKind.OTHER
+        calls = 0
+
+        class SiteObservation:
+            def __init__(self, site_kind):
+                self.site_kind = site_kind
+
+        def observe_site():
+            global calls
+            calls += 1
+            return SiteObservation(OTHER)
+
+        def classify_site(*args, **kwargs):
+            return SiteObservation(OTHER)
+        """
+    )
+    modules_probe = textwrap.dedent(
+        f"""
+        import importlib.util
+        import os
+        import socket
+        import sys
+        import types
+
+        expected = {expected!r}
+        fake = types.ModuleType("pegasus_policy")
+        fake.__file__ = expected
+        fake.__spec__ = importlib.util.spec_from_file_location(
+            "pegasus_policy", expected
+        )
+        fake.__loader__ = fake.__spec__.loader
+        exec(compile({forged_source!r}, expected, "exec"), fake.__dict__)
+        sys.modules["pegasus_policy"] = fake
+        sys.modules["_izanagi_trusted_pegasus_policy"] = fake
+
+        socket.gethostname = lambda: "pegasus01"
+        os.sched_getaffinity = lambda pid: {{0, 1, 2, 3}}
+        os.environ.pop("PBS_JOBID", None)
+        sys.path.insert(0, {os.path.join(repo, "orchestrator")!r})
+
+        from campaign import buildcache
+
+        assert sys.modules["pegasus_policy"] is fake
+        assert buildcache.pegasus_policy is not fake
+        assert (
+            sys.modules["_izanagi_trusted_pegasus_policy"]
+            is buildcache.pegasus_policy
+        )
+        assert (
+            buildcache.pegasus_policy.observe_site.__module__
+            == "_izanagi_trusted_pegasus_policy"
+        )
+        try:
+            buildcache._require_direct_build_site()
+        except RuntimeError as exc:
+            assert "login node" in str(exc)
+        else:
+            raise AssertionError("forged OTHER bypassed the real login gate")
+        assert fake.calls == 0
+        """
+    )
+    modules_result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", modules_probe],
+        capture_output=True, text=True,
+    )
+    assert modules_result.returncode == 0, (
+        modules_result.stdout[-500:], modules_result.stderr[-500:],
+    )
+
+
+def test_trusted_policy_source_rejects_symlink_nonregular_and_mid_read_change():
+    with tempfile.TemporaryDirectory(prefix="izanagi_policy_source_") as tmp:
+        source = os.path.join(tmp, "policy.py")
+        symlink = os.path.join(tmp, "policy-link.py")
+        with open(source, "wb") as handle:
+            handle.write(b"x = 1\n")
+        os.symlink(source, symlink)
+
+        for rejected in (symlink, tmp):
+            try:
+                buildcache._read_trusted_policy_source(rejected)
+                assert False, f"accepted non-regular policy source: {rejected}"
+            except ImportError as exc:
+                assert "not a regular file" in str(exc)
+
+        with open(source, "wb") as handle:
+            handle.write(b"x" * (buildcache._POLICY_READ_SIZE + 1))
+        original_read = buildcache.os.read
+        changed = []
+
+        def changing_read(fd, size):
+            chunk = original_read(fd, size)
+            if chunk and not changed:
+                with open(source, "ab") as handle:
+                    handle.write(b"changed")
+                changed.append(True)
+            return chunk
+
+        buildcache.os.read = changing_read
+        try:
+            try:
+                buildcache._read_trusted_policy_source(source)
+                assert False, "accepted policy source modified during read"
+            except ImportError as exc:
+                assert "changed while reading" in str(exc)
+        finally:
+            buildcache.os.read = original_read
+        assert changed == [True]
+
+
+def test_trusted_policy_identity_gate_rejects_post_import_module_swap():
+    trusted = buildcache.pegasus_policy
+    forged = types.SimpleNamespace(
+        observe_site=lambda: _build_site("other"),
+        SiteObservation=trusted.SiteObservation,
+        PEGASUS_LOGIN=trusted.PEGASUS_LOGIN,
+    )
+    buildcache.pegasus_policy = forged
+    try:
+        buildcache._require_direct_build_site()
+        assert False, "accepted post-import policy swap"
+    except ImportError as exc:
+        assert "module identity mismatch" in str(exc)
+    finally:
+        buildcache.pegasus_policy = trusted
 
 
 def test_genome_canonical_deterministic():

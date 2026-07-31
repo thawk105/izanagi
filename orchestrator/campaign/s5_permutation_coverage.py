@@ -31,13 +31,19 @@ import subprocess
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ORCHESTRATOR_DIR = os.path.join(_REPO_ROOT, "orchestrator")
+if _ORCHESTRATOR_DIR not in sys.path:
+    sys.path.insert(0, _ORCHESTRATOR_DIR)
 
 from campaign import buildcache, pin                                   # noqa: E402
 from campaign.layout import repo_output_root                           # noqa: E402
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
+
+pegasus_policy = buildcache.pegasus_policy
+_require_direct_build_site = buildcache._require_direct_build_site
 
 PIN = pin.CURRENT_PIN                    # d706650 (izanagi-trace, permutation 保存 assert 込み)
 ENV_TAG = "linux-baremetal"
@@ -63,7 +69,7 @@ SINGLE_FLAGS = {"ycsb_tuple_num": "200", "ycsb_zipf_skew": "0.9",
 
 
 def _repo_root() -> str:
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return _REPO_ROOT
 
 
 def _run_trace(binary: str, flags: dict) -> str:
@@ -116,8 +122,14 @@ def _verify(trace_dir: str) -> dict:
     }
 
 
-def _build_broken(patch_name: str, define: str, bdir: str) -> str:
+def _build_broken(
+        patch_name: str, define: str, bdir: str, *, site_observer=None,
+        site_observation=None,
+) -> str:
     """broken patch を applied() 下で fresh build し binary パスを返す (buildcache 非経由)。"""
+    _require_direct_build_site(
+        site_observer, site_observation=site_observation,
+    )
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     patch = os.path.join(root, "patches", patch_name)
@@ -146,7 +158,8 @@ def _variant_run(binary: str, flags: dict, label: str) -> dict:
     return v
 
 
-def main() -> int:
+def main(*, site_observer=None) -> int:
+    site_observation = _require_direct_build_site(site_observer)
     _assert_single_tenant()
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
@@ -157,7 +170,9 @@ def main() -> int:
 
     # --- 1. stock control (no patch): assert は正しい sort で沈黙するはず ---
     print("== stock control (no patch, TRACE=1) ==")
-    bstock = buildcache.build(STOCK_G, PIN, trace=True)
+    bstock = buildcache.build(
+        STOCK_G, PIN, trace=True, site_observer=lambda: site_observation,
+    )
     result["runs"]["stock_single"] = _variant_run(bstock.binary, SINGLE_FLAGS,
                                                    "stock/single")
 
@@ -165,7 +180,10 @@ def main() -> int:
     print("== erase (IZANAGI_BREAK_PERMUTATION, TRACE=1) ==")
     bdir_er = tempfile.mkdtemp(prefix="izanagi_s5_erase_")
     try:
-        bin_er = _build_broken(ERASE_PATCH, ERASE_DEFINE, bdir_er)
+        bin_er = _build_broken(
+            ERASE_PATCH, ERASE_DEFINE, bdir_er,
+            site_observation=site_observation,
+        )
         result["runs"]["erase_single"] = _variant_run(bin_er, SINGLE_FLAGS,
                                                         "erase/single")
     finally:
@@ -175,7 +193,10 @@ def main() -> int:
     print("== swap (IZANAGI_BREAK_PERMUTATION_SWAP, TRACE=1) ==")
     bdir_sw = tempfile.mkdtemp(prefix="izanagi_s5_swap_")
     try:
-        bin_sw = _build_broken(SWAP_PATCH, SWAP_DEFINE, bdir_sw)
+        bin_sw = _build_broken(
+            SWAP_PATCH, SWAP_DEFINE, bdir_sw,
+            site_observation=site_observation,
+        )
         result["runs"]["swap_single"] = _variant_run(bin_sw, SINGLE_FLAGS,
                                                        "swap/single")
     finally:
