@@ -10,6 +10,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest import mock
 
@@ -895,6 +896,304 @@ def test_walltime_override_is_bound_to_pbs_and_total_bound(tmp_path):
     assert rc == 0
     qsub = next(command for command, _ in scheduler.commands if command[0] == "qsub")
     assert "elapstim_req=01:02:03" in qsub
+
+
+def _job_run_with_mocked_child(request_path: Path, *, child_rc: int = 0):
+    """計算ノード側 launcher を hostname / chdir / 子起動を注入して駆動する。"""
+
+    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+    calls: list[tuple[list[str], dict]] = []
+
+    def record(argv, **kwargs):
+        calls.append((list(argv), kwargs))
+        return child_rc
+
+    with mock.patch.object(DC.os, "uname", return_value=fake_uname), \
+            mock.patch.object(DC.os, "chdir"), \
+            mock.patch.object(DC, "_import_probe_modules"), \
+            mock.patch.object(DC.subprocess, "call", side_effect=record):
+        rc = DC._job_run(request_path)
+    return rc, calls
+
+
+def test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc(tmp_path):
+    """M11 期待赤: _dispatch_impl の task 照合を外すと未知 task が scheduler へ届く。
+
+    期待赤:
+    ``orchestrator/tests/test_pegasus_dispatch_compute.py::test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc``。
+    """
+
+    assert set(DC.TASKS) == {"tests", "provenance"}
+    assert DC.DEFAULT_TASK == "tests"
+
+    root = tmp_path / "dispatch"
+    scheduler = _Scheduler()
+    rc = DC.dispatch(
+        ["--range", "A..B"],
+        task="shell",
+        repo_root=_REPO,
+        output_root=root,
+        run_command=scheduler,
+        nonce="unknown-task",
+    )
+    assert rc == DC.INFRA_RC
+    assert scheduler.commands == []
+    assert not (root / "unknown-task").exists()
+    receipt = json.loads(
+        (root / "receipt-setup-unknown-task.json").read_text(encoding="utf-8"),
+    )
+    assert receipt["outcome"]["kind"] == "infra"
+    assert receipt["outcome"]["rc"] == DC.INFRA_RC
+    assert "ValueError" in receipt["outcome"]["reason"]
+    assert receipt["request"] == {"task": "shell", "args": ["--range", "A..B"]}
+
+    # CLI 面も閉じている (argparse choices)。
+    with pytest.raises(SystemExit) as raised:
+        DC.main(["--task", "shell", "--range", "A..B"])
+    assert raised.value.code == 2
+
+
+def test_provenance_task_binds_child_script_and_empty_env_allowlist(tmp_path):
+    scheduler = _Scheduler()
+    clock = _Clock()
+    rc = DC.dispatch(
+        ["--range", "72849d3..HEAD"],
+        task="provenance",
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        environ={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTEST_ADDOPTS": "-q",
+            "IZANAGI_TEST_NPROC": "48",
+            "IZANAGI_TASK_RUN_ID": "must-not-propagate",
+        },
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="provenance-nonce",
+    )
+    assert rc == 0
+
+    submission = tmp_path / "dispatch" / "provenance-nonce"
+    request = json.loads((submission / "request.json").read_text(encoding="utf-8"))
+    assert request["schema_version"] == "pegasus-dispatch-request/v2"
+    assert request["task"] == "provenance"
+    assert request["args"] == ["--range", "72849d3..HEAD"]
+    # 空 allowlist: 親の pytest / task_run 環境は 1 つも request へ漏れない。
+    assert request["environment"] == {}
+    assert "pytest_args" not in request
+    assert DC.TASKS["provenance"].env_allowlist == frozenset()
+    assert DC.TASKS["provenance"].child_script == ("tools", "check_ai_provenance.py")
+
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["schema_version"] == "pegasus-dispatch-receipt/v2"
+    assert receipt["request"]["task"] == "provenance"
+    assert receipt["request"]["args"] == ["--range", "72849d3..HEAD"]
+
+
+def test_provenance_probe_omits_pytest_and_xdist_imports():
+    source = DC._interpreter_probe_source("provenance")
+    assert "import pytest" not in source
+    assert "import xdist" not in source
+    assert "import packaging" not in source
+    # 版数 gate は task に依らず残る (_job_run と二層冗長)。
+    assert "if sys.version_info < (3, 10):" in source
+    assert "raise SystemExit(1)" in source
+
+    default_source = DC._interpreter_probe_source()
+    assert default_source == DC._interpreter_probe_source("tests")
+    assert "import pytest" in default_source
+    assert "import xdist" in default_source
+
+
+def test_job_run_accepts_v1_request_as_tests_task(tmp_path):
+    """M12 期待赤: v1 受理を外すと queue 待ち中の in-flight job が rc=16 で死ぬ。
+
+    期待赤:
+    ``orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_accepts_v1_request_as_tests_task``。
+    """
+
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v1",
+            "repo_root": str(_REPO),
+            "pytest_args": ["orchestrator/tests", "-q"],
+            "environment": {"PYTEST_ADDOPTS": "-q"},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request, child_rc=7)
+    assert rc == 7
+    assert len(calls) == 1
+    argv, kwargs = calls[0]
+    assert argv[1] == str(_REPO / "tools" / "run_tests.py")
+    assert argv[2:] == ["orchestrator/tests", "-q"]
+    assert kwargs["env"]["PYTEST_ADDOPTS"] == "-q"
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert result["stage"] == "child"
+    assert result["child_rc"] == 7
+    assert result["error"] is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "schema_version": "pegasus-dispatch-request/v3",
+            "task": "tests",
+            "args": [],
+        },
+        {
+            "schema_version": "pegasus-dispatch-request/v2",
+            "task": "shell",
+            "args": [],
+        },
+        {
+            "schema_version": "pegasus-dispatch-request/v2",
+            "task": 3,
+            "args": [],
+        },
+    ],
+    ids=["unknown-schema", "unknown-task", "non-string-task"],
+)
+def test_job_run_rejects_unknown_schema_and_task(tmp_path, payload):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({"repo_root": str(_REPO), "environment": {}, **payload}) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+    assert rc == DC.INFRA_RC
+    assert calls == []
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert result["stage"] == "bootstrap"
+    assert result["child_rc"] == DC.INFRA_RC
+    assert result["error"] is not None
+
+
+@pytest.mark.parametrize(
+    ("task", "script"),
+    [("tests", "run_tests.py"), ("provenance", "check_ai_provenance.py")],
+)
+def test_job_run_launches_task_specific_child_script(tmp_path, task, script):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": task,
+            "args": ["--range", "A..B"],
+            "environment": {},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+    assert rc == 0
+    argv, _ = calls[0]
+    assert argv[1] == str(_REPO / "tools" / script)
+    assert argv[2:] == ["--range", "A..B"]
+
+
+def test_tests_task_remains_default_and_receipt_records_task(tmp_path):
+    scheduler = _Scheduler()
+    rc, submission = _dispatch(tmp_path, scheduler)
+    assert rc == 0
+
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["schema_version"] == "pegasus-dispatch-receipt/v2"
+    assert receipt["request"]["task"] == "tests"
+    assert receipt["request"]["args"] == [
+        "orchestrator/tests/test_sample.py", "-q",
+    ]
+    assert "pytest_args" not in receipt["request"]
+
+    request = json.loads((submission / "request.json").read_text(encoding="utf-8"))
+    assert request["task"] == "tests"
+    assert request["args"] == ["orchestrator/tests/test_sample.py", "-q"]
+    assert request["environment"] == {"PYTEST_ADDOPTS": "-q"}
+
+
+def test_run_tests_default_dispatch_passes_tests_task(monkeypatch):
+    """B-R11: 唯一の production caller が task を明示することを固定する。"""
+
+    from tools import run_tests
+
+    seen: dict = {}
+
+    def fake_dispatch(args, **kwargs):
+        seen["args"] = list(args)
+        seen["kwargs"] = kwargs
+        return 5
+
+    monkeypatch.setattr(DC, "dispatch", fake_dispatch)
+    rc = run_tests._default_dispatch(["-q"], environ={"PATH": "/usr/bin"})
+    assert rc == 5
+    assert seen["args"] == ["-q"]
+    assert seen["kwargs"]["task"] == "tests"
+    assert seen["kwargs"]["task"] in DC.TASKS
+    assert Path(seen["kwargs"]["repo_root"]).resolve() == _REPO.resolve()
+    assert seen["kwargs"]["environ"] == {"PATH": "/usr/bin"}
+
+
+def test_dev_wave_check_maps_dispatch_infra_rc_off_provenance_reason(tmp_path):
+    """B-R7: rc=16 は dispatch の infra 失敗であって provenance 違反ではない。
+
+    dev-wave の check 分類は spec 名だけを見ていたため、queue 満杯・qstat 権限
+    エラー・receipt 永続失敗のいずれもが receipt に「provenance 違反」として載って
+    いた。所有分割上 tools/dev_waves/ の test は本 wave では持たないので、rc 契約の
+    消費側検査を dispatcher 側の境界テストとしてここに置く。
+
+    検査するのは「provenance 理由から外れること」だけである — `ReasonCode` に
+    infra 相当の値は無く、`CHECK_FAILED` は全 fallback と同値なので、台帳上は
+    他の check 失敗と区別できない (段 6 レビュー B の MF-2)。
+
+    fake は `python3 -c` ではなく checkout 直下の実 `tools/check_*.py` として置く:
+    `CheckSpec.__post_init__` の trust root 検査は恒真ではなく、段 6 の受入全走
+    (計算ノード request 874774.nqsv) で `-c` 形が実際に
+    `ValueError: fixed check script is outside the trust root` で弾かれた。
+    """
+
+    from tools.dev_waves.checker import CheckSpec, run_check_specs
+    from tools.dev_waves.schema import ReasonCode
+
+    assert DC.INFRA_RC == 16
+    assert not [name for name in ReasonCode.__members__ if "INFRA" in name], (
+        "infra 専用の理由コードが増えたら rc=16 の写像先を見直すこと")
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (tools / "check_fake_infra.py").write_text(
+        f"raise SystemExit({DC.INFRA_RC})\n", encoding="utf-8")
+    (tools / "check_fake_violation.py").write_text(
+        "raise SystemExit(1)\n", encoding="utf-8")
+    deadline = time.clock_gettime_ns(time.CLOCK_BOOTTIME) + 60_000_000_000
+
+    infra = run_check_specs(
+        (CheckSpec(
+            "provenance", (sys.executable, "tools/check_fake_infra.py"), 30,
+        ),),
+        tmp_path,
+        total_deadline_boottime_ns=deadline,
+    )
+    assert infra[0].status == "fail"
+    assert infra[0].reason is not ReasonCode.PROVENANCE_FAILED
+    assert infra[0].reason is ReasonCode.CHECK_FAILED
+
+    violation = run_check_specs(
+        (CheckSpec(
+            "provenance", (sys.executable, "tools/check_fake_violation.py"), 30,
+        ),),
+        tmp_path,
+        total_deadline_boottime_ns=deadline,
+    )
+    assert violation[0].status == "fail"
+    assert violation[0].reason is ReasonCode.PROVENANCE_FAILED
 
 
 def _run():

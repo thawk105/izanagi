@@ -4666,3 +4666,92 @@ D の対象は [T-173] の pickaxe と同じ「commit / ファイル数に対し
 テストの検出力はいずれも不変である。本 wave の commit は docs のみで、コードは 0 byte 変更である。
 下限を実際に下げる 4 択 (本番履歴走査の置換 / `output/` tracked bytes 削減 / session 跨ぎ cache /
 xdist grouping) はユーザー裁定へ返す。
+
+---
+
+## D105. [T-205] provenance 履歴監査を計算ノードへ移し、Codex author 契約に正規の waiver を開く (2026-07-31)
+
+**背景 (ユーザー裁定 2 件と実測):** (1) 2026-07-31「cygnus は良いが pegasus は計算ノードに投げるべき」。
+`check_ai_provenance.py` の履歴監査は 1 回で git subprocess 約 3000 本・ログインノードで 130〜150 秒を
+共有ノードに載せており、runbook §7 の「ログインノードに残してよいのは編集・静的検査・docs 検査・
+スケジューラ操作」を過大解釈していた。(2) 2026-07-31「codex のレートリミットが近いので codex を使うところは
+claude で代替」および、それが D95 の Codex author 契約に抵触する件への「例外経路を正規化して全部やる」。
+高速化の材料は `output/insights/2026-07-30_t200-suite-floor/s7-negative-result.md` §11 (計算ノード bnode041、
+596 commit)。本 D は 3 つの受理集合変更を伴うため D96 の手続に従い、境界テストを同じ変更単位で更新する。
+
+**決定 (1): Codex 不可用時の Claude author を waiver trailer で正規化する。**
+形式は `AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>` の物理 1 行を最終 trailer block に置き、
+同じ block の `AI-Agent` に `role=author` を併記する。D95 の「Codex が実行不能なら Claude が代行せず停止し、
+例外の必要性をユーザー裁定へ返す」は維持し、**裁定後の運用形**だけを本 D が定義する。
+免除は恒久の正規経路とし、機械上限は設けない。抑止は次の 2 つに置く。
+
+- checker は免除が**実際に発火した**件数と理由を stdout へ出す (rc=1 のときも沈黙させない)。
+  件数は「waiver 行の付与数」ではなく「`validate_implementation_author` が免除を返した回数」である。
+  docs-only commit に waiver を付けても計上されない。
+- 件数と経緯は worklog に残す。
+
+**決定 (1-a): waiver 行を持つ commit は forward correction の担い手になれない。**
+前方訂正の成立条件は「自身の通常 green」を含む (`docs/ai-provenance.md` の公表契約)。waiver で
+normal findings が消えると、実装面 path + Claude-only author の commit が前方訂正の担い手になれてしまい、
+`6b64d21` の欠落 finding を抑止する受理集合が**広がる**。成立条件の連言へ「waiver が exact でないこと」を
+足してこれを閉じる。この変更で forward correction の受理集合は現行と同じか狭くなる方向にしか動かない。
+
+**決定 (2): provenance 履歴監査は「重い処理」であり、計算ノードで走らせる。**
+強制は D103 決定 5 と同じ書きぶりで sanctioned 経路の fail-closed に限り、**全経路の機械保証は主張しない**。
+
+- **第一層 (checker 自身)**: `main()` が site を判定し、`PEGASUS_LOGIN` なら計算ノードへ自動 dispatch、
+  `PEGASUS_SUSPECT` なら rc=16 で拒否する。**免除は `--message-file` の commit 前 preflight だけ**とし、
+  判定は `parse_args()` の後に `args.message_file is not None` で行う (raw token allowlist を移植しない —
+  `--message-f` のような argparse 接頭辞省略が allowlist を外れ、commit 経路が queue 依存になるため)。
+- **第二層 (hook)**: `hooks/guard_bash.py` が Claude の Bash 面だけで、sanctioned exact path 以外の綴りを拒否する。
+  **hook が新規に閉じるのは綴り差だけである。** Codex subprocess (hook 未配線)、script file 越し、変数展開、
+  `python3 -c`、ユーザー端末、cron は原理的に見えない。
+
+**決定 (3): dispatch は閉じた task enum で一般化し、request schema は 1 リリース分の後方互換を持つ。**
+`{"tests", "provenance"}` の閉集合とし、既定は `tests`。不正 task は親側と子側の二層で fail-closed にする。
+任意 command 化は D103 決定 5 (`tools/pegasus/` の glob 許可を明示的に拒む) と正面衝突するので採らない。
+`_job_run` は request schema の v1 と v2 を両方受理する — 一方向 bump は、queue 待ち中に本 wave の commit が
+land した場合に in-flight job を殺す退行になる。
+
+**決定 (4): 監査の並列度は site 由来とし、上限 32 を置く。**
+既定を `min(available_cpus(), 32)` とする。runbook §7 のユーザー裁定「計算ノードでは割り当てられた資源を
+最大限使い、最大並列で回す」に従う。上限 32 の根拠は insight §11 の実測 (32→48 は 5.23→5.23 秒で改善ゼロ、
+git subprocess の fork/exec が律速)。**env による上書きは作らない** (D103 却下の escape hatch)。
+受入基準は「逐次比 ≥4.5 倍かつ findings/corrected の完全一致」とし、insight の 4.58 秒は
+**48 並列 + bitset の arm の参照値**であって 16 や 32 の合否判定には使わない。
+
+**却下案:** (a) incident 固定方式 (`6b64d21` の forward correction と同型) — waiver は対象 commit の SHA を
+事前に知れないので成立しない。(b) allowlist / 環境変数による免除 — D103 の却下項目であり、gate を無効化する
+escape hatch になる。(c) dispatch の任意 command 化 — 上記のとおり D103 決定 5 と衝突。(d) checker 固有の
+rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できなくなる。(e) 並列度 16 固定 —
+4.58 秒は 48 並列の値であり、16 固定の受入基準として使うと実装が正しくても赤になる。(f) `docs/ai-provenance.md` の
+既存規範文を削って waiver 節を入れる — 削る候補が「provenance 記録から製品の優劣を断定するな」という
+解釈上の歯止めであり、Claude author を正規化する commit でそれを削るのは向きが逆。実際には bullet 1 つ
+(186 bytes) を足すだけで予算内 (8942/9000) に収まった。
+
+**残余リスク (発火しない保証を謳わないために逐語で残す):**
+
+- `tools/dev_waves/checker.py` が `/tmp` の隔離 clone を全 check の cwd に使うため、そこから起動された
+  監査は計算ノードから repo を見られず dispatch が失敗する。**これは本 D が新設する欠陥ではない** —
+  同じ clone で走る `orchestrator` check (`tools/run_tests.py`) が既に同型の経路にある。第一層は
+  この経路を保証しない。clone 置き場の是正は別タスクとしてユーザー裁定へ返す。
+- 上記に伴い rc=16 が dev-wave receipt の理由コードへ流れる件は、`checker.py` の分類で 16 を
+  `PROVENANCE_FAILED` から外し、汎用の `CHECK_FAILED` へ落とす。**`ReasonCode` に infra 専用の値は無く、
+  台帳上は他の check 失敗と区別できない** — この変更が与えるのは誤ラベルの除去だけであって、
+  infra の機械判別ではない。`tools/task_run_check.py` も rc を素通しするので、**台帳の
+  `exit_status=16` は infra 失敗であり provenance 違反ではない**が、この区別も機械判別しない。
+- `AGENTS.md` / `CLAUDE.md` の定型手順に従うと commit ごとに 1 PBS job が出る (queue 待ち実測 6〜86 秒)。
+  「wave 末に 1 回」へ改める案は `docs/dev-wave/operations.md` の `DW-O17` を編集する必要があるが、
+  同ディレクトリは余白 17 bytes で予算引き上げは T-127 のユーザー裁定で禁止されているため採らない。
+  置換前のログインノード 130〜150 秒 × 同数より共有資源の消費は小さい。
+- `provenance` task の walltime は既定 `00:30:00` を据え置く。`elapstim_req` は確保上限であって消費ポイントの
+  決定項ではなく、短縮しても支配項の queue 待ちは縮まない。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変である。
+変わるのは (i) provenance 監査の受理集合 — 正規 waiver の受理、forward correction の担い手資格の縮小、
+および **`--message-file` preflight で不正な waiver 行を持つ message が新たに rc=1 になること**
+(従来は未知 trailer として無視。docs-only の message でも発火するが、いずれも fail-closed 方向である) —、
+(ii) checker の rc に 16 が加わること、(iii) dispatch の request が task 種別を持つこと、の 3 点だけである。
+なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
+構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
+抑止されないため変更前から rc=1 だった。

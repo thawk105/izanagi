@@ -253,30 +253,47 @@ rbudgetcheck
 
 Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境として扱う。対話セッションが動くのは
 共有のログインノードである。**重い処理 — ビルド・テスト (pytest スイートの全走と部分走を含む)・
-ベンチ・calibration・noise floor・floor / oracle の本走 — はログインノードで走らせず、
+ベンチ・calibration・noise floor・floor / oracle の本走・provenance 履歴監査
+(`tools/check_ai_provenance.py`) — はログインノードで走らせず、
 `qlogin` / `qsub` で確保した計算ノード上で行う** (2026-07-30 ユーザー裁定。2026-07-27 の
 「ビルドとテストはログインノードで走らせてよい」を再反転したものであり、こちらが現行)。
 **計算ノードでは割り当てられた資源を最大限使い、最大並列で回す** (同裁定)。射程は
 **テストの既定並列度と build の `-j` 既定の両方**である — 計算ノードでは affinity 全数、
 非 Pegasus では従来値 (テスト cap 32 / build `-j 16`) を保つ。明示 `-n` / `jobs=` は後勝ちで尊重する
 (§8 と D103 決定 4)。ログインノードに
-残してよいのは編集・静的検査・docs 検査・スケジューラ操作 (`qsub` / `qstat` / `qdel`) だけである。
+残してよいのは編集、静的検査、docs 検査、スケジューラ操作 (`qsub` / `qstat` / `qdel`)、および
+`--message-file` の commit 前 preflight だけである。**`tools/check_ai_provenance.py` の履歴監査は
+「静的検査」ではない** — 1 回で git subprocess 約 3000 本・130〜150 秒を共有ノードに載せるため、
+checker 自身が計算ノードへ自動 dispatch する (D105)。
 
 強制の層と射程は次のとおりで、**全経路の機械保証はできない**。
 
 - **一次強制 (fail-closed)**: `tools/run_tests.py` はログインノードでのテスト実行を拒否し、
-  計算ノードへ自動 dispatch する。実 cmake build もログインノードで拒否される
+  計算ノードへ自動 dispatch する。実 cmake build もログインノードで拒否される。
+  `tools/check_ai_provenance.py` も同型で、履歴監査を計算ノードへ自動 dispatch し、
+  `PEGASUS_SUSPECT` では rc=16 で拒否する。`--message-file` の preflight だけを免除する
 - **二次防壁**: `hooks/guard_bash.py` が直接の重量コマンド (`pytest`、`cmake --build`、`make -j`、
-  `ninja`、`ctest`、計測バイナリ) を Claude の Bash 面で拒否する
+  `ninja`、`ctest`、計測バイナリ) を Claude の Bash 面で拒否する。provenance については
+  sanctioned exact path を許可し、それ以外の綴り (repo 外 copy、cwd 相対) を拒否する。
+  **hook が閉じるのはこの綴り差だけである**
 - **規律 (機械強制なし)**: Codex 子には hook が未配線 (`hooks/README.md`)。script file 越し・
   変数展開・`python3 -c`・他 AI・ユーザー端末・IDE・cron は原理的に見えない。ここは
-  `AGENTS.md` と本節の規律で塞ぐ
+  `AGENTS.md` と本節の規律で塞ぐ。**`tools/dev_waves/checker.py` が `/tmp` の隔離 clone を
+  check の cwd に使う経路も一次強制の射程外**である (計算ノードから clone が見えないため
+  dispatch が失敗する。`orchestrator` check が既に同型で、clone 置き場の是正は別タスク)
 
 計算ノードの実測 (2026-07-30、request `874129`、bnode114): 48 コア / affinity 48。pytest 全走は
 `-n 48` = 205 秒、`-n 32` = 207 秒。queue 待ちは 86 秒 (別の request では 6 秒)。
 `-n 16` 以下との対照は未取得であり、**「並列度を上げるほど速い」とは言えない** (2026-07-26 には
 より小さい suite で `-n 16` が `-n 48` より速い実測がある)。既定を最大並列にするのは
 ユーザー裁定に基づく方針であり、最速の実測に基づくものではない。
+provenance 履歴監査の**試作実装**の実測 (2026-07-30、request `874712`、bnode041、596 commit。
+出荷実装は並列度に上限 32 を置くので下表の 48 並列の値ではない): ログインノードの
+130〜150 秒に対し計算ノードの逐次が 25.24 秒、thread pool 16 並列で 5.60 秒、32 / 48 並列はいずれも
+5.23 秒 (改善が止まる)、祖先 bitset を併用した 48 並列で 4.58 秒。**全 arm で findings と
+forward-correction が baseline と完全一致することを検査条件にした** (速いだけで答えが変わる変更を採らないため)。
+一次資料は `output/insights/2026-07-30_t200-suite-floor/s7-negative-result.md` §11。
+
 `g++-13` は**ログインノードにも計算ノードにも無い** (計算ノードには `g++-12` が在る)。C++
 toolchain 依存のテスト群はどちらでも skip されるため、**移設で検出力は増えない**。全走 rc=0 は
 受入判定として成立するが、その群の検出力が無いことは結果と一緒に記録する。単独性確認
@@ -372,7 +389,11 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - OpenMP threads は 48 以下である
 - hybrid 実行は node あたり `MPI processes × OMP_NUM_THREADS <= 48` である
 - **重い処理をログインノードで実行していない** — GPU プログラム、ベンチ、calibration、
-  floor/oracle に加え、**ビルドとテスト (pytest の全走・部分走を含む) も計算ノードで行う** (§7)
+  floor/oracle に加え、**ビルドとテスト (pytest の全走・部分走を含む) も計算ノードで行う** (§7)。
+  **provenance 履歴監査 (§7)** も同じ扱いとし、免除は `--message-file` の preflight だけである
+- `python3 tools/check_ai_provenance.py` をログインノードで打つと自動 dispatch され、
+  receipt が `output/pegasus-dispatch/<nonce>/` に残る。**`rc=16` は dispatch の infra 失敗であって
+  監査結果ではない** (違反件数は rc=1 で返る)
 - 計算ノードでは**テストの既定並列度が affinity 全数**になっている (明示 `-n` /
   `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ち = 「既定が最大」であって「全実行が最大」ではない)
 - ビルドは**実行場所を計算ノードへ強制し、`-j` 既定も site 由来**にする (計算ノードで affinity
