@@ -729,7 +729,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-176] **P3・backlog ((60))**
 - [T-177] **P3・裁定要 ((60))**
 
-## 2026-07-31 (74) — [/rulings] ユーザー裁定 15 件を記録し、並行 wave の ID 再利用で落ちた裁定待ち 2 件を復元 (docs のみ、branch worktree-rulings-2026-07-31)
+## 2026-07-31 (74) — [/rulings] ユーザー裁定 20 件を記録し、並行 wave の ID 再利用で落ちた裁定待ち 2 件を復元 (docs のみ、branch worktree-rulings-2026-07-31)
 
 - ユーザー裁定 5 件 (要旨)。索引 16 件を提示し先頭 5 件を詳説した結果への回答である
   1. **[T-193] 前段は推奨どおり (a)** — `tools/pegasus/dispatch_compute.py` を正本にし、
@@ -773,6 +773,20 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   14. **[T-186] は (b)** — `max_artifact_bytes` だけ入れ、seal ceremony と脱出子の
       完全封じ込めは見送る
   15. **[T-197] は (b) 据え置き** — 外部入力が設定 JSON へ届く経路ができた時が本来の着手時期
+- **残り全件のユーザー裁定 5 件** (「基本は推奨通り」+ ホスト名判定の確認)
+  16. **[T-213] は (b)** — 自分の差分が触れていない handoff は control-plane 検査の対象から外す
+  17. **[T-196] は (a)**。**確認事項への回答: site 判定は hostname 起点である** —
+      `classify_site()` が `socket.gethostname()` の第 1 label を `^bnode[0-9]+$` (compute) /
+      `^pegasus0[1-9]$` (login) で照合し、PATH 上の `qsub` / `qstat` を傍証にする。拒否は
+      `refuses_heavy_work()` = {`PEGASUS_LOGIN`, `PEGASUS_SUSPECT`} だけで、**cygnus は `OTHER` に
+      分類され拒否されない**。ユーザー裁定「cygnus はそこしか使えないので静定判定を絡めながら
+      そこでやる」に従い、**`OTHER` へ拒否を足さず、runbook の単独性・静定確認 (F3 の恒久対応) に
+      従う**。`PEGASUS_SUSPECT` (hostname 不明 + NQSV あり等) の fail-closed も維持する
+  18. **[T-198] は (b)** — 上限 wall (現行 30 分) による被害限定で足りる。lease / heartbeat は見送る
+  19. **[T-174] は (c)** — 渡した prompt bytes の保存 (事後監査可能性) を先に入れ、
+      mediated launcher / provider receipt による因果束縛は見送る
+  20. **[T-175] は (c)** — [T-174] と同じ wave で射影入力を人可読で記録する。trusted registry の
+      artifact ID 起点への再設計は、合成の主張を対外へ出す直前が着手時期
 - **land が 2 度目の「無関係な実体」で止まった (本セッション実測)**。今回は他セッション所有の
   `docs/handoff/2026-07-31-t126-f32-closure-resume.md` が、題名の次に空行を置いており
   `- 目的:` で始まっていないため `handoff four-line header is malformed` で拒否された
@@ -1227,12 +1241,8 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   危険な名前と実衝突だけの拒否へ是正し回帰を追加した
 - [T-212] **P2・裁定済み ((74)) → 実装待ち**: 択 (c) 採用 — 非衝突の未追跡 path を無視する
   現行は追認し、`_SAFE_CHILD_RE` だけ**先頭ダッシュを拒否**へ戻す。負例テストを同時に入れる
-- [T-213] **P2・ユーザー裁定要 (新規)**: land の control-plane 検査が、**他セッション所有の
-  handoff の書式**で無関係な差分の着地を止める。本セッションは 4 行ヘッダ不整合で、(73) は
-  状態値の 3 値外れで拒否された。所有者以外は編集できない (DW-O23) ため、待つ以外の
-  正規手段がない。択 = (a) 現状維持 (書式は所有者が直す)、(b) 自分の差分が触れていない
-  handoff は検査対象から外す、(c) 不整合は拒否せず警告にする。[T-206]/[T-212] と同じ
-  「無関係で止めない」原則を handoff 面へ広げるかの判断
+- [T-213] **P2・裁定済み ((74)) → 実装待ち**: 択 (b) 採用 — 自分の差分が触れていない handoff は
+  control-plane 検査の対象から外す。[T-206] / [T-212] の「無関係で止めない」原則を handoff 面へ広げる
 - [T-204] **P2・裁定済み ((74)) → 実装待ち**: `docs/dev-wave/**` の 24000 bytes 上限は
   上げず、未使用の L2 節を削って空ける。削除候補の洗い出しは AI、選択はユーザー
 - [T-203] 変わらず ((73) 参照)
@@ -1243,10 +1253,15 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   actual build argv を足す schema 変更は不要**になった。campaign driver は既に `buildcache` 既定
   (`site_policy.default_build_jobs`) を通り、compute では affinity 全数になっている。残る固定値は
   [T-196] の射程
-- [T-196] 変わらず ((73) 参照)
+- [T-196] **P3・裁定済み ((74)) → 実装待ち**: 択 (a) 採用 — `silo_ladder_rung1.py` (site 判定なし・
+  `-j 48` 直書き) と `t152_write_intent_coverage.py` (`DEFAULT_JOBS=MAX_JOBS=8`・成果物へ
+  `host_role: login-node`) を `refuses_heavy_work()` gate と `default_build_jobs()` へ通す。
+  **cygnus (`OTHER`) は拒否対象に含めない** — そこしか使えないため、runbook の単独性・静定確認
+  (F3 恒久対応) と組み合わせて実行する
 - [T-197] **P3・裁定済み ((74)、据え置き)**: 択 (b) 採用 — sanctioned exact path 列挙のまま置く。
   `exec_calibrate.py` の汎用性を畳むのは、外部入力が設定 JSON へ届く経路ができた時点
-- [T-198] 変わらず ((73) 参照)
+- [T-198] **P3・裁定済み ((74)、見送り)**: 択 (b) 採用 — scheduler-side lease / heartbeat は入れず、
+  ジョブの上限 wall (現行 30 分) で取り残しの被害を限定する
 - [T-199] 変わらず ((73) 参照)
 - [T-191] 変わらず ((73) 参照)
 - [T-189] **P1・裁定済み ((74)) → 実装・設計待ち**: 択 (a) 採用 — 不正 reasoning 値の
@@ -1353,8 +1368,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-171] 変わらず ((73) 参照)
 - [T-172] 変わらず ((73) 参照)
 - [T-173] 変わらず ((73) 参照)
-- [T-174] 変わらず ((73) 参照)
-- [T-175] 変わらず ((73) 参照)
+- [T-174] **P3・裁定済み ((74)) → 実装待ち**: 択 (c) 採用 — planner / coder へ渡した prompt bytes を
+  保存し事後監査を可能にする。mediated launcher / provider receipt による因果束縛は見送る
+- [T-175] **P3・裁定済み ((74)、[T-174] と同 wave) → 実装待ち**: 択 (c) 採用 — 射影入力を人可読で
+  記録する。trusted registry の artifact ID 起点への再設計は対外主張の直前が着手時期
 - [T-176] 変わらず ((73) 参照)
 - [T-177] **P3・裁定済み ((74)、[T-204] と同根) → 実装待ち**: 上限を上げずに未使用 L2 節の
   削除で空け、F53 恒久対応の DW-O02 統合を通す
