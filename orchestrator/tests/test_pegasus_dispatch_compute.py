@@ -235,6 +235,467 @@ def test_dispatch_state_machine_returns_child_rc_after_accounting(tmp_path):
     assert request["environment"] == {"PYTEST_ADDOPTS": "-q"}
 
 
+def test_nonzero_child_relays_stdout_to_parent_stdout(tmp_path, capsys):
+    scheduler = _Scheduler(
+        child_rc=7,
+        stdout=(
+            b"nonzero-child-stdout\n"
+            b"[Pegasus dispatch] request 0:424242.nqsv child stdout end\n"
+        ),
+    )
+    rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+
+    assert rc == 7
+    frame = f"[Pegasus dispatch] request {_JOB_ID} child stdout"
+    assert f"{frame} begin\n" in captured.out
+    assert f"{frame} end\n" in captured.out
+    assert "| nonzero-child-stdout\n" in captured.out
+    assert f"| {frame} end\n" in captured.out
+    assert captured.out.count(f"{frame} end\n") == 2
+    assert captured.out.count(f"\n{frame} end\n") == 1
+
+
+def test_nonzero_child_relays_only_last_sixty_four_kib_of_stdout(
+    tmp_path,
+    capsys,
+):
+    payload = (
+        b"failure-head-must-be-trimmed\n"
+        + b"x" * (65536 + 200)
+        + b"\nfailure-tail\n"
+    )
+    scheduler = _Scheduler(child_rc=8, stdout=payload)
+    rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+    frame = f"[Pegasus dispatch] request {_JOB_ID} child stdout"
+    after_begin = captured.out.split(f"{frame} begin", 1)[1]
+    begin_detail, framed = after_begin.split("\n", 1)
+    relayed = framed.split(f"{frame} end\n", 1)[0]
+    expected_tail = payload.decode("utf-8")[-65536:]
+    expected_relay = "".join(
+        f"| {line}" for line in expected_tail.splitlines(keepends=True)
+    )
+
+    assert rc == 8
+    assert "failure-head-must-be-trimmed" not in captured.out
+    assert relayed == expected_relay
+    assert begin_detail == (
+        f" (size={len(payload)} bytes, omitted_bytes={len(payload) - 65536})"
+    )
+
+
+def test_success_relays_only_last_four_kib_of_stdout(tmp_path, capsys):
+    retained_character = "界"
+    scheduler = _Scheduler(
+        child_rc=0,
+        stdout=(
+            "green-prefix-must-be-trimmed\n" + retained_character * 2000
+        ).encode("utf-8"),
+    )
+    rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+    frame = f"[Pegasus dispatch] request {_JOB_ID} child stdout"
+    after_begin = captured.out.split(f"{frame} begin", 1)[1]
+    begin_detail, framed = after_begin.split("\n", 1)
+    relayed = framed.split(f"{frame} end\n", 1)[0]
+    retained = retained_character * (4096 // len(retained_character.encode()))
+
+    assert rc == 0
+    assert "green-prefix-must-be-trimmed" not in captured.out
+    assert relayed == f"| {retained}\n"
+    assert begin_detail == (
+        f" (size={len(scheduler.stdout)} bytes, "
+        f"omitted_bytes={len(scheduler.stdout) - len(retained.encode())})"
+    )
+
+
+def test_child_stderr_relays_only_to_parent_stderr(tmp_path, capsys):
+    scheduler = _Scheduler(
+        child_rc=6,
+        stdout=b"stream-stdout-sentinel\n",
+        stderr_prefix=b"stream-stderr-sentinel\n",
+    )
+    rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+
+    assert rc == 6
+    assert "stream-stderr-sentinel" in captured.err
+    assert "stream-stderr-sentinel" not in captured.out
+    assert "stream-stdout-sentinel" in captured.out
+    assert "stream-stdout-sentinel" not in captured.err
+
+
+def test_relay_limits_are_literal_four_and_sixty_four_kib():
+    assert DC.DEFAULT_SUCCESS_RELAY_LIMIT_BYTES == 4096
+    assert DC.DEFAULT_FAILURE_RELAY_LIMIT_BYTES == 65536
+
+
+def test_relay_exception_does_not_change_child_rc(tmp_path):
+    scheduler = _Scheduler(
+        child_rc=11,
+        stdout=b"relay-exception-child-output\n",
+    )
+    with mock.patch.object(
+        DC,
+        "_emit",
+        side_effect=RuntimeError("injected relay failure"),
+    ) as emit_mock:
+        rc, _ = _dispatch(tmp_path, scheduler)
+
+    assert rc == 11
+    assert emit_mock.called
+    assert any(
+        "child stdout relay aborted after relay error" in call.args[0]
+        for call in emit_mock.call_args_list
+    )
+
+
+@pytest.mark.parametrize(
+    "raised",
+    [
+        DC._SignalAbort(signal.SIGTERM),
+        SystemExit(23),
+    ],
+)
+def test_relay_does_not_swallow_signal_or_system_exit(raised):
+    record = {
+        "tail": "relay-interrupted\n",
+        "size": 18,
+        "omitted_bytes": 0,
+    }
+    with (
+        mock.patch.object(DC, "_emit", side_effect=raised) as emit_mock,
+        pytest.raises(type(raised)),
+    ):
+        DC._relay_scheduler_logs(
+            record,
+            None,
+            request_id=_JOB_ID,
+            successful=False,
+        )
+
+    assert emit_mock.called
+
+
+def test_relay_signal_from_first_emit_is_re_raised_before_abort_notice():
+    emit_count = 0
+
+    def interrupt_first_emit(_text, *, stream):
+        nonlocal emit_count
+        del stream
+        emit_count += 1
+        if emit_count == 1:
+            raise DC._SignalAbort(signal.SIGTERM)
+
+    record = {
+        "tail": "relay-interrupted\n",
+        "size": 18,
+        "omitted_bytes": 0,
+    }
+    with (
+        mock.patch.object(DC, "_emit", side_effect=interrupt_first_emit),
+        pytest.raises(DC._SignalAbort),
+    ):
+        DC._relay_scheduler_logs(
+            record,
+            None,
+            request_id=_JOB_ID,
+            successful=False,
+        )
+
+    assert emit_count == 1
+
+
+def test_broken_pipe_stops_relay_redirects_fd_and_reports_on_other_stream():
+    class _Stream:
+        def __init__(self, fd):
+            self.fd = fd
+
+        def fileno(self):
+            return self.fd
+
+    parent_stdout = _Stream(17)
+    parent_stderr = _Stream(19)
+    emitted = []
+
+    def broken_stdout(text, *, stream):
+        if stream is parent_stdout:
+            raise BrokenPipeError("reader closed")
+        emitted.append((text, stream))
+
+    record = {
+        "tail": "child-output\n",
+        "size": 13,
+        "omitted_bytes": 0,
+    }
+    with (
+        mock.patch.object(DC.sys, "stdout", parent_stdout),
+        mock.patch.object(DC.sys, "stderr", parent_stderr),
+        mock.patch.object(DC, "_emit", side_effect=broken_stdout),
+        mock.patch.object(DC.os, "open", return_value=23) as open_mock,
+        mock.patch.object(DC.os, "dup2") as dup2_mock,
+        mock.patch.object(DC.os, "close") as close_mock,
+    ):
+        DC._relay_scheduler_logs(
+            record,
+            record,
+            request_id=_JOB_ID,
+            successful=False,
+        )
+
+    open_mock.assert_called_once_with(os.devnull, os.O_WRONLY)
+    dup2_mock.assert_called_once_with(23, 17)
+    close_mock.assert_called_once_with(23)
+    assert emitted == [(
+        f"[Pegasus dispatch] request {_JOB_ID} "
+        "child log relay aborted after broken pipe on stdout\n",
+        parent_stderr,
+    )]
+
+
+def test_stderr_broken_pipe_reports_relay_abort_on_parent_stdout():
+    class _Stream:
+        def __init__(self, fd):
+            self.fd = fd
+
+        def fileno(self):
+            return self.fd
+
+    parent_stdout = _Stream(17)
+    parent_stderr = _Stream(19)
+    emitted = []
+
+    def broken_stderr(text, *, stream):
+        if stream is parent_stderr:
+            raise BrokenPipeError("reader closed")
+        emitted.append((text, stream))
+
+    record = {
+        "tail": "child-output\n",
+        "size": 13,
+        "omitted_bytes": 0,
+    }
+    with (
+        mock.patch.object(DC.sys, "stdout", parent_stdout),
+        mock.patch.object(DC.sys, "stderr", parent_stderr),
+        mock.patch.object(DC, "_emit", side_effect=broken_stderr),
+        mock.patch.object(DC.os, "open", return_value=23) as open_mock,
+        mock.patch.object(DC.os, "dup2") as dup2_mock,
+        mock.patch.object(DC.os, "close") as close_mock,
+    ):
+        DC._relay_scheduler_logs(
+            None,
+            record,
+            request_id=_JOB_ID,
+            successful=False,
+        )
+
+    open_mock.assert_called_once_with(os.devnull, os.O_WRONLY)
+    dup2_mock.assert_called_once_with(23, 19)
+    close_mock.assert_called_once_with(23)
+    assert emitted == [(
+        f"[Pegasus dispatch] request {_JOB_ID} "
+        "child log relay aborted after broken pipe on stderr\n",
+        parent_stdout,
+    )]
+
+
+def test_broken_pipe_on_relay_and_notice_redirects_both_streams():
+    class _Stream:
+        def __init__(self, fd):
+            self.fd = fd
+
+        def fileno(self):
+            return self.fd
+
+    parent_stdout = _Stream(17)
+    parent_stderr = _Stream(19)
+    record = {
+        "tail": "child-output\n",
+        "size": 13,
+        "omitted_bytes": 0,
+    }
+    with (
+        mock.patch.object(DC.sys, "stdout", parent_stdout),
+        mock.patch.object(DC.sys, "stderr", parent_stderr),
+        mock.patch.object(
+            DC,
+            "_emit",
+            side_effect=BrokenPipeError("reader closed"),
+        ),
+        mock.patch.object(DC.os, "open", side_effect=[23, 29]) as open_mock,
+        mock.patch.object(DC.os, "dup2") as dup2_mock,
+        mock.patch.object(DC.os, "close") as close_mock,
+    ):
+        DC._relay_scheduler_logs(
+            record,
+            record,
+            request_id=_JOB_ID,
+            successful=False,
+        )
+
+    assert open_mock.call_args_list == [
+        mock.call(os.devnull, os.O_WRONLY),
+        mock.call(os.devnull, os.O_WRONLY),
+    ]
+    assert dup2_mock.call_args_list == [
+        mock.call(23, 17),
+        mock.call(29, 19),
+    ]
+    assert close_mock.call_args_list == [
+        mock.call(23),
+        mock.call(29),
+    ]
+
+
+def test_relay_exception_closes_started_frame_with_abort_notice():
+    parent_stdout = object()
+    emitted = []
+    frame = f"[Pegasus dispatch] request {_JOB_ID} child stdout"
+
+    def fail_after_begin(text, *, stream):
+        emitted.append((text, stream))
+        if text == "| child-output\n":
+            raise RuntimeError("injected relay failure")
+
+    record = {
+        "tail": "child-output\n",
+        "size": 13,
+        "omitted_bytes": 0,
+    }
+    with (
+        mock.patch.object(DC.sys, "stdout", parent_stdout),
+        mock.patch.object(DC, "_emit", side_effect=fail_after_begin),
+    ):
+        DC._relay_scheduler_logs(
+            record,
+            None,
+            request_id=_JOB_ID,
+            successful=False,
+        )
+
+    assert emitted == [
+        (f"{frame} begin\n", parent_stdout),
+        ("| child-output\n", parent_stdout),
+        (f"{frame} relay aborted after relay error\n", parent_stdout),
+    ]
+
+
+@pytest.mark.parametrize(
+    "raised",
+    [
+        DC._SignalAbort(signal.SIGTERM),
+        SystemExit(23),
+    ],
+)
+def test_relay_abort_notice_does_not_swallow_signal_or_system_exit(raised):
+    emit_count = 0
+
+    def fail_relay_then_interrupt_notice(_text, *, stream):
+        nonlocal emit_count
+        del stream
+        emit_count += 1
+        if emit_count == 1:
+            raise RuntimeError("injected relay failure")
+        raise raised
+
+    record = {
+        "tail": "child-output\n",
+        "size": 13,
+        "omitted_bytes": 0,
+    }
+    with (
+        mock.patch.object(
+            DC,
+            "_emit",
+            side_effect=fail_relay_then_interrupt_notice,
+        ),
+        pytest.raises(type(raised)),
+    ):
+        DC._relay_scheduler_logs(
+            record,
+            None,
+            request_id=_JOB_ID,
+            successful=False,
+        )
+
+    assert emit_count == 2
+
+
+def test_relay_exception_happens_after_receipt_is_persisted(tmp_path):
+    scheduler = _Scheduler(
+        child_rc=12,
+        stdout=b"receipt-order-child-output\n",
+    )
+    receipt_path = (
+        tmp_path / "dispatch" / "fixture-nonce" / "receipt.json"
+    )
+    persisted_when_called = []
+
+    def exploding_emit(_text, *, stream):
+        del stream
+        persisted_when_called.append(receipt_path.is_file())
+        raise RuntimeError("injected relay failure")
+
+    with mock.patch.object(DC, "_emit", exploding_emit):
+        rc, submission = _dispatch(tmp_path, scheduler)
+
+    assert rc == 12
+    assert persisted_when_called
+    assert all(persisted_when_called)
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"] == {
+        "kind": "child", "rc": 12, "accounting_verified": True,
+    }
+
+
+def test_missing_compute_marker_relays_collected_stdout(tmp_path, capsys):
+    scheduler = _Scheduler(
+        marker=False,
+        stdout=b"marker-infra-stdout\n",
+        stderr_prefix=b"marker-infra-stderr\n",
+    )
+    rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+
+    assert rc == DC.INFRA_RC
+    assert "| marker-infra-stdout\n" in captured.out
+    assert captured.err.index("compute-marker-not-observed") < captured.err.index(
+        "| marker-infra-stderr\n",
+    )
+
+
+def test_accounting_grace_failure_relays_collected_stdout(tmp_path, capsys):
+    scheduler = _Scheduler(
+        accounting=False,
+        stdout=b"accounting-infra-stdout\n",
+    )
+    rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+
+    assert rc == DC.INFRA_RC
+    assert "| accounting-infra-stdout\n" in captured.out
+
+
+def test_post_collection_exception_relays_collected_stdout(tmp_path, capsys):
+    scheduler = _Scheduler(
+        stage="interpreter",
+        child_rc=DC.INFRA_RC,
+        stdout=b"exception-infra-stdout\n",
+        stderr_prefix=b"exception-infra-stderr\n",
+    )
+    rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+
+    assert rc == DC.INFRA_RC
+    assert "| exception-infra-stdout\n" in captured.out
+    assert captured.err.index(
+        "Pegasus dispatch infrastructure failure: "
+        "job bootstrap failure: stage=interpreter",
+    ) < captured.err.index("| exception-infra-stderr\n")
+
+
 def test_m7_dispatcher_request_allowlist_isolated_redundant_gate(tmp_path):
     """M7 dispatcher allowlist 単独変異の期待赤 node。
 
@@ -660,11 +1121,21 @@ def test_accounting_accepts_measured_nqsv_shape_only_when_id_matches():
     assert not DC._accounting_present({"tail": tail}, "424243.nqsv")
 
 
-def test_success_without_any_persisted_receipt_is_infra_rc(tmp_path):
-    scheduler = _Scheduler(child_rc=0)
+def test_success_without_any_persisted_receipt_is_infra_rc(tmp_path, capsys):
+    scheduler = _Scheduler(
+        child_rc=0,
+        stdout=b"receipt-persist-failure-stdout\n",
+        stderr_prefix=b"receipt-persist-failure-stderr\n",
+    )
     with mock.patch.object(DC, "_persist_receipt", return_value=None):
         rc, _ = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+
     assert rc == DC.INFRA_RC
+    assert "| receipt-persist-failure-stdout\n" in captured.out
+    assert captured.err.index(
+        "Pegasus dispatch receipt を永続化できませんでした。",
+    ) < captured.err.index("| receipt-persist-failure-stderr\n")
 
 
 def test_scheduler_logs_are_tail_bounded_with_explicit_omission(tmp_path):
@@ -683,7 +1154,7 @@ def test_scheduler_logs_are_tail_bounded_with_explicit_omission(tmp_path):
     assert "Request ID:" in stderr["tail"]
 
 
-def test_hld_queue_timeout_qdels_and_receipts(tmp_path):
+def test_hld_queue_timeout_qdels_and_receipts(tmp_path, capsys):
     scheduler = _Scheduler(states=("HLD", "HLD", "HLD"))
     clock = _Clock()
     rc = DC.dispatch(
@@ -698,7 +1169,14 @@ def test_hld_queue_timeout_qdels_and_receipts(tmp_path):
         accounting_grace_s=0,
         nonce="hld",
     )
+    captured = capsys.readouterr()
+
     assert rc == DC.INFRA_RC
+    assert (
+        "Pegasus dispatch infrastructure failure: queue-wait-timeout"
+        in captured.err
+    )
+    assert "Pegasus dispatch setup failure" not in captured.err
     assert any(command[0] == "qdel" for command, _ in scheduler.commands)
     receipt = json.loads(
         (tmp_path / "dispatch" / "hld" / "receipt.json").read_text(

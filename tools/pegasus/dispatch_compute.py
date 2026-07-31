@@ -30,6 +30,8 @@ DEFAULT_OVERALL_GRACE_S = 300.0
 DEFAULT_ACCOUNTING_GRACE_S = 60.0
 DEFAULT_POLL_INTERVAL_S = 5.0
 DEFAULT_LOG_LIMIT_BYTES = 2 * 1024 * 1024
+DEFAULT_SUCCESS_RELAY_LIMIT_BYTES = 4 * 1024
+DEFAULT_FAILURE_RELAY_LIMIT_BYTES = 64 * 1024
 DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS = 3
 
 _TASK_RUN_ENV = "IZANAGI_TASK_RUN_ID"
@@ -198,6 +200,12 @@ def _scheduler_state(stdout: str) -> Optional[str]:
 
 def _progress(message: str) -> None:
     print(f"[Pegasus dispatch] {message}", flush=True)
+
+
+def _emit(text: str, *, stream: Any) -> None:
+    """親 process の指定 stream へ relay text を書く注入 seam。"""
+
+    print(text, end="", file=stream, flush=True)
 
 
 def _capture(result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
@@ -511,6 +519,144 @@ def _bounded_log(path: Path, *, limit: int) -> dict[str, Any]:
     }
 
 
+def _utf8_tail(text: str, *, limit: int) -> str:
+    """decode 済み text の末尾を UTF-8 byte 枠内の部分文字列にする。"""
+
+    remaining = limit
+    start = len(text)
+    while start:
+        width = len(text[start - 1].encode("utf-8"))
+        if width > remaining:
+            break
+        remaining -= width
+        start -= 1
+    return text[start:]
+
+
+def _prefix_relay_lines(text: str) -> str:
+    """信頼できない child text の各行を dispatcher 行から識別可能にする。"""
+
+    return "".join(f"| {line}" for line in text.splitlines(keepends=True))
+
+
+def _redirect_broken_stream_to_devnull(stream: Any) -> None:
+    """終了時 flush が同じ broken pipe で process rc を 120 に変えるのを防ぐ。"""
+
+    devnull_fd: Optional[int] = None
+    try:
+        devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull_fd, stream.fileno())
+    except _SignalAbort:
+        raise
+    except Exception:
+        pass
+    finally:
+        if devnull_fd is not None:
+            try:
+                os.close(devnull_fd)
+            except _SignalAbort:
+                raise
+            except Exception:
+                pass
+
+
+def _emit_relay_abort_notice(text: str, *, stream: Any) -> None:
+    """relay 打ち切りを告知し、壊れた告知先も終了時 flush から外す。"""
+
+    try:
+        _emit(text, stream=stream)
+    except BrokenPipeError:
+        _redirect_broken_stream_to_devnull(stream)
+    except _SignalAbort:
+        raise
+    except Exception:
+        pass
+
+
+def _relay_scheduler_logs(
+    stdout_record: Optional[Mapping[str, Any]],
+    stderr_record: Optional[Mapping[str, Any]],
+    *,
+    request_id: Optional[str],
+    successful: bool,
+) -> None:
+    """収集済み scheduler log を元 stream へ best-effort で中継する。"""
+
+    streams = (
+        ("stdout", stdout_record, sys.stdout),
+        ("stderr", stderr_record, sys.stderr),
+    )
+    displayed_request_id = (
+        request_id
+        if type(request_id) is str and re.fullmatch(r"\S+", request_id)
+        else "unknown"
+    )
+    relay_limit = (
+        DEFAULT_SUCCESS_RELAY_LIMIT_BYTES
+        if successful
+        else DEFAULT_FAILURE_RELAY_LIMIT_BYTES
+    )
+    for index, (label, record, stream) in enumerate(streams):
+        try:
+            if record is None:
+                continue
+            tail = record.get("tail")
+            if type(tail) is not str or not tail:
+                continue
+            relayed_tail = _utf8_tail(tail, limit=relay_limit)
+            relayed_size = len(relayed_tail.encode("utf-8"))
+            source_size = record.get("size")
+            source_omitted = record.get("omitted_bytes")
+            truncated = (
+                relayed_tail != tail
+                or (type(source_omitted) is int and source_omitted > 0)
+            )
+            detail = ""
+            if truncated and type(source_size) is int:
+                omitted_bytes = max(
+                    source_omitted if type(source_omitted) is int else 0,
+                    source_size - relayed_size,
+                )
+                detail = (
+                    f" (size={source_size} bytes, "
+                    f"omitted_bytes={omitted_bytes})"
+                )
+            frame = (
+                f"[Pegasus dispatch] request {displayed_request_id} "
+                f"child {label}"
+            )
+            _emit(
+                f"{frame} begin{detail}\n",
+                stream=stream,
+            )
+            prefixed_tail = _prefix_relay_lines(relayed_tail)
+            _emit(prefixed_tail, stream=stream)
+            if not prefixed_tail.endswith("\n"):
+                _emit("\n", stream=stream)
+            _emit(
+                f"{frame} end\n",
+                stream=stream,
+            )
+        except BrokenPipeError:
+            _redirect_broken_stream_to_devnull(stream)
+            notice_stream = streams[1 - index][2]
+            _emit_relay_abort_notice(
+                f"[Pegasus dispatch] request {displayed_request_id} "
+                f"child log relay aborted after broken pipe on {label}\n",
+                stream=notice_stream,
+            )
+            break
+        except _SignalAbort:
+            raise
+        except Exception:
+            _emit_relay_abort_notice(
+                f"[Pegasus dispatch] request {displayed_request_id} "
+                f"child {label} relay aborted after relay error\n",
+                stream=stream,
+            )
+            continue
+
+
 def _accounting_present(
     stderr_record: Mapping[str, Any],
     request_id: str,
@@ -819,6 +965,8 @@ def _dispatch_impl(
     active = False
     request_was_visible = False
     run_seen = False
+    stdout_record: Optional[dict[str, Any]] = None
+    stderr_record: Optional[dict[str, Any]] = None
     old_handlers: dict[int, Any] = {}
 
     def abort_on_signal(signum, _frame):
@@ -1008,8 +1156,6 @@ def _dispatch_impl(
         _progress(f"request {normalized_id} の成果物収集を開始します")
         collection_deadline = clock() + accounting_grace_s
         result: Optional[dict[str, Any]] = None
-        stdout_record: Optional[dict[str, Any]] = None
-        stderr_record: Optional[dict[str, Any]] = None
         marker_valid = False
         marker_record: dict[str, Any] = {}
         while True:
@@ -1077,6 +1223,12 @@ def _dispatch_impl(
                     )
                     _persist_receipt(submission_dir, root, receipt)
                     _print_terminal_handoff(latched, reason)
+                    _relay_scheduler_logs(
+                        stdout_record,
+                        stderr_record,
+                        request_id=request_id,
+                        successful=False,
+                    )
                     return INFRA_RC
                 raise DispatchError("result/log/accounting-grace-expired")
             sleep(poll_interval_s)
@@ -1112,8 +1264,20 @@ def _dispatch_impl(
                 file=sys.stderr,
                 flush=True,
             )
+            _relay_scheduler_logs(
+                stdout_record,
+                stderr_record,
+                request_id=request_id,
+                successful=False,
+            )
             return INFRA_RC
         _progress(f"receipt を {persisted} へ保存しました (child rc={child_rc})")
+        _relay_scheduler_logs(
+            stdout_record,
+            stderr_record,
+            request_id=request_id,
+            successful=child_rc == 0,
+        )
         return child_rc
     except BaseException as exc:
         receipt["outcome"] = {
@@ -1153,6 +1317,12 @@ def _dispatch_impl(
             f"Pegasus dispatch infrastructure failure: {exc}",
             file=sys.stderr,
             flush=True,
+        )
+        _relay_scheduler_logs(
+            stdout_record,
+            stderr_record,
+            request_id=request_id,
+            successful=False,
         )
         return INFRA_RC
     finally:
