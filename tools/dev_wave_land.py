@@ -38,7 +38,7 @@ _MAX_METADATA_BYTES = 16 * 1024
 _MAX_HANDOFF_BYTES = 2 * 1024 * 1024
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SAFE_ADMIN_RE = re.compile(rb"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
-_SAFE_CHILD_RE = _SAFE_ADMIN_RE
+_SAFE_CHILD_RE = re.compile(rb"(?!\.{1,2}\Z)[^/\x00]{1,128}\Z")
 _SAFE_HANDOFF_RE = re.compile(
     rb"[0-9A-Za-z][0-9A-Za-z._-]{0,191}\.md\Z"
 )
@@ -757,7 +757,10 @@ def _status_records(repo: Path, label: str) -> list[bytes]:
     return raw[:-1].split(b"\0")
 
 
-def _verify_main_clean(repository: _Repository) -> _ControlSnapshot:
+def _verify_main_clean(
+    repository: _Repository,
+    collision_paths: Sequence[bytes] | None = None,
+) -> _ControlSnapshot:
     before = _control_snapshot(repository)
     records = _status_records(repository.main, "main")
     after = _control_snapshot(repository)
@@ -782,10 +785,13 @@ def _verify_main_clean(repository: _Repository) -> _ControlSnapshot:
             for prefix in after.worktree_prefixes
         ):
             continue
-        raise _Reject(
-            RC_DIRT,
-            f"unknown main untracked path: {relative!r}",
-        )
+        if collision_paths is not None and any(
+            _paths_overlap(relative, target) for target in collision_paths
+        ):
+            raise _Reject(
+                RC_DIRT,
+                f"main untracked path collides with land target: {relative!r}",
+            )
     return after
 
 
@@ -1272,7 +1278,11 @@ def land(request: LandRequest) -> LandResult:
                 )
             _verify_history_modifiers(repository)
             _verify_effective_config(repository)
-            control = _verify_main_clean(repository)
+            target_paths = _target_paths(repository, tested_main, tested_tip)
+            control = _verify_main_clean(
+                repository,
+                collision_paths=target_paths,
+            )
             _verify_wave_clean(repository)
             audited = _verify_audit(
                 repository,

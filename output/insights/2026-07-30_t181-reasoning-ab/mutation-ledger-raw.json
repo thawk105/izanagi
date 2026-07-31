@@ -1,0 +1,166 @@
+[
+ {
+  "id": "P1",
+  "desc": "無変異の正例",
+  "rc": 0,
+  "failed_nodes": [],
+  "verdict": "GREEN"
+ },
+ {
+  "id": "M1",
+  "desc": "snapshot HEAD 照合を無効化 (再照準)",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent"
+  ],
+  "expect_node": "m1_snapshot_head_pin",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M2",
+  "desc": "golden 独立 2 経路の突合を route_a だけへ退化",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes"
+  ],
+  "expect_node": "m2_production_golden_requires_both_routes",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M3",
+  "desc": "snapshot の st_mode 照合を無効化",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_snapshot_mode_change"
+  ],
+  "expect_node": "m3_",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_snapshot_mode_change"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M4",
+  "desc": "session id/session_id/thread_id 一致検出を削除 (再照準)",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m4_session_identity_must_be_equal"
+  ],
+  "expect_node": "m4_session_identity",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m4_session_identity_must_be_equal"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M5",
+  "desc": "生成 session 行の set equality を包含へ緩和 (再照準)",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m5_generated_session_rows_require_set_equality"
+  ],
+  "expect_node": "m5_",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m5_generated_session_rows_require_set_equality"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M6",
+  "desc": "読取時 packet digest と output SHA の束縛を削除 (再照準)",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m6_verdict_packet_swap_restore_digest_layers_are_redundant"
+  ],
+  "expect_node": "m6_two_reader_verdict_row_swap",
+  "expected_hit": [],
+  "verdict": "KILLED-OTHER-NODE"
+ },
+ {
+  "id": "M7",
+  "desc": "ledger issues の failure reason 伝播を削除",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m7_ledger_issues_propagate_to_failure"
+  ],
+  "expect_node": "m7_ledger_issues_propagate",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m7_ledger_issues_propagate_to_failure"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M8",
+  "desc": "turn_context 0 件の検出を削除 (再照準)",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m8_missing_turn_context_never_fills_requested_effort"
+  ],
+  "expect_node": "m8_missing_turn_context",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m8_missing_turn_context_never_fills_requested_effort"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M9",
+  "desc": "post-treatment reliability の集計を 0 固定へ",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m9_post_treatment_failure_remains_in_denominator",
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_f3_2_pair_invalidated_post_treatment_occurrence_is_reliable",
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_incomplete_or_verifier_reason_nulls_quality_ledgers[False]",
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_incomplete_or_verifier_reason_nulls_quality_ledgers[True]"
+  ],
+  "expect_node": "m9_post_treatment_failure",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m9_post_treatment_failure_remains_in_denominator"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M10",
+  "desc": "R-1 候補判定を常に False へ (再照準)",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m10_historical_controls"
+  ],
+  "expect_node": "m10_historical_controls",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m10_historical_controls"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M11",
+  "desc": "fence 除去を無効化",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m11_tilde_fence_hides_summary"
+  ],
+  "expect_node": "m11_tilde_fence",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m11_tilde_fence_hides_summary"
+  ],
+  "verdict": "KILLED"
+ },
+ {
+  "id": "M12",
+  "desc": "総括 500-byte 検査を削除",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m12_summary_500_byte_exact_boundary"
+  ],
+  "expect_node": "m12_summary_500_byte",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m12_summary_500_byte_exact_boundary"
+  ],
+  "verdict": "KILLED"
+ }
+]
