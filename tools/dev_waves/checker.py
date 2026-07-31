@@ -336,7 +336,9 @@ def run_check_specs(
             results.append(_pass(spec.name))
         else:
             reason = (
-                ReasonCode.PROVENANCE_FAILED if "provenance" in spec.name
+                # rc=16 は Pegasus dispatch の infra 失敗であって check の判定結果ではない。
+                ReasonCode.CHECK_FAILED if process.returncode == 16
+                else ReasonCode.PROVENANCE_FAILED if "provenance" in spec.name
                 else ReasonCode.CODE_DIRTY if spec.name in {"code-clean", "codex-agents"}
                 else ReasonCode.CHECK_FAILED
             )

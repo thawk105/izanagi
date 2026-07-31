@@ -1172,3 +1172,22 @@
   (b) 実走後に装置を直す場合は**再走を伴うと最初から明記**し、再走しない場合は成果物を
   「replay 未認証」と明示して下流の採用根拠にしない。既存の `experiment_complete=false` が
   この不整合を fail-closed で検出することは確認済み (隠れない)
+
+### F62. 受入全走の実行中に親が `output/` を編集し、repo scan invariant テストを 10 件偽赤にした [手順漏れ] [測定の交絡]
+- 事象: [T-205] wave の受入 2 回目 (request `874786`) で `test_s8b_floor_campaign.py` の official / pilot
+  resume 系 **10 件**が落ちた。差分 (provenance / dispatch / hook) が到達しないファイルであり、
+  親は `DW-O18` に従って帰属を保留した。原因は**親が全走の実行中に
+  `output/insights/<wave>/s4-adjudication-plan-v2.md` を Edit したこと**だった。
+  同テスト群は `_real_output_snapshot()` で `output/` 配下の全ファイル hash を before/after 比較し、
+  「campaign が repo の `output/` に副作用を残さないこと」を検査している。編集を止めた 3 回目
+  (request `874788`) は 4268 passed / rc=0 で再現しなかった
+- 根本原因: 受入は計算ノードへ dispatch され数分かかるため、その間に親が「別の作業」として insight や
+  裁定文書を書き進めるのが自然な手順になっている。しかし repo scan invariant を持つテストから見ると、
+  親の編集と campaign の副作用は区別できない。**待ち時間に独立作業を進める規律 (CLAUDE.md 9) と、
+  `output/` の不変性を検査する受入とが正面から衝突する**
+- 恒久対応: **受入全走の実行中は `output/` 配下を一切編集しない。** 親の handoff は job tmp にあるので
+  安全であり、insight の追記・裁定文書の更新は全走の完了後に行う。待ち時間には `output/` を触らない
+  独立作業 (読解、grep、docs 以外の検討、子への指示準備) を充てる
+- 再発検知: `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が before/after 差分として検出する
+  (本件はこの検査が正しく発火した結果である)。差分が到達しえないファイルで出た赤は `DW-O18` に従い
+  単独再走で再現性を実測してから帰属する — 本件も再走で偽赤と確定した

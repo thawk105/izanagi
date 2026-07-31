@@ -61,6 +61,8 @@ AI-Agent: none
 - docs-only、ログ・計測結果・凍結記録だけの変更、および AI 非関与の `AI-Agent: none` は対象外。
 - 小さい、軽量版、test-only、probe-only、production 挙動 0 は免除理由にならない。Codex が
   実行不能なら Claude が代行せず停止し、例外の必要性をユーザー裁定へ返す。
+- Codex 不可用時はユーザー裁定のうえ `AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>` を
+  最終 block へ `role=author` と併記する。規則と抑止は D105。
 
 `tools/check_ai_provenance.py` は commit の変更 path と trailer を照合する。過去履歴へ遡及せず、
 本節の導入 commit から適用する。`--message-file` では staged path に同じ検査を適用する。
