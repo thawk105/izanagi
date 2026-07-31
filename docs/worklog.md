@@ -1327,14 +1327,21 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   `docs/dev-wave/**` の合計が **24000 bytes の hard ceiling ちょうど**で、追記の余地がゼロだと実測した
   (`mutation.md` も 3750 の個別予算に対し超過)。予算を上げない・安全義務を削らない・節の削除は
   ユーザー裁定に限る、の 3 規律が同時に効くため変更を revert し、T-216 として起票した
-- **段 9 は land できず fail-closed 停止した (成果物は全て commit 済み)**。理由は 2 つで、いずれも
-  自 wave 内で解消してはならないもの — (1) main が他セッションにより `cb5780e` → **`3ca5cfe`** へ
-  進み wave が diverged (ff 不可)、(2) `tools/dev_wave_land.py` が **rc 21 / `handoff four-line header
-  is malformed`** で control-plane reject。原因は他セッション所有の
-  `docs/handoff/2026-07-31-t126-f32-closure-resume.md` が**見出し直後に空行**を置き、
-  `- 目的: ` が 2 行目でないこと。**他 session 所有物・rebase・force で迂回しない** (`DW-O23`)。
+- **段 9 は land できず fail-closed 停止した (成果物は全て commit 済み)**。
+  **主因は main の diverge** — 他セッションにより `cb5780e` → **`3ca5cfe`** へ進み、
+  `git merge-base --is-ancestor` が偽。ff-only は成立しない。
+  実行順では `tools/dev_wave_land.py` の control-plane preflight が先に当たり、
+  **rc 21 / `handoff four-line header is malformed`** を返した。原因は他セッション所有の
+  `docs/handoff/2026-07-31-t126-f32-closure-resume.md` が見出し直後に空行を置き `- 目的: ` が
+  2 行目でないこと。**他 session 所有物・rebase・force で迂回しない** (`DW-O23`)。
   自 wave 側は `DW-O20` どおり handoff を worktree 外 (背景 job tmp) に置き、
   worktree の `docs/handoff/` は README のみで clean
+- **ユーザー指摘とその実測 (協議の決着)**: 「別セッション所有のもので検査が落ちても、それを main に
+  入れようとしていないなら関係ないはず」。実測で裏付けた — 当該 handoff は **untracked** (tracked は
+  `docs/handoff/README.md` のみ)、本 wave の 4 commit は `docs/handoff/` を 1 ファイルも触らない。
+  よって**取り込み対象とは衝突しない**。land が止めるのは `DW-O23` が「未知 untracked を拒否し、
+  正規 handoff だけを非接触で許す」設計で、書式違反が正規判定から外れて未知 untracked へ落ちるため。
+  検査は衝突の有無を見ていない。この受理集合を変えるかは防壁の設計判断のため T-217 で裁定へ返す
 
 ### 次の一手
 
@@ -1360,12 +1367,14 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   いないか」の再検証を追加 (本 wave で実際に起きた)、(c) `DW-M04` へ「harness の観測経路は変異対象から
   独立させる」を追加 (自己参照で偽 SURVIVED になる)。**どれを入れるか、代わりに何を削るか**が裁定事項。
   `docs/dev-wave/**` は現在 24000/24000 で、1 行も入らない
-- [T-217] **P1・実施待ち (本エントリ、F58 と同型の再発)**: 1 つの handoff の書式違反が**全 wave の
-  local main land を止める**事象がまた起きた。(76) 時点は「状態:」が 3 値でなかったため、今回は
-  見出し直後の空行で 4 行ヘッダが崩れたため。書式は `docs/handoff/README.md` の定型が正本だが、
-  作成時点では何も検査されず、land の control-plane まで露出しない。handoff 作成・更新時に
-  同じ 4 行ヘッダ検査を掛ける機械化 (または `check_wave_startup.py` への統合) を検討する。
-  なお当該 handoff は他セッション所有のため本 wave では触っていない
+- [T-217] **P1・ユーザー裁定要 (本エントリ、F58 と同型の再発 + ユーザー指摘)**: 1 つの handoff の
+  書式違反が**全 wave の local main land を止める**事象がまた起きた ((76) は「状態:」の 3 値違反、
+  今回は見出し直後の空行による 4 行ヘッダ崩れ)。**ユーザー指摘 = 取り込み対象と無関係な実体で
+  止めるのは過剰ではないか**。実測では当該 handoff は untracked で、本 wave の commit は
+  `docs/handoff/` を触らず衝突しない。裁定は 2 択で、(a) `DW-O23` の受理集合を「incoming と衝突する
+  未知 untracked だけ拒否」へ緩める (T-206 で「危険な名前と実衝突だけの拒否へ是正」した方向の延長)、
+  (b) 受理集合は据え置き、handoff 作成・更新時に 4 行ヘッダ検査を機械化して land まで露出させない
+  (`check_wave_startup.py` への統合など)。(a) は防壁の受理集合変更のため AI 単独では実施しない
 - [T-194] **本エントリで解消**: dispatcher が子の pytest 出力を親 stdout へ中継しない件を実装し、
   受入・変異・dogfood で実証した。残件は T-212〜T-215 へ分割して起票済み
 - [T-206] 解消済み ((75) で是正、(76) で確認)
