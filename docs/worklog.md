@@ -1330,6 +1330,12 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - **記録後検査 (F34)**: docs commit 後の再走で `test_s8b_oracle_driver.py` の 1 node が落ちたが、
   単独再走は rc=0、最終 tip での全走も **4268 passed / 19 skipped / rc=0** (request `874887`、197.17 秒) で
   再現しなかった。`DW-O18` に従い実装差分へ帰属せず**フレーク**として記録する (F57 と同型の疑い)
+- **段 9 の land は拒否され branch に留め置いた**: `tools/dev_wave_land.py` が
+  `{"status": "rejected", "reason": "handoff four-line header is malformed"}` を返した。
+  原因は他 session 所有の `docs/handoff/2026-07-31-t126-f32-closure-resume.md` の状態行が
+  正規 3 値 (作業中 / 計測中 / 中断) でないこと。**T-126 handoff で 2026-07-30 に起きた事象と同型**である。
+  併せて local main が `3ca5cfe` へ進行しており tested main `72849d3` と乖離している (stale)。
+  `DW-O23` に従い他 session 所有物の変更・rebase・force では解消しない
 - 逐語と台帳は `output/insights/2026-07-31_t205-provenance-compute-wave/` (11 ファイル)
 
 ### 次の一手
@@ -1358,7 +1364,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-200] 変わらず ((73) 参照)
 - [T-201] 変わらず ((73) 参照)
 - [T-202] 変わらず ((73) 参照)
-- [T-205] **完了 (本エントリ、D105)**: Pegasus の provenance 履歴監査を計算ノードへ移し、
+- [T-205] **実装・受入・変異・記録まで完了、land 待ち (本エントリ、D105)**: Pegasus の provenance 履歴監査を計算ノードへ移し、
   `_audit_history` を site 由来の並列度 (上限 32) の thread pool + 祖先 bitset にした。
   あわせて dispatch を閉じた task 種別 enum へ一般化し (schema は v1/v2 両受理)、
   Codex author 契約に `AI-Agent-Waiver` の正規経路を開いた。計算ノードでの full-history 監査は
