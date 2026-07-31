@@ -830,6 +830,7 @@ def _default_dispatch(
 
     return dispatch_compute.dispatch(
         args,
+        task="tests",
         repo_root=Path(_REPO),
         environ=environ,
     )

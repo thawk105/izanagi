@@ -14,11 +14,22 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from orchestrator.campaign import site_policy  # noqa: E402
+
 POLICY_PATH = "docs/ai-provenance.md"
+# tools/run_tests.py:110 の _PEGASUS_DISPATCH_RC と同値 (meta-test で照合する)。
+PEGASUS_DISPATCH_RC = 16
+# insight §11 で 32→48 は改善ゼロ。git subprocess の fork/exec が律速なので開けない。
+AUDIT_WORKERS_CAP = 32
 ROLES = ("author", "reviewer", "researcher", "manager", "integrator")
 IDENT = r"[a-z0-9][a-z0-9._-]*"
 RESERVED_PRODUCTS = {"none", "unknown", "not-exposed", "human"}
@@ -54,6 +65,18 @@ RAW_AI_AGENT_CORRECTION = re.compile(
     r"(?P<value>[^\r\n]*)\r?$",
     re.IGNORECASE | re.MULTILINE,
 )
+WAIVER_KEY = "AI-Agent-Waiver"
+RAW_AI_AGENT_WAIVER = re.compile(
+    rf"^[ \t]*{re.escape(WAIVER_KEY)}[ \t]*:"
+    r"(?P<value>[^\r\n]*)\r?$",
+    re.IGNORECASE | re.MULTILINE,
+)
+WAIVER_VALUE = re.compile(
+    rf"^reason=(?P<reason>{IDENT}); "
+    r"ratified=(?P<ratified>\d{4}-\d{2}-\d{2})$"
+)
+# docs/ai-provenance.md の逐語と一致させる (exactly-once メタテストで照合する)。
+WAIVER_POLICY_LITERAL = "AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>"
 TRAILER_PARSE_TEMP_ROOT: Path | None = None
 _REPO_DISCOVERY_ENV = {
     "GIT_ALTERNATE_OBJECT_DIRECTORIES",
@@ -106,17 +129,66 @@ class CorrectionAudit:
 
 
 @dataclass(frozen=True)
+class WaiverAudit:
+    """Codex author 契約の免除行。作法は CorrectionAudit を踏襲する。
+
+    唯一の作法差: incident 固定値との逐語一致の代わりに WAIVER_VALUE 文法照合を
+    置く (waiver は payload が可変で、固定値が存在しない)。
+    """
+
+    raw_values: tuple[str, ...]
+    parsed_values: tuple[str, ...]
+    final_values: tuple[str, ...]
+    reason: str | None
+    ratified: str | None
+    findings: tuple[str, ...]
+
+    @property
+    def candidate_count(self) -> int:
+        return len(self.raw_values)
+
+    @property
+    def exact(self) -> bool:
+        return self.candidate_count == 1 and not self.findings
+
+
+EMPTY_WAIVER = WaiverAudit((), (), (), None, None, ())
+
+
+@dataclass(frozen=True)
 class CommitAudit:
     commit: str
     label: str
     normal_findings: tuple[str, ...]
     correction: CorrectionAudit
+    waiver: WaiverAudit = EMPTY_WAIVER
+    waived_applied: bool = False
 
 
 @dataclass(frozen=True)
 class ForwardCorrected:
     target: str
     correction: str
+
+
+@dataclass(frozen=True)
+class ImplementationWaived:
+    """実際に発火した免除 1 件。
+
+    label は history 経路では commit SHA、message-file 経路では message file の
+    path (commit 前で SHA が存在しない) を持つ。
+    """
+
+    label: str
+    reason: str
+    ratified: str
+
+
+@dataclass(frozen=True)
+class HistoryAudit:
+    findings: list[str]
+    corrected: list[ForwardCorrected]
+    waived: list[ImplementationWaived]
 
 
 def _git(*args: str, input_text: str | None = None) -> str:
@@ -287,6 +359,75 @@ def _correction_audit(label: str, message: str) -> CorrectionAudit:
     )
 
 
+def _waiver_audit(label: str, message: str) -> WaiverAudit:
+    """raw 候補を隔離 canonical/final-block parse と突き合わせる (waiver 版)。"""
+    matches = tuple(RAW_AI_AGENT_WAIVER.finditer(message))
+    if not matches:
+        return EMPTY_WAIVER
+
+    raw_values = tuple(match.group("value") for match in matches)
+    key = WAIVER_KEY.casefold()
+    parsed_values = tuple(_parsed_trailers(message).get(key, []))
+    final_trailers = _parsed_final_trailers(message)
+    final_values = tuple(final_trailers.get(key, []))
+    final_ai_agent_values = tuple(final_trailers.get("ai-agent", []))
+    findings: list[str] = []
+    if len(raw_values) != 1:
+        findings.append(
+            f"{label}: {WAIVER_KEY} raw candidate cardinality 違反: "
+            f"raw={len(raw_values)}（物理 exact 1 行が必要）"
+        )
+    if any(
+        not value.startswith(" ")
+        or WAIVER_VALUE.fullmatch(value[1:]) is None
+        for value in raw_values
+    ):
+        findings.append(
+            f"{label}: {WAIVER_KEY} raw value が形式に一致しない — "
+            "reason=<ident>; ratified=<YYYY-MM-DD> の順と許可値を確認する"
+        )
+    if len(parsed_values) != 1:
+        findings.append(
+            f"{label}: {WAIVER_KEY} canonical multiplicity 違反: "
+            f"raw={len(raw_values)}, canonical={len(parsed_values)}"
+        )
+    if any(
+        WAIVER_VALUE.fullmatch(value) is None for value in parsed_values
+    ):
+        findings.append(
+            f"{label}: {WAIVER_KEY} canonical value が形式に一致しない"
+        )
+    if len(final_values) != 1:
+        findings.append(
+            f"{label}: {WAIVER_KEY} final trailer block multiplicity 違反: "
+            f"waiver={len(final_values)}"
+        )
+    elif not any(
+        (agent := AGENT_VALUE.fullmatch(value)) is not None
+        and agent.group("role") == "author"
+        for value in final_ai_agent_values
+    ):
+        findings.append(
+            f"{label}: {WAIVER_KEY} と同じ最終 trailer block に "
+            "role=author の AI-Agent がない"
+        )
+    reason: str | None = None
+    ratified: str | None = None
+    if len(parsed_values) == 1:
+        match = WAIVER_VALUE.fullmatch(parsed_values[0])
+        if match is not None:
+            reason = match.group("reason")
+            ratified = match.group("ratified")
+    return WaiverAudit(
+        raw_values,
+        parsed_values,
+        final_values,
+        reason,
+        ratified,
+        tuple(findings),
+    )
+
+
 def validate_message(
     label: str, message: str, *, check_cab: bool = True,
 ) -> tuple[list[str], list[str], list[str]]:
@@ -412,15 +553,20 @@ def _is_implementation_path(path: str) -> bool:
 
 
 def validate_implementation_author(
-    label: str, message: str, paths: list[str],
-) -> list[str]:
-    """AI 関与の実装面 commit に Codex author がいることを検査する。"""
+    label: str, message: str, paths: list[str], *, waived: bool = False,
+) -> tuple[list[str], bool]:
+    """AI 関与の実装面 commit に Codex author がいることを検査する。
+
+    (findings, waived_applied) を返す。waived_applied は「免除が実際に発火した」
+    ときだけ True であり、waiver 行の付与数ではない (実装面 path なし・
+    AI 非関与・codex author 済みの各早期 return では False のまま)。
+    """
     implementation = sorted(path for path in paths if _is_implementation_path(path))
     if not implementation:
-        return []
+        return [], False
     values = _ai_agent_values(message)
     if not values or values == ["none"]:
-        return []
+        return [], False
     for value in values:
         match = AGENT_VALUE.fullmatch(value)
         if (
@@ -428,13 +574,15 @@ def validate_implementation_author(
             and match.group("product") == "codex"
             and match.group("role") == "author"
         ):
-            return []
+            return [], False
+    if waived:
+        return [], True
     sample = ", ".join(implementation[:3])
     if len(implementation) > 3:
         sample += f", ... ({len(implementation)} paths)"
     return [
         f"{label}: 実装面に Codex role=author がない — paths={sample}"
-    ]
+    ], False
 
 
 def _nul_paths(raw: str) -> list[str]:
@@ -553,16 +701,100 @@ def _read_message(path: str) -> str:
     return Path(path).read_text()
 
 
+def AUDIT_WORKERS() -> int:
+    """履歴監査の既定並列度 (module 属性。テストは monkeypatch で差し替える)。
+
+    site 由来にして計算ノードの割り当て資源を使い切る。available_cpus() は
+    cgroup / affinity を尊重する。env による上書きは作らない (D103 却下項目)。
+    """
+    return max(1, min(site_policy.available_cpus(), AUDIT_WORKERS_CAP))
+
+
+@dataclass(frozen=True)
+class _Ancestry:
+    """選択集合の祖先閉包を bitset で持ち、git subprocess を per-commit で焼かない。
+
+    index は閉包全体 (選択集合の祖先すべて) を覆う。bits[i] は i 自身を含む祖先
+    集合で、反射性は merge-base --is-ancestor A A (rc=0) と一致させるためにある。
+    """
+
+    index: dict[str, int]
+    bits: tuple[int, ...]
+    cab_policy_mask: int
+
+    def is_descendant(self, ancestor: str, commit: str) -> bool:
+        i = self.index.get(commit)
+        j = self.index.get(ancestor)
+        if i is None or j is None:
+            return False
+        return bool(self.bits[i] >> j & 1)
+
+    def has_cab_policy(self, commit: str) -> bool:
+        i = self.index.get(commit)
+        return False if i is None else bool(self.bits[i] & self.cab_policy_mask)
+
+
+def _build_ancestry(commits: list[str]) -> _Ancestry:
+    """rev-list 1 本 + pickaxe 1 本で per-commit の lineage 判定を畳む。
+
+    --topo-order が必須 (既定の commit-date 順では逆順走査で親が未確定になりうる)。
+    pickaxe は --full-history が履歴簡約を無効化し -S が親との diff で commit ごとに
+    独立判定するため tip 非依存であり、ヒット集合は P ∩ ancestors(commit) になる。
+    argv 前置 ("log", "--full-history", "--no-renames", "--format=%H") は
+    既存 intercept テストの契約なので保存する。
+    """
+    raw = _git(
+        "rev-list", "--topo-order", "--parents", "--stdin",
+        input_text="".join(f"{commit}\n" for commit in commits),
+    )
+    rows = [line.split() for line in raw.splitlines()]
+    index = {row[0]: n for n, row in enumerate(reversed(rows))}
+    bits = [0] * len(rows)
+    for row in reversed(rows):
+        i = index[row[0]]
+        acc = 1 << i
+        for parent in row[1:]:
+            j = index.get(parent)
+            if j is not None:  # 閉包外は shallow / graft 境界だけ
+                acc |= bits[j]
+        bits[i] = acc
+    policy_hits = _git(
+        "log", "--full-history", "--no-renames", "--format=%H",
+        "-S", CO_AUTHORED_BY_POLICY_NEEDLE, *commits, "--", POLICY_PATH,
+    ).splitlines()
+    mask = 0
+    for sha in policy_hits:
+        j = index.get(sha)
+        if j is not None:
+            mask |= 1 << j
+    return _Ancestry(index, tuple(bits), mask)
+
+
 def _normal_commit_audit(
     commit: str,
     *,
     scope_epoch: str | None,
     implementation_epoch: str | None,
+    ancestry: _Ancestry | None = None,
 ) -> CommitAudit:
+    """ancestry=None は逐次 oracle 経路 (merge-base / per-commit pickaxe)。
+
+    bitset 版と同じ判定を独立実装で持つため、等価性テストが自己参照にならない。
+    """
     subject = _git("show", "-s", "--format=%s", commit).strip()
     message = _git("show", "-s", "--format=%B", commit)
     label = f"{commit[:12]} {subject}"
-    cab_policy_applies = _has_co_authored_by_policy(commit)
+    if ancestry is None:
+        cab_policy_applies = _has_co_authored_by_policy(commit)
+
+        def descends(ancestor: str) -> bool:
+            return _is_descendant(ancestor, commit)
+    else:
+        cab_policy_applies = ancestry.has_cab_policy(commit)
+
+        def descends(ancestor: str) -> bool:
+            return ancestry.is_descendant(ancestor, commit)
+
     base, scoped, cab = validate_message(
         label, message, check_cab=cab_policy_applies,
     )
@@ -570,39 +802,53 @@ def _normal_commit_audit(
     if (
         scoped
         and scope_epoch is not None
-        and _is_descendant(scope_epoch, commit)
+        and descends(scope_epoch)
     ):
         findings.extend(scoped)
     findings.extend(cab)
+    waiver = EMPTY_WAIVER
+    waived_applied = False
     if (
         implementation_epoch is not None
-        and _is_descendant(implementation_epoch, commit)
+        and descends(implementation_epoch)
     ):
-        findings.extend(validate_implementation_author(
-            label, message, _commit_paths(commit),
-        ))
+        waiver = _waiver_audit(label, message)
+        findings.extend(waiver.findings)
+        implementation, waived_applied = validate_implementation_author(
+            label, message, _commit_paths(commit), waived=waiver.exact,
+        )
+        findings.extend(implementation)
     return CommitAudit(
         commit=commit,
         label=label,
         normal_findings=tuple(findings),
         correction=_correction_audit(label, message),
+        waiver=waiver,
+        waived_applied=waived_applied,
     )
 
 
-def _audit_history(
-    commits: list[str],
-) -> tuple[list[str], list[ForwardCorrected]]:
+def _audit_history(commits: list[str]) -> HistoryAudit:
     """selected revision set を順序非依存の membership/lineage 条件で監査する。"""
+    if not commits:
+        return HistoryAudit([], [], [])
     scope_epoch = _scope_policy_commit()
     implementation_epoch = _implementation_policy_commit()
-    audits = [
-        _normal_commit_audit(
+    ancestry = _build_ancestry(commits)
+
+    def audit_one(commit: str) -> CommitAudit:
+        return _normal_commit_audit(
             commit,
             scope_epoch=scope_epoch,
             implementation_epoch=implementation_epoch,
+            ancestry=ancestry,
         )
-        for commit in commits
-    ]
+
+    workers = max(1, min(AUDIT_WORKERS(), len(commits)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        # Executor.map は入力順で結果を返し、list() 消費は入力順で最初の例外を
+        # 送出する。findings の逐語一致と rc=2 の例外同一性がここで保たれる。
+        audits = list(pool.map(audit_one, commits))
     by_commit = {audit.commit: audit for audit in audits}
     candidate_count = sum(
         audit.correction.candidate_count for audit in audits
@@ -654,16 +900,31 @@ def _audit_history(
                 "AI-Agent trailer の実欠落がない"
             )
 
-        if (
+        carrier_ready = (
             correction.correction.exact
             and target_selected
             and strict_descendant
             and target is not None
             and target_missing in target.normal_findings
             and not correction.normal_findings
+        )
+        if (
+            carrier_ready
+            # waiver 行を持つ commit は前方訂正の担い手になれない。免除は
+            # normal_findings を空にできるので、これが無いと waiver 1 行で
+            # 「自身の通常 green」の連言が緩み受理集合が広がる。
+            and not correction.waiver.exact
         ):
             suppressed_missing = (spec.target, target_missing)
             corrected.append(ForwardCorrected(spec.target, correction.commit))
+        elif carrier_ready:
+            # 規律 3: 失格を沈黙させない。この経路で出るのは target 側の
+            # 「AI-Agent trailer がない」だけなので、理由が無いと運用者は
+            # correction をもう 1 件足そうとして exact 1 件規則に当たる。
+            correction_findings.append(
+                f"{correction.label}: AI-Agent-Correction commit が "
+                "AI-Agent-Waiver 行を持つため前方訂正の担い手になれない"
+            )
 
     findings: list[str] = []
     for audit in audits:
@@ -672,7 +933,12 @@ def _audit_history(
                 continue
             findings.append(finding)
     findings.extend(correction_findings)
-    return findings, corrected
+    waived = [
+        ImplementationWaived(audit.commit, audit.waiver.reason, audit.waiver.ratified)
+        for audit in audits
+        if audit.waived_applied
+    ]
+    return HistoryAudit(findings, corrected, waived)
 
 
 def _commit_exists(commit: str) -> bool:
@@ -748,7 +1014,31 @@ def _message_file_correction_findings(
     return findings
 
 
-def main() -> int:
+def _default_dispatch(argv: Sequence[str]) -> int:
+    from tools.pegasus import dispatch_compute
+
+    return dispatch_compute.dispatch(
+        argv, task="provenance", repo_root=REPO,
+    )
+
+
+def _invoke_dispatch(dispatch_fn, argv: Sequence[str]) -> int:
+    """dispatcher の想定外例外も top-level infra rc へ一義化する。"""
+    selected = _default_dispatch if dispatch_fn is None else dispatch_fn
+    try:
+        return int(selected(argv))
+    except (Exception, KeyboardInterrupt) as exc:
+        print(
+            f"Pegasus dispatcher を完了できませんでした: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return PEGASUS_DISPATCH_RC
+
+
+def main(argv: Sequence[str] | None = None, *, site=None, dispatch_fn=None) -> int:
+    values = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--range", dest="rev_range", help="検査する git revision range")
@@ -756,10 +1046,28 @@ def main() -> int:
         "--message-file",
         help="commit 前の message ファイルを検査する。標準入力は -",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(values)
+
+    # site gate は parse_args の後に置き、免除は args.message_file だけで判定する。
+    # raw token allowlist を移植すると --message-f のような接頭辞省略形が免除から
+    # 外れ、commit 直前の preflight が queue 待ちに依存する。
+    if args.message_file is None:
+        resolved_site = site_policy.current_site() if site is None else site
+        if resolved_site == site_policy.PEGASUS_SUSPECT:
+            print(
+                site_policy.heavy_work_refusal(
+                    resolved_site, "provenance 履歴監査",
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
+            return PEGASUS_DISPATCH_RC
+        if site_policy.is_pegasus_login(resolved_site):
+            return _invoke_dispatch(dispatch_fn, values)
 
     try:
         corrected: list[ForwardCorrected] = []
+        waived: list[ImplementationWaived] = []
         correction_preflight = False
         merge_preflight = False
         if args.message_file is not None:
@@ -769,10 +1077,18 @@ def main() -> int:
             base, scoped, cab = validate_message(
                 args.message_file, message
             )
-            implementation = validate_implementation_author(
+            waiver = _waiver_audit(args.message_file, message)
+            implementation, waived_applied = validate_implementation_author(
                 args.message_file, message, _message_file_paths(merge_parents),
+                waived=waiver.exact,
             )
-            findings = [*base, *scoped, *cab, *implementation]
+            findings = [
+                *base, *scoped, *cab, *waiver.findings, *implementation,
+            ]
+            if waived_applied:
+                waived.append(ImplementationWaived(
+                    args.message_file, waiver.reason, waiver.ratified,
+                ))
             correction = _correction_audit(args.message_file, message)
             if correction.candidate_count:
                 findings.extend(_message_file_correction_findings(
@@ -782,11 +1098,27 @@ def main() -> int:
             checked = 1
         else:
             commits = _commit_range(args.rev_range)
-            findings, corrected = _audit_history(commits)
+            history = _audit_history(commits)
+            findings = history.findings
+            corrected = history.corrected
+            waived = history.waived
             checked = len(commits)
     except (OSError, RuntimeError, UnicodeError) as exc:
         print(f"check_ai_provenance: 実行不能: {exc}", file=sys.stderr)
         return 2
+
+    # 免除は rc=1 でも沈黙させない (公開が唯一の抑止であるため)。
+    for record in waived:
+        print(
+            "check_ai_provenance: implementation-author-waived "
+            f"label={record.label} reason={record.reason} "
+            f"ratified={record.ratified}"
+        )
+    if waived:
+        print(
+            "check_ai_provenance: implementation-author-waived="
+            f"{len(waived)}"
+        )
 
     if findings:
         for finding in findings:

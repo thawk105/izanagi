@@ -160,6 +160,9 @@ _POLICY_UNSET = object()
 
 _SANCTIONED_PATHS = frozenset({
     "tools/run_tests.py",
+    # checker 自身が site gate を持ち、login node では計算ノードへ dispatch し
+    # SUSPECT では rc=16 で止まる = 「自分で fail-closed する entry point」。
+    "tools/check_ai_provenance.py",
     "tools/pegasus/dispatch_compute.py",
     "tools/pegasus/submit_certify.sh",
     "tools/pegasus/submit_floor.sh",
@@ -175,6 +178,22 @@ _BUILD_VARIANTS_HEAD_RE = re.compile(r"(?:^|/)build-variants(?:/|$)")
 _NINJA_READ_ONLY_TOOLS = frozenset({
     "commands", "compdb", "deps", "graph", "inputs", "list", "missingdeps",
     "multi-inputs", "query", "rules", "targets", "wincodepage",
+})
+
+# provenance 履歴監査 (git subprocess を数千本使う重い処理) の exact path / module 綴り。
+# 一次強制は checker 自身の site gate であり、hook が閉じるのは「同じ処理を sanctioned
+# 以外の綴りで起動する形」だけである (綴り差のみ。script file 越し・変数展開・eval・
+# python3 -c・Codex subprocess は原理的に見えない)。checker を **実行しない**
+# `python3 -m py_compile <checker>` のような別 module 起動は閉じない — 閉じると
+# AGENTS.md が明示許可する静的検査まで機械拒否になる (段 6 レビュー A の MF-1)。
+_PROVENANCE_SCRIPT_PATH = "tools/check_ai_provenance.py"
+_PROVENANCE_SCRIPT_BASENAME = "check_ai_provenance.py"
+_PROVENANCE_MODULE = "tools.check_ai_provenance"
+# 直接実行形のうち重くない呼び方は綴りを問わず通す。--message-file は checker の
+# site gate 自身の免除、--help/-h は argparse が即 SystemExit する形。--collect-only /
+# --version も argparse が履歴監査へ入る前に終える形なので受理集合を狭めない。
+_PROVENANCE_EXEMPT_FLAGS = frozenset({
+    "--message-file", "--help", "-h", "--collect-only", "--version",
 })
 
 # wrapper option のうち「次 token が値」のもの。未知 option は flag として 1 token
@@ -494,12 +513,82 @@ def _ninja_tool(args) -> str:
     return ""
 
 
+def _provenance_entry(raw_head: str, head: str, args, repo_root: str):
+    """checker を **実行する** 綴りを ``(path, sanctioned)`` で返す。
+
+    実行しない綴りは None。``python3 -m <他 module> … <checker>`` は checker を
+    実行しない別プログラム (py_compile / json.tool 等の静的読み取り) なので、ここでは
+    名指しとみなさない — 違反にすると AGENTS.md が明示許可する
+    ``python3 -m py_compile tools/check_ai_provenance.py`` まで機械拒否される。
+    sanctioned の借用抑止は `_provenance_script_borrow` が別に担う。
+    判定対象は head が python 系か checker 自身の場合だけに絞る
+    (`cat`/`git show`/`rg` 等が引数で名指しする読み取りを巻き込まない)。
+    """
+    invocation = _python_module_invocation(head, args)
+    if invocation is not None:
+        if invocation[0] != _PROVENANCE_MODULE:
+            return None
+        target = _python_module_target(head, args, repo_root)
+        return target, target == _PROVENANCE_SCRIPT_PATH
+    if os.path.basename(raw_head) == _PROVENANCE_SCRIPT_BASENAME:
+        path = _invocation_path(raw_head, repo_root)
+        return path, path == _PROVENANCE_SCRIPT_PATH
+    if _PYTHON_HEAD_RE.fullmatch(head):
+        script = _first_non_option(args)
+        if script and os.path.basename(script) == _PROVENANCE_SCRIPT_BASENAME:
+            path = _invocation_path(script, repo_root)
+            return path, path == _PROVENANCE_SCRIPT_PATH
+    return None
+
+
+def _provenance_script_borrow(head: str, args) -> bool:
+    """``python3 -m <他 module> … <checker>`` の形で checker を渡しているか。
+
+    違反ではない (module 側が実体で checker は data)。ただし **sanctioned 判定を
+    script 引数から借りさせない** — 借りると ``-m pytest tools/check_ai_provenance.py``
+    が `_is_sanctioned` の早期許可を取って pytest 判定へ到達しなくなる
+    (_script_target は python head の第 1 非 option 引数も候補にするため)。
+    引数順に依存させない: ``-m py_compile a.py <checker>`` も借用と見なす。
+    """
+    invocation = _python_module_invocation(head, args)
+    if invocation is None or invocation[0] == _PROVENANCE_MODULE:
+        return False
+    return any(
+        not a.startswith("-") and a != "--"
+        and os.path.basename(a) == _PROVENANCE_SCRIPT_BASENAME
+        for a in invocation[1])
+
+
+def _provenance_violation(raw_head: str, head: str, args, repo_root: str):
+    """非 sanctioned な綴りでの provenance 履歴監査起動を拒否理由にする。"""
+    entry = _provenance_entry(raw_head, head, args, repo_root)
+    if entry is None:
+        return None
+    path, sanctioned = entry
+    if sanctioned:
+        return None
+    if any(a in _PROVENANCE_EXEMPT_FLAGS or a.startswith("--message-file=")
+           for a in args):
+        return None
+    return f"非 sanctioned provenance 履歴監査実行体 ({path or raw_head})"
+
+
 def _heavy_segment_violation(seg, repo_root: str, depth: int):
     seg = _expand_env_split_strings(seg)
     if seg is None:
         return "env -S split-string を解析不能"
     raw_head, head, args = _heavy_head_and_args(seg)
-    if not head or _is_sanctioned(raw_head, head, args, repo_root):
+    if not head:
+        return None
+    # sanctioned 早期許可より前に評価する。後ろに置くと、script 引数から借りた
+    # sanctioned 判定がこの分岐に到達させない。
+    provenance = _provenance_violation(raw_head, head, args, repo_root)
+    if provenance:
+        return provenance
+    # `-m <他 module> … <checker>` は checker を実行しないので通すが、sanctioned だけは
+    # 借りさせず以降の既存判定 (pytest 等) へ落とす。
+    if (not _provenance_script_borrow(head, args)
+            and _is_sanctioned(raw_head, head, args, repo_root)):
         return None
 
     target = _script_target(raw_head, head, args, repo_root)

@@ -18,13 +18,15 @@ import sys
 import tempfile
 from unittest.mock import patch
 
+import pytest
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 _REPO = os.path.dirname(_ORCH)
 sys.path.insert(0, _ORCH)
 
 from campaign import source_digest                               # noqa: E402
-from skiputil import Skip, skip                                  # noqa: E402
+from skiputil import skip                                        # noqa: E402
 
 
 def _load_hook(name: str):
@@ -740,10 +742,35 @@ def test_bash_login_rejects_mutating_or_unknown_ninja_tools():
         assert not ok, f"読み取り専用でない ninja tool が login で通った: {cmd!r}"
 
 
+_PROVENANCE_SANCTIONED_SPELLINGS = (
+    "python3 tools/check_ai_provenance.py --range 72849d3..HEAD",
+    "python3 ./tools/check_ai_provenance.py --range 72849d3..HEAD",
+    "./tools/check_ai_provenance.py --range 72849d3..HEAD",
+    "python3 -m tools.check_ai_provenance --range 72849d3..HEAD",
+)
+
+# 拒否側の綴り。checker 自身の site gate (第一層) を通らない経路だけを列挙する。
+_PROVENANCE_NONSANCTIONED_SPELLINGS = (
+    ("outside-repo-copy", "python3 /tmp/copy/check_ai_provenance.py --range A..B"),
+    ("outside-repo-copy-direct", "/tmp/copy/check_ai_provenance.py --range A..B"),
+    ("home-relative-copy", "~/copy-of-izanagi/tools/check_ai_provenance.py --range A..B"),
+    ("cwd-relative", "python3 check_ai_provenance.py --range A..B"),
+    ("parent-relative", "python3 ../izanagi/tools/check_ai_provenance.py --range A..B"),
+    ("shell-command-string",
+     "bash -lc 'cd /tmp && python3 ../izanagi/tools/check_ai_provenance.py --range A..B'"),
+    # sanctioned 追加が `_script_target` の第 1 非 option 引数候補を通して許可へ
+    # 反転させないための positive control (現状も拒否)。
+    ("dash-m-pytest", "python3 -mpytest tools/check_ai_provenance.py"),
+)
+
+
 def test_bash_login_sanctioned_entries_are_exact():
+    assert "tools/check_ai_provenance.py" in GB._SANCTIONED_PATHS
+    assert os.path.isfile(os.path.join(_REPO, "tools", "check_ai_provenance.py"))
     for cmd in (
         "python3 tools/run_tests.py -q",
         "python3 ./tools/pegasus/dispatch_compute.py --help",
+        *_PROVENANCE_SANCTIONED_SPELLINGS,
         "tools/pegasus/submit_certify.sh",
         "bash tools/pegasus/submit_floor.sh",
         "sh tools/pegasus/submit_silo_ladder_rung1.sh",
@@ -763,6 +790,106 @@ def test_bash_login_sanctioned_entries_are_exact():
         "python3 tools/pegasus/exec_calibrate.py argv.json",
         site="PEGASUS_LOGIN")
     assert not ok, "tools/pegasus/* の glob 許可で汎用 exec trampoline を通してはならない"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [command for _, command in _PROVENANCE_NONSANCTIONED_SPELLINGS],
+    ids=[name for name, _ in _PROVENANCE_NONSANCTIONED_SPELLINGS],
+)
+def test_bash_login_blocks_nonsanctioned_provenance_entrypoints(command):
+    """M13 期待赤: provenance 分岐を _is_sanctioned の後ろへ移すと dash-m-pytest が通る。"""
+    ok, _ = GB.decide(command, site="PEGASUS_LOGIN")
+    assert not ok, f"非 sanctioned な provenance 履歴監査が login で通った: {command!r}"
+    ok, _ = GB.decide(command, site="PEGASUS_SUSPECT")
+    assert not ok, f"非 sanctioned な provenance 履歴監査が SUSPECT で通った: {command!r}"
+
+
+def test_bash_login_allows_nonexecuting_provenance_flags():
+    """受理集合の過剰縮小 (重くない呼び方まで拒否) を検出する正例。"""
+    for cmd in (
+        "python3 tools/check_ai_provenance.py --message-file /tmp/msg",
+        "python3 /tmp/copy/check_ai_provenance.py --message-file /tmp/msg",
+        "python3 /tmp/copy/check_ai_provenance.py --message-file=/tmp/msg",
+        "/tmp/copy/check_ai_provenance.py --help",
+        "python3 -mpytest tools/check_ai_provenance.py --collect-only",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"重くない provenance 呼出が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_compute_allows_provenance_forms():
+    for cmd in (
+        *_PROVENANCE_SANCTIONED_SPELLINGS,
+        *[value for _, value in _PROVENANCE_NONSANCTIONED_SPELLINGS],
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_COMPUTE")
+        assert ok, f"計算ノードの provenance 実行を第二防壁が拒否した: {cmd!r} ({why})"
+
+
+def test_bash_login_allows_static_module_reads_of_provenance_script():
+    """段 6 MF-1 の再発防止: checker を **実行しない** `-m <module>` 形は通す。
+
+    `python3 -m py_compile tools/check_ai_provenance.py` は AGENTS.md が
+    ログインノードで明示許可する唯一の静的検査であり、hook が拒否すると
+    このファイルの検証手段が消える。引数順で受理集合が変わらないことも固定する
+    (`-m py_compile a.py <checker>` は同じ形の言い換えにすぎない)。
+    """
+    for cmd in (
+        "python3 -m py_compile tools/check_ai_provenance.py",
+        "python3 -m py_compile hooks/guard_bash.py tools/check_ai_provenance.py",
+        "python3 -m py_compile tools/check_ai_provenance.py hooks/guard_bash.py",
+        "python3 -m json.tool tools/check_ai_provenance.py",
+        "python3 -m compileall -q tools/check_ai_provenance.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"checker を実行しない静的 module 起動が拒否された: {cmd!r} ({why})"
+
+
+def test_provenance_script_borrow_does_not_lend_sanctioned_status():
+    """`-m <他 module>` の位置引数に sanctioned 判定を借りさせない (引数順非依存)。
+
+    借用抑止が第 1 非 option 引数だけを見ると、sanctioned path を先に置くだけで
+    pytest 判定を飛び越えられる。ここが M13 の穴と同根なので単体でも固定する。
+    """
+    assert GB._provenance_script_borrow(
+        "python3", ["-m", "py_compile", "tools/check_ai_provenance.py"])
+    assert GB._provenance_script_borrow(
+        "python3", ["-m", "py_compile", "hooks/guard_bash.py",
+                    "tools/check_ai_provenance.py"])
+    # checker 自身を module として起動する形は借用ではない (sanctioned 綴り)。
+    assert not GB._provenance_script_borrow(
+        "python3", ["-m", "tools.check_ai_provenance", "--range", "A..B"])
+    assert not GB._provenance_script_borrow(
+        "python3", ["tools/check_ai_provenance.py", "--range", "A..B"])
+    assert not GB._provenance_script_borrow("cat", ["tools/check_ai_provenance.py"])
+
+    ok, _ = GB.decide(
+        "python3 -mpytest tools/pegasus/dispatch_compute.py "
+        "tools/check_ai_provenance.py",
+        site="PEGASUS_LOGIN")
+    assert not ok, "sanctioned path を先頭に置くだけで pytest 実行が許可された"
+
+
+def test_bash_login_provenance_branch_does_not_capture_readers():
+    """引数で checker を名指しするだけの読み取り・別 entry point を巻き込まない。"""
+    for cmd in (
+        "cat tools/check_ai_provenance.py",
+        "rg IMPLEMENTATION_POLICY tools/check_ai_provenance.py",
+        "git show HEAD:tools/check_ai_provenance.py",
+        "wc -c tools/check_ai_provenance.py",
+        "python3 tools/run_tests.py orchestrator/tests/test_check_ai_provenance.py",
+        "python3 tools/check_docs.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"provenance 分岐が無関係な形を巻き込んだ: {cmd!r} ({why})"
+
+    # 逆向き: checker を pytest へ引き渡す実行形は従来どおり拒否のまま。
+    ok, _ = GB.decide(
+        "python3 -m pytest orchestrator/tests/test_check_ai_provenance.py",
+        site="PEGASUS_LOGIN",
+    )
+    assert not ok, "pytest 実行の既存拒否を provenance 分岐で緩めてはならない"
 
 
 def test_bash_login_keeps_required_session_commands_available():
@@ -1139,26 +1266,17 @@ def test_hook_scripts_run_as_subprocess():
             f"{name} rc={r.returncode} (期待 {want}) stderr={r.stderr[:200]}"
 
 
-def _run():
-    fns = [v for k, v in sorted(globals().items())
-           if k.startswith("test_") and callable(v)]
-    passed = failed = skipped = 0
-    for fn in fns:
-        try:
-            fn()
-            print(f"PASS {fn.__name__}")
-            passed += 1
-        except Skip as e:
-            print(f"SKIP {fn.__name__}: {e}")
-            skipped += 1
-        except AssertionError as e:
-            print(f"FAIL {fn.__name__}: {e}")
-            failed += 1
-        except Exception as e:  # noqa: BLE001
-            print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
-            failed += 1
-    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
-    return 1 if failed else 0
+def _run() -> int:
+    """parametrize node を含む同一 node 集合を素の runner からも実行する。
+
+    自前 loop に戻してはいけない: 引数を取る node を skip すると M13 の期待赤
+    (`test_bash_login_blocks_nonsanctioned_provenance_entrypoints[dash-m-pytest]`)
+    が `python3 orchestrator/tests/test_hooks.py` では 1 件も走らなくなる
+    (段 6 レビュー A/B の nit)。委譲する以上 pytest は本ファイルの必須依存であり、
+    未導入環境で ImportError になるのは偽緑より安全側 —
+    test_check_ai_provenance.py と同型。
+    """
+    return int(pytest.main(["-q", os.path.abspath(__file__)]))
 
 
 if __name__ == "__main__":

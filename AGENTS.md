@@ -26,10 +26,13 @@ worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「�
 - クラス 2 / 3 のタスク完了時は関連テスト、`python3 tools/check_codex_agents.py`、
   `python3 tools/check_docs.py` を実行し、phase の完了チェックは実装と同じ commit に含める。
   commit を作った後は `python3 tools/check_ai_provenance.py` で導入時点から `HEAD` までを監査する。
+  Pegasus ログインノードでは同 checker が計算ノードへ自動 dispatch するので、この行を打つこと自体は
+  禁止されない (`rc=16` は dispatch の失敗であって監査結果ではない)。
 - **`hostname` が Pegasus ログインノード (`pegasus0N`) のときは、重い処理を自分で走らせない。**
-  テスト (pytest の全走・部分走)・ビルド (`cmake --build` / `make -j` / `ninja`)・ベンチ・計測は
-  計算ノードで行う規律であり (`docs/pegasus-runbook.md` §7)、**Codex には hook が未配線なので
-  機械的に止まらない**。許されるのは静的読み取りと `python3 -m py_compile` までで、
+  テスト (pytest の全走・部分走)・ビルド (`cmake --build` / `make -j` / `ninja`)・ベンチ・計測・
+  provenance 履歴監査は計算ノードで行う規律であり (`docs/pegasus-runbook.md` §7)、**Codex には
+  hook が未配線なので機械的に止まらない**。許されるのは静的読み取りと `python3 -m py_compile` まで
+  (`check_ai_provenance.py` の履歴監査は git subprocess 約 3000 本であり静的読み取りではない) で、
   **pytest はログインノードで一切走らせない (単一ファイル・単一 nodeid も含む)**。
   テスト実測は親が `tools/run_tests.py` 経由で計算ノードへ dispatch する。
   走らせていないものを緑と報告しない。

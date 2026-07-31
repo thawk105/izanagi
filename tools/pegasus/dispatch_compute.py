@@ -17,6 +17,7 @@ import signal
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
@@ -30,18 +31,52 @@ DEFAULT_OVERALL_GRACE_S = 300.0
 DEFAULT_ACCOUNTING_GRACE_S = 60.0
 DEFAULT_POLL_INTERVAL_S = 5.0
 DEFAULT_LOG_LIMIT_BYTES = 2 * 1024 * 1024
+DEFAULT_SUCCESS_RELAY_LIMIT_BYTES = 4 * 1024
+DEFAULT_FAILURE_RELAY_LIMIT_BYTES = 64 * 1024
 DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS = 3
 
 _TASK_RUN_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUN_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _COMPUTE_MARKER_NAME = "compute-visible.json"
-_REQUEST_ENV_ALLOWLIST = frozenset({
-    "PYTEST_ADDOPTS",
-    "IZANAGI_TEST_NPROC",
-    "IZANAGI_TEST_TRIGGER",
-    "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS",
-})
+
+
+@dataclass(frozen=True)
+class _TaskSpec:
+    """1 task 種別が計算ノードで必要とする実体・環境・interpreter 条件。"""
+
+    child_script: tuple[str, ...]
+    env_allowlist: frozenset[str]
+    probe_imports: tuple[str, ...]
+
+
+# 閉じた task enum。任意 command 化は「tools/pegasus/* の glob 許可はしない」
+# (D103 決定 5) と正面衝突するため、受理する task はここに列挙したものだけとする。
+TASKS = {
+    "tests": _TaskSpec(
+        child_script=("tools", "run_tests.py"),
+        env_allowlist=frozenset({
+            "PYTEST_ADDOPTS",
+            "IZANAGI_TEST_NPROC",
+            "IZANAGI_TEST_TRIGGER",
+            "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS",
+        }),
+        probe_imports=("pytest", "xdist", "packaging"),
+    ),
+    # provenance 履歴監査は stdlib + git だけで動き、GIT_* は checker 自身が隔離するので
+    # 親の環境値を 1 つも必要としない。
+    "provenance": _TaskSpec(
+        child_script=("tools", "check_ai_provenance.py"),
+        env_allowlist=frozenset(),
+        probe_imports=(),
+    ),
+}
+DEFAULT_TASK = "tests"
+_REQUEST_SCHEMA = "pegasus-dispatch-request/v2"
+# v1 も受理する: queue 待ちの in-flight job は投入時点の request を、起動時点の live repo の
+# _job_run で読む。一方向 bump は待ち中に land した job を殺すので互換受理を持つ。
+_LEGACY_REQUEST_SCHEMA = "pegasus-dispatch-request/v1"
+_RECEIPT_SCHEMA = "pegasus-dispatch-receipt/v2"
 _QSTAT_ERROR_MARKERS = {
     "permission": (
         "not permitted",
@@ -200,6 +235,12 @@ def _progress(message: str) -> None:
     print(f"[Pegasus dispatch] {message}", flush=True)
 
 
+def _emit(text: str, *, stream: Any) -> None:
+    """親 process の指定 stream へ relay text を書く注入 seam。"""
+
+    print(text, end="", file=stream, flush=True)
+
+
 def _capture(result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     return {
         "returncode": int(result.returncode),
@@ -263,18 +304,27 @@ def _fsync_dir(path: Path) -> None:
         os.close(descriptor)
 
 
-def _interpreter_probe_source() -> str:
-    """各候補自身で版数と importability を assert する短い probe。"""
+def _interpreter_probe_source(task: str = DEFAULT_TASK) -> str:
+    """各候補自身で版数と task 固有の importability を assert する短い probe。
 
-    return (
+    既定引数は省略できない — probe は job script 生成の外 (テスト) からも無引数で
+    呼ばれる。版数検査は task に依らず常に置く (_job_run と二層冗長 gate をなす)。
+    """
+
+    spec = TASKS[task]
+    head = (
         "import sys\n"
         "if sys.version_info < (3, 10):\n"
         "    raise SystemExit(1)\n"
-        "try:\n"
-        "    import pytest\n"
-        "    import xdist\n"
-        "    import packaging\n"
-        "except Exception:\n"
+    )
+    if not spec.probe_imports:
+        return head + "raise SystemExit(0)\n"
+    imports = "".join(f"    import {name}\n" for name in spec.probe_imports)
+    return (
+        head
+        + "try:\n"
+        + imports
+        + "except Exception:\n"
         "    raise SystemExit(1)\n"
         "raise SystemExit(0)\n"
     )
@@ -373,6 +423,32 @@ def _read_json_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def _resolve_request(request: Mapping[str, Any]) -> tuple[str, Any]:
+    """request payload を (task, argv) へ解決する。schema v1 / v2 の両方を受理する。
+
+    v1 には task 概念が無く、投入できた唯一の task は ``tests`` であった。未知の
+    schema_version だけを拒否することで、queue 待ち中に新 schema が land しても
+    in-flight job を殺さない。
+    """
+
+    schema = request.get("schema_version")
+    if schema == _LEGACY_REQUEST_SCHEMA:
+        return DEFAULT_TASK, request["pytest_args"]
+    if schema == _REQUEST_SCHEMA:
+        task = request.get("task")
+        if type(task) is not str:
+            raise DispatchError("task は string でなければなりません")
+        return task, request["args"]
+    raise DispatchError(f"未知の request schema_version です: {schema!r}")
+
+
+def _import_probe_modules(spec: _TaskSpec) -> None:
+    """task が要求する module だけを子起動前に import 検査する。"""
+
+    for name in spec.probe_imports:
+        __import__(name)
+
+
 def _job_run(request_path: Path) -> int:
     """計算ノード内でだけ呼ばれる child launcher。"""
 
@@ -385,16 +461,19 @@ def _job_run(request_path: Path) -> int:
     try:
         if sys.version_info < (3, 10):
             raise DispatchError("interpreter version < 3.10")
-        import packaging  # noqa: F401
-        import pytest  # noqa: F401
-        import xdist  # noqa: F401
 
         request = _read_json_object(request_path)
+        task, argv = _resolve_request(request)
+        # 親 (_dispatch_impl) と独立に子でも閉集合照合する二層 fail-closed。
+        if task not in TASKS:
+            raise DispatchError(f"未知の task です: {task!r}")
+        spec = TASKS[task]
+        _import_probe_modules(spec)
+
         repo_root = Path(request["repo_root"]).resolve()
-        argv = request["pytest_args"]
         requested_env = request.get("environment", {})
         if type(argv) is not list or not all(type(value) is str for value in argv):
-            raise DispatchError("pytest_args は string list でなければなりません")
+            raise DispatchError("args は string list でなければなりません")
         if type(requested_env) is not dict or not all(
             type(key) is str and type(value) is str
             for key, value in requested_env.items()
@@ -413,7 +492,7 @@ def _job_run(request_path: Path) -> int:
         child_env["PATH"] = executable_dir + os.pathsep + child_env.get("PATH", "")
         stage = "child"
         child_rc = subprocess.call(
-            [sys.executable, str(repo_root / "tools" / "run_tests.py"), *argv],
+            [sys.executable, str(repo_root.joinpath(*spec.child_script)), *argv],
             cwd=str(repo_root),
             env=child_env,
         )
@@ -509,6 +588,144 @@ def _bounded_log(path: Path, *, limit: int) -> dict[str, Any]:
         "omitted_bytes": omitted,
         "tail": text,
     }
+
+
+def _utf8_tail(text: str, *, limit: int) -> str:
+    """decode 済み text の末尾を UTF-8 byte 枠内の部分文字列にする。"""
+
+    remaining = limit
+    start = len(text)
+    while start:
+        width = len(text[start - 1].encode("utf-8"))
+        if width > remaining:
+            break
+        remaining -= width
+        start -= 1
+    return text[start:]
+
+
+def _prefix_relay_lines(text: str) -> str:
+    """信頼できない child text の各行を dispatcher 行から識別可能にする。"""
+
+    return "".join(f"| {line}" for line in text.splitlines(keepends=True))
+
+
+def _redirect_broken_stream_to_devnull(stream: Any) -> None:
+    """終了時 flush が同じ broken pipe で process rc を 120 に変えるのを防ぐ。"""
+
+    devnull_fd: Optional[int] = None
+    try:
+        devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull_fd, stream.fileno())
+    except _SignalAbort:
+        raise
+    except Exception:
+        pass
+    finally:
+        if devnull_fd is not None:
+            try:
+                os.close(devnull_fd)
+            except _SignalAbort:
+                raise
+            except Exception:
+                pass
+
+
+def _emit_relay_abort_notice(text: str, *, stream: Any) -> None:
+    """relay 打ち切りを告知し、壊れた告知先も終了時 flush から外す。"""
+
+    try:
+        _emit(text, stream=stream)
+    except BrokenPipeError:
+        _redirect_broken_stream_to_devnull(stream)
+    except _SignalAbort:
+        raise
+    except Exception:
+        pass
+
+
+def _relay_scheduler_logs(
+    stdout_record: Optional[Mapping[str, Any]],
+    stderr_record: Optional[Mapping[str, Any]],
+    *,
+    request_id: Optional[str],
+    successful: bool,
+) -> None:
+    """収集済み scheduler log を元 stream へ best-effort で中継する。"""
+
+    streams = (
+        ("stdout", stdout_record, sys.stdout),
+        ("stderr", stderr_record, sys.stderr),
+    )
+    displayed_request_id = (
+        request_id
+        if type(request_id) is str and re.fullmatch(r"\S+", request_id)
+        else "unknown"
+    )
+    relay_limit = (
+        DEFAULT_SUCCESS_RELAY_LIMIT_BYTES
+        if successful
+        else DEFAULT_FAILURE_RELAY_LIMIT_BYTES
+    )
+    for index, (label, record, stream) in enumerate(streams):
+        try:
+            if record is None:
+                continue
+            tail = record.get("tail")
+            if type(tail) is not str or not tail:
+                continue
+            relayed_tail = _utf8_tail(tail, limit=relay_limit)
+            relayed_size = len(relayed_tail.encode("utf-8"))
+            source_size = record.get("size")
+            source_omitted = record.get("omitted_bytes")
+            truncated = (
+                relayed_tail != tail
+                or (type(source_omitted) is int and source_omitted > 0)
+            )
+            detail = ""
+            if truncated and type(source_size) is int:
+                omitted_bytes = max(
+                    source_omitted if type(source_omitted) is int else 0,
+                    source_size - relayed_size,
+                )
+                detail = (
+                    f" (size={source_size} bytes, "
+                    f"omitted_bytes={omitted_bytes})"
+                )
+            frame = (
+                f"[Pegasus dispatch] request {displayed_request_id} "
+                f"child {label}"
+            )
+            _emit(
+                f"{frame} begin{detail}\n",
+                stream=stream,
+            )
+            prefixed_tail = _prefix_relay_lines(relayed_tail)
+            _emit(prefixed_tail, stream=stream)
+            if not prefixed_tail.endswith("\n"):
+                _emit("\n", stream=stream)
+            _emit(
+                f"{frame} end\n",
+                stream=stream,
+            )
+        except BrokenPipeError:
+            _redirect_broken_stream_to_devnull(stream)
+            notice_stream = streams[1 - index][2]
+            _emit_relay_abort_notice(
+                f"[Pegasus dispatch] request {displayed_request_id} "
+                f"child log relay aborted after broken pipe on {label}\n",
+                stream=notice_stream,
+            )
+            break
+        except _SignalAbort:
+            raise
+        except Exception:
+            _emit_relay_abort_notice(
+                f"[Pegasus dispatch] request {displayed_request_id} "
+                f"child {label} relay aborted after relay error\n",
+                stream=stream,
+            )
+            continue
 
 
 def _accounting_present(
@@ -716,8 +933,9 @@ def _persist_receipt(
 
 
 def _dispatch_impl(
-    pytest_args: Sequence[str],
+    args: Sequence[str],
     *,
+    task: str = DEFAULT_TASK,
     repo_root: Optional[Path] = None,
     environ: Optional[Mapping[str, str]] = None,
     output_root: Optional[Path] = None,
@@ -734,6 +952,11 @@ def _dispatch_impl(
     nonce: Optional[str] = None,
 ) -> int:
     """1 invocation を 1 batch job として投入し、会計照合済み rc を返す。"""
+
+    # 不正 task は scheduler へ 1 度も触れずに落とす (親側)。子側の照合は _job_run。
+    if task not in TASKS:
+        raise ValueError(f"未知の task です: {task!r}")
+    spec = TASKS[task]
 
     repo = (
         Path(__file__).resolve().parents[2]
@@ -759,7 +982,7 @@ def _dispatch_impl(
     command_env = dict(os.environ if environ is None else environ)
     request_env = {
         key: command_env[key]
-        for key in _REQUEST_ENV_ALLOWLIST if key in command_env
+        for key in spec.env_allowlist if key in command_env
     }
     command_env.pop(_TASK_RUN_ENV, None)
     command_env.pop(_TASK_RUN_ROOT_ENV, None)
@@ -778,7 +1001,7 @@ def _dispatch_impl(
     submission_dir.mkdir(mode=0o700)
     job_name = _job_name(submission_dir.name)
     receipt: dict[str, Any] = {
-        "schema_version": "pegasus-dispatch-receipt/v1",
+        "schema_version": _RECEIPT_SCHEMA,
         "submission_dir": str(submission_dir),
         "request": {
             "project": DEFAULT_PROJECT,
@@ -786,7 +1009,8 @@ def _dispatch_impl(
             "nodes": 1,
             "walltime": walltime,
             "job_name": job_name,
-            "pytest_args": list(pytest_args),
+            "task": task,
+            "args": list(args),
         },
         "state_history": [],
         "qdel": {"attempted": False},
@@ -795,12 +1019,13 @@ def _dispatch_impl(
     probe_path = submission_dir / "interpreter_probe.py"
     script_path = submission_dir / "dispatch.sh"
     _write_json_x(request_path, {
-        "schema_version": "pegasus-dispatch-request/v1",
+        "schema_version": _REQUEST_SCHEMA,
         "repo_root": str(repo),
-        "pytest_args": list(pytest_args),
+        "task": task,
+        "args": list(args),
         "environment": request_env,
     })
-    _write_text_x(probe_path, _interpreter_probe_source(), mode=0o600)
+    _write_text_x(probe_path, _interpreter_probe_source(task), mode=0o600)
     _write_text_x(
         script_path,
         _job_script(
@@ -819,6 +1044,8 @@ def _dispatch_impl(
     active = False
     request_was_visible = False
     run_seen = False
+    stdout_record: Optional[dict[str, Any]] = None
+    stderr_record: Optional[dict[str, Any]] = None
     old_handlers: dict[int, Any] = {}
 
     def abort_on_signal(signum, _frame):
@@ -1008,8 +1235,6 @@ def _dispatch_impl(
         _progress(f"request {normalized_id} の成果物収集を開始します")
         collection_deadline = clock() + accounting_grace_s
         result: Optional[dict[str, Any]] = None
-        stdout_record: Optional[dict[str, Any]] = None
-        stderr_record: Optional[dict[str, Any]] = None
         marker_valid = False
         marker_record: dict[str, Any] = {}
         while True:
@@ -1077,6 +1302,12 @@ def _dispatch_impl(
                     )
                     _persist_receipt(submission_dir, root, receipt)
                     _print_terminal_handoff(latched, reason)
+                    _relay_scheduler_logs(
+                        stdout_record,
+                        stderr_record,
+                        request_id=request_id,
+                        successful=False,
+                    )
                     return INFRA_RC
                 raise DispatchError("result/log/accounting-grace-expired")
             sleep(poll_interval_s)
@@ -1112,8 +1343,20 @@ def _dispatch_impl(
                 file=sys.stderr,
                 flush=True,
             )
+            _relay_scheduler_logs(
+                stdout_record,
+                stderr_record,
+                request_id=request_id,
+                successful=False,
+            )
             return INFRA_RC
         _progress(f"receipt を {persisted} へ保存しました (child rc={child_rc})")
+        _relay_scheduler_logs(
+            stdout_record,
+            stderr_record,
+            request_id=request_id,
+            successful=child_rc == 0,
+        )
         return child_rc
     except BaseException as exc:
         receipt["outcome"] = {
@@ -1154,6 +1397,12 @@ def _dispatch_impl(
             file=sys.stderr,
             flush=True,
         )
+        _relay_scheduler_logs(
+            stdout_record,
+            stderr_record,
+            request_id=request_id,
+            successful=False,
+        )
         return INFRA_RC
     finally:
         for signum, handler in old_handlers.items():
@@ -1164,8 +1413,9 @@ def _dispatch_impl(
 
 
 def dispatch(
-    pytest_args: Sequence[str],
+    args: Sequence[str],
     *,
+    task: str = DEFAULT_TASK,
     repo_root: Optional[Path] = None,
     environ: Optional[Mapping[str, str]] = None,
     output_root: Optional[Path] = None,
@@ -1195,7 +1445,8 @@ def dispatch(
             pass
     try:
         return _dispatch_impl(
-            pytest_args,
+            args,
+            task=task,
             repo_root=repo_root,
             environ=environ,
             output_root=output_root,
@@ -1230,13 +1481,13 @@ def dispatch(
             )
             setup_receipt = root / f"receipt-setup-{receipt_nonce}.json"
             _write_json_x(setup_receipt, {
-                "schema_version": "pegasus-dispatch-receipt/v1",
+                "schema_version": _RECEIPT_SCHEMA,
                 "outcome": {
                     "kind": "infra",
                     "reason": f"{type(exc).__name__}: {exc}",
                     "rc": INFRA_RC,
                 },
-                "request": {"pytest_args": list(pytest_args)},
+                "request": {"task": task, "args": list(args)},
             })
         except (Exception, KeyboardInterrupt):
             pass
@@ -1281,18 +1532,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         type=float,
         default=DEFAULT_POLL_INTERVAL_S,
     )
-    parser.add_argument("pytest_args", nargs=argparse.REMAINDER)
-    args = parser.parse_args(values)
-    pytest_args = list(args.pytest_args)
-    if pytest_args[:1] == ["--"]:
-        pytest_args = pytest_args[1:]
+    # CLI 面でも task を閉集合に固定する (親・子の二層 fail-closed の 3 点目)。
+    parser.add_argument("--task", choices=tuple(TASKS), default=DEFAULT_TASK)
+    parser.add_argument("args", nargs=argparse.REMAINDER)
+    parsed = parser.parse_args(values)
+    child_args = list(parsed.args)
+    if child_args[:1] == ["--"]:
+        child_args = child_args[1:]
     return dispatch(
-        pytest_args,
-        walltime=args.walltime,
-        queue_wait_timeout_s=args.queue_wait_timeout,
-        overall_grace_s=args.overall_grace,
-        accounting_grace_s=args.accounting_grace,
-        poll_interval_s=args.poll_interval,
+        child_args,
+        task=parsed.task,
+        walltime=parsed.walltime,
+        queue_wait_timeout_s=parsed.queue_wait_timeout,
+        overall_grace_s=parsed.overall_grace,
+        accounting_grace_s=parsed.accounting_grace,
+        poll_interval_s=parsed.poll_interval,
     )
 
 
