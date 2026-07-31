@@ -1323,6 +1323,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - 実測した中継の形 (受入と同じ走行の親 stdout):
   `[Pegasus dispatch] request 874782.nqsv child stdout begin (size=5110 bytes, omitted_bytes=1014)` →
   `| ` prefix 付き本文 → `end`。緑走は 4 KiB 枠に収まり log 全体 5629 bytes
+- **段 8 の自己改善は実装できず裁定へ回した**: 候補 3 件を書き入れて `check_docs.py` を走らせたところ、
+  `docs/dev-wave/**` の合計が **24000 bytes の hard ceiling ちょうど**で、追記の余地がゼロだと実測した
+  (`mutation.md` も 3750 の個別予算に対し超過)。予算を上げない・安全義務を削らない・節の削除は
+  ユーザー裁定に限る、の 3 規律が同時に効くため変更を revert し、T-216 として起票した
 
 ### 次の一手
 
@@ -1341,6 +1345,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   導入で infra テストが再び stream 対応表へ結合した (G2 と F11 は構造的に両立しない)、`os` モジュール
   実体を process 全体で差し替える mock が 2 本に増えた、終端待ち中の先読みを将来入れると 2 経路が
   収集済みログを黙って捨てる
+- [T-216] **P2・ユーザー裁定要 (本エントリ、段 8 の裁定パッケージ)**: dev-wave の改善候補 3 件が
+  docs 予算の hard ceiling に阻まれて実装できない。候補は (a) 実装面 commit の Codex author 要求が
+  prompt 規律でなく `check_ai_provenance.py` の機械強制であることを `DW-S05-B` へ明示 (本 wave で
+  ユーザー指示と衝突し段 5 直前まで判明しなかった)、(b) `DW-M07` へ「fix が killing test を消して
+  いないか」の再検証を追加 (本 wave で実際に起きた)、(c) `DW-M04` へ「harness の観測経路は変異対象から
+  独立させる」を追加 (自己参照で偽 SURVIVED になる)。**どれを入れるか、代わりに何を削るか**が裁定事項。
+  `docs/dev-wave/**` は現在 24000/24000 で、1 行も入らない
 - [T-194] **本エントリで解消**: dispatcher が子の pytest 出力を親 stdout へ中継しない件を実装し、
   受入・変異・dogfood で実証した。残件は T-212〜T-215 へ分割して起票済み
 - [T-206] 解消済み ((75) で是正、(76) で確認)
