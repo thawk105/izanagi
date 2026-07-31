@@ -1176,9 +1176,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   ユーザー裁定に限る、の 3 規律が同時に効くため変更を revert し、T-219 として起票した
   (同じ予算枯渇は [T-177] で「上限を上げず未使用 L2 節の削除で空ける」と既に裁定済みであり、本 wave の
   候補もその枠で処理できる。並行 session の main 取り込みで判明した)
-- **段 9 は land できず fail-closed 停止した (成果物は全て commit 済み)**。
-  **主因は main の diverge** — 他セッションにより `cb5780e` → **`3ca5cfe`** へ進み、
-  `git merge-base --is-ancestor` が偽。ff-only は成立しない。
+- **段 9 は 3 度の再試行の末に `landed` した** (main `5544794` → `9d9f3ab` へ ff-only)。
+  初回は fail-closed 停止しており、その経過を以下に残す。**主因は main の diverge** —
+  他セッションにより `cb5780e` → **`3ca5cfe`** へ進み、
+  `git merge-base --is-ancestor` が偽。ff-only は成立しなかった。
   実行順では `tools/dev_wave_land.py` の control-plane preflight が先に当たり、
   **rc 21 / `handoff four-line header is malformed`** を返した。原因は他セッション所有の
   `docs/handoff/2026-07-31-t126-f32-closure-resume.md` が見出し直後に空行を置き `- 目的: ` が
@@ -1198,6 +1199,15 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   ローテーションは [T-205] 側が (71) だけを畳む形で先に land したため、**自分の (71)〜(72) 案を取り下げて
   main の構造に合わせた**。エントリ番号 (77) と ID も衝突したため D70 に従い未統合側 (本 wave) を
   (78) / T-215〜T-220 へ振り直した
+- **land までの実際の経過 (ユーザー指示「やってください。並行セッション開発してますんで、そういうことは
+  おきます」を受けて同一 context で実施)**: main を 3 度取り込んだ (`3ca5cfe` → `3926405` → `5544794`)。
+  2 度目で [T-205] と同一ファイルの衝突が起きたがコードは自動解決し、docs 2 件だけを手で解いた。
+  3 度目の後に ff 可能となり、受入 **4287 passed / 19 skipped / 214.33s** を通してから
+  `dev_wave_land.py` が `landed` を返した。**merge commit の trailer で新しい論点が出た** —
+  3-way merge の統合結果はどちらの親とも異なるため実装面が combined path に載り、
+  `check_ai_provenance.py` が Codex author を要求する。D105 の waiver は「Codex 不可用時の
+  Claude author」用で role=author 併記が要り、integrator の merge には形が合わない。本 wave は
+  **統合された実装面の実際の書き手 (両親の Codex author) を `scope=merged-impl` で併記**して通した
 
 ### 次の一手
 
