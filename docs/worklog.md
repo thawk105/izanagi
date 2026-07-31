@@ -1327,6 +1327,9 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - エージェント工数: Claude 子 8 session (plan 1 / 敵対相談 2 / 実装 2 / 敵対レビュー 2 / fix 2 のうち fix は再投分)。
   **codex は 0 session** (ユーザー裁定)。親は brief・裁定・統合・docs・受入 3 走・監査・変異・記録を担当した。
   push は行わない
+- **記録後検査 (F34)**: docs commit 後の再走で `test_s8b_oracle_driver.py` の 1 node が落ちたが、
+  単独再走は rc=0、最終 tip での全走も **4268 passed / 19 skipped / rc=0** (request `874887`、197.17 秒) で
+  再現しなかった。`DW-O18` に従い実装差分へ帰属せず**フレーク**として記録する (F57 と同型の疑い)
 - 逐語と台帳は `output/insights/2026-07-31_t205-provenance-compute-wave/` (11 ファイル)
 
 ### 次の一手
