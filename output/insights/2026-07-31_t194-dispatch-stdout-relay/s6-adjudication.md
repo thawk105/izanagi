@@ -118,6 +118,22 @@ fix 2 巡目後の独立検証で、**erratum 1 の登録がさらに 4 点失�
 - M4 は 4 node、M5 は 3 node を赤にする。`DW-M08` の diagnostic 欄に併記する
 - 検出力の証明は kill 5 件について「新設テストを除外した状態でも殺せるか」を併走させる
 
+## erratum 3 — 本走後の親裁定 (M8 の kill/pin)
+
+変異本走の結果は 20/20 が期待どおり (KILLED 5 / PINNED 15 / SURVIVED 0 / INVALID 0)。台帳は
+`mutation-ledger.json` を一次資料とする。ただし **M8 の分類だけは親が harness と異なる裁定を出す**。
+
+- harness の判定: **KILLED**。根拠 = 「rc は 16 のままだが、収集到達前の例外で error path 自体が
+  `UnboundLocalError` で落ち、(a) 真の原因が偽の setup failure へすり替わり、(b) 全 infra 経路の中継が
+  消える。dispatcher が自分の失敗理由を捏造する点で診断文字列だけの差ではない」
+- **親の裁定: pin へ格下げする**。`DW-M03` は「kill は受理集合か fail-closed 挙動が期待方向へ
+  変わったときだけ」と定め、`DW-M08` は「受理集合を変えず構造化シグナルだけを pin する変異は kill でなく
+  diagnostic sensitivity pin として別枠に記録する」と定める。M8 は rc も受理集合も動かさないため、
+  規律の文言に従えば pin である。harness の言い分 (原因の捏造は診断文字列以上の害) には理があるが、
+  **kill の定義を運用側で広げると台帳の kill 件数が規律の外で膨らむ**ため採らない
+- したがって本 wave の最終分類は **kill 4 件 (M5 / M11 / M12 / M14) / pin 16 件**とする。
+  台帳の生値 (M8 = KILLED) は一次資料として改変せず、本 erratum を併読の正本とする
+
 ## backlog へ送る (本 wave の scope 外、次の一手へ起票)
 
 - 台帳 `collected_node_digest` の sidecar 還送 (A-6)。中継とは別経路の設計が要る
