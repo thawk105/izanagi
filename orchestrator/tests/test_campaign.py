@@ -2,8 +2,8 @@
 """orchestrator (campaign engine) STAGE1 の単体テスト (machine 非依存)。
 
 pytest でも 素の `python orchestrator/tests/test_campaign.py` でも走る。
-WAL/lock のテストは TMPDIR 配下に一時 campaign を作る (pytest 実行では
-conftest.py が TMPDIR を tmpfs へ向ける)。
+WAL/lock のテストは TMPDIR 配下に一時 campaign を作る (conftest.py は TMPDIR を
+設定しないので、明示されていなければ環境既定の /tmp)。
 """
 from __future__ import annotations
 

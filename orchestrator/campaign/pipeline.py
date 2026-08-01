@@ -544,7 +544,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         # (前パスが certified で 'serializable' 等を残していても、今回 abort する結果に
         # 古い verdict を紛れ込ませない)。到達すれば下で今回の verdict に上書きされる。
         res.verdict = ""
-        tdir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")  # TMPDIR=/home 配下
+        # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
+        tdir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")
         try:
             try:
                 ncommit, rc, aborts = _run_trace(tr.binary, tdir, workload.flags,

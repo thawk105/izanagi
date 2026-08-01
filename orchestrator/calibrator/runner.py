@@ -357,7 +357,8 @@ def run_once(binary: str, gflags: Sequence[str],
     一切足さず (親プロセスの環境をそのまま継承)、既存呼び出し元の挙動を変えない。
     rep_returncodes を指定した場合は subprocess 完了直後、出力や strict rc の検査より
     前に return code を追記する。戻り値の 3-tuple は変えない。"""
-    tmp = tempfile.mkdtemp(prefix="izanagi_run_")     # TMPDIR=/home 配下
+    # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
+    tmp = tempfile.mkdtemp(prefix="izanagi_run_")
     try:
         perf_out = os.path.join(tmp, "perf.csv")
         cmd = _build_cmd(binary, gflags, perf_out, numactl)
