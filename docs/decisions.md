@@ -4969,6 +4969,12 @@ task 種別を 1 つ足すことになる」である。計算ノードが外部
 「ループ主導権はメインセッション、driver は LLM を spawn しない」形で持っている。
 本決定が足すのは、その口を network 越しに配線するための契約である。
 
+**追記 (2026-08-02、D116 による supersede):** 本決定 (1) の「計算ノードで `claude -p` を起動しない」は
+**D116 が supersede した**。根拠だった前提 (「計算ノードから `claude -p` を呼べない」) が実測で覆り、
+ユーザーが [T-276] を択 (b) 解禁と裁定したためである。D116 は明示 opt-in と exact policy admission に
+限って計算ノードでの role 実行を許す。**決定 (2)〜(5) と T-236 の凍結 (campaign task を実装しない) は
+そのまま生きている** — D116 は dispatcher・task enum・network 分割のいずれにも触れていない。
+
 **決定 (2): transport の目標形は閉じた `campaign` task 1 種と exact driver table の compute-side mux
 とする。** 任意 command、任意 path、`tools/pegasus/*` の glob 許可は作らない (D103 決定 5 を維持)。
 driver は軸ごとに増える (段 5 sort → 段 8a trigger-gating) ので、軸追加のたびに `tools/pegasus/` を
@@ -5458,3 +5464,101 @@ certified 証拠であり、再発行には実 job の再走が要る)。
 **研究状態への影響:** なし。production 挙動、実験の受理集合、certified 選択、材料レポート、proof chain、
 凍結 bytes はいずれも不変である。変わるのは開発時の設定ファイルの所在と、それを守る検査だけである。
 受入全走 = Pegasus gen_S 計算ノード request `876932` で 4713 passed / 19 skipped。
+## D116. [T-276] 計算ノードでの role 実行を解禁する — 明示 opt-in と exact policy admission だけを受理集合へ足し、MITM 閉鎖は主張しない (2026-08-02)
+
+**背景 (ユーザー裁定と実測):** worklog (102) のユーザー裁定は [T-276] について **択 (b) 解禁**であり、
+「解禁の前に ① 攻撃者制御 proxy の MITM / injection (規律 6)、② proxy 値の同一性 provenance、
+③ 実装と同じ env から期待値を作る恒真な受入検査、の 3 件を閉じる。受理集合の変更なので D96 手続を通す」
+と条件が付いた。D108 決定 (1) の「計算ノードで `claude -p` を起動しない」は、その根拠だった前提
+(「計算ノードから `claude -p` を呼べない」) が (96) の実測で覆っている。
+
+本 wave の段 1 前提実測 (Pegasus gen_S 計算ノード request `877155`、bnode009、2026-08-01):
+計算ノードの proxy は **lowercase 2 key だけ** (`http_proxy` = `https_proxy` = 単一 endpoint)、
+uppercase / `no_proxy` / `all_proxy` / `ftp_proxy` と TLS trust override 7 key はいずれも未設定。
+allowlist 5 key + proxy 2 key で `claude -p` は rc=0 (API 2.6 秒)、proxy を落とすと rc=1 の
+`api_error` に約 180 秒かかる。**ログインノードには proxy env が 1 つも無い**ため、transport は
+site ごとに非同型であり、②「別値が同一台帳へ混載」は仮想でなく実在する差である。
+また禁止は prose だけで、計算ノードでの `claude -p` を拒否する機械 gate は repo に存在しなかった。
+
+**決定 (1): 解禁は「明示 opt-in の transport admission」として実装し、既定は現行のまま拒否する。**
+新 leaf `orchestrator/campaign/claude_transport.py` が pure evaluator と public wrapper の 2 層を持ち、
+`ClaudeProjectedRoleProvider` (planner / coder / auditor / critic の 4 役が通る provider) だけが
+opt-in で受け取る。**`CLAUDE_ENV_ALLOWLIST` の 5 key は変えない。** flag 省略時は leaf を呼ばず、
+site 判定も policy read も行わない。
+
+**決定 (2): 受理条件は次の全成立とし、いずれか 1 つでも欠ければ fail-closed で拒否する。**
+(i) `site_policy.current_site()` が `PEGASUS_COMPUTE`、(ii) 非空かつ既存 qsub authority と
+逐語同一の文法に適合する `PBS_JOBID`、(iii) lowercase `http_proxy` / `https_proxy` が string で存在、
+(iv) その値が committed policy (`tools/pegasus/policies/transport_v1.json`) の宣言と **exact 一致**、
+(v) TLS trust override 7 key が不在、(vi) 未受理 proxy 名 8 key が不在、
+(vii) **従量経路 env 5 key** (`ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` /
+`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX`) が値によらず不在、
+(viii) policy path が symlink を含まない regular file で、size / read-once / schema / URI 形が正当。
+(i)〜(vii) は policy read **前**の pure preflight で判定し、値一致だけを read 後に残す。
+
+**決定 (3): 実行場所は解禁するが、支払い経路は解禁しない。** 計算ノードは HOME を共有しており、
+probe はキーを 1 本も置かずサブスクのログインで rc=0 を得た。よって計算ノードは
+「サブスクのログインが無いホスト」ではない。決定 (2)(vii) は、解禁が「キーを置きたくなる場所」を
+1 つ増やすことへの機械的な封じである。
+
+**決定 (4): 解禁は production CLI まで配線する。** `--allow-pegasus-compute-transport`
+(既定 False) を `main → run_trial → _provider_set → provider` まで通す。段 3 の敵対レンズ 2 本は
+独立に「CLI へ届かない解禁を『解禁済み』と記録すれば発火しない保証になる」と判定し、
+これは D115 が却下した (a)「索引だけ作り consumer を付け替えない」と同型である。
+`dispatch_compute.py` の `campaign` task 新設 (T-236) には触れない — 同一 process 内で
+既存 provider へ flag を渡す作業は dispatcher・task enum・network 分割のいずれにも当たらない。
+
+**決定 (5): ② は run 単位 receipt で閉じる。** admission は `_provider_set()` の**前**に 1 回だけ解決し、
+同一 immutable receipt を 4 provider へ渡す。receipt (schema / mode / site / 受理 key 集合 /
+endpoint 実値 / その canonical digest / policy path / policy bytes digest / job id) は run 開始
+レコード、成功 attempt の provenance、**invalid attempt、provider-init 失敗、`supervisor-error`、
+wall-budget、`run-finish`** に同じ内容で残る。consumer 側に exact schema gate を置き、
+missing / extra / 型不一致 / digest 不一致を拒否する。opt-out 時に provenance へ receipt が
+入っていれば拒否する (forged receipt の迂回封じ)。
+
+**決定 (6): ③ は独立 literal と非退化 vector で閉じる。** 境界テストは期待値を実行時 `os.environ`・
+production 定数・戻り値自身・policy loader から作らない。committed policy に加えて
+**http と https を異なる値にした vector** と **endpoint key を逆順にした vector** を持つ —
+実 deployment は 2 endpoint が同値かつ既に辞書順であり、その入力だけでは key 取り違え・片値複製・
+`sort_keys` 削除を検出できないためである (段 6 レンズが実測前に指摘した退化)。
+
+**決定 (7): ① は「(96) が指摘した形」までしか閉じない。閉じない部分を明記する。**
+(96) の所見は「proxy 値が**無検査の外部制御面**になる」であり、決定 (2) はその値を検査済みにする。
+**MITM を防止したとは書かない。** 閉じないものは次であり、いずれも受理集合の外に残す:
+固定 proxy そのものが侵害された場合、実行体と `PATH`/`HOME` の trust root (既知 [T-242])、
+`PBS_JOBID` は env 由来なので偽装可能 (cheap witness であって attestation ではない)、
+valid-schema な一行 C++ 注入と虚偽 auditor pass。receipt は「env を注入した証拠」であって
+「安全な route を使った証拠」ではない。
+
+**決定 (8): valid-schema 注入は T-277 を開ける前の blocker として登録する。**
+`_site_admits_measurement` が Pegasus を拒否している間、計算ノードでは変異の build / run へ到達しない。
+この封じ込めは T-277 が開いた時点で消える。
+
+**能力の純増 (正直な会計):** OS 上の proxy 到達性は元から存在したが、izanagi の sanctioned provider が
+それを使い外部応答を受理する能力が新設される。workload descriptor・metrics・working diff・harness
+digest が計算ノードから外部へ出る。proxy は接続先・時刻・量を観測でき、遮断・遅延できる。
+共有 HOME の資格情報を計算ノード上の CLI が使う。外部 role 出力がローカル code の制御入力になる。
+増えないものは s8b provider、generation 予算、T-277 の measurement admission、T-236 の dispatcher、
+tool allowlist である。certified 選択の変化は T-277 が開いて初めて発火する。
+
+**s8b を対象外にしたのは意図的な境界である。** `ClaudeHeadlessProvider` の `agent_provenance` は
+`s8b_selector_freeze.py` で **exact 8 key** に凍結されており、transport identity を足せば凍結
+schema が割れる。段 6 の敵対レンズはこの境界を反証できなかった。将来 s8b も計算ノード対応するなら、
+本決定へ便乗せず凍結成果物の再発行を伴う別裁定にする。
+
+**却下した案:** 実行体 digest の承認・固定 PATH/HOME (T-242 の射程)。TLS/SPKI pin・署名済み policy
+manifest・proxy attestation (脅威モデルを変える別裁定)。`site_policy.classify_site` の強化
+(分類器は共有資産であり T-277 と競合する。transport 固有の述語だけを leaf 側に置いた)。
+receipt 値の hash 化 (allocation 帰属を失う)。`run_trial` への resolver 注入 seam 新設
+(攻撃面を増やす)。campaign WAL / proof chain への receipt 束縛 (本 provider を呼ぶ driver は
+`p3_autonomous_workload_trial.py` だけであり、`p3_s4_loop_trigger_gating.py` は role provider を
+呼ばない)。
+
+**D96 手続:** 本 D と境界テスト `orchestrator/tests/test_claude_transport.py` を実装と同一変更単位で
+land した。`docs/pegasus-runbook.md` §7.1・§8 の禁止本文も同じ単位で追随させる。
+
+**研究状態への影響:** certified 選択の値、材料レポート、既存の凍結 bytes、既存 cache、proof chain の
+既存参照はいずれも不変である。flag 省略時の child argv/env、既存 17 key の response provenance、
+journal / report の transport field 不在も不変である。変わるのは (i) role provider の transport
+受理集合、(ii) opt-in 運転時の journal / report に載る transport identity、(iii) 計算ノードでの
+role 実行という実行場所契約、の 3 点である。

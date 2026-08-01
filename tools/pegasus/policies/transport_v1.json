@@ -1,0 +1,9 @@
+{
+  "schema_version": "pegasus-claude-transport-policy/v1",
+  "site": "PEGASUS_COMPUTE",
+  "mode": "explicit-http-proxy-env",
+  "endpoint_values": {
+    "http_proxy": "http://10.120.96.1:8080",
+    "https_proxy": "http://10.120.96.1:8080"
+  }
+}
