@@ -5968,3 +5968,42 @@ land した。`docs/pegasus-runbook.md` §7.1・§8 の禁止本文も同じ単�
 journal / report の transport field 不在も不変である。変わるのは (i) role provider の transport
 受理集合、(ii) opt-in 運転時の journal / report に載る transport identity、(iii) 計算ノードでの
 role 実行という実行場所契約、の 3 点である。
+
+## D123. [T-295] 8c supervisor の journal↔report 完全性検査は supervisor 層に限定し、D116 決定 (3) の履行判断はユーザー裁定へ返す (2026-08-02)
+
+**背景:** D116 は「正式系列の事前登録に凍結機構を導入せず、file-drawer は層3 双射検査の適用範囲を
+H1/H2 へ広げることで足りる」と裁定した。[T-295] でその実装に着手したところ、段 3 の敵対レンズ 2 本が
+独立に**看板の過大**を突いた。
+
+**決定 (1): 本 wave が新設した検査は「8c supervisor の attempt journal ↔ terminal report の完全性」に
+限定し、H1/H2 の file-drawer を塞いだとは主張しない。** H1/H2 で証拠が生まれる層は 9 つあり、
+本検査が触るのは 1 層である。`orchestrator/campaign/autonomous_trial_completeness.py` は
+terminal report を書く前に fails-closed で検査し、通らなければ report を書かない。
+
+**決定 (2): 検査は attempt journal を disk から読み直す。** report の role entry は
+`AttemptJournal.append` が返した同一 dict object であり、in-memory 同士の比較は構造的に恒真で
+検出力がゼロだからである。この点は段 3・段 6 の両レビューが独立に確認した。
+
+**決定 (3): producer 出力 bytes の不変を撤回し、例外経路の file-drawer を producer 側で塞ぐ。**
+従来の `_finish_trial` は例外時に `generations: []` の cell を積むため、journal に fsync 済みの
+role attempt が report から消えていた。検査でこれを許すことは既存の file-drawer を追認することであり、
+D116 決定 (3) の前提を空証明にする。あわせて pre-audit reject 時の auditor を journal へ記録し、
+「report 本体の role entry はすべて journal された role event である」を無条件に要求できる形にした。
+出力契約が変わったため journal / report の schema を v2 へ上げた
+(既存成果物は tracked / working tree ともに 0 件で、無効化するものはない)。
+
+**決定 (4): D116 決定 (3) が履行済みかは本 wave で決めない。** 実測した事実は 2 つである —
+`layer3_report` は production 経路から自動呼び出しされない (呼び出し元は自 CLI とテストのみ)、
+本検査は supervisor 層だけを見る。残る file-drawer (どの trial を台帳へ入れるかの選択、
+proposal / raw / envelope / build / bench の bytes、層3 の任意実行、`generated_from_head` の真正性、
+journal と report の同時改変) は前提条件を追加しても全ては閉じない。
+判断は [T-318]〜[T-321] としてユーザー裁定へ返す。
+
+**決定 (5): 事前登録文書は 8b 設計を再掲せず normative reference にする。** 段 3 レンズ B が、
+草案が 8b 凍結本文を無承認で実質改訂している (特に crash 規則が正反対) ことを逐語比較で示した。
+`docs/phase3-8c-preregistration.md` は holdout・arm・gate・判定表・crash・予算の正本を 8b へ委ね、
+8c 固有の事項と発効手続きだけを定める。**発効の authority 自体は未定であり [T-321] へ送る。**
+
+**研究状態への影響:** 受理集合は狭まる方向にだけ変わる。8c supervisor が terminal report を
+書ける条件が増え、従来通っていた不完全 report (空 cell だけの complete、producer 到達不能な
+role 履歴、journal に無い role entry) が拒否される。凍結 bytes と既存 gate は不変である。
