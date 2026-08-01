@@ -5182,3 +5182,73 @@ floor 実測前 gate に「実行 revision 束縛」として既に列挙され�
 いずれも不変である。変わるのは (i) phase3 の freeze 条項が効力を失うこと、(ii) 次 wave の選択が freeze
 ではなく台帳の優先度と本 D の順序付けで決まること、の 2 点だけである。**成果物の凍結** (protocol JSON /
 holdout / v1 freeze bytes) とは無関係であり、そちらは従来どおり機械 gate が守る。
+
+## D112. [T-249] 凍結証拠が bytes を縛る共有 Pegasus policy は「動かせる分だけ」task 別 file へ移し、残りは D96 手続へ返す — 索引は所在 inventory に限定する (2026-08-01)
+
+**背景 (裁定と実測):** worklog (94) のユーザー裁定は [T-249] について択 (b)「共有 Pegasus policy を
+タスク別 file へ再編する。凍結証拠の意味論には手を入れない。分散する設定は索引 1 つで辿れるようにする」
+であった。D107 が「残る構造問題」と呼んだもの — 共有 config へ key を足す任意のタスクが T-139 の
+certified 証拠を壊す — への恒久対応にあたる。
+
+本 wave の段 1 前提実測 (Pegasus gen_S 計算ノード request `876519`) は、共有
+`tools/pegasus/policy.json` へ無害な top-level key を 1 つ足すだけで、**5 file 対象走で 2 node が赤**
+になることを確認した (`test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head` と
+`test_shared_pegasus_policy_owns_no_t126_qualification_keys`、392 passed)。同 file の sha256 は
+T-139 の committed evidence が記録した値と一致しており、凍結 pin は生きている。
+
+**決定 (1): 「再編」は file の書換えではなく、設定の所在と読み手の付け替えとして実装する。**
+共有 policy の bytes は 1 byte も変えない。移設対象の判定基準は「そのキーが凍結証拠または identity
+契約に束縛された consumer から読まれているか」とする。移したのは task 固有かつ identity 非束縛の
+7 key で、`smoke_walltime(_s)` / `certify_walltime(_s)` / top-level `finalize_reserve_s` を
+`tools/pegasus/policies/calibration_v1.json` へ、`floor_walltime(_s)` を同 `floor_v1.json` へ、
+いずれも完全同値で移し、consumer 4 本 (`certify_calibration.sh` / `submit_certify.sh` /
+`floor_campaign.sh` / `submit_floor.sh`) を付け替えた。移設した 7 key は共有 file に bytes として
+残るが live consumer を持たなくなり、T-139 の凍結 snapshot の一部になる。二重正本にはしない。
+
+**決定 (2): 共有・サイト値は移さない。** `project` / `queue` / `nodes` / `expected_cpu_model` /
+`expected_physical_cores` / `gflags_*` / `glog_*` / `perf_candidates` は D107 決定 1 が定めたとおり
+複数タスクが共有する値であり、そもそも task 固有ではない。加えて T-126 の identity 契約と T-139 が
+読む。したがって本 wave では移さず、「共有 file 自体が凍結されていて共有値を更新できない」残余は
+決定 (5) で返す。
+
+**決定 (3): 索引は所在 inventory に限定し、hash を複写しない。**
+`tools/pegasus/policies/registry_v1.json` は repo-relative path だけを持ち、legacy 例外 2 件
+(`tools/pegasus/policy.json`、`orchestrator/qualification/t126_reservation_policy_v1.json`) を
+明示 entry として登録する。**「その run を支配した設定の再導出元」とは名乗らない** — 凍結証拠と
+別の hash 正本を作ると、同じ設定に二つの意味が生まれるためである。consumer を持たない tracked file を
+登録できてしまう点は既知の限界として受理する (所在目録の定義どおりであり、成果物へ影響しない)。
+
+**決定 (4): 索引の gate は命名規約でなく閉集合列挙にする。**
+`orchestrator/tests/test_pegasus_policy_registry.py` が `tools/pegasus/policies/` 直下の全 regular
+file を registry と exact 一致させ、directory・symlink・special entry を flat-layout 違反として拒否し、
+registry 本体を含む全 entry の実在・非 symlink・tracked を検査し、repo root から対象までの全 path
+component の symlink と containment を registry 読取**前**に検査する。tracked 判定は
+`git ls-files -z` の decoded exact set membership で行う (`--error-unmatch -- <path>` は pathspec
+解釈のため、`*` を含む名前の untracked file が tracked と誤判定される)。移設 7 key の live consumer
+不在も静的に検査するが、これは**直接の読み形に対する best-effort な tripwire であって網羅的な証明では
+ない** (変数経由・文字列結合・jq の変数展開・suffix なし executable は検出しない) と明記する。
+
+**決定 (5): 移設によって失われる検出力は、移設先で明示的に回復する。**
+移設前は `certify_walltime_s` 等の値 drift を T-139 の evidence hash pin が**偶発的に**赤にしていた。
+移設先には何の束縛も無いため、そのまま移すと検出力が落ちる。これは移設が持ち込む固有の回帰であり、
+walltime 文字列 ↔ 秒の相互一致検査と finalize reserve の既存 600 秒 oracle 束縛で回復させた。
+変異 M6 の新旧両走がこれを実証する — HEAD (`7b24f81`) では凍結証拠側の 2 node が (request `877048`)、
+本 wave では新設の相互一致 node が (request `877034`) 同じ変異を殺す。
+**凍結 bytes に依存した保護を剥がす移設では、剥がれる保護を先に数え、移設先で明示的に張り直す。**
+
+**却下した案:** (a) 索引と gate だけを作り consumer を付け替えない — 段 3 の敵対レンズ 2 本が独立に
+「裁定 (b) を実装していない」と判定した。共有 file を読む live consumer が残る限り構造は変わらない。
+(b) 共有・サイト値まで含めて全部移す — T-126 の identity 契約に触れるため D96 手続を要し、本 wave の
+scope では閉じられない。(c) T-139 の evidence を再 binding する — D107 が既に却下済み (他タスクの
+certified 証拠であり、再発行には実 job の再走が要る)。
+
+**残る構造問題 (未裁定、ユーザーへ返す):** 共有・サイト値を更新できない状態は残っている。
+とくに `perf_candidates` は**現に stale** で、共有 policy が指す 2 本の perf はログインノードに存在せず
+(実在は別版)、`orchestrator/qualification/submission.py` はこの候補列の解決に失敗すると fail-closed する。
+是正には T-126 の共有値読みの付け替えと `REQUIRED_CODE_IDENTITY_PATHS` の整理が要り、これは受理集合の
+変更なので D96 手続にあたる。詳細と閉包 (直接 SHA pin は tracked 4 file) は
+`output/insights/2026-08-01_t249-pegasus-policy-split/` を参照。
+
+**研究状態への影響:** なし。production 挙動、実験の受理集合、certified 選択、材料レポート、proof chain、
+凍結 bytes はいずれも不変である。変わるのは開発時の設定ファイルの所在と、それを守る検査だけである。
+受入全走 = Pegasus gen_S 計算ノード request `876932` で 4713 passed / 19 skipped。

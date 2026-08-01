@@ -12,6 +12,14 @@
 
 途中のファイルは上書きしない。同じ job ID / nonce の再利用、欠落、ID・hash 不一致は非 0 で停止する。
 
+**予約設定 file の所在は `policies/registry_v1.json` が唯一の索引である** (所在 inventory であって、
+「その run を支配した設定」の再導出元ではない。正本は D112)。task 固有の予約設定は
+`policies/<task>_v1.json` へ置き、registry へ登録する。共有 `policy.json` は T-139 の committed
+evidence が bytes を pin しているので**編集しない** — 複数タスクが共有する値
+(`project` / `queue` / `nodes` / CPU / 依存 pin / perf 候補) だけがそこに残る。
+`orchestrator/tests/test_pegasus_policy_registry.py` が `policies/` 直下の閉集合一致、
+全 entry の実在・非 symlink・tracked、registry 本体の tracked を検査する。
+
 **silo_ladder_rung1 系** (`silo_ladder_rung1.sh` / `submit_silo_ladder_rung1.sh`) は
 [T-139] 劣化梯子 rung 1 の characterization 専用資材で、同じ 3 段連鎖に従う
 (correctness → submit → 計測 → collect)。手順と受理条件の正本 =
