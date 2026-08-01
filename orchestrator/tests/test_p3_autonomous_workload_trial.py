@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -66,6 +68,84 @@ class _RecordingFixture(A.FixtureRoleProvider):
         return super().invoke(invocation_id=invocation_id, payload=payload)
 
 
+def _actual_campaign_layout(
+    run_root: Path, *, trial_id: str,
+) -> A.CampaignLayout:
+    flags = A.WORKLOADS["ycsb-a"]
+    descriptor, descriptor_record = A._descriptor_for(flags)
+    cfg = A._campaign_for(
+        workload="ycsb-a",
+        workload_flags=flags,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id=trial_id,
+        generations=1,
+    )
+    return A.CampaignLayout(
+        str(run_root / "campaigns" / str(A.trigger.ident.campaign_id(cfg)))
+    )
+
+
+def test_generation_budget_boundary_at_ratified_launch() -> None:
+    A._validate_generation_budget(1)
+    with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
+        A._validate_generation_budget(2)
+
+
+def test_generation_budget_rejects_bool() -> None:
+    with pytest.raises(A.AutonomousTrialError):
+        A._validate_generation_budget(True)
+
+
+def test_generation_budget_rejects_int_subclass_with_overridden_add() -> None:
+    class _ExpandingBudget(int):
+        def __add__(self, other: object) -> int:
+            return 4
+
+    generations = _ExpandingBudget(1)
+    assert int(generations) == 1
+    assert list(range(1, generations + 1)) == [1, 2, 3]
+    with pytest.raises(A.AutonomousTrialError, match="1..10 必須"):
+        A._validate_generation_budget(generations)
+
+
+def test_generation_budget_rejects_below_minimum() -> None:
+    with pytest.raises(A.AutonomousTrialError):
+        A._validate_generation_budget(0)
+
+
+def test_generation_budget_rejects_non_int_float() -> None:
+    with pytest.raises(A.AutonomousTrialError):
+        A._validate_generation_budget(1.0)
+
+
+def test_cli_default_is_literal_one_by_ast() -> None:
+    tree = ast.parse(Path(A.__file__).read_text(encoding="utf-8"))
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "add_argument"
+        and any(
+            isinstance(argument, ast.Constant)
+            and argument.value == "--max-generations"
+            for argument in node.args
+        )
+    ]
+    assert len(calls) == 1
+    defaults = [
+        keyword.value
+        for keyword in calls[0].keywords
+        if keyword.arg == "default"
+    ]
+    assert len(defaults) == 1
+    default = defaults[0]
+    assert isinstance(default, ast.Constant)
+    assert type(default.value) is int
+    assert default.value == 1
+
+
 def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
     run_root = tmp_path / "run"
     providers = {
@@ -120,19 +200,25 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
 
 
 class _InvalidPlanner:
+    def __init__(self) -> None:
+        self.calls = 0
+
     def invoke(self, *, invocation_id, payload):
+        self.calls += 1
         return A.ProviderResponse(
             raw_response='{"proposal":{},"extra":true}',
             provenance={"child_id": invocation_id},
         )
 
 
-def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path) -> None:
+def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
     providers = {
         role: A.FixtureRoleProvider(role)
         for role in ("planner", "coder", "auditor", "critic")
     }
-    providers["planner"] = _InvalidPlanner()
+    planner = _InvalidPlanner()
+    providers["planner"] = planner
     report = A.run_trial(
         trial_id="invalid-planner",
         workloads=["ycsb-a"],
@@ -152,6 +238,208 @@ def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path) -> None:
     assert cell["generations"][0]["roles"]["planner"]["attempt"] == 1
     assert cell["generations"][0]["roles"]["planner"]["retry"] is False
     assert cell["generations"][0]["roles"]["planner"]["status"] == "invalid"
+    assert planner.calls == 1
+
+
+def test_run_trial_rejects_unapproved_budget_before_artifact_creation(tmp_path) -> None:
+    run_root = tmp_path / "run"
+    with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
+        A.run_trial(
+            trial_id="unapproved-programmatic-budget",
+            workloads=["ycsb-a"],
+            generations=2,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+        )
+    assert not run_root.exists()
+
+
+def test_run_workload_direct_call_rejects_unapproved_budget(tmp_path) -> None:
+    with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
+        A._run_workload(
+            workload="ycsb-a",
+            generations=2,
+            providers={},
+            journal=SimpleNamespace(),
+            run_root=tmp_path / "run",
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id="unapproved-direct-budget",
+            started_monotonic=0.0,
+            max_wall_s=1,
+        )
+
+
+def test_run_workload_rejects_existing_campaign_state(tmp_path, monkeypatch) -> None:
+    """Monkeypatched loader poisons any provider call, fixing gate ordering."""
+
+    class _ProviderMustNotRun:
+        def invoke(self, *, invocation_id, payload):
+            pytest.fail(f"freshness rejection reached provider: {invocation_id}")
+
+    monkeypatch.setattr(
+        A.loop_core, "load_loop_state", lambda layout: A.loop_core.LoopState()
+    )
+    providers = {
+        role: _ProviderMustNotRun()
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    with pytest.raises(A.AutonomousTrialError, match="既存 campaign state"):
+        A._run_workload(
+            workload="ycsb-a",
+            generations=1,
+            providers=providers,
+            journal=SimpleNamespace(),
+            run_root=tmp_path / "run",
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id="existing-state-rejected",
+            started_monotonic=time.monotonic(),
+            max_wall_s=60,
+        )
+
+
+def test_run_workload_accepts_fresh_campaign_state(tmp_path, monkeypatch) -> None:
+    """Monkeypatched loader fixes the fresh branch before provider invocation."""
+
+    monkeypatch.setattr(A.loop_core, "load_loop_state", lambda layout: None)
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    result = A._run_workload(
+        workload="ycsb-a",
+        generations=1,
+        providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        cache_root="",
+        trial_id="fresh-state-accepted",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+    assert [generation["outcome"] for generation in result["generations"]] == [
+        "dry-pass"
+    ]
+    assert all(len(provider.payloads) == 1 for provider in providers.values())
+
+
+def test_run_workload_rejects_actual_existing_campaign_state(tmp_path) -> None:
+    class _ProviderMustNotRun:
+        def invoke(self, *, invocation_id, payload):
+            pytest.fail(f"actual freshness rejection reached provider: {invocation_id}")
+
+    run_root = tmp_path / "run"
+    trial_id = "actual-existing-state-rejected"
+    layout = _actual_campaign_layout(run_root, trial_id=trial_id)
+    A.loop_core.save_loop_state(layout, A.loop_core.LoopState())
+    providers = {
+        role: _ProviderMustNotRun()
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    with pytest.raises(A.AutonomousTrialError, match="既存 campaign state"):
+        A._run_workload(
+            workload="ycsb-a",
+            generations=1,
+            providers=providers,
+            journal=SimpleNamespace(),
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id=trial_id,
+            started_monotonic=time.monotonic(),
+            max_wall_s=60,
+        )
+
+
+def test_run_workload_accepts_actual_fresh_campaign_layout(tmp_path) -> None:
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    layout = _actual_campaign_layout(
+        run_root, trial_id="actual-fresh-state-accepted"
+    )
+    assert not Path(layout.root).exists()
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    result = A._run_workload(
+        workload="ycsb-a",
+        generations=1,
+        providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        cache_root="",
+        trial_id="actual-fresh-state-accepted",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+    assert [generation["outcome"] for generation in result["generations"]] == [
+        "dry-pass"
+    ]
+    assert all(len(provider.payloads) == 1 for provider in providers.values())
+
+
+def test_freshness_wraps_malformed_json_with_cause(tmp_path) -> None:
+    layout = A.CampaignLayout(str(tmp_path / "campaign"))
+    layout.ensure()
+    Path(A.loop_core.loop_state_path(layout)).write_text(
+        "{broken", encoding="utf-8"
+    )
+    with pytest.raises(A.AutonomousTrialError) as caught:
+        A._assert_fresh_campaign_state(layout)
+    assert type(caught.value.__cause__) is json.JSONDecodeError
+
+
+def test_freshness_wraps_delta_pct_leak_with_cause(tmp_path) -> None:
+    layout = A.CampaignLayout(str(tmp_path / "campaign"))
+    state = A.loop_core.LoopState(
+        whiteboard=[
+            A.loop_core.WhiteboardEntry(
+                iteration=1,
+                direction="increase",
+                magnitude="small",
+                result="fail",
+                delta_pct=1.0,
+            )
+        ]
+    )
+    A.loop_core.save_loop_state(layout, state)
+    with pytest.raises(A.AutonomousTrialError) as caught:
+        A._assert_fresh_campaign_state(layout)
+    assert type(caught.value.__cause__) is A.loop_core.WhiteboardLeakError
+
+
+def test_freshness_does_not_reclassify_attribute_error(
+    tmp_path, monkeypatch,
+) -> None:
+    layout = A.CampaignLayout(str(tmp_path / "campaign"))
+
+    def broken_loader(_layout):
+        raise AttributeError("loader programming error")
+
+    monkeypatch.setattr(A.loop_core, "load_loop_state", broken_loader)
+    with pytest.raises(AttributeError, match="loader programming error"):
+        A._assert_fresh_campaign_state(layout)
 
 
 def test_supervisor_error_still_writes_partial_terminal_report(tmp_path) -> None:
@@ -212,7 +500,32 @@ def test_main_rejects_fixture_build_before_build_preparation(
     assert not ccbench_dir.exists()
 
 
-def test_main_accepts_fixture_no_build_at_cli_gate(tmp_path, monkeypatch) -> None:
+def test_main_rejects_unapproved_budget_before_build_preparation(
+    tmp_path, monkeypatch,
+) -> None:
+    def unexpected_build_preparation(*args, **kwargs):
+        pytest.fail("budget rejection reached build preparation")
+
+    monkeypatch.setattr(A, "assert_pinned_clean", unexpected_build_preparation)
+    monkeypatch.setattr(A, "checkout", unexpected_build_preparation)
+    monkeypatch.setattr(
+        calibrator_runner, "competing_bench_pids", unexpected_build_preparation
+    )
+    run_root = tmp_path / "run"
+    ccbench_dir = tmp_path / "ccbench"
+    with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
+        A.main([
+            "--trial-id", "unapproved-cli-budget",
+            "--provider", "claude-headless",
+            "--max-generations", "2",
+            "--ccbench-dir", str(ccbench_dir),
+            "--run-root", str(run_root),
+        ])
+    assert not run_root.exists()
+    assert not ccbench_dir.exists()
+
+
+def test_main_default_generation_budget_is_one(tmp_path, monkeypatch) -> None:
     def stop_after_cli_gate(*args, **kwargs):
         raise _CliGateReached
 

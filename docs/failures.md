@@ -271,6 +271,14 @@
   `hooks/README.md` hook 4「live 発火に関する既知の限界」を正本とする。
 - 再発検知: 現行の settings 文字列検査と hook script 直叩きでは検知できない。次の新規
   バックグラウンドジョブ型セッションで、daemon version を確認した live 負例を再試験する。
+- 再発 (near-miss): 2026-08-01 [T-244] wave。新設した campaign freshness gate のテストが
+  `load_loop_state` を **layout 引数を無視して** monkeypatch していたため、production が
+  「常に空の別 layout を検査する」形に退行しても全テストが緑になる構造だった。
+  「gate を呼んでいること」だけを固定し、gate が**実物を見ていること**を固定していない同型。
+  段 6 の敵対レビューが land 前に検出し、実 `loop_state.json` を書く負例・正例を追加して閉じた
+  (`test_run_workload_rejects_actual_existing_campaign_state` /
+  `test_run_workload_accepts_actual_fresh_campaign_layout`)。
+  monkeypatch 版は「provider 呼び出し順序の poison test」として責務を分離して残した
 
 ### F22. 実機前提の検収を rc 成功で確定と誤認 — 表記・依存の逐次発見で attempt 10 回 [手順漏れ] [テスト代表性]
 - 事象: Pegasus certification (2026-07-19) が実機固有の未確定前提で 9 回 fail-closed した。qstat の
@@ -1423,3 +1431,25 @@
 - 近縁: F41 (測定条件を落として一般化し後続の起票を誤らせた)、F46 (実行環境の差の誤前提)、
   F29 (段 1 実測が実差分をモデル化していない)
 - 記録: worklog 2026-08-01 (95)、一次資料 = `output/insights/2026-08-01_t248-dispatch-shim/`
+
+### F71. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
+- 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
+  していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
+  flag を省いて起動すると**禁止されたはずの運転条件へそのまま落ちる**。runbook は
+  「機械 gate は無い」と 3 箇所で自認しており、禁止は prompt 規律だけだった。
+  起票 ([T-244]、2026-08-01 worklog (86)) から 9 wave 後の本 wave の段 1 前提実測で発覚した
+- 根本原因: (1) 禁止を**文章で宣言した時点で対応済みと扱い**、既定値がその宣言と逆向きである
+  ことを誰も照合しなかった。(2) 「機械 gate は無い」と正直に書いたことが、かえって
+  「書いたから認識済み」として放置を正当化した。恒真ゲート (謳うだけで発火しない) の
+  一段悪い形 = **宣言と既定が逆**である
+- 判別: 「〜してはならない」と書かれた運転条件について、(a) それを機械的に拒否する検査が
+  実在するか、(b) **既定値・既定経路がその禁止側に落ちないか**を両方確認する。
+  片方だけでは足りない
+- 恒久対応: D112 で承認上限 `MAX_APPROVED_GENERATIONS` を導入し、CLI・`run_trial()`・
+  `_run_workload()` の 3 入口で fail-closed 拒否、既定値を literal `1` に是正した。
+  実体 = `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
+  `test_generation_budget_boundary_at_ratified_launch` と
+  `test_cli_default_is_literal_one_by_ast` (既定値が literal であることを AST で pin する)
+- 近縁: F9 (恒真な保証)、F14 (無効化されるフラグを遮断機構として記録)、
+  F21 (配線を live 発火未検証のまま防壁とした)
+- 記録: worklog 2026-08-01 (97)、一次資料 = `output/insights/2026-08-01_t244-generation-gate/`

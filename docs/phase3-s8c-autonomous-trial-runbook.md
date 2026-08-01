@@ -95,10 +95,13 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
   --max-wall-seconds 3600
 ```
 
-**`--max-generations` を 2 以上にしてはならない** ([T-207] / D106 残余 1)。世代を跨ぐと
+**`--max-generations` は 2 以上にできない** ([T-207] / D106 残余 1 / D112)。世代を跨ぐと
 前 iteration の critic 出力が次世代の生成へ効くが、その還流は `reverse_recommended` の
 boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。設計が裁定されるまで
-1 generation/cell に限る。機械 gate は無い。
+1 generation/cell に限る。**D112 でこれは機械 gate になった** — 承認上限
+`MAX_APPROVED_GENERATIONS = 1` を超える値は CLI・`run_trial()`・`_run_workload()` の 3 入口で
+`AutonomousTrialError` になる。既定値も `1` である。ただし `drive` / `providers` / `preview` の
+注入経路と driver の直接反復は保証対象外である (D112「保証の限界」)。
 
 `--no-build` を外すと実計測である。supervisor は起動前に競合 `ycsb_*.exe` を検査し、
 CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline 自身の bench lock / settle /
@@ -107,7 +110,8 @@ CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline �
 interleave を必須とするため、`numactl` のない login host で空 command に差し替えて走らせない。
 
 最初の実計測は 1 generation/cell で correctness と measurement wiring を確認する。
-2 generations 以上へ増やせるのは D106 残余 1 が裁定されてからである。
+2 generations 以上へ増やせるのは D106 残余 1 が裁定され、D112 の承認上限定数と境界テストを
+同じ変更単位で更新してからである (それまでは機械的に拒否される)。
 A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
 headline 性能や有意差を主張しない。
 
@@ -140,10 +144,15 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   proposal/performance の arm 差と全件報告が必要
 - supervisor crash 後の in-place resume、axis-proposer による新軸 onboarding、Codex runtime
   provider、複数軸 population は MVP 範囲外
-- **`--run-root` を変えても campaign 状態は resume されうる。** fresh 検査の対象は外側 `run_root`
-  だけで、build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら
-  別の `--run-root` でも同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
-  独立した trial を回すなら workload/config を変えるか、campaign root ごと分離すること
+- **`--run-root` を変えても campaign 状態は同一である。** fresh 検査の対象は外側 `run_root` だけで、
+  build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら別の `--run-root`
+  でも同一 campaign root になる。**D112 以降、その旧 `loop_state.json` は planner 前に読まれるのでなく
+  拒否される** — 既存 checkpoint を持つ layout の invocation は最初の provider 呼び出し前に
+  `AutonomousTrialError` になる。crash 後の再開は `--run-root` の変更でなく**新しい trial id** で行う
+  (trial は campaign ID の preimage に入るため、新 ID なら新 campaign になる)。壊れた checkpoint も
+  fresh とは扱わず同じ例外になる。ただし freshness 検査と state 生成の**並行 race は保証対象外**であり、
+  同じ trial/config の 2 supervisor が同時に検査を通過しうる。1 cell が stale だと
+  supervisor-error となり、同 invocation の後続 workload も走らない
 - `max-wall-seconds` は **hard wall でも safety 上限でもない**。時刻検査は workload と generation の
   **先頭だけ**で行うため、期限を超えても、その generation の coder・auditor・drive/build・critic は
   新たに開始される (1 回の role 呼び出しだけで最大 1200 秒)。正確には「次の境界で開始を止める
@@ -159,9 +168,11 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   抽象 whiteboard (direction/magnitude/result/delta_pct) までで、critic の
   attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれる。
   「なぜ壊れたか」は次の生成入力に入らない。**この設計が裁定されるまで
-  `--max-generations >= 2` で走らせてはならない** (D106 残余 1)。1 generation/cell は
-  還流が起きないため許可する。正式系列 (H1/H2) は同一 generation budget を要求するので
-  この条件で自動的に禁止側へ入る。機械 gate は置いていない — 運転者が守る規律である
+  `--max-generations >= 2` で走らせない** (D106 残余 1)。正式系列 (H1/H2) は同一 generation budget を
+  要求するのでこの条件で自動的に禁止側へ入る。**D112 でこれは機械 gate になった** (3 入口 +
+  campaign freshness)。ただし機械化したのは「generation 予算」と「campaign state の freshness」の
+  2 つだけで、**T-244 本体 = 還流設計は未解決のまま**である。1 generation/cell を許可する根拠も
+  「fresh campaign の単一 invocation なら還流が起きない」であって、無条件ではない
 - auditor の mediated schema は **要素 field まで閉じていない**。consumer は要素が `dict` で
   あることしか検査せず、`{}`・未知キー・非文字列 field を含む要素が通る。
   「schema を object 配列へ明確化した」の射程はここまでである
