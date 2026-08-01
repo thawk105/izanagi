@@ -1,0 +1,159 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qualification_series_id", "qualification_attempt_id", "pbs_job_id",
+        "host", "boot_id", "controller_pid"
+      ],
+      "properties": {
+        "qualification_series_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "qualification_attempt_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "pbs_job_id": {"type": "string", "minLength": 1},
+        "host": {"type": "string", "minLength": 1},
+        "boot_id": {"type": "string", "minLength": 1},
+        "controller_pid": {"type": "integer", "minimum": 1}
+      }
+    },
+    "seriesOpen": {
+      "type": "object", "additionalProperties": false,
+      "required": ["allow_resume", "statistical_claim"],
+      "properties": {
+        "allow_resume": {"const": false},
+        "statistical_claim": {"const": "none"}
+      }
+    },
+    "roundOpen": {
+      "type": "object", "additionalProperties": false,
+      "required": ["member_order"],
+      "properties": {
+        "member_order": {
+          "oneOf": [
+            {"const": ["subject", "reference"]},
+            {"const": ["reference", "subject"]}
+          ]
+        }
+      }
+    },
+    "memberTerminal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "median_tps", "evidence_ref", "execution_integrity"],
+      "properties": {
+        "role": {"enum": ["subject", "reference"]},
+        "median_tps": {"type": "number", "exclusiveMinimum": 0},
+        "evidence_ref": {"$ref": "#/definitions/fileRecord"},
+        "execution_integrity": {"const": "valid"}
+      }
+    },
+    "roundTerminal": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "subject_median_tps", "reference_median_tps", "relative",
+        "direction", "bit", "bits", "sprt_terminal", "llr_hex"
+      ],
+      "properties": {
+        "subject_median_tps": {"type": "number", "exclusiveMinimum": 0},
+        "reference_median_tps": {"type": "number", "exclusiveMinimum": 0},
+        "relative": {"type": "number"},
+        "direction": {
+          "enum": [
+            "subject-above-threshold", "reference-above-threshold",
+            "within-borrowed-threshold"
+          ]
+        },
+        "bit": {"enum": [0, 1]},
+        "bits": {
+          "type": "array", "items": {"enum": [0, 1]},
+          "minItems": 1, "maxItems": 8
+        },
+        "sprt_terminal": {
+          "enum": [
+            "continuing", "lower_boundary", "upper_boundary", "indeterminate"
+          ]
+        },
+        "llr_hex": {"type": "string", "minLength": 1}
+      }
+    },
+    "waitSatisfied": {
+      "type": "object", "additionalProperties": false,
+      "required": ["elapsed_s", "required_s"],
+      "properties": {
+        "elapsed_s": {"type": "number", "minimum": 1800},
+        "required_s": {"const": 1800}
+      }
+    },
+    "seriesTerminal": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "terminal", "bits", "llr_hex", "execution_integrity",
+        "expectation_match"
+      ],
+      "properties": {
+        "terminal": {"enum": ["lower_boundary", "upper_boundary", "indeterminate"]},
+        "bits": {
+          "type": "array", "items": {"enum": [0, 1]},
+          "minItems": 1, "maxItems": 8
+        },
+        "llr_hex": {"type": "string", "minLength": 1},
+        "execution_integrity": {"const": "valid"},
+        "expectation_match": {"const": "not-applicable-observational-smoke"}
+      }
+    },
+    "seriesRejected": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reason", "evidence_canonical_json", "evidence_sha256"],
+      "properties": {
+        "reason": {"type": "string", "minLength": 1},
+        "evidence_canonical_json": {"type": "string", "minLength": 2},
+        "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "qualification_lineage", "event_index",
+    "previous_event_sha256", "identity", "event_type", "round_index",
+    "wall_time_ns", "monotonic_ns", "payload", "event_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "t126-qualification-event/v1"},
+    "qualification_lineage": {"const": "t126-only"},
+    "event_index": {"type": "integer", "minimum": 0},
+    "previous_event_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity": {"$ref": "#/definitions/identity"},
+    "event_type": {
+      "enum": [
+        "series_open", "round_open", "member_terminal", "round_terminal",
+        "wait_satisfied", "series_terminal", "series_rejected"
+      ]
+    },
+    "round_index": {"type": ["integer", "null"], "minimum": 1, "maximum": 8},
+    "wall_time_ns": {"type": "integer", "minimum": 0},
+    "monotonic_ns": {"type": "integer", "minimum": 0},
+    "payload": {
+      "oneOf": [
+        {"$ref": "#/definitions/seriesOpen"},
+        {"$ref": "#/definitions/roundOpen"},
+        {"$ref": "#/definitions/memberTerminal"},
+        {"$ref": "#/definitions/roundTerminal"},
+        {"$ref": "#/definitions/waitSatisfied"},
+        {"$ref": "#/definitions/seriesTerminal"},
+        {"$ref": "#/definitions/seriesRejected"}
+      ]
+    },
+    "event_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

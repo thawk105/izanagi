@@ -1232,3 +1232,59 @@
 - 再発検知: guard_bash の拒否メッセージ自体が検知である (fail-closed で黙って通らない)。
   入口 `.claude/commands/cleanup-branches.md` §3 へのポインタ追記は byte 上限
   4000 に対し実測 headroom 41 で入らず、同ファイルの編集を既に所有する [T-208] へ合流させた
+
+### F64. 死んだ session の孤児待機ループが worktree を「使用中」に見せ、掃除を 3 周止めた [恒真ゲート] [手順漏れ]
+- 事象: `.claude/worktrees/dev-wave-t181-reasoning-ab` が (76) → (79) → (83) の 3 回連続で
+  「滞在プロセスあり」として残置され、毎回ユーザー引き渡しへ回された。実測すると滞在の実体は
+  **2 日前に死んだ session (job `c94644e8`) が残した `until [ -f <sentinel> ]; do sleep 20; done`
+  1 本**で、`ppid=1` (init へ里子)、待っている sentinel は**永久に作られない**。
+  scan ごとに PID が変わる 2 本目は、そのループが 20 秒ごとに生む `sleep` の子だった
+- 根本原因: cleanup-branches §2 の使用中判定は `/proc/*/cwd` に当該 worktree が現れるかだけを見る。
+  これは「生きた作業がある」ことの proxy として導入されたが、**孤児化した待機ループと生きた
+  セッションを区別しない**。待機ループは cwd を読み書きしないので実害ゼロなのに、判定は
+  永久に真を返し続ける。**時間が経つほど誤検出が増える片側性の恒真ゲート**であり、
+  「2 本も居るなら稼働中だろう」という人間側の解釈がそれを補強した
+- 恒久対応: 滞在プロセスを検出したら**そこで残置を決めず素性を 3 点で検める** —
+  (1) `ppid` が 1 なら親 session は死んでいる、(2) PID が scan ごとに変わる子は `sleep` 等の
+  一過性で滞在の実体ではない、(3) `/proc/<pid>/cmdline` が待つ sentinel の実在を確認する。
+  3 点とも孤児側なら worktree は未使用と扱ってよい。**滞在プロセス数を根拠にしない** —
+  数えるのでなく素性を見る
+- 再発検知: 同じ worktree が 2 回以上連続で「滞在プロセスあり」を理由に残置されたら、
+  それ自体を孤児の疑いとして扱い上記 3 点を回す。孤児プロセスの `kill` は harness の
+  classifier が拒否しうるため、worktree だけ畳んでプロセスはユーザー手番に残してよい
+  (当該ループは cwd を読み書きしないので cwd が deleted になっても害はない)
+
+### F65. dispatch 中継で変異 harness の失敗 node 記録が無音で 0 件になる [恒真ゲート]
+- 事象: 2026-08-01 [T-207] の段 6 変異 matrix で、4 変異のうち 3 件は rc≠0 (kill) だったのに
+  **記録 node が全件「なし」**になった。matrix は期待 node と突き合わせて MISMATCH を出したが、
+  もし期待側も空だったら「node 0 件どうし一致」で **AGREE と読めてしまう**構造だった
+- 根本原因: `tools/run_tests.py` は Pegasus 計算ノードへ dispatch し、子 pytest の stdout を
+  **行頭に `| ` を付けて中継する** ([T-194] で入れた親への中継)。harness の node 抽出は
+  `DW-M08` の指示どおり ANSI を除去して `FAILED <node> - <error>` を拾っていたが、
+  中継接頭辞を剥がしていなかったため 1 行も一致しなかった。`DW-M08` は ANSI 除去だけを
+  明示しており、dispatch 中継という**後から入った経路**を想定していない
+- 恒久対応: 変異 harness は (1) 行頭の中継接頭辞 (`| `、`|`、前置空白) を剥がしてから
+  `FAILED` 判定し、(2) 期待側と記録側へ**同じ正規化関数**を通し、(3) **kill (rc≠0) なのに
+  node が 1 件も取れなかったら AGREE にせず MISMATCH 側へ倒す**。(3) が本質で、
+  抽出失敗を「期待どおり」と読める出力にしないことが恒真ゲート化の唯一の防壁である
+- 再発検知: 変異 matrix で「rc≠0 かつ記録 node 0 件」が出たら、まず抽出器を疑う。
+  出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
+  抽出器の側も同時に確認する
+
+### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
+- 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
+  走らせたところ `NG: submodule is not initialized ... 親セッションで submodule を初期化する`
+  で停止した。しかし背景 job には指示先の「親セッション」が存在せず、実際の対処は
+  **当の worktree で `git submodule update --init --recursive` を走らせること**だった
+- 根本原因: 新規 worktree は必ず submodule 未初期化で始まるのに、初期化手順の正本
+  (`DW-O08`) は「freeze / oracle gate / proof chain に触る可能性が判明」した場合だけ読む
+  L2 条件節にある。無条件に読む `DW-O20` (clean-tree gate) は checker の実行と
+  「非 0 なら停止」しか書いておらず、**最も頻出する NG の解消手順への導線がない**。
+  checker のメッセージが特定の運用形態 (対話セッション + 親) を前提にしていたことも重なった
+- 恒久対応: 新規 worktree で startup gate が submodule NG を返したら、条件節の発火を待たず
+  その worktree で `git submodule update --init --recursive` を実行してから再走する。
+  checker メッセージの文面と `DW-O20` への導線追記は dev-wave の byte 予算
+  (23,983 / 24,000) に収まらないため、予算を増やさず実現する案としてユーザー裁定へ返す
+- 再発検知: 背景 job の wave 立ち上げで checker が非 0 になり、そのメッセージが
+  「ユーザー」「親セッション」など**この job には存在しない主体**へ作業を指示していたら、
+  同型として扱う

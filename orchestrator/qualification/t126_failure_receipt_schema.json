@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "failure_class": {
+            "enum": [
+              "job-result-publication-failed",
+              "job-result-accounting-mismatch"
+            ]
+          }
+        },
+        "required": ["failure_class"]
+      },
+      "then": {
+        "properties": {
+          "retry_eligible": {"const": false}
+        }
+      }
+    }
+  ],
+  "required": [
+    "schema_version", "qualification_lineage", "authority", "hold_enforced",
+    "qualification_series_id", "qualification_attempt_id", "job_id",
+    "retry_index", "scheduler_exit_status", "submission_receipt",
+    "submission_evidence_kind", "qsub_binding", "job_result",
+    "scheduler_stdout", "scheduler_stderr", "accounting", "closure_manifest",
+    "attempt_phase", "failure_class", "observations_recorded", "retry_eligible"
+  ],
+  "properties": {
+    "schema_version": {"const": "t126-qualification-attempt-failure-receipt/v1"},
+    "qualification_lineage": {"const": "t126-only"},
+    "authority": {"const": "evidence-only/no-promotion"},
+    "hold_enforced": {"const": false},
+    "qualification_series_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "qualification_attempt_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "job_id": {"type": "string", "minLength": 1},
+    "retry_index": {"enum": [0, 1]},
+    "scheduler_exit_status": {"type": "integer"},
+    "submission_receipt": {"$ref": "#/definitions/fileRecord"},
+    "submission_evidence_kind": {
+      "enum": ["submit-receipt", "recovered-qsub-binding"]
+    },
+    "qsub_binding": {
+      "oneOf": [
+        {"$ref": "#/definitions/fileRecord"},
+        {"type": "null"}
+      ]
+    },
+    "job_result": {
+      "oneOf": [
+        {"$ref": "#/definitions/fileRecord"},
+        {"type": "null"}
+      ]
+    },
+    "scheduler_stdout": {"$ref": "#/definitions/fileRecord"},
+    "scheduler_stderr": {"$ref": "#/definitions/fileRecord"},
+    "accounting": {"$ref": "#/definitions/fileRecord"},
+    "closure_manifest": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"$ref": "#/definitions/fileRecord"}
+    },
+    "attempt_phase": {
+      "enum": [
+        "attempt", "pre-attempt-recovery", "job-result-recovery",
+        "job-result-accounting-mismatch", "post-series-terminal"
+      ]
+    },
+    "failure_class": {
+      "enum": [
+        "member-rejected", "pre-attestation", "reservation-unavailable",
+        "pre-member-infrastructure", "pre-attempt-infrastructure",
+        "scheduler-hard-kill", "scheduler-terminated",
+        "post-observation-infrastructure", "unregistered-scheduler-failure",
+        "clean-rc-without-series-result", "job-result-publication-failed",
+        "job-result-accounting-mismatch"
+      ]
+    },
+    "observations_recorded": {"type": "integer", "minimum": 0, "maximum": 8},
+    "retry_eligible": {"type": "boolean"}
+  }
+}

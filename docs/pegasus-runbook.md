@@ -339,6 +339,17 @@ Pegasus entry を追加する。追加には上記 1〜4 (D59) に加えて次�
 - floor driver は暫定 machine-pin (`contract.env_tag == p2_2.ENV_TAG`) を持つ。これは attestation
   導入までの取り違え防止 gate であり、Pegasus 実行にはこの pin の扱いを登録段で同時に設計する
 
+> **登録段の現況 (2026-08-01 実測):** 上の要件表は登録段の設計要件として残すが、**登録自体は完了
+> している**。Pegasus entry は `env_contract.py` の registry に在り (`clocks_per_us=2100`、
+> `numactl=()`、`attestation_mode="required"`、single_process=True / allow_resume=False、
+> registered calibration を `calibration_ref` で束縛)。enforcement も 5 件中 4 件が実装され
+> floor / oracle が消費している — 残 walltime の事前予約検査 = `campaign/reservation.py`、
+> 永続領域 allowlist = `campaign/durable_root.py`、build cache の namespace 分離 =
+> `campaign/buildcache.py` の `contract_sha256`、実環境 attestation = `campaign/env_attestation.py`。
+> **未実装は「PID 可視性の canary probe」だけ**である (2026-08-01 の検索では実体なし。
+> ベンチ直前の競合検知 `competing_bench_pids()` は `campaign/pipeline.py` に在るが、これは
+> 「他テナントの PID が見えること」自体を確かめる canary ではない)。
+
 Izanagi の性能計測では、trace-enabled の正しさ検証と trace-disabled の性能測定を別 build・別 run
 にする。CCBench は共有 submodule を直接変更して実行せず、orchestrator が pinned-clean を確認する
 既存の隔離・評価経路を使う。計測機と環境タグの現行方針は `docs/roadmap.md` §5 および

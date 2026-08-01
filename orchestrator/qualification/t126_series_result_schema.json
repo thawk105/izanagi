@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluation_wal_key", "median_tps", "trace_bin_sha256",
+        "perf_bin_sha256", "verify_order", "settled", "rep_returncodes",
+        "live_member_id", "full_source_digest", "source_wal_variant",
+        "evidence_ref", "terminal_monotonic"
+      ],
+      "properties": {
+        "evaluation_wal_key": {"type": "string", "minLength": 1},
+        "median_tps": {"type": "number", "exclusiveMinimum": 0},
+        "trace_bin_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "perf_bin_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "verify_order": {"const": ["legacy", "s2"]},
+        "settled": {"const": true},
+        "rep_returncodes": {
+          "type": "array", "minItems": 5, "maxItems": 5,
+          "items": {"const": 0}
+        },
+        "live_member_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "full_source_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_wal_variant": {"type": "string", "minLength": 1},
+        "evidence_ref": {"$ref": "#/definitions/fileRecord"},
+        "terminal_monotonic": {"type": "number", "minimum": 0}
+      }
+    },
+    "round": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "round_index", "member_order", "subject", "reference", "relative",
+        "direction", "bit", "llr_hex", "sprt_terminal"
+      ],
+      "properties": {
+        "round_index": {"type": "integer", "minimum": 1, "maximum": 8},
+        "member_order": {
+          "oneOf": [
+            {"const": ["subject", "reference"]},
+            {"const": ["reference", "subject"]}
+          ]
+        },
+        "subject": {"$ref": "#/definitions/member"},
+        "reference": {"$ref": "#/definitions/member"},
+        "relative": {"type": "number"},
+        "direction": {
+          "enum": [
+            "subject-above-threshold", "reference-above-threshold",
+            "within-borrowed-threshold"
+          ]
+        },
+        "bit": {"enum": [0, 1]},
+        "llr_hex": {"type": "string", "minLength": 1},
+        "sprt_terminal": {
+          "enum": [
+            "continuing", "lower_boundary", "upper_boundary", "indeterminate"
+          ]
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_started_monotonic_ns", "completed_monotonic_ns",
+        "elapsed_ns", "wmax_s"
+      ],
+      "properties": {
+        "job_started_monotonic_ns": {"type": "integer", "minimum": 0},
+        "completed_monotonic_ns": {"type": "integer", "minimum": 0},
+        "elapsed_ns": {"type": "integer", "minimum": 0, "maximum": 29100000000000},
+        "wmax_s": {"const": 29100}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "qualification_lineage", "authority", "hold_enforced",
+    "statistical_claim", "qualification_series_id", "qualification_attempt_id",
+    "terminal", "execution_integrity", "expectation_match", "bits", "rounds",
+    "ledger", "evidence_manifest", "timing_envelope"
+  ],
+  "properties": {
+    "schema_version": {"const": "t126-qualification-series-result/v1"},
+    "qualification_lineage": {"const": "t126-only"},
+    "authority": {"const": "evidence-only/no-promotion"},
+    "hold_enforced": {"const": false},
+    "statistical_claim": {"const": "none"},
+    "qualification_series_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "qualification_attempt_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "terminal": {"enum": ["lower_boundary", "upper_boundary", "indeterminate"]},
+    "execution_integrity": {"const": "valid"},
+    "expectation_match": {"const": "not-applicable-observational-smoke"},
+    "bits": {
+      "type": "array", "items": {"enum": [0, 1]},
+      "minItems": 1, "maxItems": 8
+    },
+    "rounds": {
+      "type": "array", "items": {"$ref": "#/definitions/round"},
+      "minItems": 1, "maxItems": 8
+    },
+    "ledger": {"$ref": "#/definitions/fileRecord"},
+    "evidence_manifest": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"$ref": "#/definitions/fileRecord"}
+    },
+    "timing_envelope": {"$ref": "#/definitions/timing"}
+  }
+}

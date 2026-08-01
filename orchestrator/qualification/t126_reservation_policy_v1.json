@@ -1,0 +1,12 @@
+{
+  "schema_version": "t126-qualification-reservation-policy/v1",
+  "t126_qualification_walltime": "10:00:00",
+  "t126_qualification_walltime_s": 36000,
+  "t126_qualification_member_cap_s": 900,
+  "t126_qualification_member_term_grace_s": 10,
+  "t126_qualification_round_gap_s": 1800,
+  "t126_qualification_prologue_cap_s": 900,
+  "t126_qualification_attestation_cap_s": 600,
+  "t126_qualification_finalize_reserve_s": 600,
+  "t126_qualification_wmax_s": 29100
+}
