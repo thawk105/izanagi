@@ -5495,3 +5495,50 @@ receipt (`8bec195`) はいずれも発効済みで、廃止も無効化もしな
 **研究状態への影響:** 受理集合、凍結 bytes、既存 gate はいずれも不変。変わるのは (i) [T-295] の
 作業内容が「凍結機構の導入判断」から「事前登録文書の起草 + 双射検査の適用拡大」へ変わること、
 (ii) 8c runbook §0 の語が「凍結」から「事前登録 (git commit)」へ変わること、の 2 点だけである。
+
+## D117. [T-139] 残余 (RF 規範化 + recovery pipeline 接続) は実装せず裁定へ返す — 凍結台帳の宣言を別 policy で上書きしないことと、正例 artifact 不在を DW-G04 どおり扱うこと (2026-08-01)
+
+**背景:** ユーザー裁定「[T-139] 残余 → [T-144]」を受けて dev-wave を回した。残余は 2 件 —
+(a) recovery fraction (RF) の規範化、(b) recovery pipeline への接続
+(`recovery_measurement_eligibility=false` の解消) である。段 2 で read-only codex が
+file:line 粒度のプランを起草し、段 3 で 2 本の敵対レンズが攻撃した結果、両レンズが独立に
+NO-GO を返した。本 D はその裁定である。一次資料 =
+`output/insights/2026-08-01_t139-remainder-adjudication.md`。
+
+**決定 (1): 本 wave では実装しない。** 段 5・6 を飛ばし、docs だけを land する。
+実装差分がゼロなので変異 matrix と受入全走は射程外である。
+
+**決定 (2): 凍結台帳の宣言を、別 policy file で実質上書きしない。**
+`patches/ledger.json` の `silo_ladder_rung1` entry は `recovery_measurement_eligibility=false`、
+`pipeline_eligible=false`、`composition="dedicated-driver-only"` を宣言し、
+`orchestrator/campaign/silo_ladder_rung1_contract.py` がその値を exact に要求する。
+段 2 プランは新規 sidecar に `admission_role="recovery-baseline-only"` を持たせて通常 loop へ流す案で、
+「candidate eligibility は上書きしない」と説明していた。しかし現 schema には candidate / baseline 別の
+適格性射程も sidecar 優先規則も無く、baseline として `run_campaign` に組み込むこと自体が
+`composition=dedicated-driver-only` の変更である。**受理集合が変わる設計択一は親が独断で採らない**
+(dev-wave `DW-S04`)。接続を進めるなら、先に射程を versioned policy で明文化する裁定が要る。
+
+**決定 (3): RF の compute 実装は正例 artifact が 1 本できるまで land しない (DW-G04 の適用)。**
+現時点で発火条件を満たす既存 artifact path も計測 ID も存在しない。親 brief は
+「既存 committed evidence が**負例**として実在するから DW-G04 を満たす」と書いたが、これは誤りである。
+負例は拒否枝の存在を正当化できても、accepted input → 識別可能性 → RF 計算 → report という
+条件付き機能の発火を正当化しない。加えて当該 evidence は第 3 arm (X) を持たず、closed schema に
+`env_tag` と測定 checkout が無いため、gate を正しく作れば宣言以外の理由でも拒否される
+= 負例の単一理由性が無く `DW-M01` の変異が組めない。
+
+**却下した案:** (a) 縮小版で identity gate だけ land する — `Genome.cmake_defines()` が
+`-DCCBENCH_*` しか生成しないため、マクロ OFF のバイナリを recovery baseline と誤認する
+(段 2 プランの指摘、real)。(b) RF 規範だけを規範として land する — 統計設計に未確定点が 5 つ残り
+(paired block の帰無分布、多重比較 family、between-run floor の種類、区間と `<0`/`>1` の帰属、
+選択的欠測)、これらは設計択一なので親が独断で規範化しない。設計メモとして insight に残す。
+(c) backoff loop の歴史 pin を rung base へ前進させる — `p3_s4_loop.py:67` の `028f34d` は
+意図的な凍結であり (`p3_s4_loop_sort.py:27-28` が明記)、動かすと歴史 campaign identity が変わる。
+
+**研究状態への影響:** 受理集合、凍結 bytes、既存 gate はいずれも不変。変わるのは
+[T-139] 残余の状態が「実装待ち」から「4 件のユーザー裁定待ち」へ分解されたことと、
+[T-144] が RF 規範と正例 artifact に依存すると明示されたことである。
+
+**訂正 (本 D で確定):** 段 1 で親が書いた「凍結 evidence が `patches/ledger.json` の bytes を
+**独立**に pin する」は過大表現である。ledger / patch / evidence は
+`orchestrator/tests/test_frozen_artifacts.py` の `FROZEN_MANIFEST` に含まれず、実体は
+「単独 drift を赤にする同一 repo 内の整合鎖」である。編集すれば赤になるという結論は変わらない。
