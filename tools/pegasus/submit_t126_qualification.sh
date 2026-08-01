@@ -184,9 +184,9 @@ PROJECT=${POLICY_VALUES[0]}
 QUEUE=${POLICY_VALUES[1]}
 NODES=${POLICY_VALUES[2]}
 
-# T-126-owned PBS reservation policy.  Same required keys, same walltime
-# derivation, same rejection conditions as before; only the file moved.
-readarray -t RESERVATION_VALUES < <(python3 -I -B - "$RESERVATION_POLICY" <<'PY'
+# T-126-owned PBS reservation policy.  Freeze each declared cap as well as the
+# walltime and Wmax closure before any scheduler interaction.
+if ! RESERVATION_OUTPUT=$(python3 -I -B - "$RESERVATION_POLICY" <<'PY'
 import json, sys
 def no_dups(pairs):
     out = {}
@@ -206,6 +206,11 @@ keys = (
 for key in keys:
     if key not in p:
         raise SystemExit("missing reservation policy key: " + key)
+if type(p["t126_qualification_walltime"]) is not str:
+    raise SystemExit("T-126 reservation policy type mismatch")
+for key in keys[1:]:
+    if type(p[key]) is not int:
+        raise SystemExit("T-126 reservation policy type mismatch")
 calculated = (
     p["t126_qualification_prologue_cap_s"]
     + 16 * p["t126_qualification_member_cap_s"]
@@ -213,8 +218,12 @@ calculated = (
     + p["t126_qualification_attestation_cap_s"]
     + p["t126_qualification_finalize_reserve_s"]
 )
-if (p["t126_qualification_member_cap_s"] != 900
+if (p["t126_qualification_walltime"] != "10:00:00"
+        or p["t126_qualification_member_cap_s"] != 900
         or p["t126_qualification_round_gap_s"] != 1800
+        or p["t126_qualification_prologue_cap_s"] != 900
+        or p["t126_qualification_attestation_cap_s"] != 600
+        or p["t126_qualification_finalize_reserve_s"] != 600
         or calculated != 29100 or p["t126_qualification_wmax_s"] != calculated
         or p["t126_qualification_walltime_s"] != 36000
         or calculated >= p["t126_qualification_walltime_s"]):
@@ -223,7 +232,11 @@ for key in ("t126_qualification_walltime",
             "t126_qualification_walltime_s", "t126_qualification_wmax_s"):
     print(p[key])
 PY
-)
+); then
+  exit 2
+fi
+readarray -t RESERVATION_VALUES <<<"$RESERVATION_OUTPUT"
+unset RESERVATION_OUTPUT
 [[ ${#RESERVATION_VALUES[@]} -eq 3 ]] || exit 2
 WALLTIME=${RESERVATION_VALUES[0]}
 WALLTIME_S=${RESERVATION_VALUES[1]}

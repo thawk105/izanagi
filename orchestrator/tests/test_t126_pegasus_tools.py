@@ -10,6 +10,7 @@ import re
 import shutil
 import shlex
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -789,7 +790,9 @@ def _dependency(tmp_path: Path, name: str) -> tuple[Path, str, str]:
 
 def _attempt(
         tmp_path: Path, digit: str, *, clean: bool = False,
-        job_id: str = "123.server"):
+        job_id: str = "123.server",
+        reservation_policy_overrides: dict[str, object] | None = None,
+        job_scratch_root: Path | None = None):
     repo = tmp_path / f"repo-{digit}"
     repo.mkdir()
     gflags, gflags_commit, gflags_tree = _dependency(tmp_path, f"gflags-{digit}")
@@ -802,7 +805,15 @@ def _attempt(
             shutil.copy2(
                 _ROOT / "orchestrator/qualification/t126_control_v1.json", path)
         elif relative == RESERVATION_POLICY_RELATIVE_PATH:
-            shutil.copy2(_ROOT / RESERVATION_POLICY_RELATIVE_PATH, path)
+            if reservation_policy_overrides is None:
+                shutil.copy2(_ROOT / RESERVATION_POLICY_RELATIVE_PATH, path)
+            else:
+                reservation_policy = json.loads(
+                    (_ROOT / RESERVATION_POLICY_RELATIVE_PATH).read_text(
+                        encoding="utf-8"))
+                reservation_policy.update(reservation_policy_overrides)
+                path.write_text(
+                    json.dumps(reservation_policy) + "\n", encoding="utf-8")
         elif relative == "tools/pegasus/policy.json":
             policy = json.loads(
                 (_ROOT / relative).read_text(encoding="utf-8"))
@@ -814,7 +825,23 @@ def _attempt(
             })
             path.write_text(json.dumps(policy) + "\n", encoding="utf-8")
         elif relative == "tools/pegasus/t126_qualification.sh":
-            shutil.copy2(_ROOT / relative, path)
+            source = _ROOT / relative
+            source_mode = stat.S_IMODE(source.stat().st_mode)
+            # Git records only whether the owner's executable bit is present.
+            assert source_mode & stat.S_IXUSR
+            if job_scratch_root is None:
+                shutil.copy2(source, path)
+            else:
+                job_source = source.read_text(encoding="utf-8")
+                scratch_assignment = (
+                    'SCR_ROOT="/scr/${PBS_JOBID//:/_}-t126"')
+                assert job_source.count(scratch_assignment) == 1
+                job_source = job_source.replace(
+                    scratch_assignment,
+                    f"SCR_ROOT={shlex.quote(str(job_scratch_root))}")
+                path.write_text(job_source, encoding="utf-8")
+                shutil.copymode(source, path)
+            assert stat.S_IMODE(path.stat().st_mode) == source_mode
         else:
             path.write_text(f"fixture {relative}\n", encoding="utf-8")
     for source_key in ("campaign_lock_path", "wal_path"):
@@ -1216,6 +1243,14 @@ def test_reservation_policy_and_job_headers_freeze_wmax_and_walltime():
         + reservation_policy["t126_qualification_attestation_cap_s"]
         + reservation_policy["t126_qualification_finalize_reserve_s"]
     )
+    assert reservation_policy["t126_qualification_walltime"] == "10:00:00"
+    assert reservation_policy["t126_qualification_walltime_s"] == 36000
+    assert reservation_policy["t126_qualification_member_cap_s"] == 900
+    assert reservation_policy["t126_qualification_round_gap_s"] == 1800
+    assert reservation_policy["t126_qualification_prologue_cap_s"] == 900
+    assert reservation_policy["t126_qualification_attestation_cap_s"] == 600
+    assert reservation_policy["t126_qualification_finalize_reserve_s"] == 600
+    assert reservation_policy["t126_qualification_wmax_s"] == 29100
     assert calculated == reservation_policy["t126_qualification_wmax_s"] == 29100
     assert reservation_policy["t126_qualification_walltime_s"] == 36000
     assert reservation_policy["t126_qualification_walltime"] == "10:00:00"
@@ -2806,7 +2841,66 @@ def test_consumer_rejects_coherently_rehashed_source_stage_perf_claim(
     assert "prologue" in " ".join(verified.errors)
 
 
-def _submit_fixture(tmp_path: Path) -> tuple[Path, Path, Path]:
+def _install_python3_wrapper(
+        fake_bin: Path, calls: Path, *,
+        injection_marker: Path | None = None) -> Path:
+    wrapper = fake_bin / "python3"
+    real_python = str(Path(sys.executable).resolve(strict=True))
+    marker = "" if injection_marker is None else str(injection_marker)
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        "kind=other\n"
+        "target=0\n"
+        "for arg in \"$@\"; do\n"
+        "  case \"$arg\" in\n"
+        "    *sys.version_info*) kind=version ;;\n"
+        "    *time.monotonic_ns*) kind=monotonic ;;\n"
+        "    */submit-receipt.json) kind=receipt ;;\n"
+        "    */t126_reservation_policy_v1.json) kind=reservation; target=1 ;;\n"
+        "  esac\n"
+        "done\n"
+        f"printf '%s\\n' \"$kind\" >> {shlex.quote(str(calls))}\n"
+        f"injection_marker={shlex.quote(marker)}\n"
+        "if [ \"$target\" -eq 1 ] && [ -n \"$injection_marker\" ] "
+        "&& [ ! -e \"$injection_marker\" ]; then\n"
+        f"  {shlex.quote(real_python)} \"$@\"\n"
+        "  rc=$?\n"
+        "  [ \"$rc\" -eq 0 ] || exit \"$rc\"\n"
+        "  : > \"$injection_marker\"\n"
+        f"  printf '%s\\n' injected >> {shlex.quote(str(calls))}\n"
+        "  exit 73\n"
+        "fi\n"
+        f"exec {shlex.quote(real_python)} \"$@\"\n",
+        encoding="utf-8")
+    wrapper.chmod(0o755)
+    assert wrapper.is_file() and not wrapper.is_symlink()
+    return wrapper
+
+
+def _install_job_dependency_marker(
+        fake_bin: Path, repo: Path, marker: Path) -> None:
+    policy = json.loads(
+        (repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
+    gflags_source = policy["gflags_source_path"]
+    real_git = shutil.which("git")
+    assert real_git is not None
+    wrapper = fake_bin / "git"
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        f"if [ \"$1\" = -C ] && [ \"$2\" = {shlex.quote(gflags_source)} ] "
+        "&& [ \"$3\" = rev-parse ] && [ \"$4\" = HEAD ]; then\n"
+        f"  : > {shlex.quote(str(marker))}\n"
+        "  exit 73\n"
+        "fi\n"
+        f"exec {shlex.quote(real_git)} \"$@\"\n",
+        encoding="utf-8")
+    wrapper.chmod(0o755)
+
+
+def _submit_fixture(
+        tmp_path: Path, *,
+        reservation_policy_overrides: dict[str, object] | None = None,
+        ) -> tuple[Path, Path, Path]:
     repo = tmp_path / "submit-repo"
     shutil.copytree(
         _ROOT / "orchestrator", repo / "orchestrator",
@@ -2852,6 +2946,13 @@ def _submit_fixture(tmp_path: Path) -> tuple[Path, Path, Path]:
         "perf_candidates": [str(perf)],
     })
     policy_path.write_text(json.dumps(policy) + "\n", encoding="utf-8")
+    if reservation_policy_overrides is not None:
+        reservation_policy_path = repo / RESERVATION_POLICY_RELATIVE_PATH
+        reservation_policy = json.loads(
+            reservation_policy_path.read_text(encoding="utf-8"))
+        reservation_policy.update(reservation_policy_overrides)
+        reservation_policy_path.write_text(
+            json.dumps(reservation_policy) + "\n", encoding="utf-8")
     ccbench = tmp_path / "submit-ccbench"
     ccbench.mkdir()
     _git(ccbench, "init", "-q")
@@ -2937,6 +3038,152 @@ def _run_submit(
         argv.extend(["--retry-from", str(retry_from)])
     return subprocess.run(
         argv, cwd=repo, env=env, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize(
+    ("prologue_cap_s", "attestation_cap_s", "finalize_reserve_s"),
+    [(1500, 0, 600), (1500, 600, 0), (900, 1200, 0)],
+)
+def test_submit_rejects_compensating_cap_drift_before_scheduler_calls(
+        tmp_path, prologue_cap_s, attestation_cap_s, finalize_reserve_s):
+    repo, fake_bin, scheduler_calls = _submit_fixture(
+        tmp_path,
+        reservation_policy_overrides={
+            "t126_qualification_prologue_cap_s": prologue_cap_s,
+            "t126_qualification_attestation_cap_s": attestation_cap_s,
+            "t126_qualification_finalize_reserve_s": finalize_reserve_s,
+        })
+    _install_scheduler_stubs(fake_bin, scheduler_calls)
+    _install_python3_wrapper(fake_bin, tmp_path / "python-calls")
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "T-126 reservation policy mismatch\n"
+    assert not scheduler_calls.exists()
+
+
+def test_submit_rejects_nul_in_walltime_before_scheduler_calls(tmp_path):
+    repo, fake_bin, scheduler_calls = _submit_fixture(
+        tmp_path,
+        reservation_policy_overrides={
+            "t126_qualification_walltime": "10:00:" + chr(0) + "00",
+        })
+    _install_scheduler_stubs(fake_bin, scheduler_calls)
+    _install_python3_wrapper(fake_bin, tmp_path / "python-calls")
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "T-126 reservation policy mismatch\n"
+    assert not scheduler_calls.exists()
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_value"),
+    [
+        ("t126_qualification_member_cap_s", 900.0),
+        ("t126_qualification_round_gap_s", 1800.0),
+        ("t126_qualification_prologue_cap_s", 900.0),
+        ("t126_qualification_attestation_cap_s", 600.0),
+        ("t126_qualification_finalize_reserve_s", 600.0),
+    ],
+    ids=[
+        "member-cap", "round-gap", "prologue-cap", "attestation-cap",
+        "finalize-reserve",
+    ],
+)
+def test_submit_rejects_each_single_layer_equal_float_type_drift(
+        tmp_path, key, bad_value):
+    """Each equal-float passes value checks, leaving only strict-int rejection."""
+    repo, fake_bin, scheduler_calls = _submit_fixture(
+        tmp_path, reservation_policy_overrides={key: bad_value})
+    _install_scheduler_stubs(fake_bin, scheduler_calls)
+    _install_python3_wrapper(fake_bin, tmp_path / "python-calls")
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "T-126 reservation policy type mismatch\n"
+    assert not scheduler_calls.exists()
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_value"),
+    [
+        ("t126_qualification_walltime_s", 36000.0),
+        ("t126_qualification_wmax_s", 29100.0),
+    ],
+    ids=["walltime-s", "wmax"],
+)
+def test_submit_rejects_each_mapping_masked_equal_float_type_drift(
+        tmp_path, key, bad_value):
+    """These equal-floats kill only a Python-type + Bash-mapping mutation."""
+    repo, fake_bin, scheduler_calls = _submit_fixture(
+        tmp_path, reservation_policy_overrides={key: bad_value})
+    _install_scheduler_stubs(fake_bin, scheduler_calls)
+    _install_python3_wrapper(fake_bin, tmp_path / "python-calls")
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "T-126 reservation policy type mismatch\n"
+    assert not scheduler_calls.exists()
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_value"),
+    [
+        ("t126_qualification_attestation_cap_s", 600.0000000000001),
+        ("t126_qualification_round_gap_s", True),
+        ("t126_qualification_walltime", 10),
+    ],
+    ids=["near-float", "bool", "walltime-not-string"],
+)
+def test_submit_rejects_overdetermined_reservation_policy_type_drift(
+        tmp_path, key, bad_value):
+    """Pin diagnostics, not semantic kills: value/sum checks also reject.
+
+    In particular, no non-string JSON value is ``==`` to the canonical
+    walltime string, so its type guard is redundant on the accepted set.
+    """
+    repo, fake_bin, scheduler_calls = _submit_fixture(
+        tmp_path, reservation_policy_overrides={key: bad_value})
+    _install_scheduler_stubs(fake_bin, scheduler_calls)
+    _install_python3_wrapper(fake_bin, tmp_path / "python-calls")
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "T-126 reservation policy type mismatch\n"
+    assert not scheduler_calls.exists()
+
+
+def test_submit_reservation_reader_rejects_python_failure_after_complete_output(
+        tmp_path):
+    repo, fake_bin, scheduler_calls = _submit_fixture(tmp_path)
+    _install_scheduler_stubs(fake_bin, scheduler_calls)
+    python_calls = tmp_path / "python-calls"
+    injection_marker = tmp_path / "reservation-reader-injected"
+    _install_python3_wrapper(
+        fake_bin, python_calls, injection_marker=injection_marker)
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == ""
+    assert injection_marker.is_file()
+    assert python_calls.read_text(encoding="utf-8").splitlines().count(
+        "reservation") == 1
+    assert python_calls.read_text(encoding="utf-8").splitlines().count(
+        "injected") == 1
+    assert not scheduler_calls.exists()
 
 
 @pytest.mark.parametrize("boolean_index", [False, True])
@@ -3716,6 +3963,181 @@ def _run_bound_job_terminal(
             str(signal_reset_marker) if signal_reset_marker is not None else "",
         ],
         cwd=repo, env=env, capture_output=True, text=True, timeout=20)
+
+
+def _run_job_reservation_probe(
+        tmp_path: Path, digit: str, *,
+        reservation_policy_overrides: dict[str, object] | None = None,
+        inject_late_failure: bool = False):
+    scratch_root = tmp_path / f"job-scratch-{digit}"
+    (repo, _, _, _, _, _, _, _, _) = _attempt(
+        tmp_path, digit,
+        reservation_policy_overrides=reservation_policy_overrides,
+        job_scratch_root=scratch_root)
+    fake_bin = tmp_path / f"job-bin-{digit}"
+    fake_bin.mkdir()
+    python_calls = tmp_path / f"python-calls-{digit}"
+    injection_marker = tmp_path / f"python-injection-{digit}"
+    python_wrapper = _install_python3_wrapper(
+        fake_bin, python_calls,
+        injection_marker=injection_marker if inject_late_failure else None)
+    downstream_marker = tmp_path / f"dependency-marker-{digit}"
+    _install_job_dependency_marker(fake_bin, repo, downstream_marker)
+    completed = _run_bound_job_terminal(
+        repo, nonce="1" * 32,
+        extra_env={
+            "PATH": str(fake_bin) + os.pathsep + os.environ["PATH"],
+            "IZANAGI_T126_TEST_EXIT_AFTER_BINDING": "",
+        })
+    return (
+        completed, repo, python_wrapper, python_calls, injection_marker,
+        downstream_marker)
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_value"),
+    [
+        (None, None),
+        ("t126_qualification_walltime", "09:59:59"),
+        ("t126_qualification_walltime_s", 35999),
+        ("t126_qualification_member_cap_s", 901),
+        ("t126_qualification_round_gap_s", 1801),
+        ("t126_qualification_prologue_cap_s", 901),
+        ("t126_qualification_attestation_cap_s", 601),
+        ("t126_qualification_finalize_reserve_s", 601),
+        ("t126_qualification_wmax_s", 29099),
+    ],
+    ids=[
+        "canonical", "walltime", "walltime-s", "member-cap", "round-gap",
+        "prologue-cap", "attestation-cap", "finalize-reserve", "wmax",
+    ],
+)
+def test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value(
+        tmp_path, key, bad_value):
+    case_root = tmp_path / ("canonical" if key is None else key)
+    case_root.mkdir()
+    overrides = {} if key is None else {key: bad_value}
+
+    completed, _, _, _, _, downstream_marker = _run_job_reservation_probe(
+        case_root, "case", reservation_policy_overrides=overrides)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    if key is None:
+        assert downstream_marker.is_file()
+        assert completed.stderr == (
+            "dependency source is not pinned-clean: "
+            + str(case_root / "gflags-case") + "\n")
+    else:
+        assert completed.stderr == "qualification envelope mismatch\n"
+        assert not downstream_marker.exists()
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_value"),
+    [
+        ("t126_qualification_member_cap_s", 900.0),
+        ("t126_qualification_round_gap_s", 1800.0),
+        ("t126_qualification_attestation_cap_s", 600.0),
+        ("t126_qualification_finalize_reserve_s", 600.0),
+    ],
+    ids=["member-cap", "round-gap", "attestation-cap", "finalize-reserve"],
+)
+def test_job_rejects_each_single_layer_equal_float_type_drift(
+        tmp_path, key, bad_value):
+    """Each equal-float passes value checks, leaving only strict-int rejection."""
+    (completed, _, _, _, _, downstream_marker) = _run_job_reservation_probe(
+        tmp_path, "single-type", reservation_policy_overrides={key: bad_value})
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "qualification envelope type mismatch\n"
+    assert not downstream_marker.exists()
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_value"),
+    [
+        ("t126_qualification_walltime_s", 36000.0),
+        ("t126_qualification_wmax_s", 29100.0),
+        ("t126_qualification_prologue_cap_s", 900.0),
+    ],
+    ids=["walltime-s", "wmax", "prologue-cap"],
+)
+def test_job_rejects_each_mapping_masked_equal_float_type_drift(
+        tmp_path, key, bad_value):
+    """These equal-floats kill only a Python-type + Bash-mapping mutation."""
+    (completed, _, _, _, _, downstream_marker) = _run_job_reservation_probe(
+        tmp_path, "masked-type", reservation_policy_overrides={key: bad_value})
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "qualification envelope type mismatch\n"
+    assert not downstream_marker.exists()
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_value"),
+    [
+        ("t126_qualification_attestation_cap_s", 600.0000000000001),
+        ("t126_qualification_round_gap_s", True),
+        ("t126_qualification_walltime", 10),
+    ],
+    ids=["near-float", "bool", "walltime-not-string"],
+)
+def test_job_rejects_overdetermined_reservation_policy_type_drift(
+        tmp_path, key, bad_value):
+    """Pin diagnostics, not semantic kills: value checks also reject.
+
+    In particular, no non-string JSON value is ``==`` to the canonical
+    walltime string, so its type guard is redundant on the accepted set.
+    """
+    (completed, _, _, _, _, downstream_marker) = _run_job_reservation_probe(
+        tmp_path, "diagnostic-type",
+        reservation_policy_overrides={key: bad_value})
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == "qualification envelope type mismatch\n"
+    assert not downstream_marker.exists()
+
+
+def test_job_reservation_reader_rejects_python_failure_after_complete_output(
+        tmp_path):
+    (completed, repo, python_wrapper, python_calls, injection_marker,
+     downstream_marker) = _run_job_reservation_probe(
+         tmp_path, "late", inject_late_failure=True)
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert completed.stderr == ""
+    assert injection_marker.is_file()
+    assert not downstream_marker.exists()
+    first_calls = python_calls.read_text(encoding="utf-8").splitlines()
+    assert first_calls.count("version") == 1
+    assert first_calls.count("monotonic") >= 1
+    assert first_calls.count("receipt") >= 1
+    assert first_calls.count("reservation") == 1
+    assert first_calls.count("injected") == 1
+
+    delegated = subprocess.run(
+        [
+            str(python_wrapper), "-I", "-S", "-B", "-",
+            str(repo / RESERVATION_POLICY_RELATIVE_PATH),
+        ],
+        input=(
+            "import json,sys\n"
+            "p=json.load(open(sys.argv[1],encoding='utf-8'))\n"
+            "for key in ('t126_qualification_walltime_s',"
+            "'t126_qualification_wmax_s',"
+            "'t126_qualification_prologue_cap_s'): print(p[key])\n"
+        ),
+        capture_output=True, text=True, timeout=20)
+    assert delegated.returncode == 0
+    assert delegated.stdout == "36000\n29100\n900\n"
+    final_calls = python_calls.read_text(encoding="utf-8").splitlines()
+    assert final_calls.count("reservation") == 2
+    assert final_calls.count("injected") == 1
 
 
 def _embedded_job_publisher_source() -> str:

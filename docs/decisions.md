@@ -5182,3 +5182,70 @@ floor 実測前 gate に「実行 revision 束縛」として既に列挙され�
 いずれも不変である。変わるのは (i) phase3 の freeze 条項が効力を失うこと、(ii) 次 wave の選択が freeze
 ではなく台帳の優先度と本 D の順序付けで決まること、の 2 点だけである。**成果物の凍結** (protocol JSON /
 holdout / v1 freeze bytes) とは無関係であり、そちらは従来どおり機械 gate が守る。
+
+## D112. [T-247] 予約 envelope の宣言済み拒否を実発火させ、個別 cap を和でなく個別値 + 型で凍結する — 射程は実消費層 (制御 protocol) まで広げる (2026-08-01)
+
+**背景 (実測):** T-126 の job script (`tools/pegasus/t126_qualification.sh`) の予約 envelope 検査は
+恒真だった。embedded Python が `print` を `raise SystemExit` より前に置き、かつ
+`readarray < <(...)` が process substitution なので producer の終了状態を伝播しない。結果、後続の
+`[[ ${#RESERVATION_VALUES[@]} -eq 3 ]]` が常に真になり、`walltime=1 / wmax=2 / prologue=3` という
+policy でも `qualification envelope mismatch` を stderr へ出しながら **rc=0 で通過**し、値が下流へ流れた。
+submit script 側は拒否自体は発火するが、prologue / attestation / finalize の 3 cap を**和
+`calculated == 29100` でしか固定しておらず**、`1500 / 0 / 600` が rc=0 で通過した。
+
+**決定 (2026-08-01 ユーザー裁定 [T-247] = 択 (a) の実装):**
+
+1. **job script は producer の終了状態を明示検査する。** process substitution をやめ
+   `if ! OUT=$(...); then exit 2; fi` + here-string `readarray` とし、**出力行数を終了状態の代用にしない**。
+   検査を通った後にだけ 3 値を出力する。配列 index と変数の束縛が恒真にならないよう、代入直後に
+   `walltime_s / wmax_s / prologue_cap_s` の mapping assert を置く。
+2. **凍結の粒度を「和」から「個別値 + 型」へ変える。** job / submit の両方で、submit が列挙する
+   8 key (`walltime`, `walltime_s`, `member_cap_s`, `round_gap_s`, `prologue_cap_s`,
+   `attestation_cap_s`, `finalize_reserve_s`, `wmax_s`) の個別値を固定し、数値 7 key は
+   `type(v) is int`、`walltime` は `type(v) is str` を要求する。`contract.py` の既存様式に揃える。
+   既存の和・Wmax closure・member/gap・walltime 条件は 1 つも外さない (純増のみ)。
+3. **射程を実消費層まで広げる。** 予約 policy JSON の cap は job script の prologue cap と qstat 下限
+   比較にしか効かない。driver が finalize reserve / attestation cap に**実消費するのは制御 protocol
+   (`orchestrator/qualification/t126_control_v1.json` の `timing`)** であり、その受理 gate
+   `contract.py: validate_protocol` も同じ和だけの構造だった (`attestation=1199, finalize=1` が
+   ACCEPT されることを実測)。予約 policy 側だけを直すと「個別に凍結した」保証が実消費層で恒真になるため、
+   `validate_protocol` にも個別 3 cap の比較を純増する。**裁定文の literal な射程は予約 envelope だが、
+   裁定の目的 (恒真な保証を無くす) が実消費層を要求する**という理由でここまでを本 D の射程とする。
+
+**型凍結が受理集合に効く理由 (実測):** Python では `900.0 == 900` が真なので、値比較だけでは
+`prologue_cap_s = 900.0` が通る。一方 `contract.py` は `type(value) is not int` で拒否し、job の
+bash mapping assert は `"900.0" == "900"` で拒否するため、**submit が受理し job が拒否する層の分裂**が
+生じていた。さらに `900.0000000000001` は値比較を破りながら和が `29100.0 == 29100` へ丸まるため、
+個別比較を 1 つだけ外す変異が受理集合を広げた。strict 型化でこの経路が閉じ、整数に限れば
+「個別比較の単独削除は等価変異」(和が削除された cap を canonical 1 点に決める) が成立する。
+
+**command substitution 化に伴う退行の打ち消し:** `$(...)` は NUL byte を除去して警告を出すだけで
+rc を非 0 にしない。`"10:00:" + NUL + "00"` という walltime は、旧 `readarray < <(...)` では配列要素が
+NUL で切れて拒否されたが、素朴な置換では `10:00:00` として受理された。よって submit 側は
+**walltime の値比較を embedded Python の中で行う** (bash 側の文字列比較も残す)。
+
+**D96 の手続:** 受理集合を変えるため、本 D の記録と境界テストの更新を同じ変更単位で行う。境界テストは
+1 つでは足りない — 宣言値の静的 freeze テストは script の guard を全削除しても緑のままなので、
+(i) `test_reservation_policy_and_job_headers_freeze_wmax_and_walltime` の 8 key 個別 assert、
+(ii) production の両 script を subprocess 実行する境界テスト群、
+(iii) 制御 protocol の個別 cap 負例、の **3 点**をもって境界テストとする。
+
+**射程外 (本 D は塞がない。裁定パッケージへ送る):**
+
+- consumer (collector / public verifier) は**予約 policy** の値の意味論を検証せず、identity と blob
+  hash だけを見る。coherent に commit された drift policy は consumer を通り、producer 側だけが拒否する。
+- 重複 key の扱いが非対称である。submit は `no_dups` で拒否するが、job は素の `json.load` で last-wins。
+- 予約 block 以外の 7 個の `readarray < <(...)` も producer の終了状態を失う。本 D が束縛したのは
+  **予約 block 2 箇所だけ**である。他 8 block は「必要行を出し切った後の producer failure」を受理し続ける。
+- `t126_qualification_member_term_grace_s` は予約 policy の 9 番目の設定だが両 script から未参照の
+  orphan であり、本 D の 8 key 射影に含まれない。
+- command substitution は末尾 newline を除去するため、producer が「3 値 + 空行」を返しても配列長 3 で
+  通る。**値**の受理集合は広がらないため残存限界として記録するに留める。
+
+**却下案:** (a) `print` を検査の後ろへ移すだけの最小修正 — 「必要行を全部出した後に producer が失敗する」
+経路を再び受理するため不採用。(b) job 側の凍結を従来の 3 key に留める — submit が拒否する policy を
+job が受理する非対称が残るため不採用。(c) submit の和の等式を個別値で置き換えて削除する —
+既存拒否を外すことになり規律 2 に反するため不採用 (和は個別値固定後は論理的に冗長だが、
+1 つの個別 guard が将来弱まった場合の backstop として残す)。(d) 族一般化として全 9 block の
+producer status を束縛する — 同型欠陥 (print が raise より前) は 1 件だけであり `DW-G03` の
+独立 2 例を満たさないため不採用。

@@ -450,22 +450,50 @@ POLICY="$TOOLS/policy.json"
 RESERVATION_POLICY="$SOURCE_STAGE/orchestrator/qualification/t126_reservation_policy_v1.json"
 REPO_SOURCE="$SOURCE_STAGE"
 
-readarray -t RESERVATION_VALUES < <("$PY" -I -S -B - "$RESERVATION_POLICY" <<'PY'
+if ! RESERVATION_OUTPUT=$("$PY" -I -S -B - "$RESERVATION_POLICY" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1],encoding="utf-8"))
-keys=("t126_qualification_walltime_s","t126_qualification_wmax_s",
-      "t126_qualification_prologue_cap_s")
-for k in keys: print(p[k])
-if (p["t126_qualification_walltime_s"] != 36000
-    or p["t126_qualification_prologue_cap_s"] != 900
-    or p["t126_qualification_wmax_s"] != 29100):
-    raise SystemExit("qualification envelope mismatch")
-PY
+expected={
+    "t126_qualification_walltime":"10:00:00",
+    "t126_qualification_walltime_s":36000,
+    "t126_qualification_member_cap_s":900,
+    "t126_qualification_round_gap_s":1800,
+    "t126_qualification_prologue_cap_s":900,
+    "t126_qualification_attestation_cap_s":600,
+    "t126_qualification_finalize_reserve_s":600,
+    "t126_qualification_wmax_s":29100,
+}
+numeric_keys=(
+    "t126_qualification_walltime_s",
+    "t126_qualification_member_cap_s",
+    "t126_qualification_round_gap_s",
+    "t126_qualification_prologue_cap_s",
+    "t126_qualification_attestation_cap_s",
+    "t126_qualification_finalize_reserve_s",
+    "t126_qualification_wmax_s",
 )
+if type(p.get("t126_qualification_walltime")) is not str:
+    raise SystemExit("qualification envelope type mismatch")
+for key in numeric_keys:
+    if type(p.get(key)) is not int:
+        raise SystemExit("qualification envelope type mismatch")
+if any(p.get(key) != value for key,value in expected.items()):
+    raise SystemExit("qualification envelope mismatch")
+for key in ("t126_qualification_walltime_s","t126_qualification_wmax_s",
+            "t126_qualification_prologue_cap_s"):
+    print(p[key])
+PY
+); then
+  exit 2
+fi
+readarray -t RESERVATION_VALUES <<<"$RESERVATION_OUTPUT"
+unset RESERVATION_OUTPUT
 [[ ${#RESERVATION_VALUES[@]} -eq 3 ]] || exit 2
 WALLTIME_S=${RESERVATION_VALUES[0]}
 WMAX_S=${RESERVATION_VALUES[1]}
 PROLOGUE_CAP_S=${RESERVATION_VALUES[2]}
+[[ "$WALLTIME_S" == 36000 && "$WMAX_S" == 29100 \
+  && "$PROLOGUE_CAP_S" == 900 ]] || exit 2
 
 readarray -t P < <("$PY" -I -S -B - "$POLICY" <<'PY'
 import json,sys
