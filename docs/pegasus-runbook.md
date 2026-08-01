@@ -279,17 +279,29 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   (2026-08-01 実測)。したがって共有 user slice の `memory.current` を読むのではなく、
   **専用 scope を作ってその scope の `memory.current` を sampling する**。
 
+  unit 名を自分で決め、sampler を先に張ってから測る command を起動する (別 shell から PID を
+  探す方式は、短命な command に間に合わない)。
+
   ```bash
-  systemd-run --user --scope -q -p MemoryAccounting=yes -- <測る command>
-  # 別 shell から、対象 scope の cgroup path を /proc/<pid>/cgroup で解決し
-  # <cgroup>/memory.current を 100 ms 以下の間隔で読み、最大値を取る
+  UNIT=izmeas-$$                      # 自分で決める → cgroup path が確定する
+  CG=/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/app.slice/$UNIT.scope
+  ( until [ -r "$CG/memory.current" ]; do :; done          # 開始 barrier
+    max=0; while [ -r "$CG/memory.current" ]; do
+      v=$(cat "$CG/memory.current" 2>/dev/null || echo 0)
+      [ "$v" -gt "$max" ] && max=$v; done
+    echo "$max" > peak.txt ) &                              # busy sampler (間隔 << 1 ms)
+  systemd-run --user --scope -q --unit="$UNIT" -p MemoryAccounting=yes -- <測る command>
+  wait; cat peak.txt
   ```
 
   専用 scope なので他 session・並走 job の charge が混ざらない。**この手順の既知の限界**:
-  sampling なので sampling 間隔より短いスパイクを取り落とす。取り落としうる分は測定値でなく
-  margin で吸収する (下記)。
-- **記録すること**: commit、argv、入力の総 bytes と件数、`memory.max`、観測ピーク、測定日。
-  **certified peak = 観測ピーク + `max(25%, 128 MiB)` の margin** とする。
+  sampling である以上、sample 間隔より短いスパイクは取り落とす。1 秒未満で終わる command は
+  **3 回以上繰り返して最大値**を採り、それでも取り落としは margin で吸収する (下記)。
+  sampler が cgroup を開く前に command が終わると `peak.txt` が 0 になる — **0 は
+  「軽い」ではなく測定失敗**として扱い、`unknown` に倒す。
+- **記録すること**: commit、argv、入力の総 bytes と件数、`memory.max`、観測ピーク、繰り返し数、
+  測定日。**certified peak = 観測ピーク + `max(25%, 128 MiB)`** とし、
+  **規範値と比較するのは certified peak のほう**である (観測ピークではない)。
 - **規範値 = 512 MiB。これは実測から導いた最適値ではなく、暫定の分類値である。**
   現時点で根拠になっているのは「実測済みの軽量 tools 群 (per-process RSS で 13〜30 MB) と、
   既に dispatch 済みの 2 本 (pytest 全走・provenance 履歴監査) の間に置いた」という分離だけで、
@@ -310,13 +322,18 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   固定しており、拡張には (a) D105 の supersede、(b) `_job_run` 側の `env_allowlist` 強制、
   (c) stdin / cwd / artifact 可視性、(d) 子 rc の意味の確定が同時に要る。
   **この差分は依頼のうち「自動で投げる」部分を満たしていない** — 裁定待ちとして worklog に残す。
-- **LLM 子 launcher はこの規範の dispatch 要求から除外する。** `tools/codex_worker_launch.py` /
-  `tools/codex_reasoning_ab.py` / `tools/dev_waves/*` が起こす codex・claude 子は入力上限が無く
-  分類上 `unknown` だが、**実行場所は D106 / D108 の配置裁定が優先**し、ログインノードに置く。
-  除外しないと標準の dev-wave 経路が「規範違反」か「sanctioned 経路なしで停止」の二択になり、
-  harness が回らない。**これらの常駐メモリは本節の単体閾値では扱えない** — 約 390 MB の子が
-  多数並走する事象が per-user 16 GiB を埋める主経路であり、対策は同時数 / headroom の
-  admission gate (未実装、裁定待ち) である。
+- **開発 harness そのものは、当面この規範の dispatch 要求から除外する (暫定例外)。** 対象は
+  `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` / `tools/dev_waves/*` が起こす
+  codex・claude 子と、`tools/dev_waves/checker.py` および `tools/check_docs.py` の login 実行である。
+  これらは分類上 `unknown` だが、除外しないと標準の dev-wave 経路が「規範違反」か
+  「sanctioned 経路なしで停止」の二択になり harness が回らない。
+  **この例外の根拠は D106 / D108 ではない** — 両決定の射程は CC 合成 campaign の LLM 4 役に
+  限られ、汎用 launcher や checker の免除根拠にはならない。**本 wave が新設した暫定例外であり、
+  恒久化にはユーザー裁定が要る**。射程を勝手に広げてはならない。
+- **この例外は OOM 対策としては穴である。** 約 390 MB の LLM 子が多数並走する事象が
+  per-user 16 GiB を埋める主経路であり、本節の単体閾値では扱えない。実効のある対策は
+  同時数 / headroom の admission gate だが**未実装であり裁定待ち**である。
+  `checker.py` の隔離 clone 経路も同様に未解決のまま残る。
 
 | task | 子 script |
 |---|---|
@@ -508,7 +525,10 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   監査結果ではない** (違反件数は rc=1 で返る)
 - 計算ノードでは**テストの既定並列度が affinity 全数**になっている (明示 `-n` /
   `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ち = 「既定が最大」であって「全実行が最大」ではない)
-- ビルドは**実行場所を計算ノードへ強制し、`-j` 既定も site 由来**にする (計算ノードで affinity
+- ビルドは**規範として計算ノードで行い、`-j` 既定も site 由来**にする。**「強制」は全 build に
+  掛からない** — 機械強制が発火するのは §7 が列挙した 6 module だけで、
+  `t152_write_intent_coverage.py` と `silo_ladder_rung1.py` の直接 CMake には site gate が無い
+  (計算ノードで affinity
   全数、非 Pegasus は 16)。cache hit 時に記録される `-j` が cache 作成時の値と食い違う場合は
   受理する — 並列度はバイナリ bytes に影響しないという裁定である (D103 決定 4)。
   binary identity の検査 (`bin_sha256`、trace diff、`src_token` 再照合) は緩めない

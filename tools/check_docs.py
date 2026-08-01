@@ -742,8 +742,8 @@ def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
     return "".join(visible), in_comment
 
 
-def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
-    """code fence / HTML comment / raw HTML block 外の可視行を返す。"""
+def _dispatch_visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
+    """dispatch inventory 用に raw HTML block も除いた可視行を返す。"""
 
     lines: list[tuple[str, int, str]] = []
     in_comment = False
@@ -864,12 +864,68 @@ def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
     return lines
 
 
+def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
+    """code fence / HTML comment 外の可視行と offset・改行を返す。"""
+
+    lines: list[tuple[str, int, str]] = []
+    in_comment = False
+    fence: tuple[str, int] | None = None
+    offset = 0
+    for raw_line in text.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        newline = raw_line[len(line):]
+        if fence is not None:
+            marker_char, marker_len = fence
+            stripped = line.lstrip(" \t")
+            indent = len(line) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        # fence opener の info string 内にある `<!--` は comment 開始ではない。
+        # comment 継続中でない行は opener を先に判定する。
+        if not in_comment:
+            fence_match = FENCE_OPEN_RE.fullmatch(line)
+            if fence_match is not None:
+                marker = fence_match.group("marker")
+                fence = (marker[0], len(marker))
+                lines.append(("", offset, newline))
+                offset += len(raw_line)
+                continue
+
+        visible, in_comment = _mask_html_comments(line, in_comment)
+        fence_match = FENCE_OPEN_RE.fullmatch(visible)
+        if fence_match is not None:
+            marker = fence_match.group("marker")
+            fence = (marker[0], len(marker))
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        lines.append((visible, offset, newline))
+        offset += len(raw_line)
+    return lines
+
+
 def _visible_markdown_text(text: str) -> str:
     """Markdown の不可視部分を除き、元の行境界を保った文字列を返す。"""
 
     return "".join(
         visible + newline
         for visible, _, newline in _visible_markdown_lines(text)
+    )
+
+
+def _visible_dispatch_inventory_text(text: str) -> str:
+    """dispatch inventory 抽出に限って raw HTML block も不可視化する。"""
+
+    return "".join(
+        visible + newline
+        for visible, _, newline in _dispatch_visible_markdown_lines(text)
     )
 
 
@@ -1745,7 +1801,7 @@ def _dispatch_inventory_from_runbook(
 ) -> dict[str, str] | None:
     """runbook §7.0 の exact task 表だけを ``{task: child_script}`` にする。"""
 
-    visible_text = _visible_markdown_text(text)
+    visible_text = _visible_dispatch_inventory_text(text)
     sections = list(_DISPATCH_SECTION_RE.finditer(visible_text))
     if len(sections) != 1:
         _dispatch_inventory_finding(
@@ -1833,7 +1889,7 @@ def _dispatch_inventory_from_runbook(
     duplicates: set[str] = set()
     structure_errors: list[str] = []
     for line in lines[separator_index + 1:]:
-        if not line.strip().startswith("|"):
+        if not line.strip() or "|" not in line:
             break
         cells, leading, trailing = _markdown_table_cells(line)
         if leading > 1 or trailing > 1 or len(cells) != 2:
@@ -1940,6 +1996,32 @@ def _dispatch_inventory_from_source(
             and isinstance(node.ctx, (ast.Store, ast.Del))
         ):
             writes.append(f"line {node.lineno}: TASKS への束縛/削除")
+        elif (
+            isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "TASKS"
+            and isinstance(node.value.ctx, ast.Load)
+        ):
+            writes.append(f"line {node.lineno}: TASKS の alias 束縛")
+        elif (
+            isinstance(node, ast.Call)
+            and not (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "tuple"
+            )
+            and any(
+                isinstance(argument, ast.Name)
+                and argument.id == "TASKS"
+                and isinstance(argument.ctx, ast.Load)
+                for argument in (
+                    *node.args,
+                    *(keyword.value for keyword in node.keywords),
+                )
+            )
+        ):
+            writes.append(
+                f"line {node.lineno}: TASKS の実引数渡しを静的確定できない"
+            )
         elif (
             isinstance(node, (ast.Subscript, ast.Attribute))
             and isinstance(node.ctx, (ast.Store, ast.Del))

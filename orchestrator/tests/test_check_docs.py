@@ -778,6 +778,45 @@ def test_dispatch_inventory_rejects_post_definition_globals_write():
     )
 
 
+def test_dispatch_inventory_rejects_tasks_alias_subscript_write():
+    """``alias = TASKS; alias[key] = spec`` alias 書込み変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = TASKS\n"
+        'alias["tests"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_dict_update_through_tasks_alias():
+    """``dict.update(alias, ...)`` による TASKS alias 変更変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = TASKS\n"
+        "dict.update(alias, {"
+        '"extra": _TaskSpec(child_script=("tools", "extra.py"))})\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_as_mutating_call_argument():
+    """``dict.update(TASKS, ...)`` 実引数 escape 変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\ndict.update(TASKS, {"
+        '"extra": _TaskSpec(child_script=("tools", "extra.py"))})\n',
+        "TASKS の実引数渡し",
+    )
+
+
+def test_dispatch_inventory_accepts_real_dispatcher_tasks_reads():
+    """添字・membership・``tuple(TASKS)`` を alias と誤認する変異を殺す。"""
+    source = (check_docs.REPO / "tools/pegasus/dispatch_compute.py").read_text()
+    findings: list[str] = []
+    assert check_docs._dispatch_inventory_from_source(source, findings) == {
+        "tests": "tools/run_tests.py",
+        "provenance": "tools/check_ai_provenance.py",
+    }
+    assert findings == []
+
+
 def test_dispatch_inventory_raw_html_section_is_rejected():
     """§7.0 見出しと表を raw ``pre`` block 内へ移す変異を殺す。"""
     text = _SYNTHETIC_DISPATCH_RUNBOOK.replace(
@@ -833,6 +872,60 @@ def test_dispatch_inventory_accepts_equivalent_markdown_spacing():
         "provenance": "tools/check_ai_provenance.py",
     }
     assert findings == []
+
+
+def test_dispatch_inventory_outer_pipe_less_added_row_is_rejected():
+    """外周 pipe のない3行目を表終端として無視する変異を殺す。"""
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        text = _read(root, rel).replace(
+            "| `provenance` | `tools/check_ai_provenance.py` |\n",
+            "| `provenance` | `tools/check_ai_provenance.py` |\n"
+            "`extra` | `tools/extra.py`\n",
+            1,
+        )
+        _write(root, rel, text)
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout
+        assert _dispatch_inventory_findings(result) == {
+            "tools/check_docs.py: dispatch inventory drift — "
+            "{task: child_script} が不一致 — TASKS_only=[], "
+            "runbook_only=['extra'], child_script={}"
+        }
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_shared_top_level_items_are_unchanged_by_raw_html_prefix():
+    """raw HTML block mask を共有トップレベル項目 scanner へ戻す変異を殺す。"""
+    body = "- [T-001] visible item\n"
+    prefix = "<x = >\n<x>\n"
+    assert check_docs._top_level_ids(prefix + body) == check_docs._top_level_ids(body)
+
+
+def test_shared_provenance_sections_are_unchanged_by_raw_html_prefix():
+    """raw HTML block mask を共有 provenance scanner へ戻す変異を殺す。"""
+    text = "## PR-A01 — visible\n\nbody\n"
+    baseline = check_docs._visible_markdown_text(text)
+    prefixed = check_docs._visible_markdown_text("<x = >\n<x>\n" + text)
+    assert check_docs._reference_id_sections(prefixed, "PR-A01") == (
+        check_docs._reference_id_sections(baseline, "PR-A01")
+    )
+
+
+def test_shared_condition_dispatch_is_unchanged_by_raw_html_prefix():
+    """raw HTML block mask を共有 condition dispatch scanner へ戻す変異を殺す。"""
+    text = """## 条件 dispatch
+
+| key | 発火条件 | 読む節 |
+|---|---|---|
+| history | condition | `docs/provenance/audit.md`: `PR-A02` |
+"""
+    prefixed = "<x = >\n<x>\n" + text
+    assert check_docs._condition_dispatch_table(prefixed, "条件 dispatch") == (
+        check_docs._condition_dispatch_table(text, "条件 dispatch")
+    )
 
 
 def test_dispatch_inventory_current_mapping_has_no_findings():
