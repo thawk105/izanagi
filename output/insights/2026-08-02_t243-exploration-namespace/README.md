@@ -1,7 +1,7 @@
 # [T-243] exploration namespace 移行 — 変異台帳と erratum
 
 wave: dev-wave [T-243] (branch `worktree-dev-wave-t243-exploration-ns`)
-実装 commit `0e056e5` / main 取り込み `966a158`。判断の正本は D122、経緯は worklog。
+実装 commit `0e056e5` / main 取り込み `966a158`。判断の正本は D123、経緯は worklog。
 
 ## 走行
 

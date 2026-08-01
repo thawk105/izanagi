@@ -42,7 +42,7 @@ TRACE 混入は build 出口の一次防壁が捕える。
   `build-variants/` への Edit/Write を拒否。COMMIT/fitness を書く唯一の経路は `pipeline.evaluate()`。
   比較基盤は realpath で解決 (output/ が別ボリュームへの symlink でも fail-open しない, 3 巡目 fix)。
   campaign tree は official / exploration の閉じた 2 要素集合 (`output/campaigns` と
-  `output/exploration/campaigns`) であり、同じ条件を両方へ適用する (D122)。
+  `output/exploration/campaigns`) であり、同じ条件を両方へ適用する (D123)。
   `output/exploration/namespace.json` (exact path) も改変・削除・移動を拒否する — この marker が
   消えると official report が exploration root を official として受理しうるため。read は許可する。
 - **編集面の限定 (規律1・2, D23/D24):** `external/ccbench/` 内は EVOLVE-BLOCK ソース

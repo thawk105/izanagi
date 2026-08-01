@@ -50,7 +50,7 @@ output/
 
 - `campaign.lock` と `campaigns/*/runs/` は proof chain の保護対象である。COMMIT/fitness を記録する唯一の
   経路は `pipeline.evaluate()` であり、直接編集・削除・移動しない。**official / exploration の双方の
-  campaign tree に同じ保護が掛かる** (D122) — namespace の移動で防壁の強さを変えない。
+  campaign tree に同じ保護が掛かる** (D123) — namespace の移動で防壁の強さを変えない。
   `exploration/namespace.json` も改変・削除を拒否する (marker が消えると official report が
   exploration root を official として受理しうるため)。
 - `exploration/autonomous-trials/` の journal は正式 proof chain ではないため、この保護の対象外である。

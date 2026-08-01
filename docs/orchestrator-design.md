@@ -107,7 +107,7 @@ output/
 
 ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` の campaign スコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor/profile の書き込み先は `output/env/<env-tag>/`。
 
-campaign スコープの実際の root は namespace で 2 つある (D65/D122)。official は `output/campaigns/<id>/`、s4 driver 族 (`p3_s4_loop` / `_sort` / `_trigger_gating` / `p3_s4_red` / `p3_kickoff` / 8c build) の**新規** campaign は `output/exploration/campaigns/<id>/` である。**構造・WAL・lock・hooks 防護は同一**で、違うのは official consumer が marker で後者を拒否する点だけである。歴史成果物は移していないので、既存の `output/campaigns/` 参照は過去の所在としてそのまま正しい。
+campaign スコープの実際の root は namespace で 2 つある (D65/D123)。official は `output/campaigns/<id>/`、s4 driver 族 (`p3_s4_loop` / `_sort` / `_trigger_gating` / `p3_s4_red` / `p3_kickoff` / 8c build) の**新規** campaign は `output/exploration/campaigns/<id>/` である。**構造・WAL・lock・hooks 防護は同一**で、違うのは official consumer が marker で後者を拒否する点だけである。歴史成果物は移していないので、既存の `output/campaigns/` 参照は過去の所在としてそのまま正しい。
 
 ### 材料レポートの出力規約 (再現性が一級市民)
 

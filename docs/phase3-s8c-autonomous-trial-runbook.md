@@ -124,7 +124,7 @@ headline 性能や有意差を主張しない。
 
 ## 4. 出力と読み方
 
-既定出力は `output/exploration/autonomous-trials/<trial-id>/` (D122):
+既定出力は `output/exploration/autonomous-trials/<trial-id>/` (D123):
 
 - `attempts.jsonl`: append-only supervisor journal。role attempt は attempt=1 / retry=false。
   **完全な provenance (source role SHA / effective prompt SHA / session / model / token) が入るのは
@@ -137,7 +137,7 @@ headline 性能や有意差を主張しない。
 - `campaigns/*`: `--no-build` 専用の隔離 campaign layout (journal-local。正式 campaign ではない)
 - `report.json`: 全 cell、全 generation、stop reason、descriptor、role provenance、harness 結果
 
-実 build 時の WAL / campaign report は `output/exploration/campaigns/<campaign-id>/` が正本 (D122)。
+実 build 時の WAL / campaign report は `output/exploration/campaigns/<campaign-id>/` が正本 (D123)。
 supervisor report はその campaign id/root を指す。`report.json` は run-finish まで含む
 `attempts.jsonl` の SHA-256 を持つ。
 
