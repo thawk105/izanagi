@@ -354,9 +354,18 @@
   作る**。運用則 = **1 worktree ずつ削除し、必要なら timeout を延ばす**。command 本文への反映は
   `.claude/commands/cleanup-branches.md` が Codex skill との whole-file SHA-256 parity 契約下に
   あり checker 定数の同時更新を要するため未実施 (次の一手へ登録)
+- **再発: 2026-08-01** ([T-118] wave の段 9)。`git worktree remove` の無条件拒否に当たった時点で、
+  **本エントリの恒久対応である `/cleanup-branches` を読む前に即興で `git submodule deinit` を実行**した。
+  結果は本エントリの記述どおりで、共有 `.git/config` の `submodule.*` 登録が消え main checkout の
+  `git submodule status` が `-` prefix になった (実害は一時的。`git submodule update --init` で復元し、
+  pin `d706650` 一致と並行 3 worktree の無影響を確認済み)。**恒久対応の内容は正しく、経路が欠けていた** —
+  dev-wave の段 9 は自分の worktree を畳むよう求めるが、その手順の正本が `/cleanup-branches` §3 に
+  あることを指していない。判別 = worktree 削除で `working trees containing submodules cannot be
+  moved or removed` を見たら、そこで手を止めて `/cleanup-branches` を読む
 - 根本原因: git の worktree × submodule の仕様 2 点 (remove の gitlink 無条件拒否、submodule 登録
   config の worktree 間共有) を知らず、即興で deinit を挟んだ。追加事象は同じ実体化 submodule が
-  削除コストを押し上げる点を見落としたもの
+  削除コストを押し上げる点を見落としたもの。**2026-08-01 の再発は仕様の無知ではなく、
+  既知の恒久対応へ到達する前に即興したこと**が原因である
 - 恒久対応: `/cleanup-branches` スキル (.claude/commands/cleanup-branches.md) に安全手順を固定 —
   deinit を使わず「detach → ディレクトリ削除 → `git worktree prune`」(git 文書化済みの回避)、
   事後に `git submodule status` で main checkout の初期化状態を検査
