@@ -940,11 +940,53 @@ def _provider_set(
     return result
 
 
-def _assert_build_site_is_other(do_build: bool) -> None:
-    if do_build and trigger._current_site() != trigger.site_policy.OTHER:
+def _assert_build_site_opted_in(
+    do_build: bool, *, allow_pegasus_compute_transport: bool
+) -> None:
+    """成果物作成前に build site と transport の明示 opt-in を閉じる。"""
+    if not do_build:
+        return
+    site = trigger._current_site()
+    if site == trigger.site_policy.OTHER:
+        return
+    if site == trigger.site_policy.PEGASUS_COMPUTE:
+        if allow_pegasus_compute_transport:
+            return
         raise AutonomousTrialError(
-            "8c の計測運転は T-276 裁定まで OTHER site に限定する"
+            "8c の Pegasus compute build は T-276 の明示 transport opt-in が必要"
         )
+    raise AutonomousTrialError(f"8c の build は未受理 site={site!r} では実行できない")
+
+
+def _assert_build_transport_admitted(
+    do_build: bool,
+    *,
+    transport_admission: ClaudeTransportAdmission | None,
+    transport_receipt: Mapping[str, Any] | None,
+) -> None:
+    """計測到達前に exact admission と run-level receipt の一致を要求する。"""
+    if not do_build:
+        return
+    site = trigger._current_site()
+    if site == trigger.site_policy.OTHER:
+        return
+    if site != trigger.site_policy.PEGASUS_COMPUTE:
+        raise AutonomousTrialError(
+            f"8c の build は未受理 site={site!r} では実行できない"
+        )
+    if (
+        not isinstance(transport_admission, ClaudeTransportAdmission)
+        or transport_receipt is None
+    ):
+        raise AutonomousTrialError(
+            "8c の Pegasus compute build は T-276 transport admission 成功が必要"
+        )
+    admitted_receipt = _validate_transport_receipt(
+        transport_admission.receipt.as_dict()
+    )
+    _validate_transport_receipt(
+        dict(transport_receipt), expected=admitted_receipt
+    )
 
 
 def _finish_trial(
@@ -966,8 +1008,14 @@ def _finish_trial(
     active_providers: Mapping[str, Any],
     fatal_error: dict[str, str] | None,
     transport_receipt: Mapping[str, Any] | None,
+    transport_admission: ClaudeTransportAdmission | None = None,
 ) -> dict[str, Any]:
-    _assert_build_site_is_other(do_build)
+    if fatal_error is None:
+        _assert_build_transport_admitted(
+            do_build,
+            transport_admission=transport_admission,
+            transport_receipt=transport_receipt,
+        )
     cells: list[dict[str, Any]] = []
     if fatal_error is None:
         for workload in selected:
@@ -999,6 +1047,7 @@ def _finish_trial(
                     preview=preview,
                     _partial=partial,
                     transport_receipt=transport_receipt,
+                    transport_admission=transport_admission,
                 )
             except Exception as exc:
                 fatal_error = {
@@ -1111,9 +1160,14 @@ def _run_workload(
     preview: Callable[..., Mapping[str, Any]] = _preview,
     _partial: dict[str, Any] | None = None,
     transport_receipt: Mapping[str, Any] | None = None,
+    transport_admission: ClaudeTransportAdmission | None = None,
 ) -> dict[str, Any]:
     _validate_generation_budget(generations)
-    _assert_build_site_is_other(do_build)
+    _assert_build_transport_admitted(
+        do_build,
+        transport_admission=transport_admission,
+        transport_receipt=transport_receipt,
+    )
     flags = WORKLOADS[workload]
     descriptor, descriptor_record = _descriptor_for(flags)
     cfg = _campaign_for(
@@ -1422,7 +1476,10 @@ def run_trial(
     unknown = sorted(set(selected) - set(WORKLOADS))
     if unknown:
         raise AutonomousTrialError(f"unknown workloads: {unknown}")
-    _assert_build_site_is_other(do_build)
+    _assert_build_site_opted_in(
+        do_build,
+        allow_pegasus_compute_transport=allow_pegasus_compute_transport,
+    )
     run_root = Path(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(
@@ -1527,6 +1584,7 @@ def run_trial(
             active_providers=active_providers,
             fatal_error=fatal_error,
             transport_receipt=transport_receipt,
+            transport_admission=transport_admission,
         )
     finally:
         if owns_active_providers:
@@ -1578,7 +1636,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise AutonomousTrialError(
             "fixture provider cannot be used with a real build"
         )
-    _assert_build_site_is_other(not args.no_build)
+    _assert_build_site_opted_in(
+        not args.no_build,
+        allow_pegasus_compute_transport=args.allow_pegasus_compute_transport,
+    )
     run_root = (
         Path(args.run_root)
         if args.run_root

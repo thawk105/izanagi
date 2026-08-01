@@ -20,6 +20,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from orchestrator.campaign import claude_transport
 from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.campaign import s8b_prediction_runner as S
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
@@ -714,8 +715,62 @@ def test_finish_trial_direct_compute_build_rejects_before_provider(
             journal=SimpleNamespace(), started="fixture",
             started_monotonic=time.monotonic(), active_providers={},
             fatal_error=None,
+            transport_receipt=None,
         )
     assert not (tmp_path / "run").exists()
+
+
+def test_compute_build_requires_matching_t276_transport_admission(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        A.trigger, "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    source_env = {
+        "PBS_JOBID": "12345.pegasus",
+        "http_proxy": "http://proxy.example:18080",
+        "https_proxy": "http://proxy.example:18443",
+    }
+    policy_bytes = json.dumps({
+        "schema_version": "pegasus-claude-transport-policy/v1",
+        "site": "PEGASUS_COMPUTE",
+        "mode": "explicit-http-proxy-env",
+        "endpoint_values": {
+            "http_proxy": source_env["http_proxy"],
+            "https_proxy": source_env["https_proxy"],
+        },
+    }).encode("utf-8")
+    admission = claude_transport.evaluate_transport_admission(
+        source_env=source_env,
+        policy_bytes=policy_bytes,
+        site=A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    receipt = admission.receipt.as_dict()
+
+    A._assert_build_site_opted_in(
+        True, allow_pegasus_compute_transport=True,
+    )
+    A._assert_build_transport_admitted(
+        True,
+        transport_admission=admission,
+        transport_receipt=receipt,
+    )
+
+    with pytest.raises(A.AutonomousTrialError, match="transport admission"):
+        A._assert_build_transport_admitted(
+            True,
+            transport_admission=None,
+            transport_receipt=None,
+        )
+    mismatched = dict(receipt)
+    mismatched["pbs_jobid"] = "67890.pegasus"
+    with pytest.raises(A.AutonomousTrialError, match="run-level snapshot"):
+        A._assert_build_transport_admitted(
+            True,
+            transport_admission=admission,
+            transport_receipt=mismatched,
+        )
 
 
 def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) -> None:
@@ -726,7 +781,9 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
     for child in (run_root, run_root / "raw", run_root / "proposals"):
         child.mkdir(exist_ok=True)
     campaign = A.CampaignLayout(str(tmp_path / "campaign"))
-    monkeypatch.setattr(A, "campaign_layout", lambda _campaign_id: campaign)
+    monkeypatch.setattr(
+        A, "exploration_campaign_layout", lambda _campaign_id: campaign,
+    )
     calls = []
 
     def drive(*args, layout, **kwargs):
@@ -740,6 +797,7 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
         return {
             "outcome": "certified", "variant": "fixture-variant",
             "fitness_tps": 1.0, "stop_reason": "continue",
+            "iteration": 1, "ran": True,
         }
 
     providers = {
@@ -903,6 +961,9 @@ def test_run_workload_accepts_actual_fresh_campaign_layout(tmp_path) -> None:
 def test_run_workload_build_passes_exploration_layout_to_trigger(
     tmp_path, monkeypatch,
 ) -> None:
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
     run_root = tmp_path / "run"
     run_root.mkdir()
     for child in ("raw", "proposals"):
@@ -959,6 +1020,9 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
     tmp_path, monkeypatch,
 ) -> None:
     """F5/M08: public run_trial から実際に trigger sink へ渡る root を見る。"""
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
     factory = A.exploration_campaign_layout
     monkeypatch.setattr(
         A,
