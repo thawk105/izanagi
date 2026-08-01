@@ -20,6 +20,10 @@ from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
 from calibrator import runner as calibrator_runner
 
 
+class _CliGateReached(Exception):
+    """Sentinel proving that an accepted CLI path reached its next operation."""
+
+
 def _fake_drive(
     cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
     cache_root="", proposal_path="", extra_sources=(),
@@ -210,10 +214,10 @@ def test_main_rejects_fixture_build_before_build_preparation(
 
 def test_main_accepts_fixture_no_build_at_cli_gate(tmp_path, monkeypatch) -> None:
     def stop_after_cli_gate(*args, **kwargs):
-        raise ValueError("stop after CLI gate")
+        raise _CliGateReached
 
     monkeypatch.setattr(A, "assert_pinned_clean", stop_after_cli_gate)
-    with pytest.raises(ValueError):
+    with pytest.raises(_CliGateReached):
         A.main([
             "--trial-id", "fixture-no-build-accepted",
             "--provider", "fixture",
@@ -227,13 +231,30 @@ def test_main_accepts_claude_headless_build_at_cli_gate(
     tmp_path, monkeypatch,
 ) -> None:
     def stop_after_cli_gate():
-        raise ValueError("stop after CLI gate")
+        raise _CliGateReached
 
     monkeypatch.setattr(calibrator_runner, "competing_bench_pids", stop_after_cli_gate)
-    with pytest.raises(ValueError):
+    with pytest.raises(_CliGateReached):
         A.main([
             "--trial-id", "claude-build-accepted",
             "--provider", "claude-headless",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(tmp_path / "run"),
+        ])
+
+
+def test_main_accepts_claude_headless_no_build_at_cli_gate(
+    tmp_path, monkeypatch,
+) -> None:
+    def stop_after_cli_gate(*args, **kwargs):
+        raise _CliGateReached
+
+    monkeypatch.setattr(A, "assert_pinned_clean", stop_after_cli_gate)
+    with pytest.raises(_CliGateReached):
+        A.main([
+            "--trial-id", "claude-no-build-accepted",
+            "--provider", "claude-headless",
+            "--no-build",
             "--ccbench-dir", str(tmp_path / "ccbench"),
             "--run-root", str(tmp_path / "run"),
         ])

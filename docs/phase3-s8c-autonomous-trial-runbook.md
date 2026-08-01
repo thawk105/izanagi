@@ -88,12 +88,17 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
 
 ```bash
 python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
-  --trial-id live-abc-g2 \
+  --trial-id live-abc-g1 \
   --provider claude-headless \
   --workloads ycsb-a,ycsb-b,ycsb-c \
-  --max-generations 2 \
+  --max-generations 1 \
   --max-wall-seconds 3600
 ```
+
+**`--max-generations` を 2 以上にしてはならない** ([T-207] / D106 残余 1)。世代を跨ぐと
+前 iteration の critic 出力が次世代の生成へ効くが、その還流は `reverse_recommended` の
+boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。設計が裁定されるまで
+1 generation/cell に限る。機械 gate は無い。
 
 `--no-build` を外すと実計測である。supervisor は起動前に競合 `ycsb_*.exe` を検査し、
 CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline 自身の bench lock / settle /
@@ -101,15 +106,18 @@ CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline �
 加えて `numactl --interleave=all` が利用できる計測ホストでなければならない。S2 verify は
 interleave を必須とするため、`numactl` のない login host で空 command に差し替えて走らせない。
 
-最初の実計測は 1 generation/cell で correctness と measurement wiring を確認し、その後に
-2 generations へ増やす。A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
+最初の実計測は 1 generation/cell で correctness と measurement wiring を確認する。
+2 generations 以上へ増やせるのは D106 残余 1 が裁定されてからである。
+A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
 headline 性能や有意差を主張しない。
 
 ## 4. 出力と読み方
 
 既定出力は `output/autonomous-trials/<trial-id>/`:
 
-- `attempts.jsonl`: append-only supervisor journal。role attempt は attempt=1 / retry=false
+- `attempts.jsonl`: append-only supervisor journal。role attempt は attempt=1 / retry=false。
+  **完全な provenance (source role SHA / effective prompt SHA / session / model / token) が入るのは
+  `status=valid` の attempt だけ**で、`status=invalid` は payload / envelope の path と SHA だけを持つ
 - `provider/<role>/payload_*.json`, `envelope_*.json`: headless 呼び出し証拠
 - `raw/raw_*.txt`: role の raw response
 - `proposals/*.json`: harness へ渡した proposal と descriptor binding
@@ -132,13 +140,28 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   proposal/performance の arm 差と全件報告が必要
 - supervisor crash 後の in-place resume、axis-proposer による新軸 onboarding、Codex runtime
   provider、複数軸 population は MVP 範囲外
-- `max-wall-seconds` は **hard wall ではない**。時刻検査は workload / generation の境界でしか
-  行わないため、1 回の role 呼び出し (最大 1200 秒) や build / verify / bench は期限を跨いで
-  走り切る。正式設計が要求する bench 実時間 budget の独立 accounting も未実装
-- **report の次の field は観測結果ではなく定数の自己申告である** — `fresh_context`、
+- **`--run-root` を変えても campaign 状態は resume されうる。** fresh 検査の対象は外側 `run_root`
+  だけで、build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら
+  別の `--run-root` でも同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
+  独立した trial を回すなら workload/config を変えるか、campaign root ごと分離すること
+- `max-wall-seconds` は **hard wall でも safety 上限でもない**。時刻検査は workload と generation の
+  **先頭だけ**で行うため、期限を超えても、その generation の coder・auditor・drive/build・critic は
+  新たに開始される (1 回の role 呼び出しだけで最大 1200 秒)。正確には「次の境界で開始を止める
+  閾値」であり、指定値を大きく超過して走りうる。正式設計が要求する bench 実時間 budget の
+  独立 accounting も未実装
+- **report の次の field は literal であり、その field 自体は実証ではない** — `fresh_context`、
   `observed_tool_events`、`fixed_generations`、`performance_early_stop`、`scientific_claim`。
   supervisor が書いた値をそのまま読み返しているだけで、実 process の能力・停止条件を
-  測定した結果ではない。恒真ゲートとして扱い、保証の証拠に使わない
+  測定した結果ではない (ただし `scientific_claim` は gate ではなく意図的な scope label であり、
+  `fresh_context` / `observed_tool_events` の周辺には `num_turns`・session-id・permission denial・
+  server-tool counter の部分検査が実在する)。これらの field を保証の証拠に使わない
+- **規律 3 の還流が human-supervised loop より狭い。** 次世代の planner/coder が受けるのは
+  抽象 whiteboard (direction/magnitude/result/delta_pct) までで、critic の
+  attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれる。
+  「なぜ壊れたか」は次の生成入力に入らない。**この設計が裁定されるまで
+  `--max-generations >= 2` で走らせてはならない** (D106 残余 1)。1 generation/cell は
+  還流が起きないため許可する。正式系列 (H1/H2) は同一 generation budget を要求するので
+  この条件で自動的に禁止側へ入る。機械 gate は置いていない — 運転者が守る規律である
 - auditor の mediated schema は **要素 field まで閉じていない**。consumer は要素が `dict` で
   あることしか検査せず、`{}`・未知キー・非文字列 field を含む要素が通る。
   「schema を object 配列へ明確化した」の射程はここまでである

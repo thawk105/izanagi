@@ -424,10 +424,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      trigger-gating 1 軸へ束ねて最短実装した。
      `orchestrator/campaign/p3_autonomous_workload_trial.py` が planner / coder / auditor /
      critic を headless Claude の fresh・tool-less context で直接呼び、iteration 間の
-     descriptor / abstract whiteboard / critic reverse signal を Python が運ぶ。source role SHA +
-     effective prompt SHA + payload/envelope SHA + session/model/token provenance を全 attempt に
-     束縛し、各 role は1回・retryなし。固定 generation budget、既存 safe-loop stop、supervisor
-     wall budgetのいずれかで停止し terminal report を書く。performance target による早期停止は
+     descriptor / abstract whiteboard / critic reverse signal を Python が運ぶ。**valid attempt** には
+     source role SHA + effective prompt SHA + payload/envelope SHA + session/model/token provenance を
+     束縛する (invalid attempt は payload/envelope の path と SHA だけで、provenance は落ちる)。
+     各 role は1回・retryなし。固定 generation budget、既存 safe-loop stop、supervisor
+     wall 閾値のいずれかで停止し terminal report を書く。performance target による早期停止は
      入れない (Best-of-N / 選択的報告の回避)。
 
      YCSB A/B/C × 1 generation の fixture no-build は 3/3 dry-pass、実 Claude no-build は
@@ -437,11 +438,17 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      その出力監査で planner の mechanism 文が coder へ流れうることも検出し、planner→coder 境界を
      `axis/direction/magnitude` 3 field だけに縮退した。運用正本 =
      `docs/phase3-s8c-autonomous-trial-runbook.md`、設計裁定 = D106。
-     **2026-08-01 の取り込み ([T-207]) で、起草時の主張と実装の食い違い 4 件を訂正した** —
-     `_preview()` の pre-audit 再実装、`max-wall-seconds` が hard wall でないこと、
-     auditor schema が要素 field まで閉じていないこと、report の一部 field が観測でなく
-     定数の自己申告であること。同時に `--provider fixture` + 実 build を fail-closed で
-     拒否した (無条件 pass の fixture auditor を実計測経路へ載せない。D106 決定 (6))。
+     **2026-08-01 の取り込み ([T-207]) で、起草時の主張と実装の食い違い 6 件を訂正した。**
+     一覧の正本は `output/insights/2026-08-01_t207-adoption-audit/README.md` の
+     「説明と実装の食い違い 6 件」の表である (`_preview()` の pre-audit 再実装 /
+     `max-wall-seconds` が上限でなく境界閾値であること / auditor schema が要素 field まで
+     閉じていないこと / auditor payload に common 部も入ること / provenance が valid attempt
+     限定であること / 別 run-root でも campaign 状態が再利用されうること)。
+     同時に `--provider fixture` + 実 build を fail-closed で拒否した
+     (無条件 pass の fixture auditor を実計測経路へ載せない。D106 決定 (6))。
+     **規律 3 の還流が human loop より狭い**点は設計択一として未解決であり、
+     cross-generation 還流が起きる `--max-generations >= 2` の運転を D106 残余 1 の裁定まで
+     禁止する ([T-228])。1 generation/cell は還流が起きないため許可する。
 
      **この完了は「無人で proposal を作り build 手前まで運べる」operational evidence であり、
      workload-conditioned synthesis の科学的主張ではない。** A=rr50/B=rr95 は既知点、C=rr100 は
@@ -454,7 +461,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
      8c で orchestrator が所有する予算の第一単位は
      **ベンチ実時間 (秒)**、LLM 呼び出し回数は第二軸とする。現 MVP の wall budget は前者の
-     代替ではなく operational safety 上限。Vesper のトークン予算終了基準は直輸入しない —
+     代替ではない。上限でもなく、次の workload / generation 境界で開始を止める閾値である。Vesper のトークン予算終了基準は直輸入しない —
      Izanagi の律速資源はトークンでなくベンチ実時間であり、ベンチは排他実行のため並列化で回収できない
      (related-work §7.2)。
 9. **層3材料レポート (事実層は v2 まで完了、機序仮説層は設計凍結済み)** — 最小完了条件は

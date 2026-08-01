@@ -4765,6 +4765,8 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 `[T-143] RuleOps v1` へ使ったため、[T-207] の取り込み時に `D106` へ採番し直した。
 同時に、独立の敵対監査 (規律 6) が**起草時の本文と実装の食い違い 4 件**を検出したため、
 該当箇所を訂正して land した。訂正箇所は本文中に「**訂正 (2026-08-01):**」で明示する。
+**correction ledger の正本は `output/insights/2026-08-01_t207-adoption-audit/README.md` の
+「説明と実装の食い違い 6 件」の表**であり、本 D と `docs/phase3.md` はその 6 件を指す。
 起草時の逐語は `codex/p3-autonomous-trial:docs/decisions.md` の `D99` に残る。
 
 **背景:** 8c は「8b と層3を 1 cycle 回してなお人間セッション運営が律速なら着手」の条件付きだった。
@@ -4796,12 +4798,14 @@ SHA と payload/envelope/CLI SHA を持つ。Codex role adapter は正本が run
 
 > **訂正 (2026-08-01) — 保証の格:** この縮退は**引数と設定の射影**であって、実 process の能力を
 > 観測した証明ではない。report の `fresh_context` / `observed_tool_events` は supervisor が
-> 書いた定数を読み返しているだけで、恒真ゲートである。session id の重複拒否は provider instance
+> 書いた literal であり、**この field 自体は実証ではない** (周辺には `num_turns`・session-id・
+> permission denial・server-tool counter の部分検査が実在するので、field を「恒真ゲート」とだけ
+> 呼ぶのは実装の過小評価になる)。session id の重複拒否は provider instance
 > ごとの集合なので **role 横断の再利用は拒否しない**。model 検査は Opus prefix が 1 つ在ることと
 > その record の token が正であることだけを見ており、他 model の併記を禁じない (実 receipt では
 > aux model の併記が観測されている)。`claude` 実行バイナリは hash を**記録するだけで承認 hash と
 > 照合しない** — これは既に land 済みの `s8b_prediction_runner.py` と同じ族の作法であり、
-> trust root の新設は本 D の範囲外とする ([T-222])。
+> trust root の新設は本 D の範囲外とする ([T-226])。
 
 **決定 (3): planner→coder は抽象 3 field だけを渡す。** 最初の実 Claude dry-run で planner の
 justification が具体的な gate mechanism を述べ、これをそのまま coder へ渡すと planner が実装を
@@ -4817,9 +4821,10 @@ supervisor は最大10世代、全体 wall safety budget、既存 safe-loop stop
 `list[dict]` gate が 3 cell とも fail-closed にし、同 trial 内再試行なしで partial が保存された。
 次 trial で mediated schema を object 配列へ明確化し、12/12 role attempt valid・3/3 dry-pass を確認した。
 
-> **訂正 (2026-08-01) — 2 点。** (a) `max-wall-seconds` は **hard wall ではない**。時刻検査は
-> workload / generation の境界でしか行わないため、1 回の role 呼び出し (最大 1200 秒) や
-> build / verify / bench は期限を跨いで走り切る。「全体 wall safety budget」は境界検査の意である。
+> **訂正 (2026-08-01) — 2 点。** (a) `max-wall-seconds` は **hard wall でも safety 上限でもない**。
+> 時刻検査は workload と generation の**先頭だけ**で行うため、期限を超えても、その generation の
+> coder・auditor・drive/build・critic は新たに開始される (1 回の role 呼び出しだけで最大 1200 秒)。
+> 正確には「**次の境界で開始を止める閾値**」であり、指定値を大きく超過して走りうる。
 > (b) 「mediated schema を object 配列へ明確化した」の射程は**要素が `dict` であることまで**で、
 > 要素の field は閉じていない。`{}`・未知キー・非文字列 field を含む要素は現在も通る。
 
@@ -4841,13 +4846,46 @@ C は read-only negative-control 候補だが、write conflict が無ければ t
 (`run_trial(do_build=True)` の直接呼び出し) まで塞ぐのは本 D の範囲外とする。
 D96 に従い境界テストを同じ変更単位へ置く。
 
-**残余:** supervisor crash 後の in-place resume は未実装 (既存 campaign WAL/checkpoint は残るが、
-同じ run root を再開しない)。正式設計が第一予算とする bench 実時間の独立 accounting も未実装で、
-現 wall budget は safety 上限にすぎない。axis-proposer、複数軸、Codex provider も範囲外。このため
-bounded pilot は「human が iteration 間を運ばない」ことを実証するが、project 全体の究極的な
-unattended/autonomous 完了は主張しない。build 時の campaign 出力先は既存 s4 driver 族と同じ
-`output/campaigns/` であり、D65 の exploration namespace 分離 (consumer は s8b oracle artifact 族の
-`ExplorationCampaignLayout` のみ) は本族へ適用されていない。族全体を移すかは別裁定 ([T-223])。
+**残余:** axis-proposer、複数軸、Codex provider は範囲外。正式設計が第一予算とする bench 実時間の
+独立 accounting も未実装で、現 wall 値は上記のとおり境界閾値にすぎない。このため bounded pilot は
+「human が iteration 間を運ばない」ことを実証するが、project 全体の究極的な unattended/autonomous
+完了は主張しない。取り込み監査で判明した残余は次の 4 点である。
+
+**(残余 1) 規律 3 の還流が human loop より狭い ([T-228])。** 次世代の planner/coder payload が
+受けるのは descriptor・現行 metrics・leading indicators・抽象 whiteboard
+(`whiteboard_for_planner()` = direction/magnitude/result/delta_pct) だけで、critic の
+`attribution/recommend/avoid/uncertainty` は `reverse_recommended` の boolean へ畳まれる。
+red digest (rejections / verify abort / diff quarantine) の到達先は critic であり、
+次世代の生成入力ではない。human-supervised loop ではこの critic 帰属を**メインセッションが
+消費**していた (D39) が、8c はそのセッションを Python へ置換したまま消費の職務を再実装していない。
+直せば済む欠陥ではなく設計択一である — 帰属を planner 入力へ流すことは D39/D45 が構造的に
+禁じたリーク経路そのものであり、「機序を漏らさずに失敗理由だけを還流させる」設計を要する。
+**したがって運転条件を次のとおり固定する — cross-generation 還流が起きる
+`--max-generations >= 2` の運転を、この設計が裁定されるまで禁止する。**
+1 generation/cell の運転は還流が起きないため本欠陥が発火せず、許可する。
+正式系列 (H1/H2 × on/off/swapped) は同一 generation budget を要求するため、
+この条件により自動的に禁止側へ入る。本制限は prompt 規律であり機械 gate は置いていない。
+
+**(残余 2) provenance は「全 attempt 束縛」ではない。** `_invoke()` の invalid 分岐は
+`error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance`
+(source role SHA、effective prompt SHA、session/model) を捨てる。加えて valid 分岐でも
+**token 数は検査するだけで provenance へ保存しない**し、fixture provider の valid attempt は
+session / token / envelope をそもそも持たない。したがって terminal report から
+token provenance を再構成することはできない。
+
+**(残余 3) 別 run-root でも campaign 状態は再利用されうる。** fresh 検査は外側 `run_root` だけで、
+build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら別の
+`--run-root` を指定しても同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
+「resume は MVP 範囲外」は run_root についての記述であって、campaign 状態には及ばない。
+
+**(残余 4) 出力先 namespace。** build 時の campaign 出力先は既存 s4 driver 族と同じ
+`output/campaigns/` である。D65 決定 (2) の本文「探索は `output/exploration/campaigns/`」に対しては
+**逸脱**であり、8c を D65 適合とは記述しない。ただし 8c 固有ではなく s4 driver 族全体の既存挙動で
+あるため、族全体の移行として別裁定へ送る ([T-227])。D65 が既に決定済みである以上、
+`DW-G03` は未遵守を続ける理由ではなく、族単位でまとめて是正するという順序の理由にとどまる。
+本残余の解消は残余 1 の裁定とは独立であり、残余 1 が閉じても本残余は閉じない。
+既定出力先の `output/autonomous-trials/` が D13 の二軸にも D65 の exploration namespace にも
+属さない第三の root である点も、同じ族単位裁定に含める。
 
 **却下した案:** (a) 成功閾値へ到達した時点で停止 — 適応停止と全試行中の best 選択が科学的主張を
 汚す。(b) 先に汎用 role/axis daemon を設計 — 最初の operational result を遅らせ、未検証抽象へ投資する。

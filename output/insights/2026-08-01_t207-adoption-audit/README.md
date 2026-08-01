@@ -22,20 +22,42 @@ CLAUDE.md 規律 6 の「別セッション/別 AI の作業物の取り込み�
 - `s3a-integration-scope-verbatim.md` — 段 3 敵対レンズ A (統合手順と scope の整合・実効性)
 - `s3b-discipline6-audit-verbatim.md` — 段 3 敵対レンズ B (規律 6 の取り込み監査)
 
-## land stopper 3 件の裁定 (段 4、親)
+## land stopper 3 件の裁定 (段 4、親 → 段 6 で 2 件を再裁定)
 
-レンズ B は「現状のまま land 不可」として land stopper 3 件を挙げた。親が 1 件ずつ裏取りした結果、
-**1 件が real、2 件が refuted** である。
+レンズ B は「現状のまま land 不可」として land stopper 3 件を挙げた。親が 1 件ずつ裏取りし、
+段 6 のレビュー B が親の裏取り 2 件を反証したため、**段 6 で LB-1 / LB-3 の判定を訂正した**。
+最終判定は **LB-1 = real (scope 外)、LB-2a = real (本 wave で修正)、LB-3 = real (族既存・scope 外)**
+であり、land stopper として本 wave を止めるのは LB-2a だけである。
 
-### LB-1「規律 3 の構造化失敗理由が次世代へ届かない」→ **refuted**
+### LB-1「規律 3 の構造化失敗理由が次世代へ届かない」→ **real / scope 外 / 段 6 で訂正**
 
-批判された射影は 8c が導入したものではなく、main に既存の `p3_s4_loop.py` の
-`project_whiteboard()` が行っている。同関数の docstring は「critic の attribution
-(なぜ効いた/壊れたか) や棄却理由の technical explanation は載せない — planner がそれを読んで
-棄却理由から採用値を逆算できる structural inference リスク (規律2/6)」と明記しており、
-**意図的なリーク制御**である。8c supervisor はこれを継承しただけで、規律 3 の
-「なぜ壊れたか」は red digest 側 (`load_rejections` / `load_verify_abort_signals` /
-`load_diff_rejections`) から loop 入力に入っており消えていない。
+**段 4 の初回裁定は refuted だったが、これは誤りである (erratum)。** 親は
+`p3_s4_loop.py` の `project_whiteboard()` が「critic の attribution や棄却理由の technical
+explanation は載せない — planner がそれを読んで棄却理由から採用値を逆算できる structural
+inference リスク (規律2/6)」と意図的に落としていること、および red digest
+(`load_rejections` / `load_verify_abort_signals` / `load_diff_rejections`) が存在することを
+根拠に refuted としたが、**red digest の到達先は critic であって次世代の planner/coder ではない**。
+
+段 6 のレビュー B が指摘したとおり、8c の次世代 payload
+(`p3_autonomous_workload_trial.py` の planner_payload / coder_payload) が受けるのは
+descriptor・現行 metrics・leading indicators・**抽象 whiteboard** だけであり、
+`_whiteboard()` は `loop_core.whiteboard_for_planner()` (= direction/magnitude/result/delta_pct)
+しか返さない。critic の `attribution/recommend/avoid/uncertainty` は
+`reverse_recommended` の boolean へ畳まれて停止カウンタになる。
+
+human-supervised loop では、この critic 帰属を**メインセッション (人間側) が消費**していた
+(D39)。8c はそのメインセッションを Python へ置換したが、消費の職務を再実装していない。
+したがって 8c 自律モードでは、次の variant 生成が受け取るのは「失敗した」「逆方向」までで
+「なぜ壊れたか」ではない。**これは規律 3 に対する実在の狭まりである。**
+
+本 wave で実装しない理由は、直せば済む欠陥ではなく設計択一だからである — critic 帰属を
+planner 入力へ流すことは D39/D45 が構造的に禁じたリーク経路そのものであり、
+「機序を漏らさずに失敗理由だけを還流させる」設計を新たに決める必要がある。
+**したがって D106 は運転条件を明記する。** 制限の正しい条件は「正式系列か否か」ではなく
+**前 iteration の critic 出力を次世代の生成へ使うかどうか**である。cross-generation 還流が
+起きない 1 generation/cell の運転では本欠陥は発火しないため許可し、
+**2 generation 以上 (= 還流が起きる運転) を裁定まで禁止する**。正式系列 (H1/H2) は
+同一 generation budget を要求するため、この条件により自動的に禁止側へ入る。起票 = [T-228]。
 
 ### LB-2a「`--provider fixture` + 実 build を CLI が禁じていない」→ **real / 本 wave で修正**
 
@@ -52,29 +74,51 @@ no-op になる**。8c が新規に持ち込んだ経路であり既存 driver �
 main に land 済みの `orchestrator/campaign/s8b_prediction_runner.py` も
 `claude_executable_sha256` を**記録するだけで承認 hash と照合しない** (絶対 path であることだけを
 要求)。8c provider は同じ族の作法を踏襲しており新規の緩みではない。族全体の trust root 新設は
-`DW-G03` (族一般化には独立 2 例) と D96 の手続に従う別裁定 → [T-222]。
+`DW-G03` (族一般化には独立 2 例) と D96 の手続に従う別裁定 → [T-226]。
 
-### LB-3「探索 run を公式 `output/campaigns/` へ書く (D65 違反)」→ **refuted / scope 外**
+### LB-3「探索 run を公式 `output/campaigns/` へ書く (D65 違反)」→ **real / 族既存 / scope 外 / 段 6 で訂正**
 
-main に land 済みの既存 s4 driver (`p3_s4_loop_trigger_gating.py`、`p3_s4_loop_sort.py`) も
-build 時は同じ `campaign_layout()` → `output/campaigns/` を使う。`ExplorationCampaignLayout` の
-consumer は `s8b_oracle_exploration.py` **1 件だけ**で、D65 決定 (2) の namespace 分離は
-s8b oracle artifact 族の契約である。8c の挙動は既存 s4 族と同一で新規違反ではない → [T-223]。
+**段 4 の初回裁定は refuted だったが、これも判定語が誤りである (erratum)。** 親が確認した事実
+—— main に land 済みの既存 s4 driver (`p3_s4_loop_trigger_gating.py`、`p3_s4_loop_sort.py`) も
+build 時は同じ `campaign_layout()` → `output/campaigns/` を使い、`ExplorationCampaignLayout` の
+production consumer は `s8b_oracle_exploration.py` **1 件だけ**である —— は正しい。
+しかし段 6 のレビュー B が指摘したとおり、**既存 producer も同じ挙動であることは D65 適合の
+証拠にならない**。D65 決定 (2) の本文は「探索は `output/exploration/campaigns/`」と書いており、
+s8b 族に限定していない。
 
-## 説明と実装の食い違い 4 件 (段 4 で採用、docs を訂正して land)
+したがって正しい判定は「**D65 の文言に対しては実在の逸脱。ただし 8c 固有ではなく s4 driver 族
+全体の既存挙動であり、本 wave で 8c だけを移すと族内で二重規範になる**」である。
+族全体の namespace 移行として別裁定へ送る → [T-227]。**8c を「D65 適合」とは記述しない。**
+D65 が既に「探索は exploration namespace」と決定済みである以上、`DW-G03` は未遵守を続ける
+理由にはならない — 族単位でまとめて是正するという**順序**の理由にとどまる。
+なお LB-3 の解消は LB-1 の裁定とは独立であり、LB-1 が裁定されても LB-3 は閉じない。
 
-起草時の D99 本文・runbook が主張していたもののうち、実装で裏が取れないもの。
+また、`output/autonomous-trials/` は D13 の二軸 (campaign / env) にも D65 の exploration
+namespace にも属さない第三の root である。本 wave では `output/README.md` へ
+「探索の運用記録であって正式 proof chain ではない」と自然言語で登録するに留めた。
+型・path による機械的な防壁は無く、これも [T-227] の族単位裁定に含める。
+
+## 説明と実装の食い違い 6 件 (段 4 で 4 件、段 6 で 2 件を追加。docs を訂正して land)
+
+起草時の D99 本文・runbook・phase3 が主張していたもののうち、実装で裏が取れないもの。
+**本表がこの wave の correction ledger の正本であり、D106 と phase3.md はこの 6 件を指す。**
 
 | # | 起草時の主張 | 実装 | 訂正先 |
 |---|---|---|---|
 | 1 | 「supervisor は既存 pipeline を迂回・**再実装しない**」 | `_preview()` が DiffQuarantine と禁止識別子検査を supervisor 側でも再実行する (pre-audit)。authoritative path が後段で再検査するため受理集合は広がらないが「再実装がない」は偽 | D106 決定 (1)、runbook §1 |
-| 2 | 「`max-wall-seconds` は supervisor 全体の上限」 | 時刻検査は workload / generation の境界のみ。1 回の role 呼び出し (最大 1200 秒) や build/verify/bench は期限を跨いで走り切る。**hard wall ではない** | D106 決定 (4)、runbook §5 |
-| 3 | 「mediated schema を object 配列へ明確化した」 | consumer は要素が `dict` であることしか検査せず、`{}`・未知キー・非文字列 field を含む要素が通る | D106 決定 (4)、runbook §5 |
+| 2 | 「`max-wall-seconds` は supervisor 全体の上限 / safety 上限」 | 時刻検査は workload と generation の**先頭だけ**。期限超過後も、その generation の coder・auditor・drive/build・critic を新たに開始する。上限ではなく「**次の境界で開始を止める閾値**」である | D106 決定 (4)、runbook §5、phase3.md |
+| 3 | 「mediated schema を object 配列へ明確化した」 | top-level は exact だが、配列要素は `dict` 判定だけ。`{}`・未知キー・非文字列 field を含む要素が通る | D106 決定 (4)、runbook §5 |
 | 4 | 「diff と designated context **だけ**を auditor へ渡す」 | 実 payload には workload / descriptor / generation / policy を含む common 部も入る | runbook §1 |
+| 5 | 「source role SHA + effective prompt SHA + payload/envelope SHA + session/model/token provenance を**全 attempt に**束縛」 | `_invoke()` の invalid 分岐は `error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance` を捨てる。さらに valid 分岐でも token 数は**検査するだけで provenance へ保存しない**。fixture provider の valid attempt は session / token / envelope をそもそも持たない | phase3.md、D106 決定 (2)、runbook §4 |
+| 6 | 「resume は MVP 範囲外」(= 前回状態を引き継がない、と読める) | fresh 検査は外側 `run_root` だけ。同じ workload/config なら campaign id は内容 hash で同一になるため、**別の `--run-root` を指定しても build 側は同じ公式 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む** | D106 残余、runbook §5 |
 
 加えて、report の `fresh_context` / `observed_tool_events` / `fixed_generations` /
-`performance_early_stop` / `scientific_claim` は**実挙動から導出した観測ではなく定数の自己申告**で
-あることを runbook §5 と D106 決定 (2) へ明記した (恒真ゲートを「証明」と読ませない)。
+`performance_early_stop` / `scientific_claim` は**実挙動から導出した観測ではなく literal**で
+あることを runbook §5 と D106 決定 (2) へ明記した。ただし段 6 のレビュー B の指摘に従い、
+**5 field を同列の「恒真ゲート」とは呼ばない** — `scientific_claim` は gate ではなく意図的な
+scope label であり、`fresh_context` / `observed_tool_events` の周辺には `num_turns`・session-id・
+permission denial・server-tool counter の部分検査が実在する。正確な言い方は
+「**これらの field 自体は実証ではない**」である。
 
 ## 番号衝突 3 件 (分岐中に main が同じ番号を別内容へ使用)
 
@@ -82,7 +126,7 @@ s8b oracle artifact 族の契約である。8c の挙動は既存 s4 族と同�
 |---|---|---|---|
 | `D99` | 8c bounded trial の設計裁定 | `[T-143] RuleOps v1` | `D106` へ採番 |
 | worklog `(61)` | 8c 実装 wave | `Codex dev-wave 資源効率監査` | verbatim 追記せず本 wave の新エントリへ要約収容 |
-| `T-179` | live build pilot の再開タスク | `worker 資源台帳` (完了済み) | `T-221` へ採番 (insight 2 箇所) |
+| `T-179` | live build pilot の再開タスク | `worker 資源台帳` (完了済み) | `T-225` へ採番 (insight 2 箇所) |
 
 ## refuted された懸念 (親 brief・段 2 が過大に恐れていた点)
 
