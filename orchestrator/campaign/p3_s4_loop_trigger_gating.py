@@ -51,7 +51,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, wal                                   # noqa: E402
+from campaign import env_contract, execution_guard, ident, site_policy, wal  # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
@@ -74,8 +74,9 @@ from critic.digest import DIFF_QUARANTINE_REASON                   # noqa: E402
 
 # ---- campaign 定数 (軸定数は axis_trigger_gating が正本 — ここは環境・計測の定数のみ) ----
 ENV_TAG = "linux-baremetal"
-CLK = 1800
-NUMA = ["numactl", "--interleave=all"]
+
+_current_site = site_policy.current_site
+_lookup = env_contract.lookup
 
 DIGEST_BASENAME = "s8a_trigger_loop_digest.txt"
 CRITIC_TAG = "p3-s8a-trigger"
@@ -273,6 +274,30 @@ def _append_provenance_entry(layout: CampaignLayout, iteration: int,
 
 # ==== diff 検疫 + 構文契約 grep + auditor gate ==================================
 
+def _site_admits_measurement(site: str) -> bool:
+    """認識済み Pegasus を拒否し、その他の site だけを許可する。"""
+    return site == site_policy.OTHER
+
+
+def _admit_env_contract() -> env_contract.ExecutionEnvironmentContract:
+    """現在 site を実測して admission 後に限り環境契約を解決する。"""
+    site = _current_site()
+    if not _site_admits_measurement(site):
+        raise execution_guard.ExecutionGuardError(
+            f"{ENV_TAG} の env bytes は site={site!r} では生成できない"
+        )
+    return _lookup(ENV_TAG)
+
+
+def _record_diff_reject_admitted(layout: CampaignLayout, genome: Genome,
+                                 implementation: str,
+                                 res: DiffQuarantineResult) -> str:
+    contract = _admit_env_contract()
+    return L.record_diff_reject(
+        layout, genome, implementation, res, env_tag=contract.env_tag
+    )
+
+
 def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
                           auditor: AuditorVerdict, genome: Genome,
                           layout: CampaignLayout, state: L.LoopState,
@@ -285,7 +310,7 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
     res, _base, _edited, working_diff = L.quarantine(
         sub, coder.implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
     if not res.passed:
-        v = L.record_diff_reject(layout, genome, coder.implementation, res, env_tag=ENV_TAG)
+        v = _record_diff_reject_admitted(layout, genome, coder.implementation, res)
         L.project_whiteboard(state, planner, "rejected")
         log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
         return {"outcome": "rejected", "variant": v, "digest": res.digest}
@@ -293,7 +318,7 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
     matched = check_syntax_contract(coder.implementation)
     if matched:
         sres = _syntax_contract_reject_result(matched)
-        v = L.record_diff_reject(layout, genome, coder.implementation, sres, env_tag=ENV_TAG)
+        v = _record_diff_reject_admitted(layout, genome, coder.implementation, sres)
         L.project_whiteboard(state, planner, "rejected")
         log(f"  構文契約 reject: 禁止識別子 {matched}")
         return {"outcome": "rejected", "variant": v, "digest": sres.digest}
@@ -304,7 +329,7 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
         subtype = "auditor-uncertain" if auditor.verdict == "uncertain" else "auditor-violation"
         ares = auditor_reject_result(subtype, auditor,
                                      diff_region=SOURCE_REL, template_diff_id=MARKER_ID)
-        v = L.record_diff_reject(layout, genome, coder.implementation, ares, env_tag=ENV_TAG)
+        v = _record_diff_reject_admitted(layout, genome, coder.implementation, ares)
         L.project_whiteboard(state, planner, "rejected")
         log(f"  auditor gate reject (verdict={auditor.verdict}): "
             f"{len(auditor.violations)} violations")
@@ -385,8 +410,12 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             return gate
         if not do_build:
             return {"outcome": "dry-pass", "variant": None}
-        summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                              ccbench_dir=sub, cache_root=cache_root)
+        contract = _admit_env_contract()
+        summary = run_campaign(
+            cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
+            numactl=list(contract.numactl), log=log, ccbench_dir=sub,
+            cache_root=cache_root,
+        )
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         return _resolve_duplicate(layout, planner, state, summary, log=log)

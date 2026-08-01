@@ -8,19 +8,25 @@ grep (subtype="syntax-contract") と provenance 情報源記録の受け皿 (E �
 """
 from __future__ import annotations
 
+import ast
 import json
 import os
 import sys
 import tempfile
 import time
+from dataclasses import replace
+from types import SimpleNamespace
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import ident, p3_s4_loop as L                         # noqa: E402
+from campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
 from campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
+from campaign import site_policy                                    # noqa: E402
 from campaign import wal                                            # noqa: E402
 from campaign.auditor_gate import AuditorGateFailure, AuditorVerdict  # noqa: E402
 from campaign.layout import CampaignLayout                          # noqa: E402
@@ -65,6 +71,7 @@ _G = Genome("silo", dict(T._BASE))
 _CLEAN_IMPL = ("  izanagi_gate_pass = "
                "(izanagi_abort_reason_ != IzanagiAbortReason::kNodeVali);")
 _FORBIDDEN_IMPL = "  izanagi_gate_pass = (thid_ % 2 == 0);"
+_DIFF_QUARANTINE_IMPL = "#define EVIL 1\n" + _CLEAN_IMPL
 
 
 def _mk_template_dir() -> str:
@@ -92,6 +99,664 @@ def _digest_for(d: str, impl: str = _CLEAN_IMPL) -> str:
     return compute_diff_digest(working_diff)
 
 
+def _driver_source() -> str:
+    with open(T.__file__, encoding="utf-8") as f:
+        return f.read()
+
+
+def _assert_literal_env_tag_assignment(source: str) -> None:
+    tree = ast.parse(source)
+    stores = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Name)
+        and node.id == "ENV_TAG"
+        and isinstance(node.ctx, ast.Store)
+    ]
+    assignments = [
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and node.targets[0] in stores
+    ]
+    assert len(stores) == 1
+    assert len(assignments) == 1
+    value = assignments[0].value
+    assert type(value) is ast.Constant
+    assert value.value == "linux-baremetal"
+
+
+def _assert_no_legacy_env_attributes(source: str) -> None:
+    tree = ast.parse(source)
+    hits = [
+        (node.attr, node.lineno)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and node.attr in {"CLK", "NUMA"}
+    ]
+    assert hits == []
+
+
+def _assert_no_legacy_env_imports(source: str) -> None:
+    tree = ast.parse(source)
+    forbidden = {"CLK", "NUMA"}
+    hits = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        for alias in node.names:
+            imported_name = alias.name.rsplit(".", 1)[-1]
+            if isinstance(node, ast.Import):
+                bound_name = alias.asname or alias.name.split(".", 1)[0]
+            else:
+                bound_name = alias.asname or alias.name
+            if imported_name in forbidden or bound_name in forbidden:
+                hits.append((type(node).__name__, alias.name, alias.asname, node.lineno))
+    assert hits == []
+
+
+def _assert_exact_admission_guard_and_lookup(source: str) -> None:
+    tree = ast.parse(source)
+    admission_defs = [
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_admit_env_contract"
+    ]
+    assert len(admission_defs) == 1
+    admission = admission_defs[0]
+    guards = [node for node in admission.body if isinstance(node, ast.If)]
+    returns = [node for node in admission.body if isinstance(node, ast.Return)]
+    assert len(guards) == 1
+    assert len(returns) == 1
+
+    expected_guard = ast.UnaryOp(
+        op=ast.Not(),
+        operand=ast.Call(
+            func=ast.Name(id="_site_admits_measurement", ctx=ast.Load()),
+            args=[ast.Name(id="site", ctx=ast.Load())],
+            keywords=[],
+        ),
+    )
+    expected_lookup = ast.Call(
+        func=ast.Name(id="_lookup", ctx=ast.Load()),
+        args=[ast.Name(id="ENV_TAG", ctx=ast.Load())],
+        keywords=[],
+    )
+    assert ast.dump(guards[0].test, include_attributes=False) == ast.dump(
+        expected_guard, include_attributes=False,
+    )
+    assert ast.dump(returns[0].value, include_attributes=False) == ast.dump(
+        expected_lookup, include_attributes=False,
+    )
+
+
+def _assert_env_names_scoped_to_admission(source: str) -> None:
+    tree = ast.parse(source)
+    admission_defs = [
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_admit_env_contract"
+    ]
+    assert len(admission_defs) == 1
+    admission_body_ids = {
+        id(node)
+        for statement in admission_defs[0].body
+        for node in ast.walk(statement)
+    }
+    module_assignment_ids = {
+        id(node)
+        for statement in tree.body
+        if isinstance(statement, (ast.Assign, ast.AnnAssign))
+        for node in ast.walk(statement.target if isinstance(statement, ast.AnnAssign)
+                             else ast.Tuple(elts=statement.targets, ctx=ast.Store()))
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
+    }
+    occurrences = {
+        name: [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Name) and node.id == name
+        ]
+        for name in ("ENV_TAG", "_lookup", "_current_site")
+    }
+    assert {name: len(nodes) for name, nodes in occurrences.items()} == {
+        "ENV_TAG": 3,
+        "_lookup": 2,
+        "_current_site": 2,
+    }
+    unexpected = {
+        name: [(node.lineno, type(node.ctx).__name__) for node in nodes
+               if id(node) not in module_assignment_ids
+               and id(node) not in admission_body_ids]
+        for name, nodes in occurrences.items()
+    }
+    assert unexpected == {"ENV_TAG": [], "_lookup": [], "_current_site": []}
+    attribute_occurrences = [
+        (node.attr, node.lineno)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and node.attr in occurrences
+    ]
+    assert attribute_occurrences == []
+
+
+def _replace_once(source: str, old: str, new: str) -> str:
+    assert source.count(old) == 1
+    return source.replace(old, new)
+
+
+def _load_fresh_driver(monkeypatch, *, current_site, lookup, suffix):
+    """依存を先に差し替え、fresh driver が既定 seam を束縛する形でロードする。"""
+    import importlib.util
+
+    monkeypatch.setattr(site_policy, "current_site", current_site)
+    monkeypatch.setattr(env_contract, "lookup", lookup)
+    module_name = f"{T.__name__}__{suffix}"
+    spec = importlib.util.spec_from_file_location(module_name, T.__file__)
+    assert spec is not None and spec.loader is not None
+    fresh_module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, module_name, fresh_module)
+    spec.loader.exec_module(fresh_module)
+    assert fresh_module._current_site is site_policy.current_site
+    assert fresh_module._lookup is env_contract.lookup
+    return fresh_module
+
+
+def _sentinel_contract(*, numactl=("numactl", "--sentinel")):
+    return env_contract.ExecutionEnvironmentContract(
+        env_tag="sentinel-env",
+        clocks_per_us=4242,
+        numactl=numactl,
+        attestation_mode="none",
+        isolation_policy=env_contract.IsolationPolicy(
+            single_process=False, allow_resume=True,
+        ),
+        calibration_ref=env_contract.CalibrationRef(
+            path="output/sentinel-calibration.json", sha256="0" * 64,
+        ),
+    )
+
+
+def _measurement_case(monkeypatch, *, site, lookup):
+    """clean proposal を run_campaign 直前まで進める一時 layout の case。"""
+    import contextlib
+    from campaign import patchharness
+
+    sub = _mk_template_dir()
+    lay = _tmp_layout("measurement")
+    calls = []
+    monkeypatch.setattr(T, "_current_site", lambda: site)
+    monkeypatch.setattr(T, "_lookup", lookup)
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(T, "campaign_layout", lambda *_args, **_kwargs: lay)
+
+    def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
+        calls.append({
+            "env_tag": env_tag,
+            "clocks_per_us": clocks_per_us,
+            "numactl": numactl,
+        })
+        return SimpleNamespace(results=[], skipped=0)
+
+    monkeypatch.setattr(T, "run_campaign", run_spy)
+    state = L.LoopState(start_ts=time.monotonic())
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(sub))
+
+    def invoke():
+        return T.run_one_iteration(
+            T.default_cfg(), T.default_perf(), _planner(), coder, auditor, state,
+            sub, do_build=True, log=lambda *_args: None,
+        )
+
+    return invoke, lay, calls
+
+
+def _reject_case(monkeypatch, *, site, reject_kind="syntax",
+                 lookup=env_contract.lookup):
+    """指定した reject branch を sink まで進める一時 layout の case。"""
+    import contextlib
+    from campaign import patchharness
+
+    sub = _mk_template_dir()
+    lay = _tmp_layout("reject")
+    monkeypatch.setattr(T, "_current_site", lambda: site)
+    monkeypatch.setattr(T, "_lookup", lookup)
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    state = L.LoopState(start_ts=time.monotonic())
+    if reject_kind == "diff-quarantine":
+        implementation = _DIFF_QUARANTINE_IMPL
+        auditor = AuditorVerdict(
+            verdict="pass", diff_digest="irrelevant-diff-quarantine-precedes-gate",
+        )
+    elif reject_kind == "syntax":
+        implementation = _FORBIDDEN_IMPL
+        auditor = AuditorVerdict(
+            verdict="pass", diff_digest="irrelevant-syntax-precedes-gate",
+        )
+    elif reject_kind == "auditor":
+        implementation = _CLEAN_IMPL
+        auditor = AuditorVerdict(
+            verdict="reject", diff_digest=_digest_for(sub),
+            violations=[{"type": 16}],
+        )
+    else:
+        raise ValueError(f"unknown reject kind: {reject_kind}")
+    coder = T.CoderProposalTriggerGating(
+        axis=T.MARKER_ID, implementation=implementation,
+    )
+
+    def invoke():
+        return T.run_one_iteration(
+            T.default_cfg(), T.default_perf(), _planner(), coder, auditor, state,
+            sub, do_build=False, layout=lay, log=lambda *_args: None,
+        )
+
+    return invoke, lay
+
+
+# ==== environment contract admission ===========================================
+
+def test_site_admission_matrix():
+    assert T._site_admits_measurement(site_policy.OTHER) is True
+    for site in (
+        site_policy.PEGASUS_LOGIN,
+        site_policy.PEGASUS_COMPUTE,
+        site_policy.PEGASUS_SUSPECT,
+    ):
+        assert T._site_admits_measurement(site) is False
+
+
+def test_environment_module_surface_and_default_seams():
+    assert T.ENV_TAG == "linux-baremetal"
+    assert not hasattr(T, "CLK")
+    assert not hasattr(T, "NUMA")
+    assert T._current_site is site_policy.current_site
+    assert T._lookup is env_contract.lookup
+
+
+def test_contract_sentinel_flows_to_run_campaign(monkeypatch):
+    contract = _sentinel_contract()
+    looked_up = []
+
+    def lookup(env_tag):
+        looked_up.append(env_tag)
+        return contract
+
+    invoke, _lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.OTHER, lookup=lookup,
+    )
+    invoke()
+    assert looked_up == [T.ENV_TAG]
+    assert calls == [{
+        "env_tag": contract.env_tag,
+        "clocks_per_us": contract.clocks_per_us,
+        "numactl": list(contract.numactl),
+    }]
+
+
+def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
+    registry_contract = env_contract.lookup(T.ENV_TAG)
+    contract = replace(
+        registry_contract,
+        clocks_per_us=registry_contract.clocks_per_us + 777,
+        numactl=(*registry_contract.numactl, "--same-selector-sentinel"),
+    )
+    assert contract.env_tag == T.ENV_TAG
+    assert contract.clocks_per_us != registry_contract.clocks_per_us
+    assert contract.numactl != registry_contract.numactl
+    assert contract.clocks_per_us != T.L.CLK
+    assert list(contract.numactl) != T.L.NUMA
+
+    invoke, _lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.OTHER,
+        lookup=lambda _env_tag: contract,
+    )
+    invoke()
+    assert calls == [{
+        "env_tag": T.ENV_TAG,
+        "clocks_per_us": contract.clocks_per_us,
+        "numactl": list(contract.numactl),
+    }]
+
+
+def test_empty_numactl_contract_flows_as_empty_list(monkeypatch):
+    contract = _sentinel_contract(numactl=())
+    invoke, _lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.OTHER, lookup=lambda _env_tag: contract,
+    )
+    invoke()
+    assert calls[0]["numactl"] == []
+
+
+def test_lookup_error_propagates_before_campaign_and_wal(monkeypatch):
+    error = env_contract.EnvContractError("sentinel lookup failure")
+
+    def fail_lookup(_env_tag):
+        raise error
+
+    invoke, lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.OTHER, lookup=fail_lookup,
+    )
+    with pytest.raises(env_contract.EnvContractError) as excinfo:
+        invoke()
+    assert excinfo.value is error
+    assert calls == []
+    assert wal.read_records(lay) == []
+
+
+def test_measurement_sink_rejects_pegasus_before_campaign_and_wal(monkeypatch):
+    contract = _sentinel_contract()
+    invoke, lay, calls = _measurement_case(
+        monkeypatch,
+        site=site_policy.PEGASUS_COMPUTE,
+        lookup=lambda _env_tag: contract,
+    )
+    with pytest.raises(execution_guard.ExecutionGuardError):
+        invoke()
+    assert calls == []
+    assert wal.read_records(lay) == []
+
+
+@pytest.mark.parametrize("reject_kind", [
+    "diff-quarantine",
+    "syntax",
+    "auditor",
+])
+def test_reject_sink_refuses_pegasus_without_wal(monkeypatch, reject_kind):
+    invoke, lay = _reject_case(
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE,
+        reject_kind=reject_kind, lookup=lambda _env_tag: _sentinel_contract(),
+    )
+    with pytest.raises(execution_guard.ExecutionGuardError):
+        invoke()
+    assert wal.read_records(lay) == []
+
+
+def test_reject_sink_other_writes_two_contract_tagged_records(monkeypatch):
+    contract = _sentinel_contract()
+    looked_up = []
+
+    def lookup(env_tag):
+        looked_up.append(env_tag)
+        return contract
+
+    invoke, lay = _reject_case(
+        monkeypatch, site=site_policy.OTHER, lookup=lookup,
+    )
+    out = invoke()
+    records = wal.read_records(lay)
+    assert out["outcome"] == "rejected"
+    assert looked_up == [T.ENV_TAG]
+    assert len(records) == 2
+    assert [record.env_tag for record in records] == [
+        contract.env_tag, contract.env_tag,
+    ]
+
+
+def test_reject_lookup_error_propagates_without_wal(monkeypatch):
+    error = env_contract.EnvContractError("sentinel reject lookup failure")
+
+    def fail_lookup(_env_tag):
+        raise error
+
+    invoke, lay = _reject_case(
+        monkeypatch, site=site_policy.OTHER, lookup=fail_lookup,
+    )
+    with pytest.raises(env_contract.EnvContractError) as excinfo:
+        invoke()
+    assert excinfo.value is error
+    assert wal.read_records(lay) == []
+
+
+def test_default_path_rejects_pegasus_from_site_policy(monkeypatch):
+    import importlib.util
+
+    module_name = f"{T.__name__}__default_path_test"
+    def sentinel_current_site():
+        return site_policy.PEGASUS_COMPUTE
+
+    monkeypatch.setattr(site_policy, "current_site", sentinel_current_site)
+    spec = importlib.util.spec_from_file_location(module_name, T.__file__)
+    assert spec is not None and spec.loader is not None
+    fresh_module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, module_name, fresh_module)
+    spec.loader.exec_module(fresh_module)
+
+    with pytest.raises(execution_guard.ExecutionGuardError):
+        fresh_module._admit_env_contract()
+
+
+def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypatch):
+    """R16 measurement 実経路。import 後の module 再束縛や動的 reflection は保証外。"""
+    import contextlib
+    from campaign import patchharness
+
+    contract = _sentinel_contract()
+    looked_up = []
+
+    def current_site():
+        return site_policy.OTHER
+
+    def lookup(env_tag):
+        looked_up.append(env_tag)
+        return contract
+
+    fresh = _load_fresh_driver(
+        monkeypatch, current_site=current_site, lookup=lookup,
+        suffix="default_measurement_sink_test",
+    )
+    sub = _mk_template_dir()
+    lay = _tmp_layout("fresh-default-measurement")
+    calls = []
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(fresh, "campaign_layout", lambda *_args, **_kwargs: lay)
+
+    def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
+        calls.append({
+            "env_tag": env_tag,
+            "clocks_per_us": clocks_per_us,
+            "numactl": numactl,
+        })
+        return SimpleNamespace(results=[], skipped=0)
+
+    monkeypatch.setattr(fresh, "run_campaign", run_spy)
+    coder = fresh.CoderProposalTriggerGating(
+        axis=fresh.MARKER_ID, implementation=_CLEAN_IMPL,
+    )
+    auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(sub))
+    fresh.run_one_iteration(
+        fresh.default_cfg(), fresh.default_perf(), _planner(), coder, auditor,
+        L.LoopState(start_ts=time.monotonic()), sub, do_build=True,
+        log=lambda *_args: None,
+    )
+
+    assert fresh._current_site is current_site
+    assert fresh._lookup is lookup
+    assert looked_up == [fresh.ENV_TAG]
+    assert calls == [{
+        "env_tag": contract.env_tag,
+        "clocks_per_us": contract.clocks_per_us,
+        "numactl": list(contract.numactl),
+    }]
+
+
+def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
+    """R16 reject 実経路。import 後の module 再束縛や動的 reflection は保証外。"""
+    import contextlib
+    from campaign import patchharness
+
+    contract = _sentinel_contract()
+    looked_up = []
+
+    def current_site():
+        return site_policy.OTHER
+
+    def lookup(env_tag):
+        looked_up.append(env_tag)
+        return contract
+
+    fresh = _load_fresh_driver(
+        monkeypatch, current_site=current_site, lookup=lookup,
+        suffix="default_reject_sink_test",
+    )
+    sub = _mk_template_dir()
+    lay = _tmp_layout("fresh-default-reject")
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    coder = fresh.CoderProposalTriggerGating(
+        axis=fresh.MARKER_ID, implementation=_FORBIDDEN_IMPL,
+    )
+    auditor = AuditorVerdict(
+        verdict="pass", diff_digest="irrelevant-syntax-precedes-gate",
+    )
+    out = fresh.run_one_iteration(
+        fresh.default_cfg(), fresh.default_perf(), _planner(), coder, auditor,
+        L.LoopState(start_ts=time.monotonic()), sub, do_build=False, layout=lay,
+        log=lambda *_args: None,
+    )
+
+    records = wal.read_records(lay)
+    assert fresh._current_site is current_site
+    assert fresh._lookup is lookup
+    assert out["outcome"] == "rejected"
+    assert looked_up == [fresh.ENV_TAG]
+    assert len(records) == 2
+    assert [record.env_tag for record in records] == [
+        contract.env_tag, contract.env_tag,
+    ]
+
+
+def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
+    import contextlib
+    from campaign import patchharness
+
+    sub = _mk_template_dir()
+    lay = _tmp_layout("dry-pass-pegasus")
+    lookup_calls = 0
+
+    def lookup(_env_tag):
+        nonlocal lookup_calls
+        lookup_calls += 1
+        return _sentinel_contract()
+
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
+    monkeypatch.setattr(T, "_lookup", lookup)
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(sub))
+    out = T.run_one_iteration(
+        T.default_cfg(), T.default_perf(), _planner(), coder, auditor,
+        L.LoopState(start_ts=time.monotonic()), sub, do_build=False, layout=lay,
+        log=lambda *_args: None,
+    )
+    assert out == {"outcome": "dry-pass", "variant": None}
+    assert lookup_calls == 0
+    assert wal.read_records(lay) == []
+
+
+def test_driver_has_no_hardcoded_resolved_env_literals():
+    assert env_contract.find_env_literals(
+        _driver_source(), {1800, "--interleave=all"},
+    ) == []
+
+
+def test_driver_env_tag_assignment_is_literal_constant():
+    """R10 の source AST pin。getattr + 文字列連結等の故意の難読化は保証外。"""
+    _assert_literal_env_tag_assignment(_driver_source())
+
+
+def test_driver_has_no_legacy_env_attribute_references():
+    """R11 の source AST pin。getattr 等の故意の難読化に対する防壁は主張しない。"""
+    _assert_no_legacy_env_attributes(_driver_source())
+
+
+def test_driver_has_no_legacy_env_imports():
+    """R14 の import pin。動的 import・star import の解決結果までは保証しない。"""
+    _assert_no_legacy_env_imports(_driver_source())
+
+
+def test_driver_admission_guard_and_lookup_are_exact():
+    """R13 の exact-shape pin。等価 helper 分割や動的呼出しまで意味解析しない。"""
+    _assert_exact_admission_guard_and_lookup(_driver_source())
+
+
+def test_driver_env_names_are_scoped_to_admission():
+    """R12/R15 pin。直接属性再設定は拒否するが setattr・exec 等の動的変更は保証外。"""
+    _assert_env_names_scoped_to_admission(_driver_source())
+
+
+def test_driver_ast_pins_reject_m20_through_m23_source_mutants():
+    """登録変異の source 検出を固定する。動的 import・setattr・難読化は保証外。"""
+    source = _driver_source()
+    m20 = _replace_once(
+        source,
+        "return _lookup(ENV_TAG)",
+        'return _lookup(os.environ.get("IZANAGI_ENV_TAG", ENV_TAG))',
+    )
+    m21 = _replace_once(
+        source,
+        "if not _site_admits_measurement(site):",
+        "if not _site_admits_measurement(site) and "
+        'not os.environ.get("IZANAGI_ALLOW_PEGASUS"):',
+    )
+    legacy_import = (
+        "from campaign import p3_s4_loop as L                              "
+        "# noqa: E402\n"
+    )
+    m22 = _replace_once(
+        source,
+        legacy_import,
+        legacy_import + "from campaign.p3_s4_loop import CLK as LEGACY_CLK\n",
+    )
+    m22 = _replace_once(
+        m22,
+        "contract.env_tag, contract.clocks_per_us,",
+        "contract.env_tag, (LEGACY_CLK if _current_site is "
+        "site_policy.current_site else contract.clocks_per_us),",
+    )
+    m23 = _replace_once(
+        source,
+        "env_tag=contract.env_tag",
+        'env_tag=(contract.env_tag if _current_site is not '
+        'site_policy.current_site else "linux-baremetal")',
+    )
+
+    with pytest.raises(AssertionError):
+        _assert_exact_admission_guard_and_lookup(m20)
+    with pytest.raises(AssertionError):
+        _assert_exact_admission_guard_and_lookup(m21)
+    with pytest.raises(AssertionError):
+        _assert_no_legacy_env_imports(m22)
+    with pytest.raises(AssertionError):
+        _assert_env_names_scoped_to_admission(m22)
+    with pytest.raises(AssertionError):
+        _assert_env_names_scoped_to_admission(m23)
+
+
+def test_driver_env_name_scope_rejects_direct_module_attribute_reset():
+    """直接 sys.modules 属性再設定は拒否する。setattr・exec・別名経由の変更は保証外。"""
+    source = _replace_once(
+        _driver_source(),
+        'ENV_TAG = "linux-baremetal"',
+        'ENV_TAG = "linux-baremetal"\n'
+        'sys.modules[__name__].ENV_TAG = os.environ.get('
+        '"IZANAGI_ENV_TAG", "linux-baremetal")',
+    )
+    with pytest.raises(AssertionError):
+        _assert_env_names_scoped_to_admission(source)
+
+
 # ==== 構文契約の禁止識別子 grep =================================================
 
 def test_check_syntax_contract_clean_and_forbidden():
@@ -108,9 +773,10 @@ def test_check_syntax_contract_requires_identifier_boundary():
     assert T.check_syntax_contract("  izanagi_gate_pass = write_set_foo;") == ["write_set_"]
 
 
-def test_quarantine_and_audit_rejects_forbidden_identifier():
+def test_quarantine_and_audit_rejects_forbidden_identifier(monkeypatch):
     """禁止識別子は diff 検疫 pass 後でも subtype='syntax-contract' で機械 reject
     (hard gate、fails-closed — auditor verdict=pass でも通らない。レビュー FC-8 裁定)。"""
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="pass", diff_digest="irrelevant-syntax-precedes-gate")
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_FORBIDDEN_IMPL)
@@ -130,8 +796,9 @@ def test_quarantine_and_audit_rejects_forbidden_identifier():
     assert state.whiteboard[-1].result == "rejected"
 
 
-def test_render_rejections_uses_syntax_contract_hint():
+def test_render_rejections_uses_syntax_contract_hint(monkeypatch):
     from critic.digest import render_rejections
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="pass", diff_digest="irrelevant")
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_FORBIDDEN_IMPL)
@@ -146,7 +813,8 @@ def test_render_rejections_uses_syntax_contract_hint():
 
 # ==== auditor gate (共有部品の軸引数配線のみ確認 — 本体は test_auditor_gate.py) ====
 
-def test_quarantine_and_audit_dry_pass_when_clean_and_digest_matches():
+def test_quarantine_and_audit_dry_pass_when_clean_and_digest_matches(monkeypatch):
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(d))
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
@@ -156,7 +824,8 @@ def test_quarantine_and_audit_dry_pass_when_clean_and_digest_matches():
     assert gate is None
 
 
-def test_quarantine_and_audit_raises_on_digest_mismatch():
+def test_quarantine_and_audit_raises_on_digest_mismatch(monkeypatch):
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="pass", diff_digest="0" * 64)
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
@@ -169,7 +838,8 @@ def test_quarantine_and_audit_raises_on_digest_mismatch():
         assert "digest" in str(e)
 
 
-def test_auditor_reject_carries_trigger_axis_identity():
+def test_auditor_reject_carries_trigger_axis_identity(monkeypatch):
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="reject", diff_digest=_digest_for(d),
                              violations=[{"type": 16}])
@@ -398,6 +1068,7 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     import contextlib
     from campaign import patchharness
 
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     sub = _mk_template_dir()
     monkeypatch.setattr(
         patchharness, "applied",
@@ -437,6 +1108,7 @@ def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
     import contextlib
     from campaign import patchharness
 
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     sub = _mk_template_dir()
     monkeypatch.setattr(
         patchharness, "applied",
