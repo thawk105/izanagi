@@ -1445,10 +1445,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - **契約からの逸脱を 1 件申告する。** 前提実測 (`DW-S01`) のため、計算ノード上で `claude -p` と 8c
   driver を起動した。これは runbook §8 の「計算ノードで `claude -p` を起動しない」に抵触する。
   計測値は 1 つも生んでおらず、この逸脱こそが当該規範の前提が誤りだと示した
-- 検査: `check_docs.py` 違反なし。関連テスト (`check_docs` / `repo_scan_invariant` / `schema_v2` /
-  `calibrator_certify`) は request `876836` で 348 passed。全走は request `876837` で
-  **4702 passed / 7 failed / 19 skipped**、赤の内訳は [T-270] のフレーク族で、単独再走
-  (`876900`) は 280 passed / 2 skipped と緑。docs のみの差分なので当該ファイルへ到達しえない
+- 検査: `check_docs.py` 違反なし、provenance 全履歴 684 件違反なし。関連テスト (`check_docs` /
+  `repo_scan_invariant` / `schema_v2` / `calibrator_certify`) は request `876836` で 348 passed。
+  main 取り込み**前**の全走 (`876837`) は 4702 passed / 7 failed、取り込み**後**の 1 回目
+  (`876911`) は 4697 passed / 12 failed。赤は 2 回とも [T-270] の snapshot 族と F57 族だけで、
+  単独再走 (`876900` = 280 passed、`876914` = 255 passed) はいずれも緑。
+  **採用する受入値は取り込み後の全走 2 回目 `876915` = 4709 passed / 19 skipped / rc=0** である。
+  本 wave の差分は docs のみで当該実装へ到達しえない (`DW-O18`)
 - 一次資料 = `output/insights/2026-08-01_t241-compute-llm-transport/` (README・brief・plan・敵対
   レンズ 2 本の逐語・裁定・生 evidence)。**ユーザー裁定パッケージ (択一 3 件)** は同 `s4-adjudication.md`
 - 段 8 自己改善: 実測した手順の穴 2 件 (背景 job の codex は `nohup` で切り離す / worktree からの
@@ -1477,10 +1480,11 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   (空き 9 bytes) に入らない。既存義務文へ無損失の縮約余地を見つけられなかった。予算の独立審査 (a)、
   別 wave での意味等価な縮約 (b)、統合しない (c) の択一。推奨は (b)。詳細は
   `output/insights/2026-08-01_t241-compute-llm-transport/s4-adjudication.md` の択一 4
-- [T-270] **P3・追加データ ((96))**: 同じフレークが本 wave の全走 (`876837`) でも出た。3 例目である。
-  内訳は `test_s8b_floor_campaign.py` 6 件 + `test_ruleops.py::test_real_checkout_...@real_repo` 1 件で、
-  **`real_repo` 系も同族**だと分かった。単独再走 (`876900`、280 passed / 2 skipped) は緑。
-  本 wave は docs のみの差分なので当該ファイルへ到達しえない。他は変わらず ((94) 参照)
+- [T-270] **P3・追加データ ((96))**: 同じフレークを本 wave の全走 2 回で観測した。3・4 例目である。
+  `876837` は `test_s8b_floor_campaign.py` 6 件 + `test_ruleops.py::test_real_checkout_...@real_repo`
+  1 件、`876911` は同 floor 11 件 + F57 族 1 件。**`real_repo` 系も同族**だと分かったのが新しい。
+  単独再走 (`876900` = 280 passed、`876914` = 255 passed) と全走 3 回目 (`876915` = 4709 passed) は
+  いずれも緑。本 wave は docs のみの差分なので当該ファイルへ到達しえない。他は変わらず ((95) 参照)
 - [T-248] 変わらず ((95) 参照)
 - [T-271] 変わらず ((95) 参照)
 - [T-272] 変わらず ((95) 参照)
