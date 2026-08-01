@@ -31,6 +31,7 @@ else:
 
 
 _EVENTS = frozenset({
+    "transport-admission",
     "run-start",
     "role-attempt",
     "supervisor-error",
@@ -271,6 +272,67 @@ def _check_journal_sequence(events: Sequence[Mapping[str, Any]]) -> None:
             _fail("journal-sequence", f"journal event seq={expected} has no timestamp")
 
 
+def _check_transport_admission(
+    *, report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
+) -> None:
+    admissions = [
+        event for event in events if event.get("event") == "transport-admission"
+    ]
+    if len(admissions) > 1:
+        _fail("transport-admission", "transport-admission may occur at most once")
+    report_has_receipt = "transport_receipt" in report
+    if bool(admissions) != report_has_receipt:
+        _fail(
+            "transport-admission",
+            "transport-admission and report transport_receipt must occur together",
+        )
+    if not admissions:
+        return
+
+    admission = admissions[0]
+    required = {"event", "transport_receipt", "seq", "ts"}
+    if set(admission) != required:
+        _fail(
+            "transport-admission",
+            "transport-admission fields must match the producer exact set",
+        )
+    starts = [event for event in events if event.get("event") == "run-start"]
+    if (
+        len(events) < 2
+        or events[0] is not admission
+        or len(starts) != 1
+        or events[1] is not starts[0]
+    ):
+        _fail(
+            "transport-admission",
+            "transport-admission must occur immediately before run-start and role attempts",
+        )
+    if report.get("provider") != "claude-headless":
+        _fail(
+            "transport-admission",
+            "transport-admission requires the claude-headless provider",
+        )
+    receipt = admission.get("transport_receipt")
+    if type(receipt) is not dict:
+        _fail(
+            "transport-admission",
+            "transport-admission.transport_receipt must be an object",
+        )
+    producer = _producer_module()
+    try:
+        validated = producer._validate_transport_receipt(receipt)
+        report_receipt = producer._validate_transport_receipt(
+            report.get("transport_receipt")
+        )
+    except producer.AutonomousTrialError as exc:
+        _fail("transport-admission", f"transport receipt is invalid: {exc}")
+    if validated != report_receipt:
+        _fail(
+            "transport-admission",
+            "transport-admission receipt does not match report projection",
+        )
+
+
 def _check_run_envelope(
     *, report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
     attempt_journal: Path,
@@ -279,8 +341,12 @@ def _check_run_envelope(
     finishes = [event for event in events if event.get("event") == "run-finish"]
     if len(starts) != 1 or len(finishes) != 1:
         _fail("run-envelope", "run-start and run-finish must each occur exactly once")
-    if events[0] is not starts[0] or events[-1] is not finishes[0]:
-        _fail("run-envelope", "run-start/run-finish must be first/last")
+    first_run_event = 1 if events[0].get("event") == "transport-admission" else 0
+    if events[first_run_event] is not starts[0] or events[-1] is not finishes[0]:
+        _fail(
+            "run-envelope",
+            "run-start/run-finish must bound the run after any transport admission",
+        )
     start, finish = starts[0], finishes[0]
     producer = _producer_module()
     if report.get("schema_version") != producer.REPORT_SCHEMA_VERSION:
@@ -474,40 +540,57 @@ def _role_prefix_length(roles: Mapping[str, Any], *, label: str) -> int:
 
 
 def _check_cell_metadata(
-    cell: Mapping[str, Any], *, cell_index: int,
-) -> str:
+    cell: Mapping[str, Any], *, cell_index: int, generations: Sequence[Any],
+) -> str | None:
     required = {
         "workload_flags", "descriptor", "descriptor_binding",
         "campaign_id", "campaign_root",
     }
+    early_error_without_work = (
+        not generations
+        and cell.get("stop_reason") in {"supervisor-error", "provider-init-error"}
+    )
+    if early_error_without_work:
+        required = set()
     missing = sorted(required - set(cell))
     if missing:
         _fail("cell-metadata", f"cells[{cell_index}] is missing required fields: {missing}")
-    workload_flags = _mapping(
-        cell["workload_flags"], gate="cell-metadata",
-        label=f"cells[{cell_index}].workload_flags",
-    )
-    descriptor = _mapping(
-        cell["descriptor"], gate="cell-metadata",
-        label=f"cells[{cell_index}].descriptor",
-    )
-    descriptor_binding = _mapping(
-        cell["descriptor_binding"], gate="cell-metadata",
-        label=f"cells[{cell_index}].descriptor_binding",
-    )
-    if not workload_flags:
-        _fail("cell-metadata", f"cells[{cell_index}].workload_flags is empty")
-    if not descriptor:
-        _fail("cell-metadata", f"cells[{cell_index}].descriptor is empty")
-    descriptor_sha256 = descriptor_binding.get("output_sha256")
-    if not isinstance(descriptor_sha256, str) or _SHA256_RE.fullmatch(descriptor_sha256) is None:
-        _fail(
-            "cell-metadata",
-            f"cells[{cell_index}].descriptor_binding.output_sha256 is not a lowercase SHA-256",
+    if "workload_flags" in cell:
+        workload_flags = _mapping(
+            cell["workload_flags"], gate="cell-metadata",
+            label=f"cells[{cell_index}].workload_flags",
         )
-    if not isinstance(cell["campaign_id"], str) or not cell["campaign_id"]:
+        if not workload_flags:
+            _fail("cell-metadata", f"cells[{cell_index}].workload_flags is empty")
+    if "descriptor" in cell:
+        descriptor = _mapping(
+            cell["descriptor"], gate="cell-metadata",
+            label=f"cells[{cell_index}].descriptor",
+        )
+        if not descriptor:
+            _fail("cell-metadata", f"cells[{cell_index}].descriptor is empty")
+    descriptor_sha256 = None
+    if "descriptor_binding" in cell:
+        descriptor_binding = _mapping(
+            cell["descriptor_binding"], gate="cell-metadata",
+            label=f"cells[{cell_index}].descriptor_binding",
+        )
+        descriptor_sha256 = descriptor_binding.get("output_sha256")
+        if (
+            not isinstance(descriptor_sha256, str)
+            or _SHA256_RE.fullmatch(descriptor_sha256) is None
+        ):
+            _fail(
+                "cell-metadata",
+                f"cells[{cell_index}].descriptor_binding.output_sha256 is not a lowercase SHA-256",
+            )
+    if "campaign_id" in cell and (
+        not isinstance(cell["campaign_id"], str) or not cell["campaign_id"]
+    ):
         _fail("cell-metadata", f"cells[{cell_index}].campaign_id is not a non-empty string")
-    if not isinstance(cell["campaign_root"], str) or not cell["campaign_root"]:
+    if "campaign_root" in cell and (
+        not isinstance(cell["campaign_root"], str) or not cell["campaign_root"]
+    ):
         _fail("cell-metadata", f"cells[{cell_index}].campaign_root is not a non-empty string")
     return descriptor_sha256
 
@@ -518,11 +601,13 @@ def _scan_report_attempts(
 ) -> list[Mapping[str, Any]]:
     report_attempts: list[Mapping[str, Any]] = []
     for cell_index, cell in enumerate(cells):
-        descriptor_sha256 = _check_cell_metadata(cell, cell_index=cell_index)
         workload = cell.get("workload")
         generations = _list(
             cell.get("generations"), gate="state-machine",
             label=f"cells[{cell_index}].generations",
+        )
+        descriptor_sha256 = _check_cell_metadata(
+            cell, cell_index=cell_index, generations=generations,
         )
         generation_numbers: list[int] = []
         prefix_lengths: list[int] = []
@@ -751,6 +836,7 @@ def assert_autonomous_trial_completeness(
         _fail("journal-hash", "attempt_journal_sha256 does not match bytes read")
     _check_closed_events(events)
     _check_journal_sequence(events)
+    _check_transport_admission(report=report, events=events)
     _check_run_envelope(
         report=report, events=events, attempt_journal=Path(attempt_journal),
     )

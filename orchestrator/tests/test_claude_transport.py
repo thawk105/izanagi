@@ -1234,6 +1234,53 @@ def _assert_no_transport_fields(value) -> None:
             _assert_no_transport_fields(nested)
 
 
+def _append_run_start(
+    journal: A.AttemptJournal,
+    *,
+    trial_id: str,
+    provider: str,
+    workloads: list[str],
+    generations: int,
+    max_wall_s: int,
+    do_build: bool = False,
+) -> None:
+    journal.append({
+        "event": "run-start",
+        "schema_version": A.SCHEMA_VERSION,
+        "trial_id": trial_id,
+        "provider": provider,
+        "workloads": workloads,
+        "generation_budget_per_workload": generations,
+        "max_wall_s": max_wall_s,
+        "do_build": do_build,
+        "performance_early_stop": False,
+        "scientific_claim": False,
+    })
+
+
+def _append_transport_preamble(
+    journal: A.AttemptJournal,
+    *,
+    receipt: dict,
+    trial_id: str,
+    workloads: list[str],
+    generations: int,
+    max_wall_s: int,
+) -> None:
+    journal.append({
+        "event": "transport-admission",
+        "transport_receipt": receipt,
+    })
+    _append_run_start(
+        journal,
+        trial_id=trial_id,
+        provider="claude-headless",
+        workloads=workloads,
+        generations=generations,
+        max_wall_s=max_wall_s,
+    )
+
+
 def _p1_normalized_artifact_bytes(
     *, run_root: Path, report: dict, journal_events: list[dict]
 ) -> tuple[bytes, bytes]:
@@ -1445,10 +1492,23 @@ def test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers(
     assert events[0]["event"] == "transport-admission"
     assert events[0]["transport_receipt"] == report["transport_receipt"]
     role_events = [event for event in events if event.get("event") == "role-attempt"]
-    assert [event["role"] for event in role_events] == ["planner", "coder", "critic"]
+    assert [event["role"] for event in role_events] == [
+        "planner", "coder", "auditor", "critic",
+    ]
+    auditor_event = role_events[2]
+    assert auditor_event["event"] == "role-attempt"
+    assert auditor_event["role"] == "auditor"
+    assert auditor_event["status"] == "skipped"
+    assert auditor_event["skip_reason"] == "machine-pre-audit-rejection"
+    provider_role_events = [
+        event for event in role_events if event["role"] != "auditor"
+    ]
+    assert [event["role"] for event in provider_role_events] == [
+        "planner", "coder", "critic",
+    ]
     assert all(
         event["provenance"]["transport_receipt"] == report["transport_receipt"]
-        for event in role_events
+        for event in provider_role_events
     )
 
 
@@ -1529,7 +1589,9 @@ def _dry_drive(*args, **kwargs):
         "outcome": "rejected",
         "variant": "fixture-variant",
         "verdict": "fixture-verdict",
-        "stop_reason": "fixture-stop",
+        "stop_reason": "continue",
+        "iteration": 1,
+        "ran": True,
         "records": {},
     }
 
@@ -1547,6 +1609,14 @@ def test_success_consumer_keeps_valid_receipt_in_journal_and_report(
     (root / "raw").mkdir()
     (root / "proposals").mkdir()
     journal = A.AttemptJournal(root / "attempts.jsonl")
+    _append_transport_preamble(
+        journal,
+        receipt=run_receipt,
+        trial_id="success-consumer",
+        workloads=["ycsb-a"],
+        generations=1,
+        max_wall_s=60,
+    )
     report = A._finish_trial(
         trial_id="success-consumer",
         selected=["ycsb-a"],
@@ -1819,6 +1889,14 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
     error_root = tmp_path / "supervisor-error"
     error_root.mkdir()
     error_journal = A.AttemptJournal(error_root / "attempts.jsonl")
+    _append_transport_preamble(
+        error_journal,
+        receipt=receipt,
+        trial_id="terminal-error",
+        workloads=["ycsb-a"],
+        generations=1,
+        max_wall_s=60,
+    )
     try:
         A._run_workload = lambda **kwargs: (_ for _ in ()).throw(
             RuntimeError("supervisor failure")
@@ -1849,13 +1927,25 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
         for line in (error_root / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert [event["event"] for event in error_events] == [
-        "supervisor-error", "run-finish"
+        "transport-admission", "run-start", "supervisor-error", "run-finish"
     ]
-    assert all(event["transport_receipt"] == receipt for event in error_events)
+    assert "transport_receipt" not in error_events[1]
+    assert all(
+        event["transport_receipt"] == receipt
+        for event in (error_events[0], *error_events[2:])
+    )
 
     outer_root = tmp_path / "outer-wall"
     outer_root.mkdir()
     outer_journal = A.AttemptJournal(outer_root / "attempts.jsonl")
+    _append_transport_preamble(
+        outer_journal,
+        receipt=receipt,
+        trial_id="terminal-outer-wall",
+        workloads=["ycsb-a"],
+        generations=1,
+        max_wall_s=1,
+    )
     try:
         A.time.monotonic = lambda: 2.0
         A._finish_trial(
@@ -1884,9 +1974,13 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
         for line in (outer_root / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert [event["event"] for event in outer_events] == [
-        "supervisor-wall-budget", "run-finish"
+        "transport-admission", "run-start", "supervisor-wall-budget", "run-finish"
     ]
-    assert all(event["transport_receipt"] == receipt for event in outer_events)
+    assert "transport_receipt" not in outer_events[1]
+    assert all(
+        event["transport_receipt"] == receipt
+        for event in (outer_events[0], *outer_events[2:])
+    )
 
     inner_root = tmp_path / "inner-wall"
     inner_root.mkdir()
@@ -1925,9 +2019,20 @@ def test_opt_in_report_and_opt_out_report_field_boundaries(tmp_path: Path) -> No
     opt_root = tmp_path / "opt"
     opt_root.mkdir()
     opt_journal = A.AttemptJournal(opt_root / "attempts.jsonl")
-    opt_journal.append({
-        "event": "transport-admission", "transport_receipt": receipt
-    })
+    _append_transport_preamble(
+        opt_journal,
+        receipt=receipt,
+        trial_id="opt",
+        workloads=["ycsb-a"],
+        generations=1,
+        max_wall_s=1,
+    )
+    opt_fatal_error = {"type": "FixtureError", "message": "stopped"}
+    A._append_provider_init_error(
+        journal=opt_journal,
+        fatal_error=opt_fatal_error,
+        transport_receipt=receipt,
+    )
     opt_report = A._finish_trial(
         trial_id="opt",
         selected=["ycsb-a"],
@@ -1944,7 +2049,7 @@ def test_opt_in_report_and_opt_out_report_field_boundaries(tmp_path: Path) -> No
         started="2026-08-01T00:00:00+09:00",
         started_monotonic=0.0,
         active_providers={},
-        fatal_error={"type": "FixtureError", "message": "stopped"},
+        fatal_error=opt_fatal_error,
         transport_receipt=receipt,
     )
     assert opt_report["transport_receipt"] == receipt
@@ -1952,7 +2057,20 @@ def test_opt_in_report_and_opt_out_report_field_boundaries(tmp_path: Path) -> No
     default_root = tmp_path / "default"
     default_root.mkdir()
     default_journal = A.AttemptJournal(default_root / "attempts.jsonl")
-    default_journal.append({"event": "run-start", "schema_version": "fixture"})
+    _append_run_start(
+        default_journal,
+        trial_id="default",
+        provider="fixture",
+        workloads=["ycsb-a"],
+        generations=1,
+        max_wall_s=1,
+    )
+    default_fatal_error = {"type": "FixtureError", "message": "stopped"}
+    A._append_provider_init_error(
+        journal=default_journal,
+        fatal_error=default_fatal_error,
+        transport_receipt=None,
+    )
     default_report = A._finish_trial(
         trial_id="default",
         selected=["ycsb-a"],
@@ -1969,7 +2087,7 @@ def test_opt_in_report_and_opt_out_report_field_boundaries(tmp_path: Path) -> No
         started="2026-08-01T00:00:00+09:00",
         started_monotonic=0.0,
         active_providers={},
-        fatal_error={"type": "FixtureError", "message": "stopped"},
+        fatal_error=default_fatal_error,
         transport_receipt=None,
     )
     assert "transport_receipt" not in default_report

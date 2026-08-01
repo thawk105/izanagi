@@ -25,6 +25,26 @@ _TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
 _REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
 _LAYER3_SCHEMA_VERSION = "layer3-material-report/v2"
 _LAYER3_GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
+_TRANSPORT_RECEIPT = {
+    "schema_version": "claude-transport-receipt/v1",
+    "mode": "explicit-http-proxy-env",
+    "site": "PEGASUS_COMPUTE",
+    "admitted_env_keys": ["http_proxy", "https_proxy"],
+    "endpoint_values": {
+        "http_proxy": "http://proxy-a.example:18080",
+        "https_proxy": "http://proxy-b.example:18443",
+    },
+    "endpoint_values_sha256": (
+        "8600267e0e37ea741979c88de241b910804defdb9ea147f4d0f5200a4ece3cfb"
+    ),
+    "policy_path": "tools/pegasus/policies/transport_v1.json",
+    "policy_sha256": (
+        "279fcecffc6e0c636171799fa7744f58495730698d3c75f9fb18534e1430797c"
+    ),
+    "source_tls_trust_override_keys": [],
+    "forwarded_tls_trust_override_keys": [],
+    "pbs_jobid": "987654.pegasus",
+}
 
 _GOLDEN_WORKLOADS = {
     "ycsb-a": {
@@ -347,6 +367,27 @@ def _generation_wall_trial(tmp_path: Path):
     return run, events, report
 
 
+def _transport_admitted_trial(tmp_path: Path):
+    run, events, report = _provider_init_trial(tmp_path)
+    receipt = copy.deepcopy(_TRANSPORT_RECEIPT)
+    for event in events:
+        event["seq"] += 1
+    admission = {
+        "event": "transport-admission",
+        "transport_receipt": copy.deepcopy(receipt),
+        "seq": 1,
+        "ts": "2026-08-01T00:00:01+00:00",
+    }
+    events.insert(0, admission)
+    for event in events[2:]:
+        event["transport_receipt"] = copy.deepcopy(receipt)
+    report["provider"] = "claude-headless"
+    events[1]["provider"] = "claude-headless"
+    report["transport_receipt"] = copy.deepcopy(receipt)
+    _persist(run, events, report)
+    return run, events, report
+
+
 def _verify(run: Path, report: dict) -> None:
     C.assert_autonomous_trial_completeness(
         report=report, attempt_journal=run / "attempts.jsonl",
@@ -379,6 +420,71 @@ def test_p4_provider_init_error_with_empty_cells_passes(tmp_path) -> None:
 def test_p5_generation_boundary_wall_budget_empty_generations_passes(tmp_path) -> None:
     run, _events, report = _generation_wall_trial(tmp_path)
     _verify(run, report)
+
+
+def test_transport_admission_bound_shape_and_projection_passes(tmp_path) -> None:
+    run, _events, report = _transport_admitted_trial(tmp_path)
+    _verify(run, report)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    [
+        ("duplicate", r"transport-admission may occur at most once"),
+        (
+            "after-run-start",
+            r"transport-admission must occur immediately before run-start and role attempts",
+        ),
+        (
+            "missing-receipt",
+            r"transport-admission fields must match the producer exact set",
+        ),
+        (
+            "wrong-receipt-type",
+            r"transport-admission\.transport_receipt must be an object",
+        ),
+        (
+            "report-mismatch",
+            r"transport-admission receipt does not match report projection",
+        ),
+        (
+            "report-missing",
+            r"transport-admission and report transport_receipt must occur together",
+        ),
+    ],
+    ids=[
+        "duplicate",
+        "after-run-start",
+        "missing-receipt",
+        "wrong-receipt-type",
+        "report-mismatch",
+        "report-missing",
+    ],
+)
+def test_transport_admission_binding_mutations_are_rejected(
+    tmp_path, mutation, expected,
+) -> None:
+    run, events, report = _transport_admitted_trial(tmp_path)
+    if mutation == "duplicate":
+        events.insert(1, copy.deepcopy(events[0]))
+    elif mutation == "after-run-start":
+        events[0], events[1] = events[1], events[0]
+    elif mutation == "missing-receipt":
+        events[0].pop("transport_receipt")
+    elif mutation == "wrong-receipt-type":
+        events[0]["transport_receipt"] = "not-an-object"
+    elif mutation == "report-mismatch":
+        report["transport_receipt"]["pbs_jobid"] = "987655.pegasus"
+    else:
+        report.pop("transport_receipt")
+    for seq, event in enumerate(events, 1):
+        event["seq"] = seq
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=rf"\[transport-admission\] {expected}$",
+    ):
+        _verify(run, report)
 
 
 def test_pre_workload_wall_budget_terminal_projection_passes(tmp_path) -> None:
@@ -606,6 +712,44 @@ def test_producer_cell_metadata_and_descriptor_binding_are_required(
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=r"\[role-event-shape\] journal role attempt\.provenance is empty$",
+    ):
+        _verify(run, report)
+
+
+def test_cell_metadata_is_required_after_generation_started(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    for field in (
+        "workload_flags", "descriptor", "descriptor_binding",
+        "campaign_id", "campaign_root",
+    ):
+        report["cells"][0].pop(field)
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[cell-metadata\] cells\[0\] is missing required fields: "
+            r"\['campaign_id', 'campaign_root', 'descriptor', "
+            r"'descriptor_binding', 'workload_flags'\]$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_cell_metadata_is_required_for_non_error_empty_cell(tmp_path) -> None:
+    run, events, report = _generation_wall_trial(tmp_path)
+    for field in (
+        "workload_flags", "descriptor", "descriptor_binding",
+        "campaign_id", "campaign_root",
+    ):
+        report["cells"][0].pop(field)
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[cell-metadata\] cells\[0\] is missing required fields: "
+            r"\['campaign_id', 'campaign_root', 'descriptor', "
+            r"'descriptor_binding', 'workload_flags'\]$"
+        ),
     ):
         _verify(run, report)
 
