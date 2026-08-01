@@ -21,9 +21,11 @@ output/
 ├── s1-budget/                    S-1 計測の時間台帳 (time_ledger.json)
 ├── s6-rounds/                    S-2/S-3 提案ラウンドの匿名化・採点・集計 provenance
 ├── s8b-freeze/                   段 8b holdout freeze (holdout_freeze.json)
-├── exploration/                  探索 (非公式) 成果物の隔離 namespace (D65。campaigns/ を含む。official が型で拒否)
+├── exploration/                  探索 (非公式) 成果物の隔離 namespace (D65。official が型と marker で拒否)
+│   ├── namespace.json            namespace marker (exact bytes)。official report が exploration root を拒否する唯一の根拠であり、hooks が改変・削除を拒否する
+│   ├── campaigns/<campaign-id>/  s4 driver 族 (p3_s4_loop / _sort / _trigger_gating / p3_s4_red / p3_kickoff / 8c build) の**新規** campaign。構造は campaigns/ と同一で、WAL と campaign.lock は同じく hooks の保護対象
+│   └── autonomous-trials/<trial-id>/ 段 8c bounded supervisor の試行 journal (D106)。attempt journal・role payload/envelope・proposal・terminal report。**探索の運用記録であって正式 proof chain ではない** — 実 build 時の WAL / campaign report の正本は exploration/campaigns/<campaign-id>/ 側
 ├── t080-migration/               一回限りの移行契約 receipt (D78。hooks 保護外・4 状態機械と履歴検証が正 — 発効は人間 R commit のみ)
-├── autonomous-trials/<trial-id>/ 段 8c bounded supervisor の試行 journal (D106)。attempt journal・role payload/envelope・proposal・terminal report。**探索の運用記録であって正式 proof chain ではない** — 実 build 時の WAL / campaign report の正本は campaigns/<campaign-id>/ 側
 ├── task-runs/                    AI 開発作業の統計記録 (開発プロセス観測。証拠ではない — D66、詳細 task-runs/README.md)
 ├── dev-wave-supervisor/          bounded dev-wave supervisor の運用契約 (README.md) と private runtime (runtime/ は gitignored、control WAL・raw child 出力。[T-076]、D74)
 └── reports/                      campaign 横断の材料レポート (s_prime_final_report.md, s1_direct_comparison/)
@@ -47,7 +49,11 @@ output/
 ## proof chain の扱い
 
 - `campaign.lock` と `campaigns/*/runs/` は proof chain の保護対象である。COMMIT/fitness を記録する唯一の
-  経路は `pipeline.evaluate()` であり、直接編集・削除・移動しない。
+  経路は `pipeline.evaluate()` であり、直接編集・削除・移動しない。**official / exploration の双方の
+  campaign tree に同じ保護が掛かる** (D122) — namespace の移動で防壁の強さを変えない。
+  `exploration/namespace.json` も改変・削除を拒否する (marker が消えると official report が
+  exploration root を official として受理しうるため)。
+- `exploration/autonomous-trials/` の journal は正式 proof chain ではないため、この保護の対象外である。
 - `reports/` と `insights/` は生成物・散文を置く射影先で、機械防護の対象外である。ただし WAL や source
   identity と矛盾する根拠を後から書き換えてよい意味ではない。report は入力証拠を参照可能に保つ。
 - throwaway な生 trace・一時バイナリ・ローカルの実行残骸は追跡しない。必要な再現根拠は WAL、lock、凍結

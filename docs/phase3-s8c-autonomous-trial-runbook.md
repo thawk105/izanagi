@@ -118,7 +118,7 @@ headline 性能や有意差を主張しない。
 
 ## 4. 出力と読み方
 
-既定出力は `output/autonomous-trials/<trial-id>/`:
+既定出力は `output/exploration/autonomous-trials/<trial-id>/` (D122):
 
 - `attempts.jsonl`: append-only supervisor journal。role attempt は attempt=1 / retry=false。
   **完全な provenance (source role SHA / effective prompt SHA / session / model / token) が入るのは
@@ -126,10 +126,12 @@ headline 性能や有意差を主張しない。
 - `provider/<role>/payload_*.json`, `envelope_*.json`: headless 呼び出し証拠
 - `raw/raw_*.txt`: role の raw response
 - `proposals/*.json`: harness へ渡した proposal と descriptor binding
-- `campaigns/*`: `--no-build` 専用の隔離 campaign layout
+- `namespace.json`: exploration namespace marker (exact bytes)。official report に この trial root を
+  `--output-root` として渡す経路を fail-closed で塞ぐ。hooks が改変・削除を拒否する
+- `campaigns/*`: `--no-build` 専用の隔離 campaign layout (journal-local。正式 campaign ではない)
 - `report.json`: 全 cell、全 generation、stop reason、descriptor、role provenance、harness 結果
 
-実 build 時の WAL / campaign report は通常どおり `output/campaigns/<campaign-id>/` が正本。
+実 build 時の WAL / campaign report は `output/exploration/campaigns/<campaign-id>/` が正本 (D122)。
 supervisor report はその campaign id/root を指す。`report.json` は run-finish まで含む
 `attempts.jsonl` の SHA-256 を持つ。
 

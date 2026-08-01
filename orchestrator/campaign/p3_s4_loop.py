@@ -47,7 +47,8 @@ from campaign import ident, wal                                    # noqa: E402
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
-from campaign.layout import CampaignLayout, campaign_layout         # noqa: E402
+from campaign.layout import (CampaignLayout,                       # noqa: E402
+                             exploration_campaign_layout)
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
@@ -620,8 +621,9 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
     assert_value_literal_consistent(coder)
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
-    elif do_build and layout.root != campaign_layout(str(ident.campaign_id(cfg))).root:
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    elif do_build and layout.root != exploration_campaign_layout(
+            str(ident.campaign_id(cfg))).root:
         # build 経路は run_campaign が cfg 由来 layout に WAL を書く — 注入 layout がそれと食い違うと
         # WAL と reject/records/digest が分裂する。build 時は一致を強制 (production は layout=None
         # ゆえ常に一致。注入は dry/test 専用の hermetic 化、監査 2026-07-08)。
@@ -653,7 +655,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                              ccbench_dir=sub, cache_root=cache_root)
+                              ccbench_dir=sub, cache_root=cache_root,
+                              campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         return _resolve_duplicate(layout, planner, state, summary, log=log)
@@ -734,7 +737,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
     state = load_loop_state(layout)
     if state is None:
@@ -818,7 +821,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
                                   do_build=not a.no_build, cache_root=cache_root)
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
         print(f"  停止判定: {out['stop_reason']}")
@@ -847,7 +850,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                 do_build=not a.no_build, cache_root=cache_root)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, "s4_loop_digest.txt")
     layout.ensure()

@@ -4898,6 +4898,11 @@ build 側の campaign root は cfg の内容 hash から決まる。同じ workl
 既定出力先の `output/autonomous-trials/` が D13 の二軸にも D65 の exploration namespace にも
 属さない第三の root である点も、同じ族単位裁定に含める。
 
+**(supersede 2026-08-02、D122)** 本残余は解消した。6 driver の**新規** campaign は
+`output/exploration/campaigns/<id>/`、8c journal の既定は
+`output/exploration/autonomous-trials/<trial-id>/` になり、第三 root は無くなった。
+歴史成果物は移していないため、過去の 8c 記述が指す `output/campaigns/` の所在は当時のまま正しい。
+
 **却下した案:** (a) 成功閾値へ到達した時点で停止 — 適応停止と全試行中の best 選択が科学的主張を
 汚す。(b) 先に汎用 role/axis daemon を設計 — 最初の operational result を遅らせ、未検証抽象へ投資する。
 (c) A/B/C の出力差を正式な descriptor 因果証拠とする — known point・on-only・同一候補になりうるため
@@ -5495,3 +5500,70 @@ receipt (`8bec195`) はいずれも発効済みで、廃止も無効化もしな
 **研究状態への影響:** 受理集合、凍結 bytes、既存 gate はいずれも不変。変わるのは (i) [T-295] の
 作業内容が「凍結機構の導入判断」から「事前登録文書の起草 + 双射検査の適用拡大」へ変わること、
 (ii) 8c runbook §0 の語が「凍結」から「事前登録 (git commit)」へ変わること、の 2 点だけである。
+
+## D122. [T-243] s4 driver 族の**新規** campaign と 8c journal を exploration namespace へ前向きに移し、機械防壁を移動先へ追随させる — 歴史成果物は 1 byte も動かさない (2026-08-02)
+
+**背景:** D65 決定 (2) は「official namespace は不変、探索は `output/exploration/campaigns/`」と決めていたが、
+s4 driver 族 (段 3〜8c の LLM 合成 loop driver) は official namespace へ書き続けていた。D106 残余 4 が
+この逸脱を「8c 固有ではなく族全体の既存挙動」として族単位の裁定へ送り ([T-243])、ユーザーが択 (a)
+(族単位で移す・8c journal も配下へ寄せる) を採用した (worklog 2026-08-01 (103))。実施時期は
+「[T-241] pilot が実データを書き始める前」と指定された。
+
+**決定:**
+
+(1) **前向き移行に限る。** `output/campaigns/` の歴史成果物は移動・改名・削除しない。理由は 2 つあり、
+どちらも実測で確認した。(i) `s1_known_axes_freeze.py` が `output/campaigns/...` を glob/join で参照する
+(5 箇所)。(ii) 凍結 3 artifact (`known_axes_freeze.json` / `measurement_freeze.json` /
+`holdout_freeze.json`) が本文に同じ path 文字列を持つ。移せば凍結 bytes と proof chain 参照が壊れる。
+
+(2) **族の外延は 6 driver。** `p3_s4_loop` / `p3_s4_loop_sort` / `p3_s4_loop_trigger_gating` /
+`p3_s4_red` / `p3_kickoff` と 8c (`p3_autonomous_workload_trial`) の build 経路。sweep 計測系
+(`backoff_sweep` / `backoff_repro` / `s6_sort_sweep` / `s8a_trigger_sweep` / `p2_2` / `screening_driver` /
+`guided` / `s1_direct_comparison`) は s1 freeze の入力 producer であるため本 wave では動かさない。
+**この線引きがファイル名列挙である点は本 D の弱点**であり、producer ごとの `artifact_role` 閉表化は
+別裁定へ送った。
+
+(3) **namespace は runtime の選択であって identity ではない。** `loop.run_campaign()` に keyword-only
+`campaign_namespace` (`"official"` 既定 / `"exploration"` の閉集合) を足し、未知値は campaign-id 計算と
+directory 作成より前に `ValueError` にする。namespace は `CampaignConfig`・canonical preimage・campaign-id に
+入れない。したがって**同じ cfg の campaign-id は namespace を跨いで同一**であり、歴史 official campaign と
+新 exploration campaign が同じ ID を持ちうる。ID だけの参照は非一意になるため、参照側は root を併記する。
+
+(4) **8c journal の既定は `output/exploration/autonomous-trials/<trial-id>/`。** 明示 `--run-root` は
+従来どおり最優先。`--no-build` の trial-local layout (`<run-root>/campaigns/<id>`) は現状維持とし、
+型分離は別裁定へ送る。journal は探索の運用記録であって正式 proof chain ではない、という D106 の位置づけは不変。
+
+(5) **namespace marker は防壁である。** official report は `output_root/namespace.json` が exploration なら
+拒否するが、**marker が無い root は受理する** (D65 の blocklist 設計)。移行後は exploration campaign が
+実在するため、marker の削除が「探索成果物を official として受理させる」経路になる。したがって
+(a) `ExplorationCampaignLayout.ensure()` は marker を campaign directory より**先に**、temp → fsync →
+`link(2)` による no-overwrite 公開 → 親 directory fsync の順で atomic に作る。(b) hooks は
+repo 内 `output/exploration/**/namespace.json` の改変・削除・移動を拒否する (glob・brace 展開・
+`cd` 後の相対 path を含む)。read は許可する。
+
+(6) **hooks の command 受理集合は縮小する。** 防護 campaign tree を
+(`output/campaigns`, `output/exploration/campaigns`) の閉じた 2 要素集合にし、marker 保護を加えた。
+これは D30/D33 が既に承認した「proof chain への直接書き込み拒否」責務の実装であり、
+新しい防壁種別の追加ではない。official 側の従来の受理・拒否は 1 件も変えていない
+(旧 HEAD との静的比較で Bash 25/25・Write 7/7 一致、正例テストで固定)。
+
+(7) **`tools/task_runs/ledger.py` の `_BANNED_OUTPUT_NAMESPACES` に `exploration` を足す。**
+task-run 台帳が探索 tree を開発台帳として所有できる穴を塞ぐ。過剰拒否 (`output` 全体の禁止) は
+独立した正例テストで排除する。
+
+(8) **追跡方針は official campaign と同じ** (tracked、新しい ignore 規則を足さない)。8c の raw role 出力を
+追跡するかは [T-241] の裁定事項として残す。
+
+**hook で守れない範囲を明示する:** repo 外の任意 `--run-root` (例 `/tmp/custom/`) に作られる marker は
+hooks の管轄外である。ここを閉じるのは report 側の marker allowlist 必須化 (D65 が個別承認を要求した
+P-A1(a) Stage 1) であり、本 D は導入しない。**docs でも「hooks が守る」と書かない。**
+
+**却下した案:** (a) 歴史成果物の物理移動 (凍結 bytes と freeze producer glob が壊れる)。
+(b) `run_campaign()` の global default を exploration へ変更 (sweep 系まで巻き込む)。
+(c) 8c だけ移す (族内二重規範。ユーザー裁定で不採用)。(d) 任意 layout/factory の注入口を設ける
+(書込面の新設)。(e) journal を `exploration/campaigns/` の下に置く (journal は campaign ではない)。
+
+**研究状態への影響:** 凍結 bytes・`FROZEN_MANIFEST` 23 key・certified 選択・official report の受理集合は
+いずれも不変。変わるのは (i) 6 driver の**新規** campaign と 8c journal の所在、(ii) hooks の command
+受理集合 (exploration 分だけ縮小)、(iii) task-run root の禁止集合、の 3 点である。
+D106 残余 4 の「build 出力は `output/campaigns/`」「`output/autonomous-trials/` は第三 root」は本 D で supersede する。

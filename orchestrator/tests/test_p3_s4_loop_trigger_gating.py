@@ -287,13 +287,14 @@ def _measurement_case(monkeypatch, *, site, lookup):
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
-    monkeypatch.setattr(T, "campaign_layout", lambda *_args, **_kwargs: lay)
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda *_args, **_kwargs: lay)
 
     def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
         calls.append({
             "env_tag": env_tag,
             "clocks_per_us": clocks_per_us,
             "numactl": numactl,
+            "campaign_namespace": kwargs.get("campaign_namespace"),
         })
         return SimpleNamespace(results=[], skipped=0)
 
@@ -394,6 +395,7 @@ def test_contract_sentinel_flows_to_run_campaign(monkeypatch):
         "env_tag": contract.env_tag,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
+        "campaign_namespace": "exploration",
     }]
 
 
@@ -419,6 +421,7 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
         "env_tag": T.ENV_TAG,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
+        "campaign_namespace": "exploration",
     }]
 
 
@@ -555,13 +558,16 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
-    monkeypatch.setattr(fresh, "campaign_layout", lambda *_args, **_kwargs: lay)
+    monkeypatch.setattr(
+        fresh, "exploration_campaign_layout", lambda *_args, **_kwargs: lay,
+    )
 
     def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
         calls.append({
             "env_tag": env_tag,
             "clocks_per_us": clocks_per_us,
             "numactl": numactl,
+            "campaign_namespace": kwargs.get("campaign_namespace"),
         })
         return SimpleNamespace(results=[], skipped=0)
 
@@ -583,6 +589,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
         "env_tag": contract.env_tag,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
+        "campaign_namespace": "exploration",
     }]
 
 

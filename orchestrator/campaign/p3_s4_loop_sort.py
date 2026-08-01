@@ -70,7 +70,8 @@ from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    auditor_reject_result, compute_diff_digest,
                                    parse_auditor_dict)
 from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
-from campaign.layout import CampaignLayout, campaign_layout        # noqa: E402
+from campaign.layout import (CampaignLayout,                       # noqa: E402
+                             exploration_campaign_layout)
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
@@ -215,8 +216,9 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     from campaign.patchharness import applied
     genome = Genome("silo", {**_BASE, "SORT_VARIANT": 1})
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
-    elif do_build and layout.root != campaign_layout(str(ident.campaign_id(cfg))).root:
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    elif do_build and layout.root != exploration_campaign_layout(
+            str(ident.campaign_id(cfg))).root:
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
     layout.ensure()
@@ -231,7 +233,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         if not do_build:
             return {"outcome": "dry-pass", "variant": None}
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                              ccbench_dir=sub, cache_root=cache_root)
+                              ccbench_dir=sub, cache_root=cache_root,
+                              campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         return _resolve_duplicate(layout, planner, state, summary, log=log)
@@ -293,7 +296,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     末尾 check_stop)。checkpoint/whiteboard/停止判定は `L.` 側の汎用実装をそのまま使う
     (backoff 軸と同じ LoopState 型・同じ収束/予算/逆方向枯渇の規約)。"""
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
     state = L.load_loop_state(layout)
     if state is None:
@@ -399,7 +402,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, auditor, prior_rev, sub,
                                   do_build=not a.no_build, cache_root=cache_root)
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
         print(f"  停止判定: {out['stop_reason']}")
@@ -437,7 +440,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                 do_build=not a.no_build, cache_root=cache_root)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     digest_txt = L.make_critic_digest(layout, tag="p3-s5-sort", reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, "s5_sort_loop_digest.txt")
     layout.ensure()

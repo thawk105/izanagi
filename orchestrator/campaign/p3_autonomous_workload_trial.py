@@ -41,7 +41,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
     from orchestrator.campaign.auditor_gate import AuditorVerdict, parse_auditor_dict
     from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
-    from orchestrator.campaign.layout import CampaignLayout, campaign_layout
+    from orchestrator.campaign.layout import (
+        CampaignLayout,
+        ensure_exploration_namespace,
+        exploration_campaign_layout,
+    )
     from orchestrator.campaign.model import CampaignConfig
     from orchestrator.campaign.patchharness import applied, assert_pinned_clean, checkout
     from orchestrator.campaign.pipeline import PerfConfig
@@ -64,7 +68,11 @@ else:
     from . import p3_s4_loop_trigger_gating as trigger
     from .auditor_gate import AuditorVerdict, parse_auditor_dict
     from .claude_projected_provider import ClaudeProjectedRoleProvider
-    from .layout import CampaignLayout, campaign_layout
+    from .layout import (
+        CampaignLayout,
+        ensure_exploration_namespace,
+        exploration_campaign_layout,
+    )
     from .model import CampaignConfig
     from .patchharness import applied, assert_pinned_clean, checkout
     from .pipeline import PerfConfig
@@ -777,7 +785,7 @@ def _run_workload(
         generations=generations,
     )
     if do_build:
-        layout = campaign_layout(str(trigger.ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(trigger.ident.campaign_id(cfg)))
     else:
         layout = CampaignLayout(str(run_root / "campaigns" / str(trigger.ident.campaign_id(cfg))))
     _assert_fresh_campaign_state(layout)
@@ -1020,6 +1028,7 @@ def run_trial(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
         )
     run_root.mkdir(parents=True)
+    ensure_exploration_namespace(str(run_root))
     for child in ("raw", "proposals"):
         (run_root / child).mkdir()
     journal = AttemptJournal(run_root / "attempts.jsonl")
@@ -1104,7 +1113,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--run-root",
         default="",
-        help="fresh artifact directory (default: output/autonomous-trials/<trial-id>)",
+        help=(
+            "fresh artifact directory "
+            "(default: output/exploration/autonomous-trials/<trial-id>)"
+        ),
     )
     args = parser.parse_args(argv)
     _validate_generation_budget(args.max_generations)
@@ -1115,7 +1127,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     run_root = (
         Path(args.run_root)
         if args.run_root
-        else ROOT / "output" / "autonomous-trials" / args.trial_id
+        else ROOT / "output" / "exploration" / "autonomous-trials" / args.trial_id
     )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
     if args.no_build:

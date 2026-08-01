@@ -47,7 +47,7 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
   "whiteboard": <loop_state.json の whiteboard (抽象・機序なし)>
 }
 ```
-- whiteboard は checkpoint (`output/campaigns/<id>/loop_state.json`) の whiteboard フィールド、
+- whiteboard は checkpoint (`output/exploration/campaigns/<id>/loop_state.json`) の whiteboard フィールド、
   または `whiteboard_for_planner(state)` の射影。**機序・勝ち筋値を足さない**。
 - 出力 = `{proposal: {axis, direction, magnitude, justification, uncertainty}}` (値なし)。
 
@@ -119,7 +119,7 @@ python3 -m campaign.p3_s4_loop --run-iteration <scratch>/prop.json
 - **停止条件:** 収束 (同一方向・magnitude=small が 3 連続) / 逆方向枯渇 (critic 逆方向推奨 2 回 +
   改善なし) / 予算 (10 iteration or wall 3600s)。
 - **checkpoint は段 6 へ継承:** 予算枯渇時の whiteboard は「未査証 (partial)」として段 6 が拾う
-  (final certified finding ではない)。checkpoint = `output/campaigns/<id>/loop_state.json`。
+  (final certified finding ではない)。checkpoint = `output/exploration/campaigns/<id>/loop_state.json`。
 - **reflux (還流 on/off) = LLM ablation の対照:** `--reflux off` で critic への赤節を落とす別
   campaign (別 output dir、混ざらない)。on/off を別 campaign で走らせ比較 (段 6 の LLM ablation)。
 

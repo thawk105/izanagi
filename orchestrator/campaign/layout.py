@@ -21,6 +21,7 @@ paths を一箇所に集約し、WAL/ビルドキャッシュ/lock がここだ�
 from __future__ import annotations
 
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Optional
@@ -220,6 +221,60 @@ def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
 _EXPLORATION_NAMESPACE_BYTES = b'{"namespace":"exploration"}\n'
 
 
+def ensure_exploration_namespace(output_root: str = "") -> str:
+    """``output_root`` 直下の exploration namespace marker を保証する。
+
+    ``output_root`` 省略時は campaign 用の ``output/exploration`` を使う。
+    8c journal のような別 root も同じ exact-bytes / symlink 拒否契約を共有する。
+    返り値は marker の絶対 path。
+    """
+    root = Path(output_root or os.path.join(repo_output_root(), "exploration"))
+    if not root.is_absolute():
+        root = root.absolute()
+    os.makedirs(root, exist_ok=True)
+    marker = root / "namespace.json"
+    if marker.is_symlink():
+        raise ValueError("exploration namespace marker が symlink")
+    temporary: Optional[Path] = None
+    try:
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=".namespace.", suffix=".tmp", dir=root,
+        )
+        temporary = Path(temporary_name)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(_EXPLORATION_NAMESPACE_BYTES)
+            stream.flush()
+            os.fsync(stream.fileno())
+        # link(2) は既存の marker を上書きしない。temp の exact bytes を
+        # atomic に公開し、親 directory の dirent を campaign tree より先に
+        # durable 化する。
+        os.link(temporary, marker)
+        temporary.unlink()
+        temporary = None
+        dir_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        dir_fd = os.open(root, dir_flags)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except FileExistsError:
+        if marker.is_symlink():
+            raise ValueError("exploration namespace marker が symlink")
+        try:
+            existing = marker.read_bytes()
+        except OSError as exc:
+            raise ValueError("exploration namespace marker を読めない") from exc
+        if existing != _EXPLORATION_NAMESPACE_BYTES:
+            raise ValueError("exploration namespace marker が exact contract と不一致")
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+    return str(marker)
+
+
 @dataclass(frozen=True)
 class ExplorationCampaignLayout:
     """official CampaignLayout と継承関係を持たない探索専用 layout。"""
@@ -258,24 +313,10 @@ class ExplorationCampaignLayout:
         return os.path.join(os.path.dirname(os.path.dirname(self.root)), "namespace.json")
 
     def ensure(self) -> "ExplorationCampaignLayout":
+        ensure_exploration_namespace(os.path.dirname(self.namespace_file))
         for d in (self.root, self.spec_dir, self.runs_dir, self.variants_dir,
                   self.reports_dir, self.insights_dir):
             os.makedirs(d, exist_ok=True)
-        marker = Path(self.namespace_file)
-        if marker.is_symlink():
-            raise ValueError("exploration namespace marker が symlink")
-        try:
-            with marker.open("xb") as stream:
-                stream.write(_EXPLORATION_NAMESPACE_BYTES)
-                stream.flush()
-                os.fsync(stream.fileno())
-        except FileExistsError:
-            try:
-                existing = marker.read_bytes()
-            except OSError as exc:
-                raise ValueError("exploration namespace marker を読めない") from exc
-            if existing != _EXPLORATION_NAMESPACE_BYTES:
-                raise ValueError("exploration namespace marker が exact contract と不一致")
         return self
 
 

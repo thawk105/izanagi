@@ -47,7 +47,7 @@ _GIT_ENV_KEYS = frozenset({
     "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CEILING_DIRECTORIES",
 })
 _BANNED_OUTPUT_NAMESPACES = {
-    "campaigns", "env", "s1-freeze", "s8b-freeze", "s6-rounds", "runs",
+    "campaigns", "env", "exploration", "s1-freeze", "s8b-freeze", "s6-rounds", "runs",
 }
 
 
