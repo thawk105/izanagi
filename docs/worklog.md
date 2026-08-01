@@ -1353,7 +1353,12 @@ main にマージされていない成果で、直近一日以内に更新され
 - **変異 harness 自身に欠陥があり 1 巡した**。初回は 4 変異とも rc は正しかったが記録 node が
   全件「なし」になった。原因は `run_tests.py` の Pegasus dispatch が子 stdout を行頭 `| ` 付きで
   中継するのに harness が接頭辞を剥がしていなかったこと。DW-M08 の node 記録義務を満たさない
-  ため修正し、kill なのに node 0 件なら MISMATCH 側へ倒す形にした
+  ため修正し、kill なのに node 0 件なら MISMATCH 側へ倒す形にした (F65 起票)
+- **前方訂正**: merge commit `b5a6624` の件名と本文は取り込んだ main を `fe2a547` と書いたが、
+  実際の第 2 親は `4a4e7ed` である (投入時点で main が 1 commit 進んでいた)。`fe2a547` は
+  `4a4e7ed` の祖先なので取り込み内容の記述は正しいが、**tested main の hash は `4a4e7ed`** が
+  正である。本 wave の land もこの hash で行った。履歴は改変しない (F1 の「hash は一次資料から
+  取る」に対する自分の違反)
 
 ### 次の一手
 
