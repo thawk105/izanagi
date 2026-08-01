@@ -1,0 +1,8 @@
+{
+  "schema_version": "pegasus-calibration-policy/v1",
+  "smoke_walltime": "00:10:00",
+  "smoke_walltime_s": 600,
+  "certify_walltime": "02:00:00",
+  "certify_walltime_s": 7200,
+  "finalize_reserve_s": 600
+}

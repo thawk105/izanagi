@@ -1,0 +1,5 @@
+{
+  "schema_version": "pegasus-floor-policy/v1",
+  "floor_walltime": "10:00:00",
+  "floor_walltime_s": 36000
+}

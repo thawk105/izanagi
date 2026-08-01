@@ -1,0 +1,9 @@
+{
+  "schema_version": "pegasus-policy-registry/v1",
+  "policy_paths": [
+    "orchestrator/qualification/t126_reservation_policy_v1.json",
+    "tools/pegasus/policies/calibration_v1.json",
+    "tools/pegasus/policies/floor_v1.json",
+    "tools/pegasus/policy.json"
+  ]
+}

@@ -21,6 +21,8 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 TOOL_DIR = REPO / "tools" / "pegasus"
+SHARED_POLICY = TOOL_DIR / "policy.json"
+CALIBRATION_POLICY = TOOL_DIR / "policies" / "calibration_v1.json"
 
 # Exact bytes captured from certification job 867863's qstat-f.stdout.
 QSTAT_NQSV_867863 = base64.b64decode("""
@@ -111,6 +113,14 @@ def _pbs_directives(path: Path) -> dict[str, str]:
     return result
 
 
+def _hms_seconds(value: str) -> int:
+    parts = value.split(":")
+    assert len(parts) == 3, value
+    hours, minutes, seconds = (int(part) for part in parts)
+    assert hours >= 0 and 0 <= minutes < 60 and 0 <= seconds < 60, value
+    return hours * 3600 + minutes * 60 + seconds
+
+
 @pytest.mark.parametrize(
     "name", ["smoke_probe.sh", "submit_certify.sh", "certify_calibration.sh"],
 )
@@ -121,16 +131,57 @@ def test_shell_syntax(name):
     assert result.returncode == 0, result.stderr
 
 
-def test_pbs_directives_match_single_policy_source():
-    policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
+def test_pbs_directives_match_shared_and_calibration_policies():
+    shared_policy = json.loads(SHARED_POLICY.read_text(encoding="utf-8"))
+    calibration_policy = json.loads(
+        CALIBRATION_POLICY.read_text(encoding="utf-8")
+    )
     smoke = _pbs_directives(TOOL_DIR / "smoke_probe.sh")
     certify = _pbs_directives(TOOL_DIR / "certify_calibration.sh")
     for directives in (smoke, certify):
-        assert directives["-A"] == policy["project"]
-        assert directives["-q"] == policy["queue"]
-        assert int(directives["-b"]) == policy["nodes"]
-    assert smoke["-l"] == "elapstim_req=" + policy["smoke_walltime"]
-    assert certify["-l"] == "elapstim_req=" + policy["certify_walltime"]
+        assert directives["-A"] == shared_policy["project"]
+        assert directives["-q"] == shared_policy["queue"]
+        assert int(directives["-b"]) == shared_policy["nodes"]
+    assert (
+        smoke["-l"]
+        == "elapstim_req=" + calibration_policy["smoke_walltime"]
+    )
+    assert (
+        certify["-l"]
+        == "elapstim_req=" + calibration_policy["certify_walltime"]
+    )
+    assert (
+        _hms_seconds(calibration_policy["smoke_walltime"])
+        == calibration_policy["smoke_walltime_s"]
+    )
+    assert (
+        _hms_seconds(calibration_policy["certify_walltime"])
+        == calibration_policy["certify_walltime_s"]
+    )
+    certify_source = (TOOL_DIR / "certify_calibration.sh").read_text(
+        encoding="utf-8"
+    )
+    formula_reserves = {
+        int(value)
+        for value in re.findall(r"finalize_reserve\((\d+)\)", certify_source)
+    }
+    assert formula_reserves
+    assert formula_reserves == {calibration_policy["finalize_reserve_s"]}
+    assert (
+        calibration_policy["finalize_reserve_s"]
+        < calibration_policy["certify_walltime_s"]
+    )
+
+
+@pytest.mark.parametrize(
+    "name", ["certify_calibration.sh", "submit_certify.sh"],
+)
+def test_certify_calibration_policy_check_rejects_symlinks(name):
+    source = (TOOL_DIR / name).read_text(encoding="utf-8")
+    assert (
+        'if [[ ! -f "$CALIBRATION_POLICY" || -L "$CALIBRATION_POLICY" ]]; then'
+        in source
+    )
 
 
 @pytest.mark.parametrize("body", [
