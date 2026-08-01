@@ -1627,3 +1627,29 @@ gate が、実 test を持たない合成 fixture で必ず `collected=0` にな
 - 近縁: F41 (親のテスト cwd と偽赤)、F57 (全走でだけ落ちる失敗)、F32 (harness の復元規律)
 - 記録: worklog 2026-08-01 (107)、一次資料 =
   `output/insights/2026-08-01_t291-devwave-mechanization/`
+
+### F77. 背景 job から `&` で投げた codex 子が一度殺され、再開で二重起動して同じ artifact を共有した [手順漏れ]
+
+**事象 (2026-08-02、[T-139] 残余 wave、near-miss)。** 段 2 のプラン起草子を、背景 job の
+Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入した。tool 呼び出しが
+`echo` の完了で戻った時点で子 process が殺され、`.done` が生成されなかった。親が「落ちた」と
+判断して投入し直したところ、**殺されたはずの最初の tree が生きており**、2 本の codex が
+同じ `s2.log` と同じ `-o s2-plan.md` へ書く状態になった。`DW-O02` (artifact を共有しない) 違反であり、
+`-o` は最後に書いた側が勝つため、**どちらの process が書いた plan なのかを親が特定できない**。
+
+**原因。** 背景 job のセッションでは、tool 呼び出しの寿命と子 process の寿命が一致しない。
+`&` だけでは process group が tool 側に紐づいたままで、殺されるかどうかが実行系のタイミングに
+依存する。`.done` の不在は「子が死んだ」ことの証明にならない (まだ書いていないだけの場合がある)。
+
+**恒久対応。** 背景 job では `nohup` で投入し、投入直後に `ps` で同一 artifact を書く process が
+1 本だけであることを確認する。`.done` 不在を根拠に再投入しない — 先に生存確認する。
+本 wave では両 tree を kill し、log と plan を消してから単一投入し直した (成果物は汚染前へ戻した)。
+**`DW-O01` への明文化は `docs/dev-wave/**` の合計 byte 上限 (24,000) に阻まれ、未実施のまま
+ユーザー裁定へ返した** (予算を上げる変更は通常の自己改善に含めない、
+`docs/skill-self-improvement.md`)。同じ理由で、`DW-O19` の復元手段に「guard が
+`git checkout --` を拒む submodule 配下では patch 逆適用 + `git status` 空を等価な正本とする」を
+足す是正も裁定へ送った (本 wave の段 1 前提実測で実測した食い違い)。
+
+- 近縁: F23/F24 (codex 完了判定を log 本文で行わない)、F49 (背景 job の worktree 立ち上げ)
+- 記録: worklog 2026-08-02 (108)、一次資料 =
+  `output/insights/2026-08-01_t139-remainder-adjudication.md`
