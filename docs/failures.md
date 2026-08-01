@@ -1315,6 +1315,11 @@
 - 再発検知: 変異 matrix で「rc≠0 かつ記録 node 0 件」が出たら、まず抽出器を疑う。
   出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
   抽出器の側も同時に確認する
+- **再発: 2026-08-01 [T-247]**。新しい変異 harness が同じ穴で作られ、実際に KILL していた M-C1 を
+  `INFRA_OR_HARNESS_ERROR` / node 0 件と記録した (親の試走で検知)。同日の [T-118] / t244 / t249 と
+  合わせて独立 4 例であり、記録は **F71 が正本**である (F71 が原因を 3 つに分解している)。
+  再発の理由は**恒久対応が failures 台帳にしかなく、harness 契約の正本である `DW-M08` が
+  ANSI 除去しか明示していなかった**こと — harness を書く子は `DW-M08` を読み、台帳を読まない
 
 ### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
 - 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
@@ -1455,8 +1460,16 @@
   **行末までを node** とし、(c) **`rc != 0` かつ抽出 0 件は `SURVIVED` にせず `PARSE_ERROR` で
   fail-closed 停止**する。実体は
   `output/insights/2026-08-01_t118-provider-lifecycle-wave/s6-mutation-matrix.md` の erratum 節と、
-  同 wave の harness。`DW-M08` 本文の是正は予算の都合で裁定へ送る (T-282 と同じ入口)
+  同 wave の harness。`DW-M08` 本文の是正は予算の都合で裁定へ送っていたが、**[T-247] wave で
+  `DW-M08` の重複文 (DW-M07 第 2 文と DW-M02 の重なり) を縮約して枠を作り、本 F の (a)(b)(c) を
+  指す形で是正済み**である。裁定へ残るのは T-282 のもう一方 (残留の検出手段) だけである
 - 近縁: F33 (期待 node と記録 node の形式不一致)、F28 (実効 gate へ再照準しないと恒真になる)
 - 記録: worklog 2026-08-01 (97)、一次資料 =
   `output/insights/2026-08-01_t118-provider-lifecycle-wave/` (`mutation-matrix-erratum-run1.json` に
   初回結果を消さず残置)
+- 独立 4 例目 (2026-08-01、[T-249] wave): 別の harness で同じ 3 原因を独立に踏み、変異 7 件全部を
+  SURVIVED と誤記録した (`injection_verified: true`、`rc: 1`、`failed_nodes: []`)。**変異自体は正しく
+  発火していた。** 恒久対応 (b)(c) と同じ修正 (行前置の除去、` - ` 無しは行末まで、`rc != 0` かつ
+  抽出 0 件を fail-closed) を入れて再走し、初回結果は消さず erratum として残した。本例は F71 が
+  land される前に独立に観測されたものであり、`DW-G03` の族一般化を追認する。一次資料 =
+  `output/insights/2026-08-01_t249-pegasus-policy-split/README.md` の「初回走の erratum」節

@@ -238,6 +238,9 @@ def validate_protocol(document: object) -> dict[str, Any]:
         + timing["finalize_reserve_s"]
     )
     if (timing["member_cap_s"] != 900 or timing["round_gap_s"] != 1800
+            or timing["prologue_cap_s"] != 900
+            or timing["attestation_cap_s"] != 600
+            or timing["finalize_reserve_s"] != 600
             or calculated != 29100 or timing["wmax_s"] != calculated
             or timing["qualification_walltime_s"] != 36000
             or calculated >= timing["qualification_walltime_s"]):
