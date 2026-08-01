@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "qualification_lineage", "authority", "hold_enforced",
+    "qualification_series_id", "qualification_attempt_id", "job_id",
+    "retry_index", "scheduler_exit_status", "submission_receipt",
+    "submission_evidence_kind", "qsub_binding", "job_result",
+    "scheduler_stdout", "scheduler_stderr", "accounting", "closure_manifest",
+    "statistical_claim", "terminal", "series_result"
+  ],
+  "properties": {
+    "schema_version": {"const": "t126-qualification-final-receipt/v1"},
+    "qualification_lineage": {"const": "t126-only"},
+    "authority": {"const": "evidence-only/no-promotion"},
+    "hold_enforced": {"const": false},
+    "qualification_series_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "qualification_attempt_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "job_id": {"type": "string", "minLength": 1},
+    "retry_index": {"enum": [0, 1]},
+    "scheduler_exit_status": {"enum": [0, 20, 21]},
+    "submission_receipt": {"$ref": "#/definitions/fileRecord"},
+    "submission_evidence_kind": {"const": "submit-receipt"},
+    "qsub_binding": {"type": "null"},
+    "job_result": {"$ref": "#/definitions/fileRecord"},
+    "scheduler_stdout": {"$ref": "#/definitions/fileRecord"},
+    "scheduler_stderr": {"$ref": "#/definitions/fileRecord"},
+    "accounting": {"$ref": "#/definitions/fileRecord"},
+    "closure_manifest": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"$ref": "#/definitions/fileRecord"}
+    },
+    "statistical_claim": {"const": "none"},
+    "terminal": {"enum": ["lower_boundary", "upper_boundary", "indeterminate"]},
+    "series_result": {"$ref": "#/definitions/fileRecord"}
+  }
+}
