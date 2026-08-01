@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
+import weakref
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,9 +18,11 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import p3_autonomous_workload_trial as A
+from orchestrator.campaign import s8b_prediction_runner as S
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
 from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
 from calibrator import runner as calibrator_runner
+from orchestrator.campaign import claude_projected_provider as P
 
 
 class _CliGateReached(Exception):
@@ -64,6 +69,18 @@ class _RecordingFixture(A.FixtureRoleProvider):
     def invoke(self, *, invocation_id, payload):
         self.payloads.append(dict(payload))
         return super().invoke(invocation_id=invocation_id, payload=payload)
+
+
+class _ClosableRecordingFixture(_RecordingFixture):
+    def __init__(self, role, close_order=None):
+        super().__init__(role)
+        self.close_calls = 0
+        self.close_order = close_order
+
+    def close(self):
+        self.close_calls += 1
+        if self.close_order is not None:
+            self.close_order.append(self.role)
 
 
 def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
@@ -185,6 +202,91 @@ def test_supervisor_error_still_writes_partial_terminal_report(tmp_path) -> None
         "supervisor-error",
         "run-finish",
     ]
+
+
+@pytest.mark.parametrize("outcome", ["success", "supervisor-error"])
+def test_run_trial_closes_owned_providers_in_reverse_order(
+    tmp_path, monkeypatch, outcome,
+) -> None:
+    close_order: list[str] = []
+    owned = {
+        role: _ClosableRecordingFixture(role, close_order)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    monkeypatch.setattr(A, "_provider_set", lambda **kwargs: owned)
+
+    def preview(coder, *, sub):
+        if outcome == "supervisor-error":
+            raise RuntimeError("preview failure")
+        return _fake_preview(coder, sub=sub)
+
+    report = A.run_trial(
+        trial_id=f"owned-{outcome}",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=preview,
+    )
+    assert report["status"] == ("complete" if outcome == "success" else "partial")
+    assert close_order == ["critic", "auditor", "coder", "planner"]
+    assert all(provider.close_calls == 1 for provider in owned.values())
+
+
+def test_run_trial_does_not_close_injected_providers(tmp_path) -> None:
+    providers = {
+        role: _ClosableRecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="injected-ownership",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+    assert report["status"] == "complete"
+    assert all(provider.close_calls == 0 for provider in providers.values())
+    assert providers["coder"].payloads[0]["workload"] == "ycsb-a"
+
+
+def test_provider_set_closes_partial_projected_provider_set_in_reverse_order(
+    tmp_path, monkeypatch,
+) -> None:
+    close_order: list[str] = []
+    constructed: list[str] = []
+
+    class _PartialProvider:
+        def __init__(self, role):
+            self.role = role
+
+        def close(self):
+            close_order.append(self.role)
+
+    def provider_factory(**kwargs):
+        role = tuple(A.ROLE_FILES)[len(constructed)]
+        constructed.append(role)
+        if role == "auditor":
+            raise RuntimeError("partial construction failure")
+        return _PartialProvider(role)
+
+    monkeypatch.setattr(A, "ClaudeProjectedRoleProvider", provider_factory)
+    with pytest.raises(RuntimeError, match="partial construction failure"):
+        A._provider_set(
+            kind="claude-headless",
+            run_root=tmp_path / "run",
+            executable="unused",
+        )
+    assert constructed == ["planner", "coder", "auditor"]
+    assert close_order == ["coder", "planner"]
 
 
 def test_main_rejects_fixture_build_before_build_preparation(
@@ -312,6 +414,271 @@ class _Runner:
             stdout=json.dumps(self.envelope, separators=(",", ":")).encode(),
             stderr=b"",
         )
+
+
+def _projected_provider_call(tmp_path: Path) -> ClaudeProjectedRoleProvider:
+    provider = ClaudeProjectedRoleProvider(
+        artifact_root=tmp_path / "artifacts",
+        role_file=_role_file(tmp_path / "role.md"),
+        role_name="fixture-auditor",
+        mediated_contract="Return one JSON object only.",
+        repository_root=Path(__file__).resolve().parents[2],
+        executable=_executable(tmp_path),
+        runner=_Runner(_envelope()),
+        environ={"HOME": "/fixture/home"},
+    )
+    provider.invoke(invocation_id="ycsb-a.g1.auditor", payload={"x": 1})
+    return provider
+
+
+def _assert_projected_cleanup_guard(
+    *,
+    neutral_root: Path,
+    neutral_cwd: Path,
+    cleanup_target: Path,
+    artifact_root: Path,
+    artifact_bytes: dict[Path, bytes],
+    outside_marker: Path,
+) -> None:
+    """Projected provider の cleanup 静止境界を検査する。
+
+    周辺 test を含む gate は明示 close の正常/異常、cleanup error 後の再試行、
+    参照破棄後の fallback、静止した削除境界、owner close まで到達する。未到達
+    なのは interpreter shutdown 中の live object、fork child の atexit、並行
+    invoke/close、close 後の再 invoke、scope 外 callsite である。
+    """
+    assert not neutral_root.exists() and not neutral_root.is_symlink(), "root 消滅"
+    assert not neutral_cwd.exists() and not neutral_cwd.is_symlink(), "cwd 消滅"
+    assert artifact_root.is_dir() and not artifact_root.is_symlink(), "artifact_root 存続"
+    artifact_bytes_unchanged = all(
+        path.read_bytes() == expected for path, expected in artifact_bytes.items()
+    )
+    assert artifact_bytes_unchanged, "artifact bytes 不変"
+    assert outside_marker.is_file(), "外部 marker 存続"
+    resolved_artifact_root = artifact_root.resolve(strict=True)
+    resolved_cleanup_target = cleanup_target.resolve(strict=False)
+    artifact_inside_cleanup_target = (
+        resolved_artifact_root == resolved_cleanup_target
+        or resolved_artifact_root.is_relative_to(resolved_cleanup_target)
+    )
+    assert not artifact_inside_cleanup_target, "非交差"
+
+
+@pytest.mark.parametrize(
+    "predicate",
+    ["root", "cwd", "artifact", "bytes", "marker", "nonintersection"],
+)
+def test_projected_cleanup_guard_rejects_each_predicate_independently(
+    tmp_path, predicate,
+) -> None:
+    """各入力では指定 predicate だけを偽にし、projected guard の歯を固定する。"""
+    neutral_root = tmp_path / "neutral-missing"
+    neutral_cwd = tmp_path / "cwd-missing"
+    cleanup_target = tmp_path / "cleanup-missing"
+    artifact_root = tmp_path / "artifacts"
+    artifact_root.mkdir()
+    artifact_path = artifact_root / "payload.json"
+    artifact_path.write_bytes(b"proof-chain")
+    artifact_bytes = {artifact_path: artifact_path.read_bytes()}
+    outside_marker = tmp_path / "outside.marker"
+    outside_marker.write_bytes(b"outside")
+
+    expected_message = {
+        "root": "root 消滅",
+        "cwd": "cwd 消滅",
+        "artifact": "artifact_root 存続",
+        "bytes": "artifact bytes 不変",
+        "marker": "外部 marker 存続",
+        "nonintersection": "非交差",
+    }[predicate]
+    if predicate == "root":
+        neutral_root.mkdir()
+    elif predicate == "cwd":
+        neutral_cwd.mkdir()
+    elif predicate == "artifact":
+        real_artifact_root = tmp_path / "artifact-target"
+        artifact_root.rename(real_artifact_root)
+        artifact_root.symlink_to(real_artifact_root, target_is_directory=True)
+    elif predicate == "bytes":
+        artifact_path.write_bytes(b"mutated")
+    elif predicate == "marker":
+        outside_marker.unlink()
+    elif predicate == "nonintersection":
+        cleanup_target = artifact_root
+
+    with pytest.raises(AssertionError, match=expected_message):
+        _assert_projected_cleanup_guard(
+            neutral_root=neutral_root,
+            neutral_cwd=neutral_cwd,
+            cleanup_target=cleanup_target,
+            artifact_root=artifact_root,
+            artifact_bytes=artifact_bytes,
+            outside_marker=outside_marker,
+        )
+
+
+def _projected_cleanup_inputs(provider, tmp_path: Path) -> dict:
+    outside_marker = tmp_path / "outside" / "marker"
+    outside_marker.parent.mkdir(exist_ok=True)
+    outside_marker.write_bytes(b"outside")
+    (provider.neutral_root / "outside-link").symlink_to(outside_marker)
+    return {
+        "neutral_root": provider.neutral_root,
+        "neutral_cwd": provider.neutral_cwd,
+        "artifact_root": provider.artifact_root,
+        "artifact_bytes": {
+            path: path.read_bytes()
+            for path in provider.artifact_root.iterdir()
+            if path.is_file()
+        },
+        "outside_marker": outside_marker,
+    }
+
+
+def _rescue_projected_neutral_root(identity: Path) -> None:
+    """Mutation failure 後も、記録済みの生 identity だけを best-effort 削除する。"""
+    if not identity.is_symlink():
+        shutil.rmtree(identity, ignore_errors=True)
+
+
+def test_projected_provider_close_removes_only_neutral_tree(
+    tmp_path, monkeypatch,
+) -> None:
+    provider = _projected_provider_call(tmp_path)
+    recorded_identity = provider._neutral_root_identity
+    try:
+        guard_inputs = _projected_cleanup_inputs(provider, tmp_path)
+        actual_cleanup_targets: list[Path] = []
+        original_remove = P._remove_neutral_root
+
+        def recording_remove(neutral_root_identity, artifact_root):
+            actual_cleanup_targets.append(Path(neutral_root_identity))
+            # M16 の危険 target は記録だけし、fixture の既知 identity を安全に削除する。
+            return original_remove(recorded_identity, artifact_root)
+
+        monkeypatch.setattr(P, "_remove_neutral_root", recording_remove)
+        provider.close()
+        provider.close()
+        assert provider.cleanup_error is None
+        assert not provider._neutral_root_finalizer.alive
+        assert len(actual_cleanup_targets) == 1
+        _assert_projected_cleanup_guard(
+            cleanup_target=actual_cleanup_targets[0], **guard_inputs,
+        )
+    finally:
+        _rescue_projected_neutral_root(recorded_identity)
+
+
+def test_projected_provider_finalize_fallback_removes_only_neutral_tree(
+    tmp_path, monkeypatch,
+) -> None:
+    provider = _projected_provider_call(tmp_path)
+    recorded_identity = provider._neutral_root_identity
+    try:
+        guard_inputs = _projected_cleanup_inputs(provider, tmp_path)
+        actual_cleanup_targets: list[Path] = []
+        original_remove = S._remove_neutral_root
+        provider_ref = weakref.ref(provider)
+
+        def recording_remove(neutral_root_identity, artifact_root):
+            actual_cleanup_targets.append(Path(neutral_root_identity))
+            return original_remove(neutral_root_identity, artifact_root)
+
+        monkeypatch.setattr(S, "_remove_neutral_root", recording_remove)
+        del provider
+        gc.collect()
+        assert provider_ref() is None
+        assert len(actual_cleanup_targets) == 1
+        _assert_projected_cleanup_guard(
+            cleanup_target=actual_cleanup_targets[0], **guard_inputs,
+        )
+    finally:
+        _rescue_projected_neutral_root(recorded_identity)
+
+
+def test_projected_provider_close_never_raises_and_retries_before_detach(
+    tmp_path, monkeypatch,
+) -> None:
+    provider = _projected_provider_call(tmp_path)
+    recorded_identity = provider._neutral_root_identity
+    try:
+        guard_inputs = _projected_cleanup_inputs(provider, tmp_path)
+        original_remove = P._remove_neutral_root
+        actual_cleanup_targets: list[Path] = []
+
+        def fail_once(neutral_root_identity, artifact_root):
+            actual_cleanup_targets.append(Path(neutral_root_identity))
+            if len(actual_cleanup_targets) == 1:
+                raise OSError("simulated cleanup failure")
+            return original_remove(neutral_root_identity, artifact_root)
+
+        monkeypatch.setattr(P, "_remove_neutral_root", fail_once)
+        provider.close()
+        assert isinstance(provider.cleanup_error, OSError)
+        assert provider._neutral_root_finalizer.alive
+        provider.close()
+        assert len(actual_cleanup_targets) == 2
+        assert not provider._neutral_root_finalizer.alive
+        _assert_projected_cleanup_guard(
+            cleanup_target=actual_cleanup_targets[-1], **guard_inputs,
+        )
+    finally:
+        _rescue_projected_neutral_root(recorded_identity)
+
+
+@pytest.mark.parametrize("failure", ["mcp-config", "home-missing", "environment-baseexception"])
+def test_projected_provider_init_failure_removes_neutral_root(
+    tmp_path, monkeypatch, failure,
+) -> None:
+    created_identities: list[Path] = []
+    fallback_attempts: list[Path] = []
+    original_create = P._create_neutral_root
+
+    def recording_create(*args, **kwargs):
+        result = original_create(*args, **kwargs)
+        created_identities.append(result[1])
+        return result
+
+    def recording_fallback(neutral_root_identity, artifact_root):
+        fallback_attempts.append(Path(neutral_root_identity))
+
+    monkeypatch.setattr(P, "_create_neutral_root", recording_create)
+    monkeypatch.setattr(S, "_finalize_neutral_root", recording_fallback)
+    environ: dict[str, str] = {"HOME": "/fixture/home"}
+    expected_error: type[BaseException] = PredictionRunnerError
+    if failure == "mcp-config":
+        def fail_write(*args, **kwargs):
+            raise OSError("mcp write failure")
+
+        monkeypatch.setattr(P, "_write_bytes_bound", fail_write)
+        expected_error = OSError
+    elif failure == "home-missing":
+        environ = {}
+    else:
+        class _ExplodingEnvironment(dict):
+            def __contains__(self, key):
+                raise KeyboardInterrupt("environment mapping failure")
+
+        environ = _ExplodingEnvironment(HOME="/fixture/home")
+        expected_error = KeyboardInterrupt
+
+    try:
+        with pytest.raises(expected_error):
+            ClaudeProjectedRoleProvider(
+                artifact_root=tmp_path / "artifacts",
+                role_file=_role_file(tmp_path / "role.md"),
+                role_name="fixture-auditor",
+                mediated_contract="Return JSON only.",
+                repository_root=Path(__file__).resolve().parents[2],
+                executable=_executable(tmp_path),
+                environ=environ,
+            )
+        assert len(created_identities) == 1
+        assert not created_identities[0].exists()
+        assert fallback_attempts == []
+    finally:
+        for identity in created_identities:
+            _rescue_projected_neutral_root(identity)
 
 
 def test_projected_provider_lowers_source_tools_and_binds_effective_prompt(tmp_path) -> None:

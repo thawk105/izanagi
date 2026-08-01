@@ -7,18 +7,21 @@
 """
 from __future__ import annotations
 
+import gc
 import hashlib
 import io
 import json
 import shutil
 import subprocess
 import tempfile
+import weakref
 from dataclasses import replace
 from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 
+from orchestrator.campaign import s8b_prediction_runner as S
 from orchestrator.campaign.s8b_prediction_runner import (
     CLAUDE_ENV_ALLOWLIST,
     CLAUDE_TIMEOUT_S,
@@ -430,6 +433,120 @@ def test_invalid_raw_recorded_as_invalid_without_fallback(tmp_path) -> None:
 
 # ------------------------------------------------------ Claude headless provider
 
+def _assert_neutral_cleanup_guard(
+    *,
+    neutral_root: Path,
+    neutral_cwds: tuple[Path, ...],
+    cleanup_target: Path,
+    artifact_root: Path,
+    artifact_bytes: dict[Path, bytes],
+    outside_marker: Path,
+) -> None:
+    """Neutral-tree cleanup の静止境界を検査する。
+
+    周辺 test を含む gate は明示 close の正常/異常、cleanup error 後の再試行、
+    参照破棄後の fallback、静止した削除境界、owner close まで到達する。未到達
+    なのは interpreter shutdown 中の live object、fork child の atexit、並行
+    invoke/close、close 後の再 invoke、scope 外 callsite である。
+    """
+    assert not neutral_root.exists() and not neutral_root.is_symlink(), "root 消滅"
+    all_neutral_cwds_absent = all(
+        not neutral_cwd.exists() and not neutral_cwd.is_symlink()
+        for neutral_cwd in neutral_cwds
+    )
+    assert all_neutral_cwds_absent, "cwd 消滅"
+    assert artifact_root.is_dir() and not artifact_root.is_symlink(), "artifact_root 存続"
+    artifact_bytes_unchanged = all(
+        path.read_bytes() == expected for path, expected in artifact_bytes.items()
+    )
+    assert artifact_bytes_unchanged, "artifact bytes 不変"
+    assert outside_marker.is_file(), "外部 marker 存続"
+    resolved_artifact_root = artifact_root.resolve(strict=True)
+    resolved_cleanup_target = cleanup_target.resolve(strict=False)
+    artifact_inside_cleanup_target = (
+        resolved_artifact_root == resolved_cleanup_target
+        or resolved_artifact_root.is_relative_to(resolved_cleanup_target)
+    )
+    assert not artifact_inside_cleanup_target, "非交差"
+
+
+@pytest.mark.parametrize(
+    "predicate",
+    ["root", "cwd-a", "cwd-b", "artifact", "bytes", "marker", "nonintersection"],
+)
+def test_neutral_cleanup_guard_rejects_each_predicate_independently(
+    tmp_path, predicate,
+) -> None:
+    """各入力では指定 predicate だけを偽にし、guard 自身の検出力を固定する。"""
+    neutral_root = tmp_path / "neutral-missing"
+    neutral_cwds = (tmp_path / "cwd-missing-a", tmp_path / "cwd-missing-b")
+    cleanup_target = tmp_path / "cleanup-missing"
+    artifact_root = tmp_path / "artifacts"
+    artifact_root.mkdir()
+    artifact_path = artifact_root / "payload.json"
+    artifact_path.write_bytes(b"proof-chain")
+    artifact_bytes = {artifact_path: artifact_path.read_bytes()}
+    outside_marker = tmp_path / "outside.marker"
+    outside_marker.write_bytes(b"outside")
+
+    expected_message = {
+        "root": "root 消滅",
+        "cwd-a": "cwd 消滅",
+        "cwd-b": "cwd 消滅",
+        "artifact": "artifact_root 存続",
+        "bytes": "artifact bytes 不変",
+        "marker": "外部 marker 存続",
+        "nonintersection": "非交差",
+    }[predicate]
+    if predicate == "root":
+        neutral_root.mkdir()
+    elif predicate in {"cwd-a", "cwd-b"}:
+        neutral_cwds[0 if predicate == "cwd-a" else 1].mkdir()
+    elif predicate == "artifact":
+        real_artifact_root = tmp_path / "artifact-target"
+        artifact_root.rename(real_artifact_root)
+        artifact_root.symlink_to(real_artifact_root, target_is_directory=True)
+    elif predicate == "bytes":
+        artifact_path.write_bytes(b"mutated")
+    elif predicate == "marker":
+        outside_marker.unlink()
+    elif predicate == "nonintersection":
+        cleanup_target = artifact_root
+
+    with pytest.raises(AssertionError, match=expected_message):
+        _assert_neutral_cleanup_guard(
+            neutral_root=neutral_root,
+            neutral_cwds=neutral_cwds,
+            cleanup_target=cleanup_target,
+            artifact_root=artifact_root,
+            artifact_bytes=artifact_bytes,
+            outside_marker=outside_marker,
+        )
+
+
+def test_remove_neutral_root_does_not_require_artifact_root_to_exist(tmp_path) -> None:
+    neutral_root = tmp_path / "neutral-root"
+    neutral_root.mkdir()
+    missing_artifact_root = tmp_path / "removed-artifacts"
+
+    S._remove_neutral_root(neutral_root, missing_artifact_root)
+
+    assert not neutral_root.exists()
+
+
+def test_remove_neutral_root_still_refuses_missing_artifact_inside_target(
+    tmp_path,
+) -> None:
+    neutral_root = tmp_path / "neutral-root"
+    neutral_root.mkdir()
+    missing_artifact_root = neutral_root / "removed-artifacts"
+
+    with pytest.raises(AssertionError, match="artifact_root"):
+        S._remove_neutral_root(neutral_root, missing_artifact_root)
+
+    assert neutral_root.is_dir()
+
+
 def _executable(tmp_path: Path) -> Path:
     executable = tmp_path / "claude-fixture"
     executable.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
@@ -505,6 +622,232 @@ def _provider_call(tmp_path: Path, envelope: dict):
     _write_bytes_bound(artifact_root / "payload_rr20_on.json", payload_bytes)
     response = provider(target_holdout="rr20", arm="on", payload=payload)
     return provider, runner, response, payload_bytes
+
+
+def _cleanup_guard_inputs(provider, tmp_path: Path) -> dict:
+    outside_marker = tmp_path / "outside" / "marker"
+    outside_marker.parent.mkdir(exist_ok=True)
+    outside_marker.write_bytes(b"outside")
+    (provider.neutral_root / "outside-link").symlink_to(outside_marker)
+    return {
+        "neutral_root": provider.neutral_root,
+        "neutral_cwds": (provider.neutral_cwd,),
+        "artifact_root": provider.artifact_root,
+        "artifact_bytes": {
+            path: path.read_bytes()
+            for path in provider.artifact_root.iterdir()
+            if path.is_file()
+        },
+        "outside_marker": outside_marker,
+    }
+
+
+def _rescue_recorded_neutral_root(identity: Path) -> None:
+    """Mutation failure 後も、記録済みの生 identity だけを best-effort 削除する。"""
+    if not identity.is_symlink():
+        shutil.rmtree(identity, ignore_errors=True)
+
+
+def test_claude_headless_close_removes_only_neutral_tree(
+    tmp_path, monkeypatch,
+) -> None:
+    provider, _, _, _ = _provider_call(tmp_path, _envelope())
+    recorded_identity = provider._neutral_root_identity
+    try:
+        guard_inputs = _cleanup_guard_inputs(provider, tmp_path)
+        actual_cleanup_targets: list[Path] = []
+        original_remove = S._remove_neutral_root
+
+        def recording_remove(neutral_root_identity, artifact_root):
+            actual_cleanup_targets.append(Path(neutral_root_identity))
+            # M16 の危険 target は記録だけし、fixture の既知 identity を安全に削除する。
+            return original_remove(recorded_identity, artifact_root)
+
+        monkeypatch.setattr(S, "_remove_neutral_root", recording_remove)
+        provider.close()
+        provider.close()
+
+        assert provider.cleanup_error is None
+        assert not provider._neutral_root_finalizer.alive
+        assert len(actual_cleanup_targets) == 1
+        _assert_neutral_cleanup_guard(
+            cleanup_target=actual_cleanup_targets[0], **guard_inputs,
+        )
+    finally:
+        _rescue_recorded_neutral_root(recorded_identity)
+
+
+def test_claude_headless_finalize_fallback_removes_only_neutral_tree(
+    tmp_path, monkeypatch,
+) -> None:
+    provider, _, _, _ = _provider_call(tmp_path, _envelope())
+    recorded_identity = provider._neutral_root_identity
+    try:
+        guard_inputs = _cleanup_guard_inputs(provider, tmp_path)
+        actual_cleanup_targets: list[Path] = []
+        original_remove = S._remove_neutral_root
+        provider_ref = weakref.ref(provider)
+
+        def recording_remove(neutral_root_identity, artifact_root):
+            actual_cleanup_targets.append(Path(neutral_root_identity))
+            return original_remove(neutral_root_identity, artifact_root)
+
+        monkeypatch.setattr(S, "_remove_neutral_root", recording_remove)
+        del provider
+        gc.collect()
+
+        assert provider_ref() is None
+        assert len(actual_cleanup_targets) == 1
+        _assert_neutral_cleanup_guard(
+            cleanup_target=actual_cleanup_targets[0], **guard_inputs,
+        )
+    finally:
+        _rescue_recorded_neutral_root(recorded_identity)
+
+
+def test_claude_headless_close_never_raises_and_retries_before_detach(
+    tmp_path, monkeypatch,
+) -> None:
+    provider, _, _, _ = _provider_call(tmp_path, _envelope())
+    recorded_identity = provider._neutral_root_identity
+    try:
+        guard_inputs = _cleanup_guard_inputs(provider, tmp_path)
+        original_remove = S._remove_neutral_root
+        actual_cleanup_targets: list[Path] = []
+
+        def fail_once(neutral_root_identity, artifact_root):
+            actual_cleanup_targets.append(Path(neutral_root_identity))
+            if len(actual_cleanup_targets) == 1:
+                raise OSError("simulated cleanup failure")
+            return original_remove(neutral_root_identity, artifact_root)
+
+        monkeypatch.setattr(S, "_remove_neutral_root", fail_once)
+        provider.close()
+        assert isinstance(provider.cleanup_error, OSError)
+        assert provider._neutral_root_finalizer.alive
+        assert provider.neutral_root.is_dir()
+
+        provider.close()
+        assert len(actual_cleanup_targets) == 2
+        assert provider.cleanup_error is None
+        assert not provider._neutral_root_finalizer.alive
+        _assert_neutral_cleanup_guard(
+            cleanup_target=actual_cleanup_targets[-1], **guard_inputs,
+        )
+    finally:
+        _rescue_recorded_neutral_root(recorded_identity)
+
+
+def test_claude_headless_close_refuses_symlink_swapped_identity(
+    tmp_path, monkeypatch,
+) -> None:
+    identity = tmp_path / "created-identity"
+    outside_tree = tmp_path / "outside-tree"
+    outside_tree.mkdir()
+    outside_marker = outside_tree / "marker"
+    outside_marker.write_bytes(b"must-survive")
+
+    def swapped_mkdtemp(*args, **kwargs):
+        identity.mkdir()
+        identity.rmdir()
+        identity.symlink_to(outside_tree, target_is_directory=True)
+        return str(identity)
+
+    monkeypatch.setattr(S.tempfile, "mkdtemp", swapped_mkdtemp)
+    provider = ClaudeHeadlessProvider(
+        artifact_root=tmp_path / "artifacts",
+        role_file=ROOT / ".claude/agents/selector-8b.md",
+        executable=_executable(tmp_path),
+        environ={"HOME": "/fixture/home"},
+    )
+    assert provider.neutral_root == outside_tree.resolve()
+    assert provider._neutral_root_identity == identity
+    try:
+        provider.close()
+        assert isinstance(provider.cleanup_error, PredictionRunnerError)
+        assert provider._neutral_root_finalizer.alive
+        assert identity.is_symlink()
+        assert outside_marker.read_bytes() == b"must-survive"
+    finally:
+        identity.unlink(missing_ok=True)
+        provider.close()
+        shutil.rmtree(outside_tree, ignore_errors=True)
+
+
+@pytest.mark.parametrize("failure", ["mcp-config", "home-missing", "environment-baseexception"])
+def test_claude_headless_init_failure_removes_neutral_root(
+    tmp_path, monkeypatch, failure,
+) -> None:
+    created_identities: list[Path] = []
+    fallback_attempts: list[Path] = []
+    original_create = S._create_neutral_root
+
+    def recording_create(*args, **kwargs):
+        result = original_create(*args, **kwargs)
+        created_identities.append(result[1])
+        return result
+
+    def recording_fallback(neutral_root_identity, artifact_root):
+        fallback_attempts.append(Path(neutral_root_identity))
+
+    monkeypatch.setattr(S, "_create_neutral_root", recording_create)
+    monkeypatch.setattr(S, "_finalize_neutral_root", recording_fallback)
+    environ: dict[str, str] = {"HOME": "/fixture/home"}
+    expected_error: type[BaseException] = PredictionRunnerError
+    if failure == "mcp-config":
+        def fail_write(*args, **kwargs):
+            raise OSError("mcp write failure")
+
+        monkeypatch.setattr(S, "_write_bytes_bound", fail_write)
+        expected_error = OSError
+    elif failure == "home-missing":
+        environ = {}
+    else:
+        class _ExplodingEnvironment(dict):
+            def __contains__(self, key):
+                raise KeyboardInterrupt("environment mapping failure")
+
+        environ = _ExplodingEnvironment(HOME="/fixture/home")
+        expected_error = KeyboardInterrupt
+
+    try:
+        with pytest.raises(expected_error):
+            ClaudeHeadlessProvider(
+                artifact_root=tmp_path / "artifacts",
+                role_file=ROOT / ".claude/agents/selector-8b.md",
+                executable=_executable(tmp_path),
+                environ=environ,
+            )
+        assert len(created_identities) == 1
+        assert not created_identities[0].exists()
+        assert fallback_attempts == []
+    finally:
+        for identity in created_identities:
+            _rescue_recorded_neutral_root(identity)
+
+
+def test_claude_headless_close_refuses_artifact_root_as_cleanup_target(tmp_path) -> None:
+    provider, _, _, _ = _provider_call(tmp_path, _envelope())
+    actual_identity = provider._neutral_root_identity
+    try:
+        artifact_bytes = {
+            path: path.read_bytes()
+            for path in provider.artifact_root.iterdir()
+            if path.is_file()
+        }
+        provider._neutral_root_identity = provider.artifact_root
+        provider.close()
+        assert isinstance(provider.cleanup_error, AssertionError)
+        assert provider._neutral_root_finalizer.alive
+        assert {
+            path: path.read_bytes()
+            for path in provider.artifact_root.iterdir()
+            if path.is_file()
+        } == artifact_bytes
+    finally:
+        provider._neutral_root_identity = actual_identity
+        provider.close()
+        _rescue_recorded_neutral_root(actual_identity)
 
 
 def _payload_for_first_job() -> dict:
@@ -1204,6 +1547,53 @@ class _CrashOnceSealRunner(_SealRunner):
             self.crashed = True
             raise RuntimeError("simulated claim crash")
         return super().__call__(argv, **kwargs)
+
+
+@pytest.mark.parametrize("outcome", ["success", "provider-error"])
+def test_seal_calls_provider_close_with_strong_reference(
+    tmp_path, monkeypatch, outcome,
+) -> None:
+    root, head = _seal_repo(tmp_path)
+    executable = _executable(tmp_path)
+    instances: list[ClaudeHeadlessProvider] = []
+    provider_class = S.ClaudeHeadlessProvider
+
+    def recording_provider(*args, **kwargs):
+        provider = provider_class(*args, **kwargs)
+        instances.append(provider)
+        return provider
+
+    class _FailingRunner:
+        def __call__(self, argv, **kwargs):
+            raise RuntimeError("provider failure")
+
+    monkeypatch.setattr(S, "ClaudeHeadlessProvider", recording_provider)
+    try:
+        if outcome == "success":
+            assert main(
+                ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+                root=root,
+                provider_runner=_SealRunner(),
+                claude_executable=executable,
+                stdout=io.StringIO(),
+                stderr=io.StringIO(),
+            ) == 0
+        else:
+            with pytest.raises(RuntimeError, match="provider failure"):
+                main(
+                    ["seal", "--provider", "claude-headless", "--pre-oracle-head", head],
+                    root=root,
+                    provider_runner=_FailingRunner(),
+                    claude_executable=executable,
+                    stdout=io.StringIO(),
+                    stderr=io.StringIO(),
+                )
+        assert len(instances) == 1
+        assert not instances[0].neutral_root.exists()
+        assert not instances[0]._neutral_root_finalizer.alive
+    finally:
+        for instance in instances:
+            _rescue_recorded_neutral_root(instance._neutral_root_identity)
 
 
 def test_seal_requires_explicit_provider_before_any_claim(tmp_path) -> None:
