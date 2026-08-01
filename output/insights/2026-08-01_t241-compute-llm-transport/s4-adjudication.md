@@ -129,6 +129,28 @@ brief 行別表 [57][58][80]) は規範の再確認であり成果物値を変�
 - (b) D106/D108 の参照バグ (runbook が split 裁定を D106 と書いている) も同時に直す
 - (c) 過去 worklog / archive / insights の同じ前提も supersede 追記する
 
+### 択一 4: 段 8 自己改善の 2 候補が予算で入らない
+
+本 wave で実測した手順の穴 2 件を `docs/dev-wave/operations.md` の既存節へ統合しようとしたが、
+`docs/dev-wave/**` の合計が hard ceiling 24000 bytes に対し 23991 bytes で、**空きが 9 bytes** しか
+ない。既存の義務文に無損失で縮められる箇所を見つけられなかったため、`docs/skill-self-improvement.md`
+の「予算に収まらなければ … 意味等価にできなければ変更を止めてユーザー裁定へ返す」に従って戻した。
+
+候補 (どちらも本 wave で実際に踏んだ):
+
+1. **`DW-O01` へ**: 背景 job から codex を起動するときは `nohup` で切り離す。呼び出しが返ると子が
+   死ぬ。本 wave では段 2 の 1 本目がこれで落ち、`.done` も `-o` 出力も残らなかった
+2. **`DW-O20` へ**: worktree から `qsub` すると `<script>.o<ID>` / `.e<ID>` が cwd (= worktree root) へ
+   落ちる。clean-tree gate と `git add -A` の前に回収しないと未追跡ごみを巻き込む。本 wave では
+   commit 直前に 10 ファイルを回収した (near miss)
+
+択:
+- (a) **予算の独立審査**を行い、`dev-wave/**` の ceiling か中身の配分を見直す (規約は予算値の変更を
+  通常の自己改善から外し、理由付きの独立審査対象としている)
+- (b) 既存節の**意味等価な縮約**を別 wave で行って空きを作り、その後に統合する
+- (c) 統合しない (2 件は本 insight にだけ残す)。**親の推奨は (b)** — 2 件とも実測済みで、
+  次に踏む wave が同じ時間を失う
+
 ## 本 wave が実施すること (実装なし)
 
 1. `docs/pegasus-runbook.md` §7.1 の「計算ノードは外部 network 不可」を実測どおりに訂正し、

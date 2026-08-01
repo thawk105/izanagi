@@ -1436,6 +1436,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   (`876900`) は 280 passed / 2 skipped と緑。docs のみの差分なので当該ファイルへ到達しえない
 - 一次資料 = `output/insights/2026-08-01_t241-compute-llm-transport/` (README・brief・plan・敵対
   レンズ 2 本の逐語・裁定・生 evidence)。**ユーザー裁定パッケージ (択一 3 件)** は同 `s4-adjudication.md`
+- 段 8 自己改善: 実測した手順の穴 2 件 (背景 job の codex は `nohup` で切り離す / worktree からの
+  `qsub` は `.o<ID>`・`.e<ID>` を cwd へ落とす) を `operations.md` へ統合しようとしたが、
+  `docs/dev-wave/**` の空きが **9 bytes** しかなく戻した。予算値の変更は通常の自己改善の外なので
+  [T-274] として裁定へ送る
 - エージェント工数: 親 1、子 3 (plan 1 / 敵対レンズ 2)。実装子・fix 子は裁定により起動せず
 
 ### 次の一手
@@ -1459,6 +1463,10 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-247] 変わらず ((94) 参照)
 - [T-248] 変わらず ((94) 参照)
 - [T-249] 変わらず ((94) 参照)
+- [T-274] **P3・新規 (本エントリ)**: dev-wave 自己改善の 2 候補が `docs/dev-wave/**` の合計予算
+  (空き 9 bytes) に入らない。既存義務文へ無損失の縮約余地を見つけられなかった。予算の独立審査 (a)、
+  別 wave での意味等価な縮約 (b)、統合しない (c) の択一。推奨は (b)。詳細は
+  `output/insights/2026-08-01_t241-compute-llm-transport/s4-adjudication.md` の択一 4
 - [T-270] **P3・追加データ ((95))**: 同じフレークが本 wave の全走 (`876837`) でも出た。3 例目である。
   内訳は `test_s8b_floor_campaign.py` 6 件 + `test_ruleops.py::test_real_checkout_...@real_repo` 1 件で、
   **`real_repo` 系も同族**だと分かった。単独再走 (`876900`、280 passed / 2 skipped) は緑。
