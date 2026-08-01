@@ -1308,6 +1308,11 @@ main にマージされていない成果で、直近一日以内に更新され
   1 本ずつ完了検査つきで畳み、半削除は起きなかった
 - 残置 6 worktree はすべて稼働中または取り込み進行中。`dev-wave-t181-reasoning-ab` (detached・clean)
   は滞在 2 プロセスのため (76) から 3 度目の持ち越しとなり、ユーザー引き渡しに残る
+- **本エントリ land 後の追加削除 (訂正)**: 上の「11 本 / 9 本」は裁定に基づく一括掃除の実績である。
+  land 後に `codex/dev-wave-improve-records` が §2 の全条件 (ahead=0・clean・滞在 0・HEAD が
+  1h 超) を満たしたため追加で 1 本畳み、**合計 branch 12 本 / worktree 10 本**になった。
+  自 branch `worktree-cleanup-2026-08-01-b` は F51 に従い detach → `-d` まで実施し、
+  ディレクトリ削除と `prune` はユーザーへ引き渡した (cwd 固定の背景 job のため)
 - **handoff は 4 件中 3 件が 24h 超**だが、成果の消失ではなく回収漏れである ([T-234])。
   うち `2026-07-30-dev-wave-skill-cleanup.md` は対象 `codex/dev-wave-skill` が既に消滅した孤児、
   残る 2 件は所有 session が稼働中のため触らなかった
