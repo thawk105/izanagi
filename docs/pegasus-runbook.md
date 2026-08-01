@@ -403,7 +403,7 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   SOURCE_DIR 指定時は GIT_TAG pin が効かないため HEAD 照合を fail-closed で行うこと)。
   なお **§8 の「計算ノードで `claude -p` を起動しない」は本訂正では緩めない**。この事実は D108
   決定 (1) が挙げた前提の一部を覆すが、分割線を変えるかはユーザー裁定に戻してある
-  ([T-271]、2026-08-01 worklog (95))
+  ([T-276]、2026-08-01 worklog (96))
 
 ## 8. 投入前チェックリスト
 
