@@ -13,7 +13,7 @@
 途中のファイルは上書きしない。同じ job ID / nonce の再利用、欠落、ID・hash 不一致は非 0 で停止する。
 
 **予約設定 file の所在は `policies/registry_v1.json` が唯一の索引である** (所在 inventory であって、
-「その run を支配した設定」の再導出元ではない。正本は D114)。task 固有の予約設定は
+「その run を支配した設定」の再導出元ではない。正本は D115)。task 固有の予約設定は
 `policies/<task>_v1.json` へ置き、registry へ登録する。共有 `policy.json` は T-139 の committed
 evidence が bytes を pin しているので**編集しない** — 複数タスクが共有する値
 (`project` / `queue` / `nodes` / CPU / 依存 pin / perf 候補) だけがそこに残る。

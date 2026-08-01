@@ -1,0 +1,664 @@
+{
+  "baseline": {
+    "artifact_error": null,
+    "console_output_sha256": "262026ec1202438a013e975ad13ea23809e58711af5d5283329140474d2fd126",
+    "console_output_tail": [],
+    "duration_s": 26.814,
+    "failed_nodes": [],
+    "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/4cf340d52b356554931f4652ae3dec0e/izdw-4cf340d52b.o876997",
+    "rc": 0,
+    "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/4cf340d52b356554931f4652ae3dec0e/receipt.json",
+    "status": "PASSED",
+    "test_output_sha256": "3865023434db9bbca0d5074b5bfa70801e9ed84068bd232067f1560125b0d2e6",
+    "test_output_tail": [],
+    "timed_out": false
+  },
+  "date": "2026-08-01T07:38:11.874796+00:00",
+  "mutations": [
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "8612be789c09dbe36bfc2b7ad042050ceba4ae8e7c55bda4b7305f36a69761b7",
+      "console_output_tail": [],
+      "duration_s": 21.705,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_unapproved_budget_before_build_preparation"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_unapproved_budget_before_build_preparation"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V1",
+      "injection_diff_sha256": "ab56f577518d5809ce9aa0771c2eb392268945f2323114ea06479d77fe4a2dbf",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/c6c5e7bb5bc573a1664c0902ad38a9d1/izdw-c6c5e7bb5b.o877000",
+      "kind": "negative",
+      "new": "",
+      "old": "    _validate_generation_budget(args.max_generations)\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/c6c5e7bb5bc573a1664c0902ad38a9d1/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "261ccf3be79c96650084472ac84ec88300ce37302f40d07c6062ff79b04de37e",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "80a4b14d3cd106233849effa7d31fe8e958ee6a1e186000dab2594d42f610069",
+      "console_output_tail": [],
+      "duration_s": 21.78,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_unapproved_budget_before_artifact_creation"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_unapproved_budget_before_artifact_creation"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V2",
+      "injection_diff_sha256": "3d6c9b6f246b15a718889f5e690f2d4e9a54c610ad3ba87fc118bf2fe0b6eade",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/bdac2e330f340ecf812d583d5a1d5f1b/izdw-bdac2e330f.o877002",
+      "kind": "negative",
+      "new": "    if _TRIAL_ID_RE.fullmatch(trial_id) is None:\n        raise AutonomousTrialError(f\"trial_id が安全な形式でない: {trial_id!r}\")\n    if isinstance(max_wall_s, bool) or not isinstance(max_wall_s, int) or max_wall_s < 1:\n",
+      "old": "    if _TRIAL_ID_RE.fullmatch(trial_id) is None:\n        raise AutonomousTrialError(f\"trial_id が安全な形式でない: {trial_id!r}\")\n    _validate_generation_budget(generations)\n    if isinstance(max_wall_s, bool) or not isinstance(max_wall_s, int) or max_wall_s < 1:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/bdac2e330f340ecf812d583d5a1d5f1b/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "fc51327769c430811d5a4915d50465eab16a42dd97cc5758c808518beb5c1c7f",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "96768cacd13bb6cfd466ad8741f3b6b5fd8994abfbe2d995320917facbd1c3b7",
+      "console_output_tail": [],
+      "duration_s": 21.76,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_call_rejects_unapproved_budget"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_call_rejects_unapproved_budget"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V3",
+      "injection_diff_sha256": "f4bfe41c2da6988b13f20e61f0dbd13a6a278bdbdb96b0424b95904c7f760fff",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/53f185bfe1524a6e9b8b1e677c61dee7/izdw-53f185bfe1.o877004",
+      "kind": "negative",
+      "new": "    flags = WORKLOADS[workload]\n",
+      "old": "    _validate_generation_budget(generations)\n    flags = WORKLOADS[workload]\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/53f185bfe1524a6e9b8b1e677c61dee7/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "6732373951cec189d9bfd8220180c02ff55ac5156c30c2c151897e29c34154c6",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "0c5b79d72e4096418e16802be62dcf812a34373d90b02e41ddca1cf0c16f0df8",
+      "console_output_tail": [],
+      "duration_s": 21.738,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V4",
+      "injection_diff_sha256": "ee397282204bc7d72539921ddc82284f33a8195eecba903afea8488fc99daf9e",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/24fa0b9be073052792c9441fe6ca84c8/izdw-24fa0b9be0.o877006",
+      "kind": "negative",
+      "new": "    perf = _perf_for(flags)\n",
+      "old": "    _assert_fresh_campaign_state(layout)\n    perf = _perf_for(flags)\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/24fa0b9be073052792c9441fe6ca84c8/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "a82f7401619fcceb5b998afaa7b0b054b49dfd6f67a0478a6ba93206bb70817a",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "a38f6db000f1aaa1ed2a1a6bd03be7bf8207a8ea17ab3fea7f8bd1f246d8b8fc",
+      "console_output_tail": [],
+      "duration_s": 21.742,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_supervisor_error_still_writes_partial_terminal_report",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_actual_fresh_campaign_layout",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V5",
+      "injection_diff_sha256": "d881baee26011ba4be5be4fd81e8c05ad35ff961d32af88fb74677eba409df90",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/283a3f93aee1e038e8cf564542330c0f/izdw-283a3f93ae.o877008",
+      "kind": "negative",
+      "new": "    if generations >= MAX_APPROVED_GENERATIONS:\n",
+      "old": "    if generations > MAX_APPROVED_GENERATIONS:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/283a3f93aee1e038e8cf564542330c0f/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "05d1a60762d277d1183f6941479f295c4734d09f6ddb3d9564da69d7c514126f",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "91df51e1d91c83cadd111df1477d37f1a1242da07555f6aebccc7ea59ade37c8",
+      "console_output_tail": [],
+      "duration_s": 26.869,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_cli_default_is_literal_one_by_ast",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V6",
+      "injection_diff_sha256": "79bd41c95fd51db7b2173a43f7298c3deaba35cf5ad060ded1de992c3b7d15f7",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/79748b453171d024cab5496f1f232cc0/izdw-79748b4531.o877009",
+      "kind": "negative",
+      "new": "    parser.add_argument(\"--max-generations\", type=int, default=2)\n",
+      "old": "    parser.add_argument(\"--max-generations\", type=int, default=1)\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/79748b453171d024cab5496f1f232cc0/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "c701aeea8ae1fccb2c60a47fec9696d5a19476ac9d03d5e3170ea60ed7c5ce95",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "1562d21746af7233538fe5e1fa5eea60d4bfb6c1fbfa50e3542ba9be7d2b27fe",
+      "console_output_tail": [],
+      "duration_s": 21.755,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_call_rejects_unapproved_budget",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_unapproved_budget_before_artifact_creation",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_unapproved_budget_before_build_preparation"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V7",
+      "injection_diff_sha256": "4c385c52d44f71bd97a637718f22c4b93f99df65eb559cb3b5fc0ef1a136a1d3",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/7c91c9f548f5640d0126a3dc6e797af1/izdw-7c91c9f548.o877012",
+      "kind": "negative",
+      "new": "MAX_APPROVED_GENERATIONS = 2\n",
+      "old": "MAX_APPROVED_GENERATIONS = 1\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/7c91c9f548f5640d0126a3dc6e797af1/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "8e528561d780c6d73ccb660c81bba05745376c4ff332b4767621199f0b71368e",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "517ff10f4264542c9afc238a3e2c51026c539248a2b09057c38763e33fbf91bb",
+      "console_output_tail": [],
+      "duration_s": 21.711,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_cli_default_is_literal_one_by_ast"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_cli_default_is_literal_one_by_ast"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V8",
+      "injection_diff_sha256": "9902fbc4d40bfbfd4c0347b063cfeeb046cd88b46d65b70abfa3f9c79aea1355",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/4f338e65b21c2b50e8ccebe5be42fd49/izdw-4f338e65b2.o877013",
+      "kind": "negative",
+      "new": "    parser.add_argument(\n        \"--max-generations\", type=int, default=MAX_APPROVED_GENERATIONS\n    )\n",
+      "old": "    parser.add_argument(\"--max-generations\", type=int, default=1)\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/4f338e65b21c2b50e8ccebe5be42fd49/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "8fefa4e14370c8800f8956873ab14ecb64dacbdcda4b906353c83d40a9c03dcd",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "45f65319d34ce68eb33f2abc1b20e76769768f411d12a8e4e9756d445a0c6f99",
+      "console_output_tail": [],
+      "duration_s": 21.76,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_bool",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_int_subclass_with_overridden_add"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_int_subclass_with_overridden_add",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_bool"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V9",
+      "injection_diff_sha256": "74b5ceffed152308406a5334fd3af7673015c4076ac5ad9cfec203dd8ea80404",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/ed2d69b511a9430e23ced17ce2424f21/izdw-ed2d69b511.o877014",
+      "kind": "negative",
+      "new": "    if not isinstance(generations, int):\n",
+      "old": "    if type(generations) is not int:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/ed2d69b511a9430e23ced17ce2424f21/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "6bc2a22f3cd571337a1211b0749717f36ddc41fdbaae303796e39223156357eb",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "7c5dcdd2e528b22296ac808742a0ce24e575bddc5c61b76b38f8de504612baad",
+      "console_output_tail": [],
+      "duration_s": 26.853,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_below_minimum"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_below_minimum"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V10a",
+      "injection_diff_sha256": "257448e4cfd3f3337ca1f5d2b33acd3ed8aa8f8f3782bd3fdc3fcd2c0e740cd1",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/24e8d91f405141b87c4f512b547534c2/izdw-24e8d91f40.o877015",
+      "kind": "negative",
+      "new": "    if generations > MAX_GENERATIONS:\n",
+      "old": "    if not 1 <= generations <= MAX_GENERATIONS:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/24e8d91f405141b87c4f512b547534c2/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "55944ff5434fa17ade0b32cdee3f6d01df8bdb15e380d07bae5f91ef893ece74",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "fe0ef5ec986d8515f7dbd45a19f7e9a851acb446e581aa635679a82bff86b6fc",
+      "console_output_tail": [],
+      "duration_s": 26.878,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_bool",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_non_int_float",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_int_subclass_with_overridden_add"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_bool",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_int_subclass_with_overridden_add",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_non_int_float"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V10c",
+      "injection_diff_sha256": "be606d53bddc8870a1407e71af8d0ee42bb1da6a1ab26b4fd1a24b0cdb2a9ca4",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/47088fe2a9dd4933d77dc39cdeb0da2f/izdw-47088fe2a9.o877016",
+      "kind": "negative",
+      "new": "",
+      "old": "    if type(generations) is not int:\n        raise AutonomousTrialError(f\"generations は 1..{MAX_GENERATIONS} 必須\")\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/47088fe2a9dd4933d77dc39cdeb0da2f/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "43922542646b8ba6912c6ade06bf22433b4fe0e60efcbc5bea26392a71dc84f6",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "584fde9a3f0f1362598341a29419ad9cbef5363e2aebc5b0fc1d6c74ac24cb65",
+      "console_output_tail": [],
+      "duration_s": 21.74,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V11",
+      "injection_diff_sha256": "e50600856f8532bfa0df2805b27e8350d69b160047cd388f93bb08bf58f1c099",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/2ee8eb07908576a7b6f3dc418601261d/izdw-2ee8eb0790.o877017",
+      "kind": "negative",
+      "new": "    perf = _perf_for(flags)\n    result: dict[str, Any] = {\n        \"workload\": workload,\n        \"workload_flags\": dict(flags),\n        \"descriptor\": descriptor,\n        \"descriptor_binding\": descriptor_record,\n        \"campaign_id\": str(trigger.ident.campaign_id(cfg)),\n        \"campaign_root\": layout.root,\n        \"generations\": [],\n        \"stop_reason\": \"fixed-generation-budget\",\n    }\n    prior_reverse: bool | None = None\n    current_metrics = {\n        \"throughput_ops_sec\": None,\n        \"abort_rate_pct\": None,\n        \"latency_ns\": None,\n        \"llc_miss_rate\": None,\n        \"ipc\": None,\n    }\n\n    for generation in range(1, generations + 1):\n        if time.monotonic() - started_monotonic >= max_wall_s:\n            result[\"stop_reason\"] = \"supervisor-wall-budget\"\n            break\n        generation_record: dict[str, Any] = {\"generation\": generation, \"roles\": {}}\n        common = _common_payload(\n            workload=workload,\n            generation=generation,\n            descriptor=descriptor,\n            descriptor_record=descriptor_record,\n        )\n        whiteboard = _whiteboard(layout)\n        planner_payload = {\n            **common,\n            \"current_perf\": dict(current_metrics),\n            \"leading_indicators\": {\n                \"contention_level\": descriptor[\"contention\"][\"label\"],\n                \"cache_miss_rate_pct\": current_metrics[\"llc_miss_rate\"],\n                \"IPC_overall\": current_metrics[\"ipc\"],\n            },\n            \"whiteboard\": whiteboard,\n        }\n        planner, event = _invoke(\n            role=\"planner\",\n            provider=providers[\"planner\"],\n            invocation_id=f\"{workload}.g{generation}.planner\",\n            payload=planner_payload,\n            raw_root=run_root / \"raw\",\n            journal=journal,\n            workload=workload,\n            generation=generation,\n        )\n        _assert_fresh_campaign_state(layout)\n",
+      "old": "    _assert_fresh_campaign_state(layout)\n    perf = _perf_for(flags)\n    result: dict[str, Any] = {\n        \"workload\": workload,\n        \"workload_flags\": dict(flags),\n        \"descriptor\": descriptor,\n        \"descriptor_binding\": descriptor_record,\n        \"campaign_id\": str(trigger.ident.campaign_id(cfg)),\n        \"campaign_root\": layout.root,\n        \"generations\": [],\n        \"stop_reason\": \"fixed-generation-budget\",\n    }\n    prior_reverse: bool | None = None\n    current_metrics = {\n        \"throughput_ops_sec\": None,\n        \"abort_rate_pct\": None,\n        \"latency_ns\": None,\n        \"llc_miss_rate\": None,\n        \"ipc\": None,\n    }\n\n    for generation in range(1, generations + 1):\n        if time.monotonic() - started_monotonic >= max_wall_s:\n            result[\"stop_reason\"] = \"supervisor-wall-budget\"\n            break\n        generation_record: dict[str, Any] = {\"generation\": generation, \"roles\": {}}\n        common = _common_payload(\n            workload=workload,\n            generation=generation,\n            descriptor=descriptor,\n            descriptor_record=descriptor_record,\n        )\n        whiteboard = _whiteboard(layout)\n        planner_payload = {\n            **common,\n            \"current_perf\": dict(current_metrics),\n            \"leading_indicators\": {\n                \"contention_level\": descriptor[\"contention\"][\"label\"],\n                \"cache_miss_rate_pct\": current_metrics[\"llc_miss_rate\"],\n                \"IPC_overall\": current_metrics[\"ipc\"],\n            },\n            \"whiteboard\": whiteboard,\n        }\n        planner, event = _invoke(\n            role=\"planner\",\n            provider=providers[\"planner\"],\n            invocation_id=f\"{workload}.g{generation}.planner\",\n            payload=planner_payload,\n            raw_root=run_root / \"raw\",\n            journal=journal,\n            workload=workload,\n            generation=generation,\n        )\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/2ee8eb07908576a7b6f3dc418601261d/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "6dd077543c10e76245e8404ae4ca46d3b0c81bb4e8decdf1f6aa634bea2cb7e8",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "8819b131b3823f7e0bb427eef9b93bc2e6ab50d30c9cb50defe1d7dd35f2b3b5",
+      "console_output_tail": [],
+      "duration_s": 21.731,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V12",
+      "injection_diff_sha256": "b32673ee474141217e8bdf244b3d797f8acde459025007be36d3107c3c6d41d3",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/4c5d46df65a9ea68dc3d0f580d45a3e2/izdw-4c5d46df65.o877018",
+      "kind": "negative",
+      "new": "        if planner is None:\n            generation_record[\"outcome\"] = \"planner-invalid\"\n            result[\"generations\"].append(generation_record)\n            result[\"stop_reason\"] = \"role-invalid\"\n            continue\n",
+      "old": "        if planner is None:\n            generation_record[\"outcome\"] = \"planner-invalid\"\n            result[\"generations\"].append(generation_record)\n            result[\"stop_reason\"] = \"role-invalid\"\n            break\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/4c5d46df65a9ea68dc3d0f580d45a3e2/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "051508ca5819a967c3aec41a9d2560f58d239f0afafd1e7069d68adff28d32ba",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "5c84b04054f17c4d95925c6577aabcc61d62134dccb462b8e8aaf3e688f87fc6",
+      "console_output_tail": [],
+      "duration_s": 21.72,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_malformed_json_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_delta_pct_leak_with_cause"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_delta_pct_leak_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_malformed_json_with_cause"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V13",
+      "injection_diff_sha256": "b82c2eab3a4cbcbffd891bd46d10cb004082abcb1a9d25a304abae3568533a18",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/e4d512cead923e7d3a81787c04986147/izdw-e4d512cead.o877019",
+      "kind": "negative",
+      "new": "def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:\n    state = loop_core.load_loop_state(layout)\n    if state is not None:\n        raise AutonomousTrialError(\n            \"既存 campaign state は D106 残余 1 の裁定まで再利用不可\"\n        )\n",
+      "old": "def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:\n    try:\n        state = loop_core.load_loop_state(layout)\n    except (OSError, ValueError, KeyError, OverflowError) as exc:\n        raise AutonomousTrialError(\n            \"campaign checkpoint の読取・decode・schema 検査に失敗\"\n        ) from exc\n    if state is not None:\n        raise AutonomousTrialError(\n            \"既存 campaign state は D106 残余 1 の裁定まで再利用不可\"\n        )\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/e4d512cead923e7d3a81787c04986147/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "003ce384003d3c7f4090aecddc71c615909c124ba8088b385f3063ba9d4c0cc0",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "ce88136e95a4a3b20b93a6627cfa70e454211d4bc5bce9e587b0ba04380cc1fd",
+      "console_output_tail": [],
+      "duration_s": 26.872,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_does_not_reclassify_attribute_error"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_does_not_reclassify_attribute_error"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "V15",
+      "injection_diff_sha256": "ac1c3dee7cf9d4229e985cdf50cd30f8b3c209e87c31b2120d9d8ce6c583eadd",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/fed0360d9b9b9f4e64cc9045c835d479/izdw-fed0360d9b.o877020",
+      "kind": "negative",
+      "new": "    except Exception as exc:\n",
+      "old": "    except (OSError, ValueError, KeyError, OverflowError) as exc:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/fed0360d9b9b9f4e64cc9045c835d479/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "e0e1781218e4946e8fe5d521f5043686791684e35715cf0e644d2e2cbe330911",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "d97a84d4467ab764881bd1d4dc56f359274d1aefa6ecafc1ed2d5345216c7144",
+      "console_output_tail": [],
+      "duration_s": 26.882,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_supervisor_error_still_writes_partial_terminal_report",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_actual_fresh_campaign_layout"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "P1",
+      "injection_diff_sha256": "d881baee26011ba4be5be4fd81e8c05ad35ff961d32af88fb74677eba409df90",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/60142247e9c3af2038f9061b783bbb37/izdw-60142247e9.o877021",
+      "kind": "positive",
+      "new": "    if generations >= MAX_APPROVED_GENERATIONS:\n",
+      "old": "    if generations > MAX_APPROVED_GENERATIONS:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/60142247e9c3af2038f9061b783bbb37/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "6d7c695a46165bd7f8687958a05e8fc92a8cad2802d4f0341694bcc01f6cbaf8",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "229263674eeec712e303d67fb6276441a2e7b02e5f6678be6ac929ff0915fed3",
+      "console_output_tail": [],
+      "duration_s": 21.749,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_delta_pct_leak_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_malformed_json_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_supervisor_error_still_writes_partial_terminal_report",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_does_not_reclassify_attribute_error",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_actual_fresh_campaign_layout"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "P2",
+      "injection_diff_sha256": "c9a1888b141ab3df584686149f435495ee6b5b8d6ddbc902b1642f53d83248be",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/a1130c724372da47ebb80884389416c2/izdw-a1130c7243.o877023",
+      "kind": "positive",
+      "new": "def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:\n    raise AutonomousTrialError(\n        \"既存 campaign state は D106 残余 1 の裁定まで再利用不可\"\n    )\n",
+      "old": "def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:\n    try:\n        state = loop_core.load_loop_state(layout)\n    except (OSError, ValueError, KeyError, OverflowError) as exc:\n        raise AutonomousTrialError(\n            \"campaign checkpoint の読取・decode・schema 検査に失敗\"\n        ) from exc\n    if state is not None:\n        raise AutonomousTrialError(\n            \"既存 campaign state は D106 残余 1 の裁定まで再利用不可\"\n        )\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/a1130c724372da47ebb80884389416c2/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "664fecefa2b919ceeb1df9497c4a3b152520693c75d0438c946991dcd57ef97d",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "d5d573bdd2257275fb86058278dab0f0b18b84794b9ea817aece3224d6359761",
+      "console_output_tail": [],
+      "duration_s": 21.734,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_supervisor_error_still_writes_partial_terminal_report",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_actual_fresh_campaign_layout",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "P3",
+      "injection_diff_sha256": "5a2b41c546225011f8a1c72bba595ae7dda916bf6f9eae8f6744cb8a9a28c5af",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/1e949525d47b5bc70d070ce4974bec0c/izdw-1e949525d4.o877025",
+      "kind": "positive",
+      "new": "    if isinstance(generations, int):\n",
+      "old": "    if generations > MAX_APPROVED_GENERATIONS:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/1e949525d47b5bc70d070ce4974bec0c/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "7fd404e5130ca1ced9af71ba6a3444aad24a3a2a9f912212e1bb94bcc1d9ec47",
+      "test_output_tail": [],
+      "timed_out": false
+    },
+    {
+      "anchor_count": 1,
+      "artifact_error": null,
+      "console_output_sha256": "cb93d42ffdc6eb03458068a911a50ccc83fde4dc5adb9fb2821c7259d4ba0adf",
+      "console_output_tail": [],
+      "duration_s": 21.676,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_malformed_json_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_delta_pct_leak_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state"
+      ],
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "id": "P4",
+      "injection_diff_sha256": "b7722cb74d5d9fc98b90ff7431231f85b23192e9985c681e6f4a7f12f133bfe3",
+      "job_stdout_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/5c9dd2bd76c1b06904f11a0f09742f7b/izdw-5c9dd2bd76.o877026",
+      "kind": "positive",
+      "new": "    try:\n        fixed_empty_layout = CampaignLayout(\n            str(Path(layout.root) / \"__mutation_fixed_empty__\")\n        )\n        state = loop_core.load_loop_state(fixed_empty_layout)\n    except (OSError, ValueError, KeyError, OverflowError) as exc:\n",
+      "old": "    try:\n        state = loop_core.load_loop_state(layout)\n    except (OSError, ValueError, KeyError, OverflowError) as exc:\n",
+      "rc": 1,
+      "receipt_path": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t244-reflux/output/pegasus-dispatch/5c9dd2bd76c1b06904f11a0f09742f7b/receipt.json",
+      "status": "KILLED",
+      "test_output_sha256": "12996d4b85e50ff63eff14aa729ca97c853a9f3b5e15ca36df63b32f56eee2e9",
+      "test_output_tail": [],
+      "timed_out": false
+    }
+  ],
+  "parse_error_history": [],
+  "procedure": {
+    "anchor_policy": "old exact count == 1 before every mutation",
+    "cache_policy": "remove target module __pycache__ after every restore",
+    "injection_policy": "read-back equality plus non-empty unified diff",
+    "node_policy": "read full job stdout named by dispatch receipt; strip ANSI/relay prefix; normalize both sides",
+    "registration_preflight": {
+      "anchor_counts": {
+        "P1": 1,
+        "P2": 1,
+        "P3": 1,
+        "P4": 1,
+        "V1": 1,
+        "V10a": 1,
+        "V10c": 1,
+        "V11": 1,
+        "V12": 1,
+        "V13": 1,
+        "V15": 1,
+        "V2": 1,
+        "V3": 1,
+        "V4": 1,
+        "V5": 1,
+        "V6": 1,
+        "V7": 1,
+        "V8": 1,
+        "V9": 1
+      },
+      "expected_node_definitions": {
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_cli_default_is_literal_one_by_ast": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_does_not_reclassify_attribute_error": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_delta_pct_leak_with_cause": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_malformed_json_with_cause": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_below_minimum": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_bool": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_int_subclass_with_overridden_add": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_non_int_float": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_build_at_cli_gate": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_unapproved_budget_before_build_preparation": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_unapproved_budget_before_artifact_creation": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_call_rejects_unapproved_budget": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state": true,
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state": true
+      }
+    },
+    "restore_policy": "git checkout -- <file>, then exact read_text equality",
+    "resume_policy": "same repo_head + registration_sha256; skip completed mutation id",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+      "-rf"
+    ],
+    "timeout_s": 1800
+  },
+  "registration_sha256": "53dfc7be346d11faf95bc40cb88c542bd90ffcc6ca233cf7460c2125ed741de6",
+  "repo_head": "1444484cb1e8a5ae5ddf8c1994e918653f673ce6",
+  "schema": "izanagi-dev-wave-mutation/v2",
+  "summary": {
+    "KILLED": 19,
+    "KILLED_OTHER": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "completed": 19,
+    "registered": 19,
+    "unattributable": 2
+  },
+  "unattributable": [
+    {
+      "id": "V10b",
+      "kind": "negative",
+      "mutation": "上限条件 <= MAX_GENERATIONS の削除",
+      "reason": "等価変異。2 以上は後続の承認上限判定が拒否するため受理集合が変わらず、変わるのは MAX_GENERATIONS 超過時の診断だけである"
+    },
+    {
+      "id": "V14",
+      "kind": "negative",
+      "mutation": "exact int 型検査を isinstance に戻す",
+      "reason": "V9 と同一の source 変更かつ同じ int サブクラス退行なので重複登録しない"
+    }
+  ],
+  "updated_at": "2026-08-01T07:45:58.237183+00:00",
+  "wave": "T-244"
+}

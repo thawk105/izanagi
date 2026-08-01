@@ -271,6 +271,14 @@
   `hooks/README.md` hook 4「live 発火に関する既知の限界」を正本とする。
 - 再発検知: 現行の settings 文字列検査と hook script 直叩きでは検知できない。次の新規
   バックグラウンドジョブ型セッションで、daemon version を確認した live 負例を再試験する。
+- 再発 (near-miss): 2026-08-01 [T-244] wave。新設した campaign freshness gate のテストが
+  `load_loop_state` を **layout 引数を無視して** monkeypatch していたため、production が
+  「常に空の別 layout を検査する」形に退行しても全テストが緑になる構造だった。
+  「gate を呼んでいること」だけを固定し、gate が**実物を見ていること**を固定していない同型。
+  段 6 の敵対レビューが land 前に検出し、実 `loop_state.json` を書く負例・正例を追加して閉じた
+  (`test_run_workload_rejects_actual_existing_campaign_state` /
+  `test_run_workload_accepts_actual_fresh_campaign_layout`)。
+  monkeypatch 版は「provider 呼び出し順序の poison test」として責務を分離して残した
 
 ### F22. 実機前提の検収を rc 成功で確定と誤認 — 表記・依存の逐次発見で attempt 10 回 [手順漏れ] [テスト代表性]
 - 事象: Pegasus certification (2026-07-19) が実機固有の未確定前提で 9 回 fail-closed した。qstat の
@@ -516,9 +524,19 @@
   同一 job の再入だけを防ぎ、孤児の継続走行そのものは止めない)。検出は再開時の `git status`、
   回復は孤児の停止 → `git checkout --` → commit 済み内容との byte 一致確認。
   恒久対応 5 は既出で追加の規律は起こさない — 守らなかったこと自体が事象である。
+- **再発: 2026-08-01** ([T-244] wave)。恒久対応 5 (background 起動) に反し、前景の tool 経路で
+  起動した。19 変異 × 計算ノード dispatch は親の実行時間上限 (10 分) を確実に超えるのに、
+  その見積りをせずに走らせた。上限で親ごと殺され `finally` が走らず、承認上限判定の変異が
+  production に残った。検出は直後の `git status`、回復は `git checkout --` + `__pycache__` 除去。
+  **恒久対応 6 を追加する — harness は逐次 flush + resume と、起動時の対象ファイル clean 検査を持つ。**
+  「background で起動する」規律は 3 回破られており (2026-07-27 / 07-30 / 08-01)、規律だけでは
+  止まらないことが実証された。clean 検査があれば、次の起動時に残留変異を fail-closed で検出できる
+  (SIGKILL は捕捉できないので、これが唯一の機械的防壁である)。resume があれば、上限で切れても
+  やり直しの取りこぼしが出ない。
 - 現行実体: `docs/dev-wave/mutation.md` の `DW-M05` と `DW-M06`。
 - 再発検知: 変異・fault 注入ハーネスの設計時に「復元検査が対象ファイルの追跡状態に依存して
-  恒真化しないか」「二重走行を機械的に排除しているか」をレンズに含める (段 6 の作法)
+  恒真化しないか」「二重走行を機械的に排除しているか」「上限で殺された次の起動が残留変異を
+  検出できるか」をレンズに含める (段 6 の作法)
 
 ## 未回収
 
@@ -1320,6 +1338,11 @@
   合わせて独立 4 例であり、記録は **F71 が正本**である (F71 が原因を 3 つに分解している)。
   再発の理由は**恒久対応が failures 台帳にしかなく、harness 契約の正本である `DW-M08` が
   ANSI 除去しか明示していなかった**こと — harness を書く子は `DW-M08` を読み、台帳を読まない
+- 再発: 2026-08-01。[T-244] wave も同日に踏んだ。(3) の MISMATCH 契約があったので偽 SURVIVED は
+  免れたが、証拠が 1 件も取れない点は同じ。**接頭辞を剥がすだけでは足りない** — dispatch は
+  child stdout を `omitted_bytes` で切り詰めるため `FAILED` 行がコンソール表示に残らないことがある。
+  独立 3 例 ([T-118] / [T-244] / [T-249]) として **F71** に統合済み。恒久対応と `DW-M08` の
+  規約不整合は F71 を正本とする
 
 ### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
 - 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
@@ -1473,3 +1496,25 @@
   抽出 0 件を fail-closed) を入れて再走し、初回結果は消さず erratum として残した。本例は F71 が
   land される前に独立に観測されたものであり、`DW-G03` の族一般化を追認する。一次資料 =
   `output/insights/2026-08-01_t249-pegasus-policy-split/README.md` の「初回走の erratum」節
+
+### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
+- 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
+  していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
+  flag を省いて起動すると**禁止されたはずの運転条件へそのまま落ちる**。runbook は
+  「機械 gate は無い」と 3 箇所で自認しており、禁止は prompt 規律だけだった。
+  起票 ([T-244]、2026-08-01 worklog (86)) から 9 wave 後の本 wave の段 1 前提実測で発覚した
+- 根本原因: (1) 禁止を**文章で宣言した時点で対応済みと扱い**、既定値がその宣言と逆向きである
+  ことを誰も照合しなかった。(2) 「機械 gate は無い」と正直に書いたことが、かえって
+  「書いたから認識済み」として放置を正当化した。恒真ゲート (謳うだけで発火しない) の
+  一段悪い形 = **宣言と既定が逆**である
+- 判別: 「〜してはならない」と書かれた運転条件について、(a) それを機械的に拒否する検査が
+  実在するか、(b) **既定値・既定経路がその禁止側に落ちないか**を両方確認する。
+  片方だけでは足りない
+- 恒久対応: D114 で承認上限 `MAX_APPROVED_GENERATIONS` を導入し、CLI・`run_trial()`・
+  `_run_workload()` の 3 入口で fail-closed 拒否、既定値を literal `1` に是正した。
+  実体 = `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
+  `test_generation_budget_boundary_at_ratified_launch` と
+  `test_cli_default_is_literal_one_by_ast` (既定値が literal であることを AST で pin する)
+- 近縁: F9 (恒真な保証)、F14 (無効化されるフラグを遮断機構として記録)、
+  F21 (配線を live 発火未検証のまま防壁とした)
+- 記録: worklog 2026-08-01 (99)、一次資料 = `output/insights/2026-08-01_t244-generation-gate/`

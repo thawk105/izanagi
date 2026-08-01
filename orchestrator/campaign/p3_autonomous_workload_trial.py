@@ -88,6 +88,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_VERSION = "p3-autonomous-workload-trial/v1"
 REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v1"
 MAX_GENERATIONS = 10
+MAX_APPROVED_GENERATIONS = 1
 DEFAULT_MAX_WALL_S = 3600
 _TRIAL_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
 
@@ -178,6 +179,31 @@ so a one-line hole-only hunk is the complete coder edit under review."""
 
 class AutonomousTrialError(RuntimeError):
     """Bounded supervisor contract violation."""
+
+
+def _validate_generation_budget(generations: int) -> None:
+    if type(generations) is not int:
+        raise AutonomousTrialError(f"generations は 1..{MAX_GENERATIONS} 必須")
+    if not 1 <= generations <= MAX_GENERATIONS:
+        raise AutonomousTrialError(f"generations は 1..{MAX_GENERATIONS} 必須")
+    if generations > MAX_APPROVED_GENERATIONS:
+        raise AutonomousTrialError(
+            "generations は D106 残余 1 の裁定まで承認済み上限 "
+            f"{MAX_APPROVED_GENERATIONS} 以下必須"
+        )
+
+
+def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:
+    try:
+        state = loop_core.load_loop_state(layout)
+    except (OSError, ValueError, KeyError, OverflowError) as exc:
+        raise AutonomousTrialError(
+            "campaign checkpoint の読取・decode・schema 検査に失敗"
+        ) from exc
+    if state is not None:
+        raise AutonomousTrialError(
+            "既存 campaign state は D106 残余 1 の裁定まで再利用不可"
+        )
 
 
 def _strict_keys(value: Mapping[str, Any], expected: set[str], *, path: str) -> None:
@@ -739,6 +765,7 @@ def _run_workload(
     drive: Callable[..., Mapping[str, Any]] = trigger.drive_iteration,
     preview: Callable[..., Mapping[str, Any]] = _preview,
 ) -> dict[str, Any]:
+    _validate_generation_budget(generations)
     flags = WORKLOADS[workload]
     descriptor, descriptor_record = _descriptor_for(flags)
     cfg = _campaign_for(
@@ -753,6 +780,7 @@ def _run_workload(
         layout = campaign_layout(str(trigger.ident.campaign_id(cfg)))
     else:
         layout = CampaignLayout(str(run_root / "campaigns" / str(trigger.ident.campaign_id(cfg))))
+    _assert_fresh_campaign_state(layout)
     perf = _perf_for(flags)
     result: dict[str, Any] = {
         "workload": workload,
@@ -977,8 +1005,7 @@ def run_trial(
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
-    if isinstance(generations, bool) or not 1 <= generations <= MAX_GENERATIONS:
-        raise AutonomousTrialError(f"generations は 1..{MAX_GENERATIONS} 必須")
+    _validate_generation_budget(generations)
     if isinstance(max_wall_s, bool) or not isinstance(max_wall_s, int) or max_wall_s < 1:
         raise AutonomousTrialError("max_wall_s は正の int 必須")
     selected = list(workloads)
@@ -1069,7 +1096,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--provider", required=True, choices=("fixture", "claude-headless")
     )
     parser.add_argument("--workloads", type=_parse_workloads, default=list(WORKLOADS))
-    parser.add_argument("--max-generations", type=int, default=2)
+    parser.add_argument("--max-generations", type=int, default=1)
     parser.add_argument("--max-wall-seconds", type=int, default=DEFAULT_MAX_WALL_S)
     parser.add_argument("--no-build", action="store_true")
     parser.add_argument("--claude-executable", default="claude")
@@ -1080,6 +1107,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="fresh artifact directory (default: output/autonomous-trials/<trial-id>)",
     )
     args = parser.parse_args(argv)
+    _validate_generation_budget(args.max_generations)
     if args.provider == "fixture" and not args.no_build:
         raise AutonomousTrialError(
             "fixture provider cannot be used with a real build"

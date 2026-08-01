@@ -4866,6 +4866,12 @@ red digest (rejections / verify abort / diff quarantine) の到達先は critic 
 正式系列 (H1/H2 × on/off/swapped) は同一 generation budget を要求するため、
 この条件により自動的に禁止側へ入る。本制限は prompt 規律であり機械 gate は置いていない。
 
+**(supersede 2026-08-01、D114)** 最後の文「機械 gate は置いていない」は D112 が supersede した。
+承認上限を CLI・`run_trial()`・`_run_workload()` の 3 入口で強制する。あわせて「1 generation/cell は
+還流が起きない」の射程も限定された — 成立するのは **fresh campaign の単一 invocation** の場合であり、
+既存 checkpoint がある場合は残余 3 の経路で還流しうる。D114 はその checkpoint を provider 呼び出し前に
+拒否する。**本残余の本体 (還流設計そのもの) は D114 でも未解決**である。
+
 **(残余 2) provenance は「全 attempt 束縛」ではない。** `_invoke()` の invalid 分岐は
 `error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance`
 (source role SHA、effective prompt SHA、session/model) を捨てる。加えて valid 分岐でも
@@ -4877,6 +4883,11 @@ token provenance を再構成することはできない。
 build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら別の
 `--run-root` を指定しても同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
 「resume は MVP 範囲外」は run_root についての記述であって、campaign 状態には及ばない。
+
+**(supersede 2026-08-01、D114)** 「planner 前に旧 `loop_state.json` を読む」は
+「**最初の provider 呼び出し前に拒否する**」へ変わった。crash 後の再開は `--run-root` の変更でなく
+新しい trial id で行う。壊れた checkpoint も fresh とは扱わない。ただし freshness 検査と state 生成の
+**並行 race (TOCTOU) は D114 の保証対象外**であり、この残余は完全には閉じていない。
 
 **(残余 4) 出力先 namespace。** build 時の campaign 出力先は既存 s4 driver 族と同じ
 `output/campaigns/` である。D65 決定 (2) の本文「探索は `output/exploration/campaigns/`」に対しては
@@ -5288,7 +5299,97 @@ job が受理する非対称が残るため不採用。(c) submit の和の等�
 1 つの個別 guard が将来弱まった場合の backstop として残す)。(d) 族一般化として全 9 block の
 producer status を束縛する — 同型欠陥 (print が raise より前) は 1 件だけであり `DW-G03` の
 独立 2 例を満たさないため不採用。
-## D114. [T-249] 凍結証拠が bytes を縛る共有 Pegasus policy は「動かせる分だけ」task 別 file へ移し、残りは D96 手続へ返す — 索引は所在 inventory に限定する (2026-08-01)
+## D114. [T-244] 8c の宣言済み禁止を機械 gate 化する — 承認済み generation 予算と campaign state freshness を 3 入口で fail-closed にし、還流設計そのものは未解決のまま残す (2026-08-01)
+
+**背景:** D106 残余 1 は「cross-generation 還流が起きる `--max-generations >= 2` の運転を、この設計が
+裁定されるまで禁止する」と宣言し、runbook も 3 箇所で同じ禁止を書いていた。しかし**機械 gate は無く、
+CLI の既定値がむしろ `2`** だった。flag を省いて起動すると、禁止されたはずの運転条件へそのまま落ちる。
+本 D はこの宣言と実装の逆転を閉じる。T-244 の本体 (機序を漏らさずに失敗理由だけを次世代へ還流させる
+設計) は本 D では**解決しない**。
+
+**決定 (1): 承認済み generation 予算を `MAX_APPROVED_GENERATIONS = 1` として実装上の絶対上限
+`MAX_GENERATIONS = 10` から分離する。** 前者は研究裁定上の上限、後者は実装上の絶対能力である。
+解除はこの定数 1 個と境界テストの同時変更だけで行い、環境変数・隠し flag・provider 別例外は作らない。
+
+**決定 (2): 検査を CLI `main()`・公開 `run_trial()`・direct `_run_workload()` の 3 入口に置く。**
+D106 決定 (6) は fixture+build の拒否について programmatic 経路を範囲外としたが、残余 1 の禁止対象は
+invocation 形式でなく**運転**であり、その carve-out を持たない。`run_trial()` は公開名で
+`do_build=True` と `generations=2..10` を受理し campaign WAL の COMMIT へ到達しうるため、CLI 限定の
+gate は宣言済み禁止の機械化にならない。拒否位置は CLI が build 準備 (競合 process 検査・checkout・
+pinned clean) より前、`run_trial()` が `run_root` と journal の作成より前、`_run_workload()` が
+config/layout/provider 処理より前である。
+
+**決定 (3): 型検査を exact built-in `int` へ閉じる。** `isinstance(generations, int)` では、値 1 を
+名乗りつつ `__add__` を上書きした `int` サブクラスが `range(1, x + 1)` で複数世代を回せる。3 入口が
+同じ object と同じ validator を共有するため多層化では防げない。このとき campaign ID と report の
+`generation_budget` は 1 のまま journal / WAL に複数 generation が入り、**予算と proof chain が
+食い違う**。規律 2 が想定する「最適化圧力は正しさを攻撃しに来る」形そのものなので、`type(...) is int`
+で閉じる。判定は型・絶対範囲・承認上限の 3 段に**分離**して置く (変異の単一理由性のため)。
+
+**決定 (4): `_run_workload()` は最初の provider 呼び出し前に campaign checkpoint の freshness を
+検査する。** build 経路の campaign root は cfg の内容 hash から決まり `--run-root` を含まないため、
+同じ trial/config で `--run-root` だけ変えた 1 generation の run を連結すると、共有 campaign state 上で
+適応探索を再構成できる (D106 残余 3 が記録済みの経路)。`loop_state.json` が無く loader が `None` を
+返す layout だけを受理し、parse 可能な既存 checkpoint は iteration 数・whiteboard 内容にかかわらず
+拒否する。
+
+**決定 (5): 壊れた checkpoint を fresh と扱わない。** 読取・decode・schema 検査・whiteboard leak の
+失敗は cause を保持したまま `AutonomousTrialError` へ包む。素の `ValueError` / `WhiteboardLeakError` が
+supervisor 契約の外へ漏れると、report の `fatal_error.type` が入力形状次第で揺れ、direct API の
+結果契約が不安定になる (F68 型)。**捕捉は checkpoint データ由来として実際に起こりうる例外型
+(`OSError` / `ValueError` (`json.JSONDecodeError`・`UnicodeDecodeError`・`WhiteboardLeakError` を包含) /
+`KeyError` / `OverflowError`) に限定する。** catch-all にすると loader 内のプログラミングエラー
+(`AttributeError` / `TypeError` / `AssertionError`) まで「checkpoint 破損」へ偽装し、失敗分類を
+握り潰す (F37 同型)。これらは素通しし、素通しすることを負例テストで固定する。
+
+**API 互換性の変更 (決定 3 の帰結):** 決定 3 の exact 型検査により、`enum.IntEnum` や NumPy 整数を
+含む**すべての `int` サブクラス**が拒否される。repo 内の呼び出し元は CLI の `argparse type=int` と
+テストだけなので影響は無いが、外部の programmatic caller に対しては契約の縮小である。
+
+**決定 (6): CLI `--max-generations` の既定値は literal `1` とし、承認上限定数に連動させない。**
+将来 `MAX_APPROVED_GENERATIONS` を引き上げても、別裁定で既定値を変えない限り flag 省略運転は 1 の
+ままとする。連動させると上限引上げが flag 省略運転まで自動的に multi-generation 化し、新たな受理集合
+変更が無裁定で入る。既定値が literal であることは AST で pin する (値テストだけでは
+`default=MAX_APPROVED_GENERATIONS` への同値 refactor を検出できない。F69 型)。
+
+**受理集合の変更 (D96 の 2 要件のうち 1):** `generations` は `bool` を除く exact `int` かつ絶対範囲
+`1..10` を満たしたうえで承認上限 `1` を適用する。したがって現在受理するのは `1` のみ、整数 `2..10` は
+「実装可能だが未承認」、0 以下・11 以上・bool・非 int・`int` サブクラスは契約違反として拒否する。
+既存 checkpoint を持つ campaign layout の invocation も新たに拒否する。従来 flag 省略で予算 2 だった
+invocation は予算 1 になり、`generation_budget` が `search_config` を経て campaign ID の preimage に
+入るため、**campaign ID / root、journal と report の generation budget、role attempt 数、WAL へ到達
+しうる候補集合が変わる**。境界テストは同じ変更単位で更新した (D96 の 2 要件のうち 2)。
+
+**保証の限界 (これ以上を主張しない):**
+- T-244 本体 = 規律 3 の還流設計は**未解決**である。本 D は残余 1 の「機械 gate なし」だけを supersede し、
+  「cross-generation 還流を機械的に禁止した」とは名乗らない。
+- `run_trial(drive=...)` / `providers=` / `preview=` の注入経路は保証対象外である。1 callable 内で
+  複数 iteration を回す `drive` を渡せば予算検査を素通りする。
+- `p3_s4_loop_trigger_gating.drive_iteration()` の直接反復は保証対象外である。他の正当な
+  human-supervised loop が resume を仕様として使うため、ここに承認上限を置かない。
+- **freshness 検査と state 生成の並行 race (TOCTOU) は保証対象外である。** 同じ trial/config の 2 つの
+  supervisor が同時に検査を通過しうる。逐次連結は閉じたが、原子的 reservation は実装していない。
+  並行実行は計測規律 (単独性確認) が既に禁じ、build 経路は `competing_bench_pids()` が部分的に覆う。
+- freshness の対象は `loop_state.json` であり、campaign lock・WAL・provenance 全般ではない。
+- D106 決定 (6) の fixture+build programmatic carve-out は残る。
+  `run_trial(generations=1, provider_kind="fixture", do_build=True)` の直接呼び出しまでは閉じていない。
+
+**却下した案:** (a) CLI だけに gate を置く — 禁止対象が運転であり programmatic carve-out が無いため
+不十分。(b) 既定値を撤去して flag を必須にする — runbook の全例が既に明示しており互換性損失は小さいが、
+既定値 1 で同じ効果が得られ、既存 invocation を壊さない。(c) `drive` 注入 seam を production API から
+外す — interface 変更として本 wave の scope 外。(d) 原子的 campaign reservation — 独立した設計
+(stale lock 処理・異常終了時の解放) を要するため裁定パッケージへ送る。
+
+**D106 との関係:** 残余 1 の「本制限は prompt 規律であり機械 gate は置いていない」を本 D が supersede
+する。残余 3 の「別 run-root でも campaign 状態は再利用されうる」は、**provider 呼び出し前に拒否する**
+へ supersede する。D106 の「最大 10 世代」は実装上の絶対範囲であり、production の承認上限 1 とは別物
+である。残余 2 (provenance が全 attempt 束縛でない) と残余 4 は変わらない。
+
+**研究状態への影響:** certified 選択の値、材料レポート、既存の凍結 bytes、proof chain の既存参照は
+いずれも不変である。変わるのは (i) 8c の generation 予算の受理集合、(ii) 既存 campaign state を持つ
+invocation の受理集合、(iii) flag 省略運転の campaign ID と report/journal の budget 値、の 3 点である。
+材料正本 = `output/insights/2026-08-01_t244-generation-gate/`。
+## D115. [T-249] 凍結証拠が bytes を縛る共有 Pegasus policy は「動かせる分だけ」task 別 file へ移し、残りは D96 手続へ返す — 索引は所在 inventory に限定する (2026-08-01)
 
 **背景 (裁定と実測):** worklog (94) のユーザー裁定は [T-249] について択 (b)「共有 Pegasus policy を
 タスク別 file へ再編する。凍結証拠の意味論には手を入れない。分散する設定は索引 1 つで辿れるようにする」
