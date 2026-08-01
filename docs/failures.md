@@ -1232,3 +1232,29 @@
 - 再発検知: guard_bash の拒否メッセージ自体が検知である (fail-closed で黙って通らない)。
   入口 `.claude/commands/cleanup-branches.md` §3 へのポインタ追記は byte 上限
   4000 に対し実測 headroom 41 で入らず、同ファイルの編集を既に所有する [T-208] へ合流させた
+
+### F64. literal を registry へ寄せる refactor で、値ベースの positive control が原理的に無力だった [テスト代表性]
+- 事象: 軸 driver `p3_s4_loop_trigger_gating` の環境 3 定数 (`ENV_TAG` / `CLK` / `NUMA`) を
+  `env_contract` 解決へ寄せた wave (worklog 2026-08-01 (84))。受入は**最初から緑**
+  (計算ノードで 409 passed) だったが、敵対レビュー 2 本と焦点再レビュー 2 巡が
+  「緑のまま生存する変異」を段階的に 4 族見つけた。変異事前登録は 8 件 → 25 件になり、
+  fix を 3 巡した。**3 巡とも production は byte 単位で不変**で、閉じたのは全てテストの検出力である
+- 根本原因: (1) 移す先の registry 値が削除する literal と**同値**である間
+  (`linux-baremetal` = 1800 / `["numactl","--interleave=all"]`)、「lookup を呼んで結果を捨て
+  literal を渡す」変異は観測上等価になる。値ベースの positive control は原理的にこの族を殺せない。
+  (2) さらに変異は「production 既定 seam で走っているか」(`_lookup is env_contract.lookup`) で
+  条件付けでき、seam を差し替える sentinel テストは**必ず else 側に入る**。
+  (3) 旧定数を持つ姉妹モジュールが scope 外で残っていると、driver から literal 無しで旧値へ到達できる
+- 恒久対応: 同型の refactor では次を必ず置く。実体は
+  `orchestrator/tests/test_p3_s4_loop_trigger_gating.py` の該当テスト群と、
+  検査機構としての `orchestrator/campaign/env_contract.py` の `find_env_literals`。
+  (a) registry のどの値とも異なる **sentinel を seam から注入**して実引数を照合する。
+  (b) selector は同値のまま値だけ異なる **same-selector sentinel** も置く。
+  (c) seam 条件変異は値テストでは閉じないので **source AST の構造検査**を併用する —
+  selector 代入の Constant pin、旧定数への属性参照と import alias の禁止、
+  selector と resolver と site seam の参照範囲 pin、admission 本体の exact-shape pin。
+  (d) 構造検査は難読化 (`getattr`, `exec`, 動的 import) に防壁を主張しない。限界を docstring に書く
+- 再発検知: 事前登録に「lookup 結果を捨てて literal を返す」「既定 seam 条件で旧値へ戻る」の
+  2 族を必ず含める。両族が kill されない限り positive control を緑と数えない。
+  本 wave の実測は変異 25 件すべて KILLED、canonical 期待 node の一致 25/25
+  (`output/insights/2026-08-01_axis-env-contract-wave/s6-mutation-matrix.md`)
