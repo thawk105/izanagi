@@ -412,6 +412,10 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   受理する — 並列度はバイナリ bytes に影響しないという裁定である (D103 決定 4)。
   binary identity の検査 (`bin_sha256`、trace diff、`src_token` 再照合) は緩めない
 - 単独性の確認 (pgrep 等) は、割り当てられた計算ノード上で行う (割当てを専有の保証と見なさない)
+- **CC 合成 campaign** は supervisor と LLM 4 役 (planner / coder / auditor / critic) をログインノード、
+  build / verify / bench を計算ノードに置く (D106)。計算ノードで `claude -p` を起動しない。
+  **`campaign` の dispatch task は未実装**であり、driver の終了コードが iteration の `outcome` を
+  反映しない等の契約不足が解消するまで、campaign を計算ノードへ送る sanctioned 経路は存在しない
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した
 - ジョブ投入 (`qsub` / submit wrapper) の実行環境を確認した。原則はユーザー自身の端末。

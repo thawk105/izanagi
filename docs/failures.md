@@ -1079,12 +1079,12 @@
   SHA 指定 ff-only を行う。stale / busy は fresh context へ返し、再監査と受入再走なしに再試行しない。
 - **再発検知:** helper の境界 test と同一 base 二 wave の実 subprocess E2E。未知 dirt、偽 worktree、
   stale SHA、lock loser、non-FF、未監査 commit、gitlink postcondition 不成立をそれぞれ拒否する。
-- **恒久対応の射程を後に狭めた (2026-08-01、D108 / [T-220])**: 上記の「**形式が正しく**Git admin と
+- **恒久対応の射程を後に狭めた (2026-08-01、D109 / [T-220])**: 上記の「**形式が正しく**Git admin と
   双方向束縛された制御面だけを非接触例外にし」という形は、**書式が崩れた他 session の handoff で
   無関係な wave の land を止める**という新しい実害を生んだ ((73) は着地せず終了、(77)(78) は各 1 回拒否)。
-  D108 が cleanliness 軸を「incoming と衝突する untracked だけ拒否」へ一本化し、
+  D109 が cleanliness 軸を「incoming と衝突する untracked だけ拒否」へ一本化し、
   `docs/handoff/` 配下は**書式を問わず**非接触にした。**本 F の恒久対応欄の「形式が正しく」は
-  現在の実装を表さない。** 現況の正本は D108。
+  現在の実装を表さない。** 現況の正本は D109。
 - 記録: worklog 2026-07-30 (67)、設計判断: D102、材料:
   `output/insights/2026-07-29_dev-wave-parallel-land/`
 
@@ -1349,11 +1349,11 @@
   (`RC_CONTROL_PLANE` 等) の外側で traceback 終了する
 - 同型: `_read_regular_at` の `os.read` の `OSError` も未捕捉である。こちらは
   [T-220] wave で `docs/handoff/` からの到達経路が消えただけで、**関数自体の穴は残る**
-  (残 caller は worktree admin metadata = D108 の scope 外面)
+  (残 caller は worktree admin metadata = D109 の scope 外面)
 - 根本原因: 「検査は `_Reject` を投げる」という契約を、**入力が想定形であることを前提にした
   素の index / IO 操作**が破っていた。fail-closed のつもりの gate が、実際には
   **構造化された拒否ではなく異常終了**を返す形になっていた
-- 恒久対応: D108 の決定 (1) で `_validate_handoff_at` ごと削除した (handoff の内容を読まなくなった)。
+- 恒久対応: D109 の決定 (1) で `_validate_handoff_at` ごと削除した (handoff の内容を読まなくなった)。
   `docs/handoff/` 経路の穴は消えた。**`_read_regular_at` 側は未対応であり、
   同型の第 2 例が出た時点で `DW-G03` に従い族として一般化して閉じる**
 - 再発検知: 「gate が `_Reject` 以外で終了しうるか」は現状テストで固定していない。

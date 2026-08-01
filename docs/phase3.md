@@ -675,7 +675,7 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   Git admin に双方向登録された worktree container を非接触で保ち、tested SHA・ordered closure・
   common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D102、
   失敗台帳=F55、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`、
-  記録=worklog (67)。**非接触例外の条件は 2026-08-01 の D108 ([T-220]) が上書きし、
+  記録=worklog (67)。**非接触例外の条件は 2026-08-01 の D109 ([T-220]) が上書きし、
   handoff は書式を問わず非接触・拒否は incoming との衝突軸だけになった。**
 - [T-145] **(完了 2026-07-29) long-path serve test の固定 join 二律背反除去** —
   `join(120)`のwall-clock合否を、実listener/SignalRelay・real exchange・shutdown/release/returnの

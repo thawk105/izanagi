@@ -1,4 +1,4 @@
-# 段 6 変異台帳 — parallel-dev wave ([T-220] / D108)
+# 段 6 変異台帳 — parallel-dev wave ([T-220] / D109)
 
 - 本走 anchor commit: `4837ffc` (merge commit、`DW-O19` の「本走は統合 commit 後」を満たす)
 - harness (repo 外・非 commit): `/home/SFC/tanab/.claude/jobs/6e0f3aa9/tmp/mutation/harness.py`
