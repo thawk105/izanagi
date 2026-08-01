@@ -44,12 +44,16 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
-着手前に `grep -rn "<成果物パス>" --include=*.py` で bytes を pin する台帳・test・trust root を
-全列挙する。`FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
-review ledger も対象に含め、durable manifest が未発行か再発行要かを区別して brief の不変条件へ
-書く（F27/F30、D84）。**docs のみの wave でも成立する** — 発火判定を「コードを触るか」で
-代用せず、編集する docs path も同じ検索に掛ける（F76）。統一系 wave では各出現を live copy /
-独立 golden / 凍結 snapshot / 歴史記録へ分類してから scope を裁定する（F39）。
+着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
+bytes を pin する台帳・test・trust root を全列挙する。
+`FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
+review ledger も対象に含める。path 検索が見つけるのは path を key にする
+pin だけである。review ledger のように role 名を key に張る pin は key 側でも検索し、
+path の hit 0 件を pin なしと結論しない（F30）。
+durable manifest が未発行か再発行要かを区別して brief の不変条件へ書く（F27/F30、D84）。
+統一系 wave では各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類してから
+scope を裁定する（F39）。
+**docs のみの wave でも成立する** — 判定をコードの有無で代用せず docs path も検索する（F77）。
 
 ## DW-O10 — producer write-path
 
