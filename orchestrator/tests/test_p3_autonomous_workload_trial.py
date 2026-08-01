@@ -406,6 +406,9 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
     assert report["attempt_journal_sha256"] == hashlib.sha256(
         (run_root / "attempts.jsonl").read_bytes()
     ).hexdigest()
+    assert (run_root / "namespace.json").read_bytes() == (
+        b'{"namespace":"exploration"}\n'
+    )
     for payload in providers["coder"].payloads:
         assert set(payload["planner_direction"]) == {"axis", "direction", "magnitude"}
         assert "justification" not in payload["planner_direction"]
@@ -786,6 +789,145 @@ def test_run_workload_accepts_actual_fresh_campaign_layout(tmp_path) -> None:
     assert all(len(provider.payloads) == 1 for provider in providers.values())
 
 
+def test_run_workload_build_passes_exploration_layout_to_trigger(
+    tmp_path, monkeypatch,
+) -> None:
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    passed_layouts = []
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(),
+    ):
+        assert do_build is True
+        passed_layouts.append(layout)
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+        }
+
+    result = A._run_workload(
+        workload="ycsb-a",
+        generations=1,
+        providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        cache_root="/unused-cache",
+        trial_id="build-exploration-layout",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=drive_build,
+        preview=_fake_preview,
+    )
+
+    expected = tmp_path / "exploration" / "campaigns" / result["campaign_id"]
+    assert Path(result["campaign_root"]) == expected
+    assert [Path(layout.root) for layout in passed_layouts] == [expected]
+
+
+def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
+    tmp_path, monkeypatch,
+) -> None:
+    """F5/M08: public run_trial から実際に trigger sink へ渡る root を見る。"""
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    passed_layouts = []
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(),
+    ):
+        assert do_build is True
+        passed_layouts.append(layout)
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
+            "fixture digest without performance", encoding="utf-8",
+        )
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+        }
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="public-build-exploration-layout",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=drive_build,
+        preview=_fake_preview,
+    )
+    expected = (
+        tmp_path / "exploration" / "campaigns" / report["cells"][0]["campaign_id"]
+    )
+    assert [Path(layout.root) for layout in passed_layouts] == [expected]
+    assert Path(report["cells"][0]["campaign_root"]) == expected
+    assert not (tmp_path / "campaigns" / report["cells"][0]["campaign_id"]).exists()
+
+
+def test_run_workload_no_build_stays_trial_local(tmp_path) -> None:
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    result = A._run_workload(
+        workload="ycsb-a",
+        generations=1,
+        providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        cache_root="",
+        trial_id="no-build-trial-local",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+
+    assert Path(result["campaign_root"]) == (
+        run_root / "campaigns" / result["campaign_id"]
+    )
+
+
 def test_freshness_wraps_malformed_json_with_cause(tmp_path) -> None:
     layout = A.CampaignLayout(str(tmp_path / "campaign"))
     layout.ensure()
@@ -1043,6 +1185,61 @@ def test_main_accepts_claude_headless_no_build_at_cli_gate(
             "--ccbench-dir", str(tmp_path / "ccbench"),
             "--run-root", str(tmp_path / "run"),
         ])
+
+
+def test_main_default_run_root_is_exploration_autonomous_trials(
+    tmp_path, monkeypatch,
+) -> None:
+    captured = {}
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *args, **kwargs: None)
+
+    def capture_run_trial(**kwargs):
+        captured.update(kwargs)
+        return {"status": "complete", "cells": []}
+
+    monkeypatch.setattr(A, "run_trial", capture_run_trial)
+    assert A.main([
+        "--trial-id", "default-exploration-root",
+        "--provider", "fixture",
+        "--no-build",
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+    ]) == 0
+    assert captured["run_root"] == (
+        A.ROOT
+        / "output"
+        / "exploration"
+        / "autonomous-trials"
+        / "default-exploration-root"
+    )
+
+
+def test_main_explicit_run_root_still_wins(tmp_path, monkeypatch) -> None:
+    captured = {}
+    explicit = tmp_path / "explicit-run-root"
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *args, **kwargs: None)
+
+    def capture_run_trial(**kwargs):
+        captured.update(kwargs)
+        return {"status": "complete", "cells": []}
+
+    monkeypatch.setattr(A, "run_trial", capture_run_trial)
+    assert A.main([
+        "--trial-id", "explicit-root",
+        "--provider", "fixture",
+        "--no-build",
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+        "--run-root", str(explicit),
+    ]) == 0
+    assert captured["run_root"] == explicit
+
+
+def test_main_help_names_exploration_autonomous_trials(capsys) -> None:
+    with pytest.raises(SystemExit) as caught:
+        A.main(["--help"])
+    assert caught.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "output/exploration/autonomous-trials/<trial-id>" in help_text
+    assert "output/autonomous-trials/<trial-id>" not in help_text
 
 
 def _role_file(path: Path) -> Path:

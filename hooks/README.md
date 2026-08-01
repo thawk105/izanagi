@@ -41,6 +41,10 @@ TRACE 混入は build 出口の一次防壁が捕える。
 - **成果物への直接書き込み拒否 (規律2):** `output/campaigns/*/runs/` (WAL)・`campaign.lock`・
   `build-variants/` への Edit/Write を拒否。COMMIT/fitness を書く唯一の経路は `pipeline.evaluate()`。
   比較基盤は realpath で解決 (output/ が別ボリュームへの symlink でも fail-open しない, 3 巡目 fix)。
+  campaign tree は official / exploration の閉じた 2 要素集合 (`output/campaigns` と
+  `output/exploration/campaigns`) であり、同じ条件を両方へ適用する (D123)。
+  `output/exploration/namespace.json` (exact path) も改変・削除・移動を拒否する — この marker が
+  消えると official report が exploration root を official として受理しうるため。read は許可する。
 - **編集面の限定 (規律1・2, D23/D24):** `external/ccbench/` 内は EVOLVE-BLOCK ソース
   (`source_digest.EVOLVE_BLOCK_SOURCES`。現有の対象ファイルは同定数が正本 — 軸の追加で増えるため
   ここに値を再掲しない) だけ書き込み可。`Options.cmake` 等は
@@ -191,7 +195,8 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   のみ防護)。approval/active/revocation の真正性は hook でなく `s8b_ratified_freeze` の Git attestation が担う。
   Codex 側は hook 未配線 (`.codex/hooks.json` 不在)。AI 偽装を脅威モデル内で塞ぐには allowlist 鍵署名への
   再裁定が要る (C1-11 の should-fix、F6 代替案 b)。
-- **ハーネス自身は防護対象外**: 防護ツリーは `output/campaigns` と `external/ccbench` のみで、一次防壁の
+- **ハーネス自身は防護対象外**: 防護ツリーは `output/campaigns`・`output/exploration/campaigns`・
+  `external/ccbench` (と marker 1 file) のみで、一次防壁の
   コード・hook 自身・`.claude/settings.json` への書き込みはどの hook も守らない。緩和は規律6 の監査 + 人間の
   コミットレビュー (機械防壁を自己参照で増やすと規律5 と衝突)。
 

@@ -908,10 +908,20 @@ def test_pilot_age_cap_uses_manifest_clock(git_repo: Path, monkeypatch: pytest.M
         )
 
 
-@pytest.mark.parametrize("namespace", ["campaigns", "env", "s1-freeze", "s8b-freeze", "s6-rounds", "runs"])
+@pytest.mark.parametrize(
+    "namespace",
+    ["campaigns", "env", "exploration", "s1-freeze", "s8b-freeze", "s6-rounds", "runs"],
+)
 def test_evidence_namespace_root_is_rejected(tmp_path: Path, namespace: str):
     with pytest.raises(LedgerError):
         init_pilot(tmp_path / "output" / namespace / "task-runs")
+
+
+def test_task_run_namespace_root_remains_accepted(git_repo: Path):
+    """M17: `_assert_safe_root` を output 全体拒否へ変異すると単独で赤。"""
+    root = git_repo / "output" / "task-runs"
+    init_pilot(root)
+    assert validate_root(root).is_valid
 
 
 def test_path_traversal_and_symlink_are_rejected(run: tuple[Path, str], tmp_path: Path):
