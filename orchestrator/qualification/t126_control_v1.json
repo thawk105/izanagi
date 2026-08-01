@@ -1,0 +1,113 @@
+{
+  "schema_version": "t126-qualification-control/v1",
+  "authority": "evidence-only/no-promotion",
+  "hold_enforced": false,
+  "statistical_claim": "none",
+  "control_kind": "historically-within-linux-floor-observational-smoke",
+  "environment": {
+    "env_tag": "pegasus",
+    "clocks_per_us": 2100,
+    "numactl": [],
+    "attestation_mode": "required",
+    "single_process": true,
+    "allow_resume": false
+  },
+  "source": {
+    "campaign_lock_path": "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/campaign.lock",
+    "campaign_lock_sha256": "5ffcabad086d15725ff14dcc5c75c57c1cf6fa048c7736e06ca6a8e19bc44000",
+    "wal_path": "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/runs/wal.jsonl",
+    "wal_sha256": "50f772772fc5c2cd527338c54a43bd9b7b29dc4e2637f73df2cbecb05e0ea76d",
+    "historical_ccbench_commit": "6656e93",
+    "required_stage_order": [
+      "build_start",
+      "build_done",
+      "verify_done",
+      "bench_done",
+      "commit"
+    ],
+    "members": {
+      "subject": {
+        "source_wal_variant": "b971a1d9f80a",
+        "genome": "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0",
+        "historical_median_tps": 8487844.0
+      },
+      "reference": {
+        "source_wal_variant": "5185ee5e6094",
+        "genome": "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "historical_median_tps": 8445065.0
+      }
+    }
+  },
+  "workload": {
+    "records": 1000000,
+    "threads": 48,
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "95",
+    "ycsb_rmw": "0",
+    "ycsb_max_ope": "10",
+    "extime": 3,
+    "reps": 5,
+    "bench_max_rounds": 1
+  },
+  "verification": {
+    "order": [
+      "legacy",
+      "s2"
+    ],
+    "require_settled": true,
+    "require_all_rep_rc_zero": true,
+    "require_commits_positive": true,
+    "require_aborts_positive": true,
+    "require_anomalies_zero": true,
+    "require_distinct_trace_perf_binaries": true
+  },
+  "threshold": {
+    "relative": 0.03,
+    "comparison": "subject/reference-1 > relative",
+    "threshold_origin_env": "linux-baremetal",
+    "pegasus_floor_calibrated": false
+  },
+  "sprt": {
+    "p0": 0.5,
+    "p1": 0.9,
+    "alpha": 0.1,
+    "beta": 0.1,
+    "rmax": 8,
+    "upper_comparison": ">",
+    "lower_comparison": "<"
+  },
+  "order": {
+    "seed": "t126-qualification-control-v1-balanced-alternation",
+    "strategy": "seeded-first-then-alternate",
+    "max_prefix_first_position_imbalance": 1
+  },
+  "timing": {
+    "member_cap_s": 900,
+    "member_term_grace_s": 10,
+    "round_gap_s": 1800,
+    "prologue_cap_s": 900,
+    "attestation_cap_s": 600,
+    "finalize_reserve_s": 600,
+    "wmax_s": 29100,
+    "qualification_walltime_s": 36000
+  },
+  "retry": {
+    "max_retries": 1,
+    "only_before_first_observation": true,
+    "eligible_reasons": [
+      "pre-attempt-infrastructure",
+      "pre-member-infrastructure",
+      "pre-attestation",
+      "reservation-unavailable"
+    ]
+  },
+  "artifact": {
+    "namespace": "output/env/pegasus/qualification/t126",
+    "marker_schema": "t126-qualification-marker/v1",
+    "event_schema": "t126-qualification-event/v1",
+    "evaluation_event_schema": "t126-qualification-evaluation-event/v1",
+    "series_result_schema": "t126-qualification-series-result/v1",
+    "final_receipt_schema": "t126-qualification-final-receipt/v1",
+    "failure_receipt_schema": "t126-qualification-attempt-failure-receipt/v1"
+  }
+}

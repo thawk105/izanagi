@@ -4755,3 +4755,430 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
 構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
 抑止されないため変更前から rc=1 だった。
+
+---
+
+## D106. [T-178] 8c の優先度を上げ、汎用 daemon でなく workload-conditioned bounded trial として先に閉じる (2026-07-29 起草 / 2026-08-01 [T-207] で訂正のうえ採番して land)
+
+**採番と訂正の経緯:** 本 D は `codex/p3-autonomous-trial` (tip `402086d`) 上で 2026-07-29 に
+`D99` として起草され、land されないまま残っていた。その間に main が `D99` を
+`[T-143] RuleOps v1` へ使ったため、[T-207] の取り込み時に `D106` へ採番し直した。
+同時に、独立の敵対監査 (規律 6) が**起草時の本文と実装の食い違い 4 件**を検出したため、
+該当箇所を訂正して land した。訂正箇所は本文中に「**訂正 (2026-08-01):**」で明示する。
+**correction ledger の正本は `output/insights/2026-08-01_t207-adoption-audit/README.md` の
+「説明と実装の食い違い 6 件」の表**であり、本 D と `docs/phase3.md` はその 6 件を指す。
+起草時の逐語は `codex/p3-autonomous-trial:docs/decisions.md` の `D99` に残る。
+
+**背景:** 8c は「8b と層3を 1 cycle 回してなお人間セッション運営が律速なら着手」の条件付きだった。
+ユーザーは研究完成を近づけるため優先度を明示的に変更し、Python orchestrator が iteration 間を運び、
+LLM role を直接呼び、固定世代または成果条件で停止・報告することと、最初の YCSB A/B/C trial を求めた。
+一方、性能成果を見て止める設計は Best-of-N / 選択的報告を生み、A=rr50/B=rr95 は結果既知点なので、
+そのまま正式主張へ使えない。
+
+**決定 (1): 最初の 8c は四機能を一体化した bounded MVP とする。** 実装単位は
+`unattended runner + workload-conditioned generation + fixed stop + exhaustive report`。
+既存の安全性が成立済みな `silo-backoff-trigger-gating` 1 軸だけを再利用し、planner / coder /
+auditor / critic を Python から fresh context で直接呼ぶ。複数軸 population、axis-proposer、
+汎用 daemon、分散 worker を先に一般化しない。生成候補の build 以降は既存
+DiffQuarantine / syntax gate / auditor digest gate / legacy+S2 / bench pipeline が
+**採否を決める唯一の authoritative path** であり、supervisor はこれを迂回しない。
+
+> **訂正 (2026-08-01):** 起草時は「supervisor はこれを迂回・**再実装しない**」と書いていたが、
+> 実装は `_preview()` で DiffQuarantine と禁止識別子検査を **supervisor 側でも再実行**している
+> (auditor を呼ぶか否かの pre-audit)。authoritative path が後段で再検査するため
+> **受理集合は広がらない**が、「再実装がない」は事実に反するため文言を狭めた。
+> 両者が drift した場合、pre-audit 側は余分に reject しうる (fail-closed 方向)。
+
+**決定 (2): runtime role は projection-only `tools=[]` へ縮退する。** selector 8b の headless
+provider と同じ neutral cwd、空 MCP、session persistence なし、env allowlist、1 turn、Opus/token/
+server-tool/session-id 検査を使う。source role が Read/Bash を宣言していても runtime へ継承せず、
+必要 byte を stdin JSON へ射影する。receipt は source role SHA だけでなく mediated effective prompt
+SHA と payload/envelope/CLI SHA を持つ。Codex role adapter は正本が runtime blocked とする間は使わず、
+通常の Codex 子を role 隔離の代替にしない。
+
+> **訂正 (2026-08-01) — 保証の格:** この縮退は**引数と設定の射影**であって、実 process の能力を
+> 観測した証明ではない。report の `fresh_context` / `observed_tool_events` は supervisor が
+> 書いた literal であり、**この field 自体は実証ではない** (周辺には `num_turns`・session-id・
+> permission denial・server-tool counter の部分検査が実在するので、field を「恒真ゲート」とだけ
+> 呼ぶのは実装の過小評価になる)。session id の重複拒否は provider instance
+> ごとの集合なので **role 横断の再利用は拒否しない**。model 検査は Opus prefix が 1 つ在ることと
+> その record の token が正であることだけを見ており、他 model の併記を禁じない (実 receipt では
+> aux model の併記が観測されている)。`claude` 実行バイナリは hash を**記録するだけで承認 hash と
+> 照合しない** — これは既に land 済みの `s8b_prediction_runner.py` と同じ族の作法であり、
+> trust root の新設は本 D の範囲外とする ([T-242])。
+
+**決定 (3): planner→coder は抽象 3 field だけを渡す。** 最初の実 Claude dry-run で planner の
+justification が具体的な gate mechanism を述べ、これをそのまま coder へ渡すと planner が実装を
+誘導して規律3の独立推理を壊すことが判明した。coder payload の planner 射影を
+`axis/direction/magnitude` に閉じ、justification/uncertainty は report には残すが生成入力へは流さない。
+descriptor は planner/coder の双方へ proposal 前に渡し、各 role attempt の payload SHA と同じ
+descriptor output SHA を journal で束縛する。
+
+**決定 (4): stopping は固定世代を既定とし、performance target 早期停止を入れない。**
+supervisor は最大10世代、全体 wall safety budget、既存 safe-loop stop を持つ。各 role は generation
+ごとに1 attempt・retryなし。invalid response は当該 cell を `role-invalid` で停止して partial report
+へ残し、別 cell は継続する。初回実 Claude trial で auditor が `list[str]` を返した際、既存
+`list[dict]` gate が 3 cell とも fail-closed にし、同 trial 内再試行なしで partial が保存された。
+次 trial で mediated schema を object 配列へ明確化し、12/12 role attempt valid・3/3 dry-pass を確認した。
+
+> **訂正 (2026-08-01) — 2 点。** (a) `max-wall-seconds` は **hard wall でも safety 上限でもない**。
+> 時刻検査は workload と generation の**先頭だけ**で行うため、期限を超えても、その generation の
+> coder・auditor・drive/build・critic は新たに開始される (1 回の role 呼び出しだけで最大 1200 秒)。
+> 正確には「**次の境界で開始を止める閾値**」であり、指定値を大きく超過して走りうる。
+> (b) 「mediated schema を object 配列へ明確化した」の射程は**要素が `dict` であることまで**で、
+> 要素の field は閉じていない。`{}`・未知キー・非文字列 field を含む要素は現在も通る。
+
+**決定 (5): YCSB A/B/C は operational pilot に限定する。** A=rr50、B=rr95、C=rr100
+(skew 0.9、rmw 0、100k records、4 threads) を descriptor projection と無人配線の最初の試験に使う。
+C は read-only negative-control 候補だが、write conflict が無ければ trigger-gating 軸の signal が
+無い可能性を明記する。`dry-pass` は build 手前の配線成立だけで correctness/性能/特化の証拠ではない。
+正式な workload-conditioned synthesis 主張は H1 rr80/H2 rr20 × on/off/swapped、同一固定 budget、
+同一 correctness gate、全件報告を実装・凍結・実走するまで未成立とする。
+
+**決定 (6) ([T-207] で追加、2026-08-01): `--provider fixture` は `--no-build` 併用時だけ受理する。**
+起草時の CLI は `--provider` と `--no-build` を独立 flag として扱い、
+**`--provider fixture` かつ実 build** を受理していた。fixture provider の auditor は入力を監査せず
+無条件 `pass` を返すため、この組合せでは reward hack の番人である semantic auditor だけが no-op の
+まま build → legacy+S2 → bench が走り、COMMIT が campaign 台帳へ入る。legacy+S2 verifier は
+生きているので serializability は守られるが、規律 2 (正しさゲートを緩める変異を許さない) に
+触れるため、CLI 層で fail-closed 拒否する。拒否は build 準備 (競合 process 検査・checkout) より
+**前**に置き、`run_trial()` の signature と既定値は変えない。programmatic 経路
+(`run_trial(do_build=True)` の直接呼び出し) まで塞ぐのは本 D の範囲外とする。
+D96 に従い境界テストを同じ変更単位へ置く。
+
+**残余:** axis-proposer、複数軸、Codex provider は範囲外。正式設計が第一予算とする bench 実時間の
+独立 accounting も未実装で、現 wall 値は上記のとおり境界閾値にすぎない。このため bounded pilot は
+「human が iteration 間を運ばない」ことを実証するが、project 全体の究極的な unattended/autonomous
+完了は主張しない。取り込み監査で判明した残余は次の 4 点である。
+
+**(残余 1) 規律 3 の還流が human loop より狭い ([T-244])。** 次世代の planner/coder payload が
+受けるのは descriptor・現行 metrics・leading indicators・抽象 whiteboard
+(`whiteboard_for_planner()` = direction/magnitude/result/delta_pct) だけで、critic の
+`attribution/recommend/avoid/uncertainty` は `reverse_recommended` の boolean へ畳まれる。
+red digest (rejections / verify abort / diff quarantine) の到達先は critic であり、
+次世代の生成入力ではない。human-supervised loop ではこの critic 帰属を**メインセッションが
+消費**していた (D39) が、8c はそのセッションを Python へ置換したまま消費の職務を再実装していない。
+直せば済む欠陥ではなく設計択一である — 帰属を planner 入力へ流すことは D39/D45 が構造的に
+禁じたリーク経路そのものであり、「機序を漏らさずに失敗理由だけを還流させる」設計を要する。
+**したがって運転条件を次のとおり固定する — cross-generation 還流が起きる
+`--max-generations >= 2` の運転を、この設計が裁定されるまで禁止する。**
+1 generation/cell の運転は還流が起きないため本欠陥が発火せず、許可する。
+正式系列 (H1/H2 × on/off/swapped) は同一 generation budget を要求するため、
+この条件により自動的に禁止側へ入る。本制限は prompt 規律であり機械 gate は置いていない。
+
+**(残余 2) provenance は「全 attempt 束縛」ではない。** `_invoke()` の invalid 分岐は
+`error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance`
+(source role SHA、effective prompt SHA、session/model) を捨てる。加えて valid 分岐でも
+**token 数は検査するだけで provenance へ保存しない**し、fixture provider の valid attempt は
+session / token / envelope をそもそも持たない。したがって terminal report から
+token provenance を再構成することはできない。
+
+**(残余 3) 別 run-root でも campaign 状態は再利用されうる。** fresh 検査は外側 `run_root` だけで、
+build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら別の
+`--run-root` を指定しても同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
+「resume は MVP 範囲外」は run_root についての記述であって、campaign 状態には及ばない。
+
+**(残余 4) 出力先 namespace。** build 時の campaign 出力先は既存 s4 driver 族と同じ
+`output/campaigns/` である。D65 決定 (2) の本文「探索は `output/exploration/campaigns/`」に対しては
+**逸脱**であり、8c を D65 適合とは記述しない。ただし 8c 固有ではなく s4 driver 族全体の既存挙動で
+あるため、族全体の移行として別裁定へ送る ([T-243])。D65 が既に決定済みである以上、
+`DW-G03` は未遵守を続ける理由ではなく、族単位でまとめて是正するという順序の理由にとどまる。
+本残余の解消は残余 1 の裁定とは独立であり、残余 1 が閉じても本残余は閉じない。
+既定出力先の `output/autonomous-trials/` が D13 の二軸にも D65 の exploration namespace にも
+属さない第三の root である点も、同じ族単位裁定に含める。
+
+**却下した案:** (a) 成功閾値へ到達した時点で停止 — 適応停止と全試行中の best 選択が科学的主張を
+汚す。(b) 先に汎用 role/axis daemon を設計 — 最初の operational result を遅らせ、未検証抽象へ投資する。
+(c) A/B/C の出力差を正式な descriptor 因果証拠とする — known point・on-only・同一候補になりうるため
+不成立。(d) auditor/critic の source tool 権限を headless に保持 — projection 境界を破り fitness/WAL
+徘徊面を再導入する。(e) invalid response を自動 retry — Best-of-N と attempt 除外を生む。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、材料レポート、proof chain、既存凍結 bytes は
+いずれも不変である。本 D が land する 3 つの実装ファイルはどの既存 scheduler からも import されず、
+人間が CLI を起動したときだけ動く。変わるのは (i) 8c 探索 driver が repo に存在すること、
+(ii) 決定 (6) により `--provider fixture` + 実 build が新たに拒否されること、の 2 点だけである。
+
+**成果物:** `orchestrator/campaign/claude_projected_provider.py`、
+`orchestrator/campaign/p3_autonomous_workload_trial.py`、
+`orchestrator/tests/test_p3_autonomous_workload_trial.py`、
+`docs/phase3-s8c-autonomous-trial-runbook.md`。実走要約 =
+`output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md`。
+取り込み時の敵対監査の裁定と逐語 = `output/insights/2026-08-01_t207-adoption-audit/`。
+
+## D107. [T-126] タスク固有の Pegasus 予約設定は共有 policy に置かず、タスク所有 file へ分離する (2026-08-01)
+
+**背景 (実測):** [T-126] は scheduler 予約の 9 key を共有 `tools/pegasus/policy.json` へ足していた。
+main 統合時に [T-139] の commit 済み evidence
+`output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json` が同 file の bytes を
+`binding.policy.sha256` で凍結していることが判明し、
+`test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head` が drift で赤になった。
+同 evidence の他 7 binding は全一致で、drift は policy だけだった。
+共有 config を単一タスクの凍結証拠が縛る構造である。
+
+**決定 (1): 後から key を足す側が退く。** T-126 の 9 key を
+`orchestrator/qualification/t126_reservation_policy_v1.json` へ移し、共有 policy を main と
+byte 一致へ戻した。共有 policy に置いてよいのは、複数タスクが共有する値
+(`project` / `queue` / `nodes` 等) だけとする。
+
+**決定 (2): 移した設定は移した先で identity 連鎖へ束縛する。** receipt から「この run を支配した
+予約設定」を再導出できる状態を保つ。場所を移すだけで受理集合は変えない — walltime 導出式と
+29100 / 36000 の厳格一致条件は同値のまま移設する。
+
+**決定 (3): 共有 policy の非改変は byte 束縛で検査する。** 接頭辞 (`t126_`) 走査では接頭辞を
+持たない key 追加を素通しし、同じ drift を再発させられる。committed evidence が記録した sha256 と
+現行 bytes の一致を assert する。あわせて、必須 identity path が実 repo で tracked であることを
+検査する (未 tracked は submit 時 exit 2 になるが、既存テストは tmp fixture repo しか見ないため
+全部緑のまま素通りしていた)。
+
+**却下した案:** (a) T-139 の evidence を書き換えて再 binding する — 他タスクの certified 証拠であり、
+`collect` が実 PBS 成果物を要求するため再発行には実 job の再走が要る。AI が一方的に触ってよい成果物
+ではない。(b) T-139 の binding から共有 config を外す — 設計変更であり所有セッションの裁定事項。
+(c) 衝突を放置して land する — main のテストが赤のままになる。
+
+**残る構造問題 (未裁定):** 「共有 config へ key を足す任意のタスクが T-139 の証拠を壊す」構造自体は
+残っている。次に同 file を触るタスクが同じ事故を踏む。恒久対応は上記 (b) か、共有 config を
+タスク別 file の集合へ再編するかの裁定が要る (worklog の該当 ID を参照)。
+
+**研究状態への影響:** なし。production 挙動・実験の受理集合・certified 選択・proof chain は
+変更しない。変わるのは開発時の設定ファイルの所在と、その非改変を守る検査だけである。
+## D108. [T-236] CC 合成 campaign の network 境界分割は transport でなく domain result 契約の新設であり、契約が揃うまで `campaign` task を実装しない (2026-08-01)
+
+**背景 (ユーザー裁定と実測):** 2026-08-01 のユーザー指示は「network 境界でループを 2 つに割る。
+supervisor 本体と LLM 4 役 (planner / coder / auditor / critic) はログインノード側、build / verify /
+bench は計算ノードへ dispatch する。`dispatch_compute.py` の `TASKS` は今 2 種だけなので campaign 用の
+task 種別を 1 つ足すことになる」である。計算ノードが外部 network 不可 (request 873903/873904) で
+`claude -p` を呼べないという前提は正しく、分割の必要性そのものは動かない。
+一方で本 wave の実測と敵対レビュー 2 本は、**「task enum に 1 種別足す」だけでは分割が成立しない**ことを
+示した。したがって設計を確定し、実装は契約が揃うまで行わない。
+
+**決定 (1): 分割線はこう置く。** supervisor と planner / coder / auditor / critic は外部 network を
+持つログインノードが所有し、計算ノードへ送るのは build / verify / bench の機械部分だけとする。
+計算ノードで `claude -p` を起動しない。この分割線自体は新設ではなく、
+`orchestrator/campaign/p3_s4_loop_trigger_gating.py` 系の driver が既に
+「ループ主導権はメインセッション、driver は LLM を spawn しない」形で持っている。
+本決定が足すのは、その口を network 越しに配線するための契約である。
+
+**決定 (2): transport の目標形は閉じた `campaign` task 1 種と exact driver table の compute-side mux
+とする。** 任意 command、任意 path、`tools/pegasus/*` の glob 許可は作らない (D103 決定 5 を維持)。
+driver は軸ごとに増える (段 5 sort → 段 8a trigger-gating) ので、軸追加のたびに `tools/pegasus/` を
+編集する形にはしない。この点は D105 決定 (3) が task 集合を `{"tests", "provenance"}` と明記している
+記述の**将来の supersede 対象**であり、実装する wave が同じ commit で D105 の記述を更新する。
+
+**決定 (3): 実装しない。先に domain result 契約を作る。** 現行 driver の終了コードは
+`stop_reason` と checkpoint / provenance の存在だけで決まり、iteration の `outcome` を見ない
+(`p3_s4_loop.py:827-831`、`p3_s4_loop_trigger_gating.py:582-586` を本 wave で実測)。よって
+diff 検疫 reject も build-error abort も child rc=0 になる。分割前は同一 process・同一 FS で
+メインセッションが WAL を直接読めるため実害が出ないが、**分割すると rc が唯一の帰還路になるため、
+拒否された試行が試行台帳へ成功として記録される**。これは絶対規律 3 (正しさシグナルを後付けにせず、
+なぜ壊れたかを構造化して次手へ返す) が network 境界で片肺になることを意味する。
+`campaign` task を先に land すると、この片肺のまま「分割済み」と記録されるので実装しない。
+
+**決定 (4): 宣言した `env_allowlist` は子側でも強制されなければ書かない。** `_job_run` は
+request の `environment` の型だけを検査し、`set(environment) <= spec.env_allowlist` を再検査しない
+(`dispatch_compute.py:474-481`、その後 `:486-487` で `os.environ.copy()` に `update`)。
+未知 task は親子二層で拒否されるのに environment の受理集合は二層になっていない。
+この非対称を残したまま `env_allowlist=frozenset()` と称する task を足すと、**検査されない宣言**
+(恒真な保証) を成果物へ焼くことになる。login 由来入力は argv または共有 FS 上の構造化 artifact に
+限り、cache key・build provenance に束縛されない `CMAKE_PREFIX_PATH` 等を transport 経由で注入しない。
+
+**決定 (5): 実行場所の移設は build identity の拡張とセットにする。** 未指定 caller (p3 loop を含む) は
+legacy `buildcache.build` を通り (`pipeline.py:398,476,480`)、その `cache_key` の pre-image は
+genome / ccbench_commit / trace / src_token / compiler の**名前文字列**だけである
+(`buildcache.py:121-135`)。compiler の realpath・version、CMake 版、dependency prefix、site、
+env contract を含まないため、**別環境で作った cache が同じ key で hit しうる**。
+v2 (`_v2_identity`) は `toolchain_manifest_sha256` を持つので同じ穴ではない。
+移設を実行する wave は、この identity 拡張を同時に裁定する。
+
+**発火 gate:** 実測した blocker は次のとおりで、いずれも本決定時点で未解消である。
+(i) `p3_s4_loop.py` の `PIN` が現行 submodule と不一致、(ii) 依存 (gflags / glog / FetchContent 3 件) の
+pinned staging が generic build 経路に無い、(iii) driver が `ENV_TAG="linux-baremetal"` / `CLK=1800` を
+固定し Pegasus 環境契約に結び付かない、(iv) `default_perf()` が配線規模で Pegasus calibration でない、
+(v) `DEFAULT_CC/CXX = gcc-13/g++-13` が Pegasus に不在。
+**live driver artifact と walltime 実測が成立するまで `campaign` task を実装済み・運用可能と記録しない。**
+
+**却下:** `p3_s4_loop.py` を初回 driver に選ぶ案 (`require_auditor=False` で auditor を受理して捨てるため、
+ユーザーが挙げた 4 役に対応しない。対応するのは `require_auditor=True` の
+`p3_s4_loop_trigger_gating.py:421` / `p3_s4_loop_sort.py:267`)。`silo_ladder_rung1.py` を指す案
+(専用 PBS wrapper の staging / receipt 契約に依存し、依頼された loop 分割にならない)。
+`tools/pegasus/*` の glob 許可。宣言だけで子側検査を伴わない `env_allowlist`。
+
+**並行 wave との関係 (独立確認):** 本決定と同日に別 session が worklog (84) で、8c を
+1 allocation で完遂させる予算設計を検討し、**同じ blocker へ独立に到達した** — 計算ノードで
+`claude -p` を呼べず、ログインノードで bench を走らせられず、`dispatch_compute.py` の task が
+閉じた enum である、の 3 点である。同エントリの transport 推奨「login controller + compute worker
+(共有 FS 経由)」と本決定の「閉じた `campaign` task + exact driver table の compute-side mux」は
+同じ構造の別表現であり、mux が compute worker に当たる。同エントリが `DW-G01` に従って
+「100 行以内の使い捨て worker で生死確認を先に行い、専用機構をその前に作らない」と定めた順序を
+本決定も採る。本決定が独立に足したのは、その worker が返す **domain result 契約が無ければ
+transport だけでは分割が成立しない**という点である。両者は [T-236] の同じ裁定へ集約する。
+
+**研究状態への影響:** 本決定は設計と gate の確定だけであり、実装差分がない。campaign の受理集合、
+certified 選択、proof chain、既存凍結 bytes、既存 cache のいずれも変えない。変異 matrix と
+受入全走も対象外である。
+## D109. [T-220] 他 session 所有物は incoming と衝突しない限り自分の gate を落とさない — land の control-plane を衝突軸へ一本化し、handoff 書式の阻害力を意図的にゼロへ降格する (2026-08-01)
+
+**背景 (ユーザー裁定と実測):** [T-220] は (74) で **択 (a) 採用**として裁定済みだった —
+「`DW-O23` の受理集合を **incoming と衝突する未知 untracked だけ拒否**へ緩める」。
+裁定の根拠として worklog に残るユーザーの言葉は
+**「別セッション所有のもので検査が落ちても、それを main に入れようとしていないなら関係ないはず」**。
+実測の裏付けも同じ箇所にあり、欠陥の一文は **「検査は衝突の有無を見ていない」**である。
+実害は 3 件記録されている — (73) の wave は着地しないまま終了、(77)(78) は各 1 回拒否。
+本 wave は D102 決定 (3)「main の非接触例外は **schema-valid** active handoff と Git admin に
+双方向登録された worktree に閉じる」の射程を、この裁定に従って上書きする。D102 は凍結記録として残す。
+
+**決定 (1): land の cleanliness 軸は「incoming と衝突する untracked」だけを拒否理由にする。**
+`docs/handoff/` 配下のエントリについて、名前形・regular file 要求・hard link 拒否・サイズ上限・
+UTF-8・4 行ヘッダ・状態 3 値・基準コミット形・見出し構成を**すべて拒否理由から外す**。
+`_handoff_snapshot` は **名前集合と `docs/handoff` の dir identity だけ**を返し、
+per-entry の stat も内容 hash も取らない。保護 (`protected`) は README.md を除く**全直下エントリ**へ広がる。
+拒否は `_paths_overlap` による衝突検査へ一本化する。**受理集合は「拒否は狭まり保護は広がる」方向にのみ動く。**
+
+**決定 (1-a): per-entry の内容 hash は「守っている実績ゼロ・偽陽性のみ」だったので廃する。**
+既存の mid-flight test が使う置換 harness は bytes を保存して inode だけ変えるため、
+**sha256 が判別子として効いた test は 1 本も存在しなかった**。一方 production では
+handoff の in-place 更新 (運用ルールは「節目ごと + 最低 10 分おき」) が inode 保存 + bytes 変化を起こすため、
+その唯一の固有検出力は**偽陽性側にしかなかった** — land 前なら rc 21、merge 後なら
+`RC_LANDED_POSTCONDITION_FAILED` (非再試行) を生む。規律 3 の「謳うだけで発火しない保証」に該当する。
+`_postcondition` の control-plane 再検査も tracked-dirt 判定へ縮約する。
+
+**決定 (2): handoff 書式の阻害力を持つ機械執行はゼロになる。これは補償制御ではなく意図的な降格である。**
+`_HANDOFF_STATES` の consumer は land だけだったため、決定 (1) で 3 値語彙の機械執行は repo から消える。
+検出は `check_docs.py` の**非阻害 warning** (48h stale + 4 行ヘッダ + 状態語彙 + 基準コミット形) として残す。
+`check_wave_startup.py` への移設は**採らない** — 同 helper は repo 内に自動 caller が 1 件も無く、
+対話型 session は repo 内の handoff を渡せない仕様で、現存 handoff の被覆は 0/4、起動時 1 回しか走らない。
+**「移した」と書けば恒真な保証を台帳に入れることになる。** 阻害する相手が所有者でなかったことの害の方が
+大きいと裁定し、正直に降格と記録する。
+
+**決定 (3): 収集範囲を checkout 非依存にし、その制御ファイルを provenance の実装面に含める。**
+repo 直下へ `pytest.ini` を新設し `testpaths` で引数なし起動を閉じ、`norecursedirs` に
+`output` / `external` を足す (pytest 既定 9 要素は明示再掲。`.*` を落とすと `.claude/worktrees/` が戻る)。
+**`addopts` は書かない** — `run_tests.py` の受入判定 4 ゲートは環境変数 `PYTEST_ADDOPTS` しか読まず
+ini を構造的に見ないため、書くと「全走のつもりで実は選択走」が preflight を通る (規律 2 の攻撃面)。
+あわせて `pytest.ini` が `check_ai_provenance.py` の実装面分類に当たらず D95 が発火しない穴を閉じる
+(`IMPLEMENTATION_BASENAMES` へ追加、受理集合は狭まる方向)。F41 の射程拡大分がこれで閉じる。
+
+**本 D の scope 境界 (明示):** 緩めるのは **main worktree の `docs/handoff/` 表面における
+untracked/dirt 軸だけ**である。共有 `.git` の config / history modifier / lock、および worktree admin
+双方向束縛は**変更しない**。これらにも「incoming と無関係に他 session 起因で全 land を止める」同型経路が
+実在する (共有 `.git/config` に `filter.*` が書かれると恒久停止する等) が、正常運用で日常的に触られる面では
+ないため本 wave では触らず、裁定パッケージへ回した。
+
+**却下した案:** (a) 内容 schema だけ撤去 — 名前形・型・hard link・サイズ上限が同じく大域 raise するので、
+隣の `notes.txt` や `.swp` で同じ事故が残り裁定文を満たさない。(b) `protected` を「全直下 `.md`」に広げる —
+tracked な `docs/handoff/README.md` (変更実績 9 commit) を巻き込み恒久的な land 不能を新設する。
+(c) 書式検査を `check_wave_startup.py` へ移す — 決定 (2) のとおり発火しない。
+(d) 書式検査を `check_docs.py` の finding として残す — 所有者を判別できないので、本 D が消そうとしている
+他人巻き込みをそのまま再導入する。(e) `.gitignore` へ worktree 置き場を足す — D102 却下案 (a) を覆すのに、
+実測では `main_dirty` が他要因で True のままで解決にならない。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、proof chain は不変で、
+変わるのは開発 harness の受理集合だけである。ただし決定 (3) は受入全走の**収集集合**を
+checkout 非依存にするため、F41 が記録した「赤の有無が checkout に依存する」交絡が減る方向に効く。
+材料・逐語・変異 = `output/insights/2026-08-01_parallel-dev-wave/`。
+## D110. [T-260] provenance 規約を入口 + 条件付き reference の閉集合にし、常時読量を予算 schema で強制する (2026-08-01)
+
+**背景 (ユーザー裁定):** `docs/ai-provenance.md` は byte 予算 9,000 に対し実測 8,942 (headroom 58 =
+0.6%) で満杯だった。導入から 2.5 週で 3,313 bytes 増えており、D105 却下案 (f) も「予算内にぎりぎり
+収まった」と記録している。2026-08-01、意味保存縮約を提示したユーザーが「意味保存アプローチが state of
+the art なのか、コンテキスト外出しは」と問い、親が「縮約は一時的延命で、この repo が dev-wave で使う
+入口 + 条件付き reference + dispatch の方が構造的に強い」と回答したうえで、**「縮約を land →
+外出しも同 wave で」**が裁定された。予算は「全 commit で読む context 費用」の代理指標なので、
+縮約は総量と常時読量を同じだけ減らすが、外出しは常時読量だけを大きく減らし、incident 固有契約が
+入口へ積み上がる増加ダイナミクス自体を止める。本 D は `check_docs` の受理集合を変えるため D96 に従い、
+境界テストを同じ変更単位に置く。
+
+**決定 (1): provenance family を入口 1 + reference 2 の閉集合とする。** 入口
+`docs/ai-provenance.md` は全 commit で読む義務 (必須形式、Codex author 契約、waiver、記録単位、
+commit 前の確認) と条件 dispatch 表を持つ。`docs/provenance/correction.md` は `6b64d21` の一回限り
+forward correction、`docs/provenance/audit.md` は範囲監査・legacy 遡及・任意の確認手段・解釈上の
+歯止めを持つ。**外出しは移設であって削除ではない** — 縮約前 8,942 bytes 版の義務 45 件はすべて
+family 内に実在する (対応表は材料 insight)。
+
+**決定 (2): 個別 cap と family 上限を独立に置き、総量は上げない。** 入口 6,300、各 reference 1,600、
+**family 合計 9,000 bytes** とする。個別 cap の総和は 9,500 なので family gate は恒真にならず、
+全 member が個別 cap 内でも合計超過を拒否する。旧「単一ファイル ≤ 9,000」に対し総量上限は据え置きで、
+常時読む入口だけが 8,942 → 6,287 bytes になる。
+
+**決定 (3): 閉包を機械強制する。** `docs/provenance/**` の予算未登録実体、登録済み member の
+不在・読取不能・symlink、必須 H2 の欠落・重複、registry にない孤児 H2、入口 dispatch 行の欠落・重複・
+**発火条件の逐語不一致**・第 2 列への参照 token 密輸・第 3 列以外からの参照・registry 外 path、
+そして**予算 path 集合 / 節 registry / dispatch 契約の三面一致**を、それぞれ独立の finding として拒否する。
+dispatch 表は可視な header と separator を exact 1 件、data row の cell 数を exact 3、外周 delimiter を
+高々 1 個に固定する (header 非束縛だと第 3 列の見出しを改名して「読む節」を任意欄に見せられる)。
+ただし data row の収集は節全体からであり、header 直後の連続 table への束縛までは行っていない。
+
+**決定 (4): 機械 anchor は入口に固定する。** exactly-once の 3 逐語 (Codex author 必須文、
+Co-Authored-By 最終 block 配置文、waiver 形式) と `scope=` の出現は **入口に exact 1、各 reference に
+exact 0** とし、独立 oracle の test で固定する。`check_ai_provenance.POLICY_PATH` と
+`check_docs.PROVENANCE_ENTRY` の同値も test で pin する。これらを reference へ移すと epoch 検出と
+exactly-once メタテストが壊れる。
+
+**決定 (5): reference は living doc として既存 lint を継承する。** 2 本を `LIVING_DOCS` /
+`_ENUMERATED_DOCS` へ登録し、行番号参照禁止などの一般 lint と、`all_limits` 経由の land-helper 配置
+制約を継承する。これは受理集合の拡大ではなく**狭める方向**の変更であり、境界テストで固定する。
+`NORMATIVE_DISPATCH_ALLOWLIST` へは加えない (D98 決定 4 の分離を維持)。
+
+**決定 (6): 削減は単一の率で語らない。** 常時読量は (a) 入口だけ 6,287 (-29.7%)、(b) 入口 + `PR-A02`
+約 6,880 (約 -23%)、(c) dev-wave 通常列 約 7,090 (約 -21%)、(d) 既定 full-history 監査で correction まで
+読む場合 約 8,070 (約 -9.7%)、(e) family 合計 8,930 (-0.1%) を分けて記録する。「上限を上げていない」ことと
+「schema が同値である」ことも別に書く — 新受理集合は旧より狭い。
+
+**却下案:** (a) 縮約だけで終える — 常時読量の増加構造が残り数週間で再発する。(b) reference を予算外に
+置く — 規範 detail の逃がしになる。(c) 個別 cap だけ — member ごとの余白を合算して総量を超えられる。
+(d) family cap だけ — 1 つの member が肥大しても常時読量を抑えられない。(e) `SELF_LIMITS` /
+`REFERENCE_LIMITS` へ混ぜる — dev-wave dispatch allowlist と provenance family の意味を混同する
+(D98 決定 4)。(f) 3 逐語や `scope=` を reference へ移す — `POLICY_PATH`、exactly-once test、epoch 検出を
+壊す。(g) 総量上限の引き上げ — 予算の意味を失わせる。分割の構造 overhead は義務でない重複
+(reference 前置きの重複、確認例の二重掲載、散文の言い換え) の削減で吸収した。(h) `correction` 条件を
+「作成時だけ」と狭く読む — 既定 full-history 監査は常に correction を評価するので `PR-C03` が
+入口から到達不能になる。`history` 条件から `PR-C03` へ直接 dispatch する形を採った。
+
+**既知限界 (本 D の射程外。裁定パッケージへ):** (i) `_scope_policy_commit` /
+`_implementation_policy_commit` は HEAD 基準の単一 epoch で、CAB のような per-lineage 判定ではない。
+公表契約は実装より強く、別 lineage では実装の受理集合が広くなり得る。本 wave の gate は単一親・
+同一 lineage・ff-only の範囲で有効である。(ii) `--message-file` の correction preflight は
+exact waiver を担い手失格理由に含めない (commit 後の history 監査では含む)。(iii) 共有の可視行 scanner
+自体の意味は変えていない。provenance family の解析だけを fail-closed 側へ寄せたが、閉じたのは単一行の
+曖昧 delimiter と無効 fence opener までで、**複数行にまたがる inline code span を追跡しない** —
+細工すれば可視 H2 を checker から隠せる。(iv) dispatch の data row は「条件 dispatch」節全体から集める
+ため、header 直後の table に束縛されていない。契約 key の重複・欠落・未知 key はいずれも拒否されるので
+実害は限定的だが、表の所属関係自体は機械保証していない。(iii) と (iv) は本 wave の fix 3 巡上限
+(`DW-O16`) に達したため残余として裁定パッケージへ送る。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、レポート、proof chain、凍結成果物は
+変わらない。変わるのは開発文書 lint の受理集合と、commit 前に常時読む context 量だけである。
+材料 = `output/insights/2026-08-01_provenance-budget-wave/`。
+
+## D111. [T-209] プロセス系 freeze を廃止し、測定の帰属は git の版管理に委ねて順序付けだけを残す (2026-08-01)
+
+**背景:** 2026-07-22 改訂 ([T-083] 裁定) がプロセス系の作業 (supervisor real 開放・dev-wave 自己改善・
+task-run 拡張・[T-082] 全 caller 移行・新規裁定パッケージ化) を「8b + 層3 の 1 cycle 完走まで」freeze し、
+2026-07-26 改訂 ([T-115]) が解除条件を「[T-088] の実行 (床値実測の開始)」へ、2026-07-31 改訂 ([T-209]) が
+「[T-193] の閉鎖」へ付け替えてきた。本 D は [T-209] を閉じる wave の中でユーザーが提起した
+「main の凍結は要らないのでは。git のバージョン管理があるのだから、どこでどう測定したかは
+バージョン情報を見れば分かる」という指摘への裁定である。
+
+**決定 (1): freeze を恒久に廃止する。** 凍結の表向きの目的は「測定への交絡回避」だったが、測定の
+帰属は既に別機構が担っている — 計測値は測った checkout を併記する (F41)、環境タグの境界は D59、
+計算ノード実行は receipt に request ID・hostname・interpreter・source manifest を残す。すなわち
+「どの版でどう測ったか」は freeze なしで復元でき、freeze はこの目的に対して冗長である。
+
+**決定 (2): freeze には機械 gate が無く、実効は prompt 規律だけだったと実測した。** 本 wave の段 3
+敵対レンズが repo 全体を静的検索し、凍結状態を見て task ID を拒否する checker / command / skill の
+分岐が存在しないことを確認した。`CLAUDE.md` 自身も作業種別ゲートを「prompt 規律であり hooks による
+機械強制はしない」(D31) と定めており、freeze も同じ性質だった。よって freeze は「守られていた」ので
+なく「守られたかどうかを誰も判定していなかった」。
+
+**決定 (3): campaign 実行中に道具が動く問題は freeze ではなく revision 束縛で解く。** これは phase3 の
+floor 実測前 gate に「実行 revision 束縛」として既に列挙されている (未着手)。freeze は「着手してよい
+作業種別」を粗く絞るだけで、走行中の run そのものを保護しない。保護が要るなら run 側に pin を持たせる。
+
+**決定 (4): 残すのは順序付けだけとする。** 2026-07-31 改訂 ([T-209]) の実体は「直近 8 wave が全て
+道具・運用の整備で研究の測定が 0 本だった」という優先度の宣言だった。よって freeze 廃止後も
+**直後の 1 wave は研究側 = [T-144] (スペクトル補間 = Shirakami-LTX との中間)** を維持する。
+これは git が代替できない唯一の要素である。
+
+**研究状態への影響:** certified 選択、材料レポート、proof chain、既存の凍結 bytes、campaign の受理集合は
+いずれも不変である。変わるのは (i) phase3 の freeze 条項が効力を失うこと、(ii) 次 wave の選択が freeze
+ではなく台帳の優先度と本 D の順序付けで決まること、の 2 点だけである。**成果物の凍結** (protocol JSON /
+holdout / v1 freeze bytes) とは無関係であり、そちらは従来どおり機械 gate が守る。

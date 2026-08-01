@@ -120,8 +120,8 @@ worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.p
 ## DW-O23 — 並行 session の local main land
 
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、監査commit列を渡す。
-協調wave lock内で再照合し、tipへのff-onlyだけ行う。tracked/index/submodule dirtと未知untrackedを拒否し、
-正規handoff 3状態とGit adminに双方向束縛したClaude/Codex worktreeだけ非接触で許す。
+協調wave lock内で再照合し、tipへのff-onlyだけ行う。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
+docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
 既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価・受入後に再試行する。

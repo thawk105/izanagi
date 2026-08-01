@@ -78,11 +78,17 @@ worker 起動コストが利得を食い 96 は 32 より遅い)。明示上書�
 
 受入全走は**範囲と並列度の両方を明示して**回す。`python3 tools/run_tests.py` が両方を
 既定で満たす正しい形 (範囲 `orchestrator/tests`、並列度 = 環境自動追従)。素の pytest を
-使うなら `python3 -m pytest -q -n 32 orchestrator/tests` のように両方を書く — repo には
-`addopts` を持つ設定ファイルが無いため、素の `python3 -m pytest -q` は**直列走**であり、
-範囲を省くと rootdir 以下を無指定収集する。ignored な生成物 (ビルドキャッシュ等) が
-溜まった checkout では、同梱の他所のテストまで収集して大量の collection error になる
-(failures F41: cygnus main checkout で 1253 errors)。
+使うなら `python3 -m pytest -q -n 32 orchestrator/tests` のように両方を書く — repo の
+`pytest.ini` は `addopts` を**持たない**ので、素の `python3 -m pytest -q` は今も**直列走**である。
+
+範囲については、`pytest.ini` の `testpaths` が引数なし起動を `orchestrator/tests` へ閉じ、
+`norecursedirs` が `output` / `external` / dot ディレクトリを収集から外すため、
+**ignored な生成物が溜まった checkout でも他所のテストを拾わなくなった**
+(failures F41: 対策前は cygnus main checkout で 1253 errors)。ただし `testpaths` が効くのは
+**位置引数を 1 つも渡さないとき**だけなので、範囲を明示する作法自体は変えない。
+`addopts` を ini へ書いてはならない — `run_tests.py` の受入判定は環境変数 `PYTEST_ADDOPTS`
+しか見ず ini を構造的に読まないため、「全走のつもりで実は選択走」が preflight を通る
+(`orchestrator/tests/test_pytest_collection_config.py` が機械的に固定している)。
 
 - **wall も赤の有無も checkout に依存する。** git worktree には ignored なファイルが
   存在せず、main checkout には蓄積する。同じコマンドでも収集集合・skip 集合・実行時間が

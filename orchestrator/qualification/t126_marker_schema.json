@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "qualification_lineage",
+    "authority",
+    "hold_enforced",
+    "qualification_series_id",
+    "qualification_attempt_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "t126-qualification-marker/v1"},
+    "qualification_lineage": {"const": "t126-only"},
+    "authority": {"const": "evidence-only/no-promotion"},
+    "hold_enforced": {"const": false},
+    "qualification_series_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "qualification_attempt_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

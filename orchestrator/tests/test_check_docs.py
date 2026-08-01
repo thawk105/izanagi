@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 import pytest
 
@@ -486,6 +487,49 @@ body
 """
     _write(root, "docs/skill-self-improvement.md", self_doc)
 
+    provenance_entry = """# synthetic provenance entry
+
+## 条件 dispatch
+
+| key | 発火条件 | 読む節 |
+|---|---|---|
+| correction | 固定 target の forward correction を扱う | `docs/provenance/correction.md`: `PR-C01`, `PR-C02`, `PR-C03` |
+| message-file | commit 前に message を検査する | `docs/provenance/audit.md`: `PR-A01` |
+| history | commit 後・別 range の履歴を監査する | `docs/provenance/audit.md`: `PR-A02`; `docs/provenance/correction.md`: `PR-C03` |
+| analysis | provenance を比較や改善判断に使う | `docs/provenance/audit.md`: `PR-A03` |
+"""
+    correction = """# synthetic correction reference
+
+## PR-C01 — synthetic
+
+body
+
+## PR-C02 — synthetic
+
+body
+
+## PR-C03 — synthetic
+
+body
+"""
+    audit = """# synthetic audit reference
+
+## PR-A01 — synthetic
+
+body
+
+## PR-A02 — synthetic
+
+body
+
+## PR-A03 — synthetic
+
+body
+"""
+    _write(root, "docs/ai-provenance.md", provenance_entry)
+    _write(root, "docs/provenance/correction.md", correction)
+    _write(root, "docs/provenance/audit.md", audit)
+
 
 def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:
     res = _run_check(root)
@@ -565,6 +609,14 @@ def _violation_count(res: subprocess.CompletedProcess) -> int:
     return int(match.group(1))
 
 
+def _finding_set(res: subprocess.CompletedProcess) -> set[str]:
+    return {
+        line.removeprefix("  - ")
+        for line in res.stdout.splitlines()
+        if line.startswith("  - ")
+    }
+
+
 # ===== baseline: 合成 repo は違反なし (positive control の土台) =====
 
 def test_synthetic_repo_baseline_clean():
@@ -577,20 +629,117 @@ def test_synthetic_repo_baseline_clean():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_provenance_limit_registry_is_independent_from_dispatch_allowlist():
+def test_provenance_family_contract_pins_exact_surface():
     assert check_docs.PROVENANCE_LIMITS == {
-        "docs/ai-provenance.md": check_docs.TextLimit(9_000)
+        "docs/ai-provenance.md": check_docs.TextLimit(6_300),
     }
-    assert (
-        "docs/ai-provenance.md"
-        not in check_docs.NORMATIVE_DISPATCH_ALLOWLIST
+    assert check_docs.PROVENANCE_REFERENCE_LIMITS == {
+        "docs/provenance/correction.md": check_docs.TextLimit(1_600),
+        "docs/provenance/audit.md": check_docs.TextLimit(1_600),
+    }
+    assert check_docs.PROVENANCE_FAMILY_BYTES == 9_000
+    assert check_docs.REQUIRED_PROVENANCE_REFERENCE_SECTIONS == {
+        "docs/provenance/correction.md": {
+            "PR-C01", "PR-C02", "PR-C03",
+        },
+        "docs/provenance/audit.md": {
+            "PR-A01", "PR-A02", "PR-A03",
+        },
+    }
+    assert check_docs.PROVENANCE_DISPATCH_CONTRACT == {
+        "correction": (
+            "固定 target の forward correction を扱う",
+            frozenset({
+                ("docs/provenance/correction.md", "PR-C01"),
+                ("docs/provenance/correction.md", "PR-C02"),
+                ("docs/provenance/correction.md", "PR-C03"),
+            }),
+        ),
+        "message-file": (
+            "commit 前に message を検査する",
+            frozenset({
+                ("docs/provenance/audit.md", "PR-A01"),
+            }),
+        ),
+        "history": (
+            "commit 後・別 range の履歴を監査する",
+            frozenset({
+                ("docs/provenance/audit.md", "PR-A02"),
+                ("docs/provenance/correction.md", "PR-C03"),
+            }),
+        ),
+        "analysis": (
+            "provenance を比較や改善判断に使う",
+            frozenset({
+                ("docs/provenance/audit.md", "PR-A03"),
+            }),
+        ),
+    }
+    assert check_docs.PROVENANCE_SHARED_DISPATCH_PAIRS == {
+        ("docs/provenance/correction.md", "PR-C03"): frozenset({
+            "correction", "history",
+        }),
+    }
+
+
+def test_provenance_family_is_enumerated_and_not_dispatch_allowlisted():
+    family = {
+        "docs/ai-provenance.md",
+        "docs/provenance/correction.md",
+        "docs/provenance/audit.md",
+    }
+    assert family <= set(_enumerated_rels())
+    assert not (
+        set(check_docs.PROVENANCE_LIMITS)
+        & check_docs.NORMATIVE_DISPATCH_ALLOWLIST
+    )
+    assert not (
+        set(check_docs.PROVENANCE_REFERENCE_LIMITS)
+        & check_docs.NORMATIVE_DISPATCH_ALLOWLIST
     )
 
 
-def test_provenance_limit_accepts_exactly_9000_bytes():
+_PROVENANCE_MEMBER_LIMITS = (
+    ("docs/ai-provenance.md", 6_300),
+    ("docs/provenance/correction.md", 1_600),
+    ("docs/provenance/audit.md", 1_600),
+)
+
+
+def _pad_provenance_family(root: str, target: int) -> None:
+    limits = dict(_PROVENANCE_MEMBER_LIMITS)
+    current = sum(
+        len(_read(root, rel).encode("utf-8")) for rel in limits
+    )
+    assert current <= target
+    remaining = target - current
+    for rel, limit in limits.items():
+        size = len(_read(root, rel).encode("utf-8"))
+        grow = min(remaining, limit - size)
+        if grow:
+            _pad_to_bytes(root, rel, size + grow)
+            remaining -= grow
+    assert remaining == 0
+    sizes = {
+        rel: len(_read(root, rel).encode("utf-8")) for rel in limits
+    }
+    assert sum(sizes.values()) == target
+    assert all(sizes[rel] <= limit for rel, limit in limits.items())
+
+
+def _assert_findings(root: str, *expected: str) -> subprocess.CompletedProcess:
+    res = _run_check(root)
+    assert res.returncode == 1, f"違反 fixture が赤にならなかった:\n{res.stdout}"
+    assert _finding_set(res) == set(expected), res.stdout
+    assert _violation_count(res) == len(expected), res.stdout
+    return res
+
+
+@pytest.mark.parametrize(("rel", "limit"), _PROVENANCE_MEMBER_LIMITS)
+def test_provenance_member_limit_accepts_exact_boundary(rel, limit):
     root = _build_min_repo()
     try:
-        _pad_to_bytes(root, "docs/ai-provenance.md", 9_000)
+        _pad_to_bytes(root, rel, limit)
         res = _run_check(root)
         assert res.returncode == 0, res.stdout
         assert "違反なし" in res.stdout
@@ -598,16 +747,517 @@ def test_provenance_limit_accepts_exactly_9000_bytes():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_provenance_limit_rejects_9001_bytes():
+@pytest.mark.parametrize(("rel", "limit"), _PROVENANCE_MEMBER_LIMITS)
+def test_provenance_member_limit_rejects_plus_one(rel, limit):
     root = _build_min_repo()
     try:
-        _pad_to_bytes(root, "docs/ai-provenance.md", 9_001)
+        _pad_to_bytes(root, rel, limit + 1)
         res = _run_check(root)
         assert res.returncode == 1, res.stdout
         assert _violation_count(res) == 1
         assert (
-            "docs/ai-provenance.md: 9001 bytes > 予算 9000 bytes"
-            in res.stdout
+            f"{rel}: {limit + 1} bytes > 予算 {limit} bytes" in res.stdout
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_family_accepts_exactly_9000_bytes():
+    root = _build_min_repo()
+    try:
+        _pad_provenance_family(root, 9_000)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_family_rejects_9001_bytes():
+    root = _build_min_repo()
+    try:
+        _pad_provenance_family(root, 9_001)
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md + docs/provenance/**: "
+            "合計 9001 bytes > hard ceiling 9000 bytes",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_unregistered_reference_is_rejected():
+    root = _build_min_repo()
+    try:
+        _write(root, "docs/provenance/extra.md", "# escaped\n")
+        _assert_findings(
+            root,
+            "docs/provenance/extra.md: docs/provenance/** の予算未登録実体 — "
+            "規範 detail を family 閉包外へ逃がしてはならない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_registered_provenance_reference_deletion_is_rejected():
+    root = _build_min_repo()
+    try:
+        os.remove(os.path.join(root, "docs/provenance/audit.md"))
+        _assert_findings(
+            root,
+            "docs/provenance/audit.md: 登録済み provenance reference が不在 — "
+            "入口 dispatch が到達不能",
+            "docs/ai-provenance.md:8: 実在しないパス参照: "
+            "'docs/provenance/audit.md'",
+            "docs/ai-provenance.md:9: 実在しないパス参照: "
+            "'docs/provenance/audit.md'",
+            "docs/ai-provenance.md:10: 実在しないパス参照: "
+            "'docs/provenance/audit.md'",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_registered_provenance_reference_symlink_is_rejected():
+    root = _build_min_repo()
+    external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_provenance_")
+    try:
+        rel = "docs/provenance/audit.md"
+        member = os.path.join(root, rel)
+        external_member = os.path.join(external, "audit.md")
+        _write(external, "audit.md", _read(root, rel))
+        os.remove(member)
+        os.symlink(external_member, member)
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        prefix = (
+            "docs/provenance/audit.md: symlink または regular file 以外 — "
+            "予算・interface 検査対象として受理しない "
+            "(symlink を含む path は読まない: "
+        )
+        findings = _finding_set(res)
+        normalized_findings = set()
+        for finding in findings:
+            if finding.startswith(prefix) and finding.endswith(")"):
+                reported_path = finding.removeprefix(prefix).removesuffix(")")
+                if os.path.isabs(reported_path):
+                    finding = prefix + "<absolute path>)"
+            normalized_findings.add(finding)
+        assert normalized_findings == {
+            "docs/provenance/audit.md: symlink または regular file 以外 — "
+            "予算・interface 検査対象として受理しない "
+            "(symlink を含む path は読まない: <absolute path>)"
+        }, res.stdout
+        assert _violation_count(res) == 1, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+        shutil.rmtree(external, ignore_errors=True)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "duplicate"])
+def test_provenance_required_h2_multiplicity_is_rejected(mutation):
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        text = _read(root, rel)
+        heading = "## PR-A02 — synthetic"
+        assert text.count(heading) == 1
+        if mutation == "missing":
+            text = text.replace(heading, "### PR-A02 — synthetic", 1)
+        else:
+            text += f"\n{heading}\n\nbody\n"
+        _write(root, rel, text)
+        count = 0 if mutation == "missing" else 2
+        _assert_findings(
+            root,
+            f"{rel}: H2 見出し PR-A02 が {count} 件 — "
+            "provenance dispatch 先は一意でなければならない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_orphan_reference_h2_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        _write(root, rel, _read(root, rel) + "\n## PR-A99 — orphan\n\nbody\n")
+        _assert_findings(
+            root,
+            f"{rel}: provenance dispatch 契約にない孤児 H2 — ['PR-A99']",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _dispatch_row(text: str, key: str) -> str:
+    matches = [line for line in text.splitlines(keepends=True)
+               if line.startswith(f"| {key} |")]
+    assert len(matches) == 1, (key, matches)
+    return matches[0]
+
+
+def test_provenance_dispatch_row_deletion_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        _write(root, rel, text.replace(_dispatch_row(text, "history"), "", 1))
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の "
+            "row count が不一致 — actual=0, expected=1",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_dispatch_duplicate_row_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        row = _dispatch_row(text, "history")
+        _write(root, rel, text + row)
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の "
+            "row count が不一致 — actual=2, expected=1",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("replacement", ["", "常に監査する", "決して監査しない"])
+def test_provenance_dispatch_condition_literal_change_is_rejected(replacement):
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        old = "commit 後・別 range の履歴を監査する"
+        assert text.count(old) == 1
+        row = _dispatch_row(text, "history")
+        changed = row.replace(old, replacement, 1)
+        _write(root, rel, text.replace(row, changed, 1))
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の発火条件が不一致 — "
+            f"actual={[replacement]!r}, expected={[old]!r}",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_dispatch_conditions_cannot_be_swapped_between_keys():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        history = "commit 後・別 range の履歴を監査する"
+        analysis = "provenance を比較や改善判断に使う"
+        sentinel = "__SWAPPED_CONDITION__"
+        changed = text.replace(history, sentinel, 1)
+        changed = changed.replace(analysis, history, 1).replace(sentinel, analysis, 1)
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 'analysis' の発火条件が不一致 — "
+            f"actual={[history]!r}, expected={[analysis]!r}",
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の発火条件が不一致 — "
+            f"actual={[analysis]!r}, expected={[history]!r}",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_dispatch_missing_pair_is_rejected_independently():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        row = _dispatch_row(text, "history")
+        removed = "; `docs/provenance/correction.md`: `PR-C03`"
+        assert row.count(removed) == 1
+        _write(root, rel, text.replace(row, row.replace(removed, "", 1), 1))
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の参照集合が不一致 — "
+            "missing=[('docs/provenance/correction.md', 'PR-C03')], extra=[]",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_dispatch_condition_token_smuggling_is_diagnostic_sensitivity():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        row = _dispatch_row(text, "history")
+        replacement = (
+            "| history | commit 後・別 range の履歴を監査する "
+            "`docs/provenance/audit.md`: `PR-A02` | |\n"
+        )
+        _write(root, rel, text.replace(row, replacement, 1))
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の発火条件が不一致 — "
+            "actual=['commit 後・別 range の履歴を監査する "
+            "`docs/provenance/audit.md`: `PR-A02`'], "
+            "expected=['commit 後・別 range の履歴を監査する']",
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の参照集合が不一致 — "
+            "missing=[('docs/provenance/audit.md', 'PR-A02'), "
+            "('docs/provenance/correction.md', 'PR-C03')], extra=[]",
+            "docs/ai-provenance.md: diagnostic sensitivity — provenance 条件 "
+            "dispatch 'history' の条件セルに reference token="
+            "['`PR-A02`', '`docs/provenance/audit.md`']",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "detail"),
+    [
+        ("header-missing", "header '| key | 発火条件 | 読む節 |' が 0 件"),
+        ("header-hidden", "header '| key | 発火条件 | 読む節 |' が 0 件"),
+        ("header-renamed", "header '| key | 発火条件 | 読む節 |' が 0 件"),
+        ("header-duplicate", "header '| key | 発火条件 | 読む節 |' が 2 件"),
+        ("separator-missing", "3列 separator が 0 件"),
+        ("separator-duplicate", "3列 separator が 2 件"),
+        ("separator-displaced", "separator が header 直後にない"),
+        (
+            "four-columns",
+            "data row が3列・外周 delimiter 高々1個でない — "
+            "leading=1, trailing=1, cells=4",
+        ),
+        (
+            "two-columns",
+            "data row が3列・外周 delimiter 高々1個でない — "
+            "leading=1, trailing=1, cells=2",
+        ),
+        (
+            "double-leading",
+            "data row が3列・外周 delimiter 高々1個でない — "
+            "leading=2, trailing=1, cells=4",
+        ),
+        (
+            "double-trailing",
+            "data row が3列・外周 delimiter 高々1個でない — "
+            "leading=1, trailing=2, cells=4",
+        ),
+    ],
+)
+def test_provenance_dispatch_table_structure_is_exact(mutation, detail):
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        header = "| key | 発火条件 | 読む節 |"
+        separator = "|---|---|---|"
+        row = _dispatch_row(text, "history")
+        if mutation == "header-missing":
+            changed = text.replace(header + "\n", "", 1)
+        elif mutation == "header-hidden":
+            changed = text.replace(header, f"<!-- {header} -->", 1)
+        elif mutation == "header-renamed":
+            changed = text.replace(header, "| key | 発火条件 | 任意欄 |", 1)
+        elif mutation == "header-duplicate":
+            changed = text.replace(header, header + "\n" + header, 1)
+        elif mutation == "separator-missing":
+            changed = text.replace(separator + "\n", "", 1)
+        elif mutation == "separator-duplicate":
+            changed = text.replace(separator, separator + "\n" + separator, 1)
+        elif mutation == "separator-displaced":
+            changed = text.replace(
+                header + "\n" + separator,
+                header + "\n\n" + separator,
+                1,
+            )
+        elif mutation == "four-columns":
+            changed = text.replace(row, row.rstrip("\n")[:-1] + "| extra |\n", 1)
+        elif mutation == "two-columns":
+            condition = "commit 後・別 range の履歴を監査する"
+            changed = text.replace(row, f"| history | {condition} |\n", 1)
+        elif mutation == "double-leading":
+            changed = text.replace(row, "|" + row, 1)
+        else:
+            changed = text.replace(row, row.rstrip("\n") + "|\n", 1)
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 表の構造が不一致 — "
+            f"{[detail]!r}",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_dispatch_data_row_outer_delimiters_are_optional():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        row = _dispatch_row(text, "history")
+        changed = row.strip().removeprefix("|").removesuffix("|").strip() + "\n"
+        _write(root, rel, text.replace(row, changed, 1))
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_dispatch_registry_outside_path_is_diagnostic_sensitivity():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        row = _dispatch_row(text, "history")
+        changed = row.replace(
+            "docs/provenance/audit.md", "docs/dev-wave/core.md", 1
+        )
+        _write(root, rel, text.replace(row, changed, 1))
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: provenance 条件 dispatch 'history' の参照集合が不一致 — "
+            "missing=[('docs/provenance/audit.md', 'PR-A02')], "
+            "extra=[('docs/dev-wave/core.md', 'PR-A02')]",
+            "docs/ai-provenance.md: diagnostic sensitivity — provenance 条件 "
+            "dispatch 'history' の第3列に registry 外 path=['docs/dev-wave/core.md']",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_html_commented_provenance_dispatch_table_is_not_visible():
+    root = _build_min_repo()
+    try:
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        marker = "## 条件 dispatch\n"
+        assert text.count(marker) == 1
+        _write(root, rel, text.replace(marker, "<!--\n" + marker, 1) + "-->\n")
+        _assert_findings(
+            root,
+            "docs/ai-provenance.md: 条件 dispatch 表を一意に抽出できない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_fenced_provenance_h2_is_not_visible():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        text = _read(root, rel)
+        heading = "## PR-A01 — synthetic"
+        assert text.count(heading) == 1
+        _write(
+            root,
+            rel,
+            text.replace(heading, f"```markdown\n{heading}\n```", 1),
+        )
+        _assert_findings(
+            root,
+            f"{rel}: H2 見出し PR-A01 が 0 件 — provenance dispatch 先は"
+            "一意でなければならない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_inline_code_comment_delimiter_is_rejected_fail_closed():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        text = _read(root, rel)
+        lineno = len(text.splitlines()) + 2
+        _write(root, rel, text + "\n`<!--`\n## PR-A99 — visible\n`-->`\n")
+        _assert_findings(
+            root,
+            f"{rel}: provenance Markdown の曖昧構文を受理しない — "
+            f"{[f'line {lineno}: inline code 内の HTML comment delimiter']!r}",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_unclosed_provenance_fence_is_rejected_fail_closed():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        text = _read(root, rel)
+        lineno = len(text.splitlines()) + 2
+        _write(root, rel, text + "\n```markdown\n## PR-A99 — masked\n")
+        _assert_findings(
+            root,
+            f"{rel}: provenance Markdown の曖昧構文を受理しない — "
+            f"{[f'line {lineno}: 未閉じ code fence']!r}",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_mismatched_provenance_fence_is_rejected_fail_closed():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        text = _read(root, rel)
+        opener = len(text.splitlines()) + 2
+        closer = opener + 2
+        _write(root, rel, text + "\n```markdown\n## PR-A99 — masked\n~~~\n")
+        _assert_findings(
+            root,
+            f"{rel}: provenance Markdown の曖昧構文を受理しない — "
+            f"{[f'line {closer}: 異種 fence closer', f'line {opener}: 未閉じ code fence']!r}",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_fence_inside_html_comment_does_not_mask_following_h2():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        text = _read(root, rel)
+        _write(
+            root,
+            rel,
+            text + "\n<!--\n```markdown\n-->\n## PR-A99 — visible orphan\n",
+        )
+        _assert_findings(
+            root,
+            f"{rel}: provenance dispatch 契約にない孤児 H2 — ['PR-A99']",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_invalid_backtick_fence_info_string_is_rejected_fail_closed():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        text = _read(root, rel)
+        lineno = len(text.splitlines()) + 2
+        _write(root, rel, text + "\n```info`bad\n## PR-A99 — over-masked\n")
+        _assert_findings(
+            root,
+            f"{rel}: provenance Markdown の曖昧構文を受理しない — "
+            f"{[f'line {lineno}: 無効な backtick fence info string']!r}",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_references_inherit_land_helper_location_lint():
+    root = _build_min_repo()
+    try:
+        rel = "docs/provenance/audit.md"
+        _write(root, rel, _read(root, rel) + "\n`tools/dev_wave_land.py`\n")
+        _assert_findings(
+            root,
+            f"{rel}: land helper path は DW-S09 / DW-O23 だけに置く",
         )
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -622,6 +1272,68 @@ def _load_fixture_checker(root: str):
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _run_loaded_checker(module) -> subprocess.CompletedProcess:
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        returncode = module.main()
+    return subprocess.CompletedProcess([], returncode, output.getvalue(), "")
+
+
+def test_provenance_registry_three_faces_asymmetry_is_rejected(monkeypatch):
+    root = _build_min_repo()
+    try:
+        module = _load_fixture_checker(root)
+        rel = "docs/provenance/extra.md"
+        path = module.REPO / rel
+        _write(root, rel, "# registered only in budget face\n")
+        monkeypatch.setattr(
+            module,
+            "PROVENANCE_REFERENCE_LIMITS",
+            {
+                **module.PROVENANCE_REFERENCE_LIMITS,
+                rel: module.TextLimit(1_600),
+            },
+        )
+        monkeypatch.setattr(
+            module, "LIVING_DOCS", [*module.LIVING_DOCS, path]
+        )
+        monkeypatch.setattr(
+            module, "_ENUMERATED_DOCS", module._ENUMERATED_DOCS | {path}
+        )
+        res = _run_loaded_checker(module)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1, res.stdout
+        assert "provenance registry 三面の path 集合が不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_provenance_dispatch_pair_multiple_key_ownership_is_rejected(
+    monkeypatch,
+):
+    root = _build_min_repo()
+    try:
+        module = _load_fixture_checker(root)
+        contract = dict(module.PROVENANCE_DISPATCH_CONTRACT)
+        condition, pairs = contract["history"]
+        duplicate = ("docs/provenance/audit.md", "PR-A01")
+        contract["history"] = (condition, pairs | {duplicate})
+        monkeypatch.setattr(module, "PROVENANCE_DISPATCH_CONTRACT", contract)
+
+        rel = "docs/ai-provenance.md"
+        text = _read(root, rel)
+        row = _dispatch_row(text, "history")
+        changed = row.replace("`PR-A02`", "`PR-A01`, `PR-A02`", 1)
+        _write(root, rel, text.replace(row, changed, 1))
+
+        res = _run_loaded_checker(module)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1, res.stdout
+        assert "provenance dispatch pair の key 所有が不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def _placeholder_findings(root: str) -> list[str]:
@@ -3699,6 +4411,175 @@ def test_real_repo_clean():
     )
     assert res.returncode == 0, f"実 repo で違反が出た:\n{res.stdout}\n{res.stderr}"
     assert "違反なし" in res.stdout, res.stdout
+
+
+# ===== handoff 48h stale + schema 検査 (S2, dev-wave 段5 U2, 段4裁定 B4) =====
+# 48h stale 判定と handoff schema (4 行ヘッダ書式・状態語彙・基準コミット形) は所有者を
+# 判別できないため非阻害の warning とする (rc に算入しない)。「状態:」行の欠落だけは
+# 自己修復可能な finding のまま残す (択一 4)。既存被覆はゼロだったため以下は全て純増。
+
+
+def _well_formed_handoff_text(
+    *,
+    state: str = "作業中",
+    base: str | None = None,
+    purpose: str = "テスト目的",
+    updated: str = "2026-08-01",
+) -> str:
+    """4 行ヘッダ契約 (# タイトル + 直後 4 行。書式検査は check_docs.py の非阻害 warning が唯一の経路) を満たす最小 handoff。"""
+    if base is None:
+        base = "a" * 40
+    return (
+        "# synthetic handoff\n"
+        f"- 目的: {purpose}\n"
+        f"- 状態: {state}\n"
+        f"- 最終更新: {updated}\n"
+        f"- 基準コミット: {base}\n"
+        "\n"
+        "## 本文\n"
+        "trivial body\n"
+    )
+
+
+def _write_handoff(
+    root: str, name: str, text: str, *, age_hours: float | None = None
+) -> str:
+    rel = os.path.join("docs", "handoff", name)
+    _write(root, rel, text)
+    path = os.path.join(root, rel)
+    if age_hours is not None:
+        ts = time.time() - age_hours * 3600
+        os.utime(path, (ts, ts))
+    return path
+
+
+def _assert_warning_not_finding(root: str, *needles: str) -> subprocess.CompletedProcess:
+    res = _run_check(root)
+    assert res.returncode == 0, f"警告のはずが rc!=0 になった:\n{res.stdout}\n{res.stderr}"
+    assert "違反なし" in res.stdout, f"warning のはずが finding 扱いになった:\n{res.stdout}"
+    for needle in needles:
+        assert needle in res.stdout, f"{needle!r} が警告出力にない:\n{res.stdout}"
+    return res
+
+
+def _assert_no_warnings(root: str) -> subprocess.CompletedProcess:
+    res = _run_check(root)
+    assert res.returncode == 0, f"rc!=0:\n{res.stdout}\n{res.stderr}"
+    assert "違反なし" in res.stdout, res.stdout
+    assert "件の警告" not in res.stdout, f"警告が出てはいけないのに出た:\n{res.stdout}"
+    return res
+
+
+def test_stale_active_handoff_does_not_make_check_docs_red():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-stale.md",
+            _well_formed_handoff_text(state="作業中"),
+            age_hours=49,
+        )
+        _assert_warning_not_finding(
+            root,
+            "2026-07-01-stale.md",
+            "状態が稼働中のまま 48h 以上未更新",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_fresh_active_handoff_emits_no_stale_warning():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-fresh.md",
+            _well_formed_handoff_text(state="作業中"),
+            age_hours=47,
+        )
+        res = _assert_no_warnings(root)
+        assert "48h" not in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_handoff_without_status_header_is_still_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-nostatus.md",
+            "# broken handoff\n\nno header fields at all.\n",
+        )
+        _assert_violation(root, "ヘッダ定型 (状態:) がない")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_unknown_state_value_is_a_warning_not_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-unknownstate.md",
+            _well_formed_handoff_text(state="完了"),
+        )
+        _assert_warning_not_finding(
+            root,
+            "既知の 3 値 (作業中/計測中/中断) のいずれでもない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_malformed_four_line_header_is_a_warning_not_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-malformed.md",
+            "# malformed header handoff\n"
+            "\n"
+            "- 状態: 作業中\n"
+            "- 最終更新: 2026-08-01\n"
+            "- 基準コミット: " + "a" * 40 + "\n",
+        )
+        _assert_warning_not_finding(
+            root,
+            "4 行ヘッダ",
+            "書式が",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_short_base_commit_is_a_warning_not_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-shortsha.md",
+            _well_formed_handoff_text(base="abc1234"),
+        )
+        _assert_warning_not_finding(
+            root,
+            "40 桁または 64 桁の hex ではない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_repo_with_only_a_well_formed_handoff_has_zero_warnings():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-wellformed.md",
+            _well_formed_handoff_text(),
+        )
+        _assert_no_warnings(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def _run():

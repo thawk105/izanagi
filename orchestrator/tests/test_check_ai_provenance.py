@@ -18,6 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools"))
 
 import check_ai_provenance as provenance  # noqa: E402
+import check_docs  # noqa: E402
 
 site_policy = provenance.site_policy
 
@@ -643,10 +644,37 @@ def test_canonical_parser_fails_closed_on_invalid_bytes_or_record(
         ("patches/README.md", False),
         ("docs/worklog.md", False),
         ("CMakeLists.txt", True),
+        # 受入全走の収集集合を決める制御ファイル。repo 直下なので prefix にも
+        # suffix にも当たらず、basename 分類だけが実装面へ入れる (段 4 裁定 M8)。
+        ("pytest.ini", True),
+        ("./pytest.ini", True),
+        # 分類は basename で決まる。同名でない ini は従来どおり非実装面のまま。
+        ("docs/notes.ini", False),
     ],
 )
 def test_implementation_path_contract(path: str, expected: bool):
     assert provenance._is_implementation_path(path) is expected
+
+
+def test_repo_root_pytest_ini_requires_codex_author():
+    """pytest.ini だけを触る AI commit にも D95 の Codex author 契約を発火させる。"""
+    assert "pytest.ini" in provenance.IMPLEMENTATION_BASENAMES
+    findings, waived_applied = provenance.validate_implementation_author(
+        "candidate", CLAUDE_AUTHOR, ["pytest.ini"],
+    )
+    assert findings == [
+        "candidate: 実装面に Codex role=author がない — paths=pytest.ini"
+    ]
+    assert waived_applied is False
+    assert provenance.validate_implementation_author(
+        "candidate", CODEX_AUTHOR, ["pytest.ini"],
+    ) == ([], False)
+
+
+def test_repo_ships_the_pytest_ini_that_the_classifier_now_covers():
+    """分類の追加が実在ファイルに結線されていること (恒真な保証にしない)。"""
+    assert (REPO / "pytest.ini").is_file()
+    assert provenance._is_implementation_path("pytest.ini") is True
 
 
 def test_claude_only_author_is_rejected_for_implementation_positive_control():
@@ -2286,14 +2314,36 @@ def _mixed_history(
 # --- W: waiver 逐語と needle の positive control -----------------------------
 
 
-def test_waiver_literal_matches_production_and_repo_policy_exactly_once():
-    assert provenance.WAIVER_POLICY_LITERAL == (
-        "AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>"
+def test_policy_anchor_literals_exist_only_in_entry_with_hard_coded_oracle():
+    anchors = (
+        "実装面を変更する AI 関与 commit は Codex author を必須",
+        "Co-Authored-By 候補行はすべて最終 trailer block に置く",
+        "AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>",
     )
-    policy = (REPO / provenance.POLICY_PATH).read_text(encoding="utf-8")
-    assert policy.count(provenance.WAIVER_POLICY_LITERAL) == 1
-    assert policy.count(POLICY_NEEDLE_LITERAL) == 1
-    assert policy.count(provenance.IMPLEMENTATION_POLICY_NEEDLE) == 1
+    entry = (REPO / "docs/ai-provenance.md").read_text(encoding="utf-8")
+    references = (
+        (REPO / "docs/provenance/correction.md").read_text(encoding="utf-8"),
+        (REPO / "docs/provenance/audit.md").read_text(encoding="utf-8"),
+    )
+    for anchor in anchors:
+        assert entry.count(anchor) == 1
+        assert all(reference.count(anchor) == 0 for reference in references)
+    assert provenance.IMPLEMENTATION_POLICY_NEEDLE == anchors[0]
+    assert provenance.CO_AUTHORED_BY_POLICY_NEEDLE == anchors[1]
+    assert provenance.WAIVER_POLICY_LITERAL == anchors[2]
+
+
+def test_scope_epoch_anchor_occurs_exactly_once_in_entry():
+    entry = (REPO / "docs/ai-provenance.md").read_text(encoding="utf-8")
+    assert entry.count("scope=") == 1
+
+
+def test_provenance_policy_path_is_shared_and_hard_coded():
+    assert (
+        provenance.POLICY_PATH
+        == check_docs.PROVENANCE_ENTRY
+        == "docs/ai-provenance.md"
+    )
 
 
 def test_implementation_policy_epoch_is_pinned_in_this_repo():

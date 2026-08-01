@@ -35,14 +35,9 @@ RC_LANDED_POSTCONDITION_FAILED = 25
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
 _MAX_METADATA_BYTES = 16 * 1024
-_MAX_HANDOFF_BYTES = 2 * 1024 * 1024
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SAFE_ADMIN_RE = re.compile(rb"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 _SAFE_CHILD_RE = re.compile(rb"(?!\.{1,2}\Z)[^/\x00]{1,128}\Z")
-_SAFE_HANDOFF_RE = re.compile(
-    rb"[0-9A-Za-z][0-9A-Za-z._-]{0,191}\.md\Z"
-)
-_HANDOFF_STATES = {"作業中", "計測中", "中断"}
 _CONTROL_CONTAINERS = (b".claude/worktrees", b".codex/worktrees")
 _GIT_CONFIG = (
     "-c", "core.hooksPath=/dev/null",
@@ -230,7 +225,6 @@ def _read_regular_at(
     *,
     rc: int,
     limit: int = _MAX_METADATA_BYTES,
-    require_one_link: bool = False,
 ) -> tuple[bytes, os.stat_result]:
     try:
         before = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
@@ -245,8 +239,6 @@ def _read_regular_at(
         opened = os.fstat(fd)
         if not stat.S_ISREG(opened.st_mode) or not _same_inode(before, opened):
             raise _Reject(rc, f"{label}: symlink/race/non-regular")
-        if require_one_link and opened.st_nlink != 1:
-            raise _Reject(rc, f"{label}: hard-linked handoff is unsupported")
         chunks: list[bytes] = []
         total = 0
         while True:
@@ -535,64 +527,17 @@ def _verify_effective_config(repository: _Repository) -> None:
             raise _Reject(RC_AUDIT, f"{label} is unsupported")
 
 
-def _validate_handoff_at(
-    handoff_fd: int, name: bytes
-) -> tuple[object, ...]:
-    if (
-        b"/" in name
-        or _SAFE_HANDOFF_RE.fullmatch(name) is None
-        or name == b"README.md"
-    ):
-        raise _Reject(RC_CONTROL_PLANE, "handoff must be a safe direct-child .md")
-    data, metadata = _read_regular_at(
-        handoff_fd,
-        name,
-        f"handoff {name!r}",
-        rc=RC_CONTROL_PLANE,
-        limit=_MAX_HANDOFF_BYTES,
-        require_one_link=True,
-    )
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise _Reject(RC_CONTROL_PLANE, "handoff is not valid UTF-8") from exc
-    lines = text.splitlines()
-    if len(lines) < 5 or not lines[0].startswith("# ") or not lines[0][2:].strip():
-        raise _Reject(RC_CONTROL_PLANE, "handoff title/header is malformed")
-    required_prefixes = ("- 目的: ", "- 状態: ", "- 最終更新: ", "- 基準コミット: ")
-    if any(not lines[i + 1].startswith(prefix) for i, prefix in enumerate(required_prefixes)):
-        raise _Reject(RC_CONTROL_PLANE, "handoff four-line header is malformed")
-    if not lines[1].removeprefix("- 目的: ").strip():
-        raise _Reject(RC_CONTROL_PLANE, "handoff purpose is empty")
-    state = lines[2].removeprefix("- 状態: ").strip()
-    if state not in _HANDOFF_STATES:
-        raise _Reject(RC_CONTROL_PLANE, "handoff state is unknown")
-    if not lines[3].removeprefix("- 最終更新: ").strip():
-        raise _Reject(RC_CONTROL_PLANE, "handoff update time is empty")
-    base = lines[4].removeprefix("- 基準コミット: ").strip().split(maxsplit=1)[0]
-    if _SHA_RE.fullmatch(base) is None:
-        raise _Reject(RC_CONTROL_PLANE, "handoff base commit is not a full SHA")
-    headings = [
-        line.split("   ", 1)[0].rstrip()
-        for line in lines
-        if line.startswith("## ")
-    ]
-    for heading in (
-        "## 完了した中間成果",
-        "## 未完の作業と次の一手",
-        "## 落とし穴・気づき",
-    ):
-        if headings.count(heading) != 1:
-            raise _Reject(RC_CONTROL_PLANE, f"handoff heading missing/duplicate: {heading}")
-    return (
-        _identity(metadata),
-        hashlib.sha256(data).digest(),
-    )
-
-
 def _handoff_snapshot(
     repository: _Repository,
 ) -> tuple[frozenset[bytes], tuple[tuple[bytes, tuple[object, ...]], ...]]:
+    """foreign handoff 面は「名前集合」と「dir identity」だけを観測する。
+
+    直下エントリの型・名前・大きさ・link 数・encoding・schema は land の
+    受理集合に一切入らない (T-220 択 (a))。他セッション所有の handoff は
+    incoming target と衝突するときだけ拒否され、その拒否は
+    ``_verify_main_clean`` / ``_verify_target_collisions`` の
+    ``_paths_overlap`` に一本化されている。
+    """
     docs_fd = _openat_dir(repository.main_fd, b"docs", "main/docs", rc=RC_CONTROL_PLANE)
     try:
         handoff_fd = _openat_dir(
@@ -608,28 +553,23 @@ def _handoff_snapshot(
             raise _Reject(
                 RC_CONTROL_PLANE, f"main/docs/handoff: list failed ({exc})"
             ) from exc
-        validated: set[bytes] = set()
-        identities: list[tuple[bytes, tuple[object, ...]]] = [
-            (b"docs/handoff", _identity(directory_before))
-        ]
-        for name in names_before:
-            if name == b"README.md":
-                continue
-            relative = b"docs/handoff/" + name
-            identities.append((relative, _validate_handoff_at(handoff_fd, name)))
-            validated.add(relative)
+        observed = frozenset(
+            b"docs/handoff/" + name
+            for name in names_before
+            if name != b"README.md"
+        )
+        identities: tuple[tuple[bytes, tuple[object, ...]], ...] = (
+            (b"docs/handoff", _identity(directory_before)),
+        )
         try:
             names_after = sorted(os.fsencode(name) for name in os.listdir(handoff_fd))
         except OSError as exc:
             raise _Reject(
                 RC_CONTROL_PLANE, f"main/docs/handoff: relist failed ({exc})"
             ) from exc
-        if (
-            names_after != names_before
-            or not _same_inode(directory_before, os.fstat(handoff_fd))
-        ):
-            raise _Reject(RC_CONTROL_PLANE, "handoff directory changed while validating")
-        return frozenset(validated), tuple(identities)
+        if names_after != names_before:
+            raise _Reject(RC_CONTROL_PLANE, "handoff directory changed while observing")
+        return observed, identities
     finally:
         os.close(handoff_fd)
 
@@ -772,13 +712,14 @@ def _verify_main_clean(
     for record in records:
         if not record.startswith(b"?? "):
             raise _Reject(RC_DIRT, "main tracked/index/submodule dirt is forbidden")
-        relative = record[3:]
-        if relative.startswith(b"docs/handoff/"):
-            if relative not in after.handoffs:
-                raise _Reject(
-                    RC_CONTROL_PLANE,
-                    "untracked handoff status is not an exact validated direct child",
-                )
+        # git は nested repository / linked worktree を collapsed directory として
+        # `?? path/` の 1 レコードで返す (`-uall` でも同じ)。以降の成分境界比較は
+        # `_ignored_paths_for_target` と同型に正規化した path で行う。
+        relative = record[3:].rstrip(b"/")
+        if any(
+            relative == handoff or relative.startswith(handoff + b"/")
+            for handoff in after.handoffs
+        ):
             continue
         if any(
             relative == prefix[:-1] or relative.startswith(prefix)
@@ -793,6 +734,18 @@ def _verify_main_clean(
                 f"main untracked path collides with land target: {relative!r}",
             )
     return after
+
+
+def _verify_main_no_tracked_dirt(repository: _Repository) -> None:
+    """post-land 用の縮約検査 — tracked/index/submodule dirt だけを見る。
+
+    merge 後には守るべき後続変異が無く、control-plane の TOCTOU 監視は目的を持たない。
+    他セッションの handoff 活動を自分の land の非再試行 failure へ誤帰属しないため、
+    ``_verify_main_clean`` の control-plane 面をここでは観測しない。
+    """
+    for record in _status_records(repository.main, "main post-land"):
+        if not record.startswith(b"?? "):
+            raise _Reject(RC_DIRT, "main tracked/index/submodule dirt is forbidden")
 
 
 def _verify_wave_clean(repository: _Repository) -> None:
@@ -1189,7 +1142,7 @@ def _postcondition(
                 failures.append(
                     "merge left tracked/index/worktree changes without reaching tested tip"
                 )
-            _verify_main_clean(repository)
+            _verify_main_no_tracked_dirt(repository)
         except _Reject as exc:
             failures.append(exc.reason)
         if failures:
@@ -1228,7 +1181,7 @@ def _postcondition(
             failures.append("wave symbolic ref moved")
         if _ref_sha(repository.wave, wave_ref, "wave post-land ref") != tested_tip:
             failures.append("wave ref moved")
-        _verify_main_clean(repository)
+        _verify_main_no_tracked_dirt(repository)
         _verify_wave_clean(repository)
     except _Reject as exc:
         failures.append(exc.reason)

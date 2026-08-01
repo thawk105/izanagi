@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
+import hashlib
 import importlib.util
 import json
 import os
@@ -31,7 +32,7 @@ SPEC.loader.exec_module(LAND)
 REAL_GIT = "/usr/bin/git"
 
 
-def _git(repo: Path, *args: str, check: bool = True) -> str:
+def _git_env() -> dict[str, str]:
     env = {
         key: value for key, value in os.environ.items()
         if not key.startswith("GIT_")
@@ -41,6 +42,11 @@ def _git(repo: Path, *args: str, check: bool = True) -> str:
         "GIT_CONFIG_SYSTEM": os.devnull,
         "GIT_TERMINAL_PROMPT": "0",
     })
+    return env
+
+
+def _git(repo: Path, *args: str, check: bool = True) -> str:
+    env = _git_env()
     result = subprocess.run(
         [REAL_GIT, "-C", str(repo), *args],
         env=env,
@@ -156,21 +162,24 @@ def _land(request):
         return LAND.land(request)
 
 
-def _handoff(repo: _Repo, *, state: str = "作業中", name: str = "foreign.md") -> Path:
-    path = repo.main / "docs" / "handoff" / name
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+def _handoff_text(repo: _Repo, *, state: str = "作業中", base: str | None = None) -> str:
+    return (
         "# foreign wave\n"
         "- 目的: parallel control plane\n"
         f"- 状態: {state}\n"
         "- 最終更新: 2000-01-01\n"
-        f"- 基準コミット: {repo.base}\n"
+        f"- 基準コミット: {repo.base if base is None else base}\n"
         "\n"
         "## 完了した中間成果\n\nnone\n"
         "## 未完の作業と次の一手\n\ncontinue\n"
-        "## 落とし穴・気づき\n\nnone\n",
-        encoding="utf-8",
+        "## 落とし穴・気づき\n\nnone\n"
     )
+
+
+def _handoff(repo: _Repo, *, state: str = "作業中", name: str = "foreign.md") -> Path:
+    path = repo.main / "docs" / "handoff" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_handoff_text(repo, state=state), encoding="utf-8")
     return path
 
 
@@ -180,6 +189,123 @@ def _snapshot(path: Path) -> tuple[bytes, tuple[int, int, int]]:
         path.read_bytes(),
         (metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode)),
     )
+
+
+def _artifact_snapshot(path: Path) -> tuple[object, tuple[object, ...]]:
+    """型を問わず foreign artifact の中身と identity を採取する。
+
+    ``_snapshot`` は regular file 専用なので、symlink / fifo / directory /
+    読めない file でも「land が一切触っていない」ことを主張できる形へ広げる。
+    """
+    metadata = path.lstat()
+    identity = (
+        metadata.st_dev,
+        metadata.st_ino,
+        stat.S_IFMT(metadata.st_mode),
+        stat.S_IMODE(metadata.st_mode),
+        metadata.st_nlink,
+        metadata.st_size,
+    )
+    if stat.S_ISLNK(metadata.st_mode):
+        payload: object = os.readlink(path)
+    elif stat.S_ISDIR(metadata.st_mode):
+        payload = sorted(os.listdir(path))
+    elif stat.S_ISREG(metadata.st_mode):
+        try:
+            payload = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as exc:
+            payload = f"unreadable:{exc.errno}"
+    else:
+        payload = None
+    return payload, identity
+
+
+# T-220 択 (a): docs/handoff/ 直下の型・名前・大きさ・link 数・encoding・schema は
+# land の受理集合に入らない。旧実装が per-file の大域拒否を出していた 15 形を列挙する。
+_FOREIGN_HANDOFF_KINDS = (
+    "malformed",
+    "symlink",
+    "fifo",
+    "directory",
+    "non-md-suffix",
+    "editor-swap",
+    "editor-backup",
+    "non-ascii-name",
+    "oversize",
+    "hard-link",
+    "unreadable",
+    "empty",
+    "non-utf8",
+    "unknown-state",
+    "empty-base-commit",
+)
+
+
+def _make_foreign_handoff(repo: _Repo, kind: str) -> Path:
+    """docs/handoff 直下に kind に対応する異形エントリを 1 つ作る。"""
+    handoff = repo.main / "docs" / "handoff"
+    handoff.mkdir(parents=True, exist_ok=True)
+    if kind == "malformed":
+        path = handoff / "malformed.md"
+        path.write_text("# missing schema\n", encoding="utf-8")
+    elif kind == "symlink":
+        path = handoff / "symlink.md"
+        path.symlink_to(repo.main / "base.txt")
+    elif kind == "fifo":
+        path = handoff / "fifo.md"
+        os.mkfifo(path)
+    elif kind == "directory":
+        path = handoff / "archive"
+        path.mkdir()
+        (path / "old.md").write_text(_handoff_text(repo), encoding="utf-8")
+    elif kind == "non-md-suffix":
+        path = handoff / "notes.txt"
+        path.write_text("scratch notes\n", encoding="utf-8")
+    elif kind == "editor-swap":
+        path = handoff / ".foo.md.swp"
+        path.write_bytes(b"b0VIM 8.0\x00\x00")
+    elif kind == "editor-backup":
+        path = handoff / "foo.md~"
+        path.write_text(_handoff_text(repo), encoding="utf-8")
+    elif kind == "non-ascii-name":
+        path = handoff / "引き継ぎ.md"
+        path.write_text(_handoff_text(repo), encoding="utf-8")
+    elif kind == "oversize":
+        path = handoff / "oversize.md"
+        path.write_bytes(b"x" * (2 * 1024 * 1024 + 1))
+    elif kind == "hard-link":
+        path = handoff / "linked.md"
+        peer = repo.root / "handoff-hardlink-peer.md"
+        peer.write_text(_handoff_text(repo), encoding="utf-8")
+        os.link(peer, path)
+    elif kind == "unreadable":
+        path = handoff / "sealed.md"
+        path.write_text(_handoff_text(repo), encoding="utf-8")
+        path.chmod(0o000)
+    elif kind == "empty":
+        path = handoff / "empty.md"
+        path.write_bytes(b"")
+    elif kind == "non-utf8":
+        path = handoff / "binary.md"
+        path.write_bytes(b"# \xff\xfe not utf-8\n")
+    elif kind == "unknown-state":
+        path = handoff / "unknown-state.md"
+        path.write_text(_handoff_text(repo, state="完了"), encoding="utf-8")
+    elif kind == "empty-base-commit":
+        # 旧 _validate_handoff_at:572 は "".split()[0] で IndexError を投げ、
+        # rc 契約外の素の例外が land() を貫通していた形。
+        path = handoff / "empty-base.md"
+        path.write_text(_handoff_text(repo, base=""), encoding="utf-8")
+    else:  # pragma: no cover - 列挙漏れの自己検査
+        raise AssertionError(f"unknown foreign handoff kind: {kind}")
+    return path
+
+
+def _make_all_foreign_handoffs(repo: _Repo) -> dict[str, Path]:
+    entries = {kind: _make_foreign_handoff(repo, kind) for kind in _FOREIGN_HANDOFF_KINDS}
+    assert len(entries) == len(_FOREIGN_HANDOFF_KINDS) == 15
+    assert len({path.name for path in entries.values()}) == 15
+    return entries
 
 
 _SYNTHETIC_ACCEPTANCE = r"""
@@ -277,14 +403,23 @@ def test_basic_land_accepts_registered_claude_and_codex_children() -> None:
         assert {path: _snapshot(path) for path in watched} == watched
 
 
-def test_handoff_all_states_and_stale_are_accepted() -> None:
-    """freshness は診断に限り、三状態と stale date をすべて許可する。"""
-    for state in ("作業中", "計測中", "中断"):
+def test_handoff_state_vocabulary_is_not_a_land_gate() -> None:
+    """[意図した挙動変更] 状態語彙も stale date も land の gate ではない。
+
+    旧 test は三状態だけを ``already-landed`` で確認していた。T-220 択 (a) 後は
+    語彙外の値でも受理されるので期待値を反転し、さらに merge を伴う実 land
+    (``landed``) で確認する。語彙の検出は check_docs の非阻害 warning へ降格した。
+    """
+    for state in ("作業中", "計測中", "中断", "完了", "", "arbitrary text"):
         with _repo() as repo:
             wave = repo.waves["one"]
-            _handoff(repo, state=state)
-            result = _land(repo.request(wave, tip=repo.base, audited=()))
-            assert (result.rc, result.status) == (0, "already-landed"), (state, result)
+            tip = repo.commit(wave, "wave.txt", "wave\n")
+            handoff = _handoff(repo, state=state)
+            watched = _artifact_snapshot(handoff)
+            result = _land(repo.request(wave, tip=tip))
+            assert (result.rc, result.status) == (LAND.RC_OK, "landed"), (state, result)
+            assert _git(repo.main, "rev-parse", "HEAD") == tip
+            assert _artifact_snapshot(handoff) == watched, state
 
 
 def test_colliding_untracked_rejected_without_main_or_foreign_artifact_change() -> None:
@@ -341,24 +476,184 @@ def test_tracked_and_staged_main_dirt_are_rejected() -> None:
             assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
-def test_malformed_symlink_and_nonregular_handoff_are_rejected() -> None:
-    """M5: path の型と schema の両方を positive-control 付きで固定する。"""
-    for kind in ("malformed", "symlink", "fifo"):
-        with _repo() as repo:
-            wave = repo.waves["one"]
-            tip = repo.commit(wave, "wave.txt", "wave\n")
-            path = repo.main / "docs" / "handoff" / "foreign.md"
-            path.parent.mkdir(parents=True, exist_ok=True)
-            if kind == "malformed":
-                path.write_text("# missing schema\n", encoding="utf-8")
-            elif kind == "symlink":
-                path.symlink_to(repo.main / "base.txt")
-            else:
-                os.mkfifo(path)
-            before = _git(repo.main, "rev-parse", "HEAD")
+def test_foreign_handoff_of_any_shape_does_not_block_land() -> None:
+    """[意図した挙動変更] どの形の foreign handoff も land 全体を止めない。
+
+    旧 test (malformed / symlink / fifo) は per-file の大域拒否を固定していた。
+    T-220 択 (a) 後は 15 形すべてが同時に存在しても ``landed`` であり、かつ
+    land は foreign artifact の中身にも inode にも一切触れない。
+    """
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        entries = _make_all_foreign_handoffs(repo)
+        watched = {path: _artifact_snapshot(path) for path in entries.values()}
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+        assert (repo.main / "author.txt").read_text(encoding="utf-8") == "author\n"
+        assert {
+            path: _artifact_snapshot(path) for path in entries.values()
+        } == watched
+
+
+def test_foreign_handoff_of_any_shape_is_protected_from_target_collision() -> None:
+    """N1/N2: 15 形すべてが incoming target との衝突では拒否され続ける。
+
+    「大域拒否をやめたついでに protected からも落ちた」を赤にする。
+    """
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        entries = _make_all_foreign_handoffs(repo)
+        watched = {path: _artifact_snapshot(path) for path in entries.values()}
+        for kind, path in entries.items():
+            relative = path.relative_to(repo.main).as_posix()
+            target = f"{relative}/incoming.md" if kind == "directory" else relative
+            _git(wave, "reset", "-q", "--hard", repo.base)
+            destination = wave / target
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text("tracked replacement\n", encoding="utf-8")
+            _git(wave, "add", "--", target)
+            _git(wave, "commit", "-qm", f"add {kind} collision")
+            tip = _git(wave, "rev-parse", "HEAD")
             result = _land(repo.request(wave, tip=tip))
-            assert result.rc in (LAND.RC_CONTROL_PLANE, LAND.RC_DIRT), (kind, result)
-            assert _git(repo.main, "rev-parse", "HEAD") == before
+            assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert {
+            path: _artifact_snapshot(path) for path in entries.values()
+        } == watched
+
+
+def test_nested_untracked_under_foreign_handoff_directory() -> None:
+    """N2: handoff 配下の nested untracked は大域拒否せず、衝突時だけ拒否する。
+
+    衝突側の rc を判別するのは、776 の前方一致を素の ``in`` に戻すと
+    同じ入力が 791 の RC_DIRT へ落ちて「拒否されたから緑」になるため。
+    """
+    for colliding in (False, True):
+        with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+            wave = repo.waves["author"]
+            nested = repo.main / "docs" / "handoff" / "archive" / "a.md"
+            nested.parent.mkdir(parents=True, exist_ok=True)
+            nested.write_text("nested foreign note\n", encoding="utf-8")
+            watched = _artifact_snapshot(nested)
+            relative = "docs/handoff/archive/a.md" if colliding else "author.txt"
+            destination = wave / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text("incoming\n", encoding="utf-8")
+            _git(wave, "add", "--", relative)
+            _git(wave, "commit", "-qm", f"add {relative}")
+            tip = _git(wave, "rev-parse", "HEAD")
+            result = _land(repo.request(wave, tip=tip))
+            if colliding:
+                assert result.rc == LAND.RC_CONTROL_PLANE, result
+                assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+            else:
+                assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+                assert _git(repo.main, "rev-parse", "HEAD") == tip
+            assert _artifact_snapshot(nested) == watched, colliding
+
+
+def test_handoff_readme_remains_a_landable_target() -> None:
+    """tracked な docs/handoff/README.md は foreign handoff があっても land できる。
+
+    README skip を落とすと 9 commit の変更実績がある target が恒久的に
+    着地不能になる。この回帰を赤にする test は従来 0 本だった。
+    """
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        foreign = _handoff(repo)
+        watched = _artifact_snapshot(foreign)
+        payload = "# handoff\n\nupdated by the wave\n"
+        readme = wave / "docs" / "handoff" / "README.md"
+        readme.write_text(payload, encoding="utf-8")
+        _git(wave, "add", "--", "docs/handoff/README.md")
+        _git(wave, "commit", "-qm", "update handoff README")
+        tip = _git(wave, "rev-parse", "HEAD")
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+        assert (repo.main / "docs" / "handoff" / "README.md").read_text(
+            encoding="utf-8"
+        ) == payload
+        assert _artifact_snapshot(foreign) == watched
+
+
+def test_untracked_handoff_readme_colliding_with_target_is_rejected() -> None:
+    """docs/handoff/ 面でも「incoming と衝突する未知 untracked」は拒否し続ける。
+
+    README.md は名前集合から除かれる唯一の直下エントリなので、776 を無条件
+    ``continue`` へ緩めた退行を判別できる唯一の入力でもある (rc=20 vs rc=24)。
+    """
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        _handoff(repo)
+        _git(wave, "rm", "-q", "docs/handoff/README.md")
+        _git(wave, "commit", "-qm", "drop tracked handoff README")
+        first_tip = _git(wave, "rev-parse", "HEAD")
+        first = _land(repo.request(wave, tip=first_tip))
+        assert (first.rc, first.status) == (LAND.RC_OK, "landed"), first
+        assert not (repo.main / "docs" / "handoff" / "README.md").exists()
+
+        untracked = repo.main / "docs" / "handoff" / "README.md"
+        untracked.write_text("# foreign untracked readme\n", encoding="utf-8")
+        watched = _artifact_snapshot(untracked)
+        readme = wave / "docs" / "handoff" / "README.md"
+        readme.parent.mkdir(parents=True, exist_ok=True)
+        readme.write_text("# reinstated by the wave\n", encoding="utf-8")
+        _git(wave, "add", "--", "docs/handoff/README.md")
+        _git(wave, "commit", "-qm", "reinstate handoff README")
+        second_tip = _git(wave, "rev-parse", "HEAD")
+        result = _land(repo.request(
+            wave,
+            base=first_tip,
+            tip=second_tip,
+            audited=repo.audited(first_tip, second_tip, wave),
+        ))
+        assert result.rc == LAND.RC_DIRT, result
+        assert _git(repo.main, "rev-parse", "HEAD") == first_tip
+        assert _artifact_snapshot(untracked) == watched
+
+
+def test_untracked_nested_repository_record_collides_with_target() -> None:
+    """N10 (M4): nested repo は ``?? path/`` の 1 レコードで返る。
+
+    ``-uall`` でも collapsed なので、末尾スラッシュを正規化しないと配下 target が
+    衝突検査を素通りする。git がこの形で返すこと自体を positive control で固定する。
+    """
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        nested = repo.main / "vendor" / "nested"
+        nested.mkdir(parents=True)
+        subprocess.run(
+            [REAL_GIT, "init", "-q", "-b", "main", str(nested)],
+            check=True,
+            env=_git_env(),
+        )
+        payload = nested / "payload.txt"
+        payload.write_text("foreign nested repo\n", encoding="utf-8")
+        raw = subprocess.run(
+            [
+                REAL_GIT, "-C", str(repo.main), "status", "--porcelain=v1", "-z",
+                "--untracked-files=all", "--ignore-submodules=none",
+            ],
+            check=True,
+            env=_git_env(),
+            stdout=subprocess.PIPE,
+        ).stdout
+        assert b"?? vendor/nested/\x00" in raw, raw
+
+        target = wave / "vendor" / "nested" / "payload.txt"
+        target.parent.mkdir(parents=True)
+        target.write_text("incoming\n", encoding="utf-8")
+        _git(wave, "add", "--", "vendor/nested/payload.txt")
+        _git(wave, "commit", "-qm", "add target under a nested repository")
+        tip = _git(wave, "rev-parse", "HEAD")
+        watched = _artifact_snapshot(payload)
+        result = _land(repo.request(wave, tip=tip))
+        assert result.rc == LAND.RC_DIRT, result
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert _artifact_snapshot(payload) == watched
 
 
 def test_unregistered_alias_child_is_rejected() -> None:
@@ -941,6 +1236,56 @@ def replace_target():
             stream.write(payload)
     open(marker, "wb").close()
 
+def once(marker_env):
+    marker = os.environ[marker_env]
+    if os.path.exists(marker):
+        return False
+    open(marker, "wb").close()
+    return True
+
+def edit_handoff_in_place():
+    # production の handoff 更新 (Path.write_text) と同型に inode を保存して
+    # bytes だけ書き換える。既存 replace_target は inode しか動かせない。
+    if not once("DEV_WAVE_EDIT_MARKER"):
+        return
+    payload = os.environ["DEV_WAVE_EDIT_PAYLOAD"].encode("utf-8")
+    fd = os.open(os.environ["DEV_WAVE_EDIT_TARGET"], os.O_WRONLY | os.O_TRUNC)
+    try:
+        os.write(fd, payload)
+    finally:
+        os.close(fd)
+
+def create_handoff():
+    if not once("DEV_WAVE_CREATE_MARKER"):
+        return
+    with open(os.environ["DEV_WAVE_CREATE_PATH"], "w", encoding="utf-8") as stream:
+        stream.write(os.environ["DEV_WAVE_CREATE_PAYLOAD"])
+
+def remove_handoff():
+    # 他セッションが正常終了して handoff を回収する形。運用最頻の消失方向。
+    if not once("DEV_WAVE_REMOVE_MARKER"):
+        return
+    os.unlink(os.environ["DEV_WAVE_REMOVE_PATH"])
+
+def dirty_tracked():
+    # merge 後に main の tracked file を書き換える。post-land の縮約検査
+    # (_verify_main_no_tracked_dirt) だけがこの入力を見る。
+    with open(os.environ["DEV_WAVE_DIRTY_PATH"], "w", encoding="utf-8") as stream:
+        stream.write(os.environ["DEV_WAVE_DIRTY_PAYLOAD"])
+
+def swap_directory():
+    # 子エントリを名前ごと保存したまま dir 自身を差し替える。名前集合が
+    # 変わらないので、dir identity を落とした実装だけがこれを見逃す。
+    if not once("DEV_WAVE_SWAP_MARKER"):
+        return
+    target = os.environ["DEV_WAVE_SWAP_TARGET"]
+    backup = os.environ["DEV_WAVE_SWAP_BACKUP"]
+    names = sorted(os.listdir(target))
+    os.rename(target, backup)
+    os.mkdir(target)
+    for name in names:
+        os.link(os.path.join(backup, name), os.path.join(target, name))
+
 if mode == "record":
     with open(os.environ["DEV_WAVE_RECORD"], "a", encoding="utf-8") as stream:
         stream.write(json.dumps(args) + "\\n")
@@ -958,6 +1303,28 @@ if mode == "replace-control" and "status" in args:
 if mode == "replace-after-collision" and "check-ignore" in args:
     completed = subprocess.run([real, *args], check=False)
     replace_target()
+    raise SystemExit(completed.returncode)
+if mode == "edit-handoff" and "status" in args:
+    completed = subprocess.run([real, *args], check=False)
+    edit_handoff_in_place()
+    raise SystemExit(completed.returncode)
+if mode == "create-handoff" and "status" in args:
+    completed = subprocess.run([real, *args], check=False)
+    create_handoff()
+    raise SystemExit(completed.returncode)
+if mode == "remove-handoff" and "status" in args:
+    completed = subprocess.run([real, *args], check=False)
+    remove_handoff()
+    raise SystemExit(completed.returncode)
+if mode == "swap-handoff-dir" and "status" in args:
+    completed = subprocess.run([real, *args], check=False)
+    swap_directory()
+    raise SystemExit(completed.returncode)
+if mode == "handoff-after-merge" and "status" in args:
+    completed = subprocess.run([real, *args], check=False)
+    if os.path.exists(os.environ["DEV_WAVE_MERGED"]):
+        create_handoff()
+        edit_handoff_in_place()
     raise SystemExit(completed.returncode)
 if "merge" not in args:
     os.execv(real, [real, *args])
@@ -993,6 +1360,10 @@ if mode in {"hold", "hold-dirty"}:
 completed = subprocess.run([real, *args], check=False)
 if mode == "hide-head" and completed.returncode == 0:
     open(os.environ["DEV_WAVE_MARKER"], "wb").close()
+if mode == "handoff-after-merge" and completed.returncode == 0:
+    open(os.environ["DEV_WAVE_MERGED"], "wb").close()
+if mode == "dirty-after-merge" and completed.returncode == 0:
+    dirty_tracked()
 if mode == "move-wave" and completed.returncode == 0:
     subprocess.run(
         [real, "-C", os.environ["DEV_WAVE_MOVE_REPO"], "update-ref",
@@ -1086,7 +1457,17 @@ def test_unobservable_post_merge_head_is_nonretryable_failure() -> None:
 
 
 def test_control_plane_replacement_around_status_is_rejected() -> None:
-    for kind in ("file", "directory"):
+    """[意図した挙動変更] 差し替えの拒否は worktree 面に残り、handoff 面では消える。
+
+    ``file`` = foreign handoff を同 bytes・別 inode へ差し替える形。per-entry
+    identity を捨てたので期待値を ``landed`` へ反転する (assert は削除せず反転)。
+    ``directory`` = 登録済み foreign worktree の差し替えで、負例として不変。
+    """
+    expectations = {
+        "file": (LAND.RC_OK, "landed"),
+        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
+    }
+    for kind, expected in expectations.items():
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
             wave = repo.waves["author"]
             tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -1107,12 +1488,24 @@ def test_control_plane_replacement_around_status_is_rejected() -> None:
                 "DEV_WAVE_REPLACE_KIND": kind,
             }):
                 result = _land(repo.request(wave, tip=tip))
-            assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
-            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+            assert (result.rc, result.status) == expected, (kind, result)
+            assert marker.exists(), kind
+            assert _git(repo.main, "rev-parse", "HEAD") == (
+                tip if kind == "file" else repo.base
+            ), kind
 
 
 def test_control_plane_replacement_after_collision_inspection_is_rejected() -> None:
-    for kind in ("file", "directory"):
+    """[意図した挙動変更] land 直前 (:1343) の再観測も handoff の内容/inode を見ない。
+
+    ``directory`` は負例として不変。``file`` は 764/766 と同じ理由で ``landed`` へ
+    反転する — この 2 窓は同じ ``_ControlSnapshot`` 比較なので同時に閉じる。
+    """
+    expectations = {
+        "file": (LAND.RC_OK, "landed"),
+        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
+    }
+    for kind, expected in expectations.items():
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
             wave = repo.waves["author"]
             tip = repo.commit(wave, "base.txt", "wave replacement\n")
@@ -1133,9 +1526,144 @@ def test_control_plane_replacement_after_collision_inspection_is_rejected() -> N
                 "DEV_WAVE_REPLACE_KIND": kind,
             }):
                 result = _land(repo.request(wave, tip=tip))
-            assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
-            assert marker.exists()
-            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+            assert (result.rc, result.status) == expected, (kind, result)
+            assert marker.exists(), kind
+            assert _git(repo.main, "rev-parse", "HEAD") == (
+                tip if kind == "file" else repo.base
+            ), kind
+
+
+def test_foreign_handoff_edited_in_place_around_status_does_not_block_land() -> None:
+    """P4 の正例: 他セッションが handoff を in-place 更新しても land は落ちない。
+
+    運用ルール (節目ごと + 10 分おきに育てる) の書き込みは inode を保存して
+    bytes を変える。identities へ内容 sha256 を戻すとこの test が赤になる。
+    """
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        handoff = _handoff(repo)
+        inode_before = handoff.lstat().st_ino
+        updated = _handoff_text(repo, state="中断") + "\n節目の追記\n"
+        wrapper = _wrapper(repo.root)
+        marker = repo.root / "handoff-edited"
+        with _patched_git(wrapper, {
+            "DEV_WAVE_REAL_GIT": REAL_GIT,
+            "DEV_WAVE_WRAPPER_MODE": "edit-handoff",
+            "DEV_WAVE_EDIT_MARKER": str(marker),
+            "DEV_WAVE_EDIT_TARGET": str(handoff),
+            "DEV_WAVE_EDIT_PAYLOAD": updated,
+        }):
+            result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert marker.exists()
+        assert handoff.lstat().st_ino == inode_before
+        assert handoff.read_text(encoding="utf-8") == updated
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_foreign_handoff_appearing_mid_flight_is_still_rejected() -> None:
+    """N3: status を跨いで新しい名前の handoff が現れたら拒否し続ける。"""
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        _handoff(repo)
+        appearing = repo.main / "docs" / "handoff" / "appearing.md"
+        wrapper = _wrapper(repo.root)
+        with _patched_git(wrapper, {
+            "DEV_WAVE_REAL_GIT": REAL_GIT,
+            "DEV_WAVE_WRAPPER_MODE": "create-handoff",
+            "DEV_WAVE_CREATE_MARKER": str(repo.root / "handoff-created"),
+            "DEV_WAVE_CREATE_PATH": str(appearing),
+            "DEV_WAVE_CREATE_PAYLOAD": _handoff_text(repo),
+        }):
+            result = _land(repo.request(wave, tip=tip))
+        assert result.rc == LAND.RC_CONTROL_PLANE, result
+        assert appearing.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_foreign_handoff_disappearing_mid_flight_is_still_rejected() -> None:
+    """N3 の消失方向: 他セッションが正常終了して handoff を回収しても拒否する。
+
+    出現方向 (``create-handoff``) だけでは名前集合の片側しか押さえられない。
+    他セッションの正常終了 (handoff の回収) は「名前集合が縮む」形であり、
+    出現だけを拒否して消失を見逃す実装をここで赤にする。
+    """
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        disappearing = _handoff(repo, name="disappearing.md")
+        wrapper = _wrapper(repo.root)
+        with _patched_git(wrapper, {
+            "DEV_WAVE_REAL_GIT": REAL_GIT,
+            "DEV_WAVE_WRAPPER_MODE": "remove-handoff",
+            "DEV_WAVE_REMOVE_MARKER": str(repo.root / "handoff-removed"),
+            "DEV_WAVE_REMOVE_PATH": str(disappearing),
+        }):
+            result = _land(repo.request(wave, tip=tip))
+        assert result.rc == LAND.RC_CONTROL_PLANE, result
+        assert not disappearing.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_handoff_directory_replacement_around_status_is_still_rejected() -> None:
+    """N4: docs/handoff 自身の差し替えは拒否し続ける。
+
+    子エントリを名前ごと保存して差し替えるので、名前集合は一致する。
+    dir identity を落とした実装だけがこれを見逃す。
+    """
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        handoff_dir = repo.main / "docs" / "handoff"
+        _handoff(repo)
+        inode_before = handoff_dir.lstat().st_ino
+        names_before = sorted(path.name for path in handoff_dir.iterdir())
+        wrapper = _wrapper(repo.root)
+        with _patched_git(wrapper, {
+            "DEV_WAVE_REAL_GIT": REAL_GIT,
+            "DEV_WAVE_WRAPPER_MODE": "swap-handoff-dir",
+            "DEV_WAVE_SWAP_MARKER": str(repo.root / "handoff-dir-swapped"),
+            "DEV_WAVE_SWAP_TARGET": str(handoff_dir),
+            "DEV_WAVE_SWAP_BACKUP": str(repo.root / "handoff-dir-backup"),
+        }):
+            result = _land(repo.request(wave, tip=tip))
+        assert result.rc == LAND.RC_CONTROL_PLANE, result
+        assert sorted(path.name for path in handoff_dir.iterdir()) == names_before
+        assert handoff_dir.lstat().st_ino != inode_before
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_post_land_is_not_failed_by_foreign_handoff_activity() -> None:
+    """P3: merge 後の foreign handoff 活動を自分の land の failure にしない。
+
+    post-land で control-plane を再観測すると、他セッションの正常な handoff
+    作成・更新が非再試行の RC_LANDED_POSTCONDITION_FAILED になる。
+    """
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        handoff = _handoff(repo)
+        appearing = repo.main / "docs" / "handoff" / "post-land.md"
+        updated = _handoff_text(repo, state="中断") + "\nland 後の追記\n"
+        wrapper = _wrapper(repo.root)
+        with _patched_git(wrapper, {
+            "DEV_WAVE_REAL_GIT": REAL_GIT,
+            "DEV_WAVE_WRAPPER_MODE": "handoff-after-merge",
+            "DEV_WAVE_MERGED": str(repo.root / "merged"),
+            "DEV_WAVE_CREATE_MARKER": str(repo.root / "post-land-created"),
+            "DEV_WAVE_CREATE_PATH": str(appearing),
+            "DEV_WAVE_CREATE_PAYLOAD": _handoff_text(repo),
+            "DEV_WAVE_EDIT_MARKER": str(repo.root / "post-land-edited"),
+            "DEV_WAVE_EDIT_TARGET": str(handoff),
+            "DEV_WAVE_EDIT_PAYLOAD": updated,
+        }):
+            result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert appearing.exists()
+        assert handoff.read_text(encoding="utf-8") == updated
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
 def test_git_operation_surface_is_read_only_except_sha_ff_merge() -> None:
@@ -1227,6 +1755,43 @@ def test_wave_move_after_merge_is_landed_postcondition_failed() -> None:
         ), result
         assert _git(repo.main, "rev-parse", "HEAD") == tip
         assert _git(wave, "rev-parse", "HEAD") == moved
+
+
+def test_tracked_dirt_appearing_after_successful_merge_is_postcondition_failed() -> None:
+    """N6 の post-land 面: main が T に達した後の tracked dirt を成功に潰さない。
+
+    ``_verify_main_no_tracked_dirt`` の**成功経路**を守る唯一の入力である。
+    pre-land の ``_verify_main_clean`` は merge 前にしか走らず、
+    ``_postcondition`` 成功枝の先行検査 (symbolic HEAD / ref sha / wave 三点)
+    はいずれも main の worktree dirt を観測しない。つまりこの入力を拒否できる
+    位置は ``_postcondition`` 成功枝の ``_verify_main_no_tracked_dirt``
+    1 箇所しかない (DW-M01)。
+    """
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        dirt = "merge 後に現れた tracked dirt\n"
+        wrapper = _wrapper(repo.root)
+        with _patched_git(wrapper, {
+            "DEV_WAVE_REAL_GIT": REAL_GIT,
+            "DEV_WAVE_WRAPPER_MODE": "dirty-after-merge",
+            "DEV_WAVE_DIRTY_PATH": str(repo.main / "base.txt"),
+            "DEV_WAVE_DIRTY_PAYLOAD": dirt,
+        }):
+            result = _land(repo.request(wave, tip=tip))
+        assert (
+            result.rc,
+            result.status,
+        ) == (
+            LAND.RC_LANDED_POSTCONDITION_FAILED,
+            "landed-postcondition-failed",
+        ), result
+        # 成功枝 (main_after == tested tip) を通ったことを固定する。失敗枝の
+        # _main_tracked_or_index_dirty との取り違えをここで排除する。
+        assert (result.main_before, result.main_after) == (repo.base, tip), result
+        assert result.reason == "main tracked/index/submodule dirt is forbidden", result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+        assert (repo.main / "base.txt").read_text(encoding="utf-8") == dirt
 
 
 def test_merge_child_inherits_lock_fd_if_helper_is_killed() -> None:

@@ -310,6 +310,69 @@ def test_fresh_symbolic_ref_decode_error_is_git_failure_not_detached(
     assert all("detached HEAD" not in failure for failure in failures)
 
 
+def _advance_main(repo: Path, count: int) -> None:
+    """HEAD を work に残したまま local main だけを count 件進める。"""
+    _git(repo, "checkout", "-q", "main")
+    for index in range(count):
+        (repo / f"main-{index}.txt").write_text("main\n", encoding="utf-8")
+        _git(repo, "add", f"main-{index}.txt")
+        _git(
+            repo,
+            "-c", "user.name=Test",
+            "-c", "user.email=test@example.invalid",
+            "commit", "-qm", f"main {index}",
+        )
+    _git(repo, "checkout", "-q", "work")
+
+
+def test_main_divergence_notice_is_shown_when_there_is_no_gap(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """乖離 0 でも表示する。無表示だと「乖離なし」と「表示が壊れた」を区別できない。"""
+    repo = _repo(tmp_path)
+    assert _git(repo, "rev-list", "--count", "HEAD..main") == "0"
+    assert _run(repo) == 0
+    out = capsys.readouterr().out
+    assert "乖離なし" in out
+    assert "0 commit" in out
+
+
+def test_main_divergence_notice_reports_count_without_changing_rc(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """乖離 N は件数付きで出るが rc は変えない (可視化であって gate ではない)。"""
+    repo = _repo(tmp_path)
+    _advance_main(repo, 3)
+    assert _git(repo, "rev-list", "--count", "HEAD..main") == "3"
+    assert _run(repo, "--mode", "resume") == 0
+    out = capsys.readouterr().out
+    assert "3 commit" in out
+    assert "遅れ" in out
+    assert "乖離なし" not in out
+
+
+def test_main_divergence_notice_is_fail_open_when_main_ref_is_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """main ref が無くても受理集合は変わらず、取得できない旨だけを述べる。"""
+    repo = _repo(tmp_path)
+    _git(repo, "branch", "-D", "main")
+    assert _run(repo, "--mode", "resume") == 0
+    out = capsys.readouterr().out
+    assert "取得できない" in out
+    assert "続行" in out
+
+
+def test_main_divergence_notice_is_shown_even_when_checks_fail(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """検査が落ちる経路でも表示は出る (緑のときだけ出す変異を殺す)。"""
+    repo = _repo(tmp_path)
+    (repo / "untracked.txt").write_text("dirty\n", encoding="utf-8")
+    assert _run(repo) == 1
+    assert "乖離なし" in capsys.readouterr().out
+
+
 def test_help_discloses_qsub_is_out_of_scope(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as raised:
         CWS.main(["--help"])
