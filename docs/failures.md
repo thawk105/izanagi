@@ -1306,6 +1306,11 @@
 - 再発検知: 変異 matrix で「rc≠0 かつ記録 node 0 件」が出たら、まず抽出器を疑う。
   出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
   抽出器の側も同時に確認する
+- **再発: 2026-08-01 [T-247]**。新しい変異 harness が同じ穴で作られ、実際に KILL していた M-C1 を
+  `INFRA_OR_HARNESS_ERROR` / node 0 件と記録した (親の試走で検知)。原因は**恒久対応が本 F にしか
+  無く、harness 契約の正本である `DW-M08` が ANSI 除去しか明示していなかった**こと — harness を
+  書く子は `DW-M08` を読み、本 F を読まない。同 wave で `DW-M08` へ「runner 行前置も除く」
+  「rc≠0 で node 0 件は parse 失敗で止める」を移し、正本側で発火するようにした
 
 ### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
 - 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
