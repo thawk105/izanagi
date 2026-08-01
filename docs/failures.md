@@ -1423,3 +1423,31 @@
 - 近縁: F41 (測定条件を落として一般化し後続の起票を誤らせた)、F46 (実行環境の差の誤前提)、
   F29 (段 1 実測が実差分をモデル化していない)
 - 記録: worklog 2026-08-01 (95)、一次資料 = `output/insights/2026-08-01_t248-dispatch-shim/`
+
+### F71. `DW-M08` の failed node 抽出規約が実態と合わず、変異 harness が「赤なのに抽出 0 件」を SURVIVED と誤記録した [恒真ゲート] [計測汚染]
+- 事象: [T-118] wave の変異本走 1 回目で、baseline 緑 (rc=0) の後 **M1〜M16 すべてが
+  `rc=1 failed=0` で `SURVIVED`** になった。親が dispatch 成果物を直接読むと、M16 の
+  計算ノード job stdout には `8 failed, 92 passed` と `FAILED <nodeid>` 行が 8 本あり、
+  canonical 期待 node も含まれていた。**変異は効いており、生存ではなく抽出の失敗だった**。
+  harness を直して再走したところ 16/16 KILLED / canonical 一致 16/16 になった
+- 独立再現: **同日、並行実行中の別 wave 2 本 (t244 / t249) が同じ欠陥を独立に踏んでいた**
+  (process 一覧で確認)。独立 3 例なので `DW-G03` の族一般化条件を満たす
+- 根本原因: (1) `DW-M08` は node 抽出を「`FAILED <node> - <error>` の `FAILED ` 後から
+  ` - ` 手前まで」と規定するが、**pytest の `-rf` サマリは assertion message が多行だと
+  ` - <error>` を出さず nodeid で行が終わる**ため、規約どおりの regex は全件不一致になる。
+  (2) `DW-M08` は Pegasus dispatch 下で**どこから出力を読むか**を規定していない。
+  `tools/run_tests.py` のコンソール出力は child stdout を行頭 `| ` 付きで表示し、
+  さらに `omitted_bytes` で切り詰めるため、`FAILED` 行が消えうる。
+  (3) 「赤なのに抽出 0 件」を `SURVIVED` に倒す実装が許されていた — **これは恒真な緑**であり、
+  変異検査という防壁そのものを無音で無力化する
+- 判別: 変異走行で `rc != 0` なのに `failed_nodes` が空。または全変異が一様に SURVIVED になる
+- 恒久対応: harness は (a) failed node の正本を**計算ノード job stdout 全文**
+  (`output/pegasus-dispatch/<hash>/izdw-*.o<request-id>`) から取り、(b) ` - ` が無い行は
+  **行末までを node** とし、(c) **`rc != 0` かつ抽出 0 件は `SURVIVED` にせず `PARSE_ERROR` で
+  fail-closed 停止**する。実体は
+  `output/insights/2026-08-01_t118-provider-lifecycle-wave/s6-mutation-matrix.md` の erratum 節と、
+  同 wave の harness。`DW-M08` 本文の是正は予算の都合で裁定へ送る (T-282 と同じ入口)
+- 近縁: F33 (期待 node と記録 node の形式不一致)、F28 (実効 gate へ再照準しないと恒真になる)
+- 記録: worklog 2026-08-01 (97)、一次資料 =
+  `output/insights/2026-08-01_t118-provider-lifecycle-wave/` (`mutation-matrix-erratum-run1.json` に
+  初回結果を消さず残置)
