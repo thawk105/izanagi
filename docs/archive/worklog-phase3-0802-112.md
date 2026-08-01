@@ -1,64 +1,65 @@
-# worklog アーカイブ — Phase 3 (2026-08-02 (111))
+# worklog アーカイブ — 2026-08-02 (112)
 
-凍結済み。訂正注記のみ追記可。現行は `docs/worklog.md`。
-ローテーションの経緯と境界の根拠は `docs/archive/README.md` を参照する。
+本ファイルは `docs/worklog.md` からローテーションした凍結アーカイブである。訂正注記のみ追記可。
 
-## 2026-08-02 (111) — [T-276] 計算ノードでの role 実行を明示 opt-in で解禁 — 敵対レビュー 4 本がすべて NO-GO を返し、「CLI へ届かない解禁」を実装前に潰した (コード + docs、branch worktree-dev-wave-t276-compute-role、anchor commit `9abed5d`、受入 = Pegasus gen_S 計算ノード request `877327` / `877372` / `877388`、取り込み後の全走 = request `877660` で 4959 passed / 19 skipped、変異本走 = 27 entry)
+---
 
-- **裁定 (102) の 3 条件のうち、①は「(96) が指摘した形」までしか閉じないと親が判定した。**
-  (96) の所見は「proxy 値が**無検査の外部制御面**になる」であり、本 wave はその値を
-  compute site・qsub 文法適合の `PBS_JOBID`・committed policy との exact 一致・TLS trust override
-  不在・従量経路 env 不在・policy surface 健全の全成立でしか受理しない形にした。
-  **「MITM を防いだ」とは書かない。** ②は run 単位 receipt、③は独立 literal + 異値/逆順 vector で閉じた
-- **段 3 の敵対レンズ 2 本と段 6 の敵対レビュー 2 本が、いずれも独立に NO-GO を返した。**
-  最重要は 4 本に共通した 1 点 — **production CLI が opt-in を渡さないまま「解禁済み」と記録すれば
-  発火しない保証になる**。これは D115 が却下した (a)「索引だけ作り consumer を付け替えない」と同型で、
-  親 brief の scope はこの穴を持ったまま子へ渡っていた。CLI flag 配線を scope へ入れて解消した
-- **親 brief の主張 3 件が反証された。** (i) 「2 key 以外を渡さないので TLS trust root は既定のまま」は
-  `PATH`/`HOME` が子へ渡り実行体が ambient PATH 解決である以上証明できない (既知 [T-242])。
-  (ii) 「試行台帳の各 role 行が transport identity を持つ」は成功行にしか付かない設計だった。
-  (iii) 「既定は 1 bit も変わらない」は object shape と異常系分類まで含めると成立しない
-- **裁定条件に無かった封じを 1 件足した。** ユーザーの恒久指示 (LLM 実行はサブスクのログインで行い、
-  従量経路へ入る設定を作らない) に照らし、`ANTHROPIC_API_KEY` 等 5 key が env に在れば
-  値によらず拒否する検査を受理条件へ入れた。計算ノードは HOME 共有でキー無し rc=0 を実測済みなので
-  「サブスクのログインが無いホスト」ではなく、新たな裁定は要さない
-- **scope 外の real 所見 1 件を裁定パッケージへ返す。** `tools=[]` と JSON schema は
-  valid-schema な一行 C++ 注入と虚偽 auditor pass を止めない。`_site_admits_measurement` が
-  Pegasus を拒否している間は build / run へ到達しないが、この封じ込めは [T-277] が開いた時点で消える。
-  [T-316] として起票し、**T-277 を開ける前の blocker**とした
-- **契約逸脱を 1 件申告する。** 段 1 前提実測に使った probe (`s1-probe.sh`) は実行可能 probe =
-  実装面であり、凍結境界では Codex `role=author` が書くべきだった。親が直接書いて投入した。
-  既に計測を生んでおり取り消せない。変異 harness は同じ穴に気づいた時点で codex に書かせて是正した。
-  入口・`DW-S01` のどちらにも「前提実測は親の責務だが手段が script なら子が書く」が明示されておらず、
-  [T-317] として裁定へ送る
-- **親の操作ミスを 1 件記録する (commit には到達していない)。** 変異本走中に親が `git add -A` を実行し、
-  注入中の `M3` 変異が index に入った。working tree は HEAD と一致しており復元は正常で、
-  `git restore --staged` で戻してから記録 commit を作った
-- 段 6 は fix 3 巡 (`DW-O16` の上限)。1 巡目 = C/D の must-fix 9 件、2 巡目 = 焦点再レビューの N1〜N6、
-  3 巡目 = **親が実測した赤 2 本**で、いずれもテスト側の欠陥だった —
-  エラー文言が `code: message` 形式なのに禁止 sentinel に `":"` を入れて恒偽になっていた件と、
-  2 回走の byte 一致を要求したが `campaign_id` が run_root 由来 hash を含む件
-- 変異本走は anchor commit `9abed5d` に対し 27 entry。**KILLED 22 / DIAGNOSTIC-PINNED 2 /
-  POSITIVE-GREEN 3、SURVIVED ゼロ**。全 entry で注入実在と復元を検査済み。
-  事前登録から 3 件を再照準した (焦点再レビューが「登録どおりでは root cause と等価でない」と判定)
-- **land 直前に採番が 3 系統で衝突した。** wave の base は main `3c924bb` だったが land 時点の
-  local main は `ccb1c6a` まで進んでおり、決定番号 (D116 は main の [T-295] が取得済み)、
-  worklog エントリ番号 ((103) は archive 済み)、新規 T 番号 (T-295 / T-296) がすべて衝突した。
-  それぞれ **D122 / (111) / T-316・T-317** へ改番した。anchor commit `9abed5d` と記録 commit
-  `ea7c0b7` の message 中の「D116」は改番前の呼称である。本 wave が切り出そうとした
-  archive `worklog-phase3-0801-97.md` も main が同じ境界で先に作っていたため main 側を採った
-- **取り込みで実装 file 1 本が両親と異なる内容になった。** main 側 `a1afaa1` の metric projection と
-  本 wave の transport 契約が `p3_autonomous_workload_trial.py` に同居したため。
-  自動統合を Codex `role=author` が検証し、main 側パッチと stable patch-id が一致すること、
-  wave 側 hunk の脱落が無いこと、transport 受理集合が不変であることを確認した (修正不要)
-- 検査: `check_docs.py` 違反なし、provenance 全履歴 713 件違反なし (取り込み前 request `877396`)。
-  関連テストは fix 3 巡目後に request `877388` で 182 passed、取り込み後に request `877644` で 152 passed。
-  **採用する受入値は wave tip (`a70143e` 相当) の全走 `877670` = 4959 passed / 19 skipped** である (merge commit `1bcc95d` 時点の `877660` も同値)
-- エージェント工数: 親 1、子 8 (plan 1 / 敵対レンズ 2 / 実装 1 / 敵対レビュー 2 / fix 3 のうち
-  焦点再レビュー 1 を含む計 8)。すべて `codex exec -m gpt-5.6-sol`
-- 一次資料 = `output/insights/2026-08-02_t276-compute-role-unlock/` (README・逐語 12 本・probe 生出力・
-  変異 harness と台帳)。決定は D122 (D108 決定 (1) を supersede)
+## 2026-08-02 (112) — [T-243] s4 driver 族の新規 campaign と 8c journal を exploration namespace へ前向きに移し、機械防壁を移動先へ追随させた (D123、コード + docs、branch worktree-dev-wave-t243-exploration-ns、受入全走 = Pegasus gen_S 計算ノードで 4951 passed / 19 skipped、変異 = 実効 KILL 10 + 正例 1)
+
+- **ユーザー裁定 ((103) 1.) の択 (a) を実装した。** 6 driver (`p3_s4_loop` / `_sort` /
+  `_trigger_gating` / `p3_s4_red` / `p3_kickoff` / 8c build) の**新規** campaign を
+  `output/exploration/campaigns/<id>/` へ、8c journal の既定を
+  `output/exploration/autonomous-trials/<trial-id>/` へ移した。歴史成果物は 1 byte も動かしていない
+- **brief の前提を段 1 実測で 2 つ訂正した。** (i) 凍結成果物は path 文字列だけでなく**ソース SHA も
+  pin** している (`p3_s4_loop_sort.py` ほか)。ただし T-080 受領書が `active-valid` で 13 件すべて
+  **basis blob へ repin 済み** (`f04ae50`) だったため、driver の編集は凍結 bytes にも official gate にも
+  影響しない。worktree の現行 hash は既に basis と乖離しており、これは D78 が定めた移行後の想定状態である。
+  (ii) `guard_bash` の leaf 判定は basename ベースなので移動先の WAL 書込みは**既に**拒否されていた。
+  不足は tree 単位の防護と `guard_write` の path 前置照合だった
+- **marker が「効く防壁」に変わったので保護した。** official report は `output_root/namespace.json` が
+  exploration なら拒否するが、**marker が無い root は受理する** (D65 の blocklist 設計)。移行後は
+  exploration campaign が実在するため marker 削除が攻撃経路になる。したがって (a) `ensure()` は
+  marker を campaign directory より先に temp → fsync → `link(2)` → 親 dir fsync で atomic に公開し、
+  (b) hooks は repo 内 `output/exploration/**/namespace.json` の改変・削除・移動を
+  glob・brace 展開・`cd` 後の相対 path まで含めて拒否する
+- **repo 外の `--run-root` は hook で守れないと明記した。** 実装も docs も保証を主張していない。
+  閉じるには report 側の marker allowlist 必須化 (D65 P-A1(a) Stage 1) が要るので裁定へ送った ([T-319])
+- **段 6 レビューが 2 本とも NO-GO を返し、blocker 4 件を潰した。** trial-local marker が hook 非保護
+  だった / marker 保護が glob・`cd` を素通ししていた / marker 作成が非 atomic だった /
+  「runtime」テストが driver を一度も起動していなかった (実装を official に戻しても赤くならない恒真)。
+  official 側を過剰に硬化させていた点も戻し、従来の受理を正例テストで固定した
+- **変異は 2 走に分けた。** 初回 12 件で KILL 7 / MISMATCH 3 / SURVIVED 2。SURVIVED 2 件はどちらも
+  **防壁の穴ではなく変異の当て損ない**だった — M12 は lexical/realpath の 2 経路のうち片方しか
+  壊しておらず他層が mask、M13 は `_MENTION_RE` を触って実効 gate (`_CAMPAIGN_TREE`) に届いていなかった。
+  再照準した第 2 走で M12b / M13b とも KILL。**実効 KILL は 10 件、過剰拒否の正例は M16b で成立**。
+  初回結果は消さず erratum として `output/insights/2026-08-02_t243-exploration-namespace/` に残した
+- **scope 外の real 所見 6 件を裁定パッケージへ送った** ([T-318]〜[T-319])。族の外延をファイル名列挙で
+  決めている点は本 D の自認する弱点であり、producer ごとの `artifact_role` 閉表化が本筋である
+- 検査: 受入全走 4951 passed / 19 skipped、`check_docs.py` 緑、`check_ai_provenance.py` 714 件違反なし。
+  変異中に 1 件だけ出た無関係な赤 (`test_parallel_jobs_preserve_both_manifest_entries`) は単独再走で
+  緑になり、並行 dev-wave ジョブ由来のフレークとして実装差分へ帰属しない (DW-O18)
+
 ### 次の一手
+
+- [T-318] **P2・新規 (本エントリ)**: producer ごとに `artifact_role={official,exploration,qualification,dry}`
+  を閉表化し、族の外延をファイル名列挙でなく原理で決める。D123 決定 (2) が自認する弱点で、
+  sweep 計測系 (s1 freeze の入力 producer) を族外に置いた線引きの根拠がここに依存する
+- [T-319] **P2・新規 (本エントリ)**: official report の marker **allowlist 必須化**と祖先 marker 検査
+  (D65 P-A1(a) Stage 1、D65 が個別承認を要求)。marker 不在 root を official として受理する現行の
+  blocklist 設計が残る限り、repo 外の `--run-root` に作られる marker は hook で守れない
+- [T-320] **P3・新規 (本エントリ)**: 8c `--no-build` の trial-local layout (`<run-root>/campaigns/<id>`) を
+  campaign と別型にし、Layer3 report に formal / exploration / dry の受理境界を設ける
+- [T-321] **P3・新規 (本エントリ)**: `guard_bash` の realpath 非解決・`cd` 追跡なし・hardlink alias・
+  別 worktree の硬化と、`authorize_output_root()` の実行経路への必須化。official tree にも同型で
+  存在する既存の穴であり、本 wave では DW-G03 に従って族一般化しなかった
+- [T-322] **P3・新規 (本エントリ)**: campaign-id / lock preimage への namespace 束縛。D123 決定 (3) で
+  ID は namespace 非依存にしたため、歴史 official campaign と新 exploration campaign が同じ ID を
+  持ちうる。ID だけの台帳参照は非一意になる
+- [T-323] **P3・新規 (本エントリ)**: 8c の raw role 出力 (`raw/raw_*.txt`) を追跡するかの方針。
+  D123 決定 (8) は「exploration campaign は official と同じく tracked」までしか決めておらず、
+  生 role 出力の耐久性は [T-241] の裁定事項として残っている
+- [T-243] **完了 (本エントリ)**: 6 driver の新規 campaign と 8c journal を exploration namespace へ
+  前向きに移し、hooks と marker を追随させた (D123)。歴史成果物は不動。残余は [T-318]〜[T-323] へ分離した
 
 - [T-316] **P1・新規 (本エントリ)**: role 出力の意味 gate。`tools=[]` と JSON schema は
   valid-schema な一行 C++ 注入を止めず、同じ transport を通る auditor は payload 内の
@@ -165,7 +166,6 @@
 - [T-252] 変わらず ((110) 参照)
 - [T-207] 変わらず ((110) 参照)
 - [T-242] 変わらず ((110) 参照)
-- [T-243] 変わらず ((110) 参照)
 - [T-245] 変わらず ((110) 参照)
 - [T-235] 変わらず ((110) 参照)
 - [T-237] 変わらず ((110) 参照)
