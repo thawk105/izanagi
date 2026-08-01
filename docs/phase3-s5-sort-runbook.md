@@ -51,7 +51,7 @@ axis は `"silo-writeset-sort"` (段4b は `"silo-backoff-magnitude"`)。**direc
 再順序化する」等の言い回しは coder への戦略ヒントの経路になりうるため使わない (敵対
 レビュー 2026-07-10)。planner-v4 は sort 専用 fork を作らず段4b と共通の
 `.claude/agents/planner-v4.md` を使う (D45 で tools:[] 化済み — 軸間で共通のまま)。
-- **単位の換算 (D116)**: `abort_rate_pct` と `cache_miss_rate_pct` は **percent (0..100)** である。
+- **単位の換算 (D118)**: `abort_rate_pct` と `cache_miss_rate_pct` は **percent (0..100)** である。
   WAL / calibrator が持つ `abort_rate` と `llc_miss_rate` は **0..1 の率**なので、
   射影時に **×100 する**。換算を忘れると role は 7.9% を 0.079% と読む (100 倍の意味ずれ)。
 - 出力 = `{proposal: {axis, direction, magnitude, justification, uncertainty}}` (値なし)。

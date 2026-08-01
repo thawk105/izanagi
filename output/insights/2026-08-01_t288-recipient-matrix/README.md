@@ -1,6 +1,6 @@
 # [T-288] 受け渡しの明示と単位ずれ — 逐語台帳
 
-worklog エントリ (103)、決定は D116。branch `worktree-dev-wave-t288-recipient-matrix`、
+worklog エントリ (106)、決定は D118。branch `worktree-dev-wave-t288-recipient-matrix`、
 commit `a1afaa1` (実装) / `168edbd` (焦点再レビュー fix)。
 
 ## 逐語
@@ -73,4 +73,4 @@ RF-01 (critic の 3 指標未 assert) は fix 2 で closed、RF-02 (report の�
 
 ## 裁定パッケージ (ユーザーへ返す。本 wave 未実装)
 
-D116 の「残余」節および worklog (103) の「次の一手」を正本とする。
+D118 の「残余」節および worklog (106) の「次の一手」を正本とする。

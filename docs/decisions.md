@@ -5459,7 +5459,122 @@ certified 証拠であり、再発行には実 job の再走が要る)。
 凍結 bytes はいずれも不変である。変わるのは開発時の設定ファイルの所在と、それを守る検査だけである。
 受入全走 = Pegasus gen_S 計算ノード request `876932` で 4713 passed / 19 skipped。
 
-## D116. [T-288] 8c の recipient matrix を追認して率と percent を recipient ごとに分ける — `delta_pct≡None` は whiteboard 射影経路だけの防壁である (2026-08-01)
+## D116. [T-295] 正式系列の事前登録に凍結機構を導入せず、先後関係は git ancestry、完全性は層3 双射検査に委ねる (2026-08-01)
+
+**背景:** [T-295] を起票した時点の記述は「8b の凍結機構 (protocol JSON 実凍結 + 予測封印 + 人間
+receipt) を再利用できるかも同時に判断する」だった。これに対しユーザーが D111 と同じ論法を提起した —
+「凍結機構っているんですか。git でバージョン管理してるじゃん。だからわかるじゃん、どのコミット時点で
+計測したかなんて記録しておけば」。本 D はこの指摘への裁定であり、D111 が**プロセス系** freeze に
+適用した整理を**事前登録**へ一段広げるものである。
+
+**決定 (1): 8c 正式系列 (H1 rr80 / H2 rr20 × descriptor on/off/swapped) の事前登録に凍結機構を
+導入しない。** 事前登録は **git commit された 1 枚の文書**とし、holdout、arm、探索予算、correctness
+gate、停止規則、成功判定、全件報告規則をそこに書く。実走成果物はその commit hash を参照する
+(既存の env-tag / checkout 併記と同じ形、F41 / D59)。
+
+**決定 (2): 事前登録が保証すべき 2 性質のうち、版の同定と結果に対する先後は git が既に与える。**
+どの版で測ったかは checkout 併記で復元でき、仮説を結果より先に書いたことは **ancestry が証明する**
+(事前登録 commit が結果 commit の祖先である)。後からの書き換えは履歴に両方残るため読み手が検出できる。
+凍結機構がこの 2 性質に対して行うのは git の性質の再実装であり、冗長である。
+
+**決定 (3): 残る性質 (走らせたのに報告されない run = file-drawer) も凍結では塞がらない。** 台帳へ
+入った run の完全性は**層3 材料レポートの双射検査**が既に担保している — WAL event ID / whiteboard
+item ID の入力 multiset とレポートの source-ref multiset の完全一致を要求し、件数一致では不可、
+脱落・重複・未知 event 種別・参照不能は fails-closed。よって本系列では**この検査の適用範囲を
+H1/H2 へ広げる**ことで足りる。台帳の外で走らせた run は凍結機構からも見えないため、凍結は本性質に
+対しても冗長である。
+
+**決定 (4): 凍結が git を上回る場面は「repo の git 履歴を信用しない第三者への主張」に限る。**
+対外公開の段でこの必要が生じたら別途判断し、それまで導入しない。内部の再現性・監査可能性は
+決定 (1)〜(3) で満たされる。
+
+**決定 (5): 8b 側の既存凍結は本 D の対象外。** protocol JSON の実凍結 (`c8cbd17`)、予測封印、人間
+receipt (`8bec195`) はいずれも発効済みで、廃止も無効化もしない。本 D は 8c 正式系列へ**新たに輸入
+しない**ことだけを決める。
+
+**研究状態への影響:** 受理集合、凍結 bytes、既存 gate はいずれも不変。変わるのは (i) [T-295] の
+作業内容が「凍結機構の導入判断」から「事前登録文書の起草 + 双射検査の適用拡大」へ変わること、
+(ii) 8c runbook §0 の語が「凍結」から「事前登録 (git commit)」へ変わること、の 2 点だけである。
+
+## D117. [T-298] Pegasus の実行場所判定を「どこに置かれているか」から「実測メモリ量」へ移す — ただし自動 dispatch は D105 の閉集合に阻まれ未実装のまま裁定へ返す (2026-08-01)
+
+**背景 (ユーザー裁定 2 通):** (1)「tools ディレクトリのスクリプト実行は pegasus 環境だと計算ノードへ
+投げるようにしている？そうしてほしい。OOM キル対策」。(2) 段 2 実行中に「一定メモリ以上使う
+プログラムは、pegasus 環境なら計算ノードに投げるみたいなルールあってもいいかもね」。
+(2) が判定基準を「場所」から「実測量」へ移す裁定であり、以後こちらを現行とした。
+
+**実測で判明した前提:** ログインノードには per-user cgroup 上限 16 GiB・swap 0 があり、
+`memory.events` の `oom_kill` は 189 回。kill は全て Claude Code のセッション scope に計上される。
+一方、自動 dispatch されているのは `tests` / `provenance` の 2 task だけで、残りは login で走る。
+
+**決定 (1): 判定量は cgroup charged memory のピークとし、per-process RSS を代理値にしない。**
+`/usr/bin/time -f %M` は多重プロセスを worker 数分の 1 に過小評価し、共有ページを二重計上し、
+file / slab / page table の charge を落とす。**`memory.peak` はこの kernel (5.15) に存在しない**ため、
+`systemd-run --user --scope -p MemoryAccounting=yes` で専用 scope を作り `memory.current` を
+sampling する。sampler を先に張り、1 秒未満の command は 3 回以上繰り返す。
+**sampler が間に合わず 0 になった場合は「軽い」でなく測定失敗として `unknown` に倒す。**
+
+**決定 (2): 分類は 3 値とし、`unknown` は `dispatch-required` と同じに扱う。**
+`local-ok` / `dispatch-required` / `unknown` とする。測っていないものを軽い側へ倒さない。
+入力に hard cap の無い login 側経路 8 群を `unknown` として runbook に列挙した。
+
+**決定 (3): 規範値は 512 MiB。ただし実測から導いた最適値ではない暫定の分類値である。**
+根拠は「実測済みの軽量 tools 群と、既に dispatch 済みの 2 本の間に置いた」という分離だけで、
+どちらの群も決定 (1) の手順では測り直していない。**「規範値 × 同時実行数」で安全域を
+見積もる算術は無効**である — 閾値は下限であって上限ではなく、1 本 4 GiB でも閾値以上を満たす。
+当初案の「1 GiB、cap の 6%、並走 8 本でも半分」はこの誤りを含んでいたため撤回した。
+
+**決定 (4): 自動 dispatch は実装しない。依頼の未充足として明示し裁定へ返す。**
+D105 決定 3 が task enum を `{tests, provenance}` に明示固定している。拡張には
+(a) D105 の supersede、(b) `_job_run` 側の `env_allowlist` 強制 (現状は型検査だけの恒真保証)、
+(c) stdin / cwd / artifact 可視性、(d) 子 rc の意味の確定が同時に要る。したがって本 D が
+実装したのは **admission 規範 (login で走らせない) だけ**であり、
+「閾値を超えたら自動で投げる」は満たしていない。runbook に目立つ位置で未充足を明記した。
+第 3 task の最有力候補は `tools/codex_worker_ledger.py` である (`~/.codex/sessions` は
+共有 FS の home 配下なので計算ノードから見える)。
+
+**決定 (5): 開発 harness は暫定例外とし、根拠を D106 / D108 に求めない。**
+`codex_worker_launch.py` / `codex_reasoning_ab.py` / `dev_waves/*` / `dev_waves/checker.py` /
+`check_docs.py` の login 実行は分類上 `unknown` だが、除外しないと標準 dev-wave 経路が
+「規範違反」か「sanctioned 経路なしで停止」の二択になり harness が回らない。
+**D106 / D108 の射程は CC 合成 campaign の LLM 4 役に限られ、これらの免除根拠にならない** —
+本 D が新設した暫定例外であり、恒久化にはユーザー裁定が要る。**この例外は OOM 対策としては
+穴である**: 約 390 MB の LLM 子が多数並走する事象が per-user 16 GiB を埋める主経路であり、
+実効のある対策は同時数 / headroom の admission gate だが未実装である。
+
+**決定 (6): 機械化は「公表 inventory の drift 検出」に限り、射程を 3 箇所に明記する。**
+`tools/check_docs.py` が runbook §7.0 の exact task 表と `dispatch_compute.TASKS` を
+`{task: child_script}` の写像として比較し、節・表の不在、空表、重複 task、親節違い、
+raw HTML block への移設、`TASKS` の定義後書き込み・再束縛 (alias 経由を含む) を fail-closed に
+する。**この検査はメモリ計測・重いプログラムの発見・規範値の遵守・自動 dispatch の網羅性を
+一切保証しない** — 検査名・finding 文言・runbook 本文の 3 箇所に否定文を置いた。
+閾値ルールそのものは prompt 規律であり機械強制ではない (実行前に将来ピークは分からない)。
+恒真な gate を作らないため、機械化はこの drift 検出に留める。
+
+**却下:** (a) 全 `tools/` の自動 dispatch — 0.05 秒のスクリプトに queue 待ち 6〜86 秒が乗り、
+git 操作系・scheduler 操作系 (nested qsub) は構造的に破綻する。(b) 数値確定の保留 —
+規範値なしでは規律が発火しない。(c) 閾値遵守を機械強制する gate — 実行前にピークを
+静的判定できず恒真になる。(d) `tools/README.md` を作らず runbook だけに書く —
+tools contributor 向けの局所発火点がなくなる (`check_docs.py` は `tools/README.md` を
+検査対象にしていなかったので二重化にはあたらないと実測確認した)。
+
+**既存 docs の誤りを 3 件是正した:** (i)「実 cmake build もログインノードで拒否される」は
+全経路の虚偽で、site gate を持つのは `buildcache` / `s2_verify_calibration` / `s3_lock_coverage` /
+`s5_permutation_coverage` / `s8a_trigger_coverage` / `p3_s4_loop_trigger_gating` の 6 module、
+`t152_write_intent_coverage` と `silo_ladder_rung1` には無い。**一度「buildcache だけ」と
+過小に振れて再度誤ったので、両方の誤りを本文に残した。** (ii) `checker.py` の隔離 clone が
+計算ノードから見えないのは構造的不可能ではなく `TMPDIR` 依存の条件付き事実。
+(iii) `tools/pegasus/README.md` の「計算ノードは外部 network 不可」を
+「直結不可・proxy 実在・git/FetchContent/pip は未確定」へ限定。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変。
+変わるのは `tools/check_docs.py` の拒否集合 (runbook 表と `TASKS` の乖離、`tools/README.md` の
+不在・予算超過が新たに赤になる) と、開発 harness の実行場所規範だけである。
+OOM が起き続けると handoff と task-run / dev-waves の 2 台帳に中断・右打切りが残り、
+**worklog の最終記録と受入結果が欠落する** (「worklog に残骸が積もる」は誤りで、
+作業中は worklog へ書かない契約である)。
+
+## D118. [T-288] 8c の recipient matrix を追認して率と percent を recipient ごとに分ける — `delta_pct≡None` は whiteboard 射影経路だけの防壁である (2026-08-01)
 
 **背景 (裁定と実測):** worklog (102) のユーザー裁定は [T-288] について択 (a)「現行の recipient
 matrix を新 D で追認し、`delta_pct≡None` を『planner へ性能値を渡さない保証』と説明する誤りを
