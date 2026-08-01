@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import weakref
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -1027,6 +1028,62 @@ def _parse_role_frontmatter(role_bytes: bytes) -> tuple[dict[str, Any], str]:
     return values, body
 
 
+def _remove_neutral_root(neutral_root_identity: Path, artifact_root: Path) -> None:
+    """Remove only the directory identity returned by ``mkdtemp``."""
+    target = Path(neutral_root_identity)
+    if target.is_symlink():
+        raise PredictionRunnerError("neutral root identity が symlink に置換されている")
+    if not target.exists():
+        return
+    if not target.is_dir():
+        raise PredictionRunnerError("neutral root identity が directory でない")
+    resolved_target = target.resolve(strict=True)
+    resolved_artifact_root = Path(artifact_root).resolve(strict=False)
+    if resolved_artifact_root == resolved_target or resolved_artifact_root.is_relative_to(
+        resolved_target
+    ):
+        raise AssertionError("artifact_root が neutral root 削除対象の内側にある")
+    shutil.rmtree(target)
+
+
+def _finalize_neutral_root(neutral_root_identity: Path, artifact_root: Path) -> None:
+    """Best-effort fallback which deliberately captures no provider instance."""
+    try:
+        _remove_neutral_root(neutral_root_identity, artifact_root)
+    except BaseException:
+        # A finalizer has no live owner on which to record cleanup_error.  Explicit
+        # close remains the observable and retryable cleanup path.
+        pass
+
+
+def _create_neutral_root(
+    owner: object,
+    *,
+    prefix: str,
+    repository_root: Path,
+    artifact_root: Path,
+) -> tuple[Path, Path, weakref.finalize]:
+    created_identity = Path(tempfile.mkdtemp(prefix=prefix))
+    try:
+        neutral_root = created_identity.resolve(strict=True)
+        resolved_repository_root = Path(repository_root).resolve()
+        if neutral_root.is_relative_to(resolved_repository_root):
+            raise PredictionRunnerError("neutral root は repository 外でなければならない")
+        finalizer = weakref.finalize(
+            owner,
+            _finalize_neutral_root,
+            created_identity,
+            Path(artifact_root),
+        )
+    except BaseException:
+        try:
+            _remove_neutral_root(created_identity, artifact_root)
+        except BaseException:
+            pass
+        raise
+    return neutral_root, created_identity, finalizer
+
+
 class ClaudeHeadlessProvider:
     """claude CLI を neutral cwd・tools/MCP 無し・fresh context で 1 回だけ呼ぶ provider。"""
 
@@ -1067,45 +1124,72 @@ class ClaudeHeadlessProvider:
                 "model": frontmatter["model"],
             }
         }).decode("utf-8")
-        self.neutral_root = Path(tempfile.mkdtemp(prefix="s8b-selector-")).resolve(strict=True)
-        repository_root = Path(repository_root).resolve()
+        self.cleanup_error: BaseException | None = None
+        (
+            self.neutral_root,
+            self._neutral_root_identity,
+            self._neutral_root_finalizer,
+        ) = _create_neutral_root(
+            self,
+            prefix="s8b-selector-",
+            repository_root=repository_root,
+            artifact_root=self.artifact_root,
+        )
         try:
-            self.neutral_root.relative_to(repository_root)
-        except ValueError:
-            pass
-        else:
-            raise PredictionRunnerError("neutral root は repository 外でなければならない")
-        self.mcp_config_path = self.neutral_root / "empty-mcp-config.json"
-        mcp_bytes = b'{"mcpServers":{}}'
-        if self.mcp_config_path.is_symlink():
-            raise PredictionRunnerError("empty MCP config に symlink を許可しない")
-        if self.mcp_config_path.exists():
-            if not self.mcp_config_path.is_file() or self.mcp_config_path.read_bytes() != mcp_bytes:
-                raise PredictionRunnerError("既存 empty MCP config が固定 bytes と不一致")
-        else:
-            _write_bytes_bound(self.mcp_config_path, mcp_bytes)
-        self.neutral_cwd: Path | None = None
-        self._observed_session_ids: set[str] = set()
-        source_env = os.environ if environ is None else environ
-        self.env = {key: source_env[key] for key in CLAUDE_ENV_ALLOWLIST if key in source_env}
-        if "HOME" not in self.env:
-            raise PredictionRunnerError("claude 認証に必要な HOME が allowlist env にない")
-        self._runner = runner
-        self._envelope_recorder: Callable[..., None] | None = None
-        self.argv = [
-            self.executable,
-            "-p",
-            "--agent", "selector-8b-inline",
-            "--agents", self.inline_agents_json,
-            "--output-format", "json",
-            "--input-format", "text",
-            "--effort", "high",
-            "--setting-sources", "",
-            "--disable-slash-commands",
-            "--strict-mcp-config",
-            "--mcp-config", str(self.mcp_config_path),
-            "--no-session-persistence",
-        ]
+            self.mcp_config_path = self.neutral_root / "empty-mcp-config.json"
+            mcp_bytes = b'{"mcpServers":{}}'
+            if self.mcp_config_path.is_symlink():
+                raise PredictionRunnerError("empty MCP config に symlink を許可しない")
+            if self.mcp_config_path.exists():
+                if (
+                    not self.mcp_config_path.is_file()
+                    or self.mcp_config_path.read_bytes() != mcp_bytes
+                ):
+                    raise PredictionRunnerError("既存 empty MCP config が固定 bytes と不一致")
+            else:
+                _write_bytes_bound(self.mcp_config_path, mcp_bytes)
+            self.neutral_cwd: Path | None = None
+            self._observed_session_ids: set[str] = set()
+            source_env = os.environ if environ is None else environ
+            self.env = {
+                key: source_env[key]
+                for key in CLAUDE_ENV_ALLOWLIST
+                if key in source_env
+            }
+            if "HOME" not in self.env:
+                raise PredictionRunnerError("claude 認証に必要な HOME が allowlist env にない")
+            self._runner = runner
+            self._envelope_recorder: Callable[..., None] | None = None
+            self.argv = [
+                self.executable,
+                "-p",
+                "--agent", "selector-8b-inline",
+                "--agents", self.inline_agents_json,
+                "--output-format", "json",
+                "--input-format", "text",
+                "--effort", "high",
+                "--setting-sources", "",
+                "--disable-slash-commands",
+                "--strict-mcp-config",
+                "--mcp-config", str(self.mcp_config_path),
+                "--no-session-persistence",
+            ]
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """Best-effort, idempotent cleanup; cleanup failures never escape."""
+        finalizer = self._neutral_root_finalizer
+        if not finalizer.alive:
+            return
+        try:
+            _remove_neutral_root(self._neutral_root_identity, self.artifact_root)
+        except BaseException as exc:
+            self.cleanup_error = exc
+            return
+        self.cleanup_error = None
+        finalizer.detach()
 
     def bind_envelope_recorder(self, recorder: Callable[..., None]) -> None:
         """drive の journal 追記 seam を束縛する (direct leaf 呼出しでは任意)。"""
@@ -1389,6 +1473,68 @@ def _derive_protocol_bytes(root: Path) -> bytes:
     return built.canonical_bytes
 
 
+def _seal_with_provider(
+    *,
+    provider: ClaudeHeadlessProvider,
+    pre_oracle_head: str,
+    root: Path,
+    committed_protocol: bytes,
+    freeze_bytes: bytes,
+    freeze: Mapping[str, Any],
+    artifact_root: Path,
+    source_bytes: Mapping[str, bytes],
+    parser_bytes: bytes,
+    predictions_path: Path,
+) -> dict:
+    if provider.role_file_sha256 != _sha256(source_bytes["role"]):
+        raise PredictionRunnerError("role read-once bytes と provider preflight sha が不一致")
+    binding = JournalBinding(
+        pre_oracle_head=pre_oracle_head,
+        protocol_sha256=_sha256(committed_protocol),
+        freeze_sha256=_sha256(freeze_bytes),
+        provider_kind=provider.provider_kind,
+        role_file_sha256=provider.role_file_sha256,
+        parser_module_sha256=_sha256(parser_bytes),
+        claude_executable_path=provider.executable,
+        claude_executable_sha256=provider.executable_sha256,
+        known_cells=frozenset(
+            (job["target_holdout"], job["arm"])
+            for job in build_prediction_jobs(freeze)
+        ),
+    )
+    journal = PredictionJournal(root / _JOURNAL_PATH)
+    ensure_run_header(journal, binding=binding)
+    drive_journal(
+        freeze=freeze, journal=journal, artifact_root=artifact_root,
+        root=root, binding=binding, provider=provider,
+    )
+    sources = _source_records(frozen_bytes=source_bytes)
+    document = materialize_predictions(
+        freeze=freeze, journal=journal, predictions_path=predictions_path,
+        generated_at=_now_iso(), pre_oracle_head=pre_oracle_head,
+        sources=sources, execution_policy=_EXECUTION_POLICY, binding=binding,
+    )
+    try:
+        destination_bytes = predictions_path.read_bytes()
+    except OSError as exc:
+        raise PredictionRunnerError(f"書込済み prediction を reload できない: {exc}") from exc
+    reloaded = _parse_json_object(destination_bytes, source=predictions_path)
+    try:
+        verify_prediction_freeze(reloaded, freeze=freeze, root=root)
+    except Exception as exc:
+        raise PredictionRunnerError(f"disk reload prediction verify 失敗: {exc}") from exc
+    if reloaded != document:
+        raise PredictionRunnerError("disk reload 文書が in-memory 文書と不一致")
+    lock_path = journal.path.parent / ".lock"
+    try:
+        lock_path.unlink()
+        _fsync_directory(lock_path.parent)
+    except OSError as exc:
+        raise PredictionRunnerError(f"seal 完了時に .lock を削除できない: {exc}") from exc
+    _assert_selector_run_declarations(root=root, journal=journal, binding=binding)
+    return reloaded
+
+
 def seal(
     *, pre_oracle_head: str, provider_kind: str = "unwired", root: Path = ROOT,
     provider_runner: Callable[..., Any] = subprocess.run,
@@ -1443,53 +1589,21 @@ def seal(
         role_bytes=role_bytes, repository_root=root,
         executable=claude_executable, runner=provider_runner,
     )
-    if provider.role_file_sha256 != _sha256(role_bytes):
-        raise PredictionRunnerError("role read-once bytes と provider preflight sha が不一致")
-    binding = JournalBinding(
-        pre_oracle_head=pre_oracle_head,
-        protocol_sha256=_sha256(committed_protocol),
-        freeze_sha256=_sha256(freeze_bytes),
-        provider_kind=provider.provider_kind,
-        role_file_sha256=provider.role_file_sha256,
-        parser_module_sha256=_sha256(parser_bytes),
-        claude_executable_path=provider.executable,
-        claude_executable_sha256=provider.executable_sha256,
-        known_cells=frozenset(
-            (job["target_holdout"], job["arm"])
-            for job in build_prediction_jobs(freeze)
-        ),
-    )
-    journal = PredictionJournal(root / _JOURNAL_PATH)
-    ensure_run_header(journal, binding=binding)
-    drive_journal(
-        freeze=freeze, journal=journal, artifact_root=artifact_root,
-        root=root, binding=binding, provider=provider,
-    )
-    sources = _source_records(frozen_bytes=source_bytes)
-    document = materialize_predictions(
-        freeze=freeze, journal=journal, predictions_path=predictions_path,
-        generated_at=_now_iso(), pre_oracle_head=pre_oracle_head,
-        sources=sources, execution_policy=_EXECUTION_POLICY, binding=binding,
-    )
     try:
-        destination_bytes = predictions_path.read_bytes()
-    except OSError as exc:
-        raise PredictionRunnerError(f"書込済み prediction を reload できない: {exc}") from exc
-    reloaded = _parse_json_object(destination_bytes, source=predictions_path)
-    try:
-        verify_prediction_freeze(reloaded, freeze=freeze, root=root)
-    except Exception as exc:
-        raise PredictionRunnerError(f"disk reload prediction verify 失敗: {exc}") from exc
-    if reloaded != document:
-        raise PredictionRunnerError("disk reload 文書が in-memory 文書と不一致")
-    lock_path = journal.path.parent / ".lock"
-    try:
-        lock_path.unlink()
-        _fsync_directory(lock_path.parent)
-    except OSError as exc:
-        raise PredictionRunnerError(f"seal 完了時に .lock を削除できない: {exc}") from exc
-    _assert_selector_run_declarations(root=root, journal=journal, binding=binding)
-    return reloaded
+        return _seal_with_provider(
+            provider=provider,
+            pre_oracle_head=pre_oracle_head,
+            root=root,
+            committed_protocol=committed_protocol,
+            freeze_bytes=freeze_bytes,
+            freeze=freeze,
+            artifact_root=artifact_root,
+            source_bytes=source_bytes,
+            parser_bytes=parser_bytes,
+            predictions_path=predictions_path,
+        )
+    finally:
+        provider.close()
 
 
 def _parser() -> argparse.ArgumentParser:

@@ -362,9 +362,18 @@
   作る**。運用則 = **1 worktree ずつ削除し、必要なら timeout を延ばす**。command 本文への反映は
   `.claude/commands/cleanup-branches.md` が Codex skill との whole-file SHA-256 parity 契約下に
   あり checker 定数の同時更新を要するため未実施 (次の一手へ登録)
+- **再発: 2026-08-01** ([T-118] wave の段 9)。`git worktree remove` の無条件拒否に当たった時点で、
+  **本エントリの恒久対応である `/cleanup-branches` を読む前に即興で `git submodule deinit` を実行**した。
+  結果は本エントリの記述どおりで、共有 `.git/config` の `submodule.*` 登録が消え main checkout の
+  `git submodule status` が `-` prefix になった (実害は一時的。`git submodule update --init` で復元し、
+  pin `d706650` 一致と並行 3 worktree の無影響を確認済み)。**恒久対応の内容は正しく、経路が欠けていた** —
+  dev-wave の段 9 は自分の worktree を畳むよう求めるが、その手順の正本が `/cleanup-branches` §3 に
+  あることを指していない。判別 = worktree 削除で `working trees containing submodules cannot be
+  moved or removed` を見たら、そこで手を止めて `/cleanup-branches` を読む
 - 根本原因: git の worktree × submodule の仕様 2 点 (remove の gitlink 無条件拒否、submodule 登録
   config の worktree 間共有) を知らず、即興で deinit を挟んだ。追加事象は同じ実体化 submodule が
-  削除コストを押し上げる点を見落としたもの
+  削除コストを押し上げる点を見落としたもの。**2026-08-01 の再発は仕様の無知ではなく、
+  既知の恒久対応へ到達する前に即興したこと**が原因である
 - 恒久対応: `/cleanup-branches` スキル (.claude/commands/cleanup-branches.md) に安全手順を固定 —
   deinit を使わず「detach → ディレクトリ削除 → `git worktree prune`」(git 文書化済みの回避)、
   事後に `git submodule status` で main checkout の初期化状態を検査
@@ -1324,15 +1333,11 @@
 - 再発検知: 変異 matrix で「rc≠0 かつ記録 node 0 件」が出たら、まず抽出器を疑う。
   出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
   抽出器の側も同時に確認する
-- 再発: 2026-08-01 (独立 2 例)。[T-118] wave では 16 変異すべてが `rc=1 failed=0` で
-  **偽 SURVIVED** になった。[T-244] wave は (3) の MISMATCH 契約を持っていたので偽 SURVIVED は
-  免れたが、証拠が 1 件も取れない点は同じだった。**接頭辞を剥がすだけでは足りないことが判明した** —
-  dispatch は child stdout を `child stdout begin (size=..., omitted_bytes=...)` のように
-  **切り詰める**ため、`FAILED` 行がコンソール表示に残らないことがある。恒久対応を更新する:
-  抽出元をコンソール表示でなく**計算ノード job の stdout 成果物** (`tools/run_tests.py` が
-  stdout に出す receipt path の directory 内、`izdw-*.o<request-id>`) にする。
-  成果物が無い・1 行も取れないのに rc≠0 なら `PARSE_ERROR` として harness を停止させる。
-  この 2 例で `DW-G03` の独立 2 例条件が成立したため `DW-M08` へ制度として一般化した
+- 再発: 2026-08-01。[T-244] wave も同日に踏んだ。(3) の MISMATCH 契約があったので偽 SURVIVED は
+  免れたが、証拠が 1 件も取れない点は同じ。**接頭辞を剥がすだけでは足りない** — dispatch は
+  child stdout を `omitted_bytes` で切り詰めるため `FAILED` 行がコンソール表示に残らないことがある。
+  独立 3 例 ([T-118] / [T-244] / [T-249]) として **F71** に統合済み。恒久対応と `DW-M08` の
+  規約不整合は F71 を正本とする
 
 ### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
 - 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
@@ -1451,7 +1456,34 @@
   F29 (段 1 実測が実差分をモデル化していない)
 - 記録: worklog 2026-08-01 (95)、一次資料 = `output/insights/2026-08-01_t248-dispatch-shim/`
 
-### F71. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
+### F71. `DW-M08` の failed node 抽出規約が実態と合わず、変異 harness が「赤なのに抽出 0 件」を SURVIVED と誤記録した [恒真ゲート] [計測汚染]
+- 事象: [T-118] wave の変異本走 1 回目で、baseline 緑 (rc=0) の後 **M1〜M16 すべてが
+  `rc=1 failed=0` で `SURVIVED`** になった。親が dispatch 成果物を直接読むと、M16 の
+  計算ノード job stdout には `8 failed, 92 passed` と `FAILED <nodeid>` 行が 8 本あり、
+  canonical 期待 node も含まれていた。**変異は効いており、生存ではなく抽出の失敗だった**。
+  harness を直して再走したところ 16/16 KILLED / canonical 一致 16/16 になった
+- 独立再現: **同日、並行実行中の別 wave 2 本 (t244 / t249) が同じ欠陥を独立に踏んでいた**
+  (process 一覧で確認)。独立 3 例なので `DW-G03` の族一般化条件を満たす
+- 根本原因: (1) `DW-M08` は node 抽出を「`FAILED <node> - <error>` の `FAILED ` 後から
+  ` - ` 手前まで」と規定するが、**pytest の `-rf` サマリは assertion message が多行だと
+  ` - <error>` を出さず nodeid で行が終わる**ため、規約どおりの regex は全件不一致になる。
+  (2) `DW-M08` は Pegasus dispatch 下で**どこから出力を読むか**を規定していない。
+  `tools/run_tests.py` のコンソール出力は child stdout を行頭 `| ` 付きで表示し、
+  さらに `omitted_bytes` で切り詰めるため、`FAILED` 行が消えうる。
+  (3) 「赤なのに抽出 0 件」を `SURVIVED` に倒す実装が許されていた — **これは恒真な緑**であり、
+  変異検査という防壁そのものを無音で無力化する
+- 判別: 変異走行で `rc != 0` なのに `failed_nodes` が空。または全変異が一様に SURVIVED になる
+- 恒久対応: harness は (a) failed node の正本を**計算ノード job stdout 全文**
+  (`output/pegasus-dispatch/<hash>/izdw-*.o<request-id>`) から取り、(b) ` - ` が無い行は
+  **行末までを node** とし、(c) **`rc != 0` かつ抽出 0 件は `SURVIVED` にせず `PARSE_ERROR` で
+  fail-closed 停止**する。実体は
+  `output/insights/2026-08-01_t118-provider-lifecycle-wave/s6-mutation-matrix.md` の erratum 節と、
+  同 wave の harness。`DW-M08` 本文の是正は予算の都合で裁定へ送る (T-282 と同じ入口)
+- 近縁: F33 (期待 node と記録 node の形式不一致)、F28 (実効 gate へ再照準しないと恒真になる)
+- 記録: worklog 2026-08-01 (97)、一次資料 =
+  `output/insights/2026-08-01_t118-provider-lifecycle-wave/` (`mutation-matrix-erratum-run1.json` に
+  初回結果を消さず残置)
+### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
 - 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
   していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
   flag を省いて起動すると**禁止されたはずの運転条件へそのまま落ちる**。runbook は
@@ -1464,11 +1496,11 @@
 - 判別: 「〜してはならない」と書かれた運転条件について、(a) それを機械的に拒否する検査が
   実在するか、(b) **既定値・既定経路がその禁止側に落ちないか**を両方確認する。
   片方だけでは足りない
-- 恒久対応: D112 で承認上限 `MAX_APPROVED_GENERATIONS` を導入し、CLI・`run_trial()`・
+- 恒久対応: D113 で承認上限 `MAX_APPROVED_GENERATIONS` を導入し、CLI・`run_trial()`・
   `_run_workload()` の 3 入口で fail-closed 拒否、既定値を literal `1` に是正した。
   実体 = `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
   `test_generation_budget_boundary_at_ratified_launch` と
   `test_cli_default_is_literal_one_by_ast` (既定値が literal であることを AST で pin する)
 - 近縁: F9 (恒真な保証)、F14 (無効化されるフラグを遮断機構として記録)、
   F21 (配線を live 発火未検証のまま防壁とした)
-- 記録: worklog 2026-08-01 (97)、一次資料 = `output/insights/2026-08-01_t244-generation-gate/`
+- 記録: worklog 2026-08-01 (98)、一次資料 = `output/insights/2026-08-01_t244-generation-gate/`

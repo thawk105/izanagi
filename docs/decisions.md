@@ -4866,11 +4866,11 @@ red digest (rejections / verify abort / diff quarantine) の到達先は critic 
 正式系列 (H1/H2 × on/off/swapped) は同一 generation budget を要求するため、
 この条件により自動的に禁止側へ入る。本制限は prompt 規律であり機械 gate は置いていない。
 
-**(supersede 2026-08-01、D112)** 最後の文「機械 gate は置いていない」は D112 が supersede した。
+**(supersede 2026-08-01、D113)** 最後の文「機械 gate は置いていない」は D112 が supersede した。
 承認上限を CLI・`run_trial()`・`_run_workload()` の 3 入口で強制する。あわせて「1 generation/cell は
 還流が起きない」の射程も限定された — 成立するのは **fresh campaign の単一 invocation** の場合であり、
-既存 checkpoint がある場合は残余 3 の経路で還流しうる。D112 はその checkpoint を provider 呼び出し前に
-拒否する。**本残余の本体 (還流設計そのもの) は D112 でも未解決**である。
+既存 checkpoint がある場合は残余 3 の経路で還流しうる。D113 はその checkpoint を provider 呼び出し前に
+拒否する。**本残余の本体 (還流設計そのもの) は D113 でも未解決**である。
 
 **(残余 2) provenance は「全 attempt 束縛」ではない。** `_invoke()` の invalid 分岐は
 `error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance`
@@ -4884,10 +4884,10 @@ build 側の campaign root は cfg の内容 hash から決まる。同じ workl
 `--run-root` を指定しても同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
 「resume は MVP 範囲外」は run_root についての記述であって、campaign 状態には及ばない。
 
-**(supersede 2026-08-01、D112)** 「planner 前に旧 `loop_state.json` を読む」は
+**(supersede 2026-08-01、D113)** 「planner 前に旧 `loop_state.json` を読む」は
 「**最初の provider 呼び出し前に拒否する**」へ変わった。crash 後の再開は `--run-root` の変更でなく
 新しい trial id で行う。壊れた checkpoint も fresh とは扱わない。ただし freshness 検査と state 生成の
-**並行 race (TOCTOU) は D112 の保証対象外**であり、この残余は完全には閉じていない。
+**並行 race (TOCTOU) は D113 の保証対象外**であり、この残余は完全には閉じていない。
 
 **(残余 4) 出力先 namespace。** build 時の campaign 出力先は既存 s4 driver 族と同じ
 `output/campaigns/` である。D65 決定 (2) の本文「探索は `output/exploration/campaigns/`」に対しては
@@ -5194,7 +5194,45 @@ floor 実測前 gate に「実行 revision 束縛」として既に列挙され�
 ではなく台帳の優先度と本 D の順序付けで決まること、の 2 点だけである。**成果物の凍結** (protocol JSON /
 holdout / v1 freeze bytes) とは無関係であり、そちらは従来どおり機械 gate が守る。
 
-## D112. [T-244] 8c の宣言済み禁止を機械 gate 化する — 承認済み generation 予算と campaign state freshness を 3 入口で fail-closed にし、還流設計そのものは未解決のまま残す (2026-08-01)
+## D112. [T-118] 一時 directory の後始末は「作成時 identity」で行い、cleanup は受理集合を変えない (2026-08-01)
+
+**背景:** production の provider 2 クラス (`ClaudeHeadlessProvider` / `ClaudeProjectedRoleProvider`) が
+`__init__` で neutral root を `mkdtemp` し、invocation ごとに `cwd-` を足したまま一度も消していなかった。
+lifecycle を与える wave ([T-118]、worklog 2026-08-01 (97)) の敵対レビュー 4 本が、素朴な実装
+(`resolve()` した path を `weakref.finalize` + `rmtree(ignore_errors=True)` で消す) の 2 つの穴を
+独立に突いた。本 D はその裁定を、以後の同型 cleanup 全般へ適用する規則として固定する。
+
+**決定 (1): 削除対象は `mkdtemp()` の生返値 (作成時 identity) だけとし、`resolve()` 済み path を
+削除経路へ渡さない。** `mkdtemp` 直後に同一 UID の並行 process が対象を symlink へ差し替えると、
+`resolve(strict=True)` は別の実 path を返す。repository 外判定を通ってしまえば、finalizer は
+解決先 (proof chain 材料を含みうる) を再帰削除する。生 identity を消す形なら `shutil.rmtree` が
+symlink を拒否して fail-safe になる。`resolve()` の結果は判定と path 組み立てにだけ使う。
+削除直前に (a) 対象が symlink でないこと、(b) proof chain の artifact root が削除対象の内側にないこと
+を明示検査する。この非交差検査は artifact root の**存在に依存させない** (`strict=False`) —
+後始末が目的の関数が、後始末と無関係な事前条件で不発になってはならない。
+
+**決定 (2): cleanup は決して送出せず、受理集合を変えない。** `close()` の失敗は `cleanup_error` に
+記録するだけとする。owner 側は `finally: close()` で呼ぶため、cleanup が送出すると元の戻り値や
+元の例外を上書きし、「レポートは complete だが CLI は失敗」のような台帳と process status の
+矛盾が生じる。これは受理集合の変更である。
+
+**決定 (3): 失敗した cleanup は再試行可能に残す。** `weakref.finalize.__call__` は callback 実行**前**に
+registry から自身を pop する one-shot なので、`rmtree(ignore_errors=True)` に任せると黙って失敗した
+まま二度と再試行されない。**削除が成功したときだけ** `detach()` し、失敗時は armed のまま残す。
+finalize callback は module-level 関数とし、`self` や bound method を捕捉しない (捕捉すると owner が
+永久に生き残り fallback が発火しない)。
+
+**決定 (4): 明示 close の owner は所有権で決める。** 呼び出し側から注入された provider は caller 所有
+なので close しない。内部生成した集合は逆生成順に close し、途中構築の失敗でも生成済みを close して
+再送出する。
+
+**適用範囲:** 本 D は provider 2 クラスで実装済みである ([T-118])。例外経路で漏れる残りの
+production callsite ([T-280]) とテスト側の素の `mkdtemp` ([T-281]) にも、着手時は本 D を適用する。
+
+**研究状態への影響:** certified 選択、材料レポート、proof chain、凍結 bytes、campaign の受理集合は
+いずれも不変である。変わるのは一時領域の占有だけだが、TMPDIR が tmpfs を指す環境では user memory
+cgroup を直接削るため、長走 campaign が途中で殺されて proof chain が未完のまま失われる経路があった。
+## D113. [T-244] 8c の宣言済み禁止を機械 gate 化する — 承認済み generation 予算と campaign state freshness を 3 入口で fail-closed にし、還流設計そのものは未解決のまま残す (2026-08-01)
 
 **背景:** D106 残余 1 は「cross-generation 還流が起きる `--max-generations >= 2` の運転を、この設計が
 裁定されるまで禁止する」と宣言し、runbook も 3 箇所で同じ禁止を書いていた。しかし**機械 gate は無く、

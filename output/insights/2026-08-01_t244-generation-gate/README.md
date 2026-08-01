@@ -21,12 +21,12 @@
 | `s6-fix2.md` | 2 巡目 fix 子の報告 |
 | `mutation-ledger.json` | 変異本走の台帳 (統合 commit 後の記録 commit で追加) |
 
-## 実装した内容 (D112)
+## 実装した内容 (D113)
 
 宣言済み禁止 `--max-generations >= 2` の機械 gate 化。承認上限 `MAX_APPROVED_GENERATIONS = 1` を
 CLI・`run_trial()`・`_run_workload()` の 3 入口で強制し、`int` サブクラスによる予算偽装を exact 型検査で
 塞ぎ、最初の provider 呼び出し前に campaign checkpoint の freshness を検査する。CLI 既定値を
-literal `1` に是正した。詳細と保証の限界は D112。
+literal `1` に是正した。詳細と保証の限界は D113。
 
 ---
 
@@ -64,7 +64,7 @@ producer は trusted machine か外部 role か / run・campaign の origin bind
 
 | # | 所見 | 影響 | 推奨 |
 |---|---|---|---|
-| X1 | `run_trial(drive=/providers=/preview=)` の注入 seam。1 callable 内で複数 iteration を回す `drive` を渡せば予算検査を素通りする | 機械保証の穴。ただし production 呼び出し元は `main()` だけ | 注入を internal test helper へ分離するか、保証対象外と明記したまま残す (本 wave は後者を採り D112 に明記) |
+| X1 | `run_trial(drive=/providers=/preview=)` の注入 seam。1 callable 内で複数 iteration を回す `drive` を渡せば予算検査を素通りする | 機械保証の穴。ただし production 呼び出し元は `main()` だけ | 注入を internal test helper へ分離するか、保証対象外と明記したまま残す (本 wave は後者を採り D113 に明記) |
 | X2 | `p3_s4_loop_trigger_gating.drive_iteration()` の直接反復 | 同上 | 8c 専用 wrapper か origin binding を作り、raw driver と 8c admission を区別する |
 | X3 | **freshness 検査と state 生成の TOCTOU (並行 race)。** 同じ trial/config の 2 supervisor が同時に検査を通過しうる | 逐次連結は閉じたが並行は開いている | 原子的 campaign reservation の設計。stale lock 処理と異常終了時の解放が要る。並行実行は計測規律が既に禁じ、build 経路は `competing_bench_pids()` が部分的に覆う |
 | X4 | `state_from_dict()` が `direction`/`magnitude`/`result` の**値**を無検証で通す。checkpoint は信頼境界の外 (規律 6) なので、任意の長文・機序・prompt injection を planner/coder payload へ流せる | 変異生成の入力汚染。report 表示漏れではない | exact enum / type / range 検査、entry count、iteration 整合、campaign/run origin を roles 呼び出し前に検査する |
@@ -87,7 +87,7 @@ producer は trusted machine か外部 role か / run・campaign の origin bind
 
 | # | 統合先 | 内容 | 実測した根拠 |
 |---|---|---|---|
-| I1 | `DW-M08` | 失敗 node の**抽出元を中継コンソールでなく実行体の stdout 成果物にする**。dispatch は行頭へ接頭辞を付けたうえ `omitted_bytes` で切り詰めるため `FAILED` 行が残らない。成果物が無い・`rc != 0` で 1 行も取れない場合は SURVIVED / AGREE にせず停止する。baseline にも同じ抽出を通す | F65 の再発。**独立 2 例** (本 wave と並行 [T-118] wave。後者は 16 変異すべてが偽 SURVIVED) で `DW-G03` の族一般化条件が成立している |
+| I1 | `DW-M08` | 失敗 node の**抽出元を中継コンソールでなく実行体の stdout 成果物にする**。dispatch は行頭へ接頭辞を付けたうえ `omitted_bytes` で切り詰めるため `FAILED` 行が残らない。成果物が無い・`rc != 0` で 1 行も取れない場合は SURVIVED / AGREE にせず停止する。baseline にも同じ抽出を通す | F71 (独立 3 例 = [T-118] / [T-244] / [T-249]) で `DW-G03` の族一般化条件が成立している。[T-118] は 16 変異すべてが偽 SURVIVED になった |
 | I2 | `DW-M05` | harness は起動前に総所要を見積もる。台帳を 1 件ごとに flush して resume 可能にし、**起動時に対象ファイルが HEAD と一致するか検査して不一致なら停止する**。SIGKILL は捕捉できないのでこれが残留変異の唯一の機械防壁 | F32 の 3 度目の再発 (2026-07-27 / 07-30 / 08-01)。「background で起動する」規律だけでは 3 回とも止まらなかった |
 | I3 | `DW-O09` | pin の列挙を**パス文字列だけで探さない**。pin が対象を role 名・key 名で参照する台帳 (`review_ledger.py` の `SOURCE_FILE_SHA256`) はパス検索で取りこぼす。対象の識別子でも検索する | 本 wave の親が実際にこれで brief の前提 9 を誤り、段 3 レンズ A が訂正した |
 
@@ -96,7 +96,7 @@ producer は trusted machine か外部 role か / run・campaign の origin bind
 (b) D110 の先例に倣い、条件付き reference として `docs/dev-wave/**` の外へ外出しする
 (この場合 command 入口の条件 dispatch 表に 1 行増えるため、入口編集条件の判定も要る)、
 (c) 3 件とも入れず failures 台帳のポインタ運用に留める (現状。`DW-M05` / `DW-M08` は既に
-(F32) / (F65) を引いているので、レンズ設計時に台帳を読む運用なら到達はする)。
+(F32) / (F65)・F71 を引いているので、レンズ設計時に台帳を読む運用なら到達はする)。
 
 ## 4. 本 wave で確定した事実 (再検討の起点)
 
@@ -108,4 +108,4 @@ producer は trusted machine か外部 role か / run・campaign の origin bind
   proposal 記録へ行き、次世代の planner/coder payload には入らない。
 - **「1 generation/cell は還流が起きない」は fresh campaign の単一 invocation でのみ成立する。**
   これは D106 残余 3 に逐語で記録済みの既知事実であり、残余 1 を失効させる新事実ではない。
-  D112 はこの経路を provider 呼び出し前に拒否することで閉じた (並行 race を除く)。
+  D113 はこの経路を provider 呼び出し前に拒否することで閉じた (並行 race を除く)。

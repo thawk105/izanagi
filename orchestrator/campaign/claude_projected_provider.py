@@ -25,8 +25,10 @@ from .s8b_prediction_runner import (
     PredictionRunnerError,
     ProviderResponse,
     _canonical_json_bytes,
+    _create_neutral_root,
     _now_iso,
     _parse_json_object,
+    _remove_neutral_root,
     _sha256,
     _write_bytes_bound,
 )
@@ -141,42 +143,68 @@ class ClaudeProjectedRoleProvider:
             }
         }).decode("utf-8")
 
-        self.neutral_root = Path(tempfile.mkdtemp(prefix="izanagi-projected-")).resolve(
-            strict=True
+        self.cleanup_error: BaseException | None = None
+        (
+            self.neutral_root,
+            self._neutral_root_identity,
+            self._neutral_root_finalizer,
+        ) = _create_neutral_root(
+            self,
+            prefix="izanagi-projected-",
+            repository_root=repository_root,
+            artifact_root=self.artifact_root,
         )
-        repository_root = Path(repository_root).resolve()
-        if self.neutral_root.is_relative_to(repository_root):
-            raise PredictionRunnerError("neutral root は repository 外でなければならない")
-        self.mcp_config_path = self.neutral_root / "empty-mcp-config.json"
-        _write_bytes_bound(self.mcp_config_path, b'{"mcpServers":{}}')
-        self.neutral_cwd: Path | None = None
-        self._observed_session_ids: set[str] = set()
-        source_env = os.environ if environ is None else environ
-        self.env = {key: source_env[key] for key in CLAUDE_ENV_ALLOWLIST if key in source_env}
-        if "HOME" not in self.env:
-            raise PredictionRunnerError("claude 認証に必要な HOME が allowlist env にない")
-        self._runner = runner
-        self.argv = [
-            self.executable,
-            "-p",
-            "--agent",
-            self.inline_agent_name,
-            "--agents",
-            self.inline_agents_json,
-            "--output-format",
-            "json",
-            "--input-format",
-            "text",
-            "--effort",
-            "high",
-            "--setting-sources",
-            "",
-            "--disable-slash-commands",
-            "--strict-mcp-config",
-            "--mcp-config",
-            str(self.mcp_config_path),
-            "--no-session-persistence",
-        ]
+        try:
+            self.mcp_config_path = self.neutral_root / "empty-mcp-config.json"
+            _write_bytes_bound(self.mcp_config_path, b'{"mcpServers":{}}')
+            self.neutral_cwd: Path | None = None
+            self._observed_session_ids: set[str] = set()
+            source_env = os.environ if environ is None else environ
+            self.env = {
+                key: source_env[key]
+                for key in CLAUDE_ENV_ALLOWLIST
+                if key in source_env
+            }
+            if "HOME" not in self.env:
+                raise PredictionRunnerError("claude 認証に必要な HOME が allowlist env にない")
+            self._runner = runner
+            self.argv = [
+                self.executable,
+                "-p",
+                "--agent",
+                self.inline_agent_name,
+                "--agents",
+                self.inline_agents_json,
+                "--output-format",
+                "json",
+                "--input-format",
+                "text",
+                "--effort",
+                "high",
+                "--setting-sources",
+                "",
+                "--disable-slash-commands",
+                "--strict-mcp-config",
+                "--mcp-config",
+                str(self.mcp_config_path),
+                "--no-session-persistence",
+            ]
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """Best-effort, idempotent cleanup; cleanup failures never escape."""
+        finalizer = self._neutral_root_finalizer
+        if not finalizer.alive:
+            return
+        try:
+            _remove_neutral_root(self._neutral_root_identity, self.artifact_root)
+        except BaseException as exc:
+            self.cleanup_error = exc
+            return
+        self.cleanup_error = None
+        finalizer.detach()
 
     def invoke(self, *, invocation_id: str, payload: Mapping[str, Any]) -> ProviderResponse:
         if not isinstance(invocation_id, str) or _INVOCATION_ID_RE.fullmatch(invocation_id) is None:
