@@ -4755,3 +4755,68 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
 構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
 抑止されないため変更前から rc=1 だった。
+
+## D106. [T-235] CC 合成 campaign の network 境界分割は transport でなく domain result 契約の新設であり、契約が揃うまで `campaign` task を実装しない (2026-08-01)
+
+**背景 (ユーザー裁定と実測):** 2026-08-01 のユーザー指示は「network 境界でループを 2 つに割る。
+supervisor 本体と LLM 4 役 (planner / coder / auditor / critic) はログインノード側、build / verify /
+bench は計算ノードへ dispatch する。`dispatch_compute.py` の `TASKS` は今 2 種だけなので campaign 用の
+task 種別を 1 つ足すことになる」である。計算ノードが外部 network 不可 (request 873903/873904) で
+`claude -p` を呼べないという前提は正しく、分割の必要性そのものは動かない。
+一方で本 wave の実測と敵対レビュー 2 本は、**「task enum に 1 種別足す」だけでは分割が成立しない**ことを
+示した。したがって設計を確定し、実装は契約が揃うまで行わない。
+
+**決定 (1): 分割線はこう置く。** supervisor と planner / coder / auditor / critic は外部 network を
+持つログインノードが所有し、計算ノードへ送るのは build / verify / bench の機械部分だけとする。
+計算ノードで `claude -p` を起動しない。この分割線自体は新設ではなく、
+`orchestrator/campaign/p3_s4_loop_trigger_gating.py` 系の driver が既に
+「ループ主導権はメインセッション、driver は LLM を spawn しない」形で持っている。
+本決定が足すのは、その口を network 越しに配線するための契約である。
+
+**決定 (2): transport の目標形は閉じた `campaign` task 1 種と exact driver table の compute-side mux
+とする。** 任意 command、任意 path、`tools/pegasus/*` の glob 許可は作らない (D103 決定 5 を維持)。
+driver は軸ごとに増える (段 5 sort → 段 8a trigger-gating) ので、軸追加のたびに `tools/pegasus/` を
+編集する形にはしない。この点は D105 決定 (3) が task 集合を `{"tests", "provenance"}` と明記している
+記述の**将来の supersede 対象**であり、実装する wave が同じ commit で D105 の記述を更新する。
+
+**決定 (3): 実装しない。先に domain result 契約を作る。** 現行 driver の終了コードは
+`stop_reason` と checkpoint / provenance の存在だけで決まり、iteration の `outcome` を見ない
+(`p3_s4_loop.py:827-831`、`p3_s4_loop_trigger_gating.py:582-586` を本 wave で実測)。よって
+diff 検疫 reject も build-error abort も child rc=0 になる。分割前は同一 process・同一 FS で
+メインセッションが WAL を直接読めるため実害が出ないが、**分割すると rc が唯一の帰還路になるため、
+拒否された試行が試行台帳へ成功として記録される**。これは絶対規律 3 (正しさシグナルを後付けにせず、
+なぜ壊れたかを構造化して次手へ返す) が network 境界で片肺になることを意味する。
+`campaign` task を先に land すると、この片肺のまま「分割済み」と記録されるので実装しない。
+
+**決定 (4): 宣言した `env_allowlist` は子側でも強制されなければ書かない。** `_job_run` は
+request の `environment` の型だけを検査し、`set(environment) <= spec.env_allowlist` を再検査しない
+(`dispatch_compute.py:474-481`、その後 `:486-487` で `os.environ.copy()` に `update`)。
+未知 task は親子二層で拒否されるのに environment の受理集合は二層になっていない。
+この非対称を残したまま `env_allowlist=frozenset()` と称する task を足すと、**検査されない宣言**
+(恒真な保証) を成果物へ焼くことになる。login 由来入力は argv または共有 FS 上の構造化 artifact に
+限り、cache key・build provenance に束縛されない `CMAKE_PREFIX_PATH` 等を transport 経由で注入しない。
+
+**決定 (5): 実行場所の移設は build identity の拡張とセットにする。** 未指定 caller (p3 loop を含む) は
+legacy `buildcache.build` を通り (`pipeline.py:398,476,480`)、その `cache_key` の pre-image は
+genome / ccbench_commit / trace / src_token / compiler の**名前文字列**だけである
+(`buildcache.py:121-135`)。compiler の realpath・version、CMake 版、dependency prefix、site、
+env contract を含まないため、**別環境で作った cache が同じ key で hit しうる**。
+v2 (`_v2_identity`) は `toolchain_manifest_sha256` を持つので同じ穴ではない。
+移設を実行する wave は、この identity 拡張を同時に裁定する。
+
+**発火 gate:** 実測した blocker は次のとおりで、いずれも本決定時点で未解消である。
+(i) `p3_s4_loop.py` の `PIN` が現行 submodule と不一致、(ii) 依存 (gflags / glog / FetchContent 3 件) の
+pinned staging が generic build 経路に無い、(iii) driver が `ENV_TAG="linux-baremetal"` / `CLK=1800` を
+固定し Pegasus 環境契約に結び付かない、(iv) `default_perf()` が配線規模で Pegasus calibration でない、
+(v) `DEFAULT_CC/CXX = gcc-13/g++-13` が Pegasus に不在。
+**live driver artifact と walltime 実測が成立するまで `campaign` task を実装済み・運用可能と記録しない。**
+
+**却下:** `p3_s4_loop.py` を初回 driver に選ぶ案 (`require_auditor=False` で auditor を受理して捨てるため、
+ユーザーが挙げた 4 役に対応しない。対応するのは `require_auditor=True` の
+`p3_s4_loop_trigger_gating.py:421` / `p3_s4_loop_sort.py:267`)。`silo_ladder_rung1.py` を指す案
+(専用 PBS wrapper の staging / receipt 契約に依存し、依頼された loop 分割にならない)。
+`tools/pegasus/*` の glob 許可。宣言だけで子側検査を伴わない `env_allowlist`。
+
+**研究状態への影響:** 本決定は設計と gate の確定だけであり、実装差分がない。campaign の受理集合、
+certified 選択、proof chain、既存凍結 bytes、既存 cache のいずれも変えない。変異 matrix と
+受入全走も対象外である。
