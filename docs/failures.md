@@ -1599,3 +1599,27 @@
 - 近縁: F25 (trailer 契約)、F32 (harness の復元規律)
 - 記録: worklog 2026-08-01 (105)、一次資料 =
   `output/insights/2026-08-01_t298-tools-dispatch-memory-threshold/`
+
+### F76. docs だけの wave が、sha256 で pin された事前登録文書を編集して凍結閉包を壊した [手順漏れ] [誤前提]
+
+- 事象: [T-244] 還流設計 wave (docs のみ) が `docs/phase3-main-experiment.md` へ 3 行追記したところ、
+  受入全走が 11 件赤になった。同ファイルは S-1 freeze (`output/s1-freeze/known_axes_freeze.json`) が
+  **sha256 で bytes を pin する事前登録文書**で、T-080 freeze migration の closure 検査
+  (`known_axes.source_closure` の `changed 12 / unchanged 51`) が破れた。pin されている docs は
+  この 1 ファイルだけである
+- なぜ危険か: 親は段 1 で「コードを触らないので凍結 bytes は変わらない」と判断し、`DW-O09`
+  (凍結 bytes の pin 閉包) の発火条件を不成立とした。**発火判定を「コードを触るか」で代用したのが
+  誤り**である。pin は `.py` の台帳が `docs/**` の path を持つ形で張られるため、
+  docs-only wave でも成立しうる。気づかないと事前登録の bytes を無自覚に変え、
+  凍結の意味 (先後関係と完全性の担保) が失われる
+- 判別: 編集対象の path を凍結台帳側から検索する。本例は
+  `python3 -c` で `known_axes_freeze.json` の `sources` を走査し、実 file の sha256 と突き合わせれば
+  1 秒で判る。`grep -rn "<編集する docs path>" --include=*.py --include=*.json` でも到達する
+- 恒久対応: (1) `DW-O09` の適用対象に docs path を明記し、判定を「コードを触るか」で代用しない。
+  (2) 本例では編集を**撤回**し、書きたかった内容を decisions と insights へ移した。
+  事前登録文書は「触らない」が既定であり、内容が古くなったら別文書から supersede する
+- 判別できた理由 (再発時の手順): 受入赤を `DW-O18` に従って帰属実測した — 同じテストを
+  本 branch (request `877377`) と main (request `877378`) で走らせ、main が緑なので自分の差分と確定した。
+  **赤を「環境のせい」で流さないことが特定に直結した**
+- 近縁: F27 / F30 (pin 閉包の列挙漏れ)、F39 (出現の分類)
+- 記録: worklog 2026-08-02 (107)、一次資料 = `output/insights/2026-08-01_t244-reflux-design/`
