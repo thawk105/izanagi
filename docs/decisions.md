@@ -5684,8 +5684,9 @@ oracle** として残ることを指摘した。予算は回数を縛るが 1 qu
 採る場合は batch cardinality の下限・全候補の事前 commit・batch seal までの結果非公開をセットで
 定義しなければ、batch サイズ 1 の逐次実行で恒真になる。
 
-**決定 (3): 強制と開示を分離し、既定は強制のみとする。** machine が `E = P ∨ C` を適用して build する
-「強制」は generator への開示 0 bit である。constraint を generator に伝える「開示」は bit を払う操作で
+**決定 (3): 強制と開示を分離し、既定は強制のみとする。** machine が禁止集合への membership を見て
+候補を build 前に拒否する「強制」は generator への開示 0 bit である (**候補の書き換えは行わない** —
+決定 4)。constraint を generator に伝える「開示」は bit を払う操作で
 あり、origin seal 後に上限個数だけ許す。**動的な constraint 文を coder の `gating_spec` へ追記する案は
 不採用**である — 文そのものが最大 `log2(5) ≈ 2.32 bit` の理由チャネルであり、順序・空白・同義語で
 さらに符号化できる。`gating_spec` は全世代で byte-for-byte 同一に固定する。
@@ -5700,30 +5701,49 @@ oracle** として残ることを指摘した。予算は回数を縛るが 1 qu
 禁止集合に当たった候補は開示なしで拒否し query slot を消費する — 機械が安全側へ書き換えると
 提案 mask と build された mask が食い違い fitness の帰属が汚染される (D39 決定 7 と同型)。
 
+**決定 (4-b): exact-mask cut だけでは軸 (i) を満たさないと明記する。** 焦点再レビューが指摘したとおり、
+1 点の禁止は「既知 red の重複実行防止」であって、構造化された anomaly を消費してもいなければ
+generator の提案分布を狭めてもいない (Hamming 距離 1 の近傍は 5 点とも残る)。**すなわち本 draft は
+規律 3 の還流を実現していない。** 安全側に振った結果、v1 の既定は候補 A (現状維持 = 封じ込め) に
+近い強度しか持たない。軸 (i) を名乗るには、**構造化 anomaly から禁止範囲を独立に再導出する契約**
+(前提条件 P6) が要り、その設計は本 D では未達である。これは T-244 の**中心的な未解決点**であり、
+裁定パッケージの択一 7 として返す。
+
 **決定 (5): 予算は campaign ID でなく `reflux-origin` に束縛する。** `ident.canonical_preimage()` は
 `trial` と `search_config` を含むため、campaign ID に予算を置くと ID を変えるだけで予算が新品になる。
-別 run-root・別 trial・config 微修正・programmatic 分割・checkpoint 削除・campaign 全削除の 6 経路を
-実測した。origin preimage には authority 発行の series ID・spec 内容・CCBench commit・axis semantics・
+別 trial・config 微修正・programmatic 分割・checkpoint 削除・campaign 全削除の各経路を実測した
+(**別 run-root が即新品になるのは `--no-build` 経路だけで、build 経路の campaign root は cfg の
+内容 hash から決まる**)。origin preimage には authority 発行の series ID・spec 内容・CCBench commit・axis semantics・
 descriptor SHA・verifier policy・environment contract・IR schema と emitter の SHA・role bundle と
 recipient projection schema の SHA・stock certification と structural-zero evidence の参照・予算上限を
 含め、`run_root` / `trial` / invocation ID / provider 呼び分け / 1 回の CLI budget / process 分割名は
 含めない。**列挙の正本は設計本文 §3.5 であり、本 D はその骨子を引くに留める。**
 
 **決定 (6): 設計本文は draft のままとし、本 D は「設計が確定した」とは主張しない。**
-未裁定の設計択一が 5 件残る (予算値、origin authority、cap-lift の機械束縛、formal consumer gate、
-診断 run の扱い)。実装はゼロであり、`reflux-control` stage・origin ledger・5-bit IR・正準 emitter・
+未裁定の設計択一が 7 件残る (予算値、cap-lift の機械束縛、軸 (iii) の扱い、critic report-only と
+ablation の両立、診断 run の扱い、origin authority、**cut の適用範囲をどう正当化するか**)。実装はゼロであり、`reflux-control` stage・origin ledger・5-bit IR・正準 emitter・
 非干渉検査はいずれも未実装である。本文と逐語の正本 = `output/insights/2026-08-01_t244-reflux-design/`。
 
 **決定 (7): 多世代開放 (`MAX_APPROVED_GENERATIONS > 1`) の前提条件を 10 件に固定する。
 ただし「10 件すべてが機械検査可能」とは主張しない** — P6 は条件文、P10 は人間 gate であり、
 P1・P2・P3・P5・P7 は検査対象の閉集合を先に定義しなければ恒真化する。検査可能度の逐条は設計本文 §7。
 D96 手続に加え、P1 固定 5-bit IR と全 32 mask 監査済み emitter、P2 実効 diff と IR SHA を untrusted role
-へ出さない非干渉検査、P3 origin ledger の単一 in-flight・CAS・crash replay・削除耐性、P4 軸 (iii) の
-batch freeze、P5 provider 注入・role 間 session 共有・未予約 token の拒否、P6 no-good cut を超える主張を
+へ出さない非干渉検査、P3 origin ledger の単一 in-flight・CAS・crash replay・削除耐性、P4 (択一 3 で軸 (iii) を採る場合のみ)
+batch cardinality を含む batch freeze、P5 provider 注入・role 間 session 共有・未予約 token の拒否、P6 no-good cut を超える主張を
 するなら anomaly からの独立再導出、P7 formal consumer の origin proof 要求 (受理集合の変更ゆえ D96)、
 P8 1 世代運転・runbook 3 手順・reflux on/off ablation の不破壊、P9 whiteboard 値域と iteration 整合の閉包、
-P10 予算値・origin authority・軸 (iii) の扱いのユーザー裁定、をすべて満たすこと。
-**現時点で満たされているものは無い** (P6 は条件文なので「非適用」であり、満たされているとは数えない)。
+P10 予算値・origin authority・軸 (iii) の扱いのユーザー裁定。
+**P4 と P6 は条件付き義務**であり、(iii) を採らない場合の P4、座標 cut を主張しない場合の P6 は
+**非適用**として扱い、cap-lift の失敗には数えない (無条件必須にすると cap が永久に解除不能になる)。
+P8 の射程は runbook 3.1 / 3.2 とし、現在の Pegasus 運用で実行不能な 3.3 は含めない。
+**無条件の義務 (P1・P2・P3・P5・P7・P9・P10) は現時点で 1 件も満たされていない。**
+
+**事前登録文書 (`docs/phase3-main-experiment.md`) は変更しない。** 同文書は S-1 freeze
+(`output/s1-freeze/known_axes_freeze.json`) が sha256 で bytes を pin する事前登録であり、本 wave の
+段 6 でこれを実測した (編集すると closure 検査 `changed 12 / unchanged 51` が破れる)。したがって
+D39 決定 4 の ablation 記述 (critic の機序帰属を coder/planner へ還流する on アーム) は**そのまま残る**。
+**8c 自律ループについて本 D が draft として提案する還流形は、その ablation とは別物であり、
+8c で on/off treatment をどう定義するかは未裁定**である (裁定パッケージの択一 4)。
 
 **この決定で確定していないこと (過大表現を避けるための明示):** 本 D は還流機構を実装していない。
 D114 の承認上限 1 は維持され、`generations > 1` という**引数**は 3 入口で拒否されたままである。
@@ -5732,7 +5752,7 @@ D114 の承認上限 1 は維持され、`generations > 1` という**引数**�
 本 D が supersede するのは D106 残余 1 の「設計択一が未着手」という状態だけであり、
 残余 1 の本体 (還流機構の不在) は実装まで残る。
 
-**却下した案:** (a) 本 wave で D116 を「設計確定」として phase/runbook の未解決記述を閉じる — 未裁定の
+**却下した案:** (a) 本 D を「設計確定」として phase/runbook の未解決記述を閉じる — 未裁定の
 択一が bit 会計と信頼境界の中核に残るため、段 3 レンズ B が独断確定と判定した。(b) cap-lift guard を
 本 wave で実装する — guard が要求すべき前提は未裁定の択一に依存し、実装すると未裁定設計を既成事実に
 する。(c) 動的 constraint 文の追記 (決定 3 の逆) — 理由チャネルとして反証された。

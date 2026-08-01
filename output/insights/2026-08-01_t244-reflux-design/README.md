@@ -14,7 +14,7 @@ default_effect: no-state-change
 **これは draft であり、確定した設計ではない。** ユーザー裁定 (worklog (102)) が定めたのは
 **軸 (i) を主軸・軸 (iv) を併用**という方向だけであり、本文書はその方向で起草した v1 である。
 
-- **未裁定の設計択一が 6 件残る** (§8)。予算値・origin authority・軸 (iii) の扱いは確定していない。
+- **未裁定の設計択一が 7 件残る** (§8)。予算値・origin authority・軸 (iii) の扱い・**cut の適用範囲**は確定していない。
 - **実装はゼロである。** 本文書のどの機構も現行コードに存在しない。
 - `MAX_APPROVED_GENERATIONS = 1` (D114) は**維持する**。本設計は多世代運転を解禁しない。
 - 段 3 の敵対相談 2 本と段 6 の敵対レビュー 2 本はいずれも **NO-GO** を返した。段 3 の所見 18 件と
@@ -100,7 +100,8 @@ lock-conflict / update-absent / readvali-tid / readvali-locked / node-vali)。
 `kUnset` は常に true とする **prompt / コメント上の契約**である (機械強制はされていない)。
 
 `2^5 = 32` は**偵察の列挙空間**であって、production が受理する候補集合ではない。
-**現行の受理集合は「任意の非空 1 行 C++」であり、有限に閉じていない。**
+**parser の受理集合は「任意の非空 1 行 C++」**であり、production の受理集合はそこから
+diff 検疫・禁止識別子 gate・auditor gate の 3 段を通った集合である。**いずれも有限に閉じていない。**
 したがって設計 v1 が候補表現を 5-bit IR へ閉じることは正準化ではなく**受理集合の縮小**であり、
 実装時に **D96 手続**を要する。
 
@@ -139,6 +140,20 @@ atom 全域 (座標 cut) へ一般化してよいのは、**その atom を戻�
 
 build 失敗・trace timeout・環境起因の `aborted`・role-invalid・infrastructure failure から
 constraint を作ってはならない。これらは query を消費して origin を seal する。
+
+### 3.2.1 正直な帰結 — exact-mask cut だけでは軸 (i) を満たしていない
+
+焦点再レビューが指摘したとおり、**1 点の禁止は「既知 red の重複実行防止」であって規律 3 の還流ではない**。
+構造化された anomaly は「存在するか」の確認にしか使われず、禁止範囲の決定に関与しない。
+5 要因 universe では機械側の受理領域が 32 → 31 点へ縮むだけで、**generator の提案分布は変わらない** —
+`C` を見せず拒否時も query を消費するため、同じ候補の再提案や Hamming 距離 1 の近傍 5 点を防げない。
+
+つまり本 draft は、安全側 (過剰一般化しない) を選んだ結果、**強度としては候補 A (現状維持 = 封じ込め) に
+近いところまで後退している**。これは T-244 の**中心的な未解決点**であり、§8 の択一 7 として返す。
+
+軸 (i) を名乗るには、**構造化 anomaly から禁止範囲 (どの候補集合が同じ理由で危険か) を機械が独立に
+再導出する契約**が要る。それが前提条件 P6 の実体であり、本 draft はそこを設計しきれていない。
+座標 cut (要因を全候補で必須化) は、その再導出が成立したときにだけ許される一般化である。
 
 ## 3.3 強制と開示を分離する — ここが bit 会計の要
 
@@ -309,6 +324,10 @@ source ref は `campaign_id / variant / stage / record_ordinal / payload_sha256`
   `query-result` 前 / query 完了後 seal 前) の正規回復状態が未定義。
 - **`layer3_report.py` は独自の固定 stage 集合を持ち未知 stage を拒否する。**
   `model.WAL_STAGES` に `reflux-control` を足すだけでは正式材料レポートが壊れる。
+- **さらに `layer3_report.py` は全 WAL record を `variant` で集約し、`commit` の無い variant を
+  `commit-event-absent` の reject として数える。** stage allowlist を広げるだけでは、control plane の
+  固定 variant `"reflux-origin"` が**実在しない棄却候補**として材料レポートに混入する。
+  control event を候補集計から分離する区画 (`control_events`) と分離規則が要る。
   consumer の実装地図に必ず含める。
 
 ## ⑦ 受容する残余と、不採用案の再開条件
@@ -408,11 +427,13 @@ D114 の承認上限の引上げは、D96 手続に加えて次をすべて満�
 | P5 | provider 注入・role 間 session 共有・未予約 token が正式経路で拒否される | **3 要件のうち検査を書けているのは 1 件**。session 共有と token replay は未定義 |
 | P6 | no-good cut を超えて座標 cut を主張するなら、anomaly からの独立再導出と相互作用の実証 | **条件文であり現状は非適用**。主張しない限り真。予め満たすべき条件ではなく、主張の前提 |
 | P7 | formal consumer (`layer3_report.py` 等) が origin proof を要求する | **部分的**。proof schema・issuer・consumer 閉集合・正負例が未定義。**受理集合の変更ゆえ D96 手続** |
-| P8 | 1 世代運転と runbook 3.1 / 3.2、reflux ablation が壊れない | **部分的**。runbook 3.3 は現在の Pegasus 運用では実行不能 ([T-276] / [T-277] 待ち) なので射程外 |
+| P8 | 1 世代運転と **runbook 3.1 / 3.2 のみ**、reflux ablation が壊れない | **部分的**。runbook 3.3 は現在の Pegasus 運用では実行不能 ([T-276] / [T-277] 待ち) なので射程外 |
 | P9 | whiteboard の値域 (direction/magnitude/result) と iteration 整合が閉じている | **定義後なら可能**。前 wave X4 / [T-287] |
 | P10 | 予算値・origin authority・(iii) の扱いがユーザー裁定で確定している | **機械検査ではない**。人間 gate である |
 
-**現時点で満たされているものは無い** (P6 は条件文なので「非適用」であり、満たされているとは数えない)。
+**P4 と P6 は条件付き義務**である。(iii) を採らない場合の P4、座標 cut を主張しない場合の P6 は
+**非適用**として扱い、cap-lift の失敗には数えない (無条件必須にすると cap が永久に解除不能になる)。
+**無条件の義務 (P1・P2・P3・P5・P7・P9・P10) は現時点で 1 件も満たされていない。**
 
 # 8. 裁定パッケージ (ユーザー判断待ち)
 
@@ -424,6 +445,19 @@ D114 の承認上限の引上げは、D96 手続に加えて次をすべて満�
 | 4 | critic を report-only にするか、現行の reflux on/off ablation を維持するか | **両立しないため裁定が要る。** report-only にすると 8c の on/off treatment label が意味を失い、bool を残すと critic は report-only でなくなる |
 | 5 | 診断 run (no-build `dry-pass`、runbook 配線確認) を予算の外に置く扱いでよいか | **よい。** 予算に数えると配線確認だけで origin を使い切る |
 | 6 | origin authority を repo 内 tracked registry で担うか、別 service / ACL へ分離するか | **tracked registry から始め、「同一 UID の caller からの秘匿は不可」を残余として明示する** |
+| 7 | **cut の適用範囲をどう正当化するか** — exact-mask (安全だが封じ込め相当) と座標 cut (軸 (i) を満たすが根拠が要る) の中間をどう設計するか | **構造化 anomaly から禁止範囲を再導出する契約 (P6) を先に設計することを推奨する。** それが無い限り本設計は規律 3 の還流を実現しておらず、T-244 本体は未解決のままである |
+
+# 8.5 事前登録文書は触れない (段 6 で実測)
+
+`docs/phase3-main-experiment.md` は S-1 freeze (`output/s1-freeze/known_axes_freeze.json`) が
+sha256 で bytes を pin する**事前登録文書**である。docs だけを変える wave でも、この 1 ファイルを
+編集すると T-080 freeze migration の closure 検査 (`known_axes.source_closure` の
+`changed 12 / unchanged 51`) が破れ、10 件のテストが赤くなる。**本 wave は段 6 の受入全走でこれを
+実測し、同ファイルへの編集を撤回した。**
+
+したがって D39 決定 4 の ablation 記述 (critic の機序帰属を coder/planner へ還流する on アーム) は
+事前登録のまま残る。本 draft が 8c について提案する還流形はそれとは別物であり、**8c で on/off
+treatment をどう定義するかは未裁定** (§8 択一 4) である。
 
 # 9. 本 wave の射程 (実装していないこと)
 

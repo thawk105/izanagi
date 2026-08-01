@@ -154,7 +154,8 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
 - **`--run-root` を変えても campaign 状態は同一である (build 経路)。** fresh 検査の対象は外側
   `run_root` だけで、build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら
   別の `--run-root` でも同一 campaign root になる。**ただし `--no-build` は
-  `run_root/campaigns/<id>` を使うため、別 `--run-root` なら別 state になる。****D114 以降、その旧 `loop_state.json` は planner 前に読まれるのでなく
+  `run_root/campaigns/<id>` を使うため、別 `--run-root` なら別 state になる。**
+  **D114 以降、その旧 `loop_state.json` は planner 前に読まれるのでなく
   拒否される** — 既存 checkpoint を持つ layout の invocation は最初の provider 呼び出し前に
   `AutonomousTrialError` になる。crash 後の再開は `--run-root` の変更でなく**新しい trial id** で行う
   (trial は campaign ID の preimage に入るため、新 ID なら新 campaign になる)。壊れた checkpoint も
@@ -173,8 +174,10 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   `fresh_context` / `observed_tool_events` の周辺には `num_turns`・session-id・permission denial・
   server-tool counter の部分検査が実在する)。これらの field を保証の証拠に使わない
 - **規律 3 の還流が human-supervised loop より狭い。** 次世代の planner/coder が受けるのは
-  抽象 whiteboard (direction/magnitude/result/delta_pct) までで、critic の
-  attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれる。
+  抽象 whiteboard (direction/magnitude/result/delta_pct) と、**前世代の結果から更新した
+  `current_metrics` (絶対 throughput を含む。planner は `current_perf`、coder は `baseline`、D118)** で、
+  critic の attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれ、
+  それは次世代 payload でなく driver の停止カウンタへ行く。
   「なぜ壊れたか」は次の生成入力に入らない。**前提条件が満たされるまで
   `--max-generations >= 2` で走らせない** (D106 残余 1 / D119)。正式系列 (H1/H2) は同一 generation
   budget を要求するのでこの条件で自動的に禁止側へ入る。**D114 でこれは機械 gate になった** (3 入口 +
@@ -183,9 +186,7 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   機構は未実装、前提条件は 1 件も満たされていない** (`output/insights/2026-08-01_t244-reflux-design/`)。
   1 generation/cell を許可する根拠も「fresh campaign の単一 invocation なら還流が起きない」であって、
   無条件ではない。
-  **なお「planner/coder が受けるのは abstract whiteboard まで」は正確ではない** — 前世代の結果から
-  更新した `current_metrics` (絶対 throughput を含む) も planner の `current_perf` と coder の
-  `baseline` へ渡る (D118)。critic の bool は payload でなく driver の停止カウンタへ畳まれる
+
 - auditor の mediated schema は **要素 field まで閉じていない**。consumer は要素が `dict` で
   あることしか検査せず、`{}`・未知キー・非文字列 field を含む要素が通る。
   「schema を object 配列へ明確化した」の射程はここまでである

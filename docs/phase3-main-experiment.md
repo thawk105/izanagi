@@ -43,12 +43,8 @@
 **後続段 4 で配線した事前登録要素 (数値詳細は段 6、実体・不変条件のみ段 4 で固定):**
 - **ablation 還流スイッチの実体:** on アーム (critic の機序帰属を次 iteration の coder/planner へ還流) と off アーム
   (緑 leading-indicators のみ渡す) の**合流 1 点** = `campaign/p3_s4_loop.py` の `make_critic_digest(reflux=)`
-  (= `render_rejections` を合流するか否か。実体は `orchestrator/campaign/p3_s4_loop.py`)。reflux は campaign identity (search_config) に焼き別 campaign に物理分離する
+  (= `render_rejections` を合流するか否か)。reflux は campaign identity (search_config) に焼き別 campaign に物理分離する
   (D39 決定4)。第 3 アーム reason-only は段 6。
-  **8c 自律ループについては D119 が別形の還流を draft として提案している** — 機序帰属を generator へ戻さず、
-  機械が非公開の safety constraint へ変換する軸 (i)。ただし設計は未確定・機構は未実装で、多世代運転は D114 の
-  上限 1 で拒否されたままである。**8c で on/off ablation をどう定義するかは未裁定** (critic を report-only に
-  すると treatment label が意味を失う)。人間監督ループの本記述 (段 4 で配線済み) はそのまま有効で、削除しない。
 - **ベースライン 3/4 の substrate anchor (段 4 が固定 → 段 6 が「同じ編集面・同じ試行予算」を守るための実値):**
   編集面 = diff 検疫の hole (silo-backoff-magnitude、`include/backoff.hh` の #if 合成枝 1 行、D39 決定1)。試行予算 =
   iteration budget (10 iteration または 3600 秒、D39 決定2)。変異軸 = backoff (人間命名、coder の値提案より前に固定
