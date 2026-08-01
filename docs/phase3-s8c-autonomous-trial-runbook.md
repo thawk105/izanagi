@@ -8,7 +8,8 @@ bounded MVP である。planner / coder / auditor / critic を fresh な headles
 
 これは汎用 daemon でも正式な descriptor-conditioned synthesis 実験でもない。YCSB A/B/C
 は配線 pilot であり、正式主張には
-`docs/phase3-8b-descriptor-design.md` の H1/H2 × on/off/swapped を別途実装・凍結・実走する。
+`docs/phase3-8b-descriptor-design.md` の H1/H2 × on/off/swapped を別途実装・事前登録・実走する。
+事前登録は git commit した文書で行い、凍結機構は使わない (D116)。
 
 ## 1. 何が自動化されたか
 
