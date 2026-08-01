@@ -910,6 +910,15 @@
   fail-closed (commit `419d59b`)。環境事実は `docs/pegasus-runbook.md` §4 に記載。一般則:
   実行環境でしか成立しない前提は、実行環境側で **assert として**束縛する (記録だけの値を作らない)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
+- **再発: 2026-08-01** ([T-221] 段 1)。親 brief が計算ノードの `-n 48` 全走で測った
+  `/dev/shm` peak 7.39 GiB を、ログインノードの経路にも「同機序で最大 7.39 GiB」として
+  転写した。repo に `addopts` は無く login 直叩きは既定で**直列**なので、同時生存する
+  temp 総量は worker 数に比例して桁が違う。段 3 の敵対レンズ (`DW-S03` の「親自身の実測値と
+  その一般化も明示的にレンズへ入れる」) が実測で refute し、親が撤回した。**一般則の拡張**:
+  「別環境」だけでなく**別並列度・別実行形態**へ数値を転写するときも、転写先で成立するかを
+  実測してから書く。同 wave では「ガードが恒真だ」という主張を caller を全列挙せずに
+  行った誤りも同レンズが refute した (呼び出しは `main()` 内のみでテスト非到達だった) —
+  **恒真だと主張する前に呼び出し元を全列挙する**
 
 ### F47. AI セッション内 shell からの qsub が、見かけ成功のまま receipt 不永続・所有者不整合の無効 request を作った [誤前提]
 
@@ -1070,12 +1079,12 @@
   SHA 指定 ff-only を行う。stale / busy は fresh context へ返し、再監査と受入再走なしに再試行しない。
 - **再発検知:** helper の境界 test と同一 base 二 wave の実 subprocess E2E。未知 dirt、偽 worktree、
   stale SHA、lock loser、non-FF、未監査 commit、gitlink postcondition 不成立をそれぞれ拒否する。
-- **恒久対応の射程を後に狭めた (2026-08-01、D107 / [T-220])**: 上記の「**形式が正しく**Git admin と
+- **恒久対応の射程を後に狭めた (2026-08-01、D108 / [T-220])**: 上記の「**形式が正しく**Git admin と
   双方向束縛された制御面だけを非接触例外にし」という形は、**書式が崩れた他 session の handoff で
   無関係な wave の land を止める**という新しい実害を生んだ ((73) は着地せず終了、(77)(78) は各 1 回拒否)。
-  D107 が cleanliness 軸を「incoming と衝突する untracked だけ拒否」へ一本化し、
+  D108 が cleanliness 軸を「incoming と衝突する untracked だけ拒否」へ一本化し、
   `docs/handoff/` 配下は**書式を問わず**非接触にした。**本 F の恒久対応欄の「形式が正しく」は
-  現在の実装を表さない。** 現況の正本は D107。
+  現在の実装を表さない。** 現況の正本は D108。
 - 記録: worklog 2026-07-30 (67)、設計判断: D102、材料:
   `output/insights/2026-07-29_dev-wave-parallel-land/`
 
@@ -1104,6 +1113,16 @@
   `019fadd3-c19c-7a12-bbf0-ded998aed815` = codex-mini、および `reasoning=ultra` の 4 session) が
   一次資料。機械検査は未実装 (上記所有 ID で実装する)
 - 記録: worklog 2026-07-30 (68)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`
+- **再発: 2026-08-01 (Claude 側の同型を実測)**。`claude -p --effort <不正値>` は
+  `Warning: Unknown --effort value ... using the default effort` を出して **rc=0 で続行**し、
+  既定へ黙って落ちる (`--model` の不正値は rc=1 で fail-closed)。さらに effort は
+  `--output-format json` の result にも `stream-json` の `init` event にも現れず、`--help` にも
+  既定値の記載がないため、**要求値と実効値を突き合わせる経路が Claude 側にも無い**。
+  fallback 先がセッション設定値か CLI 内蔵既定かは未確認 (3 arm の出力トークン probe は陰性)。
+  同型の検証非対称は `tools/dev_waves` にもある (model は `allowed_models` に照合、effort は
+  形のみ、receipt に effort field なし) が、同層は D74 で fake child 限定のため成果物影響ゼロ。
+  一次資料 = `output/insights/2026-08-01_token-hygiene-audit/probes/cli-effort-failopen.md`、
+  記録 = worklog 2026-08-01 (81)
 
 ### F57. Codex worker launcher の normal fake が32-worker全走だけで失敗し、失敗nodeが移動した [テストフレーク] [資源競合]
 
@@ -1214,7 +1233,80 @@
   (本件はこの検査が正しく発火した結果である)。差分が到達しえないファイルで出た赤は `DW-O18` に従い
   単独再走で再現性を実測してから帰属する — 本件も再走で偽赤と確定した
 
-### F63. 段 1 の前提実測を自 worktree の凍結写しで行い、13 commit 先の local main にあった裁定済み項目を見落とした [誤前提] [ドリフト]
+### F63. cleanup-branches が要求する submodule 実体化検査に、guard_bash を通る書き方が無かった [手順漏れ]
+- 事象: `/cleanup-branches` 実行中、F26 の risk 判定 (どの worktree で `external/ccbench` が
+  実体化しているか) を worktree ごとに数える shell を 2 度書き、2 度とも `guard_bash` が
+  「末端/防護ツリーのパスと不透明構文の同居は分類不能 = fails-closed」で拒否した。
+  拒否されたのは書き込みでなく**読み取り専用の `ls -A ... | wc -l` 集計**である
+- 根本原因: guard_bash は防護パスのトークン (`external/ccbench` 等) と不透明構文 (`$()` 等) が
+  **同一コマンドに同居**した時点で分類を諦めて拒否する。一方 cleanup-branches §1/§3 は
+  worktree ごとの submodule 状態を見ることを求めており、その自然な shell 慣用は
+  「防護パスを含むループ + `$()` での結果埋め込み」になる。**防壁は設計どおり働いたが、
+  スキルが求める検査に対して通る書き方がどこにも書かれていなかった**
+- 恒久対応: 防護パスを含む読み取り集計では `$()` を使わない。`find <root> -maxdepth 3
+  -path '*/external/ccbench' -type d -printf '%p ' -exec sh -c 'ls -A "$1" | wc -l' _ {} \;`
+  のように **`-exec` へ渡して置換を挟まない形**にすると同居しないため通る。
+  `git submodule status` 単体 (§4 の事後検査) は防護パスをコマンド行に書かないため元から通る
+- 再発検知: guard_bash の拒否メッセージ自体が検知である (fail-closed で黙って通らない)。
+  入口 `.claude/commands/cleanup-branches.md` §3 へのポインタ追記は byte 上限
+  4000 に対し実測 headroom 41 で入らず、同ファイルの編集を既に所有する [T-208] へ合流させた
+
+### F64. 死んだ session の孤児待機ループが worktree を「使用中」に見せ、掃除を 3 周止めた [恒真ゲート] [手順漏れ]
+- 事象: `.claude/worktrees/dev-wave-t181-reasoning-ab` が (76) → (79) → (83) の 3 回連続で
+  「滞在プロセスあり」として残置され、毎回ユーザー引き渡しへ回された。実測すると滞在の実体は
+  **2 日前に死んだ session (job `c94644e8`) が残した `until [ -f <sentinel> ]; do sleep 20; done`
+  1 本**で、`ppid=1` (init へ里子)、待っている sentinel は**永久に作られない**。
+  scan ごとに PID が変わる 2 本目は、そのループが 20 秒ごとに生む `sleep` の子だった
+- 根本原因: cleanup-branches §2 の使用中判定は `/proc/*/cwd` に当該 worktree が現れるかだけを見る。
+  これは「生きた作業がある」ことの proxy として導入されたが、**孤児化した待機ループと生きた
+  セッションを区別しない**。待機ループは cwd を読み書きしないので実害ゼロなのに、判定は
+  永久に真を返し続ける。**時間が経つほど誤検出が増える片側性の恒真ゲート**であり、
+  「2 本も居るなら稼働中だろう」という人間側の解釈がそれを補強した
+- 恒久対応: 滞在プロセスを検出したら**そこで残置を決めず素性を 3 点で検める** —
+  (1) `ppid` が 1 なら親 session は死んでいる、(2) PID が scan ごとに変わる子は `sleep` 等の
+  一過性で滞在の実体ではない、(3) `/proc/<pid>/cmdline` が待つ sentinel の実在を確認する。
+  3 点とも孤児側なら worktree は未使用と扱ってよい。**滞在プロセス数を根拠にしない** —
+  数えるのでなく素性を見る
+- 再発検知: 同じ worktree が 2 回以上連続で「滞在プロセスあり」を理由に残置されたら、
+  それ自体を孤児の疑いとして扱い上記 3 点を回す。孤児プロセスの `kill` は harness の
+  classifier が拒否しうるため、worktree だけ畳んでプロセスはユーザー手番に残してよい
+  (当該ループは cwd を読み書きしないので cwd が deleted になっても害はない)
+
+### F65. dispatch 中継で変異 harness の失敗 node 記録が無音で 0 件になる [恒真ゲート]
+- 事象: 2026-08-01 [T-207] の段 6 変異 matrix で、4 変異のうち 3 件は rc≠0 (kill) だったのに
+  **記録 node が全件「なし」**になった。matrix は期待 node と突き合わせて MISMATCH を出したが、
+  もし期待側も空だったら「node 0 件どうし一致」で **AGREE と読めてしまう**構造だった
+- 根本原因: `tools/run_tests.py` は Pegasus 計算ノードへ dispatch し、子 pytest の stdout を
+  **行頭に `| ` を付けて中継する** ([T-194] で入れた親への中継)。harness の node 抽出は
+  `DW-M08` の指示どおり ANSI を除去して `FAILED <node> - <error>` を拾っていたが、
+  中継接頭辞を剥がしていなかったため 1 行も一致しなかった。`DW-M08` は ANSI 除去だけを
+  明示しており、dispatch 中継という**後から入った経路**を想定していない
+- 恒久対応: 変異 harness は (1) 行頭の中継接頭辞 (`| `、`|`、前置空白) を剥がしてから
+  `FAILED` 判定し、(2) 期待側と記録側へ**同じ正規化関数**を通し、(3) **kill (rc≠0) なのに
+  node が 1 件も取れなかったら AGREE にせず MISMATCH 側へ倒す**。(3) が本質で、
+  抽出失敗を「期待どおり」と読める出力にしないことが恒真ゲート化の唯一の防壁である
+- 再発検知: 変異 matrix で「rc≠0 かつ記録 node 0 件」が出たら、まず抽出器を疑う。
+  出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
+  抽出器の側も同時に確認する
+
+### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
+- 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
+  走らせたところ `NG: submodule is not initialized ... 親セッションで submodule を初期化する`
+  で停止した。しかし背景 job には指示先の「親セッション」が存在せず、実際の対処は
+  **当の worktree で `git submodule update --init --recursive` を走らせること**だった
+- 根本原因: 新規 worktree は必ず submodule 未初期化で始まるのに、初期化手順の正本
+  (`DW-O08`) は「freeze / oracle gate / proof chain に触る可能性が判明」した場合だけ読む
+  L2 条件節にある。無条件に読む `DW-O20` (clean-tree gate) は checker の実行と
+  「非 0 なら停止」しか書いておらず、**最も頻出する NG の解消手順への導線がない**。
+  checker のメッセージが特定の運用形態 (対話セッション + 親) を前提にしていたことも重なった
+- 恒久対応: 新規 worktree で startup gate が submodule NG を返したら、条件節の発火を待たず
+  その worktree で `git submodule update --init --recursive` を実行してから再走する。
+  checker メッセージの文面と `DW-O20` への導線追記は dev-wave の byte 予算
+  (23,983 / 24,000) に収まらないため、予算を増やさず実現する案としてユーザー裁定へ返す
+- 再発検知: 背景 job の wave 立ち上げで checker が非 0 になり、そのメッセージが
+  「ユーザー」「親セッション」など**この job には存在しない主体**へ作業を指示していたら、
+  同型として扱う
+### F67. 段 1 の前提実測を自 worktree の凍結写しで行い、13 commit 先の local main にあった裁定済み項目を見落とした [誤前提] [ドリフト]
 
 - 日付: 2026-08-01 ([T-220] wave)
 - 事象: 並行セッション開発の無駄なチェックを潰す wave で、親は `DW-S01` の「承認済み裁定の前提を
@@ -1238,7 +1330,7 @@
 - 再発検知: 起動 gate が乖離件数を出すようになれば、非ゼロの時点で親が気づく。
   それまでは段 1 で `git log --oneline HEAD..main` を明示的に打つ規律で代替する
 
-### F64. land の handoff 検証が rc 契約外の素の例外で貫通しうる形だった [恒真ゲート] [防壁の射程誤認]
+### F68. land の handoff 検証が rc 契約外の素の例外で貫通しうる形だった [恒真ゲート] [防壁の射程誤認]
 
 - 日付: 発見・除去とも 2026-08-01 ([T-220] wave)。**実害の記録は無い (発火前に除去した)**
 - 事象: `tools/dev_wave_land.py` の `_validate_handoff_at` は基準コミット行を
@@ -1249,11 +1341,11 @@
   (`RC_CONTROL_PLANE` 等) の外側で traceback 終了する
 - 同型: `_read_regular_at` の `os.read` の `OSError` も未捕捉である。こちらは
   [T-220] wave で `docs/handoff/` からの到達経路が消えただけで、**関数自体の穴は残る**
-  (残 caller は worktree admin metadata = D107 の scope 外面)
+  (残 caller は worktree admin metadata = D108 の scope 外面)
 - 根本原因: 「検査は `_Reject` を投げる」という契約を、**入力が想定形であることを前提にした
   素の index / IO 操作**が破っていた。fail-closed のつもりの gate が、実際には
   **構造化された拒否ではなく異常終了**を返す形になっていた
-- 恒久対応: D107 の決定 (1) で `_validate_handoff_at` ごと削除した (handoff の内容を読まなくなった)。
+- 恒久対応: D108 の決定 (1) で `_validate_handoff_at` ごと削除した (handoff の内容を読まなくなった)。
   `docs/handoff/` 経路の穴は消えた。**`_read_regular_at` 側は未対応であり、
   同型の第 2 例が出た時点で `DW-G03` に従い族として一般化して閉じる**
 - 再発検知: 「gate が `_Reject` 以外で終了しうるか」は現状テストで固定していない。

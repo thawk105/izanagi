@@ -32,7 +32,7 @@ from calibrator.stability import remeasure_until_stable         # noqa: E402
 from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
-from . import buildcache, ident, source_digest, wal            # noqa: E402
+from . import buildcache, env_contract as _env_contract, ident, source_digest, wal  # noqa: E402
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .env_contract import ExecutionEnvironmentContract          # noqa: E402
@@ -92,6 +92,43 @@ class PerfConfig:
     workload: Dict[str, str] = field(default_factory=dict)
     extime: int = 3
     reps: int = 5
+
+
+_QUALIFICATION_POLICY_TOKEN = object()
+
+
+@dataclass(frozen=True, init=False)
+class QualificationPipelinePolicy:
+    """Exact T-126 opt-in for the shared evaluation seam.
+
+    This separates full-scale isolation from the launch prefix, supplies
+    bounded subprocess timeouts, and routes events to a qualification-only
+    sink.  It grants no formal authority.
+    """
+
+    event_sink: object
+    member_cap_s: int
+    build_timeout_s: int
+    bench_timeout_s: float
+    require_settled: bool
+
+    def __init__(self, *, _token: object, event_sink: object):
+        if _token is not _QUALIFICATION_POLICY_TOKEN:
+            raise TypeError("use QualificationPipelinePolicy.t126_pegasus()")
+        from qualification.artifacts import QualificationEventSink
+        if type(event_sink) is not QualificationEventSink:
+            raise TypeError(
+                "qualification event_sink must be exact QualificationEventSink")
+        event_sink.assert_pipeline_binding(event_sink.layout)
+        object.__setattr__(self, "event_sink", event_sink)
+        object.__setattr__(self, "member_cap_s", 900)
+        object.__setattr__(self, "build_timeout_s", 900)
+        object.__setattr__(self, "bench_timeout_s", 120.0)
+        object.__setattr__(self, "require_settled", True)
+
+    @classmethod
+    def t126_pegasus(cls, event_sink: object) -> "QualificationPipelinePolicy":
+        return cls(_token=_QUALIFICATION_POLICY_TOKEN, event_sink=event_sink)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -219,6 +256,10 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                bench_payload_extra: Optional[Dict] = None,
                bench_max_rounds: int = 3,
                record_rep_returncodes: bool = False,
+               bench_timeout_s: Optional[float] = None,
+               require_all_reps: bool = False,
+               require_settled: bool = False,
+               emit: Optional[Callable[[object, str, str, str, Dict], None]] = None,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
@@ -239,12 +280,18 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
     measured_rounds: List[_BenchRound] = []
 
     def _measure():
+        qualification_kwargs = {}
+        if bench_timeout_s is not None:
+            qualification_kwargs["timeout_s"] = bench_timeout_s
+        if require_all_reps:
+            qualification_kwargs["require_all_reps"] = True
         if not record_rep_returncodes:
             return measure_point(
                 perf_binary, perf.records, perf.threads, clocks_per_us,
                 extime=perf.extime, reps=perf.reps,
                 workload=perf.workload, numactl=numactl,
                 extra_env={"IZANAGI_TRACE_DIR": dummy_tdir},
+                **qualification_kwargs,
             )
         rep_returncodes: List[int] = []
         point = measure_point(
@@ -253,6 +300,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
             workload=perf.workload, numactl=numactl,
             extra_env={"IZANAGI_TRACE_DIR": dummy_tdir},
             rep_returncodes=rep_returncodes,
+            **qualification_kwargs,
         )
         measured_rounds.append(_BenchRound(
             point=point, rep_returncodes=rep_returncodes,
@@ -297,6 +345,13 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
     finally:
         shutil.rmtree(dummy_tdir, ignore_errors=True)
     pt, nf = rem.point, rem.nf
+    if require_settled and (not settled or settled.get("settled") is not True):
+        return abort(
+            "bench-unsettled",
+            "qualification bench did not reach settled=true → reject",
+            {"settled": (settled.get("settled") if settled else None),
+             "rounds": rem.rounds, "bench_wall_s": bench_wall_s},
+        ), None
     selected_returncodes: Optional[List[int]] = None
     if record_rep_returncodes:
         selected_rounds = [item for item in measured_rounds if rem.point is item.point]
@@ -351,7 +406,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         bench_payload["rep_returncodes"] = selected_returncodes
     if bench_payload_extra:
         bench_payload.update(bench_payload_extra)
-    wal.log(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
+    (emit or wal.log)(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
     log(f"  [eval {variant}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
         f"{' ⚠UNSTABLE' if rem.unstable else ''})")
@@ -372,7 +427,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              bench_max_rounds: int = 3,
              expected_perf_sha256: Optional[str] = None,
              env_contract: Optional[ExecutionEnvironmentContract] = None,
-             record_rep_returncodes: bool = False) -> EvalResult:
+             record_rep_returncodes: bool = False,
+             qualification_policy: Optional[QualificationPipelinePolicy] = None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -414,6 +470,34 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
         raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
+    if qualification_policy is not None:
+        if type(qualification_policy) is not QualificationPipelinePolicy:
+            raise TypeError("qualification_policy は exact QualificationPipelinePolicy が必要")
+        expected_contract = _env_contract.lookup("pegasus")
+        qualification_policy.event_sink.assert_pipeline_binding(layout)
+        if env_contract != expected_contract:
+            raise ValueError("qualification opt-in requires the exact registered Pegasus contract")
+        if (env_tag != expected_contract.env_tag
+                or clocks_per_us != expected_contract.clocks_per_us
+                or type(numactl) is not tuple
+                or numactl != expected_contract.numactl):
+            raise ValueError("qualification execution values do not exactly match Pegasus contract")
+        if (perf.records != 1_000_000 or perf.threads != 48
+                or perf.workload != {
+                    "ycsb_zipf_skew": "0.9", "ycsb_rratio": "95",
+                    "ycsb_rmw": "0", "ycsb_max_ope": "10",
+                }
+                or perf.extime != 3 or perf.reps != 5
+                or correctness is not None
+                or extra_correctness != [(S2_TAG, s2_correctness_workload())]
+                or do_bench is not True or do_settle is not True
+                or screening is not None or bench_max_rounds != 1
+                or record_rep_returncodes is not True):
+            raise ValueError("qualification opt-in evaluation shape mismatch")
+    emit = (
+        qualification_policy.event_sink.emit
+        if qualification_policy is not None else wal.log
+    )
     if screening is not None and not do_bench:
         raise ValueError("screening 指定時に do_bench=False は使えない")
     if screening is not None:
@@ -424,7 +508,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     passes: List[Tuple[str, CorrectnessWorkload, bool]] = [(LEGACY_TAG, correctness, False)]
     for tag, wl in (extra_correctness or []):
         passes.append((tag, wl, True))
-    if any(use_numactl for _, _, use_numactl in passes) and not numactl:
+    if (any(fullscale_isolated for _, _, fullscale_isolated in passes)
+            and not numactl and qualification_policy is None):
         # S2 相当 (use_numactl=True) は D36 決定4-4 で numactl interleave=all が必須。
         # numactl 無しで黙って通すと較正済み contention 条件からの静かな乖離になる
         # (敵対レビュー 2026-07-09 で確認)。ycsb_tuple_num の既存ガードと同じ流儀
@@ -443,9 +528,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             src_tok = source_digest.resolve(genome, ccbench_commit, ccbench_dir)
         except RuntimeError as e:
             v0 = variant_id(genome)        # stock id で abort を記録 (WAL キーを残す)
-            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
-            wal.log(layout, v0, STAGE_ABORT, env_tag,
-                    {"reason": "identity-error", "error": _exc_summary(e)})
+            emit(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
+            emit(layout, v0, STAGE_ABORT, env_tag,
+                 {"reason": "identity-error", "error": _exc_summary(e)})
             log(f"  [eval {v0}] abort: identity-error ({e})")
             r = EvalResult(genome=genome, variant=v0, certified=False, aborted=True)
             r.notes.append(f"source_digest 確定不能 → reject ({e})")
@@ -454,8 +539,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         src_tok = src_token
     v = variant_id(genome, src_tok)
     res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
-    wal.log(layout, v, STAGE_BUILD_START, env_tag,
-            {"genome": genome.canonical(), "src_token": src_tok})
+    emit(layout, v, STAGE_BUILD_START, env_tag,
+         {"genome": genome.canonical(), "src_token": src_tok})
 
     def _abort(reason: str, note: str, extra: Optional[Dict] = None,
               workload_tag: Optional[str] = None) -> EvalResult:
@@ -463,7 +548,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         if workload_tag is not None:
             # D36 決定4-3: どの verify 構成で壊れたかを次手生成が帰属できるようにする。
             payload["workload"] = {"tag": workload_tag}
-        wal.log(layout, v, STAGE_ABORT, env_tag, payload)
+        emit(layout, v, STAGE_ABORT, env_tag, payload)
         res.aborted = True
         res.notes.append(note)
         log(f"  [eval {v}] abort: {reason}")
@@ -498,8 +583,18 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 ),
                 "ccbench_dir": ccbench_dir,
             }
-            tr = buildcache.build_v2(genome, trace=True, **common)
-            pf = buildcache.build_v2(genome, trace=False, **common)
+            if qualification_policy is None:
+                tr = buildcache.build_v2(genome, trace=True, **common)
+                pf = buildcache.build_v2(genome, trace=False, **common)
+            else:
+                tr = buildcache.build_v2(
+                    genome, trace=True,
+                    timeout_s=qualification_policy.build_timeout_s, **common,
+                )
+                pf = buildcache.build_v2(
+                    genome, trace=False,
+                    timeout_s=qualification_policy.build_timeout_s, **common,
+                )
     except (RuntimeError, subprocess.SubprocessError) as e:
         # 例外要約を payload に載せる (D50 教訓): reason="build-error" だけだと WAL から
         # 失敗原因 (configure 即死か compile error か) を帰属できず調査が build dir の
@@ -508,12 +603,12 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                       {"error": _exc_summary(e)})
     # trace_bin/perf_bin (16 文字) は sha256-prefix-16 / legacy-display-only (過去 WAL との
     # 対称性維持で不変)。trace_bin_sha256/perf_bin_sha256 (exact 64 lowercase hex) が照合系列。
-    wal.log(layout, v, STAGE_BUILD_DONE, env_tag,
-            {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
-             "trace_bin_sha256": tr.bin_sha256, "perf_bin_sha256": pf.bin_sha256,
-             "trace_cached": tr.cached, "perf_cached": pf.cached,
-             # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
-             "perf_configure_cmd": pf.configure_cmd, "perf_build_cmd": pf.build_cmd})
+    emit(layout, v, STAGE_BUILD_DONE, env_tag,
+         {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
+          "trace_bin_sha256": tr.bin_sha256, "perf_bin_sha256": pf.bin_sha256,
+          "trace_cached": tr.cached, "perf_cached": pf.cached,
+          # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
+          "perf_configure_cmd": pf.configure_cmd, "perf_build_cmd": pf.build_cmd})
     log(f"  [eval {v}] built trace={tr.bin_hash}{'(cache)' if tr.cached else ''} "
         f"perf={pf.bin_hash}{'(cache)' if pf.cached else ''}")
 
@@ -544,7 +639,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         # (前パスが certified で 'serializable' 等を残していても、今回 abort する結果に
         # 古い verdict を紛れ込ませない)。到達すれば下で今回の verdict に上書きされる。
         res.verdict = ""
-        tdir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")  # TMPDIR=/home 配下
+        # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
+        tdir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")
         try:
             try:
                 ncommit, rc, aborts = _run_trace(tr.binary, tdir, workload.flags,
@@ -580,10 +676,22 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 return _abort("trace-parse-error", f"trace パース不能 ({tag}) → reject ({e})",
                               {"error": _exc_summary(e)}, workload_tag=tag)
             res.verdict = vr.verdict
-            wal.log(layout, v, STAGE_VERIFY_DONE, env_tag,
-                    {"verdict": vr.verdict, "certified": vr.certified,
-                     "commits": ncommit, "aborts": aborts,
-                     "anomalies": len(vr.anomalies), "workload": {"tag": tag}})
+            verify_payload = {
+                "verdict": vr.verdict, "certified": vr.certified,
+                "commits": ncommit, "aborts": aborts,
+                "anomalies": len(vr.anomalies), "workload": {"tag": tag},
+            }
+            if qualification_policy is not None:
+                verify_payload.update({
+                    "argv": (
+                        list(pass_numactl or ())
+                        + [tr.binary]
+                        + [f"-{key}={value}" for key, value in workload.flags.items()]
+                        + [f"-clocks_per_us={clocks_per_us}"]
+                    ),
+                    "binary_sha256": tr.bin_sha256,
+                })
+            emit(layout, v, STAGE_VERIFY_DONE, env_tag, verify_payload)
             log(f"  [eval {v}] verify[{tag}]: {vr.verdict} ({ncommit} commits, {aborts} "
                 f"aborts, {len(vr.anomalies)} anomalies)")
             if not vr.certified:
@@ -659,12 +767,12 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 }})
 
     verify_tags: List[str] = []
-    for tag, workload, use_numactl in passes:
+    for tag, workload, fullscale_isolated in passes:
         # 各パス開始時・probe より前で前パスの verdict を消去する (B-4)。probe (競合検知)
         # や competing-tenant で _run_one_pass に到達せず abort する場合、_run_one_pass 内の
         # 消去が走らず前パスの 'serializable' が aborted 結果へ持ち越されるのを防ぐ。
         res.verdict = ""
-        if use_numactl:
+        if fullscale_isolated:
             # S2 相当は bench 並みの負荷 → bench と同じ排他下で回す (D36 決定4-4)。
             # 後段の bench 用 bench_lock とはネストしない (逐次 = 別セクションで別途取得、
             # 同一プロセス内での flock 二重取得によるデッドロックを避ける)。
@@ -703,9 +811,20 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     if res.certified:
         if not do_bench:
             # 配線テストでベンチを省くとき: certified だけで commit (fitness なし)。
-            wal.log(layout, v, STAGE_COMMIT, env_tag, {"fitness_tps": None,
-                                                       "note": "no-bench",
-                                                       "verify_configs": verify_tags})
+            if qualification_policy is None:
+                wal.log(layout, v, STAGE_COMMIT, env_tag, {
+                    "fitness_tps": None,
+                    "note": "no-bench",
+                    "verify_configs": verify_tags,
+                })
+            else:
+                qualification_policy.event_sink.emit(
+                    layout, v, STAGE_COMMIT, env_tag, {
+                        "fitness_tps": None,
+                        "note": "no-bench",
+                        "verify_configs": verify_tags,
+                    },
+                )
             return res
 
         # --- bench (排他 + 静定, I/Admission)。screening 経路は既測なので再実行しない。 ---
@@ -715,7 +834,17 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 layout, v, env_tag, _abort, log,
                 bench_payload_extra=screening_disabled_payload,
                 bench_max_rounds=bench_max_rounds,
-                record_rep_returncodes=record_rep_returncodes)
+                record_rep_returncodes=record_rep_returncodes,
+                bench_timeout_s=(
+                    qualification_policy.bench_timeout_s
+                    if qualification_policy is not None else None
+                ),
+                require_all_reps=qualification_policy is not None,
+                require_settled=(
+                    qualification_policy.require_settled
+                    if qualification_policy is not None else False
+                ),
+                emit=emit)
             if aborted_result is not None:
                 return aborted_result
         assert bench is not None
@@ -733,7 +862,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         }
         if active_screening is not None:
             commit_payload["screened"] = True
-        wal.log(layout, v, STAGE_COMMIT, env_tag, commit_payload)
+        if qualification_policy is None:
+            wal.log(layout, v, STAGE_COMMIT, env_tag, commit_payload)
+        else:
+            qualification_policy.event_sink.emit(
+                layout, v, STAGE_COMMIT, env_tag, commit_payload)
         return res
 
     raise AssertionError("verify 完了前の非認証結果は COMMIT 経路へ到達できない")

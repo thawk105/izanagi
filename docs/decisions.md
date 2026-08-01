@@ -4756,7 +4756,192 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
 抑止されないため変更前から rc=1 だった。
 
-## D107. [T-220] 他 session 所有物は incoming と衝突しない限り自分の gate を落とさない — land の control-plane を衝突軸へ一本化し、handoff 書式の阻害力を意図的にゼロへ降格する (2026-08-01)
+---
+
+## D106. [T-178] 8c の優先度を上げ、汎用 daemon でなく workload-conditioned bounded trial として先に閉じる (2026-07-29 起草 / 2026-08-01 [T-207] で訂正のうえ採番して land)
+
+**採番と訂正の経緯:** 本 D は `codex/p3-autonomous-trial` (tip `402086d`) 上で 2026-07-29 に
+`D99` として起草され、land されないまま残っていた。その間に main が `D99` を
+`[T-143] RuleOps v1` へ使ったため、[T-207] の取り込み時に `D106` へ採番し直した。
+同時に、独立の敵対監査 (規律 6) が**起草時の本文と実装の食い違い 4 件**を検出したため、
+該当箇所を訂正して land した。訂正箇所は本文中に「**訂正 (2026-08-01):**」で明示する。
+**correction ledger の正本は `output/insights/2026-08-01_t207-adoption-audit/README.md` の
+「説明と実装の食い違い 6 件」の表**であり、本 D と `docs/phase3.md` はその 6 件を指す。
+起草時の逐語は `codex/p3-autonomous-trial:docs/decisions.md` の `D99` に残る。
+
+**背景:** 8c は「8b と層3を 1 cycle 回してなお人間セッション運営が律速なら着手」の条件付きだった。
+ユーザーは研究完成を近づけるため優先度を明示的に変更し、Python orchestrator が iteration 間を運び、
+LLM role を直接呼び、固定世代または成果条件で停止・報告することと、最初の YCSB A/B/C trial を求めた。
+一方、性能成果を見て止める設計は Best-of-N / 選択的報告を生み、A=rr50/B=rr95 は結果既知点なので、
+そのまま正式主張へ使えない。
+
+**決定 (1): 最初の 8c は四機能を一体化した bounded MVP とする。** 実装単位は
+`unattended runner + workload-conditioned generation + fixed stop + exhaustive report`。
+既存の安全性が成立済みな `silo-backoff-trigger-gating` 1 軸だけを再利用し、planner / coder /
+auditor / critic を Python から fresh context で直接呼ぶ。複数軸 population、axis-proposer、
+汎用 daemon、分散 worker を先に一般化しない。生成候補の build 以降は既存
+DiffQuarantine / syntax gate / auditor digest gate / legacy+S2 / bench pipeline が
+**採否を決める唯一の authoritative path** であり、supervisor はこれを迂回しない。
+
+> **訂正 (2026-08-01):** 起草時は「supervisor はこれを迂回・**再実装しない**」と書いていたが、
+> 実装は `_preview()` で DiffQuarantine と禁止識別子検査を **supervisor 側でも再実行**している
+> (auditor を呼ぶか否かの pre-audit)。authoritative path が後段で再検査するため
+> **受理集合は広がらない**が、「再実装がない」は事実に反するため文言を狭めた。
+> 両者が drift した場合、pre-audit 側は余分に reject しうる (fail-closed 方向)。
+
+**決定 (2): runtime role は projection-only `tools=[]` へ縮退する。** selector 8b の headless
+provider と同じ neutral cwd、空 MCP、session persistence なし、env allowlist、1 turn、Opus/token/
+server-tool/session-id 検査を使う。source role が Read/Bash を宣言していても runtime へ継承せず、
+必要 byte を stdin JSON へ射影する。receipt は source role SHA だけでなく mediated effective prompt
+SHA と payload/envelope/CLI SHA を持つ。Codex role adapter は正本が runtime blocked とする間は使わず、
+通常の Codex 子を role 隔離の代替にしない。
+
+> **訂正 (2026-08-01) — 保証の格:** この縮退は**引数と設定の射影**であって、実 process の能力を
+> 観測した証明ではない。report の `fresh_context` / `observed_tool_events` は supervisor が
+> 書いた literal であり、**この field 自体は実証ではない** (周辺には `num_turns`・session-id・
+> permission denial・server-tool counter の部分検査が実在するので、field を「恒真ゲート」とだけ
+> 呼ぶのは実装の過小評価になる)。session id の重複拒否は provider instance
+> ごとの集合なので **role 横断の再利用は拒否しない**。model 検査は Opus prefix が 1 つ在ることと
+> その record の token が正であることだけを見ており、他 model の併記を禁じない (実 receipt では
+> aux model の併記が観測されている)。`claude` 実行バイナリは hash を**記録するだけで承認 hash と
+> 照合しない** — これは既に land 済みの `s8b_prediction_runner.py` と同じ族の作法であり、
+> trust root の新設は本 D の範囲外とする ([T-242])。
+
+**決定 (3): planner→coder は抽象 3 field だけを渡す。** 最初の実 Claude dry-run で planner の
+justification が具体的な gate mechanism を述べ、これをそのまま coder へ渡すと planner が実装を
+誘導して規律3の独立推理を壊すことが判明した。coder payload の planner 射影を
+`axis/direction/magnitude` に閉じ、justification/uncertainty は report には残すが生成入力へは流さない。
+descriptor は planner/coder の双方へ proposal 前に渡し、各 role attempt の payload SHA と同じ
+descriptor output SHA を journal で束縛する。
+
+**決定 (4): stopping は固定世代を既定とし、performance target 早期停止を入れない。**
+supervisor は最大10世代、全体 wall safety budget、既存 safe-loop stop を持つ。各 role は generation
+ごとに1 attempt・retryなし。invalid response は当該 cell を `role-invalid` で停止して partial report
+へ残し、別 cell は継続する。初回実 Claude trial で auditor が `list[str]` を返した際、既存
+`list[dict]` gate が 3 cell とも fail-closed にし、同 trial 内再試行なしで partial が保存された。
+次 trial で mediated schema を object 配列へ明確化し、12/12 role attempt valid・3/3 dry-pass を確認した。
+
+> **訂正 (2026-08-01) — 2 点。** (a) `max-wall-seconds` は **hard wall でも safety 上限でもない**。
+> 時刻検査は workload と generation の**先頭だけ**で行うため、期限を超えても、その generation の
+> coder・auditor・drive/build・critic は新たに開始される (1 回の role 呼び出しだけで最大 1200 秒)。
+> 正確には「**次の境界で開始を止める閾値**」であり、指定値を大きく超過して走りうる。
+> (b) 「mediated schema を object 配列へ明確化した」の射程は**要素が `dict` であることまで**で、
+> 要素の field は閉じていない。`{}`・未知キー・非文字列 field を含む要素は現在も通る。
+
+**決定 (5): YCSB A/B/C は operational pilot に限定する。** A=rr50、B=rr95、C=rr100
+(skew 0.9、rmw 0、100k records、4 threads) を descriptor projection と無人配線の最初の試験に使う。
+C は read-only negative-control 候補だが、write conflict が無ければ trigger-gating 軸の signal が
+無い可能性を明記する。`dry-pass` は build 手前の配線成立だけで correctness/性能/特化の証拠ではない。
+正式な workload-conditioned synthesis 主張は H1 rr80/H2 rr20 × on/off/swapped、同一固定 budget、
+同一 correctness gate、全件報告を実装・凍結・実走するまで未成立とする。
+
+**決定 (6) ([T-207] で追加、2026-08-01): `--provider fixture` は `--no-build` 併用時だけ受理する。**
+起草時の CLI は `--provider` と `--no-build` を独立 flag として扱い、
+**`--provider fixture` かつ実 build** を受理していた。fixture provider の auditor は入力を監査せず
+無条件 `pass` を返すため、この組合せでは reward hack の番人である semantic auditor だけが no-op の
+まま build → legacy+S2 → bench が走り、COMMIT が campaign 台帳へ入る。legacy+S2 verifier は
+生きているので serializability は守られるが、規律 2 (正しさゲートを緩める変異を許さない) に
+触れるため、CLI 層で fail-closed 拒否する。拒否は build 準備 (競合 process 検査・checkout) より
+**前**に置き、`run_trial()` の signature と既定値は変えない。programmatic 経路
+(`run_trial(do_build=True)` の直接呼び出し) まで塞ぐのは本 D の範囲外とする。
+D96 に従い境界テストを同じ変更単位へ置く。
+
+**残余:** axis-proposer、複数軸、Codex provider は範囲外。正式設計が第一予算とする bench 実時間の
+独立 accounting も未実装で、現 wall 値は上記のとおり境界閾値にすぎない。このため bounded pilot は
+「human が iteration 間を運ばない」ことを実証するが、project 全体の究極的な unattended/autonomous
+完了は主張しない。取り込み監査で判明した残余は次の 4 点である。
+
+**(残余 1) 規律 3 の還流が human loop より狭い ([T-244])。** 次世代の planner/coder payload が
+受けるのは descriptor・現行 metrics・leading indicators・抽象 whiteboard
+(`whiteboard_for_planner()` = direction/magnitude/result/delta_pct) だけで、critic の
+`attribution/recommend/avoid/uncertainty` は `reverse_recommended` の boolean へ畳まれる。
+red digest (rejections / verify abort / diff quarantine) の到達先は critic であり、
+次世代の生成入力ではない。human-supervised loop ではこの critic 帰属を**メインセッションが
+消費**していた (D39) が、8c はそのセッションを Python へ置換したまま消費の職務を再実装していない。
+直せば済む欠陥ではなく設計択一である — 帰属を planner 入力へ流すことは D39/D45 が構造的に
+禁じたリーク経路そのものであり、「機序を漏らさずに失敗理由だけを還流させる」設計を要する。
+**したがって運転条件を次のとおり固定する — cross-generation 還流が起きる
+`--max-generations >= 2` の運転を、この設計が裁定されるまで禁止する。**
+1 generation/cell の運転は還流が起きないため本欠陥が発火せず、許可する。
+正式系列 (H1/H2 × on/off/swapped) は同一 generation budget を要求するため、
+この条件により自動的に禁止側へ入る。本制限は prompt 規律であり機械 gate は置いていない。
+
+**(残余 2) provenance は「全 attempt 束縛」ではない。** `_invoke()` の invalid 分岐は
+`error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance`
+(source role SHA、effective prompt SHA、session/model) を捨てる。加えて valid 分岐でも
+**token 数は検査するだけで provenance へ保存しない**し、fixture provider の valid attempt は
+session / token / envelope をそもそも持たない。したがって terminal report から
+token provenance を再構成することはできない。
+
+**(残余 3) 別 run-root でも campaign 状態は再利用されうる。** fresh 検査は外側 `run_root` だけで、
+build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら別の
+`--run-root` を指定しても同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
+「resume は MVP 範囲外」は run_root についての記述であって、campaign 状態には及ばない。
+
+**(残余 4) 出力先 namespace。** build 時の campaign 出力先は既存 s4 driver 族と同じ
+`output/campaigns/` である。D65 決定 (2) の本文「探索は `output/exploration/campaigns/`」に対しては
+**逸脱**であり、8c を D65 適合とは記述しない。ただし 8c 固有ではなく s4 driver 族全体の既存挙動で
+あるため、族全体の移行として別裁定へ送る ([T-243])。D65 が既に決定済みである以上、
+`DW-G03` は未遵守を続ける理由ではなく、族単位でまとめて是正するという順序の理由にとどまる。
+本残余の解消は残余 1 の裁定とは独立であり、残余 1 が閉じても本残余は閉じない。
+既定出力先の `output/autonomous-trials/` が D13 の二軸にも D65 の exploration namespace にも
+属さない第三の root である点も、同じ族単位裁定に含める。
+
+**却下した案:** (a) 成功閾値へ到達した時点で停止 — 適応停止と全試行中の best 選択が科学的主張を
+汚す。(b) 先に汎用 role/axis daemon を設計 — 最初の operational result を遅らせ、未検証抽象へ投資する。
+(c) A/B/C の出力差を正式な descriptor 因果証拠とする — known point・on-only・同一候補になりうるため
+不成立。(d) auditor/critic の source tool 権限を headless に保持 — projection 境界を破り fitness/WAL
+徘徊面を再導入する。(e) invalid response を自動 retry — Best-of-N と attempt 除外を生む。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、材料レポート、proof chain、既存凍結 bytes は
+いずれも不変である。本 D が land する 3 つの実装ファイルはどの既存 scheduler からも import されず、
+人間が CLI を起動したときだけ動く。変わるのは (i) 8c 探索 driver が repo に存在すること、
+(ii) 決定 (6) により `--provider fixture` + 実 build が新たに拒否されること、の 2 点だけである。
+
+**成果物:** `orchestrator/campaign/claude_projected_provider.py`、
+`orchestrator/campaign/p3_autonomous_workload_trial.py`、
+`orchestrator/tests/test_p3_autonomous_workload_trial.py`、
+`docs/phase3-s8c-autonomous-trial-runbook.md`。実走要約 =
+`output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md`。
+取り込み時の敵対監査の裁定と逐語 = `output/insights/2026-08-01_t207-adoption-audit/`。
+
+## D107. [T-126] タスク固有の Pegasus 予約設定は共有 policy に置かず、タスク所有 file へ分離する (2026-08-01)
+
+**背景 (実測):** [T-126] は scheduler 予約の 9 key を共有 `tools/pegasus/policy.json` へ足していた。
+main 統合時に [T-139] の commit 済み evidence
+`output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json` が同 file の bytes を
+`binding.policy.sha256` で凍結していることが判明し、
+`test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head` が drift で赤になった。
+同 evidence の他 7 binding は全一致で、drift は policy だけだった。
+共有 config を単一タスクの凍結証拠が縛る構造である。
+
+**決定 (1): 後から key を足す側が退く。** T-126 の 9 key を
+`orchestrator/qualification/t126_reservation_policy_v1.json` へ移し、共有 policy を main と
+byte 一致へ戻した。共有 policy に置いてよいのは、複数タスクが共有する値
+(`project` / `queue` / `nodes` 等) だけとする。
+
+**決定 (2): 移した設定は移した先で identity 連鎖へ束縛する。** receipt から「この run を支配した
+予約設定」を再導出できる状態を保つ。場所を移すだけで受理集合は変えない — walltime 導出式と
+29100 / 36000 の厳格一致条件は同値のまま移設する。
+
+**決定 (3): 共有 policy の非改変は byte 束縛で検査する。** 接頭辞 (`t126_`) 走査では接頭辞を
+持たない key 追加を素通しし、同じ drift を再発させられる。committed evidence が記録した sha256 と
+現行 bytes の一致を assert する。あわせて、必須 identity path が実 repo で tracked であることを
+検査する (未 tracked は submit 時 exit 2 になるが、既存テストは tmp fixture repo しか見ないため
+全部緑のまま素通りしていた)。
+
+**却下した案:** (a) T-139 の evidence を書き換えて再 binding する — 他タスクの certified 証拠であり、
+`collect` が実 PBS 成果物を要求するため再発行には実 job の再走が要る。AI が一方的に触ってよい成果物
+ではない。(b) T-139 の binding から共有 config を外す — 設計変更であり所有セッションの裁定事項。
+(c) 衝突を放置して land する — main のテストが赤のままになる。
+
+**残る構造問題 (未裁定):** 「共有 config へ key を足す任意のタスクが T-139 の証拠を壊す」構造自体は
+残っている。次に同 file を触るタスクが同じ事故を踏む。恒久対応は上記 (b) か、共有 config を
+タスク別 file の集合へ再編するかの裁定が要る (worklog の該当 ID を参照)。
+
+**研究状態への影響:** なし。production 挙動・実験の受理集合・certified 選択・proof chain は
+変更しない。変わるのは開発時の設定ファイルの所在と、その非改変を守る検査だけである。
+## D108. [T-220] 他 session 所有物は incoming と衝突しない限り自分の gate を落とさない — land の control-plane を衝突軸へ一本化し、handoff 書式の阻害力を意図的にゼロへ降格する (2026-08-01)
 
 **背景 (ユーザー裁定と実測):** [T-220] は (74) で **択 (a) 採用**として裁定済みだった —
 「`DW-O23` の受理集合を **incoming と衝突する未知 untracked だけ拒否**へ緩める」。

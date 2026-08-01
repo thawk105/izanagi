@@ -311,6 +311,38 @@ def _resolve_campaign_dir(campaign_dir: Path, output_root: Optional[Path]) -> Tu
     return resolved, relative
 
 
+def _contains_qualification_lineage(value: Any) -> bool:
+    """Recognize explicit T-126 provenance, independent of campaign shape."""
+    if isinstance(value, Mapping):
+        if value.get("qualification_lineage") == "t126-only":
+            return True
+        schema = value.get("schema_version")
+        if isinstance(schema, str) and schema.startswith("t126-qualification-"):
+            return True
+        return any(_contains_qualification_lineage(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_qualification_lineage(item) for item in value)
+    return False
+
+
+def _reject_qualification_ancestry(campaign_dir: Path, repo_root: Path) -> None:
+    current = campaign_dir
+    while True:
+        marker = current / "qualification-marker.json"
+        if marker.exists() or marker.is_symlink():
+            raise Layer3ReportError(
+                "qualification provenance は formal Layer3 入力として受理しない")
+        if current == repo_root:
+            break
+        try:
+            current.relative_to(repo_root)
+        except ValueError:
+            break
+        if current.parent == current:
+            break
+        current = current.parent
+
+
 def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, *,
                  output_root: Optional[Path] = None) -> Dict[str, Any]:
     """campaign を読み取り専用で完全射影し、出力前の report object を返す。"""
@@ -318,6 +350,7 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     output_root = Path(output_root) if output_root is not None else _DEFAULT_OUTPUT_ROOT
     if not campaign_dir.is_dir():
         raise Layer3ReportError("campaign directory が存在しない: %s" % campaign_dir)
+    _reject_qualification_ancestry(campaign_dir, output_root.resolve().parent)
     lock = _read_json(campaign_dir / "campaign.lock")
     state_path = campaign_dir / "loop_state.json"
     try:
@@ -341,11 +374,17 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         whiteboard_provenance = "loop_state"
     if not isinstance(lock, dict):
         raise Layer3ReportError("campaign.lock が object でない")
+    if _contains_qualification_lineage(lock):
+        raise Layer3ReportError(
+            "qualification lineage は formal Layer3 入力として受理しない")
     required_lock = {"ccbench_commit", "search_config", "search_tag", "spec_content", "trial"}
     if set(lock) != required_lock or not isinstance(lock["search_config"], dict):
         raise Layer3ReportError("campaign.lock のキーが不正")
     _assert_unique_refs("wb", whiteboard, "whiteboard")
     records = _read_wal(campaign_dir / "runs" / "wal.jsonl")
+    if _contains_qualification_lineage(records):
+        raise Layer3ReportError(
+            "qualification lineage は formal Layer3 入力として受理しない")
     env_tags = {record["env_tag"] for record in records}
     if len(env_tags) != 1:
         raise Layer3ReportError("campaign WAL の env_tag が一意でない")

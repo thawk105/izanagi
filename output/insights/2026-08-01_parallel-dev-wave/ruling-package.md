@@ -156,7 +156,7 @@ exclude 消失時に `git status` 系 gate が他セッションの worktree を
 
 ### 事実 (段 6 Fix-A が実装・実測)
 
-D107 実装後も、`_control_snapshot` の**名前集合比較**は残る (`:566` の relist と `:709` / `:1298` の
+D108 実装後も、`_control_snapshot` の**名前集合比較**は残る (`:566` の relist と `:709` / `:1298` の
 2 スナップ間比較)。ここは handoff が **現れても消えても** `RC_CONTROL_PLANE` を返す。
 負例 `test_foreign_handoff_appearing_mid_flight_is_still_rejected` と
 `test_foreign_handoff_disappearing_mid_flight_is_still_rejected` が両方向を固定している。
