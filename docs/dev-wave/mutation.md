@@ -49,7 +49,8 @@ mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 ## DW-M08 — 失敗 node と検出力
 
 harness は rc だけでなく赤くなった test node を毎回記録する。pytest は `-rf` を指定し、
-ANSI と runner 行前置を除き `FAILED <node> - <error>` の `FAILED ` 後から ` - ` 手前を node とする。rc≠0 で node 0 件は parse 失敗で止める。
+node 抽出は F71 に従う（正本は job stdout 全文、行前置と ANSI を除去、` - ` 無しは行末まで、
+rc≠0 で 0 件は fail-closed 停止）。
 事前登録の期待 node と記録 node は突き合わせ前に同じ形式へ正規化する（F33）。
 受理集合を変えず構造化シグナルだけを pin する変異は、kill でなく diagnostic sensitivity pin と
 して別枠に記録する。テスト強化だけの wave は、新テストと変更前 HEAD 版テストの双方へ変異を走らせ、

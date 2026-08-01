@@ -354,9 +354,18 @@
   作る**。運用則 = **1 worktree ずつ削除し、必要なら timeout を延ばす**。command 本文への反映は
   `.claude/commands/cleanup-branches.md` が Codex skill との whole-file SHA-256 parity 契約下に
   あり checker 定数の同時更新を要するため未実施 (次の一手へ登録)
+- **再発: 2026-08-01** ([T-118] wave の段 9)。`git worktree remove` の無条件拒否に当たった時点で、
+  **本エントリの恒久対応である `/cleanup-branches` を読む前に即興で `git submodule deinit` を実行**した。
+  結果は本エントリの記述どおりで、共有 `.git/config` の `submodule.*` 登録が消え main checkout の
+  `git submodule status` が `-` prefix になった (実害は一時的。`git submodule update --init` で復元し、
+  pin `d706650` 一致と並行 3 worktree の無影響を確認済み)。**恒久対応の内容は正しく、経路が欠けていた** —
+  dev-wave の段 9 は自分の worktree を畳むよう求めるが、その手順の正本が `/cleanup-branches` §3 に
+  あることを指していない。判別 = worktree 削除で `working trees containing submodules cannot be
+  moved or removed` を見たら、そこで手を止めて `/cleanup-branches` を読む
 - 根本原因: git の worktree × submodule の仕様 2 点 (remove の gitlink 無条件拒否、submodule 登録
   config の worktree 間共有) を知らず、即興で deinit を挟んだ。追加事象は同じ実体化 submodule が
-  削除コストを押し上げる点を見落としたもの
+  削除コストを押し上げる点を見落としたもの。**2026-08-01 の再発は仕様の無知ではなく、
+  既知の恒久対応へ到達する前に即興したこと**が原因である
 - 恒久対応: `/cleanup-branches` スキル (.claude/commands/cleanup-branches.md) に安全手順を固定 —
   deinit を使わず「detach → ディレクトリ削除 → `git worktree prune`」(git 文書化済みの回避)、
   事後に `git submodule status` で main checkout の初期化状態を検査
@@ -1307,10 +1316,10 @@
   出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
   抽出器の側も同時に確認する
 - **再発: 2026-08-01 [T-247]**。新しい変異 harness が同じ穴で作られ、実際に KILL していた M-C1 を
-  `INFRA_OR_HARNESS_ERROR` / node 0 件と記録した (親の試走で検知)。原因は**恒久対応が本 F にしか
-  無く、harness 契約の正本である `DW-M08` が ANSI 除去しか明示していなかった**こと — harness を
-  書く子は `DW-M08` を読み、本 F を読まない。同 wave で `DW-M08` へ「runner 行前置も除く」
-  「rc≠0 で node 0 件は parse 失敗で止める」を移し、正本側で発火するようにした
+  `INFRA_OR_HARNESS_ERROR` / node 0 件と記録した (親の試走で検知)。同日の [T-118] / t244 / t249 と
+  合わせて独立 4 例であり、記録は **F71 が正本**である (F71 が原因を 3 つに分解している)。
+  再発の理由は**恒久対応が failures 台帳にしかなく、harness 契約の正本である `DW-M08` が
+  ANSI 除去しか明示していなかった**こと — harness を書く子は `DW-M08` を読み、台帳を読まない
 
 ### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
 - 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
@@ -1428,3 +1437,33 @@
 - 近縁: F41 (測定条件を落として一般化し後続の起票を誤らせた)、F46 (実行環境の差の誤前提)、
   F29 (段 1 実測が実差分をモデル化していない)
 - 記録: worklog 2026-08-01 (95)、一次資料 = `output/insights/2026-08-01_t248-dispatch-shim/`
+
+### F71. `DW-M08` の failed node 抽出規約が実態と合わず、変異 harness が「赤なのに抽出 0 件」を SURVIVED と誤記録した [恒真ゲート] [計測汚染]
+- 事象: [T-118] wave の変異本走 1 回目で、baseline 緑 (rc=0) の後 **M1〜M16 すべてが
+  `rc=1 failed=0` で `SURVIVED`** になった。親が dispatch 成果物を直接読むと、M16 の
+  計算ノード job stdout には `8 failed, 92 passed` と `FAILED <nodeid>` 行が 8 本あり、
+  canonical 期待 node も含まれていた。**変異は効いており、生存ではなく抽出の失敗だった**。
+  harness を直して再走したところ 16/16 KILLED / canonical 一致 16/16 になった
+- 独立再現: **同日、並行実行中の別 wave 2 本 (t244 / t249) が同じ欠陥を独立に踏んでいた**
+  (process 一覧で確認)。独立 3 例なので `DW-G03` の族一般化条件を満たす
+- 根本原因: (1) `DW-M08` は node 抽出を「`FAILED <node> - <error>` の `FAILED ` 後から
+  ` - ` 手前まで」と規定するが、**pytest の `-rf` サマリは assertion message が多行だと
+  ` - <error>` を出さず nodeid で行が終わる**ため、規約どおりの regex は全件不一致になる。
+  (2) `DW-M08` は Pegasus dispatch 下で**どこから出力を読むか**を規定していない。
+  `tools/run_tests.py` のコンソール出力は child stdout を行頭 `| ` 付きで表示し、
+  さらに `omitted_bytes` で切り詰めるため、`FAILED` 行が消えうる。
+  (3) 「赤なのに抽出 0 件」を `SURVIVED` に倒す実装が許されていた — **これは恒真な緑**であり、
+  変異検査という防壁そのものを無音で無力化する
+- 判別: 変異走行で `rc != 0` なのに `failed_nodes` が空。または全変異が一様に SURVIVED になる
+- 恒久対応: harness は (a) failed node の正本を**計算ノード job stdout 全文**
+  (`output/pegasus-dispatch/<hash>/izdw-*.o<request-id>`) から取り、(b) ` - ` が無い行は
+  **行末までを node** とし、(c) **`rc != 0` かつ抽出 0 件は `SURVIVED` にせず `PARSE_ERROR` で
+  fail-closed 停止**する。実体は
+  `output/insights/2026-08-01_t118-provider-lifecycle-wave/s6-mutation-matrix.md` の erratum 節と、
+  同 wave の harness。`DW-M08` 本文の是正は予算の都合で裁定へ送っていたが、**[T-247] wave で
+  `DW-M08` の重複文 (DW-M07 第 2 文と DW-M02 の重なり) を縮約して枠を作り、本 F の (a)(b)(c) を
+  指す形で是正済み**である。裁定へ残るのは T-282 のもう一方 (残留の検出手段) だけである
+- 近縁: F33 (期待 node と記録 node の形式不一致)、F28 (実効 gate へ再照準しないと恒真になる)
+- 記録: worklog 2026-08-01 (97)、一次資料 =
+  `output/insights/2026-08-01_t118-provider-lifecycle-wave/` (`mutation-matrix-erratum-run1.json` に
+  初回結果を消さず残置)
