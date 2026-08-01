@@ -4755,3 +4755,39 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
 構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
 抑止されないため変更前から rc=1 だった。
+
+## D106. [T-126] タスク固有の Pegasus 予約設定は共有 policy に置かず、タスク所有 file へ分離する (2026-08-01)
+
+**背景 (実測):** [T-126] は scheduler 予約の 9 key を共有 `tools/pegasus/policy.json` へ足していた。
+main 統合時に [T-139] の commit 済み evidence
+`output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json` が同 file の bytes を
+`binding.policy.sha256` で凍結していることが判明し、`test_silo_ladder_rung1_committed_evidence_
+rebinds_content_not_head` が drift で赤になった。同 evidence の他 7 binding は全一致で、
+drift は policy だけだった。共有 config を単一タスクの凍結証拠が縛る構造である。
+
+**決定 (1): 後から key を足す側が退く。** T-126 の 9 key を
+`orchestrator/qualification/t126_reservation_policy_v1.json` へ移し、共有 policy を main と
+byte 一致へ戻した。共有 policy に置いてよいのは、複数タスクが共有する値
+(`project` / `queue` / `nodes` 等) だけとする。
+
+**決定 (2): 移した設定は移した先で identity 連鎖へ束縛する。** receipt から「この run を支配した
+予約設定」を再導出できる状態を保つ。場所を移すだけで受理集合は変えない — walltime 導出式と
+29100 / 36000 の厳格一致条件は同値のまま移設する。
+
+**決定 (3): 共有 policy の非改変は byte 束縛で検査する。** 接頭辞 (`t126_`) 走査では接頭辞を
+持たない key 追加を素通しし、同じ drift を再発させられる。committed evidence が記録した sha256 と
+現行 bytes の一致を assert する。あわせて、必須 identity path が実 repo で tracked であることを
+検査する (未 tracked は submit 時 exit 2 になるが、既存テストは tmp fixture repo しか見ないため
+全部緑のまま素通りしていた)。
+
+**却下した案:** (a) T-139 の evidence を書き換えて再 binding する — 他タスクの certified 証拠であり、
+`collect` が実 PBS 成果物を要求するため再発行には実 job の再走が要る。AI が一方的に触ってよい成果物
+ではない。(b) T-139 の binding から共有 config を外す — 設計変更であり所有セッションの裁定事項。
+(c) 衝突を放置して land する — main のテストが赤のままになる。
+
+**残る構造問題 (未裁定、[T-224]):** 「共有 config へ key を足す任意のタスクが T-139 の証拠を壊す」
+構造自体は残っている。次に同 file を触るタスクが同じ事故を踏む。恒久対応は上記 (b) か、
+共有 config をタスク別 file の集合へ再編するかの裁定が要る。
+
+**研究状態への影響:** なし。production 挙動・実験の受理集合・certified 選択・proof chain は
+変更しない。変わるのは開発時の設定ファイルの所在と、その非改変を守る検査だけである。
