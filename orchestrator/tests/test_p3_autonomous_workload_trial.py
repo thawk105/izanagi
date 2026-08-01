@@ -262,6 +262,24 @@ def test_role_metric_payloads_convert_only_percent_fields() -> None:
     assert leading_payload["IPC_overall"] == 2.5
 
 
+def test_role_metric_payloads_preserve_out_of_range_ratios() -> None:
+    perf_payload, leading_payload = A._role_metric_payloads(
+        {
+            "throughput_ops_sec": 12345.0,
+            "abort_rate": 1.5,
+            "latency_ns": 456.0,
+            "llc_miss_rate": -0.001,
+            "ipc": 2.5,
+        },
+        contention_level="high",
+    )
+
+    assert perf_payload["abort_rate_pct"] == 150.0
+    assert perf_payload["abort_rate_pct"] is not None
+    assert leading_payload["cache_miss_rate_pct"] == -0.1
+    assert leading_payload["cache_miss_rate_pct"] is not None
+
+
 def test_role_metric_payloads_reject_percent_overflow() -> None:
     perf_payload, leading_payload = A._role_metric_payloads(
         {
@@ -520,13 +538,47 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
     generation_record = cell["generations"][0]
     assert generation_record["outcome"] == "certified"
 
-    critic_metrics = providers["critic"].payloads[0]["harness_result"]["metrics"]
-    assert critic_metrics["abort_rate"] == 0.079
-    assert critic_metrics["llc_miss_rate"] == 0.124
-    assert "abort_rate_pct" not in critic_metrics
-    assert "cache_miss_rate_pct" not in critic_metrics
+    planner_payload = providers["planner"].payloads[0]
+    coder_payload = providers["coder"].payloads[0]
+    critic_payload = providers["critic"].payloads[0]
+    common_keys = {
+        "schema_version",
+        "pilot_scope",
+        "scientific_claim",
+        "workload",
+        "generation",
+        "workload_descriptor",
+        "descriptor_binding",
+        "attempt_policy",
+        "stop_policy",
+    }
+    assert set(planner_payload) == common_keys | {
+        "current_perf",
+        "leading_indicators",
+        "whiteboard",
+    }
+    assert set(coder_payload) == common_keys | {
+        "leakproof_context",
+        "gating_spec",
+        "planner_direction",
+        "baseline",
+        "whiteboard",
+    }
+    assert set(critic_payload) == common_keys | {
+        "harness_result",
+        "critic_digest",
+    }
 
-    planner_indicators = providers["planner"].payloads[0]["leading_indicators"]
+    critic_metrics = critic_payload["harness_result"]["metrics"]
+    assert critic_metrics == {
+        "throughput_ops_sec": 12345.0,
+        "abort_rate": 0.079,
+        "latency_ns": 456.0,
+        "llc_miss_rate": 0.124,
+        "ipc": 2.5,
+    }
+
+    planner_indicators = planner_payload["leading_indicators"]
     assert (
         planner_indicators["contention_level"]
         == cell["descriptor"]["contention"]["label"]
