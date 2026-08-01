@@ -1303,7 +1303,7 @@ main にマージされていない成果で、直近一日以内に更新され
 - [T-227] 変わらず ((82) 参照)
 - [T-228] 変わらず ((82) 参照)
 
-## 2026-08-01 (84) — [T-235] 8c を 1 allocation で完遂させる予算設計を実測から起草し、gen_S 実行が現状不可能である構造的 blocker を確定する (docs のみ、branch worktree-dev-wave-8c-alloc-budget、計測は既存 WAL の再集計のみ)
+## 2026-08-01 (84) — [T-235] 8c を 1 allocation で完遂させる予算設計を実測から起草し、gen_S 実行が現状不可能である構造的 blocker を確定する (docs のみ、branch worktree-dev-wave-8c-alloc-budget、計測は既存 WAL の再集計のみ、受入 = Pegasus gen_S 計算ノード request `875985` (168 passed) / provenance 監査 `875982` (644 件))
 
 ユーザー依頼は裁定候補「3. 1 allocation で完遂する budget 設計」に条件を付けたもの —
 「これが izanagi CC 合成に必要ならやってくれ」。**必要性の判定込みの依頼**である点が通常の実装依頼と異なる。
@@ -1356,6 +1356,13 @@ main にマージされていない成果で、直近一日以内に更新され
 - [T-238] **P3・新規 (本エントリ)**: driver 族 (`p3_s4_loop.py` / `p3_s4_loop_trigger_gating.py` /
   同 sort・trigger 版) の `ENV_TAG`/`CLK`/`NUMA` ハードコードを `env_contract` registry 由来へ寄せる。
   Pegasus entry は `numactl=()` / `clocks_per_us=2100` なので、現状この族は Pegasus を選べない
+- [T-240] **P3・新規 (本エントリ、段 8 自己改善から)・裁定送り**: dev-wave の段 1 前に
+  「対象成果物が local main に在るか / 他 wave の branch・worktree が所有していないか」を確認する
+  導線がない。本 wave は対象が未 land であることを親の手作業 grep で発見した (`DW-STOP` は所有不整合を
+  停止条件に挙げるが、確認手順は無い)。`docs/dev-wave/core.md` の `DW-S01` へ 1 節足すのが素直だが、
+  **dev-wave reference の aggregate は 23983 / 24000 bytes で headroom 17 bytes** しかない。
+  `tools/check_wave_startup.py` へ機械検査として足す方が予算 0 で済むが実装面のため Codex author が要る。
+  どちらを採るかが [T-208] / [T-219] と同型の予算裁定になる
 - [T-239] **P3・新規 (本エントリ)・別裁定**: floor 凍結式 `_FLOOR_RESERVATION_FORMULA` の bench 項が
   名目 `extime × reps` である件。実測上界との乖離は 8b consultations の B4' と本エントリの n=51 で
   独立 2 例が揃った。凍結済みのため変更は D96 の手続に従う
