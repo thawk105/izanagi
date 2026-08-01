@@ -12,6 +12,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import signal
 import stat
@@ -94,7 +95,18 @@ class _Repo:
         handoff = self.main / "docs" / "handoff"
         handoff.mkdir(parents=True)
         (handoff / "README.md").write_text("# handoff\n", encoding="utf-8")
-        _git(self.main, "add", "base.txt", "docs/handoff/README.md")
+        spool = self.main / "docs" / "spool"
+        spool.mkdir()
+        (spool / "README.md").write_text("# spool\n", encoding="utf-8")
+        (spool / "FOLDED.md").write_text("# receipts\n", encoding="utf-8")
+        for ledger in LAND._FOLD_LEDGERS:
+            directory = spool / ledger
+            directory.mkdir()
+            (directory / "README.md").write_text(f"# {ledger}\n", encoding="utf-8")
+        tools = self.main / "tools"
+        tools.mkdir()
+        (tools / "check_docs.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+        _git(self.main, "add", "base.txt", "docs", "tools/check_docs.py")
         _git(self.main, "commit", "-qm", "base")
         self.base = _git(self.main, "rev-parse", "HEAD")
         self.waves: dict[str, Path] = {}
@@ -463,7 +475,7 @@ def test_safe_child_name_rule_rejects_only_dangerous_names() -> None:
 
 
 def test_tracked_and_staged_main_dirt_are_rejected() -> None:
-    """M3: worktree と index のどちらの tracked dirt も拒否する。"""
+    """N26/M3: 既存 dirty 防壁は worktree/index のどちらも拒否する。"""
     for staged in (False, True):
         with _repo() as repo:
             wave = repo.waves["one"]
@@ -1398,6 +1410,357 @@ def _patched_git(executable: Path, env: dict[str, str]):
                 os.environ[key] = value
 
 
+@contextlib.contextmanager
+def _patched_land_attr(name: str, value):
+    previous = getattr(LAND, name)
+    setattr(LAND, name, value)
+    try:
+        yield
+    finally:
+        setattr(LAND, name, previous)
+
+
+def _fake_pending_fragment(repo: _Repo, wave: Path) -> tuple[str, Path, str]:
+    relative = "docs/spool/worklog/2000-01-01-test-wave-1.md"
+    path = wave / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    content = "synthetic pending fragment\n"
+    path.write_text(content, encoding="utf-8")
+    _git(wave, "add", "--", relative)
+    _git(wave, "commit", "-qm", "add synthetic pending fragment")
+    return relative, path, content
+
+
+class _FakeFoldPlan:
+    status = "planned"
+
+    def __init__(self, gc_path: str, *, targets: tuple[object, ...] = ()):
+        self.gc_paths = (gc_path,)
+        self.targets = targets
+
+
+class _FakeFoldTarget:
+    def __init__(self, path: str, *, before_exists: bool = True):
+        self.path = path
+        self.before_exists = before_exists
+
+
+class _FakeFoldModule:
+    def __init__(self, plan, apply, *, active=False):
+        self._plan = plan
+        self._apply = apply
+        self._active = active
+
+    def load_active_plan(self, repo: Path):
+        assert repo.is_dir()
+        return self._plan if self._active else None
+
+    def validate_spool_layout(self, repo: Path):
+        assert repo.is_dir()
+        return []
+
+    def plan_fold(self, repo: Path, *, fold_date: str):
+        assert repo.is_dir()
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", fold_date)
+        return self._plan
+
+    def _state_path(self, repo: Path) -> Path:
+        return repo / ".git" / LAND._FOLD_STATE_NAME
+
+    def apply_fold(self, repo: Path, plan) -> None:
+        assert plan is self._plan
+        self._apply(repo, plan)
+
+
+def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> None:
+    """P03: fragment 0 件では既存 landed/already-landed を bit 単位で固定する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+
+        first = _land(repo.request(wave, tip=tip))
+        second = _land(repo.request(wave, tip=tip))
+
+        assert first == LAND.LandResult(
+            LAND.RC_OK,
+            "landed",
+            "main fast-forwarded to the tested wave tip",
+            repo.base,
+            tip,
+            tip,
+        )
+        assert second == LAND.LandResult(
+            LAND.RC_OK,
+            "already-landed",
+            "another lander reached the tested tip first",
+            tip,
+            tip,
+            tip,
+        )
+        assert _git(repo.main, "rev-list", "--count", f"{repo.base}..HEAD") == "1"
+        assert _git(repo.main, "status", "--porcelain=v1") == ""
+
+
+def test_zero_fragment_still_rejects_missing_spool_layout_before_ff() -> None:
+    """F-5: pending 0 でも layout 防壁を削除した候補を no-op 扱いしない。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        shutil.rmtree(wave / "docs" / "spool")
+        _git(wave, "add", "-A", "docs/spool")
+        _git(wave, "commit", "-qm", "remove spool layout")
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_FOLD_FAILED, "fold-failed")
+        assert "docs/spool" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_candidate_fold_plan_failure_happens_before_ff() -> None:
+    """F-2: candidate tree の plan が赤なら main を 1 commit も進めない。"""
+
+    class FailingPlanModule(_FakeFoldModule):
+        def plan_fold(self, repo: Path, *, fold_date: str):
+            raise RuntimeError("synthetic plan failure")
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        module = FailingPlanModule(_FakeFoldPlan("docs/spool/worklog/missing.md"), lambda *_args: None)
+
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_FOLD_FAILED, "fold-failed")
+        assert "synthetic plan failure" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> None:
+    """N23: lock 内 fold 呼出しを削除すると pending の GC/commit が消えて赤になる。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _wave_fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+        lock_observed = False
+
+        def apply(repo_path: Path, _plan) -> None:
+            nonlocal lock_observed
+            contender = os.open(
+                repo.main / ".git" / "dev-wave-land.lock",
+                os.O_RDWR | os.O_NOFOLLOW,
+            )
+            try:
+                try:
+                    fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    lock_observed = True
+                else:
+                    raise AssertionError("fold ran outside the cooperative land lock")
+            finally:
+                os.close(contender)
+            (repo_path / relative).unlink()
+
+        module = _FakeFoldModule(_FakeFoldPlan(relative), apply)
+        wrapper = _wrapper(repo.root)
+        record = repo.root / "fold-git-calls.jsonl"
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+            _patched_git(wrapper, {
+                "DEV_WAVE_REAL_GIT": REAL_GIT,
+                "DEV_WAVE_WRAPPER_MODE": "record",
+                "DEV_WAVE_RECORD": str(record),
+            }),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert lock_observed
+        assert result.main_after != tip
+        assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
+        assert not (repo.main / relative).exists()
+        assert _git(repo.main, "status", "--porcelain=v1") == ""
+        message = _git(repo.main, "show", "-s", "--format=%B", result.main_after)
+        assert message == LAND._FOLD_MESSAGE.rstrip("\n")
+        calls = [
+            json.loads(line)
+            for line in record.read_text(encoding="utf-8").splitlines()
+        ]
+        commit_calls = [args for args in calls if "commit" in args]
+        assert len(commit_calls) == 1, calls
+        commit_args = commit_calls[0]
+        commit_index = commit_args.index("commit")
+        assert commit_args[commit_index:commit_index + 3] == [
+            "commit", "--no-gpg-sign", "-F",
+        ]
+        assert "-m" not in commit_args and "--no-edit" not in commit_args
+
+
+def test_fold_failure_rolls_back_ff_and_never_returns_landed() -> None:
+    """N24/F-2: fold 失敗は実装 commit を含めて ff 前へ戻す。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _wave_fragment, content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def fail_after_gc(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            raise RuntimeError("synthetic fold failure")
+
+        module = _FakeFoldModule(_FakeFoldPlan(relative), fail_after_gc)
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_FOLD_FAILED, "fold-failed"), result
+        assert "synthetic fold failure" in result.reason
+        assert result.status not in {"landed", "already-landed"}
+        assert result.main_after == repo.base
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert not (repo.main / relative).exists()
+        assert _git(repo.main, "status", "--porcelain=v1") == ""
+        assert _git(repo.main, "rev-list", "--count", f"{repo.base}..HEAD") == "0"
+
+
+def test_pending_fragment_postcondition_failure_is_fold_failure() -> None:
+    """N25: apply 後 pending=0 検査を削除すると残件ありで landed になって赤になる。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _wave_fragment, content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+        module = _FakeFoldModule(_FakeFoldPlan(relative), lambda *_args: None)
+
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_FOLD_FAILED, "fold-failed"), result
+        assert "pending fragment postcondition failed" in result.reason
+        assert result.main_after == repo.base
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert not (repo.main / relative).exists()
+        assert _git(repo.main, "status", "--porcelain=v1") == ""
+
+
+def test_generated_canonical_validation_failure_rolls_back_ff() -> None:
+    """F-3: apply 後の docs gate が赤なら fold commit も wave tip も残さない。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _wave_fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+
+        module = _FakeFoldModule(_FakeFoldPlan(relative), apply)
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr(
+                "_validate_generated_docs",
+                lambda *_args: (_ for _ in ()).throw(RuntimeError("synthetic check_docs failure")),
+            ),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_FOLD_FAILED, "fold-failed")
+        assert "synthetic check_docs failure" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert _git(repo.main, "status", "--porcelain=v1") == ""
+
+
+def test_failed_cas_rollback_has_distinct_rc_and_status() -> None:
+    """F-2: main を戻せない異常を通常の fold-failed と混同しない。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _wave_fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def fail_after_gc(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            raise RuntimeError("synthetic fold failure")
+
+        module = _FakeFoldModule(_FakeFoldPlan(relative), fail_after_gc)
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_rollback_fold", lambda *_args, **_kwargs: ["synthetic CAS refusal"]),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_ROLLBACK_FAILED,
+            "fold-rollback-failed",
+        )
+        assert "rollback incomplete" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_active_transaction_resumes_before_main_dirty_gate() -> None:
+    """F-6: partial canonical dirt があっても stored plan を通常 land から完遂する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _wave_fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+        _git(repo.main, "merge", "--ff-only", tip)
+        receipt_rel = "docs/spool/FOLDED.md"
+        (repo.main / receipt_rel).write_text("partial canonical\n", encoding="utf-8")
+
+        def resume(repo_path: Path, _plan) -> None:
+            (repo_path / receipt_rel).write_text("# receipts\n- resumed\n", encoding="utf-8")
+            (repo_path / relative).unlink()
+
+        plan = _FakeFoldPlan(
+            relative,
+            targets=(_FakeFoldTarget(receipt_rel),),
+        )
+        module = _FakeFoldModule(plan, resume, active=True)
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.main_after != tip
+        assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
+        assert _git(repo.main, "status", "--porcelain=v1") == ""
+
+
 def test_not_landed_is_distinct_from_postcondition_failure() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
@@ -1457,17 +1820,7 @@ def test_unobservable_post_merge_head_is_nonretryable_failure() -> None:
 
 
 def test_control_plane_replacement_around_status_is_rejected() -> None:
-    """[意図した挙動変更] 差し替えの拒否は worktree 面に残り、handoff 面では消える。
-
-    ``file`` = foreign handoff を同 bytes・別 inode へ差し替える形。per-entry
-    identity を捨てたので期待値を ``landed`` へ反転する (assert は削除せず反転)。
-    ``directory`` = 登録済み foreign worktree の差し替えで、負例として不変。
-    """
-    expectations = {
-        "file": (LAND.RC_OK, "landed"),
-        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
-    }
-    for kind, expected in expectations.items():
+    for kind in ("file", "directory"):
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
             wave = repo.waves["author"]
             tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -1488,24 +1841,12 @@ def test_control_plane_replacement_around_status_is_rejected() -> None:
                 "DEV_WAVE_REPLACE_KIND": kind,
             }):
                 result = _land(repo.request(wave, tip=tip))
-            assert (result.rc, result.status) == expected, (kind, result)
-            assert marker.exists(), kind
-            assert _git(repo.main, "rev-parse", "HEAD") == (
-                tip if kind == "file" else repo.base
-            ), kind
+            assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
 def test_control_plane_replacement_after_collision_inspection_is_rejected() -> None:
-    """[意図した挙動変更] land 直前 (:1343) の再観測も handoff の内容/inode を見ない。
-
-    ``directory`` は負例として不変。``file`` は 764/766 と同じ理由で ``landed`` へ
-    反転する — この 2 窓は同じ ``_ControlSnapshot`` 比較なので同時に閉じる。
-    """
-    expectations = {
-        "file": (LAND.RC_OK, "landed"),
-        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
-    }
-    for kind, expected in expectations.items():
+    for kind in ("file", "directory"):
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
             wave = repo.waves["author"]
             tip = repo.commit(wave, "base.txt", "wave replacement\n")
@@ -1526,11 +1867,9 @@ def test_control_plane_replacement_after_collision_inspection_is_rejected() -> N
                 "DEV_WAVE_REPLACE_KIND": kind,
             }):
                 result = _land(repo.request(wave, tip=tip))
-            assert (result.rc, result.status) == expected, (kind, result)
-            assert marker.exists(), kind
-            assert _git(repo.main, "rev-parse", "HEAD") == (
-                tip if kind == "file" else repo.base
-            ), kind
+            assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
+            assert marker.exists()
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
 def test_foreign_handoff_edited_in_place_around_status_does_not_block_land() -> None:

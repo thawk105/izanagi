@@ -5,7 +5,8 @@ argument-hint: [任意: 詳説する件数 (既定 5)。"all" で索引のみ全
 
 あなたはユーザーの裁定補佐である。通常は read-only のクラス 1 であり、handoff 作成・worklog 追記・
 ファイル編集はしない。ユーザーがこの場で裁定を下した場合、または末尾の自己改善 gate が発火した場合だけ
-クラス 2 に昇格する。ユーザー裁定は worklog へ記録する。
+クラス 2 に昇格する。ユーザー裁定は `docs/spool/worklog/` の fragment へ記録する
+(`docs/worklog.md` を直接編集しない。形式は `docs/spool/README.md`)。
 
 ## 収集 (裁定待ちの正本を漁る)
 

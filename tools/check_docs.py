@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import importlib.util
 import re
 import stat
 import sys
@@ -159,16 +160,22 @@ class TextLimit:
     max_line_chars: int | None = None
 
 
+# 段2 DW-S07縮約案は、この節だけの「再走値は amend」「insights の逐語・変異台帳」義務を
+# byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
+# (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_500, 140),
     ".claude/commands/cleanup-branches.md": TextLimit(4_000, 110),
-    ".claude/commands/rulings.md": TextLimit(4_500, 180),
+    ".claude/commands/rulings.md": TextLimit(5_000, 180),
 }
+# 段2 DW-S07縮約案は、この節だけの「再走値は amend」「insights の逐語・変異台帳」義務を
+# byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
+# (2026-08-02) により小幅に引き上げる。
 REFERENCE_LIMITS = {
-    "docs/dev-wave/core.md": TextLimit(9_000),
+    "docs/dev-wave/core.md": TextLimit(9_600),
     "docs/dev-wave/workers.md": TextLimit(5_000),
     "docs/dev-wave/mutation.md": TextLimit(3_750),
-    "docs/dev-wave/operations.md": TextLimit(8_000),
+    "docs/dev-wave/operations.md": TextLimit(8_400),
 }
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
@@ -239,7 +246,10 @@ CODEX_DEV_WAVE_SKILL_LIMITS = {
     ".agents/skills/dev-wave/SKILL.md": TextLimit(5_500, 400),
     ".agents/skills/dev-wave/agents/openai.yaml": TextLimit(500, 160),
 }
-DEV_WAVE_AGGREGATE_BYTES = 24_000
+# 段2 DW-S07縮約案は、この節だけの「再走値は amend」「insights の逐語・変異台帳」義務を
+# byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
+# (2026-08-02) により小幅に引き上げる。
+DEV_WAVE_AGGREGATE_BYTES = 25_200
 CODEX_DEV_WAVE_SKILL_FILES = frozenset(CODEX_DEV_WAVE_SKILL_LIMITS)
 CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
@@ -596,6 +606,60 @@ def _safe_read_text(
             f"{failure_prefix} ({type(exc).__name__}: {exc})"
         )
         return None
+
+
+def _check_spool_guard(findings: list[str]) -> None:
+    """spool schema/参照検査を fail-closed で finding 化する。"""
+
+    source = REPO / "tools" / "spool_fold.py"
+    module_name = "_izanagi_spool_fold_guard"
+    previous_module = sys.modules.get(module_name)
+    previous_dont_write_bytecode = sys.dont_write_bytecode
+    try:
+        spec = importlib.util.spec_from_file_location(module_name, source)
+        if spec is None or spec.loader is None:
+            raise ImportError("import spec/loader を作成できない")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        sys.dont_write_bytecode = True
+        spec.loader.exec_module(module)
+        validate_spool_tree = getattr(module, "validate_spool_tree")
+        if not callable(validate_spool_tree):
+            raise TypeError("validate_spool_tree が callable でない")
+    except (Exception, SystemExit) as exc:  # SystemExit(0) でも検査を蒸発させない。
+        findings.append(
+            "tools/spool_fold.py: spool schema guard の import 失敗 — "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return
+    finally:
+        sys.dont_write_bytecode = previous_dont_write_bytecode
+        if previous_module is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous_module
+
+    try:
+        issues = sorted(
+            validate_spool_tree(REPO),
+            key=lambda issue: (
+                issue.path,
+                issue.line,
+                issue.code,
+                issue.message,
+            ),
+        )
+        rendered = [
+            f"{issue.path}:{issue.line}: spool {issue.code}: {issue.message}"
+            for issue in issues
+        ]
+    except (Exception, SystemExit) as exc:  # validator の SystemExit(0) も緑にしない。
+        findings.append(
+            "tools/spool_fold.py: spool schema guard の実行失敗 — "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return
+    findings.extend(rendered)
 
 
 def _current_pin(findings: list[str]) -> str | None:
@@ -3075,6 +3139,7 @@ def main() -> int:
     warnings: list[str] = []
 
     guard_unreadable = _check_command_docs_guard(findings)
+    _check_spool_guard(findings)
 
     current_pin = _current_pin(findings)
     if current_pin is None:

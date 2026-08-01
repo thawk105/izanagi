@@ -120,7 +120,10 @@ worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.p
 ## DW-O23 — 並行 session の local main land
 
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、監査commit列を渡す。
-協調wave lock内で再照合し、tipへのff-onlyだけ行う。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
+協調wave lock内で再照合し、tipへのff-onlyだけ行う。ff-only成功後は**同じlockを保持したまま**
+`docs/spool/`のfragmentをfoldし、T/D/Fの採番・canonical3台帳への追記・worklogローテーションを
+一度だけ行う。foldが赤なら`landed`を返さない。fragment0件のfoldはno-opで、既存挙動を変えない。
+**wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで

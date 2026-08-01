@@ -323,6 +323,19 @@ def _write_backlog_docs(
     _write(root, os.path.join("docs", "phase3.md"), phase3_text)
 
 
+def _write_empty_spool_layout(root: str) -> None:
+    """validate_spool_tree が受理する pending 0 件の正規 layout を作る。"""
+
+    _write(root, "docs/spool/README.md", "# synthetic spool\n")
+    _write(root, "docs/spool/FOLDED.md", "# synthetic folded receipts\n")
+    for ledger in ("worklog", "decisions", "failures"):
+        _write(
+            root,
+            f"docs/spool/{ledger}/README.md",
+            f"# synthetic {ledger} spool\n",
+        )
+
+
 def _archive_readme(*names: str) -> str:
     all_names = (_PLACEHOLDER_ARCHIVE_NAME, *names)
     return (
@@ -589,6 +602,8 @@ def _build_min_repo() -> str:
     _dst = os.path.join(root, "tools", "check_docs.py")
     os.makedirs(os.path.dirname(_dst))
     shutil.copy(check_docs.__file__, _dst)
+    shutil.copy(check_docs.REPO / "tools" / "spool_fold.py", os.path.dirname(_dst))
+    _write_empty_spool_layout(root)
 
     # 手書き列挙 doc (LIVING_DOCS の glob 前スナップショット) を trivial 内容で用意。
     for rel in _enumerated_rels():
@@ -665,6 +680,275 @@ def test_synthetic_repo_baseline_clean():
         res = _run_check(root)
         assert res.returncode == 0, f"baseline が違反ありになった:\n{res.stdout}\n{res.stderr}"
         assert "違反なし" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_main_rejects_schema_violation():
+    """N19: main() の spool guard 呼出しを消す変異を schema 違反で殺す。"""
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/spool/worklog/2026-08-02-wave-1.md",
+            "---\n"
+            "schema: broken-schema\n"
+            "ledger: worklog\n"
+            "authored: 2026-08-02\n"
+            "wave: wave\n"
+            "seq: 1\n"
+            "title: synthetic\n"
+            "---\n"
+            "## 本文\n\nbody\n\n## 次の一手差分\n",
+        )
+        res = _assert_violation(root, "spool schema", "broken-schema")
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_import_failure_is_finding_without_traceback():
+    """spool_fold import 失敗を握り潰さず fail-closed finding にする。"""
+
+    root = _build_min_repo()
+    try:
+        os.remove(os.path.join(root, "tools", "spool_fold.py"))
+        res = _assert_violation(root, "spool schema guard の import 失敗")
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_n20_spool_guard_rejects_active_transaction_in_git_repo():
+    """N20: 実 Git worktree の transaction state 残存を必ず finding にする。"""
+
+    root = _build_min_repo()
+    try:
+        subprocess.run(
+            ["git", "-C", root, "init", "-q"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        resolved = subprocess.run(
+            ["git", "-C", root, "rev-parse", "--git-path", "izanagi-spool-fold-state.json"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+        state_path = resolved if os.path.isabs(resolved) else os.path.join(root, resolved)
+        _write_bytes(root, os.path.relpath(state_path, root), b"{}\n")
+        _assert_violation(root, "spool transaction-active", "fold transaction が active")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_git_marker_with_broken_rev_parse_fails_closed():
+    """`.git` があるのに admin path を解決できない repo 候補は非 Git 扱いしない。"""
+
+    root = _build_min_repo()
+    try:
+        _write(root, ".git", "gitdir: missing-admin-dir\n")
+        _assert_violation(root, "spool transaction-state", "Git admin path を解決できない")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_preservation_rule_still_rejects_implicit_drop():
+    """N21: 既存 D70 保存則を弱める変異を active ID の暗黙脱落で殺す。"""
+
+    root = _build_min_repo()
+    try:
+        worklog = _read(root, "docs/worklog.md")
+        _write(
+            root,
+            "docs/worklog.md",
+            worklog.replace("- [T-001] consumed\n\n", "", 1),
+        )
+        _assert_violation(root, "次の一手 ID [T-001]", "見送り台帳にもない")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_raised_doc_budgets_still_reject_each_new_limit_and_aggregate():
+    """N22: 引き上げ後の個別・合計予算を 1 byte 超える入力で gate 生存を固定する。"""
+
+    assert check_docs.REFERENCE_LIMITS["docs/dev-wave/core.md"].max_bytes == 9_600
+    assert check_docs.REFERENCE_LIMITS["docs/dev-wave/operations.md"].max_bytes == 8_400
+    assert check_docs.DEV_WAVE_AGGREGATE_BYTES == 25_200
+    assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_000
+
+    individual_cases = (
+        ("docs/dev-wave/core.md", 9_601, "予算 9600 bytes"),
+        ("docs/dev-wave/operations.md", 8_401, "予算 8400 bytes"),
+        (".claude/commands/rulings.md", 5_001, "予算 5000 bytes"),
+    )
+    for rel, size, needle in individual_cases:
+        root = _build_min_repo()
+        try:
+            _pad_to_bytes(root, rel, size)
+            _assert_violation(root, rel, needle)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        aggregate_sizes = {
+            "docs/dev-wave/core.md": 9_600,
+            "docs/dev-wave/workers.md": 5_000,
+            "docs/dev-wave/mutation.md": 3_750,
+            "docs/dev-wave/operations.md": 6_851,
+        }
+        assert sum(aggregate_sizes.values()) == 25_201
+        for rel, size in aggregate_sizes.items():
+            _pad_to_bytes(root, rel, size)
+        _assert_violation(root, "合計 25201 bytes", "hard ceiling 25200 bytes")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_empty_layout_is_clean():
+    """pending 0 件の正規 spool layout は check_docs を塞がない。"""
+
+    root = _build_min_repo()
+    try:
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_valid_pending_fragment_is_clean():
+    """正しい pending fragment の存在自体は finding にしない。"""
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/spool/decisions/2026-08-02-wave-1.md",
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: decisions\n"
+            "authored: 2026-08-02\n"
+            "wave: wave\n"
+            "seq: 1\n"
+            "---\n"
+            "## {{D:synthetic-decision}}. synthetic decision\n\nbody\n",
+        )
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_unresolved_reference_propagates_to_main():
+    """未解決 spool 参照は main() の rc=1 へ伝播する。"""
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/spool/decisions/2026-08-02-wave-1.md",
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: decisions\n"
+            "authored: 2026-08-02\n"
+            "wave: wave\n"
+            "seq: 1\n"
+            "---\n"
+            "## {{D:synthetic-decision}}. {{T:missing-task}} remains\n\nbody\n",
+        )
+        _assert_violation(root, "spool symbol-undefined", "{{T:missing-task}}")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_missing_layout_is_finding():
+    """docs/spool 自体の不在を黙って skip しない。"""
+
+    root = _build_min_repo()
+    try:
+        shutil.rmtree(os.path.join(root, "docs", "spool"))
+        _assert_violation(root, "docs/spool:1: spool spool-layout")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_symlink_and_unexpected_members_fail_closed():
+    """spool 内の symlink・想定外 member を受理せず、finding 順も固定する。"""
+
+    root = _build_min_repo()
+    try:
+        folded = os.path.join(root, "docs", "spool", "FOLDED.md")
+        os.remove(folded)
+        os.symlink("README.md", folded)
+        _assert_violation(root, "spool regular-file", "symlink/非 regular file は不可")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        _write(root, "docs/spool/z-extra.md", "z\n")
+        _write(root, "docs/spool/a-extra.md", "a\n")
+        res = _assert_violation(root, "spool-member", "a-extra.md", "z-extra.md")
+        assert res.stdout.index("a-extra.md") < res.stdout.index("z-extra.md")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_unexpected_validator_exception_is_finding():
+    """validator の予期しない例外も traceback を漏らさず fail-closed にする。"""
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "tools/spool_fold.py",
+            "def validate_spool_tree(repo):\n"
+            "    raise RuntimeError('synthetic validator crash')\n",
+        )
+        res = _assert_violation(
+            root,
+            "spool schema guard の実行失敗",
+            "RuntimeError: synthetic validator crash",
+        )
+        assert "Traceback" not in res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_tree_is_excluded_from_all_legacy_doc_scans():
+    """docs/spool/** は LIVING/placeholder/archive/handoff scan の対象外に保つ。"""
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/spool/README.md",
+            "# spool legacy-scan bait\n\n"
+            "docs/README.md:999\n"
+            "現在は Phase 999\n"
+            "<反映>\n",
+        )
+        _write(
+            root,
+            "docs/spool/FOLDED.md",
+            "# folded legacy-scan bait\n\n"
+            "handoff 状態 header は意図的に置かない。\n",
+        )
+        _write(
+            root,
+            "docs/spool/worklog/README.md",
+            "# archive scan bait\n\n## archive 形式でない H2\n",
+        )
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "違反なし" in res.stdout
+        assert "件の警告" not in res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

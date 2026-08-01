@@ -22,7 +22,8 @@ Izanagi の裁定待ちを漏れなく索引し、ユーザーがそのまま判
 ## 裁定を記録する
 
 ユーザーがこの場または直前の rulings 出力に対して裁定した場合は、command の規則どおりクラス 2 に
-昇格する。`CLAUDE.md` のクラス 2 起動順を未実行分まで完了し、裁定を `docs/worklog.md` へ記録する。
+昇格する。`CLAUDE.md` のクラス 2 起動順を未実行分まで完了し、裁定を `docs/spool/worklog/` の
+fragment へ記録する (`docs/worklog.md` を直接編集しない。形式は `docs/spool/README.md`)。
 自己改善 gate が発火した場合も同じくクラス 2 へ昇格し、`docs/skill-self-improvement.md` の rulings
 routing と commit 境界に従う。それ以外ではファイルを編集しない。
 

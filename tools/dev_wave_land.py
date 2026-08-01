@@ -9,14 +9,17 @@ operation guard として exact に再検査する。
 from __future__ import annotations
 
 import argparse
+import datetime as _datetime
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 import re
 import stat
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -31,6 +34,9 @@ RC_IDENTITY = 22
 RC_AUDIT = 23
 RC_NOT_LANDED = 24
 RC_LANDED_POSTCONDITION_FAILED = 25
+RC_FOLD_FAILED = 26
+RC_FOLD_RECOVERY_FAILED = 27
+RC_FOLD_ROLLBACK_FAILED = 28
 
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
@@ -39,6 +45,13 @@ _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SAFE_ADMIN_RE = re.compile(rb"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 _SAFE_CHILD_RE = re.compile(rb"(?!\.{1,2}\Z)[^/\x00]{1,128}\Z")
 _CONTROL_CONTAINERS = (b".claude/worktrees", b".codex/worktrees")
+_FOLD_LEDGERS = ("worklog", "decisions", "failures")
+_FOLD_STATE_NAME = "izanagi-spool-fold-state.json"
+_FOLD_MESSAGE = (
+    "Fold landed documentation fragments\n"
+    "\n"
+    "AI-Agent: none\n"
+)
 _GIT_CONFIG = (
     "-c", "core.hooksPath=/dev/null",
     "-c", "core.fsmonitor=false",
@@ -118,6 +131,14 @@ class _ControlSnapshot:
     handoffs: frozenset[bytes]
     worktree_prefixes: tuple[bytes, ...]
     identities: tuple[tuple[bytes, tuple[object, ...]], ...]
+
+
+@dataclass(frozen=True)
+class _PathSnapshot:
+    relative: str
+    existed: bool
+    content: bytes
+    mode: int
 
 
 def _git_env() -> dict[str, str]:
@@ -530,7 +551,7 @@ def _verify_effective_config(repository: _Repository) -> None:
 def _handoff_snapshot(
     repository: _Repository,
 ) -> tuple[frozenset[bytes], tuple[tuple[bytes, tuple[object, ...]], ...]]:
-    """foreign handoff 面は「名前集合」と「dir identity」だけを観測する。
+    """foreign handoff 面は名前集合と各 entry/dir identity を観測する。
 
     直下エントリの型・名前・大きさ・link 数・encoding・schema は land の
     受理集合に一切入らない (T-220 択 (a))。他セッション所有の handoff は
@@ -553,14 +574,23 @@ def _handoff_snapshot(
             raise _Reject(
                 RC_CONTROL_PLANE, f"main/docs/handoff: list failed ({exc})"
             ) from exc
-        observed = frozenset(
-            b"docs/handoff/" + name
-            for name in names_before
-            if name != b"README.md"
-        )
-        identities: tuple[tuple[bytes, tuple[object, ...]], ...] = (
+        observed: set[bytes] = set()
+        identities: list[tuple[bytes, tuple[object, ...]]] = [
             (b"docs/handoff", _identity(directory_before)),
-        )
+        ]
+        for name in names_before:
+            if name == b"README.md":
+                continue
+            relative = b"docs/handoff/" + name
+            try:
+                metadata = os.stat(name, dir_fd=handoff_fd, follow_symlinks=False)
+            except OSError as exc:
+                raise _Reject(
+                    RC_CONTROL_PLANE,
+                    f"handoff {name!r}: identity inspection failed ({exc})",
+                ) from exc
+            observed.add(relative)
+            identities.append((relative, _identity(metadata)))
         try:
             names_after = sorted(os.fsencode(name) for name in os.listdir(handoff_fd))
         except OSError as exc:
@@ -569,7 +599,7 @@ def _handoff_snapshot(
             ) from exc
         if names_after != names_before:
             raise _Reject(RC_CONTROL_PLANE, "handoff directory changed while observing")
-        return observed, identities
+        return frozenset(observed), tuple(identities)
     finally:
         os.close(handoff_fd)
 
@@ -700,6 +730,7 @@ def _status_records(repo: Path, label: str) -> list[bytes]:
 def _verify_main_clean(
     repository: _Repository,
     collision_paths: Sequence[bytes] | None = None,
+    allowed_tracked_paths: Sequence[bytes] = (),
 ) -> _ControlSnapshot:
     before = _control_snapshot(repository)
     records = _status_records(repository.main, "main")
@@ -711,6 +742,9 @@ def _verify_main_clean(
         )
     for record in records:
         if not record.startswith(b"?? "):
+            relative = record[3:]
+            if relative in allowed_tracked_paths:
+                continue
             raise _Reject(RC_DIRT, "main tracked/index/submodule dirt is forbidden")
         # git は nested repository / linked worktree を collapsed directory として
         # `?? path/` の 1 レコードで返す (`-uall` でも同じ)。以降の成分境界比較は
@@ -1111,6 +1145,384 @@ def _open_lock(repository: _Repository) -> int:
     return fd
 
 
+def _pending_spool_paths(repo: Path) -> tuple[str, ...]:
+    """正規 spool layout から pending 候補を列挙する。"""
+
+    spool = repo / "docs" / "spool"
+    if not spool.exists() or spool.is_symlink() or not spool.is_dir():
+        raise OSError("docs/spool is not a real directory")
+    pending: list[str] = []
+    for ledger in _FOLD_LEDGERS:
+        directory = spool / ledger
+        if not directory.exists() or directory.is_symlink() or not directory.is_dir():
+            raise OSError(f"docs/spool/{ledger} is not a real directory")
+        for member in directory.iterdir():
+            if member.name != "README.md":
+                pending.append(member.relative_to(repo).as_posix())
+    return tuple(sorted(pending))
+
+
+def _land_fold_date() -> str:
+    """この land request が plan へ束縛する canonical date。"""
+
+    return _datetime.datetime.now().astimezone().date().isoformat()
+
+
+def _load_spool_fold():
+    """同じ checkout の fold engine を lazy import する。"""
+
+    source = Path(__file__).resolve().with_name("spool_fold.py")
+    if source.is_symlink() or not source.is_file():
+        raise RuntimeError("tools/spool_fold.py is not a regular file")
+    name = f"_izanagi_land_spool_fold_{hashlib.sha256(str(source).encode()).hexdigest()[:12]}"
+    spec = importlib.util.spec_from_file_location(name, source)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot create spool_fold import spec")
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(name)
+    previous_dont_write_bytecode = sys.dont_write_bytecode
+    sys.modules[name] = module
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous_dont_write_bytecode
+        if previous is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous
+    return module
+
+
+def _fold_relative_path(value: object) -> str:
+    if not isinstance(value, str):
+        raise RuntimeError("fold plan path is not text")
+    path = Path(value)
+    if (
+        path.is_absolute()
+        or path.as_posix() != value
+        or not path.parts
+        or path.parts[0] != "docs"
+        or any(part in ("", ".", "..") for part in path.parts)
+    ):
+        raise RuntimeError(f"unsafe fold plan path: {value!r}")
+    return value
+
+
+def _fold_plan_paths(plan: object) -> tuple[str, ...]:
+    targets = getattr(plan, "targets", ())
+    gc_paths = getattr(plan, "gc_paths", ())
+    values = [
+        *(_fold_relative_path(getattr(target, "path", None)) for target in targets),
+        *(_fold_relative_path(path) for path in gc_paths),
+    ]
+    if len(values) != len(set(values)):
+        # target と GC の重複も transaction の意味が曖昧なので拒否する。
+        raise RuntimeError("fold plan contains duplicate target paths")
+    return tuple(sorted(values))
+
+
+def _snapshot_fold_paths(repo: Path, relatives: Sequence[str]) -> tuple[_PathSnapshot, ...]:
+    snapshots: list[_PathSnapshot] = []
+    for relative in relatives:
+        path = repo / relative
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            snapshots.append(_PathSnapshot(relative, False, b"", 0))
+            continue
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+            raise RuntimeError(f"fold path is symlink/non-regular: {relative}")
+        snapshots.append(
+            _PathSnapshot(
+                relative,
+                True,
+                path.read_bytes(),
+                stat.S_IMODE(metadata.st_mode),
+            )
+        )
+    return tuple(snapshots)
+
+
+def _atomic_restore(path: Path, content: bytes, mode: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.land-rollback.", dir=path.parent)
+    temporary_path = Path(temporary)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary_path, mode)
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path.exists():
+            temporary_path.unlink()
+
+
+def _restore_fold_paths(repo: Path, snapshots: Sequence[_PathSnapshot]) -> None:
+    for snapshot in snapshots:
+        path = repo / snapshot.relative
+        if snapshot.existed:
+            if path.is_symlink() or (path.exists() and not path.is_file()):
+                raise RuntimeError(f"rollback path is symlink/non-regular: {snapshot.relative}")
+            _atomic_restore(path, snapshot.content, snapshot.mode)
+        elif path.exists() or path.is_symlink():
+            if path.is_symlink() or not path.is_file():
+                raise RuntimeError(f"new fold path became symlink/non-regular: {snapshot.relative}")
+            path.unlink()
+
+
+def _fold_index_tree(repository: _Repository) -> str:
+    return _decode_sha(
+        _require_git(
+            _git(repository.main, "write-tree"),
+            "fold preflight index tree",
+            RC_FOLD_FAILED,
+        ),
+        "fold preflight index tree",
+        RC_FOLD_FAILED,
+    )
+
+
+def _rollback_fold(
+    repository: _Repository,
+    *,
+    rollback_ref: str,
+    expected_tip: str,
+    index_tree: str,
+    snapshots: Sequence[_PathSnapshot],
+    state_path: Path,
+) -> list[str]:
+    failures: list[str] = []
+    try:
+        current = _head(repository.main, "main fold rollback")
+        if current != expected_tip:
+            parent = _git(repository.main, "rev-parse", "--verify", f"{current}^")
+            observed_parent = (
+                _decode_sha(parent.stdout, "fold commit parent", RC_FOLD_FAILED)
+                if parent.returncode == 0
+                else None
+            )
+            if observed_parent != expected_tip:
+                failures.append("main moved beyond the fold commit; ref rollback refused")
+        if not failures and current != rollback_ref:
+            update = _git(
+                repository.main,
+                "update-ref", "refs/heads/main", rollback_ref, current,
+            )
+            if update.returncode != 0:
+                failures.append(
+                    "fold/main ref CAS rollback failed "
+                    f"({_detail(update.stderr) or 'no detail'})"
+                )
+        if not failures:
+            read_tree = _git(repository.main, "read-tree", "--reset", "-u", index_tree)
+            if read_tree.returncode != 0:
+                failures.append(
+                    f"fold index/worktree rollback failed ({_detail(read_tree.stderr) or 'no detail'})"
+                )
+        if not failures:
+            _restore_fold_paths(repository.main, snapshots)
+        if state_path.exists() or state_path.is_symlink():
+            metadata = state_path.lstat()
+            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+                failures.append("fold transaction state is symlink/non-regular")
+            else:
+                state_path.unlink()
+    except (OSError, RuntimeError, _Reject) as exc:
+        failures.append(f"fold rollback raised {type(exc).__name__}: {exc}")
+    return failures
+
+
+def _validate_generated_docs(repository: _Repository) -> None:
+    """apply 済み・未 commit の canonical を既存 docs gate で検査する。"""
+
+    checker = repository.main / "tools" / "check_docs.py"
+    if checker.is_symlink() or not checker.is_file():
+        raise RuntimeError("tools/check_docs.py is unavailable for generated canonical validation")
+    env = _git_env()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    completed = subprocess.run(
+        [sys.executable, str(checker)],
+        cwd=repository.main,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        shell=False,
+        close_fds=True,
+    )
+    if completed.returncode != 0:
+        detail = _detail(completed.stderr) or _detail(completed.stdout) or "no detail"
+        raise RuntimeError(f"generated canonical validation failed ({detail})")
+
+
+def _preflight_fold_message(repository: _Repository, message_path: Path) -> None:
+    checker = repository.main / "tools" / "check_ai_provenance.py"
+    if checker.is_symlink() or not checker.is_file():
+        raise RuntimeError("tools/check_ai_provenance.py is unavailable for message preflight")
+    completed = subprocess.run(
+        [sys.executable, str(checker), "--message-file", str(message_path)],
+        cwd=repository.main,
+        env=_git_env(),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        shell=False,
+        close_fds=True,
+    )
+    if completed.returncode != 0:
+        detail = _detail(completed.stderr) or _detail(completed.stdout) or "no detail"
+        raise RuntimeError(f"fold commit message preflight failed ({detail})")
+
+
+def _fold_main_locked(
+    repository: _Repository,
+    successful_land: LandResult,
+    *,
+    fold: object,
+    plan: object,
+    tested_tip: str,
+    wave_ref: str,
+    rollback_ref: str,
+    snapshots: Sequence[_PathSnapshot],
+    index_tree: str,
+    state_path: Path,
+) -> LandResult:
+    """preplanned fold を lock 内で apply・検査・commit する。"""
+
+    fold_base = successful_land.main_after
+    if fold_base is None:
+        return LandResult(
+            RC_FOLD_FAILED,
+            "fold-failed",
+            "successful land did not expose main_after",
+            successful_land.main_before,
+            successful_land.main_after,
+            tested_tip,
+        )
+
+    message_path: Path | None = None
+    try:
+        if getattr(plan, "status", None) == "noop":
+            return successful_land
+        fold_paths = _fold_plan_paths(plan)
+        fold.apply_fold(repository.main, plan)
+        _validate_generated_docs(repository)
+        pending_after = _pending_spool_paths(repository.main)
+        if pending_after:
+            raise RuntimeError(
+                "pending fragment postcondition failed: " + ", ".join(pending_after)
+            )
+
+        staged = _git(repository.main, "add", "--", *fold_paths)
+        if staged.returncode != 0:
+            raise RuntimeError(
+                f"fold staging failed ({_detail(staged.stderr) or 'no detail'})"
+            )
+        cached = _git(
+            repository.main,
+            "diff", "--cached", "--name-only", "-z", "--no-renames",
+        )
+        if cached.returncode != 0:
+            raise RuntimeError(
+                f"fold staged path inspection failed ({_detail(cached.stderr) or 'no detail'})"
+            )
+        staged_paths = set(_nul_records(cached.stdout, "fold staged paths", RC_FOLD_FAILED))
+        expected_paths = {os.fsencode(path) for path in fold_paths}
+        if staged_paths != expected_paths:
+            raise RuntimeError(
+                f"fold staged path closure mismatch: expected={sorted(expected_paths)!r}, "
+                f"actual={sorted(staged_paths)!r}"
+            )
+
+        fd, temporary = tempfile.mkstemp(
+            prefix=".dev-wave-fold-message.",
+            dir=repository.common,
+        )
+        message_path = Path(temporary)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(_FOLD_MESSAGE)
+            handle.flush()
+            os.fsync(handle.fileno())
+        _preflight_fold_message(repository, message_path)
+        commit = _git(
+            repository.main,
+            "commit", "--no-gpg-sign", "-F", str(message_path),
+        )
+        if commit.returncode != 0:
+            raise RuntimeError(
+                f"fold commit failed ({_detail(commit.stderr) or 'no detail'})"
+            )
+        fold_commit = _head(repository.main, "main post-fold")
+        parent = _decode_sha(
+            _require_git(
+                _git(repository.main, "rev-parse", "--verify", f"{fold_commit}^"),
+                "fold commit parent",
+                RC_FOLD_FAILED,
+            ),
+            "fold commit parent",
+            RC_FOLD_FAILED,
+        )
+        if parent != fold_base:
+            raise RuntimeError("fold commit parent is not the ff-only result")
+        if _symbolic_head(repository.main, "main post-fold") != "refs/heads/main":
+            raise RuntimeError("main symbolic HEAD moved during fold")
+        if _ref_sha(repository.main, "refs/heads/main", "main post-fold ref") != fold_commit:
+            raise RuntimeError("main ref does not equal fold commit")
+        if _head(repository.wave, "wave post-fold") != tested_tip:
+            raise RuntimeError("wave HEAD moved during fold")
+        if _symbolic_head(repository.wave, "wave post-fold") != wave_ref:
+            raise RuntimeError("wave symbolic ref moved during fold")
+        if _ref_sha(repository.wave, wave_ref, "wave post-fold ref") != tested_tip:
+            raise RuntimeError("wave ref moved during fold")
+        _verify_main_no_tracked_dirt(repository)
+        _verify_wave_clean(repository)
+        if _pending_spool_paths(repository.main):
+            raise RuntimeError("pending fragments reappeared after fold commit")
+        return LandResult(
+            RC_OK,
+            "landed",
+            "main fast-forwarded to the tested wave tip and folded pending fragments",
+            successful_land.main_before,
+            fold_commit,
+            tested_tip,
+        )
+    except (Exception, KeyboardInterrupt) as exc:  # fold failure は必ず landed 以外へ畳む。
+        rollback_failures = _rollback_fold(
+            repository,
+            rollback_ref=rollback_ref,
+            expected_tip=tested_tip,
+            index_tree=index_tree,
+            snapshots=snapshots,
+            state_path=state_path,
+        )
+        try:
+            main_after = _head(repository.main, "main after fold failure")
+        except _Reject:
+            main_after = None
+        reason = f"fold failed: {type(exc).__name__}: {exc}"
+        if rollback_failures:
+            reason += "; rollback incomplete: " + "; ".join(rollback_failures)
+        return LandResult(
+            RC_FOLD_ROLLBACK_FAILED if rollback_failures else RC_FOLD_FAILED,
+            "fold-rollback-failed" if rollback_failures else "fold-failed",
+            reason,
+            successful_land.main_before,
+            main_after,
+            tested_tip,
+        )
+    finally:
+        if message_path is not None:
+            try:
+                message_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
 def _postcondition(
     repository: _Repository,
     *,
@@ -1232,9 +1644,27 @@ def land(request: LandRequest) -> LandResult:
             _verify_history_modifiers(repository)
             _verify_effective_config(repository)
             target_paths = _target_paths(repository, tested_main, tested_tip)
+            try:
+                fold = _load_spool_fold()
+                active_plan = fold.load_active_plan(repository.main)
+                active_fold_paths = (
+                    tuple(os.fsencode(path) for path in _fold_plan_paths(active_plan))
+                    if active_plan is not None
+                    else ()
+                )
+            except (Exception, KeyboardInterrupt) as exc:
+                return LandResult(
+                    RC_FOLD_RECOVERY_FAILED,
+                    "fold-recovery-failed",
+                    f"fold transaction inspection failed: {type(exc).__name__}: {exc}",
+                    main_before,
+                    main_before,
+                    tested_tip,
+                )
             control = _verify_main_clean(
                 repository,
                 collision_paths=target_paths,
+                allowed_tracked_paths=active_fold_paths,
             )
             _verify_wave_clean(repository)
             audited = _verify_audit(
@@ -1263,6 +1693,89 @@ def land(request: LandRequest) -> LandResult:
                     locked_main,
                     tested_tip,
                 )
+            if active_plan is not None:
+                if locked_main != tested_tip:
+                    return LandResult(
+                        RC_FOLD_RECOVERY_FAILED,
+                        "fold-recovery-failed",
+                        "active fold transaction requires main at the tested wave tip",
+                        main_before,
+                        locked_main,
+                        tested_tip,
+                    )
+                try:
+                    layout_issues = fold.validate_spool_layout(repository.main)
+                    if layout_issues:
+                        raise RuntimeError(
+                            "active transaction spool layout invalid: "
+                            + "; ".join(issue.message for issue in layout_issues)
+                        )
+                    fold_paths = _fold_plan_paths(active_plan)
+                    pending_before = _pending_spool_paths(repository.main)
+                    if set(pending_before) - set(fold_paths):
+                        raise RuntimeError("stored fold plan does not cover every pending fragment candidate")
+                    index_tree = _fold_index_tree(repository)
+                    # tracked before-state は tested_tip の tree から復元できる。plan が新設する
+                    # path だけを明示して、resume 後の検査失敗でも untracked 残骸を残さない。
+                    recovery_snapshots = tuple(
+                        _PathSnapshot(target.path, False, b"", 0)
+                        for target in getattr(active_plan, "targets", ())
+                        if not getattr(target, "before_exists", True)
+                    )
+                    state_path = fold._state_path(repository.main)
+                except (Exception, KeyboardInterrupt) as exc:
+                    return LandResult(
+                        RC_FOLD_RECOVERY_FAILED,
+                        "fold-recovery-failed",
+                        f"stored fold transaction preflight failed: {type(exc).__name__}: {exc}",
+                        main_before,
+                        locked_main,
+                        tested_tip,
+                    )
+                recovery = LandResult(
+                    RC_OK,
+                    "already-landed",
+                    "main is at the tested tip with an active fold transaction",
+                    main_before,
+                    locked_main,
+                    tested_tip,
+                )
+                return _fold_main_locked(
+                    repository,
+                    recovery,
+                    fold=fold,
+                    plan=active_plan,
+                    tested_tip=tested_tip,
+                    wave_ref=wave_ref,
+                    rollback_ref=tested_tip,
+                    snapshots=recovery_snapshots,
+                    index_tree=index_tree,
+                    state_path=state_path,
+                )
+
+            fold_date = _land_fold_date()
+            try:
+                plan = fold.plan_fold(repository.wave, fold_date=fold_date)
+                fold_paths = _fold_plan_paths(plan)
+                pending_candidate = _pending_spool_paths(repository.wave)
+                if set(pending_candidate) - set(fold_paths):
+                    raise RuntimeError("fold plan does not cover every pending fragment candidate")
+            except (Exception, KeyboardInterrupt) as exc:
+                return LandResult(
+                    RC_FOLD_FAILED,
+                    "fold-failed",
+                    f"candidate fold planning failed: {type(exc).__name__}: {exc}",
+                    main_before,
+                    locked_main,
+                    tested_tip,
+                )
+
+            fold_collision_paths = tuple(os.fsencode(path) for path in fold_paths)
+            if fold_collision_paths:
+                _verify_main_clean(
+                    repository,
+                    collision_paths=fold_collision_paths,
+                )
             if locked_main == tested_tip:
                 if gitlinks_changed and not _gitlinks_synchronized(
                     repository,
@@ -1279,13 +1792,40 @@ def land(request: LandRequest) -> LandResult:
                         locked_main,
                         tested_tip,
                     )
-                return LandResult(
+                already_landed = LandResult(
                     RC_OK,
                     "already-landed",
                     "another lander reached the tested tip first",
                     main_before,
                     locked_main,
                     tested_tip,
+                )
+                if getattr(plan, "status", None) == "noop":
+                    return already_landed
+                try:
+                    snapshots = _snapshot_fold_paths(repository.main, fold_paths)
+                    index_tree = _fold_index_tree(repository)
+                    state_path = fold._state_path(repository.main)
+                except (Exception, KeyboardInterrupt) as exc:
+                    return LandResult(
+                        RC_FOLD_FAILED,
+                        "fold-failed",
+                        f"fold preflight failed: {type(exc).__name__}: {exc}",
+                        main_before,
+                        locked_main,
+                        tested_tip,
+                    )
+                return _fold_main_locked(
+                    repository,
+                    already_landed,
+                    fold=fold,
+                    plan=plan,
+                    tested_tip=tested_tip,
+                    wave_ref=wave_ref,
+                    rollback_ref=tested_tip,
+                    snapshots=snapshots,
+                    index_tree=index_tree,
+                    state_path=state_path,
                 )
             _verify_target_collisions(
                 repository,
@@ -1298,18 +1838,52 @@ def land(request: LandRequest) -> LandResult:
                     RC_CONTROL_PLANE,
                     "control-plane identity/binding changed before main mutation",
                 )
+            snapshots: tuple[_PathSnapshot, ...] = ()
+            index_tree: str | None = None
+            state_path: Path | None = None
+            if getattr(plan, "status", None) != "noop":
+                try:
+                    snapshots = _snapshot_fold_paths(repository.main, fold_paths)
+                    index_tree = _fold_index_tree(repository)
+                    state_path = fold._state_path(repository.main)
+                except (Exception, KeyboardInterrupt) as exc:
+                    return LandResult(
+                        RC_FOLD_FAILED,
+                        "fold-failed",
+                        f"fold preflight failed: {type(exc).__name__}: {exc}",
+                        main_before,
+                        locked_main,
+                        tested_tip,
+                    )
             merge = _git(
                 repository.main,
                 "merge", "--ff-only", "--no-stat", "--no-progress", tested_tip,
                 pass_fds=(lock_fd,),
             )
-            return _postcondition(
+            merged = _postcondition(
                 repository,
                 tested_tip=tested_tip,
                 wave_ref=wave_ref,
                 merge_rc=merge.returncode,
                 main_before=locked_main,
                 gitlinks_changed=gitlinks_changed,
+            )
+            if merged.rc != RC_OK:
+                return merged
+            if getattr(plan, "status", None) == "noop":
+                return merged
+            assert index_tree is not None and state_path is not None
+            return _fold_main_locked(
+                repository,
+                merged,
+                fold=fold,
+                plan=plan,
+                tested_tip=tested_tip,
+                wave_ref=wave_ref,
+                rollback_ref=locked_main,
+                snapshots=snapshots,
+                index_tree=index_tree,
+                state_path=state_path,
             )
         finally:
             os.close(lock_fd)

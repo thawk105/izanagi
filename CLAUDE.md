@@ -43,6 +43,8 @@
 - `docs/handoff/` を列挙し、README 以外の残ファイルをすべて読む。作業セッションでは自分専用
   handoff を作る
 - `git status` を確認し、他セッションまたはユーザーの変更を上書きしない
+- クラス 2 / 3 で worklog / decisions / failures へ記録するときは、canonical 3 台帳を直接編集せず
+  `docs/spool/README.md` の形式に従う fragment を書く。採番と台帳への追記は land が lock 内で行う
 
 roadmap は Phase 初回または改訂時を除き現行タスクが参照する節だけを読む。decisions / glossary / 過去の
 worklog・監査・insight・生ログも、索引検索して該当箇所だけを読む。詳細は「主要ドキュメント」に従う。

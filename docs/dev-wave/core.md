@@ -83,6 +83,10 @@ worklog に既記録でないか確認する（既知事実の新事実扱いで
 ## DW-S07 — 段 7 記録
 
 親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。
+**worklog / decisions / failures の 3 台帳は直接編集せず、`docs/spool/README.md` の形式に従う
+fragment として書く**（insights は従来どおり直接書く）。fragment は wave branch へ commit するだけとし、
+canonical 台帳への追記・採番・ローテーションは段 9 の land が lock 内で一度だけ行う。
+**wave 側で fold してはならない。**
 凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +
 erratum とする（D88）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
 復元法を記録した可逆最小正規化だけを許す（可視文字不変）。
