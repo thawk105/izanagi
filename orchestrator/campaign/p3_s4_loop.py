@@ -4,8 +4,11 @@
 **位置づけ:** 後続段 4 = coder (LLM) が初めて変異の値・方向を自律生成する段。
 reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 周):
 
-    1. planner (LLM):  leading-indicators → 方向提案 (値なし)
-    2. coder   (LLM):  方向 → 具体 backoff 値 + hole コード (勝ち筋値を見ずに合成)
+    1. planner (LLM):  current_perf (絶対 throughput を含む) + leading-indicators +
+       abstract whiteboard → 方向提案 (proposal スキーマは具体値 field を持たない)
+       justification / uncertainty の自由文は journal / report に残る
+    2. coder   (LLM):  方向 + baseline (絶対 throughput 等の現行指標) → 具体 backoff 値 +
+       hole コード (過去候補の勝ち筋値・critic の機序帰属の専用 field は持たない)
     3. harness (本Py): coder コードを EVOLVE-BLOCK hole に挿入 → diff 検疫 (4a)
        - reject  → diff-quarantine rejection を WAL に焼き critic へ (bench に進めない)
        - pass    → run_campaign (build×2/verify/bench) に委譲 → WAL
@@ -271,10 +274,15 @@ def project_whiteboard(state: LoopState, planner: PlannerProposal,
 
 
 def whiteboard_for_planner(state: LoopState) -> List[Dict]:
-    """planner-v4 / coder-v4 入力の whiteboard フィールド (評価済みのみ・値なし)。段 4 は
-    **射影境界でも delta_pct≡None を fail-closed 強制**する — planner へ勝ち筋チャネル (性能値) を
-    渡さない (規律2/6)。load 側 state_from_dict と二重で塞ぎ、in-memory 経路 (project_whiteboard が
-    誤って非 None を書く) も射影の関所で止める (監査 2026-07-08)。"""
+    """planner-v4 / coder-v4 入力の whiteboard フィールド。
+
+    段 4 はこの whiteboard 射影経路の delta_pct field に限って None を fail-closed
+    強制する (規律2/6)。direction / magnitude / result の値は checkpoint から無検証で
+    入り得る ([T-287] の残余)。これは planner 入力全体の性能値遮断ではない。絶対
+    throughput は別 field の current_perf で planner へ、baseline で coder へ渡り、
+    planner には leading_indicators も渡る。delta_pct field は load 側 state_from_dict
+    と二重で塞ぎ、in-memory 経路 (project_whiteboard が誤って非 None を書く) も射影の
+    関所で止める (監査 2026-07-08)。"""
     out = []
     for e in state.whiteboard:
         if not _DELTA_PCT_LIVE and e.delta_pct is not None:
