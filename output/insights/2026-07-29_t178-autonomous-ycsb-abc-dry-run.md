@@ -124,10 +124,10 @@ Runbook: `docs/phase3-s8c-autonomous-trial-runbook.md`。設計裁定: D106。
 
 ### Live preflight の結果
 
-commit `436a3af` 後に login host で T-225 を開始したが、CCBench は d706650 pinned-clean、
+commit `436a3af` 後に login host で T-235 を開始したが、CCBench は d706650 pinned-clean、
 競合 `ycsb_*.exe` は無しである一方、`numactl` が未導入だった。trigger driver の legacy+S2
 経路は `numactl --interleave=all` を correctness/measurement contract として要求するため、
-空 command へ差し替えず実計測を停止した。T-225 は Pegasus または同契約を満たす NUMA 計測
+空 command へ差し替えず実計測を停止した。T-235 は Pegasus または同契約を満たす NUMA 計測
 host で再開する。
 
 ### 取り込み時の採番訂正 (2026-08-01、[T-207])
@@ -137,7 +137,7 @@ host で再開する。
 取り込み時に次を機械的に振り替えた。**内容・数値・SHA は 1 文字も変えていない。**
 
 - 設計裁定 `D99` → `D106`。main の `D99` は `[T-143] RuleOps v1` である
-- live build pilot の task ID `T-179` → `T-225` (本節 2 箇所)。main の `T-179` は
+- live build pilot の task ID `T-179` → `T-235` (本節 2 箇所)。main の `T-179` は
   `worker 資源台帳` (完了済み) である
 - runbook path は取り込み時に `docs/phase3-8c-…` → `docs/phase3-s8c-…` へ改名した
   (`tools/check_docs.py` の段 runbook lint glob `phase3-s*-runbook.md` へ編入するため)

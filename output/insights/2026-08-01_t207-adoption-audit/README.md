@@ -57,7 +57,7 @@ planner 入力へ流すことは D39/D45 が構造的に禁じたリーク経路
 **前 iteration の critic 出力を次世代の生成へ使うかどうか**である。cross-generation 還流が
 起きない 1 generation/cell の運転では本欠陥は発火しないため許可し、
 **2 generation 以上 (= 還流が起きる運転) を裁定まで禁止する**。正式系列 (H1/H2) は
-同一 generation budget を要求するため、この条件により自動的に禁止側へ入る。起票 = [T-228]。
+同一 generation budget を要求するため、この条件により自動的に禁止側へ入る。起票 = [T-238]。
 
 ### LB-2a「`--provider fixture` + 実 build を CLI が禁じていない」→ **real / 本 wave で修正**
 
@@ -74,7 +74,7 @@ no-op になる**。8c が新規に持ち込んだ経路であり既存 driver �
 main に land 済みの `orchestrator/campaign/s8b_prediction_runner.py` も
 `claude_executable_sha256` を**記録するだけで承認 hash と照合しない** (絶対 path であることだけを
 要求)。8c provider は同じ族の作法を踏襲しており新規の緩みではない。族全体の trust root 新設は
-`DW-G03` (族一般化には独立 2 例) と D96 の手続に従う別裁定 → [T-226]。
+`DW-G03` (族一般化には独立 2 例) と D96 の手続に従う別裁定 → [T-236]。
 
 ### LB-3「探索 run を公式 `output/campaigns/` へ書く (D65 違反)」→ **real / 族既存 / scope 外 / 段 6 で訂正**
 
@@ -88,7 +88,7 @@ s8b 族に限定していない。
 
 したがって正しい判定は「**D65 の文言に対しては実在の逸脱。ただし 8c 固有ではなく s4 driver 族
 全体の既存挙動であり、本 wave で 8c だけを移すと族内で二重規範になる**」である。
-族全体の namespace 移行として別裁定へ送る → [T-227]。**8c を「D65 適合」とは記述しない。**
+族全体の namespace 移行として別裁定へ送る → [T-237]。**8c を「D65 適合」とは記述しない。**
 D65 が既に「探索は exploration namespace」と決定済みである以上、`DW-G03` は未遵守を続ける
 理由にはならない — 族単位でまとめて是正するという**順序**の理由にとどまる。
 なお LB-3 の解消は LB-1 の裁定とは独立であり、LB-1 が裁定されても LB-3 は閉じない。
@@ -96,7 +96,7 @@ D65 が既に「探索は exploration namespace」と決定済みである以上
 また、`output/autonomous-trials/` は D13 の二軸 (campaign / env) にも D65 の exploration
 namespace にも属さない第三の root である。本 wave では `output/README.md` へ
 「探索の運用記録であって正式 proof chain ではない」と自然言語で登録するに留めた。
-型・path による機械的な防壁は無く、これも [T-227] の族単位裁定に含める。
+型・path による機械的な防壁は無く、これも [T-237] の族単位裁定に含める。
 
 ## 説明と実装の食い違い 6 件 (段 4 で 4 件、段 6 で 2 件を追加。docs を訂正して land)
 
@@ -126,7 +126,7 @@ permission denial・server-tool counter の部分検査が実在する。正確�
 |---|---|---|---|
 | `D99` | 8c bounded trial の設計裁定 | `[T-143] RuleOps v1` | `D106` へ採番 |
 | worklog `(61)` | 8c 実装 wave | `Codex dev-wave 資源効率監査` | verbatim 追記せず本 wave の新エントリへ要約収容 |
-| `T-179` | live build pilot の再開タスク | `worker 資源台帳` (完了済み) | `T-225` へ採番 (insight 2 箇所) |
+| `T-179` | live build pilot の再開タスク | `worker 資源台帳` (完了済み) | `T-235` へ採番 (insight 2 箇所) |
 
 ## refuted された懸念 (親 brief・段 2 が過大に恐れていた点)
 

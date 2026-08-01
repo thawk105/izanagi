@@ -1,44 +1,35 @@
-"""orchestrator/tests 共通 pytest 設定 — 一時ディレクトリを tmpfs へ向ける。
+"""orchestrator/tests 共通 pytest 設定 — TMPDIR は設定しない。
 
-campaign 系 (wal / freeze / budget / marker) は耐久性のため書き込みごとに
-flush+fsync する。ジャーナリング FS 上の一時 dir ではその 1 回 1 回が実ディスク
-バリアになり、スイートが I/O 律速で数百倍遅くなる (実測は worklog 2026-07-17)。
-tmpfs では fsync がほぼ無償なので、fsync を呼ぶコード経路はそのまま保たれ
-(検査は弱めない)、物理バリアだけが消える。
+かつてここは TMPDIR を tmpfs (``/dev/shm``) へ向けていたが撤去した。tmpfs の
+使用量はユーザーの memory cgroup へほぼ 1:1 で課金され、Pegasus ログインノード
+のユーザーメモリ枠 16 GiB (cgroup v2 ``memory.max`` = 17179869184) を直接削る。
+受入全走 1 回の tmpfs peak は 7.39 GiB (計算ノード bnode033、request 874750 実測)
+なので、ログインノードで 2 回走らせれば枠を使い切る。
 
-- 明示的な TMPDIR はユーザー指定として尊重し、何もしない (従来動作へ戻す口)
-- /dev/shm が無い・書けない・空きが小さい環境では何もしない (従来動作)。容量
-  ガードは、tmpfs が数十 MB しかない環境 (コンテナの既定 shm 等) で TMPDIR を
-  読む大容量経路 (patchharness / calibrator runner / trace 生成) が誤誘導的な
-  ENOSPC に落ちるのを防ぐ (敵対レビュー所見、insights 2026-07-17)
-- pytest の tmp_path も、テスト内の tempfile.* 直接使用も、テストが env を継承
-  して起動する subprocess も影響を受ける (いずれも TMPDIR 由来)。素の python3
-  実行 (二重 runner) は conftest を経由しない — 必要なら TMPDIR=/dev/shm を手で
-  与える (tests/README.md「一時ディレクトリと速度」)
+代替の TMPDIR 注入は置かない。TMPDIR 未設定なら環境既定 (``/tmp``) を使う。
+実ディスクにした代償は場所で大きく違う。断定を避けて実測値を分けて書く。
+
+- **計算ノードでは小さい。** 300 回の write+fsync が ``/tmp`` で 0.026 秒、
+  ``/dev/shm`` で 0.001 秒、Lustre (``/home``) で 0.42 秒 (bnode021、loadavg 0.29、
+  3 走同値)。計算ノード bnode041 の ``/tmp`` の fstype は xfs (magic 58465342)
+- **ログインノード直叩きでは大きい。** 共有・loadavg 高の pegasus02 では 300 回の
+  write+fsync が ``/tmp`` 8.7〜9.4 秒、``/dev/shm`` 0.002 秒、``/home`` (Lustre)
+  0.435〜0.447 秒。テストスイート実測でも ``orchestrator/tests/test_campaign.py``
+  (168 node) が ``TMPDIR=/dev/shm`` で 2.21 秒、``TMPDIR=/tmp`` で 12.33 秒 (5.6 倍)
+
+fsync を呼ぶコード経路は変えていない (検査は弱めない) — tmpfs 上で no-op だった
+バリアが実バリアに戻るだけである。上の 168 node 実測でも fsync 回数は両方とも
+620 回で完全に一致した。遅さが気になる場所ではディスク上の速い TMPDIR を明示せよ。
+
+- 明示的な TMPDIR はユーザー指定として尊重し、ここでは何もしない (元から不干渉)
+- 一時 dir を速い局所ディスクへ置きたい場合は TMPDIR を明示的に与える。ただし
+  tmpfs を選んではいけない — 実効 TMPDIR の fstype は
+  ``test_real_repo_serialization.py`` の回帰ガードが検査して赤にする
+- 素の python3 実行 (二重 runner) は元から conftest を経由しない
 """
 import os
-import tempfile
 
 import pytest
-
-_SHM = "/dev/shm"
-_MIN_FREE_BYTES = 1 << 30  # 1 GiB 未満の tmpfs (コンテナ既定 shm=64MB 等) は採用しない
-
-
-def _shm_usable() -> bool:
-    if not (os.path.isdir(_SHM) and os.access(_SHM, os.W_OK | os.X_OK)):
-        return False
-    try:
-        st = os.statvfs(_SHM)
-    except OSError:
-        return False
-    return st.f_bavail * st.f_frsize >= _MIN_FREE_BYTES
-
-
-if "TMPDIR" not in os.environ and _shm_usable():
-    os.environ["TMPDIR"] = _SHM
-    # gettempdir() は初回呼び出し結果をキャッシュする — 破棄して TMPDIR を再評価させる
-    tempfile.tempdir = None
 
 
 # 単一 pytest runner invocation 内で、親 repo status と共有 ccbench worktree の

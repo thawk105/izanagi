@@ -4805,7 +4805,7 @@ SHA と payload/envelope/CLI SHA を持つ。Codex role adapter は正本が run
 > その record の token が正であることだけを見ており、他 model の併記を禁じない (実 receipt では
 > aux model の併記が観測されている)。`claude` 実行バイナリは hash を**記録するだけで承認 hash と
 > 照合しない** — これは既に land 済みの `s8b_prediction_runner.py` と同じ族の作法であり、
-> trust root の新設は本 D の範囲外とする ([T-226])。
+> trust root の新設は本 D の範囲外とする ([T-236])。
 
 **決定 (3): planner→coder は抽象 3 field だけを渡す。** 最初の実 Claude dry-run で planner の
 justification が具体的な gate mechanism を述べ、これをそのまま coder へ渡すと planner が実装を
@@ -4851,7 +4851,7 @@ D96 に従い境界テストを同じ変更単位へ置く。
 「human が iteration 間を運ばない」ことを実証するが、project 全体の究極的な unattended/autonomous
 完了は主張しない。取り込み監査で判明した残余は次の 4 点である。
 
-**(残余 1) 規律 3 の還流が human loop より狭い ([T-228])。** 次世代の planner/coder payload が
+**(残余 1) 規律 3 の還流が human loop より狭い ([T-238])。** 次世代の planner/coder payload が
 受けるのは descriptor・現行 metrics・leading indicators・抽象 whiteboard
 (`whiteboard_for_planner()` = direction/magnitude/result/delta_pct) だけで、critic の
 `attribution/recommend/avoid/uncertainty` は `reverse_recommended` の boolean へ畳まれる。
@@ -4881,7 +4881,7 @@ build 側の campaign root は cfg の内容 hash から決まる。同じ workl
 **(残余 4) 出力先 namespace。** build 時の campaign 出力先は既存 s4 driver 族と同じ
 `output/campaigns/` である。D65 決定 (2) の本文「探索は `output/exploration/campaigns/`」に対しては
 **逸脱**であり、8c を D65 適合とは記述しない。ただし 8c 固有ではなく s4 driver 族全体の既存挙動で
-あるため、族全体の移行として別裁定へ送る ([T-227])。D65 が既に決定済みである以上、
+あるため、族全体の移行として別裁定へ送る ([T-237])。D65 が既に決定済みである以上、
 `DW-G03` は未遵守を続ける理由ではなく、族単位でまとめて是正するという順序の理由にとどまる。
 本残余の解消は残余 1 の裁定とは独立であり、残余 1 が閉じても本残余は閉じない。
 既定出力先の `output/autonomous-trials/` が D13 の二軸にも D65 の exploration namespace にも
