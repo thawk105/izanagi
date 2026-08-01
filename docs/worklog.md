@@ -1525,7 +1525,16 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   次の設計 wave の第一候補は (i) trusted machine が failure を単調な safety constraint へ変換、
   (ii) failure を post-run auditor だけへ戻す、(iii) verifier feedback 前の候補 batch 凍結、
   (iv) campaign-global な disclosure / query budget。詳細は insights README
-- 記録後検査 (F34): `check_docs` 緑、provenance 全履歴 686 件違反なし
+- **段 8 の自己改善は台帳だけ反映し、reference への統合 3 件は予算に収まらず裁定へ返した。**
+  F65 に再発 (独立 2 例) を追記して恒久対応を「抽出元を計算ノード job stdout 成果物にする」へ更新し、
+  F32 に 3 度目の再発を追記して恒久対応 6 (逐次 flush + resume + 起動時 clean 検査) を足した。
+  一方 `docs/dev-wave/mutation.md` は予算 3750 に対し 3747 bytes で**余裕 3 bytes**、
+  `docs/dev-wave/**` 合計も ceiling 24000 に対し**余裕 9 bytes** で、圧縮を 3 巡試しても
+  安全義務を落とさずには空かなかった。`docs/skill-self-improvement.md` の
+  「予算のために安全義務を削除・弱化してはならない…意味等価にできなければユーザー裁定へ返す」に
+  従い選択肢つきで返した。**予算値の引上げは提案しない**
+- 記録後検査 (F34): `check_docs` 緑、provenance 全履歴 687 件違反なし。docs commit 後の全走
+  (request `877033`) も 4725 passed / 19 skipped / rc=0
 - エージェント工数: 親 1、子 10 (plan 1 / 敵対相談 2 / 実装 1 / 敵対レビュー 2 / 焦点再レビュー 1 /
   fix 2 / harness 1 + 改訂 3 巡)。
   逐語 = `output/insights/2026-08-01_t244-generation-gate/`
@@ -1554,6 +1563,13 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   `drive_iteration()` の直接反復を、機械保証の対象へ入れるか否かを決める。前者は 1 callable 内で
   複数 iteration を回せば予算検査を素通りする。後者は他の正当な human-supervised loop が
   resume を仕様として使うため、8c 専用 wrapper か origin binding で区別する必要がある
+- [T-284] **P2・新規 (本エントリ)・ユーザー裁定待ち**: dev-wave 自己改善 3 件 (I1 = `DW-M08` の
+  失敗 node 抽出元、I2 = `DW-M05` の resume と起動時 clean 検査、I3 = `DW-O09` の pin 列挙を
+  識別子でも行う) が `docs/dev-wave/**` の予算に収まらない。mutation.md は余裕 3 bytes、
+  合計も余裕 9 bytes で、**どんな追記も入らない**。裁定が要るのは「何を空けるか」であり、
+  (a) 陳腐化節の削除、(b) D110 に倣った条件付き reference の外出し、(c) 現状の台帳ポインタ運用の
+  いずれかを選ぶ。**予算値の引上げは選択肢に入れない**。詳細は
+  `output/insights/2026-08-01_t244-generation-gate/README.md` の「3. dev-wave 自己改善」
 - [T-241] 変わらず ((96) 参照)
 - [T-276] 変わらず ((96) 参照)
 - [T-277] 変わらず ((96) 参照)
