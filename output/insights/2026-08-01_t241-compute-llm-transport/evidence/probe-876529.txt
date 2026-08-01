@@ -1,0 +1,17 @@
+hostname=bnode002
+--- proxy var NAMES only ---
+https_proxy
+http_proxy
+--- proxy values (host:port only) ---
+https_proxy -> 10.120.96.1:8080
+http_proxy -> 10.120.96.1:8080
+=== TEST A: full env claude -p ===
+9399
+A_rc=0
+=== TEST B: driver allowlist env (PATH/HOME/LANG/LC_ALL/TERM only) ===
+API Error: Unable to connect to API (ENOTIMP)
+B_rc=1
+B_elapsed_s=172
+=== TEST C: allowlist + proxy vars restored ===
+6055
+C_rc=0

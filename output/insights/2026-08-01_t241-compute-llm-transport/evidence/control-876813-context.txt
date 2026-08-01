@@ -1,0 +1,8 @@
+hostname=bnode145
+python=Python 3.10.12
+proxy_present=2
+--- single tenant check ---
+ 14:22:29 up 4 days, 18:10,  0 users,  load average: 0.09, 0.02, 0.00
+--- run ---
+2026-08-01T14:22:29+09:00
+2026-08-01T14:31:23+09:00
