@@ -1561,3 +1561,23 @@
 - 近縁: F29 (模擬を裁定根拠にしない)、F70 (観測の一次証拠を残さない)
 - 記録: worklog 2026-08-01 (105)、一次資料 =
   `output/insights/2026-08-01_t298-tools-dispatch-memory-threshold/`
+
+### F75. 親が段 6 で作った計測器具が、provenance の実装面 Codex author 契約に抵触した [手順漏れ]
+
+- 事象: [T-298] の段 6 で親が変異 harness (`mutation_harness.py`) を書いて本走し、
+  生台帳とともに insights へ凍結しようとしたところ、`--message-file` preflight が
+  「実装面に Codex role=author がない」で赤になった。`docs/ai-provenance.md` の実装面定義は
+  **所在不問の Python・Shell** を含み、**harness・probe も production 挙動によらず対象**である。
+  `output/` 配下の凍結記録であっても、実行可能な `.py` である限り契約が掛かる
+- なぜ危険か: 気づかなければ (a) Claude 作の実装面を混ぜて commit するか、
+  (b) 契約を迂回する waiver を安易に使うかのどちらかになる。前者は D95 の author 契約を
+  骨抜きにし、後者は waiver の意味を薄める。**「計測結果は対象外」という免除規定があるため、
+  計測**器具**も対象外だと誤読しやすい**のが罠である
+- 判別: 段 6 で親が harness を書く前に、その成果物を**凍結するかどうか**を決める。
+  凍結するなら Codex author が要る。凍結せず結果だけ残すなら対象外である
+- 恒久対応 (本例): harness を実行可能ファイルとして凍結せず、**逐語を insights の README へ
+  コードブロックとして埋め込んだ**。再現性は保ちつつ実装面を作らない。
+  waiver は使っていない (ユーザー裁定なしに使わないため)
+- 近縁: F25 (trailer 契約)、F32 (harness の復元規律)
+- 記録: worklog 2026-08-01 (105)、一次資料 =
+  `output/insights/2026-08-01_t298-tools-dispatch-memory-threshold/`
