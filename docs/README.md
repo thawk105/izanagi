@@ -17,6 +17,8 @@
 - `phase1.md` / `phase2.md` — タスク分解 (完了・凍結)
 - `phase3.md` — 現行 phase doc。チェックリストと must 表 = タスク粒度の完了状況の正本
 - `phase3-main-experiment.md` — 主実験の事前登録
+- `phase3-8c-preregistration.md` — 段 8c 正式系列 (H1/H2 × on/off/swapped) の事前登録。
+  発効条件と、全件報告の機械強制が現在どこまで効くかの正本 (D116)
 - `worklog.md` — 日誌。末尾エントリ = 可変状態の正本。書式とローテーションは同ファイル冒頭
 - `spool/README.md` — 3 台帳へ書くための fragment 形式と fold の正本。並行セッションが同じ行末を
   奪い合わないよう、wave は fragment だけを書き、採番と追記は land が lock 内で一度だけ行う

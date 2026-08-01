@@ -953,6 +953,45 @@ def test_spool_tree_is_excluded_from_all_legacy_doc_scans():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_reference_limits_pin_adjudicated_caps():
+    assert check_docs.REFERENCE_LIMITS == {
+        "docs/dev-wave/core.md": check_docs.TextLimit(9_600),
+        "docs/dev-wave/workers.md": check_docs.TextLimit(5_000),
+        "docs/dev-wave/mutation.md": check_docs.TextLimit(3_750),
+        "docs/dev-wave/operations.md": check_docs.TextLimit(8_400),
+    }
+
+
+def test_dev_wave_reference_budget_pins_cap_sum():
+    assert sum(
+        limit.max_bytes for limit in check_docs.REFERENCE_LIMITS.values()
+    ) == 26_750
+
+
+def test_dev_wave_reference_budget_pins_aggregate_ceiling():
+    assert check_docs.DEV_WAVE_AGGREGATE_BYTES == 25_200
+    assert check_docs.DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT == 110
+
+
+def test_dev_wave_reference_cap_sum_rejects_above_110_percent():
+    root = _build_min_repo()
+    try:
+        rel = "tools/check_docs.py"
+        original = '"docs/dev-wave/core.md": TextLimit(9_600),'
+        replacement = '"docs/dev-wave/core.md": TextLimit(10_571),'
+        source = _read(root, rel)
+        assert source.count(original) == 1
+        _write(root, rel, source.replace(original, replacement, 1))
+
+        _assert_findings(
+            root,
+            "docs/dev-wave/**: 個別 cap 総和 27721 bytes > aggregate ceiling "
+            "25200 bytes の 1.10 倍 (27720 bytes)",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _dispatch_inventory_findings(
     result: subprocess.CompletedProcess,
 ) -> set[str]:
@@ -1237,6 +1276,23 @@ def test_dispatch_inventory_deleted_table_row_is_rejected():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_reference_cap_sum_accepts_exactly_110_percent():
+    root = _build_min_repo()
+    try:
+        rel = "tools/check_docs.py"
+        original = '"docs/dev-wave/core.md": TextLimit(9_600),'
+        replacement = '"docs/dev-wave/core.md": TextLimit(10_570),'
+        source = _read(root, rel)
+        assert source.count(original) == 1
+        _write(root, rel, source.replace(original, replacement, 1))
+
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_dispatch_inventory_added_tasks_entry_is_rejected():
     root = _build_min_repo()
     try:
@@ -1326,6 +1382,26 @@ def test_dispatch_inventory_missing_section_is_rejected():
         shutil.rmtree(root, ignore_errors=True)
 
 
+_DEV_WAVE_REFERENCE_MEMBER_LIMITS = (
+    ("docs/dev-wave/core.md", 9_600),
+    ("docs/dev-wave/workers.md", 5_000),
+    ("docs/dev-wave/mutation.md", 3_750),
+    ("docs/dev-wave/operations.md", 8_400),
+)
+
+
+@pytest.mark.parametrize(("rel", "limit"), _DEV_WAVE_REFERENCE_MEMBER_LIMITS)
+def test_dev_wave_reference_limit_accepts_exact_boundary(rel, limit):
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, rel, limit)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_dispatch_inventory_duplicate_task_row_is_rejected():
     root = _build_min_repo()
     try:
@@ -1357,6 +1433,21 @@ def test_dispatch_inventory_ignores_table_outside_7_0_section():
         result = _run_check(root)
         assert result.returncode == 0, result.stdout
         assert _dispatch_inventory_findings(result) == set()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(("rel", "limit"), _DEV_WAVE_REFERENCE_MEMBER_LIMITS)
+def test_dev_wave_reference_limit_rejects_plus_one(rel, limit):
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, rel, limit + 1)
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1
+        assert (
+            f"{rel}: {limit + 1} bytes > 予算 {limit} bytes" in res.stdout
+        )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

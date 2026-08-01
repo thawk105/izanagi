@@ -20,6 +20,7 @@ import re
 import stat
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -250,6 +251,10 @@ CODEX_DEV_WAVE_SKILL_LIMITS = {
 # byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
 # (2026-08-02) により小幅に引き上げる。
 DEV_WAVE_AGGREGATE_BYTES = 25_200
+# 個別 cap は各 reference の「形」を守り、実 byte 合計の ceiling が実効 gate になる。
+# cap 総和が ceiling を大きく超えると個別 gate が事実上無効になるため、作業余裕を
+# 10% だけ許す 1.10 倍を構成上限とする。
+DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT = 110
 CODEX_DEV_WAVE_SKILL_FILES = frozenset(CODEX_DEV_WAVE_SKILL_LIMITS)
 CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
@@ -2526,10 +2531,35 @@ def _check_codex_skill_guard(
         )
 
 
+def _check_dev_wave_reference_cap_sum(
+    findings: list[str],
+    reference_limits: Mapping[str, TextLimit],
+    aggregate_bytes: int,
+) -> None:
+    cap_sum = sum(limit.max_bytes for limit in reference_limits.values())
+    if (
+        cap_sum * 100
+        > aggregate_bytes * DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT
+    ):
+        max_cap_sum = (
+            aggregate_bytes * DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT // 100
+        )
+        findings.append(
+            "docs/dev-wave/**: 個別 cap 総和 "
+            f"{cap_sum} bytes > aggregate ceiling {aggregate_bytes} bytes の "
+            f"1.10 倍 ({max_cap_sum} bytes)"
+        )
+
+
 def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     """command/reference の閉包・予算・interface・dispatch を fail-closed 検査する。"""
 
     unreadable: set[Path] = set()
+    _check_dev_wave_reference_cap_sum(
+        findings,
+        REFERENCE_LIMITS,
+        DEV_WAVE_AGGREGATE_BYTES,
+    )
     command_dir = REPO / ".claude" / "commands"
     if command_dir.is_symlink():
         findings.append(

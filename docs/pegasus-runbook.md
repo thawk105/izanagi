@@ -503,9 +503,13 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   と読み替えない。依存ソースはログインノードで pinned staging し、`FETCHCONTENT_SOURCE_DIR_*` で
   渡す運用を維持する (再現性と offline fallback のため。silo_ladder_rung1 は submitter が自動実行。
   SOURCE_DIR 指定時は GIT_TAG pin が効かないため HEAD 照合を fail-closed で行うこと)。
-  なお **§8 の「計算ノードで `claude -p` を起動しない」は本訂正では緩めない**。この事実は D108
-  決定 (1) が挙げた前提の一部を覆すが、分割線を変えるかはユーザー裁定に戻してある
-  ([T-276]、2026-08-01 worklog (96))
+  なお当初この訂正では「計算ノードで `claude -p` を起動しない」を緩めなかったが、
+  **[T-276] のユーザー裁定 (択 (b) 解禁) を受けて D122 が条件付きで解禁した** (§8 を参照)。
+  **2026-08-02 の再実測 (request `877155`、bnode009)**: proxy は lowercase 2 key だけで
+  uppercase・`no_proxy`・TLS trust override 系はいずれも未設定、allowlist 5 key + proxy 2 key で
+  rc=0、proxy を落とすと約 180 秒後に `api_error` で rc=1。**これは 1 ノード・1 profile・
+  1 CLI 版の観測であり、全 bnode や将来 profile へ一般化しない** (設計は drift に対して
+  fail-closed である)
 
 ## 8. 投入前チェックリスト
 
@@ -534,9 +538,17 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   binary identity の検査 (`bin_sha256`、trace diff、`src_token` 再照合) は緩めない
 - 単独性の確認 (pgrep 等) は、割り当てられた計算ノード上で行う (割当てを専有の保証と見なさない)
 - **CC 合成 campaign** は supervisor と LLM 4 役 (planner / coder / auditor / critic) をログインノード、
-  build / verify / bench を計算ノードに置く (D106)。計算ノードで `claude -p` を起動しない。
+  build / verify / bench を計算ノードに置く (D106)。
   **`campaign` の dispatch task は未実装**であり、driver の終了コードが iteration の `outcome` を
   反映しない等の契約不足が解消するまで、campaign を計算ノードへ送る sanctioned 経路は存在しない
+- **計算ノードでの role 実行は D122 が条件付きで解禁した** (旧「計算ノードで `claude -p` を
+  起動しない」を supersede)。許されるのは `p3_autonomous_workload_trial.py` の
+  `--allow-pegasus-compute-transport` を**明示指定**した場合だけで、compute site・qsub 文法に
+  適合する `PBS_JOBID`・committed policy と exact 一致する lowercase proxy 2 key・TLS trust
+  override 不在・従量経路 env 不在・policy surface 健全のすべてが揃わなければ fail-closed で拒否する。
+  flag 省略時は従来どおり proxy を落とす。**MITM を防いだとは主張しない** (D122 決定 (7) の残余)。
+  build / bench の計測は `_site_admits_measurement` が Pegasus を拒否したままであり ([T-277])、
+  この拒否が生きている間は role 出力が build / run へ到達しない
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した
 - ジョブ投入 (`qsub` / submit wrapper) の実行環境を確認した。原則はユーザー自身の端末。

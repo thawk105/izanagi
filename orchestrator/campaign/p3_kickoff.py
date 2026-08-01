@@ -31,7 +31,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import buildcache, ident, wal                       # noqa: E402
-from campaign.layout import campaign_layout                       # noqa: E402
+from campaign.layout import exploration_campaign_layout           # noqa: E402
 from campaign.loop import run_campaign                            # noqa: E402
 from campaign.model import CampaignConfig, Genome                 # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                   # noqa: E402
@@ -96,14 +96,16 @@ def main() -> int:
 
     print("\n=== 完了条件 1: no-op variant 下で stock genome → cache-hit commit ===")
     with applied(os.path.join(root, NOOP_PATCH), PIN, sub):
-        s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA)
+        s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          campaign_namespace="exploration")
 
     print("\n=== 完了条件 2: 純 timing static50 → cache-miss 新規ビルド 1 周 ===")
     with applied(os.path.join(root, STATIC_PATCH), PIN, sub):
-        s2 = run_campaign(cfg, [STATIC_G], perf, ENV_TAG, CLK, numactl=NUMA)
+        s2 = run_campaign(cfg, [STATIC_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          campaign_namespace="exploration")
 
     # --- WAL 機械判定 (完了条件の文言どおり。宣言でなくレコードを gate にする) ---
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     v1 = variant_id(STOCK_G)                       # 条件1: stock id (src 省略) のはず
     r1 = wal.records_by_stage(layout, v1)
     v2 = next((r.variant for r in s2.results), None)

@@ -7,9 +7,10 @@ PreToolUse (Write|Edit|MultiEdit|NotebookEdit) で発火し、対象パスが管
 
 管轄 = **明白な直接書き込みの拒否、この 2 本だけ** (方針 A, D30/D33。これ以外のパスは
 即許可 — 通常の開発作業を妨げない):
-1. **成果物の proof chain (規律2):** `output/campaigns/*/runs/` (WAL)・`campaign.lock`・
-   `build-variants/` への Edit/Write を拒否。COMMIT/fitness を書く唯一の経路は
-   pipeline.evaluate() (phase3.md)。verifier を迂回した性能数値の直接更新を塞ぐ。
+1. **成果物の proof chain (規律2):** official / exploration campaign の `runs/`
+   (WAL)・`campaign.lock` と `build-variants/` への Edit/Write を拒否する。また、
+   exploration namespace marker への直接書き込みも拒否する。COMMIT/fitness を書く
+   唯一の経路は pipeline.evaluate() (phase3.md)。verifier を迂回した成果物更新を塞ぐ。
 2. **designated ソース外への Write (D23/D24):** `external/ccbench/` 内は EVOLVE-BLOCK
    ソース (source_digest.EVOLVE_BLOCK_SOURCES) だけ書き込み可。`Options.cmake` 等は
    人間 template 専有 — template 改訂は patches/ + git apply (Bash) 経由で行う。
@@ -42,18 +43,21 @@ def _repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def _protected_artifact(rp: str, camp_root: str) -> str:
+def _protected_artifact(rp: str, camp_roots: tuple[str, ...]) -> str:
     """proof-chain 成果物なら理由ラベル、そうでなければ空文字。
 
-    camp_root = realpath(<root>/output/campaigns)。rp も realpath 済みなので、output/ が
-    別ボリュームへの symlink でも両端が揃う (2026-07-04 敵対検証 write-bypass の fail-open)。"""
-    camp = camp_root + os.sep
-    if rp.startswith(camp):
-        parts = rp[len(camp):].split(os.sep)
-        if len(parts) >= 2 and parts[1] == "runs":
-            return "WAL (campaigns/*/runs/)"
-        if len(parts) == 2 and parts[1] == "campaign.lock":
-            return "campaign.lock (identity の正準 pre-image)"
+    camp_roots は official / exploration の閉じた二要素集合。rp も各 root も realpath
+    済みなので、output/ が別ボリュームへの symlink でも両端が揃う (2026-07-04
+    敵対検証 write-bypass の fail-open)。"""
+    for camp_root in camp_roots:
+        camp = camp_root + os.sep
+        if rp.startswith(camp):
+            parts = rp[len(camp):].split(os.sep)
+            if len(parts) >= 2 and parts[1] == "runs":
+                return "WAL (campaigns/*/runs/)"
+            if len(parts) == 2 and parts[1] == "campaign.lock":
+                return "campaign.lock (identity の正準 pre-image)"
+    # campaign root に依存しない leaf 条件は root loop の外に一度だけ置く。
     if os.sep + "build-variants" + os.sep in rp or rp.endswith(os.sep + "build-variants"):
         return "build-variants (ビルドキャッシュ)"
     return ""
@@ -73,15 +77,31 @@ def decide(tool_name: str, tool_input: dict, repo_root: str = "") -> tuple:
         path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
     if not path:
         return True, ""                     # パス無し = ツール側が失敗する。管轄外
-    rp = os.path.realpath(path if os.path.isabs(path) else os.path.join(root, path))
+    lexical_path = os.path.abspath(
+        path if os.path.isabs(path) else os.path.join(root, path))
+    rp = os.path.realpath(lexical_path)
 
     # 比較基盤も realpath で解決 (output/ や external/ccbench 自身が symlink でも rp と揃える)。
-    camp_root = os.path.realpath(os.path.join(root, "output", "campaigns"))
-    label = _protected_artifact(rp, camp_root)
+    camp_roots = (
+        os.path.realpath(os.path.join(root, "output", "campaigns")),
+        os.path.realpath(os.path.join(root, "output", "exploration", "campaigns")),
+    )
+    label = _protected_artifact(rp, camp_roots)
     if label:
         return False, (
             f"{label} への直接書き込みは拒否 (規律2)。COMMIT/fitness を書く唯一の"
             "経路は pipeline.evaluate()。verifier を迂回した成果物の更新は不可")
+
+    exploration_root = os.path.realpath(os.path.join(root, "output", "exploration"))
+    lexical_exploration_root = os.path.abspath(
+        os.path.join(root, "output", "exploration"))
+    if (os.path.basename(lexical_path) == "namespace.json"
+            and (lexical_path.startswith(lexical_exploration_root + os.sep)
+                 or rp.startswith(exploration_root + os.sep))):
+        return False, (
+            "output/exploration/ 配下の namespace.json への直接書き込みは"
+            "拒否。exploration 成果物を official と誤受理させないための "
+            "namespace marker は変更不可")
 
     # s8b-freeze namespace (承認 record / active pointer / revocation / 世代 file) への
     # 直接 Write/Edit を拒否する (F6a、C1-11)。これは **誤操作抑止であって認証防壁では
@@ -123,7 +143,8 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001 — hook 自身の不具合で全書き込みを止めない。
         # ただし入力に管轄トークンが見えるときだけは fails-closed に倒す。
         if any(t in raw for t in ("external/ccbench", "wal.jsonl", "campaign.lock",
-                                  "build-variants", "output/s8b-freeze")):
+                                  "build-variants", "output/s8b-freeze",
+                                  "output/exploration/", "namespace.json")):
             print(f"guard_write hook 内部エラー ({type(e).__name__}: {e}) — 管轄パスを"
                   "含むため fails-closed で拒否", file=sys.stderr)
             return 2

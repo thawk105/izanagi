@@ -61,7 +61,8 @@ from campaign.axis_trigger_gating import (_BASE, MARKER_ID, PIN,  # noqa: E402
                                           SOURCE_REL, SYNTAX_CONTRACT_FORBIDDEN,
                                           TEMPLATE_PATCH)
 from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
-from campaign.layout import CampaignLayout, campaign_layout        # noqa: E402
+from campaign.layout import (CampaignLayout,                       # noqa: E402
+                             exploration_campaign_layout)
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
@@ -395,8 +396,9 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     from campaign.patchharness import applied
     genome = Genome("silo", dict(_BASE))
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
-    elif do_build and layout.root != campaign_layout(str(ident.campaign_id(cfg))).root:
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    elif do_build and layout.root != exploration_campaign_layout(
+            str(ident.campaign_id(cfg))).root:
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
     layout.ensure()
@@ -414,7 +416,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         summary = run_campaign(
             cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log, ccbench_dir=sub,
-            cache_root=cache_root,
+            cache_root=cache_root, campaign_namespace="exploration",
         )
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
@@ -481,7 +483,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
          同 iteration が再記録される (duplicate 経路も entry を書く)
     """
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
     _write_provenance_header(layout, extra_sources=extra_sources)
     state = L.load_loop_state(layout)
@@ -601,7 +603,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   do_build=not a.no_build, cache_root=cache_root,
                                   proposal_path=os.path.abspath(a.run_iteration),
                                   extra_sources=extra_sources)
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
         print(f"  停止判定: {out['stop_reason']}")
@@ -637,7 +639,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                 do_build=not a.no_build, cache_root=cache_root)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     digest_txt = L.make_critic_digest(layout, tag=CRITIC_TAG, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, DIGEST_BASENAME)
     layout.ensure()

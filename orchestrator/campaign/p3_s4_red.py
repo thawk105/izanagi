@@ -36,7 +36,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pipeline, wal                          # noqa: E402
-from campaign.layout import campaign_layout                        # noqa: E402
+from campaign.layout import exploration_campaign_layout            # noqa: E402
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                    # noqa: E402
@@ -132,20 +132,22 @@ def main() -> int:
     print("=== 赤 1: coder 発 liveness-red (過大 backoff → trace-timeout、完全 E2E) ===")
     print(f"  期待: build → trace run が {pipeline.TRACE_TIMEOUT_S:.0f}s timeout → abort")
     with applied(os.path.join(root, RED_PATCH), PIN, sub):
-        s1 = run_campaign(cfg, [RED_G], perf, ENV_TAG, CLK, numactl=NUMA)
+        s1 = run_campaign(cfg, [RED_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          campaign_namespace="exploration")
     v1 = next((r.variant for r in s1.results), None)
 
     print("\n=== 赤 2: fixture 発 verify-red (r1_write_skew trace 注入の半実) ===")
     saved = pipeline._run_trace
     pipeline._run_trace = _fixture_run_trace
     try:
-        s2 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA)
+        s2 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          campaign_namespace="exploration")
     finally:
         pipeline._run_trace = saved
     v2 = next((r.variant for r in s2.results), None)
 
     # --- WAL 機械判定 (完了判定 (b): レコードと復元を gate にする) ---
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     r1 = wal.records_by_stage(layout, v1) if v1 else {}
     r2 = wal.records_by_stage(layout, v2) if v2 else {}
     livs, other = load_liveness_rejections(layout)

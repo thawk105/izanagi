@@ -19,6 +19,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
+from .claude_transport import ClaudeTransportAdmission
 from .s8b_prediction_runner import (
     CLAUDE_ENV_ALLOWLIST,
     CLAUDE_TIMEOUT_S,
@@ -103,9 +104,24 @@ class ClaudeProjectedRoleProvider:
         executable: str | os.PathLike[str] = "claude",
         runner: Callable[..., Any] = subprocess.run,
         environ: Mapping[str, str] | None = None,
+        allow_pegasus_compute_transport: bool = False,
+        transport_admission: ClaudeTransportAdmission | None = None,
     ) -> None:
         if not isinstance(mediated_contract, str) or not mediated_contract.strip():
             raise PredictionRunnerError("mediated contract は空でない文字列必須")
+        if type(allow_pegasus_compute_transport) is not bool:
+            raise PredictionRunnerError(
+                "allow_pegasus_compute_transport は bool 必須"
+            )
+        if allow_pegasus_compute_transport:
+            if not isinstance(transport_admission, ClaudeTransportAdmission):
+                raise PredictionRunnerError(
+                    "transport opt-in には run-level admission が必要"
+                )
+        elif transport_admission is not None:
+            raise PredictionRunnerError(
+                "transport opt-out に admission を渡してはならない"
+            )
         self.artifact_root = Path(artifact_root)
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.artifact_root = self.artifact_root.resolve(strict=True)
@@ -167,6 +183,21 @@ class ClaudeProjectedRoleProvider:
             }
             if "HOME" not in self.env:
                 raise PredictionRunnerError("claude 認証に必要な HOME が allowlist env にない")
+            self.transport_receipt = None
+            if allow_pegasus_compute_transport:
+                assert transport_admission is not None
+                transport_env = transport_admission.env_dict()
+                receipt = transport_admission.receipt
+                if any(
+                    type(source_env.get(key)) is not str
+                    or source_env.get(key) != value
+                    for key, value in transport_env.items()
+                ) or source_env.get("PBS_JOBID") != receipt.pbs_jobid:
+                    raise PredictionRunnerError(
+                        "run-level transport admission と provider env が一致しない"
+                    )
+                self.env.update(transport_env)
+                self.transport_receipt = receipt
             self._runner = runner
             self.argv = [
                 self.executable,
@@ -294,25 +325,28 @@ class ClaudeProjectedRoleProvider:
                 raise PredictionRunnerError("server tool use を観測したため拒否")
 
         self._observed_session_ids.add(session_id)
+        provenance = {
+            "child_id": session_id,
+            "role_name": self.role_name,
+            "role_file": self.role_file,
+            "role_file_sha256": self.role_file_sha256,
+            "effective_prompt_sha256": self.effective_prompt_sha256,
+            "model": opus_slugs[0],
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "fresh_context": True,
+            "source_declared_tools": list(self.source_declared_tools),
+            "declared_tools": [],
+            "capability_lowering": "projection-only-tools-empty",
+            "observed_tool_events": [],
+            "payload_sha256": hashlib.sha256(payload_bytes).hexdigest(),
+            "envelope_sha256": envelope_sha256,
+            "claude_executable_path": self.executable,
+            "claude_executable_sha256": self.executable_sha256,
+        }
+        if self.transport_receipt is not None:
+            provenance["transport_receipt"] = self.transport_receipt.as_dict()
         return ProviderResponse(
             raw_response=result,
-            provenance={
-                "child_id": session_id,
-                "role_name": self.role_name,
-                "role_file": self.role_file,
-                "role_file_sha256": self.role_file_sha256,
-                "effective_prompt_sha256": self.effective_prompt_sha256,
-                "model": opus_slugs[0],
-                "started_at": started_at,
-                "finished_at": finished_at,
-                "fresh_context": True,
-                "source_declared_tools": list(self.source_declared_tools),
-                "declared_tools": [],
-                "capability_lowering": "projection-only-tools-empty",
-                "observed_tool_events": [],
-                "payload_sha256": hashlib.sha256(payload_bytes).hexdigest(),
-                "envelope_sha256": envelope_sha256,
-                "claude_executable_path": self.executable,
-                "claude_executable_sha256": self.executable_sha256,
-            },
+            provenance=provenance,
         )

@@ -1,0 +1,26 @@
+=== node ===
+bnode009
+2026-08-01T20:57:12+09:00
+=== proxy/CA related env key names (values shown for proxy only) ===
+http_proxy=http://10.120.96.1:8080
+https_proxy=http://10.120.96.1:8080
+--- CA / TLS override keys (names only) ---
+--- (empty above means unset) ---
+=== uppercase variants explicitly ===
+HTTP_PROXY=<unset>
+HTTPS_PROXY=<unset>
+NO_PROXY=<unset>
+ALL_PROXY=<unset>
+FTP_PROXY=<unset>
+=== claude executable ===
+/home/SFC/tanab/.local/bin/claude
+=== A: allowlist(5) + lowercase proxy 2 ===
+A rc=0
+{"is_error":false,"duration_api_ms":2628,"num_turns":1,"stop_reason":"end_turn","session_id":"32849cd2-7ef5-4280-915f-9537f1454bc2","total_cost_usd":0.045690999999999996,"usage":{"input_tokens":2,"cache_creation_input_tokens":3764,"cache_read_input_tokens":14650,"output_tokens":4,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":3764,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":2,"output_tokens":4,"cache_read_input_tokens":14650,"cache_creation_input_tokens":
+--- a.err (head) ---
+=== B: allowlist(5) only (expect failure) ===
+B rc=1
+{"is_error":true,"duration_api_ms":0,"num_turns":1,"stop_reason":"stop_sequence","session_id":"02f3684d-c496-4601-86c8-60ad46c2c64d","total_cost_usd":0,"usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":0,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":0},"inference_geo":"","iterations":[],"speed":"standard"},"modelUsage":{},"permission_denials":[],"terminal_reason":"api_error","fast_mode_state":"off","fast_mode_disabled_rea
+--- b.err (head) ---
+=== done ===
+2026-08-01T21:00:26+09:00
