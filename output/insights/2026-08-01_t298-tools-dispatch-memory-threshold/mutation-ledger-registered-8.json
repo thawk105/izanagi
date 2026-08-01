@@ -1,0 +1,112 @@
+{
+  "baseline_rc": 0,
+  "post_rc": 0,
+  "killed": 8,
+  "total": 8,
+  "results": [
+    {
+      "id": "M-1",
+      "file": "docs/pegasus-runbook.md",
+      "expect": "drift: 表側に無い task",
+      "reason": "表を読む検査は他に無い",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": true,
+      "readme_finding": false,
+      "restored": true,
+      "finding": "  - tools/check_docs.py: dispatch inventory drift — {task: child_script} が不一致 — TASKS_only=['provenance'], runbook_only=[], child_script={}"
+    },
+    {
+      "id": "M-2",
+      "file": "tools/pegasus/dispatch_compute.py",
+      "expect": "drift: TASKS 側にしか無い task",
+      "reason": "CLI choices は docs を見ない",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": true,
+      "readme_finding": false,
+      "restored": true,
+      "finding": "  - tools/check_docs.py: dispatch inventory drift — {task: child_script} が不一致 — TASKS_only=['bogus'], runbook_only=[], child_script={}"
+    },
+    {
+      "id": "M-3",
+      "file": "docs/pegasus-runbook.md",
+      "expect": "drift: child_script 不一致",
+      "reason": "写像比較の証拠 (集合一致では通る)",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": true,
+      "readme_finding": false,
+      "restored": true,
+      "finding": "  - tools/check_docs.py: dispatch inventory drift — {task: child_script} が不一致 — TASKS_only=[], runbook_only=[], child_script={'tests': {'runbook': 'tools/run_tests_moved.py', 'TASKS': 'tools/run_tests.py'}}"
+    },
+    {
+      "id": "M-4",
+      "file": "docs/pegasus-runbook.md",
+      "expect": "節不在を黙って skip しない",
+      "reason": "F9 恒真ゲート再発防止",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": true,
+      "readme_finding": false,
+      "restored": true,
+      "finding": "  - tools/check_docs.py: dispatch inventory drift — docs/pegasus-runbook.md の `### 7.0` 節が 0 件"
+    },
+    {
+      "id": "M-5",
+      "file": "tools/README.md",
+      "expect": "LIVING_DOCS 不在検査",
+      "reason": "列挙対象の不在は違反",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": false,
+      "readme_finding": true,
+      "restored": true,
+      "finding": "  - AGENTS.md:41: 実在しないパス参照: 'tools/README.md'"
+    },
+    {
+      "id": "M-6",
+      "file": "tools/README.md",
+      "expect": "byte 予算超過",
+      "reason": "TextLimit 登録の証拠",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": false,
+      "readme_finding": true,
+      "restored": true,
+      "finding": "  - tools/README.md: 6830 bytes > 予算 3000 bytes — 安全義務を削らず既存 reference へ統合する。予算増加は独立審査にする"
+    },
+    {
+      "id": "M-7",
+      "file": "tools/pegasus/dispatch_compute.py",
+      "expect": "定義後の TASKS 書き込みを拒否",
+      "reason": "所見 1 (blocker) の証拠",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": true,
+      "readme_finding": false,
+      "restored": true,
+      "finding": "  - tools/check_docs.py: dispatch inventory drift — tools/pegasus/dispatch_compute.py の TASKS 写像を静的に確定できない — ['line 75: TASKS.update() による変更']"
+    },
+    {
+      "id": "M-8",
+      "file": "docs/pegasus-runbook.md",
+      "expect": "親節 ## 7 の検証",
+      "reason": "所見 2 (major) の証拠",
+      "injected": true,
+      "rc": 1,
+      "killed": true,
+      "drift_finding": true,
+      "readme_finding": false,
+      "restored": true,
+      "finding": "  - tools/check_docs.py: dispatch inventory drift — docs/pegasus-runbook.md の `### 7.0` 節が 0 件"
+    }
+  ]
+}
