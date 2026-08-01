@@ -133,6 +133,24 @@ headline 性能や有意差を主張しない。
 supervisor report はその campaign id/root を指す。`report.json` は run-finish まで含む
 `attempts.jsonl` の SHA-256 を持つ。
 
+**完全性検査 (T-295):** `report.json` は
+`orchestrator/campaign/autonomous_trial_completeness.py` の検査を通らなければ書かれない。
+journal の role attempt と report 本体の一次配置が完全一致しない、異常終了した cell の
+generation が消える、未知の event 種別が入る、空 cell だけで `status=complete` を名乗る、
+`run-start` と report の trial 同一性が食い違う、のいずれも fails-closed である。
+事後の独立再検査と campaign 層 (persisted 層3 レポート ↔ fresh rebuild の深い一致) は
+同 module の CLI で行う。
+
+```bash
+python3 -m orchestrator.campaign.autonomous_trial_completeness \
+  <run-root>/attempts.jsonl <run-root>/report.json \
+  [--campaign-output-root output]
+```
+
+この検査が塞ぐ範囲と**塞がない範囲** (どの trial を台帳へ入れるかの選択、
+proposal / raw / envelope / build 成果物の bytes、層3 の任意実行) は
+`docs/phase3-8c-preregistration.md` §7 が正本である。
+
 `dry-pass` は「合成候補が diff quarantine / syntax / auditor gate を通り、build 手前まで配線された」
 だけを意味する。correctness、性能、workload specialization の証拠ではない。
 

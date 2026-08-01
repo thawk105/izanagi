@@ -39,6 +39,9 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
         sys.path.insert(0, str(_ROOT_FOR_IMPORT))
     from orchestrator.campaign import p3_s4_loop as loop_core
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
+    from orchestrator.campaign.autonomous_trial_completeness import (
+        assert_autonomous_trial_completeness,
+    )
     from orchestrator.campaign.auditor_gate import AuditorVerdict, parse_auditor_dict
     from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
     from orchestrator.campaign.layout import CampaignLayout, campaign_layout
@@ -62,6 +65,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 else:
     from . import p3_s4_loop as loop_core
     from . import p3_s4_loop_trigger_gating as trigger
+    from .autonomous_trial_completeness import assert_autonomous_trial_completeness
     from .auditor_gate import AuditorVerdict, parse_auditor_dict
     from .claude_projected_provider import ClaudeProjectedRoleProvider
     from .layout import CampaignLayout, campaign_layout
@@ -85,11 +89,19 @@ else:
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_VERSION = "p3-autonomous-workload-trial/v1"
-REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v1"
+SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
+REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
 MAX_GENERATIONS = 10
 MAX_APPROVED_GENERATIONS = 1
 DEFAULT_MAX_WALL_S = 3600
+PROVIDER_KINDS = frozenset(("fixture", "claude-headless"))
+DRIVER_STOP_REASONS = frozenset((
+    "continue",
+    "converged",
+    "reverse-exhausted",
+    "budget-iterations",
+    "budget-walltime",
+))
 _TRIAL_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
 
 WORKLOADS: dict[str, dict[str, str]] = {
@@ -399,8 +411,13 @@ class AttemptJournal:
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
         self.seq = 0
+        self.failed = False
 
     def append(self, event: Mapping[str, Any]) -> dict[str, Any]:
+        if self.failed:
+            raise AutonomousTrialError(
+                "attempt journal の過去の append 失敗後は追記・report 公開を継続できない"
+            )
         stored = dict(event)
         self.seq += 1
         stored["seq"] = self.seq
@@ -409,17 +426,24 @@ class AttemptJournal:
         flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
         if hasattr(os, "O_NOFOLLOW"):
             flags |= os.O_NOFOLLOW
-        fd = os.open(self.path, flags, 0o600)
         try:
-            view = memoryview(payload)
-            while view:
-                written = os.write(fd, view)
-                if written <= 0:
-                    raise OSError("journal write did not advance")
-                view = view[written:]
-            os.fsync(fd)
-        finally:
-            os.close(fd)
+            fd = os.open(self.path, flags, 0o600)
+            try:
+                view = memoryview(payload)
+                while view:
+                    written = os.write(fd, view)
+                    if written <= 0:
+                        raise OSError("journal write did not advance")
+                    view = view[written:]
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        except BaseException:
+            # A failed append can leave a missing or partial event on disk.  Never
+            # append a terminal event after that failure and thereby publish a
+            # smaller attempt universe as a valid partial report.
+            self.failed = True
+            raise
         return stored
 
 
@@ -598,6 +622,32 @@ def _invoke(
     return parsed, event
 
 
+def _journal_auditor_skip(
+    *, invocation_id: str, common: Mapping[str, Any],
+    preview_result: Mapping[str, Any], journal: AttemptJournal,
+    workload: str, generation: int,
+) -> dict[str, Any]:
+    evidence = {
+        key: value for key, value in preview_result.items()
+        if key != "working_diff"
+    }
+    skip_payload = {**common, "pre_audit": evidence}
+    return journal.append({
+        "event": "role-attempt",
+        "workload": workload,
+        "generation": generation,
+        "role": "auditor",
+        "invocation_id": invocation_id,
+        "input_payload_sha256": _sha256(_canonical_json_bytes(skip_payload)),
+        "descriptor_sha256": common["descriptor_binding"]["output_sha256"],
+        "attempt": 1,
+        "retry": False,
+        "status": "skipped",
+        "skip_reason": "machine-pre-audit-rejection",
+        "pre_audit": evidence,
+    })
+
+
 def _common_payload(
     *, workload: str, generation: int, descriptor: Mapping[str, Any],
     descriptor_record: Mapping[str, Any],
@@ -677,6 +727,7 @@ def _finish_trial(
                 }
                 journal.append({"event": "supervisor-wall-budget", "workload": workload})
                 break
+            partial: dict[str, Any] = {}
             try:
                 cell = _run_workload(
                     workload=workload,
@@ -692,6 +743,7 @@ def _finish_trial(
                     max_wall_s=max_wall_s,
                     drive=drive,
                     preview=preview,
+                    _partial=partial,
                 )
             except Exception as exc:
                 fatal_error = {"type": type(exc).__name__, "message": str(exc)}
@@ -700,12 +752,27 @@ def _finish_trial(
                     "workload": workload,
                     **fatal_error,
                 })
-                cells.append({
-                    "workload": workload,
-                    "generations": [],
-                    "stop_reason": "supervisor-error",
-                    "error": dict(fatal_error),
-                })
+                partial_cell = partial.get("cell")
+                if isinstance(partial_cell, dict):
+                    current_generation = partial.get("generation")
+                    cell_generations = partial_cell.get("generations")
+                    if (
+                        isinstance(current_generation, dict)
+                        and isinstance(cell_generations, list)
+                        and not any(item is current_generation for item in cell_generations)
+                    ):
+                        cell_generations.append(current_generation)
+                    cell = partial_cell
+                    cell["stop_reason"] = "supervisor-error"
+                    cell["error"] = dict(fatal_error)
+                else:
+                    cell = {
+                        "workload": workload,
+                        "generations": [],
+                        "stop_reason": "supervisor-error",
+                        "error": dict(fatal_error),
+                    }
+                cells.append(cell)
                 break
             cells.append(cell)
     status = (
@@ -754,6 +821,16 @@ def _finish_trial(
         "report": str(run_root / "report.json"),
     })
     report["attempt_journal_sha256"] = _sha256((run_root / "attempts.jsonl").read_bytes())
+    assert_autonomous_trial_completeness(
+        report=report,
+        attempt_journal=run_root / "attempts.jsonl",
+    )
+    if _sha256((run_root / "attempts.jsonl").read_bytes()) != report[
+        "attempt_journal_sha256"
+    ]:
+        raise AutonomousTrialError(
+            "completeness 検査後に attempt journal bytes が変化した"
+        )
     _write_json_atomic(run_root / "report.json", report)
     return report
 
@@ -764,6 +841,7 @@ def _run_workload(
     cache_root: str, trial_id: str, started_monotonic: float, max_wall_s: int,
     drive: Callable[..., Mapping[str, Any]] = trigger.drive_iteration,
     preview: Callable[..., Mapping[str, Any]] = _preview,
+    _partial: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     _validate_generation_budget(generations)
     flags = WORKLOADS[workload]
@@ -780,8 +858,6 @@ def _run_workload(
         layout = campaign_layout(str(trigger.ident.campaign_id(cfg)))
     else:
         layout = CampaignLayout(str(run_root / "campaigns" / str(trigger.ident.campaign_id(cfg))))
-    _assert_fresh_campaign_state(layout)
-    perf = _perf_for(flags)
     result: dict[str, Any] = {
         "workload": workload,
         "workload_flags": dict(flags),
@@ -792,6 +868,10 @@ def _run_workload(
         "generations": [],
         "stop_reason": "fixed-generation-budget",
     }
+    if _partial is not None:
+        _partial["cell"] = result
+    _assert_fresh_campaign_state(layout)
+    perf = _perf_for(flags)
     prior_reverse: bool | None = None
     current_metrics = {
         "throughput_ops_sec": None,
@@ -806,6 +886,8 @@ def _run_workload(
             result["stop_reason"] = "supervisor-wall-budget"
             break
         generation_record: dict[str, Any] = {"generation": generation, "roles": {}}
+        if _partial is not None:
+            _partial["generation"] = generation_record
         common = _common_payload(
             workload=workload,
             generation=generation,
@@ -837,6 +919,8 @@ def _run_workload(
         if planner is None:
             generation_record["outcome"] = "planner-invalid"
             result["generations"].append(generation_record)
+            if _partial is not None:
+                _partial["generation"] = None
             result["stop_reason"] = "role-invalid"
             break
 
@@ -872,6 +956,8 @@ def _run_workload(
         if coder is None:
             generation_record["outcome"] = "coder-invalid"
             result["generations"].append(generation_record)
+            if _partial is not None:
+                _partial["generation"] = None
             result["stop_reason"] = "role-invalid"
             break
 
@@ -889,10 +975,15 @@ def _run_workload(
                 diff_digest=preview_result["diff_digest"],
                 uncertainty="not invoked: machine pre-audit rejection",
             )
-            generation_record["roles"]["auditor"] = {
-                "status": "skipped",
-                "reason": "machine-pre-audit-rejection",
-            }
+            event = _journal_auditor_skip(
+                invocation_id=f"{workload}.g{generation}.auditor",
+                common=common,
+                preview_result=preview_result,
+                journal=journal,
+                workload=workload,
+                generation=generation,
+            )
+            generation_record["roles"]["auditor"] = event
         else:
             auditor_payload = {
                 **common,
@@ -917,6 +1008,8 @@ def _run_workload(
             if auditor is None:
                 generation_record["outcome"] = "auditor-invalid"
                 result["generations"].append(generation_record)
+                if _partial is not None:
+                    _partial["generation"] = None
                 result["stop_reason"] = "role-invalid"
                 break
 
@@ -948,6 +1041,19 @@ def _run_workload(
                 },),
             )
         )
+        required_harness = {"outcome", "variant", "stop_reason", "iteration", "ran"}
+        missing_harness = sorted(required_harness - set(outcome))
+        if missing_harness:
+            raise AutonomousTrialError(
+                f"harness output に必須 field がない: {missing_harness}"
+            )
+        if (
+            not isinstance(outcome["stop_reason"], str)
+            or outcome["stop_reason"] not in DRIVER_STOP_REASONS
+        ):
+            raise AutonomousTrialError(
+                f"harness output の stop_reason が未知: {outcome['stop_reason']!r}"
+            )
         generation_record["harness"] = outcome
         generation_record["outcome"] = outcome["outcome"]
         current_metrics = _metric_projection(outcome)
@@ -977,6 +1083,8 @@ def _run_workload(
         )
         generation_record["roles"]["critic"] = event
         result["generations"].append(generation_record)
+        if _partial is not None:
+            _partial["generation"] = None
         if critic is None:
             result["stop_reason"] = "role-invalid"
             break
@@ -1005,6 +1113,8 @@ def run_trial(
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
+    if not isinstance(provider_kind, str) or provider_kind not in PROVIDER_KINDS:
+        raise AutonomousTrialError(f"unknown provider kind: {provider_kind}")
     _validate_generation_budget(generations)
     if isinstance(max_wall_s, bool) or not isinstance(max_wall_s, int) or max_wall_s < 1:
         raise AutonomousTrialError("max_wall_s は正の int 必須")
@@ -1093,7 +1203,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--trial-id", required=True)
     parser.add_argument(
-        "--provider", required=True, choices=("fixture", "claude-headless")
+        "--provider", required=True, choices=tuple(sorted(PROVIDER_KINDS))
     )
     parser.add_argument("--workloads", type=_parse_workloads, default=list(WORKLOADS))
     parser.add_argument("--max-generations", type=int, default=1)
