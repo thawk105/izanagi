@@ -1245,6 +1245,12 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   formal consumer gate 等はいずれも未設計・未実装)
 - **実装はゼロ**なので `DW-S04` に従い**変異 matrix は対象外**である。受入は docs 検査 (`check_docs`
   緑) と pytest 全走のみ。記録後検査 (F34) = `check_docs` 緑、provenance 監査は違反なし
+- **受入を自分で汚染した。** 記録 commit 後の全走 (request `877412`) が 8 件赤になったが、内訳は
+  `test_s8b_floor_campaign` の「`output/` に副作用なし」検査で、差分は
+  `output/pegasus-dispatch/receipt-*` と `output/task-runs/*` — **同時に投げた provenance 監査の
+  dispatch が書いた受領書**だった。`DW-O18` に従い単独再走したところ request `877430` で
+  **4916 passed / 19 skipped / rc=0**。差分への帰属は成立せず、自己干渉によるフレークと確定した。
+  **計測でなくテストでも、並行 dispatch は `output/` を共有するため単独で走らせる**
 - 段 8 の自己改善: F77 を新設し `DW-O09` へ「docs のみの wave でも成立する」を追記した。
   予算は引き上げず、同節の重複表現を意味等価に畳んで確保した (`docs/dev-wave/**` = 23913 / 24000)
 - エージェント工数: 親 1、子 5 (plan 1 / 敵対相談 2 / 敵対レビュー 2) + 焦点再レビュー 1。
