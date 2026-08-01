@@ -87,6 +87,11 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
 
 ### 3.3 build / verify / bench を含む探索
 
+**現在の Pegasus 運用では 3.3 をそのまま実行できない。** login node での build / bench は
+`docs/pegasus-runbook.md` が禁じており、campaign の計算ノード dispatch 経路は未実装である
+([T-276] / [T-277] の裁定済み項目待ち)。本節は経路が開いたときの手順であり、
+**現時点で login node で強行してはならない**。
+
 ```bash
 python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
   --trial-id live-abc-g1 \
@@ -98,8 +103,8 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
 
 **`--max-generations` は 2 以上にできない** ([T-207] / D106 残余 1 / D114)。世代を跨ぐと
 前 iteration の critic 出力が次世代の生成へ効くが、その還流は `reverse_recommended` の
-boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。設計が裁定されるまで
-1 generation/cell に限る。**D114 でこれは機械 gate になった** — 承認上限
+boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。**D121 が設計 draft を起草したが
+設計は未確定・機構は未実装**なので、引き続き 1 generation/cell に限る。**D114 でこれは機械 gate になった** — 承認上限
 `MAX_APPROVED_GENERATIONS = 1` を超える値は CLI・`run_trial()`・`_run_workload()` の 3 入口で
 `AutonomousTrialError` になる。既定値も `1` である。ただし `drive` / `providers` / `preview` の
 注入経路と driver の直接反復は保証対象外である (D114「保証の限界」)。
@@ -111,8 +116,9 @@ CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline �
 interleave を必須とするため、`numactl` のない login host で空 command に差し替えて走らせない。
 
 最初の実計測は 1 generation/cell で correctness と measurement wiring を確認する。
-2 generations 以上へ増やせるのは D106 残余 1 が裁定され、D114 の承認上限定数と境界テストを
-同じ変更単位で更新してからである (それまでは機械的に拒否される)。
+2 generations 以上へ増やせるのは、D121 が列挙した多世代開放の前提条件 10 件を満たし、D96 手続を
+経て、D114 の承認上限定数と境界テストを同じ変更単位で更新してからである (それまでは機械的に
+拒否される)。**前提条件は現時点で 1 件も満たされていない。**
 A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
 headline 性能や有意差を主張しない。
 
@@ -147,9 +153,11 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   proposal/performance の arm 差と全件報告が必要
 - supervisor crash 後の in-place resume、axis-proposer による新軸 onboarding、Codex runtime
   provider、複数軸 population は MVP 範囲外
-- **`--run-root` を変えても campaign 状態は同一である。** fresh 検査の対象は外側 `run_root` だけで、
-  build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら別の `--run-root`
-  でも同一 campaign root になる。**D114 以降、その旧 `loop_state.json` は planner 前に読まれるのでなく
+- **`--run-root` を変えても campaign 状態は同一である (build 経路)。** fresh 検査の対象は外側
+  `run_root` だけで、build 側の campaign root は cfg の内容 hash から決まる。同じ workload/config なら
+  別の `--run-root` でも同一 campaign root になる。**ただし `--no-build` は
+  `run_root/campaigns/<id>` を使うため、別 `--run-root` なら別 state になる。**
+  **D114 以降、その旧 `loop_state.json` は planner 前に読まれるのでなく
   拒否される** — 既存 checkpoint を持つ layout の invocation は最初の provider 呼び出し前に
   `AutonomousTrialError` になる。crash 後の再開は `--run-root` の変更でなく**新しい trial id** で行う
   (trial は campaign ID の preimage に入るため、新 ID なら新 campaign になる)。壊れた checkpoint も
@@ -168,14 +176,19 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   `fresh_context` / `observed_tool_events` の周辺には `num_turns`・session-id・permission denial・
   server-tool counter の部分検査が実在する)。これらの field を保証の証拠に使わない
 - **規律 3 の還流が human-supervised loop より狭い。** 次世代の planner/coder が受けるのは
-  抽象 whiteboard (direction/magnitude/result/delta_pct) までで、critic の
-  attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれる。
-  「なぜ壊れたか」は次の生成入力に入らない。**この設計が裁定されるまで
-  `--max-generations >= 2` で走らせない** (D106 残余 1)。正式系列 (H1/H2) は同一 generation budget を
-  要求するのでこの条件で自動的に禁止側へ入る。**D114 でこれは機械 gate になった** (3 入口 +
+  抽象 whiteboard (direction/magnitude/result/delta_pct) と、**前世代の結果から更新した
+  `current_metrics` (絶対 throughput を含む。planner は `current_perf`、coder は `baseline`、D118)** で、
+  critic の attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれ、
+  それは次世代 payload でなく driver の停止カウンタへ行く。
+  「なぜ壊れたか」は次の生成入力に入らない。**前提条件が満たされるまで
+  `--max-generations >= 2` で走らせない** (D106 残余 1 / D121)。正式系列 (H1/H2) は同一 generation
+  budget を要求するのでこの条件で自動的に禁止側へ入る。**D114 でこれは機械 gate になった** (3 入口 +
   campaign freshness)。ただし機械化したのは「generation 予算」と「campaign state の freshness」の
-  2 つだけで、**T-244 本体 = 還流設計は未解決のまま**である。1 generation/cell を許可する根拠も
-  「fresh campaign の単一 invocation なら還流が起きない」であって、無条件ではない
+  2 つだけである。**D121 は設計 draft と前提条件 10 件を起草したが、設計は未確定 (択一 7 件)、
+  機構は未実装、前提条件は 1 件も満たされていない** (`output/insights/2026-08-01_t244-reflux-design/`)。
+  1 generation/cell を許可する根拠も「fresh campaign の単一 invocation なら還流が起きない」であって、
+  無条件ではない。
+
 - auditor の mediated schema は **要素 field まで閉じていない**。consumer は要素が `dict` で
   あることしか検査せず、`{}`・未知キー・非文字列 field を含む要素が通る。
   「schema を object 配列へ明確化した」の射程はここまでである

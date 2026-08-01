@@ -36,3 +36,6 @@ worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「�
   **pytest はログインノードで一切走らせない (単一ファイル・単一 nodeid も含む)**。
   テスト実測は親が `tools/run_tests.py` 経由で計算ノードへ dispatch する。
   走らせていないものを緑と報告しない。
+  **上の列挙は閉じた一覧ではない — 判定は場所でなく量で行う。** 同時に生きる全子孫を含む cgroup
+  charged memory のピークが規範値以上、または未計測・入力依存で分からないなら、
+  ログインノードで走らせない。基準と分類は `tools/README.md` と `docs/pegasus-runbook.md` §7.0。
