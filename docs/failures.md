@@ -1214,3 +1214,21 @@
 - 再発検知: `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が before/after 差分として検出する
   (本件はこの検査が正しく発火した結果である)。差分が到達しえないファイルで出た赤は `DW-O18` に従い
   単独再走で再現性を実測してから帰属する — 本件も再走で偽赤と確定した
+
+### F63. cleanup-branches が要求する submodule 実体化検査に、guard_bash を通る書き方が無かった [手順漏れ]
+- 事象: `/cleanup-branches` 実行中、F26 の risk 判定 (どの worktree で `external/ccbench` が
+  実体化しているか) を worktree ごとに数える shell を 2 度書き、2 度とも `guard_bash` が
+  「末端/防護ツリーのパスと不透明構文の同居は分類不能 = fails-closed」で拒否した。
+  拒否されたのは書き込みでなく**読み取り専用の `ls -A ... | wc -l` 集計**である
+- 根本原因: guard_bash は防護パスのトークン (`external/ccbench` 等) と不透明構文 (`$()` 等) が
+  **同一コマンドに同居**した時点で分類を諦めて拒否する。一方 cleanup-branches §1/§3 は
+  worktree ごとの submodule 状態を見ることを求めており、その自然な shell 慣用は
+  「防護パスを含むループ + `$()` での結果埋め込み」になる。**防壁は設計どおり働いたが、
+  スキルが求める検査に対して通る書き方がどこにも書かれていなかった**
+- 恒久対応: 防護パスを含む読み取り集計では `$()` を使わない。`find <root> -maxdepth 3
+  -path '*/external/ccbench' -type d -printf '%p ' -exec sh -c 'ls -A "$1" | wc -l' _ {} \;`
+  のように **`-exec` へ渡して置換を挟まない形**にすると同居しないため通る。
+  `git submodule status` 単体 (§4 の事後検査) は防護パスをコマンド行に書かないため元から通る
+- 再発検知: guard_bash の拒否メッセージ自体が検知である (fail-closed で黙って通らない)。
+  入口 `.claude/commands/cleanup-branches.md` §3 へのポインタ追記は byte 上限
+  4000 に対し実測 headroom 41 で入らず、同ファイルの編集を既に所有する [T-208] へ合流させた
