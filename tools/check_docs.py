@@ -18,6 +18,7 @@ import re
 import stat
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -163,10 +164,13 @@ COMMAND_LIMITS = {
     ".claude/commands/rulings.md": TextLimit(4_500, 180),
 }
 REFERENCE_LIMITS = {
-    "docs/dev-wave/core.md": TextLimit(9_000),
-    "docs/dev-wave/workers.md": TextLimit(5_000),
-    "docs/dev-wave/mutation.md": TextLimit(3_750),
-    "docs/dev-wave/operations.md": TextLimit(8_000),
+    # 2026-08-01 実測 bytes を 250 単位で切り上げ、作業 headroom 250 bytes を足す。
+    # core: 8,198 -> 8,250 -> 8,500; workers: 4,372 -> 4,500 -> 4,750。
+    "docs/dev-wave/core.md": TextLimit(8_500),
+    "docs/dev-wave/workers.md": TextLimit(4_750),
+    # mutation: 3,563 -> 3,750 -> 4,000; operations: 7,839 -> 8,000 -> 8,250。
+    "docs/dev-wave/mutation.md": TextLimit(4_000),
+    "docs/dev-wave/operations.md": TextLimit(8_250),
 }
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
@@ -235,6 +239,10 @@ CODEX_DEV_WAVE_SKILL_LIMITS = {
     ".agents/skills/dev-wave/agents/openai.yaml": TextLimit(500, 160),
 }
 DEV_WAVE_AGGREGATE_BYTES = 24_000
+# 個別 cap は各 reference の「形」を守り、実 byte 合計の ceiling が実効 gate になる。
+# cap 総和が ceiling を大きく超えると個別 gate が事実上無効になるため、作業余裕を
+# 10% だけ許す 1.10 倍を構成上限とする。
+DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT = 110
 CODEX_DEV_WAVE_SKILL_FILES = frozenset(CODEX_DEV_WAVE_SKILL_LIMITS)
 CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
@@ -1898,10 +1906,35 @@ def _check_codex_skill_guard(
         )
 
 
+def _check_dev_wave_reference_cap_sum(
+    findings: list[str],
+    reference_limits: Mapping[str, TextLimit],
+    aggregate_bytes: int,
+) -> None:
+    cap_sum = sum(limit.max_bytes for limit in reference_limits.values())
+    if (
+        cap_sum * 100
+        > aggregate_bytes * DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT
+    ):
+        max_cap_sum = (
+            aggregate_bytes * DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT // 100
+        )
+        findings.append(
+            "docs/dev-wave/**: 個別 cap 総和 "
+            f"{cap_sum} bytes > aggregate ceiling {aggregate_bytes} bytes の "
+            f"1.10 倍 ({max_cap_sum} bytes)"
+        )
+
+
 def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     """command/reference の閉包・予算・interface・dispatch を fail-closed 検査する。"""
 
     unreadable: set[Path] = set()
+    _check_dev_wave_reference_cap_sum(
+        findings,
+        REFERENCE_LIMITS,
+        DEV_WAVE_AGGREGATE_BYTES,
+    )
     command_dir = REPO / ".claude" / "commands"
     if command_dir.is_symlink():
         findings.append(

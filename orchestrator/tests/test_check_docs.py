@@ -629,6 +629,97 @@ def test_synthetic_repo_baseline_clean():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_reference_limits_pin_derived_caps():
+    assert check_docs.REFERENCE_LIMITS == {
+        "docs/dev-wave/core.md": check_docs.TextLimit(8_500),
+        "docs/dev-wave/workers.md": check_docs.TextLimit(4_750),
+        "docs/dev-wave/mutation.md": check_docs.TextLimit(4_000),
+        "docs/dev-wave/operations.md": check_docs.TextLimit(8_250),
+    }
+
+
+def test_dev_wave_reference_budget_pins_cap_sum():
+    assert sum(
+        limit.max_bytes for limit in check_docs.REFERENCE_LIMITS.values()
+    ) == 25_500
+
+
+def test_dev_wave_reference_budget_pins_aggregate_ceiling():
+    assert check_docs.DEV_WAVE_AGGREGATE_BYTES == 24_000
+    assert check_docs.DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT == 110
+
+
+def test_dev_wave_reference_cap_sum_rejects_above_110_percent():
+    root = _build_min_repo()
+    try:
+        rel = "tools/check_docs.py"
+        original = '"docs/dev-wave/core.md": TextLimit(8_500),'
+        replacement = '"docs/dev-wave/core.md": TextLimit(9_401),'
+        source = _read(root, rel)
+        assert source.count(original) == 1
+        _write(root, rel, source.replace(original, replacement, 1))
+
+        _assert_findings(
+            root,
+            "docs/dev-wave/**: 個別 cap 総和 26401 bytes > aggregate ceiling "
+            "24000 bytes の 1.10 倍 (26400 bytes)",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reference_cap_sum_accepts_exactly_110_percent():
+    root = _build_min_repo()
+    try:
+        rel = "tools/check_docs.py"
+        original = '"docs/dev-wave/core.md": TextLimit(8_500),'
+        replacement = '"docs/dev-wave/core.md": TextLimit(9_400),'
+        source = _read(root, rel)
+        assert source.count(original) == 1
+        _write(root, rel, source.replace(original, replacement, 1))
+
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+_DEV_WAVE_REFERENCE_MEMBER_LIMITS = (
+    ("docs/dev-wave/core.md", 8_500),
+    ("docs/dev-wave/workers.md", 4_750),
+    ("docs/dev-wave/mutation.md", 4_000),
+    ("docs/dev-wave/operations.md", 8_250),
+)
+
+
+@pytest.mark.parametrize(("rel", "limit"), _DEV_WAVE_REFERENCE_MEMBER_LIMITS)
+def test_dev_wave_reference_limit_accepts_exact_boundary(rel, limit):
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, rel, limit)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(("rel", "limit"), _DEV_WAVE_REFERENCE_MEMBER_LIMITS)
+def test_dev_wave_reference_limit_rejects_plus_one(rel, limit):
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, rel, limit + 1)
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1
+        assert (
+            f"{rel}: {limit + 1} bytes > 予算 {limit} bytes" in res.stdout
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_provenance_family_contract_pins_exact_surface():
     assert check_docs.PROVENANCE_LIMITS == {
         "docs/ai-provenance.md": check_docs.TextLimit(6_300),
