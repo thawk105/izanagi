@@ -1150,8 +1150,16 @@
   bnode041 での単独再走は 1 passed / 2.85秒 (request `874705`) で再現せず。**同一waveで
   失敗nodeが3回とも異なり** (`test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts`
   → 本node)、いずれも launcher subprocess 系である点が繰り返し確認された
+- **再発: 2026-08-01 ([T-248] wave の記録後検査)。** bnode012 の48-worker全走で
+  `test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts` が再び
+  `assert 1 == 0` / stderr空で1件落ちた (request `876829`)。同ノードでの同file単独再走は
+  58 passed / 5.21秒 (request `876832`)、直後の全走は bnode004 で
+  4709 passed / 19 skipped / rc=0 (request `876835`) で再現しない。当該waveの差分は
+  **docs のみ**で launcher 実装・同test fileへ到達しえず、`DW-O18` により帰属しない。
+  2026-07-31 の再発と**同一 node 名**である点が新しい情報で、失敗nodeは毎回移動するのではなく
+  この node が繰り返し当たりやすいことを示す
 - **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32/48-worker対照。
-  記録: worklog 2026-07-30 (70)、2026-07-31 (73)
+  記録: worklog 2026-07-30 (70)、2026-07-31 (73)、2026-08-01 (95)
 
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
@@ -1394,3 +1402,24 @@
   2 族を必ず含める。両族が kill されない限り positive control を緑と数えない。
   本 wave の実測は変異 25 件すべて KILLED、canonical 期待 node の一致 25/25
   (`output/insights/2026-08-01_axis-env-contract-wave/s6-mutation-matrix.md`)
+
+### F70. 裁定パッケージが、同じ文書内の実測と矛盾する因果を断定し、観測の一次証拠を残さなかった [誤前提] [手順漏れ]
+- 事象: T-126 closure wave の裁定パッケージ
+  (`output/insights/2026-07-31_t126-f32-closure-wave/s6-ruling-package.md`) の §6-3 が、
+  「sanctioned dispatch 経路では T-126 submitter 系テストが偽赤になる。子プロセスの `python3` が
+  計算ノード既定 3.9 へ戻るため」と断定し、ユーザー裁定 (worklog 2026-08-01 (94) の T-248) を得た。
+  実装 wave (本エントリ) が段 1 で前提実測したところ、単発・全走とも緑で**症状が再現しない**
+- 根本原因: (1) 同じ文書の §2 が当該 wave の全走を rc=0 と記録しており、§6-3 の断定と
+  自己矛盾している。文書内の自己照合が行われていない。(2) 赤を観測した run の
+  request ID・ノード・生ログの所在が記録されておらず、後続 wave が**再現も反証もできない**。
+  (3) 「前 wave の handoff の既知問題と同型」という**類推**が、機序の実測なしに原因断定へ格上げされた。
+  実際には帰属先とされた PATH 前置は観測時点より前から存在し、その経路では 3.9 へ戻らない
+- 判別: 裁定文に症状が書かれているのに、対応する request ID / ノード / ログ path が無い。
+  同じ文書内の全走結果と症状記述が両立しない
+- 恒久対応: 症状を根拠に裁定を求めるときは、(a) 観測の request ID・ノード・生ログ所在を
+  裁定文へ必ず添える、(b) 同じ文書内の全走・受入結果と矛盾しないか自己照合する、
+  (c) 機序が類推なら「類推」と書き、実測していない断定に格上げしない。
+  再現しない症状は「偽赤だった」と断定せず「原因不明・再現不能・追跡不能」と記録する
+- 近縁: F41 (測定条件を落として一般化し後続の起票を誤らせた)、F46 (実行環境の差の誤前提)、
+  F29 (段 1 実測が実差分をモデル化していない)
+- 記録: worklog 2026-08-01 (95)、一次資料 = `output/insights/2026-08-01_t248-dispatch-shim/`
