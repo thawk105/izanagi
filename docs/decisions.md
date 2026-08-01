@@ -5496,7 +5496,218 @@ receipt (`8bec195`) はいずれも発効済みで、廃止も無効化もしな
 作業内容が「凍結機構の導入判断」から「事前登録文書の起草 + 双射検査の適用拡大」へ変わること、
 (ii) 8c runbook §0 の語が「凍結」から「事前登録 (git commit)」へ変わること、の 2 点だけである。
 
-## D117. [T-139] 残余 (RF 規範化 + recovery pipeline 接続) は実装せず裁定へ返す — 凍結台帳の宣言を別 policy で上書きしないことと、正例 artifact 不在を DW-G04 どおり扱うこと (2026-08-01)
+## D117. [T-298] Pegasus の実行場所判定を「どこに置かれているか」から「実測メモリ量」へ移す — ただし自動 dispatch は D105 の閉集合に阻まれ未実装のまま裁定へ返す (2026-08-01)
+
+**背景 (ユーザー裁定 2 通):** (1)「tools ディレクトリのスクリプト実行は pegasus 環境だと計算ノードへ
+投げるようにしている？そうしてほしい。OOM キル対策」。(2) 段 2 実行中に「一定メモリ以上使う
+プログラムは、pegasus 環境なら計算ノードに投げるみたいなルールあってもいいかもね」。
+(2) が判定基準を「場所」から「実測量」へ移す裁定であり、以後こちらを現行とした。
+
+**実測で判明した前提:** ログインノードには per-user cgroup 上限 16 GiB・swap 0 があり、
+`memory.events` の `oom_kill` は 189 回。kill は全て Claude Code のセッション scope に計上される。
+一方、自動 dispatch されているのは `tests` / `provenance` の 2 task だけで、残りは login で走る。
+
+**決定 (1): 判定量は cgroup charged memory のピークとし、per-process RSS を代理値にしない。**
+`/usr/bin/time -f %M` は多重プロセスを worker 数分の 1 に過小評価し、共有ページを二重計上し、
+file / slab / page table の charge を落とす。**`memory.peak` はこの kernel (5.15) に存在しない**ため、
+`systemd-run --user --scope -p MemoryAccounting=yes` で専用 scope を作り `memory.current` を
+sampling する。sampler を先に張り、1 秒未満の command は 3 回以上繰り返す。
+**sampler が間に合わず 0 になった場合は「軽い」でなく測定失敗として `unknown` に倒す。**
+
+**決定 (2): 分類は 3 値とし、`unknown` は `dispatch-required` と同じに扱う。**
+`local-ok` / `dispatch-required` / `unknown` とする。測っていないものを軽い側へ倒さない。
+入力に hard cap の無い login 側経路 8 群を `unknown` として runbook に列挙した。
+
+**決定 (3): 規範値は 512 MiB。ただし実測から導いた最適値ではない暫定の分類値である。**
+根拠は「実測済みの軽量 tools 群と、既に dispatch 済みの 2 本の間に置いた」という分離だけで、
+どちらの群も決定 (1) の手順では測り直していない。**「規範値 × 同時実行数」で安全域を
+見積もる算術は無効**である — 閾値は下限であって上限ではなく、1 本 4 GiB でも閾値以上を満たす。
+当初案の「1 GiB、cap の 6%、並走 8 本でも半分」はこの誤りを含んでいたため撤回した。
+
+**決定 (4): 自動 dispatch は実装しない。依頼の未充足として明示し裁定へ返す。**
+D105 決定 3 が task enum を `{tests, provenance}` に明示固定している。拡張には
+(a) D105 の supersede、(b) `_job_run` 側の `env_allowlist` 強制 (現状は型検査だけの恒真保証)、
+(c) stdin / cwd / artifact 可視性、(d) 子 rc の意味の確定が同時に要る。したがって本 D が
+実装したのは **admission 規範 (login で走らせない) だけ**であり、
+「閾値を超えたら自動で投げる」は満たしていない。runbook に目立つ位置で未充足を明記した。
+第 3 task の最有力候補は `tools/codex_worker_ledger.py` である (`~/.codex/sessions` は
+共有 FS の home 配下なので計算ノードから見える)。
+
+**決定 (5): 開発 harness は暫定例外とし、根拠を D106 / D108 に求めない。**
+`codex_worker_launch.py` / `codex_reasoning_ab.py` / `dev_waves/*` / `dev_waves/checker.py` /
+`check_docs.py` の login 実行は分類上 `unknown` だが、除外しないと標準 dev-wave 経路が
+「規範違反」か「sanctioned 経路なしで停止」の二択になり harness が回らない。
+**D106 / D108 の射程は CC 合成 campaign の LLM 4 役に限られ、これらの免除根拠にならない** —
+本 D が新設した暫定例外であり、恒久化にはユーザー裁定が要る。**この例外は OOM 対策としては
+穴である**: 約 390 MB の LLM 子が多数並走する事象が per-user 16 GiB を埋める主経路であり、
+実効のある対策は同時数 / headroom の admission gate だが未実装である。
+
+**決定 (6): 機械化は「公表 inventory の drift 検出」に限り、射程を 3 箇所に明記する。**
+`tools/check_docs.py` が runbook §7.0 の exact task 表と `dispatch_compute.TASKS` を
+`{task: child_script}` の写像として比較し、節・表の不在、空表、重複 task、親節違い、
+raw HTML block への移設、`TASKS` の定義後書き込み・再束縛 (alias 経由を含む) を fail-closed に
+する。**この検査はメモリ計測・重いプログラムの発見・規範値の遵守・自動 dispatch の網羅性を
+一切保証しない** — 検査名・finding 文言・runbook 本文の 3 箇所に否定文を置いた。
+閾値ルールそのものは prompt 規律であり機械強制ではない (実行前に将来ピークは分からない)。
+恒真な gate を作らないため、機械化はこの drift 検出に留める。
+
+**却下:** (a) 全 `tools/` の自動 dispatch — 0.05 秒のスクリプトに queue 待ち 6〜86 秒が乗り、
+git 操作系・scheduler 操作系 (nested qsub) は構造的に破綻する。(b) 数値確定の保留 —
+規範値なしでは規律が発火しない。(c) 閾値遵守を機械強制する gate — 実行前にピークを
+静的判定できず恒真になる。(d) `tools/README.md` を作らず runbook だけに書く —
+tools contributor 向けの局所発火点がなくなる (`check_docs.py` は `tools/README.md` を
+検査対象にしていなかったので二重化にはあたらないと実測確認した)。
+
+**既存 docs の誤りを 3 件是正した:** (i)「実 cmake build もログインノードで拒否される」は
+全経路の虚偽で、site gate を持つのは `buildcache` / `s2_verify_calibration` / `s3_lock_coverage` /
+`s5_permutation_coverage` / `s8a_trigger_coverage` / `p3_s4_loop_trigger_gating` の 6 module、
+`t152_write_intent_coverage` と `silo_ladder_rung1` には無い。**一度「buildcache だけ」と
+過小に振れて再度誤ったので、両方の誤りを本文に残した。** (ii) `checker.py` の隔離 clone が
+計算ノードから見えないのは構造的不可能ではなく `TMPDIR` 依存の条件付き事実。
+(iii) `tools/pegasus/README.md` の「計算ノードは外部 network 不可」を
+「直結不可・proxy 実在・git/FetchContent/pip は未確定」へ限定。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変。
+変わるのは `tools/check_docs.py` の拒否集合 (runbook 表と `TASKS` の乖離、`tools/README.md` の
+不在・予算超過が新たに赤になる) と、開発 harness の実行場所規範だけである。
+OOM が起き続けると handoff と task-run / dev-waves の 2 台帳に中断・右打切りが残り、
+**worklog の最終記録と受入結果が欠落する** (「worklog に残骸が積もる」は誤りで、
+作業中は worklog へ書かない契約である)。
+
+## D118. [T-288] 8c の recipient matrix を追認して率と percent を recipient ごとに分ける — `delta_pct≡None` は whiteboard 射影経路だけの防壁である (2026-08-01)
+
+**背景 (裁定と実測):** worklog (102) のユーザー裁定は [T-288] について択 (a)「現行の recipient
+matrix を新 D で追認し、`delta_pct≡None` を『planner へ性能値を渡さない保証』と説明する誤りを
+是正する。`cache_miss_rate_pct` / `abort_rate_pct` の 100 倍の単位ずれは real defect として今すぐ
+直す。多世代開放の時点で planner から絶対 throughput を落とす ((b) への移行) を開放の前提条件へ
+束ねる」であった。所見の出所は [T-244] の敵対レビュー
+(`output/insights/2026-08-01_t244-generation-gate/README.md` の X5 / X6)。
+
+本 wave の段 1 前提実測は 100 倍のずれを一次資料で確定した。`abort_rate` は
+aborts/(commits+aborts) (`orchestrator/calibrator/benchparse.py`)、`llc_miss_rate` は docstring が
+0..1 と明示する率 (`orchestrator/calibrator/model.py`) であり、`_metric_projection()` に abort 7.9%
+相当を入れると `abort_rate_pct=0.079` が role へ届いた。role 定義の入力例示は 7.9 / 12.4
+(`.claude/agents/planner-v4.md`) である。
+
+**決定 (1): recipient matrix を追認し、単位は recipient ごとに分ける。** planner は
+`current_perf` (絶対 throughput を含む) と `leading_indicators` を、coder は `baseline` を、critic は
+`harness_result.metrics` を受け取る。**critic は親 brief が見落としていた第 4 の recipient**であり、
+段 3 の敵対相談が発見した。単位は次のとおりに固定する。
+
+| recipient | field | 単位 |
+|---|---|---|
+| planner `current_perf` / coder `baseline` | `throughput_ops_sec` / `latency_ns` / `ipc` | 実測値そのまま |
+| 同上 | `abort_rate_pct` | percent (0..100) |
+| 同上 | `llc_miss_rate` | ratio (0..1、名前どおり) |
+| planner `leading_indicators` | `cache_miss_rate_pct` | percent (0..100) |
+| planner `leading_indicators` | `contention_level` / `IPC_overall` | descriptor label / 実測値 |
+| critic `harness_result.metrics` | `abort_rate` / `llc_miss_rate` | **ratio (0..1)** |
+
+critic を ratio に保つのは、critic の役割定義 (`.claude/agents/critic.md`) が `abort_rate` /
+`llc_miss_rate` という率名しか知らないためである。**現行実装は critic へ `abort_rate_pct` という
+percent 名の field に率を入れて渡しており、これも同じ defect の一部**であった。
+
+**決定 (2): 換算は role-facing payload を作る 1 箇所へ閉じる。** 内部 metrics は率名
+(`abort_rate` / `llc_miss_rate`) を持ち、`_role_metric_payloads()` だけが percent 名の 2 field を
+×100 する。換算後に非有限になる値は `None` にする。範囲 (0..1) の検査は**入れない** — parser も
+screening も上限を強制せず (`benchparse.py`、`screening_driver.py`)、role 側だけで範囲外を `None` に
+畳むと「異常」と「未観測」が区別できなくなるためである。異常値は ×100 して可視のまま残す。
+
+**決定 (3): `delta_pct≡None` は whiteboard 射影経路の `delta_pct` field だけの防壁である。**
+`whiteboard_for_planner()` の docstring が「planner へ勝ち筋チャネル (性能値) を渡さない」と
+全体保証のように書いていたのは**偽**であった。絶対 throughput は `current_perf` で planner へ、
+`baseline` で coder へ、別 field として渡る。加えて `direction` / `magnitude` / `result` の**値**は
+checkpoint から無検証で入りうる ([T-287] の残余) ため、「abstract」も機械保証ではない。
+docstring は機械保証される射程まで狭めた。
+
+**決定 (4): role payload の意味が変わるので `SCHEMA_VERSION` を v2 へ上げる。** 同じ v1 が
+`abort_rate_pct=0.079` と `=7.9` の両方を意味すると、attempt journal と過去実走を意味比較できなく
+なる。report の形は変えないので `REPORT_SCHEMA_VERSION` は v1 のままとする。
+換算値は role payload の SHA-256 と provider の payload file bytes に影響するが、screening・fitness・
+stop 判定・凍結成果物のいずれにも到達しない (screening は bench payload の
+`leading_indicators["abort_rate"]` を直接読む別経路である)。
+
+**決定 (5): 現時点の発火範囲は critic だけである。** 承認済み上限は
+`MAX_APPROVED_GENERATIONS=1` なので、planner と coder が受け取る metrics は世代 1 では全て `None`
+であり、有限値を受けるのは評価後に呼ばれる critic だけである。**planner / coder 起因の受理集合
+変更は多世代開放後に発火する。** 親 brief の「planner/coder が誤単位を読み certified 選択が変わる」
+は現行承認範囲について過大表現であり、段 3 の敵対相談が反証した。
+
+**決定 (6): (b) への移行は多世代開放の前提条件とする。** planner から絶対 throughput を落とす
+移行は本 wave では実装しない。ただし前提条件は **planner だけでなく coder の `baseline` も含めて**
+書く — 世代間記憶があれば連続する絶対 throughput から変化率を復元でき、同じ値を coder も受ける
+ため、planner 側だけを塞いでも情報論的には閉じない ([T-246] / [T-228] と同型の判断)。
+
+**決定 (7): 手動射影経路にも同じ換算規約が及ぶ。** 段 4b / 段 5 の runbook は
+メインセッションに `abort_rate_pct` / `cache_miss_rate_pct` を手作業で射影させるが、
+WAL / calibrator の率を ×100 する規約が無かった。両 runbook へ換算規約を明記した。
+
+**残余 (裁定パッケージへ返す。本 wave では実装しない):** (a) `throughput_ops_sec` の実体は
+transactions/sec であり、YCSB 既定 `ycsb_max_ope=10` の下では名目 10 倍の誤名である。(b) live role
+定義の記述 drift 3 種 (planner の「leading-indicators だけ」、存在しない `last_delta_pct`、coder の
+「入力は 5 field のみ」)。是正は `orchestrator/codex_roles/review_ledger.py` の source hash 更新と
+`.codex/role-adapters/*.json` の再生成を伴う。(c) 非有限な raw metrics で terminal report が
+生成されず journal だけが残る破断。(d) reject 世代が有効 baseline を全 `None` で上書きする。
+(e) `ratio * 100.0` の float 表現契約 (丸め・桁) が無い。
+
+## D119. [T-291] dev-wave の変異 harness を `tools/mutation_harness.py` へ機械化し、byte 予算の個別 cap を導出規則から再校正する (2026-08-01)
+
+**背景 (ユーザー裁定):** `docs/dev-wave/**` は合計 23,990 / hard ceiling 24,000 (余裕 10 bytes)、
+`mutation.md` は 3,746 / 3,750 (余裕 4 bytes) で飽和しており、[T-244] と [T-247] が実測した失敗の
+恒久対応 2 件が「入らないので裁定へ返す」で止まっていた ([T-291] としてユーザー裁定待ちだった)。
+2026-08-01、ユーザーが「予算上げる以外に逃げ道はないの？リファレンスのリファレンスとかさ」と問い、
+続けて **「機械化への投資は希望します」**、**「予算もより適切に設定しちゃっていいよ」** と裁定した。
+
+**前提の実測。** `git log --first-parent` の 24 変化点で 4 冊合計 bytes を再計測すると、
+2026-07-25 に ceiling を超えて以降 **7 日間ずっと 23,9xx〜24,000 に貼り付いて**いる。前回の大再編
+`a8ee4a1` (T-147) が空けた 458 bytes は 5 first-parent 遷移・33 時間後の `226f7fd` で消費された。
+**単発の縮約は 1〜2 日分の延命にしかならない。** 一方で二層化 (F/D への外出し) は、
+「主語・時点・操作・停止を変えず丸ごと落とせる説明文」を厳密に数えると **205 bytes** しかなく、
+worker は通常 F 本文を読まないため leaf の実行義務を下層へ移せない。
+したがって規則総量を恒久的に減らす手段は**機械化しかない**。
+
+**決定 (1): 使い捨て harness を repo tool へ昇格する。** `output/insights/` に 3 世代
+(T-145 / T-149 / T-244) 散在していた変異 harness を `tools/mutation_harness.py` として一般化した。
+同じものが 3 回書き直され F32 が 3 回再発しているため、`DW-G03` の「異なる producer/consumer で
+独立 2 件」を満たす。wave 固有の変異は `--spec <json>` (schema version 付き) へ外出しした。
+
+**決定 (2): tool が強制する義務と、散文に残す義務を分ける。** tool は元ソースの固定 HEAD 束縛、
+起動時と復元時の内容比較、`flock` 単一走行、逐次 flush、HEAD/spec 束縛の `--resume`、
+復元区間の signal block、runner/node の実在束縛、terminal record の evidence 照合を
+fail-closed で強制する。一方 **「起動前の総所要見積り」と「外側の実行時間上限に掛からない経路での
+起動」は tool が検証できない自己申告**なので `DW-M05` の散文に残し、その旨を明記した。
+「機械化したから畳める」を、ツール側のコードで裏付けずに主張してはならない。
+
+**決定 (3): 個別 cap を導出規則から再計算し、2 つの gate を噛み合わせる。** 個別 cap は
+**実測サイズを 250 単位で切り上げ、作業 headroom 250 を足す**という規則から導く
+(core 8,500 / workers 4,750 / mutation 4,000 / operations 8,250)。合計 ceiling 24,000 は不変、
+個別 cap 総和は 25,750 → 25,500。あわせて `Σ(個別 cap) ≤ 合計 ceiling × 1.10` を機械検査する
+(従来は総和が ceiling を 1,750 超えるのに無検査で、個別 cap を無効化する書き換えが通った)。
+D96 に従い境界テストを同じ変更単位に置いた。
+
+**決定 (4): 受理集合の変化を非単調と記録する。** 「個別 cap 総和が減ったから緩めていない」は
+**誤りである**。新旧に包含関係はなく、`(7,900, 4,200, 3,751, 8,001)` は新だけが受理し、
+`(8,750, 4,200, 3,500, 7,500)` は旧だけが受理する。正しくは
+「mutation / operations の個別 cap は緩み、core / workers は締まった。合計 ceiling は不変」である。
+本 wave の実測現物 23,956 は旧個別 cap にもすべて収まるので、差分を通すための引上げではない。
+
+**却下案:** (a) 縮約だけで終える — first-parent 実測で 1〜2 日の延命。(b) `docs/dev-wave/` に
+5 冊目を作る — 同じ 24,000 の財布なので 1 byte も空かない。(c) F/D へ実行義務を逃がす —
+worker が読まない層へ義務を置くことになり、回収も 205 bytes。(d) 合計 ceiling の引上げ —
+24,000 は 100 万トークン context の約 1% で context 圧迫の事実がなく、この上限が代理しているのは
+「エージェントが実際に守りきれる規則の総数」である。増やせば守られなくなる。
+(e) 個別 cap を実測サイズへ貼り付ける (現行方式の踏襲) — `mutation.md` が 4 bytes で窒息する一方
+`core.md` が 802 遊ぶ非対称を再生産する。
+
+**既知限界 (本 D の射程外。裁定パッケージへ):** (i) `DW-O09` の file-set digest (F39) は未解決で、
+本 wave の I3 (role 名 key の pin 検索) は別の穴を塞ぐもの。(ii) 「外側上限に掛からない経路」と
+「総所要見積り」は自己申告のままで、外側 supervisor の receipt を要求する形にするかは未裁定。
+(iii) `DW-M08` / `DW-O11` / `DW-O20` / `DW-O23` はツール側が義務の一部しか強制しておらず
+(`check_wave_startup.py` の clean-tree 検査は `mode=="fresh"` のときだけ、`dev_wave_land.py` は
+fresh-context 回復と rebase/force/push 禁止を強制しない)、広げれば更に prose を畳める。
+(iv) 予算が代理する「守りきれる規則の総数」を直接測る gate へ置き換えるかは未裁定。
+
+## D120. [T-139] 残余 (RF 規範化 + recovery pipeline 接続) は実装せず裁定へ返す — 凍結台帳の宣言を別 policy で上書きしないことと、正例 artifact 不在を DW-G04 どおり扱うこと (2026-08-01)
 
 **背景:** ユーザー裁定「[T-139] 残余 → [T-144]」を受けて dev-wave を回した。残余は 2 件 —
 (a) recovery fraction (RF) の規範化、(b) recovery pipeline への接続

@@ -51,7 +51,9 @@
 - `src/` — coder 向け仕様 (`coder-spec.md` §1-2 が現役、`coder-leakproof-context.md` = リーク遮断入力の正本)
 - `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`。
   AI 開発作業の統計記録 (task-run 台帳、開発プロセス観測 — D66) は `output/task-runs/README.md` が詳細正本
-- `tools/` — 運用スクリプト (`ruleops.py` = read-only inventory / 候補 package 検査 /
+- `tools/` — 運用スクリプト。**実行場所の契約 (Pegasus でどれをログインノードで走らせてよいか) は
+  `tools/README.md` が入口、`docs/pegasus-runbook.md` §7.0 が規範の正本**。
+  (`ruleops.py` = read-only inventory / 候補 package 検査 /
   `check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
   Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
   `check_ai_provenance.py` = commit trailer 監査 / `codex_worker_ledger.py` = codex rollout ログから

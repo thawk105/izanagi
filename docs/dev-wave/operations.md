@@ -47,7 +47,9 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
 bytes を pin する台帳・test・trust root を全列挙する。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛に加え、output 外の
-review ledger（role source pin 等）も既定対象に含め、
+review ledger（role source pin 等）も既定対象に含める。path 検索が見つけるのは path を key にする
+pin だけである。review ledger のように role 名を key に張る pin は key 側でも検索し、
+path の hit 0 件を pin なしと結論しない（F30）。
 durable manifest が未発行か、発行済みで再発行が必要かを区別して brief の不変条件へ書く（F27/F30、D84）。
 定数・編集面の統一系 wave では、列挙した各出現を live copy / 独立 golden / 凍結 snapshot /
 歴史記録に分類してから scope を裁定する（F39）。

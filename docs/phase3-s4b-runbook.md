@@ -49,6 +49,9 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
 ```
 - whiteboard は checkpoint (`output/campaigns/<id>/loop_state.json`) の whiteboard フィールド、
   または `whiteboard_for_planner(state)` の射影。**機序・勝ち筋値を足さない**。
+- **単位の換算 (D118)**: `abort_rate_pct` と `cache_miss_rate_pct` は **percent (0..100)** である。
+  WAL / calibrator が持つ `abort_rate` と `llc_miss_rate` は **0..1 の率**なので、
+  射影時に **×100 する**。換算を忘れると role は 7.9% を 0.079% と読む (100 倍の意味ずれ)。
 - 出力 = `{proposal: {axis, direction, magnitude, justification, uncertainty}}` (値なし)。
 
 ### (b) coder-v4-autonomous を spawn (値 + hole コード合成)

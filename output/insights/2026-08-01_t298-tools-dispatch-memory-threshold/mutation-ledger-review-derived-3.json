@@ -1,0 +1,28 @@
+{
+  "killed": 3,
+  "total": 3,
+  "post_rc": 0,
+  "results": [
+    {
+      "id": "M-10",
+      "rc": 1,
+      "killed": true,
+      "restored": true,
+      "why": "alias 経由の runtime drift (焦点再レビュー 所見 2)"
+    },
+    {
+      "id": "M-11",
+      "rc": 1,
+      "killed": true,
+      "restored": true,
+      "why": "外周 pipe を省いた 3 行目 (所見 3)"
+    },
+    {
+      "id": "M-12",
+      "rc": 1,
+      "killed": true,
+      "restored": true,
+      "why": "dict.update(TASKS, ...) 形 (所見 2)"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 # worklog アーカイブ — 2026-08-01 (99)
 
-現行 `docs/worklog.md` からローテーションした過去エントリ。**凍結** (訂正注記のみ追記可)。
-一覧と境界の理由は `docs/archive/README.md`。
+本ファイルは `docs/worklog.md` からローテーションした凍結アーカイブである。訂正注記のみ追記可。
 
 ---
+
 ## 2026-08-01 (99) — [T-244] 宣言済み禁止 `--max-generations >= 2` は既定値がむしろ禁止側だった — 3 入口 + campaign freshness の機械 gate 化 (D114) と、還流設計そのものは裁定へ (コード + docs、branch worktree-dev-wave-t244-reflux、受入 = Pegasus gen_S 計算ノード request `876834` / `876919` / `876929`、全走 = request `876979` で 4725 passed / 19 skipped、変異本走 = 19/19 KILL)
 
 - **段 1 の前提実測で、承認済み裁定の前提が逆向きに壊れていた。** D106 残余 1 と 8c runbook 3 箇所が
