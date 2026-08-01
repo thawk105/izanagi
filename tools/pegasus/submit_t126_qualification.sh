@@ -31,6 +31,10 @@ QUAL_ROOT="$OUTPUT_ROOT/env/pegasus/qualification/t126"
 POLICY="$SCRIPT_DIR/policy.json"
 JOB_SCRIPT="$SCRIPT_DIR/t126_qualification.sh"
 PROTOCOL="$REPO_ROOT/orchestrator/qualification/t126_control_v1.json"
+# T-126 owns its own PBS reservation policy.  The shared Pegasus policy keeps
+# only shared values (project/queue/nodes/...); it must stay byte-stable for
+# the other campaigns that pin it in committed evidence.
+RESERVATION_POLICY="$REPO_ROOT/orchestrator/qualification/t126_reservation_policy_v1.json"
 COLLECTOR="$SCRIPT_DIR/collect_t126_qualification.py"
 SUBMISSION_HELPER="$REPO_ROOT/orchestrator/qualification/submission.py"
 
@@ -61,6 +65,10 @@ assert_safe_submit_path() {
 }
 [[ -f "$PROTOCOL" && ! -L "$PROTOCOL" && -f "$COLLECTOR" && ! -L "$COLLECTOR" ]] || {
   echo "protocol/collector missing or symlinked" >&2
+  exit 2
+}
+[[ -f "$RESERVATION_POLICY" && ! -L "$RESERVATION_POLICY" ]] || {
+  echo "T-126 reservation policy missing or symlinked" >&2
   exit 2
 }
 [[ -f "$SUBMISSION_HELPER" && ! -L "$SUBMISSION_HELPER" ]] || exit 2
@@ -112,6 +120,7 @@ for tracked in \
   tools/pegasus/t126_qualification.sh \
   tools/pegasus/collect_t126_qualification.py \
   orchestrator/qualification/t126_control_v1.json \
+  orchestrator/qualification/t126_reservation_policy_v1.json \
   orchestrator/qualification/submission.py; do
   git -C "$REPO_ROOT" ls-files --error-unmatch -- "$tracked" >/dev/null || {
     echo "required execution input is not tracked: $tracked" >&2
@@ -138,6 +147,7 @@ for tracked in \
   tools/pegasus/collect_t126_qualification.py \
   tools/pegasus/policy.json \
   orchestrator/qualification/t126_control_v1.json \
+  orchestrator/qualification/t126_reservation_policy_v1.json \
   orchestrator/qualification/submission.py; do
   committed_sha=$(git -C "$REPO_ROOT" cat-file blob "$SOURCE_COMMIT:$tracked" \
     | sha256sum | awk '{print $1}') || exit 2
@@ -148,6 +158,7 @@ for tracked in \
   }
 done
 
+# Shared values only: the shared Pegasus policy is not T-126 property.
 readarray -t POLICY_VALUES < <(python3 -I -B - "$POLICY" <<'PY'
 import json, sys
 def no_dups(pairs):
@@ -158,8 +169,35 @@ def no_dups(pairs):
         out[k] = v
     return out
 p = json.load(open(sys.argv[1], encoding="utf-8"), object_pairs_hook=no_dups)
+keys = ("project", "queue", "nodes")
+for key in keys:
+    if key not in p:
+        raise SystemExit("missing policy key: " + key)
+if p["nodes"] != 1:
+    raise SystemExit("T-126 policy envelope mismatch")
+for key in ("project", "queue", "nodes"):
+    print(p[key])
+PY
+)
+[[ ${#POLICY_VALUES[@]} -eq 3 ]] || exit 2
+PROJECT=${POLICY_VALUES[0]}
+QUEUE=${POLICY_VALUES[1]}
+NODES=${POLICY_VALUES[2]}
+
+# T-126-owned PBS reservation policy.  Same required keys, same walltime
+# derivation, same rejection conditions as before; only the file moved.
+readarray -t RESERVATION_VALUES < <(python3 -I -B - "$RESERVATION_POLICY" <<'PY'
+import json, sys
+def no_dups(pairs):
+    out = {}
+    for k, v in pairs:
+        if k in out:
+            raise SystemExit("duplicate reservation policy key")
+        out[k] = v
+    return out
+p = json.load(open(sys.argv[1], encoding="utf-8"), object_pairs_hook=no_dups)
 keys = (
-    "project", "queue", "nodes", "t126_qualification_walltime",
+    "t126_qualification_walltime",
     "t126_qualification_walltime_s", "t126_qualification_member_cap_s",
     "t126_qualification_round_gap_s", "t126_qualification_prologue_cap_s",
     "t126_qualification_attestation_cap_s",
@@ -167,7 +205,7 @@ keys = (
 )
 for key in keys:
     if key not in p:
-        raise SystemExit("missing policy key: " + key)
+        raise SystemExit("missing reservation policy key: " + key)
 calculated = (
     p["t126_qualification_prologue_cap_s"]
     + 16 * p["t126_qualification_member_cap_s"]
@@ -175,24 +213,21 @@ calculated = (
     + p["t126_qualification_attestation_cap_s"]
     + p["t126_qualification_finalize_reserve_s"]
 )
-if (p["nodes"] != 1 or p["t126_qualification_member_cap_s"] != 900
+if (p["t126_qualification_member_cap_s"] != 900
         or p["t126_qualification_round_gap_s"] != 1800
         or calculated != 29100 or p["t126_qualification_wmax_s"] != calculated
         or p["t126_qualification_walltime_s"] != 36000
         or calculated >= p["t126_qualification_walltime_s"]):
-    raise SystemExit("T-126 policy envelope mismatch")
-for key in ("project", "queue", "nodes", "t126_qualification_walltime",
+    raise SystemExit("T-126 reservation policy mismatch")
+for key in ("t126_qualification_walltime",
             "t126_qualification_walltime_s", "t126_qualification_wmax_s"):
     print(p[key])
 PY
 )
-[[ ${#POLICY_VALUES[@]} -eq 6 ]] || exit 2
-PROJECT=${POLICY_VALUES[0]}
-QUEUE=${POLICY_VALUES[1]}
-NODES=${POLICY_VALUES[2]}
-WALLTIME=${POLICY_VALUES[3]}
-WALLTIME_S=${POLICY_VALUES[4]}
-WMAX_S=${POLICY_VALUES[5]}
+[[ ${#RESERVATION_VALUES[@]} -eq 3 ]] || exit 2
+WALLTIME=${RESERVATION_VALUES[0]}
+WALLTIME_S=${RESERVATION_VALUES[1]}
+WMAX_S=${RESERVATION_VALUES[2]}
 [[ "$PROJECT" == SFC && "$QUEUE" == gen_S && "$NODES" == 1 \
   && "$WALLTIME" == 10:00:00 && "$WALLTIME_S" == 36000 && "$WMAX_S" == 29100 ]] || exit 2
 

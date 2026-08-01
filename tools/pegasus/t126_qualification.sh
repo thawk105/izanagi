@@ -445,15 +445,16 @@ timeout "$STAGE_REMAINING" git -C "$REPO_ROOT" archive --format=tar "$SOURCE_COM
   || exit 2
 TOOLS="$SOURCE_STAGE/tools/pegasus"
 POLICY="$TOOLS/policy.json"
+# T-126-owned PBS reservation policy; the shared policy keeps only the
+# shared values (dependency roots, perf candidates, project/queue/nodes).
+RESERVATION_POLICY="$SOURCE_STAGE/orchestrator/qualification/t126_reservation_policy_v1.json"
 REPO_SOURCE="$SOURCE_STAGE"
 
-readarray -t P < <("$PY" -I -S -B - "$POLICY" <<'PY'
+readarray -t RESERVATION_VALUES < <("$PY" -I -S -B - "$RESERVATION_POLICY" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1],encoding="utf-8"))
 keys=("t126_qualification_walltime_s","t126_qualification_wmax_s",
-      "t126_qualification_prologue_cap_s",
-      "gflags_source_path","gflags_expected_head","glog_source_path",
-      "glog_expected_head")
+      "t126_qualification_prologue_cap_s")
 for k in keys: print(p[k])
 if (p["t126_qualification_walltime_s"] != 36000
     or p["t126_qualification_prologue_cap_s"] != 900
@@ -461,14 +462,24 @@ if (p["t126_qualification_walltime_s"] != 36000
     raise SystemExit("qualification envelope mismatch")
 PY
 )
-[[ ${#P[@]} -eq 7 ]] || exit 2
-WALLTIME_S=${P[0]}
-WMAX_S=${P[1]}
-PROLOGUE_CAP_S=${P[2]}
-GFLAGS_SOURCE=${P[3]}
-GFLAGS_HEAD=${P[4]}
-GLOG_SOURCE=${P[5]}
-GLOG_HEAD=${P[6]}
+[[ ${#RESERVATION_VALUES[@]} -eq 3 ]] || exit 2
+WALLTIME_S=${RESERVATION_VALUES[0]}
+WMAX_S=${RESERVATION_VALUES[1]}
+PROLOGUE_CAP_S=${RESERVATION_VALUES[2]}
+
+readarray -t P < <("$PY" -I -S -B - "$POLICY" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1],encoding="utf-8"))
+keys=("gflags_source_path","gflags_expected_head","glog_source_path",
+      "glog_expected_head")
+for k in keys: print(p[k])
+PY
+)
+[[ ${#P[@]} -eq 4 ]] || exit 2
+GFLAGS_SOURCE=${P[0]}
+GFLAGS_HEAD=${P[1]}
+GLOG_SOURCE=${P[2]}
+GLOG_HEAD=${P[3]}
 
 check_job_deadline
 for source_pin in "$GFLAGS_SOURCE:$GFLAGS_HEAD" "$GLOG_SOURCE:$GLOG_HEAD"; do
@@ -667,6 +678,8 @@ p={"schema_version":"t126-source-stage-evidence/v1",
    "protocol_sha256":digest(os.path.join(
        source,"orchestrator/qualification/t126_control_v1.json")),
    "policy_sha256":digest(os.path.join(source,"tools/pegasus/policy.json")),
+   "reservation_policy_sha256":digest(os.path.join(
+       source,"orchestrator/qualification/t126_reservation_policy_v1.json")),
    "driver_sha256":digest(os.path.join(
        source,"orchestrator/qualification/t126_driver.py")),
    "job_script_sha256":digest(os.path.join(

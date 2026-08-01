@@ -32,6 +32,7 @@ from .artifacts import (
 )
 from .attempt_ledger import SeriesAttemptLedger
 from .contract import (
+    RESERVATION_POLICY_RELATIVE_PATH,
     attempt_identity, load_protocol, series_identity, validate_protocol)
 from .identity import (
     verify_recorded_series_identity,
@@ -1508,9 +1509,12 @@ def _verify_post_job_receipt(
                 "receipt is not the finalized canonical ledger outcome")
         policy = json.loads(read_regular_file(
             repo_root / "tools/pegasus/policy.json"))
+        reservation_policy = json.loads(read_regular_file(
+            repo_root / RESERVATION_POLICY_RELATIVE_PATH))
         verify_recorded_series_identity(
             git_repo_root=repo_root, attempt_dir=attempt_dir,
             preimage=series_preimage, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy,
         )
         exclude = {
             "final-qualification-receipt.json",

@@ -20,6 +20,7 @@ from .contract import (
     REGISTERED_DEPENDENCY_BUILD_ARGV,
     REQUIRED_CODE_IDENTITY_PATHS,
     REQUIRED_SCRIPT_IDENTITY_PATHS,
+    RESERVATION_POLICY_RELATIVE_PATH,
     protocol_sha256,
     series_identity,
 )
@@ -111,7 +112,7 @@ def _fd_sha256(path: Path) -> str:
 def verify_recorded_series_identity(
         *, git_repo_root: Path, attempt_dir: Path,
         preimage: Mapping[str, Any], protocol: Mapping[str, Any],
-        policy: Mapping[str, Any],
+        policy: Mapping[str, Any], reservation_policy: Mapping[str, Any],
 ) -> str:
     """Re-derive every load-bearing identity from Git objects or immutable bytes."""
     computed = series_identity(preimage)
@@ -157,6 +158,13 @@ def verify_recorded_series_identity(
     if dict(policy) != committed_policy:
         raise IdentityVerificationError(
             "live policy differs from the committed approved policy")
+    committed_reservation_policy = json.loads(_git_bytes(
+        git_repo_root, "cat-file", "blob",
+        f"{commit}:{RESERVATION_POLICY_RELATIVE_PATH}"))
+    if dict(reservation_policy) != committed_reservation_policy:
+        raise IdentityVerificationError(
+            "live reservation policy differs from the committed approved"
+            " reservation policy")
     if (preimage["pair_roles"] != protocol["source"]["members"]
             or preimage["workload"] != protocol["workload"]
             or preimage["verification"] != protocol["verification"]

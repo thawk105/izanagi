@@ -20,6 +20,17 @@ from .retry_index import RetryIndexError, validate_retry_index
 
 _HERE = Path(__file__).resolve().parent
 DEFAULT_PROTOCOL_PATH = _HERE / "t126_control_v1.json"
+# T-126 owns the PBS reservation policy that governs its own runs (requested
+# walltime plus the phase caps the Wmax closure is derived from).  It
+# deliberately does NOT live in the shared tools/pegasus/policy.json: that
+# file is byte-pinned by other campaigns' committed evidence, so a T-126 edit
+# there would drift their bindings.  Only genuinely shared values
+# (project/queue/nodes/...) belong in the shared policy.  Distinct from the
+# series result's "timing_envelope", which records the OBSERVED monotonic
+# envelope of one run rather than the CONFIGURED request.
+RESERVATION_POLICY_RELATIVE_PATH = (
+    "orchestrator/qualification/t126_reservation_policy_v1.json")
+DEFAULT_RESERVATION_POLICY_PATH = _HERE / "t126_reservation_policy_v1.json"
 _HEX40 = re.compile(r"[0-9a-f]{40}")
 _HEX64 = re.compile(r"[0-9a-f]{64}")
 _ZERO_HASH = "0" * 64
@@ -38,6 +49,7 @@ REQUIRED_CODE_IDENTITY_PATHS = frozenset({
     "orchestrator/qualification/submission.py",
     "orchestrator/qualification/t126_driver.py",
     "orchestrator/qualification/t126_control_v1.json",
+    "orchestrator/qualification/t126_reservation_policy_v1.json",
     "orchestrator/qualification/t126_marker_schema.json",
     "orchestrator/qualification/t126_event_schema.json",
     "orchestrator/qualification/t126_evaluation_event_schema.json",

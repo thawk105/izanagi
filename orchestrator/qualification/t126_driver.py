@@ -50,6 +50,7 @@ from qualification.contract import (  # noqa: E402
     ProtocolError,
     REQUIRED_CODE_IDENTITY_PATHS,
     REQUIRED_SCRIPT_IDENTITY_PATHS,
+    RESERVATION_POLICY_RELATIVE_PATH,
     attempt_identity,
     canonical_json_bytes,
     load_protocol,
@@ -804,7 +805,7 @@ def _verify_prologue_evidence(
     required = {
         "schema_version", "source_commit", "source_tree", "ccbench_gitlink",
         "tracked_only", "immutable_mode", "protocol_sha256", "policy_sha256",
-        "driver_sha256", "job_script_sha256",
+        "reservation_policy_sha256", "driver_sha256", "job_script_sha256",
         "toolchain_manifest_sha256", "perf_smoke_returncode",
         "perf_smoke_stdout", "perf_smoke_stderr",
     }
@@ -825,6 +826,8 @@ def _verify_prologue_evidence(
             or value["protocol_sha256"] != identities[
                 "orchestrator/qualification/t126_control_v1.json"]
             or value["policy_sha256"] != identities["tools/pegasus/policy.json"]
+            or value["reservation_policy_sha256"] != identities[
+                RESERVATION_POLICY_RELATIVE_PATH]
             or value["driver_sha256"] != identities[
                 "orchestrator/qualification/t126_driver.py"]
             or value["job_script_sha256"] != identities[
@@ -1272,9 +1275,12 @@ def verify(attempt_dir: Path) -> ReceiptVerification:
                 or attempt_dir.name != computed_attempt_id):
             raise QualificationDriverError("marker/result identity mismatch")
         policy = load_source_json(repo_root / "tools/pegasus/policy.json")
+        reservation_policy = load_source_json(
+            repo_root / RESERVATION_POLICY_RELATIVE_PATH)
         verify_recorded_series_identity(
             git_repo_root=repo_root, attempt_dir=attempt_dir,
             preimage=series_preimage, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy,
         )
         source_rows = source_snapshots
         if (set(source_rows) != {

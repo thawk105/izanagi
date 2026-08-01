@@ -648,6 +648,7 @@ from qualification.contract import (  # noqa: E402
     ProtocolError,
     REQUIRED_CODE_IDENTITY_PATHS,
     REQUIRED_SCRIPT_IDENTITY_PATHS,
+    RESERVATION_POLICY_RELATIVE_PATH,
     attempt_identity,
     protocol_sha256,
     series_identity,
@@ -800,6 +801,8 @@ def _attempt(
         if relative == "orchestrator/qualification/t126_control_v1.json":
             shutil.copy2(
                 _ROOT / "orchestrator/qualification/t126_control_v1.json", path)
+        elif relative == RESERVATION_POLICY_RELATIVE_PATH:
+            shutil.copy2(_ROOT / RESERVATION_POLICY_RELATIVE_PATH, path)
         elif relative == "tools/pegasus/policy.json":
             policy = json.loads(
                 (_ROOT / relative).read_text(encoding="utf-8"))
@@ -1027,6 +1030,8 @@ def _attempt(
         "tracked_only": True,
         "immutable_mode": True,
         "policy_sha256": code_identity["tools/pegasus/policy.json"],
+        "reservation_policy_sha256": code_identity[
+            RESERVATION_POLICY_RELATIVE_PATH],
         "driver_sha256": code_identity[
             "orchestrator/qualification/t126_driver.py"],
         "toolchain_manifest_sha256": hashlib.sha256(
@@ -1201,21 +1206,123 @@ def _attempt(
             accounting, job_script_hash)
 
 
-def test_policy_and_job_headers_freeze_wmax_and_walltime():
-    policy = json.loads((_ROOT / "tools/pegasus/policy.json").read_text())
+def test_reservation_policy_and_job_headers_freeze_wmax_and_walltime():
+    reservation_policy = json.loads(
+        (_ROOT / RESERVATION_POLICY_RELATIVE_PATH).read_text())
     calculated = (
-        policy["t126_qualification_prologue_cap_s"]
-        + 16 * policy["t126_qualification_member_cap_s"]
-        + 7 * policy["t126_qualification_round_gap_s"]
-        + policy["t126_qualification_attestation_cap_s"]
-        + policy["t126_qualification_finalize_reserve_s"]
+        reservation_policy["t126_qualification_prologue_cap_s"]
+        + 16 * reservation_policy["t126_qualification_member_cap_s"]
+        + 7 * reservation_policy["t126_qualification_round_gap_s"]
+        + reservation_policy["t126_qualification_attestation_cap_s"]
+        + reservation_policy["t126_qualification_finalize_reserve_s"]
     )
-    assert calculated == policy["t126_qualification_wmax_s"] == 29100
-    assert policy["t126_qualification_walltime_s"] == 36000
+    assert calculated == reservation_policy["t126_qualification_wmax_s"] == 29100
+    assert reservation_policy["t126_qualification_walltime_s"] == 36000
+    assert reservation_policy["t126_qualification_walltime"] == "10:00:00"
     script = (_ROOT / "tools/pegasus/t126_qualification.sh").read_text()
     assert "#PBS -l elapstim_req=10:00:00" in script
     assert "run_with_budget 120" in script and "run_with_budget 180" in script
     assert "gcc-13" in script and "g++-13" in script
+
+
+def test_shared_pegasus_policy_owns_no_t126_qualification_keys():
+    """T-126 must not mutate the shared policy that other campaigns byte-pin.
+
+    共有 policy は他タスクの凍結証拠が bytes を pin しているので T-126 は動かさ
+    ない。接頭辞を持たない key 追加も含めて drift を赤にする — 下の接頭辞走査は
+    ``t126_`` で始まる key しか捕まえないが、続く sha256 等値は committed
+    evidence が記録した bytes との差分を種類を問わず赤にする (key 名の変更、
+    T-126 接頭辞を持たない key の追加、値の書換え、空白のみの整形を含む)。
+    """
+    policy_relative = "tools/pegasus/policy.json"
+    policy_path = _ROOT / policy_relative
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    assert not [key for key in policy if key.startswith("t126_")]
+    assert RESERVATION_POLICY_RELATIVE_PATH in REQUIRED_CODE_IDENTITY_PATHS
+    pinned = json.loads(
+        (_ROOT / "output/env/pegasus/silo_ladder_rung1"
+         / "silo_ladder_rung1.json").read_text(encoding="utf-8"))
+    pinned_policy = pinned["binding"]["policy"]
+    assert pinned_policy["path"] == policy_relative
+    assert pinned_policy["sha256"] == hashlib.sha256(
+        policy_path.read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize(
+    "relative",
+    sorted(REQUIRED_CODE_IDENTITY_PATHS | REQUIRED_SCRIPT_IDENTITY_PATHS),
+)
+def test_every_required_identity_path_is_tracked_in_this_repo(relative):
+    """Every identity input must be a tracked blob of THIS repository.
+
+    ``series_identity`` hashes ``git cat-file blob`` output for each of these
+    paths, and the submit script refuses to run when one of them is untracked.
+    An identity path that exists only in the working tree would therefore make
+    the contract unsatisfiable at submission time while every in-process test
+    (which stages its own fixture repository) still passes.  This is the only
+    check that binds the constant set to the real repository index.
+    """
+    completed = subprocess.run(
+        ["git", "-c", "core.hooksPath=", "-C", str(_ROOT),
+         "ls-files", "--error-unmatch", "--", relative],
+        text=True, capture_output=True, check=False,
+    )
+    assert completed.returncode == 0, (
+        f"required identity path is not tracked: {relative}\n"
+        + completed.stderr)
+
+
+def test_reservation_policy_wiring_is_pinned_to_the_contract_constant():
+    """Pin the hand-copied reservation-policy wiring to the contract constant.
+
+    The reservation policy has one producer pair (the submit script, which
+    reads the repository copy, and the job script, which reads the source-stage
+    copy and hashes it into the prologue evidence) and one consumer
+    (``_verify_prologue_evidence``).  The relative path is copied verbatim into
+    the shells, where no import can keep it equal to
+    ``RESERVATION_POLICY_RELATIVE_PATH``; nothing but this test fails when a
+    rename leaves one of those copies behind.
+    """
+    relative = RESERVATION_POLICY_RELATIVE_PATH
+    submit = (
+        _ROOT / "tools/pegasus/submit_t126_qualification.sh"
+    ).read_text(encoding="utf-8")
+    job = (
+        _ROOT / "tools/pegasus/t126_qualification.sh"
+    ).read_text(encoding="utf-8")
+    driver = (
+        _ROOT / "orchestrator/qualification/t126_driver.py"
+    ).read_text(encoding="utf-8")
+
+    # Producer 1: the submit script resolves, guards and tracked-checks the
+    # repository copy of exactly this path.
+    assert f'RESERVATION_POLICY="$REPO_ROOT/{relative}"' in submit
+    assert (
+        '[[ -f "$RESERVATION_POLICY" && ! -L "$RESERVATION_POLICY" ]]'
+        in submit)
+    assert submit.count(f"\n  {relative} \\\n") == 2
+    assert (
+        'git -C "$REPO_ROOT" ls-files --error-unmatch -- "$tracked"' in submit)
+
+    # Producer 2: the job script reads the source-stage copy of the same path
+    # and writes its sha256 under the evidence key the consumer requires.
+    assert f'RESERVATION_POLICY="$SOURCE_STAGE/{relative}"' in job
+    assert (
+        '   "reservation_policy_sha256":digest(os.path.join(\n'
+        f'       source,"{relative}")),\n'
+    ) in job
+
+    # Consumer: the driver compares that evidence key against the identity
+    # registered under the same constant.
+    assert (
+        'value["reservation_policy_sha256"] != identities[ '
+        'RESERVATION_POLICY_RELATIVE_PATH]'
+    ) in re.sub(r"\s+", " ", driver)
+
+    # The file the three sites reach is the v1 reservation policy document.
+    assert json.loads(
+        (_ROOT / relative).read_text(encoding="utf-8")
+    )["schema_version"] == "t126-qualification-reservation-policy/v1"
 
 
 @pytest.mark.parametrize(
@@ -2586,18 +2693,22 @@ def test_identity_consumer_rejects_git_chain_tool_hash_and_snapshot_traversal(
     protocol = load_protocol(layout.attempt_dir / "protocol.json")
     policy = json.loads(
         (repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
+    reservation_policy = json.loads(
+        (repo / RESERVATION_POLICY_RELATIVE_PATH).read_text(encoding="utf-8"))
     bad_tree = json.loads(json.dumps(preimage))
     bad_tree["superproject_tree"] = "0" * 40
     with pytest.raises(IdentityVerificationError, match="tree/gitlink"):
         verify_recorded_series_identity(
             git_repo_root=repo, attempt_dir=layout.attempt_dir,
-            preimage=bad_tree, protocol=protocol, policy=policy)
+            preimage=bad_tree, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy)
     bad_tool = json.loads(json.dumps(preimage))
     bad_tool["toolchain_manifest"]["executables"]["python"]["sha256"] = "0" * 64
     with pytest.raises(IdentityVerificationError, match="executable hash"):
         verify_recorded_series_identity(
             git_repo_root=repo, attempt_dir=layout.attempt_dir,
-            preimage=bad_tool, protocol=protocol, policy=policy)
+            preimage=bad_tool, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy)
     manifest_path = layout.attempt_dir / "source/source-snapshots.json"
     manifest = load_json_strict(manifest_path)
     manifest["campaign_lock"]["path"] = "../outside"
@@ -2608,7 +2719,8 @@ def test_identity_consumer_rejects_git_chain_tool_hash_and_snapshot_traversal(
     with pytest.raises(IdentityVerificationError, match="unsafe"):
         verify_recorded_series_identity(
             git_repo_root=repo, attempt_dir=layout.attempt_dir,
-            preimage=preimage, protocol=protocol, policy=policy)
+            preimage=preimage, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy)
 
 
 def test_identity_consumer_rejects_protocol_policy_dependency_and_build_argv_tamper(
@@ -2618,20 +2730,24 @@ def test_identity_consumer_rejects_protocol_policy_dependency_and_build_argv_tam
     protocol = load_protocol(layout.attempt_dir / "protocol.json")
     policy = json.loads(
         (repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
+    reservation_policy = json.loads(
+        (repo / RESERVATION_POLICY_RELATIVE_PATH).read_text(encoding="utf-8"))
 
     shadow = json.loads(json.dumps(preimage))
     shadow["workload"]["threads"] = 47
     with pytest.raises(IdentityVerificationError, match="source pair|snapshot"):
         verify_recorded_series_identity(
             git_repo_root=repo, attempt_dir=layout.attempt_dir,
-            preimage=shadow, protocol=protocol, policy=policy)
+            preimage=shadow, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy)
 
     build = json.loads(json.dumps(preimage))
     build["toolchain_manifest"]["build_argv"]["gflags_build"][-1] = "47"
     with pytest.raises(IdentityVerificationError, match="build argv"):
         verify_recorded_series_identity(
             git_repo_root=repo, attempt_dir=layout.attempt_dir,
-            preimage=build, protocol=protocol, policy=policy)
+            preimage=build, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy)
 
     dependency = json.loads(json.dumps(preimage))
     dep_repo = Path(policy["gflags_source_path"])
@@ -2645,13 +2761,28 @@ def test_identity_consumer_rejects_protocol_policy_dependency_and_build_argv_tam
     with pytest.raises(IdentityVerificationError, match="expected head"):
         verify_recorded_series_identity(
             git_repo_root=repo, attempt_dir=layout.attempt_dir,
-            preimage=dependency, protocol=protocol, policy=policy)
+            preimage=dependency, protocol=protocol, policy=policy,
+            reservation_policy=reservation_policy)
 
     changed_policy = dict(policy, gflags_expected_head="0" * 40)
     with pytest.raises(IdentityVerificationError, match="approved policy"):
         verify_recorded_series_identity(
             git_repo_root=repo, attempt_dir=layout.attempt_dir,
-            preimage=preimage, protocol=protocol, policy=changed_policy)
+            preimage=preimage, protocol=protocol, policy=changed_policy,
+            reservation_policy=reservation_policy)
+
+    for mutation in (
+            {"t126_qualification_wmax_s": 29101},
+            {"t126_qualification_walltime": "09:00:00"},
+            {"t126_qualification_member_term_grace_s": 11},
+    ):
+        changed_reservation_policy = dict(reservation_policy, **mutation)
+        with pytest.raises(
+                IdentityVerificationError, match="approved reservation policy"):
+            verify_recorded_series_identity(
+                git_repo_root=repo, attempt_dir=layout.attempt_dir,
+                preimage=preimage, protocol=protocol, policy=policy,
+                reservation_policy=changed_reservation_policy)
 
 
 def test_consumer_rejects_coherently_rehashed_source_stage_perf_claim(
