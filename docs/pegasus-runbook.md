@@ -387,10 +387,23 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   が cc/oze を落とす) — `git ls-files -z | tar` の tracked 限定コピーを使う (request 873732 実測)
 - floor/oracle を Pegasus で走らせる際は out_root 配下 `claims/` の事前作成と
   IZANAGI_RESERVATION_* の export (certify_calibration.sh 参照) が必要 (floor 実測は次段)
-- **計算ノードは外部 network 不可** (2026-07-29、github への DNS 解決不能を request 873903/873904
-  で 2 回実測)。FetchContent 等の実行時取得はジョブ内で必ず失敗する — 依存ソースはログインノードで
-  pinned staging し、`FETCHCONTENT_SOURCE_DIR_*` で渡す (silo_ladder_rung1 は submitter が自動実行。
-  SOURCE_DIR 指定時は GIT_TAG pin が効かないため HEAD 照合を fail-closed で行うこと)
+- **計算ノードは直結の外部 network 不可。ただし HTTP(S) proxy が在る** (訂正 2026-08-01)。
+  当初は「外部 network 不可」とだけ記録していたが (2026-07-29、github への DNS 解決不能を request
+  873903/873904 で 2 回実測)、これは**直接解決・直接接続についての事実**であり、経路全体の不在では
+  なかった。2026-08-01 の実測 (request 876527/876528/876529、bnode002): `getent hosts` と
+  `/dev/tcp` は名前解決不能のままだが、計算ノードの shell profile が `http_proxy` / `https_proxy`
+  (`10.120.96.1:8080`) を設定しており、**Claude CLI はこの proxy 経由で API に到達する**
+  (算術 nonce 3 問を rc=0・3 秒で正答)。env を `PATH/HOME/LANG/LC_ALL/TERM` だけに絞ると
+  `ENOTIMP` で 172 秒後に失敗し、proxy 2 変数を戻すと成功する、という 3 条件の対照も取った。
+  **ここから先へ一般化してはならない** — 実測したのは「特定 profile 下で Claude CLI が
+  proxy 経由で成功した」ことだけである。git clone / CMake FetchContent / pip が proxy を honor
+  するかは command・ノード・profile ごとに未確定であり、「https が通るなら FetchContent も通る」
+  と読み替えない。依存ソースはログインノードで pinned staging し、`FETCHCONTENT_SOURCE_DIR_*` で
+  渡す運用を維持する (再現性と offline fallback のため。silo_ladder_rung1 は submitter が自動実行。
+  SOURCE_DIR 指定時は GIT_TAG pin が効かないため HEAD 照合を fail-closed で行うこと)。
+  なお **§8 の「計算ノードで `claude -p` を起動しない」は本訂正では緩めない**。この事実は D108
+  決定 (1) が挙げた前提の一部を覆すが、分割線を変えるかはユーザー裁定に戻してある
+  ([T-271]、2026-08-01 worklog (95))
 
 ## 8. 投入前チェックリスト
 

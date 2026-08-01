@@ -1,0 +1,15 @@
+
+============================================================
+Request ID:             876729.nqsv
+Request Name:           t241_build.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Sat Aug  1 14:16:51 2026
+Started Request Time:   Sat Aug  1 14:16:59 2026
+Ended Request Time:     Sat Aug  1 14:16:59 2026
+Resources Information:
+  Elapse:               4S
+  Remaining Elapse:     596S
+============================================================

@@ -1,0 +1,18 @@
+hostname=bnode002
+--- compilers ---
+gcc -> /bin/gcc
+gcc-12 -> /bin/gcc-12
+gcc-13 -> ABSENT
+g++ -> /bin/g++
+g++-12 -> /bin/g++-12
+g++-13 -> ABSENT
+--- cmake ---
+cmake version 3.25.0
+--- gflags/glog cmake packages ---
+ls: cannot access '/usr/include/gflags': No such file or directory
+ls: cannot access '/usr/include/glog': No such file or directory
+--- pinned sources on /home ---
+/home/SFC/tanab/github/gflags
+/home/SFC/tanab/github/glog
+--- boost ---
+/usr/include/boost
