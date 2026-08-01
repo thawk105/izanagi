@@ -448,7 +448,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      (無条件 pass の fixture auditor を実計測経路へ載せない。D106 決定 (6))。
      **規律 3 の還流が human loop より狭い**点は設計択一として未解決であり、
      cross-generation 還流が起きる `--max-generations >= 2` の運転を D106 残余 1 の裁定まで
-     禁止する ([T-238])。1 generation/cell は還流が起きないため許可する。
+     禁止する ([T-244])。1 generation/cell は還流が起きないため許可する。
 
      **この完了は「無人で proposal を作り build 手前まで運べる」operational evidence であり、
      workload-conditioned synthesis の科学的主張ではない。** A=rr50/B=rr95 は既知点、C=rr100 は
