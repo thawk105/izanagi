@@ -1253,3 +1253,38 @@
   それ自体を孤児の疑いとして扱い上記 3 点を回す。孤児プロセスの `kill` は harness の
   classifier が拒否しうるため、worktree だけ畳んでプロセスはユーザー手番に残してよい
   (当該ループは cwd を読み書きしないので cwd が deleted になっても害はない)
+
+### F65. dispatch 中継で変異 harness の失敗 node 記録が無音で 0 件になる [恒真ゲート]
+- 事象: 2026-08-01 [T-207] の段 6 変異 matrix で、4 変異のうち 3 件は rc≠0 (kill) だったのに
+  **記録 node が全件「なし」**になった。matrix は期待 node と突き合わせて MISMATCH を出したが、
+  もし期待側も空だったら「node 0 件どうし一致」で **AGREE と読めてしまう**構造だった
+- 根本原因: `tools/run_tests.py` は Pegasus 計算ノードへ dispatch し、子 pytest の stdout を
+  **行頭に `| ` を付けて中継する** ([T-194] で入れた親への中継)。harness の node 抽出は
+  `DW-M08` の指示どおり ANSI を除去して `FAILED <node> - <error>` を拾っていたが、
+  中継接頭辞を剥がしていなかったため 1 行も一致しなかった。`DW-M08` は ANSI 除去だけを
+  明示しており、dispatch 中継という**後から入った経路**を想定していない
+- 恒久対応: 変異 harness は (1) 行頭の中継接頭辞 (`| `、`|`、前置空白) を剥がしてから
+  `FAILED` 判定し、(2) 期待側と記録側へ**同じ正規化関数**を通し、(3) **kill (rc≠0) なのに
+  node が 1 件も取れなかったら AGREE にせず MISMATCH 側へ倒す**。(3) が本質で、
+  抽出失敗を「期待どおり」と読める出力にしないことが恒真ゲート化の唯一の防壁である
+- 再発検知: 変異 matrix で「rc≠0 かつ記録 node 0 件」が出たら、まず抽出器を疑う。
+  出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
+  抽出器の側も同時に確認する
+
+### F66. 背景 job で「親セッションで直せ」と指示する checker メッセージが宛先不在になる [手順漏れ]
+- 事象: 2026-08-01 [T-207] の背景 job が新規 worktree を作り `tools/check_wave_startup.py` を
+  走らせたところ `NG: submodule is not initialized ... 親セッションで submodule を初期化する`
+  で停止した。しかし背景 job には指示先の「親セッション」が存在せず、実際の対処は
+  **当の worktree で `git submodule update --init --recursive` を走らせること**だった
+- 根本原因: 新規 worktree は必ず submodule 未初期化で始まるのに、初期化手順の正本
+  (`DW-O08`) は「freeze / oracle gate / proof chain に触る可能性が判明」した場合だけ読む
+  L2 条件節にある。無条件に読む `DW-O20` (clean-tree gate) は checker の実行と
+  「非 0 なら停止」しか書いておらず、**最も頻出する NG の解消手順への導線がない**。
+  checker のメッセージが特定の運用形態 (対話セッション + 親) を前提にしていたことも重なった
+- 恒久対応: 新規 worktree で startup gate が submodule NG を返したら、条件節の発火を待たず
+  その worktree で `git submodule update --init --recursive` を実行してから再走する。
+  checker メッセージの文面と `DW-O20` への導線追記は dev-wave の byte 予算
+  (23,983 / 24,000) に収まらないため、予算を増やさず実現する案としてユーザー裁定へ返す
+- 再発検知: 背景 job の wave 立ち上げで checker が非 0 になり、そのメッセージが
+  「ユーザー」「親セッション」など**この job には存在しない主体**へ作業を指示していたら、
+  同型として扱う
