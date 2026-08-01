@@ -898,6 +898,15 @@
   fail-closed (commit `419d59b`)。環境事実は `docs/pegasus-runbook.md` §4 に記載。一般則:
   実行環境でしか成立しない前提は、実行環境側で **assert として**束縛する (記録だけの値を作らない)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
+- **再発: 2026-08-01** ([T-221] 段 1)。親 brief が計算ノードの `-n 48` 全走で測った
+  `/dev/shm` peak 7.39 GiB を、ログインノードの経路にも「同機序で最大 7.39 GiB」として
+  転写した。repo に `addopts` は無く login 直叩きは既定で**直列**なので、同時生存する
+  temp 総量は worker 数に比例して桁が違う。段 3 の敵対レンズ (`DW-S03` の「親自身の実測値と
+  その一般化も明示的にレンズへ入れる」) が実測で refute し、親が撤回した。**一般則の拡張**:
+  「別環境」だけでなく**別並列度・別実行形態**へ数値を転写するときも、転写先で成立するかを
+  実測してから書く。同 wave では「ガードが恒真だ」という主張を caller を全列挙せずに
+  行った誤りも同レンズが refute した (呼び出しは `main()` 内のみでテスト非到達だった) —
+  **恒真だと主張する前に呼び出し元を全列挙する**
 
 ### F47. AI セッション内 shell からの qsub が、見かけ成功のまま receipt 不永続・所有者不整合の無効 request を作った [誤前提]
 
@@ -1086,6 +1095,16 @@
   `019fadd3-c19c-7a12-bbf0-ded998aed815` = codex-mini、および `reasoning=ultra` の 4 session) が
   一次資料。機械検査は未実装 (上記所有 ID で実装する)
 - 記録: worklog 2026-07-30 (68)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`
+- **再発: 2026-08-01 (Claude 側の同型を実測)**。`claude -p --effort <不正値>` は
+  `Warning: Unknown --effort value ... using the default effort` を出して **rc=0 で続行**し、
+  既定へ黙って落ちる (`--model` の不正値は rc=1 で fail-closed)。さらに effort は
+  `--output-format json` の result にも `stream-json` の `init` event にも現れず、`--help` にも
+  既定値の記載がないため、**要求値と実効値を突き合わせる経路が Claude 側にも無い**。
+  fallback 先がセッション設定値か CLI 内蔵既定かは未確認 (3 arm の出力トークン probe は陰性)。
+  同型の検証非対称は `tools/dev_waves` にもある (model は `allowed_models` に照合、effort は
+  形のみ、receipt に effort field なし) が、同層は D74 で fake child 限定のため成果物影響ゼロ。
+  一次資料 = `output/insights/2026-08-01_token-hygiene-audit/probes/cli-effort-failopen.md`、
+  記録 = worklog 2026-08-01 (81)
 
 ### F57. Codex worker launcher の normal fake が32-worker全走だけで失敗し、失敗nodeが移動した [テストフレーク] [資源競合]
 
@@ -1195,3 +1214,42 @@
 - 再発検知: `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が before/after 差分として検出する
   (本件はこの検査が正しく発火した結果である)。差分が到達しえないファイルで出た赤は `DW-O18` に従い
   単独再走で再現性を実測してから帰属する — 本件も再走で偽赤と確定した
+
+### F63. cleanup-branches が要求する submodule 実体化検査に、guard_bash を通る書き方が無かった [手順漏れ]
+- 事象: `/cleanup-branches` 実行中、F26 の risk 判定 (どの worktree で `external/ccbench` が
+  実体化しているか) を worktree ごとに数える shell を 2 度書き、2 度とも `guard_bash` が
+  「末端/防護ツリーのパスと不透明構文の同居は分類不能 = fails-closed」で拒否した。
+  拒否されたのは書き込みでなく**読み取り専用の `ls -A ... | wc -l` 集計**である
+- 根本原因: guard_bash は防護パスのトークン (`external/ccbench` 等) と不透明構文 (`$()` 等) が
+  **同一コマンドに同居**した時点で分類を諦めて拒否する。一方 cleanup-branches §1/§3 は
+  worktree ごとの submodule 状態を見ることを求めており、その自然な shell 慣用は
+  「防護パスを含むループ + `$()` での結果埋め込み」になる。**防壁は設計どおり働いたが、
+  スキルが求める検査に対して通る書き方がどこにも書かれていなかった**
+- 恒久対応: 防護パスを含む読み取り集計では `$()` を使わない。`find <root> -maxdepth 3
+  -path '*/external/ccbench' -type d -printf '%p ' -exec sh -c 'ls -A "$1" | wc -l' _ {} \;`
+  のように **`-exec` へ渡して置換を挟まない形**にすると同居しないため通る。
+  `git submodule status` 単体 (§4 の事後検査) は防護パスをコマンド行に書かないため元から通る
+- 再発検知: guard_bash の拒否メッセージ自体が検知である (fail-closed で黙って通らない)。
+  入口 `.claude/commands/cleanup-branches.md` §3 へのポインタ追記は byte 上限
+  4000 に対し実測 headroom 41 で入らず、同ファイルの編集を既に所有する [T-208] へ合流させた
+
+### F64. 死んだ session の孤児待機ループが worktree を「使用中」に見せ、掃除を 3 周止めた [恒真ゲート] [手順漏れ]
+- 事象: `.claude/worktrees/dev-wave-t181-reasoning-ab` が (76) → (79) → (83) の 3 回連続で
+  「滞在プロセスあり」として残置され、毎回ユーザー引き渡しへ回された。実測すると滞在の実体は
+  **2 日前に死んだ session (job `c94644e8`) が残した `until [ -f <sentinel> ]; do sleep 20; done`
+  1 本**で、`ppid=1` (init へ里子)、待っている sentinel は**永久に作られない**。
+  scan ごとに PID が変わる 2 本目は、そのループが 20 秒ごとに生む `sleep` の子だった
+- 根本原因: cleanup-branches §2 の使用中判定は `/proc/*/cwd` に当該 worktree が現れるかだけを見る。
+  これは「生きた作業がある」ことの proxy として導入されたが、**孤児化した待機ループと生きた
+  セッションを区別しない**。待機ループは cwd を読み書きしないので実害ゼロなのに、判定は
+  永久に真を返し続ける。**時間が経つほど誤検出が増える片側性の恒真ゲート**であり、
+  「2 本も居るなら稼働中だろう」という人間側の解釈がそれを補強した
+- 恒久対応: 滞在プロセスを検出したら**そこで残置を決めず素性を 3 点で検める** —
+  (1) `ppid` が 1 なら親 session は死んでいる、(2) PID が scan ごとに変わる子は `sleep` 等の
+  一過性で滞在の実体ではない、(3) `/proc/<pid>/cmdline` が待つ sentinel の実在を確認する。
+  3 点とも孤児側なら worktree は未使用と扱ってよい。**滞在プロセス数を根拠にしない** —
+  数えるのでなく素性を見る
+- 再発検知: 同じ worktree が 2 回以上連続で「滞在プロセスあり」を理由に残置されたら、
+  それ自体を孤児の疑いとして扱い上記 3 点を回す。孤児プロセスの `kill` は harness の
+  classifier が拒否しうるため、worktree だけ畳んでプロセスはユーザー手番に残してよい
+  (当該ループは cwd を読み書きしないので cwd が deleted になっても害はない)
