@@ -1095,6 +1095,16 @@
   `019fadd3-c19c-7a12-bbf0-ded998aed815` = codex-mini、および `reasoning=ultra` の 4 session) が
   一次資料。機械検査は未実装 (上記所有 ID で実装する)
 - 記録: worklog 2026-07-30 (68)、逐語 = `output/insights/2026-07-29_t182-model-routing-shadow-pilot-verbatim/`
+- **再発: 2026-08-01 (Claude 側の同型を実測)**。`claude -p --effort <不正値>` は
+  `Warning: Unknown --effort value ... using the default effort` を出して **rc=0 で続行**し、
+  既定へ黙って落ちる (`--model` の不正値は rc=1 で fail-closed)。さらに effort は
+  `--output-format json` の result にも `stream-json` の `init` event にも現れず、`--help` にも
+  既定値の記載がないため、**要求値と実効値を突き合わせる経路が Claude 側にも無い**。
+  fallback 先がセッション設定値か CLI 内蔵既定かは未確認 (3 arm の出力トークン probe は陰性)。
+  同型の検証非対称は `tools/dev_waves` にもある (model は `allowed_models` に照合、effort は
+  形のみ、receipt に effort field なし) が、同層は D74 で fake child 限定のため成果物影響ゼロ。
+  一次資料 = `output/insights/2026-08-01_token-hygiene-audit/probes/cli-effort-failopen.md`、
+  記録 = worklog 2026-08-01 (81)
 
 ### F57. Codex worker launcher の normal fake が32-worker全走だけで失敗し、失敗nodeが移動した [テストフレーク] [資源競合]
 
