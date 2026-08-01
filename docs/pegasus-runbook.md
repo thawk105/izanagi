@@ -252,17 +252,55 @@ rbudgetcheck
 ## 7. Izanagi で使う場合
 
 Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境として扱う。対話セッションが動くのは
-共有のログインノードである。**ビルドとテスト (pytest スイートの全走を含む) はログインノードで
-走らせてよい** (2026-07-27 ユーザー裁定。以前ここには「テストも必ず計算ノード」と書いてあったが
-誤りだった)。計算ノードへ出すのは**重い性能測定** — ベンチ、calibration、noise floor、
-floor / oracle の本走 — であり、これらは必ず `qlogin` / `qsub` で確保した計算ノード上で行う。
-ログインノードは共有なので、テストは全コアを掴まない並列度で回す (`tools/run_tests.py` の既定が
-上限付きで自動追従する)。ただし**ログインノードの `g++` は 11.4.0 で `g++-13` は無く** (`module avail`
-にも無い、2026-07-27 実測)、C++ toolchain 依存のテスト群はここでは skip される。全走 rc=0 は受入
-判定として成立するが、**その群の検出力はこの環境では得られない**ことを結果と一緒に記録する。単独性確認 (pgrep・load average) は計測を走らせる計算ノード上で
-行う — ジョブがノードを割り当てられても専有が保証されるわけではない (§1)。共有ログインノード
-上の確認は他ユーザーのプロセスを拾って意味をなさない。正式な性能比較へ使うまでは、Pegasus
-上の throughput を既存の `linux-baremetal` 測定値へ混ぜない。正式採用には次が必要になる。
+共有のログインノードである。**重い処理 — ビルド・テスト (pytest スイートの全走と部分走を含む)・
+ベンチ・calibration・noise floor・floor / oracle の本走・provenance 履歴監査
+(`tools/check_ai_provenance.py`) — はログインノードで走らせず、
+`qlogin` / `qsub` で確保した計算ノード上で行う** (2026-07-30 ユーザー裁定。2026-07-27 の
+「ビルドとテストはログインノードで走らせてよい」を再反転したものであり、こちらが現行)。
+**計算ノードでは割り当てられた資源を最大限使い、最大並列で回す** (同裁定)。射程は
+**テストの既定並列度と build の `-j` 既定の両方**である — 計算ノードでは affinity 全数、
+非 Pegasus では従来値 (テスト cap 32 / build `-j 16`) を保つ。明示 `-n` / `jobs=` は後勝ちで尊重する
+(§8 と D103 決定 4)。ログインノードに
+残してよいのは編集、静的検査、docs 検査、スケジューラ操作 (`qsub` / `qstat` / `qdel`)、および
+`--message-file` の commit 前 preflight だけである。**`tools/check_ai_provenance.py` の履歴監査は
+「静的検査」ではない** — 1 回で git subprocess 約 3000 本・130〜150 秒を共有ノードに載せるため、
+checker 自身が計算ノードへ自動 dispatch する (D105)。
+
+強制の層と射程は次のとおりで、**全経路の機械保証はできない**。
+
+- **一次強制 (fail-closed)**: `tools/run_tests.py` はログインノードでのテスト実行を拒否し、
+  計算ノードへ自動 dispatch する。実 cmake build もログインノードで拒否される。
+  `tools/check_ai_provenance.py` も同型で、履歴監査を計算ノードへ自動 dispatch し、
+  `PEGASUS_SUSPECT` では rc=16 で拒否する。`--message-file` の preflight だけを免除する
+- **二次防壁**: `hooks/guard_bash.py` が直接の重量コマンド (`pytest`、`cmake --build`、`make -j`、
+  `ninja`、`ctest`、計測バイナリ) を Claude の Bash 面で拒否する。provenance については
+  sanctioned exact path を許可し、それ以外の綴り (repo 外 copy、cwd 相対) を拒否する。
+  **hook が閉じるのはこの綴り差だけである**
+- **規律 (機械強制なし)**: Codex 子には hook が未配線 (`hooks/README.md`)。script file 越し・
+  変数展開・`python3 -c`・他 AI・ユーザー端末・IDE・cron は原理的に見えない。ここは
+  `AGENTS.md` と本節の規律で塞ぐ。**`tools/dev_waves/checker.py` が `/tmp` の隔離 clone を
+  check の cwd に使う経路も一次強制の射程外**である (計算ノードから clone が見えないため
+  dispatch が失敗する。`orchestrator` check が既に同型で、clone 置き場の是正は別タスク)
+
+計算ノードの実測 (2026-07-30、request `874129`、bnode114): 48 コア / affinity 48。pytest 全走は
+`-n 48` = 205 秒、`-n 32` = 207 秒。queue 待ちは 86 秒 (別の request では 6 秒)。
+`-n 16` 以下との対照は未取得であり、**「並列度を上げるほど速い」とは言えない** (2026-07-26 には
+より小さい suite で `-n 16` が `-n 48` より速い実測がある)。既定を最大並列にするのは
+ユーザー裁定に基づく方針であり、最速の実測に基づくものではない。
+provenance 履歴監査の**試作実装**の実測 (2026-07-30、request `874712`、bnode041、596 commit。
+出荷実装は並列度に上限 32 を置くので下表の 48 並列の値ではない): ログインノードの
+130〜150 秒に対し計算ノードの逐次が 25.24 秒、thread pool 16 並列で 5.60 秒、32 / 48 並列はいずれも
+5.23 秒 (改善が止まる)、祖先 bitset を併用した 48 並列で 4.58 秒。**全 arm で findings と
+forward-correction が baseline と完全一致することを検査条件にした** (速いだけで答えが変わる変更を採らないため)。
+一次資料は `output/insights/2026-07-30_t200-suite-floor/s7-negative-result.md` §11。
+
+`g++-13` は**ログインノードにも計算ノードにも無い** (計算ノードには `g++-12` が在る)。C++
+toolchain 依存のテスト群はどちらでも skip されるため、**移設で検出力は増えない**。全走 rc=0 は
+受入判定として成立するが、その群の検出力が無いことは結果と一緒に記録する。単独性確認
+(pgrep・load average) は計測を走らせる計算ノード上で行う — ジョブがノードを割り当てられても
+専有が保証されるわけではない (§1)。共有ログインノード上の確認は他ユーザーのプロセスを拾って
+意味をなさない。正式な性能比較へ使うまでは、Pegasus 上の throughput を既存の `linux-baremetal`
+測定値へ混ぜない。正式採用には次が必要になる。
 
 **repo のコードを走らせるジョブは interpreter 版をジョブ内で検査してから使う。** 計算ノードの
 `python3` はログインノードより古いことがある (2026-07-27 実測: bnode010 の `python3` は 3.9 で、
@@ -338,6 +376,10 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   が cc/oze を落とす) — `git ls-files -z | tar` の tracked 限定コピーを使う (request 873732 実測)
 - floor/oracle を Pegasus で走らせる際は out_root 配下 `claims/` の事前作成と
   IZANAGI_RESERVATION_* の export (certify_calibration.sh 参照) が必要 (floor 実測は次段)
+- **計算ノードは外部 network 不可** (2026-07-29、github への DNS 解決不能を request 873903/873904
+  で 2 回実測)。FetchContent 等の実行時取得はジョブ内で必ず失敗する — 依存ソースはログインノードで
+  pinned staging し、`FETCHCONTENT_SOURCE_DIR_*` で渡す (silo_ladder_rung1 は submitter が自動実行。
+  SOURCE_DIR 指定時は GIT_TAG pin が効かないため HEAD 照合を fail-closed で行うこと)
 
 ## 8. 投入前チェックリスト
 
@@ -346,8 +388,18 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - wall time と node 数 (`-b`) が処理に適切である
 - OpenMP threads は 48 以下である
 - hybrid 実行は node あたり `MPI processes × OMP_NUM_THREADS <= 48` である
-- GPU プログラムと重い性能測定 (ベンチ・calibration・floor/oracle) をログインノードで実行していない
-  (ビルドとテストはログインノードで可 — §7)
+- **重い処理をログインノードで実行していない** — GPU プログラム、ベンチ、calibration、
+  floor/oracle に加え、**ビルドとテスト (pytest の全走・部分走を含む) も計算ノードで行う** (§7)。
+  **provenance 履歴監査 (§7)** も同じ扱いとし、免除は `--message-file` の preflight だけである
+- `python3 tools/check_ai_provenance.py` をログインノードで打つと自動 dispatch され、
+  receipt が `output/pegasus-dispatch/<nonce>/` に残る。**`rc=16` は dispatch の infra 失敗であって
+  監査結果ではない** (違反件数は rc=1 で返る)
+- 計算ノードでは**テストの既定並列度が affinity 全数**になっている (明示 `-n` /
+  `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ち = 「既定が最大」であって「全実行が最大」ではない)
+- ビルドは**実行場所を計算ノードへ強制し、`-j` 既定も site 由来**にする (計算ノードで affinity
+  全数、非 Pegasus は 16)。cache hit 時に記録される `-j` が cache 作成時の値と食い違う場合は
+  受理する — 並列度はバイナリ bytes に影響しないという裁定である (D103 決定 4)。
+  binary identity の検査 (`bin_sha256`、trace diff、`src_token` 再照合) は緩めない
 - 単独性の確認 (pgrep 等) は、割り当てられた計算ノード上で行う (割当てを専有の保証と見なさない)
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した
@@ -356,7 +408,12 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   request を作る (F47、2026-07-28 に request 873213 で実測) ため引き続き禁止。
   **例外 (2026-07-29 ユーザー裁定 = F49 (ii))**: 背景 job セッションの Bash tool のように
   書き込みが実 FS へ永続するセッション型からは投入してよい (反例実測 = request 873583)。
-  その場合、投入直後に有効性検査を必ず行う — (a) receipt / 出力 dir が実 FS に永続している、
+  その場合、投入直後に有効性検査を必ず行う — (a) 出力 dir が実 FS に永続している、
   (b) `qstat` で request が可視である、(c) 終了後に PBS 会計痕跡 (`.e`/`.o`、ポイント消費) が
-  実在する。1 つでも欠ければ F47 型 (不永続 sandbox) とみなし、以後の投入を止めて
-  ユーザー端末へ引き渡す
+  実在する。**証拠の取り方と失敗の型は分ける** (`tools/pegasus/dispatch_compute.py` が正本):
+  (a) は**計算ノード側が書いた marker の実在**で確かめる (親が自分で書いた dir を読み直しても
+  自己確認にしかならない)。(b) の `qstat` が**権限系エラー** (`Not permitted` 等) を返す、
+  または成功したのに request が不在なら **F47 型 (不永続・資格情報不整合)** とみなし、
+  以後の自動投入を止めてユーザー端末へ引き渡す。接続不能・timeout 等の**一時的エラーは再試行し、
+  全滅でもその 1 回を失敗にするだけで恒久停止しない** (瞬断で harness を止めない)。
+  (c) の会計痕跡は猶予付きで再取得し、欠けてもその 1 回を失敗にするだけとする

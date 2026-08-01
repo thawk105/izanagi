@@ -1,0 +1,49 @@
+あなたは izanagi の dev-wave 段 6 敵対レビュー A である。read-only sandbox。出力は日本語。
+レンズ = **実装の fail-open と証拠偽装**。実装を守る側に回らず攻撃せよ。
+
+## 必読 (読めなければ即停止し、読めなかった絶対パスを報告して終了する)
+
+対象 worktree = /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope
+(段 5 の 2 単位を統合済み。親実走で 133 passed)
+
+- 実装: `tools/codex_worker_launch.py`、`tools/codex_worker_ledger.py`
+- テスト: `orchestrator/tests/test_codex_worker_launch.py`、`orchestrator/tests/test_codex_worker_ledger.py`
+- 仕様の正本 (裁定 + plan v2 + 変異事前登録):
+  output/insights/2026-07-29_t180-resource-envelope-wave/s4-adjudication-plan-v2.md
+- 実装子の完了報告: 同 directory の s5-author-a.md、s5-author-b.md
+- 実測 probe: 同 directory の probe/README.md、probe/rollout-digest.json
+
+## 既知の未了 (ここを所見にしても加点しない)
+
+manifest の `(job_id, attempt_index)` 一意と R5 の「1 attempt が複数 session を観測しうる」は
+仕様矛盾で、親が `(job_id, attempt_index, session_id)` 一意 + `session_id` 大域一意へ再凍結すると
+裁定済み。現在は fail-closed で追記拒否。**この既知項目以外**を攻撃せよ。
+
+## 攻撃せよ
+
+1. **上限の迂回**: wall-clock / model_calls / cli_reported の各上限を、実装のコード経路上で
+   超過させたまま `outcome=accepted` に到達させる入力・状態を探せ。
+   特に `limit_trigger` の latch と accepted 判定の間に隙間がないか。
+2. **metering の fail-open**: `token_count` が来ない・`info` が null・重複・巻き戻る・
+   rollout と stdout が食い違う各ケースで、消費が 0 または過少として受理される経路。
+   `cached_input_tokens > input_tokens` の扱いが launcher と ledger で食い違っていないか。
+3. **receipt の偽装と破損**: `check-receipt` が receipt の自己申告を信じている箇所。
+   output/manifest/rollout を receipt 作成後に改変しても検出されない経路。
+   temp+rename の原子性が実際に成立しているか (同一 filesystem か、fsync 順序、O_NOFOLLOW)。
+4. **終了の不完全性**: process group 終了が実際に効かない経路。residual の数え方が
+   常に 0 になる恒真検査になっていないか。`termination_verified` が偽の緑になる条件。
+5. **manifest の混入**: header 照合、wave_id 束縛、lock、whole-document replace の各所で、
+   別 wave / 別 job の entry を受け入れる、あるいは既存 entry を失う経路。
+6. **ledger の受理集合**: `--manifest` 未指定経路が本当に不変か。三者一致検査が
+   実際には成立していない (常に真、あるいは片側しか見ていない) 経路。
+   R10 の無条件 rc=2 が `--strict` 依存に戻っている箇所。
+7. **恒真な保証**: 謳っているのに発火しない assert、到達不能な分岐、
+   例外で握り潰されて fail-open になる `except`。
+
+## 出力形式
+
+- 所見ごとに: [must-fix|nit|scope外候補] / 攻撃入力・状態 / 壊れる不変条件 / 該当 file:line。
+- 「成果物 (certified 選択・レポート・台帳) のどの値・受理集合・参照がどう変わるか」を
+  1 行で書けない所見は must-fix にしない。
+- read-only のため pytest は要求しない。静的検査でよい。走らせていないものを緑と書かないこと。
+- 最後に必ず `## 総括` 見出しを置き、GO / NO-GO と最重要 3 件を書く。

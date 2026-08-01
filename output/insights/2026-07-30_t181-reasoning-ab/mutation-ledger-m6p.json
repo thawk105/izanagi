@@ -1,0 +1,15 @@
+[
+ {
+  "id": "M6p",
+  "desc": "読取時 digest と freeze 時 digest の両層を同時無効化 (DW-M04)",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m6_verdict_packet_swap_restore_digest_layers_are_redundant"
+  ],
+  "expect_node": "m6_verdict_packet_swap_restore",
+  "expected_hit": [
+   "orchestrator/tests/test_codex_reasoning_ab.py::test_m6_verdict_packet_swap_restore_digest_layers_are_redundant"
+  ],
+  "verdict": "KILLED"
+ }
+]

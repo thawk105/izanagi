@@ -53,6 +53,10 @@ from campaign.model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
                             CampaignConfig, Genome)
 from campaign.pipeline import PerfConfig                           # noqa: E402
+from campaign.projection_guard import (                            # noqa: E402
+    assert_closed_proposal_schema,
+    assert_no_ability_probe_material,
+)
 from critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
                            build_digest, load_diff_rejections,
                            load_liveness_rejections, load_rejections,
@@ -692,6 +696,9 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
     機械強制する (D39 決定7)。"""
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
+    assert_closed_proposal_schema(
+        d, require_auditor=False, require_coder_value=True,
+    )
     p, c = d["planner"], d["coder"]
     planner = PlannerProposal(
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
@@ -707,6 +714,7 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
     if prior is not None and not isinstance(prior, bool):
         raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
                          f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
+    assert_no_ability_probe_material(d)
     return planner, coder, prior
 
 

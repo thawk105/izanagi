@@ -14,9 +14,9 @@ Claude と Codex の製品選定、モデル選択、推論深度を後から監
 すべての commit は、message 末尾に次の trailer を 1 行以上持つ。フィールドの順序と区切りは
 固定し、値に `;` または改行を含めない。必須なのは、本文と空行で区切った最終段落 (Git が
 trailer と認識する位置) に `AI-Agent` があることで、本文の有無は任意 (ここまでが
-`check_ai_provenance` の機械検査対象)。`Co-Authored-By` を併用する場合は同じ trailer block 内に
-空行を挟まず連続させること (段落が分断・結合されると Git の trailer 認識は保証されない —
-failures F25 の再発防止。この連続性は機械検査されない)。
+`check_ai_provenance` の機械検査対象)。`Co-Authored-By` を併用する場合は空行を挟まず連続させ、
+Co-Authored-By 候補行はすべて最終 trailer block に置く。checker は候補行数と隔離した Git parser の
+認識数を照合し、本規則を導入 commit 以後へ適用する (failures F25)。
 
 ```text
 AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>[; scope=<scope>]
@@ -61,6 +61,8 @@ AI-Agent: none
 - docs-only、ログ・計測結果・凍結記録だけの変更、および AI 非関与の `AI-Agent: none` は対象外。
 - 小さい、軽量版、test-only、probe-only、production 挙動 0 は免除理由にならない。Codex が
   実行不能なら Claude が代行せず停止し、例外の必要性をユーザー裁定へ返す。
+- Codex 不可用時はユーザー裁定のうえ `AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>` を
+  最終 block へ `role=author` と併記する。規則と抑止は D105。
 
 `tools/check_ai_provenance.py` は commit の変更 path と trailer を照合する。過去履歴へ遡及せず、
 本節の導入 commit から適用する。`--message-file` では staged path に同じ検査を適用する。
@@ -83,38 +85,20 @@ AI-Agent: none
 - トークン数、利用枠、料金はこの trailer の対象外とする。必要なエージェント工数や棄却 finding は
   `docs/worklog.md` 冒頭の書式に従い、worklog または一次資料へ残す。
 
-## 例
+## `6b64d21` の一回限り forward correction
 
-Codex が実装し、Claude が独立レビューした架空の形式例:
-
-```text
-feat(renderer): WAL から材料レポートを生成
-
-AI-Agent: product=codex; model=not-exposed; reasoning=high; role=author
-AI-Agent: product=claude; model=not-exposed; reasoning=high; role=reviewer
-```
-
-複数の構成が同じ role で別々の範囲を担った場合は `scope` で区別する:
+共有済み `6b64d21753d2cfc790f80caba29df7a40fef3072` はrewriteせず、strict descendant 1件で補記する。
 
 ```text
-feat(s8b): protocol 凍結と検証テスト
-
-AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; role=author; scope=protocol
-AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; role=author; scope=tests
-AI-Agent: product=claude; model=opus-4-8; reasoning=high; role=reviewer
+AI-Agent-Correction: target=6b64d21753d2cfc790f80caba29df7a40fef3072; product=claude; model=claude-opus-5; reasoning=xhigh; role=integrator
 ```
 
-製品は分かるが実行面がモデルと推論設定を開示していない場合:
+自身の `AI-Agent` と上記物理1行は同じ最終blockに置く。checkerはraw/canonical/final-block exact、
+selected set内の両commit、strict lineage、target実欠落、candidate 1件、自身の通常greenを連言し、
+targetの欠落findingだけを相殺する。一般allowlist・設定・CLI免除へ拡張しない。
 
-```text
-AI-Agent: product=codex; model=not-exposed; reasoning=not-exposed; role=author
-```
-
-人間だけで作業した場合:
-
-```text
-AI-Agent: none
-```
+監査は両commitを含むrangeか既定full-historyを権威とする。target抜き`OLD_HEAD..HEAD`は補助で、
+初回伝播も免除しない。green時は両SHAを`forward-corrected=1`で示す。
 
 ## commit 前の確認と監査
 

@@ -1,0 +1,81 @@
+{
+ "schema_version": 2,
+ "verdicts": [
+  {
+   "packet_id": "0da6b8754c70e542dcf8869da40888ed",
+   "r1_detected": false,
+   "decision": "GO",
+   "findings": []
+  },
+  {
+   "packet_id": "1d614167c134a0b63af3198cf501cc19",
+   "r1_detected": false,
+   "decision": "GO",
+   "findings": []
+  },
+  {
+   "packet_id": "37b2f0861a5ac331981144f0d9e150da",
+   "r1_detected": true,
+   "decision": "NO-GO",
+   "findings": []
+  },
+  {
+   "packet_id": "40015ddbf07d2940070d2a2c7a1a7faa",
+   "r1_detected": true,
+   "decision": "NO-GO",
+   "findings": []
+  },
+  {
+   "packet_id": "7537d2ff41aad4a0967785f8b4ca7267",
+   "r1_detected": true,
+   "decision": "NO-GO",
+   "findings": []
+  },
+  {
+   "packet_id": "ba6f9bfa9b99752250177b99fc9b64f7",
+   "r1_detected": true,
+   "decision": "NO-GO",
+   "findings": []
+  },
+  {
+   "packet_id": "c17e5b2cca38ce2e050c6988606fd4f6",
+   "r1_detected": false,
+   "decision": "GO",
+   "findings": []
+  },
+  {
+   "packet_id": "c864cd954654b4f73ba05d7dd1d1ba3d",
+   "r1_detected": false,
+   "decision": "NO-GO",
+   "findings": [
+    {
+     "root_cause": "ownership-evidence-absent-in-snapshot",
+     "real": true,
+     "severity": "MEDIUM",
+     "must_fix": false,
+     "equivalent_to": null
+    }
+   ]
+  },
+  {
+   "packet_id": "f315c385974b9bf72b98057fe09ca093",
+   "r1_detected": true,
+   "decision": "NO-GO",
+   "findings": []
+  },
+  {
+   "packet_id": "f795a2d743b06cd52a4a2ada05f44d0b",
+   "r1_detected": true,
+   "decision": "NO-GO",
+   "findings": [
+    {
+     "root_cause": "text-mode-read-normalizes-bare-cr",
+     "real": true,
+     "severity": "HIGH",
+     "must_fix": true,
+     "equivalent_to": null
+    }
+   ]
+  }
+ ]
+}

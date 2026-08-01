@@ -25,6 +25,8 @@
   段・条件ごとに読む living runbook。親段、worker 権限、変異、条件付き運用の正本
 - `skill-self-improvement.md` — dev-wave / cleanup-branches / rulings 共通の自己改善 gate、
   routing、入口編集条件、command 別終端、検査・commit 境界
+- `ruleops.md` / `ruleops-candidates.json` — test / insight の HEAD inventory、候補 package、
+  人間裁定へ運ぶ retirement lifecycle の正本。削除安全や承認を自動判定しない
 - `handoff/` — セッションの WAL (中断引き継ぎ + 並行セッションの宣言板。運用は同 README)
 - `archive/` — 凍結記録 (監査台帳・worklog 過去分・凍結文書)。ファイル名は移動前と不変、規約は同 README
 - `agent-architecture.md` — サブエージェント構成・製品別 adapter・権限・規律の正本
@@ -49,10 +51,12 @@
 - `src/` — coder 向け仕様 (`coder-spec.md` §1-2 が現役、`coder-leakproof-context.md` = リーク遮断入力の正本)
 - `output/` — 成果物 (campaigns/<id>/ と env/<tag>/ の二軸、D13 — 詳細 output/README.md)。insight は `output/insights/`。
   AI 開発作業の統計記録 (task-run 台帳、開発プロセス観測 — D66) は `output/task-runs/README.md` が詳細正本
-- `tools/` — 運用スクリプト (`check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
+- `tools/` — 運用スクリプト (`ruleops.py` = read-only inventory / 候補 package 検査 /
+  `check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
   Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
-  `check_ai_provenance.py` = commit trailer 監査 / `plotting/` = campaign の論文品質作図、規約は
-  `tools/plotting/FIGURE_CONVENTIONS.md`)
+  `check_ai_provenance.py` = commit trailer 監査 / `codex_worker_ledger.py` = codex rollout ログから
+  worker の session/stage/token/終了分類/retry を決定的に集計する read-only 台帳 (T-179) /
+  `plotting/` = campaign の論文品質作図、規約は `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 正しさの最小第二防壁 (guard_write / guard_bash) + 別系統のコンテキスト衛生
   (guard_read)。詳細は同 README
 - `.claude/agents/` — role 本文と Claude Code 固有の model/tools 契約 (現有一覧は ls が正本)

@@ -1,0 +1,40 @@
+{
+  "results": [
+    {
+      "id": "M18-reaim",
+      "expected_node": "test_unknown_residual_never_verifies_normal_reap",
+      "injection_present": true,
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_unknown_residual_never_verifies_normal_reap"
+      ],
+      "expected_node_failed": true,
+      "verdict": "KILLED",
+      "restored": true
+    },
+    {
+      "id": "M19-reaim",
+      "expected_node": "test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask",
+      "injection_present": true,
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask"
+      ],
+      "expected_node_failed": true,
+      "verdict": "KILLED",
+      "restored": true
+    },
+    {
+      "id": "M14-reaim",
+      "expected_node": "test_empty_manifest_is_rc2",
+      "injection_present": true,
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_ledger.py::test_empty_manifest_is_rc2"
+      ],
+      "expected_node_failed": true,
+      "verdict": "KILLED",
+      "restored": true
+    }
+  ]
+}

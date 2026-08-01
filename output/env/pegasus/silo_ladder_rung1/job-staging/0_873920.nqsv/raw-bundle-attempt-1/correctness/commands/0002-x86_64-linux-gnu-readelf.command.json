@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/usr/bin/x86_64-linux-gnu-readelf",
+    "--version"
+  ],
+  "argv0_sha256": "04db0000749aff89e4af21429340b00b536fc6f80e811c872c006507881a5560",
+  "completed_at_utc": "2026-07-29T08:14:21.054106Z",
+  "cwd": "/home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t139-permanent/orchestrator",
+  "elapsed_monotonic_s": 0.01505022100172937,
+  "returncode": 0,
+  "schema_version": "silo_ladder_rung1-command-receipt/v1",
+  "started_at_utc": "2026-07-29T08:14:21.039051Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "46d3eedc868eae139eb63997734bca388eba0291af5376f3d0cf5fca10f36bb9",
+  "target_sha256": null,
+  "timed_out": false,
+  "timeout_s": 30.0
+}

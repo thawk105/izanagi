@@ -50,13 +50,14 @@ def _clean_stats_state(monkeypatch):
 def test_opt_out_preserves_exact_command_and_call_shape(monkeypatch):
     called = []
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_preflight_submodule", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: True)
     monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
-    monkeypatch.setattr(RT, "_default_nproc", lambda: 4)
+    monkeypatch.setattr(RT, "_default_nproc", lambda *, site: 4)
     monkeypatch.setattr(RT.subprocess, "call", lambda *a, **kw: called.append((a, kw)) or 7)
 
-    assert RT.main(["-q"]) == 7
+    assert RT.main(["-q"], site=RT.site_policy.OTHER) == 7
     assert called == [(([
         sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
         "-n", "4", "--dist", "loadgroup", "-q",
@@ -102,6 +103,7 @@ def test_opt_in_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_
     monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
     monkeypatch.setenv("IZANAGI_TEST_TRIGGER", "final")
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_preflight_submodule", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
     times = iter((10.0, 12.25))
@@ -121,7 +123,7 @@ def test_opt_in_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_
     monkeypatch.setattr(RT.subprocess, "call", fake_call)
     monkeypatch.setattr(RT, "_record_task_run", lambda **kw: captured.update(record=kw))
     target = "orchestrator/tests/test_run_tests_task_run.py"
-    assert RT.main([target, "-k", "one"]) == 1
+    assert RT.main([target, "-k", "one"], site=RT.site_policy.OTHER) == 1
     assert captured["command"] == [
         sys.executable, "-m", "pytest", str(_REPO / target), "-k", "one",
     ]
@@ -131,6 +133,88 @@ def test_opt_in_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_
     assert captured["record"]["duration_s"] == 2.25
     assert captured["record"]["exit_status"] == 1
     assert captured["record"]["trigger"] == "final"
+
+
+def test_login_parent_records_once_and_dispatch_environment_has_no_run_id(
+    monkeypatch, tmp_path,
+):
+    # 親 dispatcher seam の API 契約。M7 の受理挙動 kill は下の実 job 経路が担う。
+    captured = {"records": []}
+    monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
+    monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
+    monkeypatch.setenv("IZANAGI_TEST_TRIGGER", "after-change")
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    times = iter((20.0, 24.5))
+    monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
+    monkeypatch.setattr(
+        RT,
+        "_record_task_run",
+        lambda **kwargs: captured["records"].append(kwargs),
+    )
+
+    def dispatch(args, *, environ):
+        assert list(args) == ["test_target.py"]
+        assert "IZANAGI_TASK_RUN_ID" not in environ
+        assert "IZANAGI_TASK_RUNS_ROOT" not in environ
+        assert "IZANAGI_TASK_RUN_SIDECAR" not in environ
+        return 5
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 5
+    assert len(captured["records"]) == 1
+    record = captured["records"][0]
+    assert record["exit_status"] == 5
+    assert record["duration_s"] == 4.5
+    assert record["sidecar"] is None
+
+
+def test_m7_parent_dispatch_environment_isolated_redundant_gate(monkeypatch):
+    """M7 親 pop 単独変異の期待赤 node。
+
+    期待赤:
+    ``orchestrator/tests/test_run_tests_task_run.py::test_m7_parent_dispatch_environment_isolated_redundant_gate``。
+    親の ``_dispatch_environment()`` の pop だけを無効化すると本 node は赤くなる。
+    dispatcher allowlist と job script が同じ状態を除去するため冗長 gate であり、
+    DW-M03 に従って単独変異の受理挙動証拠から外す。
+    """
+
+    task_run_state = {
+        "IZANAGI_TASK_RUN_ID": "must-not-reach-child",
+        "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
+        "IZANAGI_TASK_RUN_SIDECAR": "/private/sidecar",
+    }
+    for name, value in task_run_state.items():
+        monkeypatch.setenv(name, value)
+
+    child_env = RT._dispatch_environment()
+
+    assert set(task_run_state).isdisjoint(child_env)
+
+
+def test_login_dispatch_exception_records_single_infra_rc(monkeypatch, tmp_path):
+    records = []
+    monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
+    monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_record_task_run", lambda **kw: records.append(kw))
+
+    def fail(args, *, environ):
+        raise OSError("injected")
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=fail,
+    ) == RT._PEGASUS_DISPATCH_RC
+    assert len(records) == 1
+    assert records[0]["exit_status"] == RT._PEGASUS_DISPATCH_RC
 
 
 def test_sidecar_setup_and_record_failures_preserve_rc_and_output(monkeypatch, capsys):
@@ -395,7 +479,10 @@ def test_real_pytest_hook_records_aggregate_only_in_tmp_ledger(monkeypatch, tmp_
     monkeypatch.setenv("IZANAGI_TASK_RUN_ID", run_id)
     monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(root))
     monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
-    rc = RT.main(["-q", "-p", "orchestrator.tests.conftest", str(sample)])
+    rc = RT.main(
+        ["-q", "-p", "orchestrator.tests.conftest", str(sample)],
+        site=RT.site_policy.OTHER,
+    )
     assert rc == 0
     event = validate_run(root / run_id).events[-1]
     assert event["event"] == "test_run"

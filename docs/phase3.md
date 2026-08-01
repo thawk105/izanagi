@@ -34,8 +34,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   実走確認済み。ablation は初回採用 campaign で設計 insight §5-7 の 4 基準により実施する。適用は
   偵察 sweep と 8b の opt-in に限り、S-1、検証相、LLM loop の評価順は変えない。逐次停止 v2 は
   D58 と別に 2026-07-27 採用済みだが、2026-07-29 の実装 preflight で source eligibility /
-  qualification / formal authority の未見 blocker が判明し、コード変更なしで再裁定待ち。
-  正本 = `output/insights/2026-07-29_t126-implementation-preflight.md`。
+  qualification / formal authority の未見 blocker が判明した。ユーザー再裁定で
+  **qualification-first amendment** を採用し、headline 昇格不能な専用系列の live control と
+  machine-readable receipt を先行する。production gate / authoritative consumer は証拠取得後の
+  別 wave とし、現時点は実装待ち。正本 =
+  `output/insights/2026-07-29_t126-implementation-preflight.md`、記録 = worklog (62)。
 
 **現行の着手順:** S-1 計測 gate 閉鎖 → S-1 本走・最終報告、8b 設計発効 (holdout = rr80/rr20)、
 8b selector 前半 2 段、holdout freeze 生成 (束縛規則 nearest-read-ratio-v1 ユーザー承認済み、
@@ -127,6 +130,13 @@ Shirakami-LTX との中間)。タスク粒度の優先度 (P1/P2/P3) と各項�
 `output/insights/2026-07-27_external-consultation-scope-and-axes.md` (匿名化済み)。
 **なお roadmap 本体 (§2 の主経路・§8 のポジショニング) の改訂は本裁定に含まれない** — 必要性が
 確認された場合は `docs/roadmap-history/README.md` の改訂セレモニーに従う。
+
+**2026-07-31 改訂 (`/rulings` ユーザー裁定 = 推奨案 (a) 採用):** プロセス系 freeze の解除条件を
+2026-07-26 改訂の「[T-088] の実行 (床値実測の開始)」から**「[T-193] の閉鎖」**へ付け替える。2026-07-27 改訂 (2) が床値実測の優先度を下げた結果、freeze が再びかかる条件が
+無期延期になり、直近 8 wave が全て道具・運用の整備で研究の測定が 0 本になっていた。付替え後は
+当該項の閉鎖直後の 1 wave を**研究側 (2026-07-27 改訂 (3) の変異軸の質の転換と、既知解までの距離で
+能力を測る評価設計)** に充てる。対象 ID と進捗の正本は worklog 末尾の「次の一手」、経緯は
+worklog 2026-07-31 (74)。本改訂は roadmap 本体と絶対規律を変更しない。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
@@ -510,12 +520,129 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 ### テスト衛生
 
-- [T-057] **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-26 の `/rulings` が述語 `P6_source := full_suite_duration_s > 180` の**成立**を確認 (worklog 記録の全走 = 239s (2026-07-25) / 1811.26s (2026-07-26))。2026-07-19 時点の「180 秒未満」は現状と一致しない。**再走はしておらず記録値の照合のみ**で、239s → 1811s の差が runner/env・並列度の違いによるかは未確認。X5 派生述語の 20% 条件は依然 unknown。ユーザー裁定待ち。→ **裁定・消化済み (2026-07-26)**: 裁定 = (a) 原因を測る調査を 1 回入れる (+ テストのみで済む改善は同 wave で実施)。実施結果 = 全走 1811 秒 → 75 秒 → **69 秒** (2026-07-27、worklog (13)(14)(15))。以後この述語は成立しない。
+- [T-057] **survey #6 ratified_verify git fixture 共有化** (B-055, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 同一 runner/env の全走が 180 秒を超える時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-26 の `/rulings` が述語 `P6_source := full_suite_duration_s > 180` の**成立**を確認 (worklog 記録の全走 = 239s (2026-07-25) / 1811.26s (2026-07-26))。2026-07-19 時点の「180 秒未満」は現状と一致しない。**再走はしておらず記録値の照合のみ**で、239s → 1811s の差が runner/env・並列度の違いによるかは未確認。X5 派生述語の 20% 条件は依然 unknown。ユーザー裁定待ち。→ **裁定・消化済み (2026-07-26)**: 裁定 = (a) 原因を測る調査を 1 回入れる (+ テストのみで済む改善は同 wave で実施)。実施結果 = 全走 1811 秒 → 75 秒 → **69 秒** (2026-07-27、worklog (13)(14)(15))。
+**2026-07-31 再成立**: 計算ノードでの受入全走は同一コードでも bnode002 116.25 秒 / bnode009 200.72 秒 /
+bnode010 214.34 秒とノード間で 1.8 倍開き、180 秒を超えるノードがある (worklog (73))。
+以後の所有は [T-201] (下限を実際に下げる 4 択)。**この項からは追加の裁定を起こさない**。
 - [T-058] **survey #7 coverage 観測 (X5 派生)** (B-056, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — 新 test-hygiene wave または safety gate 変更時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (baseline/final を観測値として記録、gate 化なし。worklog 参照)。2026-07-25 に**再発火** ([T-094] の gate 新設 = 述語 `safety_gate_changed` 成立、同 wave は網羅率を観測していない)。ユーザー裁定 = 発火の記録のみ残し、観測の実施は 1 cycle 完走後 (プロセス系 freeze の対象、worklog 2026-07-25 (7))。2026-07-27 に**三度目の発火** ([T-117] の test-hygiene wave = 述語 `new test-hygiene wave` 成立、同 wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-27 (16))。2026-07-29 に**四度目の発火** ([T-149] の編集面 literal 正本 + 機械検査テスト新設 = 述語 `safety_gate_changed` 成立、同 wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-29 (45))。2026-07-29 に**五度目の発火** ([T-141] の label 正規化 + `assert_position_only` 強化、および [T-171] の `check_docs.py` 閉包・interface・必須 adapter 検査の新設 = 述語 `safety_gate_changed` 成立、いずれの wave も網羅率を観測していない)。既裁定の範囲内なので追加裁定はせず発火の記録のみ (worklog 2026-07-29 (54))。2026-07-29 に**六度目の発火** ([T-172] の `check_docs.py` 閉包・interface・必須 adapter 検査の新設)。同 wave は網羅率を観測していないが、既裁定どおり追加裁定はせず発火記録のみ。
-- [T-059] **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。2026-07-25 に**再発火** ([T-094] の reject gate 新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が 13 変異を実装前に事前登録し 13/13 KILL と復元後 green を記録したため真時 action は実質履行済み (worklog 2026-07-25 (7))。2026-07-29 に**三度目の発火** ([T-149] の編集面機械検査テスト新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が変異 9 件を実装前に事前登録し 9/9 KILLED と最終 commit への anchor 再検証を記録したため真時 action は実質履行済み (worklog 2026-07-29 (45))。2026-07-29 に**四度目の発火** ([T-141] の provenance 構造検証 + 閾値検査、および [T-171] の `check_docs.py` drift 拒否検査の新設 = 述語 `validator_or_rejection_gate_changed` 成立)。既裁定の範囲内なので追加裁定はせず記録のみ — [T-141] wave が変異 3 件を実装前に事前登録し 3/3 KILL を記録したため真時 action は履行済み (worklog 2026-07-29 (54))。2026-07-29 に**五度目の発火** ([T-172] の `check_docs.py` drift 拒否検査の新設)。同 wave は負例 5 件を追加したが、真時 action が求める実装前の mutant/operator・予算・第一失敗 assert の事前登録記録はないため、事後の補完方法を再裁定待ちとする。
+- [T-059] **survey #7 差分 mutation 標準化 (X5 派生)** (B-057, 出所 `output/insights/2026-07-19_test-suite-hygiene-survey.md`) — validator / reject gate 変更または escaped defect 観測時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。発火記録: 2026-07-19 approved-waves wave で消化 (11 変異を実装前に事前登録、全 KILL + 生存 2 の是正。worklog 参照)。2026-07-25 に**再発火** ([T-094] の reject gate 新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が 13 変異を実装前に事前登録し 13/13 KILL と復元後 green を記録したため真時 action は実質履行済み (worklog 2026-07-25 (7))。2026-07-29 に**三度目の発火** ([T-149] の編集面機械検査テスト新設 = 述語 `validator_or_rejection_gate_changed` 成立)。ユーザー裁定 = **追認のみ** — 同 wave が変異 9 件を実装前に事前登録し 9/9 KILLED と最終 commit への anchor 再検証を記録したため真時 action は実質履行済み (worklog 2026-07-29 (45))。2026-07-29 に**四度目の発火** ([T-141] の provenance 構造検証 + 閾値検査、および [T-171] の `check_docs.py` drift 拒否検査の新設 = 述語 `validator_or_rejection_gate_changed` 成立)。既裁定の範囲内なので追加裁定はせず記録のみ — [T-141] wave が変異 3 件を実装前に事前登録し 3/3 KILL を記録したため真時 action は履行済み (worklog 2026-07-29 (54))。2026-07-29 に**五度目の発火** ([T-172] の `check_docs.py` drift 拒否検査の新設)。同 wave は負例 5 件を追加したが、真時 action が求める実装前の mutant/operator・予算・第一失敗 assert の事前登録記録はない。2026-07-29 ユーザー再裁定で **bounded な事後 mutation audit** を採用し、事前登録不能だった手順逸脱を明記した上で operator / 予算 / 第一失敗 assert / 復元後 green を事後台帳へ固定する。実施は別タスクとして待機中 (worklog (62))。
+- [T-190] **Codex worker launcher の高 xdist 負荷フレークを証拠保存つきで閉じる** (F57) —
+  normal fakeが32-worker全走で失敗したときのreceipt / stop reasonを保持し、
+  単独・同file・16/32-worker対照で原因を分離する。production wall-clock gateは緩めず、
+  fixture readinessまたはtest専用予算のどちらを直すかを実測後に裁定する。
+
+### Codex dev-wave 資源効率化 (P1、2026-07-29 監査)
+
+以下は 1 ID = 1 将来セッションを上限とする。品質面では T-153(e)/T-154 wave が must-fix 11 件と
+mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限→比較→採用の順で進める。
+
+- [T-179] **(完了 2026-07-29) worker 資源台帳の正本化** — `tools/codex_worker_ledger.py`
+  (read-only) と合成 fixture 回帰を追加。rollout ログから session/stage/model/reasoning/
+  model_calls、input・cached input・output・CLI reported token、終了分類、validator、retry を
+  決定的に集計する。live inference なしで T-153(e)/T-154 の 10 session・434 model calls・
+  2,757,982 CLI reported tokens と stage 別内訳を再構成し、worklog (59) の「9 jobs」との不一致
+  (review 3 対 4、総数 9 対 10) を `--strict` rc=2 で検出する。実装・検査・変異 10/10 KILLED の
+  正本は worklog 2026-07-29 (64)、逐語と凍結値は
+  `output/insights/2026-07-29_t179-worker-ledger-verbatim/`。
+  wave 受理集合の確定 (cwd 部分一致の限界) は [T-180]、retry の因果同定は [T-183] へ送った。
+- [T-180] **(完了 2026-07-30) job 単位 resource envelope** — `tools/codex_worker_launch.py`
+  (`run` / `check-receipt`) と `CodexWorkerSessionManifest`、ledger の `--manifest` selector を
+  追加。`codex-cli 0.146.0` は上限 flag を持たないため wrapper 側で強制し、**hard cap は
+  wall-clock だけ**、`model_calls` と token は観測可能な proxy による best-effort 停止 +
+  事後 fail-closed 判定と明示する。live 停止は rollout tail、終了判定は stdout 最終
+  `turn.completed.usage` の二重 metering。上限停止・metering 欠落・終了未確認は無条件で非採用。
+  T-179 の凍結値 (10 session / 434 model_calls / 2,757,982 cli_reported と stage 別 6 値) を
+  manifest 経路で逐件再現し、`cached_input_tokens > input_tokens` で `cli_reported` が負になる
+  継承欠陥も塞いだ。本 wave の段 6 レビュー 3 本を launcher 経由で起動し実 receipt を得た
+  (dogfood)。実装・検査・変異 10/10 KILLED の正本は worklog 2026-07-30 (65)、逐語と凍結値は
+  `output/insights/2026-07-29_t180-resource-envelope-wave/`。
+  **DW-O01 の結線と stage 別上限値は [T-184] の所有**、失敗型分類・retry policy は [T-183]、
+  seal ceremony / 脱出子封じ込め / artifact bytes 上限は [T-186] へ送った。
+- [T-181] **(装置完了・結果 replay 未認証 2026-07-30) reasoning routing の限定 A/B** —
+  `tools/codex_reasoning_ab.py` (read-only) と回帰 194 件を追加し、focused review の
+  `max` 対 `high` を**歴史 prompt 由来の新規凍結 benchmark**上で比較した (歴史入力の byte 再現は
+  不可能と実測。歴史 run は指定 9 入力以外も実読していた)。既定値は変更していない。
+  primary (label-masked 裁定、親 + 独立第二読者が 10/10 一致) は名指し R-1 正例で
+  `high` 3/3・`max` 3/3、限定負例で偽 R-1 は両 arm 0 件。資源は max が一貫して大きい。
+  変異 kill 12/12 (両層同時 M6p 込み)。ただし `aggregate`/`verify` は
+  `experiment_complete=false` (全 run の snapshot oracle replay mismatch = 実走が
+  oracle 修正前だったため) であり、**認証済み台帳には最終版装置での 10 run 再走が必要**。
+  正本は worklog 2026-07-30 (65)、逐語と台帳は
+  `output/insights/2026-07-30_t181-reasoning-ab/`。再走せずに [T-184] の根拠にしてはならない。
+  logical turn は測れておらず、finding dedup は文字列一致の下限値、masking は
+  same-owner advisory である (limitation は insight に全文)。
+- [T-182] **(完了 2026-07-29) model routing の限定 shadow pilot** — 段 3 敵対相談レンズ B を
+  同一凍結入力 (`prompt_hash` 一致) で `gpt-5.6-sol`@max (authoritative) /
+  `gpt-5.6-luna`@max / `gpt-5.4-mini`@xhigh の 3 arm へ投入した。shadow は置換でなく追加で、
+  production 既定は不変。結果 = luna が sol の所見 11 件中 10 件 (91%) を誤検出 0 で再現し
+  token −31.6%、mini は 5 件 (45%) で wall +39.0%。**実装差分なし** — 専用ツールは独立 3 レンズの
+  NO-GO (未配線で gate にならない、attest 経路が外部にある) を受けて実装しない裁定。
+  被覆率は循環・非盲検・事前登録なし・n=1 のため **policy 根拠にしない**。
+  正本 = worklog 2026-07-30 (68)、分析と裁定パッケージ =
+  `output/insights/2026-07-29_t182-model-routing-shadow-pilot.md`、逐語 = 同 `-verbatim/`。
+  妥当な比較実験の設計は [T-189] へ送った。
+- [T-183] **P1、T-179 後: F43/F45 型の早期停止と回復** — exit 0 の短小/断片出力と
+  safety-filter 非ゼロ終了を別分類し、同一失敗の無制限再試行を禁止する。F43/F45 由来 fixture で
+  zero-output、validator reject、retry 上限、代替経路不能時の fail-closed を検証する。
+- [T-184] **P1、T-180〜T-183 後: 証拠に基づく既定 policy 採用** — 各 pilot の台帳を比較し、
+  model/reasoning/resource/retry の stage matrix を DW-O01 と worker 契約へ一度だけ反映する。
+  受入は docs drift 検査、選択理由 receipt、critical stage の品質不変、旧 policy への明示 rollback
+  を含み、新たな比較実験はこの ID に持ち込まない。
+
+### RuleOps hardening (P3、T-143 残余)
+
+- [T-189] **P1、T-181 land 後: 妥当な model routing 比較実験の設計** — 独立 oracle、
+  held-out 複数 task、block randomization、cache 条件の分離、価格 version、盲検裁定、
+  事前非劣性 margin を備えた実験を設計する。[T-182] の pilot は n=1・非盲検・後付け採点のため
+  採用根拠にしない。未裁定の論点 (served model の attest 経路が存在しない、不正 reasoning 値が
+  silent に通る) は同 insight の裁定パッケージが正本。
+
+- [T-185] **P3: receipt range 出力量の明示上限** — 非常に古い receipt range に対する
+  commit 数と path-union stdout の bytes/cardinality を streaming 上限で fail-closed にし、
+  上限超過時の安定 reason と synthetic negative を追加する。現行は child timeout で
+  fail-closed だが、安定 reason 前の過大な stdout / memory 消費を明示的には抑えていない。
+
+### T-180 が返した裁定パッケージ (P3)
+
+- [T-186] **P3: resource envelope の残余 3 件** — (a) manifest の seal ceremony と
+  foreign entry 後追記の検出 (現行 membership は部分集合検査であり、receipt 発行後に
+  同 wave_id へ entry を足せる)、(b) `setsid()` で process group を逃れた子の完全封じ込め
+  (cgroup / bwrap。現行は残存を receipt に記録するのみ)、(c) stdout / artifact bytes の上限
+  (`max_artifact_bytes`。現行の封筒射程は compute-usage に限定)。
+  いずれも T-180 段 3 / 段 6 で real と裁定したが scope 外とした所見。
 
 ### 裁定・完了記録
 
+- [T-191] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —
+  `.agents/skills/cleanup-branches/` に Claude command を共通 dispatcher として再利用する薄い
+  Codex adapter と生成済み UI metadata を追加。明示 `$cleanup-branches` 専用とし、
+  main / primary / foreign / locked / process residency / real prune / permission / push 境界を
+  Codex 固有の安全側 overlay で固定した。`check_docs.py` は Skill と command の全 bytes、
+  2 file 閉包、exact interface を独立 pin と負例で拒否する。材料・レビュー・変異 =
+  `output/insights/2026-07-30_t188-codex-cleanup-branches-skill-wave/`、記録 = worklog (71)。
+- [T-187] **(完了 2026-07-30) `6b64d21` AI provenance forward-only是正** — 共有済みmerge
+  commitはrewriteせず、固定target/payload・strict lineage・selected-set両commit・実欠落・
+  correction自身greenを連言する一回限り`AI-Agent-Correction`でmissing findingだけを相殺する。
+  mergeのD95 pathを全parentとの差分積へ統一し、O17を`--no-commit` preflight→`commit -F`→
+  full-history監査へ更新。設計判断=D101、材料・レビュー・変異=
+  `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`、記録=worklog (66)。
+- [T-188] **(完了 2026-07-30) dev-wave 並行 session land** — Claude command / Codex Skill が
+  共有する `DW-O23` と `tools/dev_wave_land.py` を導入。別 session の schema-valid handoff と
+  Git admin に双方向登録された worktree container を非接触で保ち、tested SHA・ordered closure・
+  common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D102、
+  失敗台帳=F55、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`、
+  記録=worklog (67)。
+- [T-145] **(完了 2026-07-29) long-path serve test の固定 join 二律背反除去** —
+  `join(120)`のwall-clock合否を、実listener/SignalRelay・real exchange・shutdown/release/returnの
+  ordered observationと、`INFRA_TIMEOUT / NOT_EVIDENCE`へ倒す外部child containmentへ置換。
+  M1/M5は旧test SURVIVED→新test KILLED、M2〜M4は旧121秒台のthread-alive赤→新0.7〜1.7秒の
+  専用diagnostic failure、T-136 preservationは4/4同一署名KILLED。逐語・裁定・台帳 =
+  `output/insights/2026-07-29_t145-join-dichotomy-wave/README.md`。
+- [T-143] **(完了 2026-07-29) RuleOps v1** — tracked HEAD tree の直下testと
+  `output/insights/`をread-only inventoryし、人間裁定用draftとauthorityを持たない候補ledgerを
+  fail-closedに検査するCLIを導入。削除・apply・approval・安全判定は行わず、受入全走へempty
+  production ledgerの軽量preflightだけを結線した。設計判断=D99、運用正本=`docs/ruleops.md`、
+  材料・逐語・変異=`output/insights/2026-07-29_t143-ruleops.md`。
 - [T-172] **(完了 2026-07-29) Codex rulings Skill 移植** — `.agents/skills/rulings/` に
   Claude command を共通 dispatcher として再利用する薄い Codex adapter と生成済み UI metadata を追加。
   通常クラス 1、裁定記録 / 自己改善時のクラス 2 昇格、引数・hook・push 境界を明示し、

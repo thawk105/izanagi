@@ -69,3 +69,7 @@ output/insights/YYYY-MM-DD_<topic>.md
 **CCBench のバグ等を還元する判断には必ず「還元判断: ユーザー確認待ち」を付ける。** AI は発見を構造化するところまで。上流 CCBench へ PR を出すかは人間 (ユーザー) が判断する。誤検出 (verifier のバグを CCBench のバグと誤認) を防ぐ関所。
 
 insights には CCBench 還元候補だけでなく、**探索の妥当性文書**も置く (calibrator のレコード数決定根拠、ケーススタディの機序分析・敵対的検証、measurement 汚染インシデント等)。「なぜそのレコード数/floor/結論か」を査読に先回りで答える材料。加えて、**プロセス監査・ユーザー裁定用の凍結スナップショット** (相談・監査の逐語凍結、裁定パッケージ) も置いてよい — その場合は冒頭に `authority: none` / `default_effect: no-state-change` を明示し、可変状態の正本 (worklog 末尾・現行 phase doc) にはしない。
+
+`output/insights/` の寿命管理は `docs/ruleops.md` を正本とする。`authority: none` は可変状態の正本で
+ないことを示すだけで、削除可能という意味ではない。RuleOps v1 は HEAD inventory と候補 package を
+人間裁定へ運ぶが、自動削除、正式 report / proof chain の退役、既存 insight の一括分類は行わない。

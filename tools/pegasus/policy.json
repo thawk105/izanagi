@@ -27,5 +27,55 @@
   "perf_candidates": [
     "/usr/lib/linux-tools/5.15.0-135-generic/perf",
     "/usr/lib/linux-tools/5.15.0-100-generic/perf"
-  ]
+  ],
+  "silo_ladder_rung1": {
+    "project": "SFC",
+    "queue": "gen_S",
+    "nodes": 1,
+    "walltime": "02:00:00",
+    "walltime_s": 7200,
+    "walltime_formula": "dependencies-group<=180+attestation<=180+configure-build-replay(3 total)<=2700+run-group(28)<=900+collection<=300+finalize=600<=7200",
+    "build_cap_s": 2700,
+    "dependency_build_cap_s": 180,
+    "attestation_cap_s": 180,
+    "run_group_cap_s": 900,
+    "collection_cap_s": 300,
+    "finalize_reserve_s": 600,
+    "solo_load1_threshold": 48.0,
+    "dependency_pins": {
+      "gflags": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+      "glog": "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
+    },
+    "third_party_sources": [
+      {
+        "name": "masstree",
+        "source_name": "masstree",
+        "url": "https://github.com/thawk105/masstree-beta.git",
+        "fetchcontent_ref": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+      },
+      {
+        "name": "mimalloc",
+        "source_name": "mimalloc",
+        "url": "https://github.com/microsoft/mimalloc.git",
+        "fetchcontent_ref": "v2.3.2",
+        "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"
+      },
+      {
+        "name": "googletest",
+        "source_name": "googletest",
+        "url": "https://github.com/google/googletest.git",
+        "fetchcontent_ref": "f8d7d77c06936315286eb55f8de22cd23c188571",
+        "pin": "f8d7d77c06936315286eb55f8de22cd23c188571"
+      }
+    ],
+    "max_attempts": 2,
+    "infra_retry_reasons": [
+      "attestation",
+      "timeout",
+      "nonzero_returncode",
+      "parse_failure",
+      "process_competition"
+    ]
+  }
 }

@@ -1,0 +1,55 @@
+{
+  "schema_version": "izanagi-patch-ledger/v1",
+  "scope": "registered-entries-only",
+  "entries": [
+    {
+      "id": "silo_ladder_rung1",
+      "path": "patches/silo_ladder_rung1.patch",
+      "patch_sha256": "07e576070563946d7979d74f39e1e9ae2fa5f952caff5f267eb52cff3ac89324",
+      "base_repo": "external/ccbench",
+      "base_commit": "d706650cdb31e442bef45b9b4216951d4fb40969",
+      "classification": "d18-type4",
+      "evaluation_role": "ability_probe",
+      "ability_probe": true,
+      "research_goal_eligible": false,
+      "recovery_measurement_eligibility": false,
+      "pipeline_eligible": false,
+      "composition": "dedicated-driver-only",
+      "default_enabled": false,
+      "stock_source_policy": "patch-not-applied",
+      "macro": "IZANAGI_SILO_LADDER_RUNG1",
+      "report_macro": "IZANAGI_SILO_LADDER_RUNG1_REPORT",
+      "symbols": [
+        {
+          "name": "izanagi_silo_ladder_rung1_identity",
+          "kind": "activation-identity",
+          "defined_count": 1
+        }
+      ],
+      "driver": "orchestrator/campaign/silo_ladder_rung1.py",
+      "pbs_job": "tools/pegasus/silo_ladder_rung1.sh",
+      "source_files": [
+        "cc/silo/transaction.cc",
+        "cc/silo/ycsb_silo.cc"
+      ],
+      "evidence": "output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json",
+      "projection_policy": {
+        "planner_coder_eligible": false,
+        "excluded_paths": [
+          "patches/ledger.json",
+          "patches/silo_ladder_rung1.patch",
+          "orchestrator/campaign/silo_ladder_rung1.py",
+          "tools/pegasus/silo_ladder_rung1.sh",
+          "tools/pegasus/submit_silo_ladder_rung1.sh",
+          "output/env/pegasus/silo_ladder_rung1"
+        ],
+        "excluded_tokens": [
+          "silo_ladder_rung1",
+          "IZANAGI_SILO_LADDER_RUNG1",
+          "IZANAGI_SILO_LADDER_RUNG1_REPORT",
+          "izanagi_silo_ladder_rung1_identity"
+        ]
+      }
+    }
+  ]
+}

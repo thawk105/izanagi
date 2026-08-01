@@ -47,6 +47,7 @@ LIVING_DOCS = [
     REPO / "docs" / "ccbench-anatomy.md",
     REPO / "docs" / "axis-onboarding.md",              # 2026-07-11 監査 dup-05 で追加
     REPO / "docs" / "isolation-phenomena.md",          # 2026-07-12 監査: 現在形の生きた参照文書なのに lint 網の外だった
+    REPO / "docs" / "ruleops.md",                       # RuleOps v1 の生きた運用・schema 正本
     REPO / "docs" / "dev-wave" / "core.md",
     REPO / "docs" / "dev-wave" / "workers.md",
     REPO / "docs" / "dev-wave" / "mutation.md",
@@ -67,7 +68,7 @@ LIVING_DOCS += sorted((REPO / "docs").glob("phase3-s*-runbook.md"))
 # docs 間の行番号参照 (追記で必ずずれる)。節名参照に直すこと。
 # 対象は自リポジトリの docs のみ (pin 固定の submodule 内文書への参照は腐らないので許容)。
 # 「.md:数字」形の確実なものと「N 行」「line N 参照」形だけを違反とする (過検出を避ける)
-_OWN = r"(?:CLAUDE|README|roadmap|phase\d[\w-]*|decisions|worklog[\w-]*|agent-architecture|orchestrator-design|ccbench-anatomy|paper-story[\w-]*|audit[\w-]*|isolation-phenomena|glossary|related-work)"
+_OWN = r"(?:CLAUDE|README|roadmap|phase\d[\w-]*|decisions|worklog[\w-]*|agent-architecture|orchestrator-design|ccbench-anatomy|paper-story[\w-]*|audit[\w-]*|isolation-phenomena|glossary|related-work|ruleops)"
 LINE_REF_STRICT = [
     re.compile(_OWN + r"\.md:\d+"),
     re.compile(_OWN + r"\.md\s*の?\s*\d+\s*行"),
@@ -159,12 +160,19 @@ REFERENCE_LIMITS = {
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
 }
+PROVENANCE_LIMITS = {
+    "docs/ai-provenance.md": TextLimit(9_000),
+}
 CODEX_DEV_WAVE_SKILL_LIMITS = {
     ".agents/skills/dev-wave/SKILL.md": TextLimit(5_500, 400),
     ".agents/skills/dev-wave/agents/openai.yaml": TextLimit(500, 160),
 }
 DEV_WAVE_AGGREGATE_BYTES = 24_000
 CODEX_DEV_WAVE_SKILL_FILES = frozenset(CODEX_DEV_WAVE_SKILL_LIMITS)
+CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
+    "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
+    "Codex 固有の取り込み手順を重ねない。"
+)
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
     "docs/skill-self-improvement.md",
@@ -208,6 +216,32 @@ CODEX_RULINGS_OPENAI_YAML = """interface:
   short_description: "Izanagi の裁定待ちを索引・詳説して判断を補佐"
   default_prompt: "Use $rulings to list and explain the Izanagi decisions awaiting my ruling."
 """
+CODEX_CLEANUP_BRANCHES_SKILL_LIMITS = {
+    ".agents/skills/cleanup-branches/SKILL.md": TextLimit(3_100, 210),
+    ".agents/skills/cleanup-branches/agents/openai.yaml": TextLimit(300, 110),
+}
+CODEX_CLEANUP_BRANCHES_SKILL_FILES = frozenset(
+    CODEX_CLEANUP_BRANCHES_SKILL_LIMITS
+)
+CODEX_CLEANUP_BRANCHES_DESCRIPTION = (
+    "Safely inventory and clean up merged local Izanagi branches and worktrees "
+    "through the shared dispatcher. Use only for an explicit $cleanup-branches "
+    "invocation; implicit invocation is disabled."
+)
+CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (
+    "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
+)
+CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
+  display_name: "Cleanup Branches"
+  short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
+  default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
+
+policy:
+  allow_implicit_invocation: false
+"""
+CLEANUP_COMMAND_SHA256 = (
+    "9b2c0dac6cf1e8cfcd49a18840d62b6b3dcd2cdf322d1594266b5a4a71af43c7"
+)
 
 COMMAND_INTERFACES = {
     ".claude/commands/dev-wave.md": {
@@ -227,8 +261,28 @@ COMMAND_INTERFACES = {
     },
 }
 
-# DW-O07 は T-154(1) 裁定 (2026-07-28) で削除済み — 復活時は裁定を新規に起こす
-_OPERATION_NUMBERS = (*range(1, 7), *range(8, 21))
+# DW-O07 は T-154(1) 裁定 (2026-07-28) で削除済み — 復活時は裁定を新規に起こす。
+# DW-O21/O22 は core の external continuation 条件が使用済みなので、land は DW-O23。
+_OPERATION_NUMBERS = (*range(1, 7), *range(8, 21), 23)
+DEV_WAVE_LAND_HELPER = "tools/dev_wave_land.py"
+DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL = (
+    "`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路"
+)
+DEV_WAVE_S09_ACCEPTANCE_ORDER_LITERAL = (
+    "全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して "
+    "`DW-O23` を行う。"
+)
+ALTERNATE_LAND_HELPER_COMMAND = re.compile(
+    r"(?m)^[ \t]*(?:\$\s*)?python3?"
+    r"(?:[ \t]+[^\s`]+)*?[ \t]+(?:\./)?tools/"
+    r"(?!dev_wave_land\.py(?:[ \t]|$))"
+    r"[^\s`]*land[^\s`]*\.py(?:\s|$)"
+)
+DIRECT_MAIN_FF_COMMAND = re.compile(
+    r"(?m)^[ \t]*(?:\$\s*)?git"
+    r"(?:[ \t]+[^\s`]+)*?[ \t]+merge(?=[ \t])"
+    r"(?=[^\n]*[ \t]--ff-only(?:[ \t]|$))[^\n]*$"
+)
 
 REQUIRED_REFERENCE_SECTIONS = {
     "docs/dev-wave/core.md": {
@@ -327,7 +381,10 @@ STAGE_DISPATCH_CONTRACT = {
         | _SELF_SECTIONS
         | _pairs(_OPERATIONS, "DW-O04", "DW-O17")
     ),
-    "段 9": _pairs(_CORE, "DW-S09", "DW-CTX", "DW-STOP"),
+    "段 9": (
+        _pairs(_CORE, "DW-S09", "DW-CTX", "DW-STOP")
+        | _pairs(_OPERATIONS, "DW-O23")
+    ),
 }
 CONDITION_DISPATCH_CONTRACT = {
     f"{i:02d}": _pairs(_OPERATIONS, f"DW-O{i:02d}")
@@ -1311,6 +1368,19 @@ def _markdown_sections(text: str, heading: str) -> list[str]:
     ]
 
 
+def _reference_id_sections(text: str, section_id: str) -> list[str]:
+    """``## DW-XNN — title`` 形式の leaf 本文を ID で一意に抽出する。"""
+    return [
+        match.group("body")
+        for match in re.finditer(
+            rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n"
+            r"(?P<body>.*?)(?=^## |\Z)",
+            text,
+            re.MULTILINE | re.DOTALL,
+        )
+    ]
+
+
 def _expand_dispatch_range(start: str, end: str) -> set[str]:
     left = re.fullmatch(r"DW-([A-Z])(\d{2})", start)
     right = re.fullmatch(r"DW-([A-Z])(\d{2})", end)
@@ -1438,6 +1508,11 @@ def _check_codex_skill_guard(
     expected_files: frozenset[str],
     literals: tuple[str, ...],
     openai_yaml: str,
+    expected_description: str | None = None,
+    expected_sha256: str | None = None,
+    forbidden_literals: tuple[str, ...] = (),
+    exact_literals: tuple[str, ...] = (),
+    forbidden_patterns: tuple[tuple[re.Pattern[str], str], ...] = (),
 ) -> None:
     """repo-scoped Codex Skill の閉包・interface・必須 adapter を検査する。"""
 
@@ -1519,12 +1594,45 @@ def _check_codex_skill_guard(
                 findings.append(
                     f"{skill_rel}: name は {skill_name!r} 必須"
                 )
-            if not values.get("description", "").strip():
+            description = values.get("description", "")
+            if not description.strip():
                 findings.append(f"{skill_rel}: description が空")
+            elif (
+                expected_description is not None
+                and description != expected_description
+            ):
+                findings.append(
+                    f"{skill_rel}: description が explicit trigger 契約と不一致"
+                )
         for literal in literals:
             if literal not in skill_text:
                 findings.append(
                     f"{skill_rel}: Codex adapter 契約がない — {literal!r}"
+                )
+        if (
+            expected_sha256 is not None
+            and hashlib.sha256(skill_text.encode("utf-8")).hexdigest()
+            != expected_sha256
+        ):
+            findings.append(
+                f"{skill_rel}: whole-file SHA-256 が契約と不一致"
+            )
+        for literal in forbidden_literals:
+            if literal in skill_text:
+                findings.append(
+                    f"{skill_rel}: 共通 dispatcher の leaf path を重複 pin している — "
+                    f"{literal!r}"
+                )
+        for literal in exact_literals:
+            count = skill_text.count(literal)
+            if count != 1:
+                findings.append(
+                    f"{skill_rel}: exact adapter literal が {count} 件 — {literal!r}"
+                )
+        for pattern, label_text in forbidden_patterns:
+            if pattern.search(skill_text):
+                findings.append(
+                    f"{skill_rel}: 共通 land 契約外の実行経路 — {label_text}"
                 )
 
     openai_rel = f".agents/skills/{skill_name}/agents/openai.yaml"
@@ -1589,7 +1697,12 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         )
         unreadable.add(path)
 
-    all_limits = {**COMMAND_LIMITS, **REFERENCE_LIMITS, **SELF_LIMITS}
+    all_limits = {
+        **COMMAND_LIMITS,
+        **REFERENCE_LIMITS,
+        **SELF_LIMITS,
+        **PROVENANCE_LIMITS,
+    }
     decoded: dict[str, str] = {}
     sizes: dict[str, int] = {}
     for rel, limit in all_limits.items():
@@ -1697,6 +1810,56 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"{rel}: Codex-first 実装契約がない — {literal!r}"
                 )
 
+    core_text = decoded.get(_CORE)
+    if core_text is not None:
+        s09 = _reference_id_sections(core_text, "DW-S09")
+        if len(s09) == 1:
+            literal_count = s09[0].count(DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL)
+            acceptance_order_count = s09[0].count(
+                DEV_WAVE_S09_ACCEPTANCE_ORDER_LITERAL
+            )
+            section_path_count = s09[0].count(DEV_WAVE_LAND_HELPER)
+            outside_path_count = (
+                core_text.count(DEV_WAVE_LAND_HELPER) - section_path_count
+            )
+            if (
+                literal_count != 1
+                or section_path_count != 1
+                or outside_path_count != 0
+            ):
+                findings.append(
+                    "docs/dev-wave/core.md: DW-S09 の helper 唯一経路 literal "
+                    f"が literal={literal_count}, path-section内={section_path_count}, "
+                    f"path-section外={outside_path_count} 件"
+                )
+            if acceptance_order_count != 1:
+                findings.append(
+                    "docs/dev-wave/core.md: DW-S09 の acceptance/O23 順序 literal "
+                    f"が {acceptance_order_count} 件"
+                )
+
+    operations_text = decoded.get(_OPERATIONS)
+    if operations_text is not None:
+        o23 = _reference_id_sections(operations_text, "DW-O23")
+        o23_count = (
+            o23[0].count(DEV_WAVE_LAND_HELPER)
+            if len(o23) == 1 else 0
+        )
+        total_count = operations_text.count(DEV_WAVE_LAND_HELPER)
+        if len(o23) == 1 and (o23_count != 1 or total_count != 1):
+            findings.append(
+                "docs/dev-wave/operations.md: land helper path は全体で exact 1 件かつ "
+                f"DW-O23 内だけ — total={total_count}, O23={o23_count}"
+            )
+    for rel, text in decoded.items():
+        if (
+            rel not in {_CORE, _OPERATIONS}
+            and DEV_WAVE_LAND_HELPER in text
+        ):
+            findings.append(
+                f"{rel}: land helper path は DW-S09 / DW-O23 だけに置く"
+            )
+
     self_text = decoded.get("docs/skill-self-improvement.md")
     if self_text is not None:
         for level, headings in REQUIRED_SELF_HEADINGS.items():
@@ -1776,6 +1939,15 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 ".claude/commands/dev-wave.md: Codex-first 実装境界 "
                 "(実装面・軽量版・role=author・親直接編集禁止) がない"
             )
+        for pattern, label_text in (
+            (ALTERNATE_LAND_HELPER_COMMAND, "alternate land helper command"),
+            (DIRECT_MAIN_FF_COMMAND, "direct git merge --ff-only main mutation"),
+        ):
+            if pattern.search(dev_wave_text):
+                findings.append(
+                    ".claude/commands/dev-wave.md: 共通 land 契約外の実行経路 — "
+                    f"{label_text}"
+                )
 
     _check_codex_skill_guard(
         findings,
@@ -1784,6 +1956,12 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         expected_files=CODEX_DEV_WAVE_SKILL_FILES,
         literals=CODEX_DEV_WAVE_SKILL_LITERALS,
         openai_yaml=CODEX_DEV_WAVE_OPENAI_YAML,
+        forbidden_literals=(DEV_WAVE_LAND_HELPER,),
+        exact_literals=(CODEX_DEV_WAVE_STAGE9_LAND_LITERAL,),
+        forbidden_patterns=(
+            (ALTERNATE_LAND_HELPER_COMMAND, "alternate land helper command"),
+            (DIRECT_MAIN_FF_COMMAND, "direct git merge --ff-only main mutation"),
+        ),
     )
     _check_codex_skill_guard(
         findings,
@@ -1793,6 +1971,27 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         literals=CODEX_RULINGS_SKILL_LITERALS,
         openai_yaml=CODEX_RULINGS_OPENAI_YAML,
     )
+    _check_codex_skill_guard(
+        findings,
+        skill_name="cleanup-branches",
+        limits=CODEX_CLEANUP_BRANCHES_SKILL_LIMITS,
+        expected_files=CODEX_CLEANUP_BRANCHES_SKILL_FILES,
+        literals=(),
+        openai_yaml=CODEX_CLEANUP_BRANCHES_OPENAI_YAML,
+        expected_description=CODEX_CLEANUP_BRANCHES_DESCRIPTION,
+        expected_sha256=CODEX_CLEANUP_BRANCHES_SKILL_SHA256,
+    )
+
+    cleanup_text = decoded.get(".claude/commands/cleanup-branches.md")
+    if (
+        cleanup_text is not None
+        and hashlib.sha256(cleanup_text.encode("utf-8")).hexdigest()
+        != CLEANUP_COMMAND_SHA256
+    ):
+        findings.append(
+            ".claude/commands/cleanup-branches.md: "
+            "whole-file SHA-256 が契約と不一致"
+        )
 
     return unreadable
 

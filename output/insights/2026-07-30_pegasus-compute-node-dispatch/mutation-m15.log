@@ -1,0 +1,10 @@
+M15 rc = 1 killed = True
+[Pegasus dispatch] job を gen_S へ投入します (izdw-2e1697661e)
+[Pegasus dispatch] request ID 874332.nqsv を受理しました
+[Pegasus dispatch] request 874332.nqsv の状態: QUE
+[Pegasus dispatch] request 874332.nqsv の状態: RUN
+[Pegasus dispatch] request 874332.nqsv の状態: END
+[Pegasus dispatch] request 874332.nqsv の成果物収集を開始します
+[Pegasus dispatch] receipt を /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-pegasus-compute-node/output/pegasus-dispatch/2e1697661ef679086e0ee98b7dd7b5ab/receipt.json へ保存しました (child rc=1)
+
+restored ok; git status: clean

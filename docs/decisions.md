@@ -4331,3 +4331,427 @@ check は従来どおり赤 = 非悪化)、dev_waves の rc 畳み込み (13/14 
 **研究状態への影響:** なし (campaign の raw 受理集合 (D90 (1))・certified 選択・proof chain は不変。
 変わるのは開発 harness の受理集合のみ)。材料 = `output/insights/2026-07-29_t153-t158-review-verbatim/`
 + 同 mutation-ledger。
+
+## D98. [T-153(e)][T-154(2)(3)] CAB 連続配置を canonical parser で検査し、provenance 規約へ独立 9,000-byte 上限を置く (2026-07-29)
+
+**背景:** `docs/ai-provenance.md` は `Co-Authored-By` を `AI-Agent` と同じ最終 trailer block に
+空行なしで置くよう要求していたが、従来 checker は Git が認識した `AI-Agent` だけを検査した。
+CAB を本文側、`AI-Agent` を最終 block に分断する F25 型 message は受理できた。T-154(3) の
+ユーザー裁定はこの受理集合を狭めるため、D96 に従い本決定と境界テストを実装と同じ変更単位に置く。
+T-153(e) は同じ変更を指す。T-154(2) の裁定範囲は 8,000〜9,000 bytes で、着手時の規約実体が
+8,817 bytes だったため上限を 9,000 とする。
+
+**決定 (1): CAB 候補の raw/parsed multiplicity を照合する。** 候補は、物理行の先頭から任意の
+SP/HTAB、case-insensitive `Co-Authored-By`、任意の SP/HTAB、colon が続く行である。bullet/quote
+付き本文は候補外、indent や fence 内でもこの字句形なら候補とする。値・email 構文は検査せず、
+同一値を含む複数 CAB も件数を保存する。全 raw 候補数と canonical Git parser が最終 block で
+認識した CAB 数が一致しなければ拒否する。
+
+**決定 (2): CAB parser だけを canonical 化する。** commit message を format-patch stream として
+扱わないため `interpret-trailers --parse --no-divider` を使う。UTF-8 bytes 入出力を LF byte だけで
+record 分割し、bare CR 等を偽 key にしない。毎回 fresh private temporary cwd と ceiling を作り、
+repo discovery、system/global/local/env の trailer alias・separator を遮断し、separator は colon に
+固定する。壊れた UTF-8、異常 record、Git error は fail-closed とする。一方、既存 `AI-Agent`、
+scope、Codex-author の判定は従来の repo cwd・divider 既定 parser を維持し、CAB 導入前後を問わず
+既存受理集合を変えない。
+
+**決定 (3): 履歴は非遡及かつ lineage ごとに適用する。** commit ごとに
+`git log --full-history --no-renames -S <policy needle> <commit> -- docs/ai-provenance.md` を照合し、
+その ancestry に導入 change があれば CAB gate を適用する。導入前 commit は従来どおり、別 lineage の
+独立導入と policy 文言削除後は適用済みとして扱う。`--message-file` は現行規約の事前検査なので常時
+適用する。default history、明示 range、導入 commit 自身、rename、merge、削除を境界テストで固定する。
+
+**決定 (4): provenance 規約の byte 上限は独立 registry とする。**
+`PROVENANCE_LIMITS = {"docs/ai-provenance.md": TextLimit(9_000)}` を全 text-budget consumer にだけ
+合流し、`SELF_LIMITS` と dev-wave normative dispatch allowlist には加えない。9,000 bytes exact を受理し、
+9,001 bytes を拒否する。
+
+**却下案:** (a) `SELF_LIMITS` への直接追加 — provenance path を dev-wave dispatch allowlist へ
+混入させる。(b) ambient repo での parser — alias と別 raw 行を件数相殺できる。(c) Python
+`splitlines()` — trailer 値中の bare CR 等を偽 key にする。(d) canonical parser を既存 AI 判定にも
+共用 — CAB scope 外の旧履歴受理集合を変える。(e) HEAD 上の単一 epoch — 別 lineage、削除後、
+history simplification、rename を表せない。(f) CAB 値集合の比較や email 構文検査 — 著者表示の値
+意味論は本裁定の対象外で、件数保存より受理集合を余分に狭める。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、レポート、proof chain は
+変えない。変わるのは commit provenance checker と共有規約の byte budget だけである。材料 =
+`output/insights/2026-07-29_t153e-t15423-review-verbatim/`。
+
+## D99. [T-143] RuleOps v1 は削除 gate でなく、HEAD 固定の advisory 候補 package 検査とする (2026-07-29)
+
+**背景:** test と `output/insights/` は単調増加しているが、年齢・size・参照数だけでは correctness
+防壁と低価値派生物を区別できない。段 3 の安全・実効性レビュー 2 レンズは、当初 plan の
+「retirement proof」が自己申告 mutation receipt、候補間循環、不完全な意味検索を削除安全の証明として
+過大評価すると独立に指摘した。材料・逐語・変異正本 =
+`output/insights/2026-07-29_t143-ruleops.md`、同 `-mutation-ledger.json`、
+`output/insights/2026-07-29_t143-ruleops-wave/`。
+
+**決定 (1): v1 は read-only proposal workflow に限定する。** CLI は `inventory`、`inspect`、
+`check` だけを持ち、削除・移動・archive・applyを行わない。成功出力は構造が捕捉HEADと整合すること
+だけを表し、`human_approved: false`を固定する。削除安全、受理集合同値、完全なconsumer閉包、
+mutation実験の真正性を主張しない。production ledgerはauthorityを持たない空JSONでよく、通常の
+test/insight追加に登録追随を要求しない。
+
+**決定 (2): identityと履歴は捕捉HEADへ束縛し、外部副作用をfail-closedにする。** 対象は直下の
+tracked `orchestrator/tests/test_*.py` と tracked `output/insights/**` regular blob。Git照会は
+read-only closed subcommand、non-shallow、replace refsなし、graftsなし、local config無効化、
+timeout、`GIT_NO_LAZY_FETCH=1`を要求し、開始時とemit前に世代境界を再検査する。HEAD ledger/receiptは
+payload読出し前にsizeを検査する。
+
+**決定 (3): 非空packageは小さい上限とledger-wide整合で人間裁定へ運ぶ。** candidate最大2、
+test query最大1、重複除去したsignal token最大6を履歴照会前に検査する。receipt headは現在HEADの
+実在祖先commitで、そのtreeのcandidate blobと一致しなければならない。receipt head以後の全commitが
+全parentに対して触れたpath unionはledgerとledger-wide receipt pathだけに限る。全candidate/evidence
+alias・cycle、blob drift、未裁定hitを拒否する。受入全走はproduction ledgerの`check`を60秒child
+timeoutで先行し、失敗をrunner rc=15へ写す。
+
+**決定 (4): 実退役は別の人間裁定とcommitに残す。** 候補packageは古くなり得るため、ユーザー裁定後も
+削除直前に最新HEADでpinとhitを再生成する。test/gate退役が受理集合を変え得る場合はD96に従い、
+新しいdecisionと境界testを同一変更単位へ置く。index/staged-tree束縛、mutation producer、
+approval receiptの機械束縛、node単位退役はv1のscope外。
+
+**却下案:** (a) age/size/reference閾値で自動削除 — 不完全signalを安全分類へ昇格する。
+(b) 既存test/insight全件の初期ledger登録 — 通常追加へ追随負担を課し、候補台帳を第二の状態正本にする。
+(c) receiptを実験証明として扱う — producer-bound provenanceがなく自己申告を越えない。
+(d) index/staged deletionと直ちに束縛 — v1のproposal workflowを実削除gateへ拡張し、別の受理集合裁定を
+先取りする。
+
+**研究状態への影響:** correctness gate、campaign raw受理集合、certified選択、proof chainのbytesと
+判定は不変。変わるのは陳腐化候補を再現可能な非権威packageとして人間へ運ぶ開発運用だけである。
+
+## D100. [T-180] job 資源封筒の hard cap は wall-clock のみとし、model_calls と token は observable proxy と名乗る (2026-07-30)
+
+**決定: Codex worker job の資源封筒は `tools/codex_worker_launch.py` が wrapper として強制し、
+`codex exec` に上限を委ねない。強制力の射程を名前と receipt に正直に書き分ける。**
+
+`codex-cli 0.146.0` は turn / token / wall-clock / retry の上限 flag を持たない (実測)。
+封筒は wrapper でしか作れないが、その強制力は一様ではない。
+
+(1) **wall-clock だけが hard cap**である。launcher が単調時計で監視し、process group を終了できる。
+
+(2) **`model_calls` と token は observable proxy** である。usage は rollout の `token_count` event
+としてしか観測できず、event は model call の**完了後**に出る。したがって「次の call を発行させない」
+admission control は原理的に作れず、最大 1 call 分の不可視 overshoot が残る。receipt は
+`model_calls_semantics="observed_token_count_events"` と `possible_unobserved_overshoot` で
+この限界を表出し、`hard cap` とは名乗らない。
+
+(3) **metering は二重にする。** live 停止は rollout JSONL の tail (実行中に逐次 flush されることを
+実測)、終了判定は stdout の最終 `turn.completed.usage` (rollout の最終累積と一致することを実測)。
+どちらかが欠ける・両者が矛盾する job は **accepted にしない** (0 として受理しない)。
+
+(4) **上限停止した attempt は無条件に非採用**とする。Codex の rc も validator の rc も出力内容も
+覆さない。SIGTERM handler が上限到達後に妥当な出力を書いても採用しない。
+
+(5) **`setsid()` で process group を逃れた子は封じ込めない。** killpg の射程外であり、
+本 wave は残存を receipt に記録するに留める (`escaped_process_containment="not_attempted"`)。
+封じ込めたと主張しない。
+
+(6) **受理集合は session_id で束縛する。** `CodexWorkerSessionManifest` が
+rollout 相関の**直後**に session_id を追記し、cwd 部分一致 (T-179 の限界。path 再利用と
+接尾辞衝突で別 wave が混入する) を置き換える。ledger の `--manifest` 経路では完全性検査を
+`--strict` に依存させず無条件 rc=2 とする。
+
+**所有境界。** 本 ID は**機構**だけを持つ。retry は分類なしの機械的上限のみとし
+(workspace-write では非採用 attempt の filesystem 変異が次 attempt の入力を変えるため 1 回に固定)、
+失敗型分類・safety-filter 判定・回復経路は [T-183]。DW-O01 の結線と stage 別の上限**値**は
+[T-184] が「一度だけ反映する」。本 wave は「全 worker が launcher を通る」と主張しない。
+
+**却下した案:** stdout の event stream だけで live 強制する (usage が `turn.completed` の 1 回しか
+来ないため実行中に判定できない)、`--ephemeral` を使う (rollout が消え live 強制と事後裏取りの
+両方が不能になる)、既存 `tools/dev_waves/` の `Receipt` / `WaveManifest` 型を共用する
+(Claude wave supervisor の whole-wave Git 結果用であり意味が異なる。supervisor 互換を偽ることになる。
+低層 primitive の `strict_loads` / `canonical_bytes` / group 終了 helper は再利用した)。
+
+逐語・変異台帳・dogfood receipt は `output/insights/2026-07-29_t180-resource-envelope-wave/`。
+
+## D101. [T-187] `6b64d21` の provenance 欠落は履歴非改変の一回限り correction とし、merge path と commit 手順を同時に閉じる (2026-07-30)
+
+**背景:** main / origin/main と複数の後続branchへ共有済みのmerge commit
+`6b64d21753d2cfc790f80caba29df7a40fef3072` は `git merge main --no-edit` が自動生成し、
+必須 `AI-Agent` trailerを持たない。問題は件名`Merge branch ...`ではなくtrailer欠落である。
+履歴rewriteはforce pushと全子孫の再束縛を要するため、ユーザーはforward-only是正を選択した。
+元eventから復元した観測値は`claude / claude-opus-5 / xhigh / integrator`。session IDは永続化せず、
+sanitized fieldとevent行SHA-256を材料へ残す。
+
+**決定 (1): incident固有の一回限りcorrectionだけを受理する。** target SHAと上記payloadを
+コードへ固定し、一般registry、環境変数、Git config、CLI免除を作らない。correctionはraw物理1行、
+隔離canonical parse、通常の最終trailer blockの三面でexactとし、自身の通常`AI-Agent`と同じblockへ
+置く。selected revision setにtargetとcorrectionが各1件、correctionがstrict descendant、targetが
+実際にmissing、自身の通常監査がgreenの場合だけ、targetのmissing finding 1件を相殺する。
+他commit、CAB、scope、Codex-authorのfindingは保存する。green stdoutは両SHAを明示する。
+
+**決定 (2): correctionを含む短いdeltaだけを権威にしない。** targetを除く`OLD_HEAD..HEAD`は
+coupled evidenceを欠くため赤が正しい。初回伝播もtarget-inclusive rangeまたは既定full-historyを
+権威とし、selected-set membershipを緩和しない。
+
+**決定 (3): D95のmerge pathは「結果が全parentと異なるpath」とする。** 履歴mergeは各parentとの差分
+集合の積、`MERGE_HEAD`中のpreflightはindexと全prospective parentとの差分集合の積を使う。
+sideから持ち込まれただけの実装をmerge actorの新規authoringと数えず、全parentと異なる実装面は
+Codex authorを要求する。これは手動conflict resolutionの証明ではない。targetでは通常diffは空、
+積集合はdocs 3 path、per-parent unionは実装面を含む。`integrator`裁定はpathでなくmerge前の
+採否判断に基づく。
+
+**決定 (4): mergeは自動messageを禁止する。** O17はfast-forwardとmerge commitを分け、後者を
+`--no-ff --no-commit`で止めてmessage-file preflight、`commit -F`、既定full-history監査へ通す。
+検査rcはpipelineに渡さない。
+
+**却下:** amend/rebase/force push、targetだけのallowlist、correction単独rangeのgreen化、
+per-parent unionを当該merge actorのauthoringとみなす案。
+
+**研究状態への影響:** なし。campaign raw受理集合、certified選択、proof chainは不変。変わるのは
+開発履歴のprovenance監査とmerge運用だけ。材料 =
+`output/insights/2026-07-29_ai-provenance-forward-fix-wave/`。
+
+## D102. [T-188] 対話型 dev-wave の local main 取り込みを短時間 lock・受入 SHA・所有権付き制御面で直列化する (2026-07-30)
+
+**背景:** Claude / Codex の対話型 dev-wave を並行実行すると、正常な別 session が置いた active
+handoff や登録済み worktree container が main checkout の blanket cleanliness を赤にし、先行 wave
+の land は後続 wave の開始時 main SHA を古くする。従来の `DW-S09` はこの二つを「未知 dirt」
+「main の予期せぬ移動」と同じ停止理由に畳み、他 session 非接触のまま再監査・再受入して land する
+共通経路を持たなかった (F55)。
+
+**決定 (1): Claude command と Codex Skill は共通 operation `DW-O23` だけを通常の local-main
+land 経路にする。** `tools/dev_wave_land.py` は tested main SHA、tested wave tip SHA、順序付きの
+監査済み `A..T` commit 列を入力とし、remote / push / fetch / rebase / force を行わず、main を
+SHA 指定の `merge --ff-only` でだけ前進させる。`landed`、`already-landed`、`stale-main`、
+`lock-busy`、`not-landed`、非再試行の postcondition failure を区別する。stale / busy はその場で
+反復せず fresh context へ handoff し、最新 main の再監査、wave-side merge、受入再走、新しい
+`A..T` 閉包を経てから再試行する。
+
+**決定 (2): 共有状態の直列化は common git dir の短時間 nonblocking lock に限定する。** lock は
+main/config/history/cleanliness の共有可変検査より前に取得し、merge child だけへ fd を継承する。
+長時間の review・テスト中は保持しない。shallow、grafts、replace refs、effective include、
+worktree filter、promisor / partial clone、hooks、fsmonitor、autostash、maintenance、lazy fetch を
+拒否または無効化し、開始・merge・postcondition の世代境界を fail-closed にする。
+
+**決定 (3): main の非接触例外は schema-valid active handoff と Git admin に双方向登録された
+`.claude/worktrees/` / `.codex/worktrees/` に閉じる。** tracked / staged / submodule dirt、未知
+untracked、なりすまし path、管理 backpointer 不一致、inode / bytes の取り替え、wave 差分との
+path collision は拒否する。既存 strict consumer の受理集合を広げないため `.gitignore` は変更せず、
+例外判定を helper 内へ局所化する。他 session の成果物を削除・stash・commit・上書きしない。
+
+**決定 (4): gitlink を含む取り込みは D16 cleanup / sync 後にだけ成功とする。** gitlink の
+追加・更新・削除・mode change を理由に commit 自体は拒否しないが、main checkout の submodule
+postcondition が成立するまで `landed` / `already-landed` を返さない。同一 base の二 wave は、
+先行 land、後続 stale、最新 main の merge、実 subprocess の受入 receipt、新しい tested SHA /
+closure、後続 land の順を end-to-end test で固定する。
+
+**却下案:** (a) `.gitignore` を広げる — 他の strict cleanliness consumer まで受理集合を変える。
+(b) review / 受入中の長時間 lock — 並行開発を実質直列化し、owner crash の回復面を増やす。
+(c) stale 検出後に同一 context で自動 merge / 再試行 — 新 upstream の監査と受入を省略し得る。
+(d) branch 名または未検証 rev を merge する — 検査対象と変更対象の同一性を失う。
+
+**既知の残余:** `check_docs.py` の alternate-land command 検出は広い字句 regex のため、
+synthetic な `python3 -m py_compile tools/alternate_land.py` や
+`git rev-parse -- merge --ff-only` も拒否し得る。現行の living command / Skill 行には該当せず、
+exact route topology は独立 gate が固定しているため本 wave の GO を妨げない。実在する正当な
+command がこの誤検出へ到達した時だけ、意味を保つ parser 化を再起票する。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、proof chain は不変で、
+変わるのは監査済み開発 commit を local main へ反映する操作契約だけである。材料・レビュー・変異 =
+`output/insights/2026-07-29_dev-wave-parallel-land/`。
+
+## D103. [T-192] Pegasus では重い処理を計算ノードで最大並列とし、強制は sanctioned 経路の fail-closed に限る (2026-07-30)
+
+**背景:** ユーザー裁定が 2 回反転した。`docs/pegasus-runbook.md` §7 は 2026-07-27 に
+「ビルドとテスト (pytest 全走を含む) はログインノードで走らせてよい」と定めていたが、
+2026-07-30 のユーザー指示は「`hostname` が pegasus なら、ビルドやテストなどマシンに負荷のかかる
+処理は全て計算ノードで行う」「計算ノードのマシンリソースを最大限使って最大限並列でやる」である。
+最新のユーザー直接指示を現行とし、runbook §7/§8 を置換した。
+
+**決定 (1): site 判定は 4 状態とし、証拠不足は「重い処理だけ拒否」へ倒す。**
+`orchestrator/campaign/site_policy.py` を単一正本とし、区分を `OTHER` / `PEGASUS_LOGIN` /
+`PEGASUS_COMPUTE` / `PEGASUS_SUSPECT` とする。`bnode` + 数字は `PBS_JOBID` の有無に依らず COMPUTE
+(計算ノードは login node ではありえず、並列度の権威は affinity)。`pegasus0[1-9]` は
+NQSV 実在 (`qsub` と `qstat` が PATH に在る) を裏付け証拠として要求し、無ければ `OTHER` とする
+(`pegasus02.example.invalid` の誤判定を閉じる)。`pegasus` で始まる未知名と hostname 取得失敗は、
+証拠が在れば SUSPECT。**SUSPECT は重い処理だけ拒否し、他の挙動は OTHER と同じ**。
+2 状態 (Pegasus か否か) では「非 Pegasus 挙動不変」と「Pegasus 安全側」を同時に満たせない。
+
+**決定 (2): 拒否だけでなく自動 dispatch を持つ。** ログインノードで `tools/run_tests.py` を打つと
+`tools/pegasus/dispatch_compute.py` が gen_S へ 1 invocation = 1 batch job を投入し、
+子 rc をそのまま返す。拒否のみでは準拠経路が運用に無い。allocation を wave 中保持して queue 待ちを
+1 回へ圧縮する案は、lease・heartbeat・source snapshot・shutdown を要するため採らない (規律5)。
+実測の queue 待ちは 6〜86 秒であり、1 invocation ごとの投入で成立する。
+
+**決定 (3): 「最大限並列」は既定値の話であり、明示上書きは尊重する。** COMPUTE では
+テストの既定並列度を affinity 全数 (gen_S で 48) とし、`_NPROC_CAP=32` を適用しない。
+明示 `-n` / `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ちする。実測では
+`-n 48` = 205 秒 / `-n 32` = 207 秒 (3891 passed、bnode114) で両者に有意差はない。
+`-n 16` 以下との対照は未取得であり、**最大並列が最速だとは主張しない** — 既定を最大にするのは
+ユーザー裁定に基づく方針である。「既定が最大」と「全実行が最大」は別であり、後者も主張しない。
+
+**決定 (4): build の並列度も site 由来にし、cache hit 時の `-j` 記録差は受理する
+(2026-07-30 ユーザー裁定)。** `buildcache` の `jobs` 既定を `None` にして
+`site_policy.default_build_jobs()` で解決し、計算ノードでは affinity 全数、非 Pegasus では従来の 16 と
+する。明示 `jobs=` を渡す既存呼び出しは尊重する。実 cmake build のログインノード拒否も入れた。
+
+当初案は「cache hit 時に `BuildResult.build_argv` が呼出時の値で再構成され、実際は `-j 16` で
+作った binary を `-j 48` と記録しうる。これは WAL・floor manifest・ratified `floor_source` へ流れる
+provenance の偽りだ」として既定 16 を維持していた。ユーザーはこれを覆し、**「16 並列ビルドと
+48 並列ビルドのバイナリは等価であるべきで、そうでなければコンパイラのバグであり我々が関与する
+問題ではない」**と裁定した。したがって `-j` は成果物 bytes に影響しない値として扱い、記録差を
+受理する。**binary identity の検査 (`bin_sha256` の照合、trace/no-trace の diff-of-diffs、
+`src_token` 再照合) は一切緩めない** — 緩めたのは「build コマンド文字列に現れる `-j` の値が、
+cache を作った時点の値と一致するか」だけである。`cache_key()` / v2 identity /
+`contract_sha256` / v2 completion manifest の入力に `jobs` は入れない (cache identity は不変)。
+
+**決定 (5): 強制は 3 層で、全経路の機械保証は主張しない。** 一次 = sanctioned entry point
+(`run_tests.py`、buildcache の実 build) の fail-closed。二次 = `hooks/guard_bash.py` が
+Claude の Bash 面で直接 literal な重量コマンドを拒否 (sanctioned は exact path 列挙のみ。
+`tools/pegasus/*` の glob 許可はしない — `exec_calibrate.py` は任意 argv を `os.execv` する)。
+三層 = 規律 (`AGENTS.md` と runbook)。**script file 越し・変数展開・`eval`・`python3 -c`・
+Codex subprocess (hook 未配線)・ユーザー端末・IDE・cron は原理的に見えない。**
+敵対監査は 47 経路のうち hook で止まるのは 13 件と算定した。恒真な保証を謳わないため、
+成果物の主張を「sanctioned 経路では機械強制し、それ以外は規律で塞ぐ」に狭める。
+
+**決定 (6): 「非 Pegasus 挙動不変」の例外は 1 件だけ明示する。** `available_cpus()` は
+`os.sched_getaffinity` の `AttributeError` に加えて `OSError` (`PermissionError` を含む) も捕らえ、
+`os.cpu_count()` へ fallback する。従来はここで例外が伝播して停止していたため、
+**affinity を読めない非 Pegasus ホストでは挙動が変わる** (停止 → cap 付き並列度で実行)。
+これは既存の fallback 意図に沿った欠陥修正として意図的に受理する。他に非 Pegasus の受理集合を
+変える差分は作らない。
+
+**却下:** 2 状態の site 判定、`jobs` 既定の site 依存化 (決定 4)、gate を無効化する env escape hatch、
+`tools/pegasus/*` の glob 許可、resident allocation (決定 2)、`task_run` schema への
+host / PBS job ID 追加 (dispatcher receipt で代替)。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変。
+変わるのは開発 harness の実行場所と既定並列度、および `tools/run_tests.py` の受理集合である。
+**rc の意味**: ログインノードからの正常な dispatch は計算ノードの子 rc をそのまま返す (成功なら 0)。
+`rc=16` は dispatch の infra 失敗 (投入・状態機械・会計照合・receipt 永続の失敗) と
+`PEGASUS_SUSPECT` での拒否だけに使う。D96 の手続義務に従い境界テストを同時追加する。
+
+## D104. [T-200] 受入全走の下限は in-scope のテスト側施策では動かないと実測で確定し、共有 cache 実装を破棄する (2026-07-31)
+
+**背景:** ユーザー裁定「全走の下限を下げる」を受けて起票した wave である。材料
+(`output/insights/2026-07-30_dev-wave-gate-cost-and-suite-floor.md` §7) は real-repo group の
+2 node と T-080 base fixture の worker 間共有を候補に挙げていた。段 1 の前提実測で材料の
+3 数値がいずれも現状と食い違い、段 3 の敵対相談が親 brief 自身の誤り 6 件を real と判定し、
+段 5 の実装が段 6 の受入実測で効果を示せなかった。
+
+**決定 (1): T-080 base fixture の session 内共有は採用しない。**
+before 2 走 / after 2 走の実測で、全走 wall は 207.5 → 206.3 秒 (差 1.3 秒、走行間ばらつき
+13.6 秒の中) にとどまり、t080 系 work (785.0 / 842.1 → 972.3 / 913.9 秒) と最長 node
+(110.8 / 108.2 → 112.1 / 116.0 秒) は **after 2 走とも before 2 走を上回って悪化**した。
+機序は (a) fixture の 5 variant のうち 4 つは消費者が 1 本しかなく共有が効かない、
+(b) 待ち手が `flock` で build と同じ時間ブロックし待ちが duration に載る、
+(c) 全走の CPU 稼働率は 22% で CPU 返却が wall へ写らない、である。
+段 3 と段 6 の敵対検証が独立に同じ予測を出し、実測が一致した。
+
+**決定 (2): 真の律速は本番の履歴走査であり、テスト側では閉じられない。**
+`issue_receipt=False` variant が 10.63 秒であることから、base 構築 90 秒のうち
+**約 80 秒 (89%) は子 python の migration 検証**であり、148MB の copytree は約 10 秒にすぎない。
+前者は `t080_freeze_migration._history_touches_path` が
+`git diff-tree -M -C --find-copies-harder` を 3437 ファイルの basis commit へ当てるコストで、
+D の対象は [T-173] の pickaxe と同じ「commit / ファイル数に対して伸びる」構造である。
+共通 prefix 共有を入れても節約は work 約 29 秒・最長 node 0 秒で、下限は動かない。
+
+**決定 (3): 効果を示せない機構は land しない。**
+段 6 の敵対レビュー 2 本は must-fix 12 件を挙げた。fix で閉じられるものもあるが、
+中核 (効果が出ない) は設計変更でも in-scope では閉じられない。加えて共有 entry を消す経路が無く
+`/dev/shm` に 1 走あたり約 1〜1.5GB を 6 時間残すため、`conftest.py` の tmpfs 切替ガードを
+通じて**測定計画そのものを汚染する**。共有が発火したかを全走から観測する手段も無い。
+規律 5 (段階導入 / 盛らない) に従い、1909 行の機構を破棄した
+(patch sha256 `2f71c770a71b26c5e99646cba56ddf9256c603ae057d8e4a0c8067f0d2c52915`)。
+
+**決定 (4): 性能施策の一次証拠は duration にしない。**
+本 wave では builder と waiter が同じ duration を出すため、duration による代理は原理的に
+使えないと確定した。今後この面で効果を主張するなら、同一 allocation 内の paired 比較
+(A-B / B-A) と、**機構の実発火回数の直接観測**を成果物に含める。
+`--durations` は 0.005 秒未満を隠すため、canonical 不一致で fail-closed にしない集計器を
+受入基準に使わない。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes、
+テストの検出力はいずれも不変である。本 wave の commit は docs のみで、コードは 0 byte 変更である。
+下限を実際に下げる 4 択 (本番履歴走査の置換 / `output/` tracked bytes 削減 / session 跨ぎ cache /
+xdist grouping) はユーザー裁定へ返す。
+
+---
+
+## D105. [T-205] provenance 履歴監査を計算ノードへ移し、Codex author 契約に正規の waiver を開く (2026-07-31)
+
+**背景 (ユーザー裁定 2 件と実測):** (1) 2026-07-31「cygnus は良いが pegasus は計算ノードに投げるべき」。
+`check_ai_provenance.py` の履歴監査は 1 回で git subprocess 約 3000 本・ログインノードで 130〜150 秒を
+共有ノードに載せており、runbook §7 の「ログインノードに残してよいのは編集・静的検査・docs 検査・
+スケジューラ操作」を過大解釈していた。(2) 2026-07-31「codex のレートリミットが近いので codex を使うところは
+claude で代替」および、それが D95 の Codex author 契約に抵触する件への「例外経路を正規化して全部やる」。
+高速化の材料は `output/insights/2026-07-30_t200-suite-floor/s7-negative-result.md` §11 (計算ノード bnode041、
+596 commit)。本 D は 3 つの受理集合変更を伴うため D96 の手続に従い、境界テストを同じ変更単位で更新する。
+
+**決定 (1): Codex 不可用時の Claude author を waiver trailer で正規化する。**
+形式は `AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>` の物理 1 行を最終 trailer block に置き、
+同じ block の `AI-Agent` に `role=author` を併記する。D95 の「Codex が実行不能なら Claude が代行せず停止し、
+例外の必要性をユーザー裁定へ返す」は維持し、**裁定後の運用形**だけを本 D が定義する。
+免除は恒久の正規経路とし、機械上限は設けない。抑止は次の 2 つに置く。
+
+- checker は免除が**実際に発火した**件数と理由を stdout へ出す (rc=1 のときも沈黙させない)。
+  件数は「waiver 行の付与数」ではなく「`validate_implementation_author` が免除を返した回数」である。
+  docs-only commit に waiver を付けても計上されない。
+- 件数と経緯は worklog に残す。
+
+**決定 (1-a): waiver 行を持つ commit は forward correction の担い手になれない。**
+前方訂正の成立条件は「自身の通常 green」を含む (`docs/ai-provenance.md` の公表契約)。waiver で
+normal findings が消えると、実装面 path + Claude-only author の commit が前方訂正の担い手になれてしまい、
+`6b64d21` の欠落 finding を抑止する受理集合が**広がる**。成立条件の連言へ「waiver が exact でないこと」を
+足してこれを閉じる。この変更で forward correction の受理集合は現行と同じか狭くなる方向にしか動かない。
+
+**決定 (2): provenance 履歴監査は「重い処理」であり、計算ノードで走らせる。**
+強制は D103 決定 5 と同じ書きぶりで sanctioned 経路の fail-closed に限り、**全経路の機械保証は主張しない**。
+
+- **第一層 (checker 自身)**: `main()` が site を判定し、`PEGASUS_LOGIN` なら計算ノードへ自動 dispatch、
+  `PEGASUS_SUSPECT` なら rc=16 で拒否する。**免除は `--message-file` の commit 前 preflight だけ**とし、
+  判定は `parse_args()` の後に `args.message_file is not None` で行う (raw token allowlist を移植しない —
+  `--message-f` のような argparse 接頭辞省略が allowlist を外れ、commit 経路が queue 依存になるため)。
+- **第二層 (hook)**: `hooks/guard_bash.py` が Claude の Bash 面だけで、sanctioned exact path 以外の綴りを拒否する。
+  **hook が新規に閉じるのは綴り差だけである。** Codex subprocess (hook 未配線)、script file 越し、変数展開、
+  `python3 -c`、ユーザー端末、cron は原理的に見えない。
+
+**決定 (3): dispatch は閉じた task enum で一般化し、request schema は 1 リリース分の後方互換を持つ。**
+`{"tests", "provenance"}` の閉集合とし、既定は `tests`。不正 task は親側と子側の二層で fail-closed にする。
+任意 command 化は D103 決定 5 (`tools/pegasus/` の glob 許可を明示的に拒む) と正面衝突するので採らない。
+`_job_run` は request schema の v1 と v2 を両方受理する — 一方向 bump は、queue 待ち中に本 wave の commit が
+land した場合に in-flight job を殺す退行になる。
+
+**決定 (4): 監査の並列度は site 由来とし、上限 32 を置く。**
+既定を `min(available_cpus(), 32)` とする。runbook §7 のユーザー裁定「計算ノードでは割り当てられた資源を
+最大限使い、最大並列で回す」に従う。上限 32 の根拠は insight §11 の実測 (32→48 は 5.23→5.23 秒で改善ゼロ、
+git subprocess の fork/exec が律速)。**env による上書きは作らない** (D103 却下の escape hatch)。
+受入基準は「逐次比 ≥4.5 倍かつ findings/corrected の完全一致」とし、insight の 4.58 秒は
+**48 並列 + bitset の arm の参照値**であって 16 や 32 の合否判定には使わない。
+
+**却下案:** (a) incident 固定方式 (`6b64d21` の forward correction と同型) — waiver は対象 commit の SHA を
+事前に知れないので成立しない。(b) allowlist / 環境変数による免除 — D103 の却下項目であり、gate を無効化する
+escape hatch になる。(c) dispatch の任意 command 化 — 上記のとおり D103 決定 5 と衝突。(d) checker 固有の
+rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できなくなる。(e) 並列度 16 固定 —
+4.58 秒は 48 並列の値であり、16 固定の受入基準として使うと実装が正しくても赤になる。(f) `docs/ai-provenance.md` の
+既存規範文を削って waiver 節を入れる — 削る候補が「provenance 記録から製品の優劣を断定するな」という
+解釈上の歯止めであり、Claude author を正規化する commit でそれを削るのは向きが逆。実際には bullet 1 つ
+(186 bytes) を足すだけで予算内 (8942/9000) に収まった。
+
+**残余リスク (発火しない保証を謳わないために逐語で残す):**
+
+- `tools/dev_waves/checker.py` が `/tmp` の隔離 clone を全 check の cwd に使うため、そこから起動された
+  監査は計算ノードから repo を見られず dispatch が失敗する。**これは本 D が新設する欠陥ではない** —
+  同じ clone で走る `orchestrator` check (`tools/run_tests.py`) が既に同型の経路にある。第一層は
+  この経路を保証しない。clone 置き場の是正は別タスクとしてユーザー裁定へ返す。
+- 上記に伴い rc=16 が dev-wave receipt の理由コードへ流れる件は、`checker.py` の分類で 16 を
+  `PROVENANCE_FAILED` から外し、汎用の `CHECK_FAILED` へ落とす。**`ReasonCode` に infra 専用の値は無く、
+  台帳上は他の check 失敗と区別できない** — この変更が与えるのは誤ラベルの除去だけであって、
+  infra の機械判別ではない。`tools/task_run_check.py` も rc を素通しするので、**台帳の
+  `exit_status=16` は infra 失敗であり provenance 違反ではない**が、この区別も機械判別しない。
+- `AGENTS.md` / `CLAUDE.md` の定型手順に従うと commit ごとに 1 PBS job が出る (queue 待ち実測 6〜86 秒)。
+  「wave 末に 1 回」へ改める案は `docs/dev-wave/operations.md` の `DW-O17` を編集する必要があるが、
+  同ディレクトリは余白 17 bytes で予算引き上げは T-127 のユーザー裁定で禁止されているため採らない。
+  置換前のログインノード 130〜150 秒 × 同数より共有資源の消費は小さい。
+- `provenance` task の walltime は既定 `00:30:00` を据え置く。`elapstim_req` は確保上限であって消費ポイントの
+  決定項ではなく、短縮しても支配項の queue 待ちは縮まない。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変である。
+変わるのは (i) provenance 監査の受理集合 — 正規 waiver の受理、forward correction の担い手資格の縮小、
+および **`--message-file` preflight で不正な waiver 行を持つ message が新たに rc=1 になること**
+(従来は未知 trailer として無視。docs-only の message でも発火するが、いずれも fail-closed 方向である) —、
+(ii) checker の rc に 16 が加わること、(iii) dispatch の request が task 種別を持つこと、の 3 点だけである。
+なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
+構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
+抑止されないため変更前から rc=1 だった。

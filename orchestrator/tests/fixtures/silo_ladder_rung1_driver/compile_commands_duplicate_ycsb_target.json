@@ -1,0 +1,30 @@
+[
+  {
+    "directory": "/fixture/build/cc/silo",
+    "file": "/fixture/source/cc/silo/ycsb_silo.cc",
+    "command": "g++ -DIZANAGI_SILO_LADDER_RUNG1=1 -o CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o -c /fixture/source/cc/silo/ycsb_silo.cc"
+  },
+  {
+    "directory": "/fixture/build/cc/silo",
+    "file": "/fixture/source/cc/silo/transaction.cc",
+    "command": "g++ -DIZANAGI_SILO_LADDER_RUNG1=1 -o CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o -c /fixture/source/cc/silo/transaction.cc"
+  },
+  {
+    "directory": "/fixture/build/cc/silo",
+    "file": "/fixture/source/cc/silo/transaction.cc",
+    "arguments": [
+      "g++",
+      "-DIZANAGI_SILO_LADDER_RUNG1=1",
+      "-o",
+      "CMakeFiles/ycsb_silo.exe.dir/transaction-duplicate.cc.o",
+      "-c",
+      "/fixture/source/cc/silo/transaction.cc"
+    ],
+    "output": "CMakeFiles/ycsb_silo.exe.dir/transaction-duplicate.cc.o"
+  },
+  {
+    "directory": "/fixture/build/cc/silo",
+    "file": "/fixture/source/cc/silo/transaction.cc",
+    "command": "g++ -DIZANAGI_SILO_LADDER_RUNG1=1 -o CMakeFiles/tpcc_silo.exe.dir/transaction.cc.o -c /fixture/source/cc/silo/transaction.cc"
+  }
+]

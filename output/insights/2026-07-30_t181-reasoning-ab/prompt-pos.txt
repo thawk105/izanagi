@@ -1,0 +1,30 @@
+あなたは dev-wave 段6 fix後の read-only focused reviewer です。次をすべて読み、
+読めなければ即停止してください。
+
+- /home/SFC/tanab/.t181-bench/pos/output/insights/2026-07-29_t153e-t15423-review-verbatim/review-a.md
+- /home/SFC/tanab/.t181-bench/pos/output/insights/2026-07-29_t153e-t15423-review-verbatim/review-b.md
+- /home/SFC/tanab/.t181-bench/pos/output/insights/2026-07-29_t153e-t15423-review-verbatim/fix1.md
+- /home/SFC/tanab/.t181-bench/pos/docs/ai-provenance.md
+- /home/SFC/tanab/.t181-bench/pos/docs/decisions.md の D98
+- /home/SFC/tanab/.t181-bench/pos/tools/check_ai_provenance.py
+- /home/SFC/tanab/.t181-bench/pos/orchestrator/tests/test_check_ai_provenance.py
+- /home/SFC/tanab/.t181-bench/pos/tools/check_docs.py
+- /home/SFC/tanab/.t181-bench/pos/orchestrator/tests/test_check_docs.py
+
+必須出力は前回所見ごとの `closed / partial / regressed` 対応表です。A-1〜A-4、
+B-1〜B-6（重複は統合可）を、fix後コード・テスト・policy・D98のfile:lineで裏取りしてください。
+特に次の新regression候補を明示的に攻撃します。
+
+- 履歴mainがpre-policy commitでも `validate_message()` 内でcanonical CAB parserを実行し、
+  findingを後で捨てるだけになっていないか。canonical parser error/temporary-dir作成失敗なら
+  pre-policy受理集合を非遡及のはずがrc=2へ変えないか。
+- fresh temporary ceilingが実際にancestor local configを遮断し、cleanup後のcwd参照やraceを残さないか。
+- binary LF splitがbare CR/Unicode separatorの相殺を本当に閉じたか。
+- `--full-history --no-renames` とD98の宣言、独立needle literal、導入commit自身、merge/renameが一致するか。
+- M1/M2が診断文言でなくCAB受理集合の単一理由controlになったか。
+- policy 8,832/9,000、独立registry、dispatch allowlist非拡張、D96の同一変更closureが成立するか。
+
+各残存findingはseverity、real/refuted、成果物（commit provenance受理集合またはbudget）の変化、
+最小fixを示してください。成果物影響を書けないものはnit/backlogです。read-onlyのため編集せず、
+pytest緑を主張しません。最後にfence外の`## 総括`でGO/NO-GO、残must-fix、対応表の結論を
+500 bytes以上でまとめてください。

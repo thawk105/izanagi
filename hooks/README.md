@@ -71,6 +71,12 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 - 純読み取り (nm/objdump/readelf/ldd/size/du/zcat 系) を allowlist に追加 (規律1 の nm 手検証を止めない)。
 - tar/rsync は read (backup) / write (展開・mirror INTO) を判別 (backup を巻き込まない)。
 
+**Pegasus の重い処理層 (正しさ防壁ではない)。** 同 hook は Pegasus ログインノードでの重量コマンドも
+拒否する。sanctioned exact path の一覧と判定は `hooks/guard_bash.py` が正本であり、ここへは写さない
+(二重管理はドリフト源になる)。射程と限界 — 一次強制は各 entry point 自身の fail-closed であり、hook が
+新規に閉じるのは非 sanctioned な綴りだけで、Codex 子・script file 越し・`python3 -c`・ユーザー端末は
+原理的に見えない — は `docs/pegasus-runbook.md` §7 と D103 / D105 を正本とする。
+
 ## hook 3: guard_read.py (PreToolUse: Read) — コンテキスト衛生 (正しさ防壁ではない)
 
 大きい記録ファイルの offset/limit 無し Read を止め、D35 (grep index → 部分読み) を prompt 規律から

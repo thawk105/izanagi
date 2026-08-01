@@ -1,0 +1,23 @@
+[
+  {
+    "id": "97000000-0000-0000-0000-000000000001",
+    "prompt": "あなたは段2の read-only Codex planner である。",
+    "usage_pairs": [
+      {
+        "total": {
+          "input_tokens": 100,
+          "cached_input_tokens": 20,
+          "output_tokens": 30,
+          "total_tokens": 130
+        },
+        "last": {
+          "input_tokens": 100,
+          "cached_input_tokens": 20,
+          "output_tokens": 30,
+          "total_tokens": 130
+        }
+      }
+    ],
+    "null_token_info": true
+  }
+]

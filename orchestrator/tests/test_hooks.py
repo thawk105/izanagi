@@ -9,12 +9,16 @@ EVOLVE-BLOCK 構造の検査は tmp に合成した骨格 (template patch と同
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+from unittest.mock import patch
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -22,7 +26,7 @@ _REPO = os.path.dirname(_ORCH)
 sys.path.insert(0, _ORCH)
 
 from campaign import source_digest                               # noqa: E402
-from skiputil import Skip, skip                                  # noqa: E402
+from skiputil import skip                                        # noqa: E402
 
 
 def _load_hook(name: str):
@@ -499,6 +503,471 @@ def test_bash_false_positive_fixes_allowed():
         assert ok, f"計測層の正当コマンドが誤拒否された (F-FP): {cmd!r} ({why})"
 
 
+def test_bash_other_keeps_legacy_acceptance_bits():
+    """site=None と OTHER は既存 guard の許可/拒否を 1 bit も変えない。"""
+    cases = {
+        "ls -la": True,
+        f"cat {_WAL}": True,
+        f"echo x >> {_WAL}": False,
+        f"rm -rf {_BV}": False,
+        f"python3 -c \"open('{_WAL}','a').write('x')\"": False,
+        f"{_BV}/silo_x_t0/ycsb_silo.exe -w YCSB": True,
+        "pytest -q": True,
+        "python3 -m pytest -q": True,
+        "python3 -mpytest -q": True,
+        "python3 -mtools.pegasus.exec_calibrate argv.json": True,
+        "python3 -qm pytest -q": True,
+        "cmake --build build": True,
+        "make -j48": True,
+        "ninja -C build": True,
+        "ctest": True,
+        "perf stat -- ./ycsb_silo.exe": True,
+        "bash -xec 'pytest -q'": True,
+        "sh -euxc 'cmake --build build'": True,
+        "python3 tools/run_tests.py && pytest -q": True,
+    }
+    for cmd, expected in cases.items():
+        default = GB.decide(cmd)
+        explicit_other = GB.decide(cmd, site="OTHER")
+        assert default == explicit_other, \
+            f"site=None と OTHER が不一致: {cmd!r}: {default} != {explicit_other}"
+        assert default[0] is expected, \
+            f"既存受理 bit が変化した: {cmd!r}: {default[0]} != {expected}"
+
+
+def test_bash_login_blocks_python_module_pytest_variants():
+    # M8: -m pytest 判定を python3.10 限定へ戻す変異を kill する。
+    for cmd in (
+        "python3 -m pytest -q",
+        "python -m pytest -q",
+        "python3.10 -m pytest -q",
+        "/usr/bin/python3 -m pytest -q",
+        ".venv/bin/python -m pytest -q",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"任意 python 実体の -m pytest が login で通った: {cmd!r}"
+
+
+def test_bash_login_blocks_attached_and_bundled_python_modules():
+    for cmd in (
+        "python3 -mpytest -q",
+        "python3 -qmpytest -q",
+        "python3 -qm pytest -q",
+        "python3 -Om pytest -q",
+        "python3 -mtools.pegasus.exec_calibrate argv.json",
+        "python3 -qm tools.pegasus.exec_calibrate argv.json",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"密着/結合した Python -m の重量実行が通った: {cmd!r}"
+
+
+def test_bash_login_python_module_option_boundaries_allowed():
+    for cmd in (
+        "python3 -mpytest --collect-only",
+        "python3 -qm pytest --help",
+        "python3 -mtools.run_tests --collect-only",
+        "python3 -qm tools.run_tests --collect-only",
+        "python3 -Wmodule -q script.py",
+        "python3 -Xmodule -q script.py",
+        "python3 -c 'print(\"module\")'",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"Python -m 境界の非重量形が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_wrapper_values_reveal_actual_head():
+    # M9: wrapper の option 値 skip を削除する変異を kill する。
+    for cmd in (
+        "sudo -u tanab pytest -q",
+        "env -u PYTHONPATH pytest -q",
+        "env FOO=1 pytest -q",
+        "nice -n 5 pytest -q",
+        "timeout 5 pytest -q",
+        "taskset -c 0-47 pytest -q",
+        "numactl -C 0,2 pytest -q",
+        "time -f %E pytest -q",
+        "nohup pytest -q",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"wrapper 内の pytest が login で通った: {cmd!r}"
+
+
+def test_bash_login_retokenizes_env_split_and_skips_exec_argv0():
+    for cmd in (
+        "env -S 'pytest -q'",
+        "env --split-string='python3 -m pytest -q'",
+        "env -S 'python3 -m tools.pegasus.exec_calibrate argv.json'",
+        "sudo env -S 'pytest -q'",
+        "exec -a harmless pytest -q",
+        "exec -a harmless python3 -m tools.pegasus.exec_calibrate argv.json",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"wrapper が隠した実 head が login で通った: {cmd!r}"
+    for cmd in (
+        "env -S 'git status'",
+        "exec -a harmless git status",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"wrapper 内の非重量 command が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_recurses_into_shell_command_strings():
+    # M10: -lc / shell 再帰を削除する変異を kill する。
+    for cmd in (
+        "bash -lc 'pytest -q'",
+        "sh -c 'cmake --build b'",
+        "zsh -ic 'python3 -m pytest -q'",
+        "bash -lc \"sh -c 'pytest -q'\"",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"shell -c 系の内側にある重い処理が通った: {cmd!r}"
+
+
+def test_bash_login_recurses_into_bundled_shell_command_options():
+    for cmd in (
+        "bash -xec 'pytest -q'",
+        "sh -euxc 'cmake --build build'",
+        "zsh -lxc 'python3 -mpytest -q'",
+        "bash -ce 'pytest -q'",
+        "bash -xec \"sh -lc 'pytest -q'\"",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"結合 shell option の c 内にある重い処理が通った: {cmd!r}"
+
+
+def test_bash_login_shell_without_command_option_stays_allowed():
+    for cmd in (
+        "bash script.sh",
+        "bash -xe script.sh",
+        "sh -eux script.sh",
+        "zsh -l script.zsh",
+        "bash --norc script.sh",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"-c を持たない shell script 実行が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_import_failure_fallback_refuses_login():
+    # M12: site_policy import 失敗 fallback を allow に変える変異を kill する。
+    fallback = GB._runtime_site(policy=None, hostname="pegasus02.example")
+    assert fallback == "PEGASUS_LOGIN"
+    ok, _ = GB.decide("pytest -q", site=fallback)
+    assert not ok, "policy import 失敗時も pegasus02 は LOGIN 相当で拒否すべき"
+
+    other = GB._runtime_site(policy=None, hostname="worker.example")
+    assert other == "OTHER"
+    ok, why = GB.decide("pytest -q", site=other)
+    assert ok, f"非 Pegasus fallback は既存挙動を維持すべき: {why}"
+
+
+def test_bash_fallback_regex_matches_site_policy_login_classification():
+    """fallback regex と U1 classify_site の LOGIN 集合を機械照合する。"""
+    assert GB.site_policy is not None, "repo-root bootstrap 後も site_policy を import できない"
+    assert GB._BOOTSTRAP_ROOT in sys.path
+    assert GB._LOGIN_FALLBACK_RE.pattern == GB.site_policy.LOGIN_FALLBACK_RE.pattern
+    for suffix in range(1, 10):
+        hostname = f"pegasus0{suffix}"
+        assert GB._LOGIN_FALLBACK_RE.fullmatch(hostname)
+        actual = GB.site_policy.classify_site(hostname, {}, True)
+        assert actual == GB.site_policy.PEGASUS_LOGIN, \
+            f"fallback が拾う {hostname} を U1 が LOGIN に分類しない: {actual}"
+
+
+def test_bash_login_blocks_direct_heavy_forms_and_segments():
+    for cmd in (
+        "pytest -q",
+        ".venv/bin/pytest -q",
+        ".venv/bin/py.test -q",
+        "cmake --build build",
+        "make -j48",
+        "make --jobs=48",
+        "ninja -C build",
+        "ctest",
+        "perf stat -- ./ycsb_silo.exe",
+        "perf record -- ./ycsb_silo.exe",
+        "./ycsb_silo.exe -w YCSB",
+        "external/ccbench/build-variants/silo/ycsb_silo.exe -w YCSB",
+        "python3 tools/run_tests.py && pytest -q",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"login の重い直接実行が通った: {cmd!r}"
+
+
+def test_bash_suspect_blocks_but_compute_allows_heavy_forms():
+    for cmd in ("pytest -q", "cmake --build build", "ninja -C build"):
+        ok, _ = GB.decide(cmd, site="PEGASUS_SUSPECT")
+        assert not ok, f"SUSPECT site で重い処理が通った: {cmd!r}"
+        ok, why = GB.decide(cmd, site="PEGASUS_COMPUTE")
+        assert ok, f"COMPUTE site の重い処理を第二防壁が拒否した: {cmd!r} ({why})"
+
+
+def test_bash_login_nonexecuting_forms_allowed():
+    # M14: introspection / dry-run まで拒否する過剰縮小変異を kill する。
+    for cmd in (
+        "ninja -t targets",
+        "ninja -t graph",
+        "ninja -t query target",
+        "ninja -t deps",
+        "ninja -t compdb",
+        "ninja --tool targets",
+        "ninja --help",
+        "ninja --version",
+        "make -n -j48",
+        "make --dry-run --jobs=48",
+        "ctest -N",
+        "ctest --show-only",
+        "ctest --show-only=json-v1",
+        "ctest --help",
+        "ctest --version",
+        "cmake --help",
+        "cmake --version",
+        "pytest --collect-only",
+        "pytest --help",
+        "pytest --version",
+        "python3 -m pytest --collect-only",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"非実行/introspection 形が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_rejects_mutating_or_unknown_ninja_tools():
+    for cmd in (
+        "ninja -t clean",
+        "ninja -t cleandead",
+        "ninja -t recompact",
+        "ninja -t restat",
+        "ninja -t future-unknown-tool",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"読み取り専用でない ninja tool が login で通った: {cmd!r}"
+
+
+_PROVENANCE_SANCTIONED_SPELLINGS = (
+    "python3 tools/check_ai_provenance.py --range 72849d3..HEAD",
+    "python3 ./tools/check_ai_provenance.py --range 72849d3..HEAD",
+    "./tools/check_ai_provenance.py --range 72849d3..HEAD",
+    "python3 -m tools.check_ai_provenance --range 72849d3..HEAD",
+)
+
+# 拒否側の綴り。checker 自身の site gate (第一層) を通らない経路だけを列挙する。
+_PROVENANCE_NONSANCTIONED_SPELLINGS = (
+    ("outside-repo-copy", "python3 /tmp/copy/check_ai_provenance.py --range A..B"),
+    ("outside-repo-copy-direct", "/tmp/copy/check_ai_provenance.py --range A..B"),
+    ("home-relative-copy", "~/copy-of-izanagi/tools/check_ai_provenance.py --range A..B"),
+    ("cwd-relative", "python3 check_ai_provenance.py --range A..B"),
+    ("parent-relative", "python3 ../izanagi/tools/check_ai_provenance.py --range A..B"),
+    ("shell-command-string",
+     "bash -lc 'cd /tmp && python3 ../izanagi/tools/check_ai_provenance.py --range A..B'"),
+    # sanctioned 追加が `_script_target` の第 1 非 option 引数候補を通して許可へ
+    # 反転させないための positive control (現状も拒否)。
+    ("dash-m-pytest", "python3 -mpytest tools/check_ai_provenance.py"),
+)
+
+
+def test_bash_login_sanctioned_entries_are_exact():
+    assert "tools/check_ai_provenance.py" in GB._SANCTIONED_PATHS
+    assert os.path.isfile(os.path.join(_REPO, "tools", "check_ai_provenance.py"))
+    for cmd in (
+        "python3 tools/run_tests.py -q",
+        "python3 ./tools/pegasus/dispatch_compute.py --help",
+        *_PROVENANCE_SANCTIONED_SPELLINGS,
+        "tools/pegasus/submit_certify.sh",
+        "bash tools/pegasus/submit_floor.sh",
+        "sh tools/pegasus/submit_silo_ladder_rung1.sh",
+        "qsub job.sh",
+        "qdel 12345",
+        "qstat 12345",
+        "git status",
+        "python3 tools/check_docs.py",
+        "rg pytest orchestrator/tests",
+        "cat AGENTS.md",
+        "codex exec review-this-diff",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"sanctioned/純読み取り形が拒否された: {cmd!r} ({why})"
+
+    ok, _ = GB.decide(
+        "python3 tools/pegasus/exec_calibrate.py argv.json",
+        site="PEGASUS_LOGIN")
+    assert not ok, "tools/pegasus/* の glob 許可で汎用 exec trampoline を通してはならない"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [command for _, command in _PROVENANCE_NONSANCTIONED_SPELLINGS],
+    ids=[name for name, _ in _PROVENANCE_NONSANCTIONED_SPELLINGS],
+)
+def test_bash_login_blocks_nonsanctioned_provenance_entrypoints(command):
+    """M13 期待赤: provenance 分岐を _is_sanctioned の後ろへ移すと dash-m-pytest が通る。"""
+    ok, _ = GB.decide(command, site="PEGASUS_LOGIN")
+    assert not ok, f"非 sanctioned な provenance 履歴監査が login で通った: {command!r}"
+    ok, _ = GB.decide(command, site="PEGASUS_SUSPECT")
+    assert not ok, f"非 sanctioned な provenance 履歴監査が SUSPECT で通った: {command!r}"
+
+
+def test_bash_login_allows_nonexecuting_provenance_flags():
+    """受理集合の過剰縮小 (重くない呼び方まで拒否) を検出する正例。"""
+    for cmd in (
+        "python3 tools/check_ai_provenance.py --message-file /tmp/msg",
+        "python3 /tmp/copy/check_ai_provenance.py --message-file /tmp/msg",
+        "python3 /tmp/copy/check_ai_provenance.py --message-file=/tmp/msg",
+        "/tmp/copy/check_ai_provenance.py --help",
+        "python3 -mpytest tools/check_ai_provenance.py --collect-only",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"重くない provenance 呼出が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_compute_allows_provenance_forms():
+    for cmd in (
+        *_PROVENANCE_SANCTIONED_SPELLINGS,
+        *[value for _, value in _PROVENANCE_NONSANCTIONED_SPELLINGS],
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_COMPUTE")
+        assert ok, f"計算ノードの provenance 実行を第二防壁が拒否した: {cmd!r} ({why})"
+
+
+def test_bash_login_allows_static_module_reads_of_provenance_script():
+    """段 6 MF-1 の再発防止: checker を **実行しない** `-m <module>` 形は通す。
+
+    `python3 -m py_compile tools/check_ai_provenance.py` は AGENTS.md が
+    ログインノードで明示許可する唯一の静的検査であり、hook が拒否すると
+    このファイルの検証手段が消える。引数順で受理集合が変わらないことも固定する
+    (`-m py_compile a.py <checker>` は同じ形の言い換えにすぎない)。
+    """
+    for cmd in (
+        "python3 -m py_compile tools/check_ai_provenance.py",
+        "python3 -m py_compile hooks/guard_bash.py tools/check_ai_provenance.py",
+        "python3 -m py_compile tools/check_ai_provenance.py hooks/guard_bash.py",
+        "python3 -m json.tool tools/check_ai_provenance.py",
+        "python3 -m compileall -q tools/check_ai_provenance.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"checker を実行しない静的 module 起動が拒否された: {cmd!r} ({why})"
+
+
+def test_provenance_script_borrow_does_not_lend_sanctioned_status():
+    """`-m <他 module>` の位置引数に sanctioned 判定を借りさせない (引数順非依存)。
+
+    借用抑止が第 1 非 option 引数だけを見ると、sanctioned path を先に置くだけで
+    pytest 判定を飛び越えられる。ここが M13 の穴と同根なので単体でも固定する。
+    """
+    assert GB._provenance_script_borrow(
+        "python3", ["-m", "py_compile", "tools/check_ai_provenance.py"])
+    assert GB._provenance_script_borrow(
+        "python3", ["-m", "py_compile", "hooks/guard_bash.py",
+                    "tools/check_ai_provenance.py"])
+    # checker 自身を module として起動する形は借用ではない (sanctioned 綴り)。
+    assert not GB._provenance_script_borrow(
+        "python3", ["-m", "tools.check_ai_provenance", "--range", "A..B"])
+    assert not GB._provenance_script_borrow(
+        "python3", ["tools/check_ai_provenance.py", "--range", "A..B"])
+    assert not GB._provenance_script_borrow("cat", ["tools/check_ai_provenance.py"])
+
+    ok, _ = GB.decide(
+        "python3 -mpytest tools/pegasus/dispatch_compute.py "
+        "tools/check_ai_provenance.py",
+        site="PEGASUS_LOGIN")
+    assert not ok, "sanctioned path を先頭に置くだけで pytest 実行が許可された"
+
+
+def test_bash_login_provenance_branch_does_not_capture_readers():
+    """引数で checker を名指しするだけの読み取り・別 entry point を巻き込まない。"""
+    for cmd in (
+        "cat tools/check_ai_provenance.py",
+        "rg IMPLEMENTATION_POLICY tools/check_ai_provenance.py",
+        "git show HEAD:tools/check_ai_provenance.py",
+        "wc -c tools/check_ai_provenance.py",
+        "python3 tools/run_tests.py orchestrator/tests/test_check_ai_provenance.py",
+        "python3 tools/check_docs.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"provenance 分岐が無関係な形を巻き込んだ: {cmd!r} ({why})"
+
+    # 逆向き: checker を pytest へ引き渡す実行形は従来どおり拒否のまま。
+    ok, _ = GB.decide(
+        "python3 -m pytest orchestrator/tests/test_check_ai_provenance.py",
+        site="PEGASUS_LOGIN",
+    )
+    assert not ok, "pytest 実行の既存拒否を provenance 分岐で緩めてはならない"
+
+
+def test_bash_login_keeps_required_session_commands_available():
+    assert GB.site_policy is not None
+    for cmd in (
+        "python3 tools/run_tests.py -q",
+        "python3 tools/check_docs.py",
+        "git status --short",
+        "codex exec review-this-diff",
+        "qsub job.sh",
+        "rg TODO .",
+        "cat AGENTS.md",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"LOGIN の通常 Bash 操作が規則で停止した: {cmd!r} ({why})"
+        payload = json.dumps({
+            "tool_name": "Bash",
+            "tool_input": {"command": cmd},
+        })
+        with patch.object(
+                GB.site_policy, "current_site",
+                return_value=GB.site_policy.PEGASUS_LOGIN):
+            with patch.object(GB.sys, "stdin", io.StringIO(payload)):
+                assert GB.main() == 0, \
+                    f"production main が LOGIN の通常 Bash 操作を停止した: {cmd!r}"
+
+
+def test_bash_main_rule_error_is_scoped_to_protected_commands():
+    cases = (
+        ("git status --short", 0),
+        (f"cat {_WAL}", 2),
+    )
+    for cmd, expected in cases:
+        payload = json.dumps({
+            "tool_name": "Bash",
+            "tool_input": {"command": cmd},
+        })
+        with patch.object(GB, "decide", side_effect=RuntimeError("rule bug")):
+            with patch.object(GB.sys, "stdin", io.StringIO(payload)):
+                actual = GB.main()
+                assert actual == expected, \
+                    f"規則エラーの影響範囲が不正: {cmd!r} rc={actual}"
+
+
+def test_bash_login_resolves_python_modules_to_exact_repo_paths():
+    for interpreter in ("python3", "/usr/bin/python3", ".venv/bin/python"):
+        ok, _ = GB.decide(
+            f"{interpreter} -m tools.pegasus.exec_calibrate argv.json",
+            site="PEGASUS_LOGIN",
+        )
+        assert not ok, \
+            f"module 形式の非 sanctioned trampoline が通った: {interpreter}"
+
+    ok, why = GB.decide(
+        "python3 -m tools.run_tests --collect-only",
+        site="PEGASUS_LOGIN",
+    )
+    assert ok, f"exact sanctioned module 実体が拒否された: {why}"
+
+    ok, _ = GB.decide("python3 -m pytest -q", site="PEGASUS_LOGIN")
+    assert not ok, "既存の -m pytest 拒否を module path 解決で壊してはならない"
+
+
+def test_bash_main_injects_live_login_site():
+    """F21 期待赤: orchestrator/tests/test_hooks.py::test_bash_main_injects_live_login_site。"""
+    payload = json.dumps({
+        "tool_name": "Bash",
+        "tool_input": {"command": "pytest -q"},
+    })
+    assert GB.site_policy is not None
+    with patch.object(
+            GB.site_policy, "current_site",
+            return_value=GB.site_policy.PEGASUS_LOGIN):
+        with patch.object(GB.sys, "stdin", io.StringIO(payload)):
+            assert GB.main() == 2, \
+                "main() が live current_site を decide() へ注入していない"
+
+
 # ---------- 配線 (settings.json) と hook 実行体 ----------
 
 # ---------- guard_read: コンテキスト衛生 (D35) ----------
@@ -797,26 +1266,17 @@ def test_hook_scripts_run_as_subprocess():
             f"{name} rc={r.returncode} (期待 {want}) stderr={r.stderr[:200]}"
 
 
-def _run():
-    fns = [v for k, v in sorted(globals().items())
-           if k.startswith("test_") and callable(v)]
-    passed = failed = skipped = 0
-    for fn in fns:
-        try:
-            fn()
-            print(f"PASS {fn.__name__}")
-            passed += 1
-        except Skip as e:
-            print(f"SKIP {fn.__name__}: {e}")
-            skipped += 1
-        except AssertionError as e:
-            print(f"FAIL {fn.__name__}: {e}")
-            failed += 1
-        except Exception as e:  # noqa: BLE001
-            print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
-            failed += 1
-    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
-    return 1 if failed else 0
+def _run() -> int:
+    """parametrize node を含む同一 node 集合を素の runner からも実行する。
+
+    自前 loop に戻してはいけない: 引数を取る node を skip すると M13 の期待赤
+    (`test_bash_login_blocks_nonsanctioned_provenance_entrypoints[dash-m-pytest]`)
+    が `python3 orchestrator/tests/test_hooks.py` では 1 件も走らなくなる
+    (段 6 レビュー A/B の nit)。委譲する以上 pytest は本ファイルの必須依存であり、
+    未導入環境で ImportError になるのは偽緑より安全側 —
+    test_check_ai_provenance.py と同型。
+    """
+    return int(pytest.main(["-q", os.path.abspath(__file__)]))
 
 
 if __name__ == "__main__":

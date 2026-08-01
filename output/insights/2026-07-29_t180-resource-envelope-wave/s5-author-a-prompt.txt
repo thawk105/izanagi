@@ -1,0 +1,70 @@
+あなたは izanagi の dev-wave 段 5 実装子 (role=author、単位 A) である。出力は日本語。
+
+## 権限境界 (違反禁止)
+
+- 編集してよいのは**次の 2 ファイルだけ**である。
+  - `tools/codex_worker_launch.py` (新規)
+  - `orchestrator/tests/test_codex_worker_launch.py` (新規)
+- `tools/codex_worker_ledger.py` と `orchestrator/tests/test_codex_worker_ledger.py` は
+  **単位 B の所有**であり触らない。docs (`docs/**`, `*.md`) は一切編集しない。commit もしない。
+- 既存ファイルの変更が必要だと判明したら、実装せず完了報告に理由付きで列挙する。
+
+## 必読 (読めなければ即停止し、読めなかった絶対パスを報告して終了する)
+
+- 裁定 + plan v2 (**本書が仕様の正本**):
+  /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope/output/insights/2026-07-29_t180-resource-envelope-wave/s4-adjudication-plan-v2.md
+- 親 brief:
+  /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope/output/insights/2026-07-29_t180-resource-envelope-wave/s1-brief.md
+- 段 2 plan (参考、v2 が優先):
+  /home/SFC/tanab/github/izanagi/.claude/worktrees/dev-wave-t180-resource-envelope/output/insights/2026-07-29_t180-resource-envelope-wave/s2-plan.md
+- 実測 probe (実 CLI 0.146.0 の event 形):
+  同 directory の probe/events.jsonl, probe/events2.jsonl, probe/liveness.tsv
+- あなたの作業 worktree = /home/SFC/tanab/github/izanagi/.claude/worktrees/t180-author-a
+  再利用する既存 primitive: `orchestrator/codex_roles/events.py`、`tools/dev_waves/schema.py`、
+  `tools/dev_waves/worker.py`、`tools/check_codex_output.py`
+
+## 実装するもの
+
+plan v2 の **R1, R2, R3, R5, R6, R7, R8, R9, R12, R13, R14, R15, R19, R20** と
+「凍結 manifest schema」を `tools/codex_worker_launch.py` に実装する。
+subcommand は `run` と `check-receipt`。
+
+特に外してはならない点:
+
+- wall-clock だけが hard cap。`model_calls` と token は observable proxy であり、
+  receipt に `model_calls_semantics` と `possible_unobserved_overshoot` を出す (R1, R3)。
+- metering evidence (rollout の `token_count` 1 件以上 + stdout 最終 usage) が無ければ非採用 (R2)。
+  rollout と stdout の最終累積が矛盾しても非採用 (R2)。
+- `limit_trigger != null` の attempt は Codex rc・validator rc に関係なく **決して accepted にしない** (R8)。
+- `--max-attempts > 1` は `--sandbox read-only` のときだけ許す。workspace-write では引数エラー rc=2 (R7)。
+  失敗型の分類は**実装しない**。`retry_classification: "none"` を記録する。
+- receipt は temp + fsync + `os.replace` で原子的に書く。最終 path は不在か完全のみ (R12)。
+- manifest は `CodexWorkerSessionManifest`。create-only header (`wave_id`/`repo_root`/`base_commit`) を
+  持ち、`--wave-id` が header と異なる append は rc=2 (R9)。追記は lock + whole-document replace。
+- token 上限の量は `input_tokens - cached_input_tokens + output_tokens` (`cli_reported`)。
+  `cached_input_tokens > input_tokens` は malformed として扱う (R4 と同義の検査を launcher 側にも置く)。
+- `--codex-bin` を正規注入 seam として持つ。テストは実 codex を呼ばない。
+
+## テスト
+
+`orchestrator/tests/test_codex_worker_launch.py` に fake codex executable を生成する helper を置く。
+fake は次を再現できること: 正常、metering 欠落 (token_count なし)、thread ID 遅延 / ID 変化 /
+複数 session、`setsid()` で process group を脱出する子、上限 latch 後に正常出力を書く SIGTERM handler、
+receipt 作成後に rollout へ追記する late writer、rollout 未作成。
+
+plan v2 §5 の変異 **M1〜M11, M16** を kill する test と、正例 **P1, P3** を必ず含める。
+各上限テストは**他の上限を十分高く**設定し、`stop_reason` の exact 値・attempt 数・PID 消滅を
+assert する (rc だけを見ない)。並列 manifest テストは barrier を置く。
+
+## 検査と報告 (DW-S05-C)
+
+- 緑を主張するなら**走らせた nodeid と範囲を必ず併記**する。走らせていないものを緑と書かない。
+- 実行は `python3 -m pytest orchestrator/tests/test_codex_worker_launch.py -q -rf` のように
+  対象 nodeid を直接指定する (repo 全走はしない。親が行う)。
+- テストを甘くして緑にしない。fixture へ実装の現行 hash や揮発する診断 payload を焼き込まない。
+- 指示にない受理集合の拡大・縮小をしない。scope を書く前に現行の受理・拒否挙動を明記する。
+- 完了報告に、所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙する。
+- 単位 B (ledger の `--manifest`) は未 land である。B に依存して赤くなる test を書くなら、
+  期待して赤くなる finding 集合を事前に指定する。それ以外の赤は回帰として報告する。
+- 最後に必ず `## 総括` 見出しを置き、実装した R 番号、走らせた nodeid と結果、未了、
+  波及可能性を 10 行以内でまとめる。

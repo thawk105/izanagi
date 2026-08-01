@@ -1,0 +1,21 @@
+[
+  {
+    "id": "95000000-0000-0000-0000-000000000001",
+    "prompt": "あなたは段2の read-only Codex planner である。",
+    "usage_pairs": [
+      {
+        "total": [100, 0, 0, 100],
+        "last": [100, 0, 0, 100]
+      },
+      {
+        "total": [40, 0, 0, 40],
+        "last": [20, 0, 0, 20]
+      }
+    ],
+    "events": [
+      "context_compacted",
+      "thread_rolled_back",
+      "turn_aborted"
+    ]
+  }
+]

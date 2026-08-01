@@ -1,0 +1,20 @@
+[
+  {
+    "id": "97300000-0000-0000-0000-000000000001",
+    "prompt": "あなたは段6の read-only adversarial reviewer である。",
+    "contexts": [
+      {
+        "model": "gpt-object-level",
+        "effort": "max"
+      },
+      {
+        "model": "gpt-object-level",
+        "effort": "max",
+        "object_level": true,
+        "payload": {
+          "schema": "object-level"
+        }
+      }
+    ]
+  }
+]

@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from . import source_digest
+from . import site_policy, source_digest
 from .env_contract import ExecutionEnvironmentContract
 from .model import Genome
 
@@ -332,10 +332,24 @@ def _validate_v2_entry(
     return binary, binary_record["sha256"]
 
 
+def _resolve_site(site: Optional[str]) -> str:
+    """注入値を尊重し、未指定時だけ実環境の site を解決する。"""
+    return site_policy.current_site() if site is None else site
+
+
+def _resolve_build_jobs(jobs: Optional[int], site: Optional[str]) -> int:
+    """明示 jobs を尊重し、未指定時だけ site policy の既定値を使う。"""
+    if jobs is not None:
+        return jobs
+    return site_policy.default_build_jobs(_resolve_site(site))
+
+
 def _v2_commands(
         genome: Genome, trace: bool, sub: str, bdir: str,
-        toolchain: Dict[str, Dict[str, str]], jobs: int = 16,
+        toolchain: Dict[str, Dict[str, str]], jobs: Optional[int] = None,
+        *, site: Optional[str] = None,
 ) -> tuple[List[str], List[str]]:
+    resolved_jobs = _resolve_build_jobs(jobs, site)
     target = f"ycsb_{genome.protocol}.exe"
     defines = genome.cmake_defines() + [f"-DCCBENCH_TRACE={int(trace)}"]
     configure = [
@@ -346,7 +360,7 @@ def _v2_commands(
     ] + defines
     build_cmd = [
         toolchain["cmake"]["realpath"], "--build", bdir,
-        "--target", target, "-j", str(jobs),
+        "--target", target, "-j", str(resolved_jobs),
     ]
     return configure, build_cmd
 
@@ -354,9 +368,11 @@ def _v2_commands(
 def _v2_result(
         genome: Genome, trace: bool, binary: str, bin_sha256: str, bdir: str,
         cached: bool, sub: str, root: str,
-        toolchain: Dict[str, Dict[str, str]], contract_sha256: str,
+        toolchain: Dict[str, Dict[str, str]], contract_sha256: str, site: str,
 ) -> BuildResult:
-    configure, build_cmd = _v2_commands(genome, trace, sub, bdir, toolchain)
+    configure, build_cmd = _v2_commands(
+        genome, trace, sub, bdir, toolchain, site=site,
+    )
     return BuildResult(
         genome=genome, trace=trace, binary=binary, bin_sha256=bin_sha256,
         build_dir=bdir, cached=cached,
@@ -408,7 +424,7 @@ def build_v2(
         genome: Genome, *, contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
-        timeout_s: Optional[int] = None,
+        timeout_s: Optional[int] = None, site: Optional[str] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -417,6 +433,7 @@ def build_v2(
     だけが本 API を明示引数で呼ぶ。``ccbench_dir`` は cache preimage へは入れず、選択した
     tree の内容を ``src_token`` が束縛する。allowlist/commit/src-token/trace-diff 検査は
     すべてその tree に対して発火する。``timeout_s=None`` は既存どおり無制限である。
+    ``site=None`` は実環境から解決し、build command と起動 gate は同じ注入 seam を使う。
     """
     if not isinstance(contract, ExecutionEnvironmentContract):
         raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
@@ -436,6 +453,7 @@ def build_v2(
     if type(root) is not str or not root:
         raise TypeError("cache_root は非空 str path でなければならない")
     root = os.path.abspath(root)
+    resolved_site = _resolve_site(site)
 
     contract_sha256 = contract.contract_sha256
     if not is_full_sha256(contract_sha256):
@@ -481,7 +499,7 @@ def build_v2(
             _assert_no_trace_symbols(binary)
         return _v2_result(
             genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
-            contract_sha256,
+            contract_sha256, resolved_site,
         )
 
     nonce = secrets.token_hex(16)
@@ -495,10 +513,22 @@ def build_v2(
                 f"v2 publish 先が claim 取得と競合して出現した: {bdir}; 上書きしない"
             )
         os.mkdir(staging, 0o700)
-        configure, build_cmd = _v2_commands(genome, trace, sub, staging, toolchain)
+        configure, build_cmd = _v2_commands(
+            genome, trace, sub, staging, toolchain, site=resolved_site,
+        )
         try:
-            _run(configure, "configure", timeout_s=timeout_s)
-            _run(build_cmd, "build", timeout_s=timeout_s)
+            if site is None:
+                _run(configure, "configure", timeout_s=timeout_s)
+                _run(build_cmd, "build", timeout_s=timeout_s)
+            else:
+                _run(
+                    configure, "configure", timeout_s=timeout_s,
+                    site=resolved_site,
+                )
+                _run(
+                    build_cmd, "build", timeout_s=timeout_s,
+                    site=resolved_site,
+                )
         except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
             raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
         staging_binary = os.path.join(staging, binary_relpath)
@@ -557,14 +587,15 @@ def build_v2(
     binary = os.path.join(bdir, binary_relpath)
     return _v2_result(
         genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
-        contract_sha256,
+        contract_sha256, resolved_site,
     )
 
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,
           cache_root: str = "", cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX,
-          jobs: int = 16, ccbench_dir: str = "",
-          src_token: Optional[str] = None) -> BuildResult:
+          jobs: Optional[int] = None, ccbench_dir: str = "",
+          src_token: Optional[str] = None,
+          *, site: Optional[str] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     src_token=None なら working-tree から計算する (D23: identity と materialization を
@@ -580,13 +611,18 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     bdir = os.path.join(root, key)
     target = f"ycsb_{genome.protocol}.exe"
     binary = os.path.join(bdir, "cc", genome.protocol, target)
+    resolved_site = _resolve_site(site)
+    resolved_jobs = _resolve_build_jobs(jobs, resolved_site)
 
     # ビルドコマンドを先に組み立てる (cache hit でも実験再現用に BuildResult へ記録する)。
     defines = genome.cmake_defines() + [f"-DCCBENCH_TRACE={int(trace)}"]
     cfg = ["cmake", "-S", sub, "-B", bdir, "-DCMAKE_BUILD_TYPE=Release",
            "-DENABLE_SANITIZER=OFF", f"-DCMAKE_C_COMPILER={cc}",
            f"-DCMAKE_CXX_COMPILER={cxx}"] + defines
-    build_cmd = ["cmake", "--build", bdir, "--target", target, "-j", str(jobs)]
+    build_cmd = [
+        "cmake", "--build", bdir, "--target", target,
+        "-j", str(resolved_jobs),
+    ]
     cfg_str, build_str = " ".join(cfg), " ".join(build_cmd)
 
     if os.path.exists(binary):
@@ -605,8 +641,12 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                            ccbench_root=os.path.abspath(sub))
 
     _clear_stale_build_dir(bdir, binary)
-    _run(cfg, "configure")
-    _run(build_cmd, "build")
+    if site is None:
+        _run(cfg, "configure")
+        _run(build_cmd, "build")
+    else:
+        _run(cfg, "configure", site=resolved_site)
+        _run(build_cmd, "build", site=resolved_site)
     if not os.path.exists(binary):
         raise RuntimeError(f"build succeeded but binary missing: {binary}")
     # TOCTOU 遮断 (phase3.md blocking / D30): resolve→build 間に working-tree が動くと
@@ -736,7 +776,16 @@ def _assert_no_trace_symbols(binary: str) -> None:
             "出す等を疑え (decisions D14)。")
 
 
-def _run(cmd: List[str], what: str, timeout_s: Optional[int] = None) -> None:
+def _run(
+        cmd: List[str], what: str, timeout_s: Optional[int] = None,
+        *, site: Optional[str] = None,
+) -> None:
+    if what in {"configure", "build"}:
+        resolved_site = _resolve_site(site)
+        if site_policy.refuses_heavy_work(resolved_site):
+            raise BuildError(
+                site_policy.heavy_work_refusal(resolved_site, f"cmake {what}")
+            )
     r = subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout_s,
     )

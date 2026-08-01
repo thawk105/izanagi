@@ -1,0 +1,24 @@
+## 総括
+
+- 状態: **closed**。partial / regressed なし。
+- 変更: [tools/check_docs.py](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-cleanup-branches-skill/tools/check_docs.py) と [test_check_docs.py](/home/SFC/tanab/github/izanagi/.codex/worktrees/dev-wave-cleanup-branches-skill/orchestrator/tests/test_check_docs.py) のみ。
+- Skill / metadata、docs、wave artifacts、handoff、submoduleは未変更。commit・push・cleanupも未実施。
+- Skill digest `cc3eff…ed116`、command digest `9b2c0d…f43c7` を独立literalで全面pin。parser、clause fixture/constants、CB-N registryは撤去。
+- 追加stable nodeは次の8件。明示指定実走で **8 passed**。
+  - `test_cleanup_skill_one_byte_change_is_rejected`
+  - `test_cleanup_command_one_byte_change_is_rejected`
+  - `test_cleanup_skill_additional_h2_is_rejected`
+  - `test_cleanup_command_closing_hash_h2_is_rejected`
+  - `test_cleanup_command_leading_space_h2_is_rejected`
+  - `test_cleanup_command_setext_h2_is_rejected`
+  - `test_cleanup_command_invalid_backtick_info_is_rejected`
+  - `test_cleanup_metadata_policy_change_is_rejected`
+- 検査:
+  - `quick_validate.py`: `Skill is valid!`
+  - `pytest -q orchestrator/tests/test_check_docs.py`: **138 passed**
+  - `python3 tools/check_docs.py`: 違反なし
+  - `python3 tools/check_codex_agents.py`: OK
+  - `py_compile`: 成功
+  - `git diff --check`: 成功
+- 所有外caller/fixture/consumer: 撤去symbol・CB-N IDへのlive参照は0件。generic command guard fixtureは既存rulings面へ移し、dev-wave/rulingsの受理集合は不変。
+- この対象全走は、親によるmutation / acceptanceを含む全走の代替ではありません。

@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
+import re
 import sys
 import tempfile
 import time
@@ -27,6 +29,11 @@ from campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from campaign import source_digest, wal                            # noqa: E402
 from campaign.loop import CampaignSummary                          # noqa: E402
 from campaign.pipeline import variant_id                           # noqa: E402
+from campaign.projection_guard import (                            # noqa: E402
+    AbilityProbeMaterialError,
+    ProjectionPolicyError,
+    load_projection_policy,
+)
 from campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import Genome, STAGE_ABORT                    # noqa: E402
@@ -677,6 +684,298 @@ def test_load_proposal_file_accepts_null_and_bool_prior_reverse():
             json.dump({**base, "prior_critic_reverse": val}, f)
         _pl, _cd, prior = L.load_proposal_file(p)
         assert prior is expect
+
+
+# ==== ability-probe 射影 tripwire (T-139 / A-9・B-1・B-3) ======================
+
+_ROOT = Path(_ORCH).parent
+_LEDGER = _ROOT / "patches" / "ledger.json"
+_RUNG_PATCH = _ROOT / "patches" / "silo_ladder_rung1.patch"
+
+
+def _write_proposal(document, name):
+    directory = tempfile.mkdtemp(prefix="izanagi_projection_tripwire_")
+    path = os.path.join(directory, name)
+    with open(path, "w", encoding="utf-8") as stream:
+        json.dump(document, stream)
+    return path
+
+
+def _clean_proposals():
+    planner = {
+        "axis": "abstract-axis",
+        "direction": "increase",
+        "magnitude": "small",
+        "justification": "observed leading indicator",
+        "uncertainty": "bounded",
+    }
+    auditor = {
+        "verdict": "pass",
+        "diff_digest": "0" * 64,
+        "violations": [],
+        "nits": [],
+        "proposed_tests": [],
+        "uncertainty": "",
+    }
+    return {
+        "backoff": {
+            "planner": dict(planner),
+            "coder": {
+                "axis": "abstract-axis",
+                "value": 20.0,
+                "implementation": "double now_backoff = 20.0;",
+                "justification": "small bounded edit",
+                "confidence": "medium",
+            },
+            "prior_critic_reverse": None,
+        },
+        "sort": {
+            "planner": dict(planner),
+            "coder": {
+                "axis": "abstract-axis",
+                "implementation": "return lhs.key_ < rhs.key_;",
+                "justification": "small bounded edit",
+                "confidence": "medium",
+            },
+            "auditor": dict(auditor),
+            "prior_critic_reverse": False,
+        },
+        "trigger": {
+            "planner": dict(planner),
+            "coder": {
+                "axis": "abstract-axis",
+                "implementation": "izanagi_gate_pass = factor_count > 0;",
+                "justification": "small bounded edit",
+                "confidence": "medium",
+            },
+            "auditor": dict(auditor),
+            "prior_critic_reverse": True,
+        },
+    }
+
+
+def test_projection_tripwire_preserves_clean_proposal_acceptance_in_all_three_loaders():
+    """P+: tripwire 追加前に受理された正常構造の返り値を 3 loop とも変えない。"""
+    proposals = _clean_proposals()
+    planner, coder, prior = L.load_proposal_file(
+        _write_proposal(proposals["backoff"], "backoff.json")
+    )
+    assert vars(planner) == proposals["backoff"]["planner"]
+    assert vars(coder) == proposals["backoff"]["coder"]
+    assert prior is None
+
+    planner, coder, auditor, prior = SORT_LOOP.load_proposal_file(
+        _write_proposal(proposals["sort"], "sort.json")
+    )
+    assert vars(planner) == proposals["sort"]["planner"]
+    assert vars(coder) == proposals["sort"]["coder"]
+    assert vars(auditor) == proposals["sort"]["auditor"]
+    assert prior is False
+
+    planner, coder, auditor, prior = TRIGGER_LOOP.load_proposal_file(
+        _write_proposal(proposals["trigger"], "trigger.json")
+    )
+    assert vars(planner) == proposals["trigger"]["planner"]
+    assert vars(coder) == proposals["trigger"]["coder"]
+    assert vars(auditor) == proposals["trigger"]["auditor"]
+    assert prior is True
+
+
+def _assert_structured_tripwire(loader, proposal, field_path, kind, prohibited):
+    try:
+        loader(_write_proposal(proposal, f"{kind}.json"))
+        raise AssertionError(f"{kind} 混入 proposal を受理した")
+    except AbilityProbeMaterialError as exc:
+        assert exc.field_path == field_path
+        assert exc.material_kind == kind
+        assert exc.prohibited == prohibited
+        assert f"field={field_path}" in str(exc)
+        assert f"kind={kind}" in str(exc)
+
+
+def test_projection_tripwire_rejects_excluded_token_in_all_three_loaders():
+    """PM4 kill: path-only へ弱体化すると自由文 token 混入を 3 loop とも見逃す。"""
+    policy = load_projection_policy()
+    token = next(item for item in policy.excluded_tokens if item == "silo_ladder_rung1")
+    proposals = _clean_proposals()
+    loaders = (
+        (L.load_proposal_file, proposals["backoff"]),
+        (SORT_LOOP.load_proposal_file, proposals["sort"]),
+        (TRIGGER_LOOP.load_proposal_file, proposals["trigger"]),
+    )
+    for loader, proposal in loaders:
+        proposal["planner"]["justification"] = (
+            f"mixed-case leak: {token.swapcase()}"
+        )
+        _assert_structured_tripwire(
+            loader,
+            proposal,
+            "$['planner']['justification']",
+            "excluded_token",
+            token,
+        )
+
+
+def test_projection_tripwire_rejects_normalized_excluded_path_in_free_text():
+    policy = load_projection_policy()
+    prohibited = next(
+        item for item in policy.excluded_paths
+        if item == "patches/ledger.json"
+    )
+    proposal = _clean_proposals()["backoff"]
+    proposal["coder"]["justification"] = (
+        r"do not project .\patches\ledger.json into context"
+    )
+    _assert_structured_tripwire(
+        L.load_proposal_file,
+        proposal,
+        "$['coder']['justification']",
+        "excluded_path",
+        prohibited,
+    )
+
+
+def test_projection_tripwire_collapses_parent_components_in_free_text():
+    policy = load_projection_policy()
+    prohibited = next(
+        item for item in policy.excluded_paths
+        if item == "patches/ledger.json"
+    )
+    proposal = _clean_proposals()["backoff"]
+    proposal["coder"]["justification"] = (
+        "do not project patches/temporary/../ledger.json into context"
+    )
+    _assert_structured_tripwire(
+        L.load_proposal_file,
+        proposal,
+        "$['coder']['justification']",
+        "excluded_path",
+        prohibited,
+    )
+
+
+def test_proposal_loaders_reject_unknown_keys_at_all_schema_layers():
+    proposals = _clean_proposals()
+    cases = (
+        (L.load_proposal_file, proposals["backoff"]),
+        (SORT_LOOP.load_proposal_file, proposals["sort"]),
+        (TRIGGER_LOOP.load_proposal_file, proposals["trigger"]),
+    )
+    for index, (loader, proposal) in enumerate(cases):
+        for field in ("top", "planner", "coder"):
+            mutated = json.loads(json.dumps(proposal))
+            target = mutated if field == "top" else mutated[field]
+            target["unknown_key"] = "harmless"
+            try:
+                loader(_write_proposal(
+                    mutated, f"unknown-{index}-{field}.json"
+                ))
+                raise AssertionError(f"{field} unknown key を受理した")
+            except ValueError as exc:
+                assert "unknown=['unknown_key']" in str(exc)
+        if "auditor" in proposal:
+            mutated = json.loads(json.dumps(proposal))
+            mutated["auditor"]["unknown_key"] = "harmless"
+            try:
+                loader(_write_proposal(
+                    mutated, f"unknown-{index}-auditor.json"
+                ))
+                raise AssertionError("auditor unknown key を受理した")
+            except ValueError as exc:
+                assert "unknown=['unknown_key']" in str(exc)
+
+
+def test_projection_policy_loader_fails_closed_on_missing_parse_and_policy():
+    directory = Path(tempfile.mkdtemp(prefix="izanagi_projection_policy_"))
+    missing = directory / "missing.json"
+    malformed = directory / "malformed.json"
+    malformed.write_text("{", encoding="utf-8")
+    no_policy = directory / "no-policy.json"
+    no_policy.write_text(
+        json.dumps(
+            {
+                "schema_version": "izanagi-patch-ledger/v1",
+                "scope": "registered-entries-only",
+                "entries": [{"ability_probe": True}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    for path in (missing, malformed, no_policy):
+        try:
+            load_projection_policy(path)
+            raise AssertionError(f"不正 ledger を受理した: {path.name}")
+        except ProjectionPolicyError:
+            pass
+
+
+def test_projection_policy_is_synchronized_with_registered_patch_material():
+    ledger = json.loads(_LEDGER.read_text(encoding="utf-8"))
+    entry = next(item for item in ledger["entries"] if item["id"] == "silo_ladder_rung1")
+    policy = entry["projection_policy"]
+    excluded_tokens = {item.casefold() for item in policy["excluded_tokens"]}
+    expected_tokens = {
+        entry["id"],
+        entry["macro"],
+        entry["report_macro"],
+        *(symbol["name"] for symbol in entry["symbols"]),
+    }
+    assert {item.casefold() for item in expected_tokens} <= excluded_tokens
+
+    excluded_paths = set(policy["excluded_paths"])
+    assert "patches/ledger.json" in excluded_paths
+    for key in ("path", "driver", "pbs_job"):
+        assert entry[key] in excluded_paths
+    assert "tools/pegasus/submit_silo_ladder_rung1.sh" in excluded_paths
+    assert any(
+        entry["evidence"] == path or entry["evidence"].startswith(path.rstrip("/") + "/")
+        for path in excluded_paths
+    )
+
+    patch = _RUNG_PATCH.read_text(encoding="utf-8")
+    for material in expected_tokens:
+        assert material in patch
+    loaded = load_projection_policy()
+    assert loaded.excluded_paths == tuple(policy["excluded_paths"])
+    assert loaded.excluded_tokens == tuple(policy["excluded_tokens"])
+
+
+def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
+    """B-3: 新しい裸マクロ patch は ledger 登録なしでは patches/ に置けない。"""
+    ledger = json.loads(_LEDGER.read_text(encoding="utf-8"))
+    registered = {entry["path"] for entry in ledger["entries"]}
+    known_non_variant_patches = {
+        "patches/broken-silo-early-unlock-validation.patch",
+        "patches/broken-silo-highkey-validation.patch",
+        "patches/broken-silo-lockskip-validation.patch",
+        "patches/broken-silo-norw-validation.patch",
+        "patches/broken-silo-permutation-erase.patch",
+        "patches/broken-silo-permutation-swap.patch",
+        "patches/broken-silo-sort-nonswo.patch",
+        "patches/broken-silo-trigger-misattr.patch",
+        "patches/broken-silo-write-intent-erase.patch",
+        "patches/broken-silo-write-intent-forge.patch",
+        "patches/broken-silo-write-intent-opswap.patch",
+        "patches/broken-silo-write-intent-ptrswap.patch",
+        "patches/instr-silo-backoff-trigger-gating-tally.patch",
+    }
+    unregistered = {}
+    for patch_path in sorted((_ROOT / "patches").glob("*.patch")):
+        macros = sorted(
+            set(
+                re.findall(
+                    r"\bIZANAGI_[A-Z0-9_]+\b",
+                    patch_path.read_text(encoding="utf-8"),
+                )
+            )
+        )
+        relative = patch_path.relative_to(_ROOT).as_posix()
+        if macros and relative not in registered | known_non_variant_patches:
+            unregistered[relative] = macros
+    assert not unregistered, (
+        "IZANAGI_ 裸マクロを持つ未登録 patch（既知 broken-silo/instr でもない）: "
+        f"{unregistered}"
+    )
 
 
 # ==== _resolve_duplicate (重複 genome 提案 = coder が既評価値を独立に再提案) ==========
