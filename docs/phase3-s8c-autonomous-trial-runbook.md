@@ -103,7 +103,7 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
 
 **`--max-generations` は 2 以上にできない** ([T-207] / D106 残余 1 / D114)。世代を跨ぐと
 前 iteration の critic 出力が次世代の生成へ効くが、その還流は `reverse_recommended` の
-boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。**D119 が設計 draft を起草したが
+boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。**D121 が設計 draft を起草したが
 設計は未確定・機構は未実装**なので、引き続き 1 generation/cell に限る。**D114 でこれは機械 gate になった** — 承認上限
 `MAX_APPROVED_GENERATIONS = 1` を超える値は CLI・`run_trial()`・`_run_workload()` の 3 入口で
 `AutonomousTrialError` になる。既定値も `1` である。ただし `drive` / `providers` / `preview` の
@@ -116,7 +116,7 @@ CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline �
 interleave を必須とするため、`numactl` のない login host で空 command に差し替えて走らせない。
 
 最初の実計測は 1 generation/cell で correctness と measurement wiring を確認する。
-2 generations 以上へ増やせるのは、D119 が列挙した多世代開放の前提条件 10 件を満たし、D96 手続を
+2 generations 以上へ増やせるのは、D121 が列挙した多世代開放の前提条件 10 件を満たし、D96 手続を
 経て、D114 の承認上限定数と境界テストを同じ変更単位で更新してからである (それまでは機械的に
 拒否される)。**前提条件は現時点で 1 件も満たされていない。**
 A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
@@ -179,10 +179,10 @@ supervisor report はその campaign id/root を指す。`report.json` は run-f
   critic の attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれ、
   それは次世代 payload でなく driver の停止カウンタへ行く。
   「なぜ壊れたか」は次の生成入力に入らない。**前提条件が満たされるまで
-  `--max-generations >= 2` で走らせない** (D106 残余 1 / D119)。正式系列 (H1/H2) は同一 generation
+  `--max-generations >= 2` で走らせない** (D106 残余 1 / D121)。正式系列 (H1/H2) は同一 generation
   budget を要求するのでこの条件で自動的に禁止側へ入る。**D114 でこれは機械 gate になった** (3 入口 +
   campaign freshness)。ただし機械化したのは「generation 予算」と「campaign state の freshness」の
-  2 つだけである。**D119 は設計 draft と前提条件 10 件を起草したが、設計は未確定 (択一 6 件)、
+  2 つだけである。**D121 は設計 draft と前提条件 10 件を起草したが、設計は未確定 (択一 7 件)、
   機構は未実装、前提条件は 1 件も満たされていない** (`output/insights/2026-08-01_t244-reflux-design/`)。
   1 generation/cell を許可する根拠も「fresh campaign の単一 invocation なら還流が起きない」であって、
   無条件ではない。

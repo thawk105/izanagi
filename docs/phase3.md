@@ -468,7 +468,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      強制し、`int` サブクラスによる予算偽装を exact 型検査で塞ぎ、最初の provider 呼び出し前に
      campaign checkpoint の freshness を検査する。**機械化したのは予算と freshness だけ**である。
      `drive` 注入・driver 直接反復・並行 start race は保証対象外 (D114「保証の限界」)。
-     **2026-08-01 の [T-244] 還流設計 wave (D119) で設計 draft を起草した** — ユーザー裁定の軸 (i)
+     **2026-08-01 の [T-244] 還流設計 wave (D121) で設計 draft を起草した** — ユーザー裁定の軸 (i)
      (機械が failure を単調な safety constraint へ変換し generator は理由を読まない) を主軸、
      軸 (iv) (campaign より上位の origin へ総 iteration・総 query・公開 class を束縛) を併用する。
      軸 (iii) (候補 batch の事前凍結) の必須化は親が決めず裁定へ返した。**設計は確定しておらず

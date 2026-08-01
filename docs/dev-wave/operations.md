@@ -53,7 +53,7 @@ path の hit 0 件を pin なしと結論しない（F30）。
 durable manifest が未発行か再発行要かを区別して brief の不変条件へ書く（F27/F30、D84）。
 統一系 wave では各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類してから
 scope を裁定する（F39）。
-**docs のみの wave でも成立する** — 判定をコードの有無で代用せず docs path も検索する（F77）。
+**docs のみの wave でも成立する** — 判定をコードの有無で代用せず docs path も検索する（F78）。
 
 ## DW-O10 — producer write-path
 

@@ -6,7 +6,7 @@ default_effect: no-state-change
 ```
 
 本ディレクトリは dev-wave `[T-244] 還流設計` の逐語成果物である。可変状態の正本は worklog 末尾と
-現行 phase doc、採用済み判断の正本は D119 であり、ここには凍結した逐語と設計本文 draft を置く。
+現行 phase doc、採用済み判断の正本は D121 であり、ここには凍結した逐語と設計本文 draft を置く。
 **本文書は可変状態の正本ではない。**
 
 ## この文書の地位 (先に読むこと)
@@ -38,7 +38,7 @@ default_effect: no-state-change
 
 **凍結逐語の読み方:** `brief.md` / `s2-plan.md` / `s3-*.md` / `s4-adjudication.md` は各段時点の記録で
 あり書き換えない。したがってそれらは改番前の **D116** や、撤回した「軸 (iii) の必須化」「要因を
-全候補で必須化する cut」を含む。**現在の正本は本 README と D119 である。**
+全候補で必須化する cut」を含む。**現在の正本は本 README と D121 である。**
 
 ---
 
@@ -205,7 +205,7 @@ iteration / query / disclosure counter も減らない。
 | campaign 全削除 | lock/WAL とも local file で、hash chain も外部 anchor も無い |
 
 よって予算は **`reflux-origin`** という campaign より上位の単位に置く。**origin preimage の正本は本節**とし、
-D119 はその骨子だけを引く。preimage に含めるもの:
+D121 はその骨子だけを引く。preimage に含めるもの:
 
 - authority が発行した immutable series ID
 - `spec_content` SHA、CCBench commit、axis semantics
@@ -402,10 +402,10 @@ source ref は `campaign_id / variant / stage / record_ordinal / payload_sha256`
 | revA-4 | 32 点・whiteboard 3 状態の事実認定が誤り | **closed** — §2.4 / §2.2 で訂正、D96 手続の必要も明記 |
 | revA-5 / revB-2 / revB-6 | 「解いた・確定・supersede」が draft と矛盾 | **closed** — 全 docs の表現を弱めた |
 | revA-6 / revB-3 | critic report-only と reflux on/off が両立しない | **partial** — 未解決として §4① と §8 択一 4 に明記 |
-| revA-7 | origin preimage が D と本文で不一致 | **closed** — §3.5 を正本と宣言し D119 は骨子のみ |
+| revA-7 | origin preimage が D と本文で不一致 | **closed** — §3.5 を正本と宣言し D121 は骨子のみ |
 | revA-8 | 件数の算術誤りと B8 脱落 | **closed** — 本節で訂正 |
 | revA-9 / revB-6 | runbook の事実誤り (metrics・run-root) | **closed** — runbook を訂正 |
-| revB-1 | D116 の採番衝突 | **closed** — local main を取り込み **D119** へ改番 |
+| revB-1 | D116 の採番衝突 | **closed** — local main を取り込み **D121** へ改番 |
 | revB-5 | D51 の逐次 provenance が公開面として取り残し | **closed** — §4② の観測面に追加 |
 | revB-8 | runbook 3.3 は現在の Pegasus 運用では実行不能 | **closed** — runbook に blocked 注記、P8 の射程も限定 |
 | revB-9 | insights の authority marker 欠落 | **closed** — 冒頭に付与 |
