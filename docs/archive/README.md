@@ -213,3 +213,9 @@
   文脈は閉じたのに対し、(97)〜(102) の provider lifecycle、予約 envelope の実発火、8c 世代 gate、
   共有 Pegasus policy の再編、rulings 2 本は実装待ちの連続文脈であるため。
   (96) の継続項目は (97) の「次の一手」が漏れなく引き継いでいる (機械照合済み))
+- `worklog-phase3-0801-97.md` — worklog の 2026-08-01 (97) 分
+  ローテーションアーカイブ (2026-08-01、(103) 追記で肥大 110KB > 閾値 100KB。境界 = (98) 以降を
+  現行に保持 — (97) の provider lifecycle は land 済みで文脈が閉じたのに対し、(98)〜(103) の
+  予約 envelope の実発火、8c 世代 gate、共有 Pegasus policy の再編、rulings 2 本、8c の
+  recipient matrix は 8c 系列と裁定待ちの連続文脈であるため。
+  (97) の継続項目 195 件は (98) の「次の一手」が漏れなく引き継いでいる (機械照合済み))

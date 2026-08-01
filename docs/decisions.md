@@ -5458,3 +5458,79 @@ certified 証拠であり、再発行には実 job の再走が要る)。
 **研究状態への影響:** なし。production 挙動、実験の受理集合、certified 選択、材料レポート、proof chain、
 凍結 bytes はいずれも不変である。変わるのは開発時の設定ファイルの所在と、それを守る検査だけである。
 受入全走 = Pegasus gen_S 計算ノード request `876932` で 4713 passed / 19 skipped。
+
+## D116. [T-288] 8c の recipient matrix を追認して率と percent を recipient ごとに分ける — `delta_pct≡None` は whiteboard 射影経路だけの防壁である (2026-08-01)
+
+**背景 (裁定と実測):** worklog (102) のユーザー裁定は [T-288] について択 (a)「現行の recipient
+matrix を新 D で追認し、`delta_pct≡None` を『planner へ性能値を渡さない保証』と説明する誤りを
+是正する。`cache_miss_rate_pct` / `abort_rate_pct` の 100 倍の単位ずれは real defect として今すぐ
+直す。多世代開放の時点で planner から絶対 throughput を落とす ((b) への移行) を開放の前提条件へ
+束ねる」であった。所見の出所は [T-244] の敵対レビュー
+(`output/insights/2026-08-01_t244-generation-gate/README.md` の X5 / X6)。
+
+本 wave の段 1 前提実測は 100 倍のずれを一次資料で確定した。`abort_rate` は
+aborts/(commits+aborts) (`orchestrator/calibrator/benchparse.py`)、`llc_miss_rate` は docstring が
+0..1 と明示する率 (`orchestrator/calibrator/model.py`) であり、`_metric_projection()` に abort 7.9%
+相当を入れると `abort_rate_pct=0.079` が role へ届いた。role 定義の入力例示は 7.9 / 12.4
+(`.claude/agents/planner-v4.md`) である。
+
+**決定 (1): recipient matrix を追認し、単位は recipient ごとに分ける。** planner は
+`current_perf` (絶対 throughput を含む) と `leading_indicators` を、coder は `baseline` を、critic は
+`harness_result.metrics` を受け取る。**critic は親 brief が見落としていた第 4 の recipient**であり、
+段 3 の敵対相談が発見した。単位は次のとおりに固定する。
+
+| recipient | field | 単位 |
+|---|---|---|
+| planner `current_perf` / coder `baseline` | `throughput_ops_sec` / `latency_ns` / `ipc` | 実測値そのまま |
+| 同上 | `abort_rate_pct` | percent (0..100) |
+| 同上 | `llc_miss_rate` | ratio (0..1、名前どおり) |
+| planner `leading_indicators` | `cache_miss_rate_pct` | percent (0..100) |
+| planner `leading_indicators` | `contention_level` / `IPC_overall` | descriptor label / 実測値 |
+| critic `harness_result.metrics` | `abort_rate` / `llc_miss_rate` | **ratio (0..1)** |
+
+critic を ratio に保つのは、critic の役割定義 (`.claude/agents/critic.md`) が `abort_rate` /
+`llc_miss_rate` という率名しか知らないためである。**現行実装は critic へ `abort_rate_pct` という
+percent 名の field に率を入れて渡しており、これも同じ defect の一部**であった。
+
+**決定 (2): 換算は role-facing payload を作る 1 箇所へ閉じる。** 内部 metrics は率名
+(`abort_rate` / `llc_miss_rate`) を持ち、`_role_metric_payloads()` だけが percent 名の 2 field を
+×100 する。換算後に非有限になる値は `None` にする。範囲 (0..1) の検査は**入れない** — parser も
+screening も上限を強制せず (`benchparse.py`、`screening_driver.py`)、role 側だけで範囲外を `None` に
+畳むと「異常」と「未観測」が区別できなくなるためである。異常値は ×100 して可視のまま残す。
+
+**決定 (3): `delta_pct≡None` は whiteboard 射影経路の `delta_pct` field だけの防壁である。**
+`whiteboard_for_planner()` の docstring が「planner へ勝ち筋チャネル (性能値) を渡さない」と
+全体保証のように書いていたのは**偽**であった。絶対 throughput は `current_perf` で planner へ、
+`baseline` で coder へ、別 field として渡る。加えて `direction` / `magnitude` / `result` の**値**は
+checkpoint から無検証で入りうる ([T-287] の残余) ため、「abstract」も機械保証ではない。
+docstring は機械保証される射程まで狭めた。
+
+**決定 (4): role payload の意味が変わるので `SCHEMA_VERSION` を v2 へ上げる。** 同じ v1 が
+`abort_rate_pct=0.079` と `=7.9` の両方を意味すると、attempt journal と過去実走を意味比較できなく
+なる。report の形は変えないので `REPORT_SCHEMA_VERSION` は v1 のままとする。
+換算値は role payload の SHA-256 と provider の payload file bytes に影響するが、screening・fitness・
+stop 判定・凍結成果物のいずれにも到達しない (screening は bench payload の
+`leading_indicators["abort_rate"]` を直接読む別経路である)。
+
+**決定 (5): 現時点の発火範囲は critic だけである。** 承認済み上限は
+`MAX_APPROVED_GENERATIONS=1` なので、planner と coder が受け取る metrics は世代 1 では全て `None`
+であり、有限値を受けるのは評価後に呼ばれる critic だけである。**planner / coder 起因の受理集合
+変更は多世代開放後に発火する。** 親 brief の「planner/coder が誤単位を読み certified 選択が変わる」
+は現行承認範囲について過大表現であり、段 3 の敵対相談が反証した。
+
+**決定 (6): (b) への移行は多世代開放の前提条件とする。** planner から絶対 throughput を落とす
+移行は本 wave では実装しない。ただし前提条件は **planner だけでなく coder の `baseline` も含めて**
+書く — 世代間記憶があれば連続する絶対 throughput から変化率を復元でき、同じ値を coder も受ける
+ため、planner 側だけを塞いでも情報論的には閉じない ([T-246] / [T-228] と同型の判断)。
+
+**決定 (7): 手動射影経路にも同じ換算規約が及ぶ。** 段 4b / 段 5 の runbook は
+メインセッションに `abort_rate_pct` / `cache_miss_rate_pct` を手作業で射影させるが、
+WAL / calibrator の率を ×100 する規約が無かった。両 runbook へ換算規約を明記した。
+
+**残余 (裁定パッケージへ返す。本 wave では実装しない):** (a) `throughput_ops_sec` の実体は
+transactions/sec であり、YCSB 既定 `ycsb_max_ope=10` の下では名目 10 倍の誤名である。(b) live role
+定義の記述 drift 3 種 (planner の「leading-indicators だけ」、存在しない `last_delta_pct`、coder の
+「入力は 5 field のみ」)。是正は `orchestrator/codex_roles/review_ledger.py` の source hash 更新と
+`.codex/role-adapters/*.json` の再生成を伴う。(c) 非有限な raw metrics で terminal report が
+生成されず journal だけが残る破断。(d) reject 世代が有効 baseline を全 `None` で上書きする。
+(e) `ratio * 100.0` の float 表現契約 (丸め・桁) が無い。
