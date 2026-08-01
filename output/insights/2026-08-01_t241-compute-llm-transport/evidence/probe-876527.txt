@@ -1,0 +1,23 @@
+hostname=bnode002
+date=2026-08-01T14:09:54+09:00
+--- DNS api.anthropic.com ---
+getent_rc=2
+--- TCP 443 ---
+bash: line 1: api.anthropic.com: Temporary failure in name resolution
+bash: line 1: /dev/tcp/api.anthropic.com/443: Invalid argument
+tcp_rc=1
+--- claude binary ---
+lrwxrwxrwx 1 tanab SFC 52 Jul 26 18:33 /home/SFC/tanab/.local/bin/claude -> /home/SFC/tanab/.local/share/claude/versions/2.1.220
+ls_rc=0
+--- claude -p ---
+PONG
+claude_rc=0
+--- numactl ---
+/bin/numactl
+numactl_rc=0
+--- nproc/affinity ---
+48
+affinity 48
+--- python3 ---
+Python 3.9.13 :: Intel Corporation
+ 

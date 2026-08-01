@@ -1,0 +1,25 @@
+hostname=bnode002
+--- settings base url / proxy ---
+settings_rc=0
+--- env proxy in job ---
+2
+--- resolv.conf ---
+# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).
+# Do not edit.
+#
+# This file might be symlinked as /etc/resolv.conf. If you're looking at
+# /etc/resolv.conf and seeing this text, you have followed the symlink.
+--- nonce arithmetic (proves live model) ---
+12640
+claude_rc=0
+elapsed_s=3
+--- python interpreters ---
+python3 -> Python 3.9.13 :: Intel Corporation
+ python3.10 -> Python 3.10.12
+python3.11 -> absent
+python3.12 -> absent
+/usr/bin/python3.10 -> Python 3.10.12
+/usr/bin/python3.11 -> absent
+--- g++ ---
+/bin/g++
+/bin/g++-12
