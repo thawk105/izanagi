@@ -36,6 +36,8 @@ LIVING_DOCS = [
     REPO / "output" / "task-runs" / "README.md",  # 開発観測台帳の生きた運用正本
     REPO / "docs" / "README.md",                  # docs の地図 (2026-07-11 fc-05 で CLAUDE.md から委譲)
     REPO / "docs" / "ai-provenance.md",           # commit provenance の共有規約
+    REPO / "docs" / "provenance" / "correction.md",
+    REPO / "docs" / "provenance" / "audit.md",
     REPO / "docs" / "roadmap.md",
     REPO / "docs" / "related-work" / "README.md",  # 旧 related-work.md はディレクトリ化 (2026-07-11 監査 lint-04 で修正 — 旧パスは黙って skip されていた)
     REPO / "docs" / "phase3.md",                  # 現行 phase doc。Phase 移行時にここを差し替え、旧 doc は凍結宣言
@@ -160,8 +162,64 @@ REFERENCE_LIMITS = {
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
 }
+PROVENANCE_ENTRY = "docs/ai-provenance.md"
+PROVENANCE_REFERENCE_ROOT = "docs/provenance"
 PROVENANCE_LIMITS = {
-    "docs/ai-provenance.md": TextLimit(9_000),
+    PROVENANCE_ENTRY: TextLimit(6_300),
+}
+PROVENANCE_REFERENCE_LIMITS = {
+    "docs/provenance/correction.md": TextLimit(1_600),
+    "docs/provenance/audit.md": TextLimit(1_600),
+}
+PROVENANCE_FAMILY_LIMITS = {
+    **PROVENANCE_LIMITS,
+    **PROVENANCE_REFERENCE_LIMITS,
+}
+PROVENANCE_FAMILY_FILES = frozenset(PROVENANCE_FAMILY_LIMITS)
+PROVENANCE_FAMILY_BYTES = 9_000
+PROVENANCE_DISPATCH_HEADER = "| key | 発火条件 | 読む節 |"
+
+REQUIRED_PROVENANCE_REFERENCE_SECTIONS = {
+    "docs/provenance/correction.md": {
+        "PR-C01", "PR-C02", "PR-C03",
+    },
+    "docs/provenance/audit.md": {
+        "PR-A01", "PR-A02", "PR-A03",
+    },
+}
+PROVENANCE_DISPATCH_CONTRACT = {
+    "correction": (
+        "固定 target の forward correction を扱う",
+        frozenset({
+            ("docs/provenance/correction.md", "PR-C01"),
+            ("docs/provenance/correction.md", "PR-C02"),
+            ("docs/provenance/correction.md", "PR-C03"),
+        }),
+    ),
+    "message-file": (
+        "commit 前に message を検査する",
+        frozenset({
+            ("docs/provenance/audit.md", "PR-A01"),
+        }),
+    ),
+    "history": (
+        "commit 後・別 range の履歴を監査する",
+        frozenset({
+            ("docs/provenance/audit.md", "PR-A02"),
+            ("docs/provenance/correction.md", "PR-C03"),
+        }),
+    ),
+    "analysis": (
+        "provenance を比較や改善判断に使う",
+        frozenset({
+            ("docs/provenance/audit.md", "PR-A03"),
+        }),
+    ),
+}
+PROVENANCE_SHARED_DISPATCH_PAIRS = {
+    ("docs/provenance/correction.md", "PR-C03"): frozenset({
+        "correction", "history",
+    }),
 }
 CODEX_DEV_WAVE_SKILL_LIMITS = {
     ".agents/skills/dev-wave/SKILL.md": TextLimit(5_500, 400),
@@ -670,15 +728,16 @@ def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
     return "".join(visible), in_comment
 
 
-def _top_level_items(body: str) -> list[tuple[str, int]]:
-    """code fence / HTML comment 外にあるトップレベル項目と offset を返す。"""
+def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
+    """code fence / HTML comment 外の可視行と offset・改行を返す。"""
 
-    items: list[tuple[str, int]] = []
+    lines: list[tuple[str, int, str]] = []
     in_comment = False
     fence: tuple[str, int] | None = None
     offset = 0
-    for raw_line in body.splitlines(keepends=True):
+    for raw_line in text.splitlines(keepends=True):
         line = raw_line.rstrip("\r\n")
+        newline = raw_line[len(line):]
         if fence is not None:
             marker_char, marker_len = fence
             stripped = line.lstrip(" \t")
@@ -687,6 +746,7 @@ def _top_level_items(body: str) -> list[tuple[str, int]]:
                 rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
             ):
                 fence = None
+            lines.append(("", offset, newline))
             offset += len(raw_line)
             continue
 
@@ -697,6 +757,7 @@ def _top_level_items(body: str) -> list[tuple[str, int]]:
             if fence_match is not None:
                 marker = fence_match.group("marker")
                 fence = (marker[0], len(marker))
+                lines.append(("", offset, newline))
                 offset += len(raw_line)
                 continue
 
@@ -705,13 +766,32 @@ def _top_level_items(body: str) -> list[tuple[str, int]]:
         if fence_match is not None:
             marker = fence_match.group("marker")
             fence = (marker[0], len(marker))
+            lines.append(("", offset, newline))
             offset += len(raw_line)
             continue
 
+        lines.append((visible, offset, newline))
+        offset += len(raw_line)
+    return lines
+
+
+def _visible_markdown_text(text: str) -> str:
+    """Markdown の不可視部分を除き、元の行境界を保った文字列を返す。"""
+
+    return "".join(
+        visible + newline
+        for visible, _, newline in _visible_markdown_lines(text)
+    )
+
+
+def _top_level_items(body: str) -> list[tuple[str, int]]:
+    """code fence / HTML comment 外にあるトップレベル項目と offset を返す。"""
+
+    items: list[tuple[str, int]] = []
+    for visible, offset, _ in _visible_markdown_lines(body):
         item = TOP_LEVEL_ITEM_RE.fullmatch(visible)
         if item is not None:
             items.append((item.group("text"), offset))
-        offset += len(raw_line)
     return items
 
 
@@ -1350,7 +1430,9 @@ class _DispatchTables:
 
 
 _DISPATCH_PATH_RE = re.compile(r"`((?:docs|\.claude)/[^`]+\.md)`")
-_DISPATCH_SECTION_ID = r"DW-(?:[A-Z][0-9]{2}(?:-[A-C])?|CTX|STOP)"
+_DISPATCH_SECTION_ID = (
+    r"(?:DW-(?:[A-Z][0-9]{2}(?:-[A-C])?|CTX|STOP)|PR-[AC][0-9]{2})"
+)
 _DISPATCH_TOKEN_RE = re.compile(
     r"`(?P<path>(?:docs|\.claude)/[^`]+\.md)`"
     rf"|`(?P<section>{_DISPATCH_SECTION_ID})`"
@@ -1427,6 +1509,170 @@ def _dispatch_pairs_from_line(
     if _SELF_PATH in paths and "全節" in line:
         pairs.update(_SELF_SECTIONS)
     return pairs, paths
+
+
+@dataclass
+class _ConditionDispatch:
+    rows: dict[str, set[tuple[str, str]]]
+    conditions: dict[str, set[str]]
+    row_counts: dict[str, int]
+    column_counts: dict[str, set[int]]
+    leaked_tokens: dict[str, set[str]]
+    paths: dict[str, set[str]]
+    structure_errors: tuple[str, ...]
+
+
+def _markdown_table_cells(line: str) -> tuple[list[str], int, int]:
+    """外周 delimiter を高々1個だけ外し、Markdown table の cell を返す。"""
+
+    stripped = line.strip()
+    leading = len(stripped) - len(stripped.lstrip("|"))
+    trailing = len(stripped) - len(stripped.rstrip("|"))
+    body = stripped[1:] if leading else stripped
+    if trailing:
+        body = body[:-1]
+    return [cell.strip() for cell in body.split("|")], leading, trailing
+
+
+def _is_three_cell_separator(line: str) -> bool:
+    cells, leading, trailing = _markdown_table_cells(line)
+    return (
+        leading <= 1
+        and trailing <= 1
+        and len(cells) == 3
+        and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
+    )
+
+
+def _condition_dispatch_table(
+    text: str,
+    heading: str,
+) -> _ConditionDispatch | None:
+    visible_text = _visible_markdown_text(text)
+    sections = _markdown_sections(visible_text, heading)
+    if len(sections) != 1:
+        return None
+
+    rows: dict[str, set[tuple[str, str]]] = {}
+    conditions: dict[str, set[str]] = {}
+    row_counts: dict[str, int] = {}
+    column_counts: dict[str, set[int]] = {}
+    leaked_tokens: dict[str, set[str]] = {}
+    paths: dict[str, set[str]] = {}
+    structure_errors: list[str] = []
+    section_lines = sections[0].splitlines()
+    header_indices = [
+        index
+        for index, line in enumerate(section_lines)
+        if line == PROVENANCE_DISPATCH_HEADER
+    ]
+    if len(header_indices) != 1:
+        structure_errors.append(
+            f"header {PROVENANCE_DISPATCH_HEADER!r} が {len(header_indices)} 件"
+        )
+    separator_indices = [
+        index
+        for index, line in enumerate(section_lines)
+        if _is_three_cell_separator(line)
+    ]
+    if len(separator_indices) != 1:
+        structure_errors.append(
+            f"3列 separator が {len(separator_indices)} 件"
+        )
+    if (
+        len(header_indices) == 1
+        and len(separator_indices) == 1
+        and separator_indices[0] != header_indices[0] + 1
+    ):
+        structure_errors.append("separator が header 直後にない")
+
+    for line in section_lines:
+        if "|" not in line:
+            continue
+        if line == PROVENANCE_DISPATCH_HEADER or _is_three_cell_separator(line):
+            continue
+        cells, leading, trailing = _markdown_table_cells(line)
+        if leading > 1 or trailing > 1 or len(cells) != 3:
+            structure_errors.append(
+                "data row が3列・外周 delimiter 高々1個でない — "
+                f"leading={leading}, trailing={trailing}, cells={len(cells)}"
+            )
+            continue
+
+        key = cells[0]
+        condition = cells[1]
+        reference_cell = cells[2]
+        pairs, row_paths = _dispatch_pairs_from_line(reference_cell)
+        leaks = {match.group(0) for match in _DISPATCH_TOKEN_RE.finditer(condition)}
+
+        rows.setdefault(key, set()).update(pairs)
+        conditions.setdefault(key, set()).add(condition)
+        row_counts[key] = row_counts.get(key, 0) + 1
+        column_counts.setdefault(key, set()).add(len(cells))
+        leaked_tokens.setdefault(key, set()).update(leaks)
+        paths.setdefault(key, set()).update(row_paths)
+
+    return _ConditionDispatch(
+        rows,
+        conditions,
+        row_counts,
+        column_counts,
+        leaked_tokens,
+        paths,
+        tuple(structure_errors),
+    )
+
+
+def _provenance_markdown_ambiguities(text: str) -> tuple[str, ...]:
+    """共有 scanner が過剰 mask しうる provenance 固有の曖昧性を列挙する。"""
+
+    issues: list[str] = []
+    in_comment = False
+    fence: tuple[str, int, int] | None = None
+    inline_code = re.compile(r"(?P<ticks>`+)(?P<body>.*?)(?P=ticks)")
+    fence_candidate = re.compile(
+        r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$"
+    )
+
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if fence is not None:
+            marker_char, marker_len, _ = fence
+            stripped = line.lstrip(" \t")
+            indent = len(line) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
+                continue
+            candidate = fence_candidate.fullmatch(line)
+            if candidate is not None and candidate.group("marker")[0] != marker_char:
+                issues.append(f"line {lineno}: 異種 fence closer")
+            continue
+
+        if not in_comment:
+            for match in inline_code.finditer(line):
+                if "<!--" in match.group("body") or "-->" in match.group("body"):
+                    issues.append(
+                        f"line {lineno}: inline code 内の HTML comment delimiter"
+                    )
+
+        visible, next_in_comment = _mask_html_comments(line, in_comment)
+        if not in_comment:
+            candidate = fence_candidate.fullmatch(visible)
+            if candidate is not None:
+                marker = candidate.group("marker")
+                info = candidate.group("info")
+                if marker[0] == "`" and "`" in info:
+                    issues.append(f"line {lineno}: 無効な backtick fence info string")
+                else:
+                    fence = (marker[0], len(marker), lineno)
+        in_comment = next_in_comment
+
+    if fence is not None:
+        issues.append(f"line {fence[2]}: 未閉じ code fence")
+    if in_comment:
+        issues.append("未閉じ HTML comment")
+    return tuple(dict.fromkeys(issues))
 
 
 def _dispatch_tables(text: str) -> _DispatchTables | None:
@@ -1697,11 +1943,50 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         )
         unreadable.add(path)
 
+    provenance_root = REPO / PROVENANCE_REFERENCE_ROOT
+    if provenance_root.is_symlink():
+        findings.append(
+            "docs/provenance: provenance reference directory が symlink — "
+            "外部 member を列挙・読取しない"
+        )
+        actual_provenance_references: set[Path] = set()
+    else:
+        actual_provenance_references = (
+            {
+                path
+                for path in provenance_root.rglob("*")
+                if not path.is_dir() or path.is_symlink()
+            }
+            if provenance_root.is_dir()
+            else set()
+        )
+    expected_provenance_references = {
+        REPO / rel for rel in PROVENANCE_REFERENCE_LIMITS
+    }
+    extra_provenance_references = sorted(
+        actual_provenance_references - expected_provenance_references
+    )
+    missing_provenance_references = sorted(
+        expected_provenance_references - actual_provenance_references
+    )
+    for path in extra_provenance_references:
+        findings.append(
+            f"{path.relative_to(REPO)}: docs/provenance/** の予算未登録実体 — "
+            "規範 detail を family 閉包外へ逃がしてはならない"
+        )
+    for path in missing_provenance_references:
+        findings.append(
+            f"{path.relative_to(REPO)}: 登録済み provenance reference が不在 — "
+            "入口 dispatch が到達不能"
+        )
+        unreadable.add(path)
+
     all_limits = {
         **COMMAND_LIMITS,
         **REFERENCE_LIMITS,
         **SELF_LIMITS,
         **PROVENANCE_LIMITS,
+        **PROVENANCE_REFERENCE_LIMITS,
     }
     decoded: dict[str, str] = {}
     sizes: dict[str, int] = {}
@@ -1747,6 +2032,30 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
             f"docs/dev-wave/**: 合計 {reference_size} bytes > hard ceiling "
             f"{DEV_WAVE_AGGREGATE_BYTES} bytes"
         )
+
+    if PROVENANCE_FAMILY_FILES.issubset(sizes):
+        provenance_size = sum(
+            sizes[rel] for rel in PROVENANCE_FAMILY_FILES
+        )
+        if provenance_size > PROVENANCE_FAMILY_BYTES:
+            findings.append(
+                "docs/ai-provenance.md + docs/provenance/**: "
+                f"合計 {provenance_size} bytes > hard ceiling "
+                f"{PROVENANCE_FAMILY_BYTES} bytes"
+            )
+
+    ambiguous_provenance: set[str] = set()
+    for rel in sorted(PROVENANCE_FAMILY_FILES):
+        text = decoded.get(rel)
+        if text is None:
+            continue
+        ambiguity = _provenance_markdown_ambiguities(text)
+        if ambiguity:
+            ambiguous_provenance.add(rel)
+            findings.append(
+                f"{rel}: provenance Markdown の曖昧構文を受理しない — "
+                f"{list(ambiguity)}"
+            )
 
     for rel, contract in COMMAND_INTERFACES.items():
         text = decoded.get(rel)
@@ -1809,6 +2118,154 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 findings.append(
                     f"{rel}: Codex-first 実装契約がない — {literal!r}"
                 )
+
+    for rel, sections in REQUIRED_PROVENANCE_REFERENCE_SECTIONS.items():
+        text = decoded.get(rel)
+        if text is None or rel in ambiguous_provenance:
+            continue
+        visible_text = _visible_markdown_text(text)
+        actual_sections = re.findall(
+            r"^##\s+([^\s—]+)", visible_text, re.MULTILINE
+        )
+        for section in sorted(sections):
+            count = len(_reference_id_sections(visible_text, section))
+            if count != 1:
+                findings.append(
+                    f"{rel}: H2 見出し {section} が {count} 件 — "
+                    "provenance dispatch 先は一意でなければならない"
+                )
+        orphan_sections = sorted(set(actual_sections) - sections)
+        if orphan_sections:
+            findings.append(
+                f"{rel}: provenance dispatch 契約にない孤児 H2 — "
+                f"{orphan_sections}"
+            )
+
+    budget_paths = set(PROVENANCE_REFERENCE_LIMITS)
+    section_paths = set(REQUIRED_PROVENANCE_REFERENCE_SECTIONS)
+    dispatch_paths = {
+        path
+        for _, pairs in PROVENANCE_DISPATCH_CONTRACT.values()
+        for path, _ in pairs
+    }
+    if not (budget_paths == section_paths == dispatch_paths):
+        findings.append(
+            "tools/check_docs.py: provenance registry 三面の path 集合が不一致 — "
+            f"budget={sorted(budget_paths)}, sections={sorted(section_paths)}, "
+            f"dispatch={sorted(dispatch_paths)}"
+        )
+
+    registered_pairs = frozenset(
+        (rel, section)
+        for rel, sections in REQUIRED_PROVENANCE_REFERENCE_SECTIONS.items()
+        for section in sections
+    )
+    pair_owners: dict[tuple[str, str], set[str]] = {}
+    for key, (_, pairs) in PROVENANCE_DISPATCH_CONTRACT.items():
+        for pair in pairs:
+            pair_owners.setdefault(pair, set()).add(key)
+    ownership_mismatches = {}
+    for pair in set(pair_owners) | set(PROVENANCE_SHARED_DISPATCH_PAIRS):
+        owners = frozenset(pair_owners.get(pair, set()))
+        expected_owners = PROVENANCE_SHARED_DISPATCH_PAIRS.get(pair)
+        if expected_owners is None:
+            if len(owners) != 1:
+                ownership_mismatches[pair] = {
+                    "actual": sorted(owners),
+                    "expected": "exactly one key",
+                }
+        elif owners != expected_owners:
+            ownership_mismatches[pair] = {
+                "actual": sorted(owners),
+                "expected": sorted(expected_owners),
+            }
+    if ownership_mismatches:
+        findings.append(
+            "tools/check_docs.py: provenance dispatch pair の key 所有が不一致 — "
+            f"{ownership_mismatches}"
+        )
+    contract_pairs = frozenset(pair_owners)
+    if contract_pairs != registered_pairs:
+        findings.append(
+            "tools/check_docs.py: provenance section registry と "
+            "dispatch contract の閉包が不一致 — "
+            f"undispatched={sorted(registered_pairs - contract_pairs)}, "
+            f"unregistered={sorted(contract_pairs - registered_pairs)}"
+        )
+
+    provenance_text = decoded.get(PROVENANCE_ENTRY)
+    if (
+        provenance_text is not None
+        and PROVENANCE_ENTRY not in ambiguous_provenance
+    ):
+        dispatch = _condition_dispatch_table(
+            provenance_text, "条件 dispatch"
+        )
+        if dispatch is None:
+            findings.append(
+                "docs/ai-provenance.md: 条件 dispatch 表を一意に抽出できない"
+            )
+        elif dispatch.structure_errors:
+            findings.append(
+                "docs/ai-provenance.md: provenance 条件 dispatch 表の構造が不一致 — "
+                f"{list(dispatch.structure_errors)}"
+            )
+        else:
+            for key in sorted(
+                set(PROVENANCE_DISPATCH_CONTRACT) | set(dispatch.rows)
+            ):
+                expected_contract = PROVENANCE_DISPATCH_CONTRACT.get(key)
+                expected_condition = (
+                    expected_contract[0] if expected_contract is not None else None
+                )
+                expected_pairs = (
+                    expected_contract[1] if expected_contract is not None else frozenset()
+                )
+                actual_pairs = dispatch.rows.get(key, set())
+                actual_conditions = dispatch.conditions.get(key, set())
+                row_count = dispatch.row_counts.get(key, 0)
+                column_counts = dispatch.column_counts.get(key, set())
+                leaked_tokens = dispatch.leaked_tokens.get(key, set())
+                outside_paths = dispatch.paths.get(key, set()) - budget_paths
+                if row_count != 1:
+                    findings.append(
+                        "docs/ai-provenance.md: provenance 条件 dispatch "
+                        f"{key!r} の row count が不一致 — "
+                        f"actual={row_count}, expected=1"
+                    )
+                    continue
+                if column_counts != {3}:
+                    findings.append(
+                        "docs/ai-provenance.md: provenance 条件 dispatch "
+                        f"{key!r} の列数が不一致 — "
+                        f"actual={sorted(column_counts)}, expected=[3]"
+                    )
+                if actual_conditions != {expected_condition}:
+                    findings.append(
+                        "docs/ai-provenance.md: provenance 条件 dispatch "
+                        f"{key!r} の発火条件が不一致 — "
+                        f"actual={sorted(actual_conditions)!r}, "
+                        f"expected={[expected_condition]!r}"
+                    )
+                if actual_pairs != expected_pairs:
+                    findings.append(
+                        "docs/ai-provenance.md: provenance 条件 dispatch "
+                        f"{key!r} の参照集合が不一致 — "
+                        f"missing={sorted(expected_pairs - actual_pairs)}, "
+                        f"extra={sorted(actual_pairs - expected_pairs)}"
+                    )
+                if leaked_tokens:
+                    findings.append(
+                        "docs/ai-provenance.md: diagnostic sensitivity — "
+                        f"provenance 条件 dispatch {key!r} の条件セルに "
+                        f"reference token={sorted(leaked_tokens)}"
+                    )
+                if outside_paths:
+                    findings.append(
+                        "docs/ai-provenance.md: diagnostic sensitivity — "
+                        f"provenance 条件 dispatch {key!r} の第3列に "
+                        f"registry 外 path={sorted(outside_paths)}"
+                    )
 
     core_text = decoded.get(_CORE)
     if core_text is not None:

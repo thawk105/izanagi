@@ -4755,3 +4755,77 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
 構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
 抑止されないため変更前から rc=1 だった。
+
+## D106. [T-221] provenance 規約を入口 + 条件付き reference の閉集合にし、常時読量を予算 schema で強制する (2026-08-01)
+
+**背景 (ユーザー裁定):** `docs/ai-provenance.md` は byte 予算 9,000 に対し実測 8,942 (headroom 58 =
+0.6%) で満杯だった。導入から 2.5 週で 3,313 bytes 増えており、D105 却下案 (f) も「予算内にぎりぎり
+収まった」と記録している。2026-08-01、意味保存縮約を提示したユーザーが「意味保存アプローチが state of
+the art なのか、コンテキスト外出しは」と問い、親が「縮約は一時的延命で、この repo が dev-wave で使う
+入口 + 条件付き reference + dispatch の方が構造的に強い」と回答したうえで、**「縮約を land →
+外出しも同 wave で」**が裁定された。予算は「全 commit で読む context 費用」の代理指標なので、
+縮約は総量と常時読量を同じだけ減らすが、外出しは常時読量だけを大きく減らし、incident 固有契約が
+入口へ積み上がる増加ダイナミクス自体を止める。本 D は `check_docs` の受理集合を変えるため D96 に従い、
+境界テストを同じ変更単位に置く。
+
+**決定 (1): provenance family を入口 1 + reference 2 の閉集合とする。** 入口
+`docs/ai-provenance.md` は全 commit で読む義務 (必須形式、Codex author 契約、waiver、記録単位、
+commit 前の確認) と条件 dispatch 表を持つ。`docs/provenance/correction.md` は `6b64d21` の一回限り
+forward correction、`docs/provenance/audit.md` は範囲監査・legacy 遡及・任意の確認手段・解釈上の
+歯止めを持つ。**外出しは移設であって削除ではない** — 縮約前 8,942 bytes 版の義務 45 件はすべて
+family 内に実在する (対応表は材料 insight)。
+
+**決定 (2): 個別 cap と family 上限を独立に置き、総量は上げない。** 入口 6,300、各 reference 1,600、
+**family 合計 9,000 bytes** とする。個別 cap の総和は 9,500 なので family gate は恒真にならず、
+全 member が個別 cap 内でも合計超過を拒否する。旧「単一ファイル ≤ 9,000」に対し総量上限は据え置きで、
+常時読む入口だけが 8,942 → 6,287 bytes になる。
+
+**決定 (3): 閉包を機械強制する。** `docs/provenance/**` の予算未登録実体、登録済み member の
+不在・読取不能・symlink、必須 H2 の欠落・重複、registry にない孤児 H2、入口 dispatch 行の欠落・重複・
+**発火条件の逐語不一致**・第 2 列への参照 token 密輸・第 3 列以外からの参照・registry 外 path、
+そして**予算 path 集合 / 節 registry / dispatch 契約の三面一致**を、それぞれ独立の finding として拒否する。
+dispatch 表は可視な header と separator を exact 1 件、data row の cell 数を exact 3、外周 delimiter を
+高々 1 個に固定する (header 非束縛だと第 3 列の見出しを改名して「読む節」を任意欄に見せられる)。
+ただし data row の収集は節全体からであり、header 直後の連続 table への束縛までは行っていない。
+
+**決定 (4): 機械 anchor は入口に固定する。** exactly-once の 3 逐語 (Codex author 必須文、
+Co-Authored-By 最終 block 配置文、waiver 形式) と `scope=` の出現は **入口に exact 1、各 reference に
+exact 0** とし、独立 oracle の test で固定する。`check_ai_provenance.POLICY_PATH` と
+`check_docs.PROVENANCE_ENTRY` の同値も test で pin する。これらを reference へ移すと epoch 検出と
+exactly-once メタテストが壊れる。
+
+**決定 (5): reference は living doc として既存 lint を継承する。** 2 本を `LIVING_DOCS` /
+`_ENUMERATED_DOCS` へ登録し、行番号参照禁止などの一般 lint と、`all_limits` 経由の land-helper 配置
+制約を継承する。これは受理集合の拡大ではなく**狭める方向**の変更であり、境界テストで固定する。
+`NORMATIVE_DISPATCH_ALLOWLIST` へは加えない (D98 決定 4 の分離を維持)。
+
+**決定 (6): 削減は単一の率で語らない。** 常時読量は (a) 入口だけ 6,287 (-29.7%)、(b) 入口 + `PR-A02`
+約 6,880 (約 -23%)、(c) dev-wave 通常列 約 7,090 (約 -21%)、(d) 既定 full-history 監査で correction まで
+読む場合 約 8,070 (約 -9.7%)、(e) family 合計 8,930 (-0.1%) を分けて記録する。「上限を上げていない」ことと
+「schema が同値である」ことも別に書く — 新受理集合は旧より狭い。
+
+**却下案:** (a) 縮約だけで終える — 常時読量の増加構造が残り数週間で再発する。(b) reference を予算外に
+置く — 規範 detail の逃がしになる。(c) 個別 cap だけ — member ごとの余白を合算して総量を超えられる。
+(d) family cap だけ — 1 つの member が肥大しても常時読量を抑えられない。(e) `SELF_LIMITS` /
+`REFERENCE_LIMITS` へ混ぜる — dev-wave dispatch allowlist と provenance family の意味を混同する
+(D98 決定 4)。(f) 3 逐語や `scope=` を reference へ移す — `POLICY_PATH`、exactly-once test、epoch 検出を
+壊す。(g) 総量上限の引き上げ — 予算の意味を失わせる。分割の構造 overhead は義務でない重複
+(reference 前置きの重複、確認例の二重掲載、散文の言い換え) の削減で吸収した。(h) `correction` 条件を
+「作成時だけ」と狭く読む — 既定 full-history 監査は常に correction を評価するので `PR-C03` が
+入口から到達不能になる。`history` 条件から `PR-C03` へ直接 dispatch する形を採った。
+
+**既知限界 (本 D の射程外。裁定パッケージへ):** (i) `_scope_policy_commit` /
+`_implementation_policy_commit` は HEAD 基準の単一 epoch で、CAB のような per-lineage 判定ではない。
+公表契約は実装より強く、別 lineage では実装の受理集合が広くなり得る。本 wave の gate は単一親・
+同一 lineage・ff-only の範囲で有効である。(ii) `--message-file` の correction preflight は
+exact waiver を担い手失格理由に含めない (commit 後の history 監査では含む)。(iii) 共有の可視行 scanner
+自体の意味は変えていない。provenance family の解析だけを fail-closed 側へ寄せたが、閉じたのは単一行の
+曖昧 delimiter と無効 fence opener までで、**複数行にまたがる inline code span を追跡しない** —
+細工すれば可視 H2 を checker から隠せる。(iv) dispatch の data row は「条件 dispatch」節全体から集める
+ため、header 直後の table に束縛されていない。契約 key の重複・欠落・未知 key はいずれも拒否されるので
+実害は限定的だが、表の所属関係自体は機械保証していない。(iii) と (iv) は本 wave の fix 3 巡上限
+(`DW-O16`) に達したため残余として裁定パッケージへ送る。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、レポート、proof chain、凍結成果物は
+変わらない。変わるのは開発文書 lint の受理集合と、commit 前に常時読む context 量だけである。
+材料 = `output/insights/2026-08-01_provenance-budget-wave/`。

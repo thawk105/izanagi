@@ -18,6 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools"))
 
 import check_ai_provenance as provenance  # noqa: E402
+import check_docs  # noqa: E402
 
 site_policy = provenance.site_policy
 
@@ -2286,14 +2287,36 @@ def _mixed_history(
 # --- W: waiver 逐語と needle の positive control -----------------------------
 
 
-def test_waiver_literal_matches_production_and_repo_policy_exactly_once():
-    assert provenance.WAIVER_POLICY_LITERAL == (
-        "AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>"
+def test_policy_anchor_literals_exist_only_in_entry_with_hard_coded_oracle():
+    anchors = (
+        "実装面を変更する AI 関与 commit は Codex author を必須",
+        "Co-Authored-By 候補行はすべて最終 trailer block に置く",
+        "AI-Agent-Waiver: reason=<ident>; ratified=<YYYY-MM-DD>",
     )
-    policy = (REPO / provenance.POLICY_PATH).read_text(encoding="utf-8")
-    assert policy.count(provenance.WAIVER_POLICY_LITERAL) == 1
-    assert policy.count(POLICY_NEEDLE_LITERAL) == 1
-    assert policy.count(provenance.IMPLEMENTATION_POLICY_NEEDLE) == 1
+    entry = (REPO / "docs/ai-provenance.md").read_text(encoding="utf-8")
+    references = (
+        (REPO / "docs/provenance/correction.md").read_text(encoding="utf-8"),
+        (REPO / "docs/provenance/audit.md").read_text(encoding="utf-8"),
+    )
+    for anchor in anchors:
+        assert entry.count(anchor) == 1
+        assert all(reference.count(anchor) == 0 for reference in references)
+    assert provenance.IMPLEMENTATION_POLICY_NEEDLE == anchors[0]
+    assert provenance.CO_AUTHORED_BY_POLICY_NEEDLE == anchors[1]
+    assert provenance.WAIVER_POLICY_LITERAL == anchors[2]
+
+
+def test_scope_epoch_anchor_occurs_exactly_once_in_entry():
+    entry = (REPO / "docs/ai-provenance.md").read_text(encoding="utf-8")
+    assert entry.count("scope=") == 1
+
+
+def test_provenance_policy_path_is_shared_and_hard_coded():
+    assert (
+        provenance.POLICY_PATH
+        == check_docs.PROVENANCE_ENTRY
+        == "docs/ai-provenance.md"
+    )
 
 
 def test_implementation_policy_epoch_is_pinned_in_this_repo():
