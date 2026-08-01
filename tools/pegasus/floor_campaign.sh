@@ -36,6 +36,7 @@ fi
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || exit 2
 TOOLS="$REPO_ROOT/tools/pegasus"
 POLICY="$TOOLS/policy.json"
+FLOOR_POLICY="$TOOLS/policies/floor_v1.json"
 OUTPUT_ROOT="$REPO_ROOT/output"
 ATTEMPTS_ROOT="$OUTPUT_ROOT/env/pegasus/floor/attempts"
 JOB_STAGING_ROOT="$OUTPUT_ROOT/env/pegasus/floor/job-staging"
@@ -204,15 +205,21 @@ if [[ ! -f "$POLICY" || -L "$POLICY" ]]; then
   write_failure 2 policy "policy file missing, not regular, or a symlink"
   exit 2
 fi
+if [[ ! -f "$FLOOR_POLICY" || -L "$FLOOR_POLICY" ]]; then
+  write_failure 2 policy "floor policy file missing, not regular, or a symlink"
+  exit 2
+fi
 policy_output=""
 policy_rc=0
-policy_output=$("$PY" -I -B - "$POLICY" <<'PY'
+policy_output=$("$PY" -I -B - "$POLICY" "$FLOOR_POLICY" <<'PY'
 import json
 import re
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     policy = json.load(handle)
+with open(sys.argv[2], encoding="utf-8") as handle:
+    floor_policy = json.load(handle)
 text_fields = (
     "project",
     "queue",
@@ -224,16 +231,20 @@ text_fields = (
 for key in text_fields:
     if type(policy.get(key)) is not str or not policy[key] or "\n" in policy[key]:
         raise SystemExit(f"invalid policy field: {key}")
-for key in ("nodes", "floor_walltime_s"):
-    if type(policy.get(key)) is not int or policy[key] <= 0:
-        raise SystemExit(f"invalid policy field: {key}")
+if type(policy.get("nodes")) is not int or policy["nodes"] <= 0:
+    raise SystemExit("invalid policy field: nodes")
+if (
+    type(floor_policy.get("floor_walltime_s")) is not int
+    or floor_policy["floor_walltime_s"] <= 0
+):
+    raise SystemExit("invalid floor policy field: floor_walltime_s")
 for key in ("gflags_expected_head", "glog_expected_head"):
     if re.fullmatch(r"[0-9a-f]{40}", policy[key]) is None:
         raise SystemExit(f"invalid policy git pin: {key}")
 print(policy["project"])
 print(policy["queue"])
 print(policy["nodes"])
-print(policy["floor_walltime_s"])
+print(floor_policy["floor_walltime_s"])
 print(policy["gflags_source_path"])
 print(policy["gflags_expected_head"])
 print(policy["glog_source_path"])

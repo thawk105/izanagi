@@ -431,6 +431,14 @@
   赤を作る偽 KILL だった。段 6 レビュー B → 焦点再レビューの二段が commit 前に捕捉。恒久対応の
   追補 = 呼び出しに依存しない構造的束縛 (code object の co_names 検査) を独立テストへ分離し、
   変異 (旧 signature 忠実回帰) で構造テスト単独の semantic kill を実測してから閉じる
+- 再発: 2026-08-01 ([T-288] wave)。**親が段 4 で登録した M01〜M15 のうち 4 件が `DW-M01` を
+  満たしていなかった** — M03 と M11 が同じ換算行を奪い合い (注入位置が一意でない)、M06 の対象
+  `None` がファイル内に複数あり、M15 は未観測 `None` に対して先に `TypeError` を起こすため赤理由が
+  二重だった。2026-07-26 と同じく**段 3 をすり抜け段 6 のレビューが検出**した。今回の新しさは、
+  無効の原因が「先行検査に食われる」ではなく「**anchor 逐語が一意でない**」ことにある。
+  恒久対応の追補 = 事前登録では位置を散文でなく**一意な old 逐語 anchor**で書き、harness が置換前に
+  対象ファイル内の出現数を数えてちょうど 1 でなければ `ANCHOR_ERROR` で止める。
+  再登録した N01〜N15 は最終 anchor commit で 15/15 KILL・`ANCHOR_ERROR` ゼロを実測した
 
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
@@ -752,6 +760,16 @@
   land 前に検出 (実害なし)。恒久対応 = `DW-O09` へ「output 外の review ledger を既定対象に
   含める + 出現の 4 分類 (live copy / 独立 golden / 凍結 snapshot / 歴史記録)」を追記
   (T-160 の DW-O07 削除で予算原資が回復していたため、段 8 で自動統合。同 wave の記録参照)
+- **再発: 2026-08-01** ([T-288] wave)。親が段 1 で `.claude/agents/planner-v4.md` と
+  `coder-v4-autonomous-trigger-gating.md` を「完了段の歴史的例示」と断定し、それを
+  「触らないから scope 外」という provisional 裁定の**根拠**に据えた。実際は 8c が
+  `ROLE_FILES` 経由で読む **live prompt** であり、段 3 の両レンズが独立に反証した。
+  誤りの型は F39 本体と同じ「**射程を実測せずに scope 除外の根拠にした**」で、対象が
+  凍結 bytes でなく参照文書の live/歴史区分である点だけが異なる。実害なし (実装前に検出)。
+  結論 (触らない) は維持したが根拠を「ユーザー裁定の射程外」へ差し替えた。
+  恒久対応 = `DW-O09` が既に持つ 4 分類 (live copy / 独立 golden / 凍結 snapshot / 歴史記録) を、
+  凍結 bytes wave に限らず**「触らない」と裁定する全参照物へ適用する**。
+  `docs/dev-wave/**` は余裕 10 bytes で本文追記できないため、本追記を運用の正本とする
 - 記録: worklog 2026-07-26 (3)、材料レポート = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §3.4
 
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
@@ -1490,6 +1508,13 @@
 - 記録: worklog 2026-08-01 (97)、一次資料 =
   `output/insights/2026-08-01_t118-provider-lifecycle-wave/` (`mutation-matrix-erratum-run1.json` に
   初回結果を消さず残置)
+- 独立 4 例目 (2026-08-01、[T-249] wave): 別の harness で同じ 3 原因を独立に踏み、変異 7 件全部を
+  SURVIVED と誤記録した (`injection_verified: true`、`rc: 1`、`failed_nodes: []`)。**変異自体は正しく
+  発火していた。** 恒久対応 (b)(c) と同じ修正 (行前置の除去、` - ` 無しは行末まで、`rc != 0` かつ
+  抽出 0 件を fail-closed) を入れて再走し、初回結果は消さず erratum として残した。本例は F71 が
+  land される前に独立に観測されたものであり、`DW-G03` の族一般化を追認する。一次資料 =
+  `output/insights/2026-08-01_t249-pegasus-policy-split/README.md` の「初回走の erratum」節
+
 ### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
 - 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
   していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
@@ -1511,3 +1536,66 @@
 - 近縁: F9 (恒真な保証)、F14 (無効化されるフラグを遮断機構として記録)、
   F21 (配線を live 発火未検証のまま防壁とした)
 - 記録: worklog 2026-08-01 (99)、一次資料 = `output/insights/2026-08-01_t244-generation-gate/`
+
+### F73. 実行場所契約の正本が「機械強制の射程」を 2 度続けて誤記した — 全称から過小へ振れ戻した [恒真ゲート] [防壁の射程誤認]
+
+- 事象: `docs/pegasus-runbook.md` §7 は「実 cmake build もログインノードで拒否される」と
+  **全 build への機械強制**を主張していた。実際に site gate を持つのは一部 module だけである。
+  [T-298] の段 3 でこれを是正したが、今度は「機械強制が掛かるのは `buildcache.py` だけ」と
+  **過小に振れて再度誤った**。段 6 の敵対レビューが実コードで反証し、正しい集合は
+  `buildcache` / `s2_verify_calibration` / `s3_lock_coverage` / `s5_permutation_coverage` /
+  `s8a_trigger_coverage` / `p3_s4_loop_trigger_gating` の 6 module であり、
+  `t152_write_intent_coverage` と `silo_ladder_rung1` の直接 CMake には無いと確定した
+- なぜ危険か: 「全経路を強制している」と書くと、gate の無い経路の login build が
+  **準拠済みとして記録される**。逆に過小に書くと、実在する強制を回避してよいと読める。
+  どちらも受入レポートが誤った実行場所参照を持つ。**是正の方向を間違えた 2 度目は、
+  1 度目より発見しにくい** — 「直したばかり」という事実が再検査の動機を奪う
+- 判別: 「〜は拒否される」「〜を強制する」と書く前に、**その強制を実装している関数を
+  grep で全列挙**し、同じ処理を行う他の経路が gate を通らないかを確認する。
+  列挙が 1 件だけになったときは、それが本当に唯一かを逆向き (処理側から) にも確認する
+- 恒久対応: D117 で「機械強制は『全経路』でも『buildcache だけ』でもない」と 6 module を
+  逐語列挙し、**両方の誤りを本文に残した** (訂正の履歴を消すと同じ振れが再発する)。
+  §8 に残っていた「ビルドは実行場所を計算ノードへ強制」という発火しない全称も同時に是正した
+- 近縁: F9 (恒真な保証)、F21 (配線を live 発火未検証のまま防壁とした)、
+  F68 (防壁の射程誤認)、F72 (宣言と既定が逆)
+- 記録: worklog 2026-08-01 (105)、一次資料 =
+  `output/insights/2026-08-01_t298-tools-dispatch-memory-threshold/`
+
+### F74. 規範に書いた測定手順が、その機体で実行不能だった [誤前提] [計測汚染]
+
+- 事象: [T-298] が新設した実行場所規範は、判定量を「cgroup charged memory のピーク」と定め、
+  当初 `memory.current` / `memory.peak` を読ませた。しかし **`memory.peak` は当該 kernel
+  (5.15) に存在しない**。次版は `systemd-run --user --scope` を挙げたが、対象 scope の
+  PID 取得法・開始 barrier・sampler 実体・比較対象 (観測ピークか certified peak か) が
+  無く、**0.1〜0.6 秒級の command は最初の sample 前に終了しうる**と敵対レビューに指摘された
+- なぜ危険か: 手順が実行不能または非決定的だと、同じ workload が測定タイミングによって
+  `local-ok` にも `dispatch-required` にも倒れる。**分類の受理集合が測定者依存になる**
+- 判別: 規範に測定手順を書くときは、(a) 参照する擬似ファイル・コマンドが**その機体に実在するか**を
+  実行して確かめ、(b) **最短の対象で 1 度通してから**書く。「原理的にはこれで測れる」で止めない
+- 恒久対応: D117 で unit 名を自分で決めて cgroup path を確定させ、sampler を先に張る手順へ
+  書き換えた。1 秒未満の command は 3 回以上繰り返す。**sampler が間に合わず 0 になった場合は
+  「軽い」ではなく測定失敗として `unknown` に倒す**ことと、規範値と比較するのは観測ピークでなく
+  certified peak (観測 + `max(25%, 128 MiB)`) であることを明記した
+- 近縁: F29 (模擬を裁定根拠にしない)、F70 (観測の一次証拠を残さない)
+- 記録: worklog 2026-08-01 (105)、一次資料 =
+  `output/insights/2026-08-01_t298-tools-dispatch-memory-threshold/`
+
+### F75. 親が段 6 で作った計測器具が、provenance の実装面 Codex author 契約に抵触した [手順漏れ]
+
+- 事象: [T-298] の段 6 で親が変異 harness (`mutation_harness.py`) を書いて本走し、
+  生台帳とともに insights へ凍結しようとしたところ、`--message-file` preflight が
+  「実装面に Codex role=author がない」で赤になった。`docs/ai-provenance.md` の実装面定義は
+  **所在不問の Python・Shell** を含み、**harness・probe も production 挙動によらず対象**である。
+  `output/` 配下の凍結記録であっても、実行可能な `.py` である限り契約が掛かる
+- なぜ危険か: 気づかなければ (a) Claude 作の実装面を混ぜて commit するか、
+  (b) 契約を迂回する waiver を安易に使うかのどちらかになる。前者は D95 の author 契約を
+  骨抜きにし、後者は waiver の意味を薄める。**「計測結果は対象外」という免除規定があるため、
+  計測**器具**も対象外だと誤読しやすい**のが罠である
+- 判別: 段 6 で親が harness を書く前に、その成果物を**凍結するかどうか**を決める。
+  凍結するなら Codex author が要る。凍結せず結果だけ残すなら対象外である
+- 恒久対応 (本例): harness を実行可能ファイルとして凍結せず、**逐語を insights の README へ
+  コードブロックとして埋め込んだ**。再現性は保ちつつ実装面を作らない。
+  waiver は使っていない (ユーザー裁定なしに使わないため)
+- 近縁: F25 (trailer 契約)、F32 (harness の復元規律)
+- 記録: worklog 2026-08-01 (105)、一次資料 =
+  `output/insights/2026-08-01_t298-tools-dispatch-memory-threshold/`

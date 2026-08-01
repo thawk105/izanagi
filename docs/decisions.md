@@ -5389,3 +5389,263 @@ invocation は予算 1 になり、`generation_budget` が `search_config` を�
 いずれも不変である。変わるのは (i) 8c の generation 予算の受理集合、(ii) 既存 campaign state を持つ
 invocation の受理集合、(iii) flag 省略運転の campaign ID と report/journal の budget 値、の 3 点である。
 材料正本 = `output/insights/2026-08-01_t244-generation-gate/`。
+## D115. [T-249] 凍結証拠が bytes を縛る共有 Pegasus policy は「動かせる分だけ」task 別 file へ移し、残りは D96 手続へ返す — 索引は所在 inventory に限定する (2026-08-01)
+
+**背景 (裁定と実測):** worklog (94) のユーザー裁定は [T-249] について択 (b)「共有 Pegasus policy を
+タスク別 file へ再編する。凍結証拠の意味論には手を入れない。分散する設定は索引 1 つで辿れるようにする」
+であった。D107 が「残る構造問題」と呼んだもの — 共有 config へ key を足す任意のタスクが T-139 の
+certified 証拠を壊す — への恒久対応にあたる。
+
+本 wave の段 1 前提実測 (Pegasus gen_S 計算ノード request `876519`) は、共有
+`tools/pegasus/policy.json` へ無害な top-level key を 1 つ足すだけで、**5 file 対象走で 2 node が赤**
+になることを確認した (`test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head` と
+`test_shared_pegasus_policy_owns_no_t126_qualification_keys`、392 passed)。同 file の sha256 は
+T-139 の committed evidence が記録した値と一致しており、凍結 pin は生きている。
+
+**決定 (1): 「再編」は file の書換えではなく、設定の所在と読み手の付け替えとして実装する。**
+共有 policy の bytes は 1 byte も変えない。移設対象の判定基準は「そのキーが凍結証拠または identity
+契約に束縛された consumer から読まれているか」とする。移したのは task 固有かつ identity 非束縛の
+7 key で、`smoke_walltime(_s)` / `certify_walltime(_s)` / top-level `finalize_reserve_s` を
+`tools/pegasus/policies/calibration_v1.json` へ、`floor_walltime(_s)` を同 `floor_v1.json` へ、
+いずれも完全同値で移し、consumer 4 本 (`certify_calibration.sh` / `submit_certify.sh` /
+`floor_campaign.sh` / `submit_floor.sh`) を付け替えた。移設した 7 key は共有 file に bytes として
+残るが live consumer を持たなくなり、T-139 の凍結 snapshot の一部になる。二重正本にはしない。
+
+**決定 (2): 共有・サイト値は移さない。** `project` / `queue` / `nodes` / `expected_cpu_model` /
+`expected_physical_cores` / `gflags_*` / `glog_*` / `perf_candidates` は D107 決定 1 が定めたとおり
+複数タスクが共有する値であり、そもそも task 固有ではない。加えて T-126 の identity 契約と T-139 が
+読む。したがって本 wave では移さず、「共有 file 自体が凍結されていて共有値を更新できない」残余は
+決定 (5) で返す。
+
+**決定 (3): 索引は所在 inventory に限定し、hash を複写しない。**
+`tools/pegasus/policies/registry_v1.json` は repo-relative path だけを持ち、legacy 例外 2 件
+(`tools/pegasus/policy.json`、`orchestrator/qualification/t126_reservation_policy_v1.json`) を
+明示 entry として登録する。**「その run を支配した設定の再導出元」とは名乗らない** — 凍結証拠と
+別の hash 正本を作ると、同じ設定に二つの意味が生まれるためである。consumer を持たない tracked file を
+登録できてしまう点は既知の限界として受理する (所在目録の定義どおりであり、成果物へ影響しない)。
+
+**決定 (4): 索引の gate は命名規約でなく閉集合列挙にする。**
+`orchestrator/tests/test_pegasus_policy_registry.py` が `tools/pegasus/policies/` 直下の全 regular
+file を registry と exact 一致させ、directory・symlink・special entry を flat-layout 違反として拒否し、
+registry 本体を含む全 entry の実在・非 symlink・tracked を検査し、repo root から対象までの全 path
+component の symlink と containment を registry 読取**前**に検査する。tracked 判定は
+`git ls-files -z` の decoded exact set membership で行う (`--error-unmatch -- <path>` は pathspec
+解釈のため、`*` を含む名前の untracked file が tracked と誤判定される)。移設 7 key の live consumer
+不在も静的に検査するが、これは**直接の読み形に対する best-effort な tripwire であって網羅的な証明では
+ない** (変数経由・文字列結合・jq の変数展開・suffix なし executable は検出しない) と明記する。
+
+**決定 (5): 移設によって失われる検出力は、移設先で明示的に回復する。**
+移設前は `certify_walltime_s` 等の値 drift を T-139 の evidence hash pin が**偶発的に**赤にしていた。
+移設先には何の束縛も無いため、そのまま移すと検出力が落ちる。これは移設が持ち込む固有の回帰であり、
+walltime 文字列 ↔ 秒の相互一致検査と finalize reserve の既存 600 秒 oracle 束縛で回復させた。
+変異 M6 の新旧両走がこれを実証する — HEAD (`7b24f81`) では凍結証拠側の 2 node が (request `877048`)、
+本 wave では新設の相互一致 node が (request `877034`) 同じ変異を殺す。
+**凍結 bytes に依存した保護を剥がす移設では、剥がれる保護を先に数え、移設先で明示的に張り直す。**
+
+**却下した案:** (a) 索引と gate だけを作り consumer を付け替えない — 段 3 の敵対レンズ 2 本が独立に
+「裁定 (b) を実装していない」と判定した。共有 file を読む live consumer が残る限り構造は変わらない。
+(b) 共有・サイト値まで含めて全部移す — T-126 の identity 契約に触れるため D96 手続を要し、本 wave の
+scope では閉じられない。(c) T-139 の evidence を再 binding する — D107 が既に却下済み (他タスクの
+certified 証拠であり、再発行には実 job の再走が要る)。
+
+**残る構造問題 (未裁定、ユーザーへ返す):** 共有・サイト値を更新できない状態は残っている。
+とくに `perf_candidates` は**現に stale** で、共有 policy が指す 2 本の perf はログインノードに存在せず
+(実在は別版)、`orchestrator/qualification/submission.py` はこの候補列の解決に失敗すると fail-closed する。
+是正には T-126 の共有値読みの付け替えと `REQUIRED_CODE_IDENTITY_PATHS` の整理が要り、これは受理集合の
+変更なので D96 手続にあたる。詳細と閉包 (直接 SHA pin は tracked 4 file) は
+`output/insights/2026-08-01_t249-pegasus-policy-split/` を参照。
+
+**研究状態への影響:** なし。production 挙動、実験の受理集合、certified 選択、材料レポート、proof chain、
+凍結 bytes はいずれも不変である。変わるのは開発時の設定ファイルの所在と、それを守る検査だけである。
+受入全走 = Pegasus gen_S 計算ノード request `876932` で 4713 passed / 19 skipped。
+
+## D116. [T-295] 正式系列の事前登録に凍結機構を導入せず、先後関係は git ancestry、完全性は層3 双射検査に委ねる (2026-08-01)
+
+**背景:** [T-295] を起票した時点の記述は「8b の凍結機構 (protocol JSON 実凍結 + 予測封印 + 人間
+receipt) を再利用できるかも同時に判断する」だった。これに対しユーザーが D111 と同じ論法を提起した —
+「凍結機構っているんですか。git でバージョン管理してるじゃん。だからわかるじゃん、どのコミット時点で
+計測したかなんて記録しておけば」。本 D はこの指摘への裁定であり、D111 が**プロセス系** freeze に
+適用した整理を**事前登録**へ一段広げるものである。
+
+**決定 (1): 8c 正式系列 (H1 rr80 / H2 rr20 × descriptor on/off/swapped) の事前登録に凍結機構を
+導入しない。** 事前登録は **git commit された 1 枚の文書**とし、holdout、arm、探索予算、correctness
+gate、停止規則、成功判定、全件報告規則をそこに書く。実走成果物はその commit hash を参照する
+(既存の env-tag / checkout 併記と同じ形、F41 / D59)。
+
+**決定 (2): 事前登録が保証すべき 2 性質のうち、版の同定と結果に対する先後は git が既に与える。**
+どの版で測ったかは checkout 併記で復元でき、仮説を結果より先に書いたことは **ancestry が証明する**
+(事前登録 commit が結果 commit の祖先である)。後からの書き換えは履歴に両方残るため読み手が検出できる。
+凍結機構がこの 2 性質に対して行うのは git の性質の再実装であり、冗長である。
+
+**決定 (3): 残る性質 (走らせたのに報告されない run = file-drawer) も凍結では塞がらない。** 台帳へ
+入った run の完全性は**層3 材料レポートの双射検査**が既に担保している — WAL event ID / whiteboard
+item ID の入力 multiset とレポートの source-ref multiset の完全一致を要求し、件数一致では不可、
+脱落・重複・未知 event 種別・参照不能は fails-closed。よって本系列では**この検査の適用範囲を
+H1/H2 へ広げる**ことで足りる。台帳の外で走らせた run は凍結機構からも見えないため、凍結は本性質に
+対しても冗長である。
+
+**決定 (4): 凍結が git を上回る場面は「repo の git 履歴を信用しない第三者への主張」に限る。**
+対外公開の段でこの必要が生じたら別途判断し、それまで導入しない。内部の再現性・監査可能性は
+決定 (1)〜(3) で満たされる。
+
+**決定 (5): 8b 側の既存凍結は本 D の対象外。** protocol JSON の実凍結 (`c8cbd17`)、予測封印、人間
+receipt (`8bec195`) はいずれも発効済みで、廃止も無効化もしない。本 D は 8c 正式系列へ**新たに輸入
+しない**ことだけを決める。
+
+**研究状態への影響:** 受理集合、凍結 bytes、既存 gate はいずれも不変。変わるのは (i) [T-295] の
+作業内容が「凍結機構の導入判断」から「事前登録文書の起草 + 双射検査の適用拡大」へ変わること、
+(ii) 8c runbook §0 の語が「凍結」から「事前登録 (git commit)」へ変わること、の 2 点だけである。
+
+## D117. [T-298] Pegasus の実行場所判定を「どこに置かれているか」から「実測メモリ量」へ移す — ただし自動 dispatch は D105 の閉集合に阻まれ未実装のまま裁定へ返す (2026-08-01)
+
+**背景 (ユーザー裁定 2 通):** (1)「tools ディレクトリのスクリプト実行は pegasus 環境だと計算ノードへ
+投げるようにしている？そうしてほしい。OOM キル対策」。(2) 段 2 実行中に「一定メモリ以上使う
+プログラムは、pegasus 環境なら計算ノードに投げるみたいなルールあってもいいかもね」。
+(2) が判定基準を「場所」から「実測量」へ移す裁定であり、以後こちらを現行とした。
+
+**実測で判明した前提:** ログインノードには per-user cgroup 上限 16 GiB・swap 0 があり、
+`memory.events` の `oom_kill` は 189 回。kill は全て Claude Code のセッション scope に計上される。
+一方、自動 dispatch されているのは `tests` / `provenance` の 2 task だけで、残りは login で走る。
+
+**決定 (1): 判定量は cgroup charged memory のピークとし、per-process RSS を代理値にしない。**
+`/usr/bin/time -f %M` は多重プロセスを worker 数分の 1 に過小評価し、共有ページを二重計上し、
+file / slab / page table の charge を落とす。**`memory.peak` はこの kernel (5.15) に存在しない**ため、
+`systemd-run --user --scope -p MemoryAccounting=yes` で専用 scope を作り `memory.current` を
+sampling する。sampler を先に張り、1 秒未満の command は 3 回以上繰り返す。
+**sampler が間に合わず 0 になった場合は「軽い」でなく測定失敗として `unknown` に倒す。**
+
+**決定 (2): 分類は 3 値とし、`unknown` は `dispatch-required` と同じに扱う。**
+`local-ok` / `dispatch-required` / `unknown` とする。測っていないものを軽い側へ倒さない。
+入力に hard cap の無い login 側経路 8 群を `unknown` として runbook に列挙した。
+
+**決定 (3): 規範値は 512 MiB。ただし実測から導いた最適値ではない暫定の分類値である。**
+根拠は「実測済みの軽量 tools 群と、既に dispatch 済みの 2 本の間に置いた」という分離だけで、
+どちらの群も決定 (1) の手順では測り直していない。**「規範値 × 同時実行数」で安全域を
+見積もる算術は無効**である — 閾値は下限であって上限ではなく、1 本 4 GiB でも閾値以上を満たす。
+当初案の「1 GiB、cap の 6%、並走 8 本でも半分」はこの誤りを含んでいたため撤回した。
+
+**決定 (4): 自動 dispatch は実装しない。依頼の未充足として明示し裁定へ返す。**
+D105 決定 3 が task enum を `{tests, provenance}` に明示固定している。拡張には
+(a) D105 の supersede、(b) `_job_run` 側の `env_allowlist` 強制 (現状は型検査だけの恒真保証)、
+(c) stdin / cwd / artifact 可視性、(d) 子 rc の意味の確定が同時に要る。したがって本 D が
+実装したのは **admission 規範 (login で走らせない) だけ**であり、
+「閾値を超えたら自動で投げる」は満たしていない。runbook に目立つ位置で未充足を明記した。
+第 3 task の最有力候補は `tools/codex_worker_ledger.py` である (`~/.codex/sessions` は
+共有 FS の home 配下なので計算ノードから見える)。
+
+**決定 (5): 開発 harness は暫定例外とし、根拠を D106 / D108 に求めない。**
+`codex_worker_launch.py` / `codex_reasoning_ab.py` / `dev_waves/*` / `dev_waves/checker.py` /
+`check_docs.py` の login 実行は分類上 `unknown` だが、除外しないと標準 dev-wave 経路が
+「規範違反」か「sanctioned 経路なしで停止」の二択になり harness が回らない。
+**D106 / D108 の射程は CC 合成 campaign の LLM 4 役に限られ、これらの免除根拠にならない** —
+本 D が新設した暫定例外であり、恒久化にはユーザー裁定が要る。**この例外は OOM 対策としては
+穴である**: 約 390 MB の LLM 子が多数並走する事象が per-user 16 GiB を埋める主経路であり、
+実効のある対策は同時数 / headroom の admission gate だが未実装である。
+
+**決定 (6): 機械化は「公表 inventory の drift 検出」に限り、射程を 3 箇所に明記する。**
+`tools/check_docs.py` が runbook §7.0 の exact task 表と `dispatch_compute.TASKS` を
+`{task: child_script}` の写像として比較し、節・表の不在、空表、重複 task、親節違い、
+raw HTML block への移設、`TASKS` の定義後書き込み・再束縛 (alias 経由を含む) を fail-closed に
+する。**この検査はメモリ計測・重いプログラムの発見・規範値の遵守・自動 dispatch の網羅性を
+一切保証しない** — 検査名・finding 文言・runbook 本文の 3 箇所に否定文を置いた。
+閾値ルールそのものは prompt 規律であり機械強制ではない (実行前に将来ピークは分からない)。
+恒真な gate を作らないため、機械化はこの drift 検出に留める。
+
+**却下:** (a) 全 `tools/` の自動 dispatch — 0.05 秒のスクリプトに queue 待ち 6〜86 秒が乗り、
+git 操作系・scheduler 操作系 (nested qsub) は構造的に破綻する。(b) 数値確定の保留 —
+規範値なしでは規律が発火しない。(c) 閾値遵守を機械強制する gate — 実行前にピークを
+静的判定できず恒真になる。(d) `tools/README.md` を作らず runbook だけに書く —
+tools contributor 向けの局所発火点がなくなる (`check_docs.py` は `tools/README.md` を
+検査対象にしていなかったので二重化にはあたらないと実測確認した)。
+
+**既存 docs の誤りを 3 件是正した:** (i)「実 cmake build もログインノードで拒否される」は
+全経路の虚偽で、site gate を持つのは `buildcache` / `s2_verify_calibration` / `s3_lock_coverage` /
+`s5_permutation_coverage` / `s8a_trigger_coverage` / `p3_s4_loop_trigger_gating` の 6 module、
+`t152_write_intent_coverage` と `silo_ladder_rung1` には無い。**一度「buildcache だけ」と
+過小に振れて再度誤ったので、両方の誤りを本文に残した。** (ii) `checker.py` の隔離 clone が
+計算ノードから見えないのは構造的不可能ではなく `TMPDIR` 依存の条件付き事実。
+(iii) `tools/pegasus/README.md` の「計算ノードは外部 network 不可」を
+「直結不可・proxy 実在・git/FetchContent/pip は未確定」へ限定。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変。
+変わるのは `tools/check_docs.py` の拒否集合 (runbook 表と `TASKS` の乖離、`tools/README.md` の
+不在・予算超過が新たに赤になる) と、開発 harness の実行場所規範だけである。
+OOM が起き続けると handoff と task-run / dev-waves の 2 台帳に中断・右打切りが残り、
+**worklog の最終記録と受入結果が欠落する** (「worklog に残骸が積もる」は誤りで、
+作業中は worklog へ書かない契約である)。
+
+## D118. [T-288] 8c の recipient matrix を追認して率と percent を recipient ごとに分ける — `delta_pct≡None` は whiteboard 射影経路だけの防壁である (2026-08-01)
+
+**背景 (裁定と実測):** worklog (102) のユーザー裁定は [T-288] について択 (a)「現行の recipient
+matrix を新 D で追認し、`delta_pct≡None` を『planner へ性能値を渡さない保証』と説明する誤りを
+是正する。`cache_miss_rate_pct` / `abort_rate_pct` の 100 倍の単位ずれは real defect として今すぐ
+直す。多世代開放の時点で planner から絶対 throughput を落とす ((b) への移行) を開放の前提条件へ
+束ねる」であった。所見の出所は [T-244] の敵対レビュー
+(`output/insights/2026-08-01_t244-generation-gate/README.md` の X5 / X6)。
+
+本 wave の段 1 前提実測は 100 倍のずれを一次資料で確定した。`abort_rate` は
+aborts/(commits+aborts) (`orchestrator/calibrator/benchparse.py`)、`llc_miss_rate` は docstring が
+0..1 と明示する率 (`orchestrator/calibrator/model.py`) であり、`_metric_projection()` に abort 7.9%
+相当を入れると `abort_rate_pct=0.079` が role へ届いた。role 定義の入力例示は 7.9 / 12.4
+(`.claude/agents/planner-v4.md`) である。
+
+**決定 (1): recipient matrix を追認し、単位は recipient ごとに分ける。** planner は
+`current_perf` (絶対 throughput を含む) と `leading_indicators` を、coder は `baseline` を、critic は
+`harness_result.metrics` を受け取る。**critic は親 brief が見落としていた第 4 の recipient**であり、
+段 3 の敵対相談が発見した。単位は次のとおりに固定する。
+
+| recipient | field | 単位 |
+|---|---|---|
+| planner `current_perf` / coder `baseline` | `throughput_ops_sec` / `latency_ns` / `ipc` | 実測値そのまま |
+| 同上 | `abort_rate_pct` | percent (0..100) |
+| 同上 | `llc_miss_rate` | ratio (0..1、名前どおり) |
+| planner `leading_indicators` | `cache_miss_rate_pct` | percent (0..100) |
+| planner `leading_indicators` | `contention_level` / `IPC_overall` | descriptor label / 実測値 |
+| critic `harness_result.metrics` | `abort_rate` / `llc_miss_rate` | **ratio (0..1)** |
+
+critic を ratio に保つのは、critic の役割定義 (`.claude/agents/critic.md`) が `abort_rate` /
+`llc_miss_rate` という率名しか知らないためである。**現行実装は critic へ `abort_rate_pct` という
+percent 名の field に率を入れて渡しており、これも同じ defect の一部**であった。
+
+**決定 (2): 換算は role-facing payload を作る 1 箇所へ閉じる。** 内部 metrics は率名
+(`abort_rate` / `llc_miss_rate`) を持ち、`_role_metric_payloads()` だけが percent 名の 2 field を
+×100 する。換算後に非有限になる値は `None` にする。範囲 (0..1) の検査は**入れない** — parser も
+screening も上限を強制せず (`benchparse.py`、`screening_driver.py`)、role 側だけで範囲外を `None` に
+畳むと「異常」と「未観測」が区別できなくなるためである。異常値は ×100 して可視のまま残す。
+
+**決定 (3): `delta_pct≡None` は whiteboard 射影経路の `delta_pct` field だけの防壁である。**
+`whiteboard_for_planner()` の docstring が「planner へ勝ち筋チャネル (性能値) を渡さない」と
+全体保証のように書いていたのは**偽**であった。絶対 throughput は `current_perf` で planner へ、
+`baseline` で coder へ、別 field として渡る。加えて `direction` / `magnitude` / `result` の**値**は
+checkpoint から無検証で入りうる ([T-287] の残余) ため、「abstract」も機械保証ではない。
+docstring は機械保証される射程まで狭めた。
+
+**決定 (4): role payload の意味が変わるので `SCHEMA_VERSION` を v2 へ上げる。** 同じ v1 が
+`abort_rate_pct=0.079` と `=7.9` の両方を意味すると、attempt journal と過去実走を意味比較できなく
+なる。report の形は変えないので `REPORT_SCHEMA_VERSION` は v1 のままとする。
+換算値は role payload の SHA-256 と provider の payload file bytes に影響するが、screening・fitness・
+stop 判定・凍結成果物のいずれにも到達しない (screening は bench payload の
+`leading_indicators["abort_rate"]` を直接読む別経路である)。
+
+**決定 (5): 現時点の発火範囲は critic だけである。** 承認済み上限は
+`MAX_APPROVED_GENERATIONS=1` なので、planner と coder が受け取る metrics は世代 1 では全て `None`
+であり、有限値を受けるのは評価後に呼ばれる critic だけである。**planner / coder 起因の受理集合
+変更は多世代開放後に発火する。** 親 brief の「planner/coder が誤単位を読み certified 選択が変わる」
+は現行承認範囲について過大表現であり、段 3 の敵対相談が反証した。
+
+**決定 (6): (b) への移行は多世代開放の前提条件とする。** planner から絶対 throughput を落とす
+移行は本 wave では実装しない。ただし前提条件は **planner だけでなく coder の `baseline` も含めて**
+書く — 世代間記憶があれば連続する絶対 throughput から変化率を復元でき、同じ値を coder も受ける
+ため、planner 側だけを塞いでも情報論的には閉じない ([T-246] / [T-228] と同型の判断)。
+
+**決定 (7): 手動射影経路にも同じ換算規約が及ぶ。** 段 4b / 段 5 の runbook は
+メインセッションに `abort_rate_pct` / `cache_miss_rate_pct` を手作業で射影させるが、
+WAL / calibrator の率を ×100 する規約が無かった。両 runbook へ換算規約を明記した。
+
+**残余 (裁定パッケージへ返す。本 wave では実装しない):** (a) `throughput_ops_sec` の実体は
+transactions/sec であり、YCSB 既定 `ycsb_max_ope=10` の下では名目 10 倍の誤名である。(b) live role
+定義の記述 drift 3 種 (planner の「leading-indicators だけ」、存在しない `last_delta_pct`、coder の
+「入力は 5 field のみ」)。是正は `orchestrator/codex_roles/review_ledger.py` の source hash 更新と
+`.codex/role-adapters/*.json` の再生成を伴う。(c) 非有限な raw metrics で terminal report が
+生成されず journal だけが残る破断。(d) reject 世代が有効 baseline を全 `None` で上書きする。
+(e) `ratio * 100.0` の float 表現契約 (丸め・桁) が無い。

@@ -48,19 +48,26 @@ if [[ ! -f "$JOB_SCRIPT" ]]; then
 fi
 
 POLICY="$REPO_ROOT/tools/pegasus/policy.json"
+CALIBRATION_POLICY="$REPO_ROOT/tools/pegasus/policies/calibration_v1.json"
 if [[ ! -f "$POLICY" ]]; then
   echo "policy not found: $POLICY" >&2
   exit 2
 fi
-readarray -t policy_values < <(python3 - "$POLICY" <<'PY'
+if [[ ! -f "$CALIBRATION_POLICY" || -L "$CALIBRATION_POLICY" ]]; then
+  echo "calibration policy not found: $CALIBRATION_POLICY" >&2
+  exit 2
+fi
+readarray -t policy_values < <(python3 - "$POLICY" "$CALIBRATION_POLICY" <<'PY'
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     p = json.load(handle)
+with open(sys.argv[2], encoding="utf-8") as handle:
+    calibration = json.load(handle)
 print(p["project"])
 print(p["queue"])
 print(p["nodes"])
-print(p["certify_walltime_s"])
+print(calibration["certify_walltime_s"])
 PY
 )
 if [[ ${#policy_values[@]} -ne 4 ]]; then

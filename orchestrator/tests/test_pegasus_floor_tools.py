@@ -24,7 +24,8 @@ from orchestrator.campaign import reservation, s8b_floor_campaign
 TOOL_DIR = REPO / "tools" / "pegasus"
 SUBMIT = TOOL_DIR / "submit_floor.sh"
 JOB = TOOL_DIR / "floor_campaign.sh"
-POLICY = TOOL_DIR / "policy.json"
+SHARED_POLICY = TOOL_DIR / "policy.json"
+FLOOR_POLICY = TOOL_DIR / "policies" / "floor_v1.json"
 PROTOCOL = REPO / "output" / "s8b-freeze" / "floor_protocol.json"
 FREEZE = REPO / "output" / "s8b-freeze" / "holdout_freeze.json"
 
@@ -169,8 +170,11 @@ def _fixture_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     tools = repo / "tools" / "pegasus"
     tools.mkdir(parents=True)
-    for source in (SUBMIT, JOB, POLICY):
+    for source in (SUBMIT, JOB, SHARED_POLICY):
         shutil.copy2(source, tools / source.name)
+    policies = tools / "policies"
+    policies.mkdir()
+    shutil.copy2(FLOOR_POLICY, policies / FLOOR_POLICY.name)
     calibrator = repo / "orchestrator" / "calibrator"
     calibrator.mkdir(parents=True)
     for name in ("__init__.py", "schema_v2.py"):
@@ -310,20 +314,24 @@ def test_fixture_git_environment_ignores_external_config_and_hooks(
     assert not sentinel.exists()
 
 
-def test_floor_pbs_directives_match_policy() -> None:
-    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+def test_floor_pbs_directives_match_shared_and_floor_policies() -> None:
+    shared_policy = json.loads(SHARED_POLICY.read_text(encoding="utf-8"))
+    floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
     directives = _pbs_directives(JOB)
     assert directives == {
-        "-A": policy["project"],
-        "-q": policy["queue"],
-        "-l": "elapstim_req=" + policy["floor_walltime"],
-        "-b": str(policy["nodes"]),
+        "-A": shared_policy["project"],
+        "-q": shared_policy["queue"],
+        "-l": "elapstim_req=" + floor_policy["floor_walltime"],
+        "-b": str(shared_policy["nodes"]),
     }
-    assert _hms_seconds(policy["floor_walltime"]) == policy["floor_walltime_s"]
+    assert (
+        _hms_seconds(floor_policy["floor_walltime"])
+        == floor_policy["floor_walltime_s"]
+    )
 
 
 def test_floor_policy_covers_derived_reservation_envelope() -> None:
-    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
     protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
     freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
     cells = s8b_floor_campaign.enumerate_cells(
@@ -337,8 +345,11 @@ def test_floor_policy_covers_derived_reservation_envelope() -> None:
     required_s, finalize_s = s8b_floor_campaign._floor_reservation_budget(
         protocol=protocol, cells=cells, schedule=schedule
     )
-    assert policy["floor_walltime_s"] > required_s + finalize_s
-    assert _hms_seconds(policy["floor_walltime"]) == policy["floor_walltime_s"]
+    assert floor_policy["floor_walltime_s"] > required_s + finalize_s
+    assert (
+        _hms_seconds(floor_policy["floor_walltime"])
+        == floor_policy["floor_walltime_s"]
+    )
 
 
 def test_floor_job_binds_executing_script_bytes() -> None:
@@ -1284,7 +1295,7 @@ def test_floor_job_qstat_value_drives_policy_check(
         f"Max: {scheduler_limit_s}S Warn: {scheduler_limit_s}S\n",
         encoding="utf-8",
     )
-    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
     prefix = "\n".join(
         [
             "set -Eeuo pipefail",
@@ -1292,7 +1303,7 @@ def test_floor_job_qstat_value_drives_policy_check(
             f"PY={shlex.quote(sys.executable)}",
             "qstat_rc=0",
             "PBS_JOBID=0:fixture.nqsv",
-            f"REQUESTED_S_POLICY={policy['floor_walltime_s']}",
+            f"REQUESTED_S_POLICY={floor_policy['floor_walltime_s']}",
             "write_failure() { return 0; }",
             "",
         ]

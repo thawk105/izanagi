@@ -33,6 +33,7 @@ fi
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || exit 2
 TOOLS="$REPO_ROOT/tools/pegasus"
 POLICY="$TOOLS/policy.json"
+CALIBRATION_POLICY="$TOOLS/policies/calibration_v1.json"
 ATTEMPTS_ROOT="$REPO_ROOT/output/env/pegasus/calibration/attempts"
 JOB_STAGING_ROOT="$REPO_ROOT/output/env/pegasus/calibration/job-staging"
 mkdir -p "$ATTEMPTS_ROOT" "$JOB_STAGING_ROOT"
@@ -106,16 +107,22 @@ if [[ ! -f "$POLICY" ]]; then
   write_failure 2 policy "policy file missing"
   exit 2
 fi
-readarray -t policy_values < <(python3 - "$POLICY" <<'PY'
+if [[ ! -f "$CALIBRATION_POLICY" || -L "$CALIBRATION_POLICY" ]]; then
+  write_failure 2 policy "calibration policy file missing"
+  exit 2
+fi
+readarray -t policy_values < <(python3 - "$POLICY" "$CALIBRATION_POLICY" <<'PY'
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     p = json.load(handle)
+with open(sys.argv[2], encoding="utf-8") as handle:
+    calibration = json.load(handle)
 print(p["project"])
 print(p["queue"])
 print(p["nodes"])
-print(p["certify_walltime_s"])
-print(p["finalize_reserve_s"])
+print(calibration["certify_walltime_s"])
+print(calibration["finalize_reserve_s"])
 print(p["expected_cpu_model"])
 print(p["expected_physical_cores"])
 print(p["gflags_source_path"])
