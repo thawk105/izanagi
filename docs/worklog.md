@@ -1255,6 +1255,14 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   `check_ai_provenance` が「実装面に Codex role=author がない」で rc=1 を返した。さらに `;` 連結で
   preflight の rc を素通りさせたため赤のまま commit が成立していた。`git reset --hard` で巻き戻し、
   Codex `role=author` に解消させて `&&` 連結で再実行した
+- **段 8 の自己改善は 1 件だけ採用した。** 候補 3 件のうち採用したのは
+  「merge の競合解消が実装面なら Codex `role=author` へ回す」(`DW-O17`) だけである。
+  `docs/dev-wave/**` は HEAD 時点で 23913 bytes、hard ceiling 24000 に対し余裕が 87 bytes しかなく、
+  **予算を上げずに**最短形で 1 件を入れた。残る 2 件 —
+  背景 job で `nohup`・`&` を重ねると完了通知が食い違い 2 子が同じ `-o` へ書く (`DW-O01`)、
+  変異 harness の `flock` が repo 単位で並行 wave を跨ぐ (`DW-M05`) — は予算に収まらないため
+  [T-322] として裁定へ返す。`;` で preflight の rc を素通りさせた件は既存の
+  「検査rcをパイプに通さず、赤なら止める（F37）」が既に覆っており、新規命令は要らない
 - **本 wave が塞いでいない範囲を文書に列挙した** (`docs/phase3-8c-preregistration.md` §7) —
   どの trial を台帳へ入れるかの選択、proposal / raw / envelope / build / bench の bytes、
   層3 の任意実行、`generated_from_head` の真正性、journal と report の同時改変
@@ -1268,6 +1276,15 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
   journal↔report 完全性検査 (`orchestrator/campaign/autonomous_trial_completeness.py`) は land した。
   残る作業は [T-318]〜[T-321] の裁定と、§6 の前提条件の実装である。
   **本 wave は D116 決定 (3) の履行を名乗っていない**
+- [T-322] **P3・新規 (本エントリ)**: dev-wave の改善候補 2 件が docs 予算に収まらない。
+  (a) 背景 job で `nohup`・`&` を重ねて codex 子を投入すると harness の完了通知が子の完了と
+  食い違い、再投入で 2 子が同じ `-o` へ書く (`DW-O01` / `DW-O02` の実測事故)、
+  (b) 変異 harness の `flock` は repo 単位で並行 wave を跨ぐため、他 wave 保持時の abort が
+  正常であること・解けなければ本走を未実施と正直に記録することの手順が無い (`DW-M05`)。
+  `docs/dev-wave/**` は 23974/24000 bytes で余裕がほぼ無い。択 (a) 陳腐化した節を削って空ける、
+  択 (b) 入口 + 条件付き reference へ外出しする (先例 D110)、択 (c) 記録せず運用規律に委ねる。
+  **推奨は (b)** — 2 件とも実測事故であり、規律だけに委ねると再発する
+
 - [T-318] **P1・新規 (本エントリ)**: **正式系列 H1/H2 を generation budget=1 で走らせられるか。**
   D106 と 8c runbook は「正式系列は同一 generation budget を要求するので自動的に禁止側へ入る」と
   書き、D114 は上限 1 を 3 入口で機械化した。budget=1 では critic の出力が次世代へ還流せず探索も

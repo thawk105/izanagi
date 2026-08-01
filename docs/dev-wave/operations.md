@@ -96,6 +96,7 @@ trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage fi
 →`--ff-only`→full監査、merge commitなら`merge --no-ff --no-commit <tip>`→競合解消→同じpreflight
 →`commit -F`→full監査とする。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
 含むときは両commitを含むrangeかfull監査だけを権威とする。検査rcをパイプに通さず、赤なら止める（F37）。
+競合解消が実装面ならCodex`role=author`へ回す。
 
 ## DW-O18 — 親のテスト cwd
 
