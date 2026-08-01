@@ -33,6 +33,7 @@
 | `s6-harness.md` | 変異 harness の作成報告 |
 | `s6-harness-fix.md` | 変異 harness の parser 修正報告 |
 | `mutation-ledger.json` | **変異台帳 (本走)**。注入 diff・failed node・復元検査・HEAD 対照を含む |
+| `mutation-ledger-erratum-run1.json` | **初回走の生台帳 (erratum)**。parser 不具合で全件 SURVIVED と誤判定した記録を消さず残す |
 
 ### 逐語の可逆正規化 1 件 (`DW-S07`)
 
@@ -79,7 +80,9 @@ anchor commit `4abe245` に対して実施。全 7 件で `injection_verified` �
 ` - <error>` が落ちること、の 2 点を扱えていなかった。変異自体は正しく発火していた。
 harness に `PARSE_FAILED` (rc≠0 なのに node が空、または rc=0 なのに node が在る) を新設して
 fail-closed にしたうえで再走した。初回結果は消さず本節へ erratum として残す。
-初回の生記録は job artifact 側の `mutation-ledger-run1-parsefail.json` に在る。
+初回の生記録は同 directory の **`mutation-ledger-erratum-run1.json`** に消さず残置する
+(7 件すべて `verdict: SURVIVED` / `failed_nodes: []` のまま、`injection_verified: true`。
+誤判定そのものが証拠なので後から書き換えない)。
 
 ## 受入
 
