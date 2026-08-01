@@ -1,0 +1,81 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M03b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))\n    elif do_build and layout.root != exploration_campaign_layout(",
+          "new": "        layout = campaign_layout(str(ident.campaign_id(cfg)))\n    elif do_build and layout.root != campaign_layout("
+        },
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "                              campaign_namespace=\"exploration\")",
+          "new": "                              campaign_namespace=\"official\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_iteration_public_entry_routes_runtime_layout_and_selector[loop]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[loop]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12b",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "hooks/guard_write.py",
+          "old": "    exploration_root = os.path.realpath(os.path.join(root, \"output\", \"exploration\"))\n    lexical_exploration_root = os.path.abspath(\n        os.path.join(root, \"output\", \"exploration\"))",
+          "new": "    exploration_root = os.path.realpath(os.path.join(root, \"output\", \"__never__\"))\n    lexical_exploration_root = os.path.abspath(\n        os.path.join(root, \"output\", \"__never__\"))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_exploration_namespace_marker_write_tools_denied"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "_CAMPAIGN_TREE = (                      # 閉じた二要素集合 (子孫は末端のみ)\n    \"output/campaigns\",\n    \"output/exploration/campaigns\",\n)",
+          "new": "_CAMPAIGN_TREE = (                      # 閉じた二要素集合 (子孫は末端のみ)\n    \"output/campaigns\",\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_campaign_tree_destruction_denied"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16b",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "def _namespace_marker_violation(\n        token: str, repo_root: str = \"\", cwd: str = \"\") -> bool:",
+          "new": "def _namespace_marker_violation(\n        token: str, repo_root: str = \"\", cwd: str = \"\") -> bool:\n    if \"exploration\" in token:\n        return True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_wal_reads_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_reads_and_projection_writes_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_autonomous_trial_journal_write_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_namespace_marker_protected_but_readable"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
