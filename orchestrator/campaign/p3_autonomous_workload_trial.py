@@ -648,6 +648,13 @@ def _provider_set(*, kind: str, run_root: Path, executable: str) -> dict[str, An
     return result
 
 
+def _assert_build_site_is_other(do_build: bool) -> None:
+    if do_build and trigger._current_site() != trigger.site_policy.OTHER:
+        raise AutonomousTrialError(
+            "8c の計測運転は T-276 裁定まで OTHER site に限定する"
+        )
+
+
 def _finish_trial(
     *,
     trial_id: str,
@@ -667,6 +674,7 @@ def _finish_trial(
     active_providers: Mapping[str, Any],
     fatal_error: dict[str, str] | None,
 ) -> dict[str, Any]:
+    _assert_build_site_is_other(do_build)
     cells: list[dict[str, Any]] = []
     if fatal_error is None:
         for workload in selected:
@@ -766,6 +774,7 @@ def _run_workload(
     preview: Callable[..., Mapping[str, Any]] = _preview,
 ) -> dict[str, Any]:
     _validate_generation_budget(generations)
+    _assert_build_site_is_other(do_build)
     flags = WORKLOADS[workload]
     descriptor, descriptor_record = _descriptor_for(flags)
     cfg = _campaign_for(
@@ -779,7 +788,9 @@ def _run_workload(
     if do_build:
         layout = campaign_layout(str(trigger.ident.campaign_id(cfg)))
     else:
-        layout = CampaignLayout(str(run_root / "campaigns" / str(trigger.ident.campaign_id(cfg))))
+        layout = CampaignLayout(
+            str(run_root / "campaigns" / str(trigger.ident.campaign_id(cfg)))
+        )
     _assert_fresh_campaign_state(layout)
     perf = _perf_for(flags)
     result: dict[str, Any] = {
@@ -1014,6 +1025,7 @@ def run_trial(
     unknown = sorted(set(selected) - set(WORKLOADS))
     if unknown:
         raise AutonomousTrialError(f"unknown workloads: {unknown}")
+    _assert_build_site_is_other(do_build)
     run_root = Path(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(
@@ -1112,6 +1124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise AutonomousTrialError(
             "fixture provider cannot be used with a real build"
         )
+    _assert_build_site_is_other(not args.no_build)
     run_root = (
         Path(args.run_root)
         if args.run_root

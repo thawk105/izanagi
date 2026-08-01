@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import gc
 import hashlib
+import inspect
 import json
 import shutil
 import subprocess
@@ -33,9 +34,10 @@ class _CliGateReached(Exception):
 
 def _fake_drive(
     cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
-    cache_root="", proposal_path="", extra_sources=(),
+    cache_root="", proposal_path="", extra_sources=(), dependency_prefix="",
 ):
     assert do_build is False
+    assert dependency_prefix == ""
     assert cfg.search_config["descriptor_sha256"]
     assert perf.workload == cfg.search_config["ycsb"]
     assert auditor.diff_digest == hashlib.sha256(b"fixture diff").hexdigest()
@@ -269,6 +271,115 @@ def test_run_trial_rejects_unapproved_budget_before_artifact_creation(tmp_path) 
             do_build=False,
         )
     assert not run_root.exists()
+
+
+def test_run_trial_rejects_compute_build_before_artifact_or_provider(
+    tmp_path, monkeypatch,
+) -> None:
+    run_root = tmp_path / "run"
+    monkeypatch.setattr(
+        A.trigger, "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    with pytest.raises(A.AutonomousTrialError, match="T-276"):
+        A.run_trial(
+            trial_id="compute-build-still-closed",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=run_root,
+            sub="/unused",
+            do_build=True,
+        )
+    assert not run_root.exists()
+
+
+def test_8c_internal_entrypoints_have_no_site_injection_surface() -> None:
+    assert "site" not in inspect.signature(A._run_workload).parameters
+    assert "site" not in inspect.signature(A._finish_trial).parameters
+
+
+def test_run_workload_direct_compute_build_rejects_before_provider(
+    tmp_path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        A.trigger, "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+
+    class _Poison:
+        def __getattr__(self, name):
+            pytest.fail(f"compute rejection reached provider/journal: {name}")
+
+    with pytest.raises(A.AutonomousTrialError, match="T-276"):
+        A._run_workload(
+            workload="ycsb-a", generations=1,
+            providers={role: _Poison() for role in A.ROLE_FILES},
+            journal=_Poison(), run_root=tmp_path / "run", sub="/unused",
+            do_build=True, cache_root="", trial_id="compute-direct-rejected",
+            started_monotonic=time.monotonic(), max_wall_s=60,
+        )
+    assert not (tmp_path / "run").exists()
+
+
+def test_finish_trial_direct_compute_build_rejects_before_provider(
+    tmp_path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        A.trigger, "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    with pytest.raises(A.AutonomousTrialError, match="T-276"):
+        A._finish_trial(
+            trial_id="compute-finish-rejected", selected=["ycsb-a"], generations=1,
+            provider_kind="claude-headless", run_root=tmp_path / "run",
+            sub="/unused", do_build=True, cache_root="", max_wall_s=60,
+            drive=lambda *_a, **_k: pytest.fail("drive reached"),
+            preview=lambda *_a, **_k: pytest.fail("preview reached"),
+            journal=SimpleNamespace(), started="fixture",
+            started_monotonic=time.monotonic(), active_providers={},
+            fatal_error=None,
+        )
+    assert not (tmp_path / "run").exists()
+
+
+def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    run_root = tmp_path / "run"
+    for child in (run_root, run_root / "raw", run_root / "proposals"):
+        child.mkdir(exist_ok=True)
+    campaign = A.CampaignLayout(str(tmp_path / "campaign"))
+    monkeypatch.setattr(A, "campaign_layout", lambda _campaign_id: campaign)
+    calls = []
+
+    def drive(*args, layout, **kwargs):
+        calls.append((args, kwargs))
+        assert args[7] is True
+        assert "site" not in kwargs
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
+            "fixture digest", encoding="utf-8",
+        )
+        return {
+            "outcome": "certified", "variant": "fixture-variant",
+            "fitness_tps": 1.0, "stop_reason": "continue",
+        }
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    result = A._run_workload(
+        workload="ycsb-a", generations=1, providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"), run_root=run_root,
+        sub="/unused", do_build=True, cache_root="",
+        trial_id="other-build-positive", started_monotonic=time.monotonic(),
+        max_wall_s=60, drive=drive, preview=_fake_preview,
+    )
+    assert len(calls) == 1
+    assert result["generations"][0]["outcome"] == "certified"
 
 
 def test_run_workload_direct_call_rejects_unapproved_budget(tmp_path) -> None:
@@ -640,20 +751,27 @@ def test_main_default_generation_budget_is_one(tmp_path, monkeypatch) -> None:
         ])
 
 
-def test_main_accepts_claude_headless_build_at_cli_gate(
+def test_main_rejects_claude_headless_build_outside_other_before_preparation(
     tmp_path, monkeypatch,
 ) -> None:
-    def stop_after_cli_gate():
-        raise _CliGateReached
+    monkeypatch.setattr(
+        A.trigger, "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
 
-    monkeypatch.setattr(calibrator_runner, "competing_bench_pids", stop_after_cli_gate)
-    with pytest.raises(_CliGateReached):
+    def unexpected_preparation():
+        pytest.fail("8c compute rejection reached measurement preparation")
+
+    monkeypatch.setattr(calibrator_runner, "competing_bench_pids", unexpected_preparation)
+    run_root = tmp_path / "run"
+    with pytest.raises(A.AutonomousTrialError, match="T-276"):
         A.main([
             "--trial-id", "claude-build-accepted",
             "--provider", "claude-headless",
             "--ccbench-dir", str(tmp_path / "ccbench"),
-            "--run-root", str(tmp_path / "run"),
+            "--run-root", str(run_root),
         ])
+    assert not run_root.exists()
 
 
 def test_main_accepts_claude_headless_no_build_at_cli_gate(

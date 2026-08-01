@@ -5458,3 +5458,85 @@ certified 証拠であり、再発行には実 job の再走が要る)。
 **研究状態への影響:** なし。production 挙動、実験の受理集合、certified 選択、材料レポート、proof chain、
 凍結 bytes はいずれも不変である。変わるのは開発時の設定ファイルの所在と、それを守る検査だけである。
 受入全走 = Pegasus gen_S 計算ノード request `876932` で 4713 passed / 19 skipped。
+
+## D122. [T-277] Pegasus 計測パスは「受理集合 + env 契約 + build identity + attestation」までを開き、`/scr` namespace と `single_process` 強制は発火 caller が無いので実装しない (2026-08-02)
+
+**背景 (ユーザー裁定):** worklog (102) の裁定 4 件のうち [T-277] は択 (a) 採用 —
+「`_site_admits_measurement` の Pegasus 拒否を D96 手続で開き、build identity を是正し
+(compiler realpath/version・CMake 版・dependency prefix・site・env contract)、`/scr` へ fresh
+namespace を切る。8c は Pegasus 側の厳しい隔離契約 (attestation required / single_process /
+allow_resume=false) に従わせ、linux-baremetal の緩い側へ寄せない」。
+
+**本 D は受理集合を変えるので D96 手続に従う。** 境界テストは同じ変更単位で更新済み
+(`orchestrator/tests/test_p3_s4_loop_trigger_gating.py` の admission matrix・AST 契約・
+behavioral 負例、`orchestrator/tests/test_buildcache_v2.py` の identity 系)。
+
+**決定 (1): 受理集合は `{OTHER, PEGASUS_COMPUTE}` の exact set にする。**
+`PEGASUS_LOGIN` / `PEGASUS_SUSPECT` / 未知値は behavioral に拒否する。
+site→env_tag は閉じた対応 `{OTHER: "linux-baremetal", PEGASUS_COMPUTE: "pegasus"}` とし、
+環境変数 override を作らない。`ENV_TAG` 定数は OTHER 用 selector として残す。
+
+**決定 (2): campaign identity を env で分離する。** Pegasus contract のときだけ
+`search_config` へ `measurement_env` を足し、campaign_id を別空間にする。**OTHER の
+campaign_id は 1 bit も変えない** (既存 campaign の再開互換。`src_token` の stock 後方互換と同型)。
+根拠は実測 — 既定 campaign `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5` は既に
+iteration=2 の loop_state と linux-baremetal WAL を持つ**既存の最終成果物**であり、
+受理集合だけ開けると Pegasus 実行が同じ campaign root を指す。
+
+**決定 (3): build identity は v2 pre-image へ「実解決 site」と「実効 dependency prefix」を入れる。**
+- site は **sink 側 `_resolve_site()` の実解決値**であり、caller 注入値ではない。
+  `site` を `evaluate` / `run_campaign` の公開引数にしない — 注入できる面を増やすと
+  login の heavy-work 拒否を迂回する caller 面が増える (`buildcache._resolve_site` は注入値を無検査で信頼する)。
+- dependency prefix は **path 要素の配列**として束縛する。区切り文字列のままだと
+  ambient `/tmp/p:/tmp/q` と `/tmp/p;/tmp/q` が同一 identity に畳み込まれ、CMake の探索集合が
+  異なるのに cache が hit する。空要素と明示相対 path は実効 cwd へ絶対化する。
+- **ambient `CMAKE_PREFIX_PATH` を「読まない」ではなく「読んで identity に束縛する」。**
+  `buildcache._run` は `subprocess.run` に `env=` を渡さず ambient を継承し、
+  `tools/pegasus/floor_campaign.sh` はそれを唯一の依存 seam として export する。
+  読まなければ「実際に効いた build 条件が identity から落ちる」= 偽の保証になる。
+  明示 prefix を渡すときは subprocess 環境から `CMAKE_PREFIX_PATH` を除去して実効値を一意にする。
+- compute の compiler は `("gcc","g++")` を実 site から解決し、`source_digest.resolve` にも同じ
+  `cxx` を配線する (既定 `g++-13` のままだと build 前の identity 計算で停止する)。
+  **非 stock の `src_token` は preprocess 出力の hash なので、compiler が変わると同一 genome・
+  同一ソースでも variant_id が環境間で分岐する。** これは identity 分離として正しい方向だが、
+  台帳を環境横断で variant_id により突き合わせる consumer には効く。
+
+**決定 (4): required attestation は単一の measurement sink で発火させる。**
+`loop.run_campaign` が `contract.attestation_mode == "required"` を見て
+`env_attestation.load_verified_calibration` → `execution_guard.attest_and_build_receipt` →
+`receipt_matches_contract` をこの順で 1 回だけ実行する。driver 側に重複実装を置かない
+(「二つの真実」を作らない)。attestation 失敗時は layout / WAL / evaluate へ到達しない。
+`allow_resume=False` の拒否は provenance・WAL・quarantine の**いずれの書込みよりも前**に置く。
+
+**決定 (5): `/scr` の fresh namespace と claim/reservation による `single_process` 強制は実装しない。**
+発火条件を満たす caller が存在しない (`DW-G04`)。加えて caller から lease を受け取る設計は
+`campaign_claim.AcquiredClaim` が public frozen dataclass のため偽造可能で、
+`reservation` は binding の `host` を現在 hostname と照合しない。
+実装すれば「謳うだけで発火しない gate」になるため、新事実つきで裁定へ返す。
+
+**決定 (6): 8c を計算ノードで運転する経路は開かない。** D108 決定 (1) が compute 上の
+`claude -p` を禁じ、8c は provider を同一 process で呼ぶ。これは [T-276] の裁定対象であり、
+T-277 が独断で supersede しない。本 wave が 8c へ触ったのは、決定 (1)〜(4) が
+`trigger.drive_iteration` 経由で効くための最小配線だけである。
+
+**決定 (7): 成果物名を格下げする。** 本 wave の成果は
+**「Pegasus 計測パスの routing・build identity・受理 gate の実装」**であって
+「live 計測の開通」ではない。登録済み Pegasus calibration の動作点は 1M records / 48 threads、
+trigger の動作点は 100k / 4 で一致しないため、この経路が仮に完走しても得られるのは
+**exploratory throughput であり floor 認証された選択ではない**。
+
+**却下した案:** legacy `cache_key` の pre-image 拡張 (D108 決定 (5) 自身が v2 は同じ穴でないと
+書いており、OTHER の後方互換を壊す)。ambient prefix を読まない案 (決定 (3))。
+`site` を公開引数として通す案 (決定 (3))。caller から `measurement_lease` を受け取る案 (決定 (5))。
+**兄弟 driver / legacy caller への COMPUTE 拒否追加** — 実装して撤去した。理由は
+① ユーザー裁定の項目でない、② `backoff_sweep.py` / `p3_s4_loop_sort.py` / `s6_sort_sweep.py` /
+`s8a_trigger_sweep.py` が S-1 凍結ソース閉包 (`known_axes.source_closure` の changed 12 /
+unchanged 51) に含まれ**受入全走が 10 件赤になる**、③ 防壁を通らない legacy driver が
+さらに 7 本あり、`evaluate is _REAL_EVALUATE` の identity 判定は wrapper / `functools.partial` で
+迂回できるため部分形が迂回可能な保証になる。独立タスクとして裁定へ返す。
+
+**研究状態への影響:** certified 選択・材料レポート・proof chain・凍結 bytes はいずれも不変。
+変わるのは (a) Pegasus 計算ノードでの計測が受理されるようになったこと、(b) v2 build identity が
+実 site と実効 dependency prefix を束縛するようになったこと (既存 v2 cache は一度 cold miss)、
+(c) Pegasus campaign が既存 linux campaign と別空間になったこと。
+一次資料 = `output/insights/2026-08-02_t277-pegasus-measure-path/`。
