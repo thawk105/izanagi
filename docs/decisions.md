@@ -4755,3 +4755,114 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
 構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
 抑止されないため変更前から rc=1 だった。
+
+---
+
+## D106. [T-178] 8c の優先度を上げ、汎用 daemon でなく workload-conditioned bounded trial として先に閉じる (2026-07-29 起草 / 2026-08-01 [T-207] で訂正のうえ採番して land)
+
+**採番と訂正の経緯:** 本 D は `codex/p3-autonomous-trial` (tip `402086d`) 上で 2026-07-29 に
+`D99` として起草され、land されないまま残っていた。その間に main が `D99` を
+`[T-143] RuleOps v1` へ使ったため、[T-207] の取り込み時に `D106` へ採番し直した。
+同時に、独立の敵対監査 (規律 6) が**起草時の本文と実装の食い違い 4 件**を検出したため、
+該当箇所を訂正して land した。訂正箇所は本文中に「**訂正 (2026-08-01):**」で明示する。
+起草時の逐語は `codex/p3-autonomous-trial:docs/decisions.md` の `D99` に残る。
+
+**背景:** 8c は「8b と層3を 1 cycle 回してなお人間セッション運営が律速なら着手」の条件付きだった。
+ユーザーは研究完成を近づけるため優先度を明示的に変更し、Python orchestrator が iteration 間を運び、
+LLM role を直接呼び、固定世代または成果条件で停止・報告することと、最初の YCSB A/B/C trial を求めた。
+一方、性能成果を見て止める設計は Best-of-N / 選択的報告を生み、A=rr50/B=rr95 は結果既知点なので、
+そのまま正式主張へ使えない。
+
+**決定 (1): 最初の 8c は四機能を一体化した bounded MVP とする。** 実装単位は
+`unattended runner + workload-conditioned generation + fixed stop + exhaustive report`。
+既存の安全性が成立済みな `silo-backoff-trigger-gating` 1 軸だけを再利用し、planner / coder /
+auditor / critic を Python から fresh context で直接呼ぶ。複数軸 population、axis-proposer、
+汎用 daemon、分散 worker を先に一般化しない。生成候補の build 以降は既存
+DiffQuarantine / syntax gate / auditor digest gate / legacy+S2 / bench pipeline が
+**採否を決める唯一の authoritative path** であり、supervisor はこれを迂回しない。
+
+> **訂正 (2026-08-01):** 起草時は「supervisor はこれを迂回・**再実装しない**」と書いていたが、
+> 実装は `_preview()` で DiffQuarantine と禁止識別子検査を **supervisor 側でも再実行**している
+> (auditor を呼ぶか否かの pre-audit)。authoritative path が後段で再検査するため
+> **受理集合は広がらない**が、「再実装がない」は事実に反するため文言を狭めた。
+> 両者が drift した場合、pre-audit 側は余分に reject しうる (fail-closed 方向)。
+
+**決定 (2): runtime role は projection-only `tools=[]` へ縮退する。** selector 8b の headless
+provider と同じ neutral cwd、空 MCP、session persistence なし、env allowlist、1 turn、Opus/token/
+server-tool/session-id 検査を使う。source role が Read/Bash を宣言していても runtime へ継承せず、
+必要 byte を stdin JSON へ射影する。receipt は source role SHA だけでなく mediated effective prompt
+SHA と payload/envelope/CLI SHA を持つ。Codex role adapter は正本が runtime blocked とする間は使わず、
+通常の Codex 子を role 隔離の代替にしない。
+
+> **訂正 (2026-08-01) — 保証の格:** この縮退は**引数と設定の射影**であって、実 process の能力を
+> 観測した証明ではない。report の `fresh_context` / `observed_tool_events` は supervisor が
+> 書いた定数を読み返しているだけで、恒真ゲートである。session id の重複拒否は provider instance
+> ごとの集合なので **role 横断の再利用は拒否しない**。model 検査は Opus prefix が 1 つ在ることと
+> その record の token が正であることだけを見ており、他 model の併記を禁じない (実 receipt では
+> aux model の併記が観測されている)。`claude` 実行バイナリは hash を**記録するだけで承認 hash と
+> 照合しない** — これは既に land 済みの `s8b_prediction_runner.py` と同じ族の作法であり、
+> trust root の新設は本 D の範囲外とする ([T-222])。
+
+**決定 (3): planner→coder は抽象 3 field だけを渡す。** 最初の実 Claude dry-run で planner の
+justification が具体的な gate mechanism を述べ、これをそのまま coder へ渡すと planner が実装を
+誘導して規律3の独立推理を壊すことが判明した。coder payload の planner 射影を
+`axis/direction/magnitude` に閉じ、justification/uncertainty は report には残すが生成入力へは流さない。
+descriptor は planner/coder の双方へ proposal 前に渡し、各 role attempt の payload SHA と同じ
+descriptor output SHA を journal で束縛する。
+
+**決定 (4): stopping は固定世代を既定とし、performance target 早期停止を入れない。**
+supervisor は最大10世代、全体 wall safety budget、既存 safe-loop stop を持つ。各 role は generation
+ごとに1 attempt・retryなし。invalid response は当該 cell を `role-invalid` で停止して partial report
+へ残し、別 cell は継続する。初回実 Claude trial で auditor が `list[str]` を返した際、既存
+`list[dict]` gate が 3 cell とも fail-closed にし、同 trial 内再試行なしで partial が保存された。
+次 trial で mediated schema を object 配列へ明確化し、12/12 role attempt valid・3/3 dry-pass を確認した。
+
+> **訂正 (2026-08-01) — 2 点。** (a) `max-wall-seconds` は **hard wall ではない**。時刻検査は
+> workload / generation の境界でしか行わないため、1 回の role 呼び出し (最大 1200 秒) や
+> build / verify / bench は期限を跨いで走り切る。「全体 wall safety budget」は境界検査の意である。
+> (b) 「mediated schema を object 配列へ明確化した」の射程は**要素が `dict` であることまで**で、
+> 要素の field は閉じていない。`{}`・未知キー・非文字列 field を含む要素は現在も通る。
+
+**決定 (5): YCSB A/B/C は operational pilot に限定する。** A=rr50、B=rr95、C=rr100
+(skew 0.9、rmw 0、100k records、4 threads) を descriptor projection と無人配線の最初の試験に使う。
+C は read-only negative-control 候補だが、write conflict が無ければ trigger-gating 軸の signal が
+無い可能性を明記する。`dry-pass` は build 手前の配線成立だけで correctness/性能/特化の証拠ではない。
+正式な workload-conditioned synthesis 主張は H1 rr80/H2 rr20 × on/off/swapped、同一固定 budget、
+同一 correctness gate、全件報告を実装・凍結・実走するまで未成立とする。
+
+**決定 (6) ([T-207] で追加、2026-08-01): `--provider fixture` は `--no-build` 併用時だけ受理する。**
+起草時の CLI は `--provider` と `--no-build` を独立 flag として扱い、
+**`--provider fixture` かつ実 build** を受理していた。fixture provider の auditor は入力を監査せず
+無条件 `pass` を返すため、この組合せでは reward hack の番人である semantic auditor だけが no-op の
+まま build → legacy+S2 → bench が走り、COMMIT が campaign 台帳へ入る。legacy+S2 verifier は
+生きているので serializability は守られるが、規律 2 (正しさゲートを緩める変異を許さない) に
+触れるため、CLI 層で fail-closed 拒否する。拒否は build 準備 (競合 process 検査・checkout) より
+**前**に置き、`run_trial()` の signature と既定値は変えない。programmatic 経路
+(`run_trial(do_build=True)` の直接呼び出し) まで塞ぐのは本 D の範囲外とする。
+D96 に従い境界テストを同じ変更単位へ置く。
+
+**残余:** supervisor crash 後の in-place resume は未実装 (既存 campaign WAL/checkpoint は残るが、
+同じ run root を再開しない)。正式設計が第一予算とする bench 実時間の独立 accounting も未実装で、
+現 wall budget は safety 上限にすぎない。axis-proposer、複数軸、Codex provider も範囲外。このため
+bounded pilot は「human が iteration 間を運ばない」ことを実証するが、project 全体の究極的な
+unattended/autonomous 完了は主張しない。build 時の campaign 出力先は既存 s4 driver 族と同じ
+`output/campaigns/` であり、D65 の exploration namespace 分離 (consumer は s8b oracle artifact 族の
+`ExplorationCampaignLayout` のみ) は本族へ適用されていない。族全体を移すかは別裁定 ([T-223])。
+
+**却下した案:** (a) 成功閾値へ到達した時点で停止 — 適応停止と全試行中の best 選択が科学的主張を
+汚す。(b) 先に汎用 role/axis daemon を設計 — 最初の operational result を遅らせ、未検証抽象へ投資する。
+(c) A/B/C の出力差を正式な descriptor 因果証拠とする — known point・on-only・同一候補になりうるため
+不成立。(d) auditor/critic の source tool 権限を headless に保持 — projection 境界を破り fitness/WAL
+徘徊面を再導入する。(e) invalid response を自動 retry — Best-of-N と attempt 除外を生む。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、材料レポート、proof chain、既存凍結 bytes は
+いずれも不変である。本 D が land する 3 つの実装ファイルはどの既存 scheduler からも import されず、
+人間が CLI を起動したときだけ動く。変わるのは (i) 8c 探索 driver が repo に存在すること、
+(ii) 決定 (6) により `--provider fixture` + 実 build が新たに拒否されること、の 2 点だけである。
+
+**成果物:** `orchestrator/campaign/claude_projected_provider.py`、
+`orchestrator/campaign/p3_autonomous_workload_trial.py`、
+`orchestrator/tests/test_p3_autonomous_workload_trial.py`、
+`docs/phase3-s8c-autonomous-trial-runbook.md`。実走要約 =
+`output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md`。
+取り込み時の敵対監査の裁定と逐語 = `output/insights/2026-08-01_t207-adoption-audit/`。
