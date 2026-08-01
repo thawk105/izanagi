@@ -1307,12 +1307,26 @@ main にマージされていない成果で、直近一日以内に更新され
   submodule 実体化済みの 3 本 (u5・ai-provenance・cleanup-branches-skill) は T-208 の半削除事象に備えて
   1 本ずつ完了検査つきで畳み、半削除は起きなかった
 - 残置 6 worktree はすべて稼働中または取り込み進行中。`dev-wave-t181-reasoning-ab` (detached・clean)
-  は滞在 2 プロセスのため (76) から 3 度目の持ち越しとなり、ユーザー引き渡しに残る
+  は滞在 2 プロセスのため (76) から 3 度目の持ち越しとした (**後述の再訂正で撤回し、本セッション内で
+  畳んだ** — 滞在の実体は孤児待機ループだった)
 - **本エントリ land 後の追加削除 (訂正)**: 上の「11 本 / 9 本」は裁定に基づく一括掃除の実績である。
   land 後に `codex/dev-wave-improve-records` が §2 の全条件 (ahead=0・clean・滞在 0・HEAD が
-  1h 超) を満たしたため追加で 1 本畳み、**合計 branch 12 本 / worktree 10 本**になった。
-  自 branch `worktree-cleanup-2026-08-01-b` は F51 に従い detach → `-d` まで実施し、
-  ディレクトリ削除と `prune` はユーザーへ引き渡した (cwd 固定の背景 job のため)
+  1h 超) を満たしたため追加で 1 本畳んだ
+- **引き渡し予定を撤回して完遂した (再訂正)**: ユーザー指摘「このセッション消せないから掃除が
+  足りてない」を受け、上の 2 行が引き渡しに回した 2 件を本セッション内で畳んだ。
+  **合計 branch 12 本 / worktree 12 本**が最終実績である
+  - 自 worktree: F51 は「cwd 固定の背景 job では ExitWorktree が no-op」としていたが、
+    **実測では `action: keep` が成立して session が main checkout へ戻った**。戻った後は
+    滞在 0 になるため、手動手順 (rm → prune) で自分の worktree を畳めた。**F51 の前提は
+    今回の harness では成り立たない**。なお `action: remove` は「6 commit を破棄する」と
+    誤検出して拒否した (実体は全て main へ land 済み) ため、スキル §3 のとおり
+    `discard_changes` で押し切らず `keep` + 手動手順を採った
+  - `dev-wave-t181-reasoning-ab`: 滞在プロセスの実体は**死んだ session の孤児待機ループ 1 本**
+    (`ppid=1`、2 日前起動、永久に現れない sentinel を待つ) と、それが 20 秒ごとに生む
+    `sleep` の子だった。**worktree は実際には使われていない**。(76) から 3 周ぶん掃除を
+    止めていた原因はこれで、[F64] として起票した。`kill` は harness の classifier が拒否したため
+    孤児プロセス自体は残っており、worktree だけを畳んだ (cwd が deleted になるが、
+    当該ループは cwd を読み書きしない)
 - **handoff は 4 件中 3 件が 24h 超**だが、成果の消失ではなく回収漏れである ([T-234])。
   うち `2026-07-30-dev-wave-skill-cleanup.md` は対象 `codex/dev-wave-skill` が既に消滅した孤児、
   残る 2 件は所有 session が稼働中のため触らなかった
