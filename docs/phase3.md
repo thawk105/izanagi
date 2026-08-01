@@ -468,12 +468,12 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      強制し、`int` サブクラスによる予算偽装を exact 型検査で塞ぎ、最初の provider 呼び出し前に
      campaign checkpoint の freshness を検査する。**機械化したのは予算と freshness だけ**である。
      `drive` 注入・driver 直接反復・並行 start race は保証対象外 (D114「保証の限界」)。
-     **2026-08-01 の [T-244] 還流設計 wave (D116) で設計軸と前提条件を確定した** — 軸 (i)
+     **2026-08-01 の [T-244] 還流設計 wave (D119) で設計 draft を起草した** — ユーザー裁定の軸 (i)
      (機械が failure を単調な safety constraint へ変換し generator は理由を読まない) を主軸、
-     軸 (iv) (campaign より上位の origin へ総 iteration・総 query・公開 class を束縛) を併用し、
-     軸 (iii) (候補 batch の事前凍結) を多世代開放の必須前提へ格上げした。**設計本文は draft、
-     機械配線・多世代運転・効果実証は未了**で、D116 が固定した前提条件 10 件は現時点で 1 件も
-     満たされていない。D114 の承認上限 1 を維持する。設計本文と裁定パッケージ =
+     軸 (iv) (campaign より上位の origin へ総 iteration・総 query・公開 class を束縛) を併用する。
+     軸 (iii) (候補 batch の事前凍結) の必須化は親が決めず裁定へ返した。**設計は確定しておらず
+     (未裁定の択一 6 件)、機械配線・多世代運転・効果実証も未了**で、前提条件 10 件は現時点で
+     1 件も満たされていない。D114 の承認上限 1 を維持する。設計 draft と裁定パッケージ =
      `output/insights/2026-08-01_t244-reflux-design/`。
 
      **この完了は「無人で proposal を作り build 手前まで運べる」operational evidence であり、

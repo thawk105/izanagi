@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import re
 import stat
@@ -31,6 +32,7 @@ LIVING_DOCS = [
     REPO / "README.md",                         # リポジトリ入口 (現況主張・パス参照を持つ生きた文書)
     REPO / "AGENTS.md",                         # Codex 用の共有規律入口
     REPO / "CLAUDE.md",
+    REPO / "tools" / "README.md",              # tools 実行場所分類の生きた入口
     REPO / ".codex" / "agents" / "README.md", # Codex runtime adapter の生きた運用文書
     REPO / "output" / "README.md",              # 成果物 namespace の生きた地図
     REPO / "output" / "task-runs" / "README.md",  # 開発観測台帳の生きた運用正本
@@ -170,6 +172,9 @@ REFERENCE_LIMITS = {
 }
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
+}
+TOOLS_README_LIMITS = {
+    "tools/README.md": TextLimit(3_000),
 }
 PROVENANCE_ENTRY = "docs/ai-provenance.md"
 PROVENANCE_REFERENCE_ROOT = "docs/provenance"
@@ -737,6 +742,128 @@ def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
     return "".join(visible), in_comment
 
 
+def _dispatch_visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
+    """dispatch inventory 用に raw HTML block も除いた可視行を返す。"""
+
+    lines: list[tuple[str, int, str]] = []
+    in_comment = False
+    fence: tuple[str, int] | None = None
+    raw_html_end: re.Pattern[str] | None = None
+    raw_html_until_blank = False
+    previous_line_blank = True
+    offset = 0
+    for raw_line in text.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        newline = raw_line[len(line):]
+        may_start_type7_html = previous_line_blank
+        previous_line_blank = not line.strip()
+        if raw_html_end is not None:
+            lines.append(("", offset, newline))
+            if raw_html_end.search(line):
+                raw_html_end = None
+            offset += len(raw_line)
+            continue
+        if raw_html_until_blank:
+            if line.strip():
+                lines.append(("", offset, newline))
+                offset += len(raw_line)
+                continue
+            raw_html_until_blank = False
+
+        if fence is not None:
+            marker_char, marker_len = fence
+            stripped = line.lstrip(" \t")
+            indent = len(line) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        # fence opener の info string 内にある `<!--` は comment 開始ではない。
+        # comment 継続中でない行は opener を先に判定する。
+        if not in_comment:
+            fence_match = FENCE_OPEN_RE.fullmatch(line)
+            if fence_match is not None:
+                marker = fence_match.group("marker")
+                fence = (marker[0], len(marker))
+                lines.append(("", offset, newline))
+                offset += len(raw_line)
+                continue
+
+        visible, in_comment = _mask_html_comments(line, in_comment)
+        fence_match = FENCE_OPEN_RE.fullmatch(visible)
+        if fence_match is not None:
+            marker = fence_match.group("marker")
+            fence = (marker[0], len(marker))
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        stripped = visible.lstrip(" \t")
+        indent = len(visible) - len(stripped)
+        if indent <= 3:
+            raw_start = re.match(
+                r"(?i)<(script|pre|style|textarea)(?:[ \t>]|$)", stripped
+            )
+            if raw_start is not None:
+                tag = raw_start.group(1)
+                end_re = re.compile(rf"(?i)</{re.escape(tag)}[ \t]*>")
+                lines.append(("", offset, newline))
+                if end_re.search(stripped) is None:
+                    raw_html_end = end_re
+                offset += len(raw_line)
+                continue
+            raw_delimiters = (
+                (r"<\?", re.compile(r"\?>")),
+                (r"<!\[CDATA\[", re.compile(r"\]\]>")),
+                (r"<![A-Z]", re.compile(r">")),
+            )
+            delimiter = next(
+                (
+                    end_re
+                    for start_re, end_re in raw_delimiters
+                    if re.match(start_re, stripped)
+                ),
+                None,
+            )
+            if delimiter is not None:
+                lines.append(("", offset, newline))
+                if delimiter.search(stripped) is None:
+                    raw_html_end = delimiter
+                offset += len(raw_line)
+                continue
+            block_tag = re.match(
+                r"(?i)</?(?:address|article|aside|base|basefont|blockquote|body|"
+                r"caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|"
+                r"fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|"
+                r"head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|"
+                r"nav|noframes|ol|optgroup|option|p|param|search|section|summary|"
+                r"table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)",
+                stripped,
+            )
+            if block_tag is not None:
+                lines.append(("", offset, newline))
+                raw_html_until_blank = True
+                offset += len(raw_line)
+                continue
+            complete_tag = re.fullmatch(
+                r"(?i)</?[A-Z][A-Z0-9-]*(?:[ \t]+[^<>]*)?[ \t]*/?>[ \t]*",
+                stripped,
+            )
+            if may_start_type7_html and complete_tag is not None:
+                lines.append(("", offset, newline))
+                raw_html_until_blank = True
+                offset += len(raw_line)
+                continue
+
+        lines.append((visible, offset, newline))
+        offset += len(raw_line)
+    return lines
+
+
 def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
     """code fence / HTML comment 外の可視行と offset・改行を返す。"""
 
@@ -790,6 +917,15 @@ def _visible_markdown_text(text: str) -> str:
     return "".join(
         visible + newline
         for visible, _, newline in _visible_markdown_lines(text)
+    )
+
+
+def _visible_dispatch_inventory_text(text: str) -> str:
+    """dispatch inventory 抽出に限って raw HTML block も不可視化する。"""
+
+    return "".join(
+        visible + newline
+        for visible, _, newline in _dispatch_visible_markdown_lines(text)
     )
 
 
@@ -1632,6 +1768,434 @@ def _condition_dispatch_table(
     )
 
 
+_DISPATCH_RUNBOOK = "docs/pegasus-runbook.md"
+_DISPATCH_SOURCE = "tools/pegasus/dispatch_compute.py"
+_DISPATCH_SECTION_RE = re.compile(
+    r"^[ \t]{0,3}###(?!#)[ \t]+7\.0(?:[ \t\u3000]+[^\n]+)?[ \t]*$",
+    re.MULTILINE,
+)
+_DISPATCH_PARENT_HEADING_RE = re.compile(
+    r"^[ \t]{0,3}(?P<marker>#{1,2})(?!#)[ \t]+(?P<title>[^\n]+?)[ \t]*$",
+    re.MULTILINE,
+)
+_DISPATCH_PARENT_TITLE_RE = re.compile(r"^7(?:\.)?(?:[ \t\u3000]+|$)")
+_TASKS_MUTATING_METHODS = frozenset({
+    "__delitem__",
+    "__init__",
+    "__ior__",
+    "__setitem__",
+    "clear",
+    "pop",
+    "popitem",
+    "setdefault",
+    "update",
+})
+
+
+def _dispatch_inventory_finding(findings: list[str], detail: str) -> None:
+    findings.append(f"tools/check_docs.py: dispatch inventory drift — {detail}")
+
+
+def _dispatch_inventory_from_runbook(
+    text: str, findings: list[str]
+) -> dict[str, str] | None:
+    """runbook §7.0 の exact task 表だけを ``{task: child_script}`` にする。"""
+
+    visible_text = _visible_dispatch_inventory_text(text)
+    sections = list(_DISPATCH_SECTION_RE.finditer(visible_text))
+    if len(sections) != 1:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} の `### 7.0` 節が {len(sections)} 件",
+        )
+        return None
+
+    section = sections[0]
+    parent_headings = list(_DISPATCH_PARENT_HEADING_RE.finditer(visible_text))
+    parents = [
+        heading
+        for heading in parent_headings
+        if (
+            heading.group("marker") == "##"
+            and _DISPATCH_PARENT_TITLE_RE.match(heading.group("title"))
+        )
+    ]
+    if len(parents) != 1:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} の親 `## 7` 節が {len(parents)} 件",
+        )
+        return None
+    preceding_parents = [
+        heading for heading in parent_headings if heading.start() < section.start()
+    ]
+    if not preceding_parents or preceding_parents[-1] is not parents[0]:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} の `### 7.0` が親 `## 7` の直下でない",
+        )
+        return None
+
+    tail = visible_text[section.end():]
+    next_heading = re.search(
+        r"^[ \t]{0,3}#{1,3}(?!#)[ \t]+", tail, re.MULTILINE
+    )
+    body = tail[:next_heading.start()] if next_heading is not None else tail
+    lines = body.splitlines()
+    header_indices: list[int] = []
+    for index, line in enumerate(lines):
+        cells, leading, trailing = _markdown_table_cells(line)
+        if (
+            leading <= 1
+            and trailing <= 1
+            and cells == ["task", "子 script"]
+        ):
+            header_indices.append(index)
+    if len(header_indices) != 1:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} §7.0 の exact task 表 header が "
+            f"{len(header_indices)} 件",
+        )
+        return None
+
+    header_index = header_indices[0]
+    separator_index = header_index + 1
+    if separator_index >= len(lines):
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} §7.0 の exact task 表 separator が不在",
+        )
+        return None
+    separator_cells, leading, trailing = _markdown_table_cells(
+        lines[separator_index]
+    )
+    if not (
+        leading <= 1
+        and trailing <= 1
+        and len(separator_cells) == 2
+        and all(
+            re.fullmatch(r":?-{3,}:?", cell)
+            for cell in separator_cells
+        )
+    ):
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} §7.0 の exact task 表 separator が2列でない",
+        )
+        return None
+
+    inventory: dict[str, str] = {}
+    duplicates: set[str] = set()
+    structure_errors: list[str] = []
+    for line in lines[separator_index + 1:]:
+        if not line.strip() or "|" not in line:
+            break
+        cells, leading, trailing = _markdown_table_cells(line)
+        if leading > 1 or trailing > 1 or len(cells) != 2:
+            structure_errors.append(line.strip())
+            continue
+        task_match = re.fullmatch(r"`([^`\s]+)`", cells[0])
+        script_match = re.fullmatch(r"`([^`\s]+)`", cells[1])
+        if task_match is None or script_match is None:
+            structure_errors.append(line.strip())
+            continue
+        task = task_match.group(1)
+        if task in inventory:
+            duplicates.add(task)
+        else:
+            inventory[task] = script_match.group(1)
+
+    if structure_errors:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} §7.0 の exact task 表に不正な行がある — "
+            f"{structure_errors}",
+        )
+        return None
+    if duplicates:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} §7.0 の exact task 表で task 行が重複 — "
+            f"{sorted(duplicates)}",
+        )
+        return None
+    if not inventory:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} §7.0 の exact task 表が 0 行",
+        )
+        return None
+    return inventory
+
+
+def _dispatch_inventory_from_source(
+    text: str, findings: list[str]
+) -> dict[str, str] | None:
+    """dispatcher source を実行せず TASKS[*].child_script を抽出する。"""
+
+    try:
+        tree = ast.parse(text, filename=_DISPATCH_SOURCE)
+    except SyntaxError as exc:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_SOURCE} の TASKS を解析できない — SyntaxError: {exc}",
+        )
+        return None
+
+    assignments: list[ast.Assign | ast.AnnAssign] = []
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "TASKS"
+            for target in node.targets
+        ):
+            assignments.append(node)
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "TASKS"
+            and node.value is not None
+        ):
+            assignments.append(node)
+    definition = assignments[0] if assignments else None
+    task_value = definition.value if definition is not None else None
+    direct_definition = (
+        definition is not None
+        and isinstance(task_value, ast.Dict)
+        and (
+            isinstance(definition, ast.AnnAssign)
+            or (
+                isinstance(definition, ast.Assign)
+                and len(definition.targets) == 1
+                and isinstance(definition.targets[0], ast.Name)
+                and definition.targets[0].id == "TASKS"
+            )
+        )
+    )
+    if not direct_definition:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_SOURCE} の最初の TASKS 定義が不在または非 literal",
+        )
+        return None
+
+    assert definition is not None
+    definition_end = getattr(definition, "end_lineno", definition.lineno)
+    definition_end_col = getattr(definition, "end_col_offset", 0)
+    writes: list[str] = []
+    for node in ast.walk(tree):
+        node_start = (
+            getattr(node, "lineno", 0),
+            getattr(node, "col_offset", 0),
+        )
+        if node_start <= (definition_end, definition_end_col):
+            continue
+        if (
+            isinstance(node, ast.Name)
+            and node.id == "TASKS"
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+        ):
+            writes.append(f"line {node.lineno}: TASKS への束縛/削除")
+        elif (
+            isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "TASKS"
+            and isinstance(node.value.ctx, ast.Load)
+        ):
+            writes.append(f"line {node.lineno}: TASKS の alias 束縛")
+        elif (
+            isinstance(node, ast.Call)
+            and not (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "tuple"
+            )
+            and any(
+                isinstance(argument, ast.Name)
+                and argument.id == "TASKS"
+                and isinstance(argument.ctx, ast.Load)
+                for argument in (
+                    *node.args,
+                    *(keyword.value for keyword in node.keywords),
+                )
+            )
+        ):
+            writes.append(
+                f"line {node.lineno}: TASKS の実引数渡しを静的確定できない"
+            )
+        elif (
+            isinstance(node, (ast.Subscript, ast.Attribute))
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+            and any(
+                isinstance(child, ast.Name) and child.id == "TASKS"
+                for child in ast.walk(node)
+            )
+        ):
+            writes.append(f"line {node.lineno}: TASKS の要素/属性への書込み")
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "TASKS"
+            and node.func.attr in _TASKS_MUTATING_METHODS
+        ):
+            writes.append(
+                f"line {node.lineno}: TASKS.{node.func.attr}() による変更"
+            )
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                bound = alias.asname or (
+                    alias.name.split(".", 1)[0]
+                    if isinstance(node, ast.Import) else alias.name
+                )
+                if bound == "TASKS":
+                    writes.append(f"line {node.lineno}: import による TASKS 再束縛")
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.name == "TASKS":
+                writes.append(f"line {node.lineno}: 定義による TASKS 再束縛")
+        elif isinstance(node, ast.arg) and node.arg == "TASKS":
+            writes.append(f"line {node.lineno}: 引数による TASKS 束縛")
+        elif isinstance(node, ast.ExceptHandler) and node.name == "TASKS":
+            writes.append(f"line {node.lineno}: except による TASKS 束縛")
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)):
+            if node.name == "TASKS":
+                writes.append(f"line {node.lineno}: match による TASKS 束縛")
+        elif (
+            isinstance(node, (ast.Subscript, ast.Attribute))
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+            and any(
+                isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Name)
+                and child.func.id in {"globals", "locals", "vars"}
+                for child in ast.walk(node)
+            )
+        ):
+            writes.append(
+                f"line {node.lineno}: 動的 namespace 経由の書込みを静的確定できない"
+            )
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Call)
+            and isinstance(node.func.value.func, ast.Name)
+            and node.func.value.func.id in {"globals", "locals", "vars"}
+            and node.func.attr in _TASKS_MUTATING_METHODS
+        ):
+            writes.append(
+                f"line {node.lineno}: 動的 namespace の変更を静的確定できない"
+            )
+    if writes:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_SOURCE} の TASKS 写像を静的に確定できない — "
+            f"{sorted(set(writes))}",
+        )
+        return None
+
+    inventory: dict[str, str] = {}
+    duplicates: set[str] = set()
+    errors: list[str] = []
+    task_dict = task_value
+    assert isinstance(task_dict, ast.Dict)
+    for key_node, value_node in zip(task_dict.keys, task_dict.values):
+        if not (
+            isinstance(key_node, ast.Constant)
+            and isinstance(key_node.value, str)
+            and isinstance(value_node, ast.Call)
+            and isinstance(value_node.func, ast.Name)
+            and value_node.func.id == "_TaskSpec"
+        ):
+            errors.append("TASKS の key/value が string/_TaskSpec call でない")
+            continue
+        child_keywords = [
+            keyword.value
+            for keyword in value_node.keywords
+            if keyword.arg == "child_script"
+        ]
+        if len(child_keywords) != 1 or not isinstance(
+            child_keywords[0], (ast.Tuple, ast.List)
+        ):
+            errors.append(f"{key_node.value!r} の child_script tuple を抽出できない")
+            continue
+        parts = []
+        for element in child_keywords[0].elts:
+            if not (
+                isinstance(element, ast.Constant)
+                and isinstance(element.value, str)
+            ):
+                parts = []
+                break
+            parts.append(element.value)
+        if not parts:
+            errors.append(f"{key_node.value!r} の child_script が空または非 literal")
+            continue
+        task = key_node.value
+        if task in inventory:
+            duplicates.add(task)
+        else:
+            inventory[task] = "/".join(parts)
+
+    if errors:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_SOURCE} の TASKS 構造が不一致 — {errors}",
+        )
+        return None
+    if duplicates:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_SOURCE} の TASKS key が重複 — {sorted(duplicates)}",
+        )
+        return None
+    if not inventory:
+        _dispatch_inventory_finding(
+            findings,
+            f"{_DISPATCH_SOURCE} の TASKS が 0 件",
+        )
+        return None
+    return inventory
+
+
+def _check_dispatch_inventory(findings: list[str]) -> None:
+    runbook_text = _safe_read_text(
+        REPO / _DISPATCH_RUNBOOK,
+        findings,
+        "tools/check_docs.py: dispatch inventory drift — "
+        f"{_DISPATCH_RUNBOOK} の読取失敗",
+    )
+    source_text = _safe_read_text(
+        REPO / _DISPATCH_SOURCE,
+        findings,
+        "tools/check_docs.py: dispatch inventory drift — "
+        f"{_DISPATCH_SOURCE} の読取失敗",
+    )
+    documented = (
+        _dispatch_inventory_from_runbook(runbook_text, findings)
+        if runbook_text is not None else None
+    )
+    implemented = (
+        _dispatch_inventory_from_source(source_text, findings)
+        if source_text is not None else None
+    )
+    if documented is None or implemented is None:
+        return
+
+    documented_tasks = set(documented)
+    implemented_tasks = set(implemented)
+    changed_scripts = {
+        task: {"runbook": documented[task], "TASKS": implemented[task]}
+        for task in sorted(documented_tasks & implemented_tasks)
+        if documented[task] != implemented[task]
+    }
+    if documented != implemented:
+        _dispatch_inventory_finding(
+            findings,
+            "{task: child_script} が不一致 — "
+            f"TASKS_only={sorted(implemented_tasks - documented_tasks)}, "
+            f"runbook_only={sorted(documented_tasks - implemented_tasks)}, "
+            f"child_script={changed_scripts}",
+        )
+
+
 def _provenance_markdown_ambiguities(text: str) -> tuple[str, ...]:
     """共有 scanner が過剰 mask しうる provenance 固有の曖昧性を列挙する。"""
 
@@ -1994,6 +2558,7 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         **COMMAND_LIMITS,
         **REFERENCE_LIMITS,
         **SELF_LIMITS,
+        **TOOLS_README_LIMITS,
         **PROVENANCE_LIMITS,
         **PROVENANCE_REFERENCE_LIMITS,
     }
@@ -2002,6 +2567,10 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     for rel, limit in all_limits.items():
         path = REPO / rel
         if path in unreadable:
+            continue
+        # tools/README.md の不在は後段の _ENUMERATED_DOCS 検査に渡し、
+        # living-doc lint が黙って蒸発しないことを同じ経路で可視化する。
+        if rel in TOOLS_README_LIMITS and not path.exists():
             continue
         text = _safe_read_text(
             path,
@@ -2513,6 +3082,8 @@ def main() -> int:
             "tools/check_docs.py: pin.CURRENT_PIN を抽出できない (pin.py 不在か形式変更) — "
             "pin literal 検査が蒸発している。_current_pin() を実体に追従させること"
         )
+
+    _check_dispatch_inventory(findings)
 
     # decisions.md の D 見出し重複 (grep index の壊れ)
     decisions_text = _safe_read_text(

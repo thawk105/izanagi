@@ -26,7 +26,8 @@ evidence が bytes を pin しているので**編集しない** — 複数タ�
 `orchestrator/campaign/silo_ladder_rung1.py` の CLI と
 `output/insights/2026-07-29_t139-silo-ladder-rung1-permanent.md`。ability-probe 専用であり
 calibration / floor の系列とは独立。third-party 依存 (masstree 等) は submitter が
-login で pinned staging する (計算ノードは外部 network 不可 — runbook §7.1)。
+login で pinned staging する (計算ノードは**直接の外部 network 不可**。HTTP(S) proxy は在るが
+git clone / FetchContent / pip が honor するかは未確定 — 訂正済みの事実は runbook §7.1)。
 
 ## 1. smoke を 3 配分以上取る
 
