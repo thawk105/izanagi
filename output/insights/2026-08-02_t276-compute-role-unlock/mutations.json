@@ -1,0 +1,272 @@
+[
+  {
+    "id": "M1",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "    if len(policy_bytes) > _MAX_POLICY_BYTES:\n        _reject(\"policy-too-large\", \"transport policy が size 上限を超過\")\n    if site != site_policy.PEGASUS_COMPUTE:\n        _reject(\"site-not-compute\", \"Pegasus compute site 以外では許可しない\")\n",
+    "new": "    if len(policy_bytes) > _MAX_POLICY_BYTES:\n        _reject(\"policy-too-large\", \"transport policy が size 上限を超過\")\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_rejects_non_compute_sites_and_wrapper_orders_io"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_rejects_non_compute_sites_and_wrapper_orders_io"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M2",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "    if any(key in source_env for key in _TLS_TRUST_OVERRIDE_KEYS):\n        _reject(\"tls-override-present\", \"TLS trust override env を許可しない\")\n",
+    "new": "",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_rejects_each_tls_override_without_secret_disclosure"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_rejects_each_tls_override_without_secret_disclosure"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M3",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "    if any(key in source_env for key in _UNADMITTED_PROXY_KEYS):\n        _reject(\"proxy-key-unadmitted\", \"未受理 proxy env 名を許可しない\")\n",
+    "new": "",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_rejects_each_unadmitted_proxy_name_without_disclosure"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_rejects_each_unadmitted_proxy_name_without_disclosure"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M4",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "        if source_env[key] != endpoint_values[key]:\n            _reject(\"proxy-value-mismatch\", \"proxy endpoint が policy と一致しない\")\n",
+    "new": "        if key not in source_env:\n            _reject(\"proxy-value-mismatch\", \"proxy endpoint が policy と一致しない\")\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_rejects_missing_non_string_and_drifted_required_pair"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_rejects_missing_non_string_and_drifted_required_pair"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M5-leaf",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "        transport_env=tuple((key, source_env[key]) for key in _ADMITTED_PROXY_KEYS),\n",
+    "new": "        transport_env=((\"http_proxy\", source_env[\"http_proxy\"]), (\"https_proxy\", source_env[\"http_proxy\"])),\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m5_leaf_preserves_distinct_http_and_https_values"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m5_leaf_preserves_distinct_http_and_https_values"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M5-provider",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_projected_provider.py",
+    "old": "                self.env.update(transport_env)\n                self.transport_receipt = receipt\n",
+    "new": "                self.env.update({\"http_proxy\": transport_env[\"http_proxy\"], \"https_proxy\": transport_env[\"http_proxy\"]})\n                self.transport_receipt = receipt\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m5_provider_real_subprocess_preserves_distinct_admitted_pair"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m5_provider_real_subprocess_preserves_distinct_admitted_pair"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M6",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "        ensure_ascii=False,\n        sort_keys=True,\n        separators=(\",\", \":\"),\n",
+    "new": "        ensure_ascii=False,\n        separators=(\",\", \":\"),\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_reverse_endpoint_key_order_uses_literal_canonical_digest"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_reverse_endpoint_key_order_uses_literal_canonical_digest"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M7",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "    pbs_jobid = source_env.get(\"PBS_JOBID\")\n    if type(pbs_jobid) is not str or not pbs_jobid:\n        _reject(\"pbs-jobid-missing\", \"非空 PBS_JOBID witness が必要\")\n    if not is_valid_pbs_jobid(pbs_jobid):\n        _reject(\"pbs-jobid-invalid\", \"PBS_JOBID witness の syntax が不正\")\n",
+    "new": "    pbs_jobid = source_env.get(\"PBS_JOBID\", \"mutation-no-witness\")\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_rejects_pbs_job_witness_failures_without_disclosure"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_rejects_pbs_job_witness_failures_without_disclosure"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M8",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "        \"--allow-pegasus-compute-transport\",\n        action=\"store_true\",\n        default=False,\n",
+    "new": "        \"--allow-pegasus-compute-transport\",\n        action=\"store_true\",\n        default=True,\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_cli_flag_default_and_all_four_wiring_links_are_explicit"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_cli_flag_default_and_all_four_wiring_links_are_explicit"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M9",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "                    environ=source_env,\n                    allow_pegasus_compute_transport=allow_pegasus_compute_transport,\n                    transport_admission=transport_admission,\n",
+    "new": "                    environ=source_env,\n                    allow_pegasus_compute_transport=False,\n                    transport_admission=transport_admission,\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_cli_flag_default_and_all_four_wiring_links_are_explicit"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_cli_flag_default_and_all_four_wiring_links_are_explicit"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M10",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "                    transport_admission=transport_admission,\n                )\n",
+    "new": "                    transport_admission=(\n                        admit_claude_transport(\n                            source_env=source_env, repository_root=ROOT\n                        )\n                        if allow_pegasus_compute_transport\n                        else None\n                    ),\n                )\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m10_real_providers_share_run_admission_without_resolving_per_role"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m10_real_providers_share_run_admission_without_resolving_per_role"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M11-invalid",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "        if transport_receipt is not None:\n            invalid[\"transport_receipt\"] = _validate_transport_receipt(\n                dict(transport_receipt), expected=transport_receipt\n            )\n        artifact_root = getattr(provider, \"artifact_root\", None)\n",
+    "new": "        artifact_root = getattr(provider, \"artifact_root\", None)\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m11_invalid_attempt_keeps_same_receipt"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m11_invalid_attempt_keeps_same_receipt"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M11-init",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "    event: dict[str, Any] = {\"event\": \"provider-init-error\", **safe_error}\n    if transport_receipt is not None:\n        event[\"transport_receipt\"] = _validate_transport_receipt(\n            dict(transport_receipt), expected=transport_receipt\n        )\n    return journal.append(event)\n",
+    "new": "    event: dict[str, Any] = {\"event\": \"provider-init-error\", **safe_error}\n    return journal.append(event)\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m11_provider_init_error_keeps_same_receipt"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m11_provider_init_error_keeps_same_receipt"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M12-pre-open",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "            entry_stat = current.lstat()\n",
+    "new": "            entry_stat = current.stat()\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m12_pre_open_rejects_policy_symlink_before_open"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m12_pre_open_rejects_policy_symlink_before_open"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M12-post-open",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "            if (\n                opened_stat.st_dev != entry_stat.st_dev\n                or opened_stat.st_ino != entry_stat.st_ino\n            ):\n                _reject(\"policy-surface\", \"transport policy identity が変化した\")\n",
+    "new": "",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m12_post_open_rejects_controlled_regular_file_swap"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m12_post_open_rejects_controlled_regular_file_swap"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M13-leaf",
+    "kind": "diagnostic-pin",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "            _reject(\"proxy-value-mismatch\", \"proxy endpoint が policy と一致しない\")\n",
+    "new": "            _reject(\"proxy-value-mismatch\", f\"proxy endpoint が policy と一致しない: {source_env[key]}\")\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m13_leaf_error_never_discloses_proxy_value"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m13_leaf_error_never_discloses_proxy_value"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M13-trial",
+    "kind": "diagnostic-pin",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "    for secret in sorted(set(secrets), key=len, reverse=True):\n        message = message.replace(secret, \"<redacted>\")\n    return message\n",
+    "new": "    for secret in sorted(set(secrets), key=len, reverse=True):\n        message = message.replace(secret, \"<redacted>\")\n    return str(exc)\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m13_trial_error_redacts_endpoint_and_jobid"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m13_trial_error_redacts_endpoint_and_jobid"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M14-exact",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "            provenance[\"transport_receipt\"] = _validate_transport_receipt(\n                provenance.get(\"transport_receipt\"), expected=transport_receipt\n            )\n",
+    "new": "            provenance[\"transport_receipt\"] = provenance.get(\"transport_receipt\")\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_invoke_consumer_rejects_missing_extra_and_hash_receipts"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_invoke_consumer_rejects_missing_extra_and_hash_receipts"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M14-success-reject",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "        else:\n            provenance[\"transport_receipt\"] = _validate_transport_receipt(\n                provenance.get(\"transport_receipt\"), expected=transport_receipt\n            )\n",
+    "new": "        else:\n            raise AutonomousTrialError(\"mutation rejects every valid receipt\")\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M14-success-drop",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "        else:\n            provenance[\"transport_receipt\"] = _validate_transport_receipt(\n                provenance.get(\"transport_receipt\"), expected=transport_receipt\n            )\n",
+    "new": "        else:\n            _validate_transport_receipt(\n                provenance.get(\"transport_receipt\"), expected=transport_receipt\n            )\n            provenance.pop(\"transport_receipt\", None)\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M14-report-drop",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "        generation_record[\"roles\"][\"planner\"] = event\n",
+    "new": "        generation_record[\"roles\"][\"planner\"] = {\n            **event,\n            \"provenance\": {\n                key: value\n                for key, value in event[\"provenance\"].items()\n                if key != \"transport_receipt\"\n            },\n        }\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M14-opt-out",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": "        if transport_receipt is None:\n            if \"transport_receipt\" in provenance:\n                raise AutonomousTrialError(\n                    \"transport opt-out provenance に receipt を許可しない\"\n                )\n        else:\n",
+    "new": "        if transport_receipt is None:\n            pass\n        else:\n",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_opt_out_rejects_forged_provider_transport_receipt"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_opt_out_rejects_forged_provider_transport_receipt"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M15",
+    "kind": "mutation",
+    "file": "tools/pegasus/policies/registry_v1.json",
+    "old": "    \"tools/pegasus/policies/transport_v1.json\",\n",
+    "new": "",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_committed_policy_matches_independent_literal_hash_and_registry"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_committed_policy_matches_independent_literal_hash_and_registry"],
+    "expect_timeout": false
+  },
+  {
+    "id": "M16",
+    "kind": "mutation",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": "    if any(key in source_env for key in _METERED_TRANSPORT_KEYS):\n        _reject(\"metered-transport-env-present\", \"従量 transport env を許可しない\")\n",
+    "new": "",
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_m16_rejects_each_metered_transport_key_by_presence"],
+    "expect": ["orchestrator/tests/test_claude_transport.py::test_m16_rejects_each_metered_transport_key_by_presence"],
+    "expect_timeout": false
+  },
+  {
+    "id": "P1",
+    "kind": "positive",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": null,
+    "new": null,
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields"],
+    "expect": [],
+    "expect_timeout": false
+  },
+  {
+    "id": "P2",
+    "kind": "positive",
+    "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "old": null,
+    "new": null,
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers"],
+    "expect": [],
+    "expect_timeout": false
+  },
+  {
+    "id": "P3",
+    "kind": "positive",
+    "file": "orchestrator/campaign/claude_transport.py",
+    "old": null,
+    "new": null,
+    "nodes": ["orchestrator/tests/test_claude_transport.py::test_p3_accepts_when_metered_transport_keys_are_absent"],
+    "expect": [],
+    "expect_timeout": false
+  }
+]

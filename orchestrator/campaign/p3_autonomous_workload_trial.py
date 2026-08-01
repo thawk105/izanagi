@@ -44,6 +44,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     )
     from orchestrator.campaign.auditor_gate import AuditorVerdict, parse_auditor_dict
     from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
+    from orchestrator.campaign.claude_transport import (
+        ClaudeTransportAdmission,
+        admit_claude_transport,
+        is_valid_pbs_jobid,
+    )
     from orchestrator.campaign.layout import CampaignLayout, campaign_layout
     from orchestrator.campaign.model import CampaignConfig
     from orchestrator.campaign.patchharness import applied, assert_pinned_clean, checkout
@@ -68,6 +73,11 @@ else:
     from .autonomous_trial_completeness import assert_autonomous_trial_completeness
     from .auditor_gate import AuditorVerdict, parse_auditor_dict
     from .claude_projected_provider import ClaudeProjectedRoleProvider
+    from .claude_transport import (
+        ClaudeTransportAdmission,
+        admit_claude_transport,
+        is_valid_pbs_jobid,
+    )
     from .layout import CampaignLayout, campaign_layout
     from .model import CampaignConfig
     from .patchharness import applied, assert_pinned_clean, checkout
@@ -103,6 +113,20 @@ DRIVER_STOP_REASONS = frozenset((
     "budget-walltime",
 ))
 _TRIAL_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
+_LOWER_HEX_RE = re.compile(r"[0-9a-f]{64}")
+_TRANSPORT_RECEIPT_KEYS = {
+    "schema_version",
+    "mode",
+    "site",
+    "admitted_env_keys",
+    "endpoint_values",
+    "endpoint_values_sha256",
+    "policy_path",
+    "policy_sha256",
+    "source_tls_trust_override_keys",
+    "forwarded_tls_trust_override_keys",
+    "pbs_jobid",
+}
 
 WORKLOADS: dict[str, dict[str, str]] = {
     "ycsb-a": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
@@ -526,6 +550,16 @@ def _whiteboard(layout: CampaignLayout) -> list[dict[str, Any]]:
     return [] if state is None else loop_core.whiteboard_for_planner(state)
 
 
+def _finite_metric_or_none(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        metric = float(value)
+    except OverflowError:
+        return None
+    return metric if math.isfinite(metric) else None
+
+
 def _metric_projection(outcome: Mapping[str, Any]) -> dict[str, Any]:
     records = outcome.get("records")
     bench_done = records.get("bench_done") if isinstance(records, Mapping) else None
@@ -537,18 +571,42 @@ def _metric_projection(outcome: Mapping[str, Any]) -> dict[str, Any]:
     )
     fitness = outcome.get("fitness_tps")
     return {
-        "throughput_ops_sec": (
-            float(fitness)
-            if not isinstance(fitness, bool)
-            and isinstance(fitness, (int, float))
-            and math.isfinite(float(fitness))
-            else None
-        ),
-        "abort_rate_pct": leading.get("abort_rate"),
-        "latency_ns": leading.get("latency_ns"),
-        "llc_miss_rate": leading.get("llc_miss_rate"),
-        "ipc": leading.get("ipc"),
+        "throughput_ops_sec": _finite_metric_or_none(fitness),
+        "abort_rate": _finite_metric_or_none(leading.get("abort_rate")),
+        "latency_ns": _finite_metric_or_none(leading.get("latency_ns")),
+        "llc_miss_rate": _finite_metric_or_none(leading.get("llc_miss_rate")),
+        "ipc": _finite_metric_or_none(leading.get("ipc")),
     }
+
+
+def _role_metric_payloads(
+    current_metrics: Mapping[str, Any],
+    *,
+    contention_level: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    abort_rate = current_metrics["abort_rate"]
+    llc_miss_rate = current_metrics["llc_miss_rate"]
+    perf_payload = {
+        "throughput_ops_sec": current_metrics["throughput_ops_sec"],
+        "abort_rate_pct": (
+            None
+            if abort_rate is None
+            else _finite_metric_or_none(abort_rate * 100.0)
+        ),
+        "latency_ns": current_metrics["latency_ns"],
+        "llc_miss_rate": llc_miss_rate,
+        "ipc": current_metrics["ipc"],
+    }
+    leading_payload = {
+        "contention_level": contention_level,
+        "cache_miss_rate_pct": (
+            None
+            if llc_miss_rate is None
+            else _finite_metric_or_none(llc_miss_rate * 100.0)
+        ),
+        "IPC_overall": current_metrics["ipc"],
+    }
+    return perf_payload, leading_payload
 
 
 def _jsonable_role_value(role: str, parsed: Any) -> dict[str, Any]:
@@ -570,9 +628,134 @@ def _write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:
     os.replace(tmp, path)
 
 
+def _validate_transport_receipt(
+    receipt: object, *, expected: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """Fail closed on the exact run-level transport receipt schema."""
+    if type(receipt) is not dict or set(receipt) != _TRANSPORT_RECEIPT_KEYS:
+        raise AutonomousTrialError("transport receipt top-level schema が exact でない")
+    if any(
+        type(receipt[key]) is not str
+        for key in ("schema_version", "mode", "site", "policy_path")
+    ) or any(
+        type(receipt[key]) is not list
+        for key in (
+            "admitted_env_keys",
+            "source_tls_trust_override_keys",
+            "forwarded_tls_trust_override_keys",
+        )
+    ):
+        raise AutonomousTrialError("transport receipt field type が exact でない")
+    if (
+        receipt["schema_version"] != "claude-transport-receipt/v1"
+        or receipt["mode"] != "explicit-http-proxy-env"
+        or receipt["site"] != "PEGASUS_COMPUTE"
+        or receipt["admitted_env_keys"] != ["http_proxy", "https_proxy"]
+        or receipt["policy_path"]
+        != "tools/pegasus/policies/transport_v1.json"
+        or receipt["source_tls_trust_override_keys"] != []
+        or receipt["forwarded_tls_trust_override_keys"] != []
+    ):
+        raise AutonomousTrialError("transport receipt contract が一致しない")
+    endpoint_values = receipt["endpoint_values"]
+    if (
+        type(endpoint_values) is not dict
+        or set(endpoint_values) != {"http_proxy", "https_proxy"}
+        or any(type(endpoint_values[key]) is not str for key in endpoint_values)
+    ):
+        raise AutonomousTrialError("transport receipt endpoint schema が exact でない")
+    if not is_valid_pbs_jobid(receipt["pbs_jobid"]):
+        raise AutonomousTrialError("transport receipt PBS_JOBID が不正")
+    for key in ("endpoint_values_sha256", "policy_sha256"):
+        value = receipt[key]
+        if type(value) is not str or _LOWER_HEX_RE.fullmatch(value) is None:
+            raise AutonomousTrialError("transport receipt hash schema が不正")
+    endpoint_bytes = json.dumps(
+        endpoint_values,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    if hashlib.sha256(endpoint_bytes).hexdigest() != receipt["endpoint_values_sha256"]:
+        raise AutonomousTrialError("transport receipt endpoint hash が一致しない")
+    if expected is not None and receipt != expected:
+        raise AutonomousTrialError("transport receipt が run-level snapshot と一致しない")
+    return {
+        "schema_version": receipt["schema_version"],
+        "mode": receipt["mode"],
+        "site": receipt["site"],
+        "admitted_env_keys": list(receipt["admitted_env_keys"]),
+        "endpoint_values": dict(endpoint_values),
+        "endpoint_values_sha256": receipt["endpoint_values_sha256"],
+        "policy_path": receipt["policy_path"],
+        "policy_sha256": receipt["policy_sha256"],
+        "source_tls_trust_override_keys": list(
+            receipt["source_tls_trust_override_keys"]
+        ),
+        "forwarded_tls_trust_override_keys": list(
+            receipt["forwarded_tls_trust_override_keys"]
+        ),
+        "pbs_jobid": receipt["pbs_jobid"],
+    }
+
+
+def _redacted_transport_error(
+    exc: BaseException, transport_receipt: Mapping[str, Any] | None
+) -> str:
+    message = str(exc)
+    if transport_receipt is None:
+        return message
+    endpoint_values = transport_receipt.get("endpoint_values")
+    secrets: list[str] = []
+    if isinstance(endpoint_values, Mapping):
+        secrets.extend(
+            value for value in endpoint_values.values()
+            if isinstance(value, str) and value
+        )
+    pbs_jobid = transport_receipt.get("pbs_jobid")
+    if isinstance(pbs_jobid, str) and pbs_jobid:
+        secrets.append(pbs_jobid)
+    for secret in sorted(set(secrets), key=len, reverse=True):
+        message = message.replace(secret, "<redacted>")
+    return message
+
+
+def _event_with_transport_receipt(
+    event: Mapping[str, Any], transport_receipt: Mapping[str, Any] | None
+) -> dict[str, Any]:
+    stored = dict(event)
+    if transport_receipt is not None:
+        stored["transport_receipt"] = _validate_transport_receipt(
+            dict(transport_receipt), expected=transport_receipt
+        )
+    return stored
+
+
+def _append_provider_init_error(
+    *,
+    journal: AttemptJournal,
+    fatal_error: Mapping[str, str],
+    transport_receipt: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    safe_error = dict(fatal_error)
+    message = safe_error.get("message")
+    if isinstance(message, str):
+        safe_error["message"] = _redacted_transport_error(
+            RuntimeError(message), transport_receipt
+        )
+    event: dict[str, Any] = {"event": "provider-init-error", **safe_error}
+    if transport_receipt is not None:
+        event["transport_receipt"] = _validate_transport_receipt(
+            dict(transport_receipt), expected=transport_receipt
+        )
+    return journal.append(event)
+
+
 def _invoke(
     *, role: str, provider: Any, invocation_id: str, payload: Mapping[str, Any],
     raw_root: Path, journal: AttemptJournal, workload: str, generation: int,
+    transport_receipt: Mapping[str, Any] | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
     input_sha256 = _sha256(_canonical_json_bytes(payload))
     base = {
@@ -590,26 +773,45 @@ def _invoke(
         response = provider.invoke(invocation_id=invocation_id, payload=payload)
         if not isinstance(response, ProviderResponse):
             raise AutonomousTrialError("provider は ProviderResponse を返す必要がある")
+        provenance = dict(response.provenance)
+        if transport_receipt is None:
+            if "transport_receipt" in provenance:
+                raise AutonomousTrialError(
+                    "transport opt-out provenance に receipt を許可しない"
+                )
+        else:
+            provenance["transport_receipt"] = _validate_transport_receipt(
+                provenance.get("transport_receipt"), expected=transport_receipt
+            )
         raw_bytes = response.raw_response.encode("utf-8")
         raw_path = raw_root / f"raw_{invocation_id}.txt"
         raw_sha256 = _write_bytes_bound(raw_path, raw_bytes)
         parsed = PARSERS[role](response.raw_response)
     except Exception as exc:
         error_artifacts: dict[str, str] = {}
+        invalid = {
+            **base,
+            "status": "invalid",
+            "error_type": type(exc).__name__,
+            "error": _redacted_transport_error(exc, transport_receipt),
+            "error_artifacts": error_artifacts,
+        }
+        if transport_receipt is not None:
+            invalid["transport_receipt"] = _validate_transport_receipt(
+                dict(transport_receipt), expected=transport_receipt
+            )
         artifact_root = getattr(provider, "artifact_root", None)
         if isinstance(artifact_root, Path):
             for kind in ("payload", "envelope"):
                 candidate = artifact_root / f"{kind}_{invocation_id}.json"
-                if candidate.is_file() and not candidate.is_symlink():
-                    error_artifacts[f"{kind}_path"] = str(candidate)
-                    error_artifacts[f"{kind}_sha256"] = _sha256(candidate.read_bytes())
-        event = journal.append({
-            **base,
-            "status": "invalid",
-            "error_type": type(exc).__name__,
-            "error": str(exc),
-            "error_artifacts": error_artifacts,
-        })
+                try:
+                    if candidate.is_file() and not candidate.is_symlink():
+                        artifact_bytes = candidate.read_bytes()
+                        error_artifacts[f"{kind}_path"] = str(candidate)
+                        error_artifacts[f"{kind}_sha256"] = _sha256(artifact_bytes)
+                except OSError:
+                    continue
+        event = journal.append(invalid)
         return None, event
     event = journal.append({
         **base,
@@ -617,7 +819,7 @@ def _invoke(
         "raw_response_path": str(raw_path),
         "raw_response_sha256": raw_sha256,
         "parsed": _jsonable_role_value(role, parsed),
-        "provenance": dict(response.provenance),
+        "provenance": provenance,
     })
     return parsed, event
 
@@ -675,20 +877,52 @@ def _close_owned_providers(providers: Mapping[str, Any]) -> None:
             close()
 
 
-def _provider_set(*, kind: str, run_root: Path, executable: str) -> dict[str, Any]:
+def _provider_set(
+    *,
+    kind: str,
+    run_root: Path,
+    executable: str,
+    allow_pegasus_compute_transport: bool = False,
+    transport_admission: ClaudeTransportAdmission | None = None,
+    source_env: Mapping[str, str] | None = None,
+    projected_provider_factory: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
+    if type(allow_pegasus_compute_transport) is not bool:
+        raise AutonomousTrialError(
+            "allow_pegasus_compute_transport は bool 必須"
+        )
+    if allow_pegasus_compute_transport:
+        if kind != "claude-headless":
+            raise AutonomousTrialError(
+                "Pegasus compute transport は claude-headless provider 専用"
+            )
+        if not isinstance(transport_admission, ClaudeTransportAdmission):
+            raise AutonomousTrialError("transport opt-in に run-level admission が必要")
+        if not isinstance(source_env, Mapping):
+            raise AutonomousTrialError("transport opt-in に source env snapshot が必要")
+    elif transport_admission is not None or source_env is not None:
+        raise AutonomousTrialError("transport opt-out に admission/env を渡してはならない")
+    provider_factory = (
+        ClaudeProjectedRoleProvider
+        if projected_provider_factory is None
+        else projected_provider_factory
+    )
     result: dict[str, Any] = {}
     try:
         for role, (role_file, role_name) in ROLE_FILES.items():
             if kind == "fixture":
                 result[role] = FixtureRoleProvider(role)
             elif kind == "claude-headless":
-                result[role] = ClaudeProjectedRoleProvider(
+                result[role] = provider_factory(
                     artifact_root=run_root / "provider" / role,
                     role_file=role_file,
                     role_name=role_name,
                     mediated_contract=ROLE_CONTRACTS[role],
                     repository_root=ROOT,
                     executable=executable,
+                    environ=source_env,
+                    allow_pegasus_compute_transport=allow_pegasus_compute_transport,
+                    transport_admission=transport_admission,
                 )
             else:  # pragma: no cover - argparse closes this
                 raise AutonomousTrialError(f"unknown provider kind: {kind}")
@@ -716,6 +950,7 @@ def _finish_trial(
     started_monotonic: float,
     active_providers: Mapping[str, Any],
     fatal_error: dict[str, str] | None,
+    transport_receipt: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     cells: list[dict[str, Any]] = []
     if fatal_error is None:
@@ -725,7 +960,10 @@ def _finish_trial(
                     "type": "SupervisorWallBudget",
                     "message": "wall budget expired before the next workload",
                 }
-                journal.append({"event": "supervisor-wall-budget", "workload": workload})
+                journal.append(_event_with_transport_receipt(
+                    {"event": "supervisor-wall-budget", "workload": workload},
+                    transport_receipt,
+                ))
                 break
             partial: dict[str, Any] = {}
             try:
@@ -744,14 +982,21 @@ def _finish_trial(
                     drive=drive,
                     preview=preview,
                     _partial=partial,
+                    transport_receipt=transport_receipt,
                 )
             except Exception as exc:
-                fatal_error = {"type": type(exc).__name__, "message": str(exc)}
-                journal.append({
-                    "event": "supervisor-error",
-                    "workload": workload,
-                    **fatal_error,
-                })
+                fatal_error = {
+                    "type": type(exc).__name__,
+                    "message": _redacted_transport_error(exc, transport_receipt),
+                }
+                journal.append(_event_with_transport_receipt(
+                    {
+                        "event": "supervisor-error",
+                        "workload": workload,
+                        **fatal_error,
+                    },
+                    transport_receipt,
+                ))
                 partial_cell = partial.get("cell")
                 if isinstance(partial_cell, dict):
                     current_generation = partial.get("generation")
@@ -815,11 +1060,18 @@ def _finish_trial(
     }
     if fatal_error is not None:
         report["fatal_error"] = fatal_error
-    journal.append({
-        "event": "run-finish",
-        "status": status,
-        "report": str(run_root / "report.json"),
-    })
+    if transport_receipt is not None:
+        report["transport_receipt"] = _validate_transport_receipt(
+            dict(transport_receipt), expected=transport_receipt
+        )
+    journal.append(_event_with_transport_receipt(
+        {
+            "event": "run-finish",
+            "status": status,
+            "report": str(run_root / "report.json"),
+        },
+        transport_receipt,
+    ))
     report["attempt_journal_sha256"] = _sha256((run_root / "attempts.jsonl").read_bytes())
     assert_autonomous_trial_completeness(
         report=report,
@@ -842,6 +1094,7 @@ def _run_workload(
     drive: Callable[..., Mapping[str, Any]] = trigger.drive_iteration,
     preview: Callable[..., Mapping[str, Any]] = _preview,
     _partial: dict[str, Any] | None = None,
+    transport_receipt: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     _validate_generation_budget(generations)
     flags = WORKLOADS[workload]
@@ -875,7 +1128,7 @@ def _run_workload(
     prior_reverse: bool | None = None
     current_metrics = {
         "throughput_ops_sec": None,
-        "abort_rate_pct": None,
+        "abort_rate": None,
         "latency_ns": None,
         "llc_miss_rate": None,
         "ipc": None,
@@ -884,6 +1137,15 @@ def _run_workload(
     for generation in range(1, generations + 1):
         if time.monotonic() - started_monotonic >= max_wall_s:
             result["stop_reason"] = "supervisor-wall-budget"
+            if transport_receipt is not None:
+                journal.append(_event_with_transport_receipt(
+                    {
+                        "event": "supervisor-wall-budget",
+                        "workload": workload,
+                        "generation": generation,
+                    },
+                    transport_receipt,
+                ))
             break
         generation_record: dict[str, Any] = {"generation": generation, "roles": {}}
         if _partial is not None:
@@ -895,14 +1157,14 @@ def _run_workload(
             descriptor_record=descriptor_record,
         )
         whiteboard = _whiteboard(layout)
+        perf_payload, leading_payload = _role_metric_payloads(
+            current_metrics,
+            contention_level=descriptor["contention"]["label"],
+        )
         planner_payload = {
             **common,
-            "current_perf": dict(current_metrics),
-            "leading_indicators": {
-                "contention_level": descriptor["contention"]["label"],
-                "cache_miss_rate_pct": current_metrics["llc_miss_rate"],
-                "IPC_overall": current_metrics["ipc"],
-            },
+            "current_perf": dict(perf_payload),
+            "leading_indicators": dict(leading_payload),
             "whiteboard": whiteboard,
         }
         planner, event = _invoke(
@@ -914,6 +1176,7 @@ def _run_workload(
             journal=journal,
             workload=workload,
             generation=generation,
+            transport_receipt=transport_receipt,
         )
         generation_record["roles"]["planner"] = event
         if planner is None:
@@ -939,7 +1202,7 @@ def _run_workload(
                 "direction": planner.direction,
                 "magnitude": planner.magnitude,
             },
-            "baseline": dict(current_metrics),
+            "baseline": dict(perf_payload),
             "whiteboard": whiteboard,
         }
         coder, event = _invoke(
@@ -951,6 +1214,7 @@ def _run_workload(
             journal=journal,
             workload=workload,
             generation=generation,
+            transport_receipt=transport_receipt,
         )
         generation_record["roles"]["coder"] = event
         if coder is None:
@@ -1003,6 +1267,7 @@ def _run_workload(
                 journal=journal,
                 workload=workload,
                 generation=generation,
+                transport_receipt=transport_receipt,
             )
             generation_record["roles"]["auditor"] = event
             if auditor is None:
@@ -1080,6 +1345,7 @@ def _run_workload(
             journal=journal,
             workload=workload,
             generation=generation,
+            transport_receipt=transport_receipt,
         )
         generation_record["roles"]["critic"] = event
         result["generations"].append(generation_record)
@@ -1107,6 +1373,7 @@ def run_trial(
     cache_root: str = "",
     max_wall_s: int = DEFAULT_MAX_WALL_S,
     claude_executable: str = "claude",
+    allow_pegasus_compute_transport: bool = False,
     providers: Mapping[str, Any] | None = None,
     drive: Callable[..., Mapping[str, Any]] = trigger.drive_iteration,
     preview: Callable[..., Mapping[str, Any]] = _preview,
@@ -1118,6 +1385,18 @@ def run_trial(
     _validate_generation_budget(generations)
     if isinstance(max_wall_s, bool) or not isinstance(max_wall_s, int) or max_wall_s < 1:
         raise AutonomousTrialError("max_wall_s は正の int 必須")
+    if type(allow_pegasus_compute_transport) is not bool:
+        raise AutonomousTrialError(
+            "allow_pegasus_compute_transport は bool 必須"
+        )
+    if allow_pegasus_compute_transport and provider_kind != "claude-headless":
+        raise AutonomousTrialError(
+            "Pegasus compute transport は claude-headless provider 専用"
+        )
+    if allow_pegasus_compute_transport and providers is not None:
+        raise AutonomousTrialError(
+            "Pegasus compute transport は owned projected providers 専用"
+        )
     selected = list(workloads)
     if not selected or len(selected) != len(set(selected)):
         raise AutonomousTrialError("workloads は重複なしの非空列必須")
@@ -1135,6 +1414,31 @@ def run_trial(
     journal = AttemptJournal(run_root / "attempts.jsonl")
     started = _now_iso()
     started_monotonic = time.monotonic()
+    transport_admission: ClaudeTransportAdmission | None = None
+    transport_receipt: dict[str, Any] | None = None
+    source_env_snapshot: dict[str, str] | None = None
+    admission_error: BaseException | None = None
+    if allow_pegasus_compute_transport:
+        source_env_snapshot = dict(os.environ)
+        try:
+            transport_admission = admit_claude_transport(
+                source_env=source_env_snapshot,
+                repository_root=ROOT,
+            )
+            transport_receipt = _validate_transport_receipt(
+                transport_admission.receipt.as_dict()
+            )
+            journal.append({
+                "event": "transport-admission",
+                "transport_receipt": transport_receipt,
+            })
+        except Exception as exc:
+            admission_error = exc
+            journal.append({
+                "event": "transport-admission-error",
+                "type": type(exc).__name__,
+                "message": _redacted_transport_error(exc, None),
+            })
     journal.append({
         "event": "run-start",
         "schema_version": SCHEMA_VERSION,
@@ -1149,19 +1453,41 @@ def run_trial(
     })
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
-    fatal_error: dict[str, str] | None = None
+    fatal_error: dict[str, str] | None = (
+        {
+            "type": type(admission_error).__name__,
+            "message": _redacted_transport_error(admission_error, None),
+        }
+        if admission_error is not None
+        else None
+    )
     try:
         try:
+            if fatal_error is not None:
+                raise AutonomousTrialError("transport admission failed")
             active_providers = (
                 dict(providers)
                 if providers is not None
                 else _provider_set(
-                    kind=provider_kind, run_root=run_root, executable=claude_executable
+                    kind=provider_kind,
+                    run_root=run_root,
+                    executable=claude_executable,
+                    allow_pegasus_compute_transport=allow_pegasus_compute_transport,
+                    transport_admission=transport_admission,
+                    source_env=source_env_snapshot,
                 )
             )
         except Exception as exc:
-            fatal_error = {"type": type(exc).__name__, "message": str(exc)}
-            journal.append({"event": "provider-init-error", **fatal_error})
+            if fatal_error is None:
+                fatal_error = {
+                    "type": type(exc).__name__,
+                    "message": _redacted_transport_error(exc, transport_receipt),
+                }
+                _append_provider_init_error(
+                    journal=journal,
+                    fatal_error=fatal_error,
+                    transport_receipt=transport_receipt,
+                )
         return _finish_trial(
             trial_id=trial_id,
             selected=selected,
@@ -1179,6 +1505,7 @@ def run_trial(
             started_monotonic=started_monotonic,
             active_providers=active_providers,
             fatal_error=fatal_error,
+            transport_receipt=transport_receipt,
         )
     finally:
         if owns_active_providers:
@@ -1210,6 +1537,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--max-wall-seconds", type=int, default=DEFAULT_MAX_WALL_S)
     parser.add_argument("--no-build", action="store_true")
     parser.add_argument("--claude-executable", default="claude")
+    parser.add_argument(
+        "--allow-pegasus-compute-transport",
+        action="store_true",
+        default=False,
+    )
     parser.add_argument("--ccbench-dir", default=str(ROOT / "external/ccbench"))
     parser.add_argument(
         "--run-root",
@@ -1254,6 +1586,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             cache_root=cache_root,
             max_wall_s=args.max_wall_seconds,
             claude_executable=args.claude_executable,
+            allow_pegasus_compute_transport=args.allow_pegasus_compute_transport,
         )
     print(json.dumps({
         "status": report["status"],
