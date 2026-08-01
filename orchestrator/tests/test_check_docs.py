@@ -42,6 +42,36 @@ _S09_ACCEPTANCE_ORDER_LITERAL = (
     "`DW-O23` を行う。"
 )
 
+_SYNTHETIC_DISPATCH_RUNBOOK = """# synthetic Pegasus runbook
+
+## 7. synthetic execution policy
+
+### 7.0 判定基準はディレクトリではなくメモリ量
+
+| task | 子 script |
+|---|---|
+| `tests` | `tools/run_tests.py` |
+| `provenance` | `tools/check_ai_provenance.py` |
+
+### 7.1 synthetic next section
+
+body
+"""
+
+_SYNTHETIC_DISPATCH_SOURCE = """from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class _TaskSpec:
+    child_script: tuple[str, ...]
+
+TASKS = {
+    "tests": _TaskSpec(child_script=("tools", "run_tests.py")),
+    "provenance": _TaskSpec(
+        child_script=("tools", "check_ai_provenance.py"),
+    ),
+}
+"""
+
 
 # operations 由来の条件 dispatch key (O07/O21/O22 を除く 20 件)。契約から導出するが、
 # exact な外延は test_operation_contract_pins_exact_section_set が literal で pin する。
@@ -531,6 +561,15 @@ body
     _write(root, "docs/provenance/audit.md", audit)
 
 
+def _write_dispatch_inventory_fixture(root: str) -> None:
+    _write(root, "docs/pegasus-runbook.md", _SYNTHETIC_DISPATCH_RUNBOOK)
+    _write(
+        root,
+        "tools/pegasus/dispatch_compute.py",
+        _SYNTHETIC_DISPATCH_SOURCE,
+    )
+
+
 def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:
     res = _run_check(root)
     assert res.returncode == 1, f"違反 fixture が赤にならなかった:\n{res.stdout}\n{res.stderr}"
@@ -592,6 +631,7 @@ def _build_min_repo() -> str:
     # backlog guard の必須構造。phase3.md は上の列挙 placeholder を上書きする。
     _write_backlog_docs(root)
     _write_command_guard_docs(root)
+    _write_dispatch_inventory_fixture(root)
     return root
 
 
@@ -625,6 +665,351 @@ def test_synthetic_repo_baseline_clean():
         res = _run_check(root)
         assert res.returncode == 0, f"baseline が違反ありになった:\n{res.stdout}\n{res.stderr}"
         assert "違反なし" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _dispatch_inventory_findings(
+    result: subprocess.CompletedProcess,
+) -> set[str]:
+    return {
+        finding
+        for finding in _finding_set(result)
+        if "dispatch inventory drift" in finding
+    }
+
+
+def _assert_tasks_source_mutation_rejected(suffix: str, needle: str) -> None:
+    findings: list[str] = []
+    inventory = check_docs._dispatch_inventory_from_source(
+        _SYNTHETIC_DISPATCH_SOURCE + suffix,
+        findings,
+    )
+    assert inventory is None
+    assert len(findings) == 1, findings
+    assert "TASKS 写像を静的に確定できない" in findings[0]
+    assert needle in findings[0]
+
+
+def test_dispatch_inventory_rejects_post_definition_assign():
+    """定義後の ``TASKS = replacement`` 再束縛変異を殺す。"""
+    _assert_tasks_source_mutation_rejected("\nTASKS = {}\n", "束縛/削除")
+
+
+def test_dispatch_inventory_rejects_post_definition_annassign():
+    """定義後の注釈付き ``TASKS: dict = ...`` 再束縛変異を殺す。"""
+    _assert_tasks_source_mutation_rejected("\nTASKS: dict = {}\n", "束縛/削除")
+
+
+def test_dispatch_inventory_rejects_post_definition_augassign():
+    """定義後の ``TASKS |= replacement`` 変更変異を殺す。"""
+    _assert_tasks_source_mutation_rejected("\nTASKS |= {}\n", "束縛/削除")
+
+
+def test_dispatch_inventory_rejects_post_definition_subscript_assign():
+    """定義後の ``TASKS[key] = spec`` 変更変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        '\nTASKS["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "要素/属性への書込み",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_del():
+    """定義後の ``del TASKS[key]`` 削除変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        '\ndel TASKS["tests"]\n',
+        "要素/属性への書込み",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_update():
+    """定義後の ``TASKS.update(...)`` 変更変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        '\nTASKS.update({"extra": _TaskSpec(child_script=("tools", "extra.py"))})\n',
+        "TASKS.update()",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_pop():
+    """定義後の ``TASKS.pop(...)`` 変更変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        '\nTASKS.pop("tests")\n',
+        "TASKS.pop()",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_for_binding():
+    """定義後の ``for TASKS in ...`` 束縛変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nfor TASKS in ():\n    pass\n",
+        "束縛/削除",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_with_binding():
+    """定義後の ``with ... as TASKS`` 束縛変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nwith context() as TASKS:\n    pass\n",
+        "束縛/削除",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_comprehension_binding():
+    """定義後の comprehension target ``TASKS`` 束縛変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nshadow = [TASKS for TASKS in ()]\n",
+        "束縛/削除",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_import_binding():
+    """定義後の import による ``TASKS`` 再束縛変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nfrom replacement import mapping as TASKS\n",
+        "import による TASKS 再束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_post_definition_globals_write():
+    """定義後の ``globals()[\"TASKS\"] = ...`` 再束縛変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        '\nglobals()["TASKS"] = {}\n',
+        "動的 namespace 経由の書込み",
+    )
+
+
+def test_dispatch_inventory_raw_html_section_is_rejected():
+    """§7.0 見出しと表を raw ``pre`` block 内へ移す変異を殺す。"""
+    text = _SYNTHETIC_DISPATCH_RUNBOOK.replace(
+        "### 7.0 判定基準はディレクトリではなくメモリ量\n",
+        "<pre>\n### 7.0 判定基準はディレクトリではなくメモリ量\n",
+        1,
+    ).replace(
+        "\n### 7.1 synthetic next section",
+        "\n</pre>\n\n### 7.1 synthetic next section",
+        1,
+    )
+    findings: list[str] = []
+    assert check_docs._dispatch_inventory_from_runbook(text, findings) is None
+    assert findings == [
+        "tools/check_docs.py: dispatch inventory drift — "
+        "docs/pegasus-runbook.md の `### 7.0` 節が 0 件"
+    ]
+
+
+def test_dispatch_inventory_wrong_parent_section_is_rejected():
+    """§7.0 を無関係な親 ``## 8`` の配下へ移す変異を殺す。"""
+    text = _SYNTHETIC_DISPATCH_RUNBOOK.replace(
+        "### 7.0 判定基準はディレクトリではなくメモリ量",
+        "## 8. unrelated\n\n### 7.0 判定基準はディレクトリではなくメモリ量",
+        1,
+    )
+    findings: list[str] = []
+    assert check_docs._dispatch_inventory_from_runbook(text, findings) is None
+    assert findings == [
+        "tools/check_docs.py: dispatch inventory drift — "
+        "docs/pegasus-runbook.md の `### 7.0` が親 `## 7` の直下でない"
+    ]
+
+
+def test_dispatch_inventory_accepts_equivalent_markdown_spacing():
+    """有効な見出し字下げと表セル空白を拒む過剰拒否変異を殺す。"""
+    text = _SYNTHETIC_DISPATCH_RUNBOOK.replace(
+        "## 7. synthetic execution policy",
+        "  ## 7. synthetic execution policy",
+        1,
+    ).replace(
+        "### 7.0 判定基準はディレクトリではなくメモリ量",
+        "   ### 7.0　判定基準はディレクトリではなくメモリ量",
+        1,
+    ).replace(
+        "| task | 子 script |",
+        "|task      |子 script|",
+        1,
+    )
+    findings: list[str] = []
+    assert check_docs._dispatch_inventory_from_runbook(text, findings) == {
+        "tests": "tools/run_tests.py",
+        "provenance": "tools/check_ai_provenance.py",
+    }
+    assert findings == []
+
+
+def test_dispatch_inventory_current_mapping_has_no_findings():
+    root = _build_min_repo()
+    try:
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+        assert _dispatch_inventory_findings(result) == set()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_deleted_table_row_is_rejected():
+    root = _build_min_repo()
+    try:
+        _rewrite_matching_lines(
+            root,
+            "docs/pegasus-runbook.md",
+            lambda line: line.startswith("| `provenance` |"),
+            lambda _line: "",
+        )
+        result = _assert_violation(root, "dispatch inventory drift")
+        assert "TASKS_only=['provenance']" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_added_tasks_entry_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "tools/pegasus/dispatch_compute.py"
+        source = _read(root, rel)
+        _write(
+            root,
+            rel,
+            source.replace(
+                "}\n",
+                '    "extra": _TaskSpec(child_script=("tools", "extra.py")),\n}\n',
+                1,
+            ),
+        )
+        result = _assert_violation(root, "dispatch inventory drift")
+        assert "TASKS_only=['extra']" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_child_script_change_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                "`tools/run_tests.py`", "`tools/other_tests.py`", 1
+            ),
+        )
+        result = _assert_violation(root, "dispatch inventory drift")
+        assert "child_script={'tests':" in result.stdout
+        assert "tools/other_tests.py" in result.stdout
+        assert "tools/run_tests.py" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_missing_table_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                "| task | 子 script |", "| command | implementation |", 1
+            ),
+        )
+        result = _assert_violation(root, "dispatch inventory drift")
+        assert "exact task 表 header が 0 件" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_empty_table_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        text = _read(root, rel)
+        text = re.sub(
+            r"^\| `(?:tests|provenance)` \|.*\n",
+            "",
+            text,
+            flags=re.MULTILINE,
+        )
+        _write(root, rel, text)
+        result = _assert_violation(root, "dispatch inventory drift")
+        assert "exact task 表が 0 行" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_missing_section_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace("### 7.0 ", "### 6.9 ", 1),
+        )
+        result = _assert_violation(root, "dispatch inventory drift")
+        assert "`### 7.0` 節が 0 件" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_duplicate_task_row_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        duplicate = "| `tests` | `tools/run_tests.py` |\n"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(duplicate, duplicate + duplicate, 1),
+        )
+        result = _assert_violation(root, "dispatch inventory drift")
+        assert "task 行が重複 — ['tests']" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dispatch_inventory_ignores_table_outside_7_0_section():
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        decoy = """## unrelated
+
+| task | 子 script |
+|---|---|
+| `decoy` | `tools/decoy.py` |
+
+"""
+        _write(root, rel, decoy + _read(root, rel))
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+        assert _dispatch_inventory_findings(result) == set()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_tools_readme_is_enumerated_and_budgeted():
+    assert "tools/README.md" in _enumerated_rels()
+    assert check_docs.TOOLS_README_LIMITS == {
+        "tools/README.md": check_docs.TextLimit(3_000),
+    }
+
+
+def test_tools_readme_missing_is_rejected():
+    root = _build_min_repo()
+    try:
+        os.remove(os.path.join(root, "tools", "README.md"))
+        result = _assert_violation(root, "tools/README.md")
+        assert "LIVING_DOCS の列挙対象が不在" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_tools_readme_budget_overrun_is_rejected():
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, "tools/README.md", 3_001)
+        result = _assert_violation(
+            root,
+            "tools/README.md: 3001 bytes > 予算 3000 bytes",
+        )
+        assert _violation_count(result) == 1, result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
