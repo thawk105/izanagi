@@ -1452,6 +1452,14 @@ network 不可なので `claude -p` を呼べない / supervisor と LLM 4 役�
 
 ### 次の一手
 
+- [T-270] **P3・新規 (本エントリ、`DW-O18` のフレーク起票)**: `test_s8b_floor_campaign.py` の
+  「`output/` 配下に副作用ゼロ」を主張する snapshot 検査 9 箇所
+  (`assert repo_before == _real_output_snapshot()`) が、**計算ノード dispatch 機構自身の書き込みと
+  自己干渉する**。統合後の全走 1 回目 (`876493`) で 8 件が赤になり、差分の実体は
+  `output/pegasus-dispatch/<hash>/request.json`・job stdout・`output/task-runs/pilot.json` という
+  dispatch 成果物だった。実装差分は当該ファイルから到達不能で、単独再走 (`876499`、197 passed) と
+  全走 2 回目 (`876500`、4709 passed) はともに緑。**全走 2 回中 1 回発現**。
+  snapshot 対象から dispatch 成果物の path を除外するか、検査を tracked file に限定する必要がある
 - [T-265] **P3・新規 (本エントリ)**: campaign identity と WAL replay が env 非依存である。
   `campaign_id` は `(spec_slug, search_tag, cfg_hash8)` だけで `campaign.lock` の正準 pre-image にも
   env_tag が無く、`docs/orchestrator-design.md` は env を**読み出しフィルタ**と規定するのに
