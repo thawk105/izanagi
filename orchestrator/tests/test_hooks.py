@@ -122,6 +122,64 @@ def test_wal_campaign_lock_buildcache_denied():
         shutil.rmtree(root)
 
 
+def test_exploration_campaign_wal_and_lock_write_tools_denied():
+    """M12: exploration campaign root を guard_write の集合から外す変異を kill する。"""
+    root = _mk_fixture_repo()
+    try:
+        for tool in ("Write", "Edit", "NotebookEdit"):
+            path_key = "notebook_path" if tool == "NotebookEdit" else "file_path"
+            for rel in (
+                "output/exploration/campaigns/c1/runs/wal.jsonl",
+                "output/exploration/campaigns/c1/campaign.lock",
+            ):
+                ok, _ = GW.decide(
+                    tool, {path_key: os.path.join(root, rel)}, repo_root=root)
+                assert not ok, f"{tool} で exploration proof chain への書込が通った: {rel}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_exploration_namespace_marker_write_tools_denied():
+    """M14-W: guard_write の exploration marker 条件を無効化する変異を kill。"""
+    root = _mk_fixture_repo()
+    try:
+        for tool in ("Write", "Edit", "NotebookEdit"):
+            path_key = "notebook_path" if tool == "NotebookEdit" else "file_path"
+            for rel in (
+                "output/exploration/namespace.json",
+                "output/exploration/autonomous-trials/t1/namespace.json",
+            ):
+                marker = os.path.join(root, rel)
+                ok, _ = GW.decide(tool, {path_key: marker}, repo_root=root)
+                assert not ok, f"{tool} で exploration marker への書込が通った: {rel}"
+        for rel in (
+            "output/exploration/namespace.json?",
+            "output/exploration/autonomous-trials/t1/attempts.jsonl",
+            "/tmp/custom/exploration/namespace.json",
+        ):
+            ok, why = GW.decide(
+                "Write", {"file_path": os.path.join(root, rel)}, repo_root=root)
+            assert ok, f"marker でない sibling が誤拒否された: {rel} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_exploration_projection_and_trial_journal_write_tools_allowed():
+    """exploration root 全体を誤って guard_write 対象にする過剰拒否を検出する。"""
+    root = _mk_fixture_repo()
+    try:
+        for rel in (
+            "output/exploration/campaigns/c1/reports/report.md",
+            "output/exploration/campaigns/c1/insights/note.json",
+            "output/exploration/autonomous-trials/t1/attempts.jsonl",
+        ):
+            ok, why = GW.decide(
+                "Write", {"file_path": os.path.join(root, rel)}, repo_root=root)
+            assert ok, f"proof chain 外の exploration Write が誤拒否された: {rel} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
 def test_s8b_freeze_namespace_denied():
     # F6a (C1-11): output/s8b-freeze/ 配下 (approval/active/revocation/世代 file) への
     # 直接 Write/Edit を拒否 (誤操作抑止)。これは認証防壁ではなく事故防止。
@@ -289,6 +347,9 @@ def test_real_submodule_payload_edit():
 _WAL = "output/campaigns/c/runs/wal.jsonl"
 _LOCK = "output/campaigns/c/campaign.lock"
 _BV = "external/ccbench/build-variants"
+_EXPLORATION_CAMPAIGN = "output/exploration/campaigns/c"
+_EXPLORATION_WAL = f"{_EXPLORATION_CAMPAIGN}/runs/wal.jsonl"
+_EXPLORATION_MARKER = "output/exploration/namespace.json"
 
 
 def test_bash_fast_path_and_reads_allowed():
@@ -321,6 +382,93 @@ def test_bash_reports_write_allowed():
                 "python3 gen_report.py output/campaigns/c/reports/"):
         ok, why = GB.decide(cmd)
         assert ok, f"reports/ への正当書き込みが拒否された: {cmd!r} ({why})"
+
+
+def test_bash_exploration_campaign_tree_destruction_denied():
+    """M13: leaf 名に依存せず exploration campaign tree の破壊を拒否する。"""
+    for cmd in (
+        f"rm -rf {_EXPLORATION_CAMPAIGN}",
+        f"mv {_EXPLORATION_CAMPAIGN} /tmp/",
+        f"truncate -s 0 {_EXPLORATION_CAMPAIGN}",
+        f"tee {_EXPLORATION_CAMPAIGN}",
+        f"echo x > {_EXPLORATION_CAMPAIGN}",
+    ):
+        ok, _ = GB.decide(cmd)
+        assert not ok, f"exploration campaign tree の破壊が通った: {cmd!r}"
+
+
+def test_bash_exploration_reads_and_projection_writes_allowed():
+    """exploration の非 proof-chain projection の過剰拒否を検出する。"""
+    for cmd in (
+        f"echo report > {_EXPLORATION_CAMPAIGN}/reports/report.md",
+        f"cp /tmp/insight.json {_EXPLORATION_CAMPAIGN}/insights/",
+    ):
+        ok, why = GB.decide(cmd)
+        assert ok, f"exploration の read/projection Write が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_exploration_wal_reads_allowed():
+    """M16: `_is_read_only` で exploration WAL read だけ拒否する変異を kill。"""
+    for cmd in (
+        f"cat {_EXPLORATION_WAL}",
+        f"grep -c COMMIT {_EXPLORATION_WAL}",
+        f"jq .fitness {_EXPLORATION_WAL}",
+    ):
+        ok, why = GB.decide(cmd)
+        assert ok, f"exploration WAL read が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_exploration_namespace_marker_protected_but_readable():
+    """M14-B: marker 判定関数の無効化を delete/move/write で kill。"""
+    trial_marker = "output/exploration/autonomous-trials/t1/namespace.json"
+    for cmd in (
+        f"echo '{{}}' > {_EXPLORATION_MARKER}",
+        f"tee {_EXPLORATION_MARKER}",
+        f"truncate -s 0 {_EXPLORATION_MARKER}",
+        f"rm {_EXPLORATION_MARKER}",
+        f"mv {_EXPLORATION_MARKER} /tmp/namespace.json",
+        f"mv /tmp/namespace.json {_EXPLORATION_MARKER}",
+        f"rm {trial_marker}",
+        "rm output/exploration/namespace.*",
+        "rm output/exploration/name*.json",
+        "rm output/exploration/{namespace,other}.json",
+        "cd output/exploration && rm namespace.json",
+    ):
+        ok, _ = GB.decide(cmd)
+        assert not ok, f"exploration namespace marker の破壊が通った: {cmd!r}"
+    for cmd in (
+        f"cat {_EXPLORATION_MARKER}",
+        f"grep exploration {_EXPLORATION_MARKER}",
+        f"jq .namespace {_EXPLORATION_MARKER}",
+        f"cat {trial_marker}",
+        "rm output/exploration/namespace.json?",
+        "rm /tmp/custom/exploration/namespace.json",
+    ):
+        ok, why = GB.decide(cmd)
+        assert ok, f"exploration namespace marker の read が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_official_campaign_root_direct_writers_keep_legacy_acceptance():
+    """F2: exploration だけの追加拒否で official の旧正例を縮小しない。"""
+    for cmd in (
+        "echo x > output/campaigns/c",
+        "tee output/campaigns/c",
+        "truncate -s 0 output/campaigns/c",
+    ):
+        ok, why = GB.decide(cmd)
+        assert ok, f"official campaign root の旧正例が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_exploration_autonomous_trial_journal_write_allowed():
+    """journal は proof chain ではないため exploration campaign tree 防護へ含めない。"""
+    journal = "output/exploration/autonomous-trials/t1/attempts.jsonl"
+    for cmd in (
+        f"echo '{{}}' >> {journal}",
+        f"tee -a {journal}",
+        "mv output/exploration/autonomous-trials/t1/attempt.tmp " + journal,
+    ):
+        ok, why = GB.decide(cmd)
+        assert ok, f"autonomous trial journal の Write が誤拒否された: {cmd!r} ({why})"
 
 
 def test_bash_direct_writes_denied():

@@ -328,7 +328,7 @@ def _measurement_case(
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
-    monkeypatch.setattr(T, "campaign_layout", lambda *_args, **_kwargs: lay)
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda *_args, **_kwargs: lay)
 
     def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
         if order is not None:
@@ -340,6 +340,7 @@ def _measurement_case(
             "numactl": numactl,
             "env_contract": kwargs.get("env_contract"),
             "dependency_prefix": kwargs.get("dependency_prefix"),
+            "campaign_namespace": kwargs.get("campaign_namespace"),
         })
         return SimpleNamespace(
             results=[], skipped=0, execution_receipt=receipt,
@@ -450,6 +451,7 @@ def test_contract_sentinel_flows_to_run_campaign(monkeypatch):
         "numactl": list(contract.numactl),
         "env_contract": None,
         "dependency_prefix": None,
+        "campaign_namespace": "exploration",
     }]
 
 
@@ -478,6 +480,7 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
         "numactl": list(contract.numactl),
         "env_contract": None,
         "dependency_prefix": None,
+        "campaign_namespace": "exploration",
     }]
 
 
@@ -541,8 +544,12 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
     )
     monkeypatch.setattr(L, "make_critic_digest", lambda *_a, **_k: "compute-only\n")
     monkeypatch.setattr(
-        T, "campaign_layout",
-        lambda *_a, **_k: pytest.fail("CLI が cfg から campaign layout を再計算した"),
+        T, "exploration_campaign_layout",
+        lambda campaign_id: (
+            CampaignLayout(compute.root)
+            if campaign_id == "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
+            else pytest.fail("CLI が返却された campaign_id 以外から layout を再計算した")
+        ),
     )
     assert T.main(["--no-build", "--no-isolate-worktree"]) == 0
     after = {
@@ -781,13 +788,16 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
-    monkeypatch.setattr(fresh, "campaign_layout", lambda *_args, **_kwargs: lay)
+    monkeypatch.setattr(
+        fresh, "exploration_campaign_layout", lambda *_args, **_kwargs: lay,
+    )
 
     def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
         calls.append({
             "env_tag": env_tag,
             "clocks_per_us": clocks_per_us,
             "numactl": numactl,
+            "campaign_namespace": kwargs.get("campaign_namespace"),
         })
         return SimpleNamespace(results=[], skipped=0)
 
@@ -809,6 +819,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
         "env_tag": contract.env_tag,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
+        "campaign_namespace": "exploration",
     }]
 
 

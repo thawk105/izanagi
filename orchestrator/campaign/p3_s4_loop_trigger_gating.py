@@ -61,7 +61,8 @@ from campaign.axis_trigger_gating import (_BASE, MARKER_ID, PIN,  # noqa: E402
                                           SOURCE_REL, SYNTAX_CONTRACT_FORBIDDEN,
                                           TEMPLATE_PATCH)
 from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
-from campaign.layout import CampaignLayout, campaign_layout        # noqa: E402
+from campaign.layout import (CampaignLayout,                       # noqa: E402
+                             exploration_campaign_layout)
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
@@ -485,7 +486,8 @@ def _run_one_iteration_resolved(
         summary = run_campaign(
             campaign_cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log, ccbench_dir=sub,
-            cache_root=cache_root, **campaign_options,
+            cache_root=cache_root, campaign_namespace="exploration",
+            **campaign_options,
         )
     execution_receipt = getattr(summary, "execution_receipt", None)
     if execution_receipt is not None:
@@ -533,8 +535,9 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     contract = _admit_env_contract(resolved_site)
     campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(campaign_cfg)))
-    elif do_build and layout.root != campaign_layout(str(ident.campaign_id(campaign_cfg))).root:
+        layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
+    elif do_build and layout.root != exploration_campaign_layout(
+            str(ident.campaign_id(campaign_cfg))).root:
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
     _assert_resume_allowed(contract, layout)
@@ -600,7 +603,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     contract = _admit_env_contract(resolved_site)
     campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(campaign_cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
     _assert_resume_allowed(contract, layout)
     layout.ensure()
     _write_provenance_header(layout, extra_sources=extra_sources)
@@ -725,7 +728,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   do_build=not a.no_build, cache_root=cache_root,
                                   proposal_path=os.path.abspath(a.run_iteration),
                                   extra_sources=extra_sources)
+        expected_layout = exploration_campaign_layout(out["campaign_id"])
         layout = CampaignLayout(out["layout_root"])
+        if layout.root != expected_layout.root:
+            raise ValueError("返却された campaign_id と exploration layout_root が一致しない")
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
         print(f"  停止判定: {out['stop_reason']}")
@@ -761,7 +767,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                                 do_build=not a.no_build, cache_root=cache_root)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
+    expected_layout = exploration_campaign_layout(out["campaign_id"])
     layout = CampaignLayout(out["layout_root"])
+    if layout.root != expected_layout.root:
+        raise ValueError("返却された campaign_id と exploration layout_root が一致しない")
     digest_txt = L.make_critic_digest(layout, tag=CRITIC_TAG, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, DIGEST_BASENAME)
     layout.ensure()

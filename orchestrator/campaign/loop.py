@@ -19,7 +19,7 @@ from typing import List, Optional, Sequence
 from . import (buildcache, env_attestation, env_contract as env_contract_registry,
                execution_guard, ident, site_policy, source_digest, wal)
 from .env_contract import ExecutionEnvironmentContract
-from .layout import campaign_layout
+from .layout import campaign_layout, exploration_campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import (EvalResult, PerfConfig, S2_TAG, SEARCH_CONFIG_VERIFY_KEY,
                        VERIFY_LEGACY_PLUS_S2, evaluate, s2_correctness_workload,
@@ -95,17 +95,26 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  numactl: Optional[Sequence[str]] = None,
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "",
-                 env_contract=None, dependency_prefix: str = "") -> CampaignSummary:
+                 env_contract=None, dependency_prefix: str = "", *,
+                 campaign_namespace: str = "official") -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
-    引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。campaign-id には含めない
-    (numactl/do_bench と同じ扱い、pipeline.evaluate の docstring 参照)。`env_contract` と
-    `dependency_prefix` も非既定時だけ素通しし、既定 caller の evaluate 呼出し形を保つ。"""
+    引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
+    official / exploration の閉じた path selector。namespace は campaign-id に含めず、
+    `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
+    evaluate 呼出し形を保つ。"""
+    if campaign_namespace == "official":
+        layout_constructor = campaign_layout
+    elif campaign_namespace == "exploration":
+        layout_constructor = exploration_campaign_layout
+    else:
+        raise ValueError(f"未知の campaign namespace: {campaign_namespace!r}")
+
     execution_receipt = _authorize_measurement(
         env_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
         numactl=numactl,
     )
     cid = ident.campaign_id(cfg)
-    layout = campaign_layout(str(cid), output_root).ensure()
+    layout = layout_constructor(str(cid), output_root).ensure()
 
     # D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=="legacy+s2" で S2 構成
     # (t48 フルロード規模、データパス被覆担当) を legacy (検出力担当) に追加する。

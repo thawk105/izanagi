@@ -15,8 +15,9 @@ guard_write.py (Edit/Write hook) は Bash の `echo >> wal.jsonl` を見ない �
 closed で拒否)。** これで新種の writer は列挙せずとも自動的に落ちる。
 
 判定 (shlex でクォートを解決してからトークン単位で見る):
-1. 防護対象 (末端 = WAL/campaign.lock/runs/build-variants、ツリー = output/campaigns /
-   external/ccbench) がコマンドに現れない → 即許可 (fast path、通常作業を妨げない)。
+1. 防護対象 (末端 = WAL/campaign.lock/runs/build-variants/exploration namespace
+   marker、ツリー = official / exploration campaigns と external/ccbench) がコマンドに
+   現れない → 即許可 (fast path、通常作業を妨げない)。
 2. 末端/防護ツリーの**パス字面**と不透明構文 ($()/バッククォート/プロセス置換/<<<
    /eval/xargs) が同居 → 分類不能 = fails-closed で拒否 (パス字面が無ければ通す —
    `--output=/tmp/x $(nproc)` のような無関係コマンドを巻き込まない, F-FP-4)。
@@ -27,10 +28,11 @@ closed で拒否)。** これで新種の writer は列挙せずとも自動的�
      は書き込みでないので通す。cmake/make/ninja (ビルドシステム) の build-variants
      生成も正当経路 (`cmake -E` の任意コピーは除く)。perf は `perf <sub> [opts] --
      <cmd>` の明示形なら子コマンドを実 head として検査する。
-   - **防護ツリー破壊**: external/ccbench は全域 (祖先/自身/子孫)、output/campaigns は
-     祖先・自身・campaign dir 単位の削除/移動を拒否。campaign dir 配下の reports/ 等
-     proof-chain でない子孫の mv/rm は通す (F-FP-2、末端はどの深さでも拒否)。glob
-     (`output/*`) はメタ文字前の prefix で重なり判定 (リテラル prefix のみ, GB2-1)。
+   - **防護ツリー破壊**: external/ccbench は全域 (祖先/自身/子孫)、official / exploration
+     campaign tree は祖先・自身・campaign dir 単位の削除/移動/直接書込みを拒否。
+     campaign dir 配下の reports/ 等 proof-chain でない子孫の mv/rm/書込みは通す
+     (F-FP-2、末端はどの深さでも拒否)。glob (`output/*`) はメタ文字前の prefix で
+     重なり判定 (リテラル prefix のみ, GB2-1)。
    - **bare/stdin インタプリタ** (`... | python3` / `python3 -`) が防護対象パス字面と
      同居 → コードの中身を追えないので fails-closed (GB2-3)。
 
@@ -45,6 +47,7 @@ fails-closed 設計と WAL の proof chain、事後は規律6 の監査。
 from __future__ import annotations
 
 import json
+import fnmatch
 import os
 import re
 import shlex
@@ -75,21 +78,28 @@ except Exception:  # noqa: BLE001 — import 障害は _runtime_site の login f
 _LEAF_RE = re.compile(
     r"(?:^|/)wal\.jsonl(?:$|[/?])"
     r"|(?:^|/)campaign\.lock(?:$|[/?])"
-    r"|output/campaigns/[^\s]*?/runs(?:/|$)"
+    r"|output/(?:exploration/)?campaigns/[^\s]*?/runs(?:/|$)"
     r"|build-variants")
 # 防護ツリーのパス字面 (opaque 同居・bare interpreter 判定の精密トリガ)。
-_TREE_LITERAL_RE = re.compile(r"output/campaigns|external/ccbench")
+_TREE_LITERAL_RE = re.compile(
+    r"output/(?:exploration/)?campaigns|output/exploration/namespace\.json"
+    r"|external/ccbench")
 # fast path トリガ (広い): これが現れなければ即許可。祖先の祖先 (rm -rf output)
 # まで精査に載せるため、防護ツリーの構成語を広く含める。精査自体はトークン単位の
 # 厳密パターン (_LEAF_RE / _tree_violation) が担うので、広い分は read で落ちる。
 # 裸単語は直前が `-`/単語構成字なら除外 (`--output=` フラグ等の誤爆防止, F-FP-4)。
 _MENTION_RE = re.compile(
     r"wal\.jsonl|campaign\.lock|build-variants"
-    r"|output/campaigns|external/ccbench"
-    r"|(?<![-\w])(?:output|external|ccbench|campaigns)\b")
+    r"|output/(?:exploration/)?campaigns|output/exploration/namespace\.json"
+    r"|external/ccbench"
+    r"|(?<![-\w])(?:output|external|ccbench|campaigns|exploration|namespace)\b")
 # proof chain を配下に持つツリー root。
 _CCBENCH_TREE = "external/ccbench"     # 全域防護 (submodule working-tree = identity の実体)
-_CAMPAIGN_TREE = "output/campaigns"    # 祖先/自身/campaign dir 単位で防護 (子孫は末端のみ)
+_CAMPAIGN_TREE = (                      # 閉じた二要素集合 (子孫は末端のみ)
+    "output/campaigns",
+    "output/exploration/campaigns",
+)
+_EXPLORATION_TREE = "output/exploration"
 
 # 不透明構文: 中で何が起きるかテキストから追えない。防護対象パス字面と同居したら拒否。
 # `<<` は here-doc (本文コードが追えない) と here-string `<<<` を両方捕える
@@ -146,6 +156,9 @@ _BUILDERS = frozenset({"cmake", "make", "ninja"})
 # tar/rsync は _destroys_protected_tree で read/write を個別判別する (backup=読みは通す、
 # 展開/mirror INTO=書きは拒否, 2026-07-04 敵対検証 F-FP)。ここには「常に破壊」の head だけ。
 _TREE_MUTATORS = frozenset({"rm", "rmdir", "shred", "unlink", "mv", "install", "mkfs"})
+# tree path 自体を file のように直接上書きする writer。一般の copy/archive までここへ
+# 含めると campaign tree を backup 元にする既存の read 受理を狭めるため、対象を限定する。
+_TREE_DIRECT_WRITERS = frozenset({"tee", "truncate"})
 _GIT_DESTROY_SUBS = frozenset({"clean", "rm", "checkout", "restore", "reset",
                                "stash", "mv"})
 
@@ -724,13 +737,15 @@ def _stdin_script(head: str, args) -> bool:
     return not any(not a.startswith("-") for a in args)   # 非フラグ引数ゼロ = bare
 
 
-def _is_read_only(head: str, args) -> bool:
+def _is_read_only(head: str, args, repo_root: str = "", cwd: str = "") -> bool:
     """head が末端防護対象に触れてよい (中身を変えない) 読み取り専用操作か。"""
     if head in _PURE_READERS:
         return True
     if head == "dd":
         # dd if=WAL of=/tmp (読み) は許可、of= が末端 (書き) なら拒否
-        return not any(a.startswith("of=") and _LEAF_RE.search(a) for a in args)
+        return not any(a.startswith("of=") and (
+            _LEAF_RE.search(a) or _namespace_marker_violation(a, repo_root, cwd)
+        ) for a in args)
     if head == "find":
         return not any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir")
                        or a.startswith("-fprint") for a in args)
@@ -762,7 +777,21 @@ def _glob_prefix(token: str) -> str:
     return re.split(r"[*?\[]", token, maxsplit=1)[0]
 
 
-def _repo_relative(token: str, repo_root: str) -> str:
+def _repo_relative_path(token: str, repo_root: str, cwd: str = "") -> str:
+    """path 字面 (~ 展開済) を repo_root 相対に正規化して返す。"""
+    raw = os.path.expanduser(token)
+    if not os.path.isabs(raw) and cwd:
+        raw = os.path.join(cwd, raw)
+    if os.path.isabs(raw):
+        ap = os.path.normpath(raw)
+        root = os.path.normpath(repo_root) if repo_root else ""
+        if root and (ap == root or ap.startswith(root + os.sep)):
+            return os.path.relpath(ap, root)
+        return ap.strip("/")
+    return os.path.normpath(raw).strip("/")
+
+
+def _repo_relative(token: str, repo_root: str, cwd: str = "") -> str:
     """glob prefix (~ 展開済) を repo_root 相対に正規化して返す。
 
     2026-07-04 敵対検証: 絶対パス (`/home/.../output/campaigns/c`)・`~/…` は、strip 後
@@ -770,29 +799,66 @@ def _repo_relative(token: str, repo_root: str) -> str:
     (`rm -rf <abs>/output/campaigns/c`) が素通りしていた。repo_root で相対化してから既存の
     厳密照合に載せる。repo 外絶対 (`/tmp/output/campaigns`) は相対化せず素通り = 防護外
     (正しい)。`$VAR` 展開はシェルの実行時展開ゆえ hook からは追えない (docstring の限界)。"""
-    raw = os.path.expanduser(_glob_prefix(token))
-    if os.path.isabs(raw):
-        ap = os.path.normpath(raw)
-        root = os.path.normpath(repo_root) if repo_root else ""
-        if root and (ap == root or ap.startswith(root + os.sep)):
-            return os.path.relpath(ap, root)      # repo 内絶対 → 相対
-        return ap.strip("/")                       # repo 外絶対 → 照合で外れる
-    return os.path.normpath(raw).strip("/")        # 相対 → そのまま
+    return _repo_relative_path(_glob_prefix(token), repo_root, cwd)
 
 
-def _tree_violation(token: str, repo_root: str = "") -> bool:
+def _brace_patterns(pattern: str):
+    """shell brace のカンマ列挙を marker 照合用に展開する。"""
+    match = re.search(r"\{([^{}]*)\}", pattern)
+    if match is None or "," not in match.group(1):
+        return (pattern,)
+    expanded = []
+    for choice in match.group(1).split(","):
+        replaced = pattern[:match.start()] + choice + pattern[match.end():]
+        expanded.extend(_brace_patterns(replaced))
+    return tuple(expanded)
+
+
+def _namespace_marker_violation(
+        token: str, repo_root: str = "", cwd: str = "") -> bool:
+    """repo 内 exploration tree の namespace.json に pattern が一致し得るか。"""
+    candidate = token
+    if token.startswith("of=") or token.startswith("--output="):
+        candidate = token.split("=", 1)[1]
+    for pattern in _brace_patterns(candidate):
+        relative = _repo_relative_path(pattern, repo_root, cwd)
+        parts = relative.split("/")
+        if (len(parts) >= 3
+                and parts[:2] == ["output", "exploration"]
+                and fnmatch.fnmatchcase("namespace.json", parts[-1])):
+            return True
+    return False
+
+
+def _campaign_tree_violation(token: str, repo_root: str = "") -> bool:
+    """campaign tree の祖先・自身・campaign dir 単位に重なるなら True。"""
+    p = _repo_relative(token, repo_root)
+    if not p or p == ".":
+        return False
+    for tree in _CAMPAIGN_TREE:
+        if p == tree or tree.startswith(p + "/"):
+            return True                           # 祖先 or 自身
+        if p.startswith(tree + "/"):
+            rel = p[len(tree) + 1:]
+            if "/" not in rel:
+                return True                       # campaign dir 丸ごと (runs を内包)
+    return False
+
+
+def _tree_violation(token: str, repo_root: str = "", cwd: str = "") -> bool:
     """token の削除/移動/展開が proof chain を壊すか。
 
     - 末端 (_LEAF_RE) はどの深さでも壊す。
     - external/ccbench は全域 (祖先/自身/子孫) — submodule working-tree は identity の
       実体で、部分破壊も評価を汚す。
-    - output/campaigns は祖先・自身・campaign dir 単位 (`output/campaigns/<id>`) まで。
-      それより深い proof-chain でない子孫 (reports/ 等) は末端に触れない限り通す
-      (F-FP-2: 散文・プロットの mv/rm を巻き込まない)。
+    - official / exploration campaign tree は祖先・自身・campaign dir 単位
+      (`<campaign-tree>/<id>`) まで。それより深い proof-chain でない子孫
+      (reports/ 等) は末端に触れない限り通す (F-FP-2: 散文・プロットの
+      mv/rm を巻き込まない)。
     絶対パス・`~` は repo_root で相対化してから照合する (2026-07-04 敵対検証)。glob は
     メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
     ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
-    if _LEAF_RE.search(token):
+    if _LEAF_RE.search(token) or _namespace_marker_violation(token, repo_root, cwd):
         return True
     p = _repo_relative(token, repo_root)
     if not p or p == ".":
@@ -800,14 +866,7 @@ def _tree_violation(token: str, repo_root: str = "") -> bool:
     t = _CCBENCH_TREE
     if p == t or t.startswith(p + "/") or p.startswith(t + "/"):
         return True
-    t = _CAMPAIGN_TREE
-    if p == t or t.startswith(p + "/"):
-        return True                               # 祖先 or 自身
-    if p.startswith(t + "/"):
-        rel = p[len(t) + 1:]
-        if "/" not in rel:
-            return True                           # campaign dir 丸ごと (runs を内包)
-    return False
+    return _campaign_tree_violation(token, repo_root)
 
 
 def _path_args(args):
@@ -839,40 +898,45 @@ def _tar_creates(args) -> bool:
     return False
 
 
-def _destroys_protected_tree(head: str, args, repo_root: str = "") -> bool:
+def _destroys_protected_tree(
+        head: str, args, repo_root: str = "", cwd: str = "") -> bool:
     """head が防護ツリーを丸ごと削除/移動/展開する操作か。"""
     if head == "git":
         if "clean" in args:                       # cwd 再帰で untracked WAL を消す
             return True
         if any(a in _GIT_DESTROY_SUBS for a in args):
-            return any(_tree_violation(t, repo_root) for t in _path_args(args))
+            return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
         return False
     if head == "find":
         if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for a in args):
-            return any(_tree_violation(t, repo_root) for t in _path_args(args))
+            return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
         return False
     if head == "tar":
         if _tar_creates(args):                    # backup (読み) は通す
             return False
-        return any(_tree_violation(t, repo_root) for t in _path_args(args))
+        return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
     if head == "rsync":
         # DEST (最後の path 引数) が防護ツリーなら mirror INTO (書き) = 拒否。
         # SRC だけが防護対象 (backup 元) の読みは通す。
         paths = _path_args(args)
-        return bool(paths) and _tree_violation(paths[-1], repo_root)
+        return bool(paths) and _tree_violation(paths[-1], repo_root, cwd)
     if head in _TREE_MUTATORS:
-        return any(_tree_violation(t, repo_root) for t in _path_args(args))
+        return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
     return False
 
 
-def _redirect_hits_leaf(seg) -> bool:
-    """セグメント内でリダイレクト先が末端防護対象なら True。"""
+def _redirect_hits_protected(seg, repo_root: str = "", cwd: str = "") -> bool:
+    """セグメント内でリダイレクト先が末端または防護 tree 自体なら True。"""
     for i, t in enumerate(seg):
         if t in _REDIR_OPS and i + 1 < len(seg):
             tgt = seg[i + 1]
             if t == ">&" and tgt.isdigit():       # 2>&1 等の fd 複製は無視
                 continue
-            if _LEAF_RE.search(tgt):
+            if (_LEAF_RE.search(tgt)
+                    or _namespace_marker_violation(tgt, repo_root, cwd)
+                    or _campaign_tree_violation(tgt, repo_root)
+                    and _repo_relative(tgt, repo_root).startswith(
+                        _EXPLORATION_TREE + "/")):
                 return True
     return False
 
@@ -896,7 +960,8 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
 
     if hot and _OPAQUE_RE.search(command):
         return False, ("末端/防護ツリーのパス (WAL/campaign.lock/build-variants/"
-                       "output/campaigns/external/ccbench) と不透明構文 ($()/` `/"
+                       "namespace marker/official・exploration campaigns/external/ccbench) "
+                       "と不透明構文 ($()/` `/"
                        "プロセス置換/<<</eval/xargs) の同居は分類不能 = fails-closed。"
                        "読むだけなら cat/grep/jq で、正規の書き込みは pipeline.evaluate() "
                        "で、コミットは単一行 -m か -F <file> で")
@@ -909,11 +974,18 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
                            "fails-closed で拒否")
         return True, ""                            # 防護対象に触れない解析不能は素通し
 
+    marker_cwd = ""
     for seg in _segments(tokens):
-        if _redirect_hits_leaf(seg):
-            return False, ("リダイレクト先が末端防護対象。WAL/campaign.lock/build-cache "
-                           "を書く唯一の経路は pipeline.evaluate() (規律2)")
+        if _redirect_hits_protected(seg, root, marker_cwd):
+            return False, ("リダイレクト先が末端防護対象または campaign tree。WAL/"
+                           "campaign.lock/build-cache を書く唯一の経路は "
+                           "pipeline.evaluate() (規律2)")
         head, args = _head_and_args(seg)
+        if head == "cd":
+            paths = _path_args(args)
+            if len(paths) == 1:
+                marker_cwd = _repo_relative_path(paths[0], root, marker_cwd)
+            continue
         if head == "perf":
             # perf の自前出力先 (-o/--output) が防護対象なら拒否
             for i, a in enumerate(args):
@@ -931,15 +1003,23 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
                                "防護対象に触れない計測は自由 (F-FP-1)")
             else:
                 continue
-        if _destroys_protected_tree(head, args, root):
+        if _destroys_protected_tree(head, args, root, marker_cwd):
             return False, (f"campaign dir / ccbench root を破壊する操作 ({head})。"
                            "proof chain を配下ごと削除/移動/展開するのは不可 (規律2)")
+        if (head in _TREE_DIRECT_WRITERS
+                and any(_campaign_tree_violation(t, root)
+                        and _repo_relative(t, root).startswith(
+                            _EXPLORATION_TREE + "/") for t in args)):
+            return False, (f"campaign tree 自体を上書きする操作 ({head})。proof chain を"
+                           "配下ごと破壊しうるため不可 (規律2)")
         if hot and _stdin_script(head, args):
             return False, ("防護対象パスを含むコマンドでの bare/stdin インタプリタ実行 "
                            "(pipe や here-string でコードを流し込む形) は中身を追えない "
                            "= fails-closed (GB2-3)。スクリプトはファイルに置いて実行する")
-        leaf_hits = [t for t in args if _LEAF_RE.search(t)]
-        if leaf_hits and not _is_read_only(head, args):
+        leaf_hits = [t for t in args if (
+            _LEAF_RE.search(t) or _namespace_marker_violation(t, root, marker_cwd)
+        )]
+        if leaf_hits and not _is_read_only(head, args, root, marker_cwd):
             # ビルドシステムによる build-variants の生成/更新は正当経路
             # (cmake -E の任意ファイル操作は除く)。head 自身が build-variants 配下の
             # バイナリである「実行」は leaf_hits (args のみ) に乗らず素通り (F-FP-1)。
@@ -947,8 +1027,8 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
                     and all("build-variants" in t for t in leaf_hits)):
                 continue
             return False, (f"末端防護対象に触れる非読み取りコマンド ({head or '?'})。"
-                           "WAL/campaign.lock/build-cache の書き換え・削除・移動は不可 "
-                           "(規律2)。読み取りは cat/grep/jq/head/tail 等で")
+                           "WAL/campaign.lock/build-cache/namespace marker の書き換え・"
+                           "削除・移動は不可 (規律2)。読み取りは cat/grep/jq/head/tail 等で")
     return True, ""
 
 

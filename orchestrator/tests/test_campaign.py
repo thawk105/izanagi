@@ -32,7 +32,11 @@ sys.path.insert(0, _ORCH)
 from campaign import (buildcache, genome, ident, pin, pipeline,  # noqa: E402
                       source_digest, wal)
 from campaign import env_contract as ec                          # noqa: E402
-from campaign.layout import CampaignLayout, campaign_layout      # noqa: E402
+from campaign import layout as layout_module                     # noqa: E402
+from campaign.layout import (CampaignLayout,                     # noqa: E402
+                             ExplorationCampaignLayout,
+                             campaign_layout, ensure_exploration_namespace,
+                             exploration_campaign_layout)
 from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
 from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
@@ -2724,6 +2728,105 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
     return s, lay
 
 
+def test_run_campaign_default_namespace_remains_official():
+    """selector 省略時は既存どおり official root を使う。"""
+    from campaign import loop as L
+
+    out_root = _tmpdir("izanagi_loop_namespace_default_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="namespace-default", ccbench_commit="deadbeef")
+    summary = L.run_campaign(
+        cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
+        do_bench=False, output_root=out_root, log=lambda *_args: None,
+    )
+    expected = campaign_layout(str(ident.campaign_id(cfg)), out_root)
+    assert summary.layout_root == expected.root
+    assert os.path.isdir(expected.root)
+    assert not os.path.exists(os.path.join(out_root, "exploration"))
+
+
+def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
+    """exploration selector が marker/lock/WAL/evaluate の同一 layout まで届く。"""
+    from campaign import loop as L
+
+    out_root = _tmpdir("izanagi_loop_namespace_exploration_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="namespace-exploration", ccbench_commit="deadbeef")
+    genome = Genome("silo", {"BACK_OFF": 1})
+    evaluated_layouts = []
+
+    def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us, **kwargs):
+        evaluated_layouts.append(layout)
+        variant = pipeline.variant_id(g, kwargs.get("src_token"))
+        wal.log(layout, variant, STAGE_BUILD_START, env_tag,
+                {"genome": g.canonical()})
+        wal.log(layout, variant, STAGE_COMMIT, env_tag, {"fitness_tps": 1.0})
+        return EvalResult(genome=g, variant=variant, certified=True, aborted=False,
+                          fitness_tps=1.0)
+
+    saved_eval, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    try:
+        summary = L.run_campaign(
+            cfg, [genome], PerfConfig(records=1, threads=1), "test-env", 1800,
+            do_bench=False, output_root=out_root, log=lambda *_args: None,
+            campaign_namespace="exploration",
+        )
+    finally:
+        L.evaluate, L.source_digest = saved_eval, saved_sd
+
+    expected = exploration_campaign_layout(str(ident.campaign_id(cfg)), out_root)
+    assert summary.layout_root == expected.root
+    assert len(evaluated_layouts) == 1
+    assert isinstance(evaluated_layouts[0], ExplorationCampaignLayout)
+    assert evaluated_layouts[0].root == expected.root
+    assert open(expected.namespace_file, "rb").read() == b'{"namespace":"exploration"}\n'
+    assert os.path.isfile(expected.lock_file)
+    assert os.path.isfile(expected.wal_file)
+    assert [record.stage for record in wal.read_records(expected)] == [
+        STAGE_BUILD_START, STAGE_COMMIT,
+    ]
+
+
+def test_run_campaign_rejects_unknown_namespace_before_output_creation():
+    """未知 namespace は official fallback せず directory 作成前に拒否する。"""
+    from campaign import loop as L
+
+    parent = _tmpdir("izanagi_loop_namespace_unknown_")
+    out_root = os.path.join(parent, "must-not-exist")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="namespace-unknown", ccbench_commit="deadbeef")
+    try:
+        L.run_campaign(
+            cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
+            do_bench=False, output_root=out_root, log=lambda *_args: None,
+            campaign_namespace="typo",
+        )
+        assert False, "未知 namespace を拒否すべき"
+    except ValueError as exc:
+        assert "namespace" in str(exc)
+    assert not os.path.exists(out_root)
+
+
+def test_run_campaign_namespace_does_not_change_campaign_id():
+    """namespace は runtime path selector であり identity preimage へ入らない。"""
+    from campaign import loop as L
+
+    out_root = _tmpdir("izanagi_loop_namespace_identity_")
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="namespace-identity", ccbench_commit="deadbeef")
+    common = (cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800)
+    official = L.run_campaign(
+        *common, do_bench=False, output_root=out_root, log=lambda *_args: None,
+    )
+    exploration = L.run_campaign(
+        *common, do_bench=False, output_root=out_root, log=lambda *_args: None,
+        campaign_namespace="exploration",
+    )
+    assert official.campaign_id == exploration.campaign_id == str(ident.campaign_id(cfg))
+
+
 def test_loop_isolates_failing_genome():
     """1 genome の評価例外が campaign 全体を止めず、abort 記録で terminal 化する。"""
     seen = []
@@ -2958,6 +3061,59 @@ def test_layout_rejects_path_traversal():
         except ValueError:
             pass
     campaign_layout("readheavy-enum-abcd1234", output_root="/tmp/izanagi_x")  # 正常は通る
+
+
+def test_exploration_marker_precedes_campaign_directory_creation():
+    """campaign directory 作成失敗時にも marker が先に exact bytes で残る。"""
+    out_root = _tmpdir("izanagi_exploration_marker_order_")
+    layout = exploration_campaign_layout("marker-order", output_root=out_root)
+    original_makedirs = layout_module.os.makedirs
+
+    def fail_campaign_root(path, *args, **kwargs):
+        if os.path.abspath(os.fspath(path)) == os.path.abspath(layout.root):
+            raise OSError("campaign directory creation failed")
+        return original_makedirs(path, *args, **kwargs)
+
+    layout_module.os.makedirs = fail_campaign_root
+    try:
+        try:
+            layout.ensure()
+            assert False, "campaign directory 作成失敗を伝播すべき"
+        except OSError as exc:
+            assert str(exc) == "campaign directory creation failed"
+    finally:
+        layout_module.os.makedirs = original_makedirs
+    assert not os.path.exists(layout.root)
+    assert os.path.abspath(layout.namespace_file) == layout.namespace_file
+    assert open(layout.namespace_file, "rb").read() == b'{"namespace":"exploration"}\n'
+
+
+def test_ensure_exploration_namespace_enforces_shared_marker_contract():
+    """公開 helper は absolute path・exact bytes・symlink 拒否を単一契約で提供する。"""
+    root = os.path.join(_tmpdir("izanagi_exploration_helper_"), "journal")
+    marker = ensure_exploration_namespace(root)
+    assert os.path.isabs(marker)
+    assert open(marker, "rb").read() == b'{"namespace":"exploration"}\n'
+    assert ensure_exploration_namespace(root) == marker
+
+    with open(marker, "wb") as stream:
+        stream.write(b'{"namespace":"official"}\n')
+    try:
+        ensure_exploration_namespace(root)
+        assert False, "exact bytes 不一致を拒否すべき"
+    except ValueError as exc:
+        assert "exact contract" in str(exc)
+
+    os.unlink(marker)
+    target = os.path.join(root, "marker-target.json")
+    with open(target, "wb") as stream:
+        stream.write(b'{"namespace":"exploration"}\n')
+    os.symlink(target, marker)
+    try:
+        ensure_exploration_namespace(root)
+        assert False, "marker symlink を拒否すべき"
+    except ValueError as exc:
+        assert "symlink" in str(exc)
 
 
 # ===== レポートが close-call シグナル (near_floor) を surface するか (A2, 規律3) =====

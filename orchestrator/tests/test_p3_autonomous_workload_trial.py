@@ -54,6 +54,42 @@ def _fake_drive(
     }
 
 
+def _fake_drive_with_finite_metrics(
+    cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+    cache_root="", proposal_path="", extra_sources=(),
+):
+    outcome = _fake_drive(
+        cfg,
+        perf,
+        planner,
+        coder,
+        auditor,
+        prior,
+        sub,
+        do_build,
+        layout=layout,
+        cache_root=cache_root,
+        proposal_path=proposal_path,
+        extra_sources=extra_sources,
+    )
+    outcome.update({
+        "outcome": "certified",
+        "variant": "fixture-finite-metrics",
+        "fitness_tps": 12345.0,
+        "records": {
+            "bench_done": {
+                "leading_indicators": {
+                    "abort_rate": 0.079,
+                    "llc_miss_rate": 0.124,
+                    "latency_ns": 456.0,
+                    "ipc": 2.5,
+                }
+            }
+        },
+    })
+    return outcome
+
+
 def _fake_preview(coder, *, sub):
     return {
         "passed": True,
@@ -126,6 +162,163 @@ def test_generation_budget_rejects_non_int_float() -> None:
         A._validate_generation_budget(1.0)
 
 
+def test_metric_projection_uses_ratio_keys_and_units() -> None:
+    metrics = A._metric_projection({
+        "fitness_tps": 12345,
+        "records": {
+            "bench_done": {
+                "leading_indicators": {
+                    "abort_rate": 0.079,
+                    "latency_ns": 456.0,
+                    "llc_miss_rate": 0.124,
+                    "ipc": 2.5,
+                }
+            }
+        },
+    })
+
+    assert set(metrics) == {
+        "throughput_ops_sec",
+        "abort_rate",
+        "latency_ns",
+        "llc_miss_rate",
+        "ipc",
+    }
+    assert metrics == {
+        "throughput_ops_sec": 12345.0,
+        "abort_rate": 0.079,
+        "latency_ns": 456.0,
+        "llc_miss_rate": 0.124,
+        "ipc": 2.5,
+    }
+    assert type(metrics["throughput_ops_sec"]) is float
+
+
+def test_metric_projection_rejects_only_invalid_numbers() -> None:
+    def project(value):
+        return A._metric_projection({
+            "fitness_tps": value,
+            "records": {
+                "bench_done": {
+                    "leading_indicators": {
+                        "abort_rate": value,
+                        "latency_ns": value,
+                        "llc_miss_rate": value,
+                        "ipc": value,
+                    }
+                }
+            },
+        })
+
+    invalid = [
+        None,
+        True,
+        False,
+        float("nan"),
+        float("inf"),
+        -float("inf"),
+        10**400,
+    ]
+    for value in invalid:
+        assert all(metric is None for metric in project(value).values())
+    assert all(metric is None for metric in project("0.5").values())
+    for value in (0.0, -0.001, 1.5):
+        assert set(project(value).values()) == {value}
+
+
+def test_finite_metric_or_none_accepts_finite_boundaries() -> None:
+    assert A._finite_metric_or_none(1.0) == 1.0
+    assert A._finite_metric_or_none(sys.float_info.max) == sys.float_info.max
+
+
+def test_role_metric_payloads_convert_only_percent_fields() -> None:
+    perf_payload, leading_payload = A._role_metric_payloads(
+        {
+            "throughput_ops_sec": 12345.0,
+            "abort_rate": 0.079,
+            "latency_ns": 456.0,
+            "llc_miss_rate": 0.124,
+            "ipc": 2.5,
+        },
+        contention_level="high",
+    )
+
+    assert set(perf_payload) == {
+        "throughput_ops_sec",
+        "abort_rate_pct",
+        "latency_ns",
+        "llc_miss_rate",
+        "ipc",
+    }
+    assert set(leading_payload) == {
+        "contention_level",
+        "cache_miss_rate_pct",
+        "IPC_overall",
+    }
+    assert perf_payload["abort_rate_pct"] == 7.9
+    assert leading_payload["cache_miss_rate_pct"] == 12.4
+    assert perf_payload["llc_miss_rate"] == 0.124
+    assert perf_payload["throughput_ops_sec"] == 12345.0
+    assert perf_payload["latency_ns"] == 456.0
+    assert perf_payload["ipc"] == 2.5
+    assert leading_payload["IPC_overall"] == 2.5
+
+
+def test_role_metric_payloads_preserve_out_of_range_ratios() -> None:
+    perf_payload, leading_payload = A._role_metric_payloads(
+        {
+            "throughput_ops_sec": 12345.0,
+            "abort_rate": 1.5,
+            "latency_ns": 456.0,
+            "llc_miss_rate": -0.001,
+            "ipc": 2.5,
+        },
+        contention_level="high",
+    )
+
+    assert perf_payload["abort_rate_pct"] == 150.0
+    assert perf_payload["abort_rate_pct"] is not None
+    assert leading_payload["cache_miss_rate_pct"] == -0.1
+    assert leading_payload["cache_miss_rate_pct"] is not None
+
+
+def test_role_metric_payloads_reject_percent_overflow() -> None:
+    perf_payload, leading_payload = A._role_metric_payloads(
+        {
+            "throughput_ops_sec": sys.float_info.max,
+            "abort_rate": sys.float_info.max,
+            "latency_ns": sys.float_info.max,
+            "llc_miss_rate": sys.float_info.max,
+            "ipc": sys.float_info.max,
+        },
+        contention_level="high",
+    )
+
+    assert perf_payload["abort_rate_pct"] is None
+    assert leading_payload["cache_miss_rate_pct"] is None
+    assert perf_payload["llc_miss_rate"] == sys.float_info.max
+
+
+def test_role_metric_payloads_preserve_unobserved_none() -> None:
+    perf_payload, leading_payload = A._role_metric_payloads(
+        {
+            "throughput_ops_sec": None,
+            "abort_rate": None,
+            "latency_ns": None,
+            "llc_miss_rate": None,
+            "ipc": None,
+        },
+        contention_level="medium",
+    )
+
+    assert all(value is None for value in perf_payload.values())
+    assert leading_payload == {
+        "contention_level": "medium",
+        "cache_miss_rate_pct": None,
+        "IPC_overall": None,
+    }
+
+
 def test_cli_default_is_literal_one_by_ast() -> None:
     tree = ast.parse(Path(A.__file__).read_text(encoding="utf-8"))
     calls = [
@@ -151,6 +344,8 @@ def test_cli_default_is_literal_one_by_ast() -> None:
     assert isinstance(default, ast.Constant)
     assert type(default.value) is int
     assert default.value == 1
+
+
 class _ClosableRecordingFixture(_RecordingFixture):
     def __init__(self, role, close_order=None):
         super().__init__(role)
@@ -182,6 +377,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         preview=_fake_preview,
     )
     assert report["status"] == "complete"
+    assert report["schema_version"] == "p3-autonomous-workload-trial-report/v2"
     assert report["stop_policy"]["performance_early_stop"] is False
     assert report["claim_scope"]["scientific_claim"] is False
     ratios = [
@@ -192,6 +388,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
     for cell in report["cells"]:
         generation = cell["generations"][0]
         assert generation["outcome"] == "dry-pass"
+        assert "metrics" not in generation
         assert set(generation["roles"]) == {"planner", "coder", "auditor", "critic"}
         descriptor_sha = cell["descriptor_binding"]["output_sha256"]
         for event in generation["roles"].values():
@@ -211,9 +408,187 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
     assert report["attempt_journal_sha256"] == hashlib.sha256(
         (run_root / "attempts.jsonl").read_bytes()
     ).hexdigest()
+    assert (run_root / "namespace.json").read_bytes() == (
+        b'{"namespace":"exploration"}\n'
+    )
     for payload in providers["coder"].payloads:
         assert set(payload["planner_direction"]) == {"axis", "direction", "magnitude"}
         assert "justification" not in payload["planner_direction"]
+    for planner_payload, coder_payload, critic_payload in zip(
+        providers["planner"].payloads,
+        providers["coder"].payloads,
+        providers["critic"].payloads,
+        strict=True,
+    ):
+        assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
+        assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
+        assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
+
+        current_perf = planner_payload["current_perf"]
+        leading_indicators = planner_payload["leading_indicators"]
+        baseline = coder_payload["baseline"]
+        critic_metrics = critic_payload["harness_result"]["metrics"]
+        assert set(current_perf) == {
+            "throughput_ops_sec",
+            "abort_rate_pct",
+            "latency_ns",
+            "llc_miss_rate",
+            "ipc",
+        }
+        assert set(leading_indicators) == {
+            "contention_level",
+            "cache_miss_rate_pct",
+            "IPC_overall",
+        }
+        assert set(baseline) == {
+            "throughput_ops_sec",
+            "abort_rate_pct",
+            "latency_ns",
+            "llc_miss_rate",
+            "ipc",
+        }
+        assert set(critic_metrics) == {
+            "throughput_ops_sec",
+            "abort_rate",
+            "latency_ns",
+            "llc_miss_rate",
+            "ipc",
+        }
+        assert "abort_rate_pct" not in critic_metrics
+        assert "cache_miss_rate_pct" not in critic_metrics
+        assert all(value is None for value in current_perf.values())
+        assert all(
+            leading_indicators[key] is None
+            for key in ("cache_miss_rate_pct", "IPC_overall")
+        )
+        assert all(value is None for value in baseline.values())
+        assert all(value is None for value in critic_metrics.values())
+
+
+def test_generation_one_recipient_wiring_uses_role_projection(
+    tmp_path, monkeypatch,
+) -> None:
+    expected_perf = {
+        "throughput_ops_sec": 12345.0,
+        "abort_rate_pct": 7.9,
+        "latency_ns": 456.0,
+        "llc_miss_rate": 0.124,
+        "ipc": 2.5,
+    }
+    expected_leading = {
+        "contention_level": "fixture-contention",
+        "cache_miss_rate_pct": 12.4,
+        "IPC_overall": 2.5,
+    }
+    calls = []
+
+    def role_projection(current_metrics, *, contention_level):
+        calls.append((dict(current_metrics), contention_level))
+        return dict(expected_perf), dict(expected_leading)
+
+    monkeypatch.setattr(A, "_role_metric_payloads", role_projection)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="generation-one-recipient-wiring",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+
+    assert report["status"] == "complete"
+    assert len(calls) == 1
+    assert set(calls[0][0]) == {
+        "throughput_ops_sec",
+        "abort_rate",
+        "latency_ns",
+        "llc_miss_rate",
+        "ipc",
+    }
+    assert providers["planner"].payloads[0]["current_perf"] == expected_perf
+    assert providers["planner"].payloads[0]["leading_indicators"] == expected_leading
+    assert providers["coder"].payloads[0]["baseline"] == expected_perf
+
+
+def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schema(
+    tmp_path,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="generation-one-finite-metrics",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive_with_finite_metrics,
+        preview=_fake_preview,
+    )
+
+    assert report["status"] == "complete"
+    cell = report["cells"][0]
+    generation_record = cell["generations"][0]
+    assert generation_record["outcome"] == "certified"
+
+    planner_payload = providers["planner"].payloads[0]
+    coder_payload = providers["coder"].payloads[0]
+    critic_payload = providers["critic"].payloads[0]
+    common_keys = {
+        "schema_version",
+        "pilot_scope",
+        "scientific_claim",
+        "workload",
+        "generation",
+        "workload_descriptor",
+        "descriptor_binding",
+        "attempt_policy",
+        "stop_policy",
+    }
+    assert set(planner_payload) == common_keys | {
+        "current_perf",
+        "leading_indicators",
+        "whiteboard",
+    }
+    assert set(coder_payload) == common_keys | {
+        "leakproof_context",
+        "gating_spec",
+        "planner_direction",
+        "baseline",
+        "whiteboard",
+    }
+    assert set(critic_payload) == common_keys | {
+        "harness_result",
+        "critic_digest",
+    }
+
+    critic_metrics = critic_payload["harness_result"]["metrics"]
+    assert critic_metrics == {
+        "throughput_ops_sec": 12345.0,
+        "abort_rate": 0.079,
+        "latency_ns": 456.0,
+        "llc_miss_rate": 0.124,
+        "ipc": 2.5,
+    }
+
+    planner_indicators = planner_payload["leading_indicators"]
+    assert (
+        planner_indicators["contention_level"]
+        == cell["descriptor"]["contention"]["label"]
+    )
+    assert "metrics" not in generation_record
 
 
 class _InvalidPlanner:
@@ -525,6 +900,145 @@ def test_run_workload_accepts_actual_fresh_campaign_layout(tmp_path) -> None:
     assert all(len(provider.payloads) == 1 for provider in providers.values())
 
 
+def test_run_workload_build_passes_exploration_layout_to_trigger(
+    tmp_path, monkeypatch,
+) -> None:
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    passed_layouts = []
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(),
+    ):
+        assert do_build is True
+        passed_layouts.append(layout)
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+        }
+
+    result = A._run_workload(
+        workload="ycsb-a",
+        generations=1,
+        providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        cache_root="/unused-cache",
+        trial_id="build-exploration-layout",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=drive_build,
+        preview=_fake_preview,
+    )
+
+    expected = tmp_path / "exploration" / "campaigns" / result["campaign_id"]
+    assert Path(result["campaign_root"]) == expected
+    assert [Path(layout.root) for layout in passed_layouts] == [expected]
+
+
+def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
+    tmp_path, monkeypatch,
+) -> None:
+    """F5/M08: public run_trial から実際に trigger sink へ渡る root を見る。"""
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    passed_layouts = []
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(),
+    ):
+        assert do_build is True
+        passed_layouts.append(layout)
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
+            "fixture digest without performance", encoding="utf-8",
+        )
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+        }
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="public-build-exploration-layout",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=drive_build,
+        preview=_fake_preview,
+    )
+    expected = (
+        tmp_path / "exploration" / "campaigns" / report["cells"][0]["campaign_id"]
+    )
+    assert [Path(layout.root) for layout in passed_layouts] == [expected]
+    assert Path(report["cells"][0]["campaign_root"]) == expected
+    assert not (tmp_path / "campaigns" / report["cells"][0]["campaign_id"]).exists()
+
+
+def test_run_workload_no_build_stays_trial_local(tmp_path) -> None:
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    result = A._run_workload(
+        workload="ycsb-a",
+        generations=1,
+        providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        cache_root="",
+        trial_id="no-build-trial-local",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+
+    assert Path(result["campaign_root"]) == (
+        run_root / "campaigns" / result["campaign_id"]
+    )
+
+
 def test_freshness_wraps_malformed_json_with_cause(tmp_path) -> None:
     layout = A.CampaignLayout(str(tmp_path / "campaign"))
     layout.ensure()
@@ -789,6 +1303,61 @@ def test_main_accepts_claude_headless_no_build_at_cli_gate(
             "--ccbench-dir", str(tmp_path / "ccbench"),
             "--run-root", str(tmp_path / "run"),
         ])
+
+
+def test_main_default_run_root_is_exploration_autonomous_trials(
+    tmp_path, monkeypatch,
+) -> None:
+    captured = {}
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *args, **kwargs: None)
+
+    def capture_run_trial(**kwargs):
+        captured.update(kwargs)
+        return {"status": "complete", "cells": []}
+
+    monkeypatch.setattr(A, "run_trial", capture_run_trial)
+    assert A.main([
+        "--trial-id", "default-exploration-root",
+        "--provider", "fixture",
+        "--no-build",
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+    ]) == 0
+    assert captured["run_root"] == (
+        A.ROOT
+        / "output"
+        / "exploration"
+        / "autonomous-trials"
+        / "default-exploration-root"
+    )
+
+
+def test_main_explicit_run_root_still_wins(tmp_path, monkeypatch) -> None:
+    captured = {}
+    explicit = tmp_path / "explicit-run-root"
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *args, **kwargs: None)
+
+    def capture_run_trial(**kwargs):
+        captured.update(kwargs)
+        return {"status": "complete", "cells": []}
+
+    monkeypatch.setattr(A, "run_trial", capture_run_trial)
+    assert A.main([
+        "--trial-id", "explicit-root",
+        "--provider", "fixture",
+        "--no-build",
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+        "--run-root", str(explicit),
+    ]) == 0
+    assert captured["run_root"] == explicit
+
+
+def test_main_help_names_exploration_autonomous_trials(capsys) -> None:
+    with pytest.raises(SystemExit) as caught:
+        A.main(["--help"])
+    assert caught.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "output/exploration/autonomous-trials/<trial-id>" in help_text
+    assert "output/autonomous-trials/<trial-id>" not in help_text
 
 
 def _role_file(path: Path) -> Path:

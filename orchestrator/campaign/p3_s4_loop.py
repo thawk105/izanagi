@@ -4,14 +4,20 @@
 **位置づけ:** 後続段 4 = coder (LLM) が初めて変異の値・方向を自律生成する段。
 reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 周):
 
-    1. planner (LLM):  leading-indicators → 方向提案 (値なし)
-    2. coder   (LLM):  方向 → 具体 backoff 値 + hole コード (勝ち筋値を見ずに合成)
+    1. planner (LLM):  current_perf (絶対 throughput を含む) + leading-indicators +
+       whiteboard → 方向提案 (proposal スキーマは具体値 field を持たない)
+       whiteboard は delta_pct field だけを fail-closed にし、direction / magnitude /
+       result の値は checkpoint から無検証で入り得る ([T-287] の残余)
+       justification / uncertainty の自由文は journal / report に残る
+    2. coder   (LLM):  方向 + baseline (絶対 throughput 等の現行指標) → 具体 backoff 値 +
+       hole コード (過去候補の勝ち筋値・critic の機序帰属の専用 field は持たない)
     3. harness (本Py): coder コードを EVOLVE-BLOCK hole に挿入 → diff 検疫 (4a)
        - reject  → diff-quarantine rejection を WAL に焼き critic へ (bench に進めない)
        - pass    → run_campaign (build×2/verify/bench) に委譲 → WAL
     4. harness (本Py): 緑 (LI) + 赤 (rejection/liveness/diff-quarantine) digest を組む
-    5. critic  (LLM):  帰属 + 次方向 (値なし・機序は whiteboard に載せない)
-    6. harness (本Py): whiteboard 射影 (機序を落とす) + 停止判定
+    5. critic  (LLM):  帰属 + 次方向
+    6. harness (本Py): whiteboard 射影 + 停止判定 (critic attribution 専用 field は
+       ないが、generic field の値は検証しない)
 
 **ループ主導権はメインセッション** (design v1 §4)。本モジュールは LLM を spawn しない —
 planner/coder/critic の構造化出力を **引数として受け取り** 機械部分だけを回す
@@ -47,7 +53,8 @@ from campaign import ident, wal                                    # noqa: E402
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
-from campaign.layout import CampaignLayout, campaign_layout         # noqa: E402
+from campaign.layout import (CampaignLayout,                       # noqa: E402
+                             exploration_campaign_layout)
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
@@ -107,9 +114,11 @@ class CoderProposal:
 
 @dataclass
 class WhiteboardEntry:
-    """評価済み提案の 1 行。**機序 (critic attribution) を持たない** — 棄却理由から
-    採用値を逆算できる structural inference リスクへの物理的対策 (design v1 §4、規律2/6)。
-    planner/coder が見るのは direction/magnitude/result/delta_pct のみ。"""
+    """proposal と harness result を保持する whiteboard の 1 行。
+
+    critic attribution 専用 field はないが、direction / magnitude / result の値を検証する
+    型ではなく、checkpoint から値・機序を含む文字列が入り得る ([T-287] の残余)。
+    delta_pct field だけは planner 射影時に None を fail-closed 強制する。"""
     iteration: int
     direction: str
     magnitude: str
@@ -257,13 +266,12 @@ def make_critic_digest(layout: CampaignLayout, tag: str = "p3-s4",
 
 def project_whiteboard(state: LoopState, planner: PlannerProposal,
                        result: str, delta_pct: Optional[float] = None) -> WhiteboardEntry:
-    """critic の帰属 (機序) を落として whiteboard に 1 行だけ射影する (design v1 §4)。
+    """proposal と harness result を whiteboard の 5 field へ射影する (design v1 §4)。
 
-    記録するのは iteration/direction/magnitude/result/delta_pct のみ。critic の
-    attribution (なぜ効いた/壊れたか) や棄却理由の technical explanation は載せない —
-    planner がそれを読んで棄却理由から採用値を逆算できる structural inference リスク
-    (規律2/6)。result: success (certified 緑) | fail (verify/liveness 赤) | rejected
-    (diff 検疫 reject)。"""
+    critic attribution 専用 field はないが、direction / magnitude / result の内容は検証せず、
+    checkpoint から値・機序を含む文字列が入り得る ([T-287] の残余)。delta_pct field だけは
+    planner 射影時に None を fail-closed 強制する。result の想定値は success (certified 緑) |
+    fail (verify/liveness 赤) | rejected (diff 検疫 reject)。"""
     e = WhiteboardEntry(iteration=state.iteration, direction=planner.direction,
                         magnitude=planner.magnitude, result=result, delta_pct=delta_pct)
     state.whiteboard.append(e)
@@ -271,10 +279,15 @@ def project_whiteboard(state: LoopState, planner: PlannerProposal,
 
 
 def whiteboard_for_planner(state: LoopState) -> List[Dict]:
-    """planner-v4 / coder-v4 入力の whiteboard フィールド (評価済みのみ・値なし)。段 4 は
-    **射影境界でも delta_pct≡None を fail-closed 強制**する — planner へ勝ち筋チャネル (性能値) を
-    渡さない (規律2/6)。load 側 state_from_dict と二重で塞ぎ、in-memory 経路 (project_whiteboard が
-    誤って非 None を書く) も射影の関所で止める (監査 2026-07-08)。"""
+    """planner-v4 / coder-v4 入力の whiteboard フィールド。
+
+    段 4 はこの whiteboard 射影経路の delta_pct field に限って None を fail-closed
+    強制する (規律2/6)。direction / magnitude / result の値は checkpoint から無検証で
+    入り得る ([T-287] の残余)。これは planner 入力全体の性能値遮断ではない。絶対
+    throughput は別 field の current_perf で planner へ、baseline で coder へ渡り、
+    planner には leading_indicators も渡る。delta_pct field は load 側 state_from_dict
+    と二重で塞ぎ、in-memory 経路 (project_whiteboard が誤って非 None を書く) も射影の
+    関所で止める (監査 2026-07-08)。"""
     out = []
     for e in state.whiteboard:
         if not _DELTA_PCT_LIVE and e.delta_pct is not None:
@@ -620,8 +633,9 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
     assert_value_literal_consistent(coder)
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
-    elif do_build and layout.root != campaign_layout(str(ident.campaign_id(cfg))).root:
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    elif do_build and layout.root != exploration_campaign_layout(
+            str(ident.campaign_id(cfg))).root:
         # build 経路は run_campaign が cfg 由来 layout に WAL を書く — 注入 layout がそれと食い違うと
         # WAL と reject/records/digest が分裂する。build 時は一致を強制 (production は layout=None
         # ゆえ常に一致。注入は dry/test 専用の hermetic 化、監査 2026-07-08)。
@@ -653,7 +667,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                              ccbench_dir=sub, cache_root=cache_root)
+                              ccbench_dir=sub, cache_root=cache_root,
+                              campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         return _resolve_duplicate(layout, planner, state, summary, log=log)
@@ -734,7 +749,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
     if layout is None:
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
     state = load_loop_state(layout)
     if state is None:
@@ -818,7 +833,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
                                   do_build=not a.no_build, cache_root=cache_root)
-        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
         print(f"  停止判定: {out['stop_reason']}")
@@ -847,7 +862,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                 do_build=not a.no_build, cache_root=cache_root)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, "s4_loop_digest.txt")
     layout.ensure()
