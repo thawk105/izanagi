@@ -592,23 +592,144 @@ def _common_payload(
     }
 
 
+def _close_owned_providers(providers: Mapping[str, Any]) -> None:
+    for provider in reversed(tuple(providers.values())):
+        close = getattr(provider, "close", None)
+        if callable(close):
+            close()
+
+
 def _provider_set(*, kind: str, run_root: Path, executable: str) -> dict[str, Any]:
     result: dict[str, Any] = {}
-    for role, (role_file, role_name) in ROLE_FILES.items():
-        if kind == "fixture":
-            result[role] = FixtureRoleProvider(role)
-        elif kind == "claude-headless":
-            result[role] = ClaudeProjectedRoleProvider(
-                artifact_root=run_root / "provider" / role,
-                role_file=role_file,
-                role_name=role_name,
-                mediated_contract=ROLE_CONTRACTS[role],
-                repository_root=ROOT,
-                executable=executable,
-            )
-        else:  # pragma: no cover - argparse closes this
-            raise AutonomousTrialError(f"unknown provider kind: {kind}")
+    try:
+        for role, (role_file, role_name) in ROLE_FILES.items():
+            if kind == "fixture":
+                result[role] = FixtureRoleProvider(role)
+            elif kind == "claude-headless":
+                result[role] = ClaudeProjectedRoleProvider(
+                    artifact_root=run_root / "provider" / role,
+                    role_file=role_file,
+                    role_name=role_name,
+                    mediated_contract=ROLE_CONTRACTS[role],
+                    repository_root=ROOT,
+                    executable=executable,
+                )
+            else:  # pragma: no cover - argparse closes this
+                raise AutonomousTrialError(f"unknown provider kind: {kind}")
+    except BaseException:
+        _close_owned_providers(result)
+        raise
     return result
+
+
+def _finish_trial(
+    *,
+    trial_id: str,
+    selected: list[str],
+    generations: int,
+    provider_kind: str,
+    run_root: Path,
+    sub: str,
+    do_build: bool,
+    cache_root: str,
+    max_wall_s: int,
+    drive: Callable[..., Mapping[str, Any]],
+    preview: Callable[..., Mapping[str, Any]],
+    journal: AttemptJournal,
+    started: str,
+    started_monotonic: float,
+    active_providers: Mapping[str, Any],
+    fatal_error: dict[str, str] | None,
+) -> dict[str, Any]:
+    cells: list[dict[str, Any]] = []
+    if fatal_error is None:
+        for workload in selected:
+            if time.monotonic() - started_monotonic >= max_wall_s:
+                fatal_error = {
+                    "type": "SupervisorWallBudget",
+                    "message": "wall budget expired before the next workload",
+                }
+                journal.append({"event": "supervisor-wall-budget", "workload": workload})
+                break
+            try:
+                cell = _run_workload(
+                    workload=workload,
+                    generations=generations,
+                    providers=active_providers,
+                    journal=journal,
+                    run_root=run_root,
+                    sub=sub,
+                    do_build=do_build,
+                    cache_root=cache_root,
+                    trial_id=trial_id,
+                    started_monotonic=started_monotonic,
+                    max_wall_s=max_wall_s,
+                    drive=drive,
+                    preview=preview,
+                )
+            except Exception as exc:
+                fatal_error = {"type": type(exc).__name__, "message": str(exc)}
+                journal.append({
+                    "event": "supervisor-error",
+                    "workload": workload,
+                    **fatal_error,
+                })
+                cells.append({
+                    "workload": workload,
+                    "generations": [],
+                    "stop_reason": "supervisor-error",
+                    "error": dict(fatal_error),
+                })
+                break
+            cells.append(cell)
+    status = (
+        "complete"
+        if len(cells) == len(selected)
+        and fatal_error is None
+        and all(
+            cell["stop_reason"]
+            not in {"role-invalid", "supervisor-error", "supervisor-wall-budget"}
+            for cell in cells
+        )
+        else "partial"
+    )
+    report = {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "trial_id": trial_id,
+        "status": status,
+        "started_at": started,
+        "finished_at": _now_iso(),
+        "provider": provider_kind,
+        "do_build": do_build,
+        "workloads_requested": selected,
+        "generation_budget_per_workload": generations,
+        "stop_policy": {
+            "fixed_generations": True,
+            "performance_early_stop": False,
+            "max_wall_s": max_wall_s,
+        },
+        "claim_scope": {
+            "scientific_claim": False,
+            "label": "exploratory wiring pilot",
+            "formal_followup": "H1 rr80 / H2 rr20 x on/off/swapped",
+            "known_workload_warning": (
+                "YCSB A/B are known rr50/rr95 points; YCSB C is an exploratory "
+                "read-only negative-control candidate."
+            ),
+        },
+        "attempt_journal": str(run_root / "attempts.jsonl"),
+        "cells": cells,
+    }
+    if fatal_error is not None:
+        report["fatal_error"] = fatal_error
+    journal.append({
+        "event": "run-finish",
+        "status": status,
+        "report": str(run_root / "report.json"),
+    })
+    report["attempt_journal_sha256"] = _sha256((run_root / "attempts.jsonl").read_bytes())
+    _write_json_atomic(run_root / "report.json", report)
+    return report
 
 
 def _run_workload(
@@ -889,108 +1010,42 @@ def run_trial(
         "performance_early_stop": False,
         "scientific_claim": False,
     })
-    cells: list[dict[str, Any]] = []
+    owns_active_providers = providers is None
+    active_providers: dict[str, Any] = {}
     fatal_error: dict[str, str] | None = None
     try:
-        active_providers = (
-            dict(providers)
-            if providers is not None
-            else _provider_set(
-                kind=provider_kind, run_root=run_root, executable=claude_executable
-            )
-        )
-    except Exception as exc:
-        fatal_error = {"type": type(exc).__name__, "message": str(exc)}
-        journal.append({"event": "provider-init-error", **fatal_error})
-        active_providers = {}
-    if fatal_error is None:
-        for workload in selected:
-            if time.monotonic() - started_monotonic >= max_wall_s:
-                fatal_error = {
-                    "type": "SupervisorWallBudget",
-                    "message": "wall budget expired before the next workload",
-                }
-                journal.append({"event": "supervisor-wall-budget", "workload": workload})
-                break
-            try:
-                cell = _run_workload(
-                    workload=workload,
-                    generations=generations,
-                    providers=active_providers,
-                    journal=journal,
-                    run_root=run_root,
-                    sub=sub,
-                    do_build=do_build,
-                    cache_root=cache_root,
-                    trial_id=trial_id,
-                    started_monotonic=started_monotonic,
-                    max_wall_s=max_wall_s,
-                    drive=drive,
-                    preview=preview,
+        try:
+            active_providers = (
+                dict(providers)
+                if providers is not None
+                else _provider_set(
+                    kind=provider_kind, run_root=run_root, executable=claude_executable
                 )
-            except Exception as exc:
-                fatal_error = {"type": type(exc).__name__, "message": str(exc)}
-                journal.append({
-                    "event": "supervisor-error",
-                    "workload": workload,
-                    **fatal_error,
-                })
-                cells.append({
-                    "workload": workload,
-                    "generations": [],
-                    "stop_reason": "supervisor-error",
-                    "error": dict(fatal_error),
-                })
-                break
-            cells.append(cell)
-    status = (
-        "complete"
-        if len(cells) == len(selected)
-        and fatal_error is None
-        and all(
-            cell["stop_reason"]
-            not in {"role-invalid", "supervisor-error", "supervisor-wall-budget"}
-            for cell in cells
+            )
+        except Exception as exc:
+            fatal_error = {"type": type(exc).__name__, "message": str(exc)}
+            journal.append({"event": "provider-init-error", **fatal_error})
+        return _finish_trial(
+            trial_id=trial_id,
+            selected=selected,
+            generations=generations,
+            provider_kind=provider_kind,
+            run_root=run_root,
+            sub=sub,
+            do_build=do_build,
+            cache_root=cache_root,
+            max_wall_s=max_wall_s,
+            drive=drive,
+            preview=preview,
+            journal=journal,
+            started=started,
+            started_monotonic=started_monotonic,
+            active_providers=active_providers,
+            fatal_error=fatal_error,
         )
-        else "partial"
-    )
-    report = {
-        "schema_version": REPORT_SCHEMA_VERSION,
-        "trial_id": trial_id,
-        "status": status,
-        "started_at": started,
-        "finished_at": _now_iso(),
-        "provider": provider_kind,
-        "do_build": do_build,
-        "workloads_requested": selected,
-        "generation_budget_per_workload": generations,
-        "stop_policy": {
-            "fixed_generations": True,
-            "performance_early_stop": False,
-            "max_wall_s": max_wall_s,
-        },
-        "claim_scope": {
-            "scientific_claim": False,
-            "label": "exploratory wiring pilot",
-            "formal_followup": "H1 rr80 / H2 rr20 x on/off/swapped",
-            "known_workload_warning": (
-                "YCSB A/B are known rr50/rr95 points; YCSB C is an exploratory "
-                "read-only negative-control candidate."
-            ),
-        },
-        "attempt_journal": str(run_root / "attempts.jsonl"),
-        "cells": cells,
-    }
-    if fatal_error is not None:
-        report["fatal_error"] = fatal_error
-    journal.append({
-        "event": "run-finish",
-        "status": status,
-        "report": str(run_root / "report.json"),
-    })
-    report["attempt_journal_sha256"] = _sha256((run_root / "attempts.jsonl").read_bytes())
-    _write_json_atomic(run_root / "report.json", report)
-    return report
+    finally:
+        if owns_active_providers:
+            _close_owned_providers(active_providers)
 
 
 def _parse_workloads(raw: str) -> list[str]:

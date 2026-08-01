@@ -1,0 +1,33 @@
+[1/16] M1 start
+[1/16] M1 SURVIVED rc=1 failed=0 canonical=False restored=True
+[2/16] M2 start
+[2/16] M2 SURVIVED rc=1 failed=0 canonical=False restored=True
+[3/16] M3 start
+[3/16] M3 SURVIVED rc=1 failed=0 canonical=False restored=True
+[4/16] M4 start
+[4/16] M4 SURVIVED rc=1 failed=0 canonical=False restored=True
+[5/16] M5 start
+[5/16] M5 SURVIVED rc=1 failed=0 canonical=False restored=True
+[6/16] M6 start
+[6/16] M6 SURVIVED rc=1 failed=0 canonical=False restored=True
+[7/16] M7 start
+[7/16] M7 SURVIVED rc=1 failed=0 canonical=False restored=True
+[8/16] M8 start
+[8/16] M8 SURVIVED rc=1 failed=0 canonical=False restored=True
+[9/16] M9 start
+[9/16] M9 SURVIVED rc=1 failed=0 canonical=False restored=True
+[10/16] M10 start
+[10/16] M10 SURVIVED rc=1 failed=0 canonical=False restored=True
+[11/16] M11 start
+[11/16] M11 SURVIVED rc=1 failed=0 canonical=False restored=True
+[12/16] M12 start
+[12/16] M12 SURVIVED rc=1 failed=0 canonical=False restored=True
+[13/16] M13 start
+[13/16] M13 SURVIVED rc=1 failed=0 canonical=False restored=True
+[14/16] M14 start
+[14/16] M14 SURVIVED rc=1 failed=0 canonical=False restored=True
+[15/16] M15 start
+[15/16] M15 SURVIVED rc=1 failed=0 canonical=False restored=True
+[16/16] M16 start
+[16/16] M16 SURVIVED rc=1 failed=0 canonical=False restored=True
+rc=0

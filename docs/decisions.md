@@ -5183,7 +5183,45 @@ floor 実測前 gate に「実行 revision 束縛」として既に列挙され�
 ではなく台帳の優先度と本 D の順序付けで決まること、の 2 点だけである。**成果物の凍結** (protocol JSON /
 holdout / v1 freeze bytes) とは無関係であり、そちらは従来どおり機械 gate が守る。
 
-## D112. [T-249] 凍結証拠が bytes を縛る共有 Pegasus policy は「動かせる分だけ」task 別 file へ移し、残りは D96 手続へ返す — 索引は所在 inventory に限定する (2026-08-01)
+## D112. [T-118] 一時 directory の後始末は「作成時 identity」で行い、cleanup は受理集合を変えない (2026-08-01)
+
+**背景:** production の provider 2 クラス (`ClaudeHeadlessProvider` / `ClaudeProjectedRoleProvider`) が
+`__init__` で neutral root を `mkdtemp` し、invocation ごとに `cwd-` を足したまま一度も消していなかった。
+lifecycle を与える wave ([T-118]、worklog 2026-08-01 (97)) の敵対レビュー 4 本が、素朴な実装
+(`resolve()` した path を `weakref.finalize` + `rmtree(ignore_errors=True)` で消す) の 2 つの穴を
+独立に突いた。本 D はその裁定を、以後の同型 cleanup 全般へ適用する規則として固定する。
+
+**決定 (1): 削除対象は `mkdtemp()` の生返値 (作成時 identity) だけとし、`resolve()` 済み path を
+削除経路へ渡さない。** `mkdtemp` 直後に同一 UID の並行 process が対象を symlink へ差し替えると、
+`resolve(strict=True)` は別の実 path を返す。repository 外判定を通ってしまえば、finalizer は
+解決先 (proof chain 材料を含みうる) を再帰削除する。生 identity を消す形なら `shutil.rmtree` が
+symlink を拒否して fail-safe になる。`resolve()` の結果は判定と path 組み立てにだけ使う。
+削除直前に (a) 対象が symlink でないこと、(b) proof chain の artifact root が削除対象の内側にないこと
+を明示検査する。この非交差検査は artifact root の**存在に依存させない** (`strict=False`) —
+後始末が目的の関数が、後始末と無関係な事前条件で不発になってはならない。
+
+**決定 (2): cleanup は決して送出せず、受理集合を変えない。** `close()` の失敗は `cleanup_error` に
+記録するだけとする。owner 側は `finally: close()` で呼ぶため、cleanup が送出すると元の戻り値や
+元の例外を上書きし、「レポートは complete だが CLI は失敗」のような台帳と process status の
+矛盾が生じる。これは受理集合の変更である。
+
+**決定 (3): 失敗した cleanup は再試行可能に残す。** `weakref.finalize.__call__` は callback 実行**前**に
+registry から自身を pop する one-shot なので、`rmtree(ignore_errors=True)` に任せると黙って失敗した
+まま二度と再試行されない。**削除が成功したときだけ** `detach()` し、失敗時は armed のまま残す。
+finalize callback は module-level 関数とし、`self` や bound method を捕捉しない (捕捉すると owner が
+永久に生き残り fallback が発火しない)。
+
+**決定 (4): 明示 close の owner は所有権で決める。** 呼び出し側から注入された provider は caller 所有
+なので close しない。内部生成した集合は逆生成順に close し、途中構築の失敗でも生成済みを close して
+再送出する。
+
+**適用範囲:** 本 D は provider 2 クラスで実装済みである ([T-118])。例外経路で漏れる残りの
+production callsite ([T-280]) とテスト側の素の `mkdtemp` ([T-281]) にも、着手時は本 D を適用する。
+
+**研究状態への影響:** certified 選択、材料レポート、proof chain、凍結 bytes、campaign の受理集合は
+いずれも不変である。変わるのは一時領域の占有だけだが、TMPDIR が tmpfs を指す環境では user memory
+cgroup を直接削るため、長走 campaign が途中で殺されて proof chain が未完のまま失われる経路があった。
+## D113. [T-249] 凍結証拠が bytes を縛る共有 Pegasus policy は「動かせる分だけ」task 別 file へ移し、残りは D96 手続へ返す — 索引は所在 inventory に限定する (2026-08-01)
 
 **背景 (裁定と実測):** worklog (94) のユーザー裁定は [T-249] について択 (b)「共有 Pegasus policy を
 タスク別 file へ再編する。凍結証拠の意味論には手を入れない。分散する設定は索引 1 つで辿れるようにする」
