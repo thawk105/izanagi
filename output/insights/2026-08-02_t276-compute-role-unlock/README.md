@@ -1,7 +1,11 @@
 # [T-276] 計算ノードでの role 実行の解禁 — 一次資料
 
 2026-08-01 夜〜2026-08-02 未明。branch `worktree-dev-wave-t276-compute-role`、base = main `3c924bb`。
-実装 anchor commit `9abed5d`。決定は D116 (D108 決定 (1) を supersede)。
+実装 anchor commit `9abed5d`。決定は D122 (D108 決定 (1) を supersede)。
+**採番衝突の改番 1 件**: 本 wave は当初 D116 として起草・commit したが、land 直前に取り込んだ
+local main が既に D116 ([T-295]) を持っていたため D122 へ改番した。anchor commit `9abed5d` と
+記録 commit `ea7c0b7` の message 中の「D116」は改番前の呼称である。
+worklog エントリ番号と新規 T 番号も同じ理由で改番した (詳細は当該 worklog エントリ)。
 
 裁定 (worklog (102)) = 択 (b)「計算ノードでの role 実行を解禁する。解禁の前に
 ① 攻撃者制御 proxy の MITM / injection、② proxy 値の同一性 provenance、
@@ -82,7 +86,7 @@ Codex `role=author` が書くべきだった。親 (Claude) が直接書いて�
 
 ## 閉じたもの / 閉じないもの
 
-D116 決定 (7) が正本。**MITM を防止したとは主張しない。** 閉じたのは (96) が指摘した形
+D122 決定 (7) が正本。**MITM を防止したとは主張しない。** 閉じたのは (96) が指摘した形
 「proxy 値が無検査の外部制御面である」までであり、残るのは固定 proxy 自体の侵害、
 実行体と `PATH`/`HOME` の trust root ([T-242])、`PBS_JOBID` の偽装可能性、
 valid-schema な一行 C++ 注入と虚偽 auditor pass である。

@@ -95,7 +95,7 @@ else:
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_VERSION = "p3-autonomous-workload-trial/v1"
+SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
 REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v1"
 MAX_GENERATIONS = 10
 MAX_APPROVED_GENERATIONS = 1
@@ -526,6 +526,16 @@ def _whiteboard(layout: CampaignLayout) -> list[dict[str, Any]]:
     return [] if state is None else loop_core.whiteboard_for_planner(state)
 
 
+def _finite_metric_or_none(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        metric = float(value)
+    except OverflowError:
+        return None
+    return metric if math.isfinite(metric) else None
+
+
 def _metric_projection(outcome: Mapping[str, Any]) -> dict[str, Any]:
     records = outcome.get("records")
     bench_done = records.get("bench_done") if isinstance(records, Mapping) else None
@@ -537,18 +547,42 @@ def _metric_projection(outcome: Mapping[str, Any]) -> dict[str, Any]:
     )
     fitness = outcome.get("fitness_tps")
     return {
-        "throughput_ops_sec": (
-            float(fitness)
-            if not isinstance(fitness, bool)
-            and isinstance(fitness, (int, float))
-            and math.isfinite(float(fitness))
-            else None
-        ),
-        "abort_rate_pct": leading.get("abort_rate"),
-        "latency_ns": leading.get("latency_ns"),
-        "llc_miss_rate": leading.get("llc_miss_rate"),
-        "ipc": leading.get("ipc"),
+        "throughput_ops_sec": _finite_metric_or_none(fitness),
+        "abort_rate": _finite_metric_or_none(leading.get("abort_rate")),
+        "latency_ns": _finite_metric_or_none(leading.get("latency_ns")),
+        "llc_miss_rate": _finite_metric_or_none(leading.get("llc_miss_rate")),
+        "ipc": _finite_metric_or_none(leading.get("ipc")),
     }
+
+
+def _role_metric_payloads(
+    current_metrics: Mapping[str, Any],
+    *,
+    contention_level: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    abort_rate = current_metrics["abort_rate"]
+    llc_miss_rate = current_metrics["llc_miss_rate"]
+    perf_payload = {
+        "throughput_ops_sec": current_metrics["throughput_ops_sec"],
+        "abort_rate_pct": (
+            None
+            if abort_rate is None
+            else _finite_metric_or_none(abort_rate * 100.0)
+        ),
+        "latency_ns": current_metrics["latency_ns"],
+        "llc_miss_rate": llc_miss_rate,
+        "ipc": current_metrics["ipc"],
+    }
+    leading_payload = {
+        "contention_level": contention_level,
+        "cache_miss_rate_pct": (
+            None
+            if llc_miss_rate is None
+            else _finite_metric_or_none(llc_miss_rate * 100.0)
+        ),
+        "IPC_overall": current_metrics["ipc"],
+    }
+    return perf_payload, leading_payload
 
 
 def _jsonable_role_value(role: str, parsed: Any) -> dict[str, Any]:
@@ -1014,7 +1048,7 @@ def _run_workload(
     prior_reverse: bool | None = None
     current_metrics = {
         "throughput_ops_sec": None,
-        "abort_rate_pct": None,
+        "abort_rate": None,
         "latency_ns": None,
         "llc_miss_rate": None,
         "ipc": None,
@@ -1041,14 +1075,14 @@ def _run_workload(
             descriptor_record=descriptor_record,
         )
         whiteboard = _whiteboard(layout)
+        perf_payload, leading_payload = _role_metric_payloads(
+            current_metrics,
+            contention_level=descriptor["contention"]["label"],
+        )
         planner_payload = {
             **common,
-            "current_perf": dict(current_metrics),
-            "leading_indicators": {
-                "contention_level": descriptor["contention"]["label"],
-                "cache_miss_rate_pct": current_metrics["llc_miss_rate"],
-                "IPC_overall": current_metrics["ipc"],
-            },
+            "current_perf": dict(perf_payload),
+            "leading_indicators": dict(leading_payload),
             "whiteboard": whiteboard,
         }
         planner, event = _invoke(
@@ -1084,7 +1118,7 @@ def _run_workload(
                 "direction": planner.direction,
                 "magnitude": planner.magnitude,
             },
-            "baseline": dict(current_metrics),
+            "baseline": dict(perf_payload),
             "whiteboard": whiteboard,
         }
         coder, event = _invoke(

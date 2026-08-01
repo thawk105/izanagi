@@ -266,21 +266,123 @@ Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境と
 「静的検査」ではない** — 1 回で git subprocess 約 3000 本・130〜150 秒を共有ノードに載せるため、
 checker 自身が計算ノードへ自動 dispatch する (D105)。
 
+### 7.0 判定基準はディレクトリではなくメモリ量 (2026-08-01 ユーザー裁定)
+
+上の列挙は**現時点で判明している重い処理**であって閉じた一覧ではない。新しいスクリプトや既存
+スクリプトの入力増大は列挙に載らないまま重くなるため、**どこに置かれているか (`tools/` 配下か等)
+ではなく、どれだけメモリを使うか**で判定する。
+
+- **判定量** = その 1 回の実行で、同時に生きる全子孫を含む **cgroup の charged memory のピーク**。
+  `/usr/bin/time -f %M` の per-process ピーク RSS を代理値にしてはならない — 多重プロセスを
+  worker 数分の 1 に過小評価し、共有ページを二重計上し、file / slab / page table の charge を落とす。
+- **測り方 (この機体で実行可能な手順)。** **`memory.peak` はこの kernel (5.15) に存在しない**
+  (2026-08-01 実測)。したがって共有 user slice の `memory.current` を読むのではなく、
+  **専用 scope を作ってその scope の `memory.current` を sampling する**。
+
+  unit 名を自分で決め、sampler を先に張ってから測る command を起動する (別 shell から PID を
+  探す方式は、短命な command に間に合わない)。
+
+  ```bash
+  UNIT=izmeas-$$                      # 自分で決める → cgroup path が確定する
+  CG=/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/app.slice/$UNIT.scope
+  ( until [ -r "$CG/memory.current" ]; do :; done          # 開始 barrier
+    max=0; while [ -r "$CG/memory.current" ]; do
+      v=$(cat "$CG/memory.current" 2>/dev/null || echo 0)
+      [ "$v" -gt "$max" ] && max=$v; done
+    echo "$max" > peak.txt ) &                              # busy sampler (間隔 << 1 ms)
+  systemd-run --user --scope -q --unit="$UNIT" -p MemoryAccounting=yes -- <測る command>
+  wait; cat peak.txt
+  ```
+
+  専用 scope なので他 session・並走 job の charge が混ざらない。**この手順の既知の限界**:
+  sampling である以上、sample 間隔より短いスパイクは取り落とす。1 秒未満で終わる command は
+  **3 回以上繰り返して最大値**を採り、それでも取り落としは margin で吸収する (下記)。
+  sampler が cgroup を開く前に command が終わると `peak.txt` が 0 になる — **0 は
+  「軽い」ではなく測定失敗**として扱い、`unknown` に倒す。
+- **記録すること**: commit、argv、入力の総 bytes と件数、`memory.max`、観測ピーク、繰り返し数、
+  測定日。**certified peak = 観測ピーク + `max(25%, 128 MiB)`** とし、
+  **規範値と比較するのは certified peak のほう**である (観測ピークではない)。
+- **規範値 = 512 MiB。これは実測から導いた最適値ではなく、暫定の分類値である。**
+  現時点で根拠になっているのは「実測済みの軽量 tools 群 (per-process RSS で 13〜30 MB) と、
+  既に dispatch 済みの 2 本 (pytest 全走・provenance 履歴監査) の間に置いた」という分離だけで、
+  **どちらの群も上の手順では測り直していない**。ログインノードの per-user cgroup 上限は
+  16 GiB・swap 0 で、複数 session と並走 job がこの 1 つの上限を共有する。
+  **「規範値 × 同時実行数」で安全域を見積もってはならない** — 規範値は下限であって上限ではなく、
+  1 本が 4 GiB でも「規範値以上」を満たす。値の確定はこの手順での再測定を待つ。
+- **分類は 3 値。** `local-ok` = 上の測り方で実測して規範値未満、`dispatch-required` = 規範値以上、
+  `unknown` = 未計測、または入力サイズに上限が無く実行ごとに変わる。
+  **`unknown` は `dispatch-required` と同じに扱う** — 測っていないものを軽い側へ倒さない。
+- **投げ先。** ログインノードから**自動**で計算ノードへ dispatch されるのは下表の exact task だけ
+  である (D103 決定 2 / D105 決定 3 が enum を閉じている)。表に無い重い処理は自動化されていない
+  ので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。sanctioned な経路が無ければ
+  **走らせずに止める**。task を勝手に増やさない (追加には D105 の supersede が要る)。
+- **未充足の明示。** ユーザー依頼は「一定メモリ以上のものを計算ノードへ**投げる**」だったが、
+  **本節が実装したのは admission 規範 (login で走らせない) だけで、第 3 の entry point を
+  閾値判定後に自動 dispatch する経路は実装していない**。D105 決定 3 が task enum を 2 値に
+  固定しており、拡張には (a) D105 の supersede、(b) `_job_run` 側の `env_allowlist` 強制、
+  (c) stdin / cwd / artifact 可視性、(d) 子 rc の意味の確定が同時に要る。
+  **この差分は依頼のうち「自動で投げる」部分を満たしていない** — 裁定待ちとして worklog に残す。
+- **開発 harness そのものは、当面この規範の dispatch 要求から除外する (暫定例外)。** 対象は
+  `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` / `tools/dev_waves/*` が起こす
+  codex・claude 子と、`tools/dev_waves/checker.py` および `tools/check_docs.py` の login 実行である。
+  これらは分類上 `unknown` だが、除外しないと標準の dev-wave 経路が「規範違反」か
+  「sanctioned 経路なしで停止」の二択になり harness が回らない。
+  **この例外の根拠は D106 / D108 ではない** — 両決定の射程は CC 合成 campaign の LLM 4 役に
+  限られ、汎用 launcher や checker の免除根拠にはならない。**本 wave が新設した暫定例外であり、
+  恒久化にはユーザー裁定が要る**。射程を勝手に広げてはならない。
+- **この例外は OOM 対策としては穴である。** 約 390 MB の LLM 子が多数並走する事象が
+  per-user 16 GiB を埋める主経路であり、本節の単体閾値では扱えない。実効のある対策は
+  同時数 / headroom の admission gate だが**未実装であり裁定待ち**である。
+  `checker.py` の隔離 clone 経路も同様に未解決のまま残る。
+
+| task | 子 script |
+|---|---|
+| `tests` | `tools/run_tests.py` |
+| `provenance` | `tools/check_ai_provenance.py` |
+
+`tools/check_docs.py` がこの表と `tools/pegasus/dispatch_compute.py` の `TASKS` の乖離を検査する。
+**この検査が保証するのは公表 inventory の同期だけである** — メモリの計測、重いプログラムの発見、
+規範値の遵守、自動 dispatch の網羅性はいずれも保証しない。
+
+**現時点で `unknown` (入力に hard cap が無い) と判明している login 側経路** (2026-08-01 の静的調査。
+**この一覧も閉じていない** — 走らせる前に測るのが規範であって、一覧に載ることが条件ではない)。
+
+| 経路 | なぜ `unknown` か |
+|---|---|
+| `tools/codex_worker_ledger.py` | `~/.codex/sessions` を再帰走査し rollout を保持 (調査時点で約 887 MB / 941 rollout) |
+| `tools/strip_claude_session_trailers.sh` | clone + 全履歴 rewrite |
+| `tools/pegasus/submit_silo_ladder_rung1.sh` | login で外部 3 repo を clone |
+| `tools/plotting/plot_backoff.py` | matplotlib の import より前に campaign WAL を全読み |
+| `tools/check_workflow_models.py --dir` / `tools/ruleops.py` | 入力・履歴サイズに比例 |
+| `tools/check_docs.py` | archive / insight を全読みし本文をリスト保持 (総数・総 bytes 上限なし) |
+| `tools/dev_waves/checker.py` | 履歴量に上限の無い repo を 2 回 clone する |
+| `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` | prompt bytes・rollout JSONL に上限なし (ただし LLM 子の実行場所は上記の除外に従う) |
+
 強制の層と射程は次のとおりで、**全経路の機械保証はできない**。
 
 - **一次強制 (fail-closed)**: `tools/run_tests.py` はログインノードでのテスト実行を拒否し、
-  計算ノードへ自動 dispatch する。実 cmake build もログインノードで拒否される。
-  `tools/check_ai_provenance.py` も同型で、履歴監査を計算ノードへ自動 dispatch し、
-  `PEGASUS_SUSPECT` では rc=16 で拒否する。`--message-file` の preflight だけを免除する
+  計算ノードへ自動 dispatch する。`tools/check_ai_provenance.py` も同型で、履歴監査を計算ノードへ
+  自動 dispatch し、`PEGASUS_SUSPECT` では rc=16 で拒否する。`--message-file` の preflight だけを
+  免除する。**実 cmake build の機械強制は「全経路」でも「buildcache だけ」でもない** —
+  site gate を持つのは `orchestrator/campaign/` の `buildcache.py` / `s2_verify_calibration.py` /
+  `s3_lock_coverage.py` / `s5_permutation_coverage.py` / `s8a_trigger_coverage.py` /
+  `p3_s4_loop_trigger_gating.py` で、`t152_write_intent_coverage.py` と `silo_ladder_rung1.py` の
+  直接 CMake 呼び出しには**無い**。**禁止規範は全 build に掛かるが、機械強制は前者だけである**
+  (2026-08-01 実測。本節は当初「実 cmake build もログインノードで拒否される」と全経路を主張し、
+  次に「buildcache だけ」と過小に振れた。どちらも誤りだった)
 - **二次防壁**: `hooks/guard_bash.py` が直接の重量コマンド (`pytest`、`cmake --build`、`make -j`、
   `ninja`、`ctest`、計測バイナリ) を Claude の Bash 面で拒否する。provenance については
   sanctioned exact path を許可し、それ以外の綴り (repo 外 copy、cwd 相対) を拒否する。
   **hook が閉じるのはこの綴り差だけである**
 - **規律 (機械強制なし)**: Codex 子には hook が未配線 (`hooks/README.md`)。script file 越し・
   変数展開・`python3 -c`・他 AI・ユーザー端末・IDE・cron は原理的に見えない。ここは
-  `AGENTS.md` と本節の規律で塞ぐ。**`tools/dev_waves/checker.py` が `/tmp` の隔離 clone を
-  check の cwd に使う経路も一次強制の射程外**である (計算ノードから clone が見えないため
-  dispatch が失敗する。`orchestrator` check が既に同型で、clone 置き場の是正は別タスク)
+  `AGENTS.md` と本節の規律で塞ぐ。**`tools/dev_waves/checker.py` の隔離 clone 経路は
+  「安全な拒否」の射程内だが「成功する dispatch」の射程外**である — site gate 自体は発火するが、
+  計算ノードから clone を見られないので dispatch が失敗し rc=16 が check 失敗として記録される。
+  ただしこれは**構造的な不可能ではなく既定環境での条件付き事実**である:
+  `tempfile.TemporaryDirectory()` は `dir` を固定せず `TMPDIR` に従うので、共有 FS
+  (`/home` は共有) を `TMPDIR` にすれば前提は消える。`orchestrator` check が既に同型で、
+  clone 置き場の是正は別タスク
 
 計算ノードの実測 (2026-07-30、request `874129`、bnode114): 48 コア / affinity 48。pytest 全走は
 `-n 48` = 205 秒、`-n 32` = 207 秒。queue 待ちは 86 秒 (別の request では 6 秒)。
@@ -402,7 +504,7 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   渡す運用を維持する (再現性と offline fallback のため。silo_ladder_rung1 は submitter が自動実行。
   SOURCE_DIR 指定時は GIT_TAG pin が効かないため HEAD 照合を fail-closed で行うこと)。
   なお当初この訂正では「計算ノードで `claude -p` を起動しない」を緩めなかったが、
-  **[T-276] のユーザー裁定 (択 (b) 解禁) を受けて D116 が条件付きで解禁した** (§8 を参照)。
+  **[T-276] のユーザー裁定 (択 (b) 解禁) を受けて D122 が条件付きで解禁した** (§8 を参照)。
   **2026-08-02 の再実測 (request `877155`、bnode009)**: proxy は lowercase 2 key だけで
   uppercase・`no_proxy`・TLS trust override 系はいずれも未設定、allowlist 5 key + proxy 2 key で
   rc=0、proxy を落とすと約 180 秒後に `api_error` で rc=1。**これは 1 ノード・1 profile・
@@ -419,12 +521,18 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - **重い処理をログインノードで実行していない** — GPU プログラム、ベンチ、calibration、
   floor/oracle に加え、**ビルドとテスト (pytest の全走・部分走を含む) も計算ノードで行う** (§7)。
   **provenance 履歴監査 (§7)** も同じ扱いとし、免除は `--message-file` の preflight だけである
+- **この列挙に無いスクリプトも、§7.0 の基準 (量で判定・3 値分類・測り方・規範値) で分類してから
+  実行場所を決めた。** 数値と手順は §7.0 が唯一の正本で、ここには再掲しない。
+  入口は `tools/README.md`
 - `python3 tools/check_ai_provenance.py` をログインノードで打つと自動 dispatch され、
   receipt が `output/pegasus-dispatch/<nonce>/` に残る。**`rc=16` は dispatch の infra 失敗であって
   監査結果ではない** (違反件数は rc=1 で返る)
 - 計算ノードでは**テストの既定並列度が affinity 全数**になっている (明示 `-n` /
   `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ち = 「既定が最大」であって「全実行が最大」ではない)
-- ビルドは**実行場所を計算ノードへ強制し、`-j` 既定も site 由来**にする (計算ノードで affinity
+- ビルドは**規範として計算ノードで行い、`-j` 既定も site 由来**にする。**「強制」は全 build に
+  掛からない** — 機械強制が発火するのは §7 が列挙した 6 module だけで、
+  `t152_write_intent_coverage.py` と `silo_ladder_rung1.py` の直接 CMake には site gate が無い
+  (計算ノードで affinity
   全数、非 Pegasus は 16)。cache hit 時に記録される `-j` が cache 作成時の値と食い違う場合は
   受理する — 並列度はバイナリ bytes に影響しないという裁定である (D103 決定 4)。
   binary identity の検査 (`bin_sha256`、trace diff、`src_token` 再照合) は緩めない
@@ -433,12 +541,12 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   build / verify / bench を計算ノードに置く (D106)。
   **`campaign` の dispatch task は未実装**であり、driver の終了コードが iteration の `outcome` を
   反映しない等の契約不足が解消するまで、campaign を計算ノードへ送る sanctioned 経路は存在しない
-- **計算ノードでの role 実行は D116 が条件付きで解禁した** (旧「計算ノードで `claude -p` を
+- **計算ノードでの role 実行は D122 が条件付きで解禁した** (旧「計算ノードで `claude -p` を
   起動しない」を supersede)。許されるのは `p3_autonomous_workload_trial.py` の
   `--allow-pegasus-compute-transport` を**明示指定**した場合だけで、compute site・qsub 文法に
   適合する `PBS_JOBID`・committed policy と exact 一致する lowercase proxy 2 key・TLS trust
   override 不在・従量経路 env 不在・policy surface 健全のすべてが揃わなければ fail-closed で拒否する。
-  flag 省略時は従来どおり proxy を落とす。**MITM を防いだとは主張しない** (D116 決定 (7) の残余)。
+  flag 省略時は従来どおり proxy を落とす。**MITM を防いだとは主張しない** (D122 決定 (7) の残余)。
   build / bench の計測は `_site_admits_measurement` が Pegasus を拒否したままであり ([T-277])、
   この拒否が生きている間は role 出力が build / run へ到達しない
 - `/scr` に置くデータの退避処理がある

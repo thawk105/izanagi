@@ -46,11 +46,14 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
 bytes を pin する台帳・test・trust root を全列挙する。
-`FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛に加え、output 外の
-review ledger（role source pin 等）も既定対象に含め、
-durable manifest が未発行か、発行済みで再発行が必要かを区別して brief の不変条件へ書く（F27/F30、D84）。
-定数・編集面の統一系 wave では、列挙した各出現を live copy / 独立 golden / 凍結 snapshot /
-歴史記録に分類してから scope を裁定する（F39）。
+`FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
+review ledger も対象に含める。path 検索が見つけるのは path を key にする
+pin だけである。review ledger のように role 名を key に張る pin は key 側でも検索し、
+path の hit 0 件を pin なしと結論しない（F30）。
+durable manifest が未発行か再発行要かを区別して brief の不変条件へ書く（F27/F30、D84）。
+統一系 wave では各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類してから
+scope を裁定する（F39）。
+**docs のみの wave でも成立する** — 判定をコードの有無で代用せず docs path も検索する（F78）。
 
 ## DW-O10 — producer write-path
 
@@ -78,13 +81,13 @@ monkeypatch は最後の手段とする（D78）。
 
 ## DW-O15 — fix 後の変異
 
-手順は `DW-M07` に従う（同節を複製しない）。
+手順は `DW-M07`。
 
 ## DW-O16 — fix 後の焦点再レビュー
 
 所見ごとの closed / partial / regressed 対応表を要求し、表なしで root cause が閉じたと判定しない（D78）。
-NO-GO が返り続ける場合は無制限に fix を重ねず、3 巡を上限として親が変異で裏取りし、
-残る所見を real/refuted に裁定して閉じる。閉じた根拠は worklog に書く。
+NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で裏取りして残る所見を real/refuted に
+裁定して閉じる。根拠は worklog に書く。
 
 ## DW-O17 — commit trailer
 
