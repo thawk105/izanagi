@@ -21,12 +21,12 @@
 | `s6-fix2.md` | 2 巡目 fix 子の報告 |
 | `mutation-ledger.json` | 変異本走の台帳 (統合 commit 後の記録 commit で追加) |
 
-## 実装した内容 (D113)
+## 実装した内容 (D114)
 
 宣言済み禁止 `--max-generations >= 2` の機械 gate 化。承認上限 `MAX_APPROVED_GENERATIONS = 1` を
 CLI・`run_trial()`・`_run_workload()` の 3 入口で強制し、`int` サブクラスによる予算偽装を exact 型検査で
 塞ぎ、最初の provider 呼び出し前に campaign checkpoint の freshness を検査する。CLI 既定値を
-literal `1` に是正した。詳細と保証の限界は D113。
+literal `1` に是正した。詳細と保証の限界は D114。
 
 ---
 
@@ -64,7 +64,7 @@ producer は trusted machine か外部 role か / run・campaign の origin bind
 
 | # | 所見 | 影響 | 推奨 |
 |---|---|---|---|
-| X1 | `run_trial(drive=/providers=/preview=)` の注入 seam。1 callable 内で複数 iteration を回す `drive` を渡せば予算検査を素通りする | 機械保証の穴。ただし production 呼び出し元は `main()` だけ | 注入を internal test helper へ分離するか、保証対象外と明記したまま残す (本 wave は後者を採り D113 に明記) |
+| X1 | `run_trial(drive=/providers=/preview=)` の注入 seam。1 callable 内で複数 iteration を回す `drive` を渡せば予算検査を素通りする | 機械保証の穴。ただし production 呼び出し元は `main()` だけ | 注入を internal test helper へ分離するか、保証対象外と明記したまま残す (本 wave は後者を採り D114 に明記) |
 | X2 | `p3_s4_loop_trigger_gating.drive_iteration()` の直接反復 | 同上 | 8c 専用 wrapper か origin binding を作り、raw driver と 8c admission を区別する |
 | X3 | **freshness 検査と state 生成の TOCTOU (並行 race)。** 同じ trial/config の 2 supervisor が同時に検査を通過しうる | 逐次連結は閉じたが並行は開いている | 原子的 campaign reservation の設計。stale lock 処理と異常終了時の解放が要る。並行実行は計測規律が既に禁じ、build 経路は `competing_bench_pids()` が部分的に覆う |
 | X4 | `state_from_dict()` が `direction`/`magnitude`/`result` の**値**を無検証で通す。checkpoint は信頼境界の外 (規律 6) なので、任意の長文・機序・prompt injection を planner/coder payload へ流せる | 変異生成の入力汚染。report 表示漏れではない | exact enum / type / range 検査、entry count、iteration 整合、campaign/run origin を roles 呼び出し前に検査する |
@@ -72,31 +72,36 @@ producer は trusted machine か外部 role か / run・campaign の origin bind
 | X6 | **単位の不整合 (real defect)。** `cache_miss_rate_pct` / `abort_rate_pct` には 0..1 の率がそのまま入る一方、planner-v4 の例示は percent 表記である | 100 倍の意味ずれ。proposal と台帳の受理 variant が変わりうる | multi-generation 開放前に修正する |
 | X7 | `WhiteboardEntry.result` の閉 enum 化と、role-invalid / auditor-invalid / infrastructure failure を粗分類へ含めるか | S2 候補の入力前提が変わる | X4 と同じ変更単位で扱うのが自然 |
 
-## 3. dev-wave 自己改善 — 予算に収まらず裁定へ返す 3 件
+## 3. dev-wave 自己改善 — I1 は [T-247] が解決、残り 2 件を裁定へ返す
 
 段 8 の自己改善で、本 wave が**実測した** 3 件を `docs/dev-wave/` の既存 leaf 節へ統合しようとしたが、
-**予算に収まらなかった**ため契約 (`docs/skill-self-improvement.md`「予算のために安全義務を削除・
-弱化してはならない。…意味等価にできなければ変更を止めてユーザー裁定へ返す」) に従い返す。
+段 8 時点では**予算に収まらなかった**ため契約 (`docs/skill-self-improvement.md`「予算のために
+安全義務を削除・弱化してはならない。…意味等価にできなければ変更を止めてユーザー裁定へ返す」) に
+従い返した。その後の main 取り込みで状況が 1 件だけ変わった。
 
-**予算の実態:** `docs/dev-wave/mutation.md` は 3747 bytes で予算 3750 bytes に対し**余裕 3 bytes**、
-`docs/dev-wave/**` 合計は 23991 bytes で hard ceiling 24000 に対し**余裕 9 bytes**。
-すなわち reference への追記は**どんな内容でも入らない**状態である。圧縮を 3 巡試したが、
-安全義務を落とさずに 600 bytes 以上を空けることはできなかった。
+**I1 は解決済み。** 並行 wave [T-247] が `623b90b` で `DW-M08` へ F71 準拠の抽出規約を入れた
+(正本は job stdout 全文、行前置と ANSI を除去、` - ` 無しは行末まで、`rc≠0` で 0 件は fail-closed 停止)。
+**予算は `DW-M07` を圧縮して空けている** — 「単層が他層に mask されたら両層同時変異へ再照準し、
+初回結果は erratum として台帳へ残す」を「mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す」へ
+畳み、重複を `DW-M02` へ寄せた。**これは「何を空けるか」の実例であり、以下 2 件にも同じ手が使える。**
 
-**返す 3 件** (いずれも台帳側 = `docs/failures.md` には反映済みなので、情報は失われていない):
+**残る 2 件:**
 
 | # | 統合先 | 内容 | 実測した根拠 |
 |---|---|---|---|
-| I1 | `DW-M08` | 失敗 node の**抽出元を中継コンソールでなく実行体の stdout 成果物にする**。dispatch は行頭へ接頭辞を付けたうえ `omitted_bytes` で切り詰めるため `FAILED` 行が残らない。成果物が無い・`rc != 0` で 1 行も取れない場合は SURVIVED / AGREE にせず停止する。baseline にも同じ抽出を通す | F71 (独立 3 例 = [T-118] / [T-244] / [T-249]) で `DW-G03` の族一般化条件が成立している。[T-118] は 16 変異すべてが偽 SURVIVED になった |
 | I2 | `DW-M05` | harness は起動前に総所要を見積もる。台帳を 1 件ごとに flush して resume 可能にし、**起動時に対象ファイルが HEAD と一致するか検査して不一致なら停止する**。SIGKILL は捕捉できないのでこれが残留変異の唯一の機械防壁 | F32 の 3 度目の再発 (2026-07-27 / 07-30 / 08-01)。「background で起動する」規律だけでは 3 回とも止まらなかった |
 | I3 | `DW-O09` | pin の列挙を**パス文字列だけで探さない**。pin が対象を role 名・key 名で参照する台帳 (`review_ledger.py` の `SOURCE_FILE_SHA256`) はパス検索で取りこぼす。対象の識別子でも検索する | 本 wave の親が実際にこれで brief の前提 9 を誤り、段 3 レンズ A が訂正した |
 
+いずれも台帳側 (`docs/failures.md` の F32 / F71) には反映済みなので情報は失われていない。
+
+**予算の実態 (取り込み後):** `docs/dev-wave/mutation.md` は 3746 bytes で予算 3750 に対し余裕 4 bytes、
+`docs/dev-wave/**` 合計は 23990 bytes で hard ceiling 24000 に対し余裕 10 bytes。依然として満杯である。
+
 **ユーザー裁定が要るのは「何を空けるか」である。** 予算値の引上げは提案しない。選択肢:
-(a) 既存節のうち陳腐化したものを削る (削除の実施はユーザー裁定に限る、という契約がある)、
+(a) [T-247] に倣い既存節の重複を他節へ畳んで空ける (先例あり。ただし削除の実施はユーザー裁定に限る)、
 (b) D110 の先例に倣い、条件付き reference として `docs/dev-wave/**` の外へ外出しする
 (この場合 command 入口の条件 dispatch 表に 1 行増えるため、入口編集条件の判定も要る)、
-(c) 3 件とも入れず failures 台帳のポインタ運用に留める (現状。`DW-M05` / `DW-M08` は既に
-(F32) / (F65)・F71 を引いているので、レンズ設計時に台帳を読む運用なら到達はする)。
+(c) 2 件とも入れず failures 台帳のポインタ運用に留める (現状)。
 
 ## 4. 本 wave で確定した事実 (再検討の起点)
 
@@ -108,4 +113,4 @@ producer は trusted machine か外部 role か / run・campaign の origin bind
   proposal 記録へ行き、次世代の planner/coder payload には入らない。
 - **「1 generation/cell は還流が起きない」は fresh campaign の単一 invocation でのみ成立する。**
   これは D106 残余 3 に逐語で記録済みの既知事実であり、残余 1 を失効させる新事実ではない。
-  D113 はこの経路を provider 呼び出し前に拒否することで閉じた (並行 race を除く)。
+  D114 はこの経路を provider 呼び出し前に拒否することで閉じた (並行 race を除く)。

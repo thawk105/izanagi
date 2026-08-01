@@ -50,252 +50,6 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 アーカイブは凍結 (訂正注記のみ追記可)。既存アーカイブの一覧は `docs/archive/README.md`。
 
 ---
-## 2026-08-01 (93) — [軸 driver env 契約] 段 8a 軸 driver の環境 3 定数を env_contract 解決へ寄せ、既知 Pegasus site での偽タグ永続化を止める — 敵対レビュー 4 本 + 焦点再レビュー 2 巡で fix を 3 巡し、production は 3 巡とも不変 (コード + docs、branch worktree-dev-wave-axis-env-contract、受入 = Pegasus gen_S 計算ノード request `876263` / `876299` / `876344` / `876404`、全走 = request `876439` で 4316 passed / 19 skipped、変異本走 = login 側 harness + 26 dispatch)
-
-ユーザー依頼「軸 driver は環境定数を 3 つセットでハードコードしている。numactl だけ直しても
-足りない — CLK=1800 のまま 2100 の機械で回すと時間換算が狂い、ENV_TAG も嘘の環境タグになる」。
-**変更の実体は「numactl を env_contract 経由へ」ではなく「環境 3 定数を contract 解決へ寄せる」**という
-依頼者の問題設定がそのまま裁定になった
-
-- 実装 commit `bdce16f` (production 1 + test 1 + wave insights 4)。production は
-  `p3_s4_loop_trigger_gating.py` のみ +45/-14 行
-- **恒等 positive control が成立**: `lookup("linux-baremetal")` は削除した literal と完全一致
-  (1800 / `["numactl","--interleave=all"]`)。受理集合は拒否側だけが増え、実行可能 env は増やしていない
-- **段 1 前提実測で親の (P3) を自己反証**: reject 経路 (`record_diff_reject`) も env_tag 付きで
-  WAL を書くため「計測しないから guard 対象外」は不成立。段 3 の両レンズが BLOCKER として独立確認した
-- **計算ノード実測 (`875967`, bnode114)**: `site_policy.current_site()` = `PEGASUS_COMPUTE`、
-  `refuses_heavy_work` = **False**。偽タグ経路は仮説でなく実在し、既存の重処理拒否は計算ノードで効かない。
-  同時に**受入テスト自身が bnode で走る**ため、素朴な guard 配置は既存テストを受入環境で赤にする
-- **設計上の正面衝突を裁定で解いた**: レンズ A「production に caller override を作れば引数で迂回できる」と
-  レンズ B「テストから注入できないと受入が壊れる」。**module 属性 seam** (`_current_site` / `_lookup`) で
-  両立させ、production には引数・CLI の override を一切作らなかった
-- 敵対レビュー: 段 3 が 2 本 (A=正しさ防壁 / B=到達性)、段 6 が 2 本 (C=裁定忠実性 / D=テストの歯)、
-  焦点再レビュー 2 巡。**6 本すべて NO-GO**。所見は real 多数 / refuted 3 件
-  (「ユーザーが挙げた 2 テストが本 driver の定数を pin している」「S-1 の計測条件が影響を受ける」
-  「8c 未着手なので前向き hardening」はいずれも一次資料で反証)
-- **fix 3 巡すべてで production は byte 不変** (`ab6af01d…`)。閉じたのは全てテストの検出力である。
-  この事実自体が F64 の核心 — 受入は最初から緑 (409 passed) だったが緑のまま生存する変異が 4 族あった
-- **全走受入 green**: 計算ノード `876439.nqsv` で `4316 passed, 19 skipped` (216.21s)、rc=0。
-  受入集合 7 ファイルは `876263`=409+9 / `876299`=423+9 / `876344`=426+9 / `876404`=432+9 と単調増加
-- **変異 25 件すべて KILLED / survived 0 / timeout 0 / canonical 一致 25/25**、baseline 緑、
-  復元は内容比較で byte 一致。台帳は `s6-mutation-matrix.md`
-- **事前登録の erratum 3 件** (初回結果は消さず残置): 親の M7 / M8 は帰属不成立で M7-R / M8-R へ再照準、
-  M3 の kill 元宣言も誤り。登録は 8 → 25 件へ増え、増分の大半は
-  「production 既定 seam で走っているかを条件にする」族で、値ベース sentinel では閉じられない
-- 親の過大表現を 2 件訂正した: 保証文言 (「override なし」→「関数引数と CLI に supported override なし」)、
-  C4 の backlog 理由 (「成果物影響を書けない」は誤りで、書けるが production 変更を要するため U5 へ)
-- エージェント工数: codex 子 9 本 (planner 1 / 敵対レビュー 4 / 焦点再レビュー 2 は read-only `reasoning=max`、
-  実装 1 + fix 3 は workspace-write `reasoning=high`)。親は brief・裁定・統合・実測・記録のみ。
-  実装面は全て Codex author が書き、親は production を直接編集していない
-- push と remote 操作は行わない
-
-### 次の一手
-
-- [T-270] **P3・新規 (本エントリ、`DW-O18` のフレーク起票)**: `test_s8b_floor_campaign.py` の
-  「`output/` 配下に副作用ゼロ」を主張する snapshot 検査 9 箇所
-  (`assert repo_before == _real_output_snapshot()`) が、**計算ノード dispatch 機構自身の書き込みと
-  自己干渉する**。統合後の全走 1 回目 (`876493`) で 8 件が赤になり、差分の実体は
-  `output/pegasus-dispatch/<hash>/request.json`・job stdout・`output/task-runs/pilot.json` という
-  dispatch 成果物だった。実装差分は当該ファイルから到達不能で、単独再走 (`876499`、197 passed) と
-  全走 2 回目 (`876500`、4709 passed) はともに緑。**全走 2 回中 1 回発現**。
-  snapshot 対象から dispatch 成果物の path を除外するか、検査を tracked file に限定する必要がある
-- [T-265] **P3・新規 (本エントリ)**: campaign identity と WAL replay が env 非依存である。
-  `campaign_id` は `(spec_slug, search_tag, cfg_hash8)` だけで `campaign.lock` の正準 pre-image にも
-  env_tag が無く、`docs/orchestrator-design.md` は env を**読み出しフィルタ**と規定するのに
-  `run_campaign` / `wal.replay` に実装が無い。さらに `layer3_report` は「env_tag が一意でなければ拒否」で
-  規定と食い違う。放置すると別 env の COMMIT による誤スキップ、critic 入力の混在、
-  誤った certified 選択、同一タグに偽装された材料レポートが残る
-- [T-266] **P3・新規 (本エントリ)**: 同型の偽タグ穴が兄弟 driver と共通経路に残る
-  (`p3_s4_loop` / `p3_s4_loop_sort` / `s8a_trigger_sweep` ほか、repo 内の `run_campaign` caller と
-  `screening_driver` の直接 `pipeline.evaluate`)。admission を `loop.run_campaign` 側へ置けば
-  一括で塞げるが、報告済み・凍結済みの計測条件に触れるため独立裁定が要る
-- [T-267] **P3・新規 (本エントリ)**: `linux-baremetal` の正の machine attestation が無い。
-  `site_policy` は Pegasus を否定できるが cygnus を積極同定できず、`pegasus0N` でも
-  `qsub`/`qstat` が PATH に無ければ `OTHER` に落ちる。未知の第三の機械での実行は検出できない
-- [T-268] **P3・新規 (本エントリ)**: pegasus を本軸の runnable env にするか。D59 の 4 条件、
-  env スコープ付き campaign identity、attestation、isolation、noise floor 配線が要る
-- [T-269] **P3・新規 (本エントリ)**: guard 拒否が材料レポート生成**後**に起きると、
-  provenance header は書き換わるが既存レポートは上書きされず、その `artifact_refs` の SHA が
-  現 header bytes と一致しなくなる。proof chain が実在する現在の artifact を指さなくなる。
-  修正は production の transactional 復元か既存レポートの明示 invalidation を要する
-- [T-209] 変わらず ((92) 参照)
-- [T-193] 変わらず ((92) 参照)
-- [T-222] 変わらず ((92) 参照)
-- [T-144] 変わらず ((92) 参照)
-- [T-140] 変わらず ((92) 参照)
-- [T-139] 変わらず ((92) 参照)
-- [T-257] 変わらず ((92) 参照)
-- [T-255] 変わらず ((92) 参照)
-- [T-254] 変わらず ((92) 参照)
-- [T-258] 変わらず ((92) 参照)
-- [T-225] 変わらず ((92) 参照)
-- [T-231] 変わらず ((92) 参照)
-- [T-226] 変わらず ((92) 参照)
-- [T-214] 変わらず ((92) 参照)
-- [T-260] 変わらず ((92) 参照)
-- [T-261] 変わらず ((92) 参照)
-- [T-262] 変わらず ((92) 参照)
-- [T-263] 変わらず ((92) 参照)
-- [T-264] 変わらず ((92) 参照)
-- [T-220] 変わらず ((92) 参照)
-- [T-259] 変わらず ((92) 参照)
-- [T-253] 変わらず ((92) 参照)
-- [T-256] 変わらず ((92) 参照)
-- [T-129] 変わらず ((92) 参照)
-- [T-250] 変わらず ((92) 参照)
-- [T-251] 変わらず ((92) 参照)
-- [T-252] 変わらず ((92) 参照)
-- [T-207] 変わらず ((92) 参照)
-- [T-241] 変わらず ((92) 参照)
-- [T-242] 変わらず ((92) 参照)
-- [T-243] 変わらず ((92) 参照)
-- [T-244] 変わらず ((92) 参照)
-- [T-245] 変わらず ((92) 参照)
-- [T-235] 変わらず ((92) 参照)
-- [T-236] 変わらず ((92) 参照)
-- [T-237] 変わらず ((92) 参照)
-- [T-238] 変わらず ((92) 参照)
-- [T-240] 変わらず ((92) 参照)
-- [T-239] 変わらず ((92) 参照)
-- [T-234] 変わらず ((92) 参照)
-- [T-208] 変わらず ((92) 参照)
-- [T-229] 変わらず ((92) 参照)
-- [T-230] 変わらず ((92) 参照)
-- [T-232] 変わらず ((92) 参照)
-- [T-233] 変わらず ((92) 参照)
-- [T-118] 変わらず ((92) 参照)
-- [T-194] 変わらず ((92) 参照)
-- [T-215] 変わらず ((92) 参照)
-- [T-216] 変わらず ((92) 参照)
-- [T-217] 変わらず ((92) 参照)
-- [T-218] 変わらず ((92) 参照)
-- [T-219] 変わらず ((92) 参照)
-- [T-212] 変わらず ((92) 参照)
-- [T-213] 変わらず ((92) 参照)
-- [T-210] 変わらず ((92) 参照)
-- [T-211] 変わらず ((92) 参照)
-- [T-200] 変わらず ((92) 参照)
-- [T-201] 変わらず ((92) 参照)
-- [T-202] 変わらず ((92) 参照)
-- [T-205] 変わらず ((92) 参照)
-- [T-206] 変わらず ((92) 参照)
-- [T-204] 変わらず ((92) 参照)
-- [T-203] 変わらず ((92) 参照)
-- [T-192] 変わらず ((92) 参照)
-- [T-195] 変わらず ((92) 参照)
-- [T-196] 変わらず ((92) 参照)
-- [T-197] 変わらず ((92) 参照)
-- [T-198] 変わらず ((92) 参照)
-- [T-199] 変わらず ((92) 参照)
-- [T-191] 変わらず ((92) 参照)
-- [T-189] 変わらず ((92) 参照)
-- [T-190] 変わらず ((92) 参照)
-- [T-188] 変わらず ((92) 参照)
-- [T-187] 変わらず ((92) 参照)
-- [T-180] 変わらず ((92) 参照)
-- [T-181] 変わらず ((92) 参照)
-- [T-182] 変わらず ((92) 参照)
-- [T-183] 変わらず ((92) 参照)
-- [T-184] 変わらず ((92) 参照)
-- [T-186] 変わらず ((92) 参照)
-- [T-179] 変わらず ((92) 参照)
-- [T-185] 変わらず ((92) 参照)
-- [T-142] 変わらず ((92) 参照)
-- [T-136] 変わらず ((92) 参照)
-- [T-149] 変わらず ((92) 参照)
-- [T-152] 変わらず ((92) 参照)
-- [T-153] 変わらず ((92) 参照)
-- [T-158] 変わらず ((92) 参照)
-- [T-141] 変わらず ((92) 参照)
-- [T-143] 変わらず ((92) 参照)
-- [T-126] 変わらず ((92) 参照)
-- [T-059] 変わらず ((92) 参照)
-- [T-145] 変わらず ((92) 参照)
-- [T-146] 変わらず ((92) 参照)
-- [T-134] 変わらず ((92) 参照)
-- [T-123] 変わらず ((92) 参照)
-- [T-109] 変わらず ((92) 参照)
-- [T-113] 変わらず ((92) 参照)
-- [T-110] 変わらず ((92) 参照)
-- [T-097] 変わらず ((92) 参照)
-- [T-100] 変わらず ((92) 参照)
-- [T-099] 変わらず ((92) 参照)
-- [T-009] 変わらず ((92) 参照)
-- [T-060] 変わらず ((92) 参照)
-- [T-150] 変わらず ((92) 参照)
-- [T-151] 変わらず ((92) 参照)
-- [T-154] 変わらず ((92) 参照)
-- [T-130] 変わらず ((92) 参照)
-- [T-135] 変わらず ((92) 参照)
-- [T-133] 変わらず ((92) 参照)
-- [T-088] 変わらず ((92) 参照)
-- [T-096] 変わらず ((92) 参照)
-- [T-102] 変わらず ((92) 参照)
-- [T-122] 変わらず ((92) 参照)
-- [T-103] 変わらず ((92) 参照)
-- [T-089] 変わらず ((92) 参照)
-- [T-090] 変わらず ((92) 参照)
-- [T-112] 変わらず ((92) 参照)
-- [T-114] 変わらず ((92) 参照)
-- [T-011] 変わらず ((92) 参照)
-- [T-085] 変わらず ((92) 参照)
-- [T-087] 変わらず ((92) 参照)
-- [T-012] 変わらず ((92) 参照)
-- [T-010] 変わらず ((92) 参照)
-- [T-082] 変わらず ((92) 参照)
-- [T-121] 変わらず ((92) 参照)
-- [T-156] 変わらず ((92) 参照)
-- [T-159] 変わらず ((92) 参照)
-- [T-157] 変わらず ((92) 参照)
-- [T-148] 変わらず ((92) 参照)
-- [T-155] 変わらず ((92) 参照)
-- [T-147] 変わらず ((92) 参照)
-- [T-127] 変わらず ((92) 参照)
-- [T-137] 変わらず ((92) 参照)
-- [T-138] 変わらず ((92) 参照)
-- [T-132] 変わらず ((92) 参照)
-- [T-131] 変わらず ((92) 参照)
-- [T-128] 変わらず ((92) 参照)
-- [T-120] 変わらず ((92) 参照)
-- [T-125] 変わらず ((92) 参照)
-- [T-116] 変わらず ((92) 参照)
-- [T-057] 変わらず ((92) 参照)
-- [T-117] 変わらず ((92) 参照)
-- [T-119] 変わらず ((92) 参照)
-- [T-105] 変わらず ((92) 参照)
-- [T-104] 変わらず ((92) 参照)
-- [T-101] 変わらず ((92) 参照)
-- [T-124] 変わらず ((92) 参照)
-- [T-108] 変わらず ((92) 参照)
-- [T-111] 変わらず ((92) 参照)
-- [T-160] 変わらず ((92) 参照)
-- [T-161] 変わらず ((92) 参照)
-- [T-162] 変わらず ((92) 参照)
-- [T-163] 変わらず ((92) 参照)
-- [T-164] 変わらず ((92) 参照)
-- [T-165] 変わらず ((92) 参照)
-- [T-166] 変わらず ((92) 参照)
-- [T-167] 変わらず ((92) 参照)
-- [T-168] 変わらず ((92) 参照)
-- [T-169] 変わらず ((92) 参照)
-- [T-170] 変わらず ((92) 参照)
-- [T-171] 変わらず ((92) 参照)
-- [T-172] 変わらず ((92) 参照)
-- [T-173] 変わらず ((92) 参照)
-- [T-174] 変わらず ((92) 参照)
-- [T-175] 変わらず ((92) 参照)
-- [T-176] 変わらず ((92) 参照)
-- [T-177] 変わらず ((92) 参照)
-- [T-221] 変わらず ((92) 参照)
-- [T-223] 変わらず ((92) 参照)
-- [T-224] 変わらず ((92) 参照)
-- [T-227] 変わらず ((92) 参照)
-- [T-228] 変わらず ((92) 参照)
-- [T-246] 変わらず ((92) 参照)
-- [T-247] 変わらず ((92) 参照)
-- [T-248] 変わらず ((92) 参照)
-- [T-249] 変わらず ((92) 参照)
-
 ## 2026-08-01 (94) — [/rulings] ユーザー裁定 5 件を記録 — T-126 残余と実験分割は後回し、恒真な予約枠検査は実発火へ (docs のみ、branch worktree-rulings-2026-08-01-c)
 
 - 索引 15 件の 6〜10 番を詳説し、ユーザーが**すべて推奨どおり**採用した
@@ -1281,126 +1035,93 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-227] 変わらず ((96) 参照)
 - [T-228] 変わらず ((96) 参照)
 
-## 2026-08-01 (98) — [T-244] 宣言済み禁止 `--max-generations >= 2` は既定値がむしろ禁止側だった — 3 入口 + campaign freshness の機械 gate 化 (D113) と、還流設計そのものは裁定へ (コード + docs、branch worktree-dev-wave-t244-reflux、受入 = Pegasus gen_S 計算ノード request `876834` / `876919` / `876929`、全走 = request `876979` で 4725 passed / 19 skipped、変異本走 = 19/19 KILL)
+## 2026-08-01 (98) — [T-247] 予約 envelope の恒真な検査を実発火させ、個別 cap を個別値 + 型で凍結する — 射程を実消費層まで広げ、変異 35/35 全 kill (コード + docs、branch worktree-dev-wave-t247-envelope-reject、受入 = Pegasus gen_S 計算ノード request `876903` / `876926` / `876969`、全走 = request `876987` で 4747 passed / 19 skipped、変異本走 = login 側 harness + 35 dispatch)
 
-- **段 1 の前提実測で、承認済み裁定の前提が逆向きに壊れていた。** D106 残余 1 と 8c runbook 3 箇所が
-  「`--max-generations >= 2` の運転を禁止する」と宣言する一方、**CLI の既定値は `2`** だった。
-  flag を省いて起動すると禁止された運転条件へそのまま落ちる。runbook は「機械 gate は無い」と
-  3 箇所で自認しており、禁止は prompt 規律だけだった。起票 ((86)) から 9 wave 放置されていた。
-  F71 として台帳化した
-- **還流はゼロではない、を確定した。** `whiteboard` の `result` (`success|fail|rejected`) は既に
-  世代を跨いで planner/coder へ届いており、欠けているのは「なぜ」だけである。cross-generation の
-  critic チャネルは `prior_reverse` (bool) 1 本で、それは `drive()` と proposal 記録へ行き
-  次世代 payload には入らない。「何も還流していない」という前提で設計を始めてはならない
-- **scope を 2 面に分けた。** (S1) 宣言済み禁止の機械 gate 化は実装する。(S2) 「機序を漏らさずに
-  失敗理由だけを還流させる」設計は D39 決定 3 / D45 が構造的に禁じたリーク経路に触るため
-  **実装せず裁定パッケージで返す** (`DW-S04`)
-- **D112 の実装 (S1)。** 承認上限 `MAX_APPROVED_GENERATIONS = 1` を実装上の絶対上限
-  `MAX_GENERATIONS = 10` から分離し、CLI `main()` / 公開 `run_trial()` / direct `_run_workload()` の
-  3 入口で fail-closed 拒否する。型検査を **exact built-in `int`** へ閉じ、最初の provider 呼び出し前に
-  campaign checkpoint の freshness を検査し、CLI 既定値を literal `1` に是正した。D96 に従い
-  新 D と境界テストを同じ commit に置いた
-- **親 brief の前提 4 件が誤っており、段 3 の敵対相談が訂正した。** (i) role md は
-  `orchestrator/codex_roles/review_ledger.py` の `SOURCE_FILE_SHA256` で **byte pin 済み**だった
-  (親の grep が `.md` パス文字列で探したが、pin は role 名で key を張る)、(ii) 既定値 2→1 は
-  「受理集合だけ」でなく **campaign ID・report・journal の実値**も変える (`generation_budget` が
-  `search_config` を経て `ident.canonical_preimage` に入る)、(iii) `whiteboard.result` は閉 enum で
-  ない (`state_from_dict` は key 集合と `delta_pct` しか検査しない)、(iv)「既存テストに受理集合検査が
-  無い」は不正確 (明示の boundary テストが無い、が正確)
-- **「1 generation なら還流しない」は既知事実で限定される、と裁定した。** 同じ trial/config で
-  `--run-root` だけ変えた 1 世代 run を連結すると共有 campaign state 上で適応探索を再構成できる。
-  これは **D106 残余 3 に逐語で記録済みの既知事実**であり残余 1 を失効させる新事実ではない
-  (`DW-S04` の「既知事実の新事実扱いで独断失効させない」)。D112 はこの経路を provider 呼び出し前の
-  拒否で閉じ、残余 1 / 残余 3 を supersede した
-- **段 6 の敵対レビュー 2 本は逆向きのレンズにした。** A = gate が緩すぎないか、B = gate が締めすぎて
-  正当運用を壊さないか。**両方 NO-GO。** 最重は (i) `isinstance` では値 1 を名乗る `int` サブクラスが
-  `range(1, x + 1)` で複数世代を回し予算と proof chain が乖離する (子が in-memory probe で実証)、
-  (ii) freshness テストが `load_loop_state` を **layout 引数を無視して** monkeypatch しており、
-  production が「常に空の別 layout を見る」形へ退行しても全テストが緑 (**F21 の再発型**。
-  実 `loop_state.json` を書く負例・正例を追加して閉じ、monkeypatch 版は provider 順序の
-  poison test として責務分離)、(iii) 壊れた checkpoint の素の例外が supervisor 契約を貫通 (F68 型)
-- **レンズ B は正当運用の破壊が無いことも実測した。** runbook の正規 3 手順を全て辿って新規失敗は
-  ゼロ、現 worktree の `output/campaigns/` に 8c checkpoint は 0 件、crash recovery は runbook が
-  既に「新しい trial id」を明記している
-- **fix 2 巡。1 巡目の私の指示が regression を生んだ。** FIX-3 で入れた `except Exception` が
-  loader 内のプログラミングエラーまで「checkpoint 破損」へ偽装していた (F37 型)。焦点再レビューが
-  `regressed` と判定し、2 巡目で捕捉型を `OSError` / `ValueError` / `KeyError` / `OverflowError` に
-  限定し、`AttributeError` が再分類されない負例を追加した
-- **変異は 19 件全 KILL、SURVIVED / MISMATCH / PARSE_ERROR は 0 件** (負例 15 + 正例 4、anchor commit
-  `1444484`)。受理集合を**縮小**する wave なので過剰拒否を検出する正例も登録した (`DW-M01`)。
-  `V10b` (絶対上限の削除) は承認上限が先に拒否するため**等価変異**、`V14` は `V9` と重複として
-  `unattributable` に記録し KILL を偽装していない。F69 対策として境界テストは 1/2 を literal で持ち、
-  `default=MAX_APPROVED_GENERATIONS` への同値 refactor は AST で `ast.Constant(1)` を pin して kill する
-- **変異 harness で F32 を実際に踏んだ。** 親の実行時間上限 (10 分) で harness ごと殺され、
-  `finally` の復元が走らず production に変異が残った。手動復元し、harness を
-  逐次 flush + `--resume` + 起動時 clean 検査 + signal handler へ作り直して detached 経路で再走した。
-  あわせて**並行 wave [T-118] が実測した同型欠陥**を取り込み、failed node の抽出元を
-  dispatch のコンソール表示 (行頭 `| ` 付き・`omitted_bytes` で切り詰められる) から
-  **計算ノード job stdout 成果物**へ移し、赤なのに node を取れない場合を `PARSE_ERROR` で停止させた
-- **保証名を狭く固定した。** 機械化したのは「generation 予算」と「campaign state の freshness」の
-  2 つだけで、**T-244 本体 = 規律 3 の還流設計は未解決**である。`drive` / `providers` / `preview` の
-  注入経路、driver の直接反復、freshness 検査と state 生成の並行 race (TOCTOU) は保証対象外と
-  D112・runbook・phase3.md に明記した
-- **裁定パッケージ (S2)。** 段 2 の候補 A〜D はすべて不採用。候補 B は `direction × magnitude` の
-  9 記号 = `log2(9) ≈ 3.17 bit/世代` が 4-class = 2 bit を一世代で coder へ運ぶため planner-only の
-  分離が成立せず、候補 C は既知 class の padding 2 件で対象 1 件の class が一 window で完全復元される。
-  次の設計 wave の第一候補は (i) trusted machine が failure を単調な safety constraint へ変換、
-  (ii) failure を post-run auditor だけへ戻す、(iii) verifier feedback 前の候補 batch 凍結、
-  (iv) campaign-global な disclosure / query budget。詳細は insights README
-- **段 8 の自己改善は台帳だけ反映し、reference への統合 3 件は予算に収まらず裁定へ返した。**
-  F65 に再発 (独立 2 例) を追記して恒久対応を「抽出元を計算ノード job stdout 成果物にする」へ更新し、
-  F32 に 3 度目の再発を追記して恒久対応 6 (逐次 flush + resume + 起動時 clean 検査) を足した。
-  一方 `docs/dev-wave/mutation.md` は予算 3750 に対し 3747 bytes で**余裕 3 bytes**、
-  `docs/dev-wave/**` 合計も ceiling 24000 に対し**余裕 9 bytes** で、圧縮を 3 巡試しても
-  安全義務を落とさずには空かなかった。`docs/skill-self-improvement.md` の
-  「予算のために安全義務を削除・弱化してはならない…意味等価にできなければユーザー裁定へ返す」に
-  従い選択肢つきで返した。**予算値の引上げは提案しない**
-- 記録後検査 (F34): `check_docs` 緑、provenance 全履歴 687 件違反なし。docs commit 後の全走
-  (request `877033`) も 4725 passed / 19 skipped / rc=0
-- エージェント工数: 親 1、子 10 (plan 1 / 敵対相談 2 / 実装 1 / 敵対レビュー 2 / 焦点再レビュー 1 /
-  fix 2 / harness 1 + 改訂 3 巡)。
-  逐語 = `output/insights/2026-08-01_t244-generation-gate/`
+- **恒真を実測で確定してから直した。** 段 1 で script から verbatim 抽出した fragment を実行し、
+  job 側は `walltime=1 / wmax=2 / prologue=3` という policy でも `qualification envelope mismatch` を
+  stderr へ出しながら **rc=0 で通過**し全値が下流へ流れること、submit 側は `1500/0/600` (和 29100) が
+  **rc=0 で通過**することを確認した。恒真の機序は `print` が `raise` より前にあることに加え、
+  **`readarray < <(...)` が process substitution なので producer の終了状態を伝播しない**ことである。
+  修正後は同じ 3 ベクトルがいずれも rc=2 になり、canonical は受理されたまま mapping も正しい
+- **射程を実消費層まで広げた (裁定文の literal な射程を超える判断)。** 予約 policy の cap が job で
+  効くのは prologue cap と qstat 下限比較だけで、driver が finalize reserve / attestation cap に
+  **実消費するのは制御 protocol `t126_control_v1.json` の `timing`** である。その受理 gate
+  `contract.py: validate_protocol` も同じ「和だけ」構造で、`attestation=1199, finalize=1` を
+  **ACCEPT することを親が実行して確認**した。予約 policy 側だけを直すと「個別に凍結した」保証が
+  実消費層で恒真になるため、`validate_protocol` にも個別 3 cap を純増した。理由は D113 に記録した。
+  **裁定の literal な射程を超えているので、不同意なら 3 行の revert で戻せる**
+- **段 1 brief の成果物影響が誤っていたので差し替えた。** brief は「wmax が小さいと member が kill され
+  finalize reserve が消え ledger に試行欠落が入る」と書いたが、job の deadline は `WMAX_FIXED_S=29100`
+  の hardcode から作られ policy からは動かない。敵対相談 2 本がこれを指摘し、親が実測で追認した。
+  訂正は `s4-adjudication-plan-v2.md` の D 節と D113 が正本で、`s1-brief.md` は当時の記録として原文凍結
+- **敵対レビューが自分の修正の退行を捕まえた。** process substitution を command substitution へ
+  変えたことで、**`$(...)` が NUL byte を除去する**ため `10:00:` + NUL + `00` という walltime が
+  HEAD では拒否されたのに新実装で受理されるようになっていた。親が HEAD 版と新版を同じ入力で走らせて
+  実測確認し、submit 側の walltime 値比較を embedded Python の中へ移して打ち消した
+- **型が凍結されておらず 3 層で受理集合が割れていた。** Python の `900.0 == 900` により float が
+  両 script の値比較を通る一方、`contract.py` は strict int で、job の bash mapping assert は
+  文字列比較で拒否するため、**submit が受理し job が拒否する**入力が存在した。両 script を strict 型
+  (数値 7 key は `int`、walltime は `str`) へ揃えて閉じた
+- **親の変異事前登録が誤っていたことを実測で認めた。** 段 4 で「和を残す限り個別比較の単独削除は
+  等価変異」と登録したが、`900.0000000000001` は値比較を破りながら和が `29100.0 == 29100` へ丸まるため
+  **単独削除でも受理集合が広がる**。strict 型化でこの経路が閉じ、整数に限れば等価変異へ戻ることを
+  再レビューが `[-40000,40000]` の整数 probe で追認した
+- **変異 35/35 全 kill、SURVIVED 0、diagnostic_only 0。** 全件が期待 kill node と実測 node で一致し、
+  復元は内容比較で全件成功、target commit は `4573ca8` 単一、timeout 0。台帳は
+  `output/insights/2026-08-01_t247-envelope-reject/evidence/mutation-ledger.jsonl`
+- **harness 自身のバグを親の試走が捕まえた。** `dispatch_compute.py` が child 出力の各行へ `| ` を
+  前置するため `FAILED <node>` 行を parser が拾えず、実際は KILL の M-C1 を `INFRA_OR_HARNESS_ERROR` と
+  誤記録していた。境界切り出し + 前置剥がしに加え、**rc≠0 なのに node が 0 件なら `PARSE_FAILURE` として
+  INFRA と区別する**健全性検査を足した。これがないと kill を静かに取り逃がす
+- **D96 の境界テストは 1 つでは足りない。** 宣言値の静的 freeze テストは script の guard を全削除しても
+  緑のままである。(i) 静的 freeze テストの 8 key 個別 assert、(ii) production の両 script を subprocess
+  実行する境界テスト群、(iii) 制御 protocol の個別 cap 負例、の 3 点をもって境界テストとした
+- **lens B の blocker「受入経路は T-248 で既知赤」は反証した。** 推測で赤と決めず実測したところ、
+  新設 subprocess テストを含む焦点 25 件が計算ノードで緑になった (request `876903`)。
+  新テストは fake bin の python3 wrapper で解決系を固定してある (fixture の hermeticity であり
+  T-248 の production 修正ではない)
+- 段 6 の fix は 2 巡で閉じた (上限 3 巡)。**2 巡目は production 差分を 1 byte も変えていない**
+  (sha256 で確認) — テストの検出力だけを増やした
+- scope 外の real 所見 4 件を [T-283]〜[T-286] として起票した
+- **段 9 直前に main が [T-118] wave で 4 commit 進み、D112 / worklog (97) / T-280〜282 が衝突した。**
+  main 側を採用して D113 / (98) / T-283〜286 へ振り直した。両セッションが**別々の境界で worklog を
+  ローテーション**していたため、main の境界 ((91) 以降を現行) を採り、自分の
+  `worklog-phase3-0801-90-91.md` を撤回して (91)〜(92) を改めてアーカイブした
+- **段 8 の自己改善が [T-282] の片方を解消した。** 本 wave の変異 harness が F65 / F71 と同型の
+  node 抽出欠陥で作られ、実際に KILL していた M-C1 を node 0 件と記録した (独立 4 例目)。
+  [T-118] wave は `DW-M08` 本文の是正を予算の都合で裁定へ送っていたが、`DW-M07` 第 2 文の
+  `DW-M02` との重複を縮約して枠を作り、`DW-M08` を **F71 の恒久対応 (a)(b)(c) を指す形**へ是正した
+  (3746/3750)。**義務は減らしていない**
 
 ### 次の一手
 
-- [T-244] **P1・部分完了 (本エントリ)**: 宣言済み禁止の機械 gate 化 (D113) は完了。**本体である
-  規律 3 の還流設計は未解決**で、裁定パッケージを
-  `output/insights/2026-08-01_t244-generation-gate/README.md` に置いた。次は設計軸 (i)〜(iv) の
-  いずれを採るかのユーザー裁定を待つ。裁定後に承認上限定数と境界テストを同じ変更単位で更新する
-- [T-285] **P2・新規 (本エントリ)**: `state_from_dict()` が `direction` / `magnitude` / `result` の
-  **値**を無検証で通す。checkpoint は信頼境界の外 (規律 6) なので、任意の長文・機序・prompt injection が
-  planner/coder payload へ入る。exact enum / type / range、entry count、iteration 整合、
-  campaign/run origin を roles 呼び出し前に検査する。あわせて `WhiteboardEntry.result` の閉 enum 化と、
-  role-invalid / auditor-invalid / infrastructure failure を粗分類へ含めるかを決める
-- [T-286] **P2・新規 (本エントリ)**: planner の `current_perf` (絶対 throughput) と coder の
-  `baseline` の recipient matrix を新 D で明示する。`delta_pct≡None` は planner 全体の性能リーク
-  防壁**ではない**。あわせて `cache_miss_rate_pct` / `abort_rate_pct` に 0..1 の率が入る一方
-  planner-v4 の例示が percent 表記という **100 倍の単位ずれ** (real defect) を直す。
-  multi-generation 開放の前提条件
-- [T-287] **P3・新規 (本エントリ)**: 8c の freshness 検査と state 生成の **TOCTOU (並行 race)**。
-  同じ trial/config の 2 supervisor が同時に検査を通過しうる。原子的 campaign reservation
-  (stale lock 処理・異常終了時の解放) の設計が要る。並行実行は計測規律が既に禁じ、build 経路は
-  `competing_bench_pids()` が部分的に覆うため P3
-- [T-288] **P3・新規 (本エントリ)**: `run_trial(drive=/providers=/preview=)` の注入 seam と
-  `drive_iteration()` の直接反復を、機械保証の対象へ入れるか否かを決める。前者は 1 callable 内で
-  複数 iteration を回せば予算検査を素通りする。後者は他の正当な human-supervised loop が
-  resume を仕様として使うため、8c 専用 wrapper か origin binding で区別する必要がある
-- [T-289] **P2・新規 (本エントリ)・ユーザー裁定待ち**: dev-wave 自己改善 3 件 (I1 = `DW-M08` の
-  失敗 node 抽出元、I2 = `DW-M05` の resume と起動時 clean 検査、I3 = `DW-O09` の pin 列挙を
-  識別子でも行う) が `docs/dev-wave/**` の予算に収まらない。mutation.md は余裕 3 bytes、
-  合計も余裕 9 bytes で、**どんな追記も入らない**。裁定が要るのは「何を空けるか」であり、
-  (a) 陳腐化節の削除、(b) D110 に倣った条件付き reference の外出し、(c) 現状の台帳ポインタ運用の
-  いずれかを選ぶ。**予算値の引上げは選択肢に入れない**。詳細は
-  `output/insights/2026-08-01_t244-generation-gate/README.md` の「3. dev-wave 自己改善」
-- [T-118] 変わらず ((97) 参照)
-- [T-280] 変わらず ((97) 参照)
-- [T-281] 変わらず ((97) 参照)
-- [T-282] 変わらず ((97) 参照)
+- [T-247] **完了 ((98))**: 恒真な予約 envelope 検査を実発火させ、個別 cap を個別値 + 型で凍結した。
+  射程は実消費層 (`validate_protocol`) まで広げた (D113)。変異 35/35 全 kill、全走 4747 passed。
+  **射程拡張は裁定文の literal な範囲を超えるので、不同意なら D113 決定 3 と `contract.py` の 3 行を revert する**
+- [T-283] **P2・新規 (本エントリ)**: consumer (collector / public verifier) は**予約 policy** の値の
+  意味論を検証せず identity と blob hash だけを見る。coherent に commit された drift policy は consumer を
+  通り producer 側だけが拒否するため、受理集合が producer/consumer で分裂する。新層への gate 新設なので
+  本 wave の scope 外とした。親の推奨は「本番開放の前提条件へ束ねる」([T-246] と同じ扱い)
+- [T-284] **P3・新規 (本エントリ)**: 重複 key の扱いが非対称。submit は `no_dups` で拒否するが job は
+  素の `json.load` で last-wins。最終出現値だけ canonical な重複 policy を job が受理し submit が拒否する。
+  別軸の hardening なので scope 外とし、非対称の事実だけ D113 に記録した
+- [T-285] **P3・新規 (本エントリ)**: 予約 block 以外の 7 個の `readarray < <(...)` も producer の
+  終了状態を失う。「必要行を全部出し切った後の producer failure」を受理し続ける。同型欠陥
+  (print が raise より前) は 1 件だけで `DW-G03` の独立 2 例を満たさないため族一般化しなかった
+- [T-286] **P4・新規 (本エントリ)**: `t126_qualification_member_term_grace_s` は予約 policy の 9 番目の
+  設定だが両 script から未参照の orphan で、driver は制御 protocol 側の値を使う。D113 の 8 key 射影に
+  含めていない。削除するか参照させるかの択一
 - [T-241] 変わらず ((97) 参照)
 - [T-276] 変わらず ((97) 参照)
 - [T-277] 変わらず ((97) 参照)
 - [T-278] 変わらず ((97) 参照)
 - [T-279] 変わらず ((97) 参照)
+- [T-118] 変わらず ((97) 参照)
+- [T-280] 変わらず ((97) 参照)
+- [T-281] 変わらず ((97) 参照)
+- [T-282] **P3・部分解消 ((98))**: `DW-M08` の抽出規約の是正 (F71) は本 wave で完了した — 縮約で
+  枠を作り F71 の恒久対応を指す形にした。裁定へ残るのは**残留の検出手段** (全走後の prefix 別
+  新規 entry・bytes を測る仕組み) だけである
 - [T-270] 変わらず ((97) 参照)
 - [T-248] 変わらず ((97) 参照)
 - [T-271] 変わらず ((97) 参照)
@@ -1410,7 +1131,6 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-275] 変わらず ((97) 参照)
 - [T-236] 変わらず ((97) 参照)
 - [T-246] 変わらず ((97) 参照)
-- [T-247] 変わらず ((97) 参照)
 - [T-249] 変わらず ((97) 参照)
 - [T-265] 変わらず ((97) 参照)
 - [T-266] 変わらず ((97) 参照)
@@ -1447,6 +1167,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-207] 変わらず ((97) 参照)
 - [T-242] 変わらず ((97) 参照)
 - [T-243] 変わらず ((97) 参照)
+- [T-244] 変わらず ((97) 参照)
 - [T-245] 変わらず ((97) 参照)
 - [T-235] 変わらず ((97) 参照)
 - [T-237] 変わらず ((97) 参照)
@@ -1586,3 +1307,315 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-224] 変わらず ((97) 参照)
 - [T-227] 変わらず ((97) 参照)
 - [T-228] 変わらず ((97) 参照)
+
+## 2026-08-01 (99) — [T-244] 宣言済み禁止 `--max-generations >= 2` は既定値がむしろ禁止側だった — 3 入口 + campaign freshness の機械 gate 化 (D114) と、還流設計そのものは裁定へ (コード + docs、branch worktree-dev-wave-t244-reflux、受入 = Pegasus gen_S 計算ノード request `876834` / `876919` / `876929`、全走 = request `876979` で 4725 passed / 19 skipped、変異本走 = 19/19 KILL)
+
+- **段 1 の前提実測で、承認済み裁定の前提が逆向きに壊れていた。** D106 残余 1 と 8c runbook 3 箇所が
+  「`--max-generations >= 2` の運転を禁止する」と宣言する一方、**CLI の既定値は `2`** だった。
+  flag を省いて起動すると禁止された運転条件へそのまま落ちる。runbook は「機械 gate は無い」と
+  3 箇所で自認しており、禁止は prompt 規律だけだった。起票 ((86)) から 9 wave 放置されていた。
+  F71 として台帳化した
+- **還流はゼロではない、を確定した。** `whiteboard` の `result` (`success|fail|rejected`) は既に
+  世代を跨いで planner/coder へ届いており、欠けているのは「なぜ」だけである。cross-generation の
+  critic チャネルは `prior_reverse` (bool) 1 本で、それは `drive()` と proposal 記録へ行き
+  次世代 payload には入らない。「何も還流していない」という前提で設計を始めてはならない
+- **scope を 2 面に分けた。** (S1) 宣言済み禁止の機械 gate 化は実装する。(S2) 「機序を漏らさずに
+  失敗理由だけを還流させる」設計は D39 決定 3 / D45 が構造的に禁じたリーク経路に触るため
+  **実装せず裁定パッケージで返す** (`DW-S04`)
+- **D112 の実装 (S1)。** 承認上限 `MAX_APPROVED_GENERATIONS = 1` を実装上の絶対上限
+  `MAX_GENERATIONS = 10` から分離し、CLI `main()` / 公開 `run_trial()` / direct `_run_workload()` の
+  3 入口で fail-closed 拒否する。型検査を **exact built-in `int`** へ閉じ、最初の provider 呼び出し前に
+  campaign checkpoint の freshness を検査し、CLI 既定値を literal `1` に是正した。D96 に従い
+  新 D と境界テストを同じ commit に置いた
+- **親 brief の前提 4 件が誤っており、段 3 の敵対相談が訂正した。** (i) role md は
+  `orchestrator/codex_roles/review_ledger.py` の `SOURCE_FILE_SHA256` で **byte pin 済み**だった
+  (親の grep が `.md` パス文字列で探したが、pin は role 名で key を張る)、(ii) 既定値 2→1 は
+  「受理集合だけ」でなく **campaign ID・report・journal の実値**も変える (`generation_budget` が
+  `search_config` を経て `ident.canonical_preimage` に入る)、(iii) `whiteboard.result` は閉 enum で
+  ない (`state_from_dict` は key 集合と `delta_pct` しか検査しない)、(iv)「既存テストに受理集合検査が
+  無い」は不正確 (明示の boundary テストが無い、が正確)
+- **「1 generation なら還流しない」は既知事実で限定される、と裁定した。** 同じ trial/config で
+  `--run-root` だけ変えた 1 世代 run を連結すると共有 campaign state 上で適応探索を再構成できる。
+  これは **D106 残余 3 に逐語で記録済みの既知事実**であり残余 1 を失効させる新事実ではない
+  (`DW-S04` の「既知事実の新事実扱いで独断失効させない」)。D112 はこの経路を provider 呼び出し前の
+  拒否で閉じ、残余 1 / 残余 3 を supersede した
+- **段 6 の敵対レビュー 2 本は逆向きのレンズにした。** A = gate が緩すぎないか、B = gate が締めすぎて
+  正当運用を壊さないか。**両方 NO-GO。** 最重は (i) `isinstance` では値 1 を名乗る `int` サブクラスが
+  `range(1, x + 1)` で複数世代を回し予算と proof chain が乖離する (子が in-memory probe で実証)、
+  (ii) freshness テストが `load_loop_state` を **layout 引数を無視して** monkeypatch しており、
+  production が「常に空の別 layout を見る」形へ退行しても全テストが緑 (**F21 の再発型**。
+  実 `loop_state.json` を書く負例・正例を追加して閉じ、monkeypatch 版は provider 順序の
+  poison test として責務分離)、(iii) 壊れた checkpoint の素の例外が supervisor 契約を貫通 (F68 型)
+- **レンズ B は正当運用の破壊が無いことも実測した。** runbook の正規 3 手順を全て辿って新規失敗は
+  ゼロ、現 worktree の `output/campaigns/` に 8c checkpoint は 0 件、crash recovery は runbook が
+  既に「新しい trial id」を明記している
+- **fix 2 巡。1 巡目の私の指示が regression を生んだ。** FIX-3 で入れた `except Exception` が
+  loader 内のプログラミングエラーまで「checkpoint 破損」へ偽装していた (F37 型)。焦点再レビューが
+  `regressed` と判定し、2 巡目で捕捉型を `OSError` / `ValueError` / `KeyError` / `OverflowError` に
+  限定し、`AttributeError` が再分類されない負例を追加した
+- **変異は 19 件全 KILL、SURVIVED / MISMATCH / PARSE_ERROR は 0 件** (負例 15 + 正例 4、anchor commit
+  `1444484`)。受理集合を**縮小**する wave なので過剰拒否を検出する正例も登録した (`DW-M01`)。
+  `V10b` (絶対上限の削除) は承認上限が先に拒否するため**等価変異**、`V14` は `V9` と重複として
+  `unattributable` に記録し KILL を偽装していない。F69 対策として境界テストは 1/2 を literal で持ち、
+  `default=MAX_APPROVED_GENERATIONS` への同値 refactor は AST で `ast.Constant(1)` を pin して kill する
+- **変異 harness で F32 を実際に踏んだ。** 親の実行時間上限 (10 分) で harness ごと殺され、
+  `finally` の復元が走らず production に変異が残った。手動復元し、harness を
+  逐次 flush + `--resume` + 起動時 clean 検査 + signal handler へ作り直して detached 経路で再走した。
+  あわせて**並行 wave [T-118] が実測した同型欠陥**を取り込み、failed node の抽出元を
+  dispatch のコンソール表示 (行頭 `| ` 付き・`omitted_bytes` で切り詰められる) から
+  **計算ノード job stdout 成果物**へ移し、赤なのに node を取れない場合を `PARSE_ERROR` で停止させた
+- **保証名を狭く固定した。** 機械化したのは「generation 予算」と「campaign state の freshness」の
+  2 つだけで、**T-244 本体 = 規律 3 の還流設計は未解決**である。`drive` / `providers` / `preview` の
+  注入経路、driver の直接反復、freshness 検査と state 生成の並行 race (TOCTOU) は保証対象外と
+  D112・runbook・phase3.md に明記した
+- **裁定パッケージ (S2)。** 段 2 の候補 A〜D はすべて不採用。候補 B は `direction × magnitude` の
+  9 記号 = `log2(9) ≈ 3.17 bit/世代` が 4-class = 2 bit を一世代で coder へ運ぶため planner-only の
+  分離が成立せず、候補 C は既知 class の padding 2 件で対象 1 件の class が一 window で完全復元される。
+  次の設計 wave の第一候補は (i) trusted machine が failure を単調な safety constraint へ変換、
+  (ii) failure を post-run auditor だけへ戻す、(iii) verifier feedback 前の候補 batch 凍結、
+  (iv) campaign-global な disclosure / query budget。詳細は insights README
+- **段 8 の自己改善は台帳だけ反映し、reference への統合 3 件は予算に収まらず裁定へ返した。**
+  F65 に再発 (独立 2 例) を追記して恒久対応を「抽出元を計算ノード job stdout 成果物にする」へ更新し、
+  F32 に 3 度目の再発を追記して恒久対応 6 (逐次 flush + resume + 起動時 clean 検査) を足した。
+  一方 `docs/dev-wave/mutation.md` は予算 3750 に対し 3747 bytes で**余裕 3 bytes**、
+  `docs/dev-wave/**` 合計も ceiling 24000 に対し**余裕 9 bytes** で、圧縮を 3 巡試しても
+  安全義務を落とさずには空かなかった。`docs/skill-self-improvement.md` の
+  「予算のために安全義務を削除・弱化してはならない…意味等価にできなければユーザー裁定へ返す」に
+  従い選択肢つきで返した。**予算値の引上げは提案しない**
+- 記録後検査 (F34): `check_docs` 緑、provenance 全履歴 687 件違反なし。docs commit 後の全走
+  (request `877033`) も 4725 passed / 19 skipped / rc=0
+- エージェント工数: 親 1、子 10 (plan 1 / 敵対相談 2 / 実装 1 / 敵対レビュー 2 / 焦点再レビュー 1 /
+  fix 2 / harness 1 + 改訂 3 巡)。
+  逐語 = `output/insights/2026-08-01_t244-generation-gate/`
+
+### 次の一手
+
+- [T-244] **P1・部分完了 (本エントリ)**: 宣言済み禁止の機械 gate 化 (D114) は完了。**本体である
+  規律 3 の還流設計は未解決**で、裁定パッケージを
+  `output/insights/2026-08-01_t244-generation-gate/README.md` に置いた。次は設計軸 (i)〜(iv) の
+  いずれを採るかのユーザー裁定を待つ。裁定後に承認上限定数と境界テストを同じ変更単位で更新する
+- [T-287] **P2・新規 (本エントリ)**: `state_from_dict()` が `direction` / `magnitude` / `result` の
+  **値**を無検証で通す。checkpoint は信頼境界の外 (規律 6) なので、任意の長文・機序・prompt injection が
+  planner/coder payload へ入る。exact enum / type / range、entry count、iteration 整合、
+  campaign/run origin を roles 呼び出し前に検査する。あわせて `WhiteboardEntry.result` の閉 enum 化と、
+  role-invalid / auditor-invalid / infrastructure failure を粗分類へ含めるかを決める
+- [T-288] **P2・新規 (本エントリ)**: planner の `current_perf` (絶対 throughput) と coder の
+  `baseline` の recipient matrix を新 D で明示する。`delta_pct≡None` は planner 全体の性能リーク
+  防壁**ではない**。あわせて `cache_miss_rate_pct` / `abort_rate_pct` に 0..1 の率が入る一方
+  planner-v4 の例示が percent 表記という **100 倍の単位ずれ** (real defect) を直す。
+  multi-generation 開放の前提条件
+- [T-289] **P3・新規 (本エントリ)**: 8c の freshness 検査と state 生成の **TOCTOU (並行 race)**。
+  同じ trial/config の 2 supervisor が同時に検査を通過しうる。原子的 campaign reservation
+  (stale lock 処理・異常終了時の解放) の設計が要る。並行実行は計測規律が既に禁じ、build 経路は
+  `competing_bench_pids()` が部分的に覆うため P3
+- [T-290] **P3・新規 (本エントリ)**: `run_trial(drive=/providers=/preview=)` の注入 seam と
+  `drive_iteration()` の直接反復を、機械保証の対象へ入れるか否かを決める。前者は 1 callable 内で
+  複数 iteration を回せば予算検査を素通りする。後者は他の正当な human-supervised loop が
+  resume を仕様として使うため、8c 専用 wrapper か origin binding で区別する必要がある
+- [T-291] **P2・新規 (本エントリ)・ユーザー裁定待ち**: dev-wave 自己改善のうち **I1 (`DW-M08` の
+  失敗 node 抽出元) は取り込みで解決済み** — [T-247] が `623b90b` で F71 準拠の規約を入れ、
+  **`DW-M07` の重複を `DW-M02` へ畳んで予算を空けた** (「何を空けるか」の実例)。残る 2 件
+  (I2 = `DW-M05` の resume と起動時 clean 検査、I3 = `DW-O09` の pin 列挙を識別子でも行う) は
+  依然として入らない。取り込み後も mutation.md は余裕 4 bytes、合計は余裕 10 bytes である。
+  裁定が要るのは「何を空けるか」で、(a) [T-247] に倣った重複の畳み込み、
+  (b) D110 に倣った条件付き reference の外出し、(c) 現状の台帳ポインタ運用のいずれかを選ぶ。
+  **予算値の引上げは選択肢に入れない**。詳細は
+  `output/insights/2026-08-01_t244-generation-gate/README.md` の「3. dev-wave 自己改善」
+- [T-247] 変わらず ((98) 参照)
+- [T-283] 変わらず ((98) 参照)
+- [T-284] 変わらず ((98) 参照)
+- [T-285] 変わらず ((98) 参照)
+- [T-286] 変わらず ((98) 参照)
+- [T-241] 変わらず ((98) 参照)
+- [T-276] 変わらず ((98) 参照)
+- [T-277] 変わらず ((98) 参照)
+- [T-278] 変わらず ((98) 参照)
+- [T-279] 変わらず ((98) 参照)
+- [T-118] 変わらず ((98) 参照)
+- [T-280] 変わらず ((98) 参照)
+- [T-281] 変わらず ((98) 参照)
+- [T-282] 変わらず ((98) 参照)
+- [T-270] 変わらず ((98) 参照)
+- [T-248] 変わらず ((98) 参照)
+- [T-271] 変わらず ((98) 参照)
+- [T-272] 変わらず ((98) 参照)
+- [T-273] 変わらず ((98) 参照)
+- [T-274] 変わらず ((98) 参照)
+- [T-275] 変わらず ((98) 参照)
+- [T-236] 変わらず ((98) 参照)
+- [T-246] 変わらず ((98) 参照)
+- [T-249] 変わらず ((98) 参照)
+- [T-265] 変わらず ((98) 参照)
+- [T-266] 変わらず ((98) 参照)
+- [T-267] 変わらず ((98) 参照)
+- [T-268] 変わらず ((98) 参照)
+- [T-269] 変わらず ((98) 参照)
+- [T-209] 変わらず ((98) 参照)
+- [T-193] 変わらず ((98) 参照)
+- [T-222] 変わらず ((98) 参照)
+- [T-144] 変わらず ((98) 参照)
+- [T-140] 変わらず ((98) 参照)
+- [T-139] 変わらず ((98) 参照)
+- [T-257] 変わらず ((98) 参照)
+- [T-255] 変わらず ((98) 参照)
+- [T-254] 変わらず ((98) 参照)
+- [T-258] 変わらず ((98) 参照)
+- [T-225] 変わらず ((98) 参照)
+- [T-231] 変わらず ((98) 参照)
+- [T-226] 変わらず ((98) 参照)
+- [T-214] 変わらず ((98) 参照)
+- [T-260] 変わらず ((98) 参照)
+- [T-261] 変わらず ((98) 参照)
+- [T-262] 変わらず ((98) 参照)
+- [T-263] 変わらず ((98) 参照)
+- [T-264] 変わらず ((98) 参照)
+- [T-220] 変わらず ((98) 参照)
+- [T-259] 変わらず ((98) 参照)
+- [T-253] 変わらず ((98) 参照)
+- [T-256] 変わらず ((98) 参照)
+- [T-129] 変わらず ((98) 参照)
+- [T-250] 変わらず ((98) 参照)
+- [T-251] 変わらず ((98) 参照)
+- [T-252] 変わらず ((98) 参照)
+- [T-207] 変わらず ((98) 参照)
+- [T-242] 変わらず ((98) 参照)
+- [T-243] 変わらず ((98) 参照)
+- [T-245] 変わらず ((98) 参照)
+- [T-235] 変わらず ((98) 参照)
+- [T-237] 変わらず ((98) 参照)
+- [T-238] 変わらず ((98) 参照)
+- [T-240] 変わらず ((98) 参照)
+- [T-239] 変わらず ((98) 参照)
+- [T-234] 変わらず ((98) 参照)
+- [T-208] 変わらず ((98) 参照)
+- [T-229] 変わらず ((98) 参照)
+- [T-230] 変わらず ((98) 参照)
+- [T-232] 変わらず ((98) 参照)
+- [T-233] 変わらず ((98) 参照)
+- [T-194] 変わらず ((98) 参照)
+- [T-215] 変わらず ((98) 参照)
+- [T-216] 変わらず ((98) 参照)
+- [T-217] 変わらず ((98) 参照)
+- [T-218] 変わらず ((98) 参照)
+- [T-219] 変わらず ((98) 参照)
+- [T-212] 変わらず ((98) 参照)
+- [T-213] 変わらず ((98) 参照)
+- [T-210] 変わらず ((98) 参照)
+- [T-211] 変わらず ((98) 参照)
+- [T-200] 変わらず ((98) 参照)
+- [T-201] 変わらず ((98) 参照)
+- [T-202] 変わらず ((98) 参照)
+- [T-205] 変わらず ((98) 参照)
+- [T-206] 変わらず ((98) 参照)
+- [T-204] 変わらず ((98) 参照)
+- [T-203] 変わらず ((98) 参照)
+- [T-192] 変わらず ((98) 参照)
+- [T-195] 変わらず ((98) 参照)
+- [T-196] 変わらず ((98) 参照)
+- [T-197] 変わらず ((98) 参照)
+- [T-198] 変わらず ((98) 参照)
+- [T-199] 変わらず ((98) 参照)
+- [T-191] 変わらず ((98) 参照)
+- [T-189] 変わらず ((98) 参照)
+- [T-190] 変わらず ((98) 参照)
+- [T-188] 変わらず ((98) 参照)
+- [T-187] 変わらず ((98) 参照)
+- [T-180] 変わらず ((98) 参照)
+- [T-181] 変わらず ((98) 参照)
+- [T-182] 変わらず ((98) 参照)
+- [T-183] 変わらず ((98) 参照)
+- [T-184] 変わらず ((98) 参照)
+- [T-186] 変わらず ((98) 参照)
+- [T-179] 変わらず ((98) 参照)
+- [T-185] 変わらず ((98) 参照)
+- [T-142] 変わらず ((98) 参照)
+- [T-136] 変わらず ((98) 参照)
+- [T-149] 変わらず ((98) 参照)
+- [T-152] 変わらず ((98) 参照)
+- [T-153] 変わらず ((98) 参照)
+- [T-158] 変わらず ((98) 参照)
+- [T-141] 変わらず ((98) 参照)
+- [T-143] 変わらず ((98) 参照)
+- [T-126] 変わらず ((98) 参照)
+- [T-059] 変わらず ((98) 参照)
+- [T-145] 変わらず ((98) 参照)
+- [T-146] 変わらず ((98) 参照)
+- [T-134] 変わらず ((98) 参照)
+- [T-123] 変わらず ((98) 参照)
+- [T-109] 変わらず ((98) 参照)
+- [T-113] 変わらず ((98) 参照)
+- [T-110] 変わらず ((98) 参照)
+- [T-097] 変わらず ((98) 参照)
+- [T-100] 変わらず ((98) 参照)
+- [T-099] 変わらず ((98) 参照)
+- [T-009] 変わらず ((98) 参照)
+- [T-060] 変わらず ((98) 参照)
+- [T-150] 変わらず ((98) 参照)
+- [T-151] 変わらず ((98) 参照)
+- [T-154] 変わらず ((98) 参照)
+- [T-130] 変わらず ((98) 参照)
+- [T-135] 変わらず ((98) 参照)
+- [T-133] 変わらず ((98) 参照)
+- [T-088] 変わらず ((98) 参照)
+- [T-096] 変わらず ((98) 参照)
+- [T-102] 変わらず ((98) 参照)
+- [T-122] 変わらず ((98) 参照)
+- [T-103] 変わらず ((98) 参照)
+- [T-089] 変わらず ((98) 参照)
+- [T-090] 変わらず ((98) 参照)
+- [T-112] 変わらず ((98) 参照)
+- [T-114] 変わらず ((98) 参照)
+- [T-011] 変わらず ((98) 参照)
+- [T-085] 変わらず ((98) 参照)
+- [T-087] 変わらず ((98) 参照)
+- [T-012] 変わらず ((98) 参照)
+- [T-010] 変わらず ((98) 参照)
+- [T-082] 変わらず ((98) 参照)
+- [T-121] 変わらず ((98) 参照)
+- [T-156] 変わらず ((98) 参照)
+- [T-159] 変わらず ((98) 参照)
+- [T-157] 変わらず ((98) 参照)
+- [T-148] 変わらず ((98) 参照)
+- [T-155] 変わらず ((98) 参照)
+- [T-147] 変わらず ((98) 参照)
+- [T-127] 変わらず ((98) 参照)
+- [T-137] 変わらず ((98) 参照)
+- [T-138] 変わらず ((98) 参照)
+- [T-132] 変わらず ((98) 参照)
+- [T-131] 変わらず ((98) 参照)
+- [T-128] 変わらず ((98) 参照)
+- [T-120] 変わらず ((98) 参照)
+- [T-125] 変わらず ((98) 参照)
+- [T-116] 変わらず ((98) 参照)
+- [T-057] 変わらず ((98) 参照)
+- [T-117] 変わらず ((98) 参照)
+- [T-119] 変わらず ((98) 参照)
+- [T-105] 変わらず ((98) 参照)
+- [T-104] 変わらず ((98) 参照)
+- [T-101] 変わらず ((98) 参照)
+- [T-124] 変わらず ((98) 参照)
+- [T-108] 変わらず ((98) 参照)
+- [T-111] 変わらず ((98) 参照)
+- [T-160] 変わらず ((98) 参照)
+- [T-161] 変わらず ((98) 参照)
+- [T-162] 変わらず ((98) 参照)
+- [T-163] 変わらず ((98) 参照)
+- [T-164] 変わらず ((98) 参照)
+- [T-165] 変わらず ((98) 参照)
+- [T-166] 変わらず ((98) 参照)
+- [T-167] 変わらず ((98) 参照)
+- [T-168] 変わらず ((98) 参照)
+- [T-169] 変わらず ((98) 参照)
+- [T-170] 変わらず ((98) 参照)
+- [T-171] 変わらず ((98) 参照)
+- [T-172] 変わらず ((98) 参照)
+- [T-173] 変わらず ((98) 参照)
+- [T-174] 変わらず ((98) 参照)
+- [T-175] 変わらず ((98) 参照)
+- [T-176] 変わらず ((98) 参照)
+- [T-177] 変わらず ((98) 参照)
+- [T-221] 変わらず ((98) 参照)
+- [T-223] 変わらず ((98) 参照)
+- [T-224] 変わらず ((98) 参照)
+- [T-227] 変わらず ((98) 参照)
+- [T-228] 変わらず ((98) 参照)

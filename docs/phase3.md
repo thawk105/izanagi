@@ -463,12 +463,12 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      **規律 3 の還流が human loop より狭い**点は設計択一として未解決であり、
      cross-generation 還流が起きる `--max-generations >= 2` の運転を D106 残余 1 の裁定まで
      禁止する ([T-244])。1 generation/cell は fresh campaign の単一 invocation なら還流が
-     起きないため許可する。**2026-08-01 の [T-244] wave (D113) でこの禁止を機械 gate 化した** —
+     起きないため許可する。**2026-08-01 の [T-244] wave (D114) でこの禁止を機械 gate 化した** —
      承認上限 `MAX_APPROVED_GENERATIONS = 1` を CLI・`run_trial()`・`_run_workload()` の 3 入口で
      強制し、`int` サブクラスによる予算偽装を exact 型検査で塞ぎ、最初の provider 呼び出し前に
      campaign checkpoint の freshness を検査する。**機械化したのは予算と freshness だけで、
      T-244 本体 (機序を漏らさずに失敗理由だけを還流させる設計) は未解決のまま**である。
-     `drive` 注入・driver 直接反復・並行 start race は保証対象外 (D113「保証の限界」)。
+     `drive` 注入・driver 直接反復・並行 start race は保証対象外 (D114「保証の限界」)。
 
      **この完了は「無人で proposal を作り build 手前まで運べる」operational evidence であり、
      workload-conditioned synthesis の科学的主張ではない。** A=rr50/B=rr95 は既知点、C=rr100 は

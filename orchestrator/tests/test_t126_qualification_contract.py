@@ -47,15 +47,35 @@ def _reference(bits, cfg):
 
 def test_protocol_freezes_observational_envelope_and_wmax():
     protocol = load_protocol()
+    assert validate_protocol(protocol) == protocol
     timing = protocol["timing"]
     assert protocol["authority"] == "evidence-only/no-promotion"
     assert protocol["hold_enforced"] is False
     assert protocol["statistical_claim"] == "none"
     assert timing["member_cap_s"] == 900
     assert timing["round_gap_s"] == 1800
+    assert timing["prologue_cap_s"] == 900
+    assert timing["attestation_cap_s"] == 600
+    assert timing["finalize_reserve_s"] == 600
     assert timing["wmax_s"] == 29100
     assert timing["qualification_walltime_s"] == 36000
     assert len(protocol_sha256(protocol)) == 64
+
+
+@pytest.mark.parametrize(
+    ("prologue_cap_s", "attestation_cap_s", "finalize_reserve_s"),
+    [(900, 1199, 1), (1499, 1, 600), (1499, 600, 1)],
+)
+def test_protocol_rejects_each_compensating_timing_cap_drift(
+        prologue_cap_s, attestation_cap_s, finalize_reserve_s):
+    mutated = deepcopy(load_protocol())
+    mutated["timing"].update({
+        "prologue_cap_s": prologue_cap_s,
+        "attestation_cap_s": attestation_cap_s,
+        "finalize_reserve_s": finalize_reserve_s,
+    })
+    with pytest.raises(ProtocolError, match="timing Wmax closure mismatch"):
+        validate_protocol(mutated)
 
 
 def test_all_machine_readable_evidence_schemas_are_valid_draft7():

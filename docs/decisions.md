@@ -4866,11 +4866,11 @@ red digest (rejections / verify abort / diff quarantine) の到達先は critic 
 正式系列 (H1/H2 × on/off/swapped) は同一 generation budget を要求するため、
 この条件により自動的に禁止側へ入る。本制限は prompt 規律であり機械 gate は置いていない。
 
-**(supersede 2026-08-01、D113)** 最後の文「機械 gate は置いていない」は D112 が supersede した。
+**(supersede 2026-08-01、D114)** 最後の文「機械 gate は置いていない」は D112 が supersede した。
 承認上限を CLI・`run_trial()`・`_run_workload()` の 3 入口で強制する。あわせて「1 generation/cell は
 還流が起きない」の射程も限定された — 成立するのは **fresh campaign の単一 invocation** の場合であり、
-既存 checkpoint がある場合は残余 3 の経路で還流しうる。D113 はその checkpoint を provider 呼び出し前に
-拒否する。**本残余の本体 (還流設計そのもの) は D113 でも未解決**である。
+既存 checkpoint がある場合は残余 3 の経路で還流しうる。D114 はその checkpoint を provider 呼び出し前に
+拒否する。**本残余の本体 (還流設計そのもの) は D114 でも未解決**である。
 
 **(残余 2) provenance は「全 attempt 束縛」ではない。** `_invoke()` の invalid 分岐は
 `error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance`
@@ -4884,10 +4884,10 @@ build 側の campaign root は cfg の内容 hash から決まる。同じ workl
 `--run-root` を指定しても同一 campaign root を再利用し、planner 前に旧 `loop_state.json` を読む。
 「resume は MVP 範囲外」は run_root についての記述であって、campaign 状態には及ばない。
 
-**(supersede 2026-08-01、D113)** 「planner 前に旧 `loop_state.json` を読む」は
+**(supersede 2026-08-01、D114)** 「planner 前に旧 `loop_state.json` を読む」は
 「**最初の provider 呼び出し前に拒否する**」へ変わった。crash 後の再開は `--run-root` の変更でなく
 新しい trial id で行う。壊れた checkpoint も fresh とは扱わない。ただし freshness 検査と state 生成の
-**並行 race (TOCTOU) は D113 の保証対象外**であり、この残余は完全には閉じていない。
+**並行 race (TOCTOU) は D114 の保証対象外**であり、この残余は完全には閉じていない。
 
 **(残余 4) 出力先 namespace。** build 時の campaign 出力先は既存 s4 driver 族と同じ
 `output/campaigns/` である。D65 決定 (2) の本文「探索は `output/exploration/campaigns/`」に対しては
@@ -5232,7 +5232,74 @@ production callsite ([T-280]) とテスト側の素の `mkdtemp` ([T-281]) に�
 **研究状態への影響:** certified 選択、材料レポート、proof chain、凍結 bytes、campaign の受理集合は
 いずれも不変である。変わるのは一時領域の占有だけだが、TMPDIR が tmpfs を指す環境では user memory
 cgroup を直接削るため、長走 campaign が途中で殺されて proof chain が未完のまま失われる経路があった。
-## D113. [T-244] 8c の宣言済み禁止を機械 gate 化する — 承認済み generation 予算と campaign state freshness を 3 入口で fail-closed にし、還流設計そのものは未解決のまま残す (2026-08-01)
+
+## D113. [T-247] 予約 envelope の宣言済み拒否を実発火させ、個別 cap を和でなく個別値 + 型で凍結する — 射程は実消費層 (制御 protocol) まで広げる (2026-08-01)
+
+**背景 (実測):** T-126 の job script (`tools/pegasus/t126_qualification.sh`) の予約 envelope 検査は
+恒真だった。embedded Python が `print` を `raise SystemExit` より前に置き、かつ
+`readarray < <(...)` が process substitution なので producer の終了状態を伝播しない。結果、後続の
+`[[ ${#RESERVATION_VALUES[@]} -eq 3 ]]` が常に真になり、`walltime=1 / wmax=2 / prologue=3` という
+policy でも `qualification envelope mismatch` を stderr へ出しながら **rc=0 で通過**し、値が下流へ流れた。
+submit script 側は拒否自体は発火するが、prologue / attestation / finalize の 3 cap を**和
+`calculated == 29100` でしか固定しておらず**、`1500 / 0 / 600` が rc=0 で通過した。
+
+**決定 (2026-08-01 ユーザー裁定 [T-247] = 択 (a) の実装):**
+
+1. **job script は producer の終了状態を明示検査する。** process substitution をやめ
+   `if ! OUT=$(...); then exit 2; fi` + here-string `readarray` とし、**出力行数を終了状態の代用にしない**。
+   検査を通った後にだけ 3 値を出力する。配列 index と変数の束縛が恒真にならないよう、代入直後に
+   `walltime_s / wmax_s / prologue_cap_s` の mapping assert を置く。
+2. **凍結の粒度を「和」から「個別値 + 型」へ変える。** job / submit の両方で、submit が列挙する
+   8 key (`walltime`, `walltime_s`, `member_cap_s`, `round_gap_s`, `prologue_cap_s`,
+   `attestation_cap_s`, `finalize_reserve_s`, `wmax_s`) の個別値を固定し、数値 7 key は
+   `type(v) is int`、`walltime` は `type(v) is str` を要求する。`contract.py` の既存様式に揃える。
+   既存の和・Wmax closure・member/gap・walltime 条件は 1 つも外さない (純増のみ)。
+3. **射程を実消費層まで広げる。** 予約 policy JSON の cap は job script の prologue cap と qstat 下限
+   比較にしか効かない。driver が finalize reserve / attestation cap に**実消費するのは制御 protocol
+   (`orchestrator/qualification/t126_control_v1.json` の `timing`)** であり、その受理 gate
+   `contract.py: validate_protocol` も同じ和だけの構造だった (`attestation=1199, finalize=1` が
+   ACCEPT されることを実測)。予約 policy 側だけを直すと「個別に凍結した」保証が実消費層で恒真になるため、
+   `validate_protocol` にも個別 3 cap の比較を純増する。**裁定文の literal な射程は予約 envelope だが、
+   裁定の目的 (恒真な保証を無くす) が実消費層を要求する**という理由でここまでを本 D の射程とする。
+
+**型凍結が受理集合に効く理由 (実測):** Python では `900.0 == 900` が真なので、値比較だけでは
+`prologue_cap_s = 900.0` が通る。一方 `contract.py` は `type(value) is not int` で拒否し、job の
+bash mapping assert は `"900.0" == "900"` で拒否するため、**submit が受理し job が拒否する層の分裂**が
+生じていた。さらに `900.0000000000001` は値比較を破りながら和が `29100.0 == 29100` へ丸まるため、
+個別比較を 1 つだけ外す変異が受理集合を広げた。strict 型化でこの経路が閉じ、整数に限れば
+「個別比較の単独削除は等価変異」(和が削除された cap を canonical 1 点に決める) が成立する。
+
+**command substitution 化に伴う退行の打ち消し:** `$(...)` は NUL byte を除去して警告を出すだけで
+rc を非 0 にしない。`"10:00:" + NUL + "00"` という walltime は、旧 `readarray < <(...)` では配列要素が
+NUL で切れて拒否されたが、素朴な置換では `10:00:00` として受理された。よって submit 側は
+**walltime の値比較を embedded Python の中で行う** (bash 側の文字列比較も残す)。
+
+**D96 の手続:** 受理集合を変えるため、本 D の記録と境界テストの更新を同じ変更単位で行う。境界テストは
+1 つでは足りない — 宣言値の静的 freeze テストは script の guard を全削除しても緑のままなので、
+(i) `test_reservation_policy_and_job_headers_freeze_wmax_and_walltime` の 8 key 個別 assert、
+(ii) production の両 script を subprocess 実行する境界テスト群、
+(iii) 制御 protocol の個別 cap 負例、の **3 点**をもって境界テストとする。
+
+**射程外 (本 D は塞がない。裁定パッケージへ送る):**
+
+- consumer (collector / public verifier) は**予約 policy** の値の意味論を検証せず、identity と blob
+  hash だけを見る。coherent に commit された drift policy は consumer を通り、producer 側だけが拒否する。
+- 重複 key の扱いが非対称である。submit は `no_dups` で拒否するが、job は素の `json.load` で last-wins。
+- 予約 block 以外の 7 個の `readarray < <(...)` も producer の終了状態を失う。本 D が束縛したのは
+  **予約 block 2 箇所だけ**である。他 8 block は「必要行を出し切った後の producer failure」を受理し続ける。
+- `t126_qualification_member_term_grace_s` は予約 policy の 9 番目の設定だが両 script から未参照の
+  orphan であり、本 D の 8 key 射影に含まれない。
+- command substitution は末尾 newline を除去するため、producer が「3 値 + 空行」を返しても配列長 3 で
+  通る。**値**の受理集合は広がらないため残存限界として記録するに留める。
+
+**却下案:** (a) `print` を検査の後ろへ移すだけの最小修正 — 「必要行を全部出した後に producer が失敗する」
+経路を再び受理するため不採用。(b) job 側の凍結を従来の 3 key に留める — submit が拒否する policy を
+job が受理する非対称が残るため不採用。(c) submit の和の等式を個別値で置き換えて削除する —
+既存拒否を外すことになり規律 2 に反するため不採用 (和は個別値固定後は論理的に冗長だが、
+1 つの個別 guard が将来弱まった場合の backstop として残す)。(d) 族一般化として全 9 block の
+producer status を束縛する — 同型欠陥 (print が raise より前) は 1 件だけであり `DW-G03` の
+独立 2 例を満たさないため不採用。
+## D114. [T-244] 8c の宣言済み禁止を機械 gate 化する — 承認済み generation 予算と campaign state freshness を 3 入口で fail-closed にし、還流設計そのものは未解決のまま残す (2026-08-01)
 
 **背景:** D106 残余 1 は「cross-generation 還流が起きる `--max-generations >= 2` の運転を、この設計が
 裁定されるまで禁止する」と宣言し、runbook も 3 箇所で同じ禁止を書いていた。しかし**機械 gate は無く、

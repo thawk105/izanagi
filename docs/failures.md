@@ -1333,6 +1333,11 @@
 - 再発検知: 変異 matrix で「rc≠0 かつ記録 node 0 件」が出たら、まず抽出器を疑う。
   出力形式を変える経路 (dispatch、wrapper、ログ整形) を足したら、それを消費する
   抽出器の側も同時に確認する
+- **再発: 2026-08-01 [T-247]**。新しい変異 harness が同じ穴で作られ、実際に KILL していた M-C1 を
+  `INFRA_OR_HARNESS_ERROR` / node 0 件と記録した (親の試走で検知)。同日の [T-118] / t244 / t249 と
+  合わせて独立 4 例であり、記録は **F71 が正本**である (F71 が原因を 3 つに分解している)。
+  再発の理由は**恒久対応が failures 台帳にしかなく、harness 契約の正本である `DW-M08` が
+  ANSI 除去しか明示していなかった**こと — harness を書く子は `DW-M08` を読み、台帳を読まない
 - 再発: 2026-08-01。[T-244] wave も同日に踏んだ。(3) の MISMATCH 契約があったので偽 SURVIVED は
   免れたが、証拠が 1 件も取れない点は同じ。**接頭辞を剥がすだけでは足りない** — dispatch は
   child stdout を `omitted_bytes` で切り詰めるため `FAILED` 行がコンソール表示に残らないことがある。
@@ -1478,7 +1483,9 @@
   **行末までを node** とし、(c) **`rc != 0` かつ抽出 0 件は `SURVIVED` にせず `PARSE_ERROR` で
   fail-closed 停止**する。実体は
   `output/insights/2026-08-01_t118-provider-lifecycle-wave/s6-mutation-matrix.md` の erratum 節と、
-  同 wave の harness。`DW-M08` 本文の是正は予算の都合で裁定へ送る (T-282 と同じ入口)
+  同 wave の harness。`DW-M08` 本文の是正は予算の都合で裁定へ送っていたが、**[T-247] wave で
+  `DW-M08` の重複文 (DW-M07 第 2 文と DW-M02 の重なり) を縮約して枠を作り、本 F の (a)(b)(c) を
+  指す形で是正済み**である。裁定へ残るのは T-282 のもう一方 (残留の検出手段) だけである
 - 近縁: F33 (期待 node と記録 node の形式不一致)、F28 (実効 gate へ再照準しないと恒真になる)
 - 記録: worklog 2026-08-01 (97)、一次資料 =
   `output/insights/2026-08-01_t118-provider-lifecycle-wave/` (`mutation-matrix-erratum-run1.json` に
@@ -1496,11 +1503,11 @@
 - 判別: 「〜してはならない」と書かれた運転条件について、(a) それを機械的に拒否する検査が
   実在するか、(b) **既定値・既定経路がその禁止側に落ちないか**を両方確認する。
   片方だけでは足りない
-- 恒久対応: D113 で承認上限 `MAX_APPROVED_GENERATIONS` を導入し、CLI・`run_trial()`・
+- 恒久対応: D114 で承認上限 `MAX_APPROVED_GENERATIONS` を導入し、CLI・`run_trial()`・
   `_run_workload()` の 3 入口で fail-closed 拒否、既定値を literal `1` に是正した。
   実体 = `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
   `test_generation_budget_boundary_at_ratified_launch` と
   `test_cli_default_is_literal_one_by_ast` (既定値が literal であることを AST で pin する)
 - 近縁: F9 (恒真な保証)、F14 (無効化されるフラグを遮断機構として記録)、
   F21 (配線を live 発火未検証のまま防壁とした)
-- 記録: worklog 2026-08-01 (98)、一次資料 = `output/insights/2026-08-01_t244-generation-gate/`
+- 記録: worklog 2026-08-01 (99)、一次資料 = `output/insights/2026-08-01_t244-generation-gate/`
