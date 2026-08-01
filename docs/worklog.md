@@ -1344,10 +1344,12 @@ main にマージされていない成果で、直近一日以内に更新され
 - **素材**: 逐語と裁定は取り込み監査 insight (段 2 統合プラン / 段 3 敵対 2 本 / 裁定表 / 変異台帳)。
   原 commit `436a3af`・`402086d` の `AI-Agent: role=author` は merge で保存し、
   コードを再著作していない
-- **受入**: 全走 4296 passed / 19 skipped (245.67 秒、request `875878`)、8c 単独 9 passed
-  (request `875850`)、`check_docs.py` 緑、`check_ai_provenance.py` 全履歴 rc=0 (request `875832`)。
-  変異は M1 kill / M2 kill / M3 SURVIVED / M4 kill の全件 AGREE。**M3 (診断文言のみ変異) が
-  SURVIVED したことが、境界テストが文言に依存していない証拠**である
+- **受入 (最終 tested main `fe2a547` 取り込み後の再走)**: 全走 **4301 passed / 19 skipped**
+  (247.89 秒、request `875906`)、`check_docs.py` 緑。変異は最終 tree で再走し
+  M1 kill / M2 kill / M3 SURVIVED / M4 kill の全件 AGREE。**M3 (診断文言のみ変異) が
+  SURVIVED したことが、境界テストが文言に依存していない証拠**である。
+  取り込み前の tree での実測は全走 4296 passed / 19 skipped (245.67 秒、request `875878`)、
+  8c 単独 9 passed (`875850`)、provenance 全履歴 rc=0 (`875832`)
 - **変異 harness 自身に欠陥があり 1 巡した**。初回は 4 変異とも rc は正しかったが記録 node が
   全件「なし」になった。原因は `run_tests.py` の Pegasus dispatch が子 stdout を行頭 `| ` 付きで
   中継するのに harness が接頭辞を剥がしていなかったこと。DW-M08 の node 記録義務を満たさない
