@@ -790,6 +790,18 @@
   「赤の有無が checkout に依存する」**。受入全走は並列度と範囲の両方を明示し
   `python3 -m pytest -q -n 32 orchestrator/tests` の形で回す。恒久対応は [T-129] へ集約した
   (同タスクを本エントリで P1 へ昇格)
+- **射程拡大分の恒久対応 (2026-08-01、[T-220] wave)**: repo 直下に `pytest.ini` を新設し、
+  `testpaths = orchestrator/tests` で引数なし起動の収集範囲を閉じ、`norecursedirs` に
+  `output` / `external` を足した (pytest 既定 9 要素は明示再掲。`.*` を落とすと
+  `.claude/worktrees/` が収集対象へ戻るため)。**`addopts` は書かない** — `run_tests.py` の
+  受入判定 4 ゲート (`_is_full_suite:314` / `_has_no_execution_flag:375` /
+  `_has_dispatch_exempt_flag:390` / `_is_acceptance_run:403`) はいずれも環境変数
+  `PYTEST_ADDOPTS` しか読まず ini を構造的に見ないため、ini に書くと「全走のつもりで実は
+  選択走」が preflight を通る。この非対称は正例つきで
+  `orchestrator/tests/test_pytest_collection_config.py` に機械固定した。
+  あわせて `pytest.ini` が `check_ai_provenance.py` の実装面分類に当たらず D95 が発火しない
+  穴も閉じた (`IMPLEMENTATION_BASENAMES` へ追加、受理集合は狭まる方向)。
+  **「測定値が checkout に依存する」本体 ([T-129] の残り) は未解決のまま**である
 
 ### F42. 新規テストファイルが自走 harness / allowlist の二択を満たさず、2 wave 連続で受入全走を空振りさせた [手順漏れ]
 
@@ -1058,6 +1070,12 @@
   SHA 指定 ff-only を行う。stale / busy は fresh context へ返し、再監査と受入再走なしに再試行しない。
 - **再発検知:** helper の境界 test と同一 base 二 wave の実 subprocess E2E。未知 dirt、偽 worktree、
   stale SHA、lock loser、non-FF、未監査 commit、gitlink postcondition 不成立をそれぞれ拒否する。
+- **恒久対応の射程を後に狭めた (2026-08-01、D107 / [T-220])**: 上記の「**形式が正しく**Git admin と
+  双方向束縛された制御面だけを非接触例外にし」という形は、**書式が崩れた他 session の handoff で
+  無関係な wave の land を止める**という新しい実害を生んだ ((73) は着地せず終了、(77)(78) は各 1 回拒否)。
+  D107 が cleanliness 軸を「incoming と衝突する untracked だけ拒否」へ一本化し、
+  `docs/handoff/` 配下は**書式を問わず**非接触にした。**本 F の恒久対応欄の「形式が正しく」は
+  現在の実装を表さない。** 現況の正本は D107。
 - 記録: worklog 2026-07-30 (67)、設計判断: D102、材料:
   `output/insights/2026-07-29_dev-wave-parallel-land/`
 
@@ -1195,3 +1213,48 @@
 - 再発検知: `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が before/after 差分として検出する
   (本件はこの検査が正しく発火した結果である)。差分が到達しえないファイルで出た赤は `DW-O18` に従い
   単独再走で再現性を実測してから帰属する — 本件も再走で偽赤と確定した
+
+### F63. 段 1 の前提実測を自 worktree の凍結写しで行い、13 commit 先の local main にあった裁定済み項目を見落とした [誤前提] [ドリフト]
+
+- 日付: 2026-08-01 ([T-220] wave)
+- 事象: 並行セッション開発の無駄なチェックを潰す wave で、親は `DW-S01` の「承認済み裁定の前提を
+  実測する」を実行したつもりだったが、**読んだのは自 worktree の `docs/worklog.md`** だった。
+  worktree は基準 `5544794` の凍結写しであり、その時点で local main は既に **13 commit 先の
+  `5948a6f`** にあった。差分には本 wave の中心論点そのものである
+  **[T-220]「P1・裁定済み ((74)) → 実装待ち: 択 (a) 採用」**が含まれていた
+- 実害: (1) **ユーザーに既に答えのある質問をした** (land の受理集合をどうするかの 3 択)。
+  (2) 無効な設計目標 (「schema 検証だけ撤去」) で段 1〜3 を 1 巡し、段 3 の敵対検証が
+  「裁定済み設計と不一致」を検出するまで気づかなかった。(3) 親が裁定パッケージへ書いた統計
+  (main の commit 間隔) も旧基準の値のまま凍結しかけた
+- 根本原因: **git worktree の `docs/` は基準 commit の凍結写しである。**「worklog 末尾を読む」という
+  起動導線は、それが *local main の* 末尾であることを要求していない。並行セッションが 10 分間隔で
+  land する環境では、worktree 作成から段 1 までの間に裁定が着地しうる
+- 検出できた理由: 段 3 の敵対レンズが独立コンテキストで一次資料を読み直し、
+  worktree 側の worklog に `T-220` が 1 件も無いのに main 側にあることを突き止めた。
+  **親の自己点検では原理的に検出できない** — 親は自分が見ている写しが古いことを知る手段を持たない
+- 恒久対応: `DW-S01` の前提実測に「**local main の worklog 末尾を見る**」を明記する。
+  あわせて `DW-O20` の startup gate で `git rev-list --count HEAD..main` を出し、乖離を起動時に
+  可視化する (機械化)。どちらも `docs/dev-wave/**` の予算に依存するため段 8 で裁定する
+- 再発検知: 起動 gate が乖離件数を出すようになれば、非ゼロの時点で親が気づく。
+  それまでは段 1 で `git log --oneline HEAD..main` を明示的に打つ規律で代替する
+
+### F64. land の handoff 検証が rc 契約外の素の例外で貫通しうる形だった [恒真ゲート] [防壁の射程誤認]
+
+- 日付: 発見・除去とも 2026-08-01 ([T-220] wave)。**実害の記録は無い (発火前に除去した)**
+- 事象: `tools/dev_wave_land.py` の `_validate_handoff_at` は基準コミット行を
+  `lines[4].removeprefix("- 基準コミット: ").strip().split(maxsplit=1)[0]` で取っていた。
+  値が空 (`- 基準コミット: ` だけ) の handoff が `docs/handoff/` にあると
+  `"".split(maxsplit=1)` が空リストを返し **`IndexError` が素通し**になる。
+  親が実測で再現した。`_Reject` を経ないので `land()` の rc 体系
+  (`RC_CONTROL_PLANE` 等) の外側で traceback 終了する
+- 同型: `_read_regular_at` の `os.read` の `OSError` も未捕捉である。こちらは
+  [T-220] wave で `docs/handoff/` からの到達経路が消えただけで、**関数自体の穴は残る**
+  (残 caller は worktree admin metadata = D107 の scope 外面)
+- 根本原因: 「検査は `_Reject` を投げる」という契約を、**入力が想定形であることを前提にした
+  素の index / IO 操作**が破っていた。fail-closed のつもりの gate が、実際には
+  **構造化された拒否ではなく異常終了**を返す形になっていた
+- 恒久対応: D107 の決定 (1) で `_validate_handoff_at` ごと削除した (handoff の内容を読まなくなった)。
+  `docs/handoff/` 経路の穴は消えた。**`_read_regular_at` 側は未対応であり、
+  同型の第 2 例が出た時点で `DW-G03` に従い族として一般化して閉じる**
+- 再発検知: 「gate が `_Reject` 以外で終了しうるか」は現状テストで固定していない。
+  検査を新設・改修する wave で、**空文字・空リストを与える負例**をレンズに含める

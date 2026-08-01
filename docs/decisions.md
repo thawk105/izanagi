@@ -4755,3 +4755,64 @@ rc 体系 — `run_tests.py` との rc=16 一致を meta-test で固定できな
 なお、waiver で担い手資格を失った commit には理由 finding が 1 本増えるが、これは規律 3 (なぜ壊れたかを
 構造化して返す) に沿う**出力の追加**であって受理集合は不変である — 失格経路は target 側の finding が
 抑止されないため変更前から rc=1 だった。
+
+## D107. [T-220] 他 session 所有物は incoming と衝突しない限り自分の gate を落とさない — land の control-plane を衝突軸へ一本化し、handoff 書式の阻害力を意図的にゼロへ降格する (2026-08-01)
+
+**背景 (ユーザー裁定と実測):** [T-220] は (74) で **択 (a) 採用**として裁定済みだった —
+「`DW-O23` の受理集合を **incoming と衝突する未知 untracked だけ拒否**へ緩める」。
+裁定の根拠として worklog に残るユーザーの言葉は
+**「別セッション所有のもので検査が落ちても、それを main に入れようとしていないなら関係ないはず」**。
+実測の裏付けも同じ箇所にあり、欠陥の一文は **「検査は衝突の有無を見ていない」**である。
+実害は 3 件記録されている — (73) の wave は着地しないまま終了、(77)(78) は各 1 回拒否。
+本 wave は D102 決定 (3)「main の非接触例外は **schema-valid** active handoff と Git admin に
+双方向登録された worktree に閉じる」の射程を、この裁定に従って上書きする。D102 は凍結記録として残す。
+
+**決定 (1): land の cleanliness 軸は「incoming と衝突する untracked」だけを拒否理由にする。**
+`docs/handoff/` 配下のエントリについて、名前形・regular file 要求・hard link 拒否・サイズ上限・
+UTF-8・4 行ヘッダ・状態 3 値・基準コミット形・見出し構成を**すべて拒否理由から外す**。
+`_handoff_snapshot` は **名前集合と `docs/handoff` の dir identity だけ**を返し、
+per-entry の stat も内容 hash も取らない。保護 (`protected`) は README.md を除く**全直下エントリ**へ広がる。
+拒否は `_paths_overlap` による衝突検査へ一本化する。**受理集合は「拒否は狭まり保護は広がる」方向にのみ動く。**
+
+**決定 (1-a): per-entry の内容 hash は「守っている実績ゼロ・偽陽性のみ」だったので廃する。**
+既存の mid-flight test が使う置換 harness は bytes を保存して inode だけ変えるため、
+**sha256 が判別子として効いた test は 1 本も存在しなかった**。一方 production では
+handoff の in-place 更新 (運用ルールは「節目ごと + 最低 10 分おき」) が inode 保存 + bytes 変化を起こすため、
+その唯一の固有検出力は**偽陽性側にしかなかった** — land 前なら rc 21、merge 後なら
+`RC_LANDED_POSTCONDITION_FAILED` (非再試行) を生む。規律 3 の「謳うだけで発火しない保証」に該当する。
+`_postcondition` の control-plane 再検査も tracked-dirt 判定へ縮約する。
+
+**決定 (2): handoff 書式の阻害力を持つ機械執行はゼロになる。これは補償制御ではなく意図的な降格である。**
+`_HANDOFF_STATES` の consumer は land だけだったため、決定 (1) で 3 値語彙の機械執行は repo から消える。
+検出は `check_docs.py` の**非阻害 warning** (48h stale + 4 行ヘッダ + 状態語彙 + 基準コミット形) として残す。
+`check_wave_startup.py` への移設は**採らない** — 同 helper は repo 内に自動 caller が 1 件も無く、
+対話型 session は repo 内の handoff を渡せない仕様で、現存 handoff の被覆は 0/4、起動時 1 回しか走らない。
+**「移した」と書けば恒真な保証を台帳に入れることになる。** 阻害する相手が所有者でなかったことの害の方が
+大きいと裁定し、正直に降格と記録する。
+
+**決定 (3): 収集範囲を checkout 非依存にし、その制御ファイルを provenance の実装面に含める。**
+repo 直下へ `pytest.ini` を新設し `testpaths` で引数なし起動を閉じ、`norecursedirs` に
+`output` / `external` を足す (pytest 既定 9 要素は明示再掲。`.*` を落とすと `.claude/worktrees/` が戻る)。
+**`addopts` は書かない** — `run_tests.py` の受入判定 4 ゲートは環境変数 `PYTEST_ADDOPTS` しか読まず
+ini を構造的に見ないため、書くと「全走のつもりで実は選択走」が preflight を通る (規律 2 の攻撃面)。
+あわせて `pytest.ini` が `check_ai_provenance.py` の実装面分類に当たらず D95 が発火しない穴を閉じる
+(`IMPLEMENTATION_BASENAMES` へ追加、受理集合は狭まる方向)。F41 の射程拡大分がこれで閉じる。
+
+**本 D の scope 境界 (明示):** 緩めるのは **main worktree の `docs/handoff/` 表面における
+untracked/dirt 軸だけ**である。共有 `.git` の config / history modifier / lock、および worktree admin
+双方向束縛は**変更しない**。これらにも「incoming と無関係に他 session 起因で全 land を止める」同型経路が
+実在する (共有 `.git/config` に `filter.*` が書かれると恒久停止する等) が、正常運用で日常的に触られる面では
+ないため本 wave では触らず、裁定パッケージへ回した。
+
+**却下した案:** (a) 内容 schema だけ撤去 — 名前形・型・hard link・サイズ上限が同じく大域 raise するので、
+隣の `notes.txt` や `.swp` で同じ事故が残り裁定文を満たさない。(b) `protected` を「全直下 `.md`」に広げる —
+tracked な `docs/handoff/README.md` (変更実績 9 commit) を巻き込み恒久的な land 不能を新設する。
+(c) 書式検査を `check_wave_startup.py` へ移す — 決定 (2) のとおり発火しない。
+(d) 書式検査を `check_docs.py` の finding として残す — 所有者を判別できないので、本 D が消そうとしている
+他人巻き込みをそのまま再導入する。(e) `.gitignore` へ worktree 置き場を足す — D102 却下案 (a) を覆すのに、
+実測では `main_dirty` が他要因で True のままで解決にならない。
+
+**研究状態への影響:** なし。campaign の raw 受理集合、certified 選択、proof chain は不変で、
+変わるのは開発 harness の受理集合だけである。ただし決定 (3) は受入全走の**収集集合**を
+checkout 非依存にするため、F41 が記録した「赤の有無が checkout に依存する」交絡が減る方向に効く。
+材料・逐語・変異 = `output/insights/2026-08-01_parallel-dev-wave/`。

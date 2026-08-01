@@ -46,8 +46,10 @@ IMPLEMENTATION_SUFFIXES = (
     ".py", ".sh", ".bash", ".c", ".cc", ".cpp", ".cxx",
     ".h", ".hh", ".hpp", ".hxx", ".cmake", ".patch", ".diff",
 )
+# pytest.ini は repo 直下にあり prefix/suffix のどちらにも当たらないが、受入全走の
+# 収集集合を決める制御ファイルなので実装面として扱う (段 4 裁定 M8)。
 IMPLEMENTATION_BASENAMES = {
-    "CMakeLists.txt", "Makefile", "GNUmakefile", "pyproject.toml",
+    "CMakeLists.txt", "Makefile", "GNUmakefile", "pyproject.toml", "pytest.ini",
 }
 AGENT_VALUE = re.compile(
     rf"^product=(?P<product>{IDENT}); "

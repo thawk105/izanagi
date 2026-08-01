@@ -78,6 +78,15 @@ LINE_REF_STRICT = [
 HANDOFF_DIR = REPO / "docs" / "handoff"
 HANDOFF_STALE_SECONDS = 48 * 3600
 
+# handoff schema (段 4 裁定 B4): land (`tools/dev_wave_land.py`) はもう handoff の書式を
+# 検査しない (書式を執行していた `_validate_handoff_at` は削除済み)。ここに残る 3 点の
+# 検査が書式を可視化する唯一の経路であり、阻害力は持たない非阻害 warning としてのみ
+# 機能する (自己完結。dev_wave_land からは import しない)。所有者判定がないので、
+# finding 化すると本 wave が消した「他人巻き込み」を再導入してしまう。
+_HANDOFF_HEADER_PREFIXES = ("- 目的: ", "- 状態: ", "- 最終更新: ", "- 基準コミット: ")
+_HANDOFF_STATES = frozenset({"作業中", "計測中", "中断"})
+_HANDOFF_SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
+
 ARCHIVE_DIR = REPO / "docs" / "archive"
 ARCHIVE_README = ARCHIVE_DIR / "README.md"
 
@@ -1996,8 +2005,48 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     return unreadable
 
 
+def _handoff_schema_warnings(lines: list[str]) -> list[str]:
+    """handoff の 4 行ヘッダ書式・状態語彙・基準コミット形を非阻害の warning として検査する。
+
+    land はもう書式を検査しない (書式を執行していた `_validate_handoff_at` は削除済み)。
+    書式検査はここが唯一の可視化経路であり、阻害力は持たない。ここでは最初の違反で
+    打ち切らず「4 行ヘッダが書式通りか」を先に判定し、書式が崩れていれば個々の
+    フィールドは信頼できないため以降の検査は行わない (誤検出の temptation を避ける)。
+    書式が保たれていれば状態語彙・基準コミット形は独立に検査する。
+    """
+    msgs: list[str] = []
+    header = lines[1:5]
+    if len(header) < 4 or any(
+        not line.startswith(prefix)
+        for line, prefix in zip(header, _HANDOFF_HEADER_PREFIXES)
+    ):
+        msgs.append(
+            "4 行ヘッダ (- 目的: / - 状態: / - 最終更新: / - 基準コミット:) の書式が "
+            "handoff/README.md の定型と一致しない (警告のみ、rc には算入しない)"
+        )
+        return msgs
+
+    state = header[1].removeprefix("- 状態: ").strip()
+    if state not in _HANDOFF_STATES:
+        msgs.append(
+            f"状態の値 {state!r} が既知の 3 値 (作業中/計測中/中断) のいずれでもない "
+            "(警告のみ、rc には算入しない)"
+        )
+
+    base_field = header[3].removeprefix("- 基準コミット: ").strip()
+    base = base_field.split(maxsplit=1)[0] if base_field else ""
+    if _HANDOFF_SHA_RE.fullmatch(base) is None:
+        msgs.append(
+            f"基準コミット {base!r} が 40 桁または 64 桁の hex ではない "
+            "(警告のみ、rc には算入しない)"
+        )
+
+    return msgs
+
+
 def main() -> int:
     findings: list[str] = []
+    warnings: list[str] = []
 
     guard_unreadable = _check_command_docs_guard(findings)
 
@@ -2183,9 +2232,16 @@ def main() -> int:
             if status_line is None:
                 findings.append(f"{rel}: ヘッダ定型 (状態:) がない — handoff/README.md の定型に従う")
             elif re.search(r"作業中|計測中", status_line) and now - f.stat().st_mtime > HANDOFF_STALE_SECONDS:
-                findings.append(
+                warnings.append(
                     f"{rel}: 状態が稼働中のまま 48h 以上未更新 — 死んだセッションの可能性。中断扱いで回収を"
                 )
+            for msg in _handoff_schema_warnings(text.splitlines()):
+                warnings.append(f"{rel}: {msg}")
+
+    if warnings:
+        print(f"check_docs: {len(warnings)} 件の警告 (rc には算入しない)")
+        for w in warnings:
+            print("  -", w)
 
     if findings:
         print(f"check_docs: {len(findings)} 件の違反")
