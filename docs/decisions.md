@@ -4866,11 +4866,18 @@ red digest (rejections / verify abort / diff quarantine) の到達先は critic 
 正式系列 (H1/H2 × on/off/swapped) は同一 generation budget を要求するため、
 この条件により自動的に禁止側へ入る。本制限は prompt 規律であり機械 gate は置いていない。
 
-**(supersede 2026-08-01、D114)** 最後の文「機械 gate は置いていない」は D112 が supersede した。
-承認上限を CLI・`run_trial()`・`_run_workload()` の 3 入口で強制する。あわせて「1 generation/cell は
-還流が起きない」の射程も限定された — 成立するのは **fresh campaign の単一 invocation** の場合であり、
-既存 checkpoint がある場合は残余 3 の経路で還流しうる。D114 はその checkpoint を provider 呼び出し前に
-拒否する。**本残余の本体 (還流設計そのもの) は D114 でも未解決**である。
+**(supersede 2026-08-01、D114)** 最後の文「機械 gate は置いていない」は D114 が supersede した
+(2026-08-01 の [T-244] 還流設計 wave で、本注記が「D112」と誤記していたのを訂正した。D112 は
+無関係な [T-118] の決定である)。承認上限を CLI・`run_trial()`・`_run_workload()` の 3 入口で強制する。
+あわせて「1 generation/cell は還流が起きない」の射程も限定された — 成立するのは
+**fresh campaign の単一 invocation** の場合であり、既存 checkpoint がある場合は残余 3 の経路で還流しうる。
+D114 はその checkpoint を provider 呼び出し前に拒否する。
+
+**(supersede 2026-08-01、D116)** 本残余の**設計択一**は D116 が解いた — 軸 (i) 主軸 + (iv) 併用を確定し、
+軸 (iii) を多世代開放の必須前提へ格上げし、多世代開放の前提条件 10 件を固定した。ただし
+**還流機構そのものは未実装**であり、本残余の本体はその意味で残る。設計本文は draft
+(`output/insights/2026-08-01_t244-reflux-design/`) であり、未裁定の択一が 5 件ある。
+D114 の承認上限 1 は維持される。
 
 **(残余 2) provenance は「全 attempt 束縛」ではない。** `_invoke()` の invalid 分岐は
 `error_artifacts` (payload/envelope の path と SHA) だけを journal へ書き、`response.provenance`
@@ -5307,6 +5314,10 @@ CLI の既定値がむしろ `2`** だった。flag を省いて起動すると�
 本 D はこの宣言と実装の逆転を閉じる。T-244 の本体 (機序を漏らさずに失敗理由だけを次世代へ還流させる
 設計) は本 D では**解決しない**。
 
+**(2026-08-01 追記、D116)** 本 D の後、D116 が**設計択一だけ**を確定した (軸 (i) 主軸 + (iv) 併用、
+軸 (iii) の必須前提化、多世代開放の前提条件 10 件)。**機械配線・多世代運転・効果実証は未了**であり、
+本 D の承認上限 1 と 3 入口の拒否はそのまま維持される。
+
 **決定 (1): 承認済み generation 予算を `MAX_APPROVED_GENERATIONS = 1` として実装上の絶対上限
 `MAX_GENERATIONS = 10` から分離する。** 前者は研究裁定上の上限、後者は実装上の絶対能力である。
 解除はこの定数 1 個と境界テストの同時変更だけで行い、環境変数・隠し flag・provider 別例外は作らない。
@@ -5363,6 +5374,8 @@ invocation は予算 1 になり、`generation_budget` が `search_config` を�
 **保証の限界 (これ以上を主張しない):**
 - T-244 本体 = 規律 3 の還流設計は**未解決**である。本 D は残余 1 の「機械 gate なし」だけを supersede し、
   「cross-generation 還流を機械的に禁止した」とは名乗らない。
+  (**2026-08-01 更新、D116**: 設計**択一**は D116 が確定した。機械配線・多世代運転・効果実証は未了で、
+  D116 が固定した前提条件 10 件は**現時点で 1 件も満たされていない**。本 D の上限 1 は維持される。)
 - `run_trial(drive=...)` / `providers=` / `preview=` の注入経路は保証対象外である。1 callable 内で
   複数 iteration を回す `drive` を渡せば予算検査を素通りする。
 - `p3_s4_loop_trigger_gating.drive_iteration()` の直接反復は保証対象外である。他の正当な
@@ -5458,3 +5471,67 @@ certified 証拠であり、再発行には実 job の再走が要る)。
 **研究状態への影響:** なし。production 挙動、実験の受理集合、certified 選択、材料レポート、proof chain、
 凍結 bytes はいずれも不変である。変わるのは開発時の設定ファイルの所在と、それを守る検査だけである。
 受入全走 = Pegasus gen_S 計算ノード request `876932` で 4713 passed / 19 skipped。
+
+## D116. [T-244] 規律 3 の還流は「機械が消費し generator には見せない」軸で設計する — 軸 (i) 主軸 + (iv) 併用を確定し、多世代開放の前提条件 10 件を機械検査可能な形で固定する (2026-08-01)
+
+**背景:** D106 残余 1 は「機序を漏らさずに失敗理由だけを次世代へ還流させる」設計を未解決として残し、
+D114 はその禁止を機械 gate 化しただけで本体を解決しなかった。前 wave の裁定パッケージが挙げた設計軸
+(i)〜(iv) に対し、ユーザーが **軸 (i) を主軸・軸 (iv) を併用**と裁定した (worklog (102))。
+本 D はその裁定を採用済み判断として記録し、起草した設計 draft の所在と、多世代開放の前提条件を固定する。
+
+**決定 (1): 軸 (i) を主軸、軸 (iv) を併用とする。** (i) = 信頼できる機械が failure を単調な
+safety constraint へ変換し、generator (planner/coder) は理由を読まない。(iv) = campaign より上位の
+`reflux-origin` 単位で総 iteration・総 query・公開 class 数を束縛する。(ii) (post-run auditor だけへ戻す)
+単独は規律 3 を満たさない封じ込めとして採らない。前 wave の候補 A〜D は不採用のまま維持し、
+再開条件を設計本文の表に固定する。
+
+**決定 (2): 軸 (iii) (候補 batch の事前凍結) を「後置可の補強」から多世代開放の必須前提へ格上げする。**
+段 3 の敵対相談 2 本が独立に、caller が選んだ singleton relaxation の accept/reject が
+**1 bit/query の membership oracle** として残ることを指摘した。実効 mask `E = P ∨ C` と raw mask の差は
+そのまま「その atom が既に constraint 済みか」を教える。予算は回数を縛るが 1 query あたりの 1 bit は
+消せない。ユーザー裁定は (iii) を「後置可」としており禁止していないため、必須前提化は裁定と両立する。
+
+**決定 (3): 強制と開示を分離し、既定は強制のみとする。** machine が `E = P ∨ C` を適用して build する
+「強制」は generator への開示 0 bit である。constraint を generator に伝える「開示」は bit を払う操作で
+あり、origin seal 後に上限個数だけ許す。**動的な constraint 文を coder の `gating_spec` へ追記する案は
+不採用**である — 文そのものが最大 `log2(5) ≈ 2.32 bit` の理由チャネルであり、順序・空白・同義語で
+さらに符号化できる。`gating_spec` は全世代で byte-for-byte 同一に固定する。
+
+**決定 (4): 変換の名乗りを「failed-singleton no-good cut」に固定する。** 単一の verifier red が機械的に
+証明するのは「この singleton relaxation を含む候補が red だった」ことだけで、「その atom が failure の
+原因だった」ではない。構造化 anomaly から同じ atom を独立再導出できることを機械実証するまで、
+**「failure reason constraint」とも「規律 3 の『なぜ』を満たした」とも名乗らない**。
+
+**決定 (5): 予算は campaign ID でなく `reflux-origin` に束縛する。** `ident.canonical_preimage()` は
+`trial` と `search_config` を含むため、campaign ID に予算を置くと ID を変えるだけで予算が新品になる。
+別 run-root・別 trial・config 微修正・programmatic 分割・checkpoint 削除・campaign 全削除の 6 経路を
+実測した。origin preimage には authority 発行の series ID・spec 内容・CCBench commit・axis semantics・
+descriptor SHA・verifier policy・environment contract・IR schema と emitter の SHA・予算上限を含め、
+`run_root` / `trial` / invocation ID / provider 呼び分け / 1 回の CLI budget / process 分割名は含めない。
+
+**決定 (6): 設計本文は draft のままとし、本 D は「設計が確定した」とは主張しない。**
+未裁定の設計択一が 5 件残る (予算値、origin authority、cap-lift の機械束縛、formal consumer gate、
+診断 run の扱い)。実装はゼロであり、`reflux-control` stage・origin ledger・5-bit IR・正準 emitter・
+非干渉検査はいずれも未実装である。本文と逐語の正本 = `output/insights/2026-08-01_t244-reflux-design/`。
+
+**決定 (7): 多世代開放 (`MAX_APPROVED_GENERATIONS > 1`) の前提条件を 10 件に固定する。**
+D96 手続に加え、P1 固定 5-bit IR と全 32 mask 監査済み emitter、P2 実効 diff と IR SHA を untrusted role
+へ出さない非干渉検査、P3 origin ledger の単一 in-flight・CAS・crash replay・削除耐性、P4 軸 (iii) の
+batch freeze、P5 provider 注入・role 間 session 共有・未予約 token の拒否、P6 no-good cut を超える主張を
+するなら anomaly からの独立再導出、P7 formal consumer の origin proof 要求 (受理集合の変更ゆえ D96)、
+P8 1 世代運転・runbook 3 手順・reflux on/off ablation の不破壊、P9 whiteboard 値域と iteration 整合の閉包、
+P10 予算値と origin authority のユーザー裁定、をすべて満たすこと。**現時点で満たされているものはゼロである。**
+
+**この決定で確定していないこと (過大表現を避けるための明示):** 本 D は還流機構を実装していない。
+D114 の承認上限 1 は維持され、cross-generation 還流は 3 入口で機械拒否されたままである。
+本 D が supersede するのは D106 残余 1 の「設計択一が未着手」という状態だけであり、
+残余 1 の本体 (還流機構の不在) は実装まで残る。
+
+**却下した案:** (a) 本 wave で D116 を「設計確定」として phase/runbook の未解決記述を閉じる — 未裁定の
+択一が bit 会計と信頼境界の中核に残るため、段 3 レンズ B が独断確定と判定した。(b) cap-lift guard を
+本 wave で実装する — guard が要求すべき前提は未裁定の択一に依存し、実装すると未裁定設計を既成事実に
+する。(c) 動的 constraint 文の追記 (決定 3 の逆) — 理由チャネルとして反証された。
+(d) 予算を `search_config` へ入れて campaign ID に束縛する — 決定 5 の自己矛盾。
+
+**研究状態への影響:** なし。本 D は docs のみで、production 挙動、実験の受理集合、certified 選択、
+材料レポート、proof chain、凍結 bytes はいずれも不変である。実装差分が無いため変異 matrix は対象外。

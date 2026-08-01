@@ -45,6 +45,9 @@
   (緑 leading-indicators のみ渡す) の**合流 1 点** = `campaign/p3_s4_loop.py` の `make_critic_digest(reflux=)`
   (= `render_rejections` を合流するか否か)。reflux は campaign identity (search_config) に焼き別 campaign に物理分離する
   (D39 決定4)。第 3 アーム reason-only は段 6。
+  **8c 自律ループでは D116 がこの還流形を supersede する** — 機序帰属を generator へ戻さず、機械が hidden な
+  safety constraint へ変換する軸 (i) を採る。ただし機構は未実装で、多世代運転は D114 の上限 1 で拒否されたまま
+  である。人間監督ループの本記述 (段 4 で配線済み) はそのまま有効で、削除しない。
 - **ベースライン 3/4 の substrate anchor (段 4 が固定 → 段 6 が「同じ編集面・同じ試行予算」を守るための実値):**
   編集面 = diff 検疫の hole (silo-backoff-magnitude、`include/backoff.hh` の #if 合成枝 1 行、D39 決定1)。試行予算 =
   iteration budget (10 iteration または 3600 秒、D39 決定2)。変異軸 = backoff (人間命名、coder の値提案より前に固定
