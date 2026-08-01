@@ -1095,7 +1095,7 @@
   同型の検証非対称は `tools/dev_waves` にもある (model は `allowed_models` に照合、effort は
   形のみ、receipt に effort field なし) が、同層は D74 で fake child 限定のため成果物影響ゼロ。
   一次資料 = `output/insights/2026-08-01_token-hygiene-audit/probes/cli-effort-failopen.md`、
-  記録 = worklog 2026-08-01 (80)
+  記録 = worklog 2026-08-01 (81)
 
 ### F57. Codex worker launcher の normal fake が32-worker全走だけで失敗し、失敗nodeが移動した [テストフレーク] [資源競合]
 
