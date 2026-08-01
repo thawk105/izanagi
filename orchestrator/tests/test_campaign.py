@@ -2,8 +2,8 @@
 """orchestrator (campaign engine) STAGE1 の単体テスト (machine 非依存)。
 
 pytest でも 素の `python orchestrator/tests/test_campaign.py` でも走る。
-WAL/lock のテストは TMPDIR 配下に一時 campaign を作る (pytest 実行では
-conftest.py が TMPDIR を tmpfs へ向ける)。
+WAL/lock のテストは TMPDIR 配下に一時 campaign を作る (conftest.py は TMPDIR を
+設定しないので、明示されていなければ環境既定の /tmp)。
 """
 from __future__ import annotations
 
@@ -1219,12 +1219,14 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             self.events = []
             self.builds = []
             self.build_roots = []
+            self.lock_enters = 0
+            self.competition_probes = 0
 
     class ScriptedPoint:
         """ScalePoint 同様、値等価だが identity は別にできる round fixture。"""
-        def __init__(self, round_median):
+        def __init__(self, round_median, reps=2):
             self.throughputs = ([] if round_median is None else
-                                [round_median, round_median])
+                                [round_median] * reps)
             self.run_cmd = "<run>"
             self._median = round_median
 
@@ -1252,6 +1254,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
     @contextlib.contextmanager
     def fake_lock(*a, **k):
+        bench_calls.lock_enters += 1
         yield
 
     def fake_measure(*a, **k):
@@ -1261,7 +1264,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         bench_calls.events.append("bench")
         if "rep_returncodes" in k:
             k["rep_returncodes"].extend(spec["rep_returncodes"])
-        point = ScriptedPoint(spec["median"])
+        point = ScriptedPoint(spec["median"], reps=k.get("reps", 2))
         if round_binding == "duplicate":
             if shared_point["value"] is None:
                 shared_point["value"] = point
@@ -1278,7 +1281,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
     def fake_build_v2(genome, *, contract, ccbench_commit, trace, src_token,
-                      cc, cxx, cache_root, ccbench_dir=""):
+                      cc, cxx, cache_root, ccbench_dir="", timeout_s=None):
         bench_calls.builds.append(("v2", trace, contract.contract_sha256))
         bench_calls.build_roots.append(ccbench_dir)
         if build_raises:
@@ -1349,6 +1352,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     patch("settle", lambda *a, **k: {"settled": True})
 
     def fake_competing():
+        bench_calls.competition_probes += 1
         if probe_raises is not None:
             raise probe_raises
         return list(competing or [])

@@ -18,15 +18,21 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
-- safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。ただし現行の反復は
-  人間がセッション間を運ぶ **human-supervised loop** であり、無人の進化探索ではない。
+- safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。反復の駆動は
+  2 種類ある — 主経路 (8a 軸の探索・S 系実験) は依然として**人間がセッション間を運ぶ
+  human-supervised loop** であり、無人の進化探索ではない。一方 8c の bounded MVP
+  (`p3_autonomous_workload_trial.py`、D106、[T-207] で 2026-08-01 取り込み) は
+  trigger-gating 1 軸に限って **Python が iteration 間を運ぶ**。後者も
+  build 手前までの配線実証であり、project 全体の unattended/autonomous 達成は主張しない。
 - 旧主実験の主張 S は縮小主張 S' へ後退し、S' も **headline 不成立で確定した** (S-1 本走完走、
   三値判定 = S-1a 不成立 / S-1b 成立。族 4 判定表 2026-07-16 ユーザー承認、最終報告 =
   `output/reports/s_prime_final_report.md`)。主張の S-1/S-2 と、must 表の **S1 trace-hook**・
   verify 構成の **S2** は別物。S' を Phase 3 全体の中心価値には据えない。
 - 次の研究上の主経路は **8b workload descriptor + 層3材料レポート**。両者は並行着手できる。
-  8c セッション非依存駆動は反復運営が再び律速になると確認した場合、段 7 cross-protocol / b2 移植は
-  8b と層3の後に判断する。
+  8c セッション非依存駆動は「反復運営が再び律速なら着手」の条件付きだったが、
+  **ユーザーの優先度変更により条件を待たず bounded MVP を先に実装した** (D106)。
+  正式実験 (H1/H2 × on/off/swapped) と crash resume は未完で、ここは条件が外れていない。
+  段 7 cross-protocol / b2 移植は 8b と層3の後に判断する。
 - 既知の rr5/rr50/rr95 結果は配線確認・**結果既知の事前登録付き追試** (confirmatory とは呼ばない) にだけ使う。新しい workload 特化主張は、
   結果を見ていない holdout workload/競合条件と全件報告規則を実走前に凍結してから評価する。
 - bench-first screening v2 は**実装済み** (2026-07-15、D58。監査 must-fix 対応込み)。positive
@@ -361,7 +367,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    一歩目は**カタログ化の試作 1 枚** (他 CC の最適化 1 つを「前提/効果/競合」でカード化し、移植先で前提が満たせるかを
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
-8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、8b 進行中、8c は条件付き)** — 外部評価
+8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、8b 進行中、8c は bounded MVP 済み・正式実験と resume は未完)** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
    リスクに応じてレビューする。新しい統計主張・不可逆な決定は D41 相当の 3 レンズ、可逆な schema/文言は
    1 レンズまたは事後監査、反復可能な整合検査は機械 lint とする (worklog 2026-07-14 (3))。これはレビュー
@@ -412,12 +418,50 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      D58 の対象外で、別設計・別裁定のまま据え置く。将来採用しても偵察 sweep / 8b の opt-in に限り、
      S-1 の事前登録済みサンプル設計には適用せず、採否判定の between-run floor 丸め
      (roadmap §3.6(4)) は変えない。
-   - **(8c 未着手・条件付き) 駆動のセッション非依存化** — planner/coder/auditor を orchestrator から
-     呼び、checkpoint・budget・再開を Python 側が所有する。過去には build/verify よりセッション運営が遅かったが、
-     8b の前向き設計と層3最小 E2E を 1 cycle 回してなお反復運営が律速なら実装する。単発の workload
-     descriptor 配線やレポート生成を先送りしてまで先に作らない。実装しない間は human-supervised scope に
-     留まり、究極ゴールの unattended/autonomous 達成を主張しない。8c で orchestrator が所有する予算の第一単位は
-     **ベンチ実時間 (秒)**、LLM 呼び出し回数は第二軸とする。Vesper のトークン予算終了基準は直輸入しない —
+   - **(8c bounded MVP 実装済み 2026-07-29、正式実験・resume は未完) 駆動の
+     セッション非依存化** — ユーザーの優先度変更を受け、汎用 daemon を先に作らず
+     **unattended runner + workload-conditioned generation + 固定 stop + 全件 report** を
+     trigger-gating 1 軸へ束ねて最短実装した。
+     `orchestrator/campaign/p3_autonomous_workload_trial.py` が planner / coder / auditor /
+     critic を headless Claude の fresh・tool-less context で直接呼び、iteration 間の
+     descriptor / abstract whiteboard / critic reverse signal を Python が運ぶ。**valid attempt** には
+     source role SHA + effective prompt SHA + payload/envelope SHA + session/model/token provenance を
+     束縛する (invalid attempt は payload/envelope の path と SHA だけで、provenance は落ちる)。
+     各 role は1回・retryなし。固定 generation budget、既存 safe-loop stop、supervisor
+     wall 閾値のいずれかで停止し terminal report を書く。performance target による早期停止は
+     入れない (Best-of-N / 選択的報告の回避)。
+
+     YCSB A/B/C × 1 generation の fixture no-build は 3/3 dry-pass、実 Claude no-build は
+     12/12 role attempt valid・3/3 dry-pass で完走した。初回実 Claude pilot では auditor が
+     `list[str]` を返し既存 `list[dict]` gate が 3 cell とも fail-closed にしたため、再試行せず
+     partial report を保存し、次 trial で mediated schema を object 配列へ明確化して完走した。
+     その出力監査で planner の mechanism 文が coder へ流れうることも検出し、planner→coder 境界を
+     `axis/direction/magnitude` 3 field だけに縮退した。運用正本 =
+     `docs/phase3-s8c-autonomous-trial-runbook.md`、設計裁定 = D106。
+     **2026-08-01 の取り込み ([T-207]) で、起草時の主張と実装の食い違い 6 件を訂正した。**
+     一覧の正本は `output/insights/2026-08-01_t207-adoption-audit/README.md` の
+     「説明と実装の食い違い 6 件」の表である (`_preview()` の pre-audit 再実装 /
+     `max-wall-seconds` が上限でなく境界閾値であること / auditor schema が要素 field まで
+     閉じていないこと / auditor payload に common 部も入ること / provenance が valid attempt
+     限定であること / 別 run-root でも campaign 状態が再利用されうること)。
+     同時に `--provider fixture` + 実 build を fail-closed で拒否した
+     (無条件 pass の fixture auditor を実計測経路へ載せない。D106 決定 (6))。
+     **規律 3 の還流が human loop より狭い**点は設計択一として未解決であり、
+     cross-generation 還流が起きる `--max-generations >= 2` の運転を D106 残余 1 の裁定まで
+     禁止する ([T-244])。1 generation/cell は還流が起きないため許可する。
+
+     **この完了は「無人で proposal を作り build 手前まで運べる」operational evidence であり、
+     workload-conditioned synthesis の科学的主張ではない。** A=rr50/B=rr95 は既知点、C=rr100 は
+     read-only negative-control 候補で、全 cell の coder が同じ gate を返しうる。descriptor-on
+     だけの rationale 差は因果証拠にならない。次の主経路は (1) A/B/C を 1 generation だけ
+     single-tenant live build/legacy+S2/bench で operational pilot、(2) H1 rr80/H2 rr20 ×
+     on/off/swapped を同一固定 budget で実装・凍結・実走、の順。MVP 残余は supervisor crash 後の
+     in-place resume、axis-proposer、複数軸、正式な bench 実時間 budget accounting。これらが
+     閉じるまでは project 全体の究極ゴールに対する unattended/autonomous 達成を主張しない。
+
+     8c で orchestrator が所有する予算の第一単位は
+     **ベンチ実時間 (秒)**、LLM 呼び出し回数は第二軸とする。現 MVP の wall budget は前者の
+     代替ではない。上限でもなく、次の workload / generation 境界で開始を止める閾値である。Vesper のトークン予算終了基準は直輸入しない —
      Izanagi の律速資源はトークンでなくベンチ実時間であり、ベンチは排他実行のため並列化で回収できない
      (related-work §7.2)。
 9. **層3材料レポート (事実層は v2 まで完了、機序仮説層は設計凍結済み)** — 最小完了条件は
@@ -627,11 +671,12 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   full-history監査へ更新。設計判断=D101、材料・レビュー・変異=
   `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`、記録=worklog (66)。
 - [T-188] **(完了 2026-07-30) dev-wave 並行 session land** — Claude command / Codex Skill が
-  共有する `DW-O23` と `tools/dev_wave_land.py` を導入。別 session の schema-valid handoff と
+  共有する `DW-O23` と `tools/dev_wave_land.py` を導入。別 session の handoff と
   Git admin に双方向登録された worktree container を非接触で保ち、tested SHA・ordered closure・
   common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D102、
   失敗台帳=F55、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`、
-  記録=worklog (67)。
+  記録=worklog (67)。**非接触例外の条件は 2026-08-01 の D109 ([T-220]) が上書きし、
+  handoff は書式を問わず非接触・拒否は incoming との衝突軸だけになった。**
 - [T-145] **(完了 2026-07-29) long-path serve test の固定 join 二律背反除去** —
   `join(120)`のwall-clock合否を、実listener/SignalRelay・real exchange・shutdown/release/returnの
   ordered observationと、`INFRA_TIMEOUT / NOT_EVIDENCE`へ倒す外部child containmentへ置換。
@@ -796,7 +841,9 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   別タスクへ繰延 (規律5)。
 - **axis-proposer の恒真提案検出に機械 backstop が無い (段 8a、D47 必須条件 2、規律 3 の見送り)**:
   提案の fails-closed 検査はフィールド存在検査のみで (n=1 の手動運用ではこの検査は信頼中核が
-  提案の消費前に実行し、欠落は差し戻す — 「機械」検査になるのは 8c の駆動配管が載ってから。
+  提案の消費前に実行し、欠落は差し戻す — 「機械」検査になるのは 8c の駆動配管が
+  **axis-proposer を含めて**載ってから。2026-08-01 に land した 8c bounded MVP (D106) は
+  trigger-gating 1 軸に固定で axis-proposer を呼ばないため、この backstop はまだ人間 gate のまま。
   実体化検証 2026-07-10 の指摘)、mechanism_hypothesis の実質性 (恒真で
   ないか・attribution 実在項目に論理的に繋がるか) は人間 gate の意味判断に依存する。機械 lint 化は
   自然文の意味検査の恒真化リスク (D30/D45 却下 (b) と同根) のため見送り。**指標 = 恒真提案の

@@ -23,6 +23,7 @@ output/
 ├── s8b-freeze/                   段 8b holdout freeze (holdout_freeze.json)
 ├── exploration/                  探索 (非公式) 成果物の隔離 namespace (D65。campaigns/ を含む。official が型で拒否)
 ├── t080-migration/               一回限りの移行契約 receipt (D78。hooks 保護外・4 状態機械と履歴検証が正 — 発効は人間 R commit のみ)
+├── autonomous-trials/<trial-id>/ 段 8c bounded supervisor の試行 journal (D106)。attempt journal・role payload/envelope・proposal・terminal report。**探索の運用記録であって正式 proof chain ではない** — 実 build 時の WAL / campaign report の正本は campaigns/<campaign-id>/ 側
 ├── task-runs/                    AI 開発作業の統計記録 (開発プロセス観測。証拠ではない — D66、詳細 task-runs/README.md)
 ├── dev-wave-supervisor/          bounded dev-wave supervisor の運用契約 (README.md) と private runtime (runtime/ は gitignored、control WAL・raw child 出力。[T-076]、D74)
 └── reports/                      campaign 横断の材料レポート (s_prime_final_report.md, s1_direct_comparison/)

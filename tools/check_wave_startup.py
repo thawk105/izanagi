@@ -18,7 +18,10 @@ from typing import Sequence
 _SUBMODULE_MARKER = Path("external/ccbench/CMakeLists.txt")
 _SUBMODULE_GIT = Path("external/ccbench/.git")
 _HANDOFF_DIR = Path("docs/handoff")
-_READ_ONLY_GIT_SUBCOMMANDS = frozenset({"rev-parse", "status", "symbolic-ref"})
+_MAIN_REF = "refs/heads/main"
+_READ_ONLY_GIT_SUBCOMMANDS = frozenset(
+    {"rev-list", "rev-parse", "status", "symbolic-ref"}
+)
 _ALLOWED_GIT_ENV = frozenset({"GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT"})
 
 
@@ -223,6 +226,39 @@ def _check_external_handoff_file(repo: Path, handoff: Path) -> list[str]:
     ]
 
 
+def describe_main_divergence(repo: Path) -> str:
+    """HEAD が local main から何 commit 遅れているかを 1 行で述べる。
+
+    これは可視化であり gate ではない。worktree の `docs/` は基準 commit の凍結写しなので、
+    遅れている間に他 session が land した裁定を見落とす (F67)。乖離が無い場合も必ず述べ、
+    取得できない場合もその旨を述べる — 出ないことがあると、読み手が「乖離が無い」のか
+    「表示が壊れている」のかを区別できず、恒真な保証になる。
+
+    失敗しても呼び手の受理集合は変えない (fail-open)。ここで停止させると、並行 session が
+    land するたびに無関係な理由で wave の起動が止まる。
+    """
+    result = _git(repo, "rev-list", "--count", f"HEAD..{_MAIN_REF}")
+    if result.returncode != 0:
+        return (
+            f"local main との乖離を取得できない ({_one_line(result.stderr)}): "
+            "可視化のみ省略し検査は続行する"
+        )
+    try:
+        behind = int(result.stdout)
+    except ValueError:
+        return (
+            "local main との乖離を解釈できない "
+            f"(rev-list の出力: {_one_line(result.stdout)}): "
+            "可視化のみ省略し検査は続行する"
+        )
+    if behind == 0:
+        return f"local main との乖離なし (0 commit; HEAD は {_MAIN_REF} を含む)"
+    return (
+        f"HEAD は local main より {behind} commit 遅れている: "
+        "worklog・裁定・docs は local main 側を正本として読む (worktree の docs は凍結写し)"
+    )
+
+
 def check_repository(
     repo: Path,
     *,
@@ -282,6 +318,9 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    # 可視化は検査結果に依らず必ず先に出す (rc には一切影響させない)。
+    # flush は stdout が pipe のとき NG 行 (stderr) との前後関係を保つため。
+    print(f"INFO: {describe_main_divergence(args.repo)}", flush=True)
     failures = check_repository(
         args.repo,
         mode=args.mode,

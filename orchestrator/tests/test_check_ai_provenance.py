@@ -644,10 +644,37 @@ def test_canonical_parser_fails_closed_on_invalid_bytes_or_record(
         ("patches/README.md", False),
         ("docs/worklog.md", False),
         ("CMakeLists.txt", True),
+        # 受入全走の収集集合を決める制御ファイル。repo 直下なので prefix にも
+        # suffix にも当たらず、basename 分類だけが実装面へ入れる (段 4 裁定 M8)。
+        ("pytest.ini", True),
+        ("./pytest.ini", True),
+        # 分類は basename で決まる。同名でない ini は従来どおり非実装面のまま。
+        ("docs/notes.ini", False),
     ],
 )
 def test_implementation_path_contract(path: str, expected: bool):
     assert provenance._is_implementation_path(path) is expected
+
+
+def test_repo_root_pytest_ini_requires_codex_author():
+    """pytest.ini だけを触る AI commit にも D95 の Codex author 契約を発火させる。"""
+    assert "pytest.ini" in provenance.IMPLEMENTATION_BASENAMES
+    findings, waived_applied = provenance.validate_implementation_author(
+        "candidate", CLAUDE_AUTHOR, ["pytest.ini"],
+    )
+    assert findings == [
+        "candidate: 実装面に Codex role=author がない — paths=pytest.ini"
+    ]
+    assert waived_applied is False
+    assert provenance.validate_implementation_author(
+        "candidate", CODEX_AUTHOR, ["pytest.ini"],
+    ) == ([], False)
+
+
+def test_repo_ships_the_pytest_ini_that_the_classifier_now_covers():
+    """分類の追加が実在ファイルに結線されていること (恒真な保証にしない)。"""
+    assert (REPO / "pytest.ini").is_file()
+    assert provenance._is_implementation_path("pytest.ini") is True
 
 
 def test_claude_only_author_is_rejected_for_implementation_positive_control():

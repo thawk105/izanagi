@@ -1,17 +1,41 @@
 # orchestrator/tests — テスト方針
 
-## 一時ディレクトリと速度 (conftest.py)
+## 一時ディレクトリ (conftest.py)
 
 campaign 系は書き込みごとに flush+fsync するため、一時 dir がジャーナリング FS
-にあるとスイートが I/O バリア律速になり数百倍遅くなる (実測は worklog
-2026-07-17)。`conftest.py` が TMPDIR 未指定・`/dev/shm` 書込可・空き 1 GiB 以上の
-とき `TMPDIR=/dev/shm` を設定してこれを避ける。fsync を呼ぶコード経路は変えない
-(検査は弱めない) — 物理ディスクバリアだけが消える。
+にあるとスイートが I/O バリア律速になりうる (実測は worklog 2026-07-17)。
+かつて `conftest.py` はこれを避けるため TMPDIR を tmpfs (`/dev/shm`) へ向けていたが、
+**tmpfs はメモリであり、メモリ枠を持つ計算機ではその枠を直接食う**。この誘導は撤去した。
+**conftest は TMPDIR を設定しない。** 経緯と実測は worklog の該当エントリを参照。
 
-- TMPDIR を明示すると conftest は何もしない (例: `TMPDIR=/tmp` で環境既定の挙動)
-- 素の `python3 test_*.py` 実行は conftest を経由しない。遅ければ
-  `TMPDIR=/dev/shm` を手で与える。ただし GB 級の実 trace / 実ビルドを回す作業では
-  tmpfs は RAM を食う — その場合はディスク側 TMPDIR のまま実行する
+置き場を選ぶときは**環境ごとに実測して決める** — 「局所ディスクなら速い」は成り立たない。
+本 wave の実測 (300 回の write+fsync、payload 4 KiB、単一プロセス。
+計算ノードは bnode021 で loadavg 0.29 = 単独、ログインノードは pegasus02 で loadavg 17 の共有下):
+
+| 置き場 | Pegasus 計算ノード | Pegasus ログインノード |
+|---|---|---|
+| `/dev/shm` (tmpfs) | 0.001s | 0.002s |
+| `/tmp` | **0.026s** (xfs — fstype は bnode041/043 で `stat -f` 実測) | **8.7〜9.4s** (局所 RAID) |
+| `/scr` | 0.021s (xfs) | 存在しない |
+| `/home` (Lustre) | 0.42〜0.49s | 0.435〜0.447s |
+
+ログインノードでは `/tmp` が最も遅く `/home` が 20 倍速い。計算ノードでは `/tmp` も
+`/scr` も十分速い。TMPDIR を明示するなら**その機械で測った値**に基づいて選ぶ。
+
+tmpfs (`/dev/shm`、`/run/user/*`、tmpfs な `/tmp`) は選んではいけない。
+
+- **TMPDIR を明示的に tmpfs へ向けた場合**は回帰ガードが
+  `/proc/self/mountinfo` の fstype を見て**赤にする**
+- **TMPDIR 未設定で環境既定が tmpfs の場合** (systemd 既定の `/tmp` 等) は
+  ガードは赤にせず **skip し、理由にパスと fstype を出す**。その環境では
+  ディスク上の TMPDIR を明示すること
+- ガードの射程は実行時の `TMPDIR` と `tempfile.gettempdir()`、および conftest の source 上の
+  結線 (`os.environ["TMPDIR"]` 系の代入と `tempfile.tempdir = <tmpfs>` 代入) である。
+  **pytest の `--basetemp` は射程外** (`tools/run_tests.py` は絶対パス化して pytest へ渡すだけで、
+  ガードはその値を見ない)
+- 素の `python3 test_*.py` 実行は conftest を経由しない (元から TMPDIR に従う)
+- fsync を呼ぶコード経路は変えていない (検査は弱めない)。実測でも
+  `test_campaign.py` の fsync 回数は置き場によらず 620 回で一致する
 
 ### 並列実行 — 推奨の起動方法
 
@@ -54,11 +78,17 @@ worker 起動コストが利得を食い 96 は 32 より遅い)。明示上書�
 
 受入全走は**範囲と並列度の両方を明示して**回す。`python3 tools/run_tests.py` が両方を
 既定で満たす正しい形 (範囲 `orchestrator/tests`、並列度 = 環境自動追従)。素の pytest を
-使うなら `python3 -m pytest -q -n 32 orchestrator/tests` のように両方を書く — repo には
-`addopts` を持つ設定ファイルが無いため、素の `python3 -m pytest -q` は**直列走**であり、
-範囲を省くと rootdir 以下を無指定収集する。ignored な生成物 (ビルドキャッシュ等) が
-溜まった checkout では、同梱の他所のテストまで収集して大量の collection error になる
-(failures F41: cygnus main checkout で 1253 errors)。
+使うなら `python3 -m pytest -q -n 32 orchestrator/tests` のように両方を書く — repo の
+`pytest.ini` は `addopts` を**持たない**ので、素の `python3 -m pytest -q` は今も**直列走**である。
+
+範囲については、`pytest.ini` の `testpaths` が引数なし起動を `orchestrator/tests` へ閉じ、
+`norecursedirs` が `output` / `external` / dot ディレクトリを収集から外すため、
+**ignored な生成物が溜まった checkout でも他所のテストを拾わなくなった**
+(failures F41: 対策前は cygnus main checkout で 1253 errors)。ただし `testpaths` が効くのは
+**位置引数を 1 つも渡さないとき**だけなので、範囲を明示する作法自体は変えない。
+`addopts` を ini へ書いてはならない — `run_tests.py` の受入判定は環境変数 `PYTEST_ADDOPTS`
+しか見ず ini を構造的に読まないため、「全走のつもりで実は選択走」が preflight を通る
+(`orchestrator/tests/test_pytest_collection_config.py` が機械的に固定している)。
 
 - **wall も赤の有無も checkout に依存する。** git worktree には ignored なファイルが
   存在せず、main checkout には蓄積する。同じコマンドでも収集集合・skip 集合・実行時間が

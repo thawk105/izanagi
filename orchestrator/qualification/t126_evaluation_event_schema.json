@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "payloadEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_json", "sha256"],
+      "properties": {
+        "canonical_json": {"type": "string", "minLength": 2},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "qualification_lineage", "event_index", "round_index",
+    "member_role", "event_type", "evaluation_stage", "evaluation_wal_key",
+    "env_tag", "payload"
+  ],
+  "properties": {
+    "schema_version": {"const": "t126-qualification-evaluation-event/v1"},
+    "qualification_lineage": {"const": "t126-only"},
+    "event_index": {"type": "integer", "minimum": 0},
+    "round_index": {"type": "integer", "minimum": 1, "maximum": 8},
+    "member_role": {"enum": ["subject", "reference"]},
+    "event_type": {"const": "member_evaluation_event"},
+    "evaluation_stage": {
+      "enum": [
+        "qualification_build_start", "qualification_build_done",
+        "qualification_verify_done", "qualification_bench_done",
+        "qualification_evaluation_terminal", "qualification_evaluation_rejected"
+      ]
+    },
+    "evaluation_wal_key": {"type": "string", "minLength": 1},
+    "env_tag": {"const": "pegasus"},
+    "payload": {"$ref": "#/definitions/payloadEnvelope"}
+  }
+}

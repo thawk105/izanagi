@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 import pytest
 
@@ -4410,6 +4411,175 @@ def test_real_repo_clean():
     )
     assert res.returncode == 0, f"実 repo で違反が出た:\n{res.stdout}\n{res.stderr}"
     assert "違反なし" in res.stdout, res.stdout
+
+
+# ===== handoff 48h stale + schema 検査 (S2, dev-wave 段5 U2, 段4裁定 B4) =====
+# 48h stale 判定と handoff schema (4 行ヘッダ書式・状態語彙・基準コミット形) は所有者を
+# 判別できないため非阻害の warning とする (rc に算入しない)。「状態:」行の欠落だけは
+# 自己修復可能な finding のまま残す (択一 4)。既存被覆はゼロだったため以下は全て純増。
+
+
+def _well_formed_handoff_text(
+    *,
+    state: str = "作業中",
+    base: str | None = None,
+    purpose: str = "テスト目的",
+    updated: str = "2026-08-01",
+) -> str:
+    """4 行ヘッダ契約 (# タイトル + 直後 4 行。書式検査は check_docs.py の非阻害 warning が唯一の経路) を満たす最小 handoff。"""
+    if base is None:
+        base = "a" * 40
+    return (
+        "# synthetic handoff\n"
+        f"- 目的: {purpose}\n"
+        f"- 状態: {state}\n"
+        f"- 最終更新: {updated}\n"
+        f"- 基準コミット: {base}\n"
+        "\n"
+        "## 本文\n"
+        "trivial body\n"
+    )
+
+
+def _write_handoff(
+    root: str, name: str, text: str, *, age_hours: float | None = None
+) -> str:
+    rel = os.path.join("docs", "handoff", name)
+    _write(root, rel, text)
+    path = os.path.join(root, rel)
+    if age_hours is not None:
+        ts = time.time() - age_hours * 3600
+        os.utime(path, (ts, ts))
+    return path
+
+
+def _assert_warning_not_finding(root: str, *needles: str) -> subprocess.CompletedProcess:
+    res = _run_check(root)
+    assert res.returncode == 0, f"警告のはずが rc!=0 になった:\n{res.stdout}\n{res.stderr}"
+    assert "違反なし" in res.stdout, f"warning のはずが finding 扱いになった:\n{res.stdout}"
+    for needle in needles:
+        assert needle in res.stdout, f"{needle!r} が警告出力にない:\n{res.stdout}"
+    return res
+
+
+def _assert_no_warnings(root: str) -> subprocess.CompletedProcess:
+    res = _run_check(root)
+    assert res.returncode == 0, f"rc!=0:\n{res.stdout}\n{res.stderr}"
+    assert "違反なし" in res.stdout, res.stdout
+    assert "件の警告" not in res.stdout, f"警告が出てはいけないのに出た:\n{res.stdout}"
+    return res
+
+
+def test_stale_active_handoff_does_not_make_check_docs_red():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-stale.md",
+            _well_formed_handoff_text(state="作業中"),
+            age_hours=49,
+        )
+        _assert_warning_not_finding(
+            root,
+            "2026-07-01-stale.md",
+            "状態が稼働中のまま 48h 以上未更新",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_fresh_active_handoff_emits_no_stale_warning():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-fresh.md",
+            _well_formed_handoff_text(state="作業中"),
+            age_hours=47,
+        )
+        res = _assert_no_warnings(root)
+        assert "48h" not in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_handoff_without_status_header_is_still_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-nostatus.md",
+            "# broken handoff\n\nno header fields at all.\n",
+        )
+        _assert_violation(root, "ヘッダ定型 (状態:) がない")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_unknown_state_value_is_a_warning_not_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-unknownstate.md",
+            _well_formed_handoff_text(state="完了"),
+        )
+        _assert_warning_not_finding(
+            root,
+            "既知の 3 値 (作業中/計測中/中断) のいずれでもない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_malformed_four_line_header_is_a_warning_not_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-malformed.md",
+            "# malformed header handoff\n"
+            "\n"
+            "- 状態: 作業中\n"
+            "- 最終更新: 2026-08-01\n"
+            "- 基準コミット: " + "a" * 40 + "\n",
+        )
+        _assert_warning_not_finding(
+            root,
+            "4 行ヘッダ",
+            "書式が",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_short_base_commit_is_a_warning_not_a_finding():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-shortsha.md",
+            _well_formed_handoff_text(base="abc1234"),
+        )
+        _assert_warning_not_finding(
+            root,
+            "40 桁または 64 桁の hex ではない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_repo_with_only_a_well_formed_handoff_has_zero_warnings():
+    root = _build_min_repo()
+    try:
+        _write_handoff(
+            root,
+            "2026-07-01-wellformed.md",
+            _well_formed_handoff_text(),
+        )
+        _assert_no_warnings(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def _run():
