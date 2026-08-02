@@ -37,6 +37,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import buildcache, pin, site_policy                      # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import repo_output_root                           # noqa: E402
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
@@ -184,7 +185,10 @@ def main() -> int:
 
     # --- 1. stock control (no patch): assert は正しいコードで沈黙するはず ---
     print("== stock control (no patch, TRACE=1) ==")
-    bstock = buildcache.build(STOCK_G, PIN, trace=True)
+    bstock = buildcache.build(
+        STOCK_G, PIN, trace=True,
+        admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+    )
     result["runs"]["stock_single"] = _variant_run(bstock.binary, SINGLE_FLAGS,
                                                    "stock/single")
 

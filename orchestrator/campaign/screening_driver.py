@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 from typing import Callable, Dict, Optional, Sequence
 
 from . import ident, source_digest, wal
+from .build_admission import BuildAdmission, require_build_admission
 from .layout import CampaignLayout, campaign_layout, repo_output_root
 from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT,
                     CampaignConfig, Genome)
@@ -126,11 +127,13 @@ def prepare_screening_campaign(
 def evaluate_candidate(
         cfg: CampaignConfig, layout: CampaignLayout, genome: Genome,
         perf: PerfConfig, env_tag: str, clocks_per_us: int, *,
+        admission: BuildAdmission,
         screening: Optional[ScreeningConfig],
         numactl: Optional[Sequence[str]] = None, src_token: Optional[str] = None,
         do_settle: bool = False, force: bool = False, log=print,
         ccbench_dir: str = "", cache_root: str = "") -> Optional[EvalResult]:
     """sweep候補を1点評価する。forceはbaseline再アンカー専用。"""
+    admission = require_build_admission(admission)
     _surface_repair(ident.ensure_resumable_wal(cfg, layout), log)
     src_tok = src_token if src_token is not None else source_digest.resolve(
         genome, cfg.ccbench_commit, ccbench_dir)
@@ -149,7 +152,8 @@ def evaluate_candidate(
             genome, layout, env_tag, cfg.ccbench_commit, perf, clocks_per_us,
             numactl=numactl, do_settle=do_settle, src_token=src_tok,
             extra_correctness=extra_correctness, screening=screening, log=log,
-            ccbench_dir=ccbench_dir, cache_root=cache_root)
+            ccbench_dir=ccbench_dir, cache_root=cache_root,
+            admission=admission)
     except (KeyboardInterrupt, SystemExit):
         raise
     except Exception as exc:  # candidate固有失敗をWALへ隔離。loop.pyと同じ境界。

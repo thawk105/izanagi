@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from calibrator.benchparse import (abort_rate as parse_abort,    # noqa: E402
                                    parse_bench_stdout, throughput_tps)
 from campaign import buildcache                                  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import env_scope_dir                    # noqa: E402
 from campaign.model import Genome                                # noqa: E402
 from campaign.p2_2 import (CCBENCH_COMMIT, CLK, ENV_TAG, EXTIME,  # noqa: E402
@@ -130,7 +131,10 @@ def _median(xs):
 def profile_point(backoff_us, workload, log=print):
     """1 backoff 量を REPS 回 profile し、有用 IPC を含む集計を返す。"""
     g = _genome(backoff_us)
-    br = buildcache.build(g, ccbench_commit=CCBENCH_COMMIT, trace=False)
+    br = buildcache.build(
+        g, ccbench_commit=CCBENCH_COMMIT, trace=False,
+        admission=BuildAdmission(BuildProvenance.MACHINE_SWEEP),
+    )
     _assert_single_tenant()        # 各点の頭で再確認 (長い perf ループでも fail-closed, 規律4)
     runs = []
     for _ in range(REPS):

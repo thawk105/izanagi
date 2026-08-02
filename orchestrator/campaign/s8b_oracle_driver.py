@@ -24,6 +24,7 @@ ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign import campaign_claim as _campaign_claim  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
@@ -55,6 +56,7 @@ SESSION_STAGE = model.STAGE_S8B_ORACLE_SESSION
 SESSION_ISSUER = model.S8B_ORACLE_SESSION_ISSUER
 DEFAULT_FREEZE_PATH = ROOT / "output/s8b-freeze/holdout_freeze.json"
 DEFAULT_BUDGET_PATH = ROOT / "output/s8b-budget/time_ledger.json"
+_BUILD_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
 _BINDING_KEYS = {
     "genome_canonical", "src_token", "variant_id", "entry_sha256",
     "binding_sha256",
@@ -1350,6 +1352,7 @@ def run_block(
                                 ccbench_dir=prepared_for_eval.ccbench_dir,
                                 cache_root=prepared_for_eval.cache_root,
                                 screening=None,
+                                admission=_BUILD_ADMISSION,
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
                                 # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を

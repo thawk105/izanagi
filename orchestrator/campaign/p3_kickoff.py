@@ -21,16 +21,19 @@ variant patch は coder (サブエージェント) の編集から orchestrator 
 (patches/variant-*.patch)。駆動順序 = applied() (apply → resolve → build → revert) に
 run_campaign を包む。fitness は配線テストであり baseline ではない (wiring 規模、規律4)。
 
-  python3 orchestrator/campaign/p3_kickoff.py          # seed → 条件1 → 条件2 → 判定
+  python3 orchestrator/campaign/p3_kickoff.py --allow-coder-derived-build
+      # seed → 条件1 → 条件2 → 判定
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import buildcache, ident, wal                       # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import exploration_campaign_layout           # noqa: E402
 from campaign.loop import run_campaign                            # noqa: E402
 from campaign.model import CampaignConfig, Genome                 # noqa: E402
@@ -81,7 +84,15 @@ def _perf() -> PerfConfig:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="P3 coder wiring kickoff")
+    parser.add_argument("--allow-coder-derived-build", action="store_true",
+                        help="CODER_DERIVED patch build をこの CLI run に限り明示許可")
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    admission = BuildAdmission(
+        BuildProvenance.CODER_DERIVED,
+        coder_derived_opt_in=args.allow_coder_derived_build,
+    )
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     _assert_single_tenant()
@@ -90,18 +101,23 @@ def main() -> int:
     print("=== seed: 素の tree (pinned-clean) で stock genome をビルド (WAL 非経由) ===")
     assert_pinned_clean(sub, PIN)
     for trace in (True, False):
-        b = buildcache.build(STOCK_G, PIN, trace=trace)
+        b = buildcache.build(
+            STOCK_G, PIN, trace=trace,
+            admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+        )
         print(f"  seed build trace={int(trace)}: {b.bin_hash}"
               f" ({'cache' if b.cached else 'fresh'})")
 
     print("\n=== 完了条件 1: no-op variant 下で stock genome → cache-hit commit ===")
     with applied(os.path.join(root, NOOP_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          admission=admission,
                           campaign_namespace="exploration")
 
     print("\n=== 完了条件 2: 純 timing static50 → cache-miss 新規ビルド 1 周 ===")
     with applied(os.path.join(root, STATIC_PATCH), PIN, sub):
         s2 = run_campaign(cfg, [STATIC_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          admission=admission,
                           campaign_namespace="exploration")
 
     # --- WAL 機械判定 (完了条件の文言どおり。宣言でなくレコードを gate にする) ---

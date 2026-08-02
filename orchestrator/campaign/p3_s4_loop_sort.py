@@ -65,6 +65,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pin, wal                              # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildProvenance,  # noqa: E402
+                                      require_build_admission)
 from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
                                    auditor_reject_result, compute_diff_digest,
@@ -206,7 +208,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                       coder: CoderProposalSort, auditor: AuditorVerdict,
                       state: L.LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
-                      cache_root: str = "") -> Dict:
+                      cache_root: str = "",
+                      admission: Optional[BuildAdmission] = None) -> Dict:
     """1 iteration の機械部分を回す (backoff 版 `run_one_iteration` と同型の構造)。
 
     genome は `SORT_VARIANT=1` を焼く (`BACKOFF_FIXED` 相当なし)。auditor gate は
@@ -214,6 +217,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     dry/build で quarantine 呼び出しを重複させていたが、本 driver は auditor gate が
     増えた分ここで共通化した)。"""
     from campaign.patchharness import applied
+    if do_build:
+        admission = require_build_admission(admission)
     genome = Genome("silo", {**_BASE, "SORT_VARIANT": 1})
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
@@ -234,6 +239,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             return {"outcome": "dry-pass", "variant": None}
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
+                              admission=admission,
                               campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
@@ -289,7 +295,8 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     coder: CoderProposalSort, auditor: AuditorVerdict,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
                     layout: Optional[CampaignLayout] = None, log=print,
-                    cache_root: str = "") -> Dict:
+                    cache_root: str = "",
+                    admission: Optional[BuildAdmission] = None) -> Dict:
     """段 5 sort-strategy の 1 iteration をメインセッション駆動で回す (backoff 版
     `drive_iteration` と同型: checkpoint 復元 → critic feedback 畳込み → 入口
     check_stop → iteration++ → run_one_iteration → checkpoint 保存 → digest 書き出し →
@@ -313,7 +320,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     state.iteration += 1
     out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
                             do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root)
+                            cache_root=cache_root, admission=admission)
     L.save_loop_state(layout, state)
 
     digest_txt = L.make_critic_digest(
@@ -356,6 +363,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="P3 後続段 5 sort-strategy coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫→auditor gate の配線のみ確認")
+    ap.add_argument("--allow-coder-derived-build", action="store_true",
+                    help="CODER_DERIVED source の build をこの CLI run に限り明示許可")
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
@@ -376,6 +385,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         out = _preview_diff(a.preview_diff, fixed_sub, root)
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 0 if out["passed"] else 1
+
+    admission = None if a.no_build else BuildAdmission(
+        BuildProvenance.CODER_DERIVED,
+        coder_derived_opt_in=a.allow_coder_derived_build,
+    )
 
     from campaign import patchharness
     from campaign.p2_2 import _assert_single_tenant
@@ -401,7 +415,8 @@ def main(argv: Optional[List[str]] = None) -> int:
               f"isolate_worktree={isolate}) ===")
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, auditor, prior_rev, sub,
-                                  do_build=not a.no_build, cache_root=cache_root)
+                                  do_build=not a.no_build, cache_root=cache_root,
+                                  admission=admission)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -437,7 +452,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         auditor = AuditorVerdict(verdict="pass", diff_digest=compute_diff_digest(working_diff),
                                  uncertainty="fixture (機械 E2E 用、実 auditor 未使用)")
         out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
-                                do_build=not a.no_build, cache_root=cache_root)
+                                do_build=not a.no_build, cache_root=cache_root,
+                                admission=admission)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))

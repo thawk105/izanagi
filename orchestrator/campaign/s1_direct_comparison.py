@@ -31,9 +31,11 @@ from campaign.layout import CampaignLayout, campaign_layout, repo_output_root  #
 from campaign.model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign import pipeline  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 
 
 ENV_TAG = "linux-baremetal"
+_BUILD_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
 CLOCKS_PER_US = 1800
 NUMACTL = ["numactl", "--interleave=all"]
 TOTAL_BUDGET_S = 43_200.0
@@ -752,6 +754,7 @@ def run_role(
                         src_token=prepared.src_token, log=log,
                         ccbench_dir=prepared.ccbench_dir, cache_root=prepared.cache_root,
                         screening=None, bench_max_rounds=1,
+                        admission=_BUILD_ADMISSION,
                     )
                     try:
                         result = evaluate_fn(

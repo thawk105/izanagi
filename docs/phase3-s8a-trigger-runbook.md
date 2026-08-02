@@ -78,8 +78,10 @@ sort runbook §1(e) と同じ (auditor.diff_digest は (c) の値をそのまま
 ### (f) harness 実走 (single-tenant!)
 ```
 python3 -m campaign.p3_s4_loop_trigger_gating --run-iteration <scratch>/prop.json \
-    [--extra-source PATH:ROLE ...]
+    --allow-coder-derived-build [--extra-source PATH:ROLE ...]
 ```
+- **`--allow-coder-derived-build` は必須** — coder 由来 source の build は既定拒否であり、
+  この明示 opt-in が無ければ `BuildAdmissionError` で止まる (D125)。`--no-build` では不要。
 - pre-build 検査は 3 段: diff 検疫 (構造) → **構文契約 grep (語彙: 禁止識別子 =
   subtype "syntax-contract" で機械 reject)** → auditor gate (digest 突合 + verdict)。
 - **grep 緑は auditor 目視義務を免除しない** — grep が執行するのは禁止リスト上の識別子

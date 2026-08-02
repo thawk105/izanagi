@@ -18,6 +18,7 @@ from typing import List, Optional, Sequence
 
 from . import (buildcache, env_attestation, env_contract as env_contract_registry,
                execution_guard, ident, site_policy, source_digest, wal)
+from .build_admission import BuildAdmission, require_build_admission
 from .env_contract import ExecutionEnvironmentContract
 from .layout import campaign_layout, exploration_campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
@@ -96,12 +97,15 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "",
                  env_contract=None, dependency_prefix: str = "", *,
+                 admission: BuildAdmission,
                  campaign_namespace: str = "official") -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
     official / exploration の閉じた path selector。namespace は campaign-id に含めず、
     `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
-    evaluate 呼出し形を保つ。"""
+    evaluate 呼出し形を保つ。`admission` は provenance class を必須指定し、
+    pipeline と materializer へそのまま伝播する。"""
+    admission = require_build_admission(admission)
     if campaign_namespace == "official":
         layout_constructor = campaign_layout
     elif campaign_namespace == "exploration":
@@ -188,7 +192,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     f"terminal 済み → この run はスキップ (環境修復後の次 run で再評価): {e}")
                 continue
             done.add(v0)
-            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
+            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {
+                "genome": g.canonical(),
+                "build_admission": admission.as_wal_receipt(),
+            })
             wal.log(layout, v0, STAGE_ABORT, env_tag,
                     {"reason": "identity-error", "error": str(e)})
             log(f"[campaign] {v0} identity 確定不能 → abort 隔離して継続: {e}")
@@ -216,7 +223,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                          do_settle=(do_bench and first_bench),
                          src_token=src_tok, extra_correctness=extra_correctness,
                          log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
-                         **evaluate_options)
+                         admission=admission, **evaluate_options)
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。

@@ -34,8 +34,8 @@ provenance を campaign identity と reports/ に焼く)。AuditorVerdict の自
 (self-attest) はしない — 「自己申告 pass」の前例を作らないため段そのものを省く。
 
 実行 (計測機で直列、実行前に single-tenant を確認):
-  python3 campaign/s6_sort_sweep.py balanced              # 本走 16 点
-  python3 campaign/s6_sort_sweep.py write-heavy           # 本走 16 点
+  python3 campaign/s6_sort_sweep.py balanced                    # 本走 16 点
+  python3 campaign/s6_sort_sweep.py write-heavy                 # 本走 16 点
   python3 campaign/s6_sort_sweep.py balanced --report     # 集計のみ (計測なし)
   python3 campaign/s6_sort_sweep.py balanced --remeasure --names stock,sk_aa,k_asc
       # cross-run 裏取り (別 campaign = 別 trial に分離、argmax winner+stock+sk_aa)
@@ -55,6 +55,8 @@ from campaign import (ident, pin, pipeline, screening_driver,    # noqa: E402
                       source_digest, wal)
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign import p3_s4_loop_sort as S                         # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildAdmissionError,  # noqa: E402
+                                      BuildProvenance, require_build_admission)
 from campaign.layout import campaign_layout                       # noqa: E402
 from campaign.loop import run_campaign                            # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
@@ -192,6 +194,17 @@ def _genome(sort_variant: int) -> Genome:
     return Genome("silo", {**S._BASE, "SORT_VARIANT": sort_variant})
 
 
+_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
+_MACHINE_SWEEP_ADMISSION = BuildAdmission(BuildProvenance.MACHINE_SWEEP)
+
+
+def _candidate_admission(name: str) -> BuildAdmission:
+    """stock は pinned、決定論的列挙候補は machine sweep として分類する。"""
+    return require_build_admission(
+        _STOCK_ADMISSION if name == STOCK_NAME else _MACHINE_SWEEP_ADMISSION
+    )
+
+
 # ==== 駆動 ====================================================================
 
 def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MAIN,
@@ -241,7 +254,8 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                 def measure_baseline(screen_cfg, screen_layout):
                     baseline_entry.update(_eval_one(
                         STOCK_NAME, screen_cfg, perf, screen_layout, sub, patch,
-                        cache_root, log=log, force=True))
+                        cache_root, admission=_candidate_admission(STOCK_NAME),
+                        log=log, force=True))
 
                 prepared = screening_driver.prepare_screening_campaign(
                     cfg, WORKLOADS[tag], baseline_ref, measure_baseline,
@@ -260,9 +274,13 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                     continue
                 try:
                     entry = _eval_one(name, cfg, perf, layout, sub, patch, cache_root,
-                                      log=log, screening=active_screening)
+                                      admission=_candidate_admission(name), log=log,
+                                      screening=active_screening)
                 except (wal.WalAppendError, wal.WalFramingError):
                     # 壊れた同一 WAL に driver-error/reject を重ねず sweep 全体を止める。
+                    raise
+                except BuildAdmissionError:
+                    # admission の誤配線を候補固有の transient driver error に丸めない。
                     raise
                 except Exception as e:
                     # run_campaign の外側 (applied/quarantine/resolve) の例外も候補単位で
@@ -299,8 +317,9 @@ def _candidate_ref(name: str, cfg: CampaignConfig, sub: str, patch: str) -> str:
 
 def _eval_one(name: str, cfg: CampaignConfig, perf: PerfConfig, layout, sub: str,
               patch: str, cache_root: str, log=print, *, screening=None,
-              force: bool = False) -> Dict:
+              force: bool = False, admission: BuildAdmission) -> Dict:
     from campaign.patchharness import applied
+    admission = require_build_admission(admission)
     if name == STOCK_NAME:
         cat, impl = "stock", None
         genome = _genome(0)
@@ -323,11 +342,13 @@ def _eval_one(name: str, cfg: CampaignConfig, perf: PerfConfig, layout, sub: str
         log(f"  --- {name} ({cat}) variant={vid} src={src_tok[:12]} ---")
         if screening is None and not force:
             summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA,
-                                   log=log, ccbench_dir=sub, cache_root=cache_root)
+                                   log=log, ccbench_dir=sub, cache_root=cache_root,
+                                   admission=admission)
             r = summary.results[0] if summary.results else None
         else:
             r = screening_driver.evaluate_candidate(
                 cfg, layout, genome, perf, ENV_TAG, CLK, screening=screening,
+                admission=admission,
                 numactl=NUMA, src_token=src_tok, force=force, log=log,
                 ccbench_dir=sub, cache_root=cache_root)
     if r is not None:

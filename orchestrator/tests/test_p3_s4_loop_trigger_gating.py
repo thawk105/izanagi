@@ -30,11 +30,17 @@ from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
 from campaign import site_policy                                    # noqa: E402
 from campaign import wal                                            # noqa: E402
 from campaign.auditor_gate import AuditorGateFailure, AuditorVerdict  # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildAdmissionError,  # noqa: E402
+                                      BuildProvenance)
 from campaign.layout import CampaignLayout                          # noqa: E402
 from campaign.model import Genome                                   # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from critic.digest import load_diff_rejections                      # noqa: E402
+
+_CODER_ADMISSION = BuildAdmission(
+    BuildProvenance.CODER_DERIVED, coder_derived_opt_in=True,
+)
 
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (trigger-gating marker) を写した fixture。
 # silo-backoff-trigger-gating-variant.patch と同型 — hole は #if 枝の述語代入 1 行、
@@ -314,6 +320,7 @@ def _sentinel_contract(*, numactl=("numactl", "--sentinel")):
 
 def _measurement_case(
     monkeypatch, *, site, lookup, order=None, dependency_prefix="", receipt=None,
+    admission=_CODER_ADMISSION,
 ):
     """clean proposal を run_campaign 直前まで進める一時 layout の case。"""
     import contextlib
@@ -333,6 +340,7 @@ def _measurement_case(
     def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
         if order is not None:
             order.append("run_campaign")
+        assert kwargs.get("admission") is _CODER_ADMISSION
         calls.append({
             "campaign_id": str(ident.campaign_id(cfg)),
             "env_tag": env_tag,
@@ -356,6 +364,7 @@ def _measurement_case(
         return T.run_one_iteration(
             T.default_cfg(), T.default_perf(), _planner(), coder, auditor, state,
             sub, do_build=True, log=lambda *_args: None,
+            admission=admission,
             dependency_prefix=dependency_prefix,
         )
 
@@ -607,6 +616,18 @@ def test_attestation_failure_from_campaign_sink_propagates_without_wal(monkeypat
     assert wal.read_records(lay) == []
 
 
+def test_compute_measurement_sink_requires_coder_admission_before_campaign(monkeypatch):
+    contract = env_contract.lookup("pegasus")
+    invoke, lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE,
+        lookup=lambda _tag: contract, admission=None,
+    )
+    with pytest.raises(BuildAdmissionError):
+        invoke()
+    assert calls == []
+    assert wal.read_records(lay) == []
+
+
 def test_compute_existing_loop_state_rejected_after_neutralized_freshness(monkeypatch):
     from campaign import p3_autonomous_workload_trial as autonomous
 
@@ -669,6 +690,17 @@ def test_lookup_error_propagates_before_campaign_and_wal(monkeypatch):
     assert wal.read_records(lay) == []
 
 
+def test_measurement_sink_rejects_login_before_campaign_and_wal(monkeypatch):
+    invoke, lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.PEGASUS_LOGIN,
+        lookup=lambda _env_tag: pytest.fail("拒否 site で contract lookup へ到達した"),
+    )
+    with pytest.raises(execution_guard.ExecutionGuardError):
+        invoke()
+    assert calls == []
+    assert wal.read_records(lay) == []
+
+
 def test_measurement_sink_admits_compute_with_pegasus_contract_and_identity(monkeypatch):
     contract = env_contract.lookup("pegasus")
     invoke, lay, calls = _measurement_case(
@@ -697,6 +729,22 @@ def test_reject_sink_compute_records_pegasus_without_attestation(monkeypatch, re
     out = invoke()
     assert out["outcome"] == "rejected"
     assert {record.env_tag for record in wal.read_records(lay)} == {"pegasus"}
+
+
+@pytest.mark.parametrize("reject_kind", [
+    "diff-quarantine",
+    "syntax",
+    "auditor",
+])
+def test_reject_sink_refuses_login_without_wal(monkeypatch, reject_kind):
+    invoke, lay = _reject_case(
+        monkeypatch, site=site_policy.PEGASUS_LOGIN,
+        reject_kind=reject_kind,
+        lookup=lambda _env_tag: pytest.fail("拒否 site で contract lookup へ到達した"),
+    )
+    with pytest.raises(execution_guard.ExecutionGuardError):
+        invoke()
+    assert wal.read_records(lay) == []
 
 
 def test_reject_sink_other_writes_two_contract_tagged_records(monkeypatch):
@@ -752,6 +800,19 @@ def test_default_path_resolves_pegasus_contract_from_site_policy(monkeypatch):
     assert fresh_module._admit_env_contract(site_policy.PEGASUS_COMPUTE).env_tag == "pegasus"
 
 
+def test_default_path_rejects_login_from_site_policy(monkeypatch):
+    def sentinel_current_site():
+        return site_policy.PEGASUS_LOGIN
+
+    fresh_module = _load_fresh_driver(
+        monkeypatch, current_site=sentinel_current_site,
+        lookup=lambda _env_tag: pytest.fail("拒否 site で contract lookup へ到達した"),
+        suffix="default_login_rejection_test",
+    )
+    with pytest.raises(execution_guard.ExecutionGuardError):
+        fresh_module._admit_env_contract(fresh_module._current_site())
+
+
 @pytest.mark.parametrize("site", [
     site_policy.PEGASUS_LOGIN,
     site_policy.PEGASUS_SUSPECT,
@@ -793,6 +854,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
     )
 
     def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
+        assert kwargs.get("admission") is _CODER_ADMISSION
         calls.append({
             "env_tag": env_tag,
             "clocks_per_us": clocks_per_us,
@@ -809,7 +871,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
     fresh.run_one_iteration(
         fresh.default_cfg(), fresh.default_perf(), _planner(), coder, auditor,
         L.LoopState(start_ts=time.monotonic()), sub, do_build=True,
-        log=lambda *_args: None,
+        log=lambda *_args: None, admission=_CODER_ADMISSION,
     )
 
     assert fresh._current_site is current_site

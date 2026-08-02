@@ -39,6 +39,7 @@ from calibrator.analyze import noise_floor                       # noqa: E402
 from calibrator.runner import measure_point                      # noqa: E402
 from calibrator.stability import between_run_noise_floor        # noqa: E402
 from campaign import buildcache, pin                             # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import env_scope_dir                    # noqa: E402
 from campaign.model import Genome                                # noqa: E402
 from campaign.p2_2 import (CLK, ENV_TAG, EXTIME,                 # noqa: E402
@@ -156,7 +157,10 @@ def main(argv) -> int:
 
     _assert_single_tenant()             # campaign 冒頭の単一テナント確認 (規律4)
     print("[build] baseline (B0-L-W0, perf=trace-disabled) ...")
-    br = buildcache.build(BASELINE, ccbench_commit=CCBENCH_COMMIT, trace=False)
+    br = buildcache.build(
+        BASELINE, ccbench_commit=CCBENCH_COMMIT, trace=False,
+        admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+    )
     print(f"[build] {'cache hit' if br.cached else 'built'}: {br.binary}")
 
     results = []

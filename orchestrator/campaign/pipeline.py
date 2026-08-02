@@ -33,6 +33,7 @@ from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
 from . import buildcache, env_contract as _env_contract, ident, source_digest, wal  # noqa: E402
+from .build_admission import BuildAdmission, require_build_admission  # noqa: E402
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .env_contract import ExecutionEnvironmentContract          # noqa: E402
@@ -432,7 +433,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              env_contract: Optional[ExecutionEnvironmentContract] = None,
              record_rep_returncodes: bool = False,
              qualification_policy: Optional[QualificationPipelinePolicy] = None,
-             dependency_prefix: str = "") -> EvalResult:
+             dependency_prefix: str = "", *,
+             admission: BuildAdmission) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -472,6 +474,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
     並列可 (lock.py の設計方針)。"""
+    admission = require_build_admission(admission)
+    admission_receipt = admission.as_wal_receipt()
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
         raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
@@ -539,7 +543,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 )
         except RuntimeError as e:
             v0 = variant_id(genome)        # stock id で abort を記録 (WAL キーを残す)
-            emit(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
+            emit(layout, v0, STAGE_BUILD_START, env_tag, {
+                "genome": genome.canonical(),
+                "build_admission": admission_receipt,
+            })
             emit(layout, v0, STAGE_ABORT, env_tag,
                  {"reason": "identity-error", "error": _exc_summary(e)})
             log(f"  [eval {v0}] abort: identity-error ({e})")
@@ -550,8 +557,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         src_tok = src_token
     v = variant_id(genome, src_tok)
     res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
-    emit(layout, v, STAGE_BUILD_START, env_tag,
-         {"genome": genome.canonical(), "src_token": src_tok})
+    emit(layout, v, STAGE_BUILD_START, env_tag, {
+        "genome": genome.canonical(),
+        "src_token": src_tok,
+        "build_admission": admission_receipt,
+    })
 
     def _abort(reason: str, note: str, extra: Optional[Dict] = None,
               workload_tag: Optional[str] = None) -> EvalResult:
@@ -572,10 +582,12 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             tr = buildcache.build(
                 genome, ccbench_commit, trace=True, src_token=src_tok,
                 ccbench_dir=ccbench_dir, cache_root=cache_root,
+                admission=admission,
             )
             pf = buildcache.build(
                 genome, ccbench_commit, trace=False, src_token=src_tok,
                 ccbench_dir=ccbench_dir, cache_root=cache_root,
+                admission=admission,
             )
         else:
             if not isinstance(env_contract, ExecutionEnvironmentContract):
@@ -594,6 +606,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                     default_ccbench, "build-variants",
                 ),
                 "ccbench_dir": ccbench_dir,
+                "admission": admission,
             }
             if dependency_prefix:
                 common["dependency_prefix"] = dependency_prefix

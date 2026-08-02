@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from . import site_policy, source_digest
+from .build_admission import BuildAdmission, require_build_admission
 from .env_contract import ExecutionEnvironmentContract
 from .model import Genome
 
@@ -462,13 +463,18 @@ def _release_v2_claim(claim: str, parent: str) -> None:
 
 
 def build_v2(
-        genome: Genome, *, contract: ExecutionEnvironmentContract,
+        genome: Genome, *, admission: BuildAdmission,
+        contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
+
+    ``admission`` は caller が分類した request を materializer 境界で再検査する。ただし
+    source bytes から provenance を導出する capability ではなく、cache preimage / completion
+    manifest / replay identity にもまだ束縛しない。この層だけでは閉じていない。
 
     ``contract`` を省略できる legacy fallback は意図的に持たない。legacy caller は従来の
     :func:`build` / :func:`cache_key` namespace に隔離したまま、floor/oracle の v2 consumer
@@ -480,6 +486,7 @@ def build_v2(
     ``dependency_prefix`` は configure argv へ明示し、subprocess 環境の同名変数を除く。
     空なら argv と環境継承を変えず、ambient 値の正準形だけを identity に束縛する。
     """
+    admission = require_build_admission(admission)
     if not isinstance(contract, ExecutionEnvironmentContract):
         raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
     if type(trace) is not bool:
@@ -666,12 +673,15 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
           cache_root: str = "", cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX,
           jobs: Optional[int] = None, ccbench_dir: str = "",
           src_token: Optional[str] = None,
-          *, site: Optional[str] = None) -> BuildResult:
+          *, admission: BuildAdmission, site: Optional[str] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
+    admission は caller 自己申告の class を materializer の最初に再検査するが、source
+    bytes 由来の capability でも cache/replay 束縛でもない。この層だけでは閉じていない。
     src_token=None なら working-tree から計算する (D23: identity と materialization を
     結合し TOCTOU 偽 hit を防ぐ — working-tree が変われば cache_key が変わる)。呼び手
     (pipeline.evaluate) は trace/perf で同一値を共有するため事前計算して渡してよい。"""
+    admission = require_build_admission(admission)
     sub = ccbench_dir or _ccbench_dir()
     _verify_ccbench_commit(sub, ccbench_commit)        # 偽キャッシュヒット防止 (honest)
     source_digest.assert_worktree_within_allowlist(sub)  # coder の編集面が EVOLVE-BLOCK 内か (D23)

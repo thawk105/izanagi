@@ -25,10 +25,12 @@ load_rejections / render はすべて実物で、モック点は trace 供給の
 判定は WAL 機械確認 (宣言でなくレコードを gate にする — kickoff/D30 の様式踏襲)。
 digest (rejections 節込み) を campaign dir に書き出し、critic (fresh) の読みに渡す。
 
-  python3 orchestrator/campaign/p3_s4_red.py   # 赤1 → 赤2 → 判定 → digest 書き出し
+  python3 orchestrator/campaign/p3_s4_red.py --allow-coder-derived-build
+      # 赤1 → 赤2 → 判定 → digest 書き出し
 """
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
 import sys
@@ -36,6 +38,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pipeline, wal                          # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import exploration_campaign_layout            # noqa: E402
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import CampaignConfig, Genome                  # noqa: E402
@@ -122,7 +125,15 @@ def _synthetic_integrity_rejection() -> Rejection:
         variant="fixture-synthetic-integrity", src_token="fixture")
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="P3 coder-derived red-path fixture")
+    parser.add_argument("--allow-coder-derived-build", action="store_true",
+                        help="CODER_DERIVED RED patch build をこの CLI run に限り明示許可")
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    coder_admission = BuildAdmission(
+        BuildProvenance.CODER_DERIVED,
+        coder_derived_opt_in=args.allow_coder_derived_build,
+    )
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     _assert_single_tenant()
@@ -133,6 +144,7 @@ def main() -> int:
     print(f"  期待: build → trace run が {pipeline.TRACE_TIMEOUT_S:.0f}s timeout → abort")
     with applied(os.path.join(root, RED_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [RED_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          admission=coder_admission,
                           campaign_namespace="exploration")
     v1 = next((r.variant for r in s1.results), None)
 
@@ -141,6 +153,7 @@ def main() -> int:
     pipeline._run_trace = _fixture_run_trace
     try:
         s2 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
                           campaign_namespace="exploration")
     finally:
         pipeline._run_trace = saved

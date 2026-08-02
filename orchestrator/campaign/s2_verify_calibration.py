@@ -49,6 +49,7 @@ from campaign.layout import repo_output_root                           # noqa: E
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance   # noqa: E402
 from campaign.pipeline import (CorrectnessWorkload, S2_FLAGS,           # noqa: E402
                                _parse_abort_counts)
 
@@ -293,8 +294,9 @@ def main() -> int:
     assert_pinned_clean(sub, PIN)
 
     print("=== stock build (buildcache — kickoff seed が残っていれば cache-hit) ===")
-    bt = buildcache.build(STOCK_G, PIN, trace=True)
-    bp = buildcache.build(STOCK_G, PIN, trace=False)
+    stock_admission = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
+    bt = buildcache.build(STOCK_G, PIN, trace=True, admission=stock_admission)
+    bp = buildcache.build(STOCK_G, PIN, trace=False, admission=stock_admission)
     print(f"  trace={bt.bin_hash[:12]} ({'cache' if bt.cached else 'fresh'}) / "
           f"perf={bp.bin_hash[:12]} ({'cache' if bp.cached else 'fresh'})")
 

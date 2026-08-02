@@ -1,0 +1,88 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1500,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "    if provenance is BuildProvenance.CODER_DERIVED:\n        if not coder_derived_opt_in:\n            raise BuildAdmissionError(\n                \"CODER_DERIVED build は driver CLI の明示 opt-in が必要\"\n            )",
+          "new": "    if provenance is BuildProvenance.CODER_DERIVED:\n        if not coder_derived_opt_in:\n            pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_build_admission.py::test_m1_coder_derived_without_opt_in_has_one_rejection_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "    elif coder_derived_opt_in:\n        raise BuildAdmissionError(\n            \"coder_derived_opt_in は CODER_DERIVED build にだけ指定できる\"\n        )",
+          "new": "    elif coder_derived_opt_in:\n        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_build_admission.py::test_m2_noncoder_opt_in_has_one_rejection_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "             qualification_policy: Optional[QualificationPipelinePolicy] = None, *,\n             admission: BuildAdmission) -> EvalResult:",
+          "new": "             qualification_policy: Optional[QualificationPipelinePolicy] = None, *,\n             admission: BuildAdmission = None) -> EvalResult:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_m3_evaluate_admission_is_a_required_keyword_only_parameter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s6_sort_sweep.py",
+          "old": "        _STOCK_ADMISSION if name == STOCK_NAME else _MACHINE_SWEEP_ADMISSION",
+          "new": "        _MACHINE_SWEEP_ADMISSION"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s6_sort_sweep.py::test_public_sweep_assigns_stock_and_machine_admission_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "    if provenance is BuildProvenance.CODER_DERIVED:\n        if not coder_derived_opt_in:",
+          "new": "    if provenance is BuildProvenance.STOCK_OR_PINNED:\n        if not coder_derived_opt_in:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_build_admission.py::test_m5_stock_or_pinned_is_the_minimal_positive_control"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

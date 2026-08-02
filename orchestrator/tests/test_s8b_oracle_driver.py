@@ -34,6 +34,7 @@ import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign import env_attestation  # noqa: E402
 from campaign import execution_guard  # noqa: E402
 from campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
@@ -48,6 +49,8 @@ from campaign import t080_freeze_migration as migration  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+
+_HUMAN_REVIEWED_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
 from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
 
@@ -418,6 +421,13 @@ def _copy_t080_basis_file(root: Path, relative: str) -> None:
     shutil.copyfile(source, target)
 
 
+def _copy_t080_migration_basis_file(root: Path, relative: str, basis: str) -> None:
+    """実 repo の発行済み receipt が束縛する migration basis blob をコピーする。"""
+    target = root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(_run_git_bytes(ROOT, "show", f"{basis}:{relative}"))
+
+
 _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
 
 
@@ -589,16 +599,28 @@ def _build_t080_stub_free_e2e_repo(
                 collect(child)
 
     collect(known)
-    required = {
+    operational = {
         migration.KNOWN_AXES_REL,
         migration.HOLDOUT_REL,
         "orchestrator/campaign/s1_known_axes_freeze.py",
         "orchestrator/campaign/s8b_holdout_freeze.py",
         "docs/phase3-8b-descriptor-design.md",
         migration.POSITIVE_CONTROL_PATH,
-        *(path for path in source_paths if not path.startswith("external/ccbench/")),
     }
-    for relative in sorted(required):
+    real_receipt = json.loads(
+        (ROOT / migration.RECEIPT_REL).read_text(encoding="utf-8")
+    )
+    real_basis = real_receipt["migration_basis_commit"]
+    in_repo_sources = {
+        path for path in source_paths if not path.startswith("external/ccbench/")
+    }
+    # T-080 は一回限りの historical migration。現在の作業ツリー bytes を basis に
+    # すると、後続 wave が既存の unchanged source を変更しただけで閉包を偽造してしまう。
+    # 発行済み receipt の commit から source closure を復元し、検査本体の exact 12/51
+    # predicate は一切緩めない。
+    for relative in sorted(in_repo_sources):
+        _copy_t080_migration_basis_file(root, relative, real_basis)
+    for relative in sorted(operational - in_repo_sources):
         _copy_t080_basis_file(root, relative)
     if distinct_basis_blob:
         # real-repo 固定値を返す退化を検出できるよう、この fixture の basis だけを
@@ -2261,6 +2283,8 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
         assert kwargs["do_bench"] is True
         assert kwargs["screening"] is None
         assert kwargs["env_contract"] is ec.lookup(V2_ENV_TAG)
+        assert kwargs["admission"].provenance_class is BuildProvenance.HUMAN_REVIEWED
+        assert kwargs["admission"].coder_derived_opt_in is False
         assert len(kwargs["extra_correctness"]) == 1
         tag, workload = kwargs["extra_correctness"][0]
         assert tag == pipeline.S2_TAG
@@ -3857,7 +3881,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
             contract.clocks_per_us, do_bench=False,
             src_token=prepared.src_token, ccbench_dir=prepared.ccbench_dir,
             cache_root=str(tmp_path / "cache"), env_contract=contract,
-            log=lambda _message: None,
+            log=lambda _message: None, admission=_HUMAN_REVIEWED_ADMISSION,
         )
 
     assert result.certified and not result.aborted

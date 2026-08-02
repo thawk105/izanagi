@@ -254,7 +254,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
 
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
-                   timeout_s=None):
+                   timeout_s=None, admission=None):
         assert ccbench_dir == "/fx/ccbench"
         assert timeout_s == 900
         d = Path(cache_root) / "fixture" / src_token.replace("::", "__")

@@ -24,6 +24,7 @@ import re
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -36,6 +37,8 @@ from campaign import pipeline                                     # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign import s6_sort_sweep as W                           # noqa: E402
 from campaign import wal                                         # noqa: E402
+from campaign.build_admission import (BuildAdmissionError,            # noqa: E402
+                                      BuildProvenance)
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 
@@ -306,6 +309,75 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     )
     assert resumed[second]["outcome"] == "quarantine-reject"
     assert len(wal.read_records(layout)) == 4
+
+
+def test_public_sweep_assigns_stock_and_machine_admission_exactly(monkeypatch):
+    """M4: stock と決定論的候補の class 差だけを単独で固定する。"""
+    layout = _tmp_layout()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    machine_name = W.CANDIDATES[0][0]
+    seen = []
+
+    def fake_eval(name, *_args, admission, **_kwargs):
+        seen.append((name, admission.provenance_class,
+                     admission.coder_derived_opt_in))
+        return {"variant_id": name, "category": "fixture", "src_token": "stock",
+                "outcome": "certified"}
+
+    monkeypatch.setattr(W, "_eval_one", fake_eval)
+    W.run_sweep("balanced", names=[W.STOCK_NAME, machine_name], isolate=False,
+                log=lambda _line: None)
+    assert seen == [
+        (W.STOCK_NAME, BuildProvenance.STOCK_OR_PINNED, False),
+        (machine_name, BuildProvenance.MACHINE_SWEEP, False),
+    ]
+
+
+def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatch):
+    """F4: admission 配線失敗は候補隔離の broad except を通過して停止する。"""
+    layout = _tmp_layout()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+
+    def fail_admission(*_args, **_kwargs):
+        raise BuildAdmissionError("injected admission failure")
+
+    monkeypatch.setattr(W, "_eval_one", fail_admission)
+    with pytest.raises(BuildAdmissionError, match="injected admission failure"):
+        W.run_sweep("balanced", names=[W.CANDIDATES[0][0]], isolate=False,
+                    log=lambda _line: None)
+
+
+def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
+    """F4: 実 `_eval_one` の検疫通過側を通し、未定義名への退行を殺す。"""
+    from campaign import patchharness
+
+    layout = _tmp_layout()
+    name = W.CANDIDATES[0][0]
+    admission = W._candidate_admission(name)
+    passed = SimpleNamespace(passed=True)
+    seen = []
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        L, "quarantine", lambda *_a, **_k: (passed, "", "", "fixture"),
+    )
+    monkeypatch.setattr(W.source_digest, "resolve", lambda *_a, **_k: "a" * 64)
+
+    def build_entry(*_args, **kwargs):
+        seen.append(kwargs["admission"])
+        return SimpleNamespace(
+            results=[SimpleNamespace(certified=True, aborted=False)]
+        )
+
+    monkeypatch.setattr(W, "run_campaign", build_entry)
+    result = W._eval_one(
+        name, W.config_for("balanced"), W.perf_for("balanced"), layout,
+        "/fixture/sub", "/fixture/template.patch", "", admission=admission,
+        log=lambda _line: None,
+    )
+    assert result["outcome"] == "certified"
+    assert seen == [admission]
 
 
 def test_public_sweep_partial_write_eio_stops_before_next_candidate(

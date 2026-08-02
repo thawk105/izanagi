@@ -13,14 +13,16 @@ coder (LLM) が合成した #if 枝コードを orchestrator がテンプレフ�
   splice 等) の影響を受けない — diff の行構造と固定行を見るだけだから。
 - **内容検査 (`#` 指令・マーカー文字列・コメント delimiter byte・行末 backslash の拒否) =
   二次的な保守 gate。** コメント構文を解析せず、文字列・raw string 内も byte 一致で拒否する。
-  明白な注入を早期に構造化 reject するが、**C++ 意味論の完全性は当モジュールに載せない。**
-  テキスト検査だけで翻訳フェーズ全体を再現する試みは原理的に破れる (GW2R-1、D33)。意味的逸脱の完全性は
-  一次防壁 = source_digest の preprocess 後ハッシュ + #include 行 HEAD 固定 + build 出口の
-  TOCTOU 再照合 (fails-closed) と、auditor + 規律6 が担う。当モジュールは text-gate を
-  単一障害点にしない。
+  明白な注入を早期に構造化 reject するが、当モジュールが保証するのは structural containment
+  のみであり、C++ の意味 admission ではない。source_digest は実行する source の identity
+  だけを束縛する。build_admission が既定拒否するのは caller が ``CODER_DERIVED`` と
+  **自己分類した build request** であり、source bytes から provenance を検出してはいない。
+  sort/trigger driver の auditor verdict は pre-build の機械 gate として実際に build を止めるが、
+  C++ の意味保証・security credit については advisory control に留まる。この source 由来
+  capability と cache/replay class 束縛を欠くため、admission 層全体はまだ閉じていない。
 
-**単一マーカー (silo-backoff-magnitude) を想定。** 複数マーカー拡張は段 5/6 で
-marker set completeness predicate / hunk-to-marker assignment を追加仕様化する
+**1 呼び出しにつき caller が指定した単一マーカーを検査する。** 複数マーカーを一括して
+完全性検査する marker set completeness predicate / hunk-to-marker assignment は持たない
 (design-v1 §1 敵対検証 contested #6)。
 
 rejection は S4 rejection digest の新型 (rejection_type="diff-quarantine") として
@@ -45,8 +47,8 @@ class DiffRejectSubtype(Enum):
 
 # hole 内で禁止する「行頭前処理指令」の検出。行頭 (先行空白許容) が `#`、または
 # C++ の digraph `%:` (= `#`) で始まる行を指令とみなす。trigraph `??=` は C++17 で
-# 廃止されたが念のため併記。**この検査の完全性は load-bearing ではない** (docstring 参照) —
-# splice で `#` を行中に退避させる回避は preprocess 後ハッシュが build 出口で捕える。
+# 廃止されたが念のため併記。**この検査の完全性は load-bearing ではない** (docstring 参照)。
+# source_digest は回避後 bytes の identity を分けるだけで、意味上の安全性は証明しない。
 _DIRECTIVE_RE = re.compile(r'^\s*(?:#|%:|\?\?=)')
 # マーカー偽装検出は実際の marker 指令形 (BEGIN/END) に限定する。bare "EVOLVE-BLOCK" 部分文字列
 # 一致は末尾コメント等の偶発的言及を誤 reject した (敵対 red-team 2026-07-07 false-positive)。
@@ -461,8 +463,7 @@ class DiffQuarantine:
                     if _DIRECTIVE_RE.match(w.content):
                         violations.append(self._mk_digest(
                             DiffRejectSubtype.HOLE_ESCAPE,
-                            ("hole 内に生の前処理指令 (#if/#else/#endif/#define/#include 等) を検出 "
-                             "(完全性は source_digest preprocess ハッシュが担保)"),
+                            "hole 内に生の前処理指令 (#if/#else/#endif/#define/#include 等) を検出",
                             f"anchor src 行 {w.anchor}",
                             self._content_evidence(_BRANCH_DIRECTIVE, w)))
                     elif _MARKER_RE.search(w.content):
