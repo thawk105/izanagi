@@ -1951,7 +1951,17 @@ def test_unobservable_post_merge_head_is_nonretryable_failure() -> None:
 
 
 def test_control_plane_replacement_around_status_is_rejected() -> None:
-    for kind in ("file", "directory"):
+    """[意図した挙動変更] 差し替えの拒否は worktree 面に残り、handoff 面では消える。
+
+    ``file`` = foreign handoff を同 bytes・別 inode へ差し替える形。per-entry
+    identity を捨てたので期待値を ``landed`` へ反転する (assert は削除せず反転)。
+    ``directory`` = 登録済み foreign worktree の差し替えで、負例として不変。
+    """
+    expectations = {
+        "file": (LAND.RC_OK, "landed"),
+        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
+    }
+    for kind, expected in expectations.items():
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
             wave = repo.waves["author"]
             tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -1972,12 +1982,24 @@ def test_control_plane_replacement_around_status_is_rejected() -> None:
                 "DEV_WAVE_REPLACE_KIND": kind,
             }):
                 result = _land(repo.request(wave, tip=tip))
-            assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
-            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+            assert (result.rc, result.status) == expected, (kind, result)
+            assert marker.exists(), kind
+            assert _git(repo.main, "rev-parse", "HEAD") == (
+                tip if kind == "file" else repo.base
+            ), kind
 
 
 def test_control_plane_replacement_after_collision_inspection_is_rejected() -> None:
-    for kind in ("file", "directory"):
+    """[意図した挙動変更] land 直前 (:1343) の再観測も handoff の内容/inode を見ない。
+
+    ``directory`` は負例として不変。``file`` は 764/766 と同じ理由で ``landed`` へ
+    反転する — この 2 窓は同じ ``_ControlSnapshot`` 比較なので同時に閉じる。
+    """
+    expectations = {
+        "file": (LAND.RC_OK, "landed"),
+        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
+    }
+    for kind, expected in expectations.items():
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
             wave = repo.waves["author"]
             tip = repo.commit(wave, "base.txt", "wave replacement\n")
@@ -1998,9 +2020,11 @@ def test_control_plane_replacement_after_collision_inspection_is_rejected() -> N
                 "DEV_WAVE_REPLACE_KIND": kind,
             }):
                 result = _land(repo.request(wave, tip=tip))
-            assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
-            assert marker.exists()
-            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+            assert (result.rc, result.status) == expected, (kind, result)
+            assert marker.exists(), kind
+            assert _git(repo.main, "rev-parse", "HEAD") == (
+                tip if kind == "file" else repo.base
+            ), kind
 
 
 def test_foreign_handoff_edited_in_place_around_status_does_not_block_land() -> None:

@@ -560,7 +560,7 @@ def _verify_effective_config(repository: _Repository) -> None:
 def _handoff_snapshot(
     repository: _Repository,
 ) -> tuple[frozenset[bytes], tuple[tuple[bytes, tuple[object, ...]], ...]]:
-    """foreign handoff 面は名前集合と各 entry/dir identity を観測する。
+    """foreign handoff 面は「名前集合」と「dir identity」だけを観測する。
 
     直下エントリの型・名前・大きさ・link 数・encoding・schema は land の
     受理集合に一切入らない (T-220 択 (a))。他セッション所有の handoff は
@@ -583,23 +583,14 @@ def _handoff_snapshot(
             raise _Reject(
                 RC_CONTROL_PLANE, f"main/docs/handoff: list failed ({exc})"
             ) from exc
-        observed: set[bytes] = set()
-        identities: list[tuple[bytes, tuple[object, ...]]] = [
+        observed = frozenset(
+            b"docs/handoff/" + name
+            for name in names_before
+            if name != b"README.md"
+        )
+        identities: tuple[tuple[bytes, tuple[object, ...]], ...] = (
             (b"docs/handoff", _identity(directory_before)),
-        ]
-        for name in names_before:
-            if name == b"README.md":
-                continue
-            relative = b"docs/handoff/" + name
-            try:
-                metadata = os.stat(name, dir_fd=handoff_fd, follow_symlinks=False)
-            except OSError as exc:
-                raise _Reject(
-                    RC_CONTROL_PLANE,
-                    f"handoff {name!r}: identity inspection failed ({exc})",
-                ) from exc
-            observed.add(relative)
-            identities.append((relative, _identity(metadata)))
+        )
         try:
             names_after = sorted(os.fsencode(name) for name in os.listdir(handoff_fd))
         except OSError as exc:
@@ -608,7 +599,7 @@ def _handoff_snapshot(
             ) from exc
         if names_after != names_before:
             raise _Reject(RC_CONTROL_PLANE, "handoff directory changed while observing")
-        return frozenset(observed), tuple(identities)
+        return observed, identities
     finally:
         os.close(handoff_fd)
 
