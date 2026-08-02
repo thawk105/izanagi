@@ -556,7 +556,7 @@ def _fold_fail(detail: str) -> DeclaredFoldVerification:
 
 def _landed_fold_output_path(status: str, paths: tuple[str, ...]) -> bool:
     """landed 区間に現れてはならない fold の署名だけを分類する。"""
-    if "docs/spool/FOLDED.md" in paths:
+    if status == "M" and paths[0] == "docs/spool/FOLDED.md":
         return True
     deleted_path = paths[0] if status == "D" or status.startswith("R") else None
     return deleted_path is not None and _FRAGMENT_PATH_RE.fullmatch(deleted_path) is not None

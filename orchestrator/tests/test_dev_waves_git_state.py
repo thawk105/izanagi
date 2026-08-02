@@ -352,6 +352,25 @@ def test_landed_interval_allows_every_non_signature_document_path():
             assert result.ok, (relative, result)
 
 
+def test_landed_interval_allows_folded_receipt_creation():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        relative = f"docs/spool/worklog/2000-01-01-dev-wave-dw-{'a' * 32}-w001-1.md"
+        fragment = repo / relative
+        fragment.parent.mkdir(parents=True, exist_ok=True)
+        fragment.write_text("fragment 1\n", encoding="utf-8")
+        tip = _commit(repo, "introduce spool mechanism", "docs/spool/FOLDED.md", relative)
+        fold = _fold_commit(repo, (relative,))
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert result.ok, result
+
+
 def test_landed_interval_rejects_fragment_deletion_signature():
     with _fresh() as tmp:
         repo = _repo(Path(tmp))
