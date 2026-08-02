@@ -1,0 +1,55 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=01:00:00
+#PBS -b 1
+set -euo pipefail
+[[ -n "${PBS_JOBID:-}" && -n "${PBS_O_WORKDIR:-}" ]] || exit 2
+export IZANAGI_REPO_ROOT=$(realpath -e "$PBS_O_WORKDIR")
+POLICY="$IZANAGI_REPO_ROOT/tools/pegasus/policy.json"
+export IZANAGI_PROBE_STAGE=$(mktemp -d "${TMPDIR:-/scr}/t139pc.XXXXXX")
+trap 'rm -rf -- "$IZANAGI_PROBE_STAGE"' EXIT
+readarray -t DEP < <(python3 -I -B - "$POLICY" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1],encoding="utf-8"))
+q=p["silo_ladder_rung1"]["dependency_pins"]
+print(p["gflags_source_path"]+"\t"+q["gflags"])
+print(p["glog_source_path"]+"\t"+q["glog"])
+PY
+)
+for row in "${DEP[@]}"; do
+  IFS=$'\t' read -r source pin <<<"$row"
+  [[ $(git -C "$source" rev-parse --verify HEAD) == "$pin" ]]
+  [[ -z $(git -C "$source" status --porcelain --untracked-files=all) ]]
+done
+[[ -n "${IZANAGI_THIRDPARTY_SOURCE_ROOT:-}" ]] || exit 2
+export IZANAGI_THIRDPARTY_SOURCE_ROOT=$(realpath -e "$IZANAGI_THIRDPARTY_SOURCE_ROOT")
+readarray -t THIRD_PARTY < <(python3 -I -B - "$POLICY" <<'PY'
+import json,sys
+for item in json.load(open(sys.argv[1],encoding="utf-8"))["silo_ladder_rung1"]["third_party_sources"]:
+    print(item["source_name"]+"\t"+item["pin"])
+PY
+)
+[[ ${#THIRD_PARTY[@]} -eq 3 ]]
+for row in "${THIRD_PARTY[@]}"; do
+  IFS=$'\t' read -r dep pin <<<"$row"; source="$IZANAGI_THIRDPARTY_SOURCE_ROOT/$dep"
+  [[ $(git -C "$source" rev-parse --verify HEAD) == "$pin" ]]
+  [[ -z $(git -C "$source" status --porcelain --untracked-files=all) ]]
+  cp -a "$source" "$IZANAGI_PROBE_STAGE/$dep"
+done
+export IZANAGI_THIRDPARTY_SOURCE_ROOT="$IZANAGI_PROBE_STAGE"
+IFS=$'\t' read -r GFLAGS_SOURCE IZANAGI_GFLAGS_SRC_HEAD <<<"${DEP[0]}"
+IFS=$'\t' read -r GLOG_SOURCE IZANAGI_GLOG_SRC_HEAD <<<"${DEP[1]}"
+export IZANAGI_GFLAGS_SRC_HEAD IZANAGI_GLOG_SRC_HEAD
+export IZANAGI_GFLAGS_INSTALL="$IZANAGI_PROBE_STAGE/gflags-install"
+export IZANAGI_GLOG_INSTALL="$IZANAGI_PROBE_STAGE/glog-install"
+cmake -S "$GFLAGS_SOURCE" -B "$IZANAGI_PROBE_STAGE/gflags-build" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF "-DCMAKE_INSTALL_PREFIX=$IZANAGI_GFLAGS_INSTALL"
+cmake --build "$IZANAGI_PROBE_STAGE/gflags-build" -j 48
+cmake --install "$IZANAGI_PROBE_STAGE/gflags-build"
+cmake -S "$GLOG_SOURCE" -B "$IZANAGI_PROBE_STAGE/glog-build" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$IZANAGI_GFLAGS_INSTALL" "-DCMAKE_INSTALL_PREFIX=$IZANAGI_GLOG_INSTALL"
+cmake --build "$IZANAGI_PROBE_STAGE/glog-build" -j 48
+cmake --install "$IZANAGI_PROBE_STAGE/glog-build"
+JOB_TAG=${PBS_JOBID//:/_}
+OUT="$IZANAGI_REPO_ROOT/output/env/pegasus/t139-positive-control-probe/$JOB_TAG"
+mkdir -p "${OUT%/*}"
+"$IZANAGI_REPO_ROOT/tools/pegasus/probes/t139_positive_control_probe.sh" "$OUT"
