@@ -105,8 +105,9 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_admission(
         if name == "trigger_gating":
             monkeypatch.setattr(
                 module, "_admit_env_contract",
-                lambda: SimpleNamespace(env_tag="test", clocks_per_us=1800,
-                                        numactl=()),
+                lambda _site: SimpleNamespace(env_tag="test", clocks_per_us=1800,
+                                              numactl=(), isolation_policy=SimpleNamespace(
+                                                  allow_resume=True)),
             )
     else:
         monkeypatch.setattr(module, "_assert_single_tenant", lambda: None)

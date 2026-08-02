@@ -689,7 +689,7 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-335] 変わらず ((117) 参照)
 - [T-336] 変わらず ((117) 参照)
 
-## 2026-08-02 (119) — [T-316] 分類されていない source の build を既定拒否にした — 敵対レビューが「gate が実 materializer に載っていない」を突き、driver から buildcache へ降ろした (D127、コード + docs、branch worktree-dev-wave-t316-role-gate、受入全走 = Pegasus gen_S 計算ノード request `877868`)
+## 2026-08-02 (119) — [T-316] 分類されていない source の build を既定拒否にした — 敵対レビューが「gate が実 materializer に載っていない」を突き、driver から buildcache へ降ろした (D127、コード + docs、branch worktree-dev-wave-t316-role-gate、取り込み後の受入全走 = Pegasus gen_S 計算ノード request `877912` で 5131 passed / 19 skipped、変異本走 = 全 5 変異 KILLED)
 
 **やったこと。** [T-316] は「`tools=[]` と JSON schema は valid-schema な一行 C++ 注入を止めない」
 として起票された P1 で、[T-277] を開ける前の blocker とされていた。起票時の択一は
@@ -742,8 +742,13 @@ docstring は「意味的逸脱の完全性は source_digest の preprocess 後�
 **受入。** Pegasus gen_S 計算ノードで全走 4 回。1 回目 = 14 failed / 5059 passed、
 2 回目 = 2 failed / 5092 passed、3 回目 (request `877868`) = 1 failed / 5093 passed で、
 残る 1 本は本エントリ執筆前の docs 未記載 (D127 不在) による `check_docs` 赤だった。
-D127 追記後の**記録 commit 後の最終全走 (request `877900`) = 5094 passed / 19 skipped / 0 failed、
-rc=0**。provenance 全履歴監査も rc=0。変異本走は M01〜M05 の全 5 変異が KILLED で、
+D127 追記後の記録 commit 後の全走 (request `877900`) = 5094 passed / 19 skipped / 0 failed、rc=0。
+**local main `d94a20f` 取り込み後の最終全走 (request `877912`) = 5131 passed / 19 skipped /
+0 failed、rc=0** — これが本 wave の受入値である。その手前の走で
+`test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]`
+が 1 本赤くなったが、同 file 単独再走で 58 passed / rc=0 と再現せず、本 wave の差分が到達しない
+面のため DW-O18 に従い実装差分へ帰属させない (親の codex 子が `~/.codex/sessions` を並行更新した
+フレークが有力)。provenance 全履歴監査も rc=0。変異本走は M01〜M05 の全 5 変異が KILLED で、
 M01 だけで materializer (legacy / v2)・`pipeline.evaluate()`・loop / screening・coder driver 5 本・
 qualification の 11 node が独立に赤くなった (台帳と erratum は insights)。
 1 回目の赤のうち 10 本は `t080_freeze_migration` の `known_axes.source_closure`
