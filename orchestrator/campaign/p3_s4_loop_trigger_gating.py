@@ -53,6 +53,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import env_contract, execution_guard, ident, site_policy, wal  # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildProvenance,  # noqa: E402
+                                      require_build_admission)
 from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
                                    auditor_reject_result, parse_auditor_dict,
@@ -386,7 +388,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                       coder: CoderProposalTriggerGating, auditor: AuditorVerdict,
                       state: L.LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
-                      cache_root: str = "") -> Dict:
+                      cache_root: str = "",
+                      admission: Optional[BuildAdmission] = None) -> Dict:
     """1 iteration の機械部分 (sort 版と同型の構造。genome は _BASE をそのまま焼く —
     FLAG=1 は軸定数モジュールの _BASE に含まれる)。
 
@@ -394,6 +397,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     そちらが記録義務を担う (fixture main 直呼びは配線確認専用 = 偵察 insight 非依拠、
     レビュー FC-7 裁定)。"""
     from campaign.patchharness import applied
+    if do_build:
+        admission = require_build_admission(admission)
     genome = Genome("silo", dict(_BASE))
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
@@ -416,7 +421,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         summary = run_campaign(
             cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log, ccbench_dir=sub,
-            cache_root=cache_root, campaign_namespace="exploration",
+            cache_root=cache_root, admission=admission,
+            campaign_namespace="exploration",
         )
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
@@ -472,7 +478,8 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
                     layout: Optional[CampaignLayout] = None, log=print,
                     cache_root: str = "", proposal_path: str = "",
-                    extra_sources: Sequence[Dict[str, str]] = ()) -> Dict:
+                    extra_sources: Sequence[Dict[str, str]] = (),
+                    admission: Optional[BuildAdmission] = None) -> Dict:
     """段 8a trigger-gating の 1 iteration をメインセッション駆動で回す (sort 版と
     同型の骨格 + provenance 配線)。
 
@@ -501,7 +508,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     state.iteration += 1
     out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
                             do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root)
+                            cache_root=cache_root, admission=admission)
     _append_provenance_entry(layout, state.iteration, {
         "proposal_path": proposal_path,
         "auditor_diff_digest": auditor.diff_digest,
@@ -549,6 +556,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         description="P3 段 8a trigger-gating coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫→構文契約→auditor gate の配線のみ確認")
+    ap.add_argument("--allow-coder-derived-build", action="store_true",
+                    help="CODER_DERIVED source の build をこの CLI run に限り明示許可")
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
@@ -576,6 +585,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 0 if out["passed"] else 1
 
+    admission = None if a.no_build else BuildAdmission(
+        BuildProvenance.CODER_DERIVED,
+        coder_derived_opt_in=a.allow_coder_derived_build,
+    )
+
     from campaign import patchharness
     from campaign.p2_2 import _assert_single_tenant
     if not a.no_build:
@@ -602,7 +616,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             out = drive_iteration(cfg, perf, planner, coder, auditor, prior_rev, sub,
                                   do_build=not a.no_build, cache_root=cache_root,
                                   proposal_path=os.path.abspath(a.run_iteration),
-                                  extra_sources=extra_sources)
+                                  extra_sources=extra_sources,
+                                  admission=admission)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -636,7 +651,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         auditor = AuditorVerdict(verdict="pass", diff_digest=compute_diff_digest(working_diff),
                                  uncertainty="fixture (機械 E2E 用、実 auditor 未使用)")
         out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
-                                do_build=not a.no_build, cache_root=cache_root)
+                                do_build=not a.no_build, cache_root=cache_root,
+                                admission=admission)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))

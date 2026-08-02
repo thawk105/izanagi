@@ -14,6 +14,7 @@ import contextlib
 import errno
 import fcntl
 import hashlib
+import inspect
 import json
 import os
 import shutil
@@ -31,6 +32,8 @@ sys.path.insert(0, _ORCH)
 from campaign import (buildcache, genome, ident, pin, pipeline,  # noqa: E402
                       source_digest, wal)
 from campaign import env_contract as ec                          # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildAdmissionError,  # noqa: E402
+                                      BuildProvenance)
 from campaign import layout as layout_module                     # noqa: E402
 from campaign.layout import (CampaignLayout,                     # noqa: E402
                              ExplorationCampaignLayout,
@@ -47,6 +50,8 @@ from campaign.pipeline import (EvalResult, PerfConfig,           # noqa: E402
 from skiputil import Skip, skip                                  # noqa: E402
 from verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
                             Integrity, RW, VerifyResult)
+
+_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 
 
 # ===== genome 列挙 =====
@@ -1275,7 +1280,11 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             return shared_point["value"]
         return point
 
-    def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
+    def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root="",
+                   *, admission):
+        assert admission.provenance_class in {
+            BuildProvenance.STOCK_OR_PINNED, BuildProvenance.CODER_DERIVED,
+        }
         bench_calls.builds.append(("legacy", trace, None))
         if build_raises:
             raise RuntimeError("build boom")
@@ -1284,8 +1293,11 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                      binary="/nonexistent/ycsb.exe", cached=False,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
-    def fake_build_v2(genome, *, contract, ccbench_commit, trace, src_token,
+    def fake_build_v2(genome, *, admission, contract, ccbench_commit, trace, src_token,
                       cc, cxx, cache_root, ccbench_dir="", timeout_s=None):
+        assert admission.provenance_class in {
+            BuildProvenance.STOCK_OR_PINNED, BuildProvenance.CODER_DERIVED,
+        }
         bench_calls.builds.append(("v2", trace, contract.contract_sha256))
         bench_calls.build_roots.append(ccbench_dir)
         if build_raises:
@@ -1384,8 +1396,171 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
             do_bench=do_bench, screening=screening,
             expected_perf_sha256=expected_perf_sha256,
             record_rep_returncodes=record_rep_returncodes,
-            log=lambda *a: None)
+            log=lambda *a: None, admission=_STOCK_ADMISSION)
     return r, calls
+
+
+# ===== T-316: build provenance admission ======================================
+
+def _forged_unadmitted_coder():
+    """Constructor validation bypass witness; every public seam must revalidate it."""
+    value = object.__new__(BuildAdmission)
+    object.__setattr__(value, "provenance_class", BuildProvenance.CODER_DERIVED)
+    object.__setattr__(value, "coder_derived_opt_in", False)
+    return value
+
+
+def test_build_admission_coder_default_rejects_before_pipeline_build_spy():
+    lay = _tmp_layout()
+    caught = None
+    with _mock_pipeline(certified=True) as calls:
+        try:
+            pipeline.evaluate(
+                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                do_bench=False, admission=_forged_unadmitted_coder(),
+                log=lambda *_args: None,
+            )
+        except BuildAdmissionError as exc:
+            caught = exc
+    assert calls.builds == [], "opt-in 無し CODER_DERIVED が build spy に到達した"
+    assert caught is not None
+
+
+def test_m3_evaluate_admission_is_a_required_keyword_only_parameter():
+    """M3: runtime 二重防御と混ぜず public signature の必須性だけを固定する。"""
+    parameter = inspect.signature(pipeline.evaluate).parameters["admission"]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is inspect.Parameter.empty
+
+
+def test_build_admission_explicit_coder_opt_in_reaches_build_and_records_receipt():
+    lay = _tmp_layout()
+    admission = BuildAdmission(
+        BuildProvenance.CODER_DERIVED, coder_derived_opt_in=True,
+    )
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, admission=admission, log=lambda *_args: None,
+        )
+    assert result.certified and len(calls.builds) == 2
+    start = next(r for r in wal.read_records(lay) if r.stage == STAGE_BUILD_START)
+    assert start.payload["build_admission"] == {
+        "provenance_class": "CODER_DERIVED",
+        "coder_derived_opt_in": True,
+    }
+
+
+def test_build_admission_stock_positive_reaches_build_without_coder_opt_in():
+    lay = _tmp_layout()
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, admission=_STOCK_ADMISSION, log=lambda *_args: None,
+        )
+    assert result.certified and len(calls.builds) == 2
+
+
+def test_build_admission_is_immutable_and_rejects_nonexact_values():
+    admission = _STOCK_ADMISSION
+    caught = None
+    try:
+        admission.provenance_class = BuildProvenance.HUMAN_REVIEWED
+    except (AttributeError, TypeError) as exc:
+        caught = exc
+    assert caught is not None
+    for args in (("STOCK_OR_PINNED", False),
+                 (BuildProvenance.CODER_DERIVED, 1)):
+        try:
+            BuildAdmission(args[0], coder_derived_opt_in=args[1])
+            assert False, f"non-exact admission value を受理した: {args!r}"
+        except BuildAdmissionError:
+            pass
+
+
+def test_build_admission_loop_and_screening_revalidate_before_build_entry_spy():
+    from campaign import loop as L
+    from campaign import screening_driver as SD
+
+    bad = _forged_unadmitted_coder()
+    cfg = CampaignConfig(
+        spec_slug="t316-admission", search_tag="test", spec_content="fixture",
+        ccbench_commit="deadbeef",
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    build_entries = []
+    saved_eval, saved_sd = L.evaluate, L.source_digest
+    L.evaluate = lambda *args, **kwargs: build_entries.append("loop")
+    L.source_digest = _sd_mock("stock")
+    loop_error = None
+    try:
+        try:
+            L.run_campaign(
+                cfg, [genome], PerfConfig(records=1, threads=1), "test", 1800,
+                do_bench=False, output_root=_tmpdir("t316_loop_"),
+                admission=bad, log=lambda *_args: None,
+            )
+        except BuildAdmissionError as exc:
+            loop_error = exc
+    finally:
+        L.evaluate, L.source_digest = saved_eval, saved_sd
+
+    layout = campaign_layout(str(ident.campaign_id(cfg)), _tmpdir("t316_screen_"))
+    saved_screen_eval = SD.evaluate
+    SD.evaluate = lambda *args, **kwargs: build_entries.append("screening")
+    screening_error = None
+    try:
+        try:
+            SD.evaluate_candidate(
+                cfg, layout, genome, PerfConfig(records=1, threads=1), "test", 1800,
+                admission=bad, screening=None, src_token="stock",
+                log=lambda *_args: None,
+            )
+        except BuildAdmissionError as exc:
+            screening_error = exc
+    finally:
+        SD.evaluate = saved_screen_eval
+    assert build_entries == [], "loop/screening が build entry spy に到達した"
+    assert loop_error is not None and screening_error is not None
+
+
+def test_build_admission_noncoder_opt_in_is_rejected_independently():
+    """M2: coder flag を非 coder class へ流す誤配線だけを単独で赤にする。"""
+    caught = None
+    try:
+        BuildAdmission(
+            BuildProvenance.STOCK_OR_PINNED, coder_derived_opt_in=True,
+        )
+    except BuildAdmissionError as exc:
+        caught = exc
+    assert caught is not None
+    assert "CODER_DERIVED build にだけ" in str(caught)
+
+
+def test_build_admission_preview_never_reaches_build_entry_with_or_without_opt_in():
+    from campaign import p3_s4_loop_sort as sort_preview
+    from campaign import p3_s4_loop_trigger_gating as trigger_preview
+
+    previews = []
+    build_entries = []
+    for module in (sort_preview, trigger_preview):
+        saved_preview, saved_run = module._preview_diff, module.run_campaign
+        module._preview_diff = lambda *_args, **_kwargs: previews.append(module) or {
+            "passed": True,
+        }
+        module.run_campaign = lambda *_args, **_kwargs: build_entries.append(module)
+        try:
+            assert module.main(["--preview-diff", "fixture.txt"]) == 0
+            assert module.main([
+                "--preview-diff", "fixture.txt", "--allow-coder-derived-build",
+            ]) == 0
+        finally:
+            module._preview_diff, module.run_campaign = saved_preview, saved_run
+    assert len(previews) == 4
+    assert build_entries == [], "preview が run_campaign build spy に到達した"
 
 
 def test_pipeline_green_commits_with_fitness():
@@ -1408,6 +1583,7 @@ def test_pipeline_env_contract_opt_in_uses_v2_for_trace_and_perf_only():
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             do_bench=False, env_contract=contract, log=lambda *a: None,
+        admission=_STOCK_ADMISSION,
         )
     assert result.certified and not result.aborted
     assert calls.builds == [
@@ -1426,6 +1602,7 @@ def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds():
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             do_bench=False, env_contract=contract, ccbench_dir=prepared_tree,
             log=lambda *a: None,
+        admission=_STOCK_ADMISSION,
         )
     assert result.certified and not result.aborted
     assert calls.build_roots == [prepared_tree, prepared_tree]
@@ -2018,7 +2195,7 @@ def test_pipeline_screening_with_no_bench_is_immediate_value_error():
             pipeline.evaluate(
                 Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-                do_bench=False, screening=_screening(), log=lambda *a: None)
+                do_bench=False, screening=_screening(), log=lambda *a: None, admission=_STOCK_ADMISSION)
             assert False, "should raise ValueError"
         except ValueError as e:
             assert "screening" in str(e) and "do_bench=False" in str(e)
@@ -2039,7 +2216,7 @@ def test_pipeline_rejects_runtime_screening_mixed_into_legacy_campaign():
             pipeline.evaluate(
                 Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-                screening=_screening(), log=lambda *a: None)
+                screening=_screening(), log=lambda *a: None, admission=_STOCK_ADMISSION)
             assert False, "legacy campaign への runtime screening 混在は拒否すべき"
         except ValueError as exc:
             assert "campaign.lock" in str(exc) and "screening" in str(exc)
@@ -2060,7 +2237,7 @@ def test_pipeline_rejects_screening_policy_drift_from_campaign_lock():
                 pipeline.evaluate(
                     Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
                     PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-                    screening=runtime, log=lambda *a: None)
+                    screening=runtime, log=lambda *a: None, admission=_STOCK_ADMISSION)
                 assert False, f"screening policy drift {changed} must be rejected"
             except ValueError as exc:
                 assert "不一致" in str(exc)
@@ -2112,7 +2289,7 @@ def test_pipeline_self_compute_identity_error_aborts_under_stock_id():
     try:
         r = pipeline.evaluate(g, lay, "test-env", "deadbeef",
                               PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-                              do_bench=False, log=lambda *a: None)
+                              do_bench=False, log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         pipeline.source_digest = saved
     assert r.aborted and not r.certified
@@ -2163,7 +2340,9 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         _, _, _, certified = pass_results[i]
         return _green_vr() if certified else _red_vr()
 
-    def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root=""):
+    def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root="",
+                   *, admission):
+        assert admission is _STOCK_ADMISSION
         bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)
         return types.SimpleNamespace(bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
                                      binary="/nonexistent/ycsb.exe", cached=False,
@@ -2216,7 +2395,7 @@ def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock(
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
-            log=lambda *a: None)
+            log=lambda *a: None, admission=_STOCK_ADMISSION)
     assert r.certified and not r.aborted
     assert calls["trace"][0]["numactl"] is None           # legacy パス: numactl 無し
     assert calls["trace"][1]["numactl"] == numa            # S2 パス: numactl あり
@@ -2239,7 +2418,7 @@ def test_pipeline_extra_correctness_second_pass_red_aborts_with_workload_tag():
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=["numactl", "--interleave=all"],
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
-            do_bench=False, log=lambda *a: None)
+            do_bench=False, log=lambda *a: None, admission=_STOCK_ADMISSION)
     assert r.aborted and not r.certified
     assert r.verdict == "non-serializable"        # 前パス (legacy) の verdict を持ち越さない
     abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
@@ -2261,7 +2440,7 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-            do_bench=False, log=lambda *a: None)
+            do_bench=False, log=lambda *a: None, admission=_STOCK_ADMISSION)
     assert r.certified and calls["bench_lock_enters"] == 0
     verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
     assert len(verify_recs) == 1 and verify_recs[0].payload["workload"]["tag"] == "legacy"
@@ -2280,7 +2459,7 @@ def test_pipeline_extra_correctness_requires_numactl():
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
-            do_bench=False, log=lambda *a: None)
+            do_bench=False, log=lambda *a: None, admission=_STOCK_ADMISSION)
         assert False, "should raise ValueError"
     except ValueError:
         pass
@@ -2298,7 +2477,7 @@ def test_pipeline_extra_correctness_second_pass_competing_tenant_aborts():
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
-            do_bench=False, log=lambda *a: None)
+            do_bench=False, log=lambda *a: None, admission=_STOCK_ADMISSION)
     assert r.aborted and not r.certified
     assert r.verdict == ""                        # B-4: legacy の 'serializable' を持ち越さない
     assert len(calls["trace"]) == 1               # legacy パスのみ実走、S2 は手前で reject
@@ -2321,7 +2500,7 @@ def test_pipeline_extra_correctness_second_pass_early_reject_clears_stale_verdic
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
-            do_bench=False, log=lambda *a: None)
+            do_bench=False, log=lambda *a: None, admission=_STOCK_ADMISSION)
     assert r.aborted and not r.certified
     assert r.verdict == ""                         # legacy の 'serializable' を持ち越さない
     abort = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_ABORT][-1]
@@ -2365,7 +2544,7 @@ def test_pipeline_verify_probe_error_aborts_and_clears_verdict():
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
-            do_bench=False, log=lambda *a: None)
+            do_bench=False, log=lambda *a: None, admission=_STOCK_ADMISSION)
     assert r.aborted and not r.certified
     assert r.verdict == ""                         # B-4: 空 verdict
     assert len(calls["trace"]) == 1                # legacy のみ実走、S2 は probe 手前で reject
@@ -2411,7 +2590,7 @@ def test_loop_probe_error_is_retryable_after_recovery():
         try:
             s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
                                1800, do_bench=False, output_root=out_root,
-                               log=lambda *a: None)
+                               log=lambda *a: None, admission=_STOCK_ADMISSION)
         finally:
             L.evaluate, L.source_digest = saved, saved_sd
         assert len(calls) == 1 and s.committed == 1 and s.skipped == 0, reason
@@ -2452,7 +2631,7 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
         try:
             res = SD.evaluate_candidate(
                 cfg, lay, g, PerfConfig(records=1, threads=1), "test-env", 1800,
-                screening=None, src_token="stock", log=lambda *a: None)
+                screening=None, src_token="stock", log=lambda *a: None, admission=_STOCK_ADMISSION)
         finally:
             SD.evaluate = saved
         if reason in retryable:
@@ -2471,7 +2650,8 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
     def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
                   numactl=None, correctness=None, extra_correctness=None,
                   do_bench=True, do_settle=True, src_token=None, log=print,
-                  ccbench_dir="", cache_root=""):
+                  ccbench_dir="", cache_root="", *, admission):
+        assert admission is _STOCK_ADMISSION
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
@@ -2490,7 +2670,7 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
     try:
         L.run_campaign(cfg, [Genome("silo", {"BACK_OFF": 1})],
                        PerfConfig(records=1, threads=1), "test-env", 1800,
-                       output_root=out_root, log=lambda *a: None)
+                       output_root=out_root, log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     assert captured["extra_correctness"] is not None
@@ -2507,7 +2687,8 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
     def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
                   numactl=None, correctness=None, extra_correctness=None,
                   do_bench=True, do_settle=True, src_token=None, log=print,
-                  ccbench_dir="", cache_root=""):
+                  ccbench_dir="", cache_root="", *, admission):
+        assert admission is _STOCK_ADMISSION
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
@@ -2524,7 +2705,7 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
     try:
         L.run_campaign(cfg, [Genome("silo", {"BACK_OFF": 1})],
                        PerfConfig(records=1, threads=1), "test-env", 1800,
-                       output_root=out_root, log=lambda *a: None)
+                       output_root=out_root, log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     assert captured["extra_correctness"] is None
@@ -2560,7 +2741,7 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
     try:
         s = L.run_campaign(cfg, genomes, PerfConfig(records=1, threads=1),
                            "test-env", 1800, do_bench=do_bench,
-                           output_root=out_root, log=lambda *a: None)
+                           output_root=out_root, log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     lay = campaign_layout(str(ident.campaign_id(cfg)), out_root)
@@ -2576,7 +2757,7 @@ def test_run_campaign_default_namespace_remains_official():
                          spec_content="namespace-default", ccbench_commit="deadbeef")
     summary = L.run_campaign(
         cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
-        do_bench=False, output_root=out_root, log=lambda *_args: None,
+        do_bench=False, output_root=out_root, log=lambda *_args: None, admission=_STOCK_ADMISSION,
     )
     expected = campaign_layout(str(ident.campaign_id(cfg)), out_root)
     assert summary.layout_root == expected.root
@@ -2609,7 +2790,7 @@ def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
     try:
         summary = L.run_campaign(
             cfg, [genome], PerfConfig(records=1, threads=1), "test-env", 1800,
-            do_bench=False, output_root=out_root, log=lambda *_args: None,
+            do_bench=False, output_root=out_root, log=lambda *_args: None, admission=_STOCK_ADMISSION,
             campaign_namespace="exploration",
         )
     finally:
@@ -2639,7 +2820,7 @@ def test_run_campaign_rejects_unknown_namespace_before_output_creation():
     try:
         L.run_campaign(
             cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
-            do_bench=False, output_root=out_root, log=lambda *_args: None,
+            do_bench=False, output_root=out_root, log=lambda *_args: None, admission=_STOCK_ADMISSION,
             campaign_namespace="typo",
         )
         assert False, "未知 namespace を拒否すべき"
@@ -2657,10 +2838,10 @@ def test_run_campaign_namespace_does_not_change_campaign_id():
                          spec_content="namespace-identity", ccbench_commit="deadbeef")
     common = (cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800)
     official = L.run_campaign(
-        *common, do_bench=False, output_root=out_root, log=lambda *_args: None,
+        *common, do_bench=False, output_root=out_root, log=lambda *_args: None, admission=_STOCK_ADMISSION,
     )
     exploration = L.run_campaign(
-        *common, do_bench=False, output_root=out_root, log=lambda *_args: None,
+        *common, do_bench=False, output_root=out_root, log=lambda *_args: None, admission=_STOCK_ADMISSION,
         campaign_namespace="exploration",
     )
     assert official.campaign_id == exploration.campaign_id == str(ident.campaign_id(cfg))
@@ -2751,7 +2932,7 @@ def test_loop_recovery_skips_committed_src_token_variant():
     L.source_digest = _sd_mock("codediff")
     try:
         s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                           1800, do_bench=False, output_root=out_root, log=lambda *a: None)
+                           1800, do_bench=False, output_root=out_root, log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 0 and s.skipped == 1            # src_token id terminal → 再評価しない
@@ -2795,12 +2976,12 @@ def test_loop_identity_error_is_retryable_after_repair():
         # run1: resolve が RuntimeError (g++ 一時不在) → identity-error abort (evaluate 呼ばれず)
         L.source_digest = _sd_mock(RuntimeError("g++ 一時不在"))
         s1 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                            1800, do_bench=False, output_root=out_root, log=lambda *a: None)
+                            1800, do_bench=False, output_root=out_root, log=lambda *a: None, admission=_STOCK_ADMISSION)
         assert s1.aborted == 1 and len(calls) == 0
         # run2: 環境修復 (resolve 成功 → stock) → 永久 skip でなく再評価・commit
         L.source_digest = _sd_mock("stock")
         s2 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                            1800, do_bench=False, output_root=out_root, log=lambda *a: None)
+                            1800, do_bench=False, output_root=out_root, log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 1 and s2.committed == 1 and s2.skipped == 0   # 修復後に再評価
@@ -2843,7 +3024,7 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
         # なので再評価される (旧実装は evaluated=0 / skipped=1 で永久 skip)
         s3 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
                             1800, do_bench=False, output_root=out_root,
-                            log=lambda *a: None)
+                            log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 1 and s3.committed == 1 and s3.skipped == 0
@@ -2869,7 +3050,7 @@ def test_loop_identity_skip_is_visible_when_stock_id_terminal():
     try:
         s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
                            1800, do_bench=False, output_root=out_root,
-                           log=lambda *a: None)
+                           log=lambda *a: None, admission=_STOCK_ADMISSION)
     finally:
         L.source_digest = saved_sd
     assert s.skipped == 1 and s.identity_skipped == 1 and s.evaluated == 0
@@ -3853,14 +4034,16 @@ def test_buildcache_cache_hit_rechecks_identity():
         buildcache.source_digest = _sd("mutated456")
         try:
             buildcache.build(g, head, trace=True, cache_root=root,
-                             ccbench_dir=sub, src_token="stock")
+                             ccbench_dir=sub, src_token="stock",
+                             admission=_STOCK_ADMISSION)
             assert False, "cache hit でも TOCTOU 不一致で停止すべき"
         except RuntimeError as e:
             assert "TOCTOU" in str(e)
         assert os.path.exists(binary)                # hit 側は破棄しない
         buildcache.source_digest = _sd("stock")
         br = buildcache.build(g, head, trace=True, cache_root=root,
-                              ccbench_dir=sub, src_token="stock")
+                              ccbench_dir=sub, src_token="stock",
+                              admission=_STOCK_ADMISSION)
         assert br.cached and br.binary == binary     # 一致すれば hit が返る
     finally:
         buildcache.source_digest = saved
@@ -3896,14 +4079,16 @@ def test_build_cache_miss_wires_recheck():
         buildcache.source_digest = _sd("mutated789")
         try:
             buildcache.build(g, head, trace=True, cache_root=root,
-                             ccbench_dir=sub, src_token="stock")
+                             ccbench_dir=sub, src_token="stock",
+                             admission=_STOCK_ADMISSION)
             assert False, "cache-miss 側でも build 直後の recheck で停止すべき"
         except RuntimeError as e:
             assert "TOCTOU" in str(e)
         assert not os.path.exists(os.path.join(root, key))   # 新規ビルドは dir ごと破棄
         buildcache.source_digest = _sd("stock")
         br = buildcache.build(g, head, trace=True, cache_root=root,
-                              ccbench_dir=sub, src_token="stock")
+                              ccbench_dir=sub, src_token="stock",
+                              admission=_STOCK_ADMISSION)
         assert not br.cached and os.path.exists(br.binary)   # 一致なら新規ビルドが返る
     finally:
         buildcache.source_digest, buildcache._run = saved_sd, saved_run
@@ -3959,7 +4144,8 @@ def test_buildcache_stale_marker_discarded_before_configure():
         buildcache._run = fake_run
         buildcache.source_digest = _sd("stock")
         br = buildcache.build(g, head, trace=True, cache_root=root,
-                              ccbench_dir=sub, src_token="stock")
+                              ccbench_dir=sub, src_token="stock",
+                              admission=_STOCK_ADMISSION)
     finally:
         buildcache.source_digest, buildcache._run = saved_sd, saved_run
 
@@ -4009,14 +4195,16 @@ def test_buildresult_bin_hash_derives_from_full_sha256_both_paths():
         buildcache.full_sha256 = counting_full
         calls["n"] = 0
         fr = buildcache.build(g, head, trace=True, cache_root=root,
-                              ccbench_dir=sub, src_token="stock")
+                              ccbench_dir=sub, src_token="stock",
+                              admission=_STOCK_ADMISSION)
         assert not fr.cached
         assert calls["n"] == 1                       # fresh 経路で 1 回だけ
         assert fr.bin_sha256 == expect and len(fr.bin_sha256) == 64
         assert fr.bin_hash == fr.bin_sha256[:16]     # 派生 property
         calls["n"] = 0
         hr = buildcache.build(g, head, trace=True, cache_root=root,
-                              ccbench_dir=sub, src_token="stock")
+                              ccbench_dir=sub, src_token="stock",
+                              admission=_STOCK_ADMISSION)
         assert hr.cached
         assert calls["n"] == 1                       # cache-hit 経路でも 1 回だけ
         assert hr.bin_sha256 == expect
@@ -4196,19 +4384,22 @@ def test_build_wires_trace_diff_check():
         buildcache.source_digest = _sd(trace_diff_raises=True)
         try:                                     # fresh: 不一致 → 破棄 + 停止
             buildcache.build(g, head, trace=True, cache_root=root,
-                             ccbench_dir=sub, src_token="stock")
+                             ccbench_dir=sub, src_token="stock",
+                             admission=_STOCK_ADMISSION)
             assert False, "fresh build で diff-of-diffs 不一致なら停止すべき"
         except RuntimeError as e:
             assert "diff-of-diffs" in str(e)
         assert not os.path.exists(os.path.join(root, key))   # fresh は dir ごと破棄
         buildcache.source_digest = _sd(trace_diff_raises=False)
         br = buildcache.build(g, head, trace=True, cache_root=root,
-                              ccbench_dir=sub, src_token="stock")
+                              ccbench_dir=sub, src_token="stock",
+                              admission=_STOCK_ADMISSION)
         assert not br.cached                     # 通過なら新規ビルドが返る
         buildcache.source_digest = _sd(trace_diff_raises=True)
         try:                                     # hit: 検査は走る・破棄はしない
             buildcache.build(g, head, trace=True, cache_root=root,
-                             ccbench_dir=sub, src_token="stock")
+                             ccbench_dir=sub, src_token="stock",
+                             admission=_STOCK_ADMISSION)
             assert False, "cache hit でも diff-of-diffs 検査が走るべき"
         except RuntimeError:
             pass
@@ -4534,7 +4725,7 @@ def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
     try:
         summary = L.run_campaign(
             cfg, [genome], PerfConfig(records=1, threads=1), "test-env", 1800,
-            do_bench=False, output_root=out_root, log=messages.append)
+            do_bench=False, output_root=out_root, log=messages.append, admission=_STOCK_ADMISSION)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     records, truncated = wal.read_records_checked(layout)
@@ -4576,7 +4767,7 @@ def test_loop_does_not_append_abort_after_wal_io_error():
                 L.run_campaign(
                     cfg, [genome], PerfConfig(records=1, threads=1),
                     "test-env", 1800, do_bench=False, output_root=out_root,
-                    log=lambda message: None)
+                    log=lambda message: None, admission=_STOCK_ADMISSION)
             except (wal.WalAppendError, wal.WalFramingError) as exc:
                 caught = exc
         finally:

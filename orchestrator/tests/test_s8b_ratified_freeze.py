@@ -343,7 +343,7 @@ def _fixed_prepare(cell, ccbench_pin):
 def _make_emitter_build():
     def build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
               jobs=16, ccbench_dir="", src_token=None, contract=None,
-              timeout_s=None):
+              timeout_s=None, admission=None):
         assert trace is False
         assert ccbench_dir == _fixed_prepare.ccbench_dir
         assert timeout_s == 900

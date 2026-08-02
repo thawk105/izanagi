@@ -6078,3 +6078,54 @@ journal と report の同時改変) は前提条件を追加しても全ては�
 **研究状態への影響:** 受理集合は狭まる方向にだけ変わる。8c supervisor が terminal report を
 書ける条件が増え、従来通っていた不完全 report (空 cell だけの complete、producer 到達不能な
 role 履歴、journal に無い role entry) が拒否される。凍結 bytes と既存 gate は不変である。
+
+## D125. [T-316] coder 由来 source の build を既定拒否にする — 分類は caller の自己申告であり、意味 gate でも sandbox でもないことを明記する (2026-08-02)
+
+**背景:** [T-316] は「`tools=[]` と JSON schema は valid-schema な一行 C++ 注入を止めない」として
+起票された。段 1 の前提実測で、hole 内 1 行の `std::system` / `execl` / `std::ofstream` /
+無限ループがいずれも `DiffQuarantine` を通ることを確認した。`#include` 追加の拒否は無効である
+— `backoff.hh` が既に引く `util.hh` が `<stdlib.h>` / `<unistd.h>` / `<stdio.h>` を持ち込むため、
+追加 include なしで POSIX 原始関数へ届く。auditor gate は `diff_digest` を echo して
+`verdict="pass"` を返せば通る (`auditor_gate.py` の照合は「同じ diff を見たか」だけ)。
+
+**決定 (1): 起票時の択一 3 案のうち、(a) boolean-expression AST/DSL と (b) credentialless sandbox は
+どちらも本 wave では採らない。** (b) は `docs/pegasus-runbook.md` に利用可能な rootless 隔離 backend
+(bwrap / unshare / seccomp / landlock / namespace) の記載が 0 件で、DW-G04 の発火条件を満たさない。
+(a) は role 定義が複数行の raw comparator を契約上許可しており、consumer だけ狭めると producer 契約と
+非互換になり、sort 軸では合成が事前 allowlist からの選択に化ける。両者は別 wave へ分離する。
+
+**決定 (2): 代わりに「分類されていない source は build させない」を入れる。** D122 と同型の
+明示 opt-in である。`orchestrator/campaign/build_admission.py` が閉じた provenance class
+(`STOCK_OR_PINNED` / `MACHINE_SWEEP` / `HUMAN_REVIEWED` / `CODER_DERIVED`) を定義し、
+`CODER_DERIVED` は driver CLI の `--allow-coder-derived-build` が無ければ fails-closed で拒否する。
+opt-in は ambient な環境変数から読まない。
+
+**決定 (3): gate は driver ではなく materializer に置く。** 段 6 の敵対レビューが
+「3 driver の `run_one_iteration()` 内だけでは `pipeline.evaluate()`・sweep・screening・
+手動 patch が素通しになる」と突いたため、`pipeline.evaluate()`、`loop.run_campaign()` に加えて
+`buildcache.build()` / `build_v2()` を admission 必須にした。既定値は持たせない (未指定は TypeError)。
+
+**決定 (4): この admission は provenance の検出ではない。** 検査するのは caller が自己申告した
+enum と bool の整合だけであり、source bytes から由来を導出してはいない。したがって信頼境界は
+「trusted orchestrator code が正しく分類する」ことに置かれる。この限界を docstring に明記し、
+検出器であるかのように書かない。source digest / clean 検査 / generator identity から
+capability を発行する設計は [T-329] へ送る。
+
+**決定 (5): cache と replay の class 束縛は本 wave では入れない。** admission は cache preimage・
+completion manifest・campaign preimage のいずれにも入っておらず、別 class の run から
+過去の `CODER_DERIVED` binary を cache hit で再利用できる。これは実在する穴であり、
+閉じたと主張しない。[T-330] へ送る。
+
+**決定 (6): `diff_quarantine.py` の docstring を実態へ訂正する。** 従来は「意味的逸脱の完全性は
+source_digest の preprocess 後ハッシュ + auditor + 規律6 が担う」と書いていたが、source_digest は
+identity しか束縛せず、auditor は自己申告 digest の一致しか証明しない。存在しない防壁を
+正本が数えている状態だった。auditor verdict は sort / trigger では機械的 pre-build gate として
+実際に build を止めるが、意味保証・security credit 上は advisory である、と書き分ける。
+
+**決定 (7): `quarantine()` は structural validation を通った後にだけファイルへ書く。**
+従来は検疫前に書いていたため、reject された候補の source が一時的に共有 tree に実在した。
+
+**研究状態への影響:** 受理集合は狭まる方向にだけ変わる。`CODER_DERIVED` の build が既定拒否になり、
+明示 opt-in を付けた invocation だけが従来どおり通る。Phase 3 の合成能力は opt-in 経路で保たれる。
+既存 artifact は再分類しておらず、admission 状態としては未分類のまま残る (決定 (5) と同じ理由で
+閉じたと主張しない)。凍結 bytes と既存 gate は不変である。

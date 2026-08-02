@@ -19,6 +19,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.loop import run_campaign                          # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.model import CampaignConfig, Genome               # noqa: E402
 from campaign.pipeline import PerfConfig                        # noqa: E402
 
@@ -47,14 +48,16 @@ def main() -> int:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
     print("=== run 1 (cold: build → verify → bench → commit) ===")
-    s1 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA)
+    s1 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA,
+                      admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED))
     print(f"  committed={s1.committed} aborted={s1.aborted} skipped={s1.skipped}")
     for r in s1.results:
         print(f"    {r.genome.canonical()}: certified={r.certified} "
               f"fitness={r.fitness_tps}")
 
     print("\n=== run 2 (recovery: 評価済みは WAL から skip) ===")
-    s2 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA)
+    s2 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA,
+                      admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED))
     print(f"  evaluated={s2.evaluated} skipped={s2.skipped}")
 
     ok = (s1.committed == 2 and s1.aborted == 0

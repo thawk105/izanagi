@@ -1274,6 +1274,7 @@ def test_shared_pegasus_policy_owns_no_t126_qualification_keys():
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
     assert not [key for key in policy if key.startswith("t126_")]
     assert RESERVATION_POLICY_RELATIVE_PATH in REQUIRED_CODE_IDENTITY_PATHS
+    assert "orchestrator/campaign/build_admission.py" in REQUIRED_CODE_IDENTITY_PATHS
     pinned = json.loads(
         (_ROOT / "output/env/pegasus/silo_ladder_rung1"
          / "silo_ladder_rung1.json").read_text(encoding="utf-8"))

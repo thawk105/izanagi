@@ -29,7 +29,10 @@ from campaign.env_contract import (  # noqa: E402
     ExecutionEnvironmentContract,
     IsolationPolicy,
 )
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.model import Genome  # noqa: E402
+
+_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 
 
 _COVERAGE_MODULES = (
@@ -117,6 +120,7 @@ def _fake_v2_builds(root: Path, sites: tuple[str, ...]):
         for site in sites:
             results.append(buildcache.build_v2(
                 Genome("silo", {"BACK_OFF": 1}),
+                admission=_STOCK_ADMISSION,
                 contract=_contract(),
                 ccbench_commit="a" * 40,
                 trace=True,
@@ -163,6 +167,7 @@ def _fake_legacy_build(root: Path, *, site: str, jobs: int | None):
             ccbench_dir=str(root / "ccbench"),
             src_token="stock",
             jobs=jobs,
+            admission=_STOCK_ADMISSION,
             site=site,
         )
     return result, calls

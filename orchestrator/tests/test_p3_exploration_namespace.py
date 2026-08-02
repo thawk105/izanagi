@@ -24,6 +24,8 @@ from campaign import p3_s4_loop as LOOP                             # noqa: E402
 from campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
 from campaign import p3_s4_red as RED                               # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildAdmissionError,  # noqa: E402
+                                      BuildProvenance)
 from campaign.layout import exploration_campaign_layout             # noqa: E402
 
 
@@ -34,6 +36,94 @@ _DRIVERS = (
     ("red", RED, RED._cfg, 2, 1),
     ("kickoff", KICKOFF, KICKOFF._cfg, 2, 1),
 )
+_CODER_ADMISSION = BuildAdmission(
+    BuildProvenance.CODER_DERIVED, coder_derived_opt_in=True,
+)
+
+
+@pytest.mark.parametrize(
+    "name,module", [(case[0], case[1]) for case in _DRIVERS],
+    ids=[case[0] for case in _DRIVERS],
+)
+def test_coder_driver_without_flag_rejects_before_build_spy(name, module, monkeypatch):
+    """M2: 各 coder CLI の既定拒否を、materialization 以前の単一理由で固定する。"""
+    reached = []
+    monkeypatch.setattr(
+        module, "run_campaign", lambda *_a, **_k: reached.append("campaign"),
+    )
+    if hasattr(module, "run_one_iteration"):
+        monkeypatch.setattr(
+            module, "run_one_iteration",
+            lambda *_a, **_k: reached.append("iteration"),
+        )
+    with pytest.raises(BuildAdmissionError, match="明示 opt-in"):
+        module.main([])
+    assert reached == [], f"{name}: flag 無しで build spy に到達した"
+
+
+class _BuildSpyReached(RuntimeError):
+    pass
+
+
+@pytest.mark.parametrize(
+    "name,module", [(case[0], case[1]) for case in _DRIVERS],
+    ids=[case[0] for case in _DRIVERS],
+)
+def test_coder_driver_flag_reaches_build_spy_with_exact_admission(
+        name, module, monkeypatch, tmp_path):
+    """各 coder CLI の正例は exact CODER_DERIVED/opt-in true だけを検査する。"""
+    from campaign import p2_2
+
+    seen = []
+
+    def capture(*_args, **kwargs):
+        admission = kwargs["admission"]
+        seen.append((admission.provenance_class, admission.coder_derived_opt_in))
+        raise _BuildSpyReached(name)
+
+    monkeypatch.setattr(p2_2, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+
+    argv = ["--allow-coder-derived-build"]
+    if name in {"loop", "sort", "trigger_gating"}:
+        monkeypatch.setattr(module, "run_campaign", capture)
+        monkeypatch.setattr(
+            module, "exploration_campaign_layout",
+            lambda campaign_id: exploration_campaign_layout(
+                campaign_id, str(tmp_path / name)),
+        )
+        passed = SimpleNamespace(passed=True)
+        monkeypatch.setattr(
+            LOOP, "quarantine",
+            lambda *_a, **_k: (passed, "", "", "fixture"),
+        )
+        if name in {"sort", "trigger_gating"}:
+            argv.append("--no-isolate-worktree")
+        if name == "trigger_gating":
+            monkeypatch.setattr(
+                module, "_admit_env_contract",
+                lambda: SimpleNamespace(env_tag="test", clocks_per_us=1800,
+                                        numactl=()),
+            )
+    else:
+        monkeypatch.setattr(module, "_assert_single_tenant", lambda: None)
+        monkeypatch.setattr(module, "assert_pinned_clean", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            module, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+        )
+        monkeypatch.setattr(module, "run_campaign", capture)
+        if name == "kickoff":
+            monkeypatch.setattr(
+                module.buildcache, "build",
+                lambda *_a, **_k: SimpleNamespace(bin_hash="seed", cached=True),
+            )
+
+    with pytest.raises(_BuildSpyReached, match=name):
+        module.main(argv)
+    assert seen == [(BuildProvenance.CODER_DERIVED, True)]
 
 
 def _spy_driver_layout(monkeypatch, tmp_path, module):
@@ -167,7 +257,8 @@ class TxExecutor {
     source.write_text(template, encoding="utf-8")
     if name == "loop":
         module.run_one_iteration(
-            cfg, perf, planner, coder, state, str(sub), True, log=lambda *_: None)
+            cfg, perf, planner, coder, state, str(sub), True,
+            admission=_CODER_ADMISSION, log=lambda *_: None)
     else:
         preview = LOOP.quarantine(
             str(sub), coder.implementation, marker_id=module.MARKER_ID,
@@ -178,7 +269,7 @@ class TxExecutor {
             verdict="pass", diff_digest=module.compute_diff_digest(preview[3]))
         module.run_one_iteration(
             cfg, perf, planner, coder, auditor, state, str(sub), True,
-            log=lambda *_: None)
+            admission=_CODER_ADMISSION, log=lambda *_: None)
     campaign_id = str(ident.campaign_id(cfg))
     expected = tmp_path / "exploration" / "campaigns" / campaign_id
     assert roots and set(roots) == {expected}
@@ -221,7 +312,7 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
         return original_spy(campaign_id).ensure()
 
     monkeypatch.setattr(module, "exploration_campaign_layout", ensured_spy)
-    assert module.main() == 1
+    assert module.main(["--allow-coder-derived-build"]) == 1
     campaign_id = str(ident.campaign_id(module._cfg()))
     expected = tmp_path / "exploration" / "campaigns" / campaign_id
     assert roots and set(roots) == {expected}
@@ -261,6 +352,9 @@ def test_driver_ast_supplements_runtime_namespace_gate(
         assert len(selectors) == 1, name
         assert isinstance(selectors[0], ast.Constant), name
         assert selectors[0].value == "exploration", name
+        admissions = [keyword.value for keyword in call.keywords
+                      if keyword.arg == "admission"]
+        assert len(admissions) == 1, name
 
 
 def test_exploration_marker_is_atomically_published_and_directory_synced(

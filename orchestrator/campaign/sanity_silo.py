@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.genome import SILO_SPACE                          # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.loop import run_campaign                          # noqa: E402
 from campaign.model import CampaignConfig                       # noqa: E402
 from campaign.pipeline import PerfConfig                        # noqa: E402
@@ -47,7 +48,10 @@ def main() -> int:
     print(f"=== P2-0: silo {len(genomes)} genome verifier sanity (do_bench=False) ===")
     for g in genomes:
         print(f"  - {g.canonical()}")
-    s = run_campaign(cfg, genomes, perf, ENV_TAG, CLK, do_bench=False)
+    s = run_campaign(
+        cfg, genomes, perf, ENV_TAG, CLK, do_bench=False,
+        admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+    )
 
     print(f"\n committed(certified)={s.committed} aborted={s.aborted} "
           f"skipped={s.skipped} (of {s.total})")

@@ -47,6 +47,7 @@ from campaign import s8b_floor_stats  # noqa: E402
 from campaign import s8b_launch_cert  # noqa: E402
 from campaign import s8b_prediction_runner  # noqa: E402
 from campaign import s8b_selector_freeze  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.p2_2 import ENV_TAG  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
@@ -65,6 +66,7 @@ _CONFIGS = (
     "system_gate", "ident_all", "stock_common",
 )
 _STOCK = "stock_common"
+_HUMAN_REVIEWED_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
 
 _HOLDOUT_SHAPE = {
     "rr79": {
@@ -199,7 +201,10 @@ def _fake_prepare(cell, ccbench_pin):
 def _make_fake_build(build_root: Path):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
-                   timeout_s=None):
+                   timeout_s=None, admission=None):
+        assert admission is not None
+        assert admission.provenance_class is BuildProvenance.HUMAN_REVIEWED
+        assert admission.coder_derived_opt_in is False
         assert trace is False, "floor 計測は trace-disabled build (規律1)"
         assert ccbench_dir, "prepare_cell の隔離 ccbench_dir を build_v2 へ渡す"
         assert timeout_s == 900, "floor v2 build hard timeout を固定する"
@@ -2379,6 +2384,7 @@ def test_slow_real_prepare_cell_to_buildcache_canary_one_configuration(tmp_path)
             prepared.genome, ccbench_commit=pin, trace=False,
             cache_root=str(tmp_path / "cache"), ccbench_dir=prepared.ccbench_dir,
             src_token=prepared.src_token, jobs=1,
+            admission=_HUMAN_REVIEWED_ADMISSION,
         )
     assert Path(result.binary).is_file()
     assert s8b_floor_campaign.buildcache.is_full_sha256(result.bin_sha256)
@@ -2408,7 +2414,8 @@ def test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration(tmp_pa
             configuration_id=cell["configuration_id"], ccbench_pin=pin,
             prepare_fn=s8b_floor_campaign.prepare_cell) as (_identity, prepared):
         result = s8b_floor_campaign.buildcache.build_v2(
-            prepared.genome, contract=contract, ccbench_commit=pin, trace=False,
+            prepared.genome, admission=_HUMAN_REVIEWED_ADMISSION,
+            contract=contract, ccbench_commit=pin, trace=False,
             cache_root=str(tmp_path / "cache"), ccbench_dir=prepared.ccbench_dir,
             src_token=prepared.src_token, cc=s8b_floor_campaign.buildcache.DEFAULT_CC,
             cxx=s8b_floor_campaign.buildcache.DEFAULT_CXX, timeout_s=900,

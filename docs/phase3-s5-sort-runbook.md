@@ -135,8 +135,11 @@ iteration の返却値を使い回すと `AuditorGateFailure` で駆動が止ま
 
 ### (f) harness で 1 iteration を実走 (single-tenant!)
 ```
-python3 -m campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.json
+python3 -m campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.json \
+    --allow-coder-derived-build
 ```
+- **`--allow-coder-derived-build` は必須** — coder 由来 source の build は既定拒否であり、
+  この明示 opt-in が無ければ `BuildAdmissionError` で止まる (D125)。`--no-build` では不要。
 - checkpoint 復元 → critic feedback 畳込み → 入口 check_stop → iteration++ → 挿入→diff
   検疫→**auditor gate (digest 突合 + verdict 判定)**→(pass なら)build×2/verify(legacy+S2)/bench
   → checkpoint 保存 (atomic) → digest 書き出し → 末尾 check_stop。

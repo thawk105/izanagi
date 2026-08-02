@@ -13,6 +13,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import ident, screening_driver, wal               # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import campaign_layout                     # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_COMMIT,     # noqa: E402
                             CampaignConfig, Genome)
@@ -20,6 +21,7 @@ from campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
 
 
 WORKLOAD = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
+_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 
 
 def _cfg():
@@ -157,6 +159,7 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
     monkeypatch.setattr(screening_driver, "evaluate", evaluate)
     result = screening_driver.evaluate_candidate(
         cfg, layout, genome, PerfConfig(records=1, threads=1), "test", 1800,
+        admission=_STOCK_ADMISSION,
         screening=None, src_token="stock", log=lambda message: None)
     assert result is not None and result.certified and calls == [genome]
 
@@ -179,6 +182,7 @@ def test_evaluate_candidate_does_not_append_abort_after_wal_io_error(
     with pytest.raises(type(failure)) as caught:
         screening_driver.evaluate_candidate(
             cfg, layout, genome, PerfConfig(records=1, threads=1), "test", 1800,
+            admission=_STOCK_ADMISSION,
             screening=None, src_token="stock", log=lambda message: None)
     assert caught.value is failure
     assert wal.read_records(layout) == []

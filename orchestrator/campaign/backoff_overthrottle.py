@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from calibrator.benchparse import abort_rate                     # noqa: E402
 from calibrator.runner import run_once                            # noqa: E402
 from campaign import buildcache                                   # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.backoff_sweep import SWEEP_US, _BASE                # noqa: E402
 from campaign.model import Genome                                 # noqa: E402
 from campaign.p2_2 import (CCBENCH_COMMIT, CLK, NUMA, RECORDS,     # noqa: E402
@@ -65,7 +66,10 @@ def measure(tag: str, workload: dict, log=print):
     rows = []
     for label, flags in _points():
         g = Genome("silo", flags)
-        b = buildcache.build(g, CCBENCH_COMMIT, trace=False)
+        b = buildcache.build(
+            g, CCBENCH_COMMIT, trace=False,
+            admission=BuildAdmission(BuildProvenance.MACHINE_SWEEP),
+        )
         spins, tpss, aborts = [], [], []
         for _ in range(REPS):
             m, _c, _w = run_once(b.binary, _flags(workload), numactl=NUMA)

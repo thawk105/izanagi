@@ -74,6 +74,7 @@ from calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from campaign import buildcache, s8b_floor_stats  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign import t080_freeze_migration as _t080_migration  # noqa: E402
 from campaign import s8b_floor_contract as _floor_contract  # noqa: E402
 from campaign import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
@@ -973,7 +974,9 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
                 prepare_fn=prepare_fn) as (identity, prepared):
             result = build_fn(
-                prepared.genome, contract=contract, ccbench_commit=ccbench_pin,
+                prepared.genome,
+                admission=BuildAdmission(BuildProvenance.HUMAN_REVIEWED),
+                contract=contract, ccbench_commit=ccbench_pin,
                 trace=False, cache_root=cache_root, src_token=prepared.src_token,
                 cc=buildcache.DEFAULT_CC, cxx=buildcache.DEFAULT_CXX,
                 ccbench_dir=prepared.ccbench_dir,

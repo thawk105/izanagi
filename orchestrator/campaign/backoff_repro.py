@@ -23,6 +23,7 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, source_digest, wal                   # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.backoff_sweep import _BASE                         # noqa: E402
 from campaign.layout import campaign_layout                      # noqa: E402
 from campaign.loop import run_campaign                           # noqa: E402
@@ -94,7 +95,8 @@ def run_workload(tag: str, log=print) -> dict:
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=o["workload"],
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff repro  workload={tag}  逆順 {[g.flags['BACKOFF_FIXED'] for g in gs]} ===")
-    s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log)
+    s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
+                     admission=BuildAdmission(BuildProvenance.MACHINE_SWEEP))
 
     layout = campaign_layout(str(ident.campaign_id(cfg)))
     # WAL キーは run_campaign が src_token まで確定した variant id (D24)。identity を再計算せず

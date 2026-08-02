@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
 from . import ident, source_digest, wal
+from .build_admission import BuildAdmission, require_build_admission
 from .layout import campaign_layout, exploration_campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import (EvalResult, PerfConfig, S2_TAG, SEARCH_CONFIG_VERIFY_KEY,
@@ -45,11 +46,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  numactl: Optional[Sequence[str]] = None,
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "", *,
+                 admission: BuildAdmission,
                  campaign_namespace: str = "official") -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
     official / exploration の閉じた path selector。いずれも campaign-id には含めない
     (numactl/do_bench と同じ扱い、pipeline.evaluate の docstring 参照)。"""
+    admission = require_build_admission(admission)
     if campaign_namespace == "official":
         layout_constructor = campaign_layout
     elif campaign_namespace == "exploration":
@@ -124,7 +127,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     f"terminal 済み → この run はスキップ (環境修復後の次 run で再評価): {e}")
                 continue
             done.add(v0)
-            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
+            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {
+                "genome": g.canonical(),
+                "build_admission": admission.as_wal_receipt(),
+            })
             wal.log(layout, v0, STAGE_ABORT, env_tag,
                     {"reason": "identity-error", "error": str(e)})
             log(f"[campaign] {v0} identity 確定不能 → abort 隔離して継続: {e}")
@@ -146,7 +152,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
                          do_settle=(do_bench and first_bench),
                          src_token=src_tok, extra_correctness=extra_correctness,
-                         log=log, ccbench_dir=ccbench_dir, cache_root=cache_root)
+                         log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
+                         admission=admission)
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。

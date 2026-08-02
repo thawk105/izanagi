@@ -106,6 +106,24 @@ def test_quarantine_rejects_directive_in_hole():
     assert "branch=content-directive" in res.digest["evidence"]
 
 
+def test_quarantine_write_occurs_only_after_structural_validation():
+    d = _mk_template_dir()
+    path = os.path.join(d, _SRC_REL)
+    before = open(path, encoding="utf-8").read()
+    rejected, *_ = L.quarantine(
+        d, "#define EVIL 1\ndouble now_backoff = 20.0;",
+        source_rel=_SRC_REL, write=True,
+    )
+    assert not rejected.passed
+    assert open(path, encoding="utf-8").read() == before
+
+    accepted, _base, edited, _diff = L.quarantine(
+        d, "double now_backoff = 20.0;", source_rel=_SRC_REL, write=True,
+    )
+    assert accepted.passed
+    assert open(path, encoding="utf-8").read() == edited
+
+
 def test_quarantine_rejects_marker_forgery_in_hole():
     """hole 内の EVOLVE-BLOCK-BEGIN/END 指令はフレーム偽装 → HOLE_ESCAPE reject。"""
     d = _mk_template_dir()

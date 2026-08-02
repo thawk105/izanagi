@@ -26,6 +26,7 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.loop import run_campaign                          # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import CampaignLayout                      # noqa: E402
 from campaign.model import CampaignConfig, Genome               # noqa: E402
 from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
@@ -34,6 +35,8 @@ from campaign.pipeline import PerfConfig                        # noqa: E402
 from campaign import ident, pin, screening_driver, source_digest, wal  # noqa: E402
 from campaign.loop import CampaignSummary                       # noqa: E402
 from campaign.pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
+
+_BUILD_ADMISSION = BuildAdmission(BuildProvenance.MACHINE_SWEEP)
 
 CCBENCH_COMMIT = pin.CURRENT_PIN      # d706650 — literal 保持をやめ pin 正本へ (between_run_floor と同型)
 
@@ -88,6 +91,7 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
     def measure_baseline(screen_cfg, layout):
         measured.append(screening_driver.evaluate_candidate(
             screen_cfg, layout, baseline, perf, ENV_TAG, CLK,
+            admission=_BUILD_ADMISSION,
             screening=None, numactl=NUMA, force=True, do_settle=True, log=log))
 
     prepared = screening_driver.prepare_screening_campaign(
@@ -102,6 +106,7 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         _assert_single_tenant()
         results.append(screening_driver.evaluate_candidate(
             prepared.cfg, prepared.layout, genome, perf, ENV_TAG, CLK,
+            admission=_BUILD_ADMISSION,
             screening=prepared.screening, numactl=NUMA, log=log))
     for result in results:
         if result is None:
@@ -141,7 +146,8 @@ def run_workload(tag: str, workload: dict, log=print, *,
             cfg, gs, perf, workload, calibration_dir, log,
             confirm_each_candidate=confirm_each_candidate)
     else:
-        s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log)
+        s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
+                         admission=_BUILD_ADMISSION)
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
     rows.sort(key=lambda t: t[0], reverse=True)

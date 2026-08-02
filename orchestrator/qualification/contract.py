@@ -58,6 +58,7 @@ REQUIRED_CODE_IDENTITY_PATHS = frozenset({
     "orchestrator/qualification/t126_failure_receipt_schema.json",
     "orchestrator/campaign/pipeline.py",
     "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/build_admission.py",
     "orchestrator/campaign/env_contract.py",
     "orchestrator/campaign/source_digest.py",
     "orchestrator/verifier/core.py",

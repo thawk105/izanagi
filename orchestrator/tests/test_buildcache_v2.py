@@ -20,12 +20,16 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH))
 
 from campaign import buildcache  # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildAdmissionError,  # noqa: E402
+                                      BuildProvenance)
 from campaign.env_contract import (  # noqa: E402
     CalibrationRef,
     ExecutionEnvironmentContract,
     IsolationPolicy,
 )
 from campaign.model import Genome  # noqa: E402
+
+_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 
 
 def _contract(seed: int) -> ExecutionEnvironmentContract:
@@ -90,6 +94,7 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            ccbench_dir: str = "", timeout_s: int | None = None):
     return buildcache.build_v2(
         Genome("silo", {"BACK_OFF": 1}),
+        admission=_STOCK_ADMISSION,
         contract=contract,
         ccbench_commit="a" * 40,
         trace=trace,
@@ -382,8 +387,11 @@ from pathlib import Path
 from types import SimpleNamespace
 sys.path.insert(0, sys.argv[1])
 from campaign import buildcache
+from campaign.build_admission import BuildAdmission, BuildProvenance
 from campaign.env_contract import CalibrationRef, ExecutionEnvironmentContract, IsolationPolicy
 from campaign.model import Genome
+
+_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 
 root, sync, tools = map(Path, sys.argv[2:5])
 os.environ["PATH"] = str(tools) + os.pathsep + os.environ.get("PATH", "")
@@ -445,7 +453,8 @@ while not (sync / "go").exists():
     time.sleep(0.01)
 try:
     result = buildcache.build_v2(
-        Genome("silo", {"BACK_OFF": 1}), contract=contract, ccbench_commit="a" * 40,
+        Genome("silo", {"BACK_OFF": 1}), admission=_STOCK_ADMISSION,
+        contract=contract, ccbench_commit="a" * 40,
         trace=True, src_token="stock", cc="test-cc", cxx="test-cxx",
         cache_root=str(root / "cache"),
     )
@@ -504,6 +513,7 @@ def test_v2_contract_is_required(tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
     kwargs = dict(
+        admission=_STOCK_ADMISSION,
         ccbench_commit="a" * 40, trace=True, src_token="stock",
         cc="test-cc", cxx="test-cxx", cache_root=str(tmp_path / "cache"),
     )
@@ -511,6 +521,50 @@ def test_v2_contract_is_required(tmp_path, monkeypatch):
         buildcache.build_v2(Genome("silo", {}), **kwargs)
     with pytest.raises((TypeError, buildcache.BuildCacheError)):
         buildcache.build_v2(Genome("silo", {}), contract=None, **kwargs)
+
+
+def _forged_unadmitted_coder():
+    value = object.__new__(BuildAdmission)
+    object.__setattr__(value, "provenance_class", BuildProvenance.CODER_DERIVED)
+    object.__setattr__(value, "coder_derived_opt_in", False)
+    return value
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+def test_materializer_rejects_unadmitted_coder_before_identity_spy(
+        monkeypatch, api):
+    """F1/M1: materializer 自身の最初の gate だけを検査する。"""
+    identity_calls = []
+    monkeypatch.setattr(
+        buildcache, "_verify_ccbench_commit",
+        lambda *_args, **_kwargs: identity_calls.append("identity"),
+    )
+    genome = Genome("silo", {})
+    with pytest.raises(BuildAdmissionError):
+        if api == "legacy":
+            buildcache.build(
+                genome, "a" * 40, trace=True,
+                admission=_forged_unadmitted_coder(),
+            )
+        else:
+            buildcache.build_v2(
+                genome, admission=_forged_unadmitted_coder(), contract=None,
+                ccbench_commit="a" * 40, trace=True, src_token="stock",
+                cc="cc", cxx="cxx", cache_root="/not-reached",
+            )
+    assert identity_calls == []
+
+
+def test_legacy_materializer_admission_argument_is_mandatory_before_identity_spy(
+        monkeypatch):
+    identity_calls = []
+    monkeypatch.setattr(
+        buildcache, "_verify_ccbench_commit",
+        lambda *_args, **_kwargs: identity_calls.append("identity"),
+    )
+    with pytest.raises(TypeError, match="admission"):
+        buildcache.build(Genome("silo", {}), "a" * 40, trace=True)
+    assert identity_calls == []
 
 
 if __name__ == "__main__":

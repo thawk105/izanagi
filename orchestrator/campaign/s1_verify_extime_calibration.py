@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import (axis_trigger_gating, buildcache, p3_s4_loop, pin,  # noqa: E402
                       s1_known_axes_freeze, s8a_trigger_sweep, source_digest)
+from campaign.build_admission import BuildAdmission, BuildProvenance    # noqa: E402
 from campaign.layout import repo_output_root                              # noqa: E402
 from campaign.p2_2 import (CLK, NUMA, RECORDS, THREADS,                  # noqa: E402
                            _assert_single_tenant)
@@ -338,7 +339,9 @@ def _build_target(target: Mapping) -> Dict:
                 f"g_rl の diff quarantine が reject: {quarantine.reason}")
         src_token = source_digest.resolve(genome, PIN, str(sub))
         built = buildcache.build(genome, PIN, trace=True, ccbench_dir=str(sub),
-                                 src_token=src_token)
+                                 src_token=src_token,
+                                 admission=BuildAdmission(
+                                     BuildProvenance.MACHINE_SWEEP))
     return {
         "binary": built.binary,
         "src_token": src_token,

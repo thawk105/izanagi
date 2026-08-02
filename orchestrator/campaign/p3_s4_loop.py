@@ -50,6 +50,8 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, wal                                    # noqa: E402
+from campaign.build_admission import (BuildAdmission, BuildProvenance,  # noqa: E402
+                                      require_build_admission)
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
@@ -206,10 +208,11 @@ def quarantine(sub: str, implementation: str,
     marker.source_rel = source_rel
     edited_text = render_hole(base_text, marker, implementation)
     working_diff = make_working_diff(base_text, edited_text, source_rel)
-    if write:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(edited_text)
     res = DiffQuarantine(marker, working_diff, head_text=base_text).validate()
+    if write:
+        if res.passed:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(edited_text)
     return res, base_text, edited_text, working_diff
 
 
@@ -608,7 +611,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                       planner: PlannerProposal, coder: CoderProposal,
                       state: LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
-                      cache_root: str = "") -> Dict:
+                      cache_root: str = "",
+                      admission: Optional[BuildAdmission] = None) -> Dict:
     """1 iteration の機械部分を回す (LLM proposal は引数で受け取る)。
 
     do_build=True: applied(TEMPLATE_PATCH) 下で挿入→検疫→(pass なら)run_campaign。
@@ -627,6 +631,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     Returns: {"outcome": rejected|certified|aborted|dry-pass, "variant": ..., ...}。
     """
     from campaign.patchharness import applied
+    if do_build:
+        admission = require_build_admission(admission)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
@@ -668,6 +674,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
+                              admission=admission,
                               campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
@@ -737,7 +744,8 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     planner: PlannerProposal, coder: CoderProposal,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
                     layout: Optional[CampaignLayout] = None, log=print,
-                    cache_root: str = "") -> Dict:
+                    cache_root: str = "",
+                    admission: Optional[BuildAdmission] = None) -> Dict:
     """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
 
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
@@ -768,7 +776,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
     out = run_one_iteration(cfg, perf, planner, coder, state, sub,
                             do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root)
+                            cache_root=cache_root, admission=admission)
     save_loop_state(layout, state)
 
     digest_txt = make_critic_digest(
@@ -790,6 +798,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫の配線のみ確認")
+    ap.add_argument("--allow-coder-derived-build", action="store_true",
+                    help="CODER_DERIVED source の build をこの CLI run に限り明示許可")
     ap.add_argument("--value", type=float, default=20.0,
                     help="fixture の backoff 値 (coder proposal の代わり)")
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
@@ -801,6 +811,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="段5 git worktree 隔離: 共有 external/ccbench でなく使い捨て "
                          "worktree で apply/build/verify する (既定 OFF = 既存動作と完全互換)")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
+    admission = None if a.no_build else BuildAdmission(
+        BuildProvenance.CODER_DERIVED,
+        coder_derived_opt_in=a.allow_coder_derived_build,
+    )
 
     root = _repo_root()
     fixed_sub = os.path.join(root, "external", "ccbench")
@@ -832,7 +846,8 @@ def main(argv: Optional[List[str]] = None) -> int:
               f"isolate_worktree={a.isolate_worktree}) ===")
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
-                                  do_build=not a.no_build, cache_root=cache_root)
+                                  do_build=not a.no_build, cache_root=cache_root,
+                                  admission=admission)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -859,7 +874,8 @@ def main(argv: Optional[List[str]] = None) -> int:
           f"isolate_worktree={a.isolate_worktree}) ===")
     with wt_cm as sub:
         out = run_one_iteration(cfg, perf, planner, coder, state, sub,
-                                do_build=not a.no_build, cache_root=cache_root)
+                                do_build=not a.no_build, cache_root=cache_root,
+                                admission=admission)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))

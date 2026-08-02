@@ -20,6 +20,7 @@ sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(ORCH))
 
 from campaign import pipeline, wal  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import CampaignLayout  # noqa: E402
 from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
@@ -30,6 +31,8 @@ from s1_expected_goldens import (  # noqa: E402
     EXPECTED_IDENT_ALL_PREDICATE,
     EXPECTED_SORT,
 )
+
+_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 
 
 def _freeze() -> dict:
@@ -654,6 +657,8 @@ def test_develop_calls_legacy_plus_s2_without_bench_18_times(tmp_path):
         assert kwargs["screening"] is None
         assert kwargs["numactl"] == S.NUMACTL
         assert kwargs["bench_max_rounds"] == 1
+        assert kwargs["admission"].provenance_class is BuildProvenance.HUMAN_REVIEWED
+        assert kwargs["admission"].coder_derived_opt_in is False
         assert [(tag, wl.flags) for tag, wl in kwargs["extra_correctness"]] == [
             (pipeline.S2_TAG, pipeline.s2_correctness_workload().flags)]
 
@@ -814,6 +819,6 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         kwargs = {} if max_rounds is None else {"bench_max_rounds": max_rounds}
         result = pipeline.evaluate(
             genome, layout, "test-env", "deadbeef", perf, 1800,
-            log=lambda msg: None, **kwargs)
+            log=lambda msg: None, admission=_STOCK_ADMISSION, **kwargs)
         assert result.certified
     assert captured == [3, 1]

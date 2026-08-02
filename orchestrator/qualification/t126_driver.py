@@ -25,7 +25,10 @@ if str(_ORCHESTRATOR) not in sys.path:
     sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import env_attestation, env_contract, pipeline, reservation, source_digest  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.model import Genome  # noqa: E402
+
+_QUALIFICATION_BUILD_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 from qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationEventSink,
@@ -536,6 +539,7 @@ class ForkedMemberRunner:
                     env_contract=contract,
                     record_rep_returncodes=True,
                     qualification_policy=policy,
+                    admission=_QUALIFICATION_BUILD_ADMISSION,
                     log=lambda *args, **kwargs: None,
                 )
                 if not result.certified or result.aborted:

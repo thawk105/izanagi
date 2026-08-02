@@ -29,11 +29,16 @@ from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
 from campaign import site_policy                                    # noqa: E402
 from campaign import wal                                            # noqa: E402
 from campaign.auditor_gate import AuditorGateFailure, AuditorVerdict  # noqa: E402
+from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
 from campaign.layout import CampaignLayout                          # noqa: E402
 from campaign.model import Genome                                   # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from critic.digest import load_diff_rejections                      # noqa: E402
+
+_CODER_ADMISSION = BuildAdmission(
+    BuildProvenance.CODER_DERIVED, coder_derived_opt_in=True,
+)
 
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (trigger-gating marker) を写した fixture。
 # silo-backoff-trigger-gating-variant.patch と同型 — hole は #if 枝の述語代入 1 行、
@@ -307,6 +312,7 @@ def _measurement_case(monkeypatch, *, site, lookup):
         return T.run_one_iteration(
             T.default_cfg(), T.default_perf(), _planner(), coder, auditor, state,
             sub, do_build=True, log=lambda *_args: None,
+            admission=_CODER_ADMISSION,
         )
 
     return invoke, lay, calls
@@ -579,7 +585,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
     fresh.run_one_iteration(
         fresh.default_cfg(), fresh.default_perf(), _planner(), coder, auditor,
         L.LoopState(start_ts=time.monotonic()), sub, do_build=True,
-        log=lambda *_args: None,
+        log=lambda *_args: None, admission=_CODER_ADMISSION,
     )
 
     assert fresh._current_site is current_site
