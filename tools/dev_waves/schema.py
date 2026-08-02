@@ -307,6 +307,7 @@ class Receipt:
     next_task_ids: tuple[str, ...]
     landed_commits: tuple[str, ...]
     child_task_run_id: str
+    fold_commit_sha: Optional[str]
 
 
 Request = Union[SubmitRequest, StatusRequest, CancelRequest]

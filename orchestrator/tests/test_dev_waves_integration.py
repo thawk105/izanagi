@@ -189,6 +189,22 @@ def _temporary_repo(
         encoding="utf-8",
     )
     (main / "docs" / "handoff" / "README.md").write_text("handoff\n", encoding="utf-8")
+    fold_requested = any(
+        item == "fold_success" or
+        isinstance(item, dict) and item.get("scenario") == "fold_success"
+        for item in waves
+    )
+    if fold_requested:
+        for ledger in ("worklog", "decisions", "failures"):
+            directory = main / "docs" / "spool" / ledger
+            directory.mkdir(parents=True)
+            (directory / "README.md").write_text(f"{ledger} spool\n", encoding="utf-8")
+        (main / "docs" / "spool" / "FOLDED.md").write_text(
+            "# Fold receipts\n", encoding="utf-8",
+        )
+        (main / "docs" / "spool" / "worklog" / "2000-01-01-fake-fold-1.md").write_text(
+            "synthetic pending fragment\n", encoding="utf-8",
+        )
     (main / "tools" / "check_docs.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
     (main / "tools" / "check_ok.py").write_text(
         "from pathlib import Path\nimport time\n"
@@ -471,6 +487,25 @@ def test_one_wave_success_accepts_exact_fake_receipt_and_landing() -> None:
             assert (run / "worktrees" / "w001").is_dir()
             events = [json.loads(line) for line in (run / "events.jsonl").read_text().splitlines()]
             assert any(event["state"] == "wave-accepted" for event in events)
+
+
+def test_fold_success_scenario_declares_a_verified_direct_child_fold() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        with _isolated_process_environment(root):
+            repo = _temporary_repo(root, ["fold_success"])
+            supervisor = _supervisor(repo)
+            submitted = supervisor.submit(_request(repo))
+            status, _seen = _wait_terminal(supervisor, submitted.run_id)
+            assert status.state is RunState.COMPLETED
+            run = repo.runtime / submitted.run_id
+            receipt = json.loads((run / "waves" / "001" / "receipt.json").read_text())
+            fold_sha = receipt["fold_commit_sha"]
+            assert fold_sha == receipt["landed_main_sha"]
+            assert _git(repo.main, "rev-parse", f"{fold_sha}^") == receipt["landed_commits"][-1]
+            assert not (
+                repo.main / "docs" / "spool" / "worklog" / "2000-01-01-fake-fold-1.md"
+            ).exists()
 
 
 def _assert_manifest_namespace_tamper_fails(field: str, value: object) -> None:

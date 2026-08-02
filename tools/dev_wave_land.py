@@ -24,6 +24,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from tools.dev_waves.git_state import (  # noqa: E402
+    FOLD_AUTHOR_IDENTITY,
+    FOLD_COMMIT_MESSAGE,
+    GIT_HARDENING_CONFIG,
+    supervised_spool_wave_slug,
+    verify_declared_fold_commit,
+)
+
 
 RC_OK = 0
 RC_STALE_MAIN = 10
@@ -47,20 +59,15 @@ _SAFE_CHILD_RE = re.compile(rb"(?!\.{1,2}\Z)[^/\x00]{1,128}\Z")
 _CONTROL_CONTAINERS = (b".claude/worktrees", b".codex/worktrees")
 _FOLD_LEDGERS = ("worklog", "decisions", "failures")
 _FOLD_STATE_NAME = "izanagi-spool-fold-state.json"
-_FOLD_MESSAGE = (
-    "Fold landed documentation fragments\n"
-    "\n"
-    "AI-Agent: none\n"
+_FOLD_MESSAGE = FOLD_COMMIT_MESSAGE.decode("ascii")
+_SUPERVISED_WAVE_REF_RE = re.compile(
+    r"refs/heads/dev-wave/(?P<run>dw-[0-9a-f]{32})/w(?P<wave>[0-9]{3,})\Z"
 )
 _GIT_CONFIG = (
-    "-c", "core.hooksPath=/dev/null",
-    "-c", "core.fsmonitor=false",
-    "-c", "core.useBuiltinFSMonitor=false",
+    *GIT_HARDENING_CONFIG,
     "-c", "merge.autoStash=false",
     "-c", "rebase.autoStash=false",
     "-c", "merge.verifySignatures=false",
-    "-c", "maintenance.auto=false",
-    "-c", "gc.auto=0",
     "-c", "fetch.writeCommitGraph=false",
     "-c", "submodule.recurse=false",
     "-c", "protocol.file.allow=never",
@@ -84,6 +91,7 @@ class LandResult:
     main_before: str | None = None
     main_after: str | None = None
     wave_tip: str | None = None
+    fold_commit_sha: str | None = None
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -92,6 +100,7 @@ class LandResult:
             "main_before": self.main_before,
             "main_after": self.main_after,
             "wave_tip": self.wave_tip,
+            "fold_commit_sha": self.fold_commit_sha,
         }
 
 
@@ -1162,6 +1171,31 @@ def _pending_spool_paths(repo: Path) -> tuple[str, ...]:
     return tuple(sorted(pending))
 
 
+def _verify_supervised_fragment_wave(wave_ref: str, plan: object) -> None:
+    """daemon 生成 branch identity を計画内の全 fragment へ束縛する。"""
+    if not wave_ref.startswith("refs/heads/dev-wave/dw-"):
+        return
+    match = _SUPERVISED_WAVE_REF_RE.fullmatch(wave_ref)
+    if match is None:
+        raise RuntimeError("noncanonical branch in the supervised namespace")
+    wave_index = int(match.group("wave"))
+    run_id = match.group("run")
+    slug = supervised_spool_wave_slug(run_id, wave_index)
+    expected_ref = f"refs/heads/dev-wave/{run_id}/w{wave_index:03d}"
+    if wave_ref != expected_ref:
+        raise RuntimeError("noncanonical branch in the supervised namespace")
+    fragments = getattr(plan, "fragments", None)
+    if not isinstance(fragments, tuple):
+        raise RuntimeError("supervised fold plan has no closed fragment tuple")
+    mismatches = [
+        getattr(fragment, "wave", None)
+        for fragment in fragments
+        if getattr(fragment, "wave", None) != slug
+    ]
+    if mismatches:
+        raise RuntimeError("supervised fragment wave does not match the branch-derived slug")
+
+
 def _land_fold_date() -> str:
     """この land request が plan へ束縛する canonical date。"""
 
@@ -1386,6 +1420,7 @@ def _fold_main_locked(
     fold: object,
     plan: object,
     tested_tip: str,
+    landed_commits: Sequence[str],
     wave_ref: str,
     rollback_ref: str,
     snapshots: Sequence[_PathSnapshot],
@@ -1452,6 +1487,7 @@ def _fold_main_locked(
         commit = _git(
             repository.main,
             "commit", "--no-gpg-sign", "-F", str(message_path),
+            "--cleanup=verbatim", f"--author={FOLD_AUTHOR_IDENTITY}",
         )
         if commit.returncode != 0:
             raise RuntimeError(
@@ -1483,6 +1519,15 @@ def _fold_main_locked(
         _verify_wave_clean(repository)
         if _pending_spool_paths(repository.main):
             raise RuntimeError("pending fragments reappeared after fold commit")
+        declared = verify_declared_fold_commit(
+            repository.main,
+            fold_commit_sha=fold_commit,
+            landed_main_sha=fold_commit,
+            landed_commits=landed_commits,
+            wave_tip=tested_tip,
+        )
+        if not declared.ok:
+            raise RuntimeError(f"declared fold shape rejected: {declared.detail}")
         return LandResult(
             RC_OK,
             "landed",
@@ -1490,6 +1535,7 @@ def _fold_main_locked(
             successful_land.main_before,
             fold_commit,
             tested_tip,
+            fold_commit,
         )
     except (Exception, KeyboardInterrupt) as exc:  # fold failure は必ず landed 以外へ畳む。
         rollback_failures = _rollback_fold(
@@ -1711,6 +1757,7 @@ def land(request: LandRequest) -> LandResult:
                             + "; ".join(issue.message for issue in layout_issues)
                         )
                     fold_paths = _fold_plan_paths(active_plan)
+                    _verify_supervised_fragment_wave(wave_ref, active_plan)
                     pending_before = _pending_spool_paths(repository.main)
                     if set(pending_before) - set(fold_paths):
                         raise RuntimeError("stored fold plan does not cover every pending fragment candidate")
@@ -1746,6 +1793,7 @@ def land(request: LandRequest) -> LandResult:
                     fold=fold,
                     plan=active_plan,
                     tested_tip=tested_tip,
+                    landed_commits=audited,
                     wave_ref=wave_ref,
                     rollback_ref=tested_tip,
                     snapshots=recovery_snapshots,
@@ -1757,6 +1805,7 @@ def land(request: LandRequest) -> LandResult:
             try:
                 plan = fold.plan_fold(repository.wave, fold_date=fold_date)
                 fold_paths = _fold_plan_paths(plan)
+                _verify_supervised_fragment_wave(wave_ref, plan)
                 pending_candidate = _pending_spool_paths(repository.wave)
                 if set(pending_candidate) - set(fold_paths):
                     raise RuntimeError("fold plan does not cover every pending fragment candidate")
@@ -1776,6 +1825,23 @@ def land(request: LandRequest) -> LandResult:
                     repository,
                     collision_paths=fold_collision_paths,
                 )
+            if getattr(plan, "status", None) == "noop":
+                declared = verify_declared_fold_commit(
+                    repository.main if locked_main == tested_tip else repository.wave,
+                    fold_commit_sha=None,
+                    landed_main_sha=tested_tip,
+                    landed_commits=audited,
+                    wave_tip=tested_tip,
+                )
+                if not declared.ok:
+                    return LandResult(
+                        RC_FOLD_FAILED,
+                        "fold-failed",
+                        f"declared no-fold shape rejected: {declared.detail}",
+                        main_before,
+                        locked_main,
+                        tested_tip,
+                    )
             if locked_main == tested_tip:
                 if gitlinks_changed and not _gitlinks_synchronized(
                     repository,
@@ -1821,6 +1887,7 @@ def land(request: LandRequest) -> LandResult:
                     fold=fold,
                     plan=plan,
                     tested_tip=tested_tip,
+                    landed_commits=audited,
                     wave_ref=wave_ref,
                     rollback_ref=tested_tip,
                     snapshots=snapshots,
@@ -1879,6 +1946,7 @@ def land(request: LandRequest) -> LandResult:
                 fold=fold,
                 plan=plan,
                 tested_tip=tested_tip,
+                landed_commits=audited,
                 wave_ref=wave_ref,
                 rollback_ref=locked_main,
                 snapshots=snapshots,

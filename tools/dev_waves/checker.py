@@ -20,6 +20,7 @@ from .git_state import (
     read_child_git_trace,
     snapshot_repo,
     trust_root,
+    verify_declared_fold_commit,
     verify_ff_chain,
 )
 from .receipt import (
@@ -98,6 +99,7 @@ class VerificationInput:
     total_deadline_boottime_ns: int
     immutable_digests_before: tuple[tuple[str, str], ...]
     immutable_digests_after: tuple[tuple[str, str], ...]
+    receipt_schema_sha256: str
 
 
 @dataclass(frozen=True)
@@ -385,7 +387,7 @@ def _active_reobserve(
 
 _ORDER = (
     "worker", "output", "receipt", "cost-permission", "main-state", "ff-chain",
-    "commit-chain", "wave-branch", "git-trace", "selected-task", "worklog",
+    "commit-chain", "wave-branch", "fold-commit", "git-trace", "selected-task", "worklog",
     "check-docs", "task-run", "handoff", "fixed-checks", "trust-root",
     "remote-state", "active-reobservation",
 )
@@ -403,7 +405,10 @@ def verify_wave(spec: VerificationInput) -> VerificationReport:
     try:
         receipt_result = parse_claude_result(
             spec.stdout_path, max_bytes=spec.max_output_bytes,
-            binding=ReceiptBinding(spec.run_id, spec.wave_index, spec.before_main_sha),
+            binding=ReceiptBinding(
+                spec.run_id, spec.wave_index, spec.before_main_sha,
+                spec.receipt_schema_sha256,
+            ),
         )
         receipt = receipt_result.receipt
         slots["output"] = _pass("output")
@@ -462,41 +467,61 @@ def verify_wave(spec: VerificationInput) -> VerificationReport:
         slots["main-state"] = _fail("main-state", ReasonCode.MAIN_MOVED, "snapshot-failed")
 
     completed = receipt is not None and receipt.outcome is Outcome.COMPLETED
-    if after_snapshot is None or receipt is None:
-        slots["ff-chain"] = _skip("ff-chain", "git-or-receipt-unavailable")
-        slots["commit-chain"] = _skip("commit-chain", "git-or-receipt-unavailable")
-    else:
-        try:
-            ff = verify_ff_chain(
-                spec.repo_root, spec.before_main_sha, after_snapshot.head_sha,
-                receipt.landed_commits, completed=completed,
-                timeout_s=_remaining_s(spec.total_deadline_boottime_ns, 30),
-            )
-            if ff.ok:
-                slots["ff-chain"] = _pass("ff-chain")
-                slots["commit-chain"] = _pass("commit-chain")
-            elif ff.reason is ReasonCode.COMMIT_MISMATCH:
-                slots["ff-chain"] = _pass("ff-chain", "ancestor-only")
-                slots["commit-chain"] = _fail("commit-chain", ff.reason, "sequence-mismatch")
-            else:
-                slots["ff-chain"] = _fail("ff-chain", ff.reason or ReasonCode.MAIN_NOT_FF, "relation")
-                slots["commit-chain"] = _skip("commit-chain", "ff-failed")
-        except (DevWavesError, ValueError, subprocess.TimeoutExpired):
-            slots["ff-chain"] = _fail("ff-chain", ReasonCode.MAIN_NOT_FF, "git-error")
-            slots["commit-chain"] = _skip("commit-chain", "ff-failed")
-
     wave_tip_before: Optional[str] = None
     try:
         wave_tip_before = branch_tip(
             spec.repo_root, spec.wave_branch,
             timeout_s=_remaining_s(spec.total_deadline_boottime_ns, 30),
         )
-        if completed and (
+    except (DevWavesError, ValueError, subprocess.TimeoutExpired):
+        pass
+
+    if after_snapshot is None or receipt is None or wave_tip_before is None:
+        slots["ff-chain"] = _skip("ff-chain", "git-or-receipt-unavailable")
+        slots["commit-chain"] = _skip("commit-chain", "git-or-receipt-unavailable")
+    else:
+        try:
+            main_relation = verify_ff_chain(
+                spec.repo_root, spec.before_main_sha, after_snapshot.head_sha,
+                (), completed=completed,
+                timeout_s=_remaining_s(spec.total_deadline_boottime_ns, 30),
+            )
+            sequence = verify_ff_chain(
+                spec.repo_root, spec.before_main_sha, wave_tip_before,
+                receipt.landed_commits, completed=completed,
+                timeout_s=_remaining_s(spec.total_deadline_boottime_ns, 30),
+            )
+            if main_relation.ok or main_relation.reason is ReasonCode.COMMIT_MISMATCH:
+                slots["ff-chain"] = _pass("ff-chain")
+            else:
+                slots["ff-chain"] = _fail(
+                    "ff-chain", main_relation.reason or ReasonCode.MAIN_NOT_FF, "relation",
+                )
+            if slots["ff-chain"].status != "pass":
+                slots["commit-chain"] = _skip("commit-chain", "ff-failed")
+            elif sequence.ok:
+                slots["commit-chain"] = _pass("commit-chain")
+            elif sequence.reason is ReasonCode.COMMIT_MISMATCH:
+                slots["commit-chain"] = _fail(
+                    "commit-chain", sequence.reason, "sequence-mismatch",
+                )
+            else:
+                slots["commit-chain"] = _fail(
+                    "commit-chain", sequence.reason or ReasonCode.COMMIT_MISMATCH,
+                    "wave-relation",
+                )
+        except (DevWavesError, ValueError, subprocess.TimeoutExpired):
+            slots["ff-chain"] = _fail("ff-chain", ReasonCode.MAIN_NOT_FF, "git-error")
+            slots["commit-chain"] = _skip("commit-chain", "ff-failed")
+
+    if wave_tip_before is not None:
+        completed_mismatch = completed and (
             receipt is None or after_snapshot is None or not receipt.landed_commits or
             after_snapshot.head_sha != receipt.landed_main_sha or
-            receipt.landed_main_sha != receipt.landed_commits[-1] or
-            wave_tip_before != receipt.landed_main_sha
-        ):
+            wave_tip_before != receipt.landed_commits[-1] or
+            receipt.schema_version == 1 and receipt.landed_main_sha != receipt.landed_commits[-1]
+        )
+        if completed_mismatch:
             slots["wave-branch"] = _fail("wave-branch", ReasonCode.COMMIT_MISMATCH, "tip-mismatch")
         elif not completed and wave_tip_before != spec.before_main_sha:
             slots["wave-branch"] = _fail(
@@ -504,8 +529,36 @@ def verify_wave(spec: VerificationInput) -> VerificationReport:
             )
         else:
             slots["wave-branch"] = _pass("wave-branch")
-    except (DevWavesError, ValueError, subprocess.TimeoutExpired):
+    else:
         slots["wave-branch"] = _fail("wave-branch", ReasonCode.COMMIT_MISMATCH, "tip-unavailable")
+
+    if receipt is None or after_snapshot is None or wave_tip_before is None:
+        slots["fold-commit"] = _skip("fold-commit", "git-or-receipt-unavailable")
+    elif not completed:
+        slots["fold-commit"] = _pass("fold-commit", "not-completed")
+    elif receipt.schema_version == 1:
+        slots["fold-commit"] = _pass("fold-commit", "legacy-v1")
+    else:
+        try:
+            declared = verify_declared_fold_commit(
+                spec.repo_root,
+                fold_commit_sha=receipt.fold_commit_sha,
+                landed_main_sha=receipt.landed_main_sha or "",
+                landed_commits=receipt.landed_commits,
+                wave_tip=wave_tip_before,
+                timeout_s=_remaining_s(spec.total_deadline_boottime_ns, 30),
+            )
+            slots["fold-commit"] = (
+                _pass("fold-commit") if declared.ok else
+                _fail(
+                    "fold-commit", declared.reason or ReasonCode.COMMIT_MISMATCH,
+                    declared.detail,
+                )
+            )
+        except (DevWavesError, ValueError, subprocess.TimeoutExpired):
+            slots["fold-commit"] = _fail(
+                "fold-commit", ReasonCode.COMMIT_MISMATCH, "git-error",
+            )
 
     trace = read_child_git_trace(spec.git_trace_path)
     if trace.malformed or trace.push_attempted:

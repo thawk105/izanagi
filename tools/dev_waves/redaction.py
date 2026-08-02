@@ -24,7 +24,7 @@ SANITIZED_FIELD_ALLOWLIST = frozenset({
     "action", "actual", "after_main_sha", "argv", "argv_digest",
     "artifact", "base_main_sha", "before_main_sha", "boot_id", "byte_length", "code",
     "child_task_run_id", "created_utc", "cwd", "detail", "digest", "elapsed_s", "expected",
-    "executable_sha256", "field", "kind", "label", "landed_commits",
+    "executable_sha256", "field", "fold_commit_sha", "kind", "label", "landed_commits",
     "landed_main_sha", "length", "limits", "main_worktree", "max_run_bytes",
     "max_wave_output_bytes", "max_waves", "message", "observed", "operation",
     "outcome", "path", "per_wave_budget_usd", "per_wave_timeout_s", "profile",

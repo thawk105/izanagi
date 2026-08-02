@@ -26,6 +26,7 @@ from typing import Iterable, Mapping, Sequence
 
 
 SCHEMA = "izanagi-spool-v1"
+GLOBAL_ORDINAL_START_DATE = "2026-07-26"
 LEDGERS = ("worklog", "decisions", "failures")
 LEDGER_RANK = {name: rank for rank, name in enumerate(LEDGERS)}
 STATE_NAME = "izanagi-spool-fold-state.json"
@@ -225,12 +226,17 @@ def _issue(path: str, text: str, offset: int, code: str, message: str) -> Issue:
     return Issue(path, _line(text, offset), code, message)
 
 
-def _valid_date(value: str) -> bool:
+def _parse_iso_date(value: object) -> _datetime.date | None:
+    if not isinstance(value, str):
+        return None
     try:
-        _datetime.date.fromisoformat(value)
+        return _datetime.date.fromisoformat(value)
     except ValueError:
-        return False
-    return True
+        return None
+
+
+def _valid_date(value: str) -> bool:
+    return _parse_iso_date(value) is not None
 
 
 def _current_fold_date() -> str:
@@ -836,27 +842,112 @@ def _entry_active_items(text: str, heading: re.Match[str], end: int, rel: str) -
     return items
 
 
-def _extract_latest_active(worklog: str, archives: Mapping[str, str] | None = None) -> tuple[int, list[_TaskItem]]:
+def _global_ordinal_entries(
+    worklog: str,
+    archives: Mapping[str, str] | None = None,
+) -> dict[int, tuple[str, str, re.Match[str], int]]:
+    """見出し日付で global 世代だけを抽出し、境界 signature も検査する。"""
+
+    parsed_boundary = _parse_iso_date(GLOBAL_ORDINAL_START_DATE)
+    if parsed_boundary is None:
+        raise SpoolValidationError([
+            Issue(
+                "tools/spool_fold.py",
+                1,
+                "global-ordinal-boundary",
+                "GLOBAL_ORDINAL_START_DATE が実在する ISO date でない",
+            )
+        ])
+    boundary = parsed_boundary or _datetime.date.min
     sources = [("docs/worklog.md", worklog)]
     sources.extend(
         (f"docs/archive/{name}", text)
         for name, text in sorted((archives or {}).items())
     )
     entries_by_ordinal: dict[int, tuple[str, str, re.Match[str], int]] = {}
-    latest_ordinal: int | None = None
+    boundary_ordinals: list[int] = []
+    current_dates: list[_datetime.date] = []
     for rel, text in sources:
         entries = list(ARCHIVE_ENTRY_RE.finditer(text))
         for index, heading in enumerate(entries):
+            date_text = heading.group("date")
+            parsed_entry_date = _parse_iso_date(date_text)
+            if parsed_entry_date is None:
+                raise SpoolValidationError([
+                    Issue(
+                        rel,
+                        _line(text, heading.start()),
+                        "worklog-date",
+                        f"worklog 見出し日付 {date_text!r} が実在日でない",
+                    )
+                ])
+            # invalid 時の唯一の拒否は直上の worklog-date gate。gate の変異を
+            # raw date 例外や比較 TypeError が代替しないよう安全な値へ畳む。
+            entry_date = parsed_entry_date or _datetime.date.min
+            if rel == "docs/worklog.md":
+                current_dates.append(entry_date)
+            if entry_date < boundary:
+                continue
             ordinal_text = heading.group("ordinal")
             if ordinal_text is None:
-                continue
+                raise SpoolValidationError([
+                    Issue(
+                        rel,
+                        _line(text, heading.start()),
+                        "worklog-ordinal",
+                        "global 世代の worklog entry に ordinal がない",
+                    )
+                ])
             ordinal = int(ordinal_text)
+            if entry_date == boundary:
+                boundary_ordinals.append(ordinal)
             if ordinal in entries_by_ordinal:
-                raise SpoolValidationError([Issue(rel, _line(text, heading.start()), "worklog-ordinal", f"worklog ordinal ({ordinal}) が重複")])
+                raise SpoolValidationError([
+                    Issue(
+                        rel,
+                        _line(text, heading.start()),
+                        "worklog-ordinal",
+                        f"global worklog ordinal ({ordinal}) が重複",
+                    )
+                ])
             end = entries[index + 1].start() if index + 1 < len(entries) else len(text)
             entries_by_ordinal[ordinal] = (rel, text, heading, end)
-            if rel == "docs/worklog.md":
-                latest_ordinal = ordinal
+
+    if current_dates and any(entry_date < boundary for entry_date in current_dates):
+        raise SpoolValidationError([
+            Issue(
+                "docs/worklog.md",
+                1,
+                "global-ordinal-boundary",
+                "現行 worklog に global ordinal 境界日前の entry がある",
+            )
+        ])
+    # Phase 1/2 からの実履歴 corpus だけは境界 entry の存在も signature に含める。
+    # 短い合成 fixture には歴史全体を要求しない。欠番・最大 ordinal・日付/ordinal
+    # の単調性は固定しない。
+    full_history_corpus = "worklog-phase1-2.md" in (archives or {})
+    if (full_history_corpus and not boundary_ordinals) or (
+        boundary_ordinals and 1 not in boundary_ordinals
+    ):
+        raise SpoolValidationError([
+            Issue(
+                "docs/archive",
+                1,
+                "global-ordinal-boundary",
+                f"global ordinal 境界日 {GLOBAL_ORDINAL_START_DATE} の系列が (1) から始まらない",
+            )
+        ])
+    return entries_by_ordinal
+
+
+def _extract_latest_active(worklog: str, archives: Mapping[str, str] | None = None) -> tuple[int, list[_TaskItem]]:
+    entries_by_ordinal = _global_ordinal_entries(worklog, archives)
+    current_entries = list(ARCHIVE_ENTRY_RE.finditer(worklog))
+    latest_ordinal = (
+        int(current_entries[-1].group("ordinal"))
+        if current_entries and current_entries[-1].group("ordinal") is not None
+        else None
+    )
     if latest_ordinal is None:
         raise SpoolValidationError([Issue("docs/worklog.md", 1, "worklog-entry", "現行 worklog entry がない")])
     item_maps: dict[int, dict[str, _TaskItem]] = {}
@@ -1341,10 +1432,6 @@ def plan_fold(
             raise SpoolValidationError([Issue(path.relative_to(repo).as_posix(), 1, "archive", "archive worklog が regular file でない")])
         archives[path.name] = _decode_canonical(path.relative_to(repo).as_posix(), path.read_bytes())
 
-    current_entries = list(WORKLOG_ENTRY_RE.finditer(worklog))
-    if current_entries and fold_date < current_entries[-1].group("date"):
-        raise SpoolValidationError([Issue("docs/worklog.md", _line(worklog, current_entries[-1].start()), "fold-date-order", "fold 実行日が現行末尾 entry より前")])
-
     records = _receipt_records(receipt)
     seen_content: set[object] = set()
     seen_identity: set[tuple[str, str, str]] = set()
@@ -1395,15 +1482,7 @@ def plan_fold(
         allocations[symbol.key] = allocated
 
     prior_ordinal, active = _extract_latest_active(worklog, archives)
-    max_ordinal = max(
-        (
-            int(match.group("ordinal"))
-            for text in [worklog, *archives.values()]
-            for match in ARCHIVE_ENTRY_RE.finditer(text)
-            if match.group("ordinal") is not None
-        ),
-        default=prior_ordinal,
-    )
+    max_ordinal = max(_global_ordinal_entries(worklog, archives), default=prior_ordinal)
     rendered_worklog = worklog_raw
     rendered_phase = phase
     ordinal = max_ordinal + 1

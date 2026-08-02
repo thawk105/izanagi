@@ -80,7 +80,7 @@ def _repo(tmp_path: Path, *, active: tuple[str, ...] = ("[T-001]",), limit: int 
         "### 裁定・完了記録\n\n- [T-052] 完了済み\n",
     )
     _write(repo / "docs/archive/README.md", "# archive\n\n## 現在の収容物\n")
-    _write(repo / "docs/archive/worklog-old.md", "## 2026-07-31 — old\n\n### 次の一手\n\n- [T-049] old\n")
+    _write(repo / "docs/archive/worklog-old.md", "## 2026-07-25 — old\n\n### 次の一手\n\n- [T-049] old\n")
     _write(repo / "docs/spool/README.md", "# spool\n")
     _write(repo / "docs/spool/FOLDED.md", "# Fold receipts\n")
     for ledger in spool_fold.LEDGERS:
@@ -170,6 +170,174 @@ def _target(plan, rel: str):
     return next(target for target in plan.targets if target.path == rel)
 
 
+def test_legacy_daily_ordinals_are_excluded_from_global_namespace(tmp_path: Path) -> None:
+    """旧日次 ordinal の世代内・global との数値衝突は global uniqueness の対象外。"""
+
+    repo = _repo(tmp_path)
+    legacy = "## 2026-07-25 (1) — legacy\n\n### 次の一手\n\n- [T-001] legacy\n"
+    _write(repo / "docs/archive/worklog-legacy-a.md", legacy)
+    _write(repo / "docs/archive/worklog-legacy-b.md", legacy.replace("legacy\n", "legacy duplicate\n", 1))
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "## 2026-08-02 (2) — fold test" in rendered
+
+
+def test_global_max_ordinal_ignores_larger_legacy_ordinal(tmp_path: Path) -> None:
+    """RB-03: legacy (99) があっても global (1) の次は (2)。"""
+
+    repo = _repo(tmp_path)
+    _write(
+        repo / "docs/archive/worklog-old.md",
+        "## 2026-07-25 (99) — legacy\n\n### 次の一手\n\n- [T-001] legacy\n",
+    )
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "## 2026-08-02 (2) — fold test" in rendered
+
+
+def test_global_ordinal_duplicate_is_rejected(tmp_path: Path) -> None:
+    """境界日以降の ordinal 重複は従来どおり fail-closed。"""
+
+    repo = _repo(tmp_path)
+    _write(
+        repo / "docs/archive/worklog-global-duplicate.md",
+        "## 2026-07-26 (1) — duplicate\n\n### 次の一手\n\n- [T-001] duplicate\n",
+    )
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _raises("worklog-ordinal", spool_fold.plan_fold, repo)
+
+
+def test_global_ordinal_gap_is_allowed_and_next_uses_max_plus_one(tmp_path: Path) -> None:
+    """N29: global の欠番を受理し、次番号は個数でなく最大値 + 1。"""
+
+    repo = _repo(tmp_path)
+    _write(
+        repo / "docs/archive/worklog-global-gap.md",
+        "## 2026-07-26 (1) — one\n\n### 次の一手\n\n- [T-001] one\n\n"
+        "## 2026-07-27 (2) — two\n\n### 次の一手\n\n- [T-001] two\n",
+    )
+    worklog = (repo / "docs/worklog.md").read_text(encoding="utf-8")
+    _write(repo / "docs/worklog.md", worklog.replace("2026-08-01 (1)", "2026-08-01 (5)"))
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "## 2026-08-02 (6) — fold test" in rendered
+
+
+def test_global_carry_resolves_global_entry_not_legacy_collision(tmp_path: Path) -> None:
+    """同じ ordinal が旧世代にもあっても carry の本文は global 世代へ束縛する。"""
+
+    repo = _repo(tmp_path)
+    _write(
+        repo / "docs/archive/worklog-old.md",
+        "## 2026-07-25 (1) — legacy\n\n### 次の一手\n\n- [T-001] legacy body\n",
+    )
+    _write(
+        repo / "docs/archive/worklog-global.md",
+        "## 2026-07-26 (1) — global\n\n### 次の一手\n\n- [T-001] global body\n",
+    )
+    _write(
+        repo / "docs/worklog.md",
+        "# worklog\n\n## ローテーション\n\n---\n\n"
+        "## 2026-08-01 (2) — current\n\n### 次の一手\n\n"
+        "- [T-001] 変わらず ((1) 参照)\n",
+    )
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "global を更新", _digest("- [T-001] global body\n")),),
+        ),
+    )
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] global を更新" in rendered
+
+
+def test_global_carry_cannot_fall_back_to_legacy_only_target(tmp_path: Path) -> None:
+    """N28: global map にない carry 参照を旧世代だけから救済しない。"""
+
+    repo = _repo(tmp_path)
+    _write(
+        repo / "docs/archive/worklog-old.md",
+        "## 2026-07-25 (1) — legacy\n\n### 次の一手\n\n- [T-001] legacy body\n",
+    )
+    _write(
+        repo / "docs/worklog.md",
+        "# worklog\n\n## ローテーション\n\n---\n\n"
+        "## 2026-08-01 (2) — current\n\n### 次の一手\n\n"
+        "- [T-001] 変わらず ((1) 参照)\n",
+    )
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _raises("carry-reference", spool_fold.plan_fold, repo)
+
+
+def test_boundary_constant_shift_is_detected_by_real_corpus_sentinel() -> None:
+    """N27: 実 corpus signature が境界の 07-25 へのずれを単独で検出する。"""
+
+    checkout = Path(__file__).resolve().parents[2]
+    worklog = (checkout / "docs/worklog.md").read_text(encoding="utf-8")
+    archives = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in sorted((checkout / "docs/archive").glob("worklog-*.md"))
+    }
+    assert spool_fold._global_ordinal_entries(worklog, archives)
+    original = spool_fold.GLOBAL_ORDINAL_START_DATE
+    try:
+        spool_fold.GLOBAL_ORDINAL_START_DATE = "2026-07-25"
+        _raises("worklog-ordinal", spool_fold._global_ordinal_entries, worklog, archives)
+        spool_fold.GLOBAL_ORDINAL_START_DATE = "2026-07-27"
+        _raises("global-ordinal-boundary", spool_fold._global_ordinal_entries, worklog, archives)
+        spool_fold.GLOBAL_ORDINAL_START_DATE = "9999-12-31"
+        _raises("global-ordinal-boundary", spool_fold._global_ordinal_entries, worklog, archives)
+    finally:
+        spool_fold.GLOBAL_ORDINAL_START_DATE = original
+
+
+def test_real_corpus_sentinel_rejects_missing_boundary_date() -> None:
+    """RB-01: 実履歴 corpus では境界 entry が 0 件なら黙って省略しない。"""
+
+    checkout = Path(__file__).resolve().parents[2]
+    worklog = (checkout / "docs/worklog.md").read_text(encoding="utf-8")
+    archives = {
+        path.name: path.read_text(encoding="utf-8").replace(
+            "## 2026-07-26 (", "## 2026-07-28 (",
+        )
+        for path in sorted((checkout / "docs/archive").glob("worklog-*.md"))
+    }
+    _raises("global-ordinal-boundary", spool_fold._global_ordinal_entries, worklog, archives)
+
+
+def test_impossible_heading_date_is_rejected(tmp_path: Path) -> None:
+    """N30: regex には一致する非実在の worklog 見出し日付を拒否する。"""
+
+    repo = _repo(tmp_path)
+    _write(
+        repo / "docs/archive/worklog-impossible-date.md",
+        "## 2026-99-99 (2) — impossible\n\n### 次の一手\n\n- [T-001] impossible\n",
+    )
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _raises("worklog-date", spool_fold.plan_fold, repo)
+
+
+def test_fold_date_may_precede_the_current_entry_date(tmp_path: Path) -> None:
+    """RB-02: global ordinal は増加させるが見出し日付の単調性は要求しない。"""
+
+    repo = _repo(tmp_path)
+    worklog = (repo / "docs/worklog.md").read_text(encoding="utf-8")
+    _write(repo / "docs/worklog.md", worklog.replace("2026-08-01 (1)", "2026-07-29 (1)"))
+    _fragment(
+        repo, "worklog", _worklog_body(repo), authored="2026-07-28",
+    )
+    plan = spool_fold.plan_fold(repo, fold_date="2026-07-28")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "## 2026-07-28 (2) — fold test" in rendered
+
+
 def test_n01_frontmatter_filename_mismatch_is_rejected(tmp_path: Path) -> None:
     """N01: frontmatter と filename の一致 gate を単独で発火させる。"""
 
@@ -212,7 +380,7 @@ def test_n05_task_allocation_includes_archive_population(tmp_path: Path) -> None
     """N05: T 採番母集団に archive の最大 ID を含める。"""
 
     repo = _repo(tmp_path)
-    _write(repo / "docs/archive/worklog-old.md", "## 2026-07-31 — old\n\n### 次の一手\n\n- [T-090] old\n")
+    _write(repo / "docs/archive/worklog-old.md", "## 2026-07-25 — old\n\n### 次の一手\n\n- [T-090] old\n")
     _fragment(repo, "worklog", _worklog_body(repo, new=(("archive-next", "新規"),)))
     plan = spool_fold.plan_fold(repo)
     assert dict(plan.allocations)["wave-a/T:archive-next"] == "[T-091]"
@@ -236,7 +404,7 @@ def test_n07_task_id_is_three_digit_canonical(tmp_path: Path) -> None:
     phase = (repo / "docs/phase3.md").read_text(encoding="utf-8")
     phase = phase.replace("[T-050]", "[T-001]").replace("[T-051]", "[T-002]").replace("[T-052]", "T-NNN")
     _write(repo / "docs/phase3.md", phase)
-    _write(repo / "docs/archive/worklog-old.md", "## 2026-07-31 — old\n\n### 次の一手\n\n")
+    _write(repo / "docs/archive/worklog-old.md", "## 2026-07-25 — old\n\n### 次の一手\n\n")
     _fragment(repo, "worklog", _worklog_body(repo, carry=(), new=(("three-digit", "新規"),)))
     plan = spool_fold.plan_fold(repo)
     assert dict(plan.allocations)["wave-a/T:three-digit"] == "[T-003]"
@@ -768,6 +936,66 @@ def _real_entry(ordinal: int) -> str:
             matches.append(text[heading.start():end])
     assert len(matches) == 1, (ordinal, len(matches))
     return matches[0]
+
+
+def _copy_real_canonical_family(tmp_path: Path) -> Path:
+    checkout = Path(__file__).resolve().parents[2]
+    repo = tmp_path / "real-canonical"
+    fixed_paths = (
+        "docs/worklog.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "docs/phase3.md",
+        "docs/archive/README.md",
+        "docs/spool/README.md",
+        "docs/spool/FOLDED.md",
+        "docs/spool/worklog/README.md",
+        "docs/spool/decisions/README.md",
+        "docs/spool/failures/README.md",
+        "tools/check_docs.py",
+    )
+    sources = [checkout / rel for rel in fixed_paths]
+    sources.extend(sorted((checkout / "docs/archive").glob("worklog-*.md")))
+    for source in sources:
+        destination = repo / source.relative_to(checkout)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+        assert destination.read_bytes() == source.read_bytes()
+    return repo
+
+
+def test_n37_real_repo_canonical_family_requires_archive_active_history(tmp_path: Path) -> None:
+    """N37: 実 canonical の archive を active-history 解決へ渡す経路を固定する。"""
+
+    repo = _copy_real_canonical_family(tmp_path)
+    worklog = (repo / "docs/worklog.md").read_text(encoding="utf-8")
+    archives = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in sorted((repo / "docs/archive").glob("worklog-*.md"))
+    }
+    _raises("carry-reference", spool_fold._extract_latest_active, worklog, {})
+    assert spool_fold._extract_latest_active(worklog, archives)[0] > 0
+    current_entries = list(spool_fold.WORKLOG_ENTRY_RE.finditer(worklog))
+    assert current_entries
+    fold_date = current_entries[-1].group("date")
+    fragment = _fragment(
+        repo,
+        "worklog",
+        "## 本文\n\n- 実 canonical family の probe\n\n## 次の一手差分\n",
+        authored=fold_date,
+        wave="real-repo-probe",
+        title="実 canonical family smoke",
+    )
+
+    plan = spool_fold.plan_fold(repo, fold_date=fold_date)
+
+    assert plan.status == "planned"
+    assert len(plan.fragments) == 1
+    assert plan.fragments[0].path == fragment.relative_to(repo).as_posix()
+    assert plan.fragments[0].path.startswith("docs/spool/worklog/")
+    assert plan.gc_paths == (plan.fragments[0].path,)
+    target_paths = {target.path for target in plan.targets}
+    assert {"docs/worklog.md", "docs/spool/FOLDED.md"} <= target_paths
 
 
 def test_real_worklog_105_to_106_next_action_is_byte_exact_golden() -> None:

@@ -13,6 +13,8 @@ _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
 from tools.dev_waves.git_state import (
+    FOLD_AUTHOR_IDENTITY,
+    FOLD_COMMIT_MESSAGE,
     GIT_COMMANDS,
     create_exact_worktree,
     create_isolated_checkout,
@@ -20,8 +22,11 @@ from tools.dev_waves.git_state import (
     resolve_main_worktree,
     resolve_repo_identity,
     snapshot_repo,
+    supervised_spool_wave_identity,
+    supervised_spool_wave_slug,
     trust_root,
     update_submodules_no_fetch,
+    verify_declared_fold_commit,
     verify_ff_chain,
 )
 from tools.dev_waves.schema import DevWavesError, ReasonCode
@@ -156,6 +161,277 @@ def test_verify_ff_chain_requires_exact_order_and_noncompleted_main_unchanged():
         assert mismatch.reason is ReasonCode.COMMIT_MISMATCH
         assert verify_ff_chain(repo, before, before, (), completed=False).ok
         assert verify_ff_chain(repo, before, after, (), completed=False).reason is ReasonCode.MAIN_MOVED
+
+
+def _commit(repo: Path, message: str, *paths: str) -> str:
+    _git(repo, "add", "--", *paths)
+    _git(repo, "commit", "-m", message)
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def _seed_pending(repo: Path, count: int = 1) -> tuple[str, ...]:
+    folded = repo / "docs/spool/FOLDED.md"
+    folded.parent.mkdir(parents=True, exist_ok=True)
+    folded.write_text("# folded\n", encoding="utf-8")
+    paths = []
+    for index in range(1, count + 1):
+        relative = f"docs/spool/worklog/2000-01-01-dev-wave-dw-{'a' * 32}-w001-{index}.md"
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"fragment {index}\n", encoding="utf-8")
+        paths.append(relative)
+    _commit(repo, "seed pending", "docs/spool/FOLDED.md", *paths)
+    return tuple(paths)
+
+
+def _code_commit(repo: Path, value: str = "wave") -> str:
+    (repo / "base.txt").write_text(value + "\n", encoding="utf-8")
+    return _commit(repo, "wave code", "base.txt")
+
+
+def _wave_fragment_commit(repo: Path) -> tuple[str, tuple[str, ...]]:
+    folded = repo / "docs/spool/FOLDED.md"
+    folded.parent.mkdir(parents=True, exist_ok=True)
+    folded.write_text("# folded\n", encoding="utf-8")
+    _commit(repo, "seed fold state", "docs/spool/FOLDED.md")
+    relative = f"docs/spool/worklog/2000-01-01-dev-wave-dw-{'a' * 32}-w001-1.md"
+    path = repo / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("fragment 1\n", encoding="utf-8")
+    (repo / "base.txt").write_text("wave\n", encoding="utf-8")
+    tip = _commit(repo, "wave adds pending fragment", "base.txt", relative)
+    return tip, (relative,)
+
+
+def _fold_commit(repo: Path, fragments: tuple[str, ...], *, extra_path: str | None = None) -> str:
+    for relative in fragments:
+        (repo / relative).unlink()
+    folded = repo / "docs/spool/FOLDED.md"
+    folded.write_text(folded.read_text(encoding="utf-8") + "fold\n", encoding="utf-8")
+    paths = ["docs/spool/FOLDED.md", *fragments]
+    if extra_path is not None:
+        (repo / extra_path).write_text("outside\n", encoding="utf-8")
+        paths.append(extra_path)
+    _git(repo, "add", "-A", "--", *paths)
+    name, email = FOLD_AUTHOR_IDENTITY.rsplit(" <", 1)
+    env = dict(os.environ)
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_SYSTEM": os.devnull,
+        "GIT_AUTHOR_NAME": name,
+        "GIT_AUTHOR_EMAIL": email[:-1],
+    })
+    result = subprocess.run(
+        ["git", "commit", "--no-gpg-sign", "--cleanup=verbatim", "-F", "-"],
+        cwd=repo, env=env, input=FOLD_COMMIT_MESSAGE.decode("ascii"), text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def test_declared_fold_accepts_exact_direct_child_shape_without_plan_comparison():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        tip, pending = _wave_fragment_commit(repo)
+        fold = _fold_commit(repo, pending)
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert result.ok, result
+
+
+def test_n31_landed_interval_cannot_hide_an_earlier_fold():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo, 2)
+        tip = _code_commit(repo)
+        first_fold = _fold_commit(repo, pending[:1])
+        second_fold = _fold_commit(repo, pending[1:])
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=second_fold, landed_main_sha=second_fold,
+            landed_commits=(tip, first_fold), wave_tip=first_fold,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_n32_null_declared_fold_rejects_pending_fragment():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        _seed_pending(repo)
+        tip = _code_commit(repo)
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=None, landed_main_sha=tip,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "null-pending-fragment"
+
+
+def test_p07_null_declared_fold_accepts_zero_pending_fragments():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        tip = _code_commit(repo)
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=None, landed_main_sha=tip,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert result.ok, result
+
+
+def test_n33_merge_fold_is_rejected_by_the_parent_count_gate():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        tip = _code_commit(repo)
+        valid_fold = _fold_commit(repo, pending)
+        tree = _git(repo, "rev-parse", f"{valid_fold}^{{tree}}")
+        tip_tree = _git(repo, "rev-parse", f"{tip}^{{tree}}")
+        extra = _git(repo, "commit-tree", tip_tree, "-p", f"{tip}^", "-m", "same tree parent")
+        name, email = FOLD_AUTHOR_IDENTITY.rsplit(" <", 1)
+        env = dict(os.environ)
+        env.update({
+            "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_AUTHOR_NAME": name, "GIT_AUTHOR_EMAIL": email[:-1],
+        })
+        made = subprocess.run(
+            ["git", "commit-tree", tree, "-p", tip, "-p", extra], cwd=repo, env=env,
+            input=FOLD_COMMIT_MESSAGE.decode("ascii"), text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+        )
+        assert made.returncode == 0, made.stderr
+        merge_fold = made.stdout.strip()
+        _git(repo, "reset", "--hard", merge_fold)
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=merge_fold, landed_main_sha=merge_fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "header"
+
+
+def test_fold_commit_with_encoding_header_is_accepted():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        tip = _code_commit(repo)
+        _git(repo, "config", "i18n.commitEncoding", "ISO-8859-1")
+        fold = _fold_commit(repo, pending)
+        commit_object = "\n" + _git(repo, "cat-file", "commit", fold)
+        assert "\nencoding ISO-8859-1\n" in commit_object
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert result.ok, result
+
+
+def test_landed_interval_allows_every_non_signature_document_path():
+    allowed = (
+        "docs/worklog.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "docs/archive/worklog-phase1-2.md",
+        "docs/archive/worklog-phase3-0702-0713.md",
+        "docs/archive/README.md",
+        "docs/phase3.md",
+        "docs/spool/worklog/2000-01-01-wave-add-1.md",
+    )
+    for relative in allowed:
+        with _fresh() as tmp:
+            repo = _repo(Path(tmp))
+            pending = _seed_pending(repo)
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("wave document change\n", encoding="utf-8")
+            tip = _commit(repo, "wave changes allowed document", relative)
+            fold = _fold_commit(repo, pending)
+            result = verify_declared_fold_commit(
+                repo, fold_commit_sha=fold, landed_main_sha=fold,
+                landed_commits=(tip,), wave_tip=tip,
+            )
+            assert result.ok, (relative, result)
+
+
+def test_landed_interval_rejects_fragment_deletion_signature():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo, 2)
+        (repo / pending[0]).unlink()
+        tip = _commit(repo, "wave deletes fragment", pending[0])
+        fold = _fold_commit(repo, pending[1:])
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_landed_interval_allows_fragment_modification():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        fragment = repo / pending[0]
+        fragment.write_text("wave modifies fragment\n", encoding="utf-8")
+        tip = _commit(repo, "wave modifies fragment", pending[0])
+        fold = _fold_commit(repo, pending)
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert result.ok, result
+
+
+def test_landed_interval_rejects_folded_receipt_signature():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.write_text(folded.read_text(encoding="utf-8") + "wave\n", encoding="utf-8")
+        tip = _commit(repo, "wave changes folded receipt", "docs/spool/FOLDED.md")
+        fold = _fold_commit(repo, pending)
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_n34_fold_rejects_a_path_outside_the_closed_shape():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        tip = _code_commit(repo)
+        fold = _fold_commit(repo, pending, extra_path="outside.txt")
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "added-path"
+
+
+def test_n35_supervised_slug_mapping_rejects_noncanonical_inputs_and_is_injective():
+    run_id = "dw-" + "a" * 32
+    slug = supervised_spool_wave_slug(run_id, 1)
+    assert slug == f"dev-wave-{run_id}-w001"
+    assert supervised_spool_wave_identity(slug) == (run_id, 1)
+    invalid = (
+        ("dev-wave/a-b", 1),
+        ("dw-" + "A" * 32, 1),
+        (run_id, 0),
+    )
+    for bad_run, bad_wave in invalid:
+        try:
+            supervised_spool_wave_slug(bad_run, bad_wave)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("noncanonical supervised identity was accepted")
+    try:
+        supervised_spool_wave_identity(f"dev-wave-{run_id}-w0001")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("noncanonical slug was accepted")
 
 
 def test_trust_root_and_isolated_checkout_are_bound_to_audited_sha():

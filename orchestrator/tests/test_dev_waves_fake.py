@@ -234,7 +234,8 @@ def make_success(manifest, main, scenario, options):
     task_id = task_run(main, scenario)
     with open(os.path.join(cwd, "wave-output.txt"), "a", encoding="utf-8") as stream:
         stream.write("wave %d\n" % manifest["wave_index"])
-    if scenario != "worklog_conservation_broken":
+    fold_scenario = scenario == "fold_success"
+    if scenario != "worklog_conservation_broken" and not fold_scenario:
         with open(worklog, "a", encoding="utf-8") as stream:
             stream.write("\n## fake wave %d\n\n### 次の一手\n\n" % manifest["wave_index"])
             for index, task in enumerate(next_ids, 1):
@@ -262,6 +263,62 @@ def make_success(manifest, main, scenario, options):
         landed = git(cwd, "rev-parse", "HEAD", capture=True).stdout.decode().strip()
     if scenario != "same_main":
         git(main, "merge", "--ff-only", landed)
+    fold_sha = None
+    if fold_scenario:
+        main_worklog = os.path.join(main, "docs", "worklog.md")
+        with open(main_worklog, "a", encoding="utf-8") as stream:
+            stream.write("\n## fake wave %d\n\n### 次の一手\n\n" % manifest["wave_index"])
+            for index, task in enumerate(next_ids, 1):
+                stream.write("%d. [%s] fake next action\n" % (index, task))
+        deleted = []
+        folded_record = None
+        for ledger in ("worklog", "decisions", "failures"):
+            directory = os.path.join(main, "docs", "spool", ledger)
+            for name in sorted(os.listdir(directory)):
+                if name != "README.md":
+                    path = os.path.join(directory, name)
+                    with open(path, "rb") as stream:
+                        fragment_raw = stream.read()
+                    match = re.fullmatch(
+                        r"(?P<authored>[0-9]{4}-[0-9]{2}-[0-9]{2})-"
+                        r"(?P<wave>[a-z0-9]+(?:-[a-z0-9]+)*)-"
+                        r"(?P<seq>[1-9][0-9]*)\.md",
+                        name,
+                    )
+                    if match is None:
+                        fail("fake fold fragment name")
+                    folded_record = {
+                        "allocations": {},
+                        "authored": match.group("authored"),
+                        "content_sha256": hashlib.sha256(fragment_raw).hexdigest(),
+                        "seq": int(match.group("seq")),
+                        "wave": match.group("wave"),
+                    }
+                    os.unlink(path)
+                    deleted.append(path)
+                    break
+            if deleted:
+                break
+        if not deleted:
+            fail("fake fold requires a base pending fragment")
+        folded = os.path.join(main, "docs", "spool", "FOLDED.md")
+        with open(folded, "a", encoding="utf-8") as stream:
+            stream.write(
+                "\n- " + json.dumps(folded_record, sort_keys=True, separators=(",", ":")) + "\n"
+            )
+        git(main, "add", "--", "docs/worklog.md", "docs/spool")
+        message = os.path.join(main, ".git", "fake-fold-message")
+        with open(message, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write("Fold landed documentation fragments\n\nAI-Agent: none\n")
+        try:
+            git(
+                main, "commit", "--no-gpg-sign", "-F", message,
+                "--cleanup=verbatim",
+                "--author=Izanagi Dev Wave <dev-wave@izanagi.invalid>",
+            )
+        finally:
+            os.unlink(message)
+        fold_sha = git(main, "rev-parse", "HEAD", capture=True).stdout.decode().strip()
     if scenario == "dirty_main":
         open(os.path.join(main, "dirty-main.txt"), "w").write("dirty\n")
     if scenario == "external_main_advance":
@@ -277,7 +334,7 @@ def make_success(manifest, main, scenario, options):
         orphan = run(["git", "commit-tree", tree, "-m", "diverged orphan"],
                      cwd=main, capture=True).stdout.decode().strip()
         git(main, "reset", "--hard", orphan)
-    commits = git(main, "rev-list", "--reverse", before + "..HEAD", capture=True).stdout.decode().split()
+    commits = git(cwd, "rev-list", "--reverse", before + ".." + landed, capture=True).stdout.decode().split()
     if scenario == "same_main":
         commits = [landed]
     if scenario == "commit_mismatch":
@@ -288,12 +345,12 @@ def make_success(manifest, main, scenario, options):
         commits = commits[:-1]
     landed_main = git(main, "rev-parse", "HEAD", capture=True).stdout.decode().strip()
     return {
-        "schema_version": 1, "supervisor_run_id": manifest["supervisor_run_id"],
+        "schema_version": 2, "supervisor_run_id": manifest["supervisor_run_id"],
         "wave_index": manifest["wave_index"], "outcome": "completed",
         "stop_reason": "wave-completed", "base_main_sha": before,
         "landed_main_sha": landed_main, "selected_task_ids": selected,
         "next_task_ids": next_ids, "landed_commits": commits,
-        "child_task_run_id": task_id,
+        "child_task_run_id": task_id, "fold_commit_sha": fold_sha,
     }
 
 
@@ -308,11 +365,12 @@ def noncompleted(manifest, scenario):
     }
     outcome, reason = outcomes[scenario]
     return {
-        "schema_version": 1, "supervisor_run_id": manifest["supervisor_run_id"],
+        "schema_version": 2, "supervisor_run_id": manifest["supervisor_run_id"],
         "wave_index": manifest["wave_index"], "outcome": outcome,
         "stop_reason": reason, "base_main_sha": manifest["base_main_sha"],
         "landed_main_sha": None, "selected_task_ids": [], "next_task_ids": [],
         "landed_commits": [], "child_task_run_id": "fake-incomplete",
+        "fold_commit_sha": None,
     }
 
 

@@ -26,6 +26,7 @@ from tools.dev_waves.checker import (
     verify_wave,
 )
 from tools.dev_waves.git_state import snapshot_repo
+from tools.dev_waves.receipt import receipt_schema_digest
 from tools.dev_waves.schema import ReasonCode, canonical_bytes
 from tools.task_runs import finish_run, init_pilot, start_run
 
@@ -149,6 +150,7 @@ def _fixture(
         str(repo / "docs/worklog.md"), str(task_root), str(repo / "docs/handoff"),
         tuple(checks), time.clock_gettime_ns(time.CLOCK_BOOTTIME) + 10_000_000_000,
         (("schema", "same"),), (("schema", "same"),),
+        receipt_schema_digest(1),
     )
 
 

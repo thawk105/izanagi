@@ -1,6 +1,7 @@
 """Strict Claude single-result envelope and child receipt binding."""
 from __future__ import annotations
 
+import hashlib
 import os
 import stat
 from dataclasses import dataclass
@@ -42,6 +43,7 @@ class ReceiptBinding:
     run_id: str
     wave_index: int
     base_sha: str
+    schema_sha256: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -92,11 +94,50 @@ def _commits(value: Any) -> tuple[str, ...]:
     return tuple(value)
 
 
-_RECEIPT_FIELDS = frozenset({
+_RECEIPT_V1_FIELDS = frozenset({
     "schema_version", "supervisor_run_id", "wave_index", "outcome", "stop_reason",
     "base_main_sha", "landed_main_sha", "selected_task_ids", "next_task_ids",
     "landed_commits", "child_task_run_id",
 })
+_RECEIPT_V2_FIELDS = _RECEIPT_V1_FIELDS | {"fold_commit_sha"}
+_RECEIPT_SCHEMA_VERSIONS = frozenset({1, 2})
+
+
+def load_receipt_schema(version: int = 1) -> Mapping[str, Any]:
+    """receipt 固有 version で不変 schema を 1 つ読む。"""
+    if version not in _RECEIPT_SCHEMA_VERSIONS or isinstance(version, bool):
+        raise ValueError("unsupported receipt schema version")
+    path = Path(__file__).with_name(f"schema_v{version}.json")
+    raw = path.read_bytes()
+    value = strict_loads(raw, label="receipt-schema", max_bytes=DEFAULT_MAX_JSON_BYTES)
+    if not isinstance(value, dict):
+        raise DevWavesError(ReasonCode.RECEIPT_INVALID, {
+            "label": "receipt-schema", "kind": "not-object",
+        })
+    return value
+
+
+def receipt_schema_digest(version: int = 1) -> str:
+    return hashlib.sha256(canonical_bytes(load_receipt_schema(version))).hexdigest()
+
+
+def _bound_schema_version(value: object, binding: Optional[ReceiptBinding]) -> int:
+    if binding is not None and not isinstance(binding, ReceiptBinding):
+        raise TypeError("binding must be ReceiptBinding")
+    if binding is not None and binding.schema_sha256 is not None:
+        matches = [
+            version for version in sorted(_RECEIPT_SCHEMA_VERSIONS)
+            if receipt_schema_digest(version) == binding.schema_sha256
+        ]
+        if len(matches) != 1:
+            raise _receipt_error("schema-digest", "schema_version")
+        return matches[0]
+    if not isinstance(value, dict):
+        raise _receipt_error("field-set")
+    version = value.get("schema_version")
+    if version not in _RECEIPT_SCHEMA_VERSIONS or isinstance(version, bool):
+        raise _receipt_error("schema-version", "schema_version")
+    return version
 
 
 def validate_child_receipt(
@@ -104,10 +145,12 @@ def validate_child_receipt(
     *,
     binding: Optional[ReceiptBinding] = None,
 ) -> Receipt:
-    """The authoritative, dependency-free validator for schema_v1.json."""
-    if not isinstance(value, dict) or set(value) != _RECEIPT_FIELDS:
+    """wave manifest が束縛した version に対して receipt を検査する。"""
+    version = _bound_schema_version(value, binding)
+    expected_fields = _RECEIPT_V1_FIELDS if version == 1 else _RECEIPT_V2_FIELDS
+    if not isinstance(value, dict) or set(value) != expected_fields:
         raise _receipt_error("field-set")
-    if value["schema_version"] != 1 or isinstance(value["schema_version"], bool):
+    if value["schema_version"] != version or isinstance(value["schema_version"], bool):
         raise _receipt_error("schema-version", "schema_version")
     run_id = value["supervisor_run_id"]
     if not is_run_id(run_id):
@@ -133,13 +176,16 @@ def validate_child_receipt(
     child_run = value["child_task_run_id"]
     if not is_run_id(child_run):
         raise _receipt_error("task-run-id", "child_task_run_id")
+    fold_sha = value.get("fold_commit_sha")
+    if fold_sha is not None and not _is_lower_hex(fold_sha, 40):
+        raise _receipt_error("sha", "fold_commit_sha")
 
     if outcome is Outcome.COMPLETED:
         if (stop_reason is not ReasonCode.WAVE_COMPLETED or landed_sha is None or
                 not commits or not selected):
             raise _receipt_error("completed-binding")
     else:
-        if landed_sha is not None or commits:
+        if landed_sha is not None or commits or fold_sha is not None:
             raise _receipt_error("noncompleted-git-fields")
     if (outcome is Outcome.NO_ACTIONABLE_TASK and
             stop_reason is not ReasonCode.NO_ACTIONABLE_TASK):
@@ -158,25 +204,25 @@ def validate_child_receipt(
             raise _receipt_error("binding", "base_main_sha")
 
     return Receipt(
-        1, run_id, wave_index, outcome, stop_reason, base_sha, landed_sha,
-        selected, next_ids, commits, child_run,
+        version, run_id, wave_index, outcome, stop_reason, base_sha, landed_sha,
+        selected, next_ids, commits, child_run, fold_sha,
     )
 
 
-def load_receipt_schema() -> Mapping[str, Any]:
-    path = Path(__file__).with_name("schema_v1.json")
-    raw = path.read_bytes()
-    value = strict_loads(raw, label="receipt-schema", max_bytes=DEFAULT_MAX_JSON_BYTES)
-    if not isinstance(value, dict):
-        raise DevWavesError(ReasonCode.RECEIPT_INVALID, {
-            "label": "receipt-schema", "kind": "not-object",
-        })
-    return value
-
-
-def receipt_schema_digest() -> str:
-    import hashlib
-    return hashlib.sha256(canonical_bytes(load_receipt_schema())).hexdigest()
+def encode_receipt(receipt: Receipt) -> bytes:
+    """v1 / v2 を互いに素な閉じた field 集合で符号化する。"""
+    if not isinstance(receipt, Receipt):
+        raise TypeError("receipt must be Receipt")
+    fields = _RECEIPT_V1_FIELDS if receipt.schema_version == 1 else _RECEIPT_V2_FIELDS
+    if receipt.schema_version not in _RECEIPT_SCHEMA_VERSIONS:
+        raise ValueError("unsupported receipt schema version")
+    if receipt.schema_version == 1 and receipt.fold_commit_sha is not None:
+        raise ValueError("v1 receipt cannot declare a fold commit")
+    wire = {
+        field: getattr(receipt, field)
+        for field in fields
+    }
+    return canonical_bytes(wire)
 
 
 def _read_bounded(path: os.PathLike[str] | str, max_bytes: int) -> bytes:
@@ -309,7 +355,7 @@ def persist_sanitized_receipt(path: os.PathLike[str] | str, receipt: Receipt) ->
     if not isinstance(receipt, Receipt):
         raise TypeError("receipt must be Receipt")
     wire = strict_loads(
-        canonical_bytes(receipt), label="receipt-persist", max_bytes=DEFAULT_MAX_JSON_BYTES,
+        encode_receipt(receipt), label="receipt-persist", max_bytes=DEFAULT_MAX_JSON_BYTES,
     )
     clean = redact_value(wire)
     assert_sanitized(clean)
@@ -338,7 +384,7 @@ def persist_sanitized_receipt(path: os.PathLike[str] | str, receipt: Receipt) ->
 __all__ = [
     "CLAUDE_RESULT_ALLOWED_FIELDS", "CLAUDE_RESULT_REQUIRED_FIELDS",
     "CLAUDE_RESULT_SUBTYPES", "PERMISSION_ABORT_SUBTYPES", "ParsedChildResult",
-    "Receipt", "ReceiptBinding", "load_receipt_schema", "parse_claude_result",
+    "Receipt", "ReceiptBinding", "encode_receipt", "load_receipt_schema", "parse_claude_result",
     "permission_abort_from_envelope", "persist_sanitized_receipt",
     "receipt_schema_digest", "validate_child_receipt",
 ]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib
 import json
 import os
@@ -48,6 +49,13 @@ def _valid_receipt():
         "landed_commits": [_LANDED],
         "child_task_run_id": "task-run-fixture-001",
     }
+
+
+def _valid_receipt_v2(fold_sha=None):
+    value = _valid_receipt()
+    value["schema_version"] = 2
+    value["fold_commit_sha"] = fold_sha
+    return value
 
 
 def _real_record_derived_envelope():
@@ -335,6 +343,78 @@ def test_persist_sanitized_receipt_is_create_only():
             pass
         else:
             raise AssertionError("既存 receipt が置換された")
+
+
+def test_receipt_v2_requires_nullable_fold_field_and_manifest_binding():
+    binding = receipt_mod.ReceiptBinding(
+        _RUN_ID, 1, _BASE, receipt_mod.receipt_schema_digest(2),
+    )
+    assert receipt_mod.validate_child_receipt(_valid_receipt_v2(), binding=binding)
+    missing = _valid_receipt_v2()
+    missing.pop("fold_commit_sha")
+    _expect_error(lambda: receipt_mod.validate_child_receipt(missing, binding=binding))
+    downgraded = _valid_receipt()
+    _expect_error(lambda: receipt_mod.validate_child_receipt(downgraded, binding=binding))
+
+
+def test_v2_receipt_dataclass_requires_explicit_fold_declaration():
+    try:
+        schema.Receipt(
+            2, _RUN_ID, 1, schema.Outcome.COMPLETED, schema.ReasonCode.WAVE_COMPLETED,
+            _BASE, _LANDED, ("T-076",), ("T-077",), (_LANDED,),
+            "task-run-fixture-001",
+        )
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("v2 producer omission was converted into an implicit null")
+
+
+def test_n36_v1_encoder_never_adds_fold_field_and_v2_encoder_retains_it():
+    v1 = receipt_mod.validate_child_receipt(_valid_receipt())
+    assert "fold_commit_sha" not in json.loads(receipt_mod.encode_receipt(v1))
+    fold_sha = "c" * 40
+    v2 = receipt_mod.validate_child_receipt(_valid_receipt_v2(fold_sha))
+    encoded_v2 = json.loads(receipt_mod.encode_receipt(v2))
+    assert encoded_v2["fold_commit_sha"] == fold_sha
+    assert json.loads(receipt_mod.encode_receipt(v1)) == _valid_receipt()
+
+
+def test_v1_schema_bytes_and_canonical_digest_remain_frozen():
+    path = _ROOT / "tools/dev_waves/schema_v1.json"
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == (
+        "665c6b11f3f6627a8be836be4977100980f832c8534b45baf8cc79b4a43d3aa3"
+    )
+    assert receipt_mod.receipt_schema_digest(1) == (
+        "f742cb292d01de6da5333d78037c5f6502117566260366f462c3d20f02fd2ec5"
+    )
+
+
+def test_v2_schema_required_field_and_noncompleted_null_are_closed():
+    document = receipt_mod.load_receipt_schema(2)
+    assert document["properties"]["schema_version"] == {"const": 2}
+    assert "fold_commit_sha" in document["required"]
+    for outcome, reason in (
+        ("no-actionable-task", "no-actionable-task"),
+        ("blocked", "check-failed"),
+    ):
+        value = _valid_receipt_v2()
+        value.update(
+            outcome=outcome, stop_reason=reason, landed_main_sha=None,
+            landed_commits=[], selected_task_ids=[],
+        )
+        assert receipt_mod.validate_child_receipt(value)
+        value["fold_commit_sha"] = "c" * 40
+        _expect_error(lambda value=value: receipt_mod.validate_child_receipt(value))
+
+
+def test_persisted_v2_receipt_retains_declared_fold_sha():
+    fold_sha = "c" * 40
+    parsed = receipt_mod.validate_child_receipt(_valid_receipt_v2(fold_sha))
+    with tempfile.TemporaryDirectory(prefix="izanagi_receipt_v2_persist_") as temp:
+        path = Path(temp) / "receipt.json"
+        receipt_mod.persist_sanitized_receipt(path, parsed)
+        assert json.loads(path.read_text())["fold_commit_sha"] == fold_sha
 
 
 def _run():

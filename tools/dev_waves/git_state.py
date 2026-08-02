@@ -16,8 +16,38 @@ from .schema import DevWavesError, ReasonCode, strict_loads
 _SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 _RUN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _BRANCH_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,180}\Z")
+_SUPERVISED_RUN_RE = re.compile(r"dw-[0-9a-f]{32}\Z")
+_SUPERVISED_SLUG_RE = re.compile(
+    r"dev-wave-(?P<run>dw-[0-9a-f]{32})-w(?P<wave>[0-9]{3,})\Z"
+)
+_FRAGMENT_PATH_RE = re.compile(
+    r"docs/spool/(?:worklog|decisions|failures)/"
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*-[1-9][0-9]*\.md\Z"
+)
+_ROTATION_PATH_RE = re.compile(
+    r"docs/archive/worklog-phase3-[0-9]{4}-[1-9][0-9]*"
+    r"(?:-(?:[1-9][0-9]*|[0-9]{4}-[1-9][0-9]*))?\.md\Z"
+)
+_IDENTITY_RE = re.compile(
+    r"(?P<identity>[^<>\n]+ <[^<>\n]+>) (?P<timestamp>0|[1-9][0-9]*) "
+    r"(?P<sign>[+-])(?P<hour>[0-9]{2})(?P<minute>[0-9]{2})\Z"
+)
 _SNAPSHOT_RETRIES = 4
 _GIT_TIMEOUT_S = 30
+GIT_HARDENING_CONFIG = (
+    "-c", "core.hooksPath=/dev/null",
+    "-c", "core.fsmonitor=false",
+    "-c", "core.useBuiltinFSMonitor=false",
+    "-c", "maintenance.auto=false",
+    "-c", "gc.auto=0",
+)
+
+FOLD_COMMIT_MESSAGE = b"Fold landed documentation fragments\n\nAI-Agent: none\n"
+FOLD_AUTHOR_IDENTITY = "Izanagi Dev Wave <dev-wave@izanagi.invalid>"
+_FOLD_MODIFIED_EXACT = frozenset({
+    "docs/worklog.md", "docs/decisions.md", "docs/failures.md",
+    "docs/phase3.md", "docs/spool/FOLDED.md",
+})
 
 
 def _deadline(timeout_s: float) -> int:
@@ -56,6 +86,12 @@ GIT_COMMANDS: Mapping[str, tuple[str, ...]] = {
     "is-ancestor": ("merge-base", "--is-ancestor"),
     "rev-list": ("rev-list", "--reverse"),
     "branch-tip": ("rev-parse", "--verify"),
+    "commit-object": ("cat-file", "commit"),
+    "commit-diff": (
+        "diff-tree", "--root", "-r", "-m", "--no-commit-id",
+        "--name-status", "-z", "-M", "-C",
+    ),
+    "tree-paths": ("ls-tree", "-r", "-z", "--name-only"),
     "clone-isolated": ("-c", "protocol.file.allow=always", "clone", "--no-local", "--no-checkout", "--quiet"),
 }
 
@@ -101,6 +137,13 @@ class FFChainVerification:
 
 
 @dataclass(frozen=True)
+class DeclaredFoldVerification:
+    ok: bool
+    reason: Optional[ReasonCode]
+    detail: str
+
+
+@dataclass(frozen=True)
 class GitTraceReport:
     push_attempted: bool
     malformed: bool
@@ -139,7 +182,7 @@ def _run(
         raise ValueError("Git operation is not allowlisted")
     if isinstance(extra, (str, bytes)) or not all(isinstance(value, str) for value in extra):
         raise TypeError("extra must be a string sequence")
-    command = ["git", *GIT_COMMANDS[operation], *extra]
+    command = ["git", *GIT_HARDENING_CONFIG, *GIT_COMMANDS[operation], *extra]
     try:
         result = subprocess.run(
             command, shell=False, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
@@ -341,6 +384,29 @@ def _validate_base(base_sha: str) -> str:
     return base_sha
 
 
+def supervised_spool_wave_slug(run_id: str, wave_index: int) -> str:
+    """daemon 生成の run/wave identity だけを spool-safe slug へ写す。"""
+    if _SUPERVISED_RUN_RE.fullmatch(run_id) is None:
+        raise ValueError("run_id is not a canonical supervised run id")
+    if not isinstance(wave_index, int) or isinstance(wave_index, bool) or wave_index < 1:
+        raise ValueError("wave_index must be a positive integer")
+    return f"dev-wave-{run_id}-w{wave_index:03d}"
+
+
+def supervised_spool_wave_identity(slug: str) -> tuple[str, int]:
+    """正規 slug を run/wave identity へ逆写像し、非正規形を拒否する。"""
+    if not isinstance(slug, str):
+        raise ValueError("slug must be text")
+    match = _SUPERVISED_SLUG_RE.fullmatch(slug)
+    if match is None:
+        raise ValueError("slug is not a canonical supervised spool wave")
+    wave_index = int(match.group("wave"))
+    run_id = match.group("run")
+    if supervised_spool_wave_slug(run_id, wave_index) != slug:
+        raise ValueError("slug is not in canonical generated form")
+    return run_id, wave_index
+
+
 def _expected_worktree_path(repo_root: str, run_id: str, wave_index: int) -> str:
     if _RUN_RE.fullmatch(run_id) is None or not isinstance(wave_index, int) or wave_index < 1:
         raise ValueError("invalid run or wave identity")
@@ -484,6 +550,243 @@ def verify_ff_chain(
     return FFChainVerification(True, None, observed)
 
 
+def _fold_fail(detail: str) -> DeclaredFoldVerification:
+    return DeclaredFoldVerification(False, ReasonCode.COMMIT_MISMATCH, detail)
+
+
+def _landed_fold_output_path(status: str, paths: tuple[str, ...]) -> bool:
+    """landed 区間に現れてはならない fold の署名だけを分類する。"""
+    if "docs/spool/FOLDED.md" in paths:
+        return True
+    deleted_path = paths[0] if status == "D" or status.startswith("R") else None
+    return deleted_path is not None and _FRAGMENT_PATH_RE.fullmatch(deleted_path) is not None
+
+
+def _diff_entries(raw: bytes) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    records = raw.split(b"\0")
+    if records and records[-1] == b"":
+        records.pop()
+    entries = []
+    index = 0
+    while index < len(records):
+        try:
+            status = records[index].decode("ascii", errors="strict")
+        except UnicodeDecodeError:
+            raise DevWavesError(ReasonCode.INVALID_RUN, {
+                "label": "fold-diff", "kind": "status-encoding",
+            }) from None
+        index += 1
+        path_count = 2 if status.startswith(("R", "C")) else 1
+        if index + path_count > len(records):
+            raise DevWavesError(ReasonCode.INVALID_RUN, {
+                "label": "fold-diff", "kind": "record",
+            })
+        try:
+            paths = tuple(
+                record.decode("utf-8", errors="strict")
+                for record in records[index:index + path_count]
+            )
+        except UnicodeDecodeError:
+            raise DevWavesError(ReasonCode.INVALID_RUN, {
+                "label": "fold-diff", "kind": "path-encoding",
+            }) from None
+        if not status or any(not path or "\x00" in path for path in paths):
+            raise DevWavesError(ReasonCode.INVALID_RUN, {
+                "label": "fold-diff", "kind": "record",
+            })
+        entries.append((status, paths))
+        index += path_count
+    return tuple(entries)
+
+
+def _commit_diff(
+    repo_root: os.PathLike[str] | str,
+    commit_sha: str,
+    *,
+    timeout_s: float,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return _diff_entries(
+        _run(repo_root, "commit-diff", extra=(commit_sha,), timeout_s=timeout_s).stdout
+    )
+
+
+def _identity_line_valid(line: bytes, *, fixed_identity: Optional[str] = None) -> bool:
+    try:
+        text = line.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return False
+    match = _IDENTITY_RE.fullmatch(text)
+    if match is None or (fixed_identity is not None and match.group("identity") != fixed_identity):
+        return False
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute"))
+    return minute <= 59 and (hour < 14 or hour == 14 and minute == 0)
+
+
+def _commit_shape(
+    repo_root: os.PathLike[str] | str,
+    fold_sha: str,
+    *,
+    timeout_s: float,
+) -> tuple[Optional[str], Optional[str]]:
+    raw = _run(repo_root, "commit-object", extra=(fold_sha,), timeout_s=timeout_s).stdout
+    header, separator, message = raw.partition(b"\n\n")
+    if not separator or message != FOLD_COMMIT_MESSAGE:
+        return None, "message"
+    headers: dict[bytes, list[bytes]] = {}
+    for line in header.splitlines():
+        key, space, value = line.partition(b" ")
+        if not space or key not in {
+            b"tree", b"parent", b"author", b"committer", b"encoding",
+        }:
+            return None, "header"
+        headers.setdefault(key, []).append(value)
+    if (
+        len(headers.get(b"tree", ())) != 1
+        or len(headers.get(b"parent", ())) != 1
+        or len(headers.get(b"author", ())) != 1
+        or len(headers.get(b"committer", ())) != 1
+        or len(headers.get(b"encoding", ())) > 1
+    ):
+        return None, "header"
+    if headers.get(b"encoding"):
+        encoding = headers[b"encoding"][0]
+        if not encoding or any(byte < 0x21 or byte > 0x7e for byte in encoding):
+            return None, "header"
+    try:
+        parent = headers[b"parent"][0].decode("ascii", errors="strict")
+    except UnicodeDecodeError:
+        return None, "parent"
+    if _SHA_RE.fullmatch(parent) is None:
+        return None, "parent"
+    if not _identity_line_valid(headers[b"author"][0], fixed_identity=FOLD_AUTHOR_IDENTITY):
+        return None, "author"
+    if not _identity_line_valid(headers[b"committer"][0]):
+        return None, "committer"
+    return parent, None
+
+
+def _pending_fragment_paths(
+    repo_root: os.PathLike[str] | str,
+    head_sha: str,
+    *,
+    timeout_s: float,
+) -> tuple[str, ...]:
+    result = _run(
+        repo_root,
+        "tree-paths",
+        extra=(
+            head_sha, "--", "docs/spool/worklog", "docs/spool/decisions",
+            "docs/spool/failures",
+        ),
+        timeout_s=timeout_s,
+    )
+    paths = []
+    for raw in result.stdout.split(b"\0"):
+        if not raw:
+            continue
+        try:
+            path = raw.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            raise DevWavesError(ReasonCode.INVALID_RUN, {
+                "label": "fold-pending", "kind": "path-encoding",
+            }) from None
+        if not path.endswith("/README.md"):
+            paths.append(path)
+    return tuple(paths)
+
+
+def verify_declared_fold_commit(
+    repo_root: os.PathLike[str] | str,
+    *,
+    fold_commit_sha: Optional[str],
+    landed_main_sha: str,
+    landed_commits: Sequence[str],
+    wave_tip: str,
+    timeout_s: float = _GIT_TIMEOUT_S,
+) -> DeclaredFoldVerification:
+    """申告された fold slot の graph・identity・変更 path の形を検査する。
+
+    FoldPlan との blob 単位照合は行わない。ここで扱うのは commit の形と、
+    landed 区間に fragment 削除・FOLDED receipt 変更がないことまでである。
+    """
+    landed_main = _validate_base(landed_main_sha)
+    tip = _validate_base(wave_tip)
+    commits = tuple(_validate_base(value) for value in landed_commits)
+    if not commits:
+        return _fold_fail("landed-commits-empty")
+    if fold_commit_sha is not None:
+        fold_sha = _validate_base(fold_commit_sha)
+    else:
+        fold_sha = None
+    deadline_ns = _deadline(timeout_s)
+    head = _sha(
+        _text(_run(repo_root, "head", timeout_s=_left(deadline_ns))),
+        label="fold-main-head",
+    )
+    if commits[-1] != tip:
+        return _fold_fail("wave-tip")
+
+    for commit in commits:
+        for status, paths in _commit_diff(
+            repo_root, commit, timeout_s=_left(deadline_ns),
+        ):
+            if _landed_fold_output_path(status, paths):
+                return _fold_fail("landed-fold-owned-path")
+
+    if fold_sha is None:
+        if head != landed_main or landed_main != tip:
+            return _fold_fail("null-head")
+        if _pending_fragment_paths(
+            repo_root, head, timeout_s=_left(deadline_ns),
+        ):
+            return _fold_fail("null-pending-fragment")
+        return DeclaredFoldVerification(True, None, "no-fold")
+
+    if head != landed_main or landed_main != fold_sha:
+        return _fold_fail("declared-head")
+    parent, shape_error = _commit_shape(
+        repo_root, fold_sha, timeout_s=_left(deadline_ns),
+    )
+    if shape_error is not None:
+        return _fold_fail(shape_error)
+    if parent != commits[-1] or parent != tip:
+        return _fold_fail("parent")
+
+    deleted_fragments = 0
+    folded_modified = False
+    archive_adds = 0
+    archive_readme_modified = False
+    for status, paths in _commit_diff(
+        repo_root, fold_sha, timeout_s=_left(deadline_ns),
+    ):
+        if status.startswith(("R", "C")) or status not in {"M", "D", "A"}:
+            return _fold_fail("path-status")
+        path = paths[0]
+        if status == "M":
+            if path == "docs/archive/README.md":
+                archive_readme_modified = True
+            elif path not in _FOLD_MODIFIED_EXACT:
+                return _fold_fail("modified-path")
+            if path == "docs/spool/FOLDED.md":
+                folded_modified = True
+        elif status == "D":
+            if _FRAGMENT_PATH_RE.fullmatch(path) is None:
+                return _fold_fail("deleted-path")
+            deleted_fragments += 1
+        else:
+            if _ROTATION_PATH_RE.fullmatch(path) is None:
+                return _fold_fail("added-path")
+            archive_adds += 1
+            if archive_adds > 1:
+                return _fold_fail("archive-count")
+    if archive_readme_modified and archive_adds != 1:
+        return _fold_fail("archive-readme")
+    if deleted_fragments < 1 or not folded_modified:
+        return _fold_fail("minimum-shape")
+    return DeclaredFoldVerification(True, None, "fold-shape")
+
+
 def branch_tip(
     repo_root: os.PathLike[str] | str, branch: str, *, timeout_s: float = _GIT_TIMEOUT_S,
 ) -> str:
@@ -594,9 +897,11 @@ def read_child_git_trace(
 
 
 __all__ = [
-    "FFChainVerification", "GIT_COMMANDS", "GitTraceReport", "RepoIdentity",
+    "DeclaredFoldVerification", "FFChainVerification", "FOLD_AUTHOR_IDENTITY",
+    "FOLD_COMMIT_MESSAGE", "GIT_COMMANDS", "GIT_HARDENING_CONFIG", "GitTraceReport", "RepoIdentity",
     "RepoSnapshot", "TrustRoot", "WaveWorktree", "WorktreeRecord", "branch_tip",
     "create_exact_worktree", "create_isolated_checkout", "read_child_git_trace",
-    "resolve_main_worktree", "resolve_repo_identity", "snapshot_repo", "trust_root",
-    "update_submodules_no_fetch", "verify_ff_chain",
+    "resolve_main_worktree", "resolve_repo_identity", "snapshot_repo",
+    "supervised_spool_wave_identity", "supervised_spool_wave_slug", "trust_root",
+    "update_submodules_no_fetch", "verify_declared_fold_commit", "verify_ff_chain",
 ]

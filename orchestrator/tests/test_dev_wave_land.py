@@ -1420,8 +1420,13 @@ def _patched_land_attr(name: str, value):
         setattr(LAND, name, previous)
 
 
-def _fake_pending_fragment(repo: _Repo, wave: Path) -> tuple[str, Path, str]:
-    relative = "docs/spool/worklog/2000-01-01-test-wave-1.md"
+def _fake_pending_fragment(
+    repo: _Repo,
+    wave: Path,
+    *,
+    wave_slug: str = "test-wave",
+) -> tuple[str, Path, str]:
+    relative = f"docs/spool/worklog/2000-01-01-{wave_slug}-1.md"
     path = wave / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     content = "synthetic pending fragment\n"
@@ -1434,9 +1439,21 @@ def _fake_pending_fragment(repo: _Repo, wave: Path) -> tuple[str, Path, str]:
 class _FakeFoldPlan:
     status = "planned"
 
-    def __init__(self, gc_path: str, *, targets: tuple[object, ...] = ()):
+    def __init__(
+        self,
+        gc_path: str,
+        *,
+        targets: tuple[object, ...] = (),
+        fragments: tuple[object, ...] = (),
+    ):
         self.gc_paths = (gc_path,)
         self.targets = targets
+        self.fragments = fragments
+
+
+class _FakeFoldFragment:
+    def __init__(self, wave: str):
+        self.wave = wave
 
 
 class _FakeFoldTarget:
@@ -1572,8 +1589,16 @@ def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> Non
             finally:
                 os.close(contender)
             (repo_path / relative).unlink()
+            folded = repo_path / "docs/spool/FOLDED.md"
+            folded.write_text(folded.read_text(encoding="utf-8") + "- folded\n", encoding="utf-8")
 
-        module = _FakeFoldModule(_FakeFoldPlan(relative), apply)
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            ),
+            apply,
+        )
         wrapper = _wrapper(repo.root)
         record = repo.root / "fold-git-calls.jsonl"
         with (
@@ -1590,11 +1615,15 @@ def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> Non
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
         assert lock_observed
         assert result.main_after != tip
+        assert result.fold_commit_sha == result.main_after
         assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
         assert not (repo.main / relative).exists()
         assert _git(repo.main, "status", "--porcelain=v1") == ""
         message = _git(repo.main, "show", "-s", "--format=%B", result.main_after)
         assert message == LAND._FOLD_MESSAGE.rstrip("\n")
+        assert _git(repo.main, "show", "-s", "--format=%an <%ae>", result.main_after) == (
+            LAND.FOLD_AUTHOR_IDENTITY
+        )
         calls = [
             json.loads(line)
             for line in record.read_text(encoding="utf-8").splitlines()
@@ -1607,6 +1636,108 @@ def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> Non
             "commit", "--no-gpg-sign", "-F",
         ]
         assert "-m" not in commit_args and "--no-edit" not in commit_args
+
+
+def test_p06_supervised_branch_slug_with_matching_fragments_can_fold() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n", encoding="utf-8",
+        )
+        run_id = "dw-" + "a" * 32
+        _git(wave, "branch", "-m", f"dev-wave/{run_id}/w001")
+        slug = f"dev-wave-{run_id}-w001"
+        relative, _wave_fragment, _content = _fake_pending_fragment(
+            repo, wave, wave_slug=slug,
+        )
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            folded = repo_path / "docs/spool/FOLDED.md"
+            folded.write_text(
+                folded.read_text(encoding="utf-8") + "- folded\n",
+                encoding="utf-8",
+            )
+
+        plan = _FakeFoldPlan(
+            relative,
+            targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            fragments=(_FakeFoldFragment(slug),),
+        )
+        module = _FakeFoldModule(plan, apply)
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.fold_commit_sha == result.main_after
+
+
+def test_land_accepts_its_fold_commit_with_repository_commit_encoding() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n", encoding="utf-8",
+        )
+        _git(repo.main, "config", "i18n.commitEncoding", "ISO-8859-1")
+        relative, _wave_fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            folded = repo_path / "docs/spool/FOLDED.md"
+            folded.write_text(
+                folded.read_text(encoding="utf-8") + "- folded\n",
+                encoding="utf-8",
+            )
+
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            ),
+            apply,
+        )
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        commit_object = "\n" + _git(repo.main, "cat-file", "commit", result.main_after)
+        assert "\nencoding ISO-8859-1\n" in commit_object
+
+
+def test_n35_supervised_branch_rejects_fragment_from_another_slug_before_ff() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n", encoding="utf-8",
+        )
+        run_id = "dw-" + "a" * 32
+        _git(wave, "branch", "-m", f"dev-wave/{run_id}/w001")
+        slug = f"dev-wave-{run_id}-w001"
+        relative, _wave_fragment, _content = _fake_pending_fragment(
+            repo, wave, wave_slug=slug,
+        )
+        tip = _git(wave, "rev-parse", "HEAD")
+        plan = _FakeFoldPlan(
+            relative,
+            fragments=(_FakeFoldFragment("dev-wave-dw-" + "b" * 32 + "-w001"),),
+        )
+        module = _FakeFoldModule(
+            plan,
+            lambda *_args: (_ for _ in ()).throw(AssertionError("apply must not run")),
+        )
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_FOLD_FAILED, "fold-failed")
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
 def test_fold_failure_rolls_back_ff_and_never_returns_landed() -> None:

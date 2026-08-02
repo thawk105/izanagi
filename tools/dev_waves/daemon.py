@@ -45,6 +45,7 @@ from .git_state import (
     resolve_repo_identity,
     snapshot_repo,
     update_submodules_no_fetch,
+    verify_declared_fold_commit,
 )
 from .ledger import (
     BoottimeDeadline,
@@ -61,6 +62,7 @@ from .ledger import (
 from .protocol import bind_repo_socket, receive_request, send_frame
 from .receipt import (
     ReceiptBinding,
+    encode_receipt,
     load_receipt_schema,
     parse_claude_result,
     persist_sanitized_receipt,
@@ -1110,6 +1112,7 @@ class Supervisor:
         before = _snapshot_from_wire(raw["before_snapshot"])
         immutable_before = tuple((str(item[0]), str(item[1])) for item in raw["immutable_digests_before"])
         immutable_after = (("supervisor", _supervisor_digest()),)
+        wave_manifest = parse_wave_manifest(paths["manifest"].read_bytes().rstrip(b"\n"))
         assert limits.max_wave_output_bytes is not None
         return VerificationInput(
             run_id, wave_index, self.repo_root, self.main_worktree.path,
@@ -1124,6 +1127,7 @@ class Supervisor:
             os.path.join(self.main_worktree.path, "docs", "handoff"),
             self.config.profile.check_specs, deadline.deadline_ns,
             immutable_before, immutable_after,
+            wave_manifest.receipt_schema_sha256,
         )
 
     def _execute_wave(
@@ -1167,11 +1171,12 @@ class Supervisor:
             worktree_intent, {"path": worktree.path, "base_main_sha": worktree.base_sha},
             wave_index=wave_index,
         )
-        schema_value = load_receipt_schema()
+        schema_value = load_receipt_schema(2)
         schema_json = canonical_bytes(schema_value).decode("utf-8")
+        schema_digest = receipt_schema_digest(2)
         wave_manifest = WaveManifest(
             SCHEMA_VERSION, ledger.snapshot.run_id, wave_index, worktree.path,
-            self.main_worktree.path, before.head_sha, receipt_schema_digest(),
+            self.main_worktree.path, before.head_sha, schema_digest,
         )
         self._create_wave_json(
             deadline, ledger.snapshot.run_id, limits.max_run_bytes,
@@ -1194,7 +1199,7 @@ class Supervisor:
             ),
             self.config.profile.model, self.config.profile.effort,
             self.main_worktree.path, str(paths["manifest"]), schema_json,
-            receipt_schema_digest(), wave_budget,
+            schema_digest, wave_budget,
             min(limits.per_wave_timeout_s, remaining_seconds),
             limits.max_wave_output_bytes, limits.max_run_bytes,
             str(paths["stdout"]), str(paths["stderr"]), str(paths["start"]),
@@ -1315,7 +1320,7 @@ class Supervisor:
         if report.receipt is not None:
             self._guard_wave_side_effect(deadline, "artifact-write")
             receipt_wire = strict_loads(
-                canonical_bytes(report.receipt), label="receipt-capacity",
+                encode_receipt(report.receipt), label="receipt-capacity",
                 max_bytes=DEFAULT_MAX_JSON_BYTES,
             )
             receipt_size = len(canonical_bytes(redact_value(receipt_wire))) + 1
@@ -1328,7 +1333,10 @@ class Supervisor:
         if report.ok:
             parsed = parse_claude_result(
                 paths["stdout"], max_bytes=limits.max_wave_output_bytes,
-                binding=ReceiptBinding(ledger.snapshot.run_id, wave_index, before.head_sha),
+                binding=ReceiptBinding(
+                    ledger.snapshot.run_id, wave_index, before.head_sha,
+                    schema_digest,
+                ),
             )
             cost = parsed.total_cost_usd
         self._crash("after-decision", ledger.snapshot.run_id, wave_index)
@@ -1492,6 +1500,7 @@ class Supervisor:
                 wave_manifest = parse_wave_manifest(paths["manifest"].read_bytes().rstrip(b"\n"))
                 receipt = validate_child_receipt(receipt_value, binding=ReceiptBinding(
                     run_id, snapshot.wave_index, wave_manifest.base_main_sha,
+                    wave_manifest.receipt_schema_sha256,
                 ))
                 current_identity = resolve_repo_identity(self.repo_root)
                 current = snapshot_repo(self.main_worktree.path)
@@ -1501,15 +1510,30 @@ class Supervisor:
                 )
                 wave_branch = str(context["wave_branch"]) if isinstance(context, dict) else ""
                 tip = branch_tip(self.repo_root, wave_branch, timeout_s=5.0)
-                accepted_matches = (
+                common_matches = (
                     receipt.outcome is Outcome.COMPLETED and receipt.landed_commits and
                     current_identity.digest == self.repo_identity.digest == manifest.repo_identity and
                     os.path.realpath(current_identity.main_worktree) == os.path.realpath(
                         self.main_worktree.path
                     ) and current.branch == "main" and
                     not current.main_dirty and not current.submodule_dirty and
-                    current.head_sha == receipt.landed_main_sha == receipt.landed_commits[-1] == tip
+                    current.head_sha == receipt.landed_main_sha and
+                    receipt.landed_commits[-1] == tip
                 )
+                if common_matches and receipt.schema_version == 1:
+                    accepted_matches = receipt.landed_main_sha == tip
+                elif common_matches:
+                    declared = verify_declared_fold_commit(
+                        self.repo_root,
+                        fold_commit_sha=receipt.fold_commit_sha,
+                        landed_main_sha=receipt.landed_main_sha or "",
+                        landed_commits=receipt.landed_commits,
+                        wave_tip=tip,
+                        timeout_s=5.0,
+                    )
+                    accepted_matches = declared.ok
+                else:
+                    accepted_matches = False
             except (OSError, DevWavesError, ValueError, KeyError):
                 accepted_matches = False
             if not accepted_matches:
