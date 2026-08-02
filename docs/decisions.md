@@ -6078,8 +6078,152 @@ journal と report の同時改変) は前提条件を追加しても全ては�
 **研究状態への影響:** 受理集合は狭まる方向にだけ変わる。8c supervisor が terminal report を
 書ける条件が増え、従来通っていた不完全 report (空 cell だけの complete、producer 到達不能な
 role 履歴、journal に無い role entry) が拒否される。凍結 bytes と既存 gate は不変である。
+## D125. [T-277] Pegasus 計測パスは「受理集合 + env 契約 + build identity + attestation」までを開き、`/scr` namespace と `single_process` 強制は発火 caller が無いので実装しない (2026-08-02)
 
-## D125. [T-316] coder 由来 source の build を既定拒否にする — 分類は caller の自己申告であり、意味 gate でも sandbox でもないことを明記する (2026-08-02)
+**背景 (ユーザー裁定):** worklog (102) の裁定 4 件のうち [T-277] は択 (a) 採用 —
+「`_site_admits_measurement` の Pegasus 拒否を D96 手続で開き、build identity を是正し
+(compiler realpath/version・CMake 版・dependency prefix・site・env contract)、`/scr` へ fresh
+namespace を切る。8c は Pegasus 側の厳しい隔離契約 (attestation required / single_process /
+allow_resume=false) に従わせ、linux-baremetal の緩い側へ寄せない」。
+
+**本 D は受理集合を変えるので D96 手続に従う。** 境界テストは同じ変更単位で更新済み
+(`orchestrator/tests/test_p3_s4_loop_trigger_gating.py` の admission matrix・AST 契約・
+behavioral 負例、`orchestrator/tests/test_buildcache_v2.py` の identity 系)。
+
+**決定 (1): 受理集合は `{OTHER, PEGASUS_COMPUTE}` の exact set にする。**
+`PEGASUS_LOGIN` / `PEGASUS_SUSPECT` / 未知値は behavioral に拒否する。
+site→env_tag は閉じた対応 `{OTHER: "linux-baremetal", PEGASUS_COMPUTE: "pegasus"}` とし、
+環境変数 override を作らない。`ENV_TAG` 定数は OTHER 用 selector として残す。
+
+**決定 (2): campaign identity を env で分離する。** Pegasus contract のときだけ
+`search_config` へ `measurement_env` を足し、campaign_id を別空間にする。**OTHER の
+campaign_id は 1 bit も変えない** (既存 campaign の再開互換。`src_token` の stock 後方互換と同型)。
+根拠は実測 — 既定 campaign `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5` は既に
+iteration=2 の loop_state と linux-baremetal WAL を持つ**既存の最終成果物**であり、
+受理集合だけ開けると Pegasus 実行が同じ campaign root を指す。
+
+**決定 (3): build identity は v2 pre-image へ「実解決 site」と「実効 dependency prefix」を入れる。**
+- site は **sink 側 `_resolve_site()` の実解決値**であり、caller 注入値ではない。
+  `site` を `evaluate` / `run_campaign` の公開引数にしない — 注入できる面を増やすと
+  login の heavy-work 拒否を迂回する caller 面が増える (`buildcache._resolve_site` は注入値を無検査で信頼する)。
+- dependency prefix は **path 要素の配列**として束縛する。区切り文字列のままだと
+  ambient `/tmp/p:/tmp/q` と `/tmp/p;/tmp/q` が同一 identity に畳み込まれ、CMake の探索集合が
+  異なるのに cache が hit する。空要素と明示相対 path は実効 cwd へ絶対化する。
+- **ambient `CMAKE_PREFIX_PATH` を「読まない」ではなく「読んで identity に束縛する」。**
+  `buildcache._run` は `subprocess.run` に `env=` を渡さず ambient を継承し、
+  `tools/pegasus/floor_campaign.sh` はそれを唯一の依存 seam として export する。
+  読まなければ「実際に効いた build 条件が identity から落ちる」= 偽の保証になる。
+  明示 prefix を渡すときは subprocess 環境から `CMAKE_PREFIX_PATH` を除去して実効値を一意にする。
+- compute の compiler は `("gcc","g++")` を実 site から解決し、`source_digest.resolve` にも同じ
+  `cxx` を配線する (既定 `g++-13` のままだと build 前の identity 計算で停止する)。
+  **非 stock の `src_token` は preprocess 出力の hash なので、compiler が変わると同一 genome・
+  同一ソースでも variant_id が環境間で分岐する。** これは identity 分離として正しい方向だが、
+  台帳を環境横断で variant_id により突き合わせる consumer には効く。
+
+**決定 (4): required attestation は単一の measurement sink で発火させる。**
+`loop.run_campaign` が `contract.attestation_mode == "required"` を見て
+`env_attestation.load_verified_calibration` → `execution_guard.attest_and_build_receipt` →
+`receipt_matches_contract` をこの順で 1 回だけ実行する。driver 側に重複実装を置かない
+(「二つの真実」を作らない)。attestation 失敗時は layout / WAL / evaluate へ到達しない。
+`allow_resume=False` の拒否は provenance・WAL・quarantine の**いずれの書込みよりも前**に置く。
+
+**決定 (5): `/scr` の fresh namespace と claim/reservation による `single_process` 強制は実装しない。**
+発火条件を満たす caller が存在しない (`DW-G04`)。加えて caller から lease を受け取る設計は
+`campaign_claim.AcquiredClaim` が public frozen dataclass のため偽造可能で、
+`reservation` は binding の `host` を現在 hostname と照合しない。
+実装すれば「謳うだけで発火しない gate」になるため、新事実つきで裁定へ返す。
+
+**決定 (6): 8c を計算ノードで運転する経路は開かない。** D108 決定 (1) が compute 上の
+`claude -p` を禁じ、8c は provider を同一 process で呼ぶ。これは [T-276] の裁定対象であり、
+T-277 が独断で supersede しない。本 wave が 8c へ触ったのは、決定 (1)〜(4) が
+`trigger.drive_iteration` 経由で効くための最小配線だけである。
+
+**決定 (7): 成果物名を格下げする。** 本 wave の成果は
+**「Pegasus 計測パスの routing・build identity・受理 gate の実装」**であって
+「live 計測の開通」ではない。登録済み Pegasus calibration の動作点は 1M records / 48 threads、
+trigger の動作点は 100k / 4 で一致しないため、この経路が仮に完走しても得られるのは
+**exploratory throughput であり floor 認証された選択ではない**。
+
+**却下した案:** legacy `cache_key` の pre-image 拡張 (D108 決定 (5) 自身が v2 は同じ穴でないと
+書いており、OTHER の後方互換を壊す)。ambient prefix を読まない案 (決定 (3))。
+`site` を公開引数として通す案 (決定 (3))。caller から `measurement_lease` を受け取る案 (決定 (5))。
+**兄弟 driver / legacy caller への COMPUTE 拒否追加** — 実装して撤去した。理由は
+① ユーザー裁定の項目でない、② `backoff_sweep.py` / `p3_s4_loop_sort.py` / `s6_sort_sweep.py` /
+`s8a_trigger_sweep.py` が S-1 凍結ソース閉包 (`known_axes.source_closure` の changed 12 /
+unchanged 51) に含まれ**受入全走が 10 件赤になる**、③ 防壁を通らない legacy driver が
+さらに 7 本あり、`evaluate is _REAL_EVALUATE` の identity 判定は wrapper / `functools.partial` で
+迂回できるため部分形が迂回可能な保証になる。独立タスクとして裁定へ返す。
+
+**研究状態への影響:** certified 選択・材料レポート・proof chain・凍結 bytes はいずれも不変。
+変わるのは (a) Pegasus 計算ノードでの計測が受理されるようになったこと、(b) v2 build identity が
+実 site と実効 dependency prefix を束縛するようになったこと (既存 v2 cache は一度 cold miss)、
+(c) Pegasus campaign が既存 linux campaign と別空間になったこと。
+一次資料 = `output/insights/2026-08-02_t277-pegasus-measure-path/`。
+
+## D126. [T-139] 正例 artifact の恒久実装は不採用とし、生死確認だけを先に置く — 回復候補 v1 は 2 workload の片方で逆転して不成立、適格性宣言の権威境界は裁定へ返す (2026-08-02)
+
+**背景:** worklog (109) のユーザー裁定は [T-139] について択 (3) 先行承認 =
+「`env_tag` / 測定 checkout / CCBench pin / attestation / between-run floor / 事前凍結 schedule を持つ
+3 arm 計測を 1 本」であり、(115) は [T-244] の着手条件をこの完成に置いた。
+本 wave はその実装に着手し、段 3 の敵対レンズ 2 本がいずれも NO-GO を返した。
+一次資料 = `output/insights/2026-08-02_t139-positive-control-probe/`。
+
+**段 1 の前提実測:** 既存 `silo_ladder_rung1.json` は要求 7 件 (3 arm + 6 性質) のうち
+CCBench pin・attestation・事前凍結 schedule の 3 件を**既に満たしていた**。不足は 4 件
+(3 arm / `env_tag` / 測定 checkout / between-run floor) である。親 brief は要求を 6 件と数え違え、
+段 3 レンズ A が訂正した。
+
+**決定 (1): 段 2 が起草した恒久実装は本 wave では実装しない。** 新 patch の恒久登録、
+qualification manifest、新 contract、新 producer、新 artifact、8 allocation × 240 run の本走の
+すべてが対象である。理由は決定 (2) と (3)。
+
+**決定 (2): `DW-G01` を先に履行する。** 回復候補 X の性能順序が未実測のまま恒久実装を計画したのは
+生死実験先行の違反であり、**親 brief の欠陥**である。両レンズが独立に指摘した。
+使い捨て probe による最安の生死確認を先に置く。
+
+**決定 (3): 適格性宣言の権威境界は親が決めない。** 凍結 ledger は exact-one contract で閉じており
+追記できない。段 2 は ledger 外の qualification manifest に
+`recovery_measurement_eligibility=true` を自己宣言させる案を出したが、両レンズが独立に
+「未裁定の権威境界を親が独断で新設する」と判定した。D120 決定 2 の直接の禁止対象ではないが
+同じ穴の別入口であり、`DW-S04` により裁定パッケージ ([T-337]) で返す。
+**これが解けるまで正例 artifact は成果物として発行できない。**
+
+**決定 (4): probe の受理条件は事前に固定し、結果を見てから変えない。**
+「両 workload で全標本が `mode1 < mode2 < stock`」と段 4 で固定した。RF 値・p 値・区間・CV による
+識別可能性判定は実装しない — RF の統計設計は未裁定であり、段 2 が提案した floor
+(arm ごとの between-session CV を足して差の floor にする) は段 3 レンズ B が統計的に誤りと判定した。
+
+**実測 (Pegasus gen_S request `877859`、2026-08-02):** trace-disabled、t48、
+2 workload × 3 arm × 5 rep を `shuf` で interleave、所要 176 秒。
+
+| workload | mode1 (劣化) | mode2 (回復候補) | stock |
+|---|---|---|---|
+| W1 高競合 write | 93,361 | 126,779 | 751,669 |
+| W2 中競合 mixed | 1,023,374 | 866,229 | 10,245,662 |
+
+**判定 = 不成立。** W1 では全標本が分離して順序が成立したが、W2 で mode2 < mode1 と逆転した。
+事前登録どおり不成立を記録し、候補の差し替えはしていない。probe 自体の検査
+(nm witness 6/6、liveness 288/288、単独性 36/36) はすべて通った。
+レコード数は未較正であり、この観測は局所観測である (性能比較・headline・calibration・floor の
+入力にしない)。
+
+**決定 (5): 機序は仮説として記し、帰属を主張しない。** (i) mode2 は stripe 番号を key のバイト列から
+計算するため mode1 に無い per-element の計算を足している、(ii) `std::array<std::mutex, 2>` は
+cache line 境界で padding されていない、の 2 つ。どちらも未実証である。
+**反証したのは「この実装の 2 stripe が この 2 workload の両方では部分回復にならない」ことだけ**であり、
+「2 stripe による部分回復は不可能」とは主張しない (W1 では順序が成立している)。
+
+**却下した案:** (a) 結果を見てから代替 X へ差し替えて再走する — 事後調整であり決定 (4) に反する。
+(b) 対象 workload を W1 のみへ縮める — 同じく結果を見てからの縮小である ([T-139] の択一として返す)。
+(c) manifest の自己宣言を「拒否集合を強めるだけ」として通す — 登録済み patch 集合が 1 つ増える以上
+受理集合の変更であり、D96 手続と権威境界の裁定が要る。
+
+**研究状態への影響:** certified 選択、材料レポート、proof chain、凍結 bytes、既存 gate はいずれも
+不変である。probe は gate を新設せず受理集合を変えないため**変異 matrix は対象外**。
+変わるのは [T-139] の状態が「正例 artifact の実装待ち」から「代替 X の設計待ち + 裁定 3 件」へ
+分解されたことと、**[T-244] の着手条件が依然として未達である**ことが確定したことである。
+
+## D127. [T-316] coder 由来 source の build を既定拒否にする — 分類は caller の自己申告であり、意味 gate でも sandbox でもないことを明記する (2026-08-02)
 
 **背景:** [T-316] は「`tools=[]` と JSON schema は valid-schema な一行 C++ 注入を止めない」として
 起票された。段 1 の前提実測で、hole 内 1 行の `std::system` / `execl` / `std::ofstream` /
@@ -6109,12 +6253,12 @@ opt-in は ambient な環境変数から読まない。
 enum と bool の整合だけであり、source bytes から由来を導出してはいない。したがって信頼境界は
 「trusted orchestrator code が正しく分類する」ことに置かれる。この限界を docstring に明記し、
 検出器であるかのように書かない。source digest / clean 検査 / generator identity から
-capability を発行する設計は [T-329] へ送る。
+capability を発行する設計は [T-342] へ送る。
 
 **決定 (5): cache と replay の class 束縛は本 wave では入れない。** admission は cache preimage・
 completion manifest・campaign preimage のいずれにも入っておらず、別 class の run から
 過去の `CODER_DERIVED` binary を cache hit で再利用できる。これは実在する穴であり、
-閉じたと主張しない。[T-330] へ送る。
+閉じたと主張しない。[T-343] へ送る。
 
 **決定 (6): `diff_quarantine.py` の docstring を実態へ訂正する。** 従来は「意味的逸脱の完全性は
 source_digest の preprocess 後ハッシュ + auditor + 規律6 が担う」と書いていたが、source_digest は

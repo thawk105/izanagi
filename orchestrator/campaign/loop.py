@@ -13,15 +13,21 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List, Optional, Sequence
 
-from . import ident, source_digest, wal
+from . import (buildcache, env_attestation, env_contract as env_contract_registry,
+               execution_guard, ident, site_policy, source_digest, wal)
 from .build_admission import BuildAdmission, require_build_admission
+from .env_contract import ExecutionEnvironmentContract
 from .layout import campaign_layout, exploration_campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import (EvalResult, PerfConfig, S2_TAG, SEARCH_CONFIG_VERIFY_KEY,
                        VERIFY_LEGACY_PLUS_S2, evaluate, s2_correctness_workload,
                        variant_id)
+
+_DEFAULT_CXX = buildcache.DEFAULT_CXX
+_compilers_for_current_site = buildcache.compilers_for_current_site
 
 
 @dataclass
@@ -39,19 +45,66 @@ class CampaignSummary:
     committed: int = 0
     aborted: int = 0
     results: List[EvalResult] = field(default_factory=list)
+    execution_receipt: Optional[dict] = None
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _authorize_measurement(
+        env_contract: Optional[ExecutionEnvironmentContract], *,
+        env_tag: str, clocks_per_us: int,
+        numactl: Optional[Sequence[str]],
+) -> Optional[dict]:
+    """明示 contract と required attestation を最初の書込みより前に検査する。"""
+    actual_site = site_policy.current_site()
+    if env_contract is None:
+        return None
+    if (actual_site == site_policy.PEGASUS_COMPUTE
+            and env_contract != env_contract_registry.lookup("pegasus")):
+        raise execution_guard.ExecutionGuardError(
+            "Pegasus compute では登録済み pegasus env_contract だけを受理する"
+        )
+    if type(env_contract) is not ExecutionEnvironmentContract:
+        raise TypeError("env_contract は exact ExecutionEnvironmentContract が必要")
+    if (env_tag != env_contract.env_tag
+            or clocks_per_us != env_contract.clocks_per_us
+            or tuple(numactl or ()) != env_contract.numactl):
+        raise execution_guard.ExecutionGuardError(
+            "campaign 実行値が env_contract と完全一致しない"
+        )
+    if env_contract.attestation_mode != "required":
+        return None
+    verified = env_attestation.load_verified_calibration(env_contract, _repo_root())
+    receipt = execution_guard.attest_and_build_receipt(env_contract, verified)
+    if not execution_guard.receipt_matches_contract(
+        receipt,
+        env_tag=env_contract.env_tag,
+        contract_sha256=env_contract.contract_sha256,
+        attestation_mode=env_contract.attestation_mode,
+        verified_calibration=verified,
+    ):
+        raise execution_guard.ExecutionGuardError(
+            "execution receipt の契約再検算に失敗"
+        )
+    return receipt
 
 
 def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  perf: PerfConfig, env_tag: str, clocks_per_us: int,
                  numactl: Optional[Sequence[str]] = None,
                  do_bench: bool = True, output_root: str = "",
-                 log=print, ccbench_dir: str = "", cache_root: str = "", *,
+                 log=print, ccbench_dir: str = "", cache_root: str = "",
+                 env_contract=None, dependency_prefix: str = "", *,
                  admission: BuildAdmission,
                  campaign_namespace: str = "official") -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
-    official / exploration の閉じた path selector。いずれも campaign-id には含めない
-    (numactl/do_bench と同じ扱い、pipeline.evaluate の docstring 参照)。"""
+    official / exploration の閉じた path selector。namespace は campaign-id に含めず、
+    `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
+    evaluate 呼出し形を保つ。`admission` は provenance class を必須指定し、
+    pipeline と materializer へそのまま伝播する。"""
     admission = require_build_admission(admission)
     if campaign_namespace == "official":
         layout_constructor = campaign_layout
@@ -60,6 +113,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     else:
         raise ValueError(f"未知の campaign namespace: {campaign_namespace!r}")
 
+    execution_receipt = _authorize_measurement(
+        env_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
+        numactl=numactl,
+    )
     cid = ident.campaign_id(cfg)
     layout = layout_constructor(str(cid), output_root).ensure()
 
@@ -103,8 +160,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         log(f"[campaign] リカバリ: {len(retryable)} variant は transient abort "
             "(identity/probe-error) → 再評価")
 
-    s = CampaignSummary(campaign_id=str(cid), layout_root=layout.root,
-                        total=len(genomes))
+    s = CampaignSummary(
+        campaign_id=str(cid), layout_root=layout.root, total=len(genomes),
+        execution_receipt=execution_receipt,
+    )
     done = set(terminal)        # terminal を seed して 1 run 内の二重評価も防ぐ (U1)
     first_bench = True          # settle は最初の実 bench の前に 1 回だけ (calibrator 契約)
     for g in genomes:
@@ -113,7 +172,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         # (source_digest.resolve) を使い、確定済み src_token を渡して id 確定点を単一化する。
         # 確定不能は stock id で fails-closed abort (best-effort skip を持ち込まない, 規律2)。
         try:
-            src_tok = source_digest.resolve(g, cfg.ccbench_commit, ccbench_dir)
+            _, resolved_cxx = _compilers_for_current_site()
+            if resolved_cxx == _DEFAULT_CXX:
+                src_tok = source_digest.resolve(g, cfg.ccbench_commit, ccbench_dir)
+            else:
+                src_tok = source_digest.resolve(
+                    g, cfg.ccbench_commit, ccbench_dir, resolved_cxx,
+                )
         except RuntimeError as e:
             v0 = variant_id(g)              # identity 不明ゆえ canonical のみの stock id
             if v0 in done:
@@ -148,12 +213,17 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         done.add(v)
         log(f"[campaign] evaluate {g.canonical()}")
         try:
+            evaluate_options = {}
+            if env_contract is not None:
+                evaluate_options["env_contract"] = env_contract
+            if dependency_prefix:
+                evaluate_options["dependency_prefix"] = dependency_prefix
             r = evaluate(g, layout, env_tag, cfg.ccbench_commit, perf,
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
                          do_settle=(do_bench and first_bench),
                          src_token=src_tok, extra_correctness=extra_correctness,
                          log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
-                         admission=admission)
+                         admission=admission, **evaluate_options)
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。

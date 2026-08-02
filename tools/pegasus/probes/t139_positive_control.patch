@@ -1,0 +1,100 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -8,6 +8,52 @@
+ #include "include/scan_callback.hh"
+ #include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
+ 
++#if defined(IZANAGI_T139_PC_MODE1) && defined(IZANAGI_T139_PC_MODE2)
++#error "IZANAGI_T139_PC_MODE1 and IZANAGI_T139_PC_MODE2 are mutually exclusive"
++#endif
++
++#if defined(IZANAGI_T139_PC_MODE1) || defined(IZANAGI_T139_PC_MODE2)
++// Disposable DW-G01 probe, never a baseline or acceptance artifact.  The
++// mutexes constrain scheduling only: every stock Silo operation, including
++// the one write-lock CAS with its original lvalue and by-reference expected,
++// still executes unchanged.  The gate holder never waits for a record lock;
++// it releases the gate immediately after the nonblocking CAS, so this adds no
++// mutex/record-lock deadlock cycle.  Hold-and-wait starvation is still
++// possible, therefore every worker committing at least once is an acceptance
++// condition.  Bare macros keep both modes outside the genome flag space.
++#include <array>
++#include <mutex>
++
++namespace izanagi_t139_positive_control {
++#if defined(IZANAGI_T139_PC_MODE1)
++std::mutex gate;
++extern "C" {
++__attribute__((used, visibility("default")))
++volatile unsigned char izanagi_t139_pc_mode1_identity = 1;
++}
++#elif defined(IZANAGI_T139_PC_MODE2)
++std::array<std::mutex, 2> gates;
++extern "C" {
++__attribute__((used, visibility("default")))
++volatile unsigned char izanagi_t139_pc_mode2_identity = 1;
++}
++#endif
++}  // namespace izanagi_t139_positive_control
++#endif
++
++#if ADD_ANALYSIS
++#include <cstdio>
++#include <cstdlib>
++namespace izanagi_t139_positive_control {
++inline void report_first_commit(std::size_t worker, Result* result) {
++  if (std::getenv("T139_PROBE_LIVENESS") != nullptr &&
++      result->local_commit_counts_ == 0) {
++    std::fprintf(stdout, "izanagi_t139_pc.worker[%zu]=1\n", worker);
++  }
++}
++}  // namespace izanagi_t139_positive_control
++#endif
++
+ extern void displayDB();
+ extern void siloLeaderWork(uint64_t& epoch_timer_start,
+                            uint64_t& epoch_timer_stop);
+@@ -169,8 +215,34 @@ void TxExecutor::lockWriteSet() {
+       } else {
+         desired = expected;
+         desired.lock = 1;
++#if defined(IZANAGI_T139_PC_MODE1)
++        bool acquired;
++        {
++          std::lock_guard<std::mutex> guard(
++              izanagi_t139_positive_control::gate);
++          acquired = compareExchange((*itr).rcdptr_->tidword_.obj_,
++                                     expected.obj_, desired.obj_);
++        }
++        if (acquired) {
++#elif defined(IZANAGI_T139_PC_MODE2)
++        // Stable record identity: storage plus key bytes, never an address.
++        std::size_t stripe = static_cast<std::size_t>((*itr).storage_);
++        for (char byte : (*itr).key_) {
++          stripe ^= static_cast<unsigned char>(byte);
++          stripe *= 1099511628211ULL;
++        }
++        bool acquired;
++        {
++          std::lock_guard<std::mutex> guard(
++              izanagi_t139_positive_control::gates[stripe & 1U]);
++          acquired = compareExchange((*itr).rcdptr_->tidword_.obj_,
++                                     expected.obj_, desired.obj_);
++        }
++        if (acquired) {
++#else
+         if (compareExchange((*itr).rcdptr_->tidword_.obj_, expected.obj_,
+                             desired.obj_)) {
++#endif
+ #if TRACE
+           // This worker now holds the lock on this tuple (D38). On the skeleton
+           // CAS-success path (not the coder edit surface = the conflict response
+@@ -694,5 +766,8 @@ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
++#if ADD_ANALYSIS
++    izanagi_t139_positive_control::report_first_commit(thid_, result_);
++#endif
+     return true;
+   } else {
+     return false;

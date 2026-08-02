@@ -198,6 +198,18 @@ def test_m11_login_and_suspect_refuse_immediately_before_real_cmake_build():
             assert calls == [], f"{site} で subprocess 起動前に拒否されていない"
 
 
+def test_site_compiler_helper_uses_system_gcc_only_on_actual_compute():
+    with patch.object(
+            site_policy, "current_site", return_value=site_policy.PEGASUS_COMPUTE):
+        assert buildcache.compilers_for_current_site() == ("gcc", "g++")
+    for actual_site in (
+            site_policy.OTHER, site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT):
+        with patch.object(site_policy, "current_site", return_value=actual_site):
+            assert buildcache.compilers_for_current_site() == (
+                buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX,
+            )
+
+
 def _v2_build_argv(*, site: str, jobs: int | None = None) -> tuple[str, ...]:
     toolchain = {
         role: {"realpath": "/fake/cmake" if role == "cmake" else f"/fake/{role}"}
@@ -248,6 +260,11 @@ def test_other_default_jobs_remain_j16():
         )
     assert result.build_argv[-2:] == ("-j", "16")
     assert calls[-1][0][-2:] == ("-j", "16")
+    assert f"-DCMAKE_C_COMPILER={buildcache.DEFAULT_CC}" in result.configure_argv
+    assert f"-DCMAKE_CXX_COMPILER={buildcache.DEFAULT_CXX}" in result.configure_argv
+    assert Path(result.build_dir).name == buildcache.cache_key(
+        Genome("silo", {"BACK_OFF": 1}), "a" * 40, True, src_token="stock",
+    )
 
 
 def test_explicit_jobs_one_is_respected_for_every_site():

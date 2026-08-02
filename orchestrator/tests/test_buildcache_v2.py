@@ -66,6 +66,10 @@ def _install_toolchain(tmp_path: Path, monkeypatch, *, cxx_version: str = "cxx v
 
 
 def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-binary") -> None:
+    monkeypatch.setattr(
+        buildcache.site_policy, "current_site", lambda: buildcache.site_policy.OTHER,
+    )
+    monkeypatch.delenv("CMAKE_PREFIX_PATH", raising=False)
     monkeypatch.setattr(buildcache, "_ccbench_dir", lambda: str(tmp_path / "ccbench"))
     monkeypatch.setattr(buildcache, "_verify_ccbench_commit", lambda *a, **k: None)
     monkeypatch.setattr(
@@ -80,7 +84,7 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
     )
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", lambda *a, **k: None)
 
-    def fake_run(cmd, what, timeout_s=None):
+    def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
         if what == "build":
             bdir = Path(cmd[cmd.index("--build") + 1])
             binary = bdir / "cc" / "silo" / "ycsb_silo.exe"
@@ -91,9 +95,9 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
 
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
-           ccbench_dir: str = "", timeout_s: int | None = None):
-    return buildcache.build_v2(
-        Genome("silo", {"BACK_OFF": 1}),
+           ccbench_dir: str = "", timeout_s: int | None = None,
+           dependency_prefix: str = "", site: str | None = None):
+    kwargs = dict(
         admission=_STOCK_ADMISSION,
         contract=contract,
         ccbench_commit="a" * 40,
@@ -104,6 +108,14 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         cache_root=str(tmp_path / "cache"),
         ccbench_dir=ccbench_dir,
         timeout_s=timeout_s,
+    )
+    if dependency_prefix:
+        kwargs["dependency_prefix"] = dependency_prefix
+    if site is not None:
+        kwargs["site"] = site
+    return buildcache.build_v2(
+        Genome("silo", {"BACK_OFF": 1}),
+        **kwargs,
     )
 
 
@@ -246,6 +258,143 @@ def test_v2_toolchain_version_change_is_cache_miss(tmp_path, monkeypatch):
     assert first.build_dir != second.build_dir
 
 
+def test_m7_v2_actual_site_change_is_cache_miss(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _build(tmp_path, _contract(1))
+    monkeypatch.setattr(
+        buildcache.site_policy,
+        "current_site",
+        lambda: buildcache.site_policy.PEGASUS_COMPUTE,
+    )
+    second = _build(tmp_path, _contract(1))
+    assert not first.cached and not second.cached
+    assert first.build_dir != second.build_dir
+
+
+def test_m8_v2_explicit_dependency_prefix_change_is_cache_miss(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _build(tmp_path, _contract(1), dependency_prefix="/deps/gflags")
+    second = _build(tmp_path, _contract(1), dependency_prefix="/deps/glog")
+    assert not first.cached and not second.cached
+    assert first.build_dir != second.build_dir
+
+
+def test_ambient_dependency_prefix_canonicalization_rule(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    raw = os.pathsep.join(("deps/../gflags", "", "./glog"))
+    assert buildcache._canonical_ambient_dependency_prefix(raw) == [
+        str((tmp_path / "gflags").resolve()), str(tmp_path.resolve()),
+        str((tmp_path / "glog").resolve()),
+    ]
+
+
+def test_m9_v2_ambient_dependency_prefix_change_is_cache_miss(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv(
+        "CMAKE_PREFIX_PATH",
+        os.pathsep.join((str(tmp_path / "gflags"), str(tmp_path / "glog"))),
+    )
+    first = _build(tmp_path, _contract(1))
+    first_manifest = json.loads(
+        (Path(first.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert first_manifest["preimage"]["dependency_prefix"] == [
+        str((tmp_path / "gflags").resolve()), str((tmp_path / "glog").resolve()),
+    ]
+
+    monkeypatch.setenv(
+        "CMAKE_PREFIX_PATH",
+        os.pathsep.join((str(tmp_path / "gflags"), str(tmp_path / "other-glog"))),
+    )
+    second = _build(tmp_path, _contract(1))
+    assert not first.cached and not second.cached
+    assert first.build_dir != second.build_dir
+
+
+def test_ambient_prefix_path_list_encoding_is_injective(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv("CMAKE_PREFIX_PATH", "/tmp/p:/tmp/q")
+    split_paths = _build(tmp_path, _contract(1))
+    monkeypatch.setenv("CMAKE_PREFIX_PATH", "/tmp/p;/tmp/q")
+    semicolon_path = _build(tmp_path, _contract(1))
+    assert Path(split_paths.build_dir).name != Path(semicolon_path.build_dir).name
+    first = json.loads(
+        (Path(split_paths.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )["preimage"]["dependency_prefix"]
+    second = json.loads(
+        (Path(semicolon_path.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )["preimage"]["dependency_prefix"]
+    assert first == ["/tmp/p", "/tmp/q"]
+    assert second == ["/tmp/p;/tmp/q"]
+
+
+def test_m10_explicit_prefix_is_one_argv_token_and_removes_ambient_env(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv("CMAKE_PREFIX_PATH", "/ambient/must-not-compete")
+    calls = []
+
+    def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
+        calls.append((what, tuple(cmd), env))
+        if what == "build":
+            bdir = Path(cmd[cmd.index("--build") + 1])
+            binary = bdir / "cc" / "silo" / "ycsb_silo.exe"
+            binary.parent.mkdir(parents=True, exist_ok=True)
+            binary.write_bytes(b"prefix-env")
+
+    monkeypatch.setattr(buildcache, "_run", fake_run)
+    explicit = "/deps/gflags;/deps/glog"
+    with_prefix = _build(
+        tmp_path, _contract(1), dependency_prefix=explicit,
+    )
+    without_prefix = _build(tmp_path, _contract(2))
+
+    explicit_tokens = [
+        token for token in with_prefix.configure_argv
+        if token.startswith("-DCMAKE_PREFIX_PATH=")
+    ]
+    inherited_tokens = [
+        token for token in without_prefix.configure_argv
+        if token.startswith("-DCMAKE_PREFIX_PATH=")
+    ]
+    assert explicit_tokens == [f"-DCMAKE_PREFIX_PATH={explicit}"]
+    assert inherited_tokens == []
+    assert all(
+        env is not None and "CMAKE_PREFIX_PATH" not in env
+        for _, _, env in calls[:2]
+    )
+    assert all(env is None for _, _, env in calls[2:])
+
+
+def test_explicit_relative_prefix_is_bound_to_effective_cwd(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    result = _build(tmp_path, _contract(1), dependency_prefix="deps")
+    expected = str((tmp_path / "deps").resolve())
+    assert f"-DCMAKE_PREFIX_PATH={expected}" in result.configure_argv
+    manifest = json.loads(
+        (Path(result.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert manifest["preimage"]["dependency_prefix"] == [expected]
+
+
+def test_m13_caller_injected_site_does_not_change_v2_identity(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _build(tmp_path, _contract(1), site=buildcache.site_policy.OTHER)
+    second = _build(
+        tmp_path, _contract(1), site=buildcache.site_policy.PEGASUS_COMPUTE,
+    )
+    assert not first.cached and second.cached
+    assert first.build_dir == second.build_dir
+
+
 def test_v2_toolchain_probe_failure_is_build_error_without_cache(tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
@@ -367,7 +516,10 @@ def test_v2_manifest_records_complete_identity(tmp_path, monkeypatch):
     assert manifest["schema_version"] == "buildcache/v2"
     assert manifest["completion_marker"] == "complete"
     assert manifest["contract_sha256"] == _contract(1).contract_sha256
-    assert manifest["preimage"] == {
+    preimage = dict(manifest["preimage"])
+    preimage.pop("site", None)  # M7 は専用 cache-miss node だけへ帰属させる。
+    preimage.pop("dependency_prefix", None)  # M8 も専用 node だけへ帰属させる。
+    assert preimage == {
         "cc": "test-cc",
         "ccbench_commit": "a" * 40,
         "cxx": "test-cxx",

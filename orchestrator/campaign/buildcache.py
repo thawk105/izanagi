@@ -220,6 +220,7 @@ def _toolchain_manifest(cc: str, cxx: str) -> Dict[str, Dict[str, str]]:
 def _v2_identity(
         genome: Genome, ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, toolchain: Dict[str, Dict[str, str]],
+        *, site: str, dependency_prefix: List[str],
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
     toolchain_sha256 = hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest()
@@ -231,6 +232,8 @@ def _v2_identity(
         "cc": cc,
         "cxx": cxx,
         "toolchain_manifest_sha256": toolchain_sha256,
+        "site": site,
+        "dependency_prefix": dependency_prefix,
     }
     return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
 
@@ -338,6 +341,39 @@ def _resolve_site(site: Optional[str]) -> str:
     return site_policy.current_site() if site is None else site
 
 
+def compilers_for_current_site() -> tuple[str, str]:
+    """実 site が Pegasus compute のときだけ system compiler を選ぶ。"""
+    if _resolve_site(None) == site_policy.PEGASUS_COMPUTE:
+        return "gcc", "g++"
+    return DEFAULT_CC, DEFAULT_CXX
+
+
+def _canonical_dependency_prefix_elements(
+        value: str, *, separator: str,
+) -> List[str]:
+    """prefix を実効 cwd に束縛した path 要素列へ正準化する。"""
+    cwd = os.path.realpath(os.getcwd())
+    return [
+        cwd if not piece else os.path.realpath(os.path.abspath(piece))
+        for piece in value.split(separator)
+    ]
+
+
+def _canonical_ambient_dependency_prefix(value: Optional[str]) -> List[str]:
+    """環境変数の path-separator 意味論を保った identity 用 path 要素列。"""
+    if value is None or value == "":
+        return []
+    return _canonical_dependency_prefix_elements(value, separator=os.pathsep)
+
+
+def _canonical_explicit_dependency_prefix(value: str) -> tuple[List[str], str]:
+    """CMake cache variable の semicolon-list を identity/argv へ同時に束縛する。"""
+    if not value:
+        return [], ""
+    elements = _canonical_dependency_prefix_elements(value, separator=";")
+    return elements, ";".join(elements)
+
+
 def _resolve_build_jobs(jobs: Optional[int], site: Optional[str]) -> int:
     """明示 jobs を尊重し、未指定時だけ site policy の既定値を使う。"""
     if jobs is not None:
@@ -348,17 +384,20 @@ def _resolve_build_jobs(jobs: Optional[int], site: Optional[str]) -> int:
 def _v2_commands(
         genome: Genome, trace: bool, sub: str, bdir: str,
         toolchain: Dict[str, Dict[str, str]], jobs: Optional[int] = None,
-        *, site: Optional[str] = None,
+        *, site: Optional[str] = None, dependency_prefix: str = "",
 ) -> tuple[List[str], List[str]]:
     resolved_jobs = _resolve_build_jobs(jobs, site)
     target = f"ycsb_{genome.protocol}.exe"
     defines = genome.cmake_defines() + [f"-DCCBENCH_TRACE={int(trace)}"]
+    prefix_define = (
+        [f"-DCMAKE_PREFIX_PATH={dependency_prefix}"] if dependency_prefix else []
+    )
     configure = [
         toolchain["cmake"]["realpath"], "-S", sub, "-B", bdir,
         "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
         f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
         f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
-    ] + defines
+    ] + prefix_define + defines
     build_cmd = [
         toolchain["cmake"]["realpath"], "--build", bdir,
         "--target", target, "-j", str(resolved_jobs),
@@ -370,9 +409,11 @@ def _v2_result(
         genome: Genome, trace: bool, binary: str, bin_sha256: str, bdir: str,
         cached: bool, sub: str, root: str,
         toolchain: Dict[str, Dict[str, str]], contract_sha256: str, site: str,
+        dependency_prefix: str,
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
         genome, trace, sub, bdir, toolchain, site=site,
+        dependency_prefix=dependency_prefix,
     )
     return BuildResult(
         genome=genome, trace=trace, binary=binary, bin_sha256=bin_sha256,
@@ -427,6 +468,7 @@ def build_v2(
         ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         timeout_s: Optional[int] = None, site: Optional[str] = None,
+        dependency_prefix: str = "",
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -440,6 +482,9 @@ def build_v2(
     tree の内容を ``src_token`` が束縛する。allowlist/commit/src-token/trace-diff 検査は
     すべてその tree に対して発火する。``timeout_s=None`` は既存どおり無制限である。
     ``site=None`` は実環境から解決し、build command と起動 gate は同じ注入 seam を使う。
+    identity の site は注入値でなく実環境から独立に解決する。非空の
+    ``dependency_prefix`` は configure argv へ明示し、subprocess 環境の同名変数を除く。
+    空なら argv と環境継承を変えず、ambient 値の正準形だけを identity に束縛する。
     """
     admission = require_build_admission(admission)
     if not isinstance(contract, ExecutionEnvironmentContract):
@@ -453,6 +498,11 @@ def build_v2(
             ("cc", cc), ("cxx", cxx)):
         if type(value) is not str or not value:
             raise TypeError(f"{name} は非空 str でなければならない: {value!r}")
+    if type(dependency_prefix) is not str or "\0" in dependency_prefix:
+        raise TypeError(
+            "dependency_prefix は NUL を含まない str でなければならない: "
+            f"{dependency_prefix!r}"
+        )
     try:
         root = os.fspath(cache_root)
     except TypeError as exc:
@@ -460,7 +510,17 @@ def build_v2(
     if type(root) is not str or not root:
         raise TypeError("cache_root は非空 str path でなければならない")
     root = os.path.abspath(root)
-    resolved_site = _resolve_site(site)
+    actual_site = _resolve_site(None)
+    resolved_site = actual_site if site is None else _resolve_site(site)
+    if dependency_prefix:
+        effective_dependency_prefix, configure_dependency_prefix = (
+            _canonical_explicit_dependency_prefix(dependency_prefix)
+        )
+    else:
+        effective_dependency_prefix = _canonical_ambient_dependency_prefix(
+            os.environ.get("CMAKE_PREFIX_PATH")
+        )
+        configure_dependency_prefix = ""
 
     contract_sha256 = contract.contract_sha256
     if not is_full_sha256(contract_sha256):
@@ -473,6 +533,7 @@ def build_v2(
     toolchain = _toolchain_manifest(cc, cxx)
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
+        site=actual_site, dependency_prefix=effective_dependency_prefix,
     )
     parent = os.path.join(root, "contracts", contract_sha256)
     bdir = os.path.join(parent, digest)
@@ -506,7 +567,7 @@ def build_v2(
             _assert_no_trace_symbols(binary)
         return _v2_result(
             genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
-            contract_sha256, resolved_site,
+            contract_sha256, resolved_site, configure_dependency_prefix,
         )
 
     nonce = secrets.token_hex(16)
@@ -522,19 +583,29 @@ def build_v2(
         os.mkdir(staging, 0o700)
         configure, build_cmd = _v2_commands(
             genome, trace, sub, staging, toolchain, site=resolved_site,
+            dependency_prefix=configure_dependency_prefix,
         )
+        run_env = {}
+        if configure_dependency_prefix:
+            build_env = os.environ.copy()
+            build_env.pop("CMAKE_PREFIX_PATH", None)
+            run_env["env"] = build_env
         try:
             if site is None:
-                _run(configure, "configure", timeout_s=timeout_s)
-                _run(build_cmd, "build", timeout_s=timeout_s)
+                _run(
+                    configure, "configure", timeout_s=timeout_s, **run_env,
+                )
+                _run(
+                    build_cmd, "build", timeout_s=timeout_s, **run_env,
+                )
             else:
                 _run(
                     configure, "configure", timeout_s=timeout_s,
-                    site=resolved_site,
+                    site=resolved_site, **run_env,
                 )
                 _run(
                     build_cmd, "build", timeout_s=timeout_s,
-                    site=resolved_site,
+                    site=resolved_site, **run_env,
                 )
         except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
             raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
@@ -594,7 +665,7 @@ def build_v2(
     binary = os.path.join(bdir, binary_relpath)
     return _v2_result(
         genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
-        contract_sha256, resolved_site,
+        contract_sha256, resolved_site, configure_dependency_prefix,
     )
 
 
@@ -788,7 +859,7 @@ def _assert_no_trace_symbols(binary: str) -> None:
 
 def _run(
         cmd: List[str], what: str, timeout_s: Optional[int] = None,
-        *, site: Optional[str] = None,
+        *, site: Optional[str] = None, env: Optional[Dict[str, str]] = None,
 ) -> None:
     if what in {"configure", "build"}:
         resolved_site = _resolve_site(site)
@@ -796,9 +867,14 @@ def _run(
             raise BuildError(
                 site_policy.heavy_work_refusal(resolved_site, f"cmake {what}")
             )
-    r = subprocess.run(
-        cmd, capture_output=True, text=True, timeout=timeout_s,
-    )
+    run_kwargs: Dict[str, Any] = {
+        "capture_output": True,
+        "text": True,
+        "timeout": timeout_s,
+    }
+    if env is not None:
+        run_kwargs["env"] = env
+    r = subprocess.run(cmd, **run_kwargs)
     if r.returncode != 0:
         raise RuntimeError(f"{what} failed (rc={r.returncode}): "
                            f"{r.stderr[-800:]}")

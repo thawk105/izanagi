@@ -46,7 +46,7 @@ import os
 import re
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -77,6 +77,11 @@ from critic.digest import DIFF_QUARANTINE_REASON                   # noqa: E402
 
 # ---- campaign 定数 (軸定数は axis_trigger_gating が正本 — ここは環境・計測の定数のみ) ----
 ENV_TAG = "linux-baremetal"
+_SITE_ENV_TAGS = {
+    site_policy.OTHER: ENV_TAG,
+    site_policy.PEGASUS_COMPUTE: "pegasus",
+}
+_CAMPAIGN_ENV_KEY = "measurement_env"
 
 _current_site = site_policy.current_site
 _lookup = env_contract.lookup
@@ -271,31 +276,79 @@ def _append_provenance_entry(layout: CampaignLayout, iteration: int,
     provenance が書けない iteration は checkpoint を前進させず、再開時に WAL replay
     (重複解決) 経由で同 iteration が再記録される (レビュー FC-1(b)(c) 裁定)。"""
     prov = _load_provenance(layout)
-    prov.setdefault("entries", {})[str(iteration)] = entry
+    entries = prov.setdefault("entries", {})
+    merged = dict(entries.get(str(iteration), {}))
+    merged.update(entry)
+    entries[str(iteration)] = merged
     _write_provenance(layout, prov)
 
 
 # ==== diff 検疫 + 構文契約 grep + auditor gate ==================================
 
 def _site_admits_measurement(site: str) -> bool:
-    """認識済み Pegasus を拒否し、その他の site だけを許可する。"""
-    return site == site_policy.OTHER
+    """計測を許す既知 site の exact set。未知値は fail-closed。"""
+    return site in {site_policy.OTHER, site_policy.PEGASUS_COMPUTE}
 
 
-def _admit_env_contract() -> env_contract.ExecutionEnvironmentContract:
-    """現在 site を実測して admission 後に限り環境契約を解決する。"""
-    site = _current_site()
+def _admit_env_contract(site: str) -> env_contract.ExecutionEnvironmentContract:
+    """解決済み site を admission 後に閉じた対応から契約へ写像する。"""
     if not _site_admits_measurement(site):
         raise execution_guard.ExecutionGuardError(
-            f"{ENV_TAG} の env bytes は site={site!r} では生成できない"
+            f"計測用 env bytes は site={site!r} では生成できない"
         )
-    return _lookup(ENV_TAG)
+    return _lookup(_SITE_ENV_TAGS[site])
+
+
+def _campaign_cfg_for_site(cfg: CampaignConfig, site: str) -> CampaignConfig:
+    """Pegasus contract だけ campaign identity を別 namespace に分ける。"""
+    if site != site_policy.PEGASUS_COMPUTE:
+        return cfg
+    return replace(
+        cfg,
+        search_config={**cfg.search_config, _CAMPAIGN_ENV_KEY: _SITE_ENV_TAGS[site]},
+    )
+
+
+def _assert_resume_allowed(
+    contract: env_contract.ExecutionEnvironmentContract,
+    layout: CampaignLayout,
+) -> None:
+    if contract.isolation_policy.allow_resume:
+        return
+    existing = [
+        path for path in (
+            layout.lock_file, L.loop_state_path(layout), layout.wal_file,
+            _provenance_path(layout),
+        )
+        if os.path.lexists(path)
+    ]
+    if existing:
+        raise execution_guard.ExecutionGuardError(
+            f"env {contract.env_tag} は allow_resume=False: 既存 campaign artifact を拒否: "
+            + ", ".join(existing)
+        )
+
+
+def _receipt_provenance(
+    *, site: str, contract: env_contract.ExecutionEnvironmentContract,
+    receipt: Dict,
+) -> Dict:
+    encoded = json.dumps(
+        receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    import hashlib
+    return {
+        "site": site,
+        "contract_sha256": contract.contract_sha256,
+        "execution_receipt_sha256": hashlib.sha256(encoded).hexdigest(),
+        "execution_receipt": receipt,
+    }
 
 
 def _record_diff_reject_admitted(layout: CampaignLayout, genome: Genome,
                                  implementation: str,
-                                 res: DiffQuarantineResult) -> str:
-    contract = _admit_env_contract()
+                                 res: DiffQuarantineResult,
+                                 contract: env_contract.ExecutionEnvironmentContract) -> str:
     return L.record_diff_reject(
         layout, genome, implementation, res, env_tag=contract.env_tag
     )
@@ -305,6 +358,7 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
                           auditor: AuditorVerdict, genome: Genome,
                           layout: CampaignLayout, state: L.LoopState,
                           planner: L.PlannerProposal, write: bool,
+                          contract: env_contract.ExecutionEnvironmentContract,
                           log=print) -> Optional[Dict]:
     """hole 挿入 → diff 検疫 → 構文契約 grep → auditor gate (digest 照合 + verdict)。
     reject dict を返すか (build へ進まない)、None (通過)。
@@ -313,7 +367,9 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
     res, _base, _edited, working_diff = L.quarantine(
         sub, coder.implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
     if not res.passed:
-        v = _record_diff_reject_admitted(layout, genome, coder.implementation, res)
+        v = _record_diff_reject_admitted(
+            layout, genome, coder.implementation, res, contract,
+        )
         L.project_whiteboard(state, planner, "rejected")
         log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
         return {"outcome": "rejected", "variant": v, "digest": res.digest}
@@ -321,7 +377,9 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
     matched = check_syntax_contract(coder.implementation)
     if matched:
         sres = _syntax_contract_reject_result(matched)
-        v = _record_diff_reject_admitted(layout, genome, coder.implementation, sres)
+        v = _record_diff_reject_admitted(
+            layout, genome, coder.implementation, sres, contract,
+        )
         L.project_whiteboard(state, planner, "rejected")
         log(f"  構文契約 reject: 禁止識別子 {matched}")
         return {"outcome": "rejected", "variant": v, "digest": sres.digest}
@@ -332,7 +390,9 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
         subtype = "auditor-uncertain" if auditor.verdict == "uncertain" else "auditor-violation"
         ares = auditor_reject_result(subtype, auditor,
                                      diff_region=SOURCE_REL, template_diff_id=MARKER_ID)
-        v = _record_diff_reject_admitted(layout, genome, coder.implementation, ares)
+        v = _record_diff_reject_admitted(
+            layout, genome, coder.implementation, ares, contract,
+        )
         L.project_whiteboard(state, planner, "rejected")
         log(f"  auditor gate reject (verdict={auditor.verdict}): "
             f"{len(auditor.violations)} violations")
@@ -384,11 +444,93 @@ default_perf = L.default_perf   # 軸非依存 (配線規模、有意性を主�
 _resolve_duplicate = L._resolve_duplicate
 
 
+def _with_campaign_location(
+        outcome: Dict, campaign_cfg: CampaignConfig,
+        layout: CampaignLayout,
+) -> Dict:
+    outcome.update({
+        "campaign_id": str(ident.campaign_id(campaign_cfg)),
+        "layout_root": layout.root,
+    })
+    return outcome
+
+
+def _run_one_iteration_resolved(
+        campaign_cfg: CampaignConfig, perf,
+        planner: L.PlannerProposal, coder: CoderProposalTriggerGating,
+        auditor: AuditorVerdict, state: L.LoopState, sub: str, do_build: bool,
+        layout: CampaignLayout, contract: env_contract.ExecutionEnvironmentContract,
+        resolved_site: str, log=print, cache_root: str = "",
+        dependency_prefix: str = "",
+        admission: Optional[BuildAdmission] = None,
+) -> Dict:
+    """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
+    from campaign.patchharness import applied
+    if do_build:
+        admission = require_build_admission(admission)
+    genome = Genome("silo", dict(_BASE))
+    layout.ensure()
+    ident.ensure_campaign_identity(campaign_cfg, layout)
+
+    with applied(_template_patch_path(_repo_root()), PIN, sub):
+        gate = _quarantine_and_audit(
+            sub, coder, auditor, genome, layout, state, planner,
+            write=do_build, contract=contract, log=log,
+        )
+        if gate is not None:
+            return _with_campaign_location(gate, campaign_cfg, layout)
+        if not do_build:
+            return _with_campaign_location(
+                {"outcome": "dry-pass", "variant": None}, campaign_cfg, layout,
+            )
+        campaign_options = {}
+        if resolved_site == site_policy.PEGASUS_COMPUTE:
+            campaign_options["env_contract"] = contract
+            if dependency_prefix:
+                campaign_options["dependency_prefix"] = dependency_prefix
+        summary = run_campaign(
+            campaign_cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
+            numactl=list(contract.numactl), log=log, ccbench_dir=sub,
+            cache_root=cache_root, admission=admission,
+            campaign_namespace="exploration",
+            **campaign_options,
+        )
+    execution_receipt = getattr(summary, "execution_receipt", None)
+    if execution_receipt is not None:
+        _append_provenance_entry(
+            layout, state.iteration,
+            _receipt_provenance(
+                site=resolved_site, contract=contract,
+                receipt=execution_receipt,
+            ),
+        )
+    v = next((r.variant for r in summary.results), None)
+    if v is None and summary.skipped > 0:
+        return _with_campaign_location(
+            _resolve_duplicate(layout, planner, state, summary, log=log),
+            campaign_cfg, layout,
+        )
+    recs = wal.records_by_stage(layout, v) if v else {}
+    r = summary.results[0] if summary.results else None
+    if r and r.certified and not r.aborted:
+        L.project_whiteboard(state, planner, "success", delta_pct=None)
+        return _with_campaign_location({
+            "outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
+            "verdict": r.verdict, "records": recs,
+        }, campaign_cfg, layout)
+    L.project_whiteboard(state, planner, "fail")
+    return _with_campaign_location({
+        "outcome": "aborted", "variant": v,
+        "verdict": (r.verdict if r else ""), "records": recs,
+    }, campaign_cfg, layout)
+
+
 def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                       coder: CoderProposalTriggerGating, auditor: AuditorVerdict,
                       state: L.LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
-                      cache_root: str = "",
+                      cache_root: str = "", *,
+                      dependency_prefix: str = "",
                       admission: Optional[BuildAdmission] = None) -> Dict:
     """1 iteration の機械部分 (sort 版と同型の構造。genome は _BASE をそのまま焼く —
     FLAG=1 は軸定数モジュールの _BASE に含まれる)。
@@ -396,46 +538,22 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     provenance は書かない (機械部)。実 LLM 駆動の funnel は `drive_iteration` で、
     そちらが記録義務を担う (fixture main 直呼びは配線確認専用 = 偵察 insight 非依拠、
     レビュー FC-7 裁定)。"""
-    from campaign.patchharness import applied
-    if do_build:
-        admission = require_build_admission(admission)
-    genome = Genome("silo", dict(_BASE))
+    resolved_site = _current_site()
+    contract = _admit_env_contract(resolved_site)
+    campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
     if layout is None:
-        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
     elif do_build and layout.root != exploration_campaign_layout(
-            str(ident.campaign_id(cfg))).root:
+            str(ident.campaign_id(campaign_cfg))).root:
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
-    layout.ensure()
-    # auditor/syntax/diff reject より先に、repair 無しで campaign identity を確立する。
-    ident.ensure_campaign_identity(cfg, layout)
-
-    with applied(_template_patch_path(_repo_root()), PIN, sub):
-        gate = _quarantine_and_audit(sub, coder, auditor, genome, layout, state, planner,
-                                     write=do_build, log=log)
-        if gate is not None:
-            return gate
-        if not do_build:
-            return {"outcome": "dry-pass", "variant": None}
-        contract = _admit_env_contract()
-        summary = run_campaign(
-            cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
-            numactl=list(contract.numactl), log=log, ccbench_dir=sub,
-            cache_root=cache_root, admission=admission,
-            campaign_namespace="exploration",
-        )
-    v = next((r.variant for r in summary.results), None)
-    if v is None and summary.skipped > 0:
-        return _resolve_duplicate(layout, planner, state, summary, log=log)
-    recs = wal.records_by_stage(layout, v) if v else {}
-    r = summary.results[0] if summary.results else None
-    if r and r.certified and not r.aborted:
-        L.project_whiteboard(state, planner, "success", delta_pct=None)
-        return {"outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
-                "verdict": r.verdict, "records": recs}
-    L.project_whiteboard(state, planner, "fail")
-    return {"outcome": "aborted", "variant": v,
-            "verdict": (r.verdict if r else ""), "records": recs}
+    _assert_resume_allowed(contract, layout)
+    return _run_one_iteration_resolved(
+        campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
+        layout, contract, resolved_site, log=log, cache_root=cache_root,
+        dependency_prefix=dependency_prefix,
+        admission=admission,
+    )
 
 
 # ==== 駆動口 (実 planner/coder/auditor proposal を受けて 1 iteration を継続) ======
@@ -478,7 +596,8 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
                     layout: Optional[CampaignLayout] = None, log=print,
                     cache_root: str = "", proposal_path: str = "",
-                    extra_sources: Sequence[Dict[str, str]] = (),
+                    extra_sources: Sequence[Dict[str, str]] = (), *,
+                    dependency_prefix: str = "",
                     admission: Optional[BuildAdmission] = None) -> Dict:
     """段 8a trigger-gating の 1 iteration をメインセッション駆動で回す (sort 版と
     同型の骨格 + provenance 配線)。
@@ -489,8 +608,12 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
          iteration は checkpoint が前進しない → 再開時に WAL replay (重複解決) 経由で
          同 iteration が再記録される (duplicate 経路も entry を書く)
     """
+    resolved_site = _current_site()
+    contract = _admit_env_contract(resolved_site)
+    campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
     if layout is None:
-        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
+    _assert_resume_allowed(contract, layout)
     layout.ensure()
     _write_provenance_header(layout, extra_sources=extra_sources)
     state = L.load_loop_state(layout)
@@ -502,13 +625,18 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     if pre.stop:
         L.save_loop_state(layout, state)
         log(f"  入口停止 (iteration 消費せず): {pre.reason}")
-        return {"outcome": "stopped-before", "variant": None,
-                "stop_reason": pre.reason, "iteration": state.iteration, "ran": False}
+        return _with_campaign_location({
+            "outcome": "stopped-before", "variant": None,
+            "stop_reason": pre.reason, "iteration": state.iteration, "ran": False,
+        }, campaign_cfg, layout)
 
     state.iteration += 1
-    out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
-                            do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root, admission=admission)
+    out = _run_one_iteration_resolved(
+        campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
+        layout, contract, resolved_site, log=log, cache_root=cache_root,
+        dependency_prefix=dependency_prefix,
+        admission=admission,
+    )
     _append_provenance_entry(layout, state.iteration, {
         "proposal_path": proposal_path,
         "auditor_diff_digest": auditor.diff_digest,
@@ -618,7 +746,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   proposal_path=os.path.abspath(a.run_iteration),
                                   extra_sources=extra_sources,
                                   admission=admission)
-        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+        expected_layout = exploration_campaign_layout(out["campaign_id"])
+        layout = CampaignLayout(out["layout_root"])
+        if layout.root != expected_layout.root:
+            raise ValueError("返却された campaign_id と exploration layout_root が一致しない")
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
         print(f"  停止判定: {out['stop_reason']}")
@@ -655,7 +786,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                                 admission=admission)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
-    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    expected_layout = exploration_campaign_layout(out["campaign_id"])
+    layout = CampaignLayout(out["layout_root"])
+    if layout.root != expected_layout.root:
+        raise ValueError("返却された campaign_id と exploration layout_root が一致しない")
     digest_txt = L.make_critic_digest(layout, tag=CRITIC_TAG, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, DIGEST_BASENAME)
     layout.ensure()
