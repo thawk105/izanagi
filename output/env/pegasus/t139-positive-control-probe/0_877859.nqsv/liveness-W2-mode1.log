@@ -1,0 +1,77 @@
+#FLAGS_clocks_per_us:	2100
+#FLAGS_epoch_time:	40
+#FLAGS_extime:		3
+#FLAGS_thread_num:	48
+#FLAGS_ycsb_max_ope:	10
+#FLAGS_ycsb_rmw:	0
+#FLAGS_ycsb_rratio:	50
+#FLAGS_ycsb_tuple_num:	100000
+#FLAGS_ycsb_zipf_skew:	0.5
+izanagi_t139_pc.worker[29]=1
+izanagi_t139_pc.worker[41]=1
+izanagi_t139_pc.worker[26]=1
+izanagi_t139_pc.worker[40]=1
+izanagi_t139_pc.worker[36]=1
+izanagi_t139_pc.worker[14]=1
+izanagi_t139_pc.worker[20]=1
+izanagi_t139_pc.worker[33]=1
+izanagi_t139_pc.worker[7]=1
+izanagi_t139_pc.worker[43]=1
+izanagi_t139_pc.worker[45]=1
+izanagi_t139_pc.worker[5]=1
+izanagi_t139_pc.worker[47]=1
+izanagi_t139_pc.worker[24]=1
+izanagi_t139_pc.worker[42]=1
+izanagi_t139_pc.worker[11]=1
+izanagi_t139_pc.worker[34]=1
+izanagi_t139_pc.worker[30]=1
+izanagi_t139_pc.worker[35]=1
+izanagi_t139_pc.worker[10]=1
+izanagi_t139_pc.worker[3]=1
+izanagi_t139_pc.worker[12]=1
+izanagi_t139_pc.worker[46]=1
+izanagi_t139_pc.worker[27]=1
+izanagi_t139_pc.worker[25]=1
+izanagi_t139_pc.worker[6]=1
+izanagi_t139_pc.worker[44]=1
+izanagi_t139_pc.worker[16]=1
+izanagi_t139_pc.worker[1]=1
+izanagi_t139_pc.worker[2]=1
+izanagi_t139_pc.worker[15]=1
+izanagi_t139_pc.worker[8]=1
+izanagi_t139_pc.worker[0]=1
+izanagi_t139_pc.worker[38]=1
+izanagi_t139_pc.worker[22]=1
+izanagi_t139_pc.worker[39]=1
+izanagi_t139_pc.worker[32]=1
+izanagi_t139_pc.worker[9]=1
+izanagi_t139_pc.worker[18]=1
+izanagi_t139_pc.worker[37]=1
+izanagi_t139_pc.worker[31]=1
+izanagi_t139_pc.worker[17]=1
+izanagi_t139_pc.worker[19]=1
+izanagi_t139_pc.worker[4]=1
+izanagi_t139_pc.worker[21]=1
+izanagi_t139_pc.worker[23]=1
+izanagi_t139_pc.worker[28]=1
+izanagi_t139_pc.worker[13]=1
+#ShowOptParameters(): ADD_ANALYSIS 1: BACK_OFF 0: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0
+actual_extime:	3
+extra_reads:	1151
+make_procedure_latency_rate:	0.0074
+other_work_latency_rate:	0.0355
+read_latency_rate:	0.0785
+tree_traversal:	43336185
+write_latency_rate:	0.0276
+vali_latency_rate:	0.8510
+version_malloc:	0
+success_forwarding_:	0
+abort_counts_:	1291501
+batch_abort_counts_:	0
+commit_counts_:	3042968
+batch_commit_counts_:	0
+maxrss:	135860 kB
+abort_rate:	0.2980
+batch_abort_rate:	-nan
+latency[ns]:	47322.2507
+throughput[tps]:	1014322

@@ -1,0 +1,7 @@
+arm	mode1_symbols	mode2_symbols	trace_symbols
+stock	0	0	0
+mode1	1	0	0
+mode2	0	1	0
+stock-live	0	0	0
+mode1-live	1	0	0
+mode2-live	0	1	0
