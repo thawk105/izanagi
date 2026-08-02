@@ -1087,10 +1087,13 @@ docstring は「意味的逸脱の完全性は source_digest の preprocess 後�
 担う」と書いていたが、source_digest は identity しか束縛せず、auditor は自己申告 digest の
 一致しか証明しない。実態へ訂正した (D125 決定 (6))。
 
-**受入。** Pegasus gen_S 計算ノードで全走 3 回。1 回目 = 14 failed / 5059 passed、
+**受入。** Pegasus gen_S 計算ノードで全走 4 回。1 回目 = 14 failed / 5059 passed、
 2 回目 = 2 failed / 5092 passed、3 回目 (request `877868`) = 1 failed / 5093 passed で、
-残る 1 本は本エントリ執筆前の docs 未記載 (D125 不在) による `check_docs` 赤であり、
-D125 追記後に `python3 tools/check_docs.py` が緑になった。**最終全走は記録 commit 後に再走する。**
+残る 1 本は本エントリ執筆前の docs 未記載 (D125 不在) による `check_docs` 赤だった。
+D125 追記後の**記録 commit 後の最終全走 (request `877900`) = 5094 passed / 19 skipped / 0 failed、
+rc=0**。provenance 全履歴監査も rc=0。変異本走は M01〜M05 の全 5 変異が KILLED で、
+M01 だけで materializer (legacy / v2)・`pipeline.evaluate()`・loop / screening・coder driver 5 本・
+qualification の 11 node が独立に赤くなった (台帳と erratum は insights)。
 1 回目の赤のうち 10 本は `t080_freeze_migration` の `known_axes.source_closure`
 (「changed 12 / unchanged 51 が成立しない」) で、これは **path でも role 名 key でもなく
 「変更ファイル数」で張られた pin** である。親が段 1 の DW-O09 閉包列挙で取り逃した型だった。
