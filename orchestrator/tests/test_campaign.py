@@ -14,6 +14,7 @@ import contextlib
 import errno
 import fcntl
 import hashlib
+import inspect
 import json
 import os
 import shutil
@@ -1211,7 +1212,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    high_variance=False, unstable=False, competing=None,
                    trace_timeout=False, probe_raises=None,
                    bench_rounds=None, round_binding="unique",
-                   trace_content=None):
+                   trace_content=None, site_compilers=None):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。
@@ -1223,6 +1224,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             self.events = []
             self.builds = []
             self.build_roots = []
+            self.build_options = []
+            self.source_resolve_calls = []
             self.lock_enters = 0
             self.competition_probes = 0
 
@@ -1285,9 +1288,13 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
     def fake_build_v2(genome, *, contract, ccbench_commit, trace, src_token,
-                      cc, cxx, cache_root, ccbench_dir="", timeout_s=None):
+                      cc, cxx, cache_root, ccbench_dir="", timeout_s=None,
+                      dependency_prefix=""):
         bench_calls.builds.append(("v2", trace, contract.contract_sha256))
         bench_calls.build_roots.append(ccbench_dir)
+        bench_calls.build_options.append({
+            "cc": cc, "cxx": cxx, "dependency_prefix": dependency_prefix,
+        })
         if build_raises:
             raise RuntimeError("build boom")
         bin_sha256 = ("da" if trace else "db") * 32
@@ -1302,14 +1309,26 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         build=fake_build, build_v2=fake_build_v2,
         is_full_sha256=buildcache.is_full_sha256,
         _ccbench_dir=buildcache._ccbench_dir,
-        DEFAULT_CC=buildcache.DEFAULT_CC, DEFAULT_CXX=buildcache.DEFAULT_CXX))
+        DEFAULT_CC=buildcache.DEFAULT_CC, DEFAULT_CXX=buildcache.DEFAULT_CXX,
+        compilers_for_current_site=lambda: (
+            site_compilers
+            or (buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX)
+        )))
+    patch(
+        "_compilers_for_current_site",
+        lambda: site_compilers or (buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX),
+    )
     # source_digest は identity 核 (実 git/g++ 依存)。pipeline の段階遷移テストでは
     # mock し stock 固定 (source_digest 自体は専用テストで実機検証する)。
+    def fake_source_resolve(*args, **kwargs):
+        bench_calls.source_resolve_calls.append((args, kwargs))
+        return "stock"
+
     patch("source_digest", types.SimpleNamespace(
         STOCK="stock",
         assert_worktree_within_allowlist=lambda *a, **k: None,
         src_token=lambda *a, **k: "stock",
-        resolve=lambda *a, **k: "stock"))
+        resolve=fake_source_resolve))
     if trace_timeout:
         def _raise_timeout(*a, **k):
             bench_calls.trace.append(1)
@@ -1414,6 +1433,32 @@ def test_pipeline_env_contract_opt_in_uses_v2_for_trace_and_perf_only():
         ("v2", True, contract.contract_sha256),
         ("v2", False, contract.contract_sha256),
     ]
+    assert calls.build_options == [{
+        "cc": buildcache.DEFAULT_CC,
+        "cxx": buildcache.DEFAULT_CXX,
+        "dependency_prefix": "",
+    }] * 2
+
+
+def test_m12_pipeline_compute_uses_gxx_for_source_digest_and_v2_builds():
+    lay = _tmp_layout()
+    contract = ec.lookup("pegasus")
+    prefix = "/scr/job/gflags;/scr/job/glog"
+    with _mock_pipeline(certified=True, site_compilers=("gcc", "g++")) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "pegasus", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=2100,
+            do_bench=False, env_contract=contract, dependency_prefix=prefix,
+            log=lambda *a: None,
+        )
+    assert result.certified and not result.aborted
+    assert calls.source_resolve_calls == [(
+        (Genome("silo", {"BACK_OFF": 1}), "deadbeef", "", "g++"), {},
+    )]
+    assert calls.build_options == [{
+        "cc": "gcc", "cxx": "g++", "dependency_prefix": prefix,
+    }] * 2
+    assert "site" not in inspect.signature(pipeline.evaluate).parameters
 
 
 def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds():
@@ -2182,7 +2227,15 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
                                      unstable=False, cv_history=[cv])
 
     patch("buildcache", types.SimpleNamespace(
-        build=fake_build, is_full_sha256=buildcache.is_full_sha256))
+        build=fake_build, is_full_sha256=buildcache.is_full_sha256,
+        DEFAULT_CXX=buildcache.DEFAULT_CXX,
+        compilers_for_current_site=lambda: (
+            buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX,
+        )))
+    patch(
+        "_compilers_for_current_site",
+        lambda: (buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX),
+    )
     patch("source_digest", types.SimpleNamespace(
         STOCK="stock", assert_worktree_within_allowlist=lambda *a, **k: None,
         src_token=lambda *a, **k: "stock", resolve=lambda *a, **k: "stock"))
@@ -2528,6 +2581,114 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     assert captured["extra_correctness"] is None
+
+
+def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
+    from campaign import loop as L
+
+    captured = {"resolve": [], "evaluate": []}
+    contract = ec.lookup("pegasus")
+    prefix = "/scr/job/gflags;/scr/job/glog"
+
+    def resolve(*args, **kwargs):
+        captured["resolve"].append((args, kwargs))
+        return "stock"
+
+    def fake_eval(g, *args, **kwargs):
+        captured["evaluate"].append(kwargs)
+        return EvalResult(
+            genome=g, variant=pipeline.variant_id(g, kwargs["src_token"]),
+            certified=True, aborted=False, fitness_tps=1.0,
+        )
+
+    out_root = _tmpdir("izanagi_loop_compute_cxx_")
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="compute-cxx",
+        ccbench_commit="deadbeef",
+    )
+    saved_eval, saved_sd = L.evaluate, L.source_digest
+    saved_compilers = L._compilers_for_current_site
+    saved_authorize = L._authorize_measurement
+    L.evaluate = fake_eval
+    L.source_digest = types.SimpleNamespace(STOCK="stock", resolve=resolve)
+    L._compilers_for_current_site = lambda: ("gcc", "g++")
+    L._authorize_measurement = lambda *args, **kwargs: {"fixture": "receipt"}
+    try:
+        summary = L.run_campaign(
+            cfg, [Genome("silo", {"BACK_OFF": 1})],
+            PerfConfig(records=1, threads=1), "pegasus", 2100,
+            do_bench=False, output_root=out_root, log=lambda *a: None,
+            env_contract=contract, dependency_prefix=prefix,
+            numactl=contract.numactl,
+        )
+    finally:
+        L.evaluate, L.source_digest = saved_eval, saved_sd
+        L._compilers_for_current_site = saved_compilers
+        L._authorize_measurement = saved_authorize
+
+    assert captured["resolve"][0][0][-1] == "g++"
+    assert captured["evaluate"][0]["env_contract"] == contract
+    assert captured["evaluate"][0]["dependency_prefix"] == prefix
+    assert "site" not in inspect.signature(L.run_campaign).parameters
+    assert summary.campaign_id == str(ident.campaign_id(cfg))
+    assert summary.execution_receipt == {"fixture": "receipt"}
+
+
+def test_required_contract_is_attested_once_at_run_campaign_sink():
+    from campaign import loop as L
+
+    contract = ec.lookup("pegasus")
+    receipt = {"schema": "fixture-required-receipt"}
+    verified = object()
+    order = []
+    saved = {
+        "load": L.env_attestation.load_verified_calibration,
+        "attest": L.execution_guard.attest_and_build_receipt,
+        "matches": L.execution_guard.receipt_matches_contract,
+        "evaluate": L.evaluate,
+        "source_digest": L.source_digest,
+    }
+    L.env_attestation.load_verified_calibration = (
+        lambda loaded, root: order.append("load") or verified
+    )
+    L.execution_guard.attest_and_build_receipt = (
+        lambda loaded, calibration: order.append("attest") or receipt
+    )
+    L.execution_guard.receipt_matches_contract = (
+        lambda loaded, **kwargs: order.append("matches") or True
+    )
+
+    def fake_eval(genome, *args, **kwargs):
+        order.append("evaluate")
+        return EvalResult(
+            genome=genome, variant=pipeline.variant_id(genome, kwargs["src_token"]),
+            certified=True, aborted=False,
+        )
+
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="required-attestation-once",
+        ccbench_commit="deadbeef",
+    )
+    out_root = _tmpdir("izanagi_loop_attestation_once_")
+    try:
+        summary = L.run_campaign(
+            cfg,
+            [Genome("silo", {"BACK_OFF": 0}), Genome("silo", {"BACK_OFF": 1})],
+            PerfConfig(records=1, threads=1), contract.env_tag,
+            contract.clocks_per_us, numactl=contract.numactl,
+            do_bench=False, output_root=out_root, log=lambda *a: None,
+            env_contract=contract,
+        )
+    finally:
+        L.env_attestation.load_verified_calibration = saved["load"]
+        L.execution_guard.attest_and_build_receipt = saved["attest"]
+        L.execution_guard.receipt_matches_contract = saved["matches"]
+        L.evaluate = saved["evaluate"]
+        L.source_digest = saved["source_digest"]
+    assert order == ["load", "attest", "matches", "evaluate", "evaluate"]
+    assert summary.execution_receipt is receipt
 
 
 # ===== STAGE2: campaign ループの堅牢性 (例外隔離 / run 内 dedup) =====
